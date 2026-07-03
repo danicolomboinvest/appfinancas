@@ -1,0 +1,297 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  CLIENT
+}
+
+enum EntryCategory {
+  INCOME
+  EXPENSE
+  INVESTMENT_CONTRIBUTION
+}
+
+enum GoalStatus {
+  NOT_STARTED
+  ON_TRACK
+  BEHIND
+  ACHIEVED
+}
+
+enum AssetClass {
+  RENDA_FIXA
+  ACAO
+  FII
+  TESOURO_DIRETO
+  FUNDO
+  CRIPTO
+  OUTRO
+}
+
+enum SimulationType {
+  FINANCIAR_VS_ALUGAR
+  AMORTIZAR_VS_INVESTIR
+  CONSORCIO_VS_FINANCIAMENTO
+  MARCACAO_MERCADO
+  CARRO
+}
+
+enum SheetType {
+  STOCK
+  FII
+}
+
+enum FiiType {
+  TIJOLO
+  PAPEL
+  HIBRIDO
+  FUNDO_DE_FUNDOS
+}
+
+enum RateBasis {
+  ANNUAL_252
+  ANNUAL_365
+  MONTHLY
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String?
+  role         Role     @default(CLIENT)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  monthlyEntries       MonthlyEntry[]
+  assets               Asset[]
+  goals                Goal[]
+  emergencyFund        EmergencyFund?
+  planningParams       PlanningParams?
+  simulations          Simulation[]
+  analysisSheets       AnalysisSheet[]
+  referenceRates       ReferenceRate[]
+  yearlyConsolidations YearlyConsolidationCache[]
+  accumulationCache    AccumulationProjectionCache[]
+
+  asAdvisorLinks AdvisorClientLink[] @relation("advisor")
+  asClientLinks  AdvisorClientLink[] @relation("client")
+}
+
+model AdvisorClientLink {
+  id        String   @id @default(cuid())
+  advisorId String
+  clientId  String
+  status    String // INVITED | ACTIVE | REVOKED
+  advisor   User     @relation("advisor", fields: [advisorId], references: [id])
+  client    User     @relation("client", fields: [clientId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([advisorId, clientId])
+}
+
+/// Tabela de premissas/taxas de referência editáveis (CDI, IPCA, Selic...).
+/// userId nulo = taxa padrão global (seed do sistema).
+model ReferenceRate {
+  id            String    @id @default(cuid())
+  userId        String?
+  user          User?     @relation(fields: [userId], references: [id])
+  name          String
+  rateValue     Decimal   @db.Decimal(12, 6)
+  basis         RateBasis
+  effectiveDate DateTime
+  createdAt     DateTime  @default(now())
+
+  @@index([userId])
+}
+
+/// Lançamento mensal — substitui as 12 abas Jan..Dez da planilha original.
+model MonthlyEntry {
+  id          String        @id @default(cuid())
+  userId      String
+  user        User          @relation(fields: [userId], references: [id])
+  year        Int
+  month       Int
+  category    EntryCategory
+  subcategory String?
+  description String?
+  amount      Decimal       @db.Decimal(18, 2)
+  goalId      String?
+  goal        Goal?         @relation(fields: [goalId], references: [id])
+  createdAt   DateTime      @default(now())
+
+  @@index([userId, year, month])
+}
+
+/// Cache opcional de consolidação anual (substitui Database -> Pivôs -> Consolidado do Ano).
+/// Só deve ser preenchido/usado se aggregation queries diretas apresentarem latência real.
+model YearlyConsolidationCache {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id])
+  year            Int
+  totalIncome     Decimal  @db.Decimal(18, 2)
+  totalExpense    Decimal  @db.Decimal(18, 2)
+  totalInvestment Decimal  @db.Decimal(18, 2)
+  balance         Decimal  @db.Decimal(18, 2)
+  updatedAt       DateTime @updatedAt
+
+  @@unique([userId, year])
+}
+
+/// Metas múltiplas (uma linha por meta na planilha original).
+model Goal {
+  id                  String         @id @default(cuid())
+  userId              String
+  user                User           @relation(fields: [userId], references: [id])
+  name                String
+  targetAmount        Decimal        @db.Decimal(18, 2)
+  targetDate          DateTime?
+  currentAmount       Decimal        @default(0) @db.Decimal(18, 2)
+  monthlyContribution Decimal?       @db.Decimal(18, 2)
+  annualRate          Decimal?       @db.Decimal(12, 6)
+  status              GoalStatus     @default(NOT_STARTED)
+  entries             MonthlyEntry[]
+  assets              Asset[]
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+}
+
+/// Reserva de emergência.
+model EmergencyFund {
+  id                  String   @id @default(cuid())
+  userId              String   @unique
+  user                User     @relation(fields: [userId], references: [id])
+  targetMonths        Int
+  monthlyExpenseBase  Decimal  @db.Decimal(18, 2)
+  targetAmount        Decimal  @db.Decimal(18, 2)
+  currentAmount       Decimal  @default(0) @db.Decimal(18, 2)
+  monthlyContribution Decimal  @db.Decimal(18, 2)
+  annualRate          Decimal  @db.Decimal(12, 6)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+/// Núcleo "Planejamento Financeiro" (acúmulo + usufruto).
+model PlanningParams {
+  id                              String   @id @default(cuid())
+  userId                          String   @unique
+  user                            User     @relation(fields: [userId], references: [id])
+  currentAge                      Int
+  retirementAge                   Int
+  lifeExpectancyAge               Int?
+  currentPatrimony                Decimal  @db.Decimal(18, 2)
+  monthlyContributionAccumulation Decimal  @db.Decimal(18, 2)
+  accumulationAnnualRate          Decimal  @db.Decimal(12, 6)
+  inflationAnnualRate             Decimal  @db.Decimal(12, 6)
+  usufructAnnualRate              Decimal  @db.Decimal(12, 6)
+  desiredPassiveIncome            Decimal  @db.Decimal(18, 2)
+  otherPassiveIncome              Decimal  @default(0) @db.Decimal(18, 2)
+  createdAt                       DateTime @default(now())
+  updatedAt                       DateTime @updatedAt
+}
+
+/// Cache opcional da projeção ano a ano (equivalente "Base Dash acum").
+model AccumulationProjectionCache {
+  id                String   @id @default(cuid())
+  userId            String
+  user              User     @relation(fields: [userId], references: [id])
+  year              Int
+  age               Int
+  contributions     Decimal  @db.Decimal(18, 2)
+  interestEarned    Decimal  @db.Decimal(18, 2)
+  endingBalanceNom  Decimal  @db.Decimal(18, 2)
+  endingBalanceReal Decimal  @db.Decimal(18, 2)
+  updatedAt         DateTime @updatedAt
+
+  @@unique([userId, year])
+}
+
+/// Minha Carteira.
+model Asset {
+  id                     String     @id @default(cuid())
+  userId                 String
+  user                   User       @relation(fields: [userId], references: [id])
+  name                   String
+  ticker                 String?
+  assetClass             AssetClass
+  goalId                 String?
+  goal                   Goal?      @relation(fields: [goalId], references: [id])
+  quantity               Decimal?   @db.Decimal(18, 6)
+  currentUnitPrice       Decimal?   @db.Decimal(18, 6)
+  currentValue           Decimal    @db.Decimal(18, 2)
+  idealAllocationPercent Decimal?   @db.Decimal(6, 3)
+  acquisitionDate        DateTime?
+  notes                  String?
+  createdAt              DateTime   @default(now())
+  updatedAt              DateTime   @updatedAt
+}
+
+/// Histórico opcional de simulações (financiar vs alugar, consórcio, marcação a mercado, carro).
+model Simulation {
+  id         String         @id @default(cuid())
+  userId     String
+  user       User           @relation(fields: [userId], references: [id])
+  type       SimulationType
+  name       String?
+  inputJson  Json
+  outputJson Json
+  createdAt  DateTime       @default(now())
+}
+
+/// Catálogo compartilhado de critérios das fichas de análise (Ações / FIIs).
+/// Editável pela educadora (ADMIN) sem necessidade de deploy.
+model AnalysisCriterionDefinition {
+  id        String             @id @default(cuid())
+  sheetType SheetType
+  key       String
+  label     String
+  helpText  String? // tooltip "onde encontrar os dados"
+  category  String? // agrupamento qualitativo/quantitativo
+  weight    Decimal?           @db.Decimal(6, 3)
+  order     Int
+  active    Boolean            @default(true)
+  responses AnalysisResponse[]
+
+  @@unique([sheetType, key])
+}
+
+/// Ficha de análise de Ações ou FIIs preenchida por um usuário.
+model AnalysisSheet {
+  id           String             @id @default(cuid())
+  userId       String
+  user         User               @relation(fields: [userId], references: [id])
+  sheetType    SheetType
+  ticker       String
+  companyName  String?
+  fiiType      FiiType?
+  analysisDate DateTime           @default(now())
+  totalScore   Decimal?           @db.Decimal(8, 2)
+  conclusion   String?
+  responses    AnalysisResponse[]
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+}
+
+model AnalysisResponse {
+  id          String                      @id @default(cuid())
+  sheetId     String
+  sheet       AnalysisSheet               @relation(fields: [sheetId], references: [id], onDelete: Cascade)
+  criterionId String
+  criterion   AnalysisCriterionDefinition @relation(fields: [criterionId], references: [id])
+  value       String?
+  score       Decimal?                    @db.Decimal(6, 2)
+  note        String?
+
+  @@unique([sheetId, criterionId])
+}
