@@ -11,7 +11,11 @@ const NAV_ITEMS = [
   { href: "/planejamento/reserva-emergencia", label: "Reserva de emergência" },
   { href: "/planejamento/metas", label: "Metas" },
   { href: "/carteira", label: "Carteira" },
-  { href: "/simuladores/financiar-vs-alugar", label: "Simuladores" },
+  { href: "/simuladores/financiar-vs-alugar", label: "Simulador — Financiar vs Alugar" },
+  { href: "/simuladores/amortizar-vs-investir", label: "Simulador — Amortizar vs Investir" },
+  { href: "/simuladores/consorcio", label: "Simulador — Consórcio" },
+  { href: "/simuladores/marcacao-mercado", label: "Simulador — Marcação a Mercado" },
+  { href: "/simuladores/carro", label: "Simulador — Carro" },
   { href: "/fichas/acoes", label: "Fichas de análise" },
 ];
 
