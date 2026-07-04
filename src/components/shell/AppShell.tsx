@@ -19,7 +19,10 @@ export function AppShell({
   const [, startTransition] = useTransition();
 
   useEffect(() => {
+    // Lido só depois de montar (não na inicialização do estado) para o HTML do
+    // primeiro render no cliente bater com o do servidor e evitar erro de hidratação.
     const stored = window.localStorage.getItem("sidebar-collapsed");
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sincroniza com localStorage, uma API externa ao React
     if (stored === "true") setCollapsed(true);
   }, []);
 
