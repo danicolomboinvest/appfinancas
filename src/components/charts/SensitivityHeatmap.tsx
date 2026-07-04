@@ -9,9 +9,9 @@ function formatDuration(years: number) {
 }
 
 function cellColor(value: number) {
-  if (value > 0.005) return "bg-green-100";
-  if (value < -0.005) return "bg-red-100";
-  return "bg-black/5";
+  if (value > 0.005) return "bg-success-soft text-success";
+  if (value < -0.005) return "bg-danger-soft text-danger";
+  return "bg-surface-2 text-ink-muted";
 }
 
 export function SensitivityHeatmap({ rows }: { rows: SensitivityRow[] }) {
@@ -23,9 +23,9 @@ export function SensitivityHeatmap({ rows }: { rows: SensitivityRow[] }) {
       <table className="w-full text-left text-xs">
         <thead>
           <tr>
-            <th className="p-2 text-black/60">Duration</th>
+            <th className="p-2 font-medium text-ink-muted">Duration</th>
             {rateChanges.map((delta) => (
-              <th key={delta} className="p-2 text-center text-black/60">
+              <th key={delta} className="p-2 text-center font-medium text-ink-muted">
                 {(delta * 100).toFixed(1)}%
               </th>
             ))}
@@ -34,9 +34,9 @@ export function SensitivityHeatmap({ rows }: { rows: SensitivityRow[] }) {
         <tbody>
           {rows.map((row) => (
             <tr key={row.durationYears}>
-              <td className="p-2 font-medium">{formatDuration(row.durationYears)}</td>
+              <td className="p-2 font-medium text-ink">{formatDuration(row.durationYears)}</td>
               {row.cells.map((cell) => (
-                <td key={cell.rateChange} className={`p-2 text-center ${cellColor(cell.approxReturn)}`}>
+                <td key={cell.rateChange} className={`rounded-md p-2 text-center ${cellColor(cell.approxReturn)}`}>
                   {(cell.approxReturn * 100).toFixed(2)}%
                 </td>
               ))}

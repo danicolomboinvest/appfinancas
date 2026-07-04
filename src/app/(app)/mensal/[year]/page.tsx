@@ -1,7 +1,11 @@
 import Link from "next/link";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
 import { getYearlySummary } from "@/lib/consolidation/yearly";
 import { YearlyBarChart } from "@/components/charts/YearlyBarChart";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { StatCard } from "@/components/ui/StatCard";
+import { Card } from "@/components/ui/Card";
 
 const MONTH_LABELS = [
   "Janeiro",
@@ -29,72 +33,73 @@ export default async function YearPage(props: PageProps<"/mensal/[year]">) {
   const summary = await getYearlySummary(ctx, year);
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">Controle mensal — {year}</h1>
-          <p className="mt-1 text-sm text-black/60">Consolidação automática dos 12 meses do ano.</p>
-        </div>
-        <div className="flex items-center gap-3 text-sm">
-          <Link href={`/mensal/${year - 1}`} className="underline">
-            ← {year - 1}
-          </Link>
-          <Link href={`/mensal/${year + 1}`} className="underline">
-            {year + 1} →
-          </Link>
-        </div>
-      </div>
+    <div className="flex flex-col gap-8">
+      <PageHeader
+        title={`Fluxo Financeiro — ${year}`}
+        subtitle="Consolidação automática dos 12 meses do ano."
+        action={
+          <div className="flex items-center gap-1">
+            <Link
+              href={`/mensal/${year - 1}`}
+              className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm text-ink-muted hover:bg-surface-2 hover:text-ink"
+            >
+              <ChevronLeft size={16} /> {year - 1}
+            </Link>
+            <Link
+              href={`/mensal/${year + 1}`}
+              className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm text-ink-muted hover:bg-surface-2 hover:text-ink"
+            >
+              {year + 1} <ChevronRight size={16} />
+            </Link>
+          </div>
+        }
+      />
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
-        <SummaryCard label="Renda" value={formatBRL(summary.totalIncome)} />
-        <SummaryCard label="Gastos" value={formatBRL(summary.totalExpense)} />
-        <SummaryCard label="Aportes" value={formatBRL(summary.totalInvestment)} />
-        <SummaryCard label="Saldo" value={formatBRL(summary.balance)} />
-        <SummaryCard
+        <StatCard label="Renda" value={formatBRL(summary.totalIncome)} tone="success" />
+        <StatCard label="Gastos" value={formatBRL(summary.totalExpense)} tone="danger" />
+        <StatCard label="Aportes" value={formatBRL(summary.totalInvestment)} />
+        <StatCard label="Saldo" value={formatBRL(summary.balance)} tone="gold" />
+        <StatCard
           label="Taxa de poupança"
           value={summary.savingsRate === null ? "—" : `${(summary.savingsRate * 100).toFixed(1)}%`}
         />
       </div>
 
-      <YearlyBarChart months={summary.months} />
+      <Card className="p-5">
+        <YearlyBarChart months={summary.months} />
+      </Card>
 
-      <table className="w-full text-left text-sm">
-        <thead>
-          <tr className="border-b border-black/10 text-black/60">
-            <th className="py-2">Mês</th>
-            <th className="py-2">Renda</th>
-            <th className="py-2">Gastos</th>
-            <th className="py-2">Aportes</th>
-            <th className="py-2">Saldo</th>
-            <th className="py-2"></th>
-          </tr>
-        </thead>
-        <tbody>
-          {summary.months.map((m) => (
-            <tr key={m.month} className="border-b border-black/5">
-              <td className="py-2">{MONTH_LABELS[m.month - 1]}</td>
-              <td className="py-2">{formatBRL(m.totalIncome)}</td>
-              <td className="py-2">{formatBRL(m.totalExpense)}</td>
-              <td className="py-2">{formatBRL(m.totalInvestment)}</td>
-              <td className="py-2">{formatBRL(m.balance)}</td>
-              <td className="py-2">
-                <Link href={`/mensal/${year}/${m.month}`} className="underline">
-                  Lançar
-                </Link>
-              </td>
+      <Card className="overflow-hidden">
+        <table className="w-full text-left text-sm">
+          <thead>
+            <tr className="border-b border-border bg-surface-2/50 text-ink-muted">
+              <th className="px-4 py-3 font-medium">Mês</th>
+              <th className="px-4 py-3 font-medium">Renda</th>
+              <th className="px-4 py-3 font-medium">Gastos</th>
+              <th className="px-4 py-3 font-medium">Aportes</th>
+              <th className="px-4 py-3 font-medium">Saldo</th>
+              <th className="px-4 py-3"></th>
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-function SummaryCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-lg border border-black/10 p-4">
-      <p className="text-xs text-black/60">{label}</p>
-      <p className="mt-1 text-lg font-semibold">{value}</p>
+          </thead>
+          <tbody>
+            {summary.months.map((m) => (
+              <tr key={m.month} className="border-b border-border/60 last:border-0 hover:bg-surface-2/40">
+                <td className="px-4 py-3 text-ink">{MONTH_LABELS[m.month - 1]}</td>
+                <td className="px-4 py-3 text-ink-muted">{formatBRL(m.totalIncome)}</td>
+                <td className="px-4 py-3 text-ink-muted">{formatBRL(m.totalExpense)}</td>
+                <td className="px-4 py-3 text-ink-muted">{formatBRL(m.totalInvestment)}</td>
+                <td className="px-4 py-3 text-ink-muted">{formatBRL(m.balance)}</td>
+                <td className="px-4 py-3">
+                  <Link href={`/mensal/${year}/${m.month}`} className="font-medium text-gold-strong hover:underline">
+                    Lançar
+                  </Link>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Card>
     </div>
   );
 }

@@ -3,6 +3,8 @@ import Link from "next/link";
 import { getRequiredSession } from "@/lib/auth/session";
 import { getOwnGoal } from "@/lib/repositories/goal.repo";
 import { computeGoalPlan } from "@/lib/planning/goal";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { StatCard } from "@/components/ui/StatCard";
 import { GoalForm } from "../GoalForm";
 import { DeleteGoalButton } from "../DeleteGoalButton";
 
@@ -35,23 +37,23 @@ export default async function GoalDetailPage(props: PageProps<"/planejamento/met
   });
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">{goal.name}</h1>
-          <Link href="/planejamento/metas" className="text-sm underline">
+    <div className="flex flex-col gap-8">
+      <PageHeader
+        title={goal.name}
+        subtitle={
+          <Link href="/planejamento/metas" className="text-gold-strong hover:underline">
             ← todas as metas
           </Link>
-        </div>
-        <DeleteGoalButton id={goal.id} />
-      </div>
+        }
+        action={<DeleteGoalButton id={goal.id} />}
+      />
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <SummaryCard label="Status" value={STATUS_LABEL[plan.status]} />
-        <SummaryCard label="Meses restantes" value={`${plan.monthsRemaining}`} />
-        <SummaryCard label="Valor guardado projetado na data-alvo" value={formatBRL(plan.futureValueOfSaved)} />
-        <SummaryCard label="Falta construir" value={formatBRL(plan.amountMissing)} />
-        <SummaryCard label="Aporte mensal sugerido" value={formatBRL(plan.requiredMonthlyContribution)} />
+        <StatCard label="Status" value={STATUS_LABEL[plan.status]} tone="gold" />
+        <StatCard label="Meses restantes" value={`${plan.monthsRemaining}`} />
+        <StatCard label="Valor guardado projetado na data-alvo" value={formatBRL(plan.futureValueOfSaved)} />
+        <StatCard label="Falta construir" value={formatBRL(plan.amountMissing)} tone="danger" />
+        <StatCard label="Aporte mensal sugerido" value={formatBRL(plan.requiredMonthlyContribution)} tone="success" />
       </div>
 
       <GoalForm
@@ -65,15 +67,6 @@ export default async function GoalDetailPage(props: PageProps<"/planejamento/met
           targetDate: targetDate.toISOString().slice(0, 10),
         }}
       />
-    </div>
-  );
-}
-
-function SummaryCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-lg border border-black/10 p-4">
-      <p className="text-xs text-black/60">{label}</p>
-      <p className="mt-1 text-lg font-semibold">{value}</p>
     </div>
   );
 }

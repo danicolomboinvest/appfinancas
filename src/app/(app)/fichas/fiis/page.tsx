@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { getRequiredSession } from "@/lib/auth/session";
 import { listSheets } from "@/lib/repositories/analysis.repo";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { Card } from "@/components/ui/Card";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { CreateFiiSheetForm } from "./CreateFiiSheetForm";
 
 const FII_TYPE_LABEL: Record<string, string> = {
@@ -15,47 +18,40 @@ export default async function FichasFiisPage() {
   const sheets = await listSheets(ctx, "FII");
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Fichas de Análise — FIIs</h1>
-        <p className="mt-1 text-sm text-black/60">Checklist de FIIs de tijolo e de papel, com dica de onde encontrar cada dado.</p>
-      </div>
+    <div className="flex flex-col gap-8">
+      <PageHeader title="Análises — FIIs" subtitle="Checklist de FIIs de tijolo e de papel, com dica de onde encontrar cada dado." />
 
       <CreateFiiSheetForm />
 
-      <table className="w-full text-left text-sm">
-        <thead>
-          <tr className="border-b border-black/10 text-black/60">
-            <th className="py-2">Ticker</th>
-            <th className="py-2">Fundo</th>
-            <th className="py-2">Tipo</th>
-            <th className="py-2">Data</th>
-            <th className="py-2">Nota geral</th>
-          </tr>
-        </thead>
-        <tbody>
-          {sheets.map((sheet) => (
-            <tr key={sheet.id} className="border-b border-black/5">
-              <td className="py-2">
-                <Link href={`/fichas/fiis/${sheet.id}`} className="underline">
-                  {sheet.ticker}
-                </Link>
-              </td>
-              <td className="py-2">{sheet.companyName ?? "—"}</td>
-              <td className="py-2">{sheet.fiiType ? FII_TYPE_LABEL[sheet.fiiType] : "—"}</td>
-              <td className="py-2">{sheet.analysisDate.toLocaleDateString("pt-BR")}</td>
-              <td className="py-2">{sheet.totalScore ? `${Number(sheet.totalScore).toFixed(1)} / 10` : "—"}</td>
+      <Card className="overflow-hidden">
+        <table className="w-full text-left text-sm">
+          <thead>
+            <tr className="border-b border-border bg-surface-2/50 text-ink-muted">
+              <th className="px-4 py-3 font-medium">Ticker</th>
+              <th className="px-4 py-3 font-medium">Fundo</th>
+              <th className="px-4 py-3 font-medium">Tipo</th>
+              <th className="px-4 py-3 font-medium">Data</th>
+              <th className="px-4 py-3 font-medium">Nota geral</th>
             </tr>
-          ))}
-          {sheets.length === 0 && (
-            <tr>
-              <td colSpan={5} className="py-4 text-center text-black/40">
-                Nenhuma ficha criada ainda.
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {sheets.map((sheet) => (
+              <tr key={sheet.id} className="border-b border-border/60 last:border-0 hover:bg-surface-2/40">
+                <td className="px-4 py-3">
+                  <Link href={`/fichas/fiis/${sheet.id}`} className="font-medium text-gold-strong hover:underline">
+                    {sheet.ticker}
+                  </Link>
+                </td>
+                <td className="px-4 py-3 text-ink-muted">{sheet.companyName ?? "—"}</td>
+                <td className="px-4 py-3 text-ink-muted">{sheet.fiiType ? FII_TYPE_LABEL[sheet.fiiType] : "—"}</td>
+                <td className="px-4 py-3 text-ink-muted">{sheet.analysisDate.toLocaleDateString("pt-BR")}</td>
+                <td className="px-4 py-3 text-ink">{sheet.totalScore ? `${Number(sheet.totalScore).toFixed(1)} / 10` : "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {sheets.length === 0 && <EmptyState message="Nenhuma ficha criada ainda." />}
+      </Card>
     </div>
   );
 }

@@ -2,6 +2,9 @@
 
 import Link from "next/link";
 import { useActionState } from "react";
+import { Gem } from "lucide-react";
+import { Field } from "@/components/ui/Field";
+import { Button } from "@/components/ui/Button";
 import { registerAction, type RegisterState } from "./actions";
 
 const initialState: RegisterState = {};
@@ -10,57 +13,47 @@ export default function RegisterPage() {
   const [state, formAction, isPending] = useActionState(registerAction, initialState);
 
   return (
-    <main className="flex min-h-screen items-center justify-center p-6">
-      <form action={formAction} className="w-full max-w-sm space-y-4 rounded-lg border border-black/10 p-6">
-        <h1 className="text-xl font-semibold">Criar conta</h1>
-        {state.error && <p className="text-sm text-red-600">{state.error}</p>}
-        <div className="space-y-1">
-          <label htmlFor="name" className="text-sm">
-            Nome
-          </label>
-          <input id="name" name="name" type="text" required className="w-full rounded border border-black/20 px-3 py-2" />
+    <main className="flex min-h-screen items-center justify-center bg-canvas p-6">
+      <div className="w-full max-w-sm animate-fade-in">
+        <div className="mb-8 flex flex-col items-center gap-3 text-center">
+          <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-gold-soft text-gold-strong">
+            <Gem size={22} strokeWidth={1.75} />
+          </span>
+          <div>
+            <h1 className="text-xl font-semibold tracking-tight text-ink">Criar conta</h1>
+            <p className="mt-1 text-sm text-ink-muted">Comece a organizar sua vida financeira hoje.</p>
+          </div>
         </div>
-        <div className="space-y-1">
-          <label htmlFor="email" className="text-sm">
-            Email
-          </label>
-          <input
-            id="email"
-            name="email"
-            type="email"
-            required
-            autoComplete="email"
-            className="w-full rounded border border-black/20 px-3 py-2"
-          />
-        </div>
-        <div className="space-y-1">
-          <label htmlFor="password" className="text-sm">
-            Senha
-          </label>
-          <input
+
+        <form
+          action={formAction}
+          className="flex flex-col gap-4 rounded-2xl border border-border bg-surface p-6 shadow-premium-sm"
+        >
+          {state.error && (
+            <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{state.error}</p>
+          )}
+          <Field label="Nome" id="name" name="name" type="text" required />
+          <Field label="Email" id="email" name="email" type="email" required autoComplete="email" />
+          <Field
+            label="Senha"
             id="password"
             name="password"
             type="password"
             required
             minLength={8}
             autoComplete="new-password"
-            className="w-full rounded border border-black/20 px-3 py-2"
           />
-        </div>
-        <button
-          type="submit"
-          disabled={isPending}
-          className="w-full rounded bg-black px-3 py-2 text-white disabled:opacity-50"
-        >
-          {isPending ? "Criando..." : "Criar conta"}
-        </button>
-        <p className="text-center text-sm">
-          Já tem conta?{" "}
-          <Link href="/login" className="underline">
-            Entrar
-          </Link>
-        </p>
-      </form>
+          <Button type="submit" disabled={isPending} className="w-full">
+            {isPending ? "Criando..." : "Criar conta"}
+          </Button>
+          <p className="text-center text-sm text-ink-muted">
+            Já tem conta?{" "}
+            <Link href="/login" className="font-medium text-gold-strong hover:underline">
+              Entrar
+            </Link>
+          </p>
+        </form>
+      </div>
     </main>
   );
 }

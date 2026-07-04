@@ -2,6 +2,10 @@ import Link from "next/link";
 import { getRequiredSession } from "@/lib/auth/session";
 import { listGoals } from "@/lib/repositories/goal.repo";
 import { computeGoalPlan } from "@/lib/planning/goal";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { Card } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { GoalForm } from "./GoalForm";
 import { DeleteGoalButton } from "./DeleteGoalButton";
 
@@ -9,11 +13,11 @@ function formatBRL(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
-const STATUS_LABEL: Record<string, string> = {
-  NOT_STARTED: "Sem prazo hábil",
-  ON_TRACK: "Em progresso",
-  BEHIND: "Atrasada",
-  ACHIEVED: "Concluída",
+const STATUS: Record<string, { label: string; tone: "neutral" | "success" | "danger" | "gold" }> = {
+  NOT_STARTED: { label: "Sem prazo hábil", tone: "neutral" },
+  ON_TRACK: { label: "Em progresso", tone: "gold" },
+  BEHIND: { label: "Atrasada", tone: "danger" },
+  ACHIEVED: { label: "Concluída", tone: "success" },
 };
 
 export default async function MetasPage() {
@@ -21,61 +25,57 @@ export default async function MetasPage() {
   const goals = await listGoals(ctx);
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Metas</h1>
-        <p className="mt-1 text-sm text-black/60">Cadastre metas com prazo e veja quanto precisa aportar por mês para chegar lá.</p>
-      </div>
+    <div className="flex flex-col gap-8">
+      <PageHeader title="Metas" subtitle="Cadastre metas com prazo e veja quanto precisa aportar por mês para chegar lá." />
 
       <GoalForm defaults={{}} submitLabel="Adicionar meta" />
 
-      <table className="w-full text-left text-sm">
-        <thead>
-          <tr className="border-b border-black/10 text-black/60">
-            <th className="py-2">Meta</th>
-            <th className="py-2">Alvo</th>
-            <th className="py-2">Guardado</th>
-            <th className="py-2">Data-alvo</th>
-            <th className="py-2">Aporte mensal sugerido</th>
-            <th className="py-2">Status</th>
-            <th className="py-2"></th>
-          </tr>
-        </thead>
-        <tbody>
-          {goals.map((goal) => {
-            const plan = computeGoalPlan({
-              targetAmount: Number(goal.targetAmount),
-              currentAmount: Number(goal.currentAmount),
-              targetDate: goal.targetDate ?? new Date(),
-              annualRate: Number(goal.annualRate ?? 0),
-            });
-            return (
-              <tr key={goal.id} className="border-b border-black/5">
-                <td className="py-2">
-                  <Link href={`/planejamento/metas/${goal.id}`} className="underline">
-                    {goal.name}
-                  </Link>
-                </td>
-                <td className="py-2">{formatBRL(Number(goal.targetAmount))}</td>
-                <td className="py-2">{formatBRL(Number(goal.currentAmount))}</td>
-                <td className="py-2">{goal.targetDate?.toLocaleDateString("pt-BR") ?? "—"}</td>
-                <td className="py-2">{formatBRL(plan.requiredMonthlyContribution)}</td>
-                <td className="py-2">{STATUS_LABEL[plan.status]}</td>
-                <td className="py-2">
-                  <DeleteGoalButton id={goal.id} />
-                </td>
-              </tr>
-            );
-          })}
-          {goals.length === 0 && (
-            <tr>
-              <td colSpan={7} className="py-4 text-center text-black/40">
-                Nenhuma meta cadastrada ainda.
-              </td>
+      <Card className="overflow-hidden">
+        <table className="w-full text-left text-sm">
+          <thead>
+            <tr className="border-b border-border bg-surface-2/50 text-ink-muted">
+              <th className="px-4 py-3 font-medium">Meta</th>
+              <th className="px-4 py-3 font-medium">Alvo</th>
+              <th className="px-4 py-3 font-medium">Guardado</th>
+              <th className="px-4 py-3 font-medium">Data-alvo</th>
+              <th className="px-4 py-3 font-medium">Aporte mensal sugerido</th>
+              <th className="px-4 py-3 font-medium">Status</th>
+              <th className="px-4 py-3"></th>
             </tr>
-          )}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {goals.map((goal) => {
+              const plan = computeGoalPlan({
+                targetAmount: Number(goal.targetAmount),
+                currentAmount: Number(goal.currentAmount),
+                targetDate: goal.targetDate ?? new Date(),
+                annualRate: Number(goal.annualRate ?? 0),
+              });
+              const status = STATUS[plan.status];
+              return (
+                <tr key={goal.id} className="border-b border-border/60 last:border-0 hover:bg-surface-2/40">
+                  <td className="px-4 py-3">
+                    <Link href={`/planejamento/metas/${goal.id}`} className="font-medium text-gold-strong hover:underline">
+                      {goal.name}
+                    </Link>
+                  </td>
+                  <td className="px-4 py-3 text-ink-muted">{formatBRL(Number(goal.targetAmount))}</td>
+                  <td className="px-4 py-3 text-ink-muted">{formatBRL(Number(goal.currentAmount))}</td>
+                  <td className="px-4 py-3 text-ink-muted">{goal.targetDate?.toLocaleDateString("pt-BR") ?? "—"}</td>
+                  <td className="px-4 py-3 text-ink">{formatBRL(plan.requiredMonthlyContribution)}</td>
+                  <td className="px-4 py-3">
+                    <Badge tone={status.tone}>{status.label}</Badge>
+                  </td>
+                  <td className="px-4 py-3">
+                    <DeleteGoalButton id={goal.id} />
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+        {goals.length === 0 && <EmptyState message="Nenhuma meta cadastrada ainda." />}
+      </Card>
     </div>
   );
 }

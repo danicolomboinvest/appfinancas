@@ -4,6 +4,7 @@ import { getRequiredSession } from "@/lib/auth/session";
 import { getOwnSheetWithResponses, listCriteria } from "@/lib/repositories/analysis.repo";
 import { CriteriaForm } from "@/components/forms/CriteriaForm";
 import { DeleteSheetButton } from "@/components/forms/DeleteSheetButton";
+import { PageHeader } from "@/components/ui/PageHeader";
 
 export default async function FiiSheetDetailPage(props: PageProps<"/fichas/fiis/[id]">) {
   const { id } = await props.params;
@@ -18,19 +19,16 @@ export default async function FiiSheetDetailPage(props: PageProps<"/fichas/fiis/
   const criteria = await listCriteria("FII", categories);
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">
-            {sheet.ticker}
-            {sheet.companyName ? ` — ${sheet.companyName}` : ""}
-          </h1>
-          <Link href="/fichas/fiis" className="text-sm underline">
+    <div className="flex flex-col gap-8">
+      <PageHeader
+        title={`${sheet.ticker}${sheet.companyName ? ` — ${sheet.companyName}` : ""}`}
+        subtitle={
+          <Link href="/fichas/fiis" className="text-gold-strong hover:underline">
             ← todas as fichas de FIIs
           </Link>
-        </div>
-        <DeleteSheetButton id={sheet.id} basePath="/fichas/fiis" />
-      </div>
+        }
+        action={<DeleteSheetButton id={sheet.id} basePath="/fichas/fiis" />}
+      />
 
       <CriteriaForm
         sheetId={sheet.id}

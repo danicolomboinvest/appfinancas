@@ -2,6 +2,9 @@ import Link from "next/link";
 import { getRequiredSession } from "@/lib/auth/session";
 import { getPortfolioByObjective, getAllocationByClass } from "@/lib/consolidation/portfolio";
 import { AllocationChart } from "@/components/charts/AllocationChart";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { StatCard } from "@/components/ui/StatCard";
+import { Card } from "@/components/ui/Card";
 
 function formatBRL(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -18,21 +21,23 @@ export default async function CarteiraPorObjetivoPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <div>
-        <h1 className="text-2xl font-semibold">Carteira por objetivo</h1>
-        <p className="mt-1 text-sm text-black/60">
-          Posição atual por objetivo (equivalente ao SUMIF da planilha) e alocação atual vs. ideal por classe.{" "}
-          <Link href="/carteira" className="underline">
-            ← editar ativos
-          </Link>
-        </p>
-      </div>
+      <PageHeader
+        title="Carteira por Objetivo"
+        subtitle={
+          <>
+            Posição atual por objetivo e alocação atual vs. ideal por classe.{" "}
+            <Link href="/carteira" className="text-gold-strong hover:underline">
+              ← editar ativos
+            </Link>
+          </>
+        }
+      />
 
       <div>
-        <h2 className="mb-3 text-lg font-semibold">Posição por objetivo</h2>
+        <h2 className="mb-3 text-sm font-medium text-ink-muted">Posição por objetivo</h2>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <SummaryCard label="Total da carteira" value={formatBRL(byObjective.totalPortfolio)} />
-          <SummaryCard
+          <StatCard label="Total da carteira" value={formatBRL(byObjective.totalPortfolio)} tone="gold" />
+          <StatCard
             label="Reserva de emergência"
             value={formatBRL(byObjective.reserva.currentValue)}
             hint={
@@ -41,59 +46,53 @@ export default async function CarteiraPorObjetivoPage() {
                 : "Sem meta cadastrada em Reserva de Emergência"
             }
           />
-          <SummaryCard label="Liberdade financeira" value={formatBRL(byObjective.liberdade.currentValue)} />
-          <SummaryCard label="Sem objetivo definido" value={formatBRL(byObjective.outro.currentValue)} />
+          <StatCard label="Liberdade financeira" value={formatBRL(byObjective.liberdade.currentValue)} />
+          <StatCard label="Sem objetivo definido" value={formatBRL(byObjective.outro.currentValue)} />
         </div>
       </div>
 
       {byObjective.metas.length > 0 && (
         <div>
-          <h2 className="mb-3 text-lg font-semibold">Metas</h2>
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="border-b border-black/10 text-black/60">
-                <th className="py-2">Meta</th>
-                <th className="py-2">Alocado</th>
-                <th className="py-2">Alvo</th>
-                <th className="py-2">Atingimento</th>
-              </tr>
-            </thead>
-            <tbody>
-              {byObjective.metas.map((goal) => (
-                <tr key={goal.goalId} className="border-b border-black/5">
-                  <td className="py-2">
-                    <Link href={`/planejamento/metas/${goal.goalId}`} className="underline">
-                      {goal.goalName}
-                    </Link>
-                  </td>
-                  <td className="py-2">{formatBRL(goal.currentValue)}</td>
-                  <td className="py-2">{formatBRL(goal.targetAmount)}</td>
-                  <td className="py-2">{formatPercent(goal.achievementPercent)}</td>
+          <h2 className="mb-3 text-sm font-medium text-ink-muted">Metas</h2>
+          <Card className="overflow-hidden">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-border bg-surface-2/50 text-ink-muted">
+                  <th className="px-4 py-3 font-medium">Meta</th>
+                  <th className="px-4 py-3 font-medium">Alocado</th>
+                  <th className="px-4 py-3 font-medium">Alvo</th>
+                  <th className="px-4 py-3 font-medium">Atingimento</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {byObjective.metas.map((goal) => (
+                  <tr key={goal.goalId} className="border-b border-border/60 last:border-0 hover:bg-surface-2/40">
+                    <td className="px-4 py-3">
+                      <Link href={`/planejamento/metas/${goal.goalId}`} className="font-medium text-gold-strong hover:underline">
+                        {goal.goalName}
+                      </Link>
+                    </td>
+                    <td className="px-4 py-3 text-ink-muted">{formatBRL(goal.currentValue)}</td>
+                    <td className="px-4 py-3 text-ink-muted">{formatBRL(goal.targetAmount)}</td>
+                    <td className="px-4 py-3 text-ink">{formatPercent(goal.achievementPercent)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Card>
         </div>
       )}
 
       <div>
-        <h2 className="mb-3 text-lg font-semibold">Alocação atual vs. ideal por classe</h2>
+        <h2 className="mb-3 text-sm font-medium text-ink-muted">Alocação atual vs. ideal por classe</h2>
         {allocation.classes.length === 0 ? (
-          <p className="text-sm text-black/60">Nenhum ativo cadastrado ainda.</p>
+          <p className="text-sm text-ink-faint">Nenhum ativo cadastrado ainda.</p>
         ) : (
-          <AllocationChart classes={allocation.classes} />
+          <Card className="p-5">
+            <AllocationChart classes={allocation.classes} />
+          </Card>
         )}
       </div>
-    </div>
-  );
-}
-
-function SummaryCard({ label, value, hint }: { label: string; value: string; hint?: string }) {
-  return (
-    <div className="rounded-lg border border-black/10 p-4">
-      <p className="text-xs text-black/60">{label}</p>
-      <p className="mt-1 text-lg font-semibold">{value}</p>
-      {hint && <p className="mt-1 text-xs text-black/50">{hint}</p>}
     </div>
   );
 }

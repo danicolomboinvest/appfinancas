@@ -9,6 +9,11 @@ import {
   type CarComparisonFormValues,
 } from "@/lib/validations/car.schema";
 import { simulateCarComparison, type CarComparisonResult } from "@/lib/simulators/car";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { StatCard } from "@/components/ui/StatCard";
+import { Card } from "@/components/ui/Card";
+import { Field } from "@/components/ui/Field";
+import { Button } from "@/components/ui/Button";
 
 const defaultValues: CarComparisonFormInput = {
   carPrice: 100000,
@@ -40,15 +45,13 @@ export default function CarroPage() {
   });
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Carro por Assinatura vs. Comprar 0km</h1>
-        <p className="mt-1 text-sm text-black/60">
-          Compara os dois caminhos em uma janela de 24 meses, considerando depreciação e custo de oportunidade.
-        </p>
-      </div>
+    <div className="flex flex-col gap-8">
+      <PageHeader
+        title="Carro por Assinatura vs. Comprar 0km"
+        subtitle="Compara os dois caminhos em uma janela de 24 meses, considerando depreciação e custo de oportunidade."
+      />
 
-      <form onSubmit={onSubmit} className="flex flex-col gap-4 rounded-lg border border-black/10 p-4">
+      <Card as="form" onSubmit={onSubmit} className="flex flex-col gap-4 p-5">
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           <Field label="Valor do carro 0km (R$)" error={errors.carPrice?.message} {...register("carPrice")} type="number" step="0.01" />
           <Field
@@ -96,49 +99,27 @@ export default function CarroPage() {
             step="0.0001"
           />
         </div>
-        <button type="submit" className="w-fit rounded bg-black px-4 py-2 text-sm text-white">
+        <Button type="submit" className="w-fit">
           Simular
-        </button>
-      </form>
+        </Button>
+      </Card>
 
       {result && (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <SummaryCard label="Desvalorização em 1 ano" value={`${(result.depreciationRateAfter1Year * 100).toFixed(1)}%`} />
-          <SummaryCard label="Desvalorização em 2 anos" value={`${(result.depreciationRateAfter2Years * 100).toFixed(1)}%`} />
-          <SummaryCard label="Custo caixa — assinatura (24 meses)" value={formatBRL(result.subscriptionCashCost)} />
-          <SummaryCard label="Custo caixa — compra (24 meses)" value={formatBRL(result.purchaseCashCost)} />
-          <SummaryCard label="Custo de oportunidade da compra" value={formatBRL(result.opportunityCost)} />
-          <SummaryCard label="Resultado líquido — assinatura" value={formatBRL(result.netResultSubscription)} />
-          <SummaryCard label="Resultado líquido — compra" value={formatBRL(result.netResultPurchase)} />
-          <SummaryCard
+          <StatCard label="Desvalorização em 1 ano" value={`${(result.depreciationRateAfter1Year * 100).toFixed(1)}%`} />
+          <StatCard label="Desvalorização em 2 anos" value={`${(result.depreciationRateAfter2Years * 100).toFixed(1)}%`} />
+          <StatCard label="Custo caixa — assinatura (24 meses)" value={formatBRL(result.subscriptionCashCost)} />
+          <StatCard label="Custo caixa — compra (24 meses)" value={formatBRL(result.purchaseCashCost)} />
+          <StatCard label="Custo de oportunidade da compra" value={formatBRL(result.opportunityCost)} />
+          <StatCard label="Resultado líquido — assinatura" value={formatBRL(result.netResultSubscription)} />
+          <StatCard label="Resultado líquido — compra" value={formatBRL(result.netResultPurchase)} />
+          <StatCard
             label="Conclusão"
             value={`${result.winner === "ASSINATURA" ? "Assinatura" : "Compra"} (${formatBRL(result.differenceInFavorOfWinner)} mais barato)`}
+            tone="gold"
           />
         </div>
       )}
-    </div>
-  );
-}
-
-function SummaryCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-lg border border-black/10 p-4">
-      <p className="text-xs text-black/60">{label}</p>
-      <p className="mt-1 text-lg font-semibold">{value}</p>
-    </div>
-  );
-}
-
-function Field({
-  label,
-  error,
-  ...inputProps
-}: React.InputHTMLAttributes<HTMLInputElement> & { label: string; error?: string }) {
-  return (
-    <div className="flex flex-col gap-1">
-      <label className="text-xs">{label}</label>
-      <input {...inputProps} className="rounded border border-black/20 px-2 py-1.5 text-sm" />
-      {error && <p className="text-xs text-red-600">{error}</p>}
     </div>
   );
 }

@@ -1,6 +1,9 @@
 "use client";
 
 import { useActionState } from "react";
+import { Field } from "@/components/ui/Field";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
 import { saveEmergencyFundAction, type EmergencyFundState } from "./actions";
 
 const initialState: EmergencyFundState = {};
@@ -17,8 +20,8 @@ export function EmergencyFundForm({ defaults }: { defaults: Defaults }) {
   const [state, formAction, isPending] = useActionState(saveEmergencyFundAction, initialState);
 
   return (
-    <form action={formAction} className="flex flex-col gap-4 rounded-lg border border-black/10 p-4">
-      {state.error && <p className="text-sm text-red-600">{state.error}</p>}
+    <Card as="form" action={formAction} className="flex flex-col gap-5 p-5">
+      {state.error && <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{state.error}</p>}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
         <Field label="Meses de proteção" name="targetMonths" type="number" defaultValue={defaults.targetMonths} required />
         <Field
@@ -53,46 +56,9 @@ export function EmergencyFundForm({ defaults }: { defaults: Defaults }) {
           required
         />
       </div>
-      <button
-        type="submit"
-        disabled={isPending}
-        className="w-fit rounded bg-black px-4 py-2 text-sm text-white disabled:opacity-50"
-      >
+      <Button type="submit" disabled={isPending} className="w-fit">
         {isPending ? "Salvando..." : "Salvar"}
-      </button>
-    </form>
-  );
-}
-
-function Field({
-  label,
-  name,
-  type,
-  step,
-  defaultValue,
-  required,
-}: {
-  label: string;
-  name: string;
-  type: string;
-  step?: string;
-  defaultValue?: number;
-  required?: boolean;
-}) {
-  return (
-    <div className="flex flex-col gap-1">
-      <label htmlFor={name} className="text-xs">
-        {label}
-      </label>
-      <input
-        id={name}
-        name={name}
-        type={type}
-        step={step}
-        required={required}
-        defaultValue={defaultValue}
-        className="rounded border border-black/20 px-2 py-1.5 text-sm"
-      />
-    </div>
+      </Button>
+    </Card>
   );
 }

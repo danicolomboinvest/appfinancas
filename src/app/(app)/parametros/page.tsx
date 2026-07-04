@@ -1,5 +1,9 @@
 import { getRequiredSession } from "@/lib/auth/session";
 import { listReferenceRates } from "@/lib/repositories/reference-rate.repo";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { Card } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { ReferenceRateForm } from "./ReferenceRateForm";
 import { DeleteRateButton } from "./DeleteRateButton";
 
@@ -14,47 +18,40 @@ export default async function ParametrosPage() {
   const rates = await listReferenceRates(ctx);
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Premissas e taxas de referência</h1>
-        <p className="mt-1 text-sm text-black/60">
-          Taxas usadas como sugestão/âncora nos módulos de planejamento e simuladores.
-        </p>
-      </div>
+    <div className="flex flex-col gap-8">
+      <PageHeader title="Perfil" subtitle="Taxas usadas como sugestão/âncora nos módulos de planejamento e simuladores." />
 
       <ReferenceRateForm />
 
-      <table className="w-full text-left text-sm">
-        <thead>
-          <tr className="border-b border-black/10 text-black/60">
-            <th className="py-2">Nome</th>
-            <th className="py-2">Taxa</th>
-            <th className="py-2">Base</th>
-            <th className="py-2">Vigente desde</th>
-            <th className="py-2">Origem</th>
-            <th className="py-2"></th>
-          </tr>
-        </thead>
-        <tbody>
-          {rates.map((rate) => (
-            <tr key={rate.id} className="border-b border-black/5">
-              <td className="py-2">{rate.name}</td>
-              <td className="py-2">{(Number(rate.rateValue) * 100).toFixed(2)}%</td>
-              <td className="py-2">{BASIS_LABEL[rate.basis]}</td>
-              <td className="py-2">{rate.effectiveDate.toLocaleDateString("pt-BR")}</td>
-              <td className="py-2">{rate.userId ? "Sua taxa" : "Padrão do sistema"}</td>
-              <td className="py-2">{rate.userId === ctx.userId && <DeleteRateButton id={rate.id} />}</td>
+      <Card className="overflow-hidden">
+        <table className="w-full text-left text-sm">
+          <thead>
+            <tr className="border-b border-border bg-surface-2/50 text-ink-muted">
+              <th className="px-4 py-3 font-medium">Nome</th>
+              <th className="px-4 py-3 font-medium">Taxa</th>
+              <th className="px-4 py-3 font-medium">Base</th>
+              <th className="px-4 py-3 font-medium">Vigente desde</th>
+              <th className="px-4 py-3 font-medium">Origem</th>
+              <th className="px-4 py-3"></th>
             </tr>
-          ))}
-          {rates.length === 0 && (
-            <tr>
-              <td colSpan={6} className="py-4 text-center text-black/40">
-                Nenhuma taxa cadastrada ainda.
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {rates.map((rate) => (
+              <tr key={rate.id} className="border-b border-border/60 last:border-0 hover:bg-surface-2/40">
+                <td className="px-4 py-3 text-ink">{rate.name}</td>
+                <td className="px-4 py-3 text-ink">{(Number(rate.rateValue) * 100).toFixed(2)}%</td>
+                <td className="px-4 py-3 text-ink-muted">{BASIS_LABEL[rate.basis]}</td>
+                <td className="px-4 py-3 text-ink-muted">{rate.effectiveDate.toLocaleDateString("pt-BR")}</td>
+                <td className="px-4 py-3">
+                  <Badge tone={rate.userId ? "gold" : "neutral"}>{rate.userId ? "Sua taxa" : "Padrão do sistema"}</Badge>
+                </td>
+                <td className="px-4 py-3">{rate.userId === ctx.userId && <DeleteRateButton id={rate.id} />}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {rates.length === 0 && <EmptyState message="Nenhuma taxa cadastrada ainda." />}
+      </Card>
     </div>
   );
 }

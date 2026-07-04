@@ -1,6 +1,9 @@
 "use client";
 
 import { useActionState } from "react";
+import { Field } from "@/components/ui/Field";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
 import { createSheetAction, type SheetFormState } from "../actions";
 
 const initialState: SheetFormState = {};
@@ -9,24 +12,14 @@ export function CreateStockSheetForm() {
   const [state, formAction, isPending] = useActionState(createSheetAction, initialState);
 
   return (
-    <form action={formAction} className="flex flex-wrap items-end gap-3 rounded-lg border border-black/10 p-4">
+    <Card as="form" action={formAction} className="flex flex-wrap items-end gap-3 p-4">
       <input type="hidden" name="sheetType" value="STOCK" />
-      {state.error && <p className="w-full text-sm text-red-600">{state.error}</p>}
-      <div className="flex flex-col gap-1">
-        <label htmlFor="ticker" className="text-xs">
-          Ticker
-        </label>
-        <input id="ticker" name="ticker" required placeholder="Ex.: PETR4" className="rounded border border-black/20 px-2 py-1.5 text-sm" />
-      </div>
-      <div className="flex flex-col gap-1">
-        <label htmlFor="companyName" className="text-xs">
-          Empresa (opcional)
-        </label>
-        <input id="companyName" name="companyName" className="rounded border border-black/20 px-2 py-1.5 text-sm" />
-      </div>
-      <button type="submit" disabled={isPending} className="rounded bg-black px-3 py-1.5 text-sm text-white disabled:opacity-50">
+      {state.error && <p className="w-full rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{state.error}</p>}
+      <Field label="Ticker" id="ticker" name="ticker" required placeholder="Ex.: PETR4" />
+      <Field label="Empresa (opcional)" id="companyName" name="companyName" />
+      <Button type="submit" disabled={isPending} size="sm">
         {isPending ? "Criando..." : "Nova ficha"}
-      </button>
-    </form>
+      </Button>
+    </Card>
   );
 }

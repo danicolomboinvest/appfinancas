@@ -2,6 +2,9 @@ import Link from "next/link";
 import { getRequiredSession } from "@/lib/auth/session";
 import { listAssets } from "@/lib/repositories/asset.repo";
 import { listGoals } from "@/lib/repositories/goal.repo";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { Card } from "@/components/ui/Card";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { AssetForm } from "./AssetForm";
 import { DeleteAssetButton } from "./DeleteAssetButton";
 
@@ -32,60 +35,58 @@ export default async function CarteiraPage() {
   const goalNameById = new Map(goals.map((goal) => [goal.id, goal.name]));
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Minha Carteira</h1>
-        <p className="mt-1 text-sm text-black/60">
-          Cadastre seus ativos e marque o objetivo de cada um.{" "}
-          <Link href="/carteira/por-objetivo" className="underline">
-            Ver consolidação por objetivo →
-          </Link>
-        </p>
-      </div>
+    <div className="flex flex-col gap-8">
+      <PageHeader
+        title="Carteira de Investimentos"
+        subtitle={
+          <>
+            Cadastre seus ativos e marque o objetivo de cada um.{" "}
+            <Link href="/carteira/por-objetivo" className="text-gold-strong hover:underline">
+              Ver consolidação por objetivo →
+            </Link>
+          </>
+        }
+      />
 
       <AssetForm goals={goals.map((goal) => ({ id: goal.id, name: goal.name }))} />
 
-      <table className="w-full text-left text-sm">
-        <thead>
-          <tr className="border-b border-black/10 text-black/60">
-            <th className="py-2">Nome</th>
-            <th className="py-2">Classe</th>
-            <th className="py-2">Objetivo</th>
-            <th className="py-2">Valor atual</th>
-            <th className="py-2">Alocação ideal</th>
-            <th className="py-2"></th>
-          </tr>
-        </thead>
-        <tbody>
-          {assets.map((asset) => (
-            <tr key={asset.id} className="border-b border-black/5">
-              <td className="py-2">
-                {asset.name}
-                {asset.ticker ? ` (${asset.ticker})` : ""}
-              </td>
-              <td className="py-2">{CLASS_LABEL[asset.assetClass]}</td>
-              <td className="py-2">
-                {OBJECTIVE_LABEL[asset.objective]}
-                {asset.objective === "META" && asset.goalId ? ` — ${goalNameById.get(asset.goalId) ?? ""}` : ""}
-              </td>
-              <td className="py-2">{formatBRL(Number(asset.currentValue))}</td>
-              <td className="py-2">
-                {asset.idealAllocationPercent ? `${(Number(asset.idealAllocationPercent) * 100).toFixed(1)}%` : "—"}
-              </td>
-              <td className="py-2">
-                <DeleteAssetButton id={asset.id} />
-              </td>
+      <Card className="overflow-hidden">
+        <table className="w-full text-left text-sm">
+          <thead>
+            <tr className="border-b border-border bg-surface-2/50 text-ink-muted">
+              <th className="px-4 py-3 font-medium">Nome</th>
+              <th className="px-4 py-3 font-medium">Classe</th>
+              <th className="px-4 py-3 font-medium">Objetivo</th>
+              <th className="px-4 py-3 font-medium">Valor atual</th>
+              <th className="px-4 py-3 font-medium">Alocação ideal</th>
+              <th className="px-4 py-3"></th>
             </tr>
-          ))}
-          {assets.length === 0 && (
-            <tr>
-              <td colSpan={6} className="py-4 text-center text-black/40">
-                Nenhum ativo cadastrado ainda.
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {assets.map((asset) => (
+              <tr key={asset.id} className="border-b border-border/60 last:border-0 hover:bg-surface-2/40">
+                <td className="px-4 py-3 text-ink">
+                  {asset.name}
+                  {asset.ticker ? ` (${asset.ticker})` : ""}
+                </td>
+                <td className="px-4 py-3 text-ink-muted">{CLASS_LABEL[asset.assetClass]}</td>
+                <td className="px-4 py-3 text-ink-muted">
+                  {OBJECTIVE_LABEL[asset.objective]}
+                  {asset.objective === "META" && asset.goalId ? ` — ${goalNameById.get(asset.goalId) ?? ""}` : ""}
+                </td>
+                <td className="px-4 py-3 text-ink">{formatBRL(Number(asset.currentValue))}</td>
+                <td className="px-4 py-3 text-ink-muted">
+                  {asset.idealAllocationPercent ? `${(Number(asset.idealAllocationPercent) * 100).toFixed(1)}%` : "—"}
+                </td>
+                <td className="px-4 py-3">
+                  <DeleteAssetButton id={asset.id} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {assets.length === 0 && <EmptyState message="Nenhum ativo cadastrado ainda." />}
+      </Card>
     </div>
   );
 }

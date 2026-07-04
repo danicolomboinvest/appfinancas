@@ -2,6 +2,7 @@
 
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { MonthlyBreakdown } from "@/lib/consolidation/yearly";
+import { CHART_COLORS, CHART_TOOLTIP_STYLE } from "./chart-theme";
 
 const MONTH_LABELS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
@@ -16,16 +17,18 @@ export function YearlyBarChart({ months }: { months: MonthlyBreakdown[] }) {
   return (
     <ResponsiveContainer width="100%" height={300}>
       <BarChart data={data}>
-        <CartesianGrid strokeDasharray="3 3" />
-        <XAxis dataKey="name" fontSize={12} />
-        <YAxis fontSize={12} />
+        <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} vertical={false} />
+        <XAxis dataKey="name" fontSize={12} stroke={CHART_COLORS.axis} tickLine={false} axisLine={false} />
+        <YAxis fontSize={12} stroke={CHART_COLORS.axis} tickLine={false} axisLine={false} />
         <Tooltip
+          {...CHART_TOOLTIP_STYLE}
           formatter={(value) => Number(value).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+          cursor={{ fill: "rgba(255,255,255,0.04)" }}
         />
-        <Legend />
-        <Bar dataKey="Renda" fill="#16a34a" />
-        <Bar dataKey="Gastos" fill="#dc2626" />
-        <Bar dataKey="Aportes" fill="#2563eb" />
+        <Legend wrapperStyle={{ fontSize: 12, color: CHART_COLORS.axis }} />
+        <Bar dataKey="Renda" fill={CHART_COLORS.success} radius={[4, 4, 0, 0]} />
+        <Bar dataKey="Gastos" fill={CHART_COLORS.danger} radius={[4, 4, 0, 0]} />
+        <Bar dataKey="Aportes" fill={CHART_COLORS.gold} radius={[4, 4, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
   );

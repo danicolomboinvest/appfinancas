@@ -1,5 +1,8 @@
 import { requireAdmin } from "@/lib/auth/rbac";
 import { listAllCriteria } from "@/lib/repositories/criterion.repo";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { Card } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
 import { CreateCriterionForm } from "./CreateCriterionForm";
 import { ToggleActiveButton } from "./ToggleActiveButton";
 
@@ -10,44 +13,46 @@ export default async function AdminCriteriosPage() {
   const criteria = await listAllCriteria();
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Catálogo de Critérios</h1>
-        <p className="mt-1 text-sm text-black/60">
-          Critérios das fichas de análise de Ações e FIIs. Editável sem precisar de deploy.
-        </p>
-      </div>
+    <div className="flex flex-col gap-8">
+      <PageHeader title="Catálogo de Critérios" subtitle="Critérios das fichas de análise de Ações e FIIs. Editável sem precisar de deploy." />
 
       <CreateCriterionForm />
 
-      <table className="w-full text-left text-sm">
-        <thead>
-          <tr className="border-b border-black/10 text-black/60">
-            <th className="py-2">Ficha</th>
-            <th className="py-2">Categoria</th>
-            <th className="py-2">Rótulo</th>
-            <th className="py-2">Chave</th>
-            <th className="py-2">Ordem</th>
-            <th className="py-2">Status</th>
-            <th className="py-2"></th>
-          </tr>
-        </thead>
-        <tbody>
-          {criteria.map((criterion) => (
-            <tr key={criterion.id} className={`border-b border-black/5 ${!criterion.active ? "opacity-50" : ""}`}>
-              <td className="py-2">{SHEET_TYPE_LABEL[criterion.sheetType]}</td>
-              <td className="py-2">{criterion.category}</td>
-              <td className="py-2">{criterion.label}</td>
-              <td className="py-2 font-mono text-xs">{criterion.key}</td>
-              <td className="py-2">{criterion.order}</td>
-              <td className="py-2">{criterion.active ? "Ativo" : "Inativo"}</td>
-              <td className="py-2">
-                <ToggleActiveButton id={criterion.id} active={criterion.active} />
-              </td>
+      <Card className="overflow-hidden">
+        <table className="w-full text-left text-sm">
+          <thead>
+            <tr className="border-b border-border bg-surface-2/50 text-ink-muted">
+              <th className="px-4 py-3 font-medium">Ficha</th>
+              <th className="px-4 py-3 font-medium">Categoria</th>
+              <th className="px-4 py-3 font-medium">Rótulo</th>
+              <th className="px-4 py-3 font-medium">Chave</th>
+              <th className="px-4 py-3 font-medium">Ordem</th>
+              <th className="px-4 py-3 font-medium">Status</th>
+              <th className="px-4 py-3"></th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {criteria.map((criterion) => (
+              <tr
+                key={criterion.id}
+                className={`border-b border-border/60 last:border-0 hover:bg-surface-2/40 ${!criterion.active ? "opacity-50" : ""}`}
+              >
+                <td className="px-4 py-3 text-ink-muted">{SHEET_TYPE_LABEL[criterion.sheetType]}</td>
+                <td className="px-4 py-3 text-ink-muted">{criterion.category}</td>
+                <td className="px-4 py-3 text-ink">{criterion.label}</td>
+                <td className="px-4 py-3 font-mono text-xs text-ink-faint">{criterion.key}</td>
+                <td className="px-4 py-3 text-ink-muted">{criterion.order}</td>
+                <td className="px-4 py-3">
+                  <Badge tone={criterion.active ? "success" : "neutral"}>{criterion.active ? "Ativo" : "Inativo"}</Badge>
+                </td>
+                <td className="px-4 py-3">
+                  <ToggleActiveButton id={criterion.id} active={criterion.active} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Card>
     </div>
   );
 }

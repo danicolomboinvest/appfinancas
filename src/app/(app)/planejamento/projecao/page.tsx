@@ -3,6 +3,9 @@ import { getRequiredSession } from "@/lib/auth/session";
 import { getPlanningParams } from "@/lib/repositories/planning-params.repo";
 import { computeYearByYearProjection } from "@/lib/consolidation/projection";
 import { PatrimonyProjectionChart } from "@/components/charts/PatrimonyProjectionChart";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { Card } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
 
 function formatBRL(value: number | null) {
   if (value === null) return "—";
@@ -16,10 +19,10 @@ export default async function ProjecaoPage() {
   if (!params) {
     return (
       <div className="flex flex-col gap-4">
-        <h1 className="text-2xl font-semibold">Projeção de patrimônio</h1>
-        <p className="text-sm text-black/60">
+        <PageHeader title="Projeção Patrimonial" />
+        <p className="text-sm text-ink-muted">
           Preencha primeiro os dados na{" "}
-          <Link href="/planejamento/acumulo" className="underline">
+          <Link href="/planejamento/acumulo" className="text-gold-strong hover:underline">
             fase de acúmulo
           </Link>
           .
@@ -42,45 +45,52 @@ export default async function ProjecaoPage() {
   });
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Projeção de patrimônio ano a ano</h1>
-        <p className="mt-1 text-sm text-black/60">
-          Fase de acúmulo até os {params.retirementAge} anos
-          {params.lifeExpectancyAge ? `, seguida da fase de usufruto até os ${params.lifeExpectancyAge} anos` : ""}.
-        </p>
-      </div>
+    <div className="flex flex-col gap-8">
+      <PageHeader
+        title="Projeção Patrimonial"
+        subtitle={`Fase de acúmulo até os ${params.retirementAge} anos${
+          params.lifeExpectancyAge ? `, seguida da fase de usufruto até os ${params.lifeExpectancyAge} anos` : ""
+        }.`}
+      />
 
       {years.length === 0 ? (
-        <p className="text-sm text-black/60">Idade objetivo já atingida — nada para projetar.</p>
+        <p className="text-sm text-ink-muted">Idade objetivo já atingida — nada para projetar.</p>
       ) : (
         <>
-          <PatrimonyProjectionChart years={years} />
+          <Card className="p-5">
+            <PatrimonyProjectionChart years={years} />
+          </Card>
 
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="border-b border-black/10 text-black/60">
-                <th className="py-2">Idade</th>
-                <th className="py-2">Fase</th>
-                <th className="py-2">Investido</th>
-                <th className="py-2">Juros acumulados</th>
-                <th className="py-2">Patrimônio (nominal)</th>
-                <th className="py-2">Patrimônio (real)</th>
-              </tr>
-            </thead>
-            <tbody>
-              {years.map((y) => (
-                <tr key={y.year} className="border-b border-black/5">
-                  <td className="py-2">{y.age}</td>
-                  <td className="py-2">{y.phase === "ACCUMULATION" ? "Acúmulo" : "Usufruto"}</td>
-                  <td className="py-2">{formatBRL(y.totalInvested)}</td>
-                  <td className="py-2">{formatBRL(y.cumulativeInterest)}</td>
-                  <td className="py-2">{formatBRL(y.balanceNominal)}</td>
-                  <td className="py-2">{formatBRL(y.balanceReal)}</td>
+          <Card className="max-h-[520px] overflow-y-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="sticky top-0 bg-surface">
+                <tr className="border-b border-border bg-surface-2/50 text-ink-muted">
+                  <th className="px-4 py-3 font-medium">Idade</th>
+                  <th className="px-4 py-3 font-medium">Fase</th>
+                  <th className="px-4 py-3 font-medium">Investido</th>
+                  <th className="px-4 py-3 font-medium">Juros acumulados</th>
+                  <th className="px-4 py-3 font-medium">Patrimônio (nominal)</th>
+                  <th className="px-4 py-3 font-medium">Patrimônio (real)</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {years.map((y) => (
+                  <tr key={y.year} className="border-b border-border/60 last:border-0 hover:bg-surface-2/40">
+                    <td className="px-4 py-3 text-ink">{y.age}</td>
+                    <td className="px-4 py-3">
+                      <Badge tone={y.phase === "ACCUMULATION" ? "gold" : "info"}>
+                        {y.phase === "ACCUMULATION" ? "Acúmulo" : "Usufruto"}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3 text-ink-muted">{formatBRL(y.totalInvested)}</td>
+                    <td className="px-4 py-3 text-ink-muted">{formatBRL(y.cumulativeInterest)}</td>
+                    <td className="px-4 py-3 text-ink-muted">{formatBRL(y.balanceNominal)}</td>
+                    <td className="px-4 py-3 text-ink">{formatBRL(y.balanceReal)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Card>
         </>
       )}
     </div>

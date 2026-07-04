@@ -9,6 +9,11 @@ import {
   type ConsortiumFormValues,
 } from "@/lib/validations/consortium.schema";
 import { simulateConsortiumVsFinancing, type ConsortiumVsFinancingResult } from "@/lib/simulators/consortium";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { StatCard } from "@/components/ui/StatCard";
+import { Card } from "@/components/ui/Card";
+import { Field, SelectField } from "@/components/ui/Field";
+import { Button } from "@/components/ui/Button";
 
 const defaultValues: ConsortiumFormInput = {
   creditValue: 100000,
@@ -41,16 +46,13 @@ export default function ConsorcioPage() {
   });
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Consórcio vs. Financiamento</h1>
-        <p className="mt-1 text-sm text-black/60">
-          Inclui o custo de oportunidade da entrada do financiamento — dinheiro que poderia render se, em vez de
-          financiar, você tivesse optado pelo consórcio (que não exige entrada).
-        </p>
-      </div>
+    <div className="flex flex-col gap-8">
+      <PageHeader
+        title="Consórcio vs. Financiamento"
+        subtitle="Inclui o custo de oportunidade da entrada do financiamento — dinheiro que poderia render se, em vez de financiar, você tivesse optado pelo consórcio (que não exige entrada)."
+      />
 
-      <form onSubmit={onSubmit} className="flex flex-col gap-4 rounded-lg border border-black/10 p-4">
+      <Card as="form" onSubmit={onSubmit} className="flex flex-col gap-4 p-5">
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           <Field label="Valor do bem (R$)" error={errors.creditValue?.message} {...register("creditValue")} type="number" step="0.01" />
           <Field
@@ -88,15 +90,10 @@ export default function ConsorcioPage() {
             {...register("financingTermMonths")}
             type="number"
           />
-          <div className="flex flex-col gap-1">
-            <label htmlFor="financingSystem" className="text-xs">
-              Sistema de amortização
-            </label>
-            <select id="financingSystem" {...register("financingSystem")} className="rounded border border-black/20 px-2 py-1.5 text-sm">
-              <option value="PRICE">Price</option>
-              <option value="SAC">SAC</option>
-            </select>
-          </div>
+          <SelectField label="Sistema de amortização" {...register("financingSystem")}>
+            <option value="PRICE">Price</option>
+            <option value="SAC">SAC</option>
+          </SelectField>
         </div>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           <Field
@@ -107,55 +104,33 @@ export default function ConsorcioPage() {
             step="0.0001"
           />
         </div>
-        <button type="submit" className="w-fit rounded bg-black px-4 py-2 text-sm text-white">
+        <Button type="submit" className="w-fit">
           Simular
-        </button>
-      </form>
+        </Button>
+      </Card>
 
       {result && (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-          <SummaryCard label="Consórcio — parcela" value={formatBRL(result.consortium.installment)} />
-          <SummaryCard label="Consórcio — custo da operação" value={formatBRL(result.consortium.operationCost)} />
-          <SummaryCard label="Consórcio — total pago" value={formatBRL(result.consortium.totalPaid)} />
-          <SummaryCard label="Financiamento — 1ª parcela" value={formatBRL(result.financing.firstInstallment)} />
-          <SummaryCard label="Financiamento — custo da operação (juros)" value={formatBRL(result.financing.operationCost)} />
-          <SummaryCard
+          <StatCard label="Consórcio — parcela" value={formatBRL(result.consortium.installment)} />
+          <StatCard label="Consórcio — custo da operação" value={formatBRL(result.consortium.operationCost)} />
+          <StatCard label="Consórcio — total pago" value={formatBRL(result.consortium.totalPaid)} />
+          <StatCard label="Financiamento — 1ª parcela" value={formatBRL(result.financing.firstInstallment)} />
+          <StatCard label="Financiamento — custo da operação (juros)" value={formatBRL(result.financing.operationCost)} />
+          <StatCard
             label="Financiamento — custo de oportunidade da entrada"
             value={formatBRL(result.financing.downPaymentOpportunityCost)}
           />
-          <SummaryCard
+          <StatCard
             label="Financiamento — custo total (com oportunidade)"
             value={formatBRL(result.financing.totalCostWithOpportunity)}
           />
-          <SummaryCard
+          <StatCard
             label="Conclusão"
             value={`${result.winner === "CONSORCIO" ? "Consórcio" : "Financiamento"} (${formatBRL(result.differenceInFavorOfWinner)} mais barato)`}
+            tone="gold"
           />
         </div>
       )}
-    </div>
-  );
-}
-
-function SummaryCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-lg border border-black/10 p-4">
-      <p className="text-xs text-black/60">{label}</p>
-      <p className="mt-1 text-lg font-semibold">{value}</p>
-    </div>
-  );
-}
-
-function Field({
-  label,
-  error,
-  ...inputProps
-}: React.InputHTMLAttributes<HTMLInputElement> & { label: string; error?: string }) {
-  return (
-    <div className="flex flex-col gap-1">
-      <label className="text-xs">{label}</label>
-      <input {...inputProps} className="rounded border border-black/20 px-2 py-1.5 text-sm" />
-      {error && <p className="text-xs text-red-600">{error}</p>}
     </div>
   );
 }
