@@ -16,7 +16,8 @@ const NAV_ITEMS = [
   { href: "/simuladores/consorcio", label: "Simulador — Consórcio" },
   { href: "/simuladores/marcacao-mercado", label: "Simulador — Marcação a Mercado" },
   { href: "/simuladores/carro", label: "Simulador — Carro" },
-  { href: "/fichas/acoes", label: "Fichas de análise" },
+  { href: "/fichas/acoes", label: "Fichas de Ações" },
+  { href: "/fichas/fiis", label: "Fichas de FIIs" },
 ];
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -33,8 +34,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             </Link>
           ))}
           {session?.user.role === "ADMIN" && (
-            <Link href="/admin" className="rounded px-2 py-1.5 text-sm hover:bg-black/5">
-              Admin
+            <Link href="/admin/criterios" className="rounded px-2 py-1.5 text-sm hover:bg-black/5">
+              Admin — Critérios
             </Link>
           )}
         </nav>

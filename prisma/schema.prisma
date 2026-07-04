@@ -267,7 +267,7 @@ model AnalysisCriterionDefinition {
   key       String
   label     String
   helpText  String? // tooltip "onde encontrar os dados"
-  category  String? // agrupamento qualitativo/quantitativo
+  category  String // agrupamento qualitativo/quantitativo (ou TIJOLO/PAPEL/COMUM para FIIs)
   weight    Decimal?           @db.Decimal(6, 3)
   order     Int
   active    Boolean            @default(true)
