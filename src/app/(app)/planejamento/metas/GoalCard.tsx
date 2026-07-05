@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { Target } from "lucide-react";
+import { Target, Plane, Home, Car, PiggyBank } from "lucide-react";
+import type { GoalIcon } from "@prisma/client";
 import { Card } from "@/components/ui/Card";
 import { DeleteGoalButton } from "./DeleteGoalButton";
 import type { GoalCalcResult } from "@/lib/planning/goal";
@@ -13,6 +14,28 @@ const VARIANT_STYLES: Record<GoalVariant, { border: string; bar: string }> = {
   achieved: { border: "border-t-success", bar: "bg-success" },
 };
 
+const VARIANT_STATUS_LABEL: Record<GoalVariant, string> = {
+  ahead: "Adiantada",
+  onTrack: "No ritmo",
+  behind: "Atrasada",
+  achieved: "Concluída",
+};
+
+const VARIANT_STATUS_CLASSES: Record<GoalVariant, string> = {
+  ahead: "bg-success-soft text-success",
+  onTrack: "bg-gold-soft text-gold-strong",
+  behind: "bg-danger-soft text-danger",
+  achieved: "bg-success-soft text-success",
+};
+
+const GOAL_ICONS: Record<GoalIcon, typeof Target> = {
+  VIAGEM: Plane,
+  CASA: Home,
+  CARRO: Car,
+  APOSENTADORIA: PiggyBank,
+  GENERICO: Target,
+};
+
 function formatBRL(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
@@ -20,6 +43,7 @@ function formatBRL(value: number) {
 export function GoalCard({
   id,
   name,
+  icon,
   targetAmount,
   currentAmount,
   plan,
@@ -27,6 +51,7 @@ export function GoalCard({
 }: {
   id: string;
   name: string;
+  icon: GoalIcon;
   targetAmount: number;
   currentAmount: number;
   plan: GoalCalcResult;
@@ -35,6 +60,7 @@ export function GoalCard({
   const progressPercent = targetAmount > 0 ? Math.min(currentAmount / targetAmount, 1) : 0;
   const achieved = variant === "achieved";
   const styles = VARIANT_STYLES[variant];
+  const Icon = GOAL_ICONS[icon];
 
   return (
     <Card className={`relative flex flex-col gap-4 border-t-4 p-5 ${styles.border} ${achieved ? "opacity-60" : ""}`}>
@@ -46,12 +72,18 @@ export function GoalCard({
 
       <div className="flex items-center gap-3 pr-16">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gold-soft text-gold-strong">
-          <Target size={20} strokeWidth={1.75} />
+          <Icon size={20} strokeWidth={1.75} />
         </span>
         <Link href={`/planejamento/metas/${id}`} className="min-w-0 flex-1">
           <h3 className="truncate text-base font-semibold text-ink hover:text-gold-strong">{name}</h3>
         </Link>
       </div>
+
+      {!achieved && (
+        <span className={`w-fit rounded-full px-2.5 py-0.5 text-xs font-medium ${VARIANT_STATUS_CLASSES[variant]}`}>
+          {VARIANT_STATUS_LABEL[variant]}
+        </span>
+      )}
 
       <div>
         <div className="h-2 w-full overflow-hidden rounded-full bg-surface-2">

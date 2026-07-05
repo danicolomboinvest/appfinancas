@@ -61,6 +61,7 @@ export default async function MetasPage() {
               key={goal.id}
               id={goal.id}
               name={goal.name}
+              icon={goal.icon}
               targetAmount={targetAmount}
               currentAmount={currentAmount}
               plan={plan}

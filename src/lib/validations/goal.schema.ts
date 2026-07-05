@@ -6,4 +6,5 @@ export const goalSchema = z.object({
   targetDate: z.coerce.date(),
   currentAmount: z.coerce.number().min(0).default(0),
   annualRate: z.coerce.number(),
+  icon: z.enum(["VIAGEM", "CASA", "CARRO", "APOSENTADORIA", "GENERICO"]).default("GENERICO"),
 });

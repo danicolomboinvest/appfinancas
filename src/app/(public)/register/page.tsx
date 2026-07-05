@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useActionState } from "react";
-import { Gem } from "lucide-react";
+import { TrendingUp } from "lucide-react";
 import { Field } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
 import { registerAction, type RegisterState } from "./actions";
@@ -17,7 +17,7 @@ export default function RegisterPage() {
       <div className="w-full max-w-sm animate-fade-in">
         <div className="mb-8 flex flex-col items-center gap-3 text-center">
           <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-gold-soft text-gold-strong">
-            <Gem size={22} strokeWidth={1.75} />
+            <TrendingUp size={22} strokeWidth={1.75} />
           </span>
           <div>
             <h1 className="text-xl font-semibold tracking-tight text-ink">Criar conta</h1>

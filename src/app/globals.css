@@ -1,25 +1,25 @@
 @import "tailwindcss";
 
 :root {
-  /* Superfícies */
-  --color-canvas: #0a0a0c;
-  --color-surface: #131316;
-  --color-surface-2: #1a1a1f;
-  --color-surface-hover: #1f1f25;
+  /* Superfícies — grafite levemente azulado, com mais contraste entre fundo e card */
+  --color-canvas: #14161d;
+  --color-surface: #1e2129;
+  --color-surface-2: #262a35;
+  --color-surface-hover: #2b303b;
 
   /* Bordas */
   --color-border: rgba(255, 255, 255, 0.08);
   --color-border-strong: rgba(255, 255, 255, 0.16);
 
   /* Texto */
-  --color-ink: #f3f2ee;
+  --color-ink: #f5f3ee;
   --color-ink-muted: #a3a2a5;
   --color-ink-faint: #6e6d72;
 
-  /* Acento dourado */
-  --color-gold: #c9a227;
-  --color-gold-strong: #e2bc4f;
-  --color-gold-soft: rgba(201, 162, 39, 0.14);
+  /* Acento dourado — dessaturado, mais sofisticado */
+  --color-gold: #c6a15b;
+  --color-gold-strong: #d9b878;
+  --color-gold-soft: rgba(198, 161, 91, 0.14);
 
   /* Semânticas */
   --color-success: #34d399;

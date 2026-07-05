@@ -2,8 +2,8 @@
 export const CHART_COLORS = {
   grid: "rgba(255,255,255,0.08)",
   axis: "#a3a2a5",
-  gold: "#c9a227",
-  goldStrong: "#e2bc4f",
+  gold: "#c6a15b",
+  goldStrong: "#d9b878",
   success: "#34d399",
   danger: "#f87171",
   info: "#60a5fa",
@@ -12,15 +12,15 @@ export const CHART_COLORS = {
 
 export const CHART_TOOLTIP_STYLE = {
   contentStyle: {
-    backgroundColor: "#1a1a1f",
+    backgroundColor: "#262a35",
     border: "1px solid rgba(255,255,255,0.14)",
     borderRadius: 10,
-    color: "#f3f2ee",
+    color: "#f5f3ee",
     fontSize: 12,
     boxShadow: "0 12px 40px rgba(0,0,0,0.45)",
   },
   labelStyle: { color: "#a3a2a5" },
-  itemStyle: { color: "#f3f2ee" },
+  itemStyle: { color: "#f5f3ee" },
 };
 
 export const CHART_LEGEND_STYLE = {

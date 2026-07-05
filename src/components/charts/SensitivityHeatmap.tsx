@@ -36,8 +36,8 @@ export function SensitivityHeatmap({ rows }: { rows: SensitivityRow[] }) {
             <tr key={row.durationYears}>
               <td className="p-2 font-medium text-ink">{formatDuration(row.durationYears)}</td>
               {row.cells.map((cell) => (
-                <td key={cell.rateChange} className={`rounded-md p-2 text-center ${cellColor(cell.approxReturn)}`}>
-                  {(cell.approxReturn * 100).toFixed(2)}%
+                <td key={cell.rateChange} className={`rounded-md p-2 text-center ${cellColor(cell.priceDeviation)}`}>
+                  {(cell.priceDeviation * 100).toFixed(2)}%
                 </td>
               ))}
             </tr>

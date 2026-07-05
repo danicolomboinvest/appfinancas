@@ -24,12 +24,12 @@ export async function createReferenceRateAction(
 
   const ctx = await getRequiredSession();
   await createReferenceRate(ctx, parsed.data);
-  revalidatePath("/parametros");
+  revalidatePath("/configuracoes/taxas");
   return {};
 }
 
 export async function deleteReferenceRateAction(id: string) {
   const ctx = await getRequiredSession();
   await deleteOwnReferenceRate(ctx, id);
-  revalidatePath("/parametros");
+  revalidatePath("/configuracoes/taxas");
 }

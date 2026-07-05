@@ -35,7 +35,7 @@ describe("simulateMarkToMarket", () => {
     expect(result.profitOrLoss).toBeCloseTo(0, 6);
   });
 
-  it("approximateSensitivity (-duration * Δtaxa) grows with more years remaining until maturity", () => {
+  it("approximateSensitivity (variação percentual do preço) grows with more years remaining until maturity", () => {
     // Quanto maior a duration (anos restantes até o vencimento), maior o tombo se a taxa subir.
     const nearMaturity = simulateMarkToMarket({
       faceValue: 1000,
@@ -67,6 +67,33 @@ describe("simulateMarkToMarket", () => {
     });
     for (const row of result.sensitivityMatrix) {
       expect(row.durationYears).toBeLessThanOrEqual(2);
+    }
+  });
+
+  it("approximateSensitivity equals (marketPrice - carryingPrice) / carryingPrice", () => {
+    const result = simulateMarkToMarket({
+      faceValue: 1000,
+      originalRate: 0.1,
+      newRate: 0.12,
+      totalYears: 10,
+      yearsRemaining: 6,
+    });
+    const expected = (result.marketPrice - result.carryingPrice) / result.carryingPrice;
+    expect(result.approximateSensitivity).toBeCloseTo(expected, 10);
+  });
+
+  it("never produces a price deviation below -100% (compound pricing can't go negative), even for long durations and large rate hikes", () => {
+    const result = simulateMarkToMarket({
+      faceValue: 1000,
+      originalRate: 0.1,
+      newRate: 0.13,
+      totalYears: 17,
+      yearsRemaining: 10,
+    });
+    for (const row of result.sensitivityMatrix) {
+      for (const cell of row.cells) {
+        expect(cell.priceDeviation).toBeGreaterThan(-1);
+      }
     }
   });
 });

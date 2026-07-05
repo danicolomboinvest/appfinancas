@@ -21,7 +21,15 @@ const MONTH_LABELS = [
 ];
 
 /** Lançamento rápido direto da listagem anual, sem precisar navegar para a página do mês. */
-export function QuickEntryButton({ year, month }: { year: number; month: number }) {
+export function QuickEntryButton({
+  year,
+  month,
+  recentSubcategories = [],
+}: {
+  year: number;
+  month: number;
+  recentSubcategories?: string[];
+}) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -34,7 +42,13 @@ export function QuickEntryButton({ year, month }: { year: number; month: number 
       </Link>
 
       <Modal open={open} onClose={() => setOpen(false)} title={`Lançar em ${MONTH_LABELS[month - 1]} de ${year}`}>
-        <EntryForm year={year} month={month} layout="stacked" onSuccess={() => setOpen(false)} />
+        <EntryForm
+          year={year}
+          month={month}
+          recentSubcategories={recentSubcategories}
+          layout="stacked"
+          onSuccess={() => setOpen(false)}
+        />
       </Modal>
     </div>
   );

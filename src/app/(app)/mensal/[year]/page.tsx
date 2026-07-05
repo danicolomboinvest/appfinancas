@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
 import { getYearlySummary } from "@/lib/consolidation/yearly";
+import { listRecentSubcategories } from "@/lib/repositories/monthly-entry.repo";
 import { YearlyBarChart } from "@/components/charts/YearlyBarChart";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
@@ -34,7 +35,10 @@ export default async function YearPage(props: PageProps<"/mensal/[year]">) {
   const { year: yearParam } = await props.params;
   const year = Number(yearParam);
   const ctx = await getRequiredSession();
-  const summary = await getYearlySummary(ctx, year);
+  const [summary, recentSubcategories] = await Promise.all([
+    getYearlySummary(ctx, year),
+    listRecentSubcategories(ctx),
+  ]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -76,12 +80,16 @@ export default async function YearPage(props: PageProps<"/mensal/[year]">) {
         <YearlyBarChart months={summary.months} />
       </Card>
 
-      <ResponsiveTable columns={monthColumns(year)} rows={summary.months} rowKey={(m) => String(m.month)} />
+      <ResponsiveTable
+        columns={monthColumns(year, recentSubcategories)}
+        rows={summary.months}
+        rowKey={(m) => String(m.month)}
+      />
     </div>
   );
 }
 
-function monthColumns(year: number): ResponsiveColumn<MonthlyBreakdown>[] {
+function monthColumns(year: number, recentSubcategories: string[]): ResponsiveColumn<MonthlyBreakdown>[] {
   return [
     { key: "month", label: "Mês", render: (m) => MONTH_LABELS[m.month - 1] },
     { key: "income", label: "Renda", render: (m) => formatBRL(m.totalIncome) },
@@ -92,7 +100,7 @@ function monthColumns(year: number): ResponsiveColumn<MonthlyBreakdown>[] {
       key: "actions",
       label: "",
       hideLabelOnMobile: true,
-      render: (m) => <QuickEntryButton year={year} month={m.month} />,
+      render: (m) => <QuickEntryButton year={year} month={m.month} recentSubcategories={recentSubcategories} />,
     },
   ];
 }

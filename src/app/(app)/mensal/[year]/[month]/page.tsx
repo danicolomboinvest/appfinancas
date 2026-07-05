@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
-import { listMonthlyEntries } from "@/lib/repositories/monthly-entry.repo";
+import { listMonthlyEntries, listRecentSubcategories } from "@/lib/repositories/monthly-entry.repo";
 import { getMonthlySummary } from "@/lib/consolidation/monthly";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
@@ -9,6 +9,7 @@ import { ResponsiveTable } from "@/components/ui/ResponsiveTable";
 import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { EntryForm } from "./EntryForm";
 import { DeleteEntryButton } from "./DeleteEntryButton";
+import { BudgetSection } from "../BudgetSection";
 
 const MONTH_LABELS = [
   "Janeiro",
@@ -46,9 +47,10 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
   const month = Number(monthParam);
 
   const ctx = await getRequiredSession();
-  const [entries, summary] = await Promise.all([
+  const [entries, summary, recentSubcategories] = await Promise.all([
     listMonthlyEntries(ctx, year, month),
     getMonthlySummary(ctx, year, month),
+    listRecentSubcategories(ctx),
   ]);
 
   const prev = adjacentMonth(year, month, -1);
@@ -91,7 +93,9 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
         <StatCard label="Saldo" value={formatBRL(summary.balance)} tone="gold" />
       </div>
 
-      <EntryForm year={year} month={month} />
+      <EntryForm year={year} month={month} recentSubcategories={recentSubcategories} />
+
+      <BudgetSection ctx={ctx} year={year} month={month} totalIncome={summary.totalIncome} />
 
       <ResponsiveTable
         columns={[

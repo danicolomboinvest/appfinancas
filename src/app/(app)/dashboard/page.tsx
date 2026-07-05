@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ShieldCheck, Target, Sparkles } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
 import { getYearlySummary } from "@/lib/consolidation/yearly";
+import { getMonthlySummary } from "@/lib/consolidation/monthly";
 import { getPortfolioByObjective } from "@/lib/consolidation/portfolio";
 import { getEmergencyFund } from "@/lib/repositories/emergency-fund.repo";
 import { listGoals } from "@/lib/repositories/goal.repo";
@@ -19,16 +20,34 @@ function formatBRL(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
+/** Variação percentual entre o mês atual e o anterior — null quando não dá para comparar (mês anterior zerado). */
+function changePercent(current: number, previous: number): number | null {
+  if (previous === 0) return null;
+  return (current - previous) / previous;
+}
+
 export default async function DashboardPage() {
   const ctx = await getRequiredSession();
-  const year = new Date().getFullYear();
-  const [summary, portfolio, emergencyFund, goals, planningParams] = await Promise.all([
-    getYearlySummary(ctx, year),
-    getPortfolioByObjective(ctx),
-    getEmergencyFund(ctx),
-    listGoals(ctx),
-    getPlanningParams(ctx),
-  ]);
+  const now = new Date();
+  const year = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
+  const previousMonthDate = new Date(year, currentMonth - 2, 1);
+
+  const [summary, portfolio, emergencyFund, goals, planningParams, currentMonthSummary, previousMonthSummary] =
+    await Promise.all([
+      getYearlySummary(ctx, year),
+      getPortfolioByObjective(ctx),
+      getEmergencyFund(ctx),
+      listGoals(ctx),
+      getPlanningParams(ctx),
+      getMonthlySummary(ctx, year, currentMonth),
+      getMonthlySummary(ctx, previousMonthDate.getFullYear(), previousMonthDate.getMonth() + 1),
+    ]);
+
+  const incomeTrend = changePercent(currentMonthSummary.totalIncome, previousMonthSummary.totalIncome);
+  const expenseTrend = changePercent(currentMonthSummary.totalExpense, previousMonthSummary.totalExpense);
+  const investmentTrend = changePercent(currentMonthSummary.totalInvestment, previousMonthSummary.totalInvestment);
+  const balanceTrend = changePercent(currentMonthSummary.balance, previousMonthSummary.balance);
 
   const emergencyTarget = emergencyFund ? Number(emergencyFund.targetAmount) : null;
   const emergencyCurrent = emergencyFund ? Number(emergencyFund.currentAmount) : 0;
@@ -80,10 +99,30 @@ export default async function DashboardPage() {
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
         <StatCard label="Patrimônio total" value={formatBRL(portfolio.totalPortfolio)} tone="gold" />
-        <StatCard label="Renda no ano" value={formatBRL(summary.totalIncome)} tone="success" />
-        <StatCard label="Gastos no ano" value={formatBRL(summary.totalExpense)} tone="danger" />
-        <StatCard label="Aportes no ano" value={formatBRL(summary.totalInvestment)} />
-        <StatCard label="Saldo no ano" value={formatBRL(summary.balance)} />
+        <StatCard
+          label="Renda no ano"
+          value={formatBRL(summary.totalIncome)}
+          tone="success"
+          trend={incomeTrend === null ? undefined : { percent: incomeTrend, periodLabel: "mês passado" }}
+        />
+        <StatCard
+          label="Gastos no ano"
+          value={formatBRL(summary.totalExpense)}
+          tone="danger"
+          trend={
+            expenseTrend === null ? undefined : { percent: expenseTrend, periodLabel: "mês passado", goodDirection: "down" }
+          }
+        />
+        <StatCard
+          label="Aportes no ano"
+          value={formatBRL(summary.totalInvestment)}
+          trend={investmentTrend === null ? undefined : { percent: investmentTrend, periodLabel: "mês passado" }}
+        />
+        <StatCard
+          label="Saldo no ano"
+          value={formatBRL(summary.balance)}
+          trend={balanceTrend === null ? undefined : { percent: balanceTrend, periodLabel: "mês passado" }}
+        />
         <StatCard
           label="Taxa de poupança"
           value={summary.savingsRate === null ? "—" : `${(summary.savingsRate * 100).toFixed(1)}%`}

@@ -27,12 +27,15 @@ function valueToCents(value: unknown): number | null {
  */
 export function CurrencyInputControlled({
   label,
+  labelExtra,
   value,
   onChange,
   error,
   id,
 }: {
   label: string;
+  /** Conteúdo extra ao lado do rótulo (ex.: um ícone de ajuda/tooltip). */
+  labelExtra?: React.ReactNode;
   /** Vem de field.value do Controller — pode ser `unknown` antes da coerção do zod. */
   value: unknown;
   onChange: (reais: number | undefined) => void;
@@ -53,8 +56,9 @@ export function CurrencyInputControlled({
 
   return (
     <div className="flex flex-col gap-1.5">
-      <label htmlFor={inputId} className="text-xs font-medium text-ink-muted">
+      <label htmlFor={inputId} className="flex items-center text-xs font-medium text-ink-muted">
         {label}
+        {labelExtra}
       </label>
       <input
         id={inputId}

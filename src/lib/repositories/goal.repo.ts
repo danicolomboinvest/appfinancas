@@ -1,3 +1,4 @@
+import type { GoalIcon } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import type { AuthContext } from "@/lib/auth/session";
 import { computeGoalPlan } from "@/lib/planning/goal";
@@ -8,6 +9,7 @@ export type GoalInput = {
   targetDate: Date;
   currentAmount: number;
   annualRate: number;
+  icon: GoalIcon;
 };
 
 export async function listGoals(ctx: AuthContext) {

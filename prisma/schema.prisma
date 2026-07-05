@@ -21,11 +21,32 @@ enum EntryCategory {
   INVESTMENT_CONTRIBUTION
 }
 
+/// Categoria-mãe do lançamento (segunda camada de categorização, além de EntryCategory).
+/// Só se aplica a lançamentos EXPENSE — usada para orçamento mensal por categoria.
+enum ParentCategory {
+  MORADIA
+  ALIMENTACAO
+  TRANSPORTE
+  SAUDE
+  LAZER
+  EDUCACAO
+  FINANCEIRO
+}
+
 enum GoalStatus {
   NOT_STARTED
   ON_TRACK
   BEHIND
   ACHIEVED
+}
+
+/// Ícone temático escolhido pelo usuário para o card da meta.
+enum GoalIcon {
+  VIAGEM
+  CASA
+  CARRO
+  APOSENTADORIA
+  GENERICO
 }
 
 enum AssetClass {
@@ -73,16 +94,37 @@ enum RateBasis {
   MONTHLY
 }
 
+/// Classes usadas na tela "Estratégia da Carteira" — mais granulares que AssetClass
+/// (que continua sendo usada no cadastro de ativos individuais). A posição atual por
+/// classe de estratégia é derivada de Asset.assetClass por uma função de mapeamento
+/// padrão (ver lib/portfolio/strategy.ts), já que são taxonomias diferentes.
+enum StrategyAssetClass {
+  RENDA_FIXA_POS_FIXADA
+  RENDA_FIXA_IPCA
+  PREFIXADO
+  ACOES_BRASIL
+  FIIS
+  EXTERIOR
+  OUTROS
+}
+
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
   passwordHash String
   name         String?
+  avatarUrl    String?
   role         Role     @default(CLIENT)
+  currency     String   @default("BRL")
+  theme        String   @default("dark")
+  notifyBudgetAlerts Boolean @default(true)
+  notifyLateGoals    Boolean @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   monthlyEntries       MonthlyEntry[]
+  budgets              Budget[]
+  portfolioStrategy    PortfolioStrategy[]
   assets               Asset[]
   goals                Goal[]
   emergencyFund        EmergencyFund?
@@ -126,20 +168,37 @@ model ReferenceRate {
 
 /// Lançamento mensal — substitui as 12 abas Jan..Dez da planilha original.
 model MonthlyEntry {
-  id          String        @id @default(cuid())
-  userId      String
-  user        User          @relation(fields: [userId], references: [id])
-  year        Int
-  month       Int
-  category    EntryCategory
-  subcategory String?
-  description String?
-  amount      Decimal       @db.Decimal(18, 2)
-  goalId      String?
-  goal        Goal?         @relation(fields: [goalId], references: [id])
-  createdAt   DateTime      @default(now())
+  id             String          @id @default(cuid())
+  userId         String
+  user           User            @relation(fields: [userId], references: [id])
+  year           Int
+  month          Int
+  category       EntryCategory
+  parentCategory ParentCategory?
+  subcategory    String?
+  description    String?
+  amount         Decimal         @db.Decimal(18, 2)
+  goalId         String?
+  goal           Goal?           @relation(fields: [goalId], references: [id])
+  createdAt      DateTime        @default(now())
 
   @@index([userId, year, month])
+  @@index([userId, parentCategory])
+}
+
+/// Orçamento mensal planejado por categoria-mãe (para a barra "gasto realizado vs. planejado").
+model Budget {
+  id             String         @id @default(cuid())
+  userId         String
+  user           User           @relation(fields: [userId], references: [id])
+  year           Int
+  month          Int
+  parentCategory ParentCategory
+  plannedAmount  Decimal        @db.Decimal(18, 2)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@unique([userId, year, month, parentCategory])
 }
 
 /// Cache opcional de consolidação anual (substitui Database -> Pivôs -> Consolidado do Ano).
@@ -170,6 +229,7 @@ model Goal {
   monthlyContribution Decimal?       @db.Decimal(18, 2)
   annualRate          Decimal?       @db.Decimal(12, 6)
   status              GoalStatus     @default(NOT_STARTED)
+  icon                GoalIcon       @default(GENERICO)
   entries             MonthlyEntry[]
   assets              Asset[]
   createdAt           DateTime       @default(now())
@@ -245,6 +305,19 @@ model Asset {
   notes                  String?
   createdAt              DateTime       @default(now())
   updatedAt              DateTime       @updatedAt
+}
+
+/// Percentuais-alvo por classe de estratégia definidos pelo próprio usuário (soma = 100%),
+/// independente da alocação-ideal por ativo individual em Asset.idealAllocationPercent.
+model PortfolioStrategy {
+  id            String             @id @default(cuid())
+  userId        String
+  user          User               @relation(fields: [userId], references: [id])
+  assetClass    StrategyAssetClass
+  targetPercent Decimal            @db.Decimal(6, 3)
+  updatedAt     DateTime           @updatedAt
+
+  @@unique([userId, assetClass])
 }
 
 /// Histórico opcional de simulações (financiar vs alugar, consórcio, marcação a mercado, carro).

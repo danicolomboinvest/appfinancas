@@ -1,12 +1,15 @@
 import Link from "next/link";
 import { getRequiredSession } from "@/lib/auth/session";
 import { getPortfolioByObjective, getAllocationByClass } from "@/lib/consolidation/portfolio";
+import { getPortfolioStrategyComparison } from "@/lib/portfolio/strategy";
 import { AllocationChart } from "@/components/charts/AllocationChart";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
 import { Card } from "@/components/ui/Card";
+import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { ResponsiveTable, type ResponsiveColumn } from "@/components/ui/ResponsiveTable";
 import type { GoalAllocation } from "@/lib/consolidation/portfolio";
+import { StrategyComparisonSection } from "./StrategyComparisonSection";
 
 function formatBRL(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -19,10 +22,17 @@ function formatPercent(value: number | null) {
 
 export default async function CarteiraPorObjetivoPage() {
   const ctx = await getRequiredSession();
-  const [byObjective, allocation] = await Promise.all([getPortfolioByObjective(ctx), getAllocationByClass(ctx)]);
+  const [byObjective, allocation, strategyComparison] = await Promise.all([
+    getPortfolioByObjective(ctx),
+    getAllocationByClass(ctx),
+    getPortfolioStrategyComparison(ctx),
+  ]);
+  const hasStrategy = strategyComparison.positions.some((p) => p.targetPercent > 0);
 
   return (
     <div className="flex flex-col gap-8">
+      <Breadcrumb items={[{ label: "Carteira de Investimentos", href: "/carteira" }, { label: "Por Objetivo" }]} />
+
       <PageHeader
         title="Carteira por Objetivo"
         subtitle={
@@ -59,6 +69,16 @@ export default async function CarteiraPorObjetivoPage() {
           <ResponsiveTable columns={goalColumns} rows={byObjective.metas} rowKey={(goal) => goal.goalId} />
         </div>
       )}
+
+      <div>
+        <h2 className="mb-3 flex items-center justify-between text-sm font-medium text-ink-muted">
+          <span>Carteira atual vs. estratégia-alvo e rebalanceamento</span>
+          <Link href="/carteira/estrategia" className="text-xs text-gold-strong hover:underline">
+            {hasStrategy ? "Editar estratégia" : "Definir estratégia"} →
+          </Link>
+        </h2>
+        <StrategyComparisonSection positions={strategyComparison.positions} hasStrategy={hasStrategy} />
+      </div>
 
       <div>
         <h2 className="mb-3 text-sm font-medium text-ink-muted">Alocação atual vs. ideal por classe</h2>

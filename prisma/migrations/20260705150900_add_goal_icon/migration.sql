@@ -1,0 +1,5 @@
+-- CreateEnum
+CREATE TYPE "GoalIcon" AS ENUM ('VIAGEM', 'CASA', 'CARRO', 'APOSENTADORIA', 'GENERICO');
+
+-- AlterTable
+ALTER TABLE "Goal" ADD COLUMN     "icon" "GoalIcon" NOT NULL DEFAULT 'GENERICO';

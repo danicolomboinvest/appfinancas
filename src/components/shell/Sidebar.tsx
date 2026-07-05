@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronsLeft, ChevronsRight, Gem, LogOut } from "lucide-react";
+import { ChevronsLeft, ChevronsRight, LogOut, TrendingUp } from "lucide-react";
 import { ADMIN_NAV_SECTION, NAV_SECTIONS } from "./nav-sections";
 
 export function Sidebar({
@@ -57,7 +57,7 @@ export function Sidebar({
       <div className={`flex items-center gap-2.5 px-4 pb-2 pt-5 ${collapsedDesktopOnly}`}>
         <Link href="/inicio" onClick={onCloseMobile} className="flex items-center gap-2.5 overflow-hidden">
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gold-soft text-gold-strong">
-            <Gem size={17} strokeWidth={1.75} />
+            <TrendingUp size={17} strokeWidth={1.75} />
           </span>
           <span className={`truncate text-sm font-semibold tracking-tight text-ink ${hideLabelDesktopOnly}`}>
             Planejamento Financeiro

@@ -43,6 +43,7 @@ export const NAV_SECTIONS: NavSection[] = [
     children: [
       { href: "/carteira", label: "Meus Ativos" },
       { href: "/carteira/por-objetivo", label: "Por Objetivo" },
+      { href: "/carteira/estrategia", label: "Estratégia" },
     ],
   },
   {
@@ -60,15 +61,29 @@ export const NAV_SECTIONS: NavSection[] = [
   },
   {
     basePath: "/fichas",
-    href: "/fichas/acoes",
+    href: "/fichas",
     label: "Análises",
     icon: FileSearch,
     children: [
+      { href: "/fichas", label: "Insights" },
       { href: "/fichas/acoes", label: "Ações" },
       { href: "/fichas/fiis", label: "FIIs" },
     ],
   },
-  { basePath: "/parametros", href: "/parametros", label: "Configurações", icon: Settings },
+  {
+    basePath: "/configuracoes",
+    href: "/configuracoes/perfil",
+    label: "Configurações",
+    icon: Settings,
+    children: [
+      { href: "/configuracoes/perfil", label: "Perfil" },
+      { href: "/configuracoes/categorias", label: "Categorias" },
+      { href: "/configuracoes/preferencias", label: "Preferências" },
+      { href: "/configuracoes/notificacoes", label: "Notificações" },
+      { href: "/configuracoes/dados", label: "Dados" },
+      { href: "/configuracoes/taxas", label: "Taxas do Sistema" },
+    ],
+  },
 ];
 
 export const ADMIN_NAV_SECTION: NavSection = {

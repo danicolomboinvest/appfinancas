@@ -15,6 +15,7 @@ function parseGoalForm(formData: FormData) {
     targetDate: formData.get("targetDate"),
     currentAmount: formData.get("currentAmount"),
     annualRate: formData.get("annualRate"),
+    icon: formData.get("icon") || undefined,
   });
 }
 

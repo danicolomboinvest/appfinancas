@@ -42,16 +42,16 @@ const SECTIONS = [
     subtitle: "Financiar vs. alugar, consórcio, marcação a mercado e mais.",
   },
   {
-    href: "/fichas/acoes",
+    href: "/fichas",
     icon: FileSearch,
     title: "Análises",
-    subtitle: "Fichas de análise fundamentalista de ações e FIIs.",
+    subtitle: "Insights automáticos e fichas de análise fundamentalista de ações e FIIs.",
   },
   {
-    href: "/parametros",
+    href: "/configuracoes/perfil",
     icon: Settings,
     title: "Configurações",
-    subtitle: "Taxas e premissas usadas nos cálculos do sistema.",
+    subtitle: "Perfil, categorias, preferências, notificações e taxas do sistema.",
   },
 ];
 

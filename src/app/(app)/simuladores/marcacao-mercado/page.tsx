@@ -17,6 +17,7 @@ import { Field } from "@/components/ui/Field";
 import { PercentInputControlled } from "@/components/ui/PercentInputControlled";
 import { CurrencyInputControlled } from "@/components/ui/CurrencyInputControlled";
 import { Button } from "@/components/ui/Button";
+import { HelpTooltip } from "@/components/forms/HelpTooltip";
 
 const defaultValues: MarkToMarketFormInput = {
   faceValue: 1000,
@@ -61,6 +62,25 @@ export default function MarcacaoMercadoPage() {
             render={({ field }) => (
               <CurrencyInputControlled
                 label="Valor de face (R$)"
+                labelExtra={
+                  <HelpTooltip
+                    text={
+                      <>
+                        Valor de face é o valor nominal do título na data de vencimento. Para Tesouro Direto,
+                        especialmente Tesouro IPCA+, consulte o valor atualizado em{" "}
+                        <a
+                          href="https://www.anbima.com.br"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-gold-strong underline"
+                        >
+                          www.anbima.com.br
+                        </a>{" "}
+                        (Preços e Índices).
+                      </>
+                    }
+                  />
+                }
                 value={field.value}
                 onChange={field.onChange}
                 error={errors.faceValue?.message}
