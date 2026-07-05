@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   markToMarketSchema,
@@ -14,6 +14,8 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
 import { Card } from "@/components/ui/Card";
 import { Field } from "@/components/ui/Field";
+import { PercentInputControlled } from "@/components/ui/PercentInputControlled";
+import { CurrencyInputControlled } from "@/components/ui/CurrencyInputControlled";
 import { Button } from "@/components/ui/Button";
 
 const defaultValues: MarkToMarketFormInput = {
@@ -31,6 +33,7 @@ function formatBRL(value: number) {
 export default function MarcacaoMercadoPage() {
   const {
     register,
+    control,
     handleSubmit,
     formState: { errors },
   } = useForm<MarkToMarketFormInput, unknown, MarkToMarketFormValues>({
@@ -52,9 +55,37 @@ export default function MarcacaoMercadoPage() {
 
       <Card as="form" onSubmit={onSubmit} className="flex flex-col gap-4 p-5">
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
-          <Field label="Valor de face (R$)" error={errors.faceValue?.message} {...register("faceValue")} type="number" step="0.01" />
-          <Field label="Taxa contratada (a.a.)" error={errors.originalRate?.message} {...register("originalRate")} type="number" step="0.0001" />
-          <Field label="Nova taxa de mercado (a.a.)" error={errors.newRate?.message} {...register("newRate")} type="number" step="0.0001" />
+          <Controller
+            control={control}
+            name="faceValue"
+            render={({ field }) => (
+              <CurrencyInputControlled
+                label="Valor de face (R$)"
+                value={field.value}
+                onChange={field.onChange}
+                error={errors.faceValue?.message}
+              />
+            )}
+          />
+          <Controller
+            control={control}
+            name="originalRate"
+            render={({ field }) => (
+              <PercentInputControlled label="Taxa contratada (a.a.)" value={field.value} onChange={field.onChange} error={errors.originalRate?.message} />
+            )}
+          />
+          <Controller
+            control={control}
+            name="newRate"
+            render={({ field }) => (
+              <PercentInputControlled
+                label="Nova taxa de mercado (a.a.)"
+                value={field.value}
+                onChange={field.onChange}
+                error={errors.newRate?.message}
+              />
+            )}
+          />
           <Field label="Prazo total (anos)" error={errors.totalYears?.message} {...register("totalYears")} type="number" step="0.1" />
           <Field
             label="Anos restantes até o vencimento"

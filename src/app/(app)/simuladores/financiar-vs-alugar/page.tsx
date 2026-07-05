@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   financingVsRentSchema,
@@ -14,6 +14,8 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
 import { Card } from "@/components/ui/Card";
 import { Field, SelectField } from "@/components/ui/Field";
+import { PercentInputControlled } from "@/components/ui/PercentInputControlled";
+import { CurrencyInputControlled } from "@/components/ui/CurrencyInputControlled";
 import { Button } from "@/components/ui/Button";
 
 const defaultValues: FinancingVsRentFormInput = {
@@ -35,6 +37,7 @@ function formatBRL(value: number) {
 export default function FinanciarVsAlugarPage() {
   const {
     register,
+    control,
     handleSubmit,
     formState: { errors },
   } = useForm<FinancingVsRentFormInput, unknown, FinancingVsRentFormValues>({
@@ -56,15 +59,48 @@ export default function FinanciarVsAlugarPage() {
 
       <Card as="form" onSubmit={onSubmit} className="flex flex-col gap-4 p-5">
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <Field label="Valor do imóvel (R$)" error={errors.propertyValue?.message} {...register("propertyValue")} type="number" step="0.01" />
-          <Field label="Entrada (R$)" error={errors.downPayment?.message} {...register("downPayment")} type="number" step="0.01" />
-          <Field label="CET (a.a., ex.: 0.11)" error={errors.cetAnnualRate?.message} {...register("cetAnnualRate")} type="number" step="0.0001" />
-          <Field
-            label="Valorização do imóvel (a.a.)"
-            error={errors.propertyAppreciationAnnualRate?.message}
-            {...register("propertyAppreciationAnnualRate")}
-            type="number"
-            step="0.0001"
+          <Controller
+            control={control}
+            name="propertyValue"
+            render={({ field }) => (
+              <CurrencyInputControlled
+                label="Valor do imóvel (R$)"
+                value={field.value}
+                onChange={field.onChange}
+                error={errors.propertyValue?.message}
+              />
+            )}
+          />
+          <Controller
+            control={control}
+            name="downPayment"
+            render={({ field }) => (
+              <CurrencyInputControlled
+                label="Entrada (R$)"
+                value={field.value}
+                onChange={field.onChange}
+                error={errors.downPayment?.message}
+              />
+            )}
+          />
+          <Controller
+            control={control}
+            name="cetAnnualRate"
+            render={({ field }) => (
+              <PercentInputControlled label="CET (a.a.)" value={field.value} onChange={field.onChange} error={errors.cetAnnualRate?.message} />
+            )}
+          />
+          <Controller
+            control={control}
+            name="propertyAppreciationAnnualRate"
+            render={({ field }) => (
+              <PercentInputControlled
+                label="Valorização do imóvel (a.a.)"
+                value={field.value}
+                onChange={field.onChange}
+                error={errors.propertyAppreciationAnnualRate?.message}
+              />
+            )}
           />
         </div>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -73,22 +109,43 @@ export default function FinanciarVsAlugarPage() {
             <option value="SAC">SAC</option>
             <option value="PRICE">Price</option>
           </SelectField>
-          <Field label="Aluguel mensal (R$)" error={errors.monthlyRent?.message} {...register("monthlyRent")} type="number" step="0.01" />
-          <Field
-            label="Reajuste anual do aluguel"
-            error={errors.rentAnnualAdjustment?.message}
-            {...register("rentAnnualAdjustment")}
-            type="number"
-            step="0.0001"
+          <Controller
+            control={control}
+            name="monthlyRent"
+            render={({ field }) => (
+              <CurrencyInputControlled
+                label="Aluguel mensal (R$)"
+                value={field.value}
+                onChange={field.onChange}
+                error={errors.monthlyRent?.message}
+              />
+            )}
+          />
+          <Controller
+            control={control}
+            name="rentAnnualAdjustment"
+            render={({ field }) => (
+              <PercentInputControlled
+                label="Reajuste anual do aluguel"
+                value={field.value}
+                onChange={field.onChange}
+                error={errors.rentAnnualAdjustment?.message}
+              />
+            )}
           />
         </div>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <Field
-            label="Rentabilidade de quem investe (a.a.)"
-            error={errors.investmentAnnualRate?.message}
-            {...register("investmentAnnualRate")}
-            type="number"
-            step="0.0001"
+          <Controller
+            control={control}
+            name="investmentAnnualRate"
+            render={({ field }) => (
+              <PercentInputControlled
+                label="Rentabilidade de quem investe (a.a.)"
+                value={field.value}
+                onChange={field.onChange}
+                error={errors.investmentAnnualRate?.message}
+              />
+            )}
           />
         </div>
         <Button type="submit" className="w-fit">

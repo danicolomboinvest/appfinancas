@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   carComparisonSchema,
@@ -12,7 +12,8 @@ import { simulateCarComparison, type CarComparisonResult } from "@/lib/simulator
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
 import { Card } from "@/components/ui/Card";
-import { Field } from "@/components/ui/Field";
+import { PercentInputControlled } from "@/components/ui/PercentInputControlled";
+import { CurrencyInputControlled } from "@/components/ui/CurrencyInputControlled";
 import { Button } from "@/components/ui/Button";
 
 const defaultValues: CarComparisonFormInput = {
@@ -31,7 +32,7 @@ function formatBRL(value: number) {
 
 export default function CarroPage() {
   const {
-    register,
+    control,
     handleSubmit,
     formState: { errors },
   } = useForm<CarComparisonFormInput, unknown, CarComparisonFormValues>({
@@ -53,50 +54,91 @@ export default function CarroPage() {
 
       <Card as="form" onSubmit={onSubmit} className="flex flex-col gap-4 p-5">
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <Field label="Valor do carro 0km (R$)" error={errors.carPrice?.message} {...register("carPrice")} type="number" step="0.01" />
-          <Field
-            label="Valor de revenda em 1 ano (R$)"
-            error={errors.priceAfter1Year?.message}
-            {...register("priceAfter1Year")}
-            type="number"
-            step="0.01"
+          <Controller
+            control={control}
+            name="carPrice"
+            render={({ field }) => (
+              <CurrencyInputControlled
+                label="Valor do carro 0km (R$)"
+                value={field.value}
+                onChange={field.onChange}
+                error={errors.carPrice?.message}
+              />
+            )}
           />
-          <Field
-            label="Valor de revenda em 2 anos (R$)"
-            error={errors.priceAfter2Years?.message}
-            {...register("priceAfter2Years")}
-            type="number"
-            step="0.01"
+          <Controller
+            control={control}
+            name="priceAfter1Year"
+            render={({ field }) => (
+              <CurrencyInputControlled
+                label="Valor de revenda em 1 ano (R$)"
+                value={field.value}
+                onChange={field.onChange}
+                error={errors.priceAfter1Year?.message}
+              />
+            )}
           />
-          <Field
-            label="Combustível mensal (R$)"
-            error={errors.monthlyFuelCost?.message}
-            {...register("monthlyFuelCost")}
-            type="number"
-            step="0.01"
+          <Controller
+            control={control}
+            name="priceAfter2Years"
+            render={({ field }) => (
+              <CurrencyInputControlled
+                label="Valor de revenda em 2 anos (R$)"
+                value={field.value}
+                onChange={field.onChange}
+                error={errors.priceAfter2Years?.message}
+              />
+            )}
+          />
+          <Controller
+            control={control}
+            name="monthlyFuelCost"
+            render={({ field }) => (
+              <CurrencyInputControlled
+                label="Combustível mensal (R$)"
+                value={field.value}
+                onChange={field.onChange}
+                error={errors.monthlyFuelCost?.message}
+              />
+            )}
           />
         </div>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <Field
-            label="Mensalidade da assinatura (R$)"
-            error={errors.subscriptionMonthlyFee?.message}
-            {...register("subscriptionMonthlyFee")}
-            type="number"
-            step="0.01"
+          <Controller
+            control={control}
+            name="subscriptionMonthlyFee"
+            render={({ field }) => (
+              <CurrencyInputControlled
+                label="Mensalidade da assinatura (R$)"
+                value={field.value}
+                onChange={field.onChange}
+                error={errors.subscriptionMonthlyFee?.message}
+              />
+            )}
           />
-          <Field
-            label="Custos fixos anuais (IPVA, seguro...) (R$)"
-            error={errors.annualFixedCosts?.message}
-            {...register("annualFixedCosts")}
-            type="number"
-            step="0.01"
+          <Controller
+            control={control}
+            name="annualFixedCosts"
+            render={({ field }) => (
+              <CurrencyInputControlled
+                label="Custos fixos anuais (IPVA, seguro...) (R$)"
+                value={field.value}
+                onChange={field.onChange}
+                error={errors.annualFixedCosts?.message}
+              />
+            )}
           />
-          <Field
-            label="Custo de oportunidade (% a.m., ex.: 0.008)"
-            error={errors.opportunityCostMonthlyRate?.message}
-            {...register("opportunityCostMonthlyRate")}
-            type="number"
-            step="0.0001"
+          <Controller
+            control={control}
+            name="opportunityCostMonthlyRate"
+            render={({ field }) => (
+              <PercentInputControlled
+                label="Custo de oportunidade (a.m.)"
+                value={field.value}
+                onChange={field.onChange}
+                error={errors.opportunityCostMonthlyRate?.message}
+              />
+            )}
           />
         </div>
         <Button type="submit" className="w-fit">

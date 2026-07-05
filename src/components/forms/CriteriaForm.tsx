@@ -4,6 +4,9 @@ import { useState, useTransition } from "react";
 import { saveResponsesAction } from "@/app/(app)/fichas/actions";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { ProgressBar } from "@/components/ui/ProgressBar";
+import { useToast } from "@/components/ui/toast-context";
+import { AnalysisRadarChart, type CategoryScore } from "@/components/charts/AnalysisRadarChart";
 import { HelpTooltip } from "./HelpTooltip";
 
 export type FormCriterion = {
@@ -57,8 +60,26 @@ export function CriteriaForm({
   const [totalScore, setTotalScore] = useState(initialTotalScore);
   const [isPending, startTransition] = useTransition();
   const [savedAt, setSavedAt] = useState<Date | null>(null);
+  const { showToast } = useToast();
 
   const categories = Array.from(new Set(criteria.map((c) => c.category)));
+
+  const answeredCount = criteria.filter((c) => {
+    const r = responses[c.id];
+    return r && (r.value !== "" || r.score !== "" || r.note !== "");
+  }).length;
+  const fillProgress = criteria.length > 0 ? answeredCount / criteria.length : 0;
+
+  const categoryScores: CategoryScore[] = categories
+    .map((category) => {
+      const scores = criteria
+        .filter((c) => c.category === category)
+        .map((c) => responses[c.id]?.score)
+        .filter((score): score is string => score !== undefined && score !== "")
+        .map(Number);
+      return { category, score: scores.length > 0 ? scores.reduce((sum, s) => sum + s, 0) / scores.length : null };
+    })
+    .filter((entry): entry is CategoryScore => entry.score !== null);
 
   function updateResponse(criterionId: string, field: keyof ResponseState, value: string) {
     setResponses((prev) => ({ ...prev, [criterionId]: { ...prev[criterionId], [field]: value } }));
@@ -82,15 +103,33 @@ export function CriteriaForm({
       await saveResponsesAction({ sheetId, conclusion: conclusion || undefined, responses: responsePayload }, basePath);
       setTotalScore(nextTotalScore);
       setSavedAt(new Date());
+      showToast("Ficha salva com sucesso.");
     });
   }
 
   return (
     <div className="flex flex-col gap-6">
+      <Card className="p-4">
+        <div className="flex items-center justify-between text-xs text-ink-muted">
+          <span>Preenchimento da ficha</span>
+          <span>
+            {answeredCount} de {criteria.length} critérios
+          </span>
+        </div>
+        <ProgressBar percent={fillProgress} tone="gold" className="mt-2" />
+      </Card>
+
       {totalScore !== null && (
         <Card className="w-fit p-4">
           <p className="text-xs text-ink-muted">Nota geral</p>
           <p className="mt-1 text-2xl font-semibold tracking-tight text-gold-strong">{totalScore.toFixed(1)} / 10</p>
+        </Card>
+      )}
+
+      {categoryScores.length >= 2 && (
+        <Card className="p-5">
+          <p className="mb-2 text-xs font-medium text-ink-muted">Nota por categoria</p>
+          <AnalysisRadarChart data={categoryScores} />
         </Card>
       )}
 

@@ -6,6 +6,10 @@ import { YearlyBarChart } from "@/components/charts/YearlyBarChart";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
 import { Card } from "@/components/ui/Card";
+import { ResponsiveTable, type ResponsiveColumn } from "@/components/ui/ResponsiveTable";
+import { Breadcrumb } from "@/components/ui/Breadcrumb";
+import type { MonthlyBreakdown } from "@/lib/consolidation/yearly";
+import { QuickEntryButton } from "./QuickEntryButton";
 
 const MONTH_LABELS = [
   "Janeiro",
@@ -33,7 +37,9 @@ export default async function YearPage(props: PageProps<"/mensal/[year]">) {
   const summary = await getYearlySummary(ctx, year);
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6">
+      <Breadcrumb items={[{ label: "Fluxo Financeiro", href: "/mensal" }, { label: String(year) }]} />
+
       <PageHeader
         title={`Fluxo Financeiro — ${year}`}
         subtitle="Consolidação automática dos 12 meses do ano."
@@ -70,36 +76,23 @@ export default async function YearPage(props: PageProps<"/mensal/[year]">) {
         <YearlyBarChart months={summary.months} />
       </Card>
 
-      <Card className="overflow-hidden">
-        <table className="w-full text-left text-sm">
-          <thead>
-            <tr className="border-b border-border bg-surface-2/50 text-ink-muted">
-              <th className="px-4 py-3 font-medium">Mês</th>
-              <th className="px-4 py-3 font-medium">Renda</th>
-              <th className="px-4 py-3 font-medium">Gastos</th>
-              <th className="px-4 py-3 font-medium">Aportes</th>
-              <th className="px-4 py-3 font-medium">Saldo</th>
-              <th className="px-4 py-3"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {summary.months.map((m) => (
-              <tr key={m.month} className="border-b border-border/60 last:border-0 hover:bg-surface-2/40">
-                <td className="px-4 py-3 text-ink">{MONTH_LABELS[m.month - 1]}</td>
-                <td className="px-4 py-3 text-ink-muted">{formatBRL(m.totalIncome)}</td>
-                <td className="px-4 py-3 text-ink-muted">{formatBRL(m.totalExpense)}</td>
-                <td className="px-4 py-3 text-ink-muted">{formatBRL(m.totalInvestment)}</td>
-                <td className="px-4 py-3 text-ink-muted">{formatBRL(m.balance)}</td>
-                <td className="px-4 py-3">
-                  <Link href={`/mensal/${year}/${m.month}`} className="font-medium text-gold-strong hover:underline">
-                    Lançar
-                  </Link>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </Card>
+      <ResponsiveTable columns={monthColumns(year)} rows={summary.months} rowKey={(m) => String(m.month)} />
     </div>
   );
+}
+
+function monthColumns(year: number): ResponsiveColumn<MonthlyBreakdown>[] {
+  return [
+    { key: "month", label: "Mês", render: (m) => MONTH_LABELS[m.month - 1] },
+    { key: "income", label: "Renda", render: (m) => formatBRL(m.totalIncome) },
+    { key: "expense", label: "Gastos", render: (m) => formatBRL(m.totalExpense) },
+    { key: "investment", label: "Aportes", render: (m) => formatBRL(m.totalInvestment) },
+    { key: "balance", label: "Saldo", render: (m) => formatBRL(m.balance) },
+    {
+      key: "actions",
+      label: "",
+      hideLabelOnMobile: true,
+      render: (m) => <QuickEntryButton year={year} month={m.month} />,
+    },
+  ];
 }

@@ -4,12 +4,14 @@ import { useActionState } from "react";
 import { Field, SelectField } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { useSuccessToast } from "@/components/ui/useSuccessToast";
 import { createCriterionAction, type CriterionFormState } from "./actions";
 
 const initialState: CriterionFormState = {};
 
 export function CreateCriterionForm() {
   const [state, formAction, isPending] = useActionState(createCriterionAction, initialState);
+  useSuccessToast(isPending, state.error, "Critério adicionado com sucesso.");
 
   return (
     <Card as="form" action={formAction} className="flex flex-wrap items-end gap-3 p-4">

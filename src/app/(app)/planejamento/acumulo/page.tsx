@@ -35,9 +35,9 @@ export default async function AcumuloPage() {
         title="Planejamento Financeiro — Acúmulo"
         subtitle={
           <>
-            Separa a fase de acúmulo (juntar patrimônio) da fase de usufruto (viver da renda).{" "}
+            Separa a fase de acúmulo (juntar patrimônio) da Liberdade Financeira (viver da renda).{" "}
             <Link href="/planejamento/usufruto" className="text-gold-strong hover:underline">
-              Ver fase de usufruto →
+              Ver Liberdade Financeira →
             </Link>
           </>
         }

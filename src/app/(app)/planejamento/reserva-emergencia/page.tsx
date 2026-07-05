@@ -5,6 +5,7 @@ import { SavingsProjectionChart } from "@/components/charts/SavingsProjectionCha
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
 import { Card } from "@/components/ui/Card";
+import { ProgressBar } from "@/components/ui/ProgressBar";
 import { EmergencyFundForm } from "./EmergencyFundForm";
 
 function formatBRL(value: number) {
@@ -56,6 +57,20 @@ export default async function ReservaEmergenciaPage() {
             />
             <StatCard label="Rentabilidade mensal" value={`${(plan.monthlyRate * 100).toFixed(3)}%`} />
           </div>
+
+          {(() => {
+            const targetAmount = Number(fund.targetAmount);
+            const progress = targetAmount > 0 ? Math.min(Number(fund.currentAmount) / targetAmount, 1) : 0;
+            return (
+              <Card className="p-5">
+                <div className="mb-2 flex items-center justify-between">
+                  <p className="text-sm font-medium text-ink-muted">Progresso da reserva</p>
+                  <p className="text-sm font-semibold text-gold-strong">{Math.round(progress * 100)}%</p>
+                </div>
+                <ProgressBar percent={progress} tone={progress >= 1 ? "success" : "gold"} />
+              </Card>
+            );
+          })()}
 
           {plan.projection.length > 0 && (
             <Card className="p-5">

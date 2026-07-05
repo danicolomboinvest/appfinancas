@@ -68,7 +68,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { href: "/fichas/fiis", label: "FIIs" },
     ],
   },
-  { basePath: "/parametros", href: "/parametros", label: "Perfil", icon: Settings },
+  { basePath: "/parametros", href: "/parametros", label: "Configurações", icon: Settings },
 ];
 
 export const ADMIN_NAV_SECTION: NavSection = {

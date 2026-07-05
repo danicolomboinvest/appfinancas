@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   amortizeVsInvestSchema,
@@ -13,6 +13,8 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
 import { Card } from "@/components/ui/Card";
 import { Field, SelectField } from "@/components/ui/Field";
+import { PercentInputControlled } from "@/components/ui/PercentInputControlled";
+import { CurrencyInputControlled } from "@/components/ui/CurrencyInputControlled";
 import { Button } from "@/components/ui/Button";
 
 const defaultValues: AmortizeVsInvestFormInput = {
@@ -32,6 +34,7 @@ function formatBRL(value: number) {
 export default function AmortizarVsInvestirPage() {
   const {
     register,
+    control,
     handleSubmit,
     formState: { errors },
   } = useForm<AmortizeVsInvestFormInput, unknown, AmortizeVsInvestFormValues>({
@@ -53,8 +56,25 @@ export default function AmortizarVsInvestirPage() {
 
       <Card as="form" onSubmit={onSubmit} className="flex flex-col gap-4 p-5">
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <Field label="Saldo devedor (R$)" error={errors.outstandingBalance?.message} {...register("outstandingBalance")} type="number" step="0.01" />
-          <Field label="CET (a.a.)" error={errors.cetAnnualRate?.message} {...register("cetAnnualRate")} type="number" step="0.0001" />
+          <Controller
+            control={control}
+            name="outstandingBalance"
+            render={({ field }) => (
+              <CurrencyInputControlled
+                label="Saldo devedor (R$)"
+                value={field.value}
+                onChange={field.onChange}
+                error={errors.outstandingBalance?.message}
+              />
+            )}
+          />
+          <Controller
+            control={control}
+            name="cetAnnualRate"
+            render={({ field }) => (
+              <PercentInputControlled label="CET (a.a.)" value={field.value} onChange={field.onChange} error={errors.cetAnnualRate?.message} />
+            )}
+          />
           <Field label="Prazo restante (meses)" error={errors.remainingMonths?.message} {...register("remainingMonths")} type="number" />
           <SelectField label="Sistema de amortização" {...register("system")}>
             <option value="SAC">SAC</option>
@@ -62,20 +82,41 @@ export default function AmortizarVsInvestirPage() {
           </SelectField>
         </div>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <Field label="Valor disponível (R$)" error={errors.extraAmount?.message} {...register("extraAmount")} type="number" step="0.01" />
-          <Field
-            label="Rentabilidade do investimento (a.a., bruta)"
-            error={errors.investmentAnnualRate?.message}
-            {...register("investmentAnnualRate")}
-            type="number"
-            step="0.0001"
+          <Controller
+            control={control}
+            name="extraAmount"
+            render={({ field }) => (
+              <CurrencyInputControlled
+                label="Valor disponível (R$)"
+                value={field.value}
+                onChange={field.onChange}
+                error={errors.extraAmount?.message}
+              />
+            )}
           />
-          <Field
-            label="Alíquota de IR (ex.: 0.15 = 15%)"
-            error={errors.incomeTaxRate?.message}
-            {...register("incomeTaxRate")}
-            type="number"
-            step="0.001"
+          <Controller
+            control={control}
+            name="investmentAnnualRate"
+            render={({ field }) => (
+              <PercentInputControlled
+                label="Rentabilidade do investimento (a.a., bruta)"
+                value={field.value}
+                onChange={field.onChange}
+                error={errors.investmentAnnualRate?.message}
+              />
+            )}
+          />
+          <Controller
+            control={control}
+            name="incomeTaxRate"
+            render={({ field }) => (
+              <PercentInputControlled
+                label="Alíquota de IR"
+                value={field.value}
+                onChange={field.onChange}
+                error={errors.incomeTaxRate?.message}
+              />
+            )}
           />
         </div>
         <Button type="submit" className="w-fit">

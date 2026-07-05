@@ -1,10 +1,10 @@
 import { notFound } from "next/navigation";
-import Link from "next/link";
 import { getRequiredSession } from "@/lib/auth/session";
 import { getOwnSheetWithResponses, listCriteria } from "@/lib/repositories/analysis.repo";
 import { CriteriaForm } from "@/components/forms/CriteriaForm";
 import { DeleteSheetButton } from "@/components/forms/DeleteSheetButton";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { Breadcrumb } from "@/components/ui/Breadcrumb";
 
 export default async function FiiSheetDetailPage(props: PageProps<"/fichas/fiis/[id]">) {
   const { id } = await props.params;
@@ -19,14 +19,11 @@ export default async function FiiSheetDetailPage(props: PageProps<"/fichas/fiis/
   const criteria = await listCriteria("FII", categories);
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6">
+      <Breadcrumb items={[{ label: "Análises", href: "/fichas/fiis" }, { label: "FIIs", href: "/fichas/fiis" }, { label: sheet.ticker }]} />
+
       <PageHeader
         title={`${sheet.ticker}${sheet.companyName ? ` — ${sheet.companyName}` : ""}`}
-        subtitle={
-          <Link href="/fichas/fiis" className="text-gold-strong hover:underline">
-            ← todas as fichas de FIIs
-          </Link>
-        }
         action={<DeleteSheetButton id={sheet.id} basePath="/fichas/fiis" />}
       />
 

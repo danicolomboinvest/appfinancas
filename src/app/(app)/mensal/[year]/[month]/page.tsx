@@ -5,8 +5,8 @@ import { listMonthlyEntries } from "@/lib/repositories/monthly-entry.repo";
 import { getMonthlySummary } from "@/lib/consolidation/monthly";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
-import { Card } from "@/components/ui/Card";
-import { EmptyState } from "@/components/ui/EmptyState";
+import { ResponsiveTable } from "@/components/ui/ResponsiveTable";
+import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { EntryForm } from "./EntryForm";
 import { DeleteEntryButton } from "./DeleteEntryButton";
 
@@ -55,14 +55,17 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
   const next = adjacentMonth(year, month, 1);
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6">
+      <Breadcrumb
+        items={[
+          { label: "Fluxo Financeiro", href: "/mensal" },
+          { label: String(year), href: `/mensal/${year}` },
+          { label: MONTH_LABELS[month - 1] },
+        ]}
+      />
+
       <PageHeader
         title={`${MONTH_LABELS[month - 1]} de ${year}`}
-        subtitle={
-          <Link href={`/mensal/${year}`} className="text-gold-strong hover:underline">
-            ← ver consolidado do ano
-          </Link>
-        }
         action={
           <div className="flex items-center gap-1">
             <Link
@@ -90,33 +93,23 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
 
       <EntryForm year={year} month={month} />
 
-      <Card className="overflow-hidden">
-        <table className="w-full text-left text-sm">
-          <thead>
-            <tr className="border-b border-border bg-surface-2/50 text-ink-muted">
-              <th className="px-4 py-3 font-medium">Categoria</th>
-              <th className="px-4 py-3 font-medium">Subcategoria</th>
-              <th className="px-4 py-3 font-medium">Descrição</th>
-              <th className="px-4 py-3 font-medium">Valor</th>
-              <th className="px-4 py-3"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {entries.map((entry) => (
-              <tr key={entry.id} className="border-b border-border/60 last:border-0 hover:bg-surface-2/40">
-                <td className="px-4 py-3 text-ink">{CATEGORY_LABEL[entry.category]}</td>
-                <td className="px-4 py-3 text-ink-muted">{entry.subcategory ?? "—"}</td>
-                <td className="px-4 py-3 text-ink-muted">{entry.description ?? "—"}</td>
-                <td className="px-4 py-3 text-ink-muted">{formatBRL(Number(entry.amount))}</td>
-                <td className="px-4 py-3">
-                  <DeleteEntryButton id={entry.id} year={year} month={month} />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {entries.length === 0 && <EmptyState message="Nenhum lançamento neste mês ainda." />}
-      </Card>
+      <ResponsiveTable
+        columns={[
+          { key: "category", label: "Categoria", render: (entry) => CATEGORY_LABEL[entry.category] },
+          { key: "subcategory", label: "Subcategoria", render: (entry) => entry.subcategory ?? "—" },
+          { key: "description", label: "Descrição", render: (entry) => entry.description ?? "—" },
+          { key: "amount", label: "Valor", render: (entry) => formatBRL(Number(entry.amount)) },
+          {
+            key: "actions",
+            label: "",
+            hideLabelOnMobile: true,
+            render: (entry) => <DeleteEntryButton id={entry.id} year={year} month={month} />,
+          },
+        ]}
+        rows={entries}
+        rowKey={(entry) => entry.id}
+        emptyMessage="Nenhum lançamento neste mês ainda."
+      />
     </div>
   );
 }

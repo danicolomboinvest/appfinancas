@@ -1,10 +1,10 @@
 import { notFound } from "next/navigation";
-import Link from "next/link";
 import { getRequiredSession } from "@/lib/auth/session";
 import { getOwnGoal } from "@/lib/repositories/goal.repo";
 import { computeGoalPlan } from "@/lib/planning/goal";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
+import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { GoalForm } from "../GoalForm";
 import { DeleteGoalButton } from "../DeleteGoalButton";
 
@@ -37,16 +37,16 @@ export default async function GoalDetailPage(props: PageProps<"/planejamento/met
   });
 
   return (
-    <div className="flex flex-col gap-8">
-      <PageHeader
-        title={goal.name}
-        subtitle={
-          <Link href="/planejamento/metas" className="text-gold-strong hover:underline">
-            ← todas as metas
-          </Link>
-        }
-        action={<DeleteGoalButton id={goal.id} />}
+    <div className="flex flex-col gap-6">
+      <Breadcrumb
+        items={[
+          { label: "Planejamento Financeiro", href: "/planejamento/acumulo" },
+          { label: "Metas", href: "/planejamento/metas" },
+          { label: goal.name },
+        ]}
       />
+
+      <PageHeader title={goal.name} action={<DeleteGoalButton id={goal.id} />} />
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <StatCard label="Status" value={STATUS_LABEL[plan.status]} tone="gold" />

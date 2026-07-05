@@ -2,8 +2,10 @@
 
 import { useActionState, useState } from "react";
 import { Field, SelectField } from "@/components/ui/Field";
+import { CurrencyField } from "@/components/ui/CurrencyField";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { useSuccessToast } from "@/components/ui/useSuccessToast";
 import { createAssetAction, type AssetFormState } from "./actions";
 
 const initialState: AssetFormState = {};
@@ -28,6 +30,7 @@ const OBJECTIVE_OPTIONS = [
 export function AssetForm({ goals }: { goals: { id: string; name: string }[] }) {
   const [state, formAction, isPending] = useActionState(createAssetAction, initialState);
   const [objective, setObjective] = useState("OUTRO");
+  useSuccessToast(isPending, state.error, "Ativo adicionado com sucesso.");
 
   return (
     <Card as="form" action={formAction} className="flex flex-wrap items-end gap-3 p-4">
@@ -64,16 +67,7 @@ export function AssetForm({ goals }: { goals: { id: string; name: string }[] }) 
           ))}
         </SelectField>
       )}
-      <Field
-        label="Valor atual (R$)"
-        id="currentValue"
-        name="currentValue"
-        type="number"
-        step="0.01"
-        min="0"
-        required
-        className="w-32"
-      />
+      <CurrencyField label="Valor atual (R$)" id="currentValue" name="currentValue" required className="w-32" />
       <Field
         label="Alocação ideal (ex.: 0.1 = 10%)"
         id="idealAllocationPercent"

@@ -27,7 +27,7 @@ const SECTIONS = [
     href: "/planejamento/acumulo",
     icon: Compass,
     title: "Planejamento Financeiro",
-    subtitle: "Acúmulo, usufruto, projeção patrimonial, reserva e metas.",
+    subtitle: "Acúmulo, Liberdade Financeira, projeção patrimonial, reserva e metas.",
   },
   {
     href: "/carteira",
@@ -50,7 +50,7 @@ const SECTIONS = [
   {
     href: "/parametros",
     icon: Settings,
-    title: "Perfil",
+    title: "Configurações",
     subtitle: "Taxas e premissas usadas nos cálculos do sistema.",
   },
 ];

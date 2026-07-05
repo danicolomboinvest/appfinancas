@@ -1,10 +1,10 @@
 import { notFound } from "next/navigation";
-import Link from "next/link";
 import { getRequiredSession } from "@/lib/auth/session";
 import { getOwnSheetWithResponses, listCriteria } from "@/lib/repositories/analysis.repo";
 import { CriteriaForm } from "@/components/forms/CriteriaForm";
 import { DeleteSheetButton } from "@/components/forms/DeleteSheetButton";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { Breadcrumb } from "@/components/ui/Breadcrumb";
 
 export default async function StockSheetDetailPage(props: PageProps<"/fichas/acoes/[id]">) {
   const { id } = await props.params;
@@ -16,14 +16,11 @@ export default async function StockSheetDetailPage(props: PageProps<"/fichas/aco
   }
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6">
+      <Breadcrumb items={[{ label: "Análises", href: "/fichas/acoes" }, { label: "Ações", href: "/fichas/acoes" }, { label: sheet.ticker }]} />
+
       <PageHeader
         title={`${sheet.ticker}${sheet.companyName ? ` — ${sheet.companyName}` : ""}`}
-        subtitle={
-          <Link href="/fichas/acoes" className="text-gold-strong hover:underline">
-            ← todas as fichas de ações
-          </Link>
-        }
         action={<DeleteSheetButton id={sheet.id} basePath="/fichas/acoes" />}
       />
 

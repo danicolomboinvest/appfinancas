@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   consortiumSchema,
@@ -13,6 +13,8 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
 import { Card } from "@/components/ui/Card";
 import { Field, SelectField } from "@/components/ui/Field";
+import { PercentInputControlled } from "@/components/ui/PercentInputControlled";
+import { CurrencyInputControlled } from "@/components/ui/CurrencyInputControlled";
 import { Button } from "@/components/ui/Button";
 
 const defaultValues: ConsortiumFormInput = {
@@ -33,6 +35,7 @@ function formatBRL(value: number) {
 export default function ConsorcioPage() {
   const {
     register,
+    control,
     handleSubmit,
     formState: { errors },
   } = useForm<ConsortiumFormInput, unknown, ConsortiumFormValues>({
@@ -54,13 +57,29 @@ export default function ConsorcioPage() {
 
       <Card as="form" onSubmit={onSubmit} className="flex flex-col gap-4 p-5">
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <Field label="Valor do bem (R$)" error={errors.creditValue?.message} {...register("creditValue")} type="number" step="0.01" />
-          <Field
-            label="Taxa de administração do consórcio (ex.: 0.18)"
-            error={errors.consortiumAdminFeeRate?.message}
-            {...register("consortiumAdminFeeRate")}
-            type="number"
-            step="0.001"
+          <Controller
+            control={control}
+            name="creditValue"
+            render={({ field }) => (
+              <CurrencyInputControlled
+                label="Valor do bem (R$)"
+                value={field.value}
+                onChange={field.onChange}
+                error={errors.creditValue?.message}
+              />
+            )}
+          />
+          <Controller
+            control={control}
+            name="consortiumAdminFeeRate"
+            render={({ field }) => (
+              <PercentInputControlled
+                label="Taxa de administração do consórcio"
+                value={field.value}
+                onChange={field.onChange}
+                error={errors.consortiumAdminFeeRate?.message}
+              />
+            )}
           />
           <Field
             label="Prazo do consórcio (meses)"
@@ -70,19 +89,29 @@ export default function ConsorcioPage() {
           />
         </div>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <Field
-            label="Entrada do financiamento (R$)"
-            error={errors.financingDownPayment?.message}
-            {...register("financingDownPayment")}
-            type="number"
-            step="0.01"
+          <Controller
+            control={control}
+            name="financingDownPayment"
+            render={({ field }) => (
+              <CurrencyInputControlled
+                label="Entrada do financiamento (R$)"
+                value={field.value}
+                onChange={field.onChange}
+                error={errors.financingDownPayment?.message}
+              />
+            )}
           />
-          <Field
-            label="CET do financiamento (a.a.)"
-            error={errors.financingCetAnnualRate?.message}
-            {...register("financingCetAnnualRate")}
-            type="number"
-            step="0.0001"
+          <Controller
+            control={control}
+            name="financingCetAnnualRate"
+            render={({ field }) => (
+              <PercentInputControlled
+                label="CET do financiamento (a.a.)"
+                value={field.value}
+                onChange={field.onChange}
+                error={errors.financingCetAnnualRate?.message}
+              />
+            )}
           />
           <Field
             label="Prazo do financiamento (meses)"
@@ -96,12 +125,17 @@ export default function ConsorcioPage() {
           </SelectField>
         </div>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <Field
-            label="Taxa de oportunidade (a.a.)"
-            error={errors.opportunityCostAnnualRate?.message}
-            {...register("opportunityCostAnnualRate")}
-            type="number"
-            step="0.0001"
+          <Controller
+            control={control}
+            name="opportunityCostAnnualRate"
+            render={({ field }) => (
+              <PercentInputControlled
+                label="Taxa de oportunidade (a.a.)"
+                value={field.value}
+                onChange={field.onChange}
+                error={errors.opportunityCostAnnualRate?.message}
+              />
+            )}
           />
         </div>
         <Button type="submit" className="w-fit">

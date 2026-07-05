@@ -2,8 +2,11 @@
 
 import { useActionState } from "react";
 import { Field } from "@/components/ui/Field";
+import { CurrencyField } from "@/components/ui/CurrencyField";
+import { PercentField } from "@/components/ui/PercentField";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { useSuccessToast } from "@/components/ui/useSuccessToast";
 import { savePlanningParamsAction, type PlanningParamsState } from "./actions";
 
 const initialState: PlanningParamsState = {};
@@ -23,6 +26,7 @@ type Defaults = {
 
 export function PlanningParamsForm({ defaults }: { defaults: Defaults }) {
   const [state, formAction, isPending] = useActionState(savePlanningParamsAction, initialState);
+  useSuccessToast(isPending, state.error);
 
   return (
     <Card as="form" action={formAction} className="flex flex-col gap-5 p-5">
@@ -46,65 +50,46 @@ export function PlanningParamsForm({ defaults }: { defaults: Defaults }) {
       </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <Field
+        <CurrencyField
           label="Valor inicial (R$)"
           name="currentPatrimony"
-          type="number"
-          step="0.01"
           defaultValue={defaults.currentPatrimony}
           required
         />
-        <Field
+        <CurrencyField
           label="Aporte mensal médio (R$)"
           name="monthlyContributionAccumulation"
-          type="number"
-          step="0.01"
           defaultValue={defaults.monthlyContributionAccumulation}
           required
         />
       </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <Field
-          label="Taxa nominal (a.a., ex.: 0.12)"
+        <PercentField
+          label="Taxa nominal (a.a.)"
           name="accumulationAnnualRate"
-          type="number"
-          step="0.0001"
           defaultValue={defaults.accumulationAnnualRate}
           required
         />
-        <Field
-          label="Inflação média (a.a.)"
-          name="inflationAnnualRate"
-          type="number"
-          step="0.0001"
-          defaultValue={defaults.inflationAnnualRate}
-          required
-        />
-        <Field
-          label="Taxa de usufruto (a.a.)"
+        <PercentField label="Inflação média (a.a.)" name="inflationAnnualRate" defaultValue={defaults.inflationAnnualRate} required />
+        <PercentField
+          label="Taxa na Liberdade Financeira (a.a.)"
           name="usufructAnnualRate"
-          type="number"
-          step="0.0001"
           defaultValue={defaults.usufructAnnualRate}
           required
         />
       </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <Field
+        <CurrencyField
           label="Gasto mensal desejado (R$)"
           name="desiredPassiveIncome"
-          type="number"
-          step="0.01"
           defaultValue={defaults.desiredPassiveIncome}
           required
         />
-        <Field
+        <CurrencyField
           label="Outras rendas passivas (R$, ex.: aluguel + INSS)"
           name="otherPassiveIncome"
-          type="number"
-          step="0.01"
           defaultValue={defaults.otherPassiveIncome}
         />
       </div>

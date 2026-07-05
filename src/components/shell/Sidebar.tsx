@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronsLeft, ChevronsRight, Gem, LogOut } from "lucide-react";
@@ -24,6 +25,24 @@ export function Sidebar({
 }) {
   const pathname = usePathname();
   const sections = isAdmin ? [...NAV_SECTIONS, ADMIN_NAV_SECTION] : NAV_SECTIONS;
+
+  const activeSection = sections.find(
+    (section) => pathname === section.basePath || pathname.startsWith(`${section.basePath}/`),
+  );
+
+  // Expande o submenu na hora do clique (sem esperar a navegação terminar) para o
+  // primeiro clique já navegar E revelar as subpáginas — evita a sensação de precisar
+  // clicar duas vezes em conexões mais lentas. Sincroniza com a rota real durante a
+  // renderização (em vez de um efeito), cobrindo navegação direta por URL ou pelo
+  // botão voltar/avançar do navegador.
+  const [prevActiveBasePath, setPrevActiveBasePath] = useState(activeSection?.basePath ?? null);
+  const [expandedBasePath, setExpandedBasePath] = useState<string | null>(activeSection?.basePath ?? null);
+
+  if ((activeSection?.basePath ?? null) !== prevActiveBasePath) {
+    setPrevActiveBasePath(activeSection?.basePath ?? null);
+    setExpandedBasePath(activeSection?.basePath ?? null);
+  }
+
   // "collapsed" (ícones apenas) é uma preferência só de desktop — no mobile a gaveta
   // sempre mostra os rótulos completos, então as classes abaixo usam o prefixo md:.
   const collapsedDesktopOnly = collapsed ? "md:justify-center md:px-0" : "";
@@ -50,12 +69,16 @@ export function Sidebar({
         <ul className="flex flex-col gap-0.5">
           {sections.map((section) => {
             const isActive = pathname === section.basePath || pathname.startsWith(`${section.basePath}/`);
+            const isExpanded = expandedBasePath === section.basePath;
             const Icon = section.icon;
             return (
               <li key={section.basePath}>
                 <Link
                   href={section.href}
-                  onClick={onCloseMobile}
+                  onClick={() => {
+                    setExpandedBasePath(section.basePath);
+                    onCloseMobile();
+                  }}
                   title={collapsed ? section.label : undefined}
                   className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${collapsedDesktopOnly} ${
                     isActive
@@ -67,7 +90,7 @@ export function Sidebar({
                   <span className={`truncate ${hideLabelDesktopOnly}`}>{section.label}</span>
                 </Link>
 
-                {isActive && section.children && (
+                {isExpanded && section.children && (
                   <ul className={`mt-0.5 flex flex-col gap-0.5 border-l border-border-strong pl-4 ${hideLabelDesktopOnly}`}>
                     {section.children.map((child) => {
                       const childActive = pathname === child.href;
