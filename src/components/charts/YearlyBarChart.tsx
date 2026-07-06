@@ -28,7 +28,7 @@ export function YearlyBarChart({ months }: { months: MonthlyBreakdown[] }) {
         <Legend wrapperStyle={{ fontSize: 12, color: CHART_COLORS.axis }} />
         <Bar dataKey="Renda" fill={CHART_COLORS.success} radius={[4, 4, 0, 0]} />
         <Bar dataKey="Gastos" fill={CHART_COLORS.danger} radius={[4, 4, 0, 0]} />
-        <Bar dataKey="Aportes" fill={CHART_COLORS.gold} radius={[4, 4, 0, 0]} />
+        <Bar dataKey="Aportes" fill={CHART_COLORS.accent} radius={[4, 4, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
   );

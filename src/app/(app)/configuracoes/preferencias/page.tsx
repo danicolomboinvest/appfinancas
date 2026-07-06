@@ -10,7 +10,7 @@ export default async function PreferenciasPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <Breadcrumb items={[{ label: "Configurações", href: "/configuracoes/perfil" }, { label: "Preferências" }]} />
+      <Breadcrumb items={[{ label: "Ajustes da conta", href: "/configuracoes/perfil" }, { label: "Preferências" }]} />
 
       <PageHeader title="Preferências" subtitle="Moeda e tema de exibição." />
 

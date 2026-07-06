@@ -40,7 +40,7 @@ export default async function GoalDetailPage(props: PageProps<"/planejamento/met
     <div className="flex flex-col gap-6">
       <Breadcrumb
         items={[
-          { label: "Planejamento Financeiro", href: "/planejamento/acumulo" },
+          { label: "Está no caminho certo?", href: "/planejamento/acumulo" },
           { label: "Metas", href: "/planejamento/metas" },
           { label: goal.name },
         ]}
@@ -49,7 +49,7 @@ export default async function GoalDetailPage(props: PageProps<"/planejamento/met
       <PageHeader title={goal.name} action={<DeleteGoalButton id={goal.id} />} />
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <StatCard label="Status" value={STATUS_LABEL[plan.status]} tone="gold" />
+        <StatCard label="Status" value={STATUS_LABEL[plan.status]} tone="accent" />
         <StatCard label="Meses restantes" value={`${plan.monthsRemaining}`} />
         <StatCard label="Valor guardado projetado na data-alvo" value={formatBRL(plan.futureValueOfSaved)} />
         <StatCard label="Falta construir" value={formatBRL(plan.amountMissing)} tone="danger" />

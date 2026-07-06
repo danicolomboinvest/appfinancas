@@ -29,7 +29,7 @@ export function NotificationsForm({
           type="checkbox"
           name="notifyBudgetAlerts"
           defaultChecked={defaults.notifyBudgetAlerts}
-          className="h-4 w-4 accent-gold"
+          className="h-4 w-4 accent-accent"
         />
       </label>
 
@@ -42,7 +42,7 @@ export function NotificationsForm({
           type="checkbox"
           name="notifyLateGoals"
           defaultChecked={defaults.notifyLateGoals}
-          className="h-4 w-4 accent-gold"
+          className="h-4 w-4 accent-accent"
         />
       </label>
 

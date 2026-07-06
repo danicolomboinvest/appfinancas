@@ -22,7 +22,7 @@ export function AnalysisRadarChart({ data }: { data: CategoryScore[] }) {
         <PolarGrid stroke={CHART_COLORS.grid} />
         <PolarAngleAxis dataKey="category" fontSize={12} stroke={CHART_COLORS.axis} />
         <PolarRadiusAxis angle={90} domain={[0, 10]} fontSize={11} stroke={CHART_COLORS.axis} />
-        <Radar dataKey="Nota" stroke={CHART_COLORS.gold} fill={CHART_COLORS.gold} fillOpacity={0.35} />
+        <Radar dataKey="Nota" stroke={CHART_COLORS.accent} fill={CHART_COLORS.accent} fillOpacity={0.35} />
         <Tooltip {...CHART_TOOLTIP_STYLE} formatter={(value) => `${value} / 10`} />
       </RadarChart>
     </ResponsiveContainer>

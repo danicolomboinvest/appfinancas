@@ -30,7 +30,7 @@ export default async function FichasAcoesPage() {
             {sheets.map((sheet) => (
               <tr key={sheet.id} className="border-b border-border/60 last:border-0 hover:bg-surface-2/40">
                 <td className="px-4 py-3">
-                  <Link href={`/fichas/acoes/${sheet.id}`} className="font-medium text-gold-strong hover:underline">
+                  <Link href={`/fichas/acoes/${sheet.id}`} className="font-medium text-accent-strong hover:underline">
                     {sheet.ticker}
                   </Link>
                 </td>

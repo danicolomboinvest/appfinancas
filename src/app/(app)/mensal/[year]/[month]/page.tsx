@@ -60,7 +60,7 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
     <div className="flex flex-col gap-6">
       <Breadcrumb
         items={[
-          { label: "Fluxo Financeiro", href: "/mensal" },
+          { label: "Seu dinheiro no mês", href: "/mensal" },
           { label: String(year), href: `/mensal/${year}` },
           { label: MONTH_LABELS[month - 1] },
         ]}
@@ -90,7 +90,7 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
         <StatCard label="Renda" value={formatBRL(summary.totalIncome)} tone="success" />
         <StatCard label="Gastos" value={formatBRL(summary.totalExpense)} tone="danger" />
         <StatCard label="Aportes" value={formatBRL(summary.totalInvestment)} />
-        <StatCard label="Saldo" value={formatBRL(summary.balance)} tone="gold" />
+        <StatCard label="Saldo" value={formatBRL(summary.balance)} tone="accent" />
       </div>
 
       <EntryForm year={year} month={month} recentSubcategories={recentSubcategories} />

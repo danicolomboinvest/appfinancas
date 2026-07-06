@@ -9,7 +9,7 @@ export type GoalVariant = "ahead" | "onTrack" | "behind" | "achieved";
 
 const VARIANT_STYLES: Record<GoalVariant, { border: string; bar: string }> = {
   ahead: { border: "border-t-success", bar: "bg-success" },
-  onTrack: { border: "border-t-gold", bar: "bg-gold" },
+  onTrack: { border: "border-t-accent", bar: "bg-accent" },
   behind: { border: "border-t-danger", bar: "bg-danger" },
   achieved: { border: "border-t-success", bar: "bg-success" },
 };
@@ -23,7 +23,7 @@ const VARIANT_STATUS_LABEL: Record<GoalVariant, string> = {
 
 const VARIANT_STATUS_CLASSES: Record<GoalVariant, string> = {
   ahead: "bg-success-soft text-success",
-  onTrack: "bg-gold-soft text-gold-strong",
+  onTrack: "bg-accent-soft text-accent-strong",
   behind: "bg-danger-soft text-danger",
   achieved: "bg-success-soft text-success",
 };
@@ -71,11 +71,11 @@ export function GoalCard({
       )}
 
       <div className="flex items-center gap-3 pr-16">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gold-soft text-gold-strong">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-accent-strong">
           <Icon size={20} strokeWidth={1.75} />
         </span>
         <Link href={`/planejamento/metas/${id}`} className="min-w-0 flex-1">
-          <h3 className="truncate text-base font-semibold text-ink hover:text-gold-strong">{name}</h3>
+          <h3 className="truncate text-base font-semibold text-ink hover:text-accent-strong">{name}</h3>
         </Link>
       </div>
 
@@ -110,7 +110,7 @@ export function GoalCard({
       {!achieved && (
         <div className="rounded-xl bg-surface-2 p-3">
           <p className="text-xs text-ink-muted">Aporte mensal sugerido</p>
-          <p className="mt-1 text-xl font-bold tracking-tight text-gold-strong">{formatBRL(plan.requiredMonthlyContribution)}</p>
+          <p className="mt-1 text-xl font-bold tracking-tight text-accent-strong">{formatBRL(plan.requiredMonthlyContribution)}</p>
         </div>
       )}
 

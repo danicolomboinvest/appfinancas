@@ -90,7 +90,7 @@ export default async function DashboardPage() {
         subtitle={
           <>
             Consolidado de {year}.{" "}
-            <Link href={`/mensal/${year}`} className="text-gold-strong hover:underline">
+            <Link href={`/mensal/${year}`} className="text-accent-strong hover:underline">
               Ver Fluxo Financeiro
             </Link>
           </>
@@ -98,7 +98,7 @@ export default async function DashboardPage() {
       />
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
-        <StatCard label="Patrimônio total" value={formatBRL(portfolio.totalPortfolio)} tone="gold" />
+        <StatCard label="Patrimônio total" value={formatBRL(portfolio.totalPortfolio)} tone="accent" />
         <StatCard
           label="Renda no ano"
           value={formatBRL(summary.totalIncome)}
@@ -139,7 +139,7 @@ export default async function DashboardPage() {
             value={emergencyProgress === null ? "Não configurada" : `${Math.round(emergencyProgress * 100)}% concluída`}
             hint={emergencyTarget !== null ? `${formatBRL(emergencyCurrent)} de ${formatBRL(emergencyTarget)}` : "Configure sua meta"}
             progressPercent={emergencyProgress ?? undefined}
-            tone={emergencyProgress !== null && emergencyProgress >= 1 ? "success" : "gold"}
+            tone={emergencyProgress !== null && emergencyProgress >= 1 ? "success" : "accent"}
           />
           <LinkedStatCard
             href="/planejamento/metas"

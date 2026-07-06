@@ -36,7 +36,7 @@ export default async function AcumuloPage() {
         subtitle={
           <>
             Separa a fase de acúmulo (juntar patrimônio) da Liberdade Financeira (viver da renda).{" "}
-            <Link href="/planejamento/usufruto" className="text-gold-strong hover:underline">
+            <Link href="/planejamento/usufruto" className="text-accent-strong hover:underline">
               Ver Liberdade Financeira →
             </Link>
           </>
@@ -70,12 +70,12 @@ export default async function AcumuloPage() {
             <StatCard label="Taxa nominal (a.a.)" value={formatPercent(result.nominalAnnualRate)} />
             <StatCard label="Taxa real (a.a.)" value={formatPercent(result.realAnnualRate)} />
             <StatCard label="Valor final (nominal)" value={formatBRL(result.finalValueNominal)} />
-            <StatCard label="Valor final (real, poder de compra de hoje)" value={formatBRL(result.finalValueReal)} tone="gold" />
+            <StatCard label="Valor final (real, poder de compra de hoje)" value={formatBRL(result.finalValueReal)} tone="accent" />
             <StatCard label="Total investido (do bolso)" value={formatBRL(result.totalInvested)} />
             <StatCard label="Retorno total (juros)" value={formatBRL(result.totalReturn)} tone="success" />
           </div>
           <p className="mt-4 text-sm">
-            <Link href="/planejamento/projecao" className="text-gold-strong hover:underline">
+            <Link href="/planejamento/projecao" className="text-accent-strong hover:underline">
               Ver a curva de patrimônio ano a ano →
             </Link>
           </p>

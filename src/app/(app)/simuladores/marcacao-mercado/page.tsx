@@ -72,7 +72,7 @@ export default function MarcacaoMercadoPage() {
                           href="https://www.anbima.com.br"
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-gold-strong underline"
+                          className="text-accent-strong underline"
                         >
                           www.anbima.com.br
                         </a>{" "}

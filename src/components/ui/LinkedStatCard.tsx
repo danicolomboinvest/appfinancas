@@ -2,19 +2,19 @@ import Link from "next/link";
 import { ChevronRight, type LucideIcon } from "lucide-react";
 import { Card } from "./Card";
 
-type Tone = "success" | "danger" | "gold" | "neutral";
+type Tone = "success" | "danger" | "accent" | "neutral";
 
 const TONE_TEXT: Record<Tone, string> = {
   success: "text-success",
   danger: "text-danger",
-  gold: "text-gold-strong",
+  accent: "text-accent-strong",
   neutral: "text-ink",
 };
 
 const TONE_BAR: Record<Tone, string> = {
   success: "bg-success",
   danger: "bg-danger",
-  gold: "bg-gold",
+  accent: "bg-accent",
   neutral: "bg-ink-faint",
 };
 
@@ -38,7 +38,7 @@ export function LinkedStatCard({
 }) {
   return (
     <Link href={href} className="group block">
-      <Card className="flex flex-col gap-3 p-4 transition-colors duration-150 hover:border-gold-strong/40 hover:bg-surface-hover">
+      <Card className="flex flex-col gap-3 p-4 transition-colors duration-150 hover:border-accent-strong/40 hover:bg-surface-hover">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-xs text-ink-muted">
             <Icon size={15} strokeWidth={1.75} />

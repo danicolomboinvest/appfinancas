@@ -53,7 +53,7 @@ export function EntryForm({
       <Field label="Descrição" id="description" name="description" className={stacked ? "w-full" : ""} />
       <CurrencyField label="Valor (R$)" id="amount" name="amount" required className={stacked ? "" : "w-32"} />
       <label className={`flex items-center gap-2 text-xs text-ink-muted ${stacked ? "w-full" : ""}`}>
-        <input type="checkbox" name="repeatMonthly" className="h-3.5 w-3.5 accent-gold" />
+        <input type="checkbox" name="repeatMonthly" className="h-3.5 w-3.5 accent-accent" />
         Repetir lançamento todo mês (despesa fixa) até dezembro de {year}
       </label>
       <Button type="submit" disabled={isPending} size="sm" className={stacked ? "w-full" : ""}>

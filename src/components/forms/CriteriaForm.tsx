@@ -26,7 +26,7 @@ export type FormResponse = {
 type ResponseState = { value: string; score: string; note: string };
 
 const INPUT_CLASSES =
-  "rounded-lg border border-border-strong bg-surface-2 px-2.5 py-1.5 text-sm text-ink placeholder:text-ink-faint transition-colors focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold";
+  "rounded-lg border border-border-strong bg-surface-2 px-2.5 py-1.5 text-sm text-ink placeholder:text-ink-faint transition-colors focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent";
 
 export function CriteriaForm({
   sheetId,
@@ -116,13 +116,13 @@ export function CriteriaForm({
             {answeredCount} de {criteria.length} critérios
           </span>
         </div>
-        <ProgressBar percent={fillProgress} tone="gold" className="mt-2" />
+        <ProgressBar percent={fillProgress} tone="accent" className="mt-2" />
       </Card>
 
       {totalScore !== null && (
         <Card className="w-fit p-4">
           <p className="text-xs text-ink-muted">Nota geral</p>
-          <p className="mt-1 text-2xl font-semibold tracking-tight text-gold-strong">{totalScore.toFixed(1)} / 10</p>
+          <p className="mt-1 text-2xl font-semibold tracking-tight text-accent-strong">{totalScore.toFixed(1)} / 10</p>
         </Card>
       )}
 

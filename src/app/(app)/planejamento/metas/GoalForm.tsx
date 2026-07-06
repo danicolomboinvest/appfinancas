@@ -36,7 +36,7 @@ function GoalIconPicker({ defaultValue = "GENERICO" }: { defaultValue?: GoalIcon
             onClick={() => setIcon(value)}
             className={`flex h-9 w-9 items-center justify-center rounded-lg border transition-colors ${
               icon === value
-                ? "border-gold bg-gold-soft text-gold-strong"
+                ? "border-accent bg-accent-soft text-accent-strong"
                 : "border-border-strong bg-surface-2 text-ink-muted hover:text-ink"
             }`}
           >

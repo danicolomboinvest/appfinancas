@@ -162,7 +162,7 @@ export default function FinanciarVsAlugarPage() {
             <StatCard
               label="Cenário vencedor"
               value={result.winner === "FINANCIAR" ? "Financiar o imóvel" : "Alugar e investir a diferença"}
-              tone="gold"
+              tone="accent"
             />
           </div>
           <Card className="p-5">

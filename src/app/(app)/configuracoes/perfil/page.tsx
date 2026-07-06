@@ -10,7 +10,7 @@ export default async function PerfilPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <Breadcrumb items={[{ label: "Configurações", href: "/configuracoes/perfil" }, { label: "Perfil" }]} />
+      <Breadcrumb items={[{ label: "Ajustes da conta", href: "/configuracoes/perfil" }, { label: "Perfil" }]} />
 
       <PageHeader title="Perfil" subtitle="Suas informações pessoais." />
 

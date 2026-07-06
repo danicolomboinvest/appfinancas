@@ -32,7 +32,7 @@ export function BudgetRow({
   useSuccessToast(isPending, state.error, "Orçamento atualizado.");
 
   const percent = plannedAmount > 0 ? spent / plannedAmount : spent > 0 ? 1 : 0;
-  const tone = percent >= 1 ? "danger" : percent >= 0.8 ? "gold" : "success";
+  const tone = percent >= 1 ? "danger" : percent >= 0.8 ? "accent" : "success";
   const remaining = plannedAmount - spent;
 
   return (

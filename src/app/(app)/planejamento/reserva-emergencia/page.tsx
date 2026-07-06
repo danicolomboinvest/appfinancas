@@ -49,7 +49,7 @@ export default async function ReservaEmergenciaPage() {
       {fund && plan && (
         <div className="flex flex-col gap-4">
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            <StatCard label="Meta da reserva" value={formatBRL(Number(fund.targetAmount))} tone="gold" />
+            <StatCard label="Meta da reserva" value={formatBRL(Number(fund.targetAmount))} tone="accent" />
             <StatCard label="Reserva atual" value={formatBRL(Number(fund.currentAmount))} />
             <StatCard
               label="Tempo para concluir"
@@ -65,9 +65,9 @@ export default async function ReservaEmergenciaPage() {
               <Card className="p-5">
                 <div className="mb-2 flex items-center justify-between">
                   <p className="text-sm font-medium text-ink-muted">Progresso da reserva</p>
-                  <p className="text-sm font-semibold text-gold-strong">{Math.round(progress * 100)}%</p>
+                  <p className="text-sm font-semibold text-accent-strong">{Math.round(progress * 100)}%</p>
                 </div>
-                <ProgressBar percent={progress} tone={progress >= 1 ? "success" : "gold"} />
+                <ProgressBar percent={progress} tone={progress >= 1 ? "success" : "accent"} />
               </Card>
             );
           })()}

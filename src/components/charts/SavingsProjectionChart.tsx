@@ -29,7 +29,7 @@ export function SavingsProjectionChart({
           cursor={{ stroke: CHART_COLORS.grid }}
         />
         <ReferenceLine y={targetAmount} stroke={CHART_COLORS.danger} strokeDasharray="4 4" label={{ value: "Meta", fill: CHART_COLORS.danger, fontSize: 12 }} />
-        <Area type="monotone" dataKey="balance" stroke={CHART_COLORS.gold} fill={CHART_COLORS.gold} fillOpacity={0.15} name="Saldo" strokeWidth={2} />
+        <Area type="monotone" dataKey="balance" stroke={CHART_COLORS.accent} fill={CHART_COLORS.accent} fillOpacity={0.15} name="Saldo" strokeWidth={2} />
       </AreaChart>
     </ResponsiveContainer>
   );

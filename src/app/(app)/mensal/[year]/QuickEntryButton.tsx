@@ -34,7 +34,7 @@ export function QuickEntryButton({
 
   return (
     <div className="flex items-center justify-end gap-3">
-      <button type="button" onClick={() => setOpen(true)} className="font-medium text-gold-strong hover:underline">
+      <button type="button" onClick={() => setOpen(true)} className="font-medium text-accent-strong hover:underline">
         Lançar
       </button>
       <Link href={`/mensal/${year}/${month}`} className="text-xs text-ink-faint hover:text-ink hover:underline">

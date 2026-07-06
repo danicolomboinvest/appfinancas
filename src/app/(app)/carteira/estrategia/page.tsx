@@ -19,7 +19,7 @@ export default async function EstrategiaCarteiraPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <Breadcrumb items={[{ label: "Carteira de Investimentos", href: "/carteira" }, { label: "Estratégia" }]} />
+      <Breadcrumb items={[{ label: "Onde está seu patrimônio?", href: "/carteira" }, { label: "Estratégia" }]} />
 
       <PageHeader
         title="Estratégia da Carteira"

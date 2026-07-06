@@ -22,7 +22,7 @@ const STATUS_LABEL: Record<StrategyClassPosition["status"], string> = {
 const STATUS_TONE: Record<StrategyClassPosition["status"], string> = {
   ACIMA: "border-t-danger text-danger",
   DENTRO: "border-t-success text-success",
-  ABAIXO: "border-t-gold text-gold-strong",
+  ABAIXO: "border-t-accent text-accent-strong",
 };
 
 export function StrategyComparisonSection({
@@ -36,7 +36,7 @@ export function StrategyComparisonSection({
     return (
       <Card className="p-5 text-sm text-ink-muted">
         Você ainda não definiu uma{" "}
-        <Link href="/carteira/estrategia" className="text-gold-strong hover:underline">
+        <Link href="/carteira/estrategia" className="text-accent-strong hover:underline">
           estratégia da carteira
         </Link>
         . Defina os percentuais-alvo por classe para ver aqui o comparativo e o rebalanceamento.

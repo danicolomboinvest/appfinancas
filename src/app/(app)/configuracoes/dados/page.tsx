@@ -6,7 +6,7 @@ import { ExportCsvButton } from "./ExportCsvButton";
 export default function DadosPage() {
   return (
     <div className="flex flex-col gap-6">
-      <Breadcrumb items={[{ label: "Configurações", href: "/configuracoes/perfil" }, { label: "Dados" }]} />
+      <Breadcrumb items={[{ label: "Ajustes da conta", href: "/configuracoes/perfil" }, { label: "Dados" }]} />
 
       <PageHeader title="Dados" subtitle="Exporte os seus lançamentos do Fluxo Financeiro." />
 

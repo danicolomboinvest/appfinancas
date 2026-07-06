@@ -42,7 +42,7 @@ export default async function YearPage(props: PageProps<"/mensal/[year]">) {
 
   return (
     <div className="flex flex-col gap-6">
-      <Breadcrumb items={[{ label: "Fluxo Financeiro", href: "/mensal" }, { label: String(year) }]} />
+      <Breadcrumb items={[{ label: "Seu dinheiro no mês", href: "/mensal" }, { label: String(year) }]} />
 
       <PageHeader
         title={`Fluxo Financeiro — ${year}`}
@@ -69,7 +69,7 @@ export default async function YearPage(props: PageProps<"/mensal/[year]">) {
         <StatCard label="Renda" value={formatBRL(summary.totalIncome)} tone="success" />
         <StatCard label="Gastos" value={formatBRL(summary.totalExpense)} tone="danger" />
         <StatCard label="Aportes" value={formatBRL(summary.totalInvestment)} />
-        <StatCard label="Saldo" value={formatBRL(summary.balance)} tone="gold" />
+        <StatCard label="Saldo" value={formatBRL(summary.balance)} tone="accent" />
         <StatCard
           label="Taxa de poupança"
           value={summary.savingsRate === null ? "—" : `${(summary.savingsRate * 100).toFixed(1)}%`}

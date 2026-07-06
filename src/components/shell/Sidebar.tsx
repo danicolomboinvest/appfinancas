@@ -56,7 +56,7 @@ export function Sidebar({
     >
       <div className={`flex items-center gap-2.5 px-4 pb-2 pt-5 ${collapsedDesktopOnly}`}>
         <Link href="/inicio" onClick={onCloseMobile} className="flex items-center gap-2.5 overflow-hidden">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gold-soft text-gold-strong">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent-strong">
             <TrendingUp size={17} strokeWidth={1.75} />
           </span>
           <span className={`truncate text-sm font-semibold tracking-tight text-ink ${hideLabelDesktopOnly}`}>
@@ -82,7 +82,7 @@ export function Sidebar({
                   title={collapsed ? section.label : undefined}
                   className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${collapsedDesktopOnly} ${
                     isActive
-                      ? "bg-gold-soft text-gold-strong font-medium"
+                      ? "bg-accent-soft text-accent-strong font-medium"
                       : "text-ink-muted hover:bg-surface-2 hover:text-ink"
                   }`}
                 >
@@ -100,7 +100,7 @@ export function Sidebar({
                             href={child.href}
                             onClick={onCloseMobile}
                             className={`block truncate rounded-md px-3 py-1.5 text-[13px] transition-colors ${
-                              childActive ? "text-gold-strong font-medium" : "text-ink-faint hover:text-ink"
+                              childActive ? "text-accent-strong font-medium" : "text-ink-faint hover:text-ink"
                             }`}
                           >
                             {child.label}

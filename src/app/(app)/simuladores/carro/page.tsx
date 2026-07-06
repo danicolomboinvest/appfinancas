@@ -158,7 +158,7 @@ export default function CarroPage() {
           <StatCard
             label="Conclusão"
             value={`${result.winner === "ASSINATURA" ? "Assinatura" : "Compra"} (${formatBRL(result.differenceInFavorOfWinner)} mais barato)`}
-            tone="gold"
+            tone="accent"
           />
         </div>
       )}

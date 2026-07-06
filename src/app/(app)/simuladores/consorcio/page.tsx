@@ -161,7 +161,7 @@ export default function ConsorcioPage() {
           <StatCard
             label="Conclusão"
             value={`${result.winner === "CONSORCIO" ? "Consórcio" : "Financiamento"} (${formatBRL(result.differenceInFavorOfWinner)} mais barato)`}
-            tone="gold"
+            tone="accent"
           />
         </div>
       )}

@@ -6,7 +6,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 
 const TONE_CLASSES: Record<Insight["tone"], string> = {
   success: "border-l-4 border-l-success bg-success-soft/40",
-  warning: "border-l-4 border-l-gold bg-gold-soft/40",
+  warning: "border-l-4 border-l-accent bg-accent-soft/40",
   danger: "border-l-4 border-l-danger bg-danger-soft/40",
 };
 

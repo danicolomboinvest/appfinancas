@@ -1,11 +1,11 @@
 import type { HTMLAttributes } from "react";
 
-type Tone = "success" | "danger" | "gold" | "info" | "neutral";
+type Tone = "success" | "danger" | "accent" | "info" | "neutral";
 
 const TONE_CLASSES: Record<Tone, string> = {
   success: "bg-success-soft text-success",
   danger: "bg-danger-soft text-danger",
-  gold: "bg-gold-soft text-gold-strong",
+  accent: "bg-accent-soft text-accent-strong",
   info: "bg-info-soft text-info",
   neutral: "bg-surface-2 text-ink-muted",
 };

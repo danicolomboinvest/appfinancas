@@ -29,7 +29,7 @@ export function AllocationChart({ classes }: { classes: ClassAllocation[] }) {
         <YAxis fontSize={12} unit="%" stroke={CHART_COLORS.axis} tickLine={false} axisLine={false} />
         <Tooltip {...CHART_TOOLTIP_STYLE} formatter={(value) => `${value}%`} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
         <Legend wrapperStyle={{ fontSize: 12, color: CHART_COLORS.axis }} />
-        <Bar dataKey="Atual" fill={CHART_COLORS.gold} radius={[4, 4, 0, 0]} />
+        <Bar dataKey="Atual" fill={CHART_COLORS.accent} radius={[4, 4, 0, 0]} />
         <Bar dataKey="Ideal" fill={CHART_COLORS.muted} radius={[4, 4, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>

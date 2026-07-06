@@ -31,7 +31,7 @@ export function PatrimonyProjectionChart({ years }: { years: ProjectionYear[] })
         />
         <Legend wrapperStyle={{ fontSize: 12, color: CHART_COLORS.axis }} />
         <Line type="monotone" dataKey="Patrimônio (nominal)" stroke={CHART_COLORS.info} strokeWidth={2} dot={false} connectNulls />
-        <Line type="monotone" dataKey="Patrimônio (real)" stroke={CHART_COLORS.gold} strokeWidth={2} dot={false} />
+        <Line type="monotone" dataKey="Patrimônio (real)" stroke={CHART_COLORS.accent} strokeWidth={2} dot={false} />
       </LineChart>
     </ResponsiveContainer>
   );

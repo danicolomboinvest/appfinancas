@@ -1,29 +1,29 @@
-// Paleta consistente para os gráficos Recharts no tema escuro grafite/dourado.
+// Paleta consistente para os gráficos Recharts no tema editorial quase-preto/verde-petróleo.
 export const CHART_COLORS = {
-  grid: "rgba(255,255,255,0.08)",
-  axis: "#a3a2a5",
-  gold: "#c6a15b",
-  goldStrong: "#d9b878",
+  grid: "rgba(255,255,255,0.1)",
+  axis: "#a8a7a3",
+  accent: "#2f7b6f",
+  accentStrong: "#5fa89a",
   success: "#34d399",
   danger: "#f87171",
   info: "#60a5fa",
-  muted: "#6e6d72",
+  muted: "#767572",
 };
 
 export const CHART_TOOLTIP_STYLE = {
   contentStyle: {
-    backgroundColor: "#262a35",
-    border: "1px solid rgba(255,255,255,0.14)",
+    backgroundColor: "#1e2124",
+    border: "1px solid rgba(255,255,255,0.18)",
     borderRadius: 10,
-    color: "#f5f3ee",
+    color: "#fafaf8",
     fontSize: 12,
-    boxShadow: "0 12px 40px rgba(0,0,0,0.45)",
+    boxShadow: "0 20px 48px rgba(0,0,0,0.65)",
   },
-  labelStyle: { color: "#a3a2a5" },
-  itemStyle: { color: "#f5f3ee" },
+  labelStyle: { color: "#a8a7a3" },
+  itemStyle: { color: "#fafaf8" },
 };
 
 export const CHART_LEGEND_STYLE = {
   fontSize: 12,
-  color: "#a3a2a5",
+  color: "#a8a7a3",
 };

@@ -6,7 +6,7 @@ import { PARENT_CATEGORIES, PARENT_CATEGORY_LABEL, SUBCATEGORIES, OUTRO_SUBCATEG
 export default function CategoriasPage() {
   return (
     <div className="flex flex-col gap-6">
-      <Breadcrumb items={[{ label: "Configurações", href: "/configuracoes/perfil" }, { label: "Categorias" }]} />
+      <Breadcrumb items={[{ label: "Ajustes da conta", href: "/configuracoes/perfil" }, { label: "Categorias" }]} />
 
       <PageHeader
         title="Categorias"

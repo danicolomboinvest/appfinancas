@@ -26,7 +26,7 @@ function Chip({
       onClick={onClick}
       className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
         active
-          ? "border-gold bg-gold-soft text-gold-strong"
+          ? "border-accent bg-accent-soft text-accent-strong"
           : "border-border-strong bg-surface-2 text-ink-muted hover:text-ink"
       }`}
     >

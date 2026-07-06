@@ -1,25 +1,25 @@
 @import "tailwindcss";
 
 :root {
-  /* Superfícies — grafite levemente azulado, com mais contraste entre fundo e card */
-  --color-canvas: #14161d;
-  --color-surface: #1e2129;
-  --color-surface-2: #262a35;
-  --color-surface-hover: #2b303b;
+  /* Superfícies — quase-preto editorial, com contraste generoso entre fundo e card */
+  --color-canvas: #0b0c0e;
+  --color-surface: #16181b;
+  --color-surface-2: #1e2124;
+  --color-surface-hover: #24272b;
 
-  /* Bordas */
-  --color-border: rgba(255, 255, 255, 0.08);
-  --color-border-strong: rgba(255, 255, 255, 0.16);
+  /* Bordas — opacidade um pouco mais alta que o padrão, já que ficam mais sutis sobre um canvas tão escuro */
+  --color-border: rgba(255, 255, 255, 0.1);
+  --color-border-strong: rgba(255, 255, 255, 0.18);
 
   /* Texto */
-  --color-ink: #f5f3ee;
-  --color-ink-muted: #a3a2a5;
-  --color-ink-faint: #6e6d72;
+  --color-ink: #fafaf8;
+  --color-ink-muted: #a8a7a3;
+  --color-ink-faint: #767572;
 
-  /* Acento dourado — dessaturado, mais sofisticado */
-  --color-gold: #c6a15b;
-  --color-gold-strong: #d9b878;
-  --color-gold-soft: rgba(198, 161, 91, 0.14);
+  /* Acento — verde-petróleo, usado só para destacar o dado mais importante da tela */
+  --color-accent: #2f7b6f;
+  --color-accent-strong: #5fa89a;
+  --color-accent-soft: rgba(47, 123, 111, 0.16);
 
   /* Semânticas */
   --color-success: #34d399;
@@ -29,8 +29,9 @@
   --color-info: #60a5fa;
   --color-info-soft: rgba(96, 165, 250, 0.14);
 
-  --shadow-premium: 0 12px 40px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.3);
-  --shadow-premium-sm: 0 4px 16px rgba(0, 0, 0, 0.35);
+  /* Sombra com mais peso — uma sombra preta comum some sobre um canvas quase-preto */
+  --shadow-premium: 0 20px 48px rgba(0, 0, 0, 0.65), 0 1px 0 rgba(255, 255, 255, 0.04) inset;
+  --shadow-premium-sm: 0 8px 20px rgba(0, 0, 0, 0.5);
 }
 
 @theme inline {
@@ -43,9 +44,9 @@
   --color-ink: var(--color-ink);
   --color-ink-muted: var(--color-ink-muted);
   --color-ink-faint: var(--color-ink-faint);
-  --color-gold: var(--color-gold);
-  --color-gold-strong: var(--color-gold-strong);
-  --color-gold-soft: var(--color-gold-soft);
+  --color-accent: var(--color-accent);
+  --color-accent-strong: var(--color-accent-strong);
+  --color-accent-soft: var(--color-accent-soft);
   --color-success: var(--color-success);
   --color-success-soft: var(--color-success-soft);
   --color-danger: var(--color-danger);
@@ -55,6 +56,32 @@
 
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  /* Escala editorial: título / subtítulo / texto / indicador / label / observação.
+     Tailwind só pareia automaticamente --line-height a partir de --text-*; peso e
+     tracking não têm mecanismo de pareamento (ao contrário do que a doc sugere à
+     primeira vista) — por isso cada uso combina text-{tier} com font-* e tracking-*
+     explícitos (ex.: `text-h1 font-semibold tracking-tight`). */
+  --text-display: 3rem;
+  --text-display--line-height: 1.05;
+
+  --text-h1: 1.75rem;
+  --text-h1--line-height: 1.15;
+
+  --text-h2: 1.25rem;
+  --text-h2--line-height: 1.25;
+
+  --text-indicator: 1.5rem;
+  --text-indicator--line-height: 1.2;
+
+  --text-body: 0.9375rem;
+  --text-body--line-height: 1.6;
+
+  --text-label: 0.75rem;
+  --text-label--line-height: 1.4;
+
+  --text-caption: 0.6875rem;
+  --text-caption--line-height: 1.4;
 }
 
 * {
@@ -73,7 +100,7 @@ body {
 }
 
 ::selection {
-  background: var(--color-gold-soft);
+  background: var(--color-accent-soft);
   color: var(--color-ink);
 }
 

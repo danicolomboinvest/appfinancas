@@ -27,7 +27,7 @@ export default async function TaxasDoSistemaPage() {
     {
       key: "origin",
       label: "Origem",
-      render: (rate) => <Badge tone={rate.userId ? "gold" : "neutral"}>{rate.userId ? "Sua taxa" : "Padrão do sistema"}</Badge>,
+      render: (rate) => <Badge tone={rate.userId ? "accent" : "neutral"}>{rate.userId ? "Sua taxa" : "Padrão do sistema"}</Badge>,
     },
     {
       key: "actions",
@@ -39,7 +39,7 @@ export default async function TaxasDoSistemaPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <Breadcrumb items={[{ label: "Configurações", href: "/configuracoes/perfil" }, { label: "Taxas do Sistema" }]} />
+      <Breadcrumb items={[{ label: "Ajustes da conta", href: "/configuracoes/perfil" }, { label: "Taxas do Sistema" }]} />
 
       <PageHeader
         title="Taxas do Sistema"

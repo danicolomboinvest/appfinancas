@@ -1,15 +1,15 @@
-type Tone = "success" | "danger" | "gold" | "neutral";
+type Tone = "success" | "danger" | "accent" | "neutral";
 
 const TONE_BAR: Record<Tone, string> = {
   success: "bg-success",
   danger: "bg-danger",
-  gold: "bg-gold",
+  accent: "bg-accent",
   neutral: "bg-ink-faint",
 };
 
 export function ProgressBar({
   percent,
-  tone = "gold",
+  tone = "accent",
   className = "",
 }: {
   /** 0 a 1. */

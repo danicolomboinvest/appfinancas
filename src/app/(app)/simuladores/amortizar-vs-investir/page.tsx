@@ -133,7 +133,7 @@ export default function AmortizarVsInvestirPage() {
             <StatCard
               label="Conclusão"
               value={`${result.winner === "AMORTIZAR" ? "Amortizar" : "Investir"} (${formatBRL(result.differenceInFavorOfWinner)} a mais)`}
-              tone="gold"
+              tone="accent"
             />
           </div>
           <p className="text-sm text-ink-muted">

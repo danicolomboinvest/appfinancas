@@ -24,7 +24,7 @@ export default async function ProjecaoPage() {
         <PageHeader title="Projeção Patrimonial" />
         <p className="text-sm text-ink-muted">
           Preencha primeiro os dados na{" "}
-          <Link href="/planejamento/acumulo" className="text-gold-strong hover:underline">
+          <Link href="/planejamento/acumulo" className="text-accent-strong hover:underline">
             fase de acúmulo
           </Link>
           .
@@ -76,7 +76,7 @@ const projectionColumns: ResponsiveColumn<ProjectionYear>[] = [
     key: "phase",
     label: "Fase",
     render: (y) => (
-      <Badge tone={y.phase === "ACCUMULATION" ? "gold" : "info"}>{y.phase === "ACCUMULATION" ? "Acúmulo" : "Usufruto"}</Badge>
+      <Badge tone={y.phase === "ACCUMULATION" ? "accent" : "info"}>{y.phase === "ACCUMULATION" ? "Acúmulo" : "Usufruto"}</Badge>
     ),
   },
   { key: "invested", label: "Investido", render: (y) => formatBRL(y.totalInvested) },

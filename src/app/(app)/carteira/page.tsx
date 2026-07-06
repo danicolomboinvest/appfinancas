@@ -67,7 +67,7 @@ export default async function CarteiraPage() {
         subtitle={
           <>
             Cadastre seus ativos e marque o objetivo de cada um.{" "}
-            <Link href="/carteira/por-objetivo" className="text-gold-strong hover:underline">
+            <Link href="/carteira/por-objetivo" className="text-accent-strong hover:underline">
               Ver consolidação por objetivo →
             </Link>
           </>

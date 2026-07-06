@@ -1,11 +1,11 @@
 import { Card } from "./Card";
 
-type Tone = "success" | "danger" | "gold" | "neutral";
+type Tone = "success" | "danger" | "accent" | "neutral";
 
 const TONE_CLASSES: Record<Tone, string> = {
   success: "text-success",
   danger: "text-danger",
-  gold: "text-gold-strong",
+  accent: "text-accent-strong",
   neutral: "text-ink",
 };
 

@@ -16,7 +16,7 @@ export default function LoginPage() {
     <main className="flex min-h-screen items-center justify-center bg-canvas p-6">
       <div className="w-full max-w-sm animate-fade-in">
         <div className="mb-8 flex flex-col items-center gap-3 text-center">
-          <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-gold-soft text-gold-strong">
+          <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-accent-soft text-accent-strong">
             <TrendingUp size={22} strokeWidth={1.75} />
           </span>
           <div>
@@ -39,7 +39,7 @@ export default function LoginPage() {
           </Button>
           <p className="text-center text-sm text-ink-muted">
             Não tem conta?{" "}
-            <Link href="/register" className="font-medium text-gold-strong hover:underline">
+            <Link href="/register" className="font-medium text-accent-strong hover:underline">
               Criar conta
             </Link>
           </p>

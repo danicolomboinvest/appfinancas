@@ -7,7 +7,6 @@ import {
   LayoutDashboard,
   Settings,
 } from "lucide-react";
-import { auth } from "@/lib/auth/auth.config";
 import { HomeSectionCard } from "@/components/ui/HomeSectionCard";
 
 const SECTIONS = [
@@ -15,56 +14,50 @@ const SECTIONS = [
     href: "/dashboard",
     icon: LayoutDashboard,
     title: "Visão Geral",
-    subtitle: "O resumo do seu mês, do seu ano e da evolução do seu patrimônio.",
+    subtitle: "Veja como está sua evolução até aqui.",
   },
   {
     href: "/mensal",
     icon: ArrowLeftRight,
     title: "Fluxo Financeiro",
-    subtitle: "Lance renda, gastos e aportes e acompanhe seu saldo mês a mês.",
+    subtitle: "Como está seu dinheiro este mês? Vamos organizar.",
   },
   {
     href: "/planejamento/acumulo",
     icon: Compass,
     title: "Planejamento Financeiro",
-    subtitle: "Acúmulo, Liberdade Financeira, projeção patrimonial, reserva e metas.",
+    subtitle: "Vamos planejar seus próximos objetivos?",
   },
   {
     href: "/carteira",
     icon: Briefcase,
     title: "Carteira de Investimentos",
-    subtitle: "Seus ativos, alocação por objetivo e comparação com o ideal.",
+    subtitle: "Vamos acompanhar sua carteira de investimentos?",
   },
   {
     href: "/simuladores",
     icon: Calculator,
     title: "Simuladores",
-    subtitle: "Financiar vs. alugar, consórcio, marcação a mercado e mais.",
+    subtitle: "Vamos descobrir quanto seu dinheiro pode render?",
   },
   {
     href: "/fichas",
     icon: FileSearch,
     title: "Análises",
-    subtitle: "Insights automáticos e fichas de análise fundamentalista de ações e FIIs.",
+    subtitle: "Veja o que seus números têm a dizer.",
   },
   {
     href: "/configuracoes/perfil",
     icon: Settings,
     title: "Configurações",
-    subtitle: "Perfil, categorias, preferências, notificações e taxas do sistema.",
+    subtitle: "Hora de atualizar seus dados e preferências.",
   },
 ];
 
 export default async function InicioPage() {
-  const session = await auth();
-  const displayName = session?.user.name?.split(" ")[0] ?? session?.user.email?.split("@")[0];
-
   return (
     <div className="flex flex-col gap-8">
-      <div>
-        <p className="text-sm text-ink-muted">Bem-vinda de volta{displayName ? `, ${displayName}` : ""}.</p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink">O que você quer organizar hoje?</h1>
-      </div>
+      <h1 className="text-display font-semibold tracking-tight text-ink">O que você quer organizar hoje?</h1>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {SECTIONS.map((section) => (

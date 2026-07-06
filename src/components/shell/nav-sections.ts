@@ -20,12 +20,12 @@ export type NavSection = {
 };
 
 export const NAV_SECTIONS: NavSection[] = [
-  { basePath: "/dashboard", href: "/dashboard", label: "Visão Geral", icon: LayoutDashboard },
-  { basePath: "/mensal", href: "/mensal", label: "Fluxo Financeiro", icon: ArrowLeftRight },
+  { basePath: "/dashboard", href: "/dashboard", label: "Como você está indo?", icon: LayoutDashboard },
+  { basePath: "/mensal", href: "/mensal", label: "Seu dinheiro no mês", icon: ArrowLeftRight },
   {
     basePath: "/planejamento",
     href: "/planejamento/acumulo",
-    label: "Planejamento Financeiro",
+    label: "Está no caminho certo?",
     icon: Compass,
     children: [
       { href: "/planejamento/acumulo", label: "Acúmulo" },
@@ -38,7 +38,7 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     basePath: "/carteira",
     href: "/carteira",
-    label: "Carteira de Investimentos",
+    label: "Onde está seu patrimônio?",
     icon: Briefcase,
     children: [
       { href: "/carteira", label: "Meus Ativos" },
@@ -49,7 +49,7 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     basePath: "/simuladores",
     href: "/simuladores",
-    label: "Simuladores",
+    label: "Quanto pode render?",
     icon: Calculator,
     children: [
       { href: "/simuladores/financiar-vs-alugar", label: "Financiar vs. Alugar" },
@@ -62,7 +62,7 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     basePath: "/fichas",
     href: "/fichas",
-    label: "Análises",
+    label: "O que seus números dizem?",
     icon: FileSearch,
     children: [
       { href: "/fichas", label: "Insights" },
@@ -73,7 +73,7 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     basePath: "/configuracoes",
     href: "/configuracoes/perfil",
-    label: "Configurações",
+    label: "Ajustes da conta",
     icon: Settings,
     children: [
       { href: "/configuracoes/perfil", label: "Perfil" },

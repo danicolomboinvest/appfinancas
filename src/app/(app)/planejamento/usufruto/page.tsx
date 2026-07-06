@@ -22,7 +22,7 @@ export default async function UsufrutoPage() {
         <PageHeader title="Liberdade Financeira" />
         <p className="text-sm text-ink-muted">
           Preencha primeiro os dados na{" "}
-          <Link href="/planejamento/acumulo" className="text-gold-strong hover:underline">
+          <Link href="/planejamento/acumulo" className="text-accent-strong hover:underline">
             fase de acúmulo
           </Link>
           .
@@ -56,7 +56,7 @@ export default async function UsufrutoPage() {
         subtitle={
           <>
             Compara a renda que o patrimônio acumulado geraria com o padrão de vida desejado.{" "}
-            <Link href="/planejamento/acumulo" className="text-gold-strong hover:underline">
+            <Link href="/planejamento/acumulo" className="text-accent-strong hover:underline">
               ← editar dados
             </Link>
           </>
@@ -64,7 +64,7 @@ export default async function UsufrutoPage() {
       />
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <StatCard label="Patrimônio ao se aposentar (real)" value={formatBRL(accumulation.finalValueReal)} tone="gold" />
+        <StatCard label="Patrimônio ao se aposentar (real)" value={formatBRL(accumulation.finalValueReal)} tone="accent" />
         <StatCard label="Renda passiva da carteira" value={formatBRL(usufruct.monthlyPassiveIncomeFromPortfolio)} />
         <StatCard label="Renda passiva total (+ outras rendas)" value={formatBRL(usufruct.totalPassiveIncome)} />
         <StatCard label="Gasto mensal desejado" value={formatBRL(Number(params.desiredPassiveIncome))} />

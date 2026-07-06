@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { Menu } from "lucide-react";
 import { Sidebar } from "./Sidebar";
+import { GreetingStrip } from "./GreetingStrip";
 import { logoutAction } from "@/lib/auth/actions";
 import { ToastProvider } from "@/components/ui/toast-context";
 
@@ -10,10 +11,16 @@ export function AppShell({
   children,
   isAdmin,
   userEmail,
+  greeting,
+  dateLabel,
+  summary,
 }: {
   children: React.ReactNode;
   isAdmin: boolean;
   userEmail?: string;
+  greeting: string;
+  dateLabel: string;
+  summary: string;
 }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -75,7 +82,10 @@ export function AppShell({
           </header>
 
           <main className="flex-1 px-5 py-6 md:px-10 md:py-8">
-            <div className="mx-auto w-full max-w-6xl animate-fade-in">{children}</div>
+            <div className="mx-auto w-full max-w-6xl animate-fade-in">
+              <GreetingStrip greeting={greeting} dateLabel={dateLabel} summary={summary} />
+              {children}
+            </div>
           </main>
         </div>
       </div>
