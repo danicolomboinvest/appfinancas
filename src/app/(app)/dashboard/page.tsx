@@ -46,7 +46,6 @@ export default async function DashboardPage() {
 
   const incomeTrend = changePercent(currentMonthSummary.totalIncome, previousMonthSummary.totalIncome);
   const expenseTrend = changePercent(currentMonthSummary.totalExpense, previousMonthSummary.totalExpense);
-  const investmentTrend = changePercent(currentMonthSummary.totalInvestment, previousMonthSummary.totalInvestment);
   const balanceTrend = changePercent(currentMonthSummary.balance, previousMonthSummary.balance);
 
   const emergencyTarget = emergencyFund ? Number(emergencyFund.targetAmount) : null;
@@ -86,7 +85,7 @@ export default async function DashboardPage() {
   return (
     <div className="flex flex-col gap-8">
       <PageHeader
-        title="Visão Geral"
+        title="Como você está indo?"
         subtitle={
           <>
             Consolidado de {year}.{" "}
@@ -97,8 +96,14 @@ export default async function DashboardPage() {
         }
       />
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
-        <StatCard label="Patrimônio total" value={formatBRL(portfolio.totalPortfolio)} tone="accent" />
+      <Card className="p-6">
+        <p className="text-label text-ink-muted">Patrimônio total</p>
+        <p className="mt-1 text-display font-semibold tracking-tight text-accent-strong">
+          {formatBRL(portfolio.totalPortfolio)}
+        </p>
+      </Card>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <StatCard
           label="Renda no ano"
           value={formatBRL(summary.totalIncome)}
@@ -114,23 +119,19 @@ export default async function DashboardPage() {
           }
         />
         <StatCard
-          label="Aportes no ano"
-          value={formatBRL(summary.totalInvestment)}
-          trend={investmentTrend === null ? undefined : { percent: investmentTrend, periodLabel: "mês passado" }}
-        />
-        <StatCard
           label="Saldo no ano"
           value={formatBRL(summary.balance)}
+          hint={
+            summary.savingsRate === null
+              ? undefined
+              : `Taxa de poupança: ${(summary.savingsRate * 100).toFixed(1)}%`
+          }
           trend={balanceTrend === null ? undefined : { percent: balanceTrend, periodLabel: "mês passado" }}
-        />
-        <StatCard
-          label="Taxa de poupança"
-          value={summary.savingsRate === null ? "—" : `${(summary.savingsRate * 100).toFixed(1)}%`}
         />
       </div>
 
       <div>
-        <h2 className="mb-3 text-sm font-medium text-ink-muted">Status dos módulos</h2>
+        <h2 className="mb-3 text-h2 font-semibold tracking-tight text-ink">Status dos módulos</h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <LinkedStatCard
             href="/planejamento/reserva-emergencia"

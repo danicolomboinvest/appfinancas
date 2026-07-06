@@ -5,7 +5,9 @@ import { listMonthlyEntries, listRecentSubcategories } from "@/lib/repositories/
 import { getMonthlySummary } from "@/lib/consolidation/monthly";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
-import { ResponsiveTable } from "@/components/ui/ResponsiveTable";
+import { Card } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { EntryForm } from "./EntryForm";
 import { DeleteEntryButton } from "./DeleteEntryButton";
@@ -30,6 +32,12 @@ const CATEGORY_LABEL: Record<string, string> = {
   INCOME: "Renda",
   EXPENSE: "Gasto",
   INVESTMENT_CONTRIBUTION: "Aporte",
+};
+
+const CATEGORY_TONE: Record<string, "success" | "danger" | "accent"> = {
+  INCOME: "success",
+  EXPENSE: "danger",
+  INVESTMENT_CONTRIBUTION: "accent",
 };
 
 function formatBRL(value: number) {
@@ -97,23 +105,27 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
 
       <BudgetSection ctx={ctx} year={year} month={month} totalIncome={summary.totalIncome} />
 
-      <ResponsiveTable
-        columns={[
-          { key: "category", label: "Categoria", render: (entry) => CATEGORY_LABEL[entry.category] },
-          { key: "subcategory", label: "Subcategoria", render: (entry) => entry.subcategory ?? "—" },
-          { key: "description", label: "Descrição", render: (entry) => entry.description ?? "—" },
-          { key: "amount", label: "Valor", render: (entry) => formatBRL(Number(entry.amount)) },
-          {
-            key: "actions",
-            label: "",
-            hideLabelOnMobile: true,
-            render: (entry) => <DeleteEntryButton id={entry.id} year={year} month={month} />,
-          },
-        ]}
-        rows={entries}
-        rowKey={(entry) => entry.id}
-        emptyMessage="Nenhum lançamento neste mês ainda."
-      />
+      {entries.length === 0 ? (
+        <EmptyState message="Nenhum lançamento neste mês ainda." />
+      ) : (
+        <div className="flex flex-col gap-2">
+          {entries.map((entry) => (
+            <Card key={entry.id} className="flex items-center justify-between gap-3 p-3">
+              <div className="flex min-w-0 items-center gap-3">
+                <Badge tone={CATEGORY_TONE[entry.category]}>{CATEGORY_LABEL[entry.category]}</Badge>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-ink">{entry.subcategory ?? "Sem subcategoria"}</p>
+                  {entry.description && <p className="truncate text-xs text-ink-faint">{entry.description}</p>}
+                </div>
+              </div>
+              <div className="flex shrink-0 items-center gap-3">
+                <p className="text-sm font-medium text-ink">{formatBRL(Number(entry.amount))}</p>
+                <DeleteEntryButton id={entry.id} year={year} month={month} />
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

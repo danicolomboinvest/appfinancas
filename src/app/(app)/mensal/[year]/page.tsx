@@ -45,7 +45,7 @@ export default async function YearPage(props: PageProps<"/mensal/[year]">) {
       <Breadcrumb items={[{ label: "Seu dinheiro no mês", href: "/mensal" }, { label: String(year) }]} />
 
       <PageHeader
-        title={`Fluxo Financeiro — ${year}`}
+        title={`Como estava seu dinheiro em ${year}?`}
         subtitle="Consolidação automática dos 12 meses do ano."
         action={
           <div className="flex items-center gap-1">

@@ -38,7 +38,10 @@ const SIMULATORS = [
 export default function SimuladoresPage() {
   return (
     <div className="flex flex-col gap-8">
-      <PageHeader title="Simuladores" subtitle="Calculadoras para decisões financeiras importantes do dia a dia." />
+      <PageHeader
+        title="Vamos descobrir quanto seu dinheiro pode render?"
+        subtitle="Calculadoras para decisões financeiras importantes do dia a dia."
+      />
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {SIMULATORS.map((simulator) => (
           <HomeSectionCard key={simulator.href} {...simulator} />
