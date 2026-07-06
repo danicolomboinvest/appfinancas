@@ -76,3 +76,28 @@ export function computeGoalPlan(input: GoalCalcInput): GoalCalcResult {
     status: "ON_TRACK",
   };
 }
+
+export type GoalTrajectoryPoint = { month: number; amount: number };
+
+/**
+ * Trajetória PROJETADA (não histórica) do valor guardado até a data-alvo, assumindo o
+ * aporte mensal sugerido por `computeGoalPlan` a partir de hoje. Não existe, hoje, nenhum
+ * histórico real de aportes por meta no banco — por isso esta função mostra "para onde a
+ * meta está indo" sob o plano atual, não "de onde ela veio". Reaproveita monthlyRate e
+ * requiredMonthlyContribution já calculados por computeGoalPlan, sem introduzir uma nova
+ * fórmula financeira.
+ */
+export function computeGoalTrajectory(input: GoalCalcInput, plan: GoalCalcResult): GoalTrajectoryPoint[] {
+  const points: GoalTrajectoryPoint[] = [{ month: 0, amount: input.currentAmount }];
+  if (plan.status === "ACHIEVED" || plan.monthsRemaining <= 0) return points;
+
+  const monthlyRate = new Decimal(plan.monthlyRate);
+  const contribution = new Decimal(plan.requiredMonthlyContribution);
+  let balance = new Decimal(input.currentAmount);
+
+  for (let month = 1; month <= plan.monthsRemaining; month++) {
+    balance = balance.plus(contribution).times(monthlyRate.plus(1));
+    points.push({ month, amount: balance.toNumber() });
+  }
+  return points;
+}

@@ -1,6 +1,6 @@
 import { getRequiredSession } from "@/lib/auth/session";
 import { listGoals } from "@/lib/repositories/goal.repo";
-import { computeGoalPlan, type GoalCalcResult } from "@/lib/planning/goal";
+import { computeGoalPlan, computeGoalTrajectory, type GoalCalcResult } from "@/lib/planning/goal";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { GoalForm } from "./GoalForm";
@@ -27,13 +27,24 @@ export default async function MetasPage() {
   const withPlans = goals.map((goal) => {
     const targetAmount = Number(goal.targetAmount);
     const currentAmount = Number(goal.currentAmount);
-    const plan = computeGoalPlan({
+    const targetDate = goal.targetDate ?? new Date();
+    const goalInput = {
       targetAmount,
       currentAmount,
-      targetDate: goal.targetDate ?? new Date(),
+      targetDate,
       annualRate: Number(goal.annualRate ?? 0),
-    });
-    return { goal, plan, targetAmount, currentAmount, variant: resolveVariant(plan, currentAmount, targetAmount) };
+    };
+    const plan = computeGoalPlan(goalInput);
+    const trajectory = computeGoalTrajectory(goalInput, plan);
+    return {
+      goal,
+      plan,
+      trajectory,
+      targetAmount,
+      currentAmount,
+      targetDate,
+      variant: resolveVariant(plan, currentAmount, targetAmount),
+    };
   });
 
   // Pior status primeiro (atrasada > no ritmo/adiantada), concluídas sempre por último;
@@ -56,7 +67,7 @@ export default async function MetasPage() {
         <EmptyState message="Nenhuma meta cadastrada ainda." />
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {sorted.map(({ goal, plan, targetAmount, currentAmount, variant }) => (
+          {sorted.map(({ goal, plan, trajectory, targetAmount, currentAmount, targetDate, variant }) => (
             <GoalCard
               key={goal.id}
               id={goal.id}
@@ -64,7 +75,9 @@ export default async function MetasPage() {
               icon={goal.icon}
               targetAmount={targetAmount}
               currentAmount={currentAmount}
+              targetDate={targetDate}
               plan={plan}
+              trajectory={trajectory}
               variant={variant}
             />
           ))}

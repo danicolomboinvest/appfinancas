@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { Target, Plane, Home, Car, PiggyBank } from "lucide-react";
+import { Target, Plane, Home, Car, PiggyBank, Sparkles, CheckCircle2, AlertTriangle, PartyPopper } from "lucide-react";
 import type { GoalIcon } from "@prisma/client";
 import { Card } from "@/components/ui/Card";
 import { DeleteGoalButton } from "./DeleteGoalButton";
-import type { GoalCalcResult } from "@/lib/planning/goal";
+import { GoalTrajectoryChart } from "./GoalTrajectoryChart";
+import type { GoalCalcResult, GoalTrajectoryPoint } from "@/lib/planning/goal";
 
 export type GoalVariant = "ahead" | "onTrack" | "behind" | "achieved";
 
@@ -28,6 +29,24 @@ const VARIANT_STATUS_CLASSES: Record<GoalVariant, string> = {
   achieved: "bg-success-soft text-success",
 };
 
+const VARIANT_CHART_TONE: Record<GoalVariant, "success" | "accent" | "danger"> = {
+  ahead: "success",
+  onTrack: "accent",
+  behind: "danger",
+  achieved: "success",
+};
+
+const VARIANT_MOTIVATION: Record<GoalVariant, { Icon: typeof Sparkles; message: string; colorClass: string }> = {
+  ahead: { Icon: Sparkles, message: "Você está indo além do esperado.", colorClass: "text-success" },
+  onTrack: { Icon: CheckCircle2, message: "Continue assim, você está no caminho certo.", colorClass: "text-accent-strong" },
+  behind: {
+    Icon: AlertTriangle,
+    message: "Vale revisar o aporte mensal para não perder o ritmo.",
+    colorClass: "text-danger",
+  },
+  achieved: { Icon: PartyPopper, message: "Meta conquistada — comemore essa vitória.", colorClass: "text-success" },
+};
+
 const GOAL_ICONS: Record<GoalIcon, typeof Target> = {
   VIAGEM: Plane,
   CASA: Home,
@@ -40,13 +59,27 @@ function formatBRL(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
+function formatMonthYear(date: Date) {
+  return new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric" }).format(date);
+}
+
+function projectedCompletionText(variant: GoalVariant, targetDate: Date): string | null {
+  if (variant === "achieved") return null;
+  const dateLabel = formatMonthYear(targetDate);
+  if (variant === "ahead") return `Nesse ritmo, você deve concluir antes do previsto (${dateLabel}).`;
+  if (variant === "behind") return `Nesse ritmo, essa meta corre risco de não ficar pronta até ${dateLabel}.`;
+  return `Prevista para ${dateLabel}, continuando nesse ritmo.`;
+}
+
 export function GoalCard({
   id,
   name,
   icon,
   targetAmount,
   currentAmount,
+  targetDate,
   plan,
+  trajectory,
   variant,
 }: {
   id: string;
@@ -54,13 +87,17 @@ export function GoalCard({
   icon: GoalIcon;
   targetAmount: number;
   currentAmount: number;
+  targetDate: Date;
   plan: GoalCalcResult;
+  trajectory: GoalTrajectoryPoint[];
   variant: GoalVariant;
 }) {
   const progressPercent = targetAmount > 0 ? Math.min(currentAmount / targetAmount, 1) : 0;
   const achieved = variant === "achieved";
   const styles = VARIANT_STYLES[variant];
   const Icon = GOAL_ICONS[icon];
+  const motivation = VARIANT_MOTIVATION[variant];
+  const completionText = projectedCompletionText(variant, targetDate);
 
   return (
     <Card className={`relative flex flex-col gap-4 border-t-4 p-5 ${styles.border} ${achieved ? "opacity-60" : ""}`}>
@@ -91,6 +128,16 @@ export function GoalCard({
         </div>
         <p className="mt-1.5 text-xs text-ink-muted">{Math.round(progressPercent * 100)}% concluído</p>
       </div>
+
+      <div className="flex items-start gap-1.5">
+        <motivation.Icon size={14} strokeWidth={1.75} className={`mt-0.5 shrink-0 ${motivation.colorClass}`} />
+        <div>
+          <p className="text-xs text-ink-muted">{motivation.message}</p>
+          {completionText && <p className="mt-0.5 text-xs text-ink-faint">{completionText}</p>}
+        </div>
+      </div>
+
+      <GoalTrajectoryChart data={trajectory} targetAmount={targetAmount} tone={VARIANT_CHART_TONE[variant]} />
 
       <div className="grid grid-cols-3 gap-2 text-center">
         <div>
