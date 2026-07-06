@@ -125,6 +125,7 @@ model User {
   monthlyEntries       MonthlyEntry[]
   budgets              Budget[]
   portfolioStrategy    PortfolioStrategy[]
+  patrimonySnapshots   PatrimonySnapshot[]
   assets               Asset[]
   goals                Goal[]
   emergencyFund        EmergencyFund?
@@ -318,6 +319,22 @@ model PortfolioStrategy {
   updatedAt     DateTime           @updatedAt
 
   @@unique([userId, assetClass])
+}
+
+/// Snapshot diário do patrimônio total (soma de Asset.currentValue), gravado de forma
+/// oportunista na primeira leitura do dia (ver lib/portfolio/snapshot.ts). É a única peça de
+/// histórico real que o app guarda sobre patrimônio — sem ela não há como responder "quanto
+/// cresceu" ou "é um novo recorde", já que Asset só guarda o valor atual.
+model PatrimonySnapshot {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  date       DateTime @db.Date
+  totalValue Decimal  @db.Decimal(18, 2)
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, date])
+  @@index([userId, date])
 }
 
 /// Histórico opcional de simulações (financiar vs alugar, consórcio, marcação a mercado, carro).
