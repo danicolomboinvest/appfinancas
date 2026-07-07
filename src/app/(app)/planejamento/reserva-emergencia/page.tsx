@@ -7,6 +7,7 @@ import { StatCard } from "@/components/ui/StatCard";
 import { Card } from "@/components/ui/Card";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { EmergencyFundForm } from "./EmergencyFundForm";
+import { formatPercentNumber } from "@/lib/format";
 
 function formatBRL(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -55,7 +56,7 @@ export default async function ReservaEmergenciaPage() {
               label="Tempo para concluir"
               value={plan.monthsToTarget === null ? "Inatingível com esses parâmetros" : `${plan.monthsToTarget} meses`}
             />
-            <StatCard label="Rentabilidade mensal" value={`${(plan.monthlyRate * 100).toFixed(3)}%`} />
+            <StatCard label="Rentabilidade mensal" value={formatPercentNumber(plan.monthlyRate * 100, 3)} />
           </div>
 
           {(() => {

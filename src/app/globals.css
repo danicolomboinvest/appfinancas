@@ -34,6 +34,38 @@
   --shadow-premium-sm: 0 8px 20px rgba(0, 0, 0, 0.5);
 }
 
+/* Tema claro — mesma estrutura de tokens, aplicada via classe no <html> (ver ThemeSync).
+   Mantém a mesma cor de destaque (petróleo), ajustando apenas o contraste para fundo claro. */
+html.light {
+  --color-canvas: #fafaf8;
+  --color-surface: #ffffff;
+  --color-surface-2: #f2f1ee;
+  --color-surface-hover: #e9e7e2;
+
+  --color-border: rgba(11, 12, 14, 0.1);
+  --color-border-strong: rgba(11, 12, 14, 0.18);
+
+  --color-ink: #16181b;
+  --color-ink-muted: #55534f;
+  --color-ink-faint: #8a8883;
+
+  --color-accent: #2f7b6f;
+  --color-accent-strong: #1f5750;
+  --color-accent-soft: rgba(47, 123, 111, 0.12);
+
+  --color-success: #157347;
+  --color-success-soft: rgba(21, 115, 71, 0.12);
+  --color-danger: #c0342a;
+  --color-danger-soft: rgba(192, 52, 42, 0.1);
+  --color-info: #1d5fc2;
+  --color-info-soft: rgba(29, 95, 194, 0.1);
+
+  --shadow-premium: 0 16px 40px rgba(15, 15, 15, 0.1), 0 1px 0 rgba(255, 255, 255, 0.6) inset;
+  --shadow-premium-sm: 0 6px 16px rgba(15, 15, 15, 0.07);
+
+  color-scheme: light;
+}
+
 @theme inline {
   --color-canvas: var(--color-canvas);
   --color-surface: var(--color-surface);

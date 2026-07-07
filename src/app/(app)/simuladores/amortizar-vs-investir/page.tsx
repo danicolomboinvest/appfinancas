@@ -16,6 +16,7 @@ import { Field, SelectField } from "@/components/ui/Field";
 import { PercentInputControlled } from "@/components/ui/PercentInputControlled";
 import { CurrencyInputControlled } from "@/components/ui/CurrencyInputControlled";
 import { Button } from "@/components/ui/Button";
+import { formatPercentNumber } from "@/lib/format";
 
 const defaultValues: AmortizeVsInvestFormInput = {
   outstandingBalance: 200000,
@@ -128,7 +129,7 @@ export default function AmortizarVsInvestirPage() {
         <div className="flex flex-col gap-4">
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <StatCard label="Economia de juros ao amortizar" value={formatBRL(result.interestSavings)} tone="success" />
-            <StatCard label="Rentabilidade líquida de IR (a.a.)" value={`${(result.netInvestmentAnnualRate * 100).toFixed(2)}%`} />
+            <StatCard label="Rentabilidade líquida de IR (a.a.)" value={formatPercentNumber(result.netInvestmentAnnualRate * 100, 2)} />
             <StatCard label="Ganho líquido ao investir" value={formatBRL(result.investmentGain)} />
             <StatCard
               label="Conclusão"

@@ -1,6 +1,8 @@
 import { auth } from "@/lib/auth/auth.config";
 import { AppShell } from "@/components/shell/AppShell";
+import { ThemeSync } from "@/components/shell/ThemeSync";
 import { getMonthlySummary } from "@/lib/consolidation/monthly";
+import { getOwnUser } from "@/lib/repositories/user.repo";
 import type { AuthContext } from "@/lib/auth/session";
 
 function formatBRL(value: number) {
@@ -35,21 +37,29 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const dateLabel = capitalize(now.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" }));
 
   let summary = "";
+  let theme = "dark";
   if (session?.user) {
     const ctx: AuthContext = { userId: session.user.id, role: session.user.role };
-    const monthlySummary = await getMonthlySummary(ctx, now.getFullYear(), now.getMonth() + 1);
+    const [monthlySummary, user] = await Promise.all([
+      getMonthlySummary(ctx, now.getFullYear(), now.getMonth() + 1),
+      getOwnUser(ctx),
+    ]);
     summary = monthSummaryLine(monthlySummary);
+    theme = user.theme;
   }
 
   return (
-    <AppShell
-      isAdmin={session?.user.role === "ADMIN"}
-      userEmail={session?.user.email ?? undefined}
-      greeting={greeting}
-      dateLabel={dateLabel}
-      summary={summary}
-    >
-      {children}
-    </AppShell>
+    <>
+      <ThemeSync theme={theme} />
+      <AppShell
+        isAdmin={session?.user.role === "ADMIN"}
+        userEmail={session?.user.email ?? undefined}
+        greeting={greeting}
+        dateLabel={dateLabel}
+        summary={summary}
+      >
+        {children}
+      </AppShell>
+    </>
   );
 }

@@ -15,6 +15,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
 import { Card } from "@/components/ui/Card";
 import { LinkedStatCard } from "@/components/ui/LinkedStatCard";
+import { formatPercentNumber } from "@/lib/format";
 
 function formatBRL(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -47,6 +48,11 @@ export default async function DashboardPage() {
   const incomeTrend = changePercent(currentMonthSummary.totalIncome, previousMonthSummary.totalIncome);
   const expenseTrend = changePercent(currentMonthSummary.totalExpense, previousMonthSummary.totalExpense);
   const balanceTrend = changePercent(currentMonthSummary.balance, previousMonthSummary.balance);
+
+  const monthsSoFar = summary.months.slice(0, currentMonth);
+  const incomeSparkline = monthsSoFar.map((m) => m.totalIncome);
+  const expenseSparkline = monthsSoFar.map((m) => m.totalExpense);
+  const balanceSparkline = monthsSoFar.map((m) => m.balance);
 
   const emergencyTarget = emergencyFund ? Number(emergencyFund.targetAmount) : null;
   const emergencyCurrent = emergencyFund ? Number(emergencyFund.currentAmount) : 0;
@@ -109,6 +115,7 @@ export default async function DashboardPage() {
           value={formatBRL(summary.totalIncome)}
           tone="success"
           trend={incomeTrend === null ? undefined : { percent: incomeTrend, periodLabel: "mês passado" }}
+          sparkline={incomeSparkline}
         />
         <StatCard
           label="Gastos no ano"
@@ -117,6 +124,7 @@ export default async function DashboardPage() {
           trend={
             expenseTrend === null ? undefined : { percent: expenseTrend, periodLabel: "mês passado", goodDirection: "down" }
           }
+          sparkline={expenseSparkline}
         />
         <StatCard
           label="Saldo no ano"
@@ -124,9 +132,10 @@ export default async function DashboardPage() {
           hint={
             summary.savingsRate === null
               ? undefined
-              : `Taxa de poupança: ${(summary.savingsRate * 100).toFixed(1)}%`
+              : `Taxa de poupança: ${formatPercentNumber(summary.savingsRate * 100, 1)}`
           }
           trend={balanceTrend === null ? undefined : { percent: balanceTrend, periodLabel: "mês passado" }}
+          sparkline={balanceSparkline}
         />
       </div>
 

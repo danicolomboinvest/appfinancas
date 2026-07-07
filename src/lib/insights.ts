@@ -12,6 +12,7 @@ import {
   getPatrimonySnapshotMonthsAgo,
   getPatrimonyAllTimeHighBeforeToday,
 } from "@/lib/portfolio/snapshot";
+import { formatPercentNumber } from "@/lib/format";
 
 export type InsightTone = "success" | "warning" | "danger" | "info";
 export type InsightCategory = "fluxo" | "metas" | "carteira" | "reserva";
@@ -217,7 +218,7 @@ export async function computeInsights(ctx: AuthContext): Promise<Insight[]> {
   for (const position of strategyComparison.positions) {
     if (position.targetPercent <= 0 || position.status === "DENTRO") continue;
     const label = STRATEGY_ASSET_CLASS_LABEL[position.assetClass];
-    const pp = Math.abs(position.deviationPercent * 100).toFixed(1);
+    const pp = formatPercentNumber(Math.abs(position.deviationPercent * 100), 1).replace("%", "");
     insights.push({
       id: `strategy-${position.assetClass}`,
       message: `Sua carteira está ${pp} p.p. ${position.status === "ACIMA" ? "acima" : "abaixo"} do alvo em ${label}.`,

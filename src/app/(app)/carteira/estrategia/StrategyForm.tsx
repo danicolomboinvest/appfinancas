@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/Card";
 import { useSuccessToast } from "@/components/ui/useSuccessToast";
 import { STRATEGY_ASSET_CLASSES, STRATEGY_ASSET_CLASS_LABEL } from "@/lib/portfolio/strategy";
 import { savePortfolioStrategyAction, type PortfolioStrategyState } from "./actions";
+import { formatPercentNumber } from "@/lib/format";
 
 const initialState: PortfolioStrategyState = {};
 
@@ -40,7 +41,7 @@ export function StrategyForm({ defaults }: { defaults: Record<StrategyAssetClass
 
       <div className="flex items-center justify-between">
         <span className={`text-sm font-medium ${sumOk ? "text-success" : "text-danger"}`}>
-          Soma atual: {sum.toFixed(1)}% {sumOk ? "✓" : "— precisa somar 100%"}
+          Soma atual: {formatPercentNumber(sum, 1)} {sumOk ? "✓" : "— precisa somar 100%"}
         </span>
         <Button type="submit" disabled={isPending || !sumOk}>
           {isPending ? "Salvando..." : "Salvar estratégia"}

@@ -3,6 +3,7 @@ import type { StrategyClassPosition } from "@/lib/portfolio/strategy";
 import { STRATEGY_ASSET_CLASS_LABEL } from "@/lib/portfolio/strategy";
 import { Card } from "@/components/ui/Card";
 import { DonutAllocationChart } from "@/components/charts/DonutAllocationChart";
+import { formatPercentNumber } from "@/lib/format";
 
 function formatBRL(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -10,7 +11,7 @@ function formatBRL(value: number) {
 
 function formatPP(value: number) {
   const sign = value > 0 ? "+" : "";
-  return `${sign}${(value * 100).toFixed(1)} p.p.`;
+  return `${sign}${formatPercentNumber(value * 100, 1).replace("%", " p.p.")}`;
 }
 
 const STATUS_LABEL: Record<StrategyClassPosition["status"], string> = {
@@ -63,7 +64,7 @@ export function StrategyComparisonSection({
               <p className={`mt-1 text-xs font-medium ${STATUS_TONE[p.status]}`}>{STATUS_LABEL[p.status]}</p>
               <div className="mt-2 flex items-baseline justify-between text-xs text-ink-muted">
                 <span>
-                  {(p.currentPercent * 100).toFixed(1)}% atual vs. {(p.targetPercent * 100).toFixed(1)}% alvo
+                  {formatPercentNumber(p.currentPercent * 100, 1)} atual vs. {formatPercentNumber(p.targetPercent * 100, 1)} alvo
                 </span>
                 <span>{formatPP(p.deviationPercent)}</span>
               </div>

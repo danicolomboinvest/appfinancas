@@ -1,6 +1,7 @@
 "use client";
 
 import type { SensitivityRow } from "@/lib/simulators/mark-to-market";
+import { formatPercentNumber } from "@/lib/format";
 
 function formatDuration(years: number) {
   if (years < 1 / 12) return `${Math.round(years * 365)} dias`;
@@ -26,7 +27,7 @@ export function SensitivityHeatmap({ rows }: { rows: SensitivityRow[] }) {
             <th className="p-2 font-medium text-ink-muted">Duration</th>
             {rateChanges.map((delta) => (
               <th key={delta} className="p-2 text-center font-medium text-ink-muted">
-                {(delta * 100).toFixed(1)}%
+                {formatPercentNumber(delta * 100, 1)}
               </th>
             ))}
           </tr>
@@ -37,7 +38,7 @@ export function SensitivityHeatmap({ rows }: { rows: SensitivityRow[] }) {
               <td className="p-2 font-medium text-ink">{formatDuration(row.durationYears)}</td>
               {row.cells.map((cell) => (
                 <td key={cell.rateChange} className={`rounded-md p-2 text-center ${cellColor(cell.priceDeviation)}`}>
-                  {(cell.priceDeviation * 100).toFixed(2)}%
+                  {formatPercentNumber(cell.priceDeviation * 100, 2)}
                 </td>
               ))}
             </tr>

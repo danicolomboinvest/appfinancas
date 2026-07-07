@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { AssetForm } from "./AssetForm";
 import { DeleteAssetButton } from "./DeleteAssetButton";
+import { formatPercentNumber } from "@/lib/format";
 
 function formatBRL(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -61,7 +62,7 @@ export default async function CarteiraPage() {
                 ? `Meta: ${goalNameById.get(asset.goalId) ?? ""}`
                 : OBJECTIVE_LABEL[asset.objective];
             const idealText = asset.idealAllocationPercent
-              ? ` · Alocação ideal: ${(Number(asset.idealAllocationPercent) * 100).toFixed(1)}%`
+              ? ` · Alocação ideal: ${formatPercentNumber(Number(asset.idealAllocationPercent) * 100, 1)}`
               : "";
             return (
               <Card key={asset.id} className="flex items-center justify-between gap-3 p-3">

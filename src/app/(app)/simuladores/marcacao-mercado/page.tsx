@@ -18,6 +18,7 @@ import { PercentInputControlled } from "@/components/ui/PercentInputControlled";
 import { CurrencyInputControlled } from "@/components/ui/CurrencyInputControlled";
 import { Button } from "@/components/ui/Button";
 import { HelpTooltip } from "@/components/forms/HelpTooltip";
+import { formatPercentNumber } from "@/lib/format";
 
 const defaultValues: MarkToMarketFormInput = {
   faceValue: 1000,
@@ -130,7 +131,7 @@ export default function MarcacaoMercadoPage() {
               value={formatBRL(result.profitOrLoss)}
               tone={result.profitOrLoss >= 0 ? "success" : "danger"}
             />
-            <StatCard label="Sensibilidade aproximada" value={`${(result.approximateSensitivity * 100).toFixed(2)}%`} />
+            <StatCard label="Sensibilidade aproximada" value={formatPercentNumber(result.approximateSensitivity * 100, 2)} />
           </div>
           <div>
             <h2 className="mb-3 text-sm font-medium text-ink-muted">Matriz de sensibilidade (duration × variação de taxa)</h2>

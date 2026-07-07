@@ -14,7 +14,12 @@ export function PreferencesForm({ defaults }: { defaults: { currency: string; th
   useSuccessToast(isPending, state.error);
 
   return (
-    <Card as="form" action={formAction} className="flex flex-col gap-4 p-5">
+    <Card
+      as="form"
+      action={formAction}
+      className="flex flex-col gap-4 p-5"
+      key={`${defaults.currency}-${defaults.theme}`}
+    >
       {state.error && <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{state.error}</p>}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <SelectField label="Moeda" name="currency" defaultValue={defaults.currency}>
@@ -28,8 +33,8 @@ export function PreferencesForm({ defaults }: { defaults: { currency: string; th
         </SelectField>
       </div>
       <p className="text-xs text-ink-faint">
-        A preferência é salva na sua conta. O suporte completo a outras moedas e ao tema claro em todas as telas
-        chega em uma próxima atualização — hoje o sistema continua operando em R$ e no tema escuro.
+        A preferência de tema é aplicada imediatamente após salvar. O suporte completo a outras moedas chega em uma
+        próxima atualização — hoje os valores continuam sendo exibidos em R$.
       </p>
       <Button type="submit" disabled={isPending} className="w-fit">
         {isPending ? "Salvando..." : "Salvar"}

@@ -2,6 +2,7 @@
 
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { CHART_TOOLTIP_STYLE } from "./chart-theme";
+import { formatPercentNumber } from "@/lib/format";
 
 const SLICE_COLORS = ["#2f7b6f", "#60a5fa", "#34d399", "#f87171", "#a78bfa", "#f59e0b", "#767572"];
 
@@ -21,7 +22,7 @@ export function DonutAllocationChart({ title, data }: { title: string; data: Don
                 <Cell key={entry.name} fill={SLICE_COLORS[index % SLICE_COLORS.length]} stroke="none" />
               ))}
             </Pie>
-            <Tooltip {...CHART_TOOLTIP_STYLE} formatter={(value) => `${(Number(value) * 100).toFixed(1)}%`} />
+            <Tooltip {...CHART_TOOLTIP_STYLE} formatter={(value) => formatPercentNumber(Number(value) * 100, 1)} />
           </PieChart>
         </ResponsiveContainer>
       ) : (

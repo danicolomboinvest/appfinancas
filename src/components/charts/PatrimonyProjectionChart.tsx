@@ -3,6 +3,7 @@
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { ProjectionYear } from "@/lib/consolidation/projection";
 import { CHART_COLORS, CHART_TOOLTIP_STYLE } from "./chart-theme";
+import { formatCompactBRL } from "@/lib/format";
 
 export function PatrimonyProjectionChart({ years }: { years: ProjectionYear[] }) {
   const data = years.map((y) => ({
@@ -13,7 +14,7 @@ export function PatrimonyProjectionChart({ years }: { years: ProjectionYear[] })
 
   return (
     <ResponsiveContainer width="100%" height={320}>
-      <LineChart data={data}>
+      <LineChart data={data} margin={{ top: 8, right: 16, bottom: 24, left: 8 }}>
         <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} vertical={false} />
         <XAxis
           dataKey="idade"
@@ -23,7 +24,14 @@ export function PatrimonyProjectionChart({ years }: { years: ProjectionYear[] })
           axisLine={false}
           label={{ value: "Idade", position: "insideBottom", offset: -5, fill: CHART_COLORS.axis }}
         />
-        <YAxis fontSize={12} stroke={CHART_COLORS.axis} tickLine={false} axisLine={false} />
+        <YAxis
+          fontSize={12}
+          stroke={CHART_COLORS.axis}
+          tickLine={false}
+          axisLine={false}
+          width={72}
+          tickFormatter={(value) => formatCompactBRL(Number(value))}
+        />
         <Tooltip
           {...CHART_TOOLTIP_STYLE}
           formatter={(value) => Number(value).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}

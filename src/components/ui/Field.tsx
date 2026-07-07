@@ -1,3 +1,6 @@
+"use client";
+
+import { useId } from "react";
 import type { InputHTMLAttributes, SelectHTMLAttributes, TextareaHTMLAttributes } from "react";
 
 const CONTROL_CLASSES =
@@ -7,12 +10,17 @@ export function Field({
   label,
   error,
   className = "",
+  id,
   ...inputProps
 }: InputHTMLAttributes<HTMLInputElement> & { label: string; error?: string }) {
+  const generatedId = useId();
+  const inputId = id ?? generatedId;
   return (
     <div className="flex flex-col gap-1.5">
-      <label className="text-xs font-medium text-ink-muted">{label}</label>
-      <input {...inputProps} className={`${CONTROL_CLASSES} ${className}`} />
+      <label htmlFor={inputId} className="text-xs font-medium text-ink-muted">
+        {label}
+      </label>
+      <input id={inputId} {...inputProps} className={`${CONTROL_CLASSES} ${className}`} />
       {error && <p className="text-xs text-danger">{error}</p>}
     </div>
   );
@@ -22,13 +30,18 @@ export function SelectField({
   label,
   error,
   className = "",
+  id,
   children,
   ...selectProps
 }: SelectHTMLAttributes<HTMLSelectElement> & { label: string; error?: string }) {
+  const generatedId = useId();
+  const selectId = id ?? generatedId;
   return (
     <div className="flex flex-col gap-1.5">
-      <label className="text-xs font-medium text-ink-muted">{label}</label>
-      <select {...selectProps} className={`${CONTROL_CLASSES} ${className}`}>
+      <label htmlFor={selectId} className="text-xs font-medium text-ink-muted">
+        {label}
+      </label>
+      <select id={selectId} {...selectProps} className={`${CONTROL_CLASSES} ${className}`}>
         {children}
       </select>
       {error && <p className="text-xs text-danger">{error}</p>}
@@ -40,12 +53,17 @@ export function TextareaField({
   label,
   error,
   className = "",
+  id,
   ...textareaProps
 }: TextareaHTMLAttributes<HTMLTextAreaElement> & { label: string; error?: string }) {
+  const generatedId = useId();
+  const textareaId = id ?? generatedId;
   return (
     <div className="flex flex-col gap-1.5">
-      <label className="text-xs font-medium text-ink-muted">{label}</label>
-      <textarea {...textareaProps} className={`${CONTROL_CLASSES} ${className}`} />
+      <label htmlFor={textareaId} className="text-xs font-medium text-ink-muted">
+        {label}
+      </label>
+      <textarea id={textareaId} {...textareaProps} className={`${CONTROL_CLASSES} ${className}`} />
       {error && <p className="text-xs text-danger">{error}</p>}
     </div>
   );

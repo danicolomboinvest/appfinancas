@@ -15,6 +15,7 @@ import { Card } from "@/components/ui/Card";
 import { PercentInputControlled } from "@/components/ui/PercentInputControlled";
 import { CurrencyInputControlled } from "@/components/ui/CurrencyInputControlled";
 import { Button } from "@/components/ui/Button";
+import { formatPercentNumber } from "@/lib/format";
 
 const defaultValues: CarComparisonFormInput = {
   carPrice: 100000,
@@ -148,8 +149,8 @@ export default function CarroPage() {
 
       {result && (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <StatCard label="Desvalorização em 1 ano" value={`${(result.depreciationRateAfter1Year * 100).toFixed(1)}%`} />
-          <StatCard label="Desvalorização em 2 anos" value={`${(result.depreciationRateAfter2Years * 100).toFixed(1)}%`} />
+          <StatCard label="Desvalorização em 1 ano" value={formatPercentNumber(result.depreciationRateAfter1Year * 100, 1)} />
+          <StatCard label="Desvalorização em 2 anos" value={formatPercentNumber(result.depreciationRateAfter2Years * 100, 1)} />
           <StatCard label="Custo caixa — assinatura (24 meses)" value={formatBRL(result.subscriptionCashCost)} />
           <StatCard label="Custo caixa — compra (24 meses)" value={formatBRL(result.purchaseCashCost)} />
           <StatCard label="Custo de oportunidade da compra" value={formatBRL(result.opportunityCost)} />

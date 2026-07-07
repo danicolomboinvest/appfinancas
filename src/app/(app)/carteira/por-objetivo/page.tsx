@@ -10,6 +10,7 @@ import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { ResponsiveTable, type ResponsiveColumn } from "@/components/ui/ResponsiveTable";
 import type { GoalAllocation } from "@/lib/consolidation/portfolio";
 import { StrategyComparisonSection } from "./StrategyComparisonSection";
+import { formatPercentNumber } from "@/lib/format";
 
 function formatBRL(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -17,7 +18,7 @@ function formatBRL(value: number) {
 
 function formatPercent(value: number | null) {
   if (value === null) return "—";
-  return `${(value * 100).toFixed(1)}%`;
+  return formatPercentNumber(value * 100, 1);
 }
 
 export default async function CarteiraPorObjetivoPage() {

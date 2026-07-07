@@ -11,6 +11,7 @@ import { ResponsiveTable, type ResponsiveColumn } from "@/components/ui/Responsi
 import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import type { MonthlyBreakdown } from "@/lib/consolidation/yearly";
 import { QuickEntryButton } from "./QuickEntryButton";
+import { formatPercentNumber } from "@/lib/format";
 
 const MONTH_LABELS = [
   "Janeiro",
@@ -40,6 +41,14 @@ export default async function YearPage(props: PageProps<"/mensal/[year]">) {
     listRecentSubcategories(ctx),
   ]);
 
+  const now = new Date();
+  const monthsElapsed = year < now.getFullYear() ? 12 : year === now.getFullYear() ? now.getMonth() + 1 : 0;
+  const monthsSoFar = summary.months.slice(0, monthsElapsed);
+  const incomeSparkline = monthsSoFar.map((m) => m.totalIncome);
+  const expenseSparkline = monthsSoFar.map((m) => m.totalExpense);
+  const investmentSparkline = monthsSoFar.map((m) => m.totalInvestment);
+  const balanceSparkline = monthsSoFar.map((m) => m.balance);
+
   return (
     <div className="flex flex-col gap-6">
       <Breadcrumb items={[{ label: "Seu dinheiro no mês", href: "/mensal" }, { label: String(year) }]} />
@@ -66,13 +75,13 @@ export default async function YearPage(props: PageProps<"/mensal/[year]">) {
       />
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
-        <StatCard label="Renda" value={formatBRL(summary.totalIncome)} tone="success" />
-        <StatCard label="Gastos" value={formatBRL(summary.totalExpense)} tone="danger" />
-        <StatCard label="Aportes" value={formatBRL(summary.totalInvestment)} />
-        <StatCard label="Saldo" value={formatBRL(summary.balance)} tone="accent" />
+        <StatCard label="Renda" value={formatBRL(summary.totalIncome)} tone="success" sparkline={incomeSparkline} />
+        <StatCard label="Gastos" value={formatBRL(summary.totalExpense)} tone="danger" sparkline={expenseSparkline} />
+        <StatCard label="Aportes" value={formatBRL(summary.totalInvestment)} sparkline={investmentSparkline} />
+        <StatCard label="Saldo" value={formatBRL(summary.balance)} tone="accent" sparkline={balanceSparkline} />
         <StatCard
           label="Taxa de poupança"
-          value={summary.savingsRate === null ? "—" : `${(summary.savingsRate * 100).toFixed(1)}%`}
+          value={summary.savingsRate === null ? "—" : formatPercentNumber(summary.savingsRate * 100, 1)}
         />
       </div>
 

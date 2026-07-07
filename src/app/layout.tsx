@@ -17,6 +17,14 @@ export const metadata: Metadata = {
   description: "Organize seu patrimônio, metas e investimentos em um só lugar.",
 };
 
+const THEME_INIT_SCRIPT = `
+try {
+  if (localStorage.getItem("theme") === "light") {
+    document.documentElement.classList.add("light");
+  }
+} catch (e) {}
+`;
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -26,7 +34,11 @@ export default function RootLayout({
     <html
       lang="pt-BR"
       className={`${geistSans.variable} ${geistMono.variable} dark h-full antialiased`}
+      suppressHydrationWarning
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
       <body className="flex min-h-full flex-col bg-canvas text-ink">{children}</body>
     </html>
   );

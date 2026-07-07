@@ -6,6 +6,7 @@ import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { ResponsiveTable, type ResponsiveColumn } from "@/components/ui/ResponsiveTable";
 import { ReferenceRateForm } from "./ReferenceRateForm";
 import { DeleteRateButton } from "./DeleteRateButton";
+import { formatPercentNumber } from "@/lib/format";
 
 const BASIS_LABEL: Record<string, string> = {
   ANNUAL_252: "a.a. (base 252)",
@@ -21,7 +22,7 @@ export default async function TaxasDoSistemaPage() {
 
   const columns: ResponsiveColumn<RateRow>[] = [
     { key: "name", label: "Nome", render: (rate) => rate.name },
-    { key: "rate", label: "Taxa", render: (rate) => `${(Number(rate.rateValue) * 100).toFixed(2)}%` },
+    { key: "rate", label: "Taxa", render: (rate) => formatPercentNumber(Number(rate.rateValue) * 100, 2) },
     { key: "basis", label: "Base", render: (rate) => BASIS_LABEL[rate.basis] },
     { key: "date", label: "Vigente desde", render: (rate) => rate.effectiveDate.toLocaleDateString("pt-BR") },
     {

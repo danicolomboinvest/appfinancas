@@ -2,16 +2,18 @@ import Link from "next/link";
 import { getRequiredSession } from "@/lib/auth/session";
 import { getPlanningParams } from "@/lib/repositories/planning-params.repo";
 import { computeAccumulation } from "@/lib/planning/accumulation";
+import { computeYearByYearProjection } from "@/lib/consolidation/projection";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
 import { PlanningParamsForm } from "./PlanningParamsForm";
+import { formatPercentNumber } from "@/lib/format";
 
 function formatBRL(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
 function formatPercent(value: number) {
-  return `${(value * 100).toFixed(2)}%`;
+  return formatPercentNumber(value * 100, 2);
 }
 
 export default async function AcumuloPage() {
@@ -28,6 +30,23 @@ export default async function AcumuloPage() {
         inflationAnnualRate: Number(params.inflationAnnualRate),
       })
     : null;
+
+  const growthSparkline = params
+    ? computeYearByYearProjection({
+        currentAge: params.currentAge,
+        retirementAge: params.retirementAge,
+        lifeExpectancyAge: params.lifeExpectancyAge,
+        currentPatrimony: Number(params.currentPatrimony),
+        monthlyContributionAccumulation: Number(params.monthlyContributionAccumulation),
+        accumulationAnnualRate: Number(params.accumulationAnnualRate),
+        inflationAnnualRate: Number(params.inflationAnnualRate),
+        usufructAnnualRate: Number(params.usufructAnnualRate),
+        desiredPassiveIncome: Number(params.desiredPassiveIncome),
+        otherPassiveIncome: Number(params.otherPassiveIncome),
+      })
+        .filter((y) => y.phase === "ACCUMULATION")
+        .map((y) => y.balanceReal)
+    : [];
 
   return (
     <div className="flex flex-col gap-8">
@@ -70,7 +89,12 @@ export default async function AcumuloPage() {
             <StatCard label="Taxa nominal (a.a.)" value={formatPercent(result.nominalAnnualRate)} />
             <StatCard label="Taxa real (a.a.)" value={formatPercent(result.realAnnualRate)} />
             <StatCard label="Valor final (nominal)" value={formatBRL(result.finalValueNominal)} />
-            <StatCard label="Valor final (real, poder de compra de hoje)" value={formatBRL(result.finalValueReal)} tone="accent" />
+            <StatCard
+              label="Valor final (real, poder de compra de hoje)"
+              value={formatBRL(result.finalValueReal)}
+              tone="accent"
+              sparkline={growthSparkline}
+            />
             <StatCard label="Total investido (do bolso)" value={formatBRL(result.totalInvested)} />
             <StatCard label="Retorno total (juros)" value={formatBRL(result.totalReturn)} tone="success" />
           </div>

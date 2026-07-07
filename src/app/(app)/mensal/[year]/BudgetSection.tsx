@@ -3,9 +3,10 @@ import { listBudgets, sumExpensesByParentCategory } from "@/lib/repositories/bud
 import { PARENT_CATEGORIES } from "@/lib/categories";
 import { Card } from "@/components/ui/Card";
 import { BudgetRow } from "./BudgetRow";
+import { formatPercentNumber } from "@/lib/format";
 
 function formatPercent(value: number) {
-  return `${(value * 100).toFixed(1)}%`;
+  return formatPercentNumber(value * 100, 1);
 }
 
 export async function BudgetSection({
