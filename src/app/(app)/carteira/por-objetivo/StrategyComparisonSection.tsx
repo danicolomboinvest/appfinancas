@@ -70,12 +70,18 @@ export function StrategyComparisonSection({
               </div>
               <p className="mt-2 text-xs text-ink-faint">
                 {p.rebalanceAmount >= 0
-                  ? `Comprar ${formatBRL(p.rebalanceAmount)} para bater o alvo`
-                  : `Vender ${formatBRL(-p.rebalanceAmount)} para bater o alvo`}
+                  ? `Faltam ${formatBRL(p.rebalanceAmount)} nesta classe para alinhar à sua estratégia`
+                  : `Está ${formatBRL(-p.rebalanceAmount)} acima do alvo definido na sua estratégia`}
               </p>
             </Card>
           ))}
       </div>
+
+      <p className="text-xs text-ink-faint">
+        Os valores acima são uma referência matemática com base na estratégia que você definiu — não são
+        recomendação de compra ou venda. Decisões de investimento devem considerar seu contexto completo; consulte
+        um profissional certificado se tiver dúvidas.
+      </p>
     </div>
   );
 }

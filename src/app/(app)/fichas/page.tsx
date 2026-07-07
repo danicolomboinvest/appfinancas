@@ -1,8 +1,12 @@
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
 import { computeInsights, computeExecutiveSummary, type Insight, type InsightCategory } from "@/lib/insights";
+import { computeFinancialHealthScore } from "@/lib/health-score";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { HealthScoreCard } from "@/components/ui/HealthScoreCard";
 
 const TONE_CLASSES: Record<Insight["tone"], string> = {
   success: "border-l-4 border-l-success bg-success-soft/40",
@@ -26,10 +30,26 @@ const CATEGORY_LABEL: Record<InsightCategory, string> = {
   reserva: "Reserva de Emergência",
 };
 
+/** Quantos insights de maior prioridade destacar no topo, antes da lista completa por área. */
+const TOP_PRIORITY_COUNT = 3;
+
+function InsightActionLink({ insight }: { insight: Insight }) {
+  if (!insight.href) return null;
+  return (
+    <Link
+      href={insight.href}
+      className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-accent-strong hover:underline"
+    >
+      {insight.actionLabel ?? "Ver mais"} <ArrowRight size={12} />
+    </Link>
+  );
+}
+
 export default async function AnalisesInsightsPage() {
   const ctx = await getRequiredSession();
-  const insights = await computeInsights(ctx);
+  const [insights, healthScore] = await Promise.all([computeInsights(ctx), computeFinancialHealthScore(ctx)]);
   const summary = computeExecutiveSummary(insights);
+  const topInsights = insights.slice(0, TOP_PRIORITY_COUNT);
 
   return (
     <div className="flex flex-col gap-8">
@@ -38,10 +58,24 @@ export default async function AnalisesInsightsPage() {
         subtitle="Insights automáticos a partir do seu Fluxo Financeiro, Metas, Carteira e Reserva de Emergência. As fichas fundamentalistas de Ações e FIIs estão nas abas ao lado, na barra de navegação."
       />
 
+      <HealthScoreCard score={healthScore} />
+
       {insights.length === 0 ? (
         <EmptyState message="Cadastre orçamento, metas, reserva de emergência e uma estratégia de carteira para começar a receber insights automáticos aqui." />
       ) : (
         <>
+          <div className="flex flex-col gap-3">
+            <h2 className="text-h2 font-semibold tracking-tight text-ink">O que mais importa agora</h2>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              {topInsights.map((insight) => (
+                <Card key={insight.id} className={`p-4 text-sm text-ink ${TONE_CLASSES[insight.tone]}`}>
+                  <p>{insight.message}</p>
+                  <InsightActionLink insight={insight} />
+                </Card>
+              ))}
+            </div>
+          </div>
+
           {CATEGORY_ORDER.map((category) => {
             const categoryInsights = insights.filter((i) => i.category === category);
             if (categoryInsights.length === 0) return null;
@@ -51,7 +85,8 @@ export default async function AnalisesInsightsPage() {
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   {categoryInsights.map((insight) => (
                     <Card key={insight.id} className={`p-4 text-sm text-ink ${TONE_CLASSES[insight.tone]}`}>
-                      {insight.message}
+                      <p>{insight.message}</p>
+                      <InsightActionLink insight={insight} />
                     </Card>
                   ))}
                 </div>

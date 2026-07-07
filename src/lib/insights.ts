@@ -16,7 +16,23 @@ import { formatPercentNumber } from "@/lib/format";
 
 export type InsightTone = "success" | "warning" | "danger" | "info";
 export type InsightCategory = "fluxo" | "metas" | "carteira" | "reserva";
-export type Insight = { id: string; message: string; tone: InsightTone; category: InsightCategory };
+export type Insight = {
+  id: string;
+  message: string;
+  tone: InsightTone;
+  category: InsightCategory;
+  /** Link para a tela onde o usuário pode agir sobre este insight (ajustar orçamento, ver meta, etc.). */
+  href?: string;
+  /** Rótulo do link de ação — só usado quando `href` está presente. */
+  actionLabel?: string;
+};
+
+/** Ordem de prioridade para exibição: o que precisa de atenção primeiro, o puramente informativo por último. */
+const TONE_PRIORITY: Record<InsightTone, number> = { danger: 0, warning: 1, success: 2, info: 3 };
+
+function sortByPriority(insights: Insight[]): Insight[] {
+  return [...insights].sort((a, b) => TONE_PRIORITY[a.tone] - TONE_PRIORITY[b.tone]);
+}
 
 function formatPercent(value: number) {
   return `${Math.round(value * 100)}%`;
@@ -70,6 +86,8 @@ export async function computeInsights(ctx: AuthContext): Promise<Insight[]> {
 
   // --- Fluxo Financeiro ---
 
+  const monthlyEntryHref = `/mensal/${year}/${month}`;
+
   if (notifyBudget) {
     const spentMap = new Map(spentByCategory.map((s) => [s.parentCategory, s.spent]));
     for (const budget of budgets) {
@@ -79,18 +97,23 @@ export async function computeInsights(ctx: AuthContext): Promise<Insight[]> {
       const percent = spent / planned;
       const label = PARENT_CATEGORY_LABEL[budget.parentCategory];
       if (percent > 1) {
+        const over = formatBRL(spent - planned);
         insights.push({
           id: `budget-${budget.parentCategory}`,
-          message: `Você gastou ${formatPercent(percent - 1)} acima do planejado em ${label} este mês.`,
+          message: `${label} estourou o orçamento em ${formatPercent(percent - 1)} este mês (${over} acima do planejado) — vale segurar novos gastos nessa categoria ou revisar o valor planejado.`,
           tone: "danger",
           category: "fluxo",
+          href: monthlyEntryHref,
+          actionLabel: "Ver lançamentos do mês",
         });
       } else if (percent >= 0.8) {
         insights.push({
           id: `budget-${budget.parentCategory}`,
-          message: `Você já usou ${formatPercent(percent)} do orçamento de ${label} este mês.`,
+          message: `Você já comprometeu ${formatPercent(percent)} do orçamento de ${label} este mês — ainda dá para segurar o resto do mês.`,
           tone: "warning",
           category: "fluxo",
+          href: monthlyEntryHref,
+          actionLabel: "Ver lançamentos do mês",
         });
       }
     }
@@ -101,9 +124,11 @@ export async function computeInsights(ctx: AuthContext): Promise<Insight[]> {
     if (biggest.spent > 0) {
       insights.push({
         id: "biggest-expense-category",
-        message: `Seu maior gasto este mês continua sendo ${PARENT_CATEGORY_LABEL[biggest.parentCategory]}.`,
+        message: `${PARENT_CATEGORY_LABEL[biggest.parentCategory]} segue sendo onde mais sai dinheiro este mês (${formatBRL(biggest.spent)}).`,
         tone: "info",
         category: "fluxo",
+        href: monthlyEntryHref,
+        actionLabel: "Ver lançamentos do mês",
       });
     }
   }
@@ -125,16 +150,18 @@ export async function computeInsights(ctx: AuthContext): Promise<Insight[]> {
     if (diff > 0.05) {
       insights.push({
         id: "savings-rate-above-average",
-        message: `Você está economizando acima da sua média este mês (${formatPercent(currentRate)} vs. média de ${formatPercent(averageRate)}).`,
+        message: `Você está poupando acima da sua média este mês (${formatPercent(currentRate)} vs. média de ${formatPercent(averageRate)}) — é um bom momento para reforçar uma meta ou a reserva de emergência.`,
         tone: "success",
         category: "fluxo",
       });
     } else if (diff < -0.05) {
       insights.push({
         id: "savings-rate-below-average",
-        message: `Você está economizando abaixo da sua média este mês (${formatPercent(currentRate)} vs. média de ${formatPercent(averageRate)}).`,
+        message: `Você está poupando abaixo da sua média este mês (${formatPercent(currentRate)} vs. média de ${formatPercent(averageRate)}) — vale revisar os gastos para não atrasar suas metas.`,
         tone: "warning",
         category: "fluxo",
+        href: monthlyEntryHref,
+        actionLabel: "Ver lançamentos do mês",
       });
     }
   }
@@ -145,12 +172,33 @@ export async function computeInsights(ctx: AuthContext): Promise<Insight[]> {
     const target = Number(emergencyFund.targetAmount);
     const current = Number(emergencyFund.currentAmount);
     const percent = target > 0 ? current / target : 0;
-    insights.push({
-      id: "emergency-fund",
-      message: `Sua reserva de emergência está ${formatPercent(percent)} completa.`,
-      tone: percent >= 1 ? "success" : percent >= 0.5 ? "warning" : "danger",
-      category: "reserva",
-    });
+    const reserveHref = "/planejamento/reserva-emergencia";
+    if (percent >= 1) {
+      insights.push({
+        id: "emergency-fund",
+        message: `Sua reserva de emergência está completa (${formatBRL(current)}) — você tem proteção garantida para imprevistos.`,
+        tone: "success",
+        category: "reserva",
+      });
+    } else if (percent >= 0.5) {
+      insights.push({
+        id: "emergency-fund",
+        message: `Sua reserva de emergência está ${formatPercent(percent)} completa (${formatBRL(current)} de ${formatBRL(target)}) — continue aportando até cobrir o valor-alvo.`,
+        tone: "warning",
+        category: "reserva",
+        href: reserveHref,
+        actionLabel: "Ver reserva de emergência",
+      });
+    } else {
+      insights.push({
+        id: "emergency-fund",
+        message: `Sua reserva de emergência cobre só ${formatPercent(percent)} do valor-alvo — priorize esse aporte antes de outros objetivos, para não precisar recorrer a dívida em um imprevisto.`,
+        tone: "danger",
+        category: "reserva",
+        href: reserveHref,
+        actionLabel: "Ver reserva de emergência",
+      });
+    }
   }
 
   // --- Metas ---
@@ -165,14 +213,18 @@ export async function computeInsights(ctx: AuthContext): Promise<Insight[]> {
     }),
   }));
 
+  const goalsHref = "/planejamento/metas";
+
   if (notifyGoals) {
     const behindGoals = goalPlans.filter(({ plan }) => plan.status === "BEHIND");
     if (behindGoals.length > 0) {
       insights.push({
         id: "goals-behind",
-        message: `Você tem ${behindGoals.length} meta${behindGoals.length > 1 ? "s" : ""} atrasada${behindGoals.length > 1 ? "s" : ""}: ${behindGoals.map(({ goal }) => goal.name).join(", ")}.`,
+        message: `${behindGoals.length} meta${behindGoals.length > 1 ? "s está" : " está"} atrasada${behindGoals.length > 1 ? "s" : ""} (${behindGoals.map(({ goal }) => goal.name).join(", ")}) — revise o prazo ou aumente o aporte mensal para voltar ao ritmo.`,
         tone: "danger",
         category: "metas",
+        href: goalsHref,
+        actionLabel: "Ver metas",
       });
     }
   }
@@ -186,9 +238,11 @@ export async function computeInsights(ctx: AuthContext): Promise<Insight[]> {
     const dateLabel = formatMonthYear(goal.targetDate ?? now);
     insights.push({
       id: `goal-completion-${goal.id}`,
-      message: `Sua meta "${goal.name}" será conquistada em ${dateLabel}, nesse ritmo.`,
-      tone: "info",
+      message: `Se você continuar nesse ritmo, a meta "${goal.name}" será conquistada em ${dateLabel}.`,
+      tone: "success",
       category: "metas",
+      href: `/planejamento/metas/${goal.id}`,
+      actionLabel: "Ver meta",
     });
 
     // Simulação "e se": aumentar o aporte em ~20% (arredondado) e ver quanto tempo se ganha.
@@ -206,24 +260,35 @@ export async function computeInsights(ctx: AuthContext): Promise<Insight[]> {
     if (monthsSaved >= 1 && Number.isFinite(monthsWithBoost)) {
       insights.push({
         id: `goal-what-if-${goal.id}`,
-        message: `Aumentando o aporte de "${goal.name}" em ${formatBRL(extra)}/mês, você chegaria lá ${monthsSaved} mês${monthsSaved > 1 ? "es" : ""} mais cedo.`,
+        message: `Aumentando o aporte de "${goal.name}" em ${formatBRL(extra)}/mês, você antecipa a conquista em ${monthsSaved} mês${monthsSaved > 1 ? "es" : ""}.`,
         tone: "info",
         category: "metas",
+        href: `/planejamento/metas/${goal.id}`,
+        actionLabel: "Ver meta",
       });
     }
   }
 
   // --- Carteira ---
 
+  const strategyHref = "/carteira/por-objetivo";
+
   for (const position of strategyComparison.positions) {
     if (position.targetPercent <= 0 || position.status === "DENTRO") continue;
     const label = STRATEGY_ASSET_CLASS_LABEL[position.assetClass];
     const pp = formatPercentNumber(Math.abs(position.deviationPercent * 100), 1).replace("%", "");
+    const direction = position.status === "ACIMA" ? "acima" : "abaixo";
+    const consequence =
+      position.status === "ACIMA"
+        ? "isso concentra mais risco do que sua estratégia definida."
+        : "isso deixa sua carteira menos exposta a essa classe do que o planejado.";
     insights.push({
       id: `strategy-${position.assetClass}`,
-      message: `Sua carteira está ${pp} p.p. ${position.status === "ACIMA" ? "acima" : "abaixo"} do alvo em ${label}.`,
+      message: `Sua carteira está ${pp} p.p. ${direction} do alvo em ${label} — ${consequence}`,
       tone: "warning",
       category: "carteira",
+      href: strategyHref,
+      actionLabel: "Ver rebalanceamento",
     });
   }
 
@@ -237,10 +302,12 @@ export async function computeInsights(ctx: AuthContext): Promise<Insight[]> {
         id: "patrimony-growth-12m",
         message:
           growth >= 0
-            ? `Seu patrimônio cresceu ${formatPercent(growth)} nos últimos 12 meses.`
-            : `Seu patrimônio caiu ${formatPercent(Math.abs(growth))} nos últimos 12 meses.`,
+            ? `Seu patrimônio cresceu ${formatPercent(growth)} nos últimos 12 meses — você está construindo patrimônio de verdade.`
+            : `Seu patrimônio caiu ${formatPercent(Math.abs(growth))} nos últimos 12 meses — vale entender se foi desvalorização de mercado ou saques.`,
         tone: growth >= 0 ? "success" : "warning",
         category: "carteira",
+        href: "/carteira",
+        actionLabel: "Ver patrimônio",
       });
     }
 
@@ -248,14 +315,16 @@ export async function computeInsights(ctx: AuthContext): Promise<Insight[]> {
     if (previousHigh !== null && portfolio.totalPortfolio > previousHigh) {
       insights.push({
         id: "patrimony-new-high",
-        message: "Seu patrimônio bateu um novo recorde hoje.",
+        message: `Seu patrimônio bateu um novo recorde hoje: ${formatBRL(portfolio.totalPortfolio)}.`,
         tone: "success",
         category: "carteira",
+        href: "/carteira",
+        actionLabel: "Ver patrimônio",
       });
     }
   }
 
-  return insights;
+  return sortByPriority(insights);
 }
 
 export type ExecutiveSummary = { message: string; tone: InsightTone };
