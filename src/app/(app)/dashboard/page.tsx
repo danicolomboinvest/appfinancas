@@ -17,6 +17,8 @@ import { Card } from "@/components/ui/Card";
 import { LinkedStatCard } from "@/components/ui/LinkedStatCard";
 import { formatPercentNumber } from "@/lib/format";
 
+const MONTH_LABELS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+
 function formatBRL(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
@@ -50,9 +52,9 @@ export default async function DashboardPage() {
   const balanceTrend = changePercent(currentMonthSummary.balance, previousMonthSummary.balance);
 
   const monthsSoFar = summary.months.slice(0, currentMonth);
-  const incomeSparkline = monthsSoFar.map((m) => m.totalIncome);
-  const expenseSparkline = monthsSoFar.map((m) => m.totalExpense);
-  const balanceSparkline = monthsSoFar.map((m) => m.balance);
+  const incomeSparkline = monthsSoFar.map((m) => ({ label: MONTH_LABELS[m.month - 1], value: m.totalIncome }));
+  const expenseSparkline = monthsSoFar.map((m) => ({ label: MONTH_LABELS[m.month - 1], value: m.totalExpense }));
+  const balanceSparkline = monthsSoFar.map((m) => ({ label: MONTH_LABELS[m.month - 1], value: m.balance }));
 
   const emergencyTarget = emergencyFund ? Number(emergencyFund.targetAmount) : null;
   const emergencyCurrent = emergencyFund ? Number(emergencyFund.currentAmount) : 0;

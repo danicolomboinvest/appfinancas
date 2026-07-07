@@ -45,7 +45,7 @@ export default async function AcumuloPage() {
         otherPassiveIncome: Number(params.otherPassiveIncome),
       })
         .filter((y) => y.phase === "ACCUMULATION")
-        .map((y) => y.balanceReal)
+        .map((y) => ({ label: `${y.age} anos`, value: y.balanceReal }))
     : [];
 
   return (

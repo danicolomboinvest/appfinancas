@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { AssetForm } from "./AssetForm";
 import { DeleteAssetButton } from "./DeleteAssetButton";
 import { formatPercentNumber } from "@/lib/format";
+import { DonutAllocationChart } from "@/components/charts/DonutAllocationChart";
 
 function formatBRL(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -52,42 +53,59 @@ export default async function CarteiraPage() {
 
       <AssetForm goals={goals.map((goal) => ({ id: goal.id, name: goal.name }))} />
 
-      {assets.length === 0 ? (
-        <EmptyState message="Nenhum ativo cadastrado ainda." />
-      ) : (
-        <div className="flex flex-col gap-2">
-          {assets.map((asset) => {
-            const objectiveText =
-              asset.objective === "META" && asset.goalId
-                ? `Meta: ${goalNameById.get(asset.goalId) ?? ""}`
-                : OBJECTIVE_LABEL[asset.objective];
-            const idealText = asset.idealAllocationPercent
-              ? ` · Alocação ideal: ${formatPercentNumber(Number(asset.idealAllocationPercent) * 100, 1)}`
-              : "";
-            return (
-              <Card key={asset.id} className="flex items-center justify-between gap-3 p-3">
-                <div className="flex min-w-0 items-center gap-3">
-                  <Badge tone="neutral">{CLASS_LABEL[asset.assetClass]}</Badge>
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-ink">
-                      {asset.name}
-                      {asset.ticker ? ` (${asset.ticker})` : ""}
-                    </p>
-                    <p className="truncate text-xs text-ink-faint">
-                      {objectiveText}
-                      {idealText}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex shrink-0 items-center gap-3">
-                  <p className="text-sm font-medium text-ink">{formatBRL(Number(asset.currentValue))}</p>
-                  <DeleteAssetButton id={asset.id} />
-                </div>
-              </Card>
-            );
-          })}
-        </div>
-      )}
+      {(() => {
+        const totalValue = assets.reduce((sum, asset) => sum + Number(asset.currentValue), 0);
+        const currentAllocationData = assets
+          .filter((asset) => Number(asset.currentValue) > 0)
+          .map((asset) => ({ name: asset.name, value: totalValue > 0 ? Number(asset.currentValue) / totalValue : 0 }));
+        const idealAllocationData = assets
+          .filter((asset) => asset.idealAllocationPercent !== null)
+          .map((asset) => ({ name: asset.name, value: Number(asset.idealAllocationPercent) }));
+
+        return assets.length === 0 ? (
+          <EmptyState message="Nenhum ativo cadastrado ainda." />
+        ) : (
+          <>
+            <Card className="grid grid-cols-1 gap-4 p-5 sm:grid-cols-2">
+              <DonutAllocationChart title="Carteira atual, por ativo" data={currentAllocationData} />
+              <DonutAllocationChart title="Alocação ideal, por ativo" data={idealAllocationData} />
+            </Card>
+
+            <div className="flex flex-col gap-2">
+              {assets.map((asset) => {
+                const objectiveText =
+                  asset.objective === "META" && asset.goalId
+                    ? `Meta: ${goalNameById.get(asset.goalId) ?? ""}`
+                    : OBJECTIVE_LABEL[asset.objective];
+                const idealText = asset.idealAllocationPercent
+                  ? ` · Alocação ideal: ${formatPercentNumber(Number(asset.idealAllocationPercent) * 100, 1)}`
+                  : "";
+                return (
+                  <Card key={asset.id} className="flex items-center justify-between gap-3 p-3">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <Badge tone="neutral">{CLASS_LABEL[asset.assetClass]}</Badge>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-ink">
+                          {asset.name}
+                          {asset.ticker ? ` (${asset.ticker})` : ""}
+                        </p>
+                        <p className="truncate text-xs text-ink-faint">
+                          {objectiveText}
+                          {idealText}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-3">
+                      <p className="text-sm font-medium text-ink">{formatBRL(Number(asset.currentValue))}</p>
+                      <DeleteAssetButton id={asset.id} />
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
+          </>
+        );
+      })()}
     </div>
   );
 }

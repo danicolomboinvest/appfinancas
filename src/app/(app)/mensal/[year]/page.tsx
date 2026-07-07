@@ -44,10 +44,13 @@ export default async function YearPage(props: PageProps<"/mensal/[year]">) {
   const now = new Date();
   const monthsElapsed = year < now.getFullYear() ? 12 : year === now.getFullYear() ? now.getMonth() + 1 : 0;
   const monthsSoFar = summary.months.slice(0, monthsElapsed);
-  const incomeSparkline = monthsSoFar.map((m) => m.totalIncome);
-  const expenseSparkline = monthsSoFar.map((m) => m.totalExpense);
-  const investmentSparkline = monthsSoFar.map((m) => m.totalInvestment);
-  const balanceSparkline = monthsSoFar.map((m) => m.balance);
+  const incomeSparkline = monthsSoFar.map((m) => ({ label: MONTH_LABELS[m.month - 1].slice(0, 3), value: m.totalIncome }));
+  const expenseSparkline = monthsSoFar.map((m) => ({ label: MONTH_LABELS[m.month - 1].slice(0, 3), value: m.totalExpense }));
+  const investmentSparkline = monthsSoFar.map((m) => ({
+    label: MONTH_LABELS[m.month - 1].slice(0, 3),
+    value: m.totalInvestment,
+  }));
+  const balanceSparkline = monthsSoFar.map((m) => ({ label: MONTH_LABELS[m.month - 1].slice(0, 3), value: m.balance }));
 
   return (
     <div className="flex flex-col gap-6">

@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { ResponsiveTable, type ResponsiveColumn } from "@/components/ui/ResponsiveTable";
+import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import type { ProjectionYear } from "@/lib/consolidation/projection";
 
 function formatBRL(value: number | null) {
@@ -63,7 +64,14 @@ export default async function ProjecaoPage() {
             <PatrimonyProjectionChart years={years} />
           </Card>
 
-          <ResponsiveTable columns={projectionColumns} rows={years} rowKey={(y) => String(y.year)} maxHeightClassName="max-h-[520px] overflow-y-auto" />
+          <CollapsibleSection label="Ver dados detalhados ano a ano">
+            <ResponsiveTable
+              columns={projectionColumns}
+              rows={years}
+              rowKey={(y) => String(y.year)}
+              maxHeightClassName="max-h-[520px] overflow-y-auto"
+            />
+          </CollapsibleSection>
         </>
       )}
     </div>

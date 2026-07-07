@@ -1,5 +1,5 @@
 import { Card } from "./Card";
-import { MiniSparkline } from "./MiniSparkline";
+import { MiniSparkline, type SparklinePoint } from "./MiniSparkline";
 
 type Tone = "success" | "danger" | "accent" | "neutral";
 
@@ -24,8 +24,8 @@ export function StatCard({
   tone?: Tone;
   /** Comparação com o período anterior (ex.: mês passado). `goodDirection` define se "para cima" é positivo. */
   trend?: { percent: number; periodLabel: string; goodDirection?: "up" | "down" };
-  /** Série de valores (ex.: um por mês) para uma mini-tendência visual — puramente decorativa. */
-  sparkline?: number[];
+  /** Série de pontos (ex.: um por mês) para uma mini-tendência visual, com tooltip ao passar o mouse. */
+  sparkline?: SparklinePoint[];
 }) {
   const trendUp = trend !== undefined && trend.percent >= 0;
   const trendIsGood = trend !== undefined && (trend.goodDirection === "down" ? !trendUp : trendUp);
@@ -42,7 +42,7 @@ export function StatCard({
       )}
       {sparkline && (
         <div className="-mx-1 mt-2">
-          <MiniSparkline values={sparkline} tone={tone === "neutral" ? "accent" : tone} />
+          <MiniSparkline points={sparkline} tone={tone === "neutral" ? "accent" : tone} />
         </div>
       )}
     </Card>

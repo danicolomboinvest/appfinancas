@@ -1,7 +1,29 @@
 "use client";
 
-import { Area, AreaChart, ResponsiveContainer } from "recharts";
-import { CHART_COLORS } from "@/components/charts/chart-theme";
+import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis } from "recharts";
+import { CHART_COLORS, CHART_TOOLTIP_STYLE } from "@/components/charts/chart-theme";
+
+type TooltipPayloadEntry = { payload?: SparklinePoint };
+
+function SparklineTooltip({
+  active,
+  payload,
+  valueFormatter,
+}: {
+  active?: boolean;
+  payload?: TooltipPayloadEntry[];
+  valueFormatter: (value: number) => string;
+}) {
+  if (!active || !payload?.length) return null;
+  const point = payload[0].payload;
+  if (!point) return null;
+  return (
+    <div style={{ ...CHART_TOOLTIP_STYLE.contentStyle, padding: "6px 10px" }}>
+      <p style={{ ...CHART_TOOLTIP_STYLE.labelStyle, margin: 0 }}>{point.label}</p>
+      <p style={{ ...CHART_TOOLTIP_STYLE.itemStyle, margin: 0, fontWeight: 600 }}>{valueFormatter(point.value)}</p>
+    </div>
+  );
+}
 
 const TONE_COLOR: Record<"success" | "danger" | "accent" | "neutral", string> = {
   success: CHART_COLORS.success,
@@ -10,30 +32,42 @@ const TONE_COLOR: Record<"success" | "danger" | "accent" | "neutral", string> = 
   neutral: CHART_COLORS.muted,
 };
 
-/** Sparkline decorativa e compacta para cards de indicador — sem eixos, grid ou tooltip. */
+export type SparklinePoint = { label: string; value: number };
+
+function defaultValueFormatter(value: number) {
+  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+/** Sparkline compacta para cards de indicador — sem eixos/grid visíveis, mas com tooltip ao passar o mouse. */
 export function MiniSparkline({
-  values,
+  points,
   tone = "neutral",
   height = 40,
+  valueFormatter = defaultValueFormatter,
 }: {
-  values: number[];
+  points: SparklinePoint[];
   tone?: "success" | "danger" | "accent" | "neutral";
   height?: number;
+  valueFormatter?: (value: number) => string;
 }) {
-  if (values.length < 2 || values.every((v) => v === 0)) return null;
+  if (points.length < 2 || points.every((p) => p.value === 0)) return null;
   const color = TONE_COLOR[tone];
   const gradientId = `sparkline-${tone}-${height}`;
-  const data = values.map((value, index) => ({ index, value }));
 
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <AreaChart data={data} margin={{ top: 2, right: 0, bottom: 0, left: 0 }}>
+      <AreaChart data={points} margin={{ top: 2, right: 0, bottom: 0, left: 0 }}>
         <defs>
           <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor={color} stopOpacity={0.3} />
             <stop offset="100%" stopColor={color} stopOpacity={0} />
           </linearGradient>
         </defs>
+        <XAxis dataKey="label" hide />
+        <Tooltip
+          content={<SparklineTooltip valueFormatter={valueFormatter} />}
+          cursor={{ stroke: CHART_COLORS.grid }}
+        />
         <Area type="monotone" dataKey="value" stroke={color} strokeWidth={1.5} fill={`url(#${gradientId})`} />
       </AreaChart>
     </ResponsiveContainer>
