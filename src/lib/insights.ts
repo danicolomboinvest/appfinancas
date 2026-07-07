@@ -1,8 +1,9 @@
 import { prisma } from "@/lib/db/prisma";
 import type { AuthContext } from "@/lib/auth/session";
 import { sumExpensesByParentCategory, listBudgets } from "@/lib/repositories/budget.repo";
-import { PARENT_CATEGORY_LABEL } from "@/lib/categories";
+import { PARENT_CATEGORIES, PARENT_CATEGORY_LABEL } from "@/lib/categories";
 import { computeGoalPlan } from "@/lib/planning/goal";
+import { getAnnualPlannedVsActual, computeOverBudgetStreak } from "@/lib/planning/budget-comparison";
 import { nper } from "@/lib/finance/nper";
 import { getPortfolioStrategyComparison, STRATEGY_ASSET_CLASS_LABEL } from "@/lib/portfolio/strategy";
 import { getPortfolioByObjective } from "@/lib/consolidation/portfolio";
@@ -69,6 +70,7 @@ export async function computeInsights(ctx: AuthContext): Promise<Insight[]> {
     strategyComparison,
     portfolio,
     currentMonthSummary,
+    annualBudgetComparison,
   ] = await Promise.all([
     prisma.user.findUnique({ where: { id: ctx.userId } }),
     listBudgets(ctx, year, month),
@@ -78,6 +80,7 @@ export async function computeInsights(ctx: AuthContext): Promise<Insight[]> {
     getPortfolioStrategyComparison(ctx),
     getPortfolioByObjective(ctx),
     getMonthlySummary(ctx, year, month),
+    getAnnualPlannedVsActual(ctx, year),
   ]);
 
   const insights: Insight[] = [];
@@ -163,6 +166,61 @@ export async function computeInsights(ctx: AuthContext): Promise<Insight[]> {
         href: monthlyEntryHref,
         actionLabel: "Ver lançamentos do mês",
       });
+    }
+  }
+
+  // --- Planejado x Realizado ---
+
+  const comparativoHref = "/orcamento/comparativo";
+
+  if (notifyBudget) {
+    const currentMonthComparison = annualBudgetComparison.months.find((m) => m.month === month);
+    if (currentMonthComparison) {
+      for (const cat of currentMonthComparison.categories) {
+        if (cat.deviationPercent !== null && cat.deviationPercent <= -0.15) {
+          insights.push({
+            id: `budget-saving-${cat.parentCategory}`,
+            message: `Você está economizando mais do que planejou em ${PARENT_CATEGORY_LABEL[cat.parentCategory]} este mês.`,
+            tone: "success",
+            category: "fluxo",
+            href: comparativoHref,
+            actionLabel: "Ver comparativo",
+          });
+        }
+      }
+    }
+
+    const realizedMonths = annualBudgetComparison.months.filter((m) => m.isRealized);
+    if (realizedMonths.length > 0 && annualBudgetComparison.totalPlannedRealized > 0) {
+      const accumulatedSavings = annualBudgetComparison.totalPlannedRealized - annualBudgetComparison.totalSpentRealized;
+      const averageMonthlySavings = accumulatedSavings / realizedMonths.length;
+      const remainingMonths = 12 - realizedMonths.length;
+      const projectedAnnualSavings = accumulatedSavings + averageMonthlySavings * remainingMonths;
+      if (projectedAnnualSavings > 0) {
+        insights.push({
+          id: "budget-projected-annual-savings",
+          message: `Se continuar nesse ritmo, você vai economizar aproximadamente ${formatBRL(projectedAnnualSavings)} neste ano.`,
+          tone: "success",
+          category: "fluxo",
+          href: comparativoHref,
+          actionLabel: "Ver comparativo",
+        });
+      }
+    }
+
+    const monthsDescending = [...realizedMonths].sort((a, b) => b.month - a.month);
+    for (const parentCategory of PARENT_CATEGORIES) {
+      const streak = computeOverBudgetStreak(monthsDescending, parentCategory);
+      if (streak >= 3) {
+        insights.push({
+          id: `budget-streak-${parentCategory}`,
+          message: `Você está excedendo o orçamento de ${PARENT_CATEGORY_LABEL[parentCategory]} há ${streak} meses consecutivos.`,
+          tone: "danger",
+          category: "fluxo",
+          href: comparativoHref,
+          actionLabel: "Ver comparativo",
+        });
+      }
     }
   }
 

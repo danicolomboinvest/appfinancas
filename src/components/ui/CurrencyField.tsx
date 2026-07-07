@@ -27,6 +27,7 @@ export function CurrencyField({
   error,
   id,
   className = "",
+  onValueChange,
 }: {
   label: string;
   name: string;
@@ -36,6 +37,8 @@ export function CurrencyField({
   error?: string;
   id?: string;
   className?: string;
+  /** Chamado a cada digitação com o valor atual em reais — para cálculos derivados ao vivo (ex.: total anual). */
+  onValueChange?: (value: number) => void;
 }) {
   const generatedId = useId();
   const inputId = id ?? generatedId;
@@ -55,7 +58,11 @@ export function CurrencyField({
         inputMode="decimal"
         required={required}
         value={centsToBRL(cents)}
-        onChange={(e) => setCents(parseDigitsToCents(e.target.value))}
+        onChange={(e) => {
+          const parsed = parseDigitsToCents(e.target.value);
+          setCents(parsed);
+          onValueChange?.(parsed === null ? 0 : parsed / 100);
+        }}
         className={`${CONTROL_CLASSES} w-full ${className}`}
       />
       <input type="hidden" name={name} value={decimalValue} />

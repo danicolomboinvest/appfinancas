@@ -1,6 +1,7 @@
 import {
   LayoutDashboard,
   ArrowLeftRight,
+  Wallet,
   Compass,
   Briefcase,
   Calculator,
@@ -22,6 +23,16 @@ export type NavSection = {
 export const NAV_SECTIONS: NavSection[] = [
   { basePath: "/dashboard", href: "/dashboard", label: "Como você está indo?", icon: LayoutDashboard },
   { basePath: "/mensal", href: "/mensal", label: "Seu dinheiro no mês", icon: ArrowLeftRight },
+  {
+    basePath: "/orcamento",
+    href: "/orcamento",
+    label: "Quanto você quer gastar?",
+    icon: Wallet,
+    children: [
+      { href: "/orcamento", label: "Planejar por categoria" },
+      { href: "/orcamento/comparativo", label: "Planejado x Realizado" },
+    ],
+  },
   {
     basePath: "/planejamento",
     href: "/planejamento/acumulo",

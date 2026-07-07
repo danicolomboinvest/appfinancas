@@ -51,7 +51,7 @@ export default async function DashboardPage() {
   const expenseTrend = changePercent(currentMonthSummary.totalExpense, previousMonthSummary.totalExpense);
   const balanceTrend = changePercent(currentMonthSummary.balance, previousMonthSummary.balance);
 
-  const monthsSoFar = summary.months.slice(0, currentMonth);
+  const monthsSoFar = summary.months.filter((m) => m.isRealized);
   const incomeSparkline = monthsSoFar.map((m) => ({ label: MONTH_LABELS[m.month - 1], value: m.totalIncome }));
   const expenseSparkline = monthsSoFar.map((m) => ({ label: MONTH_LABELS[m.month - 1], value: m.totalExpense }));
   const balanceSparkline = monthsSoFar.map((m) => ({ label: MONTH_LABELS[m.month - 1], value: m.balance }));

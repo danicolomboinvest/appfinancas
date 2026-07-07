@@ -41,9 +41,7 @@ export default async function YearPage(props: PageProps<"/mensal/[year]">) {
     listRecentSubcategories(ctx),
   ]);
 
-  const now = new Date();
-  const monthsElapsed = year < now.getFullYear() ? 12 : year === now.getFullYear() ? now.getMonth() + 1 : 0;
-  const monthsSoFar = summary.months.slice(0, monthsElapsed);
+  const monthsSoFar = summary.months.filter((m) => m.isRealized);
   const incomeSparkline = monthsSoFar.map((m) => ({ label: MONTH_LABELS[m.month - 1].slice(0, 3), value: m.totalIncome }));
   const expenseSparkline = monthsSoFar.map((m) => ({ label: MONTH_LABELS[m.month - 1].slice(0, 3), value: m.totalExpense }));
   const investmentSparkline = monthsSoFar.map((m) => ({
