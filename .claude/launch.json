@@ -2,6 +2,12 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "fatos-deck",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["--yes", "http-server", "/Users/danielacolombo/Documents/Desktop/Fatos Capital", "-p", "8099", "-c-1"],
+      "port": 8099
+    },
+    {
       "name": "static-preview",
       "runtimeExecutable": "npx",
       "runtimeArgs": ["--yes", "http-server", "/Users/danielacolombo/Desktop/Claude Code", "-p", "8934", "-c-1"],
