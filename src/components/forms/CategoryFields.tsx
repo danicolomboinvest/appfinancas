@@ -43,13 +43,15 @@ function Chip({
  * para funcionar dentro de um <form action={serverAction}> nativo.
  */
 export function CategoryFields({
-  recentSubcategories = [],
+  recentSubcategories = {},
   stacked = false,
   defaultCategory = "EXPENSE",
   defaultParentCategory,
   defaultSubcategory,
 }: {
-  recentSubcategories?: string[];
+  /** Subcategorias mais usadas recentemente, por categoria-mãe — só as da categoria-mãe
+   * selecionada no momento são exibidas, pra não sugerir algo de outra categoria. */
+  recentSubcategories?: Partial<Record<ParentCategory, string[]>>;
   stacked?: boolean;
   defaultCategory?: string;
   defaultParentCategory?: ParentCategory;
@@ -116,10 +118,10 @@ export function CategoryFields({
       {isExpense && parentCategory && (
         <div className={`flex flex-col gap-2 ${stacked ? "w-full" : ""}`}>
           <span className="text-xs font-medium text-ink-muted">Subcategoria</span>
-          {recentSubcategories.length > 0 && (
+          {(recentSubcategories[parentCategory]?.length ?? 0) > 0 && (
             <div className="flex flex-wrap gap-1.5">
               <span className="text-[11px] text-ink-faint">Usadas recentemente:</span>
-              {recentSubcategories.map((s) => (
+              {recentSubcategories[parentCategory]!.map((s) => (
                 <Chip
                   key={`recent-${s}`}
                   label={s}

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import type { ParentCategory } from "@prisma/client";
 import { Modal } from "@/components/ui/Modal";
 import { EntryForm } from "./[month]/EntryForm";
 
@@ -24,11 +25,11 @@ const MONTH_LABELS = [
 export function QuickEntryButton({
   year,
   month,
-  recentSubcategories = [],
+  recentSubcategories = {},
 }: {
   year: number;
   month: number;
-  recentSubcategories?: string[];
+  recentSubcategories?: Partial<Record<ParentCategory, string[]>>;
 }) {
   const [open, setOpen] = useState(false);
 

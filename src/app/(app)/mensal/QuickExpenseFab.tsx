@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Plus } from "lucide-react";
+import type { ParentCategory } from "@prisma/client";
 import { Modal } from "@/components/ui/Modal";
 import { EntryForm } from "./[year]/[month]/EntryForm";
 import { getRecentSubcategoriesAction } from "./actions";
@@ -19,7 +20,7 @@ function currentYearMonthFromPath(pathname: string): { year: number; month: numb
 export function QuickExpenseFab() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
-  const [recentSubcategories, setRecentSubcategories] = useState<string[]>([]);
+  const [recentSubcategories, setRecentSubcategories] = useState<Partial<Record<ParentCategory, string[]>>>({});
   const { year, month } = currentYearMonthFromPath(pathname);
 
   useEffect(() => {

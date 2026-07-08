@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useRef } from "react";
+import type { ParentCategory } from "@prisma/client";
 import { Field } from "@/components/ui/Field";
 import { CurrencyField } from "@/components/ui/CurrencyField";
 import { Button } from "@/components/ui/Button";
@@ -14,14 +15,14 @@ const initialState: MonthlyEntryState = {};
 export function EntryForm({
   year,
   month,
-  recentSubcategories = [],
+  recentSubcategories = {},
   onSuccess,
   layout = "inline",
 }: {
   year: number;
   month: number;
-  /** Subcategorias mais usadas recentemente pelo usuário, sugeridas como chips. */
-  recentSubcategories?: string[];
+  /** Subcategorias mais usadas recentemente pelo usuário, por categoria-mãe, sugeridas como chips. */
+  recentSubcategories?: Partial<Record<ParentCategory, string[]>>;
   /** Chamado quando o lançamento é salvo com sucesso — usado para fechar o modal, por exemplo. */
   onSuccess?: () => void;
   /** "stacked" empilha os campos verticalmente — melhor dentro de um modal estreito. */

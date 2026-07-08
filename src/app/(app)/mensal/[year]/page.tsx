@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import type { ParentCategory } from "@prisma/client";
 import { getRequiredSession } from "@/lib/auth/session";
 import { getYearlySummary } from "@/lib/consolidation/yearly";
 import { listRecentSubcategories } from "@/lib/repositories/monthly-entry.repo";
@@ -32,6 +33,14 @@ function formatBRL(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
+/** Tempo verbal do título depende de o ano já ter passado, estar em curso, ou ainda vir. */
+function yearPageTitle(year: number): string {
+  const currentYear = new Date().getFullYear();
+  if (year < currentYear) return `Como estava seu dinheiro em ${year}?`;
+  if (year > currentYear) return `Como vai estar seu dinheiro em ${year}?`;
+  return `Como está seu dinheiro em ${year}?`;
+}
+
 export default async function YearPage(props: PageProps<"/mensal/[year]">) {
   const { year: yearParam } = await props.params;
   const year = Number(yearParam);
@@ -55,7 +64,7 @@ export default async function YearPage(props: PageProps<"/mensal/[year]">) {
       <Breadcrumb items={[{ label: "Seu dinheiro no mês", href: "/mensal" }, { label: String(year) }]} />
 
       <PageHeader
-        title={`Como estava seu dinheiro em ${year}?`}
+        title={yearPageTitle(year)}
         subtitle="Consolidação automática dos 12 meses do ano."
         action={
           <div className="flex items-center gap-1">
@@ -99,7 +108,10 @@ export default async function YearPage(props: PageProps<"/mensal/[year]">) {
   );
 }
 
-function monthColumns(year: number, recentSubcategories: string[]): ResponsiveColumn<MonthlyBreakdown>[] {
+function monthColumns(
+  year: number,
+  recentSubcategories: Record<ParentCategory, string[]>,
+): ResponsiveColumn<MonthlyBreakdown>[] {
   return [
     { key: "month", label: "Mês", render: (m) => MONTH_LABELS[m.month - 1] },
     { key: "income", label: "Renda", render: (m) => formatBRL(m.totalIncome) },

@@ -124,6 +124,7 @@ model User {
 
   monthlyEntries       MonthlyEntry[]
   budgets              Budget[]
+  customCategories     CustomCategory[]
   portfolioStrategy    PortfolioStrategy[]
   patrimonySnapshots   PatrimonySnapshot[]
   assets               Asset[]
@@ -167,39 +168,63 @@ model ReferenceRate {
   @@index([userId])
 }
 
+/// Categoria-mãe personalizada, criada pelo próprio usuário quando as 7 categorias fixas
+/// (ParentCategory) não bastam. Vive fora do enum de propósito — o usuário pode apagar uma
+/// categoria personalizada a qualquer momento, o que não faria sentido pra um valor de enum
+/// (exigiria migração toda vez). Um MonthlyEntry/Budget de despesa pertence a exatamente uma
+/// categoria: ou uma ParentCategory fixa, ou uma CustomCategory — nunca as duas (invariante
+/// de aplicação, no mesmo espírito pragmático da subcategoria "Outro", que também não é enum).
+model CustomCategory {
+  id            String         @id @default(cuid())
+  userId        String
+  user          User           @relation(fields: [userId], references: [id])
+  name          String
+  icon          String
+  createdAt     DateTime       @default(now())
+  monthlyEntries MonthlyEntry[]
+  budgets       Budget[]
+
+  @@unique([userId, name])
+}
+
 /// Lançamento mensal — substitui as 12 abas Jan..Dez da planilha original.
 model MonthlyEntry {
-  id             String          @id @default(cuid())
-  userId         String
-  user           User            @relation(fields: [userId], references: [id])
-  year           Int
-  month          Int
-  category       EntryCategory
-  parentCategory ParentCategory?
-  subcategory    String?
-  description    String?
-  amount         Decimal         @db.Decimal(18, 2)
-  goalId         String?
-  goal           Goal?           @relation(fields: [goalId], references: [id])
-  createdAt      DateTime        @default(now())
+  id               String          @id @default(cuid())
+  userId           String
+  user             User            @relation(fields: [userId], references: [id])
+  year             Int
+  month            Int
+  category         EntryCategory
+  parentCategory   ParentCategory?
+  customCategoryId String?
+  customCategory   CustomCategory? @relation(fields: [customCategoryId], references: [id])
+  subcategory      String?
+  description      String?
+  amount           Decimal         @db.Decimal(18, 2)
+  goalId           String?
+  goal             Goal?           @relation(fields: [goalId], references: [id])
+  createdAt        DateTime        @default(now())
 
   @@index([userId, year, month])
   @@index([userId, parentCategory])
+  @@index([userId, customCategoryId])
 }
 
 /// Orçamento mensal planejado por categoria-mãe (para a barra "gasto realizado vs. planejado").
 model Budget {
-  id             String         @id @default(cuid())
-  userId         String
-  user           User           @relation(fields: [userId], references: [id])
-  year           Int
-  month          Int
-  parentCategory ParentCategory
-  plannedAmount  Decimal        @db.Decimal(18, 2)
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
+  id               String          @id @default(cuid())
+  userId           String
+  user             User            @relation(fields: [userId], references: [id])
+  year             Int
+  month            Int
+  parentCategory   ParentCategory?
+  customCategoryId String?
+  customCategory   CustomCategory? @relation(fields: [customCategoryId], references: [id])
+  plannedAmount    Decimal         @db.Decimal(18, 2)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
 
-  @@unique([userId, year, month, parentCategory])
+  @@unique([userId, year, month, parentCategory, customCategoryId])
 }
 
 /// Cache opcional de consolidação anual (substitui Database -> Pivôs -> Consolidado do Ano).

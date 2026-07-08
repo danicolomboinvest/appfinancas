@@ -1,6 +1,7 @@
 import type { EntryCategory, ParentCategory } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import type { AuthContext } from "@/lib/auth/session";
+import { PARENT_CATEGORIES } from "@/lib/categories";
 
 export async function listMonthlyEntries(ctx: AuthContext, year: number, month: number) {
   return prisma.monthlyEntry.findMany({
@@ -48,16 +49,32 @@ export async function createRecurringMonthlyEntries(
   });
 }
 
-/** Subcategorias mais usadas recentemente pelo usuário (para sugestão no lançamento rápido). */
-export async function listRecentSubcategories(ctx: AuthContext, limit = 6) {
+/**
+ * Subcategorias mais usadas recentemente pelo usuário, por categoria-mãe (para sugestão no
+ * lançamento rápido) — agrupado por parentCategory pra não sugerir, por exemplo, "Aluguel"
+ * (Moradia) quando o usuário está lançando uma despesa em Alimentação.
+ */
+export async function listRecentSubcategories(
+  ctx: AuthContext,
+  limit = 6,
+): Promise<Record<ParentCategory, string[]>> {
   const recent = await prisma.monthlyEntry.groupBy({
-    by: ["subcategory"],
-    where: { userId: ctx.userId, category: "EXPENSE", subcategory: { not: null } },
+    by: ["parentCategory", "subcategory"],
+    where: { userId: ctx.userId, category: "EXPENSE", parentCategory: { not: null }, subcategory: { not: null } },
     _count: { subcategory: true },
     orderBy: { _count: { subcategory: "desc" } },
-    take: limit,
   });
-  return recent.map((r) => r.subcategory).filter((s): s is string => s !== null);
+
+  const result = Object.fromEntries(PARENT_CATEGORIES.map((pc) => [pc, [] as string[]])) as Record<
+    ParentCategory,
+    string[]
+  >;
+  for (const row of recent) {
+    if (!row.parentCategory || !row.subcategory) continue;
+    const bucket = result[row.parentCategory];
+    if (bucket.length < limit) bucket.push(row.subcategory);
+  }
+  return result;
 }
 
 /** Só remove lançamentos do próprio usuário. */
