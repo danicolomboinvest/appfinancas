@@ -44,7 +44,14 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <head>
-        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+        {/* Roda antes da hidratação pra aplicar o tema salvo sem flash. Alterna `type` entre
+            server/client (em vez de um <script> comum) pra evitar o aviso do React sobre
+            tags <script> renderizadas via JSX — ver node_modules/next/dist/docs/01-app/02-guides/preventing-flash-before-hydration.md */}
+        <script
+          type={typeof window === "undefined" ? "text/javascript" : "text/plain"}
+          suppressHydrationWarning
+          dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }}
+        />
       </head>
       <body className="flex min-h-full flex-col bg-canvas text-ink">{children}</body>
     </html>

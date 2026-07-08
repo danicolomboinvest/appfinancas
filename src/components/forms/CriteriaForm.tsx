@@ -8,6 +8,7 @@ import { ProgressBar } from "@/components/ui/ProgressBar";
 import { useToast } from "@/components/ui/toast-context";
 import { AnalysisRadarChart, type CategoryScore } from "@/components/charts/AnalysisRadarChart";
 import { HelpTooltip } from "./HelpTooltip";
+import { mergeSuggestionsIntoResponses, type ResponseState } from "./criteria-form-utils";
 
 export type FormCriterion = {
   id: string;
@@ -23,8 +24,6 @@ export type FormResponse = {
   note: string | null;
 };
 
-type ResponseState = { value: string; score: string; note: string };
-
 const INPUT_CLASSES =
   "rounded-lg border border-border-strong bg-surface-2 px-2.5 py-1.5 text-sm text-ink placeholder:text-ink-faint transition-colors focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent";
 
@@ -35,6 +34,8 @@ export function CriteriaForm({
   initialResponses,
   initialConclusion,
   initialTotalScore,
+  appliedSuggestions,
+  applyToken,
 }: {
   sheetId: string;
   basePath: string;
@@ -42,6 +43,10 @@ export function CriteriaForm({
   initialResponses: FormResponse[];
   initialConclusion: string | null;
   initialTotalScore: number | null;
+  /** Sugestões extraídas de um documento (ver DocumentExtractionPanel) — só preenchem campos ainda vazios. */
+  appliedSuggestions?: { criterionId: string; value: string }[];
+  /** Incrementa a cada clique em "Aplicar sugestões" — dispara a mesclagem abaixo. */
+  applyToken?: number;
 }) {
   const responseByCriterion = new Map(initialResponses.map((r) => [r.criterionId, r]));
   const [responses, setResponses] = useState<Record<string, ResponseState>>(() => {
@@ -60,7 +65,24 @@ export function CriteriaForm({
   const [totalScore, setTotalScore] = useState(initialTotalScore);
   const [isPending, startTransition] = useTransition();
   const [savedAt, setSavedAt] = useState<Date | null>(null);
+  const [autoFilledIds, setAutoFilledIds] = useState<Set<string>>(new Set());
   const { showToast } = useToast();
+
+  // Mescla sugestões aplicadas quando `applyToken` muda — ajuste de estado a partir de uma prop,
+  // feito durante a renderização (não em useEffect) seguindo o padrão recomendado em
+  // https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes
+  const [prevApplyToken, setPrevApplyToken] = useState(applyToken ?? 0);
+  if ((applyToken ?? 0) !== prevApplyToken) {
+    setPrevApplyToken(applyToken ?? 0);
+    const { responses: nextResponses, newlyFilled } = mergeSuggestionsIntoResponses(
+      responses,
+      appliedSuggestions ?? [],
+    );
+    if (newlyFilled.length > 0) {
+      setResponses(nextResponses);
+      setAutoFilledIds((prev) => new Set([...prev, ...newlyFilled]));
+    }
+  }
 
   const categories = Array.from(new Set(criteria.map((c) => c.category)));
 
@@ -83,6 +105,13 @@ export function CriteriaForm({
 
   function updateResponse(criterionId: string, field: keyof ResponseState, value: string) {
     setResponses((prev) => ({ ...prev, [criterionId]: { ...prev[criterionId], [field]: value } }));
+    if (field === "value" && autoFilledIds.has(criterionId)) {
+      setAutoFilledIds((prev) => {
+        const next = new Set(prev);
+        next.delete(criterionId);
+        return next;
+      });
+    }
   }
 
   function handleSave() {
@@ -140,10 +169,20 @@ export function CriteriaForm({
             {criteria
               .filter((criterion) => criterion.category === category)
               .map((criterion) => (
-                <Card key={criterion.id} className="grid grid-cols-12 items-start gap-2 p-3">
-                  <div className="col-span-3 flex items-center text-sm font-medium text-ink">
+                <Card
+                  key={criterion.id}
+                  className={`grid grid-cols-12 items-start gap-2 p-3 ${
+                    autoFilledIds.has(criterion.id) ? "border-l-2 border-l-accent" : ""
+                  }`}
+                >
+                  <div className="col-span-3 flex items-center gap-1.5 text-sm font-medium text-ink">
                     {criterion.label}
                     {criterion.helpText && <HelpTooltip text={criterion.helpText} />}
+                    {autoFilledIds.has(criterion.id) && (
+                      <span className="text-[10px] font-normal text-accent-strong" title="Preenchido automaticamente a partir de um documento — revise antes de salvar">
+                        (IA)
+                      </span>
+                    )}
                   </div>
                   <input
                     className={`col-span-5 ${INPUT_CLASSES}`}

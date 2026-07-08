@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getRequiredSession } from "@/lib/auth/session";
 import { listSheets } from "@/lib/repositories/analysis.repo";
+import { computeScoreTrend, groupLatestSheetPerTicker } from "@/lib/analysis/sheet-history";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -9,6 +10,16 @@ import { CreateStockSheetForm } from "./CreateStockSheetForm";
 export default async function FichasAcoesPage() {
   const ctx = await getRequiredSession();
   const sheets = await listSheets(ctx, "STOCK");
+  const groups = groupLatestSheetPerTicker(sheets);
+  const trendByTicker = new Map(
+    groups.map((g) => {
+      const sameTickerAscending = [...sheets]
+        .filter((s) => s.ticker === g.latest.ticker)
+        .reverse()
+        .map((s) => ({ id: s.id, analysisDate: s.analysisDate, totalScore: s.totalScore ? Number(s.totalScore) : null }));
+      return [g.latest.ticker, computeScoreTrend(sameTickerAscending)] as const;
+    }),
+  );
 
   return (
     <div className="flex flex-col gap-8">
@@ -27,18 +38,35 @@ export default async function FichasAcoesPage() {
             </tr>
           </thead>
           <tbody>
-            {sheets.map((sheet) => (
-              <tr key={sheet.id} className="border-b border-border/60 last:border-0 hover:bg-surface-2/40">
-                <td className="px-4 py-3">
-                  <Link href={`/fichas/acoes/${sheet.id}`} className="font-medium text-accent-strong hover:underline">
-                    {sheet.ticker}
-                  </Link>
-                </td>
-                <td className="px-4 py-3 text-ink-muted">{sheet.companyName ?? "—"}</td>
-                <td className="px-4 py-3 text-ink-muted">{sheet.analysisDate.toLocaleDateString("pt-BR")}</td>
-                <td className="px-4 py-3 text-ink">{sheet.totalScore ? `${Number(sheet.totalScore).toFixed(1)} / 10` : "—"}</td>
-              </tr>
-            ))}
+            {groups.map(({ latest: sheet, previousCount }) => {
+              const trend = trendByTicker.get(sheet.ticker);
+              return (
+                <tr key={sheet.id} className="border-b border-border/60 last:border-0 hover:bg-surface-2/40">
+                  <td className="px-4 py-3">
+                    <Link href={`/fichas/acoes/${sheet.id}`} className="font-medium text-accent-strong hover:underline">
+                      {sheet.ticker}
+                    </Link>
+                    {previousCount > 0 && (
+                      <span className="ml-2 text-xs text-ink-faint">
+                        +{previousCount} análise{previousCount > 1 ? "s" : ""} anterior{previousCount > 1 ? "es" : ""}
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-ink-muted">{sheet.companyName ?? "—"}</td>
+                  <td className="px-4 py-3 text-ink-muted">{sheet.analysisDate.toLocaleDateString("pt-BR")}</td>
+                  <td className="px-4 py-3 text-ink">
+                    <span className="inline-flex items-center gap-1.5">
+                      {sheet.totalScore ? `${Number(sheet.totalScore).toFixed(1)} / 10` : "—"}
+                      {trend && trend.deltaAbsolute !== null && (
+                        <span className={`text-xs font-medium ${trend.deltaAbsolute >= 0 ? "text-success" : "text-danger"}`}>
+                          {trend.deltaAbsolute >= 0 ? "▲" : "▼"} {Math.abs(trend.deltaAbsolute).toFixed(1)}
+                        </span>
+                      )}
+                    </span>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
         {sheets.length === 0 && <EmptyState message="Nenhuma ficha criada ainda." />}
