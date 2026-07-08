@@ -1,6 +1,6 @@
 "use client";
 
-import { Bar, BarChart, CartesianGrid, Cell, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, CartesianGrid, Cell, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { MonthlyBreakdown } from "@/lib/consolidation/yearly";
 import { CHART_COLORS, CHART_TOOLTIP_STYLE } from "./chart-theme";
 
@@ -10,12 +10,20 @@ const MONTH_LABELS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "S
 const REALIZED_OPACITY = 1;
 const PROJECTED_OPACITY = 0.35;
 
-export function YearlyBarChart({ months }: { months: MonthlyBreakdown[] }) {
+export function YearlyBarChart({
+  months,
+  plannedByMonth,
+}: {
+  months: MonthlyBreakdown[];
+  /** Total planejado (soma de todas as categorias) por número do mês (1-12) — vem de getAnnualPlannedVsActual. */
+  plannedByMonth?: Record<number, number>;
+}) {
   const data = months.map((m) => ({
     name: MONTH_LABELS[m.month - 1],
     Renda: m.totalIncome,
     Gastos: m.totalExpense,
     Aportes: m.totalInvestment,
+    Planejado: plannedByMonth?.[m.month] && plannedByMonth[m.month] > 0 ? plannedByMonth[m.month] : null,
     isRealized: m.isRealized,
   }));
 
@@ -24,7 +32,7 @@ export function YearlyBarChart({ months }: { months: MonthlyBreakdown[] }) {
   return (
     <div className="flex flex-col gap-2">
       <ResponsiveContainer width="100%" height={300}>
-        <BarChart data={data}>
+        <ComposedChart data={data}>
           <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} vertical={false} />
           <XAxis dataKey="name" fontSize={12} stroke={CHART_COLORS.axis} tickLine={false} axisLine={false} />
           <YAxis fontSize={12} stroke={CHART_COLORS.axis} tickLine={false} axisLine={false} />
@@ -49,7 +57,17 @@ export function YearlyBarChart({ months }: { months: MonthlyBreakdown[] }) {
               <Cell key={`aportes-${index}`} fillOpacity={entry.isRealized ? REALIZED_OPACITY : PROJECTED_OPACITY} />
             ))}
           </Bar>
-        </BarChart>
+          {plannedByMonth && (
+            <Line
+              dataKey="Planejado"
+              stroke={CHART_COLORS.danger}
+              strokeWidth={2}
+              strokeDasharray="5 5"
+              dot={false}
+              connectNulls
+            />
+          )}
+        </ComposedChart>
       </ResponsiveContainer>
       {hasProjectedMonths && (
         <p className="text-xs text-ink-faint">

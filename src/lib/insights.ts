@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/db/prisma";
 import type { AuthContext } from "@/lib/auth/session";
 import { sumExpensesByParentCategory, listBudgets } from "@/lib/repositories/budget.repo";
-import { PARENT_CATEGORIES, PARENT_CATEGORY_LABEL } from "@/lib/categories";
+import { listCustomCategories } from "@/lib/repositories/custom-category.repo";
+import { PARENT_CATEGORIES, PARENT_CATEGORY_LABEL, isParentCategoryKey } from "@/lib/categories";
 import { computeGoalPlan } from "@/lib/planning/goal";
 import { getAnnualPlannedVsActual, computeOverBudgetStreak } from "@/lib/planning/budget-comparison";
 import { nper } from "@/lib/finance/nper";
@@ -71,6 +72,7 @@ export async function computeInsights(ctx: AuthContext): Promise<Insight[]> {
     portfolio,
     currentMonthSummary,
     annualBudgetComparison,
+    customCategories,
   ] = await Promise.all([
     prisma.user.findUnique({ where: { id: ctx.userId } }),
     listBudgets(ctx, year, month),
@@ -81,7 +83,17 @@ export async function computeInsights(ctx: AuthContext): Promise<Insight[]> {
     getPortfolioByObjective(ctx),
     getMonthlySummary(ctx, year, month),
     getAnnualPlannedVsActual(ctx, year),
+    listCustomCategories(ctx),
   ]);
+
+  const customCategoryLabels = new Map(customCategories.map((c) => [c.id, c.name]));
+  /** Rótulo de uma categoria a partir da `categoryKey` (ParentCategory ou id de CustomCategory). */
+  function categoryLabel(categoryKey: string): string {
+    return isParentCategoryKey(categoryKey)
+      ? PARENT_CATEGORY_LABEL[categoryKey]
+      : (customCategoryLabels.get(categoryKey) ?? "Categoria personalizada");
+  }
+  const allCategoryKeys: string[] = [...PARENT_CATEGORIES, ...customCategories.map((c) => c.id)];
 
   const insights: Insight[] = [];
   const notifyBudget = user?.notifyBudgetAlerts ?? true;
@@ -93,7 +105,12 @@ export async function computeInsights(ctx: AuthContext): Promise<Insight[]> {
 
   if (notifyBudget) {
     const spentMap = new Map(spentByCategory.map((s) => [s.parentCategory, s.spent]));
-    for (const budget of budgets) {
+    // budgets inclui linhas de categorias personalizadas (parentCategory null) — os insights
+    // de "estourou o orçamento" abaixo são só pras 7 categorias padrão por enquanto.
+    const parentBudgets = budgets.filter(
+      (b): b is typeof b & { parentCategory: NonNullable<typeof b.parentCategory> } => b.parentCategory !== null,
+    );
+    for (const budget of parentBudgets) {
       const planned = Number(budget.plannedAmount);
       if (planned <= 0) continue;
       const spent = spentMap.get(budget.parentCategory) ?? 0;
@@ -179,8 +196,8 @@ export async function computeInsights(ctx: AuthContext): Promise<Insight[]> {
       for (const cat of currentMonthComparison.categories) {
         if (cat.deviationPercent !== null && cat.deviationPercent <= -0.15) {
           insights.push({
-            id: `budget-saving-${cat.parentCategory}`,
-            message: `Você está economizando mais do que planejou em ${PARENT_CATEGORY_LABEL[cat.parentCategory]} este mês.`,
+            id: `budget-saving-${cat.categoryKey}`,
+            message: `Você está economizando mais do que planejou em ${categoryLabel(cat.categoryKey)} este mês.`,
             tone: "success",
             category: "fluxo",
             href: comparativoHref,
@@ -209,12 +226,12 @@ export async function computeInsights(ctx: AuthContext): Promise<Insight[]> {
     }
 
     const monthsDescending = [...realizedMonths].sort((a, b) => b.month - a.month);
-    for (const parentCategory of PARENT_CATEGORIES) {
-      const streak = computeOverBudgetStreak(monthsDescending, parentCategory);
+    for (const categoryKey of allCategoryKeys) {
+      const streak = computeOverBudgetStreak(monthsDescending, categoryKey);
       if (streak >= 3) {
         insights.push({
-          id: `budget-streak-${parentCategory}`,
-          message: `Você está excedendo o orçamento de ${PARENT_CATEGORY_LABEL[parentCategory]} há ${streak} meses consecutivos.`,
+          id: `budget-streak-${categoryKey}`,
+          message: `Você está excedendo o orçamento de ${categoryLabel(categoryKey)} há ${streak} meses consecutivos.`,
           tone: "danger",
           category: "fluxo",
           href: comparativoHref,

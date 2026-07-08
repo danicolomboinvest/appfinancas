@@ -9,7 +9,8 @@ import {
   compareCategoryBudget,
   type CategoryComparison,
 } from "@/lib/planning/budget-comparison";
-import { PARENT_CATEGORIES, PARENT_CATEGORY_LABEL } from "@/lib/categories";
+import { PARENT_CATEGORIES, PARENT_CATEGORY_LABEL, isParentCategoryKey } from "@/lib/categories";
+import { listCustomCategories } from "@/lib/repositories/custom-category.repo";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
 import { Card } from "@/components/ui/Card";
@@ -63,7 +64,17 @@ export default async function OrcamentoComparativoPage(props: PageProps<"/orcame
   const { year: yearParam } = await props.params;
   const year = Number(yearParam);
   const ctx = await getRequiredSession();
-  const comparison = await getAnnualPlannedVsActual(ctx, year);
+  const [comparison, customCategories] = await Promise.all([
+    getAnnualPlannedVsActual(ctx, year),
+    listCustomCategories(ctx),
+  ]);
+  const customCategoryLabels = new Map(customCategories.map((c) => [c.id, c.name]));
+  function categoryLabel(categoryKey: string): string {
+    return isParentCategoryKey(categoryKey)
+      ? PARENT_CATEGORY_LABEL[categoryKey]
+      : (customCategoryLabels.get(categoryKey) ?? "Categoria personalizada");
+  }
+  const allCategoryKeys: string[] = [...PARENT_CATEGORIES, ...customCategories.map((c) => c.id)];
 
   const now = new Date();
   const isCurrentYear = year === now.getFullYear();
@@ -78,16 +89,16 @@ export default async function OrcamentoComparativoPage(props: PageProps<"/orcame
   const categoryTotals = new Map<string, { planned: number; spent: number }>();
   for (const month of realizedMonths) {
     for (const cat of month.categories) {
-      const existing = categoryTotals.get(cat.parentCategory) ?? { planned: 0, spent: 0 };
+      const existing = categoryTotals.get(cat.categoryKey) ?? { planned: 0, spent: 0 };
       existing.planned += cat.planned;
       existing.spent += cat.spent;
-      categoryTotals.set(cat.parentCategory, existing);
+      categoryTotals.set(cat.categoryKey, existing);
     }
   }
-  const categoryComparisons: CategoryComparison[] = PARENT_CATEGORIES.map((parentCategory) => {
-    const totals = categoryTotals.get(parentCategory) ?? { planned: 0, spent: 0 };
+  const categoryComparisons: CategoryComparison[] = allCategoryKeys.map((categoryKey) => {
+    const totals = categoryTotals.get(categoryKey) ?? { planned: 0, spent: 0 };
     const { deviationPercent, status } = compareCategoryBudget(totals.planned, totals.spent);
-    return { parentCategory, planned: totals.planned, spent: totals.spent, deviationPercent, status };
+    return { categoryKey, planned: totals.planned, spent: totals.spent, deviationPercent, status };
   });
 
   const monthColumns: ResponsiveColumn<MonthlyPlannedVsActual>[] = [
@@ -141,7 +152,7 @@ export default async function OrcamentoComparativoPage(props: PageProps<"/orcame
           />
           <StatCard
             label="Categoria que mais estourou"
-            value={biggestOverrun ? PARENT_CATEGORY_LABEL[biggestOverrun.parentCategory] : "Nenhuma"}
+            value={biggestOverrun ? categoryLabel(biggestOverrun.categoryKey) : "Nenhuma"}
             tone={biggestOverrun ? "danger" : "neutral"}
             hint={
               biggestOverrun && biggestOverrun.deviationPercent !== null
@@ -151,7 +162,7 @@ export default async function OrcamentoComparativoPage(props: PageProps<"/orcame
           />
           <StatCard
             label="Melhor categoria"
-            value={biggestSaving ? PARENT_CATEGORY_LABEL[biggestSaving.parentCategory] : "Nenhuma"}
+            value={biggestSaving ? categoryLabel(biggestSaving.categoryKey) : "Nenhuma"}
             tone={biggestSaving ? "success" : "neutral"}
             hint={
               biggestSaving && biggestSaving.deviationPercent !== null
@@ -178,9 +189,9 @@ export default async function OrcamentoComparativoPage(props: PageProps<"/orcame
           {categoryComparisons.map((c) => {
             const percent = c.planned > 0 ? Math.min(c.spent / c.planned, 1) : 0;
             return (
-              <Card key={c.parentCategory} className="flex flex-col gap-2 p-4">
+              <Card key={c.categoryKey} className="flex flex-col gap-2 p-4">
                 <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium text-ink">{PARENT_CATEGORY_LABEL[c.parentCategory]}</p>
+                  <p className="text-sm font-medium text-ink">{categoryLabel(c.categoryKey)}</p>
                   <Badge tone={STATUS_BADGE_TONE[c.status]}>{STATUS_LABEL[c.status]}</Badge>
                 </div>
                 <ProgressBar percent={percent} tone={STATUS_BAR_TONE[c.status]} />

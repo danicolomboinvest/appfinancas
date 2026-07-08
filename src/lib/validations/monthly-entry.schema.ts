@@ -15,6 +15,7 @@ export const monthlyEntrySchema = z.object({
   month: z.coerce.number().int().min(1).max(12),
   category: z.enum(["INCOME", "EXPENSE", "INVESTMENT_CONTRIBUTION"]),
   parentCategory: z.enum(PARENT_CATEGORY_VALUES).optional().or(z.literal("")),
+  customCategoryId: z.string().trim().optional().or(z.literal("")),
   subcategory: z.string().trim().optional(),
   description: z.string().trim().optional(),
   amount: z.coerce.number().positive("O valor deve ser maior que zero."),

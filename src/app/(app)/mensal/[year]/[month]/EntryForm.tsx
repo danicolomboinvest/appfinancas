@@ -16,6 +16,7 @@ export function EntryForm({
   year,
   month,
   recentSubcategories = {},
+  customCategories = [],
   onSuccess,
   layout = "inline",
 }: {
@@ -23,6 +24,8 @@ export function EntryForm({
   month: number;
   /** Subcategorias mais usadas recentemente pelo usuário, por categoria-mãe, sugeridas como chips. */
   recentSubcategories?: Partial<Record<ParentCategory, string[]>>;
+  /** Categorias personalizadas do usuário, exibidas como chips extras junto das 7 padrão. */
+  customCategories?: { id: string; name: string }[];
   /** Chamado quando o lançamento é salvo com sucesso — usado para fechar o modal, por exemplo. */
   onSuccess?: () => void;
   /** "stacked" empilha os campos verticalmente — melhor dentro de um modal estreito. */
@@ -50,7 +53,7 @@ export function EntryForm({
       <input type="hidden" name="year" value={year} />
       <input type="hidden" name="month" value={month} />
       {state.error && <p className="w-full rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{state.error}</p>}
-      <CategoryFields recentSubcategories={recentSubcategories} stacked={stacked} />
+      <CategoryFields recentSubcategories={recentSubcategories} customCategories={customCategories} stacked={stacked} />
       <Field label="Descrição" id="description" name="description" className={stacked ? "w-full" : ""} />
       <CurrencyField label="Valor (R$)" id="amount" name="amount" required className={stacked ? "" : "w-32"} />
       <label className={`flex items-center gap-2 text-xs text-ink-muted ${stacked ? "w-full" : ""}`}>

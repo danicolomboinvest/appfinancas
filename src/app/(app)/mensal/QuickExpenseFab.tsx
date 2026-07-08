@@ -6,7 +6,7 @@ import { Plus } from "lucide-react";
 import type { ParentCategory } from "@prisma/client";
 import { Modal } from "@/components/ui/Modal";
 import { EntryForm } from "./[year]/[month]/EntryForm";
-import { getRecentSubcategoriesAction } from "./actions";
+import { getRecentSubcategoriesAction, getCustomCategoriesAction } from "./actions";
 
 function currentYearMonthFromPath(pathname: string): { year: number; month: number } {
   const match = pathname.match(/^\/mensal\/(\d+)(?:\/(\d+))?/);
@@ -21,11 +21,13 @@ export function QuickExpenseFab() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [recentSubcategories, setRecentSubcategories] = useState<Partial<Record<ParentCategory, string[]>>>({});
+  const [customCategories, setCustomCategories] = useState<{ id: string; name: string }[]>([]);
   const { year, month } = currentYearMonthFromPath(pathname);
 
   useEffect(() => {
     if (open) {
       getRecentSubcategoriesAction().then(setRecentSubcategories);
+      getCustomCategoriesAction().then(setCustomCategories);
     }
   }, [open]);
 
@@ -45,6 +47,7 @@ export function QuickExpenseFab() {
           year={year}
           month={month}
           recentSubcategories={recentSubcategories}
+          customCategories={customCategories}
           layout="stacked"
           onSuccess={() => setOpen(false)}
         />

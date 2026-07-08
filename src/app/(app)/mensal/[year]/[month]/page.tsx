@@ -2,13 +2,17 @@ import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
 import { listMonthlyEntries, listRecentSubcategories } from "@/lib/repositories/monthly-entry.repo";
+import { listCustomCategories } from "@/lib/repositories/custom-category.repo";
+import { sumExpensesByParentCategory, sumExpensesByCustomCategory } from "@/lib/repositories/budget.repo";
 import { getMonthlySummary } from "@/lib/consolidation/monthly";
+import { PARENT_CATEGORY_LABEL } from "@/lib/categories";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Breadcrumb } from "@/components/ui/Breadcrumb";
+import { DonutAllocationChart, type DonutSlice } from "@/components/charts/DonutAllocationChart";
 import { EntryForm } from "./EntryForm";
 import { DeleteEntryButton } from "./DeleteEntryButton";
 import { BudgetSection } from "../BudgetSection";
@@ -55,14 +59,32 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
   const month = Number(monthParam);
 
   const ctx = await getRequiredSession();
-  const [entries, summary, recentSubcategories] = await Promise.all([
+  const [entries, summary, recentSubcategories, customCategories, spentByParent, spentByCustom] = await Promise.all([
     listMonthlyEntries(ctx, year, month),
     getMonthlySummary(ctx, year, month),
     listRecentSubcategories(ctx),
+    listCustomCategories(ctx),
+    sumExpensesByParentCategory(ctx, year, month),
+    sumExpensesByCustomCategory(ctx, year, month),
   ]);
 
   const prev = adjacentMonth(year, month, -1);
   const next = adjacentMonth(year, month, 1);
+
+  const customCategoryNameById = new Map(customCategories.map((c) => [c.id, c.name]));
+  const totalSpentByCategory =
+    spentByParent.reduce((sum, s) => sum + s.spent, 0) + spentByCustom.reduce((sum, s) => sum + s.spent, 0);
+  const spendingSlices: DonutSlice[] = [
+    ...spentByParent
+      .filter((s) => s.spent > 0)
+      .map((s) => ({ name: PARENT_CATEGORY_LABEL[s.parentCategory], value: s.spent / totalSpentByCategory })),
+    ...spentByCustom
+      .filter((s) => s.spent > 0)
+      .map((s) => ({
+        name: customCategoryNameById.get(s.customCategoryId) ?? "Outro",
+        value: s.spent / totalSpentByCategory,
+      })),
+  ];
 
   return (
     <div className="flex flex-col gap-6">
@@ -101,9 +123,20 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
         <StatCard label="Saldo" value={formatBRL(summary.balance)} tone="accent" />
       </div>
 
-      <EntryForm year={year} month={month} recentSubcategories={recentSubcategories} />
+      <EntryForm
+        year={year}
+        month={month}
+        recentSubcategories={recentSubcategories}
+        customCategories={customCategories}
+      />
 
       <BudgetSection ctx={ctx} year={year} month={month} totalIncome={summary.totalIncome} />
+
+      {totalSpentByCategory > 0 && (
+        <Card className="p-5">
+          <DonutAllocationChart title="Para onde foi seu dinheiro este mês" data={spendingSlices} />
+        </Card>
+      )}
 
       {entries.length === 0 ? (
         <EmptyState message="Nenhum lançamento neste mês ainda." />

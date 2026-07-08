@@ -4,6 +4,7 @@ import type { ParentCategory } from "@prisma/client";
 import { getRequiredSession } from "@/lib/auth/session";
 import { getYearlySummary } from "@/lib/consolidation/yearly";
 import { listRecentSubcategories } from "@/lib/repositories/monthly-entry.repo";
+import { listCustomCategories } from "@/lib/repositories/custom-category.repo";
 import { YearlyBarChart } from "@/components/charts/YearlyBarChart";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
@@ -45,9 +46,10 @@ export default async function YearPage(props: PageProps<"/mensal/[year]">) {
   const { year: yearParam } = await props.params;
   const year = Number(yearParam);
   const ctx = await getRequiredSession();
-  const [summary, recentSubcategories] = await Promise.all([
+  const [summary, recentSubcategories, customCategories] = await Promise.all([
     getYearlySummary(ctx, year),
     listRecentSubcategories(ctx),
+    listCustomCategories(ctx),
   ]);
 
   const monthsSoFar = summary.months.filter((m) => m.isRealized);
@@ -100,7 +102,7 @@ export default async function YearPage(props: PageProps<"/mensal/[year]">) {
       </Card>
 
       <ResponsiveTable
-        columns={monthColumns(year, recentSubcategories)}
+        columns={monthColumns(year, recentSubcategories, customCategories)}
         rows={summary.months}
         rowKey={(m) => String(m.month)}
       />
@@ -111,6 +113,7 @@ export default async function YearPage(props: PageProps<"/mensal/[year]">) {
 function monthColumns(
   year: number,
   recentSubcategories: Record<ParentCategory, string[]>,
+  customCategories: { id: string; name: string }[],
 ): ResponsiveColumn<MonthlyBreakdown>[] {
   return [
     { key: "month", label: "Mês", render: (m) => MONTH_LABELS[m.month - 1] },
@@ -122,7 +125,14 @@ function monthColumns(
       key: "actions",
       label: "",
       hideLabelOnMobile: true,
-      render: (m) => <QuickEntryButton year={year} month={m.month} recentSubcategories={recentSubcategories} />,
+      render: (m) => (
+        <QuickEntryButton
+          year={year}
+          month={m.month}
+          recentSubcategories={recentSubcategories}
+          customCategories={customCategories}
+        />
+      ),
     },
   ];
 }

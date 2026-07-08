@@ -44,6 +44,7 @@ function Chip({
  */
 export function CategoryFields({
   recentSubcategories = {},
+  customCategories = [],
   stacked = false,
   defaultCategory = "EXPENSE",
   defaultParentCategory,
@@ -52,6 +53,8 @@ export function CategoryFields({
   /** Subcategorias mais usadas recentemente, por categoria-mãe — só as da categoria-mãe
    * selecionada no momento são exibidas, pra não sugerir algo de outra categoria. */
   recentSubcategories?: Partial<Record<ParentCategory, string[]>>;
+  /** Categorias personalizadas do usuário, exibidas como chips extras ao lado das 7 padrão. */
+  customCategories?: { id: string; name: string }[];
   stacked?: boolean;
   defaultCategory?: string;
   defaultParentCategory?: ParentCategory;
@@ -60,6 +63,7 @@ export function CategoryFields({
   const selectId = useId();
   const [category, setCategory] = useState(defaultCategory);
   const [parentCategory, setParentCategory] = useState<ParentCategory | undefined>(defaultParentCategory);
+  const [customCategoryId, setCustomCategoryId] = useState<string | undefined>(undefined);
   const initialIsOutro =
     defaultSubcategory !== undefined &&
     defaultParentCategory !== undefined &&
@@ -72,7 +76,7 @@ export function CategoryFields({
 
   const isExpense = category === "EXPENSE";
   const [freeSubcategory, setFreeSubcategory] = useState(!isExpense ? (defaultSubcategory ?? "") : "");
-  const finalSubcategory = isOutro ? customText : subcategory;
+  const finalSubcategory = customCategoryId ? customText : isOutro ? customText : subcategory;
 
   return (
     <div className={stacked ? "flex w-full flex-col gap-3" : "flex flex-wrap items-start gap-3"}>
@@ -106,12 +110,40 @@ export function CategoryFields({
                 active={parentCategory === pc}
                 onClick={() => {
                   setParentCategory(pc);
+                  setCustomCategoryId(undefined);
                   setSubcategory(undefined);
                   setIsOutro(false);
                 }}
               />
             ))}
+            {customCategories.map((cc) => (
+              <Chip
+                key={cc.id}
+                label={cc.name}
+                active={customCategoryId === cc.id}
+                onClick={() => {
+                  setCustomCategoryId(cc.id);
+                  setParentCategory(undefined);
+                  setSubcategory(undefined);
+                  setIsOutro(false);
+                  setCustomText("");
+                }}
+              />
+            ))}
           </div>
+        </div>
+      )}
+
+      {isExpense && customCategoryId && (
+        <div className={`flex flex-col gap-1.5 ${stacked ? "w-full" : ""}`}>
+          <label className="text-xs font-medium text-ink-muted">Subcategoria</label>
+          <input
+            type="text"
+            value={customText}
+            onChange={(e) => setCustomText(e.target.value)}
+            placeholder="Descreva a subcategoria (opcional)"
+            className={`${CONTROL_CLASSES} ${stacked ? "w-full" : "w-48"}`}
+          />
         </div>
       )}
 
@@ -174,6 +206,7 @@ export function CategoryFields({
       )}
 
       <input type="hidden" name="parentCategory" value={isExpense ? (parentCategory ?? "") : ""} />
+      <input type="hidden" name="customCategoryId" value={isExpense ? (customCategoryId ?? "") : ""} />
       <input type="hidden" name="subcategory" value={isExpense ? (finalSubcategory ?? "") : freeSubcategory} />
     </div>
   );

@@ -26,10 +26,12 @@ export function QuickEntryButton({
   year,
   month,
   recentSubcategories = {},
+  customCategories = [],
 }: {
   year: number;
   month: number;
   recentSubcategories?: Partial<Record<ParentCategory, string[]>>;
+  customCategories?: { id: string; name: string }[];
 }) {
   const [open, setOpen] = useState(false);
 
@@ -47,6 +49,7 @@ export function QuickEntryButton({
           year={year}
           month={month}
           recentSubcategories={recentSubcategories}
+          customCategories={customCategories}
           layout="stacked"
           onSuccess={() => setOpen(false)}
         />

@@ -1,13 +1,21 @@
 import { getRequiredSession } from "@/lib/auth/session";
-import { getAnnualBudgetPlan } from "@/lib/repositories/budget.repo";
+import { getAnnualBudgetPlan, getAnnualBudgetPlanForCustomCategories } from "@/lib/repositories/budget.repo";
+import { listCustomCategories } from "@/lib/repositories/custom-category.repo";
 import { PARENT_CATEGORIES, PARENT_CATEGORY_LABEL, PARENT_CATEGORY_DESCRIPTION } from "@/lib/categories";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { BudgetCategoryCard } from "./BudgetCategoryCard";
+import { CustomCategoryBudgetCard } from "./CustomCategoryBudgetCard";
+import { NewCustomCategoryCard } from "./NewCustomCategoryCard";
 
 export default async function OrcamentoPage() {
   const ctx = await getRequiredSession();
   const year = new Date().getFullYear();
-  const plan = await getAnnualBudgetPlan(ctx, year);
+  const [plan, customCategories] = await Promise.all([getAnnualBudgetPlan(ctx, year), listCustomCategories(ctx)]);
+  const customPlan = await getAnnualBudgetPlanForCustomCategories(
+    ctx,
+    year,
+    customCategories.map((c) => c.id),
+  );
 
   return (
     <div className="flex flex-col gap-8">
@@ -27,6 +35,17 @@ export default async function OrcamentoPage() {
             defaultValue={plan[parentCategory]}
           />
         ))}
+        {customCategories.map((category) => (
+          <CustomCategoryBudgetCard
+            key={category.id}
+            year={year}
+            customCategoryId={category.id}
+            name={category.name}
+            icon={category.icon}
+            defaultValue={customPlan[category.id] ?? 0}
+          />
+        ))}
+        <NewCustomCategoryCard />
       </div>
     </div>
   );

@@ -22,7 +22,16 @@ export type NavSection = {
 
 export const NAV_SECTIONS: NavSection[] = [
   { basePath: "/dashboard", href: "/dashboard", label: "Como você está indo?", icon: LayoutDashboard },
-  { basePath: "/mensal", href: "/mensal", label: "Seu dinheiro no mês", icon: ArrowLeftRight },
+  {
+    basePath: "/mensal",
+    href: "/mensal",
+    label: "Seu dinheiro no mês",
+    icon: ArrowLeftRight,
+    children: [
+      { href: "/mensal", label: "Visão mensal" },
+      { href: "/mensal/gastos", label: "Só gastos" },
+    ],
+  },
   {
     basePath: "/orcamento",
     href: "/orcamento",

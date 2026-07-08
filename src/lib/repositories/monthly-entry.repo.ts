@@ -17,6 +17,7 @@ export async function createMonthlyEntry(
     month: number;
     category: EntryCategory;
     parentCategory?: ParentCategory;
+    customCategoryId?: string;
     subcategory?: string;
     description?: string;
     amount: number;
@@ -35,6 +36,7 @@ export async function createRecurringMonthlyEntries(
     month: number;
     category: EntryCategory;
     parentCategory?: ParentCategory;
+    customCategoryId?: string;
     subcategory?: string;
     description?: string;
     amount: number;

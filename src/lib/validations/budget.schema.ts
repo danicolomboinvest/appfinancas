@@ -23,3 +23,10 @@ export const annualBudgetSchema = z.object({
   parentCategory: z.enum(PARENT_CATEGORY_VALUES),
   plannedAmount: z.coerce.number().nonnegative("O valor planejado não pode ser negativo."),
 });
+
+/** Mesma coisa que annualBudgetSchema, só que pra uma categoria personalizada (por id, não enum). */
+export const annualBudgetForCustomCategorySchema = z.object({
+  year: z.coerce.number().int().min(2000).max(2100),
+  customCategoryId: z.string().min(1),
+  plannedAmount: z.coerce.number().nonnegative("O valor planejado não pode ser negativo."),
+});

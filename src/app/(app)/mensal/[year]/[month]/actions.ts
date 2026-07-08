@@ -20,6 +20,7 @@ export async function createMonthlyEntryAction(
     month: formData.get("month"),
     category: formData.get("category"),
     parentCategory: formData.get("parentCategory") || undefined,
+    customCategoryId: formData.get("customCategoryId") || undefined,
     subcategory: formData.get("subcategory"),
     description: formData.get("description"),
     amount: formData.get("amount"),
@@ -30,10 +31,11 @@ export async function createMonthlyEntryAction(
     return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
   }
 
-  const { repeatMonthly, parentCategory, subcategory, ...rest } = parsed.data;
+  const { repeatMonthly, parentCategory, customCategoryId, subcategory, ...rest } = parsed.data;
   const entry = {
     ...rest,
     parentCategory: parentCategory || undefined,
+    customCategoryId: customCategoryId || undefined,
     subcategory: subcategory || undefined,
   };
   const ctx = await getRequiredSession();

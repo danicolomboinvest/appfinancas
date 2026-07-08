@@ -7,6 +7,7 @@ import { getPortfolioByObjective } from "@/lib/consolidation/portfolio";
 import { getEmergencyFund } from "@/lib/repositories/emergency-fund.repo";
 import { listGoals } from "@/lib/repositories/goal.repo";
 import { getPlanningParams } from "@/lib/repositories/planning-params.repo";
+import { getAnnualPlannedVsActual } from "@/lib/planning/budget-comparison";
 import { computeGoalPlan } from "@/lib/planning/goal";
 import { computeAccumulation } from "@/lib/planning/accumulation";
 import { computeUsufruct } from "@/lib/planning/usufruct";
@@ -36,7 +37,7 @@ export default async function DashboardPage() {
   const currentMonth = now.getMonth() + 1;
   const previousMonthDate = new Date(year, currentMonth - 2, 1);
 
-  const [summary, portfolio, emergencyFund, goals, planningParams, currentMonthSummary, previousMonthSummary] =
+  const [summary, portfolio, emergencyFund, goals, planningParams, currentMonthSummary, previousMonthSummary, plannedVsActual] =
     await Promise.all([
       getYearlySummary(ctx, year),
       getPortfolioByObjective(ctx),
@@ -45,7 +46,12 @@ export default async function DashboardPage() {
       getPlanningParams(ctx),
       getMonthlySummary(ctx, year, currentMonth),
       getMonthlySummary(ctx, previousMonthDate.getFullYear(), previousMonthDate.getMonth() + 1),
+      getAnnualPlannedVsActual(ctx, year),
     ]);
+
+  const plannedByMonth = Object.fromEntries(
+    plannedVsActual.months.map((m) => [m.month, m.totalPlanned]),
+  ) as Record<number, number>;
 
   const incomeTrend = changePercent(currentMonthSummary.totalIncome, previousMonthSummary.totalIncome);
   const expenseTrend = changePercent(currentMonthSummary.totalExpense, previousMonthSummary.totalExpense);
@@ -180,7 +186,7 @@ export default async function DashboardPage() {
 
       <Card className="p-5">
         <h2 className="mb-4 text-sm font-medium text-ink-muted">Renda, gastos e aportes por mês</h2>
-        <YearlyBarChart months={summary.months} />
+        <YearlyBarChart months={summary.months} plannedByMonth={plannedByMonth} />
       </Card>
     </div>
   );

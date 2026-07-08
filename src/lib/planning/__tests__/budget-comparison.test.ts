@@ -10,6 +10,8 @@ import {
   type MonthlyPlannedVsActual,
 } from "../budget-comparison";
 
+const CATEGORY_KEYS = ["MORADIA", "ALIMENTACAO", "TRANSPORTE", "SAUDE", "LAZER", "EDUCACAO", "FINANCEIRO"];
+
 describe("compareCategoryBudget", () => {
   it("returns SEM_PLANO when there is no plan", () => {
     expect(compareCategoryBudget(0, 100)).toEqual({ deviationPercent: null, status: "SEM_PLANO" });
@@ -35,8 +37,8 @@ describe("compareCategoryBudget", () => {
 });
 
 describe("buildMonthlyComparison", () => {
-  it("fills in every parent category, even ones with no budget or spending", () => {
-    const comparison = buildMonthlyComparison(3, true, [], []);
+  it("fills in every category key, even ones with no budget or spending", () => {
+    const comparison = buildMonthlyComparison(3, true, CATEGORY_KEYS, [], []);
     expect(comparison.categories).toHaveLength(7);
     expect(comparison.categories.every((c) => c.status === "SEM_PLANO")).toBe(true);
     expect(comparison.totalPlanned).toBe(0);
@@ -47,46 +49,64 @@ describe("buildMonthlyComparison", () => {
     const comparison = buildMonthlyComparison(
       3,
       true,
+      CATEGORY_KEYS,
       [
-        { parentCategory: "ALIMENTACAO", plannedAmount: 800 },
-        { parentCategory: "TRANSPORTE", plannedAmount: 400 },
+        { categoryKey: "ALIMENTACAO", plannedAmount: 800 },
+        { categoryKey: "TRANSPORTE", plannedAmount: 400 },
       ],
       [
-        { parentCategory: "ALIMENTACAO", spent: 720 },
-        { parentCategory: "TRANSPORTE", spent: 530 },
+        { categoryKey: "ALIMENTACAO", spent: 720 },
+        { categoryKey: "TRANSPORTE", spent: 530 },
       ],
     );
     expect(comparison.totalPlanned).toBe(1200);
     expect(comparison.totalSpent).toBe(1250);
-    const transporte = comparison.categories.find((c) => c.parentCategory === "TRANSPORTE")!;
+    const transporte = comparison.categories.find((c) => c.categoryKey === "TRANSPORTE")!;
     expect(transporte.status).toBe("ACIMA");
+  });
+
+  it("also fills in custom category keys mixed in with the standard ones", () => {
+    const comparison = buildMonthlyComparison(
+      3,
+      true,
+      [...CATEGORY_KEYS, "custom-id-1"],
+      [{ categoryKey: "custom-id-1", plannedAmount: 200 }],
+      [{ categoryKey: "custom-id-1", spent: 250 }],
+    );
+    const custom = comparison.categories.find((c) => c.categoryKey === "custom-id-1")!;
+    expect(custom.status).toBe("ACIMA");
+    expect(comparison.categories).toHaveLength(8);
   });
 });
 
 describe("computeMonthSavings", () => {
   it("is positive when spending less than planned", () => {
-    const comparison = buildMonthlyComparison(1, true, [{ parentCategory: "LAZER", plannedAmount: 500 }], [
-      { parentCategory: "LAZER", spent: 300 },
-    ]);
+    const comparison = buildMonthlyComparison(
+      1,
+      true,
+      CATEGORY_KEYS,
+      [{ categoryKey: "LAZER", plannedAmount: 500 }],
+      [{ categoryKey: "LAZER", spent: 300 }],
+    );
     expect(computeMonthSavings(comparison)).toBe(200);
   });
 });
 
 describe("findBiggestOverrun / findBiggestSaving", () => {
   const categories: CategoryComparison[] = [
-    { parentCategory: "MORADIA", planned: 1000, spent: 1000, deviationPercent: 0, status: "DENTRO" },
-    { parentCategory: "ALIMENTACAO", planned: 800, spent: 720, deviationPercent: -0.1, status: "DENTRO" },
-    { parentCategory: "TRANSPORTE", planned: 400, spent: 530, deviationPercent: 0.325, status: "ACIMA" },
-    { parentCategory: "LAZER", planned: 300, spent: 450, deviationPercent: 0.5, status: "ACIMA" },
-    { parentCategory: "SAUDE", planned: 0, spent: 100, deviationPercent: null, status: "SEM_PLANO" },
+    { categoryKey: "MORADIA", planned: 1000, spent: 1000, deviationPercent: 0, status: "DENTRO" },
+    { categoryKey: "ALIMENTACAO", planned: 800, spent: 720, deviationPercent: -0.1, status: "DENTRO" },
+    { categoryKey: "TRANSPORTE", planned: 400, spent: 530, deviationPercent: 0.325, status: "ACIMA" },
+    { categoryKey: "LAZER", planned: 300, spent: 450, deviationPercent: 0.5, status: "ACIMA" },
+    { categoryKey: "SAUDE", planned: 0, spent: 100, deviationPercent: null, status: "SEM_PLANO" },
   ];
 
   it("finds the category with the largest positive overrun", () => {
-    expect(findBiggestOverrun(categories)?.parentCategory).toBe("LAZER");
+    expect(findBiggestOverrun(categories)?.categoryKey).toBe("LAZER");
   });
 
   it("finds the category with the largest saving", () => {
-    expect(findBiggestSaving(categories)?.parentCategory).toBe("ALIMENTACAO");
+    expect(findBiggestSaving(categories)?.categoryKey).toBe("ALIMENTACAO");
   });
 
   it("returns null when there are no overruns", () => {
@@ -94,7 +114,7 @@ describe("findBiggestOverrun / findBiggestSaving", () => {
   });
 
   it("returns null when there are no savings", () => {
-    expect(findBiggestSaving(categories.filter((c) => c.parentCategory !== "ALIMENTACAO"))).toBeNull();
+    expect(findBiggestSaving(categories.filter((c) => c.categoryKey !== "ALIMENTACAO"))).toBeNull();
   });
 });
 
@@ -105,7 +125,9 @@ describe("computeOverBudgetStreak", () => {
       isRealized: true,
       totalPlanned: 300,
       totalSpent: status === "ACIMA" ? 400 : 200,
-      categories: [{ parentCategory: "LAZER", planned: 300, spent: status === "ACIMA" ? 400 : 200, deviationPercent: null, status }],
+      categories: [
+        { categoryKey: "LAZER", planned: 300, spent: status === "ACIMA" ? 400 : 200, deviationPercent: null, status },
+      ],
     };
   }
 
