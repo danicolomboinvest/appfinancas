@@ -1,0 +1,23 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "static-preview",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["--yes", "http-server", "/Users/danielacolombo/Desktop/Claude Code", "-p", "8934", "-c-1"],
+      "port": 8934
+    },
+    {
+      "name": "terceira-caixinha-web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "/Users/danielacolombo/Desktop/terceira-caixinha/web", "run", "dev", "--", "-p", "3210"],
+      "port": 3210
+    },
+    {
+      "name": "dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--", "-p", "3001"],
+      "port": 3001
+    }
+  ]
+}
