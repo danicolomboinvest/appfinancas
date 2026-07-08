@@ -96,4 +96,62 @@ describe("simulateMarkToMarket", () => {
       }
     }
   });
+
+  it("uses duration instead of yearsRemaining to price the bond when hasSemiannualCoupons is true", () => {
+    const withDuration = simulateMarkToMarket({
+      faceValue: 1000,
+      originalRate: 0.1,
+      newRate: 0.12,
+      totalYears: 10,
+      yearsRemaining: 6,
+      hasSemiannualCoupons: true,
+      duration: 4,
+    });
+    const equivalentZeroCoupon = simulateMarkToMarket({
+      faceValue: 1000,
+      originalRate: 0.1,
+      newRate: 0.12,
+      totalYears: 10,
+      yearsRemaining: 4,
+    });
+    expect(withDuration.carryingPrice).toBeCloseTo(equivalentZeroCoupon.carryingPrice, 8);
+    expect(withDuration.marketPrice).toBeCloseTo(equivalentZeroCoupon.marketPrice, 8);
+  });
+
+  it("zero-coupon path (hasSemiannualCoupons omitted or false) is unaffected by an unused duration value — regression", () => {
+    const base = simulateMarkToMarket({
+      faceValue: 1000,
+      originalRate: 0.1,
+      newRate: 0.12,
+      totalYears: 10,
+      yearsRemaining: 6,
+    });
+    const withUnusedDuration = simulateMarkToMarket({
+      faceValue: 1000,
+      originalRate: 0.1,
+      newRate: 0.12,
+      totalYears: 10,
+      yearsRemaining: 6,
+      hasSemiannualCoupons: false,
+      duration: 2,
+    });
+    expect(withUnusedDuration.carryingPrice).toBeCloseTo(base.carryingPrice, 10);
+    expect(withUnusedDuration.marketPrice).toBeCloseTo(base.marketPrice, 10);
+    expect(withUnusedDuration.scaledMarketValue).toBeUndefined();
+    expect(withUnusedDuration.scaledProfitOrLoss).toBeUndefined();
+  });
+
+  it("scales marketPrice and profitOrLoss proportionally when investedAmount is informed", () => {
+    const result = simulateMarkToMarket({
+      faceValue: 1000,
+      originalRate: 0.1,
+      newRate: 0.08,
+      totalYears: 5,
+      yearsRemaining: 3,
+      investedAmount: 2000,
+    });
+    const scaleFactor = 2000 / result.carryingPrice;
+    expect(result.scaledMarketValue).toBeCloseTo(result.marketPrice * scaleFactor, 8);
+    expect(result.scaledProfitOrLoss).toBeCloseTo(result.profitOrLoss * scaleFactor, 8);
+  });
 });

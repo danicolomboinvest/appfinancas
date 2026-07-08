@@ -8,17 +8,24 @@ const CONTROL_CLASSES =
 
 export function Field({
   label,
+  labelExtra,
   error,
   className = "",
   id,
   ...inputProps
-}: InputHTMLAttributes<HTMLInputElement> & { label: string; error?: string }) {
+}: InputHTMLAttributes<HTMLInputElement> & {
+  label: string;
+  /** Conteúdo extra ao lado do rótulo (ex.: um ícone de ajuda/tooltip). */
+  labelExtra?: React.ReactNode;
+  error?: string;
+}) {
   const generatedId = useId();
   const inputId = id ?? generatedId;
   return (
     <div className="flex flex-col gap-1.5">
-      <label htmlFor={inputId} className="text-xs font-medium text-ink-muted">
+      <label htmlFor={inputId} className="flex items-center text-xs font-medium text-ink-muted">
         {label}
+        {labelExtra}
       </label>
       <input id={inputId} {...inputProps} className={`${CONTROL_CLASSES} ${className}`} />
       {error && <p className="text-xs text-danger">{error}</p>}

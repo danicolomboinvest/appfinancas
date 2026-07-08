@@ -61,6 +61,14 @@ export default async function ProjecaoPage() {
       ) : (
         <>
           <Card className="p-5">
+            <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-muted">
+              <span className="flex items-center gap-1.5">
+                <Badge tone="accent">Acúmulo</Badge> você ainda está aportando — o patrimônio só cresce.
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Badge tone="info">Usufruto</Badge> os aportes param e os saques para viver começam.
+              </span>
+            </div>
             <PatrimonyProjectionChart years={years} />
           </Card>
 

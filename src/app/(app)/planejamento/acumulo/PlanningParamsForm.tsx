@@ -7,6 +7,7 @@ import { PercentField } from "@/components/ui/PercentField";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useSuccessToast } from "@/components/ui/useSuccessToast";
+import { HelpTooltip } from "@/components/forms/HelpTooltip";
 import { savePlanningParamsAction, type PlanningParamsState } from "./actions";
 
 const initialState: PlanningParamsState = {};
@@ -67,13 +68,27 @@ export function PlanningParamsForm({ defaults }: { defaults: Defaults }) {
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <PercentField
           label="Taxa nominal (a.a.)"
+          labelExtra={
+            <HelpTooltip text="A rentabilidade anual que você espera obter na fase de acúmulo, antes de descontar a inflação. Ex.: se seus investimentos rendem perto do CDI, use a taxa do CDI." />
+          }
           name="accumulationAnnualRate"
           defaultValue={defaults.accumulationAnnualRate}
           required
         />
-        <PercentField label="Inflação média (a.a.)" name="inflationAnnualRate" defaultValue={defaults.inflationAnnualRate} required />
+        <PercentField
+          label="Inflação média (a.a.)"
+          labelExtra={
+            <HelpTooltip text="A inflação anual esperada no longo prazo (ex.: meta do IPCA). Usada para descontar o efeito da inflação e mostrar seu patrimônio em valores de hoje." />
+          }
+          name="inflationAnnualRate"
+          defaultValue={defaults.inflationAnnualRate}
+          required
+        />
         <PercentField
           label="Taxa na Liberdade Financeira (a.a.)"
+          labelExtra={
+            <HelpTooltip text="A rentabilidade anual esperada depois de aposentado, na fase de usufruto — geralmente mais conservadora que a taxa de acúmulo, já que você passa a depender desse rendimento para viver." />
+          }
           name="usufructAnnualRate"
           defaultValue={defaults.usufructAnnualRate}
           required

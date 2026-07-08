@@ -17,6 +17,7 @@ function toPercentDisplay(decimal: number | undefined): string {
  */
 export function PercentField({
   label,
+  labelExtra,
   name,
   defaultValue,
   required,
@@ -24,6 +25,8 @@ export function PercentField({
   id,
 }: {
   label: string;
+  /** Conteúdo extra ao lado do rótulo (ex.: um ícone de ajuda/tooltip). */
+  labelExtra?: React.ReactNode;
   name: string;
   /** Valor decimal (ex.: 0.11), como o resto do sistema já espera. */
   defaultValue?: number;
@@ -38,8 +41,9 @@ export function PercentField({
 
   return (
     <div className="flex flex-col gap-1.5">
-      <label htmlFor={inputId} className="text-xs font-medium text-ink-muted">
+      <label htmlFor={inputId} className="flex items-center text-xs font-medium text-ink-muted">
         {label}
+        {labelExtra}
       </label>
       <div className="relative">
         <input
