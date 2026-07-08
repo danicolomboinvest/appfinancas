@@ -4,7 +4,15 @@ import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { CHART_TOOLTIP_STYLE } from "./chart-theme";
 import { formatPercentNumber } from "@/lib/format";
 
-const SLICE_COLORS = ["#2f7b6f", "#60a5fa", "#34d399", "#f87171", "#a78bfa", "#f59e0b", "#767572"];
+const SLICE_COLORS = [
+  "var(--color-accent)",
+  "var(--color-info)",
+  "var(--color-success)",
+  "var(--color-danger)",
+  "var(--color-chart-5)",
+  "var(--color-chart-6)",
+  "var(--color-chart-7)",
+];
 
 export type DonutSlice = { name: string; value: number };
 

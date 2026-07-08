@@ -12,7 +12,7 @@ export function GreetingStrip({
 }) {
   return (
     <div className="mb-6 flex flex-col gap-1 border-b border-border pb-5">
-      <p className="text-h2 font-semibold tracking-tight text-ink">{greeting}</p>
+      <p className="text-h2 font-serif italic font-normal tracking-tight text-ink">{greeting}</p>
       <p className="text-body text-ink-muted">
         {dateLabel} · {summary}
       </p>

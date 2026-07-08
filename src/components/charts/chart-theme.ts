@@ -1,29 +1,32 @@
-// Paleta consistente para os gráficos Recharts no tema editorial quase-preto/verde-petróleo.
+// Paleta consistente para os gráficos Recharts no tema editorial "First Light" (papel/tinta
+// + dourado). Usa var(--color-*) em vez de hex fixo — o SVG resolve os custom properties como
+// qualquer outra propriedade CSS, então os gráficos acompanham a troca de tema claro/escuro
+// automaticamente, sem precisar de lógica JS de detecção de tema.
 export const CHART_COLORS = {
-  grid: "rgba(255,255,255,0.1)",
-  axis: "#a8a7a3",
-  accent: "#2f7b6f",
-  accentStrong: "#5fa89a",
-  success: "#34d399",
-  danger: "#f87171",
-  info: "#60a5fa",
-  muted: "#767572",
+  grid: "var(--color-border)",
+  axis: "var(--color-ink-muted)",
+  accent: "var(--color-accent)",
+  accentStrong: "var(--color-accent-strong)",
+  success: "var(--color-success)",
+  danger: "var(--color-danger)",
+  info: "var(--color-info)",
+  muted: "var(--color-ink-faint)",
 };
 
 export const CHART_TOOLTIP_STYLE = {
   contentStyle: {
-    backgroundColor: "#1e2124",
-    border: "1px solid rgba(255,255,255,0.18)",
+    backgroundColor: "var(--color-surface-2)",
+    border: "1px solid var(--color-border-strong)",
     borderRadius: 10,
-    color: "#fafaf8",
+    color: "var(--color-ink)",
     fontSize: 12,
-    boxShadow: "0 20px 48px rgba(0,0,0,0.65)",
+    boxShadow: "var(--shadow-premium)",
   },
-  labelStyle: { color: "#a8a7a3" },
-  itemStyle: { color: "#fafaf8" },
+  labelStyle: { color: "var(--color-ink-muted)" },
+  itemStyle: { color: "var(--color-ink)" },
 };
 
 export const CHART_LEGEND_STYLE = {
   fontSize: 12,
-  color: "#a8a7a3",
+  color: "var(--color-ink-muted)",
 };
