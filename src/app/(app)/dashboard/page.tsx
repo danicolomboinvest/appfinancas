@@ -117,7 +117,7 @@ export default async function DashboardPage() {
         </p>
       </Card>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
         <StatCard
           label="Renda no ano"
           value={formatBRL(summary.totalIncome)}
@@ -149,7 +149,7 @@ export default async function DashboardPage() {
 
       <div>
         <h2 className="mb-3 text-h2 font-semibold tracking-tight text-ink">Status dos módulos</h2>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
           <LinkedStatCard
             href="/planejamento/reserva-emergencia"
             icon={ShieldCheck}

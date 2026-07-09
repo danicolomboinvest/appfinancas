@@ -143,7 +143,7 @@ export default async function OrcamentoComparativoPage(props: PageProps<"/orcame
       />
 
       {isCurrentYear && (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
           <StatCard
             label="Economia no mês"
             value={monthSavings === null ? "—" : formatBRL(Math.abs(monthSavings))}

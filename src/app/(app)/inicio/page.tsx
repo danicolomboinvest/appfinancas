@@ -57,7 +57,7 @@ const SECTIONS = [
 export default async function InicioPage() {
   return (
     <div className="flex flex-col gap-8">
-      <h1 className="text-display font-semibold tracking-tight text-ink">O que você quer organizar hoje?</h1>
+      <h1 className="text-h1 font-semibold tracking-tight text-ink sm:text-display">O que você quer organizar hoje?</h1>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {SECTIONS.map((section) => (

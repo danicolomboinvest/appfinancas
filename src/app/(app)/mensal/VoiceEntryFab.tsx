@@ -96,8 +96,8 @@ export function VoiceEntryFab() {
         onClick={handleClick}
         aria-label="Registrar por voz"
         title={unsupported ? "Reconhecimento de voz não disponível neste navegador" : "Registrar por voz"}
-        className={`fixed bottom-6 right-24 z-30 flex h-12 w-12 items-center justify-center rounded-full shadow-premium transition-transform hover:scale-105 active:scale-95 ${
-          recording ? "animate-pulse bg-danger text-canvas" : "bg-surface-2 text-ink-muted"
+        className={`fixed bottom-20 right-6 z-30 flex h-12 w-12 items-center justify-center rounded-full border shadow-premium transition-transform hover:scale-105 active:scale-95 ${
+          recording ? "animate-pulse border-danger bg-danger text-canvas" : "border-border-strong bg-surface text-ink"
         }`}
       >
         <Mic size={18} strokeWidth={2} />
