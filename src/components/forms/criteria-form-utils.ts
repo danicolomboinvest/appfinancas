@@ -1,10 +1,10 @@
 export type ResponseState = { value: string; score: string; note: string };
 
 /**
- * Mescla sugestões extraídas de um documento (DocumentExtractionPanel) nas respostas atuais —
- * nunca sobrescreve um campo `value` que o usuário já preencheu. Função pura, sem React nem
- * Next.js, separada de CriteriaForm.tsx pra poder ser importada em teste sem arrastar o
- * client component (que puxa server actions/next-auth) pra dentro do Vitest.
+ * Mescla sugestões de valores nas respostas atuais — nunca sobrescreve um campo `value` que
+ * o usuário já preencheu. Função pura, sem React nem Next.js, separada de CriteriaForm.tsx pra
+ * poder ser importada em teste sem arrastar o client component (que puxa server actions/next-auth)
+ * pra dentro do Vitest.
  */
 export function mergeSuggestionsIntoResponses(
   responses: Record<string, ResponseState>,

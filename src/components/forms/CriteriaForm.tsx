@@ -43,9 +43,9 @@ export function CriteriaForm({
   initialResponses: FormResponse[];
   initialConclusion: string | null;
   initialTotalScore: number | null;
-  /** Sugestões extraídas de um documento (ver DocumentExtractionPanel) — só preenchem campos ainda vazios. */
+  /** Sugestões de valores vindas de uma fonte externa — só preenchem campos ainda vazios. */
   appliedSuggestions?: { criterionId: string; value: string }[];
-  /** Incrementa a cada clique em "Aplicar sugestões" — dispara a mesclagem abaixo. */
+  /** Incrementa a cada nova leva de sugestões aplicadas — dispara a mesclagem abaixo. */
   applyToken?: number;
 }) {
   const responseByCriterion = new Map(initialResponses.map((r) => [r.criterionId, r]));
