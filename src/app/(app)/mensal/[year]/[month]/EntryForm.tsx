@@ -19,6 +19,11 @@ export function EntryForm({
   customCategories = [],
   onSuccess,
   layout = "inline",
+  defaultDescription,
+  defaultAmount,
+  defaultCategory,
+  defaultParentCategory,
+  defaultSubcategory,
 }: {
   year: number;
   month: number;
@@ -30,6 +35,12 @@ export function EntryForm({
   onSuccess?: () => void;
   /** "stacked" empilha os campos verticalmente — melhor dentro de um modal estreito. */
   layout?: "inline" | "stacked";
+  /** Pré-preenchimento (ex.: vindo do lançamento por voz) — o usuário sempre revisa antes de salvar. */
+  defaultDescription?: string;
+  defaultAmount?: number;
+  defaultCategory?: string;
+  defaultParentCategory?: ParentCategory;
+  defaultSubcategory?: string;
 }) {
   const [state, formAction, isPending] = useActionState(createMonthlyEntryAction, initialState);
   const wasPending = useRef(false);
@@ -53,9 +64,29 @@ export function EntryForm({
       <input type="hidden" name="year" value={year} />
       <input type="hidden" name="month" value={month} />
       {state.error && <p className="w-full rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{state.error}</p>}
-      <CategoryFields recentSubcategories={recentSubcategories} customCategories={customCategories} stacked={stacked} />
-      <Field label="Descrição" id="description" name="description" className={stacked ? "w-full" : ""} />
-      <CurrencyField label="Valor (R$)" id="amount" name="amount" required className={stacked ? "" : "w-32"} />
+      <CategoryFields
+        recentSubcategories={recentSubcategories}
+        customCategories={customCategories}
+        stacked={stacked}
+        defaultCategory={defaultCategory}
+        defaultParentCategory={defaultParentCategory}
+        defaultSubcategory={defaultSubcategory}
+      />
+      <Field
+        label="Descrição"
+        id="description"
+        name="description"
+        defaultValue={defaultDescription}
+        className={stacked ? "w-full" : ""}
+      />
+      <CurrencyField
+        label="Valor (R$)"
+        id="amount"
+        name="amount"
+        defaultValue={defaultAmount}
+        required
+        className={stacked ? "" : "w-32"}
+      />
       <label className={`flex items-center gap-2 text-xs text-ink-muted ${stacked ? "w-full" : ""}`}>
         <input type="checkbox" name="repeatMonthly" className="h-3.5 w-3.5 accent-accent" />
         Repetir lançamento todo mês (despesa fixa) até dezembro de {year}

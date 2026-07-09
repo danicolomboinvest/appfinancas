@@ -77,6 +77,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { href: "/simuladores/consorcio", label: "Consórcio vs. Financiamento" },
       { href: "/simuladores/marcacao-mercado", label: "Marcação a Mercado" },
       { href: "/simuladores/carro", label: "Carro: Assinar vs. Comprar" },
+      { href: "/simuladores/vale-a-pena", label: "Vale a pena comprar?" },
     ],
   },
   {

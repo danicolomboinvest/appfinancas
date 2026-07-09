@@ -1,4 +1,4 @@
-import { Building2, Calculator, Car, Home, LineChart } from "lucide-react";
+import { Building2, Calculator, Car, Home, LineChart, ShoppingBag } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { HomeSectionCard } from "@/components/ui/HomeSectionCard";
 
@@ -32,6 +32,12 @@ const SIMULATORS = [
     icon: Car,
     title: "Carro: Assinar vs. Comprar",
     subtitle: "Assinatura de carro ou compra 0km — qual sai mais em conta?",
+  },
+  {
+    href: "/simuladores/vale-a-pena",
+    icon: ShoppingBag,
+    title: "Vale a pena comprar?",
+    subtitle: "Compare um preço com suas horas de trabalho e o que ele renderia investido.",
   },
 ];
 

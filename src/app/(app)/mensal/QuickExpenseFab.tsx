@@ -8,7 +8,7 @@ import { Modal } from "@/components/ui/Modal";
 import { EntryForm } from "./[year]/[month]/EntryForm";
 import { getRecentSubcategoriesAction, getCustomCategoriesAction } from "./actions";
 
-function currentYearMonthFromPath(pathname: string): { year: number; month: number } {
+export function currentYearMonthFromPath(pathname: string): { year: number; month: number } {
   const match = pathname.match(/^\/mensal\/(\d+)(?:\/(\d+))?/);
   const now = new Date();
   const year = match?.[1] ? Number(match[1]) : now.getFullYear();
