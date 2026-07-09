@@ -10,7 +10,7 @@
     {
       "name": "static-preview",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["--yes", "http-server", "/Users/danielacolombo/Desktop/Claude Code", "-p", "8934", "-c-1"],
+      "runtimeArgs": ["--yes", "http-server", "/Users/danielacolombo/Desktop/Curso Seu Primeiro Investimento", "-p", "8934", "-c-1"],
       "port": 8934
     },
     {
