@@ -4,6 +4,9 @@ import Credentials from "next-auth/providers/credentials";
 import { prisma } from "@/lib/db/prisma";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  // Necessário em produção atrás de um domínio próprio (ex.: financas.danicolombo.com.br) —
+  // sem isso o Auth.js só confia em localhost e no domínio padrão *.vercel.app.
+  trustHost: true,
   session: { strategy: "jwt" },
   pages: {
     signIn: "/login",
