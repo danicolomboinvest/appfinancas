@@ -63,7 +63,7 @@ export default async function YearPage(props: PageProps<"/mensal/[year]">) {
 
   return (
     <div className="flex flex-col gap-6">
-      <Breadcrumb items={[{ label: "Seu dinheiro no mês", href: "/mensal" }, { label: String(year) }]} />
+      <Breadcrumb items={[{ label: "Fluxo Financeiro", href: "/mensal" }, { label: String(year) }]} />
 
       <PageHeader
         title={yearPageTitle(year)}

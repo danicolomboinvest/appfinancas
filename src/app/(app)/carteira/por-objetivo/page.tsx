@@ -32,7 +32,7 @@ export default async function CarteiraPorObjetivoPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <Breadcrumb items={[{ label: "Onde está seu patrimônio?", href: "/carteira" }, { label: "Por Objetivo" }]} />
+      <Breadcrumb items={[{ label: "Carteira de Investimentos", href: "/carteira" }, { label: "Por Objetivo" }]} />
 
       <PageHeader
         title="Carteira por Objetivo"

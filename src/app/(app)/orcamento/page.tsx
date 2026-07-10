@@ -20,7 +20,7 @@ export default async function OrcamentoPage() {
   return (
     <div className="flex flex-col gap-8">
       <PageHeader
-        title="Quanto você quer gastar?"
+        title="Orçamento"
         subtitle="Antes de controlar seus gastos, defina quanto pretende gastar em cada categoria. Para despesas que acontecem só uma vez por ano (IPVA, seguro, manutenção do carro, presentes), faça uma média mensal."
       />
 

@@ -62,7 +62,7 @@ export default async function SpendingBubblePage(props: PageProps<"/mensal/gasto
     <div className="flex flex-col gap-6">
       <Breadcrumb
         items={[
-          { label: "Seu dinheiro no mês", href: "/mensal" },
+          { label: "Fluxo Financeiro", href: "/mensal" },
           { label: "Só gastos" },
         ]}
       />

@@ -1,9 +1,12 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { Menu } from "lucide-react";
+import { usePathname } from "next/navigation";
 import { Sidebar } from "./Sidebar";
+import { MobileTabBar } from "./MobileTabBar";
+import { MoreSheet } from "./MoreSheet";
 import { GreetingStrip } from "./GreetingStrip";
+import { MORE_NAV_SECTIONS } from "./nav-sections";
 import { logoutAction } from "@/lib/auth/actions";
 import { ToastProvider } from "@/components/ui/toast-context";
 
@@ -23,8 +26,9 @@ export function AppShell({
   summary: string;
 }) {
   const [collapsed, setCollapsed] = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const [, startTransition] = useTransition();
+  const pathname = usePathname();
 
   useEffect(() => {
     // Lido só depois de montar (não na inicialização do estado) para o HTML do
@@ -48,46 +52,38 @@ export function AppShell({
     });
   }
 
+  // "Mais" fica em destaque na tab bar quando a rota atual é uma das seções que só
+  // existem dentro da sheet (Visão Geral, Orçamento, Simuladores, Análises, Configurações).
+  const moreActive = MORE_NAV_SECTIONS.some(
+    (section) => pathname === section.basePath || pathname.startsWith(`${section.basePath}/`),
+  );
+
   return (
     <ToastProvider>
       <div className="flex min-h-screen">
-        {mobileOpen && (
-          <button
-            aria-label="Fechar menu"
-            onClick={() => setMobileOpen(false)}
-            className="fixed inset-0 z-40 bg-black/60 md:hidden"
-          />
-        )}
-
+        {/* Sidebar: navegação primária no desktop; no mobile fica sempre fora da tela
+            (a gaveta hambúrguer foi substituída pela tab bar + MoreSheet abaixo). */}
         <Sidebar
           collapsed={collapsed}
           onToggleCollapsed={toggleCollapsed}
-          mobileOpen={mobileOpen}
-          onCloseMobile={() => setMobileOpen(false)}
+          mobileOpen={false}
+          onCloseMobile={() => {}}
           isAdmin={isAdmin}
           userEmail={userEmail}
           onLogout={handleLogout}
         />
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="flex items-center gap-3 border-b border-border px-4 py-3 md:hidden">
-            <button
-              onClick={() => setMobileOpen(true)}
-              className="rounded-lg p-2 text-ink-muted hover:bg-surface-2 hover:text-ink"
-              aria-label="Abrir menu"
-            >
-              <Menu size={20} />
-            </button>
-            <span className="text-sm font-medium text-ink">Planejamento Financeiro</span>
-          </header>
-
-          <main className="flex-1 px-5 py-6 md:px-10 md:py-8">
+          <main className="flex-1 px-5 pb-24 pt-6 md:px-10 md:pb-8 md:pt-8">
             <div className="mx-auto w-full max-w-6xl animate-fade-in">
               <GreetingStrip greeting={greeting} dateLabel={dateLabel} summary={summary} />
               {children}
             </div>
           </main>
         </div>
+
+        <MobileTabBar onOpenMore={() => setMoreOpen(true)} moreActive={moreActive} />
+        <MoreSheet open={moreOpen} onClose={() => setMoreOpen(false)} isAdmin={isAdmin} userEmail={userEmail} onLogout={handleLogout} />
       </div>
     </ToastProvider>
   );

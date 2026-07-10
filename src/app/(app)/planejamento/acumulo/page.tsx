@@ -51,7 +51,7 @@ export default async function AcumuloPage() {
   return (
     <div className="flex flex-col gap-8">
       <PageHeader
-        title="Está no caminho certo?"
+        title="Planejamento Financeiro"
         subtitle={
           <>
             Separa a fase de acúmulo (juntar patrimônio) da Liberdade Financeira (viver da renda).{" "}

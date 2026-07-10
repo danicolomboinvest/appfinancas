@@ -40,7 +40,7 @@ export default async function TaxasDoSistemaPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <Breadcrumb items={[{ label: "Ajustes da conta", href: "/configuracoes/perfil" }, { label: "Taxas do Sistema" }]} />
+      <Breadcrumb items={[{ label: "Configurações", href: "/configuracoes/perfil" }, { label: "Taxas do Sistema" }]} />
 
       <PageHeader
         title="Taxas do Sistema"

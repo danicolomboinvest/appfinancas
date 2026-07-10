@@ -90,7 +90,7 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
     <div className="flex flex-col gap-6">
       <Breadcrumb
         items={[
-          { label: "Seu dinheiro no mês", href: "/mensal" },
+          { label: "Fluxo Financeiro", href: "/mensal" },
           { label: String(year), href: `/mensal/${year}` },
           { label: MONTH_LABELS[month - 1] },
         ]}

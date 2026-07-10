@@ -8,6 +8,7 @@ import {
   FileSearch,
   Settings,
   ShieldCheck,
+  Home,
   type LucideIcon,
 } from "lucide-react";
 
@@ -21,11 +22,11 @@ export type NavSection = {
 };
 
 export const NAV_SECTIONS: NavSection[] = [
-  { basePath: "/dashboard", href: "/dashboard", label: "Como você está indo?", icon: LayoutDashboard },
+  { basePath: "/dashboard", href: "/dashboard", label: "Visão Geral", icon: LayoutDashboard },
   {
     basePath: "/mensal",
     href: "/mensal",
-    label: "Seu dinheiro no mês",
+    label: "Fluxo Financeiro",
     icon: ArrowLeftRight,
     children: [
       { href: "/mensal", label: "Visão mensal" },
@@ -35,7 +36,7 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     basePath: "/orcamento",
     href: "/orcamento",
-    label: "Quanto você quer gastar?",
+    label: "Orçamento",
     icon: Wallet,
     children: [
       { href: "/orcamento", label: "Planejar por categoria" },
@@ -45,7 +46,7 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     basePath: "/planejamento",
     href: "/planejamento/acumulo",
-    label: "Está no caminho certo?",
+    label: "Planejamento Financeiro",
     icon: Compass,
     children: [
       { href: "/planejamento/acumulo", label: "Acúmulo" },
@@ -58,7 +59,7 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     basePath: "/carteira",
     href: "/carteira",
-    label: "Onde está seu patrimônio?",
+    label: "Carteira de Investimentos",
     icon: Briefcase,
     children: [
       { href: "/carteira", label: "Meus Ativos" },
@@ -69,7 +70,7 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     basePath: "/simuladores",
     href: "/simuladores",
-    label: "Quanto pode render?",
+    label: "Simuladores",
     icon: Calculator,
     children: [
       { href: "/simuladores/financiar-vs-alugar", label: "Financiar vs. Alugar" },
@@ -83,7 +84,7 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     basePath: "/fichas",
     href: "/fichas",
-    label: "O que seus números dizem?",
+    label: "Análises",
     icon: FileSearch,
     children: [
       { href: "/fichas", label: "Insights" },
@@ -94,7 +95,7 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     basePath: "/configuracoes",
     href: "/configuracoes/perfil",
-    label: "Ajustes da conta",
+    label: "Configurações",
     icon: Settings,
     children: [
       { href: "/configuracoes/perfil", label: "Perfil" },
@@ -113,3 +114,19 @@ export const ADMIN_NAV_SECTION: NavSection = {
   label: "Admin",
   icon: ShieldCheck,
 };
+
+export type MobileTab = { basePath: string; href: string; label: string; icon: LucideIcon };
+
+/** Os 5 destinos da tab bar inferior no mobile — os 4 primeiros levam direto ao módulo,
+ * o 5º ("Mais") abre a MoreSheet com o restante (ver MORE_NAV_SECTIONS). */
+export const MOBILE_TABS: MobileTab[] = [
+  { basePath: "/inicio", href: "/inicio", label: "Início", icon: Home },
+  { basePath: "/mensal", href: "/mensal", label: "Fluxo", icon: ArrowLeftRight },
+  { basePath: "/planejamento", href: "/planejamento/acumulo", label: "Planejamento", icon: Compass },
+  { basePath: "/carteira", href: "/carteira", label: "Carteira", icon: Briefcase },
+];
+
+/** Seções que não têm tab própria na barra inferior — acessadas via "Mais". */
+export const MORE_NAV_SECTIONS: NavSection[] = NAV_SECTIONS.filter(
+  (section) => !MOBILE_TABS.some((tab) => tab.basePath === section.basePath),
+);

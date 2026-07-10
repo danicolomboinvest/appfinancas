@@ -40,7 +40,7 @@ export default async function CarteiraPage() {
   return (
     <div className="flex flex-col gap-8">
       <PageHeader
-        title="Onde está seu patrimônio?"
+        title="Carteira de Investimentos"
         subtitle={
           <>
             Cadastre seus ativos e marque o objetivo de cada um.{" "}

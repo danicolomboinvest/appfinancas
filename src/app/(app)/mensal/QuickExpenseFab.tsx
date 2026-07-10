@@ -36,7 +36,7 @@ export function QuickExpenseFab() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="fixed bottom-6 right-6 z-30 flex items-center gap-2 rounded-full bg-accent px-4 py-3 text-sm font-medium text-ink shadow-premium transition-transform hover:scale-105 active:scale-95"
+        className="fixed bottom-24 right-6 z-30 flex items-center gap-2 rounded-full bg-accent px-4 py-3 text-sm font-medium text-ink shadow-premium transition-transform hover:scale-105 active:scale-95 md:bottom-6"
       >
         <Plus size={18} strokeWidth={2} />
         Novo gasto

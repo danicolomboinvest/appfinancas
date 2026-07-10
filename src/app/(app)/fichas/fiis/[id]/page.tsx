@@ -20,7 +20,7 @@ export default async function FiiSheetDetailPage(props: PageProps<"/fichas/fiis/
 
   return (
     <div className="flex flex-col gap-6">
-      <Breadcrumb items={[{ label: "O que seus números dizem?", href: "/fichas" }, { label: "FIIs", href: "/fichas/fiis" }, { label: sheet.ticker }]} />
+      <Breadcrumb items={[{ label: "Análises", href: "/fichas" }, { label: "FIIs", href: "/fichas/fiis" }, { label: sheet.ticker }]} />
 
       <PageHeader
         title={`${sheet.ticker}${sheet.companyName ? ` — ${sheet.companyName}` : ""}`}

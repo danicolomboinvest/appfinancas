@@ -51,7 +51,7 @@ export default async function GoalDetailPage(props: PageProps<"/planejamento/met
     <div className="flex flex-col gap-6">
       <Breadcrumb
         items={[
-          { label: "Está no caminho certo?", href: "/planejamento/acumulo" },
+          { label: "Planejamento Financeiro", href: "/planejamento/acumulo" },
           { label: "Metas", href: "/planejamento/metas" },
           { label: goal.name },
         ]}

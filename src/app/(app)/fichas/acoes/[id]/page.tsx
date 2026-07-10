@@ -30,7 +30,7 @@ export default async function StockSheetDetailPage(props: PageProps<"/fichas/aco
 
   return (
     <div className="flex flex-col gap-6">
-      <Breadcrumb items={[{ label: "O que seus números dizem?", href: "/fichas" }, { label: "Ações", href: "/fichas/acoes" }, { label: sheet.ticker }]} />
+      <Breadcrumb items={[{ label: "Análises", href: "/fichas" }, { label: "Ações", href: "/fichas/acoes" }, { label: sheet.ticker }]} />
 
       <PageHeader
         title={`${sheet.ticker}${sheet.companyName ? ` — ${sheet.companyName}` : ""}`}
