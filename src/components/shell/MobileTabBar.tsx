@@ -25,7 +25,7 @@ export function MobileTabBar({ onOpenMore, moreActive }: { onOpenMore: () => voi
             key={tab.basePath}
             href={tab.href}
             className={`flex flex-1 flex-col items-center gap-0.5 rounded-[20px] py-2 text-[10px] font-medium transition-all duration-200 active:scale-95 ${
-              isActive ? "bg-accent-soft text-accent-strong" : "text-ink-muted"
+              isActive ? "bg-surface-2 text-ink" : "text-ink-muted"
             }`}
           >
             <Icon size={20} strokeWidth={isActive ? 2.2 : 1.75} />
@@ -37,7 +37,7 @@ export function MobileTabBar({ onOpenMore, moreActive }: { onOpenMore: () => voi
         type="button"
         onClick={onOpenMore}
         className={`flex flex-1 flex-col items-center gap-0.5 rounded-[20px] py-2 text-[10px] font-medium transition-all duration-200 active:scale-95 ${
-          moreActive ? "bg-accent-soft text-accent-strong" : "text-ink-muted"
+          moreActive ? "bg-surface-2 text-ink" : "text-ink-muted"
         }`}
       >
         <MoreHorizontal size={20} strokeWidth={moreActive ? 2.2 : 1.75} />

@@ -1,33 +1,69 @@
 @import "tailwindcss";
 
 :root {
-  /* Superfícies — identidade "First Light / Ink": quase-preto com leve matiz quente,
-     em vez de um cinza-azulado neutro (evita o look "tech dark mode" genérico). */
+  /* Identidade "SPI" — base clara off-white, acolhedora, sem o peso "private bank" do tema
+     escuro anterior. Agora é o tema PADRÃO (dark vira opt-in, ver .dark abaixo). */
+  --color-canvas: #faf9f4;
+  --color-surface: #ffffff;
+  --color-surface-2: #f3f1ea;
+  --color-surface-hover: #ece7d9;
+  --texture-dot: transparent;
+
+  --color-border: rgba(24, 22, 20, 0.08);
+  --color-border-strong: rgba(24, 22, 20, 0.16);
+
+  /* Texto — quase-preto quente, nunca usado como fundo */
+  --color-ink: #18160e;
+  --color-ink-muted: #6e695d;
+  --color-ink-faint: #9a9486;
+
+  /* Dourado — reservado para conquista (meta batida, reserva completa, dentro do orçamento,
+     número principal em destaque). Nunca decoração genérica: botões/estados ativos usam ink. */
+  --color-accent: #c9a15c;
+  --color-accent-strong: #a87f3a;
+  --color-accent-soft: rgba(201, 161, 92, 0.16);
+  --color-on-accent: #211903;
+
+  /* Positivo = sálvia dessaturado (dentro do orçamento); alerta = tom sóbrio que não briga
+     com o off-white nem com o dourado (evita vermelho puro/agressivo). */
+  --color-success: #7e9473;
+  --color-success-soft: rgba(126, 148, 115, 0.14);
+  --color-danger: #b15b3e;
+  --color-danger-soft: rgba(177, 91, 62, 0.12);
+  --color-info: #5c7a9e;
+  --color-info-soft: rgba(92, 122, 158, 0.1);
+
+  /* Extras só para paletas categóricas de gráfico (ex.: donut de alocação com 7 fatias) */
+  --color-chart-5: #a08f6a;
+  --color-chart-6: #b98f72;
+  --color-chart-7: #8c8676;
+
+  --shadow-premium: 0 16px 40px rgba(24, 22, 20, 0.09), 0 1px 0 rgba(255, 255, 255, 0.6) inset;
+  --shadow-premium-sm: 0 6px 16px rgba(24, 22, 20, 0.07);
+
+  color-scheme: light;
+}
+
+/* Tema escuro — identidade "Ink" anterior, preservada como opção (não é mais o padrão). */
+html.dark {
   --color-canvas: #0a0a0a;
   --color-surface: #17140f;
   --color-surface-2: #201c15;
   --color-surface-hover: #2a251c;
   --texture-dot: rgba(250, 250, 248, 0.05);
 
-  /* Bordas — mesma opacidade quente do --ink-line do design system dos slides */
   --color-border: rgba(250, 250, 248, 0.12);
   --color-border-strong: rgba(250, 250, 248, 0.2);
 
-  /* Texto */
   --color-ink: #fafaf8;
   --color-ink-muted: #a39c8e;
   --color-ink-faint: #7d7768;
 
-  /* Acento — dourado editorial (gold-bright/amber), no lugar do verde-petróleo anterior */
   --color-accent: #f0c989;
   --color-accent-strong: #dda15e;
   --color-accent-soft: rgba(240, 201, 137, 0.16);
-  /* Cor de texto/ícone sobre um fundo sólido ou gradiente accent→accent-strong — precisa
-     inverter por tema, já que o dourado é claro no escuro e escuro no claro. */
   --color-on-accent: #171410;
 
-  /* Semânticas — mesma função (verde=bem, vermelho=mal, azul=neutro), tons levemente
-     aquecidos para harmonizar com a paleta dourada em vez de destoar dela */
   --color-success: #6fcb9f;
   --color-success-soft: rgba(111, 203, 159, 0.14);
   --color-danger: #e2836a;
@@ -35,51 +71,14 @@
   --color-info: #7fade0;
   --color-info-soft: rgba(127, 173, 224, 0.14);
 
-  /* Extras só para paletas categóricas de gráfico (ex.: donut de alocação com 7 fatias) */
   --color-chart-5: #b7935b;
   --color-chart-6: #c98f76;
   --color-chart-7: #8f8879;
 
-  /* Sombra com leve matiz quente em vez de preto puro */
   --shadow-premium: 0 20px 48px rgba(8, 6, 3, 0.55), 0 1px 0 rgba(250, 250, 248, 0.05) inset;
   --shadow-premium-sm: 0 8px 20px rgba(8, 6, 3, 0.45);
-}
 
-/* Tema claro — identidade "First Light / Paper": fundo cor de papel, texto quase-preto
-   com matiz quente, acento dourado escurecido para manter contraste de texto em fundo claro. */
-html.light {
-  --color-canvas: #fafaf8;
-  --color-surface: #ffffff;
-  --color-surface-2: #f1eee7;
-  --color-surface-hover: #e9e3d6;
-
-  --color-border: rgba(10, 10, 10, 0.08);
-  --color-border-strong: rgba(10, 10, 10, 0.16);
-
-  --color-ink: #171410;
-  --color-ink-muted: #726c60;
-  --color-ink-faint: #948e80;
-
-  --color-accent: #b9863f;
-  --color-accent-strong: #8f6326;
-  --color-accent-soft: rgba(201, 166, 107, 0.16);
-  --color-on-accent: #fafaf8;
-
-  --color-success: #1f7a5c;
-  --color-success-soft: rgba(31, 122, 92, 0.12);
-  --color-danger: #b5502e;
-  --color-danger-soft: rgba(181, 80, 46, 0.1);
-  --color-info: #3d6fa8;
-  --color-info-soft: rgba(61, 111, 168, 0.1);
-
-  --color-chart-5: #9c8452;
-  --color-chart-6: #b06b54;
-  --color-chart-7: #75705f;
-
-  --shadow-premium: 0 16px 40px rgba(23, 20, 15, 0.09), 0 1px 0 rgba(255, 255, 255, 0.6) inset;
-  --shadow-premium-sm: 0 6px 16px rgba(23, 20, 15, 0.07);
-
-  color-scheme: light;
+  color-scheme: dark;
 }
 
 @theme inline {
@@ -142,7 +141,7 @@ html.light {
 }
 
 html {
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 body {
@@ -150,14 +149,10 @@ body {
   color: var(--color-ink);
   font-feature-settings: "cv11", "ss01";
   letter-spacing: -0.011em;
-  /* Textura sutil de pontos, eco das slide-ink do First Light — só aparece no tema
-     escuro (a variável fica transparente no tema claro, ver html.light abaixo). */
+  /* Textura sutil de pontos — só no tema escuro (ver html.dark acima); o tema claro fica
+     limpo, sem textura, seguindo a regra de simplicidade editorial. */
   background-image: radial-gradient(var(--texture-dot, transparent) 1px, transparent 1.6px);
   background-size: 28px 28px;
-}
-
-html.light body {
-  --texture-dot: transparent;
 }
 
 ::selection {
@@ -165,7 +160,7 @@ html.light body {
   color: var(--color-ink);
 }
 
-/* Scrollbar discreta, combina com o painel escuro */
+/* Scrollbar discreta */
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;

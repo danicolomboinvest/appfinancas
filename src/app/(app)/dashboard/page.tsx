@@ -173,7 +173,7 @@ export default async function DashboardPage() {
             value={emergencyProgress === null ? "Não configurada" : `${Math.round(emergencyProgress * 100)}% concluída`}
             hint={emergencyTarget !== null ? `${formatBRL(emergencyCurrent)} de ${formatBRL(emergencyTarget)}` : "Configure sua meta"}
             progressPercent={emergencyProgress ?? undefined}
-            tone={emergencyProgress !== null && emergencyProgress >= 1 ? "success" : "accent"}
+            tone={emergencyProgress === null ? "neutral" : emergencyProgress >= 1 ? "accent" : "success"}
           />
           <LinkedStatCard
             href="/planejamento/metas"

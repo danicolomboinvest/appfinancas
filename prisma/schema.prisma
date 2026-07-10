@@ -116,7 +116,7 @@ model User {
   avatarUrl    String?
   role         Role     @default(CLIENT)
   currency     String   @default("BRL")
-  theme        String   @default("dark")
+  theme        String   @default("light")
   notifyBudgetAlerts Boolean @default(true)
   notifyLateGoals    Boolean @default(true)
   createdAt    DateTime @default(now())

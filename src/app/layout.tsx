@@ -26,8 +26,8 @@ export const metadata: Metadata = {
 
 const THEME_INIT_SCRIPT = `
 try {
-  if (localStorage.getItem("theme") === "light") {
-    document.documentElement.classList.add("light");
+  if (localStorage.getItem("theme") === "dark") {
+    document.documentElement.classList.add("dark");
   }
 } catch (e) {}
 `;
@@ -40,7 +40,7 @@ export default function RootLayout({
   return (
     <html
       lang="pt-BR"
-      className={`${geistSans.variable} ${geistMono.variable} ${fraunces.variable} dark h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${fraunces.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <head>

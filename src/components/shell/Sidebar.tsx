@@ -82,7 +82,7 @@ export function Sidebar({
                   title={collapsed ? section.label : undefined}
                   className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${collapsedDesktopOnly} ${
                     isActive
-                      ? "bg-accent-soft text-accent-strong font-medium"
+                      ? "bg-surface-2 text-ink font-medium"
                       : "text-ink-muted hover:bg-surface-2 hover:text-ink"
                   }`}
                 >
@@ -100,7 +100,7 @@ export function Sidebar({
                             href={child.href}
                             onClick={onCloseMobile}
                             className={`block truncate rounded-md px-3 py-1.5 text-[13px] transition-colors ${
-                              childActive ? "text-accent-strong font-medium" : "text-ink-faint hover:text-ink"
+                              childActive ? "text-ink font-medium" : "text-ink-faint hover:text-ink"
                             }`}
                           >
                             {child.label}
