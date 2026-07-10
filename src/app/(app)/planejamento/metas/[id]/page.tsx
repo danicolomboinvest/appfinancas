@@ -76,18 +76,20 @@ export default async function GoalDetailPage(props: PageProps<"/planejamento/met
         />
       </Card>
 
-      <GoalForm
-        goalId={goal.id}
-        submitLabel="Salvar alterações"
-        defaults={{
-          name: goal.name,
-          targetAmount: Number(goal.targetAmount),
-          currentAmount: Number(goal.currentAmount),
-          annualRate: Number(goal.annualRate ?? 0),
-          targetDate: targetDate.toISOString().slice(0, 10),
-          icon: goal.icon,
-        }}
-      />
+      <Card className="p-4">
+        <GoalForm
+          goalId={goal.id}
+          submitLabel="Salvar alterações"
+          defaults={{
+            name: goal.name,
+            targetAmount: Number(goal.targetAmount),
+            currentAmount: Number(goal.currentAmount),
+            annualRate: Number(goal.annualRate ?? 0),
+            targetDate: targetDate.toISOString().slice(0, 10),
+            icon: goal.icon,
+          }}
+        />
+      </Card>
     </div>
   );
 }

@@ -2,13 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 import { getRequiredSession } from "@/lib/auth/session";
-import { createAsset, deleteOwnAsset } from "@/lib/repositories/asset.repo";
+import { createAsset, updateOwnAsset, deleteOwnAsset } from "@/lib/repositories/asset.repo";
 import { assetSchema } from "@/lib/validations/asset.schema";
 
 export type AssetFormState = { error?: string };
 
-export async function createAssetAction(_prevState: AssetFormState, formData: FormData): Promise<AssetFormState> {
-  const parsed = assetSchema.safeParse({
+function parseAssetForm(formData: FormData) {
+  return assetSchema.safeParse({
     name: formData.get("name"),
     ticker: formData.get("ticker") || undefined,
     assetClass: formData.get("assetClass"),
@@ -17,13 +17,33 @@ export async function createAssetAction(_prevState: AssetFormState, formData: Fo
     currentValue: formData.get("currentValue"),
     idealAllocationPercent: formData.get("idealAllocationPercent") || undefined,
   });
+}
 
+export async function createAssetAction(_prevState: AssetFormState, formData: FormData): Promise<AssetFormState> {
+  const parsed = parseAssetForm(formData);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
   }
 
   const ctx = await getRequiredSession();
   await createAsset(ctx, parsed.data);
+  revalidatePath("/carteira");
+  revalidatePath("/carteira/por-objetivo");
+  return {};
+}
+
+export async function updateAssetAction(
+  id: string,
+  _prevState: AssetFormState,
+  formData: FormData,
+): Promise<AssetFormState> {
+  const parsed = parseAssetForm(formData);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
+  }
+
+  const ctx = await getRequiredSession();
+  await updateOwnAsset(ctx, id, parsed.data);
   revalidatePath("/carteira");
   revalidatePath("/carteira/por-objetivo");
   return {};

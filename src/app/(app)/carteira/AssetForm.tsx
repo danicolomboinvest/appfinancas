@@ -1,12 +1,12 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { Field, SelectField } from "@/components/ui/Field";
 import { CurrencyField } from "@/components/ui/CurrencyField";
+import { PercentField } from "@/components/ui/PercentField";
 import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
 import { useSuccessToast } from "@/components/ui/useSuccessToast";
-import { createAssetAction, type AssetFormState } from "./actions";
+import { createAssetAction, updateAssetAction, type AssetFormState } from "./actions";
 
 const initialState: AssetFormState = {};
 
@@ -27,17 +27,49 @@ const OBJECTIVE_OPTIONS = [
   { value: "META", label: "Meta" },
 ];
 
-export function AssetForm({ goals }: { goals: { id: string; name: string }[] }) {
-  const [state, formAction, isPending] = useActionState(createAssetAction, initialState);
-  const [objective, setObjective] = useState("OUTRO");
-  useSuccessToast(isPending, state.error, "Ativo adicionado com sucesso.");
+type Defaults = {
+  name?: string;
+  ticker?: string;
+  assetClass?: string;
+  objective?: string;
+  goalId?: string;
+  currentValue?: number;
+  idealAllocationPercent?: number;
+};
+
+/** Form de ativo — sem `assetId`/`defaults` cria um ativo novo; com eles, edita um existente. */
+export function AssetForm({
+  goals,
+  assetId,
+  defaults = {},
+  submitLabel = "Adicionar",
+  onSuccess,
+}: {
+  goals: { id: string; name: string }[];
+  assetId?: string;
+  defaults?: Defaults;
+  submitLabel?: string;
+  onSuccess?: () => void;
+}) {
+  const action = assetId ? updateAssetAction.bind(null, assetId) : createAssetAction;
+  const [state, formAction, isPending] = useActionState(action, initialState);
+  const [objective, setObjective] = useState(defaults.objective ?? "OUTRO");
+  const wasPending = useRef(false);
+  useSuccessToast(isPending, state.error, assetId ? "Ativo atualizado com sucesso." : "Ativo adicionado com sucesso.");
+
+  useEffect(() => {
+    if (wasPending.current && !isPending && !state.error) {
+      onSuccess?.();
+    }
+    wasPending.current = isPending;
+  }, [isPending, state.error, onSuccess]);
 
   return (
-    <Card as="form" action={formAction} className="flex flex-wrap items-end gap-3 p-4">
+    <form action={formAction} className="flex flex-wrap items-end gap-3">
       {state.error && <p className="w-full rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{state.error}</p>}
-      <Field label="Nome" id="name" name="name" required placeholder="Ex.: Tesouro Selic 2029" />
-      <Field label="Ticker (opcional)" id="ticker" name="ticker" className="w-24" />
-      <SelectField label="Classe" id="assetClass" name="assetClass">
+      <Field label="Nome" id="name" name="name" required defaultValue={defaults.name} placeholder="Ex.: Tesouro Selic 2029" />
+      <Field label="Ticker (opcional)" id="ticker" name="ticker" className="w-24" defaultValue={defaults.ticker} />
+      <SelectField label="Classe" id="assetClass" name="assetClass" defaultValue={defaults.assetClass}>
         {ASSET_CLASS_OPTIONS.map((option) => (
           <option key={option.value} value={option.value}>
             {option.label}
@@ -58,7 +90,7 @@ export function AssetForm({ goals }: { goals: { id: string; name: string }[] }) 
         ))}
       </SelectField>
       {objective === "META" && (
-        <SelectField label="Meta vinculada" id="goalId" name="goalId">
+        <SelectField label="Meta vinculada" id="goalId" name="goalId" defaultValue={defaults.goalId}>
           <option value="">Selecione...</option>
           {goals.map((goal) => (
             <option key={goal.id} value={goal.id}>
@@ -67,20 +99,18 @@ export function AssetForm({ goals }: { goals: { id: string; name: string }[] }) 
           ))}
         </SelectField>
       )}
-      <CurrencyField label="Valor atual (R$)" id="currentValue" name="currentValue" required className="w-32" />
-      <Field
-        label="Alocação ideal (ex.: 0.1 = 10%)"
-        id="idealAllocationPercent"
-        name="idealAllocationPercent"
-        type="number"
-        step="0.001"
-        min="0"
-        max="1"
+      <CurrencyField
+        label="Valor atual (R$)"
+        id="currentValue"
+        name="currentValue"
+        required
+        defaultValue={defaults.currentValue}
         className="w-32"
       />
+      <PercentField label="Alocação ideal" id="idealAllocationPercent" name="idealAllocationPercent" defaultValue={defaults.idealAllocationPercent} />
       <Button type="submit" disabled={isPending} size="sm">
-        {isPending ? "Salvando..." : "Adicionar"}
+        {isPending ? "Salvando..." : submitLabel}
       </Button>
-    </Card>
+    </form>
   );
 }

@@ -3,7 +3,7 @@ import { listGoals } from "@/lib/repositories/goal.repo";
 import { computeGoalPlan, computeGoalTrajectory, type GoalCalcResult } from "@/lib/planning/goal";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { GoalForm } from "./GoalForm";
+import { NewGoalButton } from "./NewGoalButton";
 import { GoalCard, type GoalVariant } from "./GoalCard";
 
 /**
@@ -59,9 +59,11 @@ export default async function MetasPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <PageHeader title="Metas" subtitle="Cadastre metas com prazo e veja quanto precisa aportar por mês para chegar lá." />
-
-      <GoalForm defaults={{}} submitLabel="Adicionar meta" />
+      <PageHeader
+        title="Metas"
+        subtitle="Cadastre metas com prazo e veja quanto precisa aportar por mês para chegar lá."
+        action={<NewGoalButton />}
+      />
 
       {sorted.length === 0 ? (
         <EmptyState message="Nenhuma meta cadastrada ainda." />
