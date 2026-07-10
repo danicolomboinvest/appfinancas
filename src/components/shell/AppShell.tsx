@@ -9,6 +9,8 @@ import { GreetingStrip } from "./GreetingStrip";
 import { MORE_NAV_SECTIONS } from "./nav-sections";
 import { logoutAction } from "@/lib/auth/actions";
 import { ToastProvider } from "@/components/ui/toast-context";
+import { QuickExpenseFab } from "@/app/(app)/mensal/QuickExpenseFab";
+import { VoiceEntryFab } from "@/app/(app)/mensal/VoiceEntryFab";
 
 export function AppShell({
   children,
@@ -84,6 +86,11 @@ export function AppShell({
 
         <MobileTabBar onOpenMore={() => setMoreOpen(true)} moreActive={moreActive} />
         <MoreSheet open={moreOpen} onClose={() => setMoreOpen(false)} isAdmin={isAdmin} userEmail={userEmail} onLogout={handleLogout} />
+
+        {/* Lançar rápido: disponível em qualquer tela, não só no Fluxo Financeiro — sempre
+            registra no mês corrente quando a rota atual não é /mensal/[year]/[month]. */}
+        <VoiceEntryFab />
+        <QuickExpenseFab />
       </div>
     </ToastProvider>
   );
