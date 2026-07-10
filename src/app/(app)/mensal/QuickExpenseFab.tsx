@@ -16,7 +16,8 @@ export function currentYearMonthFromPath(pathname: string): { year: number; mont
   return { year, month };
 }
 
-/** Botão fixo "+ Novo gasto", disponível em qualquer tela do Fluxo Financeiro (/mensal/**). */
+/** Botão fixo "+ Novo lançamento", disponível em qualquer tela do Fluxo Financeiro (/mensal/**).
+ * Abre o mesmo EntryForm usado na tela do mês — cobre renda, gasto e aporte, não só gasto. */
 export function QuickExpenseFab() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -39,10 +40,10 @@ export function QuickExpenseFab() {
         className="fixed bottom-24 right-6 z-30 flex items-center gap-2 rounded-full bg-accent px-4 py-3 text-sm font-medium text-ink shadow-premium transition-transform hover:scale-105 active:scale-95 md:bottom-6"
       >
         <Plus size={18} strokeWidth={2} />
-        Novo gasto
+        Novo lançamento
       </button>
 
-      <Modal open={open} onClose={() => setOpen(false)} title={`Novo gasto`}>
+      <Modal open={open} onClose={() => setOpen(false)} title="Novo lançamento">
         <EntryForm
           year={year}
           month={month}
