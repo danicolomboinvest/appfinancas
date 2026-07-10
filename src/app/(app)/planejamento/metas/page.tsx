@@ -1,3 +1,4 @@
+import { Target } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
 import { listGoals } from "@/lib/repositories/goal.repo";
 import { computeGoalPlan, computeGoalTrajectory, type GoalCalcResult } from "@/lib/planning/goal";
@@ -66,7 +67,10 @@ export default async function MetasPage() {
       />
 
       {sorted.length === 0 ? (
-        <EmptyState message="Nenhuma meta cadastrada ainda." />
+        <EmptyState
+          icon={Target}
+          message="Nenhuma meta cadastrada ainda. Crie a primeira e veja quanto precisa guardar por mês para chegar lá."
+        />
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {sorted.map(({ goal, plan, trajectory, targetAmount, currentAmount, targetDate, variant }) => (

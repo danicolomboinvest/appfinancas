@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Receipt } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
 import { listMonthlyEntries, listRecentSubcategories } from "@/lib/repositories/monthly-entry.repo";
 import { listCustomCategories } from "@/lib/repositories/custom-category.repo";
@@ -170,7 +170,7 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
       )}
 
       {entries.length === 0 ? (
-        <EmptyState message="Nenhum lançamento neste mês ainda." />
+        <EmptyState icon={Receipt} message="Nenhum lançamento neste mês ainda. Use o formulário acima para registrar o primeiro." />
       ) : (
         <div className="flex flex-col gap-2">
           {entries.slice(0, VISIBLE_ENTRIES_COUNT).map((entry) => (

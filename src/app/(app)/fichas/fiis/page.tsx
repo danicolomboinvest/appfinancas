@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Building2 } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
 import { listSheets } from "@/lib/repositories/analysis.repo";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -50,7 +51,9 @@ export default async function FichasFiisPage() {
             ))}
           </tbody>
         </table>
-        {sheets.length === 0 && <EmptyState message="Nenhuma ficha criada ainda." />}
+        {sheets.length === 0 && (
+          <EmptyState icon={Building2} message="Nenhuma ficha criada ainda. Digite um ticker acima para começar sua primeira análise." />
+        )}
       </Card>
     </div>
   );

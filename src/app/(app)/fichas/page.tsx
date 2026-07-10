@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Sparkles } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
 import { computeInsights, computeExecutiveSummary, type Insight, type InsightCategory } from "@/lib/insights";
 import { computeFinancialHealthScore } from "@/lib/health-score";
@@ -61,7 +61,10 @@ export default async function AnalisesInsightsPage() {
       <HealthScoreCard score={healthScore} />
 
       {insights.length === 0 ? (
-        <EmptyState message="Cadastre orçamento, metas, reserva de emergência e uma estratégia de carteira para começar a receber insights automáticos aqui." />
+        <EmptyState
+          icon={Sparkles}
+          message="Cadastre orçamento, metas, reserva de emergência e uma estratégia de carteira para começar a receber insights automáticos aqui."
+        />
       ) : (
         <>
           <div className="flex flex-col gap-3">

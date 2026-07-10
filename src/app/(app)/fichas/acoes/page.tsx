@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { LineChart } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
 import { listSheets } from "@/lib/repositories/analysis.repo";
 import { computeScoreTrend, groupLatestSheetPerTicker } from "@/lib/analysis/sheet-history";
@@ -69,7 +70,9 @@ export default async function FichasAcoesPage() {
             })}
           </tbody>
         </table>
-        {sheets.length === 0 && <EmptyState message="Nenhuma ficha criada ainda." />}
+        {sheets.length === 0 && (
+          <EmptyState icon={LineChart} message="Nenhuma ficha criada ainda. Digite um ticker acima para começar sua primeira análise." />
+        )}
       </Card>
     </div>
   );

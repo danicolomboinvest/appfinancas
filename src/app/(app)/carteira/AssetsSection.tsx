@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Pencil, Plus } from "lucide-react";
+import { Briefcase, Pencil, Plus } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -77,7 +77,10 @@ export function AssetsSection({
       </div>
 
       {assets.length === 0 ? (
-        <EmptyState message="Nenhum ativo cadastrado ainda." />
+        <EmptyState
+          icon={Briefcase}
+          message="Nenhum ativo cadastrado ainda. Adicione o primeiro para acompanhar sua carteira aqui."
+        />
       ) : (
         <>
           <Card className="grid grid-cols-1 gap-4 p-5 sm:grid-cols-2">
