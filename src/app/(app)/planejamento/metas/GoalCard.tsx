@@ -112,7 +112,7 @@ export function GoalCard({
           <Icon size={20} strokeWidth={1.75} />
         </span>
         <Link href={`/planejamento/metas/${id}`} className="min-w-0 flex-1">
-          <h3 className="truncate text-base font-semibold text-ink hover:text-accent-strong">{name}</h3>
+          <h3 className="line-clamp-2 text-base font-semibold text-ink hover:text-accent-strong">{name}</h3>
         </Link>
       </div>
 
