@@ -49,6 +49,7 @@ export function PercentField({
         <input
           id={inputId}
           type="number"
+          inputMode="decimal"
           step="0.01"
           required={required}
           value={percentText}

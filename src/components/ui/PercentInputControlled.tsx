@@ -49,6 +49,7 @@ export function PercentInputControlled({
         <input
           id={inputId}
           type="number"
+          inputMode="decimal"
           step="0.01"
           value={percentText}
           onChange={(e) => {
