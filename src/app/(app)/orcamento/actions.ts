@@ -6,48 +6,48 @@ import { applyBudgetToWholeYear, applyBudgetToWholeYearForCustomCategory } from 
 import { createCustomCategory, deleteOwnCustomCategory } from "@/lib/repositories/custom-category.repo";
 import { annualBudgetSchema, annualBudgetForCustomCategorySchema } from "@/lib/validations/budget.schema";
 import { customCategorySchema } from "@/lib/validations/custom-category.schema";
+import { PARENT_CATEGORIES } from "@/lib/categories";
 
 export type AnnualBudgetState = { error?: string };
 
-export async function applyBudgetToWholeYearAction(
+/**
+ * Salva o planejamento de todas as categorias (padrão + personalizadas) de uma vez — um único
+ * botão "Salvar tudo" em vez de um "Salvar" por cartão. Os campos chegam nomeados
+ * `plannedAmount_<ParentCategory>` e `plannedAmount_custom_<id>` (ver OrcamentoForm.tsx).
+ * Cada categoria já é salva de forma atômica internamente (applyBudgetToWholeYear faz um
+ * $transaction pros 12 meses); aplicamos todas em paralelo já que são independentes entre si.
+ */
+export async function applyAllBudgetsAction(
   _prevState: AnnualBudgetState,
   formData: FormData,
 ): Promise<AnnualBudgetState> {
-  const parsed = annualBudgetSchema.safeParse({
-    year: formData.get("year"),
-    parentCategory: formData.get("parentCategory"),
-    plannedAmount: formData.get("plannedAmount"),
+  const year = Number(formData.get("year"));
+  const customCategoryIds = formData.getAll("customCategoryId").map(String);
+  const ctx = await getRequiredSession();
+
+  const parentWrites = PARENT_CATEGORIES.map((parentCategory) => {
+    const raw = formData.get(`plannedAmount_${parentCategory}`);
+    const parsed = annualBudgetSchema.safeParse({ year, parentCategory, plannedAmount: raw });
+    return parsed.success ? applyBudgetToWholeYear(ctx, parsed.data) : Promise.reject(parsed.error);
   });
 
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
-  }
-
-  const ctx = await getRequiredSession();
-  await applyBudgetToWholeYear(ctx, parsed.data);
-  revalidatePath("/orcamento");
-  revalidatePath(`/mensal/${parsed.data.year}`);
-  return {};
-}
-
-export async function applyBudgetToWholeYearForCustomCategoryAction(
-  _prevState: AnnualBudgetState,
-  formData: FormData,
-): Promise<AnnualBudgetState> {
-  const parsed = annualBudgetForCustomCategorySchema.safeParse({
-    year: formData.get("year"),
-    customCategoryId: formData.get("customCategoryId"),
-    plannedAmount: formData.get("plannedAmount"),
+  const customWrites = customCategoryIds.map((customCategoryId) => {
+    const raw = formData.get(`plannedAmount_custom_${customCategoryId}`);
+    const parsed = annualBudgetForCustomCategorySchema.safeParse({ year, customCategoryId, plannedAmount: raw });
+    return parsed.success
+      ? applyBudgetToWholeYearForCustomCategory(ctx, parsed.data)
+      : Promise.reject(parsed.error);
   });
 
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
+  try {
+    await Promise.all([...parentWrites, ...customWrites]);
+  } catch {
+    return { error: "Algum valor não pôde ser salvo — confira os campos e tente de novo." };
   }
 
-  const ctx = await getRequiredSession();
-  await applyBudgetToWholeYearForCustomCategory(ctx, parsed.data);
   revalidatePath("/orcamento");
   revalidatePath("/orcamento/comparativo");
+  revalidatePath(`/mensal/${year}`);
   return {};
 }
 

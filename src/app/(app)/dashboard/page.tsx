@@ -30,6 +30,18 @@ function changePercent(current: number, previous: number): number | null {
   return (current - previous) / previous;
 }
 
+/**
+ * Diferença em R$ entre o mês atual e o anterior — usada só para o saldo, em vez de %.
+ * Perto de zero (ou quando não há renda no mês), o saldo tende a ficar bem próximo do gasto
+ * invertido (saldo = renda - gastos - aportes, e com renda/aportes zerados vira -gastos), o
+ * que faz a variação percentual do saldo coincidir com a dos gastos por pura matemática —
+ * parecendo um bug de "número repetido" sem ser. Um delta em R$ não sofre dessa ilusão.
+ */
+function changeAmount(current: number, previous: number): number | null {
+  if (current === previous) return null;
+  return current - previous;
+}
+
 export default async function DashboardPage() {
   const ctx = await getRequiredSession();
   const now = new Date();
@@ -55,7 +67,7 @@ export default async function DashboardPage() {
 
   const incomeTrend = changePercent(currentMonthSummary.totalIncome, previousMonthSummary.totalIncome);
   const expenseTrend = changePercent(currentMonthSummary.totalExpense, previousMonthSummary.totalExpense);
-  const balanceTrend = changePercent(currentMonthSummary.balance, previousMonthSummary.balance);
+  const balanceDelta = changeAmount(currentMonthSummary.balance, previousMonthSummary.balance);
 
   const monthsSoFar = summary.months.filter((m) => m.isRealized);
   const incomeSparkline = monthsSoFar.map((m) => ({ label: MONTH_LABELS[m.month - 1], value: m.totalIncome }));
@@ -142,7 +154,11 @@ export default async function DashboardPage() {
               ? undefined
               : `Taxa de poupança: ${formatPercentNumber(summary.savingsRate * 100, 1)}`
           }
-          trend={balanceTrend === null ? undefined : { percent: balanceTrend, periodLabel: "mês passado" }}
+          trend={
+            balanceDelta === null
+              ? undefined
+              : { percent: balanceDelta, periodLabel: "mês passado", displayValue: formatBRL(Math.abs(balanceDelta)) }
+          }
           sparkline={balanceSparkline}
         />
       </div>

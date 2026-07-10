@@ -1,9 +1,12 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
-/** Modal centralizado no desktop, vira um drawer que sobe da base no mobile. */
+/** Modal centralizado no desktop, vira um drawer que sobe da base no mobile. Renderiza via
+ * portal em document.body — evita ficar preso dentro de um <form> ou de qualquer ancestral com
+ * overflow/transform (ver histórico de bugs de FAB "preso" nesse mesmo tipo de problema). */
 export function Modal({
   open,
   onClose,
@@ -15,6 +18,15 @@ export function Modal({
   title: string;
   children: React.ReactNode;
 }) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    // document.body só existe no cliente — este efeito detecta a montagem pra evitar
+    // createPortal durante o render no servidor, não sincroniza com nenhum estado do React.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMounted(true);
+  }, []);
+
   useEffect(() => {
     if (!open) return;
     function handleKeyDown(event: KeyboardEvent) {
@@ -24,9 +36,9 @@ export function Modal({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [open, onClose]);
 
-  if (!open) return null;
+  if (!open || !mounted) return null;
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center sm:p-4">
       <button aria-label="Fechar" onClick={onClose} className="fixed inset-0 bg-black/60" />
       <div className="relative z-10 max-h-[90vh] w-full max-w-lg animate-fade-in overflow-y-auto rounded-t-2xl border border-border bg-surface p-6 shadow-premium sm:rounded-2xl">
@@ -38,6 +50,7 @@ export function Modal({
         </div>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

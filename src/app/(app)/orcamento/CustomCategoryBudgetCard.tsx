@@ -1,42 +1,32 @@
 "use client";
 
-import { useActionState, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { Trash2, Tag } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { CurrencyField } from "@/components/ui/CurrencyField";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
-import { useSuccessToast } from "@/components/ui/useSuccessToast";
 import { CUSTOM_CATEGORY_ICON_MAP } from "@/lib/categories";
-import {
-  applyBudgetToWholeYearForCustomCategoryAction,
-  deleteCustomCategoryAction,
-  type AnnualBudgetState,
-} from "./actions";
-
-const initialState: AnnualBudgetState = {};
+import { deleteCustomCategoryAction } from "./actions";
 
 function formatBRL(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
-/** Mesmo cartão de planejamento anual que BudgetCategoryCard, só que pra uma categoria criada
- * pelo próprio usuário — por isso também tem um botão de apagar, com confirmação. */
+/** Mesmo cartão de planejamento anual que BudgetCategoryCard (sem form/submit próprio — ver
+ * OrcamentoForm.tsx), só que pra uma categoria criada pelo usuário — por isso também tem um
+ * botão de apagar, com confirmação, que continua sendo uma ação imediata e separada. */
 export function CustomCategoryBudgetCard({
-  year,
   customCategoryId,
   name,
   icon,
   defaultValue,
 }: {
-  year: number;
   customCategoryId: string;
   name: string;
   icon: string;
   defaultValue: number;
 }) {
-  const [state, formAction, isPending] = useActionState(applyBudgetToWholeYearForCustomCategoryAction, initialState);
-  useSuccessToast(isPending, state.error, "Planejamento salvo para os 12 meses do ano.");
   const [monthly, setMonthly] = useState(defaultValue);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [isDeleting, startDelete] = useTransition();
@@ -64,27 +54,18 @@ export function CustomCategoryBudgetCard({
         </button>
       </div>
 
-      <form action={formAction} className="flex flex-col gap-4">
-        <input type="hidden" name="year" value={year} />
-        <input type="hidden" name="customCategoryId" value={customCategoryId} />
+      <input type="hidden" name="customCategoryId" value={customCategoryId} />
 
-        {state.error && <p className="rounded-lg bg-danger-soft px-3 py-2 text-xs text-danger">{state.error}</p>}
+      <CurrencyField
+        label="Quanto pretende gastar por mês?"
+        name={`plannedAmount_custom_${customCategoryId}`}
+        defaultValue={defaultValue}
+        onValueChange={setMonthly}
+      />
 
-        <CurrencyField
-          label="Quanto pretende gastar por mês?"
-          name="plannedAmount"
-          defaultValue={defaultValue}
-          onValueChange={setMonthly}
-        />
-
-        <p className="text-xs text-ink-muted">
-          = <span className="font-medium text-ink">{formatBRL(monthly * 12)}</span> por ano
-        </p>
-
-        <Button type="submit" size="sm" variant="secondary" disabled={isPending} className="w-fit">
-          {isPending ? "Salvando..." : "Salvar"}
-        </Button>
-      </form>
+      <p className="text-xs text-ink-muted">
+        = <span className="font-medium text-ink">{formatBRL(monthly * 12)}</span> por ano
+      </p>
 
       <Modal open={confirmOpen} onClose={() => setConfirmOpen(false)} title="Apagar categoria?">
         <p className="text-sm text-ink-muted">
