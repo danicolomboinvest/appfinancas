@@ -38,7 +38,7 @@ export function LinkedStatCard({
 }) {
   return (
     <Link href={href} className="group block">
-      <Card className="flex flex-col gap-3 p-4 transition-colors duration-150 hover:border-accent-strong/40 hover:bg-surface-hover">
+      <Card className="flex flex-col gap-3 p-3.5 transition-colors duration-150 hover:border-accent-strong/40 hover:bg-surface-hover sm:p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-xs text-ink-muted">
             <Icon size={15} strokeWidth={1.75} />
@@ -46,7 +46,7 @@ export function LinkedStatCard({
           </div>
           <ChevronRight size={15} className="text-ink-faint transition-transform duration-150 group-hover:translate-x-0.5" />
         </div>
-        <p className={`text-xl font-semibold tracking-tight ${TONE_TEXT[tone]}`}>{value}</p>
+        <p className={`text-lg leading-snug font-semibold tracking-tight sm:text-xl ${TONE_TEXT[tone]}`}>{value}</p>
         {progressPercent !== undefined && (
           <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-2">
             <div

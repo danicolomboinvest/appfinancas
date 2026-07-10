@@ -33,9 +33,9 @@ export function StatCard({
   const trendIsGood = trend !== undefined && (trend.goodDirection === "down" ? !trendUp : trendUp);
 
   return (
-    <Card className="p-4">
+    <Card className="p-3.5 sm:p-4">
       <p className="text-xs text-ink-muted">{label}</p>
-      <p className={`mt-1.5 text-xl font-semibold tracking-tight ${TONE_CLASSES[tone]}`}>{value}</p>
+      <p className={`mt-1.5 text-lg leading-snug font-semibold tracking-tight sm:text-xl ${TONE_CLASSES[tone]}`}>{value}</p>
       {hint && <p className="mt-1 text-xs text-ink-faint">{hint}</p>}
       {trend && (
         <p className={`mt-1 text-xs font-medium ${trendIsGood ? "text-success" : "text-danger"}`}>
