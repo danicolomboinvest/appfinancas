@@ -32,7 +32,5 @@ export async function savePlanningParamsAction(
   const ctx = await getRequiredSession();
   await upsertPlanningParams(ctx, parsed.data);
   revalidatePath("/planejamento/acumulo");
-  revalidatePath("/planejamento/usufruto");
-  revalidatePath("/planejamento/projecao");
   return {};
 }

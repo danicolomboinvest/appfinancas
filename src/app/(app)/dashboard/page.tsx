@@ -184,7 +184,7 @@ export default async function DashboardPage() {
             tone={goalsBehind > 0 ? "danger" : "success"}
           />
           <LinkedStatCard
-            href="/planejamento/usufruto"
+            href="/planejamento/acumulo#liberdade-financeira"
             icon={Sparkles}
             label="Liberdade Financeira"
             value={usufructSurplus === null ? "Não configurada" : formatBRL(usufructSurplus)}
