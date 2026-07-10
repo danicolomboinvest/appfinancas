@@ -14,8 +14,8 @@ export function MobileTabBar({ onOpenMore, moreActive }: { onOpenMore: () => voi
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-40 flex items-stretch border-t border-border bg-surface md:hidden"
-      style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+      className="fixed inset-x-3 z-40 flex items-stretch gap-1 rounded-[28px] border border-border/60 bg-surface/75 p-1.5 shadow-premium backdrop-blur-xl md:hidden"
+      style={{ bottom: "calc(0.75rem + env(safe-area-inset-bottom))" }}
     >
       {MOBILE_TABS.map((tab) => {
         const isActive = pathname === tab.basePath || pathname.startsWith(`${tab.basePath}/`);
@@ -24,11 +24,11 @@ export function MobileTabBar({ onOpenMore, moreActive }: { onOpenMore: () => voi
           <Link
             key={tab.basePath}
             href={tab.href}
-            className={`flex flex-1 flex-col items-center gap-1 py-2.5 text-[11px] transition-colors ${
-              isActive ? "text-accent-strong" : "text-ink-muted"
+            className={`flex flex-1 flex-col items-center gap-0.5 rounded-[20px] py-2 text-[10px] font-medium transition-all duration-200 active:scale-95 ${
+              isActive ? "bg-accent-soft text-accent-strong" : "text-ink-muted"
             }`}
           >
-            <Icon size={21} strokeWidth={isActive ? 2.1 : 1.75} />
+            <Icon size={20} strokeWidth={isActive ? 2.2 : 1.75} />
             {tab.label}
           </Link>
         );
@@ -36,11 +36,11 @@ export function MobileTabBar({ onOpenMore, moreActive }: { onOpenMore: () => voi
       <button
         type="button"
         onClick={onOpenMore}
-        className={`flex flex-1 flex-col items-center gap-1 py-2.5 text-[11px] transition-colors ${
-          moreActive ? "text-accent-strong" : "text-ink-muted"
+        className={`flex flex-1 flex-col items-center gap-0.5 rounded-[20px] py-2 text-[10px] font-medium transition-all duration-200 active:scale-95 ${
+          moreActive ? "bg-accent-soft text-accent-strong" : "text-ink-muted"
         }`}
       >
-        <MoreHorizontal size={21} strokeWidth={moreActive ? 2.1 : 1.75} />
+        <MoreHorizontal size={20} strokeWidth={moreActive ? 2.2 : 1.75} />
         Mais
       </button>
     </nav>
