@@ -24,6 +24,10 @@ export const CHART_TOOLTIP_STYLE = {
   },
   labelStyle: { color: "var(--color-ink-muted)" },
   itemStyle: { color: "var(--color-ink)" },
+  // "hover" (padrão do Recharts) não existe de verdade em touchscreen — um toque não sustenta
+  // estado de hover, então o tooltip nunca aparece de forma confiável no celular. "click" faz o
+  // toque mostrar/trocar o tooltip explicitamente, funcionando igual com mouse no desktop.
+  trigger: "click" as const,
 };
 
 export const CHART_LEGEND_STYLE = {

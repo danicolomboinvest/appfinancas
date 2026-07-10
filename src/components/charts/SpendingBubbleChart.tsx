@@ -44,8 +44,9 @@ export function SpendingBubbleChart({ data }: { data: BubbleDatum[] }) {
       <ScatterChart margin={{ top: 30, right: 30, bottom: 20, left: 30 }}>
         <XAxis type="number" dataKey="x" domain={DOMAIN} hide />
         <YAxis type="number" dataKey="y" domain={DOMAIN} hide />
-        <ZAxis type="number" dataKey="value" range={[600, 5000]} />
+        <ZAxis type="number" dataKey="value" range={[900, 5000]} />
         <Tooltip
+          trigger="click"
           cursor={{ strokeDasharray: "3 3" }}
           content={({ active, payload }) => {
             if (!active || !payload || payload.length === 0) return null;

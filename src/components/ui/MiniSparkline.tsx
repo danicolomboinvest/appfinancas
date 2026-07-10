@@ -65,6 +65,7 @@ export function MiniSparkline({
         </defs>
         <XAxis dataKey="label" hide />
         <Tooltip
+          trigger="click"
           content={<SparklineTooltip valueFormatter={valueFormatter} />}
           cursor={{ stroke: CHART_COLORS.grid }}
         />
