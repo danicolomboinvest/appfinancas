@@ -188,7 +188,7 @@ export async function computeInsights(ctx: AuthContext): Promise<Insight[]> {
 
   // --- Planejado x Realizado ---
 
-  const comparativoHref = "/orcamento/comparativo";
+  const comparativoHref = `/orcamento/${year}`;
 
   if (notifyBudget) {
     const currentMonthComparison = annualBudgetComparison.months.find((m) => m.month === month);

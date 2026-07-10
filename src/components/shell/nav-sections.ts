@@ -33,16 +33,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { href: "/mensal/gastos", label: "Só gastos" },
     ],
   },
-  {
-    basePath: "/orcamento",
-    href: "/orcamento",
-    label: "Orçamento",
-    icon: Wallet,
-    children: [
-      { href: "/orcamento", label: "Planejar por categoria" },
-      { href: "/orcamento/comparativo", label: "Planejado x Realizado" },
-    ],
-  },
+  { basePath: "/orcamento", href: "/orcamento", label: "Orçamento", icon: Wallet },
   {
     basePath: "/planejamento",
     href: "/planejamento/acumulo",

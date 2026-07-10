@@ -33,7 +33,7 @@ const SECTIONS = [
     href: "/orcamento",
     icon: Wallet,
     title: "Orçamento",
-    subtitle: "Planeje quanto quer gastar em cada categoria.",
+    subtitle: "Planeje quanto quer gastar e compare com o que gastou de fato.",
   },
   {
     href: "/planejamento/acumulo",
