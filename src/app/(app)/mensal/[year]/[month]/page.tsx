@@ -12,6 +12,7 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Breadcrumb } from "@/components/ui/Breadcrumb";
+import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import { DonutAllocationChart, type DonutSlice } from "@/components/charts/DonutAllocationChart";
 import { EntryForm } from "./EntryForm";
 import { DeleteEntryButton } from "./DeleteEntryButton";
@@ -44,6 +45,10 @@ const CATEGORY_TONE: Record<string, "success" | "danger" | "accent"> = {
   INVESTMENT_CONTRIBUTION: "accent",
 };
 
+/** Meses movimentados podem ter dezenas de lançamentos — mostra os mais recentes direto e
+ * esconde o resto atrás de "Ver mais" em vez de empilhar tudo de uma vez no mobile. */
+const VISIBLE_ENTRIES_COUNT = 8;
+
 function formatBRL(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
@@ -51,6 +56,32 @@ function formatBRL(value: number) {
 function adjacentMonth(year: number, month: number, delta: number) {
   const date = new Date(year, month - 1 + delta, 1);
   return { year: date.getFullYear(), month: date.getMonth() + 1 };
+}
+
+function EntryRow({
+  entry,
+  year,
+  month,
+}: {
+  entry: Awaited<ReturnType<typeof listMonthlyEntries>>[number];
+  year: number;
+  month: number;
+}) {
+  return (
+    <Card className="flex items-center justify-between gap-3 p-3">
+      <div className="flex min-w-0 items-center gap-3">
+        <Badge tone={CATEGORY_TONE[entry.category]}>{CATEGORY_LABEL[entry.category]}</Badge>
+        <div className="min-w-0">
+          <p className="truncate text-sm font-medium text-ink">{entry.subcategory ?? "Sem subcategoria"}</p>
+          {entry.description && <p className="truncate text-xs text-ink-faint">{entry.description}</p>}
+        </div>
+      </div>
+      <div className="flex shrink-0 items-center gap-3">
+        <p className="text-sm font-medium text-ink">{formatBRL(Number(entry.amount))}</p>
+        <DeleteEntryButton id={entry.id} year={year} month={month} />
+      </div>
+    </Card>
+  );
 }
 
 export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]">) {
@@ -142,21 +173,18 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
         <EmptyState message="Nenhum lançamento neste mês ainda." />
       ) : (
         <div className="flex flex-col gap-2">
-          {entries.map((entry) => (
-            <Card key={entry.id} className="flex items-center justify-between gap-3 p-3">
-              <div className="flex min-w-0 items-center gap-3">
-                <Badge tone={CATEGORY_TONE[entry.category]}>{CATEGORY_LABEL[entry.category]}</Badge>
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-ink">{entry.subcategory ?? "Sem subcategoria"}</p>
-                  {entry.description && <p className="truncate text-xs text-ink-faint">{entry.description}</p>}
-                </div>
-              </div>
-              <div className="flex shrink-0 items-center gap-3">
-                <p className="text-sm font-medium text-ink">{formatBRL(Number(entry.amount))}</p>
-                <DeleteEntryButton id={entry.id} year={year} month={month} />
-              </div>
-            </Card>
+          {entries.slice(0, VISIBLE_ENTRIES_COUNT).map((entry) => (
+            <EntryRow key={entry.id} entry={entry} year={year} month={month} />
           ))}
+          {entries.length > VISIBLE_ENTRIES_COUNT && (
+            <CollapsibleSection label={`Ver mais ${entries.length - VISIBLE_ENTRIES_COUNT} lançamentos`}>
+              <div className="flex flex-col gap-2">
+                {entries.slice(VISIBLE_ENTRIES_COUNT).map((entry) => (
+                  <EntryRow key={entry.id} entry={entry} year={year} month={month} />
+                ))}
+              </div>
+            </CollapsibleSection>
+          )}
         </div>
       )}
     </div>

@@ -10,6 +10,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
 import { Card } from "@/components/ui/Card";
 import { ResponsiveTable, type ResponsiveColumn } from "@/components/ui/ResponsiveTable";
+import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import type { MonthlyBreakdown } from "@/lib/consolidation/yearly";
 import { QuickEntryButton } from "./QuickEntryButton";
@@ -101,11 +102,13 @@ export default async function YearPage(props: PageProps<"/mensal/[year]">) {
         <YearlyBarChart months={summary.months} />
       </Card>
 
-      <ResponsiveTable
-        columns={monthColumns(year, recentSubcategories, customCategories)}
-        rows={summary.months}
-        rowKey={(m) => String(m.month)}
-      />
+      <CollapsibleSection label="Ver os 12 meses em detalhe">
+        <ResponsiveTable
+          columns={monthColumns(year, recentSubcategories, customCategories)}
+          rows={summary.months}
+          rowKey={(m) => String(m.month)}
+        />
+      </CollapsibleSection>
     </div>
   );
 }
