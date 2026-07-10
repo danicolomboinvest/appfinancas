@@ -14,7 +14,10 @@ const SLICE_COLORS = [
   "var(--color-chart-7)",
 ];
 
-export type DonutSlice = { name: string; value: number };
+/** `id` é opcional (chamadores com rótulos já garantidamente únicos, ex.: uma fatia por
+ * classe de ativo, não precisam informar) — quando presente, evita colisão de key quando
+ * dois registros diferentes têm o mesmo `name` (ex.: dois ativos com o mesmo nome). */
+export type DonutSlice = { id?: string; name: string; value: number };
 
 export function DonutAllocationChart({ title, data }: { title: string; data: DonutSlice[] }) {
   const hasData = data.some((d) => d.value > 0);
@@ -27,7 +30,7 @@ export function DonutAllocationChart({ title, data }: { title: string; data: Don
           <PieChart>
             <Pie data={data} dataKey="value" nameKey="name" innerRadius={55} outerRadius={85} paddingAngle={2}>
               {data.map((entry, index) => (
-                <Cell key={entry.name} fill={SLICE_COLORS[index % SLICE_COLORS.length]} stroke="none" />
+                <Cell key={entry.id ?? entry.name} fill={SLICE_COLORS[index % SLICE_COLORS.length]} stroke="none" />
               ))}
             </Pie>
             <Tooltip {...CHART_TOOLTIP_STYLE} formatter={(value) => formatPercentNumber(Number(value) * 100, 1)} />

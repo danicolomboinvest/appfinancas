@@ -61,10 +61,10 @@ export function AssetsSection({
   const totalValue = assets.reduce((sum, asset) => sum + asset.currentValue, 0);
   const currentAllocationData = assets
     .filter((asset) => asset.currentValue > 0)
-    .map((asset) => ({ name: asset.name, value: totalValue > 0 ? asset.currentValue / totalValue : 0 }));
+    .map((asset) => ({ id: asset.id, name: asset.name, value: totalValue > 0 ? asset.currentValue / totalValue : 0 }));
   const idealAllocationData = assets
     .filter((asset) => asset.idealAllocationPercent !== null)
-    .map((asset) => ({ name: asset.name, value: asset.idealAllocationPercent ?? 0 }));
+    .map((asset) => ({ id: asset.id, name: asset.name, value: asset.idealAllocationPercent ?? 0 }));
 
   return (
     <div className="flex flex-col gap-6">
