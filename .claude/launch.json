@@ -16,7 +16,7 @@
     {
       "name": "terceira-caixinha-web",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "/Users/danielacolombo/Desktop/terceira-caixinha/web", "run", "dev", "--", "-p", "3210"],
+      "runtimeArgs": ["--prefix", "/Users/danielacolombo/Projects/terceira-caixinha/web", "run", "dev", "--", "-p", "3210"],
       "port": 3210
     },
     {
