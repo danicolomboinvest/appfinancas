@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/Badge";
 import { CreateCriterionForm } from "./CreateCriterionForm";
 import { ToggleActiveButton } from "./ToggleActiveButton";
 
-const SHEET_TYPE_LABEL: Record<string, string> = { STOCK: "Ações", FII: "FIIs" };
+const SHEET_TYPE_LABEL: Record<string, string> = { STOCK: "Ações", FII: "FIIs", STOCK_INTL: "Stocks", ETF: "ETFs" };
 
 export default async function AdminCriteriosPage() {
   await requireAdmin();

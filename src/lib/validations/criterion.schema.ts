@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const criterionSchema = z.object({
-  sheetType: z.enum(["STOCK", "FII"]),
+  sheetType: z.enum(["STOCK", "FII", "STOCK_INTL", "ETF"]),
   key: z
     .string()
     .trim()

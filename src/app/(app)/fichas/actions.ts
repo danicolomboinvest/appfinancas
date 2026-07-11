@@ -8,6 +8,13 @@ import { createAnalysisSheetSchema, saveAnalysisResponsesSchema } from "@/lib/va
 
 export type SheetFormState = { error?: string };
 
+const BASE_PATH_BY_SHEET_TYPE: Record<string, string> = {
+  STOCK: "/fichas/acoes",
+  FII: "/fichas/fiis",
+  STOCK_INTL: "/fichas/stocks",
+  ETF: "/fichas/etfs",
+};
+
 export async function createSheetAction(_prevState: SheetFormState, formData: FormData): Promise<SheetFormState> {
   const sheetType = formData.get("sheetType");
   const parsed = createAnalysisSheetSchema.safeParse({
@@ -23,7 +30,7 @@ export async function createSheetAction(_prevState: SheetFormState, formData: Fo
 
   const ctx = await getRequiredSession();
   const sheet = await createSheet(ctx, parsed.data);
-  const basePath = parsed.data.sheetType === "STOCK" ? "/fichas/acoes" : "/fichas/fiis";
+  const basePath = BASE_PATH_BY_SHEET_TYPE[parsed.data.sheetType];
   revalidatePath(basePath);
   redirect(`${basePath}/${sheet.id}`);
 }

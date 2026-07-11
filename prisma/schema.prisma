@@ -79,6 +79,8 @@ enum SimulationType {
 enum SheetType {
   STOCK
   FII
+  STOCK_INTL
+  ETF
 }
 
 enum FiiType {

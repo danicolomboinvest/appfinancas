@@ -79,6 +79,8 @@ export const NAV_SECTIONS: NavSection[] = [
       { href: "/fichas", label: "Insights" },
       { href: "/fichas/acoes", label: "Ações" },
       { href: "/fichas/fiis", label: "FIIs" },
+      { href: "/fichas/stocks", label: "Stocks" },
+      { href: "/fichas/etfs", label: "ETFs" },
     ],
   },
   {

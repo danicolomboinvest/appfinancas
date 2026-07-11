@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { getRequiredSession } from "@/lib/auth/session";
 import { getOwnSheetWithResponses, listCriteria, listSheetsByTicker } from "@/lib/repositories/analysis.repo";
 import { computeScoreTrend } from "@/lib/analysis/sheet-history";
-import { CriteriaForm } from "@/components/forms/CriteriaForm";
+import { StockSheetWorkspace } from "./StockSheetWorkspace";
 import { DeleteSheetButton } from "@/components/forms/DeleteSheetButton";
 import { ReanalyzeButton } from "@/components/forms/ReanalyzeButton";
 import { ScoreHistoryChart, type ScoreHistoryPoint } from "@/components/charts/ScoreHistoryChart";
@@ -59,9 +59,10 @@ export default async function StockSheetDetailPage(props: PageProps<"/fichas/aco
         </Card>
       )}
 
-      <CriteriaForm
+      <StockSheetWorkspace
         sheetId={sheet.id}
         basePath="/fichas/acoes"
+        ticker={sheet.ticker}
         criteria={criteria}
         initialResponses={sheet.responses.map((response) => ({
           criterionId: response.criterionId,

@@ -1,35 +1,32 @@
 import { notFound } from "next/navigation";
 import { getRequiredSession } from "@/lib/auth/session";
 import { getOwnSheetWithResponses, listCriteria } from "@/lib/repositories/analysis.repo";
-import { FiiSheetWorkspace } from "./FiiSheetWorkspace";
+import { StockIntlSheetWorkspace } from "./StockIntlSheetWorkspace";
 import { DeleteSheetButton } from "@/components/forms/DeleteSheetButton";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Breadcrumb } from "@/components/ui/Breadcrumb";
 
-export default async function FiiSheetDetailPage(props: PageProps<"/fichas/fiis/[id]">) {
+export default async function StockIntlSheetDetailPage(props: PageProps<"/fichas/stocks/[id]">) {
   const { id } = await props.params;
   const ctx = await getRequiredSession();
-  const sheet = await getOwnSheetWithResponses(ctx, id);
+  const [sheet, criteria] = await Promise.all([getOwnSheetWithResponses(ctx, id), listCriteria("STOCK_INTL")]);
 
   if (!sheet) {
     notFound();
   }
 
-  const categories = sheet.fiiType === "TIJOLO" || sheet.fiiType === "PAPEL" ? ["COMUM", sheet.fiiType] : ["COMUM"];
-  const criteria = await listCriteria("FII", categories);
-
   return (
     <div className="flex flex-col gap-6">
-      <Breadcrumb items={[{ label: "Análises", href: "/fichas" }, { label: "FIIs", href: "/fichas/fiis" }, { label: sheet.ticker }]} />
+      <Breadcrumb items={[{ label: "Análises", href: "/fichas" }, { label: "Stocks", href: "/fichas/stocks" }, { label: sheet.ticker }]} />
 
       <PageHeader
         title={`${sheet.ticker}${sheet.companyName ? ` — ${sheet.companyName}` : ""}`}
-        action={<DeleteSheetButton id={sheet.id} basePath="/fichas/fiis" />}
+        action={<DeleteSheetButton id={sheet.id} basePath="/fichas/stocks" />}
       />
 
-      <FiiSheetWorkspace
+      <StockIntlSheetWorkspace
         sheetId={sheet.id}
-        basePath="/fichas/fiis"
+        basePath="/fichas/stocks"
         ticker={sheet.ticker}
         criteria={criteria}
         initialResponses={sheet.responses.map((response) => ({

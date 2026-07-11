@@ -19,6 +19,8 @@ export function CreateCriterionForm() {
       <SelectField label="Ficha" id="sheetType" name="sheetType">
         <option value="STOCK">Ações</option>
         <option value="FII">FIIs</option>
+        <option value="STOCK_INTL">Stocks</option>
+        <option value="ETF">ETFs</option>
       </SelectField>
       <Field label="Chave (única, ex.: novo_criterio)" id="key" name="key" required placeholder="novo_criterio" />
       <Field label="Rótulo" id="label" name="label" required />

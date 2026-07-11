@@ -179,8 +179,8 @@ export function CriteriaForm({
                     {criterion.label}
                     {criterion.helpText && <HelpTooltip text={criterion.helpText} />}
                     {autoFilledIds.has(criterion.id) && (
-                      <span className="text-[10px] font-normal text-accent-strong" title="Preenchido automaticamente a partir de um documento — revise antes de salvar">
-                        (IA)
+                      <span className="text-[10px] font-normal text-accent-strong" title="Preenchido automaticamente a partir de uma fonte externa — revise antes de salvar">
+                        (auto)
                       </span>
                     )}
                   </div>

@@ -1,5 +1,5 @@
 import { PrismaClient, type RateBasis } from "@prisma/client";
-import { STOCK_CRITERIA, FII_CRITERIA, type CriterionSeed } from "./criteria-catalog";
+import { STOCK_CRITERIA, FII_CRITERIA, STOCK_INTL_CRITERIA, ETF_CRITERIA, type CriterionSeed } from "./criteria-catalog";
 
 const prisma = new PrismaClient();
 
@@ -9,7 +9,7 @@ const DEFAULT_RATES: { id: string; name: string; rateValue: number; basis: RateB
   { id: "seed-selic", name: "Selic", rateValue: 0.1075, basis: "ANNUAL_252" },
 ];
 
-async function seedCriteria(sheetType: "STOCK" | "FII", criteria: CriterionSeed[]) {
+async function seedCriteria(sheetType: "STOCK" | "FII" | "STOCK_INTL" | "ETF", criteria: CriterionSeed[]) {
   for (const criterion of criteria) {
     await prisma.analysisCriterionDefinition.upsert({
       where: { sheetType_key: { sheetType, key: criterion.key } },
@@ -37,6 +37,8 @@ async function main() {
 
   await seedCriteria("STOCK", STOCK_CRITERIA);
   await seedCriteria("FII", FII_CRITERIA);
+  await seedCriteria("STOCK_INTL", STOCK_INTL_CRITERIA);
+  await seedCriteria("ETF", ETF_CRITERIA);
 }
 
 main()

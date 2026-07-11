@@ -1,35 +1,32 @@
 import { notFound } from "next/navigation";
 import { getRequiredSession } from "@/lib/auth/session";
 import { getOwnSheetWithResponses, listCriteria } from "@/lib/repositories/analysis.repo";
-import { FiiSheetWorkspace } from "./FiiSheetWorkspace";
+import { EtfSheetWorkspace } from "./EtfSheetWorkspace";
 import { DeleteSheetButton } from "@/components/forms/DeleteSheetButton";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Breadcrumb } from "@/components/ui/Breadcrumb";
 
-export default async function FiiSheetDetailPage(props: PageProps<"/fichas/fiis/[id]">) {
+export default async function EtfSheetDetailPage(props: PageProps<"/fichas/etfs/[id]">) {
   const { id } = await props.params;
   const ctx = await getRequiredSession();
-  const sheet = await getOwnSheetWithResponses(ctx, id);
+  const [sheet, criteria] = await Promise.all([getOwnSheetWithResponses(ctx, id), listCriteria("ETF")]);
 
   if (!sheet) {
     notFound();
   }
 
-  const categories = sheet.fiiType === "TIJOLO" || sheet.fiiType === "PAPEL" ? ["COMUM", sheet.fiiType] : ["COMUM"];
-  const criteria = await listCriteria("FII", categories);
-
   return (
     <div className="flex flex-col gap-6">
-      <Breadcrumb items={[{ label: "Análises", href: "/fichas" }, { label: "FIIs", href: "/fichas/fiis" }, { label: sheet.ticker }]} />
+      <Breadcrumb items={[{ label: "Análises", href: "/fichas" }, { label: "ETFs", href: "/fichas/etfs" }, { label: sheet.ticker }]} />
 
       <PageHeader
         title={`${sheet.ticker}${sheet.companyName ? ` — ${sheet.companyName}` : ""}`}
-        action={<DeleteSheetButton id={sheet.id} basePath="/fichas/fiis" />}
+        action={<DeleteSheetButton id={sheet.id} basePath="/fichas/etfs" />}
       />
 
-      <FiiSheetWorkspace
+      <EtfSheetWorkspace
         sheetId={sheet.id}
-        basePath="/fichas/fiis"
+        basePath="/fichas/etfs"
         ticker={sheet.ticker}
         criteria={criteria}
         initialResponses={sheet.responses.map((response) => ({
