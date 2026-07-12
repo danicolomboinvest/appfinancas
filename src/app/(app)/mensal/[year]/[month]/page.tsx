@@ -1,13 +1,15 @@
-import Link from "next/link";
-import { ChevronLeft, ChevronRight, Receipt } from "lucide-react";
+import { Receipt } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
 import { listMonthlyEntries, listRecentSubcategories } from "@/lib/repositories/monthly-entry.repo";
 import { listCustomCategories } from "@/lib/repositories/custom-category.repo";
-import { sumExpensesByParentCategory, sumExpensesByCustomCategory } from "@/lib/repositories/budget.repo";
-import { getMonthlySummary } from "@/lib/consolidation/monthly";
+import {
+  sumExpensesByParentCategory,
+  sumExpensesByCustomCategory,
+  listBudgets,
+  listBudgetsForYear,
+} from "@/lib/repositories/budget.repo";
+import { getMonthlySummary, getAnnualSummary } from "@/lib/consolidation/monthly";
 import { PARENT_CATEGORY_LABEL } from "@/lib/categories";
-import { PageHeader } from "@/components/ui/PageHeader";
-import { StatCard } from "@/components/ui/StatCard";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -16,6 +18,7 @@ import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import { DonutAllocationChart, type DonutSlice } from "@/components/charts/DonutAllocationChart";
 import { EntryForm } from "./EntryForm";
 import { DeleteEntryButton } from "./DeleteEntryButton";
+import { FlowIndicators, type FlowBundle } from "./FlowIndicators";
 import { BudgetSection } from "../BudgetSection";
 
 const MONTH_LABELS = [
@@ -53,11 +56,6 @@ function formatBRL(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
-function adjacentMonth(year: number, month: number, delta: number) {
-  const date = new Date(year, month - 1 + delta, 1);
-  return { year: date.getFullYear(), month: date.getMonth() + 1 };
-}
-
 function EntryRow({
   entry,
   year,
@@ -86,21 +84,52 @@ function EntryRow({
 
 export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]">) {
   const { year: yearParam, month: monthParam } = await props.params;
+  const { view } = await props.searchParams;
   const year = Number(yearParam);
   const month = Number(monthParam);
+  const initialView = view === "anual" ? "anual" : "mensal";
 
   const ctx = await getRequiredSession();
-  const [entries, summary, recentSubcategories, customCategories, spentByParent, spentByCustom] = await Promise.all([
+  const [
+    entries,
+    summary,
+    annualSummary,
+    monthBudgets,
+    yearBudgets,
+    recentSubcategories,
+    customCategories,
+    spentByParent,
+    spentByCustom,
+  ] = await Promise.all([
     listMonthlyEntries(ctx, year, month),
     getMonthlySummary(ctx, year, month),
+    getAnnualSummary(ctx, year),
+    listBudgets(ctx, year, month),
+    listBudgetsForYear(ctx, year),
     listRecentSubcategories(ctx),
     listCustomCategories(ctx),
     sumExpensesByParentCategory(ctx, year, month),
     sumExpensesByCustomCategory(ctx, year, month),
   ]);
 
-  const prev = adjacentMonth(year, month, -1);
-  const next = adjacentMonth(year, month, 1);
+  // Planejamento = soma dos valores planejados (orçamento). Mensal: só o mês; anual: o ano todo.
+  const monthlyPlanned = monthBudgets.reduce((sum, b) => sum + Number(b.plannedAmount), 0);
+  const annualPlanned = yearBudgets.reduce((sum, b) => sum + Number(b.plannedAmount), 0);
+
+  const monthlyBundle: FlowBundle = {
+    income: summary.totalIncome,
+    expense: summary.totalExpense,
+    planned: monthlyPlanned,
+    investment: summary.totalInvestment,
+    balance: summary.balance,
+  };
+  const annualBundle: FlowBundle = {
+    income: annualSummary.totalIncome,
+    expense: annualSummary.totalExpense,
+    planned: annualPlanned,
+    investment: annualSummary.totalInvestment,
+    balance: annualSummary.balance,
+  };
 
   const customCategoryNameById = new Map(customCategories.map((c) => [c.id, c.name]));
   const totalSpentByCategory =
@@ -127,32 +156,13 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
         ]}
       />
 
-      <PageHeader
-        title={`${MONTH_LABELS[month - 1]} de ${year}`}
-        action={
-          <div className="flex items-center gap-1">
-            <Link
-              href={`/mensal/${prev.year}/${prev.month}`}
-              className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm text-ink-muted hover:bg-surface-2 hover:text-ink"
-            >
-              <ChevronLeft size={16} /> {MONTH_LABELS[prev.month - 1]}
-            </Link>
-            <Link
-              href={`/mensal/${next.year}/${next.month}`}
-              className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm text-ink-muted hover:bg-surface-2 hover:text-ink"
-            >
-              {MONTH_LABELS[next.month - 1]} <ChevronRight size={16} />
-            </Link>
-          </div>
-        }
+      <FlowIndicators
+        year={year}
+        month={month}
+        initialView={initialView}
+        monthly={monthlyBundle}
+        annual={annualBundle}
       />
-
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <StatCard label="Renda" value={formatBRL(summary.totalIncome)} tone="success" />
-        <StatCard label="Gastos" value={formatBRL(summary.totalExpense)} tone="danger" />
-        <StatCard label="Aportes" value={formatBRL(summary.totalInvestment)} />
-        <StatCard label="Saldo" value={formatBRL(summary.balance)} tone="accent" />
-      </div>
 
       <EntryForm
         year={year}

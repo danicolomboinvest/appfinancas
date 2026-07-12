@@ -144,6 +144,14 @@ html {
   color-scheme: light;
 }
 
+/* Comportamento de app nativo: sem zoom por gesto, sem "puxão" elástico ao rolar além do fim.
+   Combina com o viewport (maximum-scale=1, user-scalable=no) definido em layout.tsx. */
+html,
+body {
+  touch-action: pan-x pan-y;
+  overscroll-behavior: none;
+}
+
 body {
   background-color: var(--color-canvas);
   color: var(--color-ink);

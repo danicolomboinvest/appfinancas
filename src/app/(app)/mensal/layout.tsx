@@ -5,8 +5,8 @@ const TABS = [
   { href: "/mensal/gastos", label: "Só gastos" },
 ];
 
-/** QuickExpenseFab e VoiceEntryFab agora são globais (montados em AppShell.tsx) —
- * "Lançar rápido" funciona em qualquer tela do app, não só dentro do Fluxo Financeiro. */
+/** O registro (digitar/gravar áudio) foi unificado no RegistrarDrawer, aberto pelo "+" central
+ * da tab bar (mobile) ou pelo botão "Registrar" da sidebar (desktop) — ver AppShell.tsx. */
 export default function MensalLayout({ children }: { children: React.ReactNode }) {
   return (
     <>

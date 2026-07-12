@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { Briefcase, Pencil, Plus } from "lucide-react";
+import { Briefcase, FileUp, Pencil, Plus } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { DonutAllocationChart } from "@/components/charts/DonutAllocationChart";
+import { PortfolioImport } from "@/components/import/PortfolioImport";
 import { DeleteAssetButton } from "./DeleteAssetButton";
 import { AssetForm } from "./AssetForm";
 import { formatPercentNumber } from "@/lib/format";
@@ -56,6 +57,7 @@ export function AssetsSection({
   goalNameById: Map<string, string>;
 }) {
   const [createOpen, setCreateOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [editingAsset, setEditingAsset] = useState<Asset | null>(null);
 
   const totalValue = assets.reduce((sum, asset) => sum + asset.currentValue, 0);
@@ -70,10 +72,16 @@ export function AssetsSection({
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <p className="text-sm text-ink-muted">{assets.length} ativo{assets.length === 1 ? "" : "s"} cadastrado{assets.length === 1 ? "" : "s"}</p>
-        <Button type="button" size="sm" onClick={() => setCreateOpen(true)}>
-          <Plus size={16} strokeWidth={2} />
-          Novo ativo
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button type="button" size="sm" variant="secondary" onClick={() => setImportOpen(true)}>
+            <FileUp size={16} strokeWidth={2} />
+            Importar
+          </Button>
+          <Button type="button" size="sm" onClick={() => setCreateOpen(true)}>
+            <Plus size={16} strokeWidth={2} />
+            Novo ativo
+          </Button>
+        </div>
       </div>
 
       {assets.length === 0 ? (
@@ -134,6 +142,10 @@ export function AssetsSection({
 
       <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Novo ativo">
         <AssetForm goals={goals} submitLabel="Adicionar" onSuccess={() => setCreateOpen(false)} />
+      </Modal>
+
+      <Modal open={importOpen} onClose={() => setImportOpen(false)} title="Importar carteira">
+        <PortfolioImport onDone={() => setImportOpen(false)} />
       </Modal>
 
       <Modal open={editingAsset !== null} onClose={() => setEditingAsset(null)} title="Editar ativo">

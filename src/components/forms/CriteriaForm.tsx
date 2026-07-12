@@ -171,11 +171,11 @@ export function CriteriaForm({
               .map((criterion) => (
                 <Card
                   key={criterion.id}
-                  className={`grid grid-cols-12 items-start gap-2 p-3 ${
+                  className={`grid grid-cols-1 items-start gap-2 p-3 sm:grid-cols-12 ${
                     autoFilledIds.has(criterion.id) ? "border-l-2 border-l-accent" : ""
                   }`}
                 >
-                  <div className="col-span-3 flex items-center gap-1.5 text-sm font-medium text-ink">
+                  <div className="flex items-center gap-1.5 text-sm font-medium text-ink sm:col-span-3">
                     {criterion.label}
                     {criterion.helpText && <HelpTooltip text={criterion.helpText} />}
                     {autoFilledIds.has(criterion.id) && (
@@ -185,13 +185,13 @@ export function CriteriaForm({
                     )}
                   </div>
                   <input
-                    className={`col-span-5 ${INPUT_CLASSES}`}
+                    className={`${INPUT_CLASSES} sm:col-span-5`}
                     placeholder="Observação"
                     value={responses[criterion.id]?.value ?? ""}
                     onChange={(e) => updateResponse(criterion.id, "value", e.target.value)}
                   />
                   <input
-                    className={`col-span-2 ${INPUT_CLASSES}`}
+                    className={`${INPUT_CLASSES} sm:col-span-2`}
                     type="number"
                     min={0}
                     max={10}
@@ -201,7 +201,7 @@ export function CriteriaForm({
                     onChange={(e) => updateResponse(criterion.id, "score", e.target.value)}
                   />
                   <input
-                    className={`col-span-2 ${INPUT_CLASSES}`}
+                    className={`${INPUT_CLASSES} sm:col-span-2`}
                     placeholder="Comentário"
                     value={responses[criterion.id]?.note ?? ""}
                     onChange={(e) => updateResponse(criterion.id, "note", e.target.value)}

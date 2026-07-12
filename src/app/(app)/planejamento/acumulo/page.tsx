@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/Badge";
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import { ResponsiveTable, type ResponsiveColumn } from "@/components/ui/ResponsiveTable";
 import { PlanningParamsForm } from "./PlanningParamsForm";
+import { PlanningWizard } from "./PlanningWizard";
 import { formatPercentNumber } from "@/lib/format";
 
 function formatBRL(value: number | null) {
@@ -57,6 +58,20 @@ export default async function IndependenciaFinanceiraPage() {
       }
     : {};
 
+  // Primeira vez (sem parâmetros): wizard guiado "Quanto custa a vida que você quer?" — uma
+  // pergunta por tela. Só depois de concluir é que a pessoa cai no dashboard abaixo (item 4).
+  if (!params) {
+    return (
+      <div className="flex flex-col gap-6">
+        <PageHeader
+          title="Independência Financeira"
+          subtitle="Vamos montar seu plano em alguns passos rápidos."
+        />
+        <PlanningWizard />
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-8">
       <PageHeader
@@ -64,15 +79,11 @@ export default async function IndependenciaFinanceiraPage() {
         subtitle="Da fase de acúmulo até viver de renda: acompanhe a jornada inteira em um só lugar."
       />
 
-      <CollapsibleSection label="Editar meus dados" defaultOpen={!params}>
+      <CollapsibleSection label="Editar meus dados" defaultOpen={false}>
         <PlanningParamsForm defaults={defaults} />
       </CollapsibleSection>
 
-      {!params ? (
-        <p className="text-sm text-ink-muted">Preencha seus dados acima para ver a projeção completa.</p>
-      ) : (
-        <>
-          {(() => {
+      {(() => {
             const accumulation = computeAccumulation({
               currentAge: params.currentAge,
               retirementAge: params.retirementAge,
@@ -196,8 +207,6 @@ export default async function IndependenciaFinanceiraPage() {
               </>
             );
           })()}
-        </>
-      )}
     </div>
   );
 }

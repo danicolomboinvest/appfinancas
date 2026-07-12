@@ -6,11 +6,10 @@ import { Sidebar } from "./Sidebar";
 import { MobileTabBar } from "./MobileTabBar";
 import { MoreSheet } from "./MoreSheet";
 import { GreetingStrip } from "./GreetingStrip";
+import { RegistrarDrawer } from "./RegistrarDrawer";
 import { MORE_NAV_SECTIONS } from "./nav-sections";
 import { logoutAction } from "@/lib/auth/actions";
 import { ToastProvider } from "@/components/ui/toast-context";
-import { QuickExpenseFab } from "@/app/(app)/mensal/QuickExpenseFab";
-import { VoiceEntryFab } from "@/app/(app)/mensal/VoiceEntryFab";
 
 export function AppShell({
   children,
@@ -29,6 +28,7 @@ export function AppShell({
 }) {
   const [collapsed, setCollapsed] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [registrarOpen, setRegistrarOpen] = useState(false);
   const [, startTransition] = useTransition();
   const pathname = usePathname();
 
@@ -73,6 +73,7 @@ export function AppShell({
           isAdmin={isAdmin}
           userEmail={userEmail}
           onLogout={handleLogout}
+          onOpenRegistrar={() => setRegistrarOpen(true)}
         />
 
         <div className="flex min-w-0 flex-1 flex-col">
@@ -84,13 +85,16 @@ export function AppShell({
           </main>
         </div>
 
-        <MobileTabBar onOpenMore={() => setMoreOpen(true)} moreActive={moreActive} />
+        <MobileTabBar
+          onOpenMore={() => setMoreOpen(true)}
+          onOpenRegistrar={() => setRegistrarOpen(true)}
+          moreActive={moreActive}
+        />
         <MoreSheet open={moreOpen} onClose={() => setMoreOpen(false)} isAdmin={isAdmin} userEmail={userEmail} onLogout={handleLogout} />
 
-        {/* Lançar rápido: disponível em qualquer tela, não só no Fluxo Financeiro — sempre
-            registra no mês corrente quando a rota atual não é /mensal/[year]/[month]. */}
-        <VoiceEntryFab />
-        <QuickExpenseFab />
+        {/* Ponto de entrada ÚNICO de registro — aberto pelo "+" central da tab bar (mobile) ou
+            pelo botão "Registrar" da sidebar (desktop). O microfone vive dentro dele. */}
+        <RegistrarDrawer open={registrarOpen} onClose={() => setRegistrarOpen(false)} />
       </div>
     </ToastProvider>
   );

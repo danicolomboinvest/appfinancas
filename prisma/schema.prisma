@@ -138,9 +138,27 @@ model User {
   referenceRates       ReferenceRate[]
   yearlyConsolidations YearlyConsolidationCache[]
   accumulationCache    AccumulationProjectionCache[]
+  transactionRules     TransactionCategoryRule[]
 
   asAdvisorLinks AdvisorClientLink[] @relation("advisor")
   asClientLinks  AdvisorClientLink[] @relation("client")
+}
+
+/// Regra aprendida de classificação de extrato (item 3 da Rodada 2): quando o usuário resolve
+/// uma transação na fila de revisão, guardamos merchant → categoria para classificar sozinho
+/// as próximas transações parecidas. `pattern` é a chave normalizada (ver normalizeMerchant).
+model TransactionCategoryRule {
+  id             String         @id @default(cuid())
+  userId         String
+  user           User           @relation(fields: [userId], references: [id])
+  pattern        String
+  parentCategory ParentCategory
+  subcategory    String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@unique([userId, pattern])
+  @@index([userId])
 }
 
 model AdvisorClientLink {

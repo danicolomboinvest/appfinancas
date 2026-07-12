@@ -1,13 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { usePathname } from "next/navigation";
 import { Mic } from "lucide-react";
-import type { ParentCategory } from "@prisma/client";
-import { Modal } from "@/components/ui/Modal";
-import { EntryForm } from "./[year]/[month]/EntryForm";
-import { getRecentSubcategoriesAction, getCustomCategoriesAction } from "./actions";
-import { currentYearMonthFromPath } from "./QuickExpenseFab";
 import { parseVoiceEntry, type ParsedVoiceEntry } from "@/lib/entries/voice-expense-parser";
 
 interface SpeechRecognitionAlternative {
@@ -63,7 +57,7 @@ function formatElapsed(ms: number): string {
   return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }
 
-const BAR_COUNT = 24;
+const BAR_COUNT = 28;
 
 /** Loop de animação fora do componente — funções aninhadas no corpo do componente que chamam
  * APIs impuras (Date.now) são sinalizadas pelo lint de pureza do React Compiler mesmo quando
@@ -100,23 +94,16 @@ function runVisualizerLoop(
 }
 
 /**
- * Botão "segurar para falar" (mesma linguagem do WhatsApp) — grava enquanto o dedo/mouse
- * fica pressionado e mostra uma onda animada reagindo ao volume da voz em tempo real, para
- * a pessoa ver que está gravando de verdade, não só um ícone piscando. Solta = envia.
+ * "Segurar para falar" (mesma linguagem do WhatsApp), agora INLINE dentro do fluxo de registro —
+ * não é mais um botão solto na tela. Grava enquanto o dedo fica pressionado, mostra uma onda
+ * reagindo ao volume em tempo real, e ao soltar transcreve e devolve o lançamento por `onParsed`.
  *
- * Duas APIs em paralelo: SpeechRecognition faz a transcrição (mesmo parser de sempre);
- * getUserMedia + AnalyserNode só alimenta a barrinha visual — se a segunda falhar (raro),
- * a gravação/transcrição continua normalmente, só sem a onda.
+ * Duas APIs em paralelo: SpeechRecognition faz a transcrição; getUserMedia + AnalyserNode só
+ * alimenta a onda visual — se a segunda falhar, a transcrição continua, só sem a onda.
  */
-export function VoiceEntryFab() {
-  const pathname = usePathname();
+export function VoiceRecorder({ onParsed }: { onParsed: (parsed: ParsedVoiceEntry) => void }) {
   const [recording, setRecording] = useState(false);
   const [unsupported, setUnsupported] = useState(false);
-  const [parsed, setParsed] = useState<ParsedVoiceEntry | null>(null);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [recentSubcategories, setRecentSubcategories] = useState<Partial<Record<ParentCategory, string[]>>>({});
-  const [customCategories, setCustomCategories] = useState<{ id: string; name: string }[]>([]);
-  const { year, month } = currentYearMonthFromPath(pathname);
 
   const recognitionRef = useRef<MinimalSpeechRecognition | null>(null);
   const latestResultsRef = useRef<ArrayLike<SpeechRecognitionResultLike> | null>(null);
@@ -126,6 +113,8 @@ export function VoiceEntryFab() {
   const barRefs = useRef<(HTMLDivElement | null)[]>([]);
   const timerElRef = useRef<HTMLSpanElement | null>(null);
   const isHeldRef = useRef(false);
+  const onParsedRef = useRef(onParsed);
+  onParsedRef.current = onParsed;
 
   function stopVisualizer() {
     if (rafHolderRef.current.id !== null) {
@@ -157,8 +146,7 @@ export function VoiceEntryFab() {
         runVisualizerLoop(analyser, levels, barRefs.current, timerElRef.current, startedAt, rafHolderRef.current),
       );
     } catch {
-      // Sem acesso ao stream bruto (ex.: permissão negada só para isso) — a transcrição
-      // continua funcionando via SpeechRecognition, só fica sem a onda animada.
+      // Sem acesso ao stream bruto — a transcrição continua via SpeechRecognition, só sem a onda.
     }
   }
 
@@ -190,11 +178,7 @@ export function VoiceEntryFab() {
       if (results) {
         const transcript = joinFinalTranscript(results);
         if (transcript.trim()) {
-          const result = parseVoiceEntry(transcript);
-          setParsed(result);
-          getRecentSubcategoriesAction().then(setRecentSubcategories);
-          getCustomCategoriesAction().then(setCustomCategories);
-          setModalOpen(true);
+          onParsedRef.current(parseVoiceEntry(transcript));
         }
       }
     };
@@ -214,32 +198,29 @@ export function VoiceEntryFab() {
 
   useEffect(() => stopVisualizer, []);
 
+  if (unsupported) {
+    return (
+      <p className="rounded-xl bg-surface-2 px-4 py-3 text-center text-sm text-ink-muted">
+        Seu navegador não suporta reconhecimento de voz. Use a opção de digitar.
+      </p>
+    );
+  }
+
   return (
-    <>
-      {recording && (
-        <div
-          className="fixed bottom-[228px] right-5 z-30 flex items-center gap-2.5 rounded-full border border-border-strong bg-surface/95 py-2.5 pl-3 pr-4 shadow-premium backdrop-blur-xl md:bottom-32"
-          role="status"
-          aria-live="polite"
-        >
-          <span className="h-2.5 w-2.5 shrink-0 animate-pulse rounded-full bg-danger" />
-          <div className="flex h-6 items-center gap-[3px]">
-            {Array.from({ length: BAR_COUNT }).map((_, i) => (
-              <div
-                key={i}
-                ref={(el) => {
-                  barRefs.current[i] = el;
-                }}
-                className="w-[3px] shrink-0 rounded-full bg-accent"
-                style={{ height: "8%" }}
-              />
-            ))}
-          </div>
-          <span ref={timerElRef} className="text-xs font-medium tabular-nums text-ink-muted">
-            0:00
-          </span>
-        </div>
-      )}
+    <div className="flex flex-col items-center gap-5 py-2">
+      {/* Onda de volume — sempre presente pra reservar o espaço; anima só durante a gravação. */}
+      <div className="flex h-14 items-center gap-[3px]">
+        {Array.from({ length: BAR_COUNT }).map((_, i) => (
+          <div
+            key={i}
+            ref={(el) => {
+              barRefs.current[i] = el;
+            }}
+            className={`w-[3px] shrink-0 rounded-full transition-colors ${recording ? "bg-accent" : "bg-border-strong"}`}
+            style={{ height: "8%" }}
+          />
+        ))}
+      </div>
 
       <button
         type="button"
@@ -251,33 +232,24 @@ export function VoiceEntryFab() {
         onPointerCancel={stopRecording}
         onContextMenu={(e) => e.preventDefault()}
         aria-label="Segure para falar o lançamento"
-        title={unsupported ? "Reconhecimento de voz não disponível neste navegador" : "Segure para falar"}
         style={{ touchAction: "none" }}
-        className={`fixed bottom-[168px] right-5 z-30 flex h-12 w-12 select-none items-center justify-center rounded-full border shadow-premium transition-transform md:bottom-20 ${
+        className={`flex h-20 w-20 select-none items-center justify-center rounded-full border shadow-premium transition-transform ${
           recording
             ? "scale-110 border-danger bg-danger text-canvas"
             : "border-border-strong bg-surface text-ink hover:scale-105 active:scale-95"
         }`}
       >
-        <Mic size={18} strokeWidth={2} />
+        <Mic size={28} strokeWidth={2} />
       </button>
 
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Confira o lançamento por voz">
-        {parsed && (
-          <EntryForm
-            year={year}
-            month={month}
-            recentSubcategories={recentSubcategories}
-            customCategories={customCategories}
-            layout="stacked"
-            onSuccess={() => setModalOpen(false)}
-            defaultDescription={parsed.description}
-            defaultAmount={parsed.amount ?? undefined}
-            defaultCategory={parsed.category}
-            defaultParentCategory={parsed.parentCategory ?? undefined}
-          />
-        )}
-      </Modal>
-    </>
+      <div className="flex flex-col items-center gap-1">
+        <span ref={timerElRef} className="text-sm font-medium tabular-nums text-ink-muted">
+          0:00
+        </span>
+        <span className="text-xs text-ink-faint">
+          {recording ? "Solte para transcrever" : "Segure para falar"}
+        </span>
+      </div>
+    </div>
   );
 }
