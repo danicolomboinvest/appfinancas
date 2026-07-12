@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Download } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { CriteriaForm, type FormCriterion, type FormResponse } from "@/components/forms/CriteriaForm";
@@ -50,7 +50,7 @@ export function EtfSheetWorkspace({
       setApplyToken((prev) => prev + 1);
       setMessage({
         tone: "success",
-        text: `${suggestions.length} de ${criteria.length} critérios preenchidos automaticamente a partir do investidor10.com.br. Revise antes de salvar.`,
+        text: `${suggestions.length} de ${criteria.length} critérios preenchidos automaticamente. Revise antes de salvar.`,
       });
     });
   }
@@ -59,15 +59,15 @@ export function EtfSheetWorkspace({
     <div className="flex flex-col gap-6">
       <Card className="flex flex-wrap items-center justify-between gap-3 p-4">
         <div>
-          <p className="text-sm font-medium text-ink">Buscar dados públicos do ticker</p>
+          <p className="text-sm font-medium text-ink">Preencher indicadores automaticamente</p>
           <p className="text-xs text-ink-muted">
-            Preenche automaticamente Patrimônio Líquido, Dividend Yield e rentabilidade — direto do
-            investidor10.com.br, sem custo. Funciona tanto para ETFs na B3 quanto para ETFs americanos.
+            Preenche sozinho Patrimônio Líquido, Dividend Yield e rentabilidade — é só revisar. Funciona para ETFs na
+            B3 e americanos.
           </p>
         </div>
         <Button type="button" variant="secondary" onClick={handleFetch} disabled={isPending} className="w-fit">
-          <Download size={15} strokeWidth={2} className="mr-1.5" />
-          {isPending ? "Buscando..." : "Buscar dados"}
+          <Sparkles size={15} strokeWidth={2} className="mr-1.5" />
+          {isPending ? "Buscando..." : "Buscar automaticamente"}
         </Button>
       </Card>
 

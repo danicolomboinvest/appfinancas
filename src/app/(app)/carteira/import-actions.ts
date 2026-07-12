@@ -5,6 +5,7 @@ import type { AssetClass } from "@prisma/client";
 import { getRequiredSession } from "@/lib/auth/session";
 import { createAsset } from "@/lib/repositories/asset.repo";
 import { parsePortfolioStatement, guessAssetClass } from "@/lib/import/portfolio-parser";
+import { extractUploadText, type UploadEncoding } from "@/lib/import/extract-text";
 
 const ASSET_CLASS_VALUES: AssetClass[] = ["RENDA_FIXA", "ACAO", "FII", "TESOURO_DIRETO", "FUNDO", "CRIPTO", "OUTRO"];
 
@@ -20,14 +21,31 @@ export type ParsePortfolioResult =
   | { ok: true; holdings: ParsedHoldingItem[] }
   | { ok: false; error: string };
 
-/** Lê o extrato/nota da corretora ou relatório da B3 e devolve os ativos identificados. */
-export async function parsePortfolioAction(content: string): Promise<ParsePortfolioResult> {
+/** Lê o extrato/nota da corretora ou relatório da B3 (CSV/Excel/PDF) e identifica os ativos.
+ * `content` é texto (CSV) ou base64 (Excel/PDF), conforme `encoding`. */
+export async function parsePortfolioAction(
+  content: string,
+  encoding: UploadEncoding = "text",
+): Promise<ParsePortfolioResult> {
   await getRequiredSession();
-  const parsed = parsePortfolioStatement(content);
+  const { text } = await extractUploadText(content, encoding);
+
+  // PDF escaneado/foto não tem texto extraível — avisa e pede Excel.
+  const readableChars = text.replace(/[^\p{L}\p{N}]/gu, "").length;
+  if (encoding === "pdf" && readableChars < 12) {
+    return {
+      ok: false,
+      error:
+        "Não consegui ler este PDF — ele parece ser escaneado ou uma foto. Suba a posição em Excel (.xlsx) ou CSV que aí funciona.",
+    };
+  }
+
+  const parsed = parsePortfolioStatement(text);
   if (parsed.length === 0) {
     return {
       ok: false,
-      error: "Não identificamos ativos nesse arquivo. Suba o extrato de posição da corretora ou o relatório da B3 (CSV).",
+      error:
+        "Não identifiquei ativos nesse arquivo. Se for um PDF escaneado/foto, suba a posição em Excel (.xlsx) ou CSV — costuma ler melhor.",
     };
   }
   const holdings: ParsedHoldingItem[] = parsed.map((h, index) => ({
