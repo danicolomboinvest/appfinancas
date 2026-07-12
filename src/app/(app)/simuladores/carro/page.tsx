@@ -1,23 +1,25 @@
 "use client";
 
-import { useState } from "react";
-import { useForm, Controller } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  carComparisonSchema,
-  type CarComparisonFormInput,
-  type CarComparisonFormValues,
-} from "@/lib/validations/car.schema";
-import { simulateCarComparison, type CarComparisonResult } from "@/lib/simulators/car";
-import { PageHeader } from "@/components/ui/PageHeader";
+import { simulateCarComparison } from "@/lib/simulators/car";
+import type { CarComparisonFormValues } from "@/lib/validations/car.schema";
 import { StatCard } from "@/components/ui/StatCard";
-import { Card } from "@/components/ui/Card";
-import { PercentInputControlled } from "@/components/ui/PercentInputControlled";
-import { CurrencyInputControlled } from "@/components/ui/CurrencyInputControlled";
-import { Button } from "@/components/ui/Button";
-import { formatPercentNumber } from "@/lib/format";
+import { SimulatorWizard, type WizardField, type WizardValues } from "@/components/simulators/SimulatorWizard";
 
-const defaultValues: CarComparisonFormInput = {
+function formatBRL(value: number) {
+  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+const FIELDS: WizardField[] = [
+  { name: "carPrice", label: "Valor do carro 0km", kind: "currency", help: "Preço de compra do carro novo à vista." },
+  { name: "priceAfter1Year", label: "Revenda em 1 ano", kind: "currency", help: "Por quanto você venderia o carro depois de 1 ano." },
+  { name: "priceAfter2Years", label: "Revenda em 2 anos", kind: "currency", help: "Por quanto você venderia o carro depois de 2 anos." },
+  { name: "monthlyFuelCost", label: "Combustível mensal", kind: "currency", help: "Gasto médio de combustível por mês." },
+  { name: "subscriptionMonthlyFee", label: "Mensalidade da assinatura", kind: "currency", help: "Valor mensal do carro por assinatura (já inclui seguro, manutenção, IPVA)." },
+  { name: "annualFixedCosts", label: "Custos fixos anuais", kind: "currency", help: "IPVA, seguro, manutenção e licenciamento por ano, no caso de comprar." },
+  { name: "opportunityCostMonthlyRate", label: "Custo de oportunidade", kind: "percent", suffix: "a.m.", help: "Quanto renderia por mês o dinheiro da compra se estivesse investido." },
+];
+
+const DEFAULTS: WizardValues = {
   carPrice: 100000,
   priceAfter1Year: 85000,
   priceAfter2Years: 75000,
@@ -27,142 +29,45 @@ const defaultValues: CarComparisonFormInput = {
   opportunityCostMonthlyRate: 0.008,
 };
 
-function formatBRL(value: number) {
-  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+function toInput(values: WizardValues): CarComparisonFormValues {
+  return {
+    carPrice: Number(values.carPrice),
+    priceAfter1Year: Number(values.priceAfter1Year),
+    priceAfter2Years: Number(values.priceAfter2Years),
+    monthlyFuelCost: Number(values.monthlyFuelCost),
+    subscriptionMonthlyFee: Number(values.subscriptionMonthlyFee),
+    annualFixedCosts: Number(values.annualFixedCosts),
+    opportunityCostMonthlyRate: Number(values.opportunityCostMonthlyRate),
+  };
 }
 
 export default function CarroPage() {
-  const {
-    control,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<CarComparisonFormInput, unknown, CarComparisonFormValues>({
-    resolver: zodResolver(carComparisonSchema),
-    defaultValues,
-  });
-  const [result, setResult] = useState<CarComparisonResult | null>(null);
-
-  const onSubmit = handleSubmit((values) => {
-    setResult(simulateCarComparison(values));
-  });
-
   return (
-    <div className="flex flex-col gap-8">
-      <PageHeader
-        title="Carro por Assinatura vs. Comprar 0km"
-        subtitle="Compara os dois caminhos em uma janela de 24 meses, considerando depreciação e custo de oportunidade."
-      />
-
-      <Card as="form" onSubmit={onSubmit} className="flex flex-col gap-4 p-5">
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <Controller
-            control={control}
-            name="carPrice"
-            render={({ field }) => (
-              <CurrencyInputControlled
-                label="Valor do carro 0km (R$)"
-                value={field.value}
-                onChange={field.onChange}
-                error={errors.carPrice?.message}
-              />
-            )}
-          />
-          <Controller
-            control={control}
-            name="priceAfter1Year"
-            render={({ field }) => (
-              <CurrencyInputControlled
-                label="Valor de revenda em 1 ano (R$)"
-                value={field.value}
-                onChange={field.onChange}
-                error={errors.priceAfter1Year?.message}
-              />
-            )}
-          />
-          <Controller
-            control={control}
-            name="priceAfter2Years"
-            render={({ field }) => (
-              <CurrencyInputControlled
-                label="Valor de revenda em 2 anos (R$)"
-                value={field.value}
-                onChange={field.onChange}
-                error={errors.priceAfter2Years?.message}
-              />
-            )}
-          />
-          <Controller
-            control={control}
-            name="monthlyFuelCost"
-            render={({ field }) => (
-              <CurrencyInputControlled
-                label="Combustível mensal (R$)"
-                value={field.value}
-                onChange={field.onChange}
-                error={errors.monthlyFuelCost?.message}
-              />
-            )}
-          />
-        </div>
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <Controller
-            control={control}
-            name="subscriptionMonthlyFee"
-            render={({ field }) => (
-              <CurrencyInputControlled
-                label="Mensalidade da assinatura (R$)"
-                value={field.value}
-                onChange={field.onChange}
-                error={errors.subscriptionMonthlyFee?.message}
-              />
-            )}
-          />
-          <Controller
-            control={control}
-            name="annualFixedCosts"
-            render={({ field }) => (
-              <CurrencyInputControlled
-                label="Custos fixos anuais (IPVA, seguro...) (R$)"
-                value={field.value}
-                onChange={field.onChange}
-                error={errors.annualFixedCosts?.message}
-              />
-            )}
-          />
-          <Controller
-            control={control}
-            name="opportunityCostMonthlyRate"
-            render={({ field }) => (
-              <PercentInputControlled
-                label="Custo de oportunidade (a.m.)"
-                value={field.value}
-                onChange={field.onChange}
-                error={errors.opportunityCostMonthlyRate?.message}
-              />
-            )}
-          />
-        </div>
-        <Button type="submit" className="w-fit">
-          Simular
-        </Button>
-      </Card>
-
-      {result && (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <StatCard label="Desvalorização em 1 ano" value={formatPercentNumber(result.depreciationRateAfter1Year * 100, 1)} />
-          <StatCard label="Desvalorização em 2 anos" value={formatPercentNumber(result.depreciationRateAfter2Years * 100, 1)} />
-          <StatCard label="Custo caixa — assinatura (24 meses)" value={formatBRL(result.subscriptionCashCost)} />
-          <StatCard label="Custo caixa — compra (24 meses)" value={formatBRL(result.purchaseCashCost)} />
-          <StatCard label="Custo de oportunidade da compra" value={formatBRL(result.opportunityCost)} />
-          <StatCard label="Resultado líquido — assinatura" value={formatBRL(result.netResultSubscription)} />
-          <StatCard label="Resultado líquido — compra" value={formatBRL(result.netResultPurchase)} />
-          <StatCard
-            label="Conclusão"
-            value={`${result.winner === "ASSINATURA" ? "Assinatura" : "Compra"} (${formatBRL(result.differenceInFavorOfWinner)} mais barato)`}
-            tone="accent"
-          />
-        </div>
-      )}
-    </div>
+    <SimulatorWizard
+      eyebrow="Carro: Assinar vs. Comprar"
+      fields={FIELDS}
+      defaults={DEFAULTS}
+      renderResult={(values) => {
+        const result = simulateCarComparison(toInput(values));
+        return (
+          <div className="flex flex-col gap-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-accent-strong">Resultado (24 meses)</p>
+              <h1 className="mt-1 font-serif text-2xl text-ink">
+                {result.winner === "ASSINATURA" ? "Assinar sai mais barato" : "Comprar sai mais barato"}{" "}
+                <span className="text-ink-muted">({formatBRL(result.differenceInFavorOfWinner)})</span>
+              </h1>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <StatCard label="Resultado líquido — assinatura" value={formatBRL(result.netResultSubscription)} tone={result.winner === "ASSINATURA" ? "accent" : "neutral"} />
+              <StatCard label="Resultado líquido — compra" value={formatBRL(result.netResultPurchase)} tone={result.winner === "COMPRA" ? "accent" : "neutral"} />
+              <StatCard label="Custo caixa — assinatura" value={formatBRL(result.subscriptionCashCost)} />
+              <StatCard label="Custo caixa — compra" value={formatBRL(result.purchaseCashCost)} />
+              <StatCard label="Custo de oportunidade da compra" value={formatBRL(result.opportunityCost)} />
+            </div>
+          </div>
+        );
+      }}
+    />
   );
 }

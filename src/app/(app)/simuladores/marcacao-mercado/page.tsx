@@ -1,235 +1,125 @@
 "use client";
 
-import { useState } from "react";
-import { useForm, useWatch, Controller } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  markToMarketSchema,
-  type MarkToMarketFormInput,
-  type MarkToMarketFormValues,
-} from "@/lib/validations/mark-to-market.schema";
-import { simulateMarkToMarket, type MarkToMarketResult } from "@/lib/simulators/mark-to-market";
+import { simulateMarkToMarket } from "@/lib/simulators/mark-to-market";
+import type { MarkToMarketFormValues } from "@/lib/validations/mark-to-market.schema";
 import { SensitivityHeatmap } from "@/components/charts/SensitivityHeatmap";
-import { PageHeader } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
 import { Card } from "@/components/ui/Card";
-import { Field } from "@/components/ui/Field";
-import { PercentInputControlled } from "@/components/ui/PercentInputControlled";
-import { CurrencyInputControlled } from "@/components/ui/CurrencyInputControlled";
-import { Button } from "@/components/ui/Button";
-import { HelpTooltip } from "@/components/forms/HelpTooltip";
+import { SimulatorWizard, type WizardField, type WizardValues } from "@/components/simulators/SimulatorWizard";
 import { formatPercentNumber } from "@/lib/format";
-
-const defaultValues: MarkToMarketFormInput = {
-  faceValue: 1000,
-  originalRate: 0.1,
-  newRate: 0.12,
-  totalYears: 10,
-  yearsRemaining: 6,
-  hasSemiannualCoupons: false,
-  duration: undefined,
-  investedAmount: undefined,
-};
 
 function formatBRL(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
+const anbimaLink = (
+  <>
+    Consulte o valor atualizado em{" "}
+    <a href="https://www.anbima.com.br" target="_blank" rel="noopener noreferrer" className="text-accent-strong underline">
+      www.anbima.com.br
+    </a>{" "}
+    (Preços e Índices).
+  </>
+);
+
+const FIELDS: WizardField[] = [
+  { name: "faceValue", label: "Valor de face", kind: "currency", help: <>Valor nominal do título na data de vencimento. {anbimaLink}</> },
+  { name: "originalRate", label: "Taxa contratada", kind: "percent", help: "A taxa que você travou ao comprar o título." },
+  { name: "newRate", label: "Nova taxa de mercado", kind: "percent", help: "A taxa que o mercado pratica hoje para esse título — é o que muda o preço na marcação a mercado." },
+  { name: "totalYears", label: "Prazo total", kind: "number", suffix: "anos", help: "Prazo do título, do início ao vencimento." },
+  { name: "yearsRemaining", label: "Anos até o vencimento", kind: "number", suffix: "anos", help: "Quanto falta até o vencimento a partir de hoje." },
+  {
+    name: "hasSemiannualCoupons",
+    label: "Paga juros semestrais?",
+    kind: "select",
+    help: "Alguns títulos pagam cupons a cada semestre em vez de tudo no vencimento. Nesses casos, use a duration para medir a sensibilidade.",
+    options: [
+      { value: "nao", label: "Não" },
+      { value: "sim", label: "Sim" },
+    ],
+  },
+  {
+    name: "duration",
+    label: "Duration",
+    kind: "number",
+    suffix: "anos",
+    showIf: (v) => v.hasSemiannualCoupons === "sim",
+    help: <>Prazo médio ponderado dos fluxos do título — mais curto que o vencimento por causa dos cupons. {anbimaLink}</>,
+  },
+  { name: "investedAmount", label: "Valor investido (opcional)", kind: "currency", help: "Quanto você tem aplicado nesse título, para ver o resultado em reais. Pode deixar zerado." },
+];
+
+const DEFAULTS: WizardValues = {
+  faceValue: 1000,
+  originalRate: 0.1,
+  newRate: 0.12,
+  totalYears: 10,
+  yearsRemaining: 6,
+  hasSemiannualCoupons: "nao",
+  duration: 0,
+  investedAmount: 0,
+};
+
+function toInput(values: WizardValues): MarkToMarketFormValues {
+  const semiannual = values.hasSemiannualCoupons === "sim";
+  const duration = Number(values.duration);
+  const invested = Number(values.investedAmount);
+  return {
+    faceValue: Number(values.faceValue),
+    originalRate: Number(values.originalRate),
+    newRate: Number(values.newRate),
+    totalYears: Number(values.totalYears),
+    yearsRemaining: Number(values.yearsRemaining),
+    hasSemiannualCoupons: semiannual,
+    duration: semiannual && duration > 0 ? duration : undefined,
+    investedAmount: invested > 0 ? invested : undefined,
+  };
+}
+
 export default function MarcacaoMercadoPage() {
-  const {
-    register,
-    control,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<MarkToMarketFormInput, unknown, MarkToMarketFormValues>({
-    resolver: zodResolver(markToMarketSchema),
-    defaultValues,
-  });
-  const [result, setResult] = useState<MarkToMarketResult | null>(null);
-  const hasSemiannualCoupons = useWatch({ control, name: "hasSemiannualCoupons" });
-
-  const onSubmit = handleSubmit((values) => {
-    setResult(simulateMarkToMarket(values));
-  });
-
   return (
-    <div className="flex flex-col gap-8">
-      <PageHeader
-        title="Marcação a Mercado"
-        subtitle="Preço de um título prefixado e sensibilidade a variações de taxa — levar até o vencimento elimina o risco."
-      />
-
-      <Card as="form" onSubmit={onSubmit} className="flex flex-col gap-4 p-5">
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
-          <Controller
-            control={control}
-            name="faceValue"
-            render={({ field }) => (
-              <CurrencyInputControlled
-                label="Valor de face (R$)"
-                labelExtra={
-                  <HelpTooltip
-                    text={
-                      <>
-                        Valor de face é o valor nominal do título na data de vencimento. Para Tesouro Direto,
-                        especialmente Tesouro IPCA+, consulte o valor atualizado em{" "}
-                        <a
-                          href="https://www.anbima.com.br"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-accent-strong underline"
-                        >
-                          www.anbima.com.br
-                        </a>{" "}
-                        (Preços e Índices).
-                      </>
-                    }
-                  />
-                }
-                value={field.value}
-                onChange={field.onChange}
-                error={errors.faceValue?.message}
-              />
-            )}
-          />
-          <Controller
-            control={control}
-            name="originalRate"
-            render={({ field }) => (
-              <PercentInputControlled label="Taxa contratada (a.a.)" value={field.value} onChange={field.onChange} error={errors.originalRate?.message} />
-            )}
-          />
-          <Controller
-            control={control}
-            name="newRate"
-            render={({ field }) => (
-              <PercentInputControlled
-                label="Nova taxa de mercado (a.a.)"
-                value={field.value}
-                onChange={field.onChange}
-                error={errors.newRate?.message}
-              />
-            )}
-          />
-          <Field label="Prazo total (anos)" error={errors.totalYears?.message} {...register("totalYears")} type="number" step="0.1" />
-          <Field
-            label="Anos restantes até o vencimento"
-            error={errors.yearsRemaining?.message}
-            {...register("yearsRemaining")}
-            type="number"
-            step="0.1"
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
-          <div className="flex flex-col gap-1.5">
-            <label className="flex items-center text-xs font-medium text-ink-muted">
-              Paga juros semestrais?
-              <HelpTooltip text="Alguns títulos (ex.: Tesouro IPCA+ com juros semestrais) pagam cupons periódicos em vez de tudo no vencimento. Nesses casos, o prazo correto para medir a sensibilidade a variações de taxa é a duration, não o prazo até o vencimento." />
-            </label>
-            <Controller
-              control={control}
-              name="hasSemiannualCoupons"
-              render={({ field }) => (
-                <div className="flex gap-1.5">
-                  {[
-                    { value: true, label: "Sim" },
-                    { value: false, label: "Não" },
-                  ].map((opt) => (
-                    <button
-                      key={String(opt.value)}
-                      type="button"
-                      onClick={() => field.onChange(opt.value)}
-                      className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
-                        field.value === opt.value
-                          ? "border-accent bg-accent-soft text-accent-strong"
-                          : "border-border-strong bg-surface-2 text-ink-muted hover:text-ink"
-                      }`}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            />
-          </div>
-          {hasSemiannualCoupons && (
-            <Field
-              label="Duration (anos)"
-              labelExtra={
-                <HelpTooltip
-                  text={
-                    <>
-                      A duration mede o prazo médio ponderado dos fluxos do título (mais curta que o prazo até o
-                      vencimento, já que os cupons antecipam parte do fluxo). Consulte a duration do seu título em{" "}
-                      <a
-                        href="https://www.anbima.com.br"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-accent-strong underline"
-                      >
-                        www.anbima.com.br
-                      </a>{" "}
-                      (Preços e Índices) — use como referência inicial.
-                    </>
-                  }
-                />
-              }
-              error={errors.duration?.message}
-              {...register("duration")}
-              type="number"
-              step="0.1"
-            />
-          )}
-          <Controller
-            control={control}
-            name="investedAmount"
-            render={({ field }) => (
-              <CurrencyInputControlled
-                label="Valor investido (R$, opcional)"
-                value={field.value}
-                onChange={field.onChange}
-                error={errors.investedAmount?.message}
-              />
-            )}
-          />
-        </div>
-
-        <Button type="submit" className="w-fit">
-          Simular
-        </Button>
-      </Card>
-
-      {result && (
-        <div className="flex flex-col gap-4">
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            <StatCard label="Preço de carrego (taxa contratada)" value={formatBRL(result.carryingPrice)} />
-            <StatCard label="Preço a mercado (nova taxa)" value={formatBRL(result.marketPrice)} />
-            <StatCard
-              label="Lucro/Prejuízo na venda antecipada"
-              value={formatBRL(result.profitOrLoss)}
-              tone={result.profitOrLoss >= 0 ? "success" : "danger"}
-            />
-            <StatCard label="Sensibilidade aproximada" value={formatPercentNumber(result.approximateSensitivity * 100, 2)} />
-          </div>
-          {result.scaledMarketValue !== undefined && result.scaledProfitOrLoss !== undefined && (
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-              <StatCard label="Valor de mercado hoje (sobre o valor investido)" value={formatBRL(result.scaledMarketValue)} />
-              <StatCard
-                label="Lucro/Prejuízo sobre o valor investido"
-                value={formatBRL(result.scaledProfitOrLoss)}
-                tone={result.scaledProfitOrLoss >= 0 ? "success" : "danger"}
-              />
+    <SimulatorWizard
+      eyebrow="Marcação a Mercado"
+      fields={FIELDS}
+      defaults={DEFAULTS}
+      renderResult={(values) => {
+        const result = simulateMarkToMarket(toInput(values));
+        return (
+          <div className="flex flex-col gap-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-accent-strong">Resultado</p>
+              <h1 className="mt-1 font-serif text-2xl text-ink">
+                {result.profitOrLoss >= 0 ? "Venda antecipada daria lucro" : "Venda antecipada daria prejuízo"}
+              </h1>
+              <p className="mt-1 text-xs text-ink-muted">Levar até o vencimento elimina esse risco.</p>
             </div>
-          )}
-          <div>
-            <h2 className="mb-3 text-sm font-medium text-ink-muted">Matriz de sensibilidade (duration × variação de taxa)</h2>
-            <Card className="p-5">
+            <div className="grid grid-cols-2 gap-3">
+              <StatCard
+                label="Lucro/Prejuízo na venda antecipada"
+                value={formatBRL(result.profitOrLoss)}
+                tone={result.profitOrLoss >= 0 ? "success" : "danger"}
+              />
+              <StatCard label="Sensibilidade aproximada" value={formatPercentNumber(result.approximateSensitivity * 100, 2)} />
+              <StatCard label="Preço de carrego (taxa contratada)" value={formatBRL(result.carryingPrice)} />
+              <StatCard label="Preço a mercado (nova taxa)" value={formatBRL(result.marketPrice)} />
+            </div>
+            {result.scaledMarketValue !== undefined && result.scaledProfitOrLoss !== undefined && (
+              <div className="grid grid-cols-2 gap-3">
+                <StatCard label="Valor de mercado hoje" value={formatBRL(result.scaledMarketValue)} />
+                <StatCard
+                  label="Lucro/Prejuízo sobre o investido"
+                  value={formatBRL(result.scaledProfitOrLoss)}
+                  tone={result.scaledProfitOrLoss >= 0 ? "success" : "danger"}
+                />
+              </div>
+            )}
+            <Card className="p-4">
+              <p className="mb-3 text-xs font-medium text-ink-muted">Sensibilidade (duration × variação de taxa)</p>
               <SensitivityHeatmap rows={result.sensitivityMatrix} />
             </Card>
           </div>
-        </div>
-      )}
-    </div>
+        );
+      }}
+    />
   );
 }

@@ -1,24 +1,37 @@
 "use client";
 
-import { useState } from "react";
-import { useForm, Controller } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  financingVsRentSchema,
-  type FinancingVsRentFormInput,
-  type FinancingVsRentFormValues,
-} from "@/lib/validations/financing-vs-rent.schema";
-import { simulateFinancingVsRent, type FinancingVsRentResult } from "@/lib/simulators/financing-vs-rent";
+import { simulateFinancingVsRent, type FinancingVsRentInput } from "@/lib/simulators/financing-vs-rent";
 import { FinancingVsRentChart } from "@/components/charts/FinancingVsRentChart";
-import { PageHeader } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
 import { Card } from "@/components/ui/Card";
-import { Field, SelectField } from "@/components/ui/Field";
-import { PercentInputControlled } from "@/components/ui/PercentInputControlled";
-import { CurrencyInputControlled } from "@/components/ui/CurrencyInputControlled";
-import { Button } from "@/components/ui/Button";
+import { SimulatorWizard, type WizardField, type WizardValues } from "@/components/simulators/SimulatorWizard";
 
-const defaultValues: FinancingVsRentFormInput = {
+function formatBRL(value: number) {
+  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+const FIELDS: WizardField[] = [
+  { name: "propertyValue", label: "Valor do imóvel", kind: "currency", help: "O preço de venda do imóvel que você quer comprar." },
+  { name: "downPayment", label: "Entrada", kind: "currency", help: "Quanto você paga à vista. O restante é o valor financiado." },
+  { name: "cetAnnualRate", label: "Custo do financiamento (CET)", kind: "percent", help: "Custo Efetivo Total ao ano — juros mais tarifas e seguros do financiamento." },
+  { name: "propertyAppreciationAnnualRate", label: "Valorização do imóvel", kind: "percent", help: "Quanto o imóvel valoriza por ano, em média." },
+  { name: "termMonths", label: "Prazo", kind: "number", suffix: "meses", help: "Em quantos meses o financiamento é pago (ex.: 360 = 30 anos)." },
+  {
+    name: "system",
+    label: "Sistema de amortização",
+    kind: "select",
+    help: "SAC: as parcelas começam maiores e caem com o tempo. Price: parcelas fixas do começo ao fim.",
+    options: [
+      { value: "SAC", label: "SAC (parcelas decrescentes)" },
+      { value: "PRICE", label: "Price (parcelas fixas)" },
+    ],
+  },
+  { name: "monthlyRent", label: "Aluguel mensal", kind: "currency", help: "Quanto custaria alugar o mesmo imóvel por mês (cenário alternativo)." },
+  { name: "rentAnnualAdjustment", label: "Reajuste anual do aluguel", kind: "percent", help: "Quanto o aluguel sobe por ano (ex.: IGP-M ou IPCA)." },
+  { name: "investmentAnnualRate", label: "Rentabilidade ao investir a diferença", kind: "percent", help: "Quanto rende por ano o dinheiro que você investiria em vez de comprar." },
+];
+
+const DEFAULTS: WizardValues = {
   propertyValue: 500000,
   downPayment: 100000,
   cetAnnualRate: 0.11,
@@ -30,146 +43,47 @@ const defaultValues: FinancingVsRentFormInput = {
   investmentAnnualRate: 0.11,
 };
 
-function formatBRL(value: number) {
-  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+function toInput(values: WizardValues): FinancingVsRentInput {
+  return {
+    propertyValue: Number(values.propertyValue),
+    downPayment: Number(values.downPayment),
+    cetAnnualRate: Number(values.cetAnnualRate),
+    propertyAppreciationAnnualRate: Number(values.propertyAppreciationAnnualRate),
+    termMonths: Number(values.termMonths),
+    system: values.system === "PRICE" ? "PRICE" : "SAC",
+    monthlyRent: Number(values.monthlyRent),
+    rentAnnualAdjustment: Number(values.rentAnnualAdjustment),
+    investmentAnnualRate: Number(values.investmentAnnualRate),
+  };
 }
 
 export default function FinanciarVsAlugarPage() {
-  const {
-    register,
-    control,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<FinancingVsRentFormInput, unknown, FinancingVsRentFormValues>({
-    resolver: zodResolver(financingVsRentSchema),
-    defaultValues,
-  });
-  const [result, setResult] = useState<FinancingVsRentResult | null>(null);
-
-  const onSubmit = handleSubmit((values) => {
-    setResult(simulateFinancingVsRent(values));
-  });
-
   return (
-    <div className="flex flex-col gap-8">
-      <PageHeader
-        title="Financiar vs. Alugar + Investir"
-        subtitle="Monta a amortização do financiamento (SAC ou Price) e compara com o cenário de alugar e investir a diferença."
-      />
-
-      <Card as="form" onSubmit={onSubmit} className="flex flex-col gap-4 p-5">
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <Controller
-            control={control}
-            name="propertyValue"
-            render={({ field }) => (
-              <CurrencyInputControlled
-                label="Valor do imóvel (R$)"
-                value={field.value}
-                onChange={field.onChange}
-                error={errors.propertyValue?.message}
-              />
-            )}
-          />
-          <Controller
-            control={control}
-            name="downPayment"
-            render={({ field }) => (
-              <CurrencyInputControlled
-                label="Entrada (R$)"
-                value={field.value}
-                onChange={field.onChange}
-                error={errors.downPayment?.message}
-              />
-            )}
-          />
-          <Controller
-            control={control}
-            name="cetAnnualRate"
-            render={({ field }) => (
-              <PercentInputControlled label="CET (a.a.)" value={field.value} onChange={field.onChange} error={errors.cetAnnualRate?.message} />
-            )}
-          />
-          <Controller
-            control={control}
-            name="propertyAppreciationAnnualRate"
-            render={({ field }) => (
-              <PercentInputControlled
-                label="Valorização do imóvel (a.a.)"
-                value={field.value}
-                onChange={field.onChange}
-                error={errors.propertyAppreciationAnnualRate?.message}
-              />
-            )}
-          />
-        </div>
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <Field label="Prazo (meses)" error={errors.termMonths?.message} {...register("termMonths")} type="number" />
-          <SelectField label="Sistema de amortização" {...register("system")}>
-            <option value="SAC">SAC</option>
-            <option value="PRICE">Price</option>
-          </SelectField>
-          <Controller
-            control={control}
-            name="monthlyRent"
-            render={({ field }) => (
-              <CurrencyInputControlled
-                label="Aluguel mensal (R$)"
-                value={field.value}
-                onChange={field.onChange}
-                error={errors.monthlyRent?.message}
-              />
-            )}
-          />
-          <Controller
-            control={control}
-            name="rentAnnualAdjustment"
-            render={({ field }) => (
-              <PercentInputControlled
-                label="Reajuste anual do aluguel"
-                value={field.value}
-                onChange={field.onChange}
-                error={errors.rentAnnualAdjustment?.message}
-              />
-            )}
-          />
-        </div>
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <Controller
-            control={control}
-            name="investmentAnnualRate"
-            render={({ field }) => (
-              <PercentInputControlled
-                label="Rentabilidade de quem investe (a.a.)"
-                value={field.value}
-                onChange={field.onChange}
-                error={errors.investmentAnnualRate?.message}
-              />
-            )}
-          />
-        </div>
-        <Button type="submit" className="w-fit">
-          Simular
-        </Button>
-      </Card>
-
-      {result && (
-        <div className="flex flex-col gap-4">
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            <StatCard label="Valor financiado" value={formatBRL(result.financedAmount)} />
-            <StatCard label="Patrimônio ao final — Financiar" value={formatBRL(result.finalFinancingPatrimony)} />
-            <StatCard label="Patrimônio ao final — Alugar + investir" value={formatBRL(result.finalInvestedPatrimony)} />
-            <StatCard
-              label="Cenário vencedor"
-              value={result.winner === "FINANCIAR" ? "Financiar o imóvel" : "Alugar e investir a diferença"}
-              tone="accent"
-            />
+    <SimulatorWizard
+      eyebrow="Financiar vs. Alugar + Investir"
+      fields={FIELDS}
+      defaults={DEFAULTS}
+      renderResult={(values) => {
+        const result = simulateFinancingVsRent(toInput(values));
+        return (
+          <div className="flex flex-col gap-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-accent-strong">Resultado</p>
+              <h1 className="mt-1 font-serif text-2xl text-ink">
+                {result.winner === "FINANCIAR" ? "Financiar sai na frente" : "Alugar e investir sai na frente"}
+              </h1>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <StatCard label="Patrimônio final — Financiar" value={formatBRL(result.finalFinancingPatrimony)} tone={result.winner === "FINANCIAR" ? "accent" : "neutral"} />
+              <StatCard label="Patrimônio final — Alugar + investir" value={formatBRL(result.finalInvestedPatrimony)} tone={result.winner === "ALUGAR_E_INVESTIR" ? "accent" : "neutral"} />
+              <StatCard label="Valor financiado" value={formatBRL(result.financedAmount)} />
+            </div>
+            <Card className="p-4">
+              <FinancingVsRentChart schedule={result.schedule} />
+            </Card>
           </div>
-          <Card className="p-5">
-            <FinancingVsRentChart schedule={result.schedule} />
-          </Card>
-        </div>
-      )}
-    </div>
+        );
+      }}
+    />
   );
 }
