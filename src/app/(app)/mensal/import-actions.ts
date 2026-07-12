@@ -43,11 +43,23 @@ export async function parseStatementAction(
 ): Promise<ParseStatementResult> {
   const ctx = await getRequiredSession();
   const { text, source } = await extractUploadText(content, encoding);
+
+  // PDF escaneado/foto não tem texto extraível — avisa e pede Excel, em vez de erro genérico.
+  const readableChars = text.replace(/[^\p{L}\p{N}]/gu, "").length;
+  if (encoding === "pdf" && readableChars < 12) {
+    return {
+      ok: false,
+      error:
+        "Não consegui ler este PDF — ele parece ser escaneado ou uma foto. Exporte o extrato em Excel (.xlsx), CSV ou OFX que aí funciona.",
+    };
+  }
+
   const parsed = parseStatement(text, source);
   if (parsed.length === 0) {
     return {
       ok: false,
-      error: "Não encontramos transações nesse arquivo. Tente exportar o extrato em CSV, OFX, Excel ou PDF.",
+      error:
+        "Não encontrei transações nesse arquivo. Se for um PDF escaneado/foto, exporte em Excel (.xlsx) ou CSV — costuma ler melhor.",
     };
   }
 

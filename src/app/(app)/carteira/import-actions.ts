@@ -29,11 +29,23 @@ export async function parsePortfolioAction(
 ): Promise<ParsePortfolioResult> {
   await getRequiredSession();
   const { text } = await extractUploadText(content, encoding);
+
+  // PDF escaneado/foto não tem texto extraível — avisa e pede Excel.
+  const readableChars = text.replace(/[^\p{L}\p{N}]/gu, "").length;
+  if (encoding === "pdf" && readableChars < 12) {
+    return {
+      ok: false,
+      error:
+        "Não consegui ler este PDF — ele parece ser escaneado ou uma foto. Suba a posição em Excel (.xlsx) ou CSV que aí funciona.",
+    };
+  }
+
   const parsed = parsePortfolioStatement(text);
   if (parsed.length === 0) {
     return {
       ok: false,
-      error: "Não identificamos ativos nesse arquivo. Suba a posição da corretora ou o relatório da B3 (CSV, Excel ou PDF).",
+      error:
+        "Não identifiquei ativos nesse arquivo. Se for um PDF escaneado/foto, suba a posição em Excel (.xlsx) ou CSV — costuma ler melhor.",
     };
   }
   const holdings: ParsedHoldingItem[] = parsed.map((h, index) => ({
