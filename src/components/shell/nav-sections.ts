@@ -8,7 +8,7 @@ import {
   FileSearch,
   Settings,
   ShieldCheck,
-  Home,
+  Target,
   type LucideIcon,
 } from "lucide-react";
 
@@ -108,12 +108,12 @@ export const ADMIN_NAV_SECTION: NavSection = {
 
 export type MobileTab = { basePath: string; href: string; label: string; icon: LucideIcon };
 
-/** Os 5 destinos da tab bar inferior no mobile — os 4 primeiros levam direto ao módulo,
- * o 5º ("Mais") abre a MoreSheet com o restante (ver MORE_NAV_SECTIONS). */
+/** Destinos de navegação da tab bar inferior. A barra final tem 5 posições:
+ * Fluxo | Metas | [ + Registrar ] | Carteira | Mais — o "+" central (registro) e o "Mais"
+ * (MoreSheet) são renderizados à parte pelo MobileTabBar, entre e depois destes 3 links. */
 export const MOBILE_TABS: MobileTab[] = [
-  { basePath: "/inicio", href: "/inicio", label: "Início", icon: Home },
   { basePath: "/mensal", href: "/mensal", label: "Fluxo", icon: ArrowLeftRight },
-  { basePath: "/planejamento", href: "/planejamento/acumulo", label: "Planejamento", icon: Compass },
+  { basePath: "/planejamento", href: "/planejamento/acumulo", label: "Metas", icon: Target },
   { basePath: "/carteira", href: "/carteira", label: "Carteira", icon: Briefcase },
 ];
 

@@ -2,10 +2,10 @@
 
 import { useActionState, useState } from "react";
 import type { StrategyAssetClass } from "@prisma/client";
-import { Field } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useSuccessToast } from "@/components/ui/useSuccessToast";
+import { DonutAllocationChart } from "@/components/charts/DonutAllocationChart";
 import { STRATEGY_ASSET_CLASSES, STRATEGY_ASSET_CLASS_LABEL } from "@/lib/portfolio/strategy";
 import { savePortfolioStrategyAction, type PortfolioStrategyState } from "./actions";
 import { formatPercentNumber } from "@/lib/format";
@@ -64,12 +64,19 @@ export function StrategyForm({ defaults }: { defaults: Record<StrategyAssetClass
   const sum = STRATEGY_ASSET_CLASSES.reduce((acc, key) => acc + (values[key] || 0), 0);
   const sumOk = Math.abs(sum - 100) < 0.01;
 
+  // Gráfico de pizza ao vivo: converte % (0-100) em fração (0-1) que o donut espera.
+  const liveData = STRATEGY_ASSET_CLASSES.map((key) => ({
+    id: key,
+    name: STRATEGY_ASSET_CLASS_LABEL[key],
+    value: (values[key] || 0) / 100,
+  }));
+
   return (
-    <Card as="form" action={formAction} className="flex flex-col gap-5 p-5">
+    <Card as="form" action={formAction} className="flex flex-col gap-6 p-5">
       {state.error && <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{state.error}</p>}
 
       <div className="flex flex-col gap-2">
-        <span className="text-xs font-medium text-ink-muted">Começar de um perfil pronto (você pode ajustar depois)</span>
+        <span className="text-sm font-medium text-ink">Começar de um perfil pronto (você pode ajustar depois)</span>
         <div className="flex flex-wrap gap-2">
           {PRESETS.map((preset) => (
             <button
@@ -77,7 +84,7 @@ export function StrategyForm({ defaults }: { defaults: Record<StrategyAssetClass
               type="button"
               title={preset.description}
               onClick={() => setValues(preset.values)}
-              className="rounded-full border border-border-strong bg-surface-2 px-3 py-1.5 text-xs font-medium text-ink-muted transition-colors hover:border-accent hover:text-ink"
+              className="rounded-full border border-border-strong bg-surface-2 px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:border-accent hover:bg-surface-hover"
             >
               {preset.label}
             </button>
@@ -85,29 +92,50 @@ export function StrategyForm({ defaults }: { defaults: Record<StrategyAssetClass
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        {STRATEGY_ASSET_CLASSES.map((assetClass) => (
-          <Field
-            key={assetClass}
-            label={`${STRATEGY_ASSET_CLASS_LABEL[assetClass]} (%)`}
-            name={assetClass}
-            type="number"
-            step="0.1"
-            min={0}
-            max={100}
-            value={values[assetClass]}
-            onChange={(e) => setValues((prev) => ({ ...prev, [assetClass]: Number(e.target.value) }))}
-          />
-        ))}
+      {/* Campos à esquerda, pizza ao vivo à direita (empilha no mobile). */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {STRATEGY_ASSET_CLASSES.map((assetClass) => (
+            <label key={assetClass} className="flex flex-col gap-1.5">
+              <span className="text-xs font-medium text-ink">{STRATEGY_ASSET_CLASS_LABEL[assetClass]}</span>
+              <div className="flex items-center rounded-lg border border-border-strong bg-surface focus-within:border-accent focus-within:ring-1 focus-within:ring-accent">
+                <input
+                  name={assetClass}
+                  type="number"
+                  step="0.1"
+                  min={0}
+                  max={100}
+                  value={values[assetClass]}
+                  onChange={(e) => setValues((prev) => ({ ...prev, [assetClass]: Number(e.target.value) }))}
+                  className="w-full rounded-lg bg-transparent px-3 py-2 text-sm font-medium tabular-nums text-ink focus:outline-none"
+                />
+                <span className="pr-3 text-sm text-ink-muted">%</span>
+              </div>
+            </label>
+          ))}
+        </div>
+
+        <div className="flex flex-col items-center justify-center rounded-xl border border-border bg-surface-2/50 p-4">
+          <DonutAllocationChart title="Como sua carteira ficaria" data={liveData} />
+        </div>
       </div>
 
-      <div className="flex items-center justify-between">
-        <span className={`text-sm font-medium ${sumOk ? "text-success" : "text-danger"}`}>
-          Soma atual: {formatPercentNumber(sum, 1)} {sumOk ? "✓" : "— precisa somar 100%"}
-        </span>
-        <Button type="submit" disabled={isPending || !sumOk}>
-          {isPending ? "Salvando..." : "Salvar estratégia"}
-        </Button>
+      {/* Validação dos 100% com barra e cor. */}
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-between">
+          <span className={`text-sm font-semibold tabular-nums ${sumOk ? "text-success" : "text-danger"}`}>
+            Soma: {formatPercentNumber(sum, 1)} {sumOk ? "✓ fecha em 100%" : "— precisa somar 100%"}
+          </span>
+          <Button type="submit" disabled={isPending || !sumOk}>
+            {isPending ? "Salvando..." : "Salvar estratégia"}
+          </Button>
+        </div>
+        <div className="h-2 w-full overflow-hidden rounded-full bg-surface-2">
+          <div
+            className={`h-full rounded-full transition-all ${sumOk ? "bg-success" : sum > 100 ? "bg-danger" : "bg-accent"}`}
+            style={{ width: `${Math.min(100, sum)}%` }}
+          />
+        </div>
       </div>
     </Card>
   );

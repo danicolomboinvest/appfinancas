@@ -1,4 +1,4 @@
-import { ModuleTabs } from "@/components/shell/ModuleTabs";
+import { PillTabs } from "@/components/shell/PillTabs";
 
 const TABS = [
   { href: "/planejamento/acumulo", label: "Independência Financeira" },
@@ -9,7 +9,7 @@ const TABS = [
 export default function PlanejamentoLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
-      <ModuleTabs tabs={TABS} />
+      <PillTabs tabs={TABS} />
       {children}
     </>
   );

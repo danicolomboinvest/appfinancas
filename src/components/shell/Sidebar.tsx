@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronsLeft, ChevronsRight, LogOut, TrendingUp } from "lucide-react";
+import { ChevronsLeft, ChevronsRight, LogOut, Plus, TrendingUp } from "lucide-react";
 import { ADMIN_NAV_SECTION, NAV_SECTIONS } from "./nav-sections";
 
 export function Sidebar({
@@ -14,6 +14,7 @@ export function Sidebar({
   isAdmin,
   userEmail,
   onLogout,
+  onOpenRegistrar,
 }: {
   collapsed: boolean;
   onToggleCollapsed: () => void;
@@ -22,6 +23,7 @@ export function Sidebar({
   isAdmin: boolean;
   userEmail?: string;
   onLogout: () => void;
+  onOpenRegistrar: () => void;
 }) {
   const pathname = usePathname();
   const sections = isAdmin ? [...NAV_SECTIONS, ADMIN_NAV_SECTION] : NAV_SECTIONS;
@@ -63,6 +65,20 @@ export function Sidebar({
             Planejamento Financeiro
           </span>
         </Link>
+      </div>
+
+      {/* Registro no desktop: substitui o antigo FAB flutuante. Abre o mesmo RegistrarDrawer
+          usado pelo "+" central do mobile. */}
+      <div className="px-3 pt-1 pb-1">
+        <button
+          type="button"
+          onClick={onOpenRegistrar}
+          title={collapsed ? "Registrar" : undefined}
+          className={`flex w-full items-center gap-3 rounded-lg bg-ink px-3 py-2.5 text-sm font-medium text-canvas transition-opacity hover:opacity-90 active:scale-[0.98] ${collapsedDesktopOnly}`}
+        >
+          <Plus size={18} strokeWidth={2.2} className="shrink-0" />
+          <span className={`truncate ${hideLabelDesktopOnly}`}>Registrar</span>
+        </button>
       </div>
 
       <nav className="flex-1 overflow-y-auto px-3 py-3">

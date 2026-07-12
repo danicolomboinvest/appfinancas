@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Fraunces } from "next/font/google";
 import "./globals.css";
 
@@ -22,6 +22,37 @@ const fraunces = Fraunces({
 export const metadata: Metadata = {
   title: "Planejamento Financeiro",
   description: "Organize seu patrimônio, metas e investimentos em um só lugar.",
+  // Faz o app abrir em tela cheia (sem barra de URL) quando salvo na tela inicial do iOS.
+  // statusBarStyle "default" (texto escuro) porque o tema padrão é claro — "black-translucent"
+  // deixaria o relógio/bateria brancos e invisíveis sobre o off-white.
+  appleWebApp: {
+    capable: true,
+    title: "Finanças",
+    statusBarStyle: "default",
+  },
+  icons: {
+    apple: "/icons/apple-touch-icon.png",
+  },
+  // O Next já emite o `mobile-web-app-capable` (padrão novo), mas o iOS Safari antigo só entra
+  // em modo standalone com a tag legada `apple-mobile-web-app-capable` — é ela que tira a barra
+  // de URL quando o app é aberto pela tela inicial. Mantemos as duas por compatibilidade.
+  other: {
+    "apple-mobile-web-app-capable": "yes",
+  },
+};
+
+// Trava o zoom por pinça e o gesto de duplo-toque, e estende o conteúdo até as bordas
+// (viewport-fit=cover) para o rodapé com env(safe-area-inset-bottom) funcionar como app nativo.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#faf9f4" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
+  ],
 };
 
 const THEME_INIT_SCRIPT = `

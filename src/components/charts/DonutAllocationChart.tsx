@@ -23,12 +23,20 @@ export function DonutAllocationChart({ title, data }: { title: string; data: Don
   const hasData = data.some((d) => d.value > 0);
 
   return (
-    <div className="flex flex-col items-center gap-2">
+    <div className="flex w-full flex-col items-center gap-2">
       <p className="text-xs font-medium text-ink-muted">{title}</p>
       {hasData ? (
         <ResponsiveContainer width="100%" height={220}>
           <PieChart>
-            <Pie data={data} dataKey="value" nameKey="name" innerRadius={55} outerRadius={85} paddingAngle={2}>
+            <Pie
+              data={data}
+              dataKey="value"
+              nameKey="name"
+              innerRadius={55}
+              outerRadius={85}
+              paddingAngle={2}
+              isAnimationActive={false}
+            >
               {data.map((entry, index) => (
                 <Cell key={entry.id ?? entry.name} fill={SLICE_COLORS[index % SLICE_COLORS.length]} stroke="none" />
               ))}

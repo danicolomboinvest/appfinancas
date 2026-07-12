@@ -24,6 +24,20 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "--", "-p", "3001"],
       "port": 3001
+    },
+    {
+      "name": "dev-auto",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "port": 3005,
+      "autoPort": true
+    },
+    {
+      "name": "bio-preview",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["--yes", "http-server", "/private/tmp/claude-501/-Users-danielacolombo-Desktop-Claude-Code/97705b96-d5d1-4ec0-b0ba-e70609c61515/scratchpad/bio-preview", "-p", "8720", "-c-1"],
+      "port": 8720,
+      "autoPort": true
     }
   ]
 }
