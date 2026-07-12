@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseStatement, parseOfx, parseCsv, parseBrazilianNumber, normalizeDate } from "../statement-parser";
+import { parseStatement, parseOfx, parseCsv, parseTextLines, parseBrazilianNumber, normalizeDate } from "../statement-parser";
 import { classify, normalizeMerchant } from "../classify";
 
 describe("parseBrazilianNumber", () => {
@@ -63,6 +63,27 @@ describe("parseStatement dispatch", () => {
   it("routes OFX vs CSV by content", () => {
     expect(parseStatement("<STMTTRN><TRNAMT>-1.00<MEMO>x</STMTTRN>")).toHaveLength(1);
     expect(parseStatement("data;desc;valor\n01/01/2026;x;-1,00")).toHaveLength(1);
+  });
+});
+
+describe("parseTextLines (PDF-extracted text)", () => {
+  it("finds date + amount per line and ignores lines without a date", () => {
+    const text = `Extrato Conta Corrente
+12/07/2026  IFOOD *IFD SAO PAULO      -45,90
+10/07/2026  SALARIO EMPRESA XYZ     5.000,00
+Saldo final                          4.929,60`;
+    const txns = parseTextLines(text);
+    expect(txns).toHaveLength(2); // "Saldo final" tem valor mas não tem data → ignorado
+    expect(txns[0]).toEqual({ date: "2026-07-12", description: "IFOOD *IFD SAO PAULO", amount: -45.9 });
+  });
+
+  it("marks credit lines as income via keyword", () => {
+    const txns = parseTextLines("10/07/2026 SALARIO EMPRESA 5.000,00");
+    expect(txns[0].amount).toBe(5000); // positivo (salário = crédito)
+  });
+
+  it("routes source=pdf through the text-line parser", () => {
+    expect(parseStatement("01/01/2026 UBER 24,50", "pdf")).toHaveLength(1);
   });
 });
 

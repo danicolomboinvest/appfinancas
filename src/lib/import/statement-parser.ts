@@ -129,6 +129,50 @@ export function parseCsv(content: string): ParsedTransaction[] {
   return transactions;
 }
 
-export function parseStatement(content: string): ParsedTransaction[] {
+/** Palavras que indicam entrada (crédito) numa linha de extrato sem coluna de débito/crédito. */
+const CREDIT_HINTS = /\b(sal[aá]rio|rendimento|dep[oó]sito|cr[eé]dito|recebid[oa]|estorno|reembolso|proventos)\b/i;
+
+/**
+ * Parser de texto solto — usado pra PDF, cujo texto extraído não é delimitado como CSV. Em cada
+ * linha procura uma data e um valor monetário (formato BR); o resto vira a descrição. Sinal:
+ * "-" explícito ou coluna "D" = saída; palavra de crédito/entrada = entrada; senão, assume saída
+ * (a maioria das linhas é gasto) — o usuário revisa depois.
+ */
+export function parseTextLines(content: string): ParsedTransaction[] {
+  const lines = content.split(/\r?\n/);
+  const transactions: ParsedTransaction[] = [];
+  const dateRe = /(\d{2}\/\d{2}\/\d{4})|(\d{4}-\d{2}-\d{2})/;
+  const moneyRe = /-?\s?(?:R\$\s?)?\d{1,3}(?:\.\d{3})*,\d{2}/g;
+
+  for (const line of lines) {
+    const dateMatch = line.match(dateRe);
+    if (!dateMatch) continue;
+    const moneyMatches = line.match(moneyRe);
+    if (!moneyMatches || moneyMatches.length === 0) continue;
+
+    const rawAmount = moneyMatches[moneyMatches.length - 1];
+    const magnitude = Math.abs(parseBrazilianNumber(rawAmount));
+    if (Number.isNaN(magnitude) || magnitude === 0) continue;
+
+    const isNegative = /-/.test(rawAmount) || /\bD\b\s*$/.test(line);
+    const isCredit = !isNegative && (CREDIT_HINTS.test(line) || /\bC\b\s*$/.test(line));
+    const amount = isCredit ? magnitude : -magnitude;
+
+    const description =
+      line
+        .replace(dateMatch[0], " ")
+        .replace(moneyRe, " ")
+        .replace(/\b[DC]\b\s*$/, " ")
+        .replace(/\s+/g, " ")
+        .trim() || "Lançamento";
+
+    transactions.push({ date: normalizeDate(dateMatch[0]), description, amount });
+  }
+  return transactions;
+}
+
+/** `source` "pdf" força o parser de linhas de texto; caso contrário detecta OFX vs CSV. */
+export function parseStatement(content: string, source: "auto" | "pdf" = "auto"): ParsedTransaction[] {
+  if (source === "pdf") return parseTextLines(content);
   return isOfx(content) ? parseOfx(content) : parseCsv(content);
 }

@@ -28,6 +28,23 @@ function formatBRL(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
+async function fileToBase64(file: File): Promise<string> {
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  let binary = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  return btoa(binary);
+}
+
+async function readUpload(file: File): Promise<{ content: string; encoding: "text" | "xlsx" | "pdf" }> {
+  const name = file.name.toLowerCase();
+  if (name.endsWith(".xlsx") || name.endsWith(".xls")) return { content: await fileToBase64(file), encoding: "xlsx" };
+  if (name.endsWith(".pdf")) return { content: await fileToBase64(file), encoding: "pdf" };
+  return { content: await file.text(), encoding: "text" };
+}
+
 /**
  * Importação da carteira (item 5.1): sobe o extrato de posição da corretora/B3 (CSV), identifica
  * os ativos pelo ticker + quantidade e cria tudo de uma vez. A classe é inferida pelo ticker e
@@ -43,9 +60,9 @@ export function PortfolioImport({ onDone }: { onDone: () => void }) {
 
   async function handleFile(file: File) {
     setError(null);
-    const content = await file.text();
+    const { content, encoding } = await readUpload(file);
     startTransition(async () => {
-      const result = await parsePortfolioAction(content);
+      const result = await parsePortfolioAction(content, encoding);
       if (!result.ok) {
         setError(result.error);
         return;
@@ -95,12 +112,12 @@ export function PortfolioImport({ onDone }: { onDone: () => void }) {
             <Upload size={22} strokeWidth={1.75} />
           </span>
           <span className="text-sm font-medium text-ink">{isPending ? "Lendo arquivo..." : "Escolher extrato da corretora"}</span>
-          <span className="text-caption text-ink-faint">Relatório de posição da corretora ou da B3 (CSV)</span>
+          <span className="text-caption text-ink-faint">Posição da corretora ou da B3 (CSV, Excel ou PDF)</span>
         </button>
         <input
           ref={fileRef}
           type="file"
-          accept=".csv,.txt,text/csv"
+          accept=".csv,.txt,.xlsx,.xls,.pdf,text/csv,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
           className="hidden"
           onChange={(e) => {
             const file = e.target.files?.[0];

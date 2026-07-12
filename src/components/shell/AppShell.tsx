@@ -54,6 +54,9 @@ export function AppShell({
     });
   }
 
+  // A saudação ("Bom dia/Boa noite") só aparece no Fluxo — antes vinha em todas as telas.
+  const showGreeting = pathname === "/mensal" || pathname.startsWith("/mensal/");
+
   // "Mais" fica em destaque na tab bar quando a rota atual é uma das seções que só
   // existem dentro da sheet (Visão Geral, Orçamento, Simuladores, Análises, Configurações).
   const moreActive = MORE_NAV_SECTIONS.some(
@@ -79,7 +82,7 @@ export function AppShell({
         <div className="flex min-w-0 flex-1 flex-col">
           <main className="flex-1 px-5 pb-24 pt-6 md:px-10 md:pb-8 md:pt-8">
             <div className="mx-auto w-full max-w-6xl animate-fade-in">
-              <GreetingStrip greeting={greeting} dateLabel={dateLabel} summary={summary} />
+              {showGreeting && <GreetingStrip greeting={greeting} dateLabel={dateLabel} summary={summary} />}
               {children}
             </div>
           </main>

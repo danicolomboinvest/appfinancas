@@ -6,6 +6,7 @@ import { getRequiredSession } from "@/lib/auth/session";
 import { createMonthlyEntry } from "@/lib/repositories/monthly-entry.repo";
 import { listTransactionRules, upsertTransactionRule } from "@/lib/repositories/transaction-rule.repo";
 import { parseStatement } from "@/lib/import/statement-parser";
+import { extractUploadText, type UploadEncoding } from "@/lib/import/extract-text";
 import { classify, normalizeMerchant, type LearnedRule } from "@/lib/import/classify";
 
 const PARENT_CATEGORY_VALUES: ParentCategory[] = [
@@ -34,12 +35,20 @@ export type ReviewItem = {
 
 export type ParseStatementResult = { ok: true; items: ReviewItem[] } | { ok: false; error: string };
 
-/** Lê o extrato (texto do arquivo CSV/OFX), classifica cada transação e devolve a fila pra revisão. */
-export async function parseStatementAction(content: string): Promise<ParseStatementResult> {
+/** Lê o extrato (CSV/OFX/Excel/PDF), classifica cada transação e devolve a fila pra revisão.
+ * `content` é texto puro (CSV/OFX) ou base64 (Excel/PDF), conforme `encoding`. */
+export async function parseStatementAction(
+  content: string,
+  encoding: UploadEncoding = "text",
+): Promise<ParseStatementResult> {
   const ctx = await getRequiredSession();
-  const parsed = parseStatement(content);
+  const { text, source } = await extractUploadText(content, encoding);
+  const parsed = parseStatement(text, source);
   if (parsed.length === 0) {
-    return { ok: false, error: "Não encontramos transações nesse arquivo. Exporte o extrato em CSV ou OFX." };
+    return {
+      ok: false,
+      error: "Não encontramos transações nesse arquivo. Tente exportar o extrato em CSV, OFX, Excel ou PDF.",
+    };
   }
 
   const rules = await listTransactionRules(ctx);

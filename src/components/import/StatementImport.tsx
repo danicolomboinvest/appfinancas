@@ -24,6 +24,24 @@ function formatDate(iso: string) {
   return m ? `${m[3]}/${m[2]}` : iso;
 }
 
+async function fileToBase64(file: File): Promise<string> {
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  let binary = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  return btoa(binary);
+}
+
+/** Excel e PDF são binários → base64; CSV/OFX/TXT são texto. Define o encoding pra action. */
+async function readUpload(file: File): Promise<{ content: string; encoding: "text" | "xlsx" | "pdf" }> {
+  const name = file.name.toLowerCase();
+  if (name.endsWith(".xlsx") || name.endsWith(".xls")) return { content: await fileToBase64(file), encoding: "xlsx" };
+  if (name.endsWith(".pdf")) return { content: await fileToBase64(file), encoding: "pdf" };
+  return { content: await file.text(), encoding: "text" };
+}
+
 /**
  * Importação de extrato bancário (item 3). Upload CSV/OFX → classificação automática → fila de
  * revisão (uma transação por vez, chips de categoria em 1 toque) → confirmação. As categorias
@@ -46,9 +64,9 @@ export function StatementImport({ onDone }: { onDone: () => void }) {
 
   async function handleFile(file: File) {
     setError(null);
-    const content = await file.text();
+    const { content, encoding } = await readUpload(file);
     startTransition(async () => {
-      const result = await parseStatementAction(content);
+      const result = await parseStatementAction(content, encoding);
       if (!result.ok) {
         setError(result.error);
         return;
@@ -115,12 +133,12 @@ export function StatementImport({ onDone }: { onDone: () => void }) {
             <Upload size={22} strokeWidth={1.75} />
           </span>
           <span className="text-sm font-medium text-ink">{isPending ? "Lendo arquivo..." : "Escolher extrato"}</span>
-          <span className="text-caption text-ink-faint">CSV ou OFX exportado do seu banco</span>
+          <span className="text-caption text-ink-faint">CSV, OFX, Excel ou PDF do seu banco</span>
         </button>
         <input
           ref={fileRef}
           type="file"
-          accept=".csv,.ofx,.txt,text/csv"
+          accept=".csv,.ofx,.txt,.xlsx,.xls,.pdf,text/csv,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
           className="hidden"
           onChange={(e) => {
             const file = e.target.files?.[0];
