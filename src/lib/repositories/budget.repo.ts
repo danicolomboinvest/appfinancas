@@ -146,6 +146,33 @@ export async function sumExpensesByParentCategoryForYear(ctx: AuthContext, year:
   }));
 }
 
+/** Soma de gastos por categoria-mãe lançados a partir de uma data (por createdAt) — usado na
+ * visão "semana" da tela Só gastos, já que o lançamento guarda só ano/mês, não o dia da despesa. */
+export async function sumExpensesByParentCategorySince(ctx: AuthContext, since: Date) {
+  const grouped = await prisma.monthlyEntry.groupBy({
+    by: ["parentCategory"],
+    where: { userId: ctx.userId, category: "EXPENSE", parentCategory: { not: null }, createdAt: { gte: since } },
+    _sum: { amount: true },
+  });
+  return grouped.map((g) => ({
+    parentCategory: g.parentCategory as ParentCategory,
+    spent: Number(g._sum.amount ?? 0),
+  }));
+}
+
+/** Igual à de cima, mas por categoria personalizada. */
+export async function sumExpensesByCustomCategorySince(ctx: AuthContext, since: Date) {
+  const grouped = await prisma.monthlyEntry.groupBy({
+    by: ["customCategoryId"],
+    where: { userId: ctx.userId, category: "EXPENSE", customCategoryId: { not: null }, createdAt: { gte: since } },
+    _sum: { amount: true },
+  });
+  return grouped.map((g) => ({
+    customCategoryId: g.customCategoryId as string,
+    spent: Number(g._sum.amount ?? 0),
+  }));
+}
+
 /** Soma de gastos (EXPENSE) do mês, agrupada por categoria personalizada. */
 export async function sumExpensesByCustomCategory(ctx: AuthContext, year: number, month: number) {
   const grouped = await prisma.monthlyEntry.groupBy({
