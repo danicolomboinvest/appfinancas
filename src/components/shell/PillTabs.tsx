@@ -6,9 +6,9 @@ import { usePathname } from "next/navigation";
 export type PillTab = { href: string; label: string };
 
 /**
- * Segmented control em pílula (item 4): fundo suave, aba ativa como pílula preenchida com
- * transição suave. Mais elegante que a aba sublinhada do ModuleTabs — usado no módulo de
- * planejamento (Metas). Rolável em telas estreitas.
+ * Segmented control em pílula: fundo suave, aba ativa como pílula preenchida com transição
+ * suave. É o padrão de sub-navegação de TODOS os módulos (Fluxo, Metas, Carteira, Análises) —
+ * substituiu a antiga aba sublinhada. Rolável em telas estreitas (`overflow-x-auto`).
  */
 export function PillTabs({ tabs }: { tabs: PillTab[] }) {
   const pathname = usePathname();

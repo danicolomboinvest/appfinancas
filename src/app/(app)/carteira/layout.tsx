@@ -1,4 +1,4 @@
-import { ModuleTabs } from "@/components/shell/ModuleTabs";
+import { PillTabs } from "@/components/shell/PillTabs";
 
 const TABS = [
   { href: "/carteira", label: "Meus Ativos" },
@@ -9,7 +9,7 @@ const TABS = [
 export default function CarteiraLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
-      <ModuleTabs tabs={TABS} />
+      <PillTabs tabs={TABS} />
       {children}
     </>
   );
