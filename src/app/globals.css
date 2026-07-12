@@ -195,3 +195,124 @@ body {
 .animate-fade-in {
   animation: fade-in 0.35s ease-out both;
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Página /bio — a "link na bio" do Instagram. Motor de animação próprio, todo
+   escopado com prefixo `bio-` pra não vazar pro resto do app. Objetivo: dar
+   vida (aurora dourada, grão, traço de mercado subindo, brilho que varre o CTA)
+   sem cair no genérico. Tudo desliga em prefers-reduced-motion.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* Entrada coreografada: cada bloco sobe e revela; o atraso é dado inline. */
+@keyframes bio-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.bio-reveal {
+  opacity: 0;
+  animation: bio-in 0.75s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Aurora — dois halos dourados que derivam devagar no fundo navy. */
+@keyframes bio-aurora-a {
+  0% { transform: translate(-8%, -6%) scale(1); }
+  50% { transform: translate(9%, 7%) scale(1.18); }
+  100% { transform: translate(-8%, -6%) scale(1); }
+}
+@keyframes bio-aurora-b {
+  0% { transform: translate(8%, 5%) scale(1.12); }
+  50% { transform: translate(-10%, -9%) scale(1); }
+  100% { transform: translate(8%, 5%) scale(1.12); }
+}
+.bio-aurora-a { animation: bio-aurora-a 20s ease-in-out infinite; }
+.bio-aurora-b { animation: bio-aurora-b 26s ease-in-out infinite; }
+
+/* Anel dourado girando devagar em volta do monograma. */
+@keyframes bio-ring { to { transform: rotate(360deg); } }
+.bio-ring { animation: bio-ring 16s linear infinite; }
+
+/* Brilho que varre o botão principal periodicamente. */
+@keyframes bio-shimmer {
+  0% { transform: translateX(-160%) skewX(-12deg); }
+  55%, 100% { transform: translateX(160%) skewX(-12deg); }
+}
+.bio-shimmer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, transparent 25%, rgba(255, 255, 255, 0.5) 50%, transparent 75%);
+  transform: translateX(-160%) skewX(-12deg);
+  animation: bio-shimmer 5s ease-in-out 1.2s infinite;
+  mix-blend-mode: overlay;
+  pointer-events: none;
+}
+
+/* Faixa de palavras-chave rolando no topo. */
+@keyframes bio-marquee { to { transform: translateX(-50%); } }
+.bio-marquee { animation: bio-marquee 28s linear infinite; }
+
+/* Traço de mercado: desenha subindo e depois flutua de leve. */
+@keyframes bio-draw { to { stroke-dashoffset: 0; } }
+@keyframes bio-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+.bio-chartline {
+  stroke-dasharray: 900;
+  stroke-dashoffset: 900;
+  animation: bio-draw 2.6s ease-out 0.4s forwards;
+}
+.bio-chartfloat { animation: bio-float 9s ease-in-out 3s infinite; }
+
+/* Ponto pulsante (status "no ar"). */
+@keyframes bio-pulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(198, 169, 107, 0.55); }
+  50% { opacity: 0.55; box-shadow: 0 0 0 5px rgba(198, 169, 107, 0); }
+}
+.bio-dot { animation: bio-pulse 2.4s ease-in-out infinite; }
+
+/* Brilho dourado varrendo o texto do destaque ("plano de verdade"). Preenche o
+   texto com um degradê dourado e desliza um realce claro por cima. */
+@keyframes bio-textsheen {
+  0% { background-position: 220% center; }
+  100% { background-position: -120% center; }
+}
+.bio-shine {
+  background: linear-gradient(
+    100deg,
+    #b0925a 0%,
+    #c6a96b 30%,
+    #e6d3a3 45%,
+    #fff6de 50%,
+    #e6d3a3 55%,
+    #c6a96b 70%,
+    #b0925a 100%
+  );
+  background-size: 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  filter: drop-shadow(0 0 14px rgba(230, 211, 163, 0.35));
+  animation: bio-textsheen 5.5s ease-in-out 1s infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bio-reveal { opacity: 1; animation: none; }
+  .bio-aurora-a,
+  .bio-aurora-b,
+  .bio-ring,
+  .bio-marquee,
+  .bio-chartfloat,
+  .bio-dot,
+  .bio-shine { animation: none; }
+  .bio-chartline { stroke-dashoffset: 0; animation: none; }
+  .bio-shimmer::after { display: none; }
+}

@@ -1,18 +1,26 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth/auth.config";
 
-const PUBLIC_PATHS = ["/login", "/register"];
+// Páginas de autenticação: abertas para quem não tem sessão, mas quem já está logado é
+// mandado pro app (não faz sentido ver login/cadastro logado).
+const AUTH_PATHS = ["/login", "/register"];
+
+// Páginas públicas de marketing: abertas para todos, logados ou não (ex.: a "bio" do
+// Instagram, que é a porta de entrada antes do site/app).
+const OPEN_PATHS = ["/bio"];
 
 export default auth((req) => {
-  const isPublicPath = PUBLIC_PATHS.some((path) => req.nextUrl.pathname.startsWith(path));
+  const { pathname } = req.nextUrl;
+  const isAuthPath = AUTH_PATHS.some((path) => pathname.startsWith(path));
+  const isOpenPath = OPEN_PATHS.some((path) => pathname.startsWith(path));
 
-  if (!req.auth && !isPublicPath) {
+  if (!req.auth && !isAuthPath && !isOpenPath) {
     const loginUrl = new URL("/login", req.nextUrl.origin);
-    loginUrl.searchParams.set("callbackUrl", req.nextUrl.pathname);
+    loginUrl.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(loginUrl);
   }
 
-  if (req.auth && isPublicPath) {
+  if (req.auth && isAuthPath) {
     return NextResponse.redirect(new URL("/inicio", req.nextUrl.origin));
   }
 
