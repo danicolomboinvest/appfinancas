@@ -1,16 +1,18 @@
 "use client";
 
-import { useState } from "react";
-import { Briefcase, FileUp, Pencil, Plus } from "lucide-react";
+import { useState, useTransition } from "react";
+import { Briefcase, FileUp, Pencil, Plus, RefreshCw } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { useToast } from "@/components/ui/toast-context";
 import { DonutAllocationChart } from "@/components/charts/DonutAllocationChart";
 import { PortfolioImport } from "@/components/import/PortfolioImport";
 import { DeleteAssetButton } from "./DeleteAssetButton";
 import { AssetForm } from "./AssetForm";
+import { updatePortfolioQuotesAction } from "./quotes-actions";
 import { formatPercentNumber } from "@/lib/format";
 
 function formatBRL(value: number) {
@@ -59,6 +61,25 @@ export function AssetsSection({
   const [createOpen, setCreateOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [editingAsset, setEditingAsset] = useState<Asset | null>(null);
+  const [isUpdatingQuotes, startQuotesTransition] = useTransition();
+  const { showToast } = useToast();
+
+  const hasTickers = assets.some((a) => a.ticker);
+
+  function handleUpdateQuotes() {
+    startQuotesTransition(async () => {
+      const result = await updatePortfolioQuotesAction();
+      if (!result.ok) {
+        showToast(result.error);
+        return;
+      }
+      showToast(
+        result.failed.length > 0
+          ? `${result.updated} cotações atualizadas · não achei: ${result.failed.join(", ")}`
+          : `${result.updated} cotações atualizadas.`,
+      );
+    });
+  }
 
   const totalValue = assets.reduce((sum, asset) => sum + asset.currentValue, 0);
   const currentAllocationData = assets
@@ -73,6 +94,12 @@ export function AssetsSection({
       <div className="flex items-center justify-between">
         <p className="text-sm text-ink-muted">{assets.length} ativo{assets.length === 1 ? "" : "s"} cadastrado{assets.length === 1 ? "" : "s"}</p>
         <div className="flex items-center gap-2">
+          {hasTickers && (
+            <Button type="button" size="sm" variant="secondary" onClick={handleUpdateQuotes} disabled={isUpdatingQuotes}>
+              <RefreshCw size={16} strokeWidth={2} className={isUpdatingQuotes ? "animate-spin" : ""} />
+              {isUpdatingQuotes ? "Atualizando..." : "Atualizar cotações"}
+            </Button>
+          )}
           <Button type="button" size="sm" variant="secondary" onClick={() => setImportOpen(true)}>
             <FileUp size={16} strokeWidth={2} />
             Importar

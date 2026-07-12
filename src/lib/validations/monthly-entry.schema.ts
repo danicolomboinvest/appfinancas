@@ -19,6 +19,16 @@ export const monthlyEntrySchema = z.object({
   subcategory: z.string().trim().optional(),
   description: z.string().trim().optional(),
   amount: z.coerce.number().positive("O valor deve ser maior que zero."),
+  /** Data em que a despesa/renda aconteceu (input type="date" → "YYYY-MM-DD"). Meio-dia local
+   * evita a data "voltar um dia" na conversão pra UTC. */
+  entryDate: z
+    .string()
+    .trim()
+    .optional()
+    .or(z.literal(""))
+    .transform((v) => (v ? new Date(`${v}T12:00:00`) : undefined)),
+  /** Meta vinculada ao lançamento (aportes). */
+  goalId: z.string().trim().optional().or(z.literal("")),
   /** "on" quando o checkbox de recorrência é marcado no formulário. */
   repeatMonthly: z
     .union([z.literal("on"), z.literal("true"), z.literal(""), z.undefined()])

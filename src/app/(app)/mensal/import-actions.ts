@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import type { ParentCategory } from "@prisma/client";
 import { getRequiredSession } from "@/lib/auth/session";
+import { prisma } from "@/lib/db/prisma";
 import { createMonthlyEntry } from "@/lib/repositories/monthly-entry.repo";
 import { listTransactionRules, upsertTransactionRule } from "@/lib/repositories/transaction-rule.repo";
 import { parseStatement } from "@/lib/import/statement-parser";
@@ -100,7 +101,7 @@ export type ConfirmedItem = {
   learn: boolean;
 };
 
-export type ImportResult = { ok: true; created: number } | { ok: false; error: string };
+export type ImportResult = { ok: true; created: number; skipped: number } | { ok: false; error: string };
 
 function yearMonthFromISO(date: string): { year: number; month: number } | null {
   const match = date.match(/^(\d{4})-(\d{2})-(\d{2})$/);
@@ -108,12 +109,39 @@ function yearMonthFromISO(date: string): { year: number; month: number } | null 
   return { year: Number(match[1]), month: Number(match[2]) };
 }
 
-/** Cria os lançamentos escolhidos e memoriza as categorias definidas manualmente (item 3). */
+/** Chave de duplicata: mesma data + valor + descrição = mesma transação do extrato. */
+function dedupeKey(date: string | null, amount: number, description: string | null): string {
+  return `${date ?? ""}|${amount.toFixed(2)}|${(description ?? "").trim().toLowerCase()}`;
+}
+
+/** Cria os lançamentos escolhidos e memoriza as categorias definidas manualmente (item 3).
+ * Transações idênticas já lançadas (mesma data+valor+descrição) são puladas — importar o
+ * mesmo extrato duas vezes não duplica nada. */
 export async function importTransactionsAction(items: ConfirmedItem[]): Promise<ImportResult> {
   const ctx = await getRequiredSession();
   const now = new Date();
   const touchedMonths = new Set<string>();
   let created = 0;
+  let skipped = 0;
+
+  // Meses afetados pela importação → busca os lançamentos existentes deles de uma vez.
+  const monthsInBatch = new Set(
+    items.map((i) => {
+      const ym = yearMonthFromISO(i.date) ?? { year: now.getFullYear(), month: now.getMonth() + 1 };
+      return `${ym.year}/${ym.month}`;
+    }),
+  );
+  const existingKeys = new Set<string>();
+  for (const key of monthsInBatch) {
+    const [y, m] = key.split("/").map(Number);
+    const existing = await prisma.monthlyEntry.findMany({
+      where: { userId: ctx.userId, year: y, month: m },
+      select: { entryDate: true, amount: true, description: true },
+    });
+    for (const e of existing) {
+      existingKeys.add(dedupeKey(e.entryDate ? e.entryDate.toISOString().slice(0, 10) : null, Number(e.amount), e.description));
+    }
+  }
 
   for (const item of items) {
     if (item.amount <= 0) continue;
@@ -122,6 +150,14 @@ export async function importTransactionsAction(items: ConfirmedItem[]): Promise<
 
     // Data inválida cai no mês corrente — melhor lançar do que perder a transação.
     const ym = yearMonthFromISO(item.date) ?? { year: now.getFullYear(), month: now.getMonth() + 1 };
+    const hasExactDate = yearMonthFromISO(item.date) !== null;
+
+    const key = dedupeKey(hasExactDate ? item.date : null, item.amount, item.description);
+    if (existingKeys.has(key)) {
+      skipped += 1;
+      continue;
+    }
+    existingKeys.add(key); // também evita duplicata dentro do próprio arquivo
 
     await createMonthlyEntry(ctx, {
       year: ym.year,
@@ -131,6 +167,7 @@ export async function importTransactionsAction(items: ConfirmedItem[]): Promise<
       subcategory: item.subcategory ?? undefined,
       description: item.description,
       amount: item.amount,
+      entryDate: hasExactDate ? new Date(`${item.date}T12:00:00`) : undefined,
     });
     created += 1;
     touchedMonths.add(`${ym.year}/${ym.month}`);
@@ -150,5 +187,5 @@ export async function importTransactionsAction(items: ConfirmedItem[]): Promise<
     revalidatePath(`/mensal/${year}/${month}`);
   }
 
-  return { ok: true, created };
+  return { ok: true, created, skipped };
 }

@@ -6,7 +6,7 @@ import { ChevronLeft, FileUp, Keyboard, Mic } from "lucide-react";
 import type { ParentCategory } from "@prisma/client";
 import { Modal } from "@/components/ui/Modal";
 import { EntryForm } from "@/app/(app)/mensal/[year]/[month]/EntryForm";
-import { getRecentSubcategoriesAction, getCustomCategoriesAction } from "@/app/(app)/mensal/actions";
+import { getRecentSubcategoriesAction, getCustomCategoriesAction, getGoalsAction } from "@/app/(app)/mensal/actions";
 import { currentYearMonthFromPath } from "@/app/(app)/mensal/current-month";
 import { VoiceRecorder } from "@/app/(app)/mensal/VoiceRecorder";
 import { StatementImport } from "@/components/import/StatementImport";
@@ -25,6 +25,7 @@ export function RegistrarDrawer({ open, onClose }: { open: boolean; onClose: () 
   const [parsed, setParsed] = useState<ParsedVoiceEntry | null>(null);
   const [recentSubcategories, setRecentSubcategories] = useState<Partial<Record<ParentCategory, string[]>>>({});
   const [customCategories, setCustomCategories] = useState<{ id: string; name: string }[]>([]);
+  const [goals, setGoals] = useState<{ id: string; name: string }[]>([]);
   const { year, month } = currentYearMonthFromPath(pathname);
 
   // Carrega chips de categoria uma vez ao abrir; reseta o fluxo pro início ao fechar.
@@ -32,6 +33,7 @@ export function RegistrarDrawer({ open, onClose }: { open: boolean; onClose: () 
     if (open) {
       getRecentSubcategoriesAction().then(setRecentSubcategories);
       getCustomCategoriesAction().then(setCustomCategories);
+      getGoalsAction().then(setGoals);
     } else {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- reset ao fechar, não sincronização
       setMode("choice");

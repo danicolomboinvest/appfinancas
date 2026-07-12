@@ -221,6 +221,9 @@ model MonthlyEntry {
   subcategory      String?
   description      String?
   amount           Decimal         @db.Decimal(18, 2)
+  /// Data em que a despesa/renda de fato aconteceu (opcional — lançamentos antigos não têm).
+  /// year/month continuam sendo a verdade para a consolidação mensal; entryDate refina o dia.
+  entryDate        DateTime?       @db.Date
   goalId           String?
   goal             Goal?           @relation(fields: [goalId], references: [id])
   createdAt        DateTime        @default(now())

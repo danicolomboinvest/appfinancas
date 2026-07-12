@@ -67,18 +67,28 @@ function IndicatorCard({ label, value, tone, bar }: { label: string; value: stri
  * dois conjuntos de dados já vêm calculados do servidor, então não há ida-e-volta ao trocar. As
  * setas ‹ › navegam por mês (ou ano, no modo anual) via Link, carregando ?view pra manter o modo.
  */
+export type Pacing = {
+  /** Fração do orçamento do mês já gasta (0–1+). */
+  budgetUsed: number;
+  /** Fração do mês já decorrida (0–1). */
+  monthElapsed: number;
+};
+
 export function FlowIndicators({
   year,
   month,
   initialView,
   monthly,
   annual,
+  pacing,
 }: {
   year: number;
   month: number;
   initialView: View;
   monthly: FlowBundle;
   annual: FlowBundle;
+  /** Ritmo do mês (orçamento consumido vs. mês decorrido) — só no mês corrente com orçamento. */
+  pacing?: Pacing | null;
 }) {
   const [view, setView] = useState<View>(initialView);
   const bundle = view === "mensal" ? monthly : annual;
@@ -152,6 +162,56 @@ export function FlowIndicators({
           bar={rate ?? undefined}
         />
       </div>
+
+      {/* Ritmo do mês: gastou mais rápido que o mês passou? Duas barras comparáveis. */}
+      {view === "mensal" && pacing && (
+        <Card className="flex flex-col gap-2.5 p-4">
+          <div className="flex items-center justify-between">
+            <p className="text-caption font-medium text-ink-muted">Ritmo do mês</p>
+            <p
+              className={`text-caption font-semibold ${
+                pacing.budgetUsed > pacing.monthElapsed + 0.05
+                  ? "text-danger"
+                  : pacing.budgetUsed > pacing.monthElapsed
+                    ? "text-accent-strong"
+                    : "text-success"
+              }`}
+            >
+              {pacing.budgetUsed > pacing.monthElapsed + 0.05
+                ? "Gastando rápido demais"
+                : pacing.budgetUsed > pacing.monthElapsed
+                  ? "No limite do ritmo"
+                  : "Dentro do ritmo"}
+            </p>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center gap-2">
+              <span className="w-20 shrink-0 text-caption text-ink-faint">Orçamento</span>
+              <div className="h-2 flex-1 overflow-hidden rounded-full bg-surface-2">
+                <div
+                  className={`h-full rounded-full ${pacing.budgetUsed > pacing.monthElapsed ? "bg-danger" : "bg-success"}`}
+                  style={{ width: `${Math.min(100, pacing.budgetUsed * 100)}%` }}
+                />
+              </div>
+              <span className="w-9 shrink-0 text-right text-caption tabular-nums text-ink">
+                {Math.round(pacing.budgetUsed * 100)}%
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-20 shrink-0 text-caption text-ink-faint">Mês</span>
+              <div className="h-2 flex-1 overflow-hidden rounded-full bg-surface-2">
+                <div
+                  className="h-full rounded-full bg-ink-faint"
+                  style={{ width: `${Math.min(100, pacing.monthElapsed * 100)}%` }}
+                />
+              </div>
+              <span className="w-9 shrink-0 text-right text-caption tabular-nums text-ink">
+                {Math.round(pacing.monthElapsed * 100)}%
+              </span>
+            </div>
+          </div>
+        </Card>
+      )}
     </div>
   );
 }

@@ -10,21 +10,42 @@ export async function listMonthlyEntries(ctx: AuthContext, year: number, month: 
   });
 }
 
-export async function createMonthlyEntry(
-  ctx: AuthContext,
-  input: {
-    year: number;
-    month: number;
-    category: EntryCategory;
-    parentCategory?: ParentCategory;
-    customCategoryId?: string;
-    subcategory?: string;
-    description?: string;
-    amount: number;
-  },
-) {
+export type MonthlyEntryInput = {
+  year: number;
+  month: number;
+  category: EntryCategory;
+  parentCategory?: ParentCategory;
+  customCategoryId?: string;
+  subcategory?: string;
+  description?: string;
+  amount: number;
+  /** Data em que a despesa/renda aconteceu (o dia). year/month seguem mandando na consolidação. */
+  entryDate?: Date;
+  /** Meta vinculada (faz sentido principalmente em aportes). */
+  goalId?: string;
+};
+
+export async function createMonthlyEntry(ctx: AuthContext, input: MonthlyEntryInput) {
   return prisma.monthlyEntry.create({
     data: { ...input, userId: ctx.userId },
+  });
+}
+
+/** Atualiza um lançamento do próprio usuário (updateMany garante o filtro por userId). */
+export async function updateOwnMonthlyEntry(ctx: AuthContext, id: string, input: MonthlyEntryInput) {
+  return prisma.monthlyEntry.updateMany({
+    where: { id, userId: ctx.userId },
+    data: {
+      ...input,
+      // Campos opcionais ausentes devem LIMPAR o valor antigo (ex.: trocar de categoria-mãe
+      // para personalizada), não manter — por isso null explícito em vez de undefined.
+      parentCategory: input.parentCategory ?? null,
+      customCategoryId: input.customCategoryId ?? null,
+      subcategory: input.subcategory ?? null,
+      description: input.description ?? null,
+      entryDate: input.entryDate ?? null,
+      goalId: input.goalId ?? null,
+    },
   });
 }
 

@@ -114,7 +114,11 @@ export function StatementImport({ onDone }: { onDone: () => void }) {
       }
       setCreatedCount(result.created);
       setPhase("done");
-      showToast(`${result.created} lançamentos importados.`);
+      showToast(
+        result.skipped > 0
+          ? `${result.created} importados · ${result.skipped} já existiam (ignorados).`
+          : `${result.created} lançamentos importados.`,
+      );
     });
   }
 

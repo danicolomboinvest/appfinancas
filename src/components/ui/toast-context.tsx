@@ -3,21 +3,31 @@
 import { createContext, useCallback, useContext, useState } from "react";
 import { CheckCircle2 } from "lucide-react";
 
-type ToastItem = { id: number; message: string };
-type ToastContextValue = { showToast: (message: string) => void };
+type ToastAction = { label: string; onClick: () => void };
+type ToastItem = { id: number; message: string; action?: ToastAction };
+type ToastContextValue = {
+  /** `action` opcional adiciona um botão (ex.: "Desfazer") e estende a duração do toast. */
+  showToast: (message: string, action?: ToastAction) => void;
+};
 
 const ToastContext = createContext<ToastContextValue | null>(null);
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
 
-  const showToast = useCallback((message: string) => {
-    const id = Date.now() + Math.random();
-    setToasts((prev) => [...prev, { id, message }]);
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((toast) => toast.id !== id));
-    }, 3000);
+  const dismiss = useCallback((id: number) => {
+    setToasts((prev) => prev.filter((toast) => toast.id !== id));
   }, []);
+
+  const showToast = useCallback(
+    (message: string, action?: ToastAction) => {
+      const id = Date.now() + Math.random();
+      setToasts((prev) => [...prev, { id, message, action }]);
+      // Com ação (ex.: Desfazer) o toast dura mais, pra pessoa ter tempo de reagir.
+      setTimeout(() => dismiss(id), action ? 6000 : 3000);
+    },
+    [dismiss],
+  );
 
   return (
     <ToastContext.Provider value={{ showToast }}>
@@ -26,10 +36,22 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className="pointer-events-auto flex items-center gap-2 rounded-lg border border-success/30 bg-surface-2 px-4 py-2.5 text-sm text-ink shadow-premium animate-fade-in"
+            className="pointer-events-auto flex items-center gap-3 rounded-lg border border-success/30 bg-surface-2 px-4 py-2.5 text-sm text-ink shadow-premium animate-fade-in"
           >
             <CheckCircle2 size={16} className="shrink-0 text-success" />
             {toast.message}
+            {toast.action && (
+              <button
+                type="button"
+                onClick={() => {
+                  toast.action?.onClick();
+                  dismiss(toast.id);
+                }}
+                className="shrink-0 font-semibold text-accent-strong hover:underline"
+              >
+                {toast.action.label}
+              </button>
+            )}
           </div>
         ))}
       </div>

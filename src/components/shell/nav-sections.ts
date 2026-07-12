@@ -92,7 +92,8 @@ export const NAV_SECTIONS: NavSection[] = [
       { href: "/configuracoes/perfil", label: "Perfil" },
       { href: "/configuracoes/categorias", label: "Categorias" },
       { href: "/configuracoes/preferencias", label: "Preferências" },
-      { href: "/configuracoes/notificacoes", label: "Notificações" },
+      // Notificações fica fora do menu até existir infra de envio (e-mail/push) — a página
+      // promete alertas que hoje não são disparados por nada.
       { href: "/configuracoes/dados", label: "Dados" },
       { href: "/configuracoes/taxas", label: "Taxas do Sistema" },
     ],

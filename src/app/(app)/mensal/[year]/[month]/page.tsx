@@ -2,6 +2,7 @@ import { Receipt } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
 import { listMonthlyEntries, listRecentSubcategories } from "@/lib/repositories/monthly-entry.repo";
 import { listCustomCategories } from "@/lib/repositories/custom-category.repo";
+import { listGoals } from "@/lib/repositories/goal.repo";
 import {
   sumExpensesByParentCategory,
   sumExpensesByCustomCategory,
@@ -17,7 +18,7 @@ import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import { DonutAllocationChart, type DonutSlice } from "@/components/charts/DonutAllocationChart";
 import { EntryForm } from "./EntryForm";
-import { DeleteEntryButton } from "./DeleteEntryButton";
+import { EntryRowActions } from "./EntryRowActions";
 import { FlowIndicators, type FlowBundle } from "./FlowIndicators";
 import { BudgetSection } from "../BudgetSection";
 
@@ -56,27 +57,67 @@ function formatBRL(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
+/** Date do banco → "YYYY-MM-DD" (o campo é @db.Date, sem hora relevante). */
+function toDateInput(date: Date | null): string | null {
+  if (!date) return null;
+  return date.toISOString().slice(0, 10);
+}
+
+function formatDayLabel(date: Date | null): string | null {
+  if (!date) return null;
+  const iso = date.toISOString().slice(0, 10);
+  return `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
+}
+
 function EntryRow({
   entry,
   year,
   month,
+  recentSubcategories,
+  customCategories,
+  goals,
 }: {
   entry: Awaited<ReturnType<typeof listMonthlyEntries>>[number];
   year: number;
   month: number;
+  recentSubcategories: Awaited<ReturnType<typeof listRecentSubcategories>>;
+  customCategories: { id: string; name: string }[];
+  goals: { id: string; name: string }[];
 }) {
+  const dayLabel = formatDayLabel(entry.entryDate);
   return (
     <Card className="flex items-center justify-between gap-3 p-3">
       <div className="flex min-w-0 items-center gap-3">
         <Badge tone={CATEGORY_TONE[entry.category]}>{CATEGORY_LABEL[entry.category]}</Badge>
         <div className="min-w-0">
           <p className="truncate text-sm font-medium text-ink">{entry.subcategory ?? "Sem subcategoria"}</p>
-          {entry.description && <p className="truncate text-xs text-ink-faint">{entry.description}</p>}
+          <p className="truncate text-xs text-ink-faint">
+            {dayLabel && <span className="tabular-nums">{dayLabel}</span>}
+            {dayLabel && entry.description && " · "}
+            {entry.description}
+          </p>
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-3">
         <p className="text-sm font-medium text-ink">{formatBRL(Number(entry.amount))}</p>
-        <DeleteEntryButton id={entry.id} year={year} month={month} />
+        <EntryRowActions
+          entry={{
+            id: entry.id,
+            year,
+            month,
+            category: entry.category,
+            parentCategory: entry.parentCategory,
+            customCategoryId: entry.customCategoryId,
+            subcategory: entry.subcategory,
+            description: entry.description,
+            amount: Number(entry.amount),
+            entryDate: toDateInput(entry.entryDate),
+            goalId: entry.goalId,
+          }}
+          recentSubcategories={recentSubcategories}
+          customCategories={customCategories}
+          goals={goals}
+        />
       </div>
     </Card>
   );
@@ -98,6 +139,7 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
     yearBudgets,
     recentSubcategories,
     customCategories,
+    goals,
     spentByParent,
     spentByCustom,
   ] = await Promise.all([
@@ -108,6 +150,7 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
     listBudgetsForYear(ctx, year),
     listRecentSubcategories(ctx),
     listCustomCategories(ctx),
+    listGoals(ctx),
     sumExpensesByParentCategory(ctx, year, month),
     sumExpensesByCustomCategory(ctx, year, month),
   ]);
@@ -115,6 +158,18 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
   // Planejamento = soma dos valores planejados (orçamento). Mensal: só o mês; anual: o ano todo.
   const monthlyPlanned = monthBudgets.reduce((sum, b) => sum + Number(b.plannedAmount), 0);
   const annualPlanned = yearBudgets.reduce((sum, b) => sum + Number(b.plannedAmount), 0);
+
+  const goalOptions = goals.map((g) => ({ id: g.id, name: g.name }));
+
+  // Ritmo do mês: % do orçamento consumido vs. % do mês decorrido — mais honesto que "limite
+  // diário" (média), porque gasto não é linear. Só faz sentido no mês corrente e com orçamento.
+  const now = new Date();
+  const isCurrentMonth = year === now.getFullYear() && month === now.getMonth() + 1;
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const pacing =
+    isCurrentMonth && monthlyPlanned > 0
+      ? { budgetUsed: summary.totalExpense / monthlyPlanned, monthElapsed: now.getDate() / daysInMonth }
+      : null;
 
   const monthlyBundle: FlowBundle = {
     income: summary.totalIncome,
@@ -162,6 +217,7 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
         initialView={initialView}
         monthly={monthlyBundle}
         annual={annualBundle}
+        pacing={pacing}
       />
 
       <EntryForm
@@ -169,6 +225,7 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
         month={month}
         recentSubcategories={recentSubcategories}
         customCategories={customCategories}
+        goals={goalOptions}
       />
 
       <BudgetSection ctx={ctx} year={year} month={month} totalIncome={summary.totalIncome} />
@@ -184,13 +241,29 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
       ) : (
         <div className="flex flex-col gap-2">
           {entries.slice(0, VISIBLE_ENTRIES_COUNT).map((entry) => (
-            <EntryRow key={entry.id} entry={entry} year={year} month={month} />
+            <EntryRow
+              key={entry.id}
+              entry={entry}
+              year={year}
+              month={month}
+              recentSubcategories={recentSubcategories}
+              customCategories={customCategories}
+              goals={goalOptions}
+            />
           ))}
           {entries.length > VISIBLE_ENTRIES_COUNT && (
             <CollapsibleSection label={`Ver mais ${entries.length - VISIBLE_ENTRIES_COUNT} lançamentos`}>
               <div className="flex flex-col gap-2">
                 {entries.slice(VISIBLE_ENTRIES_COUNT).map((entry) => (
-                  <EntryRow key={entry.id} entry={entry} year={year} month={month} />
+                  <EntryRow
+                    key={entry.id}
+                    entry={entry}
+                    year={year}
+                    month={month}
+                    recentSubcategories={recentSubcategories}
+                    customCategories={customCategories}
+                    goals={goalOptions}
+                  />
                 ))}
               </div>
             </CollapsibleSection>

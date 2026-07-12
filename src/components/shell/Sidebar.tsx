@@ -57,7 +57,7 @@ export function Sidebar({
       } ${mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}
     >
       <div className={`flex items-center gap-2.5 px-4 pb-2 pt-5 ${collapsedDesktopOnly}`}>
-        <Link href="/inicio" onClick={onCloseMobile} className="flex items-center gap-2.5 overflow-hidden">
+        <Link href="/mensal" onClick={onCloseMobile} className="flex items-center gap-2.5 overflow-hidden">
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-accent to-accent-strong text-on-accent">
             <TrendingUp size={17} strokeWidth={1.75} />
           </span>

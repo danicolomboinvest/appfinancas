@@ -8,7 +8,7 @@ export type BreadcrumbItem = {
 
 /** Trilha de navegação padrão: "Início > Seção > ... > Página atual" (último item sem link). */
 export function Breadcrumb({ items }: { items: BreadcrumbItem[] }) {
-  const allItems: BreadcrumbItem[] = [{ label: "Início", href: "/inicio" }, ...items];
+  const allItems: BreadcrumbItem[] = [{ label: "Início", href: "/mensal" }, ...items];
 
   return (
     <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-1.5 text-sm text-ink-faint">

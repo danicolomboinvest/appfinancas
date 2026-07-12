@@ -9,7 +9,7 @@ export default function NotFound() {
         Verifique o endereço ou volte para o início — sua vida financeira está te esperando lá.
       </p>
       <Link
-        href="/inicio"
+        href="/mensal"
         className="mt-2 inline-flex items-center justify-center rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-ink shadow-premium-sm transition-all duration-150 ease-out hover:bg-accent-strong"
       >
         Voltar para o início
