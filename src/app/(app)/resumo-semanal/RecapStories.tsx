@@ -3,8 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { ChevronRight, X } from "lucide-react";
+import { ChevronRight, Share2, X } from "lucide-react";
 import type { WeeklyRecap } from "@/lib/recap/weekly";
+import { buildRecapShareImage, buildRecapShareText } from "./share-image";
 
 function formatBRL(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
@@ -56,7 +57,39 @@ export function RecapStories({ recap }: { recap: WeeklyRecap }) {
   const router = useRouter();
   const [index, setIndex] = useState(0);
   const [mounted, setMounted] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const touchStartX = useRef<number | null>(null);
+
+  /** Gera a imagem do resumo e abre o menu nativo de compartilhar (Instagram/WhatsApp/...).
+   * Degrada com elegância: sem share de arquivo → share de texto → copiar para a área de transferência. */
+  async function handleShare() {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      const blob = await buildRecapShareImage(recap);
+      const file = new File([blob], "resumo-semanal.png", { type: "image/png" });
+      const shareData: ShareData = { files: [file], title: "Meu resumo da semana" };
+      const nav = navigator as Navigator & { canShare?: (data: ShareData) => boolean };
+      if (nav.canShare?.(shareData) && navigator.share) {
+        await navigator.share(shareData);
+      } else if (navigator.share) {
+        await navigator.share({ title: "Meu resumo da semana", text: buildRecapShareText(recap) });
+      } else {
+        await navigator.clipboard.writeText(buildRecapShareText(recap));
+        // Baixa a imagem como alternativa quando não há API de compartilhamento (desktop).
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "resumo-semanal.png";
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+    } catch {
+      // Usuário cancelou o share (AbortError) ou algo falhou — silencioso, sem quebrar a tela.
+    } finally {
+      setSharing(false);
+    }
+  }
 
   // Portal em document.body: o wrapper do layout (animate-fade-in) cria stacking context e
   // prenderia o z-index — fora dele, o story cobre a tab bar e o resto do chrome do app.
@@ -250,13 +283,24 @@ export function RecapStories({ recap }: { recap: WeeklyRecap }) {
               <p className="text-sm text-white/60">Potencial em 10 anos</p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => router.push("/mensal")}
-            className="mx-auto mt-2 rounded-full border border-white/20 bg-white/10 px-6 py-3 text-sm font-semibold text-white backdrop-blur-xl transition-colors hover:bg-white/15"
-          >
-            Concluir
-          </button>
+          <div className="mt-2 flex flex-col items-center gap-3">
+            <button
+              type="button"
+              onClick={handleShare}
+              disabled={sharing}
+              className="flex w-full max-w-xs items-center justify-center gap-2 rounded-full bg-white px-6 py-3.5 text-sm font-semibold text-black transition-transform hover:opacity-90 active:scale-95 disabled:opacity-60"
+            >
+              <Share2 size={18} strokeWidth={2.2} />
+              {sharing ? "Gerando imagem…" : "Compartilhar resumo"}
+            </button>
+            <button
+              type="button"
+              onClick={() => router.push("/mensal")}
+              className="text-sm font-medium text-white/60 transition-colors hover:text-white"
+            >
+              Concluir
+            </button>
+          </div>
         </div>
       ),
     },
