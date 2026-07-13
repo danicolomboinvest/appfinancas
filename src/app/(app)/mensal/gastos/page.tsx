@@ -32,11 +32,24 @@ function toSlices(
   ];
 }
 
-export default async function SpendingByCategoryPage() {
+function firstOf(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+export default async function SpendingByCategoryPage(props: PageProps<"/mensal/gastos">) {
+  const searchParams = await props.searchParams;
   const ctx = await getRequiredSession();
   const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth() + 1;
+
+  // Mês/ano selecionáveis via URL (?year&month) — as setas do seletor navegam por aqui,
+  // e o servidor recalcula os dados do período pedido. `view` preserva a aba ativa.
+  const yearParam = Number(firstOf(searchParams.year));
+  const monthParam = Number(firstOf(searchParams.month));
+  const year = Number.isInteger(yearParam) && yearParam >= 2000 && yearParam <= 2100 ? yearParam : now.getFullYear();
+  const month = Number.isInteger(monthParam) && monthParam >= 1 && monthParam <= 12 ? monthParam : now.getMonth() + 1;
+  const viewParam = firstOf(searchParams.view);
+  const initialPeriod = viewParam === "semana" || viewParam === "ano" ? viewParam : "mes";
+
   const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
   const [
@@ -76,9 +89,8 @@ export default async function SpendingByCategoryPage() {
     }, {}),
   );
 
-  const week = toSlices(parentWeek, customWeek, customNameById);
-  const monthData = toSlices(parentMonth, customMonth, customNameById);
-  const yearData = toSlices(parentYear, customYear, customNameById);
+  const prevMonth = new Date(year, month - 2, 1);
+  const nextMonth = new Date(year, month, 1);
 
   return (
     <div className="flex flex-col gap-6">
@@ -87,13 +99,20 @@ export default async function SpendingByCategoryPage() {
       <PageHeader title="Só gastos" subtitle="Para onde seu dinheiro foi, por categoria." />
 
       <SpendingByCategory
-        week={week}
-        month={monthData}
-        year={yearData}
+        week={toSlices(parentWeek, customWeek, customNameById)}
+        month={toSlices(parentMonth, customMonth, customNameById)}
+        year={toSlices(parentYear, customYear, customNameById)}
+        initialPeriod={initialPeriod}
         subtitle={{
           semana: "Últimos 7 dias",
           mes: `${MONTH_LABELS[month - 1]} de ${year}`,
           ano: String(year),
+        }}
+        nav={{
+          prevMonthHref: `/mensal/gastos?view=mes&year=${prevMonth.getFullYear()}&month=${prevMonth.getMonth() + 1}`,
+          nextMonthHref: `/mensal/gastos?view=mes&year=${nextMonth.getFullYear()}&month=${nextMonth.getMonth() + 1}`,
+          prevYearHref: `/mensal/gastos?view=ano&year=${year - 1}&month=${month}`,
+          nextYearHref: `/mensal/gastos?view=ano&year=${year + 1}&month=${month}`,
         }}
       />
     </div>

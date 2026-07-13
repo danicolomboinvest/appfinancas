@@ -229,6 +229,9 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
         recentSubcategories={recentSubcategories}
         customCategories={customCategories}
         goals={goalOptions}
+        // Lançando num mês que não é o atual, a data default acompanha o mês visualizado
+        // (dia 1) — "hoje" criaria um lançamento com data de julho dentro de junho.
+        defaultEntryDate={isCurrentMonth ? undefined : `${year}-${String(month).padStart(2, "0")}-01`}
       />
 
       <BudgetSection ctx={ctx} year={year} month={month} totalIncome={summary.totalIncome} />
