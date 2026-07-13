@@ -20,6 +20,8 @@ import { DonutAllocationChart, type DonutSlice } from "@/components/charts/Donut
 import { EntryForm } from "./EntryForm";
 import { EntryRowActions } from "./EntryRowActions";
 import { WeeklyRecapCard } from "./WeeklyRecapCard";
+import { OnboardingChecklist } from "./OnboardingChecklist";
+import { prisma } from "@/lib/db/prisma";
 import { FlowIndicators, type FlowBundle } from "./FlowIndicators";
 import { BudgetSection } from "../BudgetSection";
 
@@ -143,6 +145,7 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
     goals,
     spentByParent,
     spentByCustom,
+    onboardingCounts,
   ] = await Promise.all([
     listMonthlyEntries(ctx, year, month),
     getMonthlySummary(ctx, year, month),
@@ -154,7 +157,14 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
     listGoals(ctx),
     sumExpensesByParentCategory(ctx, year, month),
     sumExpensesByCustomCategory(ctx, year, month),
+    // Primeiros passos do onboarding: 1 registro de cada tipo basta pra saber o que falta.
+    Promise.all([
+      prisma.monthlyEntry.count({ where: { userId: ctx.userId }, take: 1 }),
+      prisma.budget.count({ where: { userId: ctx.userId }, take: 1 }),
+      prisma.asset.count({ where: { userId: ctx.userId }, take: 1 }),
+    ]),
   ]);
+  const [entryCount, budgetCount, assetCount] = onboardingCounts;
 
   // Planejamento = soma dos valores planejados (orçamento). Mensal: só o mês; anual: o ano todo.
   const monthlyPlanned = monthBudgets.reduce((sum, b) => sum + Number(b.plannedAmount), 0);
@@ -211,6 +221,8 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
           { label: MONTH_LABELS[month - 1] },
         ]}
       />
+
+      <OnboardingChecklist hasEntry={entryCount > 0} hasBudget={budgetCount > 0} hasAsset={assetCount > 0} />
 
       {isCurrentMonth && <WeeklyRecapCard />}
 
