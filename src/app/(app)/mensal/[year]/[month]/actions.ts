@@ -56,10 +56,15 @@ export async function createMonthlyEntryAction(
 
   const entry = toEntryInput(parsed.data);
   const ctx = await getRequiredSession();
-  if (parsed.data.repeatMonthly) {
-    await createRecurringMonthlyEntries(ctx, entry);
-  } else {
-    await createMonthlyEntry(ctx, entry);
+  try {
+    if (parsed.data.repeatMonthly) {
+      await createRecurringMonthlyEntries(ctx, entry);
+    } else {
+      await createMonthlyEntry(ctx, entry);
+    }
+  } catch (err) {
+    console.error("createMonthlyEntryAction falhou:", err);
+    return { error: "Não consegui salvar o lançamento. Tente novamente." };
   }
   revalidatePath(`/mensal/${parsed.data.year}`);
   revalidatePath(`/mensal/${parsed.data.year}/${parsed.data.month}`);
@@ -80,7 +85,12 @@ export async function updateMonthlyEntryAction(
   }
 
   const ctx = await getRequiredSession();
-  await updateOwnMonthlyEntry(ctx, entryId, toEntryInput(parsed.data));
+  try {
+    await updateOwnMonthlyEntry(ctx, entryId, toEntryInput(parsed.data));
+  } catch (err) {
+    console.error("updateMonthlyEntryAction falhou:", err);
+    return { error: "Não consegui salvar as alterações. Tente novamente." };
+  }
   revalidatePath(`/mensal/${parsed.data.year}`);
   revalidatePath(`/mensal/${parsed.data.year}/${parsed.data.month}`);
   return {};
