@@ -25,8 +25,30 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const user = await prisma.user.findUnique({ where: { email } });
         if (!user) return null;
 
+        // Conta travada por excesso de tentativas — nem compara a senha.
+        if (user.lockedUntil && user.lockedUntil > new Date()) return null;
+
         const isValidPassword = await bcrypt.compare(password, user.passwordHash);
-        if (!isValidPassword) return null;
+        if (!isValidPassword) {
+          // 5 erros seguidos travam a conta por 15 minutos (anti força bruta).
+          const failed = user.failedLoginCount + 1;
+          await prisma.user.update({
+            where: { id: user.id },
+            data:
+              failed >= 5
+                ? { failedLoginCount: 0, lockedUntil: new Date(Date.now() + 15 * 60 * 1000) }
+                : { failedLoginCount: failed },
+          });
+          return null;
+        }
+
+        // Login certo zera o contador/trava.
+        if (user.failedLoginCount > 0 || user.lockedUntil) {
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { failedLoginCount: 0, lockedUntil: null },
+          });
+        }
 
         return {
           id: user.id,
