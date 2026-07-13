@@ -19,45 +19,90 @@ const SLICE_COLORS = [
  * dois registros diferentes têm o mesmo `name` (ex.: dois ativos com o mesmo nome). */
 export type DonutSlice = { id?: string; name: string; value: number };
 
-export function DonutAllocationChart({ title, data }: { title: string; data: DonutSlice[] }) {
+export function DonutAllocationChart({
+  title,
+  data,
+  onSelect,
+  selectedName,
+}: {
+  title: string;
+  data: DonutSlice[];
+  /** Quando presente, o gráfico ganha legenda clicável — clicar numa fatia/linha seleciona. */
+  onSelect?: (slice: DonutSlice) => void;
+  selectedName?: string | null;
+}) {
   const hasData = data.some((d) => d.value > 0);
+  const interactive = onSelect !== undefined;
 
   return (
     <div className="flex w-full flex-col items-center gap-2">
       <p className="text-xs font-medium text-ink-muted">{title}</p>
       {hasData ? (
-        <ResponsiveContainer width="100%" height={220}>
-          <PieChart>
-            {/* Gradiente por fatia — mesmo tratamento moderno do SpendingPieChart. */}
-            <defs>
-              {SLICE_COLORS.map((color, i) => (
-                <linearGradient key={i} id={`alloc-slice-${i}`} x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor={color} stopOpacity={1} />
-                  <stop offset="100%" stopColor={color} stopOpacity={0.55} />
-                </linearGradient>
-              ))}
-            </defs>
-            <Pie
-              data={data}
-              dataKey="value"
-              nameKey="name"
-              innerRadius={55}
-              outerRadius={85}
-              paddingAngle={2}
-              cornerRadius={5}
-              isAnimationActive={false}
-            >
-              {data.map((entry, index) => (
-                <Cell
-                  key={entry.id ?? entry.name}
-                  fill={`url(#alloc-slice-${index % SLICE_COLORS.length})`}
-                  stroke="none"
-                />
-              ))}
-            </Pie>
-            <Tooltip {...CHART_TOOLTIP_STYLE} formatter={(value) => formatPercentNumber(Number(value) * 100, 1)} />
-          </PieChart>
-        </ResponsiveContainer>
+        <>
+          <ResponsiveContainer width="100%" height={220}>
+            <PieChart>
+              {/* Gradiente por fatia — mesmo tratamento moderno do SpendingPieChart. */}
+              <defs>
+                {SLICE_COLORS.map((color, i) => (
+                  <linearGradient key={i} id={`alloc-slice-${i}`} x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor={color} stopOpacity={1} />
+                    <stop offset="100%" stopColor={color} stopOpacity={0.55} />
+                  </linearGradient>
+                ))}
+              </defs>
+              <Pie
+                data={data}
+                dataKey="value"
+                nameKey="name"
+                innerRadius={55}
+                outerRadius={85}
+                paddingAngle={2}
+                cornerRadius={5}
+                isAnimationActive={false}
+                onClick={interactive ? (entry) => onSelect?.(entry.payload as DonutSlice) : undefined}
+                style={interactive ? { cursor: "pointer" } : undefined}
+              >
+                {data.map((entry, index) => (
+                  <Cell
+                    key={entry.id ?? entry.name}
+                    fill={`url(#alloc-slice-${index % SLICE_COLORS.length})`}
+                    stroke="none"
+                    opacity={selectedName && selectedName !== entry.name ? 0.35 : 1}
+                  />
+                ))}
+              </Pie>
+              <Tooltip {...CHART_TOOLTIP_STYLE} formatter={(value) => formatPercentNumber(Number(value) * 100, 1)} />
+            </PieChart>
+          </ResponsiveContainer>
+
+          {/* Legenda clicável: cada linha mostra cor + nome + percentual e filtra ao toque. */}
+          {interactive && (
+            <div className="flex w-full flex-wrap justify-center gap-1.5">
+              {data.map((entry, index) => {
+                const active = selectedName === entry.name;
+                return (
+                  <button
+                    key={entry.id ?? entry.name}
+                    type="button"
+                    onClick={() => onSelect?.(entry)}
+                    className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors ${
+                      active
+                        ? "border-accent bg-accent-soft text-ink"
+                        : "border-border bg-surface-2 text-ink-muted hover:text-ink"
+                    }`}
+                  >
+                    <span
+                      className="h-2 w-2 shrink-0 rounded-full"
+                      style={{ background: SLICE_COLORS[index % SLICE_COLORS.length] }}
+                    />
+                    {entry.name}
+                    <span className="tabular-nums text-ink-faint">{formatPercentNumber(entry.value * 100, 1)}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </>
       ) : (
         <div className="flex h-[220px] items-center justify-center text-xs text-ink-faint">Sem dados ainda.</div>
       )}
