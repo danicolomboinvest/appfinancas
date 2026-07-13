@@ -7,7 +7,7 @@ import { prisma } from "@/lib/db/prisma";
 import { createMonthlyEntry } from "@/lib/repositories/monthly-entry.repo";
 import { listTransactionRules, upsertTransactionRule } from "@/lib/repositories/transaction-rule.repo";
 import { parseStatement } from "@/lib/import/statement-parser";
-import { extractUploadText, type UploadEncoding } from "@/lib/import/extract-text";
+import { extractUploadText, UploadReadError, type UploadEncoding } from "@/lib/import/extract-text";
 import { classify, normalizeMerchant, type LearnedRule } from "@/lib/import/classify";
 
 const PARENT_CATEGORY_VALUES: ParentCategory[] = [
@@ -43,7 +43,15 @@ export async function parseStatementAction(
   encoding: UploadEncoding = "text",
 ): Promise<ParseStatementResult> {
   const ctx = await getRequiredSession();
-  const { text, source } = await extractUploadText(content, encoding);
+
+  let text: string;
+  let source: "auto" | "pdf";
+  try {
+    ({ text, source } = await extractUploadText(content, encoding));
+  } catch (err) {
+    if (err instanceof UploadReadError) return { ok: false, error: err.message };
+    throw err;
+  }
 
   // PDF escaneado/foto não tem texto extraível — avisa e pede Excel, em vez de erro genérico.
   const readableChars = text.replace(/[^\p{L}\p{N}]/gu, "").length;

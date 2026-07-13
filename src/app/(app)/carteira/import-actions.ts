@@ -5,7 +5,7 @@ import type { AssetClass } from "@prisma/client";
 import { getRequiredSession } from "@/lib/auth/session";
 import { createAsset } from "@/lib/repositories/asset.repo";
 import { parsePortfolioStatement, guessAssetClass } from "@/lib/import/portfolio-parser";
-import { extractUploadText, type UploadEncoding } from "@/lib/import/extract-text";
+import { extractUploadText, UploadReadError, type UploadEncoding } from "@/lib/import/extract-text";
 
 const ASSET_CLASS_VALUES: AssetClass[] = ["RENDA_FIXA", "ACAO", "FII", "TESOURO_DIRETO", "FUNDO", "CRIPTO", "OUTRO"];
 
@@ -28,7 +28,14 @@ export async function parsePortfolioAction(
   encoding: UploadEncoding = "text",
 ): Promise<ParsePortfolioResult> {
   await getRequiredSession();
-  const { text } = await extractUploadText(content, encoding);
+
+  let text: string;
+  try {
+    ({ text } = await extractUploadText(content, encoding));
+  } catch (err) {
+    if (err instanceof UploadReadError) return { ok: false, error: err.message };
+    throw err;
+  }
 
   // PDF escaneado/foto não tem texto extraível — avisa e pede Excel.
   const readableChars = text.replace(/[^\p{L}\p{N}]/gu, "").length;
