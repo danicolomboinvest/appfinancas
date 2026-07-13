@@ -31,13 +31,17 @@ function parseEntryForm(formData: FormData) {
 }
 
 function toEntryInput(data: z.output<typeof monthlyEntrySchema>): MonthlyEntryInput {
-  const { repeatMonthly: _repeat, parentCategory, customCategoryId, subcategory, goalId, ...rest } = data;
   return {
-    ...rest,
-    parentCategory: parentCategory || undefined,
-    customCategoryId: customCategoryId || undefined,
-    subcategory: subcategory || undefined,
-    goalId: goalId || undefined,
+    year: data.year,
+    month: data.month,
+    category: data.category,
+    amount: data.amount,
+    entryDate: data.entryDate,
+    parentCategory: data.parentCategory || undefined,
+    customCategoryId: data.customCategoryId || undefined,
+    subcategory: data.subcategory || undefined,
+    description: data.description || undefined,
+    goalId: data.goalId || undefined,
   };
 }
 

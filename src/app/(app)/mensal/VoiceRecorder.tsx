@@ -113,8 +113,6 @@ export function VoiceRecorder({ onParsed }: { onParsed: (parsed: ParsedVoiceEntr
   const barRefs = useRef<(HTMLDivElement | null)[]>([]);
   const timerElRef = useRef<HTMLSpanElement | null>(null);
   const isHeldRef = useRef(false);
-  const onParsedRef = useRef(onParsed);
-  onParsedRef.current = onParsed;
 
   function stopVisualizer() {
     if (rafHolderRef.current.id !== null) {
@@ -173,12 +171,14 @@ export function VoiceRecorder({ onParsed }: { onParsed: (parsed: ParsedVoiceEntr
       setRecording(false);
       stopVisualizer();
     };
+    // Captura o onParsed do momento em que a gravação começou — o closure vive só até soltar
+    // o botão, então não há risco real de callback obsoleto.
     recognition.onend = () => {
       const results = latestResultsRef.current;
       if (results) {
         const transcript = joinFinalTranscript(results);
         if (transcript.trim()) {
-          onParsedRef.current(parseVoiceEntry(transcript));
+          onParsed(parseVoiceEntry(transcript));
         }
       }
     };

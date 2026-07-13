@@ -41,6 +41,15 @@ export function SpendingPieChart({ data }: { data: SpendingSlice[] }) {
       <div className="relative h-56 w-56 shrink-0">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
+            {/* Gradientes radiais por fatia — profundidade sem sair da paleta do tema. */}
+            <defs>
+              {SLICE_COLORS.map((color, i) => (
+                <linearGradient key={i} id={`spending-slice-${i}`} x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor={color} stopOpacity={1} />
+                  <stop offset="100%" stopColor={color} stopOpacity={0.55} />
+                </linearGradient>
+              ))}
+            </defs>
             <Pie
               data={slices}
               dataKey="value"
@@ -48,10 +57,11 @@ export function SpendingPieChart({ data }: { data: SpendingSlice[] }) {
               innerRadius={68}
               outerRadius={100}
               paddingAngle={2}
+              cornerRadius={6}
               isAnimationActive={false}
             >
               {slices.map((entry, index) => (
-                <Cell key={entry.name} fill={SLICE_COLORS[index % SLICE_COLORS.length]} stroke="none" />
+                <Cell key={entry.name} fill={`url(#spending-slice-${index % SLICE_COLORS.length})`} stroke="none" />
               ))}
             </Pie>
             <Tooltip {...CHART_TOOLTIP_STYLE} formatter={(value) => formatBRL(Number(value))} />

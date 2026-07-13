@@ -118,6 +118,7 @@ export function RegistrarDrawer({ open, onClose }: { open: boolean; onClose: () 
           month={month}
           recentSubcategories={recentSubcategories}
           customCategories={customCategories}
+          goals={goals}
           layout="stacked"
           onSuccess={onClose}
           defaultDescription={parsed?.description}

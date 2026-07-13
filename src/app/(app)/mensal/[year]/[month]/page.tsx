@@ -19,6 +19,7 @@ import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import { DonutAllocationChart, type DonutSlice } from "@/components/charts/DonutAllocationChart";
 import { EntryForm } from "./EntryForm";
 import { EntryRowActions } from "./EntryRowActions";
+import { WeeklyRecapCard } from "./WeeklyRecapCard";
 import { FlowIndicators, type FlowBundle } from "./FlowIndicators";
 import { BudgetSection } from "../BudgetSection";
 
@@ -210,6 +211,8 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
           { label: MONTH_LABELS[month - 1] },
         ]}
       />
+
+      {isCurrentMonth && <WeeklyRecapCard />}
 
       <FlowIndicators
         year={year}

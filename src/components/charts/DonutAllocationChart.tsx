@@ -28,6 +28,15 @@ export function DonutAllocationChart({ title, data }: { title: string; data: Don
       {hasData ? (
         <ResponsiveContainer width="100%" height={220}>
           <PieChart>
+            {/* Gradiente por fatia — mesmo tratamento moderno do SpendingPieChart. */}
+            <defs>
+              {SLICE_COLORS.map((color, i) => (
+                <linearGradient key={i} id={`alloc-slice-${i}`} x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor={color} stopOpacity={1} />
+                  <stop offset="100%" stopColor={color} stopOpacity={0.55} />
+                </linearGradient>
+              ))}
+            </defs>
             <Pie
               data={data}
               dataKey="value"
@@ -35,10 +44,15 @@ export function DonutAllocationChart({ title, data }: { title: string; data: Don
               innerRadius={55}
               outerRadius={85}
               paddingAngle={2}
+              cornerRadius={5}
               isAnimationActive={false}
             >
               {data.map((entry, index) => (
-                <Cell key={entry.id ?? entry.name} fill={SLICE_COLORS[index % SLICE_COLORS.length]} stroke="none" />
+                <Cell
+                  key={entry.id ?? entry.name}
+                  fill={`url(#alloc-slice-${index % SLICE_COLORS.length})`}
+                  stroke="none"
+                />
               ))}
             </Pie>
             <Tooltip {...CHART_TOOLTIP_STYLE} formatter={(value) => formatPercentNumber(Number(value) * 100, 1)} />
