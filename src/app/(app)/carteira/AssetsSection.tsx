@@ -98,6 +98,7 @@ export function AssetsSection({
   const [importOpen, setImportOpen] = useState(false);
   const [editingAsset, setEditingAsset] = useState<Asset | null>(null);
   const [classFilter, setClassFilter] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [isUpdatingQuotes, startQuotesTransition] = useTransition();
   const { showToast } = useToast();
 
@@ -274,23 +275,30 @@ export function AssetsSection({
                 asset.objective === "META" && asset.goalId
                   ? `Meta: ${goalNameById.get(asset.goalId) ?? ""}`
                   : OBJECTIVE_LABEL[asset.objective];
+              const expanded = expandedId === asset.id;
               return (
-                <Card key={asset.id} className="flex items-center justify-between gap-3 p-3">
-                  <div className="flex min-w-0 items-center gap-3">
-                    <Badge tone="neutral">{CLASS_LABEL[asset.assetClass]}</Badge>
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-ink">
-                        {asset.name}
-                        {asset.ticker && asset.ticker !== asset.name ? ` (${asset.ticker})` : ""}
-                      </p>
-                      <p className="truncate text-xs text-ink-faint">
-                        {asset.quantity !== null && asset.quantity > 0 && `${formatQuantity(asset.quantity)} un · `}
-                        {objectiveText}
-                      </p>
+                <Card key={asset.id} className="p-0">
+                  {/* A linha toda é clicável: toque abre as ações (Editar/Remover) sem poluir a lista. */}
+                  <button
+                    type="button"
+                    onClick={() => setExpandedId(expanded ? null : asset.id)}
+                    aria-expanded={expanded}
+                    className="flex w-full items-center justify-between gap-3 p-3 text-left"
+                  >
+                    <div className="flex min-w-0 items-center gap-3">
+                      <Badge tone="neutral">{CLASS_LABEL[asset.assetClass]}</Badge>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-ink">
+                          {asset.name}
+                          {asset.ticker && asset.ticker !== asset.name ? ` (${asset.ticker})` : ""}
+                        </p>
+                        <p className="truncate text-xs text-ink-faint">
+                          {asset.quantity !== null && asset.quantity > 0 && `${formatQuantity(asset.quantity)} un · `}
+                          {objectiveText}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-3">
-                    <div className="text-right">
+                    <div className="shrink-0 text-right">
                       <p className="text-sm font-medium text-ink">{formatBRL(asset.currentValue)}</p>
                       {(() => {
                         const profit = profitOf(asset);
@@ -303,17 +311,22 @@ export function AssetsSection({
                         );
                       })()}
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setEditingAsset(asset)}
-                      className="inline-flex items-center gap-1 text-xs text-ink-muted transition-colors hover:text-ink"
-                      aria-label={`Editar ${asset.name}`}
-                    >
-                      <Pencil size={13} strokeWidth={1.75} />
-                      Editar
-                    </button>
-                    <DeleteAssetButton id={asset.id} />
-                  </div>
+                  </button>
+
+                  {expanded && (
+                    <div className="flex items-center justify-end gap-4 border-t border-border px-3 py-2">
+                      <button
+                        type="button"
+                        onClick={() => setEditingAsset(asset)}
+                        className="inline-flex items-center gap-1 text-xs text-ink-muted transition-colors hover:text-ink"
+                        aria-label={`Editar ${asset.name}`}
+                      >
+                        <Pencil size={13} strokeWidth={1.75} />
+                        Editar
+                      </button>
+                      <DeleteAssetButton id={asset.id} />
+                    </div>
+                  )}
                 </Card>
               );
             })}
