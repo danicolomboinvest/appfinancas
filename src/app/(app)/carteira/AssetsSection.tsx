@@ -14,6 +14,7 @@ import { PortfolioImport } from "@/components/import/PortfolioImport";
 import { DeleteAssetButton } from "./DeleteAssetButton";
 import { AssetForm } from "./AssetForm";
 import { updatePortfolioQuotesAction } from "./quotes-actions";
+import { bulkSetObjectiveAction } from "./actions";
 import { formatPercentNumber } from "@/lib/format";
 
 function formatBRL(value: number) {
@@ -100,7 +101,17 @@ export function AssetsSection({
   const [classFilter, setClassFilter] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [isUpdatingQuotes, startQuotesTransition] = useTransition();
+  const [isBulkPending, startBulkTransition] = useTransition();
   const { showToast } = useToast();
+
+  /** Define o objetivo de todos os ativos do tipo filtrado de uma vez. */
+  function handleBulkObjective(objective: "RESERVA_EMERGENCIA" | "LIBERDADE_FINANCEIRA" | "OUTRO") {
+    if (!classFilter) return;
+    startBulkTransition(async () => {
+      const result = await bulkSetObjectiveAction(classFilter, objective);
+      showToast(result.ok ? `${result.updated} ativos atualizados para "${OBJECTIVE_LABEL[objective]}".` : result.error);
+    });
+  }
 
   const hasTickers = assets.some((a) => a.ticker);
 
@@ -120,6 +131,9 @@ export function AssetsSection({
   }
 
   const totalValue = assets.reduce((sum, asset) => sum + asset.currentValue, 0);
+  // Lucro geral: só considera ativos com investido conhecido (evita distorcer o %).
+  const totalInvested = assets.reduce((sum, a) => sum + (a.investedValue !== null && a.investedValue > 0 ? a.investedValue : 0), 0);
+  const totalProfit = assets.reduce((sum, a) => sum + (profitOf(a) ?? 0), 0);
 
   // Carteira atual agrupada por TIPO (Ações, FIIs, Fundos…) — com dezenas de ativos, uma
   // fatia por ativo vira confete; por classe o percentual conta a história de verdade.
@@ -147,8 +161,19 @@ export function AssetsSection({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-ink-muted">{assets.length} ativo{assets.length === 1 ? "" : "s"} cadastrado{assets.length === 1 ? "" : "s"}</p>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="text-caption text-ink-muted">
+            Total da carteira · {assets.length} ativo{assets.length === 1 ? "" : "s"}
+          </p>
+          <p className="text-2xl font-semibold tabular-nums text-ink">{formatBRL(totalValue)}</p>
+          {Math.abs(totalProfit) >= 0.005 && totalInvested > 0 && (
+            <p className={`text-sm tabular-nums ${totalProfit > 0 ? "text-success" : "text-danger"}`}>
+              {totalProfit > 0 ? "+" : "−"}{formatBRL(Math.abs(totalProfit))} ({totalProfit > 0 ? "+" : "−"}
+              {formatPercentNumber(Math.abs((totalProfit / totalInvested) * 100), 1)}) desde a compra
+            </p>
+          )}
+        </div>
         <div className="flex items-center gap-2">
           {hasTickers && (
             <Button type="button" size="sm" variant="secondary" onClick={handleUpdateQuotes} disabled={isUpdatingQuotes}>
@@ -249,6 +274,7 @@ export function AssetsSection({
 
           {/* Resumo do tipo filtrado: total e fatia da carteira. */}
           {classFilter && (
+            <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-sm text-ink-muted">
               {CLASS_PLURAL[classFilter]}: <span className="font-medium text-ink">{formatBRL(valueByClass.get(classFilter) ?? 0)}</span>
               {totalValue > 0 && (
@@ -267,6 +293,23 @@ export function AssetsSection({
                 );
               })()}
             </p>
+            <select
+              value=""
+              disabled={isBulkPending}
+              onChange={(e) => {
+                const v = e.target.value as "RESERVA_EMERGENCIA" | "LIBERDADE_FINANCEIRA" | "OUTRO" | "";
+                if (v) handleBulkObjective(v);
+              }}
+              className="rounded-lg border border-border-strong bg-surface px-2 py-1.5 text-xs text-ink-muted focus:border-accent focus:outline-none"
+            >
+              <option value="" disabled>
+                {isBulkPending ? "Aplicando…" : `Definir objetivo dos ${visibleAssets.length}…`}
+              </option>
+              <option value="LIBERDADE_FINANCEIRA">Liberdade financeira</option>
+              <option value="RESERVA_EMERGENCIA">Reserva de emergência</option>
+              <option value="OUTRO">Outro</option>
+            </select>
+            </div>
           )}
 
           <div className="flex flex-col gap-2">

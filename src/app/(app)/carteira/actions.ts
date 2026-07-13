@@ -56,3 +56,25 @@ export async function deleteAssetAction(id: string) {
   revalidatePath("/carteira");
   revalidatePath("/carteira/por-objetivo");
 }
+
+/** Define o objetivo de TODOS os ativos de uma classe de uma vez (pós-importação, em que
+ * tudo entra como OUTRO). META fica de fora — precisa escolher a meta individualmente. */
+export async function bulkSetObjectiveAction(
+  assetClass: string,
+  objective: "RESERVA_EMERGENCIA" | "LIBERDADE_FINANCEIRA" | "OUTRO",
+): Promise<{ ok: true; updated: number } | { ok: false; error: string }> {
+  const ALLOWED_CLASSES = ["RENDA_FIXA", "ACAO", "FII", "TESOURO_DIRETO", "FUNDO", "CRIPTO", "OUTRO"];
+  const ALLOWED_OBJECTIVES = ["RESERVA_EMERGENCIA", "LIBERDADE_FINANCEIRA", "OUTRO"];
+  if (!ALLOWED_CLASSES.includes(assetClass) || !ALLOWED_OBJECTIVES.includes(objective)) {
+    return { ok: false, error: "Opção inválida." };
+  }
+  const ctx = await getRequiredSession();
+  const { prisma } = await import("@/lib/db/prisma");
+  const result = await prisma.asset.updateMany({
+    where: { userId: ctx.userId, assetClass: assetClass as never },
+    data: { objective, goalId: null },
+  });
+  revalidatePath("/carteira");
+  revalidatePath("/carteira/por-objetivo");
+  return { ok: true, updated: result.count };
+}
