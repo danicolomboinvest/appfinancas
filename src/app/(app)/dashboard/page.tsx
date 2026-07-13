@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ShieldCheck, Target, Sparkles } from "lucide-react";
+import { ShieldCheck, Target, Sparkles, ChevronLeft, ChevronRight } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
 import { getYearlySummary } from "@/lib/consolidation/yearly";
 import { getMonthlySummary } from "@/lib/consolidation/monthly";
@@ -42,11 +42,23 @@ function changeAmount(current: number, previous: number): number | null {
   return current - previous;
 }
 
-export default async function DashboardPage() {
+function firstOf(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+export default async function DashboardPage(props: PageProps<"/dashboard">) {
+  const searchParams = await props.searchParams;
   const ctx = await getRequiredSession();
   const now = new Date();
-  const year = now.getFullYear();
-  const currentMonth = now.getMonth() + 1;
+
+  // Ano selecionável via ?year — as setas do cabeçalho navegam por aqui.
+  const yearParam = Number(firstOf(searchParams.year));
+  const year = Number.isInteger(yearParam) && yearParam >= 2000 && yearParam <= 2100 ? yearParam : now.getFullYear();
+  const isCurrentYear = year === now.getFullYear();
+
+  // Mês de referência da comparação "vs mês passado": o mês atual no ano corrente; em anos
+  // passados, dezembro (último mês fechado do ano).
+  const currentMonth = isCurrentYear ? now.getMonth() + 1 : 12;
   const previousMonthDate = new Date(year, currentMonth - 2, 1);
 
   const [summary, portfolio, emergencyFund, goals, planningParams, currentMonthSummary, previousMonthSummary, plannedVsActual] =
@@ -119,6 +131,24 @@ export default async function DashboardPage() {
               Ver Fluxo Financeiro
             </Link>
           </>
+        }
+        action={
+          <div className="flex items-center gap-1">
+            <Link
+              href={`/dashboard?year=${year - 1}`}
+              aria-label={`Ano ${year - 1}`}
+              className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm text-ink-muted hover:bg-surface-2 hover:text-ink"
+            >
+              <ChevronLeft size={16} /> {year - 1}
+            </Link>
+            <Link
+              href={`/dashboard?year=${year + 1}`}
+              aria-label={`Ano ${year + 1}`}
+              className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm text-ink-muted hover:bg-surface-2 hover:text-ink"
+            >
+              {year + 1} <ChevronRight size={16} />
+            </Link>
+          </div>
         }
       />
 

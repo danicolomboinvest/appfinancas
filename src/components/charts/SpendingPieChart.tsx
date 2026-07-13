@@ -13,7 +13,12 @@ const SLICE_COLORS = [
   "var(--color-chart-7)",
 ];
 
-export type SpendingSlice = { name: string; value: number };
+export type SpendingSlice = {
+  name: string;
+  value: number;
+  /** Referência da categoria (para abrir os lançamentos ao clicar). */
+  category?: { kind: "parent" | "custom"; value: string };
+};
 
 function formatBRL(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
@@ -24,7 +29,17 @@ function formatBRL(value: number) {
  * legenda que deixa claro o que é cada fatia — categoria, valor e %. Ordenada do maior gasto
  * para o menor, então bate o olho e entende para onde o dinheiro foi.
  */
-export function SpendingPieChart({ data }: { data: SpendingSlice[] }) {
+export function SpendingPieChart({
+  data,
+  onSelect,
+  selectedName,
+}: {
+  data: SpendingSlice[];
+  /** Quando presente, cada linha da legenda vira clicável (abre os lançamentos da categoria). */
+  onSelect?: (slice: SpendingSlice) => void;
+  /** Nome da categoria atualmente aberta — destaca a linha. */
+  selectedName?: string | null;
+}) {
   const slices = data.filter((d) => d.value > 0).sort((a, b) => b.value - a.value);
   const total = slices.reduce((sum, d) => sum + d.value, 0);
 
@@ -73,18 +88,40 @@ export function SpendingPieChart({ data }: { data: SpendingSlice[] }) {
         </div>
       </div>
 
-      <ul className="flex w-full flex-col gap-2">
+      <ul className="flex w-full flex-col gap-1">
         {slices.map((slice, index) => {
           const percent = total > 0 ? Math.round((slice.value / total) * 100) : 0;
-          return (
-            <li key={slice.name} className="flex items-center gap-2.5">
-              <span
-                className="h-2.5 w-2.5 shrink-0 rounded-full"
-                style={{ background: SLICE_COLORS[index % SLICE_COLORS.length] }}
-              />
-              <span className="min-w-0 flex-1 truncate text-sm text-ink">{slice.name}</span>
+          const clickable = Boolean(onSelect && slice.category);
+          const isSelected = selectedName === slice.name;
+          const dot = (
+            <span
+              className="h-2.5 w-2.5 shrink-0 rounded-full"
+              style={{ background: SLICE_COLORS[index % SLICE_COLORS.length] }}
+            />
+          );
+          const content = (
+            <>
+              {dot}
+              <span className="min-w-0 flex-1 truncate text-left text-sm text-ink">{slice.name}</span>
               <span className="shrink-0 text-sm font-medium tabular-nums text-ink">{formatBRL(slice.value)}</span>
               <span className="w-9 shrink-0 text-right text-caption tabular-nums text-ink-faint">{percent}%</span>
+            </>
+          );
+          return (
+            <li key={slice.name}>
+              {clickable ? (
+                <button
+                  type="button"
+                  onClick={() => onSelect?.(slice)}
+                  className={`flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors ${
+                    isSelected ? "bg-surface-2" : "hover:bg-surface-2"
+                  }`}
+                >
+                  {content}
+                </button>
+              ) : (
+                <div className="flex items-center gap-2.5 px-2 py-1.5">{content}</div>
+              )}
             </li>
           );
         })}

@@ -20,15 +20,23 @@ const MONTH_LABELS = [
   "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
 ];
 
-/** Junta gastos por categoria-mãe (padrão) e personalizadas num único array {name, value}. */
+/** Junta gastos por categoria-mãe (padrão) e personalizadas num único array {name, value, key}. */
 function toSlices(
   parent: { parentCategory: ParentCategory; spent: number }[],
   custom: { customCategoryId: string; spent: number }[],
   customNameById: Map<string, string>,
 ): SpendingSlice[] {
   return [
-    ...parent.map((s) => ({ name: PARENT_CATEGORY_LABEL[s.parentCategory], value: s.spent })),
-    ...custom.map((s) => ({ name: customNameById.get(s.customCategoryId) ?? "Outro", value: s.spent })),
+    ...parent.map((s) => ({
+      name: PARENT_CATEGORY_LABEL[s.parentCategory],
+      value: s.spent,
+      category: { kind: "parent" as const, value: s.parentCategory },
+    })),
+    ...custom.map((s) => ({
+      name: customNameById.get(s.customCategoryId) ?? "Outro",
+      value: s.spent,
+      category: { kind: "custom" as const, value: s.customCategoryId },
+    })),
   ];
 }
 
@@ -99,6 +107,8 @@ export default async function SpendingByCategoryPage(props: PageProps<"/mensal/g
       <PageHeader title="Só gastos" subtitle="Para onde seu dinheiro foi, por categoria." />
 
       <SpendingByCategory
+        selectedYear={year}
+        selectedMonth={month}
         week={toSlices(parentWeek, customWeek, customNameById)}
         month={toSlices(parentMonth, customMonth, customNameById)}
         year={toSlices(parentYear, customYear, customNameById)}
