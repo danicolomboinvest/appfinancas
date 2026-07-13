@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { Briefcase, FileUp, Pencil, Plus, RefreshCw } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -60,7 +61,14 @@ type Asset = {
   quantity: number | null;
   investedValue: number | null;
   currentValue: number;
-  idealAllocationPercent: number | null;
+};
+
+/** Resumo da Estratégia da Carteira (a alocação ideal): alvos por classe + até 3 sugestões
+ * de rebalanceamento fora da tolerância, prontos pra exibir. */
+export type StrategySummary = {
+  hasStrategy: boolean;
+  targets: { name: string; value: number }[];
+  suggestions: { label: string; amount: number }[];
 };
 
 function formatQuantity(value: number) {
@@ -79,10 +87,12 @@ export function AssetsSection({
   assets,
   goals,
   goalNameById,
+  strategy,
 }: {
   assets: Asset[];
   goals: { id: string; name: string }[];
   goalNameById: Map<string, string>;
+  strategy: StrategySummary;
 }) {
   const [createOpen, setCreateOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
@@ -123,10 +133,6 @@ export function AssetsSection({
     name: CLASS_PLURAL[c],
     value: totalValue > 0 ? (valueByClass.get(c) ?? 0) / totalValue : 0,
   }));
-  const idealAllocationData = assets
-    .filter((asset) => asset.idealAllocationPercent !== null)
-    .map((asset) => ({ id: asset.id, name: asset.name, value: asset.idealAllocationPercent ?? 0 }));
-
   // Filtro por tipo: clicar na fatia/legenda ou nos chips mostra só os ativos daquele tipo,
   // do maior pro menor valor.
   const classesPresent = CLASS_ORDER.filter((c) => (countByClass.get(c) ?? 0) > 0);
@@ -174,8 +180,42 @@ export function AssetsSection({
               onSelect={(slice) => slice.id && toggleClassFilter(slice.id)}
               selectedName={classFilter ? CLASS_PLURAL[classFilter] : null}
             />
-            <DonutAllocationChart title="Alocação ideal, por ativo" data={idealAllocationData} />
+            {strategy.hasStrategy ? (
+              <DonutAllocationChart title="Sua estratégia (ideal)" data={strategy.targets} />
+            ) : (
+              <div className="flex w-full flex-col items-center gap-2">
+                <p className="text-xs font-medium text-ink-muted">Sua estratégia (ideal)</p>
+                <div className="flex h-[220px] flex-col items-center justify-center gap-2 text-center">
+                  <p className="max-w-[220px] text-xs text-ink-faint">
+                    Defina quanto quer ter em cada tipo e compare com a carteira atual.
+                  </p>
+                  <Link href="/carteira/estrategia" className="text-xs font-medium text-accent-strong hover:underline">
+                    Definir estratégia →
+                  </Link>
+                </div>
+              </div>
+            )}
           </Card>
+
+          {/* Pra onde vai o próximo aporte: maiores desvios da estratégia (detalhe em Por Objetivo). */}
+          {strategy.hasStrategy && strategy.suggestions.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2 text-sm">
+              <span className="text-ink-muted">Pra ficar no alvo:</span>
+              {strategy.suggestions.map((s) => (
+                <span
+                  key={s.label}
+                  className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium ${
+                    s.amount >= 0 ? "bg-success-soft text-success" : "bg-danger-soft text-danger"
+                  }`}
+                >
+                  {s.amount >= 0 ? "+" : "−"} {formatBRL(Math.abs(s.amount))} {s.label}
+                </span>
+              ))}
+              <Link href="/carteira/por-objetivo" className="text-xs text-accent-strong hover:underline">
+                Ver rebalanceamento →
+              </Link>
+            </div>
+          )}
 
           {/* Filtro por tipo: mostra só os ativos da classe escolhida (sincronizado com o gráfico). */}
           <div className="flex flex-wrap items-center gap-1.5">
@@ -234,9 +274,6 @@ export function AssetsSection({
                 asset.objective === "META" && asset.goalId
                   ? `Meta: ${goalNameById.get(asset.goalId) ?? ""}`
                   : OBJECTIVE_LABEL[asset.objective];
-              const idealText = asset.idealAllocationPercent
-                ? ` · Alocação ideal: ${formatPercentNumber(asset.idealAllocationPercent * 100, 1)}`
-                : "";
               return (
                 <Card key={asset.id} className="flex items-center justify-between gap-3 p-3">
                   <div className="flex min-w-0 items-center gap-3">
@@ -249,7 +286,6 @@ export function AssetsSection({
                       <p className="truncate text-xs text-ink-faint">
                         {asset.quantity !== null && asset.quantity > 0 && `${formatQuantity(asset.quantity)} un · `}
                         {objectiveText}
-                        {idealText}
                       </p>
                     </div>
                   </div>
@@ -308,7 +344,6 @@ export function AssetsSection({
               objective: editingAsset.objective,
               goalId: editingAsset.goalId ?? undefined,
               currentValue: editingAsset.currentValue,
-              idealAllocationPercent: editingAsset.idealAllocationPercent ?? undefined,
             }}
           />
         )}

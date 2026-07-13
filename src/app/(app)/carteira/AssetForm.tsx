@@ -3,7 +3,6 @@
 import { useActionState, useEffect, useRef, useState } from "react";
 import { Field, SelectField } from "@/components/ui/Field";
 import { CurrencyField } from "@/components/ui/CurrencyField";
-import { PercentField } from "@/components/ui/PercentField";
 import { Button } from "@/components/ui/Button";
 import { useSuccessToast } from "@/components/ui/useSuccessToast";
 import { createAssetAction, updateAssetAction, type AssetFormState } from "./actions";
@@ -35,7 +34,6 @@ type Defaults = {
   goalId?: string;
   investedValue?: number;
   currentValue?: number;
-  idealAllocationPercent?: number;
 };
 
 /** Form de ativo — sem `assetId`/`defaults` cria um ativo novo; com eles, edita um existente. */
@@ -115,7 +113,6 @@ export function AssetForm({
         defaultValue={defaults.currentValue}
         className="w-32"
       />
-      <PercentField label="Alocação ideal" id="idealAllocationPercent" name="idealAllocationPercent" defaultValue={defaults.idealAllocationPercent} />
       <Button type="submit" disabled={isPending} size="sm">
         {isPending ? "Salvando..." : submitLabel}
       </Button>
