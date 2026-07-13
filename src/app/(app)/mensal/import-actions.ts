@@ -7,7 +7,7 @@ import { prisma } from "@/lib/db/prisma";
 import { createMonthlyEntry } from "@/lib/repositories/monthly-entry.repo";
 import { listTransactionRules, upsertTransactionRule } from "@/lib/repositories/transaction-rule.repo";
 import { parseStatement } from "@/lib/import/statement-parser";
-import { extractUploadText, UploadReadError, type UploadEncoding } from "@/lib/import/extract-text";
+import { extractUploadFromForm, UploadReadError } from "@/lib/import/extract-text";
 import { classify, normalizeMerchant, type LearnedRule } from "@/lib/import/classify";
 
 const PARENT_CATEGORY_VALUES: ParentCategory[] = [
@@ -37,17 +37,16 @@ export type ReviewItem = {
 export type ParseStatementResult = { ok: true; items: ReviewItem[] } | { ok: false; error: string };
 
 /** Lê o extrato (CSV/OFX/Excel/PDF), classifica cada transação e devolve a fila pra revisão.
- * `content` é texto puro (CSV/OFX) ou base64 (Excel/PDF), conforme `encoding`. */
-export async function parseStatementAction(
-  content: string,
-  encoding: UploadEncoding = "text",
-): Promise<ParseStatementResult> {
+ * O arquivo vem CRU num FormData ({ file, encoding }) — string grande como argumento de
+ * action estoura o limite de serialização do React (~1M chars). */
+export async function parseStatementAction(formData: FormData): Promise<ParseStatementResult> {
   const ctx = await getRequiredSession();
+  const encoding = String(formData.get("encoding") ?? "text");
 
   let text: string;
   let source: "auto" | "pdf";
   try {
-    ({ text, source } = await extractUploadText(content, encoding));
+    ({ text, source } = await extractUploadFromForm(formData));
   } catch (err) {
     if (err instanceof UploadReadError) return { ok: false, error: err.message };
     throw err;

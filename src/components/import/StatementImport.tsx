@@ -24,22 +24,15 @@ function formatDate(iso: string) {
   return m ? `${m[3]}/${m[2]}` : iso;
 }
 
-async function fileToBase64(file: File): Promise<string> {
-  const bytes = new Uint8Array(await file.arrayBuffer());
-  let binary = "";
-  const chunk = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunk) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
-  }
-  return btoa(binary);
-}
-
-/** Excel e PDF são binários → base64; CSV/OFX/TXT são texto. Define o encoding pra action. */
-async function readUpload(file: File): Promise<{ content: string; encoding: "text" | "xlsx" | "pdf" }> {
+/** O arquivo vai CRU num FormData (string grande de base64 estoura o limite de serialização
+ * das actions). O encoding diz ao servidor como interpretar os bytes. */
+function buildUploadForm(file: File): FormData {
   const name = file.name.toLowerCase();
-  if (name.endsWith(".xlsx") || name.endsWith(".xls")) return { content: await fileToBase64(file), encoding: "xlsx" };
-  if (name.endsWith(".pdf")) return { content: await fileToBase64(file), encoding: "pdf" };
-  return { content: await file.text(), encoding: "text" };
+  const encoding = name.endsWith(".xlsx") || name.endsWith(".xls") ? "xlsx" : name.endsWith(".pdf") ? "pdf" : "text";
+  const formData = new FormData();
+  formData.set("file", file);
+  formData.set("encoding", encoding);
+  return formData;
 }
 
 /**
@@ -64,9 +57,14 @@ export function StatementImport({ onDone }: { onDone: () => void }) {
 
   async function handleFile(file: File) {
     setError(null);
-    const { content, encoding } = await readUpload(file);
+    // Limite do corpo da Server Action é 8 MB — barra antes com mensagem clara.
+    if (file.size > 7.5 * 1024 * 1024) {
+      setError("Arquivo muito grande (máx. ~7 MB). Exporte um período menor do extrato e tente de novo.");
+      return;
+    }
+    const formData = buildUploadForm(file);
     startTransition(async () => {
-      const result = await parseStatementAction(content, encoding);
+      const result = await parseStatementAction(formData);
       if (!result.ok) {
         setError(result.error);
         return;

@@ -5,7 +5,7 @@ import type { AssetClass } from "@prisma/client";
 import { getRequiredSession } from "@/lib/auth/session";
 import { createAsset } from "@/lib/repositories/asset.repo";
 import { parsePortfolioStatement, guessAssetClass } from "@/lib/import/portfolio-parser";
-import { extractUploadText, UploadReadError, type UploadEncoding } from "@/lib/import/extract-text";
+import { extractUploadFromForm, UploadReadError } from "@/lib/import/extract-text";
 
 const ASSET_CLASS_VALUES: AssetClass[] = ["RENDA_FIXA", "ACAO", "FII", "TESOURO_DIRETO", "FUNDO", "CRIPTO", "OUTRO"];
 
@@ -22,16 +22,15 @@ export type ParsePortfolioResult =
   | { ok: false; error: string };
 
 /** Lê o extrato/nota da corretora ou relatório da B3 (CSV/Excel/PDF) e identifica os ativos.
- * `content` é texto (CSV) ou base64 (Excel/PDF), conforme `encoding`. */
-export async function parsePortfolioAction(
-  content: string,
-  encoding: UploadEncoding = "text",
-): Promise<ParsePortfolioResult> {
+ * O arquivo vem CRU num FormData ({ file, encoding }) — string grande como argumento de
+ * action estoura o limite de serialização do React (~1M chars). */
+export async function parsePortfolioAction(formData: FormData): Promise<ParsePortfolioResult> {
   await getRequiredSession();
+  const encoding = String(formData.get("encoding") ?? "text");
 
   let text: string;
   try {
-    ({ text } = await extractUploadText(content, encoding));
+    ({ text } = await extractUploadFromForm(formData));
   } catch (err) {
     if (err instanceof UploadReadError) return { ok: false, error: err.message };
     throw err;
