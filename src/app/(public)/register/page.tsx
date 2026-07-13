@@ -43,6 +43,20 @@ export default function RegisterPage() {
             minLength={8}
             autoComplete="new-password"
           />
+          <label className="flex items-start gap-2 text-xs text-ink-muted">
+            <input type="checkbox" name="acceptTerms" required className="mt-0.5 accent-current" />
+            <span>
+              Li e aceito os{" "}
+              <Link href="/termos" target="_blank" className="font-medium text-accent-strong hover:underline">
+                Termos de Uso
+              </Link>{" "}
+              e a{" "}
+              <Link href="/privacidade" target="_blank" className="font-medium text-accent-strong hover:underline">
+                Política de Privacidade
+              </Link>
+              .
+            </span>
+          </label>
           <Button type="submit" disabled={isPending} className="w-full">
             {isPending ? "Criando..." : "Criar conta"}
           </Button>
