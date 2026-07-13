@@ -1,34 +1,35 @@
-"use server";
-
-import { revalidatePath } from "next/cache";
-import { getRequiredSession } from "@/lib/auth/session";
+import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { fetchTickerPrice } from "@/lib/analysis/price-scraper";
 
-export type UpdateQuotesResult =
-  | { ok: true; updated: number; failed: string[] }
-  | { ok: false; error: string };
+// Cotações de dezenas de tickers via scraping podem passar dos 10s padrão.
+export const maxDuration = 60;
 
 /**
- * Atualiza a cotação de todos os ativos com ticker: busca o preço atual (mesma fonte das
- * fichas) e recalcula o valor da posição (quantidade × preço) quando há quantidade cadastrada.
- * Ativos sem ticker (ex.: renda fixa) não são tocados.
+ * Cron diário (vercel.json): atualiza a cotação de TODOS os ativos com ticker, de todos os
+ * usuários — 1 busca por ticker único. Nunca toca no investedValue (referência do lucro).
+ *
+ * Segurança: se CRON_SECRET estiver configurado na Vercel, exige o Bearer que o próprio
+ * agendador envia; sem o secret, aceita só chamadas do agendador (user-agent vercel-cron).
  */
-export async function updatePortfolioQuotesAction(): Promise<UpdateQuotesResult> {
-  const ctx = await getRequiredSession();
+export async function GET(request: Request) {
+  const secret = process.env.CRON_SECRET;
+  const authorized = secret
+    ? request.headers.get("authorization") === `Bearer ${secret}`
+    : (request.headers.get("user-agent") ?? "").startsWith("vercel-cron");
+  if (!authorized) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+
   const allWithTicker = await prisma.asset.findMany({
-    where: { userId: ctx.userId, ticker: { not: null } },
+    where: { ticker: { not: null } },
     select: { id: true, ticker: true, quantity: true },
   });
   // Só tickers de bolsa de verdade (PETR4, MXRF11…) — fundos/renda fixa usam o campo como
-  // nome e não têm cotação pública, então não entram na busca nem na lista de "não achei".
+  // nome e não têm cotação pública pra buscar.
   const assets = allWithTicker.filter((a) => /^[A-Z]{4}\d{1,2}$/.test(a.ticker as string));
+  if (assets.length === 0) return NextResponse.json({ updated: 0, failed: [] });
 
-  if (assets.length === 0) {
-    return { ok: false, error: "Nenhum ativo com ticker cadastrado — adicione o ticker para atualizar cotações." };
-  }
-
-  // Busca os preços em paralelo, mas 1 requisição por ticker único (PETR4 em 2 posições = 1 fetch).
   const uniqueTickers = [...new Set(assets.map((a) => a.ticker as string))];
   const priceByTicker = new Map<string, number | null>(
     await Promise.all(
@@ -49,14 +50,12 @@ export async function updatePortfolioQuotesAction(): Promise<UpdateQuotesResult>
       where: { id: asset.id },
       data: {
         currentUnitPrice: price,
-        // Só recalcula o total quando sabemos a quantidade; sem ela, manter o valor manual.
+        // Só recalcula o total quando sabemos a quantidade; sem ela, mantém o valor manual.
         ...(quantity && quantity > 0 ? { currentValue: quantity * price } : {}),
       },
     });
     updated += 1;
   }
 
-  revalidatePath("/carteira");
-  revalidatePath("/carteira/por-objetivo");
-  return { ok: true, updated, failed };
+  return NextResponse.json({ updated, tickers: uniqueTickers.length, failed });
 }
