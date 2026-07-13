@@ -348,6 +348,9 @@ model Asset {
   goal                   Goal?          @relation(fields: [goalId], references: [id])
   quantity               Decimal?       @db.Decimal(18, 6)
   currentUnitPrice       Decimal?       @db.Decimal(18, 6)
+  /// Quanto foi investido (compra/aportes). A atualização de cotações NUNCA mexe aqui —
+  /// é a referência fixa pro lucro/prejuízo (currentValue - investedValue).
+  investedValue          Decimal?       @db.Decimal(18, 2)
   currentValue           Decimal        @db.Decimal(18, 2)
   idealAllocationPercent Decimal?       @db.Decimal(6, 3)
   acquisitionDate        DateTime?

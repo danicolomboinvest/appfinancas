@@ -58,12 +58,19 @@ type Asset = {
   objective: string;
   goalId: string | null;
   quantity: number | null;
+  investedValue: number | null;
   currentValue: number;
   idealAllocationPercent: number | null;
 };
 
 function formatQuantity(value: number) {
   return value.toLocaleString("pt-BR", { maximumFractionDigits: 6 });
+}
+
+/** Lucro/prejuízo = valor atual − investido. Null quando não dá pra calcular. */
+function profitOf(asset: { investedValue: number | null; currentValue: number }): number | null {
+  if (asset.investedValue === null || asset.investedValue <= 0) return null;
+  return asset.currentValue - asset.investedValue;
 }
 
 /** Lista de ativos + criação/edição em modal — a lista vem primeiro, o formulário só aparece
@@ -206,6 +213,18 @@ export function AssetsSection({
               {totalValue > 0 && (
                 <> · {formatPercentNumber(((valueByClass.get(classFilter) ?? 0) / totalValue) * 100, 1)} da carteira</>
               )}
+              {(() => {
+                const profit = visibleAssets.reduce((sum, a) => sum + (profitOf(a) ?? 0), 0);
+                if (Math.abs(profit) < 0.005) return null;
+                return (
+                  <>
+                    {" · "}
+                    <span className={profit > 0 ? "text-success" : "text-danger"}>
+                      {profit > 0 ? "+" : "−"}{formatBRL(Math.abs(profit))}
+                    </span>
+                  </>
+                );
+              })()}
             </p>
           )}
 
@@ -235,7 +254,19 @@ export function AssetsSection({
                     </div>
                   </div>
                   <div className="flex shrink-0 items-center gap-3">
-                    <p className="text-sm font-medium text-ink">{formatBRL(asset.currentValue)}</p>
+                    <div className="text-right">
+                      <p className="text-sm font-medium text-ink">{formatBRL(asset.currentValue)}</p>
+                      {(() => {
+                        const profit = profitOf(asset);
+                        if (profit === null || Math.abs(profit) < 0.005) return null;
+                        const pct = (profit / (asset.investedValue as number)) * 100;
+                        return (
+                          <p className={`text-xs tabular-nums ${profit > 0 ? "text-success" : "text-danger"}`}>
+                            {profit > 0 ? "+" : "−"}{formatBRL(Math.abs(profit))} ({profit > 0 ? "+" : "−"}{formatPercentNumber(Math.abs(pct), 1)})
+                          </p>
+                        );
+                      })()}
+                    </div>
                     <button
                       type="button"
                       onClick={() => setEditingAsset(asset)}
@@ -272,6 +303,7 @@ export function AssetsSection({
             defaults={{
               name: editingAsset.name,
               ticker: editingAsset.ticker ?? undefined,
+              investedValue: editingAsset.investedValue ?? undefined,
               assetClass: editingAsset.assetClass,
               objective: editingAsset.objective,
               goalId: editingAsset.goalId ?? undefined,

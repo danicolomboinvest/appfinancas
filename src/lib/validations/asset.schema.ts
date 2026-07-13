@@ -8,6 +8,8 @@ export const assetSchema = z.object({
   goalId: z.string().trim().optional(),
   quantity: z.coerce.number().min(0).optional(),
   currentUnitPrice: z.coerce.number().min(0).optional(),
+  /** Quanto foi investido — referência fixa do lucro; a atualização de cotação nunca altera. */
+  investedValue: z.coerce.number().min(0).optional(),
   currentValue: z.coerce.number().min(0),
   idealAllocationPercent: z.coerce.number().min(0).max(1).optional(),
   acquisitionDate: z.coerce.date().optional(),

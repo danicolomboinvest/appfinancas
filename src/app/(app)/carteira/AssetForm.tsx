@@ -33,6 +33,7 @@ type Defaults = {
   assetClass?: string;
   objective?: string;
   goalId?: string;
+  investedValue?: number;
   currentValue?: number;
   idealAllocationPercent?: number;
 };
@@ -99,6 +100,13 @@ export function AssetForm({
           ))}
         </SelectField>
       )}
+      <CurrencyField
+        label="Valor investido (R$)"
+        id="investedValue"
+        name="investedValue"
+        defaultValue={defaults.investedValue}
+        className="w-32"
+      />
       <CurrencyField
         label="Valor atual (R$)"
         id="currentValue"

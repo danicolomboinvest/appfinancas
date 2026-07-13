@@ -10,6 +10,8 @@ export type AssetInput = {
   goalId?: string;
   quantity?: number;
   currentUnitPrice?: number;
+  /** Quanto foi investido — a atualização de cotações nunca altera este campo. */
+  investedValue?: number;
   currentValue: number;
   idealAllocationPercent?: number;
   acquisitionDate?: Date;

@@ -14,6 +14,8 @@ export type ParsedHoldingItem = {
   ticker: string;
   quantity: number;
   value: number;
+  /** Quanto foi investido (do extrato, quando informado) — base do lucro/prejuízo. */
+  investedValue: number | null;
   assetClass: AssetClass;
 };
 
@@ -59,6 +61,7 @@ export async function parsePortfolioAction(formData: FormData): Promise<ParsePor
     ticker: h.ticker,
     quantity: h.quantity,
     value: h.value,
+    investedValue: h.investedValue ?? null,
     // Extratos em seções (BTG etc.) já dizem a classe (Renda Fixa, Tesouro, Fundo, FII);
     // senão, inferimos pela terminação do ticker.
     assetClass: h.assetClass ?? guessAssetClass(h.ticker),
@@ -70,17 +73,33 @@ export type ConfirmedHolding = {
   ticker: string;
   quantity: number;
   value: number;
+  investedValue: number | null;
   assetClass: AssetClass;
 };
 
-export type ImportPortfolioResult = { ok: true; created: number } | { ok: false; error: string };
+export type ImportPortfolioResult = { ok: true; created: number; skipped: number } | { ok: false; error: string };
 
-/** Cria os ativos escolhidos na carteira (objetivo OUTRO por padrão; o usuário refina depois). */
+/** Cria os ativos escolhidos na carteira (objetivo OUTRO por padrão; o usuário refina depois).
+ * Ativos que já existem (mesmo ticker/nome) são pulados — importar o mesmo extrato duas
+ * vezes não duplica a carteira. */
 export async function importPortfolioAction(holdings: ConfirmedHolding[]): Promise<ImportPortfolioResult> {
   const ctx = await getRequiredSession();
   let created = 0;
+  let skipped = 0;
+
+  const { prisma } = await import("@/lib/db/prisma");
+  const existing = await prisma.asset.findMany({
+    where: { userId: ctx.userId },
+    select: { name: true, ticker: true },
+  });
+  const existingKeys = new Set(existing.flatMap((a) => [a.ticker?.toUpperCase(), a.name.toUpperCase()].filter(Boolean)));
 
   for (const h of holdings) {
+    if (existingKeys.has(h.ticker.toUpperCase())) {
+      skipped += 1;
+      continue;
+    }
+    existingKeys.add(h.ticker.toUpperCase()); // evita duplicata dentro do próprio arquivo
     const assetClass = ASSET_CLASS_VALUES.includes(h.assetClass) ? h.assetClass : "OUTRO";
     await createAsset(ctx, {
       name: h.ticker,
@@ -88,6 +107,8 @@ export async function importPortfolioAction(holdings: ConfirmedHolding[]): Promi
       assetClass,
       objective: "OUTRO",
       quantity: h.quantity > 0 ? h.quantity : undefined,
+      // Sem preço médio no extrato, o investido começa igual ao valor atual (lucro zera hoje).
+      investedValue: h.investedValue ?? (h.value >= 0 ? h.value : 0),
       currentValue: h.value >= 0 ? h.value : 0,
     });
     created += 1;
@@ -95,5 +116,5 @@ export async function importPortfolioAction(holdings: ConfirmedHolding[]): Promi
 
   revalidatePath("/carteira");
   revalidatePath("/carteira/por-objetivo");
-  return { ok: true, created };
+  return { ok: true, created, skipped };
 }

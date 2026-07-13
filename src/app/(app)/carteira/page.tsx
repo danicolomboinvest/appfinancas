@@ -33,6 +33,7 @@ export default async function CarteiraPage() {
           objective: asset.objective,
           goalId: asset.goalId,
           quantity: asset.quantity !== null ? Number(asset.quantity) : null,
+          investedValue: asset.investedValue !== null ? Number(asset.investedValue) : null,
           currentValue: Number(asset.currentValue),
           idealAllocationPercent: asset.idealAllocationPercent !== null ? Number(asset.idealAllocationPercent) : null,
         }))}

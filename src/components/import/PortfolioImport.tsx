@@ -49,6 +49,7 @@ export function PortfolioImport({ onDone }: { onDone: () => void }) {
   const [phase, setPhase] = useState<Phase>("upload");
   const [holdings, setHoldings] = useState<ParsedHoldingItem[]>([]);
   const [createdCount, setCreatedCount] = useState(0);
+  const [skippedCount, setSkippedCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -84,6 +85,7 @@ export function PortfolioImport({ onDone }: { onDone: () => void }) {
       ticker: h.ticker,
       quantity: h.quantity,
       value: h.value,
+      investedValue: h.investedValue,
       assetClass: h.assetClass,
     }));
     startTransition(async () => {
@@ -93,6 +95,7 @@ export function PortfolioImport({ onDone }: { onDone: () => void }) {
         return;
       }
       setCreatedCount(result.created);
+      setSkippedCount(result.skipped);
       setPhase("done");
     });
   }
@@ -178,7 +181,10 @@ export function PortfolioImport({ onDone }: { onDone: () => void }) {
       <span className="flex h-14 w-14 items-center justify-center rounded-full bg-success-soft text-success">
         <Check size={28} strokeWidth={2} />
       </span>
-      <p className="text-sm font-medium text-ink">{createdCount} ativos importados para a carteira.</p>
+      <p className="text-sm font-medium text-ink">
+        {createdCount} ativos importados para a carteira.
+        {skippedCount > 0 && ` ${skippedCount} já existiam e foram pulados (nada duplicado).`}
+      </p>
       <Button type="button" onClick={onDone}>
         Concluir
       </Button>

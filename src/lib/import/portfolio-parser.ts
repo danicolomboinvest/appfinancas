@@ -18,6 +18,8 @@ export type ParsedHolding = {
   value: number;
   /** Classe identificada pelo contexto do extrato (seção/coluna Tipo), quando disponível. */
   assetClass?: AssetClass;
+  /** Quanto foi investido (preço médio × quantidade), quando o extrato informa. */
+  investedValue?: number;
 };
 
 /** Ticker B3: 4 letras + 1–2 dígitos (PETR4, ITUB3, HGLG11, BOVA11). */
@@ -116,6 +118,9 @@ function mergeByTicker(holdings: ParsedHolding[]): ParsedHolding[] {
     if (existing) {
       existing.quantity += h.quantity;
       existing.value += h.value;
+      if (h.investedValue !== undefined) {
+        existing.investedValue = (existing.investedValue ?? 0) + h.investedValue;
+      }
     } else {
       map.set(h.ticker, { ...h });
     }
@@ -129,7 +134,7 @@ function mergeByTicker(holdings: ParsedHolding[]): ParsedHolding[] {
 
 /** O que a tabela ativa do momento representa, com o índice de cada coluna relevante. */
 type ActiveTable =
-  | { kind: "ticker"; tickerCol: number; qtyCol: number; valueCol: number; typeCol: number }
+  | { kind: "ticker"; tickerCol: number; qtyCol: number; valueCol: number; typeCol: number; avgPriceCol: number }
   | { kind: "rendaFixa"; nameCol: number; emissorCol: number; qtyCol: number; valueCol: number }
   | { kind: "fundo"; dateCol: number; qtyCol: number; valueCol: number };
 
@@ -202,6 +207,7 @@ function parseSectionedHoldings(lines: string[]): ParsedHolding[] {
         qtyCol: lower.findIndex((c) => c.includes("qtde") || c.includes("quantidade")),
         valueCol: saldoCol !== -1 ? saldoCol : findCol(lower, VALUE_HEADERS),
         typeCol: lower.findIndex((c) => c === "tipo"),
+        avgPriceCol: lower.findIndex((c) => c.includes("preço médio") || c.includes("preco medio")),
       };
       continue;
     }
@@ -235,11 +241,15 @@ function parseSectionedHoldings(lines: string[]): ParsedHolding[] {
       const quantity = parseFlexibleNumber(cells[table.qtyCol] ?? "");
       const value = table.valueCol !== -1 ? parseFlexibleNumber(cells[table.valueCol] ?? "") : NaN;
       const tipo = table.typeCol !== -1 ? (cells[table.typeCol] ?? "").toUpperCase() : "";
+      const avgPrice = table.avgPriceCol !== -1 ? parseFlexibleNumber(cells[table.avgPriceCol] ?? "") : NaN;
+      const qty = Number.isNaN(quantity) ? 0 : quantity;
       holdings.push({
         ticker,
-        quantity: Number.isNaN(quantity) ? 0 : quantity,
+        quantity: qty,
         value: Number.isNaN(value) ? 0 : Math.abs(value),
         assetClass: tipo === "FII" ? "FII" : guessAssetClass(ticker),
+        // Preço médio × quantidade = quanto foi investido (base do lucro/prejuízo).
+        investedValue: !Number.isNaN(avgPrice) && qty > 0 ? avgPrice * qty : undefined,
       });
     } else if (table.kind === "rendaFixa") {
       const name = cells[table.nameCol] ?? "";
