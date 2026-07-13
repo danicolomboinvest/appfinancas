@@ -15,7 +15,9 @@ export type UploadEncoding = "text" | "xlsx" | "pdf";
 /** Erro esperado de leitura de arquivo — o cliente mostra a mensagem direto pro usuário. */
 export class UploadReadError extends Error {}
 
-/** Excel → CSV (primeira planilha), reaproveitando o parser de CSV já existente. */
+/** Excel → CSV com TODAS as planilhas concatenadas — extratos de banco (ex.: BTG) espalham
+ * os ativos em várias abas (Fundos, Renda Fixa, Renda Variável); ler só a primeira perderia
+ * tudo (a primeira costuma ser a capa). */
 async function xlsxToCsv(buffer: Buffer): Promise<string> {
   let XLSX: typeof import("xlsx");
   try {
@@ -24,10 +26,7 @@ async function xlsxToCsv(buffer: Buffer): Promise<string> {
     throw new UploadReadError("Não consegui abrir o Excel neste servidor. Tente exportar como CSV.");
   }
   const workbook = XLSX.read(buffer, { type: "buffer" });
-  const firstSheetName = workbook.SheetNames[0];
-  if (!firstSheetName) return "";
-  const sheet = workbook.Sheets[firstSheetName];
-  return XLSX.utils.sheet_to_csv(sheet, { FS: ";" });
+  return workbook.SheetNames.map((name) => XLSX.utils.sheet_to_csv(workbook.Sheets[name], { FS: ";" })).join("\n");
 }
 
 /** PDF → texto cru (todas as páginas). */

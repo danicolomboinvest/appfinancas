@@ -59,7 +59,9 @@ export async function parsePortfolioAction(formData: FormData): Promise<ParsePor
     ticker: h.ticker,
     quantity: h.quantity,
     value: h.value,
-    assetClass: guessAssetClass(h.ticker),
+    // Extratos em seções (BTG etc.) já dizem a classe (Renda Fixa, Tesouro, Fundo, FII);
+    // senão, inferimos pela terminação do ticker.
+    assetClass: h.assetClass ?? guessAssetClass(h.ticker),
   }));
   return { ok: true, holdings };
 }
