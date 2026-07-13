@@ -3,9 +3,18 @@
 import { useState, useTransition } from "react";
 import { Download } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { exportEntriesCsvAction } from "./actions";
+import { exportEntriesCsvAction, exportAssetsCsvAction } from "./actions";
 
-export function ExportCsvButton() {
+/** Botão genérico de exportação: chama a action, baixa o CSV com o prefixo do arquivo. */
+function CsvDownloadButton({
+  label,
+  filePrefix,
+  fetchCsv,
+}: {
+  label: string;
+  filePrefix: string;
+  fetchCsv: () => Promise<string>;
+}) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -13,12 +22,12 @@ export function ExportCsvButton() {
     setError(null);
     startTransition(async () => {
       try {
-        const csv = await exportEntriesCsvAction();
+        const csv = await fetchCsv();
         const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.href = url;
-        link.download = `lancamentos-${new Date().toISOString().slice(0, 10)}.csv`;
+        link.download = `${filePrefix}-${new Date().toISOString().slice(0, 10)}.csv`;
         link.click();
         URL.revokeObjectURL(url);
       } catch {
@@ -31,9 +40,19 @@ export function ExportCsvButton() {
     <div className="flex flex-col gap-2">
       <Button type="button" onClick={handleExport} disabled={isPending} className="w-fit">
         <Download size={16} />
-        {isPending ? "Exportando..." : "Exportar lançamentos (CSV)"}
+        {isPending ? "Exportando..." : label}
       </Button>
       {error && <p className="text-xs text-danger">{error}</p>}
     </div>
   );
+}
+
+export function ExportCsvButton() {
+  return (
+    <CsvDownloadButton label="Exportar lançamentos (CSV)" filePrefix="lancamentos" fetchCsv={exportEntriesCsvAction} />
+  );
+}
+
+export function ExportAssetsCsvButton() {
+  return <CsvDownloadButton label="Exportar carteira (CSV)" filePrefix="carteira" fetchCsv={exportAssetsCsvAction} />;
 }
