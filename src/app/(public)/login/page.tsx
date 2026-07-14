@@ -34,6 +34,11 @@ export default function LoginPage() {
           )}
           <Field label="Email" id="email" name="email" type="email" required autoComplete="email" />
           <Field label="Senha" id="password" name="password" type="password" required autoComplete="current-password" />
+          <div className="-mt-1 text-right">
+            <Link href="/esqueci-senha" className="text-xs font-medium text-accent-strong hover:underline">
+              Esqueci minha senha
+            </Link>
+          </div>
           <Button type="submit" disabled={isPending} className="w-full">
             {isPending ? "Entrando..." : "Entrar"}
           </Button>

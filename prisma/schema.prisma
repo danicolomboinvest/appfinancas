@@ -142,9 +142,24 @@ model User {
   yearlyConsolidations YearlyConsolidationCache[]
   accumulationCache    AccumulationProjectionCache[]
   transactionRules     TransactionCategoryRule[]
+  passwordResetTokens  PasswordResetToken[]
 
   asAdvisorLinks AdvisorClientLink[] @relation("advisor")
   asClientLinks  AdvisorClientLink[] @relation("client")
+}
+
+/// Token de recuperação de senha. Guardamos só o HASH do token (nunca o valor cru) — o link
+/// enviado por e-mail carrega o token, e aqui comparamos pelo hash. Vale 1 hora e uma vez só.
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
 }
 
 /// Regra aprendida de classificação de extrato (item 3 da Rodada 2): quando o usuário resolve

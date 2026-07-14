@@ -15,6 +15,7 @@ export async function deleteUserAndAllData(userId: string): Promise<void> {
     // …demais dados do usuário…
     prisma.analysisSheet.deleteMany({ where }), // respostas caem em cascata
     prisma.transactionCategoryRule.deleteMany({ where }),
+    prisma.passwordResetToken.deleteMany({ where }),
     prisma.patrimonySnapshot.deleteMany({ where }),
     prisma.portfolioStrategy.deleteMany({ where }),
     prisma.simulation.deleteMany({ where }),
