@@ -7,8 +7,8 @@ import type { MetadataRoute } from "next";
  */
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Planejamento Financeiro",
-    short_name: "Finanças",
+    name: "SPI Finance",
+    short_name: "SPI Finance",
     description: "Organize seu patrimônio, metas e investimentos em um só lugar.",
     display: "standalone",
     orientation: "portrait",

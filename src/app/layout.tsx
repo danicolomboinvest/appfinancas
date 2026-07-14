@@ -20,7 +20,7 @@ const fraunces = Fraunces({
 });
 
 export const metadata: Metadata = {
-  title: "Planejamento Financeiro",
+  title: "SPI Finance",
   description: "Organize seu patrimônio, metas e investimentos em um só lugar.",
   // Faz o app abrir em tela cheia (sem barra de URL) quando salvo na tela inicial do iOS.
   // statusBarStyle "default" (texto escuro) porque o tema padrão é claro — "black-translucent"

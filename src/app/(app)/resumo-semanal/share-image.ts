@@ -86,7 +86,7 @@ export async function buildRecapShareImage(recap: WeeklyRecap): Promise<Blob> {
   // Rodapé / marca
   ctx.fillStyle = "rgba(255,255,255,0.4)";
   ctx.font = "600 30px system-ui, -apple-system, Arial";
-  ctx.fillText("Planejamento Financeiro", cx, H - 90);
+  ctx.fillText("SPI Finance", cx, H - 90);
 
   return await new Promise<Blob>((resolve, reject) => {
     canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("Falha ao gerar a imagem."))), "image/png");

@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-export const metadata = { title: "Termos de Uso · Planejamento Financeiro" };
+export const metadata = { title: "Termos de Uso · SPI Finance" };
 
 /** Termos de Uso — conteúdo base para o lançamento; revisar com apoio jurídico antes de escalar. */
 export default function TermosPage() {
@@ -13,13 +13,13 @@ export default function TermosPage() {
 
       <section className="flex flex-col gap-4 text-sm leading-relaxed text-ink-muted">
         <p>
-          Bem-vindo(a) ao <strong className="text-ink">Planejamento Financeiro</strong>. Ao criar uma conta ou usar o
+          Bem-vindo(a) ao <strong className="text-ink">SPI Finance</strong>. Ao criar uma conta ou usar o
           aplicativo, você concorda com estes termos. Se não concordar, basta não utilizar o serviço.
         </p>
 
         <h2 className="mt-2 text-base font-semibold text-ink">1. O que é o serviço</h2>
         <p>
-          O Planejamento Financeiro é uma ferramenta de organização financeira pessoal: registro de receitas e
+          O SPI Finance é uma ferramenta de organização financeira pessoal: registro de receitas e
           despesas, orçamento, metas, acompanhamento de carteira de investimentos e simuladores educativos.
         </p>
 

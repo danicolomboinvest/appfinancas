@@ -62,7 +62,7 @@ export function Sidebar({
             <TrendingUp size={17} strokeWidth={1.75} />
           </span>
           <span className={`truncate text-sm font-semibold tracking-tight text-ink ${hideLabelDesktopOnly}`}>
-            Planejamento Financeiro
+            SPI Finance
           </span>
         </Link>
       </div>

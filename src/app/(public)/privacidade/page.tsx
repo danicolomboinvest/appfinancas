@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-export const metadata = { title: "Política de Privacidade · Planejamento Financeiro" };
+export const metadata = { title: "Política de Privacidade · SPI Finance" };
 
 /** Política de Privacidade (LGPD) — conteúdo base para o lançamento; revisar com apoio jurídico. */
 export default function PrivacidadePage() {
@@ -13,7 +13,7 @@ export default function PrivacidadePage() {
 
       <section className="flex flex-col gap-4 text-sm leading-relaxed text-ink-muted">
         <p>
-          Esta política explica, em linguagem simples, como o <strong className="text-ink">Planejamento Financeiro</strong>{" "}
+          Esta política explica, em linguagem simples, como o <strong className="text-ink">SPI Finance</strong>{" "}
           trata seus dados pessoais, em conformidade com a Lei Geral de Proteção de Dados (LGPD — Lei nº 13.709/2018).
         </p>
 
