@@ -95,6 +95,7 @@ export function PortfolioImport({ onDone }: { onDone: () => void }) {
       value: h.value,
       investedValue: h.investedValue,
       assetClass: h.assetClass,
+      fixedIncomeIndex: h.fixedIncomeIndex,
       mode: h.status === "changed" ? "update" : "create",
     }));
     startTransition(async () => {

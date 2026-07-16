@@ -1,5 +1,21 @@
 import { describe, it, expect } from "vitest";
-import { parsePortfolioStatement, guessAssetClass } from "../portfolio-parser";
+import { parsePortfolioStatement, guessAssetClass, detectFixedIncomeIndex } from "../portfolio-parser";
+
+describe("detectFixedIncomeIndex", () => {
+  it("reads the indexer from the rate text", () => {
+    expect(detectFixedIncomeIndex("101,00% do CDI")).toBe("POS_FIXADO");
+    expect(detectFixedIncomeIndex("SELIC + 0,14%")).toBe("POS_FIXADO");
+    expect(detectFixedIncomeIndex("IPCA + 9,50%")).toBe("IPCA");
+    expect(detectFixedIncomeIndex("13,20% a.a.")).toBe("PREFIXADO");
+    expect(detectFixedIncomeIndex("")).toBeUndefined();
+  });
+
+  it("falls back to the Tesouro título name when the rate is missing", () => {
+    expect(detectFixedIncomeIndex("", "LFT")).toBe("POS_FIXADO");
+    expect(detectFixedIncomeIndex("", "LTN")).toBe("PREFIXADO");
+    expect(detectFixedIncomeIndex("", "NTNB-P")).toBe("IPCA");
+  });
+});
 
 describe("guessAssetClass", () => {
   it("infers class from ticker suffix", () => {

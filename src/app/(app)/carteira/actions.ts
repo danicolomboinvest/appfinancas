@@ -15,6 +15,7 @@ function parseAssetForm(formData: FormData) {
     objective: formData.get("objective"),
     goalId: formData.get("goalId") || undefined,
     investedValue: formData.get("investedValue") || undefined,
+    fixedIncomeIndex: formData.get("fixedIncomeIndex") || undefined,
     currentValue: formData.get("currentValue"),
     idealAllocationPercent: formData.get("idealAllocationPercent") || undefined,
   });

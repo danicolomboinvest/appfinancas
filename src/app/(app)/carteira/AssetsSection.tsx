@@ -45,6 +45,9 @@ const CLASS_PLURAL: Record<string, string> = {
 /** Ordem fixa das classes no gráfico/filtros (cores estáveis entre visitas). */
 const CLASS_ORDER = ["ACAO", "FII", "FUNDO", "RENDA_FIXA", "TESOURO_DIRETO", "CRIPTO", "OUTRO"];
 
+/** Rótulo curto do indexador de renda fixa, mostrado na linha do ativo. */
+const FI_LABEL: Record<string, string> = { POS_FIXADO: "Pós-fixado", IPCA: "IPCA+", PREFIXADO: "Prefixado" };
+
 const OBJECTIVE_LABEL: Record<string, string> = {
   RESERVA_EMERGENCIA: "Reserva de emergência",
   LIBERDADE_FINANCEIRA: "Liberdade financeira",
@@ -61,6 +64,7 @@ type Asset = {
   goalId: string | null;
   quantity: number | null;
   investedValue: number | null;
+  fixedIncomeIndex: string | null;
   currentValue: number;
 };
 
@@ -161,34 +165,51 @@ export function AssetsSection({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="text-caption text-ink-muted">
-            Total da carteira · {assets.length} ativo{assets.length === 1 ? "" : "s"}
-          </p>
-          <p className="text-2xl font-semibold tabular-nums text-ink">{formatBRL(totalValue)}</p>
-          {Math.abs(totalProfit) >= 0.005 && totalInvested > 0 && (
-            <p className={`text-sm tabular-nums ${totalProfit > 0 ? "text-success" : "text-danger"}`}>
-              {totalProfit > 0 ? "+" : "−"}{formatBRL(Math.abs(totalProfit))} ({totalProfit > 0 ? "+" : "−"}
-              {formatPercentNumber(Math.abs((totalProfit / totalInvested) * 100), 1)}) desde a compra
-            </p>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          {hasTickers && (
-            <Button type="button" size="sm" variant="secondary" onClick={handleUpdateQuotes} disabled={isUpdatingQuotes}>
-              <RefreshCw size={16} strokeWidth={2} className={isUpdatingQuotes ? "animate-spin" : ""} />
-              {isUpdatingQuotes ? "Atualizando..." : "Atualizar cotações"}
+      {/* Herói First Light: o total da carteira é o número-herói, em vidro fosco sobre a
+          luz âmbar do amanhecer (.glow-stage + .glass em globals.css). */}
+      <div className="glow-stage rounded-3xl p-4 sm:p-5">
+        <div className="glass rounded-2xl p-5 sm:p-6">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-label font-semibold uppercase tracking-[0.11em] text-ink-muted">
+                Sua carteira · {assets.length} ativo{assets.length === 1 ? "" : "s"}
+              </p>
+              <p className="mt-1 text-display font-bold tracking-tight tabular-nums text-ink">
+                {formatBRL(totalValue)}
+              </p>
+              {Math.abs(totalProfit) >= 0.005 && totalInvested > 0 && (
+                <p className={`mt-1 text-sm tabular-nums ${totalProfit > 0 ? "text-success" : "text-danger"}`}>
+                  {totalProfit > 0 ? "+" : "−"}{formatBRL(Math.abs(totalProfit))} desde a compra
+                </p>
+              )}
+            </div>
+            {Math.abs(totalProfit) >= 0.005 && totalInvested > 0 && (
+              <span
+                className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold tabular-nums ${
+                  totalProfit > 0 ? "bg-success-soft text-success" : "bg-danger-soft text-danger"
+                }`}
+              >
+                {totalProfit > 0 ? "▲" : "▼"} {totalProfit > 0 ? "+" : "−"}
+                {formatPercentNumber(Math.abs((totalProfit / totalInvested) * 100), 1)}
+              </span>
+            )}
+          </div>
+          <div className="mt-5 flex flex-wrap items-center gap-2">
+            <Button type="button" size="sm" onClick={() => setCreateOpen(true)}>
+              <Plus size={16} strokeWidth={2} />
+              Novo ativo
             </Button>
-          )}
-          <Button type="button" size="sm" variant="secondary" onClick={() => setImportOpen(true)}>
-            <FileUp size={16} strokeWidth={2} />
-            Importar
-          </Button>
-          <Button type="button" size="sm" onClick={() => setCreateOpen(true)}>
-            <Plus size={16} strokeWidth={2} />
-            Novo ativo
-          </Button>
+            <Button type="button" size="sm" variant="secondary" onClick={() => setImportOpen(true)}>
+              <FileUp size={16} strokeWidth={2} />
+              Importar
+            </Button>
+            {hasTickers && (
+              <Button type="button" size="sm" variant="secondary" onClick={handleUpdateQuotes} disabled={isUpdatingQuotes}>
+                <RefreshCw size={16} strokeWidth={2} className={isUpdatingQuotes ? "animate-spin" : ""} />
+                {isUpdatingQuotes ? "Atualizando..." : "Atualizar cotações"}
+              </Button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -337,6 +358,7 @@ export function AssetsSection({
                         </p>
                         <p className="truncate text-xs text-ink-faint">
                           {asset.quantity !== null && asset.quantity > 0 && `${formatQuantity(asset.quantity)} un · `}
+                          {asset.fixedIncomeIndex && `${FI_LABEL[asset.fixedIncomeIndex]} · `}
                           {objectiveText}
                         </p>
                       </div>
@@ -400,6 +422,7 @@ export function AssetsSection({
               objective: editingAsset.objective,
               goalId: editingAsset.goalId ?? undefined,
               currentValue: editingAsset.currentValue,
+              fixedIncomeIndex: editingAsset.fixedIncomeIndex ?? undefined,
             }}
           />
         )}

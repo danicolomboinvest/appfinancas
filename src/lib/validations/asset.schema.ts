@@ -10,6 +10,12 @@ export const assetSchema = z.object({
   currentUnitPrice: z.coerce.number().min(0).optional(),
   /** Quanto foi investido — referência fixa do lucro; a atualização de cotação nunca altera. */
   investedValue: z.coerce.number().min(0).optional(),
+  /** Indexador da renda fixa (pós/IPCA/prefixado). Vazio quando não se aplica/desconhecido. */
+  fixedIncomeIndex: z
+    .enum(["POS_FIXADO", "IPCA", "PREFIXADO"])
+    .optional()
+    .or(z.literal(""))
+    .transform((v) => v || undefined),
   currentValue: z.coerce.number().min(0),
   idealAllocationPercent: z.coerce.number().min(0).max(1).optional(),
   acquisitionDate: z.coerce.date().optional(),

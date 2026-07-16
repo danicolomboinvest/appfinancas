@@ -1,4 +1,4 @@
-import type { AssetClass } from "@prisma/client";
+import type { AssetClass, FixedIncomeIndex } from "@prisma/client";
 import { parseBrazilianNumber } from "./statement-parser";
 
 /**
@@ -20,7 +20,22 @@ export type ParsedHolding = {
   assetClass?: AssetClass;
   /** Quanto foi investido (preço médio × quantidade), quando o extrato informa. */
   investedValue?: number;
+  /** Indexador da renda fixa (CDI/Selic → pós, IPCA+, ou prefixado), lido da coluna de taxa. */
+  fixedIncomeIndex?: FixedIncomeIndex;
 };
+
+/**
+ * Descobre o indexador a partir do texto da taxa ("101,00% do CDI", "IPCA + 9,50%",
+ * "13,20% a.a.", "SELIC + 0,14%") e/ou do nome do título do Tesouro (LFT/LTN/NTN-B).
+ * A ordem importa: IPCA e CDI/Selic têm prioridade; sobrando só uma taxa fixa → prefixado.
+ */
+export function detectFixedIncomeIndex(rateText: string, name = ""): FixedIncomeIndex | undefined {
+  const t = `${rateText} ${name}`.toUpperCase();
+  if (/IPCA|IGP|NTN-?B|NTNB/.test(t)) return "IPCA";
+  if (/CDI|SELIC|\bLFT\b/.test(t)) return "POS_FIXADO";
+  if (/PREFIX|\bLTN\b|NTN-?F|\d[.,]?\d*\s*%/.test(t)) return "PREFIXADO";
+  return undefined;
+}
 
 /** Ticker B3: 4 letras + 1–2 dígitos (PETR4, ITUB3, HGLG11, BOVA11). */
 const TICKER_RE = /\b([A-Z]{4}\d{1,2})\b/;
@@ -135,7 +150,7 @@ function mergeByTicker(holdings: ParsedHolding[]): ParsedHolding[] {
 /** O que a tabela ativa do momento representa, com o índice de cada coluna relevante. */
 type ActiveTable =
   | { kind: "ticker"; tickerCol: number; qtyCol: number; valueCol: number; typeCol: number; avgPriceCol: number }
-  | { kind: "rendaFixa"; nameCol: number; emissorCol: number; qtyCol: number; valueCol: number }
+  | { kind: "rendaFixa"; nameCol: number; emissorCol: number; qtyCol: number; valueCol: number; taxaCol: number }
   | { kind: "fundo"; dateCol: number; qtyCol: number; valueCol: number };
 
 const DATE_RE = /^\d{2}\/\d{2}\/\d{2,4}$/;
@@ -218,6 +233,7 @@ function parseSectionedHoldings(lines: string[]): ParsedHolding[] {
         emissorCol: lower.findIndex((c) => c.includes("emissor")),
         qtyCol: lower.findIndex((c) => c.includes("quantidade")),
         valueCol: lower.findIndex((c) => c.includes("saldo bruto")),
+        taxaCol: lower.findIndex((c) => c.includes("taxa")),
       };
       continue;
     }
@@ -259,12 +275,15 @@ function parseSectionedHoldings(lines: string[]): ParsedHolding[] {
       if (Number.isNaN(quantity) && Number.isNaN(value)) continue;
       const isTesouro = section.includes("tesouro") || /^(LFT|LTN|NTN)/i.test(name);
       const emissor = cells[table.emissorCol] ?? "";
+      const taxa = table.taxaCol !== -1 ? (cells[table.taxaCol] ?? "") : "";
       holdings.push({
         // Tesouro usa o nome do título (LFT, NTNB-P); o resto ganha o emissor pra ficar legível.
         ticker: isTesouro || !emissor ? name : `${name} (${emissor})`,
         quantity: Number.isNaN(quantity) ? 0 : quantity,
         value: Number.isNaN(value) ? 0 : Math.abs(value),
         assetClass: isTesouro ? "TESOURO_DIRETO" : "RENDA_FIXA",
+        // Indexador da taxa ("101% do CDI" → pós, "IPCA + 9,5%" → IPCA, "13% a.a." → prefixado).
+        fixedIncomeIndex: detectFixedIncomeIndex(taxa, name),
       });
     } else {
       // Portfólio de fundos: linha de NOME (célula única, sem data) alternada com linha de DADOS

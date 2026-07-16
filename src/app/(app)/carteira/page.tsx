@@ -57,6 +57,7 @@ export default async function CarteiraPage() {
           goalId: asset.goalId,
           quantity: asset.quantity !== null ? Number(asset.quantity) : null,
           investedValue: asset.investedValue !== null ? Number(asset.investedValue) : null,
+          fixedIncomeIndex: asset.fixedIncomeIndex,
           currentValue: Number(asset.currentValue),
         }))}
         goals={goals.map((goal) => ({ id: goal.id, name: goal.name }))}

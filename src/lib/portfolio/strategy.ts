@@ -1,4 +1,4 @@
-import type { AssetClass, StrategyAssetClass } from "@prisma/client";
+import type { AssetClass, FixedIncomeIndex, StrategyAssetClass } from "@prisma/client";
 import { Decimal } from "@/lib/finance/decimal";
 import { prisma } from "@/lib/db/prisma";
 import type { AuthContext } from "@/lib/auth/session";
@@ -44,6 +44,23 @@ export function mapAssetClassToStrategyClass(assetClass: AssetClass): StrategyAs
   return DEFAULT_MAPPING[assetClass];
 }
 
+/**
+ * Mapeamento refinado por ATIVO: para renda fixa/Tesouro, usa o indexador do título
+ * (pós-fixado, IPCA+ ou prefixado) quando conhecido — assim o comparativo com a Estratégia
+ * fica correto (antes assumia tudo pós-fixado). Para o resto, cai no mapa por classe.
+ */
+export function mapAssetToStrategyClass(asset: {
+  assetClass: AssetClass;
+  fixedIncomeIndex: FixedIncomeIndex | null;
+}): StrategyAssetClass {
+  if (asset.assetClass === "RENDA_FIXA" || asset.assetClass === "TESOURO_DIRETO") {
+    if (asset.fixedIncomeIndex === "IPCA") return "RENDA_FIXA_IPCA";
+    if (asset.fixedIncomeIndex === "PREFIXADO") return "PREFIXADO";
+    return "RENDA_FIXA_POS_FIXADA"; // POS_FIXADO ou desconhecido → pós-fixado (default seguro)
+  }
+  return DEFAULT_MAPPING[asset.assetClass];
+}
+
 export type StrategyClassPosition = {
   assetClass: StrategyAssetClass;
   currentValue: number;
@@ -71,7 +88,7 @@ export async function getPortfolioStrategyComparison(ctx: AuthContext): Promise<
 
   const currentByClass = new Map<StrategyAssetClass, Decimal>();
   for (const asset of assets) {
-    const strategyClass = mapAssetClassToStrategyClass(asset.assetClass);
+    const strategyClass = mapAssetToStrategyClass(asset);
     currentByClass.set(strategyClass, (currentByClass.get(strategyClass) ?? new Decimal(0)).plus(asset.currentValue));
   }
 

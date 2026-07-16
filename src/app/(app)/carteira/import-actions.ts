@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import type { AssetClass } from "@prisma/client";
+import type { AssetClass, FixedIncomeIndex } from "@prisma/client";
 import { getRequiredSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
 import { createAsset } from "@/lib/repositories/asset.repo";
@@ -22,6 +22,8 @@ export type ParsedHoldingItem = {
   /** Quanto foi investido (do extrato, quando informado) — base do lucro/prejuízo. */
   investedValue: number | null;
   assetClass: AssetClass;
+  /** Indexador da renda fixa detectado no extrato (pós/IPCA/prefixado), ou null. */
+  fixedIncomeIndex: FixedIncomeIndex | null;
   status: HoldingStatus;
   /** Valores atuais na carteira (para mostrar o "antes → depois" na revisão). */
   prevQuantity: number | null;
@@ -102,6 +104,7 @@ export async function parsePortfolioAction(formData: FormData): Promise<ParsePor
       // Extratos em seções (BTG etc.) já dizem a classe (Renda Fixa, Tesouro, Fundo, FII);
       // senão, inferimos pela terminação do ticker.
       assetClass: h.assetClass ?? guessAssetClass(h.ticker),
+      fixedIncomeIndex: h.fixedIncomeIndex ?? null,
       status,
       prevQuantity,
       prevValue,
@@ -116,6 +119,7 @@ export type ConfirmedHolding = {
   value: number;
   investedValue: number | null;
   assetClass: AssetClass;
+  fixedIncomeIndex: FixedIncomeIndex | null;
   /** create = ativo novo; update = já existe, atualiza quantidade/valores. */
   mode: "create" | "update";
 };
@@ -149,6 +153,7 @@ export async function importPortfolioAction(holdings: ConfirmedHolding[]): Promi
           ...(h.value >= 0 ? { currentValue: h.value } : {}),
           // Preço médio do extrato mantém o investido fiel após novos aportes; sem ele, não mexe.
           ...(h.investedValue !== null ? { investedValue: h.investedValue } : {}),
+          ...(h.fixedIncomeIndex !== null ? { fixedIncomeIndex: h.fixedIncomeIndex } : {}),
         },
       });
       if (result.count > 0) updated += 1;
@@ -166,6 +171,7 @@ export async function importPortfolioAction(holdings: ConfirmedHolding[]): Promi
       // Sem preço médio no extrato, o investido começa igual ao valor atual (lucro zera hoje).
       investedValue: h.investedValue ?? (h.value >= 0 ? h.value : 0),
       currentValue: h.value >= 0 ? h.value : 0,
+      fixedIncomeIndex: h.fixedIncomeIndex ?? undefined,
     });
     created += 1;
   }

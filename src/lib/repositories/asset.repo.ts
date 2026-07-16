@@ -1,4 +1,4 @@
-import type { AssetClass, AssetObjective } from "@prisma/client";
+import type { AssetClass, AssetObjective, FixedIncomeIndex } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import type { AuthContext } from "@/lib/auth/session";
 
@@ -12,6 +12,8 @@ export type AssetInput = {
   currentUnitPrice?: number;
   /** Quanto foi investido — a atualização de cotações nunca altera este campo. */
   investedValue?: number;
+  /** Indexador da renda fixa (pós/IPCA/prefixado) — refina o mapeamento pra Estratégia. */
+  fixedIncomeIndex?: FixedIncomeIndex;
   currentValue: number;
   idealAllocationPercent?: number;
   acquisitionDate?: Date;
