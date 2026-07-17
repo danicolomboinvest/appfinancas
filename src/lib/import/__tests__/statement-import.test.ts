@@ -57,6 +57,26 @@ describe("parseCsv", () => {
     expect(txns).toHaveLength(1);
     expect(txns[0].description).toBe("Farmacia Drogasil");
   });
+
+  it("parses a BTG-style statement: header after metadata, US numbers, skips balances", () => {
+    const csv = [
+      ";Extrato de conta corrente;;;;;;;;15/07/2026",
+      ";Cliente:;Daniela Colombo",
+      ";Período do extrato:;17/04/2026 a 15/07/2026",
+      ";Data e hora;Categoria;Transação;;;Descrição;;;;Valor",
+      ";17/04/2026 00:32;Contas;Pagamento de fatura;;;Fatura do cartão;;;;-14,097.44",
+      ";17/04/2026 23:59;;;;;Saldo Diário;;;;87.53",
+      ";02/05/2026 20:25;Seguro;Pix recebido;;;Dani Colombo Invest;;;;5,000.00",
+    ].join("\n");
+    const txns = parseCsv(csv);
+    expect(txns).toHaveLength(2); // fatura + pix; o "Saldo Diário" é ignorado
+    expect(txns[0]).toEqual({
+      date: "2026-04-17",
+      description: "Pagamento de fatura · Fatura do cartão",
+      amount: -14097.44, // formato americano lido corretamente
+    });
+    expect(txns[1].amount).toBe(5000);
+  });
 });
 
 describe("parseStatement dispatch", () => {

@@ -25,10 +25,35 @@ export function parseBrazilianNumber(raw: string): number {
   return Number(normalized);
 }
 
+/**
+ * Valor monetário em formato BR ("1.234,56") OU americano ("1,234.56", "87.53") — decide pelo
+ * último separador. Bancos como o BTG exportam o extrato no formato americano; sem isso,
+ * "-14,097.44" (14 mil) seria lido como 14,09.
+ */
+export function parseAmountFlexible(raw: string): number {
+  const t = raw.replace(/[R$\s]/gi, "").trim();
+  if (t === "" || t === "-") return NaN;
+  const hasComma = t.includes(",");
+  const hasDot = t.includes(".");
+  let normalized: string;
+  if (hasComma && hasDot) {
+    // O separador mais à direita é o decimal.
+    normalized = t.lastIndexOf(",") > t.lastIndexOf(".") ? t.replace(/\./g, "").replace(",", ".") : t.replace(/,/g, "");
+  } else if (hasComma) {
+    normalized = /,\d{1,2}$/.test(t) ? t.replace(",", ".") : t.replace(/,/g, "");
+  } else if (hasDot && /^-?\d{1,3}(\.\d{3})+$/.test(t)) {
+    normalized = t.replace(/\./g, ""); // "1.234" sem decimais = separador de milhar BR
+  } else {
+    normalized = t;
+  }
+  return Number(normalized);
+}
+
 /** Normaliza data para ISO (YYYY-MM-DD). Aceita DD/MM/YYYY, YYYY-MM-DD e YYYYMMDD (OFX). */
 export function normalizeDate(raw: string): string {
   const trimmed = raw.trim();
-  const br = trimmed.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  // Aceita "DD/MM/YYYY" e também "DD/MM/YYYY HH:MM" (extrato BTG traz data e hora juntas).
+  const br = trimmed.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
   if (br) return `${br[3]}-${br[2]}-${br[1]}`;
   const iso = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
@@ -90,6 +115,10 @@ function splitCsvLine(line: string, delimiter: string): string[] {
 const DATE_HEADERS = ["data", "date", "dt"];
 const DESC_HEADERS = ["descri", "histor", "histó", "lanç", "lanc", "memo", "estabelecimento", "detalhe", "title"];
 const AMOUNT_HEADERS = ["valor", "amount", "montante", "quantia", "value"];
+/** Coluna separada de "Transação"/"Tipo" (ex.: extrato BTG) — enriquece a descrição. */
+const TRANSACTION_HEADERS = ["transa", "tipo de lanç", "tipo"];
+/** Linhas que NÃO são transações (saldo diário/atual/anterior, totais) — não viram lançamento. */
+const NON_TRANSACTION_RE = /\bsaldo\b/i;
 
 function findColumn(headers: string[], needles: string[]): number {
   return headers.findIndex((h) => needles.some((n) => h.includes(n)));
@@ -99,32 +128,56 @@ export function parseCsv(content: string): ParsedTransaction[] {
   const lines = content.split(/\r?\n/).filter((l) => l.trim() !== "");
   if (lines.length === 0) return [];
 
-  const delimiter = detectDelimiter(lines[0]);
-  const headers = splitCsvLine(lines[0], delimiter).map((h) => h.toLowerCase());
+  // Procura a linha de CABEÇALHO — bancos (BTG etc.) põem metadados (cliente, conta, período)
+  // antes dela. O cabeçalho é a 1ª linha que tenha coluna de valor + de data ou descrição.
+  let headerIdx = -1;
+  let delimiter = detectDelimiter(lines[0]);
+  let dateCol = -1;
+  let descCol = -1;
+  let amountCol = -1;
+  let transCol = -1;
+  for (let i = 0; i < Math.min(lines.length, 40); i++) {
+    const d = detectDelimiter(lines[i]);
+    const cells = splitCsvLine(lines[i], d).map((h) => h.toLowerCase());
+    const ac = findColumn(cells, AMOUNT_HEADERS);
+    const dc = findColumn(cells, DATE_HEADERS);
+    const dsc = findColumn(cells, DESC_HEADERS);
+    if (ac !== -1 && (dc !== -1 || dsc !== -1)) {
+      headerIdx = i;
+      delimiter = d;
+      amountCol = ac;
+      dateCol = dc;
+      descCol = dsc;
+      transCol = findColumn(cells, TRANSACTION_HEADERS);
+      break;
+    }
+  }
 
-  let dateCol = findColumn(headers, DATE_HEADERS);
-  let descCol = findColumn(headers, DESC_HEADERS);
-  let amountCol = findColumn(headers, AMOUNT_HEADERS);
-
-  // Sem cabeçalho reconhecível: assume ordem comum data, descrição, valor e trata a 1ª linha como dado.
-  const hasHeader = dateCol !== -1 || descCol !== -1 || amountCol !== -1;
-  if (!hasHeader) {
+  // Sem cabeçalho reconhecível: assume ordem comum (data, descrição, valor) desde a 1ª linha.
+  if (headerIdx === -1) {
     dateCol = 0;
     descCol = 1;
     amountCol = 2;
   }
 
-  const dataLines = hasHeader ? lines.slice(1) : lines;
+  const dataLines = headerIdx === -1 ? lines : lines.slice(headerIdx + 1);
   const transactions: ParsedTransaction[] = [];
   for (const line of dataLines) {
     const cols = splitCsvLine(line, delimiter);
-    const amount = parseBrazilianNumber(cols[amountCol] ?? "");
-    if (Number.isNaN(amount)) continue;
-    transactions.push({
-      date: normalizeDate(cols[dateCol] ?? ""),
-      description: (cols[descCol] ?? "").trim() || "Lançamento",
-      amount,
-    });
+    const amount = parseAmountFlexible(cols[amountCol] ?? "");
+    if (Number.isNaN(amount) || amount === 0) continue;
+
+    const desc = (cols[descCol] ?? "").trim();
+    const trans = transCol !== -1 ? (cols[transCol] ?? "").trim() : "";
+    // Pula saldos/totais — são fotografias do saldo, não transações.
+    if (NON_TRANSACTION_RE.test(desc) || NON_TRANSACTION_RE.test(trans)) continue;
+
+    // Descrição rica: junta "Transação" + "Descrição" quando as duas existem e diferem.
+    const description =
+      [trans, desc].filter((s) => s && s !== "-").filter((s, i, arr) => arr.indexOf(s) === i).join(" · ") ||
+      "Lançamento";
+
+    transactions.push({ date: normalizeDate(cols[dateCol] ?? ""), description, amount });
   }
   return transactions;
 }
