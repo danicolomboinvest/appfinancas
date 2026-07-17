@@ -80,7 +80,9 @@ export function AppShell({
         />
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <main className="flex-1 px-5 pb-24 pt-6 md:px-10 md:pb-8 md:pt-8">
+          {/* pb no mobile precisa limpar a tab bar flutuante: ela usa env(safe-area-inset-bottom)
+              (home indicator do iPhone) + o botão "+" elevado. Sem isso o final ficava tampado. */}
+          <main className="flex-1 px-5 pb-[calc(7.5rem_+_env(safe-area-inset-bottom))] pt-6 md:px-10 md:pb-8 md:pt-8">
             <div className="mx-auto w-full max-w-6xl animate-fade-in">
               {showGreeting && <GreetingStrip greeting={greeting} dateLabel={dateLabel} summary={summary} />}
               {children}
