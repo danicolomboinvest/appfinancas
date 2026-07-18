@@ -5,6 +5,7 @@ import { Sparkles } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { CriteriaForm, type FormCriterion, type FormResponse } from "@/components/forms/CriteriaForm";
+import { StockOverviewCard } from "./StockOverviewCard";
 import { fetchStockIndicatorsAction } from "./actions";
 
 type CriterionWithKey = FormCriterion & { key: string };
@@ -57,6 +58,9 @@ export function StockSheetWorkspace({
 
   return (
     <div className="flex flex-col gap-6">
+      {/* Overview educativo (carrega sozinho): o que é forte / o que merece atenção. */}
+      <StockOverviewCard ticker={ticker} />
+
       <Card className="flex flex-wrap items-center justify-between gap-3 p-4">
         <div>
           <p className="text-sm font-medium text-ink">Preencher indicadores automaticamente</p>
