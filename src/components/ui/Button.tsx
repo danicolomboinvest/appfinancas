@@ -4,9 +4,9 @@ type Variant = "primary" | "secondary" | "ghost" | "danger";
 type Size = "sm" | "md";
 
 const VARIANT_CLASSES: Record<Variant, string> = {
-  // Dourado é reservado para momentos de conquista (meta batida, dentro do orçamento) — o
-  // botão primário do dia a dia usa ink/canvas, o par de cores já invertido por tema.
-  primary: "bg-ink text-canvas hover:opacity-90 shadow-premium-sm disabled:hover:opacity-100",
+  // First Light: o primário carrega a cor da marca — gradiente âmbar com texto
+  // quase-preto quente (definidos em globals.css).
+  primary: "bg-accent-gradient text-on-accent font-semibold hover:opacity-95 shadow-premium-sm disabled:hover:opacity-100",
   secondary:
     "bg-surface-2 text-ink border border-border-strong hover:bg-surface-hover",
   ghost: "bg-transparent text-ink-muted hover:bg-surface-2 hover:text-ink",
