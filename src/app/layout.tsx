@@ -18,12 +18,12 @@ export const metadata: Metadata = {
   title: "SPI Finance",
   description: "Organize seu patrimônio, metas e investimentos em um só lugar.",
   // Faz o app abrir em tela cheia (sem barra de URL) quando salvo na tela inicial do iOS.
-  // statusBarStyle "default" (texto escuro) porque o tema padrão é claro — "black-translucent"
-  // deixaria o relógio/bateria brancos e invisíveis sobre o off-white.
+  // statusBarStyle "black-translucent" (texto claro) porque o tema é preto+dourado — o
+  // relógio/bateria aparecem em branco sobre o fundo escuro.
   appleWebApp: {
     capable: true,
-    title: "Finanças",
-    statusBarStyle: "default",
+    title: "SPI Finance",
+    statusBarStyle: "black-translucent",
   },
   icons: {
     apple: "/icons/apple-touch-icon.png",
@@ -44,10 +44,7 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: "cover",
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#efe9e0" },
-    { media: "(prefers-color-scheme: dark)", color: "#141210" },
-  ],
+  themeColor: "#0c0c0e",
 };
 
 const THEME_INIT_SCRIPT = `

@@ -1,84 +1,84 @@
 @import "tailwindcss";
 
 :root {
-  /* Identidade "First Light" — neutros quentes de amanhecer, âmbar como única cor de marca,
-     vidro fosco leitoso como material de assinatura (ver .glass / .glow-stage abaixo).
-     Tema claro é o PADRÃO (dark vira opt-in, ver html.dark). */
-  --color-canvas: #efe9e0;
-  --color-surface: #f7f3ec;
-  --color-surface-2: #eae3d6;
-  --color-surface-hover: #e4dccb;
+  /* Identidade "Preto + Dourado" — near-black quente, ouro como única cor de marca.
+     Dark é o PADRÃO agora (as referências são todas escuras). */
+  --color-canvas: #0c0c0e;
+  --color-surface: #17171b;
+  --color-surface-2: #1f1f24;
+  --color-surface-hover: #26262c;
   --texture-dot: transparent;
 
-  --color-border: rgba(28, 23, 18, 0.12);
-  --color-border-strong: rgba(28, 23, 18, 0.2);
+  --color-border: rgba(255, 255, 255, 0.09);
+  --color-border-strong: rgba(255, 255, 255, 0.17);
 
-  /* Texto — espresso quente, nunca usado como fundo */
-  --color-ink: #1c1712;
-  --color-ink-muted: #857a6c;
-  --color-ink-faint: #a39a8a;
+  /* Texto — off-white quentinho */
+  --color-ink: #f3efe6;
+  --color-ink-muted: #9b968b;
+  --color-ink-faint: #6f6a61;
 
-  /* Âmbar — a cor da marca (First Light). Botão primário usa o gradiente accent-2→accent;
-     accent-strong é a variante funda para texto/link sobre fundos claros. */
-  --color-accent: #e0821b;
-  --color-accent-strong: #b8630f;
-  --color-accent-soft: rgba(224, 130, 27, 0.15);
-  --color-accent-2: #f4a94e;
-  --color-on-accent: #2a1602;
+  /* Ouro — a cor da marca. Botão primário usa o gradiente accent-2→accent;
+     accent-strong é a variante funda; on-accent é o texto escuro sobre o ouro. */
+  --color-accent: #e0b24e;
+  --color-accent-strong: #cfa03f;
+  --color-accent-soft: rgba(224, 178, 78, 0.15);
+  --color-accent-2: #f0cd7d;
+  --color-on-accent: #1a1405;
 
-  /* Semânticas: verde/vermelho só falam "subiu / caiu" — nunca decoração. */
-  --color-success: #1e9e68;
-  --color-success-soft: rgba(30, 158, 104, 0.14);
-  --color-danger: #d9502f;
-  --color-danger-soft: rgba(217, 80, 47, 0.12);
-  --color-info: #3e8dd6;
-  --color-info-soft: rgba(62, 141, 214, 0.1);
+  /* Semânticas: verde/vermelho só falam "subiu / caiu". */
+  --color-success: #4fc08a;
+  --color-success-soft: rgba(79, 192, 138, 0.15);
+  --color-danger: #ec6a52;
+  --color-danger-soft: rgba(236, 106, 82, 0.14);
+  --color-info: #5a8de0;
+  --color-info-soft: rgba(90, 141, 224, 0.13);
 
-  /* Extras só para paletas categóricas de gráfico (ex.: donut de alocação com 7 fatias) */
-  --color-chart-5: #a08f6a;
-  --color-chart-6: #b98f72;
+  /* Extras só para paletas categóricas de gráfico (donut de alocação com 7 fatias) */
+  --color-chart-5: #a98bd4;
+  --color-chart-6: #c9926e;
   --color-chart-7: #8c8676;
 
-  --shadow-premium: 0 16px 40px rgba(60, 40, 15, 0.12), 0 1px 0 rgba(255, 255, 255, 0.6) inset;
-  --shadow-premium-sm: 0 6px 16px rgba(60, 40, 15, 0.09);
+  --shadow-premium: 0 20px 48px rgba(0, 0, 0, 0.55), 0 1px 0 rgba(255, 255, 255, 0.04) inset;
+  --shadow-premium-sm: 0 8px 20px rgba(0, 0, 0, 0.42);
 
-  color-scheme: light;
+  color-scheme: dark;
 }
 
-/* Tema escuro First Light — espresso profundo com âmbar aceso (opção, não padrão). */
+/* Mantém preto+dourado mesmo com a classe .dark aplicada (o toggle não quebra a marca).
+   Uma variante clara vira depois, num passo separado. */
 html.dark {
-  --color-canvas: #141210;
-  --color-surface: #1e1a16;
-  --color-surface-2: #272117;
-  --color-surface-hover: #2f2820;
+  --color-canvas: #0c0c0e;
+  --color-surface: #17171b;
+  --color-surface-2: #1f1f24;
+  --color-surface-hover: #26262c;
   --texture-dot: transparent;
 
-  --color-border: rgba(255, 255, 255, 0.11);
-  --color-border-strong: rgba(255, 255, 255, 0.2);
+  --color-border: rgba(255, 255, 255, 0.09);
+  --color-border-strong: rgba(255, 255, 255, 0.17);
 
-  --color-ink: #f4efe7;
-  --color-ink-muted: #9a8e7e;
-  --color-ink-faint: #7a7060;
+  --color-ink: #f3efe6;
+  --color-ink-muted: #9b968b;
+  --color-ink-faint: #6f6a61;
 
-  --color-accent: #f2a03d;
-  --color-accent-strong: #d97a1e;
-  --color-accent-soft: rgba(242, 160, 61, 0.16);
-  --color-accent-2: #f7bc6e;
-  --color-on-accent: #20130a;
+  --color-accent: #e0b24e;
+  --color-accent-strong: #cfa03f;
+  --color-accent-soft: rgba(224, 178, 78, 0.15);
+  --color-accent-2: #f0cd7d;
+  --color-on-accent: #1a1405;
 
-  --color-success: #35c08a;
-  --color-success-soft: rgba(53, 192, 138, 0.16);
-  --color-danger: #ee6549;
-  --color-danger-soft: rgba(238, 101, 73, 0.14);
-  --color-info: #5aa0e0;
-  --color-info-soft: rgba(90, 160, 224, 0.12);
+  --color-success: #4fc08a;
+  --color-success-soft: rgba(79, 192, 138, 0.15);
+  --color-danger: #ec6a52;
+  --color-danger-soft: rgba(236, 106, 82, 0.14);
+  --color-info: #5a8de0;
+  --color-info-soft: rgba(90, 141, 224, 0.13);
 
-  --color-chart-5: #b7935b;
-  --color-chart-6: #c98f76;
-  --color-chart-7: #8f8879;
+  --color-chart-5: #a98bd4;
+  --color-chart-6: #c9926e;
+  --color-chart-7: #8c8676;
 
-  --shadow-premium: 0 20px 48px rgba(8, 6, 3, 0.55), 0 1px 0 rgba(250, 250, 248, 0.05) inset;
-  --shadow-premium-sm: 0 8px 20px rgba(8, 6, 3, 0.45);
+  --shadow-premium: 0 20px 48px rgba(0, 0, 0, 0.55), 0 1px 0 rgba(255, 255, 255, 0.04) inset;
+  --shadow-premium-sm: 0 8px 20px rgba(0, 0, 0, 0.42);
 
   color-scheme: dark;
 }
@@ -108,18 +108,10 @@ html.dark {
   --color-chart-6: var(--color-chart-6);
   --color-chart-7: var(--color-chart-7);
 
-  /* First Light usa uma família só: Albert Sans (moderna + elegante). O token serif
-     aponta pra ela também — os `font-serif` legados renderizam sans até a migração
-     completa das telas. */
   --font-sans: var(--font-albert-sans);
   --font-mono: var(--font-geist-mono);
   --font-serif: var(--font-albert-sans);
 
-  /* Escala editorial: título / subtítulo / texto / indicador / label / observação.
-     Tailwind só pareia automaticamente --line-height a partir de --text-*; peso e
-     tracking não têm mecanismo de pareamento (ao contrário do que a doc sugere à
-     primeira vista) — por isso cada uso combina text-{tier} com font-* e tracking-*
-     explícitos (ex.: `text-h1 font-semibold tracking-tight`). */
   --text-display: 3rem;
   --text-display--line-height: 1.05;
 
@@ -147,11 +139,10 @@ html.dark {
 }
 
 html {
-  color-scheme: light;
+  color-scheme: dark;
 }
 
-/* Comportamento de app nativo: sem zoom por gesto, sem "puxão" elástico ao rolar além do fim.
-   Combina com o viewport (maximum-scale=1, user-scalable=no) definido em layout.tsx. */
+/* Comportamento de app nativo: sem zoom por gesto, sem "puxão" elástico ao rolar além do fim. */
 html,
 body {
   touch-action: pan-x pan-y;
@@ -163,8 +154,6 @@ body {
   color: var(--color-ink);
   font-feature-settings: "cv11", "ss01";
   letter-spacing: -0.011em;
-  /* Textura sutil de pontos — só no tema escuro (ver html.dark acima); o tema claro fica
-     limpo, sem textura, seguindo a regra de simplicidade editorial. */
   background-image: radial-gradient(var(--texture-dot, transparent) 1px, transparent 1.6px);
   background-size: 28px 28px;
 }
@@ -198,71 +187,40 @@ body {
   box-shadow: var(--shadow-premium-sm);
 }
 
-/* ————— Material First Light ————— */
+/* ————— Materiais ————— */
 
-/* Vidro fosco leitoso — a assinatura visual do app. Blur é caro de renderizar:
-   usar em NO MÁXIMO 1–2 elementos por tela (herói, card de destaque), nunca em
-   listas/linhas repetidas. */
+/* Antes era "vidro fosco". Agora é um cartão sólido escuro (sem blur/gradiente) —
+   mantém a classe pra não quebrar as telas que já a usam. */
 .glass {
   position: relative;
   overflow: hidden;
-  -webkit-backdrop-filter: blur(28px) saturate(185%) brightness(1.06);
-  backdrop-filter: blur(28px) saturate(185%) brightness(1.06);
-  background: linear-gradient(155deg, rgba(255, 255, 255, 0.46), rgba(255, 255, 255, 0.2));
-  border: 1px solid rgba(255, 255, 255, 0.75);
-  box-shadow:
-    0 24px 50px -20px rgba(30, 18, 3, 0.5),
-    inset 0 1px 1.5px rgba(255, 255, 255, 0.95),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.22),
-    inset 0 -20px 34px -22px rgba(255, 255, 255, 0.45);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-premium-sm);
 }
 html.dark .glass {
-  background: linear-gradient(155deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.04));
-  border-color: rgba(255, 255, 255, 0.26);
-  box-shadow:
-    0 26px 56px -22px rgba(0, 0, 0, 0.64),
-    inset 0 1px 1.5px rgba(255, 255, 255, 0.32),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.08),
-    inset 0 -20px 34px -24px rgba(255, 255, 255, 0.12);
+  background: var(--color-surface);
+  border-color: var(--color-border);
+  box-shadow: var(--shadow-premium-sm);
 }
-/* Brilho especular no topo-esquerdo, como luz pegando no vidro. Filhos ficam acima. */
 .glass::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  border-radius: inherit;
-  background: linear-gradient(
-    148deg,
-    rgba(255, 255, 255, 0.55) 0%,
-    rgba(255, 255, 255, 0.12) 18%,
-    rgba(255, 255, 255, 0) 40%
-  );
+  content: none;
 }
 .glass > * {
   position: relative;
 }
 
-/* Palco com a luz do amanhecer — o degradê ambiente atrás do vidro. */
+/* Palco de destaque — um leve brilho dourado no canto, sobre superfície sólida. */
 .glow-stage {
   position: relative;
   isolation: isolate;
   overflow: hidden;
   background:
-    radial-gradient(
-      115% 95% at 90% 0%,
-      color-mix(in srgb, var(--color-accent) 55%, transparent),
-      transparent 52%
-    ),
-    radial-gradient(
-      110% 92% at 0% 112%,
-      color-mix(in srgb, var(--color-accent-2) 45%, transparent),
-      transparent 50%
-    ),
+    radial-gradient(120% 90% at 92% 0%, color-mix(in srgb, var(--color-accent) 16%, transparent), transparent 55%),
     var(--color-surface-2);
 }
 
-/* Botão primário First Light: gradiente âmbar. */
+/* Botão primário: gradiente dourado. */
 .bg-accent-gradient {
   background-image: linear-gradient(135deg, var(--color-accent-2), var(--color-accent));
 }
