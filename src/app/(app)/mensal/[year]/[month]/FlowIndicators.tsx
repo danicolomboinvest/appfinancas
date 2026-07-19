@@ -44,7 +44,51 @@ function adjacentMonth(year: number, month: number, delta: number) {
   return { year: date.getFullYear(), month: date.getMonth() + 1 };
 }
 
-function IndicatorCard({ label, value, tone, bar }: { label: string; value: string; tone: Tone; bar?: number }) {
+function IndicatorCard({
+  label,
+  value,
+  tone,
+  bar,
+  ring,
+}: {
+  label: string;
+  value: string;
+  tone: Tone;
+  bar?: number;
+  /** Quando presente, mostra um anel (gauge) com o valor no centro, em vez de número + barra. */
+  ring?: number;
+}) {
+  if (ring !== undefined) {
+    const frac = Math.max(0, Math.min(1, Math.abs(ring)));
+    const C = 97.39; // circunferência de r=15.5
+    return (
+      <Card className="flex flex-col p-3.5 sm:p-4">
+        <p className="text-caption text-ink-muted">{label}</p>
+        <div className="mt-1.5 flex items-center justify-center">
+          <div className="relative h-16 w-16">
+            <svg viewBox="0 0 36 36" className="h-16 w-16 -rotate-90">
+              <circle cx="18" cy="18" r="15.5" fill="none" stroke="var(--color-surface-2)" strokeWidth="3.4" />
+              <circle
+                cx="18"
+                cy="18"
+                r="15.5"
+                fill="none"
+                stroke="var(--color-accent)"
+                strokeWidth="3.4"
+                strokeLinecap="round"
+                strokeDasharray={`${frac * C} ${C}`}
+              />
+            </svg>
+            <span
+              className={`absolute inset-0 flex items-center justify-center text-sm font-semibold tabular-nums ${TONE_TEXT[tone]}`}
+            >
+              {value}
+            </span>
+          </div>
+        </div>
+      </Card>
+    );
+  }
   return (
     <Card className="p-3.5 sm:p-4">
       <p className="text-caption text-ink-muted">{label}</p>
@@ -159,7 +203,7 @@ export function FlowIndicators({
           label="Taxa de poupança"
           value={rate === null ? "—" : `${Math.round(rate * 100)}%`}
           tone={rate !== null && rate >= 0 ? "success" : "danger"}
-          bar={rate ?? undefined}
+          ring={rate ?? undefined}
         />
       </div>
 

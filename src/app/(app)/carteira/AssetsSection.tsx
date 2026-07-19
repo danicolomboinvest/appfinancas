@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { Briefcase, FileUp, Pencil, Plus, RefreshCw } from "lucide-react";
+import { Briefcase, Eye, EyeOff, FileUp, Pencil, Plus, RefreshCw } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -104,6 +104,7 @@ export function AssetsSection({
   const [editingAsset, setEditingAsset] = useState<Asset | null>(null);
   const [classFilter, setClassFilter] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [hidden, setHidden] = useState(false); // botão de olho: oculta os valores em R$
   const [isUpdatingQuotes, startQuotesTransition] = useTransition();
   const [isBulkPending, startBulkTransition] = useTransition();
   const { showToast } = useToast();
@@ -138,6 +139,8 @@ export function AssetsSection({
   // Lucro geral: só considera ativos com investido conhecido (evita distorcer o %).
   const totalInvested = assets.reduce((sum, a) => sum + (a.investedValue !== null && a.investedValue > 0 ? a.investedValue : 0), 0);
   const totalProfit = assets.reduce((sum, a) => sum + (profitOf(a) ?? 0), 0);
+  /** Formata em R$ — ou "R$ ••••" quando o olho está fechado. */
+  const money = (v: number) => (hidden ? "R$ ••••" : formatBRL(v));
 
   // Carteira atual agrupada por TIPO (Ações, FIIs, Fundos…) — com dezenas de ativos, uma
   // fatia por ativo vira confete; por classe o percentual conta a história de verdade.
@@ -165,21 +168,30 @@ export function AssetsSection({
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Herói First Light: o total da carteira é o número-herói, em vidro fosco sobre a
-          luz âmbar do amanhecer (.glow-stage + .glass em globals.css). */}
+      {/* Herói: o total da carteira é o número-herói. O olho oculta os valores em R$. */}
       <div className="glow-stage rounded-3xl p-4 sm:p-5">
         <div className="glass rounded-2xl p-5 sm:p-6">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <p className="text-label font-semibold uppercase tracking-[0.11em] text-ink-muted">
-                Sua carteira · {assets.length} ativo{assets.length === 1 ? "" : "s"}
-              </p>
+              <div className="flex items-center gap-2">
+                <p className="text-label font-semibold uppercase tracking-[0.11em] text-ink-muted">
+                  Sua carteira · {assets.length} ativo{assets.length === 1 ? "" : "s"}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setHidden((h) => !h)}
+                  aria-label={hidden ? "Mostrar valores" : "Ocultar valores"}
+                  className="text-ink-muted transition-colors hover:text-ink"
+                >
+                  {hidden ? <EyeOff size={15} strokeWidth={1.9} /> : <Eye size={15} strokeWidth={1.9} />}
+                </button>
+              </div>
               <p className="mt-1 text-display font-bold tracking-tight tabular-nums text-ink">
-                {formatBRL(totalValue)}
+                {money(totalValue)}
               </p>
               {Math.abs(totalProfit) >= 0.005 && totalInvested > 0 && (
                 <p className={`mt-1 text-sm tabular-nums ${totalProfit > 0 ? "text-success" : "text-danger"}`}>
-                  {totalProfit > 0 ? "+" : "−"}{formatBRL(Math.abs(totalProfit))} desde a compra
+                  {totalProfit > 0 ? "+" : "−"}{hidden ? "R$ ••••" : formatBRL(Math.abs(totalProfit))} desde a compra
                 </p>
               )}
             </div>
@@ -297,7 +309,7 @@ export function AssetsSection({
           {classFilter && (
             <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-sm text-ink-muted">
-              {CLASS_PLURAL[classFilter]}: <span className="font-medium text-ink">{formatBRL(valueByClass.get(classFilter) ?? 0)}</span>
+              {CLASS_PLURAL[classFilter]}: <span className="font-medium text-ink">{money(valueByClass.get(classFilter) ?? 0)}</span>
               {totalValue > 0 && (
                 <> · {formatPercentNumber(((valueByClass.get(classFilter) ?? 0) / totalValue) * 100, 1)} da carteira</>
               )}
@@ -308,7 +320,7 @@ export function AssetsSection({
                   <>
                     {" · "}
                     <span className={profit > 0 ? "text-success" : "text-danger"}>
-                      {profit > 0 ? "+" : "−"}{formatBRL(Math.abs(profit))}
+                      {profit > 0 ? "+" : "−"}{hidden ? "R$ ••••" : formatBRL(Math.abs(profit))}
                     </span>
                   </>
                 );
@@ -364,14 +376,14 @@ export function AssetsSection({
                       </div>
                     </div>
                     <div className="shrink-0 text-right">
-                      <p className="text-sm font-medium text-ink">{formatBRL(asset.currentValue)}</p>
+                      <p className="text-sm font-medium text-ink">{money(asset.currentValue)}</p>
                       {(() => {
                         const profit = profitOf(asset);
                         if (profit === null || Math.abs(profit) < 0.005) return null;
                         const pct = (profit / (asset.investedValue as number)) * 100;
                         return (
                           <p className={`text-xs tabular-nums ${profit > 0 ? "text-success" : "text-danger"}`}>
-                            {profit > 0 ? "+" : "−"}{formatBRL(Math.abs(profit))} ({profit > 0 ? "+" : "−"}{formatPercentNumber(Math.abs(pct), 1)})
+                            {profit > 0 ? "+" : "−"}{hidden ? "R$ ••••" : formatBRL(Math.abs(profit))} ({profit > 0 ? "+" : "−"}{formatPercentNumber(Math.abs(pct), 1)})
                           </p>
                         );
                       })()}
