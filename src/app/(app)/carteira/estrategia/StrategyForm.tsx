@@ -94,24 +94,46 @@ export function StrategyForm({ defaults }: { defaults: Record<StrategyAssetClass
 
       {/* Campos à esquerda, pizza ao vivo à direita (empilha no mobile). */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {STRATEGY_ASSET_CLASSES.map((assetClass) => (
-            <label key={assetClass} className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-ink">{STRATEGY_ASSET_CLASS_LABEL[assetClass]}</span>
-              <div className="flex items-center rounded-lg border border-border-strong bg-surface focus-within:border-accent focus-within:ring-1 focus-within:ring-accent">
+        <div className="flex flex-col gap-4">
+          {STRATEGY_ASSET_CLASSES.map((assetClass) => {
+            const clamp = (n: number) => Math.max(0, Math.min(100, Math.round(n)));
+            const set = (n: number) => setValues((prev) => ({ ...prev, [assetClass]: clamp(n) }));
+            return (
+              <div key={assetClass} className="flex flex-col gap-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-medium text-ink">{STRATEGY_ASSET_CLASS_LABEL[assetClass]}</span>
+                  {/* Caixinha do % — dá pra arrastar o slider OU digitar aqui. */}
+                  <div className="flex items-center rounded-lg border border-border-strong bg-surface focus-within:border-accent">
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={values[assetClass]}
+                      onChange={(e) => set(Number(e.target.value))}
+                      aria-label={`${STRATEGY_ASSET_CLASS_LABEL[assetClass]} em porcentagem`}
+                      className="w-11 bg-transparent py-1 pl-2 text-right text-sm font-semibold tabular-nums text-ink focus:outline-none"
+                    />
+                    <span className="pr-2 text-sm text-ink-muted">%</span>
+                  </div>
+                </div>
+                {/* Slider: arrasta pra definir o alvo da classe. */}
                 <input
-                  name={assetClass}
-                  type="number"
-                  step="0.1"
+                  type="range"
                   min={0}
                   max={100}
+                  step={1}
                   value={values[assetClass]}
-                  onChange={(e) => setValues((prev) => ({ ...prev, [assetClass]: Number(e.target.value) }))}
-                  className="w-full rounded-lg bg-transparent px-3 py-2 text-sm font-medium tabular-nums text-ink focus:outline-none"
+                  onChange={(e) => set(Number(e.target.value))}
+                  aria-label={STRATEGY_ASSET_CLASS_LABEL[assetClass]}
+                  style={{ accentColor: "var(--color-accent)" }}
+                  className="w-full cursor-pointer"
                 />
-                <span className="pr-3 text-sm text-ink-muted">%</span>
               </div>
-            </label>
+            );
+          })}
+          {/* Envia os valores do estado (o slider/caixa não têm name pra não duplicar). */}
+          {STRATEGY_ASSET_CLASSES.map((k) => (
+            <input key={k} type="hidden" name={k} value={values[k]} />
           ))}
         </div>
 
