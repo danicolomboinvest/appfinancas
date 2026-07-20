@@ -26,12 +26,13 @@ function formatDate(iso: string) {
 
 /** O arquivo vai CRU num FormData (string grande de base64 estoura o limite de serialização
  * das actions). O encoding diz ao servidor como interpretar os bytes. */
-function buildUploadForm(file: File): FormData {
+function buildUploadForm(file: File, docType: "extrato" | "fatura"): FormData {
   const name = file.name.toLowerCase();
   const encoding = name.endsWith(".xlsx") || name.endsWith(".xls") ? "xlsx" : name.endsWith(".pdf") ? "pdf" : "text";
   const formData = new FormData();
   formData.set("file", file);
   formData.set("encoding", encoding);
+  formData.set("docType", docType);
   return formData;
 }
 
@@ -47,6 +48,7 @@ export function StatementImport({ onDone }: { onDone: () => void }) {
   const [items, setItems] = useState<ReviewItem[]>([]);
   const [reviewIdx, setReviewIdx] = useState(0);
   const [createdCount, setCreatedCount] = useState(0);
+  const [docType, setDocType] = useState<"extrato" | "fatura">("extrato");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -62,7 +64,7 @@ export function StatementImport({ onDone }: { onDone: () => void }) {
       setError("Arquivo muito grande (máx. ~7 MB). Exporte um período menor do extrato e tente de novo.");
       return;
     }
-    const formData = buildUploadForm(file);
+    const formData = buildUploadForm(file, docType);
     startTransition(async () => {
       const result = await parseStatementAction(formData);
       if (!result.ok) {
@@ -125,6 +127,31 @@ export function StatementImport({ onDone }: { onDone: () => void }) {
     return (
       <div className="flex flex-col gap-4">
         {error && <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p>}
+
+        {/* Extrato bancário (sinal manda) vs Fatura de cartão (tudo é gasto). */}
+        <div className="flex flex-col gap-1.5">
+          <span className="text-caption text-ink-muted">O que você está subindo?</span>
+          <div className="inline-flex rounded-full border border-border bg-surface-2 p-1">
+            {(["extrato", "fatura"] as const).map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setDocType(t)}
+                className={`flex-1 rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
+                  docType === t ? "bg-ink text-canvas" : "text-ink-muted hover:text-ink"
+                }`}
+              >
+                {t === "extrato" ? "Extrato bancário" : "Fatura de cartão"}
+              </button>
+            ))}
+          </div>
+          <span className="text-caption text-ink-faint">
+            {docType === "fatura"
+              ? "Todas as linhas entram como gasto (compras do cartão)."
+              : "Entradas viram renda e saídas viram gasto, pelo sinal do valor."}
+          </span>
+        </div>
+
         <button
           type="button"
           onClick={() => fileRef.current?.click()}

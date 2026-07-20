@@ -42,6 +42,8 @@ export type ParseStatementResult = { ok: true; items: ReviewItem[] } | { ok: fal
 export async function parseStatementAction(formData: FormData): Promise<ParseStatementResult> {
   const ctx = await getRequiredSession();
   const encoding = String(formData.get("encoding") ?? "text");
+  // "fatura" = fatura de cartão (tudo é gasto); "extrato" = extrato bancário (sinal manda).
+  const docType = String(formData.get("docType") ?? "extrato");
 
   let text: string;
   let source: "auto" | "pdf";
@@ -79,7 +81,9 @@ export async function parseStatementAction(formData: FormData): Promise<ParseSta
   }));
 
   const items: ReviewItem[] = parsed.map((txn, index) => {
-    const isExpense = txn.amount < 0;
+    // Fatura de cartão: toda linha é compra (gasto), independentemente do sinal — resolve o
+    // caso em que as compras vinham positivas e eram lidas como renda. Extrato: sinal manda.
+    const isExpense = docType === "fatura" ? true : txn.amount < 0;
     // Só faz sentido categorizar saídas; entradas viram INCOME sem categoria-mãe.
     const classification = isExpense ? classify(txn.description, learned) : null;
     return {
