@@ -15,7 +15,16 @@ export default async function FiiSheetDetailPage(props: PageProps<"/fichas/fiis/
     notFound();
   }
 
-  const categories = sheet.fiiType === "TIJOLO" || sheet.fiiType === "PAPEL" ? ["COMUM", sheet.fiiType] : ["COMUM"];
+  // Quais blocos de critério aparecem por tipo de fundo (item 8): fundo puro de Tijolo ou de
+  // Papel vê só o seu bloco; Híbrido, Fundo de Fundos (e tipo não definido) veem os DOIS blocos,
+  // pra não esconder dados relevantes como nº de imóveis, alavancagem, vacância, P/VP e LTV.
+  const EXTRA_BLOCKS_BY_TYPE: Record<string, string[]> = {
+    TIJOLO: ["TIJOLO"],
+    PAPEL: ["PAPEL"],
+    HIBRIDO: ["TIJOLO", "PAPEL"],
+    FUNDO_DE_FUNDOS: ["TIJOLO", "PAPEL"],
+  };
+  const categories = ["COMUM", ...(EXTRA_BLOCKS_BY_TYPE[sheet.fiiType ?? ""] ?? ["TIJOLO", "PAPEL"])];
   const criteria = await listCriteria("FII", categories);
 
   return (
