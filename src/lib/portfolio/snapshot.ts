@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db/prisma";
 import type { AuthContext } from "@/lib/auth/session";
+import { nowInBrazil } from "@/lib/date/brazil-now";
 
 function startOfDay(date: Date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
@@ -12,7 +13,7 @@ function startOfDay(date: Date) {
  * já que Asset só guarda o valor atual.
  */
 export async function recordPatrimonySnapshotIfNeeded(ctx: AuthContext, totalValue: number) {
-  const today = startOfDay(new Date());
+  const today = startOfDay(nowInBrazil());
   await prisma.patrimonySnapshot.upsert({
     where: { userId_date: { userId: ctx.userId, date: today } },
     create: { userId: ctx.userId, date: today, totalValue },
@@ -22,7 +23,7 @@ export async function recordPatrimonySnapshotIfNeeded(ctx: AuthContext, totalVal
 
 /** Snapshot mais próximo (na data ou antes dela) de N meses atrás — null se não houver histórico suficiente. */
 export async function getPatrimonySnapshotMonthsAgo(ctx: AuthContext, monthsAgo: number) {
-  const now = new Date();
+  const now = nowInBrazil();
   const targetDate = startOfDay(new Date(now.getFullYear(), now.getMonth() - monthsAgo, now.getDate()));
   const snapshot = await prisma.patrimonySnapshot.findFirst({
     where: { userId: ctx.userId, date: { lte: targetDate } },
@@ -33,7 +34,7 @@ export async function getPatrimonySnapshotMonthsAgo(ctx: AuthContext, monthsAgo:
 
 /** Maior valor de patrimônio já registrado ANTES de hoje — usado para detectar "novo recorde". */
 export async function getPatrimonyAllTimeHighBeforeToday(ctx: AuthContext) {
-  const today = startOfDay(new Date());
+  const today = startOfDay(nowInBrazil());
   const snapshot = await prisma.patrimonySnapshot.findFirst({
     where: { userId: ctx.userId, date: { lt: today } },
     orderBy: { totalValue: "desc" },
