@@ -219,7 +219,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
           <LinkedStatCard
             href="/planejamento/acumulo#liberdade-financeira"
             icon={Sparkles}
-            label="Liberdade Financeira"
+            label="Aposentadoria"
             value={usufructSurplus === null ? "Não configurada" : formatBRL(usufructSurplus)}
             hint={
               usufructSurplus === null

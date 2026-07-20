@@ -75,7 +75,7 @@ export default async function IndependenciaFinanceiraPage() {
   return (
     <div className="flex flex-col gap-8">
       <PageHeader
-        title="Independência Financeira"
+        title="Aposentadoria"
         subtitle="Da fase de acúmulo até viver de renda: acompanhe a jornada inteira em um só lugar."
       />
 
@@ -139,7 +139,7 @@ export default async function IndependenciaFinanceiraPage() {
                 </section>
 
                 <section id="liberdade-financeira" className="flex flex-col gap-3">
-                  <h2 className="text-h2 font-semibold tracking-tight text-ink">Liberdade Financeira</h2>
+                  <h2 className="text-h2 font-semibold tracking-tight text-ink">Renda na aposentadoria</h2>
                   <p className="-mt-1 text-sm text-ink-muted">
                     Compara a renda que o patrimônio acumulado geraria com o padrão de vida desejado.
                   </p>
