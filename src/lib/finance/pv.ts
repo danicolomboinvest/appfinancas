@@ -35,7 +35,14 @@ export function pv(
  * Preço de um título prefixado zero-cupom (marcação a mercado): valor de face trazido a
  * valor presente por uma taxa de desconto, sem aportes periódicos.
  * price = faceValue / (1+rate)^time
+ *
+ * A base (1+rate) tem um piso pequeno e positivo: uma taxa de desconto <= -100% zeraria ou
+ * inverteria a base, virando Infinity/NaN na tela do simulador. O formulário já barra isso,
+ * mas a matriz de sensibilidade soma variações à taxa internamente — este piso garante que
+ * o cálculo nunca quebra mesmo com uma combinação extrema de taxa + variação.
  */
 export function bondPrice(faceValue: DecimalInput, rate: DecimalInput, time: DecimalInput): Decimal {
-  return toDecimal(faceValue).div(toDecimal(rate).plus(1).pow(toDecimal(time)));
+  const base = toDecimal(rate).plus(1);
+  const safeBase = base.lte(0) ? new Decimal(0.0001) : base;
+  return toDecimal(faceValue).div(safeBase.pow(toDecimal(time)));
 }

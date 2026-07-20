@@ -3,8 +3,11 @@ import { z } from "zod";
 export const markToMarketSchema = z
   .object({
     faceValue: z.coerce.number().positive("Informe o valor de face."),
-    originalRate: z.coerce.number(),
-    newRate: z.coerce.number(),
+    // Taxa de -100% (ou menos) zeraria/inverteria a base do cálculo (1+taxa) — trava antes de
+    // chegar no simulador, com uma margem que sobra pra matriz de sensibilidade (que soma até
+    // ±3 p.p. à taxa) nunca cruzar esse limite.
+    originalRate: z.coerce.number().gt(-0.9, "Taxa contratada muito negativa — confira o valor informado."),
+    newRate: z.coerce.number().gt(-0.9, "Nova taxa muito negativa — confira o valor informado."),
     totalYears: z.coerce.number().positive(),
     yearsRemaining: z.coerce.number().min(0),
     hasSemiannualCoupons: z.boolean().default(false),
