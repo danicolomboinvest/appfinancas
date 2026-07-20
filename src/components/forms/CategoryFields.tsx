@@ -1,9 +1,10 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useId, useState, useTransition } from "react";
 import type { ParentCategory } from "@prisma/client";
 import { PARENT_CATEGORIES, PARENT_CATEGORY_LABEL, SUBCATEGORIES, OUTRO_SUBCATEGORY_LABEL } from "@/lib/categories";
 import { CONTROL_CLASSES } from "@/components/ui/Field";
+import { createCategoryAction } from "@/lib/actions/category";
 
 const CATEGORY_OPTIONS = [
   { value: "INCOME", label: "Renda" },
@@ -78,6 +79,38 @@ export function CategoryFields({
   const [freeSubcategory, setFreeSubcategory] = useState(!isExpense ? (defaultSubcategory ?? "") : "");
   const finalSubcategory = customCategoryId ? customText : isOutro ? customText : subcategory;
 
+  // Item 5 — criar a categoria-mãe na hora, quando a que a pessoa quer ainda não existe.
+  const [extraCategories, setExtraCategories] = useState<{ id: string; name: string }[]>([]);
+  const [addingCategory, setAddingCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [creating, startCreate] = useTransition();
+  const allCustomCategories = [...customCategories, ...extraCategories];
+
+  function handleCreateCategory() {
+    const name = newCategoryName.trim();
+    if (!name) return;
+    setCreateError(null);
+    startCreate(async () => {
+      const res = await createCategoryAction(name);
+      if (!res.ok) {
+        setCreateError(res.error);
+        return;
+      }
+      setExtraCategories((prev) =>
+        prev.some((c) => c.id === res.id) ? prev : [...prev, { id: res.id, name: res.name }],
+      );
+      // Já seleciona a categoria recém-criada pra a pessoa seguir o lançamento.
+      setCustomCategoryId(res.id);
+      setParentCategory(undefined);
+      setSubcategory(undefined);
+      setIsOutro(false);
+      setCustomText("");
+      setNewCategoryName("");
+      setAddingCategory(false);
+    });
+  }
+
   return (
     <div className={stacked ? "flex w-full flex-col gap-3" : "flex flex-wrap items-start gap-3"}>
       <div className="flex flex-col gap-1.5">
@@ -116,7 +149,7 @@ export function CategoryFields({
                 }}
               />
             ))}
-            {customCategories.map((cc) => (
+            {allCustomCategories.map((cc) => (
               <Chip
                 key={cc.id}
                 label={cc.name}
@@ -130,7 +163,46 @@ export function CategoryFields({
                 }}
               />
             ))}
+            <button
+              type="button"
+              onClick={() => {
+                setAddingCategory((v) => !v);
+                setCreateError(null);
+              }}
+              className="rounded-full border border-dashed border-border-strong bg-transparent px-3 py-1.5 text-xs font-medium text-ink-muted transition-colors hover:text-ink"
+            >
+              + Nova
+            </button>
           </div>
+          {addingCategory && (
+            <div className="flex flex-col gap-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  type="text"
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleCreateCategory();
+                    }
+                  }}
+                  placeholder="Nome da nova categoria-mãe"
+                  autoFocus
+                  className={`${CONTROL_CLASSES} ${stacked ? "w-full" : "w-56"}`}
+                />
+                <button
+                  type="button"
+                  onClick={handleCreateCategory}
+                  disabled={creating || !newCategoryName.trim()}
+                  className="shrink-0 rounded-full border border-accent bg-accent-soft px-3 py-1.5 text-xs font-medium text-accent-strong transition-opacity disabled:opacity-50"
+                >
+                  {creating ? "Criando…" : "Criar"}
+                </button>
+              </div>
+              {createError && <span className="text-[11px] text-danger">{createError}</span>}
+            </div>
+          )}
         </div>
       )}
 
