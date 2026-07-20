@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { Briefcase, Eye, EyeOff, FileUp, Pencil, Plus, RefreshCw } from "lucide-react";
 import { Card } from "@/components/ui/Card";
+import { FitText } from "@/components/ui/FitText";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
@@ -178,7 +179,7 @@ export function AssetsSection({
       <div className="glow-stage rounded-3xl p-4 sm:p-5">
         <div className="glass rounded-2xl p-5 sm:p-6">
           <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
+            <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
                 <p className="text-label font-semibold uppercase tracking-[0.11em] text-ink-muted">
                   Sua carteira · {assets.length} ativo{assets.length === 1 ? "" : "s"}
@@ -192,9 +193,11 @@ export function AssetsSection({
                   {hidden ? <EyeOff size={15} strokeWidth={1.9} /> : <Eye size={15} strokeWidth={1.9} />}
                 </button>
               </div>
-              <p className="mt-1 text-display font-bold tracking-tight tabular-nums text-ink">
-                {money(totalValue)}
-              </p>
+              <div className="mt-1">
+                <FitText className="text-display font-bold tracking-tight tabular-nums text-ink">
+                  {money(totalValue)}
+                </FitText>
+              </div>
               {Math.abs(totalProfit) >= 0.005 && totalInvested > 0 && (
                 <p className={`mt-1 text-sm tabular-nums ${totalProfit > 0 ? "text-success" : "text-danger"}`}>
                   {totalProfit > 0 ? "+" : "−"}{hidden ? "R$ ••••" : formatBRL(Math.abs(totalProfit))} desde a compra

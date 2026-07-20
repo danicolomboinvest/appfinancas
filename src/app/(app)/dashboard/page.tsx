@@ -15,6 +15,7 @@ import { YearlyBarChart } from "@/components/charts/YearlyBarChart";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
 import { Card } from "@/components/ui/Card";
+import { FitText } from "@/components/ui/FitText";
 import { LinkedStatCard } from "@/components/ui/LinkedStatCard";
 import { formatPercentNumber } from "@/lib/format";
 
@@ -154,9 +155,11 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
 
       <Card className="p-6">
         <p className="text-label text-ink-muted">Patrimônio total</p>
-        <p className="mt-1 text-display font-semibold tracking-tight text-accent-strong">
-          {formatBRL(portfolio.totalPortfolio)}
-        </p>
+        <div className="mt-1">
+          <FitText className="text-display font-semibold tracking-tight text-accent-strong">
+            {formatBRL(portfolio.totalPortfolio)}
+          </FitText>
+        </div>
       </Card>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">

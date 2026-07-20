@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ChevronRight, type LucideIcon } from "lucide-react";
 import { Card } from "./Card";
+import { FitText } from "./FitText";
 import { ProgressBar } from "./ProgressBar";
 
 type ProgressTone = "success" | "danger" | "accent" | "neutral";
@@ -51,7 +52,9 @@ export function TappableSummaryCard({
             </span>
             <ChevronRight size={16} className="text-ink-faint transition-transform duration-150 group-hover:translate-x-0.5" />
           </div>
-          <p className={`font-serif text-display font-normal tracking-tight ${HERO_VALUE_TONE[heroTone]}`}>{value}</p>
+          <FitText className={`font-serif text-display font-normal tracking-tight ${HERO_VALUE_TONE[heroTone]}`}>
+            {value}
+          </FitText>
           {hint && <p className="text-sm text-ink-muted">{hint}</p>}
         </Card>
       </Link>
