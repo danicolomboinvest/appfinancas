@@ -1,6 +1,6 @@
 import { Target } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
-import { listGoals } from "@/lib/repositories/goal.repo";
+import { listGoalsWithProgress } from "@/lib/repositories/goal.repo";
 import { computeGoalPlan, computeGoalTrajectory, type GoalCalcResult } from "@/lib/planning/goal";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -23,11 +23,12 @@ const VARIANT_RANK: Record<GoalVariant, number> = { behind: 0, onTrack: 1, ahead
 
 export default async function MetasPage() {
   const ctx = await getRequiredSession();
-  const goals = await listGoals(ctx);
+  const goals = await listGoalsWithProgress(ctx);
 
   const withPlans = goals.map((goal) => {
     const targetAmount = Number(goal.targetAmount);
-    const currentAmount = Number(goal.currentAmount);
+    // Progresso REAL (ativos vinculados + aportes), não mais o campo manual — item 6.
+    const currentAmount = goal.computedCurrentAmount;
     const targetDate = goal.targetDate ?? new Date();
     const goalInput = {
       targetAmount,

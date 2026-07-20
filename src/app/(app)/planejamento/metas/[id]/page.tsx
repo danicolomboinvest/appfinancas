@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { getRequiredSession } from "@/lib/auth/session";
-import { getOwnGoal } from "@/lib/repositories/goal.repo";
+import { getGoalWithProgress } from "@/lib/repositories/goal.repo";
 import { computeGoalPlan, computeGoalTrajectory } from "@/lib/planning/goal";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
@@ -31,7 +31,7 @@ const STATUS_LABEL: Record<string, string> = {
 export default async function GoalDetailPage(props: PageProps<"/planejamento/metas/[id]">) {
   const { id } = await props.params;
   const ctx = await getRequiredSession();
-  const goal = await getOwnGoal(ctx, id);
+  const goal = await getGoalWithProgress(ctx, id);
 
   if (!goal) {
     notFound();
@@ -40,7 +40,7 @@ export default async function GoalDetailPage(props: PageProps<"/planejamento/met
   const targetDate = goal.targetDate ?? new Date();
   const goalInput = {
     targetAmount: Number(goal.targetAmount),
-    currentAmount: Number(goal.currentAmount),
+    currentAmount: goal.computedCurrentAmount,
     targetDate,
     annualRate: Number(goal.annualRate ?? 0),
   };
@@ -83,7 +83,7 @@ export default async function GoalDetailPage(props: PageProps<"/planejamento/met
           defaults={{
             name: goal.name,
             targetAmount: Number(goal.targetAmount),
-            currentAmount: Number(goal.currentAmount),
+            currentAmount: goal.computedCurrentAmount,
             annualRate: Number(goal.annualRate ?? 0),
             targetDate: targetDate.toISOString().slice(0, 10),
             icon: goal.icon,
