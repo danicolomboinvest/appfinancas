@@ -10,7 +10,7 @@ import {
   listBudgetsForYear,
 } from "@/lib/repositories/budget.repo";
 import { getMonthlySummary, getAnnualSummary } from "@/lib/consolidation/monthly";
-import { PARENT_CATEGORY_LABEL } from "@/lib/categories";
+import { PARENT_CATEGORY_LABEL, colorForCategorySlice } from "@/lib/categories";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -203,12 +203,17 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
   const spendingSlices: DonutSlice[] = [
     ...spentByParent
       .filter((s) => s.spent > 0)
-      .map((s) => ({ name: PARENT_CATEGORY_LABEL[s.parentCategory], value: s.spent / totalSpentByCategory })),
+      .map((s) => ({
+        name: PARENT_CATEGORY_LABEL[s.parentCategory],
+        value: s.spent / totalSpentByCategory,
+        color: colorForCategorySlice({ kind: "parent", value: s.parentCategory }),
+      })),
     ...spentByCustom
       .filter((s) => s.spent > 0)
       .map((s) => ({
         name: customCategoryNameById.get(s.customCategoryId) ?? "Outro",
         value: s.spent / totalSpentByCategory,
+        color: colorForCategorySlice({ kind: "custom", value: s.customCategoryId }),
       })),
   ];
 

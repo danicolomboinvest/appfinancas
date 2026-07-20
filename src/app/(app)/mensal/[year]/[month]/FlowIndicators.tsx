@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Card } from "@/components/ui/Card";
+import { CountUp } from "@/components/ui/CountUp";
 
 const MONTH_LABELS = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
@@ -44,45 +45,72 @@ function adjacentMonth(year: number, month: number, delta: number) {
   return { year: date.getFullYear(), month: date.getMonth() + 1 };
 }
 
+/** Anel (gauge) que cresce de 0 até a fração na entrada da tela — mesmo espírito do arco de
+ * score do documento de referência de design, só que fininho pra caber num card pequeno. */
+function RingGauge({ fraction }: { fraction: number }) {
+  const frac = Math.max(0, Math.min(1, Math.abs(fraction)));
+  const C = 97.39; // circunferência de r=15.5
+  const [offset, setOffset] = useState(C);
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => setOffset(C - frac * C));
+    return () => cancelAnimationFrame(raf);
+  }, [frac]);
+  return (
+    <svg viewBox="0 0 36 36" className="h-16 w-16 -rotate-90">
+      <circle cx="18" cy="18" r="15.5" fill="none" stroke="var(--color-surface-2)" strokeWidth="3.4" />
+      <circle
+        cx="18"
+        cy="18"
+        r="15.5"
+        fill="none"
+        stroke="url(#ring-gauge-gradient)"
+        strokeWidth="3.4"
+        strokeLinecap="round"
+        strokeDasharray={C}
+        strokeDashoffset={offset}
+        style={{ transition: "stroke-dashoffset 1.2s ease-out" }}
+      />
+      <defs>
+        <linearGradient id="ring-gauge-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="var(--color-accent-2)" />
+          <stop offset="100%" stopColor="var(--color-accent)" />
+        </linearGradient>
+      </defs>
+    </svg>
+  );
+}
+
 function IndicatorCard({
   label,
   value,
+  formattedValue,
+  format,
   tone,
   bar,
   ring,
 }: {
   label: string;
-  value: string;
+  /** Valor bruto (não formatado) — anima em count-up quando presente junto de `format`. */
+  value?: number;
+  /** Valor já formatado, usado só quando não há count-up (ex.: "—", ring). */
+  formattedValue?: string;
+  format?: (n: number) => string;
   tone: Tone;
   bar?: number;
   /** Quando presente, mostra um anel (gauge) com o valor no centro, em vez de número + barra. */
   ring?: number;
 }) {
   if (ring !== undefined) {
-    const frac = Math.max(0, Math.min(1, Math.abs(ring)));
-    const C = 97.39; // circunferência de r=15.5
     return (
       <Card className="flex flex-col p-3.5 sm:p-4">
         <p className="text-caption text-ink-muted">{label}</p>
         <div className="mt-1.5 flex items-center justify-center">
           <div className="relative h-16 w-16">
-            <svg viewBox="0 0 36 36" className="h-16 w-16 -rotate-90">
-              <circle cx="18" cy="18" r="15.5" fill="none" stroke="var(--color-surface-2)" strokeWidth="3.4" />
-              <circle
-                cx="18"
-                cy="18"
-                r="15.5"
-                fill="none"
-                stroke="var(--color-accent)"
-                strokeWidth="3.4"
-                strokeLinecap="round"
-                strokeDasharray={`${frac * C} ${C}`}
-              />
-            </svg>
+            <RingGauge fraction={ring} />
             <span
               className={`absolute inset-0 flex items-center justify-center text-sm font-semibold tabular-nums ${TONE_TEXT[tone]}`}
             >
-              {value}
+              {formattedValue}
             </span>
           </div>
         </div>
@@ -92,7 +120,9 @@ function IndicatorCard({
   return (
     <Card className="p-3.5 sm:p-4">
       <p className="text-caption text-ink-muted">{label}</p>
-      <p className={`mt-1.5 text-indicator font-semibold tracking-tight tabular-nums ${TONE_TEXT[tone]}`}>{value}</p>
+      <p className={`mt-1.5 text-indicator font-semibold tracking-tight tabular-nums ${TONE_TEXT[tone]}`}>
+        {value !== undefined && format ? <CountUp value={value} format={format} /> : formattedValue}
+      </p>
       {bar !== undefined && (
         <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-surface-2">
           <div
@@ -194,14 +224,14 @@ export function FlowIndicators({
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <IndicatorCard label="Renda" value={formatBRL(bundle.income)} tone="success" />
-        <IndicatorCard label="Gastos" value={formatBRL(bundle.expense)} tone="danger" />
-        <IndicatorCard label="Planejamento" value={formatBRL(bundle.planned)} tone="ink" />
-        <IndicatorCard label="Aportes" value={formatBRL(bundle.investment)} tone="accent" />
-        <IndicatorCard label="Saldo" value={formatBRL(bundle.balance)} tone={bundle.balance >= 0 ? "accent" : "danger"} />
+        <IndicatorCard label="Renda" value={bundle.income} format={formatBRL} tone="success" />
+        <IndicatorCard label="Gastos" value={bundle.expense} format={formatBRL} tone="danger" />
+        <IndicatorCard label="Planejamento" value={bundle.planned} format={formatBRL} tone="ink" />
+        <IndicatorCard label="Aportes" value={bundle.investment} format={formatBRL} tone="accent" />
+        <IndicatorCard label="Saldo" value={bundle.balance} format={formatBRL} tone={bundle.balance >= 0 ? "accent" : "danger"} />
         <IndicatorCard
           label="Taxa de poupança"
-          value={rate === null ? "—" : `${Math.round(rate * 100)}%`}
+          formattedValue={rate === null ? "—" : `${Math.round(rate * 100)}%`}
           tone={rate !== null && rate >= 0 ? "success" : "danger"}
           ring={rate ?? undefined}
         />
