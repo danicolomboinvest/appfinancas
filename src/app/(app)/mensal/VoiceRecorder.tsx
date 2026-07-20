@@ -59,6 +59,26 @@ function formatElapsed(ms: number): string {
 
 const BAR_COUNT = 28;
 
+/** Mensagem amigável por código de erro do SpeechRecognition — item 8/revisão pré-lançamento:
+ * antes, qualquer erro (permissão negada, sem fala, rede) parava a gravação em silêncio e a
+ * pessoa achava que o app tinha travado. */
+function errorMessageFor(code: string): string {
+  switch (code) {
+    case "not-allowed":
+    case "permission-denied":
+    case "service-not-allowed":
+      return "Permita o acesso ao microfone nas configurações do navegador e tente de novo.";
+    case "no-speech":
+      return "Não conseguimos te ouvir. Aproxime o microfone e tente de novo.";
+    case "network":
+      return "Falha de conexão durante a gravação. Tente de novo.";
+    case "audio-capture":
+      return "Nenhum microfone encontrado neste dispositivo.";
+    default:
+      return "Não foi possível gravar agora. Tente de novo.";
+  }
+}
+
 /** Loop de animação fora do componente — funções aninhadas no corpo do componente que chamam
  * APIs impuras (Date.now) são sinalizadas pelo lint de pureza do React Compiler mesmo quando
  * só rodam via requestAnimationFrame, nunca durante o render. */
@@ -104,6 +124,7 @@ function runVisualizerLoop(
 export function VoiceRecorder({ onParsed }: { onParsed: (parsed: ParsedVoiceEntry) => void }) {
   const [recording, setRecording] = useState(false);
   const [unsupported, setUnsupported] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const recognitionRef = useRef<MinimalSpeechRecognition | null>(null);
   const latestResultsRef = useRef<ArrayLike<SpeechRecognitionResultLike> | null>(null);
@@ -157,6 +178,7 @@ export function VoiceRecorder({ onParsed }: { onParsed: (parsed: ParsedVoiceEntr
     }
     isHeldRef.current = true;
     setRecording(true);
+    setErrorMessage(null);
     latestResultsRef.current = null;
 
     const recognition = new SpeechRecognitionCtor();
@@ -166,20 +188,23 @@ export function VoiceRecorder({ onParsed }: { onParsed: (parsed: ParsedVoiceEntr
     recognition.onresult = (event) => {
       latestResultsRef.current = event.results;
     };
-    recognition.onerror = () => {
+    recognition.onerror = (event) => {
       isHeldRef.current = false;
       setRecording(false);
+      setErrorMessage(errorMessageFor(event.error));
       stopVisualizer();
     };
     // Captura o onParsed do momento em que a gravação começou — o closure vive só até soltar
     // o botão, então não há risco real de callback obsoleto.
     recognition.onend = () => {
       const results = latestResultsRef.current;
-      if (results) {
-        const transcript = joinFinalTranscript(results);
-        if (transcript.trim()) {
-          onParsed(parseVoiceEntry(transcript));
-        }
+      const transcript = results ? joinFinalTranscript(results) : "";
+      if (transcript.trim()) {
+        onParsed(parseVoiceEntry(transcript));
+      } else {
+        // "onerror" já tratou os casos de falha explícita — aqui é o caso de terminar sem
+        // erro mas sem nenhuma fala reconhecida (silêncio, murmúrio), que antes não avisava nada.
+        setErrorMessage((prev) => prev ?? "Não entendemos o que foi dito. Tente falar de novo.");
       }
     };
     recognitionRef.current = recognition;
@@ -246,8 +271,8 @@ export function VoiceRecorder({ onParsed }: { onParsed: (parsed: ParsedVoiceEntr
         <span ref={timerElRef} className="text-sm font-medium tabular-nums text-ink-muted">
           0:00
         </span>
-        <span className="text-xs text-ink-faint">
-          {recording ? "Solte para transcrever" : "Segure para falar"}
+        <span className={`text-xs ${errorMessage ? "text-danger" : "text-ink-faint"}`}>
+          {errorMessage ?? (recording ? "Solte para transcrever" : "Segure para falar")}
         </span>
       </div>
     </div>
