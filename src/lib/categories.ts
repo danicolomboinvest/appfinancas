@@ -62,6 +62,49 @@ export const PARENT_CATEGORY_ICON: Record<ParentCategory, LucideIcon> = {
   FINANCEIRO: Landmark,
 };
 
+/** Cor própria por categoria-mãe — usada no círculo translúcido de CategoryIcon.tsx (assinatura
+ * visual do documento de referência de design: é O elemento que quebra o monocromático). */
+export const PARENT_CATEGORY_COLOR: Record<ParentCategory, string> = {
+  MORADIA: "var(--color-cat-moradia)",
+  ALIMENTACAO: "var(--color-cat-alimentacao)",
+  TRANSPORTE: "var(--color-cat-transporte)",
+  SAUDE: "var(--color-cat-saude)",
+  LAZER: "var(--color-cat-lazer)",
+  EDUCACAO: "var(--color-cat-educacao)",
+  FINANCEIRO: "var(--color-cat-financeiro)",
+};
+
+/** Paleta cíclica pras categorias personalizadas (sem cor própria fixa) — usa o índice de criação. */
+const CUSTOM_CATEGORY_PALETTE = [
+  "var(--color-cat-moradia)",
+  "var(--color-cat-alimentacao)",
+  "var(--color-cat-transporte)",
+  "var(--color-cat-saude)",
+  "var(--color-cat-lazer)",
+  "var(--color-cat-educacao)",
+  "var(--color-cat-financeiro)",
+];
+
+export function customCategoryColor(index: number): string {
+  return CUSTOM_CATEGORY_PALETTE[index % CUSTOM_CATEGORY_PALETTE.length];
+}
+
+/** Cor estável de uma fatia de gasto (categoria-mãe ou personalizada) — a MESMA categoria
+ * sempre com a MESMA cor, em vez de uma cor por posição no ranking (que mudaria a cada
+ * período conforme o que gastou mais). Usada na pizza de "Só gastos". */
+export function colorForCategorySlice(category?: { kind: "parent" | "custom"; value: string }): string {
+  if (!category) return "var(--color-ink-faint)";
+  if (category.kind === "parent" && isParentCategoryKey(category.value)) {
+    return PARENT_CATEGORY_COLOR[category.value];
+  }
+  // Categoria personalizada: hash simples e estável do id pra sempre cair na mesma cor da paleta.
+  let hash = 0;
+  for (let i = 0; i < category.value.length; i++) {
+    hash = (hash * 31 + category.value.charCodeAt(i)) | 0;
+  }
+  return customCategoryColor(Math.abs(hash));
+}
+
 /** Subcategorias pré-cadastradas por categoria-mãe. "Outro" é sempre oferecido à parte, como texto livre. */
 export const SUBCATEGORIES: Record<ParentCategory, string[]> = {
   MORADIA: ["Aluguel", "Condomínio", "IPTU", "Luz", "Água", "Internet", "Manutenção"],

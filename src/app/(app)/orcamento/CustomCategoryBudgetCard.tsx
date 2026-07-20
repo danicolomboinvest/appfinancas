@@ -4,9 +4,10 @@ import { useState, useTransition } from "react";
 import { Trash2, Tag } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { CurrencyField } from "@/components/ui/CurrencyField";
+import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
-import { CUSTOM_CATEGORY_ICON_MAP } from "@/lib/categories";
+import { CUSTOM_CATEGORY_ICON_MAP, colorForCategorySlice } from "@/lib/categories";
 import { deleteCustomCategoryAction } from "./actions";
 
 function formatBRL(value: number) {
@@ -31,14 +32,13 @@ export function CustomCategoryBudgetCard({
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [isDeleting, startDelete] = useTransition();
   const Icon = CUSTOM_CATEGORY_ICON_MAP[icon] ?? Tag;
+  const color = colorForCategorySlice({ kind: "custom", value: customCategoryId });
 
   return (
     <Card className="flex flex-col gap-4 p-5">
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-start gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-accent-strong">
-            <Icon size={20} />
-          </div>
+          <CategoryIcon icon={Icon} color={color} />
           <div className="min-w-0">
             <p className="text-sm font-semibold text-ink">{name}</p>
             <p className="text-xs text-ink-faint">Categoria personalizada</p>
