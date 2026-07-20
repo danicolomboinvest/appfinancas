@@ -1,5 +1,9 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import type { FinancialHealthScore, HealthStatus } from "@/lib/health-score";
 import { Card } from "./Card";
+import { CountUp } from "./CountUp";
 
 const STATUS_TEXT_CLASS: Record<HealthStatus, string> = {
   boa: "text-success",
@@ -27,6 +31,14 @@ function ScoreArc({ score, status }: { score: number | null; status: HealthStatu
   const fraction = (score ?? 0) / 100;
   const [from, to] = STATUS_GRADIENT[status];
 
+  // Anima o arco de 0 até a nota na entrada da tela (~1,2-1,5s) — o "elemento hero" do
+  // documento de referência de design nasce vazio e se preenche, em vez de já aparecer pronto.
+  const [offset, setOffset] = useState(circumference);
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => setOffset(circumference * (1 - fraction)));
+    return () => cancelAnimationFrame(raf);
+  }, [circumference, fraction]);
+
   return (
     <div className="relative mx-auto h-32 w-56">
       <svg viewBox="0 0 200 110" className="h-full w-full">
@@ -53,12 +65,15 @@ function ScoreArc({ score, status }: { score: number | null; status: HealthStatu
             strokeWidth="12"
             strokeLinecap="round"
             strokeDasharray={circumference}
-            strokeDashoffset={circumference * (1 - fraction)}
+            strokeDashoffset={offset}
+            style={{ transition: "stroke-dashoffset 1.3s ease-out" }}
           />
         )}
       </svg>
       <div className="absolute inset-x-0 bottom-0 flex flex-col items-center">
-        <p className={`text-5xl font-bold leading-none tracking-tight ${STATUS_TEXT_CLASS[status]}`}>{score ?? "—"}</p>
+        <p className={`text-5xl font-bold leading-none tracking-tight ${STATUS_TEXT_CLASS[status]}`}>
+          {score === null ? "—" : <CountUp value={score} />}
+        </p>
         <p className="mt-1 text-caption text-ink-faint">de 100</p>
       </div>
     </div>
@@ -74,6 +89,11 @@ function DimensionPill({ label, score, status }: { label: string; score: number 
   const c = 2 * Math.PI * r;
   const fraction = (score ?? 0) / 100;
   const gradientId = `dim-${label.replace(/\s/g, "-")}`;
+  const [offset, setOffset] = useState(c);
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => setOffset(c * (1 - fraction)));
+    return () => cancelAnimationFrame(raf);
+  }, [c, fraction]);
 
   return (
     <div className="flex flex-col items-center gap-2">
@@ -96,12 +116,15 @@ function DimensionPill({ label, score, status }: { label: string; score: number 
               strokeWidth={stroke}
               strokeLinecap="round"
               strokeDasharray={c}
-              strokeDashoffset={c * (1 - fraction)}
+              strokeDashoffset={offset}
+              style={{ transition: "stroke-dashoffset 1.3s ease-out" }}
             />
           )}
         </svg>
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className={`text-base font-bold ${STATUS_TEXT_CLASS[status]}`}>{score ?? "—"}</span>
+          <span className={`text-base font-bold ${STATUS_TEXT_CLASS[status]}`}>
+            {score === null ? "—" : <CountUp value={score} />}
+          </span>
         </div>
       </div>
       <p className="max-w-[5.5rem] text-center text-caption leading-tight text-ink-muted">{label}</p>
