@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { StatCard } from "@/components/ui/StatCard";
+import { CountUp } from "@/components/ui/CountUp";
 
 const HORIZONS = [1, 5, 10] as const;
 const TOTAL_STEPS = 3;
@@ -246,7 +247,7 @@ export function WorthItCalculator({
               {mode === "SINGLE" ? "Tempo de trabalho equivalente" : "Tempo de trabalho por mês"}
             </p>
             <p className="mt-1.5 text-4xl font-semibold tracking-tight text-ink">
-              {result.hoursEquivalent === null ? "—" : formatHours(result.hoursEquivalent)}
+              {result.hoursEquivalent === null ? "—" : <CountUp value={result.hoursEquivalent} format={formatHours} />}
             </p>
           </div>
 
