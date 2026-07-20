@@ -2,17 +2,19 @@ import Link from "next/link";
 import { Target, Plane, Home, Car, PiggyBank, Sparkles, CheckCircle2, AlertTriangle, PartyPopper } from "lucide-react";
 import type { GoalIcon } from "@prisma/client";
 import { Card } from "@/components/ui/Card";
+import { ProgressBar } from "@/components/ui/ProgressBar";
+import { CountUp } from "@/components/ui/CountUp";
 import { DeleteGoalButton } from "./DeleteGoalButton";
 import { GoalTrajectoryChart } from "./GoalTrajectoryChart";
 import type { GoalCalcResult, GoalTrajectoryPoint } from "@/lib/planning/goal";
 
 export type GoalVariant = "ahead" | "onTrack" | "behind" | "achieved";
 
-const VARIANT_STYLES: Record<GoalVariant, { border: string; bar: string }> = {
-  ahead: { border: "border-t-success", bar: "bg-success" },
-  onTrack: { border: "border-t-accent", bar: "bg-accent" },
-  behind: { border: "border-t-danger", bar: "bg-danger" },
-  achieved: { border: "border-t-success", bar: "bg-success" },
+const VARIANT_STYLES: Record<GoalVariant, { border: string }> = {
+  ahead: { border: "border-t-success" },
+  onTrack: { border: "border-t-accent" },
+  behind: { border: "border-t-danger" },
+  achieved: { border: "border-t-success" },
 };
 
 const VARIANT_STATUS_LABEL: Record<GoalVariant, string> = {
@@ -123,9 +125,7 @@ export function GoalCard({
       )}
 
       <div>
-        <div className="h-2 w-full overflow-hidden rounded-full bg-surface-2">
-          <div className={`h-full rounded-full ${styles.bar}`} style={{ width: `${Math.round(progressPercent * 100)}%` }} />
-        </div>
+        <ProgressBar percent={progressPercent} tone={VARIANT_CHART_TONE[variant]} />
         <p className="mt-1.5 text-xs text-ink-muted">{Math.round(progressPercent * 100)}% concluído</p>
       </div>
 
@@ -157,7 +157,9 @@ export function GoalCard({
       {!achieved && (
         <div className="rounded-xl bg-surface-2 p-3">
           <p className="text-xs text-ink-muted">Aporte mensal sugerido</p>
-          <p className="mt-1 text-xl font-bold tracking-tight text-accent-strong">{formatBRL(plan.requiredMonthlyContribution)}</p>
+          <p className="mt-1 text-xl font-bold tracking-tight text-accent-strong">
+            <CountUp value={plan.requiredMonthlyContribution} format={formatBRL} />
+          </p>
         </div>
       )}
 
