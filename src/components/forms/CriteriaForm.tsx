@@ -24,6 +24,19 @@ export type FormResponse = {
   note: string | null;
 };
 
+/** Análise automática de um indicador (item 8): o selo (nota) + a régua transparente (comentário),
+ * mostrada DENTRO da linha do indicador em vez de num bloco separado. */
+export type CriterionAnalysis = {
+  signal: "favoravel" | "neutro" | "atencao";
+  reference: string;
+};
+
+const ANALYSIS_SIGNAL: Record<CriterionAnalysis["signal"], { label: string; cls: string }> = {
+  favoravel: { label: "Favorável", cls: "bg-success-soft text-success" },
+  neutro: { label: "Na média", cls: "bg-surface-2 text-ink-muted" },
+  atencao: { label: "Atenção", cls: "bg-danger-soft text-danger" },
+};
+
 const INPUT_CLASSES =
   "rounded-lg border border-border-strong bg-surface-2 px-2.5 py-1.5 text-sm text-ink placeholder:text-ink-faint transition-colors focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent";
 
@@ -36,6 +49,9 @@ export function CriteriaForm({
   initialTotalScore,
   appliedSuggestions,
   applyToken,
+  analysisByCriterionId,
+  analysisDisclaimer,
+  analysisPending,
 }: {
   sheetId: string;
   basePath: string;
@@ -47,6 +63,13 @@ export function CriteriaForm({
   appliedSuggestions?: { criterionId: string; value: string }[];
   /** Incrementa a cada nova leva de sugestões aplicadas — dispara a mesclagem abaixo. */
   applyToken?: number;
+  /** Análise automática por indicador (item 8) — selo + régua exibidos dentro de cada linha.
+   * Só as fichas que têm essa leitura (Ações) passam; as demais ficam sem, como antes. */
+  analysisByCriterionId?: Record<string, CriterionAnalysis>;
+  /** Aviso educativo mostrado uma vez, no rodapé, quando há análise automática. */
+  analysisDisclaimer?: string;
+  /** Enquanto a análise automática ainda está carregando (raspagem). */
+  analysisPending?: boolean;
 }) {
   const responseByCriterion = new Map(initialResponses.map((r) => [r.criterionId, r]));
   const [responses, setResponses] = useState<Record<string, ResponseState>>(() => {
@@ -146,6 +169,9 @@ export function CriteriaForm({
           </span>
         </div>
         <ProgressBar percent={fillProgress} tone="accent" className="mt-2" />
+        {analysisPending && !analysisByCriterionId && (
+          <p className="mt-2 text-xs text-ink-muted">Analisando os indicadores…</p>
+        )}
       </Card>
 
       {totalScore !== null && (
@@ -175,13 +201,31 @@ export function CriteriaForm({
                     autoFilledIds.has(criterion.id) ? "border-l-2 border-l-accent" : ""
                   }`}
                 >
-                  <div className="flex items-center gap-1.5 text-sm font-medium text-ink sm:col-span-3">
-                    {criterion.label}
-                    {criterion.helpText && <HelpTooltip text={criterion.helpText} />}
-                    {autoFilledIds.has(criterion.id) && (
-                      <span className="text-[10px] font-normal text-accent-strong" title="Preenchido automaticamente a partir de uma fonte externa — revise antes de salvar">
-                        (auto)
-                      </span>
+                  <div className="flex flex-col gap-1 sm:col-span-3">
+                    <div className="flex items-center gap-1.5 text-sm font-medium text-ink">
+                      {criterion.label}
+                      {criterion.helpText && <HelpTooltip text={criterion.helpText} />}
+                      {autoFilledIds.has(criterion.id) && (
+                        <span className="text-[10px] font-normal text-accent-strong" title="Preenchido automaticamente a partir de uma fonte externa — revise antes de salvar">
+                          (auto)
+                        </span>
+                      )}
+                    </div>
+                    {/* Análise automática do indicador (item 8): selo + régua, dentro da própria linha. */}
+                    {analysisByCriterionId?.[criterion.id] && (
+                      <div className="flex flex-col gap-1">
+                        <span
+                          className={`inline-flex w-fit items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                            ANALYSIS_SIGNAL[analysisByCriterionId[criterion.id].signal].cls
+                          }`}
+                        >
+                          <span className="h-1.5 w-1.5 rounded-full bg-current opacity-80" />
+                          {ANALYSIS_SIGNAL[analysisByCriterionId[criterion.id].signal].label}
+                        </span>
+                        <span className="text-[11px] leading-snug text-ink-faint">
+                          {analysisByCriterionId[criterion.id].reference}
+                        </span>
+                      </div>
                     )}
                   </div>
                   <input
@@ -211,6 +255,10 @@ export function CriteriaForm({
           </div>
         </div>
       ))}
+
+      {analysisDisclaimer && (
+        <p className="rounded-lg bg-surface-2 px-3 py-2 text-xs text-ink-faint">{analysisDisclaimer}</p>
+      )}
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor="conclusion" className="text-xs font-medium text-ink-muted">

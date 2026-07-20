@@ -1,12 +1,11 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { Sparkles } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { CriteriaForm, type FormCriterion, type FormResponse } from "@/components/forms/CriteriaForm";
-import { StockOverviewCard } from "./StockOverviewCard";
-import { fetchStockIndicatorsAction } from "./actions";
+import { CriteriaForm, type FormCriterion, type FormResponse, type CriterionAnalysis } from "@/components/forms/CriteriaForm";
+import { fetchStockIndicatorsAction, fetchStockOverviewAction } from "./actions";
 
 type CriterionWithKey = FormCriterion & { key: string };
 
@@ -31,6 +30,31 @@ export function StockSheetWorkspace({
   const [message, setMessage] = useState<{ tone: "success" | "error"; text: string } | null>(null);
   const [appliedSuggestions, setAppliedSuggestions] = useState<{ criterionId: string; value: string }[]>([]);
   const [applyToken, setApplyToken] = useState(0);
+
+  // Análise automática por indicador (item 8) — carrega sozinha ao abrir a ficha e é exibida
+  // DENTRO de cada linha do CriteriaForm, no lugar do antigo bloco "O que os números dizem".
+  const [analysisByCriterionId, setAnalysisByCriterionId] = useState<Record<string, CriterionAnalysis> | undefined>(undefined);
+  const [analysisDisclaimer, setAnalysisDisclaimer] = useState<string | undefined>(undefined);
+  const [analysisPending, startAnalysis] = useTransition();
+
+  useEffect(() => {
+    setAnalysisByCriterionId(undefined);
+    setAnalysisDisclaimer(undefined);
+    startAnalysis(async () => {
+      const r = await fetchStockOverviewAction(ticker);
+      if (!r.ok) return;
+      const keyToCriterionId = new Map(criteria.map((c) => [c.key, c.id]));
+      const map: Record<string, CriterionAnalysis> = {};
+      for (const item of r.items) {
+        const criterionId = keyToCriterionId.get(item.key);
+        if (criterionId) map[criterionId] = { signal: item.signal, reference: item.reference };
+      }
+      setAnalysisByCriterionId(map);
+      setAnalysisDisclaimer(r.disclaimer);
+    });
+    // criteria é estável dentro da ficha; recarrega só quando muda o ticker.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ticker]);
 
   function handleFetch() {
     startTransition(async () => {
@@ -58,9 +82,6 @@ export function StockSheetWorkspace({
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Overview educativo (carrega sozinho): o que é forte / o que merece atenção. */}
-      <StockOverviewCard ticker={ticker} />
-
       <Card className="flex flex-wrap items-center justify-between gap-3 p-4">
         <div>
           <p className="text-sm font-medium text-ink">Preencher indicadores automaticamente</p>
@@ -93,6 +114,9 @@ export function StockSheetWorkspace({
         initialTotalScore={initialTotalScore}
         appliedSuggestions={appliedSuggestions}
         applyToken={applyToken}
+        analysisByCriterionId={analysisByCriterionId}
+        analysisDisclaimer={analysisDisclaimer}
+        analysisPending={analysisPending}
       />
     </div>
   );
