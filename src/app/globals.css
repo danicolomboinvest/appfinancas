@@ -142,11 +142,23 @@ html {
   color-scheme: dark;
 }
 
-/* Comportamento de app nativo: sem zoom por gesto, sem "puxão" elástico ao rolar além do fim. */
+/* Comportamento de app nativo: sem zoom por gesto, sem "puxão" elástico ao rolar além do fim,
+   sem o flash azul de toque (cara de página web) e sem barra de rolagem à vista. */
 html,
 body {
   touch-action: pan-x pan-y;
   overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+  scrollbar-width: none; /* Firefox */
+}
+/* Tira o realce azul/cinza ao tocar em botões e links (comportamento de app, não de site). */
+a,
+button,
+[role="button"],
+input,
+select,
+textarea {
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
@@ -163,21 +175,14 @@ body {
   color: var(--color-ink);
 }
 
-/* Scrollbar discreta */
+/* Barra de rolagem escondida (comportamento de app) — a rolagem continua funcionando. */
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 0;
+  height: 0;
+  display: none;
 }
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: var(--color-surface-2);
-  border-radius: 9999px;
-  border: 2px solid var(--color-canvas);
-}
-::-webkit-scrollbar-thumb:hover {
-  background: var(--color-border-strong);
+* {
+  scrollbar-width: none; /* Firefox: esconde em todos os contêineres roláveis */
 }
 
 .shadow-premium {
