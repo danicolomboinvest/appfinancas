@@ -16,6 +16,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
 import { Card } from "@/components/ui/Card";
 import { FitText } from "@/components/ui/FitText";
+import { CountUp } from "@/components/ui/CountUp";
 import { LinkedStatCard } from "@/components/ui/LinkedStatCard";
 import { formatPercentNumber } from "@/lib/format";
 
@@ -153,14 +154,16 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
         }
       />
 
-      <Card className="p-6">
-        <p className="text-label text-ink-muted">Patrimônio total</p>
-        <div className="mt-1">
-          <FitText className="text-display font-semibold tracking-tight text-accent-strong">
-            {formatBRL(portfolio.totalPortfolio)}
-          </FitText>
-        </div>
-      </Card>
+      <div className="glow-stage rounded-3xl p-4 sm:p-5">
+        <Card className="p-6">
+          <p className="text-label text-ink-muted">Patrimônio total</p>
+          <div className="mt-1">
+            <FitText className="text-display font-semibold tracking-tight text-accent-strong">
+              <CountUp value={portfolio.totalPortfolio} format={formatBRL} />
+            </FitText>
+          </div>
+        </Card>
+      </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
         <StatCard

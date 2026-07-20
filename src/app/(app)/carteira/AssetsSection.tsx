@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Briefcase, Eye, EyeOff, FileUp, Pencil, Plus, RefreshCw } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { FitText } from "@/components/ui/FitText";
+import { CountUp } from "@/components/ui/CountUp";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
@@ -195,7 +196,7 @@ export function AssetsSection({
               </div>
               <div className="mt-1">
                 <FitText className="text-display font-bold tracking-tight tabular-nums text-ink">
-                  {money(totalValue)}
+                  {hidden ? "R$ ••••" : <CountUp value={totalValue} format={formatBRL} />}
                 </FitText>
               </div>
               {Math.abs(totalProfit) >= 0.005 && totalInvested > 0 && (
