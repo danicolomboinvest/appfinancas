@@ -29,6 +29,7 @@ export default async function FichasAcoesPage() {
       <CreateStockSheetForm />
 
       <Card className="overflow-x-auto">
+        {sheets.length > 0 && (
         <table className="w-full text-left text-sm">
           <thead>
             <tr className="border-b border-border bg-surface-2/50 text-ink-muted">
@@ -70,6 +71,7 @@ export default async function FichasAcoesPage() {
             })}
           </tbody>
         </table>
+        )}
         {sheets.length === 0 && (
           <EmptyState icon={LineChart} message="Nenhuma ficha criada ainda. Digite um ticker acima para começar sua primeira análise." />
         )}

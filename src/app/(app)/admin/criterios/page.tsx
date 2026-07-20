@@ -18,7 +18,7 @@ export default async function AdminCriteriosPage() {
 
       <CreateCriterionForm />
 
-      <Card className="overflow-hidden">
+      <Card className="overflow-x-auto">
         <table className="w-full text-left text-sm">
           <thead>
             <tr className="border-b border-border bg-surface-2/50 text-ink-muted">
