@@ -17,7 +17,7 @@ const SLICE_COLORS = [
 /** `id` é opcional (chamadores com rótulos já garantidamente únicos, ex.: uma fatia por
  * classe de ativo, não precisam informar) — quando presente, evita colisão de key quando
  * dois registros diferentes têm o mesmo `name` (ex.: dois ativos com o mesmo nome). */
-export type DonutSlice = { id?: string; name: string; value: number };
+export type DonutSlice = { id?: string; name: string; value: number; color?: string };
 
 export function DonutAllocationChart({
   title,
@@ -65,7 +65,9 @@ export function DonutAllocationChart({
                 {data.map((entry, index) => (
                   <Cell
                     key={entry.id ?? entry.name}
-                    fill={`url(#alloc-slice-${index % SLICE_COLORS.length})`}
+                    // Cor fixa da categoria quando informada (comparação consistente entre gráficos);
+                    // senão, o gradiente padrão por posição.
+                    fill={entry.color ?? `url(#alloc-slice-${index % SLICE_COLORS.length})`}
                     stroke="none"
                     opacity={selectedName && selectedName !== entry.name ? 0.35 : 1}
                   />
@@ -93,7 +95,7 @@ export function DonutAllocationChart({
                   >
                     <span
                       className="h-2 w-2 shrink-0 rounded-full"
-                      style={{ background: SLICE_COLORS[index % SLICE_COLORS.length] }}
+                      style={{ background: entry.color ?? SLICE_COLORS[index % SLICE_COLORS.length] }}
                     />
                     {entry.name}
                     <span className="tabular-nums text-ink-faint">{formatPercentNumber(entry.value * 100, 1)}</span>

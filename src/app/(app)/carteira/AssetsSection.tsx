@@ -72,7 +72,7 @@ type Asset = {
  * de rebalanceamento fora da tolerância, prontos pra exibir. */
 export type StrategySummary = {
   hasStrategy: boolean;
-  targets: { name: string; value: number }[];
+  targets: { name: string; value: number; color?: string }[];
   suggestions: { label: string; amount: number }[];
 };
 

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { StrategyClassPosition } from "@/lib/portfolio/strategy";
-import { STRATEGY_ASSET_CLASS_LABEL } from "@/lib/portfolio/strategy";
+import { STRATEGY_ASSET_CLASS_LABEL, STRATEGY_ASSET_CLASS_COLOR } from "@/lib/portfolio/strategy";
 import { Card } from "@/components/ui/Card";
 import { DonutAllocationChart } from "@/components/charts/DonutAllocationChart";
 import { formatPercentNumber } from "@/lib/format";
@@ -28,8 +28,16 @@ export function StrategyComparisonSection({
     );
   }
 
-  const currentData = positions.map((p) => ({ name: STRATEGY_ASSET_CLASS_LABEL[p.assetClass], value: p.currentPercent }));
-  const targetData = positions.map((p) => ({ name: STRATEGY_ASSET_CLASS_LABEL[p.assetClass], value: p.targetPercent }));
+  const currentData = positions.map((p) => ({
+    name: STRATEGY_ASSET_CLASS_LABEL[p.assetClass],
+    value: p.currentPercent,
+    color: STRATEGY_ASSET_CLASS_COLOR[p.assetClass],
+  }));
+  const targetData = positions.map((p) => ({
+    name: STRATEGY_ASSET_CLASS_LABEL[p.assetClass],
+    value: p.targetPercent,
+    color: STRATEGY_ASSET_CLASS_COLOR[p.assetClass],
+  }));
   const visible = positions.filter((p) => p.targetPercent > 0 || p.currentValue > 0);
 
   return (
@@ -46,7 +54,13 @@ export function StrategyComparisonSection({
           const aportar = p.rebalanceAmount >= 0;
           return (
             <Card key={p.assetClass} className="flex flex-col gap-3 p-4">
-              <p className="text-sm font-semibold text-ink">{STRATEGY_ASSET_CLASS_LABEL[p.assetClass]}</p>
+              <p className="flex items-center gap-1.5 text-sm font-semibold text-ink">
+                <span
+                  className="h-2.5 w-2.5 shrink-0 rounded-full"
+                  style={{ background: STRATEGY_ASSET_CLASS_COLOR[p.assetClass] }}
+                />
+                {STRATEGY_ASSET_CLASS_LABEL[p.assetClass]}
+              </p>
 
               <div className="grid grid-cols-2 gap-2">
                 <div>

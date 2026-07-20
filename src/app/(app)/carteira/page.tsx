@@ -2,7 +2,11 @@ import Link from "next/link";
 import { getRequiredSession } from "@/lib/auth/session";
 import { listAssets } from "@/lib/repositories/asset.repo";
 import { listGoals } from "@/lib/repositories/goal.repo";
-import { getPortfolioStrategyComparison, STRATEGY_ASSET_CLASS_LABEL } from "@/lib/portfolio/strategy";
+import {
+  getPortfolioStrategyComparison,
+  STRATEGY_ASSET_CLASS_LABEL,
+  STRATEGY_ASSET_CLASS_COLOR,
+} from "@/lib/portfolio/strategy";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { AssetsSection, type StrategySummary } from "./AssetsSection";
 
@@ -22,7 +26,11 @@ export default async function CarteiraPage() {
     hasStrategy,
     targets: comparison.positions
       .filter((p) => p.targetPercent > 0)
-      .map((p) => ({ name: STRATEGY_ASSET_CLASS_LABEL[p.assetClass], value: p.targetPercent })),
+      .map((p) => ({
+        name: STRATEGY_ASSET_CLASS_LABEL[p.assetClass],
+        value: p.targetPercent,
+        color: STRATEGY_ASSET_CLASS_COLOR[p.assetClass],
+      })),
     suggestions: comparison.positions
       .filter((p) => p.status !== "DENTRO")
       .sort((a, b) => Math.abs(b.rebalanceAmount) - Math.abs(a.rebalanceAmount))

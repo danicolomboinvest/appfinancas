@@ -13,6 +13,18 @@ export const STRATEGY_ASSET_CLASSES: StrategyAssetClass[] = [
   "OUTROS",
 ];
 
+/** Cor FIXA por categoria de estratégia — a mesma em todos os gráficos (Carteira Atual,
+ * Estratégia-alvo, rebalanceamento), pra comparação bater à vista (item 10). */
+export const STRATEGY_ASSET_CLASS_COLOR: Record<StrategyAssetClass, string> = {
+  RENDA_FIXA_POS_FIXADA: "#4FA3C7",
+  RENDA_FIXA_IPCA: "#5FB88A",
+  PREFIXADO: "#A78BC0",
+  ACOES_BRASIL: "#E0A85F",
+  FIIS: "#6D8BD0",
+  EXTERIOR: "#D98C6A",
+  OUTROS: "#9AA0A6",
+};
+
 export const STRATEGY_ASSET_CLASS_LABEL: Record<StrategyAssetClass, string> = {
   RENDA_FIXA_POS_FIXADA: "Renda Fixa pós-fixada",
   RENDA_FIXA_IPCA: "Renda Fixa IPCA+",
