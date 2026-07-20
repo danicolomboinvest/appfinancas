@@ -109,12 +109,18 @@ export function AssetsSection({
   const [isBulkPending, startBulkTransition] = useTransition();
   const { showToast } = useToast();
 
-  /** Define o objetivo de todos os ativos do tipo filtrado de uma vez. */
-  function handleBulkObjective(objective: "RESERVA_EMERGENCIA" | "LIBERDADE_FINANCEIRA" | "OUTRO") {
+  /** Define o objetivo de todos os ativos do tipo filtrado de uma vez. O valor pode ser um
+   * objetivo fixo (RESERVA/LIBERDADE/OUTRO) ou "goal:<id>" pra vincular a uma meta real. */
+  function handleBulkObjective(value: string) {
     if (!classFilter) return;
     startBulkTransition(async () => {
-      const result = await bulkSetObjectiveAction(classFilter, objective);
-      showToast(result.ok ? `${result.updated} ativos atualizados para "${OBJECTIVE_LABEL[objective]}".` : result.error);
+      const isGoal = value.startsWith("goal:");
+      const goalId = isGoal ? value.slice(5) : undefined;
+      const objective = (isGoal ? "META" : value) as "RESERVA_EMERGENCIA" | "LIBERDADE_FINANCEIRA" | "OUTRO" | "META";
+      const result = await bulkSetObjectiveAction(classFilter, objective, goalId);
+      if (!result.ok) return showToast(result.error);
+      const label = isGoal ? `meta "${goals.find((g) => g.id === goalId)?.name ?? ""}"` : `"${OBJECTIVE_LABEL[objective]}"`;
+      showToast(`${result.updated} ativos vinculados a ${label}.`);
     });
   }
 
@@ -330,17 +336,27 @@ export function AssetsSection({
               value=""
               disabled={isBulkPending}
               onChange={(e) => {
-                const v = e.target.value as "RESERVA_EMERGENCIA" | "LIBERDADE_FINANCEIRA" | "OUTRO" | "";
-                if (v) handleBulkObjective(v);
+                if (e.target.value) handleBulkObjective(e.target.value);
               }}
               className="rounded-lg border border-border-strong bg-surface px-2 py-1.5 text-xs text-ink-muted focus:border-accent focus:outline-none"
             >
               <option value="" disabled>
                 {isBulkPending ? "Aplicando…" : `Definir objetivo dos ${visibleAssets.length}…`}
               </option>
-              <option value="LIBERDADE_FINANCEIRA">Liberdade financeira</option>
-              <option value="RESERVA_EMERGENCIA">Reserva de emergência</option>
-              <option value="OUTRO">Outro</option>
+              {goals.length > 0 && (
+                <optgroup label="Suas metas">
+                  {goals.map((g) => (
+                    <option key={g.id} value={`goal:${g.id}`}>
+                      {g.name}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+              <optgroup label="Objetivos gerais">
+                <option value="LIBERDADE_FINANCEIRA">Liberdade financeira</option>
+                <option value="RESERVA_EMERGENCIA">Reserva de emergência</option>
+                <option value="OUTRO">Outro</option>
+              </optgroup>
             </select>
             </div>
           )}
