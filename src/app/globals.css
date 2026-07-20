@@ -33,6 +33,22 @@
   --color-info: #5a8de0;
   --color-info-soft: rgba(90, 141, 224, 0.13);
 
+  /* Acento neutro (lavanda → azul) — SÓ para elementos "neutros" sem carga de marca:
+     linha de gráfico neutra e contorno de pílulas de indicador. Botões/CTAs/links continuam
+     dourados (a única cor de marca) — isto nunca substitui --color-accent. */
+  --color-accent-neutral: #818cf8;
+  --color-accent-neutral-2: #60a5fa;
+  --color-accent-neutral-soft: rgba(129, 140, 248, 0.15);
+
+  /* Cores de categoria — assinatura visual do app (círculo translúcido + ícone na cor cheia). */
+  --color-cat-moradia: #a78bfa;
+  --color-cat-alimentacao: #fb923c;
+  --color-cat-transporte: #60a5fa;
+  --color-cat-saude: #fb7185;
+  --color-cat-lazer: #e879f9;
+  --color-cat-educacao: #2dd4bf;
+  --color-cat-financeiro: #94a3b8;
+
   /* Extras só para paletas categóricas de gráfico (donut de alocação com 7 fatias) */
   --color-chart-5: #a98bd4;
   --color-chart-6: #c9926e;
@@ -73,6 +89,18 @@ html.dark {
   --color-info: #5a8de0;
   --color-info-soft: rgba(90, 141, 224, 0.13);
 
+  --color-accent-neutral: #818cf8;
+  --color-accent-neutral-2: #60a5fa;
+  --color-accent-neutral-soft: rgba(129, 140, 248, 0.15);
+
+  --color-cat-moradia: #a78bfa;
+  --color-cat-alimentacao: #fb923c;
+  --color-cat-transporte: #60a5fa;
+  --color-cat-saude: #fb7185;
+  --color-cat-lazer: #e879f9;
+  --color-cat-educacao: #2dd4bf;
+  --color-cat-financeiro: #94a3b8;
+
   --color-chart-5: #a98bd4;
   --color-chart-6: #c9926e;
   --color-chart-7: #8c8676;
@@ -104,6 +132,16 @@ html.dark {
   --color-danger-soft: var(--color-danger-soft);
   --color-info: var(--color-info);
   --color-info-soft: var(--color-info-soft);
+  --color-accent-neutral: var(--color-accent-neutral);
+  --color-accent-neutral-2: var(--color-accent-neutral-2);
+  --color-accent-neutral-soft: var(--color-accent-neutral-soft);
+  --color-cat-moradia: var(--color-cat-moradia);
+  --color-cat-alimentacao: var(--color-cat-alimentacao);
+  --color-cat-transporte: var(--color-cat-transporte);
+  --color-cat-saude: var(--color-cat-saude);
+  --color-cat-lazer: var(--color-cat-lazer);
+  --color-cat-educacao: var(--color-cat-educacao);
+  --color-cat-financeiro: var(--color-cat-financeiro);
   --color-chart-5: var(--color-chart-5);
   --color-chart-6: var(--color-chart-6);
   --color-chart-7: var(--color-chart-7);
@@ -194,40 +232,77 @@ body {
 
 /* ————— Materiais ————— */
 
-/* Antes era "vidro fosco". Agora é um cartão sólido escuro (sem blur/gradiente) —
-   mantém a classe pra não quebrar as telas que já a usam. */
+/* "Vidro fosco" (liquid glass) — a assinatura visual do app: o conteúdo por trás aparece
+   desfocado/saturado através de uma lâmina escura translúcida, com um aro fino de luz e um
+   brilho especular no topo (sensação de lente/lupa). Usada em cards; ver .glass-pill logo
+   abaixo para a variante mais forte dos elementos que FLUTUAM sobre o conteúdo. */
 .glass {
   position: relative;
   overflow: hidden;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  box-shadow: var(--shadow-premium-sm);
-}
-html.dark .glass {
-  background: var(--color-surface);
-  border-color: var(--color-border);
-  box-shadow: var(--shadow-premium-sm);
+  background: rgba(23, 23, 27, 0.55);
+  backdrop-filter: blur(20px) saturate(165%) brightness(1.08);
+  -webkit-backdrop-filter: blur(20px) saturate(165%) brightness(1.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.28),
+    var(--shadow-premium-sm);
 }
 .glass::before {
-  content: none;
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(148deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.03) 18%, transparent 40%);
+  pointer-events: none;
 }
 .glass > * {
   position: relative;
 }
 
-/* Palco de destaque — um leve brilho dourado no canto, sobre superfície sólida. */
+/* Cápsula de vidro pros elementos FLUTUANTES (tab bar, botão "+", pills de ação/chips ativos) —
+   blur mais forte e aro mais nítido; o formato de pílula vem do rounded-full do próprio elemento. */
+.glass-pill {
+  position: relative;
+  overflow: hidden;
+  background: rgba(26, 29, 38, 0.55);
+  backdrop-filter: blur(22px) saturate(180%) brightness(1.1);
+  -webkit-backdrop-filter: blur(22px) saturate(180%) brightness(1.1);
+  border: 0.5px solid rgba(255, 255, 255, 0.14);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.3),
+    0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+/* Palco de destaque — luz ambiente difusa no topo, na cor do contexto da tela. Dourado por
+   padrão; passe style={{ "--glow-color": "var(--color-success)" }} pra outra cor de contexto
+   (verde no fluxo positivo, azul-lavanda na carteira, etc). */
 .glow-stage {
   position: relative;
   isolation: isolate;
   overflow: hidden;
   background:
-    radial-gradient(120% 90% at 92% 0%, color-mix(in srgb, var(--color-accent) 16%, transparent), transparent 55%),
+    radial-gradient(120% 90% at 50% -10%, color-mix(in srgb, var(--glow-color, var(--color-accent)) 18%, transparent), transparent 60%),
     var(--color-surface-2);
 }
 
 /* Botão primário: gradiente dourado. */
 .bg-accent-gradient {
   background-image: linear-gradient(135deg, var(--color-accent-2), var(--color-accent));
+}
+
+/* Brilho que "respira" do botão "+" central — opacidade oscilando bem devagar. */
+@keyframes glow-breathe {
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+.glow-breathe {
+  animation: glow-breathe 3s ease-in-out infinite;
 }
 
 @keyframes fade-in {
