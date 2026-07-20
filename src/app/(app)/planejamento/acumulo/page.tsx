@@ -64,7 +64,7 @@ export default async function IndependenciaFinanceiraPage() {
     return (
       <div className="flex flex-col gap-6">
         <PageHeader
-          title="Independência Financeira"
+          title="Aposentadoria"
           subtitle="Vamos montar seu plano em alguns passos rápidos."
         />
         <PlanningWizard />

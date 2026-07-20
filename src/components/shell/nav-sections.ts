@@ -36,13 +36,13 @@ export const NAV_SECTIONS: NavSection[] = [
   { basePath: "/orcamento", href: "/orcamento", label: "Orçamento", icon: Wallet },
   {
     basePath: "/planejamento",
-    href: "/planejamento/acumulo",
+    href: "/planejamento/metas",
     label: "Planejamento Financeiro",
     icon: Compass,
     children: [
-      { href: "/planejamento/acumulo", label: "Independência Financeira" },
-      { href: "/planejamento/reserva-emergencia", label: "Reserva de Emergência" },
       { href: "/planejamento/metas", label: "Metas" },
+      { href: "/planejamento/reserva-emergencia", label: "Reserva de Emergência" },
+      { href: "/planejamento/acumulo", label: "Aposentadoria" },
     ],
   },
   {
@@ -114,7 +114,7 @@ export type MobileTab = { basePath: string; href: string; label: string; icon: L
  * (MoreSheet) são renderizados à parte pelo MobileTabBar, entre e depois destes 3 links. */
 export const MOBILE_TABS: MobileTab[] = [
   { basePath: "/mensal", href: "/mensal", label: "Fluxo", icon: ArrowLeftRight },
-  { basePath: "/planejamento", href: "/planejamento/acumulo", label: "Metas", icon: Target },
+  { basePath: "/planejamento", href: "/planejamento/metas", label: "Metas", icon: Target },
   { basePath: "/carteira", href: "/carteira", label: "Carteira", icon: Briefcase },
 ];
 
