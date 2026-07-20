@@ -112,7 +112,56 @@ export type ConfirmedItem = {
   learn: boolean;
 };
 
-export type ImportResult = { ok: true; created: number; skipped: number } | { ok: false; error: string };
+export type ImportResult =
+  | { ok: true; created: number; skipped: number; removedCardPayment?: { description: string; amount: number } | null }
+  | { ok: false; error: string };
+
+/** Reconhece a linha de "pagamento de fatura de cartão" que vem no EXTRATO bancário. */
+const CARD_PAYMENT_RE = /fatura/i;
+function looksLikeCardPayment(description: string | null): boolean {
+  const d = (description ?? "").toLowerCase();
+  return CARD_PAYMENT_RE.test(d) && (/pagament/.test(d) || /cart[aã]o/.test(d));
+}
+
+/**
+ * Quando a pessoa importa a FATURA detalhada, procura no extrato já lançado a linha única de
+ * "pagamento de fatura" (mesmo gasto, agregado) com valor próximo ao total das compras e a
+ * remove — evita contar o gasto duas vezes. Busca no mês das compras e no mês seguinte (a
+ * fatura costuma ser paga depois). Só remove com correspondência de valor confiante.
+ */
+async function removeMatchingCardPayment(
+  userId: string,
+  touchedMonths: Set<string>,
+  purchasesTotal: number,
+): Promise<{ description: string; amount: number } | null> {
+  const monthKeys = new Set<string>();
+  for (const key of touchedMonths) {
+    const [y, m] = key.split("/").map(Number);
+    monthKeys.add(`${y}/${m}`);
+    const next = new Date(y, m, 1); // m já é 1-based → Date(y, m) = mês seguinte
+    monthKeys.add(`${next.getFullYear()}/${next.getMonth() + 1}`);
+  }
+  const where = [...monthKeys].map((k) => {
+    const [y, m] = k.split("/").map(Number);
+    return { year: y, month: m };
+  });
+
+  const candidates = await prisma.monthlyEntry.findMany({
+    where: { userId, category: "EXPENSE", OR: where },
+    select: { id: true, description: true, amount: true },
+  });
+
+  const tolerance = Math.max(50, purchasesTotal * 0.05);
+  const match = candidates
+    .filter((c) => looksLikeCardPayment(c.description))
+    .map((c) => ({ c, diff: Math.abs(Number(c.amount) - purchasesTotal) }))
+    .filter((x) => x.diff <= tolerance)
+    .sort((a, b) => a.diff - b.diff)[0];
+
+  if (!match) return null;
+  await prisma.monthlyEntry.delete({ where: { id: match.c.id } });
+  return { description: match.c.description ?? "Pagamento de fatura", amount: Number(match.c.amount) };
+}
 
 function yearMonthFromISO(date: string): { year: number; month: number } | null {
   const match = date.match(/^(\d{4})-(\d{2})-(\d{2})$/);
@@ -128,12 +177,16 @@ function dedupeKey(date: string | null, amount: number, description: string | nu
 /** Cria os lançamentos escolhidos e memoriza as categorias definidas manualmente (item 3).
  * Transações idênticas já lançadas (mesma data+valor+descrição) são puladas — importar o
  * mesmo extrato duas vezes não duplica nada. */
-export async function importTransactionsAction(items: ConfirmedItem[]): Promise<ImportResult> {
+export async function importTransactionsAction(
+  items: ConfirmedItem[],
+  docType: "extrato" | "fatura" = "extrato",
+): Promise<ImportResult> {
   const ctx = await getRequiredSession();
   const now = new Date();
   const touchedMonths = new Set<string>();
   let created = 0;
   let skipped = 0;
+  let purchasesTotal = 0;
 
   // Meses afetados pela importação → busca os lançamentos existentes deles de uma vez.
   const monthsInBatch = new Set(
@@ -181,6 +234,7 @@ export async function importTransactionsAction(items: ConfirmedItem[]): Promise<
       entryDate: hasExactDate ? new Date(`${item.date}T12:00:00`) : undefined,
     });
     created += 1;
+    purchasesTotal += item.amount;
     touchedMonths.add(`${ym.year}/${ym.month}`);
 
     // Aprende a classificação só para gastos com categoria definida pelo usuário.
@@ -192,11 +246,15 @@ export async function importTransactionsAction(items: ConfirmedItem[]): Promise<
     }
   }
 
+  // Fatura: remove o "pagamento de fatura" que veio do extrato, pra não contar em dobro.
+  const removedCardPayment =
+    docType === "fatura" && created > 0 ? await removeMatchingCardPayment(ctx.userId, touchedMonths, purchasesTotal) : null;
+
   for (const key of touchedMonths) {
     const [year, month] = key.split("/");
     revalidatePath(`/mensal/${year}`);
     revalidatePath(`/mensal/${year}/${month}`);
   }
 
-  return { ok: true, created, skipped };
+  return { ok: true, created, skipped, removedCardPayment };
 }

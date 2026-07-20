@@ -107,18 +107,18 @@ export function StatementImport({ onDone }: { onDone: () => void }) {
         learn: !it.autoClassified,
       }));
     startTransition(async () => {
-      const result = await importTransactionsAction(confirmed);
+      const result = await importTransactionsAction(confirmed, docType);
       if (!result.ok) {
         setError(result.error);
         return;
       }
       setCreatedCount(result.created);
       setPhase("done");
-      showToast(
-        result.skipped > 0
-          ? `${result.created} importados · ${result.skipped} já existiam (ignorados).`
-          : `${result.created} lançamentos importados.`,
-      );
+      const parts = [`${result.created} lançamentos importados`];
+      if (result.skipped > 0) parts.push(`${result.skipped} já existiam (ignorados)`);
+      if (result.removedCardPayment)
+        parts.push(`removi o pagamento da fatura (${formatBRL(result.removedCardPayment.amount)}) do extrato pra não contar duas vezes`);
+      showToast(parts.join(" · ") + ".");
     });
   }
 
