@@ -2,9 +2,11 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Receipt } from "lucide-react";
 import { Card } from "@/components/ui/Card";
+import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import { SpendingPieChart, type SpendingSlice } from "@/components/charts/SpendingPieChart";
+import { PARENT_CATEGORY_ICON, isParentCategoryKey, colorForCategorySlice } from "@/lib/categories";
 import { getCategoryTransactionsAction, type CategoryTransaction } from "./actions";
 
 type Period = "semana" | "mes" | "ano";
@@ -53,8 +55,18 @@ export function SpendingByCategory({
 }) {
   const [period, setPeriod] = useState<Period>(initialPeriod);
   const [openCategory, setOpenCategory] = useState<string | null>(null);
+  const [openCategoryRef, setOpenCategoryRef] = useState<SpendingSlice["category"] | null>(null);
   const [transactions, setTransactions] = useState<CategoryTransaction[]>([]);
   const [isLoading, startTransition] = useTransition();
+
+  // Ícone + cor da categoria aberta (assinatura visual do documento de referência) — categorias
+  // personalizadas não têm o ícone escolhido disponível aqui, então usam um ícone genérico;
+  // a cor, essa sim, é sempre a certa (mesmo hash usado no resto do app).
+  const openIcon =
+    openCategoryRef?.kind === "parent" && isParentCategoryKey(openCategoryRef.value)
+      ? PARENT_CATEGORY_ICON[openCategoryRef.value]
+      : Receipt;
+  const openColor = colorForCategorySlice(openCategoryRef ?? undefined);
 
   const data = period === "semana" ? week : period === "ano" ? year : month;
   const prevHref = period === "ano" ? nav.prevYearHref : nav.prevMonthHref;
@@ -71,9 +83,11 @@ export function SpendingByCategory({
     if (!category) return;
     if (openCategory === slice.name) {
       setOpenCategory(null);
+      setOpenCategoryRef(null);
       return;
     }
     setOpenCategory(slice.name);
+    setOpenCategoryRef(slice.category ?? null);
     startTransition(async () => {
       const txns = await getCategoryTransactionsAction(period, selectedYear, selectedMonth, category);
       setTransactions(txns);
@@ -129,9 +143,12 @@ export function SpendingByCategory({
         {/* Lançamentos da categoria clicada — expande dentro do card. */}
         {openCategory && (
           <div className="mt-5 border-t border-border pt-4">
-            <p className="mb-2 text-xs font-medium text-ink-muted">
-              Lançamentos em <span className="text-ink">{openCategory}</span>
-            </p>
+            <div className="mb-3 flex items-center gap-2.5">
+              <CategoryIcon icon={openIcon} color={openColor} size={36} />
+              <p className="text-xs font-medium text-ink-muted">
+                Lançamentos em <span className="text-ink">{openCategory}</span>
+              </p>
+            </div>
             {isLoading ? (
               <p className="text-sm text-ink-faint">Carregando…</p>
             ) : transactions.length === 0 ? (
