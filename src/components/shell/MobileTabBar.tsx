@@ -47,25 +47,23 @@ export function MobileTabBar({
       {tabLink(MOBILE_TABS[0])}
       {tabLink(MOBILE_TABS[1])}
 
-      {/* "+" central em destaque, encaixado na cápsula de vidro (padrão oficial de registro do
-          documento de referência): gradiente dourado, brilho ao redor que respira devagar, e
-          highlight especular no topo pra parecer uma esfera de vidro/metal, não um botão chapado. */}
+      {/* "+" central em destaque (padrão oficial de registro): gradiente dourado + brilho ao redor
+          e highlight especular no topo. O brilho é feito com box-shadow (NÃO com filter: blur) —
+          filter:blur num elemento fixo faz o Safari do iPhone renderizar um retângulo escuro
+          deslocado (o painel fantasma na lateral). box-shadow o iOS desenha sem esse bug. */}
       <div className="flex flex-1 flex-col items-center justify-end">
-        <div className="relative -mt-6">
-          <span
-            aria-hidden
-            className="glow-breathe absolute -inset-3 rounded-full blur-lg"
-            style={{ backgroundColor: "color-mix(in srgb, var(--color-accent) 55%, transparent)" }}
-          />
-          <button
-            type="button"
-            onClick={onOpenRegistrar}
-            aria-label="Registrar"
-            className="relative flex h-14 w-14 items-center justify-center rounded-full bg-accent-gradient text-on-accent shadow-[inset_0_1px_1px_rgba(255,255,255,0.55),inset_0_-2px_6px_rgba(0,0,0,0.25)] ring-4 ring-canvas transition-transform active:scale-90"
-          >
-            <Plus size={26} strokeWidth={2.4} />
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={onOpenRegistrar}
+          aria-label="Registrar"
+          className="-mt-6 flex h-14 w-14 items-center justify-center rounded-full bg-accent-gradient text-on-accent ring-4 ring-canvas transition-transform active:scale-90"
+          style={{
+            boxShadow:
+              "0 0 20px 2px color-mix(in srgb, var(--color-accent) 50%, transparent), inset 0 1px 1px rgba(255,255,255,0.55), inset 0 -2px 6px rgba(0,0,0,0.25)",
+          }}
+        >
+          <Plus size={26} strokeWidth={2.4} />
+        </button>
         <span className="mt-0.5 text-[10px] font-medium text-ink-muted">Registrar</span>
       </div>
 
