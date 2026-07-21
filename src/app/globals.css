@@ -260,13 +260,14 @@ body {
   position: relative;
 }
 
-/* Cápsula ESCURA SÓLIDA da barra flutuante (tab bar, botão "+") — SEM backdrop-filter.
-   O blur ao vivo num elemento position:fixed faz o Safari do iOS renderizar um retângulo escuro
-   deslocado (a barra de baixo "vazando" pra um painel na lateral). Aqui é tinta escura quase
-   opaca + aro de luz + sombra de flutuação: mesmo visual de cápsula flutuante, sem o bug. */
+/* Cápsula ESCURA SÓLIDA da barra flutuante (tab bar, botão "+"). Tinta escura quase opaca +
+   aro de luz + sombra de flutuação.
+   IMPORTANTE: NÃO definir `position` nem `overflow` aqui. Esta classe é CSS "solto" (fora das
+   camadas do Tailwind) e venceria o `fixed` do utilitário na cascata — a barra deixava de ser
+   fixa, virava um item normal do flex em linha e aparecia como uma coluna escura na lateral
+   (o "painel fantasma", só no mobile, já que no desktop a barra é md:hidden). O posicionamento
+   fica 100% por conta das classes utilitárias do próprio elemento (fixed inset-x-3 …). */
 .glass-pill {
-  position: relative;
-  overflow: hidden;
   background: rgba(28, 28, 34, 0.94);
   border: 0.5px solid rgba(255, 255, 255, 0.14);
   box-shadow:
