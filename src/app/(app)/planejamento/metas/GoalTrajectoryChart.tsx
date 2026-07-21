@@ -32,6 +32,27 @@ export function GoalTrajectoryChart({
   const color = TONE_COLOR[tone];
   const gradientId = `goal-trajectory-${tone}`;
 
+  // Ponto final que pulsa continuamente (documento de referência de design) — só no último
+  // ponto da trajetória; os demais não desenham nada (return null é o padrão do Recharts pra
+  // "sem marcador" nesse ponto).
+  function renderEndDot(props: { cx?: number; cy?: number; index?: number }) {
+    if (props.index !== data.length - 1 || props.cx === undefined || props.cy === undefined) return null;
+    return (
+      <g key="trajectory-end-dot">
+        <circle
+          cx={props.cx}
+          cy={props.cy}
+          r={7}
+          fill={color}
+          opacity={0.4}
+          className="animate-ping"
+          style={{ transformOrigin: "center", transformBox: "fill-box" }}
+        />
+        <circle cx={props.cx} cy={props.cy} r={3.5} fill={color} stroke="var(--color-canvas)" strokeWidth={1.5} />
+      </g>
+    );
+  }
+
   return (
     <ResponsiveContainer width="100%" height={72}>
       <AreaChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: 4 }}>
@@ -47,7 +68,9 @@ export function GoalTrajectoryChart({
           labelFormatter={(month) => (Number(month) === 0 ? "Hoje" : `Daqui a ${month} meses`)}
           formatter={(value) => formatBRL(Number(value))}
         />
-        <Area type="monotone" dataKey="amount" stroke={color} strokeWidth={2} fill={`url(#${gradientId})`} />
+        {/* isAnimationActive (padrão do Recharts) já desenha a área da esquerda pra direita ao
+            entrar na tela — é a "coreografia de entrada" do documento de referência. */}
+        <Area type="monotone" dataKey="amount" stroke={color} strokeWidth={2} fill={`url(#${gradientId})`} dot={renderEndDot} />
       </AreaChart>
     </ResponsiveContainer>
   );
