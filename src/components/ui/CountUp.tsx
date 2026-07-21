@@ -12,15 +12,20 @@ export function CountUp({
   value,
   format = (n) => String(Math.round(n)),
   durationMs = 1300,
+  /** Atraso antes de começar a animar — permite "coreografar" vários números entrando em
+   * cascata na mesma tela (documento de referência de design), em vez de todos ao mesmo tempo. */
+  delayMs = 0,
   className,
 }: {
   value: number;
   format?: (n: number) => string;
   durationMs?: number;
+  delayMs?: number;
   className?: string;
 }) {
   const [display, setDisplay] = useState(0);
   const rafRef = useRef<number | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const startValueRef = useRef(0);
 
   useEffect(() => {
@@ -33,26 +38,30 @@ export function CountUp({
 
     const from = startValueRef.current;
     const to = value;
-    const start = performance.now();
 
-    function tick(now: number) {
+    function tick(now: number, start: number) {
       const elapsed = now - start;
       const t = Math.min(1, elapsed / durationMs);
       // easeOutCubic — desacelera suavemente até o valor final, nunca "bate" seco.
       const eased = 1 - Math.pow(1 - t, 3);
       setDisplay(from + (to - from) * eased);
       if (t < 1) {
-        rafRef.current = requestAnimationFrame(tick);
+        rafRef.current = requestAnimationFrame((n) => tick(n, start));
       } else {
         startValueRef.current = to;
       }
     }
-    rafRef.current = requestAnimationFrame(tick);
+
+    timeoutRef.current = setTimeout(() => {
+      rafRef.current = requestAnimationFrame((now) => tick(now, now));
+    }, delayMs);
+
     return () => {
+      if (timeoutRef.current !== null) clearTimeout(timeoutRef.current);
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- só reinicia a animação quando o valor-alvo muda
-  }, [value, durationMs]);
+  }, [value, durationMs, delayMs]);
 
   return <span className={className}>{format(display)}</span>;
 }

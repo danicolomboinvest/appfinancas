@@ -27,7 +27,7 @@ export function Button({
   return (
     <button
       {...props}
-      className={`inline-flex items-center justify-center rounded-lg font-medium transition-all duration-150 ease-out disabled:cursor-not-allowed disabled:opacity-40 ${VARIANT_CLASSES[variant]} ${SIZE_CLASSES[size]} ${className}`}
+      className={`inline-flex items-center justify-center rounded-full font-medium transition-all duration-150 ease-out disabled:cursor-not-allowed disabled:opacity-40 ${VARIANT_CLASSES[variant]} ${SIZE_CLASSES[size]} ${className}`}
     />
   );
 }

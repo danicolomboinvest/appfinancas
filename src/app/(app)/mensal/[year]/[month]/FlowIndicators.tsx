@@ -47,14 +47,14 @@ function adjacentMonth(year: number, month: number, delta: number) {
 
 /** Anel (gauge) que cresce de 0 até a fração na entrada da tela — mesmo espírito do arco de
  * score do documento de referência de design, só que fininho pra caber num card pequeno. */
-function RingGauge({ fraction }: { fraction: number }) {
+function RingGauge({ fraction, delayMs = 0 }: { fraction: number; delayMs?: number }) {
   const frac = Math.max(0, Math.min(1, Math.abs(fraction)));
   const C = 97.39; // circunferência de r=15.5
   const [offset, setOffset] = useState(C);
   useEffect(() => {
-    const raf = requestAnimationFrame(() => setOffset(C - frac * C));
-    return () => cancelAnimationFrame(raf);
-  }, [frac]);
+    const timeout = setTimeout(() => setOffset(C - frac * C), delayMs);
+    return () => clearTimeout(timeout);
+  }, [frac, delayMs]);
   return (
     <svg viewBox="0 0 36 36" className="h-16 w-16 -rotate-90">
       <circle cx="18" cy="18" r="15.5" fill="none" stroke="var(--color-surface-2)" strokeWidth="3.4" />
@@ -88,6 +88,7 @@ function IndicatorCard({
   tone,
   bar,
   ring,
+  delayMs = 0,
 }: {
   label: string;
   /** Valor bruto (não formatado) — anima em count-up quando presente junto de `format`. */
@@ -99,6 +100,9 @@ function IndicatorCard({
   bar?: number;
   /** Quando presente, mostra um anel (gauge) com o valor no centro, em vez de número + barra. */
   ring?: number;
+  /** Atraso antes de começar a animar — os 6 indicadores entram em cascata, não todos juntos
+   * (coreografia de entrada do documento de referência de design). */
+  delayMs?: number;
 }) {
   if (ring !== undefined) {
     return (
@@ -106,7 +110,7 @@ function IndicatorCard({
         <p className="text-caption text-ink-muted">{label}</p>
         <div className="mt-1.5 flex items-center justify-center">
           <div className="relative h-16 w-16">
-            <RingGauge fraction={ring} />
+            <RingGauge fraction={ring} delayMs={delayMs} />
             <span
               className={`absolute inset-0 flex items-center justify-center text-sm font-semibold tabular-nums ${TONE_TEXT[tone]}`}
             >
@@ -121,7 +125,7 @@ function IndicatorCard({
     <Card className="p-3.5 sm:p-4">
       <p className="text-caption text-ink-muted">{label}</p>
       <p className={`mt-1.5 text-indicator font-semibold tracking-tight tabular-nums ${TONE_TEXT[tone]}`}>
-        {value !== undefined && format ? <CountUp value={value} format={format} /> : formattedValue}
+        {value !== undefined && format ? <CountUp value={value} format={format} delayMs={delayMs} /> : formattedValue}
       </p>
       {bar !== undefined && (
         <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-surface-2">
@@ -224,16 +228,23 @@ export function FlowIndicators({
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <IndicatorCard label="Renda" value={bundle.income} format={formatBRL} tone="success" />
-        <IndicatorCard label="Gastos" value={bundle.expense} format={formatBRL} tone="danger" />
-        <IndicatorCard label="Planejamento" value={bundle.planned} format={formatBRL} tone="ink" />
-        <IndicatorCard label="Aportes" value={bundle.investment} format={formatBRL} tone="accent" />
-        <IndicatorCard label="Saldo" value={bundle.balance} format={formatBRL} tone={bundle.balance >= 0 ? "accent" : "danger"} />
+        <IndicatorCard label="Renda" value={bundle.income} format={formatBRL} tone="success" delayMs={0} />
+        <IndicatorCard label="Gastos" value={bundle.expense} format={formatBRL} tone="danger" delayMs={90} />
+        <IndicatorCard label="Planejamento" value={bundle.planned} format={formatBRL} tone="ink" delayMs={180} />
+        <IndicatorCard label="Aportes" value={bundle.investment} format={formatBRL} tone="accent" delayMs={270} />
+        <IndicatorCard
+          label="Saldo"
+          value={bundle.balance}
+          format={formatBRL}
+          tone={bundle.balance >= 0 ? "accent" : "danger"}
+          delayMs={360}
+        />
         <IndicatorCard
           label="Taxa de poupança"
           formattedValue={rate === null ? "—" : `${Math.round(rate * 100)}%`}
           tone={rate !== null && rate >= 0 ? "success" : "danger"}
           ring={rate ?? undefined}
+          delayMs={450}
         />
       </div>
 
