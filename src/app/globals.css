@@ -232,20 +232,21 @@ body {
 
 /* ————— Materiais ————— */
 
-/* "Vidro fosco" (liquid glass) — a assinatura visual do app: o conteúdo por trás aparece
-   desfocado/saturado através de uma lâmina escura translúcida, com um aro fino de luz e um
-   brilho especular no topo (sensação de lente/lupa). Usada em cards; ver .glass-pill logo
-   abaixo para a variante mais forte dos elementos que FLUTUAM sobre o conteúdo. */
+/* "Lâmina de vidro escuro" dos cards — o VISUAL de vidro (superfície translúcida, aro fino de
+   luz, brilho especular no topo) SEM backdrop-filter. Deliberadamente sem blur ao vivo: o app
+   tem dezenas de cards por tela, e dezenas de camadas de backdrop-filter simultâneas estouram o
+   compositor do iOS Safari (aparecia um retângulo escuro fantasma no lugar errado). O documento
+   de referência recomenda exatamente isso pra cards ("parecem lâminas de vidro escuro mesmo sem
+   blur"); o desfoque ao vivo fica só na .glass-pill (barra flutuante), que é um elemento só. */
 .glass {
   position: relative;
   overflow: hidden;
-  background: rgba(23, 23, 27, 0.55);
-  backdrop-filter: blur(20px) saturate(165%) brightness(1.08);
-  -webkit-backdrop-filter: blur(20px) saturate(165%) brightness(1.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02)),
+    var(--color-surface);
+  border: 1px solid rgba(255, 255, 255, 0.09);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.12),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
     var(--shadow-premium-sm);
 }
 .glass::before {
