@@ -363,7 +363,7 @@ export function RecapStories({ recap }: { recap: WeeklyRecap }) {
         type="button"
         onClick={() => router.push("/mensal")}
         aria-label="Fechar resumo"
-        className="absolute left-4 top-10 z-20 flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-white/10 backdrop-blur-xl transition-colors hover:bg-white/15"
+        className="absolute left-4 top-10 z-20 flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-white/20 transition-colors hover:bg-white/15"
       >
         <X size={20} />
       </button>
@@ -397,7 +397,7 @@ export function RecapStories({ recap }: { recap: WeeklyRecap }) {
           type="button"
           onClick={next}
           aria-label="Avançar"
-          className="absolute bottom-10 right-6 z-20 flex h-16 w-16 items-center justify-center rounded-full border border-white/15 bg-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.5)] backdrop-blur-xl transition-all hover:bg-white/15 active:scale-90"
+          className="absolute bottom-10 right-6 z-20 flex h-16 w-16 items-center justify-center rounded-full border border-white/15 bg-white/20 shadow-[0_8px_32px_rgba(0,0,0,0.5)] transition-all hover:bg-white/25 active:scale-90"
           style={{ marginBottom: "env(safe-area-inset-bottom)" }}
         >
           <ChevronRight size={26} strokeWidth={2.2} />
