@@ -33,6 +33,19 @@ const CLASS_LABEL: Record<string, string> = {
   OUTRO: "Outro",
 };
 
+/** Mesma paleta de STRATEGY_ASSET_CLASS_COLOR (src/lib/portfolio/strategy.ts), duplicada aqui
+ * pra não puxar aquele módulo (que importa Prisma) pro bundle do cliente — dá o mesmo golpe de
+ * vista de cor consistente com o donut acima, sem precisar do mapeamento fino por indexador. */
+const CLASS_COLOR: Record<string, string> = {
+  RENDA_FIXA: "#4FA3C7",
+  TESOURO_DIRETO: "#4FA3C7",
+  ACAO: "#E0A85F",
+  FII: "#6D8BD0",
+  FUNDO: "#9AA0A6",
+  CRIPTO: "#9AA0A6",
+  OUTRO: "#9AA0A6",
+};
+
 /** Rótulo no plural pros filtros/fatias ("Ações", "FIIs"…). */
 const CLASS_PLURAL: Record<string, string> = {
   ACAO: "Ações",
@@ -382,7 +395,13 @@ export function AssetsSection({
                     className="flex w-full items-center justify-between gap-3 p-3 text-left"
                   >
                     <div className="flex min-w-0 items-center gap-3">
-                      <Badge tone="neutral">{CLASS_LABEL[asset.assetClass]}</Badge>
+                      <Badge tone="neutral">
+                        <span
+                          className="mr-1.5 inline-block h-2 w-2 rounded-full align-middle"
+                          style={{ background: CLASS_COLOR[asset.assetClass] }}
+                        />
+                        {CLASS_LABEL[asset.assetClass]}
+                      </Badge>
                       <div className="min-w-0">
                         <p className="truncate text-sm font-medium text-ink">
                           {asset.name}

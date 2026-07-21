@@ -14,6 +14,13 @@ export function SavingsProjectionChart({
   return (
     <ResponsiveContainer width="100%" height={280}>
       <AreaChart data={projection} margin={{ top: 8, right: 16, bottom: 24, left: 8 }}>
+        <defs>
+          {/* Gradiente sob a linha (documento de referência de design) — antes era opacidade fixa. */}
+          <linearGradient id="savings-projection-fill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={CHART_COLORS.accent} stopOpacity={0.3} />
+            <stop offset="100%" stopColor={CHART_COLORS.accent} stopOpacity={0} />
+          </linearGradient>
+        </defs>
         <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} vertical={false} />
         <XAxis
           dataKey="month"
@@ -37,7 +44,7 @@ export function SavingsProjectionChart({
           cursor={{ stroke: CHART_COLORS.grid }}
         />
         <ReferenceLine y={targetAmount} stroke={CHART_COLORS.danger} strokeDasharray="4 4" label={{ value: "Meta", fill: CHART_COLORS.danger, fontSize: 12 }} />
-        <Area type="monotone" dataKey="balance" stroke={CHART_COLORS.accent} fill={CHART_COLORS.accent} fillOpacity={0.15} name="Saldo" strokeWidth={2} />
+        <Area type="monotone" dataKey="balance" stroke={CHART_COLORS.accent} fill="url(#savings-projection-fill)" name="Saldo" strokeWidth={2} />
       </AreaChart>
     </ResponsiveContainer>
   );
