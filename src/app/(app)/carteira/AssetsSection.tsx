@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { Briefcase, Eye, EyeOff, FileUp, Pencil, Plus, RefreshCw } from "lucide-react";
+import { Briefcase, Eye, EyeOff, FileText, FileUp, Pencil, Plus, RefreshCw } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { FitText } from "@/components/ui/FitText";
 import { CountUp } from "@/components/ui/CountUp";
@@ -13,6 +13,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { useToast } from "@/components/ui/toast-context";
 import { DonutAllocationChart } from "@/components/charts/DonutAllocationChart";
 import { PortfolioImport } from "@/components/import/PortfolioImport";
+import { IrpfImport } from "@/components/import/IrpfImport";
 import { DeleteAssetButton } from "./DeleteAssetButton";
 import { AssetForm } from "./AssetForm";
 import { updatePortfolioQuotesAction } from "./quotes-actions";
@@ -116,6 +117,7 @@ export function AssetsSection({
 }) {
   const [createOpen, setCreateOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [irpfOpen, setIrpfOpen] = useState(false);
   const [editingAsset, setEditingAsset] = useState<Asset | null>(null);
   const [classFilter, setClassFilter] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -237,6 +239,10 @@ export function AssetsSection({
             <Button type="button" size="sm" variant="secondary" onClick={() => setImportOpen(true)}>
               <FileUp size={16} strokeWidth={2} />
               Importar
+            </Button>
+            <Button type="button" size="sm" variant="secondary" onClick={() => setIrpfOpen(true)}>
+              <FileText size={16} strokeWidth={2} />
+              Preço médio (IR)
             </Button>
             {hasTickers && (
               <Button type="button" size="sm" variant="secondary" onClick={handleUpdateQuotes} disabled={isUpdatingQuotes}>
@@ -456,6 +462,10 @@ export function AssetsSection({
 
       <Modal open={importOpen} onClose={() => setImportOpen(false)} title="Importar carteira">
         <PortfolioImport onDone={() => setImportOpen(false)} />
+      </Modal>
+
+      <Modal open={irpfOpen} onClose={() => setIrpfOpen(false)} title="Preço médio pela declaração de IR">
+        <IrpfImport onDone={() => setIrpfOpen(false)} />
       </Modal>
 
       <Modal open={editingAsset !== null} onClose={() => setEditingAsset(null)} title="Editar ativo">
