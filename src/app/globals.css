@@ -260,14 +260,14 @@ body {
   position: relative;
 }
 
-/* Cápsula de vidro pros elementos FLUTUANTES (tab bar, botão "+", pills de ação/chips ativos) —
-   blur mais forte e aro mais nítido; o formato de pílula vem do rounded-full do próprio elemento. */
+/* Cápsula ESCURA SÓLIDA da barra flutuante (tab bar, botão "+") — SEM backdrop-filter.
+   O blur ao vivo num elemento position:fixed faz o Safari do iOS renderizar um retângulo escuro
+   deslocado (a barra de baixo "vazando" pra um painel na lateral). Aqui é tinta escura quase
+   opaca + aro de luz + sombra de flutuação: mesmo visual de cápsula flutuante, sem o bug. */
 .glass-pill {
   position: relative;
   overflow: hidden;
-  background: rgba(26, 29, 38, 0.55);
-  backdrop-filter: blur(22px) saturate(180%) brightness(1.1);
-  -webkit-backdrop-filter: blur(22px) saturate(180%) brightness(1.1);
+  background: rgba(28, 28, 34, 0.94);
   border: 0.5px solid rgba(255, 255, 255, 0.14);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.14),
