@@ -3,6 +3,7 @@ import { AppShell } from "@/components/shell/AppShell";
 import { ThemeSync } from "@/components/shell/ThemeSync";
 import { getMonthlySummary } from "@/lib/consolidation/monthly";
 import { getOwnUser } from "@/lib/repositories/user.repo";
+import { nowInBrazil } from "@/lib/date/brazil-now";
 import type { AuthContext } from "@/lib/auth/session";
 
 function formatBRL(value: number) {
@@ -30,7 +31,9 @@ function monthSummaryLine(summary: { totalIncome: number; totalExpense: number; 
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
-  const now = new Date();
+  // Ancorado no fuso do Brasil, não no do servidor — sem isso a saudação ("Bom dia"/"Boa noite")
+  // e o mês do resumo trocariam umas horas antes da hora certa pra quem está no Brasil.
+  const now = nowInBrazil();
 
   const firstName = session?.user.name?.split(" ")[0] ?? session?.user.email?.split("@")[0];
   const greeting = `${timeOfDayGreeting(now)}${firstName ? `, ${firstName}` : ""}.`;
@@ -38,6 +41,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   let summary = "";
   let theme = "dark";
+  let flow: { income: number; expense: number; investment: number } | undefined;
   if (session?.user) {
     const ctx: AuthContext = { userId: session.user.id, role: session.user.role };
     const [monthlySummary, user] = await Promise.all([
@@ -46,6 +50,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     ]);
     summary = monthSummaryLine(monthlySummary);
     theme = user.theme;
+    flow = {
+      income: monthlySummary.totalIncome,
+      expense: monthlySummary.totalExpense,
+      investment: monthlySummary.totalInvestment,
+    };
   }
 
   return (
@@ -57,6 +66,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         greeting={greeting}
         dateLabel={dateLabel}
         summary={summary}
+        flow={flow}
       >
         {children}
       </AppShell>

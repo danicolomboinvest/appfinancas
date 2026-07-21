@@ -18,6 +18,7 @@ export function AppShell({
   greeting,
   dateLabel,
   summary,
+  flow,
 }: {
   children: React.ReactNode;
   isAdmin: boolean;
@@ -25,6 +26,7 @@ export function AppShell({
   greeting: string;
   dateLabel: string;
   summary: string;
+  flow?: { income: number; expense: number; investment: number };
 }) {
   const [collapsed, setCollapsed] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
@@ -84,7 +86,7 @@ export function AppShell({
               (home indicator do iPhone) + o botão "+" elevado. Sem isso o final ficava tampado. */}
           <main className="flex-1 px-5 pb-[calc(7.5rem_+_env(safe-area-inset-bottom))] pt-6 md:px-10 md:pb-8 md:pt-8">
             <div className="mx-auto w-full max-w-6xl animate-fade-in">
-              {showGreeting && <GreetingStrip greeting={greeting} dateLabel={dateLabel} summary={summary} />}
+              {showGreeting && <GreetingStrip greeting={greeting} dateLabel={dateLabel} summary={summary} flow={flow} />}
               {children}
             </div>
           </main>
