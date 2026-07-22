@@ -1,8 +1,8 @@
 /**
- * Pílula com contorno em gradiente — trio Renda/Gastos/Aportes do documento de referência de
+ * Pílula com contorno em gradiente, trio Renda/Gastos/Aportes do documento de referência de
  * design: fundo sólido, borda de 1,5px em gradiente da cor do contexto, valor abreviado dentro
  * e rótulo pequeno colorido embaixo. Assume que fica direto sobre o fundo da página (canvas),
- * não dentro de um card — se precisar usar sobre outra superfície, passe `fillColor`.
+ * não dentro de um card, se precisar usar sobre outra superfície, passe `fillColor`.
  */
 export function GradientPill({
   label,

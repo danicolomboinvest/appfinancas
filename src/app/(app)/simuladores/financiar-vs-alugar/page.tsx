@@ -13,7 +13,7 @@ function formatBRL(value: number) {
 const FIELDS: WizardField[] = [
   { name: "propertyValue", label: "Valor do imóvel", kind: "currency", help: "O preço de venda do imóvel que você quer comprar." },
   { name: "downPayment", label: "Entrada", kind: "currency", help: "Quanto você paga à vista. O restante é o valor financiado." },
-  { name: "cetAnnualRate", label: "Custo do financiamento (CET)", kind: "percent", help: "Custo Efetivo Total ao ano — juros mais tarifas e seguros do financiamento." },
+  { name: "cetAnnualRate", label: "Custo do financiamento (CET)", kind: "percent", help: "Custo Efetivo Total ao ano, juros mais tarifas e seguros do financiamento." },
   { name: "propertyAppreciationAnnualRate", label: "Valorização do imóvel", kind: "percent", help: "Quanto o imóvel valoriza por ano, em média." },
   { name: "termMonths", label: "Prazo", kind: "number", suffix: "meses", help: "Em quantos meses o financiamento é pago (ex.: 360 = 30 anos)." },
   {
@@ -74,8 +74,8 @@ export default function FinanciarVsAlugarPage() {
               </h1>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <StatCard label="Patrimônio final — Financiar" value={formatBRL(result.finalFinancingPatrimony)} tone={result.winner === "FINANCIAR" ? "accent" : "neutral"} />
-              <StatCard label="Patrimônio final — Alugar + investir" value={formatBRL(result.finalInvestedPatrimony)} tone={result.winner === "ALUGAR_E_INVESTIR" ? "accent" : "neutral"} />
+              <StatCard label="Patrimônio final, Financiar" value={formatBRL(result.finalFinancingPatrimony)} tone={result.winner === "FINANCIAR" ? "accent" : "neutral"} />
+              <StatCard label="Patrimônio final, Alugar + investir" value={formatBRL(result.finalInvestedPatrimony)} tone={result.winner === "ALUGAR_E_INVESTIR" ? "accent" : "neutral"} />
               <StatCard label="Valor financiado" value={formatBRL(result.financedAmount)} />
             </div>
             <Card className="p-4">

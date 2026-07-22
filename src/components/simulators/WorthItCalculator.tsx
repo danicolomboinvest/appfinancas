@@ -32,7 +32,7 @@ function parseDigitsToCents(text: string): number | null {
 const CHOICE_COPY: Record<"comprar" | "nao" | "duvida", { tone: "success" | "neutral"; text: string }> = {
   comprar: {
     tone: "success",
-    text: "Se é prioridade pra você, ótimo — só garanta que cabe no seu orçamento do mês.",
+    text: "Se é prioridade pra você, ótimo, só garanta que cabe no seu orçamento do mês.",
   },
   nao: {
     tone: "success",
@@ -40,7 +40,7 @@ const CHOICE_COPY: Record<"comprar" | "nao" | "duvida", { tone: "success" | "neu
   },
   duvida: {
     tone: "neutral",
-    text: "Sem problema. Dá pra voltar aqui quando tiver mais clareza — a dúvida já é um sinal de que vale pensar mais um pouco.",
+    text: "Sem problema. Dá pra voltar aqui quando tiver mais clareza, a dúvida já é um sinal de que vale pensar mais um pouco.",
   },
 };
 
@@ -161,7 +161,7 @@ export function WorthItCalculator({
                 </span>
               ) : (
                 <span>
-                  Você ainda não lançou renda em {incomeMonthLabel} —{" "}
+                  Você ainda não lançou renda em {incomeMonthLabel}.{" "}
                   <button type="button" onClick={startSimulatingIncome} className="font-medium text-accent-strong hover:underline">
                     simule um valor
                   </button>{" "}
@@ -205,7 +205,7 @@ export function WorthItCalculator({
             </span>
             <span>
               <span className="block text-sm font-semibold text-ink">Compra única</span>
-              <span className="block text-xs text-ink-muted">Algo pontual — uma roupa, um eletrônico, uma viagem.</span>
+              <span className="block text-xs text-ink-muted">Algo pontual, uma roupa, um eletrônico, uma viagem.</span>
             </span>
           </button>
 
@@ -225,7 +225,7 @@ export function WorthItCalculator({
             </span>
             <span>
               <span className="block text-sm font-semibold text-ink">Hábito mensal</span>
-              <span className="block text-xs text-ink-muted">Se repete todo mês — assinatura, delivery, café.</span>
+              <span className="block text-xs text-ink-muted">Se repete todo mês, assinatura, delivery, café.</span>
             </span>
           </button>
 

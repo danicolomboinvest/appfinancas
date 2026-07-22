@@ -11,19 +11,19 @@ export type MonthlyBreakdown = {
   totalInvestment: number;
   balance: number;
   /** false para meses futuros que só têm lançamentos por causa de despesas recorrentes
-   *  lançadas antecipadamente (ver `createRecurringMonthlyEntries`) — ainda não aconteceram. */
+   *  lançadas antecipadamente (ver `createRecurringMonthlyEntries`), ainda não aconteceram. */
   isRealized: boolean;
 };
 
 export type YearlySummary = {
   months: MonthlyBreakdown[];
-  /** Soma apenas dos meses já ocorridos (`isRealized`) — "quanto já aconteceu de fato". */
+  /** Soma apenas dos meses já ocorridos (`isRealized`), "quanto já aconteceu de fato". */
   totalIncome: number;
   totalExpense: number;
   totalInvestment: number;
   balance: number;
   savingsRate: number | null;
-  /** Soma dos 12 meses do ano, incluindo meses futuros projetados por recorrência — use para
+  /** Soma dos 12 meses do ano, incluindo meses futuros projetados por recorrência, use para
    *  "como o ano deve fechar se nada mudar", nunca como "quanto já aconteceu". */
   projectedTotalIncome: number;
   projectedTotalExpense: number;
@@ -35,7 +35,7 @@ type GroupedAmount = { month: number; category: EntryCategory; sum: number };
 
 /**
  * Agregação pura (sem Prisma): monta os 12 meses do ano a partir de somas já agrupadas por
- * (mês, categoria) e marca quais já ocorreram — meses com `month > monthsElapsed` só existem
+ * (mês, categoria) e marca quais já ocorreram, meses com `month > monthsElapsed` só existem
  * por causa de recorrência lançada antecipadamente e não devem ser tratados como realizados.
  */
 export function buildMonthlyBreakdowns(grouped: GroupedAmount[], monthsElapsed: number): MonthlyBreakdown[] {
@@ -67,7 +67,7 @@ export function buildMonthlyBreakdowns(grouped: GroupedAmount[], monthsElapsed: 
  * Consolidação do ano inteiro via aggregation query direta (GROUP BY mês + categoria),
  * substituindo o padrão de planilha "Consolidado do Ano" (12 abas lado a lado). Os totais
  * principais (`totalIncome`/`totalExpense`/`totalInvestment`/`balance`) só somam meses já
- * ocorridos — uma despesa recorrente lançada em março não conta como "já gasta" em dezembro
+ * ocorridos, uma despesa recorrente lançada em março não conta como "já gasta" em dezembro
  * só porque a linha do lançamento já existe no banco para os meses futuros.
  */
 export async function getYearlySummary(ctx: AuthContext, year: number): Promise<YearlySummary> {

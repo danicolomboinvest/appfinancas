@@ -14,8 +14,8 @@ function formatBRL(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
-/** Mesmo cartão de planejamento anual que BudgetCategoryCard (sem form/submit próprio — ver
- * OrcamentoForm.tsx), só que pra uma categoria criada pelo usuário — por isso também tem um
+/** Mesmo cartão de planejamento anual que BudgetCategoryCard (sem form/submit próprio, ver
+ * OrcamentoForm.tsx), só que pra uma categoria criada pelo usuário, por isso também tem um
  * botão de apagar, com confirmação, que continua sendo uma ação imediata e separada. */
 export function CustomCategoryBudgetCard({
   customCategoryId,

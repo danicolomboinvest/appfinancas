@@ -2,11 +2,11 @@ import { parseBrazilianNumber } from "./statement-parser";
 import { parseFlexibleNumber } from "./portfolio-parser";
 
 /**
- * Parser da "Declaração de Bens e Direitos" do IRPF (imagem/recibo em PDF) — extrai o PREÇO
+ * Parser da "Declaração de Bens e Direitos" do IRPF (imagem/recibo em PDF), extrai o PREÇO
  * MÉDIO (custo de aquisição) de ações, FIIs e ETFs, que os extratos de corretora quase nunca
  * trazem. É o que permite calcular lucro/prejuízo de verdade na carteira.
  *
- * Desenhado contra o texto que o `pdf-parse` (Node) produz — cada ativo vira um bloco:
+ * Desenhado contra o texto que o `pdf-parse` (Node) produz, cada ativo vira um bloco:
  *
  *   07 EQI - 004389249 - FUNDO IMOBILIÁRIO MXRF11 - 1000   ← <grupo> + discriminação
  *   QUOTAS A UM CUSTO MÉDIO DE R$ 10,29                     ← continuação da discriminação
@@ -27,7 +27,7 @@ export type IrpfAsset = {
   /** Ticker B3/EUA quando identificável na declaração (FLRY3, MXRF11, AAPL); null quando a
    * declaração só traz o nome da empresa (aí o casamento com a carteira é por nome/manual). */
   ticker: string | null;
-  /** Nome legível derivado da discriminação — para exibir e casar por nome quando falta ticker. */
+  /** Nome legível derivado da discriminação, para exibir e casar por nome quando falta ticker. */
   name: string;
   quantity: number | null;
   /** Preço médio por ação/cota (custo de aquisição unitário). */
@@ -74,7 +74,7 @@ const AVG_PRICE_PATTERNS = [
 
 const COD_NEG_RE = /C[óo]digo de Negocia[çc][ãa]o:\s*([^\t\n]+?)(?:\s+Negociados|\s*$)/i;
 // Código do país (105 = Brasil, 249 = EUA…). O `(?:^|\D)` impede casar os 3 últimos dígitos de
-// um número de conta ("EQI - 004389249 - AÇÕES" NÃO é país 249) — só o código de país de verdade,
+// um número de conta ("EQI - 004389249 - AÇÕES" NÃO é país 249), só o código de país de verdade,
 // que vem precedido de espaço e seguido do nome do país.
 const COUNTRY_RE = /(?:^|\D)(\d{3})\s*-\s*[A-ZÀ-Ÿ]/;
 
@@ -125,11 +125,11 @@ function extractExplicitAvg(block: string): number | null {
 
 /**
  * Localiza o marcador "código  nº-do-bem" e devolve o código + o custo de aquisição de 2025.
- * O valor de 2025 (situação atual) é o ÚLTIMO número monetário ANTES desse marcador — mais
+ * O valor de 2025 (situação atual) é o ÚLTIMO número monetário ANTES desse marcador, mais
  * confiável que "o último par do bloco", porque a discriminação às vezes repete o total
  * ("… TOTAL R$ 1.826,85") e as linhas de rendimento/imposto trazem outros valores. */
 function extractCodeAndTotal(block: string): { codigo: string; total: number | null } {
-  // ÚLTIMO par "código nº-bem" do bloco — pares parecidos no texto livre vêm antes do real.
+  // ÚLTIMO par "código nº-bem" do bloco, pares parecidos no texto livre vêm antes do real.
   let m: RegExpMatchArray | null = null;
   for (const match of block.matchAll(CODE_BEM_RE)) m = match;
   const codigo = m ? m[1] : "";
@@ -139,9 +139,9 @@ function extractCodeAndTotal(block: string): { codigo: string; total: number | n
   return { codigo, total };
 }
 
-/** Quantidade — ignora o prefixo de grupo ("07 FUNDOS…" senão "07"+"FUNDOS" viraria quantidade).
+/** Quantidade, ignora o prefixo de grupo ("07 FUNDOS…" senão "07"+"FUNDOS" viraria quantidade).
  * Usa o parse flexível: "1.000 QUOTAS" é MIL (milhar com ponto, sem vírgula), "332,6" é decimal
- * BR e "4.2" (fração de ação dos EUA) é decimal americano — parseBrazilianNumber leria
+ * BR e "4.2" (fração de ação dos EUA) é decimal americano, parseBrazilianNumber leria
  * "1.000" como 1 e multiplicaria o preço médio por 1000. */
 function extractQuantity(block: string): number | null {
   const body = block.replace(/^\d{2}\s+/, "");
@@ -177,7 +177,7 @@ export function parseIrpfBensEDireitos(content: string): IrpfAsset[] {
     const grupo = lines[from].slice(0, 2);
     const { codigo, total } = extractCodeAndTotal(block);
     const kind = KIND_BY_GROUP_CODE[`${grupo}${codigo}`];
-    if (!kind) continue; // não é ação/FII/ETF negociado em bolsa — ignora (CDB, fundo, imóvel…)
+    if (!kind) continue; // não é ação/FII/ETF negociado em bolsa, ignora (CDB, fundo, imóvel…)
 
     // Posição zerada em 31/12 = ativo vendido no ano; não entra (não há preço médio atual).
     if (total !== null && total <= 0) continue;
@@ -196,7 +196,7 @@ export function parseIrpfBensEDireitos(content: string): IrpfAsset[] {
     const totalCost =
       total ?? (explicitAvg !== null && quantity && quantity > 0 ? explicitAvg * quantity : null);
 
-    // Sem preço médio nem custo, não há o que preencher — pula.
+    // Sem preço médio nem custo, não há o que preencher, pula.
     if (averagePrice === null && totalCost === null) continue;
 
     assets.push({

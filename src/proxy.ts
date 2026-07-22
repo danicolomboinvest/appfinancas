@@ -20,9 +20,9 @@ export default auth((req) => {
 });
 
 export const config = {
-  // Deixa passar sem auth os assets do PWA — o browser/OS busca o manifest e os ícones sem a
+  // Deixa passar sem auth os assets do PWA, o browser/OS busca o manifest e os ícones sem a
   // sessão do usuário na hora de instalar o app; se caírem no redirect de login, a instalação
   // fica sem nome/ícone e o iOS não trata como app standalone.
-  // api/cron fica fora do redirect de login — a rota valida sozinha o segredo/agendador.
+  // api/cron fica fora do redirect de login, a rota valida sozinha o segredo/agendador.
   matcher: ["/((?!api/auth|api/cron|_next/static|_next/image|favicon.ico|manifest.webmanifest|icons).*)"],
 };

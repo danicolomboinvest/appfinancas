@@ -25,7 +25,7 @@ const anbimaLink = (
 const FIELDS: WizardField[] = [
   { name: "faceValue", label: "Valor de face", kind: "currency", help: <>Valor nominal do título na data de vencimento. {anbimaLink}</> },
   { name: "originalRate", label: "Taxa contratada", kind: "percent", help: "A taxa que você travou ao comprar o título." },
-  { name: "newRate", label: "Nova taxa de mercado", kind: "percent", help: "A taxa que o mercado pratica hoje para esse título — é o que muda o preço na marcação a mercado." },
+  { name: "newRate", label: "Nova taxa de mercado", kind: "percent", help: "A taxa que o mercado pratica hoje para esse título, é o que muda o preço na marcação a mercado." },
   { name: "totalYears", label: "Prazo total", kind: "number", suffix: "anos", help: "Prazo do título, do início ao vencimento." },
   { name: "yearsRemaining", label: "Anos até o vencimento", kind: "number", suffix: "anos", help: "Quanto falta até o vencimento a partir de hoje." },
   {
@@ -44,7 +44,7 @@ const FIELDS: WizardField[] = [
     kind: "number",
     suffix: "anos",
     showIf: (v) => v.hasSemiannualCoupons === "sim",
-    help: <>Prazo médio ponderado dos fluxos do título — mais curto que o vencimento por causa dos cupons. {anbimaLink}</>,
+    help: <>Prazo médio ponderado dos fluxos do título, mais curto que o vencimento por causa dos cupons. {anbimaLink}</>,
   },
   { name: "investedAmount", label: "Valor investido (opcional)", kind: "currency", help: "Quanto você tem aplicado nesse título, para ver o resultado em reais. Pode deixar zerado." },
 ];

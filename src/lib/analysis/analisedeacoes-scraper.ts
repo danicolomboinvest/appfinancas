@@ -11,7 +11,7 @@ const USER_AGENT =
  * com indicadores de valuation que a ficha não tinha (P/L, P/VP, EV/EBITDA, margens, liquidez).
  *
  * A página expõe cada indicador como <div class="card-info-item"> com <strong class="item-label">
- * e <span class="item-value"> — HTML estático, sem JS, então dá pra raspar server-side.
+ * e <span class="item-value">, HTML estático, sem JS, então dá pra raspar server-side.
  */
 
 /** Rótulos EXATOS da página (abreviados/minúsculos) → keys internas. Cobre os critérios da ficha
@@ -52,7 +52,7 @@ export function parseAnalisedeacoesPage(html: string): Record<string, string> {
     const label = $(el).find(".item-label").first().text().trim();
     const key = LABEL_TO_KEY[label];
     if (!key || out[key] !== undefined) return;
-    // O valor tem um <span> de ícone dentro — removemos os filhos e ficamos com o texto.
+    // O valor tem um <span> de ícone dentro, removemos os filhos e ficamos com o texto.
     const value = $(el).find(".item-value").first().clone().children().remove().end().text().trim();
     if (value) out[key] = value;
   });

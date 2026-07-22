@@ -2,7 +2,7 @@ import Link from "next/link";
 
 export const metadata = { title: "Termos de Uso · SPI Finance" };
 
-/** Termos de Uso — conteúdo base para o lançamento; revisar com apoio jurídico antes de escalar. */
+/** Termos de Uso, conteúdo base para o lançamento; revisar com apoio jurídico antes de escalar. */
 export default function TermosPage() {
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-2xl flex-col gap-6 px-6 py-12">
@@ -25,7 +25,7 @@ export default function TermosPage() {
 
         <h2 className="mt-2 text-base font-semibold text-ink">2. Não é recomendação de investimento</h2>
         <p>
-          Todo conteúdo do aplicativo — incluindo simuladores, comparativos, projeções, rebalanceamento e análises —
+          Todo conteúdo do aplicativo, incluindo simuladores, comparativos, projeções, rebalanceamento e análises —
           tem caráter <strong className="text-ink">educativo e informativo</strong>. Nada aqui constitui recomendação,
           oferta ou aconselhamento de investimento, jurídico ou tributário. Decisões financeiras são de sua exclusiva
           responsabilidade; considere consultar um profissional certificado.

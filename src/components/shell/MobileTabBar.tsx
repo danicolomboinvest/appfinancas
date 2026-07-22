@@ -13,7 +13,7 @@ const TAB_TOUR: Record<string, string> = {
 };
 
 /**
- * Navegação primária no mobile — barra de 5 posições no rodapé:
+ * Navegação primária no mobile, barra de 5 posições no rodapé:
  * Fluxo | Metas | [ + Registrar ] | Carteira | Mais.
  * O "+" central é o ÚNICO ponto de entrada de registro (abre o RegistrarDrawer, não navega);
  * "Mais" abre a MoreSheet. Os 3 links vêm de MOBILE_TABS (ver nav-sections).

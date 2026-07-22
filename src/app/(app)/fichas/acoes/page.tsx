@@ -24,7 +24,7 @@ export default async function FichasAcoesPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <PageHeader title="Análises — Ações" subtitle="Checklist qualitativo e quantitativo de análise fundamentalista." />
+      <PageHeader title="Análises de Ações" subtitle="Checklist qualitativo e quantitativo de análise fundamentalista." />
 
       <CreateStockSheetForm />
 

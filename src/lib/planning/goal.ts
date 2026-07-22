@@ -82,7 +82,7 @@ export type GoalTrajectoryPoint = { month: number; amount: number };
 /**
  * Trajetória PROJETADA (não histórica) do valor guardado até a data-alvo, assumindo o
  * aporte mensal sugerido por `computeGoalPlan` a partir de hoje. Não existe, hoje, nenhum
- * histórico real de aportes por meta no banco — por isso esta função mostra "para onde a
+ * histórico real de aportes por meta no banco, por isso esta função mostra "para onde a
  * meta está indo" sob o plano atual, não "de onde ela veio". Reaproveita monthlyRate e
  * requiredMonthlyContribution já calculados por computeGoalPlan, sem introduzir uma nova
  * fórmula financeira.

@@ -47,7 +47,7 @@ export function StrategyComparisonSection({
         <DonutAllocationChart title="Estratégia-alvo" data={targetData} />
       </Card>
 
-      {/* Só números — o usuário bate o olho e sabe quanto mover. Sem parágrafos (item 5.2). */}
+      {/* Só números, o usuário bate o olho e sabe quanto mover. Sem parágrafos (item 5.2). */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {visible.map((p) => {
           const targetValue = p.currentValue + p.rebalanceAmount;
@@ -97,7 +97,7 @@ export function StrategyComparisonSection({
       </div>
 
       <p className="text-caption text-ink-faint">
-        Referência matemática com base na sua estratégia — não é recomendação de compra ou venda.
+        Referência matemática com base na sua estratégia, não é recomendação de compra ou venda.
       </p>
     </div>
   );

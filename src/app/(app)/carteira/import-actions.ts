@@ -19,7 +19,7 @@ export type ParsedHoldingItem = {
   ticker: string;
   quantity: number;
   value: number;
-  /** Quanto foi investido (do extrato, quando informado) — base do lucro/prejuízo. */
+  /** Quanto foi investido (do extrato, quando informado), base do lucro/prejuízo. */
   investedValue: number | null;
   assetClass: AssetClass;
   /** Indexador da renda fixa detectado no extrato (pós/IPCA/prefixado), ou null. */
@@ -35,8 +35,8 @@ export type ParsePortfolioResult =
   | { ok: false; error: string };
 
 /** Lê o extrato/nota da corretora ou relatório da B3 (CSV/Excel/PDF), identifica os ativos e
- * COMPARA com a carteira atual — quem reimporta o extrato vê só o que mudou.
- * O arquivo vem CRU num FormData ({ file, encoding }) — string grande como argumento de
+ * COMPARA com a carteira atual, quem reimporta o extrato vê só o que mudou.
+ * O arquivo vem CRU num FormData ({ file, encoding }), string grande como argumento de
  * action estoura o limite de serialização do React (~1M chars). */
 export async function parsePortfolioAction(formData: FormData): Promise<ParsePortfolioResult> {
   const ctx = await getRequiredSession();
@@ -50,13 +50,13 @@ export async function parsePortfolioAction(formData: FormData): Promise<ParsePor
     throw err;
   }
 
-  // PDF escaneado/foto não tem texto extraível — avisa e pede Excel.
+  // PDF escaneado/foto não tem texto extraível, avisa e pede Excel.
   const readableChars = text.replace(/[^\p{L}\p{N}]/gu, "").length;
   if (encoding === "pdf" && readableChars < 12) {
     return {
       ok: false,
       error:
-        "Não consegui ler este PDF — ele parece ser escaneado ou uma foto. Suba a posição em Excel (.xlsx) ou CSV que aí funciona.",
+        "Não consegui ler este PDF, ele parece ser escaneado ou uma foto. Suba a posição em Excel (.xlsx) ou CSV que aí funciona.",
     };
   }
 
@@ -65,11 +65,11 @@ export async function parsePortfolioAction(formData: FormData): Promise<ParsePor
     return {
       ok: false,
       error:
-        "Não identifiquei ativos nesse arquivo. Se for um PDF escaneado/foto, suba a posição em Excel (.xlsx) ou CSV — costuma ler melhor.",
+        "Não identifiquei ativos nesse arquivo. Se for um PDF escaneado/foto, suba a posição em Excel (.xlsx) ou CSV, costuma ler melhor.",
     };
   }
 
-  // Carteira atual indexada por ticker E por nome — imports antigos usam o ticker como nome.
+  // Carteira atual indexada por ticker E por nome, imports antigos usam o ticker como nome.
   const existing = await prisma.asset.findMany({
     where: { userId: ctx.userId },
     select: { name: true, ticker: true, quantity: true, currentValue: true },
@@ -129,7 +129,7 @@ export type ImportPortfolioResult =
   | { ok: false; error: string };
 
 /** Aplica o extrato na carteira: cria os novos e atualiza os que mudaram (quantidade, valor
- * atual e — quando o extrato traz preço médio — o valor investido). Ativos sem mudança nem
+ * atual e, quando o extrato traz preço médio, o valor investido). Ativos sem mudança nem
  * chegam aqui. Objetivo padrão OUTRO nos novos; o usuário refina depois. */
 export async function importPortfolioAction(holdings: ConfirmedHolding[]): Promise<ImportPortfolioResult> {
   const ctx = await getRequiredSession();

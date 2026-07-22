@@ -35,7 +35,7 @@ const CLASS_LABEL: Record<string, string> = {
 };
 
 /** Mesma paleta de STRATEGY_ASSET_CLASS_COLOR (src/lib/portfolio/strategy.ts), duplicada aqui
- * pra não puxar aquele módulo (que importa Prisma) pro bundle do cliente — dá o mesmo golpe de
+ * pra não puxar aquele módulo (que importa Prisma) pro bundle do cliente, dá o mesmo golpe de
  * vista de cor consistente com o donut acima, sem precisar do mapeamento fino por indexador. */
 const CLASS_COLOR: Record<string, string> = {
   RENDA_FIXA: "#4FA3C7",
@@ -102,7 +102,7 @@ function profitOf(asset: { investedValue: number | null; currentValue: number })
   return asset.currentValue - asset.investedValue;
 }
 
-/** Lista de ativos + criação/edição em modal — a lista vem primeiro, o formulário só aparece
+/** Lista de ativos + criação/edição em modal, a lista vem primeiro, o formulário só aparece
  * quando a pessoa pede (botão "+ Novo ativo" ou "Editar" em cada linha). */
 export function AssetsSection({
   assets,
@@ -162,10 +162,10 @@ export function AssetsSection({
   // Lucro geral: só considera ativos com investido conhecido (evita distorcer o %).
   const totalInvested = assets.reduce((sum, a) => sum + (a.investedValue !== null && a.investedValue > 0 ? a.investedValue : 0), 0);
   const totalProfit = assets.reduce((sum, a) => sum + (profitOf(a) ?? 0), 0);
-  /** Formata em R$ — ou "R$ ••••" quando o olho está fechado. */
+  /** Formata em R$, ou "R$ ••••" quando o olho está fechado. */
   const money = (v: number) => (hidden ? "R$ ••••" : formatBRL(v));
 
-  // Carteira atual agrupada por TIPO (Ações, FIIs, Fundos…) — com dezenas de ativos, uma
+  // Carteira atual agrupada por TIPO (Ações, FIIs, Fundos…), com dezenas de ativos, uma
   // fatia por ativo vira confete; por classe o percentual conta a história de verdade.
   const valueByClass = new Map<string, number>();
   const countByClass = new Map<string, number>();

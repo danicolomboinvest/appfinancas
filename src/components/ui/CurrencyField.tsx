@@ -16,7 +16,7 @@ function parseDigitsToCents(text: string): number | null {
 
 /**
  * Input monetário com máscara em tempo real (ex.: "R$ 1.234,56"), que carrega internamente
- * o valor decimal em reais (ex.: 1234.56) via um input escondido — para formulários nativos
+ * o valor decimal em reais (ex.: 1234.56) via um input escondido, para formulários nativos
  * (server actions), sem depender do react-hook-form.
  */
 export function CurrencyField({
@@ -37,7 +37,7 @@ export function CurrencyField({
   error?: string;
   id?: string;
   className?: string;
-  /** Chamado a cada digitação com o valor atual em reais — para cálculos derivados ao vivo (ex.: total anual). */
+  /** Chamado a cada digitação com o valor atual em reais, para cálculos derivados ao vivo (ex.: total anual). */
   onValueChange?: (value: number) => void;
 }) {
   const generatedId = useId();

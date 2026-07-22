@@ -3,7 +3,7 @@ export type SheetHistoryEntry = { id: string; analysisDate: Date; totalScore: nu
 export type ScoreTrend = {
   latestScore: number | null;
   previousScore: number | null;
-  /** latestScore - previousScore — null quando não há duas análises com nota para comparar. */
+  /** latestScore - previousScore, null quando não há duas análises com nota para comparar. */
   deltaAbsolute: number | null;
 };
 
@@ -32,7 +32,7 @@ export type GroupedLatestSheet<T> = { latest: T; previousCount: number };
 
 /**
  * Agrupa uma lista de fichas (ordenada por analysisDate desc, como listSheets devolve) por ticker,
- * mantendo só a mais recente de cada ticker + quantas análises anteriores existem — usado na lista
+ * mantendo só a mais recente de cada ticker + quantas análises anteriores existem, usado na lista
  * /fichas/acoes para não mostrar reanálises do mesmo ticker como linhas soltas e repetidas.
  */
 export function groupLatestSheetPerTicker<T extends { ticker: string }>(

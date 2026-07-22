@@ -16,7 +16,7 @@ type Mode = "choice" | "type" | "voice" | "import";
 
 /**
  * Ponto de entrada ÚNICO de registro no app (item 1 da Rodada 2). Aberto só pelo "+" central da
- * tab bar (mobile) ou pelo botão "Registrar" da sidebar (desktop) — nenhum botão solto nas telas.
+ * tab bar (mobile) ou pelo botão "Registrar" da sidebar (desktop), nenhum botão solto nas telas.
  * O microfone vive aqui dentro: só aparece depois que a pessoa escolhe "Gravar áudio".
  */
 export function RegistrarDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {

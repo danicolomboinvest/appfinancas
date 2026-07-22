@@ -2,7 +2,7 @@
 
 /**
  * Última linha de defesa: erro no PRÓPRIO layout raiz (error.tsx não cobre esse caso).
- * Renderiza um documento completo — aqui não há tema nem fontes carregadas, então o estilo
+ * Renderiza um documento completo, aqui não há tema nem fontes carregadas, então o estilo
  * é inline e mínimo, só pra nunca mostrar a tela técnica em inglês do Next.
  */
 export default function GlobalError({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
@@ -29,7 +29,7 @@ export default function GlobalError({ reset }: { error: Error & { digest?: strin
         </div>
         <h1 style={{ fontSize: 20, margin: 0 }}>Ops, algo deu errado por aqui</h1>
         <p style={{ maxWidth: 380, fontSize: 14, lineHeight: 1.6, color: "#9b968b", margin: 0 }}>
-          Foi um erro nosso, não seu — seus dados estão seguros. Tente recarregar a página.
+          Foi um erro nosso, não seu, seus dados estão seguros. Tente recarregar a página.
         </p>
         <button
           type="button"

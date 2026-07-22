@@ -7,13 +7,13 @@ export function GreetingStrip({
   summary,
   flow,
 }: {
-  /** Ex.: "Bom dia, Daniela." — já pronto, computado no servidor. */
+  /** Ex.: "Bom dia, Daniela.", já pronto, computado no servidor. */
   greeting: string;
   /** Ex.: "Terça-feira, 6 de julho" */
   dateLabel: string;
-  /** 1 linha de resumo financeiro do momento — ex.: "Seu saldo este mês está positivo em R$ 1.500,00." */
+  /** 1 linha de resumo financeiro do momento, ex.: "Seu saldo este mês está positivo em R$ 1.500,00." */
   summary: string;
-  /** Renda/Gastos/Aportes do mês — trio de pílulas com contorno em gradiente (documento de
+  /** Renda/Gastos/Aportes do mês, trio de pílulas com contorno em gradiente (documento de
    * referência de design). Omitido quando ainda não há nada lançado no mês. */
   flow?: { income: number; expense: number; investment: number };
 }) {

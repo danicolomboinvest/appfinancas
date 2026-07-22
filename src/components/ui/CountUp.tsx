@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 /**
- * Anima um número de 0 até `value` na entrada da tela (~1,3s, easing de desaceleração) — o
+ * Anima um número de 0 até `value` na entrada da tela (~1,3s, easing de desaceleração), o
  * "count-up" dos números-herói pedido no documento de referência de design. Formate o valor
  * já animado com `format` (ex.: moeda) pra não perder a formatação durante a transição.
  * Respeita prefers-reduced-motion (pula direto pro valor final, sem animar).
@@ -13,17 +13,17 @@ export function CountUp({
   format,
   brl = false,
   durationMs = 1300,
-  /** Atraso antes de começar a animar — permite "coreografar" vários números entrando em
+  /** Atraso antes de começar a animar, permite "coreografar" vários números entrando em
    * cascata na mesma tela (documento de referência de design), em vez de todos ao mesmo tempo. */
   delayMs = 0,
   className,
 }: {
   value: number;
-  /** SÓ para chamadores que também são client components — função não atravessa a fronteira
+  /** SÓ para chamadores que também são client components, função não atravessa a fronteira
    * servidor→cliente (o React Flight rejeita e derruba a página inteira). De um Server
    * Component, use `brl` em vez de passar formatBRL. */
   format?: (n: number) => string;
-  /** Formata como moeda (R$) — serializável, seguro pra usar de Server Components. */
+  /** Formata como moeda (R$), serializável, seguro pra usar de Server Components. */
   brl?: boolean;
   durationMs?: number;
   delayMs?: number;
@@ -53,12 +53,12 @@ export function CountUp({
     function tick(now: number, start: number) {
       const elapsed = now - start;
       const t = Math.min(1, elapsed / durationMs);
-      // easeOutCubic — desacelera suavemente até o valor final, nunca "bate" seco.
+      // easeOutCubic, desacelera suavemente até o valor final, nunca "bate" seco.
       const eased = 1 - Math.pow(1 - t, 3);
       const next = from + (to - from) * eased;
       setDisplay(next);
       // Baseline sempre atualizado: se o valor-alvo mudar NO MEIO da animação (ex.: alternar
-      // Mensal/Anual rápido), a próxima começa de onde o número está — sem "voltar pro zero".
+      // Mensal/Anual rápido), a próxima começa de onde o número está, sem "voltar pro zero".
       startValueRef.current = next;
       if (t < 1) {
         rafRef.current = requestAnimationFrame((n) => tick(n, start));

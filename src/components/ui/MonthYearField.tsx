@@ -18,7 +18,7 @@ function monthValueToLastDay(monthValue: string): string {
 }
 
 /**
- * Seletor de mês/ano (input nativo type="month") em vez de data livre — evita erros de
+ * Seletor de mês/ano (input nativo type="month") em vez de data livre, evita erros de
  * digitação. Envia o último dia do mês escolhido como valor real via input escondido.
  */
 export function MonthYearField({

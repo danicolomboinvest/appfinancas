@@ -25,7 +25,7 @@ export type AccumulationResult = {
 
 /**
  * Fase de acúmulo do Planejamento Financeiro: capitaliza o patrimônio inicial + aportes
- * mensais, rodando duas vezes — uma com a taxa nominal, outra com a taxa real (Fisher) —
+ * mensais, rodando duas vezes, uma com a taxa nominal, outra com a taxa real (Fisher) —
  * para separar o efeito da inflação do retorno de fato.
  */
 export function computeAccumulation(input: AccumulationInput): AccumulationResult {

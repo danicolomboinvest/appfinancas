@@ -10,7 +10,7 @@ type Step = { label: string; done: boolean; href: string };
 
 /**
  * Guia dos primeiros passos: aparece pra quem ainda não completou o básico e some sozinho
- * quando os 3 passos estão feitos (ou se a pessoa dispensar — lembrado no aparelho).
+ * quando os 3 passos estão feitos (ou se a pessoa dispensar, lembrado no aparelho).
  */
 export function OnboardingChecklist({
   hasEntry,

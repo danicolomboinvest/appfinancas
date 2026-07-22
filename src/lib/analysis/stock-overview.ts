@@ -3,7 +3,7 @@
  * (Favorável / Na média / Atenção) comparado a uma REFERÊNCIA GERAL e transparente.
  *
  * IMPORTANTE: é material educativo, NÃO recomendação. Os limites são regras de bolso de mercado
- * que variam MUITO por setor e momento da empresa — por isso cada selo mostra o porquê, e há um
+ * que variam MUITO por setor e momento da empresa, por isso cada selo mostra o porquê, e há um
  * aviso fixo. Nunca produz um veredito de compra/venda nem uma nota final da empresa.
  */
 
@@ -20,7 +20,7 @@ export type OverviewItem = {
 };
 
 export const OVERVIEW_DISCLAIMER =
-  "Referências gerais e educativas — os limites variam muito conforme o setor e o momento da empresa. " +
+  "Referências gerais e educativas, os limites variam muito conforme o setor e o momento da empresa. " +
   "Isto não é recomendação de compra ou venda; use como ponto de partida da sua própria análise.";
 
 /** Número em formato BR ("4,86", "26%", "R$ 40,59", "-0,54") → número. null se não der. */
@@ -47,7 +47,7 @@ function band(dir: "high" | "low", good: number, bad: number, unit: string): Rul
   };
 }
 
-/** Réguas por indicador — todas de conhecimento geral de mercado, exibidas junto do selo. */
+/** Réguas por indicador, todas de conhecimento geral de mercado, exibidas junto do selo. */
 const RULES: Record<string, Rule> = {
   p_l: {
     label: "P/L (Preço/Lucro)",
@@ -60,7 +60,7 @@ const RULES: Record<string, Rule> = {
   ev_ebitda: { label: "EV/EBITDA", evaluate: band("low", 6, 12, "") },
   dividend_yield: {
     label: "Dividend Yield",
-    // DY baixo NÃO é defeito (ações de crescimento pagam pouco) — nunca marcamos "atenção".
+    // DY baixo NÃO é defeito (ações de crescimento pagam pouco), nunca marcamos "atenção".
     evaluate: (n) => ({
       signal: n >= 5 ? "favoravel" : "neutro",
       reference: "acima de ~5% é um DY alto (bom pra renda; confirme se é sustentável)",

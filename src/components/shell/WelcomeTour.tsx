@@ -17,7 +17,7 @@ type Step = {
 const STEPS: Step[] = [
   {
     title: "Boas-vindas ao SPI Finance 👋",
-    text: "Um tour rápido mostrando ONDE fica cada coisa — vou destacar os botões um por um. Dá pra pular quando quiser.",
+    text: "Um tour rápido mostrando ONDE fica cada coisa, vou destacar os botões um por um. Dá pra pular quando quiser.",
   },
   {
     target: "registrar",
@@ -28,7 +28,7 @@ const STEPS: Step[] = [
   {
     target: "fluxo",
     title: "Aqui é o Fluxo",
-    text: "Seu mês em um lugar: renda, gastos e o orçamento por categoria — com um alerta quando você gasta rápido demais.",
+    text: "Seu mês em um lugar: renda, gastos e o orçamento por categoria, com um alerta quando você gasta rápido demais.",
   },
   {
     target: "metas",
@@ -47,7 +47,7 @@ const STEPS: Step[] = [
   },
   {
     title: "Tudo pronto! 🎉",
-    text: "Bora começar? Toque no + e registre seu primeiro lançamento — em segundos você já vê seu mês tomando forma.",
+    text: "Bora começar? Toque no + e registre seu primeiro lançamento, em segundos você já vê seu mês tomando forma.",
   },
 ];
 
@@ -66,7 +66,7 @@ function findVisibleTarget(name: string): HTMLElement | null {
 
 /**
  * Tour de boas-vindas GUIADO na primeira entrada (uma vez por aparelho): destaca cada botão de
- * navegação de verdade com um foco iluminado e uma explicação ao lado, passo a passo — não é só
+ * navegação de verdade com um foco iluminado e uma explicação ao lado, passo a passo, não é só
  * texto numa tela. Funciona no mobile (tab bar de baixo) e no desktop (sidebar), achando qual
  * está visível. Complementa o checklist de "primeiros passos" (que guia O QUE FAZER primeiro).
  */

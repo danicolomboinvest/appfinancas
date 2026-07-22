@@ -57,7 +57,7 @@ function summarize(field: WizardField, value: number | string): string {
 /**
  * Wizard reutilizável dos simuladores: uma pergunta por tela (com "?" explicando cada campo),
  * e no fim uma tela de resultado onde a pessoa vê o cálculo e ajusta qualquer resposta ali mesmo
- * — o resultado recalcula ao vivo. Mesma linguagem do "Vale a pena comprar?".
+ *, o resultado recalcula ao vivo. Mesma linguagem do "Vale a pena comprar?".
  */
 export function SimulatorWizard({
   eyebrow,

@@ -39,7 +39,7 @@ function Chip({
 /**
  * Campos de categorização de um lançamento: nível 1 (Renda/Gasto/Aporte, select) e, quando
  * "Gasto" é selecionado, o nível 2 (categoria-mãe + subcategoria) via chips clicáveis em vez
- * de dropdown — inclui sugestão das subcategorias mais usadas recentemente e um chip "Outro"
+ * de dropdown, inclui sugestão das subcategorias mais usadas recentemente e um chip "Outro"
  * com texto livre. Publica os valores via inputs escondidos (category/parentCategory/subcategory)
  * para funcionar dentro de um <form action={serverAction}> nativo.
  */
@@ -51,7 +51,7 @@ export function CategoryFields({
   defaultParentCategory,
   defaultSubcategory,
 }: {
-  /** Subcategorias mais usadas recentemente, por categoria-mãe — só as da categoria-mãe
+  /** Subcategorias mais usadas recentemente, por categoria-mãe, só as da categoria-mãe
    * selecionada no momento são exibidas, pra não sugerir algo de outra categoria. */
   recentSubcategories?: Partial<Record<ParentCategory, string[]>>;
   /** Categorias personalizadas do usuário, exibidas como chips extras ao lado das 7 padrão. */
@@ -79,7 +79,7 @@ export function CategoryFields({
   const [freeSubcategory, setFreeSubcategory] = useState(!isExpense ? (defaultSubcategory ?? "") : "");
   const finalSubcategory = customCategoryId ? customText : isOutro ? customText : subcategory;
 
-  // Item 5 — criar a categoria-mãe na hora, quando a que a pessoa quer ainda não existe.
+  // Item 5, criar a categoria-mãe na hora, quando a que a pessoa quer ainda não existe.
   const [extraCategories, setExtraCategories] = useState<{ id: string; name: string }[]>([]);
   const [addingCategory, setAddingCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");

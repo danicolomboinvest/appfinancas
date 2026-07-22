@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ChevronRight, Sparkles } from "lucide-react";
 
-/** Convite pro Resumo Semanal no topo do Fluxo — leva pra experiência imersiva de stories. */
+/** Convite pro Resumo Semanal no topo do Fluxo, leva pra experiência imersiva de stories. */
 export function WeeklyRecapCard() {
   return (
     <Link

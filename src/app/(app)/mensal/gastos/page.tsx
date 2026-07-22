@@ -49,7 +49,7 @@ export default async function SpendingByCategoryPage(props: PageProps<"/mensal/g
   const ctx = await getRequiredSession();
   const now = new Date();
 
-  // Mês/ano selecionáveis via URL (?year&month) — as setas do seletor navegam por aqui,
+  // Mês/ano selecionáveis via URL (?year&month), as setas do seletor navegam por aqui,
   // e o servidor recalcula os dados do período pedido. `view` preserva a aba ativa.
   const yearParam = Number(firstOf(searchParams.year));
   const monthParam = Number(firstOf(searchParams.month));
@@ -80,7 +80,7 @@ export default async function SpendingByCategoryPage(props: PageProps<"/mensal/g
 
   const customNameById = new Map(customCategories.map((c) => [c.id, c.name]));
 
-  // As consultas anuais vêm por mês+categoria — somamos por categoria.
+  // As consultas anuais vêm por mês+categoria, somamos por categoria.
   const parentYear = Object.values(
     parentYearByMonth.reduce<Record<string, { parentCategory: ParentCategory; spent: number }>>((acc, r) => {
       acc[r.parentCategory] = { parentCategory: r.parentCategory, spent: (acc[r.parentCategory]?.spent ?? 0) + r.spent };

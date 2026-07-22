@@ -59,11 +59,11 @@ export function CriteriaForm({
   initialResponses: FormResponse[];
   initialConclusion: string | null;
   initialTotalScore: number | null;
-  /** Sugestões de valores vindas de uma fonte externa — só preenchem campos ainda vazios. */
+  /** Sugestões de valores vindas de uma fonte externa, só preenchem campos ainda vazios. */
   appliedSuggestions?: { criterionId: string; value: string }[];
-  /** Incrementa a cada nova leva de sugestões aplicadas — dispara a mesclagem abaixo. */
+  /** Incrementa a cada nova leva de sugestões aplicadas, dispara a mesclagem abaixo. */
   applyToken?: number;
-  /** Análise automática por indicador (item 8) — selo + régua exibidos dentro de cada linha.
+  /** Análise automática por indicador (item 8), selo + régua exibidos dentro de cada linha.
    * Só as fichas que têm essa leitura (Ações) passam; as demais ficam sem, como antes. */
   analysisByCriterionId?: Record<string, CriterionAnalysis>;
   /** Aviso educativo mostrado uma vez, no rodapé, quando há análise automática. */
@@ -91,7 +91,7 @@ export function CriteriaForm({
   const [autoFilledIds, setAutoFilledIds] = useState<Set<string>>(new Set());
   const { showToast } = useToast();
 
-  // Mescla sugestões aplicadas quando `applyToken` muda — ajuste de estado a partir de uma prop,
+  // Mescla sugestões aplicadas quando `applyToken` muda, ajuste de estado a partir de uma prop,
   // feito durante a renderização (não em useEffect) seguindo o padrão recomendado em
   // https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes
   const [prevApplyToken, setPrevApplyToken] = useState(applyToken ?? 0);
@@ -206,7 +206,7 @@ export function CriteriaForm({
                       {criterion.label}
                       {criterion.helpText && <HelpTooltip text={criterion.helpText} />}
                       {autoFilledIds.has(criterion.id) && (
-                        <span className="text-[10px] font-normal text-accent-strong" title="Preenchido automaticamente a partir de uma fonte externa — revise antes de salvar">
+                        <span className="text-[10px] font-normal text-accent-strong" title="Preenchido automaticamente a partir de uma fonte externa, revise antes de salvar">
                           (auto)
                         </span>
                       )}

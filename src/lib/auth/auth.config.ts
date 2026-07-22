@@ -25,7 +25,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const user = await prisma.user.findUnique({ where: { email } });
         if (!user) return null;
 
-        // Conta travada por excesso de tentativas — nem compara a senha.
+        // Conta travada por excesso de tentativas, nem compara a senha.
         if (user.lockedUntil && user.lockedUntil > new Date()) return null;
 
         const isValidPassword = await bcrypt.compare(password, user.passwordHash);

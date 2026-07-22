@@ -10,9 +10,9 @@ export type AssetInput = {
   goalId?: string;
   quantity?: number;
   currentUnitPrice?: number;
-  /** Quanto foi investido — a atualização de cotações nunca altera este campo. */
+  /** Quanto foi investido, a atualização de cotações nunca altera este campo. */
   investedValue?: number;
-  /** Indexador da renda fixa (pós/IPCA/prefixado) — refina o mapeamento pra Estratégia. */
+  /** Indexador da renda fixa (pós/IPCA/prefixado), refina o mapeamento pra Estratégia. */
   fixedIncomeIndex?: FixedIncomeIndex;
   currentValue: number;
   idealAllocationPercent?: number;
@@ -24,7 +24,7 @@ export async function listAssets(ctx: AuthContext) {
   return prisma.asset.findMany({ where: { userId: ctx.userId }, orderBy: { createdAt: "desc" } });
 }
 
-/** goalId só é aceito se apontar para uma meta do próprio usuário — evita associar a ativo de outro. */
+/** goalId só é aceito se apontar para uma meta do próprio usuário, evita associar a ativo de outro. */
 async function resolveOwnGoalId(ctx: AuthContext, input: AssetInput): Promise<string | null> {
   if (input.objective !== "META" || !input.goalId) return null;
   const goal = await prisma.goal.findFirst({ where: { id: input.goalId, userId: ctx.userId }, select: { id: true } });

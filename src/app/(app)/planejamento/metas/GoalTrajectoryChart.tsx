@@ -15,7 +15,7 @@ function formatBRL(value: number) {
 }
 
 /**
- * Sparkline da trajetória PROJETADA de uma meta (não histórica — ver computeGoalTrajectory).
+ * Sparkline da trajetória PROJETADA de uma meta (não histórica, ver computeGoalTrajectory).
  * Deliberadamente sem eixos/grid: o objetivo é uma leitura rápida da tendência, não uma
  * análise detalhada ponto a ponto.
  */
@@ -32,7 +32,7 @@ export function GoalTrajectoryChart({
   const color = TONE_COLOR[tone];
   const gradientId = `goal-trajectory-${tone}`;
 
-  // Ponto final que pulsa continuamente (documento de referência de design) — só no último
+  // Ponto final que pulsa continuamente (documento de referência de design), só no último
   // ponto da trajetória; os demais não desenham nada (return null é o padrão do Recharts pra
   // "sem marcador" nesse ponto).
   function renderEndDot(props: { cx?: number; cy?: number; index?: number }) {
@@ -69,7 +69,7 @@ export function GoalTrajectoryChart({
           formatter={(value) => formatBRL(Number(value))}
         />
         {/* isAnimationActive (padrão do Recharts) já desenha a área da esquerda pra direita ao
-            entrar na tela — é a "coreografia de entrada" do documento de referência. */}
+            entrar na tela, é a "coreografia de entrada" do documento de referência. */}
         <Area type="monotone" dataKey="amount" stroke={color} strokeWidth={2} fill={`url(#${gradientId})`} dot={renderEndDot} />
       </AreaChart>
     </ResponsiveContainer>

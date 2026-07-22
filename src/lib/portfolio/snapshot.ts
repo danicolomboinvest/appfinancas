@@ -7,7 +7,7 @@ function startOfDay(date: Date) {
 }
 
 /**
- * Grava o snapshot de hoje se ainda não existir (upsert idempotente — chamar em toda
+ * Grava o snapshot de hoje se ainda não existir (upsert idempotente, chamar em toda
  * leitura do dashboard/insights não gera duplicatas nem sobrescreve o valor de dias
  * anteriores). É a única forma de reconstruir "quanto o patrimônio cresceu" no futuro,
  * já que Asset só guarda o valor atual.
@@ -21,7 +21,7 @@ export async function recordPatrimonySnapshotIfNeeded(ctx: AuthContext, totalVal
   });
 }
 
-/** Snapshot mais próximo (na data ou antes dela) de N meses atrás — null se não houver histórico suficiente. */
+/** Snapshot mais próximo (na data ou antes dela) de N meses atrás, null se não houver histórico suficiente. */
 export async function getPatrimonySnapshotMonthsAgo(ctx: AuthContext, monthsAgo: number) {
   const now = nowInBrazil();
   const targetDate = startOfDay(new Date(now.getFullYear(), now.getMonth() - monthsAgo, now.getDate()));
@@ -32,7 +32,7 @@ export async function getPatrimonySnapshotMonthsAgo(ctx: AuthContext, monthsAgo:
   return snapshot ? Number(snapshot.totalValue) : null;
 }
 
-/** Maior valor de patrimônio já registrado ANTES de hoje — usado para detectar "novo recorde". */
+/** Maior valor de patrimônio já registrado ANTES de hoje, usado para detectar "novo recorde". */
 export async function getPatrimonyAllTimeHighBeforeToday(ctx: AuthContext) {
   const today = startOfDay(nowInBrazil());
   const snapshot = await prisma.patrimonySnapshot.findFirst({

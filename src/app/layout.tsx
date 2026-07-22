@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Albert_Sans, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
-// Identidade First Light: Albert Sans (variável) é a única família de texto — títulos em
+// Identidade First Light: Albert Sans (variável) é a única família de texto, títulos em
 // bold tracking-tight, números tabulares como herói. Geist Mono fica só pro font-mono.
 const albertSans = Albert_Sans({
   variable: "--font-albert-sans",
@@ -18,7 +18,7 @@ export const metadata: Metadata = {
   title: "SPI Finance",
   description: "Organize seu patrimônio, metas e investimentos em um só lugar.",
   // Faz o app abrir em tela cheia (sem barra de URL) quando salvo na tela inicial do iOS.
-  // statusBarStyle "black-translucent" (texto claro) porque o tema é preto+dourado — o
+  // statusBarStyle "black-translucent" (texto claro) porque o tema é preto+dourado, o
   // relógio/bateria aparecem em branco sobre o fundo escuro.
   appleWebApp: {
     capable: true,
@@ -29,7 +29,7 @@ export const metadata: Metadata = {
     apple: "/icons/apple-touch-icon.png",
   },
   // O Next já emite o `mobile-web-app-capable` (padrão novo), mas o iOS Safari antigo só entra
-  // em modo standalone com a tag legada `apple-mobile-web-app-capable` — é ela que tira a barra
+  // em modo standalone com a tag legada `apple-mobile-web-app-capable`, é ela que tira a barra
   // de URL quando o app é aberto pela tela inicial. Mantemos as duas por compatibilidade.
   other: {
     "apple-mobile-web-app-capable": "yes",
@@ -69,7 +69,7 @@ export default function RootLayout({
       <head>
         {/* Roda antes da hidratação pra aplicar o tema salvo sem flash. Alterna `type` entre
             server/client (em vez de um <script> comum) pra evitar o aviso do React sobre
-            tags <script> renderizadas via JSX — ver node_modules/next/dist/docs/01-app/02-guides/preventing-flash-before-hydration.md */}
+            tags <script> renderizadas via JSX, ver node_modules/next/dist/docs/01-app/02-guides/preventing-flash-before-hydration.md */}
         <script
           type={typeof window === "undefined" ? "text/javascript" : "text/plain"}
           suppressHydrationWarning

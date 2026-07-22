@@ -17,7 +17,7 @@ export async function listSheets(ctx: AuthContext, sheetType: SheetType) {
   });
 }
 
-/** Todas as fichas de um mesmo ticker, mais antiga primeiro — alimenta o gráfico de evolução da nota. */
+/** Todas as fichas de um mesmo ticker, mais antiga primeiro, alimenta o gráfico de evolução da nota. */
 export async function listSheetsByTicker(ctx: AuthContext, sheetType: SheetType, ticker: string) {
   return prisma.analysisSheet.findMany({
     where: { userId: ctx.userId, sheetType, ticker },

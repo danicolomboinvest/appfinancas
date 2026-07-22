@@ -59,7 +59,7 @@ function formatElapsed(ms: number): string {
 
 const BAR_COUNT = 28;
 
-/** Mensagem amigável por código de erro do SpeechRecognition — item 8/revisão pré-lançamento:
+/** Mensagem amigável por código de erro do SpeechRecognition, item 8/revisão pré-lançamento:
  * antes, qualquer erro (permissão negada, sem fala, rede) parava a gravação em silêncio e a
  * pessoa achava que o app tinha travado. */
 function errorMessageFor(code: string): string {
@@ -79,7 +79,7 @@ function errorMessageFor(code: string): string {
   }
 }
 
-/** Loop de animação fora do componente — funções aninhadas no corpo do componente que chamam
+/** Loop de animação fora do componente, funções aninhadas no corpo do componente que chamam
  * APIs impuras (Date.now) são sinalizadas pelo lint de pureza do React Compiler mesmo quando
  * só rodam via requestAnimationFrame, nunca durante o render. */
 function runVisualizerLoop(
@@ -119,7 +119,7 @@ function runVisualizerLoop(
  * reagindo ao volume em tempo real, e ao soltar transcreve e devolve o lançamento por `onParsed`.
  *
  * Duas APIs em paralelo: SpeechRecognition faz a transcrição; getUserMedia + AnalyserNode só
- * alimenta a onda visual — se a segunda falhar, a transcrição continua, só sem a onda.
+ * alimenta a onda visual, se a segunda falhar, a transcrição continua, só sem a onda.
  */
 export function VoiceRecorder({ onParsed }: { onParsed: (parsed: ParsedVoiceEntry) => void }) {
   const [recording, setRecording] = useState(false);
@@ -165,7 +165,7 @@ export function VoiceRecorder({ onParsed }: { onParsed: (parsed: ParsedVoiceEntr
         runVisualizerLoop(analyser, levels, barRefs.current, timerElRef.current, startedAt, rafHolderRef.current),
       );
     } catch {
-      // Sem acesso ao stream bruto — a transcrição continua via SpeechRecognition, só sem a onda.
+      // Sem acesso ao stream bruto, a transcrição continua via SpeechRecognition, só sem a onda.
     }
   }
 
@@ -194,7 +194,7 @@ export function VoiceRecorder({ onParsed }: { onParsed: (parsed: ParsedVoiceEntr
       setErrorMessage(errorMessageFor(event.error));
       stopVisualizer();
     };
-    // Captura o onParsed do momento em que a gravação começou — o closure vive só até soltar
+    // Captura o onParsed do momento em que a gravação começou, o closure vive só até soltar
     // o botão, então não há risco real de callback obsoleto.
     recognition.onend = () => {
       const results = latestResultsRef.current;
@@ -202,7 +202,7 @@ export function VoiceRecorder({ onParsed }: { onParsed: (parsed: ParsedVoiceEntr
       if (transcript.trim()) {
         onParsed(parseVoiceEntry(transcript));
       } else {
-        // "onerror" já tratou os casos de falha explícita — aqui é o caso de terminar sem
+        // "onerror" já tratou os casos de falha explícita, aqui é o caso de terminar sem
         // erro mas sem nenhuma fala reconhecida (silêncio, murmúrio), que antes não avisava nada.
         setErrorMessage((prev) => prev ?? "Não entendemos o que foi dito. Tente falar de novo.");
       }
@@ -233,7 +233,7 @@ export function VoiceRecorder({ onParsed }: { onParsed: (parsed: ParsedVoiceEntr
 
   return (
     <div className="flex flex-col items-center gap-5 py-2">
-      {/* Onda de volume — sempre presente pra reservar o espaço; anima só durante a gravação. */}
+      {/* Onda de volume, sempre presente pra reservar o espaço; anima só durante a gravação. */}
       <div className="flex h-14 items-center gap-[3px]">
         {Array.from({ length: BAR_COUNT }).map((_, i) => (
           <div

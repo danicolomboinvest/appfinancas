@@ -6,7 +6,7 @@ import type { ParentCategory } from "@prisma/client";
 export type WeekdaySpend = { label: string; value: number };
 
 export type WeeklyRecap = {
-  /** Rótulo do período, ex.: "6 de jul. — 12 de jul." */
+  /** Rótulo do período, ex.: "6 de jul., 12 de jul." */
   rangeLabel: string;
   weekSpent: number;
   prevWeekSpent: number;
@@ -19,7 +19,7 @@ export type WeeklyRecap = {
   worstDay: { label: string; value: number } | null;
   /** Renda − gastos desde o primeiro lançamento ("ficou no bolso"). */
   allTimeSaved: number;
-  /** Quantos meses de uso (mínimo 1) — base do ritmo. */
+  /** Quantos meses de uso (mínimo 1), base do ritmo. */
   monthsActive: number;
   avgMonthlySaving: number;
   /** Poupança média projetada a 10% a.a. por 10 anos. */
@@ -120,7 +120,7 @@ export async function computeWeeklyRecap(ctx: AuthContext): Promise<WeeklyRecap>
   const avgMonthlySaving = allTimeSaved / monthsActive;
 
   return {
-    rangeLabel: `${fmtDay(weekStart)} — ${fmtDay(startOfToday)}`,
+    rangeLabel: `${fmtDay(weekStart)} a ${fmtDay(startOfToday)}`,
     weekSpent,
     prevWeekSpent,
     weekDeltaPercent: prevWeekSpent > 0 ? (weekSpent - prevWeekSpent) / prevWeekSpent : null,

@@ -59,7 +59,7 @@ export function StatementImport({ onDone }: { onDone: () => void }) {
 
   async function handleFile(file: File) {
     setError(null);
-    // Limite do corpo da Server Action é 8 MB — barra antes com mensagem clara.
+    // Limite do corpo da Server Action é 8 MB, barra antes com mensagem clara.
     if (file.size > 7.5 * 1024 * 1024) {
       setError("Arquivo muito grande (máx. ~7 MB). Exporte um período menor do extrato e tente de novo.");
       return;
@@ -182,7 +182,7 @@ export function StatementImport({ onDone }: { onDone: () => void }) {
   if (phase === "review") {
     const entry = reviewQueue[reviewIdx];
     if (!entry) {
-      // Fila esvaziou (todas classificadas) — segue pra confirmação.
+      // Fila esvaziou (todas classificadas), segue pra confirmação.
       setPhase("confirm");
       return null;
     }

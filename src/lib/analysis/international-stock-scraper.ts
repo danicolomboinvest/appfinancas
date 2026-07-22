@@ -24,7 +24,7 @@ export function buildInvestidor10StockUrl(ticker: string): string {
 
 /**
  * Extrai os critérios com dado publicado (de 22 do catálogo de Stocks) direto do HTML estático
- * da página de ações internacionais do investidor10 — sem IA, sem custo por chamada. Diferente
+ * da página de ações internacionais do investidor10, sem IA, sem custo por chamada. Diferente
  * da página de ações brasileiras, aqui não existe Tag Along/Free Float (conceitos específicos
  * da B3), mas "Volume Médio de negociações Diária" cobre o mesmo papel de `liquidez`.
  */

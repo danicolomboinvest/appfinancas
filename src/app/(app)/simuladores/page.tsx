@@ -31,7 +31,7 @@ const SIMULATORS = [
     href: "/simuladores/carro",
     icon: Car,
     title: "Carro: Assinar vs. Comprar",
-    subtitle: "Assinatura de carro ou compra 0km — qual sai mais em conta?",
+    subtitle: "Assinatura de carro ou compra 0km, qual sai mais em conta?",
   },
   {
     href: "/simuladores/vale-a-pena",

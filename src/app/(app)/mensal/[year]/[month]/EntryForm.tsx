@@ -12,7 +12,7 @@ import { createMonthlyEntryAction, updateMonthlyEntryAction, type MonthlyEntrySt
 
 const initialState: MonthlyEntryState = {};
 
-/** "YYYY-MM-DD" local (não usar toISOString — vira UTC e pode voltar um dia). */
+/** "YYYY-MM-DD" local (não usar toISOString, vira UTC e pode voltar um dia). */
 function toDateInputValue(date: Date): string {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, "0");
@@ -43,15 +43,15 @@ export function EntryForm({
   recentSubcategories?: Partial<Record<ParentCategory, string[]>>;
   /** Categorias personalizadas do usuário, exibidas como chips extras junto das 7 padrão. */
   customCategories?: { id: string; name: string }[];
-  /** Metas do usuário — permite vincular um aporte à meta ("Aportar pra viagem"). */
+  /** Metas do usuário, permite vincular um aporte à meta ("Aportar pra viagem"). */
   goals?: { id: string; name: string }[];
-  /** Chamado quando o lançamento é salvo com sucesso — usado para fechar o modal, por exemplo. */
+  /** Chamado quando o lançamento é salvo com sucesso, usado para fechar o modal, por exemplo. */
   onSuccess?: () => void;
-  /** "stacked" empilha os campos verticalmente — melhor dentro de um modal estreito. */
+  /** "stacked" empilha os campos verticalmente, melhor dentro de um modal estreito. */
   layout?: "inline" | "stacked";
   /** Presente = modo edição: salva por update em vez de criar um novo. */
   entryId?: string;
-  /** Pré-preenchimento (ex.: vindo do lançamento por voz) — o usuário sempre revisa antes de salvar. */
+  /** Pré-preenchimento (ex.: vindo do lançamento por voz), o usuário sempre revisa antes de salvar. */
   defaultDescription?: string;
   defaultAmount?: number;
   defaultCategory?: string;

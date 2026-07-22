@@ -6,7 +6,7 @@ export type FetchStockIntlIndicatorsResult =
   | { ok: true; results: { key: string; value: string }[] }
   | { ok: false; error: string };
 
-/** Busca os indicadores públicos do ticker no investidor10.com.br — sem IA, sem custo por chamada. */
+/** Busca os indicadores públicos do ticker no investidor10.com.br, sem IA, sem custo por chamada. */
 export async function fetchStockIntlIndicatorsAction(ticker: string): Promise<FetchStockIntlIndicatorsResult> {
   if (!ticker.trim()) {
     return { ok: false, error: "Ticker vazio." };

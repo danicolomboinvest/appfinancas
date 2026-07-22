@@ -23,7 +23,7 @@ export function StatCard({
   hint?: string;
   tone?: Tone;
   /** Comparação com o período anterior (ex.: mês passado). `goodDirection` define se "para cima" é positivo.
-   * `displayValue`, quando presente, substitui o "X%" calculado (ex.: um valor em R$) — útil para métricas
+   * `displayValue`, quando presente, substitui o "X%" calculado (ex.: um valor em R$), útil para métricas
    * como saldo, onde a variação percentual pode ficar enganosa perto de zero (ver dashboard/page.tsx). */
   trend?: { percent: number; periodLabel: string; goodDirection?: "up" | "down"; displayValue?: string };
   /** Série de pontos (ex.: um por mês) para uma mini-tendência visual, com tooltip ao passar o mouse. */

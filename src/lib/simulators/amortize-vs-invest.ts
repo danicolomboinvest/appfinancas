@@ -15,7 +15,7 @@ export type AmortizeVsInvestInput = {
   system: AmortizationSystem;
   extraAmount: number;
   investmentAnnualRate: number;
-  /** Alíquota de IR sobre o rendimento do investimento — nunca comparar taxa bruta com economia de juros. */
+  /** Alíquota de IR sobre o rendimento do investimento, nunca comparar taxa bruta com economia de juros. */
   incomeTaxRate: number;
 };
 

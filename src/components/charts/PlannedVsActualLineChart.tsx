@@ -10,7 +10,7 @@ export function PlannedVsActualLineChart({ months }: { months: MonthlyPlannedVsA
   const data = months.map((m) => ({
     name: MONTH_LABELS[m.month - 1],
     Planejado: m.totalPlanned,
-    // Meses futuros ainda não têm "realizado" — a linha só desenha até o mês corrente.
+    // Meses futuros ainda não têm "realizado", a linha só desenha até o mês corrente.
     Realizado: m.isRealized ? m.totalSpent : null,
   }));
 

@@ -40,7 +40,7 @@ export const PARENT_CATEGORY_LABEL: Record<ParentCategory, string> = {
   FINANCEIRO: "Financeiro",
 };
 
-/** Descrição de uma linha por categoria — usada nos cards de planejamento em /orcamento. */
+/** Descrição de uma linha por categoria, usada nos cards de planejamento em /orcamento. */
 export const PARENT_CATEGORY_DESCRIPTION: Record<ParentCategory, string> = {
   MORADIA: "Aluguel, condomínio, contas da casa.",
   ALIMENTACAO: "Supermercado, restaurantes, delivery.",
@@ -51,7 +51,7 @@ export const PARENT_CATEGORY_DESCRIPTION: Record<ParentCategory, string> = {
   FINANCEIRO: "Tarifas, juros, seguros, impostos.",
 };
 
-/** Ícone por categoria — mesmo espírito de GOAL_ICONS em GoalCard.tsx, só que fixo por categoria. */
+/** Ícone por categoria, mesmo espírito de GOAL_ICONS em GoalCard.tsx, só que fixo por categoria. */
 export const PARENT_CATEGORY_ICON: Record<ParentCategory, LucideIcon> = {
   MORADIA: Home,
   ALIMENTACAO: UtensilsCrossed,
@@ -62,7 +62,7 @@ export const PARENT_CATEGORY_ICON: Record<ParentCategory, LucideIcon> = {
   FINANCEIRO: Landmark,
 };
 
-/** Cor própria por categoria-mãe — usada no círculo translúcido de CategoryIcon.tsx (assinatura
+/** Cor própria por categoria-mãe, usada no círculo translúcido de CategoryIcon.tsx (assinatura
  * visual do documento de referência de design: é O elemento que quebra o monocromático). */
 export const PARENT_CATEGORY_COLOR: Record<ParentCategory, string> = {
   MORADIA: "var(--color-cat-moradia)",
@@ -74,7 +74,7 @@ export const PARENT_CATEGORY_COLOR: Record<ParentCategory, string> = {
   FINANCEIRO: "var(--color-cat-financeiro)",
 };
 
-/** Paleta cíclica pras categorias personalizadas (sem cor própria fixa) — usa o índice de criação. */
+/** Paleta cíclica pras categorias personalizadas (sem cor própria fixa), usa o índice de criação. */
 const CUSTOM_CATEGORY_PALETTE = [
   "var(--color-cat-moradia)",
   "var(--color-cat-alimentacao)",
@@ -89,7 +89,7 @@ export function customCategoryColor(index: number): string {
   return CUSTOM_CATEGORY_PALETTE[index % CUSTOM_CATEGORY_PALETTE.length];
 }
 
-/** Cor estável de uma fatia de gasto (categoria-mãe ou personalizada) — a MESMA categoria
+/** Cor estável de uma fatia de gasto (categoria-mãe ou personalizada), a MESMA categoria
  * sempre com a MESMA cor, em vez de uma cor por posição no ranking (que mudaria a cada
  * período conforme o que gastou mais). Usada na pizza de "Só gastos". */
 export function colorForCategorySlice(category?: { kind: "parent" | "custom"; value: string }): string {
@@ -121,7 +121,7 @@ export const OUTRO_SUBCATEGORY_LABEL = "Outro";
 /**
  * Ícones disponíveis pra categorias personalizadas (o usuário escolhe uma dessas ao criar).
  * Guardamos só a `key` no banco (`CustomCategory.icon`) e resolvemos pro componente de ícone
- * aqui, dentro do client component que renderiza — nunca passamos o componente em si como
+ * aqui, dentro do client component que renderiza, nunca passamos o componente em si como
  * prop de Server pra Client (mesmo cuidado de `PARENT_CATEGORY_ICON`/`BudgetCategoryCard`).
  */
 export const CUSTOM_CATEGORY_ICON_OPTIONS: { key: string; icon: LucideIcon; label: string }[] = [

@@ -38,7 +38,7 @@ function formatBRL(value: number) {
 }
 
 /** Tempo verbal do título depende de o ano já ter passado, estar em curso, ou ainda vir.
- * Fuso do Brasil — o UTC do servidor viraria o ano cedo demais na noite de 31/12. */
+ * Fuso do Brasil, o UTC do servidor viraria o ano cedo demais na noite de 31/12. */
 function yearPageTitle(year: number): string {
   const currentYear = nowInBrazil().getFullYear();
   if (year < currentYear) return `Como estava seu dinheiro em ${year}?`;

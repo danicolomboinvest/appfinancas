@@ -32,7 +32,7 @@ export function LinkedStatCard({
   label: string;
   value: string;
   hint?: string;
-  /** 0 a 1 — quando presente, mostra uma barra de progresso abaixo do valor. */
+  /** 0 a 1, quando presente, mostra uma barra de progresso abaixo do valor. */
   progressPercent?: number;
   tone?: Tone;
 }) {

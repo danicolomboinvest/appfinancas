@@ -44,7 +44,7 @@ export default function RedefinirSenhaPage({ searchParams }: PageProps<"/redefin
         ) : !token ? (
           <div className="flex flex-col gap-4 rounded-2xl border border-border bg-surface p-6 text-center shadow-premium-sm">
             <p className="text-sm text-ink">
-              Link inválido — o endereço não tem um código de recuperação. Peça um novo link.
+              Link inválido, o endereço não tem um código de recuperação. Peça um novo link.
             </p>
             <Link href="/esqueci-senha" className="text-sm font-medium text-accent-strong hover:underline">
               Pedir novo link

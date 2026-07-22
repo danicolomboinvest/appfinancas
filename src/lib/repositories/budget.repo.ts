@@ -9,8 +9,8 @@ export async function listBudgets(ctx: AuthContext, year: number, month: number)
 
 /**
  * Cria ou atualiza o orçamento de uma categoria-mãe para o mês. Não dá pra usar o atalho
- * `where` de chave composta do Prisma aqui — o tipo gerado pra chaves compostas exige valores
- * não-nulos em todos os campos, mesmo quando a coluna (`customCategoryId`) é opcional — então
+ * `where` de chave composta do Prisma aqui, o tipo gerado pra chaves compostas exige valores
+ * não-nulos em todos os campos, mesmo quando a coluna (`customCategoryId`) é opcional, então
  * fazemos o find-then-create-or-update manualmente.
  */
 export async function upsertBudget(
@@ -43,7 +43,7 @@ export async function sumExpensesByParentCategory(ctx: AuthContext, year: number
  * Aplica o mesmo valor planejado aos 12 meses do ano de uma categoria (upsert em massa) —
  * usado pela tela de planejamento (/orcamento), onde o usuário define um valor mensal único
  * em vez de editar mês a mês. Editar um mês específico depois continua possível em
- * /mensal/[year]/[month] (upsertBudget), sem conflito — é a mesma tabela.
+ * /mensal/[year]/[month] (upsertBudget), sem conflito, é a mesma tabela.
  */
 export async function applyBudgetToWholeYear(
   ctx: AuthContext,
@@ -93,7 +93,7 @@ export async function applyBudgetToWholeYearForCustomCategory(
 }
 
 /**
- * Valor "atual" de planejamento por categoria para a tela /orcamento — usa o mês corrente
+ * Valor "atual" de planejamento por categoria para a tela /orcamento, usa o mês corrente
  * (ou janeiro, se `year` for um ano diferente do atual) como referência, já que os 12 meses
  * podem ter divergido entre si se o usuário editou um mês específico depois de aplicar o
  * plano anual.
@@ -127,7 +127,7 @@ export async function getAnnualBudgetPlanForCustomCategories(
   return Object.fromEntries(customCategoryIds.map((id) => [id, byCategory.get(id) ?? 0]));
 }
 
-/** Todos os orçamentos do ano (sem filtro de mês) — alimenta o comparativo planejado x realizado. */
+/** Todos os orçamentos do ano (sem filtro de mês), alimenta o comparativo planejado x realizado. */
 export async function listBudgetsForYear(ctx: AuthContext, year: number) {
   return prisma.budget.findMany({ where: { userId: ctx.userId, year } });
 }
@@ -146,7 +146,7 @@ export async function sumExpensesByParentCategoryForYear(ctx: AuthContext, year:
   }));
 }
 
-/** Soma de gastos por categoria-mãe lançados a partir de uma data (por createdAt) — usado na
+/** Soma de gastos por categoria-mãe lançados a partir de uma data (por createdAt), usado na
  * visão "semana" da tela Só gastos, já que o lançamento guarda só ano/mês, não o dia da despesa. */
 export async function sumExpensesByParentCategorySince(ctx: AuthContext, since: Date) {
   const grouped = await prisma.monthlyEntry.groupBy({

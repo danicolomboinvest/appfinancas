@@ -10,7 +10,7 @@ import { loginAction, type LoginState } from "./actions";
 const initialState: LoginState = {};
 
 export default function LoginPage({ searchParams }: { searchParams: Promise<{ created?: string }> }) {
-  // ?created=1 vem do redirect do cadastro — confirma que a conta foi criada com sucesso.
+  // ?created=1 vem do redirect do cadastro, confirma que a conta foi criada com sucesso.
   const { created } = use(searchParams);
   const [state, formAction, isPending] = useActionState(loginAction, initialState);
 

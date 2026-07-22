@@ -1,6 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 
-/** Estado vazio/primeiro uso — ícone contextual + mensagem, com espaço opcional para uma
+/** Estado vazio/primeiro uso, ícone contextual + mensagem, com espaço opcional para uma
  * ação (ex.: um link "Criar agora"). `icon` é opcional para não quebrar chamadas existentes. */
 export function EmptyState({
   message,

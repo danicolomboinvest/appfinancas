@@ -6,7 +6,7 @@ export function formatPercentNumber(value: number, decimals = 1): string {
   })}%`;
 }
 
-/** Formata um valor em R$ de forma compacta (ex.: R$ 38 mi) — usado em eixos de gráfico. */
+/** Formata um valor em R$ de forma compacta (ex.: R$ 38 mi), usado em eixos de gráfico. */
 export function formatCompactBRL(value: number): string {
   return value.toLocaleString("pt-BR", {
     style: "currency",

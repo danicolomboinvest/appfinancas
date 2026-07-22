@@ -19,7 +19,7 @@ export default async function CarteiraPage() {
   ]);
   const goalNameById = new Map(goals.map((goal) => [goal.id, goal.name]));
 
-  // A Estratégia da Carteira é a alocação ideal — vira o gráfico-alvo e a dica de
+  // A Estratégia da Carteira é a alocação ideal, vira o gráfico-alvo e a dica de
   // rebalanceamento na tela principal (o detalhe completo continua em Por Objetivo).
   const hasStrategy = comparison.positions.some((p) => p.targetPercent > 0);
   const strategy: StrategySummary = {

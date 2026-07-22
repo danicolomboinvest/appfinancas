@@ -8,7 +8,7 @@ export const assetSchema = z.object({
   goalId: z.string().trim().optional(),
   quantity: z.coerce.number().min(0).optional(),
   currentUnitPrice: z.coerce.number().min(0).optional(),
-  /** Quanto foi investido — referência fixa do lucro; a atualização de cotação nunca altera. */
+  /** Quanto foi investido, referência fixa do lucro; a atualização de cotação nunca altera. */
   investedValue: z.coerce.number().min(0).optional(),
   /** Indexador da renda fixa (pós/IPCA/prefixado). Vazio quando não se aplica/desconhecido. */
   fixedIncomeIndex: z

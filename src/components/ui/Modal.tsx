@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
 /** Modal centralizado no desktop, vira um drawer que sobe da base no mobile. Renderiza via
- * portal em document.body — evita ficar preso dentro de um <form> ou de qualquer ancestral com
+ * portal em document.body, evita ficar preso dentro de um <form> ou de qualquer ancestral com
  * overflow/transform (ver histórico de bugs de FAB "preso" nesse mesmo tipo de problema). */
 export function Modal({
   open,
@@ -21,7 +21,7 @@ export function Modal({
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    // document.body só existe no cliente — este efeito detecta a montagem pra evitar
+    // document.body só existe no cliente, este efeito detecta a montagem pra evitar
     // createPortal durante o render no servidor, não sincroniza com nenhum estado do React.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);

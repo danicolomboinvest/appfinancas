@@ -9,7 +9,7 @@ export function computeDaysRemainingInMonth(today: Date): number {
 
 /**
  * Limite diário = (planejado do mês - já gasto) / dias restantes. Pode dar negativo quando o
- * orçamento já estourou — quem exibe decide como tratar (ex.: mostrar "estourou em R$X").
+ * orçamento já estourou, quem exibe decide como tratar (ex.: mostrar "estourou em R$X").
  * Retorna null quando não há orçamento definido (nada pra dividir) ou não sobram dias.
  */
 export function computeDailySpendingLimit(totalPlanned: number, totalSpent: number, daysRemaining: number): number | null {

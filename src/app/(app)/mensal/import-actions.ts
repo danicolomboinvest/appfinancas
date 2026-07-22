@@ -37,7 +37,7 @@ export type ReviewItem = {
 export type ParseStatementResult = { ok: true; items: ReviewItem[] } | { ok: false; error: string };
 
 /** Lê o extrato (CSV/OFX/Excel/PDF), classifica cada transação e devolve a fila pra revisão.
- * O arquivo vem CRU num FormData ({ file, encoding }) — string grande como argumento de
+ * O arquivo vem CRU num FormData ({ file, encoding }), string grande como argumento de
  * action estoura o limite de serialização do React (~1M chars). */
 export async function parseStatementAction(formData: FormData): Promise<ParseStatementResult> {
   const ctx = await getRequiredSession();
@@ -54,13 +54,13 @@ export async function parseStatementAction(formData: FormData): Promise<ParseSta
     throw err;
   }
 
-  // PDF escaneado/foto não tem texto extraível — avisa e pede Excel, em vez de erro genérico.
+  // PDF escaneado/foto não tem texto extraível, avisa e pede Excel, em vez de erro genérico.
   const readableChars = text.replace(/[^\p{L}\p{N}]/gu, "").length;
   if (encoding === "pdf" && readableChars < 12) {
     return {
       ok: false,
       error:
-        "Não consegui ler este PDF — ele parece ser escaneado ou uma foto. Exporte o extrato em Excel (.xlsx), CSV ou OFX que aí funciona.",
+        "Não consegui ler este PDF, ele parece ser escaneado ou uma foto. Exporte o extrato em Excel (.xlsx), CSV ou OFX que aí funciona.",
     };
   }
 
@@ -69,7 +69,7 @@ export async function parseStatementAction(formData: FormData): Promise<ParseSta
     return {
       ok: false,
       error:
-        "Não encontrei transações nesse arquivo. Se for um PDF escaneado/foto, exporte em Excel (.xlsx) ou CSV — costuma ler melhor.",
+        "Não encontrei transações nesse arquivo. Se for um PDF escaneado/foto, exporte em Excel (.xlsx) ou CSV, costuma ler melhor.",
     };
   }
 
@@ -81,7 +81,7 @@ export async function parseStatementAction(formData: FormData): Promise<ParseSta
   }));
 
   const items: ReviewItem[] = parsed.map((txn, index) => {
-    // Fatura de cartão: toda linha é compra (gasto), independentemente do sinal — resolve o
+    // Fatura de cartão: toda linha é compra (gasto), independentemente do sinal, resolve o
     // caso em que as compras vinham positivas e eram lidas como renda. Extrato: sinal manda.
     const isExpense = docType === "fatura" ? true : txn.amount < 0;
     // Só faz sentido categorizar saídas; entradas viram INCOME sem categoria-mãe.
@@ -108,7 +108,7 @@ export type ConfirmedItem = {
   category: "INCOME" | "EXPENSE";
   parentCategory: ParentCategory | null;
   subcategory: string | null;
-  /** true quando o usuário definiu/ajustou a categoria na revisão — vira regra aprendida. */
+  /** true quando o usuário definiu/ajustou a categoria na revisão, vira regra aprendida. */
   learn: boolean;
 };
 
@@ -126,7 +126,7 @@ function looksLikeCardPayment(description: string | null): boolean {
 /**
  * Quando a pessoa importa a FATURA detalhada, procura no extrato já lançado a linha única de
  * "pagamento de fatura" (mesmo gasto, agregado) com valor próximo ao total das compras e a
- * remove — evita contar o gasto duas vezes. Busca no mês das compras e no mês seguinte (a
+ * remove, evita contar o gasto duas vezes. Busca no mês das compras e no mês seguinte (a
  * fatura costuma ser paga depois). Só remove com correspondência de valor confiante.
  */
 async function removeMatchingCardPayment(
@@ -175,7 +175,7 @@ function dedupeKey(date: string | null, amount: number, description: string | nu
 }
 
 /** Cria os lançamentos escolhidos e memoriza as categorias definidas manualmente (item 3).
- * Transações idênticas já lançadas (mesma data+valor+descrição) são puladas — importar o
+ * Transações idênticas já lançadas (mesma data+valor+descrição) são puladas, importar o
  * mesmo extrato duas vezes não duplica nada. */
 export async function importTransactionsAction(
   items: ConfirmedItem[],
@@ -212,7 +212,7 @@ export async function importTransactionsAction(
     const parentCategory =
       item.parentCategory && PARENT_CATEGORY_VALUES.includes(item.parentCategory) ? item.parentCategory : undefined;
 
-    // Data inválida cai no mês corrente — melhor lançar do que perder a transação.
+    // Data inválida cai no mês corrente, melhor lançar do que perder a transação.
     const ym = yearMonthFromISO(item.date) ?? { year: now.getFullYear(), month: now.getMonth() + 1 };
     const hasExactDate = yearMonthFromISO(item.date) !== null;
 

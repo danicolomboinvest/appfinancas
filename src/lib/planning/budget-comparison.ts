@@ -13,14 +13,14 @@ export type CategoryComparison = {
   categoryKey: string;
   planned: number;
   spent: number;
-  /** (spent - planned) / planned — positivo = estourou, negativo = economizou. null se não há plano. */
+  /** (spent - planned) / planned, positivo = estourou, negativo = economizou. null se não há plano. */
   deviationPercent: number | null;
   status: "DENTRO" | "ACIMA" | "SEM_PLANO";
 };
 
 export type MonthlyPlannedVsActual = {
   month: number;
-  /** false para meses futuros — mesma semântica de `MonthlyBreakdown.isRealized` em consolidation/yearly.ts. */
+  /** false para meses futuros, mesma semântica de `MonthlyBreakdown.isRealized` em consolidation/yearly.ts. */
   isRealized: boolean;
   totalPlanned: number;
   totalSpent: number;
@@ -30,12 +30,12 @@ export type MonthlyPlannedVsActual = {
 export type AnnualPlannedVsActual = {
   year: number;
   months: MonthlyPlannedVsActual[];
-  /** Soma só dos meses já ocorridos — nunca conte meses futuros como "gasto". */
+  /** Soma só dos meses já ocorridos, nunca conte meses futuros como "gasto". */
   totalPlannedRealized: number;
   totalSpentRealized: number;
 };
 
-/** Compara planejado x gasto de uma única categoria — função pura, sem I/O. */
+/** Compara planejado x gasto de uma única categoria, função pura, sem I/O. */
 export function compareCategoryBudget(
   planned: number,
   spent: number,
@@ -48,9 +48,9 @@ export function compareCategoryBudget(
 }
 
 /**
- * Monta o comparativo de um mês a partir de listas já buscadas do banco — função pura, sem I/O.
+ * Monta o comparativo de um mês a partir de listas já buscadas do banco, função pura, sem I/O.
  * `categoryKeys` é a lista completa de categorias a preencher (as 7 padrão + as personalizadas
- * do usuário) — assim uma categoria sem plano nem gasto ainda aparece como SEM_PLANO, em vez de
+ * do usuário), assim uma categoria sem plano nem gasto ainda aparece como SEM_PLANO, em vez de
  * simplesmente não aparecer.
  */
 export function buildMonthlyComparison(
@@ -102,7 +102,7 @@ export function findBiggestSaving(categories: CategoryComparison[]): CategoryCom
 
 /**
  * Meses consecutivos (a partir do mês mais recente, andando para trás) em que uma categoria
- * específica excedeu o orçamento. Limitado aos meses do array recebido — não cruza virada de
+ * específica excedeu o orçamento. Limitado aos meses do array recebido, não cruza virada de
  * ano no v1 (cruzar dez/jan é um passo futuro, se necessário).
  */
 export function computeOverBudgetStreak(monthsDescending: MonthlyPlannedVsActual[], categoryKey: string): number {
@@ -138,7 +138,7 @@ export async function getAnnualPlannedVsActual(ctx: AuthContext, year: number): 
   }
   for (const b of budgets) {
     // Cada linha de Budget pertence a exatamente uma categoria: padrão (parentCategory) ou
-    // personalizada (customCategoryId) — listBudgetsForYear já traz as duas juntas.
+    // personalizada (customCategoryId), listBudgetsForYear já traz as duas juntas.
     const categoryKey = b.parentCategory ?? b.customCategoryId;
     if (!categoryKey) continue;
     budgetsByMonth.get(b.month)?.push({ categoryKey, plannedAmount: Number(b.plannedAmount) });

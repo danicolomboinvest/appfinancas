@@ -17,7 +17,7 @@ function formatBRL(value: number) {
 
 /**
  * Pizza de gastos por categoria (substitui a antiga bolha): donut com o total no centro e uma
- * legenda que deixa claro o que é cada fatia — categoria, valor e %. Ordenada do maior gasto
+ * legenda que deixa claro o que é cada fatia, categoria, valor e %. Ordenada do maior gasto
  * para o menor, então bate o olho e entende para onde o dinheiro foi.
  */
 export function SpendingPieChart({
@@ -28,7 +28,7 @@ export function SpendingPieChart({
   data: SpendingSlice[];
   /** Quando presente, cada linha da legenda vira clicável (abre os lançamentos da categoria). */
   onSelect?: (slice: SpendingSlice) => void;
-  /** Nome da categoria atualmente aberta — destaca a linha. */
+  /** Nome da categoria atualmente aberta, destaca a linha. */
   selectedName?: string | null;
 }) {
   const slices = data.filter((d) => d.value > 0).sort((a, b) => b.value - a.value);
@@ -47,7 +47,7 @@ export function SpendingPieChart({
       <div className="relative h-56 w-56 shrink-0">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
-            {/* Gradientes radiais por fatia — a cor é fixa por CATEGORIA (colorForCategorySlice),
+            {/* Gradientes radiais por fatia, a cor é fixa por CATEGORIA (colorForCategorySlice),
                 nunca por posição no ranking, senão a mesma categoria mudaria de cor a cada
                 período conforme o que gastou mais naquele mês. */}
             <defs>

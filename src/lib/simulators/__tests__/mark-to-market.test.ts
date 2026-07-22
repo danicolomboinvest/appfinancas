@@ -118,7 +118,7 @@ describe("simulateMarkToMarket", () => {
     expect(withDuration.marketPrice).toBeCloseTo(equivalentZeroCoupon.marketPrice, 8);
   });
 
-  it("zero-coupon path (hasSemiannualCoupons omitted or false) is unaffected by an unused duration value — regression", () => {
+  it("zero-coupon path (hasSemiannualCoupons omitted or false) is unaffected by an unused duration value, regression", () => {
     const base = simulateMarkToMarket({
       faceValue: 1000,
       originalRate: 0.1,

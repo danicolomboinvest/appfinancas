@@ -2,7 +2,7 @@ import "server-only";
 import nodemailer, { type Transporter } from "nodemailer";
 
 /**
- * Envio de e-mail via SMTP (Hostinger). As credenciais vêm SEMPRE do ambiente — nunca ficam
+ * Envio de e-mail via SMTP (Hostinger). As credenciais vêm SEMPRE do ambiente, nunca ficam
  * no código nem vão pro Git. Configure no .env (local) e nas Environment Variables da Vercel:
  *   SMTP_HOST=smtp.hostinger.com
  *   SMTP_PORT=465
@@ -18,7 +18,7 @@ function getTransporter(): Transporter | null {
   const host = process.env.SMTP_HOST;
   const user = process.env.SMTP_USER;
   const pass = process.env.SMTP_PASSWORD;
-  // Sem credenciais configuradas, não quebra o app — só não envia (útil em dev/preview).
+  // Sem credenciais configuradas, não quebra o app, só não envia (útil em dev/preview).
   if (!host || !user || !pass) return null;
   if (cached) return cached;
 
@@ -34,11 +34,11 @@ function getTransporter(): Transporter | null {
 
 export type SendEmailResult = { ok: true } | { ok: false; reason: "not-configured" | "error" };
 
-/** Envia um e-mail HTML. Nunca lança — devolve um resultado pro chamador decidir o que fazer. */
+/** Envia um e-mail HTML. Nunca lança, devolve um resultado pro chamador decidir o que fazer. */
 export async function sendEmail(params: { to: string; subject: string; html: string }): Promise<SendEmailResult> {
   const transporter = getTransporter();
   if (!transporter) {
-    console.warn("[email] SMTP não configurado — e-mail não enviado:", params.subject);
+    console.warn("[email] SMTP não configurado, e-mail não enviado:", params.subject);
     return { ok: false, reason: "not-configured" };
   }
   try {
@@ -55,7 +55,7 @@ export async function sendEmail(params: { to: string; subject: string; html: str
   }
 }
 
-/** Verifica se o SMTP está configurado (sem expor valores) — usado em diagnósticos. */
+/** Verifica se o SMTP está configurado (sem expor valores), usado em diagnósticos. */
 export function isEmailConfigured(): boolean {
   return Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASSWORD);
 }

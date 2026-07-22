@@ -25,7 +25,7 @@ export type Insight = {
   category: InsightCategory;
   /** Link para a tela onde o usuário pode agir sobre este insight (ajustar orçamento, ver meta, etc.). */
   href?: string;
-  /** Rótulo do link de ação — só usado quando `href` está presente. */
+  /** Rótulo do link de ação, só usado quando `href` está presente. */
   actionLabel?: string;
 };
 
@@ -105,7 +105,7 @@ export async function computeInsights(ctx: AuthContext): Promise<Insight[]> {
 
   if (notifyBudget) {
     const spentMap = new Map(spentByCategory.map((s) => [s.parentCategory, s.spent]));
-    // budgets inclui linhas de categorias personalizadas (parentCategory null) — os insights
+    // budgets inclui linhas de categorias personalizadas (parentCategory null), os insights
     // de "estourou o orçamento" abaixo são só pras 7 categorias padrão por enquanto.
     const parentBudgets = budgets.filter(
       (b): b is typeof b & { parentCategory: NonNullable<typeof b.parentCategory> } => b.parentCategory !== null,
@@ -120,7 +120,7 @@ export async function computeInsights(ctx: AuthContext): Promise<Insight[]> {
         const over = formatBRL(spent - planned);
         insights.push({
           id: `budget-${budget.parentCategory}`,
-          message: `${label} estourou o orçamento em ${formatPercent(percent - 1)} este mês (${over} acima do planejado) — vale segurar novos gastos nessa categoria ou revisar o valor planejado.`,
+          message: `${label} estourou o orçamento em ${formatPercent(percent - 1)} este mês (${over} acima do planejado), vale segurar novos gastos nessa categoria ou revisar o valor planejado.`,
           tone: "danger",
           category: "fluxo",
           href: monthlyEntryHref,
@@ -129,7 +129,7 @@ export async function computeInsights(ctx: AuthContext): Promise<Insight[]> {
       } else if (percent >= 0.8) {
         insights.push({
           id: `budget-${budget.parentCategory}`,
-          message: `Você já comprometeu ${formatPercent(percent)} do orçamento de ${label} este mês — ainda dá para segurar o resto do mês.`,
+          message: `Você já comprometeu ${formatPercent(percent)} do orçamento de ${label} este mês, ainda dá para segurar o resto do mês.`,
           tone: "warning",
           category: "fluxo",
           href: monthlyEntryHref,
@@ -170,14 +170,14 @@ export async function computeInsights(ctx: AuthContext): Promise<Insight[]> {
     if (diff > 0.05) {
       insights.push({
         id: "savings-rate-above-average",
-        message: `Você está poupando acima da sua média este mês (${formatPercent(currentRate)} vs. média de ${formatPercent(averageRate)}) — é um bom momento para reforçar uma meta ou a reserva de emergência.`,
+        message: `Você está poupando acima da sua média este mês (${formatPercent(currentRate)} vs. média de ${formatPercent(averageRate)}), é um bom momento para reforçar uma meta ou a reserva de emergência.`,
         tone: "success",
         category: "fluxo",
       });
     } else if (diff < -0.05) {
       insights.push({
         id: "savings-rate-below-average",
-        message: `Você está poupando abaixo da sua média este mês (${formatPercent(currentRate)} vs. média de ${formatPercent(averageRate)}) — vale revisar os gastos para não atrasar suas metas.`,
+        message: `Você está poupando abaixo da sua média este mês (${formatPercent(currentRate)} vs. média de ${formatPercent(averageRate)}), vale revisar os gastos para não atrasar suas metas.`,
         tone: "warning",
         category: "fluxo",
         href: monthlyEntryHref,
@@ -251,14 +251,14 @@ export async function computeInsights(ctx: AuthContext): Promise<Insight[]> {
     if (percent >= 1) {
       insights.push({
         id: "emergency-fund",
-        message: `Sua reserva de emergência está completa (${formatBRL(current)}) — você tem proteção garantida para imprevistos.`,
+        message: `Sua reserva de emergência está completa (${formatBRL(current)}), você tem proteção garantida para imprevistos.`,
         tone: "success",
         category: "reserva",
       });
     } else if (percent >= 0.5) {
       insights.push({
         id: "emergency-fund",
-        message: `Sua reserva de emergência está ${formatPercent(percent)} completa (${formatBRL(current)} de ${formatBRL(target)}) — continue aportando até cobrir o valor-alvo.`,
+        message: `Sua reserva de emergência está ${formatPercent(percent)} completa (${formatBRL(current)} de ${formatBRL(target)}), continue aportando até cobrir o valor-alvo.`,
         tone: "warning",
         category: "reserva",
         href: reserveHref,
@@ -267,7 +267,7 @@ export async function computeInsights(ctx: AuthContext): Promise<Insight[]> {
     } else {
       insights.push({
         id: "emergency-fund",
-        message: `Sua reserva de emergência cobre só ${formatPercent(percent)} do valor-alvo — priorize esse aporte antes de outros objetivos, para não precisar recorrer a dívida em um imprevisto.`,
+        message: `Sua reserva de emergência cobre só ${formatPercent(percent)} do valor-alvo, priorize esse aporte antes de outros objetivos, para não precisar recorrer a dívida em um imprevisto.`,
         tone: "danger",
         category: "reserva",
         href: reserveHref,
@@ -295,7 +295,7 @@ export async function computeInsights(ctx: AuthContext): Promise<Insight[]> {
     if (behindGoals.length > 0) {
       insights.push({
         id: "goals-behind",
-        message: `${behindGoals.length} meta${behindGoals.length > 1 ? "s está" : " está"} atrasada${behindGoals.length > 1 ? "s" : ""} (${behindGoals.map(({ goal }) => goal.name).join(", ")}) — revise o prazo ou aumente o aporte mensal para voltar ao ritmo.`,
+        message: `${behindGoals.length} meta${behindGoals.length > 1 ? "s está" : " está"} atrasada${behindGoals.length > 1 ? "s" : ""} (${behindGoals.map(({ goal }) => goal.name).join(", ")}), revise o prazo ou aumente o aporte mensal para voltar ao ritmo.`,
         tone: "danger",
         category: "metas",
         href: goalsHref,
@@ -359,7 +359,7 @@ export async function computeInsights(ctx: AuthContext): Promise<Insight[]> {
         : "isso deixa sua carteira menos exposta a essa classe do que o planejado.";
     insights.push({
       id: `strategy-${position.assetClass}`,
-      message: `Sua carteira está ${pp} p.p. ${direction} do alvo em ${label} — ${consequence}`,
+      message: `Sua carteira está ${pp} p.p. ${direction} do alvo em ${label}, ${consequence}`,
       tone: "warning",
       category: "carteira",
       href: strategyHref,
@@ -377,8 +377,8 @@ export async function computeInsights(ctx: AuthContext): Promise<Insight[]> {
         id: "patrimony-growth-12m",
         message:
           growth >= 0
-            ? `Seu patrimônio cresceu ${formatPercent(growth)} nos últimos 12 meses — você está construindo patrimônio de verdade.`
-            : `Seu patrimônio caiu ${formatPercent(Math.abs(growth))} nos últimos 12 meses — vale entender se foi desvalorização de mercado ou saques.`,
+            ? `Seu patrimônio cresceu ${formatPercent(growth)} nos últimos 12 meses, você está construindo patrimônio de verdade.`
+            : `Seu patrimônio caiu ${formatPercent(Math.abs(growth))} nos últimos 12 meses, vale entender se foi desvalorização de mercado ou saques.`,
         tone: growth >= 0 ? "success" : "warning",
         category: "carteira",
         href: "/carteira",
@@ -405,7 +405,7 @@ export async function computeInsights(ctx: AuthContext): Promise<Insight[]> {
 export type ExecutiveSummary = { message: string; tone: InsightTone };
 
 /**
- * Resumo de 1-2 frases a partir dos insights já gerados — pura composição de regras sobre
+ * Resumo de 1-2 frases a partir dos insights já gerados, pura composição de regras sobre
  * as contagens por tom, sem nenhum cálculo financeiro novo. Objetivo: qualquer pessoa
  * entender sua situação financeira em poucos segundos, sem precisar ler cada card.
  */

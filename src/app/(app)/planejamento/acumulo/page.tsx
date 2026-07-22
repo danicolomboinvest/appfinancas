@@ -58,7 +58,7 @@ export default async function IndependenciaFinanceiraPage() {
       }
     : {};
 
-  // Primeira vez (sem parâmetros): wizard guiado "Quanto custa a vida que você quer?" — uma
+  // Primeira vez (sem parâmetros): wizard guiado "Quanto custa a vida que você quer?", uma
   // pergunta por tela. Só depois de concluir é que a pessoa cai no dashboard abaixo (item 4).
   if (!params) {
     return (
@@ -164,7 +164,7 @@ export default async function IndependenciaFinanceiraPage() {
                     <p className="mt-2 text-2xl font-semibold tracking-tight text-ink">{formatBRL(usufruct.surplusOrDeficit)}</p>
                     <p className="mt-2 text-sm text-ink-muted">
                       {isSurplus
-                        ? "A renda passiva projetada cobre o padrão de vida desejado — liberdade financeira atingida nesse cenário."
+                        ? "A renda passiva projetada cobre o padrão de vida desejado, liberdade financeira atingida nesse cenário."
                         : "A renda passiva projetada não cobre o padrão de vida desejado. Falta patrimônio ou é preciso reduzir o gasto objetivo."}
                     </p>
                   </Card>
@@ -178,13 +178,13 @@ export default async function IndependenciaFinanceiraPage() {
                   </p>
 
                   {years.length === 0 ? (
-                    <p className="text-sm text-ink-muted">Idade objetivo já atingida — nada para projetar.</p>
+                    <p className="text-sm text-ink-muted">Idade objetivo já atingida, nada para projetar.</p>
                   ) : (
                     <>
                       <Card className="p-5">
                         <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-muted">
                           <span className="flex items-center gap-1.5">
-                            <Badge tone="accent">Acúmulo</Badge> você ainda está aportando — o patrimônio só cresce.
+                            <Badge tone="accent">Acúmulo</Badge> você ainda está aportando, o patrimônio só cresce.
                           </span>
                           <span className="flex items-center gap-1.5">
                             <Badge tone="info">Usufruto</Badge> os aportes param e os saques para viver começam.

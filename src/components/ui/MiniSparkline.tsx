@@ -38,7 +38,7 @@ function defaultValueFormatter(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
-/** Sparkline compacta para cards de indicador — sem eixos/grid visíveis, mas com tooltip ao passar o mouse. */
+/** Sparkline compacta para cards de indicador, sem eixos/grid visíveis, mas com tooltip ao passar o mouse. */
 export function MiniSparkline({
   points,
   tone = "neutral",

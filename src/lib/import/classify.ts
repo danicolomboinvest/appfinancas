@@ -2,7 +2,7 @@ import type { ParentCategory } from "@prisma/client";
 
 /**
  * Classificação automática de transações do extrato (item 3). Duas camadas:
- * 1) Regras aprendidas do usuário (merchant → categoria), que têm prioridade — é o "lembrar
+ * 1) Regras aprendidas do usuário (merchant → categoria), que têm prioridade, é o "lembrar
  *    para transações parecidas no futuro" do briefing.
  * 2) Regras embutidas por palavra-chave (iFood → Alimentação, Uber → Transporte...).
  * O que nenhuma das duas cobrir volta `null` e cai na fila de revisão.

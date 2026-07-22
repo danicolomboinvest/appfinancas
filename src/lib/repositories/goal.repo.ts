@@ -20,7 +20,7 @@ export async function getOwnGoal(ctx: AuthContext, id: string) {
   return prisma.goal.findFirst({ where: { id, userId: ctx.userId } });
 }
 
-/** Uma meta com o progresso REAL calculado (ativos vinculados + aportes) — item 6. */
+/** Uma meta com o progresso REAL calculado (ativos vinculados + aportes), item 6. */
 export async function getGoalWithProgress(ctx: AuthContext, id: string) {
   const goal = await prisma.goal.findFirst({ where: { id, userId: ctx.userId } });
   if (!goal) return null;
@@ -58,7 +58,7 @@ export async function deleteOwnGoal(ctx: AuthContext, id: string) {
 }
 
 /**
- * Progresso REAL de cada meta, calculado (integração — item 6): soma o valor atual dos ativos
+ * Progresso REAL de cada meta, calculado (integração, item 6): soma o valor atual dos ativos
  * vinculados à meta + os aportes registrados para ela (lançamentos INVESTMENT_CONTRIBUTION com
  * goalId). Assim, vincular um ativo ou registrar um aporte atualiza a meta sozinho. Se não há
  * nada vinculado, cai no valor manual antigo (`currentAmount`) pra não zerar metas legadas.

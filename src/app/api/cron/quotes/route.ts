@@ -7,7 +7,7 @@ export const maxDuration = 60;
 
 /**
  * Cron diário (vercel.json): atualiza a cotação de TODOS os ativos com ticker, de todos os
- * usuários — 1 busca por ticker único. Nunca toca no investedValue (referência do lucro).
+ * usuários, 1 busca por ticker único. Nunca toca no investedValue (referência do lucro).
  *
  * Segurança: se CRON_SECRET estiver configurado na Vercel, exige o Bearer que o próprio
  * agendador envia; sem o secret, aceita só chamadas do agendador (user-agent vercel-cron).
@@ -25,7 +25,7 @@ export async function GET(request: Request) {
     where: { ticker: { not: null } },
     select: { id: true, ticker: true, quantity: true },
   });
-  // Só tickers de bolsa de verdade (PETR4, MXRF11…) — fundos/renda fixa usam o campo como
+  // Só tickers de bolsa de verdade (PETR4, MXRF11…), fundos/renda fixa usam o campo como
   // nome e não têm cotação pública pra buscar.
   const assets = allWithTicker.filter((a) => /^[A-Z]{4}\d{1,2}$/.test(a.ticker as string));
   if (assets.length === 0) return NextResponse.json({ updated: 0, failed: [] });

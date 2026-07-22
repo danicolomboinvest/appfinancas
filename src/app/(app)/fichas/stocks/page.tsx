@@ -14,7 +14,7 @@ export default async function FichasStocksPage() {
   return (
     <div className="flex flex-col gap-8">
       <PageHeader
-        title="Análises — Stocks"
+        title="Análises de Stocks"
         subtitle="Checklist qualitativo e quantitativo de análise fundamentalista para ações internacionais."
       />
 

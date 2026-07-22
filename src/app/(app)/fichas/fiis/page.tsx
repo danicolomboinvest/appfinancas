@@ -20,7 +20,7 @@ export default async function FichasFiisPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <PageHeader title="Análises — FIIs" subtitle="Checklist de FIIs de tijolo e de papel, com dica de onde encontrar cada dado." />
+      <PageHeader title="Análises de FIIs" subtitle="Checklist de FIIs de tijolo e de papel, com dica de onde encontrar cada dado." />
 
       <CreateFiiSheetForm />
 

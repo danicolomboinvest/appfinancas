@@ -21,7 +21,7 @@ const TONE_COLOR: Record<InsightTone, string> = {
 
 /**
  * Análises resumidas (item 6): cada insight cabe em UMA linha (ícone de status + mensagem
- * truncada). O detalhe (mensagem completa + ação) só aparece ao tocar — nada de parágrafos
+ * truncada). O detalhe (mensagem completa + ação) só aparece ao tocar, nada de parágrafos
  * empilhados. Já vem ordenado por prioridade (danger → info) de computeInsights.
  */
 export function InsightList({ insights }: { insights: Insight[] }) {

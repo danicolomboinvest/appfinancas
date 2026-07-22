@@ -20,14 +20,14 @@ export type WorthItResult = {
 
 const HOURS_PER_MONTH = 220;
 
-/** Taxa anual assumida para o valor investido — nominal, sem descontar inflação ou impostos. */
+/** Taxa anual assumida para o valor investido, nominal, sem descontar inflação ou impostos. */
 export const WORTH_IT_ANNUAL_RATE = 0.12;
 
 /**
  * Compara o preço de uma compra com (a) o tempo de trabalho equivalente, dado a renda
  * mensal do usuário, e (b) o valor futuro se esse dinheiro fosse investido em vez de gasto.
  * "RECURRING" trata o preço como um aporte mensal (ex.: uma assinatura) em vez de um valor
- * único — mesma convenção de fv() do motor financeiro (pv e pmt como magnitudes positivas).
+ * único, mesma convenção de fv() do motor financeiro (pv e pmt como magnitudes positivas).
  */
 export function simulateWorthIt(input: WorthItInput): WorthItResult {
   const hourlyRate = new Decimal(input.monthlyIncome).div(HOURS_PER_MONTH);

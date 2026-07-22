@@ -38,7 +38,7 @@ export async function updateOwnMonthlyEntry(ctx: AuthContext, id: string, input:
     data: {
       ...input,
       // Campos opcionais ausentes devem LIMPAR o valor antigo (ex.: trocar de categoria-mãe
-      // para personalizada), não manter — por isso null explícito em vez de undefined.
+      // para personalizada), não manter, por isso null explícito em vez de undefined.
       parentCategory: input.parentCategory ?? null,
       customCategoryId: input.customCategoryId ?? null,
       subcategory: input.subcategory ?? null,
@@ -74,7 +74,7 @@ export async function createRecurringMonthlyEntries(
 
 /**
  * Subcategorias mais usadas recentemente pelo usuário, por categoria-mãe (para sugestão no
- * lançamento rápido) — agrupado por parentCategory pra não sugerir, por exemplo, "Aluguel"
+ * lançamento rápido), agrupado por parentCategory pra não sugerir, por exemplo, "Aluguel"
  * (Moradia) quando o usuário está lançando uma despesa em Alimentação.
  */
 export async function listRecentSubcategories(

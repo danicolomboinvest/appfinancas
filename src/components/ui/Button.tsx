@@ -4,7 +4,7 @@ type Variant = "primary" | "secondary" | "ghost" | "danger";
 type Size = "sm" | "md";
 
 const VARIANT_CLASSES: Record<Variant, string> = {
-  // First Light: o primário carrega a cor da marca — gradiente âmbar com texto
+  // First Light: o primário carrega a cor da marca, gradiente âmbar com texto
   // quase-preto quente (definidos em globals.css).
   primary: "bg-accent-gradient text-on-accent font-semibold hover:opacity-95 shadow-premium-sm disabled:hover:opacity-100",
   secondary:

@@ -1,5 +1,5 @@
 /**
- * Parser de extrato bancário (item 3 da Rodada 2). Suporta OFX e CSV — os dois formatos de
+ * Parser de extrato bancário (item 3 da Rodada 2). Suporta OFX e CSV, os dois formatos de
  * exportação mais comuns dos bancos brasileiros. PDF não é suportado aqui (exige extração de
  * texto binário, fora do escopo sem lib dedicada); o usuário é orientado a exportar CSV/OFX.
  *
@@ -26,7 +26,7 @@ export function parseBrazilianNumber(raw: string): number {
 }
 
 /**
- * Valor monetário em formato BR ("1.234,56") OU americano ("1,234.56", "87.53") — decide pelo
+ * Valor monetário em formato BR ("1.234,56") OU americano ("1,234.56", "87.53"), decide pelo
  * último separador. Bancos como o BTG exportam o extrato no formato americano; sem isso,
  * "-14,097.44" (14 mil) seria lido como 14,09.
  */
@@ -67,7 +67,7 @@ function isOfx(content: string): boolean {
 }
 
 function tag(block: string, name: string): string | null {
-  // OFX "SGML" não fecha as tags — o valor vai até a próxima tag ou fim de linha.
+  // OFX "SGML" não fecha as tags, o valor vai até a próxima tag ou fim de linha.
   const match = block.match(new RegExp(`<${name}>([^<\\r\\n]*)`, "i"));
   return match ? match[1].trim() : null;
 }
@@ -115,9 +115,9 @@ function splitCsvLine(line: string, delimiter: string): string[] {
 const DATE_HEADERS = ["data", "date", "dt"];
 const DESC_HEADERS = ["descri", "histor", "histó", "lanç", "lanc", "memo", "estabelecimento", "detalhe", "title"];
 const AMOUNT_HEADERS = ["valor", "amount", "montante", "quantia", "value"];
-/** Coluna separada de "Transação"/"Tipo" (ex.: extrato BTG) — enriquece a descrição. */
+/** Coluna separada de "Transação"/"Tipo" (ex.: extrato BTG), enriquece a descrição. */
 const TRANSACTION_HEADERS = ["transa", "tipo de lanç", "tipo"];
-/** Linhas que NÃO são transações (saldo diário/atual/anterior, totais) — não viram lançamento. */
+/** Linhas que NÃO são transações (saldo diário/atual/anterior, totais), não viram lançamento. */
 const NON_TRANSACTION_RE = /\bsaldo\b/i;
 
 function findColumn(headers: string[], needles: string[]): number {
@@ -128,7 +128,7 @@ export function parseCsv(content: string): ParsedTransaction[] {
   const lines = content.split(/\r?\n/).filter((l) => l.trim() !== "");
   if (lines.length === 0) return [];
 
-  // Procura a linha de CABEÇALHO — bancos (BTG etc.) põem metadados (cliente, conta, período)
+  // Procura a linha de CABEÇALHO, bancos (BTG etc.) põem metadados (cliente, conta, período)
   // antes dela. O cabeçalho é a 1ª linha que tenha coluna de valor + de data ou descrição.
   let headerIdx = -1;
   let delimiter = detectDelimiter(lines[0]);
@@ -169,7 +169,7 @@ export function parseCsv(content: string): ParsedTransaction[] {
 
     const desc = (cols[descCol] ?? "").trim();
     const trans = transCol !== -1 ? (cols[transCol] ?? "").trim() : "";
-    // Pula saldos/totais — são fotografias do saldo, não transações.
+    // Pula saldos/totais, são fotografias do saldo, não transações.
     if (NON_TRANSACTION_RE.test(desc) || NON_TRANSACTION_RE.test(trans)) continue;
 
     // Descrição rica: junta "Transação" + "Descrição" quando as duas existem e diferem.
@@ -186,10 +186,10 @@ export function parseCsv(content: string): ParsedTransaction[] {
 const CREDIT_HINTS = /\b(sal[aá]rio|rendimento|dep[oó]sito|cr[eé]dito|recebid[oa]|estorno|reembolso|proventos)\b/i;
 
 /**
- * Parser de texto solto — usado pra PDF, cujo texto extraído não é delimitado como CSV. Em cada
+ * Parser de texto solto, usado pra PDF, cujo texto extraído não é delimitado como CSV. Em cada
  * linha procura uma data e um valor monetário (formato BR); o resto vira a descrição. Sinal:
  * "-" explícito ou coluna "D" = saída; palavra de crédito/entrada = entrada; senão, assume saída
- * (a maioria das linhas é gasto) — o usuário revisa depois.
+ * (a maioria das linhas é gasto), o usuário revisa depois.
  */
 export function parseTextLines(content: string): ParsedTransaction[] {
   const lines = content.split(/\r?\n/);

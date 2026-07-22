@@ -21,7 +21,7 @@ async function baseUrl(): Promise<string> {
 
 /**
  * Recebe o e-mail e, se existir uma conta, envia o link de redefinição. A resposta é SEMPRE a
- * mesma (sucesso), exista a conta ou não — assim ninguém descobre quais e-mails têm cadastro.
+ * mesma (sucesso), exista a conta ou não, assim ninguém descobre quais e-mails têm cadastro.
  */
 export async function requestPasswordResetAction(_prev: ForgotState, formData: FormData): Promise<ForgotState> {
   const parsed = emailSchema.safeParse(formData.get("email"));

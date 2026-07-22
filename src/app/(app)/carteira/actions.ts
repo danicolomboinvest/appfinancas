@@ -59,7 +59,7 @@ export async function deleteAssetAction(id: string) {
 }
 
 /** Define o objetivo de TODOS os ativos de uma classe de uma vez (pós-importação, em que
- * tudo entra como OUTRO). META fica de fora — precisa escolher a meta individualmente. */
+ * tudo entra como OUTRO). META fica de fora, precisa escolher a meta individualmente. */
 export async function bulkSetObjectiveAction(
   assetClass: string,
   objective: "RESERVA_EMERGENCIA" | "LIBERDADE_FINANCEIRA" | "OUTRO" | "META",

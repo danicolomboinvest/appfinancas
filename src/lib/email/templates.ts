@@ -1,5 +1,5 @@
 /**
- * Templates de e-mail (HTML inline — clientes de e-mail não entendem CSS externo).
+ * Templates de e-mail (HTML inline, clientes de e-mail não entendem CSS externo).
  * Visual sóbrio, com o dourado da marca SPI Finance.
  */
 
@@ -19,7 +19,7 @@ function shell(bodyHtml: string): string {
         ${bodyHtml}
       </div>
       <div style="padding:18px 28px;border-top:1px solid #f0f0f0;color:${MUTED};font-size:12px;line-height:1.5;">
-        SPI Finance — sua vida financeira em um só lugar.<br/>
+        SPI Finance, sua vida financeira em um só lugar.<br/>
         Se você não reconhece este e-mail, pode ignorá-lo com segurança.
       </div>
     </div>
@@ -40,7 +40,7 @@ export function passwordResetEmail(params: { name: string | null; resetUrl: stri
       <p style="margin:0 0 20px;">Recebemos um pedido para redefinir a senha da sua conta. Clique no botão abaixo para criar uma senha nova:</p>
       <p style="margin:0 0 24px;">${button(params.resetUrl, "Criar nova senha")}</p>
       <p style="margin:0 0 8px;color:${MUTED};font-size:13px;">Este link vale por 1 hora e só pode ser usado uma vez.</p>
-      <p style="margin:0;color:${MUTED};font-size:13px;">Se você não pediu isso, ignore este e-mail — sua senha continua a mesma.</p>
+      <p style="margin:0;color:${MUTED};font-size:13px;">Se você não pediu isso, ignore este e-mail, sua senha continua a mesma.</p>
     `),
   };
 }
@@ -52,7 +52,7 @@ export function welcomeEmail(params: { name: string | null; appUrl: string }): {
     subject: "Sua conta no SPI Finance está pronta 🎉",
     html: shell(`
       <p style="margin:0 0 12px;">${hi}</p>
-      <p style="margin:0 0 20px;">Que bom ter você aqui. O SPI Finance junta seus gastos, orçamento, metas e investimentos num lugar só — pra você decidir com clareza.</p>
+      <p style="margin:0 0 20px;">Que bom ter você aqui. O SPI Finance junta seus gastos, orçamento, metas e investimentos num lugar só, pra você decidir com clareza.</p>
       <p style="margin:0 0 24px;">${button(params.appUrl, "Abrir o SPI Finance")}</p>
       <p style="margin:0;color:${MUTED};font-size:13px;">Primeiro passo: registre um gasto ou renda do dia. O resto flui a partir daí.</p>
     `),

@@ -13,7 +13,7 @@ export const STRATEGY_ASSET_CLASSES: StrategyAssetClass[] = [
   "OUTROS",
 ];
 
-/** Cor FIXA por categoria de estratégia — a mesma em todos os gráficos (Carteira Atual,
+/** Cor FIXA por categoria de estratégia, a mesma em todos os gráficos (Carteira Atual,
  * Estratégia-alvo, rebalanceamento), pra comparação bater à vista (item 10). */
 export const STRATEGY_ASSET_CLASS_COLOR: Record<StrategyAssetClass, string> = {
   RENDA_FIXA_POS_FIXADA: "#4FA3C7",
@@ -39,7 +39,7 @@ export const STRATEGY_ASSET_CLASS_LABEL: Record<StrategyAssetClass, string> = {
  * Mapeamento padrão de AssetClass (cadastro de ativo individual) para StrategyAssetClass
  * (taxonomia da Estratégia da Carteira, mais granular para renda fixa). É uma aproximação:
  * como o cadastro de ativos não distingue pós-fixado/IPCA+/prefixado dentro de RENDA_FIXA,
- * assumimos pós-fixado por padrão — o objetivo aqui é o desvio matemático agregado, não uma
+ * assumimos pós-fixado por padrão, o objetivo aqui é o desvio matemático agregado, não uma
  * classificação individual precisa por ativo.
  */
 const DEFAULT_MAPPING: Record<AssetClass, StrategyAssetClass> = {
@@ -58,7 +58,7 @@ export function mapAssetClassToStrategyClass(assetClass: AssetClass): StrategyAs
 
 /**
  * Mapeamento refinado por ATIVO: para renda fixa/Tesouro, usa o indexador do título
- * (pós-fixado, IPCA+ ou prefixado) quando conhecido — assim o comparativo com a Estratégia
+ * (pós-fixado, IPCA+ ou prefixado) quando conhecido, assim o comparativo com a Estratégia
  * fica correto (antes assumia tudo pós-fixado). Para o resto, cai no mapa por classe.
  */
 export function mapAssetToStrategyClass(asset: {

@@ -71,7 +71,7 @@ export async function createMonthlyEntryAction(
   return {};
 }
 
-/** Edição de um lançamento existente — mesmo formulário do create, com `entryId` extra. */
+/** Edição de um lançamento existente, mesmo formulário do create, com `entryId` extra. */
 export async function updateMonthlyEntryAction(
   _prevState: MonthlyEntryState,
   formData: FormData,

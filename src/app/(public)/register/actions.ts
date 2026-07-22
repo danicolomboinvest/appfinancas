@@ -20,7 +20,7 @@ export async function registerAction(_prevState: RegisterState, formData: FormDa
     return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
   }
 
-  // Aceite dos Termos/Privacidade é obrigatório (LGPD) — valida também no servidor.
+  // Aceite dos Termos/Privacidade é obrigatório (LGPD), valida também no servidor.
   if (formData.get("acceptTerms") !== "on") {
     return { error: "É preciso aceitar os Termos de Uso e a Política de Privacidade." };
   }
@@ -32,7 +32,7 @@ export async function registerAction(_prevState: RegisterState, formData: FormDa
 
   await createUser(parsed.data);
 
-  // E-mail de boas-vindas — melhor esforço: se o envio falhar, o cadastro continua valendo.
+  // E-mail de boas-vindas, melhor esforço: se o envio falhar, o cadastro continua valendo.
   try {
     const h = await headers();
     const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3001";
@@ -40,10 +40,10 @@ export async function registerAction(_prevState: RegisterState, formData: FormDa
     const { subject, html } = welcomeEmail({ name: parsed.data.name, appUrl: `${proto}://${host}/login` });
     await sendEmail({ to: parsed.data.email, subject, html });
   } catch {
-    /* ignora — não bloqueia o cadastro por causa do e-mail */
+    /* ignora, não bloqueia o cadastro por causa do e-mail */
   }
 
-  // ?created=1 mostra a confirmação "conta criada" no login — sem isso a pessoa caía num
+  // ?created=1 mostra a confirmação "conta criada" no login, sem isso a pessoa caía num
   // formulário vazio sem saber se o cadastro tinha funcionado.
   redirect("/login?created=1");
 }

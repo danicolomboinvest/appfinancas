@@ -9,7 +9,7 @@ export function ThemeSync({ theme }: { theme: string }) {
     try {
       localStorage.setItem("theme", theme);
     } catch {
-      // localStorage indisponível (modo privado, etc.) — tema ainda funciona, só sem persistência local.
+      // localStorage indisponível (modo privado, etc.), tema ainda funciona, só sem persistência local.
     }
   }, [theme]);
 

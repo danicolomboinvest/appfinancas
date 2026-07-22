@@ -42,7 +42,7 @@ export async function getMonthlySummary(ctx: AuthContext, year: number, month: n
 }
 
 /**
- * Consolidação do ano inteiro (mesma lógica de getMonthlySummary, sem filtro de mês) — alimenta
+ * Consolidação do ano inteiro (mesma lógica de getMonthlySummary, sem filtro de mês), alimenta
  * a "visão anual" do Fluxo, com os totais acumulados das três categorias e o saldo do ano.
  */
 export async function getAnnualSummary(ctx: AuthContext, year: number): Promise<MonthlySummary> {

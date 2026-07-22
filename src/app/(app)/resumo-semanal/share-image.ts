@@ -24,7 +24,7 @@ function wrap(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): st
 
 /**
  * Desenha um card compartilhável do Resumo Semanal (estilo "retrospectiva") num canvas e
- * devolve como PNG — sem dependência externa. Formato 1080×1350 (retrato, bom pra story/feed).
+ * devolve como PNG, sem dependência externa. Formato 1080×1350 (retrato, bom pra story/feed).
  */
 export async function buildRecapShareImage(recap: WeeklyRecap): Promise<Blob> {
   const W = 1080;

@@ -61,7 +61,7 @@ export function EtfSheetWorkspace({
         <div>
           <p className="text-sm font-medium text-ink">Preencher indicadores automaticamente</p>
           <p className="text-xs text-ink-muted">
-            Preenche sozinho Patrimônio Líquido, Dividend Yield e rentabilidade — é só revisar. Funciona para ETFs na
+            Preenche sozinho Patrimônio Líquido, Dividend Yield e rentabilidade, é só revisar. Funciona para ETFs na
             B3 e americanos.
           </p>
         </div>

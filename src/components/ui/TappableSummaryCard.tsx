@@ -12,7 +12,7 @@ const HERO_VALUE_TONE: Record<"accent" | "danger", string> = {
 };
 
 /**
- * Card-resumo tocável — usado na tela Resumo (home). O card inteiro é um link, sem botão
+ * Card-resumo tocável, usado na tela Resumo (home). O card inteiro é um link, sem botão
  * separado: tocar em qualquer parte leva para `href`. `size="hero"` é o tratamento de
  * destaque (Fraunces + valor grande) reservado ao card de maior prioridade da tela (ex.:
  * "Quanto posso gastar hoje"); os demais usam `size="regular"` (ícone + título + valor).
@@ -33,11 +33,11 @@ export function TappableSummaryCard({
   title: string;
   value: string;
   hint?: string;
-  /** 0 a 1 — quando presente, mostra uma barra de progresso abaixo do valor. */
+  /** 0 a 1, quando presente, mostra uma barra de progresso abaixo do valor. */
   progressPercent?: number;
   progressTone?: ProgressTone;
   size?: "regular" | "hero";
-  /** Só se aplica a size="hero" — dourado é o padrão (número em destaque = conquista), mas
+  /** Só se aplica a size="hero", dourado é o padrão (número em destaque = conquista), mas
    * vira alerta sóbrio quando o número representa algo negativo (ex.: orçamento estourado). */
   heroTone?: "accent" | "danger";
 }) {

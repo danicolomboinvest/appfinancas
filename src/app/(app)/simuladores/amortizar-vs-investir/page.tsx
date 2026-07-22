@@ -12,7 +12,7 @@ function formatBRL(value: number) {
 
 const FIELDS: WizardField[] = [
   { name: "outstandingBalance", label: "Saldo devedor", kind: "currency", help: "Quanto você ainda deve no financiamento hoje." },
-  { name: "cetAnnualRate", label: "Custo do financiamento (CET)", kind: "percent", help: "Custo Efetivo Total ao ano da dívida — juros mais tarifas e seguros." },
+  { name: "cetAnnualRate", label: "Custo do financiamento (CET)", kind: "percent", help: "Custo Efetivo Total ao ano da dívida, juros mais tarifas e seguros." },
   { name: "remainingMonths", label: "Prazo restante", kind: "number", suffix: "meses", help: "Quantos meses faltam para quitar o financiamento." },
   {
     name: "system",

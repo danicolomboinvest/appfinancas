@@ -11,7 +11,7 @@ import { PARENT_CATEGORIES } from "@/lib/categories";
 export type AnnualBudgetState = { error?: string };
 
 /**
- * Salva o planejamento de todas as categorias (padrão + personalizadas) de uma vez — um único
+ * Salva o planejamento de todas as categorias (padrão + personalizadas) de uma vez, um único
  * botão "Salvar tudo" em vez de um "Salvar" por cartão. Os campos chegam nomeados
  * `plannedAmount_<ParentCategory>` e `plannedAmount_custom_<id>` (ver OrcamentoForm.tsx).
  * Cada categoria já é salva de forma atômica internamente (applyBudgetToWholeYear faz um
@@ -42,7 +42,7 @@ export async function applyAllBudgetsAction(
   try {
     await Promise.all([...parentWrites, ...customWrites]);
   } catch {
-    return { error: "Algum valor não pôde ser salvo — confira os campos e tente de novo." };
+    return { error: "Algum valor não pôde ser salvo, confira os campos e tente de novo." };
   }
 
   revalidatePath("/orcamento");

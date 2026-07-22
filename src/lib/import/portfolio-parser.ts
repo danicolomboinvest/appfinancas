@@ -3,7 +3,7 @@ import { parseBrazilianNumber } from "./statement-parser";
 
 /**
  * Parser de extrato/posição da corretora ou relatório da B3 (item 5.1). Identifica ativos pelo
- * código (ticker) e a quantidade — sem digitar posição por posição. Suporta:
+ * código (ticker) e a quantidade, sem digitar posição por posição. Suporta:
  * - CSV simples (colunas código/quantidade/valor)
  * - texto solto contendo tickers da B3
  * - extratos em seções de banco/corretora (ex.: BTG "Extrato da Conta Investimento"), com
@@ -60,7 +60,7 @@ function findCol(headers: string[], needles: string[]): number {
 }
 
 /**
- * Número em formato brasileiro OU americano — extratos de banco (BTG) exportam Excel com
+ * Número em formato brasileiro OU americano, extratos de banco (BTG) exportam Excel com
  * "1,520.80" enquanto B3/planilhas nacionais usam "1.520,80". Decide pelo último separador.
  * Exportado: o parser da declaração de IR usa pra quantidades ("1.000 QUOTAS" é mil, não um).
  */
@@ -76,7 +76,7 @@ export function parseFlexibleNumber(raw: string): number {
         ? t.replace(/\./g, "").replace(",", ".") // 1.520,80 → BR
         : t.replace(/,/g, ""); // 1,520.80 → US
   } else if (hasComma) {
-    // Só vírgula: decimal se 1–2 casas ("19,01"); senão é milhar ("1,520" é raro — trata como US)
+    // Só vírgula: decimal se 1–2 casas ("19,01"); senão é milhar ("1,520" é raro, trata como US)
     normalized = /,\d{1,2}$/.test(t) ? t.replace(",", ".") : t.replace(/,/g, "");
   } else if (hasDot && /^\d{1,3}(\.\d{3})+$/.test(t)) {
     normalized = t.replace(/\./g, ""); // 3.500 / 1.234.567 → milhar BR
@@ -178,7 +178,7 @@ function parseSectionedHoldings(lines: string[]): ParsedHolding[] {
   let section = "";
   let table: ActiveTable | null = null;
   let pendingFundName: string | null = null;
-  // Só entra no modo "seções" depois de ver um marcador ("Posição >" etc.) — CSVs simples
+  // Só entra no modo "seções" depois de ver um marcador ("Posição >" etc.), CSVs simples
   // sem marcador seguem no caminho clássico (parseCsvHoldings), que já os trata bem.
   let sawSection = false;
 
@@ -313,7 +313,7 @@ export function parsePortfolioStatement(content: string): ParsedHolding[] {
   const lines = content.split(/\r?\n/).filter((l) => l.trim() !== "");
   if (lines.length === 0) return [];
 
-  // 1º: extrato em seções (BTG e similares) — só produz resultado se achar as tabelas típicas.
+  // 1º: extrato em seções (BTG e similares), só produz resultado se achar as tabelas típicas.
   const sectioned = parseSectionedHoldings(lines);
   if (sectioned.length > 0) return mergeByTicker(sectioned);
 

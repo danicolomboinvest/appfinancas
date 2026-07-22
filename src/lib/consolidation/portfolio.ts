@@ -79,7 +79,7 @@ export type ClassAllocation = {
 
 /**
  * Alocação atual vs ideal por classe de ativo: soma o valor atual de cada classe e compara
- * com a soma dos "idealAllocationPercent" declarados por ativo — base para rebalanceamento.
+ * com a soma dos "idealAllocationPercent" declarados por ativo, base para rebalanceamento.
  */
 export async function getAllocationByClass(ctx: AuthContext): Promise<{ classes: ClassAllocation[]; totalPortfolio: number }> {
   const assets = await prisma.asset.findMany({ where: { userId: ctx.userId } });

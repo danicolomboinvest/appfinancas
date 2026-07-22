@@ -87,7 +87,7 @@ export function PlanningParamsForm({ defaults }: { defaults: Defaults }) {
         <PercentField
           label="Taxa na Liberdade Financeira (a.a.)"
           labelExtra={
-            <HelpTooltip text="A rentabilidade anual esperada depois de aposentado, na fase de usufruto — geralmente mais conservadora que a taxa de acúmulo, já que você passa a depender desse rendimento para viver." />
+            <HelpTooltip text="A rentabilidade anual esperada depois de aposentado, na fase de usufruto, geralmente mais conservadora que a taxa de acúmulo, já que você passa a depender desse rendimento para viver." />
           }
           name="usufructAnnualRate"
           defaultValue={defaults.usufructAnnualRate}

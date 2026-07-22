@@ -31,7 +31,7 @@ function monthSummaryLine(summary: { totalIncome: number; totalExpense: number; 
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
-  // Ancorado no fuso do Brasil, não no do servidor — sem isso a saudação ("Bom dia"/"Boa noite")
+  // Ancorado no fuso do Brasil, não no do servidor, sem isso a saudação ("Bom dia"/"Boa noite")
   // e o mês do resumo trocariam umas horas antes da hora certa pra quem está no Brasil.
   const now = nowInBrazil();
 

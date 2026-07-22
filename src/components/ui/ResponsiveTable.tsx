@@ -13,7 +13,7 @@ export type ResponsiveColumn<T> = {
 
 /**
  * >= 640px: tabela tradicional. < 640px: cada linha vira um card com pares
- * "label: valor" empilhados — nenhuma coluna fica inacessível no mobile.
+ * "label: valor" empilhados, nenhuma coluna fica inacessível no mobile.
  */
 export function ResponsiveTable<T>({
   columns,

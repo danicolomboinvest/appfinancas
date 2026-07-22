@@ -6,7 +6,7 @@ export default function NotFound() {
       <p className="text-label text-ink-faint">Erro 404</p>
       <h1 className="text-h1 font-semibold tracking-tight text-ink">Essa página não existe.</h1>
       <p className="max-w-sm text-body text-ink-muted">
-        Verifique o endereço ou volte para o início — sua vida financeira está te esperando lá.
+        Verifique o endereço ou volte para o início, sua vida financeira está te esperando lá.
       </p>
       <Link
         href="/mensal"

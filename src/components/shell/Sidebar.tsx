@@ -40,7 +40,7 @@ export function Sidebar({
   );
 
   // Expande o submenu na hora do clique (sem esperar a navegação terminar) para o
-  // primeiro clique já navegar E revelar as subpáginas — evita a sensação de precisar
+  // primeiro clique já navegar E revelar as subpáginas, evita a sensação de precisar
   // clicar duas vezes em conexões mais lentas. Sincroniza com a rota real durante a
   // renderização (em vez de um efeito), cobrindo navegação direta por URL ou pelo
   // botão voltar/avançar do navegador.
@@ -52,7 +52,7 @@ export function Sidebar({
     setExpandedBasePath(activeSection?.basePath ?? null);
   }
 
-  // "collapsed" (ícones apenas) é uma preferência só de desktop — no mobile a gaveta
+  // "collapsed" (ícones apenas) é uma preferência só de desktop, no mobile a gaveta
   // sempre mostra os rótulos completos, então as classes abaixo usam o prefixo md:.
   const collapsedDesktopOnly = collapsed ? "md:justify-center md:px-0" : "";
   const hideLabelDesktopOnly = collapsed ? "md:hidden" : "";

@@ -20,12 +20,12 @@ export async function updatePortfolioQuotesAction(): Promise<UpdateQuotesResult>
     where: { userId: ctx.userId, ticker: { not: null } },
     select: { id: true, ticker: true, quantity: true },
   });
-  // Só tickers de bolsa de verdade (PETR4, MXRF11…) — fundos/renda fixa usam o campo como
+  // Só tickers de bolsa de verdade (PETR4, MXRF11…), fundos/renda fixa usam o campo como
   // nome e não têm cotação pública, então não entram na busca nem na lista de "não achei".
   const assets = allWithTicker.filter((a) => /^[A-Z]{4}\d{1,2}$/.test(a.ticker as string));
 
   if (assets.length === 0) {
-    return { ok: false, error: "Nenhum ativo com ticker cadastrado — adicione o ticker para atualizar cotações." };
+    return { ok: false, error: "Nenhum ativo com ticker cadastrado, adicione o ticker para atualizar cotações." };
   }
 
   // Busca os preços em paralelo, mas 1 requisição por ticker único (PETR4 em 2 posições = 1 fetch).

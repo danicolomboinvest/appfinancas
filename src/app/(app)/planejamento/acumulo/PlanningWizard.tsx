@@ -34,7 +34,7 @@ const STEPS: StepDef[] = [
   },
   {
     question: "Você já tem outras rendas?",
-    help: "Aluguel, INSS, pensão — rendas que continuarão quando você parar de trabalhar. Deixe zerado se não houver.",
+    help: "Aluguel, INSS, pensão, rendas que continuarão quando você parar de trabalhar. Deixe zerado se não houver.",
     fields: [{ name: "otherPassiveIncome", label: "Outras rendas passivas por mês", affix: "R$", optional: true, placeholder: "0" }],
   },
   {
@@ -58,7 +58,7 @@ const STEPS: StepDef[] = [
   },
   {
     question: "Premissas de rentabilidade",
-    help: "Já preenchemos valores comuns — ajuste se quiser. Taxas ao ano.",
+    help: "Já preenchemos valores comuns, ajuste se quiser. Taxas ao ano.",
     fields: [
       { name: "accumulationAnnualRate", label: "Rendimento na fase de acúmulo", affix: "%", placeholder: "10" },
       { name: "inflationAnnualRate", label: "Inflação média", affix: "%", placeholder: "4,5" },
@@ -174,7 +174,7 @@ export function PlanningWizard() {
           />
         ))}
 
-        {/* Avançar / concluir — mesmo botão dos simuladores. */}
+        {/* Avançar / concluir, mesmo botão dos simuladores. */}
         <button
           type={isLast ? "submit" : "button"}
           onClick={isLast ? undefined : () => setStep((s) => Math.min(STEPS.length - 1, s + 1))}

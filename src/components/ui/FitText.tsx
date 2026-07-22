@@ -7,8 +7,8 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 const useIsoLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
 /**
- * Encolhe o texto pra caber na largura do container (item 9). Números grandes — patrimônio,
- * saldo — não estouram nem são cortados num celular estreito: a fonte reduz só o necessário e
+ * Encolhe o texto pra caber na largura do container (item 9). Números grandes, patrimônio,
+ * saldo, não estouram nem são cortados num celular estreito: a fonte reduz só o necessário e
  * nunca aumenta além do tamanho definido no `className`. Mede a largura natural (o `scale` via
  * transform não altera `scrollWidth`), então não há laço de realimentação.
  */
@@ -28,7 +28,7 @@ export function FitText({ children, className = "" }: { children: React.ReactNod
       if (!available || !needed) return;
       const next = needed > available ? available / needed : 1;
       setScale(next);
-      // O transform não encolhe a altura de layout — ajustamos na mão pra não sobrar espaço.
+      // O transform não encolhe a altura de layout, ajustamos na mão pra não sobrar espaço.
       setHeight(next < 1 ? inner.offsetHeight * next : undefined);
     };
     measure();

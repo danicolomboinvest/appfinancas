@@ -57,7 +57,7 @@ export function AppShell({
     });
   }
 
-  // A saudação ("Bom dia/Boa noite") só aparece no Fluxo — antes vinha em todas as telas.
+  // A saudação ("Bom dia/Boa noite") só aparece no Fluxo, antes vinha em todas as telas.
   const showGreeting = pathname === "/mensal" || pathname.startsWith("/mensal/");
 
   // "Mais" fica em destaque na tab bar quando a rota atual é uma das seções que só
@@ -102,11 +102,11 @@ export function AppShell({
         />
         <MoreSheet open={moreOpen} onClose={() => setMoreOpen(false)} isAdmin={isAdmin} userEmail={userEmail} onLogout={handleLogout} />
 
-        {/* Ponto de entrada ÚNICO de registro — aberto pelo "+" central da tab bar (mobile) ou
+        {/* Ponto de entrada ÚNICO de registro, aberto pelo "+" central da tab bar (mobile) ou
             pelo botão "Registrar" da sidebar (desktop). O microfone vive dentro dele. */}
         <RegistrarDrawer open={registrarOpen} onClose={() => setRegistrarOpen(false)} />
 
-        {/* Tour de boas-vindas — só na primeira entrada (lembrado no aparelho). */}
+        {/* Tour de boas-vindas, só na primeira entrada (lembrado no aparelho). */}
         <WelcomeTour />
       </div>
     </ToastProvider>

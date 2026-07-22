@@ -4,7 +4,7 @@ import { useEffect, useId, useRef, useState } from "react";
 
 /**
  * Ajuda "?" que funciona no desktop E no toque: abre no clique (toggle) e também no hover do
- * mouse; fecha ao clicar fora ou apertar Esc. Antes era só hover — no desktop, dependendo do
+ * mouse; fecha ao clicar fora ou apertar Esc. Antes era só hover, no desktop, dependendo do
  * navegador/gesto, o balão às vezes não aparecia, e no celular (sem hover) nunca abria.
  */
 export function HelpTooltip({ text }: { text: React.ReactNode }) {

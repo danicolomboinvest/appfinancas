@@ -7,13 +7,13 @@ export type MarkToMarketInput = {
   newRate: number;
   totalYears: number;
   yearsRemaining: number;
-  /** true para títulos com cupons semestrais (ex.: Tesouro IPCA+ com juros semestrais) — nesse
+  /** true para títulos com cupons semestrais (ex.: Tesouro IPCA+ com juros semestrais), nesse
    * caso o prazo correto para precificar a sensibilidade é a duration, não o prazo até o
    * vencimento, já que os cupons antecipam parte do fluxo. */
   hasSemiannualCoupons?: boolean;
-  /** Duration em anos — usada no lugar de yearsRemaining quando hasSemiannualCoupons é true. */
+  /** Duration em anos, usada no lugar de yearsRemaining quando hasSemiannualCoupons é true. */
   duration?: number;
-  /** Valor realmente investido (R$) — quando informado, escala marketPrice/profitOrLoss
+  /** Valor realmente investido (R$), quando informado, escala marketPrice/profitOrLoss
    * proporcionalmente (o preço de carrego/mercado acima é sempre por unidade de faceValue). */
   investedAmount?: number;
 };
@@ -29,9 +29,9 @@ export type MarkToMarketResult = {
   profitOrLoss: number;
   approximateSensitivity: number;
   sensitivityMatrix: SensitivityRow[];
-  /** Valor de mercado hoje escalado pelo valor investido — só presente quando investedAmount é informado. */
+  /** Valor de mercado hoje escalado pelo valor investido, só presente quando investedAmount é informado. */
   scaledMarketValue?: number;
-  /** Lucro/prejuízo em R$ sobre o valor investido — só presente quando investedAmount é informado. */
+  /** Lucro/prejuízo em R$ sobre o valor investido, só presente quando investedAmount é informado. */
   scaledProfitOrLoss?: number;
 };
 
@@ -42,12 +42,12 @@ const RATE_CHANGE_SCENARIOS = [-0.03, -0.02, -0.01, -0.005, 0, 0.005, 0.01, 0.02
  * Marcação a mercado de um título prefixado: preço = valor de face trazido a valor
  * presente pela taxa. A matriz cruza diferentes durations (prazo restante até o
  * vencimento no momento da venda) com variações de taxa, usando a mesma fórmula de
- * juros compostos do preço acima (preço% = 100/(1+taxa)^duration) — nunca a
+ * juros compostos do preço acima (preço% = 100/(1+taxa)^duration), nunca a
  * aproximação linear, que pode gerar preços negativos e é matematicamente inválida
  * para títulos de renda fixa. Cada célula mostra o desvio do preço em relação ao preço
  * de carrego daquela mesma duration (ou seja, variação de taxa = 0 é sempre 0%,
  * consistente com o card "Sensibilidade aproximada" acima), mostrando que o efeito é
- * grande para prazos longos e quase nulo perto do vencimento — a essência de "levar até
+ * grande para prazos longos e quase nulo perto do vencimento, a essência de "levar até
  * o vencimento elimina o risco".
  */
 export function simulateMarkToMarket(input: MarkToMarketInput): MarkToMarketResult {

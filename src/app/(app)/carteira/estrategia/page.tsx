@@ -23,7 +23,7 @@ export default async function EstrategiaCarteiraPage() {
 
       <PageHeader
         title="Estratégia da Carteira"
-        subtitle="Defina os percentuais-alvo por classe de estratégia (somando 100%) — independente da alocação-ideal de cada ativo individual."
+        subtitle="Defina os percentuais-alvo por classe de estratégia (somando 100%), independente da alocação-ideal de cada ativo individual."
       />
 
       <StrategyForm defaults={defaults} />

@@ -2,7 +2,7 @@ import Link from "next/link";
 
 export const metadata = { title: "Política de Privacidade · SPI Finance" };
 
-/** Política de Privacidade (LGPD) — conteúdo base para o lançamento; revisar com apoio jurídico. */
+/** Política de Privacidade (LGPD), conteúdo base para o lançamento; revisar com apoio jurídico. */
 export default function PrivacidadePage() {
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-2xl flex-col gap-6 px-6 py-12">
@@ -14,16 +14,16 @@ export default function PrivacidadePage() {
       <section className="flex flex-col gap-4 text-sm leading-relaxed text-ink-muted">
         <p>
           Esta política explica, em linguagem simples, como o <strong className="text-ink">SPI Finance</strong>{" "}
-          trata seus dados pessoais, em conformidade com a Lei Geral de Proteção de Dados (LGPD — Lei nº 13.709/2018).
+          trata seus dados pessoais, em conformidade com a Lei Geral de Proteção de Dados (LGPD, Lei nº 13.709/2018).
         </p>
 
         <h2 className="mt-2 text-base font-semibold text-ink">1. Quais dados coletamos</h2>
         <p>
           <strong className="text-ink">Dados de cadastro:</strong> nome, e-mail e senha (guardada de forma
-          criptografada — nem nós conseguimos vê-la).
+          criptografada, nem nós conseguimos vê-la).
           <br />
           <strong className="text-ink">Dados financeiros que você registra:</strong> lançamentos, orçamentos, metas,
-          ativos e arquivos de extrato que você importa. Esses dados existem para o app funcionar pra você — e para
+          ativos e arquivos de extrato que você importa. Esses dados existem para o app funcionar pra você, e para
           mais nada.
         </p>
 

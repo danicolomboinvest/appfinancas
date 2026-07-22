@@ -59,7 +59,7 @@ export function SpendingByCategory({
   const [transactions, setTransactions] = useState<CategoryTransaction[]>([]);
   const [isLoading, startTransition] = useTransition();
 
-  // Ícone + cor da categoria aberta (assinatura visual do documento de referência) — categorias
+  // Ícone + cor da categoria aberta (assinatura visual do documento de referência), categorias
   // personalizadas não têm o ícone escolhido disponível aqui, então usam um ícone genérico;
   // a cor, essa sim, é sempre a certa (mesmo hash usado no resto do app).
   const openIcon =
@@ -75,7 +75,7 @@ export function SpendingByCategory({
 
   function changePeriod(p: Period) {
     setPeriod(p);
-    setOpenCategory(null); // a lista aberta é de outro período — fecha ao trocar
+    setOpenCategory(null); // a lista aberta é de outro período, fecha ao trocar
   }
 
   function handleSelect(slice: SpendingSlice) {
@@ -140,7 +140,7 @@ export function SpendingByCategory({
       <Card className="p-5">
         <SpendingPieChart data={data} onSelect={handleSelect} selectedName={openCategory} />
 
-        {/* Lançamentos da categoria clicada — expande dentro do card. */}
+        {/* Lançamentos da categoria clicada, expande dentro do card. */}
         {openCategory && (
           <div className="mt-5 border-t border-border pt-4">
             <div className="mb-3 flex items-center gap-2.5">

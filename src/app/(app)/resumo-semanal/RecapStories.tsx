@@ -11,7 +11,7 @@ function formatBRL(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
 }
 
-/** Paleta dos stories — tema escuro imersivo fixo (independente do tema do app). */
+/** Paleta dos stories, tema escuro imersivo fixo (independente do tema do app). */
 const GOLD = "#f0c989";
 const SAGE = "#6fcb9f";
 const TERRA = "#e2836a";
@@ -85,14 +85,14 @@ export function RecapStories({ recap }: { recap: WeeklyRecap }) {
         URL.revokeObjectURL(url);
       }
     } catch {
-      // Usuário cancelou o share (AbortError) ou algo falhou — silencioso, sem quebrar a tela.
+      // Usuário cancelou o share (AbortError) ou algo falhou, silencioso, sem quebrar a tela.
     } finally {
       setSharing(false);
     }
   }
 
   // Portal em document.body: o wrapper do layout (animate-fade-in) cria stacking context e
-  // prenderia o z-index — fora dele, o story cobre a tab bar e o resto do chrome do app.
+  // prenderia o z-index, fora dele, o story cobre a tab bar e o resto do chrome do app.
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- detecção de montagem p/ createPortal
     setMounted(true);
@@ -221,7 +221,7 @@ export function RecapStories({ recap }: { recap: WeeklyRecap }) {
           <BigNumber color={savedPositive ? SAGE : TERRA}>{formatBRL(recap.allTimeSaved)}</BigNumber>
           <p className="text-base text-white/70">
             {savedPositive
-              ? "É renda que não virou gasto — e pode virar patrimônio."
+              ? "É renda que não virou gasto, e pode virar patrimônio."
               : "Semana a semana dá pra virar esse jogo. O primeiro passo é ver o número."}
           </p>
         </div>
@@ -235,7 +235,7 @@ export function RecapStories({ recap }: { recap: WeeklyRecap }) {
           <p className="text-lg text-white/80">Se você mantiver esse ritmo e investir, em 10 anos isso vira até…</p>
           <BigNumber>{formatBRL(Math.max(0, recap.projection10y))}</BigNumber>
           <p className="text-sm text-white/50">
-            *Poupança média de {formatBRL(Math.max(0, recap.avgMonthlySaving))}/mês a 10% a.a. — estimativa educativa, não garantia.
+            *Poupança média de {formatBRL(Math.max(0, recap.avgMonthlySaving))}/mês a 10% a.a., estimativa educativa, não garantia.
           </p>
         </div>
       ),
@@ -372,7 +372,7 @@ export function RecapStories({ recap }: { recap: WeeklyRecap }) {
       <button type="button" aria-label="Anterior" onClick={prev} className="absolute inset-y-0 left-0 z-10 w-1/3 cursor-default" />
       <button type="button" aria-label="Próximo" onClick={next} className="absolute inset-y-0 right-0 z-10 w-2/3 cursor-default" />
 
-      {/* Trilho de slides — a página inteira desliza (efeito "vidro") */}
+      {/* Trilho de slides, a página inteira desliza (efeito "vidro") */}
       <div
         className="flex h-full transition-transform duration-500"
         style={{ transform: `translateX(-${index * 100}%)`, transitionTimingFunction: "cubic-bezier(0.22, 1, 0.36, 1)" }}
@@ -391,7 +391,7 @@ export function RecapStories({ recap }: { recap: WeeklyRecap }) {
         ))}
       </div>
 
-      {/* Seta de vidro (como a referência) — some no último slide */}
+      {/* Seta de vidro (como a referência), some no último slide */}
       {!isLast && (
         <button
           type="button"

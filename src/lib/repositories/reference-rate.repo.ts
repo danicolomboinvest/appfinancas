@@ -19,7 +19,7 @@ export async function createReferenceRate(
   });
 }
 
-/** Só remove taxas do próprio usuário — nunca as globais nem as de outros usuários. */
+/** Só remove taxas do próprio usuário, nunca as globais nem as de outros usuários. */
 export async function deleteOwnReferenceRate(ctx: AuthContext, id: string) {
   return prisma.referenceRate.deleteMany({ where: { id, userId: ctx.userId } });
 }

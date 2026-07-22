@@ -10,7 +10,7 @@ export type ParsedVoiceEntry = {
 };
 
 /**
- * Palavras-chave faladas por categoria — vocabulário do dia a dia, não os rótulos formais de
+ * Palavras-chave faladas por categoria, vocabulário do dia a dia, não os rótulos formais de
  * SUBCATEGORIES (ex.: "uber" em vez de "Aplicativo"). Comparado sempre sem acento (ver `normalize`).
  */
 const CATEGORY_KEYWORDS: Record<ParentCategory, string[]> = {
@@ -110,7 +110,7 @@ function findMatchedKeyword(normalized: string): { parentCategory: ParentCategor
 }
 
 /**
- * Extrai tipo, categoria-mãe, valor e descrição de uma frase falada em português — só regras
+ * Extrai tipo, categoria-mãe, valor e descrição de uma frase falada em português, só regras
  * de palavra-chave e parsing de número por extenso, sem IA, sem custo por uso. Campos não
  * identificados voltam `null`/genéricos para o usuário revisar antes de salvar.
  */

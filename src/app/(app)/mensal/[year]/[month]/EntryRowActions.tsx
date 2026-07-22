@@ -26,7 +26,7 @@ export type EditableEntry = {
 
 /**
  * Ações de um lançamento na lista do mês: Editar (abre o mesmo EntryForm em modo edição) e
- * Excluir com Desfazer — a exclusão guarda um snapshot e o toast oferece recriar por 6s,
+ * Excluir com Desfazer, a exclusão guarda um snapshot e o toast oferece recriar por 6s,
  * em vez de exigir confirmação antes (menos atrito, mesmo nível de segurança).
  */
 export function EntryRowActions({

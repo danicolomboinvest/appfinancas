@@ -10,7 +10,7 @@ import { createCustomCategoryAction, type CustomCategoryState } from "./actions"
 
 const initialState: CustomCategoryState = {};
 
-/** Card "+ Nova categoria" — abre um modal com nome + escolha de ícone. */
+/** Card "+ Nova categoria", abre um modal com nome + escolha de ícone. */
 export function NewCustomCategoryCard() {
   const [open, setOpen] = useState(false);
   const [icon, setIcon] = useState(DEFAULT_CUSTOM_CATEGORY_ICON_KEY);

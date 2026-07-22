@@ -10,7 +10,7 @@ function toPercentDisplay(decimal: unknown): string {
 }
 
 /**
- * Mesma ideia do PercentField, mas controlada por value/onChange (decimal) — para usar
+ * Mesma ideia do PercentField, mas controlada por value/onChange (decimal), para usar
  * dentro de um <Controller> do react-hook-form, sem alterar o schema/zod (que continua
  * validando o valor decimal normalmente).
  */
@@ -22,7 +22,7 @@ export function PercentInputControlled({
   id,
 }: {
   label: string;
-  /** Vem de field.value do Controller — pode ser `unknown` antes da coerção do zod. */
+  /** Vem de field.value do Controller, pode ser `unknown` antes da coerção do zod. */
   value: unknown;
   onChange: (decimal: number | undefined) => void;
   error?: string;

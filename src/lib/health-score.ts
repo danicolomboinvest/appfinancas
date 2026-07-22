@@ -24,7 +24,7 @@ export type FinancialHealthScore = {
   dimensions: HealthDimension[];
 };
 
-/** Peso relativo de cada dimensão na nota geral — redistribuído entre as que têm dado disponível. */
+/** Peso relativo de cada dimensão na nota geral, redistribuído entre as que têm dado disponível. */
 const DIMENSION_WEIGHT: Record<HealthDimension["key"], number> = {
   reserva: 30,
   poupanca: 25,
@@ -135,7 +135,7 @@ export function scoreMetas(onTrackOrAchieved: number, total: number): HealthDime
   };
 }
 
-/** Combina as dimensões já calculadas em uma nota geral — pura composição, sem I/O. */
+/** Combina as dimensões já calculadas em uma nota geral, pura composição, sem I/O. */
 export function combineHealthDimensions(dimensions: HealthDimension[]): Omit<FinancialHealthScore, "dimensions"> {
   const available = dimensions.filter((d): d is HealthDimension & { score: number } => d.score !== null);
 
@@ -153,11 +153,11 @@ export function combineHealthDimensions(dimensions: HealthDimension[]): Omit<Fin
 function overallMessage(status: HealthStatus): string {
   switch (status) {
     case "boa":
-      return "Sua saúde financeira está sólida — continue com a disciplina atual.";
+      return "Sua saúde financeira está sólida, continue com a disciplina atual.";
     case "atencao":
       return "Sua saúde financeira está no caminho, mas alguns pontos merecem atenção.";
     case "critica":
-      return "Sua saúde financeira precisa de atenção — priorize os pontos críticos abaixo.";
+      return "Sua saúde financeira precisa de atenção, priorize os pontos críticos abaixo.";
     default:
       return "Ainda não há dados suficientes para calcular sua nota. Cadastre reserva, orçamento, metas e uma estratégia de carteira.";
   }
@@ -165,7 +165,7 @@ function overallMessage(status: HealthStatus): string {
 
 /**
  * Nota de 0 a 100 combinando reserva de emergência, taxa de poupança do mês, aderência à
- * estratégia de carteira e progresso das metas — as únicas dimensões com dado real disponível
+ * estratégia de carteira e progresso das metas, as únicas dimensões com dado real disponível
  * hoje no app (não há endividamento cadastrado, por isso essa dimensão do modelo clássico de
  * saúde financeira fica de fora até existir uma tela de dívidas).
  */

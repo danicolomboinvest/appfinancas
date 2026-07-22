@@ -10,7 +10,7 @@ export function PlannedVsActualBarChart({ months }: { months: MonthlyPlannedVsAc
   const data = months.map((m) => ({
     name: MONTH_LABELS[m.month - 1],
     Planejado: m.totalPlanned,
-    // Meses futuros ainda não têm "realizado" — null faz o Recharts pular a barra em vez de
+    // Meses futuros ainda não têm "realizado", null faz o Recharts pular a barra em vez de
     // mostrar um enganoso "R$ 0,00 gasto".
     Realizado: m.isRealized ? m.totalSpent : null,
   }));

@@ -1,4 +1,4 @@
-/** Skeleton exibido enquanto qualquer tela do app carrega no servidor — evita a tela branca
+/** Skeleton exibido enquanto qualquer tela do app carrega no servidor, evita a tela branca
  * em conexões lentas (especialmente no celular/PWA). */
 export default function AppLoading() {
   return (

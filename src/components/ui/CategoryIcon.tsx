@@ -1,7 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 
 /**
- * Círculo translúcido colorido + ícone cheio — a assinatura visual de categoria do documento
+ * Círculo translúcido colorido + ícone cheio, a assinatura visual de categoria do documento
  * de referência de design (fundo ~18% de opacidade da cor da categoria, ícone na cor cheia).
  * É o elemento que quebra o monocromático do app sem virar poluição visual.
  */
@@ -11,7 +11,7 @@ export function CategoryIcon({
   size = 40,
 }: {
   icon: LucideIcon;
-  /** Cor da categoria, ex.: "var(--color-cat-alimentacao)" — ver PARENT_CATEGORY_COLOR em categories.ts. */
+  /** Cor da categoria, ex.: "var(--color-cat-alimentacao)", ver PARENT_CATEGORY_COLOR em categories.ts. */
   color: string;
   size?: 36 | 40 | 44;
 }) {

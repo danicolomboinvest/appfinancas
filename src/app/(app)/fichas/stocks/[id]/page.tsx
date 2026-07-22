@@ -20,7 +20,7 @@ export default async function StockIntlSheetDetailPage(props: PageProps<"/fichas
       <Breadcrumb items={[{ label: "Análises", href: "/fichas" }, { label: "Stocks", href: "/fichas/stocks" }, { label: sheet.ticker }]} />
 
       <PageHeader
-        title={`${sheet.ticker}${sheet.companyName ? ` — ${sheet.companyName}` : ""}`}
+        title={`${sheet.ticker}${sheet.companyName ? `, ${sheet.companyName}` : ""}`}
         action={<DeleteSheetButton id={sheet.id} basePath="/fichas/stocks" />}
       />
 

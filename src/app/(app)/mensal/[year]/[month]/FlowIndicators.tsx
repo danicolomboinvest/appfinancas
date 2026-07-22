@@ -45,7 +45,7 @@ function adjacentMonth(year: number, month: number, delta: number) {
   return { year: date.getFullYear(), month: date.getMonth() + 1 };
 }
 
-/** Anel (gauge) que cresce de 0 até a fração na entrada da tela — mesmo espírito do arco de
+/** Anel (gauge) que cresce de 0 até a fração na entrada da tela, mesmo espírito do arco de
  * score do documento de referência de design, só que fininho pra caber num card pequeno. */
 function RingGauge({ fraction, delayMs = 0 }: { fraction: number; delayMs?: number }) {
   const frac = Math.max(0, Math.min(1, Math.abs(fraction)));
@@ -91,7 +91,7 @@ function IndicatorCard({
   delayMs = 0,
 }: {
   label: string;
-  /** Valor bruto (não formatado) — anima em count-up quando presente junto de `format`. */
+  /** Valor bruto (não formatado), anima em count-up quando presente junto de `format`. */
   value?: number;
   /** Valor já formatado, usado só quando não há count-up (ex.: "—", ring). */
   formattedValue?: string;
@@ -100,7 +100,7 @@ function IndicatorCard({
   bar?: number;
   /** Quando presente, mostra um anel (gauge) com o valor no centro, em vez de número + barra. */
   ring?: number;
-  /** Atraso antes de começar a animar — os 6 indicadores entram em cascata, não todos juntos
+  /** Atraso antes de começar a animar, os 6 indicadores entram em cascata, não todos juntos
    * (coreografia de entrada do documento de referência de design). */
   delayMs?: number;
 }) {
@@ -165,7 +165,7 @@ export function FlowIndicators({
   initialView: View;
   monthly: FlowBundle;
   annual: FlowBundle;
-  /** Ritmo do mês (orçamento consumido vs. mês decorrido) — só no mês corrente com orçamento. */
+  /** Ritmo do mês (orçamento consumido vs. mês decorrido), só no mês corrente com orçamento. */
   pacing?: Pacing | null;
 }) {
   const [view, setView] = useState<View>(initialView);

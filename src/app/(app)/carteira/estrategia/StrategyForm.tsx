@@ -17,7 +17,7 @@ type Preset = { label: string; description: string; values: Record<StrategyAsset
 const PRESETS: Preset[] = [
   {
     label: "Conservador",
-    description: "Prioriza previsibilidade — a maior parte em renda fixa.",
+    description: "Prioriza previsibilidade, a maior parte em renda fixa.",
     values: {
       RENDA_FIXA_POS_FIXADA: 50,
       RENDA_FIXA_IPCA: 30,
@@ -43,7 +43,7 @@ const PRESETS: Preset[] = [
   },
   {
     label: "Arrojado",
-    description: "Prioriza crescimento de longo prazo — a maior parte em renda variável.",
+    description: "Prioriza crescimento de longo prazo, a maior parte em renda variável.",
     values: {
       RENDA_FIXA_POS_FIXADA: 10,
       RENDA_FIXA_IPCA: 5,
@@ -102,7 +102,7 @@ export function StrategyForm({ defaults }: { defaults: Record<StrategyAssetClass
               <div key={assetClass} className="flex flex-col gap-1.5">
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-sm font-medium text-ink">{STRATEGY_ASSET_CLASS_LABEL[assetClass]}</span>
-                  {/* Caixinha do % — dá pra arrastar o slider OU digitar aqui. */}
+                  {/* Caixinha do %, dá pra arrastar o slider OU digitar aqui. */}
                   <div className="flex items-center rounded-lg border border-border-strong bg-surface focus-within:border-accent">
                     <input
                       type="number"

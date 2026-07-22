@@ -46,7 +46,7 @@ const VARIANT_MOTIVATION: Record<GoalVariant, { Icon: typeof Sparkles; message: 
     message: "Vale revisar o aporte mensal para não perder o ritmo.",
     colorClass: "text-danger",
   },
-  achieved: { Icon: PartyPopper, message: "Meta conquistada — comemore essa vitória.", colorClass: "text-success" },
+  achieved: { Icon: PartyPopper, message: "Meta conquistada, comemore essa vitória.", colorClass: "text-success" },
 };
 
 const GOAL_ICONS: Record<GoalIcon, typeof Target> = {
@@ -158,7 +158,7 @@ export function GoalCard({
         <div className="rounded-xl bg-surface-2 p-3">
           <p className="text-xs text-ink-muted">Aporte mensal sugerido</p>
           <p className="mt-1 text-xl font-bold tracking-tight text-accent-strong">
-            {/* `brl` (não `format={formatBRL}`): GoalCard é Server Component — função não serializa. */}
+            {/* `brl` (não `format={formatBRL}`): GoalCard é Server Component, função não serializa. */}
             <CountUp value={plan.requiredMonthlyContribution} brl />
           </p>
         </div>

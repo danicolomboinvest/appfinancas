@@ -3,7 +3,7 @@
 import { RefreshCw } from "lucide-react";
 
 /**
- * Tela de erro amigável em pt-BR — sem ela, qualquer exceção de servidor (banco fora do ar,
+ * Tela de erro amigável em pt-BR, sem ela, qualquer exceção de servidor (banco fora do ar,
  * sessão expirada no meio de uma action) mostrava o "Application error" padrão do Next em
  * inglês, a pior tela possível pra quem não é técnico. Os dados da pessoa não são afetados;
  * na maioria dos casos recarregar resolve.
@@ -16,7 +16,7 @@ export default function ErrorPage({ reset }: { error: Error & { digest?: string 
       </span>
       <h1 className="text-xl font-semibold tracking-tight text-ink">Ops, algo deu errado por aqui</h1>
       <p className="max-w-sm text-sm leading-relaxed text-ink-muted">
-        Foi um erro nosso, não seu — seus dados estão seguros. Tente recarregar; se continuar, saia e entre de novo.
+        Foi um erro nosso, não seu, seus dados estão seguros. Tente recarregar; se continuar, saia e entre de novo.
       </p>
       <button
         type="button"

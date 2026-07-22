@@ -18,7 +18,7 @@ export type CategoryRef =
 
 /**
  * Lista os lançamentos (gastos) de uma categoria dentro do período selecionado na tela "Só
- * gastos" — alimenta o clique na fatia/legenda da pizza, que expande pra mostrar o que compõe
+ * gastos", alimenta o clique na fatia/legenda da pizza, que expande pra mostrar o que compõe
  * aquele valor. Semana usa a data de lançamento (createdAt); mês/ano usam year/month.
  */
 export async function getCategoryTransactionsAction(

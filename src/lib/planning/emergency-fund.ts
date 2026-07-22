@@ -20,7 +20,7 @@ const MAX_PROJECTED_MONTHS = 600;
 
 /**
  * Meses até atingir a reserva (NPER) e projeção mês a mês: cada mês rende sobre o
- * acumulado e depois soma o novo aporte — mesma lógica da planilha original.
+ * acumulado e depois soma o novo aporte, mesma lógica da planilha original.
  */
 export function computeEmergencyFundPlan(input: EmergencyFundInput): EmergencyFundResult {
   const monthlyRate = annualToMonthly(input.annualRate);

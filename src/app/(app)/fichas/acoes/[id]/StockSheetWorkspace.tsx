@@ -31,7 +31,7 @@ export function StockSheetWorkspace({
   const [appliedSuggestions, setAppliedSuggestions] = useState<{ criterionId: string; value: string }[]>([]);
   const [applyToken, setApplyToken] = useState(0);
 
-  // Análise automática por indicador (item 8) — carrega sozinha ao abrir a ficha e é exibida
+  // Análise automática por indicador (item 8), carrega sozinha ao abrir a ficha e é exibida
   // DENTRO de cada linha do CriteriaForm, no lugar do antigo bloco "O que os números dizem".
   const [analysisByCriterionId, setAnalysisByCriterionId] = useState<Record<string, CriterionAnalysis> | undefined>(undefined);
   const [analysisDisclaimer, setAnalysisDisclaimer] = useState<string | undefined>(undefined);
@@ -86,7 +86,7 @@ export function StockSheetWorkspace({
         <div>
           <p className="text-sm font-medium text-ink">Preencher indicadores automaticamente</p>
           <p className="text-xs text-ink-muted">
-            Preenche sozinho indicadores como ROE, Dividend Yield, Payout, Tag Along e outros — é só revisar.
+            Preenche sozinho indicadores como ROE, Dividend Yield, Payout, Tag Along e outros, é só revisar.
           </p>
         </div>
         <Button type="button" variant="secondary" onClick={handleFetch} disabled={isPending} className="w-fit">

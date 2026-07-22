@@ -23,7 +23,7 @@ export function DeleteAccountSection() {
           <p className="text-sm font-semibold text-ink">Excluir minha conta</p>
           <p className="mt-1 text-sm text-ink-muted">
             Apaga a conta e <strong className="text-ink">todos os seus dados</strong> (lançamentos, orçamentos, metas,
-            carteira) de forma definitiva. Não tem volta — se quiser guardar algo, exporte antes.
+            carteira) de forma definitiva. Não tem volta, se quiser guardar algo, exporte antes.
           </p>
 
           {!open ? (

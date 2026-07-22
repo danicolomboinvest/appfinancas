@@ -29,7 +29,7 @@ export function YearlyBarChart({
   plannedByMonth,
 }: {
   months: MonthlyBreakdown[];
-  /** Total planejado (soma de todas as categorias) por número do mês (1-12) — vem de getAnnualPlannedVsActual. */
+  /** Total planejado (soma de todas as categorias) por número do mês (1-12), vem de getAnnualPlannedVsActual. */
   plannedByMonth?: Record<number, number>;
 }) {
   const data = months.map((m) => ({
@@ -102,7 +102,7 @@ export function YearlyBarChart({
       </ResponsiveContainer>
       {hasProjectedMonths && (
         <p className="text-xs text-ink-faint">
-          Meses mais claros ainda não aconteceram — são recorrências programadas, não gastos realizados.
+          Meses mais claros ainda não aconteceram, são recorrências programadas, não gastos realizados.
         </p>
       )}
     </div>

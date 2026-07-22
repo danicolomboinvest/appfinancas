@@ -5,7 +5,7 @@ export type ScrapedCriterion = { key: string; value: string };
 const USER_AGENT =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36";
 
-/** Cards de cotação identificados pelo atributo title — mesmo padrão usado nos FIIs. */
+/** Cards de cotação identificados pelo atributo title, mesmo padrão usado nos FIIs. */
 const CARD_TITLE_TO_KEY: Record<string, string> = {
   Capitalização: "patrimonio_liquido_etf",
   DY: "dividend_yield_etf",
@@ -15,7 +15,7 @@ const CARD_TITLE_TO_KEY: Record<string, string> = {
 
 /**
  * investidor10 hospeda ETFs listados na B3 em /etfs/{ticker}/ e ETFs americanos em
- * /etfs-global/{ticker}/ — o próprio servidor redireciona (301) quando o ticker pedido está
+ * /etfs-global/{ticker}/, o próprio servidor redireciona (301) quando o ticker pedido está
  * na URL errada, então sempre tentar /etfs/ primeiro e deixar o fetch seguir o redirect resolve
  * os dois casos sem precisar o usuário informar onde o fundo é negociado.
  */
@@ -25,7 +25,7 @@ export function buildInvestidor10EtfUrl(ticker: string): string {
 
 /**
  * Extrai os critérios com dado publicado (de 13 do catálogo de ETFs) direto do HTML estático
- * do investidor10 — sem IA, sem custo por chamada. Taxa de administração, índice de referência,
+ * do investidor10, sem IA, sem custo por chamada. Taxa de administração, índice de referência,
  * método de réplica e concentração da carteira só aparecem em texto livre (varia por fundo) ou
  * em gráficos renderizados via JS, então continuam manuais.
  */

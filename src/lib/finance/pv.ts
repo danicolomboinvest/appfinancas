@@ -38,7 +38,7 @@ export function pv(
  *
  * A base (1+rate) tem um piso pequeno e positivo: uma taxa de desconto <= -100% zeraria ou
  * inverteria a base, virando Infinity/NaN na tela do simulador. O formulário já barra isso,
- * mas a matriz de sensibilidade soma variações à taxa internamente — este piso garante que
+ * mas a matriz de sensibilidade soma variações à taxa internamente, este piso garante que
  * o cálculo nunca quebra mesmo com uma combinação extrema de taxa + variação.
  */
 export function bondPrice(faceValue: DecimalInput, rate: DecimalInput, time: DecimalInput): Decimal {

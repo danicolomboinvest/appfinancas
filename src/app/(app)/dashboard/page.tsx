@@ -27,14 +27,14 @@ function formatBRL(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
-/** Variação percentual entre o mês atual e o anterior — null quando não dá para comparar (mês anterior zerado). */
+/** Variação percentual entre o mês atual e o anterior, null quando não dá para comparar (mês anterior zerado). */
 function changePercent(current: number, previous: number): number | null {
   if (previous === 0) return null;
   return (current - previous) / previous;
 }
 
 /**
- * Diferença em R$ entre o mês atual e o anterior — usada só para o saldo, em vez de %.
+ * Diferença em R$ entre o mês atual e o anterior, usada só para o saldo, em vez de %.
  * Perto de zero (ou quando não há renda no mês), o saldo tende a ficar bem próximo do gasto
  * invertido (saldo = renda - gastos - aportes, e com renda/aportes zerados vira -gastos), o
  * que faz a variação percentual do saldo coincidir com a dos gastos por pura matemática —
@@ -52,10 +52,10 @@ function firstOf(value: string | string[] | undefined) {
 export default async function DashboardPage(props: PageProps<"/dashboard">) {
   const searchParams = await props.searchParams;
   const ctx = await getRequiredSession();
-  // Fuso do Brasil — o relógio UTC do servidor viraria o ano mais cedo na noite de 31/12.
+  // Fuso do Brasil, o relógio UTC do servidor viraria o ano mais cedo na noite de 31/12.
   const now = nowInBrazil();
 
-  // Ano selecionável via ?year — as setas do cabeçalho navegam por aqui.
+  // Ano selecionável via ?year, as setas do cabeçalho navegam por aqui.
   const yearParam = Number(firstOf(searchParams.year));
   const year = Number.isInteger(yearParam) && yearParam >= 2000 && yearParam <= 2100 ? yearParam : now.getFullYear();
   const isCurrentYear = year === now.getFullYear();

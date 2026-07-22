@@ -15,7 +15,7 @@ const SLICE_COLORS = [
 ];
 
 /** `id` é opcional (chamadores com rótulos já garantidamente únicos, ex.: uma fatia por
- * classe de ativo, não precisam informar) — quando presente, evita colisão de key quando
+ * classe de ativo, não precisam informar), quando presente, evita colisão de key quando
  * dois registros diferentes têm o mesmo `name` (ex.: dois ativos com o mesmo nome). */
 export type DonutSlice = { id?: string; name: string; value: number; color?: string };
 
@@ -27,7 +27,7 @@ export function DonutAllocationChart({
 }: {
   title: string;
   data: DonutSlice[];
-  /** Quando presente, o gráfico ganha legenda clicável — clicar numa fatia/linha seleciona. */
+  /** Quando presente, o gráfico ganha legenda clicável, clicar numa fatia/linha seleciona. */
   onSelect?: (slice: DonutSlice) => void;
   selectedName?: string | null;
 }) {
@@ -41,7 +41,7 @@ export function DonutAllocationChart({
         <>
           <ResponsiveContainer width="100%" height={220}>
             <PieChart>
-              {/* Gradiente por fatia — mesmo tratamento moderno do SpendingPieChart. */}
+              {/* Gradiente por fatia, mesmo tratamento moderno do SpendingPieChart. */}
               <defs>
                 {SLICE_COLORS.map((color, i) => (
                   <linearGradient key={i} id={`alloc-slice-${i}`} x1="0%" y1="0%" x2="100%" y2="100%">

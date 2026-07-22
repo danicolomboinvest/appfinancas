@@ -32,7 +32,7 @@ export default async function FiiSheetDetailPage(props: PageProps<"/fichas/fiis/
       <Breadcrumb items={[{ label: "Análises", href: "/fichas" }, { label: "FIIs", href: "/fichas/fiis" }, { label: sheet.ticker }]} />
 
       <PageHeader
-        title={`${sheet.ticker}${sheet.companyName ? ` — ${sheet.companyName}` : ""}`}
+        title={`${sheet.ticker}${sheet.companyName ? `, ${sheet.companyName}` : ""}`}
         action={<DeleteSheetButton id={sheet.id} basePath="/fichas/fiis" />}
       />
 

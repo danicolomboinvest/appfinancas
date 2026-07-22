@@ -27,7 +27,7 @@ export default async function MetasPage() {
 
   const withPlans = goals.map((goal) => {
     const targetAmount = Number(goal.targetAmount);
-    // Progresso REAL (ativos vinculados + aportes), não mais o campo manual — item 6.
+    // Progresso REAL (ativos vinculados + aportes), não mais o campo manual, item 6.
     const currentAmount = goal.computedCurrentAmount;
     const targetDate = goal.targetDate ?? new Date();
     const goalInput = {

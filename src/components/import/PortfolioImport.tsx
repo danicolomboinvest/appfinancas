@@ -45,7 +45,7 @@ function buildUploadForm(file: File): FormData {
 
 /**
  * Importação da carteira: sobe o extrato de posição da corretora/B3 (CSV/Excel/PDF) e o
- * servidor compara com a carteira atual — a revisão mostra só o que interessa: NOVOS
+ * servidor compara com a carteira atual, a revisão mostra só o que interessa: NOVOS
  * (entram na carteira) e MUDANÇAS (quantidade/valor atualizados, "antes → depois").
  * O que não mudou é só um contador; reimportar o mesmo extrato nunca duplica nada.
  */
@@ -61,7 +61,7 @@ export function PortfolioImport({ onDone }: { onDone: () => void }) {
 
   async function handleFile(file: File) {
     setError(null);
-    // Limite do corpo da Server Action é 8 MB — barra antes com mensagem clara.
+    // Limite do corpo da Server Action é 8 MB, barra antes com mensagem clara.
     if (file.size > 7.5 * 1024 * 1024) {
       setError("Arquivo muito grande (máx. ~7 MB). Exporte um relatório menor e tente de novo.");
       return;
@@ -73,7 +73,7 @@ export function PortfolioImport({ onDone }: { onDone: () => void }) {
         setError(result.error);
         return;
       }
-      // Sem mudança fica fora da revisão — só conta no aviso.
+      // Sem mudança fica fora da revisão, só conta no aviso.
       setHoldings(result.holdings.filter((h) => h.status !== "unchanged"));
       setUnchangedCount(result.holdings.filter((h) => h.status === "unchanged").length);
       setPhase("confirm");
@@ -151,7 +151,7 @@ export function PortfolioImport({ onDone }: { onDone: () => void }) {
 
         {nothingToDo ? (
           <p className="rounded-xl bg-surface-2 px-4 py-6 text-center text-sm text-ink-muted">
-            Sua carteira já está em dia com esse extrato — {unchangedCount} ativo{unchangedCount === 1 ? "" : "s"} conferido
+            Sua carteira já está em dia com esse extrato, {unchangedCount} ativo{unchangedCount === 1 ? "" : "s"} conferido
             {unchangedCount === 1 ? "" : "s"}, nenhuma mudança encontrada. 🎉
           </p>
         ) : (
@@ -237,7 +237,7 @@ export function PortfolioImport({ onDone }: { onDone: () => void }) {
 
             {unchangedCount > 0 && (
               <p className="text-caption text-ink-faint">
-                {unchangedCount} ativo{unchangedCount === 1 ? "" : "s"} sem mudança — já {unchangedCount === 1 ? "está" : "estão"} na
+                {unchangedCount} ativo{unchangedCount === 1 ? "" : "s"} sem mudança, já {unchangedCount === 1 ? "está" : "estão"} na
                 carteira e {unchangedCount === 1 ? "fica" : "ficam"} como {unchangedCount === 1 ? "está" : "estão"}.
               </p>
             )}
@@ -276,7 +276,7 @@ export function PortfolioImport({ onDone }: { onDone: () => void }) {
           updatedCount > 0 ? `${updatedCount} atualizado${updatedCount === 1 ? "" : "s"}` : null,
         ]
           .filter(Boolean)
-          .join(" · ") || "Nada pra mudar — carteira já estava em dia."}
+          .join(" · ") || "Nada pra mudar, carteira já estava em dia."}
       </p>
       <Button type="button" onClick={onDone}>
         Concluir

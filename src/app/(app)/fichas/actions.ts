@@ -42,7 +42,7 @@ export async function deleteSheetAction(id: string, basePath: string) {
   redirect(basePath);
 }
 
-/** Cria uma nova ficha em branco para o mesmo ticker — preserva a ficha atual como histórico. */
+/** Cria uma nova ficha em branco para o mesmo ticker, preserva a ficha atual como histórico. */
 export async function reanalyzeSheetAction(id: string, basePath: string) {
   const ctx = await getRequiredSession();
   const original = await getOwnSheetWithResponses(ctx, id);

@@ -21,7 +21,7 @@ function valueToCents(value: unknown): number | null {
 }
 
 /**
- * Mesma ideia do CurrencyField, mas controlada por value/onChange (reais) — para usar
+ * Mesma ideia do CurrencyField, mas controlada por value/onChange (reais), para usar
  * dentro de um <Controller> do react-hook-form, sem alterar o schema/zod (que continua
  * validando o valor numérico normalmente).
  */
@@ -36,7 +36,7 @@ export function CurrencyInputControlled({
   label: string;
   /** Conteúdo extra ao lado do rótulo (ex.: um ícone de ajuda/tooltip). */
   labelExtra?: React.ReactNode;
-  /** Vem de field.value do Controller — pode ser `unknown` antes da coerção do zod. */
+  /** Vem de field.value do Controller, pode ser `unknown` antes da coerção do zod. */
   value: unknown;
   onChange: (reais: number | undefined) => void;
   error?: string;

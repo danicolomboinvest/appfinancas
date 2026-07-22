@@ -12,7 +12,7 @@ const STATUS_TEXT_CLASS: Record<HealthStatus, string> = {
   "sem-dados": "text-ink-muted",
 };
 
-/** Cores do arco por status — gradiente sempre termina no dourado da marca. */
+/** Cores do arco por status, gradiente sempre termina no dourado da marca. */
 const STATUS_GRADIENT: Record<HealthStatus, [string, string]> = {
   boa: ["#7e9473", "#c9a15c"],
   atencao: ["#c9a15c", "#b15b3e"],
@@ -22,7 +22,7 @@ const STATUS_GRADIENT: Record<HealthStatus, [string, string]> = {
 
 /**
  * Arco de score (estilo "Opal Score"): semicírculo com gradiente preenchido até a nota,
- * número gigante no centro e as dimensões como pílulas com anel de progresso — substitui
+ * número gigante no centro e as dimensões como pílulas com anel de progresso, substitui
  * as barras de progresso lineares por algo mais moderno e legível de relance.
  */
 function ScoreArc({ score, status }: { score: number | null; status: HealthStatus }) {
@@ -31,7 +31,7 @@ function ScoreArc({ score, status }: { score: number | null; status: HealthStatu
   const fraction = (score ?? 0) / 100;
   const [from, to] = STATUS_GRADIENT[status];
 
-  // Anima o arco de 0 até a nota na entrada da tela (~1,2-1,5s) — o "elemento hero" do
+  // Anima o arco de 0 até a nota na entrada da tela (~1,2-1,5s), o "elemento hero" do
   // documento de referência de design nasce vazio e se preenche, em vez de já aparecer pronto.
   const [offset, setOffset] = useState(circumference);
   useEffect(() => {

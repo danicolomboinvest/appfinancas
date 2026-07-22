@@ -33,7 +33,7 @@ export default async function StockSheetDetailPage(props: PageProps<"/fichas/aco
       <Breadcrumb items={[{ label: "Análises", href: "/fichas" }, { label: "Ações", href: "/fichas/acoes" }, { label: sheet.ticker }]} />
 
       <PageHeader
-        title={`${sheet.ticker}${sheet.companyName ? ` — ${sheet.companyName}` : ""}`}
+        title={`${sheet.ticker}${sheet.companyName ? `, ${sheet.companyName}` : ""}`}
         action={
           <div className="flex items-center gap-2">
             <ReanalyzeButton id={sheet.id} basePath="/fichas/acoes" />

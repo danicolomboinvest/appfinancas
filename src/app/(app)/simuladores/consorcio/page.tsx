@@ -71,10 +71,10 @@ export default function ConsorcioPage() {
               </h1>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <StatCard label="Consórcio — total pago" value={formatBRL(result.consortium.totalPaid)} tone={result.winner === "CONSORCIO" ? "accent" : "neutral"} />
-              <StatCard label="Financiamento — custo total" value={formatBRL(result.financing.totalCostWithOpportunity)} tone={result.winner === "FINANCIAMENTO" ? "accent" : "neutral"} />
-              <StatCard label="Consórcio — parcela" value={formatBRL(result.consortium.installment)} />
-              <StatCard label="Financiamento — 1ª parcela" value={formatBRL(result.financing.firstInstallment)} />
+              <StatCard label="Consórcio, total pago" value={formatBRL(result.consortium.totalPaid)} tone={result.winner === "CONSORCIO" ? "accent" : "neutral"} />
+              <StatCard label="Financiamento, custo total" value={formatBRL(result.financing.totalCostWithOpportunity)} tone={result.winner === "FINANCIAMENTO" ? "accent" : "neutral"} />
+              <StatCard label="Consórcio, parcela" value={formatBRL(result.consortium.installment)} />
+              <StatCard label="Financiamento, 1ª parcela" value={formatBRL(result.financing.firstInstallment)} />
               <StatCard label="Custo de oportunidade da entrada" value={formatBRL(result.financing.downPaymentOpportunityCost)} />
             </div>
           </div>

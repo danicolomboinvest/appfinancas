@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 
 type Tone = "success" | "danger" | "accent" | "neutral";
 
-/** Gradiente de tons próximos por tom — nunca arco-íris, sempre a mesma cor clareando pro branco. */
+/** Gradiente de tons próximos por tom, nunca arco-íris, sempre a mesma cor clareando pro branco. */
 const TONE_GRADIENT: Record<Exclude<Tone, "neutral">, string> = {
   success: "linear-gradient(90deg, color-mix(in srgb, var(--color-success) 55%, white), var(--color-success))",
   danger: "linear-gradient(90deg, color-mix(in srgb, var(--color-danger) 55%, white), var(--color-danger))",
@@ -22,7 +22,7 @@ export function ProgressBar({
   className?: string;
 }) {
   const clamped = Math.min(Math.max(percent, 0), 1);
-  // Cresce de 0 até o valor ao entrar na tela (~0,8s ease-out) — pedido do documento de
+  // Cresce de 0 até o valor ao entrar na tela (~0,8s ease-out), pedido do documento de
   // referência de design. Começa em 0 e só assume o valor real no próximo tick, pra a
   // transição de CSS ter algo pra animar (senão já nasceria no tamanho final).
   const [width, setWidth] = useState(0);

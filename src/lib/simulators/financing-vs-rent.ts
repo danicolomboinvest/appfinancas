@@ -34,7 +34,7 @@ export type FinancingVsRentResult = {
 
 /**
  * Financiar vs Alugar+Investir: monta a amortização do financiamento e, em paralelo, simula
- * quem aluga investindo a diferença entre a parcela e o aluguel — incluindo a entrada que
+ * quem aluga investindo a diferença entre a parcela e o aluguel, incluindo a entrada que
  * não seria gasta, para uma comparação justa entre os dois caminhos.
  */
 export function simulateFinancingVsRent(input: FinancingVsRentInput): FinancingVsRentResult {

@@ -30,7 +30,7 @@ type Choice = Record<number, string>;
 
 /**
  * Importa o preço médio (custo de aquisição) das ações e FIIs a partir do PDF da declaração de
- * IR — o dado que os extratos de corretora quase nunca trazem. Sobe o PDF, o servidor lê a seção
+ * IR, o dado que os extratos de corretora quase nunca trazem. Sobe o PDF, o servidor lê a seção
  * "Bens e Direitos" e casa com a carteira; a revisão mostra o "antes → depois" do valor investido
  * e deixa escolher o ativo à mão quando a declaração só traz o nome da empresa (sem ticker).
  */
@@ -98,7 +98,7 @@ export function IrpfImport({ onDone }: { onDone: () => void }) {
         {error && <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p>}
         <p className="text-sm text-ink-muted">
           Sua declaração de IR tem o <span className="text-ink">preço médio</span> de cada ação e FII (o custo de
-          aquisição) — o que os extratos de corretora não trazem. Suba o PDF do recibo da declaração e eu preencho o
+          aquisição), o que os extratos de corretora não trazem. Suba o PDF do recibo da declaração e eu preencho o
           investido de cada ativo, pra o lucro/prejuízo calcular certo.
         </p>
         <button
@@ -129,7 +129,7 @@ export function IrpfImport({ onDone }: { onDone: () => void }) {
 
   if (phase === "confirm") {
     // Conta ATIVOS DA CARTEIRA distintos (não linhas): duas linhas apontando pro mesmo ativo
-    // aplicam uma vez só — o botão promete exatamente o que a action vai fazer.
+    // aplicam uma vez só, o botão promete exatamente o que a action vai fazer.
     const selectedCount = new Set(items.map((i) => choice[i.key]).filter(Boolean)).size;
     return (
       <div className="flex flex-col gap-4">
@@ -173,7 +173,7 @@ export function IrpfImport({ onDone }: { onDone: () => void }) {
                   onChange={(e) => pickAsset(i.key, e.target.value)}
                   className="w-full rounded-lg border border-border-strong bg-surface px-2 py-1.5 text-xs text-ink focus:border-accent focus:outline-none"
                 >
-                  <option value="">— não aplicar —</option>
+                  <option value="">Não aplicar</option>
                   {wallet.map((w) => (
                     <option key={w.id} value={w.id}>
                       {w.label}
@@ -186,7 +186,7 @@ export function IrpfImport({ onDone }: { onDone: () => void }) {
         </ul>
 
         <p className="text-caption text-ink-faint">
-          O preço médio vira o valor investido (preço médio × quantidade da carteira). A cotação atual não muda — só o
+          O preço médio vira o valor investido (preço médio × quantidade da carteira). A cotação atual não muda, só o
           investido, que é a base do lucro/prejuízo.
         </p>
 

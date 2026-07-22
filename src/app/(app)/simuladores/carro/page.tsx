@@ -59,10 +59,10 @@ export default function CarroPage() {
               </h1>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <StatCard label="Resultado líquido — assinatura" value={formatBRL(result.netResultSubscription)} tone={result.winner === "ASSINATURA" ? "accent" : "neutral"} />
-              <StatCard label="Resultado líquido — compra" value={formatBRL(result.netResultPurchase)} tone={result.winner === "COMPRA" ? "accent" : "neutral"} />
-              <StatCard label="Custo caixa — assinatura" value={formatBRL(result.subscriptionCashCost)} />
-              <StatCard label="Custo caixa — compra" value={formatBRL(result.purchaseCashCost)} />
+              <StatCard label="Resultado líquido, assinatura" value={formatBRL(result.netResultSubscription)} tone={result.winner === "ASSINATURA" ? "accent" : "neutral"} />
+              <StatCard label="Resultado líquido, compra" value={formatBRL(result.netResultPurchase)} tone={result.winner === "COMPRA" ? "accent" : "neutral"} />
+              <StatCard label="Custo caixa, assinatura" value={formatBRL(result.subscriptionCashCost)} />
+              <StatCard label="Custo caixa, compra" value={formatBRL(result.purchaseCashCost)} />
               <StatCard label="Custo de oportunidade da compra" value={formatBRL(result.opportunityCost)} />
             </div>
           </div>

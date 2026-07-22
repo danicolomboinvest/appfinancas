@@ -24,7 +24,7 @@ export function buildInvestidor10Url(ticker: string): string {
 
 /**
  * Extrai os 12 critérios com dado publicado (de 22 do catálogo) direto do HTML estático da
- * página de ações do investidor10 — sem IA, sem custo por chamada. Os outros 10 (qualitativos
+ * página de ações do investidor10, sem IA, sem custo por chamada. Os outros 10 (qualitativos
  * que dependem de pesquisa/julgamento) não têm fonte confiável na página e continuam manuais.
  */
 export function parseStockPage(html: string): ScrapedCriterion[] {

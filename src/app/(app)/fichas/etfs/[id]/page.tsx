@@ -20,7 +20,7 @@ export default async function EtfSheetDetailPage(props: PageProps<"/fichas/etfs/
       <Breadcrumb items={[{ label: "Análises", href: "/fichas" }, { label: "ETFs", href: "/fichas/etfs" }, { label: sheet.ticker }]} />
 
       <PageHeader
-        title={`${sheet.ticker}${sheet.companyName ? ` — ${sheet.companyName}` : ""}`}
+        title={`${sheet.ticker}${sheet.companyName ? `, ${sheet.companyName}` : ""}`}
         action={<DeleteSheetButton id={sheet.id} basePath="/fichas/etfs" />}
       />
 

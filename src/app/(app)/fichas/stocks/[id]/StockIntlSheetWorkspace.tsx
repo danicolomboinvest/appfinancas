@@ -61,7 +61,7 @@ export function StockIntlSheetWorkspace({
         <div>
           <p className="text-sm font-medium text-ink">Preencher indicadores automaticamente</p>
           <p className="text-xs text-ink-muted">
-            Preenche sozinho indicadores como ROE, Dividend Yield, Payout, Margem Líquida e outros — é só revisar.
+            Preenche sozinho indicadores como ROE, Dividend Yield, Payout, Margem Líquida e outros, é só revisar.
           </p>
         </div>
         <Button type="button" variant="secondary" onClick={handleFetch} disabled={isPending} className="w-fit">

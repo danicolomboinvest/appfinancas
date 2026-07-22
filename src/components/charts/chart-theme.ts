@@ -1,5 +1,5 @@
 // Paleta consistente para os gráficos Recharts no tema editorial "First Light" (papel/tinta
-// + dourado). Usa var(--color-*) em vez de hex fixo — o SVG resolve os custom properties como
+// + dourado). Usa var(--color-*) em vez de hex fixo, o SVG resolve os custom properties como
 // qualquer outra propriedade CSS, então os gráficos acompanham a troca de tema claro/escuro
 // automaticamente, sem precisar de lógica JS de detecção de tema.
 export const CHART_COLORS = {
@@ -24,7 +24,7 @@ export const CHART_TOOLTIP_STYLE = {
   },
   labelStyle: { color: "var(--color-ink-muted)" },
   itemStyle: { color: "var(--color-ink)" },
-  // "hover" (padrão do Recharts) não existe de verdade em touchscreen — um toque não sustenta
+  // "hover" (padrão do Recharts) não existe de verdade em touchscreen, um toque não sustenta
   // estado de hover, então o tooltip nunca aparece de forma confiável no celular. "click" faz o
   // toque mostrar/trocar o tooltip explicitamente, funcionando igual com mouse no desktop.
   trigger: "click" as const,

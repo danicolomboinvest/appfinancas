@@ -34,7 +34,7 @@ export function PreferencesForm({ defaults }: { defaults: { currency: string; th
       </div>
       <p className="text-xs text-ink-faint">
         A preferência de tema é aplicada imediatamente após salvar. O suporte completo a outras moedas chega em uma
-        próxima atualização — hoje os valores continuam sendo exibidos em R$.
+        próxima atualização, hoje os valores continuam sendo exibidos em R$.
       </p>
       <Button type="submit" disabled={isPending} className="w-fit">
         {isPending ? "Salvando..." : "Salvar"}

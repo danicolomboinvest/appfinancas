@@ -11,7 +11,7 @@ function formatBRL(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
-/** Cartão de planejamento de uma categoria padrão — sem form/submit próprio, os campos fazem
+/** Cartão de planejamento de uma categoria padrão, sem form/submit próprio, os campos fazem
  * parte do form único de OrcamentoForm.tsx ("Salvar tudo"). */
 export function BudgetCategoryCard({
   parentCategory,

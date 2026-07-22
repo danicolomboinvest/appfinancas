@@ -17,7 +17,7 @@ export const budgetSchema = z.object({
   plannedAmount: z.coerce.number().nonnegative("O valor planejado não pode ser negativo."),
 });
 
-/** Sem `month` — aplica o mesmo valor aos 12 meses do ano (ver applyBudgetToWholeYear). */
+/** Sem `month`, aplica o mesmo valor aos 12 meses do ano (ver applyBudgetToWholeYear). */
 export const annualBudgetSchema = z.object({
   year: z.coerce.number().int().min(2000).max(2100),
   parentCategory: z.enum(PARENT_CATEGORY_VALUES),

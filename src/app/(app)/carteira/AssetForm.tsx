@@ -27,7 +27,7 @@ const OBJECTIVE_OPTIONS = [
 ];
 
 const FIXED_INCOME_OPTIONS = [
-  { value: "", label: "— (não definido)" },
+  { value: "", label: "Não definido" },
   { value: "POS_FIXADO", label: "Pós-fixado (CDI/Selic)" },
   { value: "IPCA", label: "IPCA+" },
   { value: "PREFIXADO", label: "Prefixado" },
@@ -44,7 +44,7 @@ type Defaults = {
   fixedIncomeIndex?: string;
 };
 
-/** Form de ativo — sem `assetId`/`defaults` cria um ativo novo; com eles, edita um existente. */
+/** Form de ativo, sem `assetId`/`defaults` cria um ativo novo; com eles, edita um existente. */
 export function AssetForm({
   goals,
   assetId,

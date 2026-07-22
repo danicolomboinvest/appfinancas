@@ -7,7 +7,7 @@ import { Decimal, toDecimal, type DecimalInput } from "./decimal";
  * metas, reserva de emergência, futureValue > presentValue); negativo quando o "aporte"
  * na verdade DRENA o saldo até zerá-lo (ex.: parcela de um financiamento Price, onde
  * presentValue é o saldo devedor e futureValue = 0). Quem for exibir a parcela de um
- * financiamento ao usuário deve usar `.abs()` no resultado — o sinal negativo aqui é
+ * financiamento ao usuário deve usar `.abs()` no resultado, o sinal negativo aqui é
  * informação real (mesma direção usada por fv()), não um bug.
  *
  * @param rate taxa por período

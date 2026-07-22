@@ -16,7 +16,7 @@ export type FetchStockIndicatorsResult =
 /**
  * Busca os indicadores públicos do ticker. Usa o investidor10 como fonte principal e o
  * analisedeacoes como 2ª fonte: o que a 1ª não trouxer, a 2ª completa (mais critérios
- * preenchidos automaticamente). Se a 2ª falhar, seguimos só com a 1ª — não quebra.
+ * preenchidos automaticamente). Se a 2ª falhar, seguimos só com a 1ª, não quebra.
  */
 export async function fetchStockIndicatorsAction(ticker: string): Promise<FetchStockIndicatorsResult> {
   if (!ticker.trim()) {
@@ -35,7 +35,7 @@ export async function fetchStockIndicatorsAction(ticker: string): Promise<FetchS
         }
       }
     } catch {
-      /* 2ª fonte indisponível — segue com a principal */
+      /* 2ª fonte indisponível, segue com a principal */
     }
 
     if (merged.length === 0) {
@@ -54,7 +54,7 @@ export type FetchStockOverviewResult =
 /**
  * Overview educativo da empresa: indicadores da analisedeacoes com um "selo" por indicador
  * (Favorável / Na média / Atenção) contra uma referência geral e transparente. NÃO é
- * recomendação de compra/venda — o aviso vai junto (OVERVIEW_DISCLAIMER).
+ * recomendação de compra/venda, o aviso vai junto (OVERVIEW_DISCLAIMER).
  */
 export async function fetchStockOverviewAction(ticker: string): Promise<FetchStockOverviewResult> {
   if (!ticker.trim()) return { ok: false, error: "Ticker vazio." };

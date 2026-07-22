@@ -19,7 +19,7 @@ export type AmortizationInput = {
 };
 
 /**
- * Tabela de amortização mês a mês — compartilhada por Financiar-vs-Alugar e Consórcio.
+ * Tabela de amortização mês a mês, compartilhada por Financiar-vs-Alugar e Consórcio.
  * SAC: amortização constante, juros e parcela decrescem ao longo do tempo.
  * Price: parcela fixa (PMT), a composição entre juros e amortização muda mês a mês.
  */

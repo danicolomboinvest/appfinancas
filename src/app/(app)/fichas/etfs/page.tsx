@@ -14,8 +14,8 @@ export default async function FichasEtfsPage() {
   return (
     <div className="flex flex-col gap-8">
       <PageHeader
-        title="Análises — ETFs"
-        subtitle="Checklist de custo, tamanho, liquidez e aderência ao índice de referência — para ETFs nacionais e internacionais."
+        title="Análises de ETFs"
+        subtitle="Checklist de custo, tamanho, liquidez e aderência ao índice de referência, para ETFs nacionais e internacionais."
       />
 
       <CreateEtfSheetForm />

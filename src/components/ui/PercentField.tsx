@@ -12,7 +12,7 @@ function toPercentDisplay(decimal: number | undefined): string {
 
 /**
  * Input de taxa em percentual (ex.: usuário digita "11") que carrega internamente o
- * valor decimal (0.11) via um input escondido — para formulários nativos (server actions),
+ * valor decimal (0.11) via um input escondido, para formulários nativos (server actions),
  * sem depender do react-hook-form.
  */
 export function PercentField({

@@ -49,7 +49,7 @@ const MONTH_LABELS = [
   "Dezembro",
 ];
 
-/** Cor do valor por tipo de lançamento — mesma convenção do resto do app (verde entrada,
+/** Cor do valor por tipo de lançamento, mesma convenção do resto do app (verde entrada,
  * vermelho saída, dourado aporte). */
 const CATEGORY_AMOUNT_CLASS: Record<string, string> = {
   INCOME: "text-success",
@@ -57,7 +57,7 @@ const CATEGORY_AMOUNT_CLASS: Record<string, string> = {
   INVESTMENT_CONTRIBUTION: "text-accent-strong",
 };
 
-/** Ícone + cor do círculo de categoria (assinatura visual do documento de referência) — por
+/** Ícone + cor do círculo de categoria (assinatura visual do documento de referência), por
  * categoria-mãe pra gastos; ícone fixo colorido pelo tom pra renda/aporte, que não têm categoria. */
 function categoryVisual(
   entry: { category: string; parentCategory: string | null; customCategoryId: string | null },
@@ -78,7 +78,7 @@ function categoryVisual(
   return { icon: Receipt, color: "var(--color-ink-faint)" };
 }
 
-/** "Hoje" / "Ontem" / "15 de jul" — datas relativas nas listas, como pede o documento de
+/** "Hoje" / "Ontem" / "15 de jul", datas relativas nas listas, como pede o documento de
  * referência de design (em vez de sempre DD/MM). Comparado à data de hoje no fuso do Brasil. */
 function formatRelativeDay(date: Date | null): string | null {
   if (!date) return null;
@@ -92,7 +92,7 @@ function formatRelativeDay(date: Date | null): string | null {
   return `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
 }
 
-/** Meses movimentados podem ter dezenas de lançamentos — mostra os mais recentes direto e
+/** Meses movimentados podem ter dezenas de lançamentos, mostra os mais recentes direto e
  * esconde o resto atrás de "Ver mais" em vez de empilhar tudo de uma vez no mobile. */
 const VISIBLE_ENTRIES_COUNT = 8;
 
@@ -214,7 +214,7 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
 
   const goalOptions = goals.map((g) => ({ id: g.id, name: g.name }));
 
-  // Ritmo do mês: % do orçamento consumido vs. % do mês decorrido — mais honesto que "limite
+  // Ritmo do mês: % do orçamento consumido vs. % do mês decorrido, mais honesto que "limite
   // diário" (média), porque gasto não é linear. Só faz sentido no mês corrente e com orçamento.
   // Fuso do Brasil: com o relógio UTC do servidor, das 21h à meia-noite o app acharia que já é
   // o dia (ou mês) seguinte.
@@ -291,7 +291,7 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
         customCategories={customCategories}
         goals={goalOptions}
         // Lançando num mês que não é o atual, a data default acompanha o mês visualizado
-        // (dia 1) — "hoje" criaria um lançamento com data de julho dentro de junho.
+        // (dia 1), "hoje" criaria um lançamento com data de julho dentro de junho.
         defaultEntryDate={isCurrentMonth ? undefined : `${year}-${String(month).padStart(2, "0")}-01`}
       />
 

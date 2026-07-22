@@ -3,7 +3,7 @@ import { parseIrpfBensEDireitos } from "../irpf-parser";
 
 /**
  * Fixture SINTÉTICA que reproduz o layout que o `pdf-parse` (Node) produz para a "Declaração de
- * Bens e Direitos" do IRPF — tickers e valores inventados (nada de dados reais de ninguém).
+ * Bens e Direitos" do IRPF, tickers e valores inventados (nada de dados reais de ninguém).
  * Cada bloco cobre um formato real: custo médio explícito, custo por ação "R$:X", ação do
  * exterior (custo total), colisão do prefixo de grupo com "FUNDOS", posição vendida (2025 = 0),
  * número de conta terminando em "249" (não pode virar país 249/EUA) e um CDB (grupo fora do escopo).
@@ -47,7 +47,7 @@ const SAMPLE = [
   "105 - BRASIL",
   "Código de Negociação: ABCD11\tNegociados em Bolsa: Sim",
   "Bem com usufruto: Não",
-  // FII vendido no ano (situação 2025 = 0) — não deve aparecer.
+  // FII vendido no ano (situação 2025 = 0), não deve aparecer.
   "07 FUNDOS - FII VENDIDO WXYZ11 CI - 10 QUOTAS",
   "100,00 CADA TOTAL R$ 1.000,00",
   "1.000,00 0,00",
@@ -56,13 +56,13 @@ const SAMPLE = [
   "105 - BRASIL",
   "Código de Negociação: WXYZ11\tNegociados em Bolsa: Sim",
   "Bem com usufruto: Não",
-  // CDB (grupo 04) — fora do escopo (não é negociado em bolsa, não tem preço médio de cota).
+  // CDB (grupo 04), fora do escopo (não é negociado em bolsa, não tem preço médio de cota).
   "04 BTG - CDB BANCO XPTO",
   "0,00 5.000,00",
   "01\t1006",
   "105 - BRASIL",
   "Bem com usufruto: Não",
-  // Quantidade com MILHAR ("1.000 QUOTAS" = mil, não um) — regressão do bug que inflava o
+  // Quantidade com MILHAR ("1.000 QUOTAS" = mil, não um), regressão do bug que inflava o
   // investido 1000×. E a discriminação continua num texto com "31 DE DEZEMBRO" (não pode
   // abrir bloco falso) e um par "10 2024" solto (não pode virar o marcador código/nº-bem).
   "07 FUNDO IMOBILIÁRIO MILL11 - 1.000 QUOTAS A UM",
@@ -82,7 +82,7 @@ describe("parseIrpfBensEDireitos", () => {
   const byName = (frag: string) => assets.find((a) => a.name.includes(frag));
 
   it("extrai só ações/FIIs/ETFs negociados em bolsa (ignora CDB e afins)", () => {
-    // TEST3, EXEMPLO, FOO, ABCD11, MILL11 — o CDB e o FII vendido ficam de fora.
+    // TEST3, EXEMPLO, FOO, ABCD11, MILL11, o CDB e o FII vendido ficam de fora.
     expect(assets).toHaveLength(5);
     expect(byName("CDB")).toBeUndefined();
   });

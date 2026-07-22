@@ -15,7 +15,7 @@ const INFO_LABEL_TO_KEY: Record<string, string> = {
   VACÂNCIA: "vacancia_atual",
 };
 
-/** Cards de cotação (P/VP, Liquidez Diária) — identificados pelo atributo title, não por texto solto. */
+/** Cards de cotação (P/VP, Liquidez Diária), identificados pelo atributo title, não por texto solto. */
 const CARD_TITLE_TO_KEY: Record<string, string> = {
   "Liquidez Diária": "liquidez_fii",
   "P/VP": "p_vp",
@@ -27,7 +27,7 @@ export function buildInvestidor10FiiUrl(ticker: string): string {
 
 /**
  * Extrai os critérios com dado publicado (de 27 do catálogo de FIIs) direto do HTML estático da
- * página do investidor10 — sem IA, sem custo por chamada. Critérios que dependem de julgamento
+ * página do investidor10, sem IA, sem custo por chamada. Critérios que dependem de julgamento
  * (qualidade dos imóveis/inquilinos, riscos) ou só aparecem em gráficos renderizados via JS
  * (histórico de vacância, composição de CRIs) não têm fonte confiável na página estática e
  * continuam manuais.
