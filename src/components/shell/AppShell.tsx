@@ -7,6 +7,7 @@ import { MobileTabBar } from "./MobileTabBar";
 import { MoreSheet } from "./MoreSheet";
 import { GreetingStrip } from "./GreetingStrip";
 import { RegistrarDrawer } from "./RegistrarDrawer";
+import { WelcomeTour } from "./WelcomeTour";
 import { MORE_NAV_SECTIONS } from "./nav-sections";
 import { logoutAction } from "@/lib/auth/actions";
 import { ToastProvider } from "@/components/ui/toast-context";
@@ -102,6 +103,9 @@ export function AppShell({
         {/* Ponto de entrada ÚNICO de registro — aberto pelo "+" central da tab bar (mobile) ou
             pelo botão "Registrar" da sidebar (desktop). O microfone vive dentro dele. */}
         <RegistrarDrawer open={registrarOpen} onClose={() => setRegistrarOpen(false)} />
+
+        {/* Tour de boas-vindas — só na primeira entrada (lembrado no aparelho). */}
+        <WelcomeTour />
       </div>
     </ToastProvider>
   );
