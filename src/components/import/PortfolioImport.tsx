@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import { Upload, Check } from "lucide-react";
+import { Upload, Check, Lock } from "lucide-react";
 import type { AssetClass } from "@prisma/client";
 import { Button } from "@/components/ui/Button";
 import {
@@ -11,7 +11,7 @@ import {
   type ConfirmedHolding,
 } from "@/app/(app)/carteira/import-actions";
 
-type Phase = "upload" | "confirm" | "done";
+type Phase = "upload" | "password" | "confirm" | "done";
 
 const CLASS_LABEL: Record<AssetClass, string> = {
   RENDA_FIXA: "Renda Fixa",
@@ -58,18 +58,35 @@ export function PortfolioImport({ onDone }: { onDone: () => void }) {
   const [updatedCount, setUpdatedCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  // Excel da corretora pode vir protegido por senha: guardamos o arquivo e pedimos a senha.
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [password, setPassword] = useState("");
 
-  async function handleFile(file: File) {
+  function handleFile(file: File) {
     setError(null);
     // Limite do corpo da Server Action é 8 MB, barra antes com mensagem clara.
     if (file.size > 7.5 * 1024 * 1024) {
       setError("Arquivo muito grande (máx. ~7 MB). Exporte um relatório menor e tente de novo.");
       return;
     }
+    runParse(file);
+  }
+
+  /** Lê o arquivo no servidor. Se o Excel estiver protegido, cai na tela de senha; com a senha,
+   * reenvia o MESMO arquivo pra descriptografar e seguir. */
+  function runParse(file: File, pwd?: string) {
+    setError(null);
     const formData = buildUploadForm(file);
+    if (pwd) formData.set("password", pwd);
     startTransition(async () => {
       const result = await parsePortfolioAction(formData);
       if (!result.ok) {
+        if (result.needsPassword) {
+          setPendingFile(file);
+          setPhase("password");
+          setError(pwd ? result.error : null);
+          return;
+        }
         setError(result.error);
         return;
       }
@@ -136,6 +153,58 @@ export function PortfolioImport({ onDone }: { onDone: () => void }) {
             if (file) handleFile(file);
           }}
         />
+      </div>
+    );
+  }
+
+  // --- SENHA (Excel protegido pela corretora) ---
+  if (phase === "password") {
+    return (
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col items-center gap-3 py-2 text-center">
+          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-accent-soft text-accent-strong">
+            <Lock size={22} strokeWidth={1.75} />
+          </span>
+          <p className="text-sm font-medium text-ink">Este arquivo está protegido por senha</p>
+          <p className="text-caption text-ink-faint">
+            Digite a senha do arquivo (a mesma que a corretora pede pra abrir). Ela é usada só pra abrir e não fica salva.
+          </p>
+        </div>
+
+        {error && <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p>}
+
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (pendingFile && password) runParse(pendingFile, password);
+          }}
+          className="flex flex-col gap-3"
+        >
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Senha do arquivo"
+            autoFocus
+            autoComplete="off"
+            className="w-full rounded-lg border border-border-strong bg-surface px-3 py-2.5 text-sm text-ink focus:border-accent focus:outline-none"
+          />
+          <Button type="submit" disabled={isPending || !password}>
+            {isPending ? "Abrindo..." : "Desbloquear e continuar"}
+          </Button>
+          <button
+            type="button"
+            onClick={() => {
+              setPhase("upload");
+              setPendingFile(null);
+              setPassword("");
+              setError(null);
+            }}
+            className="text-center text-xs font-medium text-ink-faint hover:text-ink"
+          >
+            Escolher outro arquivo
+          </button>
+        </form>
       </div>
     );
   }

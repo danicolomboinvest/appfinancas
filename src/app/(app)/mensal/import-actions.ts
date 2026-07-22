@@ -7,7 +7,7 @@ import { prisma } from "@/lib/db/prisma";
 import { createMonthlyEntry } from "@/lib/repositories/monthly-entry.repo";
 import { listTransactionRules, upsertTransactionRule } from "@/lib/repositories/transaction-rule.repo";
 import { parseStatement } from "@/lib/import/statement-parser";
-import { extractUploadFromForm, UploadReadError } from "@/lib/import/extract-text";
+import { extractUploadFromForm, UploadReadError, PasswordRequiredError } from "@/lib/import/extract-text";
 import { classify, normalizeMerchant, type LearnedRule } from "@/lib/import/classify";
 
 const PARENT_CATEGORY_VALUES: ParentCategory[] = [
@@ -34,7 +34,9 @@ export type ReviewItem = {
   autoClassified: boolean;
 };
 
-export type ParseStatementResult = { ok: true; items: ReviewItem[] } | { ok: false; error: string };
+export type ParseStatementResult =
+  | { ok: true; items: ReviewItem[] }
+  | { ok: false; error: string; needsPassword?: boolean };
 
 /** Lê o extrato (CSV/OFX/Excel/PDF), classifica cada transação e devolve a fila pra revisão.
  * O arquivo vem CRU num FormData ({ file, encoding }), string grande como argumento de
@@ -50,6 +52,7 @@ export async function parseStatementAction(formData: FormData): Promise<ParseSta
   try {
     ({ text, source } = await extractUploadFromForm(formData));
   } catch (err) {
+    if (err instanceof PasswordRequiredError) return { ok: false, error: err.message, needsPassword: true };
     if (err instanceof UploadReadError) return { ok: false, error: err.message };
     throw err;
   }

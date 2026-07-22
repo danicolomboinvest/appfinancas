@@ -15,17 +15,56 @@ export type UploadEncoding = "text" | "xlsx" | "pdf";
 /** Erro esperado de leitura de arquivo, o cliente mostra a mensagem direto pro usuário. */
 export class UploadReadError extends Error {}
 
+/** O arquivo Excel está protegido por senha: o cliente pede a senha e reenvia o mesmo arquivo. */
+export class PasswordRequiredError extends Error {}
+
+/**
+ * Muitos bancos exportam o extrato em Excel PROTEGIDO POR SENHA (arquivo criptografado, não é um
+ * ZIP normal). O leitor de Excel não abre esses arquivos. Aqui: detecta a criptografia; se não
+ * veio senha, sinaliza pro app pedir uma; com a senha, descriptografa e devolve o Excel "cru"
+ * pra leitura normal. A senha é usada só neste instante, nunca fica salva nem é registrada.
+ */
+async function decryptIfProtected(buffer: Buffer, password: string | undefined): Promise<Buffer> {
+  let office: { isEncrypted: (b: Buffer) => boolean; decrypt: (b: Buffer, o: { password: string }) => Promise<Buffer> };
+  try {
+    const mod = (await import("officecrypto-tool")) as unknown as {
+      default?: typeof office;
+      isEncrypted?: (b: Buffer) => boolean;
+      decrypt?: (b: Buffer, o: { password: string }) => Promise<Buffer>;
+    };
+    office = (mod.default ?? mod) as typeof office;
+  } catch {
+    return buffer; // biblioteca indisponível: segue com o arquivo cru
+  }
+
+  let encrypted = false;
+  try {
+    encrypted = office.isEncrypted(buffer);
+  } catch {
+    encrypted = false;
+  }
+  if (!encrypted) return buffer;
+
+  if (!password) throw new PasswordRequiredError("Este arquivo está protegido por senha.");
+  try {
+    return await office.decrypt(buffer, { password });
+  } catch {
+    throw new UploadReadError("Senha incorreta. Confira a senha do arquivo e tente de novo.");
+  }
+}
+
 /** Excel → CSV com TODAS as planilhas concatenadas, extratos de banco (ex.: BTG) espalham
  * os ativos em várias abas (Fundos, Renda Fixa, Renda Variável); ler só a primeira perderia
- * tudo (a primeira costuma ser a capa). */
-async function xlsxToCsv(buffer: Buffer): Promise<string> {
+ * tudo (a primeira costuma ser a capa). Descriptografa antes, se o arquivo tiver senha. */
+async function xlsxToCsv(buffer: Buffer, password: string | undefined): Promise<string> {
+  const decrypted = await decryptIfProtected(buffer, password);
   let XLSX: typeof import("xlsx");
   try {
     XLSX = await import("xlsx");
   } catch {
     throw new UploadReadError("Não consegui abrir o Excel neste servidor. Tente exportar como CSV.");
   }
-  const workbook = XLSX.read(buffer, { type: "buffer" });
+  const workbook = XLSX.read(decrypted, { type: "buffer" });
   return workbook.SheetNames.map((name) => XLSX.utils.sheet_to_csv(workbook.Sheets[name], { FS: ";" })).join("\n");
 }
 
@@ -60,11 +99,13 @@ export async function extractUploadFromForm(
 ): Promise<{ text: string; source: "auto" | "pdf" }> {
   const file = formData.get("file");
   const encoding = String(formData.get("encoding") ?? "text") as UploadEncoding;
+  const passwordRaw = formData.get("password");
+  const password = typeof passwordRaw === "string" && passwordRaw !== "" ? passwordRaw : undefined;
   if (!(file instanceof Blob)) {
     throw new UploadReadError("Nenhum arquivo recebido. Tente selecionar o arquivo de novo.");
   }
   const buffer = Buffer.from(await file.arrayBuffer());
-  if (encoding === "xlsx") return { text: await xlsxToCsv(buffer), source: "auto" };
+  if (encoding === "xlsx") return { text: await xlsxToCsv(buffer, password), source: "auto" };
   if (encoding === "pdf") return { text: await pdfToText(buffer), source: "pdf" };
   return { text: buffer.toString("utf-8"), source: "auto" };
 }

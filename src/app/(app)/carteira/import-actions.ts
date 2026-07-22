@@ -6,7 +6,7 @@ import { getRequiredSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
 import { createAsset } from "@/lib/repositories/asset.repo";
 import { parsePortfolioStatement, guessAssetClass } from "@/lib/import/portfolio-parser";
-import { extractUploadFromForm, UploadReadError } from "@/lib/import/extract-text";
+import { extractUploadFromForm, UploadReadError, PasswordRequiredError } from "@/lib/import/extract-text";
 
 const ASSET_CLASS_VALUES: AssetClass[] = ["RENDA_FIXA", "ACAO", "FII", "TESOURO_DIRETO", "FUNDO", "CRIPTO", "OUTRO"];
 
@@ -32,7 +32,7 @@ export type ParsedHoldingItem = {
 
 export type ParsePortfolioResult =
   | { ok: true; holdings: ParsedHoldingItem[] }
-  | { ok: false; error: string };
+  | { ok: false; error: string; needsPassword?: boolean };
 
 /** Lê o extrato/nota da corretora ou relatório da B3 (CSV/Excel/PDF), identifica os ativos e
  * COMPARA com a carteira atual, quem reimporta o extrato vê só o que mudou.
@@ -46,6 +46,7 @@ export async function parsePortfolioAction(formData: FormData): Promise<ParsePor
   try {
     ({ text } = await extractUploadFromForm(formData));
   } catch (err) {
+    if (err instanceof PasswordRequiredError) return { ok: false, error: err.message, needsPassword: true };
     if (err instanceof UploadReadError) return { ok: false, error: err.message };
     throw err;
   }
