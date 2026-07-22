@@ -6,6 +6,13 @@ import { usePathname } from "next/navigation";
 import { ChevronsLeft, ChevronsRight, LogOut, Plus, TrendingUp } from "lucide-react";
 import { ADMIN_NAV_SECTION, NAV_SECTIONS } from "./nav-sections";
 
+/** Liga cada seção ao passo do tour de boas-vindas (WelcomeTour destaca por data-tour). */
+const SIDEBAR_TOUR: Record<string, string> = {
+  "/mensal": "fluxo",
+  "/planejamento": "metas",
+  "/carteira": "carteira",
+};
+
 export function Sidebar({
   collapsed,
   onToggleCollapsed,
@@ -74,6 +81,7 @@ export function Sidebar({
           type="button"
           onClick={onOpenRegistrar}
           title={collapsed ? "Registrar" : undefined}
+          data-tour="registrar"
           className={`flex w-full items-center gap-3 rounded-lg bg-ink px-3 py-2.5 text-sm font-medium text-canvas transition-opacity hover:opacity-90 active:scale-[0.98] ${collapsedDesktopOnly}`}
         >
           <Plus size={18} strokeWidth={2.2} className="shrink-0" />
@@ -96,6 +104,7 @@ export function Sidebar({
                     onCloseMobile();
                   }}
                   title={collapsed ? section.label : undefined}
+                  data-tour={SIDEBAR_TOUR[section.basePath]}
                   className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${collapsedDesktopOnly} ${
                     isActive
                       ? "bg-surface-2 text-ink font-medium"

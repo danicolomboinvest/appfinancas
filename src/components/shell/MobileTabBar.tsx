@@ -5,6 +5,13 @@ import { usePathname } from "next/navigation";
 import { MoreHorizontal, Plus } from "lucide-react";
 import { MOBILE_TABS } from "./nav-sections";
 
+/** Liga cada aba ao passo do tour de boas-vindas (WelcomeTour destaca por data-tour). */
+const TAB_TOUR: Record<string, string> = {
+  "/mensal": "fluxo",
+  "/planejamento": "metas",
+  "/carteira": "carteira",
+};
+
 /**
  * Navegação primária no mobile — barra de 5 posições no rodapé:
  * Fluxo | Metas | [ + Registrar ] | Carteira | Mais.
@@ -29,6 +36,7 @@ export function MobileTabBar({
       <Link
         key={tab.basePath}
         href={tab.href}
+        data-tour={TAB_TOUR[tab.basePath]}
         className={`flex flex-1 flex-col items-center gap-0.5 rounded-[20px] py-2 text-[10px] font-medium transition-all duration-200 active:scale-95 ${
           isActive ? "bg-white/10 text-ink" : "text-ink-muted"
         }`}
@@ -56,6 +64,7 @@ export function MobileTabBar({
           type="button"
           onClick={onOpenRegistrar}
           aria-label="Registrar"
+          data-tour="registrar"
           className="-mt-6 flex h-14 w-14 items-center justify-center rounded-full bg-accent-gradient text-on-accent ring-4 ring-canvas transition-transform active:scale-90"
           style={{
             boxShadow:
@@ -72,6 +81,7 @@ export function MobileTabBar({
       <button
         type="button"
         onClick={onOpenMore}
+        data-tour="mais"
         className={`flex flex-1 flex-col items-center gap-0.5 rounded-[20px] py-2 text-[10px] font-medium transition-all duration-200 active:scale-95 ${
           moreActive ? "bg-white/10 text-ink" : "text-ink-muted"
         }`}

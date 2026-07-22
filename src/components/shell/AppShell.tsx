@@ -83,9 +83,11 @@ export function AppShell({
         />
 
         <div className="flex min-w-0 flex-1 flex-col">
-          {/* pb no mobile precisa limpar a tab bar flutuante: ela usa env(safe-area-inset-bottom)
-              (home indicator do iPhone) + o botão "+" elevado. Sem isso o final ficava tampado. */}
-          <main className="flex-1 px-5 pb-[calc(7.5rem_+_env(safe-area-inset-bottom))] pt-6 md:px-10 md:pb-8 md:pt-8">
+          {/* Margens de segurança do iPhone (o app é viewport-fit=cover, vai até as bordas):
+              - pt: sem env(safe-area-inset-top) o conteúdo (ex.: "Bom dia") fica embaixo do
+                relógio/câmera no modo standalone. Com o inset, começa abaixo da status bar.
+              - pb: limpa a tab bar flutuante (home indicator) + o botão "+" elevado. */}
+          <main className="flex-1 px-5 pb-[calc(7.5rem_+_env(safe-area-inset-bottom))] pt-[calc(1.5rem_+_env(safe-area-inset-top))] md:px-10 md:pb-8 md:pt-8">
             <div className="mx-auto w-full max-w-6xl animate-fade-in">
               {showGreeting && <GreetingStrip greeting={greeting} dateLabel={dateLabel} summary={summary} flow={flow} />}
               {children}
