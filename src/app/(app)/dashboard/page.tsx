@@ -161,7 +161,8 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
           <p className="text-label text-ink-muted">Patrimônio total</p>
           <div className="mt-1">
             <FitText className="text-display font-semibold tracking-tight text-accent-strong">
-              <CountUp value={portfolio.totalPortfolio} format={formatBRL} />
+              {/* `brl` (não `format={formatBRL}`): função não atravessa a fronteira server→client. */}
+              <CountUp value={portfolio.totalPortfolio} brl />
             </FitText>
           </div>
         </Card>

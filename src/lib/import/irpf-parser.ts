@@ -1,4 +1,5 @@
 import { parseBrazilianNumber } from "./statement-parser";
+import { parseFlexibleNumber } from "./portfolio-parser";
 
 /**
  * Parser da "Declaração de Bens e Direitos" do IRPF (imagem/recibo em PDF) — extrai o PREÇO
@@ -46,13 +47,15 @@ const KIND_BY_GROUP_CODE: Record<string, IrpfAssetKind> = {
 const B3_TICKER_RE = /\b([A-Z]{4}\d{1,2})\b/;
 /** Token monetário BR: "10.290,00", "1.043,95", "0,00", "15,86" (2+ casas decimais). */
 const MONEY = String.raw`\d{1,3}(?:\.\d{3})*,\d{2,}|\d+,\d{2,}`;
-/** Linha "código  nº-do-bem": código de 2 dígitos + id de 4 dígitos (ex.: "03 2004"). */
-const CODE_BEM_RE = /(?:^|\s)(\d{2})\s+(\d{4})(?:\s|$)/;
+/** Linha "código  nº-do-bem": código de 2 dígitos + id de 4 dígitos (ex.: "03 2004").
+ * Global: texto livre da discriminação pode conter pares parecidos ("COMPRA EM 10 2024") —
+ * o marcador de verdade é sempre o ÚLTIMO par do bloco (vem depois da situação em 31/12). */
+const CODE_BEM_RE = /(?:^|\s)(\d{2})\s+(\d{4})(?:\s|$)/g;
 
-/** Início de um bloco de bem: grupo (2 dígitos) + espaço + letra (a discriminação começa com
- * texto). Exclui as linhas de "código nº-bem" ("01 1843", dígito após o espaço), país
- * ("105 - BRASIL", 3 dígitos) e cabeçalhos de data ("31/12/2024", tem "/" logo após). */
-const BLOCK_START_RE = /^(\d{2}) +[A-Za-zÀ-ÿ]/;
+/** Início de um bloco de bem: GRUPO VÁLIDO da Receita (01-09 ou 99) + espaço + letra (a
+ * discriminação começa com texto). Restringir aos grupos reais evita que uma linha de texto
+ * corrido como "EM 31 DE DEZEMBRO" (31 + letra) abra um bloco falso e trunque o bem anterior. */
+const BLOCK_START_RE = /^(0[1-9]|99) +[A-Za-zÀ-ÿ]/;
 
 /** Quantidade seguida da unidade ("- 110 ACOES", "826 QUOTAS", "10 COTAS", "1 ACAO", "48 FUNDOS"). */
 const QTY_RE = /(\d[\d.,]*)\s*(?:AÇÕES|ACOES|AÇÃO|ACAO|QUOTAS|QUOTA|COTAS|COTA|FUNDOS|FUNDO)\b/i;
@@ -126,19 +129,26 @@ function extractExplicitAvg(block: string): number | null {
  * confiável que "o último par do bloco", porque a discriminação às vezes repete o total
  * ("… TOTAL R$ 1.826,85") e as linhas de rendimento/imposto trazem outros valores. */
 function extractCodeAndTotal(block: string): { codigo: string; total: number | null } {
-  const m = CODE_BEM_RE.exec(block);
+  // ÚLTIMO par "código nº-bem" do bloco — pares parecidos no texto livre vêm antes do real.
+  let m: RegExpMatchArray | null = null;
+  for (const match of block.matchAll(CODE_BEM_RE)) m = match;
   const codigo = m ? m[1] : "";
-  const before = m ? block.slice(0, m.index) : block;
+  const before = m && m.index !== undefined ? block.slice(0, m.index) : block;
   const tokens = before.match(new RegExp(MONEY, "g")) ?? [];
   const total = tokens.length > 0 ? toNum(tokens[tokens.length - 1]) : null;
   return { codigo, total };
 }
 
-/** Quantidade — ignora o prefixo de grupo ("07 FUNDOS…" senão "07"+"FUNDOS" viraria quantidade). */
+/** Quantidade — ignora o prefixo de grupo ("07 FUNDOS…" senão "07"+"FUNDOS" viraria quantidade).
+ * Usa o parse flexível: "1.000 QUOTAS" é MIL (milhar com ponto, sem vírgula), "332,6" é decimal
+ * BR e "4.2" (fração de ação dos EUA) é decimal americano — parseBrazilianNumber leria
+ * "1.000" como 1 e multiplicaria o preço médio por 1000. */
 function extractQuantity(block: string): number | null {
   const body = block.replace(/^\d{2}\s+/, "");
   const m = body.match(QTY_RE) ?? body.match(QTY_QTDE_RE);
-  return m ? toNum(m[1]) : null;
+  if (!m) return null;
+  const n = parseFlexibleNumber(m[1]);
+  return Number.isFinite(n) ? n : null;
 }
 
 /**

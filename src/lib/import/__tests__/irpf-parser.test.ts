@@ -62,6 +62,18 @@ const SAMPLE = [
   "01\t1006",
   "105 - BRASIL",
   "Bem com usufruto: Não",
+  // Quantidade com MILHAR ("1.000 QUOTAS" = mil, não um) — regressão do bug que inflava o
+  // investido 1000×. E a discriminação continua num texto com "31 DE DEZEMBRO" (não pode
+  // abrir bloco falso) e um par "10 2024" solto (não pode virar o marcador código/nº-bem).
+  "07 FUNDO IMOBILIÁRIO MILL11 - 1.000 QUOTAS A UM",
+  "CUSTO MÉDIO DE R$ 10,29 COMPRADO EM 10 2024",
+  "POSICAO EM 31 DE DEZEMBRO",
+  "0,00 10.290,00",
+  "CNPJ do Fundo: 00.000.000/0001-00",
+  "03\t1007",
+  "105 - BRASIL",
+  "Código de Negociação: MILL11\tNegociados em Bolsa: Sim",
+  "Bem com usufruto: Não",
 ].join("\n");
 
 describe("parseIrpfBensEDireitos", () => {
@@ -70,9 +82,15 @@ describe("parseIrpfBensEDireitos", () => {
   const byName = (frag: string) => assets.find((a) => a.name.includes(frag));
 
   it("extrai só ações/FIIs/ETFs negociados em bolsa (ignora CDB e afins)", () => {
-    // TEST3, EXEMPLO, FOO, ABCD11 — o CDB e o FII vendido ficam de fora.
-    expect(assets).toHaveLength(4);
+    // TEST3, EXEMPLO, FOO, ABCD11, MILL11 — o CDB e o FII vendido ficam de fora.
+    expect(assets).toHaveLength(5);
     expect(byName("CDB")).toBeUndefined();
+  });
+
+  it("lê quantidade com milhar ('1.000 QUOTAS' = mil) e ignora texto com datas soltas", () => {
+    const a = byTicker("MILL11");
+    expect(a?.quantity).toBe(1000); // e não 1 (que inflaria o investido 1000×)
+    expect(a?.averagePrice).toBeCloseTo(10.29, 2);
   });
 
   it("calcula preço médio = custo ÷ quantidade para ação com ticker no texto", () => {

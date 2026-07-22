@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { getRequiredSession } from "@/lib/auth/session";
 import { createCustomCategory, listCustomCategories } from "@/lib/repositories/custom-category.repo";
+import { DEFAULT_CUSTOM_CATEGORY_ICON_KEY } from "@/lib/categories";
 
 export type CreateCategoryResult = { ok: true; id: string; name: string } | { ok: false; error: string };
 
@@ -20,7 +21,9 @@ export async function createCategoryAction(name: string): Promise<CreateCategory
   const existing = (await listCustomCategories(ctx)).find((c) => c.name.toLowerCase() === trimmed.toLowerCase());
   if (existing) return { ok: true, id: existing.id, name: existing.name };
 
-  const cat = await createCustomCategory(ctx, { name: trimmed, icon: "TAG" });
+  // Chave de ícone VÁLIDA ("tag", minúscula) — "TAG" não existe no mapa e a categoria ficaria
+  // pra sempre com o ícone de fallback.
+  const cat = await createCustomCategory(ctx, { name: trimmed, icon: DEFAULT_CUSTOM_CATEGORY_ICON_KEY });
   // A categoria nova já pode receber orçamento e aparecer nas telas relacionadas.
   revalidatePath("/orcamento");
   revalidatePath("/configuracoes/categorias");

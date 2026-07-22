@@ -241,6 +241,11 @@ body {
 .glass {
   position: relative;
   overflow: hidden;
+  /* isolation + z-index:-1 no ::before põe o brilho ACIMA do fundo e ABAIXO do conteúdo sem
+     mexer nos filhos. (A regra antiga `.glass > * { position: relative }` era CSS sem camada
+     e VENCIA o `absolute` utilitário do Tailwind nos filhos diretos — o selo "Concluída" das
+     metas saía do canto e virava uma linha do card.) */
+  isolation: isolate;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02)),
     var(--color-surface);
@@ -253,11 +258,9 @@ body {
   content: "";
   position: absolute;
   inset: 0;
+  z-index: -1;
   background: linear-gradient(148deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.03) 18%, transparent 40%);
   pointer-events: none;
-}
-.glass > * {
-  position: relative;
 }
 
 /* Cápsula ESCURA SÓLIDA da barra flutuante (tab bar, botão "+"). Tinta escura quase opaca +

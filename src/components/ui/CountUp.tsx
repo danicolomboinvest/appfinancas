@@ -10,7 +10,8 @@ import { useEffect, useRef, useState } from "react";
  */
 export function CountUp({
   value,
-  format = (n) => String(Math.round(n)),
+  format,
+  brl = false,
   durationMs = 1300,
   /** Atraso antes de começar a animar — permite "coreografar" vários números entrando em
    * cascata na mesma tela (documento de referência de design), em vez de todos ao mesmo tempo. */
@@ -18,11 +19,21 @@ export function CountUp({
   className,
 }: {
   value: number;
+  /** SÓ para chamadores que também são client components — função não atravessa a fronteira
+   * servidor→cliente (o React Flight rejeita e derruba a página inteira). De um Server
+   * Component, use `brl` em vez de passar formatBRL. */
   format?: (n: number) => string;
+  /** Formata como moeda (R$) — serializável, seguro pra usar de Server Components. */
+  brl?: boolean;
   durationMs?: number;
   delayMs?: number;
   className?: string;
 }) {
+  const fmt =
+    format ??
+    (brl
+      ? (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+      : (n: number) => String(Math.round(n)));
   const [display, setDisplay] = useState(0);
   const rafRef = useRef<number | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -44,11 +55,13 @@ export function CountUp({
       const t = Math.min(1, elapsed / durationMs);
       // easeOutCubic — desacelera suavemente até o valor final, nunca "bate" seco.
       const eased = 1 - Math.pow(1 - t, 3);
-      setDisplay(from + (to - from) * eased);
+      const next = from + (to - from) * eased;
+      setDisplay(next);
+      // Baseline sempre atualizado: se o valor-alvo mudar NO MEIO da animação (ex.: alternar
+      // Mensal/Anual rápido), a próxima começa de onde o número está — sem "voltar pro zero".
+      startValueRef.current = next;
       if (t < 1) {
         rafRef.current = requestAnimationFrame((n) => tick(n, start));
-      } else {
-        startValueRef.current = to;
       }
     }
 
@@ -63,5 +76,5 @@ export function CountUp({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- só reinicia a animação quando o valor-alvo muda
   }, [value, durationMs, delayMs]);
 
-  return <span className={className}>{format(display)}</span>;
+  return <span className={className}>{fmt(display)}</span>;
 }

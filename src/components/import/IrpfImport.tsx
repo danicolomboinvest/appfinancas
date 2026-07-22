@@ -128,7 +128,9 @@ export function IrpfImport({ onDone }: { onDone: () => void }) {
   }
 
   if (phase === "confirm") {
-    const selectedCount = items.filter((i) => choice[i.key]).length;
+    // Conta ATIVOS DA CARTEIRA distintos (não linhas): duas linhas apontando pro mesmo ativo
+    // aplicam uma vez só — o botão promete exatamente o que a action vai fazer.
+    const selectedCount = new Set(items.map((i) => choice[i.key]).filter(Boolean)).size;
     return (
       <div className="flex flex-col gap-4">
         {error && <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p>}

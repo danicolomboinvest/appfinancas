@@ -62,8 +62,9 @@ function findCol(headers: string[], needles: string[]): number {
 /**
  * Número em formato brasileiro OU americano — extratos de banco (BTG) exportam Excel com
  * "1,520.80" enquanto B3/planilhas nacionais usam "1.520,80". Decide pelo último separador.
+ * Exportado: o parser da declaração de IR usa pra quantidades ("1.000 QUOTAS" é mil, não um).
  */
-function parseFlexibleNumber(raw: string): number {
+export function parseFlexibleNumber(raw: string): number {
   const t = raw.replace(/[R$\s%]/g, "");
   if (!t || t === "-" || t === "–") return NaN;
   const hasComma = t.includes(",");
