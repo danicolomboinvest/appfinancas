@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { ParentCategory } from "@prisma/client";
+import { nowInBrazil } from "@/lib/date/brazil-now";
 import { getRequiredSession } from "@/lib/auth/session";
 import { getYearlySummary } from "@/lib/consolidation/yearly";
 import { listRecentSubcategories } from "@/lib/repositories/monthly-entry.repo";
@@ -35,9 +37,10 @@ function formatBRL(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
-/** Tempo verbal do título depende de o ano já ter passado, estar em curso, ou ainda vir. */
+/** Tempo verbal do título depende de o ano já ter passado, estar em curso, ou ainda vir.
+ * Fuso do Brasil — o UTC do servidor viraria o ano cedo demais na noite de 31/12. */
 function yearPageTitle(year: number): string {
-  const currentYear = new Date().getFullYear();
+  const currentYear = nowInBrazil().getFullYear();
   if (year < currentYear) return `Como estava seu dinheiro em ${year}?`;
   if (year > currentYear) return `Como vai estar seu dinheiro em ${year}?`;
   return `Como está seu dinheiro em ${year}?`;
@@ -46,6 +49,8 @@ function yearPageTitle(year: number): string {
 export default async function YearPage(props: PageProps<"/mensal/[year]">) {
   const { year: yearParam } = await props.params;
   const year = Number(yearParam);
+  // URL editada à mão ("/mensal/abc") viraria NaN direto no Prisma → erro 500.
+  if (!Number.isInteger(year) || year < 2000 || year > 2100) notFound();
   const ctx = await getRequiredSession();
   const [summary, recentSubcategories, customCategories] = await Promise.all([
     getYearlySummary(ctx, year),

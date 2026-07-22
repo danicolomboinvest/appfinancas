@@ -18,6 +18,7 @@ import { Card } from "@/components/ui/Card";
 import { FitText } from "@/components/ui/FitText";
 import { CountUp } from "@/components/ui/CountUp";
 import { LinkedStatCard } from "@/components/ui/LinkedStatCard";
+import { nowInBrazil } from "@/lib/date/brazil-now";
 import { formatPercentNumber } from "@/lib/format";
 
 const MONTH_LABELS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
@@ -51,7 +52,8 @@ function firstOf(value: string | string[] | undefined) {
 export default async function DashboardPage(props: PageProps<"/dashboard">) {
   const searchParams = await props.searchParams;
   const ctx = await getRequiredSession();
-  const now = new Date();
+  // Fuso do Brasil — o relógio UTC do servidor viraria o ano mais cedo na noite de 31/12.
+  const now = nowInBrazil();
 
   // Ano selecionável via ?year — as setas do cabeçalho navegam por aqui.
   const yearParam = Number(firstOf(searchParams.year));

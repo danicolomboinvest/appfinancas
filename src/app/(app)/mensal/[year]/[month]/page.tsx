@@ -1,3 +1,4 @@
+import { notFound } from "next/navigation";
 import { Receipt, TrendingUp, PiggyBank, type LucideIcon } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
 import { listMonthlyEntries, listRecentSubcategories } from "@/lib/repositories/monthly-entry.repo";
@@ -167,6 +168,11 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
   const { view } = await props.searchParams;
   const year = Number(yearParam);
   const month = Number(monthParam);
+  // URL editada à mão ("/mensal/abc/13") viraria NaN/mês 13 direto no Prisma → erro 500.
+  // Fora da faixa válida é simplesmente uma página que não existe.
+  if (!Number.isInteger(year) || year < 2000 || year > 2100 || !Number.isInteger(month) || month < 1 || month > 12) {
+    notFound();
+  }
   const initialView = view === "anual" ? "anual" : "mensal";
 
   const ctx = await getRequiredSession();
@@ -210,7 +216,9 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
 
   // Ritmo do mês: % do orçamento consumido vs. % do mês decorrido — mais honesto que "limite
   // diário" (média), porque gasto não é linear. Só faz sentido no mês corrente e com orçamento.
-  const now = new Date();
+  // Fuso do Brasil: com o relógio UTC do servidor, das 21h à meia-noite o app acharia que já é
+  // o dia (ou mês) seguinte.
+  const now = nowInBrazil();
   const isCurrentMonth = year === now.getFullYear() && month === now.getMonth() + 1;
   const daysInMonth = new Date(year, month, 0).getDate();
   const pacing =

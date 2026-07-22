@@ -43,5 +43,7 @@ export async function registerAction(_prevState: RegisterState, formData: FormDa
     /* ignora — não bloqueia o cadastro por causa do e-mail */
   }
 
-  redirect("/login");
+  // ?created=1 mostra a confirmação "conta criada" no login — sem isso a pessoa caía num
+  // formulário vazio sem saber se o cadastro tinha funcionado.
+  redirect("/login?created=1");
 }

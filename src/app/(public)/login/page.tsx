@@ -1,15 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
-import { TrendingUp } from "lucide-react";
+import { use, useActionState } from "react";
+import { CheckCircle2, TrendingUp } from "lucide-react";
 import { Field } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
 import { loginAction, type LoginState } from "./actions";
 
 const initialState: LoginState = {};
 
-export default function LoginPage() {
+export default function LoginPage({ searchParams }: { searchParams: Promise<{ created?: string }> }) {
+  // ?created=1 vem do redirect do cadastro — confirma que a conta foi criada com sucesso.
+  const { created } = use(searchParams);
   const [state, formAction, isPending] = useActionState(loginAction, initialState);
 
   return (
@@ -29,6 +31,12 @@ export default function LoginPage() {
           action={formAction}
           className="flex flex-col gap-4 rounded-2xl border border-border bg-surface p-6 shadow-premium-sm"
         >
+          {created === "1" && !state.error && (
+            <p className="flex items-center gap-2 rounded-lg bg-success-soft px-3 py-2 text-sm text-success">
+              <CheckCircle2 size={16} className="shrink-0" />
+              Conta criada! Agora é só entrar.
+            </p>
+          )}
           {state.error && (
             <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{state.error}</p>
           )}
