@@ -23,6 +23,23 @@ export async function getOwnUser(ctx: AuthContext) {
   return prisma.user.findUniqueOrThrow({ where: { id: ctx.userId } });
 }
 
+/** Intervalo mínimo entre atualizações de lastSeenAt, pra não escrever no banco a cada request. */
+const LAST_SEEN_THROTTLE_MS = 15 * 60 * 1000;
+
+/**
+ * Marca que o usuário acabou de abrir o app, no máximo 1x a cada ~15min (throttle a partir do
+ * lastSeenAt que já veio do getOwnUser, então sem query extra de leitura). Alimenta as métricas
+ * de engajamento do relatório de admin. Best-effort: falha aqui nunca deve quebrar a página.
+ */
+export async function touchLastSeen(userId: string, previous: Date | null): Promise<void> {
+  if (previous && Date.now() - previous.getTime() < LAST_SEEN_THROTTLE_MS) return;
+  try {
+    await prisma.user.update({ where: { id: userId }, data: { lastSeenAt: new Date() } });
+  } catch {
+    /* engajamento é métrica secundária, não vale derrubar a navegação por isso */
+  }
+}
+
 export async function updateOwnProfile(
   ctx: AuthContext,
   input: { name?: string; email: string; avatarUrl?: string },

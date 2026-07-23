@@ -107,6 +107,7 @@ export const ADMIN_NAV_SECTION: NavSection = {
   children: [
     { href: "/admin/acessos", label: "Acessos" },
     { href: "/admin/usuarios", label: "Usuários" },
+    { href: "/admin/relatorio", label: "Relatório" },
     { href: "/admin/criterios", label: "Critérios" },
   ],
 };

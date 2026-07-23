@@ -139,6 +139,9 @@ model User {
   /// Proteção contra força bruta: erros de senha consecutivos e trava temporária.
   failedLoginCount Int       @default(0)
   lockedUntil      DateTime?
+  /// Última vez que o usuário abriu o app (atualizado no layout, no máx. 1x a cada ~15min).
+  /// Base das métricas de engajamento (ativos em 24h/7d/30d) no relatório de admin.
+  lastSeenAt   DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

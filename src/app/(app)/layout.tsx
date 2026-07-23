@@ -2,7 +2,7 @@ import { auth } from "@/lib/auth/auth.config";
 import { AppShell } from "@/components/shell/AppShell";
 import { ThemeSync } from "@/components/shell/ThemeSync";
 import { getMonthlySummary } from "@/lib/consolidation/monthly";
-import { getOwnUser } from "@/lib/repositories/user.repo";
+import { getOwnUser, touchLastSeen } from "@/lib/repositories/user.repo";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import type { AuthContext } from "@/lib/auth/session";
 
@@ -50,6 +50,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     ]);
     summary = monthSummaryLine(monthlySummary);
     theme = user.theme;
+    // Registra o "visto por último" pra métrica de engajamento (throttle interno de 15min).
+    await touchLastSeen(user.id, user.lastSeenAt);
     flow = {
       income: monthlySummary.totalIncome,
       expense: monthlySummary.totalExpense,
