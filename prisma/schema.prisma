@@ -500,3 +500,20 @@ model AllowedEmail {
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
 }
+
+/// Produtos do Hubla que dão acesso ao app. O webhook só libera uma compra se o produto
+/// comprado estiver aqui e ativo — assim só os cursos certos liberam, e não qualquer produto.
+/// `source` = MANUAL (a Dani adicionou pelo nome) ou HUBLA (o webhook viu numa compra e
+/// cadastrou como inativo pra ela decidir). Casamento por hublaProductId (quando conhecido)
+/// ou pelo nome normalizado (minúsculo, sem espaços nas pontas).
+model AllowedProduct {
+  id             String       @id @default(cuid())
+  /// Id do produto no Hubla (event.product.id). Nulo quando a Dani cadastrou só pelo nome,
+  /// antes de qualquer compra; o webhook preenche assim que vê a primeira venda daquele nome.
+  hublaProductId String?      @unique
+  name           String
+  source         AccessSource @default(MANUAL)
+  active         Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}

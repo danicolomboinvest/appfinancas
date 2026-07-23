@@ -1,24 +1,28 @@
 import { requireAdmin } from "@/lib/auth/rbac";
 import { listAllowedEmails } from "@/lib/repositories/allowedEmail.repo";
+import { listAllowedProducts } from "@/lib/repositories/allowedProduct.repo";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { AddEmailsForm } from "./AddEmailsForm";
+import { ProductsSection } from "./ProductsSection";
 import { RowActions } from "./RowActions";
 
 const dateFmt = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
 
 export default async function AdminAcessosPage() {
   await requireAdmin();
-  const emails = await listAllowedEmails();
+  const [emails, products] = await Promise.all([listAllowedEmails(), listAllowedProducts()]);
   const active = emails.filter((e) => e.active).length;
 
   return (
     <div className="flex flex-col gap-8">
       <PageHeader
         title="Acessos"
-        subtitle="Quem pode criar conta e entrar no app. O acesso é fechado: só e-mails desta lista (e ativos) entram. Compras no Hubla liberam sozinhas."
+        subtitle="Quem pode criar conta e entrar no app. O acesso é fechado: só e-mails desta lista (e ativos) entram. Compras dos produtos liberados no Hubla entram sozinhas."
       />
+
+      <ProductsSection products={products} />
 
       <AddEmailsForm />
 

@@ -7,8 +7,14 @@ import {
   removeAllowedEmail,
   setAllowedEmailActive,
 } from "@/lib/repositories/allowedEmail.repo";
+import {
+  addAllowedProductByName,
+  removeAllowedProduct,
+  setAllowedProductActive,
+} from "@/lib/repositories/allowedProduct.repo";
 
 export type AccessFormState = { error?: string; added?: number };
+export type ProductFormState = { error?: string; ok?: boolean };
 
 /** Aceita a lista colada em qualquer separador comum: quebra de linha, vírgula, ponto-e-vírgula ou espaço. */
 function parseEmails(raw: string): string[] {
@@ -47,5 +53,26 @@ export async function toggleAccessAction(id: string, active: boolean) {
 export async function removeAccessAction(id: string) {
   await requireAdmin();
   await removeAllowedEmail(id);
+  revalidatePath("/admin/acessos");
+}
+
+export async function addProductAction(_prev: ProductFormState, formData: FormData): Promise<ProductFormState> {
+  await requireAdmin();
+  const name = typeof formData.get("name") === "string" ? (formData.get("name") as string).trim() : "";
+  if (!name) return { error: "Informe o nome do produto (como aparece no Hubla)." };
+  await addAllowedProductByName(name);
+  revalidatePath("/admin/acessos");
+  return { ok: true };
+}
+
+export async function toggleProductAction(id: string, active: boolean) {
+  await requireAdmin();
+  await setAllowedProductActive(id, active);
+  revalidatePath("/admin/acessos");
+}
+
+export async function removeProductAction(id: string) {
+  await requireAdmin();
+  await removeAllowedProduct(id);
   revalidatePath("/admin/acessos");
 }
