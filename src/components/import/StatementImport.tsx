@@ -1,11 +1,12 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import { Upload, Check, ArrowRight, Lock } from "lucide-react";
+import { Upload, Check, ArrowRight, Lock, Plus } from "lucide-react";
 import type { ParentCategory } from "@prisma/client";
 import { PARENT_CATEGORIES, PARENT_CATEGORY_LABEL } from "@/lib/categories";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/toast-context";
+import { createCategoryAction } from "@/lib/actions/category";
 import {
   parseStatementAction,
   importTransactionsAction,
@@ -54,11 +55,15 @@ export function StatementImport({ onDone }: { onDone: () => void }) {
   // Excel do banco costuma vir protegido por senha: guardamos o arquivo e pedimos a senha.
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [password, setPassword] = useState("");
+  // Categorias personalizadas do usuário + a criação na hora ("+ Outra") durante a revisão.
+  const [customCategories, setCustomCategories] = useState<{ id: string; name: string }[]>([]);
+  const [creatingCat, setCreatingCat] = useState(false);
+  const [newCatName, setNewCatName] = useState("");
 
-  // Índices das transações que precisam de revisão manual (gasto sem categoria).
+  // Índices das transações que precisam de revisão manual (gasto sem categoria nenhuma).
   const reviewQueue = items
     .map((it, i) => ({ it, i }))
-    .filter(({ it }) => it.category === "EXPENSE" && !it.parentCategory);
+    .filter(({ it }) => it.category === "EXPENSE" && !it.parentCategory && !it.customCategoryId);
 
   function handleFile(file: File) {
     setError(null);
@@ -90,17 +95,48 @@ export function StatementImport({ onDone }: { onDone: () => void }) {
         return;
       }
       setItems(result.items);
+      setCustomCategories(result.customCategories);
       setReviewIdx(0);
       // Se nada precisa de revisão, pula direto pra confirmação.
-      const needsReview = result.items.some((it) => it.category === "EXPENSE" && !it.parentCategory);
+      const needsReview = result.items.some((it) => it.category === "EXPENSE" && !it.parentCategory && !it.customCategoryId);
       setPhase(needsReview ? "review" : "confirm");
     });
   }
 
-  function assignCategory(itemKey: number, parentCategory: ParentCategory | null) {
+  /** Categoria-mãe fixa: zera a personalizada. */
+  function assignParent(itemKey: number, parentCategory: ParentCategory) {
     setItems((prev) =>
-      prev.map((it) => (it.key === itemKey ? { ...it, parentCategory, subcategory: null, autoClassified: false } : it)),
+      prev.map((it) =>
+        it.key === itemKey ? { ...it, parentCategory, customCategoryId: null, subcategory: null, autoClassified: false } : it,
+      ),
     );
+  }
+
+  /** Categoria personalizada: zera a categoria-mãe fixa. */
+  function assignCustom(itemKey: number, customCategoryId: string) {
+    setItems((prev) =>
+      prev.map((it) =>
+        it.key === itemKey ? { ...it, customCategoryId, parentCategory: null, subcategory: null, autoClassified: false } : it,
+      ),
+    );
+  }
+
+  /** Cria a categoria na hora ("+ Outra"), já disponível pra planejar depois no Orçamento. */
+  function createAndAssign(itemKey: number) {
+    const name = newCatName.trim();
+    if (!name) return;
+    startTransition(async () => {
+      const res = await createCategoryAction(name);
+      if (!res.ok) {
+        setError(res.error);
+        return;
+      }
+      setCustomCategories((prev) => (prev.some((c) => c.id === res.id) ? prev : [...prev, { id: res.id, name: res.name }]));
+      assignCustom(itemKey, res.id);
+      setCreatingCat(false);
+      setNewCatName("");
+      advanceReview();
+    });
   }
 
   function advanceReview() {
@@ -113,13 +149,14 @@ export function StatementImport({ onDone }: { onDone: () => void }) {
 
   function handleImport() {
     const confirmed: ConfirmedItem[] = items
-      .filter((it) => it.category === "INCOME" || it.parentCategory) // pula gastos ainda sem categoria
+      .filter((it) => it.category === "INCOME" || it.parentCategory || it.customCategoryId) // pula gastos ainda sem categoria
       .map((it) => ({
         date: it.date,
         description: it.description,
         amount: it.amount,
         category: it.category,
         parentCategory: it.parentCategory,
+        customCategoryId: it.customCategoryId,
         subcategory: it.subcategory,
         // Aprende quando foi o usuário quem classificou (não veio 100% automático).
         learn: !it.autoClassified,
@@ -283,7 +320,7 @@ export function StatementImport({ onDone }: { onDone: () => void }) {
               key={pc}
               type="button"
               onClick={() => {
-                assignCategory(it.key, pc);
+                assignParent(it.key, pc);
                 advanceReview();
               }}
               className="rounded-full border border-border-strong bg-surface px-3 py-2 text-sm font-medium text-ink transition-colors hover:border-accent hover:bg-accent-soft active:scale-95"
@@ -291,14 +328,69 @@ export function StatementImport({ onDone }: { onDone: () => void }) {
               {PARENT_CATEGORY_LABEL[pc]}
             </button>
           ))}
+          {/* Categorias que a própria pessoa criou (aqui ou no Orçamento). */}
+          {customCategories.map((cc) => (
+            <button
+              key={cc.id}
+              type="button"
+              onClick={() => {
+                assignCustom(it.key, cc.id);
+                advanceReview();
+              }}
+              className="rounded-full border border-accent/40 bg-accent-soft px-3 py-2 text-sm font-medium text-accent-strong transition-colors hover:border-accent active:scale-95"
+            >
+              {cc.name}
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={() => {
+              setCreatingCat((v) => !v);
+              setNewCatName("");
+              setError(null);
+            }}
+            className="inline-flex items-center gap-1 rounded-full border border-dashed border-border-strong bg-transparent px-3 py-2 text-sm font-medium text-ink-muted transition-colors hover:text-ink"
+          >
+            <Plus size={14} strokeWidth={2.2} />
+            Outra
+          </button>
         </div>
+
+        {/* Criar categoria na hora: fica disponível pra planejar depois no Orçamento. */}
+        {creatingCat && (
+          <div className="flex flex-col gap-1.5">
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                type="text"
+                value={newCatName}
+                onChange={(e) => setNewCatName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    createAndAssign(it.key);
+                  }
+                }}
+                placeholder="Nome da categoria (ex.: Fatura, Pet, Farmácia)"
+                autoFocus
+                className="min-w-0 flex-1 rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
+              />
+              <Button type="button" size="sm" onClick={() => createAndAssign(it.key)} disabled={isPending || !newCatName.trim()}>
+                {isPending ? "Criando..." : "Criar e usar"}
+              </Button>
+            </div>
+            <span className="text-caption text-ink-faint">
+              A categoria nova já aparece no Orçamento pra você planejar um valor pra ela.
+            </span>
+          </div>
+        )}
       </div>
     );
   }
 
   // --- CONFIRM ---
   if (phase === "confirm") {
-    const importable = items.filter((it) => it.category === "INCOME" || it.parentCategory);
+    const importable = items.filter((it) => it.category === "INCOME" || it.parentCategory || it.customCategoryId);
+    const customName = (id: string) => customCategories.find((c) => c.id === id)?.name ?? "Personalizada";
     return (
       <div className="flex flex-col gap-4">
         {error && <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p>}
@@ -312,7 +404,13 @@ export function StatementImport({ onDone }: { onDone: () => void }) {
                 <p className="truncate text-sm text-ink">{it.description}</p>
                 <p className="text-caption text-ink-faint">
                   {formatDate(it.date)} ·{" "}
-                  {it.category === "INCOME" ? "Renda" : it.parentCategory ? PARENT_CATEGORY_LABEL[it.parentCategory] : "—"}
+                  {it.category === "INCOME"
+                    ? "Renda"
+                    : it.parentCategory
+                      ? PARENT_CATEGORY_LABEL[it.parentCategory]
+                      : it.customCategoryId
+                        ? customName(it.customCategoryId)
+                        : "—"}
                 </p>
               </div>
               <span className={`shrink-0 text-sm font-medium tabular-nums ${it.category === "INCOME" ? "text-success" : "text-danger"}`}>

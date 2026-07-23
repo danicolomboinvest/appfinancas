@@ -5,6 +5,7 @@ import type { ParentCategory } from "@prisma/client";
 import { getRequiredSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
 import { createMonthlyEntry } from "@/lib/repositories/monthly-entry.repo";
+import { listCustomCategories } from "@/lib/repositories/custom-category.repo";
 import { listTransactionRules, upsertTransactionRule } from "@/lib/repositories/transaction-rule.repo";
 import { parseStatement } from "@/lib/import/statement-parser";
 import { extractUploadFromForm, UploadReadError, PasswordRequiredError } from "@/lib/import/extract-text";
@@ -29,13 +30,15 @@ export type ReviewItem = {
   amount: number;
   category: "INCOME" | "EXPENSE";
   parentCategory: ParentCategory | null;
+  /** Categoria personalizada escolhida/criada na revisão (alternativa às 7 categorias-mãe fixas). */
+  customCategoryId: string | null;
   subcategory: string | null;
   /** true = classificado automaticamente; false = precisa de revisão manual (categoria vazia). */
   autoClassified: boolean;
 };
 
 export type ParseStatementResult =
-  | { ok: true; items: ReviewItem[] }
+  | { ok: true; items: ReviewItem[]; customCategories: { id: string; name: string }[] }
   | { ok: false; error: string; needsPassword?: boolean };
 
 /** Lê o extrato (CSV/OFX/Excel/PDF), classifica cada transação e devolve a fila pra revisão.
@@ -76,7 +79,7 @@ export async function parseStatementAction(formData: FormData): Promise<ParseSta
     };
   }
 
-  const rules = await listTransactionRules(ctx);
+  const [rules, customCategories] = await Promise.all([listTransactionRules(ctx), listCustomCategories(ctx)]);
   const learned: LearnedRule[] = rules.map((r) => ({
     pattern: r.pattern,
     parentCategory: r.parentCategory,
@@ -96,12 +99,13 @@ export async function parseStatementAction(formData: FormData): Promise<ParseSta
       amount: Math.abs(txn.amount),
       category: isExpense ? "EXPENSE" : "INCOME",
       parentCategory: classification?.parentCategory ?? null,
+      customCategoryId: null,
       subcategory: classification?.subcategory ?? null,
       autoClassified: classification !== null,
     };
   });
 
-  return { ok: true, items };
+  return { ok: true, items, customCategories: customCategories.map((c) => ({ id: c.id, name: c.name })) };
 }
 
 export type ConfirmedItem = {
@@ -110,6 +114,8 @@ export type ConfirmedItem = {
   amount: number;
   category: "INCOME" | "EXPENSE";
   parentCategory: ParentCategory | null;
+  /** Categoria personalizada (quando a pessoa escolheu/criou uma na revisão). */
+  customCategoryId: string | null;
   subcategory: string | null;
   /** true quando o usuário definiu/ajustou a categoria na revisão, vira regra aprendida. */
   learn: boolean;
@@ -191,6 +197,9 @@ export async function importTransactionsAction(
   let skipped = 0;
   let purchasesTotal = 0;
 
+  // Só aceita customCategoryId que seja REALMENTE do usuário (evita linkar categoria de outra conta).
+  const ownCustomIds = new Set((await listCustomCategories(ctx)).map((c) => c.id));
+
   // Meses afetados pela importação → busca os lançamentos existentes deles de uma vez.
   const monthsInBatch = new Set(
     items.map((i) => {
@@ -212,8 +221,15 @@ export async function importTransactionsAction(
 
   for (const item of items) {
     if (item.amount <= 0) continue;
+    const customCategoryId =
+      item.category === "EXPENSE" && item.customCategoryId && ownCustomIds.has(item.customCategoryId)
+        ? item.customCategoryId
+        : undefined;
+    // Categoria personalizada e categoria-mãe são exclusivas: com uma custom, a mãe fica de fora.
     const parentCategory =
-      item.parentCategory && PARENT_CATEGORY_VALUES.includes(item.parentCategory) ? item.parentCategory : undefined;
+      !customCategoryId && item.parentCategory && PARENT_CATEGORY_VALUES.includes(item.parentCategory)
+        ? item.parentCategory
+        : undefined;
 
     // Data inválida cai no mês corrente, melhor lançar do que perder a transação.
     const ym = yearMonthFromISO(item.date) ?? { year: now.getFullYear(), month: now.getMonth() + 1 };
@@ -231,6 +247,7 @@ export async function importTransactionsAction(
       month: ym.month,
       category: item.category,
       parentCategory: item.category === "EXPENSE" ? parentCategory : undefined,
+      customCategoryId,
       subcategory: item.subcategory ?? undefined,
       description: item.description,
       amount: item.amount,
