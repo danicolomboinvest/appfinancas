@@ -15,6 +15,13 @@ enum Role {
   CLIENT
 }
 
+/// De onde veio a liberação de acesso de um e-mail: MANUAL (a Dani liberou no painel)
+/// ou HUBLA (liberado automaticamente pelo webhook quando a pessoa comprou/assinou).
+enum AccessSource {
+  MANUAL
+  HUBLA
+}
+
 enum EntryCategory {
   INCOME
   EXPENSE
@@ -474,4 +481,19 @@ model AnalysisResponse {
   note        String?
 
   @@unique([sheetId, criterionId])
+}
+
+/// Lista de e-mails autorizados a criar conta / entrar no app. O acesso é fechado:
+/// só quem está aqui e com active=true consegue se cadastrar e logar (admins são exceção).
+/// Existe independente de User porque a checagem acontece no cadastro, antes da conta existir.
+/// O e-mail é sempre guardado normalizado (minúsculo, sem espaços) para casar com o login.
+model AllowedEmail {
+  id        String       @id @default(cuid())
+  email     String       @unique
+  source    AccessSource @default(MANUAL)
+  active    Boolean      @default(true)
+  /// Anotação livre: turma, nome do produto no Hubla, motivo da liberação manual etc.
+  note      String?
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
 }

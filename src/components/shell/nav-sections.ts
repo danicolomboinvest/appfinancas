@@ -101,9 +101,14 @@ export const NAV_SECTIONS: NavSection[] = [
 
 export const ADMIN_NAV_SECTION: NavSection = {
   basePath: "/admin",
-  href: "/admin/criterios",
+  href: "/admin/acessos",
   label: "Admin",
   icon: ShieldCheck,
+  children: [
+    { href: "/admin/acessos", label: "Acessos" },
+    { href: "/admin/usuarios", label: "Usuários" },
+    { href: "/admin/criterios", label: "Critérios" },
+  ],
 };
 
 export type MobileTab = { basePath: string; href: string; label: string; icon: LucideIcon };

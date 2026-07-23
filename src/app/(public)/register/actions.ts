@@ -3,6 +3,7 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createUser, findUserByEmail } from "@/lib/repositories/user.repo";
+import { isEmailAllowed } from "@/lib/repositories/allowedEmail.repo";
 import { registerSchema } from "@/lib/validations/auth.schema";
 import { sendEmail } from "@/lib/email/send";
 import { welcomeEmail } from "@/lib/email/templates";
@@ -23,6 +24,16 @@ export async function registerAction(_prevState: RegisterState, formData: FormDa
   // Aceite dos Termos/Privacidade é obrigatório (LGPD), valida também no servidor.
   if (formData.get("acceptTerms") !== "on") {
     return { error: "É preciso aceitar os Termos de Uso e a Política de Privacidade." };
+  }
+
+  // Acesso fechado: só cria conta quem foi liberado (comprou o curso / é assinante).
+  // A liberação vem da lista manual do painel ou automática do webhook do Hubla.
+  const allowed = await isEmailAllowed(parsed.data.email);
+  if (!allowed) {
+    return {
+      error:
+        "Esse e-mail ainda não tem acesso liberado. Use o mesmo e-mail da sua compra. Se acabou de comprar, aguarde alguns minutos e tente de novo.",
+    };
   }
 
   const existing = await findUserByEmail(parsed.data.email);
