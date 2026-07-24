@@ -5,17 +5,20 @@ export type ScrapedCriterion = { key: string; value: string };
 const USER_AGENT =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36";
 
-/** Rótulos exibidos em #table-indicators (ações internacionais) mapeados para as keys do catálogo. */
+/** Rótulos exibidos em #table-indicators (ações internacionais) mapeados para as keys do
+ * catálogo. Textos EXATOS confirmados contra a página real (o investidor10 já mudou esse texto
+ * antes sem aviso — ex.: "Dividend Yield (DY)" virou só "Dividend Yield" — por isso confira a
+ * página ao vivo se algum indicador parar de vir. */
 const RATIO_LABEL_TO_KEY: Record<string, string> = {
-  "Dividend Yield (DY)": "dividend_yield",
+  "Dividend Yield": "dividend_yield",
   Payout: "payout",
   "Margem Líquida": "margem_liquida",
   ROE: "roe",
   ROIC: "roic",
-  "Dívida Líquida / Patrimônio": "divida_liquida_patrimonio",
-  "Dívida Líquida / EBITDA": "divida_liquida_ebitda",
-  "CAGR Receitas 5 Anos": "evolucao_receita",
-  "CAGR Lucros 5 Anos": "evolucao_lucro",
+  "Dívida Líquida/Patrimônio": "divida_liquida_patrimonio",
+  "Dívida Líquida/EBITDA": "divida_liquida_ebitda",
+  "CAGR Receitas 5 anos": "evolucao_receita",
+  "CAGR Lucros 5 anos": "evolucao_lucro",
 };
 
 export function buildInvestidor10StockUrl(ticker: string): string {
