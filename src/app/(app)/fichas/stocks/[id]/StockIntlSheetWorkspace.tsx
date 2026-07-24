@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { Sparkles } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { CriteriaForm, type FormCriterion, type FormResponse } from "@/components/forms/CriteriaForm";
-import { fetchStockIntlIndicatorsAction } from "./actions";
+import { CriteriaForm, type FormCriterion, type FormResponse, type CriterionAnalysis } from "@/components/forms/CriteriaForm";
+import { fetchStockIntlIndicatorsAction, fetchStockIntlOverviewAction } from "./actions";
 
 type CriterionWithKey = FormCriterion & { key: string };
 
@@ -30,6 +30,39 @@ export function StockIntlSheetWorkspace({
   const [message, setMessage] = useState<{ tone: "success" | "error"; text: string } | null>(null);
   const [appliedSuggestions, setAppliedSuggestions] = useState<{ criterionId: string; value: string }[]>([]);
   const [applyToken, setApplyToken] = useState(0);
+
+  // Análise automática por indicador (mesmo mecanismo de Ações), carrega sozinha ao abrir a
+  // ficha e é exibida DENTRO de cada linha do CriteriaForm.
+  const [analysisByCriterionId, setAnalysisByCriterionId] = useState<Record<string, CriterionAnalysis> | undefined>(undefined);
+  const [analysisDisclaimer, setAnalysisDisclaimer] = useState<string | undefined>(undefined);
+  const [analysisPending, startAnalysis] = useTransition();
+
+  useEffect(() => {
+    let cancelled = false;
+    startAnalysis(async () => {
+      const r = await fetchStockIntlOverviewAction(ticker);
+      if (cancelled) return;
+      if (!r.ok) {
+        setAnalysisByCriterionId(undefined);
+        setAnalysisDisclaimer(undefined);
+        return;
+      }
+      const keyToCriterionId = new Map(criteria.map((c) => [c.key, c.id]));
+      const map: Record<string, CriterionAnalysis> = {};
+      for (const item of r.items) {
+        const criterionId = keyToCriterionId.get(item.key);
+        if (criterionId) map[criterionId] = { signal: item.signal, reference: item.reference };
+      }
+      setAnalysisByCriterionId(map);
+      setAnalysisDisclaimer(r.disclaimer);
+    });
+    // Evita aplicar por cima um resultado antigo se o ticker mudar antes da resposta voltar.
+    return () => {
+      cancelled = true;
+    };
+    // criteria é estável dentro da ficha; recarrega só quando muda o ticker.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ticker]);
 
   function handleFetch() {
     startTransition(async () => {
@@ -89,6 +122,9 @@ export function StockIntlSheetWorkspace({
         initialTotalScore={initialTotalScore}
         appliedSuggestions={appliedSuggestions}
         applyToken={applyToken}
+        analysisByCriterionId={analysisByCriterionId}
+        analysisDisclaimer={analysisDisclaimer}
+        analysisPending={analysisPending}
       />
     </div>
   );

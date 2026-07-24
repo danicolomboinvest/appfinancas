@@ -38,11 +38,15 @@ export function StockSheetWorkspace({
   const [analysisPending, startAnalysis] = useTransition();
 
   useEffect(() => {
-    setAnalysisByCriterionId(undefined);
-    setAnalysisDisclaimer(undefined);
+    let cancelled = false;
     startAnalysis(async () => {
       const r = await fetchStockOverviewAction(ticker);
-      if (!r.ok) return;
+      if (cancelled) return;
+      if (!r.ok) {
+        setAnalysisByCriterionId(undefined);
+        setAnalysisDisclaimer(undefined);
+        return;
+      }
       const keyToCriterionId = new Map(criteria.map((c) => [c.key, c.id]));
       const map: Record<string, CriterionAnalysis> = {};
       for (const item of r.items) {
@@ -52,6 +56,10 @@ export function StockSheetWorkspace({
       setAnalysisByCriterionId(map);
       setAnalysisDisclaimer(r.disclaimer);
     });
+    // Evita aplicar por cima um resultado antigo se o ticker mudar antes da resposta voltar.
+    return () => {
+      cancelled = true;
+    };
     // criteria é estável dentro da ficha; recarrega só quando muda o ticker.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ticker]);

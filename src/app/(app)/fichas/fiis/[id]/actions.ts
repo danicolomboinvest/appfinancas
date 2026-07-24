@@ -1,6 +1,7 @@
 "use server";
 
 import { fetchFiiIndicators } from "@/lib/analysis/fii-scraper";
+import { buildFiiOverview, OVERVIEW_DISCLAIMER, type OverviewItem, type OverviewSignal } from "@/lib/analysis/fii-overview";
 
 export type FetchFiiIndicatorsResult =
   | { ok: true; results: { key: string; value: string }[] }
@@ -19,5 +20,29 @@ export async function fetchFiiIndicatorsAction(ticker: string): Promise<FetchFii
     return { ok: true, results };
   } catch {
     return { ok: false, error: `Não foi possível buscar dados para ${ticker.toUpperCase()} agora. Tente novamente.` };
+  }
+}
+
+export type FetchFiiOverviewResult =
+  | { ok: true; items: OverviewItem[]; counts: Record<OverviewSignal, number>; disclaimer: string }
+  | { ok: false; error: string };
+
+/**
+ * Overview educativo do FII: indicadores do investidor10 com um "selo" por indicador (Favorável /
+ * Na média / Atenção) contra uma referência geral e transparente. NÃO é recomendação de compra/
+ * venda, o aviso vai junto (OVERVIEW_DISCLAIMER).
+ */
+export async function fetchFiiOverviewAction(ticker: string): Promise<FetchFiiOverviewResult> {
+  if (!ticker.trim()) return { ok: false, error: "Ticker vazio." };
+  try {
+    const results = await fetchFiiIndicators(ticker);
+    const indicators = Object.fromEntries(results.map((r) => [r.key, r.value]));
+    const { items, counts } = buildFiiOverview(indicators);
+    if (items.length === 0) {
+      return { ok: false, error: `Sem indicadores para analisar ${ticker.toUpperCase()} agora.` };
+    }
+    return { ok: true, items, counts, disclaimer: OVERVIEW_DISCLAIMER };
+  } catch {
+    return { ok: false, error: `Não foi possível carregar a análise de ${ticker.toUpperCase()} agora.` };
   }
 }
