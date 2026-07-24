@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { ChevronRight, Share2, X } from "lucide-react";
-import type { WeeklyRecap } from "@/lib/recap/weekly";
+import type { MonthlyRecap } from "@/lib/recap/monthly";
+import { dismissMonthlyRecapAction } from "./actions";
 import { buildRecapShareImage, buildRecapShareText } from "./share-image";
 
 function formatBRL(value: number) {
@@ -53,12 +54,19 @@ function CompareBar({ label, value, max, color }: { label: string; value: number
   );
 }
 
-export function RecapStories({ recap }: { recap: WeeklyRecap }) {
+export function RecapStories({ recap, monthKey }: { recap: MonthlyRecap; monthKey: string }) {
   const router = useRouter();
   const [index, setIndex] = useState(0);
   const [mounted, setMounted] = useState(false);
   const [sharing, setSharing] = useState(false);
   const touchStartX = useRef<number | null>(null);
+
+  /** Fecha o resumo: marca o mês como visto (não aparece de novo até o mês seguinte) e volta
+   * pro Fluxo. Best-effort: mesmo se o registro falhar, a navegação não trava por isso. */
+  function closeAndDismiss() {
+    dismissMonthlyRecapAction(monthKey).catch(() => {});
+    router.push("/mensal");
+  }
 
   /** Gera a imagem do resumo e abre o menu nativo de compartilhar (Instagram/WhatsApp/...).
    * Degrada com elegância: sem share de arquivo → share de texto → copiar para a área de transferência. */
@@ -67,20 +75,20 @@ export function RecapStories({ recap }: { recap: WeeklyRecap }) {
     setSharing(true);
     try {
       const blob = await buildRecapShareImage(recap);
-      const file = new File([blob], "resumo-semanal.png", { type: "image/png" });
-      const shareData: ShareData = { files: [file], title: "Meu resumo da semana" };
+      const file = new File([blob], "resumo-mensal.png", { type: "image/png" });
+      const shareData: ShareData = { files: [file], title: "Meu resumo do mês" };
       const nav = navigator as Navigator & { canShare?: (data: ShareData) => boolean };
       if (nav.canShare?.(shareData) && navigator.share) {
         await navigator.share(shareData);
       } else if (navigator.share) {
-        await navigator.share({ title: "Meu resumo da semana", text: buildRecapShareText(recap) });
+        await navigator.share({ title: "Meu resumo do mês", text: buildRecapShareText(recap) });
       } else {
         await navigator.clipboard.writeText(buildRecapShareText(recap));
         // Baixa a imagem como alternativa quando não há API de compartilhamento (desktop).
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = "resumo-semanal.png";
+        a.download = "resumo-mensal.png";
         a.click();
         URL.revokeObjectURL(url);
       }
@@ -98,7 +106,7 @@ export function RecapStories({ recap }: { recap: WeeklyRecap }) {
     setMounted(true);
   }, []);
 
-  const delta = recap.weekDeltaPercent;
+  const delta = recap.monthDeltaPercent;
   const spentLess = delta !== null && delta < 0;
   const savedPositive = recap.allTimeSaved > 0;
 
@@ -110,8 +118,8 @@ export function RecapStories({ recap }: { recap: WeeklyRecap }) {
       content: (
         <div className="flex flex-col items-center gap-3 text-center">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/60">{recap.rangeLabel}</p>
-          <h1 className="font-serif text-5xl text-white">Resumo Semanal</h1>
-          <p className="text-base text-white/70">O que aconteceu com o seu dinheiro esta semana.</p>
+          <h1 className="font-serif text-5xl text-white">Resumo Mensal</h1>
+          <p className="text-base text-white/70">O que aconteceu com o seu dinheiro este mês.</p>
         </div>
       ),
     },
@@ -120,8 +128,8 @@ export function RecapStories({ recap }: { recap: WeeklyRecap }) {
       tone: "gold",
       content: (
         <div className="flex flex-col items-center gap-4 text-center">
-          <p className="text-lg text-white/80">Esta semana você gastou</p>
-          <BigNumber>{formatBRL(recap.weekSpent)}</BigNumber>
+          <p className="text-lg text-white/80">Este mês você gastou</p>
+          <BigNumber>{formatBRL(recap.monthSpent)}</BigNumber>
           {recap.topCategory && (
             <p className="text-base text-white/70">
               A maior parte foi com{" "}
@@ -140,22 +148,22 @@ export function RecapStories({ recap }: { recap: WeeklyRecap }) {
       content: (
         <div className="flex w-full flex-col gap-8">
           <div className="text-center">
-            <p className="text-lg text-white/80">Comparado com a semana anterior, você gastou</p>
+            <p className="text-lg text-white/80">Comparado com o mês anterior, você gastou</p>
             <BigNumber color={delta === null ? GOLD : spentLess ? SAGE : TERRA}>
               {delta === null ? "—" : `${Math.abs(Math.round(delta * 100))}% ${spentLess ? "menos" : "a mais"}`}
             </BigNumber>
           </div>
           <div className="flex flex-col gap-5">
             <CompareBar
-              label="Esta semana"
-              value={recap.weekSpent}
-              max={Math.max(recap.weekSpent, recap.prevWeekSpent)}
+              label="Este mês"
+              value={recap.monthSpent}
+              max={Math.max(recap.monthSpent, recap.prevMonthSpent)}
               color={delta !== null && !spentLess ? TERRA : SAGE}
             />
             <CompareBar
-              label="Semana passada"
-              value={recap.prevWeekSpent}
-              max={Math.max(recap.weekSpent, recap.prevWeekSpent)}
+              label="Mês passado"
+              value={recap.prevMonthSpent}
+              max={Math.max(recap.monthSpent, recap.prevMonthSpent)}
               color="rgba(255,255,255,0.25)"
             />
           </div>
@@ -169,7 +177,7 @@ export function RecapStories({ recap }: { recap: WeeklyRecap }) {
         <div className="flex w-full flex-col gap-8">
           {recap.bestDay && (
             <p className="text-center text-xl text-white/90">
-              Seu dia mais econômico foi{" "}
+              Seu dia da semana mais econômico foi{" "}
               <span className="font-bold" style={{ color: SAGE }}>
                 {recap.bestDay.label}
               </span>
@@ -199,7 +207,7 @@ export function RecapStories({ recap }: { recap: WeeklyRecap }) {
           </div>
           {recap.worstDay && (
             <p className="text-center text-xl text-white/90">
-              O mais gastador foi{" "}
+              O dia da semana mais gastador foi{" "}
               <span className="font-bold" style={{ color: TERRA }}>
                 {recap.worstDay.label}
               </span>{" "}
@@ -221,21 +229,35 @@ export function RecapStories({ recap }: { recap: WeeklyRecap }) {
           <BigNumber color={savedPositive ? SAGE : TERRA}>{formatBRL(recap.allTimeSaved)}</BigNumber>
           <p className="text-base text-white/70">
             {savedPositive
-              ? "É renda que não virou gasto, e pode virar patrimônio."
-              : "Semana a semana dá pra virar esse jogo. O primeiro passo é ver o número."}
+              ? "É renda acumulada que não virou gasto, e pode virar patrimônio."
+              : "Mês a mês dá pra virar esse jogo. O primeiro passo é ver o número."}
           </p>
         </div>
       ),
     },
     {
-      key: "projecao",
+      key: "projecao-acumulado",
       tone: "gold",
       content: (
         <div className="flex flex-col items-center gap-4 text-center">
-          <p className="text-lg text-white/80">Se você mantiver esse ritmo e investir, em 10 anos isso vira até…</p>
-          <BigNumber>{formatBRL(Math.max(0, recap.projection10y))}</BigNumber>
+          <p className="text-lg text-white/80">Se você investisse hoje, de uma vez, tudo que já juntou, em 10 anos isso vira até…</p>
+          <BigNumber>{formatBRL(Math.max(0, recap.lumpSumProjection10y))}</BigNumber>
           <p className="text-sm text-white/50">
-            *Poupança média de {formatBRL(Math.max(0, recap.avgMonthlySaving))}/mês a 10% a.a., estimativa educativa, não garantia.
+            *{formatBRL(Math.max(0, recap.allTimeSaved))} investidos de uma vez a 10% a.a., estimativa educativa, não garantia.
+          </p>
+        </div>
+      ),
+    },
+    {
+      key: "projecao-mensal",
+      tone: "gold",
+      content: (
+        <div className="flex flex-col items-center gap-4 text-center">
+          <p className="text-lg text-white/80">Mantendo sua poupança média todo mês, reinvestindo, em 10 anos isso vira até…</p>
+          <BigNumber>{formatBRL(Math.max(0, recap.recurringProjection10y))}</BigNumber>
+          <p className="text-sm text-white/50">
+            *Poupança média de {formatBRL(Math.max(0, recap.avgMonthlySaving))}/mês (poupado no ano ÷ meses preenchidos) a 10% a.a.,
+            estimativa educativa, não garantia.
           </p>
         </div>
       ),
@@ -252,8 +274,8 @@ export function RecapStories({ recap }: { recap: WeeklyRecap }) {
           <div className="flex flex-col divide-y divide-white/10">
             <div className="flex items-center justify-between py-4">
               <div>
-                <p className="text-3xl font-bold text-white">{formatBRL(recap.weekSpent)}</p>
-                <p className="text-sm text-white/60">Gastos da semana</p>
+                <p className="text-3xl font-bold text-white">{formatBRL(recap.monthSpent)}</p>
+                <p className="text-sm text-white/60">Gastos do mês</p>
               </div>
               {delta !== null && (
                 <span
@@ -278,29 +300,14 @@ export function RecapStories({ recap }: { recap: WeeklyRecap }) {
             </div>
             <div className="py-4">
               <p className="text-3xl font-bold" style={{ color: GOLD }}>
-                {formatBRL(Math.max(0, recap.projection10y))}
+                {formatBRL(Math.max(0, recap.recurringProjection10y))}
               </p>
-              <p className="text-sm text-white/60">Potencial em 10 anos</p>
+              <p className="text-sm text-white/60">Potencial em 10 anos mantendo sua poupança média</p>
             </div>
           </div>
-          <div className="mt-2 flex flex-col items-center gap-3">
-            <button
-              type="button"
-              onClick={handleShare}
-              disabled={sharing}
-              className="flex w-full max-w-xs items-center justify-center gap-2 rounded-full bg-white px-6 py-3.5 text-sm font-semibold text-black transition-transform hover:opacity-90 active:scale-95 disabled:opacity-60"
-            >
-              <Share2 size={18} strokeWidth={2.2} />
-              {sharing ? "Gerando imagem…" : "Compartilhar resumo"}
-            </button>
-            <button
-              type="button"
-              onClick={() => router.push("/mensal")}
-              className="text-sm font-medium text-white/60 transition-colors hover:text-white"
-            >
-              Concluir
-            </button>
-          </div>
+          {/* Espaço reservado pros botões de ação, que ficam FORA do trilho de slides (ver
+              bloco "final: ações" mais abaixo) — não dá pra pôr eles aqui dentro. */}
+          <div aria-hidden className="h-24" />
         </div>
       ),
     },
@@ -322,7 +329,7 @@ export function RecapStories({ recap }: { recap: WeeklyRecap }) {
     function onKey(e: KeyboardEvent) {
       if (e.key === "ArrowRight") next();
       else if (e.key === "ArrowLeft") prev();
-      else if (e.key === "Escape") router.push("/mensal");
+      else if (e.key === "Escape") closeAndDismiss();
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -347,7 +354,7 @@ export function RecapStories({ recap }: { recap: WeeklyRecap }) {
       }}
     >
       {/* Barrinhas de progresso (uma por slide) */}
-      <div className="absolute inset-x-4 top-4 z-20 flex gap-1.5" style={{ paddingTop: "env(safe-area-inset-top)" }}>
+      <div className="absolute inset-x-4 top-0 z-20 flex gap-1.5" style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 1rem)" }}>
         {slides.map((s, i) => (
           <div key={s.key} className="h-1 flex-1 overflow-hidden rounded-full bg-white/20">
             <div
@@ -358,12 +365,14 @@ export function RecapStories({ recap }: { recap: WeeklyRecap }) {
         ))}
       </div>
 
-      {/* Fechar */}
+      {/* Fechar: mesmo offset-base da barra de progresso (env(safe-area-inset-top)) + folga
+          fixa abaixo dela, pra nunca colidir com as barrinhas em telas com notch. */}
       <button
         type="button"
-        onClick={() => router.push("/mensal")}
+        onClick={closeAndDismiss}
         aria-label="Fechar resumo"
-        className="absolute left-4 top-10 z-20 flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-white/20 transition-colors hover:bg-white/15"
+        style={{ top: "calc(env(safe-area-inset-top, 0px) + 2.5rem)" }}
+        className="absolute left-4 z-20 flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-white/20 transition-colors hover:bg-white/15"
       >
         <X size={20} />
       </button>
@@ -402,6 +411,35 @@ export function RecapStories({ recap }: { recap: WeeklyRecap }) {
         >
           <ChevronRight size={26} strokeWidth={2.2} />
         </button>
+      )}
+
+      {/* Ações do último slide, FORA do trilho de slides de propósito: o trilho tem `transform`,
+          que cria um novo contexto de empilhamento e isolaria qualquer z-index interno — as
+          áreas de toque invisíveis (esquerda/direita, z-10, cobrem a tela inteira) engoliriam
+          o clique antes de chegar nos botões reais. Aqui fora, no mesmo nível da seta de vidro
+          (z-20), o clique chega certinho. */}
+      {isLast && (
+        <div
+          className="absolute inset-x-6 z-20 flex flex-col items-center gap-3"
+          style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 2rem)" }}
+        >
+          <button
+            type="button"
+            onClick={handleShare}
+            disabled={sharing}
+            className="flex w-full max-w-xs items-center justify-center gap-2 rounded-full bg-white px-6 py-3.5 text-sm font-semibold text-black transition-transform hover:opacity-90 active:scale-95 disabled:opacity-60"
+          >
+            <Share2 size={18} strokeWidth={2.2} />
+            {sharing ? "Gerando imagem…" : "Compartilhar resumo"}
+          </button>
+          <button
+            type="button"
+            onClick={closeAndDismiss}
+            className="text-sm font-medium text-white/60 transition-colors hover:text-white"
+          >
+            Concluir
+          </button>
+        </div>
       )}
     </div>,
     document.body,

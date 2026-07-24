@@ -142,6 +142,9 @@ model User {
   /// Última vez que o usuário abriu o app (atualizado no layout, no máx. 1x a cada ~15min).
   /// Base das métricas de engajamento (ativos em 24h/7d/30d) no relatório de admin.
   lastSeenAt   DateTime?
+  /// Mês do Resumo Mensal já visto/fechado, formato "YYYY-MM". Enquanto for o mesmo mês do
+  /// resumo atual, o card na Visão Mensal não aparece de novo (fecha uma vez por mês).
+  recapDismissedMonth String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

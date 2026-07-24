@@ -10,11 +10,19 @@ import { createCategoryAction } from "@/lib/actions/category";
 import {
   parseStatementAction,
   importTransactionsAction,
+  removeCardPaymentCandidateAction,
   type ReviewItem,
   type ConfirmedItem,
+  type CardPaymentCandidate,
 } from "@/app/(app)/mensal/import-actions";
 
 type Phase = "upload" | "password" | "review" | "confirm" | "done";
+
+/** "YYYY-MM" do mês corrente, usado como valor inicial do seletor de mês da fatura. */
+function currentMonthValue(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+}
 
 function formatBRL(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -23,6 +31,13 @@ function formatBRL(value: number) {
 function formatDate(iso: string) {
   const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   return m ? `${m[3]}/${m[2]}` : iso;
+}
+
+/** "2027-06" → "junho de 2027", pro texto de confirmação do mês da fatura. */
+function formatMonthYear(monthValue: string): string {
+  const [y, m] = monthValue.split("-").map(Number);
+  if (!y || !m) return monthValue;
+  return new Date(y, m - 1, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
 }
 
 /** O arquivo vai CRU num FormData (string grande de base64 estoura o limite de serialização
@@ -50,6 +65,10 @@ export function StatementImport({ onDone }: { onDone: () => void }) {
   const [reviewIdx, setReviewIdx] = useState(0);
   const [createdCount, setCreatedCount] = useState(0);
   const [docType, setDocType] = useState<"extrato" | "fatura">("extrato");
+  // Mês/ano de destino da FATURA (todas as compras entram nesse mês, escolhido por quem importa
+  // — não no mês de cada compra, que fica espalhado pelo período de fechamento da fatura).
+  const [faturaMonth, setFaturaMonth] = useState(currentMonthValue());
+  const [cardPaymentCandidates, setCardPaymentCandidates] = useState<CardPaymentCandidate[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   // Excel do banco costuma vir protegido por senha: guardamos o arquivo e pedimos a senha.
@@ -161,20 +180,25 @@ export function StatementImport({ onDone }: { onDone: () => void }) {
         // Aprende quando foi o usuário quem classificou (não veio 100% automático).
         learn: !it.autoClassified,
       }));
+    const [targetYear, targetMonth] = docType === "fatura" ? faturaMonth.split("-").map(Number) : [undefined, undefined];
     startTransition(async () => {
-      const result = await importTransactionsAction(confirmed, docType);
+      const result = await importTransactionsAction(confirmed, docType, targetYear, targetMonth);
       if (!result.ok) {
         setError(result.error);
         return;
       }
       setCreatedCount(result.created);
+      setCardPaymentCandidates(result.cardPaymentCandidates);
       setPhase("done");
       const parts = [`${result.created} lançamentos importados`];
       if (result.skipped > 0) parts.push(`${result.skipped} já existiam (ignorados)`);
-      if (result.removedCardPayment)
-        parts.push(`removi o pagamento da fatura (${formatBRL(result.removedCardPayment.amount)}) do extrato pra não contar duas vezes`);
       showToast(parts.join(" · ") + ".");
     });
+  }
+
+  /** Some da lista assim que a pessoa decide (removeu ou manteve), sem esperar recarregar a página. */
+  function dismissCandidate(id: string) {
+    setCardPaymentCandidates((prev) => prev.filter((c) => c.id !== id));
   }
 
   // --- UPLOAD ---
@@ -206,6 +230,28 @@ export function StatementImport({ onDone }: { onDone: () => void }) {
               : "Entradas viram renda e saídas viram gasto, pelo sinal do valor."}
           </span>
         </div>
+
+        {/* Fatura: a pessoa escolhe o mês de destino — todas as compras entram nesse mês (o
+            período de fechamento da fatura costuma cruzar dois meses do calendário, e a data
+            de cada compra não é o que importa aqui, é quando a fatura foi paga). */}
+        {docType === "fatura" && (
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="fatura-month" className="text-caption text-ink-muted">
+              De qual mês é esta fatura?
+            </label>
+            <input
+              id="fatura-month"
+              type="month"
+              value={faturaMonth}
+              onChange={(e) => setFaturaMonth(e.target.value)}
+              className="w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
+            />
+            <span className="text-caption text-ink-faint">
+              Todas as compras desta fatura vão entrar em {formatMonthYear(faturaMonth)}, mesmo as que aconteceram no mês
+              anterior (o fechamento da fatura costuma cruzar dois meses).
+            </span>
+          </div>
+        )}
 
         <button
           type="button"
@@ -323,12 +369,18 @@ export function StatementImport({ onDone }: { onDone: () => void }) {
                 assignParent(it.key, pc);
                 advanceReview();
               }}
-              className="rounded-full border border-border-strong bg-surface px-3 py-2 text-sm font-medium text-ink transition-colors hover:border-accent hover:bg-accent-soft active:scale-95"
+              className={`rounded-full border px-3 py-2 text-sm font-medium transition-colors active:scale-95 ${
+                it.parentCategory === pc
+                  ? "border-accent bg-accent-soft text-accent-strong"
+                  : "border-border-strong bg-surface text-ink hover:border-accent hover:bg-accent-soft"
+              }`}
             >
               {PARENT_CATEGORY_LABEL[pc]}
             </button>
           ))}
-          {/* Categorias que a própria pessoa criou (aqui ou no Orçamento). */}
+          {/* Categorias que a própria pessoa criou (aqui ou no Orçamento). Só fica "dourada"
+              quando de fato selecionada (it.customCategoryId === cc.id) — antes vinha sempre
+              dourada de cara, dava a entender que já estava escolhida sem ter clicado em nada. */}
           {customCategories.map((cc) => (
             <button
               key={cc.id}
@@ -337,7 +389,11 @@ export function StatementImport({ onDone }: { onDone: () => void }) {
                 assignCustom(it.key, cc.id);
                 advanceReview();
               }}
-              className="rounded-full border border-accent/40 bg-accent-soft px-3 py-2 text-sm font-medium text-accent-strong transition-colors hover:border-accent active:scale-95"
+              className={`rounded-full border px-3 py-2 text-sm font-medium transition-colors active:scale-95 ${
+                it.customCategoryId === cc.id
+                  ? "border-accent bg-accent-soft text-accent-strong"
+                  : "border-border-strong bg-surface text-ink hover:border-accent hover:bg-accent-soft"
+              }`}
             >
               {cc.name}
             </button>
@@ -434,6 +490,54 @@ export function StatementImport({ onDone }: { onDone: () => void }) {
         <Check size={28} strokeWidth={2} />
       </span>
       <p className="text-sm font-medium text-ink">{createdCount} lançamentos importados com sucesso.</p>
+
+      {/* Candidatos a "pagamento desta fatura" já lançados no extrato: a pessoa decide, nunca
+          removemos sozinhos (fatura raramente é paga por inteiro, o valor quase nunca bate
+          exato — só ela sabe se aquele lançamento é mesmo esta fatura). */}
+      {cardPaymentCandidates.length > 0 && (
+        <div className="w-full rounded-xl border border-border bg-surface-2 p-3 text-left">
+          <p className="text-xs font-medium text-ink-muted">
+            Encontrei {cardPaymentCandidates.length === 1 ? "este lançamento" : "estes lançamentos"} no seu extrato que{" "}
+            {cardPaymentCandidates.length === 1 ? "pode ser" : "podem ser"} o pagamento desta fatura. Quer remover pra não
+            contar o gasto duas vezes?
+          </p>
+          <ul className="mt-2 flex flex-col divide-y divide-border">
+            {cardPaymentCandidates.map((c) => (
+              <li key={c.id} className="flex items-center justify-between gap-2 py-2">
+                <div className="min-w-0">
+                  <p className="truncate text-sm text-ink">{c.description}</p>
+                  <p className="text-caption text-ink-faint">{c.date ? formatDate(c.date) : "sem data"}</p>
+                </div>
+                <div className="flex shrink-0 items-center gap-3">
+                  <span className="text-sm font-medium tabular-nums text-danger">− {formatBRL(c.amount)}</span>
+                  <button
+                    type="button"
+                    disabled={isPending}
+                    onClick={() => {
+                      startTransition(async () => {
+                        await removeCardPaymentCandidateAction(c.id);
+                        dismissCandidate(c.id);
+                        showToast("Removido do extrato.");
+                      });
+                    }}
+                    className="text-xs font-medium text-danger hover:underline disabled:opacity-40"
+                  >
+                    Remover
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => dismissCandidate(c.id)}
+                    className="text-xs text-ink-faint hover:text-ink"
+                  >
+                    Manter
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <Button type="button" onClick={onDone}>
         Concluir
       </Button>

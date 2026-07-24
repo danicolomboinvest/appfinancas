@@ -74,3 +74,13 @@ export async function updateOwnNotificationPrefs(
 ) {
   return prisma.user.update({ where: { id: ctx.userId }, data: input });
 }
+
+export async function getRecapDismissedMonth(ctx: AuthContext): Promise<string | null> {
+  const user = await prisma.user.findUnique({ where: { id: ctx.userId }, select: { recapDismissedMonth: true } });
+  return user?.recapDismissedMonth ?? null;
+}
+
+/** Fecha o Resumo Mensal daquele mês (ex.: "2026-07"): não aparece de novo até o mês seguinte. */
+export async function dismissRecapMonth(ctx: AuthContext, monthKey: string): Promise<void> {
+  await prisma.user.update({ where: { id: ctx.userId }, data: { recapDismissedMonth: monthKey } });
+}

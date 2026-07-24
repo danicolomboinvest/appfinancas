@@ -1,4 +1,4 @@
-import type { WeeklyRecap } from "@/lib/recap/weekly";
+import type { MonthlyRecap } from "@/lib/recap/monthly";
 
 function formatBRL(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
@@ -23,10 +23,10 @@ function wrap(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): st
 }
 
 /**
- * Desenha um card compartilhável do Resumo Semanal (estilo "retrospectiva") num canvas e
+ * Desenha um card compartilhável do Resumo Mensal (estilo "retrospectiva") num canvas e
  * devolve como PNG, sem dependência externa. Formato 1080×1350 (retrato, bom pra story/feed).
  */
-export async function buildRecapShareImage(recap: WeeklyRecap): Promise<Blob> {
+export async function buildRecapShareImage(recap: MonthlyRecap): Promise<Blob> {
   const W = 1080;
   const H = 1350;
   const canvas = document.createElement("canvas");
@@ -55,18 +55,22 @@ export async function buildRecapShareImage(recap: WeeklyRecap): Promise<Blob> {
   ctx.fillStyle = "#ffffff";
   ctx.font = "700 92px Georgia, serif";
   ctx.fillText("Meu resumo", cx, 260);
-  ctx.fillText("da semana", cx, 360);
+  ctx.fillText("do mês", cx, 360);
 
   // Blocos de destaque
   const savedPositive = recap.allTimeSaved >= 0;
   const blocks: { label: string; value: string; color: string }[] = [
-    { label: "Gastei esta semana", value: formatBRL(recap.weekSpent), color: "#f0c989" },
+    { label: "Gastei este mês", value: formatBRL(recap.monthSpent), color: "#f0c989" },
     {
       label: savedPositive ? "Ficou no meu bolso desde o início" : "Saldo desde o início",
       value: formatBRL(recap.allTimeSaved),
       color: savedPositive ? "#6fcb9f" : "#e2836a",
     },
-    { label: "Potencial em 10 anos nesse ritmo", value: formatBRL(Math.max(0, recap.projection10y)), color: "#f0c989" },
+    {
+      label: "Potencial em 10 anos mantendo minha poupança média",
+      value: formatBRL(Math.max(0, recap.recurringProjection10y)),
+      color: "#f0c989",
+    },
   ];
 
   let y = 560;
@@ -94,12 +98,12 @@ export async function buildRecapShareImage(recap: WeeklyRecap): Promise<Blob> {
 }
 
 /** Texto de fallback quando não dá pra compartilhar imagem. */
-export function buildRecapShareText(recap: WeeklyRecap): string {
+export function buildRecapShareText(recap: MonthlyRecap): string {
   const parts = [
-    `Meu resumo da semana (${recap.rangeLabel}):`,
-    `• Gastei ${formatBRL(recap.weekSpent)}`,
+    `Meu resumo do mês (${recap.rangeLabel}):`,
+    `• Gastei ${formatBRL(recap.monthSpent)}`,
     `• ${recap.allTimeSaved >= 0 ? "Ficou no bolso" : "Saldo"} desde o início: ${formatBRL(recap.allTimeSaved)}`,
-    `• Potencial em 10 anos: ${formatBRL(Math.max(0, recap.projection10y))}`,
+    `• Potencial em 10 anos: ${formatBRL(Math.max(0, recap.recurringProjection10y))}`,
   ];
   return parts.join("\n");
 }

@@ -11,6 +11,10 @@ import {
   listBudgetsForYear,
 } from "@/lib/repositories/budget.repo";
 import { getMonthlySummary, getAnnualSummary } from "@/lib/consolidation/monthly";
+import { getYearlySummary } from "@/lib/consolidation/yearly";
+import { getRecapDismissedMonth } from "@/lib/repositories/user.repo";
+import { getRecapEligibility } from "@/lib/recap/monthly";
+import { YearlyBarChart } from "@/components/charts/YearlyBarChart";
 import {
   PARENT_CATEGORY_LABEL,
   PARENT_CATEGORY_ICON,
@@ -26,9 +30,8 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import { DonutAllocationChart, type DonutSlice } from "@/components/charts/DonutAllocationChart";
-import { EntryForm } from "./EntryForm";
 import { EntryRowActions } from "./EntryRowActions";
-import { WeeklyRecapCard } from "./WeeklyRecapCard";
+import { MonthlyRecapCard } from "./MonthlyRecapCard";
 import { OnboardingChecklist } from "./OnboardingChecklist";
 import { prisma } from "@/lib/db/prisma";
 import { FlowIndicators, type FlowBundle } from "./FlowIndicators";
@@ -180,6 +183,7 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
     entries,
     summary,
     annualSummary,
+    yearlySummary,
     monthBudgets,
     yearBudgets,
     recentSubcategories,
@@ -188,10 +192,12 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
     spentByParent,
     spentByCustom,
     onboardingCounts,
+    recapDismissedMonth,
   ] = await Promise.all([
     listMonthlyEntries(ctx, year, month),
     getMonthlySummary(ctx, year, month),
     getAnnualSummary(ctx, year),
+    getYearlySummary(ctx, year),
     listBudgets(ctx, year, month),
     listBudgetsForYear(ctx, year),
     listRecentSubcategories(ctx),
@@ -205,6 +211,7 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
       prisma.budget.count({ where: { userId: ctx.userId }, take: 1 }),
       prisma.asset.count({ where: { userId: ctx.userId }, take: 1 }),
     ]),
+    getRecapDismissedMonth(ctx),
   ]);
   const [entryCount, budgetCount, assetCount] = onboardingCounts;
 
@@ -225,6 +232,10 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
     isCurrentMonth && monthlyPlanned > 0
       ? { budgetUsed: summary.totalExpense / monthlyPlanned, monthElapsed: now.getDate() / daysInMonth }
       : null;
+
+  // Resumo Mensal: só perto da virada do mês (fim ou início), e só se ainda não foi fechado
+  // para aquele mês específico — não é um banner permanente.
+  const recapEligibility = getRecapEligibility(now, recapDismissedMonth);
 
   const monthlyBundle: FlowBundle = {
     income: summary.totalIncome,
@@ -273,7 +284,7 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
 
       <OnboardingChecklist hasEntry={entryCount > 0} hasBudget={budgetCount > 0} hasAsset={assetCount > 0} />
 
-      {isCurrentMonth && <WeeklyRecapCard />}
+      {isCurrentMonth && recapEligibility.eligible && <MonthlyRecapCard monthKey={recapEligibility.monthKey} />}
 
       <FlowIndicators
         year={year}
@@ -284,22 +295,18 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
         pacing={pacing}
       />
 
-      <EntryForm
-        year={year}
-        month={month}
-        recentSubcategories={recentSubcategories}
-        customCategories={customCategories}
-        goals={goalOptions}
-        // Lançando num mês que não é o atual, a data default acompanha o mês visualizado
-        // (dia 1), "hoje" criaria um lançamento com data de julho dentro de junho.
-        defaultEntryDate={isCurrentMonth ? undefined : `${year}-${String(month).padStart(2, "0")}-01`}
-      />
+      {/* O botão "Registrar" (drawer global) já cobre lançamento; aqui embaixo, algo pra olhar
+          todo dia em vez de outro formulário repetido: renda/gastos/aportes mês a mês no ano. */}
+      <Card className="p-5">
+        <h2 className="mb-4 text-sm font-medium text-ink-muted">Renda, gastos e aportes por mês</h2>
+        <YearlyBarChart months={yearlySummary.months} />
+      </Card>
 
       <BudgetSection ctx={ctx} year={year} month={month} totalIncome={summary.totalIncome} />
 
       {totalSpentByCategory > 0 && (
         <Card className="p-5">
-          <DonutAllocationChart title="Para onde foi seu dinheiro este mês" data={spendingSlices} />
+          <DonutAllocationChart title="Para onde foi seu dinheiro este mês" data={spendingSlices} legend />
         </Card>
       )}
 

@@ -54,6 +54,19 @@
   --color-chart-6: #c9926e;
   --color-chart-7: #8c8676;
 
+  /* Paleta exclusiva de categorias PERSONALIZADAS: nunca repete as 7 cores acima (categoria-mãe
+     fixa), pra "Alimentação" e uma categoria nova do usuário nunca caírem na mesma cor. */
+  --color-custom-1: #a3e635;
+  --color-custom-2: #4ade80;
+  --color-custom-3: #22d3ee;
+  --color-custom-4: #6366f1;
+  --color-custom-5: #f472b6;
+  --color-custom-6: #d4a373;
+  --color-custom-7: #f87171;
+  --color-custom-8: #c084fc;
+  --color-custom-9: #a8a29e;
+  --color-custom-10: #5eead4;
+
   --shadow-premium: 0 20px 48px rgba(0, 0, 0, 0.55), 0 1px 0 rgba(255, 255, 255, 0.04) inset;
   --shadow-premium-sm: 0 8px 20px rgba(0, 0, 0, 0.42);
 
@@ -105,6 +118,17 @@ html.dark {
   --color-chart-6: #c9926e;
   --color-chart-7: #8c8676;
 
+  --color-custom-1: #a3e635;
+  --color-custom-2: #4ade80;
+  --color-custom-3: #22d3ee;
+  --color-custom-4: #6366f1;
+  --color-custom-5: #f472b6;
+  --color-custom-6: #d4a373;
+  --color-custom-7: #f87171;
+  --color-custom-8: #c084fc;
+  --color-custom-9: #a8a29e;
+  --color-custom-10: #5eead4;
+
   --shadow-premium: 0 20px 48px rgba(0, 0, 0, 0.55), 0 1px 0 rgba(255, 255, 255, 0.04) inset;
   --shadow-premium-sm: 0 8px 20px rgba(0, 0, 0, 0.42);
 
@@ -145,6 +169,16 @@ html.dark {
   --color-chart-5: var(--color-chart-5);
   --color-chart-6: var(--color-chart-6);
   --color-chart-7: var(--color-chart-7);
+  --color-custom-1: var(--color-custom-1);
+  --color-custom-2: var(--color-custom-2);
+  --color-custom-3: var(--color-custom-3);
+  --color-custom-4: var(--color-custom-4);
+  --color-custom-5: var(--color-custom-5);
+  --color-custom-6: var(--color-custom-6);
+  --color-custom-7: var(--color-custom-7);
+  --color-custom-8: var(--color-custom-8);
+  --color-custom-9: var(--color-custom-9);
+  --color-custom-10: var(--color-custom-10);
 
   --font-sans: var(--font-albert-sans);
   --font-mono: var(--font-geist-mono);
@@ -188,6 +222,25 @@ body {
   overscroll-behavior: none;
   -webkit-tap-highlight-color: transparent;
   scrollbar-width: none; /* Firefox */
+}
+/* Sem dar pra selecionar/copiar o texto da tela (Instagram e a maioria dos apps nativos também
+   não deixam). Precisa estar dentro de @layer utilities: fora de uma @layer, o Lightning CSS
+   (motor do Tailwind v4) estava descartando "user-select" em silêncio na hora de compilar,
+   mesmo a regra aparecendo certinho aqui no arquivo-fonte. Campos de digitação reativam a
+   seleção logo abaixo, sem isso a pessoa não conseguiria nem selecionar o que ela mesma
+   escreveu num campo. */
+@layer utilities {
+  html,
+  body {
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  input,
+  textarea,
+  [contenteditable="true"] {
+    user-select: text;
+    -webkit-user-select: text;
+  }
 }
 /* Tira o realce azul/cinza ao tocar em botões e links (comportamento de app, não de site). */
 a,

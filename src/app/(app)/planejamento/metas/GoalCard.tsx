@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/Card";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { CountUp } from "@/components/ui/CountUp";
 import { DeleteGoalButton } from "./DeleteGoalButton";
+import { EditGoalButton } from "./EditGoalButton";
 import { GoalTrajectoryChart } from "./GoalTrajectoryChart";
 import type { GoalCalcResult, GoalTrajectoryPoint } from "@/lib/planning/goal";
 
@@ -80,6 +81,7 @@ export function GoalCard({
   targetAmount,
   currentAmount,
   targetDate,
+  annualRate,
   plan,
   trajectory,
   variant,
@@ -90,6 +92,7 @@ export function GoalCard({
   targetAmount: number;
   currentAmount: number;
   targetDate: Date;
+  annualRate: number;
   plan: GoalCalcResult;
   trajectory: GoalTrajectoryPoint[];
   variant: GoalVariant;
@@ -164,7 +167,21 @@ export function GoalCard({
         </div>
       )}
 
-      <div className="flex items-center justify-end">
+      <div className="flex items-center justify-end gap-4">
+        <EditGoalButton
+          goalId={id}
+          defaults={{
+            name,
+            icon,
+            targetAmount,
+            currentAmount,
+            // Componentes locais, não toISOString(): o valor cru é UTC, e por volta de meia-noite
+            // no Brasil (UTC-3) vira o mês ANTERIOR — foi assim que "novembro" virou "dezembro"
+            // no formulário de edição, o mês mudava sozinho.
+            targetDate: `${targetDate.getFullYear()}-${String(targetDate.getMonth() + 1).padStart(2, "0")}`,
+            annualRate,
+          }}
+        />
         <DeleteGoalButton id={id} />
       </div>
     </Card>

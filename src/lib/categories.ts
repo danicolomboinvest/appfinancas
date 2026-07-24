@@ -74,15 +74,20 @@ export const PARENT_CATEGORY_COLOR: Record<ParentCategory, string> = {
   FINANCEIRO: "var(--color-cat-financeiro)",
 };
 
-/** Paleta cíclica pras categorias personalizadas (sem cor própria fixa), usa o índice de criação. */
+/** Paleta cíclica pras categorias personalizadas — exclusiva, nunca repete as 7 cores fixas
+ * das categorias-mãe (antes usava a mesma lista, e uma categoria nova podia "sortear" a cor
+ * exata de Alimentação/Moradia/etc. e ficar indistinguível dela no gráfico). */
 const CUSTOM_CATEGORY_PALETTE = [
-  "var(--color-cat-moradia)",
-  "var(--color-cat-alimentacao)",
-  "var(--color-cat-transporte)",
-  "var(--color-cat-saude)",
-  "var(--color-cat-lazer)",
-  "var(--color-cat-educacao)",
-  "var(--color-cat-financeiro)",
+  "var(--color-custom-1)",
+  "var(--color-custom-2)",
+  "var(--color-custom-3)",
+  "var(--color-custom-4)",
+  "var(--color-custom-5)",
+  "var(--color-custom-6)",
+  "var(--color-custom-7)",
+  "var(--color-custom-8)",
+  "var(--color-custom-9)",
+  "var(--color-custom-10)",
 ];
 
 export function customCategoryColor(index: number): string {

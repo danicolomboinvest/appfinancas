@@ -141,8 +141,13 @@ export type ConfirmedItem = {
   learn: boolean;
 };
 
+/** Lançamento do extrato bancário que PODE ser o pagamento desta fatura — mostrado pra pessoa
+ * decidir, nunca removido sozinho (fatura parcial não bate o valor exato, ver comentário em
+ * findCardPaymentCandidates). */
+export type CardPaymentCandidate = { id: string; description: string; amount: number; date: string | null };
+
 export type ImportResult =
-  | { ok: true; created: number; skipped: number; removedCardPayment?: { description: string; amount: number } | null }
+  | { ok: true; created: number; skipped: number; cardPaymentCandidates: CardPaymentCandidate[] }
   | { ok: false; error: string };
 
 /** Reconhece a linha de "pagamento de fatura de cartão" que vem no EXTRATO bancário. */
@@ -152,44 +157,46 @@ function looksLikeCardPayment(description: string | null): boolean {
   return CARD_PAYMENT_RE.test(d) && (/pagament/.test(d) || /cart[aã]o/.test(d));
 }
 
+/** (ano, mês) do mês anterior/seguinte, sem depender de Date pra virada de ano (mês 1 → mês 12
+ * do ano anterior, mês 12 → mês 1 do ano seguinte). */
+function shiftMonth(year: number, month: number, delta: number): { year: number; month: number } {
+  const zeroBased = (month - 1 + delta + 1200) % 12; // +1200 garante positivo mesmo com delta negativo
+  const yearShift = Math.floor((month - 1 + delta) / 12);
+  return { year: year + yearShift, month: zeroBased + 1 };
+}
+
 /**
- * Quando a pessoa importa a FATURA detalhada, procura no extrato já lançado a linha única de
- * "pagamento de fatura" (mesmo gasto, agregado) com valor próximo ao total das compras e a
- * remove, evita contar o gasto duas vezes. Busca no mês das compras e no mês seguinte (a
- * fatura costuma ser paga depois). Só remove com correspondência de valor confiante.
+ * Quando a pessoa importa a FATURA detalhada, procura no extrato já lançado (mês anterior, o
+ * próprio mês e o seguinte — a fatura pode ser paga antes ou depois do mês das compras) linhas
+ * que PARECEM ser o pagamento da fatura (descrição), pra ela decidir se remove. Não remove
+ * sozinho: fatura raramente é paga por inteiro (pagamento mínimo, parcelamento, juros de
+ * atraso), então o valor quase nunca bate exato com o total das compras — a pessoa é quem sabe
+ * se aquele lançamento do extrato é mesmo esta fatura.
  */
-async function removeMatchingCardPayment(
-  userId: string,
-  touchedMonths: Set<string>,
-  purchasesTotal: number,
-): Promise<{ description: string; amount: number } | null> {
-  const monthKeys = new Set<string>();
-  for (const key of touchedMonths) {
-    const [y, m] = key.split("/").map(Number);
-    monthKeys.add(`${y}/${m}`);
-    const next = new Date(y, m, 1); // m já é 1-based → Date(y, m) = mês seguinte
-    monthKeys.add(`${next.getFullYear()}/${next.getMonth() + 1}`);
-  }
-  const where = [...monthKeys].map((k) => {
-    const [y, m] = k.split("/").map(Number);
-    return { year: y, month: m };
-  });
-
+async function findCardPaymentCandidates(userId: string, year: number, month: number): Promise<CardPaymentCandidate[]> {
+  const months = [shiftMonth(year, month, -1), { year, month }, shiftMonth(year, month, 1)];
   const candidates = await prisma.monthlyEntry.findMany({
-    where: { userId, category: "EXPENSE", OR: where },
-    select: { id: true, description: true, amount: true },
+    where: { userId, category: "EXPENSE", OR: months },
+    select: { id: true, description: true, amount: true, entryDate: true },
+    orderBy: { entryDate: "asc" },
   });
-
-  const tolerance = Math.max(50, purchasesTotal * 0.05);
-  const match = candidates
+  return candidates
     .filter((c) => looksLikeCardPayment(c.description))
-    .map((c) => ({ c, diff: Math.abs(Number(c.amount) - purchasesTotal) }))
-    .filter((x) => x.diff <= tolerance)
-    .sort((a, b) => a.diff - b.diff)[0];
+    .map((c) => ({
+      id: c.id,
+      description: c.description ?? "Pagamento de fatura",
+      amount: Number(c.amount),
+      date: c.entryDate ? c.entryDate.toISOString().slice(0, 10) : null,
+    }));
+}
 
-  if (!match) return null;
-  await prisma.monthlyEntry.delete({ where: { id: match.c.id } });
-  return { description: match.c.description ?? "Pagamento de fatura", amount: Number(match.c.amount) };
+/** Remove UM lançamento candidato a "pagamento de fatura" do extrato, só depois que a pessoa
+ * confirma que é mesmo esta fatura (nunca automático). */
+export async function removeCardPaymentCandidateAction(id: string): Promise<{ ok: boolean }> {
+  const ctx = await getRequiredSession();
+  const result = await prisma.monthlyEntry.deleteMany({ where: { id, userId: ctx.userId } });
+  revalidatePath("/mensal/[year]/[month]", "page");
+  return { ok: result.count > 0 };
 }
 
 function yearMonthFromISO(date: string): { year: number; month: number } | null {
@@ -203,19 +210,32 @@ function dedupeKey(date: string | null, amount: number, description: string | nu
   return `${date ?? ""}|${amount.toFixed(2)}|${(description ?? "").trim().toLowerCase()}`;
 }
 
-/** Cria os lançamentos escolhidos e memoriza as categorias definidas manualmente (item 3).
+/**
+ * Cria os lançamentos escolhidos e memoriza as categorias definidas manualmente (item 3).
  * Transações idênticas já lançadas (mesma data+valor+descrição) são puladas, importar o
- * mesmo extrato duas vezes não duplica nada. */
+ * mesmo extrato duas vezes não duplica nada.
+ *
+ * Fatura: `targetYear`/`targetMonth` mandam — TODAS as compras entram nesse mês escolhido pela
+ * pessoa (não no mês de cada compra individual, que pode espalhar pelo período de fechamento,
+ * nem no mês corrente do servidor). Sem data específica no lançamento (entryDate fica vazio):
+ * "lançar tudo junto no dia que paguei a fatura", não no dia de cada compra. A checagem de
+ * duplicata continua usando a data ORIGINAL de cada compra (não a escolhida), senão uma
+ * assinatura recorrente (mesma descrição+valor todo mês) seria ignorada como se já existisse.
+ */
 export async function importTransactionsAction(
   items: ConfirmedItem[],
   docType: "extrato" | "fatura" = "extrato",
+  targetYear?: number,
+  targetMonth?: number,
 ): Promise<ImportResult> {
   const ctx = await getRequiredSession();
   const now = new Date();
   const touchedMonths = new Set<string>();
   let created = 0;
   let skipped = 0;
-  let purchasesTotal = 0;
+
+  const faturaTarget =
+    docType === "fatura" && targetYear && targetMonth ? { year: targetYear, month: targetMonth } : null;
 
   // Só aceita customCategoryId que seja REALMENTE do usuário (evita linkar categoria de outra conta).
   const ownCustomIds = new Set((await listCustomCategories(ctx)).map((c) => c.id));
@@ -223,7 +243,7 @@ export async function importTransactionsAction(
   // Meses afetados pela importação → busca os lançamentos existentes deles de uma vez.
   const monthsInBatch = new Set(
     items.map((i) => {
-      const ym = yearMonthFromISO(i.date) ?? { year: now.getFullYear(), month: now.getMonth() + 1 };
+      const ym = faturaTarget ?? yearMonthFromISO(i.date) ?? { year: now.getFullYear(), month: now.getMonth() + 1 };
       return `${ym.year}/${ym.month}`;
     }),
   );
@@ -251,11 +271,15 @@ export async function importTransactionsAction(
         ? item.parentCategory
         : undefined;
 
-    // Data inválida cai no mês corrente, melhor lançar do que perder a transação.
-    const ym = yearMonthFromISO(item.date) ?? { year: now.getFullYear(), month: now.getMonth() + 1 };
-    const hasExactDate = yearMonthFromISO(item.date) !== null;
-
-    const key = dedupeKey(hasExactDate ? item.date : null, item.amount, item.description);
+    // Fatura com mês escolhido: todas as compras vão pro MESMO mês, não no de cada compra.
+    // Sem isso, uma fatura com período de fechamento cruzando dois meses (ex.: 13/06 a 13/07)
+    // espalhava os lançamentos em dois meses diferentes, ou caía no mês corrente do servidor.
+    const originalYm = yearMonthFromISO(item.date);
+    const ym = faturaTarget ?? originalYm ?? { year: now.getFullYear(), month: now.getMonth() + 1 };
+    // A duplicata é checada pela data ORIGINAL da compra (não a escolhida pra fatura): uma
+    // assinatura recorrente (mesma descrição+valor em meses diferentes) não pode ser confundida
+    // com a mesma transação re-importada.
+    const key = dedupeKey(originalYm ? item.date : null, item.amount, item.description);
     if (existingKeys.has(key)) {
       skipped += 1;
       continue;
@@ -271,10 +295,11 @@ export async function importTransactionsAction(
       subcategory: item.subcategory ?? undefined,
       description: item.description,
       amount: item.amount,
-      entryDate: hasExactDate ? new Date(`${item.date}T12:00:00`) : undefined,
+      // Fatura: sem dia específico (lança "no mês", não "no dia da compra"). Extrato: mantém a
+      // data exata de cada transação, como sempre foi.
+      entryDate: !faturaTarget && originalYm ? new Date(`${item.date}T12:00:00`) : undefined,
     });
     created += 1;
-    purchasesTotal += item.amount;
     touchedMonths.add(`${ym.year}/${ym.month}`);
 
     // Aprende a classificação só para gastos com categoria definida pelo usuário.
@@ -286,9 +311,10 @@ export async function importTransactionsAction(
     }
   }
 
-  // Fatura: remove o "pagamento de fatura" que veio do extrato, pra não contar em dobro.
-  const removedCardPayment =
-    docType === "fatura" && created > 0 ? await removeMatchingCardPayment(ctx.userId, touchedMonths, purchasesTotal) : null;
+  // Fatura: lista candidatos a "pagamento de fatura" no extrato pra pessoa decidir se remove
+  // (evita contar em dobro), sem apagar nada sozinho.
+  const cardPaymentCandidates =
+    faturaTarget && created > 0 ? await findCardPaymentCandidates(ctx.userId, faturaTarget.year, faturaTarget.month) : [];
 
   for (const key of touchedMonths) {
     const [year, month] = key.split("/");
@@ -296,5 +322,5 @@ export async function importTransactionsAction(
     revalidatePath(`/mensal/${year}/${month}`);
   }
 
-  return { ok: true, created, skipped, removedCardPayment };
+  return { ok: true, created, skipped, cardPaymentCandidates };
 }

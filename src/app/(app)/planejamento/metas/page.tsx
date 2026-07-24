@@ -83,6 +83,7 @@ export default async function MetasPage() {
               targetAmount={targetAmount}
               currentAmount={currentAmount}
               targetDate={targetDate}
+              annualRate={Number(goal.annualRate ?? 0)}
               plan={plan}
               trajectory={trajectory}
               variant={variant}

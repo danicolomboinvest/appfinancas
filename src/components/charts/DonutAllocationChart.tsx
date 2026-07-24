@@ -24,15 +24,19 @@ export function DonutAllocationChart({
   data,
   onSelect,
   selectedName,
+  legend = false,
 }: {
   title: string;
   data: DonutSlice[];
   /** Quando presente, o gráfico ganha legenda clicável, clicar numa fatia/linha seleciona. */
   onSelect?: (slice: DonutSlice) => void;
   selectedName?: string | null;
+  /** Mostra a legenda (cor + nome + %) mesmo sem `onSelect` — só decorativa, sem clique. */
+  legend?: boolean;
 }) {
   const hasData = data.some((d) => d.value > 0);
   const interactive = onSelect !== undefined;
+  const showLegend = interactive || legend;
 
   return (
     <div className="flex w-full flex-col items-center gap-2">
@@ -77,16 +81,18 @@ export function DonutAllocationChart({
             </PieChart>
           </ResponsiveContainer>
 
-          {/* Legenda clicável: cada linha mostra cor + nome + percentual e filtra ao toque. */}
-          {interactive && (
+          {/* Legenda: cor + nome + percentual. Clicável (filtra ao toque) só quando `onSelect`
+              foi passado; senão é só decorativa, pra sempre dar pra ler o que cada cor é. */}
+          {showLegend && (
             <div className="flex w-full flex-wrap justify-center gap-1.5">
               {data.map((entry, index) => {
                 const active = selectedName === entry.name;
+                const Tag = interactive ? "button" : "div";
                 return (
-                  <button
+                  <Tag
                     key={entry.id ?? entry.name}
-                    type="button"
-                    onClick={() => onSelect?.(entry)}
+                    type={interactive ? "button" : undefined}
+                    onClick={interactive ? () => onSelect?.(entry) : undefined}
                     className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors ${
                       active
                         ? "border-accent bg-accent-soft text-ink"
@@ -99,7 +105,7 @@ export function DonutAllocationChart({
                     />
                     {entry.name}
                     <span className="tabular-nums text-ink-faint">{formatPercentNumber(entry.value * 100, 1)}</span>
-                  </button>
+                  </Tag>
                 );
               })}
             </div>
