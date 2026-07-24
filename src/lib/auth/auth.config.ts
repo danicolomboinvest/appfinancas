@@ -66,11 +66,21 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    jwt({ token, user }) {
-      // authorize() always returns a persisted user with a real id, so this is safe.
+    async jwt({ token, user }) {
+      // Login (authorize() já validou tudo): grava id/role no token, uma vez só.
       if (user?.id) {
         token.id = user.id;
         token.role = user.role;
+        return token;
+      }
+      // Toda chamada seguinte (sessão já existente, sem `user` de novo): confirma que a
+      // conta ainda existe. Sem isso, uma conta apagada (limpeza de testes, exclusão de
+      // conta) deixava quem já estava logado preso num erro 500 em qualquer aba com o
+      // cookie antigo — só funcionava em aba anônima, sem cookie nenhum. Retornar null
+      // aqui invalida a sessão e a pessoa cai pro login normalmente, como se tivesse saído.
+      if (token.id) {
+        const stillExists = await prisma.user.findUnique({ where: { id: token.id }, select: { id: true } });
+        if (!stillExists) return null;
       }
       return token;
     },
