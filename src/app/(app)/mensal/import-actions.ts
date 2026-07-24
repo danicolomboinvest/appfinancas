@@ -7,7 +7,7 @@ import { prisma } from "@/lib/db/prisma";
 import { createMonthlyEntry } from "@/lib/repositories/monthly-entry.repo";
 import { listCustomCategories } from "@/lib/repositories/custom-category.repo";
 import { listTransactionRules, upsertTransactionRule } from "@/lib/repositories/transaction-rule.repo";
-import { parseStatement } from "@/lib/import/statement-parser";
+import { parseStatement, type ParsedTransaction } from "@/lib/import/statement-parser";
 import { extractUploadFromForm, UploadReadError, PasswordRequiredError } from "@/lib/import/extract-text";
 import { classify, normalizeMerchant, type LearnedRule } from "@/lib/import/classify";
 
@@ -20,6 +20,21 @@ const PARENT_CATEGORY_VALUES: ParentCategory[] = [
   "EDUCACAO",
   "FINANCEIRO",
 ];
+
+/**
+ * Linhas de RESUMO da fatura de cartão: "pagamento efetuado/recebido" (o que o cliente já pagou
+ * da fatura anterior) e "total de compras/créditos/pagamentos" (somatório que a própria fatura
+ * já detalha item a item). Não são uma compra — importar essas linhas dobra o gasto ou lança
+ * um "gasto" que na verdade é o pagamento da fatura.
+ */
+const FATURA_SUMMARY_RE = /\b(pagamentos?\s+(efetuado|recebido|realizado|de\s+fatura)|total\s+de\s+(cr[eé]ditos?|compras|pagamentos?|despesas))\b/i;
+
+/** Testa a linha inteira (descrição E data) contra o padrão de resumo: faturas com várias
+ * seções (pagamentos/créditos/compras) repetem o cabeçalho de coluna, e o subtotal entre
+ * seções acaba caindo na coluna de data (ex.: BTG), não na de descrição. */
+function isFaturaSummaryLine(txn: ParsedTransaction): boolean {
+  return FATURA_SUMMARY_RE.test(txn.description) || FATURA_SUMMARY_RE.test(txn.date);
+}
 
 export type ReviewItem = {
   /** Chave estável no cliente (índice na lista original). */
@@ -70,7 +85,11 @@ export async function parseStatementAction(formData: FormData): Promise<ParseSta
     };
   }
 
-  const parsed = parseStatement(text, source);
+  const parsedRaw = parseStatement(text, source);
+  // Fatura: linhas de RESUMO ("pagamento efetuado", "total de compras", "total de crédito
+  // recebido") são agregados que a própria fatura já detalha em outras linhas — não são uma
+  // compra a mais. Sem isso, o "pagamento de fatura" virava um gasto extra na revisão.
+  const parsed = docType === "fatura" ? parsedRaw.filter((txn) => !isFaturaSummaryLine(txn)) : parsedRaw;
   if (parsed.length === 0) {
     return {
       ok: false,
@@ -87,9 +106,10 @@ export async function parseStatementAction(formData: FormData): Promise<ParseSta
   }));
 
   const items: ReviewItem[] = parsed.map((txn, index) => {
-    // Fatura de cartão: toda linha é compra (gasto), independentemente do sinal, resolve o
-    // caso em que as compras vinham positivas e eram lidas como renda. Extrato: sinal manda.
-    const isExpense = docType === "fatura" ? true : txn.amount < 0;
+    // Fatura de cartão: compras vêm POSITIVAS (convenção oposta ao extrato bancário) e
+    // pagamentos/estornos/cancelamentos vêm NEGATIVOS — confirmado com fatura real (BTG).
+    // Sem essa inversão, um estorno/cancelamento (crédito de verdade) virava gasto em dobro.
+    const isExpense = docType === "fatura" ? txn.amount > 0 : txn.amount < 0;
     // Só faz sentido categorizar saídas; entradas viram INCOME sem categoria-mãe.
     const classification = isExpense ? classify(txn.description, learned) : null;
     return {

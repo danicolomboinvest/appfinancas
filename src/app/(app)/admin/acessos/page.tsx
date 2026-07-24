@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { AddEmailsForm } from "./AddEmailsForm";
+import { InviteUserForm } from "./InviteUserForm";
 import { ProductsSection } from "./ProductsSection";
 import { RowActions } from "./RowActions";
 
@@ -25,6 +26,8 @@ export default async function AdminAcessosPage() {
       <ProductsSection products={products} />
 
       <AddEmailsForm />
+
+      <InviteUserForm />
 
       <Card className="overflow-x-auto">
         <div className="flex items-center justify-between px-4 py-3 text-sm text-ink-muted">

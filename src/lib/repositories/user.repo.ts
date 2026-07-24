@@ -1,4 +1,5 @@
 import bcrypt from "bcryptjs";
+import { randomBytes } from "node:crypto";
 import { prisma } from "@/lib/db/prisma";
 import type { AuthContext } from "@/lib/auth/session";
 
@@ -10,6 +11,22 @@ export async function findUserByEmail(email: string) {
 
 export async function createUser(input: { email: string; password: string; name: string }) {
   const passwordHash = await bcrypt.hash(input.password, SALT_ROUNDS);
+  return prisma.user.create({
+    data: {
+      email: input.email,
+      passwordHash,
+      name: input.name,
+    },
+  });
+}
+
+/**
+ * Cria uma conta direto pelo admin (acesso de cortesia/VIP), sem que ninguém — nem a Dani —
+ * defina ou veja a senha. O hash é de um valor aleatório descartável; a pessoa recebe por
+ * e-mail um link (o mesmo mecanismo de "esqueci minha senha") pra escolher a própria senha.
+ */
+export async function createUserInvite(input: { email: string; name: string }) {
+  const passwordHash = await bcrypt.hash(randomBytes(32).toString("hex"), SALT_ROUNDS);
   return prisma.user.create({
     data: {
       email: input.email,

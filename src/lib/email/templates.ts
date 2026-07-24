@@ -58,3 +58,16 @@ export function welcomeEmail(params: { name: string | null; appUrl: string }): {
     `),
   };
 }
+
+/** E-mail de convite: conta criada direto pelo admin (cortesia/VIP), a pessoa só define a senha. */
+export function inviteEmail(params: { name: string; resetUrl: string }): { subject: string; html: string } {
+  return {
+    subject: "Você tem acesso ao SPI Finance 🎉",
+    html: shell(`
+      <p style="margin:0 0 12px;">Oi, ${params.name}!</p>
+      <p style="margin:0 0 20px;">Sua conta no SPI Finance já está pronta. Falta só um passo: criar sua senha para começar a organizar suas finanças.</p>
+      <p style="margin:0 0 24px;">${button(params.resetUrl, "Criar minha senha")}</p>
+      <p style="margin:0;color:${MUTED};font-size:13px;">Este link vale por 1 hora e só pode ser usado uma vez.</p>
+    `),
+  };
+}
