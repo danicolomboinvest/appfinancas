@@ -35,11 +35,11 @@ export function parseInternationalStockPage(html: string): ScrapedCriterion[] {
   const $ = cheerio.load(html);
   const results: ScrapedCriterion[] = [];
 
-  $("#table-indicators.four_columns .cell").each((_, el) => {
-    const label = $(el).find("h3.d-flex").first().clone().children().remove().end().text().trim();
+  $("#table-indicators .indicator-card").each((_, el) => {
+    const label = $(el).find(".indicator-card-title span").first().text().trim();
     const key = RATIO_LABEL_TO_KEY[label];
     if (!key) return;
-    const value = $(el).find(".value span").first().text().trim();
+    const value = $(el).find(".indicator-card-value span").first().text().trim();
     if (value) results.push({ key, value });
   });
 

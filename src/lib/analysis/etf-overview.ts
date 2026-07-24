@@ -8,16 +8,18 @@ import { type OverviewSignal, type OverviewItem, OVERVIEW_DISCLAIMER, parseIndic
 export type { OverviewSignal, OverviewItem };
 export { OVERVIEW_DISCLAIMER };
 
-/** "R$ 14,58 M" / "R$ 7,60 Bilhões" / "R$ 900 mil" → valor cheio em reais. null se não der. */
+/** "R$ 14,58 M" / "R$ 6,34 B" / "R$ 7,60 Bilhões" / "R$ 900 mil" → valor cheio em reais. null se
+ * não der. Ordem das alternativas importa: "bilh[oõ]es"/"milh[oõ]es" precisam vir ANTES de "mil"
+ * na regex, senão "milhões" batia só o prefixo "mil" e virava 1000x menor do que o valor real. */
 function parseMagnitudeBRL(raw: string): number | null {
-  const m = raw.match(/([\d.,]+)\s*(mil|m|milh[oõ]es|bi|bilh[oõ]es)?/i);
+  const m = raw.match(/([\d.,]+)\s*(bilh[oõ]es|milh[oõ]es|mil|bi|b|m)?/i);
   if (!m) return null;
   const base = parseIndicatorNumber(m[1]);
   if (base === null) return null;
   const unit = (m[2] ?? "").toLowerCase();
-  if (unit.startsWith("mil")) return base * 1_000;
+  if (unit === "bi" || unit === "b" || unit.startsWith("bilh")) return base * 1_000_000_000;
   if (unit === "m" || unit.startsWith("milh")) return base * 1_000_000;
-  if (unit.startsWith("bi")) return base * 1_000_000_000;
+  if (unit.startsWith("mil")) return base * 1_000;
   return base;
 }
 
