@@ -118,6 +118,20 @@ export const FII_CRITERIA: CriterionSeed[] = [
   { key: "vencimento_contratos", label: "Vencimento dos Contratos", category: "TIJOLO", order: 17, helpText: "Prazo remanescente dos contratos de locação." },
   { key: "indices_reajuste_tijolo", label: "Índices de Reajuste", category: "TIJOLO", order: 18, helpText: "IGP-M, IPCA ou outro índice usado para reajustar os aluguéis." },
   { key: "alavancagem", label: "Alavancagem", category: "TIJOLO", order: 19, helpText: "Nível de dívida do fundo em relação ao patrimônio." },
+  {
+    key: "distribuicao_geografica",
+    label: "Distribuição Geográfica",
+    category: "TIJOLO",
+    order: 20,
+    helpText: "Quantos imóveis o fundo tem em cada estado — investidor10.com.br (seção \"Lista de Imóveis\").",
+  },
+  {
+    key: "lista_imoveis",
+    label: "Lista de Imóveis",
+    category: "TIJOLO",
+    order: 21,
+    helpText: "Nome, estado e área de cada imóvel da carteira — investidor10.com.br (seção \"Lista de Imóveis\").",
+  },
 
   { key: "p_vp", label: "P/VP", category: "PAPEL", order: 10, helpText: "Preço da cota ÷ valor patrimonial por cota — fiis.com.br." },
   { key: "nivel_risco_operacoes", label: "Nível de Risco das Operações", category: "PAPEL", order: 11, helpText: "Rating de crédito dos CRIs/recebíveis na carteira." },

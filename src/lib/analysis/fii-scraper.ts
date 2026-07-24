@@ -57,6 +57,33 @@ export function parseFiiPage(html: string): ScrapedCriterion[] {
     results.push({ key: "numero_imoveis", value: String(propertyCount) });
   }
 
+  // Distribuição por estado: tabela ao lado do gráfico de pizza da seção "Lista de Imóveis"
+  // (uma linha por estado, com a contagem de imóveis naquele estado).
+  const byState: string[] = [];
+  $("#properties-index-table tr").each((_, el) => {
+    const state = $(el).find("td").first().text().trim();
+    const count = $(el).find(".count").first().text().trim();
+    if (state && count) byState.push(`${state} (${count})`);
+  });
+  if (byState.length > 0) results.push({ key: "distribuicao_geografica", value: byState.join(", ") });
+
+  // Lista de imóveis: nome + estado + área bruta locável de cada card. Fundos grandes chegam
+  // a ter 40+ imóveis — corta em 12 e sinaliza o resto, pra não virar um bloco de texto ilegível.
+  const properties: string[] = [];
+  $(".card-propertie").each((_, el) => {
+    const name = $(el).find("h3").first().text().trim();
+    const smalls = $(el).find("small");
+    const state = smalls.eq(0).text().replace(/^Estado:\s*/i, "").trim();
+    const area = smalls.eq(1).text().replace(/^Área bruta locável:\s*/i, "").trim();
+    if (name) properties.push([name, state, area].filter(Boolean).join(" — "));
+  });
+  if (properties.length > 0) {
+    const shown = properties.slice(0, 12);
+    const rest = properties.length - shown.length;
+    const value = shown.join("; ") + (rest > 0 ? ` (+ ${rest} outros)` : "");
+    results.push({ key: "lista_imoveis", value });
+  }
+
   return results;
 }
 
