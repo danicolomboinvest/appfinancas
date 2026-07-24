@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useActionState } from "react";
-import { TrendingUp } from "lucide-react";
+import { BrandMark } from "@/components/brand/BrandMark";
 import { Field } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
 import { registerAction, type RegisterState } from "./actions";
@@ -16,9 +16,7 @@ export default function RegisterPage() {
     <main className="flex min-h-screen items-center justify-center bg-canvas p-6">
       <div className="w-full max-w-sm animate-fade-in">
         <div className="mb-8 flex flex-col items-center gap-3 text-center">
-          <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-accent-soft text-accent-strong">
-            <TrendingUp size={22} strokeWidth={1.75} />
-          </span>
+          <BrandMark size={48} className="rounded-2xl" />
           <div>
             <h1 className="text-xl font-semibold tracking-tight text-ink">Criar conta</h1>
             <p className="mt-1 text-sm text-ink-muted">Comece a organizar sua vida financeira hoje.</p>

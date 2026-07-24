@@ -3,7 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronsLeft, ChevronsRight, LogOut, Plus, TrendingUp } from "lucide-react";
+import { ChevronsLeft, ChevronsRight, LogOut, Plus } from "lucide-react";
+import { BrandMark } from "@/components/brand/BrandMark";
 import { ADMIN_NAV_SECTION, NAV_SECTIONS } from "./nav-sections";
 
 /** Liga cada seção ao passo do tour de boas-vindas (WelcomeTour destaca por data-tour). */
@@ -65,9 +66,7 @@ export function Sidebar({
     >
       <div className={`flex items-center gap-2.5 px-4 pb-2 pt-5 ${collapsedDesktopOnly}`}>
         <Link href="/mensal" onClick={onCloseMobile} className="flex items-center gap-2.5 overflow-hidden">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-accent to-accent-strong text-on-accent">
-            <TrendingUp size={17} strokeWidth={1.75} />
-          </span>
+          <BrandMark size={32} className="shrink-0 rounded-lg" />
           <span className={`truncate text-sm font-semibold tracking-tight text-ink ${hideLabelDesktopOnly}`}>
             SPI Finance
           </span>
