@@ -2,7 +2,6 @@
 
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
-import { z } from "zod";
 import { requireAdmin } from "@/lib/auth/rbac";
 import {
   addAllowedEmails,
@@ -15,13 +14,13 @@ import {
   setAllowedProductActive,
 } from "@/lib/repositories/allowedProduct.repo";
 import { createUserInvite, findUserByEmail } from "@/lib/repositories/user.repo";
-import { createPasswordResetToken } from "@/lib/auth/password-reset";
+import { registerSchema } from "@/lib/validations/auth.schema";
 import { sendEmail } from "@/lib/email/send";
-import { inviteEmail } from "@/lib/email/templates";
+import { welcomeEmail } from "@/lib/email/templates";
 
 export type AccessFormState = { error?: string; added?: number };
 export type ProductFormState = { error?: string; ok?: boolean };
-export type InviteFormState = { error?: string; sent?: boolean; fallbackUrl?: string };
+export type InviteFormState = { error?: string; created?: { email: string; password: string } };
 
 /** Aceita a lista colada em qualquer separador comum: quebra de linha, vírgula, ponto-e-vírgula ou espaço. */
 function parseEmails(raw: string): string[] {
@@ -93,40 +92,37 @@ async function baseUrl(): Promise<string> {
 }
 
 /**
- * Cria uma conta direto (acesso de cortesia/VIP), sem senha definida por ninguém: gera um
- * link de "criar senha" (mesmo mecanismo de "esqueci minha senha") e manda por e-mail. A
- * pessoa também entra na allowlist, senão criaria a conta mas não conseguiria logar.
+ * Cria uma conta direto (acesso de cortesia/VIP) já com a senha que a Dani definiu no
+ * formulário — ela repassa e-mail+senha pra pessoa (WhatsApp, etc.); a pessoa pode trocar
+ * depois pelo fluxo normal de "esqueci minha senha". Também entra na allowlist, senão criaria
+ * a conta mas não conseguiria logar.
  */
 export async function inviteUserAction(_prev: InviteFormState, formData: FormData): Promise<InviteFormState> {
   await requireAdmin();
 
   const name = typeof formData.get("name") === "string" ? (formData.get("name") as string).trim() : "";
   const emailRaw = typeof formData.get("email") === "string" ? (formData.get("email") as string).trim() : "";
+  const password = typeof formData.get("password") === "string" ? (formData.get("password") as string) : "";
 
-  if (!name) return { error: "Informe o nome da pessoa." };
-  const parsedEmail = z.string().email("E-mail inválido.").safeParse(emailRaw);
-  if (!parsedEmail.success) return { error: parsedEmail.error.issues[0]?.message ?? "E-mail inválido." };
-  const email = parsedEmail.data;
+  const parsed = registerSchema.safeParse({ name, email: emailRaw, password });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
+  const { email } = parsed.data;
 
   const existing = await findUserByEmail(email);
   if (existing) return { error: "Já existe uma conta com este e-mail." };
 
-  const user = await createUserInvite({ email, name });
+  await createUserInvite({ email, name, password: parsed.data.password });
   await addAllowedEmails([email], "Convite VIP (criado pelo admin)");
 
-  const rawToken = await createPasswordResetToken(user.id);
-  const resetUrl = `${await baseUrl()}/redefinir-senha?token=${rawToken}`;
-  const { subject, html } = inviteEmail({ name, resetUrl });
-  const result = await sendEmail({ to: email, subject, html });
+  // E-mail de boas-vindas é só um aviso ("sua conta está pronta") — nunca leva a senha, essa a
+  // Dani repassa por fora. Melhor esforço: se o envio falhar, a conta continua valendo.
+  try {
+    const { subject, html } = welcomeEmail({ name, appUrl: `${await baseUrl()}/login` });
+    await sendEmail({ to: email, subject, html });
+  } catch {
+    /* ignora, não bloqueia a criação por causa do e-mail */
+  }
 
   revalidatePath("/admin/acessos");
-
-  if (!result.ok) {
-    // Conta e acesso já existem mesmo se o e-mail falhar, só falta a pessoa saber o link.
-    return {
-      error: "Conta criada, mas o e-mail não pôde ser enviado. Copie o link abaixo e envie você mesma.",
-      fallbackUrl: resetUrl,
-    };
-  }
-  return { sent: true };
+  return { created: { email, password } };
 }
