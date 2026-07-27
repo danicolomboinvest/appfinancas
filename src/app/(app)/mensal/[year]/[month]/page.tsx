@@ -31,6 +31,8 @@ import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import { DonutAllocationChart, type DonutSlice } from "@/components/charts/DonutAllocationChart";
 import { EntryRowActions } from "./EntryRowActions";
+import { ImportHistory } from "./ImportHistory";
+import { listImportBatches } from "@/lib/repositories/import-batch.repo";
 import { MonthlyRecapCard } from "./MonthlyRecapCard";
 import { OnboardingChecklist } from "./OnboardingChecklist";
 import { prisma } from "@/lib/db/prisma";
@@ -193,6 +195,7 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
     spentByCustom,
     onboardingCounts,
     recapDismissedMonth,
+    importBatches,
   ] = await Promise.all([
     listMonthlyEntries(ctx, year, month),
     getMonthlySummary(ctx, year, month),
@@ -212,6 +215,7 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
       prisma.asset.count({ where: { userId: ctx.userId }, take: 1 }),
     ]),
     getRecapDismissedMonth(ctx),
+    listImportBatches(ctx),
   ]);
   const [entryCount, budgetCount, assetCount] = onboardingCounts;
 
@@ -344,6 +348,20 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
           )}
         </div>
       )}
+
+      {/* Histórico do que foi importado em massa, com "Desfazer" por lote (upload errado ou
+          duplicado some inteiro, sem caçar lançamento por lançamento). */}
+      <ImportHistory
+        batches={importBatches.map((b) => ({
+          id: b.id,
+          docType: b.docType,
+          fileName: b.fileName,
+          createdAt: b.createdAt.toISOString(),
+          entryCount: b.entryCount,
+          totalAmount: b.totalAmount,
+          months: b.months,
+        }))}
+      />
     </div>
   );
 }

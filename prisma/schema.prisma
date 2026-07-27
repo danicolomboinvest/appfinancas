@@ -164,6 +164,7 @@ model User {
   accumulationCache    AccumulationProjectionCache[]
   transactionRules     TransactionCategoryRule[]
   passwordResetTokens  PasswordResetToken[]
+  importBatches        ImportBatch[]
 
   asAdvisorLinks AdvisorClientLink[] @relation("advisor")
   asClientLinks  AdvisorClientLink[] @relation("client")
@@ -247,6 +248,21 @@ model CustomCategory {
 }
 
 /// Lançamento mensal — substitui as 12 abas Jan..Dez da planilha original.
+/// Lote de importação: um upload de extrato/fatura. Dá o histórico do que foi subido em massa
+/// e permite desfazer o lote inteiro (arquivo errado ou duplicado) de uma vez.
+model ImportBatch {
+  id        String         @id @default(cuid())
+  userId    String
+  user      User           @relation(fields: [userId], references: [id])
+  /// "extrato" | "fatura"
+  docType   String
+  fileName  String?
+  createdAt DateTime       @default(now())
+  entries   MonthlyEntry[]
+
+  @@index([userId, createdAt])
+}
+
 model MonthlyEntry {
   id               String          @id @default(cuid())
   userId           String
@@ -265,11 +281,17 @@ model MonthlyEntry {
   entryDate        DateTime?       @db.Date
   goalId           String?
   goal             Goal?           @relation(fields: [goalId], references: [id])
+  /// Lote de importação que criou este lançamento (nulo = lançado à mão). SetNull: apagar o
+  /// registro do lote nunca apaga lançamentos por efeito colateral — a exclusão em massa é
+  /// sempre explícita na action, dentro de uma transação.
+  importBatchId    String?
+  importBatch      ImportBatch?    @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
   createdAt        DateTime        @default(now())
 
   @@index([userId, year, month])
   @@index([userId, parentCategory])
   @@index([userId, customCategoryId])
+  @@index([importBatchId])
 }
 
 /// Orçamento mensal planejado por categoria-mãe (para a barra "gasto realizado vs. planejado").

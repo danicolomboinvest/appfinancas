@@ -5,6 +5,11 @@ import type { ParentCategory } from "@prisma/client";
 import { getRequiredSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
 import { createMonthlyEntry } from "@/lib/repositories/monthly-entry.repo";
+import {
+  createImportBatch,
+  deleteEmptyImportBatch,
+  deleteImportBatchWithEntries,
+} from "@/lib/repositories/import-batch.repo";
 import { listCustomCategories } from "@/lib/repositories/custom-category.repo";
 import { listTransactionRules, upsertTransactionRule } from "@/lib/repositories/transaction-rule.repo";
 import { parseStatement, type ParsedTransaction } from "@/lib/import/statement-parser";
@@ -227,12 +232,17 @@ export async function importTransactionsAction(
   docType: "extrato" | "fatura" = "extrato",
   targetYear?: number,
   targetMonth?: number,
+  fileName?: string,
 ): Promise<ImportResult> {
   const ctx = await getRequiredSession();
   const now = new Date();
   const touchedMonths = new Set<string>();
   let created = 0;
   let skipped = 0;
+
+  // Todo upload vira um "lote": é o que dá o histórico de importações e permite desfazer o
+  // arquivo inteiro depois (upload errado/duplicado). Se nada for criado, o lote é removido.
+  const batch = await createImportBatch(ctx, { docType, fileName });
 
   const faturaTarget =
     docType === "fatura" && targetYear && targetMonth ? { year: targetYear, month: targetMonth } : null;
@@ -298,6 +308,7 @@ export async function importTransactionsAction(
       // Fatura: sem dia específico (lança "no mês", não "no dia da compra"). Extrato: mantém a
       // data exata de cada transação, como sempre foi.
       entryDate: !faturaTarget && originalYm ? new Date(`${item.date}T12:00:00`) : undefined,
+      importBatchId: batch.id,
     });
     created += 1;
     touchedMonths.add(`${ym.year}/${ym.month}`);
@@ -311,6 +322,9 @@ export async function importTransactionsAction(
     }
   }
 
+  // Upload que só tinha duplicata não criou nada: não polui o histórico com lote vazio.
+  if (created === 0) await deleteEmptyImportBatch(ctx, batch.id);
+
   // Fatura: lista candidatos a "pagamento de fatura" no extrato pra pessoa decidir se remove
   // (evita contar em dobro), sem apagar nada sozinho.
   const cardPaymentCandidates =
@@ -323,4 +337,15 @@ export async function importTransactionsAction(
   }
 
   return { ok: true, created, skipped, cardPaymentCandidates };
+}
+
+/**
+ * Desfaz um lote de importação: apaga o lote E todos os lançamentos que aquele upload criou
+ * (upload errado ou duplicado). Só afeta lotes do próprio usuário.
+ */
+export async function deleteImportBatchAction(id: string): Promise<{ ok: boolean; removed: number }> {
+  const ctx = await getRequiredSession();
+  const removed = await deleteImportBatchWithEntries(ctx, id);
+  revalidatePath("/mensal", "layout");
+  return { ok: removed >= 0, removed };
 }

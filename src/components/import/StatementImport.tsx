@@ -73,6 +73,8 @@ export function StatementImport({ onDone }: { onDone: () => void }) {
   const [isPending, startTransition] = useTransition();
   // Excel do banco costuma vir protegido por senha: guardamos o arquivo e pedimos a senha.
   const [pendingFile, setPendingFile] = useState<File | null>(null);
+  // Nome do arquivo subido — vai pro histórico de importações ("o que era este lote?").
+  const [fileName, setFileName] = useState<string | null>(null);
   const [password, setPassword] = useState("");
   // Categorias personalizadas do usuário + a criação na hora ("+ Outra") durante a revisão.
   const [customCategories, setCustomCategories] = useState<{ id: string; name: string }[]>([]);
@@ -98,6 +100,7 @@ export function StatementImport({ onDone }: { onDone: () => void }) {
    * reenvia o MESMO arquivo pra descriptografar e seguir. */
   function runParse(file: File, pwd?: string) {
     setError(null);
+    setFileName(file.name);
     const formData = buildUploadForm(file, docType);
     if (pwd) formData.set("password", pwd);
     startTransition(async () => {
@@ -182,7 +185,7 @@ export function StatementImport({ onDone }: { onDone: () => void }) {
       }));
     const [targetYear, targetMonth] = docType === "fatura" ? faturaMonth.split("-").map(Number) : [undefined, undefined];
     startTransition(async () => {
-      const result = await importTransactionsAction(confirmed, docType, targetYear, targetMonth);
+      const result = await importTransactionsAction(confirmed, docType, targetYear, targetMonth, fileName ?? undefined);
       if (!result.ok) {
         setError(result.error);
         return;

@@ -23,6 +23,8 @@ export type MonthlyEntryInput = {
   entryDate?: Date;
   /** Meta vinculada (faz sentido principalmente em aportes). */
   goalId?: string;
+  /** Lote de importação que criou este lançamento (só em imports de extrato/fatura). */
+  importBatchId?: string;
 };
 
 export async function createMonthlyEntry(ctx: AuthContext, input: MonthlyEntryInput) {
