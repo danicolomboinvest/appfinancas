@@ -1,4 +1,5 @@
 import { Card } from "./Card";
+import { FitText } from "./FitText";
 import { MiniSparkline, type SparklinePoint } from "./MiniSparkline";
 
 type Tone = "success" | "danger" | "accent" | "neutral";
@@ -35,7 +36,13 @@ export function StatCard({
   return (
     <Card className="p-3.5 sm:p-4">
       <p className="text-xs text-ink-muted">{label}</p>
-      <p className={`mt-1.5 text-lg leading-snug font-semibold tracking-tight sm:text-xl ${TONE_CLASSES[tone]}`}>{value}</p>
+      {/* FitText: "R$ 1.234.567,89" é inquebrável e estourava o card em grade 2/3 colunas no
+          celular — a fonte encolhe só o necessário pra caber, nunca corta. */}
+      <div className="mt-1.5">
+        <FitText className={`text-lg leading-snug font-semibold tracking-tight sm:text-xl ${TONE_CLASSES[tone]}`}>
+          {value}
+        </FitText>
+      </div>
       {hint && <p className="mt-1 text-xs text-ink-faint">{hint}</p>}
       {trend && (
         <p className={`mt-1 text-xs font-medium ${trendIsGood ? "text-success" : "text-danger"}`}>

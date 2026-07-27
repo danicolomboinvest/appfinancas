@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
 import {
@@ -65,6 +66,11 @@ const STATUS_BAR_TONE: Record<CategoryComparison["status"], "success" | "danger"
 export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]">) {
   const { year: yearParam } = await props.params;
   const year = Number(yearParam);
+  // URL editada à mão ("/orcamento/abc") viraria NaN direto no Prisma → erro 500. Fora da
+  // faixa válida é simplesmente uma página que não existe (mesmo guard do fluxo mensal).
+  if (!Number.isInteger(year) || year < 2000 || year > 2100) {
+    notFound();
+  }
   const ctx = await getRequiredSession();
   const [comparison, customCategories, plan] = await Promise.all([
     getAnnualPlannedVsActual(ctx, year),

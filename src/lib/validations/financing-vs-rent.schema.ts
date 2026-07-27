@@ -6,7 +6,7 @@ export const financingVsRentSchema = z
     downPayment: z.coerce.number().min(0),
     cetAnnualRate: z.coerce.number(),
     propertyAppreciationAnnualRate: z.coerce.number(),
-    termMonths: z.coerce.number().int().positive(),
+    termMonths: z.coerce.number().int().positive().max(1200, "Prazo máximo: 1200 meses."),
     system: z.enum(["SAC", "PRICE"]),
     monthlyRent: z.coerce.number().min(0),
     rentAnnualAdjustment: z.coerce.number(),

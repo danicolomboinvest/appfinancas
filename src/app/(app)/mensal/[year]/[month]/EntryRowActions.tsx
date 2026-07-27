@@ -63,8 +63,8 @@ export function EntryRowActions({
         label: "Desfazer",
         onClick: () => {
           startTransition(async () => {
-            await undoDeleteEntryAction(snapshot);
-            showToast("Lançamento restaurado.");
+            const result = await undoDeleteEntryAction(snapshot);
+            showToast(result.ok ? "Lançamento restaurado." : "Não foi possível restaurar. Lance de novo manualmente.");
           });
         },
       });

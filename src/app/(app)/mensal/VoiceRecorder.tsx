@@ -151,6 +151,15 @@ export function VoiceRecorder({ onParsed }: { onParsed: (parsed: ParsedVoiceEntr
     try {
       const AudioContextCtor = getAudioContextConstructor();
       if (!AudioContextCtor) return;
+      // A onda é decorativa; o getUserMedia dela dispara um SEGUNDO pedido de permissão de
+      // microfone além do que o SpeechRecognition já faz (no iPhone viravam dois avisos toda
+      // visita). Só liga a onda se a permissão JÁ está concedida; senão, grava sem onda com
+      // um pedido só. Navegador sem Permissions API (ou sem "microphone"): mesma decisão
+      // conservadora, sem onda, sem pedido extra.
+      const permissions = navigator.permissions;
+      if (!permissions?.query) return;
+      const status = await permissions.query({ name: "microphone" as PermissionName });
+      if (status.state !== "granted") return;
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       mediaStreamRef.current = stream;
       const audioContext = new AudioContextCtor();

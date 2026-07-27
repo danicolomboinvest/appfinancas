@@ -26,6 +26,8 @@ export const monthlyEntrySchema = z.object({
     .trim()
     .optional()
     .or(z.literal(""))
+    // String fora do formato do input date viraria Invalid Date e estouraria no Prisma.
+    .refine((v) => !v || /^\d{4}-\d{2}-\d{2}$/.test(v), "Data inválida.")
     .transform((v) => (v ? new Date(`${v}T12:00:00`) : undefined)),
   /** Meta vinculada ao lançamento (aportes). */
   goalId: z.string().trim().optional().or(z.literal("")),

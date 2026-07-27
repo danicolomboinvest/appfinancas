@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Target, Plane, Home, Car, PiggyBank, Sparkles, CheckCircle2, AlertTriangle, PartyPopper } from "lucide-react";
 import type { GoalIcon } from "@prisma/client";
 import { Card } from "@/components/ui/Card";
+import { FitText } from "@/components/ui/FitText";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { CountUp } from "@/components/ui/CountUp";
 import { DeleteGoalButton } from "./DeleteGoalButton";
@@ -142,14 +143,20 @@ export function GoalCard({
 
       <GoalTrajectoryChart data={trajectory} targetAmount={targetAmount} tone={VARIANT_CHART_TONE[variant]} />
 
+      {/* FitText nos R$: coluna de ~93px, meta de imóvel ("R$ 100.000,00") estourava e
+          invadia a coluna vizinha no celular. */}
       <div className="grid grid-cols-3 gap-2 text-center">
         <div>
           <p className="text-xs text-ink-muted">Guardado</p>
-          <p className="mt-0.5 text-sm font-medium text-ink">{formatBRL(currentAmount)}</p>
+          <div className="mt-0.5">
+            <FitText className="text-sm font-medium text-ink">{formatBRL(currentAmount)}</FitText>
+          </div>
         </div>
         <div>
           <p className="text-xs text-ink-muted">Falta</p>
-          <p className="mt-0.5 text-sm font-medium text-ink">{formatBRL(Math.max(plan.amountMissing, 0))}</p>
+          <div className="mt-0.5">
+            <FitText className="text-sm font-medium text-ink">{formatBRL(Math.max(plan.amountMissing, 0))}</FitText>
+          </div>
         </div>
         <div>
           <p className="text-xs text-ink-muted">Meses restantes</p>

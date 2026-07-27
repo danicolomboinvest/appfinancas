@@ -27,8 +27,11 @@ export function PillTabs({ tabs, fit = false }: { tabs: PillTab[]; fit?: boolean
             <Link
               key={tab.href}
               href={tab.href}
-              className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition-all duration-300 ${
-                fit ? "flex-1 text-center" : ""
+              // No modo `fit` as abas podem ENCOLHER (min-w-0 + truncate + padding menor no
+              // mobile): com 3 rótulos a soma das larguras mínimas ficava no limite dos 375px
+              // e estourava em aparelhos de 320-360px.
+              className={`whitespace-nowrap rounded-full py-2 text-sm font-medium transition-all duration-300 ${
+                fit ? "min-w-0 flex-1 truncate px-2 text-center sm:px-4" : "px-4"
               } ${isActive ? "bg-ink text-canvas shadow-premium-sm" : "text-ink-muted hover:text-ink"}`}
             >
               {tab.label}

@@ -5,6 +5,6 @@ export const goalSchema = z.object({
   targetAmount: z.coerce.number().positive("O valor da meta deve ser maior que zero."),
   targetDate: z.coerce.date(),
   currentAmount: z.coerce.number().min(0).default(0),
-  annualRate: z.coerce.number(),
+  annualRate: z.coerce.number().min(-99, "Taxa inválida.").max(300, "Taxa inválida."),
   icon: z.enum(["VIAGEM", "CASA", "CARRO", "APOSENTADORIA", "GENERICO"]).default("GENERICO"),
 });

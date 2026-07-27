@@ -5,5 +5,5 @@ export const emergencyFundSchema = z.object({
   monthlyExpenseBase: z.coerce.number().min(0),
   currentAmount: z.coerce.number().min(0).default(0),
   monthlyContribution: z.coerce.number().min(0),
-  annualRate: z.coerce.number(),
+  annualRate: z.coerce.number().min(-99, "Taxa inválida.").max(300, "Taxa inválida."),
 });

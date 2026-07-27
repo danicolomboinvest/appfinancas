@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { CountUp } from "@/components/ui/CountUp";
+import { FitText } from "@/components/ui/FitText";
 
 const MONTH_LABELS = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
@@ -124,9 +125,12 @@ function IndicatorCard({
   return (
     <Card className="p-3.5 sm:p-4">
       <p className="text-caption text-ink-muted">{label}</p>
-      <p className={`mt-1.5 text-indicator font-semibold tracking-tight tabular-nums ${TONE_TEXT[tone]}`}>
-        {value !== undefined && format ? <CountUp value={value} format={format} delayMs={delayMs} /> : formattedValue}
-      </p>
+      {/* FitText: valor anual grande ("R$ 150.000,00") estourava a coluna da grade no celular. */}
+      <div className="mt-1.5">
+        <FitText className={`text-indicator font-semibold tracking-tight tabular-nums ${TONE_TEXT[tone]}`}>
+          {value !== undefined && format ? <CountUp value={value} format={format} delayMs={delayMs} /> : formattedValue}
+        </FitText>
+      </div>
       {bar !== undefined && (
         <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-surface-2">
           <div

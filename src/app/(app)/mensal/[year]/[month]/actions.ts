@@ -117,20 +117,28 @@ export type DeletedEntrySnapshot = {
 };
 
 /** Desfazer exclusão: recria o lançamento a partir do snapshot guardado no cliente. */
-export async function undoDeleteEntryAction(snapshot: DeletedEntrySnapshot) {
+export async function undoDeleteEntryAction(snapshot: DeletedEntrySnapshot): Promise<{ ok: boolean }> {
   const ctx = await getRequiredSession();
-  await createMonthlyEntry(ctx, {
-    year: snapshot.year,
-    month: snapshot.month,
-    category: snapshot.category,
-    parentCategory: (snapshot.parentCategory as MonthlyEntryInput["parentCategory"]) ?? undefined,
-    customCategoryId: snapshot.customCategoryId ?? undefined,
-    subcategory: snapshot.subcategory ?? undefined,
-    description: snapshot.description ?? undefined,
-    amount: snapshot.amount,
-    entryDate: snapshot.entryDate ? new Date(snapshot.entryDate) : undefined,
-    goalId: snapshot.goalId ?? undefined,
-  });
+  try {
+    // Data do snapshot vem do cliente: fora do formato, vira Invalid Date e estouraria no
+    // Prisma — melhor restaurar sem a data do que falhar o "Desfazer" inteiro.
+    const entryDate = snapshot.entryDate ? new Date(snapshot.entryDate) : undefined;
+    await createMonthlyEntry(ctx, {
+      year: snapshot.year,
+      month: snapshot.month,
+      category: snapshot.category,
+      parentCategory: (snapshot.parentCategory as MonthlyEntryInput["parentCategory"]) ?? undefined,
+      customCategoryId: snapshot.customCategoryId ?? undefined,
+      subcategory: snapshot.subcategory ?? undefined,
+      description: snapshot.description ?? undefined,
+      amount: snapshot.amount,
+      entryDate: entryDate && !Number.isNaN(entryDate.getTime()) ? entryDate : undefined,
+      goalId: snapshot.goalId ?? undefined,
+    });
+  } catch {
+    return { ok: false };
+  }
   revalidatePath(`/mensal/${snapshot.year}`);
   revalidatePath(`/mensal/${snapshot.year}/${snapshot.month}`);
+  return { ok: true };
 }
