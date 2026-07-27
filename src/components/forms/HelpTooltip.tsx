@@ -1,16 +1,44 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+
+/** O balão nunca deve encostar a menos disso da borda da tela. */
+const EDGE_MARGIN = 8;
 
 /**
  * Ajuda "?" que funciona no desktop E no toque: abre no clique (toggle) e também no hover do
  * mouse; fecha ao clicar fora ou apertar Esc. Antes era só hover, no desktop, dependendo do
  * navegador/gesto, o balão às vezes não aparecia, e no celular (sem hover) nunca abria.
+ *
+ * No celular o balão centralizado no "?" estourava a tela quando o "?" ficava perto da borda
+ * (cortava o texto). Depois de abrir, medimos onde o balão caiu e o deslocamos de volta pra
+ * dentro da tela (shift), mantendo-o ancorado no "?".
  */
 export function HelpTooltip({ text }: { text: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLSpanElement>(null);
+  const tipRef = useRef<HTMLSpanElement>(null);
   const id = useId();
+
+  // Posiciona o balão recém-aberto: centralizado no "?", mas sempre dentro da tela (no celular,
+  // um "?" perto da borda cortava o balão). Roda antes de pintar (layout effect), sem "pulo"
+  // visível; fechado desmonta, não precisa desfazer. O posicionamento é 100% via `left` inline —
+  // `translate`/`transform` são zerados porque o utilitário do Tailwind (-translate-x-1/2) usa a
+  // propriedade `translate`, que SOMARIA com um transform inline em vez de ser substituída.
+  useLayoutEffect(() => {
+    if (!open) return;
+    const tip = tipRef.current;
+    const anchor = ref.current;
+    if (!tip || !anchor) return;
+    tip.style.translate = "none";
+    tip.style.transform = "none";
+    const anchorRect = anchor.getBoundingClientRect();
+    const tipWidth = tip.getBoundingClientRect().width;
+    const center = anchorRect.left + anchorRect.width / 2;
+    const ideal = center - tipWidth / 2;
+    const clamped = Math.min(Math.max(ideal, EDGE_MARGIN), window.innerWidth - EDGE_MARGIN - tipWidth);
+    tip.style.left = `${clamped - anchorRect.left}px`;
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -53,6 +81,7 @@ export function HelpTooltip({ text }: { text: React.ReactNode }) {
       {open && (
         <span
           id={id}
+          ref={tipRef}
           role="tooltip"
           className="absolute left-1/2 top-full z-50 mt-1 w-56 -translate-x-1/2 rounded-lg border border-border-strong bg-surface-2 px-2.5 py-2 text-xs leading-snug text-ink shadow-premium-sm"
         >
