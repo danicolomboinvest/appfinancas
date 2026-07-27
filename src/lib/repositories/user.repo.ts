@@ -63,10 +63,8 @@ export async function touchLastSeen(userId: string, previous: Date | null): Prom
   }
 }
 
-export async function updateOwnProfile(
-  ctx: AuthContext,
-  input: { name?: string; email: string; avatarUrl?: string },
-) {
+/** E-mail fica de fora de propósito: é a chave do acesso (allowlist), só muda via suporte. */
+export async function updateOwnProfile(ctx: AuthContext, input: { name?: string; avatarUrl?: string }) {
   return prisma.user.update({ where: { id: ctx.userId }, data: input });
 }
 

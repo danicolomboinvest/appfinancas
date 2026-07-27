@@ -27,14 +27,36 @@ export type MonthlyEntryInput = {
   importBatchId?: string;
 };
 
+/**
+ * goalId/customCategoryId chegam do cliente: só valem se pertencerem MESMO ao usuário, senão
+ * um id adivinhado/vazado linkaria lançamento à meta ou categoria de outra conta. Id que não
+ * é do usuário é simplesmente descartado (vira sem vínculo), sem quebrar o lançamento.
+ */
+async function resolveOwnRefs(
+  ctx: AuthContext,
+  input: Pick<MonthlyEntryInput, "goalId" | "customCategoryId">,
+): Promise<{ goalId?: string; customCategoryId?: string }> {
+  const [goal, category] = await Promise.all([
+    input.goalId
+      ? prisma.goal.findFirst({ where: { id: input.goalId, userId: ctx.userId }, select: { id: true } })
+      : null,
+    input.customCategoryId
+      ? prisma.customCategory.findFirst({ where: { id: input.customCategoryId, userId: ctx.userId }, select: { id: true } })
+      : null,
+  ]);
+  return { goalId: goal?.id, customCategoryId: category?.id };
+}
+
 export async function createMonthlyEntry(ctx: AuthContext, input: MonthlyEntryInput) {
+  const refs = await resolveOwnRefs(ctx, input);
   return prisma.monthlyEntry.create({
-    data: { ...input, userId: ctx.userId },
+    data: { ...input, ...refs, userId: ctx.userId },
   });
 }
 
 /** Atualiza um lançamento do próprio usuário (updateMany garante o filtro por userId). */
 export async function updateOwnMonthlyEntry(ctx: AuthContext, id: string, input: MonthlyEntryInput) {
+  const refs = await resolveOwnRefs(ctx, input);
   return prisma.monthlyEntry.updateMany({
     where: { id, userId: ctx.userId },
     data: {
@@ -42,11 +64,11 @@ export async function updateOwnMonthlyEntry(ctx: AuthContext, id: string, input:
       // Campos opcionais ausentes devem LIMPAR o valor antigo (ex.: trocar de categoria-mãe
       // para personalizada), não manter, por isso null explícito em vez de undefined.
       parentCategory: input.parentCategory ?? null,
-      customCategoryId: input.customCategoryId ?? null,
+      customCategoryId: refs.customCategoryId ?? null,
       subcategory: input.subcategory ?? null,
       description: input.description ?? null,
       entryDate: input.entryDate ?? null,
-      goalId: input.goalId ?? null,
+      goalId: refs.goalId ?? null,
     },
   });
 }
@@ -65,12 +87,13 @@ export async function createRecurringMonthlyEntries(
     amount: number;
   },
 ) {
+  const refs = await resolveOwnRefs(ctx, input);
   const months = [];
   for (let m = input.month; m <= 12; m++) {
     months.push(m);
   }
   return prisma.monthlyEntry.createMany({
-    data: months.map((month) => ({ ...input, month, userId: ctx.userId })),
+    data: months.map((month) => ({ ...input, customCategoryId: refs.customCategoryId, month, userId: ctx.userId })),
   });
 }
 
