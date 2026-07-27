@@ -39,16 +39,36 @@ function extractEmail(event: unknown): string | null {
   return typeof email === "string" && email.includes("@") ? email : null;
 }
 
-/** O produto comprado pode vir como event.product ou como primeiro item de event.products[]. */
-function extractProduct(event: unknown): HublaProduct {
+/**
+ * TODOS os produtos da compra: event.product E cada item de event.products[]. Uma compra pode
+ * ter mais de um produto (order bump / combo) — se o curso que dá acesso for o SEGUNDO item,
+ * olhar só o primeiro negaria acesso a um comprador legítimo.
+ */
+function extractProducts(event: unknown): HublaProduct[] {
   const asRecord = (v: unknown) => (v && typeof v === "object" ? (v as Record<string, unknown>) : undefined);
   const e = asRecord(event);
-  const product = asRecord(e?.product);
-  const firstOfArray = Array.isArray(e?.products) ? asRecord(e?.products[0]) : undefined;
-  const src = product ?? firstOfArray;
-  const id = typeof src?.id === "string" ? src.id : null;
-  const name = typeof src?.name === "string" ? src.name : null;
-  return { id, name };
+  const sources = [asRecord(e?.product), ...(Array.isArray(e?.products) ? e.products.map(asRecord) : [])];
+  const seen = new Set<string>();
+  const result: HublaProduct[] = [];
+  for (const src of sources) {
+    if (!src) continue;
+    const id = typeof src.id === "string" ? src.id : null;
+    const name = typeof src.name === "string" ? src.name : null;
+    if (!id && !name) continue;
+    const key = `${id ?? ""}|${(name ?? "").toLowerCase()}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push({ id, name });
+  }
+  return result;
+}
+
+/** A compra libera acesso se QUALQUER produto dela estiver na lista de produtos ativos. */
+async function findAllowedProduct(products: HublaProduct[]): Promise<HublaProduct | null> {
+  for (const product of products) {
+    if (await isProductAllowed(product)) return product;
+  }
+  return null;
 }
 
 export async function POST(request: Request) {
@@ -70,7 +90,7 @@ export async function POST(request: Request) {
 
   const type = payload.type ?? "";
   const email = extractEmail(payload.event);
-  const product = extractProduct(payload.event);
+  const products = extractProducts(payload.event);
 
   if (!GRANT_EVENTS.has(type) && !REVOKE_EVENTS.has(type)) {
     return NextResponse.json({ ok: true, ignored: type || "unknown" });
@@ -81,13 +101,19 @@ export async function POST(request: Request) {
   }
 
   if (GRANT_EVENTS.has(type)) {
-    // Só libera se o produto comprado dá acesso. Produto não listado fica registrado (inativo)
-    // pra a Dani decidir depois, e não libera ninguém.
-    if (!(await isProductAllowed(product))) {
-      await recordSeenProduct(product);
-      return NextResponse.json({ ok: true, action: "ignored", reason: "product not allowed", product: product.name });
+    // Só libera se ALGUM produto da compra dá acesso (combo/order bump conta). Produto não
+    // listado fica registrado (inativo) pra a Dani decidir depois, e não libera ninguém.
+    const allowed = await findAllowedProduct(products);
+    if (!allowed) {
+      for (const product of products) await recordSeenProduct(product);
+      return NextResponse.json({
+        ok: true,
+        action: "ignored",
+        reason: "product not allowed",
+        products: products.map((p) => p.name ?? p.id),
+      });
     }
-    const { isNew } = await grantFromHubla(email, product.name ? `Hubla: ${product.name}` : `Hubla: ${type}`);
+    const { isNew } = await grantFromHubla(email, allowed.name ? `Hubla: ${allowed.name}` : `Hubla: ${type}`);
 
     // Convite por e-mail ("crie sua conta") só na 1ª liberação — o Hubla manda mais de um
     // evento pra mesma compra — e só se a pessoa ainda não tem conta. Melhor esforço: se o
@@ -103,12 +129,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, action: "granted", emailed });
   }
 
-  // Revogação (reembolso / perda de acesso): só corta se o produto que a pessoa perdeu é um dos
-  // que dão acesso. Se não dá pra identificar o produto, não revoga — errar a favor do cliente
-  // pagante é menos grave do que cortar acesso de quem tem direito (a Dani pode cortar na mão).
-  if (product.id || product.name) {
-    if (!(await isProductAllowed(product))) {
-      return NextResponse.json({ ok: true, action: "ignored", reason: "product not allowed", product: product.name });
+  // Revogação (reembolso / perda de acesso): só corta se ALGUM produto que a pessoa perdeu é
+  // dos que dão acesso. Se não dá pra identificar o produto, não revoga — errar a favor do
+  // cliente pagante é menos grave do que cortar acesso de quem tem direito (a Dani pode cortar
+  // na mão).
+  if (products.length > 0) {
+    if (!(await findAllowedProduct(products))) {
+      return NextResponse.json({
+        ok: true,
+        action: "ignored",
+        reason: "product not allowed",
+        products: products.map((p) => p.name ?? p.id),
+      });
     }
   }
   await revokeFromHubla(email);
