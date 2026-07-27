@@ -45,6 +45,23 @@ export function passwordResetEmail(params: { name: string | null; resetUrl: stri
   };
 }
 
+/**
+ * E-mail de "acesso liberado": a pessoa comprou (ou a Dani liberou na mão) mas ainda não tem
+ * conta — o convite é pra ela se cadastrar usando ESTE e-mail (é ele que está na allowlist;
+ * com outro e-mail o cadastro é bloqueado).
+ */
+export function accessGrantedEmail(params: { email: string; registerUrl: string }): { subject: string; html: string } {
+  return {
+    subject: "Seu acesso ao SPI Finance está liberado 🎉",
+    html: shell(`
+      <p style="margin:0 0 12px;">Oi!</p>
+      <p style="margin:0 0 20px;">Seu acesso ao <strong>SPI Finance</strong> foi liberado. Falta só criar sua conta para começar a organizar suas finanças:</p>
+      <p style="margin:0 0 24px;">${button(params.registerUrl, "Criar minha conta")}</p>
+      <p style="margin:0;color:${MUTED};font-size:13px;">Importante: cadastre-se usando exatamente este e-mail (<strong>${params.email}</strong>) — é ele que está autorizado.</p>
+    `),
+  };
+}
+
 /** E-mail de boas-vindas ao criar a conta. */
 export function welcomeEmail(params: { name: string | null; appUrl: string }): { subject: string; html: string } {
   const hi = params.name ? `Bem-vinda, ${params.name}!` : "Bem-vinda!";

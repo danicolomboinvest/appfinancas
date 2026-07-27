@@ -12,7 +12,13 @@ import { prisma } from "@/lib/db/prisma";
 export type HublaProduct = { id: string | null; name: string | null };
 
 export function normalizeProductName(name: string): string {
-  return name.trim().toLowerCase();
+  // Sem acentos: no Hubla o produto está "Do zero a liberdade financeira" e no painel a Dani
+  // cadastrou "Do Zero à Liberdade Financeira" — têm que casar mesmo assim.
+  return name
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
 }
 
 /** A compra libera acesso? Confere id e nome contra a lista de produtos ativos. */

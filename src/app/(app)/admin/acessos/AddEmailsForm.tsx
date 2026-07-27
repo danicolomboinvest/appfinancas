@@ -14,7 +14,10 @@ export function AddEmailsForm() {
   useSuccessToast(
     isPending,
     state.error,
-    state.added ? `${state.added} e-mail${state.added === 1 ? "" : "s"} liberado${state.added === 1 ? "" : "s"}.` : undefined,
+    state.added
+      ? `${state.added} e-mail${state.added === 1 ? "" : "s"} liberado${state.added === 1 ? "" : "s"}.` +
+          (state.emailed ? ` ${state.emailed} convite${state.emailed === 1 ? "" : "s"} enviado${state.emailed === 1 ? "" : "s"} por e-mail.` : "")
+      : undefined,
   );
 
   return (

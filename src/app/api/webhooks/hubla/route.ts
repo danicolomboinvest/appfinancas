@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { grantFromHubla, revokeFromHubla } from "@/lib/repositories/allowedEmail.repo";
 import { isProductAllowed, recordSeenProduct, type HublaProduct } from "@/lib/repositories/allowedProduct.repo";
+import { findUserByEmail } from "@/lib/repositories/user.repo";
+import { sendEmail } from "@/lib/email/send";
+import { accessGrantedEmail } from "@/lib/email/templates";
 
 /**
  * Webhook do Hubla (webhooks v2): libera/revoga acesso automaticamente conforme a pessoa
@@ -84,8 +87,20 @@ export async function POST(request: Request) {
       await recordSeenProduct(product);
       return NextResponse.json({ ok: true, action: "ignored", reason: "product not allowed", product: product.name });
     }
-    await grantFromHubla(email, product.name ? `Hubla: ${product.name}` : `Hubla: ${type}`);
-    return NextResponse.json({ ok: true, action: "granted" });
+    const { isNew } = await grantFromHubla(email, product.name ? `Hubla: ${product.name}` : `Hubla: ${type}`);
+
+    // Convite por e-mail ("crie sua conta") só na 1ª liberação — o Hubla manda mais de um
+    // evento pra mesma compra — e só se a pessoa ainda não tem conta. Melhor esforço: se o
+    // envio falhar, o acesso continua liberado (a pessoa ainda consegue se cadastrar sozinha).
+    let emailed = false;
+    if (isNew && !(await findUserByEmail(email))) {
+      const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host") ?? "financas.danicolombo.com.br";
+      const proto = request.headers.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
+      const { subject, html } = accessGrantedEmail({ email, registerUrl: `${proto}://${host}/register` });
+      const result = await sendEmail({ to: email, subject, html });
+      emailed = result.ok;
+    }
+    return NextResponse.json({ ok: true, action: "granted", emailed });
   }
 
   // Revogação (reembolso / perda de acesso): só corta se o produto que a pessoa perdeu é um dos

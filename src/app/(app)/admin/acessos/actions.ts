@@ -13,12 +13,12 @@ import {
   removeAllowedProduct,
   setAllowedProductActive,
 } from "@/lib/repositories/allowedProduct.repo";
-import { createUserInvite, findUserByEmail } from "@/lib/repositories/user.repo";
+import { createUserInvite, findUserByEmail, findExistingUserEmails } from "@/lib/repositories/user.repo";
 import { registerSchema } from "@/lib/validations/auth.schema";
 import { sendEmail } from "@/lib/email/send";
-import { welcomeEmail } from "@/lib/email/templates";
+import { welcomeEmail, accessGrantedEmail } from "@/lib/email/templates";
 
-export type AccessFormState = { error?: string; added?: number };
+export type AccessFormState = { error?: string; added?: number; emailed?: number };
 export type ProductFormState = { error?: string; ok?: boolean };
 export type InviteFormState = { error?: string; created?: { email: string; password: string } };
 
@@ -45,9 +45,26 @@ export async function addEmailsAction(_prev: AccessFormState, formData: FormData
     return { error: `Estes não parecem e-mails válidos: ${invalid.slice(0, 3).join(", ")}${invalid.length > 3 ? "…" : ""}` };
   }
 
-  const added = await addAllowedEmails(emails, note || undefined);
+  const { affected, toNotify } = await addAllowedEmails(emails, note || undefined);
+
+  // Avisa por e-mail quem acabou de ser liberado e ainda não tem conta ("crie sua conta com
+  // este e-mail"). Melhor esforço: falha de envio não desfaz a liberação.
+  const withAccount = new Set(await findExistingUserEmails(toNotify));
+  const inviteTargets = toNotify.filter((e) => !withAccount.has(e));
+  let emailed = 0;
+  if (inviteTargets.length > 0) {
+    const registerUrl = `${await baseUrl()}/register`;
+    const results = await Promise.allSettled(
+      inviteTargets.map((email) => {
+        const { subject, html } = accessGrantedEmail({ email, registerUrl });
+        return sendEmail({ to: email, subject, html });
+      }),
+    );
+    emailed = results.filter((r) => r.status === "fulfilled" && r.value.ok).length;
+  }
+
   revalidatePath("/admin/acessos");
-  return { added };
+  return { added: affected, emailed };
 }
 
 export async function toggleAccessAction(id: string, active: boolean) {

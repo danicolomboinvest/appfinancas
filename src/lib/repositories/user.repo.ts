@@ -8,6 +8,13 @@ export async function findUserByEmail(email: string) {
   return prisma.user.findUnique({ where: { email } });
 }
 
+/** Dentre os e-mails dados, quais já têm conta criada (pra não convidar quem já se cadastrou). */
+export async function findExistingUserEmails(emails: string[]): Promise<string[]> {
+  if (emails.length === 0) return [];
+  const users = await prisma.user.findMany({ where: { email: { in: emails } }, select: { email: true } });
+  return users.map((u) => u.email);
+}
+
 export async function createUser(input: { email: string; password: string; name: string }) {
   const passwordHash = await bcrypt.hash(input.password, SALT_ROUNDS);
   return prisma.user.create({
