@@ -34,7 +34,15 @@ export function FitText({ children, className = "" }: { children: React.ReactNod
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(outer);
-    return () => ro.disconnect();
+    // Valores ANIMADOS (CountUp) trocam o texto depois da montagem sem re-renderizar este
+    // componente — sem re-medir, o valor final largo ficaria cortado. MutationObserver pega a
+    // troca de texto na hora (microtask, não depende do frame de animação como o RO).
+    const mo = new MutationObserver(measure);
+    mo.observe(inner, { childList: true, characterData: true, subtree: true });
+    return () => {
+      ro.disconnect();
+      mo.disconnect();
+    };
   }, [children]);
 
   return (
