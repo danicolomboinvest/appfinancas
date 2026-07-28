@@ -1,9 +1,9 @@
 import { PillTabs } from "@/components/shell/PillTabs";
 
-// Ordem: Metas → Viagem → Reserva → Aposentadoria. Rótulos curtos pra caberem todos sem rolar.
+// Ordem pedida: Metas → Reserva → Aposentadoria. Rótulos curtos pra caberem todos sem rolar.
+// (Planejar Viagem mora fora daqui, em /viagem — entra pelo menu "Mais"/sidebar.)
 const TABS = [
   { href: "/planejamento/metas", label: "Metas" },
-  { href: "/planejamento/viagem", label: "Viagem" },
   { href: "/planejamento/reserva-emergencia", label: "Reserva" },
   { href: "/planejamento/acumulo", label: "Aposentadoria" },
 ];

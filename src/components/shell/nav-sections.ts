@@ -8,6 +8,7 @@ import {
   Settings,
   ShieldCheck,
   Target,
+  Plane,
   type LucideIcon,
 } from "lucide-react";
 
@@ -44,6 +45,8 @@ export const NAV_SECTIONS: NavSection[] = [
       { href: "/planejamento/acumulo", label: "Aposentadoria" },
     ],
   },
+  // Sem tab própria na barra inferior: no celular entra pelo "Mais" (pedido da Dani).
+  { basePath: "/viagem", href: "/viagem", label: "Planejar Viagem", icon: Plane },
   {
     basePath: "/carteira",
     href: "/carteira",
