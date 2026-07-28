@@ -89,6 +89,28 @@ export type TripEstimate = {
 /** Faixas sãs pros inputs (o cliente também limita, aqui é a garantia). */
 export const TRIP_LIMITS = { minDays: 2, maxDays: 60, minTravelers: 1, maxTravelers: 10 } as const;
 
+/** Teto por categoria quando a pessoa edita os valores na mão (contra dedo a mais em zero). */
+export const MAX_CATEGORY_VALUE = 1_000_000;
+
+/** Máximo de categorias extras criadas pela pessoa (compras, seguro, chip...). */
+export const MAX_EXTRA_CATEGORIES = 10;
+
+/** Valor editado pela pessoa, saneado: inteiro, nunca negativo, nunca absurdo, NaN vira 0. */
+export function clampCategoryValue(value: number): number {
+  return Math.min(Math.max(Math.round(value) || 0, 0), MAX_CATEGORY_VALUE);
+}
+
+/**
+ * Margem de imprevistos (10%) e total a partir dos valores por categoria — as 4 fixas e as
+ * extras criadas pela pessoa. Usado tanto pro cálculo estimado quanto pros valores EDITADOS
+ * (a margem sempre acompanha o que estiver na lista).
+ */
+export function computeTripTotals(values: number[]): { subtotal: number; buffer: number; total: number } {
+  const subtotal = values.reduce((sum, v) => sum + clampCategoryValue(v), 0);
+  const buffer = Math.round(subtotal * 0.1);
+  return { subtotal, buffer, total: subtotal + buffer };
+}
+
 export function estimateTrip(input: TripInput): TripEstimate | null {
   const destination = findDestination(input.destinationKey);
   if (!destination) return null;

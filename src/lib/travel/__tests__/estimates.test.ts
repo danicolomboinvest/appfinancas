@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { estimateTrip, findDestination, TRAVEL_DESTINATIONS, TRIP_LIMITS } from "../estimates";
+import {
+  estimateTrip,
+  findDestination,
+  computeTripTotals,
+  clampCategoryValue,
+  MAX_CATEGORY_VALUE,
+  TRAVEL_DESTINATIONS,
+  TRIP_LIMITS,
+} from "../estimates";
 
 describe("estimateTrip", () => {
   it("calcula o total de uma viagem média (2 pessoas, 7 dias, Gramado)", () => {
@@ -54,5 +62,22 @@ describe("estimateTrip", () => {
       expect(d.foodPerPersonDay).toBeGreaterThan(0);
       expect(d.activitiesPerPersonDay).toBeGreaterThan(0);
     }
+  });
+});
+
+describe("computeTripTotals / clampCategoryValue", () => {
+  it("soma categorias (fixas + extras), aplica 10% de margem", () => {
+    const t = computeTripTotals([1000, 2000, 500, 500, 300]);
+    expect(t.subtotal).toBe(4300);
+    expect(t.buffer).toBe(430);
+    expect(t.total).toBe(4730);
+  });
+
+  it("saneia valores editados: negativo/NaN viram 0, teto respeitado", () => {
+    expect(clampCategoryValue(-50)).toBe(0);
+    expect(clampCategoryValue(Number.NaN)).toBe(0);
+    expect(clampCategoryValue(99_999_999)).toBe(MAX_CATEGORY_VALUE);
+    const t = computeTripTotals([-100, Number.NaN, 1000]);
+    expect(t.subtotal).toBe(1000);
   });
 });
