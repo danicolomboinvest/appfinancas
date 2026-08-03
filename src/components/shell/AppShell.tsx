@@ -10,6 +10,7 @@ import { RegistrarDrawer } from "./RegistrarDrawer";
 import { WelcomeTour } from "./WelcomeTour";
 import { InstallAppBanner } from "./InstallAppBanner";
 import { InstallAppSheet } from "./InstallAppSheet";
+import { UsageTracker } from "./UsageTracker";
 import { MORE_NAV_SECTIONS } from "./nav-sections";
 import { logoutAction } from "@/lib/auth/actions";
 import { ToastProvider } from "@/components/ui/toast-context";
@@ -122,6 +123,9 @@ export function AppShell({
 
         {/* Tour de boas-vindas, só na primeira entrada (lembrado no aparelho). */}
         <WelcomeTour />
+
+        {/* Rastreio de uso primeiro (pageviews → /admin/relatorio). Não renderiza nada. */}
+        <UsageTracker />
       </div>
     </ToastProvider>
   );

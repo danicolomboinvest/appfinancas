@@ -1,5 +1,6 @@
 import { requireAdmin } from "@/lib/auth/rbac";
 import { getPlatformReport } from "@/lib/repositories/admin-analytics.repo";
+import { getUsageReport } from "@/lib/repositories/usage.repo";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { StatCard } from "@/components/ui/StatCard";
@@ -9,7 +10,7 @@ export const metadata = { title: "Relatório da plataforma · SPI Finance" };
 
 export default async function AdminRelatorioPage() {
   await requireAdmin();
-  const report = await getPlatformReport();
+  const [report, usage] = await Promise.all([getPlatformReport(), getUsageReport(30)]);
   const { engagement: e, featureAdoption, simulators, sheets, financial: f } = report;
 
   const maxSignup = Math.max(1, ...e.signupsByWeek.map((w) => w.count));
@@ -52,6 +53,80 @@ export default async function AdminRelatorioPage() {
               </div>
             ))}
           </div>
+        </Card>
+      </section>
+
+      {/* TELAS MAIS VISITADAS (rastreio próprio de pageviews) */}
+      <section className="flex flex-col gap-4">
+        <h2 className="text-sm font-semibold tracking-tight text-ink">Telas mais visitadas · últimos {usage.days} dias</h2>
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <StatCard label="Visitas a telas" value={String(usage.totalViews)} />
+          <StatCard label="Pessoas navegando" value={String(usage.uniqueVisitors)} tone="success" />
+          <StatCard
+            label="Usam o app instalado"
+            value={String(usage.standaloneUsers)}
+            tone="accent"
+            hint="abriram pela tela de início"
+          />
+          <StatCard
+            label="Melhor dia (14d)"
+            value={String(Math.max(0, ...usage.visitorsByDay.map((d) => d.count)))}
+            hint="pessoas num mesmo dia"
+          />
+        </div>
+
+        <Card className="p-4">
+          <p className="text-sm font-medium text-ink">Pessoas por dia · últimos 14 dias</p>
+          <div className="mt-4 flex items-end gap-1.5" style={{ height: 84 }}>
+            {usage.visitorsByDay.map((d) => {
+              const maxDay = Math.max(1, ...usage.visitorsByDay.map((x) => x.count));
+              return (
+                <div key={d.dayLabel} className="flex flex-1 flex-col items-center gap-1">
+                  <span className="text-[10px] text-ink-muted">{d.count > 0 ? d.count : ""}</span>
+                  <div
+                    className="w-full rounded-t bg-accent/70"
+                    style={{ height: `${Math.max(2, (d.count / maxDay) * 56)}px` }}
+                    title={`${d.dayLabel}: ${d.count} pessoa(s)`}
+                  />
+                  <span className="text-[9px] text-ink-faint">{d.dayLabel}</span>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+
+        <Card className="flex flex-col gap-3 p-4">
+          <p className="text-sm font-medium text-ink">Onde a galera passa o tempo</p>
+          {usage.topPages.length === 0 && (
+            <p className="text-sm text-ink-faint">
+              Ainda sem visitas registradas — o rastreio começou a contar agora; em alguns dias esta lista se preenche
+              sozinha.
+            </p>
+          )}
+          {usage.topPages.map((page) => {
+            const maxViews = Math.max(1, ...usage.topPages.map((p) => p.views));
+            return (
+              <div key={page.path} className="flex items-center gap-3">
+                <div className="w-44 shrink-0 truncate text-sm text-ink" title={page.path}>
+                  {page.label}
+                </div>
+                <div className="h-5 flex-1 overflow-hidden rounded bg-surface-2">
+                  <div
+                    className="h-full rounded bg-accent/70"
+                    style={{ width: `${(page.views / maxViews) * 100}%` }}
+                    title={`${page.views} visita(s)`}
+                  />
+                </div>
+                <div className="w-28 shrink-0 text-right text-sm text-ink-muted">
+                  {page.views} <span className="text-ink-faint">· {page.uniqueUsers} pessoa(s)</span>
+                </div>
+              </div>
+            );
+          })}
+          <p className="mt-1 text-xs text-ink-faint">
+            Visitas de telas dentro do app (admins não contam). Diferente da lista abaixo, aqui aparece o que a pessoa
+            OLHA, mesmo sem criar nada.
+          </p>
         </Card>
       </section>
 

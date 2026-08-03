@@ -165,6 +165,7 @@ model User {
   transactionRules     TransactionCategoryRule[]
   passwordResetTokens  PasswordResetToken[]
   importBatches        ImportBatch[]
+  usageEvents          UsageEvent[]
 
   asAdvisorLinks AdvisorClientLink[] @relation("advisor")
   asClientLinks  AdvisorClientLink[] @relation("client")
@@ -248,6 +249,27 @@ model CustomCategory {
 }
 
 /// Lançamento mensal — substitui as 12 abas Jan..Dez da planilha original.
+/// Rastreio de uso PRÓPRIO (sem script de terceiro): cada navegação dentro do app vira um
+/// evento — qual tela, quem, quando e se estava no app instalado (tela de início) ou no
+/// navegador. Alimenta a seção "páginas mais visitadas" do /admin/relatorio. Admins não são
+/// gravados (poluiriam a estatística).
+model UsageEvent {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Tipo do evento; hoje só "pageview", o campo existe pra eventos futuros (ex.: "voz_usada").
+  name       String
+  /// Rota normalizada ("/mensal/[ano]/[mes]"), nunca a URL crua com ids.
+  path       String
+  /// true = app aberto pela tela de início (instalado), false = pelo navegador.
+  standalone Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([userId, createdAt])
+  @@index([path, createdAt])
+}
+
 /// Lote de importação: um upload de extrato/fatura. Dá o histórico do que foi subido em massa
 /// e permite desfazer o lote inteiro (arquivo errado ou duplicado) de uma vez.
 model ImportBatch {
