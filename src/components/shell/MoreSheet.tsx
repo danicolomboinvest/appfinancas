@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { LogOut } from "lucide-react";
+import { LogOut, Smartphone } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { MORE_NAV_SECTIONS, ADMIN_NAV_SECTION } from "./nav-sections";
 
@@ -12,12 +12,15 @@ export function MoreSheet({
   isAdmin,
   userEmail,
   onLogout,
+  onOpenInstall,
 }: {
   open: boolean;
   onClose: () => void;
   isAdmin: boolean;
   userEmail?: string;
   onLogout: () => void;
+  /** Abre o tutorial de instalar o app na tela de início. */
+  onOpenInstall: () => void;
 }) {
   const sections = isAdmin ? [...MORE_NAV_SECTIONS, ADMIN_NAV_SECTION] : MORE_NAV_SECTIONS;
 
@@ -38,6 +41,21 @@ export function MoreSheet({
             </Link>
           );
         })}
+      </div>
+
+      <div className="mt-3 border-t border-border pt-3">
+        {/* Fica aqui pra quem fechou o convite do topo (ou trocou de aparelho) achar depois. */}
+        <button
+          type="button"
+          onClick={() => {
+            onClose();
+            onOpenInstall();
+          }}
+          className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-ink transition-colors hover:bg-surface-2"
+        >
+          <Smartphone size={18} strokeWidth={1.75} className="text-ink-muted" />
+          Instalar na tela de início
+        </button>
       </div>
 
       <div className="mt-3 border-t border-border pt-3">

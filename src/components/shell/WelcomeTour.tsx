@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { TOUR_DONE_EVENT } from "./InstallAppBanner";
 
 const SEEN_KEY = "welcome-tour-seen";
 
@@ -105,6 +106,8 @@ export function WelcomeTour() {
   function finish() {
     window.localStorage.setItem(SEEN_KEY, "1");
     setOpen(false);
+    // Libera o convite pra instalar o app, que espera o tour acabar pra não competirem.
+    window.dispatchEvent(new Event(TOUR_DONE_EVENT));
   }
 
   const vw = window.innerWidth;

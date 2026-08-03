@@ -8,6 +8,8 @@ import { MoreSheet } from "./MoreSheet";
 import { GreetingStrip } from "./GreetingStrip";
 import { RegistrarDrawer } from "./RegistrarDrawer";
 import { WelcomeTour } from "./WelcomeTour";
+import { InstallAppBanner } from "./InstallAppBanner";
+import { InstallAppSheet } from "./InstallAppSheet";
 import { MORE_NAV_SECTIONS } from "./nav-sections";
 import { logoutAction } from "@/lib/auth/actions";
 import { ToastProvider } from "@/components/ui/toast-context";
@@ -31,6 +33,7 @@ export function AppShell({
 }) {
   const [collapsed, setCollapsed] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [installOpen, setInstallOpen] = useState(false);
   const [registrarOpen, setRegistrarOpen] = useState(false);
   const [, startTransition] = useTransition();
   const pathname = usePathname();
@@ -90,6 +93,7 @@ export function AppShell({
           <main className="flex-1 px-5 pb-[calc(7.5rem_+_env(safe-area-inset-bottom))] pt-[calc(1.5rem_+_env(safe-area-inset-top))] md:px-10 md:pb-8 md:pt-8">
             <div className="mx-auto w-full max-w-6xl animate-fade-in">
               {showGreeting && <GreetingStrip greeting={greeting} dateLabel={dateLabel} summary={summary} flow={flow} />}
+              <InstallAppBanner onOpenTutorial={() => setInstallOpen(true)} />
               {children}
             </div>
           </main>
@@ -100,7 +104,17 @@ export function AppShell({
           onOpenRegistrar={() => setRegistrarOpen(true)}
           moreActive={moreActive}
         />
-        <MoreSheet open={moreOpen} onClose={() => setMoreOpen(false)} isAdmin={isAdmin} userEmail={userEmail} onLogout={handleLogout} />
+        <MoreSheet
+          open={moreOpen}
+          onClose={() => setMoreOpen(false)}
+          isAdmin={isAdmin}
+          userEmail={userEmail}
+          onLogout={handleLogout}
+          onOpenInstall={() => setInstallOpen(true)}
+        />
+
+        {/* Tutorial de "instalar na tela de início" (convite do topo ou menu "Mais"). */}
+        <InstallAppSheet open={installOpen} onClose={() => setInstallOpen(false)} />
 
         {/* Ponto de entrada ÚNICO de registro, aberto pelo "+" central da tab bar (mobile) ou
             pelo botão "Registrar" da sidebar (desktop). O microfone vive dentro dele. */}
