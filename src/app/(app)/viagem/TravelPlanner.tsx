@@ -2,22 +2,24 @@
 
 import { useActionState, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Plane, BedDouble, UtensilsCrossed, TicketCheck, ShieldQuestion, ArrowRight, Plus, X } from "lucide-react";
+import { Plane, BedDouble, UtensilsCrossed, TicketCheck, ShieldQuestion, ArrowRight, Plus, X, MapPin } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { Field, SelectField } from "@/components/ui/Field";
+import { Field } from "@/components/ui/Field";
 import { FitText } from "@/components/ui/FitText";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { useSuccessToast } from "@/components/ui/useSuccessToast";
 import {
   estimateTrip,
   computeTripTotals,
   clampCategoryValue,
   MAX_EXTRA_CATEGORIES,
-  TRAVEL_DESTINATIONS,
   TRAVEL_STYLE_LABEL,
   TRIP_LIMITS,
+  type TravelDestination,
   type TravelStyle,
 } from "@/lib/travel/estimates";
+import { DestinationSearch } from "./DestinationSearch";
 import { createTravelGoalAction, type TravelGoalState } from "./actions";
 
 const initialState: TravelGoalState = {};
@@ -41,8 +43,6 @@ function monthsUntil(monthValue: string): number {
   return Math.max((y - now.getFullYear()) * 12 + (m - 1 - now.getMonth()), 1);
 }
 
-const REGIONS = ["Brasil", "América do Sul", "América do Norte", "Europa", "Ásia e outros"] as const;
-
 type FixedKey = "flights" | "lodging" | "food" | "activities";
 
 const FIXED_ROWS: { key: FixedKey; label: string; icon: typeof Plane }[] = [
@@ -52,26 +52,25 @@ const FIXED_ROWS: { key: FixedKey; label: string; icon: typeof Plane }[] = [
   { key: "activities", label: "Passeios e transporte", icon: TicketCheck },
 ];
 
+type Leg = { destination: TravelDestination; days: number };
 type ExtraRow = { id: number; name: string; value: number };
 
 const VALUE_INPUT_CLASSES =
   "w-24 shrink-0 rounded-lg border border-border-strong bg-surface px-2 py-1 text-right text-sm tabular-nums text-ink transition-colors focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent";
 
 /**
- * Planejador de viagem: estimativa curada por destino/estilo preenche o orçamento, e a pessoa
- * pode EDITAR cada valor e CRIAR categorias próprias (compras, seguro, chip...) antes de virar
- * meta. Trocar destino/dias/pessoas/estilo re-estima os 4 valores fixos (edições são descartadas
- * — a assinatura do plano mudou); as categorias extras são da pessoa e ficam. O servidor saneia
- * e recalcula tudo na criação da meta.
+ * Planejador de viagem: monta um roteiro com VÁRIOS destinos ("3 dias em Paris, 4 em Roma"),
+ * busca entre ~220 lugares, estima o custo por trecho e vira meta com aporte mensal. Todos os
+ * valores são editáveis e dá pra criar categorias próprias. O cálculo roda aqui pra resposta
+ * instantânea; o servidor saneia e recalcula tudo na criação da meta.
  */
 export function TravelPlanner() {
-  const [destinationKey, setDestinationKey] = useState(TRAVEL_DESTINATIONS[0].key);
-  const [days, setDays] = useState(7);
+  const [legs, setLegs] = useState<Leg[]>([]);
   const [travelers, setTravelers] = useState(2);
   const [style, setStyle] = useState<TravelStyle>("medio");
   const [tripMonth, setTripMonth] = useState(nextMonthValue());
-  // Edições dos 4 valores fixos, presas à "assinatura" do plano: mudou destino/dias/pessoas/
-  // estilo, a assinatura muda e as edições antigas deixam de valer (sem useEffect pra resetar).
+  // Edições dos valores fixos, presas à "assinatura" do plano: mudou roteiro/pessoas/estilo, a
+  // assinatura muda e as edições antigas deixam de valer (sem useEffect pra resetar).
   const [overrides, setOverrides] = useState<{ sig: string; values: Partial<Record<FixedKey, number>> }>({
     sig: "",
     values: {},
@@ -81,10 +80,15 @@ export function TravelPlanner() {
   const [state, formAction, isPending] = useActionState(createTravelGoalAction, initialState);
   useSuccessToast(isPending, state.error, state.created ? "Meta da viagem criada! Veja em Metas." : undefined);
 
-  const sig = `${destinationKey}|${days}|${travelers}|${style}`;
+  const sig = `${legs.map((leg) => `${leg.destination.key}:${leg.days}`).join("|")}#${travelers}#${style}`;
   const estimate = useMemo(
-    () => estimateTrip({ destinationKey, days, travelers, style }),
-    [destinationKey, days, travelers, style],
+    () =>
+      estimateTrip({
+        legs: legs.map((leg) => ({ destinationKey: leg.destination.key, days: leg.days })),
+        travelers,
+        style,
+      }),
+    [legs, travelers, style],
   );
 
   const activeOverrides = overrides.sig === sig ? overrides.values : {};
@@ -103,6 +107,24 @@ export function TravelPlanner() {
   const months = monthsUntil(tripMonth);
   const monthlyHint = totals ? Math.ceil(totals.total / months) : 0;
   const travelersSafe = Math.min(Math.max(travelers || 1, 1), TRIP_LIMITS.maxTravelers);
+  const totalDays = legs.reduce((sum, leg) => sum + leg.days, 0);
+
+  function addLeg(destination: TravelDestination) {
+    setLegs((prev) =>
+      prev.length >= TRIP_LIMITS.maxLegs || prev.some((leg) => leg.destination.key === destination.key)
+        ? prev
+        : [...prev, { destination, days: prev.length === 0 ? 5 : 3 }],
+    );
+  }
+
+  function setLegDays(key: string, raw: string) {
+    const days = Math.min(Math.max(Math.round(Number(raw)) || 1, TRIP_LIMITS.minDays), TRIP_LIMITS.maxDaysPerLeg);
+    setLegs((prev) => prev.map((leg) => (leg.destination.key === key ? { ...leg, days } : leg)));
+  }
+
+  function removeLeg(key: string) {
+    setLegs((prev) => prev.filter((leg) => leg.destination.key !== key));
+  }
 
   function setFixedValue(key: FixedKey, raw: string) {
     const value = clampCategoryValue(Number(raw));
@@ -127,73 +149,102 @@ export function TravelPlanner() {
 
   return (
     <div className="flex flex-col gap-4">
-      <Card as="form" action={formAction} className="flex flex-col gap-4 p-5">
-        <SelectField
-          label="Para onde?"
-          name="destinationKey"
-          value={destinationKey}
-          onChange={(e) => setDestinationKey(e.target.value)}
-        >
-          {REGIONS.map((region) => (
-            <optgroup key={region} label={region}>
-              {TRAVEL_DESTINATIONS.filter((d) => d.region === region).map((d) => (
-                <option key={d.key} value={d.key}>
-                  {d.label}
-                </option>
-              ))}
-            </optgroup>
-          ))}
-        </SelectField>
-
-        <div className="grid grid-cols-2 gap-4">
-          <Field
-            label="Quantos dias?"
-            name="days"
-            type="number"
-            min={TRIP_LIMITS.minDays}
-            max={TRIP_LIMITS.maxDays}
-            value={days}
-            onChange={(e) => setDays(Number(e.target.value))}
-          />
-          <Field
-            label="Quantas pessoas?"
-            name="travelers"
-            type="number"
-            min={TRIP_LIMITS.minTravelers}
-            max={TRIP_LIMITS.maxTravelers}
-            value={travelers}
-            onChange={(e) => setTravelers(Number(e.target.value))}
-          />
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <span className="text-xs font-medium text-ink-muted">Estilo da viagem</span>
-          <div className="flex gap-1 rounded-full border border-border bg-surface-2 p-1">
-            {(Object.keys(TRAVEL_STYLE_LABEL) as TravelStyle[]).map((s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => setStyle(s)}
-                className={`min-w-0 flex-1 truncate rounded-full px-2 py-2 text-sm font-medium transition-all duration-300 ${
-                  style === s ? "bg-ink text-canvas shadow-premium-sm" : "text-ink-muted hover:text-ink"
-                }`}
-              >
-                {TRAVEL_STYLE_LABEL[s]}
-              </button>
-            ))}
+      <Card as="form" action={formAction} className="flex flex-col gap-5 p-5">
+        <div className="flex flex-col gap-2">
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="text-xs font-medium text-ink-muted">Roteiro</span>
+            {legs.length > 0 && (
+              <span className="text-xs text-ink-faint">
+                {totalDays} {totalDays === 1 ? "dia" : "dias"} no total
+              </span>
+            )}
           </div>
+
+          {legs.map((leg, index) => (
+            <div key={leg.destination.key} className="flex items-center gap-2 rounded-xl bg-surface-2 px-3 py-2">
+              <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-surface text-xs font-medium tabular-nums text-ink-muted">
+                {index + 1}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-medium text-ink">{leg.destination.label}</span>
+                <span className="block truncate text-xs text-ink-faint">{leg.destination.country}</span>
+              </span>
+              <input
+                type="number"
+                inputMode="numeric"
+                min={TRIP_LIMITS.minDays}
+                max={TRIP_LIMITS.maxDaysPerLeg}
+                aria-label={`Dias em ${leg.destination.label}`}
+                value={leg.days}
+                onChange={(e) => setLegDays(leg.destination.key, e.target.value)}
+                className="w-14 shrink-0 rounded-lg border border-border-strong bg-surface px-2 py-1 text-right text-sm tabular-nums text-ink transition-colors focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+              />
+              <span className="shrink-0 text-xs text-ink-faint">{leg.days === 1 ? "dia" : "dias"}</span>
+              <button
+                type="button"
+                aria-label={`Remover ${leg.destination.label}`}
+                onClick={() => removeLeg(leg.destination.key)}
+                className="shrink-0 rounded-full p-1 text-ink-faint transition-colors hover:bg-danger-soft hover:text-danger"
+              >
+                <X className="size-4" aria-hidden />
+              </button>
+            </div>
+          ))}
+
+          {legs.length < TRIP_LIMITS.maxLegs ? (
+            <DestinationSearch onPick={addLeg} excludeKeys={legs.map((leg) => leg.destination.key)} />
+          ) : (
+            <p className="text-xs text-ink-faint">Máximo de {TRIP_LIMITS.maxLegs} destinos por viagem.</p>
+          )}
         </div>
 
-        <Field
-          label="Quando pretende ir?"
-          name="tripMonth"
-          type="month"
-          min={nextMonthValue()}
-          value={tripMonth}
-          onChange={(e) => setTripMonth(e.target.value)}
-        />
+        {legs.length === 0 ? (
+          <EmptyState
+            icon={MapPin}
+            message="Busque o primeiro destino acima. Dá pra somar vários lugares na mesma viagem e dizer quantos dias fica em cada um."
+          />
+        ) : (
+          <>
+            <Field
+              label="Quantas pessoas?"
+              name="travelers"
+              type="number"
+              min={TRIP_LIMITS.minTravelers}
+              max={TRIP_LIMITS.maxTravelers}
+              value={travelers}
+              onChange={(e) => setTravelers(Number(e.target.value))}
+            />
 
-        {values && totals && (
+            <div className="flex flex-col gap-1.5">
+              <span className="text-xs font-medium text-ink-muted">Estilo da viagem</span>
+              <div className="flex gap-1 rounded-full border border-border bg-surface-2 p-1">
+                {(Object.keys(TRAVEL_STYLE_LABEL) as TravelStyle[]).map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setStyle(s)}
+                    className={`min-w-0 flex-1 truncate rounded-full px-2 py-2 text-sm font-medium transition-all duration-300 ${
+                      style === s ? "bg-ink text-canvas shadow-premium-sm" : "text-ink-muted hover:text-ink"
+                    }`}
+                  >
+                    {TRAVEL_STYLE_LABEL[s]}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <Field
+              label="Quando pretende ir?"
+              name="tripMonth"
+              type="month"
+              min={nextMonthValue()}
+              value={tripMonth}
+              onChange={(e) => setTripMonth(e.target.value)}
+            />
+          </>
+        )}
+
+        {values && totals && estimate && (
           <div className="flex flex-col gap-2.5 rounded-xl bg-surface-2 p-4">
             <p className="text-xs text-ink-faint">Toque num valor para ajustar ao seu orçamento.</p>
             {FIXED_ROWS.map(({ key, label, icon: Icon }) => (
@@ -262,6 +313,20 @@ export function TravelPlanner() {
               <span className="shrink-0 text-sm font-medium tabular-nums text-ink">{formatBRL(totals.buffer)}</span>
             </div>
 
+            {estimate.legs.length > 1 && (
+              <div className="flex flex-col gap-1 border-t border-border pt-2.5">
+                <p className="text-xs text-ink-muted">Diárias por destino (sem passagem)</p>
+                {estimate.legs.map((leg) => (
+                  <div key={leg.destination.key} className="flex items-center justify-between gap-3">
+                    <span className="min-w-0 truncate text-xs text-ink-faint">
+                      {leg.destination.label} · {leg.days} {leg.days === 1 ? "dia" : "dias"}
+                    </span>
+                    <span className="shrink-0 text-xs tabular-nums text-ink-muted">{formatBRL(leg.subtotal)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
             <div className="border-t border-border pt-3">
               <p className="text-xs text-ink-muted">Custo estimado da viagem</p>
               <FitText className="text-2xl font-semibold tracking-tight text-ink">{formatBRL(totals.total)}</FitText>
@@ -273,9 +338,14 @@ export function TravelPlanner() {
           </div>
         )}
 
-        {/* Valores finais viajam como campos do form; extras (lista dinâmica) vão serializadas. */}
+        {/* Roteiro, valores finais e extras viajam como campos do form (listas serializadas). */}
         {values && (
           <>
+            <input
+              type="hidden"
+              name="legs"
+              value={JSON.stringify(legs.map((leg) => ({ destinationKey: leg.destination.key, days: leg.days })))}
+            />
             <input type="hidden" name="flights" value={values.flights} />
             <input type="hidden" name="lodging" value={values.lodging} />
             <input type="hidden" name="food" value={values.food} />
@@ -305,8 +375,9 @@ export function TravelPlanner() {
       </Card>
 
       <p className="text-xs text-ink-faint">
-        Estimativas médias para planejamento (valores de 2026, saindo de capital brasileira) — não são cotação. Ajuste
-        os valores acima ao seu orçamento; trocar destino, dias, pessoas ou estilo re-estima os valores fixos.
+        Estimativas médias para planejamento (valores de 2026, saindo do Brasil) — não são cotação. A passagem considera
+        uma ida e volta principal mais as conexões entre os destinos. Ajuste os valores ao seu orçamento; mudar o
+        roteiro, as pessoas ou o estilo re-estima tudo.
       </p>
     </div>
   );

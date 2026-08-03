@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   estimateTrip,
   findDestination,
+  searchDestinations,
   computeTripTotals,
   clampCategoryValue,
   MAX_CATEGORY_VALUE,
@@ -9,59 +10,149 @@ import {
   TRIP_LIMITS,
 } from "../estimates";
 
-describe("estimateTrip", () => {
-  it("calcula o total de uma viagem média (2 pessoas, 7 dias, Gramado)", () => {
-    const est = estimateTrip({ destinationKey: "gramado", days: 7, travelers: 2, style: "medio" });
+const trip = (legs: { destinationKey: string; days: number }[], travelers = 2, style: "economico" | "medio" | "confortavel" = "medio") =>
+  estimateTrip({ legs, travelers, style });
+
+describe("estimateTrip — um destino", () => {
+  it("calcula diárias e passagem de uma viagem simples", () => {
+    const est = trip([{ destinationKey: "gramado", days: 7 }])!;
     expect(est).not.toBeNull();
-    // 2 pessoas = 1 quarto; 7 dias = 6 noites.
-    expect(est!.flights).toBe(900 * 2);
-    expect(est!.lodging).toBe(380 * 6);
-    expect(est!.food).toBe(150 * 7 * 2);
-    expect(est!.activities).toBe(120 * 7 * 2);
-    const subtotal = est!.flights + est!.lodging + est!.food + est!.activities;
-    expect(est!.buffer).toBe(Math.round(subtotal * 0.1));
-    expect(est!.total).toBe(subtotal + est!.buffer);
-    expect(est!.perPerson).toBe(Math.round(est!.total / 2));
+    // Gramado: tier "caro" (620/400... hosp 620, comida 220, passeios 160), band "nacional" (950).
+    // 2 pessoas = 1 quarto; 7 dias no último (único) trecho = 6 noites.
+    expect(est.legs).toHaveLength(1);
+    expect(est.legs[0].nights).toBe(6);
+    expect(est.lodging).toBe(620 * 6);
+    expect(est.food).toBe(220 * 7 * 2);
+    expect(est.activities).toBe(160 * 7 * 2);
+    expect(est.flights).toBe(950 * 2);
+    const subtotal = est.flights + est.lodging + est.food + est.activities;
+    expect(est.buffer).toBe(Math.round(subtotal * 0.1));
+    expect(est.total).toBe(subtotal + est.buffer);
+    expect(est.perPerson).toBe(Math.round(est.total / 2));
   });
 
   it("estilo econômico sai mais barato e confortável mais caro que o médio", () => {
-    const base = { destinationKey: "paris", days: 10, travelers: 2 } as const;
-    const eco = estimateTrip({ ...base, style: "economico" })!;
-    const medio = estimateTrip({ ...base, style: "medio" })!;
-    const conforto = estimateTrip({ ...base, style: "confortavel" })!;
-    expect(eco.total).toBeLessThan(medio.total);
-    expect(medio.total).toBeLessThan(conforto.total);
+    const legs = [{ destinationKey: "paris", days: 10 }];
+    expect(trip(legs, 2, "economico")!.total).toBeLessThan(trip(legs, 2, "medio")!.total);
+    expect(trip(legs, 2, "medio")!.total).toBeLessThan(trip(legs, 2, "confortavel")!.total);
   });
 
   it("3 viajantes precisam de 2 quartos (hospedagem sobe por quarto, não por pessoa)", () => {
-    const dois = estimateTrip({ destinationKey: "rio", days: 5, travelers: 2, style: "medio" })!;
-    const tres = estimateTrip({ destinationKey: "rio", days: 5, travelers: 3, style: "medio" })!;
+    const dois = trip([{ destinationKey: "rio-de-janeiro", days: 5 }], 2)!;
+    const tres = trip([{ destinationKey: "rio-de-janeiro", days: 5 }], 3)!;
     expect(tres.lodging).toBe(dois.lodging * 2);
   });
+});
 
+describe("estimateTrip — vários destinos", () => {
+  it("cada trecho usa as diárias do SEU destino e soma os dias", () => {
+    const est = trip([
+      { destinationKey: "paris", days: 3 },
+      { destinationKey: "roma", days: 4 },
+    ])!;
+    expect(est.legs).toHaveLength(2);
+    expect(est.totalDays).toBe(7);
+    // Só o último trecho perde uma noite (a última noite já é a volta pra casa).
+    expect(est.legs[0].nights).toBe(3);
+    expect(est.legs[1].nights).toBe(3);
+    // Paris é "premium" (900/noite) e Roma "caro" (620/noite): diárias diferentes por trecho.
+    expect(est.legs[0].lodging).toBe(900 * 3);
+    expect(est.legs[1].lodging).toBe(620 * 3);
+    expect(est.lodging).toBe(est.legs[0].lodging + est.legs[1].lodging);
+  });
+
+  it("passagem = voo principal + conexão, não duas idas e voltas", () => {
+    const soParis = trip([{ destinationKey: "paris", days: 7 }])!;
+    const parisRoma = trip([
+      { destinationKey: "paris", days: 3 },
+      { destinationKey: "roma", days: 4 },
+    ])!;
+    // Uma passagem pra Europa (4600) + trecho interno (600), por pessoa.
+    expect(soParis.flights).toBe(4600 * 2);
+    expect(parisRoma.flights).toBe((4600 + 600) * 2);
+    expect(parisRoma.flights).toBeLessThan(soParis.flights * 2);
+  });
+
+  it("conexão entre regiões diferentes custa mais que dentro da mesma região", () => {
+    const mesmaRegiao = trip([
+      { destinationKey: "paris", days: 3 },
+      { destinationKey: "roma", days: 3 },
+    ])!;
+    const outraRegiao = trip([
+      { destinationKey: "paris", days: 3 },
+      { destinationKey: "toquio", days: 3 },
+    ])!;
+    expect(outraRegiao.flights).toBeGreaterThan(mesmaRegiao.flights);
+  });
+
+  it("o voo principal é o do destino mais caro, esteja ele em qualquer posição", () => {
+    const primeiro = trip([
+      { destinationKey: "toquio", days: 3 },
+      { destinationKey: "bangkok", days: 3 },
+    ])!;
+    const invertido = trip([
+      { destinationKey: "bangkok", days: 3 },
+      { destinationKey: "toquio", days: 3 },
+    ])!;
+    expect(primeiro.flights).toBe(invertido.flights);
+  });
+});
+
+describe("estimateTrip — robustez", () => {
   it("clampa dias e viajantes nas faixas válidas em vez de estourar", () => {
-    const est = estimateTrip({ destinationKey: "rio", days: 9999, travelers: 999, style: "medio" })!;
-    expect(est.days).toBe(TRIP_LIMITS.maxDays);
+    const est = trip([{ destinationKey: "rio-de-janeiro", days: 9999 }], 999)!;
+    expect(est.legs[0].days).toBe(TRIP_LIMITS.maxDaysPerLeg);
     expect(est.travelers).toBe(TRIP_LIMITS.maxTravelers);
-    const minimo = estimateTrip({ destinationKey: "rio", days: 0, travelers: 0, style: "medio" })!;
-    expect(minimo.days).toBe(TRIP_LIMITS.minDays);
+    const minimo = trip([{ destinationKey: "rio-de-janeiro", days: 0 }], 0)!;
+    expect(minimo.legs[0].days).toBe(TRIP_LIMITS.minDays);
     expect(minimo.travelers).toBe(TRIP_LIMITS.minTravelers);
   });
 
-  it("destino desconhecido devolve null (nunca lança)", () => {
-    expect(estimateTrip({ destinationKey: "atlantida", days: 7, travelers: 2, style: "medio" })).toBeNull();
+  it("ignora destino desconhecido e devolve null se não sobrar nenhum", () => {
+    expect(trip([{ destinationKey: "atlantida", days: 7 }])).toBeNull();
+    expect(trip([])).toBeNull();
     expect(findDestination("atlantida")).toBeNull();
+    const misto = trip([
+      { destinationKey: "atlantida", days: 3 },
+      { destinationKey: "lisboa", days: 4 },
+    ])!;
+    expect(misto.legs).toHaveLength(1);
+    expect(misto.legs[0].destination.key).toBe("lisboa");
   });
 
-  it("catálogo: todas as chaves são únicas e os valores positivos", () => {
-    const keys = new Set(TRAVEL_DESTINATIONS.map((d) => d.key));
+  it("catálogo: chaves únicas, campos preenchidos e bom tamanho", () => {
+    const keys = new Set(TRAVEL_DESTINATIONS.map((dest) => dest.key));
     expect(keys.size).toBe(TRAVEL_DESTINATIONS.length);
-    for (const d of TRAVEL_DESTINATIONS) {
-      expect(d.flightPerPerson).toBeGreaterThan(0);
-      expect(d.lodgingPerNight).toBeGreaterThan(0);
-      expect(d.foodPerPersonDay).toBeGreaterThan(0);
-      expect(d.activitiesPerPersonDay).toBeGreaterThan(0);
+    expect(TRAVEL_DESTINATIONS.length).toBeGreaterThan(150);
+    for (const dest of TRAVEL_DESTINATIONS) {
+      expect(dest.label.trim().length).toBeGreaterThan(0);
+      expect(dest.country.trim().length).toBeGreaterThan(0);
     }
+  });
+});
+
+describe("searchDestinations", () => {
+  it("acha sem acento e sem caixa", () => {
+    expect(searchDestinations("sao paulo")[0].key).toBe("sao-paulo");
+    expect(searchDestinations("FLORIANOPOLIS")[0].key).toBe("florianopolis");
+  });
+
+  it("quem começa com o termo vem antes de quem só contém", () => {
+    const rio = searchDestinations("rio").map((dest) => dest.key);
+    expect(rio.indexOf("rio-de-janeiro")).toBeLessThan(rio.indexOf("rio-branco"));
+  });
+
+  it("acha por apelido e por país", () => {
+    expect(searchDestinations("ny")[0].key).toBe("nova-york");
+    expect(searchDestinations("noronha")[0].key).toBe("fernando-de-noronha");
+    const portugal = searchDestinations("portugal").map((dest) => dest.key);
+    expect(portugal).toContain("lisboa");
+    expect(portugal).toContain("porto-pt");
+  });
+
+  it("termo sem resultado devolve lista vazia; busca vazia devolve sugestões", () => {
+    expect(searchDestinations("zzzzzz")).toHaveLength(0);
+    expect(searchDestinations("").length).toBeGreaterThan(0);
   });
 });
 
@@ -77,7 +168,6 @@ describe("computeTripTotals / clampCategoryValue", () => {
     expect(clampCategoryValue(-50)).toBe(0);
     expect(clampCategoryValue(Number.NaN)).toBe(0);
     expect(clampCategoryValue(99_999_999)).toBe(MAX_CATEGORY_VALUE);
-    const t = computeTripTotals([-100, Number.NaN, 1000]);
-    expect(t.subtotal).toBe(1000);
+    expect(computeTripTotals([-100, Number.NaN, 1000]).subtotal).toBe(1000);
   });
 });

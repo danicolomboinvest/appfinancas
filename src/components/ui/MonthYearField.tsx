@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useState } from "react";
-import { CONTROL_CLASSES } from "./Field";
+import { CONTROL_CLASSES, openNativePicker } from "./Field";
 
 /** Último dia do mês selecionado (dia 0 do mês seguinte), como "YYYY-MM-DD". */
 function monthValueToLastDay(monthValue: string): string {
@@ -53,7 +53,10 @@ export function MonthYearField({
         required={required}
         value={monthValue}
         onChange={(e) => setMonthValue(e.target.value)}
-        className={CONTROL_CLASSES}
+        // Clicar em qualquer parte abre o calendário (no computador o navegador só abria pelo
+        // iconezinho, e digitar exigia o formato exato).
+        onClick={openNativePicker}
+        className={`${CONTROL_CLASSES} cursor-pointer`}
       />
       <input type="hidden" name={name} value={actualDate} />
       {error && <p className="text-xs text-danger">{error}</p>}
