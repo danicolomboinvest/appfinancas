@@ -5,6 +5,8 @@ import { redirect } from "next/navigation";
 import { createUser, findUserByEmail } from "@/lib/repositories/user.repo";
 import { isEmailAllowed } from "@/lib/repositories/allowedEmail.repo";
 import { registerSchema } from "@/lib/validations/auth.schema";
+import { normalizePhone } from "@/lib/phone";
+import { getAllowedPhone } from "@/lib/repositories/allowedEmail.repo";
 import { sendEmail } from "@/lib/email/send";
 import { welcomeEmail } from "@/lib/email/templates";
 
@@ -15,10 +17,17 @@ export async function registerAction(_prevState: RegisterState, formData: FormDa
     name: formData.get("name"),
     email: formData.get("email"),
     password: formData.get("password"),
+    phone: formData.get("phone"),
   });
 
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
+  }
+
+  // Aceita qualquer formato digitado — "(11) 98765-4321", "+55 11...", só dígitos.
+  const phone = normalizePhone(parsed.data.phone);
+  if (!phone) {
+    return { error: "Celular inválido. Use DDD + número, ex.: (11) 98765-4321." };
   }
 
   // Aceite dos Termos/Privacidade é obrigatório (LGPD), valida também no servidor.
@@ -41,7 +50,9 @@ export async function registerAction(_prevState: RegisterState, formData: FormDa
     return { error: "Já existe uma conta com este email." };
   }
 
-  await createUser(parsed.data);
+  // Se a compra no Hubla trouxe celular, ele vale como reserva (mas o digitado agora manda).
+  const hublaPhone = await getAllowedPhone(parsed.data.email);
+  await createUser({ ...parsed.data, phone: phone ?? hublaPhone ?? undefined });
 
   // E-mail de boas-vindas, melhor esforço: se o envio falhar, o cadastro continua valendo.
   try {

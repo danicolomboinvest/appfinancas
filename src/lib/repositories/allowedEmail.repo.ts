@@ -75,7 +75,11 @@ export async function removeAllowedEmail(id: string) {
  * AGORA (não existia, ou estava inativa) — o Hubla manda mais de um evento pra mesma compra
  * (member_added + payment_succeeded), e só o primeiro deve disparar o e-mail de convite.
  */
-export async function grantFromHubla(email: string, note?: string): Promise<{ isNew: boolean }> {
+export async function grantFromHubla(
+  email: string,
+  note?: string,
+  phone?: string | null,
+): Promise<{ isNew: boolean }> {
   const normalized = normalizeEmail(email);
   const existing = await prisma.allowedEmail.findUnique({
     where: { email: normalized },
@@ -83,10 +87,20 @@ export async function grantFromHubla(email: string, note?: string): Promise<{ is
   });
   await prisma.allowedEmail.upsert({
     where: { email: normalized },
-    update: { active: true },
-    create: { email: normalized, source: "HUBLA", note: note ?? null },
+    // Celular da compra: grava se veio; nunca apaga um que já estava salvo.
+    update: { active: true, ...(phone ? { phone } : {}) },
+    create: { email: normalized, source: "HUBLA", note: note ?? null, phone: phone ?? null },
   });
   return { isNew: existing?.active !== true };
+}
+
+/** Celular que veio da compra no Hubla (se veio) — usado como reserva no cadastro. */
+export async function getAllowedPhone(email: string): Promise<string | null> {
+  const row = await prisma.allowedEmail.findUnique({
+    where: { email: normalizeEmail(email) },
+    select: { phone: true },
+  });
+  return row?.phone ?? null;
 }
 
 /**

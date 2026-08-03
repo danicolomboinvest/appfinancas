@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { StatCard } from "@/components/ui/StatCard";
 import { formatBRL, formatPercentNumber } from "@/lib/format";
+import { formatPhone, whatsappUrl } from "@/lib/phone";
 
 const dateFmt = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
 
@@ -81,6 +82,18 @@ export default async function AdminUsuariosPage(props: PageProps<"/admin/usuario
                 <td className="px-4 py-3">
                   <div className="text-ink">{u.name ?? "—"}</div>
                   <div className="text-xs text-ink-faint">{u.email}</div>
+                  {u.phone ? (
+                    <a
+                      href={whatsappUrl(u.phone)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs font-medium text-success hover:underline"
+                    >
+                      {formatPhone(u.phone)} · WhatsApp
+                    </a>
+                  ) : (
+                    <div className="text-xs text-ink-faint">sem celular</div>
+                  )}
                 </td>
                 <td className="px-4 py-3 text-right font-medium text-ink">{formatBRL(u.patrimonioInvestido)}</td>
                 <td className={`px-4 py-3 text-right ${u.poupancaMediaMensal < 0 ? "text-danger" : "text-ink"}`}>

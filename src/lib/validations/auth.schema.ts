@@ -9,4 +9,7 @@ export const registerSchema = z.object({
   name: z.string().min(1, "Informe seu nome."),
   email: z.string().email("Email inválido."),
   password: z.string().min(8, "A senha deve ter ao menos 8 caracteres."),
+  // Validação/normalização de verdade acontece com normalizePhone (aceita qualquer formato
+  // digitado); aqui só garante que veio algo.
+  phone: z.string().min(1, "Informe seu celular com DDD."),
 });

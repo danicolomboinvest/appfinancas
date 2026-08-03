@@ -20,6 +20,7 @@ export type AdminUserMetric = {
   id: string;
   name: string | null;
   email: string;
+  phone: string | null;
   createdAt: Date;
   /** Valor atual somado da carteira (o "quanto tem investido"). */
   patrimonioInvestido: number;
@@ -58,7 +59,7 @@ const num = (v: unknown): number => (v == null ? 0 : Number(v));
 
 export async function getAdminOverview(sort: AdminUserSort = "patrimonio"): Promise<AdminOverview> {
   const [users, assetsByUser, entriesByCat, monthsRows] = await Promise.all([
-    prisma.user.findMany({ select: { id: true, name: true, email: true, createdAt: true } }),
+    prisma.user.findMany({ select: { id: true, name: true, email: true, phone: true, createdAt: true } }),
     prisma.asset.groupBy({ by: ["userId"], _sum: { currentValue: true, investedValue: true } }),
     prisma.monthlyEntry.groupBy({
       by: ["userId", "category"],
@@ -98,6 +99,7 @@ export async function getAdminOverview(sort: AdminUserSort = "patrimonio"): Prom
       id: u.id,
       name: u.name,
       email: u.email,
+      phone: u.phone,
       createdAt: u.createdAt,
       patrimonioInvestido: num(assets?.currentValue),
       custoCarteira: num(assets?.investedValue),

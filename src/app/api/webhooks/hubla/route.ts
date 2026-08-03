@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { normalizePhone } from "@/lib/phone";
 import { grantFromHubla, revokeFromHubla } from "@/lib/repositories/allowedEmail.repo";
 import { isProductAllowed, recordSeenProduct, type HublaProduct } from "@/lib/repositories/allowedProduct.repo";
 import { findUserByEmail } from "@/lib/repositories/user.repo";
@@ -37,6 +38,17 @@ function extractEmail(event: unknown): string | null {
   const payer = invoice?.payer as Record<string, unknown> | undefined;
   const email = user?.email ?? payer?.email;
   return typeof email === "string" && email.includes("@") ? email : null;
+}
+
+/** Celular que a pessoa preencheu na compra (event.user.phone ou invoice.payer.phone). */
+function extractPhone(event: unknown): string | null {
+  if (!event || typeof event !== "object") return null;
+  const e = event as Record<string, unknown>;
+  const user = e.user as Record<string, unknown> | undefined;
+  const invoice = e.invoice as Record<string, unknown> | undefined;
+  const payer = invoice?.payer as Record<string, unknown> | undefined;
+  const phone = user?.phone ?? payer?.phone ?? user?.phoneNumber ?? payer?.phoneNumber;
+  return typeof phone === "string" ? normalizePhone(phone) : null;
 }
 
 /**
@@ -113,7 +125,11 @@ export async function POST(request: Request) {
         products: products.map((p) => p.name ?? p.id),
       });
     }
-    const { isNew } = await grantFromHubla(email, allowed.name ? `Hubla: ${allowed.name}` : `Hubla: ${type}`);
+    const { isNew } = await grantFromHubla(
+      email,
+      allowed.name ? `Hubla: ${allowed.name}` : `Hubla: ${type}`,
+      extractPhone(payload.event),
+    );
 
     // Convite por e-mail ("crie sua conta") só na 1ª liberação — o Hubla manda mais de um
     // evento pra mesma compra — e só se a pessoa ainda não tem conta. Melhor esforço: se o

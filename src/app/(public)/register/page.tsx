@@ -33,6 +33,16 @@ export default function RegisterPage() {
           <Field label="Nome" id="name" name="name" type="text" required />
           <Field label="Email" id="email" name="email" type="email" required autoComplete="email" />
           <Field
+            label="Celular (WhatsApp)"
+            id="phone"
+            name="phone"
+            type="tel"
+            required
+            placeholder="(11) 98765-4321"
+            autoComplete="tel"
+            inputMode="tel"
+          />
+          <Field
             label="Senha"
             id="password"
             name="password"

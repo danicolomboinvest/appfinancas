@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getRequiredSession } from "@/lib/auth/session";
 import { updateOwnProfile, getOwnUser } from "@/lib/repositories/user.repo";
 import { profileSchema } from "@/lib/validations/user-settings.schema";
+import { normalizePhone } from "@/lib/phone";
 
 export type ProfileState = { error?: string };
 
@@ -13,6 +14,12 @@ export async function updateProfileAction(_prevState: ProfileState, formData: Fo
     email: formData.get("email"),
     avatarUrl: formData.get("avatarUrl") || "",
   });
+  const phoneRaw = String(formData.get("phone") ?? "").trim();
+  // Campo vazio = quer remover; preenchido tem que ser um celular válido.
+  const phone = phoneRaw ? normalizePhone(phoneRaw) : null;
+  if (phoneRaw && !phone) {
+    return { error: "Celular inválido. Use DDD + número, ex.: (11) 98765-4321." };
+  }
 
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
@@ -33,6 +40,7 @@ export async function updateProfileAction(_prevState: ProfileState, formData: Fo
   await updateOwnProfile(ctx, {
     name: parsed.data.name,
     avatarUrl: parsed.data.avatarUrl || undefined,
+    phone,
   });
   revalidatePath("/configuracoes/perfil");
   return {};

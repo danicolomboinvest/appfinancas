@@ -129,6 +129,8 @@ model User {
   id           String   @id @default(cuid())
   email        String   @unique
   passwordHash String
+  /// Celular (WhatsApp) — pedido no cadastro e/ou puxado da compra no Hubla.
+  phone                String?
   name         String?
   avatarUrl    String?
   role         Role     @default(CLIENT)
@@ -544,6 +546,8 @@ model AllowedEmail {
   active    Boolean      @default(true)
   /// Anotação livre: turma, nome do produto no Hubla, motivo da liberação manual etc.
   note      String?
+  /// Celular que veio da compra no Hubla — copiado pro User quando a conta é criada.
+  phone     String?
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
 }

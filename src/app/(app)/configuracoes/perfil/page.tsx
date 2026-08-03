@@ -3,6 +3,7 @@ import { getOwnUser } from "@/lib/repositories/user.repo";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { ProfileForm } from "./ProfileForm";
+import { formatPhone } from "@/lib/phone";
 
 export default async function PerfilPage() {
   const ctx = await getRequiredSession();
@@ -14,7 +15,7 @@ export default async function PerfilPage() {
 
       <PageHeader title="Perfil" subtitle="Suas informações pessoais." />
 
-      <ProfileForm defaults={{ name: user.name, email: user.email, avatarUrl: user.avatarUrl }} />
+      <ProfileForm defaults={{ name: user.name, email: user.email, avatarUrl: user.avatarUrl, phone: formatPhone(user.phone) }} />
     </div>
   );
 }

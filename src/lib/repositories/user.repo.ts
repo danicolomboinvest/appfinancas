@@ -15,13 +15,14 @@ export async function findExistingUserEmails(emails: string[]): Promise<string[]
   return users.map((u) => u.email);
 }
 
-export async function createUser(input: { email: string; password: string; name: string }) {
+export async function createUser(input: { email: string; password: string; name: string; phone?: string }) {
   const passwordHash = await bcrypt.hash(input.password, SALT_ROUNDS);
   return prisma.user.create({
     data: {
       email: input.email,
       passwordHash,
       name: input.name,
+      phone: input.phone ?? null,
     },
   });
 }
@@ -64,7 +65,10 @@ export async function touchLastSeen(userId: string, previous: Date | null): Prom
 }
 
 /** E-mail fica de fora de propósito: é a chave do acesso (allowlist), só muda via suporte. */
-export async function updateOwnProfile(ctx: AuthContext, input: { name?: string; avatarUrl?: string }) {
+export async function updateOwnProfile(
+  ctx: AuthContext,
+  input: { name?: string; avatarUrl?: string; phone?: string | null },
+) {
   return prisma.user.update({ where: { id: ctx.userId }, data: input });
 }
 
