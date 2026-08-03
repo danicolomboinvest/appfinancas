@@ -3,6 +3,7 @@ import {
   estimateTrip,
   findDestination,
   searchDestinations,
+  findCheaperMonth,
   computeTripTotals,
   clampCategoryValue,
   MAX_CATEGORY_VALUE,
@@ -169,5 +170,89 @@ describe("computeTripTotals / clampCategoryValue", () => {
     expect(clampCategoryValue(Number.NaN)).toBe(0);
     expect(clampCategoryValue(99_999_999)).toBe(MAX_CATEGORY_VALUE);
     expect(computeTripTotals([-100, Number.NaN, 1000]).subtotal).toBe(1000);
+  });
+});
+
+describe("temporada (o mesmo lugar custa diferente conforme o mês)", () => {
+  const emCaboFrio = (month: number) =>
+    estimateTrip({ legs: [{ destinationKey: "cabo-frio", days: 7 }], travelers: 2, style: "medio", month })!;
+
+  it("Cabo Frio em dezembro é bem mais caro que em maio (alta temporada de praia)", () => {
+    const dezembro = emCaboFrio(12);
+    const maio = emCaboFrio(5);
+    expect(dezembro.total).toBeGreaterThan(maio.total);
+    // Réveillon não é 5% mais caro: a diferença tem que ser sentida.
+    expect(dezembro.total / maio.total).toBeGreaterThan(1.3);
+    expect(dezembro.seasonLevel).toBe("alta");
+    expect(maio.seasonLevel).toBe("baixa");
+  });
+
+  it("a alta temporada NÃO é a mesma pra todo destino", () => {
+    const trip = (key: string, month: number) =>
+      estimateTrip({ legs: [{ destinationKey: key, days: 7 }], travelers: 2, style: "medio", month })!;
+    // Praia brasileira: dezembro caro, julho intermediário.
+    expect(trip("cabo-frio", 12).total).toBeGreaterThan(trip("cabo-frio", 7).total);
+    // Serra gaúcha: julho (frio) é mais caro que março.
+    expect(trip("gramado", 7).total).toBeGreaterThan(trip("gramado", 3).total);
+    // Mediterrâneo: agosto é o pico, janeiro é o fundo.
+    expect(trip("santorini", 8).total).toBeGreaterThan(trip("santorini", 1).total * 1.5);
+    // Safári africano: seca (agosto) acima da estação chuvosa (março).
+    expect(trip("kruger", 8).total).toBeGreaterThan(trip("kruger", 3).total);
+    // Dubai: inverno ameno é caro, verão escaldante é barato — invertido em relação à Europa.
+    expect(trip("dubai", 1).total).toBeGreaterThan(trip("dubai", 7).total);
+  });
+
+  it("temporada mexe em passagem e hospedagem, não em comida e passeios", () => {
+    const dezembro = emCaboFrio(12);
+    const maio = emCaboFrio(5);
+    expect(dezembro.flights).toBeGreaterThan(maio.flights);
+    expect(dezembro.lodging).toBeGreaterThan(maio.lodging);
+    expect(dezembro.food).toBe(maio.food);
+    expect(dezembro.activities).toBe(maio.activities);
+  });
+
+  it("sem mês informado, o cálculo sai neutro (sem ajuste)", () => {
+    const semMes = estimateTrip({ legs: [{ destinationKey: "cabo-frio", days: 7 }], travelers: 2, style: "medio" })!;
+    expect(semMes.seasonFactor).toBe(1);
+    expect(semMes.seasonLevel).toBe("media");
+  });
+
+  it("num roteiro, o destino onde se fica mais tempo pesa mais na temporada", () => {
+    const maisTempoNaPraia = estimateTrip({
+      legs: [
+        { destinationKey: "cabo-frio", days: 10 },
+        { destinationKey: "sao-paulo", days: 1 },
+      ],
+      travelers: 2,
+      style: "medio",
+      month: 12,
+    })!;
+    expect(maisTempoNaPraia.seasonLevel).toBe("alta");
+  });
+
+  it("sugere um mês mais barato quando a economia vale a pena", () => {
+    const dica = findCheaperMonth({
+      legs: [{ destinationKey: "cabo-frio", days: 7 }],
+      travelers: 2,
+      style: "medio",
+      month: 12,
+    });
+    expect(dica).not.toBeNull();
+    expect(dica!.savings).toBeGreaterThan(0);
+    // Maio/junho são o fundo do poço na praia brasileira.
+    expect([5, 6]).toContain(dica!.month);
+  });
+
+  it("não sugere nada quando já se está num mês barato", () => {
+    expect(
+      findCheaperMonth({ legs: [{ destinationKey: "cabo-frio", days: 7 }], travelers: 2, style: "medio", month: 5 }),
+    ).toBeNull();
+  });
+
+  it("mês inválido não quebra: cai em neutro", () => {
+    for (const month of [0, 13, -1, 1.5, Number.NaN]) {
+      const est = estimateTrip({ legs: [{ destinationKey: "cabo-frio", days: 5 }], travelers: 2, style: "medio", month })!;
+      expect(est.seasonFactor).toBe(1);
+    }
   });
 });

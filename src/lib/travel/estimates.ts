@@ -104,6 +104,135 @@ const HOP_SAME_REGION: Record<TravelRegion, number> = {
   Oceania: 1100,
 };
 
+/**
+ * TEMPORADA. O mesmo lugar custa muito diferente conforme o mês — e a alta temporada NÃO é a
+ * mesma pra todo mundo: praia brasileira lota no réveillon, Gramado lota no inverno e no Natal
+ * Luz, o Mediterrâneo ferve em agosto, o safári africano é melhor na seca. Por isso cada
+ * destino tem um PERFIL de temporada, e não um "verão" único.
+ *
+ * Os fatores multiplicam PASSAGEM e HOSPEDAGEM (é neles que a temporada pesa de verdade);
+ * comida e passeios seguem fora, porque variam pouco.
+ */
+export type SeasonProfile =
+  | "praia_brasil"
+  | "serra_brasil"
+  | "cidade_brasil"
+  | "natureza_brasil"
+  | "verao_sul"
+  | "ski_sul"
+  | "andes"
+  | "caribe"
+  | "eua"
+  | "europa"
+  | "mediterraneo"
+  | "aurora"
+  | "asia_tropical"
+  | "asia_temperada"
+  | "africa_safari"
+  | "deserto"
+  | "neutro";
+
+/** Fator por mês (janeiro → dezembro). 1 = preço normal; 1.5 = 50% mais caro. */
+const SEASON_FACTORS: Record<SeasonProfile, number[]> = {
+  // Réveillon e Carnaval no pico; julho (férias escolares) sobe; maio/junho é o melhor preço.
+  praia_brasil: [1.55, 1.35, 1.0, 0.92, 0.85, 0.85, 1.25, 0.88, 0.9, 0.95, 1.02, 1.5],
+  // Frio é o produto: junho/julho lotam. Dezembro sobe pelo Natal Luz e afins.
+  serra_brasil: [1.15, 1.02, 0.92, 0.95, 1.0, 1.3, 1.45, 1.05, 0.95, 1.0, 1.1, 1.45],
+  // Capital não é destino de temporada: varia pouco, sobe só nas férias.
+  cidade_brasil: [1.05, 1.0, 0.95, 0.95, 0.95, 0.95, 1.12, 0.95, 0.95, 1.0, 1.0, 1.12],
+  // Chapadas, Pantanal, Amazônia: melhores na seca, e julho é férias.
+  natureza_brasil: [0.95, 0.9, 0.88, 0.95, 1.02, 1.12, 1.4, 1.15, 1.05, 1.0, 0.92, 1.15],
+  // Hemisfério sul (Patagônia, Oceania, África do Sul): verão é dezembro a fevereiro.
+  verao_sul: [1.4, 1.3, 1.0, 0.9, 0.82, 0.8, 0.9, 0.85, 0.92, 1.0, 1.15, 1.4],
+  // Bariloche e afins têm DUAS altas: neve no inverno e verão no fim do ano.
+  ski_sul: [1.25, 1.15, 0.85, 0.8, 0.85, 1.3, 1.55, 1.35, 0.95, 0.85, 0.9, 1.2],
+  // Cusco, La Paz, Uyuni: a estação seca (maio a setembro) é a boa — e a cara.
+  andes: [0.95, 0.9, 0.92, 1.0, 1.1, 1.3, 1.4, 1.3, 1.1, 1.0, 0.95, 1.0],
+  // Caribe: seca de dezembro a abril no pico; setembro/outubro é temporada de furacões.
+  caribe: [1.35, 1.42, 1.45, 1.18, 0.95, 0.88, 1.02, 0.92, 0.75, 0.8, 0.95, 1.45],
+  eua: [0.92, 0.9, 1.05, 1.02, 1.05, 1.25, 1.35, 1.2, 0.95, 0.95, 1.0, 1.3],
+  // Verão europeu (jun-ago) é o pico; novembro a março é o fundo do poço de preço.
+  europa: [0.8, 0.8, 0.88, 1.0, 1.1, 1.3, 1.45, 1.4, 1.15, 0.98, 0.8, 1.05],
+  // Ilhas gregas, Ibiza, Costa Amalfitana: agosto é insano, inverno quase fecha.
+  mediterraneo: [0.7, 0.7, 0.8, 0.95, 1.15, 1.4, 1.6, 1.65, 1.25, 0.95, 0.7, 0.75],
+  // Lapônia e Islândia: a aurora boreal é produto de inverno.
+  aurora: [1.4, 1.3, 1.15, 0.9, 0.85, 1.05, 1.15, 1.05, 1.0, 1.0, 1.15, 1.5],
+  // Sudeste asiático: seca de dezembro a março; monções derrubam o preço no meio do ano.
+  asia_tropical: [1.3, 1.3, 1.2, 1.0, 0.88, 0.85, 0.95, 0.95, 0.85, 0.9, 1.05, 1.35],
+  // Japão/Coreia: cerejeiras (mar-abr) e folhagem de outono (out-nov) são os picos.
+  asia_temperada: [0.88, 0.9, 1.3, 1.35, 1.05, 0.95, 1.0, 1.05, 1.05, 1.25, 1.2, 0.92],
+  // Safári: estação seca (junho a outubro) concentra os animais — e os preços.
+  africa_safari: [0.9, 0.88, 0.85, 0.92, 1.05, 1.25, 1.4, 1.4, 1.2, 1.05, 0.9, 1.05],
+  // Dubai, Egito, Marrocos: inverno é ameno e caro; verão é forno e barato.
+  deserto: [1.2, 1.2, 1.15, 1.05, 0.9, 0.75, 0.72, 0.75, 0.9, 1.1, 1.25, 1.3],
+  neutro: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+};
+
+/** Perfil padrão da região, quando o destino não está na lista de exceções abaixo. */
+const REGION_SEASON: Record<TravelRegion, SeasonProfile> = {
+  Brasil: "praia_brasil",
+  "América do Sul": "verao_sul",
+  "América do Norte": "eua",
+  "Caribe e América Central": "caribe",
+  Europa: "europa",
+  "África e Oriente Médio": "deserto",
+  Ásia: "asia_tropical",
+  Oceania: "verao_sul",
+};
+
+const SEASON_BY_KEY: Record<string, SeasonProfile> = {};
+function season(profile: SeasonProfile, ...keys: string[]) {
+  for (const key of keys) SEASON_BY_KEY[key] = profile;
+}
+
+season(
+  "cidade_brasil",
+  "sao-paulo", "belo-horizonte", "curitiba", "porto-alegre", "brasilia", "goiania", "campo-grande",
+  "cuiaba", "teresina", "palmas", "porto-velho", "rio-branco", "boa-vista", "macapa", "blumenau",
+);
+season(
+  "serra_brasil",
+  "gramado", "campos-do-jordao", "monte-verde", "petropolis", "tiradentes", "ouro-preto",
+  "bento-goncalves", "cambara-do-sul", "urubici", "sao-joaquim", "pocos-de-caldas", "holambra",
+  "serra-do-cipo",
+);
+season(
+  "natureza_brasil",
+  "chapada-diamantina", "chapada-dos-veadeiros", "chapada-dos-guimaraes", "bonito", "pantanal",
+  "jalapao", "lencois-maranhenses", "capitolio", "brotas", "presidente-figueiredo", "foz-do-iguacu",
+  "pirenopolis", "caldas-novas", "olimpia", "manaus", "alter-do-chao", "belem",
+);
+season("ski_sul", "bariloche");
+season("andes", "cusco", "arequipa", "la-paz", "uyuni", "quito");
+season("caribe", "cartagena", "san-andres", "seychelles", "mauricio", "cabo-verde");
+season("verao_sul", "cidade-do-cabo", "joanesburgo");
+season(
+  "mediterraneo",
+  "santorini", "mykonos", "creta", "atenas", "ibiza", "maiorca", "sardenha", "sicilia",
+  "costa-amalfitana", "dubrovnik", "split", "algarve", "tenerife", "malta", "nice", "cinque-terre",
+);
+season("aurora", "laponia", "reykjavik");
+season("africa_safari", "kruger", "serengeti", "masai-mara", "namibia", "zanzibar");
+season("asia_temperada", "toquio", "kyoto", "osaka", "seul", "pequim", "xangai", "hong-kong", "taipe");
+
+export function seasonProfileFor(destination: TravelDestination): SeasonProfile {
+  return SEASON_BY_KEY[destination.key] ?? REGION_SEASON[destination.region];
+}
+
+/** Fator de temporada do destino no mês (1-12). Mês inválido/ausente = sem ajuste. */
+export function seasonFactorFor(destination: TravelDestination, month?: number): number {
+  if (!month || !Number.isInteger(month) || month < 1 || month > 12) return 1;
+  return SEASON_FACTORS[seasonProfileFor(destination)][month - 1];
+}
+
+export type SeasonLevel = "alta" | "media" | "baixa";
+
+export function seasonLevelFor(factor: number): SeasonLevel {
+  if (factor >= 1.12) return "alta";
+  if (factor <= 0.92) return "baixa";
+  return "media";
+}
+
 /** Passagem varia menos entre estilos (tarifa é tarifa); diárias variam bem mais. */
 const STYLE_MULTIPLIER: Record<TravelStyle, { flight: number; daily: number }> = {
   economico: { flight: 0.85, daily: 0.65 },
@@ -472,6 +601,8 @@ export type TripInput = {
   legs: TripLeg[];
   travelers: number;
   style: TravelStyle;
+  /** Mês da viagem (1-12). Sem ele, o cálculo sai sem ajuste de temporada. */
+  month?: number;
 };
 
 export type LegEstimate = {
@@ -483,6 +614,9 @@ export type LegEstimate = {
   activities: number;
   /** Diárias deste trecho (sem passagem — a passagem é da viagem toda). */
   subtotal: number;
+  /** Fator de temporada aplicado a este destino no mês escolhido. */
+  seasonFactor: number;
+  seasonLevel: SeasonLevel;
 };
 
 export type TripEstimate = {
@@ -498,6 +632,9 @@ export type TripEstimate = {
   buffer: number;
   total: number;
   perPerson: number;
+  /** Efeito médio da temporada no mês escolhido (1 = neutro, 1.4 = 40% mais caro). */
+  seasonFactor: number;
+  seasonLevel: SeasonLevel;
 };
 
 /** Faixas sãs pros inputs (o cliente também limita, aqui é a garantia). */
@@ -538,19 +675,23 @@ export function computeTripTotals(values: number[]): { subtotal: number; buffer:
  * seria muito acima do real: quem faz Paris e Roma compra um voo pra Europa e um trecho curto
  * entre as duas.
  */
-function estimateFlights(destinations: TravelDestination[]): number {
+function estimateFlights(destinations: TravelDestination[], month?: number): number {
   if (destinations.length === 0) return 0;
-  const mainTicket = Math.max(...destinations.map((dest) => FLIGHT_BAND[dest.band]));
-  let hops = 0;
+  // A passagem principal segue a temporada do destino que a define (o trecho mais caro).
+  const main = destinations.reduce((worst, dest) =>
+    FLIGHT_BAND[dest.band] > FLIGHT_BAND[worst.band] ? dest : worst,
+  );
+  let total = FLIGHT_BAND[main.band] * seasonFactorFor(main, month);
   for (let i = 1; i < destinations.length; i++) {
     const previous = destinations[i - 1];
     const current = destinations[i];
-    hops +=
+    const hop =
       previous.region === current.region
         ? HOP_SAME_REGION[current.region]
-        : Math.round(FLIGHT_BAND[current.band] * 0.55);
+        : FLIGHT_BAND[current.band] * 0.55;
+    total += hop * seasonFactorFor(current, month);
   }
-  return mainTicket + hops;
+  return Math.round(total);
 }
 
 export function estimateTrip(input: TripInput): TripEstimate | null {
@@ -573,7 +714,9 @@ export function estimateTrip(input: TripInput): TripEstimate | null {
     const isLast = index === resolved.length - 1;
     const nights = isLast ? Math.max(days - 1, 1) : days;
     const daily = TIER_DAILY[leg.destination.tier];
-    const lodging = Math.round(daily.lodging * nights * rooms * mult.daily);
+    // Temporada pesa na hospedagem (comida e passeios variam pouco, ficam fora).
+    const seasonFactor = seasonFactorFor(leg.destination, input.month);
+    const lodging = Math.round(daily.lodging * nights * rooms * mult.daily * seasonFactor);
     const food = Math.round(daily.food * days * travelers * mult.daily);
     const activities = Math.round(daily.activities * days * travelers * mult.daily);
     return {
@@ -584,10 +727,19 @@ export function estimateTrip(input: TripInput): TripEstimate | null {
       food,
       activities,
       subtotal: lodging + food + activities,
+      seasonFactor,
+      seasonLevel: seasonLevelFor(seasonFactor),
     };
   });
 
-  const flights = Math.round(estimateFlights(legs.map((leg) => leg.destination)) * travelers * mult.flight);
+  const flights = Math.round(
+    estimateFlights(
+      legs.map((leg) => leg.destination),
+      input.month,
+    ) *
+      travelers *
+      mult.flight,
+  );
   const lodging = legs.reduce((sum, leg) => sum + leg.lodging, 0);
   const food = legs.reduce((sum, leg) => sum + leg.food, 0);
   const activities = legs.reduce((sum, leg) => sum + leg.activities, 0);
@@ -605,5 +757,38 @@ export function estimateTrip(input: TripInput): TripEstimate | null {
     buffer,
     total,
     perPerson: Math.round(total / travelers),
+    // Média ponderada pelos dias: num roteiro, o destino onde se fica mais tempo pesa mais.
+    seasonFactor: weightedSeasonFactor(legs),
+    seasonLevel: seasonLevelFor(weightedSeasonFactor(legs)),
   };
+}
+
+function weightedSeasonFactor(legs: LegEstimate[]): number {
+  const totalDays = legs.reduce((sum, leg) => sum + leg.days, 0);
+  if (totalDays === 0) return 1;
+  return legs.reduce((sum, leg) => sum + leg.seasonFactor * leg.days, 0) / totalDays;
+}
+
+export type CheaperMonth = { month: number; total: number; savings: number };
+
+/**
+ * Procura, entre os 12 meses seguintes ao escolhido, um que saia sensivelmente mais barato —
+ * é a dica que faz a pessoa economizar de verdade ("mesma viagem em maio custa R$ 3 mil a
+ * menos"). Só sugere se a economia for relevante (≥ 8%), pra não virar ruído.
+ */
+export function findCheaperMonth(input: TripInput & { month: number }): CheaperMonth | null {
+  const current = estimateTrip(input);
+  if (!current) return null;
+  let best: CheaperMonth | null = null;
+  for (let ahead = 1; ahead <= 12; ahead++) {
+    const month = ((input.month - 1 + ahead) % 12) + 1;
+    const candidate = estimateTrip({ ...input, month });
+    if (!candidate) continue;
+    const savings = current.total - candidate.total;
+    if (savings > 0 && (!best || savings > best.savings)) {
+      best = { month, total: candidate.total, savings };
+    }
+  }
+  if (!best || best.savings < current.total * 0.08) return null;
+  return best;
 }

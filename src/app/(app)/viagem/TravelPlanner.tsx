@@ -2,7 +2,7 @@
 
 import { useActionState, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Plane, BedDouble, UtensilsCrossed, TicketCheck, ShieldQuestion, ArrowRight, Plus, X, MapPin } from "lucide-react";
+import { Plane, BedDouble, UtensilsCrossed, TicketCheck, ShieldQuestion, ArrowRight, Plus, X, MapPin, TrendingDown } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
@@ -11,6 +11,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { useSuccessToast } from "@/components/ui/useSuccessToast";
 import {
   estimateTrip,
+  findCheaperMonth,
   computeTripTotals,
   clampCategoryValue,
   MAX_EXTRA_CATEGORIES,
@@ -33,6 +34,24 @@ function nextMonthValue(): string {
   const now = new Date();
   const next = new Date(now.getFullYear(), now.getMonth() + 1, 1);
   return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, "0")}`;
+}
+
+const MONTH_NAMES = [
+  "janeiro", "fevereiro", "março", "abril", "maio", "junho",
+  "julho", "agosto", "setembro", "outubro", "novembro", "dezembro",
+];
+
+/** Número do mês (1-12) de um valor "YYYY-MM". */
+function monthNumberOf(monthValue: string): number | undefined {
+  const m = Number(monthValue.split("-")[1]);
+  return Number.isInteger(m) && m >= 1 && m <= 12 ? m : undefined;
+}
+
+/** Próxima vez que esse mês acontece no futuro, como "YYYY-MM" (pra trocar num toque). */
+function nextOccurrenceOf(month: number): string {
+  const now = new Date();
+  const year = month - 1 > now.getMonth() ? now.getFullYear() : now.getFullYear() + 1;
+  return `${year}-${String(month).padStart(2, "0")}`;
 }
 
 /** Meses inteiros entre hoje e o mês da viagem (mínimo 1, pra dica de poupança mensal). */
@@ -80,16 +99,29 @@ export function TravelPlanner() {
   const [state, formAction, isPending] = useActionState(createTravelGoalAction, initialState);
   useSuccessToast(isPending, state.error, state.created ? "Meta da viagem criada! Veja em Metas." : undefined);
 
-  const sig = `${legs.map((leg) => `${leg.destination.key}:${leg.days}`).join("|")}#${travelers}#${style}`;
+  const tripMonthNumber = monthNumberOf(tripMonth);
+  const sig = `${legs.map((leg) => `${leg.destination.key}:${leg.days}`).join("|")}#${travelers}#${style}#${tripMonthNumber}`;
   const estimate = useMemo(
     () =>
       estimateTrip({
         legs: legs.map((leg) => ({ destinationKey: leg.destination.key, days: leg.days })),
         travelers,
         style,
+        month: tripMonthNumber,
       }),
-    [legs, travelers, style],
+    [legs, travelers, style, tripMonthNumber],
   );
+
+  // Dica de economia: existe um mês nos próximos 12 que sai bem mais barato?
+  const cheaper = useMemo(() => {
+    if (!tripMonthNumber || legs.length === 0) return null;
+    return findCheaperMonth({
+      legs: legs.map((leg) => ({ destinationKey: leg.destination.key, days: leg.days })),
+      travelers,
+      style,
+      month: tripMonthNumber,
+    });
+  }, [legs, travelers, style, tripMonthNumber]);
 
   const activeOverrides = overrides.sig === sig ? overrides.values : {};
   const values: Record<FixedKey, number> | null = estimate
@@ -233,14 +265,53 @@ export function TravelPlanner() {
               </div>
             </div>
 
-            <Field
-              label="Quando pretende ir?"
-              name="tripMonth"
-              type="month"
-              min={nextMonthValue()}
-              value={tripMonth}
-              onChange={(e) => setTripMonth(e.target.value)}
-            />
+            <div className="flex flex-col gap-2">
+              <Field
+                label="Quando pretende ir?"
+                name="tripMonth"
+                type="month"
+                min={nextMonthValue()}
+                value={tripMonth}
+                onChange={(e) => setTripMonth(e.target.value)}
+              />
+
+              {/* Temporada: o MESMO lugar custa bem diferente conforme o mês (réveillon na
+                  praia, inverno na serra, agosto no Mediterrâneo). */}
+              {estimate && estimate.seasonLevel !== "media" && (
+                <p
+                  className={`rounded-lg px-3 py-2 text-xs ${
+                    estimate.seasonLevel === "alta" ? "bg-danger-soft text-danger" : "bg-success-soft text-success"
+                  }`}
+                >
+                  {estimate.seasonLevel === "alta" ? (
+                    <>
+                      <strong>Alta temporada</strong> — passagem e hospedagem ficam cerca de{" "}
+                      {Math.round((estimate.seasonFactor - 1) * 100)}% mais caras neste mês.
+                    </>
+                  ) : (
+                    <>
+                      <strong>Baixa temporada</strong> — boa época: passagem e hospedagem saem cerca de{" "}
+                      {Math.round((1 - estimate.seasonFactor) * 100)}% mais baratas.
+                    </>
+                  )}
+                </p>
+              )}
+
+              {cheaper && (
+                <button
+                  type="button"
+                  onClick={() => setTripMonth(nextOccurrenceOf(cheaper.month))}
+                  className="flex items-center gap-2 rounded-lg border border-border-strong bg-surface-2 px-3 py-2 text-left transition-colors hover:bg-surface"
+                >
+                  <TrendingDown className="size-4 shrink-0 text-success" aria-hidden />
+                  <span className="min-w-0 flex-1 text-xs text-ink">
+                    Em <strong>{MONTH_NAMES[cheaper.month - 1]}</strong> a mesma viagem sai{" "}
+                    <strong>{formatBRL(cheaper.savings)}</strong> mais barata.
+                  </span>
+                  <span className="shrink-0 text-xs font-semibold text-accent-strong">Trocar</span>
+                </button>
+              )}
+            </div>
           </>
         )}
 
