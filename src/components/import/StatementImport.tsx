@@ -5,6 +5,7 @@ import { Upload, Check, ArrowRight, Lock, Plus } from "lucide-react";
 import type { ParentCategory } from "@prisma/client";
 import { PARENT_CATEGORIES, PARENT_CATEGORY_LABEL } from "@/lib/categories";
 import { Button } from "@/components/ui/Button";
+import { MonthPicker } from "@/components/ui/MonthPicker";
 import { useToast } from "@/components/ui/toast-context";
 import { createCategoryAction } from "@/lib/actions/category";
 import {
@@ -239,15 +240,11 @@ export function StatementImport({ onDone }: { onDone: () => void }) {
             de cada compra não é o que importa aqui, é quando a fatura foi paga). */}
         {docType === "fatura" && (
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="fatura-month" className="text-caption text-ink-muted">
-              De qual mês é esta fatura?
-            </label>
-            <input
+            <MonthPicker
+              label="De qual mês é esta fatura?"
               id="fatura-month"
-              type="month"
               value={faturaMonth}
-              onChange={(e) => setFaturaMonth(e.target.value)}
-              className="w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
+              onChange={setFaturaMonth}
             />
             <span className="text-caption text-ink-faint">
               Todas as compras desta fatura vão entrar em {formatMonthYear(faturaMonth)}, mesmo as que aconteceram no mês

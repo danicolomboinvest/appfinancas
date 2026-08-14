@@ -6,6 +6,7 @@ import { Plane, BedDouble, UtensilsCrossed, TicketCheck, ShieldQuestion, ArrowRi
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
+import { MonthPicker } from "@/components/ui/MonthPicker";
 import { FitText } from "@/components/ui/FitText";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { useSuccessToast } from "@/components/ui/useSuccessToast";
@@ -266,13 +267,12 @@ export function TravelPlanner() {
             </div>
 
             <div className="flex flex-col gap-2">
-              <Field
+              <MonthPicker
                 label="Quando pretende ir?"
                 name="tripMonth"
-                type="month"
                 min={nextMonthValue()}
                 value={tripMonth}
-                onChange={(e) => setTripMonth(e.target.value)}
+                onChange={setTripMonth}
               />
 
               {/* Temporada: o MESMO lugar custa bem diferente conforme o mês (réveillon na
