@@ -76,7 +76,17 @@ type Leg = { destination: TravelDestination; days: number };
 type ExtraRow = { id: number; name: string; value: number };
 
 const VALUE_INPUT_CLASSES =
-  "w-24 shrink-0 rounded-lg border border-border-strong bg-surface px-2 py-1 text-right text-sm tabular-nums text-ink transition-colors focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent";
+  "w-28 shrink-0 rounded-lg border border-border-strong bg-surface py-1 pl-8 pr-2 text-right text-sm tabular-nums text-ink transition-colors focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent";
+
+/** Input de valor com o "R$" fixo dentro — número solto parecia campo vazio, não dinheiro. */
+function MoneyInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <span className="relative shrink-0">
+      <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-ink-faint">R$</span>
+      <input type="number" inputMode="numeric" min={0} {...props} className={VALUE_INPUT_CLASSES} />
+    </span>
+  );
+}
 
 /**
  * Planejador de viagem: monta um roteiro com VÁRIOS destinos ("3 dias em Paris, 4 em Roma"),
@@ -317,21 +327,20 @@ export function TravelPlanner() {
 
         {values && totals && estimate && (
           <div className="flex flex-col gap-2.5 rounded-xl bg-surface-2 p-4">
-            <p className="text-xs text-ink-faint">Toque num valor para ajustar ao seu orçamento.</p>
+            <p className="text-xs text-ink-faint">
+              Estes valores são a média para uma viagem como a sua. Se o seu orçamento for diferente, é só tocar no
+              número e ajustar — o total recalcula na hora.
+            </p>
             {FIXED_ROWS.map(({ key, label, icon: Icon }) => (
               <div key={key} className="flex items-center justify-between gap-3">
                 <label htmlFor={`trip-${key}`} className="flex min-w-0 items-center gap-2 text-sm text-ink-muted">
                   <Icon className="size-4 shrink-0 text-ink-faint" aria-hidden />
                   <span className="truncate">{label}</span>
                 </label>
-                <input
+                <MoneyInput
                   id={`trip-${key}`}
-                  type="number"
-                  inputMode="numeric"
-                  min={0}
                   value={values[key]}
                   onChange={(e) => setFixedValue(key, e.target.value)}
-                  className={VALUE_INPUT_CLASSES}
                 />
               </div>
             ))}
@@ -346,14 +355,10 @@ export function TravelPlanner() {
                   onChange={(e) => updateExtra(extra.id, { name: e.target.value })}
                   className="min-w-0 flex-1 rounded-lg border border-border-strong bg-surface px-2 py-1 text-sm text-ink placeholder:text-ink-faint transition-colors focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
                 />
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  min={0}
+                <MoneyInput
                   aria-label={`Valor de ${extra.name || "categoria extra"}`}
                   value={extra.value}
                   onChange={(e) => updateExtra(extra.id, { value: clampCategoryValue(Number(e.target.value)) })}
-                  className={VALUE_INPUT_CLASSES}
                 />
                 <button
                   type="button"
