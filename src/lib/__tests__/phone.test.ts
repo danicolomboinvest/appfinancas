@@ -22,6 +22,16 @@ describe("normalizePhone", () => {
     expect(normalizePhone("")).toBeNull();
   });
 
+  it("rejeita número estrangeiro com DDI explícito, em vez de confundir com DDD brasileiro", () => {
+    // Bug real: "+1 647 919 5010" (Canadá) perdia o "+1" ao tirar os não-dígitos e "16"
+    // (Campinas) virava DDD válido por acidente — guardava celular canadense como se fosse BR.
+    expect(normalizePhone("+1 647 919 5010")).toBeNull();
+    expect(normalizePhone("+44 7732 060362")).toBeNull(); // Reino Unido
+    expect(normalizePhone("+351 912 345 678")).toBeNull(); // Portugal
+    // +55 continua aceito normalmente (não é o país estrangeiro que quebra, é a falta de DDI).
+    expect(normalizePhone("+55 11 98765-4321")).toBe("5511987654321");
+  });
+
   it("exibe formatado e gera link de WhatsApp", () => {
     expect(formatPhone("5511987654321")).toBe("(11) 98765-4321");
     expect(formatPhone("552134567890")).toBe("(21) 3456-7890");

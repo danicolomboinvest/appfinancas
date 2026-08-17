@@ -5,7 +5,13 @@
  */
 
 export function normalizePhone(raw: string): string | null {
-  const digits = raw.replace(/\D/g, "");
+  const trimmed = raw.trim();
+  // "+" com DDI explícito de outro país (+1, +44...) é sempre estrangeiro — rejeita direto.
+  // Sem essa checagem, "+1 647 919 5010" perdia o "+1" ao tirar os não-dígitos e "16" virava
+  // DDD válido por acidente (Campinas é 16), guardando um celular canadense como se fosse BR.
+  if (trimmed.startsWith("+") && !trimmed.startsWith("+55")) return null;
+
+  const digits = trimmed.replace(/\D/g, "");
   if (!digits) return null;
   // Tira o DDI se a pessoa digitou (com ou sem +); recolocamos no final.
   const local = digits.startsWith("55") && digits.length >= 12 ? digits.slice(2) : digits;
