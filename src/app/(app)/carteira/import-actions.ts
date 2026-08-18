@@ -1,10 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import type { AssetClass, FixedIncomeIndex } from "@prisma/client";
 import { getRequiredSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
 import { createAsset } from "@/lib/repositories/asset.repo";
+import { refreshDividendsForTickers } from "@/lib/repositories/dividend.repo";
 import { parsePortfolioStatement, guessAssetClass } from "@/lib/import/portfolio-parser";
 import { extractUploadFromForm, UploadReadError, PasswordRequiredError } from "@/lib/import/extract-text";
 
@@ -176,6 +178,11 @@ export async function importPortfolioAction(holdings: ConfirmedHolding[]): Promi
     });
     created += 1;
   }
+
+  // Calendário de dividendos de TODOS os tickers do lote, depois de responder — não trava a
+  // revisão da importação esperando dezenas de requisições ao investidor10.
+  const tickers = holdings.map((h) => h.ticker).filter(Boolean);
+  if (tickers.length > 0) after(() => refreshDividendsForTickers(tickers));
 
   revalidatePath("/carteira");
   revalidatePath("/carteira/por-objetivo");

@@ -1,8 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { getRequiredSession } from "@/lib/auth/session";
 import { createAsset, updateOwnAsset, deleteOwnAsset } from "@/lib/repositories/asset.repo";
+import { refreshDividendsForTicker } from "@/lib/repositories/dividend.repo";
 import { assetSchema } from "@/lib/validations/asset.schema";
 
 export type AssetFormState = { error?: string };
@@ -29,6 +31,9 @@ export async function createAssetAction(_prevState: AssetFormState, formData: Fo
 
   const ctx = await getRequiredSession();
   await createAsset(ctx, parsed.data);
+  // Busca o calendário de dividendos DEPOIS de responder — a pessoa não espera o scraping pra
+  // ver o ativo criado; se achar proventos, aparecem na próxima vez que ela abrir a Carteira.
+  if (parsed.data.ticker) after(() => refreshDividendsForTicker(parsed.data.ticker!));
   revalidatePath("/carteira");
   revalidatePath("/carteira/por-objetivo");
   return {};

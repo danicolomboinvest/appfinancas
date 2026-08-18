@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ShieldCheck, Target, Sparkles, ChevronLeft, ChevronRight } from "lucide-react";
+import { ShieldCheck, Target, Sparkles, Coins, ChevronLeft, ChevronRight } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
 import { getYearlySummary } from "@/lib/consolidation/yearly";
 import { getMonthlySummary } from "@/lib/consolidation/monthly";
@@ -7,6 +7,7 @@ import { getPortfolioByObjective } from "@/lib/consolidation/portfolio";
 import { getEmergencyFund } from "@/lib/repositories/emergency-fund.repo";
 import { listGoals } from "@/lib/repositories/goal.repo";
 import { getPlanningParams } from "@/lib/repositories/planning-params.repo";
+import { sumUpcomingDividends } from "@/lib/repositories/dividend.repo";
 import { getAnnualPlannedVsActual } from "@/lib/planning/budget-comparison";
 import { computeGoalPlan } from "@/lib/planning/goal";
 import { computeAccumulation } from "@/lib/planning/accumulation";
@@ -65,17 +66,27 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
   const currentMonth = isCurrentYear ? now.getMonth() + 1 : 12;
   const previousMonthDate = new Date(year, currentMonth - 2, 1);
 
-  const [summary, portfolio, emergencyFund, goals, planningParams, currentMonthSummary, previousMonthSummary, plannedVsActual] =
-    await Promise.all([
-      getYearlySummary(ctx, year),
-      getPortfolioByObjective(ctx),
-      getEmergencyFund(ctx),
-      listGoals(ctx),
-      getPlanningParams(ctx),
-      getMonthlySummary(ctx, year, currentMonth),
-      getMonthlySummary(ctx, previousMonthDate.getFullYear(), previousMonthDate.getMonth() + 1),
-      getAnnualPlannedVsActual(ctx, year),
-    ]);
+  const [
+    summary,
+    portfolio,
+    emergencyFund,
+    goals,
+    planningParams,
+    currentMonthSummary,
+    previousMonthSummary,
+    plannedVsActual,
+    upcomingDividends,
+  ] = await Promise.all([
+    getYearlySummary(ctx, year),
+    getPortfolioByObjective(ctx),
+    getEmergencyFund(ctx),
+    listGoals(ctx),
+    getPlanningParams(ctx),
+    getMonthlySummary(ctx, year, currentMonth),
+    getMonthlySummary(ctx, previousMonthDate.getFullYear(), previousMonthDate.getMonth() + 1),
+    getAnnualPlannedVsActual(ctx, year),
+    sumUpcomingDividends(ctx, 30),
+  ]);
 
   const plannedByMonth = Object.fromEntries(
     plannedVsActual.months.map((m) => [m.month, m.totalPlanned]),
@@ -235,6 +246,14 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
                   : "Déficit: falta patrimônio para o padrão de vida desejado"
             }
             tone={usufructSurplus === null ? "neutral" : usufructSurplus >= 0 ? "success" : "danger"}
+          />
+          <LinkedStatCard
+            href="/carteira#dividendos"
+            icon={Coins}
+            label="Dividendos (30 dias)"
+            value={upcomingDividends > 0 ? formatBRL(upcomingDividends) : "Nenhum previsto"}
+            hint={upcomingDividends > 0 ? "Estimativa dos ativos da sua carteira" : "Aparece quando houver provento anunciado"}
+            tone={upcomingDividends > 0 ? "success" : "neutral"}
           />
         </div>
       </div>

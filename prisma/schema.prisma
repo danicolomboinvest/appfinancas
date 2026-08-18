@@ -447,6 +447,29 @@ model Asset {
   updatedAt              DateTime       @updatedAt
 }
 
+/// Provento (dividendo/JSCP/rendimento) de um TICKER — não de um Asset/usuário: um MXRF11 só
+/// precisa ser raspado uma vez, mesmo com 50 pessoas tendo ele na carteira (mesmo espírito do
+/// cache de cotação em Asset.currentUnitPrice). "Próximos dividendos" na Carteira faz o join
+/// com Asset.ticker/quantity na hora de exibir, não guarda nada por usuário aqui.
+model DividendEvent {
+  id            String   @id @default(cuid())
+  /// Normalizado maiúsculo ("MXRF11"), pra casar com Asset.ticker.
+  ticker        String
+  /// Texto original do investidor10 ("Dividendos", "JSCP", "Rend. Trib."...) — sem enum fechado
+  /// porque o site já variou esse rótulo antes e um valor novo não pode quebrar o scraper.
+  kind          String
+  /// "Data com": quem tem o ativo até este dia tem direito ao provento.
+  exDate        DateTime @db.Date
+  paymentDate   DateTime @db.Date
+  valuePerShare Decimal  @db.Decimal(18, 8)
+  fetchedAt     DateTime @default(now())
+
+  // Mesma linha raspada de novo (refresh diário) não duplica.
+  @@unique([ticker, kind, exDate, paymentDate, valuePerShare])
+  @@index([ticker])
+  @@index([paymentDate])
+}
+
 /// Percentuais-alvo por classe de estratégia definidos pelo próprio usuário (soma = 100%),
 /// independente da alocação-ideal por ativo individual em Asset.idealAllocationPercent.
 model PortfolioStrategy {

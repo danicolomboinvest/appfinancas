@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getRequiredSession } from "@/lib/auth/session";
 import { listAssets } from "@/lib/repositories/asset.repo";
 import { listGoals } from "@/lib/repositories/goal.repo";
+import { listUpcomingDividendsForUser } from "@/lib/repositories/dividend.repo";
 import {
   getPortfolioStrategyComparison,
   STRATEGY_ASSET_CLASS_LABEL,
@@ -9,13 +10,15 @@ import {
 } from "@/lib/portfolio/strategy";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { AssetsSection, type StrategySummary } from "./AssetsSection";
+import { UpcomingDividendsSection } from "./UpcomingDividendsSection";
 
 export default async function CarteiraPage() {
   const ctx = await getRequiredSession();
-  const [assets, goals, comparison] = await Promise.all([
+  const [assets, goals, comparison, dividends] = await Promise.all([
     listAssets(ctx),
     listGoals(ctx),
     getPortfolioStrategyComparison(ctx),
+    listUpcomingDividendsForUser(ctx),
   ]);
   const goalNameById = new Map(goals.map((goal) => [goal.id, goal.name]));
 
@@ -54,6 +57,10 @@ export default async function CarteiraPage() {
           </>
         }
       />
+
+      {/* Componente de servidor (sem "use client"): recebe os Date do Prisma direto, sem cruzar
+          a fronteira servidor→cliente. */}
+      <UpcomingDividendsSection dividends={dividends} />
 
       <AssetsSection
         assets={assets.map((asset) => ({
