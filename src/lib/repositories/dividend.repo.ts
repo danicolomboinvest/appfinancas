@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db/prisma";
 import type { AuthContext } from "@/lib/auth/session";
 import { fetchTickerDividends, looksLikeMarketTicker } from "@/lib/analysis/dividend-scraper";
+import { classifyDividendTax, netValuePerShare, type TaxTreatment } from "@/lib/analysis/dividend-tax";
 
 /**
  * Busca e grava os proventos de UM ticker (melhor esforço — nunca lança; scraping falho não
@@ -42,10 +43,16 @@ export type UpcomingDividend = {
   kind: string;
   exDate: Date;
   paymentDate: Date;
+  /** Valor por cota ANUNCIADO (bruto, antes de imposto). */
   valuePerShare: number;
   /** Quantidade somada, se o usuário tiver o mesmo ticker em mais de um lançamento. */
   quantity: number;
+  /** Bruto (quantidade × valor anunciado) — o que a empresa/fundo anunciou pagar. */
+  estimatedGrossTotal: number;
+  /** Estimativa do que CAI NA CONTA: já descontados os 15% de JSCP (regra sem exceção);
+   * Dividendos/Rendimentos de FII são isentos, então bruto = líquido. */
   estimatedTotal: number;
+  taxTreatment: TaxTreatment;
 };
 
 /**
@@ -87,7 +94,9 @@ export async function listUpcomingDividendsForUser(ctx: AuthContext, limit = 20)
         paymentDate: event.paymentDate,
         valuePerShare,
         quantity,
-        estimatedTotal: quantity * valuePerShare,
+        estimatedGrossTotal: quantity * valuePerShare,
+        estimatedTotal: quantity * netValuePerShare(event.kind, valuePerShare),
+        taxTreatment: classifyDividendTax(event.kind),
       };
     })
     .filter((event) => event.quantity > 0)

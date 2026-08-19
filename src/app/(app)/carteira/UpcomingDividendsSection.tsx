@@ -55,12 +55,20 @@ export function UpcomingDividendsSection({ dividends }: { dividends: UpcomingDiv
                   </p>
                 </div>
               </div>
-              <p className="shrink-0 text-sm font-medium tabular-nums text-success">{formatBRL(d.estimatedTotal)}</p>
+              <div className="shrink-0 text-right">
+                <p className="text-sm font-medium tabular-nums text-success">{formatBRL(d.estimatedTotal)}</p>
+                {/* JSCP: já líquido de 15% de IR. Tipo sem regra certa (ex.: "Rend. Trib."): valor
+                    é bruto, aviso explícito em vez de fingir que sabemos o imposto. */}
+                {d.taxTreatment === "jscp_15" && <p className="text-[10px] text-ink-faint">líquido de IR</p>}
+                {d.taxTreatment === "desconhecido" && <p className="text-[10px] text-ink-faint">bruto, s/ IR</p>}
+              </div>
             </div>
           ))}
         </Card>
         <p className="mt-2 text-xs text-ink-faint">
-          Valor estimado (quantidade × valor por cota anunciado). Pode mudar até o pagamento; fonte: investidor10.
+          Estimativa com a quantidade de hoje — se você comprar ou vender antes da data-com, o valor muda. JSCP mostra
+          já líquido dos 15% de IR retido na fonte; Dividendos e Rendimentos de FII costumam ser isentos. Fonte:
+          investidor10.
         </p>
       </CollapsibleSection>
     </div>
