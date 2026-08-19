@@ -7,6 +7,7 @@ import { ProgressBar } from "@/components/ui/ProgressBar";
 import { CountUp } from "@/components/ui/CountUp";
 import { DeleteGoalButton } from "./DeleteGoalButton";
 import { EditGoalButton } from "./EditGoalButton";
+import { GoalCheckIn } from "./GoalCheckIn";
 import { GoalTrajectoryChart } from "./GoalTrajectoryChart";
 import type { GoalCalcResult, GoalTrajectoryPoint } from "@/lib/planning/goal";
 
@@ -86,6 +87,7 @@ export function GoalCard({
   plan,
   trajectory,
   variant,
+  checkin,
 }: {
   id: string;
   name: string;
@@ -97,6 +99,8 @@ export function GoalCard({
   plan: GoalCalcResult;
   trajectory: GoalTrajectoryPoint[];
   variant: GoalVariant;
+  /** Presente = está na janela de perguntar "você fez o aporte sugerido?" este mês. */
+  checkin: { monthKey: string; monthLabel: string; suggestedAmount: number } | null;
 }) {
   const progressPercent = targetAmount > 0 ? Math.min(currentAmount / targetAmount, 1) : 0;
   const achieved = variant === "achieved";
@@ -126,6 +130,17 @@ export function GoalCard({
         <span className={`w-fit rounded-full px-2.5 py-0.5 text-xs font-medium ${VARIANT_STATUS_CLASSES[variant]}`}>
           {VARIANT_STATUS_LABEL[variant]}
         </span>
+      )}
+
+      {/* Check-in mensal: sem isso, "no ritmo" é só matemática projetada — ninguém nunca
+          confirma que o aporte do mês realmente saiu do bolso. */}
+      {checkin && (
+        <GoalCheckIn
+          goalId={id}
+          monthKey={checkin.monthKey}
+          monthLabel={checkin.monthLabel}
+          suggestedAmount={checkin.suggestedAmount}
+        />
       )}
 
       <div>

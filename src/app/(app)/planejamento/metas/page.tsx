@@ -2,6 +2,8 @@ import { Target } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
 import { listGoalsWithProgress } from "@/lib/repositories/goal.repo";
 import { computeGoalPlan, computeGoalTrajectory, type GoalCalcResult } from "@/lib/planning/goal";
+import { getGoalCheckinEligibility, monthKeyLabel } from "@/lib/planning/goal-checkin";
+import { nowInBrazil } from "@/lib/date/brazil-now";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { NewGoalButton } from "./NewGoalButton";
@@ -24,6 +26,7 @@ const VARIANT_RANK: Record<GoalVariant, number> = { behind: 0, onTrack: 1, ahead
 export default async function MetasPage() {
   const ctx = await getRequiredSession();
   const goals = await listGoalsWithProgress(ctx);
+  const now = nowInBrazil();
 
   const withPlans = goals.map((goal) => {
     const targetAmount = Number(goal.targetAmount);
@@ -38,6 +41,20 @@ export default async function MetasPage() {
     };
     const plan = computeGoalPlan(goalInput);
     const trajectory = computeGoalTrajectory(goalInput, plan);
+    const variant = resolveVariant(plan, currentAmount, targetAmount);
+
+    // Check-in mensal: só faz sentido perguntar "fez o aporte?" pra meta ainda ativa, com
+    // aporte sugerido de verdade (> 0) e dentro da janela (fim do mês ou começo do seguinte).
+    const checkinEligibility = getGoalCheckinEligibility(now, goal.checkinDismissedMonth);
+    const checkin =
+      variant !== "achieved" && checkinEligibility.eligible && plan.requiredMonthlyContribution > 0
+        ? {
+            monthKey: checkinEligibility.monthKey,
+            monthLabel: monthKeyLabel(checkinEligibility.monthKey),
+            suggestedAmount: plan.requiredMonthlyContribution,
+          }
+        : null;
+
     return {
       goal,
       plan,
@@ -45,7 +62,8 @@ export default async function MetasPage() {
       targetAmount,
       currentAmount,
       targetDate,
-      variant: resolveVariant(plan, currentAmount, targetAmount),
+      variant,
+      checkin,
     };
   });
 
@@ -74,7 +92,7 @@ export default async function MetasPage() {
         />
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {sorted.map(({ goal, plan, trajectory, targetAmount, currentAmount, targetDate, variant }) => (
+          {sorted.map(({ goal, plan, trajectory, targetAmount, currentAmount, targetDate, variant, checkin }) => (
             <GoalCard
               key={goal.id}
               id={goal.id}
@@ -87,6 +105,7 @@ export default async function MetasPage() {
               plan={plan}
               trajectory={trajectory}
               variant={variant}
+              checkin={checkin}
             />
           ))}
         </div>

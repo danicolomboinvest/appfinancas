@@ -364,6 +364,10 @@ model Goal {
   annualRate          Decimal?       @db.Decimal(12, 6)
   status              GoalStatus     @default(NOT_STARTED)
   icon                GoalIcon       @default(GENERICO)
+  /// Mês (YYYY-MM) já perguntado "fez o aporte sugerido?" pra esta meta — mesmo padrão do
+  /// User.recapDismissedMonth. Enquanto for o mesmo mês da janela atual, o check-in não
+  /// aparece de novo (já foi respondido, seja "fiz", "fiz parcial" ou "não fiz").
+  checkinDismissedMonth String?
   entries             MonthlyEntry[]
   assets              Asset[]
   createdAt           DateTime       @default(now())
