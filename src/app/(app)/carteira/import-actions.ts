@@ -10,7 +10,20 @@ import { refreshDividendsForTickers } from "@/lib/repositories/dividend.repo";
 import { parsePortfolioStatement, guessAssetClass } from "@/lib/import/portfolio-parser";
 import { extractUploadFromForm, UploadReadError, PasswordRequiredError } from "@/lib/import/extract-text";
 
-const ASSET_CLASS_VALUES: AssetClass[] = ["RENDA_FIXA", "ACAO", "FII", "TESOURO_DIRETO", "FUNDO", "CRIPTO", "OUTRO"];
+/** Record (não array solto) por classe existente: se um valor novo entrar no enum AssetClass
+ * sem passar por aqui, o TypeScript acusa na hora — evita repetir o bug de uma classe nova
+ * (ex.: INTERNACIONAL) cair batida pro "OUTRO" nesse guard sem ninguém perceber. */
+const ASSET_CLASS_GUARD: Record<AssetClass, true> = {
+  RENDA_FIXA: true,
+  ACAO: true,
+  FII: true,
+  TESOURO_DIRETO: true,
+  FUNDO: true,
+  CRIPTO: true,
+  INTERNACIONAL: true,
+  OUTRO: true,
+};
+const ASSET_CLASS_VALUES = Object.keys(ASSET_CLASS_GUARD) as AssetClass[];
 
 /** Situação de cada ativo do extrato em relação à carteira atual:
  * novo (não existe), atualizado (quantidade/valor mudou) ou igual (nada a fazer). */

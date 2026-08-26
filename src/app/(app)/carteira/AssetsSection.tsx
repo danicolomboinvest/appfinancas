@@ -31,12 +31,14 @@ const CLASS_LABEL: Record<string, string> = {
   TESOURO_DIRETO: "Tesouro Direto",
   FUNDO: "Fundo",
   CRIPTO: "Cripto",
+  INTERNACIONAL: "Internacional",
   OUTRO: "Outro",
 };
 
 /** Mesma paleta de STRATEGY_ASSET_CLASS_COLOR (src/lib/portfolio/strategy.ts), duplicada aqui
  * pra não puxar aquele módulo (que importa Prisma) pro bundle do cliente, dá o mesmo golpe de
- * vista de cor consistente com o donut acima, sem precisar do mapeamento fino por indexador. */
+ * vista de cor consistente com o donut acima, sem precisar do mapeamento fino por indexador.
+ * INTERNACIONAL usa a cor de EXTERIOR (mesmo bucket na Estratégia). */
 const CLASS_COLOR: Record<string, string> = {
   RENDA_FIXA: "#4FA3C7",
   TESOURO_DIRETO: "#4FA3C7",
@@ -44,6 +46,7 @@ const CLASS_COLOR: Record<string, string> = {
   FII: "#6D8BD0",
   FUNDO: "#9AA0A6",
   CRIPTO: "#9AA0A6",
+  INTERNACIONAL: "#D98C6A",
   OUTRO: "#9AA0A6",
 };
 
@@ -55,11 +58,12 @@ const CLASS_PLURAL: Record<string, string> = {
   RENDA_FIXA: "Renda Fixa",
   TESOURO_DIRETO: "Tesouro Direto",
   CRIPTO: "Cripto",
+  INTERNACIONAL: "Internacional",
   OUTRO: "Outros",
 };
 
 /** Ordem fixa das classes no gráfico/filtros (cores estáveis entre visitas). */
-const CLASS_ORDER = ["ACAO", "FII", "FUNDO", "RENDA_FIXA", "TESOURO_DIRETO", "CRIPTO", "OUTRO"];
+const CLASS_ORDER = ["ACAO", "FII", "FUNDO", "INTERNACIONAL", "RENDA_FIXA", "TESOURO_DIRETO", "CRIPTO", "OUTRO"];
 
 /** Rótulo curto do indexador de renda fixa, mostrado na linha do ativo. */
 const FI_LABEL: Record<string, string> = { POS_FIXADO: "Pós-fixado", IPCA: "IPCA+", PREFIXADO: "Prefixado" };

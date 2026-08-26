@@ -16,6 +16,7 @@ const ASSET_CLASS_OPTIONS = [
   { value: "TESOURO_DIRETO", label: "Tesouro Direto" },
   { value: "FUNDO", label: "Fundo" },
   { value: "CRIPTO", label: "Cripto" },
+  { value: "INTERNACIONAL", label: "Internacional" },
   { value: "OUTRO", label: "Outro" },
 ];
 

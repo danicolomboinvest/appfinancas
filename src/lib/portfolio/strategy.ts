@@ -49,6 +49,7 @@ const DEFAULT_MAPPING: Record<AssetClass, StrategyAssetClass> = {
   FII: "FIIS",
   FUNDO: "OUTROS",
   CRIPTO: "OUTROS",
+  INTERNACIONAL: "EXTERIOR",
   OUTRO: "OUTROS",
 };
 

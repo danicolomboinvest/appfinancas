@@ -24,6 +24,13 @@ describe("guessAssetClass", () => {
     expect(guessAssetClass("ITUB3")).toBe("ACAO");
     expect(guessAssetClass("TSLA34")).toBe("ACAO"); // BDR termina em 34 → trata como ação
   });
+
+  it("reconhece ticker internacional (letras, sem dígito) — extrato da Avenue e afins", () => {
+    expect(guessAssetClass("VOO")).toBe("INTERNACIONAL");
+    expect(guessAssetClass("AAPL")).toBe("INTERNACIONAL");
+    expect(guessAssetClass("SCHD")).toBe("INTERNACIONAL");
+    expect(guessAssetClass("O")).toBe("INTERNACIONAL"); // ticker de 1 letra existe (Realty Income)
+  });
 });
 
 describe("parsePortfolioStatement", () => {
@@ -196,13 +203,13 @@ PETR4;50;1.800,00`;
     // Ação brasileira.
     expect(byName.get("WEGE3")).toMatchObject({ value: 1971, assetClass: "ACAO" });
 
-    // "Exterior - Com/Sem Hedge": fundos/ETFs internacionais → FUNDO (não há classe própria de ETF).
-    expect(byName.get("ETF - WESTERN ASSENT US INDEX")).toMatchObject({ value: 2446, assetClass: "FUNDO" });
-    expect(byName.get("ENCORE LONG BIAS CIC")).toMatchObject({ value: 1838, assetClass: "FUNDO" }); // herda o grupo, prejuízo
-    expect(byName.get("KAPITALO KAPPA")).toMatchObject({ value: 496, assetClass: "FUNDO" }); // nome com espaço à direita, trimado
+    // "Exterior - Com/Sem Hedge": ações/ETFs/fundos que investem fora do Brasil → INTERNACIONAL.
+    expect(byName.get("ETF - WESTERN ASSENT US INDEX")).toMatchObject({ value: 2446, assetClass: "INTERNACIONAL" });
+    expect(byName.get("ENCORE LONG BIAS CIC")).toMatchObject({ value: 1838, assetClass: "INTERNACIONAL" }); // herda o grupo, prejuízo
+    expect(byName.get("KAPITALO KAPPA")).toMatchObject({ value: 496, assetClass: "INTERNACIONAL" }); // nome com espaço à direita, trimado
 
     // VOO: "Preço atual" em branco (aporte recém-feito) → cai pro valor investido, não zera.
-    expect(byName.get("VOO")).toMatchObject({ value: 1800, investedValue: 1800, assetClass: "FUNDO" });
+    expect(byName.get("VOO")).toMatchObject({ value: 1800, investedValue: 1800, assetClass: "INTERNACIONAL" });
 
     // Nenhuma linha vira "quantidade" fantasma: a planilha só registra R$, não cotas.
     for (const h of holdings) expect(h.quantity).toBe(0);

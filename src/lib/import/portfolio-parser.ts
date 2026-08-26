@@ -40,10 +40,14 @@ export function detectFixedIncomeIndex(rateText: string, name = ""): FixedIncome
 /** Ticker B3: 4 letras + 1–2 dígitos (PETR4, ITUB3, HGLG11, BOVA11). */
 const TICKER_RE = /\b([A-Z]{4}\d{1,2})\b/;
 
-/** Classe pela terminação do ticker: 11 → FII (dominante na B3), 3/4/5/6 → ação, resto → outro. */
+/** Classe pela terminação do ticker: 11 → FII (dominante na B3), 3/4/5/6 → ação (BDR incluso,
+ * termina em 34), 1-5 letras sem dígito → ativo internacional (AAPL, VOO, SCHD — extrato da
+ * Avenue e afins caem aqui), resto → outro. */
 export function guessAssetClass(ticker: string): AssetClass {
-  if (/11$/.test(ticker)) return "FII";
-  if (/[3456]$/.test(ticker)) return "ACAO";
+  const clean = ticker.trim().toUpperCase();
+  if (/11$/.test(clean)) return "FII";
+  if (/[3456]$/.test(clean)) return "ACAO";
+  if (/^[A-Z]{1,5}$/.test(clean)) return "INTERNACIONAL";
   return "OUTRO";
 }
 
@@ -323,9 +327,10 @@ function classifyAllocationCategory(text: string): AssetClass {
   if (t.includes("IMOBILI") || t.includes(" FII")) return "FII";
   if (t.includes("AÇ") || t.includes("ACA") || t.includes("AÇÕES") || t.includes("ACOES")) return "ACAO";
   if (t.includes("CRIPTO") || t.includes("BITCOIN")) return "CRIPTO";
-  // "Exterior - Com/Sem Hedge": os ativos que a Dani orienta ali são fundos/ETFs
-  // internacionais, não papéis negociados direto — mais perto de FUNDO que de OUTRO.
-  if (t.includes("EXTERIOR") || t.includes("FUNDO")) return "FUNDO";
+  // "Exterior - Com/Sem Hedge": investimento fora do Brasil, seja ETF/ação direta ou fundo
+  // que investe lá fora — mapeia pro bucket "Exterior" da Estratégia da Carteira.
+  if (t.includes("EXTERIOR") || t.includes("INTERNACIONAL")) return "INTERNACIONAL";
+  if (t.includes("FUNDO")) return "FUNDO";
   return "OUTRO";
 }
 

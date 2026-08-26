@@ -20,6 +20,7 @@ const CLASS_LABEL: Record<AssetClass, string> = {
   TESOURO_DIRETO: "Tesouro Direto",
   FUNDO: "Fundo",
   CRIPTO: "Cripto",
+  INTERNACIONAL: "Internacional",
   OUTRO: "Outro",
 };
 const CLASS_VALUES = Object.keys(CLASS_LABEL) as AssetClass[];

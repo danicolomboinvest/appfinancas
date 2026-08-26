@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
+import type { AssetClass } from "@prisma/client";
 import { getRequiredSession } from "@/lib/auth/session";
 import { createAsset, updateOwnAsset, deleteOwnAsset } from "@/lib/repositories/asset.repo";
 import { refreshDividendsForTicker } from "@/lib/repositories/dividend.repo";
@@ -70,9 +71,21 @@ export async function bulkSetObjectiveAction(
   objective: "RESERVA_EMERGENCIA" | "LIBERDADE_FINANCEIRA" | "OUTRO" | "META",
   goalId?: string,
 ): Promise<{ ok: true; updated: number } | { ok: false; error: string }> {
-  const ALLOWED_CLASSES = ["RENDA_FIXA", "ACAO", "FII", "TESOURO_DIRETO", "FUNDO", "CRIPTO", "OUTRO"];
+  // Record (não array solto): se um valor novo entrar no enum AssetClass sem passar por aqui,
+  // o TypeScript acusa — evita repetir o bug de uma classe nova (ex.: INTERNACIONAL) cair como
+  // "Opção inválida" nesse guard sem ninguém perceber.
+  const ALLOWED_CLASSES_GUARD: Record<AssetClass, true> = {
+    RENDA_FIXA: true,
+    ACAO: true,
+    FII: true,
+    TESOURO_DIRETO: true,
+    FUNDO: true,
+    CRIPTO: true,
+    INTERNACIONAL: true,
+    OUTRO: true,
+  };
   const ALLOWED_OBJECTIVES = ["RESERVA_EMERGENCIA", "LIBERDADE_FINANCEIRA", "OUTRO", "META"];
-  if (!ALLOWED_CLASSES.includes(assetClass) || !ALLOWED_OBJECTIVES.includes(objective)) {
+  if (!(assetClass in ALLOWED_CLASSES_GUARD) || !ALLOWED_OBJECTIVES.includes(objective)) {
     return { ok: false, error: "Opção inválida." };
   }
   const ctx = await getRequiredSession();

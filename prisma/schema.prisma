@@ -63,6 +63,9 @@ enum AssetClass {
   TESOURO_DIRETO
   FUNDO
   CRIPTO
+  /// Ativo negociado fora do Brasil (ações/ETFs em dólar, ex.: VOO, AAPL) ou fundo/gestora
+  /// que investe no exterior — mapeia pro bucket "Exterior" da Estratégia da Carteira.
+  INTERNACIONAL
   OUTRO
 }
 
