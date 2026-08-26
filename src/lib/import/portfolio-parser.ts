@@ -309,11 +309,92 @@ function parseSectionedHoldings(lines: string[]): ParsedHolding[] {
   return holdings;
 }
 
+// ---------------------------------------------------------------------------
+// Planilha de Alocação (modelo próprio da Dani, distribuído pra alunas preencherem à mão)
+// ---------------------------------------------------------------------------
+
+/** Categoria (coluna "Classificação" da planilha) → classe do app. Por trecho, não por
+ * igualdade exata: cada aluna digita ("Renda Fixa - CDI", "Renda Fixa - Pós fixado"...),
+ * o texto exato varia, a intenção por trás não. */
+function classifyAllocationCategory(text: string): AssetClass {
+  const t = text.toUpperCase();
+  if (t.includes("RENDA FIXA")) return "RENDA_FIXA";
+  if (t.includes("TESOURO")) return "TESOURO_DIRETO";
+  if (t.includes("IMOBILI") || t.includes(" FII")) return "FII";
+  if (t.includes("AÇ") || t.includes("ACA") || t.includes("AÇÕES") || t.includes("ACOES")) return "ACAO";
+  if (t.includes("CRIPTO") || t.includes("BITCOIN")) return "CRIPTO";
+  // "Exterior - Com/Sem Hedge": os ativos que a Dani orienta ali são fundos/ETFs
+  // internacionais, não papéis negociados direto — mais perto de FUNDO que de OUTRO.
+  if (t.includes("EXTERIOR") || t.includes("FUNDO")) return "FUNDO";
+  return "OUTRO";
+}
+
+/**
+ * Planilha de Alocação: modelo próprio da Dani (não é extrato de corretora) — cada aluna
+ * preenche à mão uma linha por ativo, agrupada por "Classificação" (célula mesclada, só a
+ * primeira linha do grupo carrega o texto; nas de baixo herda-se o último valor visto).
+ * Reconhecida pelo cabeçalho ("Classificação" + "Ativo" nas mesmas colunas) — não tem
+ * quantidade de cotas, só o valor investido/atual em R$, diferente do extrato de corretora.
+ * Encerra na linha de TOTAL (sem nome de ativo, com um valor grande de "Invest. Inicial");
+ * o que vem depois (rodapé, anotações soltas, uma segunda tabela vazia de outro propósito)
+ * não é lido.
+ */
+function parseAllocationTemplate(lines: string[]): ParsedHolding[] {
+  const rows = lines.map((line) => line.split(";"));
+  const headerIdx = rows.findIndex((cells) => {
+    const lower = cells.map((c) => c.trim().toLowerCase());
+    return lower.some((c) => c.includes("classifica")) && lower.some((c) => c === "ativo");
+  });
+  if (headerIdx === -1) return [];
+
+  const header = rows[headerIdx].map((c) => c.trim().toLowerCase());
+  const classCol = header.findIndex((c) => c.includes("classifica"));
+  const nameCol = header.findIndex((c) => c === "ativo");
+  const initialCol = header.findIndex((c) => c.includes("invest") && c.includes("inicial"));
+  const currentCol = header.findIndex((c) => c.includes("preço atual") || c.includes("preco atual"));
+  if (nameCol === -1) return [];
+
+  const holdings: ParsedHolding[] = [];
+  let currentClass = "";
+  for (const cells of rows.slice(headerIdx + 1)) {
+    const classText = classCol !== -1 ? (cells[classCol] ?? "").trim() : "";
+    if (classText) currentClass = classText; // célula mesclada: herda o grupo até mudar
+
+    const name = (cells[nameCol] ?? "").trim();
+    const investedValue = initialCol !== -1 ? parseFlexibleNumber(cells[initialCol] ?? "") : NaN;
+
+    // Linha de TOTAL: sem nome de ativo, mas com um valor grande na coluna de investido —
+    // encerra a tabela; o resto é rodapé (anotações soltas, segunda tabela vazia).
+    if (!name && !Number.isNaN(investedValue) && investedValue > 0) break;
+    if (!name) continue; // linha divisória do grupo, sem ativo de verdade
+
+    const currentValue = currentCol !== -1 ? parseFlexibleNumber(cells[currentCol] ?? "") : NaN;
+    // "Preço atual" fica vazio pra aporte recém-feito (ainda sem valorização registrada) —
+    // cai pro valor investido, em vez de zerar o ativo.
+    const value = !Number.isNaN(currentValue) && currentValue > 0 ? currentValue : Math.max(0, investedValue || 0);
+
+    holdings.push({
+      ticker: name,
+      quantity: 0, // a planilha não registra quantidade de cotas, só valor financeiro
+      value,
+      assetClass: classifyAllocationCategory(currentClass),
+      investedValue: Number.isNaN(investedValue) ? undefined : investedValue,
+      fixedIncomeIndex: detectFixedIncomeIndex("", name),
+    });
+  }
+  return holdings;
+}
+
 export function parsePortfolioStatement(content: string): ParsedHolding[] {
   const lines = content.split(/\r?\n/).filter((l) => l.trim() !== "");
   if (lines.length === 0) return [];
 
-  // 1º: extrato em seções (BTG e similares), só produz resultado se achar as tabelas típicas.
+  // 1º: Planilha de Alocação própria da Dani (Classificação + Ativo + Preço atual) — cada
+  // aluna preenche à mão, sem quantidade de cotas.
+  const allocation = parseAllocationTemplate(lines);
+  if (allocation.length > 0) return mergeByTicker(allocation);
+
+  // 2º: extrato em seções (BTG e similares), só produz resultado se achar as tabelas típicas.
   const sectioned = parseSectionedHoldings(lines);
   if (sectioned.length > 0) return mergeByTicker(sectioned);
 
