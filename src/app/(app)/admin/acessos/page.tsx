@@ -1,5 +1,5 @@
 import { requireAdmin } from "@/lib/auth/rbac";
-import { listAllowedEmails } from "@/lib/repositories/allowedEmail.repo";
+import { listAllowedEmails, isExpired } from "@/lib/repositories/allowedEmail.repo";
 import { listAllowedProducts } from "@/lib/repositories/allowedProduct.repo";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
@@ -14,7 +14,8 @@ const dateFmt = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-dig
 export default async function AdminAcessosPage() {
   await requireAdmin();
   const [emails, products] = await Promise.all([listAllowedEmails(), listAllowedProducts()]);
-  const active = emails.filter((e) => e.active).length;
+  const active = emails.filter((e) => e.active && !isExpired(e.expiresAt)).length;
+  const expiredCount = emails.filter((e) => e.active && isExpired(e.expiresAt)).length;
 
   return (
     <div className="flex flex-col gap-8">
@@ -33,6 +34,15 @@ export default async function AdminAcessosPage() {
         <div className="flex items-center justify-between px-4 py-3 text-sm text-ink-muted">
           <span>
             {emails.length} e-mail{emails.length === 1 ? "" : "s"} na lista · {active} ativo{active === 1 ? "" : "s"}
+            {expiredCount > 0 && (
+              <>
+                {" "}
+                ·{" "}
+                <span className="text-danger">
+                  {expiredCount} vencido{expiredCount === 1 ? "" : "s"}
+                </span>
+              </>
+            )}
           </span>
         </div>
         <table className="w-full text-left text-sm">
@@ -42,6 +52,7 @@ export default async function AdminAcessosPage() {
               <th className="px-4 py-3 font-medium">Origem</th>
               <th className="px-4 py-3 font-medium">Anotação</th>
               <th className="px-4 py-3 font-medium">Liberado em</th>
+              <th className="px-4 py-3 font-medium">Acesso até</th>
               <th className="px-4 py-3 font-medium">Status</th>
               <th className="px-4 py-3"></th>
             </tr>
@@ -49,32 +60,40 @@ export default async function AdminAcessosPage() {
           <tbody>
             {emails.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-ink-faint">
+                <td colSpan={7} className="px-4 py-8 text-center text-ink-faint">
                   Nenhum e-mail liberado ainda. Cole a lista de compradores acima para liberar o acesso.
                 </td>
               </tr>
             )}
-            {emails.map((entry) => (
-              <tr
-                key={entry.id}
-                className={`border-b border-border/60 last:border-0 hover:bg-surface-2/40 ${!entry.active ? "opacity-50" : ""}`}
-              >
-                <td className="px-4 py-3 text-ink">{entry.email}</td>
-                <td className="px-4 py-3">
-                  <Badge tone={entry.source === "HUBLA" ? "accent" : "info"}>
-                    {entry.source === "HUBLA" ? "Hubla" : "Manual"}
-                  </Badge>
-                </td>
-                <td className="px-4 py-3 text-ink-muted">{entry.note ?? "—"}</td>
-                <td className="px-4 py-3 text-ink-muted">{dateFmt.format(entry.createdAt)}</td>
-                <td className="px-4 py-3">
-                  <Badge tone={entry.active ? "success" : "neutral"}>{entry.active ? "Ativo" : "Inativo"}</Badge>
-                </td>
-                <td className="px-4 py-3">
-                  <RowActions id={entry.id} active={entry.active} />
-                </td>
-              </tr>
-            ))}
+            {emails.map((entry) => {
+              const expired = entry.active && isExpired(entry.expiresAt);
+              return (
+                <tr
+                  key={entry.id}
+                  className={`border-b border-border/60 last:border-0 hover:bg-surface-2/40 ${!entry.active ? "opacity-50" : ""}`}
+                >
+                  <td className="px-4 py-3 text-ink">{entry.email}</td>
+                  <td className="px-4 py-3">
+                    <Badge tone={entry.source === "HUBLA" ? "accent" : "info"}>
+                      {entry.source === "HUBLA" ? "Hubla" : "Manual"}
+                    </Badge>
+                  </td>
+                  <td className="px-4 py-3 text-ink-muted">{entry.note ?? "—"}</td>
+                  <td className="px-4 py-3 text-ink-muted">{dateFmt.format(entry.createdAt)}</td>
+                  <td className={`px-4 py-3 ${expired ? "text-danger" : "text-ink-muted"}`}>
+                    {entry.expiresAt ? dateFmt.format(entry.expiresAt) : "Sem prazo"}
+                  </td>
+                  <td className="px-4 py-3">
+                    <Badge tone={!entry.active ? "neutral" : expired ? "danger" : "success"}>
+                      {!entry.active ? "Inativo" : expired ? "Expirado" : "Ativo"}
+                    </Badge>
+                  </td>
+                  <td className="px-4 py-3">
+                    <RowActions id={entry.id} active={entry.active} expiresAt={entry.expiresAt} />
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </Card>

@@ -6,12 +6,14 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useSuccessToast } from "@/components/ui/useSuccessToast";
 import { inviteUserAction, type InviteFormState } from "./actions";
+import { toDateInputValue, plusOneYear } from "./date-utils";
 
 const initialState: InviteFormState = {};
 
 export function InviteUserForm() {
   const [state, formAction, isPending] = useActionState(inviteUserAction, initialState);
   const [copied, setCopied] = useState(false);
+  const [expiresAt, setExpiresAt] = useState("");
   useSuccessToast(isPending, state.error, undefined);
 
   const credentials = state.created ? `${state.created.email} / ${state.created.password}` : "";
@@ -64,10 +66,28 @@ export function InviteUserForm() {
           className="w-48"
           placeholder="Mínimo 8 caracteres"
         />
+        <Field
+          label="Acesso até (opcional)"
+          id="invite-expiresAt"
+          name="expiresAt"
+          type="date"
+          className="w-40"
+          value={expiresAt}
+          onChange={(e) => setExpiresAt(e.target.value)}
+        />
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          onClick={() => setExpiresAt(toDateInputValue(plusOneYear(new Date())))}
+        >
+          +1 ano
+        </Button>
         <Button type="submit" disabled={isPending} size="sm">
           {isPending ? "Criando..." : "Criar conta"}
         </Button>
       </div>
+      <p className="text-xs text-ink-faint">Deixe &quot;Acesso até&quot; em branco pra liberar sem prazo.</p>
     </Card>
   );
 }

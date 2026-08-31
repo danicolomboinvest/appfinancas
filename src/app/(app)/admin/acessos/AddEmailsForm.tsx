@@ -1,16 +1,18 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { Field, TextareaField } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useSuccessToast } from "@/components/ui/useSuccessToast";
 import { addEmailsAction, type AccessFormState } from "./actions";
+import { toDateInputValue, plusOneYear } from "./date-utils";
 
 const initialState: AccessFormState = {};
 
 export function AddEmailsForm() {
   const [state, formAction, isPending] = useActionState(addEmailsAction, initialState);
+  const [expiresAt, setExpiresAt] = useState("");
   useSuccessToast(
     isPending,
     state.error,
@@ -38,12 +40,30 @@ export function AddEmailsForm() {
           className="w-56"
           placeholder="Turma 1"
         />
+        <Field
+          label="Acesso até (opcional)"
+          id="expiresAt"
+          name="expiresAt"
+          type="date"
+          className="w-40"
+          value={expiresAt}
+          onChange={(e) => setExpiresAt(e.target.value)}
+        />
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          onClick={() => setExpiresAt(toDateInputValue(plusOneYear(new Date())))}
+        >
+          +1 ano
+        </Button>
         <Button type="submit" disabled={isPending} size="sm">
           {isPending ? "Liberando..." : "Liberar acesso"}
         </Button>
       </div>
       <p className="text-xs text-ink-faint">
-        Colar de novo um e-mail que estava desativado reativa o acesso. Duplicados são ignorados.
+        Colar de novo um e-mail que estava desativado reativa o acesso. Duplicados são ignorados. Deixe &quot;Acesso
+        até&quot; em branco pra liberar sem prazo.
       </p>
     </Card>
   );

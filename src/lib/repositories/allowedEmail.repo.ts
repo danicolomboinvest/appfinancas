@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db/prisma";
+import { nowInBrazil } from "@/lib/date/brazil-now";
 
 /**
  * Lista de e-mails autorizados a usar o app (acesso fechado: só compradores do curso /
@@ -14,13 +15,26 @@ export function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
-/** Um e-mail só tem acesso se está na lista E está ativo. */
+/** Vencido = tinha prazo e a data-limite já passou (comparando só o dia, no fuso do Brasil —
+ * "acesso até 30/08" continua valendo o dia inteiro de 30/08). */
+export function isExpired(expiresAt: Date | null, now: Date = nowInBrazil()): boolean {
+  if (!expiresAt) return false;
+  const limit = nowInBrazil(expiresAt);
+  const today = nowInBrazil(now);
+  return limit.getFullYear() < today.getFullYear() ||
+    (limit.getFullYear() === today.getFullYear() &&
+      (limit.getMonth() < today.getMonth() ||
+        (limit.getMonth() === today.getMonth() && limit.getDate() < today.getDate())));
+}
+
+/** Um e-mail só tem acesso se está na lista, está ativo, E (se tiver prazo) ainda não venceu. */
 export async function isEmailAllowed(email: string): Promise<boolean> {
   const entry = await prisma.allowedEmail.findUnique({
     where: { email: normalizeEmail(email) },
-    select: { active: true },
+    select: { active: true, expiresAt: true },
   });
-  return entry?.active === true;
+  if (entry?.active !== true) return false;
+  return !isExpired(entry.expiresAt);
 }
 
 export async function listAllowedEmails() {
@@ -36,6 +50,9 @@ export async function listAllowedEmails() {
 export async function addAllowedEmails(
   emails: string[],
   note?: string,
+  /** Data-limite do acesso (ex.: liberação por 1 ano). Nulo = sem prazo (padrão); undefined =
+   * não mexe no prazo de quem já existia (só se aplica a quem é criado agora). */
+  expiresAt?: Date | null,
 ): Promise<{ affected: number; toNotify: string[] }> {
   const unique = [...new Set(emails.map(normalizeEmail).filter((e) => e.includes("@")))];
   if (unique.length === 0) return { affected: 0, toNotify: [] };
@@ -52,12 +69,18 @@ export async function addAllowedEmails(
   for (const email of unique) {
     await prisma.allowedEmail.upsert({
       where: { email },
-      // Colar de novo a lista deve reativar quem foi desativado, sem apagar a origem/nota.
-      update: { active: true, ...(note ? { note } : {}) },
-      create: { email, source: "MANUAL", note: note ?? null },
+      // Colar de novo a lista deve reativar quem foi desativado, sem apagar a origem/nota;
+      // o prazo só é atualizado se foi informado agora (não apaga um prazo já definido antes).
+      update: { active: true, ...(note ? { note } : {}), ...(expiresAt !== undefined ? { expiresAt } : {}) },
+      create: { email, source: "MANUAL", note: note ?? null, expiresAt: expiresAt ?? null },
     });
   }
   return { affected: unique.length, toNotify: unique.filter((e) => !alreadyActive.has(e)) };
+}
+
+/** Renovação: a Dani volta na linha de alguém e estende (ou remove, passando null) o prazo. */
+export async function setAllowedEmailExpiry(id: string, expiresAt: Date | null) {
+  return prisma.allowedEmail.update({ where: { id }, data: { expiresAt } });
 }
 
 export async function setAllowedEmailActive(id: string, active: boolean) {

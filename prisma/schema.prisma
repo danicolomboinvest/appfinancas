@@ -578,6 +578,10 @@ model AllowedEmail {
   note      String?
   /// Celular que veio da compra no Hubla — copiado pro User quando a conta é criada.
   phone     String?
+  /// Data-limite do acesso (ex.: liberação por 1 ano, depois precisa renovar). Nulo = acesso
+  /// sem prazo. Vencido não desativa sozinho (não apaga `active`) — só bloqueia login/cadastro
+  /// e aparece como "Expirado" no painel, pra Dani decidir se renova ou desativa de vez.
+  expiresAt DateTime?
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
 }

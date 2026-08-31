@@ -7,6 +7,7 @@ import {
   addAllowedEmails,
   removeAllowedEmail,
   setAllowedEmailActive,
+  setAllowedEmailExpiry,
 } from "@/lib/repositories/allowedEmail.repo";
 import {
   addAllowedProductByName,
@@ -14,7 +15,7 @@ import {
   setAllowedProductActive,
 } from "@/lib/repositories/allowedProduct.repo";
 import { createUserInvite, findUserByEmail, findExistingUserEmails } from "@/lib/repositories/user.repo";
-import { registerSchema } from "@/lib/validations/auth.schema";
+import { adminInviteSchema } from "@/lib/validations/auth.schema";
 import { sendEmail } from "@/lib/email/send";
 import { welcomeEmail, accessGrantedEmail } from "@/lib/email/templates";
 
@@ -28,6 +29,15 @@ function parseEmails(raw: string): string[] {
     .split(/[\s,;]+/)
     .map((s) => s.trim())
     .filter(Boolean);
+}
+
+/** "YYYY-MM-DD" (input type="date") → meio-dia local, evita a data "voltar um dia" na
+ * conversão pra UTC (mesmo golpe usado no lançamento mensal). Campo vazio = undefined (não
+ * mexe no prazo de quem já existia); "" nunca deve virar Invalid Date no Prisma. */
+function parseExpiryDate(raw: FormDataEntryValue | null): Date | undefined {
+  if (typeof raw !== "string" || !raw.trim()) return undefined;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return undefined;
+  return new Date(`${raw}T12:00:00`);
 }
 
 export async function addEmailsAction(_prev: AccessFormState, formData: FormData): Promise<AccessFormState> {
@@ -45,7 +55,8 @@ export async function addEmailsAction(_prev: AccessFormState, formData: FormData
     return { error: `Estes não parecem e-mails válidos: ${invalid.slice(0, 3).join(", ")}${invalid.length > 3 ? "…" : ""}` };
   }
 
-  const { affected, toNotify } = await addAllowedEmails(emails, note || undefined);
+  const expiresAt = parseExpiryDate(formData.get("expiresAt"));
+  const { affected, toNotify } = await addAllowedEmails(emails, note || undefined, expiresAt);
 
   // Avisa por e-mail quem acabou de ser liberado e ainda não tem conta ("crie sua conta com
   // este e-mail"). Melhor esforço: falha de envio não desfaz a liberação.
@@ -77,6 +88,17 @@ export async function removeAccessAction(id: string) {
   await requireAdmin();
   await removeAllowedEmail(id);
   revalidatePath("/admin/acessos");
+}
+
+/** Renovação: define (ou remove, com raw vazio) a data-limite de acesso de um e-mail já na
+ * lista — sem precisar apagar e recriar a linha. */
+export async function setAccessExpiryAction(id: string, raw: string): Promise<{ error?: string }> {
+  await requireAdmin();
+  if (raw && !/^\d{4}-\d{2}-\d{2}$/.test(raw)) return { error: "Data inválida." };
+  const expiresAt = raw ? new Date(`${raw}T12:00:00`) : null;
+  await setAllowedEmailExpiry(id, expiresAt);
+  revalidatePath("/admin/acessos");
+  return {};
 }
 
 export async function addProductAction(_prev: ProductFormState, formData: FormData): Promise<ProductFormState> {
@@ -121,15 +143,16 @@ export async function inviteUserAction(_prev: InviteFormState, formData: FormDat
   const emailRaw = typeof formData.get("email") === "string" ? (formData.get("email") as string).trim() : "";
   const password = typeof formData.get("password") === "string" ? (formData.get("password") as string) : "";
 
-  const parsed = registerSchema.safeParse({ name, email: emailRaw, password });
+  const parsed = adminInviteSchema.safeParse({ name, email: emailRaw, password });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
   const { email } = parsed.data;
 
   const existing = await findUserByEmail(email);
   if (existing) return { error: "Já existe uma conta com este e-mail." };
 
+  const expiresAt = parseExpiryDate(formData.get("expiresAt"));
   await createUserInvite({ email, name, password: parsed.data.password });
-  await addAllowedEmails([email], "Convite VIP (criado pelo admin)");
+  await addAllowedEmails([email], "Convite VIP (criado pelo admin)", expiresAt);
 
   // E-mail de boas-vindas é só um aviso ("sua conta está pronta") — nunca leva a senha, essa a
   // Dani repassa por fora. Melhor esforço: se o envio falhar, a conta continua valendo.
