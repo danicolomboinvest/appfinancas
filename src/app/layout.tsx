@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Albert_Sans, Geist_Mono } from "next/font/google";
+import { BootSplash } from "@/components/brand/BootSplash";
 import "./globals.css";
 
 // Identidade First Light: Albert Sans (variável) é a única família de texto, títulos em
@@ -76,7 +77,10 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }}
         />
       </head>
-      <body className="flex min-h-full flex-col bg-canvas text-ink">{children}</body>
+      <body className="flex min-h-full flex-col bg-canvas text-ink">
+        <BootSplash />
+        {children}
+      </body>
     </html>
   );
 }
