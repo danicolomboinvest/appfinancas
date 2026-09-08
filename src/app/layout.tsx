@@ -68,6 +68,11 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <head>
+        {/* Fundo escuro JÁ na primeira tag <style>, sem depender do CSS externo (que é outra
+            requisição de rede) — no app instalado, numa conexão mais lenta, o navegador pode
+            desenhar o body ANTES do bundle de CSS chegar; sem isso, esse instante pinta branco
+            (fundo padrão) em vez de escuro, mesmo com o BootSplash certo por trás. */}
+        <style dangerouslySetInnerHTML={{ __html: "html,body{background:#0c0c0e}" }} />
         {/* Roda antes da hidratação pra aplicar o tema salvo sem flash. Alterna `type` entre
             server/client (em vez de um <script> comum) pra evitar o aviso do React sobre
             tags <script> renderizadas via JSX, ver node_modules/next/dist/docs/01-app/02-guides/preventing-flash-before-hydration.md */}

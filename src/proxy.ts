@@ -22,8 +22,11 @@ export default auth((req) => {
 export const config = {
   // Deixa passar sem auth os assets do PWA, o browser/OS busca o manifest e os ícones sem a
   // sessão do usuário na hora de instalar o app; se caírem no redirect de login, a instalação
-  // fica sem nome/ícone e o iOS não trata como app standalone.
-  // api/cron e api/webhooks ficam fora do redirect de login: são chamados por serviços
-  // externos (agendador da Vercel, Hubla) sem sessão e validam sozinhos o próprio segredo/token.
-  matcher: ["/((?!api/auth|api/cron|api/webhooks|_next/static|_next/image|favicon.ico|manifest.webmanifest|icons).*)"],
+  // fica sem nome/ícone e o iOS não trata como app standalone. `icon.png` é o ícone de
+  // convenção do Next (usado no <link rel="icon">, cai fora de /icons/ que já tava liberado) —
+  // sem essa exceção, a aba do navegador pedia o ícone deslogada, o middleware respondia com um
+  // redirect pro /login em vez da imagem, e o navegador caía pro favicon.ico como último recurso.
+  matcher: [
+    "/((?!api/auth|api/cron|api/webhooks|_next/static|_next/image|favicon.ico|manifest.webmanifest|icon.png|icons).*)",
+  ],
 };
