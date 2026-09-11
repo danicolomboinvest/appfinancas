@@ -2,7 +2,6 @@ import bcrypt from "bcryptjs";
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { prisma } from "@/lib/db/prisma";
-import { isEmailAllowed } from "@/lib/repositories/allowedEmail.repo";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   // Necessário em produção atrás de um domínio próprio (ex.: financas.danicolombo.com.br) —
@@ -26,10 +25,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const user = await prisma.user.findUnique({ where: { email } });
         if (!user) return null;
 
-        // Acesso fechado: se a liberação foi revogada (reembolso, assinatura cancelada) a
-        // conta continua existindo mas não entra mais. ADMIN é sempre exceção — a Dani não
-        // pode ser trancada pra fora do próprio painel.
-        if (user.role !== "ADMIN" && !(await isEmailAllowed(user.email))) return null;
+        // Modelo freemium: qualquer conta loga (parte de finanças pessoais é grátis). Quem não
+        // pagou só esbarra na trava depois, dentro das telas de investimento (ver
+        // hasPremiumAccess em allowedEmail.repo.ts) — login em si não é mais fechado.
 
         // Conta travada por excesso de tentativas, nem compara a senha.
         if (user.lockedUntil && user.lockedUntil > new Date()) return null;

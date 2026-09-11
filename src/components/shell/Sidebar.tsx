@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronsLeft, ChevronsRight, LogOut, Plus } from "lucide-react";
+import { ChevronsLeft, ChevronsRight, Lock, LogOut, Plus } from "lucide-react";
 import { BrandMark } from "@/components/brand/BrandMark";
 import { ADMIN_NAV_SECTION, NAV_SECTIONS } from "./nav-sections";
 
@@ -20,6 +20,7 @@ export function Sidebar({
   mobileOpen,
   onCloseMobile,
   isAdmin,
+  isPremium,
   userEmail,
   onLogout,
   onOpenRegistrar,
@@ -29,6 +30,9 @@ export function Sidebar({
   mobileOpen: boolean;
   onCloseMobile: () => void;
   isAdmin: boolean;
+  /** Acesso à área de investimentos (curso) — sem isso, seções premium ganham um cadeado
+   * no menu (o conteúdo abre igual, mas mostra o convite pra assinar em vez da tela real). */
+  isPremium: boolean;
   userEmail?: string;
   onLogout: () => void;
   onOpenRegistrar: () => void;
@@ -112,22 +116,27 @@ export function Sidebar({
                 >
                   <Icon size={18} strokeWidth={1.75} className="shrink-0" />
                   <span className={`truncate ${hideLabelDesktopOnly}`}>{section.label}</span>
+                  {section.premium && !isPremium && (
+                    <Lock size={13} strokeWidth={2} className={`ml-auto shrink-0 text-ink-faint ${hideLabelDesktopOnly}`} />
+                  )}
                 </Link>
 
                 {isExpanded && section.children && (
                   <ul className={`mt-0.5 flex flex-col gap-0.5 border-l border-border-strong pl-4 ${hideLabelDesktopOnly}`}>
                     {section.children.map((child) => {
                       const childActive = pathname === child.href;
+                      const locked = child.premium && !isPremium;
                       return (
                         <li key={child.href}>
                           <Link
                             href={child.href}
                             onClick={onCloseMobile}
-                            className={`block truncate rounded-md px-3 py-1.5 text-[13px] transition-colors ${
+                            className={`flex items-center gap-1.5 truncate rounded-md px-3 py-1.5 text-[13px] transition-colors ${
                               childActive ? "text-ink font-medium" : "text-ink-faint hover:text-ink"
                             }`}
                           >
-                            {child.label}
+                            <span className="truncate">{child.label}</span>
+                            {locked && <Lock size={11} strokeWidth={2} className="shrink-0" />}
                           </Link>
                         </li>
                       );

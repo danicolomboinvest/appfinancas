@@ -12,12 +12,14 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-export type NavChild = { href: string; label: string };
+export type NavChild = { href: string; label: string; premium?: boolean };
 export type NavSection = {
   basePath: string;
   href: string;
   label: string;
   icon: LucideIcon;
+  /** Seção inteira é conteúdo do curso (freemium) — cadeado no menu pra quem não tem acesso. */
+  premium?: boolean;
   children?: NavChild[];
 };
 
@@ -42,7 +44,7 @@ export const NAV_SECTIONS: NavSection[] = [
     children: [
       { href: "/planejamento/metas", label: "Metas" },
       { href: "/planejamento/reserva-emergencia", label: "Reserva de Emergência" },
-      { href: "/planejamento/acumulo", label: "Aposentadoria" },
+      { href: "/planejamento/acumulo", label: "Aposentadoria", premium: true },
     ],
   },
   // Sem tab própria na barra inferior: no celular entra pelo "Mais" (pedido da Dani).
@@ -52,6 +54,7 @@ export const NAV_SECTIONS: NavSection[] = [
     href: "/carteira",
     label: "Carteira de Investimentos",
     icon: Briefcase,
+    premium: true,
     children: [
       { href: "/carteira", label: "Meus Ativos" },
       { href: "/carteira/por-objetivo", label: "Por Objetivo" },
@@ -63,6 +66,7 @@ export const NAV_SECTIONS: NavSection[] = [
     href: "/simuladores",
     label: "Simuladores",
     icon: Calculator,
+    premium: true,
     children: [
       { href: "/simuladores/financiar-vs-alugar", label: "Financiar vs. Alugar" },
       { href: "/simuladores/amortizar-vs-investir", label: "Amortizar vs. Investir" },
@@ -77,6 +81,7 @@ export const NAV_SECTIONS: NavSection[] = [
     href: "/fichas",
     label: "Análises",
     icon: FileSearch,
+    premium: true,
     children: [
       { href: "/fichas", label: "Insights" },
       { href: "/fichas/acoes", label: "Ações" },

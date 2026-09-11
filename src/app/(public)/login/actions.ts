@@ -3,7 +3,6 @@
 import { AuthError } from "next-auth";
 import { signIn } from "@/lib/auth/auth.config";
 import { prisma } from "@/lib/db/prisma";
-import { isEmailAllowed } from "@/lib/repositories/allowedEmail.repo";
 import { loginSchema } from "@/lib/validations/auth.schema";
 
 export type LoginState = { error?: string };
@@ -22,7 +21,7 @@ export async function loginAction(_prevState: LoginState, formData: FormData): P
   // em vez do genérico "email ou senha incorretos".
   const user = await prisma.user.findUnique({
     where: { email: parsed.data.email },
-    select: { lockedUntil: true, role: true },
+    select: { lockedUntil: true },
   });
   if (user?.lockedUntil && user.lockedUntil > new Date()) {
     const minutes = Math.max(1, Math.ceil((user.lockedUntil.getTime() - Date.now()) / 60_000));
@@ -31,13 +30,8 @@ export async function loginAction(_prevState: LoginState, formData: FormData): P
     };
   }
 
-  // Acesso revogado (reembolso / assinatura cancelada): mensagem clara em vez do genérico
-  // "email ou senha incorretos". A trava de verdade fica no authorize() do next-auth; aqui
-  // é só UX. ADMIN nunca é bloqueada.
-  if (user && user.role !== "ADMIN" && !(await isEmailAllowed(parsed.data.email))) {
-    return { error: "Seu acesso não está ativo no momento. Fale com o suporte para regularizar." };
-  }
-
+  // Modelo freemium: login não depende mais de ter acesso premium (isso só é checado dentro
+  // das telas de investimento). Não ter comprado o curso não impede logar.
   try {
     await signIn("credentials", {
       email: parsed.data.email,

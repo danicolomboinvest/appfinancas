@@ -18,6 +18,7 @@ import { ToastProvider } from "@/components/ui/toast-context";
 export function AppShell({
   children,
   isAdmin,
+  isPremium,
   userEmail,
   greeting,
   dateLabel,
@@ -26,6 +27,7 @@ export function AppShell({
 }: {
   children: React.ReactNode;
   isAdmin: boolean;
+  isPremium: boolean;
   userEmail?: string;
   greeting: string;
   dateLabel: string;
@@ -81,6 +83,7 @@ export function AppShell({
           mobileOpen={false}
           onCloseMobile={() => {}}
           isAdmin={isAdmin}
+          isPremium={isPremium}
           userEmail={userEmail}
           onLogout={handleLogout}
           onOpenRegistrar={() => setRegistrarOpen(true)}
@@ -109,6 +112,7 @@ export function AppShell({
           open={moreOpen}
           onClose={() => setMoreOpen(false)}
           isAdmin={isAdmin}
+          isPremium={isPremium}
           userEmail={userEmail}
           onLogout={handleLogout}
           onOpenInstall={() => setInstallOpen(true)}

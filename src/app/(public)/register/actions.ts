@@ -3,7 +3,6 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createUser, findUserByEmail } from "@/lib/repositories/user.repo";
-import { isEmailAllowed } from "@/lib/repositories/allowedEmail.repo";
 import { registerSchema } from "@/lib/validations/auth.schema";
 import { normalizePhone } from "@/lib/phone";
 import { getAllowedPhone } from "@/lib/repositories/allowedEmail.repo";
@@ -35,16 +34,8 @@ export async function registerAction(_prevState: RegisterState, formData: FormDa
     return { error: "É preciso aceitar os Termos de Uso e a Política de Privacidade." };
   }
 
-  // Acesso fechado: só cria conta quem foi liberado (comprou o curso / é assinante).
-  // A liberação vem da lista manual do painel ou automática do webhook do Hubla.
-  const allowed = await isEmailAllowed(parsed.data.email);
-  if (!allowed) {
-    return {
-      error:
-        "Esse e-mail ainda não tem acesso liberado. Use o mesmo e-mail da sua compra. Se acabou de comprar, aguarde alguns minutos e tente de novo.",
-    };
-  }
-
+  // Modelo freemium: qualquer e-mail cadastra (a parte de finanças pessoais é grátis). Ter
+  // comprado o curso na Hubla só destrava depois a área de investimentos (ver hasPremiumAccess).
   const existing = await findUserByEmail(parsed.data.email);
   if (existing) {
     return { error: "Já existe uma conta com este email." };

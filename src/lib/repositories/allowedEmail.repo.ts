@@ -2,8 +2,11 @@ import { prisma } from "@/lib/db/prisma";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 
 /**
- * Lista de e-mails autorizados a usar o app (acesso fechado: só compradores do curso /
- * assinantes). A liberação vem de dois lugares:
+ * Lista de e-mails com acesso PREMIUM (área de investimentos: Carteira, Simuladores, Análises,
+ * Aposentadoria — o conteúdo do curso). Desde a mudança pro modelo freemium, isso NÃO controla
+ * mais quem consegue criar conta/logar — qualquer um cadastra e usa a parte de finanças pessoais
+ * de graça; essa lista só decide o que aparece nas telas trancadas (ver hasPremiumAccess). A
+ * liberação vem de dois lugares:
  *  - MANUAL: a Dani adiciona no painel /admin/acessos (cola a lista de compradores).
  *  - HUBLA: o webhook libera/revoga sozinho conforme a compra ou assinatura.
  *
@@ -35,6 +38,15 @@ export async function isEmailAllowed(email: string): Promise<boolean> {
   });
   if (entry?.active !== true) return false;
   return !isExpired(entry.expiresAt);
+}
+
+/** Acesso premium (área de investimentos) de um usuário já logado. ADMIN sempre tem — mesma
+ * exceção do login, a Dani não pode ficar trancada fora do próprio painel. */
+export async function hasPremiumAccess(userId: string): Promise<boolean> {
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true, role: true } });
+  if (!user) return false;
+  if (user.role === "ADMIN") return true;
+  return isEmailAllowed(user.email);
 }
 
 export async function listAllowedEmails() {

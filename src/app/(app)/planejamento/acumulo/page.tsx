@@ -1,5 +1,7 @@
 import { TrendingDown, TrendingUp } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
+import { hasPremiumAccess } from "@/lib/repositories/allowedEmail.repo";
+import { PaywallCard } from "@/components/shell/PaywallCard";
 import { getPlanningParams } from "@/lib/repositories/planning-params.repo";
 import { computeAccumulation } from "@/lib/planning/accumulation";
 import { computeUsufruct } from "@/lib/planning/usufruct";
@@ -41,6 +43,18 @@ const projectionColumns: ResponsiveColumn<ProjectionYear>[] = [
 
 export default async function IndependenciaFinanceiraPage() {
   const ctx = await getRequiredSession();
+
+  // Aposentadoria é conteúdo do curso (construir patrimônio) — diferente de Metas/Reserva,
+  // que ficam de graça mesmo dentro do mesmo grupo "Planejamento Financeiro" no menu.
+  if (!(await hasPremiumAccess(ctx.userId))) {
+    return (
+      <div className="flex flex-col gap-6">
+        <PageHeader title="Aposentadoria" subtitle="Da fase de acúmulo até viver de renda: acompanhe a jornada inteira em um só lugar." />
+        <PaywallCard feature="Aposentadoria" />
+      </div>
+    );
+  }
+
   const params = await getPlanningParams(ctx);
 
   const defaults = params

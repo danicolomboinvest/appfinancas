@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { LogOut, Smartphone } from "lucide-react";
+import { Lock, LogOut, Smartphone } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { MORE_NAV_SECTIONS, ADMIN_NAV_SECTION } from "./nav-sections";
 
@@ -10,6 +10,7 @@ export function MoreSheet({
   open,
   onClose,
   isAdmin,
+  isPremium,
   userEmail,
   onLogout,
   onOpenInstall,
@@ -17,6 +18,8 @@ export function MoreSheet({
   open: boolean;
   onClose: () => void;
   isAdmin: boolean;
+  /** Acesso à área de investimentos (curso) — mesmo cadeado que a sidebar mostra. */
+  isPremium: boolean;
   userEmail?: string;
   onLogout: () => void;
   /** Abre o tutorial de instalar o app na tela de início. */
@@ -37,7 +40,8 @@ export function MoreSheet({
               className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-ink transition-colors hover:bg-surface-2"
             >
               <Icon size={18} strokeWidth={1.75} className="text-ink-muted" />
-              {section.label}
+              <span className="flex-1">{section.label}</span>
+              {section.premium && !isPremium && <Lock size={14} strokeWidth={2} className="shrink-0 text-ink-faint" />}
             </Link>
           );
         })}

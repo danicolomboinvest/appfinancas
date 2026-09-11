@@ -1,4 +1,7 @@
 import { PillTabs } from "@/components/shell/PillTabs";
+import { PaywallCard } from "@/components/shell/PaywallCard";
+import { getRequiredSession } from "@/lib/auth/session";
+import { hasPremiumAccess } from "@/lib/repositories/allowedEmail.repo";
 
 /** Abas do módulo Análises, segmented control rolável (item 5.4). No mobile, é a única forma
  * de alternar entre Insights e as fichas de Ações/FIIs/Stocks/ETFs, que antes ficavam presas
@@ -12,11 +15,14 @@ const TABS = [
   { href: "/fichas/etfs", label: "ETFs" },
 ];
 
-export default function FichasLayout({ children }: { children: React.ReactNode }) {
+export default async function FichasLayout({ children }: { children: React.ReactNode }) {
+  const ctx = await getRequiredSession();
+  const premium = await hasPremiumAccess(ctx.userId);
+
   return (
     <>
       <PillTabs tabs={TABS} />
-      {children}
+      {premium ? children : <PaywallCard feature="Análises" />}
     </>
   );
 }

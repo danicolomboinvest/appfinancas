@@ -21,7 +21,7 @@ export default async function AdminAcessosPage() {
     <div className="flex flex-col gap-8">
       <PageHeader
         title="Acessos"
-        subtitle="Quem pode criar conta e entrar no app. O acesso é fechado: só e-mails desta lista (e ativos) entram. Compras dos produtos liberados no Hubla entram sozinhas."
+        subtitle="Quem tem acesso à área de investimentos (conteúdo do curso). Qualquer um cria conta e usa a parte de finanças pessoais de graça — só quem está nesta lista (e ativo) destrava o resto. Compras dos produtos liberados no Hubla entram sozinhas."
       />
 
       <ProductsSection products={products} />

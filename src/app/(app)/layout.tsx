@@ -3,6 +3,7 @@ import { AppShell } from "@/components/shell/AppShell";
 import { ThemeSync } from "@/components/shell/ThemeSync";
 import { getMonthlySummary } from "@/lib/consolidation/monthly";
 import { getOwnUser, touchLastSeen } from "@/lib/repositories/user.repo";
+import { hasPremiumAccess } from "@/lib/repositories/allowedEmail.repo";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import type { AuthContext } from "@/lib/auth/session";
 
@@ -41,15 +42,18 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   let summary = "";
   let theme = "dark";
+  let isPremium = false;
   let flow: { income: number; expense: number; investment: number } | undefined;
   if (session?.user) {
     const ctx: AuthContext = { userId: session.user.id, role: session.user.role };
-    const [monthlySummary, user] = await Promise.all([
+    const [monthlySummary, user, premium] = await Promise.all([
       getMonthlySummary(ctx, now.getFullYear(), now.getMonth() + 1),
       getOwnUser(ctx),
+      hasPremiumAccess(ctx.userId),
     ]);
     summary = monthSummaryLine(monthlySummary);
     theme = user.theme;
+    isPremium = premium;
     // Registra o "visto por último" pra métrica de engajamento (throttle interno de 15min).
     await touchLastSeen(user.id, user.lastSeenAt);
     flow = {
@@ -64,6 +68,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <ThemeSync theme={theme} />
       <AppShell
         isAdmin={session?.user.role === "ADMIN"}
+        isPremium={isPremium}
         userEmail={session?.user.email ?? undefined}
         greeting={greeting}
         dateLabel={dateLabel}
