@@ -110,23 +110,72 @@ export async function removeAllowedEmail(id: string) {
  * AGORA (não existia, ou estava inativa) — o Hubla manda mais de um evento pra mesma compra
  * (member_added + payment_succeeded), e só o primeiro deve disparar o e-mail de convite.
  */
+/** Duração padrão do acesso: a assinatura do app é anual. */
+export const ACCESS_YEARS = 1;
+
+/** Mesma data, um ano à frente. 29/02 vira 28/02 no ano seguinte (setFullYear sozinho viraria
+ * 01/03, empurrando a renovação pro mês errado). */
+export function addAccessPeriod(from: Date, years = ACCESS_YEARS): Date {
+  const next = new Date(from);
+  const day = next.getDate();
+  next.setFullYear(next.getFullYear() + years);
+  if (next.getDate() !== day) next.setDate(0);
+  return next;
+}
+
+/**
+ * Nova data-limite de uma renovação: soma um ano a partir do que for MAIS TARDE entre hoje e o
+ * vencimento atual. Quem renova antes de vencer não perde os dias que já pagou; quem renova
+ * depois de vencido recomeça a contar de hoje (não ganha retroativo que não usou).
+ */
+export function renewedExpiry(currentExpiry: Date | null, now: Date = new Date()): Date {
+  const base = currentExpiry && currentExpiry > now ? currentExpiry : now;
+  return addAccessPeriod(base);
+}
+
 export async function grantFromHubla(
   email: string,
   note?: string,
   phone?: string | null,
-): Promise<{ isNew: boolean }> {
+  /** Id da fatura do Hubla. É a trava anti-duplicata: o Hubla manda mais de um evento pra
+   * mesma compra (member_added + payment_succeeded) e ainda reenvia em caso de falha — sem
+   * isso, cada reenvio esticaria o acesso em mais um ano de graça. */
+  invoiceId?: string | null,
+): Promise<{ isNew: boolean; expiresAt: Date | null; extended: boolean }> {
   const normalized = normalizeEmail(email);
   const existing = await prisma.allowedEmail.findUnique({
     where: { email: normalized },
-    select: { active: true },
+    select: { active: true, expiresAt: true, lastHublaInvoiceId: true },
   });
+
+  // Fatura já processada = é reenvio/evento irmão da mesma compra: garante o acesso ativo,
+  // mas NÃO estende o prazo de novo.
+  const alreadyProcessed = Boolean(invoiceId) && existing?.lastHublaInvoiceId === invoiceId;
+  // Sem id de fatura no payload, o único movimento seguro é dar prazo a quem não tem nenhum —
+  // estender às cegas abriria a porta pro acesso infinito por reenvio.
+  const shouldExtend = !alreadyProcessed && (Boolean(invoiceId) || !existing?.expiresAt);
+
+  const expiresAt = shouldExtend ? renewedExpiry(existing?.expiresAt ?? null) : (existing?.expiresAt ?? null);
+
   await prisma.allowedEmail.upsert({
     where: { email: normalized },
     // Celular da compra: grava se veio; nunca apaga um que já estava salvo.
-    update: { active: true, ...(phone ? { phone } : {}) },
-    create: { email: normalized, source: "HUBLA", note: note ?? null, phone: phone ?? null },
+    update: {
+      active: true,
+      ...(phone ? { phone } : {}),
+      ...(shouldExtend ? { expiresAt } : {}),
+      ...(invoiceId ? { lastHublaInvoiceId: invoiceId } : {}),
+    },
+    create: {
+      email: normalized,
+      source: "HUBLA",
+      note: note ?? null,
+      phone: phone ?? null,
+      expiresAt: addAccessPeriod(new Date()),
+      lastHublaInvoiceId: invoiceId ?? null,
+    },
   });
-  return { isNew: existing?.active !== true };
+  return { isNew: existing?.active !== true, expiresAt, extended: shouldExtend };
 }
 
 /** Celular que veio da compra no Hubla (se veio) — usado como reserva no cadastro. */

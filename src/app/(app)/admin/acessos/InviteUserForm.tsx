@@ -13,7 +13,9 @@ const initialState: InviteFormState = {};
 export function InviteUserForm() {
   const [state, formAction, isPending] = useActionState(inviteUserAction, initialState);
   const [copied, setCopied] = useState(false);
-  const [expiresAt, setExpiresAt] = useState("");
+  // A assinatura é anual: o campo já nasce com um ano à frente. Continua editável — e
+  // apagar a data libera sem prazo, pra casos de cortesia.
+  const [expiresAt, setExpiresAt] = useState(() => toDateInputValue(plusOneYear(new Date())));
   useSuccessToast(isPending, state.error, undefined);
 
   const credentials = state.created ? `${state.created.email} / ${state.created.password}` : "";
@@ -87,7 +89,7 @@ export function InviteUserForm() {
           {isPending ? "Criando..." : "Criar conta"}
         </Button>
       </div>
-      <p className="text-xs text-ink-faint">Deixe &quot;Acesso até&quot; em branco pra liberar sem prazo.</p>
+      <p className="text-xs text-ink-faint">Vem preenchido com 1 ano (a assinatura é anual). Apague a data pra liberar sem prazo.</p>
     </Card>
   );
 }

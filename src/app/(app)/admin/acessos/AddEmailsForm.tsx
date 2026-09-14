@@ -12,7 +12,9 @@ const initialState: AccessFormState = {};
 
 export function AddEmailsForm() {
   const [state, formAction, isPending] = useActionState(addEmailsAction, initialState);
-  const [expiresAt, setExpiresAt] = useState("");
+  // A assinatura é anual: o campo já nasce com um ano à frente. Continua editável — e
+  // apagar a data libera sem prazo, pra casos de cortesia.
+  const [expiresAt, setExpiresAt] = useState(() => toDateInputValue(plusOneYear(new Date())));
   useSuccessToast(
     isPending,
     state.error,

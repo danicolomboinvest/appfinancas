@@ -21,6 +21,10 @@ import { accessGrantedEmail } from "@/lib/email/templates";
  * Eventos tratados (event.type):
  *  - customer.member_added     → libera (ganhou acesso ao produto), se o produto liberar
  *  - invoice.payment_succeeded → libera (pagamento aprovado), se o produto liberar
+ *
+ * Assinatura ANUAL: cada pagamento dá (ou estende) 1 ano de acesso, contado a partir do
+ * vencimento atual quando a renovação chega antes de vencer — quem renova adiantado não perde
+ * os dias já pagos. A trava de fatura evita que reenvio do mesmo evento vire ano de brinde.
  *  - customer.member_removed   → revoga (perdeu acesso: cancelou, expirou)
  *  - invoice.refunded          → revoga (reembolso)
  * Qualquer outro tipo é ignorado com 200, pra o Hubla não ficar reenviando.
@@ -38,6 +42,15 @@ function extractEmail(event: unknown): string | null {
   const payer = invoice?.payer as Record<string, unknown> | undefined;
   const email = user?.email ?? payer?.email;
   return typeof email === "string" && email.includes("@") ? email : null;
+}
+
+/** Id da fatura (event.invoice.id) — trava anti-duplicata da renovação: o Hubla manda mais de
+ * um evento pra mesma compra, e sem isso cada reenvio esticaria o acesso em mais um ano. */
+function extractInvoiceId(event: unknown): string | null {
+  if (!event || typeof event !== "object") return null;
+  const invoice = (event as Record<string, unknown>).invoice as Record<string, unknown> | undefined;
+  const id = invoice?.id;
+  return typeof id === "string" && id.length > 0 ? id : null;
 }
 
 /** Celular que a pessoa preencheu na compra (event.user.phone ou invoice.payer.phone). */
@@ -125,10 +138,11 @@ export async function POST(request: Request) {
         products: products.map((p) => p.name ?? p.id),
       });
     }
-    const { isNew } = await grantFromHubla(
+    const { isNew, expiresAt, extended } = await grantFromHubla(
       email,
       allowed.name ? `Hubla: ${allowed.name}` : `Hubla: ${type}`,
       extractPhone(payload.event),
+      extractInvoiceId(payload.event),
     );
 
     // Convite por e-mail ("crie sua conta") só na 1ª liberação — o Hubla manda mais de um
@@ -142,7 +156,15 @@ export async function POST(request: Request) {
       const result = await sendEmail({ to: email, subject, html });
       emailed = result.ok;
     }
-    return NextResponse.json({ ok: true, action: "granted", emailed });
+    return NextResponse.json({
+      ok: true,
+      action: "granted",
+      emailed,
+      // `extended: false` = evento irmão/reenvio da mesma fatura, acesso seguiu com o prazo
+      // que já tinha (é o comportamento certo, não uma falha).
+      extended,
+      expiresAt: expiresAt?.toISOString() ?? null,
+    });
   }
 
   // Revogação (reembolso / perda de acesso): só corta se ALGUM produto que a pessoa perdeu é

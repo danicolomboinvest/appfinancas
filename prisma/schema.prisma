@@ -584,10 +584,14 @@ model AllowedEmail {
   note      String?
   /// Celular que veio da compra no Hubla — copiado pro User quando a conta é criada.
   phone     String?
-  /// Data-limite do acesso (ex.: liberação por 1 ano, depois precisa renovar). Nulo = acesso
-  /// sem prazo. Vencido não desativa sozinho (não apaga `active`) — só bloqueia login/cadastro
-  /// e aparece como "Expirado" no painel, pra Dani decidir se renova ou desativa de vez.
+  /// Data-limite do acesso (a assinatura é anual). Nulo = acesso sem prazo. Vencido não
+  /// desativa sozinho (não apaga `active`) — só bloqueia login/cadastro e aparece como
+  /// "Expirado" no painel, pra Dani decidir se renova ou desativa de vez.
   expiresAt DateTime?
+  /// Última fatura do Hubla já processada. O Hubla manda o mesmo evento mais de uma vez
+  /// (member_added + payment_succeeded, além de reenvios); sem essa trava, cada reenvio
+  /// esticaria o acesso em mais um ano de graça.
+  lastHublaInvoiceId String?
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
 }
