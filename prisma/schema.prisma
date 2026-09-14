@@ -141,6 +141,12 @@ model User {
   theme        String   @default("light")
   notifyBudgetAlerts Boolean @default(true)
   notifyLateGoals    Boolean @default(true)
+  /// Resumo do mês por e-mail (o único e-mail recorrente do app). Ligado por padrão; quem não
+  /// quiser desliga em Configurações › Preferências.
+  notifyMonthlyRecap Boolean @default(true)
+  /// Último mês cujo resumo JÁ foi enviado por e-mail, formato "YYYY-MM". Trava de idempotência:
+  /// o cron pode rodar de novo (retry da Vercel, execução manual) sem reenviar o mesmo resumo.
+  recapEmailSentMonth String?
   /// Proteção contra força bruta: erros de senha consecutivos e trava temporária.
   failedLoginCount Int       @default(0)
   lockedUntil      DateTime?

@@ -11,7 +11,7 @@ const initialState: NotificationsState = {};
 export function NotificationsForm({
   defaults,
 }: {
-  defaults: { notifyBudgetAlerts: boolean; notifyLateGoals: boolean };
+  defaults: { notifyBudgetAlerts: boolean; notifyLateGoals: boolean; notifyMonthlyRecap: boolean };
 }) {
   const [state, formAction, isPending] = useActionState(updateNotificationsAction, initialState);
   useSuccessToast(isPending, state.error);
@@ -19,6 +19,23 @@ export function NotificationsForm({
   return (
     <Card as="form" action={formAction} className="flex flex-col gap-4 p-5">
       {state.error && <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{state.error}</p>}
+
+      {/* Único item da lista que sai da tela e vai pro e-mail da pessoa — por isso vem
+          primeiro e diz explicitamente a frequência. */}
+      <label className="flex items-center justify-between gap-4 rounded-lg border border-border p-3">
+        <div>
+          <p className="text-sm font-medium text-ink">Resumo do mês por e-mail</p>
+          <p className="text-xs text-ink-muted">
+            Uma vez por mês, no começo do mês: quanto entrou, quanto saiu e o que mudou.
+          </p>
+        </div>
+        <input
+          type="checkbox"
+          name="notifyMonthlyRecap"
+          defaultChecked={defaults.notifyMonthlyRecap}
+          className="h-4 w-4 accent-accent"
+        />
+      </label>
 
       <label className="flex items-center justify-between gap-4 rounded-lg border border-border p-3">
         <div>

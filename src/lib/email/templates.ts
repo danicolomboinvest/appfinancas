@@ -30,6 +30,85 @@ function button(href: string, label: string): string {
   return `<a href="${href}" style="display:inline-block;background:${INK};color:#ffffff;text-decoration:none;font-weight:600;font-size:15px;padding:12px 24px;border-radius:10px;">${label}</a>`;
 }
 
+function formatBRL(value: number): string {
+  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+}
+
+/** Linha "rótulo … valor" do quadro de números do resumo. */
+function statRow(label: string, value: string, color = INK): string {
+  return `<tr>
+    <td style="padding:7px 0;color:${MUTED};font-size:14px;">${label}</td>
+    <td style="padding:7px 0;text-align:right;color:${color};font-size:15px;font-weight:600;">${value}</td>
+  </tr>`;
+}
+
+/**
+ * Resumo do mês — o único e-mail recorrente do app, enviado no começo de cada mês pra quem
+ * teve movimento no mês anterior.
+ *
+ * O objetivo é dar um motivo pra voltar: mostra o número que interessa (quanto sobrou), a
+ * comparação com o mês anterior e a categoria que mais pesou, e só. Quem quiser detalhe clica
+ * — o e-mail não tenta ser a tela, senão vira relatório que ninguém lê.
+ */
+export function monthlyRecapEmail(params: {
+  name: string | null;
+  /** "Setembro de 2026" */
+  monthLabel: string;
+  income: number;
+  expense: number;
+  balance: number;
+  /** Variação do gasto vs. mês anterior (0,17 = 17% a mais); null quando não há base. */
+  expenseDelta: number | null;
+  topCategory: { label: string; value: number } | null;
+  appUrl: string;
+  preferencesUrl: string;
+}): { subject: string; html: string } {
+  const firstName = params.name?.split(" ")[0];
+  const hi = firstName ? `Oi, ${firstName}!` : "Oi!";
+  const positive = params.balance >= 0;
+
+  // A manchete do e-mail é a comparação, não o valor solto: "sobrou R$ 2.378" não diz se foi
+  // um bom mês; "e você gastou 12% menos que no mês passado" diz.
+  const deltaLine =
+    params.expenseDelta === null
+      ? "Esse foi seu primeiro mês com registros — no próximo dá pra comparar."
+      : Math.abs(params.expenseDelta) < 0.08
+        ? "Seus gastos ficaram praticamente no mesmo nível do mês anterior."
+        : params.expenseDelta < 0
+          ? `Você gastou <strong style="color:#2e7d5b;">${Math.round(Math.abs(params.expenseDelta) * 100)}% menos</strong> que no mês anterior.`
+          : `Seus gastos ficaram <strong style="color:#c0523c;">${Math.round(params.expenseDelta * 100)}% acima</strong> do mês anterior.`;
+
+  return {
+    subject: `Seu resumo de ${params.monthLabel} está pronto`,
+    html: shell(`
+      <p style="margin:0 0 6px;">${hi}</p>
+      <p style="margin:0 0 20px;color:${MUTED};">Fechamos ${params.monthLabel}. Veja como foi:</p>
+
+      <div style="background:#faf8f3;border:1px solid #f0ece2;border-radius:12px;padding:18px 20px;margin:0 0 20px;">
+        <p style="margin:0 0 2px;color:${MUTED};font-size:13px;">${positive ? "Sobrou no mês" : "Faltou no mês"}</p>
+        <p style="margin:0;font-size:30px;font-weight:700;color:${positive ? INK : "#c0523c"};letter-spacing:-0.5px;">
+          ${formatBRL(Math.abs(params.balance))}
+        </p>
+      </div>
+
+      <p style="margin:0 0 18px;">${deltaLine}</p>
+
+      <table style="width:100%;border-collapse:collapse;margin:0 0 8px;">
+        ${statRow("Entrou", formatBRL(params.income), "#2e7d5b")}
+        ${statRow("Saiu", formatBRL(params.expense), "#c0523c")}
+        ${params.topCategory ? statRow(`Maior gasto: ${params.topCategory.label}`, formatBRL(params.topCategory.value)) : ""}
+      </table>
+
+      <p style="margin:24px 0 0;">${button(params.appUrl, "Ver o mês completo")}</p>
+
+      <p style="margin:22px 0 0;color:${MUTED};font-size:12px;line-height:1.5;">
+        Você recebe este resumo uma vez por mês.
+        <a href="${params.preferencesUrl}" style="color:${MUTED};">Desativar</a> quando quiser.
+      </p>
+    `),
+  };
+}
+
 /** E-mail de recuperação de senha. */
 export function passwordResetEmail(params: { name: string | null; resetUrl: string }): { subject: string; html: string } {
   const hi = params.name ? `Oi, ${params.name}!` : "Oi!";

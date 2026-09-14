@@ -14,6 +14,7 @@ export async function updateNotificationsAction(
   const parsed = notificationsSchema.safeParse({
     notifyBudgetAlerts: formData.get("notifyBudgetAlerts") ?? undefined,
     notifyLateGoals: formData.get("notifyLateGoals") ?? undefined,
+    notifyMonthlyRecap: formData.get("notifyMonthlyRecap") ?? undefined,
   });
 
   if (!parsed.success) {

@@ -99,8 +99,9 @@ export const NAV_SECTIONS: NavSection[] = [
       { href: "/configuracoes/perfil", label: "Perfil" },
       { href: "/configuracoes/categorias", label: "Categorias" },
       { href: "/configuracoes/preferencias", label: "Preferências" },
-      // Notificações fica fora do menu até existir infra de envio (e-mail/push), a página
-      // promete alertas que hoje não são disparados por nada.
+      // Voltou pro menu: agora controla um envio de verdade (o resumo do mês por e-mail), não
+      // só alertas de tela. Sem um lugar visível pra desligar, e-mail recorrente vira spam.
+      { href: "/configuracoes/notificacoes", label: "Notificações" },
       { href: "/configuracoes/dados", label: "Dados" },
       { href: "/configuracoes/taxas", label: "Taxas do Sistema" },
     ],

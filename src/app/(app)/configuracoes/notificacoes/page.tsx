@@ -14,11 +14,15 @@ export default async function NotificacoesPage() {
 
       <PageHeader
         title="Notificações"
-        subtitle="Controle quais insights automáticos aparecem em Análises."
+        subtitle="O resumo que chega por e-mail e os insights automáticos que aparecem em Análises."
       />
 
       <NotificationsForm
-        defaults={{ notifyBudgetAlerts: user.notifyBudgetAlerts, notifyLateGoals: user.notifyLateGoals }}
+        defaults={{
+          notifyBudgetAlerts: user.notifyBudgetAlerts,
+          notifyLateGoals: user.notifyLateGoals,
+          notifyMonthlyRecap: user.notifyMonthlyRecap,
+        }}
       />
     </div>
   );

@@ -18,4 +18,7 @@ export const notificationsSchema = z.object({
   notifyLateGoals: z
     .union([z.literal("on"), z.literal(""), z.undefined()])
     .transform((v) => v === "on"),
+  notifyMonthlyRecap: z
+    .union([z.literal("on"), z.literal(""), z.undefined()])
+    .transform((v) => v === "on"),
 });

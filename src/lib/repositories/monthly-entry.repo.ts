@@ -2,6 +2,7 @@ import type { EntryCategory, ParentCategory } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import type { AuthContext } from "@/lib/auth/session";
 import { PARENT_CATEGORIES } from "@/lib/categories";
+import { sameDayInMonth } from "@/lib/date/recurrence";
 
 export async function listMonthlyEntries(ctx: AuthContext, year: number, month: number) {
   return prisma.monthlyEntry.findMany({
@@ -73,7 +74,14 @@ export async function updateOwnMonthlyEntry(ctx: AuthContext, id: string, input:
   });
 }
 
-/** Cria o mesmo lançamento em todos os meses restantes do ano corrente (despesa fixa recorrente). */
+/**
+ * Cria o mesmo lançamento em todos os meses restantes do ano corrente (despesa fixa recorrente).
+ *
+ * A data acompanha: antes, as cópias dos meses seguintes nasciam SEM data nenhuma — o que
+ * deixava quem usa recorrência fora do gráfico diário e do "gastos da semana registrados",
+ * justamente quem lança de forma mais organizada. Sem data no lançamento original (ninguém é
+ * obrigado a preencher), as cópias seguem sem data também: não dá pra inventar um dia.
+ */
 export async function createRecurringMonthlyEntries(
   ctx: AuthContext,
   input: {
@@ -85,6 +93,7 @@ export async function createRecurringMonthlyEntries(
     subcategory?: string;
     description?: string;
     amount: number;
+    entryDate?: Date;
   },
 ) {
   const refs = await resolveOwnRefs(ctx, input);
@@ -93,7 +102,13 @@ export async function createRecurringMonthlyEntries(
     months.push(m);
   }
   return prisma.monthlyEntry.createMany({
-    data: months.map((month) => ({ ...input, customCategoryId: refs.customCategoryId, month, userId: ctx.userId })),
+    data: months.map((month) => ({
+      ...input,
+      customCategoryId: refs.customCategoryId,
+      month,
+      entryDate: input.entryDate ? sameDayInMonth(input.entryDate, input.year, month) : null,
+      userId: ctx.userId,
+    })),
   });
 }
 

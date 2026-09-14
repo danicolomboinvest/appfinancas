@@ -78,7 +78,7 @@ export async function updateOwnPreferences(ctx: AuthContext, input: { currency: 
 
 export async function updateOwnNotificationPrefs(
   ctx: AuthContext,
-  input: { notifyBudgetAlerts: boolean; notifyLateGoals: boolean },
+  input: { notifyBudgetAlerts: boolean; notifyLateGoals: boolean; notifyMonthlyRecap: boolean },
 ) {
   return prisma.user.update({ where: { id: ctx.userId }, data: input });
 }
