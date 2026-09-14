@@ -11,6 +11,8 @@ import {
   listBudgetsForYear,
 } from "@/lib/repositories/budget.repo";
 import { getMonthlySummary, getAnnualSummary } from "@/lib/consolidation/monthly";
+import { getDailyFlow, getCategorySpending } from "@/lib/consolidation/month-analysis";
+import { buildMonthInsights } from "@/lib/insights/month-insights";
 import { getYearlySummary } from "@/lib/consolidation/yearly";
 import { getRecapDismissedMonth } from "@/lib/repositories/user.repo";
 import { getRecapEligibility } from "@/lib/recap/monthly";
@@ -38,6 +40,9 @@ import { OnboardingChecklist } from "./OnboardingChecklist";
 import { prisma } from "@/lib/db/prisma";
 import { FlowIndicators, type FlowBundle } from "./FlowIndicators";
 import { BudgetSection } from "../BudgetSection";
+import { MonthHighlight } from "./MonthHighlight";
+import { MonthFlowCard } from "./MonthFlowCard";
+import { TopCategories } from "./TopCategories";
 
 const MONTH_LABELS = [
   "Janeiro",
@@ -196,6 +201,9 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
     onboardingCounts,
     recapDismissedMonth,
     importBatches,
+    dailyFlow,
+    categorySpending,
+    previousSummary,
   ] = await Promise.all([
     listMonthlyEntries(ctx, year, month),
     getMonthlySummary(ctx, year, month),
@@ -216,6 +224,10 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
     ]),
     getRecapDismissedMonth(ctx),
     listImportBatches(ctx),
+    getDailyFlow(ctx, year, month),
+    getCategorySpending(ctx, year, month, PARENT_CATEGORY_LABEL),
+    // Mês anterior: base das comparações ("gastou X% menos que no mês passado").
+    getMonthlySummary(ctx, month === 1 ? year - 1 : year, month === 1 ? 12 : month - 1),
   ]);
   const [entryCount, budgetCount, assetCount] = onboardingCounts;
 
@@ -276,6 +288,13 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
       })),
   ];
 
+  // Números viram frase: "gastou 12% menos que no mês passado", "Alimentação subiu 28%".
+  const insights = buildMonthInsights({
+    currentExpense: summary.totalExpense,
+    previousExpense: previousSummary.totalExpense,
+    categories: categorySpending,
+  });
+
   return (
     <div className="flex flex-col gap-6">
       <Breadcrumb
@@ -299,6 +318,30 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
         pacing={pacing}
       />
 
+      {/* A leitura do mês antes do detalhamento: quanto sobrou e o que mudou desde o mês
+          passado. Os números acima dizem "quanto"; este bloco diz "e daí". */}
+      <MonthHighlight
+        balance={summary.balance}
+        income={summary.totalIncome}
+        expense={summary.totalExpense}
+        investment={summary.totalInvestment}
+        insights={insights}
+      />
+
+      {/* Curva do mês dia a dia — o gráfico que faltava pra enxergar o ritmo, não só o total. */}
+      <MonthFlowCard flow={dailyFlow} monthLabel={MONTH_LABELS[month - 1]} />
+
+      {/* Proporção (rosca) e ranking (lista) lado a lado: uma responde "qual fatia", a outra
+          "quanto exatamente e o que mudou". Separadas, cada uma contava metade da história. */}
+      {totalSpentByCategory > 0 && (
+        <div className="grid gap-4 lg:grid-cols-2">
+          <Card className="p-5">
+            <DonutAllocationChart title="Para onde foi seu dinheiro este mês" data={spendingSlices} legend />
+          </Card>
+          <TopCategories categories={categorySpending} />
+        </div>
+      )}
+
       {/* O botão "Registrar" (drawer global) já cobre lançamento; aqui embaixo, algo pra olhar
           todo dia em vez de outro formulário repetido: renda/gastos/aportes mês a mês no ano. */}
       <Card className="p-5">
@@ -307,12 +350,6 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
       </Card>
 
       <BudgetSection ctx={ctx} year={year} month={month} totalIncome={summary.totalIncome} />
-
-      {totalSpentByCategory > 0 && (
-        <Card className="p-5">
-          <DonutAllocationChart title="Para onde foi seu dinheiro este mês" data={spendingSlices} legend />
-        </Card>
-      )}
 
       {entries.length === 0 ? (
         <EmptyState icon={Receipt} message="Nenhum lançamento neste mês ainda. Use o formulário acima para registrar o primeiro." />
