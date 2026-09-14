@@ -129,3 +129,15 @@ export async function listRecentSubcategories(
 export async function deleteOwnMonthlyEntry(ctx: AuthContext, id: string) {
   return prisma.monthlyEntry.deleteMany({ where: { id, userId: ctx.userId } });
 }
+
+/**
+ * Quantos lançamentos COM DATA caíram nos últimos `days` dias — alimenta o "já registrei os
+ * gastos da semana?" do checklist. Conta só quem tem entryDate: sem data não dá pra afirmar
+ * que aconteceu nesta semana (o mês/ano do lançamento não diz o dia).
+ */
+export async function countRecentDatedEntries(ctx: AuthContext, days: number): Promise<number> {
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+  return prisma.monthlyEntry.count({
+    where: { userId: ctx.userId, entryDate: { gte: since } },
+  });
+}

@@ -43,6 +43,7 @@ import { BudgetSection } from "../BudgetSection";
 import { MonthHighlight } from "./MonthHighlight";
 import { MonthFlowCard } from "./MonthFlowCard";
 import { TopCategories } from "./TopCategories";
+import { IncomeSplitCard } from "./IncomeSplitCard";
 
 const MONTH_LABELS = [
   "Janeiro",
@@ -331,16 +332,25 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
       {/* Curva do mês dia a dia — o gráfico que faltava pra enxergar o ritmo, não só o total. */}
       <MonthFlowCard flow={dailyFlow} monthLabel={MONTH_LABELS[month - 1]} />
 
-      {/* Proporção (rosca) e ranking (lista) lado a lado: uma responde "qual fatia", a outra
-          "quanto exatamente e o que mudou". Separadas, cada uma contava metade da história. */}
-      {totalSpentByCategory > 0 && (
-        <div className="grid gap-4 lg:grid-cols-2">
+      {/* Duas roscas que respondem perguntas diferentes: a primeira divide a RENDA (quanto do
+          que entrou virou gasto, aporte e sobra), a segunda abre os GASTOS por categoria. */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <IncomeSplitCard
+          income={summary.totalIncome}
+          expense={summary.totalExpense}
+          investment={summary.totalInvestment}
+          balance={summary.balance}
+        />
+        {totalSpentByCategory > 0 && (
           <Card className="p-5">
             <DonutAllocationChart title="Para onde foi seu dinheiro este mês" data={spendingSlices} legend />
           </Card>
-          <TopCategories categories={categorySpending} />
-        </div>
-      )}
+        )}
+      </div>
+
+      {/* O ranking completa a rosca: ela mostra a fatia, ele mostra quanto exatamente e o que
+          mudou desde o mês passado. */}
+      <TopCategories categories={categorySpending} />
 
       {/* O botão "Registrar" (drawer global) já cobre lançamento; aqui embaixo, algo pra olhar
           todo dia em vez de outro formulário repetido: renda/gastos/aportes mês a mês no ano. */}

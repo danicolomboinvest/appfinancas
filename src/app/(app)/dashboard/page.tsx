@@ -8,7 +8,11 @@ import { getEmergencyFund } from "@/lib/repositories/emergency-fund.repo";
 import { listGoals } from "@/lib/repositories/goal.repo";
 import { getPlanningParams } from "@/lib/repositories/planning-params.repo";
 import { sumUpcomingDividends } from "@/lib/repositories/dividend.repo";
-import { getAnnualPlannedVsActual } from "@/lib/planning/budget-comparison";
+import { getAnnualPlannedVsActual, compareCategoryBudget } from "@/lib/planning/budget-comparison";
+import { listBudgets, sumExpensesByParentCategory, sumExpensesByCustomCategory } from "@/lib/repositories/budget.repo";
+import { countRecentDatedEntries } from "@/lib/repositories/monthly-entry.repo";
+import { buildWeeklyTasks } from "@/lib/insights/weekly-tasks";
+import { WeeklyTasksCard } from "@/components/shell/WeeklyTasksCard";
 import { computeGoalPlan } from "@/lib/planning/goal";
 import { computeAccumulation } from "@/lib/planning/accumulation";
 import { computeUsufruct } from "@/lib/planning/usufruct";
@@ -76,6 +80,10 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
     previousMonthSummary,
     plannedVsActual,
     upcomingDividends,
+    entriesThisWeek,
+    monthBudgets,
+    spentByParent,
+    spentByCustom,
   ] = await Promise.all([
     getYearlySummary(ctx, year),
     getPortfolioByObjective(ctx),
@@ -86,6 +94,10 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
     getMonthlySummary(ctx, previousMonthDate.getFullYear(), previousMonthDate.getMonth() + 1),
     getAnnualPlannedVsActual(ctx, year),
     sumUpcomingDividends(ctx, 30),
+    countRecentDatedEntries(ctx, 7),
+    listBudgets(ctx, year, currentMonth),
+    sumExpensesByParentCategory(ctx, year, currentMonth),
+    sumExpensesByCustomCategory(ctx, year, currentMonth),
   ]);
 
   const plannedByMonth = Object.fromEntries(
@@ -115,6 +127,32 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
   );
   const goalsOnTrack = goalStatuses.filter((status) => status === "ON_TRACK" || status === "ACHIEVED").length;
   const goalsBehind = goalStatuses.filter((status) => status === "BEHIND" || status === "NOT_STARTED").length;
+
+  // Checklist da semana: quantas categorias já passaram do que foi planejado no mês corrente.
+  // Gasto de categoria sem plano não conta como "estouro" — não havia teto pra estourar.
+  const spentByKey = new Map<string, number>([
+    ...spentByParent.map((s) => [`parent:${s.parentCategory}`, s.spent] as const),
+    ...spentByCustom.map((s) => [`custom:${s.customCategoryId}`, s.spent] as const),
+  ]);
+  const overBudgetCount = monthBudgets.filter((budget) => {
+    const key = budget.parentCategory
+      ? `parent:${budget.parentCategory}`
+      : budget.customCategoryId
+        ? `custom:${budget.customCategoryId}`
+        : null;
+    if (!key) return false;
+    return compareCategoryBudget(Number(budget.plannedAmount), spentByKey.get(key) ?? 0).status === "ACIMA";
+  }).length;
+
+  const weeklyTasks = buildWeeklyTasks({
+    entriesThisWeek,
+    hasBudget: monthBudgets.some((b) => Number(b.plannedAmount) > 0),
+    overBudgetCount,
+    emergencyProgress,
+    goalCount: goals.length,
+    goalsBehind,
+    investedThisMonth: currentMonthSummary.totalInvestment,
+  });
 
   let usufructSurplus: number | null = null;
   if (planningParams) {
@@ -212,6 +250,10 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
           sparkline={balanceSparkline}
         />
       </div>
+
+      {/* Próximos passos antes do status: o painel dizia como as coisas ESTÃO, mas não o que
+          fazer a seguir — e é aí que a maioria abre o app, olha, e não volta. */}
+      {isCurrentYear && <WeeklyTasksCard tasks={weeklyTasks} />}
 
       <div>
         <h2 className="mb-3 text-h2 font-semibold tracking-tight text-ink">Status dos módulos</h2>

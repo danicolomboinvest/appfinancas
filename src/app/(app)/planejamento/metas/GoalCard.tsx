@@ -3,7 +3,7 @@ import { Target, Plane, Home, Car, PiggyBank, Sparkles, CheckCircle2, AlertTrian
 import type { GoalIcon } from "@prisma/client";
 import { Card } from "@/components/ui/Card";
 import { FitText } from "@/components/ui/FitText";
-import { ProgressBar } from "@/components/ui/ProgressBar";
+import { ProgressRing } from "@/components/ui/ProgressRing";
 import { CountUp } from "@/components/ui/CountUp";
 import { DeleteGoalButton } from "./DeleteGoalButton";
 import { EditGoalButton } from "./EditGoalButton";
@@ -117,20 +117,28 @@ export function GoalCard({
         </span>
       )}
 
+      {/* Anel + identidade da meta lado a lado: o progresso é a primeira coisa que a pessoa
+          procura no card, então ele entra junto do nome, não escondido lá embaixo. */}
       <div className="flex items-center gap-3 pr-16">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-accent-strong">
-          <Icon size={20} strokeWidth={1.75} />
-        </span>
-        <Link href={`/planejamento/metas/${id}`} className="min-w-0 flex-1">
-          <h3 className="line-clamp-2 text-base font-semibold text-ink hover:text-accent-strong">{name}</h3>
-        </Link>
+        <ProgressRing percent={progressPercent} tone={VARIANT_CHART_TONE[variant]} size={56} />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent-strong">
+              <Icon size={15} strokeWidth={1.9} />
+            </span>
+            <Link href={`/planejamento/metas/${id}`} className="min-w-0">
+              <h3 className="line-clamp-2 text-base font-semibold text-ink hover:text-accent-strong">{name}</h3>
+            </Link>
+          </div>
+          {!achieved && (
+            <span
+              className={`mt-1.5 inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${VARIANT_STATUS_CLASSES[variant]}`}
+            >
+              {VARIANT_STATUS_LABEL[variant]}
+            </span>
+          )}
+        </div>
       </div>
-
-      {!achieved && (
-        <span className={`w-fit rounded-full px-2.5 py-0.5 text-xs font-medium ${VARIANT_STATUS_CLASSES[variant]}`}>
-          {VARIANT_STATUS_LABEL[variant]}
-        </span>
-      )}
 
       {/* Check-in mensal: sem isso, "no ritmo" é só matemática projetada — ninguém nunca
           confirma que o aporte do mês realmente saiu do bolso. */}
@@ -142,11 +150,6 @@ export function GoalCard({
           suggestedAmount={checkin.suggestedAmount}
         />
       )}
-
-      <div>
-        <ProgressBar percent={progressPercent} tone={VARIANT_CHART_TONE[variant]} />
-        <p className="mt-1.5 text-xs text-ink-muted">{Math.round(progressPercent * 100)}% concluído</p>
-      </div>
 
       <div className="flex items-start gap-1.5">
         <motivation.Icon size={14} strokeWidth={1.75} className={`mt-0.5 shrink-0 ${motivation.colorClass}`} />
