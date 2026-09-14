@@ -146,7 +146,13 @@ model User {
   notifyMonthlyRecap Boolean @default(true)
   /// Último mês cujo resumo JÁ foi enviado por e-mail, formato "YYYY-MM". Trava de idempotência:
   /// o cron pode rodar de novo (retry da Vercel, execução manual) sem reenviar o mesmo resumo.
+  /// Vale para os DOIS e-mails do dia 1º (resumo de quem usou, convite de quem não usou) — o
+  /// mês é tratado uma vez só, não importa qual dos dois saiu.
   recapEmailSentMonth String?
+  /// Quantos convites "vamos começar?" já foram enviados. Quem não usa o app não pode receber
+  /// esse lembrete todo mês pra sempre — depois de algumas tentativas sem resposta, o app para
+  /// de insistir. Zera sozinho quando a pessoa passa a usar (aí ela recebe o resumo, não o convite).
+  recapNudgeCount Int @default(0)
   /// Proteção contra força bruta: erros de senha consecutivos e trava temporária.
   failedLoginCount Int       @default(0)
   lockedUntil      DateTime?

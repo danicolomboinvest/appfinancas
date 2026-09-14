@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { sendEmail } from "@/lib/email/send";
-import { monthlyRecapEmail } from "@/lib/email/templates";
+import { monthlyRecapEmail, monthlyNudgeEmail } from "@/lib/email/templates";
+import { decideRecapEmail, MAX_NUDGES } from "@/lib/insights/recap-audience";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import { PARENT_CATEGORY_LABEL, isParentCategoryKey } from "@/lib/categories";
 
@@ -17,10 +18,16 @@ export const maxDuration = 60;
  * mostravam 3 de cada 4 contas criadas que nunca mais abriram o app. Um resumo mensal é o
  * motivo honesto pra voltar: mostra o que aconteceu com o dinheiro dela, não pede nada.
  *
- * Regras que evitam virar spam:
- * - só quem teve lançamento no mês recapeado (sem movimento não há resumo a dar);
- * - só quem não desativou em Preferências (notifyMonthlyRecap);
- * - uma vez por mês por pessoa, garantido por recapEmailSentMonth (o cron pode repetir).
+ * São DOIS e-mails, um por público, no mesmo disparo:
+ *  - quem teve movimento no mês → RESUMO (como foi o mês dela);
+ *  - quem não teve             → CONVITE pra começar ("anote um gasto de hoje").
+ * O convite é o que fala com a maior parte da base — gente que criou conta e nunca voltou.
+ *
+ * Regras que evitam virar spam (ver decideRecapEmail, testado à parte):
+ * - só quem não desativou em Notificações (notifyMonthlyRecap);
+ * - uma vez por mês por pessoa, garantido por recapEmailSentMonth (o cron pode repetir);
+ * - convite no máximo MAX_NUDGES vezes: quem não usou em 3 meses não vai usar no 4º e-mail;
+ * - quem criou conta DENTRO do mês fechado não recebe cobrança de um mês que mal viu.
  */
 export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET;
@@ -49,25 +56,74 @@ export async function GET(request: Request) {
 
   const baseUrl = appBaseUrl(request);
 
-  // Quem teve movimento no mês, ainda quer receber, e ainda não recebeu ESTE resumo.
+  // Todo mundo que ainda quer receber e ainda não recebeu o e-mail DESTE mês. Quem recebe o
+  // resumo e quem recebe o convite é decidido por pessoa, logo abaixo.
+  // O OR com null explícito é obrigatório: em SQL, `NOT (coluna = 'x')` com a coluna NULA dá
+  // NULL (nem verdadeiro nem falso) e a linha fica de fora — e a coluna é nula pra quem nunca
+  // recebeu, ou seja, o filtro sozinho não enviaria pra NINGUÉM, em silêncio.
   const candidates = await prisma.user.findMany({
     where: {
       notifyMonthlyRecap: true,
-      // Precisa ser OR com o null explícito: em SQL, `NOT (coluna = 'x')` com a coluna NULA dá
-      // NULL (nem verdadeiro nem falso) e a linha fica de fora. Como ninguém nunca recebeu o
-      // resumo, a coluna é NULA pra base inteira — um `NOT` sozinho aqui não enviaria pra
-      // NINGUÉM, e o cron passaria em silêncio, dizendo "0 candidatos" como se estivesse certo.
+      role: "CLIENT",
       OR: [{ recapEmailSentMonth: null }, { recapEmailSentMonth: { not: monthKey } }],
-      monthlyEntries: { some: { year, month } },
       ...(onlyEmail ? { email: onlyEmail } : {}),
     },
-    select: { id: true, email: true, name: true },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      createdAt: true,
+      recapNudgeCount: true,
+      _count: { select: { monthlyEntries: { where: { year, month } } } },
+    },
   });
 
+  // Início do mês fechado: quem criou a conta depois disso não leva cobrança do mês.
+  const monthStart = new Date(year, month - 1, 1);
+  const newMonthLabel = now.toLocaleDateString("pt-BR", { month: "long" });
+
   let sent = 0;
+  let nudges = 0;
   const failures: string[] = [];
 
   for (const user of candidates) {
+    const decision = decideRecapEmail({
+      hasActivityInMonth: user._count.monthlyEntries > 0,
+      alreadySentThisMonth: false, // já filtrado na consulta acima
+      wantsEmail: true, // idem
+      nudgeCount: user.recapNudgeCount,
+      existedBeforeMonth: user.createdAt < monthStart,
+    });
+    if (decision === "nada") continue;
+
+    if (decision === "convite") {
+      const { subject, html } = monthlyNudgeEmail({
+        name: user.name,
+        newMonthLabel,
+        appUrl: `${baseUrl}/mensal`,
+        preferencesUrl: `${baseUrl}/configuracoes/notificacoes`,
+      });
+      if (dryRun) {
+        nudges += 1;
+        continue;
+      }
+      try {
+        const result = await sendEmail({ to: user.email, subject, html });
+        if (result.ok) {
+          nudges += 1;
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { recapEmailSentMonth: monthKey, recapNudgeCount: { increment: 1 } },
+          });
+        } else {
+          failures.push(user.email);
+        }
+      } catch {
+        failures.push(user.email);
+      }
+      continue;
+    }
+
     const [grouped, byCategory] = await Promise.all([
       prisma.monthlyEntry.groupBy({
         by: ["category"],
@@ -115,10 +171,13 @@ export async function GET(request: Request) {
           ? { label: PARENT_CATEGORY_LABEL[top.key], value: top.value }
           : null,
       appUrl: `${baseUrl}/mensal/${year}/${month}`,
-      preferencesUrl: `${baseUrl}/configuracoes/preferencias`,
+      preferencesUrl: `${baseUrl}/configuracoes/notificacoes`,
     });
 
-    if (dryRun) continue;
+    if (dryRun) {
+      sent += 1;
+      continue;
+    }
 
     // Melhor esforço por pessoa: um endereço que quica não pode derrubar o envio dos outros.
     try {
@@ -126,7 +185,12 @@ export async function GET(request: Request) {
       if (result.ok) {
         sent += 1;
         // Marca DEPOIS do envio dar certo: falhou, tenta de novo na próxima execução.
-        await prisma.user.update({ where: { id: user.id }, data: { recapEmailSentMonth: monthKey } });
+        await prisma.user.update({
+          where: { id: user.id },
+          // Zera os convites: ela voltou a usar, e se um dia parar de novo, merece recomeçar
+          // do zero em vez de já entrar no limite por causa de um sumiço antigo.
+          data: { recapEmailSentMonth: monthKey, recapNudgeCount: 0 },
+        });
       } else {
         failures.push(user.email);
       }
@@ -139,8 +203,10 @@ export async function GET(request: Request) {
     ok: true,
     monthKey,
     candidates: candidates.length,
-    sent,
+    resumos: sent,
+    convites: nudges,
     failures: failures.length,
+    maxNudges: MAX_NUDGES,
     dryRun,
   });
 }

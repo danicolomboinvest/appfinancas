@@ -109,6 +109,48 @@ export function monthlyRecapEmail(params: {
   };
 }
 
+/**
+ * Convite pra começar — vai no mesmo dia 1º, pra quem NÃO teve movimento no mês. É o e-mail
+ * que fala com a maior parte da base: gente que criou conta e nunca voltou.
+ *
+ * Tom é o que decide se isso ajuda ou irrita. Nada de "você não fez", "você está atrasada",
+ * contador de dias perdidos ou culpa — o pedido é de UM gasto, porque a barreira real não é
+ * preguiça, é a tarefa parecer grande. Uma ação, um clique, sem cobrança.
+ */
+export function monthlyNudgeEmail(params: {
+  name: string | null;
+  /** Mês que está começando, ex.: "outubro". */
+  newMonthLabel: string;
+  appUrl: string;
+  preferencesUrl: string;
+}): { subject: string; html: string } {
+  const firstName = params.name?.split(" ")[0];
+  const hi = firstName ? `Oi, ${firstName}!` : "Oi!";
+
+  return {
+    subject: `Bora organizar ${params.newMonthLabel}?`,
+    html: shell(`
+      <p style="margin:0 0 12px;">${hi}</p>
+      <p style="margin:0 0 16px;">
+        Começou ${params.newMonthLabel} — e mês novo é a melhor hora pra começar, porque você
+        acompanha ele inteiro, do início ao fim.
+      </p>
+      <p style="margin:0 0 20px;">
+        Não precisa organizar tudo de uma vez. <strong>Anote um gasto de hoje</strong>, só um,
+        e o app já começa a montar o resto: pra onde seu dinheiro está indo, quanto sobra,
+        quanto dá pra guardar.
+      </p>
+
+      <p style="margin:0 0 4px;">${button(params.appUrl, "Anotar meu primeiro gasto")}</p>
+
+      <p style="margin:22px 0 0;color:${MUTED};font-size:12px;line-height:1.5;">
+        Se preferir não receber esses lembretes,
+        <a href="${params.preferencesUrl}" style="color:${MUTED};">desative aqui</a>.
+      </p>
+    `),
+  };
+}
+
 /** E-mail de recuperação de senha. */
 export function passwordResetEmail(params: { name: string | null; resetUrl: string }): { subject: string; html: string } {
   const hi = params.name ? `Oi, ${params.name}!` : "Oi!";
