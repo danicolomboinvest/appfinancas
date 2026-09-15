@@ -2,7 +2,8 @@
 
 import { simulateAmortizeVsInvest } from "@/lib/simulators/amortize-vs-invest";
 import type { AmortizeVsInvestFormValues } from "@/lib/validations/amortize-vs-invest.schema";
-import { StatCard } from "@/components/ui/StatCard";
+import { Card } from "@/components/ui/Card";
+import { OutcomeComparison } from "@/components/charts/OutcomeComparison";
 import { SimulatorWizard, type WizardField, type WizardValues } from "@/components/simulators/SimulatorWizard";
 import { formatPercentNumber } from "@/lib/format";
 
@@ -68,11 +69,22 @@ export default function AmortizarVsInvestirPage() {
                 <span className="text-ink-muted">({formatBRL(result.differenceInFavorOfWinner)} a mais)</span>
               </h1>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <StatCard label="Economia de juros ao amortizar" value={formatBRL(result.interestSavings)} tone={result.winner === "AMORTIZAR" ? "accent" : "neutral"} />
-              <StatCard label="Ganho líquido ao investir" value={formatBRL(result.investmentGain)} tone={result.winner === "INVESTIR" ? "accent" : "neutral"} />
-              <StatCard label="Rentabilidade líquida de IR (a.a.)" value={formatPercentNumber(result.netInvestmentAnnualRate * 100, 2)} />
-            </div>
+            <Card className="p-4">
+              <OutcomeComparison
+                a={{
+                  label: "Amortizar a dívida",
+                  value: result.interestSavings,
+                  hint: `Economia de juros · quita em ${result.scheduleWithExtra.length} meses`,
+                }}
+                b={{
+                  label: "Investir o dinheiro",
+                  value: result.investmentGain,
+                  hint: `Ganho já líquido de IR · ${formatPercentNumber(result.netInvestmentAnnualRate * 100, 2)} a.a.`,
+                }}
+                winner={result.winner === "AMORTIZAR" ? "a" : "b"}
+                verdict={`${result.winner === "AMORTIZAR" ? "Amortizar" : "Investir"} rende ${formatBRL(result.differenceInFavorOfWinner)} a mais.`}
+              />
+            </Card>
             <p className="text-xs leading-relaxed text-ink-faint">
               Sem amortizar: {result.scheduleWithoutExtra.length} meses restantes, {formatBRL(result.totalInterestWithoutExtra)} de juros
               totais. Amortizando: quita em {result.scheduleWithExtra.length} meses, {formatBRL(result.totalInterestWithExtra)} de juros.

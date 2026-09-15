@@ -23,6 +23,7 @@ import {
 } from "@/lib/travel/estimates";
 import { DestinationSearch } from "./DestinationSearch";
 import { createTravelGoalAction, type TravelGoalState } from "./actions";
+import { BulletBar, type BulletRow } from "@/components/charts/BulletBar";
 
 const initialState: TravelGoalState = {};
 
@@ -149,6 +150,29 @@ export function TravelPlanner() {
     : null;
   const months = monthsUntil(tripMonth);
   const monthlyHint = totals ? Math.ceil(totals.total / months) : 0;
+  const BLOCK_COLORS = ["var(--color-info)", "var(--color-accent)", "var(--color-success)", "var(--color-chart-5)"];
+  const tripBullets: BulletRow[] =
+    values && totals && totals.total > 0
+      ? [
+          ...FIXED_ROWS.map(({ key, label }, i) => ({ key, label, value: values[key], color: BLOCK_COLORS[i] })),
+          ...extras.map((e) => ({
+            key: `extra-${e.id}`,
+            label: e.name || "Extra",
+            value: e.value,
+            color: "var(--color-ink-faint)",
+          })),
+        ]
+          .filter((row) => row.value > 0)
+          .sort((a, b) => b.value - a.value)
+          .map((row) => ({
+            key: row.key,
+            label: row.label,
+            color: row.color,
+            fillPercent: (row.value / totals.total) * 100,
+            rightLabel: `${formatBRL(row.value)} · ${Math.round((row.value / totals.total) * 100)}%`,
+          }))
+      : [];
+
   const travelersSafe = Math.min(Math.max(travelers || 1, 1), TRIP_LIMITS.maxTravelers);
   const totalDays = legs.reduce((sum, leg) => sum + leg.days, 0);
 
@@ -400,6 +424,17 @@ export function TravelPlanner() {
                     <span className="shrink-0 text-xs tabular-nums text-ink-muted">{formatBRL(leg.subtotal)}</span>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {/* A tela mais emocional do app era a mais seca: só uma coluna de números. Uma
+                barra por bloco mostra, antes de qualquer leitura, o que está puxando o custo
+                da viagem — e é o mesmo desenho do orçamento mensal, então não é um gráfico
+                novo pra aprender. */}
+            {tripBullets.length > 0 && (
+              <div className="border-t border-border pt-3">
+                <p className="mb-3 text-xs text-ink-muted">De onde vem o custo</p>
+                <BulletBar rows={tripBullets} />
               </div>
             )}
 

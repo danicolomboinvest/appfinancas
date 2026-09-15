@@ -3,6 +3,8 @@
 import { simulateConsortiumVsFinancing } from "@/lib/simulators/consortium";
 import type { ConsortiumFormValues } from "@/lib/validations/consortium.schema";
 import { StatCard } from "@/components/ui/StatCard";
+import { Card } from "@/components/ui/Card";
+import { OutcomeComparison } from "@/components/charts/OutcomeComparison";
 import { SimulatorWizard, type WizardField, type WizardValues } from "@/components/simulators/SimulatorWizard";
 
 function formatBRL(value: number) {
@@ -70,9 +72,16 @@ export default function ConsorcioPage() {
                 <span className="text-ink-muted">({formatBRL(result.differenceInFavorOfWinner)})</span>
               </h1>
             </div>
+            <Card className="p-4">
+              {/* Barras de CUSTO: a menor é a melhor, então quem diz o vencedor é a cor. */}
+              <OutcomeComparison
+                a={{ label: "Consórcio", value: result.consortium.totalPaid, hint: `Total pago · parcela de ${formatBRL(result.consortium.installment)}` }}
+                b={{ label: "Financiamento", value: result.financing.totalCostWithOpportunity, hint: `Custo total, já com o custo de oportunidade da entrada` }}
+                winner={result.winner === "CONSORCIO" ? "a" : "b"}
+                verdict={`${result.winner === "CONSORCIO" ? "Consórcio" : "Financiamento"} sai ${formatBRL(result.differenceInFavorOfWinner)} mais barato.`}
+              />
+            </Card>
             <div className="grid grid-cols-2 gap-3">
-              <StatCard label="Consórcio, total pago" value={formatBRL(result.consortium.totalPaid)} tone={result.winner === "CONSORCIO" ? "accent" : "neutral"} />
-              <StatCard label="Financiamento, custo total" value={formatBRL(result.financing.totalCostWithOpportunity)} tone={result.winner === "FINANCIAMENTO" ? "accent" : "neutral"} />
               <StatCard label="Consórcio, parcela" value={formatBRL(result.consortium.installment)} />
               <StatCard label="Financiamento, 1ª parcela" value={formatBRL(result.financing.firstInstallment)} />
               <StatCard label="Custo de oportunidade da entrada" value={formatBRL(result.financing.downPaymentOpportunityCost)} />

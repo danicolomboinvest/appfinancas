@@ -8,7 +8,7 @@ import { formatHours } from "@/lib/format";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { ProgressBar } from "@/components/ui/ProgressBar";
-import { StatCard } from "@/components/ui/StatCard";
+import { OutcomeComparison } from "@/components/charts/OutcomeComparison";
 import { CountUp } from "@/components/ui/CountUp";
 
 const HORIZONS = [1, 5, 10] as const;
@@ -272,14 +272,23 @@ export function WorthItCalculator({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <StatCard
-                label={mode === "SINGLE" ? `Se investido (${horizonYears} ${horizonYears === 1 ? "ano" : "anos"})` : `Resistindo ${horizonYears} ${horizonYears === 1 ? "ano" : "anos"}`}
-                value={formatBRL(result.futureValueIfInvested)}
-                tone="accent"
-              />
-              <StatCard label="Diferença" value={`+${formatBRL(result.difference)}`} />
-            </div>
+            {/* As duas escolhas lado a lado, como comprimento: "R$ 3.000" e "R$ 5.280" em dois
+                cartões pedem uma subtração de cabeça; duas barras dizem o tamanho da escolha
+                antes de a pessoa ler qualquer número. */}
+            <OutcomeComparison
+              a={{
+                label: mode === "SINGLE" ? "Investir esse dinheiro" : "Resistir e investir",
+                value: result.futureValueIfInvested,
+                hint: `Em ${horizonYears} ${horizonYears === 1 ? "ano" : "anos"}, a ${WORTH_IT_ANNUAL_RATE * 100}% ao ano`,
+              }}
+              b={{
+                label: "Gastar agora",
+                value: result.totalInvested,
+                hint: mode === "SINGLE" ? "O preço de hoje" : "O que você pagaria no período",
+              }}
+              winner="a"
+              verdict={`Investindo, você teria ${formatBRL(result.difference)} a mais no fim.`}
+            />
 
             <p className="text-xs leading-relaxed text-ink-faint">
               Estimativa educada, não garantia de rentabilidade. Considera 220h úteis/mês e retorno composto de{" "}

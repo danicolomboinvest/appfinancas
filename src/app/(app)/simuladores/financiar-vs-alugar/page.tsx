@@ -79,7 +79,7 @@ export default function FinanciarVsAlugarPage() {
               <StatCard label="Valor financiado" value={formatBRL(result.financedAmount)} />
             </div>
             <Card className="p-4">
-              <FinancingVsRentChart schedule={result.schedule} />
+              <FinancingVsRentChart schedule={result.schedule} winner={result.winner} />
             </Card>
           </div>
         );

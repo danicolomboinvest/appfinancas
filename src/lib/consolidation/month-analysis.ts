@@ -14,10 +14,15 @@ export type DailyFlowPoint = {
   income: number;
   /** Acumulado de gastos até esse dia. */
   expense: number;
+  /** Gasto DO dia (não acumulado) — é o que o mapa de calor pinta. */
+  expenseOfDay: number;
 };
 
 export type DailyFlow = {
   points: DailyFlowPoint[];
+  /** Total de dias do mês, mesmo que a curva pare em hoje — o mapa de calor desenha o mês
+   * inteiro, com os dias que ainda não chegaram apagados. */
+  daysInMonth: number;
   /** Lançamentos SEM data no mês — o gráfico diário não consegue posicioná-los. Serve pra
    * avisar honestamente que a curva não conta o mês inteiro, em vez de mentir por omissão. */
   undatedCount: number;
@@ -67,10 +72,10 @@ export async function getDailyFlow(ctx: AuthContext, year: number, month: number
   for (let day = 1; day <= lastDay; day++) {
     income += incomeByDay[day];
     expense += expenseByDay[day];
-    points.push({ day, income, expense });
+    points.push({ day, income, expense, expenseOfDay: expenseByDay[day] });
   }
 
-  return { points, undatedCount, undatedAmount };
+  return { points, daysInMonth, undatedCount, undatedAmount };
 }
 
 export type CategorySpending = {

@@ -32,6 +32,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import { Donut, type DonutSlice } from "@/components/charts/Donut";
+import { MonthHeatmap } from "@/components/charts/MonthHeatmap";
 import { EntryRowActions } from "./EntryRowActions";
 import { ImportHistory } from "./ImportHistory";
 import { listImportBatches } from "@/lib/repositories/import-batch.repo";
@@ -348,6 +349,18 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
           </Card>
         )}
       </div>
+
+      {/* Depois da rosca (PARA ONDE foi) e antes do ranking (QUANTO foi), o QUANDO: é a única
+          das três perguntas que o app tinha como responder e não respondia. */}
+      {dailyFlow.points.some((p) => p.expenseOfDay > 0) && (
+        <Card className="flex flex-col gap-3 p-5">
+          <div>
+            <h2 className="text-sm font-medium text-ink">Ritmo do mês</h2>
+            <p className="mt-0.5 text-caption text-ink-faint">Um quadradinho por dia, mais forte onde saiu mais dinheiro.</p>
+          </div>
+          <MonthHeatmap points={dailyFlow.points} daysInMonth={dailyFlow.daysInMonth} year={year} month={month} />
+        </Card>
+      )}
 
       {/* O ranking completa a rosca: ela mostra a fatia, ele mostra quanto exatamente e o que
           mudou desde o mês passado. */}

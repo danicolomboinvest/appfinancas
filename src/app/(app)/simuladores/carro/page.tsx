@@ -3,6 +3,8 @@
 import { simulateCarComparison } from "@/lib/simulators/car";
 import type { CarComparisonFormValues } from "@/lib/validations/car.schema";
 import { StatCard } from "@/components/ui/StatCard";
+import { Card } from "@/components/ui/Card";
+import { OutcomeComparison } from "@/components/charts/OutcomeComparison";
 import { SimulatorWizard, type WizardField, type WizardValues } from "@/components/simulators/SimulatorWizard";
 
 function formatBRL(value: number) {
@@ -58,9 +60,17 @@ export default function CarroPage() {
                 <span className="text-ink-muted">({formatBRL(result.differenceInFavorOfWinner)})</span>
               </h1>
             </div>
+            <Card className="p-4">
+              {/* Barras de CUSTO: aqui a menor é a melhor, e é por isso que a cor marca a
+                  vencedora em vez do comprimento. */}
+              <OutcomeComparison
+                a={{ label: "Assinatura", value: result.netResultSubscription, hint: "Custo líquido em 24 meses" }}
+                b={{ label: "Comprar 0km", value: result.netResultPurchase, hint: "Custo líquido, já com depreciação e custo de oportunidade" }}
+                winner={result.winner === "ASSINATURA" ? "a" : "b"}
+                verdict={`${result.winner === "ASSINATURA" ? "Assinar" : "Comprar"} sai ${formatBRL(result.differenceInFavorOfWinner)} mais barato em 24 meses.`}
+              />
+            </Card>
             <div className="grid grid-cols-2 gap-3">
-              <StatCard label="Resultado líquido, assinatura" value={formatBRL(result.netResultSubscription)} tone={result.winner === "ASSINATURA" ? "accent" : "neutral"} />
-              <StatCard label="Resultado líquido, compra" value={formatBRL(result.netResultPurchase)} tone={result.winner === "COMPRA" ? "accent" : "neutral"} />
               <StatCard label="Custo caixa, assinatura" value={formatBRL(result.subscriptionCashCost)} />
               <StatCard label="Custo caixa, compra" value={formatBRL(result.purchaseCashCost)} />
               <StatCard label="Custo de oportunidade da compra" value={formatBRL(result.opportunityCost)} />
