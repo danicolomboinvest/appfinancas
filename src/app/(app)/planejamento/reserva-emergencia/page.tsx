@@ -1,11 +1,11 @@
 import { getRequiredSession } from "@/lib/auth/session";
+import { nowInBrazil } from "@/lib/date/brazil-now";
 import { getEmergencyFund } from "@/lib/repositories/emergency-fund.repo";
 import { computeEmergencyFundPlan } from "@/lib/planning/emergency-fund";
 import { SavingsProjectionChart } from "@/components/charts/SavingsProjectionChart";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
 import { Card } from "@/components/ui/Card";
-import { ProgressBar } from "@/components/ui/ProgressBar";
 import { EmergencyFundForm } from "./EmergencyFundForm";
 import { formatPercentNumber } from "@/lib/format";
 
@@ -25,6 +25,15 @@ export default async function ReservaEmergenciaPage() {
         annualRate: Number(fund.annualRate),
       })
     : null;
+
+  // Mês previsto de conclusão vira data de verdade ("junho de 2027"). "Faltam 9 meses" obriga
+  // a pessoa a contar no calendário pra saber quando é.
+  let completionLabel: string | null = null;
+  if (plan && plan.monthsToTarget !== null) {
+    const done = nowInBrazil();
+    done.setMonth(done.getMonth() + plan.monthsToTarget);
+    completionLabel = done.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+  }
 
   return (
     <div className="flex flex-col gap-8">
@@ -59,23 +68,14 @@ export default async function ReservaEmergenciaPage() {
             <StatCard label="Rentabilidade mensal" value={formatPercentNumber(plan.monthlyRate * 100, 3)} />
           </div>
 
-          {(() => {
-            const targetAmount = Number(fund.targetAmount);
-            const progress = targetAmount > 0 ? Math.min(Number(fund.currentAmount) / targetAmount, 1) : 0;
-            return (
-              <Card className="p-5">
-                <div className="mb-2 flex items-center justify-between">
-                  <p className="text-sm font-medium text-ink-muted">Progresso da reserva</p>
-                  <p className="text-sm font-semibold text-accent-strong">{Math.round(progress * 100)}%</p>
-                </div>
-                <ProgressBar percent={progress} tone={progress >= 1 ? "success" : "accent"} />
-              </Card>
-            );
-          })()}
-
           {plan.projection.length > 0 && (
             <Card className="p-5">
-              <SavingsProjectionChart projection={plan.projection} targetAmount={Number(fund.targetAmount)} />
+              <SavingsProjectionChart
+                projection={plan.projection}
+                targetAmount={Number(fund.targetAmount)}
+                currentAmount={Number(fund.currentAmount)}
+                completionLabel={completionLabel}
+              />
             </Card>
           )}
         </div>

@@ -1,7 +1,7 @@
 import { Target } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
 import { listGoalsWithProgress } from "@/lib/repositories/goal.repo";
-import { computeGoalPlan, computeGoalTrajectory, type GoalCalcResult } from "@/lib/planning/goal";
+import { computeGoalPlan, type GoalCalcResult } from "@/lib/planning/goal";
 import { getGoalCheckinEligibility, monthKeyLabel } from "@/lib/planning/goal-checkin";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -40,7 +40,6 @@ export default async function MetasPage() {
       annualRate: Number(goal.annualRate ?? 0),
     };
     const plan = computeGoalPlan(goalInput);
-    const trajectory = computeGoalTrajectory(goalInput, plan);
     const variant = resolveVariant(plan, currentAmount, targetAmount);
 
     // Check-in mensal: só faz sentido perguntar "fez o aporte?" pra meta ainda ativa, com
@@ -58,7 +57,6 @@ export default async function MetasPage() {
     return {
       goal,
       plan,
-      trajectory,
       targetAmount,
       currentAmount,
       targetDate,
@@ -92,7 +90,7 @@ export default async function MetasPage() {
         />
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {sorted.map(({ goal, plan, trajectory, targetAmount, currentAmount, targetDate, variant, checkin }) => (
+          {sorted.map(({ goal, plan, targetAmount, currentAmount, targetDate, variant, checkin }) => (
             <GoalCard
               key={goal.id}
               id={goal.id}
@@ -103,7 +101,6 @@ export default async function MetasPage() {
               targetDate={targetDate}
               annualRate={Number(goal.annualRate ?? 0)}
               plan={plan}
-              trajectory={trajectory}
               variant={variant}
               checkin={checkin}
             />

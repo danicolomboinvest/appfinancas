@@ -8,8 +8,7 @@ import { CountUp } from "@/components/ui/CountUp";
 import { DeleteGoalButton } from "./DeleteGoalButton";
 import { EditGoalButton } from "./EditGoalButton";
 import { GoalCheckIn } from "./GoalCheckIn";
-import { GoalTrajectoryChart } from "./GoalTrajectoryChart";
-import type { GoalCalcResult, GoalTrajectoryPoint } from "@/lib/planning/goal";
+import type { GoalCalcResult } from "@/lib/planning/goal";
 
 export type GoalVariant = "ahead" | "onTrack" | "behind" | "achieved";
 
@@ -85,7 +84,6 @@ export function GoalCard({
   targetDate,
   annualRate,
   plan,
-  trajectory,
   variant,
   checkin,
 }: {
@@ -97,7 +95,6 @@ export function GoalCard({
   targetDate: Date;
   annualRate: number;
   plan: GoalCalcResult;
-  trajectory: GoalTrajectoryPoint[];
   variant: GoalVariant;
   /** Presente = está na janela de perguntar "você fez o aporte sugerido?" este mês. */
   checkin: { monthKey: string; monthLabel: string; suggestedAmount: number } | null;
@@ -159,32 +156,14 @@ export function GoalCard({
         </div>
       </div>
 
-      <GoalTrajectoryChart data={trajectory} targetAmount={targetAmount} tone={VARIANT_CHART_TONE[variant]} />
-
-      {/* FitText nos R$: coluna de ~93px, meta de imóvel ("R$ 100.000,00") estourava e
-          invadia a coluna vizinha no celular. */}
-      <div className="grid grid-cols-3 gap-2 text-center">
-        <div>
-          <p className="text-xs text-ink-muted">Guardado</p>
-          <div className="mt-0.5">
-            <FitText className="text-sm font-medium text-ink">{formatBRL(currentAmount)}</FitText>
-          </div>
-        </div>
-        <div>
-          <p className="text-xs text-ink-muted">Falta</p>
-          <div className="mt-0.5">
-            <FitText className="text-sm font-medium text-ink">{formatBRL(Math.max(plan.amountMissing, 0))}</FitText>
-          </div>
-        </div>
-        <div>
-          <p className="text-xs text-ink-muted">Meses restantes</p>
-          <p className="mt-0.5 text-sm font-medium text-ink">{plan.monthsRemaining}</p>
-        </div>
-      </div>
+      <p className="text-sm tabular-nums text-ink-muted">
+        <span className="font-semibold text-ink">{formatBRL(currentAmount)}</span> de {formatBRL(targetAmount)}
+        {!achieved && <> · {plan.monthsRemaining} {plan.monthsRemaining === 1 ? "mês" : "meses"}</>}
+      </p>
 
       {!achieved && (
         <div className="rounded-xl bg-surface-2 p-3">
-          <p className="text-xs text-ink-muted">Aporte mensal sugerido</p>
+          <p className="text-xs text-ink-muted">Guardar este mês</p>
           <p className="mt-1 text-xl font-bold tracking-tight text-accent-strong">
             {/* `brl` (não `format={formatBRL}`): GoalCard é Server Component, função não serializa. */}
             <CountUp value={plan.requiredMonthlyContribution} brl />
