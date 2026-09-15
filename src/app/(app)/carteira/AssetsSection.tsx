@@ -11,7 +11,8 @@ import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { useToast } from "@/components/ui/toast-context";
-import { DonutAllocationChart } from "@/components/charts/DonutAllocationChart";
+import { Donut } from "@/components/charts/Donut";
+import { BulletBar, type BulletRow } from "@/components/charts/BulletBar";
 import { PortfolioImport } from "@/components/import/PortfolioImport";
 import { IrpfImport } from "@/components/import/IrpfImport";
 import { DeleteAssetButton } from "./DeleteAssetButton";
@@ -92,7 +93,8 @@ type Asset = {
  * de rebalanceamento fora da tolerância, prontos pra exibir. */
 export type StrategySummary = {
   hasStrategy: boolean;
-  targets: { name: string; value: number; color?: string }[];
+  /** Uma linha por classe: preenchimento = onde a carteira está, tracinho = o alvo. */
+  bullets: BulletRow[];
   suggestions: { label: string; amount: number }[];
 };
 
@@ -180,7 +182,8 @@ export function AssetsSection({
   const classAllocationData = CLASS_ORDER.filter((c) => (valueByClass.get(c) ?? 0) > 0).map((c) => ({
     id: c,
     name: CLASS_PLURAL[c],
-    value: totalValue > 0 ? (valueByClass.get(c) ?? 0) / totalValue : 0,
+    value: valueByClass.get(c) ?? 0,
+    color: CLASS_COLOR[c] ?? "var(--color-ink-faint)",
   }));
   // Filtro por tipo: clicar na fatia/legenda ou nos chips mostra só os ativos daquele tipo,
   // do maior pro menor valor.
@@ -265,28 +268,35 @@ export function AssetsSection({
         />
       ) : (
         <>
-          <Card className="grid grid-cols-1 gap-4 p-5 sm:grid-cols-2">
-            <DonutAllocationChart
-              title="Carteira atual, por tipo"
-              data={classAllocationData}
-              onSelect={(slice) => slice.id && toggleClassFilter(slice.id)}
-              selectedName={classFilter ? CLASS_PLURAL[classFilter] : null}
-            />
-            {strategy.hasStrategy ? (
-              <DonutAllocationChart title="Sua estratégia (ideal)" data={strategy.targets} />
-            ) : (
-              <div className="flex w-full flex-col items-center gap-2">
-                <p className="text-xs font-medium text-ink-muted">Sua estratégia (ideal)</p>
-                <div className="flex h-[220px] flex-col items-center justify-center gap-2 text-center">
-                  <p className="max-w-[220px] text-xs text-ink-faint">
+          {/* Uma rosca e uma régua, não duas roscas. Comparar "atual" e "ideal" em dois
+              círculos obriga a pessoa a medir ângulo de cabeça; com o alvo virando tracinho
+              na mesma barra, quem está atrás do traço é literalmente o que falta comprar. */}
+          <Card className="grid grid-cols-1 gap-5 p-5 sm:grid-cols-2">
+            <div className="flex flex-col gap-3">
+              <p className="text-sm font-medium text-ink">Carteira atual, por tipo</p>
+              <Donut
+                slices={classAllocationData}
+                centerLabel="Total"
+                size={170}
+                onSelect={(slice) => slice.id && toggleClassFilter(slice.id)}
+                selectedName={classFilter ? CLASS_PLURAL[classFilter] : null}
+              />
+            </div>
+            <div className="flex flex-col gap-3">
+              <p className="text-sm font-medium text-ink">Onde você está × sua estratégia</p>
+              {strategy.hasStrategy ? (
+                <BulletBar rows={strategy.bullets} targetHint="O tracinho é o seu alvo. Quem está atrás dele é o que comprar no próximo aporte." />
+              ) : (
+                <div className="flex flex-col items-start gap-2">
+                  <p className="text-xs text-ink-faint">
                     Defina quanto quer ter em cada tipo e compare com a carteira atual.
                   </p>
                   <Link href="/carteira/estrategia" className="text-xs font-medium text-accent-strong hover:underline">
                     Definir estratégia →
                   </Link>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </Card>
 
           {/* Pra onde vai o próximo aporte: maiores desvios da estratégia (detalhe em Por Objetivo). */}

@@ -80,54 +80,39 @@ function ScoreArc({ score, status }: { score: number | null; status: HealthStatu
   );
 }
 
-/** Pílula de dimensão com anel de progresso ao redor (nota 0-100). */
-function DimensionPill({ label, score, status }: { label: string; score: number | null; status: HealthStatus }) {
-  const [from, to] = STATUS_GRADIENT[status];
-  const size = 64;
-  const stroke = 5;
-  const r = (size - stroke) / 2;
-  const c = 2 * Math.PI * r;
+/**
+ * Pilar como barra, não como anel.
+ *
+ * Quatro anéis lado a lado ficam bonitos e comparam mal: para saber qual está pior a pessoa
+ * precisa medir arco contra arco. Quatro barras empilhadas partem todas da mesma linha de
+ * base, então a mais curta salta aos olhos — e é exatamente isso que a pessoa veio procurar:
+ * onde ela está perdendo ponto.
+ */
+function DimensionBar({ label, score, status }: { label: string; score: number | null; status: HealthStatus }) {
+  const [, to] = STATUS_GRADIENT[status];
   const fraction = (score ?? 0) / 100;
-  const gradientId = `dim-${label.replace(/\s/g, "-")}`;
-  const [offset, setOffset] = useState(c);
+  const [grown, setGrown] = useState(false);
   useEffect(() => {
-    const raf = requestAnimationFrame(() => setOffset(c * (1 - fraction)));
+    const raf = requestAnimationFrame(() => setGrown(true));
     return () => cancelAnimationFrame(raf);
-  }, [c, fraction]);
+  }, []);
 
   return (
-    <div className="flex flex-col items-center gap-2">
-      <div className="relative" style={{ width: size, height: size }}>
-        <svg width={size} height={size} className="-rotate-90">
-          <defs>
-            <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor={from} />
-              <stop offset="100%" stopColor={to} />
-            </linearGradient>
-          </defs>
-          <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--color-surface-2)" strokeWidth={stroke} />
-          {score !== null && (
-            <circle
-              cx={size / 2}
-              cy={size / 2}
-              r={r}
-              fill="none"
-              stroke={`url(#${gradientId})`}
-              strokeWidth={stroke}
-              strokeLinecap="round"
-              strokeDasharray={c}
-              strokeDashoffset={offset}
-              style={{ transition: "stroke-dashoffset 1.3s ease-out" }}
-            />
-          )}
-        </svg>
-        <div className="absolute inset-0 flex items-center justify-center">
-          <span className={`text-base font-bold ${STATUS_TEXT_CLASS[status]}`}>
-            {score === null ? "—" : <CountUp value={score} />}
-          </span>
-        </div>
-      </div>
-      <p className="max-w-[5.5rem] text-center text-caption leading-tight text-ink-muted">{label}</p>
+    <div className="flex items-center gap-3">
+      <p className="w-20 shrink-0 text-caption leading-tight text-ink-muted">{label}</p>
+      <span className="relative h-2 flex-1 rounded-full bg-surface-2">
+        <span
+          className="absolute inset-y-0 left-0 rounded-full"
+          style={{
+            width: grown ? `${Math.round(fraction * 100)}%` : "0%",
+            backgroundColor: to,
+            transition: "width 1.3s ease-out",
+          }}
+        />
+      </span>
+      <span className={`w-7 shrink-0 text-right text-sm font-bold tabular-nums ${STATUS_TEXT_CLASS[status]}`}>
+        {score === null ? "—" : <CountUp value={score} />}
+      </span>
     </div>
   );
 }
@@ -142,11 +127,11 @@ export function HealthScoreCard({ score }: { score: FinancialHealthScore }) {
         <ScoreArc score={score.overallScore} status={score.status} />
       </div>
 
-      <p className="mx-auto mt-3 max-w-sm text-center text-body text-ink-muted">{score.message}</p>
+      <p className="mx-auto mt-3 max-w-md text-center text-caption text-ink-muted">{score.message}</p>
 
-      <div className="mt-6 flex items-start justify-center gap-5 sm:gap-8">
+      <div className="mx-auto mt-6 flex max-w-sm flex-col gap-2.5">
         {score.dimensions.map((dimension) => (
-          <DimensionPill key={dimension.key} label={dimension.label} score={dimension.score} status={dimension.status} />
+          <DimensionBar key={dimension.key} label={dimension.label} score={dimension.score} status={dimension.status} />
         ))}
       </div>
     </Card>

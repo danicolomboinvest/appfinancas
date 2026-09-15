@@ -2,7 +2,8 @@ import Link from "next/link";
 import type { StrategyClassPosition } from "@/lib/portfolio/strategy";
 import { STRATEGY_ASSET_CLASS_LABEL, STRATEGY_ASSET_CLASS_COLOR } from "@/lib/portfolio/strategy";
 import { Card } from "@/components/ui/Card";
-import { DonutAllocationChart } from "@/components/charts/DonutAllocationChart";
+import { BulletBar } from "@/components/charts/BulletBar";
+import { buildStrategyBullets } from "@/lib/portfolio/strategy-bullets";
 import { formatPercentNumber } from "@/lib/format";
 
 function formatBRL(value: number) {
@@ -28,23 +29,14 @@ export function StrategyComparisonSection({
     );
   }
 
-  const currentData = positions.map((p) => ({
-    name: STRATEGY_ASSET_CLASS_LABEL[p.assetClass],
-    value: p.currentPercent,
-    color: STRATEGY_ASSET_CLASS_COLOR[p.assetClass],
-  }));
-  const targetData = positions.map((p) => ({
-    name: STRATEGY_ASSET_CLASS_LABEL[p.assetClass],
-    value: p.targetPercent,
-    color: STRATEGY_ASSET_CLASS_COLOR[p.assetClass],
-  }));
+  const bullets = buildStrategyBullets(positions);
   const visible = positions.filter((p) => p.targetPercent > 0 || p.currentValue > 0);
 
   return (
     <div className="flex flex-col gap-4">
-      <Card className="grid grid-cols-1 gap-4 p-5 sm:grid-cols-2">
-        <DonutAllocationChart title="Carteira atual" data={currentData} />
-        <DonutAllocationChart title="Estratégia-alvo" data={targetData} />
+      <Card className="flex flex-col gap-4 p-5">
+        <p className="text-sm font-medium text-ink">Carteira atual × estratégia-alvo</p>
+        <BulletBar rows={bullets} targetHint="O tracinho é o alvo. Quem está atrás dele é o que comprar no próximo aporte." />
       </Card>
 
       {/* Só números, o usuário bate o olho e sabe quanto mover. Sem parágrafos (item 5.2). */}

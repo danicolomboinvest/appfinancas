@@ -6,10 +6,10 @@ import { listUpcomingDividendsForUser } from "@/lib/repositories/dividend.repo";
 import {
   getPortfolioStrategyComparison,
   STRATEGY_ASSET_CLASS_LABEL,
-  STRATEGY_ASSET_CLASS_COLOR,
 } from "@/lib/portfolio/strategy";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { AssetsSection, type StrategySummary } from "./AssetsSection";
+import { buildStrategyBullets } from "@/lib/portfolio/strategy-bullets";
 import { UpcomingDividendsSection } from "./UpcomingDividendsSection";
 
 export default async function CarteiraPage() {
@@ -27,13 +27,7 @@ export default async function CarteiraPage() {
   const hasStrategy = comparison.positions.some((p) => p.targetPercent > 0);
   const strategy: StrategySummary = {
     hasStrategy,
-    targets: comparison.positions
-      .filter((p) => p.targetPercent > 0)
-      .map((p) => ({
-        name: STRATEGY_ASSET_CLASS_LABEL[p.assetClass],
-        value: p.targetPercent,
-        color: STRATEGY_ASSET_CLASS_COLOR[p.assetClass],
-      })),
+    bullets: buildStrategyBullets(comparison.positions),
     suggestions: comparison.positions
       .filter((p) => p.status !== "DENTRO")
       .sort((a, b) => Math.abs(b.rebalanceAmount) - Math.abs(a.rebalanceAmount))
