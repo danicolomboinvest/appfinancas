@@ -3,6 +3,7 @@
 import { Bar, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { MonthlyBreakdown } from "@/lib/consolidation/yearly";
 import { CHART_COLORS, CHART_TOOLTIP_STYLE } from "./chart-theme";
+import { useMoney } from "@/components/money/MoneyProvider";
 
 const MONTH_LABELS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
@@ -22,9 +23,6 @@ type Row = {
   isCurrent: boolean;
 };
 
-function formatBRL(value: number) {
-  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
-}
 
 /**
  * Uma coluna por mês, desenhada à mão em vez de três barras lado a lado do Recharts.
@@ -97,6 +95,7 @@ function MonthColumn(props: unknown) {
 }
 
 function ColumnTooltip({ active, payload }: { active?: boolean; payload?: { payload: Row }[] }) {
+  const money = useMoney();
   if (!active || !payload?.length) return null;
   const row = payload[0].payload;
   const sobrou = row.Renda - row.Gastos - row.Aportes;
@@ -106,14 +105,14 @@ function ColumnTooltip({ active, payload }: { active?: boolean; payload?: { payl
         {row.name}
         {!row.isRealized && " (previsto)"}
       </p>
-      <p style={{ margin: 0, color: CHART_COLORS.success }}>Renda {formatBRL(row.Renda)}</p>
-      <p style={{ margin: 0, color: CHART_COLORS.danger }}>Gastos {formatBRL(row.Gastos)}</p>
-      <p style={{ margin: 0, color: CHART_COLORS.accent }}>Aportes {formatBRL(row.Aportes)}</p>
+      <p style={{ margin: 0, color: CHART_COLORS.success }}>Renda {money(row.Renda, { round: true })}</p>
+      <p style={{ margin: 0, color: CHART_COLORS.danger }}>Gastos {money(row.Gastos, { round: true })}</p>
+      <p style={{ margin: 0, color: CHART_COLORS.accent }}>Aportes {money(row.Aportes, { round: true })}</p>
       {row.Planejado != null && (
-        <p style={{ margin: 0, color: CHART_COLORS.accentStrong }}>Planejado {formatBRL(row.Planejado)}</p>
+        <p style={{ margin: 0, color: CHART_COLORS.accentStrong }}>Planejado {money(row.Planejado, { round: true })}</p>
       )}
       <p style={{ margin: "4px 0 0", color: "var(--color-ink)", fontWeight: 600 }}>
-        {sobrou >= 0 ? "Sobrou" : "Faltou"} {formatBRL(Math.abs(sobrou))}
+        {sobrou >= 0 ? "Sobrou" : "Faltou"} {money(Math.abs(sobrou), { round: true })}
       </p>
     </div>
   );

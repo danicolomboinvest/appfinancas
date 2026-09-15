@@ -10,17 +10,18 @@ import { Button } from "@/components/ui/Button";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { OutcomeComparison } from "@/components/charts/OutcomeComparison";
 import { CountUp } from "@/components/ui/CountUp";
+import { useMoney } from "@/components/money/MoneyProvider";
+import { useCurrency } from "@/components/money/MoneyProvider";
+import { currencySymbol } from "@/lib/money";
+import type { MoneyFormatter } from "@/lib/money";
 
 const HORIZONS = [1, 5, 10] as const;
 const TOTAL_STEPS = 3;
 
-function formatBRL(value: number) {
-  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
-}
 
-function centsToBRLInput(cents: number | null): string {
+function centsToCurrencyInput(cents: number | null, money: MoneyFormatter): string {
   if (cents === null) return "";
-  return (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  return money(cents / 100);
 }
 
 function parseDigitsToCents(text: string): number | null {
@@ -51,6 +52,8 @@ export function WorthItCalculator({
   monthlyIncome: number;
   incomeMonthLabel: string;
 }) {
+  const currency = useCurrency();
+  const money = useMoney();
   const priceInputId = useId();
   const [step, setStep] = useState(1);
   const [priceCents, setPriceCents] = useState<number | null>(null);
@@ -108,8 +111,8 @@ export function WorthItCalculator({
               type="text"
               inputMode="decimal"
               autoFocus
-              placeholder="R$ 0,00"
-              value={centsToBRLInput(priceCents)}
+              placeholder={`${currencySymbol(currency)} 0,00`}
+              value={centsToCurrencyInput(priceCents, money)}
               onChange={(e) => setPriceCents(parseDigitsToCents(e.target.value))}
               className="w-full bg-transparent text-3xl font-semibold tabular-nums text-ink outline-none placeholder:text-ink-faint"
             />
@@ -118,7 +121,7 @@ export function WorthItCalculator({
           {editingIncome ? (
             <div className="flex w-fit items-center gap-2 rounded-full border border-accent bg-accent-soft px-3.5 py-2 text-xs">
               <span className="shrink-0 text-ink-muted">Simular com renda de</span>
-              <span className="text-ink-muted">R$</span>
+              <span className="text-ink-muted">{currencySymbol(currency)}</span>
               <input
                 type="text"
                 inputMode="decimal"
@@ -141,7 +144,7 @@ export function WorthItCalculator({
               {hasIncome ? (
                 <span>
                   Valor-hora calculado com {isIncomeSimulated ? "uma renda simulada de" : "sua renda de"}{" "}
-                  <b className="font-semibold text-ink">{formatBRL(effectiveIncome)}</b>
+                  <b className="font-semibold text-ink">{money(effectiveIncome, { round: true })}</b>
                   {!isIncomeSimulated && <> em {incomeMonthLabel} (Fluxo Financeiro)</>}{" "}
                   <button type="button" onClick={startSimulatingIncome} className="font-medium text-accent-strong hover:underline">
                     alterar
@@ -287,7 +290,7 @@ export function WorthItCalculator({
                 hint: mode === "SINGLE" ? "O preço de hoje" : "O que você pagaria no período",
               }}
               winner="a"
-              verdict={`Investindo, você teria ${formatBRL(result.difference)} a mais no fim.`}
+              verdict={`Investindo, você teria ${money(result.difference, { round: true })} a mais no fim.`}
             />
 
             <p className="text-xs leading-relaxed text-ink-faint">

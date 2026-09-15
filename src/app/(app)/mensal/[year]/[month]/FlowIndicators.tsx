@@ -6,6 +6,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { CountUp } from "@/components/ui/CountUp";
 import { FitText } from "@/components/ui/FitText";
+import { useMoney } from "@/components/money/MoneyProvider";
 
 const MONTH_LABELS = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
@@ -31,9 +32,6 @@ const TONE_TEXT: Record<Tone, string> = {
   ink: "text-ink",
 };
 
-function formatBRL(value: number) {
-  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
-}
 
 /** (renda − gastos) / renda: quanto da renda não virou gasto (ficou de saldo + aportes). */
 function savingsRate(b: FlowBundle): number | null {
@@ -172,6 +170,7 @@ export function FlowIndicators({
   /** Ritmo do mês (orçamento consumido vs. mês decorrido), só no mês corrente com orçamento. */
   pacing?: Pacing | null;
 }) {
+  const money = useMoney();
   const [view, setView] = useState<View>(initialView);
   const bundle = view === "mensal" ? monthly : annual;
   const rate = savingsRate(bundle);
@@ -232,14 +231,14 @@ export function FlowIndicators({
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <IndicatorCard label="Renda" value={bundle.income} format={formatBRL} tone="success" delayMs={0} />
-        <IndicatorCard label="Gastos" value={bundle.expense} format={formatBRL} tone="danger" delayMs={90} />
-        <IndicatorCard label="Planejamento" value={bundle.planned} format={formatBRL} tone="ink" delayMs={180} />
-        <IndicatorCard label="Aportes" value={bundle.investment} format={formatBRL} tone="accent" delayMs={270} />
+        <IndicatorCard label="Renda" value={bundle.income} format={money} tone="success" delayMs={0} />
+        <IndicatorCard label="Gastos" value={bundle.expense} format={money} tone="danger" delayMs={90} />
+        <IndicatorCard label="Planejamento" value={bundle.planned} format={money} tone="ink" delayMs={180} />
+        <IndicatorCard label="Aportes" value={bundle.investment} format={money} tone="accent" delayMs={270} />
         <IndicatorCard
           label="Saldo"
           value={bundle.balance}
-          format={formatBRL}
+          format={money}
           tone={bundle.balance >= 0 ? "accent" : "danger"}
           delayMs={360}
         />

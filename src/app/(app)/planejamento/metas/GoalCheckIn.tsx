@@ -5,14 +5,18 @@ import { HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/toast-context";
 import { checkinGoalAction, type GoalCheckinState } from "./actions";
+import { useCurrency } from "@/components/money/MoneyProvider";
+import { currencySymbol } from "@/lib/money";
+import { useMoney } from "@/components/money/MoneyProvider";
 
 const initialState: GoalCheckinState = {};
 
 /** Input de valor com "R$" fixo dentro, mesmo padrão usado no planejador de viagem. */
 function MoneyInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
+  const currency = useCurrency();
   return (
     <span className="relative block">
-      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-ink-faint">R$</span>
+      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-ink-faint">{currencySymbol(currency)}</span>
       <input
         type="number"
         inputMode="numeric"
@@ -44,6 +48,7 @@ export function GoalCheckIn({
   monthKey: string;
   suggestedAmount: number;
 }) {
+  const money = useMoney();
   const [step, setStep] = useState<Step>("ask");
   const [amount, setAmount] = useState("");
   const [state, formAction, isPending] = useActionState(checkinGoalAction, initialState);
@@ -91,7 +96,7 @@ export function GoalCheckIn({
               <p className="text-sm text-ink">
                 Você guardou os{" "}
                 <strong className="tabular-nums">
-                  {suggestedAmount.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                  {money(suggestedAmount)}
                 </strong>{" "}
                 sugeridos em {monthLabel}?
               </p>

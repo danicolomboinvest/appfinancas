@@ -11,10 +11,9 @@ import { ResponsiveTable, type ResponsiveColumn } from "@/components/ui/Responsi
 import type { GoalAllocation } from "@/lib/consolidation/portfolio";
 import { StrategyComparisonSection } from "./StrategyComparisonSection";
 import { formatPercentNumber } from "@/lib/format";
+import { serverMoney } from "@/lib/money-server";
+import type { MoneyFormatter } from "@/lib/money";
 
-function formatBRL(value: number) {
-  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
 
 function formatPercent(value: number | null) {
   if (value === null) return "—";
@@ -22,6 +21,7 @@ function formatPercent(value: number | null) {
 }
 
 export default async function CarteiraPorObjetivoPage() {
+  const money = await serverMoney();
   const ctx = await getRequiredSession();
   const [byObjective, allocation, strategyComparison] = await Promise.all([
     getPortfolioByObjective(ctx),
@@ -49,25 +49,25 @@ export default async function CarteiraPorObjetivoPage() {
       <div>
         <h2 className="mb-3 text-sm font-medium text-ink-muted">Posição por objetivo</h2>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <StatCard label="Total da carteira" value={formatBRL(byObjective.totalPortfolio)} tone="accent" />
+          <StatCard label="Total da carteira" value={money(byObjective.totalPortfolio)} tone="accent" />
           <StatCard
             label="Reserva de emergência"
-            value={formatBRL(byObjective.reserva.currentValue)}
+            value={money(byObjective.reserva.currentValue)}
             hint={
               byObjective.reserva.targetAmount !== null
-                ? `${formatPercent(byObjective.reserva.achievementPercent)} da meta (${formatBRL(byObjective.reserva.targetAmount)})`
+                ? `${formatPercent(byObjective.reserva.achievementPercent)} da meta (${money(byObjective.reserva.targetAmount)})`
                 : "Sem meta cadastrada em Reserva de Emergência"
             }
           />
-          <StatCard label="Liberdade financeira" value={formatBRL(byObjective.liberdade.currentValue)} />
-          <StatCard label="Sem objetivo definido" value={formatBRL(byObjective.outro.currentValue)} />
+          <StatCard label="Liberdade financeira" value={money(byObjective.liberdade.currentValue)} />
+          <StatCard label="Sem objetivo definido" value={money(byObjective.outro.currentValue)} />
         </div>
       </div>
 
       {byObjective.metas.length > 0 && (
         <div>
           <h2 className="mb-3 text-sm font-medium text-ink-muted">Metas</h2>
-          <ResponsiveTable columns={goalColumns} rows={byObjective.metas} rowKey={(goal) => goal.goalId} />
+          <ResponsiveTable columns={goalColumns(money)} rows={byObjective.metas} rowKey={(goal) => goal.goalId} />
         </div>
       )}
 
@@ -95,7 +95,7 @@ export default async function CarteiraPorObjetivoPage() {
   );
 }
 
-const goalColumns: ResponsiveColumn<GoalAllocation>[] = [
+const goalColumns = (money: MoneyFormatter): ResponsiveColumn<GoalAllocation>[] => [
   {
     key: "name",
     label: "Meta",
@@ -105,7 +105,7 @@ const goalColumns: ResponsiveColumn<GoalAllocation>[] = [
       </Link>
     ),
   },
-  { key: "current", label: "Alocado", render: (goal) => formatBRL(goal.currentValue) },
-  { key: "target", label: "Alvo", render: (goal) => formatBRL(goal.targetAmount) },
+  { key: "current", label: "Alocado", render: (goal) => money(goal.currentValue) },
+  { key: "target", label: "Alvo", render: (goal) => money(goal.targetAmount) },
   { key: "achievement", label: "Atingimento", render: (goal) => formatPercent(goal.achievementPercent) },
 ];

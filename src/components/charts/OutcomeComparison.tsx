@@ -1,10 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useMoney } from "@/components/money/MoneyProvider";
 
-function formatBRL(value: number) {
-  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
-}
 
 export type Outcome = { label: string; value: number; hint?: string };
 
@@ -31,6 +29,7 @@ export function OutcomeComparison({
   winner: "a" | "b";
   verdict: string;
 }) {
+  const money = useMoney();
   const [grown, setGrown] = useState(false);
   useEffect(() => {
     const raf = requestAnimationFrame(() => setGrown(true));
@@ -53,7 +52,7 @@ export function OutcomeComparison({
                 {outcome.label}
               </span>
               <span className={`text-base font-bold tabular-nums ${isWinner ? "text-success" : "text-ink-muted"}`}>
-                {formatBRL(outcome.value)}
+                {money(outcome.value, { round: true })}
               </span>
             </div>
             <span className="relative block h-2.5 rounded-full bg-surface-2">

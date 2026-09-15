@@ -32,10 +32,18 @@ export function PreferencesForm({ defaults }: { defaults: { currency: string; th
           <option value="light">Claro</option>
         </SelectField>
       </div>
-      <p className="text-xs text-ink-faint">
-        A preferência de tema é aplicada imediatamente após salvar. O suporte completo a outras moedas chega em uma
-        próxima atualização, hoje os valores continuam sendo exibidos em R$.
-      </p>
+      {/* O aviso é a parte mais importante desta tela. Sem ele, alguém troca para euro, vê
+          "€ 8.500" onde antes lia "R$ 8.500" e acha que o app converteu o patrimônio. */}
+      <div className="rounded-lg bg-surface-2 px-3 py-2.5">
+        <p className="text-xs text-ink">
+          Trocar a moeda <strong>não converte seus valores</strong>.
+        </p>
+        <p className="mt-1 text-xs text-ink-muted">
+          Os números continuam exatamente os mesmos — só o símbolo muda. Um lançamento de 3.000 passa a aparecer como
+          &quot;€ 3.000&quot; em vez de &quot;R$ 3.000&quot;. Use se você lança seus valores em outra moeda.
+        </p>
+      </div>
+      <p className="text-xs text-ink-faint">Moeda e tema são aplicados assim que você salva.</p>
       <Button type="submit" disabled={isPending} className="w-fit">
         {isPending ? "Salvando..." : "Salvar"}
       </Button>

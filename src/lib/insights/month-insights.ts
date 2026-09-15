@@ -1,4 +1,5 @@
 import type { CategorySpending } from "@/lib/consolidation/month-analysis";
+import type { MoneyFormatter } from "@/lib/money";
 
 /**
  * Traduz os números do mês em frases que dizem o que eles SIGNIFICAM. A tela já mostra
@@ -21,9 +22,6 @@ const RELEVANT_CHANGE = 0.08;
 /** Categoria com gasto pequeno vira "subiu 300%" por qualquer coisa — não vale como alerta. */
 const MIN_CATEGORY_AMOUNT = 50;
 
-function formatBRL(value: number): string {
-  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
-}
 
 function percent(ratio: number): string {
   return `${Math.round(Math.abs(ratio) * 100)}%`;
@@ -50,7 +48,7 @@ export function totalSpendingInsight(currentExpense: number, previousExpense: nu
  * A categoria que mais mudou de um mês pro outro — em reais, não em porcentagem: 40% a mais no
  * cafezinho é barulho, 12% a mais no aluguel é o que realmente mexe no bolso.
  */
-export function biggestMoverInsight(categories: CategorySpending[]): Insight | null {
+export function biggestMoverInsight(categories: CategorySpending[], money: MoneyFormatter): Insight | null {
   const candidates = categories.filter(
     (c) =>
       c.changeRatio !== null &&
@@ -71,12 +69,12 @@ export function biggestMoverInsight(categories: CategorySpending[]): Insight | n
   if (ratio > 0) {
     return {
       tone: "warning",
-      text: `${top.label} subiu ${percent(ratio)} em relação ao mês passado (${formatBRL(delta)} a mais).`,
+      text: `${top.label} subiu ${percent(ratio)} em relação ao mês passado (${money(delta)} a mais).`,
     };
   }
   return {
     tone: "positive",
-    text: `${top.label} caiu ${percent(ratio)} em relação ao mês passado (${formatBRL(delta)} a menos).`,
+    text: `${top.label} caiu ${percent(ratio)} em relação ao mês passado (${money(delta)} a menos).`,
   };
 }
 
@@ -99,11 +97,13 @@ export function buildMonthInsights(params: {
   previousExpense: number;
   categories: CategorySpending[];
   limit?: number;
+  /** Formatador da moeda escolhida — o texto cita valores, e a moeda é do usuário. */
+  money: MoneyFormatter;
 }): Insight[] {
-  const { currentExpense, previousExpense, categories, limit = 2 } = params;
+  const { currentExpense, previousExpense, categories, money, limit = 2 } = params;
   const insights = [
     totalSpendingInsight(currentExpense, previousExpense),
-    biggestMoverInsight(categories),
+    biggestMoverInsight(categories, money),
     concentrationInsight(categories),
   ].filter((i): i is Insight => i !== null);
   return insights.slice(0, limit);

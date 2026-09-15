@@ -1,8 +1,6 @@
 import type { DailyFlowPoint } from "@/lib/consolidation/month-analysis";
+import { serverMoney } from "@/lib/money-server";
 
-function formatBRL(value: number) {
-  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
-}
 
 const WEEKDAY_INITIALS = ["D", "S", "T", "Q", "Q", "S", "S"];
 
@@ -18,7 +16,7 @@ const WEEKDAY_INITIALS = ["D", "S", "T", "Q", "Q", "S", "S"];
  * semana, o padrão de fim de semana vira uma coluna visível em vez de um ritmo que a pessoa
  * teria que contar de sete em sete.
  */
-export function MonthHeatmap({
+export async function MonthHeatmap({
   points,
   daysInMonth,
   year,
@@ -29,6 +27,7 @@ export function MonthHeatmap({
   year: number;
   month: number;
 }) {
+  const money = await serverMoney();
   const spendByDay = new Map(points.map((p) => [p.day, p.expenseOfDay]));
   const maxSpend = Math.max(...points.map((p) => p.expenseOfDay), 0);
   if (maxSpend <= 0) return null;
@@ -61,7 +60,7 @@ export function MonthHeatmap({
           return (
             <span
               key={day}
-              title={isFuture ? `Dia ${day}` : `Dia ${day}: ${formatBRL(spent)}`}
+              title={isFuture ? `Dia ${day}` : `Dia ${day}: ${money(spent, { round: true })}`}
               className={`flex aspect-square items-center justify-center rounded-md text-caption tabular-nums ${
                 isFuture ? "border border-dashed border-border text-ink-faint" : "text-ink"
               }`}
@@ -95,7 +94,7 @@ export function MonthHeatmap({
           Mais
         </span>
         <span className="text-caption text-ink-muted">
-          Dia de maior gasto: {peak.day} · {formatBRL(peak.expenseOfDay)}
+          Dia de maior gasto: {peak.day} · {money(peak.expenseOfDay, { round: true })}
         </span>
       </div>
     </div>

@@ -22,6 +22,8 @@ export async function updatePreferencesAction(
 
   const ctx = await getRequiredSession();
   await updateOwnPreferences(ctx, parsed.data);
-  revalidatePath("/configuracoes/preferencias");
+  // A moeda aparece em TODA tela (e no cabeçalho, que vive no layout), então não adianta
+  // revalidar só esta página: o "layout" faz a troca valer no app inteiro de uma vez.
+  revalidatePath("/", "layout");
   return {};
 }

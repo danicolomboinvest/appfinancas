@@ -20,10 +20,9 @@ import { AssetForm } from "./AssetForm";
 import { updatePortfolioQuotesAction } from "./quotes-actions";
 import { bulkSetObjectiveAction } from "./actions";
 import { formatPercentNumber } from "@/lib/format";
+import { useMoney, useCurrency } from "@/components/money/MoneyProvider";
+import { currencySymbol } from "@/lib/money";
 
-function formatBRL(value: number) {
-  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
 
 const CLASS_LABEL: Record<string, string> = {
   RENDA_FIXA: "Renda Fixa",
@@ -121,13 +120,15 @@ export function AssetsSection({
   goalNameById: Map<string, string>;
   strategy: StrategySummary;
 }) {
+  const currency = useCurrency();
+  const formatValue = useMoney();
   const [createOpen, setCreateOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [irpfOpen, setIrpfOpen] = useState(false);
   const [editingAsset, setEditingAsset] = useState<Asset | null>(null);
   const [classFilter, setClassFilter] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [hidden, setHidden] = useState(false); // botão de olho: oculta os valores em R$
+  const [hidden, setHidden] = useState(false); // botão de olho: oculta os valores em dinheiro
   const [isUpdatingQuotes, startQuotesTransition] = useTransition();
   const [isBulkPending, startBulkTransition] = useTransition();
   const { showToast } = useToast();
@@ -168,8 +169,8 @@ export function AssetsSection({
   // Lucro geral: só considera ativos com investido conhecido (evita distorcer o %).
   const totalInvested = assets.reduce((sum, a) => sum + (a.investedValue !== null && a.investedValue > 0 ? a.investedValue : 0), 0);
   const totalProfit = assets.reduce((sum, a) => sum + (profitOf(a) ?? 0), 0);
-  /** Formata em R$, ou "R$ ••••" quando o olho está fechado. */
-  const money = (v: number) => (hidden ? "R$ ••••" : formatBRL(v));
+  /** Formata na moeda escolhida, ou "•••• " quando o olho está fechado. */
+  const money = (v: number) => (hidden ? `${currencySymbol(currency)} ••••` : formatValue(v));
 
   // Carteira atual agrupada por TIPO (Ações, FIIs, Fundos…), com dezenas de ativos, uma
   // fatia por ativo vira confete; por classe o percentual conta a história de verdade.
@@ -218,12 +219,12 @@ export function AssetsSection({
               </div>
               <div className="mt-1">
                 <FitText className="text-display font-bold tracking-tight tabular-nums text-ink">
-                  {hidden ? "R$ ••••" : <CountUp value={totalValue} format={formatBRL} />}
+                  {hidden ? `${currencySymbol(currency)} ••••` : <CountUp value={totalValue} format={formatValue} />}
                 </FitText>
               </div>
               {Math.abs(totalProfit) >= 0.005 && totalInvested > 0 && (
                 <p className={`mt-1 text-sm tabular-nums ${totalProfit > 0 ? "text-success" : "text-danger"}`}>
-                  {totalProfit > 0 ? "+" : "−"}{hidden ? "R$ ••••" : formatBRL(Math.abs(totalProfit))} desde a compra
+                  {totalProfit > 0 ? "+" : "−"}{hidden ? `${currencySymbol(currency)} ••••` : money(Math.abs(totalProfit))} desde a compra
                 </p>
               )}
             </div>
@@ -310,7 +311,7 @@ export function AssetsSection({
                     s.amount >= 0 ? "bg-success-soft text-success" : "bg-danger-soft text-danger"
                   }`}
                 >
-                  {s.amount >= 0 ? "+" : "−"} {formatBRL(Math.abs(s.amount))} {s.label}
+                  {s.amount >= 0 ? "+" : "−"} {money(Math.abs(s.amount))} {s.label}
                 </span>
               ))}
               <Link href="/carteira/por-objetivo" className="text-xs text-accent-strong hover:underline">
@@ -363,7 +364,7 @@ export function AssetsSection({
                   <>
                     {" · "}
                     <span className={profit > 0 ? "text-success" : "text-danger"}>
-                      {profit > 0 ? "+" : "−"}{hidden ? "R$ ••••" : formatBRL(Math.abs(profit))}
+                      {profit > 0 ? "+" : "−"}{hidden ? `${currencySymbol(currency)} ••••` : money(Math.abs(profit))}
                     </span>
                   </>
                 );
@@ -442,7 +443,7 @@ export function AssetsSection({
                         const pct = (profit / (asset.investedValue as number)) * 100;
                         return (
                           <p className={`text-xs tabular-nums ${profit > 0 ? "text-success" : "text-danger"}`}>
-                            {profit > 0 ? "+" : "−"}{hidden ? "R$ ••••" : formatBRL(Math.abs(profit))} ({profit > 0 ? "+" : "−"}{formatPercentNumber(Math.abs(pct), 1)})
+                            {profit > 0 ? "+" : "−"}{hidden ? `${currencySymbol(currency)} ••••` : money(Math.abs(profit))} ({profit > 0 ? "+" : "−"}{formatPercentNumber(Math.abs(pct), 1)})
                           </p>
                         );
                       })()}

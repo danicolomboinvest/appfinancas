@@ -130,14 +130,14 @@ export function AssetForm({
         </SelectField>
       )}
       <CurrencyField
-        label="Valor investido (R$)"
+        label="Valor investido"
         id="investedValue"
         name="investedValue"
         defaultValue={defaults.investedValue}
         className="w-32"
       />
       <CurrencyField
-        label="Valor atual (R$)"
+        label="Valor atual"
         id="currentValue"
         name="currentValue"
         required

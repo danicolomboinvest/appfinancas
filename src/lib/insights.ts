@@ -15,6 +15,7 @@ import {
   getPatrimonyAllTimeHighBeforeToday,
 } from "@/lib/portfolio/snapshot";
 import { formatPercentNumber } from "@/lib/format";
+import type { MoneyFormatter } from "@/lib/money";
 
 export type InsightTone = "success" | "warning" | "danger" | "info";
 export type InsightCategory = "fluxo" | "metas" | "carteira" | "reserva";
@@ -40,9 +41,6 @@ function formatPercent(value: number) {
   return `${Math.round(value * 100)}%`;
 }
 
-function formatBRL(value: number) {
-  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
 
 function formatMonthYear(date: Date) {
   return new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric" }).format(date);
@@ -57,7 +55,7 @@ const TRAILING_MONTHS_FOR_AVERAGE = 6;
  * do usuário (orçamento estourado / metas atrasadas) definidas em Configurações. Cada insight
  * carrega uma `category` para permitir agrupar a tela de Análises por domínio.
  */
-export async function computeInsights(ctx: AuthContext): Promise<Insight[]> {
+export async function computeInsights(ctx: AuthContext, money: MoneyFormatter): Promise<Insight[]> {
   const now = new Date();
   const year = now.getFullYear();
   const month = now.getMonth() + 1;
@@ -117,7 +115,7 @@ export async function computeInsights(ctx: AuthContext): Promise<Insight[]> {
       const percent = spent / planned;
       const label = PARENT_CATEGORY_LABEL[budget.parentCategory];
       if (percent > 1) {
-        const over = formatBRL(spent - planned);
+        const over = money(spent - planned);
         insights.push({
           id: `budget-${budget.parentCategory}`,
           message: `${label} estourou o orçamento em ${formatPercent(percent - 1)} este mês (${over} acima do planejado), vale segurar novos gastos nessa categoria ou revisar o valor planejado.`,
@@ -144,7 +142,7 @@ export async function computeInsights(ctx: AuthContext): Promise<Insight[]> {
     if (biggest.spent > 0) {
       insights.push({
         id: "biggest-expense-category",
-        message: `${PARENT_CATEGORY_LABEL[biggest.parentCategory]} segue sendo onde mais sai dinheiro este mês (${formatBRL(biggest.spent)}).`,
+        message: `${PARENT_CATEGORY_LABEL[biggest.parentCategory]} segue sendo onde mais sai dinheiro este mês (${money(biggest.spent)}).`,
         tone: "info",
         category: "fluxo",
         href: monthlyEntryHref,
@@ -216,7 +214,7 @@ export async function computeInsights(ctx: AuthContext): Promise<Insight[]> {
       if (projectedAnnualSavings > 0) {
         insights.push({
           id: "budget-projected-annual-savings",
-          message: `Se continuar nesse ritmo, você vai economizar aproximadamente ${formatBRL(projectedAnnualSavings)} neste ano.`,
+          message: `Se continuar nesse ritmo, você vai economizar aproximadamente ${money(projectedAnnualSavings)} neste ano.`,
           tone: "success",
           category: "fluxo",
           href: comparativoHref,
@@ -251,14 +249,14 @@ export async function computeInsights(ctx: AuthContext): Promise<Insight[]> {
     if (percent >= 1) {
       insights.push({
         id: "emergency-fund",
-        message: `Sua reserva de emergência está completa (${formatBRL(current)}), você tem proteção garantida para imprevistos.`,
+        message: `Sua reserva de emergência está completa (${money(current)}), você tem proteção garantida para imprevistos.`,
         tone: "success",
         category: "reserva",
       });
     } else if (percent >= 0.5) {
       insights.push({
         id: "emergency-fund",
-        message: `Sua reserva de emergência está ${formatPercent(percent)} completa (${formatBRL(current)} de ${formatBRL(target)}), continue aportando até cobrir o valor-alvo.`,
+        message: `Sua reserva de emergência está ${formatPercent(percent)} completa (${money(current)} de ${money(target)}), continue aportando até cobrir o valor-alvo.`,
         tone: "warning",
         category: "reserva",
         href: reserveHref,
@@ -335,7 +333,7 @@ export async function computeInsights(ctx: AuthContext): Promise<Insight[]> {
     if (monthsSaved >= 1 && Number.isFinite(monthsWithBoost)) {
       insights.push({
         id: `goal-what-if-${goal.id}`,
-        message: `Aumentando o aporte de "${goal.name}" em ${formatBRL(extra)}/mês, você antecipa a conquista em ${monthsSaved} mês${monthsSaved > 1 ? "es" : ""}.`,
+        message: `Aumentando o aporte de "${goal.name}" em ${money(extra)}/mês, você antecipa a conquista em ${monthsSaved} mês${monthsSaved > 1 ? "es" : ""}.`,
         tone: "info",
         category: "metas",
         href: `/planejamento/metas/${goal.id}`,
@@ -390,7 +388,7 @@ export async function computeInsights(ctx: AuthContext): Promise<Insight[]> {
     if (previousHigh !== null && portfolio.totalPortfolio > previousHigh) {
       insights.push({
         id: "patrimony-new-high",
-        message: `Seu patrimônio bateu um novo recorde hoje: ${formatBRL(portfolio.totalPortfolio)}.`,
+        message: `Seu patrimônio bateu um novo recorde hoje: ${money(portfolio.totalPortfolio)}.`,
         tone: "success",
         category: "carteira",
         href: "/carteira",

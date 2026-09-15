@@ -8,10 +8,8 @@ import {
   colorForCategorySlice,
   isParentCategoryKey,
 } from "@/lib/categories";
+import { serverMoney } from "@/lib/money-server";
 
-function formatBRL(value: number) {
-  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
 
 /** Ranking não precisa ser infinito: as 5 primeiras já explicam a maior parte do mês, e a lista
  * completa continua a um toque de distância em "Só gastos". */
@@ -22,7 +20,8 @@ const TOP_COUNT = 5;
  * o nome, o valor e — o que faltava — se cada categoria subiu ou caiu em relação ao mês
  * passado. Sem essa última coluna a pessoa vê onde gastou, mas não descobre o que mudou.
  */
-export function TopCategories({ categories }: { categories: CategorySpending[] }) {
+export async function TopCategories({ categories }: { categories: CategorySpending[] }) {
+  const money = await serverMoney();
   if (categories.length === 0) return null;
   const top = categories.slice(0, TOP_COUNT);
   const rest = categories.length - top.length;
@@ -58,7 +57,7 @@ export function TopCategories({ categories }: { categories: CategorySpending[] }
                 </div>
               </div>
               <div className="shrink-0 text-right">
-                <p className="text-sm font-medium tabular-nums text-ink">{formatBRL(category.amount)}</p>
+                <p className="text-sm font-medium tabular-nums text-ink">{money(category.amount)}</p>
                 <p className="text-caption tabular-nums text-ink-faint">
                   {Math.round(category.share * 100)}%
                   {category.changeRatio !== null && Math.abs(category.changeRatio) >= 0.08 && (

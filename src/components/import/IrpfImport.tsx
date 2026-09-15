@@ -9,14 +9,12 @@ import {
   type IrpfPreviewItem,
   type WalletAssetOption,
 } from "@/app/(app)/carteira/irpf-actions";
+import { useMoney } from "@/components/money/MoneyProvider";
 
 type Phase = "upload" | "confirm" | "done";
 
 const KIND_LABEL: Record<IrpfPreviewItem["kind"], string> = { acao: "Ação", fii: "FII", etf: "ETF" };
 
-function formatBRL(value: number) {
-  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
 
 function buildForm(file: File): FormData {
   const formData = new FormData();
@@ -35,6 +33,7 @@ type Choice = Record<number, string>;
  * e deixa escolher o ativo à mão quando a declaração só traz o nome da empresa (sem ticker).
  */
 export function IrpfImport({ onDone }: { onDone: () => void }) {
+  const money = useMoney();
   const fileRef = useRef<HTMLInputElement>(null);
   const [phase, setPhase] = useState<Phase>("upload");
   const [items, setItems] = useState<IrpfPreviewItem[]>([]);
@@ -156,15 +155,15 @@ export function IrpfImport({ onDone }: { onDone: () => void }) {
                       </span>
                     </p>
                     <p className="text-caption text-ink-faint">
-                      Preço médio <span className="text-ink-muted tabular-nums">{formatBRL(i.averagePrice)}</span>
+                      Preço médio <span className="text-ink-muted tabular-nums">{money(i.averagePrice)}</span>
                       {i.irQuantity ? ` · ${i.irQuantity.toLocaleString("pt-BR", { maximumFractionDigits: 6 })} na declaração` : ""}
                     </p>
                   </div>
                   {newInvested !== null && target && (
                     <p className="shrink-0 text-right text-caption tabular-nums text-ink-faint">
                       investido{" "}
-                      {i.currentInvested !== null ? `${formatBRL(i.currentInvested)} → ` : ""}
-                      <span className="text-ink">{formatBRL(newInvested)}</span>
+                      {i.currentInvested !== null ? `${money(i.currentInvested)} → ` : ""}
+                      <span className="text-ink">{money(newInvested)}</span>
                     </p>
                   )}
                 </div>

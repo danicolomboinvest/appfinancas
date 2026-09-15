@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import { useToast } from "@/components/ui/toast-context";
 import { deleteImportBatchAction } from "../../import-actions";
+import { useMoney } from "@/components/money/MoneyProvider";
 
 export type ImportBatchView = {
   id: string;
@@ -19,9 +20,6 @@ export type ImportBatchView = {
   months: string[];
 };
 
-function formatBRL(value: number) {
-  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
 
 function formatDateTime(iso: string) {
   return new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
@@ -40,6 +38,7 @@ function formatMonthChip(ym: string) {
  * segundo toque de confirmação no próprio botão.
  */
 export function ImportHistory({ batches }: { batches: ImportBatchView[] }) {
+  const money = useMoney();
   const { showToast } = useToast();
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [removedIds, setRemovedIds] = useState<Set<string>>(new Set());
@@ -82,7 +81,7 @@ export function ImportHistory({ batches }: { batches: ImportBatchView[] }) {
                     {" · "}
                     {batch.entryCount} lançamento{batch.entryCount === 1 ? "" : "s"}
                     {" · "}
-                    <span className="tabular-nums">{formatBRL(batch.totalAmount)}</span>
+                    <span className="tabular-nums">{money(batch.totalAmount)}</span>
                     {batch.months.length > 0 && ` · ${batch.months.map(formatMonthChip).join(", ")}`}
                   </p>
                 </div>

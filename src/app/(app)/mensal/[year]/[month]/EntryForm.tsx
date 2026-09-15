@@ -103,7 +103,7 @@ export function EntryForm({
         className={stacked ? "w-full" : ""}
       />
       <CurrencyField
-        label="Valor (R$)"
+        label="Valor"
         id="amount"
         name="amount"
         defaultValue={defaultAmount}

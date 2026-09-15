@@ -5,6 +5,8 @@ import { ChevronLeft, ChevronRight, Pencil } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { HelpTooltip } from "@/components/forms/HelpTooltip";
+import { currencySymbol, type MoneyFormatter } from "@/lib/money";
+import { useMoney, useCurrency } from "@/components/money/MoneyProvider";
 
 export type WizardFieldKind = "currency" | "percent" | "number" | "select";
 
@@ -25,15 +27,12 @@ export type WizardField = {
 
 export type WizardValues = Record<string, number | string>;
 
-function formatBRL(reais: number) {
-  return reais.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
-}
 
-/** Máscara de moeda a partir de reais (número) → "R$ 1.234,56". */
-function currencyDisplay(reais: number | string): string {
+/** Máscara de moeda a partir do valor cru → "R$ 1.234,56", "€ 1.234,56". */
+function currencyDisplay(reais: number | string, money: MoneyFormatter): string {
   const n = typeof reais === "number" ? reais : Number(reais);
   if (!Number.isFinite(n) || n === 0) return "";
-  return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  return money(n);
 }
 function parseCurrency(text: string): number {
   const digits = text.replace(/\D/g, "");
@@ -47,8 +46,8 @@ function percentDisplay(decimal: number | string): string {
 }
 
 /** Descrição curta do valor atual, mostrada na tela de ajuste. */
-function summarize(field: WizardField, value: number | string): string {
-  if (field.kind === "currency") return formatBRL(typeof value === "number" ? value : Number(value));
+function summarize(field: WizardField, value: number | string, money: MoneyFormatter): string {
+  if (field.kind === "currency") return money(typeof value === "number" ? value : Number(value), { round: true });
   if (field.kind === "percent") return `${percentDisplay(value)}% ${field.suffix ?? "a.a."}`;
   if (field.kind === "select") return field.options?.find((o) => o.value === value)?.label ?? String(value);
   return `${value}${field.suffix ? ` ${field.suffix}` : ""}`;
@@ -76,6 +75,8 @@ export function SimulatorWizard({
   const visibleFields = fields.filter((f) => !f.showIf || f.showIf(values));
   const isResult = step >= visibleFields.length;
   const totalSteps = visibleFields.length + 1;
+  const currency = useCurrency();
+  const money = useMoney();
 
   function setField(name: string, value: number | string) {
     setValues((prev) => ({ ...prev, [name]: value }));
@@ -131,8 +132,8 @@ export function SimulatorWizard({
           type="text"
           inputMode="decimal"
           autoFocus={big}
-          placeholder="R$ 0,00"
-          value={currencyDisplay(value)}
+          placeholder={`${currencySymbol(currency)} 0,00`}
+          value={currencyDisplay(value, money)}
           onChange={(e) => setField(field.name, parseCurrency(e.target.value))}
           className={big ? baseBig : baseSmall}
         />
@@ -225,7 +226,7 @@ export function SimulatorWizard({
                       {field.label}
                       {field.help && <HelpTooltip text={field.help} />}
                     </p>
-                    <p className="truncate text-sm font-medium text-ink">{summarize(field, values[field.name])}</p>
+                    <p className="truncate text-sm font-medium text-ink">{summarize(field, values[field.name], money)}</p>
                   </div>
                   <div className="w-36 shrink-0">{inputFor(field, false)}</div>
                 </div>

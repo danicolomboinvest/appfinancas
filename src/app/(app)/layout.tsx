@@ -6,10 +6,9 @@ import { getOwnUser, touchLastSeen } from "@/lib/repositories/user.repo";
 import { hasPremiumAccess } from "@/lib/repositories/allowedEmail.repo";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import type { AuthContext } from "@/lib/auth/session";
+import { MoneyProvider } from "@/components/money/MoneyProvider";
+import { toCurrencyCode, formatMoney, type CurrencyCode } from "@/lib/money";
 
-function formatBRL(value: number) {
-  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
 
 function timeOfDayGreeting(now: Date) {
   const hour = now.getHours();
@@ -22,11 +21,15 @@ function capitalize(text: string) {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
-function monthSummaryLine(summary: { totalIncome: number; totalExpense: number; totalInvestment: number; balance: number }) {
+function monthSummaryLine(
+  summary: { totalIncome: number; totalExpense: number; totalInvestment: number; balance: number },
+  currency: CurrencyCode,
+) {
+  const money = (value: number) => formatMoney(value, currency);
   const hasAnyEntry = summary.totalIncome > 0 || summary.totalExpense > 0 || summary.totalInvestment > 0;
   if (!hasAnyEntry) return "Você ainda não lançou nada este mês.";
-  if (summary.balance > 0) return `Seu saldo este mês está positivo em ${formatBRL(summary.balance)}.`;
-  if (summary.balance < 0) return `Seu saldo este mês está negativo em ${formatBRL(Math.abs(summary.balance))}.`;
+  if (summary.balance > 0) return `Seu saldo este mês está positivo em ${money(summary.balance)}.`;
+  if (summary.balance < 0) return `Seu saldo este mês está negativo em ${money(Math.abs(summary.balance))}.`;
   return "Seu saldo este mês está zerado.";
 }
 
@@ -42,6 +45,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   let summary = "";
   let theme = "dark";
+  let currency: CurrencyCode = toCurrencyCode(null);
   let isPremium = false;
   let flow: { income: number; expense: number; investment: number } | undefined;
   if (session?.user) {
@@ -51,7 +55,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       getOwnUser(ctx),
       hasPremiumAccess(ctx.userId),
     ]);
-    summary = monthSummaryLine(monthlySummary);
+    currency = toCurrencyCode(user.currency);
+    summary = monthSummaryLine(monthlySummary, currency);
     theme = user.theme;
     isPremium = premium;
     // Registra o "visto por último" pra métrica de engajamento (throttle interno de 15min).
@@ -66,6 +71,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <>
       <ThemeSync theme={theme} />
+      <MoneyProvider currency={currency}>
       <AppShell
         isAdmin={session?.user.role === "ADMIN"}
         isPremium={isPremium}
@@ -77,6 +83,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       >
         {children}
       </AppShell>
+      </MoneyProvider>
     </>
   );
 }

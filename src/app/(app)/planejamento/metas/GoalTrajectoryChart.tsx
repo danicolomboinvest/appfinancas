@@ -3,6 +3,7 @@
 import { Area, AreaChart, ReferenceLine, ResponsiveContainer, Tooltip } from "recharts";
 import { CHART_COLORS, CHART_TOOLTIP_STYLE } from "@/components/charts/chart-theme";
 import type { GoalTrajectoryPoint } from "@/lib/planning/goal";
+import { useMoney } from "@/components/money/MoneyProvider";
 
 const TONE_COLOR: Record<"success" | "accent" | "danger", string> = {
   success: CHART_COLORS.success,
@@ -10,9 +11,6 @@ const TONE_COLOR: Record<"success" | "accent" | "danger", string> = {
   danger: CHART_COLORS.danger,
 };
 
-function formatBRL(value: number) {
-  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
 
 /**
  * Sparkline da trajetória PROJETADA de uma meta (não histórica, ver computeGoalTrajectory).
@@ -28,6 +26,7 @@ export function GoalTrajectoryChart({
   targetAmount: number;
   tone: "success" | "accent" | "danger";
 }) {
+  const money = useMoney();
   if (data.length < 2) return null;
   const color = TONE_COLOR[tone];
   const gradientId = `goal-trajectory-${tone}`;
@@ -66,7 +65,7 @@ export function GoalTrajectoryChart({
         <Tooltip
           {...CHART_TOOLTIP_STYLE}
           labelFormatter={(month) => (Number(month) === 0 ? "Hoje" : `Daqui a ${month} meses`)}
-          formatter={(value) => formatBRL(Number(value))}
+          formatter={(value) => money(Number(value))}
         />
         {/* isAnimationActive (padrão do Recharts) já desenha a área da esquerda pra direita ao
             entrar na tela, é a "coreografia de entrada" do documento de referência. */}

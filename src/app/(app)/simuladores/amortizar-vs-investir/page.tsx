@@ -6,10 +6,8 @@ import { Card } from "@/components/ui/Card";
 import { OutcomeComparison } from "@/components/charts/OutcomeComparison";
 import { SimulatorWizard, type WizardField, type WizardValues } from "@/components/simulators/SimulatorWizard";
 import { formatPercentNumber } from "@/lib/format";
+import { useMoney } from "@/components/money/MoneyProvider";
 
-function formatBRL(value: number) {
-  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
 
 const FIELDS: WizardField[] = [
   { name: "outstandingBalance", label: "Saldo devedor", kind: "currency", help: "Quanto você ainda deve no financiamento hoje." },
@@ -53,6 +51,7 @@ function toInput(values: WizardValues): AmortizeVsInvestFormValues {
 }
 
 export default function AmortizarVsInvestirPage() {
+  const money = useMoney();
   return (
     <SimulatorWizard
       eyebrow="Amortizar vs. Investir"
@@ -66,7 +65,7 @@ export default function AmortizarVsInvestirPage() {
               <p className="text-xs font-semibold uppercase tracking-wide text-accent-strong">Resultado</p>
               <h1 className="mt-1 font-serif text-2xl text-ink">
                 {result.winner === "AMORTIZAR" ? "Melhor amortizar" : "Melhor investir"}{" "}
-                <span className="text-ink-muted">({formatBRL(result.differenceInFavorOfWinner)} a mais)</span>
+                <span className="text-ink-muted">({money(result.differenceInFavorOfWinner)} a mais)</span>
               </h1>
             </div>
             <Card className="p-4">
@@ -82,12 +81,12 @@ export default function AmortizarVsInvestirPage() {
                   hint: `Ganho já líquido de IR · ${formatPercentNumber(result.netInvestmentAnnualRate * 100, 2)} a.a.`,
                 }}
                 winner={result.winner === "AMORTIZAR" ? "a" : "b"}
-                verdict={`${result.winner === "AMORTIZAR" ? "Amortizar" : "Investir"} rende ${formatBRL(result.differenceInFavorOfWinner)} a mais.`}
+                verdict={`${result.winner === "AMORTIZAR" ? "Amortizar" : "Investir"} rende ${money(result.differenceInFavorOfWinner)} a mais.`}
               />
             </Card>
             <p className="text-xs leading-relaxed text-ink-faint">
-              Sem amortizar: {result.scheduleWithoutExtra.length} meses restantes, {formatBRL(result.totalInterestWithoutExtra)} de juros
-              totais. Amortizando: quita em {result.scheduleWithExtra.length} meses, {formatBRL(result.totalInterestWithExtra)} de juros.
+              Sem amortizar: {result.scheduleWithoutExtra.length} meses restantes, {money(result.totalInterestWithoutExtra)} de juros
+              totais. Amortizando: quita em {result.scheduleWithExtra.length} meses, {money(result.totalInterestWithExtra)} de juros.
             </p>
           </div>
         );

@@ -4,11 +4,13 @@ import { getUsageReport } from "@/lib/repositories/usage.repo";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { StatCard } from "@/components/ui/StatCard";
-import { formatBRL, formatPercentNumber } from "@/lib/format";
+import { formatPercentNumber } from "@/lib/format";
+import { serverMoney } from "@/lib/money-server";
 
 export const metadata = { title: "Relatório da plataforma · SPI Finance" };
 
 export default async function AdminRelatorioPage() {
+  const money = await serverMoney();
   await requireAdmin();
   const [report, usage] = await Promise.all([getPlatformReport(), getUsageReport(30)]);
   const { engagement: e, featureAdoption, simulators, sheets, financial: f } = report;
@@ -192,10 +194,10 @@ export default async function AdminRelatorioPage() {
           <StatCard label="No vermelho" value={String(f.noVermelho)} tone="danger" hint="Gastam mais do que ganham" />
           <StatCard
             label="Poupança mediana/mês"
-            value={formatBRL(f.poupancaMediana)}
+            value={money(f.poupancaMediana)}
             hint={f.taxaPoupancaMedia != null ? `Taxa média: ${formatPercentNumber(f.taxaPoupancaMedia * 100, 0)}` : undefined}
           />
-          <StatCard label="Patrimônio total da base" value={formatBRL(f.patrimonioTotal)} tone="accent" />
+          <StatCard label="Patrimônio total da base" value={money(f.patrimonioTotal)} tone="accent" />
         </div>
         <p className="text-xs text-ink-faint">
           {f.semDados} usuário(s) ainda sem lançamentos, fora do cálculo de poupança. Mediana em vez de média para não

@@ -2,10 +2,8 @@
 
 import type { FinancingVsRentMonth } from "@/lib/simulators/financing-vs-rent";
 import { ComparisonAreaChart, type ComparisonPoint } from "./ComparisonAreaChart";
+import { useMoney } from "@/components/money/MoneyProvider";
 
-function formatBRL(value: number) {
-  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
-}
 
 /**
  * Financiar × Alugar e investir. Hoje é o gráfico de comparação padrão dos simuladores
@@ -19,6 +17,7 @@ export function FinancingVsRentChart({
   schedule: FinancingVsRentMonth[];
   winner: "FINANCIAR" | "ALUGAR_E_INVESTIR";
 }) {
+  const money = useMoney();
   // Um ponto a cada 6 meses (mais o último): mês a mês são centenas de pontos que o olho não
   // distingue e que o celular sofre pra desenhar.
   const points: ComparisonPoint[] = schedule
@@ -30,8 +29,8 @@ export function FinancingVsRentChart({
   const diferenca = last ? Math.abs(last.a - last.b) : 0;
   const verdict =
     winner === "ALUGAR_E_INVESTIR"
-      ? `Alugar e investir sai ${formatBRL(diferenca)} à frente em ${anos} anos.`
-      : `Financiar sai ${formatBRL(diferenca)} à frente em ${anos} anos.`;
+      ? `Alugar e investir sai ${money(diferenca, { round: true })} à frente em ${anos} anos.`
+      : `Financiar sai ${money(diferenca, { round: true })} à frente em ${anos} anos.`;
 
   return (
     <ComparisonAreaChart

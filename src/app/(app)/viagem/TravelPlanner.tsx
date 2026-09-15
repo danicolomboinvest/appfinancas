@@ -24,12 +24,12 @@ import {
 import { DestinationSearch } from "./DestinationSearch";
 import { createTravelGoalAction, type TravelGoalState } from "./actions";
 import { BulletBar, type BulletRow } from "@/components/charts/BulletBar";
+import { useMoney } from "@/components/money/MoneyProvider";
+import { useCurrency } from "@/components/money/MoneyProvider";
+import { currencySymbol } from "@/lib/money";
 
 const initialState: TravelGoalState = {};
 
-function formatBRL(value: number) {
-  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
-}
 
 /** "YYYY-MM" do mês que vem — viagem é sempre no futuro. */
 function nextMonthValue(): string {
@@ -81,9 +81,10 @@ const VALUE_INPUT_CLASSES =
 
 /** Input de valor com o "R$" fixo dentro — número solto parecia campo vazio, não dinheiro. */
 function MoneyInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
+  const currency = useCurrency();
   return (
     <span className="relative shrink-0">
-      <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-ink-faint">R$</span>
+      <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-ink-faint">{currencySymbol(currency)}</span>
       <input type="number" inputMode="numeric" min={0} {...props} className={VALUE_INPUT_CLASSES} />
     </span>
   );
@@ -96,6 +97,7 @@ function MoneyInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
  * instantânea; o servidor saneia e recalcula tudo na criação da meta.
  */
 export function TravelPlanner() {
+  const money = useMoney();
   const [legs, setLegs] = useState<Leg[]>([]);
   const [travelers, setTravelers] = useState(2);
   const [style, setStyle] = useState<TravelStyle>("medio");
@@ -169,7 +171,7 @@ export function TravelPlanner() {
             label: row.label,
             color: row.color,
             fillPercent: (row.value / totals.total) * 100,
-            rightLabel: `${formatBRL(row.value)} · ${Math.round((row.value / totals.total) * 100)}%`,
+            rightLabel: `${money(row.value, { round: true })} · ${Math.round((row.value / totals.total) * 100)}%`,
           }))
       : [];
 
@@ -340,7 +342,7 @@ export function TravelPlanner() {
                   <TrendingDown className="size-4 shrink-0 text-success" aria-hidden />
                   <span className="min-w-0 flex-1 text-xs text-ink">
                     Em <strong>{MONTH_NAMES[cheaper.month - 1]}</strong> a mesma viagem sai{" "}
-                    <strong>{formatBRL(cheaper.savings)}</strong> mais barata.
+                    <strong>{money(cheaper.savings, { round: true })}</strong> mais barata.
                   </span>
                   <span className="shrink-0 text-xs font-semibold text-accent-strong">Trocar</span>
                 </button>
@@ -410,7 +412,7 @@ export function TravelPlanner() {
                 <ShieldQuestion className="size-4 shrink-0 text-ink-faint" aria-hidden />
                 <span className="truncate">Margem de imprevistos (10%)</span>
               </span>
-              <span className="shrink-0 text-sm font-medium tabular-nums text-ink">{formatBRL(totals.buffer)}</span>
+              <span className="shrink-0 text-sm font-medium tabular-nums text-ink">{money(totals.buffer, { round: true })}</span>
             </div>
 
             {estimate.legs.length > 1 && (
@@ -421,7 +423,7 @@ export function TravelPlanner() {
                     <span className="min-w-0 truncate text-xs text-ink-faint">
                       {leg.destination.label} · {leg.days} {leg.days === 1 ? "dia" : "dias"}
                     </span>
-                    <span className="shrink-0 text-xs tabular-nums text-ink-muted">{formatBRL(leg.subtotal)}</span>
+                    <span className="shrink-0 text-xs tabular-nums text-ink-muted">{money(leg.subtotal, { round: true })}</span>
                   </div>
                 ))}
               </div>
@@ -440,9 +442,9 @@ export function TravelPlanner() {
 
             <div className="border-t border-border pt-3">
               <p className="text-xs text-ink-muted">Custo estimado da viagem</p>
-              <FitText className="text-2xl font-semibold tracking-tight text-ink">{formatBRL(totals.total)}</FitText>
+              <FitText className="text-2xl font-semibold tracking-tight text-ink">{money(totals.total, { round: true })}</FitText>
               <p className="mt-1 text-xs text-ink-faint">
-                {formatBRL(Math.round(totals.total / travelersSafe))} por pessoa · guardando {formatBRL(monthlyHint)}/mês,
+                {money(Math.round(totals.total / travelersSafe))} por pessoa · guardando {money(monthlyHint, { round: true })}/mês,
                 você chega lá em {months} {months === 1 ? "mês" : "meses"}.
               </p>
             </div>

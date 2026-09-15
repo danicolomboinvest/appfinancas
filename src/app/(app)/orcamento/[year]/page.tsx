@@ -30,6 +30,7 @@ import { buildBudgetBullets, elapsedRatioOfMonth } from "@/lib/planning/budget-b
 import { formatPercentNumber } from "@/lib/format";
 import type { MonthlyPlannedVsActual } from "@/lib/planning/budget-comparison";
 import { OrcamentoForm } from "../OrcamentoForm";
+import { serverMoney } from "@/lib/money-server";
 
 const MONTH_LABELS = [
   "Janeiro",
@@ -46,11 +47,9 @@ const MONTH_LABELS = [
   "Dezembro",
 ];
 
-function formatBRL(value: number) {
-  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
 
 export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]">) {
+  const money = await serverMoney();
   const { year: yearParam } = await props.params;
   const year = Number(yearParam);
   // URL editada à mão ("/orcamento/abc") viraria NaN direto no Prisma → erro 500. Fora da
@@ -114,6 +113,7 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
   const yearPace = realizedMonths.length > 0 ? realizedMonths.length / 12 : null;
   const yearBullets = buildBudgetBullets(categoryComparisons, {
     paceRatio: isCurrentYear ? yearPace : 1,
+    money,
     labelFor: categoryLabel,
     colorFor: categoryColor,
     labelStyle: "de",
@@ -122,6 +122,7 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
   const monthBullets = currentMonthData
     ? buildBudgetBullets(currentMonthData.categories, {
         paceRatio: elapsedRatioOfMonth(now, year, currentMonthData.month),
+        money,
         labelFor: categoryLabel,
         colorFor: categoryColor,
         labelStyle: "restante",
@@ -130,15 +131,15 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
 
   const monthColumns: ResponsiveColumn<MonthlyPlannedVsActual>[] = [
     { key: "month", label: "Mês", render: (m) => MONTH_LABELS[m.month - 1] },
-    { key: "planned", label: "Planejado", render: (m) => formatBRL(m.totalPlanned) },
-    { key: "spent", label: "Realizado", render: (m) => (m.isRealized ? formatBRL(m.totalSpent) : "—") },
+    { key: "planned", label: "Planejado", render: (m) => money(m.totalPlanned) },
+    { key: "spent", label: "Realizado", render: (m) => (m.isRealized ? money(m.totalSpent) : "—") },
     {
       key: "diff",
       label: "Diferença",
       render: (m) =>
         m.isRealized ? (
           <span className={m.totalPlanned - m.totalSpent >= 0 ? "text-success" : "text-danger"}>
-            {formatBRL(m.totalPlanned - m.totalSpent)}
+            {money(m.totalPlanned - m.totalSpent)}
           </span>
         ) : (
           "—"
@@ -195,7 +196,7 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
           <StatCard
             label="Economia no mês"
-            value={monthSavings === null ? "—" : formatBRL(Math.abs(monthSavings))}
+            value={monthSavings === null ? "—" : money(Math.abs(monthSavings))}
             tone={monthSavings === null ? "neutral" : monthSavings >= 0 ? "success" : "danger"}
             hint={monthSavings === null ? "Defina um planejamento para ver essa comparação." : monthSavings >= 0 ? "Abaixo do planejado" : "Acima do planejado"}
           />

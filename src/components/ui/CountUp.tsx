@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useMoney } from "@/components/money/MoneyProvider";
 
 /**
  * Anima um número de 0 até `value` na entrada da tela (~1,3s, easing de desaceleração), o
@@ -21,19 +22,17 @@ export function CountUp({
   value: number;
   /** SÓ para chamadores que também são client components, função não atravessa a fronteira
    * servidor→cliente (o React Flight rejeita e derruba a página inteira). De um Server
-   * Component, use `brl` em vez de passar formatBRL. */
+   * Component, use `brl` em vez de passar uma função. */
   format?: (n: number) => string;
-  /** Formata como moeda (R$), serializável, seguro pra usar de Server Components. */
+  /** Formata na moeda escolhida pela pessoa. Booleano (e não função) de propósito: é
+   * serializável, então um Server Component pode pedir sem quebrar a fronteira. */
   brl?: boolean;
   durationMs?: number;
   delayMs?: number;
   className?: string;
 }) {
-  const fmt =
-    format ??
-    (brl
-      ? (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
-      : (n: number) => String(Math.round(n)));
+  const money = useMoney();
+  const fmt = format ?? (brl ? (n: number) => money(n) : (n: number) => String(Math.round(n)));
   const [display, setDisplay] = useState(0);
   const rafRef = useRef<number | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);

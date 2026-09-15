@@ -9,6 +9,7 @@ import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { GoalForm } from "../GoalForm";
 import { DeleteGoalButton } from "../DeleteGoalButton";
 import { GoalTrajectoryChart } from "../GoalTrajectoryChart";
+import { serverMoney } from "@/lib/money-server";
 
 const STATUS_CHART_TONE: Record<string, "success" | "accent" | "danger"> = {
   NOT_STARTED: "danger",
@@ -17,9 +18,6 @@ const STATUS_CHART_TONE: Record<string, "success" | "accent" | "danger"> = {
   ACHIEVED: "success",
 };
 
-function formatBRL(value: number) {
-  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
 
 const STATUS_LABEL: Record<string, string> = {
   NOT_STARTED: "Sem prazo hábil",
@@ -29,6 +27,7 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 export default async function GoalDetailPage(props: PageProps<"/planejamento/metas/[id]">) {
+  const money = await serverMoney();
   const { id } = await props.params;
   const ctx = await getRequiredSession();
   const goal = await getGoalWithProgress(ctx, id);
@@ -62,9 +61,9 @@ export default async function GoalDetailPage(props: PageProps<"/planejamento/met
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <StatCard label="Status" value={STATUS_LABEL[plan.status]} tone="accent" />
         <StatCard label="Meses restantes" value={`${plan.monthsRemaining}`} />
-        <StatCard label="Valor guardado projetado na data-alvo" value={formatBRL(plan.futureValueOfSaved)} />
-        <StatCard label="Falta construir" value={formatBRL(plan.amountMissing)} tone="danger" />
-        <StatCard label="Aporte mensal sugerido" value={formatBRL(plan.requiredMonthlyContribution)} tone="success" />
+        <StatCard label="Valor guardado projetado na data-alvo" value={money(plan.futureValueOfSaved)} />
+        <StatCard label="Falta construir" value={money(plan.amountMissing)} tone="danger" />
+        <StatCard label="Aporte mensal sugerido" value={money(plan.requiredMonthlyContribution)} tone="success" />
       </div>
 
       <Card className="p-5">

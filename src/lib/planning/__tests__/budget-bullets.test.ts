@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildBudgetBullets, elapsedRatioOfMonth } from "../budget-bullets";
 import type { CategoryComparison } from "../budget-comparison";
+import { formatMoney, type MoneyOptions } from "@/lib/money";
 
 const cat = (categoryKey: string, planned: number, spent: number): CategoryComparison => ({
   categoryKey,
@@ -12,6 +13,7 @@ const cat = (categoryKey: string, planned: number, spent: number): CategoryCompa
 
 const opts = {
   paceRatio: 0.5,
+  money: (v: number, o?: MoneyOptions) => formatMoney(v, "BRL", o),
   labelFor: (k: string) => k,
   colorFor: () => "cor",
 };

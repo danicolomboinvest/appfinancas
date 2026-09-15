@@ -2,10 +2,8 @@
 
 import { Area, AreaChart, ReferenceDot, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { CHART_COLORS, CHART_TOOLTIP_STYLE } from "./chart-theme";
+import { useMoney } from "@/components/money/MoneyProvider";
 
-function formatBRL(value: number) {
-  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
-}
 
 /**
  * Projeção da reserva de emergência.
@@ -34,6 +32,7 @@ export function SavingsProjectionChart({
   currentAmount: number;
   completionLabel?: string | null;
 }) {
+  const money = useMoney();
   const missing = Math.max(targetAmount - currentAmount, 0);
   const progress = targetAmount > 0 ? Math.min(currentAmount / targetAmount, 1) : 0;
   const first = projection[0];
@@ -64,7 +63,7 @@ export function SavingsProjectionChart({
           <Tooltip
             {...CHART_TOOLTIP_STYLE}
             labelFormatter={(month) => (month === 0 ? "Hoje" : `Daqui a ${month} ${month === 1 ? "mês" : "meses"}`)}
-            formatter={(value) => [formatBRL(Number(value)), "Reserva"]}
+            formatter={(value) => [money(Number(value), { round: true }), "Reserva"]}
             cursor={{ stroke: CHART_COLORS.grid }}
           />
           <ReferenceLine
@@ -72,7 +71,7 @@ export function SavingsProjectionChart({
             stroke={CHART_COLORS.success}
             strokeDasharray="4 4"
             label={{
-              value: `meta ${formatBRL(targetAmount)}`,
+              value: `meta ${money(targetAmount, { round: true })}`,
               position: "insideTopRight",
               fill: CHART_COLORS.success,
               fontSize: 11,
@@ -99,14 +98,14 @@ export function SavingsProjectionChart({
       <div className="flex flex-wrap items-center gap-2">
         <span className="inline-flex items-center gap-1.5 rounded-full bg-accent-soft px-2.5 py-1 text-caption font-medium text-accent-strong">
           <span className="size-1.5 rounded-full bg-accent" />
-          Hoje: {formatBRL(currentAmount)}
+          Hoje: {money(currentAmount, { round: true })}
         </span>
         <span className="rounded-full bg-success-soft px-2.5 py-1 text-caption font-medium text-success">
           {Math.round(progress * 100)}% pronta
         </span>
         {missing > 0 && (
           <span className="rounded-full bg-surface-2 px-2.5 py-1 text-caption font-medium text-ink">
-            Falta {formatBRL(missing)}
+            Falta {money(missing, { round: true })}
           </span>
         )}
         {completionLabel && (

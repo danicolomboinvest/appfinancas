@@ -7,10 +7,8 @@ import { StatCard } from "@/components/ui/StatCard";
 import { Card } from "@/components/ui/Card";
 import { SimulatorWizard, type WizardField, type WizardValues } from "@/components/simulators/SimulatorWizard";
 import { formatPercentNumber } from "@/lib/format";
+import { useMoney } from "@/components/money/MoneyProvider";
 
-function formatBRL(value: number) {
-  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
 
 const anbimaLink = (
   <>
@@ -77,6 +75,7 @@ function toInput(values: WizardValues): MarkToMarketFormValues {
 }
 
 export default function MarcacaoMercadoPage() {
+  const money = useMoney();
   return (
     <SimulatorWizard
       eyebrow="Marcação a Mercado"
@@ -96,19 +95,19 @@ export default function MarcacaoMercadoPage() {
             <div className="grid grid-cols-2 gap-3">
               <StatCard
                 label="Lucro/Prejuízo na venda antecipada"
-                value={formatBRL(result.profitOrLoss)}
+                value={money(result.profitOrLoss)}
                 tone={result.profitOrLoss >= 0 ? "success" : "danger"}
               />
               <StatCard label="Sensibilidade aproximada" value={formatPercentNumber(result.approximateSensitivity * 100, 2)} />
-              <StatCard label="Preço de carrego (taxa contratada)" value={formatBRL(result.carryingPrice)} />
-              <StatCard label="Preço a mercado (nova taxa)" value={formatBRL(result.marketPrice)} />
+              <StatCard label="Preço de carrego (taxa contratada)" value={money(result.carryingPrice)} />
+              <StatCard label="Preço a mercado (nova taxa)" value={money(result.marketPrice)} />
             </div>
             {result.scaledMarketValue !== undefined && result.scaledProfitOrLoss !== undefined && (
               <div className="grid grid-cols-2 gap-3">
-                <StatCard label="Valor de mercado hoje" value={formatBRL(result.scaledMarketValue)} />
+                <StatCard label="Valor de mercado hoje" value={money(result.scaledMarketValue)} />
                 <StatCard
                   label="Lucro/Prejuízo sobre o investido"
-                  value={formatBRL(result.scaledProfitOrLoss)}
+                  value={money(result.scaledProfitOrLoss)}
                   tone={result.scaledProfitOrLoss >= 0 ? "success" : "danger"}
                 />
               </div>

@@ -16,6 +16,7 @@ import {
   type ConfirmedItem,
   type CardPaymentCandidate,
 } from "@/app/(app)/mensal/import-actions";
+import { useMoney } from "@/components/money/MoneyProvider";
 
 type Phase = "upload" | "password" | "review" | "confirm" | "done";
 
@@ -25,9 +26,6 @@ function currentMonthValue(): string {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 }
 
-function formatBRL(value: number) {
-  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
 
 function formatDate(iso: string) {
   const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
@@ -59,6 +57,7 @@ function buildUploadForm(file: File, docType: "extrato" | "fatura"): FormData {
  * definidas na revisão viram regra aprendida no servidor pra próxima importação.
  */
 export function StatementImport({ onDone }: { onDone: () => void }) {
+  const money = useMoney();
   const { showToast } = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
   const [phase, setPhase] = useState<Phase>("upload");
@@ -355,7 +354,7 @@ export function StatementImport({ onDone }: { onDone: () => void }) {
           <p className="text-sm font-medium text-ink">{it.description}</p>
           <div className="mt-1 flex items-center justify-between">
             <span className="text-caption text-ink-faint">{formatDate(it.date)}</span>
-            <span className="text-indicator font-semibold tabular-nums text-danger">− {formatBRL(it.amount)}</span>
+            <span className="text-indicator font-semibold tabular-nums text-danger">− {money(it.amount)}</span>
           </div>
         </div>
 
@@ -470,7 +469,7 @@ export function StatementImport({ onDone }: { onDone: () => void }) {
                 </p>
               </div>
               <span className={`shrink-0 text-sm font-medium tabular-nums ${it.category === "INCOME" ? "text-success" : "text-danger"}`}>
-                {it.category === "INCOME" ? "+" : "−"} {formatBRL(it.amount)}
+                {it.category === "INCOME" ? "+" : "−"} {money(it.amount)}
               </span>
             </li>
           ))}
@@ -509,7 +508,7 @@ export function StatementImport({ onDone }: { onDone: () => void }) {
                   <p className="text-caption text-ink-faint">{c.date ? formatDate(c.date) : "sem data"}</p>
                 </div>
                 <div className="flex shrink-0 items-center gap-3">
-                  <span className="text-sm font-medium tabular-nums text-danger">− {formatBRL(c.amount)}</span>
+                  <span className="text-sm font-medium tabular-nums text-danger">− {money(c.amount)}</span>
                   <button
                     type="button"
                     disabled={isPending}

@@ -7,13 +7,15 @@ import { ProgressBar } from "@/components/ui/ProgressBar";
 import { HelpTooltip } from "@/components/forms/HelpTooltip";
 import { useSuccessToast } from "@/components/ui/useSuccessToast";
 import { savePlanningParamsAction, type PlanningParamsState } from "./actions";
+import { useCurrency } from "@/components/money/MoneyProvider";
+import { currencySymbol } from "@/lib/money";
 
 const initialState: PlanningParamsState = {};
 
 type FieldDef = {
   name: string;
   label: string;
-  affix: "R$" | "%" | null;
+  affix: "dinheiro" | "%" | null;
   optional?: boolean;
   placeholder?: string;
 };
@@ -30,22 +32,22 @@ const STEPS: StepDef[] = [
   {
     question: "Quanto custa a vida que você quer?",
     help: "O gasto mensal que você gostaria de bancar só com renda passiva, em valores de hoje.",
-    fields: [{ name: "desiredPassiveIncome", label: "Gasto mensal desejado", affix: "R$", placeholder: "8000" }],
+    fields: [{ name: "desiredPassiveIncome", label: "Gasto mensal desejado", affix: "dinheiro", placeholder: "8000" }],
   },
   {
     question: "Você já tem outras rendas?",
     help: "Aluguel, INSS, pensão, rendas que continuarão quando você parar de trabalhar. Deixe zerado se não houver.",
-    fields: [{ name: "otherPassiveIncome", label: "Outras rendas passivas por mês", affix: "R$", optional: true, placeholder: "0" }],
+    fields: [{ name: "otherPassiveIncome", label: "Outras rendas passivas por mês", affix: "dinheiro", optional: true, placeholder: "0" }],
   },
   {
     question: "Quanto você já tem investido?",
     help: "Tudo que já está aplicado hoje e vai compor esse patrimônio.",
-    fields: [{ name: "currentPatrimony", label: "Patrimônio investido atual", affix: "R$", placeholder: "50000" }],
+    fields: [{ name: "currentPatrimony", label: "Patrimônio investido atual", affix: "dinheiro", placeholder: "50000" }],
   },
   {
     question: "Quanto consegue aportar por mês?",
     help: "O valor médio que você consegue investir todo mês durante a fase de acúmulo.",
-    fields: [{ name: "monthlyContributionAccumulation", label: "Aporte mensal médio", affix: "R$", placeholder: "2000" }],
+    fields: [{ name: "monthlyContributionAccumulation", label: "Aporte mensal médio", affix: "dinheiro", placeholder: "2000" }],
   },
   {
     question: "Sua idade e quando quer parar",
@@ -78,6 +80,7 @@ const DEFAULT_VALUES: Record<string, string> = {
 };
 
 export function PlanningWizard() {
+  const currency = useCurrency();
   const [state, formAction, isPending] = useActionState(savePlanningParamsAction, initialState);
   useSuccessToast(isPending, state.error);
   const [step, setStep] = useState(0);
@@ -98,11 +101,13 @@ export function PlanningWizard() {
     setValues((prev) => ({ ...prev, [name]: value }));
   }
 
-  /** Input no estilo dos simuladores: grande e limpo (big) no passo, com prefixo R$ / sufixo %. */
+  /** Input no estilo dos simuladores: grande e limpo (big) no passo, com prefixo da moeda / sufixo %. */
   function inputFor(field: FieldDef, big: boolean) {
     return (
       <div className="flex items-baseline gap-2">
-        {field.affix === "R$" && <span className={big ? "text-2xl text-ink-muted" : "text-sm text-ink-muted"}>R$</span>}
+        {field.affix === "dinheiro" && (
+          <span className={big ? "text-2xl text-ink-muted" : "text-sm text-ink-muted"}>{currencySymbol(currency)}</span>
+        )}
         <input
           type="number"
           inputMode="decimal"

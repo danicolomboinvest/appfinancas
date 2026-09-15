@@ -6,10 +6,8 @@ import { StatCard } from "@/components/ui/StatCard";
 import { Card } from "@/components/ui/Card";
 import { OutcomeComparison } from "@/components/charts/OutcomeComparison";
 import { SimulatorWizard, type WizardField, type WizardValues } from "@/components/simulators/SimulatorWizard";
+import { useMoney } from "@/components/money/MoneyProvider";
 
-function formatBRL(value: number) {
-  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
 
 const FIELDS: WizardField[] = [
   { name: "carPrice", label: "Valor do carro 0km", kind: "currency", help: "Preço de compra do carro novo à vista." },
@@ -44,6 +42,7 @@ function toInput(values: WizardValues): CarComparisonFormValues {
 }
 
 export default function CarroPage() {
+  const money = useMoney();
   return (
     <SimulatorWizard
       eyebrow="Carro: Assinar vs. Comprar"
@@ -57,7 +56,7 @@ export default function CarroPage() {
               <p className="text-xs font-semibold uppercase tracking-wide text-accent-strong">Resultado (24 meses)</p>
               <h1 className="mt-1 font-serif text-2xl text-ink">
                 {result.winner === "ASSINATURA" ? "Assinar sai mais barato" : "Comprar sai mais barato"}{" "}
-                <span className="text-ink-muted">({formatBRL(result.differenceInFavorOfWinner)})</span>
+                <span className="text-ink-muted">({money(result.differenceInFavorOfWinner)})</span>
               </h1>
             </div>
             <Card className="p-4">
@@ -67,13 +66,13 @@ export default function CarroPage() {
                 a={{ label: "Assinatura", value: result.netResultSubscription, hint: "Custo líquido em 24 meses" }}
                 b={{ label: "Comprar 0km", value: result.netResultPurchase, hint: "Custo líquido, já com depreciação e custo de oportunidade" }}
                 winner={result.winner === "ASSINATURA" ? "a" : "b"}
-                verdict={`${result.winner === "ASSINATURA" ? "Assinar" : "Comprar"} sai ${formatBRL(result.differenceInFavorOfWinner)} mais barato em 24 meses.`}
+                verdict={`${result.winner === "ASSINATURA" ? "Assinar" : "Comprar"} sai ${money(result.differenceInFavorOfWinner)} mais barato em 24 meses.`}
               />
             </Card>
             <div className="grid grid-cols-2 gap-3">
-              <StatCard label="Custo caixa, assinatura" value={formatBRL(result.subscriptionCashCost)} />
-              <StatCard label="Custo caixa, compra" value={formatBRL(result.purchaseCashCost)} />
-              <StatCard label="Custo de oportunidade da compra" value={formatBRL(result.opportunityCost)} />
+              <StatCard label="Custo caixa, assinatura" value={money(result.subscriptionCashCost)} />
+              <StatCard label="Custo caixa, compra" value={money(result.purchaseCashCost)} />
+              <StatCard label="Custo de oportunidade da compra" value={money(result.opportunityCost)} />
             </div>
           </div>
         );

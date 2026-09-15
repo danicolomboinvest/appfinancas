@@ -8,12 +8,11 @@ import { StatCard } from "@/components/ui/StatCard";
 import { Card } from "@/components/ui/Card";
 import { EmergencyFundForm } from "./EmergencyFundForm";
 import { formatPercentNumber } from "@/lib/format";
+import { serverMoney } from "@/lib/money-server";
 
-function formatBRL(value: number) {
-  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
 
 export default async function ReservaEmergenciaPage() {
+  const money = await serverMoney();
   const ctx = await getRequiredSession();
   const fund = await getEmergencyFund(ctx);
 
@@ -59,8 +58,8 @@ export default async function ReservaEmergenciaPage() {
       {fund && plan && (
         <div className="flex flex-col gap-4">
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            <StatCard label="Meta da reserva" value={formatBRL(Number(fund.targetAmount))} tone="accent" />
-            <StatCard label="Reserva atual" value={formatBRL(Number(fund.currentAmount))} />
+            <StatCard label="Meta da reserva" value={money(Number(fund.targetAmount))} tone="accent" />
+            <StatCard label="Reserva atual" value={money(Number(fund.currentAmount))} />
             <StatCard
               label="Tempo para concluir"
               value={plan.monthsToTarget === null ? "Inatingível com esses parâmetros" : `${plan.monthsToTarget} meses`}

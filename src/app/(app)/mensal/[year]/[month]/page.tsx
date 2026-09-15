@@ -45,6 +45,7 @@ import { MonthHighlight } from "./MonthHighlight";
 import { MonthFlowCard } from "./MonthFlowCard";
 import { TopCategories } from "./TopCategories";
 import { IncomeSplitCard } from "./IncomeSplitCard";
+import { serverMoney } from "@/lib/money-server";
 
 const MONTH_LABELS = [
   "Janeiro",
@@ -108,9 +109,6 @@ function formatRelativeDay(date: Date | null): string | null {
  * esconde o resto atrás de "Ver mais" em vez de empilhar tudo de uma vez no mobile. */
 const VISIBLE_ENTRIES_COUNT = 8;
 
-function formatBRL(value: number) {
-  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
 
 /** Date do banco → "YYYY-MM-DD" (o campo é @db.Date, sem hora relevante). */
 function toDateInput(date: Date | null): string | null {
@@ -118,7 +116,7 @@ function toDateInput(date: Date | null): string | null {
   return date.toISOString().slice(0, 10);
 }
 
-function EntryRow({
+async function EntryRow({
   entry,
   year,
   month,
@@ -133,6 +131,7 @@ function EntryRow({
   customCategories: { id: string; name: string; icon: string }[];
   goals: { id: string; name: string }[];
 }) {
+  const money = await serverMoney();
   const dayLabel = formatRelativeDay(entry.entryDate);
   const visual = categoryVisual(entry, customCategories);
   return (
@@ -150,7 +149,7 @@ function EntryRow({
       </div>
       <div className="flex shrink-0 items-center gap-3">
         <p className={`text-sm font-medium tabular-nums ${CATEGORY_AMOUNT_CLASS[entry.category]}`}>
-          {formatBRL(Number(entry.amount))}
+          {money(Number(entry.amount))}
         </p>
         <EntryRowActions
           entry={{
@@ -176,6 +175,7 @@ function EntryRow({
 }
 
 export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]">) {
+  const money = await serverMoney();
   const { year: yearParam, month: monthParam } = await props.params;
   const { view } = await props.searchParams;
   const year = Number(yearParam);
@@ -295,6 +295,7 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
     currentExpense: summary.totalExpense,
     previousExpense: previousSummary.totalExpense,
     categories: categorySpending,
+    money,
   });
 
   return (

@@ -4,6 +4,7 @@ import { sendEmail } from "@/lib/email/send";
 import { monthlyRecapEmail, monthlyNudgeEmail } from "@/lib/email/templates";
 import { decideRecapEmail, MAX_NUDGES } from "@/lib/insights/recap-audience";
 import { nowInBrazil } from "@/lib/date/brazil-now";
+import { toCurrencyCode } from "@/lib/money";
 import { PARENT_CATEGORY_LABEL, isParentCategoryKey } from "@/lib/categories";
 
 // Dezenas de e-mails em sequência passam do teto padrão de 10s.
@@ -72,6 +73,7 @@ export async function GET(request: Request) {
       id: true,
       email: true,
       name: true,
+      currency: true,
       createdAt: true,
       recapNudgeCount: true,
       _count: { select: { monthlyEntries: { where: { year, month } } } },
@@ -162,6 +164,7 @@ export async function GET(request: Request) {
     const { subject, html } = monthlyRecapEmail({
       name: user.name,
       monthLabel,
+      currency: toCurrencyCode(user.currency),
       income,
       expense,
       balance,

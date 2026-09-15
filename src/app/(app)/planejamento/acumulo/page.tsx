@@ -16,17 +16,15 @@ import { ResponsiveTable, type ResponsiveColumn } from "@/components/ui/Responsi
 import { PlanningParamsForm } from "./PlanningParamsForm";
 import { PlanningWizard } from "./PlanningWizard";
 import { formatPercentNumber } from "@/lib/format";
+import { serverMoney } from "@/lib/money-server";
+import type { MoneyFormatter } from "@/lib/money";
 
-function formatBRL(value: number | null) {
-  if (value === null) return "—";
-  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
 
 function formatPercent(value: number) {
   return formatPercentNumber(value * 100, 2);
 }
 
-const projectionColumns: ResponsiveColumn<ProjectionYear>[] = [
+const projectionColumns = (money: MoneyFormatter): ResponsiveColumn<ProjectionYear>[] => [
   { key: "age", label: "Idade", render: (y) => y.age },
   {
     key: "phase",
@@ -35,13 +33,14 @@ const projectionColumns: ResponsiveColumn<ProjectionYear>[] = [
       <Badge tone={y.phase === "ACCUMULATION" ? "accent" : "info"}>{y.phase === "ACCUMULATION" ? "Acúmulo" : "Usufruto"}</Badge>
     ),
   },
-  { key: "invested", label: "Investido", render: (y) => formatBRL(y.totalInvested) },
-  { key: "interest", label: "Juros acumulados", render: (y) => formatBRL(y.cumulativeInterest) },
-  { key: "nominal", label: "Patrimônio (nominal)", render: (y) => formatBRL(y.balanceNominal) },
-  { key: "real", label: "Patrimônio (real)", render: (y) => formatBRL(y.balanceReal) },
+  { key: "invested", label: "Investido", render: (y) => money(y.totalInvested ?? 0) },
+  { key: "interest", label: "Juros acumulados", render: (y) => money(y.cumulativeInterest ?? 0) },
+  { key: "nominal", label: "Patrimônio (nominal)", render: (y) => money(y.balanceNominal ?? 0) },
+  { key: "real", label: "Patrimônio (real)", render: (y) => money(y.balanceReal ?? 0) },
 ];
 
 export default async function IndependenciaFinanceiraPage() {
+  const money = await serverMoney();
   const ctx = await getRequiredSession();
 
   // Aposentadoria é conteúdo do curso (construir patrimônio) — diferente de Metas/Reserva,
@@ -140,15 +139,15 @@ export default async function IndependenciaFinanceiraPage() {
                     <StatCard label="Tempo de contribuição" value={`${accumulation.years} anos`} />
                     <StatCard label="Taxa nominal (a.a.)" value={formatPercent(accumulation.nominalAnnualRate)} />
                     <StatCard label="Taxa real (a.a.)" value={formatPercent(accumulation.realAnnualRate)} />
-                    <StatCard label="Valor final (nominal)" value={formatBRL(accumulation.finalValueNominal)} />
+                    <StatCard label="Valor final (nominal)" value={money(accumulation.finalValueNominal)} />
                     <StatCard
                       label="Valor final (real, poder de compra de hoje)"
-                      value={formatBRL(accumulation.finalValueReal)}
+                      value={money(accumulation.finalValueReal)}
                       tone="accent"
                       sparkline={growthSparkline}
                     />
-                    <StatCard label="Total investido (do bolso)" value={formatBRL(accumulation.totalInvested)} />
-                    <StatCard label="Retorno total (juros)" value={formatBRL(accumulation.totalReturn)} tone="success" />
+                    <StatCard label="Total investido (do bolso)" value={money(accumulation.totalInvested)} />
+                    <StatCard label="Retorno total (juros)" value={money(accumulation.totalReturn)} tone="success" />
                   </div>
                 </section>
 
@@ -158,10 +157,10 @@ export default async function IndependenciaFinanceiraPage() {
                     Compara a renda que o patrimônio acumulado geraria com o padrão de vida desejado.
                   </p>
                   <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                    <StatCard label="Patrimônio ao se aposentar (real)" value={formatBRL(accumulation.finalValueReal)} tone="accent" />
-                    <StatCard label="Renda passiva da carteira" value={formatBRL(usufruct.monthlyPassiveIncomeFromPortfolio)} />
-                    <StatCard label="Renda passiva total (+ outras rendas)" value={formatBRL(usufruct.totalPassiveIncome)} />
-                    <StatCard label="Gasto mensal desejado" value={formatBRL(Number(params.desiredPassiveIncome))} />
+                    <StatCard label="Patrimônio ao se aposentar (real)" value={money(accumulation.finalValueReal)} tone="accent" />
+                    <StatCard label="Renda passiva da carteira" value={money(usufruct.monthlyPassiveIncomeFromPortfolio)} />
+                    <StatCard label="Renda passiva total (+ outras rendas)" value={money(usufruct.totalPassiveIncome)} />
+                    <StatCard label="Gasto mensal desejado" value={money(Number(params.desiredPassiveIncome))} />
                   </div>
 
                   <Card className={`p-5 ${isSurplus ? "border-success/30 bg-success-soft/40" : "border-danger/30 bg-danger-soft/40"}`}>
@@ -175,7 +174,7 @@ export default async function IndependenciaFinanceiraPage() {
                         {isSurplus ? "Superávit" : "Déficit"}
                       </p>
                     </div>
-                    <p className="mt-2 text-2xl font-semibold tracking-tight text-ink">{formatBRL(usufruct.surplusOrDeficit)}</p>
+                    <p className="mt-2 text-2xl font-semibold tracking-tight text-ink">{money(usufruct.surplusOrDeficit)}</p>
                     <p className="mt-2 text-sm text-ink-muted">
                       {isSurplus
                         ? "A renda passiva projetada cobre o padrão de vida desejado, liberdade financeira atingida nesse cenário."
@@ -209,7 +208,7 @@ export default async function IndependenciaFinanceiraPage() {
 
                       <CollapsibleSection label="Ver dados detalhados ano a ano">
                         <ResponsiveTable
-                          columns={projectionColumns}
+                          columns={projectionColumns(money)}
                           rows={years}
                           rowKey={(y) => String(y.year)}
                           maxHeightClassName="max-h-[520px] overflow-y-auto"

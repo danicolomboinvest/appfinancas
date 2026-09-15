@@ -2,6 +2,7 @@
 
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis } from "recharts";
 import { CHART_COLORS, CHART_TOOLTIP_STYLE } from "@/components/charts/chart-theme";
+import { useMoney } from "@/components/money/MoneyProvider";
 
 type TooltipPayloadEntry = { payload?: SparklinePoint };
 
@@ -34,22 +35,22 @@ const TONE_COLOR: Record<"success" | "danger" | "accent" | "neutral", string> = 
 
 export type SparklinePoint = { label: string; value: number };
 
-function defaultValueFormatter(value: number) {
-  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
-
 /** Sparkline compacta para cards de indicador, sem eixos/grid visíveis, mas com tooltip ao passar o mouse. */
 export function MiniSparkline({
   points,
   tone = "neutral",
   height = 40,
-  valueFormatter = defaultValueFormatter,
+  valueFormatter,
 }: {
   points: SparklinePoint[];
   tone?: "success" | "danger" | "accent" | "neutral";
   height?: number;
   valueFormatter?: (value: number) => string;
 }) {
+  // Hook antes do early return: chamado depois, a ordem dos hooks mudaria entre um render
+  // com dados e outro sem, que é justamente o que o React proíbe.
+  const money = useMoney();
+  const format = valueFormatter ?? money;
   if (points.length < 2 || points.every((p) => p.value === 0)) return null;
   const color = TONE_COLOR[tone];
   const gradientId = `sparkline-${tone}-${height}`;
@@ -66,7 +67,7 @@ export function MiniSparkline({
         <XAxis dataKey="label" hide />
         <Tooltip
           trigger="click"
-          content={<SparklineTooltip valueFormatter={valueFormatter} />}
+          content={<SparklineTooltip valueFormatter={format} />}
           cursor={{ stroke: CHART_COLORS.grid }}
         />
         <Area

@@ -8,6 +8,7 @@ import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import { SpendingPieChart, type SpendingSlice } from "@/components/charts/SpendingPieChart";
 import { PARENT_CATEGORY_ICON, isParentCategoryKey, colorForCategorySlice } from "@/lib/categories";
 import { getCategoryTransactionsAction, type CategoryTransaction } from "./actions";
+import { useMoney } from "@/components/money/MoneyProvider";
 
 type Period = "semana" | "mes" | "ano";
 
@@ -20,9 +21,6 @@ type NavHrefs = {
   nextYearHref: string;
 };
 
-function formatBRL(value: number) {
-  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
 
 function formatDay(iso: string | null) {
   if (!iso) return null;
@@ -53,6 +51,7 @@ export function SpendingByCategory({
   subtitle: Record<Period, string>;
   nav: NavHrefs;
 }) {
+  const money = useMoney();
   const [period, setPeriod] = useState<Period>(initialPeriod);
   const [openCategory, setOpenCategory] = useState<string | null>(null);
   const [openCategoryRef, setOpenCategoryRef] = useState<SpendingSlice["category"] | null>(null);
@@ -161,7 +160,7 @@ export function SpendingByCategory({
                       <p className="truncate text-sm text-ink">{t.description}</p>
                       {formatDay(t.date) && <p className="text-caption tabular-nums text-ink-faint">{formatDay(t.date)}</p>}
                     </div>
-                    <span className="shrink-0 text-sm font-medium tabular-nums text-danger">− {formatBRL(t.amount)}</span>
+                    <span className="shrink-0 text-sm font-medium tabular-nums text-danger">− {money(t.amount)}</span>
                   </li>
                 ))}
               </ul>

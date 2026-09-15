@@ -1,3 +1,5 @@
+import { formatMoney, type CurrencyCode } from "@/lib/money";
+
 /**
  * Templates de e-mail (HTML inline, clientes de e-mail não entendem CSS externo).
  * Visual sóbrio, com o dourado da marca SPI Finance.
@@ -30,8 +32,10 @@ function button(href: string, label: string): string {
   return `<a href="${href}" style="display:inline-block;background:${INK};color:#ffffff;text-decoration:none;font-weight:600;font-size:15px;padding:12px 24px;border-radius:10px;">${label}</a>`;
 }
 
-function formatBRL(value: number): string {
-  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+
+/** O e-mail sai na moeda que a pessoa escolheu em Configurações, igual à tela. */
+function money(value: number, currency: CurrencyCode): string {
+  return formatMoney(value, currency, { round: true });
 }
 
 /** Linha "rótulo … valor" do quadro de números do resumo. */
@@ -60,6 +64,7 @@ export function monthlyRecapEmail(params: {
   /** Variação do gasto vs. mês anterior (0,17 = 17% a mais); null quando não há base. */
   expenseDelta: number | null;
   topCategory: { label: string; value: number } | null;
+  currency: CurrencyCode;
   appUrl: string;
   preferencesUrl: string;
 }): { subject: string; html: string } {
@@ -87,16 +92,16 @@ export function monthlyRecapEmail(params: {
       <div style="background:#faf8f3;border:1px solid #f0ece2;border-radius:12px;padding:18px 20px;margin:0 0 20px;">
         <p style="margin:0 0 2px;color:${MUTED};font-size:13px;">${positive ? "Sobrou no mês" : "Faltou no mês"}</p>
         <p style="margin:0;font-size:30px;font-weight:700;color:${positive ? INK : "#c0523c"};letter-spacing:-0.5px;">
-          ${formatBRL(Math.abs(params.balance))}
+          ${money(Math.abs(params.balance), params.currency)}
         </p>
       </div>
 
       <p style="margin:0 0 18px;">${deltaLine}</p>
 
       <table style="width:100%;border-collapse:collapse;margin:0 0 8px;">
-        ${statRow("Entrou", formatBRL(params.income), "#2e7d5b")}
-        ${statRow("Saiu", formatBRL(params.expense), "#c0523c")}
-        ${params.topCategory ? statRow(`Maior gasto: ${params.topCategory.label}`, formatBRL(params.topCategory.value)) : ""}
+        ${statRow("Entrou", money(params.income, params.currency), "#2e7d5b")}
+        ${statRow("Saiu", money(params.expense, params.currency), "#c0523c")}
+        ${params.topCategory ? statRow(`Maior gasto: ${params.topCategory.label}`, money(params.topCategory.value, params.currency)) : ""}
       </table>
 
       <p style="margin:24px 0 0;">${button(params.appUrl, "Ver o mês completo")}</p>

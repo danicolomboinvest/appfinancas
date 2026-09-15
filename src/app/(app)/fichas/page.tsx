@@ -1,6 +1,7 @@
 import { Sparkles } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
 import { computeInsights } from "@/lib/insights";
+import { serverMoney } from "@/lib/money-server";
 import { computeFinancialHealthScore } from "@/lib/health-score";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -9,7 +10,8 @@ import { InsightList } from "./InsightList";
 
 export default async function AnalisesInsightsPage() {
   const ctx = await getRequiredSession();
-  const [insights, healthScore] = await Promise.all([computeInsights(ctx), computeFinancialHealthScore(ctx)]);
+  const money = await serverMoney();
+  const [insights, healthScore] = await Promise.all([computeInsights(ctx, money), computeFinancialHealthScore(ctx)]);
 
   return (
     <div className="flex flex-col gap-6">

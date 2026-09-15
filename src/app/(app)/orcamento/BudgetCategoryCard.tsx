@@ -6,10 +6,8 @@ import { Card } from "@/components/ui/Card";
 import { CurrencyField } from "@/components/ui/CurrencyField";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import { PARENT_CATEGORY_ICON, PARENT_CATEGORY_COLOR } from "@/lib/categories";
+import { useMoney } from "@/components/money/MoneyProvider";
 
-function formatBRL(value: number) {
-  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
 
 /** Cartão de planejamento de uma categoria padrão, sem form/submit próprio, os campos fazem
  * parte do form único de OrcamentoForm.tsx ("Salvar tudo"). */
@@ -24,6 +22,7 @@ export function BudgetCategoryCard({
   description: string;
   defaultValue: number;
 }) {
+  const money = useMoney();
   const [monthly, setMonthly] = useState(defaultValue);
   const Icon = PARENT_CATEGORY_ICON[parentCategory];
   const color = PARENT_CATEGORY_COLOR[parentCategory];
@@ -46,7 +45,7 @@ export function BudgetCategoryCard({
       />
 
       <p className="text-xs text-ink-muted">
-        = <span className="font-medium text-ink">{formatBRL(monthly * 12)}</span> por ano
+        = <span className="font-medium text-ink">{money(monthly * 12)}</span> por ano
       </p>
     </Card>
   );

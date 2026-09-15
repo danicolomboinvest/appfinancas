@@ -6,10 +6,8 @@ import { StatCard } from "@/components/ui/StatCard";
 import { Card } from "@/components/ui/Card";
 import { OutcomeComparison } from "@/components/charts/OutcomeComparison";
 import { SimulatorWizard, type WizardField, type WizardValues } from "@/components/simulators/SimulatorWizard";
+import { useMoney } from "@/components/money/MoneyProvider";
 
-function formatBRL(value: number) {
-  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
 
 const FIELDS: WizardField[] = [
   { name: "creditValue", label: "Valor do bem", kind: "currency", help: "O valor da carta de crédito do consórcio / preço do bem que você quer." },
@@ -56,6 +54,7 @@ function toInput(values: WizardValues): ConsortiumFormValues {
 }
 
 export default function ConsorcioPage() {
+  const money = useMoney();
   return (
     <SimulatorWizard
       eyebrow="Consórcio vs. Financiamento"
@@ -69,22 +68,22 @@ export default function ConsorcioPage() {
               <p className="text-xs font-semibold uppercase tracking-wide text-accent-strong">Resultado</p>
               <h1 className="mt-1 font-serif text-2xl text-ink">
                 {result.winner === "CONSORCIO" ? "Consórcio sai mais barato" : "Financiamento sai mais barato"}{" "}
-                <span className="text-ink-muted">({formatBRL(result.differenceInFavorOfWinner)})</span>
+                <span className="text-ink-muted">({money(result.differenceInFavorOfWinner)})</span>
               </h1>
             </div>
             <Card className="p-4">
               {/* Barras de CUSTO: a menor é a melhor, então quem diz o vencedor é a cor. */}
               <OutcomeComparison
-                a={{ label: "Consórcio", value: result.consortium.totalPaid, hint: `Total pago · parcela de ${formatBRL(result.consortium.installment)}` }}
+                a={{ label: "Consórcio", value: result.consortium.totalPaid, hint: `Total pago · parcela de ${money(result.consortium.installment)}` }}
                 b={{ label: "Financiamento", value: result.financing.totalCostWithOpportunity, hint: `Custo total, já com o custo de oportunidade da entrada` }}
                 winner={result.winner === "CONSORCIO" ? "a" : "b"}
-                verdict={`${result.winner === "CONSORCIO" ? "Consórcio" : "Financiamento"} sai ${formatBRL(result.differenceInFavorOfWinner)} mais barato.`}
+                verdict={`${result.winner === "CONSORCIO" ? "Consórcio" : "Financiamento"} sai ${money(result.differenceInFavorOfWinner)} mais barato.`}
               />
             </Card>
             <div className="grid grid-cols-2 gap-3">
-              <StatCard label="Consórcio, parcela" value={formatBRL(result.consortium.installment)} />
-              <StatCard label="Financiamento, 1ª parcela" value={formatBRL(result.financing.firstInstallment)} />
-              <StatCard label="Custo de oportunidade da entrada" value={formatBRL(result.financing.downPaymentOpportunityCost)} />
+              <StatCard label="Consórcio, parcela" value={money(result.consortium.installment)} />
+              <StatCard label="Financiamento, 1ª parcela" value={money(result.financing.firstInstallment)} />
+              <StatCard label="Custo de oportunidade da entrada" value={money(result.financing.downPaymentOpportunityCost)} />
             </div>
           </div>
         );

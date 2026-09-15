@@ -3,10 +3,8 @@
 import { Area, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { DailyFlowPoint } from "@/lib/consolidation/month-analysis";
 import { CHART_COLORS, CHART_TOOLTIP_STYLE } from "./chart-theme";
+import { useMoney } from "@/components/money/MoneyProvider";
 
-function formatBRL(value: number): string {
-  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
-}
 
 /**
  * A curva do mês: quanto entrou e quanto saiu, acumulado dia a dia. Diferente do gráfico de
@@ -28,6 +26,7 @@ function formatBRL(value: number): string {
  * nos meses em que o gasto passa a renda e a faixa inverte de lado.
  */
 export function MonthFlowChart({ points }: { points: DailyFlowPoint[] }) {
+  const money = useMoney();
   const data = points.map((p) => ({
     day: p.day,
     Renda: p.income,
@@ -68,7 +67,7 @@ export function MonthFlowChart({ points }: { points: DailyFlowPoint[] }) {
             labelFormatter={(day) => `Dia ${day}`}
             formatter={(value, name) => {
               if (name === "faixa" || name === "faixaBase") return [];
-              return [formatBRL(Number(value)), name === "Renda" ? "Entrou" : "Saiu"];
+              return [money(Number(value), { round: true }), name === "Renda" ? "Entrou" : "Saiu"];
             }}
             cursor={{ stroke: CHART_COLORS.grid }}
           />
@@ -115,14 +114,14 @@ export function MonthFlowChart({ points }: { points: DailyFlowPoint[] }) {
       <div className="flex flex-wrap items-center gap-2">
         <span className="inline-flex items-center gap-1.5 rounded-full bg-success-soft px-2.5 py-1 text-caption font-medium text-success">
           <span className="size-1.5 rounded-full bg-success" />
-          Entrou {formatBRL(last?.income ?? 0)}
+          Entrou {money(last?.income ?? 0, { round: true })}
         </span>
         <span className="inline-flex items-center gap-1.5 rounded-full bg-danger-soft px-2.5 py-1 text-caption font-medium text-danger">
           <span className="size-1.5 rounded-full bg-danger" />
-          Saiu {formatBRL(last?.expense ?? 0)}
+          Saiu {money(last?.expense ?? 0, { round: true })}
         </span>
         <span className="rounded-full bg-surface-2 px-2.5 py-1 text-caption font-medium text-ink">
-          {positive ? "Sobrou" : "Faltou"} até aqui: {formatBRL(Math.abs(leftover))}
+          {positive ? "Sobrou" : "Faltou"} até aqui: {money(Math.abs(leftover), { round: true })}
         </span>
       </div>
     </div>

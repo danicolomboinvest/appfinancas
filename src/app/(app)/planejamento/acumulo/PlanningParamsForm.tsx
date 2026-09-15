@@ -52,13 +52,13 @@ export function PlanningParamsForm({ defaults }: { defaults: Defaults }) {
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <CurrencyField
-          label="Valor inicial (R$)"
+          label="Valor inicial"
           name="currentPatrimony"
           defaultValue={defaults.currentPatrimony}
           required
         />
         <CurrencyField
-          label="Aporte mensal médio (R$)"
+          label="Aporte mensal médio"
           name="monthlyContributionAccumulation"
           defaultValue={defaults.monthlyContributionAccumulation}
           required
@@ -97,13 +97,13 @@ export function PlanningParamsForm({ defaults }: { defaults: Defaults }) {
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <CurrencyField
-          label="Gasto mensal desejado (R$)"
+          label="Gasto mensal desejado"
           name="desiredPassiveIncome"
           defaultValue={defaults.desiredPassiveIncome}
           required
         />
         <CurrencyField
-          label="Outras rendas passivas (R$, ex.: aluguel + INSS)"
+          label="Outras rendas passivas (ex.: aluguel + INSS)"
           name="otherPassiveIncome"
           defaultValue={defaults.otherPassiveIncome}
         />

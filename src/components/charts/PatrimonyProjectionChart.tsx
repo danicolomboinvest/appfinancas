@@ -3,9 +3,10 @@
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { ProjectionYear } from "@/lib/consolidation/projection";
 import { CHART_COLORS, CHART_TOOLTIP_STYLE } from "./chart-theme";
-import { formatCompactBRL } from "@/lib/format";
+import { useMoney } from "@/components/money/MoneyProvider";
 
 export function PatrimonyProjectionChart({ years }: { years: ProjectionYear[] }) {
+  const money = useMoney();
   const data = years.map((y) => ({
     idade: y.age,
     "Patrimônio (nominal)": y.balanceNominal,
@@ -30,11 +31,11 @@ export function PatrimonyProjectionChart({ years }: { years: ProjectionYear[] })
           tickLine={false}
           axisLine={false}
           width={72}
-          tickFormatter={(value) => formatCompactBRL(Number(value))}
+          tickFormatter={(value) => money(Number(value), { compact: true })}
         />
         <Tooltip
           {...CHART_TOOLTIP_STYLE}
-          formatter={(value) => Number(value).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+          formatter={(value) => money(Number(value))}
           cursor={{ stroke: CHART_COLORS.grid }}
         />
         <Legend wrapperStyle={{ fontSize: 12, color: CHART_COLORS.axis }} />

@@ -3,10 +3,8 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import type { UpcomingDividend } from "@/lib/repositories/dividend.repo";
+import { serverMoney } from "@/lib/money-server";
 
-function formatBRL(value: number) {
-  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
 
 /** "21/08" — data curta, o ano quase nunca muda de uma linha pra outra nesta lista. */
 function formatShortDate(date: Date) {
@@ -24,7 +22,8 @@ const KIND_TONE: Record<string, "accent" | "success" | "neutral"> = {
  * estimado (quantidade × valor por cota). Vem do investidor10, atualizado ao criar/importar um
  * ativo e todo dia via cron — a pessoa não pede nada, só aparece quando tem provento a caminho.
  */
-export function UpcomingDividendsSection({ dividends }: { dividends: UpcomingDividend[] }) {
+export async function UpcomingDividendsSection({ dividends }: { dividends: UpcomingDividend[] }) {
+  const money = await serverMoney();
   if (dividends.length === 0) return null;
 
   const total = dividends.reduce((sum, d) => sum + d.estimatedTotal, 0);
@@ -32,7 +31,7 @@ export function UpcomingDividendsSection({ dividends }: { dividends: UpcomingDiv
   return (
     <div id="dividendos">
       <CollapsibleSection
-        label={`Próximos dividendos · ${formatBRL(total)} previstos`}
+        label={`Próximos dividendos · ${money(total)} previstos`}
         defaultOpen
       >
         <Card className="flex flex-col gap-1 p-2">
@@ -56,7 +55,7 @@ export function UpcomingDividendsSection({ dividends }: { dividends: UpcomingDiv
                 </div>
               </div>
               <div className="shrink-0 text-right">
-                <p className="text-sm font-medium tabular-nums text-success">{formatBRL(d.estimatedTotal)}</p>
+                <p className="text-sm font-medium tabular-nums text-success">{money(d.estimatedTotal)}</p>
                 {/* JSCP: já líquido de 15% de IR. Tipo sem regra certa (ex.: "Rend. Trib."): valor
                     é bruto, aviso explícito em vez de fingir que sabemos o imposto. */}
                 {d.taxTreatment === "jscp_15" && <p className="text-[10px] text-ink-faint">líquido de IR</p>}

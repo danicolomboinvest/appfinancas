@@ -5,18 +5,17 @@ import { Card } from "@/components/ui/Card";
 import { BulletBar } from "@/components/charts/BulletBar";
 import { buildStrategyBullets } from "@/lib/portfolio/strategy-bullets";
 import { formatPercentNumber } from "@/lib/format";
+import { serverMoney } from "@/lib/money-server";
 
-function formatBRL(value: number) {
-  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
-}
 
-export function StrategyComparisonSection({
+export async function StrategyComparisonSection({
   positions,
   hasStrategy,
 }: {
   positions: StrategyClassPosition[];
   hasStrategy: boolean;
 }) {
+  const money = await serverMoney();
   if (!hasStrategy) {
     return (
       <Card className="p-5 text-sm text-ink-muted">
@@ -60,14 +59,14 @@ export function StrategyComparisonSection({
                   <p className="text-indicator font-semibold tabular-nums text-ink">
                     {formatPercentNumber(p.currentPercent * 100, 0)}
                   </p>
-                  <p className="text-caption tabular-nums text-ink-faint">{formatBRL(p.currentValue)}</p>
+                  <p className="text-caption tabular-nums text-ink-faint">{money(p.currentValue, { round: true })}</p>
                 </div>
                 <div>
                   <p className="text-caption text-ink-muted">Deveria ter</p>
                   <p className="text-indicator font-semibold tabular-nums text-ink">
                     {formatPercentNumber(p.targetPercent * 100, 0)}
                   </p>
-                  <p className="text-caption tabular-nums text-ink-faint">{formatBRL(targetValue)}</p>
+                  <p className="text-caption tabular-nums text-ink-faint">{money(targetValue, { round: true })}</p>
                 </div>
               </div>
 
@@ -80,7 +79,7 @@ export function StrategyComparisonSection({
                   {aportar ? "Aportar" : "Reduzir"}
                 </span>
                 <span className={`text-sm font-semibold tabular-nums ${aportar ? "text-success" : "text-danger"}`}>
-                  {aportar ? "+" : "−"} {formatBRL(Math.abs(p.rebalanceAmount))}
+                  {aportar ? "+" : "−"} {money(Math.abs(p.rebalanceAmount), { round: true })}
                 </span>
               </div>
             </Card>

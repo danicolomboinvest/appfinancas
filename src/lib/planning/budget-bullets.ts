@@ -1,4 +1,5 @@
 import type { CategoryComparison } from "./budget-comparison";
+import type { MoneyFormatter } from "@/lib/money";
 
 /**
  * Transforma a comparação por categoria nas linhas da barra-bala, com a ORDEM sendo a parte
@@ -22,9 +23,6 @@ export type BudgetBulletRow = {
   isUnplanned: boolean;
 };
 
-function formatBRL(value: number): string {
-  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
-}
 
 /** Quanto do período já passou, de 0 a 1 — é onde o tracinho fica. */
 export function elapsedRatioOfMonth(now: Date, year: number, month: number): number {
@@ -45,6 +43,8 @@ export function buildBudgetBullets(
   options: {
     /** Onde a pessoa "deveria" estar; null tira o tracinho. */
     paceRatio: number | null;
+    /** Formatador da moeda escolhida — o texto da direita é dinheiro, e a moeda é do usuário. */
+    money: MoneyFormatter;
     labelFor: (categoryKey: string) => string;
     colorFor: (categoryKey: string) => string;
     /** "de" → "R$ 2.531 de 3.000"; "restante" → "estourou R$ 18" / "falta R$ 469". */
@@ -53,7 +53,7 @@ export function buildBudgetBullets(
     hideEmpty?: boolean;
   },
 ): BudgetBulletRow[] {
-  const { paceRatio, labelFor, colorFor, labelStyle = "de", hideEmpty = true } = options;
+  const { paceRatio, labelFor, colorFor, money, labelStyle = "de", hideEmpty = true } = options;
 
   const rows = categories
     .filter((c) => !hideEmpty || c.planned > 0 || c.spent > 0)
@@ -65,11 +65,11 @@ export function buildBudgetBullets(
 
       let rightLabel: string;
       if (isUnplanned) {
-        rightLabel = `${formatBRL(c.spent)} · sem plano`;
+        rightLabel = `${money(c.spent, { round: true })} · sem plano`;
       } else if (labelStyle === "de") {
-        rightLabel = `${formatBRL(c.spent)} de ${formatBRL(c.planned)}`;
+        rightLabel = `${money(c.spent, { round: true })} de ${money(c.planned, { round: true })}`;
       } else {
-        rightLabel = isOver ? `estourou ${formatBRL(-restante)}` : `falta ${formatBRL(restante)}`;
+        rightLabel = isOver ? `estourou ${money(-restante, { round: true })}` : `falta ${money(restante, { round: true })}`;
       }
 
       return {

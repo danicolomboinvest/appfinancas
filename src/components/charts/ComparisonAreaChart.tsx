@@ -2,10 +2,8 @@
 
 import { Area, AreaChart, ReferenceDot, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { CHART_COLORS, CHART_TOOLTIP_STYLE } from "./chart-theme";
+import { useMoney } from "@/components/money/MoneyProvider";
 
-function formatBRL(value: number) {
-  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
-}
 
 export type ComparisonPoint = { x: number; a: number; b: number };
 
@@ -37,6 +35,7 @@ export function ComparisonAreaChart({
   verdict?: string;
   winner?: "a" | "b";
 }) {
+  const money = useMoney();
   if (points.length < 2) return null;
   const last = points[points.length - 1];
   const colorA = CHART_COLORS.success;
@@ -70,7 +69,7 @@ export function ComparisonAreaChart({
           <Tooltip
             {...CHART_TOOLTIP_STYLE}
             labelFormatter={(x) => (xUnit === "ano" ? `Ano ${x}` : `Mês ${x}`)}
-            formatter={(value, name) => [formatBRL(Number(value)), name === "a" ? labelA : labelB]}
+            formatter={(value, name) => [money(Number(value), { round: true }), name === "a" ? labelA : labelB]}
             cursor={{ stroke: CHART_COLORS.grid }}
           />
           <Area type="monotone" dataKey="a" stroke={colorA} strokeWidth={2} fill="url(#cmp-a)" dot={false} activeDot={{ r: 4 }} />
@@ -83,11 +82,11 @@ export function ComparisonAreaChart({
       <div className="flex flex-wrap items-center gap-2">
         <span className="inline-flex items-center gap-1.5 rounded-full bg-success-soft px-2.5 py-1 text-caption font-medium text-success">
           <span className="size-1.5 rounded-full bg-success" />
-          {labelA}: {formatBRL(last.a)}
+          {labelA}: {money(last.a, { round: true })}
         </span>
         <span className="inline-flex items-center gap-1.5 rounded-full bg-info-soft px-2.5 py-1 text-caption font-medium text-info">
           <span className="size-1.5 rounded-full bg-info" />
-          {labelB}: {formatBRL(last.b)}
+          {labelB}: {money(last.b, { round: true })}
         </span>
       </div>
       {verdict && (

@@ -8,10 +8,8 @@ import { Button } from "@/components/ui/Button";
 import { useSuccessToast } from "@/components/ui/useSuccessToast";
 import { PARENT_CATEGORY_LABEL } from "@/lib/categories";
 import { saveBudgetAction, type BudgetState } from "./budget-actions";
+import { useMoney } from "@/components/money/MoneyProvider";
 
-function formatBRL(value: number) {
-  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
 
 const initialState: BudgetState = {};
 
@@ -28,6 +26,7 @@ export function BudgetRow({
   plannedAmount: number;
   spent: number;
 }) {
+  const money = useMoney();
   const [state, formAction, isPending] = useActionState(saveBudgetAction, initialState);
   useSuccessToast(isPending, state.error, "Orçamento atualizado.");
 
@@ -43,7 +42,7 @@ export function BudgetRow({
           <input type="hidden" name="year" value={year} />
           <input type="hidden" name="month" value={month} />
           <input type="hidden" name="parentCategory" value={parentCategory} />
-          <CurrencyField label="Planejado (R$)" name="plannedAmount" defaultValue={plannedAmount} className="w-28" />
+          <CurrencyField label="Planejado" name="plannedAmount" defaultValue={plannedAmount} className="w-28" />
           <Button type="submit" size="sm" disabled={isPending} variant="ghost">
             {isPending ? "..." : "Salvar"}
           </Button>
@@ -54,10 +53,10 @@ export function BudgetRow({
 
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-ink-muted">
         <span>
-          {formatBRL(spent)} de {formatBRL(plannedAmount)} planejado
+          {money(spent)} de {money(plannedAmount)} planejado
         </span>
         <span className={remaining < 0 ? "text-danger" : "text-ink-muted"}>
-          {remaining >= 0 ? `Ainda pode gastar ${formatBRL(remaining)}` : `Estourou em ${formatBRL(-remaining)}`}
+          {remaining >= 0 ? `Ainda pode gastar ${money(remaining)}` : `Estourou em ${money(-remaining)}`}
         </span>
       </div>
     </div>

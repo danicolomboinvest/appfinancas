@@ -2,11 +2,8 @@
 
 import { useId, useState } from "react";
 import { CONTROL_CLASSES } from "./Field";
-
-function centsToBRL(cents: number | null): string {
-  if (cents === null) return "";
-  return (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
+import { formatMoney } from "@/lib/money";
+import { useCurrency } from "@/components/money/MoneyProvider";
 
 function parseDigitsToCents(text: string): number | null {
   const digits = text.replace(/\D/g, "");
@@ -40,6 +37,9 @@ export function CurrencyField({
   /** Chamado a cada digitação com o valor atual em reais, para cálculos derivados ao vivo (ex.: total anual). */
   onValueChange?: (value: number) => void;
 }) {
+  const currency = useCurrency();
+  /** Máscara ao vivo, na moeda escolhida: "R$ 1.234,56", "€ 1.234,56". */
+  const mask = (cents: number | null) => (cents === null ? "" : formatMoney(cents / 100, currency));
   const generatedId = useId();
   const inputId = id ?? generatedId;
   const [cents, setCents] = useState<number | null>(() =>
@@ -57,7 +57,7 @@ export function CurrencyField({
         type="text"
         inputMode="decimal"
         required={required}
-        value={centsToBRL(cents)}
+        value={mask(cents)}
         onChange={(e) => {
           const parsed = parseDigitsToCents(e.target.value);
           setCents(parsed);

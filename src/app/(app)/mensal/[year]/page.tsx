@@ -17,6 +17,8 @@ import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import type { MonthlyBreakdown } from "@/lib/consolidation/yearly";
 import { QuickEntryButton } from "./QuickEntryButton";
 import { formatPercentNumber } from "@/lib/format";
+import { serverMoney } from "@/lib/money-server";
+import type { MoneyFormatter } from "@/lib/money";
 
 const MONTH_LABELS = [
   "Janeiro",
@@ -33,9 +35,6 @@ const MONTH_LABELS = [
   "Dezembro",
 ];
 
-function formatBRL(value: number) {
-  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
 
 /** Tempo verbal do título depende de o ano já ter passado, estar em curso, ou ainda vir.
  * Fuso do Brasil, o UTC do servidor viraria o ano cedo demais na noite de 31/12. */
@@ -47,6 +46,7 @@ function yearPageTitle(year: number): string {
 }
 
 export default async function YearPage(props: PageProps<"/mensal/[year]">) {
+  const money = await serverMoney();
   const { year: yearParam } = await props.params;
   const year = Number(yearParam);
   // URL editada à mão ("/mensal/abc") viraria NaN direto no Prisma → erro 500.
@@ -93,10 +93,10 @@ export default async function YearPage(props: PageProps<"/mensal/[year]">) {
       />
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
-        <StatCard label="Renda" value={formatBRL(summary.totalIncome)} tone="success" sparkline={incomeSparkline} />
-        <StatCard label="Gastos" value={formatBRL(summary.totalExpense)} tone="danger" sparkline={expenseSparkline} />
-        <StatCard label="Aportes" value={formatBRL(summary.totalInvestment)} sparkline={investmentSparkline} />
-        <StatCard label="Saldo" value={formatBRL(summary.balance)} tone="accent" sparkline={balanceSparkline} />
+        <StatCard label="Renda" value={money(summary.totalIncome)} tone="success" sparkline={incomeSparkline} />
+        <StatCard label="Gastos" value={money(summary.totalExpense)} tone="danger" sparkline={expenseSparkline} />
+        <StatCard label="Aportes" value={money(summary.totalInvestment)} sparkline={investmentSparkline} />
+        <StatCard label="Saldo" value={money(summary.balance)} tone="accent" sparkline={balanceSparkline} />
         <StatCard
           label="Taxa de poupança"
           value={summary.savingsRate === null ? "—" : formatPercentNumber(summary.savingsRate * 100, 1)}
@@ -109,7 +109,7 @@ export default async function YearPage(props: PageProps<"/mensal/[year]">) {
 
       <CollapsibleSection label="Ver os 12 meses em detalhe">
         <ResponsiveTable
-          columns={monthColumns(year, recentSubcategories, customCategories)}
+          columns={monthColumns(money, year, recentSubcategories, customCategories)}
           rows={summary.months}
           rowKey={(m) => String(m.month)}
         />
@@ -119,16 +119,17 @@ export default async function YearPage(props: PageProps<"/mensal/[year]">) {
 }
 
 function monthColumns(
+  money: MoneyFormatter,
   year: number,
   recentSubcategories: Record<ParentCategory, string[]>,
   customCategories: { id: string; name: string }[],
 ): ResponsiveColumn<MonthlyBreakdown>[] {
   return [
     { key: "month", label: "Mês", render: (m) => MONTH_LABELS[m.month - 1] },
-    { key: "income", label: "Renda", render: (m) => formatBRL(m.totalIncome) },
-    { key: "expense", label: "Gastos", render: (m) => formatBRL(m.totalExpense) },
-    { key: "investment", label: "Aportes", render: (m) => formatBRL(m.totalInvestment) },
-    { key: "balance", label: "Saldo", render: (m) => formatBRL(m.balance) },
+    { key: "income", label: "Renda", render: (m) => money(m.totalIncome) },
+    { key: "expense", label: "Gastos", render: (m) => money(m.totalExpense) },
+    { key: "investment", label: "Aportes", render: (m) => money(m.totalInvestment) },
+    { key: "balance", label: "Saldo", render: (m) => money(m.balance) },
     {
       key: "actions",
       label: "",

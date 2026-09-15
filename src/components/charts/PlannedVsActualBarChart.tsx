@@ -3,10 +3,12 @@
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { MonthlyPlannedVsActual } from "@/lib/planning/budget-comparison";
 import { CHART_COLORS, CHART_TOOLTIP_STYLE } from "./chart-theme";
+import { useMoney } from "@/components/money/MoneyProvider";
 
 const MONTH_LABELS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
 export function PlannedVsActualBarChart({ months }: { months: MonthlyPlannedVsActual[] }) {
+  const money = useMoney();
   const data = months.map((m) => ({
     name: MONTH_LABELS[m.month - 1],
     Planejado: m.totalPlanned,
@@ -23,7 +25,7 @@ export function PlannedVsActualBarChart({ months }: { months: MonthlyPlannedVsAc
         <YAxis fontSize={12} stroke={CHART_COLORS.axis} tickLine={false} axisLine={false} />
         <Tooltip
           {...CHART_TOOLTIP_STYLE}
-          formatter={(value) => Number(value).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+          formatter={(value) => money(Number(value))}
           cursor={{ fill: "rgba(255,255,255,0.04)" }}
         />
         <Legend wrapperStyle={{ fontSize: 12, color: CHART_COLORS.axis }} />

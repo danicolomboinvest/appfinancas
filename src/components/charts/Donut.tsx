@@ -2,6 +2,7 @@
 
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { CHART_TOOLTIP_STYLE } from "./chart-theme";
+import { useMoney } from "@/components/money/MoneyProvider";
 
 /**
  * A rosca do app — uma só, usada em gastos por categoria, divisão da renda e carteira.
@@ -38,12 +39,7 @@ const OUTROS_COLOR = "var(--color-ink-faint)";
  * cannot be passed directly to Client Components"). Com um nome, o servidor manda uma string
  * e a formatação acontece deste lado.
  */
-export type DonutFormat = "brl" | "percent";
-
-const FORMAT: Record<DonutFormat, (value: number) => string> = {
-  brl: (value) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }),
-  percent: (value) => `${value.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`,
-};
+export type DonutFormat = "dinheiro" | "percent";
 
 /** Junta a cauda em "Outros" — mantém o total honesto sem encher a rosca de lasquinhas. */
 export function groupTail(slices: DonutSlice[], maxSlices: number): DonutSlice[] {
@@ -67,7 +63,7 @@ export function Donut({
   centerLabel,
   centerValue,
   maxSlices = 6,
-  format = "brl",
+  format = "dinheiro",
   onSelect,
   selectedName,
   emptyMessage = "Sem dados ainda.",
@@ -85,7 +81,11 @@ export function Donut({
   emptyMessage?: string;
   size?: number;
 }) {
-  const valueFormatter = FORMAT[format];
+  const money = useMoney();
+  const valueFormatter =
+    format === "percent"
+      ? (value: number) => `${value.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`
+      : (value: number) => money(value, { round: true });
   const shown = groupTail(slices, maxSlices);
   const total = shown.reduce((sum, s) => sum + s.value, 0);
 

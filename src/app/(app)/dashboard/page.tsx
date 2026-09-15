@@ -25,12 +25,10 @@ import { CountUp } from "@/components/ui/CountUp";
 import { LinkedStatCard } from "@/components/ui/LinkedStatCard";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import { formatPercentNumber } from "@/lib/format";
+import { serverMoney } from "@/lib/money-server";
 
 const MONTH_LABELS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
-function formatBRL(value: number) {
-  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
 
 /** Variação percentual entre o mês atual e o anterior, null quando não dá para comparar (mês anterior zerado). */
 function changePercent(current: number, previous: number): number | null {
@@ -55,6 +53,7 @@ function firstOf(value: string | string[] | undefined) {
 }
 
 export default async function DashboardPage(props: PageProps<"/dashboard">) {
+  const money = await serverMoney();
   const searchParams = await props.searchParams;
   const ctx = await getRequiredSession();
   // Fuso do Brasil, o relógio UTC do servidor viraria o ano mais cedo na noite de 31/12.
@@ -220,14 +219,14 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
         <StatCard
           label="Renda no ano"
-          value={formatBRL(summary.totalIncome)}
+          value={money(summary.totalIncome)}
           tone="success"
           trend={incomeTrend === null ? undefined : { percent: incomeTrend, periodLabel: "mês passado" }}
           sparkline={incomeSparkline}
         />
         <StatCard
           label="Gastos no ano"
-          value={formatBRL(summary.totalExpense)}
+          value={money(summary.totalExpense)}
           tone="neutral"
           trend={
             expenseTrend === null ? undefined : { percent: expenseTrend, periodLabel: "mês passado", goodDirection: "down" }
@@ -236,7 +235,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
         />
         <StatCard
           label="Saldo no ano"
-          value={formatBRL(summary.balance)}
+          value={money(summary.balance)}
           tone="accent"
           hint={
             summary.savingsRate === null
@@ -246,7 +245,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
           trend={
             balanceDelta === null
               ? undefined
-              : { percent: balanceDelta, periodLabel: "mês passado", displayValue: formatBRL(Math.abs(balanceDelta)) }
+              : { percent: balanceDelta, periodLabel: "mês passado", displayValue: money(Math.abs(balanceDelta)) }
           }
           sparkline={balanceSparkline}
         />
@@ -264,7 +263,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
             icon={ShieldCheck}
             label="Reserva de emergência"
             value={emergencyProgress === null ? "Não configurada" : `${Math.round(emergencyProgress * 100)}% concluída`}
-            hint={emergencyTarget !== null ? `${formatBRL(emergencyCurrent)} de ${formatBRL(emergencyTarget)}` : "Configure sua meta"}
+            hint={emergencyTarget !== null ? `${money(emergencyCurrent)} de ${money(emergencyTarget)}` : "Configure sua meta"}
             progressPercent={emergencyProgress ?? undefined}
             tone={emergencyProgress === null ? "neutral" : emergencyProgress >= 1 ? "accent" : "success"}
           />
@@ -280,7 +279,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
             href="/planejamento/acumulo#liberdade-financeira"
             icon={Sparkles}
             label="Aposentadoria"
-            value={usufructSurplus === null ? "Não configurada" : formatBRL(usufructSurplus)}
+            value={usufructSurplus === null ? "Não configurada" : money(usufructSurplus)}
             hint={
               usufructSurplus === null
                 ? "Configure seu planejamento"
@@ -294,7 +293,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
             href="/carteira#dividendos"
             icon={Coins}
             label="Dividendos (30 dias)"
-            value={upcomingDividends > 0 ? formatBRL(upcomingDividends) : "Nenhum previsto"}
+            value={upcomingDividends > 0 ? money(upcomingDividends) : "Nenhum previsto"}
             hint={upcomingDividends > 0 ? "Estimativa dos ativos da sua carteira" : "Aparece quando houver provento anunciado"}
             tone={upcomingDividends > 0 ? "success" : "neutral"}
           />

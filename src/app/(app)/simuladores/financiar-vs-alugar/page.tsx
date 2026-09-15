@@ -5,10 +5,8 @@ import { FinancingVsRentChart } from "@/components/charts/FinancingVsRentChart";
 import { StatCard } from "@/components/ui/StatCard";
 import { Card } from "@/components/ui/Card";
 import { SimulatorWizard, type WizardField, type WizardValues } from "@/components/simulators/SimulatorWizard";
+import { useMoney } from "@/components/money/MoneyProvider";
 
-function formatBRL(value: number) {
-  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
 
 const FIELDS: WizardField[] = [
   { name: "propertyValue", label: "Valor do imóvel", kind: "currency", help: "O preço de venda do imóvel que você quer comprar." },
@@ -58,6 +56,7 @@ function toInput(values: WizardValues): FinancingVsRentInput {
 }
 
 export default function FinanciarVsAlugarPage() {
+  const money = useMoney();
   return (
     <SimulatorWizard
       eyebrow="Financiar vs. Alugar + Investir"
@@ -74,9 +73,9 @@ export default function FinanciarVsAlugarPage() {
               </h1>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <StatCard label="Patrimônio final, Financiar" value={formatBRL(result.finalFinancingPatrimony)} tone={result.winner === "FINANCIAR" ? "accent" : "neutral"} />
-              <StatCard label="Patrimônio final, Alugar + investir" value={formatBRL(result.finalInvestedPatrimony)} tone={result.winner === "ALUGAR_E_INVESTIR" ? "accent" : "neutral"} />
-              <StatCard label="Valor financiado" value={formatBRL(result.financedAmount)} />
+              <StatCard label="Patrimônio final, Financiar" value={money(result.finalFinancingPatrimony)} tone={result.winner === "FINANCIAR" ? "accent" : "neutral"} />
+              <StatCard label="Patrimônio final, Alugar + investir" value={money(result.finalInvestedPatrimony)} tone={result.winner === "ALUGAR_E_INVESTIR" ? "accent" : "neutral"} />
+              <StatCard label="Valor financiado" value={money(result.financedAmount)} />
             </div>
             <Card className="p-4">
               <FinancingVsRentChart schedule={result.schedule} winner={result.winner} />

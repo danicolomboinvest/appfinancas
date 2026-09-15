@@ -1,5 +1,7 @@
+"use client";
+
+import { useMoney } from "@/components/money/MoneyProvider";
 import { GradientPill } from "@/components/ui/GradientPill";
-import { formatCompactBRL } from "@/lib/format";
 
 export function GreetingStrip({
   greeting,
@@ -17,6 +19,7 @@ export function GreetingStrip({
    * referência de design). Omitido quando ainda não há nada lançado no mês. */
   flow?: { income: number; expense: number; investment: number };
 }) {
+  const money = useMoney();
   const hasFlow = flow && (flow.income > 0 || flow.expense > 0 || flow.investment > 0);
   return (
     <div className="mb-6 flex flex-col gap-3 border-b border-border pb-5">
@@ -30,19 +33,19 @@ export function GreetingStrip({
         <div className="flex flex-wrap gap-2.5">
           <GradientPill
             label="Renda"
-            value={formatCompactBRL(flow.income)}
+            value={money(flow.income, { compact: true })}
             colorFrom="color-mix(in srgb, var(--color-success) 60%, white)"
             colorTo="var(--color-success)"
           />
           <GradientPill
             label="Gastos"
-            value={formatCompactBRL(flow.expense)}
+            value={money(flow.expense, { compact: true })}
             colorFrom="color-mix(in srgb, var(--color-danger) 60%, white)"
             colorTo="var(--color-danger)"
           />
           <GradientPill
             label="Aportes"
-            value={formatCompactBRL(flow.investment)}
+            value={money(flow.investment, { compact: true })}
             colorFrom="var(--color-accent-2)"
             colorTo="var(--color-accent)"
           />

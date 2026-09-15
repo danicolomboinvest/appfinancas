@@ -4,8 +4,9 @@ import { getAdminOverview, type AdminUserSort } from "@/lib/repositories/admin-m
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { StatCard } from "@/components/ui/StatCard";
-import { formatBRL, formatPercentNumber } from "@/lib/format";
+import { formatPercentNumber } from "@/lib/format";
 import { formatPhone, whatsappUrl } from "@/lib/phone";
+import { serverMoney } from "@/lib/money-server";
 
 const dateFmt = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
 
@@ -31,6 +32,7 @@ function SortHeader({ label, sortKey, active, className = "" }: { label: string;
 }
 
 export default async function AdminUsuariosPage(props: PageProps<"/admin/usuarios">) {
+  const money = await serverMoney();
   await requireAdmin();
   const searchParams = await props.searchParams;
   const sortParam = firstOf(searchParams.sort);
@@ -47,11 +49,11 @@ export default async function AdminUsuariosPage(props: PageProps<"/admin/usuario
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard label="Usuários cadastrados" value={String(totals.totalUsuarios)} hint={`${totals.comCarteira} com carteira registrada`} />
-        <StatCard label="Patrimônio investido (todos)" value={formatBRL(totals.patrimonioTotal)} tone="accent" />
-        <StatCard label="Poupança/mês somada" value={formatBRL(totals.poupancaMediaMensalSomada)} tone="success" hint="Soma da média mensal de cada um" />
+        <StatCard label="Patrimônio investido (todos)" value={money(totals.patrimonioTotal)} tone="accent" />
+        <StatCard label="Poupança/mês somada" value={money(totals.poupancaMediaMensalSomada)} tone="success" hint="Soma da média mensal de cada um" />
         <StatCard
           label="Ticket médio de patrimônio"
-          value={formatBRL(totals.comCarteira > 0 ? totals.patrimonioTotal / totals.comCarteira : 0)}
+          value={money(totals.comCarteira > 0 ? totals.patrimonioTotal / totals.comCarteira : 0)}
           hint="Entre quem tem carteira"
         />
       </div>
@@ -95,14 +97,14 @@ export default async function AdminUsuariosPage(props: PageProps<"/admin/usuario
                     <div className="text-xs text-ink-faint">sem celular</div>
                   )}
                 </td>
-                <td className="px-4 py-3 text-right font-medium text-ink">{formatBRL(u.patrimonioInvestido)}</td>
+                <td className="px-4 py-3 text-right font-medium text-ink">{money(u.patrimonioInvestido)}</td>
                 <td className={`px-4 py-3 text-right ${u.poupancaMediaMensal < 0 ? "text-danger" : "text-ink"}`}>
-                  {formatBRL(u.poupancaMediaMensal)}
+                  {money(u.poupancaMediaMensal)}
                 </td>
                 <td className="px-4 py-3 text-right text-ink-muted">
                   {u.taxaPoupanca == null ? "—" : formatPercentNumber(u.taxaPoupanca * 100, 0)}
                 </td>
-                <td className="px-4 py-3 text-right text-ink-muted">{formatBRL(u.aporteMedioMensal)}</td>
+                <td className="px-4 py-3 text-right text-ink-muted">{money(u.aporteMedioMensal)}</td>
                 <td className="px-4 py-3 text-center text-ink-muted">{u.mesesAtivos}</td>
                 <td className="px-4 py-3 text-right text-ink-muted">
                   {u.ultimoLancamento ? dateFmt.format(u.ultimoLancamento) : "—"}

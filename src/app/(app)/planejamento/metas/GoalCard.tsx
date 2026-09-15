@@ -9,6 +9,7 @@ import { DeleteGoalButton } from "./DeleteGoalButton";
 import { EditGoalButton } from "./EditGoalButton";
 import { GoalCheckIn } from "./GoalCheckIn";
 import type { GoalCalcResult } from "@/lib/planning/goal";
+import { serverMoney } from "@/lib/money-server";
 
 export type GoalVariant = "ahead" | "onTrack" | "behind" | "achieved";
 
@@ -59,9 +60,6 @@ const GOAL_ICONS: Record<GoalIcon, typeof Target> = {
   GENERICO: Target,
 };
 
-function formatBRL(value: number) {
-  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
 
 function formatMonthYear(date: Date) {
   return new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric" }).format(date);
@@ -75,7 +73,7 @@ function projectedCompletionText(variant: GoalVariant, targetDate: Date): string
   return `Prevista para ${dateLabel}, continuando nesse ritmo.`;
 }
 
-export function GoalCard({
+export async function GoalCard({
   id,
   name,
   icon,
@@ -99,6 +97,7 @@ export function GoalCard({
   /** Presente = está na janela de perguntar "você fez o aporte sugerido?" este mês. */
   checkin: { monthKey: string; monthLabel: string; suggestedAmount: number } | null;
 }) {
+  const money = await serverMoney();
   const progressPercent = targetAmount > 0 ? Math.min(currentAmount / targetAmount, 1) : 0;
   const achieved = variant === "achieved";
   const styles = VARIANT_STYLES[variant];
@@ -157,7 +156,7 @@ export function GoalCard({
       </div>
 
       <p className="text-sm tabular-nums text-ink-muted">
-        <span className="font-semibold text-ink">{formatBRL(currentAmount)}</span> de {formatBRL(targetAmount)}
+        <span className="font-semibold text-ink">{money(currentAmount)}</span> de {money(targetAmount)}
         {!achieved && <> · {plan.monthsRemaining} {plan.monthsRemaining === 1 ? "mês" : "meses"}</>}
       </p>
 

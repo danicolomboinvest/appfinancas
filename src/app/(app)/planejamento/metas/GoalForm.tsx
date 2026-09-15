@@ -87,14 +87,14 @@ export function GoalForm({
       <Field label="Nome da meta" id="name" name="name" required defaultValue={defaults.name} placeholder="Ex.: Viagem" />
       <GoalIconPicker defaultValue={defaults.icon} />
       <CurrencyField
-        label="Valor-alvo (R$)"
+        label="Valor-alvo"
         id="targetAmount"
         name="targetAmount"
         required
         defaultValue={defaults.targetAmount}
       />
       <CurrencyField
-        label="Já guardado (R$)"
+        label="Já guardado"
         id="currentAmount"
         name="currentAmount"
         defaultValue={defaults.currentAmount ?? 0}

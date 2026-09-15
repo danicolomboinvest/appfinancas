@@ -29,14 +29,14 @@ export function EmergencyFundForm({ defaults }: { defaults: Defaults }) {
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
         <Field label="Meses de proteção" name="targetMonths" type="number" defaultValue={defaults.targetMonths} required />
         <CurrencyField
-          label="Custo mensal (R$)"
+          label="Custo mensal"
           name="monthlyExpenseBase"
           defaultValue={defaults.monthlyExpenseBase}
           required
         />
-        <CurrencyField label="Reserva atual (R$)" name="currentAmount" defaultValue={defaults.currentAmount} />
+        <CurrencyField label="Reserva atual" name="currentAmount" defaultValue={defaults.currentAmount} />
         <CurrencyField
-          label="Aporte mensal (R$)"
+          label="Aporte mensal"
           name="monthlyContribution"
           defaultValue={defaults.monthlyContribution}
           required

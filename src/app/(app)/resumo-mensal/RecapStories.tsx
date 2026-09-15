@@ -7,10 +7,8 @@ import { ChevronRight, Share2, X } from "lucide-react";
 import type { MonthlyRecap } from "@/lib/recap/monthly";
 import { dismissMonthlyRecapAction } from "./actions";
 import { buildRecapShareImage, buildRecapShareText } from "./share-image";
+import { useMoney } from "@/components/money/MoneyProvider";
 
-function formatBRL(value: number) {
-  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
-}
 
 /** Paleta dos stories, tema escuro imersivo fixo (independente do tema do app). */
 const GOLD = "#f0c989";
@@ -38,10 +36,11 @@ function BigNumber({ children, color = GOLD }: { children: React.ReactNode; colo
 
 /** Barra horizontal comparativa (estilo "declarado vs. real" do Opal). */
 function CompareBar({ label, value, max, color }: { label: string; value: number; max: number; color: string }) {
+  const money = useMoney();
   const width = max > 0 ? Math.max(8, (value / max) * 100) : 8;
   return (
     <div className="flex flex-col gap-1.5">
-      <p className="text-2xl font-bold text-white">{formatBRL(value)}</p>
+      <p className="text-2xl font-bold text-white">{money(value, { round: true })}</p>
       <div className="h-11 w-full overflow-hidden rounded-full bg-white/8">
         <div
           className="flex h-full items-center rounded-full px-4 text-sm font-semibold text-black/80"
@@ -55,6 +54,7 @@ function CompareBar({ label, value, max, color }: { label: string; value: number
 }
 
 export function RecapStories({ recap, monthKey }: { recap: MonthlyRecap; monthKey: string }) {
+  const money = useMoney();
   const router = useRouter();
   const [index, setIndex] = useState(0);
   const [mounted, setMounted] = useState(false);
@@ -74,16 +74,16 @@ export function RecapStories({ recap, monthKey }: { recap: MonthlyRecap; monthKe
     if (sharing) return;
     setSharing(true);
     try {
-      const blob = await buildRecapShareImage(recap);
+      const blob = await buildRecapShareImage(recap, money);
       const file = new File([blob], "resumo-mensal.png", { type: "image/png" });
       const shareData: ShareData = { files: [file], title: "Meu resumo do mês" };
       const nav = navigator as Navigator & { canShare?: (data: ShareData) => boolean };
       if (nav.canShare?.(shareData) && navigator.share) {
         await navigator.share(shareData);
       } else if (navigator.share) {
-        await navigator.share({ title: "Meu resumo do mês", text: buildRecapShareText(recap) });
+        await navigator.share({ title: "Meu resumo do mês", text: buildRecapShareText(recap, money) });
       } else {
-        await navigator.clipboard.writeText(buildRecapShareText(recap));
+        await navigator.clipboard.writeText(buildRecapShareText(recap, money));
         // Baixa a imagem como alternativa quando não há API de compartilhamento (desktop).
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
@@ -129,14 +129,14 @@ export function RecapStories({ recap, monthKey }: { recap: MonthlyRecap; monthKe
       content: (
         <div className="flex flex-col items-center gap-4 text-center">
           <p className="text-lg text-white/80">Este mês você gastou</p>
-          <BigNumber>{formatBRL(recap.monthSpent)}</BigNumber>
+          <BigNumber>{money(recap.monthSpent, { round: true })}</BigNumber>
           {recap.topCategory && (
             <p className="text-base text-white/70">
               A maior parte foi com{" "}
               <span className="font-semibold" style={{ color: GOLD }}>
                 {recap.topCategory.label}
               </span>{" "}
-              ({formatBRL(recap.topCategory.value)})
+              ({money(recap.topCategory.value, { round: true })})
             </p>
           )}
         </div>
@@ -211,7 +211,7 @@ export function RecapStories({ recap, monthKey }: { recap: MonthlyRecap; monthKe
               <span className="font-bold" style={{ color: TERRA }}>
                 {recap.worstDay.label}
               </span>{" "}
-              com {formatBRL(recap.worstDay.value)}
+              com {money(recap.worstDay.value, { round: true })}
             </p>
           )}
         </div>
@@ -226,7 +226,7 @@ export function RecapStories({ recap, monthKey }: { recap: MonthlyRecap; monthKe
             Desde que você chegou aqui ({recap.monthsActive} {recap.monthsActive === 1 ? "mês" : "meses"}),
             {savedPositive ? " ficou no seu bolso" : " o saldo ficou"}
           </p>
-          <BigNumber color={savedPositive ? SAGE : TERRA}>{formatBRL(recap.allTimeSaved)}</BigNumber>
+          <BigNumber color={savedPositive ? SAGE : TERRA}>{money(recap.allTimeSaved, { round: true })}</BigNumber>
           <p className="text-base text-white/70">
             {savedPositive
               ? "É renda acumulada que não virou gasto, e pode virar patrimônio."
@@ -241,9 +241,9 @@ export function RecapStories({ recap, monthKey }: { recap: MonthlyRecap; monthKe
       content: (
         <div className="flex flex-col items-center gap-4 text-center">
           <p className="text-lg text-white/80">Se você investisse hoje, de uma vez, tudo que já juntou, em 10 anos isso vira até…</p>
-          <BigNumber>{formatBRL(Math.max(0, recap.lumpSumProjection10y))}</BigNumber>
+          <BigNumber>{money(Math.max(0, recap.lumpSumProjection10y), { round: true })}</BigNumber>
           <p className="text-sm text-white/50">
-            *{formatBRL(Math.max(0, recap.allTimeSaved))} investidos de uma vez a 10% a.a., estimativa educativa, não garantia.
+            *{money(Math.max(0, recap.allTimeSaved), { round: true })} investidos de uma vez a 10% a.a., estimativa educativa, não garantia.
           </p>
         </div>
       ),
@@ -254,9 +254,9 @@ export function RecapStories({ recap, monthKey }: { recap: MonthlyRecap; monthKe
       content: (
         <div className="flex flex-col items-center gap-4 text-center">
           <p className="text-lg text-white/80">Mantendo sua poupança média todo mês, reinvestindo, em 10 anos isso vira até…</p>
-          <BigNumber>{formatBRL(Math.max(0, recap.recurringProjection10y))}</BigNumber>
+          <BigNumber>{money(Math.max(0, recap.recurringProjection10y), { round: true })}</BigNumber>
           <p className="text-sm text-white/50">
-            *Poupança média de {formatBRL(Math.max(0, recap.avgMonthlySaving))}/mês (poupado no ano ÷ meses preenchidos) a 10% a.a.,
+            *Poupança média de {money(Math.max(0, recap.avgMonthlySaving), { round: true })}/mês (poupado no ano ÷ meses preenchidos) a 10% a.a.,
             estimativa educativa, não garantia.
           </p>
         </div>
@@ -274,7 +274,7 @@ export function RecapStories({ recap, monthKey }: { recap: MonthlyRecap; monthKe
           <div className="flex flex-col divide-y divide-white/10">
             <div className="flex items-center justify-between py-4">
               <div>
-                <p className="text-3xl font-bold text-white">{formatBRL(recap.monthSpent)}</p>
+                <p className="text-3xl font-bold text-white">{money(recap.monthSpent, { round: true })}</p>
                 <p className="text-sm text-white/60">Gastos do mês</p>
               </div>
               {delta !== null && (
@@ -288,7 +288,7 @@ export function RecapStories({ recap, monthKey }: { recap: MonthlyRecap; monthKe
             </div>
             <div className="flex items-center justify-between py-4">
               <div>
-                <p className="text-3xl font-bold text-white">{formatBRL(recap.allTimeSaved)}</p>
+                <p className="text-3xl font-bold text-white">{money(recap.allTimeSaved, { round: true })}</p>
                 <p className="text-sm text-white/60">No bolso desde o início</p>
               </div>
               <span
@@ -300,7 +300,7 @@ export function RecapStories({ recap, monthKey }: { recap: MonthlyRecap; monthKe
             </div>
             <div className="py-4">
               <p className="text-3xl font-bold" style={{ color: GOLD }}>
-                {formatBRL(Math.max(0, recap.recurringProjection10y))}
+                {money(Math.max(0, recap.recurringProjection10y), { round: true })}
               </p>
               <p className="text-sm text-white/60">Potencial em 10 anos mantendo sua poupança média</p>
             </div>

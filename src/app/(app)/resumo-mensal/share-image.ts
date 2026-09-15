@@ -1,8 +1,6 @@
 import type { MonthlyRecap } from "@/lib/recap/monthly";
+import type { MoneyFormatter } from "@/lib/money";
 
-function formatBRL(value: number) {
-  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
-}
 
 /** Envolve texto em várias linhas dentro de uma largura máxima. */
 function wrap(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
@@ -26,7 +24,7 @@ function wrap(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): st
  * Desenha um card compartilhável do Resumo Mensal (estilo "retrospectiva") num canvas e
  * devolve como PNG, sem dependência externa. Formato 1080×1350 (retrato, bom pra story/feed).
  */
-export async function buildRecapShareImage(recap: MonthlyRecap): Promise<Blob> {
+export async function buildRecapShareImage(recap: MonthlyRecap, money: MoneyFormatter): Promise<Blob> {
   const W = 1080;
   const H = 1350;
   const canvas = document.createElement("canvas");
@@ -60,15 +58,15 @@ export async function buildRecapShareImage(recap: MonthlyRecap): Promise<Blob> {
   // Blocos de destaque
   const savedPositive = recap.allTimeSaved >= 0;
   const blocks: { label: string; value: string; color: string }[] = [
-    { label: "Gastei este mês", value: formatBRL(recap.monthSpent), color: "#f0c989" },
+    { label: "Gastei este mês", value: money(recap.monthSpent, { round: true }), color: "#f0c989" },
     {
       label: savedPositive ? "Ficou no meu bolso desde o início" : "Saldo desde o início",
-      value: formatBRL(recap.allTimeSaved),
+      value: money(recap.allTimeSaved, { round: true }),
       color: savedPositive ? "#6fcb9f" : "#e2836a",
     },
     {
       label: "Potencial em 10 anos mantendo minha poupança média",
-      value: formatBRL(Math.max(0, recap.recurringProjection10y)),
+      value: money(Math.max(0, recap.recurringProjection10y), { round: true }),
       color: "#f0c989",
     },
   ];
@@ -98,12 +96,12 @@ export async function buildRecapShareImage(recap: MonthlyRecap): Promise<Blob> {
 }
 
 /** Texto de fallback quando não dá pra compartilhar imagem. */
-export function buildRecapShareText(recap: MonthlyRecap): string {
+export function buildRecapShareText(recap: MonthlyRecap, money: MoneyFormatter): string {
   const parts = [
     `Meu resumo do mês (${recap.rangeLabel}):`,
-    `• Gastei ${formatBRL(recap.monthSpent)}`,
-    `• ${recap.allTimeSaved >= 0 ? "Ficou no bolso" : "Saldo"} desde o início: ${formatBRL(recap.allTimeSaved)}`,
-    `• Potencial em 10 anos: ${formatBRL(Math.max(0, recap.recurringProjection10y))}`,
+    `• Gastei ${money(recap.monthSpent, { round: true })}`,
+    `• ${recap.allTimeSaved >= 0 ? "Ficou no bolso" : "Saldo"} desde o início: ${money(recap.allTimeSaved, { round: true })}`,
+    `• Potencial em 10 anos: ${money(Math.max(0, recap.recurringProjection10y), { round: true })}`,
   ];
   return parts.join("\n");
 }

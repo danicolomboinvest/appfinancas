@@ -9,10 +9,8 @@ import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { CUSTOM_CATEGORY_ICON_MAP, colorForCategorySlice } from "@/lib/categories";
 import { deleteCustomCategoryAction } from "./actions";
+import { useMoney } from "@/components/money/MoneyProvider";
 
-function formatBRL(value: number) {
-  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
 
 /** Mesmo cartão de planejamento anual que BudgetCategoryCard (sem form/submit próprio, ver
  * OrcamentoForm.tsx), só que pra uma categoria criada pelo usuário, por isso também tem um
@@ -28,6 +26,7 @@ export function CustomCategoryBudgetCard({
   icon: string;
   defaultValue: number;
 }) {
+  const money = useMoney();
   const [monthly, setMonthly] = useState(defaultValue);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [isDeleting, startDelete] = useTransition();
@@ -64,7 +63,7 @@ export function CustomCategoryBudgetCard({
       />
 
       <p className="text-xs text-ink-muted">
-        = <span className="font-medium text-ink">{formatBRL(monthly * 12)}</span> por ano
+        = <span className="font-medium text-ink">{money(monthly * 12)}</span> por ano
       </p>
 
       <Modal open={confirmOpen} onClose={() => setConfirmOpen(false)} title="Apagar categoria?">

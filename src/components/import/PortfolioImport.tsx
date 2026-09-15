@@ -10,6 +10,7 @@ import {
   type ParsedHoldingItem,
   type ConfirmedHolding,
 } from "@/app/(app)/carteira/import-actions";
+import { useMoney } from "@/components/money/MoneyProvider";
 
 type Phase = "upload" | "password" | "confirm" | "done";
 
@@ -25,9 +26,6 @@ const CLASS_LABEL: Record<AssetClass, string> = {
 };
 const CLASS_VALUES = Object.keys(CLASS_LABEL) as AssetClass[];
 
-function formatBRL(value: number) {
-  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
 
 function formatQty(value: number) {
   return value.toLocaleString("pt-BR", { maximumFractionDigits: 6 });
@@ -51,6 +49,7 @@ function buildUploadForm(file: File): FormData {
  * O que não mudou é só um contador; reimportar o mesmo extrato nunca duplica nada.
  */
 export function PortfolioImport({ onDone }: { onDone: () => void }) {
+  const money = useMoney();
   const fileRef = useRef<HTMLInputElement>(null);
   const [phase, setPhase] = useState<Phase>("upload");
   const [holdings, setHoldings] = useState<ParsedHoldingItem[]>([]);
@@ -238,7 +237,7 @@ export function PortfolioImport({ onDone }: { onDone: () => void }) {
                         <p className="truncate text-sm font-medium text-ink">{h.ticker}</p>
                         <p className="text-caption text-ink-faint">
                           {h.quantity > 0 ? `${formatQty(h.quantity)} · ` : ""}
-                          {h.value > 0 ? formatBRL(h.value) : "sem valor"}
+                          {h.value > 0 ? money(h.value) : "sem valor"}
                         </p>
                       </div>
                       <select
@@ -286,8 +285,8 @@ export function PortfolioImport({ onDone }: { onDone: () => void }) {
                                 {" · "}
                               </>
                             )}
-                            {h.prevValue !== null ? `${formatBRL(h.prevValue)} → ` : ""}
-                            <span className="text-ink">{formatBRL(h.value)}</span>
+                            {h.prevValue !== null ? `${money(h.prevValue)} → ` : ""}
+                            <span className="text-ink">{money(h.value)}</span>
                           </p>
                         </div>
                         <button
