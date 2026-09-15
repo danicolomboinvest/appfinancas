@@ -15,31 +15,12 @@ export function MonthFlowCard({ flow, monthLabel }: { flow: DailyFlow; monthLabe
   const hasDatedEntries = flow.points.some((p) => p.income > 0 || p.expense > 0);
   if (!hasDatedEntries) return null;
 
-  const last = flow.points[flow.points.length - 1];
-  const leftover = last.income - last.expense;
-
   return (
     <Card className="flex flex-col gap-3 p-5">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+      <div>
         <h2 className="text-sm font-medium text-ink">Como {monthLabel} está indo</h2>
-        <div className="flex items-center gap-3">
-          <span className="flex items-center gap-1.5 text-caption text-ink-muted">
-            <span className="h-2 w-2 rounded-full bg-success" /> Entrou
-          </span>
-          <span className="flex items-center gap-1.5 text-caption text-ink-muted">
-            <span className="h-2 w-2 rounded-full bg-danger" /> Saiu
-          </span>
-        </div>
+        <p className="mt-0.5 text-caption text-ink-faint">A faixa entre as duas linhas é o que sobrou até aqui</p>
       </div>
-
-      <p className="text-caption text-ink-faint">
-        {/* A frase explica a leitura do gráfico: a distância entre as linhas É o dinheiro que
-            sobrou até agora — sem isso, "duas linhas subindo" não diz nada sozinho. */}
-        A distância entre as duas linhas é o que sobrou até aqui:{" "}
-        <span className={`font-medium tabular-nums ${leftover >= 0 ? "text-success" : "text-danger"}`}>
-          {formatBRL(leftover)}
-        </span>
-      </p>
 
       <MonthFlowChart points={flow.points} />
 

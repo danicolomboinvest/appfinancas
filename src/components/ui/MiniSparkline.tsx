@@ -69,7 +69,23 @@ export function MiniSparkline({
           content={<SparklineTooltip valueFormatter={valueFormatter} />}
           cursor={{ stroke: CHART_COLORS.grid }}
         />
-        <Area type="monotone" dataKey="value" stroke={color} strokeWidth={1.5} fill={`url(#${gradientId})`} />
+        <Area
+          type="monotone"
+          dataKey="value"
+          stroke={color}
+          strokeWidth={1.75}
+          fill={`url(#${gradientId})`}
+          // Ponto só na última leitura: em 40px de altura a linha sozinha morre no card, e o
+          // ponto dá o "você está aqui" sem encher a curva de bolinhas.
+          dot={(props: { cx?: number; cy?: number; index?: number }) =>
+            props.index === points.length - 1 && props.cx != null && props.cy != null ? (
+              <circle key="ponta" cx={props.cx} cy={props.cy} r={3} fill={color} />
+            ) : (
+              <g key={`vazio-${props.index}`} />
+            )
+          }
+          activeDot={{ r: 4 }}
+        />
       </AreaChart>
     </ResponsiveContainer>
   );

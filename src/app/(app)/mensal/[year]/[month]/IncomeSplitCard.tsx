@@ -1,8 +1,8 @@
 import { Card } from "@/components/ui/Card";
-import { DonutAllocationChart, type DonutSlice } from "@/components/charts/DonutAllocationChart";
+import { Donut, type DonutSlice } from "@/components/charts/Donut";
 
 function formatBRL(value: number) {
-  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
 }
 
 /**
@@ -39,12 +39,19 @@ export function IncomeSplitCard({
 
   return (
     <Card className="flex flex-col gap-3 p-5">
-      <DonutAllocationChart title="Como sua renda foi dividida" data={slices} legend />
-      <p className="text-center text-caption text-ink-faint">
+      <p className="text-sm font-medium text-ink">Como sua renda foi dividida</p>
+      {/* O centro carrega a renda do mês, não a soma das fatias: é dela que as partes saíram, e
+          ver "R$ 8.500" no meio é o que dá sentido a "Gastos 67%". */}
+      <Donut
+        slices={slices}
+        centerLabel="Renda"
+        centerValue={formatBRL(income)}
+        maxSlices={4}
+        size={160}
+      />
+      <p className="text-caption text-ink-faint">
         {balance < 0 ? (
-          <>
-            Você gastou {formatBRL(Math.abs(balance))} a mais do que entrou este mês.
-          </>
+          <>Você gastou {formatBRL(Math.abs(balance))} a mais do que entrou este mês.</>
         ) : (
           <>
             De cada R$ 100 que entraram, você manteve{" "}

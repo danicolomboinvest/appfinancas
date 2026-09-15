@@ -44,15 +44,23 @@ export function StatCard({
         </FitText>
       </div>
       {hint && <p className="mt-1 text-xs text-ink-faint">{hint}</p>}
-      {trend && (
-        <p className={`mt-1 text-xs font-medium ${trendIsGood ? "text-success" : "text-danger"}`}>
-          {trendUp ? "↑" : "↓"} {trend.displayValue ?? `${Math.abs(Math.round(trend.percent * 100))}%`} vs. {trend.periodLabel}
-        </p>
-      )}
       {sparkline && (
         <div className="-mx-1 mt-2">
           <MiniSparkline points={sparkline} tone={tone === "neutral" ? "accent" : tone} />
         </div>
+      )}
+      {/* A variação vem DEPOIS da curva e como etiqueta, não como frase solta: o card passa a
+          ser "valor → desenho → veredito", que é a ordem em que o olho lê, e a etiqueta
+          colorida é o que se vê antes de ler qualquer palavra. */}
+      {trend && (
+        <p
+          className={`mt-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${
+            trendIsGood ? "bg-success-soft text-success" : "bg-danger-soft text-danger"
+          }`}
+        >
+          {trendUp ? "↑" : "↓"} {trend.displayValue ?? `${Math.abs(Math.round(trend.percent * 100))}%`} vs.{" "}
+          {trend.periodLabel}
+        </p>
       )}
     </Card>
   );

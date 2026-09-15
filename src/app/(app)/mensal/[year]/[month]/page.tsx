@@ -31,7 +31,7 @@ import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
-import { DonutAllocationChart, type DonutSlice } from "@/components/charts/DonutAllocationChart";
+import { Donut, type DonutSlice } from "@/components/charts/Donut";
 import { EntryRowActions } from "./EntryRowActions";
 import { ImportHistory } from "./ImportHistory";
 import { listImportBatches } from "@/lib/repositories/import-batch.repo";
@@ -277,14 +277,14 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
       .filter((s) => s.spent > 0)
       .map((s) => ({
         name: PARENT_CATEGORY_LABEL[s.parentCategory],
-        value: s.spent / totalSpentByCategory,
+        value: s.spent,
         color: colorForCategorySlice({ kind: "parent", value: s.parentCategory }),
       })),
     ...spentByCustom
       .filter((s) => s.spent > 0)
       .map((s) => ({
         name: customCategoryNameById.get(s.customCategoryId) ?? "Outro",
-        value: s.spent / totalSpentByCategory,
+        value: s.spent,
         color: colorForCategorySlice({ kind: "custom", value: s.customCategoryId }),
       })),
   ];
@@ -342,8 +342,9 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
           balance={summary.balance}
         />
         {totalSpentByCategory > 0 && (
-          <Card className="p-5">
-            <DonutAllocationChart title="Para onde foi seu dinheiro este mês" data={spendingSlices} legend />
+          <Card className="flex flex-col gap-3 p-5">
+            <p className="text-sm font-medium text-ink">Para onde foi seu dinheiro este mês</p>
+            <Donut slices={spendingSlices} centerLabel="Gastos" size={160} />
           </Card>
         )}
       </div>

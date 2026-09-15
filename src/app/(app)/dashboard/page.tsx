@@ -228,7 +228,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
         <StatCard
           label="Gastos no ano"
           value={formatBRL(summary.totalExpense)}
-          tone="danger"
+          tone="neutral"
           trend={
             expenseTrend === null ? undefined : { percent: expenseTrend, periodLabel: "mês passado", goodDirection: "down" }
           }
@@ -237,6 +237,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
         <StatCard
           label="Saldo no ano"
           value={formatBRL(summary.balance)}
+          tone="accent"
           hint={
             summary.savingsRate === null
               ? undefined
