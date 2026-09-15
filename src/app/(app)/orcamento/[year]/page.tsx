@@ -11,17 +11,22 @@ import {
   type CategoryComparison,
 } from "@/lib/planning/budget-comparison";
 import { getAnnualBudgetPlan, getAnnualBudgetPlanForCustomCategories } from "@/lib/repositories/budget.repo";
-import { PARENT_CATEGORIES, PARENT_CATEGORY_LABEL, PARENT_CATEGORY_DESCRIPTION, isParentCategoryKey } from "@/lib/categories";
+import {
+  PARENT_CATEGORIES,
+  PARENT_CATEGORY_LABEL,
+  PARENT_CATEGORY_DESCRIPTION,
+  isParentCategoryKey,
+  colorForCategorySlice,
+} from "@/lib/categories";
 import { listCustomCategories } from "@/lib/repositories/custom-category.repo";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
 import { Card } from "@/components/ui/Card";
-import { Badge } from "@/components/ui/Badge";
-import { ProgressBar } from "@/components/ui/ProgressBar";
+
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import { ResponsiveTable, type ResponsiveColumn } from "@/components/ui/ResponsiveTable";
-import { PlannedVsActualBarChart } from "@/components/charts/PlannedVsActualBarChart";
-import { PlannedVsActualLineChart } from "@/components/charts/PlannedVsActualLineChart";
+import { BulletBar } from "@/components/charts/BulletBar";
+import { buildBudgetBullets, elapsedRatioOfMonth } from "@/lib/planning/budget-bullets";
 import { formatPercentNumber } from "@/lib/format";
 import type { MonthlyPlannedVsActual } from "@/lib/planning/budget-comparison";
 import { OrcamentoForm } from "../OrcamentoForm";
@@ -44,24 +49,6 @@ const MONTH_LABELS = [
 function formatBRL(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
-
-const STATUS_LABEL: Record<CategoryComparison["status"], string> = {
-  DENTRO: "Dentro do orçamento",
-  ACIMA: "Acima do orçamento",
-  SEM_PLANO: "Sem plano definido",
-};
-
-const STATUS_BADGE_TONE: Record<CategoryComparison["status"], "success" | "danger" | "neutral"> = {
-  DENTRO: "success",
-  ACIMA: "danger",
-  SEM_PLANO: "neutral",
-};
-
-const STATUS_BAR_TONE: Record<CategoryComparison["status"], "success" | "danger" | "neutral"> = {
-  DENTRO: "success",
-  ACIMA: "danger",
-  SEM_PLANO: "neutral",
-};
 
 export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]">) {
   const { year: yearParam } = await props.params;
@@ -89,6 +76,13 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
       : (customCategoryLabels.get(categoryKey) ?? "Categoria personalizada");
   }
   const allCategoryKeys: string[] = [...PARENT_CATEGORIES, ...customCategories.map((c) => c.id)];
+  function categoryColor(categoryKey: string): string {
+    return colorForCategorySlice(
+      isParentCategoryKey(categoryKey)
+        ? { kind: "parent", value: categoryKey }
+        : { kind: "custom", value: categoryKey },
+    );
+  }
 
   const now = new Date();
   const isCurrentYear = year === now.getFullYear();
@@ -114,6 +108,25 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
     const { deviationPercent, status } = compareCategoryBudget(totals.planned, totals.spent);
     return { categoryKey, planned: totals.planned, spent: totals.spent, deviationPercent, status };
   });
+
+  // Tracinho do ano: a fração do ano que já passou (meses realizados / 12). Gastar 80% do
+  // orçamento anual em março é a mesma informação que gastar 80% do mensal no dia 5.
+  const yearPace = realizedMonths.length > 0 ? realizedMonths.length / 12 : null;
+  const yearBullets = buildBudgetBullets(categoryComparisons, {
+    paceRatio: isCurrentYear ? yearPace : 1,
+    labelFor: categoryLabel,
+    colorFor: categoryColor,
+    labelStyle: "de",
+  });
+
+  const monthBullets = currentMonthData
+    ? buildBudgetBullets(currentMonthData.categories, {
+        paceRatio: elapsedRatioOfMonth(now, year, currentMonthData.month),
+        labelFor: categoryLabel,
+        colorFor: categoryColor,
+        labelStyle: "restante",
+      })
+    : [];
 
   const monthColumns: ResponsiveColumn<MonthlyPlannedVsActual>[] = [
     { key: "month", label: "Mês", render: (m) => MONTH_LABELS[m.month - 1] },
@@ -209,36 +222,31 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
         </div>
       )}
 
-      <Card className="p-5">
-        <h2 className="mb-4 text-sm font-medium text-ink-muted">Planejado vs Realizado por mês</h2>
-        <PlannedVsActualBarChart months={comparison.months} />
-      </Card>
-
-      <Card className="p-5">
-        <h2 className="mb-4 text-sm font-medium text-ink-muted">Planejado vs Realizado ao longo do ano</h2>
-        <PlannedVsActualLineChart months={comparison.months} />
-      </Card>
-
-      <div>
-        <h2 className="mb-3 text-h2 font-semibold tracking-tight text-ink">Por categoria</h2>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {categoryComparisons.map((c) => {
-            const percent = c.planned > 0 ? Math.min(c.spent / c.planned, 1) : 0;
-            return (
-              <Card key={c.categoryKey} className="flex flex-col gap-2 p-4">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium text-ink">{categoryLabel(c.categoryKey)}</p>
-                  <Badge tone={STATUS_BADGE_TONE[c.status]}>{STATUS_LABEL[c.status]}</Badge>
-                </div>
-                <ProgressBar percent={percent} tone={STATUS_BAR_TONE[c.status]} />
-                <p className="text-xs text-ink-muted">
-                  {formatBRL(c.spent)} de {formatBRL(c.planned)} planejado
-                </p>
-              </Card>
-            );
-          })}
+      <Card className="flex flex-col gap-4 p-5">
+        <div>
+          <h2 className="text-sm font-medium text-ink">Planejado × realizado no ano</h2>
+          <p className="mt-0.5 text-caption text-ink-faint">
+            O preenchimento é o que você já gastou no ano. O tracinho é onde o ano está.
+          </p>
         </div>
-      </div>
+        <BulletBar rows={yearBullets} targetHint="Passou do tracinho? Está gastando adiantado para a altura do ano." />
+      </Card>
+
+      {monthBullets.length > 0 && (
+        <Card className="flex flex-col gap-4 p-5">
+          <div>
+            <h2 className="text-sm font-medium text-ink">Por categoria em {MONTH_LABELS[(currentMonthData?.month ?? 1) - 1]}</h2>
+            <p className="mt-0.5 text-caption text-ink-faint">
+              Ordenado por quem está mais perto de estourar — quem precisa de atenção fica no topo.
+            </p>
+          </div>
+          <BulletBar rows={monthBullets} />
+          <p className="text-caption text-ink-faint">
+            Categoria sem plano definido fica cinza: o app não tem como dizer que você estourou um limite que
+            não existe.
+          </p>
+        </Card>
+      )}
 
       <CollapsibleSection label="Ver dados detalhados mês a mês">
         <ResponsiveTable columns={monthColumns} rows={comparison.months} rowKey={(m) => String(m.month)} />
