@@ -2,7 +2,7 @@ import { Target } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
 import { listGoalsWithProgress } from "@/lib/repositories/goal.repo";
 import { computeGoalPlan, type GoalCalcResult } from "@/lib/planning/goal";
-import { getGoalCheckinEligibility, monthKeyLabel } from "@/lib/planning/goal-checkin";
+import { monthKeyLabel } from "@/lib/planning/goal-checkin";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -42,15 +42,17 @@ export default async function MetasPage() {
     const plan = computeGoalPlan(goalInput);
     const variant = resolveVariant(plan, currentAmount, targetAmount);
 
-    // Check-in mensal: só faz sentido perguntar "fez o aporte?" pra meta ainda ativa, com
-    // aporte sugerido de verdade (> 0) e dentro da janela (fim do mês ou começo do seguinte).
-    const checkinEligibility = getGoalCheckinEligibility(now, goal.checkinDismissedMonth);
+    // Marcar o aporte do mês fica SEMPRE disponível numa meta ativa com aporte sugerido — não
+    // só na janela do dia 25 ao 7. Aquela janela servia para uma pergunta ("fez o aporte?"),
+    // que não cabe no meio do mês; aqui é um botão, e o dinheiro sai da conta no dia 10.
+    const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
     const checkin =
-      variant !== "achieved" && checkinEligibility.eligible && plan.requiredMonthlyContribution > 0
+      variant !== "achieved" && plan.requiredMonthlyContribution > 0
         ? {
-            monthKey: checkinEligibility.monthKey,
-            monthLabel: monthKeyLabel(checkinEligibility.monthKey),
+            monthKey,
+            monthLabel: monthKeyLabel(monthKey),
             suggestedAmount: plan.requiredMonthlyContribution,
+            done: goal.checkinDismissedMonth === monthKey,
           }
         : null;
 
