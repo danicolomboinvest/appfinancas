@@ -72,15 +72,17 @@ function SummaryCell({
 }) {
   return (
     <div
-      className={`flex items-center justify-between gap-3 px-4 py-3.5 lg:flex-col lg:items-start lg:justify-center lg:gap-1 lg:px-5 lg:py-4 ${
+      className={`flex items-center justify-between gap-3 px-4 py-3.5 lg:flex-col lg:items-start lg:justify-center lg:gap-1.5 lg:px-6 lg:py-5 ${
         emphasis ? "bg-surface-2" : "border-b border-border lg:border-b-0"
       }`}
     >
-      <span className={`text-[16px] text-ink lg:text-caption lg:font-medium lg:text-ink-muted ${emphasis ? "font-semibold" : ""}`}>
+      {/* No computador o rótulo era 12px cinza e o número 19px: num monitor de 27" isso
+          parecia rodapé. Rótulo 14px, número 28px — o mesmo peso que a tela tem no celular. */}
+      <span className={`text-[16px] text-ink lg:text-[14px] lg:font-medium lg:text-ink-muted ${emphasis ? "font-semibold" : ""}`}>
         {label}
       </span>
       <span className="flex items-center gap-2">
-        <span className={`text-[17px] font-semibold tabular-nums lg:text-[19px] xl:text-[22px] ${TONE_TEXT[tone]}`}>
+        <span className={`text-[17px] font-semibold tabular-nums tracking-tight lg:text-[24px] xl:text-[28px] ${TONE_TEXT[tone]}`}>
           {/* No celular o sinal vive colado no número, porque é ele que diz se a parcela soma
               ou subtrai. No computador quem diz isso é o sinal ENTRE as células — mantê-lo
               aqui também faria ler "menos, menos seis mil". */}
@@ -111,8 +113,8 @@ function Operator({ children }: { children: string }) {
 function SecondaryStat({ label, value, tone }: { label: string; value: string; tone: Tone }) {
   return (
     <div className="px-2 py-1 text-center first:pl-0 last:pr-0">
-      <p className="text-caption text-ink-muted">{label}</p>
-      <p className={`mt-0.5 text-[16px] font-semibold tabular-nums ${TONE_TEXT[tone]}`}>{value}</p>
+      <p className="text-caption text-ink-muted lg:text-[13px]">{label}</p>
+      <p className={`mt-0.5 text-[16px] font-semibold tabular-nums lg:text-[20px] ${TONE_TEXT[tone]}`}>{value}</p>
     </div>
   );
 }
@@ -251,7 +253,7 @@ export function FlowIndicators({
       {view === "mensal" && pacing && (
         <div className="flex flex-col gap-2.5 border-t border-border pt-5 lg:border-t-0 lg:pt-0">
           <div className="flex items-center justify-between">
-            <p className="text-caption font-medium text-ink-muted">Ritmo do mês</p>
+            <p className="text-caption font-medium text-ink-muted lg:text-[13px]">Ritmo do mês</p>
             <p
               className={`text-caption font-semibold ${
                 pacing.budgetUsed > pacing.monthElapsed + 0.05
@@ -270,26 +272,26 @@ export function FlowIndicators({
           </div>
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center gap-2">
-              <span className="w-20 shrink-0 text-caption text-ink-faint">Orçamento</span>
+              <span className="w-20 shrink-0 text-caption text-ink-faint lg:text-[13px]">Orçamento</span>
               <div className="h-2 flex-1 overflow-hidden rounded-full bg-surface-2">
                 <div
                   className={`h-full rounded-full ${pacing.budgetUsed > pacing.monthElapsed ? "bg-danger" : "bg-success"}`}
                   style={{ width: `${Math.min(100, pacing.budgetUsed * 100)}%` }}
                 />
               </div>
-              <span className="w-9 shrink-0 text-right text-caption tabular-nums text-ink">
+              <span className="w-10 shrink-0 text-right text-caption tabular-nums text-ink lg:text-[13px]">
                 {Math.round(pacing.budgetUsed * 100)}%
               </span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="w-20 shrink-0 text-caption text-ink-faint">Mês</span>
+              <span className="w-20 shrink-0 text-caption text-ink-faint lg:text-[13px]">Mês</span>
               <div className="h-2 flex-1 overflow-hidden rounded-full bg-surface-2">
                 <div
                   className="h-full rounded-full bg-ink-faint"
                   style={{ width: `${Math.min(100, pacing.monthElapsed * 100)}%` }}
                 />
               </div>
-              <span className="w-9 shrink-0 text-right text-caption tabular-nums text-ink">
+              <span className="w-10 shrink-0 text-right text-caption tabular-nums text-ink lg:text-[13px]">
                 {Math.round(pacing.monthElapsed * 100)}%
               </span>
             </div>

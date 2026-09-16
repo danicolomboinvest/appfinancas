@@ -37,6 +37,11 @@ function percent(ratio: number): string {
  * mês está "80% abaixo do anterior" — e o app dizia "continue assim".
  */
 const MIN_ELAPSED_TO_COMPARE = 0.25;
+/**
+ * Abaixo disto, o mês passado não é base de comparação: quem lançou R$ 80 em agosto e R$ 8 mil
+ * em setembro não "gastou 1674% a mais" — só começou a usar o app em setembro.
+ */
+const MIN_COMPARABLE_TOTAL = 300;
 
 export function totalSpendingInsight(currentExpense: number, previousExpense: number, elapsed = 1): Insight | null {
   // Sem mês anterior (primeiro mês de uso) não há comparação honesta a fazer.
@@ -44,6 +49,7 @@ export function totalSpendingInsight(currentExpense: number, previousExpense: nu
   if (elapsed < MIN_ELAPSED_TO_COMPARE) return null;
   // Mês em andamento contra o MESMO pedaço do mês passado, não contra o mês passado inteiro.
   const comparable = previousExpense * elapsed;
+  if (comparable < MIN_COMPARABLE_TOTAL) return null;
   const ratio = currentExpense / comparable - 1;
   if (Math.abs(ratio) < RELEVANT_CHANGE) {
     return { tone: "neutral", text: "Seus gastos estão praticamente no mesmo nível do mês passado." };

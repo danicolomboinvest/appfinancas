@@ -52,7 +52,7 @@ export function MonthHighlight({
           return (
             <div key={i} className="flex items-start gap-2.5">
               <Icon size={16} strokeWidth={2} className={`mt-0.5 shrink-0 ${TONE_CLASS[insight.tone]}`} />
-              <p className="text-sm text-ink">{insight.text}</p>
+              <p className="text-sm text-ink lg:text-[15px]">{insight.text}</p>
             </div>
           );
         })}

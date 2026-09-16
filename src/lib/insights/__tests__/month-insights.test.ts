@@ -120,3 +120,11 @@ describe("mês em andamento", () => {
     expect(totalSpendingInsight(500, 1000)?.tone).toBe("positive");
   });
 });
+
+describe("sem base de comparação", () => {
+  it("não inventa porcentagem quando o mês passado quase não tem lançamento", () => {
+    // R$ 80 em agosto (a pessoa começou a usar o app no fim do mês) × R$ 8.068 em setembro.
+    expect(totalSpendingInsight(8068, 80)).toBeNull();
+    expect(totalSpendingInsight(8068, 80, 0.53)).toBeNull();
+  });
+});
