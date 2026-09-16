@@ -80,6 +80,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         dateLabel={dateLabel}
         summary={summary}
         flow={flow}
+        theme={theme === "light" ? "light" : "dark"}
       >
         {children}
       </AppShell>

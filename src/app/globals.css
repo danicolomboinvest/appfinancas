@@ -73,8 +73,7 @@
   color-scheme: dark;
 }
 
-/* Mantém preto+dourado mesmo com a classe .dark aplicada (o toggle não quebra a marca).
-   Uma variante clara vira depois, num passo separado. */
+/* Mantém preto+dourado mesmo com a classe .dark aplicada (o toggle não quebra a marca). */
 html.dark {
   --color-canvas: #0c0c0e;
   --color-surface: #17171b;
@@ -134,6 +133,80 @@ html.dark {
 
   color-scheme: dark;
 }
+
+/* ---------------------------------------------------------------------------------------
+   TEMA CLARO — "papel + ouro". A mesma marca, virada do avesso.
+   
+   Não é o tema escuro com as cores invertidas por conta: no claro, o ouro do escuro (#e0b24e)
+   fica com contraste de 1,9:1 sobre branco, ilegível como texto ou botão. O ouro aqui é o
+   MESMO tom, escurecido até passar de 4,5:1 — a marca continua dourada, e o texto continua
+   legível. Mesma lógica para verde, vermelho e as cores de categoria: no escuro elas são
+   pastéis (claras sobre fundo escuro), e sobre branco pastel some.
+   --------------------------------------------------------------------------------------- */
+html.light {
+  --color-canvas: #f7f4ee;
+  --color-surface: #ffffff;
+  --color-surface-2: #f0ece3;
+  --color-surface-hover: #e9e4d9;
+  --texture-dot: transparent;
+
+  --color-border: rgba(26, 24, 21, 0.1);
+  --color-border-strong: rgba(26, 24, 21, 0.2);
+
+  /* Tinta quente, nunca preto puro: preto absoluto sobre papel vibra e cansa a leitura. */
+  --color-ink: #1a1815;
+  --color-ink-muted: #635d52;
+  --color-ink-faint: #8a8377;
+
+  --color-accent: #a9781f;
+  --color-accent-strong: #855c12;
+  --color-accent-soft: rgba(169, 120, 31, 0.13);
+  --color-accent-2: #c9962f;
+  /* Texto sobre o ouro: no claro o ouro é fundo escuro, então o texto vira branco. */
+  --color-on-accent: #ffffff;
+
+  --color-success: #17805a;
+  --color-success-soft: rgba(23, 128, 90, 0.12);
+  --color-danger: #b0432c;
+  --color-danger-soft: rgba(176, 67, 44, 0.12);
+  --color-info: #2f6fd0;
+  --color-info-soft: rgba(47, 111, 208, 0.12);
+
+  --color-accent-neutral: #5b61e0;
+  --color-accent-neutral-2: #3b82f6;
+  --color-accent-neutral-soft: rgba(91, 97, 224, 0.12);
+
+  --color-cat-moradia: #7c4ddb;
+  --color-cat-alimentacao: #c2600f;
+  --color-cat-transporte: #2f6fd0;
+  --color-cat-saude: #c93b57;
+  --color-cat-lazer: #a21caf;
+  --color-cat-educacao: #0d8a80;
+  --color-cat-financeiro: #5b6775;
+
+  --color-chart-5: #7c5fb0;
+  --color-chart-6: #a06a42;
+  --color-chart-7: #6f6a58;
+
+  --color-custom-1: #5f8a0c;
+  --color-custom-2: #18994f;
+  --color-custom-3: #0e8ba3;
+  --color-custom-4: #4f46e5;
+  --color-custom-5: #d1367c;
+  --color-custom-6: #a97645;
+  --color-custom-7: #cc3b3b;
+  --color-custom-8: #8b3fd1;
+  --color-custom-9: #6f6862;
+  --color-custom-10: #0f9b8a;
+
+  /* Sombra no claro é tinta suave, não o poço preto do escuro — 55% de preto sobre papel
+     vira sujeira em volta do card. */
+  --shadow-premium: 0 18px 40px rgba(26, 24, 21, 0.1), 0 1px 0 rgba(26, 24, 21, 0.03) inset;
+  --shadow-premium-sm: 0 6px 16px rgba(26, 24, 21, 0.08);
+
+  color-scheme: light;
+}
+
 
 @theme inline {
   --color-canvas: var(--color-canvas);
@@ -316,6 +389,20 @@ body {
   pointer-events: none;
 }
 
+/* No claro o "vidro" não pode ser luz branca sobre branco — não desenha nada. Vira o
+   contrário: uma tinta levíssima que separa o card do papel, e a borda passa a fazer o
+   trabalho que no escuro era do brilho. */
+html.light .glass {
+  background: linear-gradient(180deg, rgba(26, 24, 21, 0.015), rgba(26, 24, 21, 0.04)), var(--color-surface);
+  border: 1px solid rgba(26, 24, 21, 0.1);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    var(--shadow-premium-sm);
+}
+html.light .glass::before {
+  background: linear-gradient(148deg, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0.2) 18%, transparent 40%);
+}
+
 /* Cápsula ESCURA SÓLIDA da barra flutuante (tab bar, botão "+"). Tinta escura quase opaca +
    aro de luz + sombra de flutuação.
    IMPORTANTE: NÃO definir `position` nem `overflow` aqui. Esta classe é CSS "solto" (fora das
@@ -330,6 +417,15 @@ body {
     inset 0 1px 0 rgba(255, 255, 255, 0.14),
     inset 0 -1px 0 rgba(0, 0, 0, 0.3),
     0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+/* A barra flutuante no claro: cápsula de papel, não um bloco escuro boiando sobre a tela. */
+html.light .glass-pill {
+  background: rgba(255, 255, 255, 0.96);
+  border: 0.5px solid rgba(26, 24, 21, 0.12);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    0 8px 26px rgba(26, 24, 21, 0.14);
 }
 
 /* Palco de destaque — luz ambiente difusa no topo, na cor do contexto da tela. Dourado por

@@ -24,6 +24,7 @@ export function AppShell({
   dateLabel,
   summary,
   flow,
+  theme,
 }: {
   children: React.ReactNode;
   isAdmin: boolean;
@@ -33,6 +34,8 @@ export function AppShell({
   dateLabel: string;
   summary: string;
   flow?: { income: number; expense: number; investment: number };
+  /** Tema salvo na conta — a chave clara/escura do menu "Mais" nasce com ele. */
+  theme: "dark" | "light";
 }) {
   const [collapsed, setCollapsed] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
@@ -116,6 +119,7 @@ export function AppShell({
           userEmail={userEmail}
           onLogout={handleLogout}
           onOpenInstall={() => setInstallOpen(true)}
+          theme={theme}
         />
 
         {/* Tutorial de "instalar na tela de início" (convite do topo ou menu "Mais"). */}

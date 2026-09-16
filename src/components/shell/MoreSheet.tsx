@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Lock, LogOut, Smartphone } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { MORE_NAV_SECTIONS, ADMIN_NAV_SECTION } from "./nav-sections";
+import { ThemeToggle } from "./ThemeToggle";
 
 /** Bottom sheet com as seções que não têm tab própria na barra inferior (mobile). */
 export function MoreSheet({
@@ -14,6 +15,7 @@ export function MoreSheet({
   userEmail,
   onLogout,
   onOpenInstall,
+  theme,
 }: {
   open: boolean;
   onClose: () => void;
@@ -24,6 +26,8 @@ export function MoreSheet({
   onLogout: () => void;
   /** Abre o tutorial de instalar o app na tela de início. */
   onOpenInstall: () => void;
+  /** Tema salvo na conta, pra chave nascer no estado certo. */
+  theme: "dark" | "light";
 }) {
   const sections = isAdmin ? [...MORE_NAV_SECTIONS, ADMIN_NAV_SECTION] : MORE_NAV_SECTIONS;
 
@@ -45,6 +49,13 @@ export function MoreSheet({
             </Link>
           );
         })}
+      </div>
+
+      <div className="mt-3 border-t border-border pt-3">
+        {/* Tema aqui, e não só em Configurações → Preferências: no celular aquele caminho são
+            três telas e um formulário com botão Salvar, pra uma preferência que a pessoa quer
+            trocar na hora. */}
+        <ThemeToggle initial={theme} />
       </div>
 
       <div className="mt-3 border-t border-border pt-3">

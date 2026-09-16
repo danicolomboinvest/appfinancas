@@ -48,11 +48,17 @@ export const viewport: Viewport = {
   themeColor: "#0c0c0e",
 };
 
+/**
+ * Roda antes da primeira pintura pra evitar o flash de tema errado. Agora precisa tratar o
+ * CLARO explicitamente: o padrão do CSS (`:root`) é escuro, então quem escolheu claro veria a
+ * tela nascer preta e clarear depois — que é exatamente o flash que este script existe pra
+ * evitar, só que ao contrário.
+ */
 const THEME_INIT_SCRIPT = `
 try {
-  if (localStorage.getItem("theme") === "dark") {
-    document.documentElement.classList.add("dark");
-  }
+  var t = localStorage.getItem("theme");
+  if (t === "dark") document.documentElement.classList.add("dark");
+  if (t === "light") document.documentElement.classList.add("light");
 } catch (e) {}
 `;
 
@@ -68,11 +74,19 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <head>
-        {/* Fundo escuro JÁ na primeira tag <style>, sem depender do CSS externo (que é outra
+        {/* Fundo JÁ na primeira tag <style>, sem depender do CSS externo (que é outra
             requisição de rede) — no app instalado, numa conexão mais lenta, o navegador pode
             desenhar o body ANTES do bundle de CSS chegar; sem isso, esse instante pinta branco
-            (fundo padrão) em vez de escuro, mesmo com o BootSplash certo por trás. */}
-        <style dangerouslySetInnerHTML={{ __html: "html,body{background:#0c0c0e}" }} />
+            (fundo padrão) em vez da cor certa, mesmo com o BootSplash certo por trás.
+            As duas cores vêm juntas: quem escolheu o tema claro ganha a classe `light` no
+            <html> pelo script logo abaixo, que roda antes da primeira pintura. Com só a cor
+            escura aqui, essa pessoa via a tela nascer preta e clarear — o mesmo flash que
+            esta tag existe pra evitar, ao contrário. */}
+        <style
+          dangerouslySetInnerHTML={{
+            __html: "html,body{background:#0c0c0e}html.light,html.light body{background:#f7f4ee}",
+          }}
+        />
         {/* Roda antes da hidratação pra aplicar o tema salvo sem flash. Alterna `type` entre
             server/client (em vez de um <script> comum) pra evitar o aviso do React sobre
             tags <script> renderizadas via JSX, ver node_modules/next/dist/docs/01-app/02-guides/preventing-flash-before-hydration.md */}
