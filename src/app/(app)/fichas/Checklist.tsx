@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { AlertTriangle, Check, HelpCircle } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { CHECKLIST_ANSWERS, type ChecklistAnswer } from "@/lib/analysis/checklist";
 import { answerChecklistAction } from "./laudo-actions";
@@ -14,22 +15,24 @@ export type ChecklistQuestion = {
 
 const VISIBLE = 3;
 
-const CHIP: Record<(typeof CHECKLIST_ANSWERS)[number]["tone"], { on: string; off: string }> = {
-  success: { on: "border-success bg-success-soft font-semibold text-success", off: "border-border-strong text-ink-muted" },
-  neutral: { on: "border-ink-faint bg-surface-2 font-semibold text-ink", off: "border-border-strong text-ink-muted" },
-  danger: { on: "border-danger bg-danger-soft font-semibold text-danger", off: "border-border-strong text-ink-muted" },
+const ICON: Record<ChecklistAnswer, typeof Check> = { tranquilo: Check, nao_sei: HelpCircle, vi_algo: AlertTriangle };
+const ON: Record<ChecklistAnswer, string> = {
+  tranquilo: "border-success bg-success-soft text-success",
+  nao_sei: "border-ink-faint bg-surface-2 text-ink",
+  vi_algo: "border-danger bg-danger-soft text-danger",
 };
 
 /**
- * "O que só você consegue responder": uma pergunta por vez, três toques, salva na hora.
- * Mostra três e esconde o resto atrás de "Mais N perguntas" — a lista inteira de uma vez era
- * o paredão que fazia a pessoa desistir.
+ * "Só você responde": uma pergunta por linha e três círculos — ✓ ? ! — no lugar de três
+ * botões escritos. Salva a cada toque. O "onde olhar" aparece ao tocar na pergunta, não
+ * de cara: é ajuda, não conteúdo.
  */
 export function Checklist({ sheetId, questions }: { sheetId: string; questions: ChecklistQuestion[] }) {
   const [answers, setAnswers] = useState<Record<string, ChecklistAnswer | null>>(() =>
     Object.fromEntries(questions.map((q) => [q.criterionId, q.answer])),
   );
   const [showAll, setShowAll] = useState(false);
+  const [hintFor, setHintFor] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
   if (questions.length === 0) return null;
@@ -46,49 +49,56 @@ export function Checklist({ sheetId, questions }: { sheetId: string; questions: 
   const answered = Object.values(answers).filter((a) => a !== null).length;
 
   return (
-    <div className="flex flex-col gap-3">
+    <Card className="flex flex-col gap-3 p-4">
       <div className="flex items-baseline justify-between gap-3">
-        <h2 className="text-h3 font-semibold text-ink">O que só você consegue responder</h2>
+        <h2 className="text-[15px] font-semibold text-ink">Só você responde</h2>
         <span className="shrink-0 text-caption tabular-nums text-ink-faint">
           {answered} de {questions.length}
         </span>
       </div>
-      <p className="-mt-1 text-caption text-ink-muted">Três toques por pergunta. Cada uma diz onde olhar.</p>
 
       {visible.map((q) => (
-        <Card key={q.criterionId} className="flex flex-col gap-3 p-4">
-          <div>
-            <p className="text-sm font-medium text-ink">{q.question}</p>
-            {q.where && <p className="mt-0.5 text-caption text-ink-faint">Onde olhar: {q.where}</p>}
+        <div key={q.criterionId} className="flex flex-col gap-1">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setHintFor(hintFor === q.criterionId ? null : q.criterionId)}
+              className="min-w-0 flex-1 text-left text-sm text-ink"
+              aria-expanded={hintFor === q.criterionId}
+            >
+              {q.question}
+            </button>
+            <span className="flex shrink-0 gap-1.5">
+              {CHECKLIST_ANSWERS.map((a) => {
+                const Icon = ICON[a.value];
+                const on = answers[q.criterionId] === a.value;
+                return (
+                  <button
+                    key={a.value}
+                    type="button"
+                    aria-pressed={on}
+                    aria-label={a.label}
+                    title={a.label}
+                    onClick={() => answer(q.criterionId, a.value)}
+                    className={`flex size-9 items-center justify-center rounded-full border transition-colors ${
+                      on ? ON[a.value] : "border-border-strong text-ink-faint hover:text-ink"
+                    }`}
+                  >
+                    <Icon size={16} strokeWidth={2.25} />
+                  </button>
+                );
+              })}
+            </span>
           </div>
-          <div className="flex gap-2">
-            {CHECKLIST_ANSWERS.map((a) => {
-              const on = answers[q.criterionId] === a.value;
-              return (
-                <button
-                  key={a.value}
-                  type="button"
-                  aria-pressed={on}
-                  onClick={() => answer(q.criterionId, a.value)}
-                  className={`min-h-10 flex-1 rounded-full border text-sm transition-colors ${on ? CHIP[a.tone].on : CHIP[a.tone].off}`}
-                >
-                  {a.label}
-                </button>
-              );
-            })}
-          </div>
-        </Card>
+          {hintFor === q.criterionId && q.where && <p className="text-caption text-ink-faint">Onde olhar: {q.where}</p>}
+        </div>
       ))}
 
       {questions.length > VISIBLE && (
-        <button
-          type="button"
-          onClick={() => setShowAll((v) => !v)}
-          className="w-fit text-sm font-medium text-accent-strong hover:underline"
-        >
-          {showAll ? "Mostrar menos" : `Mais ${questions.length - VISIBLE} perguntas`}
+        <button type="button" onClick={() => setShowAll((v) => !v)} className="w-fit text-sm font-medium text-accent-strong hover:underline">
+          {showAll ? "Menos" : `Mais ${questions.length - VISIBLE} ›`}
         </button>
       )}
-    </div>
+    </Card>
   );
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildLaudo, compactValue, diffLaudo, isLaudo, sectionSummary } from "../laudo";
+import { attentionLine, buildLaudo, compactValue, diffLaudo, isLaudo, sectionGauge, sectionSummary } from "../laudo";
 
 /** Indicadores plausíveis de uma petroleira: baratos, rentáveis, pouco endividados, receita caindo. */
 const PETRO = {
@@ -102,6 +102,24 @@ describe("buildLaudo", () => {
       text: "O caixa de curto prazo não cobre as contas de curto prazo",
     });
     expect(sectionSummary(l.sections[1]).signal).toBe("favoravel");
+  });
+
+  it("places the gauge marker where the badges point, and names the side in plain words", () => {
+    const l = buildLaudo("STOCK", PETRO);
+    const preco = sectionGauge(l.sections[0]); // 3 favoráveis + 1 na média
+    expect(preco.label).toBe("barata");
+    expect(preco.position).toBeGreaterThan(0.7);
+    const divida = sectionGauge(l.sections[2]); // 1 favorável, 1 na média, 1 atenção → meio
+    expect(divida.signal).toBe("neutro");
+    expect(divida.label).toBe("na média");
+  });
+
+  it("opens with only the attention points, by their friendly names", () => {
+    expect(attentionLine(buildLaudo("STOCK", PETRO))).toEqual({
+      text: "2 pontos de atenção:",
+      names: ["Caixa de curto prazo", "Vendas em 5 anos"],
+    });
+    expect(attentionLine(buildLaudo("STOCK", { roe: "20%" })).text).toBe("Nenhum ponto de atenção nos números de hoje.");
   });
 
   it("reads an ETF", () => {

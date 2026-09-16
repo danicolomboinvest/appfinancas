@@ -181,6 +181,46 @@ export const FRIENDLY_LABEL: Record<string, string> = {
   rentabilidade_5anos: "Rendeu em 5 anos",
 };
 
+/**
+ * O termômetro de cada pergunta: a resposta é a POSIÇÃO do marcador, não uma frase.
+ * Esquerda = o lado ruim, direita = o lado bom; o rótulo curto diz onde o marcador caiu.
+ */
+export const SECTION_SCALE: Record<string, { low: string; high: string; mid: string }> = {
+  preco: { low: "cara", high: "barata", mid: "na média" },
+  lucro: { low: "pouco", high: "muito", mid: "razoável" },
+  divida: { low: "muito", high: "pouco", mid: "na média" },
+  crescimento: { low: "encolhendo", high: "crescendo", mid: "parada" },
+  tamanho: { low: "pequeno", high: "grande", mid: "médio" },
+  ocupacao: { low: "vazio", high: "cheio", mid: "na média" },
+  custo: { low: "cara", high: "barata", mid: "na média" },
+  liquidez: { low: "difícil", high: "fácil", mid: "na média" },
+  renda: { low: "pouco", high: "bem", mid: "na média" },
+  retorno: { low: "perdeu", high: "rendeu", mid: "empatou" },
+};
+
+const SIGNAL_POSITION: Record<OverviewSignal, number> = { atencao: 0.12, neutro: 0.5, favoravel: 0.88 };
+
+/**
+ * Onde o marcador cai (0 = ruim, 1 = bom) e o rótulo que resume. Média das posições dos
+ * itens: um ponto de atenção puxa o marcador pro meio mesmo com os outros a favor — que é
+ * o que a pessoa deve sentir.
+ */
+export function sectionGauge(section: LaudoSection): { position: number; label: string; signal: OverviewSignal } {
+  const scale = SECTION_SCALE[section.id] ?? { low: "ruim", high: "bom", mid: "na média" };
+  const position = section.items.reduce((soma, i) => soma + SIGNAL_POSITION[i.signal], 0) / section.items.length;
+  const signal: OverviewSignal = position >= 0.7 ? "favoravel" : position <= 0.3 ? "atencao" : "neutro";
+  const label = signal === "favoravel" ? scale.high : signal === "atencao" ? scale.low : scale.mid;
+  return { position, label, signal };
+}
+
+/** A frase curta de abertura: só os pontos de atenção, nomeados. Nada mais. */
+export function attentionLine(laudo: Laudo): { text: string; names: string[] } {
+  const names = laudo.sections.flatMap((s) => s.items).filter((i) => i.signal === "atencao").map((i) => FRIENDLY_LABEL[i.key] ?? technicalLabel(i));
+  if (names.length === 0) return { text: "Nenhum ponto de atenção nos números de hoje.", names };
+  if (names.length === 1) return { text: "Só um ponto de atenção:", names };
+  return { text: `${names.length} pontos de atenção:`, names };
+}
+
 /** A sigla/nome técnico, sem o parêntese explicativo: "P/L", "ROE", "Dívida Líquida / EBITDA". */
 export function technicalLabel(item: Pick<OverviewItem, "label">): string {
   return item.label.replace(/\s*\(.*?\)\s*/g, "").trim();

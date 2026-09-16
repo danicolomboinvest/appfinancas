@@ -2,11 +2,11 @@ import { notFound } from "next/navigation";
 import type { SheetType } from "@prisma/client";
 import { getRequiredSession } from "@/lib/auth/session";
 import { getOwnSheetWithResponses, listCriteria } from "@/lib/repositories/analysis.repo";
+import { listAssets } from "@/lib/repositories/asset.repo";
 import { isLaudo } from "@/lib/analysis/laudo";
 import { getParaVoce } from "@/lib/analysis/para-voce";
 import { HUMAN_CATEGORIES, isChecklistAnswer, questionFor } from "@/lib/analysis/checklist";
 import { serverMoney } from "@/lib/money-server";
-import { PageHeader } from "@/components/ui/PageHeader";
 import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import { DeleteSheetButton } from "@/components/forms/DeleteSheetButton";
@@ -51,11 +51,13 @@ export async function SheetPage({ id, sheetType }: { id: string; sheetType: Shee
   const allCategories = sheetType === "FII" ? humanCategories : undefined;
 
   const laudo = isLaudo(sheet.laudo) ? sheet.laudo : null;
-  const [humanCriteria, allCriteria, paraVoce] = await Promise.all([
+  const [humanCriteria, allCriteria, paraVoce, assets] = await Promise.all([
     listCriteria(sheetType, humanCategories),
     listCriteria(sheetType, allCategories),
     getParaVoce(ctx, sheetType, sheet.ticker, laudo),
+    listAssets(ctx),
   ]);
+  const inPortfolio = assets.some((a) => (a.ticker ?? a.name).trim().toUpperCase() === sheet.ticker.trim().toUpperCase());
 
   const responseByCriterion = new Map(sheet.responses.map((r) => [r.criterionId, r]));
   const questions = humanCriteria.map((c) => {
@@ -75,17 +77,21 @@ export async function SheetPage({ id, sheetType }: { id: string; sheetType: Shee
     <div className="flex flex-col gap-6">
       <Breadcrumb items={[{ label: "Análises", href: "/fichas" }, { label: meta.label, href: meta.basePath }, { label: sheet.ticker }]} />
 
-      <PageHeader
-        title={sheet.ticker.toUpperCase()}
-        subtitle={sheet.companyName ?? undefined}
-        action={<DeleteSheetButton id={sheet.id} basePath={meta.basePath} />}
+      <LaudoView
+        sheetId={sheet.id}
+        ticker={sheet.ticker}
+        companyName={sheet.companyName}
+        inPortfolio={inPortfolio}
+        initialLaudo={laudo}
       />
-
-      <LaudoView sheetId={sheet.id} ticker={sheet.ticker} initialLaudo={laudo} />
 
       <Checklist sheetId={sheet.id} questions={questions} />
 
       <ParaVoceCard data={paraVoce} ticker={sheet.ticker} money={money} />
+
+      <div className="flex justify-end">
+        <DeleteSheetButton id={sheet.id} basePath={meta.basePath} />
+      </div>
 
       <CollapsibleSection label="Minha nota detalhada (avançado)">
         <p className="mb-3 text-caption text-ink-muted">
