@@ -34,6 +34,23 @@ export type DonutSlice = {
 const OUTROS_COLOR = "var(--color-ink-faint)";
 
 /**
+ * Raios da rosca a partir do lado da caixa.
+ *
+ * O raio é medido do CENTRO, então o máximo que cabe numa caixa de lado `size` é `size / 2` —
+ * e não uma fração de `size`. Foi esse o erro: `size * 0.56` dava raio de 90 numa caixa de
+ * 160, o círculo ia de -10 a 170 e o SVG cortava fora os quatro lados. Na tela isso não parece
+ * um erro de conta, parece uma rosca com as bordas chanfradas, meio octogonal.
+ *
+ * Os 0,89 deixam uma folga: o `cornerRadius` e o `paddingAngle` engordam um pouco o desenho, e
+ * encostar na borda exata volta a cortar.
+ */
+export function donutRadii(size: number): { inner: number; outer: number } {
+  const outer = Math.round((size / 2) * 0.89);
+  // 0,68 é a proporção do desenho original (68/100), a espessura de anel que foi aprovada.
+  return { inner: Math.round(outer * 0.68), outer };
+}
+
+/**
  * O formato vai como PALAVRA, não como função. A rosca é Client Component e quem a usa quase
  * sempre é Server Component — passar `valueFormatter` dali estoura em runtime ("Functions
  * cannot be passed directly to Client Components"). Com um nome, o servidor manda uma string
@@ -93,8 +110,7 @@ export function Donut({
     return <div className="flex h-44 items-center justify-center text-sm text-ink-faint">{emptyMessage}</div>;
   }
 
-  const inner = Math.round(size * 0.38);
-  const outer = Math.round(size * 0.56);
+  const { inner, outer } = donutRadii(size);
 
   return (
     // `@container` + `@md:` e não `sm:`: o que decide se cabe rosca e legenda lado a lado é a

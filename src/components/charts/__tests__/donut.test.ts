@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { groupTail } from "../Donut";
+import { groupTail, donutRadii } from "../Donut";
 
 const s = (name: string, value: number) => ({ name, value, color: "x" });
 
@@ -31,5 +31,28 @@ describe("groupTail", () => {
     // que é pior que mostrar o nome dela.
     const out = groupTail([s("a", 4), s("b", 3), s("c", 2), s("d", 1)], 4);
     expect(out.map((x) => x.name)).toEqual(["a", "b", "c", "d"]);
+  });
+});
+
+describe("donutRadii", () => {
+  it("nunca passa da metade da caixa — senão o SVG corta o círculo", () => {
+    // Foi exatamente esse o bug: raio 90 numa caixa de 160 cortava os quatro lados e a rosca
+    // ficava com cara de octógono.
+    for (const size of [120, 140, 160, 170, 180, 200, 240]) {
+      const { inner, outer } = donutRadii(size);
+      expect(outer).toBeLessThanOrEqual(size / 2);
+      expect(inner).toBeLessThan(outer);
+      expect(inner).toBeGreaterThan(0);
+    }
+  });
+
+  it("mantém a espessura de anel do desenho aprovado", () => {
+    // Faixa, e não valor exato: os raios são arredondados pra pixel inteiro, então a razão
+    // oscila um pouco conforme o tamanho. O que importa é a espessura continuar sendo a mesma.
+    for (const size of [140, 160, 200]) {
+      const { inner, outer } = donutRadii(size);
+      expect(inner / outer).toBeGreaterThan(0.66);
+      expect(inner / outer).toBeLessThan(0.7);
+    }
   });
 });
