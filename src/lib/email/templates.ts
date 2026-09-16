@@ -60,6 +60,8 @@ export function monthlyRecapEmail(params: {
   monthLabel: string;
   income: number;
   expense: number;
+  /** Aportes do mês — tiram dinheiro do bolso igual aos gastos, e entram na conta do saldo. */
+  investment: number;
   balance: number;
   /** Variação do gasto vs. mês anterior (0,17 = 17% a mais); null quando não há base. */
   expenseDelta: number | null;
@@ -98,9 +100,13 @@ export function monthlyRecapEmail(params: {
 
       <p style="margin:0 0 18px;">${deltaLine}</p>
 
+      <!-- As DUAS saídas aparecem. Sem a linha de aportes, quem lia "entrou 12, saiu 8" e via
+           um saldo de -7 não tinha como fechar a conta — o número que faltava estava fora do
+           e-mail. -->
       <table style="width:100%;border-collapse:collapse;margin:0 0 8px;">
         ${statRow("Entrou", money(params.income, params.currency), "#2e7d5b")}
-        ${statRow("Saiu", money(params.expense, params.currency), "#c0523c")}
+        ${statRow("Gastou", money(params.expense, params.currency), "#c0523c")}
+        ${params.investment > 0 ? statRow("Aportou", money(params.investment, params.currency), "#8a6414") : ""}
         ${params.topCategory ? statRow(`Maior gasto: ${params.topCategory.label}`, money(params.topCategory.value, params.currency)) : ""}
       </table>
 

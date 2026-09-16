@@ -183,10 +183,15 @@ export function FlowIndicators({
       {/* Entrou / Saiu / Resultado num bloco só, em linhas — e não seis números soltos numa
           grade. A grade obrigava a pessoa a descobrir sozinha que Renda menos Gastos dá o
           Saldo; em linhas, com o resultado destacado no fim, a conta se lê de cima pra baixo.
-          Os outros três números são contexto e ficam abaixo, menores. */}
+          As DUAS saídas (gastos e aportes) ficam aqui dentro, senão a soma da tela não fecha.
+          Planejamento e poupança são contexto e ficam abaixo, menores. */}
       <div className="overflow-hidden rounded-2xl border border-border">
         <SummaryRow label="Entrou" value={money(bundle.income)} sign="+" tone="success" />
-        <SummaryRow label="Saiu" value={money(bundle.expense)} sign="−" tone="danger" />
+        <SummaryRow label="Gastou" value={money(bundle.expense)} sign="−" tone="danger" />
+        {/* Aportar também TIRA dinheiro do mês. Sem esta linha a conta da tela não fechava:
+            "entrou 12, saiu 8" e um resultado de −7 que só se explicava por um número que
+            estava noutro lugar da página. Dinheiro que sai fica junto do dinheiro que sai. */}
+        <SummaryRow label="Aportou" value={money(bundle.investment)} sign="−" tone="accent" />
         <SummaryRow
           label="Resultado"
           value={money(bundle.balance)}
@@ -195,8 +200,7 @@ export function FlowIndicators({
         />
       </div>
 
-      <div className="grid grid-cols-3 divide-x divide-border">
-        <SecondaryStat label="Aportes" value={money(bundle.investment)} tone="accent" />
+      <div className="grid grid-cols-2 divide-x divide-border">
         <SecondaryStat label="Planejamento" value={money(bundle.planned)} tone="ink" />
         <SecondaryStat
           label="Poupança"

@@ -167,6 +167,7 @@ export async function GET(request: Request) {
       currency: toCurrencyCode(user.currency),
       income,
       expense,
+      investment,
       balance,
       expenseDelta: previousExpense > 0 ? expense / previousExpense - 1 : null,
       topCategory:
