@@ -26,7 +26,10 @@ export function Section({
         {action}
       </div>
       {hint && <p className="mt-0.5 text-caption text-ink-faint">{hint}</p>}
-      <div className="mt-4">{children}</div>
+      {/* `flex-col` com gap, e não um simples bloco: uma seção quase sempre tem mais de uma
+          peça (gráfico + chips de veredito + nota de rodapé), e sem gap elas encostavam umas
+          nas outras — o chip "1 categoria estourou" nascia colado na última barra. */}
+      <div className="mt-4 flex flex-col gap-4">{children}</div>
     </section>
   );
 }

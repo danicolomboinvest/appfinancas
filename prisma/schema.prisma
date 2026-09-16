@@ -167,6 +167,7 @@ model User {
 
   monthlyEntries       MonthlyEntry[]
   budgets              Budget[]
+  monthlyPlans         MonthlyPlan[]
   customCategories     CustomCategory[]
   portfolioStrategy    PortfolioStrategy[]
   patrimonySnapshots   PatrimonySnapshot[]
@@ -348,6 +349,31 @@ model Budget {
   updatedAt        DateTime        @updatedAt
 
   @@unique([userId, year, month, parentCategory, customCategoryId])
+}
+
+/// Planejamento do que ENTRA e do que vai ser guardado, por mês.
+///
+/// O Budget cobre só o que sai (gasto planejado por categoria). Faltava o outro lado: quanto a
+/// pessoa espera ganhar e quanto pretende aportar. Sem isso o app comparava o gasto com o
+/// planejado, mas não tinha como dizer "você ganhou menos do que esperava" nem "você aportou
+/// metade do que tinha planejado" — que é onde mora metade da conversa sobre organizar dinheiro.
+///
+/// Uma linha por mês (igual ao Budget), mesmo quando o valor é o mesmo o ano todo: assim dá pra
+/// ajustar um mês específico (décimo terceiro, férias) sem mexer nos outros.
+model MonthlyPlan {
+  id                String   @id @default(cuid())
+  userId            String
+  user              User     @relation(fields: [userId], references: [id])
+  year              Int
+  month             Int
+  /// Renda esperada no mês.
+  plannedIncome     Decimal  @db.Decimal(18, 2)
+  /// Aporte pretendido no mês.
+  plannedInvestment Decimal  @db.Decimal(18, 2)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([userId, year, month])
 }
 
 /// Cache opcional de consolidação anual (substitui Database -> Pivôs -> Consolidado do Ano).
