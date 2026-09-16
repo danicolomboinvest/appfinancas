@@ -57,6 +57,10 @@ export default function AmortizarVsInvestirPage() {
       eyebrow="Amortizar vs. Investir"
       fields={FIELDS}
       defaults={DEFAULTS}
+      save={{
+        type: "AMORTIZAR_VS_INVESTIR",
+        resumo: (values) => simulateAmortizeVsInvest(toInput(values)).winner === "AMORTIZAR" ? "Melhor amortizar" : "Melhor investir",
+      }}
       renderResult={(values) => {
         const result = simulateAmortizeVsInvest(toInput(values));
         return (

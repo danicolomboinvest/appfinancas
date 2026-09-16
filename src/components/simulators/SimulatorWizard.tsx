@@ -1,12 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight, Pencil } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { HelpTooltip } from "@/components/forms/HelpTooltip";
 import { currencySymbol, type MoneyFormatter } from "@/lib/money";
 import { useMoney, useCurrency } from "@/components/money/MoneyProvider";
+import { SaveSimulation } from "./SaveSimulation";
+import { useSearchParams } from "next/navigation";
+import { loadSimulationInputsAction } from "@/app/(app)/simuladores/actions";
+
+export type SimulationKind =
+  | "FINANCIAR_VS_ALUGAR"
+  | "AMORTIZAR_VS_INVESTIR"
+  | "CONSORCIO_VS_FINANCIAMENTO"
+  | "MARCACAO_MERCADO"
+  | "CARRO";
 
 export type WizardFieldKind = "currency" | "percent" | "number" | "select";
 
@@ -63,14 +73,36 @@ export function SimulatorWizard({
   fields,
   defaults,
   renderResult,
+  save,
 }: {
   eyebrow: string;
   fields: WizardField[];
   defaults: WizardValues;
   renderResult: (values: WizardValues) => React.ReactNode;
+  /** Quando presente, o resultado ganha o botão de guardar o cenário. */
+  save?: { type: SimulationKind; resumo: (values: WizardValues) => string };
 }) {
   const [values, setValues] = useState<WizardValues>(defaults);
   const [step, setStep] = useState(0);
+
+  // Reabrir uma simulação salva: o id vem na URL (?s=…) e o próprio assistente carrega os
+  // valores. Fica aqui, e não em cada página, porque são cinco simuladores usando este mesmo
+  // componente — e o resultado é RECALCULADO com a fórmula atual, nunca lido de um número
+  // guardado, que poderia estar desatualizado.
+  const searchParams = useSearchParams();
+  const savedId = save ? searchParams.get("s") : null;
+  useEffect(() => {
+    if (!savedId) return;
+    let ativo = true;
+    void loadSimulationInputsAction(savedId).then((salvos) => {
+      if (!ativo || !salvos) return;
+      setValues((atuais) => ({ ...atuais, ...salvos }));
+      setStep(Number.MAX_SAFE_INTEGER); // já abre no resultado
+    });
+    return () => {
+      ativo = false;
+    };
+  }, [savedId]);
   // Campos condicionais (showIf) entram/saem conforme as respostas.
   const visibleFields = fields.filter((f) => !f.showIf || f.showIf(values));
   const isResult = step >= visibleFields.length;
@@ -213,6 +245,8 @@ export function SimulatorWizard({
       {isResult && (
         <div className="flex flex-col gap-6">
           {renderResult(values)}
+
+          {save && <SaveSimulation type={save.type} values={values} resumo={save.resumo(values)} />}
 
           <div className="flex flex-col gap-2">
             <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-ink-muted">

@@ -48,6 +48,10 @@ export default function CarroPage() {
       eyebrow="Carro: Assinar vs. Comprar"
       fields={FIELDS}
       defaults={DEFAULTS}
+      save={{
+        type: "CARRO",
+        resumo: (values) => simulateCarComparison(toInput(values)).winner === "ASSINATURA" ? "Assinar sai mais barato" : "Comprar sai mais barato",
+      }}
       renderResult={(values) => {
         const result = simulateCarComparison(toInput(values));
         return (

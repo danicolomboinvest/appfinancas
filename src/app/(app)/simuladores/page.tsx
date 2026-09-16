@@ -1,6 +1,9 @@
 import { Building2, Calculator, Car, Home, LineChart, ShoppingBag } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { HomeSectionCard } from "@/components/ui/HomeSectionCard";
+import { getRequiredSession } from "@/lib/auth/session";
+import { listSimulations } from "@/lib/repositories/simulation.repo";
+import { SavedSimulations } from "./SavedSimulations";
 
 const SIMULATORS = [
   {
@@ -41,13 +44,27 @@ const SIMULATORS = [
   },
 ];
 
-export default function SimuladoresPage() {
+export default async function SimuladoresPage() {
+  const ctx = await getRequiredSession();
+  const salvas = await listSimulations(ctx);
+  const items = salvas.map((s) => ({
+    id: s.id,
+    type: s.type as string,
+    name: s.name,
+    resumo: typeof s.outputJson === "object" && s.outputJson && "resumo" in s.outputJson ? String(s.outputJson.resumo) : "",
+    createdAt: s.createdAt.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" }),
+  }));
+
   return (
     <div className="flex flex-col gap-8">
       <PageHeader
         title="Vamos descobrir quanto seu dinheiro pode render?"
         subtitle="Calculadoras para decisões financeiras importantes do dia a dia."
       />
+      {/* As salvas vêm primeiro: quem já usou volta pra consultar o que guardou, não pra
+          escolher a calculadora de novo. */}
+      <SavedSimulations items={items} />
+
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {SIMULATORS.map((simulator) => (
           <HomeSectionCard key={simulator.href} {...simulator} />

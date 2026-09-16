@@ -62,6 +62,10 @@ export default function FinanciarVsAlugarPage() {
       eyebrow="Financiar vs. Alugar + Investir"
       fields={FIELDS}
       defaults={DEFAULTS}
+      save={{
+        type: "FINANCIAR_VS_ALUGAR",
+        resumo: (values) => simulateFinancingVsRent(toInput(values)).winner === "FINANCIAR" ? "Financiar sai na frente" : "Alugar e investir sai na frente",
+      }}
       renderResult={(values) => {
         const result = simulateFinancingVsRent(toInput(values));
         return (

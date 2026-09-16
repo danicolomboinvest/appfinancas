@@ -60,6 +60,10 @@ export default function ConsorcioPage() {
       eyebrow="Consórcio vs. Financiamento"
       fields={FIELDS}
       defaults={DEFAULTS}
+      save={{
+        type: "CONSORCIO_VS_FINANCIAMENTO",
+        resumo: (values) => simulateConsortiumVsFinancing(toInput(values)).winner === "CONSORCIO" ? "Consórcio sai mais barato" : "Financiamento sai mais barato",
+      }}
       renderResult={(values) => {
         const result = simulateConsortiumVsFinancing(toInput(values));
         return (

@@ -33,6 +33,24 @@ const GOAL_ICONS: Record<GoalIcon, typeof Target> = {
   GENERICO: Target,
 };
 
+/**
+ * A ferramenta que responde a dúvida daquela meta, oferecida dentro do próprio card.
+ *
+ * Os simuladores existiam só atrás do menu "Mais": das 71 pessoas que já usaram o app, 24
+ * chegaram na lista e 17 abriram algum — e NENHUMA chegou lá por outro caminho, porque não
+ * havia outro. Nenhuma tela linkava pra eles.
+ *
+ * Quem cadastrou uma meta "Casa" já declarou a dúvida que o simulador de financiar × alugar
+ * responde. Oferecer ali é a diferença entre uma calculadora que a pessoa precisa procurar e
+ * uma resposta que aparece na hora em que a pergunta existe.
+ */
+const GOAL_TOOL: Partial<Record<GoalIcon, { href: string; label: string }>> = {
+  CASA: { href: "/simuladores/financiar-vs-alugar", label: "Financiar ou alugar?" },
+  CARRO: { href: "/simuladores/carro", label: "Assinar ou comprar?" },
+  VIAGEM: { href: "/viagem", label: "Planejar esta viagem" },
+  APOSENTADORIA: { href: "/planejamento/acumulo", label: "Simular a aposentadoria" },
+};
+
 /** Uma cor por tipo de meta — duas metas diferentes não podem parecer o mesmo card. */
 const GOAL_COLORS: Record<GoalIcon, string> = {
   VIAGEM: "var(--color-cat-lazer)",
@@ -118,6 +136,15 @@ export async function GoalCard({
             {plan.monthsRemaining} {plan.monthsRemaining === 1 ? "mês restante" : "meses restantes"}
           </p>
         </div>
+      )}
+
+      {GOAL_TOOL[icon] && !achieved && (
+        <Link
+          href={GOAL_TOOL[icon]!.href}
+          className="inline-flex w-fit items-center gap-1 text-caption font-medium text-accent-strong hover:underline"
+        >
+          {GOAL_TOOL[icon]!.label} →
+        </Link>
       )}
 
       {checkin && (
