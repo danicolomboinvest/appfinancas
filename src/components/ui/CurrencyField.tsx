@@ -26,6 +26,7 @@ export function CurrencyField({
   className = "",
   onValueChange,
   hint,
+  suggestion,
 }: {
   label: string;
   name: string;
@@ -39,6 +40,14 @@ export function CurrencyField({
   onValueChange?: (value: number) => void;
   /** Uma linha em português explicando o campo, embaixo dele. */
   hint?: React.ReactNode;
+  /**
+   * Um valor pronto que o app já sabe, com a frase que explica de onde ele veio.
+   *
+   * É a resposta ao motivo nº 1 de formulário abandonado aqui: a pessoa não tem o número na
+   * mão na hora. Quando o próprio app tem o dado (os lançamentos dela), perguntar é pior do
+   * que oferecer — ela aceita com um toque, ou corrige por cima.
+   */
+  suggestion?: { value: number; label: string };
 }) {
   const currency = useCurrency();
   /** Máscara ao vivo, na moeda escolhida: "R$ 1.234,56", "€ 1.234,56". */
@@ -69,6 +78,22 @@ export function CurrencyField({
         className={`${CONTROL_CLASSES} w-full ${className}`}
       />
       <input type="hidden" name={name} value={decimalValue} />
+      {suggestion && Math.round(suggestion.value * 100) !== cents && (
+        <p className="text-caption leading-relaxed text-ink-faint">
+          {suggestion.label}{" "}
+          <button
+            type="button"
+            onClick={() => {
+              const novo = Math.round(suggestion.value * 100);
+              setCents(novo);
+              onValueChange?.(novo / 100);
+            }}
+            className="font-medium text-accent-strong underline-offset-2 hover:underline"
+          >
+            Usar {mask(Math.round(suggestion.value * 100))}
+          </button>
+        </p>
+      )}
       {hint && <p className="text-caption leading-relaxed text-ink-faint">{hint}</p>}
       {error && <p className="text-xs text-danger">{error}</p>}
     </div>

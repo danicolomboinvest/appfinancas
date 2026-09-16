@@ -1,6 +1,7 @@
 import { getRequiredSession } from "@/lib/auth/session";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import { getEmergencyFund } from "@/lib/repositories/emergency-fund.repo";
+import { getTypicalMonthlyExpense } from "@/lib/planning/typical-expense";
 import { computeEmergencyFundPlan } from "@/lib/planning/emergency-fund";
 import { SavingsProjectionChart } from "@/components/charts/SavingsProjectionChart";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -14,7 +15,7 @@ import { Section } from "@/components/ui/Section";
 export default async function ReservaEmergenciaPage() {
   const money = await serverMoney();
   const ctx = await getRequiredSession();
-  const fund = await getEmergencyFund(ctx);
+  const [fund, typicalExpense] = await Promise.all([getEmergencyFund(ctx), getTypicalMonthlyExpense(ctx)]);
 
   const plan = fund
     ? computeEmergencyFundPlan({
@@ -42,6 +43,7 @@ export default async function ReservaEmergenciaPage() {
       />
 
       <EmergencyFundForm
+        typicalExpense={typicalExpense}
         defaults={
           fund
             ? {

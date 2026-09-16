@@ -89,7 +89,12 @@ export function PercentField({
                     : "border-border-strong text-ink-muted hover:border-accent hover:text-ink"
                 }`}
               >
-                {formatPercentNumber(s * 100, s * 100 % 1 === 0 ? 0 : 1)}
+                {(() => {
+                  // 0.14 * 100 dá 14.000000000000002 em ponto flutuante, e sem arredondar
+                  // antes o chip saía "14,0%" no meio de "10%" e "12%".
+                  const pct = Math.round(s * 1e6) / 1e4;
+                  return formatPercentNumber(pct, Number.isInteger(pct) ? 0 : 1);
+                })()}
               </button>
             );
           })}
