@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Target, Plane, Home, Car, PiggyBank } from "lucide-react";
 import type { GoalIcon } from "@prisma/client";
 import { Card } from "@/components/ui/Card";
-import { ProgressRing } from "@/components/ui/ProgressRing";
+import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import { DeleteGoalButton } from "./DeleteGoalButton";
 import { EditGoalButton } from "./EditGoalButton";
 import { GoalAporteChip } from "./GoalAporteChip";
@@ -10,13 +10,6 @@ import type { GoalCalcResult } from "@/lib/planning/goal";
 import { serverMoney } from "@/lib/money-server";
 
 export type GoalVariant = "ahead" | "onTrack" | "behind" | "achieved";
-
-const VARIANT_STYLES: Record<GoalVariant, { border: string }> = {
-  ahead: { border: "border-t-success" },
-  onTrack: { border: "border-t-accent" },
-  behind: { border: "border-t-danger" },
-  achieved: { border: "border-t-success" },
-};
 
 const VARIANT_STATUS_LABEL: Record<GoalVariant, string> = {
   ahead: "Adiantada",
@@ -32,13 +25,6 @@ const VARIANT_STATUS_TEXT: Record<GoalVariant, string> = {
   achieved: "text-success",
 };
 
-const VARIANT_CHART_TONE: Record<GoalVariant, "success" | "accent" | "danger"> = {
-  ahead: "success",
-  onTrack: "accent",
-  behind: "danger",
-  achieved: "success",
-};
-
 const GOAL_ICONS: Record<GoalIcon, typeof Target> = {
   VIAGEM: Plane,
   CASA: Home,
@@ -47,10 +33,15 @@ const GOAL_ICONS: Record<GoalIcon, typeof Target> = {
   GENERICO: Target,
 };
 
+/** Uma cor por tipo de meta — duas metas diferentes não podem parecer o mesmo card. */
+const GOAL_COLORS: Record<GoalIcon, string> = {
+  VIAGEM: "var(--color-cat-lazer)",
+  CASA: "var(--color-cat-moradia)",
+  CARRO: "var(--color-cat-transporte)",
+  APOSENTADORIA: "var(--color-success)",
+  GENERICO: "var(--color-accent)",
+};
 
-function formatMonthYear(date: Date) {
-  return new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric" }).format(date);
-}
 
 export async function GoalCard({
   id,
@@ -79,63 +70,65 @@ export async function GoalCard({
   const money = await serverMoney();
   const progressPercent = targetAmount > 0 ? Math.min(currentAmount / targetAmount, 1) : 0;
   const achieved = variant === "achieved";
-  const styles = VARIANT_STYLES[variant];
   const Icon = GOAL_ICONS[icon];
 
+  // O DINHEIRO é o herói do card, não o anel. Antes o valor guardado era um cinza de 13px e o
+  // lugar de destaque era do anel de progresso — e a pergunta que a pessoa faz ao abrir Metas
+  // é "quanto eu já tenho", não "quantos por cento". O anel saiu e virou barra abaixo do
+  // número: diz a mesma coisa, ocupa uma faixa em vez de um bloco, e libera a largura toda
+  // para o valor.
   return (
-    <Card className={`relative flex flex-col gap-4 border-t-4 p-5 ${styles.border} ${achieved ? "opacity-60" : ""}`}>
-      {achieved && (
-        <span className="absolute right-4 top-4 rounded-full bg-success-soft px-2.5 py-0.5 text-xs font-medium text-success">
-          Concluída
-        </span>
-      )}
-
-      {/* Ordem do desenho aprovado: anel | nome, números, quanto guardar, marcar aporte.
-          Saíram a frase de motivação e o "nesse ritmo você conclui em..." — o anel e o status
-          já dizem se a meta vai bem, e três linhas de texto por meta transformavam uma lista
-          de metas num texto corrido. */}
-      <div className={`flex items-start gap-3 ${achieved ? "pr-16" : ""}`}>
-        <ProgressRing percent={progressPercent} tone={VARIANT_CHART_TONE[variant]} size={56} />
+    <Card className={`relative flex flex-col gap-3 p-5 ${achieved ? "opacity-60" : ""}`}>
+      <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent-strong">
-              <Icon size={15} strokeWidth={1.9} />
-            </span>
-            <Link href={`/planejamento/metas/${id}`} className="min-w-0">
-              <h3 className="line-clamp-2 text-base font-semibold text-ink hover:text-accent-strong">{name}</h3>
-            </Link>
-          </div>
-
+          <Link href={`/planejamento/metas/${id}`} className="min-w-0">
+            <p className="line-clamp-2 text-caption text-ink-muted hover:text-ink">{name}</p>
+          </Link>
+          <p className="mt-1 text-h1 font-bold leading-none tracking-tight tabular-nums text-ink">
+            {money(currentAmount, { round: true })}
+          </p>
           <p className="mt-1.5 text-caption tabular-nums text-ink-muted">
-            <span className="font-semibold text-ink">{money(currentAmount, { round: true })}</span> de{" "}
-            {money(targetAmount, { round: true })}
+            {Math.round(progressPercent * 100)}% de {money(targetAmount, { round: true })}
             {!achieved && (
               <>
-                {" · "}
-                {plan.monthsRemaining} {plan.monthsRemaining === 1 ? "mês" : "meses"}
                 {" · "}
                 <span className={VARIANT_STATUS_TEXT[variant]}>{VARIANT_STATUS_LABEL[variant]}</span>
               </>
             )}
           </p>
-
-          {!achieved && (
-            <p className="mt-1.5 text-sm font-bold tracking-tight text-accent-strong">
-              Guardar {money(plan.requiredMonthlyContribution, { round: true })} este mês
-            </p>
-          )}
-
-          {checkin && (
-            <GoalAporteChip
-              goalId={id}
-              monthKey={checkin.monthKey}
-              monthLabel={checkin.monthLabel}
-              suggestedAmount={checkin.suggestedAmount}
-              done={checkin.done}
-            />
-          )}
         </div>
+        <CategoryIcon icon={Icon} color={GOAL_COLORS[icon]} size={48} />
       </div>
+
+      {/* A barra faz o papel que a foto faz no card do Nubank: fecha o card com uma faixa que
+          se lê de relance, sem precisar de leitura. */}
+      <span className="block h-2 overflow-hidden rounded-full bg-surface-2">
+        <span
+          className="block h-full rounded-full"
+          style={{ width: `${Math.max(progressPercent * 100, 2)}%`, backgroundColor: GOAL_COLORS[icon] }}
+        />
+      </span>
+
+      {!achieved && (
+        <div>
+          <p className="text-[15px] font-bold tracking-tight text-accent-strong">
+            Guardar {money(plan.requiredMonthlyContribution, { round: true })} este mês
+          </p>
+          <p className="mt-0.5 text-caption text-ink-muted">
+            {plan.monthsRemaining} {plan.monthsRemaining === 1 ? "mês restante" : "meses restantes"}
+          </p>
+        </div>
+      )}
+
+      {checkin && (
+        <GoalAporteChip
+          goalId={id}
+          monthKey={checkin.monthKey}
+          monthLabel={checkin.monthLabel}
+          suggestedAmount={checkin.suggestedAmount}
+          done={checkin.done}
+        />
+      )}
 
       <div className="flex items-center justify-end gap-4">
         <EditGoalButton
