@@ -29,6 +29,10 @@ import { formatPercentNumber } from "@/lib/format";
 import { serverMoney } from "@/lib/money-server";
 
 const MONTH_LABELS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+const MONTH_LABELS_FULL = [
+  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+];
 
 
 /** Variação percentual entre o mês atual e o anterior, null quando não dá para comparar (mês anterior zerado). */
@@ -104,6 +108,10 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
     plannedVsActual.months.map((m) => [m.month, m.totalPlanned]),
   ) as Record<number, number>;
 
+  // O número do card é do ANO; a comparação é de mês contra mês. Com "vs. mês passado" colado
+  // num total anual, os 14% pareciam ser sobre o ano inteiro. Dizer o NOME do mês já entrega
+  // que a comparação é mensal, sem trocar a métrica.
+  const rotuloComparacao = MONTH_LABELS_FULL[previousMonthDate.getMonth()].toLowerCase();
   const incomeTrend = changePercent(currentMonthSummary.totalIncome, previousMonthSummary.totalIncome);
   const expenseTrend = changePercent(currentMonthSummary.totalExpense, previousMonthSummary.totalExpense);
   const balanceDelta = changeAmount(currentMonthSummary.balance, previousMonthSummary.balance);
@@ -123,6 +131,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
       currentAmount: Number(goal.currentAmount),
       targetDate: goal.targetDate ?? new Date(),
       annualRate: Number(goal.annualRate ?? 0),
+      startedAt: goal.createdAt,
     }).status,
   );
   const goalsOnTrack = goalStatuses.filter((status) => status === "ON_TRACK" || status === "ACHIEVED").length;
@@ -221,7 +230,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
           label="Renda no ano"
           value={money(summary.totalIncome)}
           tone="success"
-          trend={incomeTrend === null ? undefined : { percent: incomeTrend, periodLabel: "mês passado" }}
+          trend={incomeTrend === null ? undefined : { percent: incomeTrend, periodLabel: rotuloComparacao }}
           sparkline={incomeSparkline}
         />
         <StatCard
@@ -229,7 +238,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
           value={money(summary.totalExpense)}
           tone="neutral"
           trend={
-            expenseTrend === null ? undefined : { percent: expenseTrend, periodLabel: "mês passado", goodDirection: "down" }
+            expenseTrend === null ? undefined : { percent: expenseTrend, periodLabel: rotuloComparacao, goodDirection: "down" }
           }
           sparkline={expenseSparkline}
         />
@@ -245,7 +254,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
           trend={
             balanceDelta === null
               ? undefined
-              : { percent: balanceDelta, periodLabel: "mês passado", displayValue: money(Math.abs(balanceDelta)) }
+              : { percent: balanceDelta, periodLabel: rotuloComparacao, displayValue: money(Math.abs(balanceDelta)) }
           }
           sparkline={balanceSparkline}
         />

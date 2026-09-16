@@ -10,13 +10,18 @@ import { NewGoalButton } from "./NewGoalButton";
 import { GoalCard, type GoalVariant } from "./GoalCard";
 
 /**
- * Deriva uma cor de ritmo (adiantada/no ritmo/atrasada) puramente para exibição, sem
- * alterar o cálculo de `computeGoalPlan`. BEHIND/NOT_STARTED viram "atrasada"; entre as
- * metas ON_TRACK, quem já guardou boa parte do valor-alvo aparece como "adiantada".
+ * Cor de ritmo (adiantada / no ritmo / atrasada) para exibição, lendo o status que
+ * `computeGoalPlan` já decidiu.
+ *
+ * "Adiantada" passou a comparar com o TEMPO, não com um corte fixo de 66% do valor: guardar
+ * 70% de uma meta que vence em dez anos não é estar adiantada, e guardar 40% de uma que vence
+ * em dois meses não é estar no ritmo. Sem data de início (metas antigas), cai no corte de
+ * antes, que ao menos não inventa um ritmo que ninguém mediu.
  */
 function resolveVariant(plan: GoalCalcResult, currentAmount: number, targetAmount: number): GoalVariant {
   if (plan.status === "ACHIEVED") return "achieved";
   if (plan.status === "BEHIND" || plan.status === "NOT_STARTED") return "behind";
+  if (plan.timeElapsed !== null) return plan.progress >= plan.timeElapsed * 1.15 ? "ahead" : "onTrack";
   const progress = targetAmount > 0 ? currentAmount / targetAmount : 0;
   return progress >= 0.66 ? "ahead" : "onTrack";
 }
@@ -38,6 +43,7 @@ export default async function MetasPage() {
       currentAmount,
       targetDate,
       annualRate: Number(goal.annualRate ?? 0),
+      startedAt: goal.createdAt,
     };
     const plan = computeGoalPlan(goalInput);
     const variant = resolveVariant(plan, currentAmount, targetAmount);

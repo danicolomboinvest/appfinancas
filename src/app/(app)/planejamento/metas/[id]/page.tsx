@@ -42,6 +42,7 @@ export default async function GoalDetailPage(props: PageProps<"/planejamento/met
     currentAmount: goal.computedCurrentAmount,
     targetDate,
     annualRate: Number(goal.annualRate ?? 0),
+      startedAt: goal.createdAt,
   };
   const plan = computeGoalPlan(goalInput);
   const trajectory = computeGoalTrajectory(goalInput, plan);

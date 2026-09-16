@@ -74,7 +74,7 @@ export function scorePoupanca(income: number, expense: number): HealthDimension 
       label: "Taxa de poupança",
       score: null,
       status: "sem-dados",
-      detail: "Lance sua renda do mês para entrar nessa nota.",
+      detail: "Lance a renda de um mês fechado para entrar nessa nota.",
     };
   }
   const rate = (income - expense) / income;
@@ -86,8 +86,8 @@ export function scorePoupanca(income: number, expense: number): HealthDimension 
     status: statusFromScore(score),
     detail:
       rate >= 0
-        ? `Você está poupando ${Math.round(rate * 100)}% da sua renda este mês.`
-        : `Você gastou mais do que ganhou este mês (${Math.round(Math.abs(rate) * 100)}% acima da renda).`,
+        ? `Você poupou ${Math.round(rate * 100)}% da sua renda no último mês fechado.`
+        : `No último mês fechado você gastou mais do que ganhou (${Math.round(Math.abs(rate) * 100)}% acima da renda).`,
   };
 }
 
@@ -171,11 +171,15 @@ function overallMessage(status: HealthStatus): string {
  */
 export async function computeFinancialHealthScore(ctx: AuthContext): Promise<FinancialHealthScore> {
   const now = new Date();
+  // Último mês FECHADO, não o mês corrente. No dia 2 o salário ainda não caiu: a dimensão
+  // sumia por "sem dados" e os pesos se redistribuíam entre as outras, então a nota inteira
+  // balançava conforme o dia do mês, não conforme a vida da pessoa.
+  const fechado = new Date(now.getFullYear(), now.getMonth() - 1, 1);
 
   const [emergencyFund, goals, monthlySummary, strategyComparison] = await Promise.all([
     getEmergencyFund(ctx),
     listGoals(ctx),
-    getMonthlySummary(ctx, now.getFullYear(), now.getMonth() + 1),
+    getMonthlySummary(ctx, fechado.getFullYear(), fechado.getMonth() + 1),
     getPortfolioStrategyComparison(ctx),
   ]);
 
@@ -197,6 +201,7 @@ export async function computeFinancialHealthScore(ctx: AuthContext): Promise<Fin
       currentAmount: Number(goal.currentAmount),
       targetDate: goal.targetDate ?? now,
       annualRate: Number(goal.annualRate ?? 0),
+      startedAt: goal.createdAt,
     }),
   );
   const onTrackOrAchieved = goalPlans.filter((p) => p.status === "ON_TRACK" || p.status === "ACHIEVED").length;

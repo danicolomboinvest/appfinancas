@@ -3,6 +3,9 @@
 import { useEffect, useState, useTransition } from "react";
 import { usePathname } from "next/navigation";
 import { Sidebar } from "./Sidebar";
+import { PillTabs } from "./PillTabs";
+import { NavProgressProvider } from "./nav-progress";
+import { FLOW_TABS } from "./flow-tabs";
 import { MobileTabBar } from "./MobileTabBar";
 import { MoreSheet } from "./MoreSheet";
 import { GreetingStrip } from "./GreetingStrip";
@@ -63,8 +66,20 @@ export function AppShell({
     });
   }
 
-  // A saudação ("Bom dia/Boa noite") só aparece no Fluxo, antes vinha em todas as telas.
-  const showGreeting = pathname === "/mensal" || pathname.startsWith("/mensal/");
+  /**
+   * O Fluxo é UM módulo com três abas (Visão mensal, Só gastos, Orçamento), mesmo morando em
+   * duas pastas de rota diferentes. A saudação e as abas moram AQUI, no shell que sobrevive a
+   * toda navegação, e não em dois layouts irmãos.
+   *
+   * Com um layout em cada pasta, ir do Orçamento pra Visão mensal desmontava um e montava o
+   * outro: a saudação sumia e a pílula das abas recomeçava a transição do zero, enquanto entre
+   * "Visão mensal" e "Só gastos" ela deslizava. A mesma barra de abas, visualmente, se
+   * comportava de dois jeitos dependendo de qual aba você clicava.
+   */
+  const isFlow =
+    pathname === "/mensal" || pathname.startsWith("/mensal/") ||
+    pathname === "/orcamento" || pathname.startsWith("/orcamento/");
+  const showGreeting = isFlow;
 
   // "Mais" fica em destaque na tab bar quando a rota atual é uma das seções que só
   // existem dentro da sheet (Visão Geral, Orçamento, Simuladores, Análises, Configurações).
@@ -74,6 +89,7 @@ export function AppShell({
 
   return (
     <ToastProvider>
+      <NavProgressProvider>
       <div className="flex min-h-screen">
         {/* Sidebar: navegação primária no desktop; no mobile fica sempre fora da tela
             (a gaveta hambúrguer foi substituída pela tab bar + MoreSheet abaixo). */}
@@ -95,7 +111,7 @@ export function AppShell({
                 relógio/câmera no modo standalone. Com o inset, começa abaixo da status bar.
               - pb: limpa a tab bar flutuante (home indicator) + o botão "+" elevado. */}
           <main className="flex-1 px-5 pb-[calc(7.5rem_+_env(safe-area-inset-bottom))] pt-[calc(1.5rem_+_env(safe-area-inset-top))] md:px-10 md:pb-8 md:pt-8">
-            <div className="mx-auto w-full max-w-6xl animate-fade-in">
+            <div className="mx-auto w-full max-w-6xl">
               {/* Sol/lua no alto de TODA tela — a saudação só existe no Fluxo, então prender
                   o botão nela o faria sumir em Metas, Carteira e Orçamento. */}
               <div className="mb-1 flex justify-end">
@@ -103,6 +119,7 @@ export function AppShell({
               </div>
               {showGreeting && <GreetingStrip greeting={greeting} dateLabel={dateLabel} />}
               <InstallAppBanner onOpenTutorial={() => setInstallOpen(true)} />
+              {isFlow && <PillTabs tabs={FLOW_TABS} fit />}
               {children}
             </div>
           </main>
@@ -137,6 +154,7 @@ export function AppShell({
         {/* Rastreio de uso primeiro (pageviews → /admin/relatorio). Não renderiza nada. */}
         <UsageTracker />
       </div>
+    </NavProgressProvider>
     </ToastProvider>
   );
 }

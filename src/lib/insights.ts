@@ -283,6 +283,7 @@ export async function computeInsights(ctx: AuthContext, money: MoneyFormatter): 
       currentAmount: Number(goal.currentAmount),
       targetDate: goal.targetDate ?? now,
       annualRate: Number(goal.annualRate ?? 0),
+      startedAt: goal.createdAt,
     }),
   }));
 

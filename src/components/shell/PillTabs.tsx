@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { NavPending } from "./nav-progress";
 
 export type PillTab = { href: string; label: string };
 
@@ -35,6 +36,7 @@ export function PillTabs({ tabs, fit = false }: { tabs: PillTab[]; fit?: boolean
               } ${isActive ? "bg-ink text-canvas shadow-premium-sm" : "text-ink-muted hover:text-ink"}`}
             >
               {tab.label}
+              <NavPending />
             </Link>
           );
         })}
