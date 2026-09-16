@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { HealthScoreCard } from "@/components/ui/HealthScoreCard";
 import { InsightList } from "./InsightList";
+import { Section } from "@/components/ui/Section";
 
 export default async function AnalisesInsightsPage() {
   const ctx = await getRequiredSession();
@@ -25,10 +26,9 @@ export default async function AnalisesInsightsPage() {
           message="Cadastre orçamento, metas, reserva de emergência e uma estratégia de carteira para começar a receber insights automáticos aqui."
         />
       ) : (
-        <div className="flex flex-col gap-2">
-          <h2 className="text-sm font-medium text-ink-muted">O que precisa de atenção</h2>
+        <Section title="O que precisa de atenção">
           <InsightList insights={insights} />
-        </div>
+        </Section>
       )}
     </div>
   );

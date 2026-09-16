@@ -5,7 +5,6 @@ import { getPortfolioStrategyComparison } from "@/lib/portfolio/strategy";
 import { AllocationChart } from "@/components/charts/AllocationChart";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
-import { Card } from "@/components/ui/Card";
 import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { ResponsiveTable, type ResponsiveColumn } from "@/components/ui/ResponsiveTable";
 import type { GoalAllocation } from "@/lib/consolidation/portfolio";
@@ -13,6 +12,7 @@ import { StrategyComparisonSection } from "./StrategyComparisonSection";
 import { formatPercentNumber } from "@/lib/format";
 import { serverMoney } from "@/lib/money-server";
 import type { MoneyFormatter } from "@/lib/money";
+import { Section } from "@/components/ui/Section";
 
 
 function formatPercent(value: number | null) {
@@ -46,8 +46,7 @@ export default async function CarteiraPorObjetivoPage() {
         }
       />
 
-      <div>
-        <h2 className="mb-3 text-sm font-medium text-ink-muted">Posição por objetivo</h2>
+      <Section title="Posição por objetivo">
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           <StatCard label="Total da carteira" value={money(byObjective.totalPortfolio)} tone="accent" />
           <StatCard
@@ -62,35 +61,32 @@ export default async function CarteiraPorObjetivoPage() {
           <StatCard label="Liberdade financeira" value={money(byObjective.liberdade.currentValue)} />
           <StatCard label="Sem objetivo definido" value={money(byObjective.outro.currentValue)} />
         </div>
-      </div>
+      </Section>
 
       {byObjective.metas.length > 0 && (
-        <div>
-          <h2 className="mb-3 text-sm font-medium text-ink-muted">Metas</h2>
+        <Section title="Metas">
           <ResponsiveTable columns={goalColumns(money)} rows={byObjective.metas} rowKey={(goal) => goal.goalId} />
-        </div>
+        </Section>
       )}
 
-      <div>
-        <h2 className="mb-3 flex items-center justify-between text-sm font-medium text-ink-muted">
-          <span>Carteira atual vs. estratégia-alvo e rebalanceamento</span>
-          <Link href="/carteira/estrategia" className="text-xs text-accent-strong hover:underline">
-            {hasStrategy ? "Editar estratégia" : "Definir estratégia"} →
+      <Section
+        title="Carteira atual × estratégia-alvo"
+        action={
+          <Link href="/carteira/estrategia" className="text-caption font-medium text-accent-strong hover:underline">
+            {hasStrategy ? "editar estratégia" : "definir estratégia"} →
           </Link>
-        </h2>
+        }
+      >
         <StrategyComparisonSection positions={strategyComparison.positions} hasStrategy={hasStrategy} />
-      </div>
+      </Section>
 
-      <div>
-        <h2 className="mb-3 text-sm font-medium text-ink-muted">Alocação atual vs. ideal por classe</h2>
+      <Section title="Alocação atual × ideal por classe">
         {allocation.classes.length === 0 ? (
           <p className="text-sm text-ink-faint">Nenhum ativo cadastrado ainda.</p>
         ) : (
-          <Card className="p-5">
-            <AllocationChart classes={allocation.classes} />
-          </Card>
+          <AllocationChart classes={allocation.classes} />
         )}
-      </div>
+      </Section>
     </div>
   );
 }

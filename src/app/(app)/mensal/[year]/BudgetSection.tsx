@@ -1,9 +1,9 @@
 import type { AuthContext } from "@/lib/auth/session";
 import { listBudgets, sumExpensesByParentCategory } from "@/lib/repositories/budget.repo";
 import { PARENT_CATEGORIES } from "@/lib/categories";
-import { Card } from "@/components/ui/Card";
 import { BudgetRow } from "./BudgetRow";
 import { formatPercentNumber } from "@/lib/format";
+import { Section } from "@/components/ui/Section";
 
 function formatPercent(value: number) {
   return formatPercentNumber(value * 100, 1);
@@ -31,13 +31,14 @@ export async function BudgetSection({
   const committedPercent = totalIncome > 0 ? totalSpent / totalIncome : 0;
 
   return (
-    <Card className="flex flex-col gap-4 p-5">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-sm font-medium text-ink">Orçamento por categoria</h2>
-        <span className="text-xs text-ink-muted">
-          {formatPercent(committedPercent)} da renda comprometida com gastos este mês
+    <Section
+      title="Orçamento por categoria"
+      action={
+        <span className="text-caption text-ink-muted">
+          {formatPercent(committedPercent)} da renda comprometida
         </span>
-      </div>
+      }
+    >
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {PARENT_CATEGORIES.map((pc) => (
           <BudgetRow
@@ -50,6 +51,6 @@ export async function BudgetSection({
           />
         ))}
       </div>
-    </Card>
+    </Section>
   );
 }

@@ -202,8 +202,11 @@ export function AssetsSection({
   return (
     <div className="flex flex-col gap-6">
       {/* Herói: o total da carteira é o número-herói. O olho oculta os valores em R$. */}
-      <div className="glow-stage rounded-3xl p-4 sm:p-5">
-        <div className="glass rounded-2xl p-5 sm:p-6">
+      {/* Uma superfície só — mesmo tratamento do patrimônio na Visão Geral e do destaque do
+          mês no Fluxo. Retângulo arredondado dentro de outro, quase da mesma cor, era o que
+          mais envelhecia a tela. */}
+      <div className="glow-stage rounded-3xl border border-border p-5 sm:p-6">
+        <div>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
@@ -274,9 +277,9 @@ export function AssetsSection({
           {/* Uma rosca e uma régua, não duas roscas. Comparar "atual" e "ideal" em dois
               círculos obriga a pessoa a medir ângulo de cabeça; com o alvo virando tracinho
               na mesma barra, quem está atrás do traço é literalmente o que falta comprar. */}
-          <Card className="grid grid-cols-1 gap-5 p-5 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-7 border-t border-border pt-7 sm:grid-cols-2">
             <div className="flex flex-col gap-3">
-              <p className="text-sm font-medium text-ink">Carteira atual, por tipo</p>
+              <p className="text-[17px] font-semibold text-ink">Carteira atual, por tipo</p>
               <Donut
                 slices={classAllocationData}
                 centerLabel="Total"
@@ -286,7 +289,7 @@ export function AssetsSection({
               />
             </div>
             <div className="flex flex-col gap-3">
-              <p className="text-sm font-medium text-ink">Onde você está × sua estratégia</p>
+              <p className="text-[17px] font-semibold text-ink">Onde você está × sua estratégia</p>
               {strategy.hasStrategy ? (
                 <>
                   <BulletBar
@@ -322,7 +325,7 @@ export function AssetsSection({
                 </div>
               )}
             </div>
-          </Card>
+          </div>
 
           {/* Pra onde vai o próximo aporte: maiores desvios da estratégia (detalhe em Por Objetivo). */}
           {strategy.hasStrategy && strategy.suggestions.length > 0 && (

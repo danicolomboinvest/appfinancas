@@ -21,7 +21,6 @@ import {
 import { listCustomCategories } from "@/lib/repositories/custom-category.repo";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
-import { Card } from "@/components/ui/Card";
 
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import { ResponsiveTable, type ResponsiveColumn } from "@/components/ui/ResponsiveTable";
@@ -31,6 +30,7 @@ import { formatPercentNumber } from "@/lib/format";
 import type { MonthlyPlannedVsActual } from "@/lib/planning/budget-comparison";
 import { OrcamentoForm } from "../OrcamentoForm";
 import { serverMoney } from "@/lib/money-server";
+import { Section } from "@/components/ui/Section";
 
 const MONTH_LABELS = [
   "Janeiro",
@@ -230,24 +230,18 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
         </div>
       )}
 
-      <Card className="flex flex-col gap-4 p-5">
-        <div>
-          <h2 className="text-sm font-medium text-ink">Planejado × realizado no ano</h2>
-          <p className="mt-0.5 text-caption text-ink-faint">
-            O preenchimento é o que você já gastou no ano. O tracinho é onde o ano está.
-          </p>
-        </div>
+      <Section
+        title="Planejado × realizado no ano"
+        hint="O preenchimento é o que você já gastou no ano. O tracinho é onde o ano está."
+      >
         <BulletBar rows={yearBullets} targetHint="Passou do tracinho? Está gastando adiantado para a altura do ano." />
-      </Card>
+      </Section>
 
       {monthBullets.length > 0 && (
-        <Card className="flex flex-col gap-4 p-5">
-          <div>
-            <h2 className="text-sm font-medium text-ink">Por categoria em {MONTH_LABELS[(currentMonthData?.month ?? 1) - 1]}</h2>
-            <p className="mt-0.5 text-caption text-ink-faint">
-              Ordenado por quem está mais perto de estourar — quem precisa de atenção fica no topo.
-            </p>
-          </div>
+        <Section
+          title={`Por categoria em ${MONTH_LABELS[(currentMonthData?.month ?? 1) - 1]}`}
+          hint="Ordenado por quem está mais perto de estourar — quem precisa de atenção fica no topo."
+        >
           <BulletBar rows={monthBullets} />
           {/* O veredito em uma linha: o desenho aprovado fecha a lista com a conta feita, pra
               a pessoa não precisar somar quantas barras estão vermelhas. */}
@@ -272,7 +266,7 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
             Categoria sem plano definido fica cinza: o app não tem como dizer que você estourou um limite que
             não existe.
           </p>
-        </Card>
+        </Section>
       )}
 
       <CollapsibleSection label="Ver dados detalhados mês a mês">

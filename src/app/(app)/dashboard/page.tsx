@@ -19,6 +19,7 @@ import { computeUsufruct } from "@/lib/planning/usufruct";
 import { YearlyBarChart } from "@/components/charts/YearlyBarChart";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
+import { Section } from "@/components/ui/Section";
 import { Card } from "@/components/ui/Card";
 import { FitText } from "@/components/ui/FitText";
 import { CountUp } from "@/components/ui/CountUp";
@@ -204,16 +205,15 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
         }
       />
 
-      <div className="glow-stage rounded-3xl p-4 sm:p-5">
-        <Card className="p-6">
-          <p className="text-label text-ink-muted">Patrimônio total</p>
-          <div className="mt-1">
-            <FitText className="text-display font-semibold tracking-tight text-accent-strong">
-              {/* `brl` (não `format={formatBRL}`): função não atravessa a fronteira server→client. */}
-              <CountUp value={portfolio.totalPortfolio} brl />
-            </FitText>
-          </div>
-        </Card>
+      {/* Uma superfície só, como no Fluxo: o número é o herói e não precisa de caixa em volta. */}
+      <div className="glow-stage rounded-3xl border border-border p-6">
+        <p className="text-label text-ink-muted">Patrimônio total</p>
+        <div className="mt-1">
+          <FitText className="text-display font-semibold tracking-tight text-accent-strong">
+            {/* `brl` (não uma função): função não atravessa a fronteira server→client. */}
+            <CountUp value={portfolio.totalPortfolio} brl />
+          </FitText>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
@@ -255,8 +255,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
           fazer a seguir — e é aí que a maioria abre o app, olha, e não volta. */}
       {isCurrentYear && <WeeklyTasksCard tasks={weeklyTasks} />}
 
-      <div>
-        <h2 className="mb-3 text-h2 font-semibold tracking-tight text-ink">Status dos módulos</h2>
+      <Section title="Status dos módulos">
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
           <LinkedStatCard
             href="/planejamento/reserva-emergencia"
@@ -298,12 +297,11 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
             tone={upcomingDividends > 0 ? "success" : "neutral"}
           />
         </div>
-      </div>
+      </Section>
 
-      <Card className="p-5">
-        <h2 className="mb-4 text-sm font-medium text-ink-muted">Renda, gastos e aportes por mês</h2>
+      <Section title="Renda, gastos e aportes por mês">
         <YearlyBarChart months={summary.months} plannedByMonth={plannedByMonth} />
-      </Card>
+      </Section>
     </div>
   );
 }

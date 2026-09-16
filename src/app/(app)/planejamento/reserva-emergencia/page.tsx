@@ -5,10 +5,10 @@ import { computeEmergencyFundPlan } from "@/lib/planning/emergency-fund";
 import { SavingsProjectionChart } from "@/components/charts/SavingsProjectionChart";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
-import { Card } from "@/components/ui/Card";
 import { EmergencyFundForm } from "./EmergencyFundForm";
 import { formatPercentNumber } from "@/lib/format";
 import { serverMoney } from "@/lib/money-server";
+import { Section } from "@/components/ui/Section";
 
 
 export default async function ReservaEmergenciaPage() {
@@ -68,14 +68,14 @@ export default async function ReservaEmergenciaPage() {
           </div>
 
           {plan.projection.length > 0 && (
-            <Card className="p-5">
+            <Section title="Projeção da reserva">
               <SavingsProjectionChart
                 projection={plan.projection}
                 targetAmount={Number(fund.targetAmount)}
                 currentAmount={Number(fund.currentAmount)}
                 completionLabel={completionLabel}
               />
-            </Card>
+            </Section>
           )}
         </div>
       )}
