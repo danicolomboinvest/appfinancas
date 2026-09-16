@@ -25,6 +25,7 @@ export function CurrencyField({
   id,
   className = "",
   onValueChange,
+  hint,
 }: {
   label: string;
   name: string;
@@ -36,6 +37,8 @@ export function CurrencyField({
   className?: string;
   /** Chamado a cada digitação com o valor atual em reais, para cálculos derivados ao vivo (ex.: total anual). */
   onValueChange?: (value: number) => void;
+  /** Uma linha em português explicando o campo, embaixo dele. */
+  hint?: React.ReactNode;
 }) {
   const currency = useCurrency();
   /** Máscara ao vivo, na moeda escolhida: "R$ 1.234,56", "€ 1.234,56". */
@@ -66,6 +69,7 @@ export function CurrencyField({
         className={`${CONTROL_CLASSES} w-full ${className}`}
       />
       <input type="hidden" name={name} value={decimalValue} />
+      {hint && <p className="text-caption leading-relaxed text-ink-faint">{hint}</p>}
       {error && <p className="text-xs text-danger">{error}</p>}
     </div>
   );

@@ -13,6 +13,8 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import { ResponsiveTable, type ResponsiveColumn } from "@/components/ui/ResponsiveTable";
+import { Section } from "@/components/ui/Section";
+import { CompositionBar } from "@/components/charts/CompositionBar";
 import { PlanningParamsForm } from "./PlanningParamsForm";
 import { PlanningWizard } from "./PlanningWizard";
 import { formatPercentNumber } from "@/lib/format";
@@ -119,10 +121,6 @@ export default async function IndependenciaFinanceiraPage() {
               otherPassiveIncome: Number(params.otherPassiveIncome),
             });
 
-            const growthSparkline = years
-              .filter((y) => y.phase === "ACCUMULATION")
-              .map((y) => ({ label: `${y.age} anos`, value: y.balanceReal }));
-
             const usufruct = computeUsufruct({
               finalValueReal: accumulation.finalValueReal,
               usufructAnnualRate: Number(params.usufructAnnualRate),
@@ -133,54 +131,129 @@ export default async function IndependenciaFinanceiraPage() {
 
             return (
               <>
-                <section id="acumulo" className="flex flex-col gap-3">
-                  <h2 className="text-h2 font-semibold tracking-tight text-ink">Fase de acúmulo</h2>
-                  <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-                    <StatCard label="Tempo de contribuição" value={`${accumulation.years} anos`} />
-                    <StatCard label="Taxa nominal (a.a.)" value={formatPercent(accumulation.nominalAnnualRate)} />
-                    <StatCard label="Taxa real (a.a.)" value={formatPercent(accumulation.realAnnualRate)} />
-                    <StatCard label="Valor final (nominal)" value={money(accumulation.finalValueNominal)} />
-                    <StatCard
-                      label="Valor final (real, poder de compra de hoje)"
-                      value={money(accumulation.finalValueReal)}
-                      tone="accent"
-                      sparkline={growthSparkline}
-                    />
-                    <StatCard label="Total investido (do bolso)" value={money(accumulation.totalInvested)} />
-                    <StatCard label="Retorno total (juros)" value={money(accumulation.totalReturn)} tone="success" />
-                  </div>
-                </section>
-
-                <section id="liberdade-financeira" className="flex flex-col gap-3">
-                  <h2 className="text-h2 font-semibold tracking-tight text-ink">Renda na aposentadoria</h2>
-                  <p className="-mt-1 text-sm text-ink-muted">
-                    Compara a renda que o patrimônio acumulado geraria com o padrão de vida desejado.
-                  </p>
-                  <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                    <StatCard label="Patrimônio ao se aposentar (real)" value={money(accumulation.finalValueReal)} tone="accent" />
-                    <StatCard label="Renda passiva da carteira" value={money(usufruct.monthlyPassiveIncomeFromPortfolio)} />
-                    <StatCard label="Renda passiva total (+ outras rendas)" value={money(usufruct.totalPassiveIncome)} />
-                    <StatCard label="Gasto mensal desejado" value={money(Number(params.desiredPassiveIncome))} />
+                {/* A resposta ANTES dos números que a produzem. A tela antiga abria com nove
+                    cards do mesmo tamanho: sem hierarquia, nenhum deles era a resposta, e a
+                    pessoa tinha que descobrir sozinha qual olhar. */}
+                <section id="acumulo" className="flex flex-col gap-6">
+                  <div className="flex flex-col gap-1.5">
+                    <p className="text-sm text-ink-muted">
+                      Se nada mudar, aos {params.retirementAge} anos você tem
+                    </p>
+                    <p className="text-[2.25rem] font-bold leading-none tracking-tight text-accent sm:text-5xl">
+                      {money(accumulation.finalValueReal, { round: true })}
+                    </p>
+                    <p className="text-sm text-ink-muted">em dinheiro de hoje</p>
                   </div>
 
-                  <Card className={`p-5 ${isSurplus ? "border-success/30 bg-success-soft/40" : "border-danger/30 bg-danger-soft/40"}`}>
+                  {/* O veredito ganhou o id da antiga seção "Renda na aposentadoria": os links
+                      do dashboard e o redirect de /planejamento/usufruto apontam pra cá, e
+                      agora caem direto na resposta em vez de numa grade de números. */}
+                  <Card
+                    id="liberdade-financeira"
+                    className={`flex flex-col gap-2.5 p-5 scroll-mt-24 ${isSurplus ? "border-success/30 bg-success-soft/40" : "border-danger/30 bg-danger-soft/40"}`}
+                  >
                     <div className="flex items-center gap-2">
                       {isSurplus ? (
                         <TrendingUp size={18} className="text-success" strokeWidth={1.75} />
                       ) : (
                         <TrendingDown size={18} className="text-danger" strokeWidth={1.75} />
                       )}
-                      <p className={`text-sm font-medium ${isSurplus ? "text-success" : "text-danger"}`}>
-                        {isSurplus ? "Superávit" : "Déficit"}
+                      <p className={`text-sm font-semibold ${isSurplus ? "text-success" : "text-danger"}`}>
+                        {isSurplus ? "Dá pé" : "Ainda não dá pé"}
                       </p>
                     </div>
-                    <p className="mt-2 text-2xl font-semibold tracking-tight text-ink">{money(usufruct.surplusOrDeficit)}</p>
-                    <p className="mt-2 text-sm text-ink-muted">
-                      {isSurplus
-                        ? "A renda passiva projetada cobre o padrão de vida desejado, liberdade financeira atingida nesse cenário."
-                        : "A renda passiva projetada não cobre o padrão de vida desejado. Falta patrimônio ou é preciso reduzir o gasto objetivo."}
+                    <p className="text-2xl font-semibold tracking-tight text-ink">
+                      {money(usufruct.totalPassiveIncome, { round: true })} por mês
+                    </p>
+                    <p className="text-sm leading-relaxed text-ink-muted">
+                      É o que esse patrimônio paga sem consumir o principal. Você quer gastar{" "}
+                      <span className="font-semibold text-ink">
+                        {money(Number(params.desiredPassiveIncome), { round: true })}
+                      </span>{" "}
+                      {isSurplus ? "— sobram " : "— faltam "}
+                      <span className={`font-semibold ${isSurplus ? "text-success" : "text-danger"}`}>
+                        {money(Math.abs(usufruct.surplusOrDeficit), { round: true })}
+                      </span>{" "}
+                      todo mês.
+                      {Number(params.otherPassiveIncome) > 0 && (
+                        <>
+                          {" "}
+                          Já contando as outras rendas de{" "}
+                          {money(Number(params.otherPassiveIncome), { round: true })}.
+                        </>
+                      )}
                     </p>
                   </Card>
+
+                  {/* Tudo em dinheiro de hoje, a mesma moeda da manchete. Somar o que saiu do
+                      bolso com os juros NOMINAIS ao lado de um valor final REAL não fecha:
+                      são cenários diferentes (ver o comentário em computeAccumulation). */}
+                  <Section
+                    title="De onde vem esse dinheiro"
+                    hint="Em dinheiro de hoje, a mesma moeda do número lá em cima."
+                  >
+                    <CompositionBar
+                      slices={[
+                        {
+                          key: "bolso",
+                          label: `Você põe do bolso em ${accumulation.years} anos`,
+                          value: accumulation.totalInvested,
+                          formatted: money(accumulation.totalInvested, { round: true }),
+                          color: "var(--color-accent)",
+                        },
+                        {
+                          key: "juros",
+                          label: "Os juros põem",
+                          value: accumulation.totalReturnReal,
+                          formatted: money(accumulation.totalReturnReal, { round: true }),
+                          color: "var(--color-success)",
+                        },
+                      ]}
+                      footnote={
+                        accumulation.totalInvested > 0 && accumulation.totalReturnReal > 0
+                          ? `Para cada ${money(1, { round: true })} que sai do seu bolso, os juros colocam mais ${money(
+                              accumulation.totalReturnReal / accumulation.totalInvested,
+                            )}.`
+                          : undefined
+                      }
+                    />
+                  </Section>
+
+                  <CollapsibleSection label="Ver as premissas">
+                    <div className="flex flex-col gap-4">
+                      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                        <StatCard label="Tempo de contribuição" value={`${accumulation.years} anos`} />
+                        <StatCard label="Rendimento ao ano" value={formatPercent(accumulation.nominalAnnualRate)} />
+                        <StatCard
+                          label="Inflação assumida"
+                          value={formatPercent(Number(params.inflationAnnualRate))}
+                        />
+                        <StatCard
+                          label="Rendimento acima da inflação"
+                          value={formatPercent(accumulation.realAnnualRate)}
+                        />
+                      </div>
+
+                      {/* O número grande e empolgante que NÃO é o mesmo cenário da manchete.
+                          Fica aqui embaixo, dito por extenso, em vez de disputar a tela. */}
+                      <Card className="flex flex-col gap-2 p-5">
+                        <p className="text-sm font-semibold text-ink">
+                          E se você nunca reajustar o aporte?
+                        </p>
+                        <p className="text-sm leading-relaxed text-ink-muted">
+                          O plano acima assume que você acompanha a inflação: guardar{" "}
+                          {money(Number(params.monthlyContributionAccumulation), { round: true })} hoje e ir
+                          corrigindo esse valor com o tempo. Se em vez disso você guardar sempre o mesmo valor
+                          de face, o saldo chega a{" "}
+                          <span className="font-semibold text-ink">
+                            {money(accumulation.finalValueNominal, { round: true })}
+                          </span>
+                          , só que em dinheiro de {new Date().getFullYear() + accumulation.years} — que compra
+                          bem menos do que a manchete.
+                        </p>
+                      </Card>
+                    </div>
+                  </CollapsibleSection>
                 </section>
 
                 <section id="projecao" className="flex flex-col gap-3">

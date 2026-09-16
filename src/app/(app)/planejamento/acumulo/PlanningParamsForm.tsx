@@ -1,13 +1,13 @@
 "use client";
 
 import { useActionState } from "react";
+import { ChevronDown } from "lucide-react";
 import { Field } from "@/components/ui/Field";
 import { CurrencyField } from "@/components/ui/CurrencyField";
 import { PercentField } from "@/components/ui/PercentField";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useSuccessToast } from "@/components/ui/useSuccessToast";
-import { HelpTooltip } from "@/components/forms/HelpTooltip";
 import { savePlanningParamsAction, type PlanningParamsState } from "./actions";
 
 const initialState: PlanningParamsState = {};
@@ -33,81 +33,100 @@ export function PlanningParamsForm({ defaults }: { defaults: Defaults }) {
     <Card as="form" action={formAction} className="flex flex-col gap-5 p-5">
       {state.error && <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{state.error}</p>}
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <Field label="Idade atual" name="currentAge" type="number" defaultValue={defaults.currentAge} required />
-        <Field
-          label="Idade objetivo (aposentadoria)"
-          name="retirementAge"
-          type="number"
-          defaultValue={defaults.retirementAge}
+      {/* Duas metades com pesos diferentes. Em cima, o que a pessoa SABE responder, na mesma
+          voz do wizard da primeira vez. Embaixo, recolhido, o que ela não sabe: taxa,
+          inflação e rendimento na aposentadoria eram três campos obrigatórios de mercado
+          financeiro no meio do formulário, e é ali que quem não é do ramo desiste. */}
+      <div className="flex flex-col gap-5">
+        <CurrencyField
+          label="Quanto custa a vida que você quer?"
+          name="desiredPassiveIncome"
+          defaultValue={defaults.desiredPassiveIncome}
+          hint="Por mês, em dinheiro de hoje."
           required
         />
-        <Field
-          label="Expectativa de vida (opcional)"
-          name="lifeExpectancyAge"
-          type="number"
-          defaultValue={defaults.lifeExpectancyAge ?? undefined}
-        />
-      </div>
-
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <CurrencyField
-          label="Valor inicial"
+          label="Quanto você já tem investido?"
           name="currentPatrimony"
           defaultValue={defaults.currentPatrimony}
           required
         />
         <CurrencyField
-          label="Aporte mensal médio"
+          label="Quanto consegue guardar por mês?"
           name="monthlyContributionAccumulation"
           defaultValue={defaults.monthlyContributionAccumulation}
+          hint="Vale por esse valor em dinheiro de hoje: o plano assume que você acompanha a inflação."
           required
         />
+        <div className="grid grid-cols-2 gap-4">
+          <Field label="Sua idade hoje" name="currentAge" type="number" defaultValue={defaults.currentAge} required />
+          <Field
+            label="Quer parar aos"
+            name="retirementAge"
+            type="number"
+            defaultValue={defaults.retirementAge}
+            required
+          />
+        </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <PercentField
-          label="Taxa nominal (a.a.)"
-          labelExtra={
-            <HelpTooltip text="A rentabilidade anual que você espera obter na fase de acúmulo, antes de descontar a inflação. Ex.: se seus investimentos rendem perto do CDI, use a taxa do CDI." />
-          }
-          name="accumulationAnnualRate"
-          defaultValue={defaults.accumulationAnnualRate}
-          required
-        />
-        <PercentField
-          label="Inflação média (a.a.)"
-          labelExtra={
-            <HelpTooltip text="A inflação anual esperada no longo prazo (ex.: meta do IPCA). Usada para descontar o efeito da inflação e mostrar seu patrimônio em valores de hoje." />
-          }
-          name="inflationAnnualRate"
-          defaultValue={defaults.inflationAnnualRate}
-          required
-        />
-        <PercentField
-          label="Taxa na Liberdade Financeira (a.a.)"
-          labelExtra={
-            <HelpTooltip text="A rentabilidade anual esperada depois de aposentado, na fase de usufruto, geralmente mais conservadora que a taxa de acúmulo, já que você passa a depender desse rendimento para viver." />
-          }
-          name="usufructAnnualRate"
-          defaultValue={defaults.usufructAnnualRate}
-          required
-        />
-      </div>
+      <details className="rounded-xl border border-border bg-surface-2/40 [&[open]>summary>span:last-child]:rotate-180">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4">
+          <span className="flex flex-col gap-0.5">
+            <span className="text-sm font-medium text-ink">Premissas</span>
+            <span className="text-caption text-ink-faint">
+              Os números técnicos. Já vieram preenchidos — só abra se quiser mexer.
+            </span>
+          </span>
+          <span className="text-ink-faint transition-transform">
+            <ChevronDown size={18} strokeWidth={1.75} />
+          </span>
+        </summary>
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <CurrencyField
-          label="Gasto mensal desejado"
-          name="desiredPassiveIncome"
-          defaultValue={defaults.desiredPassiveIncome}
-          required
-        />
-        <CurrencyField
-          label="Outras rendas passivas (ex.: aluguel + INSS)"
-          name="otherPassiveIncome"
-          defaultValue={defaults.otherPassiveIncome}
-        />
-      </div>
+        <div className="flex flex-col gap-5 border-t border-border p-4">
+          <p className="text-caption leading-relaxed text-ink-muted">
+            Nenhum destes números é promessa: são o cenário que você escolhe simular.
+          </p>
+
+          <PercentField
+            label="Quanto seus investimentos rendem por ano"
+            name="accumulationAnnualRate"
+            defaultValue={defaults.accumulationAnnualRate}
+            suggestions={[0.08, 0.1, 0.12]}
+            hint="Antes de descontar a inflação. Se você investe perto do CDI, use a taxa do CDI."
+            required
+          />
+          <PercentField
+            label="Inflação que você assume"
+            name="inflationAnnualRate"
+            defaultValue={defaults.inflationAnnualRate}
+            suggestions={[0.035, 0.045, 0.06]}
+            hint="É ela que traz o dinheiro do futuro para o poder de compra de hoje."
+            required
+          />
+          <PercentField
+            label="Rendimento já vivendo de renda"
+            name="usufructAnnualRate"
+            defaultValue={defaults.usufructAnnualRate}
+            suggestions={[0.04, 0.05, 0.06]}
+            hint="Mais conservador que o da fase de acumular, porque agora você depende dele para viver."
+            required
+          />
+          <div className="grid grid-cols-2 gap-4">
+            <Field
+              label="Até que idade (opcional)"
+              name="lifeExpectancyAge"
+              type="number"
+              defaultValue={defaults.lifeExpectancyAge ?? undefined}
+            />
+            <CurrencyField
+              label="Outras rendas por mês (opcional)"
+              name="otherPassiveIncome"
+              defaultValue={defaults.otherPassiveIncome}
+            />
+          </div>
+        </div>
+      </details>
 
       <Button type="submit" disabled={isPending} className="w-fit">
         {isPending ? "Salvando..." : "Salvar"}
