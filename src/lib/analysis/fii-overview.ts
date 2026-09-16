@@ -61,7 +61,27 @@ function evaluateLiquidez(raw: string): { signal: OverviewSignal; reference: str
   };
 }
 
-const ORDER = ["p_vp", "vacancia_atual", "liquidez_fii", "taxa_administracao"];
+/** Tamanho do fundo pela magnitude ("R$ 7,57 Bilhões"): fundo grande fecha menos e negocia melhor. */
+function evaluatePatrimonio(raw: string): { signal: OverviewSignal; reference: string } | null {
+  const n = parseMagnitudeBRL(raw);
+  if (n === null) return null;
+  return {
+    signal: n >= 1_000_000_000 ? "favoravel" : n < 100_000_000 ? "atencao" : "neutro",
+    reference: "acima de R$ 1 bilhão é um fundo grande; abaixo de R$ 100 milhões, ponto de atenção (risco de liquidez e de fechamento)",
+  };
+}
+
+/** Quantos imóveis: poucos imóveis = a renda depende de poucos inquilinos e endereços. */
+function evaluateImoveis(raw: string): { signal: OverviewSignal; reference: string } | null {
+  const n = parseIndicatorNumber(raw);
+  if (n === null) return null;
+  return {
+    signal: n >= 10 ? "favoravel" : n < 5 ? "atencao" : "neutro",
+    reference: "10 imóveis ou mais diversifica bem; menos de 5, a renda depende de poucos endereços — ponto de atenção",
+  };
+}
+
+const ORDER = ["p_vp", "vacancia_atual", "liquidez_fii", "taxa_administracao", "numero_imoveis", "patrimonio_liquido"];
 
 /** Monta o overview do FII a partir do mapa { key → valor } raspado (mesmo formato do de ações). */
 export function buildFiiOverview(indicators: Record<string, string>): {
@@ -75,6 +95,16 @@ export function buildFiiOverview(indicators: Record<string, string>): {
     if (key === "liquidez_fii") {
       const evaluated = evaluateLiquidez(raw);
       if (evaluated) items.push({ key, label: LIQUIDEZ_LABEL, value: raw, ...evaluated });
+      continue;
+    }
+    if (key === "patrimonio_liquido") {
+      const evaluated = evaluatePatrimonio(raw);
+      if (evaluated) items.push({ key, label: "Patrimônio", value: raw, ...evaluated });
+      continue;
+    }
+    if (key === "numero_imoveis") {
+      const evaluated = evaluateImoveis(raw);
+      if (evaluated) items.push({ key, label: "Número de Imóveis", value: raw, ...evaluated });
       continue;
     }
     const rule = RULES[key];

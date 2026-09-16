@@ -71,6 +71,7 @@ const SECTIONS: Record<SheetType, { id: string; question: string; keys: string[]
   ],
   FII: [
     { id: "preco", question: "Está cara ou barata?", keys: ["p_vp"] },
+    { id: "tamanho", question: "É grande e diversificado?", keys: ["numero_imoveis", "patrimonio_liquido"] },
     { id: "ocupacao", question: "Está cheio?", keys: ["vacancia_atual"] },
     { id: "custo", question: "Cobra muito?", keys: ["taxa_administracao"] },
     { id: "liquidez", question: "Dá pra entrar e sair?", keys: ["liquidez_fii"] },
@@ -90,8 +91,6 @@ const FACT_KEYS: Record<SheetType, { key: string; label: string }[]> = {
     { key: "segmento", label: "Segmento" },
     { key: "mandato", label: "Mandato" },
     { key: "tipo_gestao", label: "Gestão" },
-    { key: "numero_imoveis", label: "Imóveis" },
-    { key: "patrimonio_liquido", label: "Patrimônio" },
   ],
   ETF: [],
 };
@@ -142,16 +141,86 @@ const PLAIN: Record<string, (v: number, raw: string) => string> = {
   evolucao_receita: (v) => (v >= 0 ? `Vendeu ${pct(v)} mais que há 5 anos` : `Vendeu ${pct(-v)} menos que há 5 anos`),
   evolucao_lucro: (v) => (v >= 0 ? `Lucra ${pct(v)} mais que há 5 anos` : `Lucra ${pct(-v)} menos que há 5 anos`),
   vacancia_atual: (v) => `${v.toFixed(1).replace(".", ",")}% da área está vazia hoje`,
+  numero_imoveis: (v) =>
+    v >= 10 ? `Tem ${Math.round(v)} imóveis: a renda não depende de um endereço só` : `Tem ${Math.round(v)} imóveis: a renda depende de poucos endereços`,
+  patrimonio_liquido: (_v, raw) => `Um fundo de ${compactValue(raw)}`,
+  liquidez_fii: (_v, raw) => `Negocia ${compactValue(raw)} por dia`,
   taxa_administracao: (v) => `Cobra ${v.toFixed(2).replace(".", ",")}% ao ano pra administrar`,
   dividend_yield_etf: (v) => `Pagou ${v.toFixed(1).replace(".", ",")}% em dividendos nos últimos 12 meses`,
   rentabilidade_12m: (v) => (v >= 0 ? `Rendeu ${pct(v)} nos últimos 12 meses` : `Perdeu ${pct(-v)} nos últimos 12 meses`),
   rentabilidade_5anos: (v) => (v >= 0 ? `Rendeu ${pct(v)} em 5 anos` : `Perdeu ${pct(-v)} em 5 anos`),
 };
 
+/**
+ * O nome que aparece grande no quadradinho. A sigla vem pequena, embaixo. Quem está
+ * começando vê "Preço pelo lucro" antes de ver "P/L" — o jargão fica disponível sem ser a
+ * primeira coisa que assusta.
+ */
+export const FRIENDLY_LABEL: Record<string, string> = {
+  p_l: "Preço pelo lucro",
+  p_vp: "Preço pelo patrimônio",
+  ev_ebitda: "Preço pelo caixa que gera",
+  dividend_yield: "Dividendos",
+  roe: "Retorno pros sócios",
+  roic: "Retorno do negócio",
+  margem_liquida: "O que sobra de cada venda",
+  margem_ebit: "Sobra antes de juros",
+  divida_liquida_ebitda: "Dívida pelo caixa",
+  divida_liquida_patrimonio: "Dívida pelo patrimônio",
+  liquidez_corrente: "Caixa de curto prazo",
+  evolucao_receita: "Vendas em 5 anos",
+  evolucao_lucro: "Lucro em 5 anos",
+  vacancia_atual: "Área vazia",
+  taxa_administracao: "Taxa de administração",
+  liquidez_fii: "Negociação por dia",
+  numero_imoveis: "Imóveis",
+  patrimonio_liquido: "Tamanho do fundo",
+  patrimonio_liquido_etf: "Tamanho do fundo",
+  dividend_yield_etf: "Dividendos",
+  rentabilidade_12m: "Rendeu em 12 meses",
+  rentabilidade_5anos: "Rendeu em 5 anos",
+};
+
+/** A sigla/nome técnico, sem o parêntese explicativo: "P/L", "ROE", "Dívida Líquida / EBITDA". */
+export function technicalLabel(item: Pick<OverviewItem, "label">): string {
+  return item.label.replace(/\s*\(.*?\)\s*/g, "").trim();
+}
+
+/**
+ * A frase de resumo de uma seção — o que a pessoa vê ANTES de abrir os números. Se algum
+ * item pede atenção, é ele que fala; senão o primeiro favorável; senão o primeiro. Uma frase
+ * por pergunta é o tamanho que uma iniciante lê inteiro.
+ */
+export function sectionSummary(section: LaudoSection): { text: string; signal: OverviewSignal } {
+  const lead =
+    section.items.find((i) => i.signal === "atencao") ??
+    section.items.find((i) => i.signal === "favoravel") ??
+    section.items[0];
+  return { text: lead.plain, signal: lead.signal };
+}
+
+/** Indicadores cujo valor é uma magnitude ("R$ 7,57 Bilhões") que o parser numérico não lê: a frase usa o texto cru. */
+const RAW_ONLY = new Set(["patrimonio_liquido", "liquidez_fii"]);
+
+/**
+ * "R$ 7,57 Bilhões" → "R$ 7,57 bi", "R$ 20,64 M" → "R$ 20,64 mi", "R$ 900 mil" fica. Só encurta a
+ * unidade, nunca o número: é pra caber no quadradinho sem mudar o que a fonte disse.
+ */
+export function compactValue(raw: string): string {
+  return raw
+    .trim()
+    .replace(/\s*bilh[õo]es?\b/i, " bi")
+    .replace(/\s*milh[õo]es?\b/i, " mi")
+    .replace(/\s+B\b/, " bi")
+    .replace(/\s+M\b/, " mi")
+    .replace(/\s+/g, " ");
+}
+
 function plainFor(item: OverviewItem): string {
   const fn = PLAIN[item.key];
+  if (!fn) return item.reference;
   const v = n(item.value);
-  if (fn && v !== null) return fn(v, item.value);
+  if (v !== null || RAW_ONLY.has(item.key)) return fn(v ?? Number.NaN, item.value);
   return item.reference;
 }
 

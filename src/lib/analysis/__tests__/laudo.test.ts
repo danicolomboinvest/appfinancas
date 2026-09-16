@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildLaudo, diffLaudo, isLaudo } from "../laudo";
+import { buildLaudo, compactValue, diffLaudo, isLaudo, sectionSummary } from "../laudo";
 
 /** Indicadores plausíveis de uma petroleira: baratos, rentáveis, pouco endividados, receita caindo. */
 const PETRO = {
@@ -66,11 +66,42 @@ describe("buildLaudo", () => {
       segmento: "Galpões logísticos",
       numero_imoveis: "17",
     });
-    expect(l.sections.map((s) => s.question)).toEqual(["Está cara ou barata?", "Está cheio?", "Cobra muito?"]);
-    expect(l.facts).toEqual([
-      { label: "Segmento", value: "Galpões logísticos" },
-      { label: "Imóveis", value: "17" },
+    expect(l.sections.map((s) => s.question)).toEqual([
+      "Está cara ou barata?",
+      "É grande e diversificado?",
+      "Está cheio?",
+      "Cobra muito?",
     ]);
+    // 17 imóveis é diversificação, e diversificação é favorável — virou quadradinho, não rodapé.
+    const imoveis = l.sections[1].items.find((i) => i.key === "numero_imoveis");
+    expect(imoveis?.signal).toBe("favoravel");
+    expect(imoveis?.plain).toBe("Tem 17 imóveis: a renda não depende de um endereço só");
+    expect(l.facts).toEqual([{ label: "Segmento", value: "Galpões logísticos" }]);
+  });
+
+  it("reads a fund's size and daily trading from their magnitude text", () => {
+    const l = buildLaudo("FII", { patrimonio_liquido: "R$ 7,57 Bilhões", liquidez_fii: "R$ 20,64 M" });
+    const tamanho = l.sections[0].items[0];
+    expect(tamanho.signal).toBe("favoravel");
+    expect(tamanho.plain).toBe("Um fundo de R$ 7,57 bi");
+    const liquidez = l.sections[1].items[0];
+    expect(liquidez.plain).toBe("Negocia R$ 20,64 mi por dia");
+  });
+
+  it("shortens only the unit of a magnitude, never the number", () => {
+    expect(compactValue("R$ 7,57 Bilhões")).toBe("R$ 7,57 bi");
+    expect(compactValue("R$ 20,64 M")).toBe("R$ 20,64 mi");
+    expect(compactValue("R$ 900 mil")).toBe("R$ 900 mil");
+    expect(compactValue("4,13")).toBe("4,13");
+  });
+
+  it("summarises each question in one sentence, led by the attention point when there is one", () => {
+    const l = buildLaudo("STOCK", PETRO);
+    expect(sectionSummary(l.sections[2])).toEqual({
+      signal: "atencao",
+      text: "O caixa de curto prazo não cobre as contas de curto prazo",
+    });
+    expect(sectionSummary(l.sections[1]).signal).toBe("favoravel");
   });
 
   it("reads an ETF", () => {

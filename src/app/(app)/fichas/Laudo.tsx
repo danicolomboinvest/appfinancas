@@ -2,8 +2,10 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { RefreshCw } from "lucide-react";
+
+const NUMBERS_KEY = "spi.laudo.numeros";
 import { Card } from "@/components/ui/Card";
-import type { Laudo, LaudoChange, LaudoItem } from "@/lib/analysis/laudo";
+import { FRIENDLY_LABEL, compactValue, sectionSummary, technicalLabel, type Laudo, type LaudoChange, type LaudoItem } from "@/lib/analysis/laudo";
 import type { OverviewSignal } from "@/lib/analysis/stock-overview";
 import { readLaudoAction } from "./laudo-actions";
 
@@ -47,6 +49,28 @@ export function LaudoView({
   const [error, setError] = useState<string | null>(null);
   const [reading, startReading] = useTransition();
   const [openKey, setOpenKey] = useState<string | null>(null);
+  // Resumo por padrão: uma frase por pergunta. Os quadradinhos ficam atrás de "Ver os
+  // números" — quem está começando lê quatro frases; quem quer, abre os treze. A escolha é
+  // lembrada no aparelho (conveniência de quem vê, não dado).
+  const [showNumbers, setShowNumbers] = useState(false);
+  useEffect(() => {
+    try {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- lê uma preferência do aparelho na montagem; no servidor não existe localStorage, então não pode ser o estado inicial
+      if (window.localStorage.getItem(NUMBERS_KEY) === "1") setShowNumbers(true);
+    } catch {
+      /* sem localStorage: fica no resumo */
+    }
+  }, []);
+  function toggleNumbers() {
+    setShowNumbers((v) => {
+      try {
+        window.localStorage.setItem(NUMBERS_KEY, v ? "0" : "1");
+      } catch {
+        /* ignora */
+      }
+      return !v;
+    });
+  }
 
   function read() {
     startReading(async () => {
@@ -142,33 +166,54 @@ export function LaudoView({
         <p className="text-caption text-ink-muted">{laudo.facts.map((f) => `${f.label}: ${f.value}`).join(" · ")}</p>
       )}
 
-      {/* Os indicadores, por pergunta: quadradinhos, não linhas. Um quadrado por indicador
-          deixa o valor grande e a cor visível de longe; tocou, a explicação abre embaixo da
-          grade. Os de atenção já abrem explicados — são os que a pessoa precisa entender. */}
+      {/* Cada pergunta, respondida em UMA frase. É o que uma iniciante lê inteiro. Os
+          quadradinhos (um por indicador, nome de gente em cima, sigla embaixo) ficam atrás
+          de "Ver os números"; os de atenção já vêm explicados quando os números abrem. */}
       <div className="flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <p className="text-label text-ink-faint">Pergunta por pergunta</p>
+          <button type="button" onClick={toggleNumbers} className="text-caption font-medium text-accent-strong hover:underline">
+            {showNumbers ? "Só o resumo" : "Ver os números"}
+          </button>
+        </div>
+
         {laudo.sections.map((section) => {
+          const resumo = sectionSummary(section);
           const aberto = section.items.find((i) => i.key === openKey) ?? null;
           const atencao = section.items.filter((i) => i.signal === "atencao" && i.key !== openKey);
           return (
             <Card key={section.id} className="flex flex-col gap-3 p-4">
-              <p className="text-label text-ink-faint">{section.question}</p>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-                {section.items.map((item) => (
-                  <LaudoTile
-                    key={item.key}
-                    item={item}
-                    open={openKey === item.key}
-                    onToggle={() => setOpenKey(openKey === item.key ? null : item.key)}
-                  />
-                ))}
-              </div>
-              {(aberto || atencao.length > 0) && (
-                <div className="flex flex-col gap-1.5">
-                  {aberto && <Explanation item={aberto} />}
-                  {atencao.map((item) => (
-                    <Explanation key={item.key} item={item} />
-                  ))}
+              <div className="flex items-start gap-3">
+                <span className={`mt-2 size-2 shrink-0 rounded-full ${SIGNAL_DOT[resumo.signal]}`} />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-ink">{section.question}</p>
+                  <p className={`mt-0.5 text-sm leading-relaxed ${resumo.signal === "atencao" ? "text-danger" : "text-ink-muted"}`}>
+                    {resumo.text}
+                  </p>
                 </div>
+              </div>
+
+              {showNumbers && (
+                <>
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+                    {section.items.map((item) => (
+                      <LaudoTile
+                        key={item.key}
+                        item={item}
+                        open={openKey === item.key}
+                        onToggle={() => setOpenKey(openKey === item.key ? null : item.key)}
+                      />
+                    ))}
+                  </div>
+                  {(aberto || atencao.length > 0) && (
+                    <div className="flex flex-col gap-1.5">
+                      {aberto && <Explanation item={aberto} />}
+                      {atencao.map((item) => (
+                        <Explanation key={item.key} item={item} />
+                      ))}
+                    </div>
+                  )}
+                </>
               )}
             </Card>
           );
@@ -230,11 +275,10 @@ function LaudoTile({ item, open, onToggle }: { item: LaudoItem; open: boolean; o
     >
       <span className="flex items-center gap-1.5">
         <span className={`size-2 shrink-0 rounded-full ${SIGNAL_DOT[item.signal]}`} />
-        <span className="truncate text-caption font-medium text-ink-muted">
-          {SHORT_LABEL[item.key] ?? item.label.replace(/\s*\(.*?\)\s*/g, "")}
-        </span>
+        <span className="truncate text-caption font-medium text-ink">{FRIENDLY_LABEL[item.key] ?? SHORT_LABEL[item.key] ?? technicalLabel(item)}</span>
       </span>
-      <span className="mt-1 text-lg font-semibold tabular-nums tracking-tight text-ink">{item.value}</span>
+      <span className="mt-1 block text-lg font-semibold leading-tight tabular-nums tracking-tight text-ink">{compactValue(item.value)}</span>
+      <span className="mt-0.5 block truncate text-[10px] uppercase tracking-wide text-ink-faint">{SHORT_LABEL[item.key] ?? technicalLabel(item)}</span>
     </button>
   );
 }
@@ -244,7 +288,7 @@ function Explanation({ item }: { item: LaudoItem }) {
     <div className="flex items-start gap-2 rounded-lg bg-surface-2/60 px-3 py-2">
       <span className={`mt-1.5 size-2 shrink-0 rounded-full ${SIGNAL_DOT[item.signal]}`} />
       <p className={`text-caption leading-relaxed ${item.signal === "atencao" ? "text-danger" : "text-ink"}`}>
-        <span className="font-medium">{item.label.replace(/\s*\(.*?\)\s*/g, "")}:</span> {item.plain}
+        <span className="font-medium">{FRIENDLY_LABEL[item.key] ?? technicalLabel(item)}:</span> {item.plain}
         <span className="text-ink-faint"> · régua: {item.reference}</span>
       </p>
     </div>
