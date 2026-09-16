@@ -6,6 +6,7 @@ import {
   getAnnualPlannedVsActual,
   computeMonthSavings,
   findBiggestOverrun,
+  findUnrecorded,
   findBiggestSaving,
   compareCategoryBudget,
   type CategoryComparison,
@@ -100,6 +101,7 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
   const monthSavings = currentMonthData ? computeMonthSavings(currentMonthData) : null;
   const biggestOverrun = currentMonthData ? findBiggestOverrun(currentMonthData.categories) : null;
   const biggestSaving = currentMonthData ? findBiggestSaving(currentMonthData.categories) : null;
+  const unrecorded = currentMonthData ? findUnrecorded(currentMonthData.categories) : [];
 
   // Comparação por categoria somando os meses já realizados no ano.
   const realizedMonths = comparison.months.filter((m) => m.isRealized);
@@ -214,15 +216,19 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
         />
       </CollapsibleSection>
 
+      {/* Três linhas no celular, três colunas no computador — e "sem lançamento" no lugar de
+          "melhor categoria" quando o que existe é categoria em zero, não economia. */}
       {isCurrentYear && (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-3 lg:gap-4">
           <StatCard
+            layout="row"
             label="Economia no mês"
             value={monthSavings === null ? "—" : money(Math.abs(monthSavings))}
             tone={monthSavings === null ? "neutral" : monthSavings >= 0 ? "success" : "danger"}
             hint={monthSavings === null ? "Defina um planejamento para ver essa comparação." : monthSavings >= 0 ? "Abaixo do planejado" : "Acima do planejado"}
           />
           <StatCard
+            layout="row"
             label="Categoria que mais estourou"
             value={biggestOverrun ? categoryLabel(biggestOverrun.categoryKey) : "Nenhuma"}
             tone={biggestOverrun ? "danger" : "neutral"}
@@ -232,16 +238,31 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
                 : "Nenhuma categoria estourou este mês"
             }
           />
-          <StatCard
-            label="Melhor categoria"
-            value={biggestSaving ? categoryLabel(biggestSaving.categoryKey) : "Nenhuma"}
-            tone={biggestSaving ? "success" : "neutral"}
-            hint={
-              biggestSaving && biggestSaving.deviationPercent !== null
-                ? `${formatPercentNumber(biggestSaving.deviationPercent * 100, 0)} vs. o planejado`
-                : "Sem economia de destaque este mês"
-            }
-          />
+          {biggestSaving ? (
+            <StatCard
+              layout="row"
+              label="Economizou mais em"
+              value={categoryLabel(biggestSaving.categoryKey)}
+              tone="success"
+              hint={
+                biggestSaving.deviationPercent !== null
+                  ? `${formatPercentNumber(Math.abs(biggestSaving.deviationPercent) * 100, 0)} abaixo do planejado`
+                  : undefined
+              }
+            />
+          ) : (
+            <StatCard
+              layout="row"
+              label={unrecorded.length === 1 ? "Sem lançamento" : `Sem lançamento (${unrecorded.length})`}
+              value={unrecorded.length > 0 ? categoryLabel(unrecorded[0].categoryKey) : "Nenhuma"}
+              tone="neutral"
+              hint={
+                unrecorded.length > 0
+                  ? `${money(0, { round: true })} de ${money(unrecorded[0].planned, { round: true })} planejados — vale conferir`
+                  : "Sem economia de destaque este mês"
+              }
+            />
+          )}
         </div>
       )}
 

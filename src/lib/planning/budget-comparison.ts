@@ -91,10 +91,15 @@ export function findBiggestOverrun(categories: CategoryComparison[]): CategoryCo
 }
 
 /** "Melhor categoria": maior economia percentual (desvio mais negativo) entre categorias com plano definido. */
+/**
+ * A categoria que mais economizou de VERDADE. Gasto zero não conta: uma categoria orçada sem
+ * nenhum lançamento é "−100%" e ganhava sempre — o app parabenizava a pessoa por ter esquecido
+ * de lançar Transporte. Quem está em zero vai pra `findUnrecorded`, que é outra conversa.
+ */
 export function findBiggestSaving(categories: CategoryComparison[]): CategoryComparison | null {
   const savings = categories.filter(
     (c): c is CategoryComparison & { deviationPercent: number } =>
-      c.status !== "SEM_PLANO" && c.deviationPercent !== null && c.deviationPercent < 0,
+      c.status !== "SEM_PLANO" && c.spent > 0 && c.deviationPercent !== null && c.deviationPercent < 0,
   );
   if (savings.length === 0) return null;
   return savings.reduce((min, c) => (c.deviationPercent < min.deviationPercent ? c : min));
@@ -165,4 +170,9 @@ export async function getAnnualPlannedVsActual(ctx: AuthContext, year: number): 
   const totalSpentRealized = realizedMonths.reduce((sum, m) => sum + m.totalSpent, 0);
 
   return { year, months, totalPlannedRealized, totalSpentRealized };
+}
+
+/** Categorias com plano e nenhum lançamento no mês: quase sempre é gasto que não foi registrado, não economia. */
+export function findUnrecorded(categories: CategoryComparison[]): CategoryComparison[] {
+  return categories.filter((c) => c.status !== "SEM_PLANO" && c.planned > 0 && c.spent === 0);
 }

@@ -295,7 +295,7 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
       <BudgetSection ctx={ctx} year={year} month={month} totalIncome={summary.totalIncome} />
 
       {entries.length === 0 ? (
-        <EmptyState icon={Receipt} message="Nenhum lançamento neste mês ainda. Use o formulário acima para registrar o primeiro." />
+        <EmptyState icon={Receipt} message="Nenhum lançamento neste mês ainda. Toque em Registrar (o + no meio da barra de baixo) para lançar o primeiro — digitando, por áudio ou importando o extrato." />
       ) : (
         <EntryList
           year={year}

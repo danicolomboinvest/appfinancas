@@ -56,8 +56,8 @@ export function StatCard({
     return (
       <Card className="flex items-center gap-4 p-4">
         <div className="min-w-0 flex-1">
-          <p className="text-xs text-ink-muted">{label}</p>
-          <p className={`mt-1 text-2xl font-semibold tracking-tight ${TONE_CLASSES[tone]}`}>{value}</p>
+          <p className="text-xs text-ink-muted lg:text-[13px]">{label}</p>
+          <p className={`mt-1 text-2xl font-semibold tracking-tight lg:text-[26px] ${TONE_CLASSES[tone]}`}>{value}</p>
           {hint && <p className="mt-1 text-xs text-ink-faint">{hint}</p>}
           {trendChip && <div className="mt-2">{trendChip}</div>}
         </div>
@@ -72,15 +72,17 @@ export function StatCard({
 
   return (
     <Card className="p-3.5 sm:p-4">
-      <p className="text-xs text-ink-muted">{label}</p>
+      {/* No computador o card usava os tamanhos do celular esticados (rótulo 12px, número
+          20px) e lia como rodapé. A partir de lg: rótulo 13px, número 24px. */}
+      <p className="text-xs text-ink-muted lg:text-[13px]">{label}</p>
       {/* FitText: "R$ 1.234.567,89" é inquebrável e estourava o card em grade 2/3 colunas no
           celular — a fonte encolhe só o necessário pra caber, nunca corta. */}
       <div className="mt-1.5">
-        <FitText className={`text-lg leading-snug font-semibold tracking-tight sm:text-xl ${TONE_CLASSES[tone]}`}>
+        <FitText className={`text-lg leading-snug font-semibold tracking-tight sm:text-xl lg:text-2xl ${TONE_CLASSES[tone]}`}>
           {value}
         </FitText>
       </div>
-      {hint && <p className="mt-1 text-xs text-ink-faint">{hint}</p>}
+      {hint && <p className="mt-1 text-xs text-ink-faint lg:text-[13px]">{hint}</p>}
       {sparkline && (
         <div className="-mx-1 mt-2">
           <MiniSparkline points={sparkline} tone={tone === "neutral" ? "accent" : tone} />

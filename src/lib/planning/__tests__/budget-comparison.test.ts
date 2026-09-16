@@ -5,6 +5,7 @@ import {
   computeMonthSavings,
   findBiggestOverrun,
   findBiggestSaving,
+  findUnrecorded,
   computeOverBudgetStreak,
   type CategoryComparison,
   type MonthlyPlannedVsActual,
@@ -143,5 +144,19 @@ describe("computeOverBudgetStreak", () => {
 
   it("returns 0 when the most recent month is not over budget", () => {
     expect(computeOverBudgetStreak([makeMonth(5, "DENTRO")], "LAZER")).toBe(0);
+  });
+});
+
+describe("gasto zero não é economia", () => {
+  const categories = [
+    { categoryKey: "TRANSPORTE", planned: 1500, spent: 0, deviationPercent: -1, status: "DENTRO" as const },
+    { categoryKey: "LAZER", planned: 500, spent: 400, deviationPercent: -0.2, status: "DENTRO" as const },
+    { categoryKey: "MORADIA", planned: 3000, spent: 3300, deviationPercent: 0.1, status: "ACIMA" as const },
+  ];
+  it("ignora a categoria sem lançamento ao escolher a melhor", () => {
+    expect(findBiggestSaving(categories)?.categoryKey).toBe("LAZER");
+  });
+  it("separa quem está em zero pra virar aviso, não elogio", () => {
+    expect(findUnrecorded(categories).map((c) => c.categoryKey)).toEqual(["TRANSPORTE"]);
   });
 });
