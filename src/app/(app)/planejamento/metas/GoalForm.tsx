@@ -10,6 +10,7 @@ import { MonthYearField } from "@/components/ui/MonthYearField";
 import { Button } from "@/components/ui/Button";
 import { useSuccessToast } from "@/components/ui/useSuccessToast";
 import { createGoalAction, updateGoalAction, type GoalFormState } from "./actions";
+import { detectGoalKind } from "@/lib/planning/goal-kind";
 
 const initialState: GoalFormState = {};
 
@@ -21,8 +22,16 @@ const ICON_OPTIONS: { value: GoalIcon; label: string; Icon: typeof Target }[] = 
   { value: "GENERICO", label: "Genérico", Icon: Target },
 ];
 
-function GoalIconPicker({ defaultValue = "GENERICO" }: { defaultValue?: GoalIcon }) {
+/**
+ * O ícone acompanha o nome enquanto a pessoa digita — "Entrada do apê" acende a casinha
+ * sozinha. Mas no instante em que ela toca num botão, o palpite para de valer para sempre:
+ * um app que desfaz a escolha da pessoa a cada letra digitada é pior que um que não adivinha.
+ */
+function GoalIconPicker({ defaultValue = "GENERICO", nome }: { defaultValue?: GoalIcon; nome: string }) {
   const [icon, setIcon] = useState<GoalIcon>(defaultValue);
+  const [escolhidoAMao, setEscolhidoAMao] = useState(defaultValue !== "GENERICO");
+  const sugerido = detectGoalKind(nome);
+  const atual: GoalIcon = escolhidoAMao ? icon : (sugerido ?? icon);
   return (
     <div className="flex flex-col gap-1.5">
       <span className="text-xs font-medium text-ink-muted">Ícone</span>
@@ -32,9 +41,12 @@ function GoalIconPicker({ defaultValue = "GENERICO" }: { defaultValue?: GoalIcon
             key={value}
             type="button"
             title={label}
-            onClick={() => setIcon(value)}
+            onClick={() => {
+              setIcon(value);
+              setEscolhidoAMao(true);
+            }}
             className={`flex h-9 w-9 items-center justify-center rounded-lg border transition-colors ${
-              icon === value
+              atual === value
                 ? "border-accent bg-accent-soft text-accent-strong"
                 : "border-border-strong bg-surface-2 text-ink-muted hover:text-ink"
             }`}
@@ -43,7 +55,7 @@ function GoalIconPicker({ defaultValue = "GENERICO" }: { defaultValue?: GoalIcon
           </button>
         ))}
       </div>
-      <input type="hidden" name="icon" value={icon} />
+      <input type="hidden" name="icon" value={atual} />
     </div>
   );
 }
@@ -71,6 +83,7 @@ export function GoalForm({
 }) {
   const action = goalId ? updateGoalAction.bind(null, goalId) : createGoalAction;
   const [state, formAction, isPending] = useActionState(action, initialState);
+  const [nome, setNome] = useState(defaults.name ?? "");
   const wasPending = useRef(false);
   useSuccessToast(isPending, state.error, goalId ? "Meta atualizada com sucesso." : "Meta criada com sucesso.");
 
@@ -84,8 +97,17 @@ export function GoalForm({
   return (
     <form action={formAction} className="flex flex-wrap items-end gap-3">
       {state.error && <p className="w-full rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{state.error}</p>}
-      <Field label="Nome da meta" id="name" name="name" required defaultValue={defaults.name} placeholder="Ex.: Viagem" />
-      <GoalIconPicker defaultValue={defaults.icon} />
+      <Field
+        label="Nome da meta"
+        id="name"
+        name="name"
+        required
+        defaultValue={defaults.name}
+        placeholder="Ex.: Viagem, Entrada do apê, Trocar de carro"
+        value={nome}
+        onChange={(e) => setNome(e.target.value)}
+      />
+      <GoalIconPicker defaultValue={defaults.icon} nome={nome} />
       <CurrencyField
         label="Valor-alvo"
         id="targetAmount"

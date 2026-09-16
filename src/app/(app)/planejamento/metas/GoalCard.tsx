@@ -8,6 +8,7 @@ import { EditGoalButton } from "./EditGoalButton";
 import { GoalAporteChip } from "./GoalAporteChip";
 import type { GoalCalcResult } from "@/lib/planning/goal";
 import { serverMoney } from "@/lib/money-server";
+import { resolveGoalKind } from "@/lib/planning/goal-kind";
 
 export type GoalVariant = "ahead" | "onTrack" | "behind" | "achieved";
 
@@ -88,7 +89,11 @@ export async function GoalCard({
   const money = await serverMoney();
   const progressPercent = targetAmount > 0 ? Math.min(currentAmount / targetAmount, 1) : 0;
   const achieved = variant === "achieved";
-  const Icon = GOAL_ICONS[icon];
+  // O nome decide quando a pessoa deixou o ícone em "Genérico" — a maioria deixa. Assim
+  // "Entrada do apê" e "Trocar de carro" ganham cor, ícone e ferramenta sem ela precisar
+  // lembrar de apertar um botãozinho a mais.
+  const kind = resolveGoalKind(icon, name);
+  const Icon = GOAL_ICONS[kind];
 
   // O anel FICA — ele é um gráfico, e é isso que dá vida ao card; a barra chapada que eu tinha
   // posto no lugar dizia a mesma coisa e lia como enfeite, não como informação.
@@ -103,7 +108,7 @@ export async function GoalCard({
           <Link href={`/planejamento/metas/${id}`} className="flex min-w-0 items-center gap-2">
             <span
               className="flex size-6 shrink-0 items-center justify-center rounded-md"
-              style={{ backgroundColor: `color-mix(in srgb, ${GOAL_COLORS[icon]} 16%, transparent)`, color: GOAL_COLORS[icon] }}
+              style={{ backgroundColor: `color-mix(in srgb, ${GOAL_COLORS[kind]} 16%, transparent)`, color: GOAL_COLORS[kind] }}
             >
               <Icon size={14} strokeWidth={2} />
             </span>
@@ -124,7 +129,7 @@ export async function GoalCard({
           </p>
         </div>
 
-        <ProgressRing percent={progressPercent} size={64} color={GOAL_COLORS[icon]} />
+        <ProgressRing percent={progressPercent} size={64} color={GOAL_COLORS[kind]} />
       </div>
 
       {!achieved && (
@@ -138,12 +143,12 @@ export async function GoalCard({
         </div>
       )}
 
-      {GOAL_TOOL[icon] && !achieved && (
+      {GOAL_TOOL[kind] && !achieved && (
         <Link
-          href={GOAL_TOOL[icon]!.href}
+          href={GOAL_TOOL[kind]!.href}
           className="inline-flex w-fit items-center gap-1 text-caption font-medium text-accent-strong hover:underline"
         >
-          {GOAL_TOOL[icon]!.label} →
+          {GOAL_TOOL[kind]!.label} →
         </Link>
       )}
 
