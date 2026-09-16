@@ -39,10 +39,18 @@ export function BulletBar({
   /** Legenda do tracinho, só aparece quando existe pelo menos um alvo. */
   targetHint,
   onSelect,
+  wide = false,
 }: {
   rows: BulletRow[];
   targetHint?: string;
   onSelect?: (key: string) => void;
+  /**
+   * Quem ocupa a largura inteira de um monitor pede `wide`: a partir de `lg` as barras se
+   * organizam em duas colunas. Uma barra de 1.100px de largura para mostrar uma porcentagem
+   * é espaço desperdiçado, e o nome fica a um palmo do número. Fica de fora (padrão) quem já
+   * vive dentro de uma coluna estreita, onde dividir em duas só espremeria.
+   */
+  wide?: boolean;
 }) {
   // Cresce de zero ao entrar na tela: é a animação que faz o olho ler aquilo como progresso,
   // e não como um desenho estático. Mesmo comportamento da ProgressBar e do ProgressRing.
@@ -56,7 +64,7 @@ export function BulletBar({
   const hasTarget = rows.some((r) => r.targetPercent != null);
 
   return (
-    <div className="flex flex-col gap-3.5">
+    <div className={`grid gap-y-3.5 ${wide ? "lg:grid-cols-2 lg:gap-x-8" : ""}`}>
       {rows.map((row) => {
         const fill = Math.min(Math.max(row.fillPercent, 0), 100);
         const fillColor = row.isUnplanned
@@ -105,7 +113,9 @@ export function BulletBar({
         );
       })}
 
-      {hasTarget && targetHint && <p className="text-xs text-ink-faint">{targetHint}</p>}
+      {hasTarget && targetHint && (
+        <p className={`text-xs text-ink-faint ${wide ? "lg:col-span-2" : ""}`}>{targetHint}</p>
+      )}
     </div>
   );
 }

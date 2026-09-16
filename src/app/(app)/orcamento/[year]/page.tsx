@@ -250,6 +250,7 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
           title={`Renda e aporte em ${MONTH_LABELS[currentMonthData.month - 1]}`}
           hint="Planejar é decidir quanto entra, quanto sai e quanto fica guardado — não só o que gastar."
         >
+          <div className="grid gap-4 lg:grid-cols-2 lg:gap-x-8">
           <PlanVsActualRow
             label="Renda"
             planned={monthPlan?.plannedIncome ?? 0}
@@ -270,6 +271,7 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
             }}
             color="var(--color-accent)"
           />
+          </div>
         </Section>
       )}
 
@@ -277,7 +279,11 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
         title="Planejado × realizado no ano"
         hint="O preenchimento é o que você já gastou no ano. O tracinho é onde o ano está."
       >
-        <BulletBar rows={yearBullets} targetHint="Passou do tracinho? Está gastando adiantado para a altura do ano." />
+        <BulletBar
+          rows={yearBullets}
+          targetHint="Passou do tracinho? Está gastando adiantado para a altura do ano."
+          wide
+        />
       </Section>
 
       {monthBullets.length > 0 && (
@@ -285,7 +291,7 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
           title={`Por categoria em ${MONTH_LABELS[(currentMonthData?.month ?? 1) - 1]}`}
           hint="Ordenado por quem está mais perto de estourar — quem precisa de atenção fica no topo."
         >
-          <BulletBar rows={monthBullets} />
+          <BulletBar rows={monthBullets} wide />
           {/* O veredito em uma linha: o desenho aprovado fecha a lista com a conta feita, pra
               a pessoa não precisar somar quantas barras estão vermelhas. */}
           <div className="flex flex-wrap items-center gap-2">

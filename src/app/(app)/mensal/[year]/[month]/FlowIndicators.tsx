@@ -43,8 +43,20 @@ function adjacentMonth(year: number, month: number, delta: number) {
 
 
 
-/** Linha do bloco Entrou/Saiu/Resultado — rótulo à esquerda, valor à direita. */
-function SummaryRow({
+/**
+ * Uma parcela da conta do mês. Muda de forma conforme a tela, com o MESMO conteúdo:
+ *
+ * - No celular é uma LINHA (rótulo à esquerda, valor à direita) e a conta se lê de cima
+ *   pra baixo.
+ * - No computador vira uma CÉLULA (rótulo pequeno em cima, número grande embaixo) e a
+ *   conta se lê da esquerda pra direita, com os sinais entre as células.
+ *
+ * A linha esticada num monitor deixava meio palmo de vazio entre "Entrou" e o número —
+ * o olho tinha que atravessar a tela para ligar as duas coisas. Já a grade solta de
+ * números, que existia antes, escondia a conta. A equação resolve os dois: usa a largura
+ * e continua mostrando que Entrou − Gastou − Aportou = Resultado.
+ */
+function SummaryCell({
   label,
   value,
   sign,
@@ -55,19 +67,24 @@ function SummaryRow({
   value: string;
   sign?: "+" | "−";
   tone: Tone;
-  /** Última linha: fundo levemente tingido e ponto colorido, pra fechar a conta. */
+  /** O resultado: fundo levemente tingido e ponto colorido, pra fechar a conta. */
   emphasis?: boolean;
 }) {
   return (
     <div
-      className={`flex items-center justify-between gap-3 px-4 py-3.5 ${
-        emphasis ? "bg-surface-2" : "border-b border-border"
+      className={`flex items-center justify-between gap-3 px-4 py-3.5 lg:flex-col lg:items-start lg:justify-center lg:gap-1 lg:px-5 lg:py-4 ${
+        emphasis ? "bg-surface-2" : "border-b border-border lg:border-b-0"
       }`}
     >
-      <span className={`text-[16px] text-ink ${emphasis ? "font-semibold" : ""}`}>{label}</span>
+      <span className={`text-[16px] text-ink lg:text-caption lg:font-medium lg:text-ink-muted ${emphasis ? "font-semibold" : ""}`}>
+        {label}
+      </span>
       <span className="flex items-center gap-2">
-        <span className={`text-[17px] font-semibold tabular-nums ${TONE_TEXT[tone]}`}>
-          {sign ? `${sign} ` : ""}
+        <span className={`text-[17px] font-semibold tabular-nums lg:text-[19px] xl:text-[22px] ${TONE_TEXT[tone]}`}>
+          {/* No celular o sinal vive colado no número, porque é ele que diz se a parcela soma
+              ou subtrai. No computador quem diz isso é o sinal ENTRE as células — mantê-lo
+              aqui também faria ler "menos, menos seis mil". */}
+          {sign && <span className="lg:hidden">{sign} </span>}
           {value}
         </span>
         {emphasis && (
@@ -78,6 +95,15 @@ function SummaryRow({
         )}
       </span>
     </div>
+  );
+}
+
+/** Sinal entre duas parcelas — só aparece no computador, onde a conta corre na horizontal. */
+function Operator({ children }: { children: string }) {
+  return (
+    <span className="hidden select-none items-center justify-center px-1 text-[20px] font-medium text-ink-muted lg:flex" aria-hidden>
+      {children}
+    </span>
   );
 }
 
@@ -185,14 +211,17 @@ export function FlowIndicators({
           Saldo; em linhas, com o resultado destacado no fim, a conta se lê de cima pra baixo.
           As DUAS saídas (gastos e aportes) ficam aqui dentro, senão a soma da tela não fecha.
           Planejamento e poupança são contexto e ficam abaixo, menores. */}
-      <div className="overflow-hidden rounded-2xl border border-border">
-        <SummaryRow label="Entrou" value={money(bundle.income)} sign="+" tone="success" />
-        <SummaryRow label="Gastou" value={money(bundle.expense)} sign="−" tone="danger" />
-        {/* Aportar também TIRA dinheiro do mês. Sem esta linha a conta da tela não fechava:
+      <div className="overflow-hidden rounded-2xl border border-border lg:grid lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto_minmax(0,1fr)_auto_minmax(0,1fr)] lg:items-stretch">
+        <SummaryCell label="Entrou" value={money(bundle.income)} sign="+" tone="success" />
+        <Operator>−</Operator>
+        <SummaryCell label="Gastou" value={money(bundle.expense)} sign="−" tone="danger" />
+        {/* Aportar também TIRA dinheiro do mês. Sem esta parcela a conta da tela não fechava:
             "entrou 12, saiu 8" e um resultado de −7 que só se explicava por um número que
             estava noutro lugar da página. Dinheiro que sai fica junto do dinheiro que sai. */}
-        <SummaryRow label="Aportou" value={money(bundle.investment)} sign="−" tone="accent" />
-        <SummaryRow
+        <Operator>−</Operator>
+        <SummaryCell label="Aportou" value={money(bundle.investment)} sign="−" tone="accent" />
+        <Operator>=</Operator>
+        <SummaryCell
           label="Resultado"
           value={money(bundle.balance)}
           tone={bundle.balance >= 0 ? "success" : "danger"}
@@ -200,18 +229,27 @@ export function FlowIndicators({
         />
       </div>
 
-      <div className="grid grid-cols-2 divide-x divide-border">
-        <SecondaryStat label="Planejamento" value={money(bundle.planned)} tone="ink" />
-        <SecondaryStat
-          label="Poupança"
-          value={rate === null ? "—" : `${Math.round(rate * 100)}%`}
-          tone={rate !== null && rate >= 0 ? "success" : "danger"}
-        />
-      </div>
+      {/* No computador, os números de contexto e o ritmo do mês dividem a mesma faixa: sozinhos,
+          cada um esticava por um monitor inteiro pra dizer duas palavras. */}
+      <div
+        className={
+          view === "mensal" && pacing
+            ? "flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.7fr)] lg:items-center lg:gap-8"
+            : "flex flex-col gap-4"
+        }
+      >
+        <div className="grid grid-cols-2 divide-x divide-border">
+          <SecondaryStat label="Planejamento" value={money(bundle.planned)} tone="ink" />
+          <SecondaryStat
+            label="Poupança"
+            value={rate === null ? "—" : `${Math.round(rate * 100)}%`}
+            tone={rate !== null && rate >= 0 ? "success" : "danger"}
+          />
+        </div>
 
       {/* Ritmo do mês: gastou mais rápido que o mês passou? Duas barras comparáveis. */}
       {view === "mensal" && pacing && (
-        <div className="flex flex-col gap-2.5 border-t border-border pt-5">
+        <div className="flex flex-col gap-2.5 border-t border-border pt-5 lg:border-t-0 lg:pt-0">
           <div className="flex items-center justify-between">
             <p className="text-caption font-medium text-ink-muted">Ritmo do mês</p>
             <p
@@ -258,6 +296,7 @@ export function FlowIndicators({
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }
