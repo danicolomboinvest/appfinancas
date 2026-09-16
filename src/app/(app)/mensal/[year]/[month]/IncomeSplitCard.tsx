@@ -53,8 +53,11 @@ export async function IncomeSplitCard({
           <>Você gastou {money(Math.abs(balance), { round: true })} a mais do que entrou este mês.</>
         ) : (
           <>
-            De cada 100 que entraram, você manteve{" "}
-            <span className="font-medium text-ink">{Math.round(savedShare * 100)}</span> (entre aportes e sobra).
+            {/* A frase era "De cada R$ 100 que entraram, você manteve R$ 33". Tirar o "R$" para
+                a moeda deixar de ser fixa quebrou o sentido — virou "De cada 100 você manteve
+                33", que não diz de quê. Em percentual a frase não depende de moeda nenhuma. */}
+            Você manteve <span className="font-medium text-ink">{Math.round(savedShare * 100)}%</span> do que entrou
+            (entre aportes e sobra).
           </>
         )}
       </p>

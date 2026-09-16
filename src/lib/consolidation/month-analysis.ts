@@ -86,7 +86,7 @@ export type CategorySpending = {
   /** Ícone escolhido pela pessoa, só nas personalizadas (as categorias-mãe têm ícone fixo). */
   iconKey: string | null;
   amount: number;
-  /** Fatia do total gasto no mês (0–1). */
+  /** Fatia de TUDO que saiu no mês (0–1), incluindo o que ainda não tem categoria. */
   share: number;
   /** Mesmo gasto no mês anterior; null quando a categoria não existia lá. */
   previousAmount: number | null;
@@ -135,13 +135,22 @@ export async function getCategorySpending(
   }
 
   const currentByKey = new Map<string, number>();
+  // Gasto sem categoria não vira linha do ranking (não há o que rankear), mas CONTA no total.
+  // Antes ficava de fora da conta e os percentuais eram fatias do que estava categorizado, não
+  // do mês: com R$ 3.568 sem categoria, Moradia aparecia com 45% do mês quando era 29% — e a
+  // rosca ao lado, que soma o mês inteiro, dava outro número para a mesma categoria.
+  let uncategorized = 0;
   for (const row of current) {
     const key = keyOf(row);
-    if (!key) continue;
-    currentByKey.set(key, (currentByKey.get(key) ?? 0) + Number(row._sum.amount ?? 0));
+    const amount = Number(row._sum.amount ?? 0);
+    if (!key) {
+      uncategorized += amount;
+      continue;
+    }
+    currentByKey.set(key, (currentByKey.get(key) ?? 0) + amount);
   }
 
-  const total = [...currentByKey.values()].reduce((sum, v) => sum + v, 0);
+  const total = [...currentByKey.values()].reduce((sum, v) => sum + v, 0) + uncategorized;
   if (total <= 0) return [];
 
   return [...currentByKey.entries()]

@@ -290,6 +290,22 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
       })),
   ];
 
+  // Gasto SEM categoria vira fatia própria. Sem isso, a rosca somava só o que está
+  // categorizado e mostrava esse subtotal no centro — dando duas respostas diferentes para
+  // "Gastos" na mesma tela (R$ 8.068 no card de cima, R$ 4.500 no centro da rosca) e
+  // inflando os percentuais: Moradia aparecia com 89% do mês quando era 50%.
+  const uncategorizedSpent = summary.totalExpense - totalSpentByCategory;
+  if (uncategorizedSpent > 0) {
+    // Cinza mais claro que o de "Outros": os dois são neutros de propósito (nenhum é uma
+    // categoria escolhida), mas dizem coisas diferentes — "Outros" é a cauda de categorias
+    // pequenas, "Sem categoria" é gasto por classificar, e esse a pessoa consegue resolver.
+    spendingSlices.push({
+      name: "Sem categoria",
+      value: uncategorizedSpent,
+      color: "var(--color-ink-muted)",
+    });
+  }
+
   // Números viram frase: "gastou 12% menos que no mês passado", "Alimentação subiu 28%".
   const insights = buildMonthInsights({
     currentExpense: summary.totalExpense,
