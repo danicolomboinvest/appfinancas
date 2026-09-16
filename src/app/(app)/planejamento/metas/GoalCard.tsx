@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Target, Plane, Home, Car, PiggyBank } from "lucide-react";
 import type { GoalIcon } from "@prisma/client";
 import { Card } from "@/components/ui/Card";
-import { CategoryIcon } from "@/components/ui/CategoryIcon";
+import { ProgressRing } from "@/components/ui/ProgressRing";
 import { DeleteGoalButton } from "./DeleteGoalButton";
 import { EditGoalButton } from "./EditGoalButton";
 import { GoalAporteChip } from "./GoalAporteChip";
@@ -72,23 +72,31 @@ export async function GoalCard({
   const achieved = variant === "achieved";
   const Icon = GOAL_ICONS[icon];
 
-  // O DINHEIRO é o herói do card, não o anel. Antes o valor guardado era um cinza de 13px e o
-  // lugar de destaque era do anel de progresso — e a pergunta que a pessoa faz ao abrir Metas
-  // é "quanto eu já tenho", não "quantos por cento". O anel saiu e virou barra abaixo do
-  // número: diz a mesma coisa, ocupa uma faixa em vez de um bloco, e libera a largura toda
-  // para o valor.
+  // O anel FICA — ele é um gráfico, e é isso que dá vida ao card; a barra chapada que eu tinha
+  // posto no lugar dizia a mesma coisa e lia como enfeite, não como informação.
+  //
+  // O que motivou tirá-lo era real (o dinheiro ficava num cinza de 13px), mas a solução não
+  // era remover o anel: era mudá-lo de lugar. Encostado à esquerda ele empurrava o valor para
+  // uma coluna estreita; à direita, o número fica com a largura toda e o anel continua ali.
   return (
     <Card className={`relative flex flex-col gap-3 p-5 ${achieved ? "opacity-60" : ""}`}>
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
-          <Link href={`/planejamento/metas/${id}`} className="min-w-0">
-            <p className="line-clamp-2 text-caption text-ink-muted hover:text-ink">{name}</p>
+          <Link href={`/planejamento/metas/${id}`} className="flex min-w-0 items-center gap-2">
+            <span
+              className="flex size-6 shrink-0 items-center justify-center rounded-md"
+              style={{ backgroundColor: `color-mix(in srgb, ${GOAL_COLORS[icon]} 16%, transparent)`, color: GOAL_COLORS[icon] }}
+            >
+              <Icon size={14} strokeWidth={2} />
+            </span>
+            <p className="line-clamp-1 text-caption text-ink-muted hover:text-ink">{name}</p>
           </Link>
-          <p className="mt-1 text-h1 font-bold leading-none tracking-tight tabular-nums text-ink">
+
+          <p className="mt-1.5 text-h1 font-bold leading-none tracking-tight tabular-nums text-ink">
             {money(currentAmount, { round: true })}
           </p>
           <p className="mt-1.5 text-caption tabular-nums text-ink-muted">
-            {Math.round(progressPercent * 100)}% de {money(targetAmount, { round: true })}
+            de {money(targetAmount, { round: true })}
             {!achieved && (
               <>
                 {" · "}
@@ -97,20 +105,12 @@ export async function GoalCard({
             )}
           </p>
         </div>
-        <CategoryIcon icon={Icon} color={GOAL_COLORS[icon]} size={48} />
+
+        <ProgressRing percent={progressPercent} size={64} color={GOAL_COLORS[icon]} />
       </div>
 
-      {/* A barra faz o papel que a foto faz no card do Nubank: fecha o card com uma faixa que
-          se lê de relance, sem precisar de leitura. */}
-      <span className="block h-2 overflow-hidden rounded-full bg-surface-2">
-        <span
-          className="block h-full rounded-full"
-          style={{ width: `${Math.max(progressPercent * 100, 2)}%`, backgroundColor: GOAL_COLORS[icon] }}
-        />
-      </span>
-
       {!achieved && (
-        <div>
+        <div className="border-t border-border pt-3">
           <p className="text-[15px] font-bold tracking-tight text-accent-strong">
             Guardar {money(plan.requiredMonthlyContribution, { round: true })} este mês
           </p>

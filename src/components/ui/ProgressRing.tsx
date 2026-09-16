@@ -24,6 +24,7 @@ export function ProgressRing({
   tone = "accent",
   size = 64,
   label,
+  color,
 }: {
   /** 0 a 1 (acima de 1 satura no anel cheio, mas o rótulo pode passar de 100%). */
   percent: number;
@@ -31,6 +32,8 @@ export function ProgressRing({
   size?: number;
   /** Texto no centro; quando ausente, mostra a porcentagem arredondada. */
   label?: string;
+  /** Cor do traço, quando o contexto tem uma cor própria (ex.: a cor da meta). Sobrepõe `tone`. */
+  color?: string;
 }) {
   const clamped = Math.min(Math.max(percent, 0), 1);
   const radius = 15.5;
@@ -51,7 +54,7 @@ export function ProgressRing({
           cy="18"
           r={radius}
           fill="none"
-          stroke={TONE_STROKE[tone]}
+          stroke={color ?? TONE_STROKE[tone]}
           strokeWidth="3.2"
           strokeLinecap="round"
           strokeDasharray={circumference}
