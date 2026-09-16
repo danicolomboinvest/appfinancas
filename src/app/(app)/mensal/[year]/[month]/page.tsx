@@ -176,7 +176,6 @@ async function EntryRow({
 }
 
 export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]">) {
-  const money = await serverMoney();
   const { year: yearParam, month: monthParam } = await props.params;
   const { view } = await props.searchParams;
   const year = Number(yearParam);
@@ -189,7 +188,10 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
   const initialView = view === "anual" ? "anual" : "mensal";
 
   const ctx = await getRequiredSession();
+  // `serverMoney` entra na leva paralela em vez de ficar sozinho antes dela: sozinho, ele
+  // custava uma ida ao banco inteira antes de qualquer outra consulta começar.
   const [
+    money,
     entries,
     summary,
     annualSummary,
@@ -208,6 +210,7 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
     categorySpending,
     previousSummary,
   ] = await Promise.all([
+    serverMoney(),
     listMonthlyEntries(ctx, year, month),
     getMonthlySummary(ctx, year, month),
     getAnnualSummary(ctx, year),

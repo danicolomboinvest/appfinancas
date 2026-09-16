@@ -1,3 +1,4 @@
+import { cache } from "react";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db/prisma";
 import type { AuthContext } from "@/lib/auth/session";
@@ -43,9 +44,16 @@ export async function createUserInvite(input: { email: string; name: string; pas
   });
 }
 
-export async function getOwnUser(ctx: AuthContext) {
+/**
+ * `cache()` do React: dentro de UMA requisição, várias chamadas viram uma consulta só.
+ *
+ * Importa porque o usuário é lido em pontos independentes do mesmo render — o layout precisa
+ * do tema, o formatador precisa da moeda — e sem isso cada um pagava uma ida ao banco para
+ * ler a mesma linha. O escopo é a requisição, então o dado de uma pessoa nunca vaza pra outra.
+ */
+export const getOwnUser = cache(async (ctx: AuthContext) => {
   return prisma.user.findUniqueOrThrow({ where: { id: ctx.userId } });
-}
+});
 
 /** Intervalo mínimo entre atualizações de lastSeenAt, pra não escrever no banco a cada request. */
 const LAST_SEEN_THROTTLE_MS = 15 * 60 * 1000;

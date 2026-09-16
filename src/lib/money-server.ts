@@ -1,6 +1,6 @@
 import { cache } from "react";
 import { auth } from "@/lib/auth/auth.config";
-import { prisma } from "@/lib/db/prisma";
+import { getOwnUser } from "@/lib/repositories/user.repo";
 import {
   toCurrencyCode,
   makeMoneyFormatter,
@@ -21,11 +21,9 @@ import {
 export const getUserCurrency = cache(async (): Promise<CurrencyCode> => {
   const session = await auth();
   if (!session?.user) return toCurrencyCode(null);
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { currency: true },
-  });
-  return toCurrencyCode(user?.currency);
+  // Mesma leitura cacheada que o layout usa pro tema: uma consulta por requisição, não duas.
+  const user = await getOwnUser({ userId: session.user.id, role: session.user.role });
+  return toCurrencyCode(user.currency);
 });
 
 /** Açúcar pro uso mais comum: `const money = await serverMoney();` e depois `money(valor)`. */

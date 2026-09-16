@@ -1,3 +1,4 @@
+import { after } from "next/server";
 import { auth } from "@/lib/auth/auth.config";
 import { AppShell } from "@/components/shell/AppShell";
 import { ThemeSync } from "@/components/shell/ThemeSync";
@@ -40,8 +41,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     currency = toCurrencyCode(user.currency);
     theme = user.theme;
     isPremium = premium;
-    // Registra o "visto por último" pra métrica de engajamento (throttle interno de 15min).
-    await touchLastSeen(user.id, user.lastSeenAt);
+    // `after` roda DEPOIS que a resposta já foi enviada. Isto aqui é métrica de engajamento,
+    // não conteúdo da página — com `await`, uma vez a cada 15 minutos a pessoa esperava uma
+    // escrita no banco antes de a tela aparecer. Não dá pra só soltar a promessa sem esperar:
+    // em serverless a função congela ao responder e o trabalho solto morre pela metade.
+    after(() => touchLastSeen(user.id, user.lastSeenAt));
   }
 
   return (
