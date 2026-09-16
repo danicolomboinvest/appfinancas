@@ -137,7 +137,9 @@ const PLAIN: Record<string, (v: number, raw: string) => string> = {
   divida_liquida_patrimonio: (v) =>
     v < 0 ? "Tem mais dinheiro em caixa do que dívida" : `A dívida é ${pct(v * 100)} do patrimônio`,
   liquidez_corrente: (v) =>
-    v < 1 ? "O caixa de curto prazo não cobre as contas de curto prazo" : `Tem R$ ${v.toFixed(2).replace(".", ",")} de curto prazo pra cada R$ 1 de conta`,
+    v < 1
+      ? `Pra cada R$ 1 de conta que vence em 12 meses, tem R$ ${v.toFixed(2).replace(".", ",")} de caixa e a receber no mesmo prazo — não é sobre quanto a ação negocia na bolsa`
+      : `Pra cada R$ 1 de conta que vence em 12 meses, tem R$ ${v.toFixed(2).replace(".", ",")} de caixa e a receber no mesmo prazo`,
   evolucao_receita: (v) => (v >= 0 ? `Vendeu ${pct(v)} mais que há 5 anos` : `Vendeu ${pct(-v)} menos que há 5 anos`),
   evolucao_lucro: (v) => (v >= 0 ? `Lucra ${pct(v)} mais que há 5 anos` : `Lucra ${pct(-v)} menos que há 5 anos`),
   vacancia_atual: (v) => `${v.toFixed(1).replace(".", ",")}% da área está vazia hoje`,

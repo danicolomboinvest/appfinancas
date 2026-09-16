@@ -99,7 +99,7 @@ describe("buildLaudo", () => {
     const l = buildLaudo("STOCK", PETRO);
     expect(sectionSummary(l.sections[2])).toEqual({
       signal: "atencao",
-      text: "O caixa de curto prazo não cobre as contas de curto prazo",
+      text: "Pra cada R$ 1 de conta que vence em 12 meses, tem R$ 0,90 de caixa e a receber no mesmo prazo — não é sobre quanto a ação negocia na bolsa",
     });
     expect(sectionSummary(l.sections[1]).signal).toBe("favoravel");
   });

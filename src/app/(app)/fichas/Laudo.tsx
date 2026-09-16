@@ -33,7 +33,10 @@ const SIGNAL_LABEL: Record<OverviewSignal, string> = { favoravel: "a favor", neu
 const SHORT_LABEL: Record<string, string> = {
   divida_liquida_ebitda: "Dív./EBITDA",
   divida_liquida_patrimonio: "Dív./Patrim.",
-  liquidez_corrente: "Liquidez",
+  // "Liquidez" sozinho parecia liquidez DE MERCADO (quanto negocia por dia), e a Petrobras
+  // com 0,85 em atenção não fazia sentido pra ninguém. É liquidez CORRENTE: caixa de curto
+  // prazo ÷ contas de curto prazo. O nome tem que dizer isso.
+  liquidez_corrente: "Caixa × contas",
   evolucao_receita: "Vendas 5a",
   evolucao_lucro: "Lucro 5a",
   margem_liquida: "Margem líq.",
