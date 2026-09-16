@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { ChevronDown, RefreshCw } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import type { Laudo, LaudoChange, LaudoItem } from "@/lib/analysis/laudo";
 import type { OverviewSignal } from "@/lib/analysis/stock-overview";
@@ -142,23 +142,37 @@ export function LaudoView({
         <p className="text-caption text-ink-muted">{laudo.facts.map((f) => `${f.label}: ${f.value}`).join(" · ")}</p>
       )}
 
-      {/* Os indicadores, por pergunta */}
+      {/* Os indicadores, por pergunta: quadradinhos, não linhas. Um quadrado por indicador
+          deixa o valor grande e a cor visível de longe; tocou, a explicação abre embaixo da
+          grade. Os de atenção já abrem explicados — são os que a pessoa precisa entender. */}
       <div className="flex flex-col gap-3">
-        {laudo.sections.map((section) => (
-          <Card key={section.id} className="overflow-hidden">
-            <p className="px-4 pb-1 pt-3 text-label text-ink-faint">{section.question}</p>
-            <ul>
-              {section.items.map((item) => (
-                <LaudoRow
-                  key={item.key}
-                  item={item}
-                  open={openKey === item.key || item.signal === "atencao"}
-                  onToggle={() => setOpenKey(openKey === item.key ? null : item.key)}
-                />
-              ))}
-            </ul>
-          </Card>
-        ))}
+        {laudo.sections.map((section) => {
+          const aberto = section.items.find((i) => i.key === openKey) ?? null;
+          const atencao = section.items.filter((i) => i.signal === "atencao" && i.key !== openKey);
+          return (
+            <Card key={section.id} className="flex flex-col gap-3 p-4">
+              <p className="text-label text-ink-faint">{section.question}</p>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+                {section.items.map((item) => (
+                  <LaudoTile
+                    key={item.key}
+                    item={item}
+                    open={openKey === item.key}
+                    onToggle={() => setOpenKey(openKey === item.key ? null : item.key)}
+                  />
+                ))}
+              </div>
+              {(aberto || atencao.length > 0) && (
+                <div className="flex flex-col gap-1.5">
+                  {aberto && <Explanation item={aberto} />}
+                  {atencao.map((item) => (
+                    <Explanation key={item.key} item={item} />
+                  ))}
+                </div>
+              )}
+            </Card>
+          );
+        })}
       </div>
 
       <p className="text-caption leading-relaxed text-ink-faint">{laudo.caveat}</p>
@@ -183,26 +197,56 @@ export function LaudoView({
   );
 }
 
-function LaudoRow({ item, open, onToggle }: { item: LaudoItem; open: boolean; onToggle: () => void }) {
+/** Rótulos curtos pro quadradinho (duas colunas no celular): o nome cheio continua na explicação. */
+const SHORT_LABEL: Record<string, string> = {
+  divida_liquida_ebitda: "Dívida / EBITDA",
+  divida_liquida_patrimonio: "Dívida / Patrim.",
+  liquidez_corrente: "Liquidez corrente",
+  evolucao_receita: "Receita 5 anos",
+  evolucao_lucro: "Lucro 5 anos",
+  patrimonio_liquido_etf: "Patrimônio",
+  rentabilidade_12m: "12 meses",
+  rentabilidade_5anos: "5 anos",
+  taxa_administracao: "Taxa de adm.",
+  vacancia_atual: "Vacância",
+  liquidez_fii: "Liquidez diária",
+};
+
+const TILE: Record<OverviewSignal, string> = {
+  favoravel: "border-success/30 bg-success-soft/50",
+  neutro: "border-border bg-surface-2/60",
+  atencao: "border-danger/40 bg-danger-soft/50",
+};
+
+function LaudoTile({ item, open, onToggle }: { item: LaudoItem; open: boolean; onToggle: () => void }) {
   return (
-    <li className="border-t border-border/60">
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-expanded={open}
-        className="flex w-full items-center gap-3 px-4 py-2.5 text-left"
-      >
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-expanded={open}
+      className={`flex min-h-[4.5rem] flex-col justify-between rounded-xl border p-3 text-left transition-all ${TILE[item.signal]} ${
+        open ? "ring-2 ring-accent/60" : "hover:brightness-105"
+      }`}
+    >
+      <span className="flex items-center gap-1.5">
         <span className={`size-2 shrink-0 rounded-full ${SIGNAL_DOT[item.signal]}`} />
-        <span className="min-w-0 flex-1 text-sm font-medium text-ink">{item.label.replace(/\s*\(.*?\)\s*/g, "")}</span>
-        <span className="shrink-0 text-sm tabular-nums text-ink">{item.value}</span>
-        <ChevronDown size={14} className={`shrink-0 text-ink-faint transition-transform ${open ? "rotate-180" : ""}`} />
-      </button>
-      {open && (
-        <div className="px-4 pb-3 pl-9">
-          <p className={`text-caption leading-relaxed ${item.signal === "atencao" ? "text-danger" : "text-ink-muted"}`}>{item.plain}</p>
-          <p className="mt-0.5 text-caption text-ink-faint">Régua: {item.reference}</p>
-        </div>
-      )}
-    </li>
+        <span className="truncate text-caption font-medium text-ink-muted">
+          {SHORT_LABEL[item.key] ?? item.label.replace(/\s*\(.*?\)\s*/g, "")}
+        </span>
+      </span>
+      <span className="mt-1 text-lg font-semibold tabular-nums tracking-tight text-ink">{item.value}</span>
+    </button>
+  );
+}
+
+function Explanation({ item }: { item: LaudoItem }) {
+  return (
+    <div className="flex items-start gap-2 rounded-lg bg-surface-2/60 px-3 py-2">
+      <span className={`mt-1.5 size-2 shrink-0 rounded-full ${SIGNAL_DOT[item.signal]}`} />
+      <p className={`text-caption leading-relaxed ${item.signal === "atencao" ? "text-danger" : "text-ink"}`}>
+        <span className="font-medium">{item.label.replace(/\s*\(.*?\)\s*/g, "")}:</span> {item.plain}
+        <span className="text-ink-faint"> · régua: {item.reference}</span>
+      </p>
+    </div>
   );
 }
