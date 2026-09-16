@@ -8,6 +8,8 @@ export type SpendingSlice = {
   value: number;
   /** Referência da categoria (para abrir os lançamentos ao clicar). */
   category?: { kind: "parent" | "custom"; value: string };
+  /** Quanto essa categoria gastou no período ANTERIOR, quando fizer sentido comparar (só o mês). */
+  previousValue?: number;
 };
 
 /**

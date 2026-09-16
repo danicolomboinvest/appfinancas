@@ -40,6 +40,7 @@ export function SpendingByCategory({
   initialPeriod = "mes",
   subtitle,
   nav,
+  previousMonthLabel,
 }: {
   selectedYear: number;
   selectedMonth: number;
@@ -49,6 +50,8 @@ export function SpendingByCategory({
   initialPeriod?: Period;
   subtitle: Record<Period, string>;
   nav: NavHrefs;
+  /** Nome do mês anterior, minúsculo ("agosto"), pra frase de comparação de cada linha. */
+  previousMonthLabel: string;
 }) {
   const money = useMoney();
   const [period, setPeriod] = useState<Period>(initialPeriod);
@@ -131,6 +134,13 @@ export function SpendingByCategory({
       {data.length === 0 ? (
         <p className="py-8 text-center text-sm text-ink-faint">Nenhum gasto neste período.</p>
       ) : (
+        <>
+        {/* A dica UMA vez, aqui. Repetida em cada linha, na segunda já era ruído — e ocupava
+            a linha onde cabe o que muda de categoria pra categoria. */}
+        <div className="flex items-baseline justify-between gap-3">
+          <p className="text-caption text-ink-faint">Toque numa categoria para abrir os lançamentos</p>
+          <p className="shrink-0 text-caption font-semibold tabular-nums text-ink-muted">{money(total, { round: true })}</p>
+        </div>
         <ul className="flex flex-col">
           {data
             .filter((slice) => slice.value > 0)
@@ -143,6 +153,7 @@ export function SpendingByCategory({
                   ? PARENT_CATEGORY_ICON[slice.category.value]
                   : Receipt;
               const parcela = total > 0 ? Math.round((slice.value / total) * 100) : 0;
+              const comparacao = compareWithPrevious(slice, previousMonthLabel, money);
               return (
                 <li key={slice.name} className="border-b border-border/60 last:border-0">
                   <button
@@ -155,9 +166,9 @@ export function SpendingByCategory({
                       <span className="block truncate text-[17px] font-semibold leading-tight text-ink">
                         {slice.name}
                       </span>
-                      <span className="mt-0.5 block text-caption text-ink-muted">
-                        {aberta ? "toque para fechar" : "toque para ver os lançamentos"}
-                      </span>
+                      {comparacao && (
+                        <span className={`mt-0.5 block text-caption ${comparacao.tone}`}>{comparacao.text}</span>
+                      )}
                     </span>
                     <span className="shrink-0 text-right">
                       <span className="block text-[17px] font-semibold leading-tight tabular-nums text-ink">
@@ -200,7 +211,29 @@ export function SpendingByCategory({
               );
             })}
         </ul>
+        </>
       )}
     </div>
   );
+}
+
+/**
+ * A segunda linha de cada categoria: o que mudou em relação ao mês anterior. Só existe na
+ * visão de mês (semana e ano não têm "anterior" comparável) e some quando a diferença é
+ * pequena demais pra valer uma frase — silêncio é melhor que "R$ 3 a mais".
+ */
+function compareWithPrevious(
+  slice: SpendingSlice,
+  previousMonthLabel: string,
+  money: ReturnType<typeof useMoney>,
+): { text: string; tone: string } | null {
+  if (slice.previousValue === undefined) return null;
+  if (slice.previousValue === 0) return { text: `Não teve gasto em ${previousMonthLabel}`, tone: "text-ink-muted" };
+  const diff = slice.value - slice.previousValue;
+  if (Math.abs(diff) < Math.max(20, slice.previousValue * 0.05)) {
+    return { text: `Igual a ${previousMonthLabel}`, tone: "text-ink-muted" };
+  }
+  return diff > 0
+    ? { text: `${money(diff, { round: true })} a mais que em ${previousMonthLabel}`, tone: "text-danger" }
+    : { text: `${money(-diff, { round: true })} a menos que em ${previousMonthLabel}`, tone: "text-success" };
 }

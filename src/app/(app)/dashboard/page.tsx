@@ -25,7 +25,6 @@ import { FitText } from "@/components/ui/FitText";
 import { CountUp } from "@/components/ui/CountUp";
 import { LinkedStatCard } from "@/components/ui/LinkedStatCard";
 import { nowInBrazil } from "@/lib/date/brazil-now";
-import { formatPercentNumber } from "@/lib/format";
 import { serverMoney } from "@/lib/money-server";
 
 const MONTH_LABELS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
@@ -225,8 +224,11 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+      {/* Três linhas no celular (some o card órfão da grade de dois) e três colunas no
+          computador, que é onde a grade de três funciona de verdade. */}
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-3 lg:gap-4">
         <StatCard
+          layout="row"
           label="Renda no ano"
           value={money(summary.totalIncome)}
           tone="success"
@@ -234,6 +236,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
           sparkline={incomeSparkline}
         />
         <StatCard
+          layout="row"
           label="Gastos no ano"
           value={money(summary.totalExpense)}
           tone="neutral"
@@ -243,13 +246,14 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
           sparkline={expenseSparkline}
         />
         <StatCard
-          label="Saldo no ano"
+          layout="row"
+          label="Sobrou no ano"
           value={money(summary.balance)}
           tone="accent"
           hint={
             summary.savingsRate === null
               ? undefined
-              : `Taxa de poupança: ${formatPercentNumber(summary.savingsRate * 100, 1)}`
+              : `De cada ${money(100, { round: true })} que entraram, você manteve ${money(Math.round(summary.savingsRate * 100), { round: true })}`
           }
           trend={
             balanceDelta === null

@@ -24,17 +24,25 @@ function toSlices(
   parent: { parentCategory: ParentCategory; spent: number }[],
   custom: { customCategoryId: string; spent: number }[],
   customNameById: Map<string, string>,
+  previous?: {
+    parent: { parentCategory: ParentCategory; spent: number }[];
+    custom: { customCategoryId: string; spent: number }[];
+  },
 ): SpendingSlice[] {
+  const prevParent = new Map(previous?.parent.map((s) => [s.parentCategory, s.spent]));
+  const prevCustom = new Map(previous?.custom.map((s) => [s.customCategoryId, s.spent]));
   return [
     ...parent.map((s) => ({
       name: PARENT_CATEGORY_LABEL[s.parentCategory],
       value: s.spent,
       category: { kind: "parent" as const, value: s.parentCategory },
+      previousValue: previous ? (prevParent.get(s.parentCategory) ?? 0) : undefined,
     })),
     ...custom.map((s) => ({
       name: customNameById.get(s.customCategoryId) ?? "Outro",
       value: s.spent,
       category: { kind: "custom" as const, value: s.customCategoryId },
+      previousValue: previous ? (prevCustom.get(s.customCategoryId) ?? 0) : undefined,
     })),
   ];
 }
@@ -58,6 +66,8 @@ export default async function SpendingByCategoryPage(props: PageProps<"/mensal/g
   const initialPeriod = viewParam === "semana" || viewParam === "ano" ? viewParam : "mes";
 
   const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const prevMonth = new Date(year, month - 2, 1);
+  const nextMonth = new Date(year, month, 1);
 
   const [
     customCategories,
@@ -67,6 +77,8 @@ export default async function SpendingByCategoryPage(props: PageProps<"/mensal/g
     customYearByMonth,
     parentWeek,
     customWeek,
+    parentPrev,
+    customPrev,
   ] = await Promise.all([
     listCustomCategories(ctx),
     sumExpensesByParentCategory(ctx, year, month),
@@ -75,6 +87,10 @@ export default async function SpendingByCategoryPage(props: PageProps<"/mensal/g
     sumExpensesByCustomCategoryForYear(ctx, year),
     sumExpensesByParentCategorySince(ctx, weekAgo),
     sumExpensesByCustomCategorySince(ctx, weekAgo),
+    // O mês anterior entra só pra cada linha dizer o que MUDOU — é o que a linha tinha de
+    // vazio quando repetia "toque para ver os lançamentos" em todas as categorias.
+    sumExpensesByParentCategory(ctx, prevMonth.getFullYear(), prevMonth.getMonth() + 1),
+    sumExpensesByCustomCategory(ctx, prevMonth.getFullYear(), prevMonth.getMonth() + 1),
   ]);
 
   const customNameById = new Map(customCategories.map((c) => [c.id, c.name]));
@@ -96,9 +112,6 @@ export default async function SpendingByCategoryPage(props: PageProps<"/mensal/g
     }, {}),
   );
 
-  const prevMonth = new Date(year, month - 2, 1);
-  const nextMonth = new Date(year, month, 1);
-
   return (
     <div className="flex flex-col gap-6">
 
@@ -108,7 +121,8 @@ export default async function SpendingByCategoryPage(props: PageProps<"/mensal/g
         selectedYear={year}
         selectedMonth={month}
         week={toSlices(parentWeek, customWeek, customNameById)}
-        month={toSlices(parentMonth, customMonth, customNameById)}
+        month={toSlices(parentMonth, customMonth, customNameById, { parent: parentPrev, custom: customPrev })}
+        previousMonthLabel={MONTH_LABELS[prevMonth.getMonth()].toLowerCase()}
         year={toSlices(parentYear, customYear, customNameById)}
         initialPeriod={initialPeriod}
         subtitle={{

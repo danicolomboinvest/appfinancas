@@ -40,7 +40,11 @@ export function CountUp({
 
   useEffect(() => {
     const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    if (reduceMotion) {
+    // Aba em segundo plano: o navegador estrangula o requestAnimationFrame e o número-herói
+    // fica parado em "R$ 0,00" por segundos — vi "Patrimônio total R$ 0,00" e "saúde
+    // financeira 0 de 100" assim. Sem ninguém olhando, a animação não vale o risco.
+    const escondida = document.visibilityState === "hidden";
+    if (reduceMotion || escondida) {
       setDisplay(value);
       startValueRef.current = value;
       return;
