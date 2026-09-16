@@ -341,8 +341,11 @@ function Gauge({ section }: { section: LaudoSection }) {
           className="h-2.5 rounded-full opacity-90"
           style={{ background: "linear-gradient(90deg, var(--color-danger) 0 33%, var(--color-ink-faint) 33% 66%, var(--color-success) 66% 100%)" }}
         />
+        {/* Disco cheio da cor do TEXTO (branco no escuro, preto no claro) com aro da cor do
+            fundo: destaca em qualquer trecho da barra. O anel oco de antes tinha o miolo da
+            cor do fundo — sumia no escuro e no claro, cada um do seu jeito. */}
         <span
-          className={`absolute top-0 size-[18px] -translate-x-1/2 rounded-full border-[3px] bg-canvas ${SIGNAL_BORDER[g.signal]}`}
+          className="absolute top-0 size-[20px] -translate-x-1/2 rounded-full bg-ink ring-[3px] ring-canvas shadow-md"
           style={{ left: `${g.position * 100}%`, transition: "left 700ms cubic-bezier(0.2, 0, 0, 1)" }}
           aria-hidden
         />
