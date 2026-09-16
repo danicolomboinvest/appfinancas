@@ -145,6 +145,12 @@ export async function deleteOwnMonthlyEntry(ctx: AuthContext, id: string) {
   return prisma.monthlyEntry.deleteMany({ where: { id, userId: ctx.userId } });
 }
 
+/** Vários de uma vez (modo "Selecionar" da lista). O userId no where garante que só apaga o que é da pessoa. */
+export async function deleteOwnMonthlyEntries(ctx: AuthContext, ids: string[]) {
+  if (ids.length === 0) return { count: 0 };
+  return prisma.monthlyEntry.deleteMany({ where: { id: { in: ids }, userId: ctx.userId } });
+}
+
 /**
  * Quantos lançamentos COM DATA caíram nos últimos `days` dias — alimenta o "já registrei os
  * gastos da semana?" do checklist. Conta só quem tem entryDate: sem data não dá pra afirmar

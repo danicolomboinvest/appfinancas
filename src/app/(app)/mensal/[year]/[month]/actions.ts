@@ -7,6 +7,7 @@ import {
   createRecurringMonthlyEntries,
   updateOwnMonthlyEntry,
   deleteOwnMonthlyEntry,
+  deleteOwnMonthlyEntries,
   type MonthlyEntryInput,
 } from "@/lib/repositories/monthly-entry.repo";
 import { monthlyEntrySchema } from "@/lib/validations/monthly-entry.schema";
@@ -103,6 +104,14 @@ export async function deleteMonthlyEntryAction(id: string, year: number, month: 
   revalidatePath(`/mensal/${year}/${month}`);
 }
 
+/** Exclusão em lote (modo "Selecionar"): uma ida ao banco, uma revalidação. */
+export async function deleteMonthlyEntriesAction(ids: string[], year: number, month: number) {
+  const ctx = await getRequiredSession();
+  await deleteOwnMonthlyEntries(ctx, ids);
+  revalidatePath(`/mensal/${year}`);
+  revalidatePath(`/mensal/${year}/${month}`);
+}
+
 export type DeletedEntrySnapshot = {
   year: number;
   month: number;
@@ -141,4 +150,13 @@ export async function undoDeleteEntryAction(snapshot: DeletedEntrySnapshot): Pro
   revalidatePath(`/mensal/${snapshot.year}`);
   revalidatePath(`/mensal/${snapshot.year}/${snapshot.month}`);
   return { ok: true };
+}
+
+/**
+ * "Desfazer" de uma exclusão em lote. Restaura um a um pelo mesmo caminho do desfazer
+ * individual, então qualquer proteção que exista lá vale aqui. `ok` só se TODOS voltaram.
+ */
+export async function undoDeleteEntriesAction(snapshots: DeletedEntrySnapshot[]): Promise<{ ok: boolean }> {
+  const results = await Promise.all(snapshots.map((s) => undoDeleteEntryAction(s)));
+  return { ok: results.every((r) => r.ok) };
 }
