@@ -3,8 +3,11 @@
 import { useEffect, useState, useTransition } from "react";
 import { HelpCircle, RefreshCw } from "lucide-react";
 import { Card } from "@/components/ui/Card";
+import { HelpTooltip } from "@/components/forms/HelpTooltip";
 import {
   FRIENDLY_LABEL,
+  GLOSSARY,
+  QUESTION_HELP,
   SECTION_SCALE,
   attentionLine,
   compactValue,
@@ -327,7 +330,10 @@ function Gauge({ section }: { section: LaudoSection }) {
   return (
     <Card className={`flex flex-col gap-3 p-4 ${g.signal === "atencao" ? "border-danger/40 bg-danger-soft/30" : ""}`}>
       <div className="flex items-baseline justify-between gap-3">
-        <p className="text-[15px] font-semibold text-ink">{section.question}</p>
+        <p className="flex items-center text-[15px] font-semibold text-ink">
+          {section.question}
+          {QUESTION_HELP[section.id] && <HelpTooltip text={QUESTION_HELP[section.id]} />}
+        </p>
         <p className={`shrink-0 text-sm font-bold ${SIGNAL_TEXT[g.signal]}`}>{g.label}</p>
       </div>
       <div className="relative pt-1">
@@ -364,22 +370,31 @@ function Gauge({ section }: { section: LaudoSection }) {
 }
 
 function NumberTile({ item, open, onToggle }: { item: LaudoItem; open: boolean; onToggle: () => void }) {
+  const bad = item.signal === "atencao";
   return (
-    <button
-      type="button"
-      onClick={onToggle}
-      aria-expanded={open}
-      className={`rounded-xl border-t-[3px] px-2.5 py-3 text-left transition-all ${SIGNAL_BG[item.signal]} ${SIGNAL_BORDER[item.signal]} ${
-        open ? "ring-2 ring-accent/70" : item.signal === "atencao" ? "ring-2 ring-danger/50" : ""
+    // Um div com o botão dentro, não um botão inteiro: o "?" é outro botão, e botão dentro
+    // de botão é HTML inválido (e o clique no "?" abriria a explicação junto).
+    <div
+      className={`relative rounded-xl border-t-[3px] ${SIGNAL_BG[item.signal]} ${SIGNAL_BORDER[item.signal]} ${
+        open ? "ring-2 ring-accent/70" : bad ? "ring-2 ring-danger/50" : ""
       }`}
     >
-      <p className={`text-[22px] font-extrabold leading-none tracking-tight ${item.signal === "atencao" ? "text-danger" : "text-ink"}`}>
-        {compactValue(item.value)}
-      </p>
-      <p className={`mt-1.5 truncate text-[11px] ${item.signal === "atencao" ? "text-danger" : "text-ink-muted"}`}>
-        {SHORT_LABEL[item.key] ?? technicalLabel(item)}
-      </p>
-    </button>
+      {GLOSSARY[item.key] && (
+        <span className="absolute right-1.5 top-1.5">
+          <HelpTooltip text={GLOSSARY[item.key]} />
+        </span>
+      )}
+      <button type="button" onClick={onToggle} aria-expanded={open} className="w-full px-2.5 py-3 pr-7 text-left">
+        <p className={`text-[22px] font-extrabold leading-none tracking-tight ${bad ? "text-danger" : "text-ink"}`}>{compactValue(item.value)}</p>
+        {/* Nome de gente em cima ("Preço pelo lucro"), sigla miúda embaixo ("P/L"): quem
+            está começando lê o que entende primeiro; quem sabe a sigla, acha ela logo abaixo. */}
+        {/* Duas linhas, não uma cortada: "Preço pelo…" não diz nada; "Preço pelo lucro" diz tudo. */}
+        <p className={`mt-1.5 line-clamp-2 text-[12px] font-medium leading-tight ${bad ? "text-danger" : "text-ink"}`}>
+          {FRIENDLY_LABEL[item.key] ?? technicalLabel(item)}
+        </p>
+        <p className="truncate text-[10px] uppercase tracking-wide text-ink-faint">{SHORT_LABEL[item.key] ?? technicalLabel(item)}</p>
+      </button>
+    </div>
   );
 }
 
@@ -389,8 +404,9 @@ function Explanation({ item }: { item: LaudoItem }) {
     <div className={`rounded-lg px-3 py-2 ${bad ? "border border-danger/30 bg-danger-soft/40" : "bg-surface-2/60"}`}>
       <p className={`text-caption leading-relaxed ${bad ? "text-danger" : "text-ink"}`}>
         <span className="font-semibold">{FRIENDLY_LABEL[item.key] ?? technicalLabel(item)}</span> — {item.plain}.
-        <span className="text-ink-faint"> Régua: {item.reference}.</span>
       </p>
+      {GLOSSARY[item.key] && <p className="mt-1 text-caption leading-relaxed text-ink-muted">{GLOSSARY[item.key]}</p>}
+      <p className="mt-1 text-caption leading-relaxed text-ink-faint">Régua: {item.reference}.</p>
     </div>
   );
 }

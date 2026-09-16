@@ -167,7 +167,7 @@ export const FRIENDLY_LABEL: Record<string, string> = {
   roic: "Retorno do negócio",
   margem_liquida: "O que sobra de cada venda",
   margem_ebit: "Sobra antes de juros",
-  divida_liquida_ebitda: "Dívida pelo caixa",
+  divida_liquida_ebitda: "Dívida ÷ caixa que gera",
   divida_liquida_patrimonio: "Dívida pelo patrimônio",
   liquidez_corrente: "Caixa de curto prazo",
   evolucao_receita: "Vendas em 5 anos",
@@ -222,6 +222,49 @@ export function attentionLine(laudo: Laudo): { text: string; names: string[] } {
   if (names.length === 1) return { text: "Só um ponto de atenção:", names };
   return { text: `${names.length} pontos de atenção:`, names };
 }
+
+/**
+ * O "?" de cada indicador: o que é, em uma ou duas frases que uma pessoa sem mercado entende.
+ * Nada de fórmula — a fórmula está na régua. Aqui é "o que esse número mede na vida real".
+ */
+export const GLOSSARY: Record<string, string> = {
+  p_l: "P/L, preço sobre lucro: quantos anos de lucro a empresa levaria pra devolver o que a ação custa hoje. Quanto menor, mais barata pelo lucro que dá.",
+  p_vp: "P/VP, preço sobre valor patrimonial: quanto a ação custa comparado ao patrimônio da empresa. 1 = vale o que tem; 2 = o dobro.",
+  ev_ebitda: "EV/EBITDA: o preço da empresa inteira (com as dívidas) dividido pelo caixa que a operação gera num ano. Quanto menor, mais barata pelo caixa que produz.",
+  dividend_yield: "Dividend yield: quanto a empresa pagou de dividendo nos últimos 12 meses, em porcentagem do preço da ação. 8% = a cada R$ 100 na ação, R$ 8 voltaram pra você.",
+  roe: "ROE, retorno sobre o patrimônio: de cada R$ 100 que pertencem aos sócios, quanto virou lucro no ano. Mede se a empresa faz o dinheiro dos donos render.",
+  roic: "ROIC, retorno sobre o capital investido: de cada R$ 100 aplicados no negócio (dos sócios e de dívida), quanto voltou no ano. Mede a qualidade da operação.",
+  margem_liquida: "Margem líquida: de cada R$ 100 que a empresa vende, quanto sobra depois de TODAS as despesas, juros e impostos.",
+  margem_ebit: "Margem EBIT: de cada R$ 100 vendidos, quanto sobra antes de pagar juros e impostos. Mostra se o negócio em si é bom, sem o efeito da dívida.",
+  divida_liquida_ebitda: "Dívida líquida sobre EBITDA: a dívida (já descontado o caixa) dividida pelo que a operação gera por ano. 2× = dois anos de caixa pra quitar tudo.",
+  divida_liquida_patrimonio: "Dívida líquida sobre patrimônio: quanto a empresa deve comparado ao que os sócios têm nela. 0,5 = deve metade do patrimônio.",
+  liquidez_corrente: "Liquidez corrente: o caixa mais o que tem a receber nos próximos 12 meses, dividido pelas contas que vencem nos próximos 12 meses. Abaixo de 1, o curto prazo não fecha sozinho. Não é sobre quanto a ação negocia na bolsa.",
+  evolucao_receita: "Crescimento da receita em 5 anos: a empresa está vendendo mais ou menos do que vendia cinco anos atrás.",
+  evolucao_lucro: "Crescimento do lucro em 5 anos: a empresa está lucrando mais ou menos do que cinco anos atrás.",
+  vacancia_atual: "Vacância: a porcentagem da área dos imóveis do fundo que está vazia, sem inquilino pagando aluguel.",
+  taxa_administracao: "Taxa de administração: o que o fundo cobra por ano, em porcentagem do patrimônio, pra ser administrado. Sai do seu rendimento.",
+  liquidez_fii: "Liquidez diária: quanto dinheiro em cotas desse fundo troca de mão por dia na bolsa. Quanto maior, mais fácil comprar e vender sem mexer no preço.",
+  numero_imoveis: "Número de imóveis: em quantos endereços o fundo tem imóveis. Mais imóveis = a renda depende menos de um inquilino ou de um prédio só.",
+  patrimonio_liquido: "Patrimônio do fundo: o valor de tudo que o fundo tem. Fundos grandes costumam negociar melhor e correm menos risco de fechar.",
+  patrimonio_liquido_etf: "Patrimônio do fundo: o valor de tudo que o ETF tem. Fundos grandes costumam negociar melhor e correm menos risco de fechar.",
+  dividend_yield_etf: "Dividend yield: quanto o ETF distribuiu nos últimos 12 meses, em porcentagem do preço. Muitos ETFs reinvestem em vez de pagar — DY baixo não é defeito.",
+  rentabilidade_12m: "Rentabilidade em 12 meses: quanto o ETF rendeu (ou perdeu) no último ano. Compare sempre com o índice que ele copia.",
+  rentabilidade_5anos: "Rentabilidade em 5 anos: quanto o ETF rendeu (ou perdeu) nos últimos cinco anos, acumulado.",
+};
+
+/** O "?" de cada pergunta: o que ela olha e por quê. */
+export const QUESTION_HELP: Record<string, string> = {
+  preco: "Compara o preço da ação com o lucro, o patrimônio e o caixa que a empresa gera — e com o dividendo que ela paga. Responde se você está pagando caro pelo que leva.",
+  lucro: "Olha quanto a empresa lucra sobre o dinheiro dos sócios, sobre o que investe e sobre o que vende. Responde se o negócio é bom em transformar dinheiro em mais dinheiro.",
+  divida: "Olha o tamanho da dívida comparado ao caixa que a empresa gera e ao patrimônio, e se o caixa de curto prazo cobre as contas de curto prazo.",
+  crescimento: "Compara as vendas e o lucro de hoje com os de cinco anos atrás. Responde se a empresa está andando pra frente ou pra trás.",
+  tamanho: "Olha quantos imóveis o fundo tem e o tamanho do patrimônio. Responde se a renda depende de poucos endereços e se o fundo é grande o bastante pra negociar bem.",
+  ocupacao: "Olha a vacância: quanto da área dos imóveis está sem inquilino. Área vazia é aluguel que não entra.",
+  custo: "Olha a taxa de administração — o que sai do seu rendimento todo ano pra pagar quem cuida do fundo.",
+  liquidez: "Olha quanto o fundo negocia por dia na bolsa. Responde se você consegue comprar e vender sem dificuldade e sem mexer no preço.",
+  renda: "Olha quanto o ETF distribuiu em dividendos nos últimos 12 meses.",
+  retorno: "Olha quanto o ETF rendeu em 12 meses e em 5 anos. Passado não garante futuro, e o que importa é seguir bem o índice dele.",
+};
 
 /** A sigla/nome técnico, sem o parêntese explicativo: "P/L", "ROE", "Dívida Líquida / EBITDA". */
 export function technicalLabel(item: Pick<OverviewItem, "label">): string {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { attentionLine, buildLaudo, compactValue, diffLaudo, isLaudo, sectionGauge, sectionSummary } from "../laudo";
+import { GLOSSARY, QUESTION_HELP, attentionLine, buildLaudo, compactValue, diffLaudo, isLaudo, sectionGauge, sectionSummary } from "../laudo";
 
 /** Indicadores plausíveis de uma petroleira: baratos, rentáveis, pouco endividados, receita caindo. */
 const PETRO = {
@@ -148,5 +148,22 @@ describe("isLaudo", () => {
     expect(isLaudo(buildLaudo("STOCK", PETRO))).toBe(true);
     expect(isLaudo(null)).toBe(false);
     expect(isLaudo({ sections: "x" })).toBe(false);
+  });
+});
+
+describe("todo número tem um '?'", () => {
+  const TODOS = {
+    ...PETRO,
+    p_vp: "0,9", vacancia_atual: "3%", taxa_administracao: "1%", liquidez_fii: "R$ 2 M", numero_imoveis: "12", patrimonio_liquido: "R$ 2 B",
+    patrimonio_liquido_etf: "R$ 1 B", dividend_yield_etf: "3%", rentabilidade_12m: "10%", rentabilidade_5anos: "40%",
+  };
+  it("cada indicador que aparece no laudo tem glossário, e cada pergunta tem ajuda", () => {
+    for (const tipo of ["STOCK", "FII", "ETF"] as const) {
+      const l = buildLaudo(tipo, TODOS);
+      for (const s of l.sections) {
+        expect(QUESTION_HELP[s.id], `pergunta ${s.id}`).toBeTruthy();
+        for (const i of s.items) expect(GLOSSARY[i.key], `indicador ${i.key}`).toBeTruthy();
+      }
+    }
   });
 });
