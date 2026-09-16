@@ -1,11 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { Card } from "@/components/ui/Card";
-import { CountUp } from "@/components/ui/CountUp";
-import { FitText } from "@/components/ui/FitText";
 import { useMoney } from "@/components/money/MoneyProvider";
 
 const MONTH_LABELS = [
@@ -44,100 +41,53 @@ function adjacentMonth(year: number, month: number, delta: number) {
   return { year: date.getFullYear(), month: date.getMonth() + 1 };
 }
 
-/** Anel (gauge) que cresce de 0 até a fração na entrada da tela, mesmo espírito do arco de
- * score do documento de referência de design, só que fininho pra caber num card pequeno. */
-function RingGauge({ fraction, delayMs = 0 }: { fraction: number; delayMs?: number }) {
-  const frac = Math.max(0, Math.min(1, Math.abs(fraction)));
-  const C = 97.39; // circunferência de r=15.5
-  const [offset, setOffset] = useState(C);
-  useEffect(() => {
-    const timeout = setTimeout(() => setOffset(C - frac * C), delayMs);
-    return () => clearTimeout(timeout);
-  }, [frac, delayMs]);
+
+
+/** Linha do bloco Entrou/Saiu/Resultado — rótulo à esquerda, valor à direita. */
+function SummaryRow({
+  label,
+  value,
+  sign,
+  tone,
+  emphasis,
+}: {
+  label: string;
+  value: string;
+  sign?: "+" | "−";
+  tone: Tone;
+  /** Última linha: fundo levemente tingido e ponto colorido, pra fechar a conta. */
+  emphasis?: boolean;
+}) {
   return (
-    <svg viewBox="0 0 36 36" className="h-16 w-16 -rotate-90">
-      <circle cx="18" cy="18" r="15.5" fill="none" stroke="var(--color-surface-2)" strokeWidth="3.4" />
-      <circle
-        cx="18"
-        cy="18"
-        r="15.5"
-        fill="none"
-        stroke="url(#ring-gauge-gradient)"
-        strokeWidth="3.4"
-        strokeLinecap="round"
-        strokeDasharray={C}
-        strokeDashoffset={offset}
-        style={{ transition: "stroke-dashoffset 1.2s ease-out" }}
-      />
-      <defs>
-        <linearGradient id="ring-gauge-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="var(--color-accent-2)" />
-          <stop offset="100%" stopColor="var(--color-accent)" />
-        </linearGradient>
-      </defs>
-    </svg>
+    <div
+      className={`flex items-center justify-between gap-3 px-4 py-3.5 ${
+        emphasis ? "bg-surface-2" : "border-b border-border"
+      }`}
+    >
+      <span className={`text-[16px] text-ink ${emphasis ? "font-semibold" : ""}`}>{label}</span>
+      <span className="flex items-center gap-2">
+        <span className={`text-[17px] font-semibold tabular-nums ${TONE_TEXT[tone]}`}>
+          {sign ? `${sign} ` : ""}
+          {value}
+        </span>
+        {emphasis && (
+          <span
+            className="size-2.5 rounded-full"
+            style={{ backgroundColor: tone === "success" ? "var(--color-success)" : "var(--color-danger)" }}
+          />
+        )}
+      </span>
+    </div>
   );
 }
 
-function IndicatorCard({
-  label,
-  value,
-  formattedValue,
-  format,
-  tone,
-  bar,
-  ring,
-  delayMs = 0,
-}: {
-  label: string;
-  /** Valor bruto (não formatado), anima em count-up quando presente junto de `format`. */
-  value?: number;
-  /** Valor já formatado, usado só quando não há count-up (ex.: "—", ring). */
-  formattedValue?: string;
-  format?: (n: number) => string;
-  tone: Tone;
-  bar?: number;
-  /** Quando presente, mostra um anel (gauge) com o valor no centro, em vez de número + barra. */
-  ring?: number;
-  /** Atraso antes de começar a animar, os 6 indicadores entram em cascata, não todos juntos
-   * (coreografia de entrada do documento de referência de design). */
-  delayMs?: number;
-}) {
-  if (ring !== undefined) {
-    return (
-      <Card className="flex flex-col p-3.5 sm:p-4">
-        <p className="text-caption text-ink-muted">{label}</p>
-        <div className="mt-1.5 flex items-center justify-center">
-          <div className="relative h-16 w-16">
-            <RingGauge fraction={ring} delayMs={delayMs} />
-            <span
-              className={`absolute inset-0 flex items-center justify-center text-sm font-semibold tabular-nums ${TONE_TEXT[tone]}`}
-            >
-              {formattedValue}
-            </span>
-          </div>
-        </div>
-      </Card>
-    );
-  }
+/** Número de contexto, abaixo do bloco principal: menor, sem moldura própria. */
+function SecondaryStat({ label, value, tone }: { label: string; value: string; tone: Tone }) {
   return (
-    <Card className="p-3.5 sm:p-4">
+    <div className="px-2 py-1 text-center first:pl-0 last:pr-0">
       <p className="text-caption text-ink-muted">{label}</p>
-      {/* FitText: valor anual grande ("R$ 150.000,00") estourava a coluna da grade no celular. */}
-      <div className="mt-1.5">
-        <FitText className={`text-indicator font-semibold tracking-tight tabular-nums ${TONE_TEXT[tone]}`}>
-          {value !== undefined && format ? <CountUp value={value} format={format} delayMs={delayMs} /> : formattedValue}
-        </FitText>
-      </div>
-      {bar !== undefined && (
-        <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-surface-2">
-          <div
-            className={`h-full rounded-full ${bar >= 0 ? "bg-success" : "bg-danger"}`}
-            style={{ width: `${Math.min(100, Math.max(0, Math.abs(bar) * 100))}%` }}
-          />
-        </div>
-      )}
-    </Card>
+      <p className={`mt-0.5 text-[16px] font-semibold tabular-nums ${TONE_TEXT[tone]}`}>{value}</p>
+    </div>
   );
 }
 
@@ -230,30 +180,34 @@ export function FlowIndicators({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <IndicatorCard label="Renda" value={bundle.income} format={money} tone="success" delayMs={0} />
-        <IndicatorCard label="Gastos" value={bundle.expense} format={money} tone="danger" delayMs={90} />
-        <IndicatorCard label="Planejamento" value={bundle.planned} format={money} tone="ink" delayMs={180} />
-        <IndicatorCard label="Aportes" value={bundle.investment} format={money} tone="accent" delayMs={270} />
-        <IndicatorCard
-          label="Saldo"
-          value={bundle.balance}
-          format={money}
-          tone={bundle.balance >= 0 ? "accent" : "danger"}
-          delayMs={360}
+      {/* Entrou / Saiu / Resultado num bloco só, em linhas — e não seis números soltos numa
+          grade. A grade obrigava a pessoa a descobrir sozinha que Renda menos Gastos dá o
+          Saldo; em linhas, com o resultado destacado no fim, a conta se lê de cima pra baixo.
+          Os outros três números são contexto e ficam abaixo, menores. */}
+      <div className="overflow-hidden rounded-2xl border border-border">
+        <SummaryRow label="Entrou" value={money(bundle.income)} sign="+" tone="success" />
+        <SummaryRow label="Saiu" value={money(bundle.expense)} sign="−" tone="danger" />
+        <SummaryRow
+          label="Resultado"
+          value={money(bundle.balance)}
+          tone={bundle.balance >= 0 ? "success" : "danger"}
+          emphasis
         />
-        <IndicatorCard
-          label="Taxa de poupança"
-          formattedValue={rate === null ? "—" : `${Math.round(rate * 100)}%`}
+      </div>
+
+      <div className="grid grid-cols-3 divide-x divide-border">
+        <SecondaryStat label="Aportes" value={money(bundle.investment)} tone="accent" />
+        <SecondaryStat label="Planejamento" value={money(bundle.planned)} tone="ink" />
+        <SecondaryStat
+          label="Poupança"
+          value={rate === null ? "—" : `${Math.round(rate * 100)}%`}
           tone={rate !== null && rate >= 0 ? "success" : "danger"}
-          ring={rate ?? undefined}
-          delayMs={450}
         />
       </div>
 
       {/* Ritmo do mês: gastou mais rápido que o mês passou? Duas barras comparáveis. */}
       {view === "mensal" && pacing && (
-        <Card className="flex flex-col gap-2.5 p-4">
+        <div className="flex flex-col gap-2.5 border-t border-border pt-5">
           <div className="flex items-center justify-between">
             <p className="text-caption font-medium text-ink-muted">Ritmo do mês</p>
             <p
@@ -298,7 +252,7 @@ export function FlowIndicators({
               </span>
             </div>
           </div>
-        </Card>
+        </div>
       )}
     </div>
   );

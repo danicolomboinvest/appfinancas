@@ -33,6 +33,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import { Donut, type DonutSlice } from "@/components/charts/Donut";
+import { Section } from "@/components/ui/Section";
 import { MonthHeatmap } from "@/components/charts/MonthHeatmap";
 import { EntryRowActions } from "./EntryRowActions";
 import { ImportHistory } from "./ImportHistory";
@@ -316,7 +317,7 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
   });
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-7">
       <Breadcrumb
         items={[
           { label: "Fluxo Financeiro", href: "/mensal" },
@@ -341,7 +342,6 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
       {/* A leitura do mês antes do detalhamento: quanto sobrou e o que mudou desde o mês
           passado. Os números acima dizem "quanto"; este bloco diz "e daí". */}
       <MonthHighlight
-        balance={summary.balance}
         income={summary.totalIncome}
         expense={summary.totalExpense}
         investment={summary.totalInvestment}
@@ -353,7 +353,7 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
 
       {/* Duas roscas que respondem perguntas diferentes: a primeira divide a RENDA (quanto do
           que entrou virou gasto, aporte e sobra), a segunda abre os GASTOS por categoria. */}
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-7 lg:grid-cols-2">
         <IncomeSplitCard
           income={summary.totalIncome}
           expense={summary.totalExpense}
@@ -361,31 +361,25 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
           balance={summary.balance}
         />
         {totalSpentByCategory > 0 && (
-          <Card className="flex flex-col gap-3 p-5">
-            <p className="text-sm font-medium text-ink">Para onde foi seu dinheiro este mês</p>
+          <Section
+            title="Para onde foi seu dinheiro este mês"
+            action={
+              <Link href="/mensal/gastos" className="text-caption font-medium text-accent-strong hover:underline">
+                ver lançamentos →
+              </Link>
+            }
+          >
             <Donut slices={spendingSlices} centerLabel="Gastos" size={160} />
-            {/* A rosca aqui é resumo; quem quiser abrir os lançamentos de uma categoria vai
-                pra aba "Só gastos", que é onde a rosca é interativa de verdade. */}
-            <Link
-              href="/mensal/gastos"
-              className="text-caption font-medium text-accent-strong hover:underline"
-            >
-              Abrir os lançamentos por categoria →
-            </Link>
-          </Card>
+          </Section>
         )}
       </div>
 
       {/* Depois da rosca (PARA ONDE foi) e antes do ranking (QUANTO foi), o QUANDO: é a única
           das três perguntas que o app tinha como responder e não respondia. */}
       {dailyFlow.points.some((p) => p.expenseOfDay > 0) && (
-        <Card className="flex flex-col gap-3 p-5">
-          <div>
-            <h2 className="text-sm font-medium text-ink">Ritmo do mês</h2>
-            <p className="mt-0.5 text-caption text-ink-faint">Um quadradinho por dia, mais forte onde saiu mais dinheiro.</p>
-          </div>
+        <Section title="Ritmo do mês" hint="Um quadradinho por dia, mais forte onde saiu mais dinheiro.">
           <MonthHeatmap points={dailyFlow.points} daysInMonth={dailyFlow.daysInMonth} year={year} month={month} />
-        </Card>
+        </Section>
       )}
 
       {/* O ranking completa a rosca: ela mostra a fatia, ele mostra quanto exatamente e o que
@@ -394,10 +388,9 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
 
       {/* O botão "Registrar" (drawer global) já cobre lançamento; aqui embaixo, algo pra olhar
           todo dia em vez de outro formulário repetido: renda/gastos/aportes mês a mês no ano. */}
-      <Card className="p-5">
-        <h2 className="mb-4 text-sm font-medium text-ink-muted">Renda, gastos e aportes por mês</h2>
+      <Section title="Renda, gastos e aportes por mês">
         <YearlyBarChart months={yearlySummary.months} />
-      </Card>
+      </Section>
 
       <BudgetSection ctx={ctx} year={year} month={month} totalIncome={summary.totalIncome} />
 

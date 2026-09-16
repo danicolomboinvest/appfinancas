@@ -86,6 +86,8 @@ export type CategorySpending = {
   /** Ícone escolhido pela pessoa, só nas personalizadas (as categorias-mãe têm ícone fixo). */
   iconKey: string | null;
   amount: number;
+  /** Quantos lançamentos compõem esse valor. */
+  count: number;
   /** Fatia de TUDO que saiu no mês (0–1), incluindo o que ainda não tem categoria. */
   share: number;
   /** Mesmo gasto no mês anterior; null quando a categoria não existia lá. */
@@ -112,6 +114,7 @@ export async function getCategorySpending(
       by: ["parentCategory", "customCategoryId"],
       where: { userId: ctx.userId, year, month, category: "EXPENSE" },
       _sum: { amount: true },
+      _count: true,
     }),
     prisma.monthlyEntry.groupBy({
       by: ["parentCategory", "customCategoryId"],
@@ -135,6 +138,7 @@ export async function getCategorySpending(
   }
 
   const currentByKey = new Map<string, number>();
+  const countByKey = new Map<string, number>();
   // Gasto sem categoria não vira linha do ranking (não há o que rankear), mas CONTA no total.
   // Antes ficava de fora da conta e os percentuais eram fatias do que estava categorizado, não
   // do mês: com R$ 3.568 sem categoria, Moradia aparecia com 45% do mês quando era 29% — e a
@@ -148,6 +152,7 @@ export async function getCategorySpending(
       continue;
     }
     currentByKey.set(key, (currentByKey.get(key) ?? 0) + amount);
+    countByKey.set(key, (countByKey.get(key) ?? 0) + (typeof row._count === "number" ? row._count : 0));
   }
 
   const total = [...currentByKey.values()].reduce((sum, v) => sum + v, 0) + uncategorized;
@@ -167,6 +172,7 @@ export async function getCategorySpending(
         label: kind === "parent" ? (parentLabels[value] ?? value) : (customCategoryNames.get(value) ?? "Outro"),
         iconKey: kind === "custom" ? (customCategoryIcons.get(value) ?? null) : null,
         amount,
+        count: countByKey.get(key) ?? 0,
         share: amount / total,
         previousAmount,
         // Sem gasto no mês anterior não existe "subiu X%" — seria divisão por zero disfarçada

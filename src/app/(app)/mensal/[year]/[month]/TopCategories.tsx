@@ -1,6 +1,6 @@
 import { Receipt } from "lucide-react";
 import type { CategorySpending } from "@/lib/consolidation/month-analysis";
-import { Card } from "@/components/ui/Card";
+import { Section } from "@/components/ui/Section";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import {
   PARENT_CATEGORY_ICON,
@@ -25,40 +25,37 @@ export async function TopCategories({ categories }: { categories: CategorySpendi
   if (categories.length === 0) return null;
   const top = categories.slice(0, TOP_COUNT);
   const rest = categories.length - top.length;
-  const maxAmount = top[0].amount;
 
   return (
-    <Card className="flex flex-col gap-3 p-5">
-      <div className="flex items-baseline justify-between gap-3">
-        <h2 className="text-sm font-medium text-ink">Maiores gastos do mês</h2>
-        {rest > 0 && <p className="text-caption text-ink-faint">+{rest} categoria{rest === 1 ? "" : "s"}</p>}
-      </div>
-
+    <Section
+      title="Maiores gastos do mês"
+      action={rest > 0 ? <p className="text-caption text-ink-faint">+{rest} categoria{rest === 1 ? "" : "s"}</p> : undefined}
+    >
       <ul className="flex flex-col">
-        {top.map((category, index) => {
+        {top.map((category) => {
           const icon =
             category.kind === "parent" && isParentCategoryKey(category.key)
               ? PARENT_CATEGORY_ICON[category.key]
               : (CUSTOM_CATEGORY_ICON_MAP[category.iconKey ?? ""] ?? Receipt);
           const color = colorForCategorySlice({ kind: category.kind, value: category.key });
           return (
-            <li key={`${category.kind}:${category.key}`} className="flex items-center gap-3 border-b border-border/60 py-2.5 last:border-0">
-              <span className="w-3 shrink-0 text-caption tabular-nums text-ink-faint">{index + 1}</span>
-              <CategoryIcon icon={icon} color={color} size={36} />
+            <li
+              key={`${category.kind}:${category.key}`}
+              className="flex items-center gap-3 border-b border-border/60 py-3 last:border-0"
+            >
+              {/* Ícone cheio e grande é o que puxa o olho — a lista passa a ser lida pela cor
+                  antes do texto. A barra de proporção saiu: ela competia com o ícone pela
+                  atenção e dizia a mesma coisa que o percentual ao lado, com menos precisão. */}
+              <CategoryIcon icon={icon} color={color} size={44} />
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-ink">{category.label}</p>
-                {/* Barra proporcional ao maior gasto: dá a comparação de relance, sem precisar
-                    ler os números um por um. */}
-                <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-surface-2">
-                  <div
-                    className="h-full rounded-full"
-                    style={{ width: `${(category.amount / maxAmount) * 100}%`, backgroundColor: color }}
-                  />
-                </div>
+                <p className="truncate text-[17px] font-semibold leading-tight text-ink">{category.label}</p>
+                <p className="mt-0.5 text-caption text-ink-muted">
+                  {category.count} {category.count === 1 ? "lançamento" : "lançamentos"}
+                </p>
               </div>
               <div className="shrink-0 text-right">
-                <p className="text-sm font-medium tabular-nums text-ink">{money(category.amount)}</p>
-                <p className="text-caption tabular-nums text-ink-faint">
+                <p className="text-[17px] font-semibold leading-tight tabular-nums text-ink">{money(category.amount)}</p>
+                <p className="mt-0.5 text-caption tabular-nums text-ink-muted">
                   {Math.round(category.share * 100)}%
                   {category.changeRatio !== null && Math.abs(category.changeRatio) >= 0.08 && (
                     <span className={category.changeRatio > 0 ? " text-danger" : " text-success"}>
@@ -77,6 +74,6 @@ export async function TopCategories({ categories }: { categories: CategorySpendi
       <p className="text-caption text-ink-faint">
         A seta compara com o mês passado. Variação abaixo de 8% não aparece — é oscilação normal.
       </p>
-    </Card>
+    </Section>
   );
 }

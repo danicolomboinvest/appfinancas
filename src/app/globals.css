@@ -3,19 +3,19 @@
 :root {
   /* Identidade "Preto + Dourado" — near-black quente, ouro como única cor de marca.
      Dark é o PADRÃO agora (as referências são todas escuras). */
-  --color-canvas: #0c0c0e;
-  --color-surface: #17171b;
-  --color-surface-2: #1f1f24;
-  --color-surface-hover: #26262c;
+  --color-canvas: #0a0908;
+  --color-surface: #141210;
+  --color-surface-2: #1e1b17;
+  --color-surface-hover: #2a2620;
   --texture-dot: transparent;
 
-  --color-border: rgba(255, 255, 255, 0.09);
-  --color-border-strong: rgba(255, 255, 255, 0.17);
+  --color-border: rgba(240, 228, 200, 0.1);
+  --color-border-strong: rgba(240, 228, 200, 0.18);
 
   /* Texto — off-white quentinho */
   --color-ink: #f3efe6;
   --color-ink-muted: #9b968b;
-  --color-ink-faint: #6f6a61;
+  --color-ink-faint: #8b867c;
 
   /* Ouro — a cor da marca. Botão primário usa o gradiente accent-2→accent;
      accent-strong é a variante funda; on-accent é o texto escuro sobre o ouro. */
@@ -67,26 +67,26 @@
   --color-custom-9: #a8a29e;
   --color-custom-10: #5eead4;
 
-  --shadow-premium: 0 20px 48px rgba(0, 0, 0, 0.55), 0 1px 0 rgba(255, 255, 255, 0.04) inset;
-  --shadow-premium-sm: 0 8px 20px rgba(0, 0, 0, 0.42);
+  --shadow-premium: 0 24px 60px rgba(0, 0, 0, 0.5);
+  --shadow-premium-sm: none;
 
   color-scheme: dark;
 }
 
 /* Mantém preto+dourado mesmo com a classe .dark aplicada (o toggle não quebra a marca). */
 html.dark {
-  --color-canvas: #0c0c0e;
-  --color-surface: #17171b;
-  --color-surface-2: #1f1f24;
-  --color-surface-hover: #26262c;
+  --color-canvas: #0a0908;
+  --color-surface: #141210;
+  --color-surface-2: #1e1b17;
+  --color-surface-hover: #2a2620;
   --texture-dot: transparent;
 
-  --color-border: rgba(255, 255, 255, 0.09);
-  --color-border-strong: rgba(255, 255, 255, 0.17);
+  --color-border: rgba(240, 228, 200, 0.1);
+  --color-border-strong: rgba(240, 228, 200, 0.18);
 
   --color-ink: #f3efe6;
   --color-ink-muted: #9b968b;
-  --color-ink-faint: #6f6a61;
+  --color-ink-faint: #8b867c;
 
   --color-accent: #e0b24e;
   --color-accent-strong: #cfa03f;
@@ -128,8 +128,8 @@ html.dark {
   --color-custom-9: #a8a29e;
   --color-custom-10: #5eead4;
 
-  --shadow-premium: 0 20px 48px rgba(0, 0, 0, 0.55), 0 1px 0 rgba(255, 255, 255, 0.04) inset;
-  --shadow-premium-sm: 0 8px 20px rgba(0, 0, 0, 0.42);
+  --shadow-premium: 0 24px 60px rgba(0, 0, 0, 0.5);
+  --shadow-premium-sm: none;
 
   color-scheme: dark;
 }
@@ -144,19 +144,28 @@ html.dark {
    pastéis (claras sobre fundo escuro), e sobre branco pastel some.
    --------------------------------------------------------------------------------------- */
 html.light {
-  --color-canvas: #f7f4ee;
+  /* Fundo BRANCO puro. O creme (#f7f4ee) era bonito como papel, mas rouba contraste de tudo
+     que fica em cima: card branco sobre creme quase não se distingue, e texto cinza sobre
+     creme perde nitidez. O creme não some — desce pros elementos pequenos (chips, segmentos,
+     barra de baixo, linha de destaque), onde ele marca sem competir com a leitura. */
+  --color-canvas: #ffffff;
   --color-surface: #ffffff;
-  --color-surface-2: #f0ece3;
-  --color-surface-hover: #e9e4d9;
+  --color-surface-2: #f4f1ea;
+  --color-surface-hover: #eae5da;
   --texture-dot: transparent;
 
-  --color-border: rgba(26, 24, 21, 0.1);
-  --color-border-strong: rgba(26, 24, 21, 0.2);
+  /* Com fundo e card brancos, é o fio que separa um do outro — ele precisa existir de verdade. */
+  --color-border: rgba(26, 24, 21, 0.13);
+  --color-border-strong: rgba(26, 24, 21, 0.24);
 
-  /* Tinta quente, nunca preto puro: preto absoluto sobre papel vibra e cansa a leitura. */
-  --color-ink: #1a1815;
-  --color-ink-muted: #635d52;
-  --color-ink-faint: #8a8377;
+  /* Tinta PRETA e cinzas NEUTROS. A versão anterior era quente (#1a1815 / #635d52), o que
+     fazia sentido sobre papel creme — mas sobre branco puro cinza amarronzado lê como
+     desbotado, não como texto secundário, e era daí que vinha boa parte da sensação de
+     "apagado". Contraste sobre branco: 17,4:1 / 7,5:1 / 4,5:1 — o último é o mínimo que a
+     norma de acessibilidade aceita para texto pequeno, então nada aqui é ilegível. */
+  --color-ink: #121212;
+  --color-ink-muted: #555555;
+  --color-ink-faint: #767676;
 
   --color-accent: #a9781f;
   --color-accent-strong: #855c12;
@@ -257,25 +266,25 @@ html.light {
   --font-mono: var(--font-geist-mono);
   --font-serif: var(--font-albert-sans);
 
-  --text-display: 3rem;
+  --text-display: 3.25rem;
   --text-display--line-height: 1.05;
 
-  --text-h1: 1.75rem;
+  --text-h1: 1.875rem;
   --text-h1--line-height: 1.15;
 
-  --text-h2: 1.25rem;
+  --text-h2: 1.375rem;
   --text-h2--line-height: 1.25;
 
-  --text-indicator: 1.5rem;
+  --text-indicator: 1.625rem;
   --text-indicator--line-height: 1.2;
 
-  --text-body: 0.9375rem;
+  --text-body: 1rem;
   --text-body--line-height: 1.6;
 
-  --text-label: 0.75rem;
+  --text-label: 0.8125rem;
   --text-label--line-height: 1.4;
 
-  --text-caption: 0.6875rem;
+  --text-caption: 0.8125rem;
   --text-caption--line-height: 1.4;
 }
 
@@ -372,35 +381,18 @@ body {
      e VENCIA o `absolute` utilitário do Tailwind nos filhos diretos — o selo "Concluída" das
      metas saía do canto e virava uma linha do card.) */
   isolation: isolate;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02)),
-    var(--color-surface);
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    var(--shadow-premium-sm);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
 }
-.glass::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  background: linear-gradient(148deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.03) 18%, transparent 40%);
-  pointer-events: none;
-}
+/* O brilho diagonal saiu junto: dois gradientes brancos sobre cinza é exatamente o "cinza
+   degradê" que faz a tela parecer antiga. A separação agora é o fio da borda e o espaço. */
 
 /* No claro o "vidro" não pode ser luz branca sobre branco — não desenha nada. Vira o
    contrário: uma tinta levíssima que separa o card do papel, e a borda passa a fazer o
    trabalho que no escuro era do brilho. */
 html.light .glass {
-  background: linear-gradient(180deg, rgba(26, 24, 21, 0.015), rgba(26, 24, 21, 0.04)), var(--color-surface);
-  border: 1px solid rgba(26, 24, 21, 0.1);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.9),
-    var(--shadow-premium-sm);
-}
-html.light .glass::before {
-  background: linear-gradient(148deg, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0.2) 18%, transparent 40%);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
 }
 
 /* Cápsula ESCURA SÓLIDA da barra flutuante (tab bar, botão "+"). Tinta escura quase opaca +

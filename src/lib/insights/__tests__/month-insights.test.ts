@@ -16,6 +16,7 @@ function category(partial: Partial<CategorySpending> & { label: string; amount: 
     key: partial.label.toUpperCase(),
     kind: "parent",
     iconKey: null,
+    count: partial.count ?? 1,
     share: partial.share ?? 0.2,
     previousAmount: partial.previousAmount ?? null,
     changeRatio:

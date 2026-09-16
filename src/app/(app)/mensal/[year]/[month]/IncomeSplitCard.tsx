@@ -1,4 +1,4 @@
-import { Card } from "@/components/ui/Card";
+import { Section } from "@/components/ui/Section";
 import { Donut, type DonutSlice } from "@/components/charts/Donut";
 import { serverMoney } from "@/lib/money-server";
 
@@ -37,8 +37,7 @@ export async function IncomeSplitCard({
   const savedShare = income > 0 ? (investment + leftover) / income : 0;
 
   return (
-    <Card className="flex flex-col gap-3 p-5">
-      <p className="text-sm font-medium text-ink">Como sua renda foi dividida</p>
+    <Section title="Como sua renda foi dividida">
       {/* O centro carrega a renda do mês, não a soma das fatias: é dela que as partes saíram, e
           ver o total no meio é o que dá sentido a "Gastos 67%". */}
       <Donut
@@ -61,6 +60,6 @@ export async function IncomeSplitCard({
           </>
         )}
       </p>
-    </Card>
+    </Section>
   );
 }

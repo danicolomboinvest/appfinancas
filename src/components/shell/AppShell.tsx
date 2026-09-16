@@ -6,6 +6,7 @@ import { Sidebar } from "./Sidebar";
 import { MobileTabBar } from "./MobileTabBar";
 import { MoreSheet } from "./MoreSheet";
 import { GreetingStrip } from "./GreetingStrip";
+import { ThemeQuickToggle } from "./ThemeQuickToggle";
 import { RegistrarDrawer } from "./RegistrarDrawer";
 import { WelcomeTour } from "./WelcomeTour";
 import { InstallAppBanner } from "./InstallAppBanner";
@@ -99,6 +100,11 @@ export function AppShell({
               - pb: limpa a tab bar flutuante (home indicator) + o botão "+" elevado. */}
           <main className="flex-1 px-5 pb-[calc(7.5rem_+_env(safe-area-inset-bottom))] pt-[calc(1.5rem_+_env(safe-area-inset-top))] md:px-10 md:pb-8 md:pt-8">
             <div className="mx-auto w-full max-w-6xl animate-fade-in">
+              {/* Sol/lua no alto de TODA tela — a saudação só existe no Fluxo, então prender
+                  o botão nela o faria sumir em Metas, Carteira e Orçamento. */}
+              <div className="mb-1 flex justify-end">
+                <ThemeQuickToggle initial={theme} />
+              </div>
               {showGreeting && <GreetingStrip greeting={greeting} dateLabel={dateLabel} summary={summary} flow={flow} />}
               <InstallAppBanner onOpenTutorial={() => setInstallOpen(true)} />
               {children}
