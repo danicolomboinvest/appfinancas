@@ -13,7 +13,6 @@ import { StatCard } from "@/components/ui/StatCard";
 import { Card } from "@/components/ui/Card";
 import { ResponsiveTable, type ResponsiveColumn } from "@/components/ui/ResponsiveTable";
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
-import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import type { MonthlyBreakdown } from "@/lib/consolidation/yearly";
 import { QuickEntryButton } from "./QuickEntryButton";
 import { formatPercentNumber } from "@/lib/format";
@@ -69,7 +68,6 @@ export default async function YearPage(props: PageProps<"/mensal/[year]">) {
 
   return (
     <div className="flex flex-col gap-6">
-      <Breadcrumb items={[{ label: "Fluxo Financeiro", href: "/mensal" }, { label: String(year) }]} />
 
       <PageHeader
         title={yearPageTitle(year)}

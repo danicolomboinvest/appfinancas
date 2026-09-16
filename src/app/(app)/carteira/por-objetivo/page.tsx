@@ -5,7 +5,6 @@ import { getPortfolioStrategyComparison } from "@/lib/portfolio/strategy";
 import { AllocationChart } from "@/components/charts/AllocationChart";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
-import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { ResponsiveTable, type ResponsiveColumn } from "@/components/ui/ResponsiveTable";
 import type { GoalAllocation } from "@/lib/consolidation/portfolio";
 import { StrategyComparisonSection } from "./StrategyComparisonSection";
@@ -32,7 +31,6 @@ export default async function CarteiraPorObjetivoPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <Breadcrumb items={[{ label: "Carteira de Investimentos", href: "/carteira" }, { label: "Por Objetivo" }]} />
 
       <PageHeader
         title="Carteira por Objetivo"

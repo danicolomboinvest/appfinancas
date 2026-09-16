@@ -30,7 +30,6 @@ import { nowInBrazil } from "@/lib/date/brazil-now";
 import { Card } from "@/components/ui/Card";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import { Donut, type DonutSlice } from "@/components/charts/Donut";
 import { Section } from "@/components/ui/Section";
@@ -318,13 +317,6 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
 
   return (
     <div className="flex flex-col gap-7">
-      <Breadcrumb
-        items={[
-          { label: "Fluxo Financeiro", href: "/mensal" },
-          { label: String(year), href: `/mensal/${year}` },
-          { label: MONTH_LABELS[month - 1] },
-        ]}
-      />
 
       <OnboardingChecklist hasEntry={entryCount > 0} hasBudget={budgetCount > 0} hasAsset={assetCount > 0} />
 

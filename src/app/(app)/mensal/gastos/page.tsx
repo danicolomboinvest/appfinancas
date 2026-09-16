@@ -11,7 +11,6 @@ import {
 import { PARENT_CATEGORY_LABEL } from "@/lib/categories";
 import type { ParentCategory } from "@prisma/client";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import type { SpendingSlice } from "@/components/charts/SpendingPieChart";
 import { SpendingByCategory } from "./SpendingByCategory";
 
@@ -102,7 +101,6 @@ export default async function SpendingByCategoryPage(props: PageProps<"/mensal/g
 
   return (
     <div className="flex flex-col gap-6">
-      <Breadcrumb items={[{ label: "Fluxo Financeiro", href: "/mensal" }, { label: "Só gastos" }]} />
 
       <PageHeader title="Só gastos" subtitle="Para onde seu dinheiro foi, por categoria." />
 

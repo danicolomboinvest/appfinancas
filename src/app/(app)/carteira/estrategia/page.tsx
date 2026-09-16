@@ -3,7 +3,6 @@ import { getRequiredSession } from "@/lib/auth/session";
 import { listPortfolioStrategy } from "@/lib/repositories/portfolio-strategy.repo";
 import { STRATEGY_ASSET_CLASSES } from "@/lib/portfolio/strategy";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { StrategyForm } from "./StrategyForm";
 
 export default async function EstrategiaCarteiraPage() {
@@ -19,7 +18,6 @@ export default async function EstrategiaCarteiraPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <Breadcrumb items={[{ label: "Carteira de Investimentos", href: "/carteira" }, { label: "Estratégia" }]} />
 
       <PageHeader
         title="Estratégia da Carteira"
