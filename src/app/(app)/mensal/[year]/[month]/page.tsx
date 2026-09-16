@@ -210,11 +210,17 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
   }
 
   // Números viram frase: "gastou 12% menos que no mês passado", "Alimentação subiu 28%".
+  // No mês corrente, compara o que saiu ATÉ HOJE (a curva diária já para em hoje) com o mesmo
+  // pedaço do mês passado. summary.totalExpense inclui conta datada pra frente, o que inflava
+  // o "acima do mês passado" pra quem lança o boleto do dia 25 no dia 10.
+  const expenseSoFar = isCurrentMonth ? (dailyFlow.points.at(-1)?.expense ?? summary.totalExpense) : summary.totalExpense;
   const insights = buildMonthInsights({
-    currentExpense: summary.totalExpense,
+    currentExpense: expenseSoFar,
     previousExpense: previousSummary.totalExpense,
     categories: categorySpending,
     money,
+    // Mês em andamento é comparado com o mesmo pedaço do anterior, não com ele inteiro.
+    elapsed: isCurrentMonth ? now.getDate() / daysInMonth : 1,
   });
 
   return (

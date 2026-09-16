@@ -76,7 +76,7 @@ export default function FinanciarVsAlugarPage() {
                 {result.winner === "FINANCIAR" ? "Financiar sai na frente" : "Alugar e investir sai na frente"}
               </h1>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <StatCard label="Patrimônio final, Financiar" value={money(result.finalFinancingPatrimony)} tone={result.winner === "FINANCIAR" ? "accent" : "neutral"} />
               <StatCard label="Patrimônio final, Alugar + investir" value={money(result.finalInvestedPatrimony)} tone={result.winner === "ALUGAR_E_INVESTIR" ? "accent" : "neutral"} />
               <StatCard label="Valor financiado" value={money(result.financedAmount)} />

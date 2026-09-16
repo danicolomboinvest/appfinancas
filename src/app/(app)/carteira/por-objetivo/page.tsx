@@ -5,6 +5,7 @@ import { getPortfolioStrategyComparison } from "@/lib/portfolio/strategy";
 import { AllocationChart } from "@/components/charts/AllocationChart";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
+import { Card } from "@/components/ui/Card";
 import { ResponsiveTable, type ResponsiveColumn } from "@/components/ui/ResponsiveTable";
 import type { GoalAllocation } from "@/lib/consolidation/portfolio";
 import { StrategyComparisonSection } from "./StrategyComparisonSection";
@@ -45,8 +46,23 @@ export default async function CarteiraPorObjetivoPage() {
       />
 
       <Section title="Posição por objetivo">
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <StatCard label="Total da carteira" value={money(byObjective.totalPortfolio)} tone="accent" />
+        {/* Quando NADA tem objetivo, quatro cards diziam a mesma coisa duas vezes (total =
+            sem objetivo) e mostravam dois R$ 0,00. A resposta é uma frase e um caminho. */}
+        {byObjective.totalPortfolio > 0 && byObjective.outro.currentValue >= byObjective.totalPortfolio - 0.005 ? (
+          <Card className="flex flex-col gap-2 border-accent/30 bg-accent-soft/30 p-5">
+            <p className="text-lg font-semibold text-ink">Nenhum ativo tem objetivo ainda.</p>
+            <p className="text-sm leading-relaxed text-ink-muted">
+              Seus {money(byObjective.totalPortfolio, { round: true })}{" "}
+              estão todos em &quot;sem objetivo&quot;. Dizer
+              o que cada ativo é — reserva, liberdade financeira ou uma meta — é o que deixa esta tela responder
+              &quot;quanto falta&quot; em vez de só somar.
+            </p>
+            <Link href="/carteira" className="w-fit text-sm font-medium text-accent-strong hover:underline">
+              Dar objetivo aos ativos →
+            </Link>
+          </Card>
+        ) : (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <StatCard
             label="Reserva de emergência"
             value={money(byObjective.reserva.currentValue)}
@@ -59,6 +75,7 @@ export default async function CarteiraPorObjetivoPage() {
           <StatCard label="Liberdade financeira" value={money(byObjective.liberdade.currentValue)} />
           <StatCard label="Sem objetivo definido" value={money(byObjective.outro.currentValue)} />
         </div>
+        )}
       </Section>
 
       {byObjective.metas.length > 0 && (

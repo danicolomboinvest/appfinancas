@@ -31,10 +31,20 @@ function percent(ratio: number): string {
  * Frase principal do mês: como o gasto total está em relação ao mês anterior. É a que vai no
  * topo, junto do "quanto sobrou" — a leitura de 2 segundos de quem abriu o app.
  */
-export function totalSpendingInsight(currentExpense: number, previousExpense: number): Insight | null {
+/**
+ * Fração do mês corrente que já passou (0–1). Mês fechado = 1. Abaixo disto, a comparação
+ * "com o mês passado" ainda não vale uma frase: dia 5, com meia dúzia de gastos, qualquer
+ * mês está "80% abaixo do anterior" — e o app dizia "continue assim".
+ */
+const MIN_ELAPSED_TO_COMPARE = 0.25;
+
+export function totalSpendingInsight(currentExpense: number, previousExpense: number, elapsed = 1): Insight | null {
   // Sem mês anterior (primeiro mês de uso) não há comparação honesta a fazer.
   if (previousExpense <= 0) return null;
-  const ratio = currentExpense / previousExpense - 1;
+  if (elapsed < MIN_ELAPSED_TO_COMPARE) return null;
+  // Mês em andamento contra o MESMO pedaço do mês passado, não contra o mês passado inteiro.
+  const comparable = previousExpense * elapsed;
+  const ratio = currentExpense / comparable - 1;
   if (Math.abs(ratio) < RELEVANT_CHANGE) {
     return { tone: "neutral", text: "Seus gastos estão praticamente no mesmo nível do mês passado." };
   }
@@ -48,24 +58,31 @@ export function totalSpendingInsight(currentExpense: number, previousExpense: nu
  * A categoria que mais mudou de um mês pro outro — em reais, não em porcentagem: 40% a mais no
  * cafezinho é barulho, 12% a mais no aluguel é o que realmente mexe no bolso.
  */
-export function biggestMoverInsight(categories: CategorySpending[], money: MoneyFormatter): Insight | null {
-  const candidates = categories.filter(
+export function biggestMoverInsight(categories: CategorySpending[], money: MoneyFormatter, elapsed = 1): Insight | null {
+  if (elapsed < MIN_ELAPSED_TO_COMPARE) return null;
+  // Mesma régua do total: o mês passado entra proporcional ao que já passou deste.
+  const scaled = categories
+    .filter((c) => c.previousAmount !== null && c.previousAmount > 0)
+    .map((c) => {
+      const previous = (c.previousAmount as number) * elapsed;
+      return { ...c, previousAmount: previous, changeRatio: c.amount / previous - 1 };
+    });
+  const candidates = scaled.filter(
     (c) =>
-      c.changeRatio !== null &&
       Math.abs(c.changeRatio) >= RELEVANT_CHANGE &&
       c.amount >= MIN_CATEGORY_AMOUNT &&
-      (c.previousAmount ?? 0) >= MIN_CATEGORY_AMOUNT,
+      c.previousAmount >= MIN_CATEGORY_AMOUNT,
   );
   if (candidates.length === 0) return null;
 
   const top = candidates.reduce((best, c) => {
-    const delta = Math.abs(c.amount - (c.previousAmount ?? 0));
-    const bestDelta = Math.abs(best.amount - (best.previousAmount ?? 0));
+    const delta = Math.abs(c.amount - c.previousAmount);
+    const bestDelta = Math.abs(best.amount - best.previousAmount);
     return delta > bestDelta ? c : best;
   });
 
-  const ratio = top.changeRatio!;
-  const delta = Math.abs(top.amount - (top.previousAmount ?? 0));
+  const ratio = top.changeRatio;
+  const delta = Math.abs(top.amount - top.previousAmount);
   if (ratio > 0) {
     return {
       tone: "warning",
@@ -99,11 +116,13 @@ export function buildMonthInsights(params: {
   limit?: number;
   /** Formatador da moeda escolhida — o texto cita valores, e a moeda é do usuário. */
   money: MoneyFormatter;
+  /** Quanto do mês já passou (0–1); 1 para mês fechado. Sem isso, dia 5 sempre "gastou menos". */
+  elapsed?: number;
 }): Insight[] {
-  const { currentExpense, previousExpense, categories, money, limit = 2 } = params;
+  const { currentExpense, previousExpense, categories, money, limit = 2, elapsed = 1 } = params;
   const insights = [
-    totalSpendingInsight(currentExpense, previousExpense),
-    biggestMoverInsight(categories, money),
+    totalSpendingInsight(currentExpense, previousExpense, elapsed),
+    biggestMoverInsight(categories, money, elapsed),
     concentrationInsight(categories),
   ].filter((i): i is Insight => i !== null);
   return insights.slice(0, limit);

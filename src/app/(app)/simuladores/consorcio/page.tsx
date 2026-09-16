@@ -84,7 +84,7 @@ export default function ConsorcioPage() {
                 verdict={`${result.winner === "CONSORCIO" ? "Consórcio" : "Financiamento"} sai ${money(result.differenceInFavorOfWinner)} mais barato.`}
               />
             </Card>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <StatCard label="Consórcio, parcela" value={money(result.consortium.installment)} />
               <StatCard label="Financiamento, 1ª parcela" value={money(result.financing.firstInstallment)} />
               <StatCard label="Custo de oportunidade da entrada" value={money(result.financing.downPaymentOpportunityCost)} />

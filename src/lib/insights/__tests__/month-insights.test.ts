@@ -109,3 +109,14 @@ describe("buildMonthInsights", () => {
     expect(buildMonthInsights({ currentExpense: 0, previousExpense: 0, categories: [], money })).toEqual([]);
   });
 });
+
+describe("mês em andamento", () => {
+  it("compara com o mesmo pedaço do mês passado, não com ele inteiro", () => {
+    // Dia 15 de um mês de 30: gastou 500; mês passado inteiro foi 1.000. Igualzinho, não "50% menos".
+    expect(totalSpendingInsight(500, 1000, 0.5)?.tone).toBe("neutral");
+    // Mesmos 500 no dia 6 (20%): cedo demais pra qualquer frase.
+    expect(totalSpendingInsight(500, 1000, 0.2)).toBeNull();
+    // Mês fechado continua comparando inteiro com inteiro.
+    expect(totalSpendingInsight(500, 1000)?.tone).toBe("positive");
+  });
+});

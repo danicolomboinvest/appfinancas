@@ -102,7 +102,6 @@ export function GoalForm({
         id="name"
         name="name"
         required
-        defaultValue={defaults.name}
         placeholder="Ex.: Viagem, Entrada do apê, Trocar de carro"
         value={nome}
         onChange={(e) => setNome(e.target.value)}

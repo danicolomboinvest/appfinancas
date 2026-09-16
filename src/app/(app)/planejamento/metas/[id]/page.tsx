@@ -59,12 +59,18 @@ export default async function GoalDetailPage(props: PageProps<"/planejamento/met
 
       <PageHeader title={goal.name} action={<DeleteGoalButton id={goal.id} />} />
 
+      {/* Quatro, não cinco: "valor guardado projetado na data-alvo" era o próprio valor
+          guardado quando a taxa é zero — um número a mais pra explicar, e o quinto card
+          ficava órfão na grade de dois do celular. */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <StatCard label="Status" value={STATUS_LABEL[plan.status]} tone="accent" />
+        <StatCard
+          label="Ritmo"
+          value={STATUS_LABEL[plan.status]}
+          tone={plan.status === "BEHIND" ? "danger" : plan.status === "ACHIEVED" ? "success" : "accent"}
+        />
         <StatCard label="Meses restantes" value={`${plan.monthsRemaining}`} />
-        <StatCard label="Valor guardado projetado na data-alvo" value={money(plan.futureValueOfSaved)} />
-        <StatCard label="Falta construir" value={money(plan.amountMissing)} tone="danger" />
-        <StatCard label="Aporte mensal sugerido" value={money(plan.requiredMonthlyContribution)} tone="success" />
+        <StatCard label="Falta guardar" value={money(plan.amountMissing)} tone="danger" />
+        <StatCard label="Guardar por mês" value={money(plan.requiredMonthlyContribution)} tone="success" />
       </div>
 
       <Card className="p-5">

@@ -73,7 +73,7 @@ export default function CarroPage() {
                 verdict={`${result.winner === "ASSINATURA" ? "Assinar" : "Comprar"} sai ${money(result.differenceInFavorOfWinner)} mais barato em 24 meses.`}
               />
             </Card>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <StatCard label="Custo caixa, assinatura" value={money(result.subscriptionCashCost)} />
               <StatCard label="Custo caixa, compra" value={money(result.purchaseCashCost)} />
               <StatCard label="Custo de oportunidade da compra" value={money(result.opportunityCost)} />

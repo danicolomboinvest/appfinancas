@@ -161,21 +161,26 @@ export async function computeInsights(ctx: AuthContext, money: MoneyFormatter): 
   const trailingRates = trailingSummaries
     .filter((s) => s.totalIncome > 0)
     .map((s) => (s.totalIncome - s.totalExpense) / s.totalIncome);
-  if (trailingRates.length >= 3 && currentMonthSummary.totalIncome > 0) {
-    const averageRate = trailingRates.reduce((sum, r) => sum + r, 0) / trailingRates.length;
-    const currentRate = (currentMonthSummary.totalIncome - currentMonthSummary.totalExpense) / currentMonthSummary.totalIncome;
+  // A taxa de poupança julgada é a do último mês FECHADO (trailingSummaries[0]), contra a
+  // média dos anteriores a ele. O mês corrente pela metade — salário já caiu, gastos não —
+  // "poupava acima da média" todo dia 5.
+  const [lastClosed, ...older] = trailingSummaries;
+  const olderRates = older.filter((s) => s.totalIncome > 0).map((s) => (s.totalIncome - s.totalExpense) / s.totalIncome);
+  if (olderRates.length >= 2 && lastClosed && lastClosed.totalIncome > 0) {
+    const averageRate = olderRates.reduce((sum, r) => sum + r, 0) / olderRates.length;
+    const currentRate = (lastClosed.totalIncome - lastClosed.totalExpense) / lastClosed.totalIncome;
     const diff = currentRate - averageRate;
     if (diff > 0.05) {
       insights.push({
         id: "savings-rate-above-average",
-        message: `Você está poupando acima da sua média este mês (${formatPercent(currentRate)} vs. média de ${formatPercent(averageRate)}), é um bom momento para reforçar uma meta ou a reserva de emergência.`,
+        message: `No último mês fechado você poupou acima da sua média (${formatPercent(currentRate)} vs. média de ${formatPercent(averageRate)}), é um bom momento para reforçar uma meta ou a reserva de emergência.`,
         tone: "success",
         category: "fluxo",
       });
     } else if (diff < -0.05) {
       insights.push({
         id: "savings-rate-below-average",
-        message: `Você está poupando abaixo da sua média este mês (${formatPercent(currentRate)} vs. média de ${formatPercent(averageRate)}), vale revisar os gastos para não atrasar suas metas.`,
+        message: `No último mês fechado você poupou abaixo da sua média (${formatPercent(currentRate)} vs. média de ${formatPercent(averageRate)}), vale revisar os gastos para não atrasar suas metas.`,
         tone: "warning",
         category: "fluxo",
         href: monthlyEntryHref,
@@ -191,8 +196,11 @@ export async function computeInsights(ctx: AuthContext, money: MoneyFormatter): 
   if (notifyBudget) {
     const currentMonthComparison = annualBudgetComparison.months.find((m) => m.month === month);
     if (currentMonthComparison) {
+      // Só vale "economizando" com gasto REAL e com o mês já bem andado: no dia 1, toda
+      // categoria orçada está "−100%", e o app saía elogiando lançamento que não foi feito.
+      const monthElapsed = now.getDate() / new Date(year, month, 0).getDate();
       for (const cat of currentMonthComparison.categories) {
-        if (cat.deviationPercent !== null && cat.deviationPercent <= -0.15) {
+        if (cat.spent > 0 && monthElapsed >= 0.6 && cat.deviationPercent !== null && cat.deviationPercent <= -0.15) {
           insights.push({
             id: `budget-saving-${cat.categoryKey}`,
             message: `Você está economizando mais do que planejou em ${categoryLabel(cat.categoryKey)} este mês.`,
@@ -206,10 +214,13 @@ export async function computeInsights(ctx: AuthContext, money: MoneyFormatter): 
     }
 
     const realizedMonths = annualBudgetComparison.months.filter((m) => m.isRealized);
-    if (realizedMonths.length > 0 && annualBudgetComparison.totalPlannedRealized > 0) {
-      const accumulatedSavings = annualBudgetComparison.totalPlannedRealized - annualBudgetComparison.totalSpentRealized;
-      const averageMonthlySavings = accumulatedSavings / realizedMonths.length;
-      const remainingMonths = 12 - realizedMonths.length;
+    // A projeção do ano só pode partir de meses FECHADOS: o corrente, pela metade, entra como
+    // "economia" que ainda não aconteceu e infla o "se continuar nesse ritmo".
+    const closedMonths = realizedMonths.filter((m) => m.month < month);
+    if (closedMonths.length > 0) {
+      const accumulatedSavings = closedMonths.reduce((soma, m) => soma + (m.totalPlanned - m.totalSpent), 0);
+      const averageMonthlySavings = accumulatedSavings / closedMonths.length;
+      const remainingMonths = 12 - closedMonths.length;
       const projectedAnnualSavings = accumulatedSavings + averageMonthlySavings * remainingMonths;
       if (projectedAnnualSavings > 0) {
         insights.push({
