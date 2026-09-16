@@ -2,10 +2,9 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Receipt } from "lucide-react";
-import { Card } from "@/components/ui/Card";
+import { ChevronDown, ChevronLeft, ChevronRight, Receipt } from "lucide-react";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
-import { SpendingPieChart, type SpendingSlice } from "@/components/charts/SpendingPieChart";
+import type { SpendingSlice } from "@/components/charts/SpendingPieChart";
 import { PARENT_CATEGORY_ICON, isParentCategoryKey, colorForCategorySlice } from "@/lib/categories";
 import { getCategoryTransactionsAction, type CategoryTransaction } from "./actions";
 import { useMoney } from "@/components/money/MoneyProvider";
@@ -54,20 +53,11 @@ export function SpendingByCategory({
   const money = useMoney();
   const [period, setPeriod] = useState<Period>(initialPeriod);
   const [openCategory, setOpenCategory] = useState<string | null>(null);
-  const [openCategoryRef, setOpenCategoryRef] = useState<SpendingSlice["category"] | null>(null);
   const [transactions, setTransactions] = useState<CategoryTransaction[]>([]);
   const [isLoading, startTransition] = useTransition();
 
-  // Ícone + cor da categoria aberta (assinatura visual do documento de referência), categorias
-  // personalizadas não têm o ícone escolhido disponível aqui, então usam um ícone genérico;
-  // a cor, essa sim, é sempre a certa (mesmo hash usado no resto do app).
-  const openIcon =
-    openCategoryRef?.kind === "parent" && isParentCategoryKey(openCategoryRef.value)
-      ? PARENT_CATEGORY_ICON[openCategoryRef.value]
-      : Receipt;
-  const openColor = colorForCategorySlice(openCategoryRef ?? undefined);
-
   const data = period === "semana" ? week : period === "ano" ? year : month;
+  const total = data.reduce((soma, slice) => soma + slice.value, 0);
   const prevHref = period === "ano" ? nav.prevYearHref : nav.prevMonthHref;
   const nextHref = period === "ano" ? nav.nextYearHref : nav.nextMonthHref;
   const showArrows = period !== "semana";
@@ -82,11 +72,9 @@ export function SpendingByCategory({
     if (!category) return;
     if (openCategory === slice.name) {
       setOpenCategory(null);
-      setOpenCategoryRef(null);
       return;
     }
     setOpenCategory(slice.name);
-    setOpenCategoryRef(slice.category ?? null);
     startTransition(async () => {
       const txns = await getCategoryTransactionsAction(period, selectedYear, selectedMonth, category);
       setTransactions(txns);
@@ -136,38 +124,83 @@ export function SpendingByCategory({
         )}
       </div>
 
-      <Card className="p-5">
-        <SpendingPieChart data={data} onSelect={handleSelect} selectedName={openCategory} />
+      {/* Lista, e não rosca: a rosca desta tela era idêntica à do resumo do mês, que está a um
+          toque daqui — duas telas mostrando o mesmo desenho. O que só existe aqui é o DETALHE:
+          tocar numa categoria e ver os lançamentos que formam aquele valor. Então a lista é a
+          tela, e cada linha abre. */}
+      {data.length === 0 ? (
+        <p className="py-8 text-center text-sm text-ink-faint">Nenhum gasto neste período.</p>
+      ) : (
+        <ul className="flex flex-col">
+          {data
+            .filter((slice) => slice.value > 0)
+            .sort((a, b) => b.value - a.value)
+            .map((slice) => {
+              const aberta = openCategory === slice.name;
+              const cor = colorForCategorySlice(slice.category);
+              const icone =
+                slice.category?.kind === "parent" && isParentCategoryKey(slice.category.value)
+                  ? PARENT_CATEGORY_ICON[slice.category.value]
+                  : Receipt;
+              const parcela = total > 0 ? Math.round((slice.value / total) * 100) : 0;
+              return (
+                <li key={slice.name} className="border-b border-border/60 last:border-0">
+                  <button
+                    type="button"
+                    onClick={() => handleSelect(slice)}
+                    className="flex w-full items-center gap-3 py-3 text-left transition-opacity hover:opacity-80"
+                  >
+                    <CategoryIcon icon={icone} color={cor} size={44} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[17px] font-semibold leading-tight text-ink">
+                        {slice.name}
+                      </span>
+                      <span className="mt-0.5 block text-caption text-ink-muted">
+                        {aberta ? "toque para fechar" : "toque para ver os lançamentos"}
+                      </span>
+                    </span>
+                    <span className="shrink-0 text-right">
+                      <span className="block text-[17px] font-semibold leading-tight tabular-nums text-ink">
+                        {money(slice.value, { round: true })}
+                      </span>
+                      <span className="mt-0.5 block text-caption tabular-nums text-ink-muted">{parcela}%</span>
+                    </span>
+                    <ChevronDown
+                      size={18}
+                      className={`shrink-0 text-ink-faint transition-transform ${aberta ? "rotate-180" : ""}`}
+                    />
+                  </button>
 
-        {/* Lançamentos da categoria clicada, expande dentro do card. */}
-        {openCategory && (
-          <div className="mt-5 border-t border-border pt-4">
-            <div className="mb-3 flex items-center gap-2.5">
-              <CategoryIcon icon={openIcon} color={openColor} size={36} />
-              <p className="text-xs font-medium text-ink-muted">
-                Lançamentos em <span className="text-ink">{openCategory}</span>
-              </p>
-            </div>
-            {isLoading ? (
-              <p className="text-sm text-ink-faint">Carregando…</p>
-            ) : transactions.length === 0 ? (
-              <p className="text-sm text-ink-faint">Nenhum lançamento neste período.</p>
-            ) : (
-              <ul className="flex flex-col divide-y divide-border">
-                {transactions.map((t) => (
-                  <li key={t.id} className="flex items-center justify-between gap-3 py-2">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm text-ink">{t.description}</p>
-                      {formatDay(t.date) && <p className="text-caption tabular-nums text-ink-faint">{formatDay(t.date)}</p>}
+                  {aberta && (
+                    <div className="pb-3 pl-[3.5rem]">
+                      {isLoading ? (
+                        <p className="text-sm text-ink-faint">Carregando…</p>
+                      ) : transactions.length === 0 ? (
+                        <p className="text-sm text-ink-faint">Nenhum lançamento neste período.</p>
+                      ) : (
+                        <ul className="flex flex-col divide-y divide-border">
+                          {transactions.map((t) => (
+                            <li key={t.id} className="flex items-center justify-between gap-3 py-2">
+                              <div className="min-w-0">
+                                <p className="truncate text-sm text-ink">{t.description}</p>
+                                {formatDay(t.date) && (
+                                  <p className="text-caption tabular-nums text-ink-faint">{formatDay(t.date)}</p>
+                                )}
+                              </div>
+                              <span className="shrink-0 text-sm font-medium tabular-nums text-danger">
+                                − {money(t.amount)}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
                     </div>
-                    <span className="shrink-0 text-sm font-medium tabular-nums text-danger">− {money(t.amount)}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        )}
-      </Card>
+                  )}
+                </li>
+              );
+            })}
+        </ul>
+      )}
     </div>
   );
 }
