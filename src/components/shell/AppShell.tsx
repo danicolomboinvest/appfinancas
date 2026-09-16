@@ -23,8 +23,6 @@ export function AppShell({
   userEmail,
   greeting,
   dateLabel,
-  summary,
-  flow,
   theme,
 }: {
   children: React.ReactNode;
@@ -33,8 +31,6 @@ export function AppShell({
   userEmail?: string;
   greeting: string;
   dateLabel: string;
-  summary: string;
-  flow?: { income: number; expense: number; investment: number };
   /** Tema salvo na conta — a chave clara/escura do menu "Mais" nasce com ele. */
   theme: "dark" | "light";
 }) {
@@ -105,7 +101,7 @@ export function AppShell({
               <div className="mb-1 flex justify-end">
                 <ThemeQuickToggle initial={theme} />
               </div>
-              {showGreeting && <GreetingStrip greeting={greeting} dateLabel={dateLabel} summary={summary} flow={flow} />}
+              {showGreeting && <GreetingStrip greeting={greeting} dateLabel={dateLabel} />}
               <InstallAppBanner onOpenTutorial={() => setInstallOpen(true)} />
               {children}
             </div>

@@ -25,7 +25,14 @@ import { useMoney } from "@/components/money/MoneyProvider";
  * entre as duas. Empilhar (em vez de pintar do zero e cobrir) é o que mantém o desenho correto
  * nos meses em que o gasto passa a renda e a faixa inverte de lado.
  */
-export function MonthFlowChart({ points }: { points: DailyFlowPoint[] }) {
+export function MonthFlowChart({
+  points,
+  isCurrentMonth = true,
+}: {
+  points: DailyFlowPoint[];
+  /** Mês fechado: o chip diz "Sobrou no mês", não "Sobrou até aqui". */
+  isCurrentMonth?: boolean;
+}) {
   const money = useMoney();
   const data = points.map((p) => ({
     day: p.day,
@@ -121,7 +128,7 @@ export function MonthFlowChart({ points }: { points: DailyFlowPoint[] }) {
           Saiu {money(last?.expense ?? 0, { round: true })}
         </span>
         <span className="rounded-full bg-surface-2 px-2.5 py-1 text-caption font-medium text-ink">
-          {positive ? "Sobrou" : "Faltou"} até aqui: {money(Math.abs(leftover), { round: true })}
+          {positive ? "Sobrou" : "Faltou"} {isCurrentMonth ? "até aqui" : "no mês"}: {money(Math.abs(leftover), { round: true })}
         </span>
       </div>
     </div>

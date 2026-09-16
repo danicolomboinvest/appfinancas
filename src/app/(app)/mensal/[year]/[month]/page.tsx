@@ -349,7 +349,7 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
       />
 
       {/* Curva do mês dia a dia — o gráfico que faltava pra enxergar o ritmo, não só o total. */}
-      <MonthFlowCard flow={dailyFlow} monthLabel={MONTH_LABELS[month - 1]} />
+      <MonthFlowCard flow={dailyFlow} monthLabel={MONTH_LABELS[month - 1]} isCurrentMonth={isCurrentMonth} />
 
       {/* Duas roscas que respondem perguntas diferentes: a primeira divide a RENDA (quanto do
           que entrou virou gasto, aporte e sobra), a segunda abre os GASTOS por categoria. */}

@@ -1,56 +1,23 @@
 "use client";
 
-import { useMoney } from "@/components/money/MoneyProvider";
-import { GradientPill } from "@/components/ui/GradientPill";
-
-export function GreetingStrip({
-  greeting,
-  dateLabel,
-  summary,
-  flow,
-}: {
-  /** Ex.: "Bom dia, Daniela.", já pronto, computado no servidor. */
-  greeting: string;
-  /** Ex.: "Terça-feira, 6 de julho" */
-  dateLabel: string;
-  /** 1 linha de resumo financeiro do momento, ex.: "Seu saldo este mês está positivo em R$ 1.500,00." */
-  summary: string;
-  /** Renda/Gastos/Aportes do mês, trio de pílulas com contorno em gradiente (documento de
-   * referência de design). Omitido quando ainda não há nada lançado no mês. */
-  flow?: { income: number; expense: number; investment: number };
-}) {
-  const money = useMoney();
-  const hasFlow = flow && (flow.income > 0 || flow.expense > 0 || flow.investment > 0);
+/**
+ * Faixa de saudação: quem é a pessoa e que dia é hoje. Só isso.
+ *
+ * Antes ela também trazia o saldo do mês e três pílulas com renda/gastos/aportes — e isso
+ * estava ERRADO ao navegar. Os números vinham sempre do mês CORRENTE, porque a faixa vive no
+ * layout, que não sabe qual mês a página está mostrando. Abrindo julho, a faixa dizia
+ * "R$ 9,7 mil de renda" e o bloco logo abaixo dizia "R$ 13.500": dois conjuntos de números
+ * para o mesmo mês, empilhados.
+ *
+ * Fora isso eram repetição — renda, gastos e aportes já aparecem no bloco Entrou/Saiu/Resultado
+ * da própria tela, com o mês certo. O que sobrou aqui é o que é verdade em qualquer tela e em
+ * qualquer mês: a saudação e a data de hoje.
+ */
+export function GreetingStrip({ greeting, dateLabel }: { greeting: string; dateLabel: string }) {
   return (
-    <div className="mb-6 flex flex-col gap-3 border-b border-border pb-5">
-      <div className="flex flex-col gap-1">
-        <p className="text-h2 font-serif italic font-normal tracking-tight text-ink">{greeting}</p>
-        <p className="text-body text-ink-muted">
-          {dateLabel} · {summary}
-        </p>
-      </div>
-      {hasFlow && (
-        <div className="flex flex-wrap gap-2.5">
-          <GradientPill
-            label="Renda"
-            value={money(flow.income, { compact: true })}
-            colorFrom="color-mix(in srgb, var(--color-success) 60%, white)"
-            colorTo="var(--color-success)"
-          />
-          <GradientPill
-            label="Gastos"
-            value={money(flow.expense, { compact: true })}
-            colorFrom="color-mix(in srgb, var(--color-danger) 60%, white)"
-            colorTo="var(--color-danger)"
-          />
-          <GradientPill
-            label="Aportes"
-            value={money(flow.investment, { compact: true })}
-            colorFrom="var(--color-accent-2)"
-            colorTo="var(--color-accent)"
-          />
-        </div>
-      )}
+    <div className="mb-6 flex flex-col gap-0.5 border-b border-border pb-5">
+      <p className="text-h2 font-serif font-normal italic tracking-tight text-ink">{greeting}</p>
+      <p className="text-body text-ink-muted">{dateLabel}</p>
     </div>
   );
 }

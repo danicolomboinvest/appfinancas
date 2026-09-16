@@ -9,14 +9,26 @@ import { serverMoney } from "@/lib/money-server";
  * `entryDate` é opcional no app, e quem lança sem data teria aqui um gráfico vazio sugerindo
  * que não gastou nada — pior que não mostrar gráfico nenhum.
  */
-export async function MonthFlowCard({ flow, monthLabel }: { flow: DailyFlow; monthLabel: string }) {
+export async function MonthFlowCard({
+  flow,
+  monthLabel,
+  isCurrentMonth,
+}: {
+  flow: DailyFlow;
+  monthLabel: string;
+  /** Mês fechado fala no passado: "Como foi Julho", não "Como Julho está indo". */
+  isCurrentMonth: boolean;
+}) {
   const money = await serverMoney();
   const hasDatedEntries = flow.points.some((p) => p.income > 0 || p.expense > 0);
   if (!hasDatedEntries) return null;
 
   return (
-    <Section title={`Como ${monthLabel} está indo`} hint="A faixa entre as duas linhas é o que sobrou até aqui">
-      <MonthFlowChart points={flow.points} />
+    <Section
+      title={isCurrentMonth ? `Como ${monthLabel} está indo` : `Como foi ${monthLabel}`}
+      hint={`A faixa entre as duas linhas é o que sobrou${isCurrentMonth ? " até aqui" : ""}`}
+    >
+      <MonthFlowChart points={flow.points} isCurrentMonth={isCurrentMonth} />
 
       {flow.undatedCount > 0 && (
         <p className="text-caption text-ink-faint">
