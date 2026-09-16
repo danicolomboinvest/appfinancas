@@ -1,4 +1,4 @@
-import type { SheetType } from "@prisma/client";
+import type { Prisma, SheetType } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import type { AuthContext } from "@/lib/auth/session";
 import type { CreateAnalysisSheetInput, SaveAnalysisResponsesInput } from "@/lib/validations/analysis-sheet.schema";
@@ -69,5 +69,27 @@ export async function saveResponses(ctx: AuthContext, input: SaveAnalysisRespons
   return prisma.analysisSheet.update({
     where: { id: input.sheetId },
     data: { conclusion: input.conclusion, totalScore },
+  });
+}
+
+/**
+ * Guarda o laudo automático como snapshot na própria ficha. É o que faz a ficha abrir na hora
+ * na próxima visita e o que dá ao "Reanalisar" um "antes" pra comparar.
+ */
+export async function saveLaudo(ctx: AuthContext, sheetId: string, laudo: Prisma.InputJsonValue, autoScore: number | null) {
+  return prisma.analysisSheet.updateMany({
+    where: { id: sheetId, userId: ctx.userId },
+    data: { laudo, autoScore, laudoReadAt: new Date() },
+  });
+}
+
+/** Resposta de um critério só (o checklist de três toques salva a cada toque, sem botão Salvar). */
+export async function saveSingleResponse(ctx: AuthContext, sheetId: string, criterionId: string, value: string | null) {
+  const sheet = await prisma.analysisSheet.findFirst({ where: { id: sheetId, userId: ctx.userId }, select: { id: true } });
+  if (!sheet) throw new Error("Ficha não encontrada.");
+  return prisma.analysisResponse.upsert({
+    where: { sheetId_criterionId: { sheetId, criterionId } },
+    update: { value },
+    create: { sheetId, criterionId, value },
   });
 }

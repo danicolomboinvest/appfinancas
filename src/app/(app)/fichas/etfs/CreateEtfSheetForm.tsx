@@ -20,7 +20,7 @@ export function CreateEtfSheetForm() {
       <Field label="Ticker" id="ticker" name="ticker" required placeholder="Ex.: IVVB11 ou VOO" />
       <Field label="Nome do ETF (opcional)" id="companyName" name="companyName" />
       <Button type="submit" disabled={isPending} size="sm">
-        {isPending ? "Criando..." : "Nova ficha"}
+        {isPending ? "Lendo..." : "Analisar"}
       </Button>
     </Card>
   );

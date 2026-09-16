@@ -34,7 +34,7 @@ export function CreateFiiSheetForm() {
         ))}
       </SelectField>
       <Button type="submit" disabled={isPending} size="sm">
-        {isPending ? "Criando..." : "Nova ficha"}
+        {isPending ? "Lendo..." : "Analisar"}
       </Button>
     </Card>
   );

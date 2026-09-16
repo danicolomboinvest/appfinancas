@@ -585,6 +585,12 @@ model AnalysisSheet {
   analysisDate DateTime           @default(now())
   totalScore   Decimal?           @db.Decimal(8, 2)
   conclusion   String?
+  /// Laudo automático (leitura dos indicadores com selo por régua), guardado como snapshot
+  /// pra ficha abrir na hora e pra "Reanalisar" dizer o que mudou desde a última leitura.
+  laudo        Json?
+  laudoReadAt  DateTime?
+  /// Nota automática que nasce dos selos (favorável 10 / na média 6 / atenção 2).
+  autoScore    Decimal?           @db.Decimal(4, 2)
   responses    AnalysisResponse[]
   createdAt    DateTime           @default(now())
   updatedAt    DateTime           @updatedAt

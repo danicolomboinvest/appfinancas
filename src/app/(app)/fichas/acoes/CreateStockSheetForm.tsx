@@ -20,7 +20,7 @@ export function CreateStockSheetForm() {
       <Field label="Ticker" id="ticker" name="ticker" required placeholder="Ex.: PETR4" />
       <Field label="Empresa (opcional)" id="companyName" name="companyName" />
       <Button type="submit" disabled={isPending} size="sm">
-        {isPending ? "Criando..." : "Nova ficha"}
+        {isPending ? "Lendo..." : "Analisar"}
       </Button>
     </Card>
   );
