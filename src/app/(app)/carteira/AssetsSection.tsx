@@ -94,6 +94,8 @@ export type StrategySummary = {
   hasStrategy: boolean;
   /** Uma linha por classe: preenchimento = onde a carteira está, tracinho = o alvo. */
   bullets: BulletRow[];
+  /** Quantas classes estão abaixo/acima do alvo — o veredito em uma linha. */
+  balance: { below: number; above: number };
   suggestions: { label: string; amount: number }[];
 };
 
@@ -286,7 +288,29 @@ export function AssetsSection({
             <div className="flex flex-col gap-3">
               <p className="text-sm font-medium text-ink">Onde você está × sua estratégia</p>
               {strategy.hasStrategy ? (
-                <BulletBar rows={strategy.bullets} targetHint="O tracinho é o seu alvo. Quem está atrás dele é o que comprar no próximo aporte." />
+                <>
+                  <BulletBar
+                    rows={strategy.bullets}
+                    targetHint="O tracinho é o seu alvo. Quem está atrás dele é o que comprar no próximo aporte."
+                  />
+                  <div className="flex flex-wrap items-center gap-2">
+                    {strategy.balance.below > 0 && (
+                      <span className="rounded-full bg-info-soft px-2.5 py-1 text-caption font-medium text-info">
+                        {strategy.balance.below} abaixo do alvo
+                      </span>
+                    )}
+                    {strategy.balance.above > 0 && (
+                      <span className="rounded-full bg-accent-soft px-2.5 py-1 text-caption font-medium text-accent-strong">
+                        {strategy.balance.above} acima do alvo
+                      </span>
+                    )}
+                    {strategy.balance.below === 0 && strategy.balance.above === 0 && (
+                      <span className="rounded-full bg-success-soft px-2.5 py-1 text-caption font-medium text-success">
+                        Carteira na estratégia
+                      </span>
+                    )}
+                  </div>
+                </>
               ) : (
                 <div className="flex flex-col items-start gap-2">
                   <p className="text-xs text-ink-faint">

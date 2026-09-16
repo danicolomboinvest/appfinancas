@@ -9,7 +9,7 @@ import {
 } from "@/lib/portfolio/strategy";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { AssetsSection, type StrategySummary } from "./AssetsSection";
-import { buildStrategyBullets } from "@/lib/portfolio/strategy-bullets";
+import { buildStrategyBullets, summarizeStrategy } from "@/lib/portfolio/strategy-bullets";
 import { UpcomingDividendsSection } from "./UpcomingDividendsSection";
 
 export default async function CarteiraPage() {
@@ -28,6 +28,7 @@ export default async function CarteiraPage() {
   const strategy: StrategySummary = {
     hasStrategy,
     bullets: buildStrategyBullets(comparison.positions),
+    balance: summarizeStrategy(comparison.positions),
     suggestions: comparison.positions
       .filter((p) => p.status !== "DENTRO")
       .sort((a, b) => Math.abs(b.rebalanceAmount) - Math.abs(a.rebalanceAmount))

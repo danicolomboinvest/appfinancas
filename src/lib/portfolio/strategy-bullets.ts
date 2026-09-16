@@ -46,3 +46,21 @@ export function buildStrategyBullets(positions: StrategyClassPosition[]): Strate
           : `${pct(p.currentPercent)}% · sem alvo`,
     }));
 }
+
+/**
+ * Veredito em uma linha, pra fechar a lista de barras: quantas classes estão abaixo do alvo e
+ * quantas acima. O desenho aprovado fecha a comparação com a conta pronta — sem isso a pessoa
+ * conta as barras na mão pra saber se está desequilibrada.
+ */
+export function summarizeStrategy(positions: StrategyClassPosition[]): { below: number; above: number } {
+  let below = 0;
+  let above = 0;
+  for (const p of positions) {
+    if (p.targetPercent <= 0) continue;
+    // Um ponto percentual de folga: alvo de 20% com 19,6% não é "fora do alvo", é arredondamento.
+    const diff = p.currentPercent - p.targetPercent;
+    if (diff < -0.01) below += 1;
+    else if (diff > 0.01) above += 1;
+  }
+  return { below, above };
+}

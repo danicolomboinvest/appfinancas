@@ -119,6 +119,7 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
     labelStyle: "de",
   });
 
+  const monthOverCounts = { over: 0, within: 0, unplanned: 0 };
   const monthBullets = currentMonthData
     ? buildBudgetBullets(currentMonthData.categories, {
         paceRatio: elapsedRatioOfMonth(now, year, currentMonthData.month),
@@ -128,6 +129,12 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
         labelStyle: "restante",
       })
     : [];
+  for (const row of monthBullets) {
+    if (row.isUnplanned) monthOverCounts.unplanned += 1;
+    else if (row.isOver) monthOverCounts.over += 1;
+    else monthOverCounts.within += 1;
+  }
+  const { over: monthOver, within: monthWithin, unplanned: monthUnplanned } = monthOverCounts;
 
   const monthColumns: ResponsiveColumn<MonthlyPlannedVsActual>[] = [
     { key: "month", label: "Mês", render: (m) => MONTH_LABELS[m.month - 1] },
@@ -242,6 +249,25 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
             </p>
           </div>
           <BulletBar rows={monthBullets} />
+          {/* O veredito em uma linha: o desenho aprovado fecha a lista com a conta feita, pra
+              a pessoa não precisar somar quantas barras estão vermelhas. */}
+          <div className="flex flex-wrap items-center gap-2">
+            {monthOver > 0 && (
+              <span className="rounded-full bg-danger-soft px-2.5 py-1 text-caption font-medium text-danger">
+                {monthOver} categoria{monthOver === 1 ? "" : "s"} estourou{monthOver === 1 ? "" : "ram"}
+              </span>
+            )}
+            {monthWithin > 0 && (
+              <span className="rounded-full bg-success-soft px-2.5 py-1 text-caption font-medium text-success">
+                {monthWithin} dentro do plano
+              </span>
+            )}
+            {monthUnplanned > 0 && (
+              <span className="rounded-full bg-surface-2 px-2.5 py-1 text-caption font-medium text-ink-muted">
+                {monthUnplanned} sem plano
+              </span>
+            )}
+          </div>
           <p className="text-caption text-ink-faint">
             Categoria sem plano definido fica cinza: o app não tem como dizer que você estourou um limite que
             não existe.

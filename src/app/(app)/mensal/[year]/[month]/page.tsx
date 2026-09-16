@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Receipt, TrendingUp, PiggyBank, type LucideIcon } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
@@ -363,6 +364,14 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
           <Card className="flex flex-col gap-3 p-5">
             <p className="text-sm font-medium text-ink">Para onde foi seu dinheiro este mês</p>
             <Donut slices={spendingSlices} centerLabel="Gastos" size={160} />
+            {/* A rosca aqui é resumo; quem quiser abrir os lançamentos de uma categoria vai
+                pra aba "Só gastos", que é onde a rosca é interativa de verdade. */}
+            <Link
+              href="/mensal/gastos"
+              className="text-caption font-medium text-accent-strong hover:underline"
+            >
+              Abrir os lançamentos por categoria →
+            </Link>
           </Card>
         )}
       </div>
