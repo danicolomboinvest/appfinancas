@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getRequiredSession } from "@/lib/auth/session";
 import { applyBudgetToWholeYear, applyBudgetToWholeYearForCustomCategory } from "@/lib/repositories/budget.repo";
 import { createCustomCategory, deleteOwnCustomCategory } from "@/lib/repositories/custom-category.repo";
+import { applyMonthlyPlanToWholeYear } from "@/lib/repositories/monthly-plan.repo";
 import { annualBudgetSchema, annualBudgetForCustomCategorySchema } from "@/lib/validations/budget.schema";
 import { customCategorySchema } from "@/lib/validations/custom-category.schema";
 import { PARENT_CATEGORIES } from "@/lib/categories";
@@ -39,8 +40,25 @@ export async function applyAllBudgetsAction(
       : Promise.reject(parsed.error);
   });
 
+  // Renda e aporte planejados vêm no MESMO formulário: planejar é decidir quanto entra,
+  // quanto sai e quanto fica guardado — separar em dois lugares faria a pessoa pensar que são
+  // dois assuntos.
+  const planejado = {
+    plannedIncome: Number(formData.get("plannedIncome") ?? 0),
+    plannedInvestment: Number(formData.get("plannedInvestment") ?? 0),
+  };
+  const planoValido =
+    Number.isFinite(planejado.plannedIncome) &&
+    Number.isFinite(planejado.plannedInvestment) &&
+    planejado.plannedIncome >= 0 &&
+    planejado.plannedInvestment >= 0;
+
   try {
-    await Promise.all([...parentWrites, ...customWrites]);
+    await Promise.all([
+      ...parentWrites,
+      ...customWrites,
+      planoValido ? applyMonthlyPlanToWholeYear(ctx, year, planejado) : Promise.resolve(),
+    ]);
   } catch {
     return { error: "Algum valor não pôde ser salvo, confira os campos e tente de novo." };
   }

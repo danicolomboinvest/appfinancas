@@ -11,6 +11,9 @@ import {
   type CategoryComparison,
 } from "@/lib/planning/budget-comparison";
 import { getAnnualBudgetPlan, getAnnualBudgetPlanForCustomCategories } from "@/lib/repositories/budget.repo";
+import { getAnnualMonthlyPlan } from "@/lib/repositories/monthly-plan.repo";
+import { getMonthlySummary } from "@/lib/consolidation/monthly";
+import { PlanVsActualRow } from "@/components/charts/PlanVsActualRow";
 import {
   PARENT_CATEGORIES,
   PARENT_CATEGORY_LABEL,
@@ -58,11 +61,18 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
     notFound();
   }
   const ctx = await getRequiredSession();
-  const [comparison, customCategories, plan] = await Promise.all([
+  const agora = new Date();
+  // Uma consulta a mais na página já custou caro antes: vai junto das outras, não em fila.
+  const [comparison, customCategories, plan, annualPlan, monthSummary] = await Promise.all([
     getAnnualPlannedVsActual(ctx, year),
     listCustomCategories(ctx),
     getAnnualBudgetPlan(ctx, year),
+    getAnnualMonthlyPlan(ctx, year),
+    year === agora.getFullYear() ? getMonthlySummary(ctx, year, agora.getMonth() + 1) : null,
   ]);
+  // Qualquer mês serve para preencher o formulário: o valor é o mesmo nos 12, e é o primeiro
+  // que existir que responde "o que eu já tinha planejado?".
+  const monthPlan = annualPlan.get(1) ?? [...annualPlan.values()][0] ?? null;
   const customPlan = await getAnnualBudgetPlanForCustomCategories(
     ctx,
     year,
@@ -177,13 +187,18 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
         }
       />
 
-      <CollapsibleSection label={`Editar quanto você planeja gastar em ${year}`}>
+      <CollapsibleSection label={`Editar seu plano de ${year}: renda, aporte e gastos`}>
         <p className="mb-4 text-sm text-ink-muted">
-          Defina uma média mensal por categoria. Para despesas que acontecem só uma vez por ano (IPVA, seguro,
-          manutenção do carro, presentes), divida o valor anual por 12.
+          Comece pelo que entra e pelo que você quer guardar — o resto é o que sobra para gastar. Nas categorias,
+          defina uma média mensal. Para despesas que acontecem só uma vez por ano (IPVA, seguro, manutenção do
+          carro, presentes), divida o valor anual por 12.
         </p>
         <OrcamentoForm
           year={year}
+          plan={{
+            plannedIncome: monthPlan?.plannedIncome ?? 0,
+            plannedInvestment: monthPlan?.plannedInvestment ?? 0,
+          }}
           parentCategories={PARENT_CATEGORIES.map((parentCategory) => ({
             key: parentCategory,
             label: PARENT_CATEGORY_LABEL[parentCategory],
@@ -228,6 +243,34 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
             }
           />
         </div>
+      )}
+
+      {currentMonthData && monthSummary && (
+        <Section
+          title={`Renda e aporte em ${MONTH_LABELS[currentMonthData.month - 1]}`}
+          hint="Planejar é decidir quanto entra, quanto sai e quanto fica guardado — não só o que gastar."
+        >
+          <PlanVsActualRow
+            label="Renda"
+            planned={monthPlan?.plannedIncome ?? 0}
+            actual={monthSummary.totalIncome}
+            formatted={{
+              planned: money(monthPlan?.plannedIncome ?? 0, { round: true }),
+              actual: money(monthSummary.totalIncome, { round: true }),
+            }}
+            color="var(--color-success)"
+          />
+          <PlanVsActualRow
+            label="Aporte"
+            planned={monthPlan?.plannedInvestment ?? 0}
+            actual={monthSummary.totalInvestment}
+            formatted={{
+              planned: money(monthPlan?.plannedInvestment ?? 0, { round: true }),
+              actual: money(monthSummary.totalInvestment, { round: true }),
+            }}
+            color="var(--color-accent)"
+          />
+        </Section>
       )}
 
       <Section
