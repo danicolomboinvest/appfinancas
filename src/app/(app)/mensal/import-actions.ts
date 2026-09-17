@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { installmentDescription, parseInstallment } from "@/lib/entries/recurrence";
 import type { ParentCategory } from "@prisma/client";
 import { getRequiredSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
@@ -14,7 +15,7 @@ import { listCustomCategories } from "@/lib/repositories/custom-category.repo";
 import { listTransactionRules, upsertTransactionRule } from "@/lib/repositories/transaction-rule.repo";
 import { parseStatement, type ParsedTransaction } from "@/lib/import/statement-parser";
 import { extractUploadFromForm, UploadReadError, PasswordRequiredError } from "@/lib/import/extract-text";
-import { NUMBERS_ONLY_MESSAGE, pdfTextQuality } from "@/lib/import/pdf-quality";
+import { pdfTextQuality } from "@/lib/import/pdf-quality";
 import { classify, normalizeMerchant, type LearnedRule } from "@/lib/import/classify";
 
 const PARENT_CATEGORY_VALUES: ParentCategory[] = [
@@ -56,6 +57,8 @@ export type ReviewItem = {
   subcategory: string | null;
   /** true = classificado automaticamente; false = precisa de revisão manual (categoria vazia). */
   autoClassified: boolean;
+  /** Compra parcelada ("03/10" na fatura): as parcelas seguintes entram sozinhas nos meses seguintes. */
+  installment: { current: number; total: number } | null;
 };
 
 export type ParseStatementResult =
@@ -142,6 +145,7 @@ export async function parseStatementAction(formData: FormData): Promise<ParseSta
       customCategoryId: null,
       subcategory: classification?.subcategory ?? null,
       autoClassified: classification !== null,
+      installment: docType === "fatura" ? parseInstallment(txn.description) : null,
     };
   });
 
@@ -159,6 +163,7 @@ export type ConfirmedItem = {
   subcategory: string | null;
   /** true quando o usuário definiu/ajustou a categoria na revisão, vira regra aprendida. */
   learn: boolean;
+  installment?: { current: number; total: number } | null;
 };
 
 /** Lançamento do extrato bancário que PODE ser o pagamento desta fatura — mostrado pra pessoa
@@ -327,6 +332,33 @@ export async function importTransactionsAction(
     });
     created += 1;
     touchedMonths.add(`${ym.year}/${ym.month}`);
+
+    // Compra parcelada: as parcelas que ainda vêm entram nos meses seguintes, no mesmo lote
+    // (desfazer o lote leva todas). "03/10" em setembro vira 04/10 em outubro… até 10/10.
+    if (faturaTarget && item.installment && item.installment.current < item.installment.total) {
+      const { current, total } = item.installment;
+      for (let n = current + 1; n <= total; n += 1) {
+        const offset = n - current;
+        const d = new Date(ym.year, ym.month - 1 + offset, 1);
+        const desc = installmentDescription(item.description, n, total);
+        const futureKey = dedupeKey(null, item.amount, `${desc}|${d.getFullYear()}-${d.getMonth() + 1}`);
+        if (existingKeys.has(futureKey)) continue;
+        existingKeys.add(futureKey);
+        await createMonthlyEntry(ctx, {
+          year: d.getFullYear(),
+          month: d.getMonth() + 1,
+          category: item.category,
+          parentCategory: item.category === "EXPENSE" ? parentCategory : undefined,
+          customCategoryId,
+          subcategory: item.subcategory ?? undefined,
+          description: desc,
+          amount: item.amount,
+          importBatchId: batch.id,
+        });
+        created += 1;
+        touchedMonths.add(`${d.getFullYear()}/${d.getMonth() + 1}`);
+      }
+    }
 
     // Aprende a classificação só para gastos com categoria definida pelo usuário.
     if (item.learn && item.category === "EXPENSE" && parentCategory) {

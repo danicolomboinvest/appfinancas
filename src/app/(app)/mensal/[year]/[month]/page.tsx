@@ -1,4 +1,7 @@
 import Link from "next/link";
+import { detectRecurring } from "@/lib/entries/recurrence";
+import { listEntriesForMonths } from "@/lib/repositories/monthly-entry.repo";
+import { RecurringSuggestions } from "./RecurringSuggestions";
 import { notFound } from "next/navigation";
 import { Receipt } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
@@ -225,10 +228,27 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
     elapsed: isCurrentMonth ? now.getDate() / daysInMonth : 1,
   });
 
+  // O que se repetiu nos três meses anteriores e ainda não está neste (só no mês corrente).
+  const previousMonths = [1, 2, 3].map((back) => {
+    const d = new Date(year, month - 1 - back, 1);
+    return { year: d.getFullYear(), month: d.getMonth() + 1 };
+  });
+  const recurring = isCurrentMonth
+    ? detectRecurring(
+        (await listEntriesForMonths(ctx, previousMonths)).map((e) => ({ ...e, amount: Number(e.amount) })),
+        entries.map((e) => ({
+          year: e.year, month: e.month, category: e.category, parentCategory: e.parentCategory, customCategoryId: e.customCategoryId,
+          subcategory: e.subcategory, description: e.description, amount: Number(e.amount), entryDate: e.entryDate,
+        })),
+      )
+    : [];
+
   return (
     <div className="flex flex-col gap-7">
 
       <OnboardingChecklist hasEntry={entryCount > 0} hasBudget={budgetCount > 0} hasAsset={assetCount > 0} />
+
+      {recurring.length > 0 && <RecurringSuggestions candidates={recurring} year={year} month={month} />}
 
       {isCurrentMonth && recapEligibility.eligible && <MonthlyRecapCard monthKey={recapEligibility.monthKey} />}
 

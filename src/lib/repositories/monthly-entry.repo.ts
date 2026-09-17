@@ -169,3 +169,15 @@ export async function countRecentDatedEntries(ctx: AuthContext, days: number): P
     where: { userId: ctx.userId, entryDate: { gte: since } },
   });
 }
+
+/** Lançamentos de uma lista de meses (ex.: os três anteriores), pra detectar o que se repete. */
+export async function listEntriesForMonths(ctx: AuthContext, months: { year: number; month: number }[]) {
+  if (months.length === 0) return [];
+  return prisma.monthlyEntry.findMany({
+    where: { userId: ctx.userId, OR: months.map((m) => ({ year: m.year, month: m.month })) },
+    select: {
+      year: true, month: true, category: true, parentCategory: true, customCategoryId: true,
+      subcategory: true, description: true, amount: true, entryDate: true,
+    },
+  });
+}

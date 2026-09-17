@@ -191,3 +191,47 @@ export async function undoDeleteEntriesAction(snapshots: DeletedEntrySnapshot[])
   const results = await Promise.all(snapshots.map((s) => undoDeleteEntryAction(s)));
   return { ok: results.every((r) => r.ok) };
 }
+
+/**
+ * "Parece que se repete": lança agora o que o app viu nos meses anteriores e ainda não está
+ * neste mês. `repeat` = também até dezembro, como o checkbox do formulário.
+ */
+export async function createFromRecurringAction(
+  candidate: {
+    category: "INCOME" | "EXPENSE" | "INVESTMENT_CONTRIBUTION";
+    parentCategory: string | null;
+    customCategoryId: string | null;
+    subcategory: string | null;
+    description: string | null;
+    amount: number;
+    typicalDay: number | null;
+  },
+  year: number,
+  month: number,
+  repeat: boolean,
+): Promise<{ ok: boolean }> {
+  const ctx = await getRequiredSession();
+  const lastDay = new Date(year, month, 0).getDate();
+  const day = candidate.typicalDay ? Math.min(candidate.typicalDay, lastDay) : undefined;
+  const input: MonthlyEntryInput = {
+    year,
+    month,
+    category: candidate.category,
+    parentCategory: (candidate.parentCategory as MonthlyEntryInput["parentCategory"]) ?? undefined,
+    customCategoryId: candidate.customCategoryId ?? undefined,
+    subcategory: candidate.subcategory ?? undefined,
+    description: candidate.description ?? undefined,
+    amount: candidate.amount,
+    entryDate: day ? new Date(year, month - 1, day, 12) : undefined,
+  };
+  try {
+    if (repeat) await createRecurringMonthlyEntries(ctx, input);
+    else await createMonthlyEntry(ctx, input);
+  } catch (err) {
+    console.error("createFromRecurringAction falhou:", err);
+    return { ok: false };
+  }
+  revalidatePath(`/mensal/${year}`);
+  revalidatePath(`/mensal/${year}/${month}`);
+  return { ok: true };
+}

@@ -189,6 +189,7 @@ export function StatementImport({ onDone }: { onDone: () => void }) {
         subcategory: it.subcategory,
         // Aprende quando foi o usuário quem classificou (não veio 100% automático).
         learn: !it.autoClassified,
+        installment: it.installment,
       }));
     const [targetYear, targetMonth] = docType === "fatura" ? faturaMonth.split("-").map(Number) : [undefined, undefined];
     startTransition(async () => {
@@ -370,6 +371,11 @@ export function StatementImport({ onDone }: { onDone: () => void }) {
             <span className="text-caption text-ink-faint">{formatDate(it.date)}</span>
             <span className="text-indicator font-semibold tabular-nums text-danger">− {money(it.amount)}</span>
           </div>
+          {it.installment && it.installment.current < it.installment.total && (
+            <p className="mt-1.5 text-caption text-accent-strong">
+              Parcela {it.installment.current} de {it.installment.total}: as {it.installment.total - it.installment.current} seguintes entram sozinhas nos próximos meses.
+            </p>
+          )}
         </div>
 
         <p className="text-xs font-medium text-ink-muted">Qual a categoria?</p>
