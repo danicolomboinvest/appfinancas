@@ -10,6 +10,7 @@ import { refreshDividendsForTickers } from "@/lib/repositories/dividend.repo";
 import { parsePortfolioStatement, guessAssetClass } from "@/lib/import/portfolio-parser";
 import { extractUploadFromForm, UploadReadError, PasswordRequiredError } from "@/lib/import/extract-text";
 import { isNubankStatement } from "@/lib/import/nubank-pdf";
+import { NUMBERS_ONLY_MESSAGE, pdfTextQuality } from "@/lib/import/pdf-quality";
 
 /** Record (não array solto) por classe existente: se um valor novo entrar no enum AssetClass
  * sem passar por aqui, o TypeScript acusa na hora — evita repetir o bug de uma classe nova
@@ -86,15 +87,17 @@ export async function parsePortfolioAction(formData: FormData): Promise<ParsePor
     };
   }
 
-  // PDF escaneado/foto não tem texto extraível, avisa e pede Excel.
-  const readableChars = text.replace(/[^\p{L}\p{N}]/gu, "").length;
-  if (encoding === "pdf" && readableChars < 12) {
+  // PDF escaneado/foto não tem texto extraível; PDF "impresso" pelo celular tem só os números.
+  // Nos dois casos a resposta certa é pedir o Excel, e dizer POR QUÊ.
+  const quality = encoding === "pdf" ? pdfTextQuality(text) : "ok";
+  if (quality === "empty") {
     return {
       ok: false,
       error:
         "Não consegui ler este PDF, ele parece ser escaneado ou uma foto. Suba a posição em Excel (.xlsx) ou CSV que aí funciona.",
     };
   }
+  if (quality === "numbers-only") return { ok: false, error: NUMBERS_ONLY_MESSAGE };
 
   const parsed = parsePortfolioStatement(text);
   if (parsed.length === 0) {

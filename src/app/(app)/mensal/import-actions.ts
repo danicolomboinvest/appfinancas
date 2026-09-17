@@ -14,6 +14,7 @@ import { listCustomCategories } from "@/lib/repositories/custom-category.repo";
 import { listTransactionRules, upsertTransactionRule } from "@/lib/repositories/transaction-rule.repo";
 import { parseStatement, type ParsedTransaction } from "@/lib/import/statement-parser";
 import { extractUploadFromForm, UploadReadError, PasswordRequiredError } from "@/lib/import/extract-text";
+import { NUMBERS_ONLY_MESSAGE, pdfTextQuality } from "@/lib/import/pdf-quality";
 import { classify, normalizeMerchant, type LearnedRule } from "@/lib/import/classify";
 
 const PARENT_CATEGORY_VALUES: ParentCategory[] = [
@@ -87,13 +88,20 @@ export async function parseStatementAction(formData: FormData): Promise<ParseSta
     return { ok: false, error: "Não consegui abrir esse arquivo. Tente exportar de novo em Excel (.xlsx), CSV ou OFX." };
   }
 
-  // PDF escaneado/foto não tem texto extraível, avisa e pede Excel, em vez de erro genérico.
-  const readableChars = text.replace(/[^\p{L}\p{N}]/gu, "").length;
-  if (encoding === "pdf" && readableChars < 12) {
+  // PDF escaneado/foto não tem texto extraível; PDF "impresso" pelo celular tem só os números.
+  const quality = encoding === "pdf" ? pdfTextQuality(text) : "ok";
+  if (quality === "empty") {
     return {
       ok: false,
       error:
         "Não consegui ler este PDF, ele parece ser escaneado ou uma foto. Exporte o extrato em Excel (.xlsx), CSV ou OFX que aí funciona.",
+    };
+  }
+  if (quality === "numbers-only") {
+    return {
+      ok: false,
+      error:
+        "Esse PDF veio da impressão pelo celular: os números estão lá, mas as descrições viraram desenho. Exporte o extrato em Excel (.xlsx), CSV ou OFX pelo app do banco, ou baixe o PDF original pelo computador.",
     };
   }
 
