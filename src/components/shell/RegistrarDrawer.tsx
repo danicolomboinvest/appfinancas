@@ -6,6 +6,7 @@ import { ChevronLeft, FileUp, Keyboard, Mic } from "lucide-react";
 import type { ParentCategory } from "@prisma/client";
 import { Modal } from "@/components/ui/Modal";
 import { EntryForm } from "@/app/(app)/mensal/[year]/[month]/EntryForm";
+import { SUBCATEGORIES, INCOME_TYPES } from "@/lib/categories";
 import { getRecentSubcategoriesAction, getCustomCategoriesAction, getGoalsAction } from "@/app/(app)/mensal/actions";
 import { currentYearMonthFromPath } from "@/app/(app)/mensal/current-month";
 import { VoiceRecorder } from "@/app/(app)/mensal/VoiceRecorder";
@@ -121,7 +122,8 @@ export function RegistrarDrawer({ open, onClose }: { open: boolean; onClose: () 
           goals={goals}
           layout="stacked"
           onSuccess={onClose}
-          defaultDescription={parsed?.description}
+          defaultDescription={parsed && voiceSubcategory(parsed) ? undefined : parsed?.description}
+          defaultSubcategory={parsed ? voiceSubcategory(parsed) : undefined}
           defaultAmount={parsed?.amount ?? undefined}
           defaultCurrency={parsed?.currency ?? undefined}
           defaultCategory={parsed?.category}
@@ -130,4 +132,17 @@ export function RegistrarDrawer({ open, onClose }: { open: boolean; onClose: () 
       )}
     </Modal>
   );
+}
+
+/**
+ * O parser de voz devolve a palavra-chave ("Farmácia", "Salário") como descrição. Quando ela
+ * é um dos tipos conhecidos, vira o chip de Tipo, e a descrição fica livre pro que a pessoa
+ * quiser dizer a mais.
+ */
+function voiceSubcategory(parsed: ParsedVoiceEntry): string | undefined {
+  const label = parsed.description.trim();
+  if (!label) return undefined;
+  const pool = parsed.category === "INCOME" ? INCOME_TYPES : parsed.parentCategory ? SUBCATEGORIES[parsed.parentCategory] : [];
+  const norm = (t: string) => t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  return pool.find((t) => norm(t) === norm(label) || norm(t).startsWith(norm(label)));
 }

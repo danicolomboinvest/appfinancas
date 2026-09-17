@@ -2,7 +2,7 @@
 
 import { useId, useState, useTransition } from "react";
 import type { ParentCategory } from "@prisma/client";
-import { PARENT_CATEGORIES, PARENT_CATEGORY_LABEL, SUBCATEGORIES, OUTRO_SUBCATEGORY_LABEL } from "@/lib/categories";
+import { PARENT_CATEGORIES, PARENT_CATEGORY_LABEL, SUBCATEGORIES, OUTRO_SUBCATEGORY_LABEL, INCOME_TYPES, INVESTMENT_TYPES } from "@/lib/categories";
 import { CONTROL_CLASSES } from "@/components/ui/Field";
 import { createCategoryAction } from "@/lib/actions/category";
 
@@ -115,7 +115,7 @@ export function CategoryFields({
     <div className={stacked ? "flex w-full flex-col gap-3" : "flex flex-wrap items-start gap-3"}>
       <div className="flex flex-col gap-1.5">
         <label htmlFor={selectId} className="text-xs font-medium text-ink-muted">
-          Categoria
+          O que é
         </label>
         <select
           id={selectId}
@@ -134,7 +134,7 @@ export function CategoryFields({
 
       {isExpense && (
         <div className={`flex flex-col gap-2 ${stacked ? "w-full" : ""}`}>
-          <span className="text-xs font-medium text-ink-muted">Categoria-mãe</span>
+          <span className="text-xs font-medium text-ink-muted">Categoria</span>
           <div className="flex flex-wrap gap-1.5">
             {PARENT_CATEGORIES.map((pc) => (
               <Chip
@@ -187,7 +187,7 @@ export function CategoryFields({
                       handleCreateCategory();
                     }
                   }}
-                  placeholder="Nome da nova categoria-mãe"
+                  placeholder="Nome da nova categoria"
                   autoFocus
                   className={`${CONTROL_CLASSES} ${stacked ? "w-full" : "w-56"}`}
                 />
@@ -208,20 +208,22 @@ export function CategoryFields({
 
       {isExpense && customCategoryId && (
         <div className={`flex flex-col gap-1.5 ${stacked ? "w-full" : ""}`}>
-          <label className="text-xs font-medium text-ink-muted">Subcategoria</label>
+          <label className="text-xs font-medium text-ink-muted">Tipo (opcional)</label>
           <input
             type="text"
             value={customText}
             onChange={(e) => setCustomText(e.target.value)}
-            placeholder="Descreva a subcategoria (opcional)"
+            placeholder="Ex.: ração, banho e tosa"
             className={`${CONTROL_CLASSES} ${stacked ? "w-full" : "w-48"}`}
           />
         </div>
       )}
 
+      {/* "Tipo", não "subcategoria": é o que o gasto É (restaurante, delivery, padaria).
+          O nome do lugar vai na descrição, que é livre e opcional. */}
       {isExpense && parentCategory && (
         <div className={`flex flex-col gap-2 ${stacked ? "w-full" : ""}`}>
-          <span className="text-xs font-medium text-ink-muted">Subcategoria</span>
+          <span className="text-xs font-medium text-ink-muted">Tipo</span>
           {(recentSubcategories[parentCategory]?.length ?? 0) > 0 && (
             <div className="flex flex-wrap gap-1.5">
               <span className="text-[11px] text-ink-faint">Usadas recentemente:</span>
@@ -257,7 +259,7 @@ export function CategoryFields({
               type="text"
               value={customText}
               onChange={(e) => setCustomText(e.target.value)}
-              placeholder="Descreva a subcategoria"
+              placeholder="Que tipo de gasto é?"
               className={`${CONTROL_CLASSES} ${stacked ? "w-full" : "w-48"}`}
             />
           )}
@@ -265,21 +267,34 @@ export function CategoryFields({
       )}
 
       {!isExpense && (
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-ink-muted">Subcategoria</label>
-          <input
-            type="text"
-            value={freeSubcategory}
-            onChange={(e) => setFreeSubcategory(e.target.value)}
-            placeholder="Ex.: Salário"
-            className={`${CONTROL_CLASSES} ${stacked ? "w-full" : ""}`}
-          />
+        <div className={`flex flex-col gap-2 ${stacked ? "w-full" : ""}`}>
+          <span className="text-xs font-medium text-ink-muted">Tipo</span>
+          <div className="flex flex-wrap gap-1.5">
+            {(category === "INCOME" ? INCOME_TYPES : INVESTMENT_TYPES).map((t) => (
+              <Chip key={t} label={t} active={freeSubcategory === t} onClick={() => setFreeSubcategory(t)} />
+            ))}
+            <Chip
+              label={OUTRO_SUBCATEGORY_LABEL}
+              active={freeSubcategory !== "" && !(category === "INCOME" ? INCOME_TYPES : INVESTMENT_TYPES).includes(freeSubcategory)}
+              onClick={() => setFreeSubcategory(" ")}
+            />
+          </div>
+          {freeSubcategory !== "" && !(category === "INCOME" ? INCOME_TYPES : INVESTMENT_TYPES).includes(freeSubcategory) && (
+            <input
+              type="text"
+              value={freeSubcategory.trim()}
+              onChange={(e) => setFreeSubcategory(e.target.value || " ")}
+              placeholder={category === "INCOME" ? "Ex.: venda de um móvel" : "Ex.: consórcio"}
+              autoFocus
+              className={`${CONTROL_CLASSES} ${stacked ? "w-full" : ""}`}
+            />
+          )}
         </div>
       )}
 
       <input type="hidden" name="parentCategory" value={isExpense ? (parentCategory ?? "") : ""} />
       <input type="hidden" name="customCategoryId" value={isExpense ? (customCategoryId ?? "") : ""} />
-      <input type="hidden" name="subcategory" value={isExpense ? (finalSubcategory ?? "") : freeSubcategory} />
+      <input type="hidden" name="subcategory" value={isExpense ? (finalSubcategory ?? "") : freeSubcategory.trim()} />
     </div>
   );
 }

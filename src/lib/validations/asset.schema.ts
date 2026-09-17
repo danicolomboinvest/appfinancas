@@ -16,7 +16,7 @@ export const assetSchema = z.object({
     .optional()
     .or(z.literal(""))
     .transform((v) => v || undefined),
-  currentValue: z.coerce.number().min(0),
+  currentValue: z.coerce.number({ message: "Informe o valor atual ou a quantidade e o preço médio." }).min(0),
   idealAllocationPercent: z.coerce.number().min(0).max(1).optional(),
   acquisitionDate: z.coerce.date().optional(),
   notes: z.string().trim().optional(),

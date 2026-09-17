@@ -103,14 +103,18 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
   const biggestSaving = currentMonthData ? findBiggestSaving(currentMonthData.categories) : null;
   const unrecorded = currentMonthData ? findUnrecorded(currentMonthData.categories) : [];
 
-  // Comparação por categoria somando os meses já realizados no ano.
+  // Comparação por categoria no ANO DA PESSOA: o planejado soma do mês em que ela começou
+  // até dezembro (o que ela se propôs a gastar de lá pra frente); o gasto, só os meses já
+  // vividos. Quem começou em setembro vê "R$ 0 de R$ 6.000" com o tracinho em 1/4, não
+  // "R$ 0 de R$ 13.500" com janeiro a agosto em dívida.
   const realizedMonths = comparison.months.filter((m) => m.isRealized);
+  const windowMonths = comparison.months.filter((m) => m.month >= comparison.startMonth);
   const categoryTotals = new Map<string, { planned: number; spent: number }>();
-  for (const month of realizedMonths) {
+  for (const month of windowMonths) {
     for (const cat of month.categories) {
       const existing = categoryTotals.get(cat.categoryKey) ?? { planned: 0, spent: 0 };
       existing.planned += cat.planned;
-      existing.spent += cat.spent;
+      if (month.isRealized) existing.spent += cat.spent;
       categoryTotals.set(cat.categoryKey, existing);
     }
   }
@@ -122,7 +126,7 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
 
   // Tracinho do ano: a fração do ano que já passou (meses realizados / 12). Gastar 80% do
   // orçamento anual em março é a mesma informação que gastar 80% do mensal no dia 5.
-  const yearPace = realizedMonths.length > 0 ? realizedMonths.length / 12 : null;
+  const yearPace = realizedMonths.length > 0 && windowMonths.length > 0 ? realizedMonths.length / windowMonths.length : null;
   const yearBullets = buildBudgetBullets(categoryComparisons, {
     paceRatio: isCurrentYear ? yearPace : 1,
     money,

@@ -2,6 +2,7 @@ import type { AuthContext } from "@/lib/auth/session";
 import { PARENT_CATEGORIES } from "@/lib/categories";
 import { monthsElapsedInYear } from "@/lib/consolidation/realized-months";
 import {
+  getFirstEntryMonth,
   listBudgetsForYear,
   sumExpensesByParentCategoryForYear,
   sumExpensesByCustomCategoryForYear,
@@ -29,6 +30,8 @@ export type MonthlyPlannedVsActual = {
 
 export type AnnualPlannedVsActual = {
   year: number;
+  /** Primeiro mês que conta (o do primeiro lançamento): antes dele não há "planejado" a cobrar. */
+  startMonth: number;
   months: MonthlyPlannedVsActual[];
   /** Soma só dos meses já ocorridos, nunca conte meses futuros como "gasto". */
   totalPlannedRealized: number;
@@ -125,11 +128,12 @@ export function computeOverBudgetStreak(monthsDescending: MonthlyPlannedVsActual
 
 /** Orquestra os repositórios e monta o comparativo do ano inteiro (categorias padrão + personalizadas). */
 export async function getAnnualPlannedVsActual(ctx: AuthContext, year: number): Promise<AnnualPlannedVsActual> {
-  const [budgets, spent, customCategories, customSpent] = await Promise.all([
+  const [budgets, spent, customCategories, customSpent, startMonth] = await Promise.all([
     listBudgetsForYear(ctx, year),
     sumExpensesByParentCategoryForYear(ctx, year),
     listCustomCategories(ctx),
     sumExpensesByCustomCategoryForYear(ctx, year),
+    getFirstEntryMonth(ctx, year),
   ]);
 
   const categoryKeys: string[] = [...PARENT_CATEGORIES, ...customCategories.map((c) => c.id)];
@@ -158,7 +162,7 @@ export async function getAnnualPlannedVsActual(ctx: AuthContext, year: number): 
   const months: MonthlyPlannedVsActual[] = Array.from({ length: 12 }, (_, i) => i + 1).map((month) =>
     buildMonthlyComparison(
       month,
-      month <= monthsElapsed,
+      month >= startMonth && month <= monthsElapsed,
       categoryKeys,
       budgetsByMonth.get(month) ?? [],
       spentByMonth.get(month) ?? [],
@@ -169,7 +173,7 @@ export async function getAnnualPlannedVsActual(ctx: AuthContext, year: number): 
   const totalPlannedRealized = realizedMonths.reduce((sum, m) => sum + m.totalPlanned, 0);
   const totalSpentRealized = realizedMonths.reduce((sum, m) => sum + m.totalSpent, 0);
 
-  return { year, months, totalPlannedRealized, totalSpentRealized };
+  return { year, startMonth, months, totalPlannedRealized, totalSpentRealized };
 }
 
 /** Categorias com plano e nenhum lançamento no mês: quase sempre é gasto que não foi registrado, não economia. */

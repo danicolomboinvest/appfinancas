@@ -112,14 +112,18 @@ export function colorForCategorySlice(category?: { kind: "parent" | "custom"; va
 
 /** Subcategorias pré-cadastradas por categoria-mãe. "Outro" é sempre oferecido à parte, como texto livre. */
 export const SUBCATEGORIES: Record<ParentCategory, string[]> = {
-  MORADIA: ["Aluguel", "Condomínio", "IPTU", "Luz", "Água", "Internet", "Manutenção"],
-  ALIMENTACAO: ["Supermercado", "Restaurante", "Delivery", "Padaria"],
-  TRANSPORTE: ["Combustível", "Transporte público", "Aplicativo", "Manutenção do veículo", "Estacionamento"],
-  SAUDE: ["Plano de saúde", "Farmácia", "Consultas", "Exames", "Academia"],
-  LAZER: ["Streaming", "Viagens", "Cinema/Shows", "Hobbies"],
-  EDUCACAO: ["Mensalidade", "Cursos", "Livros/Material"],
+  MORADIA: ["Aluguel", "Condomínio", "IPTU", "Luz", "Água", "Gás", "Internet", "Faxina", "Manutenção"],
+  ALIMENTACAO: ["Supermercado", "Restaurante", "Delivery", "Padaria", "Lanche/Café", "Bar"],
+  TRANSPORTE: ["Combustível", "Transporte público", "Aplicativo", "Manutenção do veículo", "Estacionamento", "Pedágio"],
+  SAUDE: ["Plano de saúde", "Farmácia", "Consultas", "Exames", "Terapia", "Academia"],
+  LAZER: ["Streaming", "Viagens", "Cinema/Shows", "Bar/Balada", "Passeios", "Presentes", "Hobbies"],
+  EDUCACAO: ["Mensalidade", "Escola", "Cursos", "Livros/Material"],
   FINANCEIRO: ["Tarifas bancárias", "Juros/Empréstimos", "Seguros", "Impostos"],
 };
+
+/** Tipos de renda e de aporte, como chips, pelo mesmo motivo dos gastos: escolher é mais rápido que digitar. */
+export const INCOME_TYPES = ["Salário", "Freela", "Pró-labore", "Dividendos", "Aluguel recebido", "13º", "Restituição", "Presente"];
+export const INVESTMENT_TYPES = ["Reserva de emergência", "Tesouro Direto", "CDB", "Ações", "FIIs", "Fundos", "Previdência", "Cripto"];
 
 export const OUTRO_SUBCATEGORY_LABEL = "Outro";
 

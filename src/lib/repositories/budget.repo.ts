@@ -199,3 +199,21 @@ export async function sumExpensesByCustomCategoryForYear(ctx: AuthContext, year:
     spent: Number(g._sum.amount ?? 0),
   }));
 }
+
+/**
+ * Mês em que a vida financeira da pessoa começa dentro de `year`: o do primeiro lançamento.
+ * Quem entrou em setembro não deve ver "R$ 0 de R$ 13.500 planejados" em Moradia, com
+ * janeiro a agosto contados como meses de plano não cumprido. Sem lançamento nenhum, é o mês
+ * atual (nada ficou pra trás). Quem já lançava no ano anterior começa em janeiro.
+ */
+export async function getFirstEntryMonth(ctx: AuthContext, year: number, today: Date = new Date()): Promise<number> {
+  const first = await prisma.monthlyEntry.findFirst({
+    where: { userId: ctx.userId },
+    orderBy: [{ year: "asc" }, { month: "asc" }],
+    select: { year: true, month: true },
+  });
+  if (!first) return year === today.getFullYear() ? today.getMonth() + 1 : 1;
+  if (first.year < year) return 1;
+  if (first.year > year) return 12;
+  return first.month;
+}

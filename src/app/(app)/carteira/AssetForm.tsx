@@ -47,6 +47,7 @@ const FIXED_INCOME_OPTIONS = [
 type Defaults = {
   name?: string;
   ticker?: string;
+  quantity?: number;
   assetClass?: string;
   objective?: string;
   goalId?: string;
@@ -75,6 +76,15 @@ export function AssetForm({
   const [assetClass, setAssetClass] = useState(defaults.assetClass ?? "RENDA_FIXA");
   const [assetName, setAssetName] = useState(defaults.name ?? "");
   const pickerKinds = PICKER_KINDS[assetClass];
+  // Ação, FII, ETF: quem compra sabe "10 ações a R$ 30", não o valor de hoje. Quantidade e
+  // preço médio dão o investido; a cotação de hoje o app busca sozinho ao salvar.
+  const quoted = Boolean(pickerKinds);
+  const [quantity, setQuantity] = useState<string>(defaults.quantity ? String(defaults.quantity) : "");
+  const [avgPrice, setAvgPrice] = useState<number>(
+    defaults.quantity && defaults.investedValue ? Math.round((defaults.investedValue / defaults.quantity) * 100) / 100 : 0,
+  );
+  const qtyNumber = Number(quantity.replace(",", "."));
+  const investedFromQty = Number.isFinite(qtyNumber) && qtyNumber > 0 && avgPrice > 0 ? Math.round(qtyNumber * avgPrice * 100) / 100 : undefined;
   const isFixedIncome = assetClass === "RENDA_FIXA" || assetClass === "TESOURO_DIRETO";
   const wasPending = useRef(false);
   useSuccessToast(isPending, state.error, assetId ? "Ativo atualizado com sucesso." : "Ativo adicionado com sucesso.");
@@ -165,21 +175,56 @@ export function AssetForm({
           ))}
         </SelectField>
       )}
-      <CurrencyField
-        label="Valor investido"
-        id="investedValue"
-        name="investedValue"
-        defaultValue={defaults.investedValue}
-        className="w-full sm:w-40"
-      />
-      <CurrencyField
-        label="Valor atual"
-        id="currentValue"
-        name="currentValue"
-        required
-        defaultValue={defaults.currentValue}
-        className="w-full sm:w-40"
-      />
+      {quoted ? (
+        <>
+          <Field
+            label="Quantidade"
+            id="quantity"
+            name="quantity"
+            type="text"
+            inputMode="decimal"
+            value={quantity}
+            onChange={(e) => setQuantity(e.target.value)}
+            placeholder="Ex.: 10"
+            className="w-full sm:w-28"
+          />
+          <CurrencyField
+            label="Preço médio de compra"
+            id="avgPrice"
+            name="avgPrice"
+            defaultValue={avgPrice || undefined}
+            onValueChange={setAvgPrice}
+            className="w-full sm:w-40"
+          />
+          <input type="hidden" name="investedValue" value={investedFromQty ?? ""} />
+          <CurrencyField
+            label="Valor atual (opcional)"
+            id="currentValue"
+            name="currentValue"
+            defaultValue={defaults.currentValue}
+            hint="Deixe em branco: o app busca a cotação de hoje e multiplica pela quantidade."
+            className="w-full sm:w-40"
+          />
+        </>
+      ) : (
+        <>
+          <CurrencyField
+            label="Valor investido"
+            id="investedValue"
+            name="investedValue"
+            defaultValue={defaults.investedValue}
+            className="w-full sm:w-40"
+          />
+          <CurrencyField
+            label="Valor atual"
+            id="currentValue"
+            name="currentValue"
+            required
+            defaultValue={defaults.currentValue}
+            className="w-full sm:w-40"
+          />
+        </>
+      )}
       <Button type="submit" disabled={isPending} size="sm">
         {isPending ? "Salvando..." : submitLabel}
       </Button>

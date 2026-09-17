@@ -520,6 +520,7 @@ export function AssetsSection({
             defaults={{
               name: editingAsset.name,
               ticker: editingAsset.ticker ?? undefined,
+              quantity: editingAsset.quantity ?? undefined,
               investedValue: editingAsset.investedValue ?? undefined,
               assetClass: editingAsset.assetClass,
               objective: editingAsset.objective,

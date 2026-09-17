@@ -111,10 +111,11 @@ export function EntryForm({
         defaultSubcategory={defaultSubcategory}
       />
       <Field
-        label="Descrição"
+        label="Descrição (opcional)"
         id="description"
         name="description"
         defaultValue={defaultDescription}
+        placeholder="Ex.: o nome do lugar, o que comprou"
         className={stacked ? "w-full" : ""}
       />
       <div className={`flex flex-col gap-1.5 ${stacked ? "w-full" : "w-40"}`}>
