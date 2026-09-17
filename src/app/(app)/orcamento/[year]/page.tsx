@@ -218,7 +218,7 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
 
       {/* Três linhas no celular, três colunas no computador — e "sem lançamento" no lugar de
           "melhor categoria" quando o que existe é categoria em zero, não economia. */}
-      {isCurrentYear && (
+      {isCurrentYear && Object.values(plan).some((v) => v > 0) && (
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-3 lg:gap-4">
           <StatCard
             layout="row"

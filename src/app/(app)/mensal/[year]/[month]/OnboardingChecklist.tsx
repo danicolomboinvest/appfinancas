@@ -28,7 +28,8 @@ export function OnboardingChecklist({
   }, []);
 
   const steps: Step[] = [
-    { label: "Registre seu primeiro gasto ou renda", done: hasEntry, href: "#lancamento" },
+    // O formulário inline (#lancamento) não existe mais: o registro vive na gaveta do "+".
+    { label: "Registre seu primeiro gasto ou renda", done: hasEntry, href: "#registrar" },
     { label: "Defina seu orçamento do mês", done: hasBudget, href: "/orcamento" },
     { label: "Monte sua carteira de investimentos", done: hasAsset, href: "/carteira" },
   ];
@@ -56,6 +57,11 @@ export function OnboardingChecklist({
           <li key={step.label}>
             <Link
               href={step.href}
+              onClick={(e) => {
+                if (step.href !== "#registrar") return;
+                e.preventDefault();
+                window.dispatchEvent(new CustomEvent("spi:registrar"));
+              }}
               className={`flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm transition-colors ${
                 step.done ? "text-ink-faint line-through" : "bg-surface-2 text-ink hover:bg-surface-hover"
               }`}

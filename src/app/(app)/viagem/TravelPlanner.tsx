@@ -31,10 +31,11 @@ import { currencySymbol } from "@/lib/money";
 const initialState: TravelGoalState = {};
 
 
-/** "YYYY-MM" do mês que vem — viagem é sempre no futuro. */
+/** "YYYY-MM" daqui a seis meses. Com "mês que vem" o app dizia "guardando R$ 9.768/mês você
+ * chega lá em 1 mês", que é o oposto de planejar. */
 function nextMonthValue(): string {
   const now = new Date();
-  const next = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const next = new Date(now.getFullYear(), now.getMonth() + 6, 1);
   return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, "0")}`;
 }
 

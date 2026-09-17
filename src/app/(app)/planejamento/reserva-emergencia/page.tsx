@@ -6,6 +6,7 @@ import { computeEmergencyFundPlan } from "@/lib/planning/emergency-fund";
 import { SavingsProjectionChart } from "@/components/charts/SavingsProjectionChart";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatRows } from "@/components/ui/StatRows";
+import { listAssets } from "@/lib/repositories/asset.repo";
 import { EmergencyFundForm } from "./EmergencyFundForm";
 import { formatPercentNumber } from "@/lib/format";
 import { serverMoney } from "@/lib/money-server";
@@ -15,7 +16,9 @@ import { Section } from "@/components/ui/Section";
 export default async function ReservaEmergenciaPage() {
   const money = await serverMoney();
   const ctx = await getRequiredSession();
-  const [fund, typicalExpense] = await Promise.all([getEmergencyFund(ctx), getTypicalMonthlyExpense(ctx)]);
+  const [fund, typicalExpense, assets] = await Promise.all([getEmergencyFund(ctx), getTypicalMonthlyExpense(ctx), listAssets(ctx)]);
+  // Quem marcou um CDB como "reserva de emergência" na carteira já respondeu "quanto tem guardado".
+  const reserveInAssets = assets.filter((a) => a.objective === "RESERVA_EMERGENCIA").reduce((sum, a) => sum + Number(a.currentValue), 0);
 
   const plan = fund
     ? computeEmergencyFundPlan({
@@ -40,21 +43,6 @@ export default async function ReservaEmergenciaPage() {
       <PageHeader
         title="Reserva de Emergência"
         subtitle="Meta calculada como meses de proteção × custo mensal, com projeção mês a mês até atingi-la."
-      />
-
-      <EmergencyFundForm
-        typicalExpense={typicalExpense}
-        defaults={
-          fund
-            ? {
-                targetMonths: fund.targetMonths,
-                monthlyExpenseBase: Number(fund.monthlyExpenseBase),
-                currentAmount: Number(fund.currentAmount),
-                monthlyContribution: Number(fund.monthlyContribution),
-                annualRate: Number(fund.annualRate),
-              }
-            : {}
-        }
       />
 
       {fund && plan && (
@@ -82,6 +70,23 @@ export default async function ReservaEmergenciaPage() {
               />
             </Section>
           )}
+
+      <EmergencyFundForm
+        typicalExpense={typicalExpense}
+        reserveInAssets={reserveInAssets}
+        defaults={
+          fund
+            ? {
+                targetMonths: fund.targetMonths,
+                monthlyExpenseBase: Number(fund.monthlyExpenseBase),
+                currentAmount: Number(fund.currentAmount),
+                monthlyContribution: Number(fund.monthlyContribution),
+                annualRate: Number(fund.annualRate),
+              }
+            : {}
+        }
+      />
+
         </div>
       )}
     </div>

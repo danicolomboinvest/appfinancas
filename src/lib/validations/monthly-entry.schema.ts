@@ -10,7 +10,8 @@ const PARENT_CATEGORY_VALUES = [
   "FINANCEIRO",
 ] as const;
 
-export const monthlyEntrySchema = z.object({
+export const monthlyEntrySchema = z
+  .object({
   year: z.coerce.number().int().min(2000).max(2100),
   month: z.coerce.number().int().min(1).max(12),
   category: z.enum(["INCOME", "EXPENSE", "INVESTMENT_CONTRIBUTION"]),
@@ -41,4 +42,10 @@ export const monthlyEntrySchema = z.object({
   repeatMonthly: z
     .union([z.literal("on"), z.literal("true"), z.literal(""), z.undefined()])
     .transform((v) => v === "on" || v === "true"),
-});
+})
+  // Gasto sem categoria some do orçamento e do "para onde foi seu dinheiro": a pessoa lançava
+  // R$ 250 no mercado e o app dizia que ela economizou R$ 250 em alimentação.
+  .refine((d) => d.category !== "EXPENSE" || Boolean(d.parentCategory) || Boolean(d.customCategoryId), {
+    message: "Escolha uma categoria pro gasto (Moradia, Alimentação…).",
+    path: ["parentCategory"],
+  });

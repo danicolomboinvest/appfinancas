@@ -121,7 +121,15 @@ export function GoalForm({
         defaultValue={defaults.currentAmount ?? 0}
       />
       <MonthYearField label="Mês/ano alvo" id="targetDate" name="targetDate" required defaultValue={defaults.targetDate} />
-      <PercentField label="Rentabilidade anual" id="annualRate" name="annualRate" required defaultValue={defaults.annualRate} />
+      <PercentField
+        label="Quanto o dinheiro guardado rende por ano"
+        id="annualRate"
+        name="annualRate"
+        required
+        defaultValue={defaults.annualRate ?? 10}
+        suggestions={[6, 10, 12]}
+        hint="Poupança rende perto de 6%. CDB e Tesouro Selic, perto de 10%. Se não sabe, deixe 10%."
+      />
       <Button type="submit" disabled={isPending} size="sm">
         {isPending ? "Salvando..." : submitLabel}
       </Button>

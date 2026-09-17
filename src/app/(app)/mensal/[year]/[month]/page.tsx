@@ -149,6 +149,7 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
   // o dia (ou mês) seguinte.
   const now = nowInBrazil();
   const isCurrentMonth = year === now.getFullYear() && month === now.getMonth() + 1;
+  const isFutureMonth = year > now.getFullYear() || (year === now.getFullYear() && month > now.getMonth() + 1);
   const daysInMonth = new Date(year, month, 0).getDate();
   const pacing =
     isCurrentMonth && monthlyPlanned > 0
@@ -250,7 +251,7 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
       />
 
       {/* Curva do mês dia a dia — o gráfico que faltava pra enxergar o ritmo, não só o total. */}
-      <MonthFlowCard flow={dailyFlow} monthLabel={MONTH_LABELS[month - 1]} isCurrentMonth={isCurrentMonth} />
+      <MonthFlowCard flow={dailyFlow} monthLabel={MONTH_LABELS[month - 1]} isCurrentMonth={isCurrentMonth} isFutureMonth={isFutureMonth} />
 
       {/* Duas roscas que respondem perguntas diferentes: a primeira divide a RENDA (quanto do
           que entrou virou gasto, aporte e sobra), a segunda abre os GASTOS por categoria. */}

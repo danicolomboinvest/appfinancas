@@ -70,10 +70,13 @@ const MESES_SUGERIDOS = [3, 6, 8, 12];
 export function EmergencyFundForm({
   defaults,
   typicalExpense,
+  reserveInAssets = 0,
 }: {
   defaults: Defaults;
   /** Gasto médio dos últimos meses fechados, para o app não perguntar o que ele já sabe. */
   typicalExpense?: { monthlyAverage: number; monthsUsed: number } | null;
+  /** Soma dos ativos marcados como reserva na carteira, pra sugerir o "já tenho guardado". */
+  reserveInAssets?: number;
 }) {
   const [state, formAction, isPending] = useActionState(saveEmergencyFundAction, initialState);
   useSuccessToast(isPending, state.error);
@@ -103,7 +106,12 @@ export function EmergencyFundForm({
         <MonthsField defaultValue={defaults.targetMonths} />
 
         <div className="grid grid-cols-2 gap-4">
-          <CurrencyField label="Já tenho guardado" name="currentAmount" defaultValue={defaults.currentAmount} />
+          <CurrencyField
+            label="Já tenho guardado"
+            name="currentAmount"
+            defaultValue={defaults.currentAmount}
+            suggestion={reserveInAssets > 0 ? { value: reserveInAssets, label: "Na sua carteira, isso está marcado como reserva." } : undefined}
+          />
           <CurrencyField
             label="Guardo por mês"
             name="monthlyContribution"

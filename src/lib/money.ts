@@ -63,12 +63,15 @@ export function formatMoney(
   const { round = false, compact = false, bare = false } = options;
 
   if (bare) {
-    return value.toLocaleString("pt-BR", {
-      minimumFractionDigits: round ? 0 : 2,
-      maximumFractionDigits: round ? 0 : 2,
-    });
+    return value
+      .toLocaleString("pt-BR", {
+        minimumFractionDigits: round ? 0 : 2,
+        maximumFractionDigits: round ? 0 : 2,
+      })
+      .replace(/^-/, "−");
   }
 
+  // O Intl usa hífen ("-R$ 250"); o resto do app usa o sinal de menos ("−"). Um só.
   return value.toLocaleString("pt-BR", {
     style: "currency",
     currency,
@@ -80,7 +83,7 @@ export function formatMoney(
     ...(round && !compact
       ? { minimumFractionDigits: 0, maximumFractionDigits: 0 }
       : {}),
-  });
+  }).replace(/^-/, "−");
 }
 
 /** Assinatura pronta pra ser guardada numa variável e chamada como `money(valor)`. */

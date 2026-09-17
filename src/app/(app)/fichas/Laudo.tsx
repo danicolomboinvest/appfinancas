@@ -356,7 +356,7 @@ function Gauge({ section }: { section: LaudoSection }) {
         <span>{scale.high}</span>
       </div>
       {/* Os dois números-chave como fichinhas, não numa frase cortada com "…" no meio: no
-          celular "patrimônio líquido R$ 7,57 bi · liquidez R$ 3,2 mi" não cabia em 239px e
+          celular "patrimônio líquido 7,57 bi · liquidez 3,2 mi" não cabia em 239px e
           escondia justamente o segundo número. Fichinha quebra de linha, frase não. */}
       <div className="-mt-1 flex flex-wrap gap-1.5">
         {chave.map((i) => (

@@ -51,6 +51,7 @@ export default function RegisterPage() {
             minLength={8}
             autoComplete="new-password"
           />
+          <p className="-mt-3 text-xs text-ink-faint">Mínimo de 8 caracteres.</p>
           <label className="flex items-start gap-2 text-xs text-ink-muted">
             <input type="checkbox" name="acceptTerms" required className="mt-0.5 accent-current" />
             <span>

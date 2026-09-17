@@ -90,7 +90,7 @@ function SummaryCell({
       {/* Celular: sinal discreto colado no número, porque é ele que diz se a parcela soma ou
           subtrai. Computador: sem sinal e sem operador entre as células — os rótulos já dizem
           o que cada número é, e "− − =" no meio ficava feio. O número encolhe pra caber na
-          célula (FitText) em vez de quebrar "R$" numa linha e o valor na outra. */}
+          célula (FitText) em vez de quebrar o símbolo numa linha e o valor na outra. */}
       <span className={`whitespace-nowrap text-[17px] font-semibold tabular-nums tracking-tight lg:hidden ${TONE_TEXT[tone]}`}>
         {sign && <span className="mr-0.5 text-[14px] font-medium text-ink-faint">{sign}</span>}
         {value}

@@ -93,6 +93,7 @@ export function AppShell({
       <div className="flex min-h-screen">
         {/* Sidebar: navegação primária no desktop; no mobile fica sempre fora da tela
             (a gaveta hambúrguer foi substituída pela tab bar + MoreSheet abaixo). */}
+        <RegistrarOpener onOpen={() => setRegistrarOpen(true)} />
         <Sidebar
           collapsed={collapsed}
           onToggleCollapsed={toggleCollapsed}
@@ -157,4 +158,14 @@ export function AppShell({
     </NavProgressProvider>
     </ToastProvider>
   );
+}
+
+/** Qualquer tela pode pedir a gaveta de registro (ex.: o guia "Primeiros passos") sem prop drilling. */
+function RegistrarOpener({ onOpen }: { onOpen: () => void }) {
+  useEffect(() => {
+    const handler = () => onOpen();
+    window.addEventListener("spi:registrar", handler);
+    return () => window.removeEventListener("spi:registrar", handler);
+  }, [onOpen]);
+  return null;
 }

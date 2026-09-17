@@ -69,7 +69,10 @@ export function computeGoalPlan(input: GoalCalcInput): GoalCalcResult {
     input.startedAt && totalMs > 0
       ? Math.min(Math.max((now.getTime() - input.startedAt.getTime()) / totalMs, 0), 1)
       : null;
-  const foraDoRitmo = timeElapsed !== null && progress < timeElapsed * TOLERANCIA_RITMO;
+  // Meta criada hoje tinha timeElapsed de 0,0001 e progresso 0 → "atrasada" no mesmo dia.
+  // O ritmo só passa a ser cobrado depois de um mês de vida.
+  const diasDeVida = input.startedAt ? (now.getTime() - input.startedAt.getTime()) / 86_400_000 : Infinity;
+  const foraDoRitmo = timeElapsed !== null && diasDeVida >= 30 && progress < timeElapsed * TOLERANCIA_RITMO;
 
   if (achieved) {
     return {
