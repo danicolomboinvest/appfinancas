@@ -187,6 +187,8 @@ model User {
 
   asAdvisorLinks AdvisorClientLink[] @relation("advisor")
   asClientLinks  AdvisorClientLink[] @relation("client")
+  pushSubscriptions PushSubscription[]
+  notificationLogs  NotificationLog[]
 }
 
 /// Token de recuperação de senha. Guardamos só o HASH do token (nunca o valor cru) — o link
@@ -655,4 +657,30 @@ model AllowedProduct {
   active         Boolean      @default(true)
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
+}
+
+/// Inscrição de notificação do navegador (Web Push): um aparelho instalado = uma linha.
+/// Sem app na loja, é o que faz "chegar uma mensagem" no celular.
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userAgent String?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+/// Aviso já enviado (push ou e-mail), pra nunca repetir o mesmo aviso do mesmo mês.
+model NotificationLog {
+  id     String   @id @default(cuid())
+  userId String
+  key    String
+  sentAt DateTime @default(now())
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, key])
 }

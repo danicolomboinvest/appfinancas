@@ -235,3 +235,28 @@ export async function createFromRecurringAction(
   revalidatePath(`/mensal/${year}/${month}`);
   return { ok: true };
 }
+
+/** "Caiu na conta": lança o provento como renda, no dia do pagamento, com a descrição padrão que evita repetir. */
+export async function registerDividendIncomeAction(input: { ticker: string; kind: string; paymentDate: string; amount: number }): Promise<{ ok: boolean }> {
+  const ctx = await getRequiredSession();
+  const date = new Date(`${input.paymentDate}T12:00:00`);
+  if (Number.isNaN(date.getTime()) || !(input.amount > 0)) return { ok: false };
+  const ticker = input.ticker.trim().toUpperCase();
+  try {
+    await createMonthlyEntry(ctx, {
+      year: date.getFullYear(),
+      month: date.getMonth() + 1,
+      category: "INCOME",
+      subcategory: "Dividendos",
+      description: `Proventos ${ticker} (${input.kind})`,
+      amount: Math.round(input.amount * 100) / 100,
+      entryDate: date,
+    });
+  } catch (err) {
+    console.error("registerDividendIncomeAction falhou:", err);
+    return { ok: false };
+  }
+  revalidatePath(`/mensal/${date.getFullYear()}`);
+  revalidatePath(`/mensal/${date.getFullYear()}/${date.getMonth() + 1}`);
+  return { ok: true };
+}

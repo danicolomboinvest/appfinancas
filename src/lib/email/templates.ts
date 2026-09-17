@@ -207,3 +207,33 @@ export function welcomeEmail(params: { name: string | null; appUrl: string }): {
     `),
   };
 }
+
+/** Avisos do meio do mês pra quem não ligou os avisos no celular: um e-mail, todos os avisos do dia. */
+export function alertEmail(params: {
+  name: string | null;
+  alerts: { title: string; body: string; url: string }[];
+  preferencesUrl: string;
+}): { subject: string; html: string } {
+  const firstName = params.name?.split(" ")[0];
+  const hi = firstName ? `Oi, ${firstName}.` : "Oi.";
+  const first = params.alerts[0];
+  const subject = params.alerts.length === 1 ? first.title : `${first.title} e mais ${params.alerts.length - 1}`;
+  return {
+    subject,
+    html: shell(`
+      <p style="margin:0 0 16px;">${hi}</p>
+      ${params.alerts
+        .map(
+          (a) => `
+      <p style="margin:0 0 4px;"><strong>${a.title}</strong></p>
+      <p style="margin:0 0 6px;">${a.body}</p>
+      <p style="margin:0 0 18px;"><a href="${a.url}" style="color:${MUTED};">Ver no app</a></p>`,
+        )
+        .join("")}
+      <p style="margin:22px 0 0;color:${MUTED};font-size:12px;line-height:1.5;">
+        Prefere receber isso no celular, como mensagem? Ligue os avisos em
+        <a href="${params.preferencesUrl}" style="color:${MUTED};">Notificações</a>. Ou desative por lá.
+      </p>
+    `),
+  };
+}

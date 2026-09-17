@@ -111,3 +111,62 @@ export async function sumUpcomingDividends(ctx: AuthContext, days = 30): Promise
   cutoff.setHours(23, 59, 59, 999);
   return list.filter((event) => event.paymentDate <= cutoff).reduce((sum, event) => sum + event.estimatedTotal, 0);
 }
+
+export type PaidDividend = {
+  ticker: string;
+  kind: string;
+  paymentDate: Date;
+  /** O que caiu na conta (JSCP já líquido dos 15%). */
+  amount: number;
+  /** true se já existe um lançamento de renda desse provento nesse dia. */
+  registered: boolean;
+};
+
+/**
+ * Proventos dos ativos da pessoa pagos nos últimos `days` dias, com a marca de "já lancei".
+ * O lançamento é reconhecido pela descrição padrão ("Proventos PETR4") no dia do pagamento —
+ * é assim que registerDividendIncomeAction grava, e é o que impede sugerir duas vezes.
+ */
+export async function listRecentlyPaidDividends(ctx: AuthContext, days = 10): Promise<PaidDividend[]> {
+  const assets = await prisma.asset.findMany({
+    where: { userId: ctx.userId, ticker: { not: null }, quantity: { not: null } },
+    select: { ticker: true, quantity: true },
+  });
+  if (assets.length === 0) return [];
+  const qtyByTicker = new Map<string, number>();
+  for (const a of assets) {
+    const t = a.ticker!.toUpperCase();
+    qtyByTicker.set(t, (qtyByTicker.get(t) ?? 0) + Number(a.quantity));
+  }
+  const today = new Date();
+  today.setHours(23, 59, 59, 999);
+  const since = new Date(today);
+  since.setDate(since.getDate() - days);
+  since.setHours(0, 0, 0, 0);
+
+  const [events, entries] = await Promise.all([
+    prisma.dividendEvent.findMany({
+      where: { ticker: { in: [...qtyByTicker.keys()] }, paymentDate: { gte: since, lte: today } },
+      orderBy: { paymentDate: "desc" },
+    }),
+    prisma.monthlyEntry.findMany({
+      where: { userId: ctx.userId, category: "INCOME", description: { startsWith: "Proventos " }, entryDate: { gte: since, lte: today } },
+      select: { description: true, entryDate: true },
+    }),
+  ]);
+  const done = new Set(entries.map((e) => `${(e.description ?? "").split(" ")[1]}|${e.entryDate?.toISOString().slice(0, 10)}`));
+
+  return events
+    .map((ev) => {
+      const quantity = qtyByTicker.get(ev.ticker) ?? 0;
+      const amount = Math.round(quantity * netValuePerShare(ev.kind, Number(ev.valuePerShare)) * 100) / 100;
+      return {
+        ticker: ev.ticker,
+        kind: ev.kind,
+        paymentDate: ev.paymentDate,
+        amount,
+        registered: done.has(`${ev.ticker}|${ev.paymentDate.toISOString().slice(0, 10)}`),
+      };
+    })
+    .filter((d) => d.amount > 0);
+}

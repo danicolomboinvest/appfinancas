@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { PaidDividendsCard } from "./PaidDividendsCard";
+import { listRecentlyPaidDividends } from "@/lib/repositories/dividend.repo";
 import { detectRecurring } from "@/lib/entries/recurrence";
 import { listEntriesForMonths } from "@/lib/repositories/monthly-entry.repo";
 import { RecurringSuggestions } from "./RecurringSuggestions";
@@ -243,8 +245,22 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
       )
     : [];
 
+  const paidDividends = isCurrentMonth
+    ? (await listRecentlyPaidDividends(ctx, 10))
+        .filter((d) => !d.registered)
+        .map((d) => ({
+          ticker: d.ticker,
+          kind: d.kind,
+          paymentDate: d.paymentDate.toISOString().slice(0, 10),
+          dateLabel: d.paymentDate.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "UTC" }),
+          amount: d.amount,
+        }))
+    : [];
+
   return (
     <div className="flex flex-col gap-7">
+
+      {paidDividends.length > 0 && <PaidDividendsCard items={paidDividends} />}
 
       <OnboardingChecklist hasEntry={entryCount > 0} hasBudget={budgetCount > 0} hasAsset={assetCount > 0} />
 

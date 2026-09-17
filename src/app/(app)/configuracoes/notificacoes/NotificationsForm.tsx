@@ -39,8 +39,8 @@ export function NotificationsForm({
 
       <label className="flex items-center justify-between gap-4 rounded-lg border border-border p-3">
         <div>
-          <p className="text-sm font-medium text-ink">Alertas de orçamento estourado</p>
-          <p className="text-xs text-ink-muted">Mostra insights quando um gasto ultrapassa o planejado por categoria.</p>
+          <p className="text-sm font-medium text-ink">Alertas de orçamento</p>
+          <p className="text-xs text-ink-muted">Categoria com 80% do planejado gasto e ainda com metade do mês pela frente, ou já estourada. Chega no celular (se ligado) ou por e-mail.</p>
         </div>
         <input
           type="checkbox"
@@ -53,7 +53,7 @@ export function NotificationsForm({
       <label className="flex items-center justify-between gap-4 rounded-lg border border-border p-3">
         <div>
           <p className="text-sm font-medium text-ink">Metas atrasadas</p>
-          <p className="text-xs text-ink-muted">Mostra insights quando uma meta está atrasada em relação ao prazo.</p>
+          <p className="text-xs text-ink-muted">Quando uma meta fica pra trás do ritmo. Um aviso por meta por mês.</p>
         </div>
         <input
           type="checkbox"
