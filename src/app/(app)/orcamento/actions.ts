@@ -14,7 +14,7 @@ export type AnnualBudgetState = { error?: string };
 /**
  * Salva o planejamento de todas as categorias (padrão + personalizadas) de uma vez, um único
  * botão "Salvar tudo" em vez de um "Salvar" por cartão. Os campos chegam nomeados
- * `plannedAmount_<ParentCategory>` e `plannedAmount_custom_<id>` (ver OrcamentoForm.tsx).
+ * `plannedAmount_<ParentCategory>` e `plannedAmount_custom_<id>` (ver BudgetWizard.tsx).
  * Cada categoria já é salva de forma atômica internamente (applyBudgetToWholeYear faz um
  * $transaction pros 12 meses); aplicamos todas em paralelo já que são independentes entre si.
  */

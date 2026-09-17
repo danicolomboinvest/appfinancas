@@ -13,6 +13,8 @@ import {
 } from "@/lib/planning/budget-comparison";
 import { getAnnualBudgetPlan, getAnnualBudgetPlanForCustomCategories } from "@/lib/repositories/budget.repo";
 import { getAnnualMonthlyPlan } from "@/lib/repositories/monthly-plan.repo";
+import { getBudgetHints } from "@/lib/planning/budget-hints";
+import { BudgetWizard } from "../BudgetWizard";
 import { getMonthlySummary } from "@/lib/consolidation/monthly";
 import { PlanVsActualRow } from "@/components/charts/PlanVsActualRow";
 import {
@@ -32,7 +34,6 @@ import { BulletBar } from "@/components/charts/BulletBar";
 import { buildBudgetBullets, elapsedRatioOfMonth } from "@/lib/planning/budget-bullets";
 import { formatPercentNumber } from "@/lib/format";
 import type { MonthlyPlannedVsActual } from "@/lib/planning/budget-comparison";
-import { OrcamentoForm } from "../OrcamentoForm";
 import { serverMoney } from "@/lib/money-server";
 import { Section } from "@/components/ui/Section";
 
@@ -64,16 +65,18 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
   const ctx = await getRequiredSession();
   const agora = new Date();
   // Uma consulta a mais na página já custou caro antes: vai junto das outras, não em fila.
-  const [comparison, customCategories, plan, annualPlan, monthSummary] = await Promise.all([
+  const [comparison, customCategories, plan, annualPlan, monthSummary, hints] = await Promise.all([
     getAnnualPlannedVsActual(ctx, year),
     listCustomCategories(ctx),
     getAnnualBudgetPlan(ctx, year),
     getAnnualMonthlyPlan(ctx, year),
     year === agora.getFullYear() ? getMonthlySummary(ctx, year, agora.getMonth() + 1) : null,
+    getBudgetHints(ctx, year),
   ]);
   // Qualquer mês serve para preencher o formulário: o valor é o mesmo nos 12, e é o primeiro
   // que existir que responde "o que eu já tinha planejado?".
   const monthPlan = annualPlan.get(1) ?? [...annualPlan.values()][0] ?? null;
+  const hasPlan = Object.values(plan).some((v) => v > 0) || (monthPlan?.plannedIncome ?? 0) > 0;
   const customPlan = await getAnnualBudgetPlanForCustomCategories(
     ctx,
     year,
@@ -193,14 +196,14 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
         }
       />
 
-      <CollapsibleSection label={`Editar seu plano de ${year}: renda, aporte e gastos`}>
-        <p className="mb-4 text-sm text-ink-muted">
-          Comece pelo que entra e pelo que você quer guardar — o resto é o que sobra para gastar. Nas categorias,
-          defina uma média mensal. Para despesas que acontecem só uma vez por ano (IPVA, seguro, manutenção do
-          carro, presentes), divida o valor anual por 12.
-        </p>
-        <OrcamentoForm
+      <CollapsibleSection
+        label={hasPlan ? `Editar seu plano de ${year}: renda, aporte e gastos` : `Vamos montar seu orçamento de ${year}`}
+        defaultOpen={!hasPlan}
+      >
+        <BudgetWizard
           year={year}
+          hasPlan={hasPlan}
+          hints={hints}
           plan={{
             plannedIncome: monthPlan?.plannedIncome ?? 0,
             plannedInvestment: monthPlan?.plannedInvestment ?? 0,
@@ -222,7 +225,7 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
 
       {/* Três linhas no celular, três colunas no computador — e "sem lançamento" no lugar de
           "melhor categoria" quando o que existe é categoria em zero, não economia. */}
-      {isCurrentYear && Object.values(plan).some((v) => v > 0) && (
+      {isCurrentYear && hasPlan && (
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-3 lg:gap-4">
           <StatCard
             layout="row"
