@@ -9,8 +9,7 @@ import { createAsset } from "@/lib/repositories/asset.repo";
 import { refreshDividendsForTickers } from "@/lib/repositories/dividend.repo";
 import { parsePortfolioStatement, guessAssetClass } from "@/lib/import/portfolio-parser";
 import { extractUploadFromForm, UploadReadError, PasswordRequiredError } from "@/lib/import/extract-text";
-import { isNubankStatement } from "@/lib/import/nubank-pdf";
-import { looksLikePortfolioPosition } from "@/lib/import/detect";
+import { profileDocument } from "@/lib/import/profile";
 import { NUMBERS_ONLY_MESSAGE, pdfTextQuality } from "@/lib/import/pdf-quality";
 
 /** Record (não array solto) por classe existente: se um valor novo entrar no enum AssetClass
@@ -49,7 +48,7 @@ export type ParsedHoldingItem = {
 };
 
 export type ParsePortfolioResult =
-  | { ok: true; holdings: ParsedHoldingItem[] }
+  | { ok: true; holdings: ParsedHoldingItem[]; summary: string }
   | { ok: false; error: string; needsPassword?: boolean };
 
 /** Lê o extrato/nota da corretora ou relatório da B3 (CSV/Excel/PDF), identifica os ativos e
@@ -78,14 +77,22 @@ export async function parsePortfolioAction(formData: FormData): Promise<ParsePor
     return { ok: false, error: "Não consegui abrir esse arquivo. Tente exportar de novo em Excel (.xlsx) ou CSV." };
   }
 
-  // Extrato de conta (movimentações) no lugar da posição da carteira: é o engano mais comum,
-  // e "não identifiquei ativos" não explica o que subir.
-  const looksLikeBankStatement = isNubankStatement(text) || /Saldo do dia|Movimenta[çc][õo]es/.test(text);
-  if (looksLikeBankStatement && !looksLikePortfolioPosition(text)) {
+  // Lê o arquivo INTEIRO e monta o perfil (banco, período, o que tem dentro) antes de decidir.
+  // Extrato de conta no lugar da posição é o engano mais comum; a resposta diz o que foi
+  // entendido e pra onde ir, em vez de "não identifiquei ativos".
+  const fileMeta = formData.get("file");
+  const fileName = fileMeta instanceof File ? fileMeta.name : null;
+  const profile = profileDocument(text, fileName);
+  if (profile.kind === "irpf") {
     return {
       ok: false,
-      error:
-        "Esse arquivo é um extrato de conta (entradas e saídas), não a posição dos investimentos. Pra lançar essas movimentações no mês, use Registrar › Importar extrato. Pra carteira, suba a posição da corretora ou o relatório da B3 (Área do Investidor › Posição).",
+      error: `Li o arquivo inteiro: ${profile.summary}. A declaração serve pra pegar o preço médio: use o botão "Preço médio (IR)" na carteira.`,
+    };
+  }
+  if ((profile.kind === "statement" || profile.kind === "invoice") && !profile.contents.includes("position")) {
+    return {
+      ok: false,
+      error: `Li o arquivo inteiro: ${profile.summary}. Ele traz entradas e saídas, não a posição dos investimentos. Pra lançar no mês, use Registrar › Importar extrato. Pra carteira, suba a posição da corretora ou o relatório da B3 (Área do Investidor › Posição).`,
     };
   }
 
@@ -103,10 +110,15 @@ export async function parsePortfolioAction(formData: FormData): Promise<ParsePor
 
   const parsed = parsePortfolioStatement(text);
   if (parsed.length === 0) {
+    // Diagnóstico pro suporte: perfil + cabeçalho (sem valores), pra reconhecer o formato.
+    const header = text.split(/\r?\n/).find((l) => l.trim())?.slice(0, 200) ?? "";
+    console.error("parsePortfolioAction: zero ativos", { fileName, encoding, kind: profile.kind, contents: profile.contents, positionRows: profile.positionRows, chars: text.length, header });
     return {
       ok: false,
       error:
-        "Não identifiquei ativos nesse arquivo. Se for um PDF escaneado/foto, suba a posição em Excel (.xlsx) ou CSV, costuma ler melhor.",
+        profile.kind === "position"
+          ? `Li o arquivo inteiro (${profile.summary}) e reconheci ${profile.positionRows} linha${profile.positionRows === 1 ? "" : "s"} de ativo, mas não consegui ler as quantidades e valores nesse formato. Manda o arquivo pro suporte que a gente ensina o app.`
+          : `Li o arquivo inteiro (${profile.summary}) e não identifiquei ativos com quantidade e valor. Se for um PDF escaneado/foto, suba a posição em Excel (.xlsx) ou CSV, costuma ler melhor.`,
     };
   }
 
@@ -151,7 +163,7 @@ export async function parsePortfolioAction(formData: FormData): Promise<ParsePor
       prevValue,
     };
   });
-  return { ok: true, holdings };
+  return { ok: true, holdings, summary: profile.summary };
 }
 
 export type ConfirmedHolding = {

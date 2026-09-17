@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { installmentDescription, parseInstallment } from "@/lib/entries/recurrence";
-import { countMoneyLines, detectDocKind, detectInvoiceTotal, looksLikeCardInvoice, type DocKind } from "@/lib/import/detect";
+import { countMoneyLines, detectInvoiceTotal, looksLikeCardInvoice, type DocKind } from "@/lib/import/detect";
+import { profileDocument } from "@/lib/import/profile";
 import type { ParentCategory } from "@prisma/client";
 import { getRequiredSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
@@ -69,6 +70,8 @@ export type ParseStats = {
   /** O que o arquivo parece ser, pelo conteúdo/nome; "unknown" quando não dá pra saber. */
   detectedKind: DocKind;
   detectedReason: string;
+  /** O que o app entendeu lendo o arquivo inteiro: "Extrato bancário · Nubank · 01/05 a 14/09/2026". */
+  summary: string;
   /** Linhas do arquivo com cara de valor × lançamentos lidos. */
   moneyLines: number;
   parsed: number;
@@ -125,31 +128,45 @@ export async function parseStatementAction(formData: FormData): Promise<ParseSta
     };
   }
 
+  // Lê o arquivo INTEIRO e monta o perfil (banco, período, o que tem dentro) antes de decidir.
+  const fileMeta = formData.get("file");
+  const fileName = fileMeta instanceof File ? fileMeta.name : null;
+  const profile = profileDocument(text, fileName);
+  if (profile.kind === "position" && !profile.contents.includes("movements")) {
+    return {
+      ok: false,
+      error: `Li o arquivo inteiro: ${profile.summary}. É a posição dos investimentos, não entradas e saídas: suba em Carteira › Importar.`,
+    };
+  }
+  if (profile.kind === "irpf") {
+    return {
+      ok: false,
+      error: `Li o arquivo inteiro: ${profile.summary}. A declaração serve pra pegar o preço médio dos ativos: use Carteira › Preço médio (IR).`,
+    };
+  }
+
   const faturaYear = Number(String(formData.get("faturaMonth") ?? "").slice(0, 4)) || undefined;
   const parsedRaw = parseStatement(text, source, faturaYear);
   // Fatura: linhas de RESUMO ("pagamento efetuado", "total de compras", "total de crédito
   // recebido") são agregados que a própria fatura já detalha em outras linhas — não são uma
   // compra a mais. Sem isso, o "pagamento de fatura" virava um gasto extra na revisão.
   const parsed = docType === "fatura" ? parsedRaw.filter((txn) => !isFaturaSummaryLine(txn)) : parsedRaw;
-  const fileMeta = formData.get("file");
-  const fileName = fileMeta instanceof File ? fileMeta.name : null;
-  const detected = detectDocKind(text, fileName);
   const moneyLines = countMoneyLines(text);
   if (parsed.length === 0) {
-    // Diagnóstico pro suporte: só o cabeçalho (sem valores), pra reconhecer o formato do banco.
+    // Diagnóstico pro suporte: perfil + cabeçalho (sem valores), pra reconhecer o formato do banco.
     const header = text.split(/\r?\n/).find((l) => l.trim())?.slice(0, 200) ?? "";
-    console.error("parseStatementAction: zero lançamentos", { fileName, encoding, docType, moneyLines, chars: text.length, header });
+    console.error("parseStatementAction: zero lançamentos", { fileName, encoding, docType, kind: profile.kind, institution: profile.institution, moneyLines, chars: text.length, header });
     return {
       ok: false,
       error:
         moneyLines > 3
-          ? `Vi ${moneyLines} linhas com valor no arquivo, mas não consegui ler nenhuma como lançamento. Esse formato eu ainda não conheço: manda o arquivo pro suporte que a gente ensina o app.`
-          : "Não encontrei transações nesse arquivo. Se for um PDF escaneado/foto, exporte em Excel (.xlsx) ou CSV, costuma ler melhor.",
+          ? `Li o arquivo inteiro (${profile.summary}) e vi ${moneyLines} linhas com valor, mas não consegui ler nenhuma como lançamento. Esse formato eu ainda não conheço: manda o arquivo pro suporte que a gente ensina o app.`
+          : `Li o arquivo inteiro (${profile.summary}) e não encontrei transações. Se for um PDF escaneado/foto, exporte em Excel (.xlsx) ou CSV, costuma ler melhor.`,
     };
   }
-  // Fatura subida como extrato (ou o contrário) é o erro mais caro: compra vira renda. O
-  // conteúdo e, na dúvida, os sinais dizem o que o arquivo é; a tela avisa antes de gravar.
-  let detectedKind: DocKind = detected.kind;
+  // Fatura subida como extrato (ou o contrário) é o erro mais caro: compra vira renda. O perfil
+  // do arquivo inteiro e, na dúvida, os sinais dizem o que ele é; a tela avisa antes de gravar.
+  let detectedKind: DocKind = profile.kind === "invoice" ? "fatura" : profile.kind === "statement" || profile.kind === "position" ? "extrato" : "unknown";
   if (detectedKind === "unknown" && looksLikeCardInvoice(parsedRaw)) detectedKind = "fatura";
   const repeatCount = new Map<string, number>();
   for (const txn of parsed) {
@@ -192,7 +209,8 @@ export async function parseStatementAction(formData: FormData): Promise<ParseSta
 
   const stats: ParseStats = {
     detectedKind,
-    detectedReason: detected.reason,
+    detectedReason: profile.reason,
+    summary: profile.summary,
     moneyLines,
     parsed: items.length,
     invoiceTotal: docType === "fatura" ? detectInvoiceTotal(text) : null,

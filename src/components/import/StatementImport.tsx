@@ -527,6 +527,7 @@ export function StatementImport({ onDone }: { onDone: () => void }) {
             {importable.length} lançamento{importable.length === 1 ? "" : "s"} · {docType === "fatura" ? money(expenseSum) : money(Math.abs(sumImportable))}
             {docType !== "fatura" && ` ${sumImportable >= 0 ? "a mais" : "a menos"} no saldo`}
           </p>
+          {stats && <p className="text-caption text-ink-muted">Entendi como: {stats.summary}.</p>}
           {stats && (
             <p className="text-caption text-ink-muted">
               Li {stats.parsed} de {stats.moneyLines} linhas com valor no arquivo.

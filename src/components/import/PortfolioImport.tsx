@@ -57,6 +57,7 @@ export function PortfolioImport({ onDone }: { onDone: () => void }) {
   const [createdCount, setCreatedCount] = useState(0);
   const [updatedCount, setUpdatedCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [summary, setSummary] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   // Excel da corretora pode vir protegido por senha: guardamos o arquivo e pedimos a senha.
   const [pendingFile, setPendingFile] = useState<File | null>(null);
@@ -98,6 +99,7 @@ export function PortfolioImport({ onDone }: { onDone: () => void }) {
         return;
       }
       // Sem mudança fica fora da revisão, só conta no aviso.
+      setSummary(result.summary);
       setHoldings(result.holdings.filter((h) => h.status !== "unchanged"));
       setUnchangedCount(result.holdings.filter((h) => h.status === "unchanged").length);
       setPhase("confirm");
@@ -231,6 +233,7 @@ export function PortfolioImport({ onDone }: { onDone: () => void }) {
     return (
       <div className="flex flex-col gap-4">
         {error && <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p>}
+        {summary && <p className="text-caption text-ink-muted">Li o arquivo inteiro: {summary}.</p>}
 
         {nothingToDo ? (
           <p className="rounded-xl bg-surface-2 px-4 py-6 text-center text-sm text-ink-muted">

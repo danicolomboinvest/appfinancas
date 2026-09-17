@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { detectDocKind, detectInvoiceTotal, looksLikeCardInvoice, looksLikePortfolioPosition } from "../detect";
+import { detectDocKind, detectInvoiceTotal, looksLikeCardInvoice } from "../detect";
 import { parseCsv, parseTextLines, parseAmountFlexible } from "../statement-parser";
 
 describe("detectDocKind", () => {
@@ -63,16 +63,5 @@ describe("parseTextLines (PDF) with multi-line records and short dates", () => {
   it("keeps the old one-line behaviour and skips balance lines", () => {
     const text = ["01/09/2026 PIX RECEBIDO JOAO 1.000,00 C", "01/09/2026 SALDO DO DIA 3.000,00", "02/09/2026 MERCADO 250,00 D"].join("\n");
     expect(parseTextLines(text).map((t) => [t.description, t.amount])).toEqual([["PIX RECEBIDO JOAO", 1000], ["MERCADO", -250]]);
-  });
-});
-
-describe("looksLikePortfolioPosition", () => {
-  it("lets an investment-account statement with a Movimentações tab through as a position", () => {
-    const btg = [";Posição > Ações", ";Código;Ação;Qtde.;Preço Fechamento R$;Preço Médio R$;Saldo Bruto R$", ";Conta Corrente", ";Movimentações"].join("\n");
-    expect(looksLikePortfolioPosition(btg)).toBe(true);
-  });
-  it("still treats a plain bank statement as a bank statement", () => {
-    const nubank = ["Extrato", "Movimentações", "01/09/2026 Transferência recebida pelo Pix 1.200,00", "Saldo do dia 1.500,00"].join("\n");
-    expect(looksLikePortfolioPosition(nubank)).toBe(false);
   });
 });
