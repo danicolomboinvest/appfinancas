@@ -390,7 +390,10 @@ function NumberTile({ item, open, onToggle }: { item: LaudoItem; open: boolean; 
       )}
       <button type="button" onClick={onToggle} aria-expanded={open} className="w-full px-2.5 py-3 pr-7 text-left">
         {/* Três quadradinhos por linha no celular dão ~68px pro número: "R$ 7,57 bi" encolhe pra caber, não quebra. */}
-        <FitText className={`text-[22px] font-extrabold leading-none tracking-tight ${bad ? "text-danger" : "text-ink"}`}>{compactValue(item.value)}</FitText>
+        <FitText className={`text-[22px] font-extrabold leading-none tracking-tight ${bad ? "text-danger" : "text-ink"}`}>
+          {/* Sem o "R$ " no quadradinho: "20,64 mi" cabe a 18px, "R$ 20,64 mi" só a 12px. A moeda é a da bolsa. */}
+          {compactValue(item.value).replace(/^R\$\s?/, "")}
+        </FitText>
         {/* Nome de gente em cima ("Preço pelo lucro"), sigla miúda embaixo ("P/L"): quem
             está começando lê o que entende primeiro; quem sabe a sigla, acha ela logo abaixo. */}
         {/* Duas linhas, não uma cortada: "Preço pelo…" não diz nada; "Preço pelo lucro" diz tudo. */}
