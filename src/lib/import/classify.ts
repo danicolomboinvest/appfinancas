@@ -43,6 +43,8 @@ const BUILTIN_RULES: BuiltinRule[] = [
   { keywords: ["livraria", "amazon", "kindle", "livro"], parentCategory: "EDUCACAO", subcategory: "Livros/Material" },
   // Financeiro
   { keywords: ["tarifa", "anuidade", "iof", "juros", "seguro", "emprestimo", "empréstimo", "imposto", "tributo", "darf"], parentCategory: "FINANCEIRO", subcategory: "Tarifas bancárias" },
+  // Extrato do Nubank: "Aplicação RDB" é dinheiro indo pra caixinha/investimento, não gasto do dia a dia.
+  { keywords: ["aplicação rdb", "aplicacao rdb", "aplicação cdb", "aplicacao cdb", "tesouro direto", "aplicação em"], parentCategory: "FINANCEIRO", subcategory: "Investimento" },
 ];
 
 /**

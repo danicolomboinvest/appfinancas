@@ -77,7 +77,14 @@ export async function parseStatementAction(formData: FormData): Promise<ParseSta
   } catch (err) {
     if (err instanceof PasswordRequiredError) return { ok: false, error: err.message, needsPassword: true };
     if (err instanceof UploadReadError) return { ok: false, error: err.message };
-    throw err;
+    const file = formData.get("file");
+    console.error("parseStatementAction: leitura falhou", {
+      name: file instanceof File ? file.name : "?",
+      size: file instanceof Blob ? file.size : 0,
+      encoding,
+      err,
+    });
+    return { ok: false, error: "Não consegui abrir esse arquivo. Tente exportar de novo em Excel (.xlsx), CSV ou OFX." };
   }
 
   // PDF escaneado/foto não tem texto extraível, avisa e pede Excel, em vez de erro genérico.

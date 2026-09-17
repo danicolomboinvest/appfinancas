@@ -6,6 +6,8 @@
  * Convenção de sinal em `amount`: negativo = saída (vira EXPENSE), positivo = entrada (INCOME).
  */
 
+import { isNubankStatement, parseNubankStatement } from "./nubank-pdf";
+
 export type ParsedTransaction = {
   /** ISO (YYYY-MM-DD) quando possível; string original caso não dê pra normalizar. */
   date: string;
@@ -224,8 +226,15 @@ export function parseTextLines(content: string): ParsedTransaction[] {
   return transactions;
 }
 
-/** `source` "pdf" força o parser de linhas de texto; caso contrário detecta OFX vs CSV. */
+/** `source` "pdf" força os parsers de texto (o do Nubank primeiro, depois o genérico por
+ * linha); caso contrário detecta OFX vs CSV. */
 export function parseStatement(content: string, source: "auto" | "pdf" = "auto"): ParsedTransaction[] {
-  if (source === "pdf") return parseTextLines(content);
+  if (source === "pdf") {
+    if (isNubankStatement(content)) {
+      const nubank = parseNubankStatement(content);
+      if (nubank.length > 0) return nubank;
+    }
+    return parseTextLines(content);
+  }
   return isOfx(content) ? parseOfx(content) : parseCsv(content);
 }

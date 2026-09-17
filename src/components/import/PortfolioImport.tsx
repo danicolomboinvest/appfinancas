@@ -79,7 +79,14 @@ export function PortfolioImport({ onDone }: { onDone: () => void }) {
     const formData = buildUploadForm(file);
     if (pwd) formData.set("password", pwd);
     startTransition(async () => {
-      const result = await parsePortfolioAction(formData);
+      let result: Awaited<ReturnType<typeof parsePortfolioAction>>;
+      try {
+        result = await parsePortfolioAction(formData);
+      } catch (err) {
+        console.error("parsePortfolioAction falhou no envio", err);
+        setError("Não consegui enviar o arquivo. Confira a internet e tente de novo.");
+        return;
+      }
       if (!result.ok) {
         if (result.needsPassword) {
           setPendingFile(file);
@@ -116,7 +123,14 @@ export function PortfolioImport({ onDone }: { onDone: () => void }) {
       mode: h.status === "changed" ? "update" : "create",
     }));
     startTransition(async () => {
-      const result = await importPortfolioAction(confirmed);
+      let result: Awaited<ReturnType<typeof importPortfolioAction>>;
+      try {
+        result = await importPortfolioAction(confirmed);
+      } catch (err) {
+        console.error("importPortfolioAction falhou no envio", err);
+        setError("Não consegui salvar. Confira a internet e tente de novo.");
+        return;
+      }
       if (!result.ok) {
         setError(result.error);
         return;
@@ -140,7 +154,7 @@ export function PortfolioImport({ onDone }: { onDone: () => void }) {
           <span className="flex h-12 w-12 items-center justify-center rounded-full bg-ink text-canvas">
             <Upload size={22} strokeWidth={1.75} />
           </span>
-          <span className="text-sm font-medium text-ink">{isPending ? "Lendo arquivo..." : "Escolher extrato da corretora"}</span>
+          <span className="text-sm font-medium text-ink">{isPending ? "Lendo arquivo..." : "Escolher a posição da corretora"}</span>
           <span className="text-caption text-ink-faint">Posição da corretora ou da B3 (CSV, Excel ou PDF)</span>
         </button>
         <input

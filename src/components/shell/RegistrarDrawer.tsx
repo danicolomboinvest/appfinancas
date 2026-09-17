@@ -96,7 +96,7 @@ export function RegistrarDrawer({ open, onClose }: { open: boolean; onClose: () 
             <span className="flex h-10 w-10 items-center justify-center rounded-full bg-ink text-canvas">
               <FileUp size={20} strokeWidth={1.75} />
             </span>
-            <span className="text-sm font-medium text-ink">Importar extrato (CSV/OFX)</span>
+            <span className="text-sm font-medium text-ink">Importar extrato ou fatura (PDF, Excel, CSV, OFX)</span>
           </button>
         </div>
       )}

@@ -104,7 +104,14 @@ export function StatementImport({ onDone }: { onDone: () => void }) {
     const formData = buildUploadForm(file, docType);
     if (pwd) formData.set("password", pwd);
     startTransition(async () => {
-      const result = await parseStatementAction(formData);
+      let result: Awaited<ReturnType<typeof parseStatementAction>>;
+      try {
+        result = await parseStatementAction(formData);
+      } catch (err) {
+        console.error("parseStatementAction falhou no envio", err);
+        setError("Não consegui enviar o arquivo. Confira a internet e tente de novo.");
+        return;
+      }
       if (!result.ok) {
         if (result.needsPassword) {
           setPendingFile(file);
@@ -185,7 +192,14 @@ export function StatementImport({ onDone }: { onDone: () => void }) {
       }));
     const [targetYear, targetMonth] = docType === "fatura" ? faturaMonth.split("-").map(Number) : [undefined, undefined];
     startTransition(async () => {
-      const result = await importTransactionsAction(confirmed, docType, targetYear, targetMonth, fileName ?? undefined);
+      let result: Awaited<ReturnType<typeof importTransactionsAction>>;
+      try {
+        result = await importTransactionsAction(confirmed, docType, targetYear, targetMonth, fileName ?? undefined);
+      } catch (err) {
+        console.error("importTransactionsAction falhou no envio", err);
+        setError("Não consegui salvar. Confira a internet e tente de novo.");
+        return;
+      }
       if (!result.ok) {
         setError(result.error);
         return;

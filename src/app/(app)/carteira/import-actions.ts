@@ -9,6 +9,7 @@ import { createAsset } from "@/lib/repositories/asset.repo";
 import { refreshDividendsForTickers } from "@/lib/repositories/dividend.repo";
 import { parsePortfolioStatement, guessAssetClass } from "@/lib/import/portfolio-parser";
 import { extractUploadFromForm, UploadReadError, PasswordRequiredError } from "@/lib/import/extract-text";
+import { isNubankStatement } from "@/lib/import/nubank-pdf";
 
 /** Record (não array solto) por classe existente: se um valor novo entrar no enum AssetClass
  * sem passar por aqui, o TypeScript acusa na hora — evita repetir o bug de uma classe nova
@@ -63,7 +64,26 @@ export async function parsePortfolioAction(formData: FormData): Promise<ParsePor
   } catch (err) {
     if (err instanceof PasswordRequiredError) return { ok: false, error: err.message, needsPassword: true };
     if (err instanceof UploadReadError) return { ok: false, error: err.message };
-    throw err;
+    // Biblioteca de PDF/Excel engasgou num arquivo fora do padrão. Antes estourava e a pessoa
+    // via só "Application error"; agora fica registrado no log com o que importa pra reproduzir.
+    const file = formData.get("file");
+    console.error("parsePortfolioAction: leitura falhou", {
+      name: file instanceof File ? file.name : "?",
+      size: file instanceof Blob ? file.size : 0,
+      encoding,
+      err,
+    });
+    return { ok: false, error: "Não consegui abrir esse arquivo. Tente exportar de novo em Excel (.xlsx) ou CSV." };
+  }
+
+  // Extrato de conta (movimentações) no lugar da posição da carteira: é o engano mais comum,
+  // e "não identifiquei ativos" não explica o que subir.
+  if (isNubankStatement(text) || /Saldo do dia|Movimenta[çc][õo]es/.test(text)) {
+    return {
+      ok: false,
+      error:
+        "Esse arquivo é um extrato de conta (entradas e saídas), não a posição dos investimentos. Pra lançar essas movimentações no mês, use Registrar › Importar extrato. Pra carteira, suba a posição da corretora ou o relatório da B3 (Área do Investidor › Posição).",
+    };
   }
 
   // PDF escaneado/foto não tem texto extraível, avisa e pede Excel.
