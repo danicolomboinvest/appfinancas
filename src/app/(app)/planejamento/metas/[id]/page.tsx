@@ -3,7 +3,7 @@ import { getRequiredSession } from "@/lib/auth/session";
 import { getGoalWithProgress } from "@/lib/repositories/goal.repo";
 import { computeGoalPlan, computeGoalTrajectory } from "@/lib/planning/goal";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { StatCard } from "@/components/ui/StatCard";
+import { StatRows } from "@/components/ui/StatRows";
 import { Card } from "@/components/ui/Card";
 import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { GoalForm } from "../GoalForm";
@@ -62,16 +62,18 @@ export default async function GoalDetailPage(props: PageProps<"/planejamento/met
       {/* Quatro, não cinco: "valor guardado projetado na data-alvo" era o próprio valor
           guardado quando a taxa é zero — um número a mais pra explicar, e o quinto card
           ficava órfão na grade de dois do celular. */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <StatCard
-          label="Ritmo"
-          value={STATUS_LABEL[plan.status]}
-          tone={plan.status === "BEHIND" ? "danger" : plan.status === "ACHIEVED" ? "success" : "accent"}
-        />
-        <StatCard label="Meses restantes" value={`${plan.monthsRemaining}`} />
-        <StatCard label="Falta guardar" value={money(plan.amountMissing)} tone="danger" />
-        <StatCard label="Guardar por mês" value={money(plan.requiredMonthlyContribution)} tone="success" />
-      </div>
+      <StatRows
+        items={[
+          {
+            label: "Ritmo",
+            value: STATUS_LABEL[plan.status],
+            tone: plan.status === "BEHIND" ? "danger" : plan.status === "ACHIEVED" ? "success" : "accent",
+          },
+          { label: "Meses restantes", value: `${plan.monthsRemaining}` },
+          { label: "Falta guardar", value: money(plan.amountMissing), tone: "danger" },
+          { label: "Guardar por mês", value: money(plan.requiredMonthlyContribution), tone: "success" },
+        ]}
+      />
 
       <Card className="p-5">
         <p className="mb-2 text-xs font-medium text-ink-muted">Trajetória projetada até a meta</p>

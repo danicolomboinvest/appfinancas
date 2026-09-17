@@ -5,7 +5,7 @@ import { getTypicalMonthlyExpense } from "@/lib/planning/typical-expense";
 import { computeEmergencyFundPlan } from "@/lib/planning/emergency-fund";
 import { SavingsProjectionChart } from "@/components/charts/SavingsProjectionChart";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { StatCard } from "@/components/ui/StatCard";
+import { StatRows } from "@/components/ui/StatRows";
 import { EmergencyFundForm } from "./EmergencyFundForm";
 import { formatPercentNumber } from "@/lib/format";
 import { serverMoney } from "@/lib/money-server";
@@ -59,16 +59,18 @@ export default async function ReservaEmergenciaPage() {
 
       {fund && plan && (
         <div className="flex flex-col gap-4">
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            <StatCard label="Meta da reserva" value={money(Number(fund.targetAmount))} tone="accent" />
-            <StatCard label="Reserva atual" value={money(Number(fund.currentAmount))} />
-            <StatCard
-              label="Tempo para concluir"
-              value={plan.monthsToTarget === null ? "Não fecha" : `${plan.monthsToTarget} meses`}
-              hint={plan.monthsToTarget === null ? "Com esse aporte a reserva não chega na meta. Aumente o valor por mês." : undefined}
-            />
-            <StatCard label="Rentabilidade mensal" value={formatPercentNumber(plan.monthlyRate * 100, 3)} />
-          </div>
+          <StatRows
+            items={[
+              { label: "Meta da reserva", value: money(Number(fund.targetAmount)), tone: "accent" },
+              { label: "Reserva atual", value: money(Number(fund.currentAmount)) },
+              {
+                label: "Tempo para concluir",
+                value: plan.monthsToTarget === null ? "Não fecha" : `${plan.monthsToTarget} meses`,
+                hint: plan.monthsToTarget === null ? "Com esse aporte a reserva não chega na meta. Aumente o valor por mês." : undefined,
+              },
+              { label: "Rentabilidade mensal", value: formatPercentNumber(plan.monthlyRate * 100, 3) },
+            ]}
+          />
 
           {plan.projection.length > 0 && (
             <Section title="Projeção da reserva">

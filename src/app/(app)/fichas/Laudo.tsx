@@ -351,18 +351,25 @@ function Gauge({ section }: { section: LaudoSection }) {
           aria-hidden
         />
       </div>
-      <div className="flex items-baseline justify-between gap-2 text-[11px] text-ink-faint">
+      <div className="flex items-baseline justify-between text-[11px] text-ink-faint">
         <span>{scale.low}</span>
-        <span className="truncate text-center">
-          {chave.map((i, idx) => (
-            <span key={i.key}>
-              {idx > 0 && " · "}
-              {(SHORT_LABEL[i.key] ?? technicalLabel(i)).toLowerCase()}{" "}
-              <b className={i.signal === "atencao" ? "text-danger" : "text-ink"}>{compactValue(i.value)}</b>
-            </span>
-          ))}
-        </span>
         <span>{scale.high}</span>
+      </div>
+      {/* Os dois números-chave como fichinhas, não numa frase cortada com "…" no meio: no
+          celular "patrimônio líquido R$ 7,57 bi · liquidez R$ 3,2 mi" não cabia em 239px e
+          escondia justamente o segundo número. Fichinha quebra de linha, frase não. */}
+      <div className="-mt-1 flex flex-wrap gap-1.5">
+        {chave.map((i) => (
+          <span
+            key={i.key}
+            className={`inline-flex items-baseline gap-1 rounded-full px-2 py-0.5 text-[11px] ${
+              i.signal === "atencao" ? "bg-danger-soft text-danger" : "bg-surface-2 text-ink-muted"
+            }`}
+          >
+            {(SHORT_LABEL[i.key] ?? technicalLabel(i)).toLowerCase()}
+            <b className={`text-[12px] tabular-nums ${i.signal === "atencao" ? "text-danger" : "text-ink"}`}>{compactValue(i.value)}</b>
+          </span>
+        ))}
       </div>
       {atencao.map((i) => (
         <p key={i.key} className="text-caption leading-relaxed text-danger">

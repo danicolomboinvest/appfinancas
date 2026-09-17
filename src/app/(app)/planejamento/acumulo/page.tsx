@@ -8,7 +8,7 @@ import { computeUsufruct } from "@/lib/planning/usufruct";
 import { computeYearByYearProjection, type ProjectionYear } from "@/lib/consolidation/projection";
 import { PatrimonyProjectionChart } from "@/components/charts/PatrimonyProjectionChart";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { StatCard } from "@/components/ui/StatCard";
+import { StatRows } from "@/components/ui/StatRows";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
@@ -221,18 +221,14 @@ export default async function IndependenciaFinanceiraPage() {
 
                   <CollapsibleSection label="Ver as premissas">
                     <div className="flex flex-col gap-4">
-                      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                        <StatCard label="Tempo de contribuição" value={`${accumulation.years} anos`} />
-                        <StatCard label="Rendimento ao ano" value={formatPercent(accumulation.nominalAnnualRate)} />
-                        <StatCard
-                          label="Inflação assumida"
-                          value={formatPercent(Number(params.inflationAnnualRate))}
-                        />
-                        <StatCard
-                          label="Rendimento acima da inflação"
-                          value={formatPercent(accumulation.realAnnualRate)}
-                        />
-                      </div>
+                      <StatRows
+                        items={[
+                          { label: "Tempo de contribuição", value: `${accumulation.years} anos` },
+                          { label: "Rendimento ao ano", value: formatPercent(accumulation.nominalAnnualRate) },
+                          { label: "Inflação assumida", value: formatPercent(Number(params.inflationAnnualRate)) },
+                          { label: "Rendimento acima da inflação", value: formatPercent(accumulation.realAnnualRate) },
+                        ]}
+                      />
 
                       {/* O número grande e empolgante que NÃO é o mesmo cenário da manchete.
                           Fica aqui embaixo, dito por extenso, em vez de disputar a tela. */}
