@@ -1,30 +1,25 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useState } from "react";
 import { Card } from "@/components/ui/Card";
-import { Button } from "@/components/ui/Button";
 import { CurrencyField } from "@/components/ui/CurrencyField";
 import { useMoney } from "@/components/money/MoneyProvider";
-import { useToast } from "@/components/ui/toast-context";
 import { planContribution } from "@/lib/portfolio/contribution-plan";
 import { STRATEGY_ASSET_CLASS_COLOR } from "@/lib/portfolio/strategy";
 import type { ContributionContext } from "@/lib/portfolio/contribution";
-import { applyContributionAction } from "./actions";
 
 const MONTHS = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
 
 /**
- * "Onde colocar o aporte deste mês": a resposta pronta, não a tabela. O valor vem do orçamento
- * e pode ser mudado; a divisão recalcula na hora e aponta o ativo que recebe em cada classe.
- * "Aportei assim" lança o aporte no mês e soma nos ativos — sem vender nada.
+ * "Qual é o seu aporte deste mês?": a pessoa diz o valor (vem preenchido do orçamento) e o card
+ * SUGERE a divisão que leva a carteira pra mais perto da estratégia, apontando o ativo de cada
+ * classe. Só sugestão: o app não registra o aporte por ela (um botão "Aportei assim" dava a
+ * impressão de que registrava sozinho). O aporte real entra por Registrar, como sempre.
  */
-export function ContributionCard({ context, year, month }: { context: ContributionContext; year: number; month: number }) {
+export function ContributionCard({ context, month }: { context: ContributionContext; month: number }) {
   const money = useMoney();
-  const { showToast } = useToast();
   const [amount, setAmount] = useState(context.plannedAmount);
-  const [done, setDone] = useState(false);
-  const [isPending, startTransition] = useTransition();
 
   const slices = useMemo(() => planContribution(context.classes, amount), [context.classes, amount]);
   const hasAssets = context.classes.some((c) => c.currentValue > 0);
@@ -43,23 +38,11 @@ export function ContributionCard({ context, year, month }: { context: Contributi
       </Card>
     );
   }
-  if (done) {
-    return (
-      <Card className="border-success/30 bg-success-soft/40 p-4">
-        <p className="text-[15px] font-semibold text-success">Aporte de {MONTHS[month - 1]} registrado.</p>
-        <p className="text-sm text-ink-muted">Entrou no mês como aporte e já somou nos ativos.</p>
-      </Card>
-    );
-  }
-
   return (
     <Card className="flex flex-col gap-4 border-accent/30 bg-accent-soft/30 p-4">
       <div>
-        <p className="text-[15px] font-semibold text-ink">Onde colocar o aporte de {MONTHS[month - 1]}</p>
-        <p className="text-caption text-ink-muted">
-          {context.plannedAmount > 0 ? "O valor vem do seu orçamento. " : "Diga quanto vai aportar. "}
-          A divisão leva a carteira pra mais perto da estratégia, sem vender nada.
-        </p>
+        <p className="text-[15px] font-semibold text-ink">Qual é o seu aporte de {MONTHS[month - 1]}?</p>
+        <p className="text-caption text-ink-muted">Sugestão de aporte para rebalanceamento da carteira.</p>
       </div>
 
       <CurrencyField label="Vou aportar" name="_contribution" defaultValue={amount || undefined} onValueChange={setAmount} className="sm:w-48" />
@@ -90,32 +73,6 @@ export function ContributionCard({ context, year, month }: { context: Contributi
       )}
 
       {!hasAssets && <p className="text-caption text-ink-faint">Sua carteira ainda está vazia, então a divisão segue só a estratégia.</p>}
-
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-        <Button
-          type="button"
-          size="sm"
-          disabled={isPending || amount <= 0 || slices.length === 0}
-          onClick={() =>
-            startTransition(async () => {
-              const res = await applyContributionAction(
-                slices.map((s) => ({ assetClass: s.assetClass, amount: s.amount, assetId: context.destinations[s.assetClass]?.assetId ?? null })),
-                year,
-                month,
-              );
-              if (!res.ok) {
-                showToast(res.error);
-                return;
-              }
-              setDone(true);
-              showToast("Aporte registrado no mês e somado nos ativos.");
-            })
-          }
-        >
-          {isPending ? "Registrando..." : "Aportei assim"}
-        </Button>
-        <p className="text-caption text-ink-faint">Lança o aporte em {MONTHS[month - 1]} e soma o valor no ativo de cada tipo.</p>
-      </div>
     </Card>
   );
 }

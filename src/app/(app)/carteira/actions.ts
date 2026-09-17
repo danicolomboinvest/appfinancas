@@ -7,10 +7,6 @@ import { getRequiredSession } from "@/lib/auth/session";
 import { createAsset, updateOwnAsset, deleteOwnAsset } from "@/lib/repositories/asset.repo";
 import { refreshDividendsForTicker } from "@/lib/repositories/dividend.repo";
 import { assetSchema } from "@/lib/validations/asset.schema";
-import { createMonthlyEntry } from "@/lib/repositories/monthly-entry.repo";
-import { prisma } from "@/lib/db/prisma";
-import { STRATEGY_ASSET_CLASS_LABEL } from "@/lib/portfolio/strategy";
-import type { StrategyAssetClass } from "@prisma/client";
 import { fetchTickerPrice } from "@/lib/analysis/price-scraper";
 
 export type AssetFormState = { error?: string };
@@ -138,49 +134,3 @@ export async function bulkSetObjectiveAction(
   return { ok: true, updated: result.count };
 }
 
-export type ContributionSliceInput = { assetClass: StrategyAssetClass; amount: number; assetId: string | null };
-
-/**
- * "Aportei assim": registra o aporte do mês (um lançamento por classe, com o nome do ativo
- * de destino) e soma o valor no ativo que recebeu. Sem ativo na classe, só o lançamento entra —
- * o ativo a pessoa cadastra depois.
- */
-export async function applyContributionAction(
-  slices: ContributionSliceInput[],
-  year: number,
-  month: number,
-): Promise<{ ok: true; entries: number } | { ok: false; error: string }> {
-  const ctx = await getRequiredSession();
-  const valid = slices.filter((s) => Number.isFinite(s.amount) && s.amount > 0 && s.assetClass in STRATEGY_ASSET_CLASS_LABEL);
-  if (valid.length === 0) return { ok: false, error: "Nenhum valor pra aportar." };
-  let entries = 0;
-  for (const slice of valid) {
-    const asset = slice.assetId
-      ? await prisma.asset.findFirst({ where: { id: slice.assetId, userId: ctx.userId }, select: { id: true, name: true, ticker: true, investedValue: true, currentValue: true } })
-      : null;
-    const label = STRATEGY_ASSET_CLASS_LABEL[slice.assetClass];
-    await createMonthlyEntry(ctx, {
-      year,
-      month,
-      category: "INVESTMENT_CONTRIBUTION",
-      subcategory: label,
-      description: asset ? (asset.ticker && asset.ticker !== asset.name ? `${asset.name} (${asset.ticker})` : asset.name) : label,
-      amount: slice.amount,
-      entryDate: new Date(),
-    });
-    entries += 1;
-    if (asset) {
-      await prisma.asset.update({
-        where: { id: asset.id },
-        data: {
-          currentValue: Number(asset.currentValue) + slice.amount,
-          investedValue: Number(asset.investedValue ?? asset.currentValue) + slice.amount,
-        },
-      });
-    }
-  }
-  revalidatePath("/carteira");
-  revalidatePath("/carteira/por-objetivo");
-  revalidatePath(`/mensal/${year}/${month}`);
-  return { ok: true, entries };
-}

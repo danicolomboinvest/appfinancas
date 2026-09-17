@@ -59,7 +59,7 @@ export default async function CarteiraPage() {
 
       {/* Componente de servidor (sem "use client"): recebe os Date do Prisma direto, sem cruzar
           a fronteira servidor→cliente. */}
-      <ContributionCard context={contribution} year={now.getFullYear()} month={now.getMonth() + 1} />
+      <ContributionCard context={contribution} month={now.getMonth() + 1} />
 
       <UpcomingDividendsSection dividends={dividends} />
 
