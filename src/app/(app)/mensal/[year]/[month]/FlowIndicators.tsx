@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useMoney } from "@/components/money/MoneyProvider";
+import { FitText } from "@/components/ui/FitText";
 
 const MONTH_LABELS = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
@@ -67,49 +68,40 @@ function SummaryCell({
   value: string;
   sign?: "+" | "−";
   tone: Tone;
-  /** O resultado: fundo levemente tingido e ponto colorido, pra fechar a conta. */
+  /** O resultado: fundo levemente tingido e ponto colorido ao lado do rótulo, pra fechar a conta. */
   emphasis?: boolean;
 }) {
+  const dot = emphasis && (
+    <span
+      className="size-2 rounded-full"
+      style={{ backgroundColor: tone === "success" ? "var(--color-success)" : "var(--color-danger)" }}
+    />
+  );
   return (
     <div
-      className={`flex items-center justify-between gap-3 px-4 py-3.5 lg:flex-col lg:items-start lg:justify-center lg:gap-1.5 lg:px-6 lg:py-5 ${
+      className={`flex items-center justify-between gap-3 px-4 py-3.5 lg:flex-col lg:items-start lg:justify-center lg:gap-1.5 lg:px-5 lg:py-5 ${
         emphasis ? "bg-surface-2" : "border-b border-border lg:border-b-0"
       }`}
     >
-      {/* No computador o rótulo era 12px cinza e o número 19px: num monitor de 27" isso
-          parecia rodapé. Rótulo 14px, número 28px — o mesmo peso que a tela tem no celular. */}
-      <span className={`text-[16px] text-ink lg:text-[14px] lg:font-medium lg:text-ink-muted ${emphasis ? "font-semibold" : ""}`}>
+      <span className={`flex items-center gap-2 text-[16px] text-ink lg:text-[14px] lg:font-medium lg:text-ink-muted ${emphasis ? "font-semibold" : ""}`}>
         {label}
+        {dot}
       </span>
-      <span className="flex items-center gap-2">
-        <span className={`text-[17px] font-semibold tabular-nums tracking-tight lg:text-[24px] xl:text-[28px] ${TONE_TEXT[tone]}`}>
-          {/* No celular o sinal vive colado no número, porque é ele que diz se a parcela soma
-              ou subtrai. No computador quem diz isso é o sinal ENTRE as células — mantê-lo
-              aqui também faria ler "menos, menos seis mil". */}
-          {sign && <span className="lg:hidden">{sign} </span>}
-          {value}
-        </span>
-        {emphasis && (
-          <span
-            className="size-2.5 rounded-full"
-            style={{ backgroundColor: tone === "success" ? "var(--color-success)" : "var(--color-danger)" }}
-          />
-        )}
+      {/* Celular: sinal discreto colado no número, porque é ele que diz se a parcela soma ou
+          subtrai. Computador: sem sinal e sem operador entre as células — os rótulos já dizem
+          o que cada número é, e "− − =" no meio ficava feio. O número encolhe pra caber na
+          célula (FitText) em vez de quebrar "R$" numa linha e o valor na outra. */}
+      <span className={`whitespace-nowrap text-[17px] font-semibold tabular-nums tracking-tight lg:hidden ${TONE_TEXT[tone]}`}>
+        {sign && <span className="mr-0.5 text-[14px] font-medium text-ink-faint">{sign}</span>}
+        {value}
       </span>
+      <div className="hidden w-full lg:block">
+        <FitText className={`text-[24px] font-semibold tabular-nums tracking-tight xl:text-[28px] ${TONE_TEXT[tone]}`}>{value}</FitText>
+      </div>
     </div>
   );
 }
 
-/** Sinal entre duas parcelas — só aparece no computador, onde a conta corre na horizontal. */
-function Operator({ children }: { children: string }) {
-  return (
-    <span className="hidden select-none items-center justify-center px-1 text-[20px] font-medium text-ink-muted lg:flex" aria-hidden>
-      {children}
-    </span>
-  );
-}
-
-/** Número de contexto, abaixo do bloco principal: menor, sem moldura própria. */
 function SecondaryStat({ label, value, tone }: { label: string; value: string; tone: Tone }) {
   return (
     <div className="px-2 py-1 text-center first:pl-0 last:pr-0">
@@ -213,16 +205,13 @@ export function FlowIndicators({
           Saldo; em linhas, com o resultado destacado no fim, a conta se lê de cima pra baixo.
           As DUAS saídas (gastos e aportes) ficam aqui dentro, senão a soma da tela não fecha.
           Planejamento e poupança são contexto e ficam abaixo, menores. */}
-      <div className="overflow-hidden rounded-2xl border border-border lg:grid lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto_minmax(0,1fr)_auto_minmax(0,1fr)] lg:items-stretch">
+      <div className="overflow-hidden rounded-2xl border border-border lg:grid lg:grid-cols-4 lg:items-stretch lg:divide-x lg:divide-border">
         <SummaryCell label="Entrou" value={money(bundle.income)} sign="+" tone="success" />
-        <Operator>−</Operator>
         <SummaryCell label="Gastou" value={money(bundle.expense)} sign="−" tone="danger" />
         {/* Aportar também TIRA dinheiro do mês. Sem esta parcela a conta da tela não fechava:
             "entrou 12, saiu 8" e um resultado de −7 que só se explicava por um número que
             estava noutro lugar da página. Dinheiro que sai fica junto do dinheiro que sai. */}
-        <Operator>−</Operator>
         <SummaryCell label="Aportou" value={money(bundle.investment)} sign="−" tone="accent" />
-        <Operator>=</Operator>
         <SummaryCell
           label="Resultado"
           value={money(bundle.balance)}

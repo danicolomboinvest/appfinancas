@@ -53,16 +53,21 @@ export function StatCard({
   );
 
   if (layout === "row") {
+    // Celular: texto à esquerda, curvinha à direita. Computador (três cards lado a lado num
+    // monitor de 13"): a curva à direita espremia o texto em 80px e "R$ 1.164.900,65" quebrava
+    // em duas linhas — lá a curva desce pra baixo do número, na largura inteira do card.
     return (
-      <Card className="flex items-center gap-4 p-4">
+      <Card className="flex items-center gap-4 p-4 lg:flex-col lg:items-stretch lg:gap-3 lg:p-5">
         <div className="min-w-0 flex-1">
           <p className="text-xs text-ink-muted lg:text-[13px]">{label}</p>
-          <p className={`mt-1 text-2xl font-semibold tracking-tight lg:text-[26px] ${TONE_CLASSES[tone]}`}>{value}</p>
+          <div className="mt-1">
+            <FitText className={`text-2xl font-semibold tracking-tight lg:text-[26px] ${TONE_CLASSES[tone]}`}>{value}</FitText>
+          </div>
           {hint && <p className="mt-1 text-xs text-ink-faint">{hint}</p>}
           {trendChip && <div className="mt-2">{trendChip}</div>}
         </div>
         {sparkline && (
-          <div className="w-24 shrink-0 sm:w-28">
+          <div className="w-24 shrink-0 sm:w-28 lg:w-full">
             <MiniSparkline points={sparkline} tone={tone === "neutral" ? "accent" : tone} height={44} />
           </div>
         )}
