@@ -26,6 +26,10 @@ export type MonthlyEntryInput = {
   goalId?: string;
   /** Lote de importação que criou este lançamento (só em imports de extrato/fatura). */
   importBatchId?: string;
+  /** Lançado em outra moeda: o valor digitado, a moeda dele e a cotação. `amount` já vem convertido. */
+  originalAmount?: number;
+  originalCurrency?: string;
+  exchangeRate?: number;
 };
 
 /**
@@ -70,6 +74,9 @@ export async function updateOwnMonthlyEntry(ctx: AuthContext, id: string, input:
       description: input.description ?? null,
       entryDate: input.entryDate ?? null,
       goalId: refs.goalId ?? null,
+      originalAmount: input.originalAmount ?? null,
+      originalCurrency: input.originalCurrency ?? null,
+      exchangeRate: input.exchangeRate ?? null,
     },
   });
 }

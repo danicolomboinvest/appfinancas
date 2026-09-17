@@ -111,4 +111,19 @@ describe("parseVoiceEntry", () => {
   it("names the income in the description when the sentence says what it was", () => {
     expect(parseVoiceEntry("recebi 3000 reais de salário").description).toBe("Salário");
   });
+
+  describe("moeda falada (quem mora fora)", () => {
+    it("hears euros, dollars and pounds, with the amount anchored on the currency word", () => {
+      const eur = parseVoiceEntry("recebi dois mil euros de salário");
+      expect(eur).toMatchObject({ category: "INCOME", amount: 2000, currency: "EUR", description: "Salário" });
+      expect(parseVoiceEntry("gastei 45 dólares no mercado")).toMatchObject({ amount: 45, currency: "USD" });
+      expect(parseVoiceEntry("paguei 1.200 libras de aluguel")).toMatchObject({ amount: 1200, currency: "GBP" });
+      expect(parseVoiceEntry("2 cafés de 3 euros")).toMatchObject({ amount: 3, currency: "EUR" });
+    });
+
+    it("leaves the currency empty when none was said, and explicit in reais", () => {
+      expect(parseVoiceEntry("gastei 50 no mercado").currency).toBeNull();
+      expect(parseVoiceEntry("recebi 3000 reais de salário").currency).toBe("BRL");
+    });
+  });
 });

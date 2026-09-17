@@ -11,6 +11,8 @@ import {
   type MonthlyEntryInput,
 } from "@/lib/repositories/monthly-entry.repo";
 import { monthlyEntrySchema } from "@/lib/validations/monthly-entry.schema";
+import { getUserCurrency } from "@/lib/money-server";
+import { convertAmount, getExchangeRate } from "@/lib/fx/rates";
 import type { z } from "zod";
 
 export type MonthlyEntryState = { error?: string };
@@ -28,15 +30,35 @@ function parseEntryForm(formData: FormData) {
     entryDate: formData.get("entryDate") ?? undefined,
     goalId: formData.get("goalId") || undefined,
     repeatMonthly: formData.get("repeatMonthly") ?? undefined,
+    currency: formData.get("currency") || undefined,
+    exchangeRate: formData.get("exchangeRate") || undefined,
   });
 }
 
-function toEntryInput(data: z.output<typeof monthlyEntrySchema>): MonthlyEntryInput {
+type ConversionError = { error: string };
+
+/**
+ * Lançamento em outra moeda: o valor digitado vira `amount` na moeda do usuário pela cotação
+ * que veio do formulário (a pessoa pôde ajustar) ou, se ela apagou, pela cotação do dia.
+ * Na moeda do próprio usuário não há nada a converter e os três campos ficam vazios.
+ */
+async function toEntryInput(data: z.output<typeof monthlyEntrySchema>): Promise<MonthlyEntryInput | ConversionError> {
+  const userCurrency = await getUserCurrency();
+  const currency = data.currency || userCurrency;
+  let amount = data.amount;
+  let conversion: Pick<MonthlyEntryInput, "originalAmount" | "originalCurrency" | "exchangeRate"> = {};
+  if (currency !== userCurrency) {
+    const rate = data.exchangeRate ?? (await getExchangeRate(currency, userCurrency))?.rate;
+    if (!rate) return { error: "Não consegui a cotação de hoje. Informe a cotação pra continuar." };
+    amount = convertAmount(data.amount, rate);
+    conversion = { originalAmount: data.amount, originalCurrency: currency, exchangeRate: rate };
+  }
   return {
     year: data.year,
     month: data.month,
     category: data.category,
-    amount: data.amount,
+    amount,
+    ...conversion,
     entryDate: data.entryDate,
     parentCategory: data.parentCategory || undefined,
     customCategoryId: data.customCategoryId || undefined,
@@ -55,8 +77,9 @@ export async function createMonthlyEntryAction(
     return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
   }
 
-  const entry = toEntryInput(parsed.data);
   const ctx = await getRequiredSession();
+  const entry = await toEntryInput(parsed.data);
+  if ("error" in entry) return entry;
   try {
     if (parsed.data.repeatMonthly) {
       await createRecurringMonthlyEntries(ctx, entry);
@@ -86,8 +109,10 @@ export async function updateMonthlyEntryAction(
   }
 
   const ctx = await getRequiredSession();
+  const entry = await toEntryInput(parsed.data);
+  if ("error" in entry) return entry;
   try {
-    await updateOwnMonthlyEntry(ctx, entryId, toEntryInput(parsed.data));
+    await updateOwnMonthlyEntry(ctx, entryId, entry);
   } catch (err) {
     console.error("updateMonthlyEntryAction falhou:", err);
     return { error: "Não consegui salvar as alterações. Tente novamente." };
@@ -123,6 +148,9 @@ export type DeletedEntrySnapshot = {
   amount: number;
   entryDate: string | null;
   goalId: string | null;
+  originalAmount?: number | null;
+  originalCurrency?: string | null;
+  exchangeRate?: number | null;
 };
 
 /** Desfazer exclusão: recria o lançamento a partir do snapshot guardado no cliente. */
@@ -143,6 +171,9 @@ export async function undoDeleteEntryAction(snapshot: DeletedEntrySnapshot): Pro
       amount: snapshot.amount,
       entryDate: entryDate && !Number.isNaN(entryDate.getTime()) ? entryDate : undefined,
       goalId: snapshot.goalId ?? undefined,
+      originalAmount: snapshot.originalAmount ?? undefined,
+      originalCurrency: snapshot.originalCurrency ?? undefined,
+      exchangeRate: snapshot.exchangeRate ?? undefined,
     });
   } catch {
     return { ok: false };

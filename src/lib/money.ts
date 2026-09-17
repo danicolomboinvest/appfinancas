@@ -16,7 +16,11 @@ export const CURRENCIES = {
   BRL: { label: "Real", symbol: "R$" },
   USD: { label: "Dólar", symbol: "US$" },
   EUR: { label: "Euro", symbol: "€" },
+  GBP: { label: "Libra", symbol: "£" },
 } as const;
+
+/** Ordem dos seletores de moeda: a do Brasil primeiro, depois as mais comuns de quem mora fora. */
+export const CURRENCY_CODES = Object.keys(CURRENCIES) as CurrencyCode[];
 
 export type CurrencyCode = keyof typeof CURRENCIES;
 

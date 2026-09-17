@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { CheckSquare, ChevronRight, Pencil, PiggyBank, Receipt, Square, Trash2, TrendingUp, X, type LucideIcon } from "lucide-react";
 import type { ParentCategory } from "@prisma/client";
+import type { CurrencyCode } from "@/lib/money";
 import { Card } from "@/components/ui/Card";
 import { Modal } from "@/components/ui/Modal";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
@@ -37,6 +38,11 @@ export type ListEntry = {
   /** "Hoje", "Ontem" ou "dd/mm" — já calculado no servidor, no fuso do Brasil. */
   dayLabel: string | null;
   goalId: string | null;
+  /** Lançado em outra moeda: "€ 2.000,00" já formatado no servidor, e os dados pra editar. */
+  originalLabel?: string | null;
+  originalAmount?: number | null;
+  originalCurrency?: CurrencyCode | null;
+  exchangeRate?: number | null;
 };
 
 const CATEGORY_AMOUNT_CLASS: Record<ListEntry["category"], string> = {
@@ -91,6 +97,9 @@ function toSnapshot(entry: ListEntry, year: number, month: number): DeletedEntry
     amount: entry.amount,
     entryDate: entry.entryDate,
     goalId: entry.goalId,
+    originalAmount: entry.originalAmount ?? null,
+    originalCurrency: entry.originalCurrency ?? null,
+    exchangeRate: entry.exchangeRate ?? null,
   };
 }
 
@@ -209,8 +218,11 @@ export function EntryList({
               {entry.description}
             </span>
           </span>
-          <span className={`shrink-0 text-[15px] font-semibold tabular-nums ${CATEGORY_AMOUNT_CLASS[entry.category]}`}>
-            {money(entry.amount)}
+          <span className="flex shrink-0 flex-col items-end">
+            <span className={`text-[15px] font-semibold tabular-nums ${CATEGORY_AMOUNT_CLASS[entry.category]}`}>
+              {money(entry.amount)}
+            </span>
+            {entry.originalLabel && <span className="text-[11px] tabular-nums text-ink-faint">{entry.originalLabel}</span>}
           </span>
           {!selecting && <ChevronRight size={16} className="shrink-0 text-ink-faint md:hidden" />}
         </button>
@@ -319,9 +331,16 @@ export function EntryList({
                   {open.dayLabel && ` · ${open.dayLabel}`}
                 </p>
               </div>
-              <p className={`shrink-0 text-xl font-semibold tabular-nums ${CATEGORY_AMOUNT_CLASS[open.category]}`}>
-                {money(open.amount)}
-              </p>
+              <div className="shrink-0 text-right">
+                <p className={`text-xl font-semibold tabular-nums ${CATEGORY_AMOUNT_CLASS[open.category]}`}>
+                  {money(open.amount)}
+                </p>
+                {open.originalLabel && open.exchangeRate && (
+                  <p className="text-xs tabular-nums text-ink-faint">
+                    {open.originalLabel} · cotação {open.exchangeRate.toLocaleString("pt-BR", { maximumFractionDigits: 4 })}
+                  </p>
+                )}
+              </div>
             </div>
             {open.description && <p className="text-sm leading-relaxed text-ink">{open.description}</p>}
             <div className="grid grid-cols-2 gap-3">
@@ -365,7 +384,9 @@ export function EntryList({
             layout="stacked"
             onSuccess={() => setEditingId(null)}
             defaultDescription={editing.description ?? undefined}
-            defaultAmount={editing.amount}
+            defaultAmount={editing.originalCurrency ? (editing.originalAmount ?? editing.amount) : editing.amount}
+            defaultCurrency={editing.originalCurrency ?? undefined}
+            defaultExchangeRate={editing.exchangeRate ?? undefined}
             defaultCategory={editing.category}
             defaultParentCategory={(editing.parentCategory as ParentCategory) ?? undefined}
             defaultSubcategory={editing.subcategory ?? undefined}

@@ -1,4 +1,5 @@
 import type { ParentCategory } from "@prisma/client";
+import type { CurrencyCode } from "@/lib/money";
 
 export type VoiceEntryCategory = "INCOME" | "EXPENSE" | "INVESTMENT_CONTRIBUTION";
 
@@ -7,7 +8,24 @@ export type ParsedVoiceEntry = {
   parentCategory: ParentCategory | null;
   amount: number | null;
   description: string;
+  /** Moeda dita na frase ("2 mil euros"); null quando a pessoa não disse nenhuma. */
+  currency: CurrencyCode | null;
 };
+
+/** As moedas como se fala: "euros", "dólares", "libras", "reais" (já sem acento, ver `normalize`). */
+const SPOKEN_CURRENCY: { code: CurrencyCode; pattern: RegExp }[] = [
+  { code: "EUR", pattern: /\b(euros?)\b/ },
+  { code: "USD", pattern: /\b(dolar(?:es)?)\b/ },
+  { code: "GBP", pattern: /\b(libras?)\b/ },
+  { code: "BRL", pattern: /\b(reais?|r\$)/ },
+];
+
+/** Palavras de dinheiro que ancoram um número ("45 reais", "2 mil euros"). */
+const MONEY_WORDS = "reais?|contos?|euros?|dolar(?:es)?|libras?";
+
+function extractCurrency(normalized: string): CurrencyCode | null {
+  return SPOKEN_CURRENCY.find((c) => c.pattern.test(normalized))?.code ?? null;
+}
 
 /**
  * Palavras-chave faladas por categoria, vocabulário do dia a dia, não os rótulos formais de
@@ -93,7 +111,7 @@ const SCALE: Record<string, number> = { mil: 1000, milhao: 1_000_000, milhoes: 1
  * quinhentos") entra junto.
  */
 function amountCandidates(normalized: string): { value: number; index: number; hasCurrency: boolean }[] {
-  const re = /(r\$\s*)?(\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)\s*(milhoes|milhao|mil|k)?/g;
+  const re = /(r\$|us\$|\$|€|£)?\s*(\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)\s*(milhoes|milhao|mil|k)?/g;
   const out: { value: number; index: number; hasCurrency: boolean }[] = [];
   for (const m of normalized.matchAll(re)) {
     const num = parseFloat(m[2].replace(/\./g, "").replace(",", "."));
@@ -103,14 +121,14 @@ function amountCandidates(normalized: string): { value: number; index: number; h
     const resto = normalized.slice((m.index ?? 0) + m[0].length);
     if (m[3] === "mil") {
       // "4 mil e quinhentos": a sobra só vale se for menor que a escala, senão vira outro número.
-      const tail = resto.match(/^\s*e\s+([a-z\s]{1,30}?)(?=\s*(reais?|$))/)?.[1];
+      const tail = resto.match(new RegExp(`^\\s*e\\s+([a-z\\s]{1,30}?)(?=\\s*(${MONEY_WORDS}|$))`))?.[1];
       const extra = tail ? wordsToNumber(tail) : null;
       if (extra !== null && extra < 1000) value += extra;
     }
     out.push({
       value,
       index: m.index ?? 0,
-      hasCurrency: Boolean(m[1]) || /^\s*(milhoes|milhao|mil)?\s*(reais?|contos?)\b/.test(resto),
+      hasCurrency: Boolean(m[1]) || new RegExp(`^\\s*(milhoes|milhao|mil)?\\s*(${MONEY_WORDS})\\b`).test(resto),
     });
   }
   return out;
@@ -126,8 +144,8 @@ function extractAmount(normalized: string): number | null {
 
   // Nada em dígito: só tenta por extenso quando a frase ancora num "reais" ou num "mil",
   // senão "comprei UM presente" viraria um real.
-  if (/\b(reais?|mil|milhao|milhoes)\b/.test(normalized)) {
-    const reaisIdx = normalized.search(/\breais?\b/);
+  if (new RegExp(`\\b(${MONEY_WORDS}|mil|milhao|milhoes)\\b`).test(normalized)) {
+    const reaisIdx = normalized.search(new RegExp(`\\b(${MONEY_WORDS})\\b`));
     const trecho = reaisIdx > -1 ? normalized.slice(0, reaisIdx).trim().split(/\s+/).slice(-6).join(" ") : normalized;
     const fromWords = wordsToNumber(trecho);
     if (fromWords !== null) return fromWords;
@@ -235,5 +253,6 @@ export function parseVoiceEntry(text: string): ParsedVoiceEntry {
     parentCategory,
     amount: extractAmount(normalized),
     description: label ? toLabel(label) : text.trim().slice(0, 60),
+    currency: extractCurrency(normalized),
   };
 }

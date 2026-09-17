@@ -7,7 +7,7 @@ export const profileSchema = z.object({
 });
 
 export const preferencesSchema = z.object({
-  currency: z.enum(["BRL", "USD", "EUR"]),
+  currency: z.enum(["BRL", "USD", "EUR", "GBP"]),
   theme: z.enum(["dark", "light"]),
 });
 

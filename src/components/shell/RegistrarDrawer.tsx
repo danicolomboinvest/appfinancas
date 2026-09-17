@@ -123,6 +123,7 @@ export function RegistrarDrawer({ open, onClose }: { open: boolean; onClose: () 
           onSuccess={onClose}
           defaultDescription={parsed?.description}
           defaultAmount={parsed?.amount ?? undefined}
+          defaultCurrency={parsed?.currency ?? undefined}
           defaultCategory={parsed?.category}
           defaultParentCategory={parsed?.parentCategory ?? undefined}
         />

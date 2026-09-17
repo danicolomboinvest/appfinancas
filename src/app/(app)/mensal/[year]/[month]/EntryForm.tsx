@@ -1,9 +1,12 @@
 "use client";
 
-import { useActionState, useEffect, useRef } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import type { ParentCategory } from "@prisma/client";
 import { Field } from "@/components/ui/Field";
 import { CurrencyField } from "@/components/ui/CurrencyField";
+import { CurrencySwitch, ExchangeRateLine } from "@/components/forms/CurrencySwitch";
+import { useCurrency } from "@/components/money/MoneyProvider";
+import type { CurrencyCode } from "@/lib/money";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useSuccessToast } from "@/components/ui/useSuccessToast";
@@ -36,6 +39,8 @@ export function EntryForm({
   defaultSubcategory,
   defaultEntryDate,
   defaultGoalId,
+  defaultCurrency,
+  defaultExchangeRate,
 }: {
   year: number;
   month: number;
@@ -59,6 +64,9 @@ export function EntryForm({
   defaultSubcategory?: string;
   defaultEntryDate?: string;
   defaultGoalId?: string;
+  /** Lançamento em outra moeda (salário em euro): `defaultAmount` vem NESSA moeda, com a cotação usada. */
+  defaultCurrency?: CurrencyCode;
+  defaultExchangeRate?: number;
 }) {
   const isEditing = Boolean(entryId);
   const [state, formAction, isPending] = useActionState(
@@ -76,6 +84,13 @@ export function EntryForm({
   }, [isPending, state.error, onSuccess]);
 
   const stacked = layout === "stacked";
+
+  // Moeda do lançamento: a do usuário por padrão; quem mora fora troca aqui, no próprio
+  // lançamento, sem mexer na moeda principal do app.
+  const userCurrency = useCurrency();
+  const [currency, setCurrency] = useState<CurrencyCode>(defaultCurrency ?? userCurrency);
+  const [amount, setAmount] = useState<number>(defaultAmount ?? 0);
+  const foreign = currency !== userCurrency;
 
   return (
     <Card
@@ -102,14 +117,28 @@ export function EntryForm({
         defaultValue={defaultDescription}
         className={stacked ? "w-full" : ""}
       />
-      <CurrencyField
-        label="Valor"
-        id="amount"
-        name="amount"
-        defaultValue={defaultAmount}
-        required
-        className={stacked ? "" : "w-32"}
-      />
+      <div className={`flex flex-col gap-1.5 ${stacked ? "w-full" : "w-40"}`}>
+        <CurrencyField
+          label="Valor"
+          id="amount"
+          name="amount"
+          defaultValue={defaultAmount}
+          required
+          currency={currency}
+          onValueChange={setAmount}
+          labelExtra={<CurrencySwitch value={currency} onChange={setCurrency} />}
+        />
+        <input type="hidden" name="currency" value={currency} />
+        {foreign && (
+          <ExchangeRateLine
+            key={currency}
+            from={currency}
+            to={userCurrency}
+            amount={amount}
+            defaultRate={defaultCurrency === currency ? defaultExchangeRate : undefined}
+          />
+        )}
+      </div>
       <Field
         label="Data"
         id="entryDate"

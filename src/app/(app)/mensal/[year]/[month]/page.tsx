@@ -38,6 +38,7 @@ import { MonthFlowCard } from "./MonthFlowCard";
 import { TopCategories } from "./TopCategories";
 import { IncomeSplitCard } from "./IncomeSplitCard";
 import { serverMoney } from "@/lib/money-server";
+import { formatMoney, isCurrencyCode } from "@/lib/money";
 
 const MONTH_LABELS = [
   "Janeiro",
@@ -314,6 +315,14 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
             entryDate: toDateInput(entry.entryDate),
             dayLabel: formatRelativeDay(entry.entryDate),
             goalId: entry.goalId,
+            ...(entry.originalCurrency && entry.originalAmount !== null && isCurrencyCode(entry.originalCurrency)
+              ? {
+                  originalLabel: formatMoney(Number(entry.originalAmount), entry.originalCurrency),
+                  originalAmount: Number(entry.originalAmount),
+                  originalCurrency: entry.originalCurrency,
+                  exchangeRate: entry.exchangeRate === null ? null : Number(entry.exchangeRate),
+                }
+              : {}),
           }))}
         />
       )}

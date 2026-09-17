@@ -47,7 +47,7 @@ export default async function CarteiraPorObjetivoPage() {
 
       <Section title="Posição por objetivo">
         {/* Quando NADA tem objetivo, quatro cards diziam a mesma coisa duas vezes (total =
-            sem objetivo) e mostravam dois R$ 0,00. A resposta é uma frase e um caminho. */}
+            sem objetivo) e mostravam dois zeros. A resposta é uma frase e um caminho. */}
         {byObjective.totalPortfolio > 0 && byObjective.outro.currentValue >= byObjective.totalPortfolio - 0.005 ? (
           <Card className="flex flex-col gap-2 border-accent/30 bg-accent-soft/30 p-5">
             <p className="text-lg font-semibold text-ink">Nenhum ativo tem objetivo ainda.</p>

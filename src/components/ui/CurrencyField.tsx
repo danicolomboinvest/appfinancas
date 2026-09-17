@@ -2,7 +2,7 @@
 
 import { useId, useState } from "react";
 import { CONTROL_CLASSES } from "./Field";
-import { formatMoney } from "@/lib/money";
+import { formatMoney, type CurrencyCode } from "@/lib/money";
 import { useCurrency } from "@/components/money/MoneyProvider";
 
 function parseDigitsToCents(text: string): number | null {
@@ -27,9 +27,15 @@ export function CurrencyField({
   onValueChange,
   hint,
   suggestion,
+  currency: currencyProp,
+  labelExtra,
 }: {
   label: string;
   name: string;
+  /** Máscara numa moeda diferente da do usuário (lançamento em euro num app em real). */
+  currency?: CurrencyCode;
+  /** Algo ao lado direito do rótulo, na mesma linha (ex.: o seletor de moeda). */
+  labelExtra?: React.ReactNode;
   /** Valor em reais (ex.: 1234.56), como o resto do sistema já espera. */
   defaultValue?: number;
   required?: boolean;
@@ -49,7 +55,8 @@ export function CurrencyField({
    */
   suggestion?: { value: number; label: string };
 }) {
-  const currency = useCurrency();
+  const userCurrency = useCurrency();
+  const currency = currencyProp ?? userCurrency;
   /** Máscara ao vivo, na moeda escolhida: "R$ 1.234,56", "€ 1.234,56". */
   const mask = (cents: number | null) => (cents === null ? "" : formatMoney(cents / 100, currency));
   const generatedId = useId();
@@ -61,9 +68,12 @@ export function CurrencyField({
 
   return (
     <div className="flex flex-col gap-1.5">
-      <label htmlFor={inputId} className="text-xs font-medium text-ink-muted">
-        {label}
-      </label>
+      <div className="flex items-center justify-between gap-2">
+        <label htmlFor={inputId} className="text-xs font-medium text-ink-muted">
+          {label}
+        </label>
+        {labelExtra}
+      </div>
       <input
         id={inputId}
         type="text"

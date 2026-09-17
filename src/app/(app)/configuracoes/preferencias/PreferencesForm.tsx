@@ -26,6 +26,7 @@ export function PreferencesForm({ defaults }: { defaults: { currency: string; th
           <option value="BRL">Real (R$)</option>
           <option value="USD">Dólar (US$)</option>
           <option value="EUR">Euro (€)</option>
+          <option value="GBP">Libra (£)</option>
         </SelectField>
         <SelectField label="Tema" name="theme" defaultValue={defaults.theme}>
           <option value="dark">Escuro</option>
@@ -40,7 +41,11 @@ export function PreferencesForm({ defaults }: { defaults: { currency: string; th
         </p>
         <p className="mt-1 text-xs text-ink-muted">
           Os números continuam exatamente os mesmos — só o símbolo muda. Um lançamento de 3.000 passa a aparecer como
-          &quot;€ 3.000&quot; em vez de &quot;R$ 3.000&quot;. Use se você lança seus valores em outra moeda.
+          &quot;€ 3.000&quot; em vez de &quot;R$ 3.000&quot;. Use se a sua vida financeira é toda em outra moeda.
+        </p>
+        <p className="mt-1 text-xs text-ink-muted">
+          Se só uma parte é em outra moeda (um salário em euro, um aluguel em real), deixe a moeda principal aqui e
+          escolha a moeda na hora de lançar: aí sim o app converte pela cotação do dia.
         </p>
       </div>
       <p className="text-xs text-ink-faint">Moeda e tema são aplicados assim que você salva.</p>

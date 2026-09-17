@@ -316,6 +316,12 @@ model MonthlyEntry {
   subcategory      String?
   description      String?
   amount           Decimal         @db.Decimal(18, 2)
+  /// Lançamento feito em outra moeda (salário em euro pra quem mora fora): o valor digitado, a
+  /// moeda dele e a cotação usada. `amount` continua sempre na moeda do usuário — todo o resto do
+  /// app soma `amount` e não precisa saber que houve conversão.
+  originalAmount   Decimal?        @db.Decimal(18, 2)
+  originalCurrency String?         @db.VarChar(3)
+  exchangeRate     Decimal?        @db.Decimal(14, 6)
   /// Data em que a despesa/renda de fato aconteceu (opcional — lançamentos antigos não têm).
   /// year/month continuam sendo a verdade para a consolidação mensal; entryDate refina o dia.
   entryDate        DateTime?       @db.Date
