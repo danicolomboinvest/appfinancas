@@ -42,7 +42,7 @@ export function BudgetRow({
           <input type="hidden" name="year" value={year} />
           <input type="hidden" name="month" value={month} />
           <input type="hidden" name="parentCategory" value={parentCategory} />
-          <CurrencyField label="Planejado" name="plannedAmount" defaultValue={plannedAmount} className="w-28" />
+          <CurrencyField label="Planejado" name="plannedAmount" defaultValue={plannedAmount} className="w-36" />
           <Button type="submit" size="sm" disabled={isPending} variant="ghost">
             {isPending ? "..." : "Salvar"}
           </Button>

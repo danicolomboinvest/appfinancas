@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Target, Plane, Home, Car, PiggyBank } from "lucide-react";
 import type { GoalIcon } from "@prisma/client";
 import { Card } from "@/components/ui/Card";
+import { FitText } from "@/components/ui/FitText";
 import { ProgressRing } from "@/components/ui/ProgressRing";
 import { DeleteGoalButton } from "./DeleteGoalButton";
 import { EditGoalButton } from "./EditGoalButton";
@@ -115,9 +116,9 @@ export async function GoalCard({
             <p className="line-clamp-1 text-caption text-ink-muted hover:text-ink">{name}</p>
           </Link>
 
-          <p className="mt-1.5 text-h1 font-bold leading-none tracking-tight tabular-nums text-ink">
-            {money(currentAmount, { round: true })}
-          </p>
+          <div className="mt-1.5">
+            <FitText className="text-h1 font-bold leading-none tracking-tight tabular-nums text-ink">{money(currentAmount, { round: true })}</FitText>
+          </div>
           <p className="mt-1.5 text-caption tabular-nums text-ink-muted">
             de {money(targetAmount, { round: true })}
             {!achieved && (

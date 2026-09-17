@@ -64,7 +64,8 @@ export default async function ReservaEmergenciaPage() {
             <StatCard label="Reserva atual" value={money(Number(fund.currentAmount))} />
             <StatCard
               label="Tempo para concluir"
-              value={plan.monthsToTarget === null ? "Inatingível com esses parâmetros" : `${plan.monthsToTarget} meses`}
+              value={plan.monthsToTarget === null ? "Não fecha" : `${plan.monthsToTarget} meses`}
+              hint={plan.monthsToTarget === null ? "Com esse aporte a reserva não chega na meta. Aumente o valor por mês." : undefined}
             />
             <StatCard label="Rentabilidade mensal" value={formatPercentNumber(plan.monthlyRate * 100, 3)} />
           </div>

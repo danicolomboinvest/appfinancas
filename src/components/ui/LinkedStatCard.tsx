@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ChevronRight, type LucideIcon } from "lucide-react";
 import { Card } from "./Card";
+import { FitText } from "./FitText";
 
 type Tone = "success" | "danger" | "accent" | "neutral";
 
@@ -40,13 +41,14 @@ export function LinkedStatCard({
     <Link href={href} className="group block">
       <Card className="flex flex-col gap-3 p-3.5 transition-colors duration-150 hover:border-accent-strong/40 hover:bg-surface-hover sm:p-4">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-xs text-ink-muted">
-            <Icon size={15} strokeWidth={1.75} />
-            {label}
+          <div className="flex min-w-0 items-center gap-2 text-xs text-ink-muted">
+            <Icon size={15} strokeWidth={1.75} className="shrink-0" />
+            <span className="truncate">{label}</span>
           </div>
           <ChevronRight size={15} className="text-ink-faint transition-transform duration-150 group-hover:translate-x-0.5" />
         </div>
-        <p className={`text-lg leading-snug font-semibold tracking-tight sm:text-xl ${TONE_TEXT[tone]}`}>{value}</p>
+        {/* "R$ 1.234.567,89" num card de meia tela não cabe a 18px: encolhe em vez de quebrar. */}
+        <FitText className={`text-lg leading-snug font-semibold tracking-tight sm:text-xl ${TONE_TEXT[tone]}`}>{value}</FitText>
         {progressPercent !== undefined && (
           <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-2">
             <div

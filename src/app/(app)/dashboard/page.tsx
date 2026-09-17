@@ -258,7 +258,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
           trend={
             balanceDelta === null
               ? undefined
-              : { percent: balanceDelta, periodLabel: rotuloComparacao, displayValue: money(Math.abs(balanceDelta)) }
+              : { percent: balanceDelta, periodLabel: rotuloComparacao, displayValue: money(Math.abs(balanceDelta), { round: true }) }
           }
           sparkline={balanceSparkline}
         />
@@ -275,7 +275,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
             icon={ShieldCheck}
             label="Reserva de emergência"
             value={emergencyProgress === null ? "Não configurada" : `${Math.round(emergencyProgress * 100)}% concluída`}
-            hint={emergencyTarget !== null ? `${money(emergencyCurrent)} de ${money(emergencyTarget)}` : "Configure sua meta"}
+            hint={emergencyTarget !== null ? `${money(emergencyCurrent, { round: true })} de ${money(emergencyTarget, { round: true })}` : "Configure sua meta"}
             progressPercent={emergencyProgress ?? undefined}
             tone={emergencyProgress === null ? "neutral" : emergencyProgress >= 1 ? "accent" : "success"}
           />
@@ -283,8 +283,14 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
             href="/planejamento/metas"
             icon={Target}
             label="Metas"
-            value={goals.length === 0 ? "Nenhuma meta" : `${goalsOnTrack} no ritmo · ${goalsBehind} atrasadas`}
-            hint={goals.length === 0 ? "Cadastre sua primeira meta" : `${goals.length} meta${goals.length === 1 ? "" : "s"} no total`}
+            value={goals.length === 0 ? "Nenhuma meta" : `${goalsOnTrack} no ritmo`}
+            hint={
+              goals.length === 0
+                ? "Cadastre sua primeira meta"
+                : goalsBehind > 0
+                  ? `${goalsBehind} atrasada${goalsBehind === 1 ? "" : "s"} · ${goals.length} no total`
+                  : `${goals.length} meta${goals.length === 1 ? "" : "s"} no total`
+            }
             tone={goalsBehind > 0 ? "danger" : "success"}
           />
           <LinkedStatCard

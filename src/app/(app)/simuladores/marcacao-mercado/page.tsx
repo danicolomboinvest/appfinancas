@@ -92,7 +92,7 @@ export default function MarcacaoMercadoPage() {
               </h1>
               <p className="mt-1 text-xs text-ink-muted">Levar até o vencimento elimina esse risco.</p>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <StatCard
                 label="Lucro/Prejuízo na venda antecipada"
                 value={money(result.profitOrLoss)}
@@ -103,7 +103,7 @@ export default function MarcacaoMercadoPage() {
               <StatCard label="Preço a mercado (nova taxa)" value={money(result.marketPrice)} />
             </div>
             {result.scaledMarketValue !== undefined && result.scaledProfitOrLoss !== undefined && (
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <StatCard label="Valor de mercado hoje" value={money(result.scaledMarketValue)} />
                 <StatCard
                   label="Lucro/Prejuízo sobre o investido"

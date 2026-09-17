@@ -90,7 +90,7 @@ export default async function YearPage(props: PageProps<"/mensal/[year]">) {
         }
       />
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-5">
         <StatCard label="Renda" value={money(summary.totalIncome)} tone="success" sparkline={incomeSparkline} />
         <StatCard label="Gastos" value={money(summary.totalExpense)} tone="danger" sparkline={expenseSparkline} />
         <StatCard label="Aportes" value={money(summary.totalInvestment)} sparkline={investmentSparkline} />

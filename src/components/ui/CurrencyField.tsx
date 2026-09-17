@@ -67,7 +67,7 @@ export function CurrencyField({
   const decimalValue = cents === null ? "" : cents / 100;
 
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className={`flex flex-col gap-1.5 ${className}`}>
       <div className="flex items-center justify-between gap-2">
         <label htmlFor={inputId} className="text-xs font-medium text-ink-muted">
           {label}
@@ -85,7 +85,7 @@ export function CurrencyField({
           setCents(parsed);
           onValueChange?.(parsed === null ? 0 : parsed / 100);
         }}
-        className={`${CONTROL_CLASSES} w-full ${className}`}
+        className={`${CONTROL_CLASSES} w-full`}
       />
       <input type="hidden" name={name} value={decimalValue} />
       {suggestion && Math.round(suggestion.value * 100) !== cents && (

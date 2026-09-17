@@ -35,10 +35,10 @@ const projectionColumns = (money: MoneyFormatter): ResponsiveColumn<ProjectionYe
       <Badge tone={y.phase === "ACCUMULATION" ? "accent" : "info"}>{y.phase === "ACCUMULATION" ? "Acúmulo" : "Usufruto"}</Badge>
     ),
   },
-  { key: "invested", label: "Investido", render: (y) => money(y.totalInvested ?? 0) },
-  { key: "interest", label: "Juros acumulados", render: (y) => money(y.cumulativeInterest ?? 0) },
-  { key: "nominal", label: "Patrimônio (nominal)", render: (y) => money(y.balanceNominal ?? 0) },
-  { key: "real", label: "Patrimônio (real)", render: (y) => money(y.balanceReal ?? 0) },
+  { key: "invested", label: "Investido", render: (y) => money(y.totalInvested ?? 0, { round: true }) },
+  { key: "interest", label: "Juros acumulados", render: (y) => money(y.cumulativeInterest ?? 0, { round: true }) },
+  { key: "nominal", label: "Patrimônio (nominal)", render: (y) => money(y.balanceNominal ?? 0, { round: true }) },
+  { key: "real", label: "Patrimônio (real)", render: (y) => money(y.balanceReal ?? 0, { round: true }) },
 ];
 
 export default async function IndependenciaFinanceiraPage() {

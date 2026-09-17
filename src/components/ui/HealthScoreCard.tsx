@@ -99,7 +99,7 @@ function DimensionBar({ label, score, status }: { label: string; score: number |
 
   return (
     <div className="flex items-center gap-3">
-      <p className="w-20 shrink-0 text-caption leading-tight text-ink-muted">{label}</p>
+      <p className="w-28 shrink-0 text-caption leading-tight text-ink-muted">{label}</p>
       <span className="relative h-2 flex-1 rounded-full bg-surface-2">
         <span
           className="absolute inset-y-0 left-0 rounded-full"

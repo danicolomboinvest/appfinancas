@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import { HelpCircle, RefreshCw } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { HelpTooltip } from "@/components/forms/HelpTooltip";
+import { FitText } from "@/components/ui/FitText";
 import {
   FRIENDLY_LABEL,
   GLOSSARY,
@@ -132,7 +133,7 @@ export function LaudoView({
       <div className="min-w-0">
         <h1 className="text-3xl font-extrabold tracking-tight text-ink">{ticker.toUpperCase()}</h1>
         <p className="mt-0.5 flex flex-wrap items-center gap-2 text-sm text-ink-muted">
-          {companyName && <span className="truncate">{companyName}</span>}
+          {companyName && <span className="line-clamp-2 min-w-0">{companyName}</span>}
           {inPortfolio && (
             <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-semibold text-accent-strong">na sua carteira</span>
           )}
@@ -388,7 +389,8 @@ function NumberTile({ item, open, onToggle }: { item: LaudoItem; open: boolean; 
         </span>
       )}
       <button type="button" onClick={onToggle} aria-expanded={open} className="w-full px-2.5 py-3 pr-7 text-left">
-        <p className={`text-[22px] font-extrabold leading-none tracking-tight ${bad ? "text-danger" : "text-ink"}`}>{compactValue(item.value)}</p>
+        {/* Três quadradinhos por linha no celular dão ~68px pro número: "R$ 7,57 bi" encolhe pra caber, não quebra. */}
+        <FitText className={`text-[22px] font-extrabold leading-none tracking-tight ${bad ? "text-danger" : "text-ink"}`}>{compactValue(item.value)}</FitText>
         {/* Nome de gente em cima ("Preço pelo lucro"), sigla miúda embaixo ("P/L"): quem
             está começando lê o que entende primeiro; quem sabe a sigla, acha ela logo abaixo. */}
         {/* Duas linhas, não uma cortada: "Preço pelo…" não diz nada; "Preço pelo lucro" diz tudo. */}

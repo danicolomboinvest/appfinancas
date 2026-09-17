@@ -86,7 +86,7 @@ export function BulletBar({
               <span className="size-2 shrink-0 rounded-sm" style={{ backgroundColor: fillColor }} />
               <span className="truncate">{row.label}</span>
             </span>
-            <span className={`text-xs tabular-nums ${row.isOver ? "text-danger" : "text-ink-muted"}`}>
+            <span className={`shrink-0 whitespace-nowrap text-xs tabular-nums ${row.isOver ? "text-danger" : "text-ink-muted"}`}>
               {row.rightLabel}
             </span>
 

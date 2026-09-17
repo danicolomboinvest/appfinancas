@@ -2,6 +2,7 @@
 
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { CHART_TOOLTIP_STYLE } from "./chart-theme";
+import { FitText } from "@/components/ui/FitText";
 import { useMoney } from "@/components/money/MoneyProvider";
 
 /**
@@ -148,11 +149,10 @@ export function Donut({
             <Tooltip {...CHART_TOOLTIP_STYLE} formatter={(value) => valueFormatter(Number(value))} />
           </PieChart>
         </ResponsiveContainer>
-        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+        {/* O buraco da rosca tem ~96px: "R$ 1.164.901" a 18px passa por cima do anel. Encolhe. */}
+        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-[22%] text-center">
           <span className="text-caption text-ink-muted">{centerLabel}</span>
-          <span className="text-lg font-semibold tabular-nums text-ink">
-            {centerValue ?? valueFormatter(total)}
-          </span>
+          <FitText className="text-lg font-semibold tabular-nums text-ink">{centerValue ?? valueFormatter(total)}</FitText>
         </div>
       </div>
 
@@ -166,7 +166,7 @@ export function Donut({
               <span className="size-2.5 shrink-0 rounded-sm" style={{ background: slice.color }} />
               <span className="min-w-14 flex-1 truncate text-left text-sm text-ink">{slice.name}</span>
               <span className="shrink-0 text-caption tabular-nums text-ink-muted">{valueFormatter(slice.value)}</span>
-              <span className="w-8 shrink-0 text-right text-sm font-semibold tabular-nums text-ink">{percent}%</span>
+              <span className="w-10 shrink-0 text-right text-sm font-semibold tabular-nums text-ink">{percent}%</span>
             </>
           );
           return (

@@ -96,7 +96,7 @@ function SummaryCell({
         {value}
       </span>
       <div className="hidden w-full lg:block">
-        <FitText className={`text-[24px] font-semibold tabular-nums tracking-tight xl:text-[28px] ${TONE_TEXT[tone]}`}>{value}</FitText>
+        <FitText className={`text-[20px] font-semibold tabular-nums tracking-tight xl:text-[24px] 2xl:text-[28px] ${TONE_TEXT[tone]}`}>{value}</FitText>
       </div>
     </div>
   );
@@ -268,7 +268,7 @@ export function FlowIndicators({
                   style={{ width: `${Math.min(100, pacing.budgetUsed * 100)}%` }}
                 />
               </div>
-              <span className="w-10 shrink-0 text-right text-caption tabular-nums text-ink lg:text-[13px]">
+              <span className="min-w-10 shrink-0 whitespace-nowrap text-right text-caption tabular-nums text-ink lg:text-[13px]">
                 {Math.round(pacing.budgetUsed * 100)}%
               </span>
             </div>
@@ -280,7 +280,7 @@ export function FlowIndicators({
                   style={{ width: `${Math.min(100, pacing.monthElapsed * 100)}%` }}
                 />
               </div>
-              <span className="w-10 shrink-0 text-right text-caption tabular-nums text-ink lg:text-[13px]">
+              <span className="min-w-10 shrink-0 whitespace-nowrap text-right text-caption tabular-nums text-ink lg:text-[13px]">
                 {Math.round(pacing.monthElapsed * 100)}%
               </span>
             </div>

@@ -470,7 +470,7 @@ export function AssetsSection({
                         const pct = (profit / (asset.investedValue as number)) * 100;
                         return (
                           <p className={`text-xs tabular-nums ${profit > 0 ? "text-success" : "text-danger"}`}>
-                            {profit > 0 ? "+" : "−"}{hidden ? `${currencySymbol(currency)} ••••` : money(Math.abs(profit))} ({profit > 0 ? "+" : "−"}{formatPercentNumber(Math.abs(pct), 1)})
+                            {profit > 0 ? "+" : "−"}{hidden ? `${currencySymbol(currency)} ••••` : formatValue(Math.abs(profit), { round: true })} ({profit > 0 ? "+" : "−"}{formatPercentNumber(Math.abs(pct), 1)})
                           </p>
                         );
                       })()}

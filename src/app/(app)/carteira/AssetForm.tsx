@@ -170,7 +170,7 @@ export function AssetForm({
         id="investedValue"
         name="investedValue"
         defaultValue={defaults.investedValue}
-        className="w-32"
+        className="w-full sm:w-40"
       />
       <CurrencyField
         label="Valor atual"
@@ -178,7 +178,7 @@ export function AssetForm({
         name="currentValue"
         required
         defaultValue={defaults.currentValue}
-        className="w-32"
+        className="w-full sm:w-40"
       />
       <Button type="submit" disabled={isPending} size="sm">
         {isPending ? "Salvando..." : submitLabel}

@@ -51,8 +51,9 @@ export function SavedSimulations({ items }: { items: SavedSimulation[] }) {
             </span>
             <Link href={`${ROTA[s.type] ?? "/simuladores"}?s=${s.id}`} className="min-w-0 flex-1">
               <p className="truncate text-[15px] font-semibold text-ink">{s.name ?? NOME_DO_TIPO[s.type] ?? "Simulação"}</p>
-              <p className="mt-0.5 truncate text-caption text-ink-muted">
-                {s.resumo} · {s.createdAt}
+              <p className="mt-0.5 flex min-w-0 items-baseline gap-1 text-caption text-ink-muted">
+                <span className="truncate">{s.resumo}</span>
+                <span className="shrink-0">· {s.createdAt}</span>
               </p>
             </Link>
             <button

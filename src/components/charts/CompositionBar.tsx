@@ -52,8 +52,8 @@ export function CompositionBar({ slices, footnote }: { slices: CompositionSlice[
         {slices.map((s) => (
           <div key={s.key} className="flex items-baseline gap-2">
             <span className="size-2 shrink-0 rounded-sm" style={{ backgroundColor: s.color }} />
-            <span className="flex-1 text-sm text-ink">{s.label}</span>
-            <span className="text-sm font-semibold tabular-nums text-ink">{s.formatted}</span>
+            <span className="min-w-0 flex-1 truncate text-sm text-ink">{s.label}</span>
+            <span className="shrink-0 whitespace-nowrap text-sm font-semibold tabular-nums text-ink">{s.formatted}</span>
           </div>
         ))}
       </div>
