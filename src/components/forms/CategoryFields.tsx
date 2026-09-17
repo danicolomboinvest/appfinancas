@@ -5,6 +5,7 @@ import type { ParentCategory } from "@prisma/client";
 import { PARENT_CATEGORIES, PARENT_CATEGORY_LABEL, SUBCATEGORIES, OUTRO_SUBCATEGORY_LABEL, INCOME_TYPES, INVESTMENT_TYPES } from "@/lib/categories";
 import { CONTROL_CLASSES } from "@/components/ui/Field";
 import { createCategoryAction } from "@/lib/actions/category";
+import { classify } from "@/lib/import/classify";
 
 const CATEGORY_OPTIONS = [
   { value: "INCOME", label: "Renda" },
@@ -50,6 +51,7 @@ export function CategoryFields({
   defaultCategory = "EXPENSE",
   defaultParentCategory,
   defaultSubcategory,
+  descriptionHint = "",
 }: {
   /** Subcategorias mais usadas recentemente, por categoria-mãe, só as da categoria-mãe
    * selecionada no momento são exibidas, pra não sugerir algo de outra categoria. */
@@ -60,6 +62,8 @@ export function CategoryFields({
   defaultCategory?: string;
   defaultParentCategory?: ParentCategory;
   defaultSubcategory?: string;
+  /** O que a pessoa digitou na descrição: "ifood" já marca Alimentação › Delivery sozinho. */
+  descriptionHint?: string;
 }) {
   const selectId = useId();
   const [category, setCategory] = useState(defaultCategory);
@@ -77,6 +81,29 @@ export function CategoryFields({
 
   const isExpense = category === "EXPENSE";
   const [freeSubcategory, setFreeSubcategory] = useState(!isExpense ? (defaultSubcategory ?? "") : "");
+
+  // Adivinha a categoria pela descrição enquanto a pessoa digita, com o mesmo classificador
+  // do extrato importado. Só preenche o que ela ainda não escolheu com o dedo: um toque em
+  // qualquer chip apaga a marca de "sugerido" e o app para de mexer.
+  const [guessed, setGuessed] = useState(false);
+  const [lastHint, setLastHint] = useState("");
+  if (descriptionHint !== lastHint) {
+    setLastHint(descriptionHint);
+    const untouched = isExpense && !customCategoryId && (parentCategory === undefined || guessed);
+    if (untouched) {
+      const hit = descriptionHint.trim().length >= 3 ? classify(descriptionHint) : null;
+      if (hit) {
+        setParentCategory(hit.parentCategory);
+        setSubcategory(hit.subcategory);
+        setIsOutro(false);
+        setGuessed(true);
+      } else if (guessed) {
+        setParentCategory(undefined);
+        setSubcategory(undefined);
+        setGuessed(false);
+      }
+    }
+  }
   const finalSubcategory = customCategoryId ? customText : isOutro ? customText : subcategory;
 
   // Item 5, criar a categoria-mãe na hora, quando a que a pessoa quer ainda não existe.
@@ -134,7 +161,10 @@ export function CategoryFields({
 
       {isExpense && (
         <div className={`flex flex-col gap-2 ${stacked ? "w-full" : ""}`}>
-          <span className="text-xs font-medium text-ink-muted">Categoria</span>
+          <span className="text-xs font-medium text-ink-muted">
+            Categoria
+            {guessed && parentCategory && <span className="ml-2 font-normal text-accent-strong">sugerida pela descrição</span>}
+          </span>
           <div className="flex flex-wrap gap-1.5">
             {PARENT_CATEGORIES.map((pc) => (
               <Chip
@@ -146,6 +176,7 @@ export function CategoryFields({
                   setCustomCategoryId(undefined);
                   setSubcategory(undefined);
                   setIsOutro(false);
+                  setGuessed(false);
                 }}
               />
             ))}
@@ -160,6 +191,7 @@ export function CategoryFields({
                   setSubcategory(undefined);
                   setIsOutro(false);
                   setCustomText("");
+                  setGuessed(false);
                 }}
               />
             ))}

@@ -90,6 +90,7 @@ export function EntryForm({
   const userCurrency = useCurrency();
   const [currency, setCurrency] = useState<CurrencyCode>(defaultCurrency ?? userCurrency);
   const [amount, setAmount] = useState<number>(defaultAmount ?? 0);
+  const [description, setDescription] = useState(defaultDescription ?? "");
   const foreign = currency !== userCurrency;
 
   return (
@@ -109,12 +110,14 @@ export function EntryForm({
         defaultCategory={defaultCategory}
         defaultParentCategory={defaultParentCategory}
         defaultSubcategory={defaultSubcategory}
+        descriptionHint={description}
       />
       <Field
         label="Descrição (opcional)"
         id="description"
         name="description"
-        defaultValue={defaultDescription}
+        value={description}
+        onChange={(e) => setDescription(e.target.value)}
         placeholder="Ex.: o nome do lugar, o que comprou"
         className={stacked ? "w-full" : ""}
       />

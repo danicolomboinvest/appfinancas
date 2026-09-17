@@ -56,10 +56,53 @@ const PRESETS: Preset[] = [
   },
 ];
 
+/**
+ * Três perguntas de gente pra chegar num perfil. Quem não sabe o que é "renda fixa
+ * pós-fixada" sabe quando vai precisar do dinheiro e quanto aguenta ver cair.
+ */
+const QUIZ: { key: string; question: string; options: { label: string; points: number }[] }[] = [
+  {
+    key: "prazo",
+    question: "Quando você vai precisar desse dinheiro?",
+    options: [
+      { label: "Em menos de 2 anos", points: 0 },
+      { label: "Entre 2 e 5 anos", points: 1 },
+      { label: "Daqui a mais de 5 anos", points: 2 },
+    ],
+  },
+  {
+    key: "queda",
+    question: "Se a carteira caísse 15% num mês, você…",
+    options: [
+      { label: "Venderia tudo, não dormiria", points: 0 },
+      { label: "Ficaria tensa, mas seguraria", points: 1 },
+      { label: "Aproveitaria pra comprar mais", points: 2 },
+    ],
+  },
+  {
+    key: "reserva",
+    question: "Sua reserva de emergência já está completa?",
+    options: [
+      { label: "Ainda não", points: 0 },
+      { label: "Quase lá", points: 1 },
+      { label: "Sim", points: 2 },
+    ],
+  },
+];
+
+function presetFromScore(score: number): Preset {
+  return score <= 2 ? PRESETS[0] : score <= 4 ? PRESETS[1] : PRESETS[2];
+}
+
 export function StrategyForm({ defaults }: { defaults: Record<StrategyAssetClass, number> }) {
   const [state, formAction, isPending] = useActionState(savePortfolioStrategyAction, initialState);
   useSuccessToast(isPending, state.error, "Estratégia salva com sucesso.");
   const [values, setValues] = useState<Record<StrategyAssetClass, number>>(defaults);
+  const hasStrategy = STRATEGY_ASSET_CLASSES.some((k) => (defaults[k] || 0) > 0);
+  const [quizOpen, setQuizOpen] = useState(!hasStrategy);
+  const [answers, setAnswers] = useState<Record<string, number>>({});
+  const answered = QUIZ.every((q) => answers[q.key] !== undefined);
+  const suggested = answered ? presetFromScore(QUIZ.reduce((s, q) => s + answers[q.key], 0)) : null;
 
   const sum = STRATEGY_ASSET_CLASSES.reduce((acc, key) => acc + (values[key] || 0), 0);
   const sumOk = Math.abs(sum - 100) < 0.01;
@@ -75,8 +118,51 @@ export function StrategyForm({ defaults }: { defaults: Record<StrategyAssetClass
     <Card as="form" action={formAction} className="flex flex-col gap-6 p-5">
       {state.error && <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{state.error}</p>}
 
+      <div className="flex flex-col gap-3 rounded-xl border border-accent/30 bg-accent-soft/30 p-4">
+        <button type="button" onClick={() => setQuizOpen((v) => !v)} className="flex items-center justify-between text-left">
+          <span className="text-sm font-semibold text-ink">Não sabe por onde começar? Três perguntas.</span>
+          <span className="text-xs text-ink-muted">{quizOpen ? "fechar" : "abrir"}</span>
+        </button>
+        {quizOpen && (
+          <div className="flex flex-col gap-3">
+            {QUIZ.map((q) => (
+              <div key={q.key} className="flex flex-col gap-1.5">
+                <p className="text-sm text-ink">{q.question}</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {q.options.map((o) => {
+                    const on = answers[q.key] === o.points;
+                    return (
+                      <button
+                        key={o.label}
+                        type="button"
+                        onClick={() => setAnswers((prev) => ({ ...prev, [q.key]: o.points }))}
+                        className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                          on ? "border-accent bg-accent-soft text-accent-strong" : "border-border-strong bg-surface-2 text-ink-muted hover:text-ink"
+                        }`}
+                      >
+                        {o.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+            {suggested && (
+              <div className="flex flex-col gap-2 rounded-lg bg-surface px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm text-ink">
+                  Pelas respostas, seu perfil é <b>{suggested.label}</b>. {suggested.description}
+                </p>
+                <Button type="button" size="sm" onClick={() => { setValues(suggested.values); setQuizOpen(false); }}>
+                  Usar esse perfil
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
       <div className="flex flex-col gap-2">
-        <span className="text-sm font-medium text-ink">Começar de um perfil pronto (você pode ajustar depois)</span>
+        <span className="text-sm font-medium text-ink">Ou comece de um perfil pronto (você pode ajustar depois)</span>
         <div className="flex flex-wrap gap-2">
           {PRESETS.map((preset) => (
             <button
