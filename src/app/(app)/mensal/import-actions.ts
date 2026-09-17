@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { installmentDescription, parseInstallment } from "@/lib/entries/recurrence";
+import { countMoneyLines, detectDocKind, detectInvoiceTotal, looksLikeCardInvoice, type DocKind } from "@/lib/import/detect";
 import type { ParentCategory } from "@prisma/client";
 import { getRequiredSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
@@ -59,10 +60,26 @@ export type ReviewItem = {
   autoClassified: boolean;
   /** Compra parcelada ("03/10" na fatura): as parcelas seguintes entram sozinhas nos meses seguintes. */
   installment: { current: number; total: number } | null;
+  /** Mesma data, valor e descrição repetidos DENTRO do arquivo: chave do grupo e quantas vezes. */
+  fileRepeat: { key: string; total: number } | null;
+};
+
+/** O que o app entendeu do arquivo, pra pessoa conferir antes de gravar. */
+export type ParseStats = {
+  /** O que o arquivo parece ser, pelo conteúdo/nome; "unknown" quando não dá pra saber. */
+  detectedKind: DocKind;
+  detectedReason: string;
+  /** Linhas do arquivo com cara de valor × lançamentos lidos. */
+  moneyLines: number;
+  parsed: number;
+  /** Fatura: total impresso no arquivo, se achado, pra bater com a soma. */
+  invoiceTotal: number | null;
+  sumExpense: number;
+  sumIncome: number;
 };
 
 export type ParseStatementResult =
-  | { ok: true; items: ReviewItem[]; customCategories: { id: string; name: string }[] }
+  | { ok: true; items: ReviewItem[]; customCategories: { id: string; name: string }[]; stats: ParseStats }
   | { ok: false; error: string; needsPassword?: boolean };
 
 /** Lê o extrato (CSV/OFX/Excel/PDF), classifica cada transação e devolve a fila pra revisão.
@@ -108,17 +125,36 @@ export async function parseStatementAction(formData: FormData): Promise<ParseSta
     };
   }
 
-  const parsedRaw = parseStatement(text, source);
+  const faturaYear = Number(String(formData.get("faturaMonth") ?? "").slice(0, 4)) || undefined;
+  const parsedRaw = parseStatement(text, source, faturaYear);
   // Fatura: linhas de RESUMO ("pagamento efetuado", "total de compras", "total de crédito
   // recebido") são agregados que a própria fatura já detalha em outras linhas — não são uma
   // compra a mais. Sem isso, o "pagamento de fatura" virava um gasto extra na revisão.
   const parsed = docType === "fatura" ? parsedRaw.filter((txn) => !isFaturaSummaryLine(txn)) : parsedRaw;
+  const fileMeta = formData.get("file");
+  const fileName = fileMeta instanceof File ? fileMeta.name : null;
+  const detected = detectDocKind(text, fileName);
+  const moneyLines = countMoneyLines(text);
   if (parsed.length === 0) {
+    // Diagnóstico pro suporte: só o cabeçalho (sem valores), pra reconhecer o formato do banco.
+    const header = text.split(/\r?\n/).find((l) => l.trim())?.slice(0, 200) ?? "";
+    console.error("parseStatementAction: zero lançamentos", { fileName, encoding, docType, moneyLines, chars: text.length, header });
     return {
       ok: false,
       error:
-        "Não encontrei transações nesse arquivo. Se for um PDF escaneado/foto, exporte em Excel (.xlsx) ou CSV, costuma ler melhor.",
+        moneyLines > 3
+          ? `Vi ${moneyLines} linhas com valor no arquivo, mas não consegui ler nenhuma como lançamento. Esse formato eu ainda não conheço: manda o arquivo pro suporte que a gente ensina o app.`
+          : "Não encontrei transações nesse arquivo. Se for um PDF escaneado/foto, exporte em Excel (.xlsx) ou CSV, costuma ler melhor.",
     };
+  }
+  // Fatura subida como extrato (ou o contrário) é o erro mais caro: compra vira renda. O
+  // conteúdo e, na dúvida, os sinais dizem o que o arquivo é; a tela avisa antes de gravar.
+  let detectedKind: DocKind = detected.kind;
+  if (detectedKind === "unknown" && looksLikeCardInvoice(parsedRaw)) detectedKind = "fatura";
+  const repeatCount = new Map<string, number>();
+  for (const txn of parsed) {
+    const k = dedupeKey(txn.date, Math.abs(txn.amount), txn.description);
+    repeatCount.set(k, (repeatCount.get(k) ?? 0) + 1);
   }
 
   const [rules, customCategories] = await Promise.all([listTransactionRules(ctx), listCustomCategories(ctx)]);
@@ -146,10 +182,24 @@ export async function parseStatementAction(formData: FormData): Promise<ParseSta
       subcategory: classification?.subcategory ?? null,
       autoClassified: classification !== null,
       installment: docType === "fatura" ? parseInstallment(txn.description) : null,
+      fileRepeat: (() => {
+        const k = dedupeKey(txn.date, Math.abs(txn.amount), txn.description);
+        const total = repeatCount.get(k) ?? 1;
+        return total > 1 ? { key: k, total } : null;
+      })(),
     };
   });
 
-  return { ok: true, items, customCategories: customCategories.map((c) => ({ id: c.id, name: c.name })) };
+  const stats: ParseStats = {
+    detectedKind,
+    detectedReason: detected.reason,
+    moneyLines,
+    parsed: items.length,
+    invoiceTotal: docType === "fatura" ? detectInvoiceTotal(text) : null,
+    sumExpense: items.filter((i) => i.category === "EXPENSE").reduce((s, i) => s + i.amount, 0),
+    sumIncome: items.filter((i) => i.category === "INCOME").reduce((s, i) => s + i.amount, 0),
+  };
+  return { ok: true, items, customCategories: customCategories.map((c) => ({ id: c.id, name: c.name })), stats };
 }
 
 export type ConfirmedItem = {

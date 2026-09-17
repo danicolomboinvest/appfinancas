@@ -13,6 +13,7 @@ import {
   importTransactionsAction,
   removeCardPaymentCandidateAction,
   type ReviewItem,
+  type ParseStats,
   type ConfirmedItem,
   type CardPaymentCandidate,
 } from "@/app/(app)/mensal/import-actions";
@@ -41,13 +42,14 @@ function formatMonthYear(monthValue: string): string {
 
 /** O arquivo vai CRU num FormData (string grande de base64 estoura o limite de serialização
  * das actions). O encoding diz ao servidor como interpretar os bytes. */
-function buildUploadForm(file: File, docType: "extrato" | "fatura"): FormData {
+function buildUploadForm(file: File, docType: "extrato" | "fatura", faturaMonth?: string): FormData {
   const name = file.name.toLowerCase();
   const encoding = name.endsWith(".xlsx") || name.endsWith(".xls") ? "xlsx" : name.endsWith(".pdf") ? "pdf" : "text";
   const formData = new FormData();
   formData.set("file", file);
   formData.set("encoding", encoding);
   formData.set("docType", docType);
+  if (faturaMonth) formData.set("faturaMonth", faturaMonth);
   return formData;
 }
 
@@ -76,6 +78,9 @@ export function StatementImport({ onDone }: { onDone: () => void }) {
   // Nome do arquivo subido — vai pro histórico de importações ("o que era este lote?").
   const [fileName, setFileName] = useState<string | null>(null);
   const [password, setPassword] = useState("");
+  const [stats, setStats] = useState<ParseStats | null>(null);
+  /** O app achou que o arquivo é de outro tipo: pergunta antes de seguir. */
+  const [kindMismatch, setKindMismatch] = useState<{ file: File; suggested: "extrato" | "fatura"; reason: string } | null>(null);
   // Categorias personalizadas do usuário + a criação na hora ("+ Outra") durante a revisão.
   const [customCategories, setCustomCategories] = useState<{ id: string; name: string }[]>([]);
   const [creatingCat, setCreatingCat] = useState(false);
@@ -98,10 +103,11 @@ export function StatementImport({ onDone }: { onDone: () => void }) {
 
   /** Lê o arquivo no servidor. Se o Excel estiver protegido, cai na tela de senha; com a senha,
    * reenvia o MESMO arquivo pra descriptografar e seguir. */
-  function runParse(file: File, pwd?: string) {
+  function runParse(file: File, pwd?: string, forcedType?: "extrato" | "fatura", acceptKind = false) {
     setError(null);
     setFileName(file.name);
-    const formData = buildUploadForm(file, docType);
+    const type = forcedType ?? docType;
+    const formData = buildUploadForm(file, type, type === "fatura" ? faturaMonth : undefined);
     if (pwd) formData.set("password", pwd);
     startTransition(async () => {
       let result: Awaited<ReturnType<typeof parseStatementAction>>;
@@ -123,6 +129,14 @@ export function StatementImport({ onDone }: { onDone: () => void }) {
         setError(result.error);
         return;
       }
+      // Fatura subida como extrato vira renda; extrato subido como fatura vira gasto. Se o
+      // conteúdo diz que é o outro tipo, pergunta antes de mostrar qualquer lançamento.
+      if (!acceptKind && result.stats.detectedKind !== "unknown" && result.stats.detectedKind !== type) {
+        setKindMismatch({ file, suggested: result.stats.detectedKind, reason: result.stats.detectedReason });
+        return;
+      }
+      setKindMismatch(null);
+      setStats(result.stats);
       setItems(result.items);
       setCustomCategories(result.customCategories);
       setReviewIdx(0);
@@ -224,6 +238,35 @@ export function StatementImport({ onDone }: { onDone: () => void }) {
     return (
       <div className="flex flex-col gap-4">
         {error && <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p>}
+
+        {kindMismatch && (
+          <div className="flex flex-col gap-3 rounded-xl border border-danger/40 bg-danger-soft px-4 py-3">
+            <p className="text-sm font-semibold text-ink">
+              Esse arquivo parece {kindMismatch.suggested === "fatura" ? "uma fatura de cartão" : "um extrato bancário"}
+              {kindMismatch.reason ? ` (${kindMismatch.reason})` : ""}, não {docType === "fatura" ? "uma fatura" : "um extrato"}.
+            </p>
+            <p className="text-caption text-ink-muted">
+              {kindMismatch.suggested === "fatura"
+                ? "Se importar como extrato, cada compra do cartão vira renda no seu mês."
+                : "Se importar como fatura, cada entrada da conta vira gasto."}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => {
+                  setDocType(kindMismatch.suggested);
+                  runParse(kindMismatch.file, undefined, kindMismatch.suggested, true);
+                }}
+              >
+                Importar como {kindMismatch.suggested === "fatura" ? "fatura" : "extrato"}
+              </Button>
+              <Button type="button" size="sm" variant="ghost" onClick={() => runParse(kindMismatch.file, undefined, docType, true)}>
+                É {docType === "fatura" ? "fatura" : "extrato"} mesmo
+              </Button>
+            </div>
+          </div>
+        )}
 
         {/* Extrato bancário (sinal manda) vs Fatura de cartão (tudo é gasto). */}
         <div className="flex flex-col gap-1.5">
@@ -466,12 +509,66 @@ export function StatementImport({ onDone }: { onDone: () => void }) {
   if (phase === "confirm") {
     const importable = items.filter((it) => it.category === "INCOME" || it.parentCategory || it.customCategoryId);
     const customName = (id: string) => customCategories.find((c) => c.id === id)?.name ?? "Personalizada";
+    // Repetidos dentro do arquivo: mesma data, valor e descrição mais de uma vez. Pode ser real
+    // (dois Uber no mesmo dia) ou não; a pessoa decide com um toque, em vez de descobrir depois.
+    const repeatGroups = new Map<string, ReviewItem[]>();
+    for (const it of items) if (it.fileRepeat) repeatGroups.set(it.fileRepeat.key, [...(repeatGroups.get(it.fileRepeat.key) ?? []), it]);
+    const sumImportable = importable.reduce((s, it) => s + (it.category === "INCOME" ? it.amount : -it.amount), 0);
+    const expenseSum = importable.filter((it) => it.category === "EXPENSE").reduce((s, it) => s + it.amount, 0);
+    const lowCoverage = stats ? stats.moneyLines > 0 && stats.parsed < stats.moneyLines * 0.5 && stats.moneyLines - stats.parsed >= 3 : false;
+    const totalGap = stats?.invoiceTotal ? Math.round((stats.invoiceTotal - expenseSum) * 100) / 100 : 0;
     return (
       <div className="flex flex-col gap-4">
         {error && <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p>}
-        <p className="text-sm text-ink-muted">
-          {importable.length} lançamento{importable.length === 1 ? "" : "s"} pronto{importable.length === 1 ? "" : "s"} para importar.
-        </p>
+
+        {/* Conferência: o que o app leu, em números, pra pessoa não precisar confiar às cegas. */}
+        <div className="rounded-xl border border-border bg-surface-2 px-4 py-3 text-sm">
+          <p className="font-semibold text-ink">
+            {importable.length} lançamento{importable.length === 1 ? "" : "s"} · {docType === "fatura" ? money(expenseSum) : money(Math.abs(sumImportable))}
+            {docType !== "fatura" && ` ${sumImportable >= 0 ? "a mais" : "a menos"} no saldo`}
+          </p>
+          {stats && (
+            <p className="text-caption text-ink-muted">
+              Li {stats.parsed} de {stats.moneyLines} linhas com valor no arquivo.
+              {stats.invoiceTotal ? ` Total impresso na fatura: ${money(stats.invoiceTotal)}.` : ""}
+            </p>
+          )}
+          {lowCoverage && (
+            <p className="mt-1 text-caption text-danger">
+              Menos da metade das linhas com valor virou lançamento. Confira se falta alguma coisa; se faltar, manda o arquivo pro suporte que a gente ensina o app.
+            </p>
+          )}
+          {stats?.invoiceTotal && Math.abs(totalGap) >= 1 && (
+            <p className="mt-1 text-caption text-danger">
+              A soma lida {totalGap > 0 ? "está" : "passa"} {money(Math.abs(totalGap))} {totalGap > 0 ? "abaixo" : "acima"} do total impresso na fatura. Pode faltar (ou sobrar) alguma linha.
+            </p>
+          )}
+        </div>
+
+        {repeatGroups.size > 0 && (
+          <div className="flex flex-col gap-2 rounded-xl border border-accent/40 bg-accent-soft/40 px-4 py-3">
+            <p className="text-sm font-semibold text-ink">Repetidos no arquivo</p>
+            <p className="text-caption text-ink-muted">Mesma data, valor e descrição mais de uma vez. Se foi compra de verdade, mantenha; se é o arquivo repetindo, deixe só uma.</p>
+            <ul className="flex flex-col gap-1.5">
+              {[...repeatGroups.entries()].map(([key, group]) => (
+                <li key={key} className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                  <span className="min-w-0 truncate text-sm text-ink">
+                    {group[0].description} · {money(group[0].amount)} · {group.length}× em {formatDate(group[0].date)}
+                  </span>
+                  {group.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => setItems((prev) => prev.filter((it) => it.fileRepeat?.key !== key || it.key === group[0].key))}
+                      className="w-fit rounded-full border border-border-strong bg-surface px-3 py-1 text-xs font-medium text-ink-muted hover:text-ink"
+                    >
+                      Deixar só 1
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         <ul className="flex max-h-64 flex-col divide-y divide-border overflow-y-auto rounded-xl border border-border">
           {importable.map((it) => (
             <li key={it.key} className="flex items-center justify-between gap-2 px-3 py-2">

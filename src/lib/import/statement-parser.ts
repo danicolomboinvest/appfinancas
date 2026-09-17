@@ -33,8 +33,24 @@ export function parseBrazilianNumber(raw: string): number {
  * "-14,097.44" (14 mil) seria lido como 14,09.
  */
 export function parseAmountFlexible(raw: string): number {
-  const t = raw.replace(/[R$\s]/gi, "").trim();
+  let t = raw.replace(/[R$\s]/gi, "").trim();
   if (t === "" || t === "-") return NaN;
+  // "(1.234,56)" é o jeito contábil de dizer negativo; "1.234,56 D" também.
+  let negativeByMark = false;
+  if (/^\(.*\)$/.test(t)) {
+    negativeByMark = true;
+    t = t.slice(1, -1);
+  }
+  // "1.234,56D" / "1.234,56 C" (o espaço já saiu): a letra no fim é o sinal.
+  if (/\d[dDcC]$/.test(t)) {
+    negativeByMark = negativeByMark || /[dD]$/.test(t);
+    t = t.slice(0, -1);
+  }
+  const parsed = parseAmountCore(t);
+  return negativeByMark && parsed > 0 ? -parsed : parsed;
+}
+
+function parseAmountCore(t: string): number {
   const hasComma = t.includes(",");
   const hasDot = t.includes(".");
   let normalized: string;
@@ -117,6 +133,13 @@ function splitCsvLine(line: string, delimiter: string): string[] {
 const DATE_HEADERS = ["data", "date", "dt"];
 const DESC_HEADERS = ["descri", "histor", "histó", "lanç", "lanc", "memo", "estabelecimento", "detalhe", "title"];
 const AMOUNT_HEADERS = ["valor", "amount", "montante", "quantia", "value"];
+/** Coluna de valor que NÃO é a certa: "Valor (em US$)" do C6 vinha antes de "Valor (em R$)" e levava tudo. */
+const AMOUNT_AVOID = ["us$", "usd", "dólar", "dolar", "cotação", "cotacao"];
+/** Extratos com duas colunas (Bradesco, Santander, Sicoob, Caixa): crédito e débito separados. */
+const CREDIT_HEADERS = ["crédito", "credito", "entrada", "credit"];
+const DEBIT_HEADERS = ["débito", "debito", "saída", "saida", "debit"];
+/** Coluna "D/C", "Natureza", "Tipo" com D ou C: o sinal vem dela. */
+const DC_HEADERS = ["d/c", "natureza", "tipo"];
 /** Coluna separada de "Transação"/"Tipo" (ex.: extrato BTG), enriquece a descrição. */
 const TRANSACTION_HEADERS = ["transa", "tipo de lanç", "tipo"];
 /** Linhas que NÃO são transações (saldo diário/atual/anterior, totais), não viram lançamento. */
@@ -124,6 +147,16 @@ const NON_TRANSACTION_RE = /\bsaldo\b/i;
 
 function findColumn(headers: string[], needles: string[]): number {
   return headers.findIndex((h) => needles.some((n) => h.includes(n)));
+}
+
+/** A coluna de valor certa: prefere "Valor (em R$)" / "valor" a "Valor (em US$)". */
+function findAmountColumn(headers: string[]): number {
+  const candidates = headers.map((h, i) => ({ h, i })).filter(({ h }) => AMOUNT_HEADERS.some((n) => h.includes(n)));
+  if (candidates.length === 0) return -1;
+  const good = candidates.filter(({ h }) => !AMOUNT_AVOID.some((a) => h.includes(a)));
+  const pool = good.length > 0 ? good : candidates;
+  const brl = pool.find(({ h }) => /r\$|brl|reais/.test(h));
+  return (brl ?? pool[0]).i;
 }
 
 export function parseCsv(content: string): ParsedTransaction[] {
@@ -138,19 +171,27 @@ export function parseCsv(content: string): ParsedTransaction[] {
   let descCol = -1;
   let amountCol = -1;
   let transCol = -1;
+  let creditCol = -1;
+  let debitCol = -1;
+  let dcCol = -1;
   for (let i = 0; i < Math.min(lines.length, 40); i++) {
     const d = detectDelimiter(lines[i]);
     const cells = splitCsvLine(lines[i], d).map((h) => h.toLowerCase());
-    const ac = findColumn(cells, AMOUNT_HEADERS);
+    const ac = findAmountColumn(cells);
+    const cc = findColumn(cells, CREDIT_HEADERS);
+    const dbc = findColumn(cells, DEBIT_HEADERS);
     const dc = findColumn(cells, DATE_HEADERS);
     const dsc = findColumn(cells, DESC_HEADERS);
-    if (ac !== -1 && (dc !== -1 || dsc !== -1)) {
+    if ((ac !== -1 || (cc !== -1 && dbc !== -1)) && (dc !== -1 || dsc !== -1)) {
       headerIdx = i;
       delimiter = d;
       amountCol = ac;
+      creditCol = cc;
+      debitCol = dbc;
       dateCol = dc;
       descCol = dsc;
       transCol = findColumn(cells, TRANSACTION_HEADERS);
+      dcCol = cells.findIndex((h, idx) => idx !== dsc && idx !== transCol && DC_HEADERS.some((n) => h === n || h.startsWith(n)));
       break;
     }
   }
@@ -166,7 +207,17 @@ export function parseCsv(content: string): ParsedTransaction[] {
   const transactions: ParsedTransaction[] = [];
   for (const line of dataLines) {
     const cols = splitCsvLine(line, delimiter);
-    const amount = parseAmountFlexible(cols[amountCol] ?? "");
+    let amount: number;
+    if (creditCol !== -1 && debitCol !== -1 && (amountCol === -1 || headerIdx !== -1)) {
+      // Duas colunas: o que está em crédito entra, o que está em débito sai.
+      const credit = Math.abs(parseAmountFlexible(cols[creditCol] ?? "")) || 0;
+      const debit = Math.abs(parseAmountFlexible(cols[debitCol] ?? "")) || 0;
+      amount = credit - debit;
+      if (amount === 0 && amountCol !== -1) amount = parseAmountFlexible(cols[amountCol] ?? "");
+    } else {
+      amount = parseAmountFlexible(cols[amountCol] ?? "");
+    }
+    if (dcCol !== -1 && amount > 0 && /^d\b|^d[eé]b/i.test((cols[dcCol] ?? "").trim())) amount = -amount;
     if (Number.isNaN(amount) || amount === 0) continue;
 
     const desc = (cols[descCol] ?? "").trim();
@@ -193,48 +244,97 @@ const CREDIT_HINTS = /\b(sal[aá]rio|rendimento|dep[oó]sito|cr[eé]dito|recebid
  * "-" explícito ou coluna "D" = saída; palavra de crédito/entrada = entrada; senão, assume saída
  * (a maioria das linhas é gasto), o usuário revisa depois.
  */
-export function parseTextLines(content: string): ParsedTransaction[] {
+const MONTH_ABBR: Record<string, string> = { jan: "01", fev: "02", mar: "03", abr: "04", mai: "05", jun: "06", jul: "07", ago: "08", set: "09", out: "10", nov: "11", dez: "12" };
+/** Linhas que são saldo/total, não movimento. */
+const BALANCE_LINE_RE = /\b(saldo|total\s+(da|desta|de|a\s+pagar)|subtotal|limite)\b/i;
+
+/**
+ * Data no COMEÇO de uma linha de PDF: "12/08/2026", "12/08", "12 AGO", "12 ago 2026",
+ * "2026-08-12". Sem ano, usa o de referência (fatura escolhida ou o atual).
+ */
+function leadingDate(line: string, refYear: number): { iso: string; length: number } | null {
+  const t = line.trimStart();
+  const pad = (n: string) => n.padStart(2, "0");
+  let m = t.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  if (m) return { iso: `${m[3]}-${m[2]}-${m[1]}`, length: m[0].length };
+  m = t.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return { iso: `${m[1]}-${m[2]}-${m[3]}`, length: m[0].length };
+  m = t.match(/^(\d{1,2})\s+(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)[a-z]*\.?(?:\s+(\d{4}))?/i);
+  if (m) return { iso: `${m[3] ?? refYear}-${MONTH_ABBR[m[2].toLowerCase()]}-${pad(m[1])}`, length: m[0].length };
+  m = t.match(/^(\d{2})\/(\d{2})(?![\d/])/);
+  if (m && Number(m[2]) >= 1 && Number(m[2]) <= 12) return { iso: `${refYear}-${m[2]}-${m[1]}`, length: m[0].length };
+  return null;
+}
+
+/**
+ * Parser de texto solto (PDF). Um lançamento COMEÇA numa linha com data e termina na primeira
+ * linha que traz um valor: pode ser a mesma linha ("12/08 IFOOD 45,90") ou a descrição pode
+ * descer por uma ou duas linhas antes do valor (Inter, C6, Itaú). Linhas de saldo/total não
+ * contam. Sinal: "-" explícito ou "D" = saída; palavra de crédito ou "C" = entrada; senão saída.
+ */
+export function parseTextLines(content: string, refYear: number = new Date().getFullYear()): ParsedTransaction[] {
   const lines = content.split(/\r?\n/);
   const transactions: ParsedTransaction[] = [];
-  const dateRe = /(\d{2}\/\d{2}\/\d{4})|(\d{4}-\d{2}-\d{2})/;
-  const moneyRe = /-?\s?(?:R\$\s?)?\d{1,3}(?:\.\d{3})*,\d{2}/g;
+  const moneyRe = /-?\s?(?:R\$\s?)?\d{1,3}(?:\.\d{3})*,\d{2}(?!\d)/g;
+  const anyDateRe = /(\d{2}\/\d{2}\/\d{4})|(\d{4}-\d{2}-\d{2})/;
 
-  for (const line of lines) {
-    const dateMatch = line.match(dateRe);
-    if (!dateMatch) continue;
-    const moneyMatches = line.match(moneyRe);
-    if (!moneyMatches || moneyMatches.length === 0) continue;
+  let open: { date: string; parts: string[]; lines: number } | null = null;
 
-    const rawAmount = moneyMatches[moneyMatches.length - 1];
+  const flush = (rawAmount: string, lineForSign: string) => {
+    if (!open) return;
     const magnitude = Math.abs(parseBrazilianNumber(rawAmount));
-    if (Number.isNaN(magnitude) || magnitude === 0) continue;
+    const text = open.parts.join(" ").replace(/\s+/g, " ").trim();
+    if (!Number.isNaN(magnitude) && magnitude > 0 && !BALANCE_LINE_RE.test(text)) {
+      const isNegative = /-/.test(rawAmount) || /\bD\b\s*$/.test(lineForSign);
+      const isCredit = !isNegative && (CREDIT_HINTS.test(text) || /\bC\b\s*$/.test(lineForSign));
+      transactions.push({ date: open.date, description: text.replace(/\b[DC]\b\s*$/, "").trim() || "Lançamento", amount: isCredit ? magnitude : -magnitude });
+    }
+    open = null;
+  };
 
-    const isNegative = /-/.test(rawAmount) || /\bD\b\s*$/.test(line);
-    const isCredit = !isNegative && (CREDIT_HINTS.test(line) || /\bC\b\s*$/.test(line));
-    const amount = isCredit ? magnitude : -magnitude;
-
-    const description =
-      line
-        .replace(dateMatch[0], " ")
-        .replace(moneyRe, " ")
-        .replace(/\b[DC]\b\s*$/, " ")
-        .replace(/\s+/g, " ")
-        .trim() || "Lançamento";
-
-    transactions.push({ date: normalizeDate(dateMatch[0]), description, amount });
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line) continue;
+    const lead = leadingDate(line, refYear);
+    const inlineDate = lead ? null : line.match(anyDateRe);
+    if (lead || inlineDate) {
+      // Nova data = novo lançamento; o anterior sem valor é descartado (era cabeçalho/saldo).
+      open = { date: lead ? lead.iso : normalizeDate(inlineDate![0]), parts: [], lines: 0 };
+      const rest = lead ? line.slice(line.length - line.trimStart().length + lead.length) : line.replace(inlineDate![0], " ");
+      const moneys = rest.match(moneyRe);
+      if (moneys && moneys.length > 0) {
+        const rawAmount = moneys[moneys.length - 1];
+        open.parts.push(rest.replace(moneyRe, " "));
+        flush(rawAmount, rest);
+      } else {
+        open.parts.push(rest);
+      }
+      continue;
+    }
+    if (!open) continue;
+    open.lines += 1;
+    const moneys = line.match(moneyRe);
+    if (moneys && moneys.length > 0) {
+      open.parts.push(line.replace(moneyRe, " "));
+      flush(moneys[moneys.length - 1], line);
+    } else if (open.lines <= 3) {
+      open.parts.push(line);
+    } else {
+      open = null;
+    }
   }
   return transactions;
 }
 
 /** `source` "pdf" força os parsers de texto (o do Nubank primeiro, depois o genérico por
  * linha); caso contrário detecta OFX vs CSV. */
-export function parseStatement(content: string, source: "auto" | "pdf" = "auto"): ParsedTransaction[] {
+export function parseStatement(content: string, source: "auto" | "pdf" = "auto", refYear?: number): ParsedTransaction[] {
   if (source === "pdf") {
     if (isNubankStatement(content)) {
       const nubank = parseNubankStatement(content);
       if (nubank.length > 0) return nubank;
     }
-    return parseTextLines(content);
+    return parseTextLines(content, refYear);
   }
   return isOfx(content) ? parseOfx(content) : parseCsv(content);
 }
