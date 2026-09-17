@@ -45,6 +45,13 @@ export default function PrivacidadePage() {
           <strong className="text-ink">continuam não sendo vendidos nem compartilhados com terceiros</strong> para
           publicidade, e você pode excluir tudo quando quiser (seção 5).
         </p>
+        <p>
+          Se você optar por <strong className="text-ink">conectar seu banco</strong> (Open Finance), a leitura das suas
+          contas e cartões é feita pela <strong className="text-ink">Pluggy</strong>, empresa autorizada a operar no
+          Open Finance Brasil, mediante a sua autorização expressa. O SPI Finance recebe apenas os lançamentos (data,
+          descrição e valor) e nunca suas senhas bancárias. Você pode desconectar a qualquer momento em Configurações ›
+          Conexões; os lançamentos já importados permanecem até que você os apague.
+        </p>
 
         <h2 className="mt-2 text-base font-semibold text-ink">4. Onde ficam armazenados</h2>
         <p>

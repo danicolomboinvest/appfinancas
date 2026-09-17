@@ -189,6 +189,7 @@ model User {
   asClientLinks  AdvisorClientLink[] @relation("client")
   pushSubscriptions PushSubscription[]
   notificationLogs  NotificationLog[]
+  bankConnections   BankConnection[]
 }
 
 /// Token de recuperação de senha. Guardamos só o HASH do token (nunca o valor cru) — o link
@@ -321,6 +322,9 @@ model MonthlyEntry {
   /// Lançamento feito em outra moeda (salário em euro pra quem mora fora): o valor digitado, a
   /// moeda dele e a cotação usada. `amount` continua sempre na moeda do usuário — todo o resto do
   /// app soma `amount` e não precisa saber que houve conversão.
+  /// Id da transação no banco (Open Finance): "pluggy:<id>". É o que garante que uma
+  /// transação nunca entra duas vezes, por definição, sem depender de descrição ou data.
+  externalId       String?
   originalAmount   Decimal?        @db.Decimal(18, 2)
   originalCurrency String?         @db.VarChar(3)
   exchangeRate     Decimal?        @db.Decimal(14, 6)
@@ -340,6 +344,7 @@ model MonthlyEntry {
   @@index([userId, parentCategory])
   @@index([userId, customCategoryId])
   @@index([importBatchId])
+  @@unique([userId, externalId])
 }
 
 /// Orçamento mensal planejado por categoria-mãe (para a barra "gasto realizado vs. planejado").
@@ -683,4 +688,21 @@ model NotificationLog {
   user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, key])
+}
+
+/// Conexão Open Finance (via Pluggy / Meu Pluggy). Um item do Pluggy = um banco conectado.
+model BankConnection {
+  id            String    @id @default(cuid())
+  userId        String
+  itemId        String    @unique
+  connectorId   Int?
+  connectorName String
+  status        String    @default("UPDATED")
+  lastSyncAt    DateTime?
+  lastSyncCount Int       @default(0)
+  lastError     String?
+  createdAt     DateTime  @default(now())
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { FileText, CreditCard, Trash2 } from "lucide-react";
+import { FileText, CreditCard, Trash2, Landmark } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
@@ -65,7 +65,7 @@ export function ImportHistory({ batches }: { batches: ImportBatchView[] }) {
     <CollapsibleSection label="Histórico de importações">
       <div className="flex flex-col gap-2">
         {visible.map((batch) => {
-          const Icon = batch.docType === "fatura" ? CreditCard : FileText;
+          const Icon = batch.docType === "fatura" ? CreditCard : batch.docType === "openfinance" ? Landmark : FileText;
           const confirming = confirmingId === batch.id;
           return (
             <Card key={batch.id} className="flex items-center justify-between gap-3 p-3">
@@ -73,7 +73,7 @@ export function ImportHistory({ batches }: { batches: ImportBatchView[] }) {
                 <Icon className="size-4 shrink-0 text-ink-faint" aria-hidden />
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium text-ink">
-                    {batch.docType === "fatura" ? "Fatura" : "Extrato"}
+                    {batch.docType === "fatura" ? "Fatura" : batch.docType === "openfinance" ? "Banco conectado" : "Extrato"}
                     {batch.fileName ? ` · ${batch.fileName}` : ""}
                   </p>
                   <p className="truncate text-xs text-ink-faint">

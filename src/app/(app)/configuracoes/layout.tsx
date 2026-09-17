@@ -5,6 +5,7 @@ const TABS = [
   { href: "/configuracoes/preferencias", label: "Preferências" },
   { href: "/configuracoes/categorias", label: "Categorias" },
   { href: "/configuracoes/notificacoes", label: "Notificações" },
+  { href: "/configuracoes/conexoes", label: "Conexões" },
   { href: "/configuracoes/dados", label: "Dados" },
   { href: "/configuracoes/taxas", label: "Taxas" },
 ];

@@ -32,6 +32,7 @@
     "nodemailer": "^7.0.13",
     "officecrypto-tool": "^0.0.19",
     "pdf-parse": "^2.4.5",
+    "pluggy-connect-sdk": "^2.14.2",
     "prisma": "^6.19.3",
     "react": "19.2.4",
     "react-dom": "19.2.4",

@@ -1,8 +1,10 @@
 "use client";
 
+import Link from "next/link";
+
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import { ChevronLeft, FileUp, Keyboard, Mic } from "lucide-react";
+import { ChevronLeft, FileUp, Keyboard, Mic, Landmark } from "lucide-react";
 import type { ParentCategory } from "@prisma/client";
 import { Modal } from "@/components/ui/Modal";
 import { EntryForm } from "@/app/(app)/mensal/[year]/[month]/EntryForm";
@@ -99,6 +101,20 @@ export function RegistrarDrawer({ open, onClose }: { open: boolean; onClose: () 
             </span>
             <span className="text-sm font-medium text-ink">Importar extrato ou fatura (PDF, Excel, CSV, OFX)</span>
           </button>
+          <Link
+            href="/configuracoes/conexoes"
+            onClick={onClose}
+            className="col-span-2 flex items-center gap-3 rounded-2xl border border-accent/50 bg-accent-soft/40 px-4 py-4 text-left transition-all hover:border-accent active:scale-95"
+          >
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent text-on-accent">
+              <Landmark size={20} strokeWidth={1.75} />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-medium text-ink">Conectar meu banco</span>
+              <span className="block text-caption text-ink-muted">Open Finance · os lançamentos chegam sozinhos, todo dia</span>
+            </span>
+            <span className="shrink-0 rounded-full border border-accent/50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-accent-strong">beta</span>
+          </Link>
         </div>
       )}
 

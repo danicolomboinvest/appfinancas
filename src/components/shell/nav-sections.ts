@@ -102,6 +102,7 @@ export const NAV_SECTIONS: NavSection[] = [
       // Voltou pro menu: agora controla um envio de verdade (o resumo do mês por e-mail), não
       // só alertas de tela. Sem um lugar visível pra desligar, e-mail recorrente vira spam.
       { href: "/configuracoes/notificacoes", label: "Notificações" },
+      { href: "/configuracoes/conexoes", label: "Conexões" },
       { href: "/configuracoes/dados", label: "Dados" },
       { href: "/configuracoes/taxas", label: "Taxas do Sistema" },
     ],
