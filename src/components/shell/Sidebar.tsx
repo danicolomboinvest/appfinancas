@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronsLeft, ChevronsRight, Lock, LogOut, Plus } from "lucide-react";
 import { BrandMark } from "@/components/brand/BrandMark";
-import { ADMIN_NAV_SECTION, NAV_SECTIONS } from "./nav-sections";
+import { ADMIN_NAV_SECTION, NAV_SECTIONS, withNavFlags } from "./nav-sections";
 
 /** Liga cada seção ao passo do tour de boas-vindas (WelcomeTour destaca por data-tour). */
 const SIDEBAR_TOUR: Record<string, string> = {
@@ -24,6 +24,7 @@ export function Sidebar({
   userEmail,
   onLogout,
   onOpenRegistrar,
+  openFinance,
 }: {
   collapsed: boolean;
   onToggleCollapsed: () => void;
@@ -36,9 +37,11 @@ export function Sidebar({
   userEmail?: string;
   onLogout: () => void;
   onOpenRegistrar: () => void;
+  /** Open Finance ligado no servidor (chaves da Pluggy); sem isso, "Conexões" some do menu. */
+  openFinance: boolean;
 }) {
   const pathname = usePathname();
-  const sections = isAdmin ? [...NAV_SECTIONS, ADMIN_NAV_SECTION] : NAV_SECTIONS;
+  const sections = withNavFlags(isAdmin ? [...NAV_SECTIONS, ADMIN_NAV_SECTION] : NAV_SECTIONS, { openFinance });
 
   const activeSection = sections.find(
     (section) => pathname === section.basePath || pathname.startsWith(`${section.basePath}/`),

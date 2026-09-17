@@ -8,7 +8,7 @@ const TABS = [
   { href: "/configuracoes/preferencias", label: "Preferências" },
   { href: "/configuracoes/categorias", label: "Categorias" },
   { href: "/configuracoes/notificacoes", label: "Notificações" },
-  { href: "/configuracoes/conexoes", label: "Conexões" },
+  { href: "/configuracoes/conexoes", label: "Conexões", flag: "openFinance" as const },
   { href: "/configuracoes/dados", label: "Dados" },
   { href: "/configuracoes/taxas", label: "Taxas" },
 ];
@@ -17,11 +17,12 @@ const TABS = [
  * Seções de Configurações no celular. Sete pílulas não cabem em 375px numa linha só e a
  * fileira rolável cortava a última pela metade; aqui elas quebram em duas linhas.
  */
-export function SettingsTabs() {
+export function SettingsTabs({ openFinance }: { openFinance: boolean }) {
   const pathname = usePathname();
+  const tabs = TABS.filter((t) => !("flag" in t) || openFinance);
   return (
     <nav aria-label="Seções de configurações" className="mb-6 flex flex-wrap gap-1.5 md:hidden">
-      {TABS.map((tab) => {
+      {tabs.map((tab) => {
         const active = pathname === tab.href || pathname.startsWith(`${tab.href}/`);
         return (
           <Link

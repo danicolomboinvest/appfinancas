@@ -27,6 +27,7 @@ export function AppShell({
   greeting,
   dateLabel,
   theme,
+  openFinance,
 }: {
   children: React.ReactNode;
   isAdmin: boolean;
@@ -36,6 +37,10 @@ export function AppShell({
   dateLabel: string;
   /** Tema salvo na conta — a chave clara/escura do menu "Mais" nasce com ele. */
   theme: "dark" | "light";
+  /** Open Finance ligado no servidor (chaves da Pluggy na Vercel). Desligado, as entradas
+   * "Conexões" e "Conectar meu banco" não aparecem — o código vai junto no deploy, mas fica
+   * invisível até a Dani decidir ligar. */
+  openFinance: boolean;
 }) {
   const [collapsed, setCollapsed] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
@@ -104,6 +109,7 @@ export function AppShell({
           userEmail={userEmail}
           onLogout={handleLogout}
           onOpenRegistrar={() => setRegistrarOpen(true)}
+          openFinance={openFinance}
         />
 
         <div className="flex min-w-0 flex-1 flex-col">
@@ -140,6 +146,7 @@ export function AppShell({
           onLogout={handleLogout}
           onOpenInstall={() => setInstallOpen(true)}
           theme={theme}
+          openFinance={openFinance}
         />
 
         {/* Tutorial de "instalar na tela de início" (convite do topo ou menu "Mais"). */}
@@ -147,7 +154,7 @@ export function AppShell({
 
         {/* Ponto de entrada ÚNICO de registro, aberto pelo "+" central da tab bar (mobile) ou
             pelo botão "Registrar" da sidebar (desktop). O microfone vive dentro dele. */}
-        <RegistrarDrawer open={registrarOpen} onClose={() => setRegistrarOpen(false)} />
+        <RegistrarDrawer open={registrarOpen} onClose={() => setRegistrarOpen(false)} openFinance={openFinance} />
 
         {/* Tour de boas-vindas, só na primeira entrada (lembrado no aparelho). */}
         <WelcomeTour />

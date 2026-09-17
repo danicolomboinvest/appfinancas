@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Lock, LogOut, Smartphone, MessageCircle } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
-import { MORE_NAV_SECTIONS, ADMIN_NAV_SECTION } from "./nav-sections";
+import { MORE_NAV_SECTIONS, ADMIN_NAV_SECTION, withNavFlags } from "./nav-sections";
 import { ThemeToggle } from "./ThemeToggle";
 
 /** Bottom sheet com as seções que não têm tab própria na barra inferior (mobile). */
@@ -16,6 +16,7 @@ export function MoreSheet({
   onLogout,
   onOpenInstall,
   theme,
+  openFinance,
 }: {
   open: boolean;
   onClose: () => void;
@@ -28,8 +29,10 @@ export function MoreSheet({
   onOpenInstall: () => void;
   /** Tema salvo na conta, pra chave nascer no estado certo. */
   theme: "dark" | "light";
+  /** Open Finance ligado no servidor; sem isso, "Conexões" some do menu. */
+  openFinance: boolean;
 }) {
-  const sections = isAdmin ? [...MORE_NAV_SECTIONS, ADMIN_NAV_SECTION] : MORE_NAV_SECTIONS;
+  const sections = withNavFlags(isAdmin ? [...MORE_NAV_SECTIONS, ADMIN_NAV_SECTION] : MORE_NAV_SECTIONS, { openFinance });
 
   return (
     <Modal open={open} onClose={onClose} title="Mais">

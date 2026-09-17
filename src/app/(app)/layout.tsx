@@ -1,4 +1,5 @@
 import { after } from "next/server";
+import { isPluggyConfigured } from "@/lib/pluggy/client";
 import { auth } from "@/lib/auth/auth.config";
 import { AppShell } from "@/components/shell/AppShell";
 import { ThemeSync } from "@/components/shell/ThemeSync";
@@ -59,6 +60,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         greeting={greeting}
         dateLabel={dateLabel}
         theme={theme === "light" ? "light" : "dark"}
+        openFinance={isPluggyConfigured()}
       >
         {children}
       </AppShell>

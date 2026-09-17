@@ -12,7 +12,21 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-export type NavChild = { href: string; label: string; premium?: boolean };
+export type NavChild = {
+  href: string;
+  label: string;
+  premium?: boolean;
+  /** Item que só existe quando a funcionalidade está ligada no servidor (chaves configuradas). */
+  flag?: "openFinance";
+};
+
+export type NavFlags = { openFinance: boolean };
+
+/** Tira dos menus os itens de funcionalidades desligadas (ex.: Conexões sem as chaves da Pluggy
+ * na Vercel): a página continua existindo, mas ninguém tropeça nela. */
+export function withNavFlags(sections: NavSection[], flags: NavFlags): NavSection[] {
+  return sections.map((s) => ({ ...s, children: s.children?.filter((c) => !c.flag || flags[c.flag]) }));
+}
 export type NavSection = {
   basePath: string;
   href: string;
@@ -102,7 +116,7 @@ export const NAV_SECTIONS: NavSection[] = [
       // Voltou pro menu: agora controla um envio de verdade (o resumo do mês por e-mail), não
       // só alertas de tela. Sem um lugar visível pra desligar, e-mail recorrente vira spam.
       { href: "/configuracoes/notificacoes", label: "Notificações" },
-      { href: "/configuracoes/conexoes", label: "Conexões" },
+      { href: "/configuracoes/conexoes", label: "Conexões", flag: "openFinance" },
       { href: "/configuracoes/dados", label: "Dados" },
       { href: "/configuracoes/taxas", label: "Taxas do Sistema" },
     ],

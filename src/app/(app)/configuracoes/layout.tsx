@@ -1,4 +1,5 @@
 import { SettingsTabs } from "./SettingsTabs";
+import { isPluggyConfigured } from "@/lib/pluggy/client";
 
 /**
  * No computador a sidebar lista as seções de Configurações. No celular não existia caminho
@@ -8,7 +9,7 @@ import { SettingsTabs } from "./SettingsTabs";
 export default function ConfiguracoesLayout({ children }: { children: React.ReactNode }) {
   return (
     <div>
-      <SettingsTabs />
+      <SettingsTabs openFinance={isPluggyConfigured()} />
       {children}
     </div>
   );

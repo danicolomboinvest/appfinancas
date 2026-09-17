@@ -22,7 +22,16 @@ type Mode = "choice" | "type" | "voice" | "import";
  * tab bar (mobile) ou pelo botão "Registrar" da sidebar (desktop), nenhum botão solto nas telas.
  * O microfone vive aqui dentro: só aparece depois que a pessoa escolhe "Gravar áudio".
  */
-export function RegistrarDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function RegistrarDrawer({
+  open,
+  onClose,
+  openFinance,
+}: {
+  open: boolean;
+  onClose: () => void;
+  /** Open Finance ligado no servidor (chaves da Pluggy); sem isso, a opção "Conectar meu banco" não aparece. */
+  openFinance: boolean;
+}) {
   const pathname = usePathname();
   const [mode, setMode] = useState<Mode>("choice");
   const [parsed, setParsed] = useState<ParsedVoiceEntry | null>(null);
@@ -101,6 +110,7 @@ export function RegistrarDrawer({ open, onClose }: { open: boolean; onClose: () 
             </span>
             <span className="text-sm font-medium text-ink">Importar extrato ou fatura (PDF, Excel, CSV, OFX)</span>
           </button>
+          {openFinance && (
           <Link
             href="/configuracoes/conexoes"
             onClick={onClose}
@@ -115,6 +125,7 @@ export function RegistrarDrawer({ open, onClose }: { open: boolean; onClose: () 
             </span>
             <span className="shrink-0 rounded-full border border-accent/50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-accent-strong">beta</span>
           </Link>
+          )}
         </div>
       )}
 
