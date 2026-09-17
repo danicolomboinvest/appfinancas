@@ -27,7 +27,11 @@ export function StatCard({
   /** Comparação com o período anterior (ex.: mês passado). `goodDirection` define se "para cima" é positivo.
    * `displayValue`, quando presente, substitui o "X%" calculado (ex.: um valor em R$), útil para métricas
    * como saldo, onde a variação percentual pode ficar enganosa perto de zero (ver dashboard/page.tsx). */
-  trend?: { percent: number; periodLabel: string; goodDirection?: "up" | "down"; displayValue?: string };
+  /** `scopeLabel` diz de que lado vem a variação quando o valor do card é de outro período:
+   * "↑ 153% setembro vs. agosto" num card com o total do ANO deixa claro que a comparação é de
+   * mês contra mês. Sem ele, "↑ 153% vs. agosto" colado num total anual se lia como se o ano
+   * inteiro tivesse crescido 153% num mês. */
+  trend?: { percent: number; periodLabel: string; scopeLabel?: string; goodDirection?: "up" | "down"; displayValue?: string };
   /** Série de pontos (ex.: um por mês) para uma mini-tendência visual, com tooltip ao passar o mouse. */
   sparkline?: SparklinePoint[];
   /**
@@ -47,8 +51,8 @@ export function StatCard({
         trendIsGood ? "bg-success-soft text-success" : "bg-danger-soft text-danger"
       }`}
     >
-      {trendUp ? "↑" : "↓"} {trend.displayValue ?? `${Math.abs(Math.round(trend.percent * 100))}%`} vs.{" "}
-      {trend.periodLabel}
+      {trendUp ? "↑" : "↓"} {trend.displayValue ?? `${Math.abs(Math.round(trend.percent * 100))}%`}
+      {trend.scopeLabel ? ` ${trend.scopeLabel}` : ""} vs. {trend.periodLabel}
     </p>
   );
 

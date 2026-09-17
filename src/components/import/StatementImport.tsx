@@ -86,10 +86,19 @@ export function StatementImport({ onDone }: { onDone: () => void }) {
   const [creatingCat, setCreatingCat] = useState(false);
   const [newCatName, setNewCatName] = useState("");
 
-  // Índices das transações que precisam de revisão manual (gasto sem categoria nenhuma).
-  const reviewQueue = items
-    .map((it, i) => ({ it, i }))
-    .filter(({ it }) => it.category === "EXPENSE" && !it.parentCategory && !it.customCategoryId);
+  /**
+   * Fila de revisão CONGELADA na entrada: as chaves dos gastos que chegaram sem categoria.
+   *
+   * Antes a fila era recalculada a cada render a partir de `items` — classificar o item 1 o
+   * tirava da fila E o índice avançava, então o item 2 era pulado e, no fim, descartado sem
+   * aviso na hora de importar (o filtro de `handleImport` derruba gasto sem categoria). Com a
+   * lista fixa, cada toque anda exatamente uma posição e ninguém some.
+   */
+  const [reviewKeys, setReviewKeys] = useState<number[]>([]);
+  const reviewQueue = reviewKeys.flatMap((key) => {
+    const it = items.find((x) => x.key === key);
+    return it ? [{ it, i: key }] : [];
+  });
 
   function handleFile(file: File) {
     setError(null);
@@ -141,8 +150,9 @@ export function StatementImport({ onDone }: { onDone: () => void }) {
       setCustomCategories(result.customCategories);
       setReviewIdx(0);
       // Se nada precisa de revisão, pula direto pra confirmação.
-      const needsReview = result.items.some((it) => it.category === "EXPENSE" && !it.parentCategory && !it.customCategoryId);
-      setPhase(needsReview ? "review" : "confirm");
+      const pendentes = result.items.filter((it) => it.category === "EXPENSE" && !it.parentCategory && !it.customCategoryId);
+      setReviewKeys(pendentes.map((it) => it.key));
+      setPhase(pendentes.length > 0 ? "review" : "confirm");
     });
   }
 
@@ -183,11 +193,11 @@ export function StatementImport({ onDone }: { onDone: () => void }) {
   }
 
   function advanceReview() {
-    if (reviewIdx + 1 < reviewQueue.length) {
-      setReviewIdx((i) => i + 1);
-    } else {
+    setReviewIdx((i) => {
+      if (i + 1 < reviewKeys.length) return i + 1;
       setPhase("confirm");
-    }
+      return i;
+    });
   }
 
   function handleImport() {
@@ -508,6 +518,9 @@ export function StatementImport({ onDone }: { onDone: () => void }) {
   // --- CONFIRM ---
   if (phase === "confirm") {
     const importable = items.filter((it) => it.category === "INCOME" || it.parentCategory || it.customCategoryId);
+    // Gastos que ficaram sem categoria (pulados na revisão) NÃO entram. Antes sumiam calados:
+    // o botão dizia "Importar 12" e 3 gastos simplesmente não existiam depois.
+    const semCategoria = items.filter((it) => it.category === "EXPENSE" && !it.parentCategory && !it.customCategoryId);
     const customName = (id: string) => customCategories.find((c) => c.id === id)?.name ?? "Personalizada";
     // Repetidos dentro do arquivo: mesma data, valor e descrição mais de uma vez. Pode ser real
     // (dois Uber no mesmo dia) ou não; a pessoa decide com um toque, em vez de descobrir depois.
@@ -520,6 +533,28 @@ export function StatementImport({ onDone }: { onDone: () => void }) {
     return (
       <div className="flex flex-col gap-4">
         {error && <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p>}
+
+        {semCategoria.length > 0 && (
+          <div className="rounded-xl border border-accent/40 bg-accent-soft/30 px-4 py-3 text-sm">
+            <p className="font-medium text-ink">
+              {semCategoria.length} gasto{semCategoria.length === 1 ? "" : "s"} sem categoria {semCategoria.length === 1 ? "ficou" : "ficaram"} de fora
+            </p>
+            <p className="text-caption text-ink-muted">
+              {semCategoria.length === 1 ? "Ele não entra" : "Eles não entram"} na importação. Some {money(semCategoria.reduce((sum, it) => sum + it.amount, 0))}.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setReviewKeys(semCategoria.map((it) => it.key));
+                setReviewIdx(0);
+                setPhase("review");
+              }}
+              className="mt-1 text-sm font-medium text-accent-strong hover:underline"
+            >
+              Categorizar {semCategoria.length === 1 ? "esse gasto" : "esses gastos"} →
+            </button>
+          </div>
+        )}
 
         {/* Conferência: o que o app leu, em números, pra pessoa não precisar confiar às cegas. */}
         <div className="rounded-xl border border-border bg-surface-2 px-4 py-3 text-sm">

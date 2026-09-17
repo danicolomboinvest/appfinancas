@@ -111,6 +111,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
   // num total anual, os 14% pareciam ser sobre o ano inteiro. Dizer o NOME do mês já entrega
   // que a comparação é mensal, sem trocar a métrica.
   const rotuloComparacao = MONTH_LABELS_FULL[previousMonthDate.getMonth()].toLowerCase();
+  const rotuloMesAtual = MONTH_LABELS_FULL[currentMonth - 1].toLowerCase();
   const incomeTrend = changePercent(currentMonthSummary.totalIncome, previousMonthSummary.totalIncome);
   const expenseTrend = changePercent(currentMonthSummary.totalExpense, previousMonthSummary.totalExpense);
   const balanceDelta = changeAmount(currentMonthSummary.balance, previousMonthSummary.balance);
@@ -232,7 +233,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
           label="Renda no ano"
           value={money(summary.totalIncome)}
           tone="success"
-          trend={incomeTrend === null ? undefined : { percent: incomeTrend, periodLabel: rotuloComparacao }}
+          trend={incomeTrend === null ? undefined : { percent: incomeTrend, periodLabel: rotuloComparacao, scopeLabel: rotuloMesAtual }}
           sparkline={incomeSparkline}
         />
         <StatCard
@@ -241,7 +242,9 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
           value={money(summary.totalExpense)}
           tone="neutral"
           trend={
-            expenseTrend === null ? undefined : { percent: expenseTrend, periodLabel: rotuloComparacao, goodDirection: "down" }
+            expenseTrend === null
+              ? undefined
+              : { percent: expenseTrend, periodLabel: rotuloComparacao, scopeLabel: rotuloMesAtual, goodDirection: "down" }
           }
           sparkline={expenseSparkline}
         />
@@ -258,7 +261,12 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
           trend={
             balanceDelta === null
               ? undefined
-              : { percent: balanceDelta, periodLabel: rotuloComparacao, displayValue: money(Math.abs(balanceDelta), { round: true }) }
+              : {
+                  percent: balanceDelta,
+                  periodLabel: rotuloComparacao,
+                  scopeLabel: rotuloMesAtual,
+                  displayValue: money(Math.abs(balanceDelta), { round: true }),
+                }
           }
           sparkline={balanceSparkline}
         />

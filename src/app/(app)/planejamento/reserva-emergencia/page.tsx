@@ -71,6 +71,12 @@ export default async function ReservaEmergenciaPage() {
             </Section>
           )}
 
+        </div>
+      )}
+
+      {/* FORA do bloco acima de propósito: conta nova não tem reserva no banco (fund === null),
+          e o formulário é o ÚNICO jeito de criar uma. Dentro do `fund && plan &&`, a tela
+          aparecia em branco pra quem mais precisa dela — e três lugares do app apontam pra cá. */}
       <EmergencyFundForm
         typicalExpense={typicalExpense}
         reserveInAssets={reserveInAssets}
@@ -86,9 +92,6 @@ export default async function ReservaEmergenciaPage() {
             : {}
         }
       />
-
-        </div>
-      )}
     </div>
   );
 }

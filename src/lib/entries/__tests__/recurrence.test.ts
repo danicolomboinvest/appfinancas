@@ -31,10 +31,22 @@ describe("detectRecurring", () => {
 
 describe("parseInstallment", () => {
   it("reads card installments in the common formats", () => {
-    expect(parseInstallment("MAGAZINE LUIZA 03/10")).toEqual({ current: 3, total: 10 });
-    expect(parseInstallment("Parcela 2 de 6 - Notebook")).toEqual({ current: 2, total: 6 });
+    expect(parseInstallment("MAGAZINE LUIZA 03/10")).toEqual({ current: 3, total: 10, confident: false });
+    expect(parseInstallment("Parcela 2 de 6 - Notebook")).toEqual({ current: 2, total: 6, confident: true });
     expect(parseInstallment("IFOOD")).toBeNull();
     expect(parseInstallment("PIX 11/09")).toBeNull();
+  });
+
+  it("só tem CERTEZA quando não dá pra confundir com data — é o que autoriza criar os meses seguintes", () => {
+    // "POSTO SHELL 03/09" é 3 de setembro, não parcela 3 de 9: sem certeza, nada é criado no futuro.
+    expect(parseInstallment("POSTO SHELL 03/09")?.confident).toBe(false);
+    expect(parseInstallment("UBER *TRIP 02/05")?.confident).toBe(false);
+    // Mês nenhum é 18 ou 24: aí é parcela, sem dúvida.
+    expect(parseInstallment("MOVEIS 03/18")?.confident).toBe(true);
+    expect(parseInstallment("GELADEIRA 05/24")?.confident).toBe(true);
+    // A palavra resolve a dúvida.
+    expect(parseInstallment("MAGALU PARC 03/10")?.confident).toBe(true);
+    expect(parseInstallment("Parcela 3/10 TV")?.confident).toBe(true);
   });
 
   it("rewrites the installment number for the next months", () => {

@@ -192,15 +192,28 @@ export async function importPortfolioAction(holdings: ConfirmedHolding[]): Promi
   // Proteção contra duplicar em cliques repetidos/reenvio: create de quem já existe vira skip.
   const existing = await prisma.asset.findMany({
     where: { userId: ctx.userId },
-    select: { name: true, ticker: true },
+    select: { id: true, name: true, ticker: true, createdAt: true },
+    orderBy: { createdAt: "asc" },
   });
   const existingKeys = new Set(existing.flatMap((a) => [a.ticker?.toUpperCase(), a.name.toUpperCase()].filter(Boolean)));
+  // Do código pro ID de UM ativo. O mesmo papel pode estar em duas linhas (objetivos
+  // diferentes, ex.: PETR4 na meta da casa e PETR4 na liberdade financeira); o updateMany
+  // gravava a posição inteira do extrato NAS DUAS e dobrava a carteira. Atualiza a mais antiga.
+  const idByKey = new Map<string, string>();
+  for (const a of existing) {
+    for (const k of [a.ticker?.toUpperCase(), a.name.toUpperCase()]) {
+      if (k && !idByKey.has(k)) idByKey.set(k, a.id);
+    }
+  }
 
   for (const h of holdings) {
     const key = h.ticker.toUpperCase();
     if (h.mode === "update" || existingKeys.has(key)) {
+      const targetId = idByKey.get(key);
+      if (!targetId) continue;
       const result = await prisma.asset.updateMany({
-        where: { userId: ctx.userId, OR: [{ ticker: h.ticker }, { name: h.ticker }] },
+        // updateMany com o id + userId: uma linha só, e ainda com a trava de dono.
+        where: { id: targetId, userId: ctx.userId },
         data: {
           ...(h.quantity > 0 ? { quantity: h.quantity } : {}),
           ...(h.value >= 0 ? { currentValue: h.value } : {}),

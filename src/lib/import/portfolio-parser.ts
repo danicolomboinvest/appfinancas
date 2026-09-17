@@ -1,4 +1,5 @@
 import type { AssetClass, FixedIncomeIndex } from "@prisma/client";
+import { KNOWN_ETF_BR } from "@/lib/market/known-names";
 import { parseBrazilianNumber } from "./statement-parser";
 
 /**
@@ -45,6 +46,9 @@ const TICKER_RE = /\b([A-Z]{4}\d{1,2})\b/;
  * Avenue e afins caem aqui), resto → outro. */
 export function guessAssetClass(ticker: string): AssetClass {
   const clean = ticker.trim().toUpperCase();
+  // ETF também termina em 11 (BOVA11, IVVB11, GOLD11). Sem a lista curada, todo ETF entrava
+  // como FII e a comparação com a estratégia mandava "reduzir FIIs" por causa de um S&P 500.
+  if (clean in KNOWN_ETF_BR) return "FUNDO";
   if (/11$/.test(clean)) return "FII";
   if (/[3456]$/.test(clean)) return "ACAO";
   if (/^[A-Z]{1,5}$/.test(clean)) return "INTERNACIONAL";
@@ -104,8 +108,10 @@ function parseCsvHoldings(lines: string[]): ParsedHolding[] {
     const cols = line.split(delimiter).map((c) => c.trim());
     const tickerMatch = (cols[tickerCol] ?? "").toUpperCase().match(TICKER_RE);
     if (!tickerMatch) continue;
-    const quantity = qtyCol !== -1 ? parseBrazilianNumber(cols[qtyCol] ?? "") : NaN;
-    const value = valueCol !== -1 ? parseBrazilianNumber(cols[valueCol] ?? "") : NaN;
+    // parseFlexibleNumber (não o brasileiro puro): planilha exportada em formato americano
+    // ("1,000" cotas, "9,760.00") virava 1 cota de R$ 9,76 — a posição inteira encolhia mil vezes.
+    const quantity = qtyCol !== -1 ? parseFlexibleNumber(cols[qtyCol] ?? "") : NaN;
+    const value = valueCol !== -1 ? parseFlexibleNumber(cols[valueCol] ?? "") : NaN;
     holdings.push({
       ticker: tickerMatch[1],
       quantity: Number.isNaN(quantity) ? 0 : quantity,
@@ -115,16 +121,43 @@ function parseCsvHoldings(lines: string[]): ParsedHolding[] {
   return holdings;
 }
 
-/** Texto solto: cada linha com um ticker; pega o 1º número como quantidade e o maior como valor. */
+/**
+ * Texto solto: cada linha com um ticker; a quantidade é o 1º número DEPOIS do ticker e o valor
+ * é o maior dos demais. Ler o 1º número da linha inteira pegava o número da conta
+ * ("PETR4 conta 12345-6 100 32,50 3.250,00" → quantidade 12.345), e a cotação diária depois
+ * multiplicava esse número pelo preço, inflando a carteira em centenas de milhares.
+ */
 function parseTextHoldings(lines: string[]): ParsedHolding[] {
   const holdings: ParsedHolding[] = [];
   for (const line of lines) {
     const upper = line.toUpperCase();
     const tickerMatch = upper.match(TICKER_RE);
     if (!tickerMatch) continue;
-    const numbers = (line.match(/-?[\d.]+,\d+|\b\d+\b/g) ?? []).map(parseBrazilianNumber).filter((n) => !Number.isNaN(n));
-    const quantity = numbers[0] ?? 0;
-    const value = numbers.length > 1 ? Math.max(...numbers.slice(1)) : 0;
+    const afterTicker = line.slice(upper.indexOf(tickerMatch[1]) + tickerMatch[1].length);
+    const numbers = (afterTicker.match(/-?[\d.]+,\d+|\b\d+\b/g) ?? []).map(parseBrazilianNumber).filter((n) => !Number.isNaN(n));
+    // Quantidade × preço = valor da posição (100 × 32,50 = 3.250). Procurar esse trio é o que
+    // separa a quantidade de um número de conta ou documento solto na mesma linha; entre os dois
+    // fatores, o inteiro é a quantidade e o quebrado é o preço. Sem trio, volta ao antigo.
+    const trio = (() => {
+      const ordenados = [...numbers].sort((a, b) => b - a);
+      for (const v of ordenados) {
+        if (v <= 0) continue;
+        for (let i = 0; i < numbers.length; i += 1) {
+          for (let j = 0; j < numbers.length; j += 1) {
+            if (i === j) continue;
+            const q = numbers[i];
+            const p = numbers[j];
+            if (q <= 0 || p <= 0 || q === v || p === v) continue;
+            if (Math.abs(q * p - v) > Math.max(0.02 * v, 0.01)) continue;
+            const inteiro = Number.isInteger(q) && !Number.isInteger(p) ? q : Number.isInteger(p) && !Number.isInteger(q) ? p : q;
+            return { quantity: inteiro, value: v };
+          }
+        }
+      }
+      return null;
+    })();
+    const value = trio ? trio.value : numbers.length > 1 ? Math.max(...numbers.slice(1)) : 0;
+    const quantity = trio ? trio.quantity : (numbers[0] ?? 0);
     holdings.push({ ticker: tickerMatch[1], quantity, value });
   }
   return holdings;

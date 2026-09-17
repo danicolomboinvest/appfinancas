@@ -69,15 +69,27 @@ export function detectRecurring(previous: RecurrenceEntry[], current: Recurrence
   return out.sort((a, b) => b.seenInMonths - a.seenInMonths || b.amount - a.amount).slice(0, 6);
 }
 
-/** "3/10", "03/10", "parcela 3 de 10" numa descrição de fatura → { current: 3, total: 10 }. */
-export function parseInstallment(description: string | null): { current: number; total: number } | null {
+/**
+ * "3/10", "03/10", "parcela 3 de 10" numa descrição de fatura → { current: 3, total: 10 }.
+ *
+ * `confident` diz se dá pra AGIR: "POSTO SHELL 03/09" é a data da compra (3 de setembro), não
+ * parcela 3 de 9 — e criar as 6 parcelas seguintes inventaria seis gastos que não existem.
+ * Só é certeza quando a descrição diz "parcela"/"parc", quando o separador é " de " ("2 de 6"),
+ * ou quando o total passa de 12 (mês nenhum é 18). Nos casos ambíguos o lançamento entra
+ * normalmente, sem criar nada no futuro: a parcela do mês que vem chega na fatura do mês que vem.
+ */
+export function parseInstallment(
+  description: string | null,
+): { current: number; total: number; confident: boolean } | null {
   if (!description) return null;
-  const m = description.match(/(?:^|\D)(\d{1,2})\s*(?:\/|de)\s*(\d{1,2})(?!\d)/i);
+  const m = description.match(/(?:^|\D)(\d{1,2})\s*(\/|de)\s*(\d{1,2})(?!\d)/i);
   if (!m) return null;
   const current = Number(m[1]);
-  const total = Number(m[2]);
+  const total = Number(m[3]);
   if (!(current >= 1 && total >= 2 && current <= total && total <= 48)) return null;
-  return { current, total };
+  const hasWord = /parc(?:ela)?\b|presta[çc][ãa]o/i.test(description);
+  const confident = hasWord || m[2].toLowerCase() === "de" || total > 12;
+  return { current, total, confident };
 }
 
 /** Reescreve "3/10" como "4/10" na descrição da parcela seguinte. */

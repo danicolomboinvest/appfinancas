@@ -252,6 +252,20 @@ const BALANCE_LINE_RE = /\b(saldo|total\s+(da|desta|de|a\s+pagar)|subtotal|limit
  * Data no COMEÇO de uma linha de PDF: "12/08/2026", "12/08", "12 AGO", "12 ago 2026",
  * "2026-08-12". Sem ano, usa o de referência (fatura escolhida ou o atual).
  */
+/**
+ * Extrato e fatura falam do PASSADO. Uma data sem ano ("31/12", "12 DEZ") resolvida com o ano
+ * corrente joga o lançamento no futuro quando o arquivo atravessa a virada: em 05/01/2027,
+ * o extrato de dezembro virava 31/12/2027 e sumia da vista. Mais de ~45 dias à frente de hoje
+ * só pode ser o ano passado.
+ */
+function backdateIfFuture(iso: string, today: Date): string {
+  const d = new Date(`${iso}T12:00:00`);
+  if (Number.isNaN(d.getTime())) return iso;
+  const limit = new Date(today.getTime() + 45 * 86_400_000);
+  if (d <= limit) return iso;
+  return `${Number(iso.slice(0, 4)) - 1}${iso.slice(4)}`;
+}
+
 function leadingDate(line: string, refYear: number): { iso: string; length: number } | null {
   const t = line.trimStart();
   const pad = (n: string) => n.padStart(2, "0");
@@ -260,9 +274,14 @@ function leadingDate(line: string, refYear: number): { iso: string; length: numb
   m = t.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (m) return { iso: `${m[1]}-${m[2]}-${m[3]}`, length: m[0].length };
   m = t.match(/^(\d{1,2})\s+(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)[a-z]*\.?(?:\s+(\d{4}))?/i);
-  if (m) return { iso: `${m[3] ?? refYear}-${MONTH_ABBR[m[2].toLowerCase()]}-${pad(m[1])}`, length: m[0].length };
+  if (m) {
+    const iso = `${m[3] ?? refYear}-${MONTH_ABBR[m[2].toLowerCase()]}-${pad(m[1])}`;
+    return { iso: m[3] ? iso : backdateIfFuture(iso, new Date()), length: m[0].length };
+  }
   m = t.match(/^(\d{2})\/(\d{2})(?![\d/])/);
-  if (m && Number(m[2]) >= 1 && Number(m[2]) <= 12) return { iso: `${refYear}-${m[2]}-${m[1]}`, length: m[0].length };
+  if (m && Number(m[2]) >= 1 && Number(m[2]) <= 12) {
+    return { iso: backdateIfFuture(`${refYear}-${m[2]}-${m[1]}`, new Date()), length: m[0].length };
+  }
   return null;
 }
 

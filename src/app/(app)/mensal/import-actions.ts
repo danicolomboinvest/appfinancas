@@ -60,7 +60,7 @@ export type ReviewItem = {
   /** true = classificado automaticamente; false = precisa de revisão manual (categoria vazia). */
   autoClassified: boolean;
   /** Compra parcelada ("03/10" na fatura): as parcelas seguintes entram sozinhas nos meses seguintes. */
-  installment: { current: number; total: number } | null;
+  installment: { current: number; total: number; confident: boolean } | null;
   /** Mesma data, valor e descrição repetidos DENTRO do arquivo: chave do grupo e quantas vezes. */
   fileRepeat: { key: string; total: number } | null;
 };
@@ -231,7 +231,7 @@ export type ConfirmedItem = {
   subcategory: string | null;
   /** true quando o usuário definiu/ajustou a categoria na revisão, vira regra aprendida. */
   learn: boolean;
-  installment?: { current: number; total: number } | null;
+  installment?: { current: number; total: number; confident: boolean } | null;
 };
 
 /** Lançamento do extrato bancário que PODE ser o pagamento desta fatura — mostrado pra pessoa
@@ -338,14 +338,25 @@ export async function importTransactionsAction(
   // Só aceita customCategoryId que seja REALMENTE do usuário (evita linkar categoria de outra conta).
   const ownCustomIds = new Set((await listCustomCategories(ctx)).map((c) => c.id));
 
-  // Meses afetados pela importação → busca os lançamentos existentes deles de uma vez.
-  const monthsInBatch = new Set(
-    items.map((i) => {
-      const ym = faturaTarget ?? yearMonthFromISO(i.date) ?? { year: now.getFullYear(), month: now.getMonth() + 1 };
-      return `${ym.year}/${ym.month}`;
-    }),
-  );
-  const existingKeys = new Set<string>();
+  // Meses afetados pela importação → busca os lançamentos existentes deles de uma vez. Entram
+  // também os meses das PARCELAS futuras: sem eles, subir a fatura de outubro recriava as
+  // parcelas que a fatura de setembro já tinha lançado, e a cada mês sobrava mais uma cópia.
+  const monthOf = (item: ConfirmedItem) =>
+    faturaTarget ?? yearMonthFromISO(item.date) ?? { year: now.getFullYear(), month: now.getMonth() + 1 };
+  const monthsInBatch = new Set<string>();
+  for (const item of items) {
+    const ym = monthOf(item);
+    monthsInBatch.add(`${ym.year}/${ym.month}`);
+    if (faturaTarget && item.installment?.confident && item.installment.current < item.installment.total) {
+      for (let n = item.installment.current + 1; n <= item.installment.total; n += 1) {
+        const d = new Date(ym.year, ym.month - 1 + (n - item.installment.current), 1);
+        monthsInBatch.add(`${d.getFullYear()}/${d.getMonth() + 1}`);
+      }
+    }
+  }
+  // CONTAGEM, não presença: quem tem dois cafés iguais no mesmo dia (e escolheu manter os dois
+  // na revisão) fica com os dois. Só é pulado o que já existe no banco, um a um.
+  const existingCounts = new Map<string, number>();
   for (const key of monthsInBatch) {
     const [y, m] = key.split("/").map(Number);
     const existing = await prisma.monthlyEntry.findMany({
@@ -353,9 +364,17 @@ export async function importTransactionsAction(
       select: { entryDate: true, amount: true, description: true },
     });
     for (const e of existing) {
-      existingKeys.add(dedupeKey(e.entryDate ? e.entryDate.toISOString().slice(0, 10) : null, Number(e.amount), e.description));
+      const k = `${y}/${m}|${dedupeKey(e.entryDate ? e.entryDate.toISOString().slice(0, 10) : null, Number(e.amount), e.description)}`;
+      existingCounts.set(k, (existingCounts.get(k) ?? 0) + 1);
     }
   }
+  /** Já existe no banco uma cópia ainda não "gasta" desta chave? Consome uma e diz que sim. */
+  const alreadyThere = (k: string) => {
+    const left = existingCounts.get(k) ?? 0;
+    if (left <= 0) return false;
+    existingCounts.set(k, left - 1);
+    return true;
+  };
 
   for (const item of items) {
     if (item.amount <= 0) continue;
@@ -374,15 +393,15 @@ export async function importTransactionsAction(
     // espalhava os lançamentos em dois meses diferentes, ou caía no mês corrente do servidor.
     const originalYm = yearMonthFromISO(item.date);
     const ym = faturaTarget ?? originalYm ?? { year: now.getFullYear(), month: now.getMonth() + 1 };
-    // A duplicata é checada pela data ORIGINAL da compra (não a escolhida pra fatura): uma
-    // assinatura recorrente (mesma descrição+valor em meses diferentes) não pode ser confundida
-    // com a mesma transação re-importada.
-    const key = dedupeKey(originalYm ? item.date : null, item.amount, item.description);
-    if (existingKeys.has(key)) {
+    // A chave tem que ser a MESMA dos dois lados. Em fatura o lançamento é gravado sem dia
+    // (entryDate nulo), então a chave também vai sem data — com a data da compra, nenhuma
+    // chave batia e subir a mesma fatura duas vezes duplicava a fatura inteira. A confusão com
+    // assinatura recorrente não acontece porque a busca é feita mês a mês.
+    const key = `${ym.year}/${ym.month}|${dedupeKey(!faturaTarget && originalYm ? item.date : null, item.amount, item.description)}`;
+    if (alreadyThere(key)) {
       skipped += 1;
       continue;
     }
-    existingKeys.add(key); // também evita duplicata dentro do próprio arquivo
 
     await createMonthlyEntry(ctx, {
       year: ym.year,
@@ -403,15 +422,16 @@ export async function importTransactionsAction(
 
     // Compra parcelada: as parcelas que ainda vêm entram nos meses seguintes, no mesmo lote
     // (desfazer o lote leva todas). "03/10" em setembro vira 04/10 em outubro… até 10/10.
-    if (faturaTarget && item.installment && item.installment.current < item.installment.total) {
+    // `confident`: "POSTO SHELL 03/09" é data de compra, não parcela 3 de 9 — sem essa checagem
+    // o app inventava seis gastos nos meses seguintes.
+    if (faturaTarget && item.installment?.confident && item.installment.current < item.installment.total) {
       const { current, total } = item.installment;
       for (let n = current + 1; n <= total; n += 1) {
         const offset = n - current;
         const d = new Date(ym.year, ym.month - 1 + offset, 1);
         const desc = installmentDescription(item.description, n, total);
-        const futureKey = dedupeKey(null, item.amount, `${desc}|${d.getFullYear()}-${d.getMonth() + 1}`);
-        if (existingKeys.has(futureKey)) continue;
-        existingKeys.add(futureKey);
+        const futureKey = `${d.getFullYear()}/${d.getMonth() + 1}|${dedupeKey(null, item.amount, desc)}`;
+        if (alreadyThere(futureKey)) continue;
         await createMonthlyEntry(ctx, {
           year: d.getFullYear(),
           month: d.getMonth() + 1,

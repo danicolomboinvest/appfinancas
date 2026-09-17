@@ -21,16 +21,21 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  // Freio anti-abuso: sem CRON_SECRET a checagem acima se apoia no user-agent, que dá pra
-  // forjar — este throttle garante que, mesmo forjando, ninguém dispara o scraping em massa
-  // repetidamente (o cron real roda 1x/dia, rodar de novo em <10min nunca é legítimo).
-  const lastRun = await prisma.asset.findFirst({
-    where: { currentUnitPrice: { not: null } },
-    orderBy: { updatedAt: "desc" },
-    select: { updatedAt: true },
-  });
-  if (lastRun && Date.now() - lastRun.updatedAt.getTime() < 10 * 60 * 1000) {
-    return NextResponse.json({ ok: true, skipped: "ran recently" });
+  // O freio vale SÓ para chamada sem o segredo (o user-agent dá pra forjar). Com
+  // CRON_SECRET conferido, quem chamou é a Vercel e a rodada tem que acontecer: antes,
+  // uma pessoa salvando um ativo nos 10 minutos anteriores cancelava o dia de todo mundo.
+  if (!secret) {
+    // Freio anti-abuso: sem CRON_SECRET a checagem acima se apoia no user-agent, que dá pra
+    // forjar — este throttle garante que, mesmo forjando, ninguém dispara o scraping em massa
+    // repetidamente (o cron real roda 1x/dia, rodar de novo em <10min nunca é legítimo).
+    const lastRun = await prisma.asset.findFirst({
+      where: { currentUnitPrice: { not: null } },
+      orderBy: { updatedAt: "desc" },
+      select: { updatedAt: true },
+    });
+    if (lastRun && Date.now() - lastRun.updatedAt.getTime() < 10 * 60 * 1000) {
+      return NextResponse.json({ ok: true, skipped: "ran recently" });
+    }
   }
 
   const allWithTicker = await prisma.asset.findMany({

@@ -87,6 +87,9 @@ export function computeGoalPlan(input: GoalCalcInput): GoalCalcResult {
     };
   }
 
+  // Prazo AINDA não venceu, mas arredondou pra 0 mês (faltam menos de ~15 dias): a conta é a
+  // mesma (guardar tudo que falta agora), o rótulo é que não pode ser "atrasada" — a meta criada
+  // hoje com prazo neste mês nascia vermelha, e uma meta 95% pronta virava atrasada na reta final.
   if (overdue || monthsRemaining === 0) {
     const amountMissing = new Decimal(input.targetAmount).minus(input.currentAmount).toNumber();
     return {
@@ -97,7 +100,7 @@ export function computeGoalPlan(input: GoalCalcInput): GoalCalcResult {
       futureValueOfSaved: input.currentAmount,
       amountMissing,
       requiredMonthlyContribution: amountMissing,
-      status: overdue ? "BEHIND" : "NOT_STARTED",
+      status: overdue ? "BEHIND" : foraDoRitmo ? "BEHIND" : "ON_TRACK",
     };
   }
 

@@ -16,7 +16,12 @@ export const assetSchema = z.object({
     .optional()
     .or(z.literal(""))
     .transform((v) => v || undefined),
-  currentValue: z.coerce.number({ message: "Informe o valor atual ou a quantidade e o preço médio." }).min(0),
+  /** String vazia vira 0 no z.coerce (o erro nunca aparecia): apagar o campo salvava um ativo
+   * de R$ 40.000 como R$ 0,00 e ele sumia do patrimônio sem avisar. */
+  currentValue: z.preprocess(
+    (v) => (typeof v === "string" && v.trim() === "" ? NaN : v),
+    z.coerce.number({ message: "Informe o valor atual ou a quantidade e o preço médio." }).min(0),
+  ),
   idealAllocationPercent: z.coerce.number().min(0).max(1).optional(),
   acquisitionDate: z.coerce.date().optional(),
   notes: z.string().trim().optional(),

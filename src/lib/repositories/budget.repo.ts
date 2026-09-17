@@ -1,4 +1,5 @@
 import type { ParentCategory } from "@prisma/client";
+import { nowInBrazil } from "@/lib/date/brazil-now";
 import { prisma } from "@/lib/db/prisma";
 import type { AuthContext } from "@/lib/auth/session";
 import { PARENT_CATEGORIES } from "@/lib/categories";
@@ -49,7 +50,7 @@ export async function applyBudgetToWholeYear(
   ctx: AuthContext,
   input: { year: number; parentCategory: ParentCategory; plannedAmount: number },
 ): Promise<void> {
-  const months = Array.from({ length: 12 }, (_, i) => i + 1);
+  const months = monthsToApply(input.year);
   const existing = await prisma.budget.findMany({
     where: { userId: ctx.userId, year: input.year, parentCategory: input.parentCategory },
   });
@@ -64,12 +65,26 @@ export async function applyBudgetToWholeYear(
   );
 }
 
+/**
+ * Meses que um "salvar tudo" pode tocar: do mês corrente em diante, no ano corrente; o ano
+ * inteiro em ano futuro; nenhum em ano já fechado. Reescrever mês já vivido mudava a história:
+ * quem planejou R$ 800 em janeiro, cumpriu, e em setembro ajustou pra R$ 1.200 passava a ver
+ * "economizou R$ 400" em todos os meses anteriores.
+ */
+function monthsToApply(year: number): number[] {
+  const hoje = nowInBrazil();
+  const todos = Array.from({ length: 12 }, (_, i) => i + 1);
+  if (year > hoje.getFullYear()) return todos;
+  if (year < hoje.getFullYear()) return [];
+  return todos.filter((m) => m >= hoje.getMonth() + 1);
+}
+
 /** Mesma coisa que applyBudgetToWholeYear, só que pra uma categoria personalizada (por id). */
 export async function applyBudgetToWholeYearForCustomCategory(
   ctx: AuthContext,
   input: { year: number; customCategoryId: string; plannedAmount: number },
 ): Promise<void> {
-  const months = Array.from({ length: 12 }, (_, i) => i + 1);
+  const months = monthsToApply(input.year);
   const existing = await prisma.budget.findMany({
     where: { userId: ctx.userId, year: input.year, customCategoryId: input.customCategoryId },
   });

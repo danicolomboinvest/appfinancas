@@ -97,6 +97,9 @@ export const KNOWN_ETF_BR: Record<string, string> = {
   BBSD11: "BB ETF S&P Dividendos",
   MATB11: "It Now Materiais Básicos",
   FIND11: "It Now Financeiro (IFNC)",
+  DIVD11: "It Now IDIV (Dividendos)",
+  JURO11: "Sparta Juro Real",
+  IB5M11: "It Now IB5M+",
 };
 
 export const KNOWN_US_STOCK: Record<string, string> = {
