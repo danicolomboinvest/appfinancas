@@ -3,6 +3,8 @@
 import { useActionState, useEffect, useRef, useState } from "react";
 import { Field, SelectField } from "@/components/ui/Field";
 import { CurrencyField } from "@/components/ui/CurrencyField";
+import { TickerPicker } from "@/components/forms/TickerPicker";
+import type { TickerKind } from "@/lib/market/ticker-search";
 import { Button } from "@/components/ui/Button";
 import { useSuccessToast } from "@/components/ui/useSuccessToast";
 import { createAssetAction, updateAssetAction, type AssetFormState } from "./actions";
@@ -26,6 +28,14 @@ const OBJECTIVE_OPTIONS = [
   { value: "LIBERDADE_FINANCEIRA", label: "Liberdade financeira" },
   { value: "META", label: "Meta" },
 ];
+
+/** Classes em que faz sentido buscar o código pelo nome; nas outras (CDB, Tesouro) o ticker é livre. */
+const PICKER_KINDS: Partial<Record<string, TickerKind[]>> = {
+  ACAO: ["STOCK", "BDR"],
+  FII: ["FII"],
+  FUNDO: ["ETF"],
+  INTERNACIONAL: ["STOCK_INTL", "ETF_INTL", "BDR"],
+};
 
 const FIXED_INCOME_OPTIONS = [
   { value: "", label: "Não definido" },
@@ -63,6 +73,8 @@ export function AssetForm({
   const [state, formAction, isPending] = useActionState(action, initialState);
   const [objective, setObjective] = useState(defaults.objective ?? "OUTRO");
   const [assetClass, setAssetClass] = useState(defaults.assetClass ?? "RENDA_FIXA");
+  const [assetName, setAssetName] = useState(defaults.name ?? "");
+  const pickerKinds = PICKER_KINDS[assetClass];
   const isFixedIncome = assetClass === "RENDA_FIXA" || assetClass === "TESOURO_DIRETO";
   const wasPending = useRef(false);
   useSuccessToast(isPending, state.error, assetId ? "Ativo atualizado com sucesso." : "Ativo adicionado com sucesso.");
@@ -77,8 +89,6 @@ export function AssetForm({
   return (
     <form action={formAction} className="flex flex-wrap items-end gap-3">
       {state.error && <p className="w-full rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{state.error}</p>}
-      <Field label="Nome" id="name" name="name" required defaultValue={defaults.name} placeholder="Ex.: Tesouro Selic 2029" />
-      <Field label="Ticker (opcional)" id="ticker" name="ticker" className="w-24" defaultValue={defaults.ticker} />
       <SelectField
         label="Classe"
         id="assetClass"
@@ -92,6 +102,32 @@ export function AssetForm({
           </option>
         ))}
       </SelectField>
+      {pickerKinds ? (
+        // Escolher na lista preenche o nome junto — quem não sabe o código também não quer
+        // digitar "Petrobras" duas vezes. O nome continua editável.
+        <TickerPicker
+          key={assetClass}
+          kinds={pickerKinds}
+          label="Qual ativo?"
+          placeholder="Nome ou código"
+          defaultValue={defaults.ticker}
+          className="w-full sm:w-64"
+          onSelect={(hit) => {
+            if (hit.name) setAssetName(hit.name);
+          }}
+        />
+      ) : (
+        <Field label="Ticker (opcional)" id="ticker" name="ticker" className="w-24" defaultValue={defaults.ticker} />
+      )}
+      <Field
+        label="Nome"
+        id="name"
+        name="name"
+        required
+        value={assetName}
+        onChange={(e) => setAssetName(e.target.value)}
+        placeholder={pickerKinds ? "Preenchido ao escolher na lista" : "Ex.: Tesouro Selic 2029"}
+      />
       {isFixedIncome && (
         <SelectField
           label="Indexador"

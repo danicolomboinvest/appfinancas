@@ -6,7 +6,7 @@ export default function Page() {
     <SheetListPage
       sheetType="FII"
       title="Análises de FIIs"
-      subtitle="Digite o código e o app faz a leitura do fundo."
+      subtitle="Digite o nome ou o código e o app faz a leitura do fundo."
       createForm={<CreateFiiSheetForm />}
     />
   );

@@ -6,7 +6,7 @@ export default function Page() {
     <SheetListPage
       sheetType="STOCK_INTL"
       title="Análises de Stocks"
-      subtitle="Ações no exterior: digite o código e o app faz a leitura."
+      subtitle="Ações no exterior: digite o nome ou o código e o app faz a leitura."
       createForm={<CreateStockIntlSheetForm />}
     />
   );

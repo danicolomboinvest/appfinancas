@@ -6,7 +6,7 @@ export default function Page() {
     <SheetListPage
       sheetType="STOCK"
       title="Análises de Ações"
-      subtitle="Digite o código e o app faz a leitura dos números."
+      subtitle="Digite o nome ou o código e o app faz a leitura dos números."
       createForm={<CreateStockSheetForm />}
     />
   );
