@@ -162,11 +162,27 @@ const DATE_RE = /^\d{2}\/\d{2}\/\d{2,4}$/;
 
 /** Nome do fundo sem o sufixo cadastral ("… - Classe CNPJ: 00.000…" e asteriscos). */
 function cleanFundName(name: string): string {
-  return name
+  const base = name
     .replace(/\s*-\s*Classe CNPJ:.*$/i, "")
     .replace(/\s*-\s*C[óo]d\. Subclasse:.*$/i, "")
     .replace(/\*+$/, "")
     .trim();
+  // "KINEA IPCA DINÂMICO II FUNDO DE INVESTIMENTO FINANCEIRO RENDA FIXA RESPONSABILIDADE
+  // LIMITADA" → "KINEA IPCA DINÂMICO II": o resto é razão social, não identifica o fundo.
+  const short = base.replace(/\s+FUNDO DE INVESTIMENTO\b.*$/i, "").trim();
+  return short.length >= 3 ? short : base;
+}
+
+/** Classe pela SEÇÃO do extrato, que é mais confiável que a terminação do ticker: KLBN11 em
+ * "Posição > Ações" é uma unit (ação), DIVD11 em "Posição > ETF" é ETF (o app guarda como
+ * Fundo, igual ao cadastro manual), BDR vira internacional. Sem seção que decida, a coluna
+ * Tipo (FII) e a terminação continuam valendo. */
+function sectionAssetClass(section: string, tipo: string, ticker: string): AssetClass {
+  if (tipo === "FII") return "FII";
+  if (/\betf\b/.test(section)) return "FUNDO";
+  if (/\bbdr\b/.test(section)) return "INTERNACIONAL";
+  if (/a[çc][õo]es/.test(section)) return "ACAO";
+  return guessAssetClass(ticker);
 }
 
 /**
@@ -185,6 +201,11 @@ function parseSectionedHoldings(lines: string[]): ParsedHolding[] {
   // Só entra no modo "seções" depois de ver um marcador ("Posição >" etc.), CSVs simples
   // sem marcador seguem no caminho clássico (parseCsvHoldings), que já os trata bem.
   let sawSection = false;
+  // "Detalhamento > <fundo>": lista cada compra com o "Valor de Compra"; a soma é o investido
+  // do fundo (a posição só traz o saldo atual). Guardado por nome e aplicado no fim.
+  const fundInvested = new Map<string, number>();
+  let detailFund: string | null = null;
+  let detailCol = -1;
 
   for (const line of lines) {
     const cells = line.split(";").map((c) => c.trim());
@@ -197,6 +218,8 @@ function parseSectionedHoldings(lines: string[]): ParsedHolding[] {
     if (/^(movimenta|detalhamento|posi[cç][õo]es detalhadas)/.test(firstLower)) {
       skipping = true;
       table = null;
+      detailFund = /^detalhamento\s*>/.test(firstLower) ? cleanFundName(first.split(">")[1] ?? "") : null;
+      detailCol = -1;
       continue;
     }
     if (/^posi[cç][ãa]o\s*>/.test(firstLower) || /^posi[cç][õo]es?$/.test(firstLower)) {
@@ -205,6 +228,20 @@ function parseSectionedHoldings(lines: string[]): ParsedHolding[] {
       skipping = section.includes("aluguel");
       table = null;
       pendingFundName = null;
+      detailFund = null;
+      continue;
+    }
+    if (detailFund && skipping) {
+      const lower = cells.map((c) => c.toLowerCase());
+      if (/^total\b/.test(firstLower)) {
+        detailFund = null;
+        detailCol = -1;
+      } else if (detailCol === -1) {
+        detailCol = lower.findIndex((c) => c.includes("valor de compra"));
+      } else if (DATE_RE.test(first)) {
+        const bought = parseFlexibleNumber(cells[detailCol] ?? "");
+        if (!Number.isNaN(bought)) fundInvested.set(detailFund, (fundInvested.get(detailFund) ?? 0) + bought);
+      }
       continue;
     }
     if (skipping || !sawSection) continue;
@@ -257,7 +294,8 @@ function parseSectionedHoldings(lines: string[]): ParsedHolding[] {
 
     // Linhas de dados
     if (table.kind === "ticker") {
-      const ticker = (cells[table.tickerCol] ?? "").toUpperCase();
+      // "ABCB4*": o asterisco marca "calculado em data anterior", não faz parte do código.
+      const ticker = (cells[table.tickerCol] ?? "").replace(/\*+$/, "").trim().toUpperCase();
       if (!/^[A-Z]{4}\d{1,2}$/.test(ticker)) continue;
       const quantity = parseFlexibleNumber(cells[table.qtyCol] ?? "");
       const value = table.valueCol !== -1 ? parseFlexibleNumber(cells[table.valueCol] ?? "") : NaN;
@@ -268,7 +306,7 @@ function parseSectionedHoldings(lines: string[]): ParsedHolding[] {
         ticker,
         quantity: qty,
         value: Number.isNaN(value) ? 0 : Math.abs(value),
-        assetClass: tipo === "FII" ? "FII" : guessAssetClass(ticker),
+        assetClass: sectionAssetClass(section, tipo, ticker),
         // Preço médio × quantidade = quanto foi investido (base do lucro/prejuízo).
         investedValue: !Number.isNaN(avgPrice) && qty > 0 ? avgPrice * qty : undefined,
       });
@@ -310,6 +348,11 @@ function parseSectionedHoldings(lines: string[]): ParsedHolding[] {
     }
   }
 
+  for (const h of holdings) {
+    if (h.assetClass === "FUNDO" && h.investedValue === undefined && fundInvested.has(h.ticker)) {
+      h.investedValue = fundInvested.get(h.ticker);
+    }
+  }
   return holdings;
 }
 

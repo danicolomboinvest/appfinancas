@@ -10,6 +10,7 @@ import { refreshDividendsForTickers } from "@/lib/repositories/dividend.repo";
 import { parsePortfolioStatement, guessAssetClass } from "@/lib/import/portfolio-parser";
 import { extractUploadFromForm, UploadReadError, PasswordRequiredError } from "@/lib/import/extract-text";
 import { isNubankStatement } from "@/lib/import/nubank-pdf";
+import { looksLikePortfolioPosition } from "@/lib/import/detect";
 import { NUMBERS_ONLY_MESSAGE, pdfTextQuality } from "@/lib/import/pdf-quality";
 
 /** Record (não array solto) por classe existente: se um valor novo entrar no enum AssetClass
@@ -79,7 +80,8 @@ export async function parsePortfolioAction(formData: FormData): Promise<ParsePor
 
   // Extrato de conta (movimentações) no lugar da posição da carteira: é o engano mais comum,
   // e "não identifiquei ativos" não explica o que subir.
-  if (isNubankStatement(text) || /Saldo do dia|Movimenta[çc][õo]es/.test(text)) {
+  const looksLikeBankStatement = isNubankStatement(text) || /Saldo do dia|Movimenta[çc][õo]es/.test(text);
+  if (looksLikeBankStatement && !looksLikePortfolioPosition(text)) {
     return {
       ok: false,
       error:

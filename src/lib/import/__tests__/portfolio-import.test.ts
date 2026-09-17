@@ -81,6 +81,8 @@ PETR4;50;1.800,00`;
       ";Data Referência;Saldo Líquido R$ 30/06/26;Quantidade de Cotas;Cotação Atual R$;Saldo Bruto R$;Provisão de IR R$;Provisão de IOF R$;Saldo Líquido R$;Variação Nominal R$",
       ";BTG Yield DI FIRFRef CrPr - Classe CNPJ: 00.840.011/0001-80;;;;;;;;",
       ";10/07/2026;2,748.23;48.194989;57.51975625;2,772.16;14.60;-;2,757.56;9.33",
+      ";KINEA IPCA DINÂMICO II FUNDO DE INVESTIMENTO FINANCEIRO RENDA FIXA RESPONSABILIDADE LIMITADA - Classe CNPJ: 39.586.858/0001-15* - Cód. Subclasse: KB0OK1743799805;;;;;;;;",
+      ";16/07/2026;1,184.69;644.91822;1.8652845;1,202.96;7.25;-;1,195.71;11.02",
       ";Total em fundos;;;;2,772.16;14.60;-;2,757.56;9.33",
       ";Detalhamento;;;;;;;;",
       ";Detalhamento > BTG Yield DI FIRFRef CrPr;;;;;;;;",
@@ -101,6 +103,7 @@ PETR4;50;1.800,00`;
       ";Posição > Ações;;;;;;;;",
       ";Código;Ação;Qtde.;Preço Fechamento R$;Preço Médio R$;Saldo Bruto R$;;;",
       ";ITSA4;ITAUSA      PN  N1;414;14.17;9.82;5,870.52;;;",
+      ";KLBN11*;KLABIN S/A  UNT     N2;15;19.40;22.63;288.90;;;",
       ";Total em Ações R$;;;;;5,870.52;;;",
       ";Movimentação;;;;;;;;",
       ";Movimentação > Ações;;;;;;;;",
@@ -111,28 +114,47 @@ PETR4;50;1.800,00`;
       ";Código;Qtde.;Posição;Preço de Referência R$;Valor Contratado R$;;;;",
       ";EGIE3;1;Doador;33.39;33.39;;;;",
       ";Posição;;;;;;;;",
+      ";Posição > ETF;;;;;;;;",
+      ";Código;Ativo;Qtde.;Preço Fechamento R$;Preço Médio R$;Saldo Bruto R$;;;",
+      ";IVVB11*;ISHARE SP500CI;2;438.80;248.79;888.94;;;",
+      ";Total em ETF's R$;;;;;888.94;;;",
+      ";Posição;;;;;;;;",
       ";Posição > Fundos Listados;;;;;;;;",
       ";Código;Ativo;Tipo;Qtde.;Preço Fechamento R$;Preço Médio R$;Saldo Bruto R$;;",
       ";MXRF11;FII MAXI RENCI  ER;FII;1000;9.74;10.29;9,760.00;;",
       ";Total em Fundos Listados R$;;;;;;9,760.00;;",
+      ";Conta Corrente;;;;",
+      ";Movimentações;;;;",
+      ";Data;Descrição;Movimentação R$;Saldo conta investimentos R$",
+      ";01/07/2026;Saldo Anterior;;291.39",
+      ";02/07/2026;DIVIDENDOS - À VISTA s/ ITAUSA PN N1 - ITSA4;10.03;301.42",
     ].join("\n");
 
     const holdings = parsePortfolioStatement(text);
     const byName = new Map(holdings.map((h) => [h.ticker, h]));
 
     // Fundo com nome limpo (sem CNPJ), sem duplicar pelo Detalhamento
-    expect(byName.get("BTG Yield DI FIRFRef CrPr")).toMatchObject({ quantity: 48.194989, value: 2772.16, assetClass: "FUNDO" });
+    // (o "Valor de Compra" somado no Detalhamento vira o investido do fundo)
+    expect(byName.get("BTG Yield DI FIRFRef CrPr")).toMatchObject({ quantity: 48.194989, value: 2772.16, assetClass: "FUNDO", investedValue: 2668.2 });
     // Renda fixa com emissor legível
     expect(byName.get("CRA-CRA0250038P (CERES)")).toMatchObject({ quantity: 7, value: 7547.35, assetClass: "RENDA_FIXA" });
     // Tesouro identificado
     expect(byName.get("LFT")).toMatchObject({ quantity: 0.01, value: 193.79, assetClass: "TESOURO_DIRETO" });
     // Ação (número americano 5,870.52 → 5870.52), sem duplicar pela Movimentação
     expect(byName.get("ITSA4")).toMatchObject({ quantity: 414, value: 5870.52, assetClass: "ACAO" });
+    // Asterisco ("calculado em data anterior") não faz parte do código; unit em "Ações" é ação,
+    // não FII, e preço médio × quantidade vira o investido
+    expect(byName.get("KLBN11")).toMatchObject({ quantity: 15, value: 288.9, assetClass: "ACAO" });
+    expect(byName.get("KLBN11")?.investedValue).toBeCloseTo(339.45, 2);
+    // ETF pela seção (o app guarda como Fundo, igual ao cadastro manual)
+    expect(byName.get("IVVB11")).toMatchObject({ quantity: 2, value: 888.94, assetClass: "FUNDO" });
     // FII com classe vinda da coluna Tipo
     expect(byName.get("MXRF11")).toMatchObject({ quantity: 1000, value: 9760, assetClass: "FII" });
     // Aluguel de ações NÃO vira posição (evita duplicar/contar errado)
     expect(byName.has("EGIE3")).toBe(false);
-    expect(holdings).toHaveLength(5);
+    // Razão social do fundo não vira nome do ativo
+    expect(byName.get("KINEA IPCA DINÂMICO II")).toMatchObject({ quantity: 644.91822, value: 1202.96, assetClass: "FUNDO" });
+    expect(holdings).toHaveLength(8);
   });
 
   it("parses a Planilha de Alocação (modelo próprio da Dani, preenchida à mão)", () => {

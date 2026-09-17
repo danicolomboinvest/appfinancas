@@ -55,3 +55,12 @@ export function detectInvoiceTotal(text: string): number | null {
 export function countMoneyLines(text: string): number {
   return text.split(/\r?\n/).filter((l) => /-?\d{1,3}(?:\.\d{3})*,\d{2}\b|-?\d+\.\d{2}\b/.test(l)).length;
 }
+
+/**
+ * O arquivo traz a POSIÇÃO da carteira (quantidade, preço médio, cotas, saldo bruto)? Extratos
+ * de conta investimento (BTG/EQI) também trazem abas de "Movimentações" e "Conta Corrente";
+ * sem esta checagem eles eram barrados como extrato bancário, apesar de terem tudo.
+ */
+export function looksLikePortfolioPosition(text: string): boolean {
+  return /pre[çc]o m[ée]dio|quantidade de cotas|posi[çc][ãa]o\s*>|saldo bruto/i.test(text);
+}
