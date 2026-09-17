@@ -19,6 +19,7 @@ import {
   colorForCategorySlice,
 } from "@/lib/categories";
 import type { BudgetHints } from "@/lib/planning/budget-hints";
+import { splitSavings, type SavingsTarget } from "@/lib/planning/savings-split";
 import { NewCustomCategoryCard } from "./NewCustomCategoryCard";
 import { applyAllBudgetsAction, deleteCustomCategoryAction, type AnnualBudgetState } from "./actions";
 
@@ -45,6 +46,7 @@ export function BudgetWizard({
   customCategories,
   hints,
   hasPlan,
+  savingsTargets = [],
 }: {
   year: number;
   plan: { plannedIncome: number; plannedInvestment: number };
@@ -53,6 +55,8 @@ export function BudgetWizard({
   hints: BudgetHints;
   /** Já existe plano: abre no resumo, e "ajustar" volta pros passos. */
   hasPlan: boolean;
+  /** Reserva e metas abertas, pra dizer no passo 3 pra onde vai o que se guarda. */
+  savingsTargets?: SavingsTarget[];
 }) {
   const money = useMoney();
   const [state, formAction, isPending] = useActionState(applyAllBudgetsAction, initialState);
@@ -95,6 +99,7 @@ export function BudgetWizard({
   const left = toSpend - distributed;
   const free = income - investment - distributed;
   const activePct = income > 0 ? Math.round((investment / income) * 100) : 0;
+  const savings = useMemo(() => splitSavings(investment, savingsTargets), [investment, savingsTargets]);
 
   function setValue(key: string, v: number) {
     setValues((prev) => ({ ...prev, [key]: Math.max(0, Math.round(v * 100) / 100) }));
@@ -320,6 +325,21 @@ export function BudgetWizard({
               {money(investment, { round: true })} por mês nos {hints.monthsLeftInYear} meses que faltam, mais o que sobrar.
             </p>
           </div>
+
+          {savings.slices.length > 0 && savingsTargets.length > 0 && (
+            <Card className="flex flex-col gap-2 p-4">
+              <p className="text-sm font-semibold text-ink">Pra onde vai o que você guarda</p>
+              <ul className="flex flex-col gap-1 text-sm">
+                {savings.slices.map((s) => (
+                  <li key={s.id} className="flex items-baseline gap-2">
+                    <b className="shrink-0 tabular-nums text-ink">{money(s.amount, { round: true })}</b>
+                    <span className="min-w-0 text-ink-muted">→ {s.name}</span>
+                  </li>
+                ))}
+              </ul>
+              <p className="text-caption text-ink-faint">Reserva primeiro, depois as metas por prazo. O resto fica livre.</p>
+            </Card>
+          )}
 
           <Card className="flex flex-col gap-2 p-4 text-sm">
             <Row label="Entra" value={money(income, { round: true })} />

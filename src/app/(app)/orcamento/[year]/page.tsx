@@ -14,6 +14,7 @@ import {
 import { getAnnualBudgetPlan, getAnnualBudgetPlanForCustomCategories } from "@/lib/repositories/budget.repo";
 import { getAnnualMonthlyPlan } from "@/lib/repositories/monthly-plan.repo";
 import { getBudgetHints } from "@/lib/planning/budget-hints";
+import { getSavingsTargets } from "@/lib/planning/savings-targets";
 import { BudgetWizard } from "../BudgetWizard";
 import { getMonthlySummary } from "@/lib/consolidation/monthly";
 import { PlanVsActualRow } from "@/components/charts/PlanVsActualRow";
@@ -65,13 +66,14 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
   const ctx = await getRequiredSession();
   const agora = new Date();
   // Uma consulta a mais na página já custou caro antes: vai junto das outras, não em fila.
-  const [comparison, customCategories, plan, annualPlan, monthSummary, hints] = await Promise.all([
+  const [comparison, customCategories, plan, annualPlan, monthSummary, hints, savingsTargets] = await Promise.all([
     getAnnualPlannedVsActual(ctx, year),
     listCustomCategories(ctx),
     getAnnualBudgetPlan(ctx, year),
     getAnnualMonthlyPlan(ctx, year),
     year === agora.getFullYear() ? getMonthlySummary(ctx, year, agora.getMonth() + 1) : null,
     getBudgetHints(ctx, year),
+    getSavingsTargets(ctx, agora),
   ]);
   // Qualquer mês serve para preencher o formulário: o valor é o mesmo nos 12, e é o primeiro
   // que existir que responde "o que eu já tinha planejado?".
@@ -204,6 +206,7 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
           year={year}
           hasPlan={hasPlan}
           hints={hints}
+          savingsTargets={savingsTargets}
           plan={{
             plannedIncome: monthPlan?.plannedIncome ?? 0,
             plannedInvestment: monthPlan?.plannedInvestment ?? 0,

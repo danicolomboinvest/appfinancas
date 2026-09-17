@@ -8,6 +8,10 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { NewGoalButton } from "./NewGoalButton";
 import { GoalCard, type GoalVariant } from "./GoalCard";
+import { SavingsSplitCard } from "./SavingsSplitCard";
+import { getSavingsTargets } from "@/lib/planning/savings-targets";
+import { getMonthlyPlan } from "@/lib/repositories/monthly-plan.repo";
+import { serverMoney } from "@/lib/money-server";
 
 /**
  * Cor de ritmo (adiantada / no ritmo / atrasada) para exibição, lendo o status que
@@ -30,8 +34,14 @@ const VARIANT_RANK: Record<GoalVariant, number> = { behind: 0, onTrack: 1, ahead
 
 export default async function MetasPage() {
   const ctx = await getRequiredSession();
-  const goals = await listGoalsWithProgress(ctx);
   const now = nowInBrazil();
+  const [goals, savingsTargets, monthPlan, money] = await Promise.all([
+    listGoalsWithProgress(ctx),
+    getSavingsTargets(ctx, now),
+    getMonthlyPlan(ctx, now.getFullYear(), now.getMonth() + 1),
+    serverMoney(),
+  ]);
+  const monthLabel = now.toLocaleDateString("pt-BR", { month: "long" });
 
   const withPlans = goals.map((goal) => {
     const targetAmount = Number(goal.targetAmount);
@@ -90,6 +100,8 @@ export default async function MetasPage() {
         subtitle="Cadastre metas com prazo e veja quanto precisa aportar por mês para chegar lá."
         action={<NewGoalButton />}
       />
+
+      <SavingsSplitCard amount={monthPlan?.plannedInvestment ?? 0} targets={savingsTargets} money={money} monthLabel={monthLabel} />
 
       {sorted.length === 0 ? (
         <EmptyState
