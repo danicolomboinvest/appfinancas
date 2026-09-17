@@ -11,14 +11,18 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { AssetsSection, type StrategySummary } from "./AssetsSection";
 import { buildStrategyBullets, summarizeStrategy } from "@/lib/portfolio/strategy-bullets";
 import { UpcomingDividendsSection } from "./UpcomingDividendsSection";
+import { ContributionCard } from "./ContributionCard";
+import { getContributionContext } from "@/lib/portfolio/contribution";
 
 export default async function CarteiraPage() {
   const ctx = await getRequiredSession();
-  const [assets, goals, comparison, dividends] = await Promise.all([
+  const now = new Date();
+  const [assets, goals, comparison, dividends, contribution] = await Promise.all([
     listAssets(ctx),
     listGoals(ctx),
     getPortfolioStrategyComparison(ctx),
     listUpcomingDividendsForUser(ctx),
+    getContributionContext(ctx, now.getFullYear(), now.getMonth() + 1),
   ]);
   const goalNameById = new Map(goals.map((goal) => [goal.id, goal.name]));
 
@@ -55,6 +59,8 @@ export default async function CarteiraPage() {
 
       {/* Componente de servidor (sem "use client"): recebe os Date do Prisma direto, sem cruzar
           a fronteira servidor→cliente. */}
+      <ContributionCard context={contribution} year={now.getFullYear()} month={now.getMonth() + 1} />
+
       <UpcomingDividendsSection dividends={dividends} />
 
       <AssetsSection
