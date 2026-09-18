@@ -20,13 +20,14 @@ import {
 } from "@/lib/categories";
 import type { BudgetHints } from "@/lib/planning/budget-hints";
 import { splitSavings, type SavingsTarget } from "@/lib/planning/savings-split";
-import { idealBudgetSplit, idealBandRange } from "@/lib/planning/ideal-budget";
+import { idealBudgetSplit, COURSE_SAVINGS_PERCENT, courseShareOf } from "@/lib/planning/ideal-budget";
 import { NewCustomCategoryCard } from "./NewCustomCategoryCard";
 import { applyAllBudgetsAction, deleteCustomCategoryAction, type AnnualBudgetState } from "./actions";
 
 const initialState: AnnualBudgetState = {};
 const STEP = 50;
-const PCT_CHIPS = [10, 15, 20, 30];
+// 18% = o que a aula "Organização financeira" manda guardar (10% liberdade financeira + 8% sonhos).
+const PCT_CHIPS = [10, COURSE_SAVINGS_PERCENT, 20, 30];
 
 type Cat = { key: string; label: string; description?: string; color: string; icon: LucideIcon; custom: boolean };
 
@@ -114,7 +115,7 @@ export function BudgetWizard({
    */
   function suggest() {
     const reserved = customCategories.reduce((sum, c) => sum + (values[c.id] ?? 0), 0);
-    const ideal = idealBudgetSplit(toSpend, income, { reserved, step: STEP });
+    const ideal = idealBudgetSplit(toSpend, income, { reserved });
     setValues((prev) => ({ ...prev, ...ideal }));
   }
   function copyLastMonth() {
@@ -122,14 +123,6 @@ export function BudgetWizard({
   }
 
   const hasHistory = Object.values(hints.averageByCategory).some((v) => v > 0);
-  // Frase da faixa montada com o formatador de moeda do app (a pessoa pode ter trocado de moeda).
-  const faixa = idealBandRange(income);
-  const faixaLabel =
-    faixa.upTo === null
-      ? `que ganha acima de ${money(faixa.from, { round: true })}`
-      : faixa.from === 0
-        ? `que ganha até ${money(faixa.upTo, { round: true })}`
-        : `que ganha de ${money(faixa.from, { round: true })} a ${money(faixa.upTo, { round: true })}`;
 
   const header = (
     <div className="flex items-center justify-between">
@@ -192,13 +185,15 @@ export function BudgetWizard({
                     type="button"
                     onClick={() => {
                       setCustomPct(false);
-                      setInvestment(roundStep((income * pct) / 100));
+                      // Valor exato, não arredondado de 50 em 50: 18% de 16.000 é 2.880, e
+                      // 2.900 deixaria a divisão do curso 20 reais curta no passo seguinte.
+                      setInvestment(Math.round((income * pct) / 100));
                     }}
                     className={`rounded-full border px-3.5 py-2 text-[13px] font-semibold transition-colors ${
                       on ? "border-accent bg-accent-soft text-accent-strong" : "border-border-strong bg-surface-2 text-ink-muted hover:text-ink"
                     }`}
                   >
-                    {pct}%{income > 0 ? ` · ${money(roundStep((income * pct) / 100), { round: true })}` : ""}
+                    {pct}%{income > 0 ? ` · ${money(Math.round((income * pct) / 100), { round: true })}` : ""}
                   </button>
                 );
               })}
@@ -216,7 +211,8 @@ export function BudgetWizard({
               <CurrencyField label="Guardar por mês" name="_investment" defaultValue={investment || undefined} onValueChange={setInvestment} />
             )}
             <p className="text-caption leading-relaxed text-ink-faint">
-              Quem está começando costuma conseguir 10%. Se ficar apertado, dá pra mudar depois. Nada aqui é promessa.
+              No curso, a conta é {COURSE_SAVINGS_PERCENT}%: {COURSE_SAVINGS_PERCENT - 8}% pra liberdade financeira e 8% pros sonhos. Quem
+              está começando costuma conseguir 10% — se ficar apertado, dá pra mudar depois. Nada aqui é promessa.
             </p>
           </Card>
 
@@ -279,8 +275,10 @@ export function BudgetWizard({
               )}
             </div>
             <p className="text-caption text-ink-faint">
-              A sugestão divide os {money(toSpend, { round: true })} na proporção que uma família brasileira {faixaLabel} costuma
-              gastar em cada coisa. É um ponto de partida: mexa à vontade.
+              A sugestão segue a distribuição do orçamento do curso: moradia {Math.round(courseShareOf("MORADIA") * 100)}% da renda,
+              alimentação {Math.round(courseShareOf("ALIMENTACAO") * 100)}%, saúde {Math.round(courseShareOf("SAUDE") * 100)}%, e assim
+              por diante. Guardando menos que {COURSE_SAVINGS_PERCENT}% sobra uma folga; guardando mais, tudo encolhe junto.
+              É um ponto de partida: mexa à vontade.
             </p>
           </div>
 
