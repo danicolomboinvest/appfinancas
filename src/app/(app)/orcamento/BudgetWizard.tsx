@@ -20,6 +20,7 @@ import {
 } from "@/lib/categories";
 import type { BudgetHints } from "@/lib/planning/budget-hints";
 import { splitSavings, type SavingsTarget } from "@/lib/planning/savings-split";
+import { idealBudgetSplit, idealBandLabel } from "@/lib/planning/ideal-budget";
 import { NewCustomCategoryCard } from "./NewCustomCategoryCard";
 import { applyAllBudgetsAction, deleteCustomCategoryAction, type AnnualBudgetState } from "./actions";
 
@@ -105,13 +106,16 @@ export function BudgetWizard({
     setValues((prev) => ({ ...prev, [key]: Math.max(0, Math.round(v * 100) / 100) }));
   }
 
-  /** Divisão razoável a partir dos seus meses: a média de cada categoria, encolhida na proporção se não couber no que sobra. */
+  /**
+   * Divide o que sobra na proporção de referência da faixa de renda (ideal-budget.ts), não na
+   * média dos meses da própria pessoa: quem está começando não tem meses, e quem já estoura
+   * uma categoria receberia de volta a sugestão de estourar igual. As categorias criadas pela
+   * própria pessoa ficam com o valor que já têm e saem do bolo antes da divisão.
+   */
   function suggest() {
-    const avg = cats.map((c) => hints.averageByCategory[c.key] ?? 0);
-    const total = avg.reduce((a, b) => a + b, 0);
-    if (total <= 0) return;
-    const scale = toSpend > 0 && total > toSpend ? toSpend / total : 1;
-    setValues(Object.fromEntries(cats.map((c, i) => [c.key, roundStep(avg[i] * scale)])));
+    const reserved = customCategories.reduce((sum, c) => sum + (values[c.id] ?? 0), 0);
+    const ideal = idealBudgetSplit(toSpend, income, { reserved, step: STEP });
+    setValues((prev) => ({ ...prev, ...ideal }));
   }
   function copyLastMonth() {
     setValues(Object.fromEntries(cats.map((c) => [c.key, roundStep(hints.lastMonthByCategory[c.key] ?? 0)])));
@@ -244,24 +248,33 @@ export function BudgetWizard({
             </p>
           </Card>
 
-          {hasHistory && (
+          {/* "Sugerir" não depende mais de ter histórico: é justamente quem está começando que
+              não sabe quanto pôr em cada coisa. "Copiar" continua só pra quem tem o mês passado. */}
+          <div className="flex flex-col gap-1.5">
             <div className="flex gap-2">
               <button
                 type="button"
                 onClick={suggest}
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-full border border-accent bg-accent-soft px-3 py-2 text-[13px] font-semibold text-accent-strong"
+                disabled={toSpend <= 0}
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-full border border-accent bg-accent-soft px-3 py-2 text-[13px] font-semibold text-accent-strong disabled:opacity-40"
               >
                 <Sparkles size={14} /> Sugerir pra mim
               </button>
-              <button
-                type="button"
-                onClick={copyLastMonth}
-                className="flex-1 rounded-full border border-border-strong bg-surface-2 px-3 py-2 text-[13px] font-semibold text-ink-muted hover:text-ink"
-              >
-                Copiar {hints.lastMonthLabel}
-              </button>
+              {hasHistory && (
+                <button
+                  type="button"
+                  onClick={copyLastMonth}
+                  className="flex-1 rounded-full border border-border-strong bg-surface-2 px-3 py-2 text-[13px] font-semibold text-ink-muted hover:text-ink"
+                >
+                  Copiar {hints.lastMonthLabel}
+                </button>
+              )}
             </div>
-          )}
+            <p className="text-caption text-ink-faint">
+              A sugestão divide os {money(toSpend, { round: true })} na proporção que uma família brasileira de renda{" "}
+              {idealBandLabel(income)} costuma gastar em cada coisa. É um ponto de partida: mexa à vontade.
+            </p>
+          </div>
 
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             {cats.map((c) => (
