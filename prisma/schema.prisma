@@ -184,6 +184,7 @@ model User {
   transactionRules     TransactionCategoryRule[]
   passwordResetTokens  PasswordResetToken[]
   importBatches        ImportBatch[]
+  importDiagnostics ImportDiagnostic[]
   usageEvents          UsageEvent[]
 
   asAdvisorLinks AdvisorClientLink[] @relation("advisor")
@@ -294,6 +295,42 @@ model UsageEvent {
 
 /// Lote de importação: um upload de extrato/fatura. Dá o histórico do que foi subido em massa
 /// e permite desfazer o lote inteiro (arquivo errado ou duplicado) de uma vez.
+/// Diagnóstico de CADA tentativa de importação, inclusive as que falharam.
+///
+/// Sem isso, arquivo que o app não consegue ler não deixa rastro nenhum: nenhum lote é criado
+/// e o log da Vercel some em poucos dias. Foi assim que sete pessoas pediram reembolso sem a
+/// gente saber qual banco quebrou. Aqui fica o suficiente pra reproduzir: nome do arquivo,
+/// o que o app entendeu, quantas linhas viu, quantas leu e o erro — nunca o conteúdo.
+model ImportDiagnostic {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  /// "extrato" | "fatura" | "carteira"
+  target      String
+  /// "parse" (leitura) | "confirm" (gravação)
+  stage       String
+  ok          Boolean
+  fileName    String?
+  /// text | xlsx | pdf
+  encoding    String?
+  /// O que o perfil do documento concluiu: statement, invoice, position, irpf, unknown
+  kind        String?
+  institution String?
+  /// Linhas com cara de dinheiro no arquivo × lançamentos/ativos que o app conseguiu ler.
+  moneyLines  Int      @default(0)
+  parsed      Int      @default(0)
+  created     Int      @default(0)
+  skipped     Int      @default(0)
+  /// Mensagem que a pessoa viu na tela, quando deu errado.
+  message     String?
+  /// Primeira linha do arquivo (cabeçalho), cortada — é o que identifica o formato do banco.
+  header      String?
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([ok, createdAt])
+}
+
 model ImportBatch {
   id        String         @id @default(cuid())
   userId    String

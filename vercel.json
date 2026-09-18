@@ -1,6 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "regions": ["gru1"],
+  "regions": [
+    "gru1"
+  ],
   "crons": [
     {
       "path": "/api/cron/quotes",
@@ -21,6 +23,10 @@
     {
       "path": "/api/cron/openfinance",
       "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/cron/saude-importacao",
+      "schedule": "0 11 * * *"
     }
   ]
 }

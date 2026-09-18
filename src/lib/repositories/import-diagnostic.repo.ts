@@ -1,0 +1,135 @@
+import { prisma } from "@/lib/db/prisma";
+
+/**
+ * Registro de toda tentativa de importação, inclusive (principalmente) as que falharam.
+ *
+ * Antes disso, arquivo que o app não conseguia ler sumia sem deixar rastro: nenhum lote era
+ * criado e o log da Vercel apagava em poucos dias. Resultado prático: sete pedidos de reembolso
+ * sem a gente conseguir dizer qual banco ou qual formato quebrou.
+ *
+ * O que fica guardado é só o que serve pra reproduzir — nome do arquivo, o que o app entendeu,
+ * quantas linhas com valor viu, quantas conseguiu ler e a mensagem de erro — mais o CABEÇALHO
+ * do arquivo, que é a linha de nomes de coluna e é o que identifica o formato do banco.
+ * Nunca o conteúdo: nenhuma transação, nenhum valor, nenhum nome de terceiro.
+ */
+export type ImportDiagnosticInput = {
+  userId: string;
+  /** "extrato" | "fatura" | "carteira" */
+  target: string;
+  /** "parse" = leitura do arquivo; "confirm" = gravação do que a pessoa confirmou. */
+  stage: "parse" | "confirm";
+  ok: boolean;
+  fileName?: string | null;
+  encoding?: string | null;
+  kind?: string | null;
+  institution?: string | null;
+  moneyLines?: number;
+  parsed?: number;
+  created?: number;
+  skipped?: number;
+  message?: string | null;
+  header?: string | null;
+};
+
+/** Cabeçalho sem valores: corta em 160 caracteres e tira qualquer número com 6+ dígitos. */
+export function safeHeader(text: string): string {
+  const first = text.split(/\r?\n/).find((l) => l.trim()) ?? "";
+  return first.replace(/\d{6,}/g, "…").slice(0, 160);
+}
+
+/**
+ * Grava o diagnóstico sem NUNCA derrubar a importação: se esta escrita falhar, a pessoa não
+ * pode perder o arquivo dela por causa de uma linha de telemetria.
+ */
+export async function recordImportDiagnostic(input: ImportDiagnosticInput): Promise<void> {
+  try {
+    await prisma.importDiagnostic.create({
+      data: {
+        userId: input.userId,
+        target: input.target,
+        stage: input.stage,
+        ok: input.ok,
+        fileName: input.fileName ?? null,
+        encoding: input.encoding ?? null,
+        kind: input.kind ?? null,
+        institution: input.institution ?? null,
+        moneyLines: input.moneyLines ?? 0,
+        parsed: input.parsed ?? 0,
+        created: input.created ?? 0,
+        skipped: input.skipped ?? 0,
+        message: input.message ? input.message.slice(0, 400) : null,
+        header: input.header ?? null,
+      },
+    });
+  } catch (err) {
+    console.error("recordImportDiagnostic falhou (ignorado)", err);
+  }
+}
+
+export type ImportHealthWindow = {
+  desde: Date;
+  total: number;
+  falhas: number;
+  /** Leu o arquivo, mas achou pouca coisa perto do que tinha: quase sempre formato não suportado. */
+  parciais: number;
+  /** Agrupado pelo que dá pra agir: mesma mensagem + mesmo formato de arquivo. */
+  porCausa: { causa: string; vezes: number; pessoas: number; exemplos: string[] }[];
+  /** Pessoas que tentaram e não conseguiram nada — é quem pede reembolso. */
+  pessoasSemSucesso: { userId: string; email: string; tentativas: number }[];
+};
+
+/** Extensão do arquivo, que é o que separa "csv do Nubank" de "xls do Itaú". */
+function extOf(fileName: string | null): string {
+  const m = (fileName ?? "").toLowerCase().match(/\.([a-z0-9]{2,5})$/);
+  return m ? m[1] : "sem extensão";
+}
+
+/**
+ * Raio-X da importação numa janela de dias: o que quebrou, por qual motivo, quantas pessoas
+ * foram afetadas e quem ficou sem nada. É o que a checagem diária manda pra Dani.
+ */
+export async function getImportHealth(days = 1): Promise<ImportHealthWindow> {
+  const desde = new Date(Date.now() - days * 86_400_000);
+  const rows = await prisma.importDiagnostic.findMany({
+    where: { createdAt: { gte: desde } },
+    include: { user: { select: { email: true } } },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const falhas = rows.filter((r) => !r.ok);
+  // Leu menos da metade das linhas com valor (e ficou faltando coisa de verdade).
+  const parciais = rows.filter((r) => r.ok && r.stage === "parse" && r.moneyLines > 3 && r.parsed < r.moneyLines * 0.5);
+
+  const grupos = new Map<string, { vezes: number; pessoas: Set<string>; exemplos: Set<string> }>();
+  for (const r of [...falhas, ...parciais]) {
+    const motivo = r.ok ? "leu só parte do arquivo" : (r.message ?? "erro sem mensagem").split(".")[0];
+    const causa = `${r.target}/${extOf(r.fileName)} · ${motivo}`;
+    const g = grupos.get(causa) ?? { vezes: 0, pessoas: new Set<string>(), exemplos: new Set<string>() };
+    g.vezes += 1;
+    g.pessoas.add(r.userId);
+    if (r.header) g.exemplos.add(r.header);
+    grupos.set(causa, g);
+  }
+
+  // Quem tentou na janela e não levou NENHUM lançamento pra dentro.
+  const porPessoa = new Map<string, { email: string; tentativas: number; sucesso: boolean }>();
+  for (const r of rows) {
+    const atual = porPessoa.get(r.userId) ?? { email: r.user.email, tentativas: 0, sucesso: false };
+    atual.tentativas += 1;
+    if (r.stage === "confirm" && r.ok && r.created > 0) atual.sucesso = true;
+    porPessoa.set(r.userId, atual);
+  }
+
+  return {
+    desde,
+    total: rows.length,
+    falhas: falhas.length,
+    parciais: parciais.length,
+    porCausa: [...grupos.entries()]
+      .map(([causa, g]) => ({ causa, vezes: g.vezes, pessoas: g.pessoas.size, exemplos: [...g.exemplos].slice(0, 3) }))
+      .sort((a, b) => b.pessoas - a.pessoas || b.vezes - a.vezes),
+    pessoasSemSucesso: [...porPessoa.entries()]
+      .filter(([, v]) => !v.sucesso)
+      .map(([userId, v]) => ({ userId, email: v.email, tentativas: v.tentativas })),
+  };
+}

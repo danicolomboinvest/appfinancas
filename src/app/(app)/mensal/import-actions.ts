@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { installmentDescription, parseInstallment } from "@/lib/entries/recurrence";
 import { countMoneyLines, detectInvoiceTotal, looksLikeCardInvoice, type DocKind } from "@/lib/import/detect";
 import { profileDocument } from "@/lib/import/profile";
+import { recordImportDiagnostic, safeHeader } from "@/lib/repositories/import-diagnostic.repo";
 import type { ParentCategory } from "@prisma/client";
 import { getRequiredSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
@@ -95,38 +96,56 @@ export async function parseStatementAction(formData: FormData): Promise<ParseSta
   // "fatura" = fatura de cartão (tudo é gasto); "extrato" = extrato bancário (sinal manda).
   const docType = String(formData.get("docType") ?? "extrato");
 
+  const uploaded = formData.get("file");
+  const uploadedName = uploaded instanceof File ? uploaded.name : null;
+  /** Toda saída em erro passa por aqui: é o que deixa rastro pra checagem diária. */
+  const falha = async (message: string, extra: Partial<Parameters<typeof recordImportDiagnostic>[0]> = {}) => {
+    await recordImportDiagnostic({
+      userId: ctx.userId,
+      target: docType,
+      stage: "parse",
+      ok: false,
+      fileName: uploadedName,
+      encoding,
+      message,
+      ...extra,
+    });
+  };
+
   let text: string;
   let source: "auto" | "pdf";
   try {
     ({ text, source } = await extractUploadFromForm(formData));
   } catch (err) {
     if (err instanceof PasswordRequiredError) return { ok: false, error: err.message, needsPassword: true };
-    if (err instanceof UploadReadError) return { ok: false, error: err.message };
-    const file = formData.get("file");
+    if (err instanceof UploadReadError) {
+      await falha(err.message);
+      return { ok: false, error: err.message };
+    }
     console.error("parseStatementAction: leitura falhou", {
-      name: file instanceof File ? file.name : "?",
-      size: file instanceof Blob ? file.size : 0,
+      name: uploadedName ?? "?",
+      size: uploaded instanceof Blob ? uploaded.size : 0,
       encoding,
       err,
     });
-    return { ok: false, error: "Não consegui abrir esse arquivo. Tente exportar de novo em Excel (.xlsx), CSV ou OFX." };
+    const msg = "Não consegui abrir esse arquivo. Tente exportar de novo em Excel (.xlsx), CSV ou OFX.";
+    await falha(`${msg} [${err instanceof Error ? err.message.slice(0, 120) : "erro desconhecido"}]`);
+    return { ok: false, error: msg };
   }
 
   // PDF escaneado/foto não tem texto extraível; PDF "impresso" pelo celular tem só os números.
   const quality = encoding === "pdf" ? pdfTextQuality(text) : "ok";
   if (quality === "empty") {
-    return {
-      ok: false,
-      error:
-        "Não consegui ler este PDF, ele parece ser escaneado ou uma foto. Exporte o extrato em Excel (.xlsx), CSV ou OFX que aí funciona.",
-    };
+    const msg =
+      "Não consegui ler este PDF, ele parece ser escaneado ou uma foto. Exporte o extrato em Excel (.xlsx), CSV ou OFX que aí funciona.";
+    await falha(msg, { kind: "pdf-vazio" });
+    return { ok: false, error: msg };
   }
   if (quality === "numbers-only") {
-    return {
-      ok: false,
-      error:
-        "Esse PDF veio da impressão pelo celular: os números estão lá, mas as descrições viraram desenho. Exporte o extrato em Excel (.xlsx), CSV ou OFX pelo app do banco, ou baixe o PDF original pelo computador.",
-    };
+    const msg =
+      "Esse PDF veio da impressão pelo celular: os números estão lá, mas as descrições viraram desenho. Exporte o extrato em Excel (.xlsx), CSV ou OFX pelo app do banco, ou baixe o PDF original pelo computador.";
+    await falha(msg, { kind: "pdf-so-numeros" });
+    return { ok: false, error: msg };
   }
 
   // Lê o arquivo INTEIRO e monta o perfil (banco, período, o que tem dentro) antes de decidir.
@@ -134,16 +153,14 @@ export async function parseStatementAction(formData: FormData): Promise<ParseSta
   const fileName = fileMeta instanceof File ? fileMeta.name : null;
   const profile = profileDocument(text, fileName);
   if (profile.kind === "position" && !profile.contents.includes("movements")) {
-    return {
-      ok: false,
-      error: `Li o arquivo inteiro: ${profile.summary}. É a posição dos investimentos, não entradas e saídas: suba em Carteira › Importar.`,
-    };
+    const msg = `Li o arquivo inteiro: ${profile.summary}. É a posição dos investimentos, não entradas e saídas: suba em Carteira › Importar.`;
+    await falha(msg, { kind: profile.kind, institution: profile.institution, header: safeHeader(text) });
+    return { ok: false, error: msg };
   }
   if (profile.kind === "irpf") {
-    return {
-      ok: false,
-      error: `Li o arquivo inteiro: ${profile.summary}. A declaração serve pra pegar o preço médio dos ativos: use Carteira › Preço médio (IR).`,
-    };
+    const msg = `Li o arquivo inteiro: ${profile.summary}. A declaração serve pra pegar o preço médio dos ativos: use Carteira › Preço médio (IR).`;
+    await falha(msg, { kind: profile.kind, institution: profile.institution, header: safeHeader(text) });
+    return { ok: false, error: msg };
   }
 
   const faturaYear = Number(String(formData.get("faturaMonth") ?? "").slice(0, 4)) || undefined;
@@ -157,13 +174,12 @@ export async function parseStatementAction(formData: FormData): Promise<ParseSta
     // Diagnóstico pro suporte: perfil + cabeçalho (sem valores), pra reconhecer o formato do banco.
     const header = text.split(/\r?\n/).find((l) => l.trim())?.slice(0, 200) ?? "";
     console.error("parseStatementAction: zero lançamentos", { fileName, encoding, docType, kind: profile.kind, institution: profile.institution, moneyLines, chars: text.length, header });
-    return {
-      ok: false,
-      error:
-        moneyLines > 3
-          ? `Li o arquivo inteiro (${profile.summary}) e vi ${moneyLines} linhas com valor, mas não consegui ler nenhuma como lançamento. Esse formato eu ainda não conheço: manda o arquivo pro suporte que a gente ensina o app.`
-          : `Li o arquivo inteiro (${profile.summary}) e não encontrei transações. Se for um PDF escaneado/foto, exporte em Excel (.xlsx) ou CSV, costuma ler melhor.`,
-    };
+    const msg =
+      moneyLines > 3
+        ? `Li o arquivo inteiro (${profile.summary}) e vi ${moneyLines} linhas com valor, mas não consegui ler nenhuma como lançamento. Esse formato eu ainda não conheço: manda o arquivo pro suporte que a gente ensina o app.`
+        : `Li o arquivo inteiro (${profile.summary}) e não encontrei transações. Se for um PDF escaneado/foto, exporte em Excel (.xlsx) ou CSV, costuma ler melhor.`;
+    await falha(msg, { kind: profile.kind, institution: profile.institution, moneyLines, header: safeHeader(text) });
+    return { ok: false, error: msg };
   }
   // Fatura subida como extrato (ou o contrário) é o erro mais caro: compra vira renda. O perfil
   // do arquivo inteiro e, na dúvida, os sinais dizem o que ele é; a tela avisa antes de gravar.
@@ -218,6 +234,19 @@ export async function parseStatementAction(formData: FormData): Promise<ParseSta
     sumExpense: items.filter((i) => i.category === "EXPENSE").reduce((s, i) => s + i.amount, 0),
     sumIncome: items.filter((i) => i.category === "INCOME").reduce((s, i) => s + i.amount, 0),
   };
+  await recordImportDiagnostic({
+    userId: ctx.userId,
+    target: docType,
+    stage: "parse",
+    ok: true,
+    fileName: uploadedName,
+    encoding,
+    kind: profile.kind,
+    institution: profile.institution,
+    moneyLines,
+    parsed: items.length,
+    header: safeHeader(text),
+  });
   return { ok: true, items, customCategories: customCategories.map((c) => ({ id: c.id, name: c.name })), stats };
 }
 
@@ -472,6 +501,16 @@ export async function importTransactionsAction(
     revalidatePath(`/mensal/${year}/${month}`);
   }
 
+  await recordImportDiagnostic({
+    userId: ctx.userId,
+    target: docType,
+    stage: "confirm",
+    ok: true,
+    fileName,
+    parsed: items.length,
+    created,
+    skipped,
+  });
   return { ok: true, created, skipped, cardPaymentCandidates };
 }
 

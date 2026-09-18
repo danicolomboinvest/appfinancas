@@ -10,6 +10,7 @@ import { refreshDividendsForTickers } from "@/lib/repositories/dividend.repo";
 import { parsePortfolioStatement, guessAssetClass } from "@/lib/import/portfolio-parser";
 import { extractUploadFromForm, UploadReadError, PasswordRequiredError } from "@/lib/import/extract-text";
 import { profileDocument } from "@/lib/import/profile";
+import { recordImportDiagnostic, safeHeader } from "@/lib/repositories/import-diagnostic.repo";
 import { NUMBERS_ONLY_MESSAGE, pdfTextQuality } from "@/lib/import/pdf-quality";
 
 /** Record (não array solto) por classe existente: se um valor novo entrar no enum AssetClass
@@ -59,12 +60,31 @@ export async function parsePortfolioAction(formData: FormData): Promise<ParsePor
   const ctx = await getRequiredSession();
   const encoding = String(formData.get("encoding") ?? "text");
 
+  const uploaded = formData.get("file");
+  const uploadedName = uploaded instanceof File ? uploaded.name : null;
+  /** Toda saída em erro deixa rastro: é o que alimenta a checagem diária. */
+  const falha = async (message: string, extra: Partial<Parameters<typeof recordImportDiagnostic>[0]> = {}) => {
+    await recordImportDiagnostic({
+      userId: ctx.userId,
+      target: "carteira",
+      stage: "parse",
+      ok: false,
+      fileName: uploadedName,
+      encoding,
+      message,
+      ...extra,
+    });
+  };
+
   let text: string;
   try {
     ({ text } = await extractUploadFromForm(formData));
   } catch (err) {
     if (err instanceof PasswordRequiredError) return { ok: false, error: err.message, needsPassword: true };
-    if (err instanceof UploadReadError) return { ok: false, error: err.message };
+    if (err instanceof UploadReadError) {
+      await falha(err.message);
+      return { ok: false, error: err.message };
+    }
     // Biblioteca de PDF/Excel engasgou num arquivo fora do padrão. Antes estourava e a pessoa
     // via só "Application error"; agora fica registrado no log com o que importa pra reproduzir.
     const file = formData.get("file");
@@ -74,7 +94,9 @@ export async function parsePortfolioAction(formData: FormData): Promise<ParsePor
       encoding,
       err,
     });
-    return { ok: false, error: "Não consegui abrir esse arquivo. Tente exportar de novo em Excel (.xlsx) ou CSV." };
+    const msg = "Não consegui abrir esse arquivo. Tente exportar de novo em Excel (.xlsx) ou CSV.";
+    await falha(`${msg} [${err instanceof Error ? err.message.slice(0, 120) : "erro desconhecido"}]`);
+    return { ok: false, error: msg };
   }
 
   // Lê o arquivo INTEIRO e monta o perfil (banco, período, o que tem dentro) antes de decidir.
@@ -84,16 +106,14 @@ export async function parsePortfolioAction(formData: FormData): Promise<ParsePor
   const fileName = fileMeta instanceof File ? fileMeta.name : null;
   const profile = profileDocument(text, fileName);
   if (profile.kind === "irpf") {
-    return {
-      ok: false,
-      error: `Li o arquivo inteiro: ${profile.summary}. A declaração serve pra pegar o preço médio: use o botão "Preço médio (IR)" na carteira.`,
-    };
+    const msg = `Li o arquivo inteiro: ${profile.summary}. A declaração serve pra pegar o preço médio: use o botão "Preço médio (IR)" na carteira.`;
+    await falha(msg, { kind: profile.kind, institution: profile.institution, header: safeHeader(text) });
+    return { ok: false, error: msg };
   }
   if ((profile.kind === "statement" || profile.kind === "invoice") && !profile.contents.includes("position")) {
-    return {
-      ok: false,
-      error: `Li o arquivo inteiro: ${profile.summary}. Ele traz entradas e saídas, não a posição dos investimentos. Pra lançar no mês, use Registrar › Importar extrato. Pra carteira, suba a posição da corretora ou o relatório da B3 (Área do Investidor › Posição).`,
-    };
+    const msg = `Li o arquivo inteiro: ${profile.summary}. Ele traz entradas e saídas, não a posição dos investimentos. Pra lançar no mês, use Registrar › Importar extrato. Pra carteira, suba a posição da corretora ou o relatório da B3 (Área do Investidor › Posição).`;
+    await falha(msg, { kind: profile.kind, institution: profile.institution, header: safeHeader(text) });
+    return { ok: false, error: msg };
   }
 
   // PDF escaneado/foto não tem texto extraível; PDF "impresso" pelo celular tem só os números.
@@ -113,13 +133,12 @@ export async function parsePortfolioAction(formData: FormData): Promise<ParsePor
     // Diagnóstico pro suporte: perfil + cabeçalho (sem valores), pra reconhecer o formato.
     const header = text.split(/\r?\n/).find((l) => l.trim())?.slice(0, 200) ?? "";
     console.error("parsePortfolioAction: zero ativos", { fileName, encoding, kind: profile.kind, contents: profile.contents, positionRows: profile.positionRows, chars: text.length, header });
-    return {
-      ok: false,
-      error:
-        profile.kind === "position"
-          ? `Li o arquivo inteiro (${profile.summary}) e reconheci ${profile.positionRows} linha${profile.positionRows === 1 ? "" : "s"} de ativo, mas não consegui ler as quantidades e valores nesse formato. Manda o arquivo pro suporte que a gente ensina o app.`
-          : `Li o arquivo inteiro (${profile.summary}) e não identifiquei ativos com quantidade e valor. Se for um PDF escaneado/foto, suba a posição em Excel (.xlsx) ou CSV, costuma ler melhor.`,
-    };
+    const msg =
+      profile.kind === "position"
+        ? `Li o arquivo inteiro (${profile.summary}) e reconheci ${profile.positionRows} linha${profile.positionRows === 1 ? "" : "s"} de ativo, mas não consegui ler as quantidades e valores nesse formato. Manda o arquivo pro suporte que a gente ensina o app.`
+        : `Li o arquivo inteiro (${profile.summary}) e não identifiquei ativos com quantidade e valor. Se for um PDF escaneado/foto, suba a posição em Excel (.xlsx) ou CSV, costuma ler melhor.`;
+    await falha(msg, { kind: profile.kind, institution: profile.institution, moneyLines: profile.positionRows, header: safeHeader(text) });
+    return { ok: false, error: msg };
   }
 
   // Carteira atual indexada por ticker E por nome, imports antigos usam o ticker como nome.
@@ -162,6 +181,19 @@ export async function parsePortfolioAction(formData: FormData): Promise<ParsePor
       prevQuantity,
       prevValue,
     };
+  });
+  await recordImportDiagnostic({
+    userId: ctx.userId,
+    target: "carteira",
+    stage: "parse",
+    ok: true,
+    fileName: uploadedName,
+    encoding,
+    kind: profile.kind,
+    institution: profile.institution,
+    moneyLines: profile.positionRows,
+    parsed: parsed.length,
+    header: safeHeader(text),
   });
   return { ok: true, holdings, summary: profile.summary };
 }
