@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useInstallPlatform, useIsStandalone } from "@/lib/pwa/install";
 import { Mic } from "lucide-react";
 import { parseVoiceEntry, type ParsedVoiceEntry } from "@/lib/entries/voice-expense-parser";
 
@@ -122,6 +123,8 @@ function runVisualizerLoop(
  * alimenta a onda visual, se a segunda falhar, a transcrição continua, só sem a onda.
  */
 export function VoiceRecorder({ onParsed }: { onParsed: (parsed: ParsedVoiceEntry) => void }) {
+  const plataforma = useInstallPlatform();
+  const instalado = useIsStandalone();
   const [recording, setRecording] = useState(false);
   const [unsupported, setUnsupported] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -284,6 +287,18 @@ export function VoiceRecorder({ onParsed }: { onParsed: (parsed: ParsedVoiceEntr
           {errorMessage ?? (recording ? "Solte para transcrever" : "Segure para falar")}
         </span>
       </div>
+
+      {/* No iPhone o Safari pergunta a permissão do microfone A CADA carregamento de página: é
+          regra do navegador, não do app (o app já pede uma vez só, não duas). Quem sofre com
+          isso são as pessoas que usam pelo navegador, então a saída fica aqui, na hora em que
+          o incômodo acontece. */}
+      {plataforma === "ios-safari" && !instalado && (
+        <p className="max-w-xs text-center text-caption text-ink-faint">
+          Cansada de autorizar o microfone toda vez? O Safari pergunta de novo a cada visita. Toque em <b>aA</b> na barra de
+          endereço › <b>Configurações do Site</b> › <b>Microfone: Permitir</b>. Ou instale o app na tela de início, em Mais ›
+          Instalar.
+        </p>
+      )}
     </div>
   );
 }
