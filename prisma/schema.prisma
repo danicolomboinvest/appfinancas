@@ -37,7 +37,8 @@ enum ParentCategory {
   SAUDE
   LAZER
   EDUCACAO
-  FINANCEIRO
+  OUTROS
+  IMPOSTOS
 }
 
 enum GoalStatus {

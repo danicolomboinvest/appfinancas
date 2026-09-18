@@ -27,7 +27,8 @@ const PARENT_CATEGORY_VALUES: ParentCategory[] = [
   "SAUDE",
   "LAZER",
   "EDUCACAO",
-  "FINANCEIRO",
+  "IMPOSTOS",
+  "OUTROS",
 ];
 
 /**

@@ -27,7 +27,7 @@ describe("parseVoiceEntry", () => {
   it("recognizes INVESTMENT_CONTRIBUTION verbs", () => {
     const result = parseVoiceEntry("investi mil reais em cdb");
     expect(result.category).toBe("INVESTMENT_CONTRIBUTION");
-    expect(result.parentCategory).toBe("FINANCEIRO");
+    expect(result.parentCategory).toBe("OUTROS");
     expect(result.amount).toBe(1000);
   });
 

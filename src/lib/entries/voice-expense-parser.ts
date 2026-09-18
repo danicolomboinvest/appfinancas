@@ -41,7 +41,8 @@ const CATEGORY_KEYWORDS: Record<ParentCategory, string[]> = {
   SAUDE: ["farmacia", "remedio", "medico", "consulta", "dentista", "academia", "plano de saude"],
   LAZER: ["cinema", "show", "viagem", "streaming", "netflix", "bar", "balada", "presente", "passeio"],
   EDUCACAO: ["curso", "livro", "faculdade", "mensalidade", "escola"],
-  FINANCEIRO: ["poupanca", "cdb", "tesouro", "acoes", "investimento", "seguro"],
+  IMPOSTOS: ["imposto", "iptu", "ipva", "darf", "tributo"],
+  OUTROS: ["poupanca", "cdb", "tesouro", "acoes", "investimento", "seguro", "tarifa"],
 };
 
 /**

@@ -15,7 +15,8 @@ describe("distribuição do orçamento do curso", () => {
       TRANSPORTE: 1280, // 8%
       LAZER: 1440, // 5% lazer + 4% despesas pessoais
       EDUCACAO: 800, // 5%
-      FINANCEIRO: 800, // "Outros" 5%
+      OUTROS: 800, // "Outros" 5%
+      IMPOSTOS: 0, // a aula não separa imposto
     });
     expect(soma(d)).toBe(13_120);
   });
@@ -61,7 +62,11 @@ describe("distribuição do orçamento do curso", () => {
     expect(soma(idealBudgetSplit(-100, 16_000))).toBe(0);
   });
 
-  it("toda categoria do app tem fatia na referência", () => {
-    for (const c of PARENT_CATEGORIES) expect(courseShareOf(c)).toBeGreaterThan(0);
+  it("toda categoria do app está na referência; só Impostos vem zerado, porque a aula não separa", () => {
+    for (const c of PARENT_CATEGORIES) {
+      expect(courseShareOf(c)).toBeGreaterThanOrEqual(0);
+      if (c !== "IMPOSTOS") expect(courseShareOf(c)).toBeGreaterThan(0);
+    }
+    expect(courseShareOf("IMPOSTOS")).toBe(0);
   });
 });

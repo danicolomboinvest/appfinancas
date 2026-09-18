@@ -13,9 +13,10 @@ import { PARENT_CATEGORIES } from "@/lib/categories";
  * Liberdade Financeira (10%) e Sonhos (8%) são o que se guarda — no app, o aporte e as metas,
  * que já são o passo 2 do assistente. Sobram 82% de gasto, que é o que esta tabela divide.
  *
- * Duas linhas da aula não têm categoria própria no app e foram encaixadas onde a pessoa
- * lançaria de fato: "Outros" vai pra Financeiro (tarifas, juros, seguros, impostos) e
- * "Despesas pessoais" entra em Lazer, que no app já abriga presentes, passeios e hobbies.
+ * "Outros" da aula é a categoria Outros do app. "Despesas pessoais" entra em Lazer, que já
+ * abriga presentes, passeios e hobbies. Impostos existe como categoria própria no app, mas a
+ * aula não reserva fatia pra ela (pra quem é CLT o imposto já vem descontado do salário), então
+ * a sugestão deixa em zero e quem tem IPTU, IPVA ou DARF preenche.
  *
  * Trocar os números do curso é mexer só na tabela abaixo.
  */
@@ -29,7 +30,8 @@ const COURSE_SHARES_OF_INCOME: IdealShares = {
   TRANSPORTE: 0.08,
   LAZER: 0.09, // Lazer 5% + Despesas pessoais 4%
   EDUCACAO: 0.05,
-  FINANCEIRO: 0.05, // "Outros" da aula
+  OUTROS: 0.05,
+  IMPOSTOS: 0, // a aula não separa imposto; quem tem preenche à mão
 };
 
 /** Quanto a aula manda guardar: 10% liberdade financeira + 8% sonhos. */

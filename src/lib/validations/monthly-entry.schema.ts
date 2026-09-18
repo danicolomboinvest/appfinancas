@@ -7,7 +7,8 @@ const PARENT_CATEGORY_VALUES = [
   "SAUDE",
   "LAZER",
   "EDUCACAO",
-  "FINANCEIRO",
+  "IMPOSTOS",
+  "OUTROS",
 ] as const;
 
 export const monthlyEntrySchema = z

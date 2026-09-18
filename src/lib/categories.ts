@@ -7,6 +7,7 @@ import {
   PartyPopper,
   BookOpen,
   Landmark,
+  Shapes,
   Plane,
   Gift,
   PawPrint,
@@ -27,7 +28,8 @@ export const PARENT_CATEGORIES: ParentCategory[] = [
   "SAUDE",
   "LAZER",
   "EDUCACAO",
-  "FINANCEIRO",
+  "IMPOSTOS",
+  "OUTROS",
 ];
 
 export const PARENT_CATEGORY_LABEL: Record<ParentCategory, string> = {
@@ -37,7 +39,8 @@ export const PARENT_CATEGORY_LABEL: Record<ParentCategory, string> = {
   SAUDE: "Saúde",
   LAZER: "Lazer",
   EDUCACAO: "Educação",
-  FINANCEIRO: "Financeiro",
+  IMPOSTOS: "Impostos",
+  OUTROS: "Outros",
 };
 
 /** Descrição de uma linha por categoria, usada nos cards de planejamento em /orcamento. */
@@ -48,7 +51,8 @@ export const PARENT_CATEGORY_DESCRIPTION: Record<ParentCategory, string> = {
   SAUDE: "Plano de saúde, farmácia, consultas.",
   LAZER: "Streaming, viagens, cinema, hobbies.",
   EDUCACAO: "Mensalidade, cursos, material.",
-  FINANCEIRO: "Tarifas, juros, seguros, impostos.",
+  IMPOSTOS: "IPTU, IPVA, imposto de renda.",
+  OUTROS: "Tarifas, seguros, o que não se encaixa.",
 };
 
 /** Ícone por categoria, mesmo espírito de GOAL_ICONS em GoalCard.tsx, só que fixo por categoria. */
@@ -59,7 +63,8 @@ export const PARENT_CATEGORY_ICON: Record<ParentCategory, LucideIcon> = {
   SAUDE: HeartPulse,
   LAZER: PartyPopper,
   EDUCACAO: BookOpen,
-  FINANCEIRO: Landmark,
+  IMPOSTOS: Landmark,
+  OUTROS: Shapes,
 };
 
 /** Cor própria por categoria-mãe, usada no círculo translúcido de CategoryIcon.tsx (assinatura
@@ -71,7 +76,8 @@ export const PARENT_CATEGORY_COLOR: Record<ParentCategory, string> = {
   SAUDE: "var(--color-cat-saude)",
   LAZER: "var(--color-cat-lazer)",
   EDUCACAO: "var(--color-cat-educacao)",
-  FINANCEIRO: "var(--color-cat-financeiro)",
+  IMPOSTOS: "var(--color-cat-impostos)",
+  OUTROS: "var(--color-cat-outros)",
 };
 
 /** Paleta cíclica pras categorias personalizadas — exclusiva, nunca repete as 7 cores fixas
@@ -118,7 +124,8 @@ export const SUBCATEGORIES: Record<ParentCategory, string[]> = {
   SAUDE: ["Plano de saúde", "Farmácia", "Consultas", "Exames", "Terapia", "Academia"],
   LAZER: ["Streaming", "Viagens", "Cinema/Shows", "Bar/Balada", "Passeios", "Presentes", "Hobbies"],
   EDUCACAO: ["Mensalidade", "Escola", "Cursos", "Livros/Material"],
-  FINANCEIRO: ["Tarifas bancárias", "Juros/Empréstimos", "Seguros", "Impostos"],
+  IMPOSTOS: ["IPTU", "IPVA", "Imposto de renda", "DARF", "Taxas públicas"],
+  OUTROS: ["Tarifas bancárias", "Juros/Empréstimos", "Seguros", "Doações", "Presentes", "Imprevistos"],
 };
 
 /** Tipos de renda e de aporte, como chips, pelo mesmo motivo dos gastos: escolher é mais rápido que digitar. */

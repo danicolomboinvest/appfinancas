@@ -296,7 +296,7 @@ export function BudgetWizard({
             <NewCustomCategoryCard />
           </div>
           <p className="text-caption leading-relaxed text-ink-faint">
-            IPVA, seguro, presentes: o que vem uma vez por ano, divida por 12.
+            Pet, academia, filhos: o que é grande na sua vida e não cabe nas de cima. O que vem uma vez por ano, divida por 12.
           </p>
 
           <div className="flex flex-col gap-2 sm:flex-row-reverse">

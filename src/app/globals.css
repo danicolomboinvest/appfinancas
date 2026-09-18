@@ -47,7 +47,8 @@
   --color-cat-saude: #fb7185;
   --color-cat-lazer: #e879f9;
   --color-cat-educacao: #2dd4bf;
-  --color-cat-financeiro: #94a3b8;
+  --color-cat-outros: #94a3b8;
+  --color-cat-impostos: #f0abfc;
 
   /* Extras só para paletas categóricas de gráfico (donut de alocação com 7 fatias) */
   --color-chart-5: #a98bd4;
@@ -111,7 +112,8 @@ html.dark {
   --color-cat-saude: #fb7185;
   --color-cat-lazer: #e879f9;
   --color-cat-educacao: #2dd4bf;
-  --color-cat-financeiro: #94a3b8;
+  --color-cat-outros: #94a3b8;
+  --color-cat-impostos: #f0abfc;
 
   --color-chart-5: #a98bd4;
   --color-chart-6: #c9926e;
@@ -191,7 +193,8 @@ html.light {
   --color-cat-saude: #c93b57;
   --color-cat-lazer: #a21caf;
   --color-cat-educacao: #0d8a80;
-  --color-cat-financeiro: #5b6775;
+  --color-cat-outros: #5b6775;
+  --color-cat-impostos: #9d4b9d;
 
   --color-chart-5: #7c5fb0;
   --color-chart-6: #a06a42;
@@ -247,7 +250,8 @@ html.light {
   --color-cat-saude: var(--color-cat-saude);
   --color-cat-lazer: var(--color-cat-lazer);
   --color-cat-educacao: var(--color-cat-educacao);
-  --color-cat-financeiro: var(--color-cat-financeiro);
+  --color-cat-outros: var(--color-cat-outros);
+  --color-cat-impostos: var(--color-cat-impostos);
   --color-chart-5: var(--color-chart-5);
   --color-chart-6: var(--color-chart-6);
   --color-chart-7: var(--color-chart-7);
