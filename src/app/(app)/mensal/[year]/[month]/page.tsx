@@ -40,6 +40,7 @@ import { FlowIndicators, type FlowBundle } from "./FlowIndicators";
 import { BudgetSection } from "../BudgetSection";
 import { MonthHighlight } from "./MonthHighlight";
 import { MonthFlowCard } from "./MonthFlowCard";
+import { getContributionLinkState } from "@/lib/portfolio/contribution-link";
 import { TopCategories } from "./TopCategories";
 import { IncomeSplitCard } from "./IncomeSplitCard";
 import { serverMoney } from "@/lib/money-server";
@@ -114,6 +115,7 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
     dailyFlow,
     categorySpending,
     previousSummary,
+    aporteSemDestino,
   ] = await Promise.all([
     serverMoney(),
     listMonthlyEntries(ctx, year, month),
@@ -139,6 +141,7 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
     getCategorySpending(ctx, year, month, PARENT_CATEGORY_LABEL),
     // Mês anterior: base das comparações ("gastou X% menos que no mês passado").
     getMonthlySummary(ctx, month === 1 ? year - 1 : year, month === 1 ? 12 : month - 1),
+    getContributionLinkState(ctx, year, month),
   ]);
   const [entryCount, budgetCount, assetCount] = onboardingCounts;
 
@@ -285,6 +288,24 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
         investment={summary.totalInvestment}
         insights={insights}
       />
+
+      {/* O aporte do mês que ainda não virou ativo nenhum. Sem esse aviso, a pessoa lançava o
+          aporte aqui, ia na carteira e não via nada mudar — e achava que o app tinha perdido o
+          dinheiro dela. O link leva pro lugar onde ela diz em quais ativos entrou. */}
+      {aporteSemDestino.pending > 0 && (
+        <Link
+          href="/carteira"
+          className="flex items-center justify-between gap-3 rounded-2xl border border-accent/40 bg-accent-soft/30 px-4 py-3 transition-colors hover:border-accent"
+        >
+          <span className="min-w-0">
+            <span className="block text-sm font-medium text-ink">
+              {money(aporteSemDestino.pending, { round: true })} aportados neste mês ainda não estão na carteira
+            </span>
+            <span className="block text-caption text-ink-muted">Diga em quais ativos esse dinheiro entrou e suas metas andam junto.</span>
+          </span>
+          <span className="shrink-0 text-sm font-medium text-accent-strong">Dizer onde foi →</span>
+        </Link>
+      )}
 
       {/* Curva do mês dia a dia — o gráfico que faltava pra enxergar o ritmo, não só o total. */}
       <MonthFlowCard flow={dailyFlow} monthLabel={MONTH_LABELS[month - 1]} isCurrentMonth={isCurrentMonth} isFutureMonth={isFutureMonth} />

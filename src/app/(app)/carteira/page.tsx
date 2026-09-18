@@ -13,16 +13,20 @@ import { buildStrategyBullets, summarizeStrategy } from "@/lib/portfolio/strateg
 import { UpcomingDividendsSection } from "./UpcomingDividendsSection";
 import { ContributionCard } from "./ContributionCard";
 import { getContributionContext } from "@/lib/portfolio/contribution";
+import { getContributionLinkState } from "@/lib/portfolio/contribution-link";
+import { AllocateContributionCard } from "./AllocateContributionCard";
+import { PARENT_CATEGORY_COLOR } from "@/lib/categories";
 
 export default async function CarteiraPage() {
   const ctx = await getRequiredSession();
   const now = new Date();
-  const [assets, goals, comparison, dividends, contribution] = await Promise.all([
+  const [assets, goals, comparison, dividends, contribution, aporteDoMes] = await Promise.all([
     listAssets(ctx),
     listGoals(ctx),
     getPortfolioStrategyComparison(ctx),
     listUpcomingDividendsForUser(ctx),
     getContributionContext(ctx, now.getFullYear(), now.getMonth() + 1),
+    getContributionLinkState(ctx, now.getFullYear(), now.getMonth() + 1),
   ]);
   const goalNameById = new Map(goals.map((goal) => [goal.id, goal.name]));
 
@@ -56,6 +60,27 @@ export default async function CarteiraPage() {
           </>
         }
       />
+
+      {/* O que a pessoa já lançou como aporte no mês e ainda não disse onde foi. Aparece ANTES
+          da sugestão de aporte: primeiro fecha o que já aconteceu, depois planeja o próximo. */}
+      {aporteDoMes.pending > 0 && (
+        <AllocateContributionCard
+          month={now.getMonth() + 1}
+          pending={aporteDoMes.pending}
+          goalOfMonth={aporteDoMes.contributions.find((c) => c.goalName)?.goalName ?? null}
+          // Ordem da pergunta: primeiro os ativos ligados a uma meta (o dinheiro costuma ir
+          // pra lá), depois os maiores. Assim os seis primeiros já respondem quase sempre.
+          assets={[...assets]
+            .sort((a, b) => Number(Boolean(b.goalId)) - Number(Boolean(a.goalId)) || Number(b.currentValue) - Number(a.currentValue))
+            .map((a) => ({
+              id: a.id,
+              name: a.name,
+              ticker: a.ticker,
+              goalName: a.goalId ? (goalNameById.get(a.goalId) ?? null) : null,
+              color: PARENT_CATEGORY_COLOR.OUTROS,
+            }))}
+        />
+      )}
 
       {/* Componente de servidor (sem "use client"): recebe os Date do Prisma direto, sem cruzar
           a fronteira servidor→cliente. */}

@@ -185,6 +185,7 @@ model User {
   passwordResetTokens  PasswordResetToken[]
   importBatches        ImportBatch[]
   importDiagnostics ImportDiagnostic[]
+  contributionAllocations ContributionAllocation[]
   usageEvents          UsageEvent[]
 
   asAdvisorLinks AdvisorClientLink[] @relation("advisor")
@@ -395,6 +396,8 @@ model MonthlyEntry {
   entryDate        DateTime?       @db.Date
   goalId           String?
   goal             Goal?           @relation(fields: [goalId], references: [id])
+  /// Pedaços deste aporte que já foram para ativos da carteira.
+  allocations      ContributionAllocation[]
   /// Lote de importação que criou este lançamento (nulo = lançado à mão). SetNull: apagar o
   /// registro do lote nunca apaga lançamentos por efeito colateral — a exclusão em massa é
   /// sempre explícita na action, dentro de uma transação.
@@ -490,7 +493,29 @@ model Goal {
   updatedAt           DateTime       @updatedAt
 }
 
-/// Reserva de emergência.
+/// Para onde foi o dinheiro de um aporte: liga o lançamento do fluxo aos ativos da carteira.
+///
+/// Sem isso os três módulos não conversavam. A pessoa lançava "aportei R$ 2.500" no mês, ia na
+/// carteira e não via nada; atualizava a carteira e o mês continuava igual; e a meta somava o
+/// aporte E o ativo, contando o mesmo dinheiro duas vezes. Um aporte pode ser dividido em
+/// vários ativos, então é uma linha por pedaço.
+model ContributionAllocation {
+  id        String       @id @default(cuid())
+  userId    String
+  user      User         @relation(fields: [userId], references: [id])
+  entryId   String
+  entry     MonthlyEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  assetId   String
+  asset     Asset        @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  amount    Decimal      @db.Decimal(18, 2)
+  createdAt DateTime     @default(now())
+
+  @@index([userId, createdAt])
+  @@index([entryId])
+  @@index([assetId])
+}
+
+/// Reserva de emergência./// Reserva de emergência.
 model EmergencyFund {
   id                  String   @id @default(cuid())
   userId              String   @unique
@@ -551,6 +576,8 @@ model Asset {
   objective              AssetObjective @default(OUTRO)
   goalId                 String?
   goal                   Goal?          @relation(fields: [goalId], references: [id])
+  /// Aportes do fluxo que entraram neste ativo.
+  allocations            ContributionAllocation[]
   quantity               Decimal?          @db.Decimal(18, 6)
   currentUnitPrice       Decimal?          @db.Decimal(18, 6)
   /// Indexador do título de renda fixa (CDI/Selic, IPCA+ ou prefixado). Refina o mapeamento
