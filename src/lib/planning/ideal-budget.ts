@@ -18,22 +18,24 @@ import { PARENT_CATEGORIES } from "@/lib/categories";
  */
 export type IdealShares = Record<ParentCategory, number>;
 
-type Band = { upTo: number; label: string; shares: IdealShares };
+/** `from`/`upTo` em número, nunca texto com "R$": a pessoa pode ter escolhido outra moeda,
+ * e quem escreve o valor na tela é o formatador do app. */
+type Band = { from: number; upTo: number; shares: IdealShares };
 
 const BANDS: Band[] = [
   {
+    from: 0,
     upTo: 5_000,
-    label: "até R$ 5.000",
     shares: { MORADIA: 0.33, ALIMENTACAO: 0.24, TRANSPORTE: 0.14, SAUDE: 0.09, EDUCACAO: 0.06, LAZER: 0.09, FINANCEIRO: 0.05 },
   },
   {
+    from: 5_000,
     upTo: 15_000,
-    label: "R$ 5.000 a R$ 15.000",
     shares: { MORADIA: 0.3, ALIMENTACAO: 0.2, TRANSPORTE: 0.15, SAUDE: 0.1, EDUCACAO: 0.08, LAZER: 0.12, FINANCEIRO: 0.05 },
   },
   {
+    from: 15_000,
     upTo: Infinity,
-    label: "acima de R$ 15.000",
     shares: { MORADIA: 0.28, ALIMENTACAO: 0.17, TRANSPORTE: 0.13, SAUDE: 0.11, EDUCACAO: 0.11, LAZER: 0.15, FINANCEIRO: 0.05 },
   },
 ];
@@ -42,9 +44,14 @@ export function bandForIncome(monthlyIncome: number): Band {
   return BANDS.find((b) => monthlyIncome <= b.upTo) ?? BANDS[BANDS.length - 1];
 }
 
-/** Rótulo da faixa, pra tela dizer em cima de que referência a sugestão foi feita. */
-export function idealBandLabel(monthlyIncome: number): string {
-  return bandForIncome(monthlyIncome).label;
+/**
+ * Limites da faixa em NÚMERO, pra tela montar a frase com o formatador de moeda do app
+ * ("acima de R$ 15.000" ou "acima de € 15.000", conforme a moeda escolhida).
+ * `upTo` null = última faixa, sem teto.
+ */
+export function idealBandRange(monthlyIncome: number): { from: number; upTo: number | null } {
+  const b = bandForIncome(monthlyIncome);
+  return { from: b.from, upTo: Number.isFinite(b.upTo) ? b.upTo : null };
 }
 
 /**

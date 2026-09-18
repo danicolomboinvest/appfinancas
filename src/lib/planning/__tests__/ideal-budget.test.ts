@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { idealBudgetSplit, idealBandLabel, bandForIncome } from "../ideal-budget";
+import { idealBudgetSplit, idealBandRange, bandForIncome } from "../ideal-budget";
 import { PARENT_CATEGORIES } from "@/lib/categories";
 
 const soma = (d: Record<string, number>) => Object.values(d).reduce((a, b) => a + b, 0);
@@ -45,8 +45,9 @@ describe("idealBudgetSplit", () => {
     }
   });
 
-  it("diz em qual faixa a pessoa está, pra tela explicar a sugestão", () => {
-    expect(idealBandLabel(4000)).toContain("5.000");
-    expect(idealBandLabel(16000)).toContain("acima");
+  it("devolve a faixa em número (a tela escreve com a moeda escolhida, sem R$ cravado)", () => {
+    expect(idealBandRange(4000)).toEqual({ from: 0, upTo: 5000 });
+    expect(idealBandRange(10000)).toEqual({ from: 5000, upTo: 15000 });
+    expect(idealBandRange(16000)).toEqual({ from: 15000, upTo: null });
   });
 });

@@ -20,7 +20,7 @@ import {
 } from "@/lib/categories";
 import type { BudgetHints } from "@/lib/planning/budget-hints";
 import { splitSavings, type SavingsTarget } from "@/lib/planning/savings-split";
-import { idealBudgetSplit, idealBandLabel } from "@/lib/planning/ideal-budget";
+import { idealBudgetSplit, idealBandRange } from "@/lib/planning/ideal-budget";
 import { NewCustomCategoryCard } from "./NewCustomCategoryCard";
 import { applyAllBudgetsAction, deleteCustomCategoryAction, type AnnualBudgetState } from "./actions";
 
@@ -122,6 +122,14 @@ export function BudgetWizard({
   }
 
   const hasHistory = Object.values(hints.averageByCategory).some((v) => v > 0);
+  // Frase da faixa montada com o formatador de moeda do app (a pessoa pode ter trocado de moeda).
+  const faixa = idealBandRange(income);
+  const faixaLabel =
+    faixa.upTo === null
+      ? `que ganha acima de ${money(faixa.from, { round: true })}`
+      : faixa.from === 0
+        ? `que ganha até ${money(faixa.upTo, { round: true })}`
+        : `que ganha de ${money(faixa.from, { round: true })} a ${money(faixa.upTo, { round: true })}`;
 
   const header = (
     <div className="flex items-center justify-between">
@@ -271,8 +279,8 @@ export function BudgetWizard({
               )}
             </div>
             <p className="text-caption text-ink-faint">
-              A sugestão divide os {money(toSpend, { round: true })} na proporção que uma família brasileira de renda{" "}
-              {idealBandLabel(income)} costuma gastar em cada coisa. É um ponto de partida: mexa à vontade.
+              A sugestão divide os {money(toSpend, { round: true })} na proporção que uma família brasileira {faixaLabel} costuma
+              gastar em cada coisa. É um ponto de partida: mexa à vontade.
             </p>
           </div>
 
