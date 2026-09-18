@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { prisma } from "@/lib/db/prisma";
 import { getRequiredSession } from "@/lib/auth/session";
 import {
   createMonthlyEntry,
@@ -129,12 +130,26 @@ export async function deleteMonthlyEntryAction(id: string, year: number, month: 
   revalidatePath(`/mensal/${year}/${month}`);
 }
 
+/**
+ * Quantos dos lançamentos que estão sendo apagados já tinham sido distribuídos em ativos.
+ *
+ * Apagar o aporte do mês NÃO tira o dinheiro da carteira de propósito: o valor do ativo é a
+ * posição real da pessoa, e mexer nele por tabela seria pior. Mas ela precisa saber disso na
+ * hora, senão o mês e a carteira passam a contar histórias diferentes sem ninguém perceber.
+ */
+async function countAllocationsOf(ctx: Awaited<ReturnType<typeof getRequiredSession>>, ids: string[]): Promise<number> {
+  if (ids.length === 0) return 0;
+  return prisma.contributionAllocation.count({ where: { userId: ctx.userId, entryId: { in: ids } } });
+}
+
 /** Exclusão em lote (modo "Selecionar"): uma ida ao banco, uma revalidação. */
 export async function deleteMonthlyEntriesAction(ids: string[], year: number, month: number) {
   const ctx = await getRequiredSession();
+  const jaNaCarteira = await countAllocationsOf(ctx, ids);
   await deleteOwnMonthlyEntries(ctx, ids);
   revalidatePath(`/mensal/${year}`);
   revalidatePath(`/mensal/${year}/${month}`);
+  return { jaNaCarteira };
 }
 
 export type DeletedEntrySnapshot = {

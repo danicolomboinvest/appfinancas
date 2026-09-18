@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { goalProgress } from "@/lib/planning/goal-progress";
 
 /**
  * A regra do progresso da meta, isolada da consulta ao banco (goal.repo faz a mesma conta em
@@ -7,12 +8,9 @@ import { describe, expect, it } from "vitest";
  */
 type Aporte = { amount: number; allocations: { amount: number; assetGoalId: string | null }[] };
 
+/** Chama a regra DE VERDADE do app (a mesma que goal.repo usa nas duas telas). */
 function progressoDaMeta(goalId: string, valorDosAtivosDaMeta: number, aportes: Aporte[]): number {
-  const naoContado = aportes.reduce((sum, e) => {
-    const jaNoAtivoDaMeta = e.allocations.filter((a) => a.assetGoalId === goalId).reduce((s, a) => s + a.amount, 0);
-    return sum + Math.max(0, e.amount - jaNoAtivoDaMeta);
-  }, 0);
-  return valorDosAtivosDaMeta + naoContado;
+  return goalProgress(goalId, valorDosAtivosDaMeta, aportes);
 }
 
 describe("progresso da meta com aporte ligado a ativo", () => {

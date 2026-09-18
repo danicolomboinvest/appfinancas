@@ -1,4 +1,5 @@
 import type { GoalIcon } from "@prisma/client";
+import { goalProgress } from "@/lib/planning/goal-progress";
 import { prisma } from "@/lib/db/prisma";
 import type { AuthContext } from "@/lib/auth/session";
 import { computeGoalPlan } from "@/lib/planning/goal";
@@ -40,13 +41,14 @@ export async function getGoalWithProgress(ctx: AuthContext, id: string) {
       select: { amount: true, allocations: { select: { amount: true, asset: { select: { goalId: true } } } } },
     }),
   ]);
-  const aportesNaoContados = e.reduce((sum, entry) => {
-    const jaNoAtivoDaMeta = entry.allocations
-      .filter((x) => x.asset.goalId === id)
-      .reduce((s, x) => s + Number(x.amount), 0);
-    return sum + Math.max(0, Number(entry.amount) - jaNoAtivoDaMeta);
-  }, 0);
-  const computed = Number(a._sum.currentValue ?? 0) + aportesNaoContados;
+  const computed = goalProgress(
+    id,
+    Number(a._sum.currentValue ?? 0),
+    e.map((entry) => ({
+      amount: Number(entry.amount),
+      allocations: entry.allocations.map((x) => ({ amount: Number(x.amount), assetGoalId: x.asset.goalId })),
+    })),
+  );
   return { ...goal, computedCurrentAmount: computed > 0 ? computed : Number(goal.currentAmount) };
 }
 
@@ -95,15 +97,23 @@ export async function listGoalsWithProgress(ctx: AuthContext) {
     }),
   ]);
 
-  const byGoal = new Map<string, number>();
-  for (const a of assetSums) if (a.goalId) byGoal.set(a.goalId, (byGoal.get(a.goalId) ?? 0) + Number(a._sum.currentValue ?? 0));
+  // Mesma regra do getGoalWithProgress, na mesma função pura: duas contas parecidas em lugares
+  // diferentes é como a meta passou a divergir entre a tela de Metas e o Dashboard.
+  const ativosPorMeta = new Map<string, number>();
+  for (const a of assetSums) if (a.goalId) ativosPorMeta.set(a.goalId, Number(a._sum.currentValue ?? 0));
+  const aportesPorMeta = new Map<string, { amount: number; allocations: { amount: number; assetGoalId: string | null }[] }[]>();
   for (const e of aportes) {
     if (!e.goalId) continue;
-    const jaNoAtivoDaMeta = e.allocations
-      .filter((x) => x.asset.goalId === e.goalId)
-      .reduce((s, x) => s + Number(x.amount), 0);
-    const naoContado = Math.max(0, Number(e.amount) - jaNoAtivoDaMeta);
-    if (naoContado > 0) byGoal.set(e.goalId, (byGoal.get(e.goalId) ?? 0) + naoContado);
+    const lista = aportesPorMeta.get(e.goalId) ?? [];
+    lista.push({
+      amount: Number(e.amount),
+      allocations: e.allocations.map((x) => ({ amount: Number(x.amount), assetGoalId: x.asset.goalId })),
+    });
+    aportesPorMeta.set(e.goalId, lista);
+  }
+  const byGoal = new Map<string, number>();
+  for (const g of goals) {
+    byGoal.set(g.id, goalProgress(g.id, ativosPorMeta.get(g.id) ?? 0, aportesPorMeta.get(g.id) ?? []));
   }
 
   return goals.map((g) => {

@@ -148,12 +148,16 @@ export function EntryList({
     const snapshots = targets.map((t) => toSnapshot(t, year, month));
     const quantos = targets.length;
     startTransition(async () => {
-      await deleteMonthlyEntriesAction(
+      const { jaNaCarteira } = await deleteMonthlyEntriesAction(
         targets.map((t) => t.id),
         year,
         month,
       );
-      showToast(quantos === 1 ? "Lançamento excluído." : `${quantos} lançamentos excluídos.`, {
+      // Aporte que já tinha sido distribuído: o dinheiro fica no ativo de propósito (é a posição
+      // real da pessoa). Dizer isso na hora é o que impede o mês e a carteira de divergirem
+      // sem ninguém perceber.
+      const base = quantos === 1 ? "Lançamento excluído." : `${quantos} lançamentos excluídos.`;
+      showToast(jaNaCarteira > 0 ? `${base} O que já estava distribuído continua na carteira.` : base, {
         label: "Desfazer",
         onClick: () => {
           startTransition(async () => {

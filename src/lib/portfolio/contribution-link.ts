@@ -70,12 +70,18 @@ export async function getContributionLinkState(ctx: AuthContext, year: number, m
 
   const total = contributions.reduce((s, c) => s + c.amount, 0);
   const allocated = contributions.reduce((s, c) => s + c.allocated, 0);
+  // O que falta é a SOMA do que falta em cada aporte, não "total menos distribuído".
+  // Parece a mesma conta e não é: se a pessoa editar um aporte pra menos DEPOIS de distribuir
+  // (lançou 1.000, distribuiu 1.000, corrigiu pra 400), aquele lançamento fica com 600 de
+  // sobra, e no total essa sobra comia o aporte seguinte — o app engolia em silêncio o dinheiro
+  // novo, dizendo que não havia nada esperando destino.
+  const pending = contributions.reduce((s, c) => s + c.pending, 0);
   return {
     year,
     month,
     total,
     allocated,
-    pending: Math.max(0, Math.round((total - allocated) * 100) / 100),
+    pending: Math.round(pending * 100) / 100,
     contributions: contributions.filter((c) => c.pending > 0.009),
   };
 }
@@ -119,21 +125,10 @@ export async function applyContributionAllocations(
   const byId = new Map(assets.map((a) => [a.id, a]));
   if (validas.some((a) => !byId.has(a.assetId))) return { ok: false, error: "Um dos ativos não existe mais. Recarregue a página." };
 
-  // Consome os aportes pendentes em ordem, do mais antigo pro mais novo: um aporte de R$ 2.500
-  // dividido em três ativos vira três linhas ligadas ao mesmo lançamento.
-  const fila = state.contributions.map((c) => ({ entryId: c.entryId, restante: c.pending }));
-  const linhas: { entryId: string; assetId: string; amount: number }[] = [];
-  for (const a of validas) {
-    let falta = a.amount;
-    for (const c of fila) {
-      if (falta <= 0) break;
-      if (c.restante <= 0) continue;
-      const pedaco = Math.min(falta, c.restante);
-      linhas.push({ entryId: c.entryId, assetId: a.assetId, amount: Math.round(pedaco * 100) / 100 });
-      c.restante = Math.round((c.restante - pedaco) * 100) / 100;
-      falta = Math.round((falta - pedaco) * 100) / 100;
-    }
-  }
+  const linhas = planAllocationLines(
+    state.contributions.map((c) => ({ entryId: c.entryId, pending: c.pending })),
+    validas,
+  );
 
   await prisma.$transaction([
     ...linhas.map((l) =>
@@ -164,4 +159,40 @@ export async function applyContributionAllocations(
     assets: validas.length,
     goals: [...porMeta.entries()].map(([name, amount]) => ({ name, amount })),
   };
+}
+
+export type PendingSlot = { entryId: string; pending: number };
+export type AllocationLine = { entryId: string; assetId: string; amount: number };
+
+/**
+ * Casa o que a pessoa pôs em cada ativo com os aportes que estão esperando destino.
+ *
+ * Por que não é só "um aporte, um ativo": num mês normal existem vários aportes (o do salário,
+ * o do 13º, o que ela marcou pra meta) e a pessoa distribui pensando só nos ativos, sem saber
+ * de qual lançamento saiu cada pedaço. Então os aportes são consumidos em ordem, do mais antigo
+ * pro mais novo, e um mesmo ativo pode acabar ligado a dois aportes — e vice-versa.
+ *
+ * Fica separado e puro de propósito: é a parte que precisa aguentar mês inteiro de uso sendo
+ * testada sem banco nenhum.
+ */
+export function planAllocationLines(pendings: PendingSlot[], allocations: AllocationInput[]): AllocationLine[] {
+  const fila = pendings.map((c) => ({ entryId: c.entryId, restante: c.pending }));
+  const linhas: AllocationLine[] = [];
+  for (const a of allocations) {
+    if (a.amount <= 0) continue;
+    let falta = a.amount;
+    for (const c of fila) {
+      if (falta <= 0.0001) break;
+      if (c.restante <= 0.0001) continue;
+      const pedaco = Math.round(Math.min(falta, c.restante) * 100) / 100;
+      if (pedaco <= 0) continue;
+      // Mesmo aporte + mesmo ativo numa só linha: dois pedaços iguais seriam ruído no histórico.
+      const existente = linhas.find((l) => l.entryId === c.entryId && l.assetId === a.assetId);
+      if (existente) existente.amount = Math.round((existente.amount + pedaco) * 100) / 100;
+      else linhas.push({ entryId: c.entryId, assetId: a.assetId, amount: pedaco });
+      c.restante = Math.round((c.restante - pedaco) * 100) / 100;
+      falta = Math.round((falta - pedaco) * 100) / 100;
+    }
+  }
+  return linhas;
 }
