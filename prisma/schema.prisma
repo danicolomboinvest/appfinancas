@@ -295,6 +295,30 @@ model UsageEvent {
 
 /// Lote de importação: um upload de extrato/fatura. Dá o histórico do que foi subido em massa
 /// e permite desfazer o lote inteiro (arquivo errado ou duplicado) de uma vez.
+/// Erro de servidor que estourou em produção, guardado por 30 dias.
+///
+/// O log da Vercel cobre ~45 minutos e não há log drain: qualquer erro mais antigo que isso
+/// some. Sem isso, "verificar todo dia os erros do app" não teria o que verificar. Guarda a
+/// rota, a mensagem e a pilha cortada — nunca corpo de requisição, cookie ou dado de cliente.
+model AppError {
+  id         String   @id @default(cuid())
+  /// Rota do arquivo ("/mensal/[year]/[month]"), não a URL com dados na query.
+  routePath  String?
+  /// render | route | action | proxy
+  routeType  String?
+  method     String?
+  message    String
+  digest     String?
+  stack      String?
+  /// Quantas vezes esta mesma assinatura (rota + mensagem) estourou.
+  vezes      Int      @default(1)
+  primeiroEm DateTime @default(now())
+  ultimoEm   DateTime @default(now())
+
+  @@unique([routePath, message])
+  @@index([ultimoEm])
+}
+
 /// Diagnóstico de CADA tentativa de importação, inclusive as que falharam.
 ///
 /// Sem isso, arquivo que o app não consegue ler não deixa rastro nenhum: nenhum lote é criado
