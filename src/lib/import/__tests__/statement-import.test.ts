@@ -131,3 +131,61 @@ describe("classify", () => {
     expect(classify("XPTO LTDA 12/05", rules)).toEqual({ parentCategory: "EDUCACAO", subcategory: "Cursos" });
   });
 });
+
+/**
+ * Excel de banco chega aqui com TODAS as abas coladas uma na outra (é o xlsxToCsv que faz
+ * isso, senão fatura internacional e parcelas ficavam de fora). Cada aba traz o seu cabeçalho,
+ * e as colunas raramente ficam na mesma posição. Amostras FICTÍCIAS, nada de arquivo de cliente.
+ */
+describe("parseCsv com várias abas coladas (Excel de banco)", () => {
+  it("não perde as linhas da segunda aba quando a coluna de valor muda de lugar", () => {
+    const aba1 = ["Data;Estabelecimento;Valor", "01/09/2026;LOJA A;10,00", "02/09/2026;LOJA B;20,00"];
+    const aba2 = [
+      "Data;Estabelecimento;Cidade;Valor (em R$)",
+      "03/09/2026;LOJA C;VITORIA;30,00",
+      "04/09/2026;LOJA D;VITORIA;40,00",
+      "05/09/2026;LOJA E;VITORIA;50,00",
+    ];
+
+    const lidos = parseCsv([...aba1, ...aba2].join("\n"));
+
+    expect(lidos).toHaveLength(5);
+    expect(lidos.map((t) => t.amount)).toEqual([10, 20, 30, 40, 50]);
+  });
+
+  it("não troca data por descrição quando a segunda aba inverte as colunas", () => {
+    const aba1 = ["Data;Estabelecimento;Valor", "01/09/2026;LOJA A;10,00"];
+    const aba2 = ["Estabelecimento;Data;Valor (em R$)", "LOJA C;03/09/2026;30,00"];
+
+    const lidos = parseCsv([...aba1, ...aba2].join("\n"));
+
+    expect(lidos).toEqual([
+      { date: "2026-09-01", description: "LOJA A", amount: 10 },
+      { date: "2026-09-03", description: "LOJA C", amount: 30 },
+    ]);
+  });
+
+  it("acha a tabela mesmo depois de um preâmbulo longo (carta e resumo da fatura)", () => {
+    const preambulo = [
+      "Ola, Cliente Ficticio.;;",
+      "RUA INVENTADA 100 AP 1, BAIRRO, CIDADE;;",
+      ...Array.from({ length: 45 }, (_, i) => `Resumo da fatura linha ${i + 1};;`),
+    ];
+    const tabela = [
+      "Data;Estabelecimento;Valor",
+      ...Array.from({ length: 12 }, (_, i) => `0${(i % 9) + 1}/09/2026;LOJA FICTICIA ${i + 1};${(i + 1) * 10},00`),
+    ];
+
+    expect(parseCsv([...preambulo, ...tabela].join("\n"))).toHaveLength(12);
+  });
+
+  it("não confunde um lançamento com cabeçalho só porque a descrição fala em valor e data", () => {
+    const csv = [
+      "Data;Historico;Valor",
+      "01/09/2026;PAGTO VALOR DATA ANTERIOR;-100,00",
+      "02/09/2026;MERCADO;-50,00",
+    ].join("\n");
+
+    expect(parseCsv(csv).map((t) => t.amount)).toEqual([-100, -50]);
+  });
+});
