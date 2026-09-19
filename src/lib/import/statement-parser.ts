@@ -159,78 +159,117 @@ function findAmountColumn(headers: string[]): number {
   return (brl ?? pool[0]).i;
 }
 
+/** Onde ficam as colunas de uma tabela, descoberto a partir de uma linha de cabeçalho. */
+type CsvLayout = {
+  delimiter: string;
+  dateCol: number;
+  descCol: number;
+  amountCol: number;
+  transCol: number;
+  creditCol: number;
+  debitCol: number;
+  dcCol: number;
+};
+
+/** Tem valor em dinheiro na linha? Cabeçalho não tem; linha de lançamento tem. */
+const MONEY_IN_LINE_RE = /-?\d{1,3}(?:\.\d{3})*,\d{2}\b|-?\d+\.\d{2}\b/;
+
+/**
+ * Lê uma linha COMO cabeçalho de tabela, ou devolve null se ela não for um.
+ * Cabeçalho = tem coluna de valor (ou o par crédito+débito) mais uma de data ou descrição, e
+ * nenhum valor em dinheiro — senão um lançamento cuja descrição por acaso diz "PAGTO VALOR"
+ * se passaria por cabeçalho e bagunçaria o resto do arquivo.
+ */
+function readHeaderLayout(line: string): CsvLayout | null {
+  if (MONEY_IN_LINE_RE.test(line)) return null;
+  const delimiter = detectDelimiter(line);
+  const cells = splitCsvLine(line, delimiter).map((h) => h.toLowerCase());
+  const amountCol = findAmountColumn(cells);
+  const creditCol = findColumn(cells, CREDIT_HEADERS);
+  const debitCol = findColumn(cells, DEBIT_HEADERS);
+  const dateCol = findColumn(cells, DATE_HEADERS);
+  const descCol = findColumn(cells, DESC_HEADERS);
+  if (amountCol === -1 && !(creditCol !== -1 && debitCol !== -1)) return null;
+  if (dateCol === -1 && descCol === -1) return null;
+  const transCol = findColumn(cells, TRANSACTION_HEADERS);
+  const dcCol = cells.findIndex(
+    (h, idx) => idx !== descCol && idx !== transCol && DC_HEADERS.some((n) => h === n || h.startsWith(n)),
+  );
+  return { delimiter, dateCol, descCol, amountCol, transCol, creditCol, debitCol, dcCol };
+}
+
+/** Uma linha de dados lida com as colunas do cabeçalho vigente; null quando não é lançamento. */
+function readTransactionLine(line: string, layout: CsvLayout): ParsedTransaction | null {
+  const { delimiter, dateCol, descCol, amountCol, transCol, creditCol, debitCol, dcCol } = layout;
+  const cols = splitCsvLine(line, delimiter);
+
+  let amount: number;
+  if (creditCol !== -1 && debitCol !== -1) {
+    // Duas colunas: o que está em crédito entra, o que está em débito sai.
+    const credit = Math.abs(parseAmountFlexible(cols[creditCol] ?? "")) || 0;
+    const debit = Math.abs(parseAmountFlexible(cols[debitCol] ?? "")) || 0;
+    amount = credit - debit;
+    if (amount === 0 && amountCol !== -1) amount = parseAmountFlexible(cols[amountCol] ?? "");
+  } else {
+    amount = parseAmountFlexible(cols[amountCol] ?? "");
+  }
+  if (dcCol !== -1 && amount > 0 && /^d\b|^d[eé]b/i.test((cols[dcCol] ?? "").trim())) amount = -amount;
+  if (Number.isNaN(amount) || amount === 0) return null;
+
+  const desc = (cols[descCol] ?? "").trim();
+  const trans = transCol !== -1 ? (cols[transCol] ?? "").trim() : "";
+  // Pula saldos/totais, são fotografias do saldo, não transações.
+  if (NON_TRANSACTION_RE.test(desc) || NON_TRANSACTION_RE.test(trans)) return null;
+
+  // Descrição rica: junta "Transação" + "Descrição" quando as duas existem e diferem.
+  const description =
+    [trans, desc].filter((s) => s && s !== "-").filter((s, i, arr) => arr.indexOf(s) === i).join(" · ") ||
+    "Lançamento";
+
+  return { date: normalizeDate(cols[dateCol] ?? ""), description, amount };
+}
+
 export function parseCsv(content: string): ParsedTransaction[] {
   const lines = content.split(/\r?\n/).filter((l) => l.trim() !== "");
   if (lines.length === 0) return [];
 
-  // Procura a linha de CABEÇALHO, bancos (BTG etc.) põem metadados (cliente, conta, período)
-  // antes dela. O cabeçalho é a 1ª linha que tenha coluna de valor + de data ou descrição.
-  let headerIdx = -1;
-  let delimiter = detectDelimiter(lines[0]);
-  let dateCol = -1;
-  let descCol = -1;
-  let amountCol = -1;
-  let transCol = -1;
-  let creditCol = -1;
-  let debitCol = -1;
-  let dcCol = -1;
-  for (let i = 0; i < Math.min(lines.length, 40); i++) {
-    const d = detectDelimiter(lines[i]);
-    const cells = splitCsvLine(lines[i], d).map((h) => h.toLowerCase());
-    const ac = findAmountColumn(cells);
-    const cc = findColumn(cells, CREDIT_HEADERS);
-    const dbc = findColumn(cells, DEBIT_HEADERS);
-    const dc = findColumn(cells, DATE_HEADERS);
-    const dsc = findColumn(cells, DESC_HEADERS);
-    if ((ac !== -1 || (cc !== -1 && dbc !== -1)) && (dc !== -1 || dsc !== -1)) {
-      headerIdx = i;
-      delimiter = d;
-      amountCol = ac;
-      creditCol = cc;
-      debitCol = dbc;
-      dateCol = dc;
-      descCol = dsc;
-      transCol = findColumn(cells, TRANSACTION_HEADERS);
-      dcCol = cells.findIndex((h, idx) => idx !== dsc && idx !== transCol && DC_HEADERS.some((n) => h === n || h.startsWith(n)));
-      break;
-    }
-  }
-
-  // Sem cabeçalho reconhecível: assume ordem comum (data, descrição, valor) desde a 1ª linha.
-  if (headerIdx === -1) {
-    dateCol = 0;
-    descCol = 1;
-    amountCol = 2;
-  }
-
-  const dataLines = headerIdx === -1 ? lines : lines.slice(headerIdx + 1);
+  // Excel de banco vem com VÁRIAS ABAS coladas uma na outra (fatura nacional, internacional,
+  // parcelas) e cada aba traz o seu próprio cabeçalho, com as colunas em posições diferentes.
+  // Antes a gente travava as colunas no primeiro cabeçalho e lia o arquivo inteiro com elas:
+  // da segunda aba em diante o valor caía numa coluna errada e a linha ia pro lixo em silêncio.
+  // Era a "leitura parcial" do diagnóstico — a pessoa via um punhado de lançamentos e achava
+  // que o app tinha perdido o resto da fatura. Agora cada cabeçalho novo reposiciona as colunas
+  // dali pra frente. A procura também não para mais na 40ª linha: fatura costuma vir com carta
+  // e resumo antes da tabela, e a tabela de verdade ficava fora do alcance.
   const transactions: ParsedTransaction[] = [];
-  for (const line of dataLines) {
-    const cols = splitCsvLine(line, delimiter);
-    let amount: number;
-    if (creditCol !== -1 && debitCol !== -1 && (amountCol === -1 || headerIdx !== -1)) {
-      // Duas colunas: o que está em crédito entra, o que está em débito sai.
-      const credit = Math.abs(parseAmountFlexible(cols[creditCol] ?? "")) || 0;
-      const debit = Math.abs(parseAmountFlexible(cols[debitCol] ?? "")) || 0;
-      amount = credit - debit;
-      if (amount === 0 && amountCol !== -1) amount = parseAmountFlexible(cols[amountCol] ?? "");
-    } else {
-      amount = parseAmountFlexible(cols[amountCol] ?? "");
+  let layout: CsvLayout | null = null;
+  for (const line of lines) {
+    const header = readHeaderLayout(line);
+    if (header) {
+      layout = header;
+      continue;
     }
-    if (dcCol !== -1 && amount > 0 && /^d\b|^d[eé]b/i.test((cols[dcCol] ?? "").trim())) amount = -amount;
-    if (Number.isNaN(amount) || amount === 0) continue;
+    // Ainda no preâmbulo (nome, conta, período): nada pra ler antes da primeira tabela.
+    if (!layout) continue;
+    const transaction = readTransactionLine(line, layout);
+    if (transaction) transactions.push(transaction);
+  }
+  if (layout !== null) return transactions;
 
-    const desc = (cols[descCol] ?? "").trim();
-    const trans = transCol !== -1 ? (cols[transCol] ?? "").trim() : "";
-    // Pula saldos/totais, são fotografias do saldo, não transações.
-    if (NON_TRANSACTION_RE.test(desc) || NON_TRANSACTION_RE.test(trans)) continue;
-
-    // Descrição rica: junta "Transação" + "Descrição" quando as duas existem e diferem.
-    const description =
-      [trans, desc].filter((s) => s && s !== "-").filter((s, i, arr) => arr.indexOf(s) === i).join(" · ") ||
-      "Lançamento";
-
-    transactions.push({ date: normalizeDate(cols[dateCol] ?? ""), description, amount });
+  // Nenhum cabeçalho no arquivo inteiro: assume a ordem mais comum (data, descrição, valor).
+  const semCabecalho: CsvLayout = {
+    delimiter: detectDelimiter(lines[0]),
+    dateCol: 0,
+    descCol: 1,
+    amountCol: 2,
+    transCol: -1,
+    creditCol: -1,
+    debitCol: -1,
+    dcCol: -1,
+  };
+  for (const line of lines) {
+    const transaction = readTransactionLine(line, semCabecalho);
+    if (transaction) transactions.push(transaction);
   }
   return transactions;
 }

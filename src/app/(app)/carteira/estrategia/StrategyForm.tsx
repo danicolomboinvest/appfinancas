@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { riskProfileFromAnswers, type RiskProfileKey, type GoalHorizon } from "@/lib/portfolio/risk-profile";
 import type { StrategyAssetClass } from "@prisma/client";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -60,16 +61,18 @@ const PRESETS: Preset[] = [
  * Três perguntas de gente pra chegar num perfil. Quem não sabe o que é "renda fixa
  * pós-fixada" sabe quando vai precisar do dinheiro e quanto aguenta ver cair.
  */
+const PERGUNTA_PRAZO = {
+  key: "prazo",
+  question: "Quando você vai precisar desse dinheiro?",
+  options: [
+    { label: "Em menos de 2 anos", points: 0 },
+    { label: "Entre 2 e 5 anos", points: 1 },
+    { label: "Daqui a mais de 5 anos", points: 2 },
+  ],
+};
+
 const QUIZ: { key: string; question: string; options: { label: string; points: number }[] }[] = [
-  {
-    key: "prazo",
-    question: "Quando você vai precisar desse dinheiro?",
-    options: [
-      { label: "Em menos de 2 anos", points: 0 },
-      { label: "Entre 2 e 5 anos", points: 1 },
-      { label: "Daqui a mais de 5 anos", points: 2 },
-    ],
-  },
+  PERGUNTA_PRAZO,
   {
     key: "queda",
     question: "Se a carteira caísse 15% num mês, você…",
@@ -90,19 +93,46 @@ const QUIZ: { key: string; question: string; options: { label: string; points: n
   },
 ];
 
-function presetFromScore(score: number): Preset {
-  return score <= 2 ? PRESETS[0] : score <= 4 ? PRESETS[1] : PRESETS[2];
-}
+const PRAZO_LABEL: Record<0 | 1 | 2, string> = {
+  0: "menos de 2 anos",
+  1: "2 a 5 anos",
+  2: "mais de 5 anos",
+};
 
-export function StrategyForm({ defaults }: { defaults: Record<StrategyAssetClass, number> }) {
+const PRESET_POR_PERFIL: Record<RiskProfileKey, Preset> = {
+  conservador: PRESETS[0],
+  moderado: PRESETS[1],
+  arrojado: PRESETS[2],
+};
+
+export function StrategyForm({
+  defaults,
+  goalHorizon,
+}: {
+  defaults: Record<StrategyAssetClass, number>;
+  /** Prazo calculado das metas da pessoa; null quando ela não tem meta com data. */
+  goalHorizon: GoalHorizon | null;
+}) {
   const [state, formAction, isPending] = useActionState(savePortfolioStrategyAction, initialState);
   useSuccessToast(isPending, state.error, "Estratégia salva com sucesso.");
   const [values, setValues] = useState<Record<StrategyAssetClass, number>>(defaults);
   const hasStrategy = STRATEGY_ASSET_CLASSES.some((k) => (defaults[k] || 0) > 0);
   const [quizOpen, setQuizOpen] = useState(!hasStrategy);
-  const [answers, setAnswers] = useState<Record<string, number>>({});
+  // O prazo vem das METAS quando elas existem: a pessoa já disse quando precisa do dinheiro
+  // ao cadastrar a viagem, o apê, a aposentadoria. Perguntar de novo é pedir a mesma coisa
+  // duas vezes — e aceitar uma resposta que pode contradizer as metas dela.
+  const [answers, setAnswers] = useState<Record<string, number>>(() => (goalHorizon ? { prazo: goalHorizon.prazo } : ({} as Record<string, number>)));
+  const [editarPrazo, setEditarPrazo] = useState(false);
+  const perguntas = goalHorizon && !editarPrazo ? QUIZ.filter((q) => q.key !== "prazo") : QUIZ;
   const answered = QUIZ.every((q) => answers[q.key] !== undefined);
-  const suggested = answered ? presetFromScore(QUIZ.reduce((s, q) => s + answers[q.key], 0)) : null;
+  const resultado = answered
+    ? riskProfileFromAnswers({
+        prazo: answers.prazo as 0 | 1 | 2,
+        queda: answers.queda as 0 | 1 | 2,
+        reserva: answers.reserva as 0 | 1 | 2,
+      })
+    : null;
+  const suggested = resultado ? PRESET_POR_PERFIL[resultado.profile] : null;
 
   const sum = STRATEGY_ASSET_CLASSES.reduce((acc, key) => acc + (values[key] || 0), 0);
   const sumOk = Math.abs(sum - 100) < 0.01;
@@ -125,7 +155,18 @@ export function StrategyForm({ defaults }: { defaults: Record<StrategyAssetClass
         </button>
         {quizOpen && (
           <div className="flex flex-col gap-3">
-            {QUIZ.map((q) => (
+            {goalHorizon && !editarPrazo && (
+              <div className="flex flex-col gap-1 rounded-lg bg-surface px-3 py-2.5">
+                <p className="text-sm text-ink">
+                  Pelas suas metas, você vai precisar do dinheiro em <b>{PRAZO_LABEL[goalHorizon.prazo]}</b>.
+                </p>
+                <p className="text-caption text-ink-faint">{goalHorizon.summary}</p>
+                <button type="button" onClick={() => setEditarPrazo(true)} className="w-fit text-caption font-medium text-accent-strong hover:underline">
+                  Não é isso, quero responder
+                </button>
+              </div>
+            )}
+            {perguntas.map((q) => (
               <div key={q.key} className="flex flex-col gap-1.5">
                 <p className="text-sm text-ink">{q.question}</p>
                 <div className="flex flex-wrap gap-1.5">
@@ -151,6 +192,7 @@ export function StrategyForm({ defaults }: { defaults: Record<StrategyAssetClass
               <div className="flex flex-col gap-2 rounded-lg bg-surface px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-sm text-ink">
                   Pelas respostas, seu perfil é <b>{suggested.label}</b>. {suggested.description}
+                  {resultado && <span className="mt-1 block text-caption text-ink-muted">{resultado.reason}</span>}
                 </p>
                 <Button type="button" size="sm" onClick={() => { setValues(suggested.values); setQuizOpen(false); }}>
                   Usar esse perfil
