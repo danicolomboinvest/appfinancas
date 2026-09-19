@@ -1,4 +1,5 @@
 import type { AuthContext } from "@/lib/auth/session";
+import { nowInBrazil } from "@/lib/date/brazil-now";
 import { getEmergencyFund } from "@/lib/repositories/emergency-fund.repo";
 import { listGoals } from "@/lib/repositories/goal.repo";
 import { getMonthlySummary } from "@/lib/consolidation/monthly";
@@ -36,6 +37,8 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
+const MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+
 export function statusFromScore(score: number | null): HealthStatus {
   if (score === null) return "sem-dados";
   if (score >= 70) return "boa";
@@ -67,14 +70,22 @@ export function scoreReserva(target: number, current: number): HealthDimension {
   };
 }
 
-export function scorePoupanca(income: number, expense: number): HealthDimension {
+/**
+ * `mesLabel` é o mês de onde saíram os números ("setembro"), e ele aparece na frase.
+ *
+ * Existe porque a nota dizia "no último mês fechado" sem dizer QUAL, e a pessoa via 57% de
+ * sobra em setembro na tela do mês e 0 na saúde financeira, sem entender que eram meses
+ * diferentes. Dizer o mês é o que faz os dois números pararem de parecer contradição.
+ */
+export function scorePoupanca(income: number, expense: number, mesLabel?: string): HealthDimension {
+  const quando = mesLabel ? `em ${mesLabel}` : "no último mês fechado";
   if (income <= 0) {
     return {
       key: "poupanca",
       label: "Taxa de poupança",
       score: null,
       status: "sem-dados",
-      detail: "Lance a renda de um mês fechado para entrar nessa nota.",
+      detail: "Lance a renda de um mês para entrar nessa nota.",
     };
   }
   const rate = (income - expense) / income;
@@ -86,8 +97,8 @@ export function scorePoupanca(income: number, expense: number): HealthDimension 
     status: statusFromScore(score),
     detail:
       rate >= 0
-        ? `Você poupou ${Math.round(rate * 100)}% da sua renda no último mês fechado.`
-        : `No último mês fechado você gastou mais do que ganhou (${Math.round(Math.abs(rate) * 100)}% acima da renda).`,
+        ? `Você poupou ${Math.round(rate * 100)}% da sua renda ${quando}.`
+        : `${quando.charAt(0).toUpperCase()}${quando.slice(1)} você gastou mais do que ganhou (${Math.round(Math.abs(rate) * 100)}% acima da renda).`,
   };
 }
 
@@ -170,25 +181,33 @@ function overallMessage(status: HealthStatus): string {
  * saúde financeira fica de fora até existir uma tela de dívidas).
  */
 export async function computeFinancialHealthScore(ctx: AuthContext): Promise<FinancialHealthScore> {
-  const now = new Date();
-  // Último mês FECHADO, não o mês corrente. No dia 2 o salário ainda não caiu: a dimensão
-  // sumia por "sem dados" e os pesos se redistribuíam entre as outras, então a nota inteira
-  // balançava conforme o dia do mês, não conforme a vida da pessoa.
-  const fechado = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const now = nowInBrazil();
+  // A nota usa o mês CORRENTE quando ele já tem renda lançada; só cai no mês anterior quando o
+  // atual ainda está em branco.
+  //
+  // Era só o mês fechado, pra nota não balançar no dia 2 (salário ainda não caiu). O efeito
+  // colateral foi pior: quem lançou setembro inteiro via 57% de sobra na tela do mês e ZERO na
+  // saúde financeira, porque a nota estava olhando agosto — um mês em que a pessoa tinha pouca
+  // coisa lançada. Dois números contraditórios na mesma tela destroem a confiança no app.
+  const anterior = new Date(now.getFullYear(), now.getMonth() - 1, 1);
 
-  const [emergencyFund, goals, monthlySummary, strategyComparison] = await Promise.all([
+  const [emergencyFund, goals, resumoAtual, resumoAnterior, strategyComparison] = await Promise.all([
     getEmergencyFund(ctx),
     listGoals(ctx),
-    getMonthlySummary(ctx, fechado.getFullYear(), fechado.getMonth() + 1),
+    getMonthlySummary(ctx, now.getFullYear(), now.getMonth() + 1),
+    getMonthlySummary(ctx, anterior.getFullYear(), anterior.getMonth() + 1),
     getPortfolioStrategyComparison(ctx),
   ]);
+  const usaAtual = resumoAtual.totalIncome > 0;
+  const monthlySummary = usaAtual ? resumoAtual : resumoAnterior;
+  const mesLabel = MESES[(usaAtual ? now.getMonth() : anterior.getMonth())];
 
   const reserva = scoreReserva(
     emergencyFund ? Number(emergencyFund.targetAmount) : 0,
     emergencyFund ? Number(emergencyFund.currentAmount) : 0,
   );
 
-  const poupanca = scorePoupanca(monthlySummary.totalIncome, monthlySummary.totalExpense);
+  const poupanca = scorePoupanca(monthlySummary.totalIncome, monthlySummary.totalExpense, mesLabel);
 
   const strategyDeviations = strategyComparison.positions
     .filter((p) => p.targetPercent > 0)

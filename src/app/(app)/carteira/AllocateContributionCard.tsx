@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { PiggyBank, ArrowRight } from "lucide-react";
+import { PiggyBank, ArrowRight, ChevronDown } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { CurrencyField } from "@/components/ui/CurrencyField";
@@ -45,6 +45,9 @@ export function AllocateContributionCard({
   const [isPending, startTransition] = useTransition();
   const [pronto, setPronto] = useState<{ assets: number; goals: { name: string; amount: number }[] } | null>(null);
   const [verTodos, setVerTodos] = useState(false);
+  // Fechado por padrão: a carteira já é uma tela cheia, e a pergunta importante é só "você
+  // aportou tanto, confere?". A lista de ativos com um campo cada só aparece pra quem toca.
+  const [aberto, setAberto] = useState(false);
 
   const distribuido = useMemo(() => Object.values(valores).reduce((s, v) => s + (v || 0), 0), [valores]);
   // Quem já recebeu valor nunca some da lista, mesmo que estivesse escondido atrás do "ver todos".
@@ -80,21 +83,35 @@ export function AllocateContributionCard({
 
   return (
     <Card className="flex flex-col gap-4 border-accent/30 bg-accent-soft/30 p-4">
-      <div className="flex items-start gap-3">
-        <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full bg-accent text-on-accent">
+      <button
+        type="button"
+        onClick={() => setAberto((v) => !v)}
+        aria-expanded={aberto}
+        className="flex items-center gap-3 text-left"
+      >
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent text-on-accent">
           <PiggyBank size={18} strokeWidth={1.75} />
         </span>
-        <div className="min-w-0">
-          <p className="text-[15px] font-semibold text-ink">
-            Você aportou {money(pending, { round: true })} em {MESES[month - 1]} e ainda não disse onde foi
-          </p>
-          <p className="text-caption text-ink-muted">
-            Isso veio do que você lançou no mês{goalOfMonth ? ` para a meta ${goalOfMonth}` : ""}. Diga em quais ativos entrou: a carteira
-            atualiza e a meta de cada ativo anda junto.
-          </p>
-        </div>
-      </div>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[15px] font-semibold text-ink">
+            Você aportou {money(pending, { round: true })} em {MESES[month - 1]}
+          </span>
+          <span className="block text-caption text-ink-muted">
+            {aberto ? "Diga quanto entrou em cada ativo." : "Toque pra dizer em quais ativos entrou."}
+          </span>
+        </span>
+        <ChevronDown size={18} className={`shrink-0 text-ink-muted transition-transform ${aberto ? "rotate-180" : ""}`} />
+      </button>
 
+      {!aberto && (
+        <p className="text-caption text-ink-faint">
+          Enquanto não disser, a carteira fica com um valor e o mês com outro
+          {goalOfMonth ? `, e a meta ${goalOfMonth} não anda junto` : ""}.
+        </p>
+      )}
+
+      {aberto && (
+      <>
       <ul className="flex flex-col divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface">
         {visiveis.map((a) => (
           <li key={a.id} className="flex items-center gap-3 px-3 py-2.5">
@@ -154,6 +171,8 @@ export function AllocateContributionCard({
       <Link href="/carteira#ativos" className="flex w-fit items-center gap-1 text-caption text-ink-faint hover:text-ink">
         O ativo ainda não está aqui? Cadastre primeiro <ArrowRight size={12} />
       </Link>
+      </>
+      )}
     </Card>
   );
 }

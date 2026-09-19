@@ -59,6 +59,14 @@ describe("scorePoupanca", () => {
     const result = scorePoupanca(1000, 850); // taxa de 15%
     expect(result.score).toBe(50);
   });
+
+  it("diz de QUAL mês saiu o número, pra não parecer que contradiz a tela do mês", () => {
+    // O caso real: 57% de sobra em setembro na tela do mês e 0 na saúde financeira, porque a
+    // nota olhava agosto. Sem o nome do mês, os dois números viram uma contradição inexplicável.
+    expect(scorePoupanca(20000, 8518, "setembro").detail).toContain("setembro");
+    expect(scorePoupanca(20000, 8518, "setembro").score).toBe(100);
+    expect(scorePoupanca(1000, 1200, "agosto").detail).toContain("Em agosto");
+  });
 });
 
 describe("scoreEstrategia", () => {
