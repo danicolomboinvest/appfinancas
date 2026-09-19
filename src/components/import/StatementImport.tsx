@@ -556,6 +556,31 @@ export function StatementImport({ onDone }: { onDone: () => void }) {
           </div>
         )}
 
+        {/* Leitura que não parece dinheiro de gente. Fica ACIMA da conferência e em tom de alerta
+            porque é o único aviso que diz "não confirme ainda": quando isso aparece, o mês inteiro
+            da pessoa vai entrar errado — orçamento, saúde financeira e gráfico junto. */}
+        {stats && stats.suspeitas.length > 0 && (
+          <div className="flex flex-col gap-2 rounded-xl border border-danger/50 bg-danger/5 px-4 py-3">
+            <p className="text-sm font-semibold text-danger">Esses números parecem errados</p>
+            {stats.suspeitas.map((s) => (
+              <div key={s.texto} className="flex flex-col gap-1">
+                <p className="text-caption text-ink">{s.texto}</p>
+                {s.exemplos.length > 0 && (
+                  <ul className="flex flex-col gap-0.5 pl-3 text-caption text-ink-muted">
+                    {s.exemplos.map((e) => (
+                      <li key={e} className="truncate">• {e}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            ))}
+            <p className="text-caption text-ink-muted">
+              Confira a lista abaixo antes de confirmar. Se estiver errado mesmo, volte e mande o arquivo pro suporte — a gente
+              já guardou uma cópia e ensina o app a ler esse banco.
+            </p>
+          </div>
+        )}
+
         {/* Conferência: o que o app leu, em números, pra pessoa não precisar confiar às cegas. */}
         <div className="rounded-xl border border-border bg-surface-2 px-4 py-3 text-sm">
           <p className="font-semibold text-ink">

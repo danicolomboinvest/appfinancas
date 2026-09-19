@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isPartialRead, safeHeader } from "../import-diagnostic.repo";
+import { isImplausivelMessage, isPartialRead, mensagemImplausivel, safeHeader } from "../import-diagnostic.repo";
 
 /**
  * A régua de "leu só parte do arquivo" decide DUAS coisas ao mesmo tempo: o que entra no
@@ -41,5 +41,28 @@ describe("safeHeader", () => {
   it("pula linhas em branco no começo e corta cabeçalho gigante", () => {
     expect(safeHeader("\n\n  \nData;Valor")).toBe("Data;Valor");
     expect(safeHeader("x".repeat(400))).toHaveLength(160);
+  });
+});
+
+/**
+ * Mesma armadilha do `isPartialRead`, em outro lugar: quem GRAVA a marca de leitura implausível
+ * e quem a LÊ no relatório diário precisam usar a mesma régua. Se divergirem, o extrato lido
+ * errado volta a ser uma importação "ok" e some do relatório — que é exatamente como quatro
+ * extratos corrompidos ficaram semanas no banco sem ninguém ficar sabendo.
+ */
+describe("marca de leitura implausível", () => {
+  it("o que é gravado é reconhecido na leitura", () => {
+    const msg = mensagemImplausivel(["3 lançamentos têm valor fora de escala.", "Nenhum valor tem centavos."]);
+    expect(isImplausivelMessage(msg)).toBe(true);
+  });
+
+  it("não confunde com erro comum nem com ausência de mensagem", () => {
+    expect(isImplausivelMessage("Não consegui ler o arquivo.")).toBe(false);
+    expect(isImplausivelMessage(null)).toBe(false);
+    expect(isImplausivelMessage(undefined)).toBe(false);
+  });
+
+  it("mantém os motivos legíveis depois da marca, que é o que vai no e-mail", () => {
+    expect(mensagemImplausivel(["Tudo entrou como entrada."])).toContain("Tudo entrou como entrada.");
   });
 });

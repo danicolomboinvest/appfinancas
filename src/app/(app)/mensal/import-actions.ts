@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { installmentDescription, parseInstallment } from "@/lib/entries/recurrence";
 import { countMoneyLines, detectInvoiceTotal, looksLikeCardInvoice, type DocKind } from "@/lib/import/detect";
 import { profileDocument } from "@/lib/import/profile";
-import { isPartialRead, recordImportDiagnostic, safeHeader } from "@/lib/repositories/import-diagnostic.repo";
+import { checarPlausibilidade, type Suspeita } from "@/lib/import/plausibility";
+import { isPartialRead, mensagemImplausivel, recordImportDiagnostic, safeHeader } from "@/lib/repositories/import-diagnostic.repo";
 import { storeFailedImportFile } from "@/lib/repositories/import-file.repo";
 import type { ParentCategory } from "@prisma/client";
 import { getRequiredSession } from "@/lib/auth/session";
@@ -82,6 +83,8 @@ export type ParseStats = {
   invoiceTotal: number | null;
   sumExpense: number;
   sumIncome: number;
+  /** Sinais de que o app leu o arquivo errado. Vazio = nada estranho. */
+  suspeitas: Suspeita[];
 };
 
 export type ParseStatementResult =
@@ -189,7 +192,12 @@ export async function parseStatementAction(formData: FormData): Promise<ParseSta
   // Fatura subida como extrato (ou o contrário) é o erro mais caro: compra vira renda. O perfil
   // do arquivo inteiro e, na dúvida, os sinais dizem o que ele é; a tela avisa antes de gravar.
   let detectedKind: DocKind = profile.kind === "invoice" ? "fatura" : profile.kind === "statement" || profile.kind === "position" ? "extrato" : "unknown";
-  if (detectedKind === "unknown" && looksLikeCardInvoice(parsedRaw)) detectedKind = "fatura";
+  // A FORMA dos dados vale mais que as palavras do arquivo. Extrato bancário tem entrada e
+  // saída; quando todo lançamento vem com o mesmo sinal, é fatura de cartão quase sempre — e
+  // fatura costuma trazer "extrato" escrito no cabeçalho, o que fazia o perfil dizer "statement"
+  // e esta checagem nem rodar. Foi assim que duas pessoas lançaram a fatura inteira como RENDA:
+  // R$ 5.528 de compras no MercadoLivre e na Apple viraram receita do mês, sem nenhum aviso.
+  if (detectedKind !== "fatura" && looksLikeCardInvoice(parsedRaw)) detectedKind = "fatura";
   const repeatCount = new Map<string, number>();
   for (const txn of parsed) {
     const k = dedupeKey(txn.date, Math.abs(txn.amount), txn.description);
@@ -238,6 +246,7 @@ export async function parseStatementAction(formData: FormData): Promise<ParseSta
     invoiceTotal: docType === "fatura" ? detectInvoiceTotal(text) : null,
     sumExpense: items.filter((i) => i.category === "EXPENSE").reduce((s, i) => s + i.amount, 0),
     sumIncome: items.filter((i) => i.category === "INCOME").reduce((s, i) => s + i.amount, 0),
+    suspeitas: checarPlausibilidade(parsed, docType),
   };
   const diagnosticId = await recordImportDiagnostic({
     userId: ctx.userId,
@@ -251,12 +260,22 @@ export async function parseStatementAction(formData: FormData): Promise<ParseSta
     moneyLines,
     parsed: items.length,
     header: safeHeader(text),
+    // Leitura implausível entra na mensagem pra aparecer na checagem diária. Sem isso ela é uma
+    // importação "ok" como outra qualquer, e foi assim que quatro extratos corrompidos passaram
+    // semanas no banco sem ninguém ficar sabendo.
+    message: stats.suspeitas.length > 0 ? mensagemImplausivel(stats.suspeitas.map((x) => x.texto)) : null,
   });
   // Leu, mas achou muito menos do que o arquivo tinha: pra pessoa é "só veio um pedaço da
   // fatura". Guarda o arquivo também nesse caso — é o único jeito de conferir se o que ficou
   // de fora era transação de verdade ou só linha de resumo.
   if (isPartialRead(moneyLines, items.length)) {
     await storeFailedImportFile({ userId: ctx.userId, diagnosticId, file: uploaded, encoding, reason: "parcial" });
+  }
+  // Leitura que saiu implausível guarda o arquivo pelo mesmo motivo: sem ele, não dá pra
+  // descobrir qual coluna o app pegou errado. Foi exatamente o que faltou nos quatro casos que
+  // já aconteceram — o número absurdo estava no banco e o arquivo, não.
+  else if (stats.suspeitas.length > 0) {
+    await storeFailedImportFile({ userId: ctx.userId, diagnosticId, file: uploaded, encoding, reason: "implausivel" });
   }
   return { ok: true, items, customCategories: customCategories.map((c) => ({ id: c.id, name: c.name })), stats };
 }

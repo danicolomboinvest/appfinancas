@@ -112,9 +112,10 @@ export default async function AdminResultadosPage() {
             {r.contasForaDaConta} conta{r.contasForaDaConta === 1 ? "" : "s"} ficaram de fora destes números
           </p>
           <p className="text-caption text-ink-muted">
-            São contas com lançamento acima de {money(TETO_LANCAMENTO_CONFIAVEL, { round: true })}, o que quase sempre é extrato lido errado na importação
-            (valor com a vírgula perdida, saída entrando como entrada). Elas distorceriam tudo. Vale olhar essas contas:
-            para a pessoa dona delas, o app inteiro está mostrando número errado.
+            São contas com sinal de extrato lido errado na importação: lançamento acima de{" "}
+            {money(TETO_LANCAMENTO_CONFIAVEL, { round: true })} (valor com a vírgula perdida) ou uma leva inteira de
+            lançamentos em que nada é saída (fatura de cartão que entrou como renda). Elas distorceriam tudo. Vale olhar
+            essas contas uma a uma: para a pessoa dona delas, o app inteiro está mostrando número errado.
           </p>
         </Card>
       )}

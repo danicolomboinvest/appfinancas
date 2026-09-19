@@ -24,8 +24,8 @@ export const MIN_AMOSTRA = 5;
 
 /**
  * Lançamento acima disto denuncia dado contaminado, não riqueza: conta de empresa importada
- * junto com a pessoal, ou — o caso que encontramos de verdade — extrato lido errado, em que
- * "23.390,97" virou 2.339.097 e um PIX enviado entrou como receita.
+ * junto com a pessoal, ou — o caso que encontramos de verdade — extrato lido errado, em que os
+ * valores entraram cem vezes maiores e um PIX enviado virou receita.
  *
  * Quem tem um lançamento assim fica INTEIRO de fora das estatísticas, porque a distorção
  * contamina todos os meses dela. É melhor publicar um número de menos gente do que publicar
@@ -73,6 +73,23 @@ export type CommunityResults = {
 
 };
 
+/** Abaixo disto, "só entradas" pode ser uma conta nova que só lançou o salário. */
+const MIN_LANCAMENTOS_PRA_DESCONFIAR = 8;
+
+type LinhaAgrupada = { userId: string; category: string; _count: number };
+
+/** Quantos lançamentos cada pessoa tem, e quantos deles são entrada. */
+function contarPorPessoa(linhas: LinhaAgrupada[]): Map<string, { total: number; entradas: number }> {
+  const porPessoa = new Map<string, { total: number; entradas: number }>();
+  for (const l of linhas) {
+    const c = porPessoa.get(l.userId) ?? { total: 0, entradas: 0 };
+    c.total += l._count;
+    if (l.category === "INCOME") c.entradas += l._count;
+    porPessoa.set(l.userId, c);
+  }
+  return porPessoa;
+}
+
 function resultado(valores: number[], calcular: (v: number[]) => number): ResultadoNumero {
   if (valores.length < MIN_AMOSTRA) return { valor: null, pessoas: valores.length };
   return { valor: calcular(valores), pessoas: valores.length };
@@ -119,6 +136,16 @@ export async function getCommunityResults(): Promise<CommunityResults> {
       })
     ).map((e) => e.userId),
   );
+
+  // A outra cara da leitura errada: os valores são plausíveis, mas o SINAL se perdeu e a fatura
+  // de cartão inteira entrou como renda. Encontramos duas contas assim — R$ 5.528 de compras no
+  // MercadoLivre e na Apple contando como receita do mês. O valor não denuncia; a proporção sim:
+  // quem importou dezenas de lançamentos e NENHUM é saída não tem extrato, tem fatura lida ao
+  // contrário. Fica de fora até o dado ser corrigido, senão "R$ X organizados" conta gasto como
+  // renda e a Dani publica um número que não se sustenta.
+  for (const [userId, c] of contarPorPessoa(porMes)) {
+    if (c.total >= MIN_LANCAMENTOS_PRA_DESCONFIAR && c.entradas === c.total) contaminadas.add(userId);
+  }
   const vale = (userId: string) => ehAluna.has(userId) && !contaminadas.has(userId);
 
   // Reorganiza tudo por pessoa e por mês fechado.

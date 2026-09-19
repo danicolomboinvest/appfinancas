@@ -42,7 +42,7 @@ export async function GET(request: Request) {
   // a função retornava cedo, e aí extrato de cliente ficaria parado no banco além do prazo.
   const arquivosApagados = await purgeExpiredImportFiles();
 
-  const problemas = health.falhas + health.parciais + erros.length;
+  const problemas = health.falhas + health.parciais + health.implausiveis + erros.length;
   if (problemas === 0 && !dryRun) {
     return NextResponse.json({ ok: true, ...resumo(health), erros: 0, arquivosApagados, enviado: false, motivo: "dia sem falha" });
   }
@@ -73,6 +73,7 @@ function resumo(h: Awaited<ReturnType<typeof getImportHealth>>) {
     tentativas: h.total,
     falhas: h.falhas,
     leiturasParciais: h.parciais,
+    leiturasImplausiveis: h.implausiveis,
     pessoasSemSucesso: h.pessoasSemSucesso.length,
   };
 }
@@ -104,12 +105,13 @@ function relatorioEmail(
     .join("");
 
   return {
-    subject: `SPI Finance · ${h.falhas + h.parciais} problema(s) de importação e ${erros.length} erro(s) de servidor ${periodo}`,
+    subject: `SPI Finance · ${h.falhas + h.parciais + h.implausiveis} problema(s) de importação e ${erros.length} erro(s) de servidor ${periodo}`,
     html: `<div style="font-family:system-ui,-apple-system,sans-serif;max-width:640px;color:#111">
       <h2 style="margin-bottom:4px">Importação ${periodo}</h2>
       <p style="color:#666;margin-top:0">
         ${h.total} tentativa${h.total === 1 ? "" : "s"} · ${h.falhas} falha${h.falhas === 1 ? "" : "s"} ·
-        ${h.parciais} leitura${h.parciais === 1 ? "" : "s"} parcial${h.parciais === 1 ? "" : "is"}
+        ${h.parciais} leitura${h.parciais === 1 ? "" : "s"} parcial${h.parciais === 1 ? "" : "is"} ·
+        ${h.implausiveis} com número implausível
       </p>
       ${linhas ? `<h3>O que quebrou</h3><ul>${linhas}</ul>` : "<p>Nenhuma falha agrupada.</p>"}
       ${semSucesso ? `<h3>Quem tentou e não conseguiu nada</h3><ul>${semSucesso}</ul><p style="color:#666">Vale chamar no WhatsApp e pedir o arquivo.</p>` : ""}

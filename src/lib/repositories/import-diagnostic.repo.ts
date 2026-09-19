@@ -32,6 +32,24 @@ export type ImportDiagnosticInput = {
 };
 
 /**
+ * Marca no início da mensagem de um diagnóstico que deu "ok" mas saiu com número implausível.
+ * É o que faz a leitura errada aparecer na checagem diária: sem ela, importação que grava lixo
+ * fica indistinguível de importação boa, que foi como quatro extratos corrompidos passaram
+ * semanas no banco sem ninguém ficar sabendo.
+ */
+export const MARCA_IMPLAUSIVEL = "[implausível]";
+
+/** Monta a mensagem marcada. Quem grava e quem lê usam esta dupla, nunca a string solta. */
+export function mensagemImplausivel(motivos: string[]): string {
+  return `${MARCA_IMPLAUSIVEL} ${motivos.join(" ")}`;
+}
+
+/** Reconhece a marca. Se esta e `mensagemImplausivel` divergirem, a leitura errada some do relatório. */
+export function isImplausivelMessage(message: string | null | undefined): boolean {
+  return message?.startsWith(MARCA_IMPLAUSIVEL) ?? false;
+}
+
+/**
  * "Leu só parte do arquivo": viu bastante linha com valor e aproveitou menos da metade.
  * Mora aqui pra checagem diária e a hora de guardar o arquivo usarem a MESMA régua — se as duas
  * divergirem, o relatório acusa uma leitura parcial e o arquivo dela não está guardado.
@@ -84,6 +102,8 @@ export type ImportHealthWindow = {
   falhas: number;
   /** Leu o arquivo, mas achou pouca coisa perto do que tinha: quase sempre formato não suportado. */
   parciais: number;
+  /** Leu tudo, mas os números não parecem dinheiro: coluna errada, sinal perdido. */
+  implausiveis: number;
   /** Agrupado pelo que dá pra agir: mesma mensagem + mesmo formato de arquivo. */
   porCausa: { causa: string; vezes: number; pessoas: number; exemplos: string[] }[];
   /** Pessoas que tentaram e não conseguiram nada — é quem pede reembolso. */
@@ -111,10 +131,18 @@ export async function getImportHealth(days = 1): Promise<ImportHealthWindow> {
   const falhas = rows.filter((r) => !r.ok);
   // Leu menos da metade das linhas com valor (e ficou faltando coisa de verdade).
   const parciais = rows.filter((r) => r.ok && r.stage === "parse" && isPartialRead(r.moneyLines, r.parsed));
+  // Leu tudo e o resultado não parece dinheiro de gente.
+  const implausiveis = rows.filter((r) => r.ok && isImplausivelMessage(r.message));
 
   const grupos = new Map<string, { vezes: number; pessoas: Set<string>; exemplos: Set<string> }>();
-  for (const r of [...falhas, ...parciais]) {
-    const motivo = r.ok ? "leu só parte do arquivo" : (r.message ?? "erro sem mensagem").split(".")[0];
+  // Uma mesma tentativa pode ser parcial E implausível: deduplica pra não contar duas vezes.
+  const problematicos = [...new Map([...falhas, ...parciais, ...implausiveis].map((r) => [r.id, r])).values()];
+  for (const r of problematicos) {
+    const motivo = isImplausivelMessage(r.message)
+      ? `leu números implausíveis — ${r.message!.slice(MARCA_IMPLAUSIVEL.length).trim().split(".")[0]}`
+      : r.ok
+        ? "leu só parte do arquivo"
+        : (r.message ?? "erro sem mensagem").split(".")[0];
     const causa = `${r.target}/${extOf(r.fileName)} · ${motivo}`;
     const g = grupos.get(causa) ?? { vezes: 0, pessoas: new Set<string>(), exemplos: new Set<string>() };
     g.vezes += 1;
@@ -137,6 +165,7 @@ export async function getImportHealth(days = 1): Promise<ImportHealthWindow> {
     total: rows.length,
     falhas: falhas.length,
     parciais: parciais.length,
+    implausiveis: implausiveis.length,
     porCausa: [...grupos.entries()]
       .map(([causa, g]) => ({ causa, vezes: g.vezes, pessoas: g.pessoas.size, exemplos: [...g.exemplos].slice(0, 3) }))
       .sort((a, b) => b.pessoas - a.pessoas || b.vezes - a.vezes),

@@ -30,8 +30,9 @@ export type StoreImportFileInput = {
   file: unknown;
   /** text | xlsx | pdf */
   encoding?: string | null;
-  /** "falha" = não leu nada; "parcial" = leu menos da metade das linhas com valor. */
-  reason: "falha" | "parcial";
+  /** "falha" = não leu nada; "parcial" = leu menos da metade das linhas com valor;
+   *  "implausivel" = leu tudo, mas os números não parecem dinheiro (coluna errada). */
+  reason: "falha" | "parcial" | "implausivel";
 };
 
 /**
