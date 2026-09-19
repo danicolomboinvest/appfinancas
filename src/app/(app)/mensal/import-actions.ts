@@ -119,7 +119,8 @@ export async function parseStatementAction(formData: FormData): Promise<ParseSta
   } catch (err) {
     if (err instanceof PasswordRequiredError) return { ok: false, error: err.message, needsPassword: true };
     if (err instanceof UploadReadError) {
-      await falha(err.message);
+      // A pessoa vê a frase limpa; o diagnóstico guarda também a causa técnica.
+      await falha(err.detail ? `${err.message} [${err.detail}]` : err.message);
       return { ok: false, error: err.message };
     }
     console.error("parseStatementAction: leitura falhou", {

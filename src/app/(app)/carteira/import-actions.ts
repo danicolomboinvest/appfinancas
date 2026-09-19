@@ -82,7 +82,8 @@ export async function parsePortfolioAction(formData: FormData): Promise<ParsePor
   } catch (err) {
     if (err instanceof PasswordRequiredError) return { ok: false, error: err.message, needsPassword: true };
     if (err instanceof UploadReadError) {
-      await falha(err.message);
+      // A pessoa vê a frase limpa; o diagnóstico guarda também a causa técnica.
+      await falha(err.detail ? `${err.message} [${err.detail}]` : err.message);
       return { ok: false, error: err.message };
     }
     // Biblioteca de PDF/Excel engasgou num arquivo fora do padrão. Antes estourava e a pessoa

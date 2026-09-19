@@ -12,8 +12,26 @@
 
 export type UploadEncoding = "text" | "xlsx" | "pdf";
 
-/** Erro esperado de leitura de arquivo, o cliente mostra a mensagem direto pro usuário. */
-export class UploadReadError extends Error {}
+/**
+ * Erro esperado de leitura de arquivo, o cliente mostra a mensagem direto pro usuário.
+ * `detail` é a causa técnica: NÃO vai pra tela, vai só pro registro de diagnóstico. Sem isso a
+ * checagem diária lia "Não consegui ler PDF neste servidor" e não tinha como saber se o motivo
+ * era a biblioteca faltando, o arquivo do worker faltando ou um PDF quebrado — três defeitos
+ * diferentes com a mesma cara.
+ */
+export class UploadReadError extends Error {
+  readonly detail?: string;
+  constructor(message: string, detail?: string) {
+    super(message);
+    this.detail = detail;
+  }
+}
+
+/** Causa técnica enxuta de um erro qualquer, pro registro de diagnóstico. */
+function causa(err: unknown): string {
+  const raw = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+  return raw.replace(/\s+/g, " ").slice(0, 160);
+}
 
 /** O arquivo Excel está protegido por senha: o cliente pede a senha e reenvia o mesmo arquivo. */
 export class PasswordRequiredError extends Error {}
@@ -68,20 +86,26 @@ async function xlsxToCsv(buffer: Buffer, password: string | undefined): Promise<
   return workbook.SheetNames.map((name) => XLSX.utils.sheet_to_csv(workbook.Sheets[name], { FS: ";" })).join("\n");
 }
 
+const PDF_INDISPONIVEL =
+  "Não consegui ler PDF neste servidor. Envie o extrato em CSV ou Excel (a maioria dos bancos exporta nesses formatos).";
+
 /** PDF → texto cru (todas as páginas). */
 async function pdfToText(buffer: Buffer): Promise<string> {
   let PDFParse: typeof import("pdf-parse").PDFParse;
   try {
     ({ PDFParse } = await import("pdf-parse"));
-  } catch {
-    throw new UploadReadError(
-      "Não consegui ler PDF neste servidor. Envie o extrato em CSV ou Excel (a maioria dos bancos exporta nesses formatos).",
-    );
+  } catch (err) {
+    throw new UploadReadError(PDF_INDISPONIVEL, `biblioteca não carregou · ${causa(err)}`);
   }
   const parser = new PDFParse({ data: buffer });
   try {
     const result = await parser.getText();
     return result.text ?? "";
+  } catch (err) {
+    // O pdfjs abre o PDF num "worker" que é um arquivo à parte (pdf.worker.mjs). Quando esse
+    // arquivo não vem junto no servidor, a falha aparece só aqui, na hora de ler — e não no
+    // import acima. Por isso o motivo precisa ir junto pro diagnóstico.
+    throw new UploadReadError(PDF_INDISPONIVEL, `leitura do PDF falhou · ${causa(err)}`);
   } finally {
     await parser.destroy();
   }

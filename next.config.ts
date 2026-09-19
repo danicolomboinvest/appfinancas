@@ -24,6 +24,17 @@ const nextConfig: NextConfig = {
     ],
   },
 
+  // O pdfjs não carrega o leitor de PDF de uma vez: na hora de abrir o arquivo ele busca um
+  // SEGUNDO arquivo (pdf.worker.mjs) pelo caminho de pasta, já em produção. Como nenhum código
+  // escreve esse nome, o rastreador da Vercel não vê que ele é necessário e não o copia pro
+  // servidor. Resultado: TODO PDF falhava com "Não consegui ler PDF neste servidor" — 22 de 22
+  // tentativas de clientes, nenhuma leitura bem-sucedida desde que o registro existe.
+  // Aqui a gente manda copiar o arquivo na mão. Verificado reproduzindo o pacote da Vercel a
+  // partir do rastreamento do build: sem esta linha o PDF quebra, com ela o texto sai.
+  outputFileTracingIncludes: {
+    "**/*": ["node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs"],
+  },
+
   experimental: {
     serverActions: {
       // Importação de extrato/carteira manda o arquivo em base64 pela Server Action —
