@@ -353,6 +353,12 @@ model ImportDiagnostic {
   header      String?
   /// O arquivo em si, guardado só quando a leitura falhou ou veio parcial.
   file        ImportFile?
+  /// Quando o app puxou conversa com a pessoa sobre ESTE erro (ManyChat). Null = ninguém falou
+  /// com ela ainda. É o que impede de avisar a mesma pessoa duas vezes pelo mesmo problema.
+  avisadoEm   DateTime?
+  /// Como terminou o aviso: "enviado", ou o motivo de não ter ido (fora-da-janela,
+  /// nao-encontrado...). Guardado pra Dani saber quem precisa ser chamada na mão.
+  avisoStatus String?
   createdAt   DateTime @default(now())
 
   @@index([createdAt])

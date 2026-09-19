@@ -1,5 +1,6 @@
 "use client";
 
+import { FalarComSuporte } from "@/components/support/FalarComSuporte";
 import { useRef, useState, useTransition } from "react";
 import { Upload, Check, ArrowRight, Lock, Plus } from "lucide-react";
 import type { ParentCategory } from "@prisma/client";
@@ -247,7 +248,15 @@ export function StatementImport({ onDone }: { onDone: () => void }) {
   if (phase === "upload") {
     return (
       <div className="flex flex-col gap-4">
-        {error && <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p>}
+        {/* Erro de leitura: antes esta tela era um beco sem saída. O botão abre a conversa com a
+            mensagem já escrita, incluindo o nome do arquivo e o que o app disse — a pessoa não
+            precisa explicar nada, e o ManyChat reconhece o assunto e responde na hora. */}
+        {error && (
+          <div className="flex flex-col gap-2 rounded-lg bg-danger-soft px-3 py-3">
+            <p className="text-sm text-danger">{error}</p>
+            <FalarComSuporte arquivo={fileName} problema={error} />
+          </div>
+        )}
 
         {kindMismatch && (
           <div className="flex flex-col gap-3 rounded-xl border border-danger/40 bg-danger-soft px-4 py-3">
@@ -575,9 +584,10 @@ export function StatementImport({ onDone }: { onDone: () => void }) {
               </div>
             ))}
             <p className="text-caption text-ink-muted">
-              Confira a lista abaixo antes de confirmar. Se estiver errado mesmo, volte e mande o arquivo pro suporte — a gente
-              já guardou uma cópia e ensina o app a ler esse banco.
+              Confira a lista abaixo antes de confirmar. Se estiver errado mesmo, fala com a gente — já guardamos uma cópia do
+              arquivo e ensinamos o app a ler esse banco.
             </p>
+            <FalarComSuporte arquivo={fileName} problema={stats.suspeitas[0]?.texto} rotulo="Falar com a gente" />
           </div>
         )}
 
@@ -595,9 +605,12 @@ export function StatementImport({ onDone }: { onDone: () => void }) {
             </p>
           )}
           {lowCoverage && (
-            <p className="mt-1 text-caption text-danger">
-              Menos da metade das linhas com valor virou lançamento. Confira se falta alguma coisa; se faltar, manda o arquivo pro suporte que a gente ensina o app.
-            </p>
+            <div className="mt-1 flex flex-col gap-2">
+              <p className="text-caption text-danger">
+                Menos da metade das linhas com valor virou lançamento. Confira se falta alguma coisa.
+              </p>
+              <FalarComSuporte arquivo={fileName} problema="o app leu só parte do arquivo" rotulo="Faltou coisa, me ajuda" />
+            </div>
           )}
           {stats?.invoiceTotal && Math.abs(totalGap) >= 1 && (
             <p className="mt-1 text-caption text-danger">
