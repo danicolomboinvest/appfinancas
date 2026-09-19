@@ -10,7 +10,8 @@ import { refreshDividendsForTickers } from "@/lib/repositories/dividend.repo";
 import { parsePortfolioStatement, guessAssetClass } from "@/lib/import/portfolio-parser";
 import { extractUploadFromForm, UploadReadError, PasswordRequiredError } from "@/lib/import/extract-text";
 import { profileDocument } from "@/lib/import/profile";
-import { recordImportDiagnostic, safeHeader } from "@/lib/repositories/import-diagnostic.repo";
+import { isPartialRead, recordImportDiagnostic, safeHeader } from "@/lib/repositories/import-diagnostic.repo";
+import { storeFailedImportFile } from "@/lib/repositories/import-file.repo";
 import { NUMBERS_ONLY_MESSAGE, pdfTextQuality } from "@/lib/import/pdf-quality";
 
 /** Record (não array solto) por classe existente: se um valor novo entrar no enum AssetClass
@@ -64,7 +65,7 @@ export async function parsePortfolioAction(formData: FormData): Promise<ParsePor
   const uploadedName = uploaded instanceof File ? uploaded.name : null;
   /** Toda saída em erro deixa rastro: é o que alimenta a checagem diária. */
   const falha = async (message: string, extra: Partial<Parameters<typeof recordImportDiagnostic>[0]> = {}) => {
-    await recordImportDiagnostic({
+    const diagnosticId = await recordImportDiagnostic({
       userId: ctx.userId,
       target: "carteira",
       stage: "parse",
@@ -74,6 +75,9 @@ export async function parsePortfolioAction(formData: FormData): Promise<ParsePor
       message,
       ...extra,
     });
+    // Guarda o arquivo que não deu certo, pra dar pra ensinar o formato ao app sem precisar
+    // pedir de volta pra pessoa (quem desiste calado nunca responde).
+    await storeFailedImportFile({ userId: ctx.userId, diagnosticId, file: uploaded, encoding, reason: "falha" });
   };
 
   let text: string;
@@ -183,7 +187,7 @@ export async function parsePortfolioAction(formData: FormData): Promise<ParsePor
       prevValue,
     };
   });
-  await recordImportDiagnostic({
+  const diagnosticId = await recordImportDiagnostic({
     userId: ctx.userId,
     target: "carteira",
     stage: "parse",
@@ -196,6 +200,10 @@ export async function parsePortfolioAction(formData: FormData): Promise<ParsePor
     parsed: parsed.length,
     header: safeHeader(text),
   });
+  // Leu bem menos ativos do que o arquivo mostrava: guarda pra conferir o que ficou de fora.
+  if (isPartialRead(profile.positionRows, parsed.length)) {
+    await storeFailedImportFile({ userId: ctx.userId, diagnosticId, file: uploaded, encoding, reason: "parcial" });
+  }
   return { ok: true, holdings, summary: profile.summary };
 }
 

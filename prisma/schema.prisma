@@ -167,6 +167,7 @@ model User {
   updatedAt    DateTime @updatedAt
 
   monthlyEntries       MonthlyEntry[]
+  importFiles          ImportFile[]
   budgets              Budget[]
   monthlyPlans         MonthlyPlan[]
   customCategories     CustomCategory[]
@@ -350,10 +351,46 @@ model ImportDiagnostic {
   message     String?
   /// Primeira linha do arquivo (cabeçalho), cortada — é o que identifica o formato do banco.
   header      String?
+  /// O arquivo em si, guardado só quando a leitura falhou ou veio parcial.
+  file        ImportFile?
   createdAt   DateTime @default(now())
 
   @@index([createdAt])
   @@index([ok, createdAt])
+}
+
+/// Arquivo de importação guardado quando a leitura FALHOU ou veio pela metade.
+///
+/// Existe porque o motivo nº 1 de reembolso é "subi meu extrato e não veio nada", e até aqui o
+/// arquivo sumia junto com a pessoa: sobrava o cabeçalho no diagnóstico, que não basta pra
+/// descobrir a disposição das colunas de um banco que o app ainda não conhece. Sem o arquivo, a
+/// única saída era pedir por WhatsApp — e quem desiste calado nunca responde.
+///
+/// É dado pessoal sensível (extrato bancário), então: só o que deu errado, nunca importação bem
+/// sucedida; prazo de validade curto, apagado sozinho pela checagem diária; e leitura só pelo
+/// ADMIN.
+model ImportFile {
+  id           String            @id @default(cuid())
+  userId       String
+  user         User              @relation(fields: [userId], references: [id])
+  /// O diagnóstico que registrou esta falha, quando existe.
+  diagnosticId String?           @unique
+  diagnostic   ImportDiagnostic? @relation(fields: [diagnosticId], references: [id], onDelete: Cascade)
+  fileName     String?
+  /// text | xlsx | pdf
+  encoding     String?
+  mimeType     String?
+  /// Tamanho em bytes do que está guardado.
+  bytes        Int
+  content      Bytes
+  /// "falha" (não leu nada) | "parcial" (leu menos da metade das linhas com valor)
+  reason       String
+  /// Depois desta data a checagem diária apaga o arquivo.
+  expiresAt    DateTime
+  createdAt    DateTime          @default(now())
+
+  @@index([createdAt])
+  @@index([expiresAt])
 }
 
 model ImportBatch {

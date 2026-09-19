@@ -133,6 +133,7 @@ export const ADMIN_NAV_SECTION: NavSection = {
     { href: "/admin/usuarios", label: "Usuários" },
     { href: "/admin/relatorio", label: "Relatório" },
     { href: "/admin/criterios", label: "Critérios" },
+    { href: "/admin/importacoes", label: "Importações" },
   ],
 };
 

@@ -31,6 +31,15 @@ export type ImportDiagnosticInput = {
   header?: string | null;
 };
 
+/**
+ * "Leu só parte do arquivo": viu bastante linha com valor e aproveitou menos da metade.
+ * Mora aqui pra checagem diária e a hora de guardar o arquivo usarem a MESMA régua — se as duas
+ * divergirem, o relatório acusa uma leitura parcial e o arquivo dela não está guardado.
+ */
+export function isPartialRead(moneyLines: number, parsed: number): boolean {
+  return moneyLines > 3 && parsed < moneyLines * 0.5;
+}
+
 /** Cabeçalho sem valores: corta em 160 caracteres e tira qualquer número com 6+ dígitos. */
 export function safeHeader(text: string): string {
   const first = text.split(/\r?\n/).find((l) => l.trim()) ?? "";
@@ -41,9 +50,10 @@ export function safeHeader(text: string): string {
  * Grava o diagnóstico sem NUNCA derrubar a importação: se esta escrita falhar, a pessoa não
  * pode perder o arquivo dela por causa de uma linha de telemetria.
  */
-export async function recordImportDiagnostic(input: ImportDiagnosticInput): Promise<void> {
+export async function recordImportDiagnostic(input: ImportDiagnosticInput): Promise<string | null> {
   try {
-    await prisma.importDiagnostic.create({
+    const row = await prisma.importDiagnostic.create({
+      select: { id: true },
       data: {
         userId: input.userId,
         target: input.target,
@@ -61,8 +71,10 @@ export async function recordImportDiagnostic(input: ImportDiagnosticInput): Prom
         header: input.header ?? null,
       },
     });
+    return row.id;
   } catch (err) {
     console.error("recordImportDiagnostic falhou (ignorado)", err);
+    return null;
   }
 }
 
@@ -98,7 +110,7 @@ export async function getImportHealth(days = 1): Promise<ImportHealthWindow> {
 
   const falhas = rows.filter((r) => !r.ok);
   // Leu menos da metade das linhas com valor (e ficou faltando coisa de verdade).
-  const parciais = rows.filter((r) => r.ok && r.stage === "parse" && r.moneyLines > 3 && r.parsed < r.moneyLines * 0.5);
+  const parciais = rows.filter((r) => r.ok && r.stage === "parse" && isPartialRead(r.moneyLines, r.parsed));
 
   const grupos = new Map<string, { vezes: number; pessoas: Set<string>; exemplos: Set<string> }>();
   for (const r of [...falhas, ...parciais]) {

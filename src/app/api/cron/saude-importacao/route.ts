@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getImportHealth } from "@/lib/repositories/import-diagnostic.repo";
+import { purgeExpiredImportFiles } from "@/lib/repositories/import-file.repo";
 import { sendEmail, isEmailConfigured } from "@/lib/email/send";
 import { prisma } from "@/lib/db/prisma";
 
@@ -37,9 +38,13 @@ export async function GET(request: Request) {
     select: { routePath: true, message: true, vezes: true, ultimoEm: true },
   });
 
+  // Retenção dos arquivos guardados. Roda ANTES de qualquer saída antecipada: em dia sem falha
+  // a função retornava cedo, e aí extrato de cliente ficaria parado no banco além do prazo.
+  const arquivosApagados = await purgeExpiredImportFiles();
+
   const problemas = health.falhas + health.parciais + erros.length;
   if (problemas === 0 && !dryRun) {
-    return NextResponse.json({ ok: true, ...resumo(health), erros: 0, enviado: false, motivo: "dia sem falha" });
+    return NextResponse.json({ ok: true, ...resumo(health), erros: 0, arquivosApagados, enviado: false, motivo: "dia sem falha" });
   }
 
   const destino = process.env.SUPPORT_EMAIL ?? process.env.SMTP_USER;
@@ -56,6 +61,7 @@ export async function GET(request: Request) {
     porCausa: health.porCausa,
     pessoasSemSucesso: health.pessoasSemSucesso,
     errosDeServidor: erros,
+    arquivosApagados,
     enviado,
     destino: enviado ? destino : undefined,
   });

@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { installmentDescription, parseInstallment } from "@/lib/entries/recurrence";
 import { countMoneyLines, detectInvoiceTotal, looksLikeCardInvoice, type DocKind } from "@/lib/import/detect";
 import { profileDocument } from "@/lib/import/profile";
-import { recordImportDiagnostic, safeHeader } from "@/lib/repositories/import-diagnostic.repo";
+import { isPartialRead, recordImportDiagnostic, safeHeader } from "@/lib/repositories/import-diagnostic.repo";
+import { storeFailedImportFile } from "@/lib/repositories/import-file.repo";
 import type { ParentCategory } from "@prisma/client";
 import { getRequiredSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
@@ -100,7 +101,7 @@ export async function parseStatementAction(formData: FormData): Promise<ParseSta
   const uploadedName = uploaded instanceof File ? uploaded.name : null;
   /** Toda saída em erro passa por aqui: é o que deixa rastro pra checagem diária. */
   const falha = async (message: string, extra: Partial<Parameters<typeof recordImportDiagnostic>[0]> = {}) => {
-    await recordImportDiagnostic({
+    const diagnosticId = await recordImportDiagnostic({
       userId: ctx.userId,
       target: docType,
       stage: "parse",
@@ -110,6 +111,9 @@ export async function parseStatementAction(formData: FormData): Promise<ParseSta
       message,
       ...extra,
     });
+    // Guarda o arquivo que não deu certo: sem ele, descobrir o formato de um banco novo depende
+    // de a pessoa responder no WhatsApp, e quem desiste calado nunca responde.
+    await storeFailedImportFile({ userId: ctx.userId, diagnosticId, file: uploaded, encoding, reason: "falha" });
   };
 
   let text: string;
@@ -235,7 +239,7 @@ export async function parseStatementAction(formData: FormData): Promise<ParseSta
     sumExpense: items.filter((i) => i.category === "EXPENSE").reduce((s, i) => s + i.amount, 0),
     sumIncome: items.filter((i) => i.category === "INCOME").reduce((s, i) => s + i.amount, 0),
   };
-  await recordImportDiagnostic({
+  const diagnosticId = await recordImportDiagnostic({
     userId: ctx.userId,
     target: docType,
     stage: "parse",
@@ -248,6 +252,12 @@ export async function parseStatementAction(formData: FormData): Promise<ParseSta
     parsed: items.length,
     header: safeHeader(text),
   });
+  // Leu, mas achou muito menos do que o arquivo tinha: pra pessoa é "só veio um pedaço da
+  // fatura". Guarda o arquivo também nesse caso — é o único jeito de conferir se o que ficou
+  // de fora era transação de verdade ou só linha de resumo.
+  if (isPartialRead(moneyLines, items.length)) {
+    await storeFailedImportFile({ userId: ctx.userId, diagnosticId, file: uploaded, encoding, reason: "parcial" });
+  }
   return { ok: true, items, customCategories: customCategories.map((c) => ({ id: c.id, name: c.name })), stats };
 }
 
