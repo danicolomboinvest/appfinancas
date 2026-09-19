@@ -107,6 +107,21 @@ export async function pessoasAAvisar(agora = new Date()): Promise<PessoaAAvisar[
   return escolherQuemAvisar(rows);
 }
 
+/**
+ * Falhas que são configuração NOSSA, não um fato sobre a pessoa.
+ *
+ * A diferença importa: um contato que não existe no ManyChat hoje também não vai existir amanhã,
+ * então insistir só gasta chamada. Mas "falta o token" é um buraco do nosso lado — no dia em que
+ * for preenchido, essas pessoas precisam ser avisadas. Marcá-las como avisadas enquanto o app
+ * nem conseguia tentar as apagaria da fila pra sempre, e elas são justamente quem já estava
+ * esperando ajuda.
+ */
+const FALTA_CONFIGURACAO = new Set(["sem-token", "sem-fluxo", "sem-configuracao"]);
+
+export function marcaComoAvisada(status: string): boolean {
+  return !FALTA_CONFIGURACAO.has(status);
+}
+
 export type ResultadoDoAviso = PessoaAAvisar & {
   enviado: boolean;
   /** "enviado" | "fora-da-janela" | "nao-encontrado" | "sem-token" | "sem-fluxo" | "erro" */
@@ -127,12 +142,11 @@ export async function avisarPessoas(pessoas: PessoaAAvisar[], dryRun = false): P
     const r = await avisarErroDeImportacao(p.email);
     const status = r.ok ? "enviado" : r.motivo;
     resultados.push({ ...p, enviado: r.ok, status });
-    // Marca mesmo quando não entregou: a tentativa aconteceu, e repetir amanhã não mudaria o
-    // motivo (contato que não existe no ManyChat hoje não vai existir amanhã). O que muda a
-    // situação é a Dani chamar na mão, e pra isso ela recebe a lista.
-    await prisma.importDiagnostic
-      .update({ where: { id: p.diagnosticId }, data: { avisadoEm: new Date(), avisoStatus: status } })
-      .catch((err) => console.error("marcar aviso falhou (ignorado)", err));
+    if (marcaComoAvisada(status)) {
+      await prisma.importDiagnostic
+        .update({ where: { id: p.diagnosticId }, data: { avisadoEm: new Date(), avisoStatus: status } })
+        .catch((err) => console.error("marcar aviso falhou (ignorado)", err));
+    }
   }
   return resultados;
 }
