@@ -89,8 +89,28 @@ async function xlsxToCsv(buffer: Buffer, password: string | undefined): Promise<
 const PDF_INDISPONIVEL =
   "Não consegui ler PDF neste servidor. Envie o extrato em CSV ou Excel (a maioria dos bancos exporta nesses formatos).";
 
+/**
+ * Dá ao pdf.js os objetos de navegador que ele espera existir só por estar sendo carregado.
+ *
+ * Em produção a biblioteca nem chegava a abrir: `ReferenceError: DOMMatrix is not defined`, 36
+ * tentativas de 9 clientes em um único dia, todo PDF falhando. Aqui no Mac isso não acontece —
+ * o pacote tem várias versões de si mesmo (uma pra Node, uma pra navegador) e o empacotador da
+ * Vercel escolhe outra, que assume estar num navegador de verdade.
+ *
+ * Os três objetos abaixo só são usados pra DESENHAR a página. Extrair texto não desenha nada,
+ * então uma casca vazia basta pra biblioteca carregar e o texto sair. Não substitui nada que já
+ * exista: onde os objetos são de verdade (um navegador), eles continuam sendo os de verdade.
+ */
+function prepararAmbienteDoPdf(): void {
+  const g = globalThis as Record<string, unknown>;
+  g.DOMMatrix ??= class {};
+  g.Path2D ??= class {};
+  g.ImageData ??= class {};
+}
+
 /** PDF → texto cru (todas as páginas). */
 async function pdfToText(buffer: Buffer): Promise<string> {
+  prepararAmbienteDoPdf();
   let PDFParse: typeof import("pdf-parse").PDFParse;
   try {
     ({ PDFParse } = await import("pdf-parse"));
