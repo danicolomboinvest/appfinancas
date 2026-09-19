@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { IMPORT_FILE_RETENTION_DAYS } from "@/lib/repositories/import-file.repo";
 import { isPluggyConfigured } from "@/lib/pluggy/client";
 
 export const metadata = { title: "Política de Privacidade · SPI Finance" };
@@ -59,8 +60,18 @@ export default function PrivacidadePage() {
         <h2 className="mt-2 text-base font-semibold text-ink">4. Onde ficam armazenados</h2>
         <p>
           Em provedores de nuvem contratados para hospedar o serviço (banco de dados e servidores), com acesso restrito
-          e tráfego criptografado (HTTPS). Arquivos de extrato importados são processados na hora e não ficam salvos —
-          só as transações/ativos que você confirmar.
+          e tráfego criptografado (HTTPS). Arquivos de extrato, fatura ou posição que o app consegue ler são processados
+          na hora e <strong className="text-ink">não ficam salvos</strong> — guardamos só as transações e ativos que
+          você confirmar.
+        </p>
+        <p>
+          <strong className="text-ink">Quando a leitura falha</strong> (o app não entende o formato do seu banco, ou lê
+          só parte do arquivo), o arquivo enviado fica guardado por{" "}
+          <strong className="text-ink">até {IMPORT_FILE_RETENTION_DAYS} dias</strong>, com uma única finalidade: corrigir
+          o leitor para aquele formato e conseguir te dar suporte. Depois desse prazo ele é apagado automaticamente.
+          Nesse período, o acesso é restrito à administração do SPI Finance, o arquivo não é compartilhado com ninguém
+          de fora e não é usado para nenhuma outra finalidade. Se você excluir sua conta antes disso, ele é apagado
+          junto. Para pedir a exclusão imediata de um arquivo específico, fale com a gente no contato abaixo.
         </p>
 
         <h2 className="mt-2 text-base font-semibold text-ink">5. Seus direitos (LGPD)</h2>
@@ -69,7 +80,10 @@ export default function PrivacidadePage() {
           <strong className="text-ink">corrigir</strong> seus dados (dentro do próprio app),{" "}
           <strong className="text-ink">exportar</strong> (Configurações → Dados) e{" "}
           <strong className="text-ink">excluir sua conta com todos os dados</strong> (Configurações → Dados → Excluir
-          conta). A exclusão é definitiva e imediata.
+          conta). A exclusão é definitiva e imediata, e leva junto qualquer arquivo de importação que estivesse
+          guardado para suporte. Você também pode{" "}
+          <strong className="text-ink">se opor</strong> a essa retenção ou pedir a exclusão de um arquivo específico
+          pelo contato abaixo.
         </p>
 
         <h2 className="mt-2 text-base font-semibold text-ink">6. Cookies e sessão</h2>
