@@ -181,3 +181,23 @@ export async function listEntriesForMonths(ctx: AuthContext, months: { year: num
     },
   });
 }
+
+/**
+ * Data do último gasto lançado no mês — o quão ATUAL está a informação da pessoa.
+ *
+ * Existe porque a maioria sobe o extrato uma vez por mês. Entre uma importação e outra, o app
+ * continua exibindo os mesmos totais com a mesma confiança, como se aquilo fosse o mês inteiro.
+ * Quem importou no dia 12 e abre no dia 20 vê "sobram R$ 1.024" sem nenhuma pista de que oito
+ * dias de compras não estão ali. O número não está errado; está velho, que na prática engana igual.
+ *
+ * Só gasto conta: renda e aporte costumam ser um lançamento no começo do mês e ficariam
+ * "atualizados" o mês todo, escondendo justamente o que a gente quer medir.
+ */
+export async function getLastExpenseDate(ctx: AuthContext, year: number, month: number): Promise<Date | null> {
+  const row = await prisma.monthlyEntry.findFirst({
+    where: { userId: ctx.userId, year, month, category: "EXPENSE", entryDate: { not: null } },
+    orderBy: { entryDate: "desc" },
+    select: { entryDate: true },
+  });
+  return row?.entryDate ?? null;
+}

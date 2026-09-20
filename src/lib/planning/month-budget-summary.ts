@@ -23,6 +23,16 @@ export type SituacaoDoMes =
   /** Gastou menos do que a altura do mês pede. */
   | "folgado";
 
+/**
+ * Dias de silêncio antes de avisar que o mês está desatualizado.
+ *
+ * Extrato de banco atrasa um ou dois dias por natureza, então cobrar antes disso seria implicar
+ * com quem está em dia. Três dias de silêncio já é outra coisa: o número na tela deixa de ser
+ * "o seu mês" e vira "o seu mês até onde você contou" — e a diferença entre as duas é o que faz
+ * alguém confiar num saldo que já não existe.
+ */
+const DIAS_ATE_ENVELHECER = 2;
+
 export type ResumoDoMes = {
   planejado: number;
   gasto: number;
@@ -34,9 +44,18 @@ export type ResumoDoMes = {
   doMes: number;
   /** Dias que ainda vão acontecer, contando hoje. */
   diasRestantes: number;
-  /** Quanto dá pra gastar por dia no que falta. Null se estourou ou não há plano. */
+  /** Quanto dá pra gastar por dia no que falta. Null se estourou, não há plano ou o dado envelheceu. */
   porDia: number | null;
   situacao: SituacaoDoMes;
+  /** Dia do último gasto lançado. Null quando o mês não tem gasto nenhum. */
+  ultimoDiaLancado: number | null;
+  /** Dias desde o último gasto lançado. Null quando não há gasto no mês. */
+  diasSemLancar: number | null;
+  /**
+   * O mês está contado só até certo ponto: o que veio depois não está na conta.
+   * Quando isto é true, os totais continuam verdadeiros, mas deixam de ser completos.
+   */
+  desatualizado: boolean;
 };
 
 /**
@@ -56,8 +75,10 @@ export function resumoDoMes(input: {
   hoje: Date;
   ano: number;
   mes: number;
+  /** Data do último gasto lançado no mês, pra saber até onde o mês foi contado. */
+  ultimoGasto?: Date | null;
 }): ResumoDoMes {
-  const { planejado, gasto, hoje, ano, mes } = input;
+  const { planejado, gasto, hoje, ano, mes, ultimoGasto } = input;
   const diasNoMes = new Date(ano, mes, 0).getDate();
   const ehMesCorrente = hoje.getFullYear() === ano && hoje.getMonth() + 1 === mes;
   const diaAtual = ehMesCorrente ? hoje.getDate() : diasNoMes;
@@ -74,9 +95,39 @@ export function resumoDoMes(input: {
   else if (usado! < doMes - FOLGA) situacao = "folgado";
   else situacao = "no-ritmo";
 
+  const ultimoDiaLancado = ultimoGasto ? ultimoGasto.getDate() : null;
+  const diasSemLancar =
+    ehMesCorrente && ultimoGasto ? Math.max(0, Math.floor((meiaNoite(hoje) - meiaNoite(ultimoGasto)) / 86_400_000)) : null;
+  // Mês corrente COM plano e sem gasto nenhum também está desatualizado: é o caso de quem ainda
+  // não subiu o extrato do mês, e é justamente quem mais precisa do aviso.
+  const desatualizado =
+    ehMesCorrente && planejado > 0 && (diasSemLancar === null || diasSemLancar > DIAS_ATE_ENVELHECER);
+
   // Só faz sentido dividir o que sobrou pelos dias que ainda vão acontecer. Num mês fechado
   // (ou estourado) isso viraria divisão por zero ou um número negativo sem significado.
-  const porDia = planejado > 0 && restante > 0 && diasRestantes > 0 ? restante / diasRestantes : null;
+  //
+  // E some quando o dado envelheceu: "R$ 93 por dia até dia 30" calculado sobre gastos que param
+  // no dia 12 é preciso e falso ao mesmo tempo, que é a pior combinação possível — a pessoa toma
+  // decisão com ele justamente por parecer exato.
+  const porDia =
+    planejado > 0 && restante > 0 && diasRestantes > 0 && !desatualizado ? restante / diasRestantes : null;
 
-  return { planejado, gasto, restante, usado, doMes, diasRestantes, porDia, situacao };
+  return {
+    planejado,
+    gasto,
+    restante,
+    usado,
+    doMes,
+    diasRestantes,
+    porDia,
+    situacao,
+    ultimoDiaLancado,
+    diasSemLancar,
+    desatualizado,
+  };
+}
+
+/** Compara dias de calendário, não instantes: 23h de ontem para 1h de hoje é 1 dia, não 0. */
+function meiaNoite(d: Date): number {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
 }

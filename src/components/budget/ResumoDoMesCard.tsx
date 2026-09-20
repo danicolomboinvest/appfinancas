@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { ResumoDoMes } from "@/lib/planning/month-budget-summary";
 
 /**
@@ -16,6 +17,7 @@ export function ResumoDoMesCard({
   mesLabel,
   ultimoDia,
   money,
+  onAtualizar,
 }: {
   resumo: ResumoDoMes;
   /** "Setembro" */
@@ -23,14 +25,20 @@ export function ResumoDoMesCard({
   /** Último dia do mês, pro "até dia 30". */
   ultimoDia: number;
   money: (n: number, o?: { round?: boolean }) => string;
+  /** Botão de atualizar, mostrado quando o mês está contado pela metade. */
+  onAtualizar?: ReactNode;
 }) {
-  const { planejado, gasto, restante, usado, doMes, diasRestantes, porDia, situacao } = resumo;
+  const { planejado, gasto, restante, usado, doMes, diasRestantes, porDia, situacao, ultimoDiaLancado, desatualizado } =
+    resumo;
 
   // Vermelho é só pra quem estourou de verdade. "Adiantado" ainda tem dinheiro sobrando, e
   // pintar isso de vermelho colocava a barra em alarme logo acima de um "economia no mês" em
   // verde, na mesma tela — dois veredictos opostos sobre o mesmo mês. Âmbar é atenção, não susto.
-  const cor =
-    situacao === "estourou"
+  // Dado velho não recebe veredicto de cor. Pintar de verde um mês contado só até o dia 12 é
+  // dizer "está tudo bem" sobre uma conta que ninguém terminou de fazer.
+  const cor = desatualizado
+    ? "var(--color-ink-faint)"
+    : situacao === "estourou"
       ? "var(--color-danger)"
       : situacao === "adiantado"
         ? "var(--color-accent)"
@@ -69,12 +77,26 @@ export function ResumoDoMesCard({
         )}
       </div>
 
-      <p className="mt-3 text-sm text-ink">{frase({ situacao, restante, porDia, diasRestantes, ultimoDia, money })}</p>
-
-      {/* Só explica o tracinho quando a frase acima não explicou. Dizer "passou do tracinho =
-          adiantado" logo abaixo de "você está gastando adiantado" é ocupar a tela repetindo. */}
-      {planejado > 0 && diasRestantes > 0 && situacao === "no-ritmo" && (
-        <p className="mt-0.5 text-caption text-ink-faint">O tracinho é onde o mês está hoje.</p>
+      {/* Quando o mês está contado pela metade, a conversa muda: não adianta dizer "ainda dá"
+          sobre um número que não terminou de acontecer. A frase vira o convite pra completar. */}
+      {desatualizado ? (
+        <>
+          <p className="mt-3 text-sm text-ink">
+            {ultimoDiaLancado === null
+              ? `Você ainda não lançou nenhum gasto de ${mesLabel}.`
+              : `Seus gastos estão lançados até dia ${ultimoDiaLancado}. O que veio depois ainda não está nesta conta.`}
+          </p>
+          {onAtualizar}
+        </>
+      ) : (
+        <>
+          <p className="mt-3 text-sm text-ink">{frase({ situacao, restante, porDia, diasRestantes, ultimoDia, money })}</p>
+          {/* Só explica o tracinho quando a frase acima não explicou. Dizer "passou do tracinho =
+              adiantado" logo abaixo de "você está gastando adiantado" é ocupar a tela repetindo. */}
+          {planejado > 0 && diasRestantes > 0 && situacao === "no-ritmo" && (
+            <p className="mt-0.5 text-caption text-ink-faint">O tracinho é onde o mês está hoje.</p>
+          )}
+        </>
       )}
     </section>
   );

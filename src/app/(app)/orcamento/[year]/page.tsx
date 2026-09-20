@@ -39,6 +39,8 @@ import { serverMoney } from "@/lib/money-server";
 import { Section } from "@/components/ui/Section";
 import { resumoDoMes } from "@/lib/planning/month-budget-summary";
 import { ResumoDoMesCard } from "@/components/budget/ResumoDoMesCard";
+import { AtualizarMesButton } from "@/components/budget/AtualizarMesButton";
+import { getLastExpenseDate } from "@/lib/repositories/monthly-entry.repo";
 
 const MONTH_LABELS = [
   "Janeiro",
@@ -107,6 +109,8 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
 
   // O resumo que abre a página. Só do mês corrente: "quanto posso gastar por dia" não existe
   // pra um mês que já acabou, e é justamente essa conta que faz o cartão valer a tela.
+  const ultimoGasto =
+    currentMonthData && isCurrentYear ? await getLastExpenseDate(ctx, year, currentMonthData.month) : null;
   const resumoMes =
     currentMonthData && isCurrentYear
       ? resumoDoMes({
@@ -115,6 +119,7 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
           hoje: now,
           ano: year,
           mes: currentMonthData.month,
+          ultimoGasto,
         })
       : null;
   const ultimoDiaDoMes = currentMonthData ? new Date(year, currentMonthData.month, 0).getDate() : 0;
@@ -224,6 +229,7 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
           mesLabel={MONTH_LABELS[currentMonthData!.month - 1]}
           ultimoDia={ultimoDiaDoMes}
           money={money}
+          onAtualizar={<AtualizarMesButton />}
         />
       )}
 
