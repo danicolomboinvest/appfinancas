@@ -37,6 +37,8 @@ import { formatPercentNumber } from "@/lib/format";
 import type { MonthlyPlannedVsActual } from "@/lib/planning/budget-comparison";
 import { serverMoney } from "@/lib/money-server";
 import { Section } from "@/components/ui/Section";
+import { resumoDoMes } from "@/lib/planning/month-budget-summary";
+import { ResumoDoMesCard } from "@/components/budget/ResumoDoMesCard";
 
 const MONTH_LABELS = [
   "Janeiro",
@@ -102,6 +104,20 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
   const now = new Date();
   const isCurrentYear = year === now.getFullYear();
   const currentMonthData = isCurrentYear ? comparison.months.find((m) => m.month === now.getMonth() + 1) : undefined;
+
+  // O resumo que abre a página. Só do mês corrente: "quanto posso gastar por dia" não existe
+  // pra um mês que já acabou, e é justamente essa conta que faz o cartão valer a tela.
+  const resumoMes =
+    currentMonthData && isCurrentYear
+      ? resumoDoMes({
+          planejado: currentMonthData.totalPlanned,
+          gasto: currentMonthData.totalSpent,
+          hoje: now,
+          ano: year,
+          mes: currentMonthData.month,
+        })
+      : null;
+  const ultimoDiaDoMes = currentMonthData ? new Date(year, currentMonthData.month, 0).getDate() : 0;
 
   const monthSavings = currentMonthData ? computeMonthSavings(currentMonthData) : null;
   const biggestOverrun = currentMonthData ? findBiggestOverrun(currentMonthData.categories) : null;
@@ -177,9 +193,11 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
 
   return (
     <div className="flex flex-col gap-8">
+      {/* Subtítulo curto de propósito: o cartão logo abaixo diz a mesma coisa com os números
+          DELA, e no celular cada linha aqui empurra pra fora da tela o número que ela veio ver. */}
       <PageHeader
         title="Orçamento"
-        subtitle="Compare quanto você planejou gastar com quanto gastou de fato, mês a mês e por categoria."
+        subtitle="Quanto você planejou gastar, e quanto já foi."
         action={
           <div className="flex items-center gap-1">
             <Link
@@ -197,6 +215,17 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
           </div>
         }
       />
+
+      {/* Primeira coisa da página, de propósito: é o número que a pessoa veio ver. Tudo o que
+          vem depois (categorias, ano, tabela) explica ESTE número. */}
+      {resumoMes && (
+        <ResumoDoMesCard
+          resumo={resumoMes}
+          mesLabel={MONTH_LABELS[currentMonthData!.month - 1]}
+          ultimoDia={ultimoDiaDoMes}
+          money={money}
+        />
+      )}
 
       <CollapsibleSection
         label={hasPlan ? `Editar seu plano de ${year}: renda, aporte e gastos` : `Vamos montar seu orçamento de ${year}`}
