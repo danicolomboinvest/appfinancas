@@ -14,6 +14,7 @@ import { currentYearMonthFromPath } from "@/app/(app)/mensal/current-month";
 import { VoiceRecorder } from "@/app/(app)/mensal/VoiceRecorder";
 import { StatementImport } from "@/components/import/StatementImport";
 import type { ParsedVoiceEntry } from "@/lib/entries/voice-expense-parser";
+import { trackEvent } from "@/lib/usage/track-event";
 
 type Mode = "choice" | "type" | "voice" | "import";
 
@@ -82,7 +83,10 @@ export function RegistrarDrawer({
         <div className="grid grid-cols-2 gap-3">
           <button
             type="button"
-            onClick={() => setMode("type")}
+            onClick={() => {
+              trackEvent("registro_digitado", "/registrar");
+              setMode("type");
+            }}
             className="flex flex-col items-center gap-3 rounded-2xl border border-border bg-surface-2 px-4 py-6 text-center transition-all hover:border-border-strong hover:bg-surface-hover active:scale-95"
           >
             <span className="flex h-12 w-12 items-center justify-center rounded-full bg-ink text-canvas">
@@ -92,7 +96,12 @@ export function RegistrarDrawer({
           </button>
           <button
             type="button"
-            onClick={() => setMode("voice")}
+            onClick={() => {
+              // Medido aqui, na escolha, e não no salvamento: quem tenta o áudio e desiste no
+              // meio também é resposta — é justamente o sinal de que a gravação está difícil.
+              trackEvent("registro_voz", "/registrar");
+              setMode("voice");
+            }}
             className="flex flex-col items-center gap-3 rounded-2xl border border-border bg-surface-2 px-4 py-6 text-center transition-all hover:border-border-strong hover:bg-surface-hover active:scale-95"
           >
             <span className="flex h-12 w-12 items-center justify-center rounded-full bg-accent text-on-accent">
@@ -102,7 +111,10 @@ export function RegistrarDrawer({
           </button>
           <button
             type="button"
-            onClick={() => setMode("import")}
+            onClick={() => {
+              trackEvent("registro_importacao", "/registrar");
+              setMode("import");
+            }}
             className="col-span-2 flex items-center justify-center gap-3 rounded-2xl border border-border bg-surface-2 px-4 py-4 text-center transition-all hover:border-border-strong hover:bg-surface-hover active:scale-95"
           >
             <span className="flex h-10 w-10 items-center justify-center rounded-full bg-ink text-canvas">

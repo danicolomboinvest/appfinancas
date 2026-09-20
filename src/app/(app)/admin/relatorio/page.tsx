@@ -1,6 +1,7 @@
 import { requireAdmin } from "@/lib/auth/rbac";
 import { getPlatformReport } from "@/lib/repositories/admin-analytics.repo";
 import { getUsageReport } from "@/lib/repositories/usage.repo";
+import { getFunilDeAdocao } from "@/lib/repositories/adoption-funnel.repo";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { StatCard } from "@/components/ui/StatCard";
@@ -12,7 +13,7 @@ export const metadata = { title: "Relatório da plataforma · SPI Finance" };
 export default async function AdminRelatorioPage() {
   const money = await serverMoney();
   await requireAdmin();
-  const [report, usage] = await Promise.all([getPlatformReport(), getUsageReport(30)]);
+  const [report, usage, funil] = await Promise.all([getPlatformReport(), getUsageReport(30), getFunilDeAdocao()]);
   const { engagement: e, featureAdoption, simulators, sheets, financial: f } = report;
 
   const maxSignup = Math.max(1, ...e.signupsByWeek.map((w) => w.count));
@@ -54,6 +55,117 @@ export default async function AdminRelatorioPage() {
                 <span className="text-[10px] text-ink-faint">{w.weekLabel}</span>
               </div>
             ))}
+          </div>
+        </Card>
+      </section>
+
+      {/* ONDE AS PESSOAS PARAM. A adoção por funcionalidade (mais abaixo) diz QUANTAS usam cada
+          coisa; só o funil diz ONDE elas desistem, que é o que decide o que fazer a seguir. */}
+      <section className="flex flex-col gap-4">
+        <h2 className="text-sm font-semibold tracking-tight text-ink">Onde as pessoas param</h2>
+        <Card className="flex flex-col gap-2.5 p-4">
+          {funil.passos.map((p) => (
+            <div key={p.label} className="grid grid-cols-[1fr_auto] items-baseline gap-x-3 gap-y-1">
+              <span className="text-sm text-ink">{p.label}</span>
+              <span className="text-sm tabular-nums text-ink-muted">
+                {p.pessoas} <span className="text-ink-faint">({Math.round(p.doTotal * 100)}%)</span>
+              </span>
+              <span className="col-span-2 block h-2 rounded-full bg-surface-2">
+                <span
+                  className="block h-full rounded-full bg-accent"
+                  style={{ width: `${Math.round(p.doTotal * 100)}%` }}
+                />
+              </span>
+              {p.perdidas > 0 && (
+                <span className="col-span-2 text-caption text-danger">
+                  {p.perdidas} pessoa{p.perdidas === 1 ? "" : "s"} não passou daqui
+                </span>
+              )}
+            </div>
+          ))}
+        </Card>
+
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+          <TravadasCard
+            titulo="Pagaram e nunca abriram"
+            descricao="Nem chegaram a ver o produto. É daqui que sai reembolso."
+            pessoas={funil.nuncaAbriram}
+            tone="danger"
+          />
+          <TravadasCard
+            titulo="Abriram e não lançaram nada"
+            descricao="Estão tentando: andaram pelo app e não conseguiram pôr dado dentro."
+            pessoas={funil.abriramSemLancar}
+            tone="accent"
+          />
+        </div>
+
+        {/* Coortes: é o que denuncia um LOTE inteiro que entrou e nunca ativou — impossível de
+            ver numa média, porque as semanas boas escondem as ruins. */}
+        <Card className="p-4">
+          <p className="text-sm font-medium text-ink">Por semana de entrada</p>
+          <p className="text-caption text-ink-faint">
+            Quantas de cada turma chegaram a abrir e a lançar. Turma inteira parada é problema de
+            comunicação, não do app.
+          </p>
+          <div className="mt-3 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-caption text-ink-faint">
+                  <th className="pb-1 pr-3 font-normal">Semana</th>
+                  <th className="pb-1 pr-3 text-right font-normal">Entraram</th>
+                  <th className="pb-1 pr-3 text-right font-normal">Abriram</th>
+                  <th className="pb-1 pr-3 text-right font-normal">Lançaram</th>
+                  <th className="pb-1 text-right font-normal">Ativas</th>
+                </tr>
+              </thead>
+              <tbody>
+                {funil.coortes.map((c) => {
+                  const ruim = c.entraram >= 5 && c.abriram / c.entraram < 0.5;
+                  return (
+                    <tr key={c.semana} className={ruim ? "text-danger" : "text-ink"}>
+                      <td className="py-1 pr-3 tabular-nums">{c.semana.slice(8)}/{c.semana.slice(5, 7)}</td>
+                      <td className="py-1 pr-3 text-right tabular-nums">{c.entraram}</td>
+                      <td className="py-1 pr-3 text-right tabular-nums">{c.abriram}</td>
+                      <td className="py-1 pr-3 text-right tabular-nums">{c.lancaram}</td>
+                      <td className="py-1 text-right tabular-nums">{c.aindaAtivas}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <p className="mt-2 text-caption text-ink-faint">
+            Linha em vermelho: menos da metade da turma chegou a abrir o app.
+          </p>
+        </Card>
+
+        <Card className="p-4">
+          <p className="text-sm font-medium text-ink">De onde vem o dado</p>
+          <p className="mt-1 text-sm text-ink-muted">
+            {funil.origemDosLancamentos.importados} lançamentos vieram de arquivo e{" "}
+            {funil.origemDosLancamentos.manuais} foram digitados ou falados
+            {funil.origemDosLancamentos.importados + funil.origemDosLancamentos.manuais > 0 &&
+              ` — ${Math.round((funil.origemDosLancamentos.importados / (funil.origemDosLancamentos.importados + funil.origemDosLancamentos.manuais)) * 100)}% do que existe no app entrou por importação.`}
+          </p>
+          <p className="mt-1 text-caption text-ink-faint">
+            Quanto maior essa fatia, mais caro sai cada falha de leitura de arquivo.
+          </p>
+
+          {/* Digitar e ditar terminam idênticos no banco: só o evento gravado na hora separa os
+              dois. Por isso esta conta começa do zero e só fala do uso a partir de agora. */}
+          <div className="mt-3 border-t border-border pt-3">
+            <p className="text-sm font-medium text-ink">Qual caminho elas escolhem</p>
+            {funil.caminhoEscolhido.voz + funil.caminhoEscolhido.digitado + funil.caminhoEscolhido.importacao === 0 ? (
+              <p className="mt-1 text-sm text-ink-muted">
+                Ainda sem dados: a medição começou agora e conta só daqui pra frente.
+              </p>
+            ) : (
+              <p className="mt-1 text-sm text-ink-muted">
+                Importar: {funil.caminhoEscolhido.importacao} · Digitar: {funil.caminhoEscolhido.digitado} · Áudio:{" "}
+                {funil.caminhoEscolhido.voz}
+              </p>
+            )}
           </div>
         </Card>
       </section>
@@ -211,4 +323,59 @@ export default async function AdminRelatorioPage() {
 function pctOf(part: number, total: number): string | undefined {
   if (total <= 0) return undefined;
   return `${formatPercentNumber((part / total) * 100, 0)} da base`;
+}
+
+/**
+ * A lista com NOME de quem travou. Existe porque porcentagem não dá pra chamar no WhatsApp:
+ * o relatório dizia "50 pessoas não lançaram nada" e não havia como agir sobre isso.
+ * Mostra as primeiras e diz quantas faltam, pra não virar uma parede de e-mails.
+ */
+function TravadasCard({
+  titulo,
+  descricao,
+  pessoas,
+  tone,
+}: {
+  titulo: string;
+  descricao: string;
+  pessoas: { userId: string; nome: string | null; email: string; diasDesdeUltimoAcesso: number | null; criadaEm: Date }[];
+  tone: "danger" | "accent";
+}) {
+  const MOSTRAR = 8;
+  return (
+    <Card className={`p-4 ${tone === "danger" ? "border-danger/30" : "border-accent/30"}`}>
+      <div className="flex items-baseline justify-between gap-2">
+        <p className="text-sm font-medium text-ink">{titulo}</p>
+        <p className={`text-lg font-semibold tabular-nums ${tone === "danger" ? "text-danger" : "text-accent"}`}>
+          {pessoas.length}
+        </p>
+      </div>
+      <p className="text-caption text-ink-faint">{descricao}</p>
+      {pessoas.length === 0 ? (
+        <p className="mt-2 text-sm text-ink-muted">Ninguém nessa situação.</p>
+      ) : (
+        <>
+          <ul className="mt-2 flex flex-col gap-1">
+            {pessoas.slice(0, MOSTRAR).map((p) => (
+              <li key={p.userId} className="flex items-baseline justify-between gap-2 text-sm">
+                <span className="min-w-0 truncate text-ink">{p.nome ?? p.email}</span>
+                <span className="shrink-0 text-caption text-ink-faint">
+                  {p.diasDesdeUltimoAcesso === null
+                    ? `entrou há ${diasAtras(p.criadaEm)}d`
+                    : `visto há ${p.diasDesdeUltimoAcesso}d`}
+                </span>
+              </li>
+            ))}
+          </ul>
+          {pessoas.length > MOSTRAR && (
+            <p className="mt-1.5 text-caption text-ink-faint">e mais {pessoas.length - MOSTRAR}.</p>
+          )}
+        </>
+      )}
+    </Card>
+  );
+}
+
+function diasAtras(d: Date): number {
+  return Math.floor((Date.now() - d.getTime()) / 86_400_000);
 }

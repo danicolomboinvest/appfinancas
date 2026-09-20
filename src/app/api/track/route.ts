@@ -3,8 +3,15 @@ import { auth } from "@/lib/auth/auth.config";
 import { prisma } from "@/lib/db/prisma";
 import { normalizeUsagePath } from "@/lib/usage/normalize-path";
 
-/** Eventos aceitos hoje. Lista fechada: o cliente não inventa nome de evento. */
-const ALLOWED_EVENTS = new Set(["pageview"]);
+/**
+ * Eventos aceitos. Lista fechada de propósito: o cliente não inventa nome de evento, senão o
+ * relatório vira um saco de strings e ninguém confia no que está lendo.
+ *
+ * Os nomeados existem pra medir o que o banco não revela depois. Um gasto digitado e um gasto
+ * ditado terminam idênticos na tabela — sem marcar na hora, não dá pra saber se o áudio serve
+ * pra alguém.
+ */
+const ALLOWED_EVENTS = new Set(["pageview", "registro_voz", "registro_digitado", "registro_importacao"]);
 
 /**
  * Recebe os eventos de uso do próprio app (rastreio primeiro, sem script de terceiro).
