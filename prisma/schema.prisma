@@ -175,8 +175,8 @@ model User {
   patrimonySnapshots   PatrimonySnapshot[]
   assets               Asset[]
   goals                Goal[]
-  emergencyFund        EmergencyFund?
-  planningParams       PlanningParams?
+  emergencyFunds       EmergencyFund[]
+  planningParams       PlanningParams[]
   simulations          Simulation[]
   analysisSheets       AnalysisSheet[]
   referenceRates       ReferenceRate[]
@@ -194,6 +194,69 @@ model User {
   pushSubscriptions PushSubscription[]
   notificationLogs  NotificationLog[]
   bankConnections   BankConnection[]
+  financialProfiles FinancialProfile[]
+}
+
+/// Ambiente financeiro independente dentro da MESMA conta: Pessoal, Empresa, Casal, Casa…
+///
+/// Existe porque a mesma pessoa organiza dinheiros que não se misturam — o gasto da empresa não
+/// pode entrar na taxa de poupança dela, e a meta do casal não é a meta pessoal. Tudo que é
+/// dinheiro pendura no perfil; o que é da CONTA (sessão, push, e-mail, uso do app) continua no
+/// usuário, porque trocar de perfil não troca de pessoa.
+///
+/// `profileId` nasce opcional de propósito: as tabelas já existiam cheias de dado real quando
+/// isto entrou. A coluna entra vazia, o backfill preenche, e só então as leituras passam a
+/// filtrar. Em nenhum instante o dado de alguém deixa de ser encontrado.
+model FinancialProfile {
+  id     String  @id @default(cuid())
+  userId String
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name   String
+  /// Adapta textos e sugestões; a estrutura é a mesma pra todos.
+  kind   ProfileKind @default(PESSOAL)
+  /// Nome do ícone na biblioteca do app (lucide), não emoji: o produto não depende de emoji.
+  icon   String  @default("wallet")
+  /// Chave da paleta (ver src/lib/profiles/palette.ts), nunca um hexadecimal cru vindo da tela.
+  color  String  @default("ambar")
+  /// Ordem na troca rápida de perfil.
+  position Int   @default(0)
+  /// O perfil que abre quando a pessoa entra. Exatamente um por conta.
+  isDefault Boolean @default(false)
+  /// Perfil criado pelo backfill pra abrigar o histórico de quem já usava o app.
+  isLegacy  Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  monthlyEntries          MonthlyEntry[]
+  budgets                 Budget[]
+  monthlyPlans            MonthlyPlan[]
+  customCategories        CustomCategory[]
+  goals                   Goal[]
+  assets                  Asset[]
+  emergencyFund           EmergencyFund?
+  planningParams          PlanningParams?
+  portfolioStrategy       PortfolioStrategy[]
+  patrimonySnapshots      PatrimonySnapshot[]
+  importBatches           ImportBatch[]
+  contributionAllocations ContributionAllocation[]
+  transactionRules        TransactionCategoryRule[]
+  simulations             Simulation[]
+  analysisSheets          AnalysisSheet[]
+  yearlyConsolidations    YearlyConsolidationCache[]
+  accumulationCache       AccumulationProjectionCache[]
+
+  @@index([userId, position])
+}
+
+/// Tipo do perfil. Muda texto e sugestão, nunca a estrutura — a pessoa continua livre pra
+/// montar o perfil como quiser.
+enum ProfileKind {
+  PESSOAL
+  EMPRESA
+  CASAL
+  CASA
+  PROJETO
+  OUTRO
 }
 
 /// Token de recuperação de senha. Guardamos só o HASH do token (nunca o valor cru) — o link
@@ -217,13 +280,16 @@ model TransactionCategoryRule {
   id             String         @id @default(cuid())
   userId         String
   user           User           @relation(fields: [userId], references: [id])
+  /// Perfil financeiro dono deste registro. Nulo só no histórico anterior aos perfis.
+  profileId String?
+  profile   FinancialProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
   pattern        String
   parentCategory ParentCategory
   subcategory    String?
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 
-  @@unique([userId, pattern])
+  @@unique([userId, profileId, pattern])
   @@index([userId])
 }
 
@@ -264,13 +330,16 @@ model CustomCategory {
   id            String         @id @default(cuid())
   userId        String
   user          User           @relation(fields: [userId], references: [id])
+  /// Perfil financeiro dono deste registro. Nulo só no histórico anterior aos perfis.
+  profileId String?
+  profile   FinancialProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
   name          String
   icon          String
   createdAt     DateTime       @default(now())
   monthlyEntries MonthlyEntry[]
   budgets       Budget[]
 
-  @@unique([userId, name])
+  @@unique([userId, profileId, name])
 }
 
 /// Lançamento mensal — substitui as 12 abas Jan..Dez da planilha original.
@@ -403,6 +472,9 @@ model ImportBatch {
   id        String         @id @default(cuid())
   userId    String
   user      User           @relation(fields: [userId], references: [id])
+  /// Perfil financeiro dono deste registro. Nulo só no histórico anterior aos perfis.
+  profileId String?
+  profile   FinancialProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
   /// "extrato" | "fatura"
   docType   String
   fileName  String?
@@ -416,6 +488,9 @@ model MonthlyEntry {
   id               String          @id @default(cuid())
   userId           String
   user             User            @relation(fields: [userId], references: [id])
+  /// Perfil financeiro dono deste registro. Nulo só no histórico anterior aos perfis.
+  profileId String?
+  profile   FinancialProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
   year             Int
   month            Int
   category         EntryCategory
@@ -452,7 +527,7 @@ model MonthlyEntry {
   @@index([userId, parentCategory])
   @@index([userId, customCategoryId])
   @@index([importBatchId])
-  @@unique([userId, externalId])
+  @@unique([userId, profileId, externalId])
 }
 
 /// Orçamento mensal planejado por categoria-mãe (para a barra "gasto realizado vs. planejado").
@@ -460,6 +535,9 @@ model Budget {
   id               String          @id @default(cuid())
   userId           String
   user             User            @relation(fields: [userId], references: [id])
+  /// Perfil financeiro dono deste registro. Nulo só no histórico anterior aos perfis.
+  profileId String?
+  profile   FinancialProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
   year             Int
   month            Int
   parentCategory   ParentCategory?
@@ -469,7 +547,7 @@ model Budget {
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
 
-  @@unique([userId, year, month, parentCategory, customCategoryId])
+  @@unique([userId, profileId, year, month, parentCategory, customCategoryId])
 }
 
 /// Planejamento do que ENTRA e do que vai ser guardado, por mês.
@@ -485,6 +563,9 @@ model MonthlyPlan {
   id                String   @id @default(cuid())
   userId            String
   user              User     @relation(fields: [userId], references: [id])
+  /// Perfil financeiro dono deste registro. Nulo só no histórico anterior aos perfis.
+  profileId String?
+  profile   FinancialProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
   year              Int
   month             Int
   /// Renda esperada no mês.
@@ -494,7 +575,7 @@ model MonthlyPlan {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
-  @@unique([userId, year, month])
+  @@unique([userId, profileId, year, month])
 }
 
 /// Cache opcional de consolidação anual (substitui Database -> Pivôs -> Consolidado do Ano).
@@ -503,6 +584,9 @@ model YearlyConsolidationCache {
   id              String   @id @default(cuid())
   userId          String
   user            User     @relation(fields: [userId], references: [id])
+  /// Perfil financeiro dono deste registro. Nulo só no histórico anterior aos perfis.
+  profileId String?
+  profile   FinancialProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
   year            Int
   totalIncome     Decimal  @db.Decimal(18, 2)
   totalExpense    Decimal  @db.Decimal(18, 2)
@@ -510,7 +594,7 @@ model YearlyConsolidationCache {
   balance         Decimal  @db.Decimal(18, 2)
   updatedAt       DateTime @updatedAt
 
-  @@unique([userId, year])
+  @@unique([userId, profileId, year])
 }
 
 /// Metas múltiplas (uma linha por meta na planilha original).
@@ -518,6 +602,9 @@ model Goal {
   id                  String         @id @default(cuid())
   userId              String
   user                User           @relation(fields: [userId], references: [id])
+  /// Perfil financeiro dono deste registro. Nulo só no histórico anterior aos perfis.
+  profileId String?
+  profile   FinancialProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
   name                String
   targetAmount        Decimal        @db.Decimal(18, 2)
   targetDate          DateTime?
@@ -546,6 +633,9 @@ model ContributionAllocation {
   id        String       @id @default(cuid())
   userId    String
   user      User         @relation(fields: [userId], references: [id])
+  /// Perfil financeiro dono deste registro. Nulo só no histórico anterior aos perfis.
+  profileId String?
+  profile   FinancialProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
   entryId   String
   entry     MonthlyEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
   assetId   String
@@ -561,8 +651,11 @@ model ContributionAllocation {
 /// Reserva de emergência./// Reserva de emergência.
 model EmergencyFund {
   id                  String   @id @default(cuid())
-  userId              String   @unique
+  userId              String
   user                User     @relation(fields: [userId], references: [id])
+  /// Perfil financeiro dono deste registro. Nulo só no histórico anterior aos perfis.
+  profileId String? @unique
+  profile   FinancialProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
   targetMonths        Int
   monthlyExpenseBase  Decimal  @db.Decimal(18, 2)
   targetAmount        Decimal  @db.Decimal(18, 2)
@@ -576,8 +669,11 @@ model EmergencyFund {
 /// Núcleo "Planejamento Financeiro" (acúmulo + usufruto).
 model PlanningParams {
   id                              String   @id @default(cuid())
-  userId                          String   @unique
+  userId                          String
   user                            User     @relation(fields: [userId], references: [id])
+  /// Perfil financeiro dono deste registro. Nulo só no histórico anterior aos perfis.
+  profileId String? @unique
+  profile   FinancialProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
   currentAge                      Int
   retirementAge                   Int
   lifeExpectancyAge               Int?
@@ -597,6 +693,9 @@ model AccumulationProjectionCache {
   id                String   @id @default(cuid())
   userId            String
   user              User     @relation(fields: [userId], references: [id])
+  /// Perfil financeiro dono deste registro. Nulo só no histórico anterior aos perfis.
+  profileId String?
+  profile   FinancialProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
   year              Int
   age               Int
   contributions     Decimal  @db.Decimal(18, 2)
@@ -605,7 +704,7 @@ model AccumulationProjectionCache {
   endingBalanceReal Decimal  @db.Decimal(18, 2)
   updatedAt         DateTime @updatedAt
 
-  @@unique([userId, year])
+  @@unique([userId, profileId, year])
 }
 
 /// Minha Carteira.
@@ -613,6 +712,9 @@ model Asset {
   id                     String         @id @default(cuid())
   userId                 String
   user                   User           @relation(fields: [userId], references: [id])
+  /// Perfil financeiro dono deste registro. Nulo só no histórico anterior aos perfis.
+  profileId String?
+  profile   FinancialProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
   name                   String
   ticker                 String?
   assetClass             AssetClass
@@ -666,11 +768,14 @@ model PortfolioStrategy {
   id            String             @id @default(cuid())
   userId        String
   user          User               @relation(fields: [userId], references: [id])
+  /// Perfil financeiro dono deste registro. Nulo só no histórico anterior aos perfis.
+  profileId String?
+  profile   FinancialProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
   assetClass    StrategyAssetClass
   targetPercent Decimal            @db.Decimal(6, 3)
   updatedAt     DateTime           @updatedAt
 
-  @@unique([userId, assetClass])
+  @@unique([userId, profileId, assetClass])
 }
 
 /// Snapshot diário do patrimônio total (soma de Asset.currentValue), gravado de forma
@@ -681,11 +786,14 @@ model PatrimonySnapshot {
   id         String   @id @default(cuid())
   userId     String
   user       User     @relation(fields: [userId], references: [id])
+  /// Perfil financeiro dono deste registro. Nulo só no histórico anterior aos perfis.
+  profileId String?
+  profile   FinancialProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
   date       DateTime @db.Date
   totalValue Decimal  @db.Decimal(18, 2)
   createdAt  DateTime @default(now())
 
-  @@unique([userId, date])
+  @@unique([userId, profileId, date])
   @@index([userId, date])
 }
 
@@ -694,6 +802,9 @@ model Simulation {
   id         String         @id @default(cuid())
   userId     String
   user       User           @relation(fields: [userId], references: [id])
+  /// Perfil financeiro dono deste registro. Nulo só no histórico anterior aos perfis.
+  profileId String?
+  profile   FinancialProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
   type       SimulationType
   name       String?
   inputJson  Json
@@ -723,6 +834,9 @@ model AnalysisSheet {
   id           String             @id @default(cuid())
   userId       String
   user         User               @relation(fields: [userId], references: [id])
+  /// Perfil financeiro dono deste registro. Nulo só no histórico anterior aos perfis.
+  profileId String?
+  profile   FinancialProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
   sheetType    SheetType
   ticker       String
   companyName  String?

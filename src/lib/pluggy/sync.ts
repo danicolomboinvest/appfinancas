@@ -49,7 +49,7 @@ export async function syncConnection(ctx: AuthContext, connectionId: string): Pr
     for (const t of txns) {
       if (t.status === "PENDING") continue;
       const externalId = `pluggy:${t.id}`;
-      const exists = await prisma.monthlyEntry.findFirst({ where: { userId: ctx.userId, externalId }, select: { id: true } });
+      const exists = await prisma.monthlyEntry.findFirst({ where: { userId: ctx.userId, profileId: ctx.profileId, externalId }, select: { id: true } });
       if (exists) {
         skipped += 1;
         continue;
@@ -73,12 +73,12 @@ export async function syncConnection(ctx: AuthContext, connectionId: string): Pr
       if (category === "EXPENSE" && !classification) uncategorized += 1;
       const date = new Date(`${t.date.slice(0, 10)}T12:00:00`);
       if (!batchId) {
-        const batch = await prisma.importBatch.create({ data: { userId: ctx.userId, docType: "openfinance", fileName: `${conn.connectorName} · ${to.toLocaleDateString("pt-BR")}` } });
+        const batch = await prisma.importBatch.create({ data: { userId: ctx.userId, profileId: ctx.profileId, docType: "openfinance", fileName: `${conn.connectorName} · ${to.toLocaleDateString("pt-BR")}` } });
         batchId = batch.id;
       }
       await prisma.monthlyEntry.create({
         data: {
-          userId: ctx.userId,
+          userId: ctx.userId, profileId: ctx.profileId,
           year: date.getFullYear(),
           month: date.getMonth() + 1,
           category,

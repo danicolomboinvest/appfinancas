@@ -17,7 +17,7 @@ export type UpdateQuotesResult =
 export async function updatePortfolioQuotesAction(): Promise<UpdateQuotesResult> {
   const ctx = await getRequiredSession();
   const allWithTicker = await prisma.asset.findMany({
-    where: { userId: ctx.userId, ticker: { not: null } },
+    where: { userId: ctx.userId, profileId: ctx.profileId, ticker: { not: null } },
     select: { id: true, ticker: true, quantity: true },
   });
   // Só tickers de bolsa de verdade (PETR4, MXRF11…), fundos/renda fixa usam o campo como

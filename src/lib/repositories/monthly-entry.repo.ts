@@ -6,7 +6,7 @@ import { sameDayInMonth } from "@/lib/date/recurrence";
 
 export async function listMonthlyEntries(ctx: AuthContext, year: number, month: number) {
   return prisma.monthlyEntry.findMany({
-    where: { userId: ctx.userId, year, month },
+    where: { userId: ctx.userId, profileId: ctx.profileId, year, month },
     orderBy: { createdAt: "desc" },
   });
 }
@@ -43,10 +43,10 @@ async function resolveOwnRefs(
 ): Promise<{ goalId?: string; customCategoryId?: string }> {
   const [goal, category] = await Promise.all([
     input.goalId
-      ? prisma.goal.findFirst({ where: { id: input.goalId, userId: ctx.userId }, select: { id: true } })
+      ? prisma.goal.findFirst({ where: { id: input.goalId, userId: ctx.userId, profileId: ctx.profileId }, select: { id: true } })
       : null,
     input.customCategoryId
-      ? prisma.customCategory.findFirst({ where: { id: input.customCategoryId, userId: ctx.userId }, select: { id: true } })
+      ? prisma.customCategory.findFirst({ where: { id: input.customCategoryId, userId: ctx.userId, profileId: ctx.profileId }, select: { id: true } })
       : null,
   ]);
   return { goalId: goal?.id, customCategoryId: category?.id };
@@ -55,7 +55,7 @@ async function resolveOwnRefs(
 export async function createMonthlyEntry(ctx: AuthContext, input: MonthlyEntryInput) {
   const refs = await resolveOwnRefs(ctx, input);
   return prisma.monthlyEntry.create({
-    data: { ...input, ...refs, userId: ctx.userId },
+    data: { ...input, ...refs, userId: ctx.userId, profileId: ctx.profileId },
   });
 }
 
@@ -63,7 +63,7 @@ export async function createMonthlyEntry(ctx: AuthContext, input: MonthlyEntryIn
 export async function updateOwnMonthlyEntry(ctx: AuthContext, id: string, input: MonthlyEntryInput) {
   const refs = await resolveOwnRefs(ctx, input);
   return prisma.monthlyEntry.updateMany({
-    where: { id, userId: ctx.userId },
+    where: { id, userId: ctx.userId, profileId: ctx.profileId },
     data: {
       ...input,
       // Campos opcionais ausentes devem LIMPAR o valor antigo (ex.: trocar de categoria-mãe
@@ -114,7 +114,7 @@ export async function createRecurringMonthlyEntries(
       customCategoryId: refs.customCategoryId,
       month,
       entryDate: input.entryDate ? sameDayInMonth(input.entryDate, input.year, month) : null,
-      userId: ctx.userId,
+      userId: ctx.userId, profileId: ctx.profileId,
     })),
   });
 }
@@ -130,7 +130,7 @@ export async function listRecentSubcategories(
 ): Promise<Record<ParentCategory, string[]>> {
   const recent = await prisma.monthlyEntry.groupBy({
     by: ["parentCategory", "subcategory"],
-    where: { userId: ctx.userId, category: "EXPENSE", parentCategory: { not: null }, subcategory: { not: null } },
+    where: { userId: ctx.userId, profileId: ctx.profileId, category: "EXPENSE", parentCategory: { not: null }, subcategory: { not: null } },
     _count: { subcategory: true },
     orderBy: { _count: { subcategory: "desc" } },
   });
@@ -149,13 +149,13 @@ export async function listRecentSubcategories(
 
 /** Só remove lançamentos do próprio usuário. */
 export async function deleteOwnMonthlyEntry(ctx: AuthContext, id: string) {
-  return prisma.monthlyEntry.deleteMany({ where: { id, userId: ctx.userId } });
+  return prisma.monthlyEntry.deleteMany({ where: { id, userId: ctx.userId, profileId: ctx.profileId } });
 }
 
 /** Vários de uma vez (modo "Selecionar" da lista). O userId no where garante que só apaga o que é da pessoa. */
 export async function deleteOwnMonthlyEntries(ctx: AuthContext, ids: string[]) {
   if (ids.length === 0) return { count: 0 };
-  return prisma.monthlyEntry.deleteMany({ where: { id: { in: ids }, userId: ctx.userId } });
+  return prisma.monthlyEntry.deleteMany({ where: { id: { in: ids }, userId: ctx.userId, profileId: ctx.profileId } });
 }
 
 /**
@@ -166,7 +166,7 @@ export async function deleteOwnMonthlyEntries(ctx: AuthContext, ids: string[]) {
 export async function countRecentDatedEntries(ctx: AuthContext, days: number): Promise<number> {
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
   return prisma.monthlyEntry.count({
-    where: { userId: ctx.userId, entryDate: { gte: since } },
+    where: { userId: ctx.userId, profileId: ctx.profileId, entryDate: { gte: since } },
   });
 }
 
@@ -174,7 +174,7 @@ export async function countRecentDatedEntries(ctx: AuthContext, days: number): P
 export async function listEntriesForMonths(ctx: AuthContext, months: { year: number; month: number }[]) {
   if (months.length === 0) return [];
   return prisma.monthlyEntry.findMany({
-    where: { userId: ctx.userId, OR: months.map((m) => ({ year: m.year, month: m.month })) },
+    where: { userId: ctx.userId, profileId: ctx.profileId, OR: months.map((m) => ({ year: m.year, month: m.month })) },
     select: {
       year: true, month: true, category: true, parentCategory: true, customCategoryId: true,
       subcategory: true, description: true, amount: true, entryDate: true,
@@ -195,7 +195,7 @@ export async function listEntriesForMonths(ctx: AuthContext, months: { year: num
  */
 export async function getLastExpenseDate(ctx: AuthContext, year: number, month: number): Promise<Date | null> {
   const row = await prisma.monthlyEntry.findFirst({
-    where: { userId: ctx.userId, year, month, category: "EXPENSE", entryDate: { not: null } },
+    where: { userId: ctx.userId, profileId: ctx.profileId, year, month, category: "EXPENSE", entryDate: { not: null } },
     orderBy: { entryDate: "desc" },
     select: { entryDate: true },
   });

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getOrCreateActiveProfile } from "@/lib/repositories/profile.repo";
 import { prisma } from "@/lib/db/prisma";
 import { isPluggyConfigured } from "@/lib/pluggy/client";
 import { syncConnection } from "@/lib/pluggy/sync";
@@ -19,7 +20,8 @@ export async function GET(request: Request) {
   let failed = 0;
   for (const c of connections) {
     try {
-      const r = await syncConnection({ userId: c.userId, role: c.user.role }, c.id);
+      const perfil = await getOrCreateActiveProfile(c.userId);
+      const r = await syncConnection({ userId: c.userId, role: c.user.role, profileId: perfil.id }, c.id);
       created += r.created;
     } catch (err) {
       failed += 1;

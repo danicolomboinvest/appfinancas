@@ -120,13 +120,13 @@ export async function bulkSetObjectiveAction(
   let resolvedGoalId: string | null = null;
   if (objective === "META") {
     if (!goalId) return { ok: false, error: "Selecione a meta." };
-    const goal = await prisma.goal.findFirst({ where: { id: goalId, userId: ctx.userId }, select: { id: true } });
+    const goal = await prisma.goal.findFirst({ where: { id: goalId, userId: ctx.userId, profileId: ctx.profileId }, select: { id: true } });
     if (!goal) return { ok: false, error: "Meta não encontrada." };
     resolvedGoalId = goal.id;
   }
 
   const result = await prisma.asset.updateMany({
-    where: { userId: ctx.userId, assetClass: assetClass as never },
+    where: { userId: ctx.userId, profileId: ctx.profileId, assetClass: assetClass as never },
     data: { objective: objective as never, goalId: resolvedGoalId },
   });
   revalidatePath("/carteira");

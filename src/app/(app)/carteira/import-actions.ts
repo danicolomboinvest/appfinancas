@@ -148,7 +148,7 @@ export async function parsePortfolioAction(formData: FormData): Promise<ParsePor
 
   // Carteira atual indexada por ticker E por nome, imports antigos usam o ticker como nome.
   const existing = await prisma.asset.findMany({
-    where: { userId: ctx.userId },
+    where: { userId: ctx.userId, profileId: ctx.profileId },
     select: { name: true, ticker: true, quantity: true, currentValue: true },
   });
   const byKey = new Map<string, (typeof existing)[number]>();
@@ -232,7 +232,7 @@ export async function importPortfolioAction(holdings: ConfirmedHolding[]): Promi
 
   // Proteção contra duplicar em cliques repetidos/reenvio: create de quem já existe vira skip.
   const existing = await prisma.asset.findMany({
-    where: { userId: ctx.userId },
+    where: { userId: ctx.userId, profileId: ctx.profileId },
     select: { id: true, name: true, ticker: true, createdAt: true },
     orderBy: { createdAt: "asc" },
   });
@@ -254,7 +254,7 @@ export async function importPortfolioAction(holdings: ConfirmedHolding[]): Promi
       if (!targetId) continue;
       const result = await prisma.asset.updateMany({
         // updateMany com o id + userId: uma linha só, e ainda com a trava de dono.
-        where: { id: targetId, userId: ctx.userId },
+        where: { id: targetId, userId: ctx.userId, profileId: ctx.profileId },
         data: {
           ...(h.quantity > 0 ? { quantity: h.quantity } : {}),
           ...(h.value >= 0 ? { currentValue: h.value } : {}),

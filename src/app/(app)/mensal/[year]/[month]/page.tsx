@@ -131,9 +131,9 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
     sumExpensesByCustomCategory(ctx, year, month),
     // Primeiros passos do onboarding: 1 registro de cada tipo basta pra saber o que falta.
     Promise.all([
-      prisma.monthlyEntry.count({ where: { userId: ctx.userId }, take: 1 }),
-      prisma.budget.count({ where: { userId: ctx.userId }, take: 1 }),
-      prisma.asset.count({ where: { userId: ctx.userId }, take: 1 }),
+      prisma.monthlyEntry.count({ where: { userId: ctx.userId, profileId: ctx.profileId }, take: 1 }),
+      prisma.budget.count({ where: { userId: ctx.userId, profileId: ctx.profileId }, take: 1 }),
+      prisma.asset.count({ where: { userId: ctx.userId, profileId: ctx.profileId }, take: 1 }),
     ]),
     getRecapDismissedMonth(ctx),
     listImportBatches(ctx),

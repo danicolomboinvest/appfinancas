@@ -21,18 +21,18 @@ export type ImportBatchSummary = {
 
 export async function createImportBatch(ctx: AuthContext, input: { docType: string; fileName?: string }) {
   return prisma.importBatch.create({
-    data: { userId: ctx.userId, docType: input.docType, fileName: input.fileName ?? null },
+    data: { userId: ctx.userId, profileId: ctx.profileId, docType: input.docType, fileName: input.fileName ?? null },
   });
 }
 
 /** Lote que terminou sem criar nada (tudo era duplicata) não vale histórico, é removido. */
 export async function deleteEmptyImportBatch(ctx: AuthContext, id: string) {
-  await prisma.importBatch.deleteMany({ where: { id, userId: ctx.userId, entries: { none: {} } } });
+  await prisma.importBatch.deleteMany({ where: { id, userId: ctx.userId, profileId: ctx.profileId, entries: { none: {} } } });
 }
 
 export async function listImportBatches(ctx: AuthContext, limit = 20): Promise<ImportBatchSummary[]> {
   const batches = await prisma.importBatch.findMany({
-    where: { userId: ctx.userId },
+    where: { userId: ctx.userId, profileId: ctx.profileId },
     orderBy: { createdAt: "desc" },
     take: limit,
     include: { entries: { select: { amount: true, year: true, month: true } } },
@@ -58,8 +58,8 @@ export async function listImportBatches(ctx: AuthContext, limit = 20): Promise<I
  */
 export async function deleteImportBatchWithEntries(ctx: AuthContext, id: string): Promise<number> {
   const [entries] = await prisma.$transaction([
-    prisma.monthlyEntry.deleteMany({ where: { importBatchId: id, userId: ctx.userId } }),
-    prisma.importBatch.deleteMany({ where: { id, userId: ctx.userId } }),
+    prisma.monthlyEntry.deleteMany({ where: { importBatchId: id, userId: ctx.userId, profileId: ctx.profileId } }),
+    prisma.importBatch.deleteMany({ where: { id, userId: ctx.userId, profileId: ctx.profileId } }),
   ]);
   return entries.count;
 }

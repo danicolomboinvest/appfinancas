@@ -16,14 +16,14 @@ const MAX_POR_PESSOA = 30;
 
 export async function listSimulations(ctx: AuthContext) {
   return prisma.simulation.findMany({
-    where: { userId: ctx.userId },
+    where: { userId: ctx.userId, profileId: ctx.profileId },
     orderBy: { createdAt: "desc" },
     take: MAX_POR_PESSOA,
   });
 }
 
 export async function getSimulation(ctx: AuthContext, id: string) {
-  return prisma.simulation.findFirst({ where: { id, userId: ctx.userId } });
+  return prisma.simulation.findFirst({ where: { id, userId: ctx.userId, profileId: ctx.profileId } });
 }
 
 export async function createSimulation(
@@ -32,20 +32,20 @@ export async function createSimulation(
 ) {
   // Apaga a mais antiga quando o teto estoura, em vez de recusar o salvamento: recusar
   // obrigaria a pessoa a ir limpar a lista antes de guardar o que ela acabou de calcular.
-  const total = await prisma.simulation.count({ where: { userId: ctx.userId } });
+  const total = await prisma.simulation.count({ where: { userId: ctx.userId, profileId: ctx.profileId } });
   if (total >= MAX_POR_PESSOA) {
     const excedente = await prisma.simulation.findMany({
-      where: { userId: ctx.userId },
+      where: { userId: ctx.userId, profileId: ctx.profileId },
       orderBy: { createdAt: "asc" },
       take: total - MAX_POR_PESSOA + 1,
       select: { id: true },
     });
     await prisma.simulation.deleteMany({ where: { id: { in: excedente.map((s) => s.id) } } });
   }
-  return prisma.simulation.create({ data: { userId: ctx.userId, ...input } });
+  return prisma.simulation.create({ data: { userId: ctx.userId, profileId: ctx.profileId, ...input } });
 }
 
 /** `deleteMany` com o userId no where: garante que ninguém apague simulação de outra pessoa. */
 export async function deleteSimulation(ctx: AuthContext, id: string) {
-  return prisma.simulation.deleteMany({ where: { id, userId: ctx.userId } });
+  return prisma.simulation.deleteMany({ where: { id, userId: ctx.userId, profileId: ctx.profileId } });
 }

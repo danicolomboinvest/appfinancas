@@ -33,7 +33,7 @@ export async function getTypicalMonthlyExpense(ctx: AuthContext): Promise<Typica
 
   const linhas = await prisma.monthlyEntry.groupBy({
     by: ["year", "month"],
-    where: { userId: ctx.userId, category: "EXPENSE", OR: meses },
+    where: { userId: ctx.userId, profileId: ctx.profileId, category: "EXPENSE", OR: meses },
     _sum: { amount: true },
   });
 

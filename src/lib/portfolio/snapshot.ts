@@ -15,8 +15,8 @@ function startOfDay(date: Date) {
 export async function recordPatrimonySnapshotIfNeeded(ctx: AuthContext, totalValue: number) {
   const today = startOfDay(nowInBrazil());
   await prisma.patrimonySnapshot.upsert({
-    where: { userId_date: { userId: ctx.userId, date: today } },
-    create: { userId: ctx.userId, date: today, totalValue },
+    where: { userId_profileId_date: { userId: ctx.userId, profileId: ctx.profileId, date: today } },
+    create: { userId: ctx.userId, profileId: ctx.profileId, date: today, totalValue },
     update: { totalValue },
   });
 }
@@ -26,7 +26,7 @@ export async function getPatrimonySnapshotMonthsAgo(ctx: AuthContext, monthsAgo:
   const now = nowInBrazil();
   const targetDate = startOfDay(new Date(now.getFullYear(), now.getMonth() - monthsAgo, now.getDate()));
   const snapshot = await prisma.patrimonySnapshot.findFirst({
-    where: { userId: ctx.userId, date: { lte: targetDate } },
+    where: { userId: ctx.userId, profileId: ctx.profileId, date: { lte: targetDate } },
     orderBy: { date: "desc" },
   });
   return snapshot ? Number(snapshot.totalValue) : null;
@@ -36,7 +36,7 @@ export async function getPatrimonySnapshotMonthsAgo(ctx: AuthContext, monthsAgo:
 export async function getPatrimonyAllTimeHighBeforeToday(ctx: AuthContext) {
   const today = startOfDay(nowInBrazil());
   const snapshot = await prisma.patrimonySnapshot.findFirst({
-    where: { userId: ctx.userId, date: { lt: today } },
+    where: { userId: ctx.userId, profileId: ctx.profileId, date: { lt: today } },
     orderBy: { totalValue: "desc" },
   });
   return snapshot ? Number(snapshot.totalValue) : null;

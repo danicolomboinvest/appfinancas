@@ -80,7 +80,7 @@ export async function parseIrpfAction(formData: FormData): Promise<ParseIrpfResu
   }
 
   const assets = await prisma.asset.findMany({
-    where: { userId: ctx.userId },
+    where: { userId: ctx.userId, profileId: ctx.profileId },
     select: { id: true, name: true, ticker: true, quantity: true, investedValue: true },
   });
 
@@ -148,7 +148,7 @@ export async function applyIrpfAction(confirmed: ConfirmedAveragePrice[]): Promi
 
   const ids = confirmed.map((c) => c.assetId);
   const owned = await prisma.asset.findMany({
-    where: { userId: ctx.userId, id: { in: ids } },
+    where: { userId: ctx.userId, profileId: ctx.profileId, id: { in: ids } },
     select: { id: true, quantity: true },
   });
   const qtyById = new Map(owned.map((a) => [a.id, a.quantity != null ? Number(a.quantity) : null]));
@@ -161,7 +161,7 @@ export async function applyIrpfAction(confirmed: ConfirmedAveragePrice[]): Promi
     if (!qty || qty <= 0) continue;
     const invested = Number((c.averagePrice * qty).toFixed(2));
     const result = await prisma.asset.updateMany({
-      where: { id: c.assetId, userId: ctx.userId },
+      where: { id: c.assetId, userId: ctx.userId, profileId: ctx.profileId },
       data: { investedValue: invested },
     });
     updated += result.count;

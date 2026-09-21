@@ -10,14 +10,14 @@ export type EmergencyFundInput = {
 };
 
 export async function getEmergencyFund(ctx: AuthContext) {
-  return prisma.emergencyFund.findUnique({ where: { userId: ctx.userId } });
+  return prisma.emergencyFund.findUnique({ where: { profileId: ctx.profileId } });
 }
 
 export async function upsertEmergencyFund(ctx: AuthContext, input: EmergencyFundInput) {
   const targetAmount = input.targetMonths * input.monthlyExpenseBase;
   return prisma.emergencyFund.upsert({
-    where: { userId: ctx.userId },
+    where: { profileId: ctx.profileId },
     update: { ...input, targetAmount },
-    create: { ...input, targetAmount, userId: ctx.userId },
+    create: { ...input, targetAmount, userId: ctx.userId, profileId: ctx.profileId },
   });
 }

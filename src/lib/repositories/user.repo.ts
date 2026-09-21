@@ -1,7 +1,7 @@
 import { cache } from "react";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db/prisma";
-import type { AuthContext } from "@/lib/auth/session";
+import type { AccountContext, AuthContext } from "@/lib/auth/session";
 
 const SALT_ROUNDS = 10;
 
@@ -51,7 +51,7 @@ export async function createUserInvite(input: { email: string; name: string; pas
  * do tema, o formatador precisa da moeda — e sem isso cada um pagava uma ida ao banco para
  * ler a mesma linha. O escopo é a requisição, então o dado de uma pessoa nunca vaza pra outra.
  */
-export const getOwnUser = cache(async (ctx: AuthContext) => {
+export const getOwnUser = cache(async (ctx: AccountContext) => {
   return prisma.user.findUniqueOrThrow({ where: { id: ctx.userId } });
 });
 

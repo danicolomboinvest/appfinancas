@@ -12,7 +12,7 @@ import type { AuthContext } from "@/lib/auth/session";
 export type MonthPlanValues = { plannedIncome: number; plannedInvestment: number };
 
 export async function getAnnualMonthlyPlan(ctx: AuthContext, year: number): Promise<Map<number, MonthPlanValues>> {
-  const linhas = await prisma.monthlyPlan.findMany({ where: { userId: ctx.userId, year } });
+  const linhas = await prisma.monthlyPlan.findMany({ where: { userId: ctx.userId, profileId: ctx.profileId, year } });
   return new Map(
     linhas.map((l) => [
       l.month,
@@ -23,7 +23,7 @@ export async function getAnnualMonthlyPlan(ctx: AuthContext, year: number): Prom
 
 export async function getMonthlyPlan(ctx: AuthContext, year: number, month: number): Promise<MonthPlanValues | null> {
   const l = await prisma.monthlyPlan.findUnique({
-    where: { userId_year_month: { userId: ctx.userId, year, month } },
+    where: { userId_profileId_year_month: { userId: ctx.userId, profileId: ctx.profileId, year, month } },
   });
   return l ? { plannedIncome: Number(l.plannedIncome), plannedInvestment: Number(l.plannedInvestment) } : null;
 }
@@ -39,8 +39,8 @@ export async function applyMonthlyPlanToWholeYear(ctx: AuthContext, year: number
   await prisma.$transaction(
     meses.map((month) =>
       prisma.monthlyPlan.upsert({
-        where: { userId_year_month: { userId: ctx.userId, year, month } },
-        create: { userId: ctx.userId, year, month, ...values },
+        where: { userId_profileId_year_month: { userId: ctx.userId, profileId: ctx.profileId, year, month } },
+        create: { userId: ctx.userId, profileId: ctx.profileId, year, month, ...values },
         update: values,
       }),
     ),

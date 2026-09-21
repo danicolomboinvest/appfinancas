@@ -93,8 +93,8 @@ export async function getPortfolioStrategyComparison(ctx: AuthContext): Promise<
   totalPortfolio: number;
 }> {
   const [assets, strategyRows] = await Promise.all([
-    prisma.asset.findMany({ where: { userId: ctx.userId } }),
-    prisma.portfolioStrategy.findMany({ where: { userId: ctx.userId } }),
+    prisma.asset.findMany({ where: { userId: ctx.userId, profileId: ctx.profileId } }),
+    prisma.portfolioStrategy.findMany({ where: { userId: ctx.userId, profileId: ctx.profileId } }),
   ]);
 
   const totalPortfolio = assets.reduce((sum, asset) => sum.plus(asset.currentValue), new Decimal(0));

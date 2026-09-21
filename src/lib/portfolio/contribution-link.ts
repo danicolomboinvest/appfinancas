@@ -41,7 +41,7 @@ export type ContributionLinkState = {
  */
 export async function getContributionLinkState(ctx: AuthContext, year: number, month: number): Promise<ContributionLinkState> {
   const entries = await prisma.monthlyEntry.findMany({
-    where: { userId: ctx.userId, year, month, category: "INVESTMENT_CONTRIBUTION" },
+    where: { userId: ctx.userId, profileId: ctx.profileId, year, month, category: "INVESTMENT_CONTRIBUTION" },
     select: {
       id: true,
       description: true,
@@ -119,7 +119,7 @@ export async function applyContributionAllocations(
 
   // Só ativos do próprio usuário: id vindo do formulário nunca é confiável.
   const assets = await prisma.asset.findMany({
-    where: { userId: ctx.userId, id: { in: validas.map((a) => a.assetId) } },
+    where: { userId: ctx.userId, profileId: ctx.profileId, id: { in: validas.map((a) => a.assetId) } },
     select: { id: true, name: true, investedValue: true, currentValue: true, goalId: true, goal: { select: { name: true } } },
   });
   const byId = new Map(assets.map((a) => [a.id, a]));
@@ -132,7 +132,7 @@ export async function applyContributionAllocations(
 
   await prisma.$transaction([
     ...linhas.map((l) =>
-      prisma.contributionAllocation.create({ data: { userId: ctx.userId, entryId: l.entryId, assetId: l.assetId, amount: l.amount } }),
+      prisma.contributionAllocation.create({ data: { userId: ctx.userId, profileId: ctx.profileId, entryId: l.entryId, assetId: l.assetId, amount: l.amount } }),
     ),
     ...validas.map((a) => {
       const asset = byId.get(a.assetId)!;

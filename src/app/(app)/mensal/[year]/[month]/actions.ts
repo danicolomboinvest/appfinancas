@@ -139,7 +139,7 @@ export async function deleteMonthlyEntryAction(id: string, year: number, month: 
  */
 async function countAllocationsOf(ctx: Awaited<ReturnType<typeof getRequiredSession>>, ids: string[]): Promise<number> {
   if (ids.length === 0) return 0;
-  return prisma.contributionAllocation.count({ where: { userId: ctx.userId, entryId: { in: ids } } });
+  return prisma.contributionAllocation.count({ where: { userId: ctx.userId, profileId: ctx.profileId, entryId: { in: ids } } });
 }
 
 /** Exclusão em lote (modo "Selecionar"): uma ida ao banco, uma revalidação. */

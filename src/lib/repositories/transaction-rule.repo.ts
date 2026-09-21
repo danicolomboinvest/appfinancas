@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import type { AuthContext } from "@/lib/auth/session";
 
 export async function listTransactionRules(ctx: AuthContext) {
-  return prisma.transactionCategoryRule.findMany({ where: { userId: ctx.userId } });
+  return prisma.transactionCategoryRule.findMany({ where: { userId: ctx.userId, profileId: ctx.profileId } });
 }
 
 /** Grava (ou atualiza) uma regra aprendida merchant → categoria para o usuário. */
@@ -13,7 +13,7 @@ export async function upsertTransactionRule(
 ) {
   if (!input.pattern.trim()) return null;
   const existing = await prisma.transactionCategoryRule.findFirst({
-    where: { userId: ctx.userId, pattern: input.pattern },
+    where: { userId: ctx.userId, profileId: ctx.profileId, pattern: input.pattern },
   });
   if (existing) {
     return prisma.transactionCategoryRule.update({
@@ -23,7 +23,7 @@ export async function upsertTransactionRule(
   }
   return prisma.transactionCategoryRule.create({
     data: {
-      userId: ctx.userId,
+      userId: ctx.userId, profileId: ctx.profileId,
       pattern: input.pattern,
       parentCategory: input.parentCategory,
       subcategory: input.subcategory ?? null,

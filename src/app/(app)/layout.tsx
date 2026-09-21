@@ -6,7 +6,7 @@ import { ThemeSync } from "@/components/shell/ThemeSync";
 import { getOwnUser, touchLastSeen } from "@/lib/repositories/user.repo";
 import { hasPremiumAccess } from "@/lib/repositories/allowedEmail.repo";
 import { nowInBrazil } from "@/lib/date/brazil-now";
-import type { AuthContext } from "@/lib/auth/session";
+import type { AccountContext } from "@/lib/auth/session";
 import { MoneyProvider } from "@/components/money/MoneyProvider";
 import { toCurrencyCode, type CurrencyCode } from "@/lib/money";
 
@@ -35,7 +35,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   let currency: CurrencyCode = toCurrencyCode(null);
   let isPremium = false;
   if (session?.user) {
-    const ctx: AuthContext = { userId: session.user.id, role: session.user.role };
+    const ctx: AccountContext = { userId: session.user.id, role: session.user.role };
     // Uma consulta a menos em TODA navegação: o resumo do mês só existia pra alimentar a
     // faixa de saudação, que não mostra mais números.
     const [user, premium] = await Promise.all([getOwnUser(ctx), hasPremiumAccess(ctx.userId)]);

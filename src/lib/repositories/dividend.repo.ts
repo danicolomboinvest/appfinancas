@@ -62,7 +62,7 @@ export type UpcomingDividend = {
  */
 export async function listUpcomingDividendsForUser(ctx: AuthContext, limit = 20): Promise<UpcomingDividend[]> {
   const assets = await prisma.asset.findMany({
-    where: { userId: ctx.userId, ticker: { not: null }, quantity: { not: null } },
+    where: { userId: ctx.userId, profileId: ctx.profileId, ticker: { not: null }, quantity: { not: null } },
     select: { ticker: true, quantity: true },
   });
   if (assets.length === 0) return [];
@@ -129,7 +129,7 @@ export type PaidDividend = {
  */
 export async function listRecentlyPaidDividends(ctx: AuthContext, days = 10): Promise<PaidDividend[]> {
   const assets = await prisma.asset.findMany({
-    where: { userId: ctx.userId, ticker: { not: null }, quantity: { not: null } },
+    where: { userId: ctx.userId, profileId: ctx.profileId, ticker: { not: null }, quantity: { not: null } },
     select: { ticker: true, quantity: true },
   });
   if (assets.length === 0) return [];
@@ -150,7 +150,7 @@ export async function listRecentlyPaidDividends(ctx: AuthContext, days = 10): Pr
       orderBy: { paymentDate: "desc" },
     }),
     prisma.monthlyEntry.findMany({
-      where: { userId: ctx.userId, category: "INCOME", description: { startsWith: "Proventos " }, entryDate: { gte: since, lte: today } },
+      where: { userId: ctx.userId, profileId: ctx.profileId, category: "INCOME", description: { startsWith: "Proventos " }, entryDate: { gte: since, lte: today } },
       select: { description: true, entryDate: true },
     }),
   ]);

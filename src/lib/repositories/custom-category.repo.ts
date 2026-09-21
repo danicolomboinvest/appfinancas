@@ -3,11 +3,11 @@ import type { AuthContext } from "@/lib/auth/session";
 
 /** Categorias personalizadas do usuário, mais recente primeiro. */
 export async function listCustomCategories(ctx: AuthContext) {
-  return prisma.customCategory.findMany({ where: { userId: ctx.userId }, orderBy: { createdAt: "asc" } });
+  return prisma.customCategory.findMany({ where: { userId: ctx.userId, profileId: ctx.profileId }, orderBy: { createdAt: "asc" } });
 }
 
 export async function createCustomCategory(ctx: AuthContext, input: { name: string; icon: string }) {
-  return prisma.customCategory.create({ data: { ...input, userId: ctx.userId } });
+  return prisma.customCategory.create({ data: { ...input, userId: ctx.userId, profileId: ctx.profileId } });
 }
 
 /**
@@ -18,7 +18,7 @@ export async function createCustomCategory(ctx: AuthContext, input: { name: stri
  */
 export async function deleteOwnCustomCategory(ctx: AuthContext, id: string) {
   await prisma.$transaction([
-    prisma.budget.deleteMany({ where: { userId: ctx.userId, customCategoryId: id } }),
-    prisma.customCategory.deleteMany({ where: { id, userId: ctx.userId } }),
+    prisma.budget.deleteMany({ where: { userId: ctx.userId, profileId: ctx.profileId, customCategoryId: id } }),
+    prisma.customCategory.deleteMany({ where: { id, userId: ctx.userId, profileId: ctx.profileId } }),
   ]);
 }

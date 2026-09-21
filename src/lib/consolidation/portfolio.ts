@@ -25,9 +25,9 @@ export type PortfolioByObjective = {
  */
 export async function getPortfolioByObjective(ctx: AuthContext): Promise<PortfolioByObjective> {
   const [assets, emergencyFund, goals] = await Promise.all([
-    prisma.asset.findMany({ where: { userId: ctx.userId } }),
-    prisma.emergencyFund.findUnique({ where: { userId: ctx.userId } }),
-    prisma.goal.findMany({ where: { userId: ctx.userId } }),
+    prisma.asset.findMany({ where: { userId: ctx.userId, profileId: ctx.profileId } }),
+    prisma.emergencyFund.findUnique({ where: { userId: ctx.userId, profileId: ctx.profileId } }),
+    prisma.goal.findMany({ where: { userId: ctx.userId, profileId: ctx.profileId } }),
   ]);
 
   const sumByObjective = (objective: "RESERVA_EMERGENCIA" | "LIBERDADE_FINANCEIRA" | "OUTRO") =>
@@ -82,7 +82,7 @@ export type ClassAllocation = {
  * com a soma dos "idealAllocationPercent" declarados por ativo, base para rebalanceamento.
  */
 export async function getAllocationByClass(ctx: AuthContext): Promise<{ classes: ClassAllocation[]; totalPortfolio: number }> {
-  const assets = await prisma.asset.findMany({ where: { userId: ctx.userId } });
+  const assets = await prisma.asset.findMany({ where: { userId: ctx.userId, profileId: ctx.profileId } });
   const totalPortfolio = assets.reduce((sum, asset) => sum.plus(asset.currentValue), new Decimal(0));
 
   const byClass = new Map<AssetClass, { currentValue: Decimal; idealPercent: Decimal }>();

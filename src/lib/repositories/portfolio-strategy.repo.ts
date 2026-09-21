@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import type { AuthContext } from "@/lib/auth/session";
 
 export async function listPortfolioStrategy(ctx: AuthContext) {
-  return prisma.portfolioStrategy.findMany({ where: { userId: ctx.userId } });
+  return prisma.portfolioStrategy.findMany({ where: { userId: ctx.userId, profileId: ctx.profileId } });
 }
 
 /** Substitui a estratégia inteira do usuário pelo novo conjunto de percentuais-alvo. */
@@ -14,8 +14,8 @@ export async function savePortfolioStrategy(
   await prisma.$transaction(
     targets.map((t) =>
       prisma.portfolioStrategy.upsert({
-        where: { userId_assetClass: { userId: ctx.userId, assetClass: t.assetClass } },
-        create: { userId: ctx.userId, assetClass: t.assetClass, targetPercent: t.targetPercent },
+        where: { userId_profileId_assetClass: { userId: ctx.userId, profileId: ctx.profileId, assetClass: t.assetClass } },
+        create: { userId: ctx.userId, profileId: ctx.profileId, assetClass: t.assetClass, targetPercent: t.targetPercent },
         update: { targetPercent: t.targetPercent },
       }),
     ),

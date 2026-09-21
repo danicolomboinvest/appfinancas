@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getOrCreateActiveProfile } from "@/lib/repositories/profile.repo";
 import { prisma } from "@/lib/db/prisma";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import { buildBudgetAlerts, buildGoalAlerts, type Alert } from "@/lib/insights/alerts";
@@ -64,7 +65,8 @@ export async function GET(request: Request) {
       );
     }
     if (user.notifyLateGoals) {
-      const goals = await listGoalsWithProgress({ userId: user.id, role: user.role });
+      const perfil = await getOrCreateActiveProfile(user.id);
+      const goals = await listGoalsWithProgress({ userId: user.id, role: user.role, profileId: perfil.id });
       alerts.push(
         ...buildGoalAlerts({
           year,

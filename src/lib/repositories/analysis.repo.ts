@@ -12,7 +12,7 @@ export async function listCriteria(sheetType: SheetType, categories?: string[]) 
 
 export async function listSheets(ctx: AuthContext, sheetType: SheetType) {
   return prisma.analysisSheet.findMany({
-    where: { userId: ctx.userId, sheetType },
+    where: { userId: ctx.userId, profileId: ctx.profileId, sheetType },
     orderBy: { analysisDate: "desc" },
   });
 }
@@ -20,29 +20,29 @@ export async function listSheets(ctx: AuthContext, sheetType: SheetType) {
 /** Todas as fichas de um mesmo ticker, mais antiga primeiro, alimenta o gráfico de evolução da nota. */
 export async function listSheetsByTicker(ctx: AuthContext, sheetType: SheetType, ticker: string) {
   return prisma.analysisSheet.findMany({
-    where: { userId: ctx.userId, sheetType, ticker },
+    where: { userId: ctx.userId, profileId: ctx.profileId, sheetType, ticker },
     orderBy: { analysisDate: "asc" },
   });
 }
 
 export async function getOwnSheetWithResponses(ctx: AuthContext, id: string) {
   return prisma.analysisSheet.findFirst({
-    where: { id, userId: ctx.userId },
+    where: { id, userId: ctx.userId, profileId: ctx.profileId },
     include: { responses: true },
   });
 }
 
 export async function createSheet(ctx: AuthContext, input: CreateAnalysisSheetInput) {
-  return prisma.analysisSheet.create({ data: { ...input, userId: ctx.userId } });
+  return prisma.analysisSheet.create({ data: { ...input, userId: ctx.userId, profileId: ctx.profileId } });
 }
 
 export async function deleteOwnSheet(ctx: AuthContext, id: string) {
-  return prisma.analysisSheet.deleteMany({ where: { id, userId: ctx.userId } });
+  return prisma.analysisSheet.deleteMany({ where: { id, userId: ctx.userId, profileId: ctx.profileId } });
 }
 
 /** Salva as respostas da ficha e recalcula a nota geral (média das notas informadas). */
 export async function saveResponses(ctx: AuthContext, input: SaveAnalysisResponsesInput) {
-  const sheet = await prisma.analysisSheet.findFirst({ where: { id: input.sheetId, userId: ctx.userId } });
+  const sheet = await prisma.analysisSheet.findFirst({ where: { id: input.sheetId, userId: ctx.userId, profileId: ctx.profileId } });
   if (!sheet) {
     throw new Error("Ficha não encontrada.");
   }
@@ -78,14 +78,14 @@ export async function saveResponses(ctx: AuthContext, input: SaveAnalysisRespons
  */
 export async function saveLaudo(ctx: AuthContext, sheetId: string, laudo: Prisma.InputJsonValue, autoScore: number | null) {
   return prisma.analysisSheet.updateMany({
-    where: { id: sheetId, userId: ctx.userId },
+    where: { id: sheetId, userId: ctx.userId, profileId: ctx.profileId },
     data: { laudo, autoScore, laudoReadAt: new Date() },
   });
 }
 
 /** Resposta de um critério só (o checklist de três toques salva a cada toque, sem botão Salvar). */
 export async function saveSingleResponse(ctx: AuthContext, sheetId: string, criterionId: string, value: string | null) {
-  const sheet = await prisma.analysisSheet.findFirst({ where: { id: sheetId, userId: ctx.userId }, select: { id: true } });
+  const sheet = await prisma.analysisSheet.findFirst({ where: { id: sheetId, userId: ctx.userId, profileId: ctx.profileId }, select: { id: true } });
   if (!sheet) throw new Error("Ficha não encontrada.");
   return prisma.analysisResponse.upsert({
     where: { sheetId_criterionId: { sheetId, criterionId } },

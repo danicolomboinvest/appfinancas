@@ -130,7 +130,7 @@ export async function checkinGoalAction(
   // decision === "none": nenhum lançamento — a meta não avança este mês, de propósito.
 
   await prisma.goal.updateMany({
-    where: { id: goal.id, userId: ctx.userId },
+    where: { id: goal.id, userId: ctx.userId, profileId: ctx.profileId },
     data: { checkinDismissedMonth: parsed.data.monthKey },
   });
 

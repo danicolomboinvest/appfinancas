@@ -88,7 +88,7 @@ export async function computeMonthlyRecap(ctx: AuthContext, year: number, month:
     // Gastos do mês recapeado, por qualquer uma das datas (entryDate nova ou createdAt).
     prisma.monthlyEntry.findMany({
       where: {
-        userId: ctx.userId,
+        userId: ctx.userId, profileId: ctx.profileId,
         category: "EXPENSE",
         OR: [
           { entryDate: { gte: monthStart, lt: monthEnd } },
@@ -99,7 +99,7 @@ export async function computeMonthlyRecap(ctx: AuthContext, year: number, month:
     }),
     prisma.monthlyEntry.aggregate({
       where: {
-        userId: ctx.userId,
+        userId: ctx.userId, profileId: ctx.profileId,
         category: "EXPENSE",
         OR: [
           { entryDate: { gte: prevMonthStart, lt: monthStart } },
@@ -110,11 +110,11 @@ export async function computeMonthlyRecap(ctx: AuthContext, year: number, month:
     }),
     prisma.monthlyEntry.groupBy({
       by: ["category"],
-      where: { userId: ctx.userId },
+      where: { userId: ctx.userId, profileId: ctx.profileId },
       _sum: { amount: true },
     }),
     prisma.monthlyEntry.findFirst({
-      where: { userId: ctx.userId },
+      where: { userId: ctx.userId, profileId: ctx.profileId },
       orderBy: { createdAt: "asc" },
       select: { createdAt: true },
     }),
@@ -122,7 +122,7 @@ export async function computeMonthlyRecap(ctx: AuthContext, year: number, month:
     // meses de fato têm lançamento (não é "meses corridos desde o início").
     prisma.monthlyEntry.groupBy({
       by: ["year", "month", "category"],
-      where: { userId: ctx.userId, year, month: { lte: month } },
+      where: { userId: ctx.userId, profileId: ctx.profileId, year, month: { lte: month } },
       _sum: { amount: true },
     }),
   ]);

@@ -15,13 +15,13 @@ export type PlanningParamsInput = {
 };
 
 export async function getPlanningParams(ctx: AuthContext) {
-  return prisma.planningParams.findUnique({ where: { userId: ctx.userId } });
+  return prisma.planningParams.findUnique({ where: { profileId: ctx.profileId } });
 }
 
 export async function upsertPlanningParams(ctx: AuthContext, input: PlanningParamsInput) {
   return prisma.planningParams.upsert({
-    where: { userId: ctx.userId },
+    where: { profileId: ctx.profileId },
     update: input,
-    create: { ...input, userId: ctx.userId },
+    create: { ...input, userId: ctx.userId, profileId: ctx.profileId },
   });
 }

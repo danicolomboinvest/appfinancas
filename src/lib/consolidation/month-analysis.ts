@@ -37,7 +37,7 @@ export type DailyFlow = {
  */
 export async function getDailyFlow(ctx: AuthContext, year: number, month: number): Promise<DailyFlow> {
   const entries = await prisma.monthlyEntry.findMany({
-    where: { userId: ctx.userId, year, month, category: { in: ["INCOME", "EXPENSE"] } },
+    where: { userId: ctx.userId, profileId: ctx.profileId, year, month, category: { in: ["INCOME", "EXPENSE"] } },
     select: { category: true, amount: true, entryDate: true },
   });
 
@@ -112,16 +112,16 @@ export async function getCategorySpending(
   const [current, prev, customCategories] = await Promise.all([
     prisma.monthlyEntry.groupBy({
       by: ["parentCategory", "customCategoryId"],
-      where: { userId: ctx.userId, year, month, category: "EXPENSE" },
+      where: { userId: ctx.userId, profileId: ctx.profileId, year, month, category: "EXPENSE" },
       _sum: { amount: true },
       _count: true,
     }),
     prisma.monthlyEntry.groupBy({
       by: ["parentCategory", "customCategoryId"],
-      where: { userId: ctx.userId, year: previous.year, month: previous.month, category: "EXPENSE" },
+      where: { userId: ctx.userId, profileId: ctx.profileId, year: previous.year, month: previous.month, category: "EXPENSE" },
       _sum: { amount: true },
     }),
-    prisma.customCategory.findMany({ where: { userId: ctx.userId }, select: { id: true, name: true, icon: true } }),
+    prisma.customCategory.findMany({ where: { userId: ctx.userId, profileId: ctx.profileId }, select: { id: true, name: true, icon: true } }),
   ]);
 
   const customCategoryNames = new Map(customCategories.map((c) => [c.id, c.name]));

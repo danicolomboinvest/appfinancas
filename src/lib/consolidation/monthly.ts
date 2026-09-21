@@ -17,7 +17,7 @@ export type MonthlySummary = {
 export async function getMonthlySummary(ctx: AuthContext, year: number, month: number): Promise<MonthlySummary> {
   const grouped = await prisma.monthlyEntry.groupBy({
     by: ["category"],
-    where: { userId: ctx.userId, year, month },
+    where: { userId: ctx.userId, profileId: ctx.profileId, year, month },
     _sum: { amount: true },
   });
 
@@ -48,7 +48,7 @@ export async function getMonthlySummary(ctx: AuthContext, year: number, month: n
 export async function getAnnualSummary(ctx: AuthContext, year: number): Promise<MonthlySummary> {
   const grouped = await prisma.monthlyEntry.groupBy({
     by: ["category"],
-    where: { userId: ctx.userId, year },
+    where: { userId: ctx.userId, profileId: ctx.profileId, year },
     _sum: { amount: true },
   });
 

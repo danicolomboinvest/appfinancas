@@ -15,7 +15,7 @@ function csvEscape(value: string) {
 export async function exportEntriesCsvAction(): Promise<string> {
   const ctx = await getRequiredSession();
   const entries = await prisma.monthlyEntry.findMany({
-    where: { userId: ctx.userId },
+    where: { userId: ctx.userId, profileId: ctx.profileId },
     orderBy: [{ year: "asc" }, { month: "asc" }, { createdAt: "asc" }],
   });
 
@@ -41,7 +41,7 @@ export async function exportEntriesCsvAction(): Promise<string> {
 export async function exportAssetsCsvAction(): Promise<string> {
   const ctx = await getRequiredSession();
   const assets = await prisma.asset.findMany({
-    where: { userId: ctx.userId },
+    where: { userId: ctx.userId, profileId: ctx.profileId },
     orderBy: [{ assetClass: "asc" }, { currentValue: "desc" }],
   });
 

@@ -14,11 +14,11 @@ export type GoalInput = {
 };
 
 export async function listGoals(ctx: AuthContext) {
-  return prisma.goal.findMany({ where: { userId: ctx.userId }, orderBy: { targetDate: "asc" } });
+  return prisma.goal.findMany({ where: { userId: ctx.userId, profileId: ctx.profileId }, orderBy: { targetDate: "asc" } });
 }
 
 export async function getOwnGoal(ctx: AuthContext, id: string) {
-  return prisma.goal.findFirst({ where: { id, userId: ctx.userId } });
+  return prisma.goal.findFirst({ where: { id, userId: ctx.userId, profileId: ctx.profileId } });
 }
 
 /**
@@ -32,12 +32,12 @@ export async function getOwnGoal(ctx: AuthContext, id: string) {
  * MESMA meta — esse já está sendo contado pelo valor do ativo.
  */
 export async function getGoalWithProgress(ctx: AuthContext, id: string) {
-  const goal = await prisma.goal.findFirst({ where: { id, userId: ctx.userId } });
+  const goal = await prisma.goal.findFirst({ where: { id, userId: ctx.userId, profileId: ctx.profileId } });
   if (!goal) return null;
   const [a, e] = await Promise.all([
-    prisma.asset.aggregate({ where: { userId: ctx.userId, goalId: id }, _sum: { currentValue: true } }),
+    prisma.asset.aggregate({ where: { userId: ctx.userId, profileId: ctx.profileId, goalId: id }, _sum: { currentValue: true } }),
     prisma.monthlyEntry.findMany({
-      where: { userId: ctx.userId, goalId: id, category: "INVESTMENT_CONTRIBUTION" },
+      where: { userId: ctx.userId, profileId: ctx.profileId, goalId: id, category: "INVESTMENT_CONTRIBUTION" },
       select: { amount: true, allocations: { select: { amount: true, asset: { select: { goalId: true } } } } },
     }),
   ]);
@@ -59,19 +59,19 @@ function computedFields(input: GoalInput) {
 
 export async function createGoal(ctx: AuthContext, input: GoalInput) {
   return prisma.goal.create({
-    data: { ...input, ...computedFields(input), userId: ctx.userId },
+    data: { ...input, ...computedFields(input), userId: ctx.userId, profileId: ctx.profileId },
   });
 }
 
 export async function updateOwnGoal(ctx: AuthContext, id: string, input: GoalInput) {
   return prisma.goal.updateMany({
-    where: { id, userId: ctx.userId },
+    where: { id, userId: ctx.userId, profileId: ctx.profileId },
     data: { ...input, ...computedFields(input) },
   });
 }
 
 export async function deleteOwnGoal(ctx: AuthContext, id: string) {
-  return prisma.goal.deleteMany({ where: { id, userId: ctx.userId } });
+  return prisma.goal.deleteMany({ where: { id, userId: ctx.userId, profileId: ctx.profileId } });
 }
 
 /**
@@ -82,17 +82,17 @@ export async function deleteOwnGoal(ctx: AuthContext, id: string) {
  */
 export async function listGoalsWithProgress(ctx: AuthContext) {
   const [goals, assetSums, aportes] = await Promise.all([
-    prisma.goal.findMany({ where: { userId: ctx.userId }, orderBy: { targetDate: "asc" } }),
+    prisma.goal.findMany({ where: { userId: ctx.userId, profileId: ctx.profileId }, orderBy: { targetDate: "asc" } }),
     prisma.asset.groupBy({
       by: ["goalId"],
-      where: { userId: ctx.userId, goalId: { not: null } },
+      where: { userId: ctx.userId, profileId: ctx.profileId, goalId: { not: null } },
       _sum: { currentValue: true },
     }),
     // Aporte que entrou num ativo DA MESMA META já está contado pelo valor daquele ativo;
     // contar os dois fazia a meta andar o dobro. O que foi pra outro ativo continua contando:
     // é dinheiro guardado pra meta, só que num lugar que a meta não enxerga sozinha.
     prisma.monthlyEntry.findMany({
-      where: { userId: ctx.userId, goalId: { not: null }, category: "INVESTMENT_CONTRIBUTION" },
+      where: { userId: ctx.userId, profileId: ctx.profileId, goalId: { not: null }, category: "INVESTMENT_CONTRIBUTION" },
       select: { goalId: true, amount: true, allocations: { select: { amount: true, asset: { select: { goalId: true } } } } },
     }),
   ]);

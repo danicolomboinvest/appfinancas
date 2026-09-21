@@ -43,7 +43,7 @@ export async function getCategoryTransactionsAction(
   }
 
   const entries = await prisma.monthlyEntry.findMany({
-    where: { userId: ctx.userId, category: "EXPENSE", ...categoryWhere, ...periodWhere },
+    where: { userId: ctx.userId, profileId: ctx.profileId, category: "EXPENSE", ...categoryWhere, ...periodWhere },
     select: { id: true, description: true, subcategory: true, amount: true, entryDate: true, createdAt: true },
     orderBy: [{ entryDate: "desc" }, { createdAt: "desc" }],
     take: 50,

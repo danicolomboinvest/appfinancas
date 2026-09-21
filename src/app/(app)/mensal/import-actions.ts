@@ -347,7 +347,7 @@ async function findCardPaymentCandidates(userId: string, year: number, month: nu
  * confirma que é mesmo esta fatura (nunca automático). */
 export async function removeCardPaymentCandidateAction(id: string): Promise<{ ok: boolean }> {
   const ctx = await getRequiredSession();
-  const result = await prisma.monthlyEntry.deleteMany({ where: { id, userId: ctx.userId } });
+  const result = await prisma.monthlyEntry.deleteMany({ where: { id, userId: ctx.userId, profileId: ctx.profileId } });
   revalidatePath("/mensal/[year]/[month]", "page");
   return { ok: result.count > 0 };
 }
@@ -420,7 +420,7 @@ export async function importTransactionsAction(
   for (const key of monthsInBatch) {
     const [y, m] = key.split("/").map(Number);
     const existing = await prisma.monthlyEntry.findMany({
-      where: { userId: ctx.userId, year: y, month: m },
+      where: { userId: ctx.userId, profileId: ctx.profileId, year: y, month: m },
       select: { entryDate: true, amount: true, description: true },
     });
     for (const e of existing) {

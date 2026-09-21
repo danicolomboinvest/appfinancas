@@ -26,7 +26,7 @@ export async function getContributionContext(ctx: AuthContext, year: number, mon
   const [comparison, plan, assets] = await Promise.all([
     getPortfolioStrategyComparison(ctx),
     getMonthlyPlan(ctx, year, month),
-    prisma.asset.findMany({ where: { userId: ctx.userId }, select: { id: true, name: true, ticker: true, assetClass: true, fixedIncomeIndex: true, currentValue: true } }),
+    prisma.asset.findMany({ where: { userId: ctx.userId, profileId: ctx.profileId }, select: { id: true, name: true, ticker: true, assetClass: true, fixedIncomeIndex: true, currentValue: true } }),
   ]);
 
   const destinations: Record<string, ContributionDestination | null> = {};
