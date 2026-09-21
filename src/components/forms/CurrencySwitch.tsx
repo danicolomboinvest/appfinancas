@@ -57,8 +57,10 @@ export function ExchangeRateLine({
 }) {
   const id = useId();
   const [text, setText] = useState(defaultRate ? formatRate(defaultRate) : "");
-  const [status, setStatus] = useState<"idle" | "loading" | "today" | "failed">(defaultRate ? "idle" : "loading");
-  const [today, setToday] = useState<{ rate: number; date: string } | null>(null);
+  const [status, setStatus] = useState<"idle" | "loading" | "today" | "stale" | "failed">(
+    defaultRate ? "idle" : "loading",
+  );
+  const [today, setToday] = useState<{ rate: number; date: string; stale?: boolean } | null>(null);
 
   // Trocar de moeda REMONTA este componente (o pai usa `key={currency}`), então o estado
   // inicial já é "buscando" e o effect só recebe a resposta.
@@ -70,10 +72,11 @@ export function ExchangeRateLine({
         setStatus((s) => (s === "loading" ? "failed" : s));
         return;
       }
-      setToday({ rate: r.rate, date: r.date });
+      setToday({ rate: r.rate, date: r.date, stale: r.stale });
       if (!defaultRate) {
         setText(formatRate(r.rate));
-        setStatus("today");
+        // Cotação velha ainda é melhor que campo vazio: preenche, mas diz de quando é.
+        setStatus(r.stale ? "stale" : "today");
       }
     });
     return () => {
@@ -111,7 +114,10 @@ export function ExchangeRateLine({
       <p className="text-[11px] leading-snug text-ink-faint">
         {status === "loading" && "Buscando a cotação de hoje…"}
         {status === "today" && today && `Cotação de hoje. Se o seu banco fechou diferente, ajuste aqui.`}
-        {status === "failed" && "Não achei a cotação de hoje. Digite a que o seu banco usou."}
+        {status === "stale" &&
+          today &&
+          `Não consegui atualizar agora. Esta é a cotação de ${formatDateBR(today.date)} — confira antes de lançar.`}
+        {status === "failed" && "Não consegui buscar a cotação agora. Digite a que o seu banco usou."}
         {status === "idle" &&
           (today && rate && Math.abs(today.rate - rate) / today.rate > 0.005
             ? `Cotação guardada nesse lançamento. Hoje está em ${formatRate(today.rate)}.`
@@ -119,4 +125,9 @@ export function ExchangeRateLine({
       </p>
     </div>
   );
+}
+
+/** "2026-09-21" → "21/09". A pessoa precisa saber de quando é a cotação que está vendo. */
+function formatDateBR(iso: string): string {
+  return iso.length >= 10 ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}` : iso;
 }
