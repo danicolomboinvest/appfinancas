@@ -11,6 +11,7 @@ import { MoreSheet } from "./MoreSheet";
 import { GreetingStrip } from "./GreetingStrip";
 import { ThemeQuickToggle } from "./ThemeQuickToggle";
 import { RegistrarDrawer } from "./RegistrarDrawer";
+import { ProfileSwitcher, type PerfilResumo } from "@/components/profiles/ProfileSwitcher";
 import { WelcomeTour } from "./WelcomeTour";
 import { InstallAppBanner } from "./InstallAppBanner";
 import { InstallAppSheet } from "./InstallAppSheet";
@@ -28,6 +29,7 @@ export function AppShell({
   dateLabel,
   theme,
   openFinance,
+  perfis = [],
 }: {
   children: React.ReactNode;
   isAdmin: boolean;
@@ -41,6 +43,7 @@ export function AppShell({
    * "Conexões" e "Conectar meu banco" não aparecem — o código vai junto no deploy, mas fica
    * invisível até a Dani decidir ligar. */
   openFinance: boolean;
+  perfis?: PerfilResumo[];
 }) {
   const [collapsed, setCollapsed] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
@@ -95,7 +98,8 @@ export function AppShell({
   return (
     <ToastProvider>
       <NavProgressProvider>
-      <div className="flex min-h-screen">
+      {/* A cor do perfil ativo entra aqui e desce por herança pra tudo que está dentro. */}
+      <div className="flex min-h-screen" data-profile-accent>
         {/* Sidebar: navegação primária no desktop; no mobile fica sempre fora da tela
             (a gaveta hambúrguer foi substituída pela tab bar + MoreSheet abaixo). */}
         <RegistrarOpener onOpen={() => setRegistrarOpen(true)} />
@@ -121,8 +125,14 @@ export function AppShell({
             <div className="mx-auto w-full max-w-6xl">
               {/* Sol/lua no alto de TODA tela — a saudação só existe no Fluxo, então prender
                   o botão nela o faria sumir em Metas, Carteira e Orçamento. */}
-              <div className="mb-1 flex justify-end">
-                <ThemeQuickToggle initial={theme} />
+              {/* O perfil ativo fica no alto de TODA tela, ao lado do sol/lua: lançar um gasto
+                  no perfil errado é o erro mais caro que este recurso pode causar, então ele
+                  não pode viver escondido dentro de um menu. */}
+              <div className="mb-1 flex items-center justify-between gap-2">
+                <ProfileSwitcher perfis={perfis} />
+                <div className="ml-auto">
+                  <ThemeQuickToggle initial={theme} />
+                </div>
               </div>
               {showGreeting && <GreetingStrip greeting={greeting} dateLabel={dateLabel} />}
               <InstallAppBanner onOpenTutorial={() => setInstallOpen(true)} />

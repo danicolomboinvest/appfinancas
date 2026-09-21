@@ -9,6 +9,8 @@ import { nowInBrazil } from "@/lib/date/brazil-now";
 import type { AccountContext } from "@/lib/auth/session";
 import { MoneyProvider } from "@/components/money/MoneyProvider";
 import { toCurrencyCode, type CurrencyCode } from "@/lib/money";
+import { listProfiles, getOrCreateActiveProfile } from "@/lib/repositories/profile.repo";
+import { profileColorCss } from "@/lib/profiles/palette";
 
 
 function timeOfDayGreeting(now: Date) {
@@ -34,14 +36,26 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   let theme = "dark";
   let currency: CurrencyCode = toCurrencyCode(null);
   let isPremium = false;
+  let perfis: { id: string; name: string; icon: string; color: string; isDefault: boolean }[] = [];
+  let corDoPerfil = "";
   if (session?.user) {
     const ctx: AccountContext = { userId: session.user.id, role: session.user.role };
     // Uma consulta a menos em TODA navegação: o resumo do mês só existia pra alimentar a
     // faixa de saudação, que não mostra mais números.
-    const [user, premium] = await Promise.all([getOwnUser(ctx), hasPremiumAccess(ctx.userId)]);
+    const [user, premium, ativo, todos] = await Promise.all([
+      getOwnUser(ctx),
+      hasPremiumAccess(ctx.userId),
+      getOrCreateActiveProfile(ctx.userId),
+      listProfiles(ctx.userId),
+    ]);
     currency = toCurrencyCode(user.currency);
     theme = user.theme;
     isPremium = premium;
+    perfis = todos.map((p) => ({ id: p.id, name: p.name, icon: p.icon, color: p.color, isDefault: p.id === ativo.id }));
+    // A cor do perfil ATIVO redefine as variáveis de destaque do app inteiro. Como tudo já
+    // pinta com var(--color-accent), botão, progresso, ícone e gráfico mudam juntos — e o
+    // fundo continua neutro, que é o que impede isso de virar bagunça.
+    corDoPerfil = profileColorCss(ativo.color);
     // `after` roda DEPOIS que a resposta já foi enviada. Isto aqui é métrica de engajamento,
     // não conteúdo da página — com `await`, uma vez a cada 15 minutos a pessoa esperava uma
     // escrita no banco antes de a tela aparecer. Não dá pra só soltar a promessa sem esperar:
@@ -53,7 +67,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <>
       <ThemeSync theme={theme} />
       <MoneyProvider currency={currency}>
+      {corDoPerfil && <style dangerouslySetInnerHTML={{ __html: corDoPerfil }} />}
       <AppShell
+        perfis={perfis}
         isAdmin={session?.user.role === "ADMIN"}
         isPremium={isPremium}
         userEmail={session?.user.email ?? undefined}
