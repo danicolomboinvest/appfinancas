@@ -96,3 +96,24 @@ describe("profileDocument lê o arquivo inteiro antes de decidir", () => {
     expect(p.summary).toBe("Arquivo que não reconheci");
   });
 });
+
+describe("extrato com data de um dígito (Banco Inter)", () => {
+  // Amostra FICTÍCIA com a forma do arquivo real: a data sai como "1/07/26", o valor em formato
+  // americano, e as descrições trazem pedaços com cara de ticker ("PARC02", "CRED15").
+  const EXTRATO_INTER = [
+    ";;;;;Extrato de conta;;;;;;;",
+    ";;;;;Data de emissao: 19/09/2026 14:30;;;;;;;",
+    "TRANSACAO;DATA;DESCRICAO;;VALOR (R$);SALDO (R$);;;;;;;",
+    "1/07/26;1/07/26;PAGAMENTO BOLETO LOJA PARC02;;-R$ 1,234.56;R$ 2,000.00;;;;;;;",
+    "2/07/26;2/07/26;PIX RECEBIDO CRED15 CONTRATO;;R$ 300.00;R$ 2,300.00;;;;;;;",
+    "10/07/26;10/07/26;COMPRA DEBITO MERC01 LOJA;;-R$ 89.90;R$ 2,210.10;;;;;;;",
+  ].join("\n");
+
+  it("reconhece as linhas como lançamento, não como ativo de carteira", () => {
+    const p = profileDocument(EXTRATO_INTER, "extrato_de_21-06-2026_ate_19-09-2026.xls");
+    expect(p.movementRows).toBe(3);
+    expect(p.positionRows).toBe(0);
+    expect(p.kind).toBe("statement");
+    expect(p.contents).not.toContain("position");
+  });
+});

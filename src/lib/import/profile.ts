@@ -68,7 +68,11 @@ const TICKER_HEADER_RE = /(^|[;,\t])\s*(ticker|c[óo]digo|papel|symbol)\s*(?=[;,
 const INTL_TICKER_RE = /^[;,\t ]*([A-Z]{1,5})(?=[;,\t])/;
 const MONTHS = "jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez";
 const MONTHS_FULL = "janeiro|fevereiro|mar[çc]o|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro";
-const DATE_START_RE = /^\s*[;,]?\s*(?:\d{2}\/\d{2}(?:\/\d{2,4})?|\d{2}\s(?:jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)\b)/i;
+// Dia e mês com UM dígito ("1/07/26") existem: o Banco Inter exporta o extrato assim. Enquanto
+// isto exigia dois dígitos, as 41 linhas de transação de um extrato não eram reconhecidas como
+// lançamento — e, por não começarem com data, passavam por linha de ativo. O app leu o extrato
+// de um cliente como se fosse uma carteira e ofereceu 15 "ativos" que eram pedaços de descrição.
+const DATE_START_RE = /^\s*[;,]?\s*(?:\d{1,2}\/\d{1,2}(?:\/\d{2,4})?|\d{1,2}\s(?:jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)\b)/i;
 const MONEY_RE = /-?\d{1,3}(?:\.\d{3})*,\d{2}\b|-?\d{1,3}(?:,\d{3})*\.\d{2}\b|-?\d+\.\d{2}\b/;
 // Número solto: o "4" de PETR4 não conta como quantidade.
 const NUMBER_RE = /(?<![A-Za-z\d])-?\d[\d.,]*/g;
