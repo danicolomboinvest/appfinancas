@@ -1,4 +1,5 @@
 import { detectDocKind } from "./detect";
+import { isNubankStatement } from "./nubank-pdf";
 
 /**
  * Perfil do arquivo importado, lido INTEIRO antes de qualquer decisão.
@@ -150,6 +151,10 @@ const KIND_LABEL: Record<DocProfileKind, string> = {
 /** Banco que mais aparece, com peso extra pro começo do arquivo (cabeçalho): o extrato do
  * Nubank cita "BTG" numa transferência, mas é do Nubank. */
 function detectInstitution(text: string): string | null {
+  // O extrato do Nubank em PDF nem sempre diz "Nubank" no alto da página, mas as transferências
+  // dizem o banco do OUTRO lado do Pix. Foi assim que o extrato de uma cliente apareceu na tela
+  // como "Sicredi" — banco que ela não tem. O molde do documento vale mais que as citações.
+  if (isNubankStatement(text)) return "Nubank";
   const head = text.slice(0, 2500);
   let best: { name: string; score: number } | null = null;
   for (const [re, name] of INSTITUTIONS) {

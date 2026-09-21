@@ -40,8 +40,19 @@ const NOISE_RE = [
   /VALORES EM R\$/,
 ];
 
+/**
+ * O extrato da conta PESSOA FÍSICA não traz "Saldo do dia" — só a conta PJ traz. Enquanto essa
+ * linha era obrigatória aqui, o extrato PF caía no leitor genérico, que lia zero lançamentos:
+ * uma cliente tentou quatro vezes seguidas, nas duas telas, e desistiu do PDF. O que identifica
+ * o extrato do Nubank é a seção "Movimentações" com os blocos "Total de entradas/saídas" e as
+ * datas em "DD MES AAAA" — e, se mesmo assim não sair nada, o leitor genérico continua atrás.
+ */
 export function isNubankStatement(text: string): boolean {
-  return /Saldo do dia/.test(text) && /Total de (entradas|sa[ií]das)/.test(text) && /\b\d{2} (JAN|FEV|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ) \d{4}\b/.test(text);
+  return (
+    /^\s*Movimenta[çc][õo]es\s*$/m.test(text) &&
+    /Total de (entradas|sa[ií]das)/.test(text) &&
+    /\b\d{2} (JAN|FEV|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ) \d{4}\b/.test(text)
+  );
 }
 
 /**

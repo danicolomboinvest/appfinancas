@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { isNubankStatement, parseNubankStatement } from "../nubank-pdf";
 import { parseStatement } from "../statement-parser";
+import { profileDocument } from "../profile";
 
 /** Extrato fictício com a mesma estrutura do PDF do Nubank (cabeçalho por página, dia com
  * entradas e saídas, descrição em várias linhas, valor sozinho, quebra de página no meio). */
@@ -82,5 +83,59 @@ describe("parseNubankStatement", () => {
     expect(isNubankStatement(NUBANK)).toBe(true);
     expect(parseStatement(NUBANK, "pdf")).toHaveLength(6);
     expect(isNubankStatement("12/05/2026 IFOOD 45,90")).toBe(false);
+  });
+});
+
+/**
+ * Extrato fictício da conta PESSOA FÍSICA: mesma estrutura, mas SEM as linhas "Saldo do dia"
+ * (só a conta PJ tem). Era esse formato que o app não reconhecia.
+ */
+const NUBANK_PF = `Joana Exemplo da Silva
+•••.111.222-•• 0001	CPF Agência Conta
+7654321-0
+a	01 DE SETEMBRO DE 2026 19 DE SETEMBRO DE 2026 VALORES EM R$
+Saldo final do período
+R$ 42,00
+Saldo inicial
+Total de entradas
+Total de saídas
+Saldo final do período
+1.000,00
++2.500,00
+-3.458,00
+42,00
+Movimentações
+02 SET 2026 Total de saídas - 158,00
+Compra no débito SUPERMERCADO EXEMPLO 158,00
+05 SET 2026 Total de entradas + 2.500,00
+Transferência recebida pelo Pix EMPREGADOR EXEMPLO LTDA - 11.222.333/0001-44
+- BANCO EXEMPLO S.A. (0999) Agência: 1 Conta:
+9999999-9
+2.500,00
+11 SET 2026 Total de saídas - 3.300,00
+Pagamento de boleto efetuado ALUGUEL EXEMPLO 1.800,00
+Transferência enviada pelo Pix Fulano Exemplo - •••.555.666-•• - NU
+PAGAMENTOS - IP (0260) Agência: 1 Conta:
+1234567-8
+1.500,00
+Extrato gerado dia 20 de setembro de 2026 às 09:00 1 de 1
+`;
+
+describe("extrato do Nubank de conta pessoa física (sem 'Saldo do dia')", () => {
+  it("é reconhecido como Nubank mesmo sem a linha de saldo diário", () => {
+    expect(isNubankStatement(NUBANK_PF)).toBe(true);
+  });
+
+  it("lê todos os lançamentos, com o sinal vindo do bloco do dia", () => {
+    const txns = parseStatement(NUBANK_PF, "pdf");
+    expect(txns).toHaveLength(4);
+    expect(txns[0]).toEqual({ date: "2026-09-02", description: "Compra no débito SUPERMERCADO EXEMPLO", amount: -158 });
+    expect(txns[1].amount).toBe(2500);
+    expect(txns[2]).toEqual({ date: "2026-09-11", description: "Pagamento de boleto efetuado ALUGUEL EXEMPLO", amount: -1800 });
+    expect(txns[3].amount).toBe(-1500);
+  });
+
+  it("mostra Nubank na tela, e não o banco que aparece numa transferência recebida", () => {
+    expect(profileDocument(NUBANK_PF, "NU_000_01SET2026_19SET2026.pdf").institution).toBe("Nubank");
   });
 });
