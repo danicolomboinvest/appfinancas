@@ -132,7 +132,8 @@ function splitCsvLine(line: string, delimiter: string): string[] {
 
 const DATE_HEADERS = ["data", "date", "dt"];
 const DESC_HEADERS = ["descri", "histor", "histó", "lanç", "lanc", "memo", "estabelecimento", "detalhe", "title"];
-const AMOUNT_HEADERS = ["valor", "amount", "montante", "quantia", "value"];
+/** "R$" sozinho é o nome da coluna de valor na fatura do Santander em Excel. */
+const AMOUNT_HEADERS = ["valor", "amount", "montante", "quantia", "value", "r$", "reais"];
 /** Coluna de valor que NÃO é a certa: "Valor (em US$)" do C6 vinha antes de "Valor (em R$)" e levava tudo. */
 const AMOUNT_AVOID = ["us$", "usd", "dólar", "dolar", "cotação", "cotacao"];
 /** Extratos com duas colunas (Bradesco, Santander, Sicoob, Caixa): crédito e débito separados. */
@@ -147,6 +148,12 @@ const NON_TRANSACTION_RE = /\bsaldo\b/i;
 
 function findColumn(headers: string[], needles: string[]): number {
   return headers.findIndex((h) => needles.some((n) => h.includes(n)));
+}
+
+/** Igual, mas ignorando uma coluna já usada: "Data Lançamento" casa com data E com descrição,
+ * e sem isto a coluna "Histórico" ao lado era ignorada. */
+function findColumnExcept(headers: string[], needles: string[], skip: number): number {
+  return headers.findIndex((h, i) => i !== skip && needles.some((n) => h.includes(n)));
 }
 
 /** A coluna de valor certa: prefere "Valor (em R$)" / "valor" a "Valor (em US$)". */
@@ -173,6 +180,8 @@ type CsvLayout = {
 
 /** Tem valor em dinheiro na linha? Cabeçalho não tem; linha de lançamento tem. */
 const MONEY_IN_LINE_RE = /-?\d{1,3}(?:\.\d{3})*,\d{2}\b|-?\d+\.\d{2}\b/;
+/** Célula que começa com data ("28/07", "28/07/2026", "2026-07-28"): é lançamento, não cabeçalho. */
+const CELL_STARTS_WITH_DATE_RE = /^\s*(?:\d{1,2}\/\d{1,2}|\d{4}-\d{2}-\d{2})\b/;
 
 /**
  * Lê uma linha COMO cabeçalho de tabela, ou devolve null se ela não for um.
@@ -184,11 +193,18 @@ function readHeaderLayout(line: string): CsvLayout | null {
   if (MONEY_IN_LINE_RE.test(line)) return null;
   const delimiter = detectDelimiter(line);
   const cells = splitCsvLine(line, delimiter).map((h) => h.toLowerCase());
+  // Nenhum cabeçalho começa uma célula com data. Faz falta porque nem todo valor tem centavos
+  // ("250"), e aí a checagem de dinheiro acima deixa a linha de compra passar por cabeçalho.
+  if (cells.some((c) => CELL_STARTS_WITH_DATE_RE.test(c))) return null;
   const amountCol = findAmountColumn(cells);
   const creditCol = findColumn(cells, CREDIT_HEADERS);
   const debitCol = findColumn(cells, DEBIT_HEADERS);
   const dateCol = findColumn(cells, DATE_HEADERS);
-  const descCol = findColumn(cells, DESC_HEADERS);
+  // "DATA DESCRICAO" numa célula só é o cabeçalho da fatura do Santander: a data e a descrição
+  // vêm grudadas. Só aceitamos essa coincidência quando não existe outra coluna de descrição.
+  const descCol = findColumnExcept(cells, DESC_HEADERS, dateCol) !== -1
+    ? findColumnExcept(cells, DESC_HEADERS, dateCol)
+    : findColumn(cells, DESC_HEADERS);
   if (amountCol === -1 && !(creditCol !== -1 && debitCol !== -1)) return null;
   if (dateCol === -1 && descCol === -1) return null;
   const transCol = findColumn(cells, TRANSACTION_HEADERS);
@@ -198,8 +214,19 @@ function readHeaderLayout(line: string): CsvLayout | null {
   return { delimiter, dateCol, descCol, amountCol, transCol, creditCol, debitCol, dcCol };
 }
 
+/**
+ * Fatura do Santander em Excel: a data e a descrição vêm na MESMA célula
+ * ("28/07  MERCADO BOM PRECO - 02/02"). Sem separar as duas, a data virava texto solto e o
+ * lançamento inteiro era descartado — 13 compras no arquivo, nenhuma lida.
+ */
+function splitDateFromDescription(cell: string, refYear: number): { date: string; description: string } {
+  const lead = leadingDate(cell, refYear);
+  if (!lead) return { date: normalizeDate(cell), description: cell.trim() };
+  return { date: lead.iso, description: cell.trimStart().slice(lead.length).trim() };
+}
+
 /** Uma linha de dados lida com as colunas do cabeçalho vigente; null quando não é lançamento. */
-function readTransactionLine(line: string, layout: CsvLayout): ParsedTransaction | null {
+function readTransactionLine(line: string, layout: CsvLayout, refYear: number): ParsedTransaction | null {
   const { delimiter, dateCol, descCol, amountCol, transCol, creditCol, debitCol, dcCol } = layout;
   const cols = splitCsvLine(line, delimiter);
 
@@ -216,7 +243,8 @@ function readTransactionLine(line: string, layout: CsvLayout): ParsedTransaction
   if (dcCol !== -1 && amount > 0 && /^d\b|^d[eé]b/i.test((cols[dcCol] ?? "").trim())) amount = -amount;
   if (Number.isNaN(amount) || amount === 0) return null;
 
-  const desc = (cols[descCol] ?? "").trim();
+  const juntas = dateCol !== -1 && dateCol === descCol ? splitDateFromDescription(cols[dateCol] ?? "", refYear) : null;
+  const desc = (juntas ? juntas.description : (cols[descCol] ?? "")).trim();
   const trans = transCol !== -1 ? (cols[transCol] ?? "").trim() : "";
   // Pula saldos/totais, são fotografias do saldo, não transações.
   if (NON_TRANSACTION_RE.test(desc) || NON_TRANSACTION_RE.test(trans)) return null;
@@ -226,10 +254,32 @@ function readTransactionLine(line: string, layout: CsvLayout): ParsedTransaction
     [trans, desc].filter((s) => s && s !== "-").filter((s, i, arr) => arr.indexOf(s) === i).join(" · ") ||
     "Lançamento";
 
-  return { date: normalizeDate(cols[dateCol] ?? ""), description, amount };
+  return { date: juntas ? juntas.date : normalizeDate(cols[dateCol] ?? ""), description, amount };
 }
 
-export function parseCsv(content: string): ParsedTransaction[] {
+/**
+ * Arquivo sem NENHUMA linha de cabeçalho: descobre as colunas pelo formato das linhas. O
+ * padrão é (data, descrição, valor); a fatura do Santander em Excel tem só duas colunas, com a
+ * data colada na descrição na primeira. Antes a gente chutava sempre três colunas e o valor era
+ * procurado numa coluna que não existia, então o arquivo inteiro virava zero lançamentos.
+ */
+function guessLayoutFromRows(lines: string[], refYear: number): CsvLayout {
+  const delimiter = detectDelimiter(lines[0]);
+  const base = { delimiter, transCol: -1, creditCol: -1, debitCol: -1, dcCol: -1 };
+  // "Duas colunas" só vale se TODA linha for assim: data colada na descrição de um lado,
+  // número do outro. Nem todo valor tem centavos ("250"), então não dá pra filtrar por centavos.
+  const amostra = lines.slice(0, 20);
+  const duasColunas =
+    amostra.length > 0 &&
+    amostra.every((l) => {
+      const cols = splitCsvLine(l, delimiter);
+      return cols.length === 2 && leadingDate(cols[0], refYear) !== null && Number.isFinite(parseAmountFlexible(cols[1]));
+    });
+  if (duasColunas) return { ...base, dateCol: 0, descCol: 0, amountCol: 1 };
+  return { ...base, dateCol: 0, descCol: 1, amountCol: 2 };
+}
+
+export function parseCsv(content: string, refYear: number = new Date().getFullYear()): ParsedTransaction[] {
   const lines = content.split(/\r?\n/).filter((l) => l.trim() !== "");
   if (lines.length === 0) return [];
 
@@ -251,24 +301,15 @@ export function parseCsv(content: string): ParsedTransaction[] {
     }
     // Ainda no preâmbulo (nome, conta, período): nada pra ler antes da primeira tabela.
     if (!layout) continue;
-    const transaction = readTransactionLine(line, layout);
+    const transaction = readTransactionLine(line, layout, refYear);
     if (transaction) transactions.push(transaction);
   }
   if (layout !== null) return transactions;
 
-  // Nenhum cabeçalho no arquivo inteiro: assume a ordem mais comum (data, descrição, valor).
-  const semCabecalho: CsvLayout = {
-    delimiter: detectDelimiter(lines[0]),
-    dateCol: 0,
-    descCol: 1,
-    amountCol: 2,
-    transCol: -1,
-    creditCol: -1,
-    debitCol: -1,
-    dcCol: -1,
-  };
+  // Nenhum cabeçalho no arquivo inteiro: as colunas saem do formato das próprias linhas.
+  const semCabecalho = guessLayoutFromRows(lines, refYear);
   for (const line of lines) {
-    const transaction = readTransactionLine(line, semCabecalho);
+    const transaction = readTransactionLine(line, semCabecalho, refYear);
     if (transaction) transactions.push(transaction);
   }
   return transactions;
@@ -394,5 +435,5 @@ export function parseStatement(content: string, source: "auto" | "pdf" = "auto",
     }
     return parseTextLines(content, refYear);
   }
-  return isOfx(content) ? parseOfx(content) : parseCsv(content);
+  return isOfx(content) ? parseOfx(content) : parseCsv(content, refYear);
 }

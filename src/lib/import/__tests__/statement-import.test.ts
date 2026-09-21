@@ -189,3 +189,45 @@ describe("parseCsv com várias abas coladas (Excel de banco)", () => {
     expect(parseCsv(csv).map((t) => t.amount)).toEqual([-100, -50]);
   });
 });
+
+describe("fatura do Santander em Excel (duas colunas, data colada na descrição)", () => {
+  // Amostra FICTÍCIA com a mesma forma do arquivo real: a planilha vira CSV com duas colunas,
+  // a primeira traz "DD/MM" grudado na descrição e a segunda o valor com ponto decimal
+  // (às vezes sem centavos). Os 13 gastos de uma cliente ficaram de fora por causa disso.
+  it("lê o arquivo com a linha de cabeçalho 'DATA DESCRICAO;R$'", () => {
+    const csv = `DATA DESCRICAO;R$
+28/07  MERCADO BOM PRECO;103.81
+29/07  POSTO SOL *COMBUSTIVEL - 02/02;250
+30/07  PADARIA CENTRAL;12.5`;
+    const txns = parseCsv(csv, 2026);
+    expect(txns).toHaveLength(3);
+    expect(txns[0]).toEqual({ date: "2026-07-28", description: "MERCADO BOM PRECO", amount: 103.81 });
+    expect(txns[1]).toEqual({ date: "2026-07-29", description: "POSTO SOL *COMBUSTIVEL - 02/02", amount: 250 });
+    expect(txns[2]).toEqual({ date: "2026-07-30", description: "PADARIA CENTRAL", amount: 12.5 });
+  });
+
+  it("lê o mesmo arquivo quando a linha de cabeçalho não veio", () => {
+    const csv = `28/07  MERCADO BOM PRECO;103.81
+29/07  POSTO SOL *COMBUSTIVEL - 02/02;250
+30/07  PADARIA CENTRAL;12.5`;
+    const txns = parseCsv(csv, 2026);
+    expect(txns).toHaveLength(3);
+    expect(txns.map((t) => t.date)).toEqual(["2026-07-28", "2026-07-29", "2026-07-30"]);
+    expect(txns[0].description).toBe("MERCADO BOM PRECO");
+  });
+
+  it("não confunde uma compra sem centavos com uma linha de cabeçalho", () => {
+    const csv = `28/07  DATA CENTER HOSPEDAGEM;250
+29/07  PADARIA CENTRAL;12.5`;
+    expect(parseCsv(csv, 2026)).toHaveLength(2);
+  });
+});
+
+describe("coluna de descrição quando o cabeçalho da data também diz 'lançamento'", () => {
+  it("usa Histórico como descrição, não a própria coluna de data", () => {
+    const csv = `Data Lançamento;Histórico;Valor
+12/05/2026;Uber viagem;-24,50`;
+    const txns = parseCsv(csv, 2026);
+    expect(txns).toEqual([{ date: "2026-05-12", description: "Uber viagem", amount: -24.5 }]);
+  });
+});
