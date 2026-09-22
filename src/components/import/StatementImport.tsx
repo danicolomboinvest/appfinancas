@@ -355,7 +355,7 @@ export function StatementImport({ onDone }: { onDone: () => void }) {
     );
   }
 
-  // --- SENHA (Excel protegido pelo banco) ---
+  // --- SENHA (Excel ou PDF protegido pelo banco) ---
   if (phase === "password") {
     return (
       <div className="flex flex-col gap-4">
@@ -365,7 +365,8 @@ export function StatementImport({ onDone }: { onDone: () => void }) {
           </span>
           <p className="text-sm font-medium text-ink">Este arquivo está protegido por senha</p>
           <p className="text-caption text-ink-faint">
-            Muitos bancos exportam o extrato assim. Digite a senha do arquivo (a mesma que o banco pede pra abrir).
+            Digite a senha que o banco pede pra abrir o arquivo. Em fatura de cartão costuma ser o seu CPF (só os
+            números) ou a sua data de nascimento.
           </p>
         </div>
 

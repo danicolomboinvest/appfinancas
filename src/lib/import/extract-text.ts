@@ -108,8 +108,26 @@ function prepararAmbienteDoPdf(): void {
   g.ImageData ??= class {};
 }
 
-/** PDF → texto cru (todas as páginas). */
-async function pdfToText(buffer: Buffer): Promise<string> {
+/**
+ * O PDF está trancado com senha (ou a senha que veio não abriu).
+ *
+ * Fatura de cartão em PDF quase sempre vem assim: Banco do Brasil (Ourocard), Bradesco e as
+ * lojas mandam o arquivo pedindo CPF ou data de nascimento pra abrir. O pdfjs sinaliza isso com
+ * um erro de nome próprio, e é só isso que dá pra usar — a biblioteca não expõe o código do
+ * erro, só o nome e a frase.
+ */
+function ehArquivoTrancado(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  return err.name === "PasswordException" || /^(no password given|incorrect password)/i.test(err.message);
+}
+
+/** Senha faltando e senha errada têm a mesma cara pro código, mas não pra quem está na tela. */
+function ehSenhaErrada(err: unknown): boolean {
+  return err instanceof Error && /incorrect\s*password/i.test(err.message);
+}
+
+/** PDF → texto cru (todas as páginas). Descriptografa se vier senha. */
+async function pdfToText(buffer: Buffer, password: string | undefined): Promise<string> {
   prepararAmbienteDoPdf();
   let PDFParse: typeof import("pdf-parse").PDFParse;
   try {
@@ -117,11 +135,21 @@ async function pdfToText(buffer: Buffer): Promise<string> {
   } catch (err) {
     throw new UploadReadError(PDF_INDISPONIVEL, `biblioteca não carregou · ${causa(err)}`);
   }
-  const parser = new PDFParse({ data: buffer });
+  const parser = new PDFParse({ data: buffer, password });
   try {
     const result = await parser.getText();
     return result.text ?? "";
   } catch (err) {
+    // Arquivo trancado não é servidor quebrado. Dizer "manda em Excel" aqui era mandar a pessoa
+    // procurar um arquivo que o banco nem oferece — a fatura sai em PDF e só em PDF. O Excel
+    // protegido já pedia a senha; o PDF passa pela MESMA tela, pelo mesmo caminho.
+    if (ehArquivoTrancado(err)) {
+      throw new PasswordRequiredError(
+        ehSenhaErrada(err)
+          ? "Senha incorreta. Confira a senha do arquivo e tente de novo."
+          : "Este arquivo está protegido por senha.",
+      );
+    }
     // O pdfjs abre o PDF num "worker" que é um arquivo à parte (pdf.worker.mjs). Quando esse
     // arquivo não vem junto no servidor, a falha aparece só aqui, na hora de ler — e não no
     // import acima. Por isso o motivo precisa ir junto pro diagnóstico.
@@ -150,6 +178,6 @@ export async function extractUploadFromForm(
   }
   const buffer = Buffer.from(await file.arrayBuffer());
   if (encoding === "xlsx") return { text: await xlsxToCsv(buffer, password), source: "auto" };
-  if (encoding === "pdf") return { text: await pdfToText(buffer), source: "pdf" };
+  if (encoding === "pdf") return { text: await pdfToText(buffer, password), source: "pdf" };
   return { text: buffer.toString("utf-8"), source: "auto" };
 }
