@@ -297,7 +297,7 @@ export function StatementImport({ onDone }: { onDone: () => void }) {
                 type="button"
                 onClick={() => setDocType(t)}
                 className={`flex-1 rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
-                  docType === t ? "bg-ink text-canvas" : "text-ink-muted hover:text-ink"
+                  docType === t ? "bg-pill text-on-pill" : "text-ink-muted hover:text-ink"
                 }`}
               >
                 {t === "extrato" ? "Extrato bancário" : "Fatura de cartão"}
@@ -335,7 +335,7 @@ export function StatementImport({ onDone }: { onDone: () => void }) {
           disabled={isPending}
           className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border-strong bg-surface-2 px-4 py-10 text-center transition-colors hover:border-accent hover:bg-surface-hover disabled:opacity-60"
         >
-          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-ink text-canvas">
+          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-pill text-on-pill">
             <Upload size={22} strokeWidth={1.75} />
           </span>
           <span className="text-sm font-medium text-ink">{isPending ? "Lendo arquivo..." : "Escolher extrato"}</span>
@@ -365,8 +365,8 @@ export function StatementImport({ onDone }: { onDone: () => void }) {
           </span>
           <p className="text-sm font-medium text-ink">Este arquivo está protegido por senha</p>
           <p className="text-caption text-ink-faint">
-            Digite a senha que o banco pede pra abrir o arquivo. Em fatura de cartão costuma ser o seu CPF (só os
-            números) ou a sua data de nascimento.
+            Quase sempre é o seu CPF, só os números. Se não for, a senha vem escrita no e-mail em que o banco mandou
+            o arquivo.
           </p>
         </div>
 
