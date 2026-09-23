@@ -55,6 +55,11 @@ export const getOwnUser = cache(async (ctx: AccountContext) => {
   return prisma.user.findUniqueOrThrow({ where: { id: ctx.userId } });
 });
 
+/** A pessoa passou pela tela de boas-vindas: não volta mais lá. */
+export async function markOnboarded(userId: string): Promise<void> {
+  await prisma.user.update({ where: { id: userId }, data: { onboardedAt: new Date() } });
+}
+
 /** Intervalo mínimo entre atualizações de lastSeenAt, pra não escrever no banco a cada request. */
 const LAST_SEEN_THROTTLE_MS = 15 * 60 * 1000;
 

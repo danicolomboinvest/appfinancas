@@ -1,4 +1,5 @@
 import { after } from "next/server";
+import { redirect } from "next/navigation";
 import { isPluggyConfigured } from "@/lib/pluggy/client";
 import { auth } from "@/lib/auth/auth.config";
 import { AppShell } from "@/components/shell/AppShell";
@@ -45,6 +46,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       getOrCreateActiveProfile(ctx.userId),
       listProfiles(ctx.userId),
     ]);
+    // Primeira entrada: antes de ver qualquer tela, a pessoa escolhe o tipo e o tema do
+    // perfil dela em /comecar. Uma vez só; quem já usava o app nasceu com a data preenchida.
+    if (user.onboardedAt === null) redirect("/comecar");
     currency = toCurrencyCode(user.currency);
     theme = user.theme;
     isPremium = premium;
