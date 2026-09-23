@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/db/prisma";
 import { getAdminOverview } from "@/lib/repositories/admin-metrics.repo";
+import { PROFILE_KIND_LABEL } from "@/lib/repositories/profile.repo";
+import { PROFILE_THEMES } from "@/lib/profiles/themes";
 
 /**
  * Relatório da plataforma para o admin: engajamento (quanto usam), adoção por funcionalidade
@@ -22,6 +24,97 @@ const SIMULATOR_LABEL: Record<string, string> = {
 const SHEET_LABEL: Record<string, string> = { STOCK: "Ações", FII: "FIIs", STOCK_INTL: "Stocks", ETF: "ETFs" };
 
 export type FeatureAdoption = { key: string; label: string; users: number; percent: number };
+
+/**
+ * Ranking de "o que a galera usa": % de usuários com ao menos um registro em cada área, do
+ * mais adotado pro menos. Existe separado de `getPlatformReport` porque o painel de Usuários
+ * (/admin/usuarios) também mostra esse ranking, e ali não vale pagar as outras ~20 queries do
+ * relatório completo (funil, telas visitadas, financeiro) só pra exibir uma lista.
+ */
+export async function getFeatureAdoption(): Promise<{ totalUsers: number; features: FeatureAdoption[] }> {
+  const [
+    totalUsers,
+    fluxo,
+    orcamento,
+    metas,
+    carteira,
+    estrategia,
+    reserva,
+    planejamento,
+    simuladores,
+    fichas,
+    categorias,
+    patrimonio,
+  ] = await Promise.all([
+    prisma.user.count(),
+    countUsers(prisma.monthlyEntry.findMany({ distinct: ["userId"], select: { userId: true } })),
+    countUsers(prisma.budget.findMany({ distinct: ["userId"], select: { userId: true } })),
+    countUsers(prisma.goal.findMany({ distinct: ["userId"], select: { userId: true } })),
+    countUsers(prisma.asset.findMany({ distinct: ["userId"], select: { userId: true } })),
+    countUsers(prisma.portfolioStrategy.findMany({ distinct: ["userId"], select: { userId: true } })),
+    countUsers(prisma.emergencyFund.findMany({ distinct: ["userId"], select: { userId: true } })),
+    countUsers(prisma.planningParams.findMany({ distinct: ["userId"], select: { userId: true } })),
+    countUsers(prisma.simulation.findMany({ distinct: ["userId"], select: { userId: true } })),
+    countUsers(prisma.analysisSheet.findMany({ distinct: ["userId"], select: { userId: true } })),
+    countUsers(prisma.customCategory.findMany({ distinct: ["userId"], select: { userId: true } })),
+    countUsers(prisma.patrimonySnapshot.findMany({ distinct: ["userId"], select: { userId: true } })),
+  ]);
+
+  const pct = (n: number) => (totalUsers > 0 ? Math.round((n / totalUsers) * 1000) / 10 : 0);
+  const features: FeatureAdoption[] = [
+    { key: "fluxo", label: "Fluxo (lançamentos)", users: fluxo },
+    { key: "orcamento", label: "Orçamento", users: orcamento },
+    { key: "metas", label: "Metas", users: metas },
+    { key: "carteira", label: "Carteira de investimentos", users: carteira },
+    { key: "estrategia", label: "Estratégia da carteira", users: estrategia },
+    { key: "reserva", label: "Reserva de emergência", users: reserva },
+    { key: "planejamento", label: "Planejamento", users: planejamento },
+    { key: "simuladores", label: "Simuladores", users: simuladores },
+    { key: "fichas", label: "Fichas de análise", users: fichas },
+    { key: "categorias", label: "Categorias personalizadas", users: categorias },
+    { key: "patrimonio", label: "Evolução de patrimônio", users: patrimonio },
+  ]
+    .map((f) => ({ ...f, percent: pct(f.users) }))
+    .sort((a, b) => b.users - a.users);
+
+  return { totalUsers, features };
+}
+
+export type ProfileAdoptionRow = { key: string; label: string; perfis: number; percent: number };
+
+/**
+ * Quais TEMAS de personalidade (Girly, Game, Disciplina…) e quais TIPOS de perfil
+ * (Pessoal, Empresa, Casal…) estão em uso, pela contagem de `FinancialProfile`.
+ *
+ * A unidade é o PERFIL, não o usuário: cada pessoa tem 1+ perfis, e cada perfil carrega um
+ * tema e um tipo próprios (ver prisma/schema.prisma, FinancialProfile.theme/.kind). Conta
+ * TODO perfil, inclusive os "Pessoal"/"padrao" que o backfill de perfis criou sozinho pra
+ * quem já usava o app antes de set/2026 — é dado real: mostra que a maioria ainda está no
+ * Padrão porque nunca escolheu outro, não porque o app esconde a opção.
+ */
+export async function getProfileAdoption(): Promise<{ totalPerfis: number; temas: ProfileAdoptionRow[]; tipos: ProfileAdoptionRow[] }> {
+  const [porTema, porTipo] = await Promise.all([
+    prisma.financialProfile.groupBy({ by: ["theme"], _count: { _all: true } }),
+    prisma.financialProfile.groupBy({ by: ["kind"], _count: { _all: true } }),
+  ]);
+
+  const totalPerfis = porTema.reduce((s, r) => s + r._count._all, 0);
+  const pctPerfis = (n: number) => (totalPerfis > 0 ? Math.round((n / totalPerfis) * 1000) / 10 : 0);
+
+  // `theme` é coluna livre (String) no banco, não o enum ProfileThemeKey — um valor gravado por
+  // uma versão antiga do app, ou por engano, não pode quebrar esta consulta; cai no próprio
+  // valor bruto como rótulo (Map<string,string> em vez de Map<ProfileThemeKey,string>).
+  const labelDoTema = new Map<string, string>(PROFILE_THEMES.map((t) => [t.key, t.label]));
+  const temas = porTema
+    .map((r) => ({ key: r.theme, label: labelDoTema.get(r.theme) ?? r.theme, perfis: r._count._all, percent: pctPerfis(r._count._all) }))
+    .sort((a, b) => b.perfis - a.perfis);
+
+  const tipos = porTipo
+    .map((r) => ({ key: r.kind, label: PROFILE_KIND_LABEL[r.kind] ?? r.kind, perfis: r._count._all, percent: pctPerfis(r._count._all) }))
+    .sort((a, b) => b.perfis - a.perfis);
+
+  return { totalPerfis, temas, tipos };
+}
 
 export type PlatformReport = {
   engagement: {
@@ -64,17 +157,7 @@ export async function getPlatformReport(): Promise<PlatformReport> {
     newUsers30d,
     nuncaVoltou,
     signupUsers,
-    fluxo,
-    orcamento,
-    metas,
-    carteira,
-    estrategia,
-    reserva,
-    planejamento,
-    simuladores,
-    fichas,
-    categorias,
-    patrimonio,
+    adoption,
     simByType,
     sheetByType,
     overview,
@@ -88,38 +171,13 @@ export async function getPlatformReport(): Promise<PlatformReport> {
     // Cadastrou mas nunca abriu depois: lastSeenAt nulo (o layout só grava quando a pessoa entra).
     prisma.user.count({ where: { lastSeenAt: null } }),
     prisma.user.findMany({ select: { createdAt: true }, orderBy: { createdAt: "asc" } }),
-    countUsers(prisma.monthlyEntry.findMany({ distinct: ["userId"], select: { userId: true } })),
-    countUsers(prisma.budget.findMany({ distinct: ["userId"], select: { userId: true } })),
-    countUsers(prisma.goal.findMany({ distinct: ["userId"], select: { userId: true } })),
-    countUsers(prisma.asset.findMany({ distinct: ["userId"], select: { userId: true } })),
-    countUsers(prisma.portfolioStrategy.findMany({ distinct: ["userId"], select: { userId: true } })),
-    countUsers(prisma.emergencyFund.findMany({ distinct: ["userId"], select: { userId: true } })),
-    countUsers(prisma.planningParams.findMany({ distinct: ["userId"], select: { userId: true } })),
-    countUsers(prisma.simulation.findMany({ distinct: ["userId"], select: { userId: true } })),
-    countUsers(prisma.analysisSheet.findMany({ distinct: ["userId"], select: { userId: true } })),
-    countUsers(prisma.customCategory.findMany({ distinct: ["userId"], select: { userId: true } })),
-    countUsers(prisma.patrimonySnapshot.findMany({ distinct: ["userId"], select: { userId: true } })),
+    getFeatureAdoption(),
     prisma.simulation.groupBy({ by: ["type"], _count: { _all: true } }),
     prisma.analysisSheet.groupBy({ by: ["sheetType"], _count: { _all: true } }),
     getAdminOverview("patrimonio"),
   ]);
 
-  const pct = (n: number) => (totalUsers > 0 ? Math.round((n / totalUsers) * 1000) / 10 : 0);
-  const featureAdoption: FeatureAdoption[] = [
-    { key: "fluxo", label: "Fluxo (lançamentos)", users: fluxo },
-    { key: "orcamento", label: "Orçamento", users: orcamento },
-    { key: "metas", label: "Metas", users: metas },
-    { key: "carteira", label: "Carteira de investimentos", users: carteira },
-    { key: "estrategia", label: "Estratégia da carteira", users: estrategia },
-    { key: "reserva", label: "Reserva de emergência", users: reserva },
-    { key: "planejamento", label: "Planejamento", users: planejamento },
-    { key: "simuladores", label: "Simuladores", users: simuladores },
-    { key: "fichas", label: "Fichas de análise", users: fichas },
-    { key: "categorias", label: "Categorias personalizadas", users: categorias },
-    { key: "patrimonio", label: "Evolução de patrimônio", users: patrimonio },
-  ]
-    .map((f) => ({ ...f, percent: pct(f.users) }))
-    .sort((a, b) => b.users - a.users);
+  const featureAdoption = adoption.features;
 
   const simulators = simByType
     .map((s) => ({ label: SIMULATOR_LABEL[s.type] ?? s.type, count: s._count._all }))
