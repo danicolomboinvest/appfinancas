@@ -42,8 +42,8 @@ export function Sidebar({
   openFinance: boolean;
 }) {
   const pathname = usePathname();
-  const { voz, empresa } = useProfileTheme();
-  const sections = secoesVisiveis(withNavFlags(isAdmin ? [...NAV_SECTIONS, ADMIN_NAV_SECTION] : NAV_SECTIONS, { openFinance }), empresa);
+  const { voz, empresa, casal } = useProfileTheme();
+  const sections = secoesVisiveis(withNavFlags(isAdmin ? [...NAV_SECTIONS, ADMIN_NAV_SECTION] : NAV_SECTIONS, { openFinance }), { empresa, casal });
 
   const activeSection = sections.find(
     (section) => sectionMatches(section, pathname),

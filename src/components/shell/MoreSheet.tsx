@@ -36,8 +36,8 @@ export function MoreSheet({
   /** O tema do perfil deixa escolher claro/escuro? Só o Padrão deixa; nos outros a chave some. */
   podeEscolherModo: boolean;
 }) {
-  const { voz, empresa } = useProfileTheme();
-  const sections = secoesVisiveis(withNavFlags(isAdmin ? [...MORE_NAV_SECTIONS, ADMIN_NAV_SECTION] : MORE_NAV_SECTIONS, { openFinance }), empresa);
+  const { voz, empresa, casal } = useProfileTheme();
+  const sections = secoesVisiveis(withNavFlags(isAdmin ? [...MORE_NAV_SECTIONS, ADMIN_NAV_SECTION] : MORE_NAV_SECTIONS, { openFinance }), { empresa, casal });
 
   return (
     <Modal open={open} onClose={onClose} title={voz.titulos.navMais}>

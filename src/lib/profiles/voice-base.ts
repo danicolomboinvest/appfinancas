@@ -13,6 +13,8 @@ import { type TextosImportacao, PADRAO_IMPORTACAO } from "./textos/importacao";
 import { type TextosShell, PADRAO_SHELL } from "./textos/shell";
 import { type TextosConfiguracoes, PADRAO_CONFIGURACOES } from "./textos/configuracoes";
 import { type TextosCarteira, PADRAO_CARTEIRA } from "./textos/carteira";
+import { type TextosCasal, PADRAO_CASAL } from "./textos/casal";
+import { type TextosInvestirEmpresa, PADRAO_INVESTIR } from "./textos/investir";
 
 export type Estado = "bom" | "normal" | "ruim" | "vazio";
 export type Periodo = "manha" | "tarde" | "noite";
@@ -431,7 +433,15 @@ const TITULOS_BASE: TitulosBase = {
  * `textos/<área>.ts` com o tipo e as frases do Padrão; aqui só se compõe. Assim seis frentes
  * podem catalogar textos ao mesmo tempo sem disputar este arquivo.
  */
-export type Titulos = TitulosBase & TextosSimuladores & TextosFormularios & TextosImportacao & TextosShell & TextosConfiguracoes & TextosCarteira;
+export type Titulos = TitulosBase &
+  TextosSimuladores &
+  TextosFormularios &
+  TextosImportacao &
+  TextosShell &
+  TextosConfiguracoes &
+  TextosCarteira &
+  TextosCasal &
+  TextosInvestirEmpresa;
 
 export const TITULOS_PADRAO: Titulos = {
   ...TITULOS_BASE,
@@ -441,6 +451,8 @@ export const TITULOS_PADRAO: Titulos = {
   ...PADRAO_SHELL,
   ...PADRAO_CONFIGURACOES,
   ...PADRAO_CARTEIRA,
+  ...PADRAO_CASAL,
+  ...PADRAO_INVESTIR,
 };
 
 /** Um mapa por rota vira a função de simulador de um tema; sem entrada, fica o Padrão. */

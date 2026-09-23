@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getRequiredSession } from "@/lib/auth/session";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { ehEmpresa } from "@/lib/profiles/empresa";
+import { vozDoTema } from "@/lib/profiles/voice";
 import { dadosDaEmpresa } from "@/lib/profiles/empresa-dados";
 import { getYearlySummary } from "@/lib/consolidation/yearly";
 import { sumExpensesByParentCategoryForYear, sumExpensesByCustomCategoryForYear } from "@/lib/repositories/budget.repo";
@@ -20,6 +21,7 @@ const TAXA_PADRAO = 0.1;
 export default async function InvestirPage() {
   const ctx = await getRequiredSession();
   if (!ehEmpresa(ctx.profileKind)) redirect("/simuladores");
+  const t = vozDoTema(ctx.profileTheme, ctx.profileKind).titulos;
 
   const now = nowInBrazil();
   const year = now.getFullYear();
@@ -45,10 +47,7 @@ export default async function InvestirPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader
-        title="Vale a pena investir na empresa?"
-        subtitle="Uma máquina, uma reforma, um segundo ponto, uma contratação: em quanto tempo se paga, e se rende mais do que deixar o dinheiro aplicado."
-      />
+      <PageHeader title={t.invTitulo} subtitle={t.invSub} />
       <InvestirCalculadora margemInicial={margem} taxaInicial={taxa > 1 ? taxa / 100 : taxa} />
     </div>
   );

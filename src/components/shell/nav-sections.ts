@@ -9,6 +9,7 @@ import {
   ShieldCheck,
   Target,
   Plane,
+  Scale,
   type LucideIcon,
 } from "lucide-react";
 
@@ -53,11 +54,18 @@ export type NavSection = {
   soPessoa?: boolean;
   /** Seção que só faz sentido pra empresa ("Vale a pena investir?"): some nos outros perfis. */
   soEmpresa?: boolean;
+  /** Seção que só faz sentido pro casal ("Quanto cada um contribui?"): some nos outros perfis. */
+  soCasal?: boolean;
 };
 
-/** As seções que o perfil vê: a Empresa não tem viagem, simuladores nem análises; os outros não têm o simulador da empresa. */
-export function secoesVisiveis<T extends NavSection>(sections: T[], empresa: boolean): T[] {
-  return sections.filter((s) => (empresa ? !s.soPessoa : !s.soEmpresa));
+/**
+ * As seções que o perfil vê: a Empresa não tem viagem, simuladores nem análises (`soPessoa`);
+ * cada tipo tem sua própria ferramenta extra (`soEmpresa`, `soCasal`) que só aparece nele.
+ * O Casal continua vendo tudo que é `soPessoa` — a diferença dele pro Pessoal é só ganhar
+ * a calculadora de divisão a mais, não perder nada.
+ */
+export function secoesVisiveis<T extends NavSection>(sections: T[], flags: { empresa: boolean; casal: boolean }): T[] {
+  return sections.filter((s) => (flags.empresa ? !s.soPessoa : !s.soEmpresa) && (flags.casal || !s.soCasal));
 }
 
 /** Uma rota pertence à seção se está sob o basePath ou sob alguma rota extra declarada. */
@@ -93,6 +101,7 @@ export const NAV_SECTIONS: NavSection[] = [
   // Sem tab própria na barra inferior: no celular entra pelo "Mais" (pedido da Dani).
   { basePath: "/viagem", href: "/viagem", label: "Planejar Viagem", icon: Plane, soPessoa: true },
   { basePath: "/investir", href: "/investir", label: "Vale a pena investir?", icon: Calculator, soEmpresa: true },
+  { basePath: "/divisao", href: "/divisao", label: "Quanto cada um contribui?", icon: Scale, soCasal: true },
   {
     basePath: "/carteira",
     href: "/carteira",

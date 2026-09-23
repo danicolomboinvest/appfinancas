@@ -32,6 +32,7 @@ import { getCategorySpending } from "@/lib/consolidation/month-analysis";
 import { PARENT_CATEGORIES, categoryLabel } from "@/lib/categories";
 import { ehEmpresa } from "@/lib/profiles/empresa";
 import { dadosDaEmpresa } from "@/lib/profiles/empresa-dados";
+import { ehCasal } from "@/lib/profiles/casal";
 import { PainelEmpresa } from "./PainelEmpresa";
 import type { ParentCategory } from "@prisma/client";
 import { getMonthlyPlan } from "@/lib/repositories/monthly-plan.repo";
@@ -178,6 +179,13 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
     goalsBehind,
     investedThisMonth: currentMonthSummary.totalInvestment,
   });
+  // Casal: uma tarefa a mais, a prática mais recomendada pra evitar que dinheiro vire briga
+  // (pesquisa Serasa: dinheiro é o motivo nº 1 de conflito de casal) — uma conversa curta e
+  // periódica sobre os gastos, não uma cobrança. Sempre aberta: não tem "feito" pra marcar,
+  // é recorrente toda semana.
+  if (ehCasal(ctx.profileKind)) {
+    weeklyTasks.push({ key: "reuniao-casal", label: "Combinar 15 min pra olhar os gastos do mês juntos", done: false, href: "/mensal" });
+  }
 
   // Empresa: o painel de negócio (DRE do mês e do ano, receita por tipo, gasto por frente do
   // mês anterior, plano de receita). Pessoa física não paga nenhuma dessas consultas.
