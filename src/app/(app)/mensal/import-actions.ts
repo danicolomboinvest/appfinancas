@@ -18,7 +18,8 @@ import {
 } from "@/lib/repositories/import-batch.repo";
 import { listCustomCategories } from "@/lib/repositories/custom-category.repo";
 import { listTransactionRules, upsertTransactionRule } from "@/lib/repositories/transaction-rule.repo";
-import { parseStatement, type ParsedTransaction } from "@/lib/import/statement-parser";
+import { parseStatement } from "@/lib/import/statement-parser";
+import { isFaturaSummaryLine, comprasDaFaturaSaoPositivas } from "@/lib/import/fatura-lines";
 import { extractUploadFromForm, UploadReadError, PasswordRequiredError } from "@/lib/import/extract-text";
 import { pdfTextQuality } from "@/lib/import/pdf-quality";
 import { classify, normalizeMerchant, type LearnedRule } from "@/lib/import/classify";
@@ -33,21 +34,6 @@ const PARENT_CATEGORY_VALUES: ParentCategory[] = [
   "IMPOSTOS",
   "OUTROS",
 ];
-
-/**
- * Linhas de RESUMO da fatura de cartão: "pagamento efetuado/recebido" (o que o cliente já pagou
- * da fatura anterior) e "total de compras/créditos/pagamentos" (somatório que a própria fatura
- * já detalha item a item). Não são uma compra — importar essas linhas dobra o gasto ou lança
- * um "gasto" que na verdade é o pagamento da fatura.
- */
-const FATURA_SUMMARY_RE = /\b(pagamentos?\s+(efetuado|recebido|realizado|de\s+fatura)|total\s+de\s+(cr[eé]ditos?|compras|pagamentos?|despesas))\b/i;
-
-/** Testa a linha inteira (descrição E data) contra o padrão de resumo: faturas com várias
- * seções (pagamentos/créditos/compras) repetem o cabeçalho de coluna, e o subtotal entre
- * seções acaba caindo na coluna de data (ex.: BTG), não na de descrição. */
-function isFaturaSummaryLine(txn: ParsedTransaction): boolean {
-  return FATURA_SUMMARY_RE.test(txn.description) || FATURA_SUMMARY_RE.test(txn.date);
-}
 
 export type ReviewItem = {
   /** Chave estável no cliente (índice na lista original). */
@@ -211,11 +197,9 @@ export async function parseStatementAction(formData: FormData): Promise<ParseSta
     subcategory: r.subcategory ?? undefined,
   }));
 
+  const comprasSaoPositivas = docType !== "fatura" || comprasDaFaturaSaoPositivas(parsed);
   const items: ReviewItem[] = parsed.map((txn, index) => {
-    // Fatura de cartão: compras vêm POSITIVAS (convenção oposta ao extrato bancário) e
-    // pagamentos/estornos/cancelamentos vêm NEGATIVOS — confirmado com fatura real (BTG).
-    // Sem essa inversão, um estorno/cancelamento (crédito de verdade) virava gasto em dobro.
-    const isExpense = docType === "fatura" ? txn.amount > 0 : txn.amount < 0;
+    const isExpense = docType === "fatura" ? (comprasSaoPositivas ? txn.amount > 0 : txn.amount < 0) : txn.amount < 0;
     // Só faz sentido categorizar saídas; entradas viram INCOME sem categoria-mãe.
     const classification = isExpense ? classify(txn.description, learned) : null;
     return {
