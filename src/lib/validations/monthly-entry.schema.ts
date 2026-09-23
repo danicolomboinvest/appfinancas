@@ -44,6 +44,12 @@ export const monthlyEntrySchema = z
     .union([z.literal("on"), z.literal("true"), z.literal(""), z.undefined()])
     .transform((v) => v === "on" || v === "true"),
 })
+  // O formulário manda year/month da página onde foi aberto (ex.: setembro) e a entryDate que a
+  // pessoa escolheu no campo de data, sem os dois se atualizarem juntos: mudar a data pra outubro
+  // não move os campos escondidos, e o lançamento contava pro mês errado (aparecia "15/10" na
+  // lista, mas somava no total de setembro). entryDate é a escolha explícita da pessoa — o mês
+  // certo da consolidação é o mês DELA, não o da página onde o formulário abriu.
+  .transform((d) => (d.entryDate ? { ...d, year: d.entryDate.getFullYear(), month: d.entryDate.getMonth() + 1 } : d))
   // Gasto sem categoria some do orçamento e do "para onde foi seu dinheiro": a pessoa lançava
   // R$ 250 no mercado e o app dizia que ela economizou R$ 250 em alimentação.
   .refine((d) => d.category !== "EXPENSE" || Boolean(d.parentCategory) || Boolean(d.customCategoryId), {
