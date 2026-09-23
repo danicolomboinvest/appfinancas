@@ -8,6 +8,7 @@ import { PercentField } from "@/components/ui/PercentField";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useSuccessToast } from "@/components/ui/useSuccessToast";
+import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { savePlanningParamsAction, type PlanningParamsState } from "./actions";
 
 const initialState: PlanningParamsState = {};
@@ -26,6 +27,7 @@ type Defaults = {
 };
 
 export function PlanningParamsForm({ defaults }: { defaults: Defaults }) {
+  const t = useProfileTheme().voz.titulos;
   const [state, formAction, isPending] = useActionState(savePlanningParamsAction, initialState);
   useSuccessToast(isPending, state.error);
 
@@ -39,29 +41,29 @@ export function PlanningParamsForm({ defaults }: { defaults: Defaults }) {
           financeiro no meio do formulário, e é ali que quem não é do ramo desiste. */}
       <div className="flex flex-col gap-5">
         <CurrencyField
-          label="Quanto custa a vida que você quer?"
+          label={t.formApVidaPergunta}
           name="desiredPassiveIncome"
           defaultValue={defaults.desiredPassiveIncome}
-          hint="Por mês, em dinheiro de hoje."
+          hint={t.formApVidaHint}
           required
         />
         <CurrencyField
-          label="Quanto você já tem investido?"
+          label={t.formApInvestidoPergunta}
           name="currentPatrimony"
           defaultValue={defaults.currentPatrimony}
           required
         />
         <CurrencyField
-          label="Quanto consegue guardar por mês?"
+          label={t.formApGuardarPergunta}
           name="monthlyContributionAccumulation"
           defaultValue={defaults.monthlyContributionAccumulation}
-          hint="Vale por esse valor em dinheiro de hoje: o plano assume que você acompanha a inflação."
+          hint={t.formApGuardarHint}
           required
         />
         <div className="grid grid-cols-2 gap-4">
-          <Field label="Sua idade hoje" name="currentAge" type="number" defaultValue={defaults.currentAge} required />
+          <Field label={t.formApIdadeHoje} name="currentAge" type="number" defaultValue={defaults.currentAge} required />
           <Field
-            label="Quer parar aos"
+            label={t.formApPararAos}
             name="retirementAge"
             type="number"
             defaultValue={defaults.retirementAge}
@@ -73,10 +75,8 @@ export function PlanningParamsForm({ defaults }: { defaults: Defaults }) {
       <details className="rounded-xl border border-border bg-surface-2/40 [&[open]>summary>span:last-child]:rotate-180">
         <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4">
           <span className="flex flex-col gap-0.5">
-            <span className="text-sm font-medium text-ink">Premissas</span>
-            <span className="text-caption text-ink-faint">
-              Os números técnicos. Já vieram preenchidos — só abra se quiser mexer.
-            </span>
+            <span className="text-sm font-medium text-ink">{t.formApPremissas}</span>
+            <span className="text-caption text-ink-faint">{t.formApPremissasSub}</span>
           </span>
           <span className="text-ink-faint transition-transform">
             <ChevronDown size={18} strokeWidth={1.75} />
@@ -84,43 +84,41 @@ export function PlanningParamsForm({ defaults }: { defaults: Defaults }) {
         </summary>
 
         <div className="flex flex-col gap-5 border-t border-border p-4">
-          <p className="text-caption leading-relaxed text-ink-muted">
-            Nenhum destes números é promessa: são o cenário que você escolhe simular.
-          </p>
+          <p className="text-caption leading-relaxed text-ink-muted">{t.formApPremissasNota}</p>
 
           <PercentField
-            label="Quanto seus investimentos rendem por ano"
+            label={t.formApRendem}
             name="accumulationAnnualRate"
             defaultValue={defaults.accumulationAnnualRate}
             suggestions={[0.08, 0.1, 0.12]}
-            hint="Antes de descontar a inflação. Se você investe perto do CDI, use a taxa do CDI."
+            hint={t.formApRendemHint}
             required
           />
           <PercentField
-            label="Inflação que você assume"
+            label={t.formApInflacaoAssume}
             name="inflationAnnualRate"
             defaultValue={defaults.inflationAnnualRate}
             suggestions={[0.035, 0.045, 0.06]}
-            hint="É ela que traz o dinheiro do futuro para o poder de compra de hoje."
+            hint={t.formApInflacaoHint}
             required
           />
           <PercentField
-            label="Rendimento já vivendo de renda"
+            label={t.formApRendVivendo}
             name="usufructAnnualRate"
             defaultValue={defaults.usufructAnnualRate}
             suggestions={[0.04, 0.05, 0.06]}
-            hint="Mais conservador que o da fase de acumular, porque agora você depende dele para viver."
+            hint={t.formApRendVivendoHint}
             required
           />
           <div className="grid grid-cols-2 gap-4">
             <Field
-              label="Até que idade (opcional)"
+              label={t.formApAteIdade}
               name="lifeExpectancyAge"
               type="number"
               defaultValue={defaults.lifeExpectancyAge ?? undefined}
             />
             <CurrencyField
-              label="Outras rendas por mês (opcional)"
+              label={t.formApOutrasRendas}
               name="otherPassiveIncome"
               defaultValue={defaults.otherPassiveIncome}
             />
@@ -129,7 +127,7 @@ export function PlanningParamsForm({ defaults }: { defaults: Defaults }) {
       </details>
 
       <Button type="submit" disabled={isPending} className="w-fit">
-        {isPending ? "Salvando..." : "Salvar"}
+        {isPending ? t.formSalvando : t.formSalvar}
       </Button>
     </Card>
   );

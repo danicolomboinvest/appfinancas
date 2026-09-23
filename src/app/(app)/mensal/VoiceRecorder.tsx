@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { useInstallPlatform, useIsStandalone } from "@/lib/pwa/install";
 import { Mic } from "lucide-react";
 import { parseVoiceEntry, type ParsedVoiceEntry } from "@/lib/entries/voice-expense-parser";
+import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
+import type { Titulos } from "@/lib/profiles/voice";
 
 interface SpeechRecognitionAlternative {
   transcript: string;
@@ -62,21 +64,22 @@ const BAR_COUNT = 28;
 
 /** Mensagem amigável por código de erro do SpeechRecognition, item 8/revisão pré-lançamento:
  * antes, qualquer erro (permissão negada, sem fala, rede) parava a gravação em silêncio e a
- * pessoa achava que o app tinha travado. */
-function errorMessageFor(code: string): string {
+ * pessoa achava que o app tinha travado. As frases vêm da voz do tema: é texto que a pessoa
+ * lê num momento de frustração, e cada tema pode acalmar do seu jeito. */
+function errorMessageFor(code: string, t: Titulos): string {
   switch (code) {
     case "not-allowed":
     case "permission-denied":
     case "service-not-allowed":
-      return "Permita o acesso ao microfone nas configurações do navegador e tente de novo.";
+      return t.impVozErroPermissao;
     case "no-speech":
-      return "Não conseguimos te ouvir. Aproxime o microfone e tente de novo.";
+      return t.impVozErroSemFala;
     case "network":
-      return "Falha de conexão durante a gravação. Tente de novo.";
+      return t.impVozErroRede;
     case "audio-capture":
-      return "Nenhum microfone encontrado neste dispositivo.";
+      return t.impVozErroSemMicrofone;
     default:
-      return "Não foi possível gravar agora. Tente de novo.";
+      return t.impVozErroGenerico;
   }
 }
 
@@ -125,6 +128,7 @@ function runVisualizerLoop(
 export function VoiceRecorder({ onParsed }: { onParsed: (parsed: ParsedVoiceEntry) => void }) {
   const plataforma = useInstallPlatform();
   const instalado = useIsStandalone();
+  const { voz } = useProfileTheme();
   const [recording, setRecording] = useState(false);
   const [unsupported, setUnsupported] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -203,7 +207,7 @@ export function VoiceRecorder({ onParsed }: { onParsed: (parsed: ParsedVoiceEntr
     recognition.onerror = (event) => {
       isHeldRef.current = false;
       setRecording(false);
-      setErrorMessage(errorMessageFor(event.error));
+      setErrorMessage(errorMessageFor(event.error, voz.titulos));
       stopVisualizer();
     };
     // Captura o onParsed do momento em que a gravação começou, o closure vive só até soltar
@@ -216,7 +220,7 @@ export function VoiceRecorder({ onParsed }: { onParsed: (parsed: ParsedVoiceEntr
       } else {
         // "onerror" já tratou os casos de falha explícita, aqui é o caso de terminar sem
         // erro mas sem nenhuma fala reconhecida (silêncio, murmúrio), que antes não avisava nada.
-        setErrorMessage((prev) => prev ?? "Não entendemos o que foi dito. Tente falar de novo.");
+        setErrorMessage((prev) => prev ?? voz.titulos.impVozNaoEntendi);
       }
     };
     recognitionRef.current = recognition;
@@ -237,9 +241,7 @@ export function VoiceRecorder({ onParsed }: { onParsed: (parsed: ParsedVoiceEntr
 
   if (unsupported) {
     return (
-      <p className="rounded-xl bg-surface-2 px-4 py-3 text-center text-sm text-ink-muted">
-        Seu navegador não suporta reconhecimento de voz. Use a opção de digitar.
-      </p>
+      <p className="rounded-xl bg-surface-2 px-4 py-3 text-center text-sm text-ink-muted">{voz.titulos.impVozNaoSuportado}</p>
     );
   }
 
@@ -284,7 +286,7 @@ export function VoiceRecorder({ onParsed }: { onParsed: (parsed: ParsedVoiceEntr
           0:00
         </span>
         <span className={`text-xs ${errorMessage ? "text-danger" : "text-ink-faint"}`}>
-          {errorMessage ?? (recording ? "Solte para transcrever" : "Segure para falar")}
+          {errorMessage ?? (recording ? voz.titulos.impVozSolte : voz.titulos.impVozSegure)}
         </span>
       </div>
 
@@ -294,9 +296,10 @@ export function VoiceRecorder({ onParsed }: { onParsed: (parsed: ParsedVoiceEntr
           o incômodo acontece. */}
       {plataforma === "ios-safari" && !instalado && (
         <p className="max-w-xs text-center text-caption text-ink-faint">
-          Cansada de autorizar o microfone toda vez? O Safari pergunta de novo a cada visita. Toque em <b>aA</b> na barra de
-          endereço › <b>Configurações do Site</b> › <b>Microfone: Permitir</b>. Ou instale o app na tela de início, em Mais ›
-          Instalar.
+          {/* A pergunta vem da voz do tema; o caminho dentro do Safari é fixo, porque é o nome
+              dos menus do iPhone, não uma frase nossa. */}
+          {voz.titulos.impVozSafariDica} Toque em <b>aA</b> na barra de endereço › <b>Configurações do Site</b> ›{" "}
+          <b>Microfone: Permitir</b>. Ou instale o app na tela de início, em Mais › Instalar.
         </p>
       )}
     </div>

@@ -201,3 +201,20 @@ export async function getLastExpenseDate(ctx: AuthContext, year: number, month: 
   });
   return row?.entryDate ?? null;
 }
+
+/**
+ * Receita por TIPO (a subcategoria dos lançamentos de entrada: "Vendas", "Serviços",
+ * "Assinaturas"…). É o "receita por linha de produto" do painel da empresa. Sem mês, soma o
+ * ano inteiro. Entrada sem tipo cai em "Sem tipo", pra soma bater com o total do período.
+ */
+export async function sumIncomeBySubcategory(ctx: AuthContext, year: number, month?: number) {
+  const grouped = await prisma.monthlyEntry.groupBy({
+    by: ["subcategory"],
+    where: { userId: ctx.userId, profileId: ctx.profileId, year, ...(month ? { month } : {}), category: "INCOME" },
+    _sum: { amount: true },
+  });
+  return grouped
+    .map((g) => ({ subcategory: g.subcategory?.trim() || "Sem tipo", amount: Number(g._sum.amount ?? 0) }))
+    .filter((g) => g.amount > 0)
+    .sort((a, b) => b.amount - a.amount);
+}

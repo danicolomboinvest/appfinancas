@@ -4,15 +4,17 @@ import { isPluggyConfigured } from "@/lib/pluggy/client";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { Connections } from "./Connections";
+import { vozDoTema } from "@/lib/profiles/voice";
 
 export default async function ConexoesPage() {
   const ctx = await getRequiredSession();
   const connections = await prisma.bankConnection.findMany({ where: { userId: ctx.userId }, orderBy: { createdAt: "asc" } });
+  const { titulos: t } = vozDoTema(ctx.profileTheme, ctx.profileKind);
 
   return (
     <div className="flex flex-col gap-6">
-      <Breadcrumb items={[{ label: "Configurações", href: "/configuracoes/perfil" }, { label: "Conexões" }]} />
-      <PageHeader title="Conectar meu banco" subtitle="Open Finance: os lançamentos da conta e do cartão chegam sozinhos, toda noite." />
+      <Breadcrumb items={[{ label: t.cfgBreadcrumb, href: "/configuracoes/perfil" }, { label: t.cfgAbaConexoes }]} />
+      <PageHeader title={t.cfgConexoesTitulo} subtitle={t.cfgConexoesSub} />
       <Connections
         configured={isPluggyConfigured()}
         connections={connections.map((c) => ({

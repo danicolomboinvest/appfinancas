@@ -3,27 +3,27 @@ import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { Card } from "@/components/ui/Card";
 import { ExportCsvButton, ExportAssetsCsvButton } from "./ExportCsvButton";
 import { DeleteAccountSection } from "./DeleteAccountSection";
+import { getRequiredSession } from "@/lib/auth/session";
+import { vozDoTema } from "@/lib/profiles/voice";
 
-export default function DadosPage() {
+export default async function DadosPage() {
+  // A sessão entra só pra saber em que voz a tela fala; as ações têm a delas.
+  const ctx = await getRequiredSession();
+  const { titulos: t } = vozDoTema(ctx.profileTheme, ctx.profileKind);
+
   return (
     <div className="flex flex-col gap-6">
-      <Breadcrumb items={[{ label: "Configurações", href: "/configuracoes/perfil" }, { label: "Dados" }]} />
+      <Breadcrumb items={[{ label: t.cfgBreadcrumb, href: "/configuracoes/perfil" }, { label: t.cfgAbaDados }]} />
 
-      <PageHeader title="Dados" subtitle="Exporte seus dados ou exclua a conta." />
+      <PageHeader title={t.cfgDadosTitulo} subtitle={t.cfgDadosSub} />
 
       <Card className="p-5">
-        <p className="mb-3 text-sm text-ink-muted">
-          Gera um arquivo CSV com todos os seus lançamentos mensais (renda, gastos e aportes), incluindo categoria-mãe
-          e subcategoria.
-        </p>
+        <p className="mb-3 text-sm text-ink-muted">{t.cfgExportLancamentosDica}</p>
         <ExportCsvButton />
       </Card>
 
       <Card className="p-5">
-        <p className="mb-3 text-sm text-ink-muted">
-          Gera um arquivo CSV com todos os ativos da sua carteira (nome, ticker, classe, quantidade, valor investido e
-          valor atual).
-        </p>
+        <p className="mb-3 text-sm text-ink-muted">{t.cfgExportCarteiraDica}</p>
         <ExportAssetsCsvButton />
       </Card>
 

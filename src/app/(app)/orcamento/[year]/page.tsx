@@ -20,8 +20,8 @@ import { getMonthlySummary } from "@/lib/consolidation/monthly";
 import { PlanVsActualRow } from "@/components/charts/PlanVsActualRow";
 import {
   PARENT_CATEGORIES,
-  PARENT_CATEGORY_LABEL,
-  PARENT_CATEGORY_DESCRIPTION,
+  categoryLabel as parentCategoryLabel,
+  categoryDescription,
   isParentCategoryKey,
   colorForCategorySlice,
 } from "@/lib/categories";
@@ -39,6 +39,7 @@ import { serverMoney } from "@/lib/money-server";
 import { Section } from "@/components/ui/Section";
 import { resumoDoMes } from "@/lib/planning/month-budget-summary";
 import { ResumoDoMesCard } from "@/components/budget/ResumoDoMesCard";
+import { vozDoTema } from "@/lib/profiles/voice";
 import { AtualizarMesButton } from "@/components/budget/AtualizarMesButton";
 import { getLastExpenseDate } from "@/lib/repositories/monthly-entry.repo";
 
@@ -68,6 +69,7 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
     notFound();
   }
   const ctx = await getRequiredSession();
+  const voz = vozDoTema(ctx.profileTheme, ctx.profileKind);
   const agora = new Date();
   // Uma consulta a mais na página já custou caro antes: vai junto das outras, não em fila.
   const [comparison, customCategories, plan, annualPlan, monthSummary, hints, savingsTargets] = await Promise.all([
@@ -89,9 +91,10 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
     customCategories.map((c) => c.id),
   );
   const customCategoryLabels = new Map(customCategories.map((c) => [c.id, c.name]));
+  // O nome de cada categoria-mãe vem do tipo do perfil (Empresa fala "Estrutura", não "Moradia").
   function categoryLabel(categoryKey: string): string {
     return isParentCategoryKey(categoryKey)
-      ? PARENT_CATEGORY_LABEL[categoryKey]
+      ? parentCategoryLabel(ctx.profileKind, categoryKey)
       : (customCategoryLabels.get(categoryKey) ?? "Categoria personalizada");
   }
   const allCategoryKeys: string[] = [...PARENT_CATEGORIES, ...customCategories.map((c) => c.id)];
@@ -197,12 +200,12 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
   ];
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-8 lg:gap-5">
       {/* Subtítulo curto de propósito: o cartão logo abaixo diz a mesma coisa com os números
           DELA, e no celular cada linha aqui empurra pra fora da tela o número que ela veio ver. */}
       <PageHeader
-        title="Orçamento"
-        subtitle="Quanto você planejou gastar, e quanto já foi."
+        title={voz.titulos.orcamento}
+        subtitle={voz.titulos.orcamentoSub}
         action={
           <div className="flex items-center gap-1">
             <Link
@@ -230,6 +233,7 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
           ultimoDia={ultimoDiaDoMes}
           money={money}
           onAtualizar={<AtualizarMesButton />}
+          voz={voz}
         />
       )}
 
@@ -248,8 +252,8 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
           }}
           parentCategories={PARENT_CATEGORIES.map((parentCategory) => ({
             key: parentCategory,
-            label: PARENT_CATEGORY_LABEL[parentCategory],
-            description: PARENT_CATEGORY_DESCRIPTION[parentCategory],
+            label: parentCategoryLabel(ctx.profileKind, parentCategory),
+            description: categoryDescription(ctx.profileKind, parentCategory),
             defaultValue: plan[parentCategory],
           }))}
           customCategories={customCategories.map((category) => ({
@@ -267,38 +271,38 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-3 lg:gap-4">
           <StatCard
             layout="row"
-            label="Economia no mês"
+            label={voz.titulos.economiaNoMes}
             value={monthSavings === null ? "—" : money(Math.abs(monthSavings))}
             tone={monthSavings === null ? "neutral" : monthSavings >= 0 ? "success" : "danger"}
-            hint={monthSavings === null ? "Defina um planejamento para ver essa comparação." : monthSavings >= 0 ? "Abaixo do planejado" : "Acima do planejado"}
+            hint={monthSavings === null ? "Defina um planejamento para ver essa comparação." : monthSavings >= 0 ? voz.titulos.economiaAbaixo : voz.titulos.economiaAcima}
           />
           <StatCard
             layout="row"
-            label="Categoria que mais estourou"
+            label={voz.titulos.categoriaEstourou}
             value={biggestOverrun ? categoryLabel(biggestOverrun.categoryKey) : "Nenhuma"}
             tone={biggestOverrun ? "danger" : "neutral"}
             hint={
               biggestOverrun && biggestOverrun.deviationPercent !== null
-                ? `+${formatPercentNumber(biggestOverrun.deviationPercent * 100, 0)} acima do planejado`
-                : "Nenhuma categoria estourou este mês"
+                ? voz.titulos.categoriaEstourouDica(formatPercentNumber(biggestOverrun.deviationPercent * 100, 0))
+                : voz.titulos.nenhumaEstourou
             }
           />
           {biggestSaving ? (
             <StatCard
               layout="row"
-              label="Economizou mais em"
+              label={voz.titulos.economizouMaisEm}
               value={categoryLabel(biggestSaving.categoryKey)}
               tone="success"
               hint={
                 biggestSaving.deviationPercent !== null
-                  ? `${formatPercentNumber(Math.abs(biggestSaving.deviationPercent) * 100, 0)} abaixo do planejado`
+                  ? voz.titulos.economizouMaisEmDica(formatPercentNumber(Math.abs(biggestSaving.deviationPercent) * 100, 0))
                   : undefined
               }
             />
           ) : (
             <StatCard
               layout="row"
-              label={unrecorded.length === 1 ? "Sem lançamento" : `Sem lançamento (${unrecorded.length})`}
+              label={unrecorded.length === 1 ? voz.titulos.semLancamento : `${voz.titulos.semLancamento} (${unrecorded.length})`}
               value={unrecorded.length > 0 ? categoryLabel(unrecorded[0].categoryKey) : "Nenhuma"}
               tone="neutral"
               hint={
@@ -311,6 +315,7 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
         </div>
       )}
 
+      <div className="contents lg:flex lg:flex-wrap lg:items-start lg:gap-5 [&>*]:lg:min-w-0 [&>*]:lg:grow [&>*]:lg:basis-[calc(50%-0.625rem)]">
       {currentMonthData && monthSummary && (
         <Section
           title={`Renda e aporte em ${MONTH_LABELS[currentMonthData.month - 1]}`}
@@ -340,6 +345,8 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
           </div>
         </Section>
       )}
+
+      </div>
 
       <Section
         title="Planejado × realizado no ano"

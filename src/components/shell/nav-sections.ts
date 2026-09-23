@@ -18,6 +18,8 @@ export type NavChild = {
   premium?: boolean;
   /** Item que só existe quando a funcionalidade está ligada no servidor (chaves configuradas). */
   flag?: "openFinance";
+  /** Item que só faz sentido pra pessoa física (ex.: Aposentadoria — empresa não se aposenta). */
+  soPessoa?: boolean;
 };
 
 export type NavFlags = { openFinance: boolean };
@@ -27,6 +29,15 @@ export type NavFlags = { openFinance: boolean };
 export function withNavFlags(sections: NavSection[], flags: NavFlags): NavSection[] {
   return sections.map((s) => ({ ...s, children: s.children?.filter((c) => !c.flag || flags[c.flag]) }));
 }
+
+/**
+ * Os filhos de uma seção que o perfil ativo deve ver. Num perfil Empresa, o que é de pessoa
+ * física (Aposentadoria) some do submenu, sem mexer na lista estática acima: a mesma
+ * NAV_SECTIONS serve pros dois tipos de perfil, e quem renderiza filtra na hora.
+ */
+export function filhosVisiveis(section: NavSection, empresa: boolean): NavChild[] {
+  return (section.children ?? []).filter((c) => !empresa || !c.soPessoa);
+}
 export type NavSection = {
   basePath: string;
   href: string;
@@ -34,8 +45,26 @@ export type NavSection = {
   icon: LucideIcon;
   /** Seção inteira é conteúdo do curso (freemium) — cadeado no menu pra quem não tem acesso. */
   premium?: boolean;
+  /** Rotas que pertencem à seção mas vivem fora do basePath (ex.: /perfis em Configurações).
+   * Sem isso a seção não acende e o submenu fecha justo na tela que o usuário abriu. */
+  alsoMatches?: string[];
   children?: NavChild[];
+  /** Seção que só faz sentido pra pessoa física (viagem, simuladores, análises): some na Empresa. */
+  soPessoa?: boolean;
+  /** Seção que só faz sentido pra empresa ("Vale a pena investir?"): some nos outros perfis. */
+  soEmpresa?: boolean;
 };
+
+/** As seções que o perfil vê: a Empresa não tem viagem, simuladores nem análises; os outros não têm o simulador da empresa. */
+export function secoesVisiveis<T extends NavSection>(sections: T[], empresa: boolean): T[] {
+  return sections.filter((s) => (empresa ? !s.soPessoa : !s.soEmpresa));
+}
+
+/** Uma rota pertence à seção se está sob o basePath ou sob alguma rota extra declarada. */
+export function sectionMatches(section: NavSection, pathname: string): boolean {
+  const bate = (base: string) => pathname === base || pathname.startsWith(`${base}/`);
+  return bate(section.basePath) || (section.alsoMatches?.some(bate) ?? false);
+}
 
 export const NAV_SECTIONS: NavSection[] = [
   { basePath: "/dashboard", href: "/dashboard", label: "Visão Geral", icon: LayoutDashboard },
@@ -58,11 +87,12 @@ export const NAV_SECTIONS: NavSection[] = [
     children: [
       { href: "/planejamento/metas", label: "Metas" },
       { href: "/planejamento/reserva-emergencia", label: "Reserva de Emergência" },
-      { href: "/planejamento/acumulo", label: "Aposentadoria", premium: true },
+      { href: "/planejamento/acumulo", label: "Aposentadoria", premium: true, soPessoa: true },
     ],
   },
   // Sem tab própria na barra inferior: no celular entra pelo "Mais" (pedido da Dani).
-  { basePath: "/viagem", href: "/viagem", label: "Planejar Viagem", icon: Plane },
+  { basePath: "/viagem", href: "/viagem", label: "Planejar Viagem", icon: Plane, soPessoa: true },
+  { basePath: "/investir", href: "/investir", label: "Vale a pena investir?", icon: Calculator, soEmpresa: true },
   {
     basePath: "/carteira",
     href: "/carteira",
@@ -71,8 +101,8 @@ export const NAV_SECTIONS: NavSection[] = [
     premium: true,
     children: [
       { href: "/carteira", label: "Meus Ativos" },
-      { href: "/carteira/por-objetivo", label: "Por Objetivo" },
-      { href: "/carteira/estrategia", label: "Estratégia" },
+      { href: "/carteira/por-objetivo", label: "Por Objetivo", soPessoa: true },
+      { href: "/carteira/estrategia", label: "Estratégia", soPessoa: true },
     ],
   },
   {
@@ -81,6 +111,7 @@ export const NAV_SECTIONS: NavSection[] = [
     label: "Simuladores",
     icon: Calculator,
     premium: true,
+    soPessoa: true,
     children: [
       { href: "/simuladores/financiar-vs-alugar", label: "Financiar vs. Alugar" },
       { href: "/simuladores/amortizar-vs-investir", label: "Amortizar vs. Investir" },
@@ -96,6 +127,7 @@ export const NAV_SECTIONS: NavSection[] = [
     label: "Análises",
     icon: FileSearch,
     premium: true,
+    soPessoa: true,
     children: [
       { href: "/fichas", label: "Insights" },
       { href: "/fichas/acoes", label: "Ações" },
@@ -109,7 +141,13 @@ export const NAV_SECTIONS: NavSection[] = [
     href: "/configuracoes/perfil",
     label: "Configurações",
     icon: Settings,
+    alsoMatches: ["/perfis"],
     children: [
+      // "Perfis financeiros" é o dinheiro separado (Pessoal, Empresa); "Perfil" logo abaixo
+      // é o cadastro de quem está logado. Nomes parecidos, coisas diferentes — daí o
+      // adjetivo. Antes da entrada existir, a única porta pra /perfis no app inteiro era o
+      // link dentro da gaveta do seletor, que no desktop ninguém achava.
+      { href: "/perfis", label: "Perfis financeiros" },
       { href: "/configuracoes/perfil", label: "Perfil" },
       { href: "/configuracoes/categorias", label: "Categorias" },
       { href: "/configuracoes/preferencias", label: "Preferências" },

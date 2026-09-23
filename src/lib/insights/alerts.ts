@@ -1,5 +1,5 @@
-import type { ParentCategory } from "@prisma/client";
-import { PARENT_CATEGORY_LABEL } from "@/lib/categories";
+import type { ParentCategory, ProfileKind } from "@prisma/client";
+import { categoryLabel } from "@/lib/categories";
 
 export type Alert = { key: string; title: string; body: string; url: string };
 
@@ -18,6 +18,8 @@ export function buildBudgetAlerts(input: {
   planned: { parentCategory: ParentCategory; planned: number }[];
   spent: { parentCategory: ParentCategory; spent: number }[];
   money: Money;
+  /** Tipo do perfil de quem recebe: numa Empresa o aviso fala de "Estrutura", não de "Moradia". */
+  kind?: ProfileKind | string | null;
 }): Alert[] {
   const ym = `${input.year}-${String(input.month).padStart(2, "0")}`;
   const daysInMonth = new Date(input.year, input.month, 0).getDate();
@@ -28,7 +30,7 @@ export function buildBudgetAlerts(input: {
     if (p.planned <= 0) continue;
     const spent = spentBy.get(p.parentCategory) ?? 0;
     const ratio = spent / p.planned;
-    const label = PARENT_CATEGORY_LABEL[p.parentCategory];
+    const label = categoryLabel(input.kind, p.parentCategory);
     const url = `/mensal/${input.year}/${input.month}`;
     if (ratio >= 1) {
       out.push({

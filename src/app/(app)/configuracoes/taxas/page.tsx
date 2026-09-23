@@ -7,6 +7,7 @@ import { ResponsiveTable, type ResponsiveColumn } from "@/components/ui/Responsi
 import { ReferenceRateForm } from "./ReferenceRateForm";
 import { DeleteRateButton } from "./DeleteRateButton";
 import { formatPercentNumber } from "@/lib/format";
+import { vozDoTema } from "@/lib/profiles/voice";
 
 const BASIS_LABEL: Record<string, string> = {
   ANNUAL_252: "a.a. (base 252)",
@@ -19,16 +20,17 @@ type RateRow = Awaited<ReturnType<typeof listReferenceRates>>[number];
 export default async function TaxasDoSistemaPage() {
   const ctx = await getRequiredSession();
   const rates = await listReferenceRates(ctx);
+  const { titulos: t } = vozDoTema(ctx.profileTheme, ctx.profileKind);
 
   const columns: ResponsiveColumn<RateRow>[] = [
-    { key: "name", label: "Nome", render: (rate) => rate.name },
-    { key: "rate", label: "Taxa", render: (rate) => formatPercentNumber(Number(rate.rateValue) * 100, 2) },
-    { key: "basis", label: "Base", render: (rate) => BASIS_LABEL[rate.basis] },
-    { key: "date", label: "Vigente desde", render: (rate) => rate.effectiveDate.toLocaleDateString("pt-BR") },
+    { key: "name", label: t.cfgTaxaNome, render: (rate) => rate.name },
+    { key: "rate", label: t.cfgTaxaTaxa, render: (rate) => formatPercentNumber(Number(rate.rateValue) * 100, 2) },
+    { key: "basis", label: t.cfgTaxaBase, render: (rate) => BASIS_LABEL[rate.basis] },
+    { key: "date", label: t.cfgTaxaVigenteDesde, render: (rate) => rate.effectiveDate.toLocaleDateString("pt-BR") },
     {
       key: "origin",
-      label: "Origem",
-      render: (rate) => <Badge tone={rate.userId ? "accent" : "neutral"}>{rate.userId ? "Sua taxa" : "Padrão do sistema"}</Badge>,
+      label: t.cfgTaxaOrigem,
+      render: (rate) => <Badge tone={rate.userId ? "accent" : "neutral"}>{rate.userId ? t.cfgTaxaSua : t.cfgTaxaPadraoSistema}</Badge>,
     },
     {
       key: "actions",
@@ -40,16 +42,13 @@ export default async function TaxasDoSistemaPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <Breadcrumb items={[{ label: "Configurações", href: "/configuracoes/perfil" }, { label: "Taxas do Sistema" }]} />
+      <Breadcrumb items={[{ label: t.cfgBreadcrumb, href: "/configuracoes/perfil" }, { label: t.cfgTaxasTitulo }]} />
 
-      <PageHeader
-        title="Taxas do Sistema"
-        subtitle="Taxas usadas como sugestão/âncora nos módulos de planejamento e simuladores."
-      />
+      <PageHeader title={t.cfgTaxasTitulo} subtitle={t.cfgTaxasSub} />
 
       <ReferenceRateForm />
 
-      <ResponsiveTable columns={columns} rows={rates} rowKey={(rate) => rate.id} emptyMessage="Nenhuma taxa cadastrada ainda." />
+      <ResponsiveTable columns={columns} rows={rates} rowKey={(rate) => rate.id} emptyMessage={t.cfgTaxasVazio} />
     </div>
   );
 }

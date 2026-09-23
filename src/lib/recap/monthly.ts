@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db/prisma";
 import type { AuthContext } from "@/lib/auth/session";
-import { PARENT_CATEGORY_LABEL } from "@/lib/categories";
+import { categoryLabel } from "@/lib/categories";
 import { fv } from "@/lib/finance/fv";
 import { annualToMonthly } from "@/lib/finance/rate-conversion";
 import type { ParentCategory } from "@prisma/client";
@@ -137,7 +137,7 @@ export async function computeMonthlyRecap(ctx: AuthContext, year: number, month:
     const d = refDate(e);
     const amount = Number(e.amount);
     monthSpent += amount;
-    const label = e.parentCategory ? PARENT_CATEGORY_LABEL[e.parentCategory as ParentCategory] : "Outros";
+    const label = e.parentCategory ? categoryLabel(ctx.profileKind, e.parentCategory as ParentCategory) : "Outros";
     byCategory.set(label, (byCategory.get(label) ?? 0) + amount);
     byWeekday[d.getDay()] += amount;
   }

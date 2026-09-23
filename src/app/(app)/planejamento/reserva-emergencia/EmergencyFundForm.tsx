@@ -1,5 +1,7 @@
 "use client";
 
+import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
+
 import { useActionState, useState } from "react";
 import { CONTROL_CLASSES } from "@/components/ui/Field";
 import { CurrencyField } from "@/components/ui/CurrencyField";
@@ -16,11 +18,12 @@ const initialState: EmergencyFundState = {};
  * número sem referência nenhuma. Os atalhos dizem o que cada escolha significa na vida dela.
  */
 function MonthsField({ defaultValue }: { defaultValue?: number }) {
+  const { voz } = useProfileTheme();
   const [meses, setMeses] = useState<number | undefined>(defaultValue);
   return (
     <div className="flex flex-col gap-1.5">
       <label htmlFor="targetMonths" className="text-xs font-medium text-ink-muted">
-        Quantos meses quer ter guardados?
+        {voz.titulos.formMeses}
       </label>
       <input
         id="targetMonths"
@@ -45,12 +48,12 @@ function MonthsField({ defaultValue }: { defaultValue?: number }) {
                 : "border-border-strong text-ink-muted hover:border-accent hover:text-ink"
             }`}
           >
-            {m} meses
+            {voz.titulos.formReservaMesesChip(m)}
           </button>
         ))}
       </div>
       <p className="text-caption leading-relaxed text-ink-faint">
-        Renda estável costuma pedir 6. Autônomo ou renda variável, 12.
+        {voz.titulos.formMesesHint}
       </p>
     </div>
   );
@@ -78,6 +81,7 @@ export function EmergencyFundForm({
   /** Soma dos ativos marcados como reserva na carteira, pra sugerir o "já tenho guardado". */
   reserveInAssets?: number;
 }) {
+  const { voz } = useProfileTheme();
   const [state, formAction, isPending] = useActionState(saveEmergencyFundAction, initialState);
   useSuccessToast(isPending, state.error);
 
@@ -88,18 +92,18 @@ export function EmergencyFundForm({
           mês, quantos meses guardar, onde você está e quanto consegue pôr. */}
       <div className="flex flex-col gap-5">
         <CurrencyField
-          label="Quanto custa um mês da sua vida?"
+          label={voz.titulos.formCusto}
           name="monthlyExpenseBase"
           defaultValue={defaults.monthlyExpenseBase ?? typicalExpense?.monthlyAverage}
           suggestion={
             typicalExpense
               ? {
                   value: typicalExpense.monthlyAverage,
-                  label: `Seus gastos dos últimos ${typicalExpense.monthsUsed === 1 ? "mês fechado" : `${typicalExpense.monthsUsed} meses fechados`} dão essa média.`,
+                  label: voz.titulos.formReservaMediaSugestao(typicalExpense.monthsUsed),
                 }
               : undefined
           }
-          hint="É esse valor que a reserva precisa cobrir enquanto a renda não volta."
+          hint={voz.titulos.formCustoHint}
           required
         />
 
@@ -107,13 +111,13 @@ export function EmergencyFundForm({
 
         <div className="grid grid-cols-2 gap-4">
           <CurrencyField
-            label="Já tenho guardado"
+            label={voz.titulos.formJaTenho}
             name="currentAmount"
             defaultValue={defaults.currentAmount}
-            suggestion={reserveInAssets > 0 ? { value: reserveInAssets, label: "Na sua carteira, isso está marcado como reserva." } : undefined}
+            suggestion={reserveInAssets > 0 ? { value: reserveInAssets, label: voz.titulos.formReservaCarteiraSugestao } : undefined}
           />
           <CurrencyField
-            label="Guardo por mês"
+            label={voz.titulos.formGuardoPorMes}
             name="monthlyContribution"
             defaultValue={defaults.monthlyContribution}
             required
@@ -121,16 +125,16 @@ export function EmergencyFundForm({
         </div>
 
         <PercentField
-          label="Quanto a reserva rende por ano"
+          label={voz.titulos.formRende}
           name="annualRate"
           defaultValue={defaults.annualRate}
           suggestions={[0.1, 0.12, 0.14]}
-          hint="Reserva fica em aplicação de liquidez diária, então costuma render perto do CDI."
+          hint={voz.titulos.formRendeHint}
           required
         />
       </div>
       <Button type="submit" disabled={isPending} className="w-fit">
-        {isPending ? "Salvando..." : "Salvar"}
+        {isPending ? voz.titulos.formSalvando : voz.titulos.formSalvar}
       </Button>
     </Card>
   );

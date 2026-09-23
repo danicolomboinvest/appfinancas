@@ -1,5 +1,6 @@
 import type { DailyFlowPoint } from "@/lib/consolidation/month-analysis";
 import { serverMoney } from "@/lib/money-server";
+import type { Voz } from "@/lib/profiles/voice";
 
 
 const WEEKDAY_INITIALS = ["D", "S", "T", "Q", "Q", "S", "S"];
@@ -21,13 +22,17 @@ export async function MonthHeatmap({
   daysInMonth,
   year,
   month,
+  voz,
 }: {
   points: DailyFlowPoint[];
   daysInMonth: number;
   year: number;
   month: number;
+  /** A voz do tema do perfil, que a página já resolveu: o mapa não vai ao banco de novo por ela. */
+  voz: Voz;
 }) {
   const money = await serverMoney();
+  const t = voz.titulos;
   const spendByDay = new Map(points.map((p) => [p.day, p.expenseOfDay]));
   const maxSpend = Math.max(...points.map((p) => p.expenseOfDay), 0);
   if (maxSpend <= 0) return null;
@@ -60,7 +65,7 @@ export async function MonthHeatmap({
           return (
             <span
               key={day}
-              title={isFuture ? `Dia ${day}` : `Dia ${day}: ${money(spent, { round: true })}`}
+              title={isFuture ? t.uiHeatmapDiaFuturo(day) : t.uiHeatmapDia(day, money(spent, { round: true }))}
               className={`flex aspect-square items-center justify-center rounded-md text-caption tabular-nums ${
                 isFuture ? "border border-dashed border-border text-ink-faint" : "text-ink"
               }`}
@@ -81,7 +86,7 @@ export async function MonthHeatmap({
 
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
         <span className="flex items-center gap-1.5 text-caption text-ink-faint">
-          Menos
+          {t.uiHeatmapMenos}
           {[0.22, 0.48, 0.72, 1].map((level) => (
             <span
               key={level}
@@ -91,11 +96,9 @@ export async function MonthHeatmap({
               }}
             />
           ))}
-          Mais
+          {t.uiHeatmapMais}
         </span>
-        <span className="text-caption text-ink-muted">
-          Dia de maior gasto: {peak.day} · {money(peak.expenseOfDay, { round: true })}
-        </span>
+        <span className="text-caption text-ink-muted">{t.uiHeatmapPico(peak.day, money(peak.expenseOfDay, { round: true }))}</span>
       </div>
     </div>
   );

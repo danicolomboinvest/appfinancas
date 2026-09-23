@@ -20,6 +20,7 @@ import {
   type LaudoSection,
 } from "@/lib/analysis/laudo";
 import type { OverviewSignal } from "@/lib/analysis/stock-overview";
+import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { readLaudoAction } from "./laudo-actions";
 
 const NUMBERS_KEY = "spi.laudo.numeros";
@@ -31,7 +32,6 @@ const SIGNAL_BG: Record<OverviewSignal, string> = {
   atencao: "bg-danger-soft",
 };
 const SIGNAL_BORDER: Record<OverviewSignal, string> = { favoravel: "border-success", neutro: "border-ink-faint", atencao: "border-danger" };
-const SIGNAL_LABEL: Record<OverviewSignal, string> = { favoravel: "a favor", neutro: "na média", atencao: "atenção" };
 
 /** Rótulos curtos pra grade de números (três por linha): o nome cheio vai na explicação. */
 const SHORT_LABEL: Record<string, string> = {
@@ -90,6 +90,9 @@ export function LaudoView({
   const [openKey, setOpenKey] = useState<string | null>(null);
   const [showNumbers, setShowNumbers] = useState(false);
   const [showCaveat, setShowCaveat] = useState(false);
+  const t = useProfileTheme().voz.titulos;
+  // Os três sinais ("a favor", "na média", "atenção") na voz do tema.
+  const signalLabel = t.fichasSinal;
 
   useEffect(() => {
     try {
@@ -135,7 +138,7 @@ export function LaudoView({
         <p className="mt-0.5 flex flex-wrap items-center gap-2 text-sm text-ink-muted">
           {companyName && <span className="line-clamp-2 min-w-0">{companyName}</span>}
           {inPortfolio && (
-            <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-semibold text-accent-strong">na sua carteira</span>
+            <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-semibold text-accent-strong">{t.fichasNaCarteira}</span>
           )}
         </p>
       </div>
@@ -159,11 +162,11 @@ export function LaudoView({
                 }}
                 className="w-fit text-sm font-medium text-accent-strong hover:underline"
               >
-                Tentar de novo
+                {t.fichasTentarDeNovo}
               </button>
             </>
           ) : (
-            <p className="text-sm text-ink-muted">Lendo os números de {ticker.toUpperCase()}…</p>
+            <p className="text-sm text-ink-muted">{t.fichasLendoNumeros(ticker.toUpperCase())}</p>
           )}
         </Card>
       </div>
@@ -184,7 +187,7 @@ export function LaudoView({
         {(["favoravel", "neutro", "atencao"] as OverviewSignal[]).map((s) => (
           <div key={s} className={`rounded-2xl py-3 text-center ${SIGNAL_BG[s]}`}>
             <p className={`text-3xl font-extrabold leading-none ${SIGNAL_TEXT[s]}`}>{laudo.counts[s]}</p>
-            <p className={`mt-1 text-[11px] ${SIGNAL_TEXT[s]}`}>{SIGNAL_LABEL[s]}</p>
+            <p className={`mt-1 text-[11px] ${SIGNAL_TEXT[s]}`}>{signalLabel[s]}</p>
           </div>
         ))}
       </div>
@@ -201,11 +204,11 @@ export function LaudoView({
 
       {changes.length > 0 && (
         <Card className="flex flex-col gap-1.5 border-accent/40 bg-accent-soft/40 p-4">
-          <p className="text-sm font-semibold text-ink">Mudou desde a última leitura</p>
+          <p className="text-sm font-semibold text-ink">{t.fichasMudou}</p>
           {changes.map((c) => (
             <p key={c.key} className="text-caption text-ink-muted">
               {FRIENDLY_LABEL[c.key] ?? c.label}: {c.fromValue} → {c.toValue}{" "}
-              <span className={SIGNAL_TEXT[c.to ?? "neutro"]}>({c.to ? SIGNAL_LABEL[c.to] : "—"})</span>
+              <span className={SIGNAL_TEXT[c.to ?? "neutro"]}>({c.to ? signalLabel[c.to] : "—"})</span>
             </p>
           ))}
         </Card>
@@ -230,12 +233,12 @@ export function LaudoView({
 
       <div className="flex items-center justify-between">
         <button type="button" onClick={toggleNumbers} className="text-sm font-medium text-accent-strong hover:underline">
-          {showNumbers ? "Esconder os números" : `Ver os ${allItems.length} números ›`}
+          {showNumbers ? t.fichasEsconderNumeros : t.fichasVerNumeros(allItems.length)}
         </button>
         <button
           type="button"
           onClick={() => setShowCaveat((v) => !v)}
-          aria-label="Como ler estes sinais"
+          aria-label={t.fichasComoLer}
           aria-expanded={showCaveat}
           className={`rounded-full p-1.5 transition-colors ${showCaveat ? "bg-surface-2 text-ink" : "text-ink-faint hover:text-ink"}`}
         >
@@ -274,9 +277,9 @@ export function LaudoView({
           className="inline-flex items-center gap-1.5 text-sm font-medium text-accent-strong hover:underline disabled:opacity-50"
         >
           <RefreshCw size={14} strokeWidth={2} className={reading ? "animate-spin" : ""} />
-          {reading ? "Lendo…" : "Reanalisar agora"}
+          {reading ? t.fichasLendoCurto : t.fichasReanalisar}
         </button>
-        <span className="text-caption text-ink-faint">lida em {formatReadAt(laudo.readAt)}</span>
+        <span className="text-caption text-ink-faint">{t.fichasLidaEm(formatReadAt(laudo.readAt))}</span>
       </div>
       {error && <p className="text-sm text-danger">{error}</p>}
     </div>
@@ -285,12 +288,14 @@ export function LaudoView({
 
 /** A nota como anel: 8,8 de 10 vira 88% de arco. Cor pelo terço em que cai. */
 function ScoreRing({ score }: { score: number }) {
+  const t = useProfileTheme().voz.titulos;
   const r = 40;
   const c = 2 * Math.PI * r;
   const pct = Math.max(0, Math.min(1, score / 10));
   const cor = score >= 7 ? "var(--color-success)" : score >= 4 ? "var(--color-accent)" : "var(--color-danger)";
+  const nota = score.toFixed(1).replace(".", ",");
   return (
-    <svg width="104" height="104" viewBox="0 0 104 104" role="img" aria-label={`Nota automática ${score.toFixed(1).replace(".", ",")} de 10`} className="shrink-0">
+    <svg width="104" height="104" viewBox="0 0 104 104" role="img" aria-label={t.fichasNotaAutomatica(nota)} className="shrink-0">
       <circle cx="52" cy="52" r={r} fill="none" stroke="var(--color-surface-2)" strokeWidth="11" />
       <circle
         cx="52"
@@ -305,10 +310,10 @@ function ScoreRing({ score }: { score: number }) {
         style={{ transition: "stroke-dasharray 700ms cubic-bezier(0.2, 0, 0, 1)" }}
       />
       <text x="52" y="50" textAnchor="middle" fill="var(--color-ink)" fontSize="26" fontWeight="800">
-        {score.toFixed(1).replace(".", ",")}
+        {nota}
       </text>
       <text x="52" y="67" textAnchor="middle" fill="var(--color-ink-faint)" fontSize="11">
-        de 10
+        {t.fichasDeDez}
       </text>
     </svg>
   );
@@ -324,8 +329,9 @@ function RingPlaceholder() {
  * há atenção — e é uma.
  */
 function Gauge({ section }: { section: LaudoSection }) {
+  const t = useProfileTheme().voz.titulos;
   const g = sectionGauge(section);
-  const scale = SECTION_SCALE[section.id] ?? { low: "ruim", high: "bom", mid: "na média" };
+  const scale = SECTION_SCALE[section.id] ?? t.fichasEscalaPadrao;
   const atencao = section.items.filter((i) => i.signal === "atencao");
   const chave = section.items.slice(0, 2);
   return (
@@ -414,6 +420,7 @@ function NumberTile({ item, open, onToggle }: { item: LaudoItem; open: boolean; 
 }
 
 function Explanation({ item }: { item: LaudoItem }) {
+  const t = useProfileTheme().voz.titulos;
   const bad = item.signal === "atencao";
   return (
     <div className={`rounded-lg px-3 py-2 ${bad ? "border border-danger/30 bg-danger-soft/40" : "bg-surface-2/60"}`}>
@@ -421,7 +428,7 @@ function Explanation({ item }: { item: LaudoItem }) {
         <span className="font-semibold">{FRIENDLY_LABEL[item.key] ?? technicalLabel(item)}</span> — {item.plain}.
       </p>
       {GLOSSARY[item.key] && <p className="mt-1 text-caption leading-relaxed text-ink-muted">{GLOSSARY[item.key]}</p>}
-      <p className="mt-1 text-caption leading-relaxed text-ink-faint">Régua: {item.reference}.</p>
+      <p className="mt-1 text-caption leading-relaxed text-ink-faint">{t.fichasRegua(item.reference)}</p>
     </div>
   );
 }

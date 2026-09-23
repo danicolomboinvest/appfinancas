@@ -27,6 +27,7 @@ import { BulletBar, type BulletRow } from "@/components/charts/BulletBar";
 import { useMoney } from "@/components/money/MoneyProvider";
 import { useCurrency } from "@/components/money/MoneyProvider";
 import { currencySymbol } from "@/lib/money";
+import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 
 const initialState: TravelGoalState = {};
 
@@ -67,11 +68,12 @@ function monthsUntil(monthValue: string): number {
 
 type FixedKey = "flights" | "lodging" | "food" | "activities";
 
-const FIXED_ROWS: { key: FixedKey; label: string; icon: typeof Plane }[] = [
-  { key: "flights", label: "Passagens", icon: Plane },
-  { key: "lodging", label: "Hospedagem", icon: BedDouble },
-  { key: "food", label: "Alimentação", icon: UtensilsCrossed },
-  { key: "activities", label: "Passeios e transporte", icon: TicketCheck },
+// O rótulo de cada bloco vem da voz do tema (`viagemBlocos`); aqui só a ordem e o ícone.
+const FIXED_ROWS: { key: FixedKey; icon: typeof Plane }[] = [
+  { key: "flights", icon: Plane },
+  { key: "lodging", icon: BedDouble },
+  { key: "food", icon: UtensilsCrossed },
+  { key: "activities", icon: TicketCheck },
 ];
 
 type Leg = { destination: TravelDestination; days: number };
@@ -99,6 +101,7 @@ function MoneyInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
  */
 export function TravelPlanner() {
   const money = useMoney();
+  const { titulos: t } = useProfileTheme().voz;
   const [legs, setLegs] = useState<Leg[]>([]);
   const [travelers, setTravelers] = useState(2);
   const [style, setStyle] = useState<TravelStyle>("medio");
@@ -112,7 +115,7 @@ export function TravelPlanner() {
   const [extras, setExtras] = useState<ExtraRow[]>([]);
   const extraIdRef = useRef(1);
   const [state, formAction, isPending] = useActionState(createTravelGoalAction, initialState);
-  useSuccessToast(isPending, state.error, state.created ? "Meta da viagem criada! Veja em Metas." : undefined);
+  useSuccessToast(isPending, state.error, state.created ? t.viagemMetaCriadaToast : undefined);
 
   const tripMonthNumber = monthNumberOf(tripMonth);
   const sig = `${legs.map((leg) => `${leg.destination.key}:${leg.days}`).join("|")}#${travelers}#${style}#${tripMonthNumber}`;
@@ -157,10 +160,10 @@ export function TravelPlanner() {
   const tripBullets: BulletRow[] =
     values && totals && totals.total > 0
       ? [
-          ...FIXED_ROWS.map(({ key, label }, i) => ({ key, label, value: values[key], color: BLOCK_COLORS[i] })),
+          ...FIXED_ROWS.map(({ key }, i) => ({ key, label: t.viagemBlocos[key], value: values[key], color: BLOCK_COLORS[i] })),
           ...extras.map((e) => ({
             key: `extra-${e.id}`,
-            label: e.name || "Extra",
+            label: e.name || t.viagemExtra,
             value: e.value,
             color: "var(--color-ink-faint)",
           })),
@@ -222,12 +225,8 @@ export function TravelPlanner() {
       <Card as="form" action={formAction} className="flex flex-col gap-5 p-5">
         <div className="flex flex-col gap-2">
           <div className="flex items-baseline justify-between gap-3">
-            <span className="text-xs font-medium text-ink-muted">Roteiro</span>
-            {legs.length > 0 && (
-              <span className="text-xs text-ink-faint">
-                {totalDays} {totalDays === 1 ? "dia" : "dias"} no total
-              </span>
-            )}
+            <span className="text-xs font-medium text-ink-muted">{t.viagemRoteiro}</span>
+            {legs.length > 0 && <span className="text-xs text-ink-faint">{t.viagemDiasNoTotal(totalDays)}</span>}
           </div>
 
           {legs.map((leg, index) => (
@@ -249,7 +248,7 @@ export function TravelPlanner() {
                 onChange={(e) => setLegDays(leg.destination.key, e.target.value)}
                 className="w-14 shrink-0 rounded-lg border border-border-strong bg-surface px-2 py-1 text-right text-sm tabular-nums text-ink transition-colors focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
               />
-              <span className="shrink-0 text-xs text-ink-faint">{leg.days === 1 ? "dia" : "dias"}</span>
+              <span className="shrink-0 text-xs text-ink-faint">{t.viagemDias(leg.days)}</span>
               <button
                 type="button"
                 aria-label={`Remover ${leg.destination.label}`}
@@ -264,19 +263,16 @@ export function TravelPlanner() {
           {legs.length < TRIP_LIMITS.maxLegs ? (
             <DestinationSearch onPick={addLeg} excludeKeys={legs.map((leg) => leg.destination.key)} />
           ) : (
-            <p className="text-xs text-ink-faint">Máximo de {TRIP_LIMITS.maxLegs} destinos por viagem.</p>
+            <p className="text-xs text-ink-faint">{t.viagemMaxDestinos(TRIP_LIMITS.maxLegs)}</p>
           )}
         </div>
 
         {legs.length === 0 ? (
-          <EmptyState
-            icon={MapPin}
-            message="Busque o primeiro destino acima. Dá pra somar vários lugares na mesma viagem e dizer quantos dias fica em cada um."
-          />
+          <EmptyState icon={MapPin} message={t.viagemVazio} />
         ) : (
           <>
             <Field
-              label="Quantas pessoas?"
+              label={t.viagemQuantasPessoas}
               name="travelers"
               type="number"
               min={TRIP_LIMITS.minTravelers}
@@ -286,7 +282,7 @@ export function TravelPlanner() {
             />
 
             <div className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-ink-muted">Estilo da viagem</span>
+              <span className="text-xs font-medium text-ink-muted">{t.viagemEstilo}</span>
               <div className="flex gap-1 rounded-full border border-border bg-surface-2 p-1">
                 {(Object.keys(TRAVEL_STYLE_LABEL) as TravelStyle[]).map((s) => (
                   <button
@@ -294,10 +290,10 @@ export function TravelPlanner() {
                     type="button"
                     onClick={() => setStyle(s)}
                     className={`min-w-0 flex-1 truncate rounded-full px-2 py-2 text-sm font-medium transition-all duration-300 ${
-                      style === s ? "bg-ink text-canvas shadow-premium-sm" : "text-ink-muted hover:text-ink"
+                      style === s ? "bg-pill text-on-pill shadow-premium-sm" : "text-ink-muted hover:text-ink"
                     }`}
                   >
-                    {TRAVEL_STYLE_LABEL[s]}
+                    {t.viagemEstiloLabel(s, TRAVEL_STYLE_LABEL[s])}
                   </button>
                 ))}
               </div>
@@ -305,7 +301,7 @@ export function TravelPlanner() {
 
             <div className="flex flex-col gap-2">
               <MonthPicker
-                label="Quando pretende ir?"
+                label={t.viagemQuando}
                 name="tripMonth"
                 min={nextMonthValue()}
                 value={tripMonth}
@@ -322,13 +318,11 @@ export function TravelPlanner() {
                 >
                   {estimate.seasonLevel === "alta" ? (
                     <>
-                      <strong>Alta temporada</strong> — passagem e hospedagem ficam cerca de{" "}
-                      {Math.round((estimate.seasonFactor - 1) * 100)}% mais caras neste mês.
+                      <strong>{t.viagemAltaTemporada}</strong> {t.viagemAltaTemporadaDica(Math.round((estimate.seasonFactor - 1) * 100))}
                     </>
                   ) : (
                     <>
-                      <strong>Baixa temporada</strong> — boa época: passagem e hospedagem saem cerca de{" "}
-                      {Math.round((1 - estimate.seasonFactor) * 100)}% mais baratas.
+                      <strong>{t.viagemBaixaTemporada}</strong> {t.viagemBaixaTemporadaDica(Math.round((1 - estimate.seasonFactor) * 100))}
                     </>
                   )}
                 </p>
@@ -341,11 +335,15 @@ export function TravelPlanner() {
                   className="flex items-center gap-2 rounded-lg border border-border-strong bg-surface-2 px-3 py-2 text-left transition-colors hover:bg-surface"
                 >
                   <TrendingDown className="size-4 shrink-0 text-success" aria-hidden />
+                  {/* O mês e o valor vão em negrito no meio da frase, por isso ela vem em três partes. */}
                   <span className="min-w-0 flex-1 text-xs text-ink">
-                    Em <strong>{MONTH_NAMES[cheaper.month - 1]}</strong> a mesma viagem sai{" "}
-                    <strong>{money(cheaper.savings, { round: true })}</strong> mais barata.
+                    {t.viagemMesMaisBarato[0]}
+                    <strong>{MONTH_NAMES[cheaper.month - 1]}</strong>
+                    {t.viagemMesMaisBarato[1]}
+                    <strong>{money(cheaper.savings, { round: true })}</strong>
+                    {t.viagemMesMaisBarato[2]}
                   </span>
-                  <span className="shrink-0 text-xs font-semibold text-accent-strong">Trocar</span>
+                  <span className="shrink-0 text-xs font-semibold text-accent-strong">{t.viagemTrocar}</span>
                 </button>
               )}
             </div>
@@ -354,15 +352,12 @@ export function TravelPlanner() {
 
         {values && totals && estimate && (
           <div className="flex flex-col gap-2.5 rounded-xl bg-surface-2 p-4">
-            <p className="text-xs text-ink-faint">
-              Estes valores são a média para uma viagem como a sua. Se o seu orçamento for diferente, é só tocar no
-              número e ajustar — o total recalcula na hora.
-            </p>
-            {FIXED_ROWS.map(({ key, label, icon: Icon }) => (
+            <p className="text-xs text-ink-faint">{t.viagemMediaDica}</p>
+            {FIXED_ROWS.map(({ key, icon: Icon }) => (
               <div key={key} className="flex items-center justify-between gap-3">
                 <label htmlFor={`trip-${key}`} className="flex min-w-0 items-center gap-2 text-sm text-ink-muted">
                   <Icon className="size-4 shrink-0 text-ink-faint" aria-hidden />
-                  <span className="truncate">{label}</span>
+                  <span className="truncate">{t.viagemBlocos[key]}</span>
                 </label>
                 <MoneyInput
                   id={`trip-${key}`}
@@ -376,7 +371,7 @@ export function TravelPlanner() {
               <div key={extra.id} className="flex items-center justify-between gap-2">
                 <input
                   type="text"
-                  placeholder="Ex.: compras, seguro..."
+                  placeholder={t.viagemExtraPlaceholder}
                   value={extra.name}
                   maxLength={40}
                   onChange={(e) => updateExtra(extra.id, { name: e.target.value })}
@@ -404,25 +399,25 @@ export function TravelPlanner() {
                 onClick={addExtra}
                 className="flex w-fit items-center gap-1.5 rounded-full px-2 py-1 text-xs font-medium text-ink-muted transition-colors hover:bg-surface hover:text-ink"
               >
-                <Plus className="size-3.5" aria-hidden /> Adicionar categoria
+                <Plus className="size-3.5" aria-hidden /> {t.viagemAdicionarCategoria}
               </button>
             )}
 
             <div className="flex items-center justify-between gap-3 border-t border-border pt-2.5">
               <span className="flex min-w-0 items-center gap-2 text-sm text-ink-muted">
                 <ShieldQuestion className="size-4 shrink-0 text-ink-faint" aria-hidden />
-                <span className="truncate">Margem de imprevistos (10%)</span>
+                <span className="truncate">{t.viagemMargem}</span>
               </span>
               <span className="shrink-0 text-sm font-medium tabular-nums text-ink">{money(totals.buffer, { round: true })}</span>
             </div>
 
             {estimate.legs.length > 1 && (
               <div className="flex flex-col gap-1 border-t border-border pt-2.5">
-                <p className="text-xs text-ink-muted">Diárias por destino (sem passagem)</p>
+                <p className="text-xs text-ink-muted">{t.viagemDiariasPorDestino}</p>
                 {estimate.legs.map((leg) => (
                   <div key={leg.destination.key} className="flex items-center justify-between gap-3">
                     <span className="min-w-0 truncate text-xs text-ink-faint">
-                      {leg.destination.label} · {leg.days} {leg.days === 1 ? "dia" : "dias"}
+                      {leg.destination.label} · {leg.days} {t.viagemDias(leg.days)}
                     </span>
                     <span className="shrink-0 text-xs tabular-nums text-ink-muted">{money(leg.subtotal, { round: true })}</span>
                   </div>
@@ -436,17 +431,16 @@ export function TravelPlanner() {
                 novo pra aprender. */}
             {tripBullets.length > 0 && (
               <div className="border-t border-border pt-3">
-                <p className="mb-3 text-xs text-ink-muted">De onde vem o custo</p>
+                <p className="mb-3 text-xs text-ink-muted">{t.viagemDeOndeVemCusto}</p>
                 <BulletBar rows={tripBullets} />
               </div>
             )}
 
             <div className="border-t border-border pt-3">
-              <p className="text-xs text-ink-muted">Custo estimado da viagem</p>
+              <p className="text-xs text-ink-muted">{t.viagemCustoEstimado}</p>
               <FitText className="text-2xl font-semibold tracking-tight text-ink">{money(totals.total, { round: true })}</FitText>
               <p className="mt-1 text-xs text-ink-faint">
-                {money(Math.round(totals.total / travelersSafe))} por pessoa · guardando {money(monthlyHint, { round: true })}/mês,
-                você chega lá em {months} {months === 1 ? "mês" : "meses"}.
+                {t.viagemPorPessoa(money(Math.round(totals.total / travelersSafe)), money(monthlyHint, { round: true }), months)}
               </p>
             </div>
           </div>
@@ -479,20 +473,16 @@ export function TravelPlanner() {
             href="/planejamento/metas"
             className="inline-flex items-center justify-center gap-1.5 rounded-full bg-accent-gradient px-4 py-2.5 text-sm font-semibold text-on-accent shadow-premium-sm hover:opacity-95"
           >
-            Ver minha meta em Metas <ArrowRight className="size-4" aria-hidden />
+            {t.viagemVerMeta} <ArrowRight className="size-4" aria-hidden />
           </Link>
         ) : (
           <Button type="submit" disabled={isPending || !totals || totals.total <= 0}>
-            {isPending ? "Criando meta..." : "Criar meta desta viagem"}
+            {isPending ? t.viagemCriandoMeta : t.viagemCriarMeta}
           </Button>
         )}
       </Card>
 
-      <p className="text-xs text-ink-faint">
-        Estimativas médias para planejamento (valores de 2026, saindo do Brasil) — não são cotação. A passagem considera
-        uma ida e volta principal mais as conexões entre os destinos. Ajuste os valores ao seu orçamento; mudar o
-        roteiro, as pessoas ou o estilo re-estima tudo.
-      </p>
+      <p className="text-xs text-ink-faint">{t.viagemRodape}</p>
     </div>
   );
 }

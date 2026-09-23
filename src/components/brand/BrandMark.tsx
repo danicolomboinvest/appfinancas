@@ -3,17 +3,20 @@
  * ondas concêntricas, com preenchimento em degradê âmbar, sobre um quadrado escuro. É o ícone
  * completo (fundo + símbolo), então serve igual no login, no menu e como ícone do app/favicon.
  * Fiel ao conceito apresentado — mesmas curvas, mesma composição.
+ *
+ * As cores vêm de variáveis (globals.css) pra um tema poder pintar a marca: o Girly troca o
+ * âmbar por rosa e o quadrado escuro por blush. Fora do app (login), valem os padrões.
  */
 export function BrandMark({ size = 44, className }: { size?: number; className?: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 64 64" className={className} role="img" aria-label="SPI Finance">
       <defs>
         <linearGradient id="spiMarkGrad" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#F4C86F" />
-          <stop offset="1" stopColor="#C77A22" />
+          <stop offset="0" style={{ stopColor: "var(--color-brand-a, #F4C86F)" }} />
+          <stop offset="1" style={{ stopColor: "var(--color-brand-b, #C77A22)" }} />
         </linearGradient>
       </defs>
-      <rect x="0" y="0" width="64" height="64" rx="15" fill="#1B1610" />
+      <rect x="0" y="0" width="64" height="64" rx="15" style={{ fill: "var(--color-brand-bg, #1B1610)" }} />
       {/* ondas (raios do sol nascendo) */}
       <path d="M16 45 A16 16 0 0 1 48 45" fill="none" stroke="url(#spiMarkGrad)" strokeWidth="5.4" strokeLinecap="round" />
       <path

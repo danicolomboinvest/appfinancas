@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Voz } from "@/lib/profiles/voice";
 import { Card } from "@/components/ui/Card";
 import { splitSavings, type SavingsTarget } from "@/lib/planning/savings-split";
 import type { MoneyFormatter } from "@/lib/money";
@@ -10,14 +11,14 @@ const KIND_COLOR: Record<"reserva" | "meta" | "livre", string> = {
 };
 
 /** "Pra onde vai o que você guarda": o aporte do orçamento dividido entre reserva e metas. */
-export function SavingsSplitCard({ amount, targets, money, monthLabel }: { amount: number; targets: SavingsTarget[]; money: MoneyFormatter; monthLabel: string }) {
+export function SavingsSplitCard({ amount, targets, money, monthLabel, voz }: { amount: number; targets: SavingsTarget[]; money: MoneyFormatter; monthLabel: string; voz: Voz }) {
   if (targets.length === 0) return null;
   if (amount <= 0) {
     return (
       <Card className="flex flex-col gap-1 border-accent/30 bg-accent-soft/30 p-4">
-        <p className="text-[15px] font-semibold text-ink">Pra onde vai o que você guarda?</p>
+        <p className="text-[15px] font-semibold text-ink">{voz.titulos.splitVazioTitulo}</p>
         <p className="text-sm text-ink-muted">
-          Diga no orçamento quanto quer guardar por mês, e o app divide entre reserva e metas.{" "}
+          {voz.titulos.splitVazioSub}{" "}
           <Link href="/orcamento" className="font-medium text-accent-strong hover:underline">Definir →</Link>
         </p>
       </Card>
@@ -27,8 +28,8 @@ export function SavingsSplitCard({ amount, targets, money, monthLabel }: { amoun
   return (
     <Card className="flex flex-col gap-3 border-accent/30 bg-accent-soft/30 p-4">
       <div>
-        <p className="text-[15px] font-semibold text-ink">Pra onde vai o que você guarda em {monthLabel}</p>
-        <p className="text-caption text-ink-muted">{money(amount, { round: true })} por mês, do seu orçamento. Reserva primeiro, depois as metas por prazo.</p>
+        <p className="text-[15px] font-semibold text-ink">{voz.titulos.splitTitulo(monthLabel)}</p>
+        <p className="text-caption text-ink-muted">{voz.titulos.splitSub(money(amount, { round: true }))}</p>
       </div>
       <div className="flex h-3 overflow-hidden rounded-full bg-surface-2">
         {slices.map((s) => (
@@ -40,7 +41,7 @@ export function SavingsSplitCard({ amount, targets, money, monthLabel }: { amoun
           <li key={s.id} className="flex items-baseline gap-2">
             <span className="mt-1 size-2.5 shrink-0 rounded-[3px]" style={{ backgroundColor: KIND_COLOR[s.kind] }} />
             <b className="shrink-0 tabular-nums text-ink">{money(s.amount, { round: true })}</b>
-            <span className="min-w-0 text-ink-muted">→ {s.name}</span>
+            <span className="min-w-0 text-ink-muted">→ {s.kind === "reserva" ? voz.titulos.modReserva : s.name}</span>
           </li>
         ))}
       </ul>

@@ -2,7 +2,8 @@
 
 import { useId, useState, useTransition } from "react";
 import type { ParentCategory } from "@prisma/client";
-import { PARENT_CATEGORIES, PARENT_CATEGORY_LABEL, SUBCATEGORIES, OUTRO_SUBCATEGORY_LABEL, INCOME_TYPES, INVESTMENT_TYPES } from "@/lib/categories";
+import { PARENT_CATEGORIES, OUTRO_SUBCATEGORY_LABEL, categoryLabel, subcategoriesFor, incomeTypesFor, investmentTypesFor } from "@/lib/categories";
+import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { CONTROL_CLASSES } from "@/components/ui/Field";
 import { createCategoryAction } from "@/lib/actions/category";
 import { classify } from "@/lib/import/classify";
@@ -66,13 +67,16 @@ export function CategoryFields({
   descriptionHint?: string;
 }) {
   const selectId = useId();
+  // Os rótulos, subcategorias e chips de tipo mudam com o perfil: numa Empresa, MORADIA é
+  // "Estrutura" e a renda é "Vendas", não "Salário". A chave gravada no banco é a mesma.
+  const { kind } = useProfileTheme();
   const [category, setCategory] = useState(defaultCategory);
   const [parentCategory, setParentCategory] = useState<ParentCategory | undefined>(defaultParentCategory);
   const [customCategoryId, setCustomCategoryId] = useState<string | undefined>(undefined);
   const initialIsOutro =
     defaultSubcategory !== undefined &&
     defaultParentCategory !== undefined &&
-    !SUBCATEGORIES[defaultParentCategory]?.includes(defaultSubcategory);
+    !subcategoriesFor(kind, defaultParentCategory)?.includes(defaultSubcategory);
   const [subcategory, setSubcategory] = useState<string | undefined>(
     initialIsOutro ? undefined : defaultSubcategory,
   );
@@ -81,6 +85,7 @@ export function CategoryFields({
 
   const isExpense = category === "EXPENSE";
   const [freeSubcategory, setFreeSubcategory] = useState(!isExpense ? (defaultSubcategory ?? "") : "");
+  const freeTypes = category === "INCOME" ? incomeTypesFor(kind) : investmentTypesFor(kind);
 
   // Adivinha a categoria pela descrição enquanto a pessoa digita, com o mesmo classificador
   // do extrato importado. Só preenche o que ela ainda não escolheu com o dedo: um toque em
@@ -169,7 +174,7 @@ export function CategoryFields({
             {PARENT_CATEGORIES.map((pc) => (
               <Chip
                 key={pc}
-                label={PARENT_CATEGORY_LABEL[pc]}
+                label={categoryLabel(kind, pc)}
                 active={parentCategory === pc}
                 onClick={() => {
                   setParentCategory(pc);
@@ -273,7 +278,7 @@ export function CategoryFields({
             </div>
           )}
           <div className="flex flex-wrap gap-1.5">
-            {SUBCATEGORIES[parentCategory].map((s) => (
+            {subcategoriesFor(kind, parentCategory).map((s) => (
               <Chip
                 key={s}
                 label={s}
@@ -302,16 +307,16 @@ export function CategoryFields({
         <div className={`flex flex-col gap-2 ${stacked ? "w-full" : ""}`}>
           <span className="text-xs font-medium text-ink-muted">Tipo</span>
           <div className="flex flex-wrap gap-1.5">
-            {(category === "INCOME" ? INCOME_TYPES : INVESTMENT_TYPES).map((t) => (
+            {freeTypes.map((t) => (
               <Chip key={t} label={t} active={freeSubcategory === t} onClick={() => setFreeSubcategory(t)} />
             ))}
             <Chip
               label={OUTRO_SUBCATEGORY_LABEL}
-              active={freeSubcategory !== "" && !(category === "INCOME" ? INCOME_TYPES : INVESTMENT_TYPES).includes(freeSubcategory)}
+              active={freeSubcategory !== "" && !freeTypes.includes(freeSubcategory)}
               onClick={() => setFreeSubcategory(" ")}
             />
           </div>
-          {freeSubcategory !== "" && !(category === "INCOME" ? INCOME_TYPES : INVESTMENT_TYPES).includes(freeSubcategory) && (
+          {freeSubcategory !== "" && !freeTypes.includes(freeSubcategory) && (
             <input
               type="text"
               value={freeSubcategory.trim()}

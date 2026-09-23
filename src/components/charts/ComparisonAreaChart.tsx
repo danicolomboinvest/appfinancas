@@ -3,6 +3,7 @@
 import { Area, AreaChart, ReferenceDot, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { CHART_COLORS, CHART_TOOLTIP_STYLE } from "./chart-theme";
 import { useMoney } from "@/components/money/MoneyProvider";
+import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 
 
 export type ComparisonPoint = { x: number; a: number; b: number };
@@ -36,6 +37,7 @@ export function ComparisonAreaChart({
   winner?: "a" | "b";
 }) {
   const money = useMoney();
+  const t = useProfileTheme().voz.titulos;
   if (points.length < 2) return null;
   const last = points[points.length - 1];
   const colorA = CHART_COLORS.success;
@@ -68,7 +70,7 @@ export function ComparisonAreaChart({
           <YAxis hide />
           <Tooltip
             {...CHART_TOOLTIP_STYLE}
-            labelFormatter={(x) => (xUnit === "ano" ? `Ano ${x}` : `Mês ${x}`)}
+            labelFormatter={(x) => (xUnit === "ano" ? t.grafAno(String(x)) : t.grafMes(String(x)))}
             formatter={(value, name) => [money(Number(value), { round: true }), name === "a" ? labelA : labelB]}
             cursor={{ stroke: CHART_COLORS.grid }}
           />

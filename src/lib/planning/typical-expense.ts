@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/db/prisma";
 import type { AuthContext } from "@/lib/auth/session";
 import { nowInBrazil } from "@/lib/date/brazil-now";
+import { CATEGORIAS_EMPRESA, ehEmpresa } from "@/lib/profiles/empresa";
+import type { ParentCategory } from "@prisma/client";
 
 export type TypicalExpense = {
   /** Média mensal dos gastos nos meses considerados. */
@@ -22,6 +24,10 @@ const MESES = 3;
  *
  * Só conta mês FECHADO: o mês corrente está pela metade e puxaria a média para baixo,
  * sugerindo uma reserva menor do que a necessária — errar para o lado frágil, justo aqui.
+ *
+ * Numa EMPRESA, o caixa de segurança cobre as despesas FIXAS (aluguel, equipe, pró-labore,
+ * serviços): mercadoria e frete só existem se houver venda, e imposto só se houver receita.
+ * Contar tudo pediria um caixa do tamanho do faturamento inteiro.
  */
 export async function getTypicalMonthlyExpense(ctx: AuthContext): Promise<TypicalExpense | null> {
   const agora = nowInBrazil();
@@ -31,9 +37,12 @@ export async function getTypicalMonthlyExpense(ctx: AuthContext): Promise<Typica
     meses.push({ year: d.getFullYear(), month: d.getMonth() + 1 });
   }
 
+  const fixas = (Object.keys(CATEGORIAS_EMPRESA) as ParentCategory[]).filter((k) => CATEGORIAS_EMPRESA[k].natureza === "fixa");
+  // Empresa: só as frentes fixas (e as categorias personalizadas, que entram como fixas).
+  const soFixas = ehEmpresa(ctx.profileKind) ? { AND: [{ OR: [{ parentCategory: { in: fixas } }, { parentCategory: null }] }] } : {};
   const linhas = await prisma.monthlyEntry.groupBy({
     by: ["year", "month"],
-    where: { userId: ctx.userId, profileId: ctx.profileId, category: "EXPENSE", OR: meses },
+    where: { userId: ctx.userId, profileId: ctx.profileId, category: "EXPENSE", OR: meses, ...soFixas },
     _sum: { amount: true },
   });
 

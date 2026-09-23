@@ -3,6 +3,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Search, MapPin } from "lucide-react";
 import { searchDestinations, type TravelDestination } from "@/lib/travel/estimates";
+import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 
 /**
  * Busca de destino: digita e a lista aparece embaixo (sem acento, por nome, país ou apelido —
@@ -24,6 +25,7 @@ export function DestinationSearch({
   const [highlight, setHighlight] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const listboxId = useId();
+  const { titulos: t } = useProfileTheme().voz;
 
   const results = useMemo(() => {
     const excluded = new Set(excludeKeys);
@@ -83,7 +85,7 @@ export function DestinationSearch({
           aria-controls={listboxId}
           aria-autocomplete="list"
           aria-label="Buscar destino"
-          placeholder="Buscar destino (ex.: Paris, Jeri, Japão)"
+          placeholder={t.viagemBuscarPlaceholder}
           value={query}
           disabled={disabled}
           onChange={(e) => {
@@ -101,7 +103,7 @@ export function DestinationSearch({
         <div className="absolute left-0 right-0 top-full z-40 mt-1 max-h-72 overflow-y-auto rounded-xl border border-border-strong bg-surface shadow-premium">
           {results.length === 0 ? (
             <p id={listboxId} role="listbox" className="px-3 py-3 text-sm text-ink-faint">
-              Nenhum destino encontrado. Tente outro nome ou o país.
+              {t.viagemNenhumDestino}
             </p>
           ) : (
             <ul id={listboxId} role="listbox">

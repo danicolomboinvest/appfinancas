@@ -2,15 +2,19 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
+import type { Titulos } from "@/lib/profiles/voice";
 
-const TABS = [
-  { href: "/configuracoes/perfil", label: "Perfil" },
-  { href: "/configuracoes/preferencias", label: "Preferências" },
-  { href: "/configuracoes/categorias", label: "Categorias" },
-  { href: "/configuracoes/notificacoes", label: "Notificações" },
-  { href: "/configuracoes/conexoes", label: "Conexões", flag: "openFinance" as const },
-  { href: "/configuracoes/dados", label: "Dados" },
-  { href: "/configuracoes/taxas", label: "Taxas" },
+// O rótulo de cada pílula vem da voz do tema: aqui só fica a chave dele.
+type AbaChave = Extract<keyof Titulos, `cfgAba${string}`>;
+const TABS: { href: string; chave: AbaChave; flag?: "openFinance" }[] = [
+  { href: "/configuracoes/perfil", chave: "cfgAbaPerfil" },
+  { href: "/configuracoes/preferencias", chave: "cfgAbaPreferencias" },
+  { href: "/configuracoes/categorias", chave: "cfgAbaCategorias" },
+  { href: "/configuracoes/notificacoes", chave: "cfgAbaNotificacoes" },
+  { href: "/configuracoes/conexoes", chave: "cfgAbaConexoes", flag: "openFinance" },
+  { href: "/configuracoes/dados", chave: "cfgAbaDados" },
+  { href: "/configuracoes/taxas", chave: "cfgAbaTaxas" },
 ];
 
 /**
@@ -19,7 +23,8 @@ const TABS = [
  */
 export function SettingsTabs({ openFinance }: { openFinance: boolean }) {
   const pathname = usePathname();
-  const tabs = TABS.filter((t) => !("flag" in t) || openFinance);
+  const { voz } = useProfileTheme();
+  const tabs = TABS.filter((t) => !t.flag || openFinance).map((t) => ({ href: t.href, label: voz.titulos[t.chave] }));
   return (
     <nav aria-label="Seções de configurações" className="mb-6 flex flex-wrap gap-1.5 md:hidden">
       {tabs.map((tab) => {
@@ -29,7 +34,7 @@ export function SettingsTabs({ openFinance }: { openFinance: boolean }) {
             key={tab.href}
             href={tab.href}
             className={`rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors ${
-              active ? "border-ink bg-ink text-canvas" : "border-border bg-surface-2 text-ink-muted hover:text-ink"
+              active ? "border-pill bg-pill text-on-pill" : "border-border bg-surface-2 text-ink-muted hover:text-ink"
             }`}
           >
             {tab.label}

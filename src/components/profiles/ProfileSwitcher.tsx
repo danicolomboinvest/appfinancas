@@ -5,10 +5,11 @@ import Link from "next/link";
 import { Check, ChevronDown, Settings2 } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { ProfileIcon } from "./ProfileIcon";
-import { profileColor } from "@/lib/profiles/palette";
+import { profileTheme } from "@/lib/profiles/themes";
+import { useProfileTheme } from "./ProfileThemeProvider";
 import { trocarPerfilAction } from "@/app/(app)/perfis/actions";
 
-export type PerfilResumo = { id: string; name: string; icon: string; color: string; isDefault: boolean };
+export type PerfilResumo = { id: string; name: string; icon: string; theme: string; isDefault: boolean };
 
 /**
  * A troca de perfil, no alto de toda tela.
@@ -23,6 +24,7 @@ export type PerfilResumo = { id: string; name: string; icon: string; color: stri
 export function ProfileSwitcher({ perfis }: { perfis: PerfilResumo[] }) {
   const [aberto, setAberto] = useState(false);
   const [trocando, iniciarTroca] = useTransition();
+  const { titulos: t } = useProfileTheme().voz;
   const ativo = perfis.find((p) => p.isDefault) ?? perfis[0];
 
   if (!ativo || perfis.length <= 1) return null;
@@ -44,6 +46,8 @@ export function ProfileSwitcher({ perfis }: { perfis: PerfilResumo[] }) {
         type="button"
         onClick={() => setAberto(true)}
         disabled={trocando}
+        aria-label={`Perfil ${ativo.name}. Trocar de perfil`}
+        aria-haspopup="dialog"
         className="inline-flex max-w-[60vw] items-center gap-1.5 rounded-full border border-border bg-surface-2 py-1 pl-2.5 pr-2 text-sm text-ink transition-colors hover:border-border-strong disabled:opacity-60"
       >
         <span className="flex size-5 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: `var(--color-accent-soft)` }}>
@@ -53,10 +57,10 @@ export function ProfileSwitcher({ perfis }: { perfis: PerfilResumo[] }) {
         <ChevronDown size={14} className="shrink-0 text-ink-faint" />
       </button>
 
-      <Modal open={aberto} onClose={() => setAberto(false)} title="Seus perfis">
+      <Modal open={aberto} onClose={() => setAberto(false)} title={t.cfgPerfisTitulo}>
         <div className="flex flex-col gap-1.5">
           {perfis.map((p) => {
-            const cor = profileColor(p.color);
+            const t = profileTheme(p.theme);
             const eAtivo = p.id === ativo.id;
             return (
               <button
@@ -70,7 +74,7 @@ export function ProfileSwitcher({ perfis }: { perfis: PerfilResumo[] }) {
               >
                 <span
                   className="flex size-9 shrink-0 items-center justify-center rounded-full"
-                  style={{ backgroundColor: `rgba(${cor.dark.rgb}, 0.18)`, color: cor.dark.accent }}
+                  style={{ backgroundColor: t.paleta.accentSoft, color: t.paleta.accent }}
                 >
                   <ProfileIcon name={p.icon} size={18} />
                 </span>
@@ -87,7 +91,7 @@ export function ProfileSwitcher({ perfis }: { perfis: PerfilResumo[] }) {
           className="mt-3 inline-flex items-center gap-2 text-sm text-ink-muted hover:text-ink"
         >
           <Settings2 size={16} />
-          Gerenciar perfis
+          {t.cfgPerfisGerenciar}
         </Link>
       </Modal>
     </>

@@ -5,7 +5,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronsLeft, ChevronsRight, Lock, LogOut, Plus } from "lucide-react";
 import { BrandMark } from "@/components/brand/BrandMark";
-import { ADMIN_NAV_SECTION, NAV_SECTIONS, withNavFlags } from "./nav-sections";
+import { ADMIN_NAV_SECTION, NAV_SECTIONS, withNavFlags, sectionMatches, filhosVisiveis, secoesVisiveis } from "./nav-sections";
+import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 
 /** Liga cada seção ao passo do tour de boas-vindas (WelcomeTour destaca por data-tour). */
 const SIDEBAR_TOUR: Record<string, string> = {
@@ -41,10 +42,11 @@ export function Sidebar({
   openFinance: boolean;
 }) {
   const pathname = usePathname();
-  const sections = withNavFlags(isAdmin ? [...NAV_SECTIONS, ADMIN_NAV_SECTION] : NAV_SECTIONS, { openFinance });
+  const { voz, empresa } = useProfileTheme();
+  const sections = secoesVisiveis(withNavFlags(isAdmin ? [...NAV_SECTIONS, ADMIN_NAV_SECTION] : NAV_SECTIONS, { openFinance }), empresa);
 
   const activeSection = sections.find(
-    (section) => pathname === section.basePath || pathname.startsWith(`${section.basePath}/`),
+    (section) => sectionMatches(section, pathname),
   );
 
   // Expande o submenu na hora do clique (sem esperar a navegação terminar) para o
@@ -86,21 +88,22 @@ export function Sidebar({
         <button
           type="button"
           onClick={onOpenRegistrar}
-          title={collapsed ? "Registrar" : undefined}
+          title={collapsed ? voz.titulos.registrar : undefined}
           data-tour="registrar"
-          className={`flex w-full items-center gap-3 rounded-lg bg-ink px-3 py-2.5 text-sm font-medium text-canvas transition-opacity hover:opacity-90 active:scale-[0.98] ${collapsedDesktopOnly}`}
+          className={`flex w-full items-center gap-3 rounded-lg bg-pill px-3 py-2.5 text-sm font-medium text-on-pill transition-opacity hover:opacity-90 active:scale-[0.98] ${collapsedDesktopOnly}`}
         >
           <Plus size={18} strokeWidth={2.2} className="shrink-0" />
-          <span className={`truncate ${hideLabelDesktopOnly}`}>Registrar</span>
+          <span className={`truncate ${hideLabelDesktopOnly}`}>{voz.titulos.registrar}</span>
         </button>
       </div>
 
       <nav className="flex-1 overflow-y-auto px-3 py-3">
         <ul className="flex flex-col gap-0.5">
           {sections.map((section) => {
-            const isActive = pathname === section.basePath || pathname.startsWith(`${section.basePath}/`);
+            const isActive = sectionMatches(section, pathname);
             const isExpanded = expandedBasePath === section.basePath;
             const Icon = section.icon;
+            const filhos = filhosVisiveis(section, empresa);
             return (
               <li key={section.basePath}>
                 <Link
@@ -118,15 +121,15 @@ export function Sidebar({
                   }`}
                 >
                   <Icon size={18} strokeWidth={1.75} className="shrink-0" />
-                  <span className={`truncate ${hideLabelDesktopOnly}`}>{section.label}</span>
+                  <span className={`truncate ${hideLabelDesktopOnly}`}>{voz.titulos.navSecao(section.basePath, section.label)}</span>
                   {section.premium && !isPremium && (
                     <Lock size={13} strokeWidth={2} className={`ml-auto shrink-0 text-ink-faint ${hideLabelDesktopOnly}`} />
                   )}
                 </Link>
 
-                {isExpanded && section.children && (
+                {isExpanded && filhos.length > 0 && (
                   <ul className={`mt-0.5 flex flex-col gap-0.5 border-l border-border-strong pl-4 ${hideLabelDesktopOnly}`}>
-                    {section.children.map((child) => {
+                    {filhos.map((child) => {
                       const childActive = pathname === child.href;
                       const locked = child.premium && !isPremium;
                       return (
@@ -138,7 +141,7 @@ export function Sidebar({
                               childActive ? "text-ink font-medium" : "text-ink-faint hover:text-ink"
                             }`}
                           >
-                            <span className="truncate">{child.label}</span>
+                            <span className="truncate">{voz.titulos.navFilho(child.href, child.label)}</span>
                             {locked && <Lock size={11} strokeWidth={2} className="shrink-0" />}
                           </Link>
                         </li>

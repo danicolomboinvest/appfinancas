@@ -2,54 +2,34 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
+import type { Titulos } from "@/lib/profiles/voice";
 import { TOUR_DONE_EVENT } from "./InstallAppBanner";
 
 const SEEN_KEY = "welcome-tour-seen";
+
+/** Só as chaves da voz cujo valor é uma frase pronta (não função, não lista). */
+type ChaveDeFrase = { [K in keyof Titulos]: Titulos[K] extends string ? K : never }[keyof Titulos];
 
 type Step = {
   /** Valor do data-tour do elemento a destacar. Sem target = cartão centralizado (abertura/fim). */
   target?: string;
   /** Alvo redondo (o botão "+") ganha recorte circular. */
   round?: boolean;
-  title: string;
-  text: string;
+  /** As chaves do título e do texto na voz do tema: o que o passo DIZ muda de tema pra tema. */
+  title: ChaveDeFrase;
+  text: ChaveDeFrase;
 };
 
+/** Os passos, na ordem: o que cada um aponta é igual nos sete temas; o que diz vem da voz. */
 const STEPS: Step[] = [
-  {
-    title: "Boas-vindas ao SPI Finance 👋",
-    text: "Um tour rápido mostrando ONDE fica cada coisa, vou destacar os botões um por um. Dá pra pular quando quiser.",
-  },
-  {
-    target: "registrar",
-    round: true,
-    title: "Este + é o coração do app",
-    text: "É por aqui que você registra tudo: digite um gasto, fale por áudio, ou importe o extrato do banco. Comece sempre por ele.",
-  },
-  {
-    target: "fluxo",
-    title: "Aqui é o Fluxo",
-    text: "Seu mês em um lugar: renda, gastos e o orçamento por categoria, com um alerta quando você gasta rápido demais.",
-  },
-  {
-    target: "metas",
-    title: "Aqui são as Metas",
-    text: "Crie metas (viagem, casa), a reserva de emergência e a aposentadoria. O app calcula quanto guardar por mês pra você chegar lá.",
-  },
-  {
-    target: "carteira",
-    title: "Aqui é a Carteira",
-    text: "Seus investimentos e o lucro de cada um. Dá até pra puxar o preço médio direto da sua declaração de Imposto de Renda.",
-  },
-  {
-    target: "mais",
-    title: "E tem mais aqui",
-    text: "Visão Geral, Simuladores e Análises ficam neste menu.",
-  },
-  {
-    title: "Tudo pronto! 🎉",
-    text: "Bora começar? Toque no + e registre seu primeiro lançamento, em segundos você já vê seu mês tomando forma.",
-  },
+  { title: "uiTourBoasVindasTitulo", text: "uiTourBoasVindasTexto" },
+  { target: "registrar", round: true, title: "uiTourRegistrarTitulo", text: "uiTourRegistrarTexto" },
+  { target: "fluxo", title: "uiTourFluxoTitulo", text: "uiTourFluxoTexto" },
+  { target: "metas", title: "uiTourMetasTitulo", text: "uiTourMetasTexto" },
+  { target: "carteira", title: "uiTourCarteiraTitulo", text: "uiTourCarteiraTexto" },
+  { target: "mais", title: "uiTourMaisTitulo", text: "uiTourMaisTexto" },
+  { title: "uiTourFimTitulo", text: "uiTourFimTexto" },
 ];
 
 /** Acha, entre os elementos com aquele data-tour (a tab bar do mobile E a sidebar do desktop
@@ -72,6 +52,7 @@ function findVisibleTarget(name: string): HTMLElement | null {
  * está visível. Complementa o checklist de "primeiros passos" (que guia O QUE FAZER primeiro).
  */
 export function WelcomeTour() {
+  const { voz } = useProfileTheme();
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(0);
   const [rect, setRect] = useState<DOMRect | null>(null);
@@ -153,8 +134,8 @@ export function WelcomeTour() {
 
       {/* Cartão de explicação */}
       <div style={calloutStyle} className="glass rounded-2xl p-5">
-        <h2 className="text-base font-semibold tracking-tight text-ink">{s.title}</h2>
-        <p className="mt-1.5 text-sm leading-relaxed text-ink-muted">{s.text}</p>
+        <h2 className="text-base font-semibold tracking-tight text-ink">{voz.titulos[s.title]}</h2>
+        <p className="mt-1.5 text-sm leading-relaxed text-ink-muted">{voz.titulos[s.text]}</p>
 
         <div className="mt-4 flex items-center justify-between gap-3">
           <div className="flex items-center gap-1.5">
@@ -168,11 +149,11 @@ export function WelcomeTour() {
           <div className="flex items-center gap-3">
             {!isLast && (
               <button type="button" onClick={finish} className="text-xs font-medium text-ink-faint hover:text-ink">
-                Pular
+                {voz.titulos.uiTourPular}
               </button>
             )}
             <Button type="button" size="sm" onClick={() => (isLast ? finish() : setStep(step + 1))}>
-              {isLast ? "Começar" : "Avançar"}
+              {isLast ? voz.titulos.uiTourComecar : voz.titulos.uiTourAvancar}
             </Button>
           </div>
         </div>

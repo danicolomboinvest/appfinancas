@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Voz } from "@/lib/profiles/voice";
 import { Target, Plane, Home, Car, PiggyBank } from "lucide-react";
 import type { GoalIcon } from "@prisma/client";
 import { Card } from "@/components/ui/Card";
@@ -12,13 +13,6 @@ import { serverMoney } from "@/lib/money-server";
 import { resolveGoalKind } from "@/lib/planning/goal-kind";
 
 export type GoalVariant = "ahead" | "onTrack" | "behind" | "achieved";
-
-const VARIANT_STATUS_LABEL: Record<GoalVariant, string> = {
-  ahead: "Adiantada",
-  onTrack: "No ritmo",
-  behind: "Atrasada",
-  achieved: "Concluída",
-};
 
 const VARIANT_STATUS_TEXT: Record<GoalVariant, string> = {
   ahead: "text-success",
@@ -74,7 +68,13 @@ export async function GoalCard({
   plan,
   variant,
   checkin,
+  voz,
+  empresa = false,
 }: {
+  /** A voz do tema: status, "guardar X este mês" e o chip do aporte. */
+  voz: Voz;
+  /** Perfil Empresa: a ferramenta de aposentadoria não é oferecida (empresa não se aposenta). */
+  empresa?: boolean;
   id: string;
   name: string;
   icon: GoalIcon;
@@ -95,6 +95,9 @@ export async function GoalCard({
   // lembrar de apertar um botãozinho a mais.
   const kind = resolveGoalKind(icon, name);
   const Icon = GOAL_ICONS[kind];
+  // Viagem, simuladores e aposentadoria são coisa de pessoa física; as rotas nem aparecem no
+  // perfil Empresa, então o card não pode apontar pra elas.
+  const tool = empresa ? undefined : GOAL_TOOL[kind];
 
   // O anel FICA — ele é um gráfico, e é isso que dá vida ao card; a barra chapada que eu tinha
   // posto no lugar dizia a mesma coisa e lia como enfeite, não como informação.
@@ -124,7 +127,7 @@ export async function GoalCard({
             {!achieved && (
               <>
                 {" · "}
-                <span className={VARIANT_STATUS_TEXT[variant]}>{VARIANT_STATUS_LABEL[variant]}</span>
+                <span className={VARIANT_STATUS_TEXT[variant]}>{voz.titulos.metaStatus[variant]}</span>
               </>
             )}
           </p>
@@ -136,20 +139,20 @@ export async function GoalCard({
       {!achieved && (
         <div className="border-t border-border pt-3">
           <p className="text-[15px] font-bold tracking-tight text-accent-strong">
-            Guardar {money(plan.requiredMonthlyContribution, { round: true })} este mês
+            {voz.titulos.metaGuardar(money(plan.requiredMonthlyContribution, { round: true }))}
           </p>
           <p className="mt-0.5 text-caption text-ink-muted">
-            {plan.monthsRemaining} {plan.monthsRemaining === 1 ? "mês restante" : "meses restantes"}
+            {voz.titulos.metaMeses(plan.monthsRemaining)}
           </p>
         </div>
       )}
 
-      {GOAL_TOOL[kind] && !achieved && (
+      {tool && !achieved && (
         <Link
-          href={GOAL_TOOL[kind]!.href}
+          href={tool.href}
           className="inline-flex w-fit items-center gap-1 text-caption font-medium text-accent-strong hover:underline"
         >
-          {GOAL_TOOL[kind]!.label} →
+          {tool.label} →
         </Link>
       )}
 

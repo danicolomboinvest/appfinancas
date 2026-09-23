@@ -4,6 +4,7 @@ import { Area, AreaChart, ReferenceLine, ResponsiveContainer, Tooltip } from "re
 import { CHART_COLORS, CHART_TOOLTIP_STYLE } from "@/components/charts/chart-theme";
 import type { GoalTrajectoryPoint } from "@/lib/planning/goal";
 import { useMoney } from "@/components/money/MoneyProvider";
+import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 
 const TONE_COLOR: Record<"success" | "accent" | "danger", string> = {
   success: CHART_COLORS.success,
@@ -27,6 +28,7 @@ export function GoalTrajectoryChart({
   tone: "success" | "accent" | "danger";
 }) {
   const money = useMoney();
+  const t = useProfileTheme().voz.titulos;
   if (data.length < 2) return null;
   const color = TONE_COLOR[tone];
   const gradientId = `goal-trajectory-${tone}`;
@@ -64,7 +66,7 @@ export function GoalTrajectoryChart({
         <ReferenceLine y={targetAmount} stroke={CHART_COLORS.muted} strokeDasharray="3 3" />
         <Tooltip
           {...CHART_TOOLTIP_STYLE}
-          labelFormatter={(month) => (Number(month) === 0 ? "Hoje" : `Daqui a ${month} meses`)}
+          labelFormatter={(month) => (Number(month) === 0 ? t.grafHoje : t.metaDaquiAMeses(Number(month)))}
           formatter={(value) => money(Number(value))}
         />
         {/* isAnimationActive (padrão do Recharts) já desenha a área da esquerda pra direita ao

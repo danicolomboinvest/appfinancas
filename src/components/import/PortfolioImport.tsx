@@ -11,6 +11,7 @@ import {
   type ConfirmedHolding,
 } from "@/app/(app)/carteira/import-actions";
 import { useMoney } from "@/components/money/MoneyProvider";
+import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 
 type Phase = "upload" | "password" | "confirm" | "done";
 
@@ -50,6 +51,9 @@ function buildUploadForm(file: File): FormData {
  */
 export function PortfolioImport({ onDone }: { onDone: () => void }) {
   const money = useMoney();
+  // O que a pessoa lê vem da voz do tema; a comparação com a carteira não sabe de tema nenhum.
+  const { voz } = useProfileTheme();
+  const t = voz.titulos;
   const fileRef = useRef<HTMLInputElement>(null);
   const [phase, setPhase] = useState<Phase>("upload");
   const [holdings, setHoldings] = useState<ParsedHoldingItem[]>([]);
@@ -67,7 +71,7 @@ export function PortfolioImport({ onDone }: { onDone: () => void }) {
     setError(null);
     // Limite do corpo da Server Action é 8 MB, barra antes com mensagem clara.
     if (file.size > 7.5 * 1024 * 1024) {
-      setError("Arquivo muito grande (máx. ~7 MB). Exporte um relatório menor e tente de novo.");
+      setError(t.impCarteiraArquivoGrande);
       return;
     }
     runParse(file);
@@ -85,7 +89,7 @@ export function PortfolioImport({ onDone }: { onDone: () => void }) {
         result = await parsePortfolioAction(formData);
       } catch (err) {
         console.error("parsePortfolioAction falhou no envio", err);
-        setError("Não consegui enviar o arquivo. Confira a internet e tente de novo.");
+        setError(t.impErroEnvio);
         return;
       }
       if (!result.ok) {
@@ -130,7 +134,7 @@ export function PortfolioImport({ onDone }: { onDone: () => void }) {
         result = await importPortfolioAction(confirmed);
       } catch (err) {
         console.error("importPortfolioAction falhou no envio", err);
-        setError("Não consegui salvar. Confira a internet e tente de novo.");
+        setError(t.impErroSalvar);
         return;
       }
       if (!result.ok) {
@@ -153,11 +157,11 @@ export function PortfolioImport({ onDone }: { onDone: () => void }) {
           disabled={isPending}
           className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border-strong bg-surface-2 px-4 py-10 text-center transition-colors hover:border-accent hover:bg-surface-hover disabled:opacity-60"
         >
-          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-ink text-canvas">
+          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-pill text-on-pill">
             <Upload size={22} strokeWidth={1.75} />
           </span>
-          <span className="text-sm font-medium text-ink">{isPending ? "Lendo arquivo..." : "Escolher a posição da corretora"}</span>
-          <span className="text-caption text-ink-faint">Posição da corretora ou da B3 (CSV, Excel ou PDF)</span>
+          <span className="text-sm font-medium text-ink">{isPending ? t.impLendoArquivo : t.impCarteiraEscolher}</span>
+          <span className="text-caption text-ink-faint">{t.impCarteiraFormato}</span>
         </button>
         <input
           ref={fileRef}
@@ -181,10 +185,8 @@ export function PortfolioImport({ onDone }: { onDone: () => void }) {
           <span className="flex h-12 w-12 items-center justify-center rounded-full bg-accent-soft text-accent-strong">
             <Lock size={22} strokeWidth={1.75} />
           </span>
-          <p className="text-sm font-medium text-ink">Este arquivo está protegido por senha</p>
-          <p className="text-caption text-ink-faint">
-            Digite a senha do arquivo (a mesma que a corretora pede pra abrir). Ela é usada só pra abrir e não fica salva.
-          </p>
+          <p className="text-sm font-medium text-ink">{t.impProtegido}</p>
+          <p className="text-caption text-ink-faint">{t.impSenhaDicaCorretora}</p>
         </div>
 
         {error && <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p>}
@@ -200,13 +202,13 @@ export function PortfolioImport({ onDone }: { onDone: () => void }) {
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="Senha do arquivo"
+            placeholder={t.impSenhaPlaceholder}
             autoFocus
             autoComplete="off"
             className="w-full rounded-lg border border-border-strong bg-surface px-3 py-2.5 text-sm text-ink focus:border-accent focus:outline-none"
           />
           <Button type="submit" disabled={isPending || !password}>
-            {isPending ? "Abrindo..." : "Desbloquear e continuar"}
+            {isPending ? t.impAbrindo : t.impDesbloquear}
           </Button>
           <button
             type="button"
@@ -218,7 +220,7 @@ export function PortfolioImport({ onDone }: { onDone: () => void }) {
             }}
             className="text-center text-xs font-medium text-ink-faint hover:text-ink"
           >
-            Escolher outro arquivo
+            {t.impOutroArquivo}
           </button>
         </form>
       </div>
@@ -233,19 +235,16 @@ export function PortfolioImport({ onDone }: { onDone: () => void }) {
     return (
       <div className="flex flex-col gap-4">
         {error && <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p>}
-        {summary && <p className="text-caption text-ink-muted">Li o arquivo inteiro: {summary}.</p>}
+        {summary && <p className="text-caption text-ink-muted">{t.impCarteiraLiTudo(summary)}</p>}
 
         {nothingToDo ? (
-          <p className="rounded-xl bg-surface-2 px-4 py-6 text-center text-sm text-ink-muted">
-            Sua carteira já está em dia com esse extrato, {unchangedCount} ativo{unchangedCount === 1 ? "" : "s"} conferido
-            {unchangedCount === 1 ? "" : "s"}, nenhuma mudança encontrada. 🎉
-          </p>
+          <p className="rounded-xl bg-surface-2 px-4 py-6 text-center text-sm text-ink-muted">{t.impCarteiraEmDia(unchangedCount)}</p>
         ) : (
           <>
             {news.length > 0 && (
               <div className="flex flex-col gap-2">
                 <p className="text-sm font-medium text-ink">
-                  Novos na carteira <span className="text-ink-faint">({news.length})</span>
+                  {t.impCarteiraNovos} <span className="text-ink-faint">({news.length})</span>
                 </p>
                 <ul className="flex max-h-56 flex-col divide-y divide-border overflow-y-auto rounded-xl border border-border">
                   {news.map((h) => (
@@ -254,7 +253,7 @@ export function PortfolioImport({ onDone }: { onDone: () => void }) {
                         <p className="truncate text-sm font-medium text-ink">{h.ticker}</p>
                         <p className="text-caption text-ink-faint">
                           {h.quantity > 0 ? `${formatQty(h.quantity)} · ` : ""}
-                          {h.value > 0 ? money(h.value) : "sem valor"}
+                          {h.value > 0 ? money(h.value) : t.impCarteiraSemValor}
                         </p>
                       </div>
                       <select
@@ -274,7 +273,7 @@ export function PortfolioImport({ onDone }: { onDone: () => void }) {
                         className="text-caption text-ink-faint hover:text-danger"
                         aria-label={`Remover ${h.ticker}`}
                       >
-                        Remover
+                        {t.impRemover}
                       </button>
                     </li>
                   ))}
@@ -285,7 +284,7 @@ export function PortfolioImport({ onDone }: { onDone: () => void }) {
             {changes.length > 0 && (
               <div className="flex flex-col gap-2">
                 <p className="text-sm font-medium text-ink">
-                  Mudanças <span className="text-ink-faint">({changes.length})</span>
+                  {t.impCarteiraMudancas} <span className="text-ink-faint">({changes.length})</span>
                 </p>
                 <ul className="flex max-h-56 flex-col divide-y divide-border overflow-y-auto rounded-xl border border-border">
                   {changes.map((h) => {
@@ -312,7 +311,7 @@ export function PortfolioImport({ onDone }: { onDone: () => void }) {
                           className="text-caption text-ink-faint hover:text-danger"
                           aria-label={`Não atualizar ${h.ticker}`}
                         >
-                          Pular
+                          {t.impPular}
                         </button>
                       </li>
                     );
@@ -322,29 +321,18 @@ export function PortfolioImport({ onDone }: { onDone: () => void }) {
             )}
 
             {unchangedCount > 0 && (
-              <p className="text-caption text-ink-faint">
-                {unchangedCount} ativo{unchangedCount === 1 ? "" : "s"} sem mudança, já {unchangedCount === 1 ? "está" : "estão"} na
-                carteira e {unchangedCount === 1 ? "fica" : "ficam"} como {unchangedCount === 1 ? "está" : "estão"}.
-              </p>
+              <p className="text-caption text-ink-faint">{t.impCarteiraSemMudanca(unchangedCount)}</p>
             )}
           </>
         )}
 
         {nothingToDo ? (
           <Button type="button" onClick={onDone}>
-            Concluir
+            {t.impConcluir}
           </Button>
         ) : (
           <Button type="button" onClick={handleImport} disabled={isPending}>
-            {isPending
-              ? "Aplicando..."
-              : [
-                  news.length > 0 ? `Adicionar ${news.length}` : null,
-                  changes.length > 0 ? `atualizar ${changes.length}` : null,
-                ]
-                  .filter(Boolean)
-                  .join(" e ")
-                  .replace(/^atualizar/, "Atualizar")}
+            {isPending ? t.impAplicando : t.impCarteiraBotao(news.length, changes.length)}
           </Button>
         )}
       </div>
@@ -356,16 +344,9 @@ export function PortfolioImport({ onDone }: { onDone: () => void }) {
       <span className="flex h-14 w-14 items-center justify-center rounded-full bg-success-soft text-success">
         <Check size={28} strokeWidth={2} />
       </span>
-      <p className="text-sm font-medium text-ink">
-        {[
-          createdCount > 0 ? `${createdCount} novo${createdCount === 1 ? "" : "s"} na carteira` : null,
-          updatedCount > 0 ? `${updatedCount} atualizado${updatedCount === 1 ? "" : "s"}` : null,
-        ]
-          .filter(Boolean)
-          .join(" · ") || "Nada pra mudar, carteira já estava em dia."}
-      </p>
+      <p className="text-sm font-medium text-ink">{t.impCarteiraFeito(createdCount, updatedCount)}</p>
       <Button type="button" onClick={onDone}>
-        Concluir
+        {t.impConcluir}
       </Button>
     </div>
   );

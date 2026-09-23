@@ -5,13 +5,24 @@ import { SelectField } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useSuccessToast } from "@/components/ui/useSuccessToast";
+import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { updatePreferencesAction, type PreferencesState } from "./actions";
 
 const initialState: PreferencesState = {};
 
-export function PreferencesForm({ defaults }: { defaults: { currency: string; theme: string } }) {
+export function PreferencesForm({
+  defaults,
+  podeEscolherModo = true,
+}: {
+  defaults: { currency: string; theme: string };
+  /** Falso quando o tema do perfil já decidiu claro/escuro (todos menos o Padrão). */
+  podeEscolherModo?: boolean;
+}) {
   const [state, formAction, isPending] = useActionState(updatePreferencesAction, initialState);
   useSuccessToast(isPending, state.error);
+  const { titulos: t } = useProfileTheme().voz;
+  // O negrito fica no meio da frase, então ela vem em três partes.
+  const [avisoAntes, avisoForte, avisoDepois] = t.cfgMoedaAviso;
 
   return (
     <Card
@@ -22,35 +33,35 @@ export function PreferencesForm({ defaults }: { defaults: { currency: string; th
     >
       {state.error && <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{state.error}</p>}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <SelectField label="Moeda" name="currency" defaultValue={defaults.currency}>
+        <SelectField label={t.cfgMoeda} name="currency" defaultValue={defaults.currency}>
           <option value="BRL">Real (R$)</option>
           <option value="USD">Dólar (US$)</option>
           <option value="EUR">Euro (€)</option>
           <option value="GBP">Libra (£)</option>
         </SelectField>
-        <SelectField label="Tema" name="theme" defaultValue={defaults.theme}>
-          <option value="dark">Escuro</option>
-          <option value="light">Claro</option>
-        </SelectField>
+        {podeEscolherModo ? (
+          <SelectField label={t.cfgTema} name="theme" defaultValue={defaults.theme}>
+            <option value="dark">{t.cfgTemaEscuro}</option>
+            <option value="light">{t.cfgTemaClaro}</option>
+          </SelectField>
+        ) : (
+          <p className="text-xs text-ink-muted">{t.cfgModoDecididoPeloTema}</p>
+        )}
       </div>
       {/* O aviso é a parte mais importante desta tela. Sem ele, alguém troca para euro, vê
           "€ 8.500" onde antes lia "R$ 8.500" e acha que o app converteu o patrimônio. */}
       <div className="rounded-lg bg-surface-2 px-3 py-2.5">
         <p className="text-xs text-ink">
-          Trocar a moeda <strong>não converte seus valores</strong>.
+          {avisoAntes}
+          <strong>{avisoForte}</strong>
+          {avisoDepois}
         </p>
-        <p className="mt-1 text-xs text-ink-muted">
-          Os números continuam exatamente os mesmos — só o símbolo muda. Um lançamento de 3.000 passa a aparecer como
-          &quot;€ 3.000&quot; em vez de &quot;R$ 3.000&quot;. Use se a sua vida financeira é toda em outra moeda.
-        </p>
-        <p className="mt-1 text-xs text-ink-muted">
-          Se só uma parte é em outra moeda (um salário em euro, um aluguel em real), deixe a moeda principal aqui e
-          escolha a moeda na hora de lançar: aí sim o app converte pela cotação do dia.
-        </p>
+        <p className="mt-1 text-xs text-ink-muted">{t.cfgMoedaAvisoTexto1("€ 3.000", "R$ 3.000")}</p>
+        <p className="mt-1 text-xs text-ink-muted">{t.cfgMoedaAvisoTexto2}</p>
       </div>
-      <p className="text-xs text-ink-faint">Moeda e tema são aplicados assim que você salva.</p>
+      <p className="text-xs text-ink-faint">{t.cfgAplicadoAoSalvar}</p>
       <Button type="submit" disabled={isPending} className="w-fit">
-        {isPending ? "Salvando..." : "Salvar"}
+        {isPending ? t.cfgSalvando : t.cfgSalvar}
       </Button>
     </Card>
   );

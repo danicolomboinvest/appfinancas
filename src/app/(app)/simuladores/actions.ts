@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getRequiredSession } from "@/lib/auth/session";
+import { vozDoTema } from "@/lib/profiles/voice";
 import { createSimulation, deleteSimulation, getSimulation } from "@/lib/repositories/simulation.repo";
 
 const salvarSchema = z.object({
@@ -17,10 +18,11 @@ const salvarSchema = z.object({
 export type SaveSimulationState = { ok?: boolean; error?: string };
 
 export async function saveSimulationAction(input: unknown): Promise<SaveSimulationState> {
-  const parsed = salvarSchema.safeParse(input);
-  if (!parsed.success) return { error: "Não consegui salvar esta simulação." };
-
+  // A sessão vem antes da validação porque a mensagem de erro fala na voz do tema da pessoa.
   const ctx = await getRequiredSession();
+  const parsed = salvarSchema.safeParse(input);
+  if (!parsed.success) return { error: vozDoTema(ctx.profileTheme, ctx.profileKind).titulos.simSalvarErro };
+
   await createSimulation(ctx, {
     type: parsed.data.type,
     name: parsed.data.name?.length ? parsed.data.name : null,

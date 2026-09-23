@@ -1,5 +1,6 @@
 import type { MonthlyRecap } from "@/lib/recap/monthly";
 import type { MoneyFormatter } from "@/lib/money";
+import type { Titulos } from "@/lib/profiles/voice";
 
 
 /** Envolve texto em várias linhas dentro de uma largura máxima. */
@@ -23,8 +24,9 @@ function wrap(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): st
 /**
  * Desenha um card compartilhável do Resumo Mensal (estilo "retrospectiva") num canvas e
  * devolve como PNG, sem dependência externa. Formato 1080×1350 (retrato, bom pra story/feed).
+ * Os rótulos vêm dos títulos do tema (`t`): a imagem que a pessoa posta fala na voz que ela escolheu.
  */
-export async function buildRecapShareImage(recap: MonthlyRecap, money: MoneyFormatter): Promise<Blob> {
+export async function buildRecapShareImage(recap: MonthlyRecap, money: MoneyFormatter, t: Titulos): Promise<Blob> {
   const W = 1080;
   const H = 1350;
   const canvas = document.createElement("canvas");
@@ -52,20 +54,20 @@ export async function buildRecapShareImage(recap: MonthlyRecap, money: MoneyForm
 
   ctx.fillStyle = "#ffffff";
   ctx.font = "700 92px Georgia, serif";
-  ctx.fillText("Meu resumo", cx, 260);
-  ctx.fillText("do mês", cx, 360);
+  ctx.fillText(t.impShareImagemTitulo[0], cx, 260);
+  ctx.fillText(t.impShareImagemTitulo[1], cx, 360);
 
   // Blocos de destaque
   const savedPositive = recap.allTimeSaved >= 0;
   const blocks: { label: string; value: string; color: string }[] = [
-    { label: "Gastei este mês", value: money(recap.monthSpent, { round: true }), color: "#f0c989" },
+    { label: t.impShareGastei, value: money(recap.monthSpent, { round: true }), color: "#f0c989" },
     {
-      label: savedPositive ? "Ficou no meu bolso desde o início" : "Saldo desde o início",
+      label: savedPositive ? t.impShareFicouNoBolso : t.impShareSaldo,
       value: money(recap.allTimeSaved, { round: true }),
       color: savedPositive ? "#6fcb9f" : "#e2836a",
     },
     {
-      label: "Potencial em 10 anos mantendo minha poupança média",
+      label: t.impSharePotencial,
       value: money(Math.max(0, recap.recurringProjection10y), { round: true }),
       color: "#f0c989",
     },
@@ -95,13 +97,13 @@ export async function buildRecapShareImage(recap: MonthlyRecap, money: MoneyForm
   });
 }
 
-/** Texto de fallback quando não dá pra compartilhar imagem. */
-export function buildRecapShareText(recap: MonthlyRecap, money: MoneyFormatter): string {
-  const parts = [
-    `Meu resumo do mês (${recap.rangeLabel}):`,
-    `• Gastei ${money(recap.monthSpent, { round: true })}`,
-    `• ${recap.allTimeSaved >= 0 ? "Ficou no bolso" : "Saldo"} desde o início: ${money(recap.allTimeSaved, { round: true })}`,
-    `• Potencial em 10 anos: ${money(Math.max(0, recap.recurringProjection10y), { round: true })}`,
-  ];
-  return parts.join("\n");
+/** Texto de fallback quando não dá pra compartilhar imagem, na voz do tema. */
+export function buildRecapShareText(recap: MonthlyRecap, money: MoneyFormatter, t: Titulos): string {
+  return t.impShareTexto(
+    recap.rangeLabel,
+    money(recap.monthSpent, { round: true }),
+    recap.allTimeSaved >= 0,
+    money(recap.allTimeSaved, { round: true }),
+    money(Math.max(0, recap.recurringProjection10y), { round: true }),
+  );
 }

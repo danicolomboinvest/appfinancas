@@ -16,13 +16,15 @@ export const STRATEGY_ASSET_CLASSES: StrategyAssetClass[] = [
 /** Cor FIXA por categoria de estratégia, a mesma em todos os gráficos (Carteira Atual,
  * Estratégia-alvo, rebalanceamento), pra comparação bater à vista (item 10). */
 export const STRATEGY_ASSET_CLASS_COLOR: Record<StrategyAssetClass, string> = {
-  RENDA_FIXA_POS_FIXADA: "#4FA3C7",
-  RENDA_FIXA_IPCA: "#5FB88A",
-  PREFIXADO: "#A78BC0",
-  ACOES_BRASIL: "#E0A85F",
-  FIIS: "#6D8BD0",
-  EXTERIOR: "#D98C6A",
-  OUTROS: "#9AA0A6",
+  // Variáveis, não hex: os valores moram no globals.css e um tema pode trocar (o Girly pinta
+  // tudo de rosa). O SVG e o `style` resolvem var() como qualquer propriedade.
+  RENDA_FIXA_POS_FIXADA: "var(--color-strat-pos)",
+  RENDA_FIXA_IPCA: "var(--color-strat-ipca)",
+  PREFIXADO: "var(--color-strat-pre)",
+  ACOES_BRASIL: "var(--color-strat-acoes)",
+  FIIS: "var(--color-strat-fiis)",
+  EXTERIOR: "var(--color-strat-exterior)",
+  OUTROS: "var(--color-strat-outros)",
 };
 
 export const STRATEGY_ASSET_CLASS_LABEL: Record<StrategyAssetClass, string> = {

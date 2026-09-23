@@ -1,4 +1,5 @@
 import { getRequiredSession } from "@/lib/auth/session";
+import { vozDoTema } from "@/lib/profiles/voice";
 import { listCustomCategories } from "@/lib/repositories/custom-category.repo";
 import {
   sumExpensesByParentCategory,
@@ -8,8 +9,8 @@ import {
   sumExpensesByParentCategorySince,
   sumExpensesByCustomCategorySince,
 } from "@/lib/repositories/budget.repo";
-import { PARENT_CATEGORY_LABEL } from "@/lib/categories";
-import type { ParentCategory } from "@prisma/client";
+import { categoryLabel } from "@/lib/categories";
+import type { ParentCategory, ProfileKind } from "@prisma/client";
 import { PageHeader } from "@/components/ui/PageHeader";
 import type { SpendingSlice } from "@/components/charts/SpendingPieChart";
 import { SpendingByCategory } from "./SpendingByCategory";
@@ -19,8 +20,10 @@ const MONTH_LABELS = [
   "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
 ];
 
-/** Junta gastos por categoria-mãe (padrão) e personalizadas num único array {name, value, key}. */
+/** Junta gastos por categoria-mãe (padrão) e personalizadas num único array {name, value, key}.
+ * O nome da categoria-mãe é o do perfil (`kind`): numa Empresa, MORADIA aparece como "Estrutura". */
 function toSlices(
+  kind: ProfileKind,
   parent: { parentCategory: ParentCategory; spent: number }[],
   custom: { customCategoryId: string; spent: number }[],
   customNameById: Map<string, string>,
@@ -33,7 +36,7 @@ function toSlices(
   const prevCustom = new Map(previous?.custom.map((s) => [s.customCategoryId, s.spent]));
   return [
     ...parent.map((s) => ({
-      name: PARENT_CATEGORY_LABEL[s.parentCategory],
+      name: categoryLabel(kind, s.parentCategory),
       value: s.spent,
       category: { kind: "parent" as const, value: s.parentCategory },
       previousValue: previous ? (prevParent.get(s.parentCategory) ?? 0) : undefined,
@@ -54,6 +57,7 @@ function firstOf(value: string | string[] | undefined) {
 export default async function SpendingByCategoryPage(props: PageProps<"/mensal/gastos">) {
   const searchParams = await props.searchParams;
   const ctx = await getRequiredSession();
+  const voz = vozDoTema(ctx.profileTheme, ctx.profileKind);
   const now = new Date();
 
   // Mês/ano selecionáveis via URL (?year&month), as setas do seletor navegam por aqui,
@@ -115,15 +119,15 @@ export default async function SpendingByCategoryPage(props: PageProps<"/mensal/g
   return (
     <div className="flex flex-col gap-6">
 
-      <PageHeader title="Só gastos" subtitle="Para onde seu dinheiro foi, por categoria." />
+      <PageHeader title={voz.titulos.soGastos} subtitle={voz.titulos.soGastosSub} />
 
       <SpendingByCategory
         selectedYear={year}
         selectedMonth={month}
-        week={toSlices(parentWeek, customWeek, customNameById)}
-        month={toSlices(parentMonth, customMonth, customNameById, { parent: parentPrev, custom: customPrev })}
+        week={toSlices(ctx.profileKind, parentWeek, customWeek, customNameById)}
+        month={toSlices(ctx.profileKind, parentMonth, customMonth, customNameById, { parent: parentPrev, custom: customPrev })}
         previousMonthLabel={MONTH_LABELS[prevMonth.getMonth()].toLowerCase()}
-        year={toSlices(parentYear, customYear, customNameById)}
+        year={toSlices(ctx.profileKind, parentYear, customYear, customNameById)}
         initialPeriod={initialPeriod}
         subtitle={{
           semana: "Últimos 7 dias",

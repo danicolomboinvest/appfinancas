@@ -9,17 +9,19 @@ import { PercentField } from "@/components/ui/PercentField";
 import { MonthYearField } from "@/components/ui/MonthYearField";
 import { Button } from "@/components/ui/Button";
 import { useSuccessToast } from "@/components/ui/useSuccessToast";
+import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { createGoalAction, updateGoalAction, type GoalFormState } from "./actions";
 import { detectGoalKind } from "@/lib/planning/goal-kind";
 
 const initialState: GoalFormState = {};
 
-const ICON_OPTIONS: { value: GoalIcon; label: string; Icon: typeof Target }[] = [
-  { value: "VIAGEM", label: "Viagem", Icon: Plane },
-  { value: "CASA", label: "Casa", Icon: Home },
-  { value: "CARRO", label: "Carro", Icon: Car },
-  { value: "APOSENTADORIA", label: "Aposentadoria", Icon: PiggyBank },
-  { value: "GENERICO", label: "Genérico", Icon: Target },
+/** Só o desenho de cada ícone; o nome que aparece ao passar o mouse vem da voz do tema. */
+const ICON_OPTIONS: { value: GoalIcon; Icon: typeof Target }[] = [
+  { value: "VIAGEM", Icon: Plane },
+  { value: "CASA", Icon: Home },
+  { value: "CARRO", Icon: Car },
+  { value: "APOSENTADORIA", Icon: PiggyBank },
+  { value: "GENERICO", Icon: Target },
 ];
 
 /**
@@ -28,19 +30,20 @@ const ICON_OPTIONS: { value: GoalIcon; label: string; Icon: typeof Target }[] = 
  * um app que desfaz a escolha da pessoa a cada letra digitada é pior que um que não adivinha.
  */
 function GoalIconPicker({ defaultValue = "GENERICO", nome }: { defaultValue?: GoalIcon; nome: string }) {
+  const { voz } = useProfileTheme();
   const [icon, setIcon] = useState<GoalIcon>(defaultValue);
   const [escolhidoAMao, setEscolhidoAMao] = useState(defaultValue !== "GENERICO");
   const sugerido = detectGoalKind(nome);
   const atual: GoalIcon = escolhidoAMao ? icon : (sugerido ?? icon);
   return (
     <div className="flex flex-col gap-1.5">
-      <span className="text-xs font-medium text-ink-muted">Ícone</span>
+      <span className="text-xs font-medium text-ink-muted">{voz.titulos.formMetaIcone}</span>
       <div className="flex gap-1.5">
-        {ICON_OPTIONS.map(({ value, label, Icon }) => (
+        {ICON_OPTIONS.map(({ value, Icon }) => (
           <button
             key={value}
             type="button"
-            title={label}
+            title={voz.titulos.formMetaIcones[value]}
             onClick={() => {
               setIcon(value);
               setEscolhidoAMao(true);
@@ -78,14 +81,17 @@ export function GoalForm({
   /** Presente = editar meta existente; ausente = criar meta nova. */
   goalId?: string;
   defaults: Defaults;
-  submitLabel: string;
+  /** Sem isso, o botão fala na voz do tema: "Adicionar meta" ao criar, "Salvar alterações" ao editar. */
+  submitLabel?: string;
   onSuccess?: () => void;
 }) {
+  const { voz } = useProfileTheme();
+  const t = voz.titulos;
   const action = goalId ? updateGoalAction.bind(null, goalId) : createGoalAction;
   const [state, formAction, isPending] = useActionState(action, initialState);
   const [nome, setNome] = useState(defaults.name ?? "");
   const wasPending = useRef(false);
-  useSuccessToast(isPending, state.error, goalId ? "Meta atualizada com sucesso." : "Meta criada com sucesso.");
+  useSuccessToast(isPending, state.error, goalId ? t.formMetaAtualizada : t.formMetaCriada);
 
   useEffect(() => {
     if (wasPending.current && !isPending && !state.error) {
@@ -98,40 +104,40 @@ export function GoalForm({
     <form action={formAction} className="flex flex-wrap items-end gap-3">
       {state.error && <p className="w-full rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{state.error}</p>}
       <Field
-        label="Nome da meta"
+        label={t.formMetaNome}
         id="name"
         name="name"
         required
-        placeholder="Ex.: Viagem, Entrada do apê, Trocar de carro"
+        placeholder={t.formMetaNomePlaceholder}
         value={nome}
         onChange={(e) => setNome(e.target.value)}
       />
       <GoalIconPicker defaultValue={defaults.icon} nome={nome} />
       <CurrencyField
-        label="Valor-alvo"
+        label={t.formMetaValorAlvo}
         id="targetAmount"
         name="targetAmount"
         required
         defaultValue={defaults.targetAmount}
       />
       <CurrencyField
-        label="Já guardado"
+        label={t.formMetaJaGuardado}
         id="currentAmount"
         name="currentAmount"
         defaultValue={defaults.currentAmount ?? 0}
       />
-      <MonthYearField label="Mês/ano alvo" id="targetDate" name="targetDate" required defaultValue={defaults.targetDate} />
+      <MonthYearField label={t.formMetaMesAno} id="targetDate" name="targetDate" required defaultValue={defaults.targetDate} />
       <PercentField
-        label="Quanto o dinheiro guardado rende por ano"
+        label={t.formMetaRende}
         id="annualRate"
         name="annualRate"
         required
-        defaultValue={defaults.annualRate ?? 10}
-        suggestions={[6, 10, 12]}
-        hint="Poupança rende perto de 6%. CDB e Tesouro Selic, perto de 10%. Se não sabe, deixe 10%."
+        defaultValue={defaults.annualRate ?? 0.1}
+        suggestions={[0.06, 0.1, 0.12]}
+        hint={t.formMetaRendeHint}
       />
       <Button type="submit" disabled={isPending} size="sm">
-        {isPending ? "Salvando..." : submitLabel}
+        {isPending ? t.formSalvando : (submitLabel ?? (goalId ? t.formMetaSalvar : t.formMetaAdicionar))}
       </Button>
     </form>
   );

@@ -5,8 +5,6 @@ export default function Page() {
   return (
     <SheetListPage
       sheetType="ETF"
-      title="Análises de ETFs"
-      subtitle="Digite o nome ou o código e o app faz a leitura do fundo."
       createForm={<CreateEtfSheetForm />}
     />
   );

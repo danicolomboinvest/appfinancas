@@ -2,6 +2,7 @@
 
 import { Donut, type DonutSlice } from "./Donut";
 import { colorForCategorySlice } from "@/lib/categories";
+import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 
 export type SpendingSlice = {
   name: string;
@@ -27,6 +28,7 @@ export function SpendingPieChart({
   onSelect?: (slice: SpendingSlice) => void;
   selectedName?: string | null;
 }) {
+  const t = useProfileTheme().voz.titulos;
   const slices: DonutSlice[] = data
     .filter((d) => d.value > 0)
     .map((d) => ({
@@ -39,10 +41,10 @@ export function SpendingPieChart({
   return (
     <Donut
       slices={slices}
-      centerLabel="Gastos"
+      centerLabel={t.grafGastos}
       size={200}
       selectedName={selectedName}
-      emptyMessage="Nenhum gasto neste período."
+      emptyMessage={t.grafNenhumGasto}
       onSelect={onSelect ? (slice) => onSelect(slice.meta as SpendingSlice) : undefined}
     />
   );

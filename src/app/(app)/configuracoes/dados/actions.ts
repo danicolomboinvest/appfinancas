@@ -2,7 +2,7 @@
 
 import { getRequiredSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
-import { PARENT_CATEGORY_LABEL } from "@/lib/categories";
+import { categoryLabel } from "@/lib/categories";
 
 function csvEscape(value: string) {
   if (value.includes(",") || value.includes('"') || value.includes("\n")) {
@@ -25,7 +25,8 @@ export async function exportEntriesCsvAction(): Promise<string> {
       String(entry.year),
       String(entry.month),
       entry.category,
-      entry.parentCategory ? PARENT_CATEGORY_LABEL[entry.parentCategory] : "",
+      // O nome no CSV é o que a pessoa vê na tela: numa Empresa, "Estrutura", não "Moradia".
+      entry.parentCategory ? categoryLabel(ctx.profileKind, entry.parentCategory) : "",
       entry.subcategory ?? "",
       entry.description ?? "",
       String(entry.amount),

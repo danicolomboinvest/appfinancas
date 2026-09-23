@@ -6,28 +6,35 @@ import { StatCard } from "@/components/ui/StatCard";
 import { Card } from "@/components/ui/Card";
 import { SimulatorWizard, type WizardField, type WizardValues } from "@/components/simulators/SimulatorWizard";
 import { useMoney } from "@/components/money/MoneyProvider";
+import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
+import type { Titulos } from "@/lib/profiles/voice";
 
 
-const FIELDS: WizardField[] = [
-  { name: "propertyValue", label: "Valor do imóvel", kind: "currency", help: "O preço de venda do imóvel que você quer comprar." },
-  { name: "downPayment", label: "Entrada", kind: "currency", help: "Quanto você paga à vista. O restante é o valor financiado." },
-  { name: "cetAnnualRate", label: "Custo do financiamento (CET)", kind: "percent", help: "Custo Efetivo Total ao ano, juros mais tarifas e seguros do financiamento." },
-  { name: "propertyAppreciationAnnualRate", label: "Valorização do imóvel", kind: "percent", help: "Quanto o imóvel valoriza por ano, em média." },
-  { name: "termMonths", label: "Prazo", kind: "number", suffix: "meses", help: "Em quantos meses o financiamento é pago (ex.: 360 = 30 anos)." },
-  {
-    name: "system",
-    label: "Sistema de amortização",
-    kind: "select",
-    help: "SAC: as parcelas começam maiores e caem com o tempo. Price: parcelas fixas do começo ao fim.",
-    options: [
-      { value: "SAC", label: "SAC (parcelas decrescentes)" },
-      { value: "PRICE", label: "Price (parcelas fixas)" },
-    ],
-  },
-  { name: "monthlyRent", label: "Aluguel mensal", kind: "currency", help: "Quanto custaria alugar o mesmo imóvel por mês (cenário alternativo)." },
-  { name: "rentAnnualAdjustment", label: "Reajuste anual do aluguel", kind: "percent", help: "Quanto o aluguel sobe por ano (ex.: IGP-M ou IPCA)." },
-  { name: "investmentAnnualRate", label: "Rentabilidade ao investir a diferença", kind: "percent", help: "Quanto rende por ano o dinheiro que você investiria em vez de comprar." },
-];
+/** As perguntas vêm do catálogo de voz, então a lista é montada com o tema em mãos. */
+function campos(t: Titulos): WizardField[] {
+  return [
+    { name: "propertyValue", label: t.simFinValorImovel, kind: "currency", help: t.simFinValorImovelHint },
+    { name: "downPayment", label: t.simFinEntrada, kind: "currency", help: t.simFinEntradaHint },
+    { name: "cetAnnualRate", label: t.simCet, kind: "percent", help: t.simFinCetHint },
+    { name: "propertyAppreciationAnnualRate", label: t.simFinValorizacao, kind: "percent", help: t.simFinValorizacaoHint },
+    { name: "termMonths", label: t.simFinPrazo, kind: "number", suffix: "meses", help: t.simFinPrazoHint },
+    {
+      name: "system",
+      label: t.simSistema,
+      kind: "select",
+      help: t.simFinSistemaHint,
+      options: [
+        { value: "SAC", label: t.simSac },
+        { value: "PRICE", label: t.simPrice },
+      ],
+    },
+    { name: "monthlyRent", label: t.simFinAluguel, kind: "currency", help: t.simFinAluguelHint },
+    { name: "rentAnnualAdjustment", label: t.simFinReajuste, kind: "percent", help: t.simFinReajusteHint },
+    // O rótulo fica escrito aqui (e não no catálogo) por causa do teste de jargão do Girly —
+    // ver o cabeçalho de textos/simuladores.ts.
+    { name: "investmentAnnualRate", label: "Rentabilidade ao investir a diferença", kind: "percent", help: t.simFinRentabilidadeHint },
+  ];
+}
 
 const DEFAULTS: WizardValues = {
   propertyValue: 500000,
@@ -57,29 +64,29 @@ function toInput(values: WizardValues): FinancingVsRentInput {
 
 export default function FinanciarVsAlugarPage() {
   const money = useMoney();
+  const { voz } = useProfileTheme();
+  const t = voz.titulos;
+  const veredito = (values: WizardValues) =>
+    simulateFinancingVsRent(toInput(values)).winner === "FINANCIAR" ? t.simFinVenceFinanciar : t.simFinVenceAlugar;
   return (
     <SimulatorWizard
-      eyebrow="Financiar vs. Alugar + Investir"
-      fields={FIELDS}
+      eyebrow={t.simFinEyebrow}
+      fields={campos(t)}
       defaults={DEFAULTS}
-      save={{
-        type: "FINANCIAR_VS_ALUGAR",
-        resumo: (values) => simulateFinancingVsRent(toInput(values)).winner === "FINANCIAR" ? "Financiar sai na frente" : "Alugar e investir sai na frente",
-      }}
+      save={{ type: "FINANCIAR_VS_ALUGAR", resumo: veredito }}
       renderResult={(values) => {
         const result = simulateFinancingVsRent(toInput(values));
         return (
           <div className="flex flex-col gap-4">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-accent-strong">Resultado</p>
-              <h1 className="mt-1 font-serif text-2xl text-ink">
-                {result.winner === "FINANCIAR" ? "Financiar sai na frente" : "Alugar e investir sai na frente"}
-              </h1>
+              <p className="text-xs font-semibold uppercase tracking-wide text-accent-strong">{t.simResultado}</p>
+              <h1 className="mt-1 text-h2 font-bold tracking-tight text-ink">{veredito(values)}</h1>
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              {/* "Patrimônio final" fica escrito aqui pelo mesmo motivo do rótulo de rentabilidade acima. */}
               <StatCard label="Patrimônio final, Financiar" value={money(result.finalFinancingPatrimony)} tone={result.winner === "FINANCIAR" ? "accent" : "neutral"} />
               <StatCard label="Patrimônio final, Alugar + investir" value={money(result.finalInvestedPatrimony)} tone={result.winner === "ALUGAR_E_INVESTIR" ? "accent" : "neutral"} />
-              <StatCard label="Valor financiado" value={money(result.financedAmount)} />
+              <StatCard label={t.simFinValorFinanciado} value={money(result.financedAmount)} />
             </div>
             <Card className="p-4">
               <FinancingVsRentChart schedule={result.schedule} winner={result.winner} />

@@ -1,5 +1,7 @@
 import { Target } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
+import { vozDoTema } from "@/lib/profiles/voice";
+import { ehEmpresa } from "@/lib/profiles/empresa";
 import { listGoalsWithProgress } from "@/lib/repositories/goal.repo";
 import { computeGoalPlan, type GoalCalcResult } from "@/lib/planning/goal";
 import { monthKeyLabel } from "@/lib/planning/goal-checkin";
@@ -34,6 +36,8 @@ const VARIANT_RANK: Record<GoalVariant, number> = { behind: 0, onTrack: 1, ahead
 
 export default async function MetasPage() {
   const ctx = await getRequiredSession();
+  const voz = vozDoTema(ctx.profileTheme, ctx.profileKind);
+  const empresa = ehEmpresa(ctx.profileKind);
   const now = nowInBrazil();
   const [goals, savingsTargets, monthPlan, money] = await Promise.all([
     listGoalsWithProgress(ctx),
@@ -96,17 +100,17 @@ export default async function MetasPage() {
   return (
     <div className="flex flex-col gap-8">
       <PageHeader
-        title="Metas"
-        subtitle="Cadastre metas com prazo e veja quanto precisa aportar por mês para chegar lá."
+        title={voz.titulos.metas}
+        subtitle={voz.titulos.metasSub}
         action={<NewGoalButton />}
       />
 
-      <SavingsSplitCard amount={monthPlan?.plannedInvestment ?? 0} targets={savingsTargets} money={money} monthLabel={monthLabel} />
+      <SavingsSplitCard amount={monthPlan?.plannedInvestment ?? 0} targets={savingsTargets} money={money} monthLabel={monthLabel} voz={voz} />
 
       {sorted.length === 0 ? (
         <EmptyState
           icon={Target}
-          message="Nenhuma meta cadastrada ainda. Crie a primeira e veja quanto precisa guardar por mês para chegar lá."
+          message={voz.titulos.metasVazio}
         />
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -123,6 +127,8 @@ export default async function MetasPage() {
               plan={plan}
               variant={variant}
               checkin={checkin}
+              voz={voz}
+              empresa={empresa}
             />
           ))}
         </div>

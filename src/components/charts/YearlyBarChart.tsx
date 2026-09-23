@@ -4,6 +4,7 @@ import { Bar, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } 
 import type { MonthlyBreakdown } from "@/lib/consolidation/yearly";
 import { CHART_COLORS, CHART_TOOLTIP_STYLE } from "./chart-theme";
 import { useMoney } from "@/components/money/MoneyProvider";
+import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 
 const MONTH_LABELS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
@@ -96,6 +97,7 @@ function MonthColumn(props: unknown) {
 
 function ColumnTooltip({ active, payload }: { active?: boolean; payload?: { payload: Row }[] }) {
   const money = useMoney();
+  const t = useProfileTheme().voz.titulos;
   if (!active || !payload?.length) return null;
   const row = payload[0].payload;
   const sobrou = row.Renda - row.Gastos - row.Aportes;
@@ -103,26 +105,20 @@ function ColumnTooltip({ active, payload }: { active?: boolean; payload?: { payl
     <div style={{ ...CHART_TOOLTIP_STYLE.contentStyle, padding: "8px 12px" }}>
       <p style={{ ...CHART_TOOLTIP_STYLE.labelStyle, margin: "0 0 4px" }}>
         {row.name}
-        {!row.isRealized && " (previsto)"}
+        {!row.isRealized && ` ${t.grafPrevisto}`}
       </p>
-      <p style={{ margin: 0, color: CHART_COLORS.success }}>Renda {money(row.Renda, { round: true })}</p>
-      <p style={{ margin: 0, color: CHART_COLORS.danger }}>Gastos {money(row.Gastos, { round: true })}</p>
-      <p style={{ margin: 0, color: CHART_COLORS.accent }}>Aportes {money(row.Aportes, { round: true })}</p>
+      <p style={{ margin: 0, color: CHART_COLORS.success }}>{t.grafRenda} {money(row.Renda, { round: true })}</p>
+      <p style={{ margin: 0, color: CHART_COLORS.danger }}>{t.grafGastos} {money(row.Gastos, { round: true })}</p>
+      <p style={{ margin: 0, color: CHART_COLORS.accent }}>{t.grafAportes} {money(row.Aportes, { round: true })}</p>
       {row.Planejado != null && (
-        <p style={{ margin: 0, color: CHART_COLORS.accentStrong }}>Planejado {money(row.Planejado, { round: true })}</p>
+        <p style={{ margin: 0, color: CHART_COLORS.accentStrong }}>{t.grafPlanejado} {money(row.Planejado, { round: true })}</p>
       )}
       <p style={{ margin: "4px 0 0", color: "var(--color-ink)", fontWeight: 600 }}>
-        {sobrou >= 0 ? "Sobrou" : "Faltou"} {money(Math.abs(sobrou), { round: true })}
+        {sobrou >= 0 ? t.grafSobrou : t.grafFaltou} {money(Math.abs(sobrou), { round: true })}
       </p>
     </div>
   );
 }
-
-const LEGEND = [
-  { label: "Renda", className: "border border-success/50 bg-success/20" },
-  { label: "Gastos", className: "bg-danger" },
-  { label: "Aportes", className: "bg-accent" },
-];
 
 export function YearlyBarChart({
   months,
@@ -132,6 +128,13 @@ export function YearlyBarChart({
   /** Total planejado (soma das categorias) por número do mês (1-12), de getAnnualPlannedVsActual. */
   plannedByMonth?: Record<number, number>;
 }) {
+  const t = useProfileTheme().voz.titulos;
+  // A legenda de baixo, na voz do tema (o Girly chama aporte de outra coisa).
+  const legend = [
+    { label: t.grafRenda, className: "border border-success/50 bg-success/20" },
+    { label: t.grafGastos, className: "bg-danger" },
+    { label: t.grafAportes, className: "bg-accent" },
+  ];
   // Mês atual = o último que já aconteceu. É o único rótulo em negrito, pra dar o "você está
   // aqui" sem precisar de linha vertical nem legenda extra.
   let currentMonth = 0;
@@ -207,7 +210,7 @@ export function YearlyBarChart({
       </ResponsiveContainer>
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
-        {LEGEND.map((l) => (
+        {legend.map((l) => (
           <span key={l.label} className="flex items-center gap-1.5 text-caption text-ink-muted">
             <span className={`size-2.5 rounded-sm ${l.className}`} />
             {l.label}
@@ -216,7 +219,7 @@ export function YearlyBarChart({
         {plannedByMonth && (
           <span className="flex items-center gap-1.5 text-caption text-ink-muted">
             <span className="h-0.5 w-4 rounded-full border-t-2 border-dashed border-accent-strong" />
-            Planejado
+            {t.grafPlanejado}
           </span>
         )}
       </div>

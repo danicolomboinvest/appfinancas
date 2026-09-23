@@ -47,6 +47,6 @@ export const monthlyEntrySchema = z
   // Gasto sem categoria some do orçamento e do "para onde foi seu dinheiro": a pessoa lançava
   // R$ 250 no mercado e o app dizia que ela economizou R$ 250 em alimentação.
   .refine((d) => d.category !== "EXPENSE" || Boolean(d.parentCategory) || Boolean(d.customCategoryId), {
-    message: "Escolha uma categoria pro gasto (Moradia, Alimentação…).",
+    message: "Escolha uma categoria pro gasto.",
     path: ["parentCategory"],
   });

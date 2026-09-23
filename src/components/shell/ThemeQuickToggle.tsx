@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Moon, Sun } from "lucide-react";
+import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { setThemeAction } from "./theme-actions";
 
 type Theme = "dark" | "light";
@@ -20,10 +21,11 @@ type Theme = "dark" | "light";
 export function ThemeQuickToggle({ initial }: { initial: Theme }) {
   const [chosen, setChosen] = useState<Theme | null>(null);
   const [, startTransition] = useTransition();
+  const { voz } = useProfileTheme();
   const theme = chosen ?? initial;
   const next: Theme = theme === "dark" ? "light" : "dark";
   const Icon = next === "dark" ? Moon : Sun;
-  const rotulo = next === "dark" ? "Mudar para o tema escuro" : "Mudar para o tema claro";
+  const rotulo = next === "dark" ? voz.titulos.uiMudarParaEscuro : voz.titulos.uiMudarParaClaro;
 
   function alternar() {
     setChosen(next);

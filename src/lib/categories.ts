@@ -1,4 +1,5 @@
-import type { ParentCategory } from "@prisma/client";
+import type { ParentCategory, ProfileKind } from "@prisma/client";
+import { CATEGORIAS_EMPRESA, RECEITAS_EMPRESA, RETENCOES_EMPRESA, ehEmpresa } from "@/lib/profiles/empresa";
 import {
   Home,
   UtensilsCrossed,
@@ -164,4 +165,42 @@ export const CUSTOM_CATEGORY_ICON_MAP: Record<string, LucideIcon> = Object.fromE
 /** true se `key` for um dos 7 valores fixos de ParentCategory (em vez do id de uma CustomCategory). */
 export function isParentCategoryKey(key: string): key is ParentCategory {
   return (PARENT_CATEGORIES as string[]).includes(key);
+}
+
+
+// ─── As categorias na cara do PERFIL ───────────────────────────────────────────────────
+// As oito chaves do banco são as mesmas em todo perfil; o que muda é o nome, o ícone, a
+// descrição e as subcategorias. Num perfil Empresa, MORADIA é "Estrutura" e SAUDE é "Equipe e
+// pró-labore" (ver src/lib/profiles/empresa.ts). Toda tela que mostra categoria passa por aqui
+// com o tipo do perfil, em vez de ler as constantes fixas de pessoa física.
+
+export function categoryLabel(kind: ProfileKind | string | null | undefined, key: ParentCategory): string {
+  return ehEmpresa(kind) ? CATEGORIAS_EMPRESA[key].label : PARENT_CATEGORY_LABEL[key];
+}
+
+export function categoryDescription(kind: ProfileKind | string | null | undefined, key: ParentCategory): string {
+  return ehEmpresa(kind) ? CATEGORIAS_EMPRESA[key].descricao : PARENT_CATEGORY_DESCRIPTION[key];
+}
+
+export function categoryIcon(kind: ProfileKind | string | null | undefined, key: ParentCategory): LucideIcon {
+  return ehEmpresa(kind) ? CATEGORIAS_EMPRESA[key].icone : PARENT_CATEGORY_ICON[key];
+}
+
+export function subcategoriesFor(kind: ProfileKind | string | null | undefined, key: ParentCategory): string[] {
+  return ehEmpresa(kind) ? CATEGORIAS_EMPRESA[key].subcategorias : SUBCATEGORIES[key];
+}
+
+/** Os chips de tipo de entrada: "Salário, Freela…" pra pessoa, "Vendas, Serviços…" pra empresa. */
+export function incomeTypesFor(kind: ProfileKind | string | null | undefined): string[] {
+  return ehEmpresa(kind) ? RECEITAS_EMPRESA : INCOME_TYPES;
+}
+
+/** Os chips de tipo de aporte: "Reserva de emergência, CDB…" pra pessoa, "Reserva de caixa, Reinvestimento…" pra empresa. */
+export function investmentTypesFor(kind: ProfileKind | string | null | undefined): string[] {
+  return ehEmpresa(kind) ? RETENCOES_EMPRESA : INVESTMENT_TYPES;
+}
+
+/** Todas as categorias-mãe com rótulo e ícone do perfil, na ordem de sempre. */
+export function parentCategoriesFor(kind: ProfileKind | string | null | undefined): { key: ParentCategory; label: string; description: string; icon: LucideIcon }[] {
+  return PARENT_CATEGORIES.map((key) => ({ key, label: categoryLabel(kind, key), description: categoryDescription(kind, key), icon: categoryIcon(kind, key) }));
 }

@@ -8,44 +8,52 @@ import { Card } from "@/components/ui/Card";
 import { SimulatorWizard, type WizardField, type WizardValues } from "@/components/simulators/SimulatorWizard";
 import { formatPercentNumber } from "@/lib/format";
 import { useMoney } from "@/components/money/MoneyProvider";
+import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
+import type { Titulos } from "@/lib/profiles/voice";
 
 
-const anbimaLink = (
-  <>
-    Consulte o valor atualizado em{" "}
-    <a href="https://www.anbima.com.br" target="_blank" rel="noopener noreferrer" className="text-accent-strong underline">
-      www.anbima.com.br
-    </a>{" "}
-    (Preços e Índices).
-  </>
-);
+/** A dica da ANBIMA: o link fica no meio, então o texto do catálogo vem em duas metades. */
+function anbimaLink(t: Titulos) {
+  return (
+    <>
+      {t.simMarcAnbimaAntes}{" "}
+      <a href="https://www.anbima.com.br" target="_blank" rel="noopener noreferrer" className="text-accent-strong underline">
+        www.anbima.com.br
+      </a>{" "}
+      {t.simMarcAnbimaDepois}
+    </>
+  );
+}
 
-const FIELDS: WizardField[] = [
-  { name: "faceValue", label: "Valor de face", kind: "currency", help: <>Valor nominal do título na data de vencimento. {anbimaLink}</> },
-  { name: "originalRate", label: "Taxa contratada", kind: "percent", help: "A taxa que você travou ao comprar o título." },
-  { name: "newRate", label: "Nova taxa de mercado", kind: "percent", help: "A taxa que o mercado pratica hoje para esse título, é o que muda o preço na marcação a mercado." },
-  { name: "totalYears", label: "Prazo total", kind: "number", suffix: "anos", help: "Prazo do título, do início ao vencimento." },
-  { name: "yearsRemaining", label: "Anos até o vencimento", kind: "number", suffix: "anos", help: "Quanto falta até o vencimento a partir de hoje." },
-  {
-    name: "hasSemiannualCoupons",
-    label: "Paga juros semestrais?",
-    kind: "select",
-    help: "Alguns títulos pagam cupons a cada semestre em vez de tudo no vencimento. Nesses casos, use a duration para medir a sensibilidade.",
-    options: [
-      { value: "nao", label: "Não" },
-      { value: "sim", label: "Sim" },
-    ],
-  },
-  {
-    name: "duration",
-    label: "Duration",
-    kind: "number",
-    suffix: "anos",
-    showIf: (v) => v.hasSemiannualCoupons === "sim",
-    help: <>Prazo médio ponderado dos fluxos do título, mais curto que o vencimento por causa dos cupons. {anbimaLink}</>,
-  },
-  { name: "investedAmount", label: "Valor investido (opcional)", kind: "currency", help: "Quanto você tem aplicado nesse título, para ver o resultado em reais. Pode deixar zerado." },
-];
+/** As perguntas vêm do catálogo de voz, então a lista é montada com o tema em mãos. */
+function campos(t: Titulos): WizardField[] {
+  return [
+    { name: "faceValue", label: t.simMarcValorFace, kind: "currency", help: <>{t.simMarcValorFaceHint} {anbimaLink(t)}</> },
+    { name: "originalRate", label: t.simMarcTaxaContratada, kind: "percent", help: t.simMarcTaxaContratadaHint },
+    { name: "newRate", label: t.simMarcNovaTaxa, kind: "percent", help: t.simMarcNovaTaxaHint },
+    { name: "totalYears", label: t.simMarcPrazoTotal, kind: "number", suffix: "anos", help: t.simMarcPrazoTotalHint },
+    { name: "yearsRemaining", label: t.simMarcAnosRestantes, kind: "number", suffix: "anos", help: t.simMarcAnosRestantesHint },
+    {
+      name: "hasSemiannualCoupons",
+      label: t.simMarcCupons,
+      kind: "select",
+      help: t.simMarcCuponsHint,
+      options: [
+        { value: "nao", label: t.simNao },
+        { value: "sim", label: t.simSim },
+      ],
+    },
+    {
+      name: "duration",
+      label: t.simMarcDuration,
+      kind: "number",
+      suffix: "anos",
+      showIf: (v) => v.hasSemiannualCoupons === "sim",
+      help: <>{t.simMarcDurationHint} {anbimaLink(t)}</>,
+    },
+    { name: "investedAmount", label: t.simMarcInvestido, kind: "currency", help: t.simMarcInvestidoHint },
+  ];
+}
 
 const DEFAULTS: WizardValues = {
   faceValue: 1000,
@@ -76,44 +84,44 @@ function toInput(values: WizardValues): MarkToMarketFormValues {
 
 export default function MarcacaoMercadoPage() {
   const money = useMoney();
+  const { voz } = useProfileTheme();
+  const t = voz.titulos;
   return (
     <SimulatorWizard
-      eyebrow="Marcação a Mercado"
-      fields={FIELDS}
+      eyebrow={t.simMarcEyebrow}
+      fields={campos(t)}
       defaults={DEFAULTS}
       renderResult={(values) => {
         const result = simulateMarkToMarket(toInput(values));
         return (
           <div className="flex flex-col gap-4">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-accent-strong">Resultado</p>
-              <h1 className="mt-1 font-serif text-2xl text-ink">
-                {result.profitOrLoss >= 0 ? "Venda antecipada daria lucro" : "Venda antecipada daria prejuízo"}
-              </h1>
-              <p className="mt-1 text-xs text-ink-muted">Levar até o vencimento elimina esse risco.</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-accent-strong">{t.simResultado}</p>
+              <h1 className="mt-1 text-h2 font-bold tracking-tight text-ink">{result.profitOrLoss >= 0 ? t.simMarcLucro : t.simMarcPrejuizo}</h1>
+              <p className="mt-1 text-xs text-ink-muted">{t.simMarcSub}</p>
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <StatCard
-                label="Lucro/Prejuízo na venda antecipada"
+                label={t.simMarcLucroVenda}
                 value={money(result.profitOrLoss)}
                 tone={result.profitOrLoss >= 0 ? "success" : "danger"}
               />
-              <StatCard label="Sensibilidade aproximada" value={formatPercentNumber(result.approximateSensitivity * 100, 2)} />
-              <StatCard label="Preço de carrego (taxa contratada)" value={money(result.carryingPrice)} />
-              <StatCard label="Preço a mercado (nova taxa)" value={money(result.marketPrice)} />
+              <StatCard label={t.simMarcSensibilidade} value={formatPercentNumber(result.approximateSensitivity * 100, 2)} />
+              <StatCard label={t.simMarcPrecoCarrego} value={money(result.carryingPrice)} />
+              <StatCard label={t.simMarcPrecoMercado} value={money(result.marketPrice)} />
             </div>
             {result.scaledMarketValue !== undefined && result.scaledProfitOrLoss !== undefined && (
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <StatCard label="Valor de mercado hoje" value={money(result.scaledMarketValue)} />
+                <StatCard label={t.simMarcValorMercado} value={money(result.scaledMarketValue)} />
                 <StatCard
-                  label="Lucro/Prejuízo sobre o investido"
+                  label={t.simMarcLucroInvestido}
                   value={money(result.scaledProfitOrLoss)}
                   tone={result.scaledProfitOrLoss >= 0 ? "success" : "danger"}
                 />
               </div>
             )}
             <Card className="p-4">
-              <p className="mb-3 text-xs font-medium text-ink-muted">Sensibilidade (duration × variação de taxa)</p>
+              <p className="mb-3 text-xs font-medium text-ink-muted">{t.simMarcHeatmap}</p>
               <SensitivityHeatmap rows={result.sensitivityMatrix} />
             </Card>
           </div>

@@ -5,6 +5,7 @@ import { Field } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useSuccessToast } from "@/components/ui/useSuccessToast";
+import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { updateProfileAction, type ProfileState } from "./actions";
 
 const initialState: ProfileState = {};
@@ -16,14 +17,15 @@ export function ProfileForm({
 }) {
   const [state, formAction, isPending] = useActionState(updateProfileAction, initialState);
   useSuccessToast(isPending, state.error);
+  const { titulos: t } = useProfileTheme().voz;
 
   return (
     <Card as="form" action={formAction} className="flex flex-col gap-4 p-5">
       {state.error && <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{state.error}</p>}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Nome" name="name" defaultValue={defaults.name ?? ""} placeholder="Seu nome" />
+        <Field label={t.cfgPerfilNome} name="name" defaultValue={defaults.name ?? ""} placeholder={t.cfgPerfilNomePlaceholder} />
         <Field
-          label="Celular (WhatsApp)"
+          label={t.cfgPerfilCelular}
           name="phone"
           type="tel"
           inputMode="tel"
@@ -33,7 +35,7 @@ export function ProfileForm({
         {/* E-mail é a chave do acesso (vinculado à compra): não muda por aqui, só via suporte. */}
         <div className="flex flex-col gap-1.5">
           <Field
-            label="E-mail"
+            label={t.cfgPerfilEmail}
             name="email"
             type="email"
             required
@@ -41,10 +43,10 @@ export function ProfileForm({
             readOnly
             className="cursor-not-allowed opacity-60"
           />
-          <p className="text-xs text-ink-faint">É o seu e-mail de acesso. Para trocar, fale com o suporte.</p>
+          <p className="text-xs text-ink-faint">{t.cfgPerfilEmailDica}</p>
         </div>
         <Field
-          label="URL da foto (opcional)"
+          label={t.cfgPerfilFoto}
           name="avatarUrl"
           defaultValue={defaults.avatarUrl ?? ""}
           placeholder="https://..."
@@ -52,7 +54,7 @@ export function ProfileForm({
         />
       </div>
       <Button type="submit" disabled={isPending} className="w-fit">
-        {isPending ? "Salvando..." : "Salvar"}
+        {isPending ? t.cfgSalvando : t.cfgSalvar}
       </Button>
     </Card>
   );

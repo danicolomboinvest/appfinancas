@@ -1,11 +1,11 @@
 /**
- * Seção de tela sem moldura: título na página, conteúdo logo abaixo, um fio separando uma
- * seção da outra.
+ * Seção de tela. No celular, sem moldura: título na página, conteúdo logo abaixo, um fio
+ * separando uma seção da outra — empilhar sete retângulos iguais numa tela estreita cobra
+ * espaço e não acrescenta informação.
  *
- * É a alternativa ao "tudo é um card". Empilhar sete retângulos arredondados iguais é o que
- * mais faz uma tela parecer antiga — cada moldura cobra espaço e não acrescenta informação.
- * Sem elas, o que separa os assuntos é o espaço em branco e a hierarquia do texto, e o que
- * sobra na tela é o conteúdo.
+ * No computador é o contrário: com 1.100px de largura, seções soltas uma embaixo da outra
+ * viram faixas compridas e vazias. Lá a seção vira um cartão, e as páginas põem os cartões
+ * lado a lado numa grade. Foi pedido da Dani: "em quadrados mesmo, sem tanto espaço".
  */
 export function Section({
   title,
@@ -20,7 +20,7 @@ export function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="border-t border-border pt-8 first:border-t-0 first:pt-0">
+    <section className="border-t border-border pt-8 first:border-t-0 first:pt-0 lg:min-w-0 lg:rounded-2xl lg:border lg:bg-surface lg:p-5 lg:pt-5 lg:first:border-t lg:first:pt-5">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <h2 className="text-[17px] font-semibold tracking-tight text-ink">{title}</h2>
         {action}

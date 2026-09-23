@@ -10,6 +10,7 @@ import {
   type WalletAssetOption,
 } from "@/app/(app)/carteira/irpf-actions";
 import { useMoney } from "@/components/money/MoneyProvider";
+import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 
 type Phase = "upload" | "confirm" | "done";
 
@@ -34,6 +35,9 @@ type Choice = Record<number, string>;
  */
 export function IrpfImport({ onDone }: { onDone: () => void }) {
   const money = useMoney();
+  // O que a pessoa lê vem da voz do tema; o casamento com a carteira não sabe de tema nenhum.
+  const { voz } = useProfileTheme();
+  const t = voz.titulos;
   const fileRef = useRef<HTMLInputElement>(null);
   const [phase, setPhase] = useState<Phase>("upload");
   const [items, setItems] = useState<IrpfPreviewItem[]>([]);
@@ -46,7 +50,7 @@ export function IrpfImport({ onDone }: { onDone: () => void }) {
   function handleFile(file: File) {
     setError(null);
     if (file.size > 7.5 * 1024 * 1024) {
-      setError("Arquivo muito grande (máx. ~7 MB).");
+      setError(t.impIrpfArquivoGrande);
       return;
     }
     startTransition(async () => {
@@ -77,7 +81,7 @@ export function IrpfImport({ onDone }: { onDone: () => void }) {
       .filter((c) => walletById.has(c.assetId));
 
     if (confirmed.length === 0) {
-      setError("Selecione ao menos um ativo pra aplicar o preço médio.");
+      setError(t.impIrpfSelecioneUm);
       return;
     }
     startTransition(async () => {
@@ -95,10 +99,11 @@ export function IrpfImport({ onDone }: { onDone: () => void }) {
     return (
       <div className="flex flex-col gap-4">
         {error && <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p>}
+        {/* Em três pedaços porque o miolo ("preço médio") vai em destaque. */}
         <p className="text-sm text-ink-muted">
-          Sua declaração de IR tem o <span className="text-ink">preço médio</span> de cada ação e FII (o custo de
-          aquisição), o que os extratos de corretora não trazem. Suba o PDF do recibo da declaração e eu preencho o
-          investido de cada ativo, pra o lucro/prejuízo calcular certo.
+          {t.impIrpfIntro[0]}
+          <span className="text-ink">{t.impIrpfIntro[1]}</span>
+          {t.impIrpfIntro[2]}
         </p>
         <button
           type="button"
@@ -106,11 +111,11 @@ export function IrpfImport({ onDone }: { onDone: () => void }) {
           disabled={isPending}
           className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border-strong bg-surface-2 px-4 py-10 text-center transition-colors hover:border-accent hover:bg-surface-hover disabled:opacity-60"
         >
-          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-ink text-canvas">
+          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-pill text-on-pill">
             <Upload size={22} strokeWidth={1.75} />
           </span>
-          <span className="text-sm font-medium text-ink">{isPending ? "Lendo declaração..." : "Escolher PDF da declaração"}</span>
-          <span className="text-caption text-ink-faint">Recibo da Declaração de Ajuste Anual (PDF de texto)</span>
+          <span className="text-sm font-medium text-ink">{isPending ? t.impIrpfLendo : t.impIrpfEscolher}</span>
+          <span className="text-caption text-ink-faint">{t.impIrpfFormato}</span>
         </button>
         <input
           ref={fileRef}
@@ -134,9 +139,7 @@ export function IrpfImport({ onDone }: { onDone: () => void }) {
       <div className="flex flex-col gap-4">
         {error && <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p>}
         <p className="text-sm text-ink-muted">
-          Encontrei <span className="text-ink">{items.length}</span> ativo{items.length === 1 ? "" : "s"} com preço médio.
-          Confira o ativo da sua carteira em cada linha (as que a declaração só traz o nome da empresa vêm sem casar —
-          escolha à mão ou deixe de fora).
+          {t.impIrpfEncontrei(items.length)} {t.impIrpfConfira}
         </p>
 
         <ul className="flex max-h-[24rem] flex-col divide-y divide-border overflow-y-auto rounded-xl border border-border">
@@ -155,13 +158,13 @@ export function IrpfImport({ onDone }: { onDone: () => void }) {
                       </span>
                     </p>
                     <p className="text-caption text-ink-faint">
-                      Preço médio <span className="text-ink-muted tabular-nums">{money(i.averagePrice)}</span>
-                      {i.irQuantity ? ` · ${i.irQuantity.toLocaleString("pt-BR", { maximumFractionDigits: 6 })} na declaração` : ""}
+                      {t.impIrpfPrecoMedio} <span className="text-ink-muted tabular-nums">{money(i.averagePrice)}</span>
+                      {i.irQuantity ? ` · ${t.impIrpfNaDeclaracao(i.irQuantity.toLocaleString("pt-BR", { maximumFractionDigits: 6 }))}` : ""}
                     </p>
                   </div>
                   {newInvested !== null && target && (
                     <p className="shrink-0 text-right text-caption tabular-nums text-ink-faint">
-                      investido{" "}
+                      {t.impIrpfInvestido}{" "}
                       {i.currentInvested !== null ? `${money(i.currentInvested)} → ` : ""}
                       <span className="text-ink">{money(newInvested)}</span>
                     </p>
@@ -172,7 +175,7 @@ export function IrpfImport({ onDone }: { onDone: () => void }) {
                   onChange={(e) => pickAsset(i.key, e.target.value)}
                   className="w-full rounded-lg border border-border-strong bg-surface px-2 py-1.5 text-xs text-ink focus:border-accent focus:outline-none"
                 >
-                  <option value="">Não aplicar</option>
+                  <option value="">{t.impIrpfNaoAplicar}</option>
                   {wallet.map((w) => (
                     <option key={w.id} value={w.id}>
                       {w.label}
@@ -184,13 +187,10 @@ export function IrpfImport({ onDone }: { onDone: () => void }) {
           })}
         </ul>
 
-        <p className="text-caption text-ink-faint">
-          O preço médio vira o valor investido (preço médio × quantidade da carteira). A cotação atual não muda, só o
-          investido, que é a base do lucro/prejuízo.
-        </p>
+        <p className="text-caption text-ink-faint">{t.impIrpfComoFunciona}</p>
 
         <Button type="button" onClick={handleApply} disabled={isPending || selectedCount === 0}>
-          {isPending ? "Aplicando..." : `Aplicar em ${selectedCount} ativo${selectedCount === 1 ? "" : "s"}`}
+          {isPending ? t.impAplicando : t.impIrpfAplicarEm(selectedCount)}
         </Button>
       </div>
     );
@@ -201,11 +201,9 @@ export function IrpfImport({ onDone }: { onDone: () => void }) {
       <span className="flex h-14 w-14 items-center justify-center rounded-full bg-success-soft text-success">
         <Check size={28} strokeWidth={2} />
       </span>
-      <p className="text-sm font-medium text-ink">
-        Preço médio preenchido em {updated} ativo{updated === 1 ? "" : "s"}. Agora o lucro/prejuízo deles calcula certo.
-      </p>
+      <p className="text-sm font-medium text-ink">{t.impIrpfConcluido(updated)}</p>
       <Button type="button" onClick={onDone}>
-        Concluir
+        {t.impConcluir}
       </Button>
     </div>
   );

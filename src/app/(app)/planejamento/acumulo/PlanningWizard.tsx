@@ -1,11 +1,13 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { HelpTooltip } from "@/components/forms/HelpTooltip";
 import { useSuccessToast } from "@/components/ui/useSuccessToast";
+import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
+import type { Titulos } from "@/lib/profiles/voice";
 import { savePlanningParamsAction, type PlanningParamsState } from "./actions";
 import { useCurrency } from "@/components/money/MoneyProvider";
 import { currencySymbol } from "@/lib/money";
@@ -27,47 +29,52 @@ type StepDef = {
   fields: FieldDef[];
 };
 
-/** Um conceito por tela. Começa pelo custo da vida desejada, como pede o briefing. */
-const STEPS: StepDef[] = [
-  {
-    question: "Quanto custa a vida que você quer?",
-    help: "O gasto mensal que você gostaria de bancar só com renda passiva, em valores de hoje.",
-    fields: [{ name: "desiredPassiveIncome", label: "Gasto mensal desejado", affix: "dinheiro", placeholder: "8000" }],
-  },
-  {
-    question: "Você já tem outras rendas?",
-    help: "Aluguel, INSS, pensão, rendas que continuarão quando você parar de trabalhar. Deixe zerado se não houver.",
-    fields: [{ name: "otherPassiveIncome", label: "Outras rendas passivas por mês", affix: "dinheiro", optional: true, placeholder: "0" }],
-  },
-  {
-    question: "Quanto você já tem investido?",
-    help: "Tudo que já está aplicado hoje e vai compor esse patrimônio.",
-    fields: [{ name: "currentPatrimony", label: "Patrimônio investido atual", affix: "dinheiro", placeholder: "50000" }],
-  },
-  {
-    question: "Quanto consegue aportar por mês?",
-    help: "O valor médio que você consegue investir todo mês durante a fase de acúmulo.",
-    fields: [{ name: "monthlyContributionAccumulation", label: "Aporte mensal médio", affix: "dinheiro", placeholder: "2000" }],
-  },
-  {
-    question: "Sua idade e quando quer parar",
-    help: "A idade objetivo é quando você quer atingir a independência. A expectativa de vida é opcional.",
-    fields: [
-      { name: "currentAge", label: "Idade atual", affix: null, placeholder: "30" },
-      { name: "retirementAge", label: "Idade objetivo", affix: null, placeholder: "50" },
-      { name: "lifeExpectancyAge", label: "Expectativa de vida", affix: null, optional: true, placeholder: "90" },
-    ],
-  },
-  {
-    question: "Premissas de rentabilidade",
-    help: "Já preenchemos valores comuns, ajuste se quiser. Taxas ao ano.",
-    fields: [
-      { name: "accumulationAnnualRate", label: "Rendimento na fase de acúmulo", affix: "%", placeholder: "10" },
-      { name: "inflationAnnualRate", label: "Inflação média", affix: "%", placeholder: "4,5" },
-      { name: "usufructAnnualRate", label: "Rendimento vivendo de renda", affix: "%", placeholder: "6" },
-    ],
-  },
-];
+/**
+ * Um conceito por tela. Começa pelo custo da vida desejada, como pede o briefing. As perguntas,
+ * explicações e rótulos vêm da voz do tema; os placeholders são só números de exemplo.
+ */
+function montarPassos(t: Titulos): StepDef[] {
+  return [
+    {
+      question: t.formApVidaPergunta,
+      help: t.formApVidaHelp,
+      fields: [{ name: "desiredPassiveIncome", label: t.formApVidaCampo, affix: "dinheiro", placeholder: "8000" }],
+    },
+    {
+      question: t.formApOutrasPergunta,
+      help: t.formApOutrasHelp,
+      fields: [{ name: "otherPassiveIncome", label: t.formApOutrasCampo, affix: "dinheiro", optional: true, placeholder: "0" }],
+    },
+    {
+      question: t.formApInvestidoPergunta,
+      help: t.formApInvestidoHelp,
+      fields: [{ name: "currentPatrimony", label: t.formApInvestidoCampo, affix: "dinheiro", placeholder: "50000" }],
+    },
+    {
+      question: t.formApAportePergunta,
+      help: t.formApAporteHelp,
+      fields: [{ name: "monthlyContributionAccumulation", label: t.formApAporteCampo, affix: "dinheiro", placeholder: "2000" }],
+    },
+    {
+      question: t.formApIdadePergunta,
+      help: t.formApIdadeHelp,
+      fields: [
+        { name: "currentAge", label: t.formApIdadeAtual, affix: null, placeholder: "30" },
+        { name: "retirementAge", label: t.formApIdadeObjetivo, affix: null, placeholder: "50" },
+        { name: "lifeExpectancyAge", label: t.formApExpectativa, affix: null, optional: true, placeholder: "90" },
+      ],
+    },
+    {
+      question: t.formApPremissasPergunta,
+      help: t.formApPremissasHelp,
+      fields: [
+        { name: "accumulationAnnualRate", label: t.formApRendAcumulo, affix: "%", placeholder: "10" },
+        { name: "inflationAnnualRate", label: t.formApInflacao, affix: "%", placeholder: "4,5" },
+        { name: "usufructAnnualRate", label: t.formApRendUsufruto, affix: "%", placeholder: "6" },
+      ],
+    },
+  ];
+}
 
 /** Percentuais como texto (o usuário digita "10"); convertidos para fração (0.10) na submissão,
  * no mesmo formato que o PercentField e o schema esperam. */
@@ -81,13 +88,15 @@ const DEFAULT_VALUES: Record<string, string> = {
 
 export function PlanningWizard() {
   const currency = useCurrency();
+  const t = useProfileTheme().voz.titulos;
+  const steps = useMemo(() => montarPassos(t), [t]);
   const [state, formAction, isPending] = useActionState(savePlanningParamsAction, initialState);
   useSuccessToast(isPending, state.error);
   const [step, setStep] = useState(0);
   const [values, setValues] = useState<Record<string, string>>(DEFAULT_VALUES);
 
-  const current = STEPS[step];
-  const isLast = step === STEPS.length - 1;
+  const current = steps[step];
+  const isLast = step === steps.length - 1;
   const single = current.fields.length === 1;
 
   // Só avança quando os campos obrigatórios do passo atual têm número válido.
@@ -141,7 +150,7 @@ export function PlanningWizard() {
         >
           <ChevronLeft className="h-5 w-5" />
         </button>
-        <ProgressBar percent={(step + 1) / STEPS.length} tone="accent" className="flex-1" />
+        <ProgressBar percent={(step + 1) / steps.length} tone="accent" className="flex-1" />
       </div>
 
       {state.error && <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{state.error}</p>}
@@ -161,7 +170,7 @@ export function PlanningWizard() {
               <label key={f.name} className="flex flex-col gap-1.5">
                 <span className="text-sm font-medium text-ink">
                   {f.label}
-                  {f.optional && <span className="ml-1 text-ink-faint">(opcional)</span>}
+                  {f.optional && <span className="ml-1 text-ink-faint">{t.formOpcional}</span>}
                 </span>
                 {inputFor(f, false)}
               </label>
@@ -182,11 +191,11 @@ export function PlanningWizard() {
         {/* Avançar / concluir, mesmo botão dos simuladores. */}
         <button
           type={isLast ? "submit" : "button"}
-          onClick={isLast ? undefined : () => setStep((s) => Math.min(STEPS.length - 1, s + 1))}
+          onClick={isLast ? undefined : () => setStep((s) => Math.min(steps.length - 1, s + 1))}
           disabled={!canAdvance || (isLast && isPending)}
           className="mt-1 flex items-center justify-center gap-1 rounded-full bg-ink px-5 py-3 text-sm font-medium text-canvas transition-opacity hover:opacity-90 active:scale-[0.98] disabled:opacity-40"
         >
-          {isLast ? (isPending ? "Calculando..." : "Ver meu plano") : "Continuar"}
+          {isLast ? (isPending ? t.formApCalculando : t.formApVerPlano) : t.formContinuar}
           <ChevronRight className="h-4 w-4" />
         </button>
       </div>

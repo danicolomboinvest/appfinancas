@@ -7,6 +7,8 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { CurrencyField } from "@/components/ui/CurrencyField";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
+import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
+import { emojiDaCategoria } from "@/lib/profiles/icones";
 import { useMoney } from "@/components/money/MoneyProvider";
 import { useToast } from "@/components/ui/toast-context";
 import { allocateContributionAction } from "./contribution-actions";
@@ -39,6 +41,8 @@ export function AllocateContributionCard({
   /** Meta que a pessoa escolheu ao lançar o aporte, se escolheu. */
   goalOfMonth: string | null;
 }) {
+  const { key: tema, voz } = useProfileTheme();
+  const t = voz.titulos;
   const money = useMoney();
   const { showToast } = useToast();
   const [valores, setValores] = useState<Record<string, number>>({});
@@ -57,11 +61,11 @@ export function AllocateContributionCard({
   if (pronto) {
     return (
       <Card className="flex flex-col gap-1 border-success/30 bg-success-soft/40 p-4">
-        <p className="text-[15px] font-semibold text-success">Pronto, tudo conversando.</p>
+        <p className="text-[15px] font-semibold text-success">{t.cartAporteProntoTitulo}</p>
         <p className="text-sm text-ink-muted">
-          O aporte de {MESES[month - 1]} entrou em {pronto.assets} ativo{pronto.assets === 1 ? "" : "s"}.
+          {t.cartAporteEntrouEm(MESES[month - 1], pronto.assets)}
           {pronto.goals.length > 0 && (
-            <> Suas metas andaram junto: {pronto.goals.map((g) => `${g.name} +${money(g.amount, { round: true })}`).join(", ")}.</>
+            <> {t.cartMetasAndaram(pronto.goals.map((g) => `${g.name} +${money(g.amount, { round: true })}`).join(", "))}</>
           )}
         </p>
       </Card>
@@ -71,12 +75,8 @@ export function AllocateContributionCard({
   if (assets.length === 0) {
     return (
       <Card className="flex flex-col gap-2 border-accent/30 bg-accent-soft/30 p-4">
-        <p className="text-[15px] font-semibold text-ink">
-          Você aportou {money(pending, { round: true })} em {MESES[month - 1]}
-        </p>
-        <p className="text-sm text-ink-muted">
-          Cadastre o ativo que recebeu esse dinheiro e a carteira passa a bater com o que você lançou no mês.
-        </p>
+        <p className="text-[15px] font-semibold text-ink">{t.cartVoceAportou(money(pending, { round: true }), MESES[month - 1])}</p>
+        <p className="text-sm text-ink-muted">{t.cartCadastreAtivo}</p>
       </Card>
     );
   }
@@ -94,20 +94,15 @@ export function AllocateContributionCard({
         </span>
         <span className="min-w-0 flex-1">
           <span className="block text-[15px] font-semibold text-ink">
-            Você aportou {money(pending, { round: true })} em {MESES[month - 1]}
+            {t.cartVoceAportou(money(pending, { round: true }), MESES[month - 1])}
           </span>
-          <span className="block text-caption text-ink-muted">
-            {aberto ? "Diga quanto entrou em cada ativo." : "Toque pra dizer em quais ativos entrou."}
-          </span>
+          <span className="block text-caption text-ink-muted">{aberto ? t.cartDigaQuanto : t.cartToquePraDizer}</span>
         </span>
         <ChevronDown size={18} className={`shrink-0 text-ink-muted transition-transform ${aberto ? "rotate-180" : ""}`} />
       </button>
 
       {!aberto && (
-        <p className="text-caption text-ink-faint">
-          Enquanto não disser, a carteira fica com um valor e o mês com outro
-          {goalOfMonth ? `, e a meta ${goalOfMonth} não anda junto` : ""}.
-        </p>
+        <p className="text-caption text-ink-faint">{t.cartEnquantoNaoDisser(goalOfMonth)}</p>
       )}
 
       {aberto && (
@@ -115,13 +110,13 @@ export function AllocateContributionCard({
       <ul className="flex flex-col divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface">
         {visiveis.map((a) => (
           <li key={a.id} className="flex items-center gap-3 px-3 py-2.5">
-            <CategoryIcon icon={PiggyBank} color={a.color} size={36} />
+            <CategoryIcon icon={PiggyBank} color={a.color} size={36} emoji={emojiDaCategoria(tema, { kind: "investment" })} />
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium text-ink">{a.ticker ?? a.name}</p>
-              {a.goalName && <p className="truncate text-caption text-ink-faint">meta: {a.goalName}</p>}
+              {a.goalName && <p className="truncate text-caption text-ink-faint">{t.cartMetaDoAtivo(a.goalName)}</p>}
             </div>
             <CurrencyField
-              label={`Quanto entrou em ${a.ticker ?? a.name}`}
+              label={t.cartQuantoEntrouEm(a.ticker ?? a.name)}
               name={`aporte_${a.id}`}
               onValueChange={(v) => setValores((prev) => ({ ...prev, [a.id]: v }))}
               className="w-32 [&_label]:sr-only"
@@ -132,17 +127,17 @@ export function AllocateContributionCard({
 
       {!verTodos && assets.length > visiveis.length && (
         <button type="button" onClick={() => setVerTodos(true)} className="w-fit text-sm font-medium text-accent-strong hover:underline">
-          Ver os outros {assets.length - visiveis.length} ativos
+          {t.cartVerOutros(assets.length - visiveis.length)}
         </button>
       )}
 
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <p className={`text-sm font-semibold ${falta < -0.01 ? "text-danger" : "text-ink-muted"}`}>
           {falta > 0.01
-            ? `Falta dizer onde foram ${money(falta, { round: true })}`
+            ? t.cartFaltaDizer(money(falta, { round: true }))
             : falta < -0.01
-              ? `Passou ${money(-falta, { round: true })} do que você aportou`
-              : "Tudo distribuído"}
+              ? t.cartPassouDoAporte(money(-falta, { round: true }))
+              : t.cartTudoDistribuido}
         </p>
         <Button
           type="button"
@@ -160,16 +155,16 @@ export function AllocateContributionCard({
                 return;
               }
               setPronto({ assets: res.assets, goals: res.goals });
-              showToast("Carteira e metas atualizadas com o aporte do mês.");
+              showToast(t.cartAporteAplicado);
             })
           }
         >
-          {isPending ? "Aplicando..." : "É isso, atualizar carteira"}
+          {isPending ? t.cartAplicandoAporte : t.cartAtualizarCarteira}
         </Button>
       </div>
 
       <Link href="/carteira#ativos" className="flex w-fit items-center gap-1 text-caption text-ink-faint hover:text-ink">
-        O ativo ainda não está aqui? Cadastre primeiro <ArrowRight size={12} />
+        {t.cartAtivoNaoEstaAqui} <ArrowRight size={12} />
       </Link>
       </>
       )}

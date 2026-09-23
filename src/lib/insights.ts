@@ -2,7 +2,7 @@ import { prisma } from "@/lib/db/prisma";
 import type { AuthContext } from "@/lib/auth/session";
 import { sumExpensesByParentCategory, listBudgets } from "@/lib/repositories/budget.repo";
 import { listCustomCategories } from "@/lib/repositories/custom-category.repo";
-import { PARENT_CATEGORIES, PARENT_CATEGORY_LABEL, isParentCategoryKey } from "@/lib/categories";
+import { PARENT_CATEGORIES, categoryLabel as parentCategoryLabel, isParentCategoryKey } from "@/lib/categories";
 import { computeGoalPlan } from "@/lib/planning/goal";
 import { getAnnualPlannedVsActual, computeOverBudgetStreak } from "@/lib/planning/budget-comparison";
 import { nper } from "@/lib/finance/nper";
@@ -85,10 +85,11 @@ export async function computeInsights(ctx: AuthContext, money: MoneyFormatter): 
   ]);
 
   const customCategoryLabels = new Map(customCategories.map((c) => [c.id, c.name]));
-  /** Rótulo de uma categoria a partir da `categoryKey` (ParentCategory ou id de CustomCategory). */
+  /** Rótulo de uma categoria a partir da `categoryKey` (ParentCategory ou id de CustomCategory).
+   * O nome da categoria-mãe é o do perfil: numa Empresa, o insight fala de "Estrutura", não de "Moradia". */
   function categoryLabel(categoryKey: string): string {
     return isParentCategoryKey(categoryKey)
-      ? PARENT_CATEGORY_LABEL[categoryKey]
+      ? parentCategoryLabel(ctx.profileKind, categoryKey)
       : (customCategoryLabels.get(categoryKey) ?? "Categoria personalizada");
   }
   const allCategoryKeys: string[] = [...PARENT_CATEGORIES, ...customCategories.map((c) => c.id)];
@@ -113,7 +114,7 @@ export async function computeInsights(ctx: AuthContext, money: MoneyFormatter): 
       if (planned <= 0) continue;
       const spent = spentMap.get(budget.parentCategory) ?? 0;
       const percent = spent / planned;
-      const label = PARENT_CATEGORY_LABEL[budget.parentCategory];
+      const label = parentCategoryLabel(ctx.profileKind, budget.parentCategory);
       if (percent > 1) {
         const over = money(spent - planned);
         insights.push({
@@ -142,7 +143,7 @@ export async function computeInsights(ctx: AuthContext, money: MoneyFormatter): 
     if (biggest.spent > 0) {
       insights.push({
         id: "biggest-expense-category",
-        message: `${PARENT_CATEGORY_LABEL[biggest.parentCategory]} segue sendo onde mais sai dinheiro este mês (${money(biggest.spent)}).`,
+        message: `${parentCategoryLabel(ctx.profileKind, biggest.parentCategory)} segue sendo onde mais sai dinheiro este mês (${money(biggest.spent)}).`,
         tone: "info",
         category: "fluxo",
         href: monthlyEntryHref,

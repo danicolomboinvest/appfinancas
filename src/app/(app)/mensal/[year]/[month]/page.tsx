@@ -1,9 +1,6 @@
 import Link from "next/link";
 import { PaidDividendsCard } from "./PaidDividendsCard";
 import { listRecentlyPaidDividends } from "@/lib/repositories/dividend.repo";
-import { detectRecurring } from "@/lib/entries/recurrence";
-import { listEntriesForMonths } from "@/lib/repositories/monthly-entry.repo";
-import { RecurringSuggestions } from "./RecurringSuggestions";
 import { notFound } from "next/navigation";
 import { Receipt } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
@@ -23,7 +20,10 @@ import { getYearlySummary } from "@/lib/consolidation/yearly";
 import { getRecapDismissedMonth } from "@/lib/repositories/user.repo";
 import { getRecapEligibility } from "@/lib/recap/monthly";
 import { YearlyBarChart } from "@/components/charts/YearlyBarChart";
-import { PARENT_CATEGORY_LABEL, colorForCategorySlice } from "@/lib/categories";
+import { PARENT_CATEGORIES, categoryLabel, colorForCategorySlice } from "@/lib/categories";
+import { ehEmpresa } from "@/lib/profiles/empresa";
+import { dadosDaEmpresa } from "@/lib/profiles/empresa-dados";
+import { DreEmpresa } from "./DreEmpresa";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -45,6 +45,10 @@ import { TopCategories } from "./TopCategories";
 import { IncomeSplitCard } from "./IncomeSplitCard";
 import { serverMoney } from "@/lib/money-server";
 import { formatMoney, isCurrencyCode } from "@/lib/money";
+import { estadoDoMes, vozDoTema } from "@/lib/profiles/voice";
+import { montarDadosDoTema } from "./theme-hero-data";
+import { ThemeHero } from "./ThemeHero";
+import { ThemeFooter } from "./ThemeFooter";
 
 const MONTH_LABELS = [
   "Janeiro",
@@ -94,6 +98,8 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
   const initialView = view === "anual" ? "anual" : "mensal";
 
   const ctx = await getRequiredSession();
+  // Os nomes das categorias na cara do perfil: "Moradia" pra pessoa, "Estrutura" pra empresa.
+  const rotulosDeCategoria = Object.fromEntries(PARENT_CATEGORIES.map((k) => [k, categoryLabel(ctx.profileKind, k)]));
   // `serverMoney` entra na leva paralela em vez de ficar sozinho antes dela: sozinho, ele
   // custava uma ida ao banco inteira antes de qualquer outra consulta começar.
   const [
@@ -138,7 +144,7 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
     getRecapDismissedMonth(ctx),
     listImportBatches(ctx),
     getDailyFlow(ctx, year, month),
-    getCategorySpending(ctx, year, month, PARENT_CATEGORY_LABEL),
+    getCategorySpending(ctx, year, month, rotulosDeCategoria),
     // Mês anterior: base das comparações ("gastou X% menos que no mês passado").
     getMonthlySummary(ctx, month === 1 ? year - 1 : year, month === 1 ? 12 : month - 1),
     getContributionLinkState(ctx, year, month),
@@ -190,7 +196,7 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
     ...spentByParent
       .filter((s) => s.spent > 0)
       .map((s) => ({
-        name: PARENT_CATEGORY_LABEL[s.parentCategory],
+        name: rotulosDeCategoria[s.parentCategory],
         value: s.spent,
         color: colorForCategorySlice({ kind: "parent", value: s.parentCategory }),
       })),
@@ -233,20 +239,34 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
     elapsed: isCurrentMonth ? now.getDate() / daysInMonth : 1,
   });
 
-  // O que se repetiu nos três meses anteriores e ainda não está neste (só no mês corrente).
-  const previousMonths = [1, 2, 3].map((back) => {
-    const d = new Date(year, month - 1 - back, 1);
-    return { year: d.getFullYear(), month: d.getMonth() + 1 };
+  // O cartão "Parece que se repete" (recorrência detectada nos meses anteriores) saiu em
+  // set/2026 a pedido da Dani: quem usa o app sobe o extrato, e o cartão só repetia o que o
+  // extrato já traz. O componente RecurringSuggestions ficou no repositório, sem uso.
+
+  // A voz do tema do perfil: o que a tela diz. Os números são os mesmos nos sete.
+  const voz = vozDoTema(ctx.profileTheme, ctx.profileKind);
+  const mesFechado = !isCurrentMonth && !isFutureMonth;
+  const estado = estadoDoMes({ income: summary.totalIncome, expense: summary.totalExpense, investment: summary.totalInvestment });
+  const dadosDoTema = await montarDadosDoTema(ctx, {
+    year, month, now, isCurrentMonth, daysInMonth, mesFechado,
+    summary, previousSummary, monthBudgets, spentByParent, categorySpending,
+    entriesDoMes: entries.map((e) => ({ category: e.category, amount: Number(e.amount), goalId: e.goalId })),
+    money,
   });
-  const recurring = isCurrentMonth
-    ? detectRecurring(
-        (await listEntriesForMonths(ctx, previousMonths)).map((e) => ({ ...e, amount: Number(e.amount) })),
-        entries.map((e) => ({
-          year: e.year, month: e.month, category: e.category, parentCategory: e.parentCategory, customCategoryId: e.customCategoryId,
-          subcategory: e.subcategory, description: e.description, amount: Number(e.amount), entryDate: e.entryDate,
-        })),
+
+  // Empresa: a DRE do mês, calculada das mesmas categorias. Pessoa física não paga a consulta.
+  const empresa = ehEmpresa(ctx.profileKind)
+    ? await dadosDaEmpresa(
+        ctx,
+        {
+          receita: summary.totalIncome,
+          retido: summary.totalInvestment,
+          gastoPorCategoria: spentByParent,
+          gastoPersonalizado: spentByCustom.reduce((s, c) => s + c.spent, 0),
+        },
+        { year, month },
       )
-    : [];
+    : null;
 
   const paidDividends = isCurrentMonth
     ? (await listRecentlyPaidDividends(ctx, 10))
@@ -260,16 +280,26 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
         }))
     : [];
 
+  // No computador a página vira uma grade de cartões (ver Section): os avisos ficam dois por
+  // linha, a leitura do mês ao lado da curva, as duas roscas juntas, o calendário ao lado do
+  // ranking. No celular continua uma coluna. `flex-wrap` em vez de `grid` porque quase tudo
+  // aqui é condicional: um cartão sozinho cresce e ocupa a linha inteira em vez de deixar um
+  // buraco do lado.
+  const LADO_A_LADO = "contents lg:flex lg:flex-wrap lg:items-start lg:gap-5 [&>*]:lg:min-w-0 [&>*]:lg:grow [&>*]:lg:basis-[calc(50%-0.625rem)]";
+
   return (
-    <div className="flex flex-col gap-7">
+    <div className="flex flex-col gap-7 lg:gap-5">
 
-      {paidDividends.length > 0 && <PaidDividendsCard items={paidDividends} />}
+      {/* O bloco próprio do tema (ranking, recado, mural, campeão) abre a tela. */}
+      <ThemeHero dados={dadosDoTema} money={money} mesLabel={MONTH_LABELS[month - 1]} />
 
-      <OnboardingChecklist hasEntry={entryCount > 0} hasBudget={budgetCount > 0} hasAsset={assetCount > 0} />
+      <div className={LADO_A_LADO}>
+        {paidDividends.length > 0 && <PaidDividendsCard items={paidDividends} titulo={voz.titulos.caiuNaConta} sub={voz.titulos.caiuNaContaSub} />}
 
-      {recurring.length > 0 && <RecurringSuggestions candidates={recurring} year={year} month={month} />}
+        <OnboardingChecklist hasEntry={entryCount > 0} hasBudget={budgetCount > 0} hasAsset={assetCount > 0} />
 
-      {isCurrentMonth && recapEligibility.eligible && <MonthlyRecapCard monthKey={recapEligibility.monthKey} />}
+        {isCurrentMonth && recapEligibility.eligible && <MonthlyRecapCard monthKey={recapEligibility.monthKey} />}
+      </div>
 
       <FlowIndicators
         year={year}
@@ -278,16 +308,25 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
         monthly={monthlyBundle}
         annual={annualBundle}
         pacing={pacing}
+        mesFechado={mesFechado}
       />
 
+      {/* Empresa: a DRE logo abaixo do painel. É a conta que a pessoa física não tem. */}
+      {empresa && <DreEmpresa dados={empresa} money={money} periodo={MONTH_LABELS[month - 1].toLowerCase()} />}
+
       {/* A leitura do mês antes do detalhamento: quanto sobrou e o que mudou desde o mês
-          passado. Os números acima dizem "quanto"; este bloco diz "e daí". */}
+          passado. Os números acima dizem "quanto"; este bloco diz "e daí". No computador fica
+          ao lado da curva do mês: um terço de texto, dois terços de gráfico. */}
+      <div className="contents lg:flex lg:flex-wrap lg:gap-5 [&>*]:lg:min-w-0 [&>*]:lg:grow">
+      <div className="contents lg:block lg:basis-[calc(33.333%-0.625rem)]">
       <MonthHighlight
         income={summary.totalIncome}
         expense={summary.totalExpense}
         investment={summary.totalInvestment}
         insights={insights}
+        titulo={voz.titulos.oQueMudou}
       />
+      </div>
 
       {/* O aporte do mês que ainda não virou ativo nenhum. Sem esse aviso, a pessoa lançava o
           aporte aqui, ia na carteira e não via nada mudar — e achava que o app tinha perdido o
@@ -308,20 +347,24 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
       )}
 
       {/* Curva do mês dia a dia — o gráfico que faltava pra enxergar o ritmo, não só o total. */}
-      <MonthFlowCard flow={dailyFlow} monthLabel={MONTH_LABELS[month - 1]} isCurrentMonth={isCurrentMonth} isFutureMonth={isFutureMonth} />
+      <div className="contents lg:block lg:basis-[calc(66.666%-0.625rem)]">
+      <MonthFlowCard flow={dailyFlow} monthLabel={MONTH_LABELS[month - 1]} isCurrentMonth={isCurrentMonth} isFutureMonth={isFutureMonth} voz={voz} />
+      </div>
+      </div>
 
       {/* Duas roscas que respondem perguntas diferentes: a primeira divide a RENDA (quanto do
           que entrou virou gasto, aporte e sobra), a segunda abre os GASTOS por categoria. */}
-      <div className="grid gap-7 lg:grid-cols-2">
+      <div className="grid gap-7 lg:grid-cols-2 lg:gap-5">
         <IncomeSplitCard
           income={summary.totalIncome}
           expense={summary.totalExpense}
           investment={summary.totalInvestment}
           balance={summary.balance}
+          voz={voz}
         />
         {totalSpentByCategory > 0 && (
           <Section
-            title="Para onde foi seu dinheiro este mês"
+            title={voz.titulos.paraOndeFoi}
             action={
               <Link href="/mensal/gastos" className="text-caption font-medium text-accent-strong hover:underline">
                 ver lançamentos →
@@ -334,27 +377,30 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
       </div>
 
       {/* Depois da rosca (PARA ONDE foi) e antes do ranking (QUANTO foi), o QUANDO: é a única
-          das três perguntas que o app tinha como responder e não respondia. */}
+          das três perguntas que o app tinha como responder e não respondia. No computador o
+          calendário e o ranking dividem a linha. */}
+      <div className={LADO_A_LADO}>
       {dailyFlow.points.some((p) => p.expenseOfDay > 0) && (
-        <Section title="Ritmo do mês" hint="Um quadradinho por dia, mais forte onde saiu mais dinheiro.">
-          <MonthHeatmap points={dailyFlow.points} daysInMonth={dailyFlow.daysInMonth} year={year} month={month} />
+        <Section title={voz.titulos.ritmoDoMes} hint={voz.titulos.uiHeatmapDica}>
+          <MonthHeatmap points={dailyFlow.points} daysInMonth={dailyFlow.daysInMonth} year={year} month={month} voz={voz} />
         </Section>
       )}
 
       {/* O ranking completa a rosca: ela mostra a fatia, ele mostra quanto exatamente e o que
           mudou desde o mês passado. */}
-      <TopCategories categories={categorySpending} />
+      <TopCategories categories={categorySpending} tema={ctx.profileTheme} kind={ctx.profileKind} voz={voz} />
+      </div>
 
       {/* O botão "Registrar" (drawer global) já cobre lançamento; aqui embaixo, algo pra olhar
           todo dia em vez de outro formulário repetido: renda/gastos/aportes mês a mês no ano. */}
-      <Section title="Renda, gastos e aportes por mês">
+      <Section title={voz.titulos.anoMesAMes}>
         <YearlyBarChart months={yearlySummary.months} />
       </Section>
 
       <BudgetSection ctx={ctx} year={year} month={month} totalIncome={summary.totalIncome} />
 
       {entries.length === 0 ? (
-        <EmptyState icon={Receipt} message="Nenhum lançamento neste mês ainda. Toque em Registrar (o + no meio da barra de baixo) para lançar o primeiro — digitando, por áudio ou importando o extrato." />
+        <EmptyState icon={Receipt} message={voz.mesVazio} />
       ) : (
         <EntryList
           year={year}
@@ -398,6 +444,8 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
           months: b.months,
         }))}
       />
+
+      <ThemeFooter texto={voz.rodape(estado)} />
     </div>
   );
 }

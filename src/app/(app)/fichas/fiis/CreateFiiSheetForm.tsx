@@ -6,6 +6,7 @@ import { TickerPicker } from "@/components/forms/TickerPicker";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useSuccessToast } from "@/components/ui/useSuccessToast";
+import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { createSheetAction, type SheetFormState } from "../actions";
 
 const initialState: SheetFormState = {};
@@ -18,8 +19,9 @@ const FII_TYPE_OPTIONS = [
 ];
 
 export function CreateFiiSheetForm() {
+  const t = useProfileTheme().voz.titulos;
   const [state, formAction, isPending] = useActionState(createSheetAction, initialState);
-  useSuccessToast(isPending, state.error, "Ficha criada com sucesso.");
+  useSuccessToast(isPending, state.error, t.fichasFichaCriada);
 
   return (
     <Card as="form" action={formAction} className="flex flex-wrap items-end gap-3 p-4">
@@ -28,12 +30,12 @@ export function CreateFiiSheetForm() {
       <TickerPicker
         kinds={["FII"]}
         companyNameField="companyName"
-        label="Qual fundo imobiliário?"
-        placeholder="Nome ou código, ex.: Kinea"
+        label={t.fichasQualFii}
+        placeholder={t.fichasExemploFii}
         required
         className="w-full sm:w-80"
       />
-      <SelectField label="Tipo de FII" id="fiiType" name="fiiType">
+      <SelectField label={t.fichasTipoFii} id="fiiType" name="fiiType">
         {FII_TYPE_OPTIONS.map((option) => (
           <option key={option.value} value={option.value}>
             {option.label}
@@ -41,7 +43,7 @@ export function CreateFiiSheetForm() {
         ))}
       </SelectField>
       <Button type="submit" disabled={isPending} size="sm">
-        {isPending ? "Lendo..." : "Analisar"}
+        {isPending ? t.fichasLendo : t.fichasAnalisar}
       </Button>
     </Card>
   );

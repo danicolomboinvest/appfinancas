@@ -4,6 +4,7 @@ import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { CHART_TOOLTIP_STYLE } from "./chart-theme";
 import { FitText } from "@/components/ui/FitText";
 import { useMoney } from "@/components/money/MoneyProvider";
+import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 
 /**
  * A rosca do app — uma só, usada em gastos por categoria, divisão da renda e carteira.
@@ -59,8 +60,10 @@ export function donutRadii(size: number): { inner: number; outer: number } {
  */
 export type DonutFormat = "dinheiro" | "percent";
 
-/** Junta a cauda em "Outros" — mantém o total honesto sem encher a rosca de lasquinhas. */
-export function groupTail(slices: DonutSlice[], maxSlices: number): DonutSlice[] {
+/** Junta a cauda em "Outros" — mantém o total honesto sem encher a rosca de lasquinhas.
+ * O nome da fatia vem de fora (é a voz do tema); o `id` fica fixo porque é ele que a tela
+ * usa pra saber que essa fatia não abre nada ao clicar. */
+export function groupTail(slices: DonutSlice[], maxSlices: number, outrosLabel: string): DonutSlice[] {
   const sorted = [...slices].filter((s) => s.value > 0).sort((a, b) => b.value - a.value);
   if (sorted.length <= maxSlices) return sorted;
   const head = sorted.slice(0, maxSlices - 1);
@@ -69,7 +72,7 @@ export function groupTail(slices: DonutSlice[], maxSlices: number): DonutSlice[]
     ...head,
     {
       id: "__outros",
-      name: "Outros",
+      name: outrosLabel,
       value: tail.reduce((sum, s) => sum + s.value, 0),
       color: OUTROS_COLOR,
     },
@@ -84,7 +87,7 @@ export function Donut({
   format = "dinheiro",
   onSelect,
   selectedName,
-  emptyMessage = "Sem dados ainda.",
+  emptyMessage,
   size = 180,
 }: {
   slices: DonutSlice[];
@@ -96,19 +99,21 @@ export function Donut({
   format?: DonutFormat;
   onSelect?: (slice: DonutSlice) => void;
   selectedName?: string | null;
+  /** Quando ausente, cai no "Sem dados ainda." do tema. */
   emptyMessage?: string;
   size?: number;
 }) {
   const money = useMoney();
+  const t = useProfileTheme().voz.titulos;
   const valueFormatter =
     format === "percent"
       ? (value: number) => `${value.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`
       : (value: number) => money(value, { round: true });
-  const shown = groupTail(slices, maxSlices);
+  const shown = groupTail(slices, maxSlices, t.grafOutros);
   const total = shown.reduce((sum, s) => sum + s.value, 0);
 
   if (shown.length === 0) {
-    return <div className="flex h-44 items-center justify-center text-sm text-ink-faint">{emptyMessage}</div>;
+    return <div className="flex h-44 items-center justify-center text-sm text-ink-faint">{emptyMessage ?? t.grafSemDados}</div>;
   }
 
   const { inner, outer } = donutRadii(size);

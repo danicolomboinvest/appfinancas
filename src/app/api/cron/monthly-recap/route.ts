@@ -5,7 +5,8 @@ import { monthlyRecapEmail, monthlyNudgeEmail } from "@/lib/email/templates";
 import { decideRecapEmail, MAX_NUDGES } from "@/lib/insights/recap-audience";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import { toCurrencyCode } from "@/lib/money";
-import { PARENT_CATEGORY_LABEL, isParentCategoryKey } from "@/lib/categories";
+import { categoryLabel, isParentCategoryKey } from "@/lib/categories";
+import { getOrCreateActiveProfile } from "@/lib/repositories/profile.repo";
 
 // Dezenas de e-mails em sequência passam do teto padrão de 10s.
 export const maxDuration = 60;
@@ -160,6 +161,9 @@ export async function GET(request: Request) {
     const top = byCategory
       .map((c) => ({ key: c.parentCategory as string, value: Number(c._sum.amount ?? 0) }))
       .sort((a, b) => b.value - a.value)[0];
+    // O nome da maior categoria é o do perfil ativo (numa Empresa, "Estrutura", não "Moradia").
+    // Só vai ao banco quando há categoria pra nomear.
+    const profileKind = top ? (await getOrCreateActiveProfile(user.id)).kind : null;
 
     const { subject, html } = monthlyRecapEmail({
       name: user.name,
@@ -172,7 +176,7 @@ export async function GET(request: Request) {
       expenseDelta: previousExpense > 0 ? expense / previousExpense - 1 : null,
       topCategory:
         top && isParentCategoryKey(top.key)
-          ? { label: PARENT_CATEGORY_LABEL[top.key], value: top.value }
+          ? { label: categoryLabel(profileKind, top.key), value: top.value }
           : null,
       appUrl: `${baseUrl}/mensal/${year}/${month}`,
       preferencesUrl: `${baseUrl}/configuracoes/notificacoes`,

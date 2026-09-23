@@ -1,5 +1,6 @@
 import { Sparkles } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
+import { vozDoTema } from "@/lib/profiles/voice";
 import { computeInsights } from "@/lib/insights";
 import { serverMoney } from "@/lib/money-server";
 import { computeFinancialHealthScore } from "@/lib/health-score";
@@ -11,22 +12,20 @@ import { Section } from "@/components/ui/Section";
 
 export default async function AnalisesInsightsPage() {
   const ctx = await getRequiredSession();
+  const voz = vozDoTema(ctx.profileTheme, ctx.profileKind);
   const money = await serverMoney();
   const [insights, healthScore] = await Promise.all([computeInsights(ctx, money), computeFinancialHealthScore(ctx)]);
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="Análises" subtitle="Sua saúde financeira e o que precisa de atenção agora." />
+      <PageHeader title={voz.titulos.fichasTitulo} subtitle={voz.titulos.fichasSub} />
 
       <HealthScoreCard score={healthScore} />
 
       {insights.length === 0 ? (
-        <EmptyState
-          icon={Sparkles}
-          message="Cadastre orçamento, metas, reserva de emergência e uma estratégia de carteira para começar a receber insights automáticos aqui."
-        />
+        <EmptyState icon={Sparkles} message={voz.titulos.fichasInsightsVazio} />
       ) : (
-        <Section title="O que precisa de atenção">
+        <Section title={voz.titulos.fichasAtencaoTitulo}>
           <InsightList insights={insights} />
         </Section>
       )}

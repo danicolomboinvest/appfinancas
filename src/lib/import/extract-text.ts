@@ -10,6 +10,8 @@
  * estático derrubaria TODA a importação, inclusive CSV/OFX, que nem usam essas libs.
  */
 
+import { normalizeLetterSpacedText } from "./letter-spaced";
+
 export type UploadEncoding = "text" | "xlsx" | "pdf";
 
 /**
@@ -138,7 +140,9 @@ async function pdfToText(buffer: Buffer, password: string | undefined): Promise<
   const parser = new PDFParse({ data: buffer, password });
   try {
     const result = await parser.getText();
-    return result.text ?? "";
+    // Fatura escrita letra por letra ("R $ 2 4 0 , 0 0") volta a ser texto normal aqui, antes de
+    // qualquer leitor olhar pra ela — senão nem o tipo do documento seria reconhecido.
+    return normalizeLetterSpacedText(result.text ?? "");
   } catch (err) {
     // Arquivo trancado não é servidor quebrado. Dizer "manda em Excel" aqui era mandar a pessoa
     // procurar um arquivo que o banco nem oferece — a fatura sai em PDF e só em PDF. O Excel

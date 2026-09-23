@@ -2,13 +2,14 @@ import Link from "next/link";
 import type { AuthContext } from "@/lib/auth/session";
 import { listBudgets, sumExpensesByParentCategory, sumExpensesByCustomCategory } from "@/lib/repositories/budget.repo";
 import { listCustomCategories } from "@/lib/repositories/custom-category.repo";
-import { PARENT_CATEGORIES, PARENT_CATEGORY_LABEL, isParentCategoryKey, colorForCategorySlice } from "@/lib/categories";
+import { PARENT_CATEGORIES, categoryLabel, isParentCategoryKey, colorForCategorySlice } from "@/lib/categories";
 import { buildMonthlyComparison } from "@/lib/planning/budget-comparison";
 import { buildBudgetBullets, elapsedRatioOfMonth } from "@/lib/planning/budget-bullets";
 import { BulletBar } from "@/components/charts/BulletBar";
 import { Section } from "@/components/ui/Section";
 import { formatPercentNumber } from "@/lib/format";
 import { serverMoney } from "@/lib/money-server";
+import { vozDoTema } from "@/lib/profiles/voice";
 
 /**
  * "Orçamento por categoria" no mês: a MESMA barra-bala da página de Orçamento (quem está mais
@@ -35,6 +36,7 @@ export async function BudgetSection({
     listCustomCategories(ctx),
   ]);
 
+  const titulo = vozDoTema(ctx.profileTheme, ctx.profileKind).titulos.orcamentoPorCategoria;
   const customLabels = new Map(customCategories.map((c) => [c.id, c.name]));
   const categoryKeys: string[] = [...PARENT_CATEGORIES, ...customCategories.map((c) => c.id)];
   const comparison = buildMonthlyComparison(
@@ -54,7 +56,7 @@ export async function BudgetSection({
   // Conta nova: sete blocos de "R$ 0,00 de R$ 0,00 planejado" não dizem nada. Um convite diz.
   if (comparison.totalPlanned === 0 && comparison.totalSpent === 0) {
     return (
-      <Section title="Orçamento por categoria">
+      <Section title={titulo}>
         <Link href={`/orcamento/${year}`} className="block rounded-2xl border border-dashed border-border-strong px-4 py-4 text-sm text-ink-muted hover:border-accent hover:text-ink">
           Você ainda não disse quanto quer gastar em cada categoria. <span className="font-medium text-accent-strong">Montar meu orçamento →</span>
         </Link>
@@ -65,7 +67,7 @@ export async function BudgetSection({
   const rows = buildBudgetBullets(comparison.categories, {
     paceRatio: elapsedRatioOfMonth(new Date(), year, month),
     money,
-    labelFor: (key) => (isParentCategoryKey(key) ? PARENT_CATEGORY_LABEL[key] : (customLabels.get(key) ?? "Categoria personalizada")),
+    labelFor: (key) => (isParentCategoryKey(key) ? categoryLabel(ctx.profileKind, key) : (customLabels.get(key) ?? "Categoria personalizada")),
     colorFor: (key) => colorForCategorySlice(isParentCategoryKey(key) ? { kind: "parent", value: key } : { kind: "custom", value: key }),
     labelStyle: "restante",
   });
@@ -76,7 +78,7 @@ export async function BudgetSection({
 
   return (
     <Section
-      title="Orçamento por categoria"
+      title={titulo}
       hint={totalIncome > 0 ? `${formatPercentNumber(committed * 100, 1)} da renda comprometida. O tracinho é onde o mês está.` : "O tracinho é onde o mês está."}
       action={
         <Link href={`/orcamento/${year}`} className="text-sm font-medium text-accent-strong hover:underline">

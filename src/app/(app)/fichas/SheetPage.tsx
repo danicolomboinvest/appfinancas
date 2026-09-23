@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import type { SheetType } from "@prisma/client";
 import { getRequiredSession } from "@/lib/auth/session";
+import { vozDoTema } from "@/lib/profiles/voice";
 import { getOwnSheetWithResponses, listCriteria } from "@/lib/repositories/analysis.repo";
 import { listAssets } from "@/lib/repositories/asset.repo";
 import { isLaudo } from "@/lib/analysis/laudo";
@@ -38,6 +39,7 @@ const FII_BLOCKS_BY_TYPE: Record<string, string[]> = {
  */
 export async function SheetPage({ id, sheetType }: { id: string; sheetType: SheetType }) {
   const ctx = await getRequiredSession();
+  const voz = vozDoTema(ctx.profileTheme, ctx.profileKind);
   const money = await serverMoney();
   const meta = SHEET_TYPE_META[sheetType];
 
@@ -75,7 +77,9 @@ export async function SheetPage({ id, sheetType }: { id: string; sheetType: Shee
 
   return (
     <div className="flex flex-col gap-6">
-      <Breadcrumb items={[{ label: "Análises", href: "/fichas" }, { label: meta.label, href: meta.basePath }, { label: sheet.ticker }]} />
+      <Breadcrumb
+        items={[{ label: voz.titulos.fichasTitulo, href: "/fichas" }, { label: meta.label, href: meta.basePath }, { label: sheet.ticker }]}
+      />
 
       <LaudoView
         sheetId={sheet.id}
@@ -87,16 +91,14 @@ export async function SheetPage({ id, sheetType }: { id: string; sheetType: Shee
 
       <Checklist sheetId={sheet.id} questions={questions} />
 
-      <ParaVoceCard data={paraVoce} ticker={sheet.ticker} money={money} />
+      <ParaVoceCard data={paraVoce} ticker={sheet.ticker} money={money} voz={voz} />
 
       <div className="flex justify-end">
         <DeleteSheetButton id={sheet.id} basePath={meta.basePath} />
       </div>
 
-      <CollapsibleSection label="Minha nota detalhada (avançado)">
-        <p className="mb-3 text-caption text-ink-muted">
-          A ficha completa, com nota de 0 a 10 por critério, pra quem quer registrar a própria análise por escrito.
-        </p>
+      <CollapsibleSection label={voz.titulos.fichasNotaDetalhada}>
+        <p className="mb-3 text-caption text-ink-muted">{voz.titulos.fichasNotaDetalhadaSub}</p>
         <CriteriaForm
           sheetId={sheet.id}
           basePath={meta.basePath}

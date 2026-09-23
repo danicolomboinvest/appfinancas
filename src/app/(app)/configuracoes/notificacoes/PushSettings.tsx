@@ -5,6 +5,7 @@ import { BellRing } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useToast } from "@/components/ui/toast-context";
+import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { removePushSubscriptionAction, savePushSubscriptionAction } from "./push-actions";
 
 type Status = "checking" | "unsupported" | "ios-not-installed" | "blocked" | "off" | "on";
@@ -22,6 +23,7 @@ function urlBase64ToUint8Array(base64: string): Uint8Array {
  */
 export function PushSettings({ publicKey, devices }: { publicKey: string | null; devices: number }) {
   const { showToast } = useToast();
+  const { titulos: t } = useProfileTheme().voz;
   const [status, setStatus] = useState<Status>("checking");
   const [busy, setBusy] = useState(false);
 
@@ -62,10 +64,10 @@ export function PushSettings({ publicKey, devices }: { publicKey: string | null;
       const res = await savePushSubscriptionAction({ endpoint: sub.endpoint, keys: { p256dh: json.keys?.p256dh ?? "", auth: json.keys?.auth ?? "" } }, navigator.userAgent);
       if (!res.ok) throw new Error("save failed");
       setStatus("on");
-      showToast("Avisos ligados neste aparelho.");
+      showToast(t.cfgPushLigadoToast);
     } catch (err) {
       console.error(err);
-      showToast("Não consegui ligar os avisos aqui. Tente de novo.");
+      showToast(t.cfgPushFalhouToast);
     } finally {
       setBusy(false);
     }
@@ -90,30 +92,25 @@ export function PushSettings({ publicKey, devices }: { publicKey: string | null;
     <Card className="flex flex-col gap-3 p-5">
       <div className="flex items-center gap-2">
         <BellRing size={18} className="text-accent-strong" />
-        <p className="text-sm font-semibold text-ink">Avisos no celular</p>
+        <p className="text-sm font-semibold text-ink">{t.cfgPushTitulo}</p>
       </div>
       <p className="text-xs leading-relaxed text-ink-muted">
-        Uma mensagem no celular, como as de um app: quando uma categoria está perto de estourar e ainda falta metade do mês,
-        ou uma meta ficou pra trás. Sem e-mail. {devices > 0 && `Ligado em ${devices} aparelho${devices === 1 ? "" : "s"}.`}
+        {t.cfgPushDica} {devices > 0 && t.cfgPushLigadoEm(devices)}
       </p>
-      {status === "checking" && <p className="text-xs text-ink-faint">Verificando este aparelho…</p>}
-      {status === "ios-not-installed" && (
-        <p className="rounded-lg bg-surface-2 px-3 py-2 text-xs text-ink">
-          No iPhone, os avisos só funcionam com o app instalado na tela de início. Toque em Compartilhar › Adicionar à Tela de Início, abra por lá e volte aqui.
-        </p>
-      )}
-      {status === "unsupported" && <p className="text-xs text-ink-faint">Este navegador não recebe notificações. No celular, instale o app na tela de início.</p>}
-      {status === "blocked" && <p className="text-xs text-danger">Você bloqueou as notificações deste site. Libere nas configurações do navegador pra ligar de novo.</p>}
+      {status === "checking" && <p className="text-xs text-ink-faint">{t.cfgPushVerificando}</p>}
+      {status === "ios-not-installed" && <p className="rounded-lg bg-surface-2 px-3 py-2 text-xs text-ink">{t.cfgPushIos}</p>}
+      {status === "unsupported" && <p className="text-xs text-ink-faint">{t.cfgPushNaoSuportado}</p>}
+      {status === "blocked" && <p className="text-xs text-danger">{t.cfgPushBloqueado}</p>}
       {status === "off" && (
         <Button type="button" size="sm" onClick={enable} disabled={busy} className="w-fit">
-          {busy ? "Ligando…" : "Ligar avisos neste aparelho"}
+          {busy ? t.cfgPushLigando : t.cfgPushLigar}
         </Button>
       )}
       {status === "on" && (
         <div className="flex items-center gap-3">
-          <span className="rounded-full bg-success-soft px-2.5 py-1 text-xs font-semibold text-success">Ligado aqui</span>
+          <span className="rounded-full bg-success-soft px-2.5 py-1 text-xs font-semibold text-success">{t.cfgPushLigadoAqui}</span>
           <button type="button" onClick={disable} disabled={busy} className="text-xs text-ink-muted underline-offset-2 hover:underline">
-            Desligar neste aparelho
+            {t.cfgPushDesligar}
           </button>
         </div>
       )}

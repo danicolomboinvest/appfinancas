@@ -33,7 +33,7 @@ export function PillTabs({ tabs, fit = false }: { tabs: PillTab[]; fit?: boolean
               // e estourava em aparelhos de 320-360px.
               className={`whitespace-nowrap rounded-full py-2 text-sm font-medium transition-all duration-300 ${
                 fit ? "min-w-0 flex-1 truncate px-2 text-center sm:px-4" : "px-4"
-              } ${isActive ? "bg-ink text-canvas shadow-premium-sm" : "text-ink-muted hover:text-ink"}`}
+              } ${isActive ? "bg-pill text-on-pill shadow-premium-sm" : "text-ink-muted hover:text-ink"}`}
             >
               {tab.label}
               <NavPending />

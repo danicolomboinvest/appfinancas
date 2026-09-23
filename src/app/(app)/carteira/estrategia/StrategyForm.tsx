@@ -1,11 +1,13 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useMemo, useState } from "react";
 import { riskProfileFromAnswers, type RiskProfileKey, type GoalHorizon } from "@/lib/portfolio/risk-profile";
 import type { StrategyAssetClass } from "@prisma/client";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useSuccessToast } from "@/components/ui/useSuccessToast";
+import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
+import type { Titulos } from "@/lib/profiles/voice";
 import { DonutAllocationChart } from "@/components/charts/DonutAllocationChart";
 import { STRATEGY_ASSET_CLASSES, STRATEGY_ASSET_CLASS_LABEL } from "@/lib/portfolio/strategy";
 import { savePortfolioStrategyAction, type PortfolioStrategyState } from "./actions";
@@ -13,97 +15,60 @@ import { formatPercentNumber } from "@/lib/format";
 
 const initialState: PortfolioStrategyState = {};
 
-type Preset = { label: string; description: string; values: Record<StrategyAssetClass, number> };
+type Preset = { key: RiskProfileKey; label: string; description: string; values: Record<StrategyAssetClass, number> };
 
-const PRESETS: Preset[] = [
-  {
-    label: "Conservador",
-    description: "Prioriza previsibilidade, a maior parte em renda fixa.",
-    values: {
-      RENDA_FIXA_POS_FIXADA: 50,
-      RENDA_FIXA_IPCA: 30,
-      PREFIXADO: 10,
-      ACOES_BRASIL: 5,
-      FIIS: 5,
-      EXTERIOR: 0,
-      OUTROS: 0,
-    },
+/** Os percentuais de cada perfil pronto. O nome e a descrição vêm da voz do tema. */
+const PRESET_VALUES: Record<RiskProfileKey, Record<StrategyAssetClass, number>> = {
+  conservador: {
+    RENDA_FIXA_POS_FIXADA: 50,
+    RENDA_FIXA_IPCA: 30,
+    PREFIXADO: 10,
+    ACOES_BRASIL: 5,
+    FIIS: 5,
+    EXTERIOR: 0,
+    OUTROS: 0,
   },
-  {
-    label: "Moderado",
-    description: "Equilibra renda fixa e renda variável.",
-    values: {
-      RENDA_FIXA_POS_FIXADA: 25,
-      RENDA_FIXA_IPCA: 20,
-      PREFIXADO: 10,
-      ACOES_BRASIL: 20,
-      FIIS: 15,
-      EXTERIOR: 10,
-      OUTROS: 0,
-    },
+  moderado: {
+    RENDA_FIXA_POS_FIXADA: 25,
+    RENDA_FIXA_IPCA: 20,
+    PREFIXADO: 10,
+    ACOES_BRASIL: 20,
+    FIIS: 15,
+    EXTERIOR: 10,
+    OUTROS: 0,
   },
-  {
-    label: "Arrojado",
-    description: "Prioriza crescimento de longo prazo, a maior parte em renda variável.",
-    values: {
-      RENDA_FIXA_POS_FIXADA: 10,
-      RENDA_FIXA_IPCA: 5,
-      PREFIXADO: 0,
-      ACOES_BRASIL: 40,
-      FIIS: 20,
-      EXTERIOR: 20,
-      OUTROS: 5,
-    },
+  arrojado: {
+    RENDA_FIXA_POS_FIXADA: 10,
+    RENDA_FIXA_IPCA: 5,
+    PREFIXADO: 0,
+    ACOES_BRASIL: 40,
+    FIIS: 20,
+    EXTERIOR: 20,
+    OUTROS: 5,
   },
-];
+};
+const PRESET_ORDEM: RiskProfileKey[] = ["conservador", "moderado", "arrojado"];
+
+function montarPresets(t: Titulos): Record<RiskProfileKey, Preset> {
+  const entradas = PRESET_ORDEM.map((key) => [key, { key, label: t.formEstPerfis[key].nome, description: t.formEstPerfis[key].descricao, values: PRESET_VALUES[key] }]);
+  return Object.fromEntries(entradas) as Record<RiskProfileKey, Preset>;
+}
+
+type Pergunta = { key: string; question: string; options: { label: string; points: number }[] };
 
 /**
  * Três perguntas de gente pra chegar num perfil. Quem não sabe o que é "renda fixa
  * pós-fixada" sabe quando vai precisar do dinheiro e quanto aguenta ver cair.
+ * Os pontos (0, 1, 2) são fixos; as palavras vêm da voz do tema.
  */
-const PERGUNTA_PRAZO = {
-  key: "prazo",
-  question: "Quando você vai precisar desse dinheiro?",
-  options: [
-    { label: "Em menos de 2 anos", points: 0 },
-    { label: "Entre 2 e 5 anos", points: 1 },
-    { label: "Daqui a mais de 5 anos", points: 2 },
-  ],
-};
-
-const QUIZ: { key: string; question: string; options: { label: string; points: number }[] }[] = [
-  PERGUNTA_PRAZO,
-  {
-    key: "queda",
-    question: "Se a carteira caísse 15% num mês, você…",
-    options: [
-      { label: "Venderia tudo, não dormiria", points: 0 },
-      { label: "Ficaria tensa, mas seguraria", points: 1 },
-      { label: "Aproveitaria pra comprar mais", points: 2 },
-    ],
-  },
-  {
-    key: "reserva",
-    question: "Sua reserva de emergência já está completa?",
-    options: [
-      { label: "Ainda não", points: 0 },
-      { label: "Quase lá", points: 1 },
-      { label: "Sim", points: 2 },
-    ],
-  },
-];
-
-const PRAZO_LABEL: Record<0 | 1 | 2, string> = {
-  0: "menos de 2 anos",
-  1: "2 a 5 anos",
-  2: "mais de 5 anos",
-};
-
-const PRESET_POR_PERFIL: Record<RiskProfileKey, Preset> = {
-  conservador: PRESETS[0],
-  moderado: PRESETS[1],
-  arrojado: PRESETS[2],
-};
+function montarQuiz(t: Titulos): Pergunta[] {
+  const opcoes = (labels: [string, string, string]) => labels.map((label, points) => ({ label, points }));
+  return [
+    { key: "prazo", question: t.formEstPrazoPergunta, options: opcoes(t.formEstPrazoOpcoes) },
+    { key: "queda", question: t.formEstQuedaPergunta, options: opcoes(t.formEstQuedaOpcoes) },
+    { key: "reserva", question: t.formEstReservaPergunta, options: opcoes(t.formEstReservaOpcoes) },
+  ];
+}
 
 export function StrategyForm({
   defaults,
@@ -113,8 +78,11 @@ export function StrategyForm({
   /** Prazo calculado das metas da pessoa; null quando ela não tem meta com data. */
   goalHorizon: GoalHorizon | null;
 }) {
+  const t = useProfileTheme().voz.titulos;
+  const presets = useMemo(() => montarPresets(t), [t]);
+  const quiz = useMemo(() => montarQuiz(t), [t]);
   const [state, formAction, isPending] = useActionState(savePortfolioStrategyAction, initialState);
-  useSuccessToast(isPending, state.error, "Estratégia salva com sucesso.");
+  useSuccessToast(isPending, state.error, t.formEstSalva);
   const [values, setValues] = useState<Record<StrategyAssetClass, number>>(defaults);
   const hasStrategy = STRATEGY_ASSET_CLASSES.some((k) => (defaults[k] || 0) > 0);
   const [quizOpen, setQuizOpen] = useState(!hasStrategy);
@@ -123,8 +91,8 @@ export function StrategyForm({
   // duas vezes — e aceitar uma resposta que pode contradizer as metas dela.
   const [answers, setAnswers] = useState<Record<string, number>>(() => (goalHorizon ? { prazo: goalHorizon.prazo } : ({} as Record<string, number>)));
   const [editarPrazo, setEditarPrazo] = useState(false);
-  const perguntas = goalHorizon && !editarPrazo ? QUIZ.filter((q) => q.key !== "prazo") : QUIZ;
-  const answered = QUIZ.every((q) => answers[q.key] !== undefined);
+  const perguntas = goalHorizon && !editarPrazo ? quiz.filter((q) => q.key !== "prazo") : quiz;
+  const answered = quiz.every((q) => answers[q.key] !== undefined);
   const resultado = answered
     ? riskProfileFromAnswers({
         prazo: answers.prazo as 0 | 1 | 2,
@@ -132,7 +100,7 @@ export function StrategyForm({
         reserva: answers.reserva as 0 | 1 | 2,
       })
     : null;
-  const suggested = resultado ? PRESET_POR_PERFIL[resultado.profile] : null;
+  const suggested = resultado ? presets[resultado.profile] : null;
 
   const sum = STRATEGY_ASSET_CLASSES.reduce((acc, key) => acc + (values[key] || 0), 0);
   const sumOk = Math.abs(sum - 100) < 0.01;
@@ -150,19 +118,19 @@ export function StrategyForm({
 
       <div className="flex flex-col gap-3 rounded-xl border border-accent/30 bg-accent-soft/30 p-4">
         <button type="button" onClick={() => setQuizOpen((v) => !v)} className="flex items-center justify-between text-left">
-          <span className="text-sm font-semibold text-ink">Não sabe por onde começar? Três perguntas.</span>
-          <span className="text-xs text-ink-muted">{quizOpen ? "fechar" : "abrir"}</span>
+          <span className="text-sm font-semibold text-ink">{t.formEstQuizTitulo}</span>
+          <span className="text-xs text-ink-muted">{quizOpen ? t.formEstFechar : t.formEstAbrir}</span>
         </button>
         {quizOpen && (
           <div className="flex flex-col gap-3">
             {goalHorizon && !editarPrazo && (
               <div className="flex flex-col gap-1 rounded-lg bg-surface px-3 py-2.5">
                 <p className="text-sm text-ink">
-                  Pelas suas metas, você vai precisar do dinheiro em <b>{PRAZO_LABEL[goalHorizon.prazo]}</b>.
+                  {t.formEstPelasMetasAntes} <b>{t.formEstPrazoNomes[goalHorizon.prazo]}</b>{t.formEstPelasMetasDepois}
                 </p>
                 <p className="text-caption text-ink-faint">{goalHorizon.summary}</p>
                 <button type="button" onClick={() => setEditarPrazo(true)} className="w-fit text-caption font-medium text-accent-strong hover:underline">
-                  Não é isso, quero responder
+                  {t.formEstNaoEIsso}
                 </button>
               </div>
             )}
@@ -191,11 +159,11 @@ export function StrategyForm({
             {suggested && (
               <div className="flex flex-col gap-2 rounded-lg bg-surface px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-sm text-ink">
-                  Pelas respostas, seu perfil é <b>{suggested.label}</b>. {suggested.description}
+                  {t.formEstPerfilAntes} <b>{suggested.label}</b>. {suggested.description}
                   {resultado && <span className="mt-1 block text-caption text-ink-muted">{resultado.reason}</span>}
                 </p>
                 <Button type="button" size="sm" onClick={() => { setValues(suggested.values); setQuizOpen(false); }}>
-                  Usar esse perfil
+                  {t.formEstUsarPerfil}
                 </Button>
               </div>
             )}
@@ -204,19 +172,22 @@ export function StrategyForm({
       </div>
 
       <div className="flex flex-col gap-2">
-        <span className="text-sm font-medium text-ink">Ou comece de um perfil pronto (você pode ajustar depois)</span>
+        <span className="text-sm font-medium text-ink">{t.formEstPronto}</span>
         <div className="flex flex-wrap gap-2">
-          {PRESETS.map((preset) => (
-            <button
-              key={preset.label}
-              type="button"
-              title={preset.description}
-              onClick={() => setValues(preset.values)}
-              className="rounded-full border border-border-strong bg-surface-2 px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:border-accent hover:bg-surface-hover"
-            >
-              {preset.label}
-            </button>
-          ))}
+          {PRESET_ORDEM.map((key) => {
+            const preset = presets[key];
+            return (
+              <button
+                key={key}
+                type="button"
+                title={preset.description}
+                onClick={() => setValues(preset.values)}
+                className="rounded-full border border-border-strong bg-surface-2 px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:border-accent hover:bg-surface-hover"
+              >
+                {preset.label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -266,7 +237,7 @@ export function StrategyForm({
         </div>
 
         <div className="flex flex-col items-center justify-center rounded-xl border border-border bg-surface-2/50 p-4">
-          <DonutAllocationChart title="Como sua carteira ficaria" data={liveData} />
+          <DonutAllocationChart title={t.formEstComoFicaria} data={liveData} />
         </div>
       </div>
 
@@ -274,10 +245,10 @@ export function StrategyForm({
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <span className={`text-sm font-semibold tabular-nums ${sumOk ? "text-success" : "text-danger"}`}>
-            Soma: {formatPercentNumber(sum, 1)} {sumOk ? "✓ fecha em 100%" : "— precisa somar 100%"}
+            {t.formEstSoma(formatPercentNumber(sum, 1))} {sumOk ? t.formEstFecha : t.formEstNaoFecha}
           </span>
           <Button type="submit" disabled={isPending || !sumOk}>
-            {isPending ? "Salvando..." : "Salvar estratégia"}
+            {isPending ? t.formSalvando : t.formEstSalvar}
           </Button>
         </div>
         <div className="h-2 w-full overflow-hidden rounded-full bg-surface-2">

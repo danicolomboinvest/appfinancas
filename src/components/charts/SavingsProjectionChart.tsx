@@ -3,6 +3,7 @@
 import { Area, AreaChart, ReferenceDot, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { CHART_COLORS, CHART_TOOLTIP_STYLE } from "./chart-theme";
 import { useMoney } from "@/components/money/MoneyProvider";
+import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 
 
 /**
@@ -33,6 +34,7 @@ export function SavingsProjectionChart({
   completionLabel?: string | null;
 }) {
   const money = useMoney();
+  const t = useProfileTheme().voz.titulos;
   const missing = Math.max(targetAmount - currentAmount, 0);
   const progress = targetAmount > 0 ? Math.min(currentAmount / targetAmount, 1) : 0;
   const first = projection[0];
@@ -57,13 +59,13 @@ export function SavingsProjectionChart({
             stroke={CHART_COLORS.axis}
             tickLine={false}
             axisLine={false}
-            tickFormatter={(month) => (month === 0 ? "hoje" : `${month}m`)}
+            tickFormatter={(month) => (month === 0 ? t.grafHojeMinusculo : `${month}m`)}
           />
           <YAxis hide domain={[0, maxBalance * 1.12]} />
           <Tooltip
             {...CHART_TOOLTIP_STYLE}
-            labelFormatter={(month) => (month === 0 ? "Hoje" : `Daqui a ${month} ${month === 1 ? "mês" : "meses"}`)}
-            formatter={(value) => [money(Number(value), { round: true }), "Reserva"]}
+            labelFormatter={(month) => (month === 0 ? t.grafHoje : t.grafDaquiA(Number(month)))}
+            formatter={(value) => [money(Number(value), { round: true }), t.grafReserva]}
             cursor={{ stroke: CHART_COLORS.grid }}
           />
           <ReferenceLine
@@ -71,7 +73,7 @@ export function SavingsProjectionChart({
             stroke={CHART_COLORS.success}
             strokeDasharray="4 4"
             label={{
-              value: `meta ${money(targetAmount, { round: true })}`,
+              value: t.grafMetaLinha(money(targetAmount, { round: true })),
               position: "insideTopRight",
               fill: CHART_COLORS.success,
               fontSize: 11,
@@ -98,19 +100,19 @@ export function SavingsProjectionChart({
       <div className="flex flex-wrap items-center gap-2">
         <span className="inline-flex items-center gap-1.5 rounded-full bg-accent-soft px-2.5 py-1 text-caption font-medium text-accent-strong">
           <span className="size-1.5 rounded-full bg-accent" />
-          Hoje: {money(currentAmount, { round: true })}
+          {t.grafHojeValor(money(currentAmount, { round: true }))}
         </span>
         <span className="rounded-full bg-success-soft px-2.5 py-1 text-caption font-medium text-success">
-          {Math.round(progress * 100)}% pronta
+          {t.grafPronta(Math.round(progress * 100))}
         </span>
         {missing > 0 && (
           <span className="rounded-full bg-surface-2 px-2.5 py-1 text-caption font-medium text-ink">
-            Falta {money(missing, { round: true })}
+            {t.grafFalta(money(missing, { round: true }))}
           </span>
         )}
         {completionLabel && (
           <span className="rounded-full bg-surface-2 px-2.5 py-1 text-caption font-medium text-ink">
-            Completa em {completionLabel}
+            {t.grafCompletaEm(completionLabel)}
           </span>
         )}
       </div>

@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db/prisma";
 import type { AuthContext } from "@/lib/auth/session";
-import { DEFAULT_PROFILE_COLOR, isProfileColorKey } from "@/lib/profiles/palette";
+import { DEFAULT_PROFILE_THEME, isProfileThemeKey } from "@/lib/profiles/themes";
 import type { ProfileKind } from "@prisma/client";
 
 /**
@@ -14,6 +14,16 @@ import type { ProfileKind } from "@prisma/client";
  */
 
 export const PROFILE_KINDS: ProfileKind[] = ["PESSOAL", "EMPRESA", "CASAL", "CASA", "PROJETO", "OUTRO"];
+
+/**
+ * Os tipos que a tela oferece. São três, por decisão da Dani: mais que isso vira uma lista
+ * que ninguém lê, e Casa/Projeto na prática eram "Outro" com outro nome.
+ *
+ * A lista de CIMA continua com os seis porque o banco ainda pode ter perfis dos outros tipos
+ * (o enum do Postgres segue inteiro — derrubar valor de enum em produção é risco à toa). Quem
+ * tiver um perfil "Casa" continua vendo "Casa" escrito nele; só não dá mais pra escolher.
+ */
+export const PROFILE_KINDS_ESCOLHIVEIS: ProfileKind[] = ["PESSOAL", "EMPRESA", "CASAL"];
 
 export const PROFILE_KIND_LABEL: Record<ProfileKind, string> = {
   PESSOAL: "Pessoal",
@@ -39,12 +49,12 @@ export type ProfileRow = {
   name: string;
   kind: ProfileKind;
   icon: string;
-  color: string;
+  theme: string;
   position: number;
   isDefault: boolean;
 };
 
-const CAMPOS = { id: true, name: true, kind: true, icon: true, color: true, position: true, isDefault: true } as const;
+const CAMPOS = { id: true, name: true, kind: true, icon: true, theme: true, position: true, isDefault: true } as const;
 
 export async function listProfiles(userId: string): Promise<ProfileRow[]> {
   return prisma.financialProfile.findMany({
@@ -76,12 +86,12 @@ export async function getOrCreateActiveProfile(userId: string): Promise<ProfileR
   }
 
   return prisma.financialProfile.create({
-    data: { userId, name: "Pessoal", kind: "PESSOAL", icon: ICONE_PADRAO.PESSOAL, color: DEFAULT_PROFILE_COLOR, isDefault: true },
+    data: { userId, name: "Pessoal", kind: "PESSOAL", icon: ICONE_PADRAO.PESSOAL, theme: DEFAULT_PROFILE_THEME, isDefault: true },
     select: CAMPOS,
   });
 }
 
-export type NovoPerfil = { name: string; kind: ProfileKind; icon?: string; color?: string };
+export type NovoPerfil = { name: string; kind: ProfileKind; icon?: string; theme?: string };
 
 export async function createProfile(userId: string, input: NovoPerfil): Promise<ProfileRow> {
   const nome = input.name.trim().slice(0, 40);
@@ -97,7 +107,9 @@ export async function createProfile(userId: string, input: NovoPerfil): Promise<
       name: nome,
       kind: input.kind,
       icon: input.icon?.trim() || ICONE_PADRAO[input.kind],
-      color: isProfileColorKey(input.color) ? input.color : DEFAULT_PROFILE_COLOR,
+      // Chave desconhecida cai no Padrão em vez de entrar crua no banco: o que chega aqui
+      // veio de um formulário, e formulário é o lado de fora.
+      theme: isProfileThemeKey(input.theme) ? input.theme : DEFAULT_PROFILE_THEME,
       position: (ultimo?.position ?? -1) + 1,
     },
     select: CAMPOS,
@@ -114,7 +126,7 @@ export async function updateProfile(ctx: AuthContext, id: string, input: Partial
       ...(input.name !== undefined ? { name: input.name.trim().slice(0, 40) || "Sem nome" } : {}),
       ...(input.kind !== undefined ? { kind: input.kind } : {}),
       ...(input.icon !== undefined ? { icon: input.icon.trim() || "wallet" } : {}),
-      ...(isProfileColorKey(input.color) ? { color: input.color } : {}),
+      ...(isProfileThemeKey(input.theme) ? { theme: input.theme } : {}),
     },
   });
 }

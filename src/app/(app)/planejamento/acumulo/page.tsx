@@ -1,5 +1,8 @@
 import { TrendingDown, TrendingUp } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
+import { redirect } from "next/navigation";
+import { ehEmpresa } from "@/lib/profiles/empresa";
+import { vozDoTema } from "@/lib/profiles/voice";
 import { hasPremiumAccess } from "@/lib/repositories/allowedEmail.repo";
 import { PaywallCard } from "@/components/shell/PaywallCard";
 import { getPlanningParams } from "@/lib/repositories/planning-params.repo";
@@ -44,13 +47,16 @@ const projectionColumns = (money: MoneyFormatter): ResponsiveColumn<ProjectionYe
 export default async function IndependenciaFinanceiraPage() {
   const money = await serverMoney();
   const ctx = await getRequiredSession();
+  // Empresa não se aposenta: a rota some do menu e, se alguém chegar por link, cai nas metas.
+  if (ehEmpresa(ctx.profileKind)) redirect("/planejamento/metas");
+  const voz = vozDoTema(ctx.profileTheme, ctx.profileKind);
 
   // Aposentadoria é conteúdo do curso (construir patrimônio) — diferente de Metas/Reserva,
   // que ficam de graça mesmo dentro do mesmo grupo "Planejamento Financeiro" no menu.
   if (!(await hasPremiumAccess(ctx.userId))) {
     return (
       <div className="flex flex-col gap-6">
-        <PageHeader title="Aposentadoria" subtitle="Da fase de acúmulo até viver de renda: acompanhe a jornada inteira em um só lugar." />
+        <PageHeader title={voz.titulos.aposentadoria} subtitle={voz.titulos.aposentadoriaSub} />
         <PaywallCard feature="Aposentadoria" />
       </div>
     );
@@ -79,8 +85,8 @@ export default async function IndependenciaFinanceiraPage() {
     return (
       <div className="flex flex-col gap-6">
         <PageHeader
-          title="Aposentadoria"
-          subtitle="Vamos montar seu plano em alguns passos rápidos."
+          title={voz.titulos.aposentadoria}
+          subtitle={voz.titulos.aposentadoriaWizardSub}
         />
         <PlanningWizard />
       </div>
@@ -90,11 +96,11 @@ export default async function IndependenciaFinanceiraPage() {
   return (
     <div className="flex flex-col gap-8">
       <PageHeader
-        title="Aposentadoria"
-        subtitle="Da fase de acúmulo até viver de renda: acompanhe a jornada inteira em um só lugar."
+        title={voz.titulos.aposentadoria}
+        subtitle={voz.titulos.aposentadoriaSub}
       />
 
-      <CollapsibleSection label="Editar meus dados" defaultOpen={false}>
+      <CollapsibleSection label={voz.titulos.apEditar} defaultOpen={false}>
         <PlanningParamsForm defaults={defaults} />
       </CollapsibleSection>
 
@@ -137,12 +143,12 @@ export default async function IndependenciaFinanceiraPage() {
                 <section id="acumulo" className="flex flex-col gap-6">
                   <div className="flex flex-col gap-1.5">
                     <p className="text-sm text-ink-muted">
-                      Se nada mudar, aos {params.retirementAge} anos você tem
+                      {voz.titulos.apSeNadaMudar(params.retirementAge)}
                     </p>
-                    <p className="text-[2.25rem] font-bold leading-none tracking-tight text-accent sm:text-5xl">
+                    <p className="text-display font-bold tracking-tight text-accent">
                       {money(accumulation.finalValueReal, { round: true })}
                     </p>
-                    <p className="text-sm text-ink-muted">em dinheiro de hoje</p>
+                    <p className="text-sm text-ink-muted">{voz.titulos.apHoje}</p>
                   </div>
 
                   {/* O veredito ganhou o id da antiga seção "Renda na aposentadoria": os links
@@ -159,22 +165,22 @@ export default async function IndependenciaFinanceiraPage() {
                         <TrendingDown size={18} className="text-danger" strokeWidth={1.75} />
                       )}
                       <p className={`text-sm font-semibold ${isSurplus ? "text-success" : "text-danger"}`}>
-                        {isSurplus ? "Dá pé" : "Ainda não dá pé"}
+                        {isSurplus ? voz.titulos.apDaPe : voz.titulos.apNaoDaPe}
                       </p>
                     </div>
                     <p className="text-2xl font-semibold tracking-tight text-ink">
                       {money(usufruct.totalPassiveIncome, { round: true })} por mês
                     </p>
                     <p className="text-sm leading-relaxed text-ink-muted">
-                      É o que esse patrimônio paga sem consumir o principal. Você quer gastar{" "}
+                      {voz.titulos.apVereditoIntro}{" "}
                       <span className="font-semibold text-ink">
                         {money(Number(params.desiredPassiveIncome), { round: true })}
                       </span>{" "}
-                      {isSurplus ? "— sobram " : "— faltam "}
+                      {isSurplus ? `${voz.titulos.apSobram} ` : `${voz.titulos.apFaltam} `}
                       <span className={`font-semibold ${isSurplus ? "text-success" : "text-danger"}`}>
                         {money(Math.abs(usufruct.surplusOrDeficit), { round: true })}
                       </span>{" "}
-                      todo mês.
+                      {voz.titulos.apTodoMes}
                       {Number(params.otherPassiveIncome) > 0 && (
                         <>
                           {" "}
@@ -189,21 +195,21 @@ export default async function IndependenciaFinanceiraPage() {
                       bolso com os juros NOMINAIS ao lado de um valor final REAL não fecha:
                       são cenários diferentes (ver o comentário em computeAccumulation). */}
                   <Section
-                    title="De onde vem esse dinheiro"
-                    hint="Em dinheiro de hoje, a mesma moeda do número lá em cima."
+                    title={voz.titulos.apDeOndeVem}
+                    hint={voz.titulos.apDeOndeVemHint}
                   >
                     <CompositionBar
                       slices={[
                         {
                           key: "bolso",
-                          label: `Você põe do bolso em ${accumulation.years} anos`,
+                          label: voz.titulos.apBolso(accumulation.years),
                           value: accumulation.totalInvested,
                           formatted: money(accumulation.totalInvested, { round: true }),
                           color: "var(--color-accent)",
                         },
                         {
                           key: "juros",
-                          label: "Os juros põem",
+                          label: voz.titulos.apJuros,
                           value: accumulation.totalReturnReal,
                           formatted: money(accumulation.totalReturnReal, { round: true }),
                           color: "var(--color-success)",
@@ -211,15 +217,13 @@ export default async function IndependenciaFinanceiraPage() {
                       ]}
                       footnote={
                         accumulation.totalInvested > 0 && accumulation.totalReturnReal > 0
-                          ? `Para cada ${money(1, { round: true })} que sai do seu bolso, os juros colocam mais ${money(
-                              accumulation.totalReturnReal / accumulation.totalInvested,
-                            )}.`
+                          ? voz.titulos.apJurosNota(money(1, { round: true }), money(accumulation.totalReturnReal / accumulation.totalInvested))
                           : undefined
                       }
                     />
                   </Section>
 
-                  <CollapsibleSection label="Ver as premissas">
+                  <CollapsibleSection label={voz.titulos.apPremissas}>
                     <div className="flex flex-col gap-4">
                       <StatRows
                         items={[
@@ -253,10 +257,9 @@ export default async function IndependenciaFinanceiraPage() {
                 </section>
 
                 <section id="projecao" className="flex flex-col gap-3">
-                  <h2 className="text-h2 font-semibold tracking-tight text-ink">Projeção patrimonial</h2>
+                  <h2 className="text-h2 font-semibold tracking-tight text-ink">{voz.titulos.apProjecao}</h2>
                   <p className="-mt-1 text-sm text-ink-muted">
-                    Fase de acúmulo até os {params.retirementAge} anos
-                    {params.lifeExpectancyAge ? `, seguida da fase de usufruto até os ${params.lifeExpectancyAge} anos` : ""}.
+                    {voz.titulos.apProjecaoSub(params.retirementAge, params.lifeExpectancyAge ?? null)}
                   </p>
 
                   {years.length === 0 ? (
@@ -266,16 +269,16 @@ export default async function IndependenciaFinanceiraPage() {
                       <Card className="p-5">
                         <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-muted">
                           <span className="flex items-center gap-1.5">
-                            <Badge tone="accent">Acúmulo</Badge> você ainda está aportando, o patrimônio só cresce.
+                            <Badge tone="accent">{voz.titulos.apAcumulo}</Badge> {voz.titulos.apAcumuloDesc}
                           </span>
                           <span className="flex items-center gap-1.5">
-                            <Badge tone="info">Usufruto</Badge> os aportes param e os saques para viver começam.
+                            <Badge tone="info">{voz.titulos.apUsufruto}</Badge> {voz.titulos.apUsufrutoDesc}
                           </span>
                         </div>
-                        <PatrimonyProjectionChart years={years} />
+                        <PatrimonyProjectionChart years={years} nomes={{ nominal: voz.titulos.apNominal, real: voz.titulos.apReal }} />
                       </Card>
 
-                      <CollapsibleSection label="Ver dados detalhados ano a ano">
+                      <CollapsibleSection label={voz.titulos.apAnoAAno}>
                         <ResponsiveTable
                           columns={projectionColumns(money)}
                           rows={years}

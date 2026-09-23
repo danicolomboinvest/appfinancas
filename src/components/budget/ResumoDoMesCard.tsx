@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import type { ResumoDoMes } from "@/lib/planning/month-budget-summary";
+import type { Voz } from "@/lib/profiles/voice";
 
 /**
  * O cartão que abre o orçamento: quanto você tinha, quanto já foi, e quanto isso dá por dia
@@ -18,6 +19,7 @@ export function ResumoDoMesCard({
   ultimoDia,
   money,
   onAtualizar,
+  voz,
 }: {
   resumo: ResumoDoMes;
   /** "Setembro" */
@@ -27,6 +29,8 @@ export function ResumoDoMesCard({
   money: (n: number, o?: { round?: boolean }) => string;
   /** Botão de atualizar, mostrado quando o mês está contado pela metade. */
   onAtualizar?: ReactNode;
+  /** O tema do perfil fala aqui: título ("Missão do mês 🎯" no Game) e a frase do "ainda dá?". */
+  voz: Voz;
 }) {
   const { planejado, gasto, restante, usado, doMes, diasRestantes, porDia, situacao, ultimoDiaLancado, desatualizado } =
     resumo;
@@ -50,7 +54,7 @@ export function ResumoDoMesCard({
 
   return (
     <section className="rounded-2xl border border-border bg-surface p-5 shadow-premium-sm sm:p-6">
-      <p className="text-caption text-ink-muted">Seu orçamento de {mesLabel}</p>
+      <p className="text-caption text-ink-muted">{voz.tituloOrcamento(mesLabel)}</p>
 
       {/* O gasto é o número grande porque é o que a pessoa veio conferir; o planejado fica do
           lado, menor, como a régua dele. */}
@@ -90,7 +94,7 @@ export function ResumoDoMesCard({
         </>
       ) : (
         <>
-          <p className="mt-3 text-sm text-ink">{frase({ situacao, restante, porDia, diasRestantes, ultimoDia, money })}</p>
+          <p className="mt-3 text-sm text-ink">{voz.fraseOrcamento({ situacao, restante, porDia, diasRestantes, ultimoDia, money })}</p>
           {/* Só explica o tracinho quando a frase acima não explicou. Dizer "passou do tracinho =
               adiantado" logo abaixo de "você está gastando adiantado" é ocupar a tela repetindo. */}
           {planejado > 0 && diasRestantes > 0 && situacao === "no-ritmo" && (
@@ -100,36 +104,4 @@ export function ResumoDoMesCard({
       )}
     </section>
   );
-}
-
-function frase({
-  situacao,
-  restante,
-  porDia,
-  diasRestantes,
-  ultimoDia,
-  money,
-}: {
-  situacao: ResumoDoMes["situacao"];
-  restante: number;
-  porDia: number | null;
-  diasRestantes: number;
-  ultimoDia: number;
-  money: (n: number, o?: { round?: boolean }) => string;
-}): string {
-  if (situacao === "sem-plano") {
-    return "Você ainda não disse quanto quer gastar este mês. Defina ali embaixo e o app passa a te avisar antes de estourar.";
-  }
-  if (situacao === "estourou") {
-    return `Você passou ${money(Math.abs(restante), { round: true })} do que tinha planejado.`;
-  }
-  // Mês fechado: não existe "por dia" pra frente, só o saldo final.
-  if (porDia === null || diasRestantes === 0) {
-    return `Sobrou ${money(restante, { round: true })} do planejado.`;
-  }
-
-  const sobra = `Sobram ${money(restante, { round: true })} para ${diasRestantes} ${diasRestantes === 1 ? "dia" : "dias"}: ${money(porDia, { round: true })} por dia até dia ${ultimoDia}.`;
-  if (situacao === "adiantado") return `${sobra} Você está gastando adiantado para a altura do mês.`;
-  if (situacao === "folgado") return `${sobra} Está sobrando mais do que o esperado — dá pra guardar a diferença.`;
-  return sobra;
 }

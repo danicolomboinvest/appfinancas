@@ -12,6 +12,8 @@ import { OutcomeComparison } from "@/components/charts/OutcomeComparison";
 import { CountUp } from "@/components/ui/CountUp";
 import { useMoney } from "@/components/money/MoneyProvider";
 import { useCurrency } from "@/components/money/MoneyProvider";
+import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
+import type { Titulos } from "@/lib/profiles/voice";
 import { currencySymbol } from "@/lib/money";
 import type { MoneyFormatter } from "@/lib/money";
 
@@ -30,19 +32,11 @@ function parseDigitsToCents(text: string): number | null {
   return Number(digits);
 }
 
-const CHOICE_COPY: Record<"comprar" | "nao" | "duvida", { tone: "success" | "neutral"; text: string }> = {
-  comprar: {
-    tone: "success",
-    text: "Se é prioridade pra você, ótimo, só garanta que cabe no seu orçamento do mês.",
-  },
-  nao: {
-    tone: "success",
-    text: "Boa escolha. Isso te aproxima das suas metas.",
-  },
-  duvida: {
-    tone: "neutral",
-    text: "Sem problema. Dá pra voltar aqui quando tiver mais clareza, a dúvida já é um sinal de que vale pensar mais um pouco.",
-  },
+/** O tom é do desenho; a frase de cada escolha vem do catálogo de voz do tema. */
+const CHOICE_COPY: Record<"comprar" | "nao" | "duvida", { tone: "success" | "neutral"; text: (t: Titulos) => string }> = {
+  comprar: { tone: "success", text: (t) => t.simValeEscolhaComprar },
+  nao: { tone: "success", text: (t) => t.simValeEscolhaNao },
+  duvida: { tone: "neutral", text: (t) => t.simValeEscolhaDuvida },
 };
 
 export function WorthItCalculator({
@@ -54,6 +48,8 @@ export function WorthItCalculator({
 }) {
   const currency = useCurrency();
   const money = useMoney();
+  const { voz } = useProfileTheme();
+  const t = voz.titulos;
   const priceInputId = useId();
   const [step, setStep] = useState(1);
   const [priceCents, setPriceCents] = useState<number | null>(null);
@@ -97,14 +93,14 @@ export function WorthItCalculator({
       {step === 1 && (
         <div className="flex flex-col gap-5">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-accent-strong">Vale a pena comprar?</p>
-            <h1 className="mt-1 font-serif text-2xl text-ink">Quanto custa isso?</h1>
-            <p className="mt-2 text-sm text-ink-muted">Digite o preço do item que você está pensando em comprar.</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-accent-strong">{t.simValeEyebrow}</p>
+            <h1 className="mt-1 text-h2 font-bold tracking-tight text-ink">{t.simValePasso1Titulo}</h1>
+            <p className="mt-2 text-sm text-ink-muted">{t.simValePasso1Sub}</p>
           </div>
 
           <Card className="p-4">
             <label htmlFor={priceInputId} className="mb-1.5 block text-xs font-medium text-ink-muted">
-              Preço
+              {t.simValePreco}
             </label>
             <input
               id={priceInputId}
@@ -120,7 +116,7 @@ export function WorthItCalculator({
 
           {editingIncome ? (
             <div className="flex w-fit items-center gap-2 rounded-full border border-accent bg-accent-soft px-3.5 py-2 text-xs">
-              <span className="shrink-0 text-ink-muted">Simular com renda de</span>
+              <span className="shrink-0 text-ink-muted">{t.simValeSimularRenda}</span>
               <span className="text-ink-muted">{currencySymbol(currency)}</span>
               <input
                 type="text"
@@ -136,18 +132,18 @@ export function WorthItCalculator({
                 onClick={() => setEditingIncome(false)}
                 className="font-medium text-accent-strong hover:underline"
               >
-                ok
+                {t.simValeOk}
               </button>
             </div>
           ) : (
             <div className="flex w-fit items-center gap-2 rounded-full border border-border bg-surface-2 px-3.5 py-2 text-xs text-ink-muted">
               {hasIncome ? (
                 <span>
-                  Valor-hora calculado com {isIncomeSimulated ? "uma renda simulada de" : "sua renda de"}{" "}
+                  {t.simValeRendaIntro} {isIncomeSimulated ? t.simValeRendaSimulada : t.simValeRendaSua}{" "}
                   <b className="font-semibold text-ink">{money(effectiveIncome, { round: true })}</b>
-                  {!isIncomeSimulated && <> em {incomeMonthLabel} (Fluxo Financeiro)</>}{" "}
+                  {!isIncomeSimulated && <> {t.simValeRendaMes(incomeMonthLabel)}</>}{" "}
                   <button type="button" onClick={startSimulatingIncome} className="font-medium text-accent-strong hover:underline">
-                    alterar
+                    {t.simValeAlterar}
                   </button>
                   {isIncomeSimulated && (
                     <>
@@ -157,20 +153,20 @@ export function WorthItCalculator({
                         onClick={() => setSimulatedIncomeCents(null)}
                         className="font-medium text-accent-strong hover:underline"
                       >
-                        usar renda cadastrada
+                        {t.simValeUsarCadastrada}
                       </button>
                     </>
                   )}
                 </span>
               ) : (
                 <span>
-                  Você ainda não lançou renda em {incomeMonthLabel}.{" "}
+                  {t.simValeSemRenda(incomeMonthLabel)}{" "}
                   <button type="button" onClick={startSimulatingIncome} className="font-medium text-accent-strong hover:underline">
-                    simule um valor
+                    {t.simValeSimuleValor}
                   </button>{" "}
-                  pra ver o tempo de trabalho equivalente, ou{" "}
+                  {t.simValeSemRendaMeio}{" "}
                   <Link href="/mensal" target="_blank" className="font-medium text-accent-strong hover:underline">
-                    cadastre em Fluxo Financeiro
+                    {t.simValeCadastre}
                   </Link>
                   .
                 </span>
@@ -179,7 +175,7 @@ export function WorthItCalculator({
           )}
 
           <Button type="button" onClick={() => goToStep(2)} disabled={price <= 0} className="mt-2">
-            Continuar
+            {t.simContinuar}
           </Button>
         </div>
       )}
@@ -187,9 +183,9 @@ export function WorthItCalculator({
       {step === 2 && (
         <div className="flex flex-col gap-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-accent-strong">Vale a pena comprar?</p>
-            <h1 className="mt-1 font-serif text-2xl text-ink">Que tipo de gasto é esse?</h1>
-            <p className="mt-2 text-sm text-ink-muted">Isso muda como calculamos o quanto você deixaria de ganhar.</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-accent-strong">{t.simValeEyebrow}</p>
+            <h1 className="mt-1 text-h2 font-bold tracking-tight text-ink">{t.simValePasso2Titulo}</h1>
+            <p className="mt-2 text-sm text-ink-muted">{t.simValePasso2Sub}</p>
           </div>
 
           <button
@@ -207,8 +203,8 @@ export function WorthItCalculator({
               <ShoppingBag className="h-5 w-5" />
             </span>
             <span>
-              <span className="block text-sm font-semibold text-ink">Compra única</span>
-              <span className="block text-xs text-ink-muted">Algo pontual, uma roupa, um eletrônico, uma viagem.</span>
+              <span className="block text-sm font-semibold text-ink">{t.simValeCompraUnica}</span>
+              <span className="block text-xs text-ink-muted">{t.simValeCompraUnicaDesc}</span>
             </span>
           </button>
 
@@ -227,13 +223,13 @@ export function WorthItCalculator({
               <Repeat className="h-5 w-5" />
             </span>
             <span>
-              <span className="block text-sm font-semibold text-ink">Hábito mensal</span>
-              <span className="block text-xs text-ink-muted">Se repete todo mês, assinatura, delivery, café.</span>
+              <span className="block text-sm font-semibold text-ink">{t.simValeHabito}</span>
+              <span className="block text-xs text-ink-muted">{t.simValeHabitoDesc}</span>
             </span>
           </button>
 
           <Button type="button" onClick={() => goToStep(3)} className="mt-2">
-            Continuar
+            {t.simContinuar}
           </Button>
         </div>
       )}
@@ -241,13 +237,13 @@ export function WorthItCalculator({
       {step === 3 && (
         <div className="flex flex-col gap-5">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-accent-strong">Resultado</p>
-            <h1 className="mt-1 font-serif text-2xl text-ink">Vale a pena?</h1>
+            <p className="text-xs font-semibold uppercase tracking-wide text-accent-strong">{t.simResultado}</p>
+            <h1 className="mt-1 text-h2 font-bold tracking-tight text-ink">{t.simValeTitulo}</h1>
           </div>
 
           <div className="text-center">
             <p className="text-xs font-medium text-ink-muted">
-              {mode === "SINGLE" ? "Tempo de trabalho equivalente" : "Tempo de trabalho por mês"}
+              {mode === "SINGLE" ? t.simValeTempoUnico : t.simValeTempoMensal}
             </p>
             <p className="mt-1.5 text-4xl font-semibold tracking-tight text-ink">
               {result.hoursEquivalent === null ? "—" : <CountUp value={result.hoursEquivalent} format={formatHours} />}
@@ -256,7 +252,7 @@ export function WorthItCalculator({
 
           <Card className="flex flex-col gap-4 p-4">
             <div>
-              <p className="mb-2 text-xs font-medium text-ink-muted">Se você não comprar e investir, em quanto tempo?</p>
+              <p className="mb-2 text-xs font-medium text-ink-muted">{t.simValeHorizontePergunta}</p>
               <div className="flex gap-1.5">
                 {HORIZONS.map((years) => (
                   <button
@@ -269,7 +265,7 @@ export function WorthItCalculator({
                         : "border-border bg-surface-2 text-ink-muted hover:bg-surface-hover"
                     }`}
                   >
-                    {years === 1 ? "1 ano" : `${years} anos`}
+                    {t.simValeAnos(String(years))}
                   </button>
                 ))}
               </div>
@@ -280,18 +276,21 @@ export function WorthItCalculator({
                 antes de a pessoa ler qualquer número. */}
             <OutcomeComparison
               a={{
-                label: mode === "SINGLE" ? "Investir esse dinheiro" : "Resistir e investir",
+                label: mode === "SINGLE" ? t.simValeBarraInvestirUnico : t.simValeBarraInvestirMensal,
                 value: result.futureValueIfInvested,
-                hint: `Em ${horizonYears} ${horizonYears === 1 ? "ano" : "anos"}, a ${WORTH_IT_ANNUAL_RATE * 100}% ao ano`,
+                hint: t.simValeBarraInvestirHint(String(horizonYears), String(WORTH_IT_ANNUAL_RATE * 100)),
               }}
               b={{
-                label: "Gastar agora",
+                label: t.simValeBarraGastar,
                 value: result.totalInvested,
-                hint: mode === "SINGLE" ? "O preço de hoje" : "O que você pagaria no período",
+                hint: mode === "SINGLE" ? t.simValeBarraGastarUnicoHint : t.simValeBarraGastarMensalHint,
               }}
               winner="a"
-              verdict={`Investindo, você teria ${money(result.difference, { round: true })} a mais no fim.`}
+              verdict={t.simValeVeredito(money(result.difference, { round: true }))}
             />
+
+            {/* A nota fica escrita aqui (e não no catálogo) por causa do teste de jargão do Girly —
+                ver o cabeçalho de textos/simuladores.ts. */}
 
             <p className="text-xs leading-relaxed text-ink-faint">
               Estimativa educada, não garantia de rentabilidade. Considera 220h úteis/mês e retorno composto de{" "}
@@ -307,7 +306,7 @@ export function WorthItCalculator({
                 choice === "comprar" ? "ring-2 ring-success" : ""
               } bg-success-soft text-success`}
             >
-              Comprar
+              {t.simValeComprar}
             </button>
             <button
               type="button"
@@ -316,7 +315,7 @@ export function WorthItCalculator({
                 choice === "nao" ? "ring-2 ring-danger" : ""
               } bg-danger-soft text-danger`}
             >
-              Não comprar
+              {t.simValeNaoComprar}
             </button>
             <button
               type="button"
@@ -325,7 +324,7 @@ export function WorthItCalculator({
                 choice === "duvida" ? "ring-2 ring-ink-faint" : ""
               } bg-surface-2`}
             >
-              Ainda não sei
+              {t.simValeAindaNaoSei}
             </button>
           </div>
 
@@ -335,7 +334,7 @@ export function WorthItCalculator({
                 CHOICE_COPY[choice].tone === "success" ? "bg-success-soft text-success" : "bg-surface-2 text-ink-muted"
               }`}
             >
-              {CHOICE_COPY[choice].text}
+              {CHOICE_COPY[choice].text(t)}
             </div>
           )}
         </div>

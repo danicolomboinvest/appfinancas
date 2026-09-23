@@ -1,3 +1,4 @@
+import type { ProfileKind } from "@prisma/client";
 import { auth } from "@/lib/auth/auth.config";
 import { getOrCreateActiveProfile } from "@/lib/repositories/profile.repo";
 
@@ -22,6 +23,13 @@ export type AuthContext = AccountContext & {
    * perfil vira um erro visível (ver o teste de cobertura de isolamento).
    */
   profileId: string;
+  /**
+   * Tema do perfil ativo. Vem junto porque a voz do app (o que ele DIZ) depende dele, e as
+   * páginas de servidor não têm como ler contexto de React. Já estava na mesma consulta.
+   */
+  profileTheme: string;
+  /** Tipo do perfil ativo (PESSOAL, EMPRESA, CASAL…). Empresa muda vocabulário, categorias e a DRE. */
+  profileKind: ProfileKind;
 };
 
 /**
@@ -34,7 +42,7 @@ export async function getRequiredSession(): Promise<AuthContext> {
     throw new Error("Não autenticado.");
   }
   const perfil = await getOrCreateActiveProfile(session.user.id);
-  return { userId: session.user.id, role: session.user.role, profileId: perfil.id };
+  return { userId: session.user.id, role: session.user.role, profileId: perfil.id, profileTheme: perfil.theme, profileKind: perfil.kind };
 }
 
 /**

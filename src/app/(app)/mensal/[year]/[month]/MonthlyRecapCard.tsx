@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { ChevronRight, Sparkles, X } from "lucide-react";
 import { dismissMonthlyRecapAction } from "@/app/(app)/resumo-mensal/actions";
+import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 
 /** Convite pro Resumo Mensal no topo do Fluxo, leva pra experiência imersiva de stories.
  * Só aparece na janela de fim/início de mês (decidido no server, ver getRecapEligibility) e
@@ -11,6 +12,8 @@ import { dismissMonthlyRecapAction } from "@/app/(app)/resumo-mensal/actions";
 export function MonthlyRecapCard({ monthKey }: { monthKey: string }) {
   const [dismissed, setDismissed] = useState(false);
   const [isPending, startTransition] = useTransition();
+  // O convite fala na voz do tema: é o primeiro "oi" do resumo, e cada tema convida do seu jeito.
+  const { voz } = useProfileTheme();
   if (dismissed) return null;
 
   return (
@@ -20,8 +23,8 @@ export function MonthlyRecapCard({ monthKey }: { monthKey: string }) {
           <Sparkles size={20} strokeWidth={1.75} />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block text-sm font-semibold text-ink">Seu resumo mensal está pronto</span>
-          <span className="block text-xs text-ink-muted">Veja o que aconteceu com o seu dinheiro este mês</span>
+          <span className="block text-sm font-semibold text-ink">{voz.titulos.impResumoPronto}</span>
+          <span className="block text-xs text-ink-muted">{voz.titulos.impResumoProntoSub}</span>
         </span>
         <ChevronRight size={18} className="shrink-0 text-ink-faint transition-transform group-hover:translate-x-0.5" />
       </Link>

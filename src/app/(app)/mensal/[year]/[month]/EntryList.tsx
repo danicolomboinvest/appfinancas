@@ -2,19 +2,23 @@
 
 import { useState, useTransition } from "react";
 import { CheckSquare, ChevronRight, Pencil, PiggyBank, Receipt, Square, Trash2, TrendingUp, X, type LucideIcon } from "lucide-react";
-import type { ParentCategory } from "@prisma/client";
+import type { ParentCategory, ProfileKind } from "@prisma/client";
 import type { CurrencyCode } from "@/lib/money";
 import { Card } from "@/components/ui/Card";
 import { Modal } from "@/components/ui/Modal";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
+import { emojiDaCategoria } from "@/lib/profiles/icones";
+import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
+import type { Voz } from "@/lib/profiles/voice";
+import { partesDoTexto } from "@/lib/profiles/textos/shell";
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import { useToast } from "@/components/ui/toast-context";
 import { useMoney } from "@/components/money/MoneyProvider";
 import {
-  PARENT_CATEGORY_ICON,
   PARENT_CATEGORY_COLOR,
-  PARENT_CATEGORY_LABEL,
   CUSTOM_CATEGORY_ICON_MAP,
+  categoryIcon,
+  categoryLabel,
   colorForCategorySlice,
   isParentCategoryKey,
 } from "@/lib/categories";
@@ -51,11 +55,12 @@ const CATEGORY_AMOUNT_CLASS: Record<ListEntry["category"], string> = {
   INVESTMENT_CONTRIBUTION: "text-accent-strong",
 };
 
-const CATEGORY_KIND_LABEL: Record<ListEntry["category"], string> = {
-  INCOME: "Renda",
-  EXPENSE: "Gasto",
-  INVESTMENT_CONTRIBUTION: "Aporte",
-};
+/** "Renda", "Gasto", "Aporte" — na voz do tema, porque o Girly não diz "aporte". */
+function categoryKindLabel(category: ListEntry["category"], voz: Voz): string {
+  if (category === "INCOME") return voz.titulos.uiTipoRenda;
+  if (category === "EXPENSE") return voz.titulos.uiTipoGasto;
+  return voz.titulos.uiTipoAporte;
+}
 
 /** Meses movimentados podem ter dezenas de lançamentos: os mais recentes direto, o resto atrás de "Ver mais". */
 const VISIBLE_COUNT = 8;
@@ -63,26 +68,33 @@ const VISIBLE_COUNT = 8;
 function categoryVisual(
   entry: ListEntry,
   customCategories: { id: string; icon: string }[],
-): { icon: LucideIcon; color: string } {
-  if (entry.category === "INCOME") return { icon: TrendingUp, color: "var(--color-success)" };
-  if (entry.category === "INVESTMENT_CONTRIBUTION") return { icon: PiggyBank, color: "var(--color-accent)" };
+  tema: string,
+  kind: ProfileKind,
+): { icon: LucideIcon; color: string; emoji: string | undefined } {
+  if (entry.category === "INCOME") return { icon: TrendingUp, color: "var(--color-success)", emoji: emojiDaCategoria(tema, { kind: "income" }) };
+  if (entry.category === "INVESTMENT_CONTRIBUTION") return { icon: PiggyBank, color: "var(--color-accent)", emoji: emojiDaCategoria(tema, { kind: "investment" }) };
   if (entry.parentCategory && isParentCategoryKey(entry.parentCategory)) {
-    return { icon: PARENT_CATEGORY_ICON[entry.parentCategory], color: PARENT_CATEGORY_COLOR[entry.parentCategory] };
+    return {
+      icon: categoryIcon(kind, entry.parentCategory),
+      color: PARENT_CATEGORY_COLOR[entry.parentCategory],
+      emoji: emojiDaCategoria(tema, { kind: "parent", value: entry.parentCategory }),
+    };
   }
   if (entry.customCategoryId) {
     const custom = customCategories.find((c) => c.id === entry.customCategoryId);
     return {
       icon: custom ? (CUSTOM_CATEGORY_ICON_MAP[custom.icon] ?? Receipt) : Receipt,
       color: colorForCategorySlice({ kind: "custom", value: entry.customCategoryId }),
+      emoji: emojiDaCategoria(tema, { kind: "custom", iconKey: custom?.icon }),
     };
   }
-  return { icon: Receipt, color: "var(--color-ink-faint)" };
+  return { icon: Receipt, color: "var(--color-ink-faint)", emoji: emojiDaCategoria(tema, { kind: "none" }) };
 }
 
-function categoryName(entry: ListEntry, customCategories: { id: string; name: string }[]): string {
-  if (entry.parentCategory && isParentCategoryKey(entry.parentCategory)) return PARENT_CATEGORY_LABEL[entry.parentCategory];
-  if (entry.customCategoryId) return customCategories.find((c) => c.id === entry.customCategoryId)?.name ?? "Categoria";
-  return CATEGORY_KIND_LABEL[entry.category];
+function categoryName(entry: ListEntry, customCategories: { id: string; name: string }[], voz: Voz, kind: ProfileKind): string {
+  if (entry.parentCategory && isParentCategoryKey(entry.parentCategory)) return categoryLabel(kind, entry.parentCategory);
+  if (entry.customCategoryId) return customCategories.find((c) => c.id === entry.customCategoryId)?.name ?? voz.titulos.uiCategoriaSemNome;
+  return categoryKindLabel(entry.category, voz);
 }
 
 function toSnapshot(entry: ListEntry, year: number, month: number): DeletedEntrySnapshot {
@@ -131,6 +143,11 @@ export function EntryList({
   customCategories: { id: string; name: string; icon: string }[];
   goals: { id: string; name: string }[];
 }) {
+  // O tema decide se a categoria é ícone de linha ou emoji (ver icones.ts); a voz, o que a
+  // lista diz ("Ver mais", "Remover", os avisos de excluído/restaurado); o tipo do perfil,
+  // como cada categoria-mãe se chama (numa Empresa, MORADIA é "Estrutura").
+  const { key: tema, voz, kind } = useProfileTheme();
+  const t = voz.titulos;
   const money = useMoney();
   const { showToast } = useToast();
   const [, startTransition] = useTransition();
@@ -156,19 +173,13 @@ export function EntryList({
       // Aporte que já tinha sido distribuído: o dinheiro fica no ativo de propósito (é a posição
       // real da pessoa). Dizer isso na hora é o que impede o mês e a carteira de divergirem
       // sem ninguém perceber.
-      const base = quantos === 1 ? "Lançamento excluído." : `${quantos} lançamentos excluídos.`;
-      showToast(jaNaCarteira > 0 ? `${base} O que já estava distribuído continua na carteira.` : base, {
-        label: "Desfazer",
+      const base = t.uiExcluido(quantos);
+      showToast(jaNaCarteira > 0 ? `${base} ${t.uiExcluidoContinuaNaCarteira}` : base, {
+        label: t.uiDesfazer,
         onClick: () => {
           startTransition(async () => {
             const result = await undoDeleteEntriesAction(snapshots);
-            showToast(
-              result.ok
-                ? quantos === 1
-                  ? "Lançamento restaurado."
-                  : `${quantos} lançamentos restaurados.`
-                : "Não foi possível restaurar. Lance de novo manualmente.",
-            );
+            showToast(result.ok ? t.uiRestaurado(quantos) : t.uiRestaurarFalhou);
           });
         },
       });
@@ -190,7 +201,7 @@ export function EntryList({
   }
 
   function renderRow(entry: ListEntry) {
-    const visual = categoryVisual(entry, customCategories);
+    const visual = categoryVisual(entry, customCategories, tema, kind);
     const marcado = selected.has(entry.id);
     return (
       <Card
@@ -202,7 +213,7 @@ export function EntryList({
           type="button"
           onClick={() => (selecting ? toggle(entry.id) : setOpenId(entry.id))}
           aria-pressed={selecting ? marcado : undefined}
-          aria-label={selecting ? `${marcado ? "Desmarcar" : "Marcar"} ${entry.subcategory ?? categoryName(entry, customCategories)}` : `Abrir ${entry.subcategory ?? categoryName(entry, customCategories)}`}
+          aria-label={selecting ? `${marcado ? "Desmarcar" : "Marcar"} ${entry.subcategory ?? categoryName(entry, customCategories, voz, kind)}` : `Abrir ${entry.subcategory ?? categoryName(entry, customCategories, voz, kind)}`}
           className="flex min-w-0 flex-1 items-center gap-3 text-left"
         >
           {selecting ? (
@@ -210,11 +221,11 @@ export function EntryList({
               {marcado ? <CheckSquare size={22} strokeWidth={1.75} /> : <Square size={22} strokeWidth={1.75} />}
             </span>
           ) : (
-            <CategoryIcon icon={visual.icon} color={visual.color} />
+            <CategoryIcon icon={visual.icon} color={visual.color} emoji={visual.emoji} />
           )}
           <span className="min-w-0 flex-1">
             <span className="block truncate text-[15px] font-medium text-ink">
-              {entry.subcategory ?? categoryName(entry, customCategories)}
+              {entry.subcategory ?? categoryName(entry, customCategories, voz, kind)}
             </span>
             <span className="block truncate text-xs text-ink-faint">
               {entry.dayLabel && <span className="tabular-nums">{entry.dayLabel}</span>}
@@ -237,8 +248,8 @@ export function EntryList({
             <button
               type="button"
               onClick={() => setEditingId(entry.id)}
-              aria-label="Editar lançamento"
-              title="Editar"
+              aria-label={t.uiEditarLancamento}
+              title={t.uiEditar}
               className="rounded-full p-2 text-ink-muted transition-colors hover:bg-surface-2 hover:text-ink"
             >
               <Pencil size={15} strokeWidth={1.75} />
@@ -246,8 +257,8 @@ export function EntryList({
             <button
               type="button"
               onClick={() => removeEntries([entry])}
-              aria-label="Remover lançamento"
-              title="Remover"
+              aria-label={t.uiRemoverLancamento}
+              title={t.uiRemover}
               className="rounded-full p-2 text-ink-muted transition-colors hover:bg-danger-soft hover:text-danger"
             >
               <Trash2 size={15} strokeWidth={1.75} />
@@ -264,24 +275,24 @@ export function EntryList({
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between px-1">
-        <p className="text-caption text-ink-faint">
-          {entries.length} {entries.length === 1 ? "lançamento" : "lançamentos"}
-        </p>
+        <p className="text-caption text-ink-faint">{t.uiContagemLancamentos(entries.length)}</p>
         {selecting ? (
           <button type="button" onClick={leaveSelection} className="text-caption font-medium text-accent-strong">
-            Cancelar
+            {t.uiCancelar}
           </button>
         ) : (
           <button type="button" onClick={() => setSelecting(true)} className="text-caption font-medium text-accent-strong">
-            Selecionar
+            {t.uiSelecionar}
           </button>
         )}
       </div>
 
-      {primeiros.map(renderRow)}
+      {/* No computador, dois lançamentos por linha: um por linha na largura toda era um
+          corredor vazio entre a descrição e o valor. */}
+      <div className="flex flex-col gap-2 lg:grid lg:grid-cols-2 lg:items-start lg:gap-x-4">{primeiros.map(renderRow)}</div>
       {resto.length > 0 && (
-        <CollapsibleSection label={`Ver mais ${resto.length} lançamentos`}>
-          <div className="flex flex-col gap-2">{resto.map(renderRow)}</div>
+        <CollapsibleSection label={t.uiVerMaisLancamentos(resto.length)}>
+          <div className="flex flex-col gap-2 lg:grid lg:grid-cols-2 lg:items-start lg:gap-x-4">{resto.map(renderRow)}</div>
         </CollapsibleSection>
       )}
 
@@ -290,8 +301,16 @@ export function EntryList({
         <div className="fixed inset-x-4 bottom-[calc(6.5rem_+_env(safe-area-inset-bottom))] z-30 md:inset-x-auto md:bottom-6 md:right-10 md:w-96">
           <div className="glass flex items-center justify-between gap-3 rounded-2xl border border-border-strong p-3 shadow-premium">
             <span className="text-sm text-ink">
-              <span className="font-semibold tabular-nums">{selected.size}</span>{" "}
-              {selected.size === 1 ? "selecionado" : "selecionados"}
+              {/* "**3** selecionados": o número vem marcado na voz e vira o destaque aqui. */}
+              {partesDoTexto(t.uiSelecionados(selected.size)).map((p, i) =>
+                p.negrito ? (
+                  <span key={i} className="font-semibold tabular-nums">
+                    {p.texto}
+                  </span>
+                ) : (
+                  p.texto
+                ),
+              )}
             </span>
             <span className="flex items-center gap-2">
               <button
@@ -304,12 +323,12 @@ export function EntryList({
                 className="inline-flex items-center gap-1.5 rounded-full bg-danger px-4 py-2 text-sm font-semibold text-canvas transition-opacity disabled:opacity-40"
               >
                 <Trash2 size={15} strokeWidth={2} />
-                Remover
+                {t.uiRemover}
               </button>
               <button
                 type="button"
                 onClick={leaveSelection}
-                aria-label="Sair da seleção"
+                aria-label={t.uiSairDaSelecao}
                 className="rounded-full p-2 text-ink-muted hover:bg-surface-2 hover:text-ink"
               >
                 <X size={18} />
@@ -320,18 +339,18 @@ export function EntryList({
       )}
 
       {/* Folha do lançamento: tudo por extenso e os dois botões com espaço de sobra. */}
-      <Modal open={open !== null} onClose={() => setOpenId(null)} title="Lançamento">
+      <Modal open={open !== null} onClose={() => setOpenId(null)} title={t.uiLancamento}>
         {open && (
           <div className="flex flex-col gap-5">
             <div className="flex items-start gap-3">
-              <CategoryIcon icon={categoryVisual(open, customCategories).icon} color={categoryVisual(open, customCategories).color} size={44} />
+              <CategoryIcon icon={categoryVisual(open, customCategories, tema, kind).icon} color={categoryVisual(open, customCategories, tema, kind).color} emoji={categoryVisual(open, customCategories, tema, kind).emoji} size={44} />
               <div className="min-w-0 flex-1">
                 <p className="text-lg font-semibold leading-tight text-ink">
-                  {open.subcategory ?? categoryName(open, customCategories)}
+                  {open.subcategory ?? categoryName(open, customCategories, voz, kind)}
                 </p>
                 <p className="mt-0.5 text-sm text-ink-muted">
-                  {CATEGORY_KIND_LABEL[open.category]}
-                  {open.subcategory && ` · ${categoryName(open, customCategories)}`}
+                  {categoryKindLabel(open.category, voz)}
+                  {open.subcategory && ` · ${categoryName(open, customCategories, voz, kind)}`}
                   {open.dayLabel && ` · ${open.dayLabel}`}
                 </p>
               </div>
@@ -341,7 +360,7 @@ export function EntryList({
                 </p>
                 {open.originalLabel && open.exchangeRate && (
                   <p className="text-xs tabular-nums text-ink-faint">
-                    {open.originalLabel} · cotação {open.exchangeRate.toLocaleString("pt-BR", { maximumFractionDigits: 4 })}
+                    {open.originalLabel} · {t.uiCotacao(open.exchangeRate.toLocaleString("pt-BR", { maximumFractionDigits: 4 }))}
                   </p>
                 )}
               </div>
@@ -357,7 +376,7 @@ export function EntryList({
                 className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-border-strong bg-surface-2 text-sm font-semibold text-ink transition-colors hover:bg-surface-hover"
               >
                 <Pencil size={16} strokeWidth={1.75} />
-                Editar
+                {t.uiEditar}
               </button>
               <button
                 type="button"
@@ -369,14 +388,14 @@ export function EntryList({
                 className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-danger-soft text-sm font-semibold text-danger transition-colors hover:bg-danger hover:text-canvas"
               >
                 <Trash2 size={16} strokeWidth={1.75} />
-                Remover
+                {t.uiRemover}
               </button>
             </div>
           </div>
         )}
       </Modal>
 
-      <Modal open={editing !== null} onClose={() => setEditingId(null)} title="Editar lançamento">
+      <Modal open={editing !== null} onClose={() => setEditingId(null)} title={t.uiEditarLancamento}>
         {editing && (
           <EntryForm
             year={year}

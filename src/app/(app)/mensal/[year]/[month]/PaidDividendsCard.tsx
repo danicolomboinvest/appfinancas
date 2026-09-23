@@ -10,7 +10,15 @@ import { registerDividendIncomeAction } from "./actions";
 export type PaidDividendItem = { ticker: string; kind: string; paymentDate: string; dateLabel: string; amount: number };
 
 /** "Caiu na conta": proventos pagos nos últimos dias que ainda não viraram renda no mês. */
-export function PaidDividendsCard({ items }: { items: PaidDividendItem[] }) {
+export function PaidDividendsCard({
+  items,
+  titulo = "Caiu na conta",
+  sub = "Proventos dos seus ativos pagos nos últimos dias. Um toque lança como renda no dia do pagamento.",
+}: {
+  items: PaidDividendItem[];
+  titulo?: string;
+  sub?: string;
+}) {
   const money = useMoney();
   const { showToast } = useToast();
   const [done, setDone] = useState<Set<string>>(new Set());
@@ -22,9 +30,9 @@ export function PaidDividendsCard({ items }: { items: PaidDividendItem[] }) {
     <Card className="flex flex-col gap-3 border-success/30 bg-success-soft/30 p-4">
       <div className="flex items-center gap-2">
         <Coins size={16} className="text-success" />
-        <p className="text-[15px] font-semibold text-ink">Caiu na conta</p>
+        <p className="text-[15px] font-semibold text-ink">{titulo}</p>
       </div>
-      <p className="text-caption text-ink-muted">Proventos dos seus ativos pagos nos últimos dias. Um toque lança como renda no dia do pagamento.</p>
+      <p className="text-caption text-ink-muted">{sub}</p>
       <ul className="flex flex-col divide-y divide-border">
         {visible.map((d) => (
           <li key={`${d.ticker}|${d.paymentDate}`} className="flex items-center justify-between gap-3 py-2.5">

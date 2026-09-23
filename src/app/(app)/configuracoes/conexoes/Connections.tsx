@@ -6,6 +6,7 @@ import { Landmark, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useToast } from "@/components/ui/toast-context";
+import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { createConnectTokenAction, disconnectAction, registerConnectionAction, syncConnectionAction } from "./actions";
 
 type ConnectionRow = { id: string; connectorName: string; status: string; lastSyncAt: string | null; lastSyncCount: number; lastError: string | null };
@@ -17,6 +18,7 @@ type ConnectionRow = { id: string; connectorName: string; status: string; lastSy
  */
 export function Connections({ configured, connections }: { configured: boolean; connections: ConnectionRow[] }) {
   const { showToast } = useToast();
+  const { titulos: t } = useProfileTheme().voz;
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<{ connectorName: string; created: number; uncategorized: number } | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -42,15 +44,15 @@ export function Connections({ configured, connections }: { configured: boolean; 
               return;
             }
             setResult({ connectorName: res.connectorName, created: res.result.created, uncategorized: res.result.uncategorized });
-            showToast(`${res.connectorName} conectado.`);
+            showToast(t.cfgConexaoConectadoToast(res.connectorName));
           });
         },
-        onError: (err: { message?: string }) => showToast(err?.message ? `Não deu: ${err.message}` : "A conexão não foi concluída."),
+        onError: (err: { message?: string }) => showToast(err?.message ? t.cfgConexaoNaoDeu(err.message) : t.cfgConexaoNaoConcluida),
       });
       widget.init();
     } catch (err) {
       console.error(err);
-      showToast("Não consegui abrir a conexão agora.");
+      showToast(t.cfgConexaoNaoAbriu);
     } finally {
       setBusy(false);
     }
@@ -59,60 +61,57 @@ export function Connections({ configured, connections }: { configured: boolean; 
   if (!configured) {
     return (
       <Card className="p-5">
-        <p className="text-sm text-ink-muted">A conexão com bancos ainda não está ligada neste app. Enquanto isso, o caminho é Registrar › Importar extrato ou fatura.</p>
+        <p className="text-sm text-ink-muted">{t.cfgConexoesDesligada}</p>
       </Card>
     );
   }
+
+  // Os três passos na voz do tema; a numeração é a posição na lista.
+  const passos: [string, string][] = [
+    [t.cfgConexoesPasso1, t.cfgConexoesPasso1Dica],
+    [t.cfgConexoesPasso2, t.cfgConexoesPasso2Dica],
+    [t.cfgConexoesPasso3, t.cfgConexoesPasso3Dica],
+  ];
 
   return (
     <div className="flex flex-col gap-5">
       {result && (
         <Card className="flex flex-col gap-2 border-success/30 bg-success-soft/40 p-4">
-          <p className="text-[17px] font-bold text-success">{result.connectorName} conectado</p>
+          <p className="text-[17px] font-bold text-success">{t.cfgConexaoConectado(result.connectorName)}</p>
           <p className="text-sm text-ink-muted">
-            {result.created === 0
-              ? "Nenhum lançamento novo por enquanto. O SPI busca de novo toda noite."
-              : `Chegaram ${result.created} lançamentos dos últimos 90 dias${result.uncategorized > 0 ? `, ${result.uncategorized} sem categoria` : ""}.`}
+            {result.created === 0 ? t.cfgConexaoNadaNovo : t.cfgConexaoChegaram(result.created, result.uncategorized)}
           </p>
-          <Link href="/mensal" className="w-fit text-sm font-medium text-accent-strong hover:underline">Ver no mês →</Link>
+          <Link href="/mensal" className="w-fit text-sm font-medium text-accent-strong hover:underline">{t.cfgConexaoVerNoMes}</Link>
         </Card>
       )}
 
       <Card className="flex flex-col gap-4 p-5">
-        <p className="text-sm leading-relaxed text-ink-muted">
-          Pelo Open Finance oficial, através do Meu Pluggy, um site parceiro gratuito. Depois de conectado, o SPI busca seus lançamentos toda noite. Nada de arquivo.
-        </p>
+        <p className="text-sm leading-relaxed text-ink-muted">{t.cfgConexoesIntro}</p>
         <ol className="flex flex-col gap-3">
-          {[
-            ["Crie sua conta no Meu Pluggy", "É um site parceiro, gratuito. Abre em outra aba e volta aqui."],
-            ["Conecte seu banco lá", "Nubank, Itaú, Inter, C6… O banco pede sua autorização pelo app dele. Cartão entra junto."],
-            ["Autorize o SPI a ler", "Volte pra cá e toque em autorizar. Só leitura: o SPI não move dinheiro."],
-          ].map(([t, d], i) => (
-            <li key={t} className="flex gap-3">
+          {passos.map(([titulo, dica], i) => (
+            <li key={titulo} className="flex gap-3">
               <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-accent text-xs font-bold text-on-accent">{i + 1}</span>
               <div>
-                <p className="text-sm font-semibold text-ink">{t}</p>
-                <p className="text-caption text-ink-muted">{d}</p>
+                <p className="text-sm font-semibold text-ink">{titulo}</p>
+                <p className="text-caption text-ink-muted">{dica}</p>
               </div>
             </li>
           ))}
         </ol>
         <div className="flex flex-col gap-2 sm:flex-row">
           <a href="https://meu.pluggy.ai/" target="_blank" rel="noreferrer" className="flex flex-1 items-center justify-center rounded-full bg-accent px-4 py-3 text-sm font-bold text-on-accent">
-            Criar conta no Meu Pluggy ↗
+            {t.cfgConexoesCriarConta}
           </a>
           <Button type="button" variant="ghost" onClick={connect} disabled={busy || isPending} className="flex-1">
-            {busy || isPending ? "Abrindo…" : "Já conectei lá → autorizar o SPI"}
+            {busy || isPending ? t.cfgConexoesAbrindo : t.cfgConexoesAutorizar}
           </Button>
         </div>
-        <p className="text-caption leading-relaxed text-ink-faint">
-          Seus dados bancários passam pela Pluggy, empresa regulada pelo Banco Central, e chegam ao SPI só como lançamentos. Você desconecta quando quiser aqui. Se preferir, continue subindo o extrato.
-        </p>
+        <p className="text-caption leading-relaxed text-ink-faint">{t.cfgConexoesRodape}</p>
       </Card>
 
       {connections.length > 0 && (
         <div className="flex flex-col gap-3">
-          <p className="text-sm font-semibold text-ink">Bancos conectados</p>
+          <p className="text-sm font-semibold text-ink">{t.cfgBancosConectados}</p>
           {connections.map((c) => (
             <Card key={c.id} className="flex flex-col gap-3 p-4">
               <div className="flex items-center gap-3">
@@ -120,8 +119,8 @@ export function Connections({ configured, connections }: { configured: boolean; 
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold text-ink">{c.connectorName}</p>
                   <p className="text-caption text-ink-faint">
-                    {c.lastSyncAt ? `atualizado ${c.lastSyncAt} · ${c.lastSyncCount} novo${c.lastSyncCount === 1 ? "" : "s"}` : "ainda não buscou"}
-                    {c.status !== "UPDATED" && c.status !== "UPDATING" ? ` · ${c.status === "LOGIN_ERROR" ? "precisa reautorizar" : c.status.toLowerCase()}` : ""}
+                    {c.lastSyncAt ? t.cfgConexaoAtualizado(c.lastSyncAt, c.lastSyncCount) : t.cfgConexaoAindaNaoBuscou}
+                    {c.status !== "UPDATED" && c.status !== "UPDATING" ? ` · ${c.status === "LOGIN_ERROR" ? t.cfgConexaoReautorizar : c.status.toLowerCase()}` : ""}
                   </p>
                   {c.lastError && <p className="text-caption text-danger">{c.lastError}</p>}
                 </div>
@@ -133,26 +132,26 @@ export function Connections({ configured, connections }: { configured: boolean; 
                   onClick={() =>
                     startTransition(async () => {
                       const res = await syncConnectionAction(c.id);
-                      showToast(res.ok ? `${res.result.created} lançamento${res.result.created === 1 ? "" : "s"} novo${res.result.created === 1 ? "" : "s"}.` : res.error);
+                      showToast(res.ok ? t.cfgConexaoNovos(res.result.created) : res.error);
                     })
                   }
                   className="flex flex-1 items-center justify-center gap-1.5 rounded-full border border-border-strong bg-surface-2 px-3 py-2 text-xs font-semibold text-ink-muted hover:text-ink disabled:opacity-50"
                 >
-                  <RefreshCw size={13} /> Buscar agora
+                  <RefreshCw size={13} /> {t.cfgBuscarAgora}
                 </button>
                 <button
                   type="button"
                   disabled={isPending}
                   onClick={() => {
-                    if (!window.confirm(`Desconectar ${c.connectorName}? Os lançamentos que já entraram ficam.`)) return;
+                    if (!window.confirm(t.cfgDesconectarConfirma(c.connectorName))) return;
                     startTransition(async () => {
                       await disconnectAction(c.id);
-                      showToast("Desconectado.");
+                      showToast(t.cfgDesconectadoToast);
                     });
                   }}
                   className="flex-1 rounded-full border border-border-strong bg-surface-2 px-3 py-2 text-xs font-semibold text-danger disabled:opacity-50"
                 >
-                  Desconectar
+                  {t.cfgDesconectar}
                 </button>
               </div>
             </Card>

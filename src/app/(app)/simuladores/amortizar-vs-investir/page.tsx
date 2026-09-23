@@ -7,26 +7,33 @@ import { OutcomeComparison } from "@/components/charts/OutcomeComparison";
 import { SimulatorWizard, type WizardField, type WizardValues } from "@/components/simulators/SimulatorWizard";
 import { formatPercentNumber } from "@/lib/format";
 import { useMoney } from "@/components/money/MoneyProvider";
+import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
+import type { Titulos } from "@/lib/profiles/voice";
 
 
-const FIELDS: WizardField[] = [
-  { name: "outstandingBalance", label: "Saldo devedor", kind: "currency", help: "Quanto você ainda deve no financiamento hoje." },
-  { name: "cetAnnualRate", label: "Custo do financiamento (CET)", kind: "percent", help: "Custo Efetivo Total ao ano da dívida, juros mais tarifas e seguros." },
-  { name: "remainingMonths", label: "Prazo restante", kind: "number", suffix: "meses", help: "Quantos meses faltam para quitar o financiamento." },
-  {
-    name: "system",
-    label: "Sistema de amortização",
-    kind: "select",
-    help: "SAC: parcelas decrescentes. Price: parcelas fixas.",
-    options: [
-      { value: "SAC", label: "SAC (parcelas decrescentes)" },
-      { value: "PRICE", label: "Price (parcelas fixas)" },
-    ],
-  },
-  { name: "extraAmount", label: "Valor disponível", kind: "currency", help: "O dinheiro que sobrou e que você vai usar para amortizar OU investir." },
-  { name: "investmentAnnualRate", label: "Rentabilidade do investimento (bruta)", kind: "percent", help: "Quanto o investimento rende ao ano, antes de descontar o Imposto de Renda." },
-  { name: "incomeTaxRate", label: "Alíquota de IR do investimento", kind: "percent", help: "Imposto de Renda sobre o rendimento (ex.: 15% para prazos longos)." },
-];
+/** As perguntas vêm do catálogo de voz, então a lista é montada com o tema em mãos. */
+function campos(t: Titulos): WizardField[] {
+  return [
+    { name: "outstandingBalance", label: t.simAmortSaldo, kind: "currency", help: t.simAmortSaldoHint },
+    { name: "cetAnnualRate", label: t.simCet, kind: "percent", help: t.simAmortCetHint },
+    { name: "remainingMonths", label: t.simAmortPrazoRestante, kind: "number", suffix: "meses", help: t.simAmortPrazoRestanteHint },
+    {
+      name: "system",
+      label: t.simSistema,
+      kind: "select",
+      help: t.simAmortSistemaHint,
+      options: [
+        { value: "SAC", label: t.simSac },
+        { value: "PRICE", label: t.simPrice },
+      ],
+    },
+    { name: "extraAmount", label: t.simAmortValorDisponivel, kind: "currency", help: t.simAmortValorDisponivelHint },
+    // O rótulo fica escrito aqui (e não no catálogo) por causa do teste de jargão do Girly —
+    // ver o cabeçalho de textos/simuladores.ts.
+    { name: "investmentAnnualRate", label: "Rentabilidade do investimento (bruta)", kind: "percent", help: t.simAmortRentabilidadeHint },
+    { name: "incomeTaxRate", label: t.simAmortIr, kind: "percent", help: t.simAmortIrHint },
+  ];
+}
 
 const DEFAULTS: WizardValues = {
   outstandingBalance: 200000,
@@ -52,45 +59,50 @@ function toInput(values: WizardValues): AmortizeVsInvestFormValues {
 
 export default function AmortizarVsInvestirPage() {
   const money = useMoney();
+  const { voz } = useProfileTheme();
+  const t = voz.titulos;
+  const veredito = (values: WizardValues) =>
+    simulateAmortizeVsInvest(toInput(values)).winner === "AMORTIZAR" ? t.simAmortVenceAmortizar : t.simAmortVenceInvestir;
   return (
     <SimulatorWizard
-      eyebrow="Amortizar vs. Investir"
-      fields={FIELDS}
+      eyebrow={t.simAmortEyebrow}
+      fields={campos(t)}
       defaults={DEFAULTS}
-      save={{
-        type: "AMORTIZAR_VS_INVESTIR",
-        resumo: (values) => simulateAmortizeVsInvest(toInput(values)).winner === "AMORTIZAR" ? "Melhor amortizar" : "Melhor investir",
-      }}
+      save={{ type: "AMORTIZAR_VS_INVESTIR", resumo: veredito }}
       renderResult={(values) => {
         const result = simulateAmortizeVsInvest(toInput(values));
+        const diferenca = money(result.differenceInFavorOfWinner);
         return (
           <div className="flex flex-col gap-4">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-accent-strong">Resultado</p>
-              <h1 className="mt-1 font-serif text-2xl text-ink">
-                {result.winner === "AMORTIZAR" ? "Melhor amortizar" : "Melhor investir"}{" "}
-                <span className="text-ink-muted">({money(result.differenceInFavorOfWinner)} a mais)</span>
+              <p className="text-xs font-semibold uppercase tracking-wide text-accent-strong">{t.simResultado}</p>
+              <h1 className="mt-1 text-h2 font-bold tracking-tight text-ink">
+                {veredito(values)} <span className="text-ink-muted">{t.simAmortAMais(diferenca)}</span>
               </h1>
             </div>
             <Card className="p-4">
               <OutcomeComparison
                 a={{
-                  label: "Amortizar a dívida",
+                  label: t.simAmortBarraAmortizar,
                   value: result.interestSavings,
-                  hint: `Economia de juros · quita em ${result.scheduleWithExtra.length} meses`,
+                  hint: t.simAmortBarraAmortizarHint(String(result.scheduleWithExtra.length)),
                 }}
                 b={{
-                  label: "Investir o dinheiro",
+                  label: t.simAmortBarraInvestir,
                   value: result.investmentGain,
-                  hint: `Ganho já líquido de IR · ${formatPercentNumber(result.netInvestmentAnnualRate * 100, 2)} a.a.`,
+                  hint: t.simAmortBarraInvestirHint(formatPercentNumber(result.netInvestmentAnnualRate * 100, 2)),
                 }}
                 winner={result.winner === "AMORTIZAR" ? "a" : "b"}
-                verdict={`${result.winner === "AMORTIZAR" ? "Amortizar" : "Investir"} rende ${money(result.differenceInFavorOfWinner)} a mais.`}
+                verdict={t.simAmortVeredito(result.winner === "AMORTIZAR" ? "AMORTIZAR" : "INVESTIR", diferenca)}
               />
             </Card>
             <p className="text-xs leading-relaxed text-ink-faint">
-              Sem amortizar: {result.scheduleWithoutExtra.length} meses restantes, {money(result.totalInterestWithoutExtra)} de juros
-              totais. Amortizando: quita em {result.scheduleWithExtra.length} meses, {money(result.totalInterestWithExtra)} de juros.
+              {t.simAmortNota(
+                String(result.scheduleWithoutExtra.length),
+                money(result.totalInterestWithoutExtra),
+                String(result.scheduleWithExtra.length),
+                money(result.totalInterestWithExtra),
+              )}
             </p>
           </div>
         );

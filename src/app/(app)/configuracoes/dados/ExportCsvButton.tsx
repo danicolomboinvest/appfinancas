@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { Download } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { exportEntriesCsvAction, exportAssetsCsvAction } from "./actions";
 
 /** Botão genérico de exportação: chama a action, baixa o CSV com o prefixo do arquivo. */
@@ -17,6 +18,7 @@ function CsvDownloadButton({
 }) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const { titulos: t } = useProfileTheme().voz;
 
   function handleExport() {
     setError(null);
@@ -31,7 +33,7 @@ function CsvDownloadButton({
         link.click();
         URL.revokeObjectURL(url);
       } catch {
-        setError("Não foi possível exportar os dados. Tente novamente.");
+        setError(t.cfgExportFalhou);
       }
     });
   }
@@ -40,7 +42,7 @@ function CsvDownloadButton({
     <div className="flex flex-col gap-2">
       <Button type="button" onClick={handleExport} disabled={isPending} className="w-fit">
         <Download size={16} />
-        {isPending ? "Exportando..." : label}
+        {isPending ? t.cfgExportando : label}
       </Button>
       {error && <p className="text-xs text-danger">{error}</p>}
     </div>
@@ -48,11 +50,11 @@ function CsvDownloadButton({
 }
 
 export function ExportCsvButton() {
-  return (
-    <CsvDownloadButton label="Exportar lançamentos (CSV)" filePrefix="lancamentos" fetchCsv={exportEntriesCsvAction} />
-  );
+  const { titulos: t } = useProfileTheme().voz;
+  return <CsvDownloadButton label={t.cfgExportLancamentos} filePrefix="lancamentos" fetchCsv={exportEntriesCsvAction} />;
 }
 
 export function ExportAssetsCsvButton() {
-  return <CsvDownloadButton label="Exportar carteira (CSV)" filePrefix="carteira" fetchCsv={exportAssetsCsvAction} />;
+  const { titulos: t } = useProfileTheme().voz;
+  return <CsvDownloadButton label={t.cfgExportCarteira} filePrefix="carteira" fetchCsv={exportAssetsCsvAction} />;
 }

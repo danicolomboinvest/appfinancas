@@ -7,6 +7,7 @@ import { ProgressBar } from "@/components/ui/ProgressBar";
 import { HelpTooltip } from "@/components/forms/HelpTooltip";
 import { currencySymbol, type MoneyFormatter } from "@/lib/money";
 import { useMoney, useCurrency } from "@/components/money/MoneyProvider";
+import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { SaveSimulation } from "./SaveSimulation";
 import { useSearchParams } from "next/navigation";
 import { loadSimulationInputsAction } from "@/app/(app)/simuladores/actions";
@@ -84,6 +85,9 @@ export function SimulatorWizard({
 }) {
   const [values, setValues] = useState<WizardValues>(defaults);
   const [step, setStep] = useState(0);
+  // Os botões e o "Ajustar respostas" falam na voz do tema; as perguntas vêm prontas de cada
+  // página, que já as pegou do mesmo catálogo.
+  const { voz } = useProfileTheme();
 
   // Reabrir uma simulação salva: o id vem na URL (?s=…) e o próprio assistente carrega os
   // valores. Fica aqui, e não em cada página, porque são cinco simuladores usando este mesmo
@@ -223,7 +227,7 @@ export function SimulatorWizard({
         <div className="flex flex-col gap-5">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-accent-strong">{eyebrow}</p>
-            <h1 className="mt-1 flex items-center font-serif text-2xl text-ink">
+            <h1 className="mt-1 flex items-center text-h2 font-bold tracking-tight text-ink">
               {visibleFields[step].label}
               {visibleFields[step].help && <HelpTooltip text={visibleFields[step].help} />}
             </h1>
@@ -236,7 +240,7 @@ export function SimulatorWizard({
             onClick={() => setStep((s) => s + 1)}
             className="mt-2 flex items-center justify-center gap-1 rounded-full bg-ink px-5 py-3 text-sm font-medium text-canvas transition-opacity hover:opacity-90 active:scale-[0.98]"
           >
-            {step === visibleFields.length - 1 ? "Ver resultado" : "Continuar"}
+            {step === visibleFields.length - 1 ? voz.titulos.simVerResultado : voz.titulos.simContinuar}
             <ChevronRight className="h-4 w-4" />
           </button>
         </div>
@@ -250,7 +254,7 @@ export function SimulatorWizard({
 
           <div className="flex flex-col gap-2">
             <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-ink-muted">
-              <Pencil className="h-3.5 w-3.5" /> Ajustar respostas
+              <Pencil className="h-3.5 w-3.5" /> {voz.titulos.simAjustarRespostas}
             </p>
             <Card className="flex flex-col divide-y divide-border p-0">
               {visibleFields.map((field) => (

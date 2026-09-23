@@ -1,5 +1,7 @@
 "use client";
 
+import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
+
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { Briefcase, Eye, EyeOff, FileText, FileUp, Pencil, Plus, RefreshCw } from "lucide-react";
@@ -40,14 +42,14 @@ const CLASS_LABEL: Record<string, string> = {
  * vista de cor consistente com o donut acima, sem precisar do mapeamento fino por indexador.
  * INTERNACIONAL usa a cor de EXTERIOR (mesmo bucket na Estratégia). */
 const CLASS_COLOR: Record<string, string> = {
-  RENDA_FIXA: "#4FA3C7",
-  TESOURO_DIRETO: "#4FA3C7",
-  ACAO: "#E0A85F",
-  FII: "#6D8BD0",
-  FUNDO: "#9AA0A6",
-  CRIPTO: "#9AA0A6",
-  INTERNACIONAL: "#D98C6A",
-  OUTRO: "#9AA0A6",
+  RENDA_FIXA: "var(--color-strat-pos)",
+  TESOURO_DIRETO: "var(--color-strat-pos)",
+  ACAO: "var(--color-strat-acoes)",
+  FII: "var(--color-strat-fiis)",
+  FUNDO: "var(--color-strat-outros)",
+  CRIPTO: "var(--color-strat-outros)",
+  INTERNACIONAL: "var(--color-strat-exterior)",
+  OUTRO: "var(--color-strat-outros)",
 };
 
 /** Rótulo no plural pros filtros/fatias ("Ações", "FIIs"…). */
@@ -67,13 +69,6 @@ const CLASS_ORDER = ["ACAO", "FII", "FUNDO", "INTERNACIONAL", "RENDA_FIXA", "TES
 
 /** Rótulo curto do indexador de renda fixa, mostrado na linha do ativo. */
 const FI_LABEL: Record<string, string> = { POS_FIXADO: "Pós-fixado", IPCA: "IPCA+", PREFIXADO: "Prefixado" };
-
-const OBJECTIVE_LABEL: Record<string, string> = {
-  RESERVA_EMERGENCIA: "Reserva de emergência",
-  LIBERDADE_FINANCEIRA: "Liberdade financeira",
-  META: "Meta",
-  OUTRO: "Outro",
-};
 
 type Asset = {
   id: string;
@@ -116,12 +111,16 @@ export function AssetsSection({
   goals,
   goalNameById,
   strategy,
+  empresa = false,
 }: {
   assets: Asset[];
   goals: { id: string; name: string }[];
   goalNameById: Map<string, string>;
   strategy: StrategySummary;
+  /** Perfil Empresa: só o caixa e os ativos, sem estratégia de alocação. */
+  empresa?: boolean;
 }) {
+  const { voz } = useProfileTheme();
   const currency = useCurrency();
   const formatValue = useMoney();
   const [createOpen, setCreateOpen] = useState(false);
@@ -134,6 +133,16 @@ export function AssetsSection({
   const [isUpdatingQuotes, startQuotesTransition] = useTransition();
   const [isBulkPending, startBulkTransition] = useTransition();
   const { showToast } = useToast();
+  const t = voz.titulos;
+
+  // O nome de cada objetivo vem da voz do tema (reserva e liberdade já existiam no catálogo
+  // por causa da tela Por Objetivo; aqui só se reaproveita, pra não ter duas fontes).
+  const objectiveLabel: Record<string, string> = {
+    RESERVA_EMERGENCIA: t.objReserva,
+    LIBERDADE_FINANCEIRA: t.objLiberdade,
+    META: t.cartObjMeta,
+    OUTRO: t.cartObjOutro,
+  };
 
   /** Define o objetivo de todos os ativos do tipo filtrado de uma vez. O valor pode ser um
    * objetivo fixo (RESERVA/LIBERDADE/OUTRO) ou "goal:<id>" pra vincular a uma meta real. */
@@ -145,8 +154,8 @@ export function AssetsSection({
       const objective = (isGoal ? "META" : value) as "RESERVA_EMERGENCIA" | "LIBERDADE_FINANCEIRA" | "OUTRO" | "META";
       const result = await bulkSetObjectiveAction(classFilter, objective, goalId);
       if (!result.ok) return showToast(result.error);
-      const label = isGoal ? `meta "${goals.find((g) => g.id === goalId)?.name ?? ""}"` : `"${OBJECTIVE_LABEL[objective]}"`;
-      showToast(`${result.updated} ativos vinculados a ${label}.`);
+      const label = isGoal ? t.cartRotuloMeta(goals.find((g) => g.id === goalId)?.name ?? "") : `"${objectiveLabel[objective]}"`;
+      showToast(t.cartVinculados(result.updated, label));
     });
   }
 
@@ -161,8 +170,8 @@ export function AssetsSection({
       }
       showToast(
         result.failed.length > 0
-          ? `${result.updated} cotações atualizadas · não achei: ${result.failed.join(", ")}`
-          : `${result.updated} cotações atualizadas.`,
+          ? t.cartCotacoesNaoAchei(result.updated, result.failed.join(", "))
+          : t.cartCotacoesAtualizadas(result.updated),
       );
     });
   }
@@ -201,37 +210,39 @@ export function AssetsSection({
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Herói: o total da carteira é o número-herói. O olho oculta os valores em R$. */}
-      {/* Uma superfície só — mesmo tratamento do patrimônio na Visão Geral e do destaque do
-          mês no Fluxo. Retângulo arredondado dentro de outro, quase da mesma cor, era o que
-          mais envelhecia a tela. */}
-      <div className="glow-stage rounded-3xl border border-border p-5 sm:p-6">
+      {/* Herói: o total da carteira. Já foi um número de 52px numa caixa com brilho, e a Dani
+          achou gritante e espaçoso. Agora é um cartão baixo: ícone redondo, rótulo, número de
+          32px e o chip do lucro na mesma linha. O olho oculta os valores. */}
+      <div className="rounded-2xl border border-border bg-surface p-4 sm:p-5">
         <div>
-          <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+            <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent-strong">
+              <Briefcase size={20} strokeWidth={1.8} />
+            </span>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <p className="text-label font-semibold uppercase tracking-[0.11em] text-ink-muted">
-                  Sua carteira · {assets.length} ativo{assets.length === 1 ? "" : "s"}
+                <p className="text-caption font-semibold uppercase tracking-[0.08em] text-ink-muted">
+                  {t.cartSuaCarteira(assets.length)}
                 </p>
                 <button
                   type="button"
                   onClick={() => setHidden((h) => !h)}
-                  aria-label={hidden ? "Mostrar valores" : "Ocultar valores"}
+                  aria-label={hidden ? t.cartMostrarValores : t.cartOcultarValores}
                   className="text-ink-muted transition-colors hover:text-ink"
                 >
                   {hidden ? <EyeOff size={15} strokeWidth={1.9} /> : <Eye size={15} strokeWidth={1.9} />}
                 </button>
               </div>
-              <div className="mt-1">
-                <FitText className="text-display font-bold tracking-tight tabular-nums text-ink">
+              <div className="mt-0.5 flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
+                <FitText className="text-display font-semibold tracking-tight tabular-nums text-ink">
                   {hidden ? `${currencySymbol(currency)} ••••` : <CountUp value={totalValue} format={formatValue} />}
                 </FitText>
+                {Math.abs(totalProfit) >= 0.005 && totalInvested > 0 && (
+                  <p className={`text-sm tabular-nums ${totalProfit > 0 ? "text-success" : "text-danger"}`}>
+                    {t.cartDesdeACompra(`${totalProfit > 0 ? "+" : "−"}${hidden ? `${currencySymbol(currency)} ••••` : money(Math.abs(totalProfit))}`)}
+                  </p>
+                )}
               </div>
-              {Math.abs(totalProfit) >= 0.005 && totalInvested > 0 && (
-                <p className={`mt-1 text-sm tabular-nums ${totalProfit > 0 ? "text-success" : "text-danger"}`}>
-                  {totalProfit > 0 ? "+" : "−"}{hidden ? `${currencySymbol(currency)} ••••` : money(Math.abs(totalProfit))} desde a compra
-                </p>
-              )}
             </div>
             {Math.abs(totalProfit) >= 0.005 && totalInvested > 0 && (
               <span
@@ -244,23 +255,23 @@ export function AssetsSection({
               </span>
             )}
           </div>
-          <div className="mt-5 flex flex-wrap items-center gap-2">
+          <div className="mt-4 flex flex-wrap items-center gap-2">
             <Button type="button" size="sm" onClick={() => setCreateOpen(true)}>
               <Plus size={16} strokeWidth={2} />
-              Novo ativo
+              {t.cartNovoAtivo}
             </Button>
             <Button type="button" size="sm" variant="secondary" onClick={() => setImportOpen(true)}>
               <FileUp size={16} strokeWidth={2} />
-              Importar
+              {t.cartImportar}
             </Button>
             <Button type="button" size="sm" variant="secondary" onClick={() => setIrpfOpen(true)}>
               <FileText size={16} strokeWidth={2} />
-              Preço médio (IR)
+              {t.cartPrecoMedioIR}
             </Button>
             {hasTickers && (
               <Button type="button" size="sm" variant="secondary" onClick={handleUpdateQuotes} disabled={isUpdatingQuotes}>
                 <RefreshCw size={16} strokeWidth={2} className={isUpdatingQuotes ? "animate-spin" : ""} />
-                {isUpdatingQuotes ? "Atualizando..." : "Atualizar cotações"}
+                {isUpdatingQuotes ? t.cartAtualizando : t.cartAtualizarCotacoes}
               </Button>
             )}
           </div>
@@ -270,67 +281,64 @@ export function AssetsSection({
       {assets.length === 0 ? (
         <EmptyState
           icon={Briefcase}
-          message="Nenhum ativo cadastrado ainda. Adicione o primeiro para acompanhar sua carteira aqui."
+          message={voz.titulos.carteiraVazio}
         />
       ) : (
         <>
           {/* Uma rosca e uma régua, não duas roscas. Comparar "atual" e "ideal" em dois
               círculos obriga a pessoa a medir ângulo de cabeça; com o alvo virando tracinho
               na mesma barra, quem está atrás do traço é literalmente o que falta comprar. */}
-          <div className="grid grid-cols-1 gap-7 border-t border-border pt-7 sm:grid-cols-2">
+          <div className={`grid grid-cols-1 gap-7 border-t border-border pt-7 ${empresa ? "" : "sm:grid-cols-2"}`}>
             <div className="flex flex-col gap-3">
-              <p className="text-[17px] font-semibold text-ink">Carteira atual, por tipo</p>
+              <p className="text-[17px] font-semibold text-ink">{t.cartPorTipo}</p>
               <Donut
                 slices={classAllocationData}
-                centerLabel="Total"
+                centerLabel={t.cartTotal}
                 size={170}
                 onSelect={(slice) => slice.id && toggleClassFilter(slice.id)}
                 selectedName={classFilter ? CLASS_PLURAL[classFilter] : null}
               />
             </div>
+            {!empresa && (
             <div className="flex flex-col gap-3">
-              <p className="text-[17px] font-semibold text-ink">Onde você está × sua estratégia</p>
+              <p className="text-[17px] font-semibold text-ink">{t.cartOndeVoceEsta}</p>
               {strategy.hasStrategy ? (
                 <>
-                  <BulletBar
-                    rows={strategy.bullets}
-                    targetHint="O tracinho é o seu alvo. Quem está atrás dele é o que comprar no próximo aporte."
-                  />
+                  <BulletBar rows={strategy.bullets} targetHint={t.cartTracinhoAlvo} />
                   <div className="flex flex-wrap items-center gap-2">
                     {strategy.balance.below > 0 && (
                       <span className="rounded-full bg-info-soft px-2.5 py-1 text-caption font-medium text-info">
-                        {strategy.balance.below} abaixo do alvo
+                        {t.cartAbaixoDoAlvo(strategy.balance.below)}
                       </span>
                     )}
                     {strategy.balance.above > 0 && (
                       <span className="rounded-full bg-accent-soft px-2.5 py-1 text-caption font-medium text-accent-strong">
-                        {strategy.balance.above} acima do alvo
+                        {t.cartAcimaDoAlvo(strategy.balance.above)}
                       </span>
                     )}
                     {strategy.balance.below === 0 && strategy.balance.above === 0 && (
                       <span className="rounded-full bg-success-soft px-2.5 py-1 text-caption font-medium text-success">
-                        Carteira na estratégia
+                        {t.cartNaEstrategia}
                       </span>
                     )}
                   </div>
                 </>
               ) : (
                 <div className="flex flex-col items-start gap-2">
-                  <p className="text-xs text-ink-faint">
-                    Defina quanto quer ter em cada tipo e compare com a carteira atual.
-                  </p>
+                  <p className="text-xs text-ink-faint">{t.cartDefinaQuanto}</p>
                   <Link href="/carteira/estrategia" className="text-xs font-medium text-accent-strong hover:underline">
-                    Definir estratégia →
+                    {t.cartDefinirEstrategia}
                   </Link>
                 </div>
               )}
             </div>
+            )}
           </div>
 
           {/* Pra onde vai o próximo aporte: maiores desvios da estratégia (detalhe em Por Objetivo). */}
-          {strategy.hasStrategy && strategy.suggestions.length > 0 && (
+          {!empresa && strategy.hasStrategy && strategy.suggestions.length > 0 && (
             <div className="flex flex-wrap items-center gap-2 text-sm">
-              <span className="text-ink-muted">Pra ficar no alvo:</span>
+              <span className="text-ink-muted">{t.cartPraFicarNoAlvo}</span>
               {strategy.suggestions.map((s) => (
                 <span
                   key={s.label}
@@ -342,7 +350,7 @@ export function AssetsSection({
                 </span>
               ))}
               <Link href="/carteira/por-objetivo" className="text-xs text-accent-strong hover:underline">
-                Ver rebalanceamento →
+                {t.cartVerRebalanceamento}
               </Link>
             </div>
           )}
@@ -354,11 +362,11 @@ export function AssetsSection({
               onClick={() => setClassFilter(null)}
               className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
                 classFilter === null
-                  ? "border-transparent bg-ink text-canvas"
+                  ? "border-transparent bg-pill text-on-pill"
                   : "border-border bg-surface-2 text-ink-muted hover:text-ink"
               }`}
             >
-              Todos ({assets.length})
+              {t.cartTodos(assets.length)}
             </button>
             {classesPresent.map((c) => (
               <button
@@ -367,7 +375,7 @@ export function AssetsSection({
                 onClick={() => toggleClassFilter(c)}
                 className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
                   classFilter === c
-                    ? "border-transparent bg-ink text-canvas"
+                    ? "border-transparent bg-pill text-on-pill"
                     : "border-border bg-surface-2 text-ink-muted hover:text-ink"
                 }`}
               >
@@ -382,7 +390,7 @@ export function AssetsSection({
             <p className="text-sm text-ink-muted">
               {CLASS_PLURAL[classFilter]}: <span className="font-medium text-ink">{money(valueByClass.get(classFilter) ?? 0)}</span>
               {totalValue > 0 && (
-                <> · {formatPercentNumber(((valueByClass.get(classFilter) ?? 0) / totalValue) * 100, 1)} da carteira</>
+                <> · {t.cartDaCarteira(formatPercentNumber(((valueByClass.get(classFilter) ?? 0) / totalValue) * 100, 1))}</>
               )}
               {(() => {
                 const profit = visibleAssets.reduce((sum, a) => sum + (profitOf(a) ?? 0), 0);
@@ -406,10 +414,10 @@ export function AssetsSection({
               className="rounded-lg border border-border-strong bg-surface px-2 py-1.5 text-xs text-ink-muted focus:border-accent focus:outline-none"
             >
               <option value="" disabled>
-                {isBulkPending ? "Aplicando…" : `Definir objetivo dos ${visibleAssets.length}…`}
+                {isBulkPending ? t.cartAplicando : t.cartDefinirObjetivoDos(visibleAssets.length)}
               </option>
               {goals.length > 0 && (
-                <optgroup label="Suas metas">
+                <optgroup label={t.cartSuasMetas}>
                   {goals.map((g) => (
                     <option key={g.id} value={`goal:${g.id}`}>
                       {g.name}
@@ -417,21 +425,22 @@ export function AssetsSection({
                   ))}
                 </optgroup>
               )}
-              <optgroup label="Objetivos gerais">
-                <option value="LIBERDADE_FINANCEIRA">Liberdade financeira</option>
-                <option value="RESERVA_EMERGENCIA">Reserva de emergência</option>
-                <option value="OUTRO">Outro</option>
+              <optgroup label={t.cartObjetivosGerais}>
+                <option value="LIBERDADE_FINANCEIRA">{objectiveLabel.LIBERDADE_FINANCEIRA}</option>
+                <option value="RESERVA_EMERGENCIA">{objectiveLabel.RESERVA_EMERGENCIA}</option>
+                <option value="OUTRO">{objectiveLabel.OUTRO}</option>
               </optgroup>
             </select>
             </div>
           )}
 
-          <div className="flex flex-col gap-2">
+          {/* No computador, dois ativos por linha (ver EntryList pelo mesmo motivo). */}
+          <div className="flex flex-col gap-2 lg:grid lg:grid-cols-2 lg:items-start lg:gap-x-4">
             {visibleAssets.map((asset) => {
               const objectiveText =
                 asset.objective === "META" && asset.goalId
-                  ? `Meta: ${goalNameById.get(asset.goalId) ?? ""}`
-                  : OBJECTIVE_LABEL[asset.objective];
+                  ? t.cartMetaPrefixo(goalNameById.get(asset.goalId) ?? "")
+                  : objectiveLabel[asset.objective];
               const expanded = expandedId === asset.id;
               return (
                 <Card key={asset.id} className="p-0">
@@ -483,10 +492,10 @@ export function AssetsSection({
                         type="button"
                         onClick={() => setEditingAsset(asset)}
                         className="inline-flex items-center gap-1 text-xs text-ink-muted transition-colors hover:text-ink"
-                        aria-label={`Editar ${asset.name}`}
+                        aria-label={t.cartEditarAria(asset.name)}
                       >
                         <Pencil size={13} strokeWidth={1.75} />
-                        Editar
+                        {t.cartEditar}
                       </button>
                       <DeleteAssetButton id={asset.id} />
                     </div>
@@ -498,24 +507,24 @@ export function AssetsSection({
         </>
       )}
 
-      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Novo ativo">
-        <AssetForm goals={goals} submitLabel="Adicionar" onSuccess={() => setCreateOpen(false)} />
+      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title={t.cartNovoAtivo}>
+        <AssetForm goals={goals} submitLabel={t.cartAdicionar} onSuccess={() => setCreateOpen(false)} />
       </Modal>
 
-      <Modal open={importOpen} onClose={() => setImportOpen(false)} title="Importar carteira">
+      <Modal open={importOpen} onClose={() => setImportOpen(false)} title={t.cartImportarCarteira}>
         <PortfolioImport onDone={() => setImportOpen(false)} />
       </Modal>
 
-      <Modal open={irpfOpen} onClose={() => setIrpfOpen(false)} title="Preço médio pela declaração de IR">
+      <Modal open={irpfOpen} onClose={() => setIrpfOpen(false)} title={t.cartPrecoMedioDeclaracao}>
         <IrpfImport onDone={() => setIrpfOpen(false)} />
       </Modal>
 
-      <Modal open={editingAsset !== null} onClose={() => setEditingAsset(null)} title="Editar ativo">
+      <Modal open={editingAsset !== null} onClose={() => setEditingAsset(null)} title={t.cartEditarAtivo}>
         {editingAsset && (
           <AssetForm
             goals={goals}
             assetId={editingAsset.id}
-            submitLabel="Salvar alterações"
+            submitLabel={t.cartSalvarAlteracoes}
             onSuccess={() => setEditingAsset(null)}
             defaults={{
               name: editingAsset.name,

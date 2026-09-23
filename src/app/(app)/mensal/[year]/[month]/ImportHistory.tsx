@@ -8,6 +8,7 @@ import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import { useToast } from "@/components/ui/toast-context";
 import { deleteImportBatchAction } from "../../import-actions";
 import { useMoney } from "@/components/money/MoneyProvider";
+import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 
 export type ImportBatchView = {
   id: string;
@@ -40,6 +41,9 @@ function formatMonthChip(ym: string) {
 export function ImportHistory({ batches }: { batches: ImportBatchView[] }) {
   const money = useMoney();
   const { showToast } = useToast();
+  // Rótulos e avisos vêm da voz do tema; o que apaga continua sendo o servidor.
+  const { voz } = useProfileTheme();
+  const t = voz.titulos;
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [removedIds, setRemovedIds] = useState<Set<string>>(new Set());
   const [isPending, startTransition] = useTransition();
@@ -57,12 +61,12 @@ export function ImportHistory({ batches }: { batches: ImportBatchView[] }) {
       setConfirmingId(null);
       if (!result.ok) return;
       setRemovedIds((prev) => new Set(prev).add(batch.id));
-      showToast(`Importação desfeita: ${result.removed} lançamento${result.removed === 1 ? "" : "s"} removido${result.removed === 1 ? "" : "s"}.`);
+      showToast(t.impHistoricoDesfeita(result.removed));
     });
   }
 
   return (
-    <CollapsibleSection label="Histórico de importações">
+    <CollapsibleSection label={t.impHistoricoTitulo}>
       <div className="flex flex-col gap-2">
         {visible.map((batch) => {
           const Icon = batch.docType === "fatura" ? CreditCard : batch.docType === "openfinance" ? Landmark : FileText;
@@ -73,13 +77,13 @@ export function ImportHistory({ batches }: { batches: ImportBatchView[] }) {
                 <Icon className="size-4 shrink-0 text-ink-faint" aria-hidden />
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium text-ink">
-                    {batch.docType === "fatura" ? "Fatura" : batch.docType === "openfinance" ? "Banco conectado" : "Extrato"}
+                    {batch.docType === "fatura" ? t.impHistoricoFatura : batch.docType === "openfinance" ? t.impHistoricoBanco : t.impHistoricoExtrato}
                     {batch.fileName ? ` · ${batch.fileName}` : ""}
                   </p>
                   <p className="truncate text-xs text-ink-faint">
                     <span className="tabular-nums">{formatDateTime(batch.createdAt)}</span>
                     {" · "}
-                    {batch.entryCount} lançamento{batch.entryCount === 1 ? "" : "s"}
+                    {t.impHistoricoLancamentos(batch.entryCount)}
                     {" · "}
                     <span className="tabular-nums">{money(batch.totalAmount)}</span>
                     {batch.months.length > 0 && ` · ${batch.months.map(formatMonthChip).join(", ")}`}
@@ -95,15 +99,12 @@ export function ImportHistory({ batches }: { batches: ImportBatchView[] }) {
                 onBlur={() => setConfirmingId((id) => (id === batch.id ? null : id))}
               >
                 <Trash2 className="size-3.5" aria-hidden />
-                {confirming ? "Confirmar exclusão?" : "Desfazer"}
+                {confirming ? t.impHistoricoConfirmar : t.impHistoricoDesfazer}
               </Button>
             </Card>
           );
         })}
-        <p className="text-xs text-ink-faint">
-          Desfazer uma importação apaga todos os lançamentos que aquele arquivo criou. Importações feitas antes deste
-          histórico existir não aparecem aqui.
-        </p>
+        <p className="text-xs text-ink-faint">{t.impHistoricoNota}</p>
       </div>
     </CollapsibleSection>
   );

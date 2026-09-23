@@ -4,6 +4,7 @@ import { Area, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis }
 import type { DailyFlowPoint } from "@/lib/consolidation/month-analysis";
 import { CHART_COLORS, CHART_TOOLTIP_STYLE } from "./chart-theme";
 import { useMoney } from "@/components/money/MoneyProvider";
+import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 
 
 /**
@@ -34,6 +35,7 @@ export function MonthFlowChart({
   isCurrentMonth?: boolean;
 }) {
   const money = useMoney();
+  const t = useProfileTheme().voz.titulos;
   const data = points.map((p) => ({
     day: p.day,
     Renda: p.income,
@@ -71,10 +73,10 @@ export function MonthFlowChart({
           <YAxis hide />
           <Tooltip
             {...CHART_TOOLTIP_STYLE}
-            labelFormatter={(day) => `Dia ${day}`}
+            labelFormatter={(day) => t.grafDia(String(day))}
             formatter={(value, name) => {
               if (name === "faixa" || name === "faixaBase") return [];
-              return [money(Number(value), { round: true }), name === "Renda" ? "Entrou" : "Saiu"];
+              return [money(Number(value), { round: true }), name === "Renda" ? t.grafEntrou : t.grafSaiu];
             }}
             cursor={{ stroke: CHART_COLORS.grid }}
           />
@@ -121,14 +123,14 @@ export function MonthFlowChart({
       <div className="flex flex-wrap items-center gap-2">
         <span className="inline-flex items-center gap-1.5 rounded-full bg-success-soft px-2.5 py-1 text-caption font-medium text-success">
           <span className="size-1.5 rounded-full bg-success" />
-          Entrou {money(last?.income ?? 0, { round: true })}
+          {t.grafEntrouValor(money(last?.income ?? 0, { round: true }))}
         </span>
         <span className="inline-flex items-center gap-1.5 rounded-full bg-danger-soft px-2.5 py-1 text-caption font-medium text-danger">
           <span className="size-1.5 rounded-full bg-danger" />
-          Saiu {money(last?.expense ?? 0, { round: true })}
+          {t.grafSaiuValor(money(last?.expense ?? 0, { round: true }))}
         </span>
         <span className="rounded-full bg-surface-2 px-2.5 py-1 text-caption font-medium text-ink">
-          {positive ? "Sobrou" : "Faltou"} {isCurrentMonth ? "até aqui" : "no mês"}: {money(Math.abs(leftover), { round: true })}
+          {t.grafSobrouChip(positive, isCurrentMonth, money(Math.abs(leftover), { round: true }))}
         </span>
       </div>
     </div>

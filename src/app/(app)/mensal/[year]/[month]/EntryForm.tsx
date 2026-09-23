@@ -1,5 +1,7 @@
 "use client";
 
+import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
+
 import { useActionState, useEffect, useRef, useState } from "react";
 import type { ParentCategory } from "@prisma/client";
 import { Field } from "@/components/ui/Field";
@@ -74,7 +76,9 @@ export function EntryForm({
     initialState,
   );
   const wasPending = useRef(false);
-  useSuccessToast(isPending, state.error, "Lançamento salvo com sucesso.");
+  const { voz } = useProfileTheme();
+  const t = voz.titulos;
+  useSuccessToast(isPending, state.error, t.lancamentoSalvo);
 
   useEffect(() => {
     if (wasPending.current && !isPending && !state.error) {
@@ -113,17 +117,17 @@ export function EntryForm({
         descriptionHint={description}
       />
       <Field
-        label="Descrição (opcional)"
+        label={t.formLancDescricao}
         id="description"
         name="description"
         value={description}
         onChange={(e) => setDescription(e.target.value)}
-        placeholder="Ex.: o nome do lugar, o que comprou"
+        placeholder={t.formLancDescricaoPlaceholder}
         className={stacked ? "w-full" : ""}
       />
       <div className={`flex flex-col gap-1.5 ${stacked ? "w-full" : "w-40"}`}>
         <CurrencyField
-          label="Valor"
+          label={t.formLancValor}
           id="amount"
           name="amount"
           defaultValue={defaultAmount}
@@ -144,7 +148,7 @@ export function EntryForm({
         )}
       </div>
       <Field
-        label="Data"
+        label={t.formLancData}
         id="entryDate"
         name="entryDate"
         type="date"
@@ -153,13 +157,13 @@ export function EntryForm({
       />
       {goals.length > 0 && (
         <label className={`flex flex-col gap-1.5 ${stacked ? "w-full" : ""}`}>
-          <span className="text-xs font-medium text-ink-muted">Meta vinculada (opcional)</span>
+          <span className="text-xs font-medium text-ink-muted">{t.formLancMetaVinculada}</span>
           <select
             name="goalId"
             defaultValue={defaultGoalId ?? ""}
             className="rounded-lg border border-border-strong bg-surface-2 px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
           >
-            <option value="">Nenhuma</option>
+            <option value="">{t.formLancNenhuma}</option>
             {goals.map((goal) => (
               <option key={goal.id} value={goal.id}>
                 {goal.name}
@@ -171,11 +175,11 @@ export function EntryForm({
       {!isEditing && (
         <label className={`flex items-center gap-2 text-xs text-ink-muted ${stacked ? "w-full" : ""}`}>
           <input type="checkbox" name="repeatMonthly" className="h-3.5 w-3.5 accent-accent" />
-          Repetir lançamento todo mês (despesa fixa) até dezembro de {year}
+          {t.formLancRepetir(year)}
         </label>
       )}
       <Button type="submit" disabled={isPending} size="sm" className={stacked ? "w-full" : ""}>
-        {isPending ? "Salvando..." : isEditing ? "Salvar alterações" : "Lançar"}
+        {isPending ? t.formSalvando : isEditing ? t.formLancSalvar : t.formLancLancar}
       </Button>
     </Card>
   );

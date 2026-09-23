@@ -216,7 +216,12 @@ model FinancialProfile {
   kind   ProfileKind @default(PESSOAL)
   /// Nome do ícone na biblioteca do app (lucide), não emoji: o produto não depende de emoji.
   icon   String  @default("wallet")
-  /// Chave da paleta (ver src/lib/profiles/palette.ts), nunca um hexadecimal cru vindo da tela.
+  /// Chave do TEMA do perfil (ver src/lib/profiles/themes.ts), nunca cor crua vinda da tela.
+  /// O tema traz a paleta inteira — fundo, cartão, tinta e destaque —, não só o realce.
+  theme  String  @default("padrao")
+  /// Chave da paleta antiga, de quando o perfil escolhia só a cor de destaque. Substituída
+  /// pelo tema em set/2026 e não lida mais por tela nenhuma. Fica na tabela porque derrubar
+  /// coluna em banco de produção é risco sem ganho — sai numa limpeza própria, depois.
   color  String  @default("ambar")
   /// Ordem na troca rápida de perfil.
   position Int   @default(0)

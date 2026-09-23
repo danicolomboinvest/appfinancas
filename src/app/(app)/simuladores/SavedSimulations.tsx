@@ -4,6 +4,7 @@ import { useTransition } from "react";
 import Link from "next/link";
 import { Bookmark, Trash2 } from "lucide-react";
 import { Section } from "@/components/ui/Section";
+import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { deleteSimulationAction } from "./actions";
 
 const ROTA: Record<string, string> = {
@@ -14,6 +15,7 @@ const ROTA: Record<string, string> = {
   CARRO: "/simuladores/carro",
 };
 
+/** Os nomes do Padrão; o tema troca pelo dele via `titulos.simulador`, o mesmo mapa da lista. */
 const NOME_DO_TIPO: Record<string, string> = {
   FINANCIAR_VS_ALUGAR: "Financiar vs. Alugar",
   AMORTIZAR_VS_INVESTIR: "Amortizar vs. Investir",
@@ -39,10 +41,19 @@ export type SavedSimulation = {
  */
 export function SavedSimulations({ items }: { items: SavedSimulation[] }) {
   const [pendente, startTransition] = useTransition();
+  const { voz } = useProfileTheme();
   if (items.length === 0) return null;
 
+  // Sem nome, a simulação mostra o título da calculadora — na voz do tema, pra bater com o
+  // card que a pessoa clicou na lista logo abaixo.
+  const nomeDoTipo = (tipo: string) => {
+    const padrao = NOME_DO_TIPO[tipo];
+    if (!padrao) return voz.titulos.simSalvaSemNome;
+    return voz.titulos.simulador(ROTA[tipo] ?? "/simuladores", { title: padrao, subtitle: "" }).title;
+  };
+
   return (
-    <Section title="Suas simulações salvas">
+    <Section title={voz.titulos.simSalvasTitulo}>
       <ul className="flex flex-col">
         {items.map((s) => (
           <li key={s.id} className="flex items-center gap-3 border-b border-border/60 py-3 last:border-0">
@@ -50,7 +61,7 @@ export function SavedSimulations({ items }: { items: SavedSimulation[] }) {
               <Bookmark size={17} strokeWidth={2} />
             </span>
             <Link href={`${ROTA[s.type] ?? "/simuladores"}?s=${s.id}`} className="min-w-0 flex-1">
-              <p className="truncate text-[15px] font-semibold text-ink">{s.name ?? NOME_DO_TIPO[s.type] ?? "Simulação"}</p>
+              <p className="truncate text-[15px] font-semibold text-ink">{s.name ?? nomeDoTipo(s.type)}</p>
               <p className="mt-0.5 flex min-w-0 items-baseline gap-1 text-caption text-ink-muted">
                 <span className="truncate">{s.resumo}</span>
                 <span className="shrink-0">· {s.createdAt}</span>

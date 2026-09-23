@@ -5,12 +5,19 @@ import type { ProjectionYear } from "@/lib/consolidation/projection";
 import { CHART_COLORS, CHART_TOOLTIP_STYLE } from "./chart-theme";
 import { useMoney } from "@/components/money/MoneyProvider";
 
-export function PatrimonyProjectionChart({ years }: { years: ProjectionYear[] }) {
+export function PatrimonyProjectionChart({
+  years,
+  nomes = { nominal: "Patrimônio (nominal)", real: "Patrimônio (real)" },
+}: {
+  years: ProjectionYear[];
+  /** Os nomes das duas linhas, na voz do tema. */
+  nomes?: { nominal: string; real: string };
+}) {
   const money = useMoney();
   const data = years.map((y) => ({
     idade: y.age,
-    "Patrimônio (nominal)": y.balanceNominal,
-    "Patrimônio (real)": y.balanceReal,
+    [nomes.nominal]: y.balanceNominal,
+    [nomes.real]: y.balanceReal,
   }));
 
   return (
@@ -39,8 +46,8 @@ export function PatrimonyProjectionChart({ years }: { years: ProjectionYear[] })
           cursor={{ stroke: CHART_COLORS.grid }}
         />
         <Legend wrapperStyle={{ fontSize: 12, color: CHART_COLORS.axis }} />
-        <Line type="monotone" dataKey="Patrimônio (nominal)" stroke={CHART_COLORS.info} strokeWidth={2} dot={false} connectNulls />
-        <Line type="monotone" dataKey="Patrimônio (real)" stroke={CHART_COLORS.accent} strokeWidth={2} dot={false} />
+        <Line type="monotone" dataKey={nomes.nominal} stroke={CHART_COLORS.info} strokeWidth={2} dot={false} connectNulls />
+        <Line type="monotone" dataKey={nomes.real} stroke={CHART_COLORS.accent} strokeWidth={2} dot={false} />
       </LineChart>
     </ResponsiveContainer>
   );

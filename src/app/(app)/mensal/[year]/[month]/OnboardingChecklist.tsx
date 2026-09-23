@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Check, X } from "lucide-react";
+import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 
 const DISMISS_KEY = "onboarding-dismissed";
 
@@ -22,6 +23,8 @@ export function OnboardingChecklist({
   hasAsset: boolean;
 }) {
   const [dismissed, setDismissed] = useState(true); // começa oculto até ler o localStorage (evita piscar)
+  // O que o guia diz vem da voz do tema; o que ele checa (os três passos) é igual nos sete.
+  const { voz } = useProfileTheme();
 
   useEffect(() => {
     setDismissed(window.localStorage.getItem(DISMISS_KEY) === "1");
@@ -29,9 +32,9 @@ export function OnboardingChecklist({
 
   const steps: Step[] = [
     // O formulário inline (#lancamento) não existe mais: o registro vive na gaveta do "+".
-    { label: "Registre seu primeiro gasto ou renda", done: hasEntry, href: "#registrar" },
-    { label: "Defina seu orçamento do mês", done: hasBudget, href: "/orcamento" },
-    { label: "Monte sua carteira de investimentos", done: hasAsset, href: "/carteira" },
+    { label: voz.titulos.uiPassoRegistrar, done: hasEntry, href: "#registrar" },
+    { label: voz.titulos.uiPassoOrcamento, done: hasBudget, href: "/orcamento" },
+    { label: voz.titulos.uiPassoCarteira, done: hasAsset, href: "/carteira" },
   ];
   const doneCount = steps.filter((s) => s.done).length;
 
@@ -46,9 +49,9 @@ export function OnboardingChecklist({
     <div className="rounded-2xl border border-border bg-surface p-4 shadow-premium-sm">
       <div className="mb-3 flex items-center justify-between">
         <p className="text-sm font-semibold text-ink">
-          Primeiros passos <span className="font-normal text-ink-faint">({doneCount}/{steps.length})</span>
+          {voz.titulos.uiPrimeirosPassos} <span className="font-normal text-ink-faint">({doneCount}/{steps.length})</span>
         </p>
-        <button type="button" onClick={dismiss} aria-label="Dispensar guia" className="text-ink-faint hover:text-ink">
+        <button type="button" onClick={dismiss} aria-label={voz.titulos.uiDispensarGuia} className="text-ink-faint hover:text-ink">
           <X size={16} strokeWidth={1.75} />
         </button>
       </div>

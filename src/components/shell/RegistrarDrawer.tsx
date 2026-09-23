@@ -1,14 +1,16 @@
 "use client";
 
-import Link from "next/link";
+import type { ProfileKind } from "@prisma/client";
+
 
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import { ChevronLeft, FileUp, Keyboard, Mic, Landmark } from "lucide-react";
+import { ChevronLeft, FileUp, Keyboard, Mic } from "lucide-react";
 import type { ParentCategory } from "@prisma/client";
 import { Modal } from "@/components/ui/Modal";
+import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { EntryForm } from "@/app/(app)/mensal/[year]/[month]/EntryForm";
-import { SUBCATEGORIES, INCOME_TYPES } from "@/lib/categories";
+import { subcategoriesFor, incomeTypesFor } from "@/lib/categories";
 import { getRecentSubcategoriesAction, getCustomCategoriesAction, getGoalsAction } from "@/app/(app)/mensal/actions";
 import { currentYearMonthFromPath } from "@/app/(app)/mensal/current-month";
 import { VoiceRecorder } from "@/app/(app)/mensal/VoiceRecorder";
@@ -26,12 +28,9 @@ type Mode = "choice" | "type" | "voice" | "import";
 export function RegistrarDrawer({
   open,
   onClose,
-  openFinance,
 }: {
   open: boolean;
   onClose: () => void;
-  /** Open Finance ligado no servidor (chaves da Pluggy); sem isso, a opção "Conectar meu banco" não aparece. */
-  openFinance: boolean;
 }) {
   const pathname = usePathname();
   const [mode, setMode] = useState<Mode>("choice");
@@ -54,14 +53,17 @@ export function RegistrarDrawer({
     }
   }, [open]);
 
+  // Título, cartões e "Voltar" vêm da voz do tema: é aqui que um tema pode chamar "Digitar" de
+  // outro jeito sem tocar no componente.
+  const { voz, kind } = useProfileTheme();
   const title =
     mode === "choice"
-      ? "Registrar"
+      ? voz.titulos.registrar
       : mode === "voice"
-        ? "Falar lançamento"
+        ? voz.titulos.registrarFalar
         : mode === "import"
-          ? "Importar extrato"
-          : "Novo lançamento";
+          ? voz.titulos.registrarImportar
+          : voz.titulos.registrarNovo;
 
   return (
     <Modal open={open} onClose={onClose} title={title}>
@@ -75,7 +77,7 @@ export function RegistrarDrawer({
           className="mb-4 -mt-1 flex items-center gap-1 text-sm text-ink-muted transition-colors hover:text-ink"
         >
           <ChevronLeft size={16} />
-          Voltar
+          {voz.titulos.impVoltar}
         </button>
       )}
 
@@ -89,10 +91,10 @@ export function RegistrarDrawer({
             }}
             className="flex flex-col items-center gap-3 rounded-2xl border border-border bg-surface-2 px-4 py-6 text-center transition-all hover:border-border-strong hover:bg-surface-hover active:scale-95"
           >
-            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-ink text-canvas">
+            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-pill text-on-pill">
               <Keyboard size={22} strokeWidth={1.75} />
             </span>
-            <span className="text-sm font-medium text-ink">Digitar</span>
+            <span className="text-sm font-medium text-ink">{voz.titulos.impDigitar}</span>
           </button>
           <button
             type="button"
@@ -107,7 +109,7 @@ export function RegistrarDrawer({
             <span className="flex h-12 w-12 items-center justify-center rounded-full bg-accent text-on-accent">
               <Mic size={22} strokeWidth={1.75} />
             </span>
-            <span className="text-sm font-medium text-ink">Gravar áudio</span>
+            <span className="text-sm font-medium text-ink">{voz.titulos.impGravarAudio}</span>
           </button>
           <button
             type="button"
@@ -117,27 +119,11 @@ export function RegistrarDrawer({
             }}
             className="col-span-2 flex items-center justify-center gap-3 rounded-2xl border border-border bg-surface-2 px-4 py-4 text-center transition-all hover:border-border-strong hover:bg-surface-hover active:scale-95"
           >
-            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-ink text-canvas">
+            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-pill text-on-pill">
               <FileUp size={20} strokeWidth={1.75} />
             </span>
-            <span className="text-sm font-medium text-ink">Importar extrato ou fatura (PDF, Excel, CSV, OFX)</span>
+            <span className="text-sm font-medium text-ink">{voz.titulos.impImportarArquivo}</span>
           </button>
-          {openFinance && (
-          <Link
-            href="/configuracoes/conexoes"
-            onClick={onClose}
-            className="col-span-2 flex items-center gap-3 rounded-2xl border border-accent/50 bg-accent-soft/40 px-4 py-4 text-left transition-all hover:border-accent active:scale-95"
-          >
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent text-on-accent">
-              <Landmark size={20} strokeWidth={1.75} />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block text-sm font-medium text-ink">Conectar meu banco</span>
-              <span className="block text-caption text-ink-muted">Open Finance · os lançamentos chegam sozinhos, todo dia</span>
-            </span>
-            <span className="shrink-0 rounded-full border border-accent/50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-accent-strong">beta</span>
-          </Link>
-          )}
         </div>
       )}
 
@@ -161,8 +147,8 @@ export function RegistrarDrawer({
           goals={goals}
           layout="stacked"
           onSuccess={onClose}
-          defaultDescription={parsed && voiceSubcategory(parsed) ? undefined : parsed?.description}
-          defaultSubcategory={parsed ? voiceSubcategory(parsed) : undefined}
+          defaultDescription={parsed && voiceSubcategory(parsed, kind) ? undefined : parsed?.description}
+          defaultSubcategory={parsed ? voiceSubcategory(parsed, kind) : undefined}
           defaultAmount={parsed?.amount ?? undefined}
           defaultCurrency={parsed?.currency ?? undefined}
           defaultCategory={parsed?.category}
@@ -178,10 +164,10 @@ export function RegistrarDrawer({
  * é um dos tipos conhecidos, vira o chip de Tipo, e a descrição fica livre pro que a pessoa
  * quiser dizer a mais.
  */
-function voiceSubcategory(parsed: ParsedVoiceEntry): string | undefined {
+function voiceSubcategory(parsed: ParsedVoiceEntry, kind: ProfileKind): string | undefined {
   const label = parsed.description.trim();
   if (!label) return undefined;
-  const pool = parsed.category === "INCOME" ? INCOME_TYPES : parsed.parentCategory ? SUBCATEGORIES[parsed.parentCategory] : [];
+  const pool = parsed.category === "INCOME" ? incomeTypesFor(kind) : parsed.parentCategory ? subcategoriesFor(kind, parsed.parentCategory) : [];
   const norm = (t: string) => t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   return pool.find((t) => norm(t) === norm(label) || norm(t).startsWith(norm(label)));
 }

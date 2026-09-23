@@ -1,5 +1,8 @@
+import { ehEmpresa } from "@/lib/profiles/empresa";
+import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getRequiredSession } from "@/lib/auth/session";
+import { vozDoTema, type Voz } from "@/lib/profiles/voice";
 import { getPortfolioByObjective, getAllocationByClass } from "@/lib/consolidation/portfolio";
 import { getPortfolioStrategyComparison } from "@/lib/portfolio/strategy";
 import { AllocationChart } from "@/components/charts/AllocationChart";
@@ -23,6 +26,9 @@ function formatPercent(value: number | null) {
 export default async function CarteiraPorObjetivoPage() {
   const money = await serverMoney();
   const ctx = await getRequiredSession();
+  // Empresa não monta estratégia de carteira: só o caixa e os ativos.
+  if (ehEmpresa(ctx.profileKind)) redirect("/carteira");
+  const voz = vozDoTema(ctx.profileTheme, ctx.profileKind);
   const [byObjective, allocation, strategyComparison] = await Promise.all([
     getPortfolioByObjective(ctx),
     getAllocationByClass(ctx),
@@ -34,70 +40,67 @@ export default async function CarteiraPorObjetivoPage() {
     <div className="flex flex-col gap-8">
 
       <PageHeader
-        title="Carteira por Objetivo"
+        title={voz.titulos.porObjetivo}
         subtitle={
           <>
-            Posição atual por objetivo e alocação atual vs. ideal por classe.{" "}
+            {voz.titulos.porObjetivoSub}{" "}
             <Link href="/carteira" className="text-accent-strong hover:underline">
-              ← editar ativos
+              {voz.titulos.porObjetivoEditar}
             </Link>
           </>
         }
       />
 
-      <Section title="Posição por objetivo">
+      <Section title={voz.titulos.posicaoPorObjetivo}>
         {/* Quando NADA tem objetivo, quatro cards diziam a mesma coisa duas vezes (total =
             sem objetivo) e mostravam dois zeros. A resposta é uma frase e um caminho. */}
         {byObjective.totalPortfolio > 0 && byObjective.outro.currentValue >= byObjective.totalPortfolio - 0.005 ? (
           <Card className="flex flex-col gap-2 border-accent/30 bg-accent-soft/30 p-5">
-            <p className="text-lg font-semibold text-ink">Nenhum ativo tem objetivo ainda.</p>
+            <p className="text-lg font-semibold text-ink">{voz.titulos.objNenhumTitulo}</p>
             <p className="text-sm leading-relaxed text-ink-muted">
-              Seus {money(byObjective.totalPortfolio, { round: true })}{" "}
-              estão todos em &quot;sem objetivo&quot;. Dizer
-              o que cada ativo é — reserva, liberdade financeira ou uma meta — é o que deixa esta tela responder
-              &quot;quanto falta&quot; em vez de só somar.
+              {voz.titulos.objNenhumTexto(money(byObjective.totalPortfolio, { round: true }))}
             </p>
             <Link href="/carteira" className="w-fit text-sm font-medium text-accent-strong hover:underline">
-              Dar objetivo aos ativos →
+              {voz.titulos.objNenhumLink}
             </Link>
           </Card>
         ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <StatCard
-            label="Reserva de emergência"
+            label={voz.titulos.objReserva}
             value={money(byObjective.reserva.currentValue)}
             hint={
               byObjective.reserva.targetAmount !== null
-                ? `${formatPercent(byObjective.reserva.achievementPercent)} da meta (${money(byObjective.reserva.targetAmount)})`
-                : "Sem meta cadastrada em Reserva de Emergência"
+                ? voz.titulos.cartDaMeta(formatPercent(byObjective.reserva.achievementPercent), money(byObjective.reserva.targetAmount))
+                : voz.titulos.objSemMetaHint
             }
           />
-          <StatCard label="Liberdade financeira" value={money(byObjective.liberdade.currentValue)} />
-          <StatCard label="Sem objetivo definido" value={money(byObjective.outro.currentValue)} />
+          <StatCard label={voz.titulos.objLiberdade} value={money(byObjective.liberdade.currentValue)} />
+          <StatCard label={voz.titulos.objSem} value={money(byObjective.outro.currentValue)} />
         </div>
         )}
       </Section>
 
       {byObjective.metas.length > 0 && (
-        <Section title="Metas">
-          <ResponsiveTable columns={goalColumns(money)} rows={byObjective.metas} rowKey={(goal) => goal.goalId} />
+        <Section title={voz.titulos.secaoMetas}>
+          <ResponsiveTable columns={goalColumns(money, voz)} rows={byObjective.metas} rowKey={(goal) => goal.goalId} />
         </Section>
       )}
 
       <Section
-        title="Carteira atual × estratégia-alvo"
+        title={voz.titulos.estrategiaVsAlvo}
         action={
           <Link href="/carteira/estrategia" className="text-caption font-medium text-accent-strong hover:underline">
-            {hasStrategy ? "editar estratégia" : "definir estratégia"} →
+            {hasStrategy ? voz.titulos.cartEditarEstrategia : voz.titulos.cartDefinirEstrategiaCurto} →
           </Link>
         }
       >
-        <StrategyComparisonSection positions={strategyComparison.positions} hasStrategy={hasStrategy} />
+        <StrategyComparisonSection positions={strategyComparison.positions} hasStrategy={hasStrategy} voz={voz} />
       </Section>
 
-      <Section title="Alocação atual × ideal por classe">
+      <Section title={voz.titulos.alocacaoPorClasse}>
         {allocation.classes.length === 0 ? (
-          <p className="text-sm text-ink-faint">Nenhum ativo cadastrado ainda.</p>
+          <p className="text-sm text-ink-faint">{voz.titulos.cartSemAtivos}</p>
         ) : (
           <AllocationChart classes={allocation.classes} />
         )}
@@ -106,17 +109,17 @@ export default async function CarteiraPorObjetivoPage() {
   );
 }
 
-const goalColumns = (money: MoneyFormatter): ResponsiveColumn<GoalAllocation>[] => [
+const goalColumns = (money: MoneyFormatter, voz: Voz): ResponsiveColumn<GoalAllocation>[] => [
   {
     key: "name",
-    label: "Meta",
+    label: voz.titulos.cartColMeta,
     render: (goal) => (
       <Link href={`/planejamento/metas/${goal.goalId}`} className="font-medium text-accent-strong hover:underline">
         {goal.goalName}
       </Link>
     ),
   },
-  { key: "current", label: "Alocado", render: (goal) => money(goal.currentValue) },
-  { key: "target", label: "Alvo", render: (goal) => money(goal.targetAmount) },
-  { key: "achievement", label: "Atingimento", render: (goal) => formatPercent(goal.achievementPercent) },
+  { key: "current", label: voz.titulos.cartColAlocado, render: (goal) => money(goal.currentValue) },
+  { key: "target", label: voz.titulos.cartColAlvo, render: (goal) => money(goal.targetAmount) },
+  { key: "achievement", label: voz.titulos.cartColAtingimento, render: (goal) => formatPercent(goal.achievementPercent) },
 ];

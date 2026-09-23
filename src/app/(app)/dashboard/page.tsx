@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { ShieldCheck, Target, Sparkles, Coins, ChevronLeft, ChevronRight } from "lucide-react";
+import { ShieldCheck, Target, Sparkles, Coins, ChevronLeft, ChevronRight, Briefcase } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
+import { vozDoTema } from "@/lib/profiles/voice";
 import { getYearlySummary } from "@/lib/consolidation/yearly";
 import { getMonthlySummary } from "@/lib/consolidation/monthly";
 import { getPortfolioByObjective } from "@/lib/consolidation/portfolio";
@@ -9,7 +10,7 @@ import { listGoals } from "@/lib/repositories/goal.repo";
 import { getPlanningParams } from "@/lib/repositories/planning-params.repo";
 import { sumUpcomingDividends } from "@/lib/repositories/dividend.repo";
 import { getAnnualPlannedVsActual, compareCategoryBudget } from "@/lib/planning/budget-comparison";
-import { listBudgets, sumExpensesByParentCategory, sumExpensesByCustomCategory } from "@/lib/repositories/budget.repo";
+import { listBudgets, sumExpensesByParentCategory, sumExpensesByCustomCategory, sumExpensesByParentCategoryForYear, sumExpensesByCustomCategoryForYear } from "@/lib/repositories/budget.repo";
 import { countRecentDatedEntries } from "@/lib/repositories/monthly-entry.repo";
 import { buildWeeklyTasks } from "@/lib/insights/weekly-tasks";
 import { WeeklyTasksCard } from "@/components/shell/WeeklyTasksCard";
@@ -26,6 +27,18 @@ import { CountUp } from "@/components/ui/CountUp";
 import { LinkedStatCard } from "@/components/ui/LinkedStatCard";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import { serverMoney } from "@/lib/money-server";
+import { listMonthlyEntries } from "@/lib/repositories/monthly-entry.repo";
+import { getCategorySpending } from "@/lib/consolidation/month-analysis";
+import { PARENT_CATEGORIES, categoryLabel } from "@/lib/categories";
+import { ehEmpresa } from "@/lib/profiles/empresa";
+import { dadosDaEmpresa } from "@/lib/profiles/empresa-dados";
+import { PainelEmpresa } from "./PainelEmpresa";
+import type { ParentCategory } from "@prisma/client";
+import { getMonthlyPlan } from "@/lib/repositories/monthly-plan.repo";
+import { sumIncomeBySubcategory } from "@/lib/repositories/monthly-entry.repo";
+import { listCustomCategories } from "@/lib/repositories/custom-category.repo";
+import { montarDadosDoTema } from "@/app/(app)/mensal/[year]/[month]/theme-hero-data";
+import { ThemeHero } from "@/app/(app)/mensal/[year]/[month]/ThemeHero";
 
 const MONTH_LABELS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 const MONTH_LABELS_FULL = [
@@ -60,6 +73,9 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
   const money = await serverMoney();
   const searchParams = await props.searchParams;
   const ctx = await getRequiredSession();
+  const voz = vozDoTema(ctx.profileTheme, ctx.profileKind);
+  const empresa = ehEmpresa(ctx.profileKind);
+  const rotulosDeCategoria = Object.fromEntries(PARENT_CATEGORIES.map((k) => [k, categoryLabel(ctx.profileKind, k)]));
   // Fuso do Brasil, o relógio UTC do servidor viraria o ano mais cedo na noite de 31/12.
   const now = nowInBrazil();
 
@@ -163,6 +179,82 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
     investedThisMonth: currentMonthSummary.totalInvestment,
   });
 
+  // Empresa: o painel de negócio (DRE do mês e do ano, receita por tipo, gasto por frente do
+  // mês anterior, plano de receita). Pessoa física não paga nenhuma dessas consultas.
+  const painelEmpresa = empresa
+    ? await (async () => {
+        const mesAnterior = { year: previousMonthDate.getFullYear(), month: previousMonthDate.getMonth() + 1 };
+        const [porMaeAno, porPersonalizadaAno, porMaeMesAnterior, receitaPorTipoAno, receitaPorTipoMes, planoDoMes, categoriasPersonalizadas] = await Promise.all([
+          sumExpensesByParentCategoryForYear(ctx, year),
+          sumExpensesByCustomCategoryForYear(ctx, year),
+          sumExpensesByParentCategory(ctx, mesAnterior.year, mesAnterior.month),
+          sumIncomeBySubcategory(ctx, year),
+          sumIncomeBySubcategory(ctx, year, currentMonth),
+          getMonthlyPlan(ctx, year, currentMonth),
+          listCustomCategories(ctx),
+        ]);
+        const gastoPersonalizadoMes = spentByCustom.reduce((s, r) => s + r.spent, 0);
+        const [mes, ano] = await Promise.all([
+          dadosDaEmpresa(ctx, { receita: currentMonthSummary.totalIncome, retido: currentMonthSummary.totalInvestment, gastoPorCategoria: spentByParent, gastoPersonalizado: gastoPersonalizadoMes }, { year, month: currentMonth }),
+          dadosDaEmpresa(
+            ctx,
+            {
+              receita: summary.totalIncome,
+              retido: summary.totalInvestment,
+              gastoPorCategoria: porMaeAno.map((r) => ({ parentCategory: r.parentCategory, spent: r.spent })),
+              gastoPersonalizado: porPersonalizadaAno.reduce((s, r) => s + r.spent, 0),
+            },
+            { year, month: currentMonth },
+          ),
+        ]);
+        const nomeDaPersonalizada = new Map(categoriasPersonalizadas.map((c) => [c.id, c.name]));
+        const orcamentoPorFrente = Object.fromEntries(
+          monthBudgets.filter((b) => b.parentCategory).map((b) => [b.parentCategory as string, Number(b.plannedAmount)]),
+        ) as Partial<Record<ParentCategory, number>>;
+        return (
+          <PainelEmpresa
+            money={money}
+            year={year}
+            mesLabel={MONTH_LABELS_FULL[currentMonth - 1]}
+            mesAnteriorLabel={rotuloComparacao}
+            isCurrentYear={isCurrentYear}
+            months={summary.months}
+            mes={mes}
+            ano={ano}
+            receita={{ atual: currentMonthSummary.totalIncome, anterior: previousMonthSummary.totalIncome }}
+            despesas={{ atual: currentMonthSummary.totalExpense, anterior: previousMonthSummary.totalExpense }}
+            lucro={{ atual: currentMonthSummary.totalIncome - currentMonthSummary.totalExpense, anterior: previousMonthSummary.totalIncome - previousMonthSummary.totalExpense }}
+            gastoPorFrenteMes={spentByParent}
+            gastoPorFrenteMesAnterior={porMaeMesAnterior}
+            orcamentoPorFrente={orcamentoPorFrente}
+            gastoPersonalizadoMes={spentByCustom.map((c) => ({ id: c.customCategoryId, name: nomeDaPersonalizada.get(c.customCategoryId) ?? "Personalizada", spent: c.spent }))}
+            receitaPorTipoAno={receitaPorTipoAno}
+            receitaPorTipoMes={receitaPorTipoMes}
+            orcamentoDoMes={monthBudgets.reduce((s, b) => s + Number(b.plannedAmount), 0)}
+            receitaPlanejadaDoMes={planoDoMes && planoDoMes.plannedIncome > 0 ? planoDoMes.plannedIncome : null}
+          />
+        );
+      })()
+    : null;
+
+  // O bloco próprio do tema (ranking, recado, mural, campeão) também abre a Visão geral —
+  // senão o tema só existia no Fluxo. Só no ano corrente, e só os temas que têm bloco pagam
+  // as duas consultas a mais (categorias e lançamentos do mês).
+  const temBloco = ["game", "disciplina", "manifestacao", "semfiltro"].includes(ctx.profileTheme);
+  const [categorySpending, entriesDoMes] = isCurrentYear && temBloco
+    ? await Promise.all([getCategorySpending(ctx, year, currentMonth, rotulosDeCategoria), listMonthlyEntries(ctx, year, currentMonth)])
+    : [[], []];
+  const daysInMonth = new Date(year, currentMonth, 0).getDate();
+  const dadosDoTema = isCurrentYear && temBloco
+    ? await montarDadosDoTema(ctx, {
+        year, month: currentMonth, now, isCurrentMonth: true, daysInMonth, mesFechado: false,
+        summary: currentMonthSummary, previousSummary: previousMonthSummary,
+        monthBudgets, spentByParent, categorySpending,
+        entriesDoMes: entriesDoMes.map((e) => ({ category: e.category, amount: Number(e.amount), goalId: e.goalId })),
+        money,
+      })
+    : null;
+
   let usufructSurplus: number | null = null;
   if (planningParams) {
     const accumulation = computeAccumulation({
@@ -183,14 +275,14 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
   }
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-8 lg:gap-5">
       <PageHeader
-        title="Visão Geral"
+        title={voz.titulos.visaoGeral}
         subtitle={
           <>
-            Consolidado de {year}.{" "}
+            {voz.titulos.visaoGeralSub.replace("{ano}", String(year))}{" "}
             <Link href={`/mensal/${year}`} className="text-accent-strong hover:underline">
-              Ver Fluxo Financeiro
+              {voz.titulos.visaoGeralLink}
             </Link>
           </>
         }
@@ -214,23 +306,34 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
         }
       />
 
-      {/* Uma superfície só, como no Fluxo: o número é o herói e não precisa de caixa em volta. */}
-      <div className="glow-stage rounded-3xl border border-border p-6">
-        <p className="text-label text-ink-muted">Patrimônio total</p>
-        <div className="mt-1">
-          <FitText className="text-display font-semibold tracking-tight text-accent-strong">
-            {/* `brl` (não uma função): função não atravessa a fronteira server→client. */}
-            <CountUp value={portfolio.totalPortfolio} brl />
-          </FitText>
+      {!empresa && (
+      <>
+      {/* O patrimônio total. Já foi um número de 52px numa caixa com brilho; a Dani achou
+          gritante. Agora é um cartão baixo com ícone, rótulo e número de 32px, o mesmo desenho
+          do total da carteira. */}
+      <div className="flex items-center gap-3 rounded-2xl border border-accent/25 bg-accent-soft/30 p-4 sm:gap-4 sm:p-5">
+        <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-accent text-on-accent">
+          <Briefcase size={20} strokeWidth={1.8} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-caption font-semibold uppercase tracking-[0.11em] text-ink-muted">{voz.titulos.patrimonio}</p>
+          <div className="mt-0.5">
+            <FitText className="text-display font-semibold tracking-tight text-accent-strong">
+              {/* `brl` (não uma função): função não atravessa a fronteira server→client. */}
+              <CountUp value={portfolio.totalPortfolio} brl />
+            </FitText>
+          </div>
         </div>
       </div>
+
+      {dadosDoTema && <ThemeHero dados={dadosDoTema} money={money} mesLabel={MONTH_LABELS_FULL[currentMonth - 1]} />}
 
       {/* Três linhas no celular (some o card órfão da grade de dois) e três colunas no
           computador, que é onde a grade de três funciona de verdade. */}
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-3 lg:gap-4">
         <StatCard
           layout="row"
-          label="Renda no ano"
+          label={voz.titulos.rendaNoAno}
           value={money(summary.totalIncome)}
           tone="success"
           trend={incomeTrend === null ? undefined : { percent: incomeTrend, periodLabel: rotuloComparacao, scopeLabel: rotuloMesAtual }}
@@ -238,7 +341,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
         />
         <StatCard
           layout="row"
-          label="Gastos no ano"
+          label={voz.titulos.gastosNoAno}
           value={money(summary.totalExpense)}
           tone="neutral"
           trend={
@@ -250,13 +353,13 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
         />
         <StatCard
           layout="row"
-          label="Sobrou no ano"
+          label={voz.titulos.sobrouNoAno}
           value={money(summary.balance)}
           tone="accent"
           hint={
             summary.savingsRate === null
               ? undefined
-              : `De cada ${money(100, { round: true })} que entraram, você manteve ${money(Math.round(summary.savingsRate * 100), { round: true })}`
+              : voz.titulos.sobrouNoAnoDica(money(100, { round: true }), money(Math.round(summary.savingsRate * 100), { round: true }), Math.round(summary.savingsRate * 100))
           }
           trend={
             balanceDelta === null
@@ -272,16 +375,27 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
         />
       </div>
 
+      </>
+      )}
+      {painelEmpresa}
+
       {/* Próximos passos antes do status: o painel dizia como as coisas ESTÃO, mas não o que
           fazer a seguir — e é aí que a maioria abre o app, olha, e não volta. */}
-      {isCurrentYear && <WeeklyTasksCard tasks={weeklyTasks} />}
+      {/* No computador, a lista da semana e o status dos módulos dividem a linha. */}
+      <div className="contents lg:flex lg:flex-wrap lg:items-start lg:gap-5 [&>*]:lg:min-w-0 [&>*]:lg:grow [&>*]:lg:basis-[calc(50%-0.625rem)]">
+      {isCurrentYear && (
+        <WeeklyTasksCard
+          titulo={voz.titulos.semanaTitulo}
+          tasks={weeklyTasks.map((t) => ({ ...t, label: voz.titulos.tarefa(t.key, t.label, t.done) }))}
+        />
+      )}
 
-      <Section title="Status dos módulos">
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+      <Section title={voz.titulos.statusModulos}>
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-2">
           <LinkedStatCard
             href="/planejamento/reserva-emergencia"
             icon={ShieldCheck}
-            label="Reserva de emergência"
+            label={voz.titulos.modReserva}
             value={emergencyProgress === null ? "Não configurada" : `${Math.round(emergencyProgress * 100)}% concluída`}
             hint={emergencyTarget !== null ? `${money(emergencyCurrent, { round: true })} de ${money(emergencyTarget, { round: true })}` : "Configure sua meta"}
             progressPercent={emergencyProgress ?? undefined}
@@ -290,7 +404,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
           <LinkedStatCard
             href="/planejamento/metas"
             icon={Target}
-            label="Metas"
+            label={voz.titulos.modMetas}
             value={goals.length === 0 ? "Nenhuma meta" : `${goalsOnTrack} no ritmo`}
             hint={
               goals.length === 0
@@ -301,10 +415,12 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
             }
             tone={goalsBehind > 0 ? "danger" : "success"}
           />
+          {/* Empresa não se aposenta: o card some no perfil Empresa. */}
+          {!empresa && (
           <LinkedStatCard
             href="/planejamento/acumulo#liberdade-financeira"
             icon={Sparkles}
-            label="Aposentadoria"
+            label={voz.titulos.modAposentadoria}
             value={usufructSurplus === null ? "Não configurada" : money(usufructSurplus)}
             hint={
               usufructSurplus === null
@@ -315,20 +431,25 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
             }
             tone={usufructSurplus === null ? "neutral" : usufructSurplus >= 0 ? "success" : "danger"}
           />
+          )}
           <LinkedStatCard
             href="/carteira#dividendos"
             icon={Coins}
-            label="Dividendos (30 dias)"
+            label={voz.titulos.modDividendos}
             value={upcomingDividends > 0 ? money(upcomingDividends) : "Nenhum previsto"}
             hint={upcomingDividends > 0 ? "Estimativa dos ativos da sua carteira" : "Aparece quando houver provento anunciado"}
             tone={upcomingDividends > 0 ? "success" : "neutral"}
           />
         </div>
       </Section>
+      </div>
 
-      <Section title="Renda, gastos e aportes por mês">
-        <YearlyBarChart months={summary.months} plannedByMonth={plannedByMonth} />
-      </Section>
+      {/* Na empresa o painel já desenha receita × despesas × lucro; este era o mesmo ano de novo. */}
+      {!empresa && (
+        <Section title={voz.titulos.anoMesAMes}>
+          <YearlyBarChart months={summary.months} plannedByMonth={plannedByMonth} />
+        </Section>
+      )}
     </div>
   );
 }

@@ -8,13 +8,13 @@ import { Card } from "@/components/ui/Card";
  * decoração, é atalho. Os já resolvidos ficam marcados e apagados no topo da leitura, pra dar
  * a sensação de progresso sem roubar a atenção do que ainda falta.
  */
-export function WeeklyTasksCard({ tasks }: { tasks: WeeklyTask[] }) {
+export function WeeklyTasksCard({ tasks, titulo = "O que fazer esta semana" }: { tasks: WeeklyTask[]; titulo?: string }) {
   const doneCount = tasks.filter((t) => t.done).length;
 
   return (
     <Card className="flex flex-col gap-3 p-5">
       <div className="flex items-baseline justify-between gap-3">
-        <h2 className="text-sm font-medium text-ink">O que fazer esta semana</h2>
+        <h2 className="text-sm font-medium text-ink">{titulo}</h2>
         <p className="text-caption tabular-nums text-ink-faint">
           {doneCount} de {tasks.length}
         </p>

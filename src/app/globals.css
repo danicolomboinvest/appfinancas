@@ -24,6 +24,28 @@
   --color-accent-soft: rgba(224, 178, 78, 0.15);
   --color-accent-2: #f0cd7d;
   --color-on-accent: #1a1405;
+  /* A pílula ATIVA de abas e seletores (Visão mensal · Só gastos, Mensal · Anual). No Padrão é
+     tinta sobre fundo (preto no escuro, branco no claro). Um tema pode trocar — o Girly pinta
+     de rosa, porque "pílula preta" foi o que a Dani apontou primeiro na tela dela. */
+  --color-pill: var(--color-ink);
+  --color-on-pill: var(--color-canvas);
+  /* A marca (sol nascendo): degradê âmbar sobre quadrado escuro. O Girly troca por rosa. */
+  /* A aba ATIVA da barra de baixo (Fluxo · Metas · Carteira). No Padrão é tinta sobre um véu
+     branco a 10%, que só se vê no escuro; os temas claros pintam com o destaque deles. */
+  --color-tab-active: var(--color-ink);
+  --color-tab-active-soft: rgba(255, 255, 255, 0.10);
+  --color-brand-a: #F4C86F;
+  --color-brand-b: #C77A22;
+  --color-brand-bg: #1B1610;
+  /* Cor de cada classe da Estratégia da Carteira (renda fixa, ações, FIIs…). Fixa nos dois
+     modos e igual em todos os gráficos, pra comparação bater à vista. O Girly troca por rosa. */
+  --color-strat-pos: #4FA3C7;
+  --color-strat-ipca: #5FB88A;
+  --color-strat-pre: #A78BC0;
+  --color-strat-acoes: #E0A85F;
+  --color-strat-fiis: #6D8BD0;
+  --color-strat-exterior: #D98C6A;
+  --color-strat-outros: #9AA0A6;
 
   /* Semânticas: verde/vermelho só falam "subiu / caiu". */
   --color-success: #4fc08a;
@@ -227,6 +249,10 @@ html.light {
   --color-surface-hover: var(--color-surface-hover);
   --color-border: var(--color-border);
   --color-border-strong: var(--color-border-strong);
+  --color-pill: var(--color-pill);
+  --color-on-pill: var(--color-on-pill);
+  --color-tab-active: var(--color-tab-active);
+  --color-tab-active-soft: var(--color-tab-active-soft);
   --color-ink: var(--color-ink);
   --color-ink-muted: var(--color-ink-muted);
   --color-ink-faint: var(--color-ink-faint);
@@ -270,8 +296,8 @@ html.light {
   --font-mono: var(--font-geist-mono);
   --font-serif: var(--font-albert-sans);
 
-  --text-display: 3.25rem;
-  --text-display--line-height: 1.05;
+  --text-display: 1.5rem;
+  --text-display--line-height: 1.15;
 
   --text-h1: 1.875rem;
   --text-h1--line-height: 1.15;

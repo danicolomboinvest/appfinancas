@@ -1,4 +1,5 @@
 import { getRequiredSession } from "@/lib/auth/session";
+import { vozDoTema } from "@/lib/profiles/voice";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import { getEmergencyFund } from "@/lib/repositories/emergency-fund.repo";
 import { getTypicalMonthlyExpense } from "@/lib/planning/typical-expense";
@@ -16,6 +17,7 @@ import { Section } from "@/components/ui/Section";
 export default async function ReservaEmergenciaPage() {
   const money = await serverMoney();
   const ctx = await getRequiredSession();
+  const voz = vozDoTema(ctx.profileTheme, ctx.profileKind);
   const [fund, typicalExpense, assets] = await Promise.all([getEmergencyFund(ctx), getTypicalMonthlyExpense(ctx), listAssets(ctx)]);
   // Quem marcou um CDB como "reserva de emergência" na carteira já respondeu "quanto tem guardado".
   const reserveInAssets = assets.filter((a) => a.objective === "RESERVA_EMERGENCIA").reduce((sum, a) => sum + Number(a.currentValue), 0);
@@ -41,27 +43,27 @@ export default async function ReservaEmergenciaPage() {
   return (
     <div className="flex flex-col gap-8">
       <PageHeader
-        title="Reserva de Emergência"
-        subtitle="Meta calculada como meses de proteção × custo mensal, com projeção mês a mês até atingi-la."
+        title={voz.titulos.reserva}
+        subtitle={voz.titulos.reservaSub}
       />
 
       {fund && plan && (
         <div className="flex flex-col gap-4">
           <StatRows
             items={[
-              { label: "Meta da reserva", value: money(Number(fund.targetAmount)), tone: "accent" },
-              { label: "Reserva atual", value: money(Number(fund.currentAmount)) },
+              { label: voz.titulos.reservaMeta, value: money(Number(fund.targetAmount)), tone: "accent" },
+              { label: voz.titulos.reservaAtual, value: money(Number(fund.currentAmount)) },
               {
-                label: "Tempo para concluir",
+                label: voz.titulos.reservaTempo,
                 value: plan.monthsToTarget === null ? "Não fecha" : `${plan.monthsToTarget} meses`,
                 hint: plan.monthsToTarget === null ? "Com esse aporte a reserva não chega na meta. Aumente o valor por mês." : undefined,
               },
-              { label: "Rentabilidade mensal", value: formatPercentNumber(plan.monthlyRate * 100, 3) },
+              { label: voz.titulos.reservaRendimento, value: formatPercentNumber(plan.monthlyRate * 100, 3) },
             ]}
           />
 
           {plan.projection.length > 0 && (
-            <Section title="Projeção da reserva">
+            <Section title={voz.titulos.reservaProjecao}>
               <SavingsProjectionChart
                 projection={plan.projection}
                 targetAmount={Number(fund.targetAmount)}

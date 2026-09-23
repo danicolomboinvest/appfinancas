@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Moon, Sun } from "lucide-react";
+import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { setThemeAction } from "./theme-actions";
 
 type Theme = "dark" | "light";
@@ -21,6 +22,7 @@ export function ThemeToggle({ initial, onDone }: { initial: Theme; onDone?: () =
   const [chosen, setChosen] = useState<Theme | null>(null);
   const theme = chosen ?? initial;
   const [, startTransition] = useTransition();
+  const { voz } = useProfileTheme();
 
   function choose(next: Theme) {
     setChosen(next);
@@ -38,13 +40,13 @@ export function ThemeToggle({ initial, onDone }: { initial: Theme; onDone?: () =
   }
 
   const options: { value: Theme; label: string; Icon: typeof Sun }[] = [
-    { value: "light", label: "Clara", Icon: Sun },
-    { value: "dark", label: "Escura", Icon: Moon },
+    { value: "light", label: voz.titulos.uiAparenciaClara, Icon: Sun },
+    { value: "dark", label: voz.titulos.uiAparenciaEscura, Icon: Moon },
   ];
 
   return (
     <div className="flex items-center justify-between gap-3 px-3 py-2">
-      <span className="text-sm text-ink">Aparência</span>
+      <span className="text-sm text-ink">{voz.titulos.uiAparencia}</span>
       <div className="flex gap-1 rounded-full bg-surface-2 p-1">
         {options.map(({ value, label, Icon }) => {
           const active = theme === value;

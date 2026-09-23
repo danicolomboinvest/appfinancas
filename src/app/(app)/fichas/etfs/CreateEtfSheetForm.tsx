@@ -5,13 +5,15 @@ import { TickerPicker } from "@/components/forms/TickerPicker";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useSuccessToast } from "@/components/ui/useSuccessToast";
+import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { createSheetAction, type SheetFormState } from "../actions";
 
 const initialState: SheetFormState = {};
 
 export function CreateEtfSheetForm() {
+  const t = useProfileTheme().voz.titulos;
   const [state, formAction, isPending] = useActionState(createSheetAction, initialState);
-  useSuccessToast(isPending, state.error, "Ficha criada com sucesso.");
+  useSuccessToast(isPending, state.error, t.fichasFichaCriada);
 
   return (
     <Card as="form" action={formAction} className="flex flex-wrap items-end gap-3 p-4">
@@ -20,13 +22,13 @@ export function CreateEtfSheetForm() {
       <TickerPicker
         kinds={["ETF", "ETF_INTL"]}
         companyNameField="companyName"
-        label="Qual ETF?"
-        placeholder="Nome ou código, ex.: S&P 500"
+        label={t.fichasQualEtf}
+        placeholder={t.fichasExemploEtf}
         required
         className="w-full sm:w-80"
       />
       <Button type="submit" disabled={isPending} size="sm">
-        {isPending ? "Lendo..." : "Analisar"}
+        {isPending ? t.fichasLendo : t.fichasAnalisar}
       </Button>
     </Card>
   );

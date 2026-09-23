@@ -1,5 +1,7 @@
 "use client";
 
+import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
+
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Card } from "@/components/ui/Card";
@@ -18,6 +20,7 @@ const MONTHS = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "jul
  * impressão de que registrava sozinho). O aporte real entra por Registrar, como sempre.
  */
 export function ContributionCard({ context, month }: { context: ContributionContext; month: number }) {
+  const { voz } = useProfileTheme();
   const money = useMoney();
   const [amount, setAmount] = useState(context.plannedAmount);
 
@@ -27,13 +30,12 @@ export function ContributionCard({ context, month }: { context: ContributionCont
   if (!context.hasStrategy) {
     return (
       <Card className="flex flex-col gap-2 border-accent/30 bg-accent-soft/30 p-4">
-        <p className="text-[15px] font-semibold text-ink">Onde colocar o aporte deste mês?</p>
+        <p className="text-[15px] font-semibold text-ink">{voz.titulos.contribSemEstrategiaTitulo}</p>
         <p className="text-sm leading-relaxed text-ink-muted">
-          Com uma estratégia definida, o app diz quanto vai pra cada tipo de investimento pra sua carteira chegar no alvo.
-          São três perguntas.
+          {voz.titulos.contribSemEstrategiaSub}
         </p>
         <Link href="/carteira/estrategia" className="w-fit text-sm font-medium text-accent-strong hover:underline">
-          Definir minha estratégia →
+          {voz.titulos.contribDefinir}
         </Link>
       </Card>
     );
@@ -41,11 +43,11 @@ export function ContributionCard({ context, month }: { context: ContributionCont
   return (
     <Card className="flex flex-col gap-4 border-accent/30 bg-accent-soft/30 p-4">
       <div>
-        <p className="text-[15px] font-semibold text-ink">Qual é o seu aporte de {MONTHS[month - 1]}?</p>
-        <p className="text-caption text-ink-muted">Sugestão de aporte para rebalanceamento da carteira.</p>
+        <p className="text-[15px] font-semibold text-ink">{voz.titulos.contribTitulo(MONTHS[month - 1])}</p>
+        <p className="text-caption text-ink-muted">{voz.titulos.contribSub}</p>
       </div>
 
-      <CurrencyField label="Vou aportar" name="_contribution" defaultValue={amount || undefined} onValueChange={setAmount} className="sm:w-48" />
+      <CurrencyField label={voz.titulos.contribLabel} name="_contribution" defaultValue={amount || undefined} onValueChange={setAmount} className="sm:w-48" />
 
       {amount > 0 && slices.length > 0 && (
         <div className="flex flex-col gap-2">
@@ -63,7 +65,7 @@ export function ContributionCard({ context, month }: { context: ContributionCont
                   <b className="shrink-0 tabular-nums text-ink">{money(s.amount, { round: true })}</b>
                   <span className="min-w-0 leading-snug text-ink-muted">
                     {dest ? `→ ${dest.assetName}` : `→ ${context.labels[s.assetClass]}`}
-                    {!dest && <span className="text-ink-faint"> · ainda sem ativo desse tipo</span>}
+                    {!dest && <span className="text-ink-faint">{voz.titulos.contribSemAtivo}</span>}
                   </span>
                 </li>
               );
@@ -72,7 +74,7 @@ export function ContributionCard({ context, month }: { context: ContributionCont
         </div>
       )}
 
-      {!hasAssets && <p className="text-caption text-ink-faint">Sua carteira ainda está vazia, então a divisão segue só a estratégia.</p>}
+      {!hasAssets && <p className="text-caption text-ink-faint">{voz.titulos.contribVazio}</p>}
     </Card>
   );
 }

@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { Bookmark, Check } from "lucide-react";
 import { useToast } from "@/components/ui/toast-context";
+import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { saveSimulationAction } from "@/app/(app)/simuladores/actions";
 import type { WizardValues } from "./SimulatorWizard";
 
@@ -25,6 +26,8 @@ export function SaveSimulation({
   resumo: string;
 }) {
   const { showToast } = useToast();
+  const { voz } = useProfileTheme();
+  const t = voz.titulos;
   const [aberto, setAberto] = useState(false);
   const [nome, setNome] = useState("");
   const [salvo, setSalvo] = useState(false);
@@ -39,7 +42,7 @@ export function SaveSimulation({
       }
       setSalvo(true);
       setAberto(false);
-      showToast("Simulação salva. Ela fica na lista de simuladores.");
+      showToast(t.simSalvaToast);
     });
   }
 
@@ -47,7 +50,7 @@ export function SaveSimulation({
     return (
       <p className="inline-flex items-center gap-1.5 rounded-full bg-success-soft px-3 py-1.5 text-caption font-medium text-success">
         <Check size={14} strokeWidth={3} />
-        Simulação salva
+        {t.simSalva}
       </p>
     );
   }
@@ -60,7 +63,7 @@ export function SaveSimulation({
         className="inline-flex w-fit items-center gap-1.5 rounded-full border border-border-strong px-3.5 py-2 text-sm font-medium text-ink transition-colors hover:bg-surface-2"
       >
         <Bookmark size={15} strokeWidth={2} />
-        Salvar esta simulação
+        {t.simSalvarBotao}
       </button>
     );
   }
@@ -72,7 +75,7 @@ export function SaveSimulation({
         value={nome}
         onChange={(e) => setNome(e.target.value)}
         maxLength={80}
-        placeholder="Dê um nome (opcional)"
+        placeholder={t.simSalvarNomePlaceholder}
         className="min-w-0 flex-1 rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent"
       />
       <button
@@ -81,10 +84,10 @@ export function SaveSimulation({
         onClick={salvar}
         className="rounded-full bg-accent px-4 py-2 text-sm font-semibold text-on-accent disabled:opacity-50"
       >
-        {pendente ? "Salvando…" : "Salvar"}
+        {pendente ? t.simSalvando : t.simSalvar}
       </button>
       <button type="button" onClick={() => setAberto(false)} className="text-caption text-ink-muted hover:text-ink">
-        cancelar
+        {t.simCancelar}
       </button>
     </div>
   );

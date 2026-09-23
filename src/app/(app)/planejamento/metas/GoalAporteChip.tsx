@@ -1,5 +1,7 @@
 "use client";
 
+import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
+
 import { useState } from "react";
 import { Check } from "lucide-react";
 import { useToast } from "@/components/ui/toast-context";
@@ -33,6 +35,7 @@ export function GoalAporteChip({
   suggestedAmount: number;
   done: boolean;
 }) {
+  const { voz } = useProfileTheme();
   const money = useMoney();
   const { showToast } = useToast();
   const [marked, setMarked] = useState(done);
@@ -55,14 +58,14 @@ export function GoalAporteChip({
     }
     setMarked(true);
     setOpenAmount(false);
-    showToast(`Aporte de ${monthLabel} registrado na meta.`);
+    showToast(voz.titulos.metaAporteToast(monthLabel));
   }
 
   if (marked) {
     return (
       <span className="mt-2 inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-success-soft px-2.5 py-1 text-caption font-medium text-success">
         <Check size={12} strokeWidth={3} />
-        Aporte de {monthLabel} feito
+        {voz.titulos.metaAporteFeito(monthLabel)}
       </span>
     );
   }
@@ -109,10 +112,10 @@ export function GoalAporteChip({
         className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-surface-2 px-2.5 py-1 text-caption font-medium text-ink transition-colors hover:bg-surface-hover disabled:opacity-50"
       >
         <span className="size-3 rounded-[4px] border-[1.5px] border-border-strong" aria-hidden />
-        Marcar aporte de {monthLabel}
+        {voz.titulos.metaMarcar(monthLabel)}
       </button>
       <button type="button" onClick={() => setOpenAmount(true)} className="text-caption text-ink-muted hover:text-ink">
-        outro valor
+        {voz.titulos.metaOutroValor}
       </button>
     </div>
   );

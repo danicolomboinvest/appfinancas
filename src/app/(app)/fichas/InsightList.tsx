@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { AlertCircle, AlertTriangle, ArrowRight, CheckCircle2, ChevronDown, Info } from "lucide-react";
 import type { Insight, InsightTone } from "@/lib/insights";
+import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 
 const TONE_ICON: Record<InsightTone, typeof Info> = {
   danger: AlertCircle,
@@ -26,6 +27,7 @@ const TONE_COLOR: Record<InsightTone, string> = {
  */
 export function InsightList({ insights }: { insights: Insight[] }) {
   const [openId, setOpenId] = useState<string | null>(null);
+  const { voz } = useProfileTheme();
 
   return (
     <ul className="flex flex-col divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface">
@@ -55,7 +57,7 @@ export function InsightList({ insights }: { insights: Insight[] }) {
                   href={insight.href}
                   className="inline-flex items-center gap-1 text-xs font-medium text-accent-strong hover:underline"
                 >
-                  {insight.actionLabel ?? "Ver mais"} <ArrowRight size={12} />
+                  {insight.actionLabel ?? voz.titulos.fichasVerMais} <ArrowRight size={12} />
                 </Link>
               </div>
             )}

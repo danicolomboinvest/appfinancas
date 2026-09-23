@@ -4,6 +4,9 @@ import { useState } from "react";
 import { Share, MoreVertical, PlusSquare, Check, Smartphone } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
+import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
+import type { Voz } from "@/lib/profiles/voice";
+import { partesDoTexto } from "@/lib/profiles/textos/shell";
 import {
   useCanInstallNatively,
   useInstallPlatform,
@@ -11,94 +14,36 @@ import {
   type InstallPlatform,
 } from "@/lib/pwa/install";
 
-type Step = { icon: typeof Share; text: React.ReactNode };
+type Step = { icon: typeof Share; text: string };
 
-/** Passo a passo por aparelho/navegador — o caminho MUDA entre Safari e Chrome no iPhone. */
-function stepsFor(platform: InstallPlatform): Step[] {
+/**
+ * Passo a passo por aparelho/navegador — o caminho MUDA entre Safari e Chrome no iPhone. Os
+ * ícones são daqui; as frases vêm da voz do tema, com o nome do botão marcado em `**` pra
+ * virar negrito na tela.
+ */
+function stepsFor(platform: InstallPlatform, voz: Voz): Step[] {
   if (platform === "ios-safari") {
+    const [um, dois, tres] = voz.titulos.uiInstalarPassosSafari;
     return [
-      {
-        icon: Share,
-        text: (
-          <>
-            Toque no botão <strong>Compartilhar</strong> — o quadradinho com uma seta para cima, na barra de baixo.
-          </>
-        ),
-      },
-      {
-        icon: PlusSquare,
-        text: (
-          <>
-            Role a lista para baixo e toque em <strong>Adicionar à Tela de Início</strong>.
-          </>
-        ),
-      },
-      {
-        icon: Check,
-        text: (
-          <>
-            Toque em <strong>Adicionar</strong>, no canto de cima. Pronto: o ícone aparece na sua tela inicial.
-          </>
-        ),
-      },
+      { icon: Share, text: um },
+      { icon: PlusSquare, text: dois },
+      { icon: Check, text: tres },
     ];
   }
   if (platform === "ios-outro") {
+    const [um, dois, tres] = voz.titulos.uiInstalarPassosIosOutro;
     return [
-      {
-        icon: MoreVertical,
-        text: (
-          <>
-            Toque no menu do navegador (<strong>⋯</strong> ou <strong>⋮</strong>), no canto da tela.
-          </>
-        ),
-      },
-      {
-        icon: Share,
-        text: (
-          <>
-            Toque em <strong>Compartilhar</strong> e depois em <strong>Adicionar à Tela de Início</strong>.
-          </>
-        ),
-      },
-      {
-        icon: Check,
-        text: (
-          <>
-            Confirme em <strong>Adicionar</strong>. Se não encontrar essa opção, abra este site no{" "}
-            <strong>Safari</strong> — por lá o caminho é mais direto.
-          </>
-        ),
-      },
+      { icon: MoreVertical, text: um },
+      { icon: Share, text: dois },
+      { icon: Check, text: tres },
     ];
   }
   // Android (e desktop sem instalação nativa disponível).
+  const [um, dois, tres] = voz.titulos.uiInstalarPassosAndroid;
   return [
-    {
-      icon: MoreVertical,
-      text: (
-        <>
-          Toque no menu <strong>⋮</strong>, no canto superior direito do navegador.
-        </>
-      ),
-    },
-    {
-      icon: PlusSquare,
-      text: (
-        <>
-          Toque em <strong>Instalar aplicativo</strong> (em alguns aparelhos aparece como{" "}
-          <strong>Adicionar à tela inicial</strong>).
-        </>
-      ),
-    },
-    {
-      icon: Check,
-      text: (
-        <>
-          Confirme em <strong>Instalar</strong>. O ícone vai para a sua tela inicial.
-        </>
-      ),
-    },
+    { icon: MoreVertical, text: um },
+    { icon: PlusSquare, text: dois },
+    { icon: Check, text: tres },
   ];
 }
 
@@ -110,8 +55,10 @@ function stepsFor(platform: InstallPlatform): Step[] {
 export function InstallAppSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const platform = useInstallPlatform();
   const canInstallNatively = useCanInstallNatively();
+  const { voz } = useProfileTheme();
+  const t = voz.titulos;
   const [installing, setInstalling] = useState(false);
-  const steps = stepsFor(platform);
+  const steps = stepsFor(platform, voz);
 
   async function handleInstall() {
     setInstalling(true);
@@ -121,22 +68,17 @@ export function InstallAppSheet({ open, onClose }: { open: boolean; onClose: () 
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Instalar na tela de início">
+    <Modal open={open} onClose={onClose} title={t.uiInstalarTitulo}>
       <div className="flex flex-col gap-4">
-        <p className="text-sm text-ink-muted">
-          O SPI Finance funciona como aplicativo: ícone próprio na tela inicial e tela cheia, sem a barra do navegador.
-          Não ocupa espaço como um app de loja e continua se atualizando sozinho.
-        </p>
+        <p className="text-sm text-ink-muted">{t.uiInstalarIntro}</p>
 
         {canInstallNatively ? (
           <div className="flex flex-col gap-2">
             <Button type="button" onClick={handleInstall} disabled={installing}>
               <Smartphone className="size-4" aria-hidden />
-              {installing ? "Instalando..." : "Instalar agora"}
+              {installing ? t.uiInstalando : t.uiInstalarAgora}
             </Button>
-            <p className="text-xs text-ink-faint">
-              Seu navegador permite instalar direto: toque no botão e confirme na janelinha que aparecer.
-            </p>
+            <p className="text-xs text-ink-faint">{t.uiInstalarNativoDica}</p>
           </div>
         ) : (
           <ol className="flex flex-col gap-3">
@@ -149,7 +91,9 @@ export function InstallAppSheet({ open, onClose }: { open: boolean; onClose: () 
                   </span>
                   <span className="flex min-w-0 flex-1 items-start gap-2 pt-0.5">
                     <Icon className="mt-0.5 size-4 shrink-0 text-ink-faint" aria-hidden />
-                    <span className="text-sm leading-snug text-ink">{step.text}</span>
+                    <span className="text-sm leading-snug text-ink">
+                      {partesDoTexto(step.text).map((p, i) => (p.negrito ? <strong key={i}>{p.texto}</strong> : p.texto))}
+                    </span>
                   </span>
                 </li>
               );
@@ -158,10 +102,7 @@ export function InstallAppSheet({ open, onClose }: { open: boolean; onClose: () 
         )}
 
         {platform === "desktop" && !canInstallNatively && (
-          <p className="rounded-lg bg-surface-2 px-3 py-2 text-xs text-ink-muted">
-            Você está no computador. Para ter o app no celular, abra o site pelo navegador do telefone e repita esses
-            passos por lá.
-          </p>
+          <p className="rounded-lg bg-surface-2 px-3 py-2 text-xs text-ink-muted">{t.uiInstalarNoComputador}</p>
         )}
       </div>
     </Modal>

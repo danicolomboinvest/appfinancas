@@ -1,4 +1,5 @@
 import { Coins } from "lucide-react";
+import type { Voz } from "@/lib/profiles/voice";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
@@ -22,7 +23,7 @@ const KIND_TONE: Record<string, "accent" | "success" | "neutral"> = {
  * estimado (quantidade × valor por cota). Vem do investidor10, atualizado ao criar/importar um
  * ativo e todo dia via cron — a pessoa não pede nada, só aparece quando tem provento a caminho.
  */
-export async function UpcomingDividendsSection({ dividends }: { dividends: UpcomingDividend[] }) {
+export async function UpcomingDividendsSection({ dividends, voz }: { dividends: UpcomingDividend[]; voz: Voz }) {
   const money = await serverMoney();
   if (dividends.length === 0) return null;
 
@@ -31,7 +32,7 @@ export async function UpcomingDividendsSection({ dividends }: { dividends: Upcom
   return (
     <div id="dividendos">
       <CollapsibleSection
-        label={`Próximos dividendos · ${money(total)} previstos`}
+        label={voz.titulos.divTitulo(money(total))}
         defaultOpen
       >
         <Card className="flex flex-col gap-1 p-2">
@@ -50,7 +51,7 @@ export async function UpcomingDividendsSection({ dividends }: { dividends: Upcom
                     <Badge tone={KIND_TONE[d.kind] ?? "neutral"}>{d.kind}</Badge>
                   </div>
                   <p className="truncate text-xs text-ink-faint">
-                    Data com {formatShortDate(d.exDate)} · Pagamento {formatShortDate(d.paymentDate)}
+                    {voz.titulos.divDatas(formatShortDate(d.exDate), formatShortDate(d.paymentDate))}
                   </p>
                 </div>
               </div>
@@ -58,17 +59,13 @@ export async function UpcomingDividendsSection({ dividends }: { dividends: Upcom
                 <p className="text-sm font-medium tabular-nums text-success">{money(d.estimatedTotal)}</p>
                 {/* JSCP: já líquido de 15% de IR. Tipo sem regra certa (ex.: "Rend. Trib."): valor
                     é bruto, aviso explícito em vez de fingir que sabemos o imposto. */}
-                {d.taxTreatment === "jscp_15" && <p className="text-[10px] text-ink-faint">líquido de IR</p>}
-                {d.taxTreatment === "desconhecido" && <p className="text-[10px] text-ink-faint">bruto, s/ IR</p>}
+                {d.taxTreatment === "jscp_15" && <p className="text-[10px] text-ink-faint">{voz.titulos.divLiquido}</p>}
+                {d.taxTreatment === "desconhecido" && <p className="text-[10px] text-ink-faint">{voz.titulos.divBruto}</p>}
               </div>
             </div>
           ))}
         </Card>
-        <p className="mt-2 text-xs text-ink-faint">
-          Estimativa com a quantidade de hoje — se você comprar ou vender antes da data-com, o valor muda. JSCP mostra
-          já líquido dos 15% de IR retido na fonte; Dividendos e Rendimentos de FII costumam ser isentos. Fonte:
-          investidor10.
-        </p>
+        <p className="mt-2 text-xs text-ink-faint">{voz.titulos.divNota}</p>
       </CollapsibleSection>
     </div>
   );

@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { getRequiredSession } from "@/lib/auth/session";
+import { vozDoTema } from "@/lib/profiles/voice";
+import { ehEmpresa } from "@/lib/profiles/empresa";
 import { listAssets } from "@/lib/repositories/asset.repo";
 import { listGoals } from "@/lib/repositories/goal.repo";
 import { listUpcomingDividendsForUser } from "@/lib/repositories/dividend.repo";
@@ -19,6 +21,8 @@ import { PARENT_CATEGORY_COLOR } from "@/lib/categories";
 
 export default async function CarteiraPage() {
   const ctx = await getRequiredSession();
+  const voz = vozDoTema(ctx.profileTheme, ctx.profileKind);
+  const empresa = ehEmpresa(ctx.profileKind);
   const now = new Date();
   const [assets, goals, comparison, dividends, contribution, aporteDoMes] = await Promise.all([
     listAssets(ctx),
@@ -48,15 +52,17 @@ export default async function CarteiraPage() {
   };
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-8 lg:gap-5">
       <PageHeader
-        title="Carteira de Investimentos"
+        title={voz.titulos.carteira}
         subtitle={
           <>
-            Acompanhe seus ativos e o objetivo de cada um.{" "}
-            <Link href="/carteira/por-objetivo" className="text-accent-strong hover:underline">
-              Ver consolidação por objetivo →
-            </Link>
+            {voz.titulos.carteiraSub}{" "}
+            {!empresa && (
+              <Link href="/carteira/por-objetivo" className="text-accent-strong hover:underline">
+                {voz.titulos.carteiraLink}
+              </Link>
+            )}
           </>
         }
       />
@@ -83,10 +89,13 @@ export default async function CarteiraPage() {
       )}
 
       {/* Componente de servidor (sem "use client"): recebe os Date do Prisma direto, sem cruzar
-          a fronteira servidor→cliente. */}
-      <ContributionCard context={contribution} month={now.getMonth() + 1} />
+          a fronteira servidor→cliente. No computador, o aporte do mês e os proventos a caminho
+          dividem a linha; sozinho, um deles ocupa a largura toda. */}
+      <div className="contents lg:flex lg:flex-wrap lg:items-start lg:gap-5 [&>*]:lg:min-w-0 [&>*]:lg:grow [&>*]:lg:basis-[calc(50%-0.625rem)]">
+        {!empresa && <ContributionCard context={contribution} month={now.getMonth() + 1} />}
 
-      <UpcomingDividendsSection dividends={dividends} />
+        <UpcomingDividendsSection dividends={dividends} voz={voz} />
+      </div>
 
       <AssetsSection
         assets={assets.map((asset) => ({
@@ -104,6 +113,7 @@ export default async function CarteiraPage() {
         goals={goals.map((goal) => ({ id: goal.id, name: goal.name }))}
         goalNameById={goalNameById}
         strategy={strategy}
+        empresa={empresa}
       />
     </div>
   );

@@ -3,6 +3,7 @@
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { CHART_TOOLTIP_STYLE } from "./chart-theme";
 import { formatPercentNumber } from "@/lib/format";
+import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 
 const SLICE_COLORS = [
   "var(--color-accent)",
@@ -34,6 +35,7 @@ export function DonutAllocationChart({
   /** Mostra a legenda (cor + nome + %) mesmo sem `onSelect` — só decorativa, sem clique. */
   legend?: boolean;
 }) {
+  const t = useProfileTheme().voz.titulos;
   const hasData = data.some((d) => d.value > 0);
   const interactive = onSelect !== undefined;
   const showLegend = interactive || legend;
@@ -112,7 +114,7 @@ export function DonutAllocationChart({
           )}
         </>
       ) : (
-        <div className="flex h-[220px] items-center justify-center text-xs text-ink-faint">Sem dados ainda.</div>
+        <div className="flex h-[220px] items-center justify-center text-xs text-ink-faint">{t.grafSemDados}</div>
       )}
     </div>
   );

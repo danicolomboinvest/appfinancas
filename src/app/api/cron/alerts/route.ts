@@ -48,6 +48,10 @@ export async function GET(request: Request) {
     const money = makeMoneyFormatter(toCurrencyCode(user.currency));
     const alerts: Alert[] = [];
 
+    // O perfil ativo entra antes dos dois blocos: o aviso de orçamento precisa do TIPO dele
+    // (numa Empresa, MORADIA se chama "Estrutura") e o de metas, do id.
+    const perfil = await getOrCreateActiveProfile(user.id);
+
     if (user.notifyBudgetAlerts) {
       const [budgets, spent] = await Promise.all([
         prisma.budget.findMany({ where: { userId: user.id, year, month, parentCategory: { not: null } }, select: { parentCategory: true, plannedAmount: true } }),
@@ -61,12 +65,12 @@ export async function GET(request: Request) {
           planned: budgets.filter((b) => b.parentCategory && PARENT_CATEGORIES.includes(b.parentCategory)).map((b) => ({ parentCategory: b.parentCategory!, planned: Number(b.plannedAmount) })),
           spent: spent.filter((s) => s.parentCategory).map((s) => ({ parentCategory: s.parentCategory!, spent: Number(s._sum.amount ?? 0) })),
           money: (v) => money(v, { round: true }),
+          kind: perfil.kind,
         }),
       );
     }
     if (user.notifyLateGoals) {
-      const perfil = await getOrCreateActiveProfile(user.id);
-      const goals = await listGoalsWithProgress({ userId: user.id, role: user.role, profileId: perfil.id });
+      const goals = await listGoalsWithProgress({ userId: user.id, role: user.role, profileId: perfil.id, profileTheme: perfil.theme, profileKind: perfil.kind });
       alerts.push(
         ...buildGoalAlerts({
           year,

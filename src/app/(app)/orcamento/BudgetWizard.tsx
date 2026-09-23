@@ -9,18 +9,22 @@ import { Card } from "@/components/ui/Card";
 import { CurrencyField } from "@/components/ui/CurrencyField";
 import { CurrencyInputControlled } from "@/components/ui/CurrencyInputControlled";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
+import { emojiDaCategoria } from "@/lib/profiles/icones";
+import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { Modal } from "@/components/ui/Modal";
 import { useSuccessToast } from "@/components/ui/useSuccessToast";
 import { useMoney } from "@/components/money/MoneyProvider";
 import {
-  PARENT_CATEGORY_ICON,
   PARENT_CATEGORY_COLOR,
   CUSTOM_CATEGORY_ICON_MAP,
   colorForCategorySlice,
+  categoryLabel,
+  categoryDescription,
+  categoryIcon,
 } from "@/lib/categories";
 import type { BudgetHints } from "@/lib/planning/budget-hints";
 import { splitSavings, type SavingsTarget } from "@/lib/planning/savings-split";
-import { idealBudgetSplit, COURSE_SAVINGS_PERCENT, courseShareOf } from "@/lib/planning/ideal-budget";
+import { idealBudgetSplit, COURSE_SAVINGS_PERCENT, EMPRESA_RETENTION_PERCENT, courseShareOf, savingsPercentFor } from "@/lib/planning/ideal-budget";
 import { NewCustomCategoryCard } from "./NewCustomCategoryCard";
 import { applyAllBudgetsAction, deleteCustomCategoryAction, type AnnualBudgetState } from "./actions";
 
@@ -28,6 +32,9 @@ const initialState: AnnualBudgetState = {};
 const STEP = 50;
 // 18% = o que a aula "Organização financeira" manda guardar (10% liberdade financeira + 8% sonhos).
 const PCT_CHIPS = [10, COURSE_SAVINGS_PERCENT, 20, 30];
+// Empresa retém menos e em degraus menores: 10% é a referência de quem está começando, e
+// 5% existe porque negócio apertado ainda precisa reter alguma coisa pro DAS e pro caixa.
+const PCT_CHIPS_EMPRESA = [5, EMPRESA_RETENTION_PERCENT, 15, 20];
 
 type Cat = { key: string; label: string; description?: string; color: string; icon: LucideIcon; custom: boolean };
 
@@ -61,17 +68,26 @@ export function BudgetWizard({
   savingsTargets?: SavingsTarget[];
 }) {
   const money = useMoney();
+  const { kind, empresa, voz } = useProfileTheme();
+  const t = voz.titulos;
   const [state, formAction, isPending] = useActionState(applyAllBudgetsAction, initialState);
-  useSuccessToast(isPending, state.error, "Plano salvo para o ano inteiro.");
+  useSuccessToast(isPending, state.error, t.formOrcSalvo);
+  // A referência de quanto guardar muda com o perfil: 18% da aula pra pessoa, 10% de
+  // retenção pra empresa. Os chips e as notas de rodapé seguem o mesmo número.
+  const savingsPct = savingsPercentFor(kind);
+  const pctChips = empresa ? PCT_CHIPS_EMPRESA : PCT_CHIPS;
 
+  // Nome, descrição e ícone vêm do PERFIL, não da prop: num perfil Empresa, MORADIA é
+  // "Estrutura" e SAUDE é "Equipe e pró-labore". A prop continua trazendo a chave e o valor
+  // já planejado; o rótulo de pessoa física que ela carrega só vale pra pessoa física.
   const cats: Cat[] = useMemo(
     () => [
       ...parentCategories.map((c) => ({
         key: c.key,
-        label: c.label,
-        description: c.description,
+        label: categoryLabel(kind, c.key),
+        description: categoryDescription(kind, c.key),
         color: PARENT_CATEGORY_COLOR[c.key],
-        icon: PARENT_CATEGORY_ICON[c.key],
+        icon: categoryIcon(kind, c.key),
         custom: false,
       })),
       ...customCategories.map((c) => ({
@@ -82,7 +98,7 @@ export function BudgetWizard({
         custom: true,
       })),
     ],
-    [parentCategories, customCategories],
+    [parentCategories, customCategories, kind],
   );
 
   const [step, setStep] = useState<1 | 2 | 3>(hasPlan ? 3 : 1);
@@ -108,14 +124,14 @@ export function BudgetWizard({
   }
 
   /**
-   * Divide o que sobra na proporção de referência da faixa de renda (ideal-budget.ts), não na
-   * média dos meses da própria pessoa: quem está começando não tem meses, e quem já estoura
+   * Divide o que sobra na proporção de referência do perfil (ideal-budget.ts: a aula pra
+   * pessoa, a régua da pequena empresa pra EMPRESA), não na média dos meses da própria pessoa: quem está começando não tem meses, e quem já estoura
    * uma categoria receberia de volta a sugestão de estourar igual. As categorias criadas pela
    * própria pessoa ficam com o valor que já têm e saem do bolo antes da divisão.
    */
   function suggest() {
     const reserved = customCategories.reduce((sum, c) => sum + (values[c.id] ?? 0), 0);
-    const ideal = idealBudgetSplit(toSpend, income, { reserved });
+    const ideal = idealBudgetSplit(toSpend, income, { reserved, kind });
     setValues((prev) => ({ ...prev, ...ideal }));
   }
   function copyLastMonth() {
@@ -126,7 +142,7 @@ export function BudgetWizard({
 
   const header = (
     <div className="flex items-center justify-between">
-      <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-accent-strong">Passo {step} de 3</span>
+      <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-accent-strong">{t.formOrcPasso(step, 3)}</span>
       <div className="flex gap-1" aria-hidden>
         {[1, 2, 3].map((s) => (
           <span key={s} className={`h-1 w-7 rounded-full ${s <= step ? "bg-accent" : "bg-border"}`} />
@@ -155,29 +171,29 @@ export function BudgetWizard({
         <>
           {header}
           <div>
-            <h2 className="text-2xl font-extrabold tracking-tight text-ink">Vamos montar seu orçamento</h2>
-            <p className="mt-1 text-sm text-ink-muted">Três perguntas. O app já sabe parte das respostas pelos seus lançamentos.</p>
+            <h2 className="text-2xl font-extrabold tracking-tight text-ink">{t.formOrcTitulo}</h2>
+            <p className="mt-1 text-sm text-ink-muted">{t.formOrcSub}</p>
           </div>
 
           <Card className="flex flex-col gap-3 p-4">
-            <p className="text-[15px] font-semibold text-ink">Quanto entra por mês?</p>
+            <p className="text-[15px] font-semibold text-ink">{t.formOrcQuantoEntra}</p>
             <CurrencyField
-              label="Renda por mês"
+              label={t.formOrcRenda}
               name="_income"
               defaultValue={income || undefined}
               onValueChange={setIncome}
               suggestion={
                 hints.lastMonthIncome > 0 && hints.lastMonthIncome !== income
-                  ? { value: hints.lastMonthIncome, label: `Em ${hints.lastMonthLabel} entraram ${money(hints.lastMonthIncome, { round: true })}.` }
+                  ? { value: hints.lastMonthIncome, label: t.formOrcRendaSugestao(hints.lastMonthLabel, money(hints.lastMonthIncome, { round: true })) }
                   : undefined
               }
             />
           </Card>
 
           <Card className="flex flex-col gap-3 p-4">
-            <p className="text-[15px] font-semibold text-ink">Quanto você quer guardar?</p>
+            <p className="text-[15px] font-semibold text-ink">{t.formOrcQuantoGuardar}</p>
             <div className="flex flex-wrap gap-2">
-              {PCT_CHIPS.map((pct) => {
+              {pctChips.map((pct) => {
                 const on = !customPct && income > 0 && activePct === pct;
                 return (
                   <button
@@ -186,7 +202,7 @@ export function BudgetWizard({
                     onClick={() => {
                       setCustomPct(false);
                       // Valor exato, não arredondado de 50 em 50: 18% de 16.000 é 2.880, e
-                      // 2.900 deixaria a divisão do curso 20 reais curta no passo seguinte.
+                      // 2.900 deixaria a divisão da referência 20 reais curta no passo seguinte.
                       setInvestment(Math.round((income * pct) / 100));
                     }}
                     className={`rounded-full border px-3.5 py-2 text-[13px] font-semibold transition-colors ${
@@ -204,26 +220,27 @@ export function BudgetWizard({
                   customPct ? "border-accent bg-accent-soft text-accent-strong" : "border-border-strong bg-surface-2 text-ink-muted hover:text-ink"
                 }`}
               >
-                outro
+                {t.formOrcOutro}
               </button>
             </div>
             {customPct && (
-              <CurrencyField label="Guardar por mês" name="_investment" defaultValue={investment || undefined} onValueChange={setInvestment} />
+              <CurrencyField label={t.formOrcGuardarPorMes} name="_investment" defaultValue={investment || undefined} onValueChange={setInvestment} />
             )}
+            {/* Pessoa: "18%, sendo 10% de liberdade financeira" (os 8 restantes são os sonhos).
+                Empresa: a camada da voz ignora os números e explica o que é retenção. */}
             <p className="text-caption leading-relaxed text-ink-faint">
-              No curso, a conta é {COURSE_SAVINGS_PERCENT}%: {COURSE_SAVINGS_PERCENT - 8}% pra liberdade financeira e 8% pros sonhos. Quem
-              está começando costuma conseguir 10% — se ficar apertado, dá pra mudar depois. Nada aqui é promessa.
+              {t.formOrcCursoNota(savingsPct, empresa ? savingsPct : savingsPct - 8)}
             </p>
           </Card>
 
           <div className="rounded-2xl border border-success/30 bg-success-soft/40 px-4 py-4">
-            <p className="text-xs font-bold uppercase tracking-wide text-success">Sobra pra gastar</p>
+            <p className="text-xs font-bold uppercase tracking-wide text-success">{t.formOrcSobraTitulo}</p>
             <p className="text-3xl font-extrabold tracking-tight text-success">{money(toSpend, { round: true })}</p>
-            <p className="text-caption text-ink-muted">por mês, depois de guardar {money(investment, { round: true })}</p>
+            <p className="text-caption text-ink-muted">{t.formOrcSobraSub(money(investment, { round: true }))}</p>
           </div>
 
           <Button type="button" onClick={() => setStep(2)} disabled={income <= 0} className="w-full">
-            Dividir os {money(toSpend, { round: true })} →
+            {t.formOrcDividir(money(toSpend, { round: true }))}
           </Button>
         </>
       )}
@@ -231,11 +248,11 @@ export function BudgetWizard({
       {step === 2 && (
         <>
           {header}
-          <h2 className="text-2xl font-extrabold tracking-tight text-ink">Divida os {money(toSpend, { round: true })}</h2>
+          <h2 className="text-2xl font-extrabold tracking-tight text-ink">{t.formOrcDividaTitulo(money(toSpend, { round: true }))}</h2>
 
           <Card className="flex flex-col gap-2 p-4">
             <div className="flex items-baseline justify-between text-sm">
-              <span className="text-ink-muted">Distribuído</span>
+              <span className="text-ink-muted">{t.formOrcDistribuido}</span>
               <b className="tabular-nums text-ink">{money(distributed, { round: true })}</b>
             </div>
             <div className="flex h-3 overflow-hidden rounded-full bg-surface-2">
@@ -248,7 +265,7 @@ export function BudgetWizard({
               ))}
             </div>
             <p className={`text-sm font-semibold ${left >= 0 ? "text-success" : "text-danger"}`}>
-              {left >= 0 ? `Sobram ${money(left, { round: true })} pra distribuir` : `Passou ${money(-left, { round: true })} do que sobra`}
+              {left >= 0 ? t.formOrcSobram(money(left, { round: true })) : t.formOrcPassou(money(-left, { round: true }))}
             </p>
           </Card>
 
@@ -262,7 +279,7 @@ export function BudgetWizard({
                 disabled={toSpend <= 0}
                 className="flex flex-1 items-center justify-center gap-1.5 rounded-full border border-accent bg-accent-soft px-3 py-2 text-[13px] font-semibold text-accent-strong disabled:opacity-40"
               >
-                <Sparkles size={14} /> Sugerir pra mim
+                <Sparkles size={14} /> {t.formOrcSugerir}
               </button>
               {hasHistory && (
                 <button
@@ -270,15 +287,17 @@ export function BudgetWizard({
                   onClick={copyLastMonth}
                   className="flex-1 rounded-full border border-border-strong bg-surface-2 px-3 py-2 text-[13px] font-semibold text-ink-muted hover:text-ink"
                 >
-                  Copiar {hints.lastMonthLabel}
+                  {t.formOrcCopiar(hints.lastMonthLabel)}
                 </button>
               )}
             </div>
             <p className="text-caption text-ink-faint">
-              A sugestão segue a distribuição do orçamento do curso: moradia {Math.round(courseShareOf("MORADIA") * 100)}% da renda,
-              alimentação {Math.round(courseShareOf("ALIMENTACAO") * 100)}%, saúde {Math.round(courseShareOf("SAUDE") * 100)}%, e assim
-              por diante. Guardando menos que {COURSE_SAVINGS_PERCENT}% sobra uma folga; guardando mais, tudo encolhe junto.
-              É um ponto de partida: mexa à vontade.
+              {t.formOrcSugestaoNota(
+                Math.round(courseShareOf("MORADIA", kind) * 100),
+                Math.round(courseShareOf("ALIMENTACAO", kind) * 100),
+                Math.round(courseShareOf("SAUDE", kind) * 100),
+                savingsPct,
+              )}
             </p>
           </div>
 
@@ -295,16 +314,14 @@ export function BudgetWizard({
             ))}
             <NewCustomCategoryCard />
           </div>
-          <p className="text-caption leading-relaxed text-ink-faint">
-            Pet, academia, filhos: o que é grande na sua vida e não cabe nas de cima. O que vem uma vez por ano, divida por 12.
-          </p>
+          <p className="text-caption leading-relaxed text-ink-faint">{t.formOrcCustomNota}</p>
 
           <div className="flex flex-col gap-2 sm:flex-row-reverse">
             <Button type="button" onClick={() => setStep(3)} className="w-full sm:w-auto">
-              Ver meu plano →
+              {t.formOrcVerPlano}
             </Button>
             <Button type="button" variant="ghost" onClick={() => setStep(1)} className="w-full sm:w-auto">
-              ← Voltar
+              {t.formVoltar}
             </Button>
           </div>
         </>
@@ -314,9 +331,9 @@ export function BudgetWizard({
         <>
           {header}
           <div>
-            <h2 className="text-2xl font-extrabold tracking-tight text-ink">{hasPlan ? `Seu plano de ${year}` : `Pronto. Seu plano de ${year}`}</h2>
+            <h2 className="text-2xl font-extrabold tracking-tight text-ink">{hasPlan ? t.formOrcSeuPlano(year) : t.formOrcProntoPlano(year)}</h2>
             <p className="mt-1 text-sm text-ink-muted">
-              De cada <b className="text-ink">{money(100, { round: true })}</b> que entram:
+              {t.formOrcDeCadaAntes} <b className="text-ink">{money(100, { round: true })}</b> {t.formOrcDeCadaDepois}
             </p>
           </div>
 
@@ -328,26 +345,26 @@ export function BudgetWizard({
               ))}
           </div>
           <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[13px] text-ink sm:grid-cols-3 lg:grid-cols-4">
-            <Legend color="var(--color-success)" label={`${share(investment, income)} guardados`} />
+            <Legend color="var(--color-success)" label={t.formOrcLegGuardados(share(investment, income))} />
             {cats
               .filter((c) => (values[c.key] ?? 0) > 0)
               .map((c) => (
-                <Legend key={c.key} color={c.color} label={`${share(values[c.key] ?? 0, income)} ${c.label.toLowerCase()}`} />
+                <Legend key={c.key} color={c.color} label={t.formOrcLegCategoria(share(values[c.key] ?? 0, income), c.label.toLowerCase())} />
               ))}
-            <Legend color="var(--color-surface-2)" label={`${share(Math.max(0, free), income)} livres`} />
+            <Legend color="var(--color-surface-2)" label={t.formOrcLegLivres(share(Math.max(0, free), income))} />
           </div>
 
           <div className="rounded-2xl border border-accent/30 bg-accent-soft/40 px-4 py-4">
-            <p className="text-xs font-bold text-accent-strong">O que isso dá no fim do ano</p>
-            <p className="text-2xl font-extrabold tracking-tight text-ink">{money(investment * hints.monthsLeftInYear, { round: true })} guardados</p>
+            <p className="text-xs font-bold text-accent-strong">{t.formOrcFimDoAno}</p>
+            <p className="text-2xl font-extrabold tracking-tight text-ink">{t.formOrcFimDoAnoValor(money(investment * hints.monthsLeftInYear, { round: true }))}</p>
             <p className="text-caption leading-relaxed text-ink-muted">
-              {money(investment, { round: true })} por mês nos {hints.monthsLeftInYear} meses que faltam, mais o que sobrar.
+              {t.formOrcFimDoAnoSub(money(investment, { round: true }), hints.monthsLeftInYear)}
             </p>
           </div>
 
           {savings.slices.length > 0 && savingsTargets.length > 0 && (
             <Card className="flex flex-col gap-2 p-4">
-              <p className="text-sm font-semibold text-ink">Pra onde vai o que você guarda</p>
+              <p className="text-sm font-semibold text-ink">{t.formOrcPraOnde}</p>
               <ul className="flex flex-col gap-1 text-sm">
                 {savings.slices.map((s) => (
                   <li key={s.id} className="flex items-baseline gap-2">
@@ -356,30 +373,30 @@ export function BudgetWizard({
                   </li>
                 ))}
               </ul>
-              <p className="text-caption text-ink-faint">Reserva primeiro, depois as metas por prazo. O resto fica livre.</p>
+              <p className="text-caption text-ink-faint">{t.formOrcPraOndeNota}</p>
             </Card>
           )}
 
           <Card className="flex flex-col gap-2 p-4 text-sm">
-            <Row label="Entra" value={money(income, { round: true })} />
-            <Row label="Guarda" value={money(investment, { round: true })} tone="text-success" />
-            <Row label={`Gasta (${cats.filter((c) => (values[c.key] ?? 0) > 0).length} categorias)`} value={money(distributed, { round: true })} />
+            <Row label={t.formOrcEntra} value={money(income, { round: true })} />
+            <Row label={t.formOrcGuarda} value={money(investment, { round: true })} tone="text-success" />
+            <Row label={t.formOrcGasta(cats.filter((c) => (values[c.key] ?? 0) > 0).length)} value={money(distributed, { round: true })} />
             <div className="border-t border-border pt-2">
-              <Row label="Fica livre" value={money(free, { round: true })} tone={free < 0 ? "text-danger" : undefined} />
+              <Row label={t.formOrcFicaLivre} value={money(free, { round: true })} tone={free < 0 ? "text-danger" : undefined} />
             </div>
-            {free < 0 && <p className="text-caption text-danger">As categorias somam mais do que sobra. Volte e ajuste, ou guarde menos.</p>}
+            {free < 0 && <p className="text-caption text-danger">{t.formOrcEstourou}</p>}
           </Card>
 
           <div className="flex flex-col gap-2 sm:flex-row-reverse">
             <Button type="submit" disabled={isPending} className="w-full sm:w-auto">
-              {isPending ? "Salvando..." : "Salvar meu plano"}
+              {isPending ? t.formSalvando : t.formOrcSalvar}
             </Button>
             <Button type="button" variant="ghost" onClick={() => setStep(2)} className="w-full sm:w-auto">
-              Ajustar as categorias
+              {t.formOrcAjustar}
             </Button>
             {hasPlan && (
               <Button type="button" variant="ghost" onClick={() => setStep(1)} className="w-full sm:w-auto">
-                Renda e aporte
+                {t.formOrcRendaEAporte}
               </Button>
             )}
           </div>
@@ -431,11 +448,13 @@ function CategoryTile({
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [isDeleting, startDelete] = useTransition();
   const Icon = cat.icon;
+  const { key: tema, voz } = useProfileTheme();
+  const t = voz.titulos;
 
   return (
     <Card className="flex flex-col gap-2 p-3" style={{ borderTop: `3px solid ${cat.color}` }}>
       <div className="flex items-center gap-2">
-        <CategoryIcon icon={Icon} color={cat.color} size={36} />
+        <CategoryIcon icon={Icon} color={cat.color} size={36} emoji={cat.custom ? emojiDaCategoria(tema, { kind: "custom" }) : emojiDaCategoria(tema, { kind: "parent", value: cat.key })} />
         <p className="min-w-0 flex-1 truncate text-[13px] font-semibold text-ink">{cat.label}</p>
         {cat.custom && (
           <button type="button" onClick={() => setConfirmOpen(true)} aria-label={`Apagar categoria ${cat.label}`} className="text-ink-faint hover:text-danger">
@@ -445,7 +464,7 @@ function CategoryTile({
       </div>
       {editing ? (
         <CurrencyInputControlled
-          label="Por mês"
+          label={t.formOrcPorMes}
           value={value}
           onChange={(v) => onChange(v ?? 0)}
         />
@@ -460,7 +479,7 @@ function CategoryTile({
         </button>
       )}
       <p className="text-[11px] text-ink-faint">
-        {lastMonth > 0 ? `${lastMonthLabel.slice(0, 3)}: ${money(lastMonth, { round: true })}` : "sem gasto mês passado"}
+        {lastMonth > 0 ? t.formOrcMesPassado(lastMonthLabel.slice(0, 3), money(lastMonth, { round: true })) : t.formOrcSemGasto}
       </p>
       <div className="mt-auto flex gap-1.5">
         <button type="button" onClick={() => onChange(Math.max(0, value - STEP))} aria-label={`Menos ${STEP} em ${cat.label}`} className="flex flex-1 items-center justify-center rounded-lg border border-border-strong bg-surface-2 py-1.5 text-ink-muted hover:text-ink">
@@ -472,16 +491,16 @@ function CategoryTile({
       </div>
 
       {cat.custom && (
-        <Modal open={confirmOpen} onClose={() => setConfirmOpen(false)} title="Apagar categoria?">
+        <Modal open={confirmOpen} onClose={() => setConfirmOpen(false)} title={t.formOrcApagarTitulo}>
           <p className="text-sm text-ink-muted">
-            Tem certeza que quer apagar <span className="font-medium text-ink">{cat.label}</span>? Os lançamentos que já usaram essa categoria continuam existindo, só perdem a categorização.
+            {t.formOrcApagarAntes} <span className="font-medium text-ink">{cat.label}</span>{t.formOrcApagarDepois}
           </p>
           <div className="mt-4 flex justify-end gap-2">
             <Button type="button" variant="ghost" size="sm" onClick={() => setConfirmOpen(false)}>
-              Cancelar
+              {t.formCancelar}
             </Button>
             <Button type="button" variant="danger" size="sm" disabled={isDeleting} onClick={() => startDelete(async () => { await deleteCustomCategoryAction(cat.key); })}>
-              {isDeleting ? "Apagando..." : "Apagar categoria"}
+              {isDeleting ? t.formOrcApagando : t.formOrcApagar}
             </Button>
           </div>
         </Modal>

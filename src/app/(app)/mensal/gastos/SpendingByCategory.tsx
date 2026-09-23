@@ -4,8 +4,11 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { ChevronDown, ChevronLeft, ChevronRight, Receipt } from "lucide-react";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
+import { emojiDaCategoria } from "@/lib/profiles/icones";
+import type { Voz } from "@/lib/profiles/voice";
+import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import type { SpendingSlice } from "@/components/charts/SpendingPieChart";
-import { PARENT_CATEGORY_ICON, isParentCategoryKey, colorForCategorySlice } from "@/lib/categories";
+import { categoryIcon, isParentCategoryKey, colorForCategorySlice } from "@/lib/categories";
 import { getCategoryTransactionsAction, type CategoryTransaction } from "./actions";
 import { useMoney } from "@/components/money/MoneyProvider";
 
@@ -53,6 +56,8 @@ export function SpendingByCategory({
   /** Nome do mês anterior, minúsculo ("agosto"), pra frase de comparação de cada linha. */
   previousMonthLabel: string;
 }) {
+  // `kind` porque o ícone de cada categoria-mãe muda numa Empresa (MORADIA vira prédio, não casa).
+  const { key: tema, voz, kind } = useProfileTheme();
   const money = useMoney();
   const [period, setPeriod] = useState<Period>(initialPeriod);
   const [openCategory, setOpenCategory] = useState<string | null>(null);
@@ -94,7 +99,7 @@ export function SpendingByCategory({
               type="button"
               onClick={() => changePeriod(p)}
               className={`rounded-full px-4 py-1.5 text-sm font-medium transition-all duration-200 ${
-                period === p ? "bg-ink text-canvas shadow-premium-sm" : "text-ink-muted hover:text-ink"
+                period === p ? "bg-pill text-on-pill shadow-premium-sm" : "text-ink-muted hover:text-ink"
               }`}
             >
               {PERIOD_LABEL[p]}
@@ -141,7 +146,9 @@ export function SpendingByCategory({
           <p className="text-caption text-ink-faint">Toque numa categoria para abrir os lançamentos</p>
           <p className="shrink-0 text-caption font-semibold tabular-nums text-ink-muted">{money(total, { round: true })}</p>
         </div>
-        <ul className="flex flex-col">
+        {/* No computador, duas colunas: uma linha por categoria na largura toda era um corredor
+            de espaço vazio entre o nome e o valor. */}
+        <ul className="flex flex-col lg:grid lg:grid-cols-2 lg:gap-x-10">
           {data
             .filter((slice) => slice.value > 0)
             .sort((a, b) => b.value - a.value)
@@ -150,10 +157,11 @@ export function SpendingByCategory({
               const cor = colorForCategorySlice(slice.category);
               const icone =
                 slice.category?.kind === "parent" && isParentCategoryKey(slice.category.value)
-                  ? PARENT_CATEGORY_ICON[slice.category.value]
+                  ? categoryIcon(kind, slice.category.value)
                   : Receipt;
+              const emoji = slice.category?.kind === "parent" ? emojiDaCategoria(tema, { kind: "parent", value: slice.category.value }) : emojiDaCategoria(tema, { kind: "custom" });
               const parcela = total > 0 ? Math.round((slice.value / total) * 100) : 0;
-              const comparacao = compareWithPrevious(slice, previousMonthLabel, money);
+              const comparacao = compareWithPrevious(slice, previousMonthLabel, money, voz);
               return (
                 <li key={slice.name} className="border-b border-border/60 last:border-0">
                   <button
@@ -161,7 +169,7 @@ export function SpendingByCategory({
                     onClick={() => handleSelect(slice)}
                     className="flex w-full items-center gap-3 py-3 text-left transition-opacity hover:opacity-80"
                   >
-                    <CategoryIcon icon={icone} color={cor} size={44} />
+                    <CategoryIcon icon={icone} color={cor} size={44} emoji={emoji} />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[17px] font-semibold leading-tight text-ink">
                         {slice.name}
@@ -226,14 +234,18 @@ function compareWithPrevious(
   slice: SpendingSlice,
   previousMonthLabel: string,
   money: ReturnType<typeof useMoney>,
+  voz: Voz,
 ): { text: string; tone: string } | null {
   if (slice.previousValue === undefined) return null;
-  if (slice.previousValue === 0) return { text: `Não teve gasto em ${previousMonthLabel}`, tone: "text-ink-muted" };
+  // O texto é do tema: "R$ 513 a mais que em agosto" no Padrão, "Foi o iFood, né? 🫣" no Sem
+  // filtro — que precisa saber a categoria pra tirada fazer sentido (iFood é só em comida).
+  const categoria = slice.category?.kind === "parent" ? slice.category.value : undefined;
+  if (slice.previousValue === 0) return { text: voz.titulos.comparacao("sem", "", previousMonthLabel, categoria), tone: "text-ink-muted" };
   const diff = slice.value - slice.previousValue;
   if (Math.abs(diff) < Math.max(20, slice.previousValue * 0.05)) {
-    return { text: `Igual a ${previousMonthLabel}`, tone: "text-ink-muted" };
+    return { text: voz.titulos.comparacao("igual", "", previousMonthLabel, categoria), tone: "text-ink-muted" };
   }
   return diff > 0
-    ? { text: `${money(diff, { round: true })} a mais que em ${previousMonthLabel}`, tone: "text-danger" }
-    : { text: `${money(-diff, { round: true })} a menos que em ${previousMonthLabel}`, tone: "text-success" };
+    ? { text: voz.titulos.comparacao("mais", money(diff, { round: true }), previousMonthLabel, categoria), tone: "text-danger" }
+    : { text: voz.titulos.comparacao("menos", money(-diff, { round: true }), previousMonthLabel, categoria), tone: "text-success" };
 }

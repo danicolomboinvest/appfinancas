@@ -2,6 +2,7 @@ import { Building2, Calculator, Car, Home, LineChart, ShoppingBag } from "lucide
 import { PageHeader } from "@/components/ui/PageHeader";
 import { HomeSectionCard } from "@/components/ui/HomeSectionCard";
 import { getRequiredSession } from "@/lib/auth/session";
+import { vozDoTema } from "@/lib/profiles/voice";
 import { listSimulations } from "@/lib/repositories/simulation.repo";
 import { SavedSimulations } from "./SavedSimulations";
 
@@ -46,6 +47,7 @@ const SIMULATORS = [
 
 export default async function SimuladoresPage() {
   const ctx = await getRequiredSession();
+  const voz = vozDoTema(ctx.profileTheme, ctx.profileKind);
   const salvas = await listSimulations(ctx);
   const items = salvas.map((s) => ({
     id: s.id,
@@ -58,8 +60,8 @@ export default async function SimuladoresPage() {
   return (
     <div className="flex flex-col gap-8">
       <PageHeader
-        title="Vamos descobrir quanto seu dinheiro pode render?"
-        subtitle="Calculadoras para decisões financeiras importantes do dia a dia."
+        title={voz.titulos.simuladores}
+        subtitle={voz.titulos.simuladoresSub}
       />
       {/* As salvas vêm primeiro: quem já usou volta pra consultar o que guardou, não pra
           escolher a calculadora de novo. */}
@@ -67,7 +69,7 @@ export default async function SimuladoresPage() {
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {SIMULATORS.map((simulator) => (
-          <HomeSectionCard key={simulator.href} {...simulator} />
+          <HomeSectionCard key={simulator.href} {...simulator} {...voz.titulos.simulador(simulator.href, simulator)} />
         ))}
       </div>
     </div>

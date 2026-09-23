@@ -6,6 +6,7 @@
  * Convenção de sinal em `amount`: negativo = saída (vira EXPENSE), positivo = entrada (INCOME).
  */
 
+import { isCaixaAppStatement, parseCaixaAppStatement } from "./caixa-pdf";
 import { isNubankStatement, parseNubankStatement } from "./nubank-pdf";
 
 export type ParsedTransaction = {
@@ -358,6 +359,15 @@ function leadingDate(line: string, refYear: number): { iso: string; length: numb
     const iso = `${m[3] ?? refYear}-${MONTH_ABBR[m[2].toLowerCase()]}-${pad(m[1])}`;
     return { iso: m[3] ? iso : backdateIfFuture(iso, new Date()), length: m[0].length };
   }
+  // "21/out", "04/ago", "21/outubro/2026": a fatura de cartão escreve o mês por nome, com barra.
+  // O rabicho do mês por extenso só é aceito em minúsculas de propósito — em "04/agoESPACO LASER"
+  // (fatura sem espaço entre a data e a loja) as maiúsculas são a descrição, não o mês.
+  m = t.match(/^(\d{1,2})\/([A-Za-z]{3})([a-zç]*)\.?(?:\/(\d{2,4}))?/);
+  if (m && MONTH_ABBR[m[2].toLowerCase()]) {
+    const ano = m[4] ? (m[4].length === 2 ? `20${m[4]}` : m[4]) : String(refYear);
+    const iso = `${ano}-${MONTH_ABBR[m[2].toLowerCase()]}-${pad(m[1])}`;
+    return { iso: m[4] ? iso : backdateIfFuture(iso, new Date()), length: m[0].length };
+  }
   m = t.match(/^(\d{2})\/(\d{2})(?![\d/])/);
   if (m && Number(m[2]) >= 1 && Number(m[2]) <= 12) {
     return { iso: backdateIfFuture(`${refYear}-${m[2]}-${m[1]}`, new Date()), length: m[0].length };
@@ -432,6 +442,10 @@ export function parseStatement(content: string, source: "auto" | "pdf" = "auto",
     if (isNubankStatement(content)) {
       const nubank = parseNubankStatement(content);
       if (nubank.length > 0) return nubank;
+    }
+    if (isCaixaAppStatement(content)) {
+      const caixa = parseCaixaAppStatement(content, refYear);
+      if (caixa.length > 0) return caixa;
     }
     return parseTextLines(content, refYear);
   }

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { MoreHorizontal, Plus } from "lucide-react";
 import { MOBILE_TABS } from "./nav-sections";
+import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 
 /** Liga cada aba ao passo do tour de boas-vindas (WelcomeTour destaca por data-tour). */
 const TAB_TOUR: Record<string, string> = {
@@ -28,6 +29,7 @@ export function MobileTabBar({
   moreActive: boolean;
 }) {
   const pathname = usePathname();
+  const { voz } = useProfileTheme();
 
   function tabLink(tab: (typeof MOBILE_TABS)[number]) {
     const isActive = pathname === tab.basePath || pathname.startsWith(`${tab.basePath}/`);
@@ -38,11 +40,12 @@ export function MobileTabBar({
         href={tab.href}
         data-tour={TAB_TOUR[tab.basePath]}
         className={`flex flex-1 flex-col items-center gap-0.5 rounded-[20px] py-2 text-[10px] font-medium transition-all duration-200 active:scale-95 ${
-          isActive ? "bg-white/10 text-ink" : "text-ink-muted"
+          isActive ? "bg-tab-active-soft text-tab-active" : "text-ink-muted"
         }`}
       >
         <Icon size={20} strokeWidth={isActive ? 2.2 : 1.75} />
-        {tab.label}
+        {/* "Metas" vira "Missões" no Game, "Sonhos" no Manifestação; "Carteira" vira "Caixa" na Empresa. */}
+        {tab.basePath === "/planejamento" ? voz.nav.metas : tab.basePath === "/carteira" ? (voz.nav.carteira ?? tab.label) : tab.label}
       </Link>
     );
   }
@@ -63,7 +66,7 @@ export function MobileTabBar({
         <button
           type="button"
           onClick={onOpenRegistrar}
-          aria-label="Registrar"
+          aria-label={voz.titulos.registrar}
           data-tour="registrar"
           className="-mt-6 flex h-14 w-14 items-center justify-center rounded-full bg-accent-gradient text-on-accent ring-4 ring-canvas transition-transform active:scale-90"
           style={{
@@ -73,7 +76,7 @@ export function MobileTabBar({
         >
           <Plus size={26} strokeWidth={2.4} />
         </button>
-        <span className="mt-0.5 text-[10px] font-medium text-ink-muted">Registrar</span>
+        <span className="mt-0.5 text-[10px] font-medium text-ink-muted">{voz.titulos.registrar}</span>
       </div>
 
       {tabLink(MOBILE_TABS[2])}
@@ -83,7 +86,7 @@ export function MobileTabBar({
         onClick={onOpenMore}
         data-tour="mais"
         className={`flex flex-1 flex-col items-center gap-0.5 rounded-[20px] py-2 text-[10px] font-medium transition-all duration-200 active:scale-95 ${
-          moreActive ? "bg-white/10 text-ink" : "text-ink-muted"
+          moreActive ? "bg-tab-active-soft text-tab-active" : "text-ink-muted"
         }`}
       >
         <MoreHorizontal size={20} strokeWidth={moreActive ? 2.2 : 1.75} />

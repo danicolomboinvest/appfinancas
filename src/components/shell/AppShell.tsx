@@ -1,5 +1,7 @@
 "use client";
 
+import type { ProfileKind } from "@prisma/client";
+
 import { useEffect, useState, useTransition } from "react";
 import { usePathname } from "next/navigation";
 import { Sidebar } from "./Sidebar";
@@ -16,9 +18,10 @@ import { WelcomeTour } from "./WelcomeTour";
 import { InstallAppBanner } from "./InstallAppBanner";
 import { InstallAppSheet } from "./InstallAppSheet";
 import { UsageTracker } from "./UsageTracker";
-import { MORE_NAV_SECTIONS } from "./nav-sections";
+import { MORE_NAV_SECTIONS, sectionMatches } from "./nav-sections";
 import { logoutAction } from "@/lib/auth/actions";
 import { ToastProvider } from "@/components/ui/toast-context";
+import { ProfileThemeProvider, useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 
 export function AppShell({
   children,
@@ -30,17 +33,28 @@ export function AppShell({
   theme,
   openFinance,
   perfis = [],
+  profileTheme,
+  profileKind = "PESSOAL",
+  podeEscolherModo,
 }: {
   children: React.ReactNode;
   isAdmin: boolean;
   isPremium: boolean;
   userEmail?: string;
-  greeting: string;
+  /** Já na voz do tema. `null` quando o tema não cumprimenta (Game). */
+  greeting: string | null;
+  /** A linha abaixo da saudação: a data, ou o que o tema quiser dizer no lugar dela. */
   dateLabel: string;
+  /** Chave do tema do perfil ativo — a voz das abas e da barra de baixo sai dele. */
+  profileTheme: string;
+  /** Tipo do perfil ativo. Empresa troca o vocabulário e esconde o que é de pessoa física. */
+  profileKind?: ProfileKind;
+  /** O tema deixa a pessoa escolher claro/escuro? Só o Padrão. Nos outros o sol/lua some. */
+  podeEscolherModo: boolean;
   /** Tema salvo na conta — a chave clara/escura do menu "Mais" nasce com ele. */
   theme: "dark" | "light";
   /** Open Finance ligado no servidor (chaves da Pluggy na Vercel). Desligado, as entradas
-   * "Conexões" e "Conectar meu banco" não aparecem — o código vai junto no deploy, mas fica
+   * "Conexões" não aparece — o código vai junto no deploy, mas fica
    * invisível até a Dani decidir ligar. */
   openFinance: boolean;
   perfis?: PerfilResumo[];
@@ -92,14 +106,14 @@ export function AppShell({
   // "Mais" fica em destaque na tab bar quando a rota atual é uma das seções que só
   // existem dentro da sheet (Visão Geral, Orçamento, Simuladores, Análises, Configurações).
   const moreActive = MORE_NAV_SECTIONS.some(
-    (section) => pathname === section.basePath || pathname.startsWith(`${section.basePath}/`),
+    (section) => sectionMatches(section, pathname),
   );
 
   return (
     <ToastProvider>
+      <ProfileThemeProvider theme={profileTheme} kind={profileKind}>
       <NavProgressProvider>
-      {/* A cor do perfil ativo entra aqui e desce por herança pra tudo que está dentro. */}
-      <div className="flex min-h-screen" data-profile-accent>
+      <div className="flex min-h-screen">
         {/* Sidebar: navegação primária no desktop; no mobile fica sempre fora da tela
             (a gaveta hambúrguer foi substituída pela tab bar + MoreSheet abaixo). */}
         <RegistrarOpener onOpen={() => setRegistrarOpen(true)} />
@@ -130,13 +144,17 @@ export function AppShell({
                   não pode viver escondido dentro de um menu. */}
               <div className="mb-1 flex items-center justify-between gap-2">
                 <ProfileSwitcher perfis={perfis} />
-                <div className="ml-auto">
-                  <ThemeQuickToggle initial={theme} />
-                </div>
+                {/* Sol/lua só quando o tema deixa: Girly é branco e Disciplina é preto por
+                    definição, e uma chave que não faz nada é pior que nenhuma. */}
+                {podeEscolherModo && (
+                  <div className="ml-auto">
+                    <ThemeQuickToggle initial={theme} />
+                  </div>
+                )}
               </div>
               {showGreeting && <GreetingStrip greeting={greeting} dateLabel={dateLabel} />}
               <InstallAppBanner onOpenTutorial={() => setInstallOpen(true)} />
-              {isFlow && <PillTabs tabs={FLOW_TABS} fit />}
+              {isFlow && <FlowTabsDoTema />}
               {children}
             </div>
           </main>
@@ -157,6 +175,7 @@ export function AppShell({
           onOpenInstall={() => setInstallOpen(true)}
           theme={theme}
           openFinance={openFinance}
+          podeEscolherModo={podeEscolherModo}
         />
 
         {/* Tutorial de "instalar na tela de início" (convite do topo ou menu "Mais"). */}
@@ -164,7 +183,7 @@ export function AppShell({
 
         {/* Ponto de entrada ÚNICO de registro, aberto pelo "+" central da tab bar (mobile) ou
             pelo botão "Registrar" da sidebar (desktop). O microfone vive dentro dele. */}
-        <RegistrarDrawer open={registrarOpen} onClose={() => setRegistrarOpen(false)} openFinance={openFinance} />
+        <RegistrarDrawer open={registrarOpen} onClose={() => setRegistrarOpen(false)} />
 
         {/* Tour de boas-vindas, só na primeira entrada (lembrado no aparelho). */}
         <WelcomeTour />
@@ -173,8 +192,16 @@ export function AppShell({
         <UsageTracker />
       </div>
     </NavProgressProvider>
+      </ProfileThemeProvider>
     </ToastProvider>
   );
+}
+
+/** As três abas do Fluxo com o nome que o tema dá a elas ("Resultado · Gastos · Missões" no Game). */
+function FlowTabsDoTema() {
+  const { voz } = useProfileTheme();
+  const tabs = FLOW_TABS.map((tab, i) => ({ ...tab, label: voz.nav.flowTabs[i] ?? tab.label }));
+  return <PillTabs tabs={tabs} fit />;
 }
 
 /** Qualquer tela pode pedir a gaveta de registro (ex.: o guia "Primeiros passos") sem prop drilling. */

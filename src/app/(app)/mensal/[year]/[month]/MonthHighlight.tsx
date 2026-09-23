@@ -27,11 +27,14 @@ export function MonthHighlight({
   expense,
   investment,
   insights,
+  titulo = "O que mudou",
 }: {
   income: number;
   expense: number;
   investment: number;
   insights: Insight[];
+  /** O título na voz do tema. */
+  titulo?: string;
 }) {
   // Sem nenhum lançamento o card viraria "Sobrou R$ 0" com ar de veredito — melhor nem aparecer.
   if (income === 0 && expense === 0 && investment === 0) return null;
@@ -45,7 +48,7 @@ export function MonthHighlight({
   if (insights.length === 0) return null;
 
   return (
-    <Section title="O que mudou">
+    <Section title={titulo}>
       <div className="flex flex-col gap-2.5">
         {insights.map((insight, i) => {
           const Icon = TONE_ICON[insight.tone];

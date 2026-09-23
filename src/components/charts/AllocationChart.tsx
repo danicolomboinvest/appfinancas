@@ -4,6 +4,7 @@ import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAx
 import type { ClassAllocation } from "@/lib/consolidation/portfolio";
 import { CHART_COLORS, CHART_TOOLTIP_STYLE } from "./chart-theme";
 import { formatPercentNumber } from "@/lib/format";
+import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 
 const CLASS_LABEL: Record<string, string> = {
   RENDA_FIXA: "Renda Fixa",
@@ -16,10 +17,14 @@ const CLASS_LABEL: Record<string, string> = {
 };
 
 export function AllocationChart({ classes }: { classes: ClassAllocation[] }) {
+  const t = useProfileTheme().voz.titulos;
+  // O nome da série é o que a legenda e o tooltip mostram, então ele vem da voz do tema.
+  const atual = t.grafAtual;
+  const ideal = t.grafIdeal;
   const data = classes.map((c) => ({
     name: CLASS_LABEL[c.assetClass] ?? c.assetClass,
-    Atual: Number((c.currentPercent * 100).toFixed(2)),
-    Ideal: Number((c.idealPercent * 100).toFixed(2)),
+    [atual]: Number((c.currentPercent * 100).toFixed(2)),
+    [ideal]: Number((c.idealPercent * 100).toFixed(2)),
   }));
 
   return (
@@ -34,8 +39,8 @@ export function AllocationChart({ classes }: { classes: ClassAllocation[] }) {
           cursor={{ fill: "rgba(255,255,255,0.04)" }}
         />
         <Legend wrapperStyle={{ fontSize: 12, color: CHART_COLORS.axis }} />
-        <Bar dataKey="Atual" fill={CHART_COLORS.accent} radius={[4, 4, 0, 0]} />
-        <Bar dataKey="Ideal" fill={CHART_COLORS.muted} radius={[4, 4, 0, 0]} />
+        <Bar dataKey={atual} fill={CHART_COLORS.accent} radius={[4, 4, 0, 0]} />
+        <Bar dataKey={ideal} fill={CHART_COLORS.muted} radius={[4, 4, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
   );

@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useSuccessToast } from "@/components/ui/useSuccessToast";
+import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { updateNotificationsAction, type NotificationsState } from "./actions";
 
 const initialState: NotificationsState = {};
@@ -15,6 +16,7 @@ export function NotificationsForm({
 }) {
   const [state, formAction, isPending] = useActionState(updateNotificationsAction, initialState);
   useSuccessToast(isPending, state.error);
+  const { titulos: t } = useProfileTheme().voz;
 
   return (
     <Card as="form" action={formAction} className="flex flex-col gap-4 p-5">
@@ -24,10 +26,8 @@ export function NotificationsForm({
           primeiro e diz explicitamente a frequência. */}
       <label className="flex items-center justify-between gap-4 rounded-lg border border-border p-3">
         <div>
-          <p className="text-sm font-medium text-ink">Resumo do mês por e-mail</p>
-          <p className="text-xs text-ink-muted">
-            Uma vez por mês, no começo do mês: quanto entrou, quanto saiu e o que mudou.
-          </p>
+          <p className="text-sm font-medium text-ink">{t.cfgResumoEmail}</p>
+          <p className="text-xs text-ink-muted">{t.cfgResumoEmailDica}</p>
         </div>
         <input
           type="checkbox"
@@ -39,8 +39,8 @@ export function NotificationsForm({
 
       <label className="flex items-center justify-between gap-4 rounded-lg border border-border p-3">
         <div>
-          <p className="text-sm font-medium text-ink">Alertas de orçamento</p>
-          <p className="text-xs text-ink-muted">Categoria com 80% do planejado gasto e ainda com metade do mês pela frente, ou já estourada. Chega no celular (se ligado) ou por e-mail.</p>
+          <p className="text-sm font-medium text-ink">{t.cfgAlertasOrcamento}</p>
+          <p className="text-xs text-ink-muted">{t.cfgAlertasOrcamentoDica}</p>
         </div>
         <input
           type="checkbox"
@@ -52,8 +52,8 @@ export function NotificationsForm({
 
       <label className="flex items-center justify-between gap-4 rounded-lg border border-border p-3">
         <div>
-          <p className="text-sm font-medium text-ink">Metas atrasadas</p>
-          <p className="text-xs text-ink-muted">Quando uma meta fica pra trás do ritmo. Um aviso por meta por mês.</p>
+          <p className="text-sm font-medium text-ink">{t.cfgMetasAtrasadas}</p>
+          <p className="text-xs text-ink-muted">{t.cfgMetasAtrasadasDica}</p>
         </div>
         <input
           type="checkbox"
@@ -64,7 +64,7 @@ export function NotificationsForm({
       </label>
 
       <Button type="submit" disabled={isPending} className="w-fit">
-        {isPending ? "Salvando..." : "Salvar"}
+        {isPending ? t.cfgSalvando : t.cfgSalvar}
       </Button>
     </Card>
   );

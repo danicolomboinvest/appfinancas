@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Smartphone, X } from "lucide-react";
 import { useInstallPlatform, useIsStandalone } from "@/lib/pwa/install";
+import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 
 const DISMISS_KEY = "install-banner-dismissed";
 /** O tour de boas-vindas avisa quando termina — o convite só entra DEPOIS, pra não competirem. */
@@ -17,6 +18,7 @@ const TOUR_SEEN_KEY = "welcome-tour-seen";
 export function InstallAppBanner({ onOpenTutorial }: { onOpenTutorial: () => void }) {
   const platform = useInstallPlatform();
   const isStandalone = useIsStandalone();
+  const { voz } = useProfileTheme();
   const [allowed, setAllowed] = useState(false);
 
   useEffect(() => {
@@ -46,19 +48,19 @@ export function InstallAppBanner({ onOpenTutorial }: { onOpenTutorial: () => voi
         <Smartphone className="size-4" aria-hidden />
       </span>
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium text-ink">Instale no seu celular</p>
-        <p className="text-xs text-ink-faint">Abre em tela cheia, com ícone próprio.</p>
+        <p className="text-sm font-medium text-ink">{voz.titulos.uiInstalarConviteTitulo}</p>
+        <p className="text-xs text-ink-faint">{voz.titulos.uiInstalarConviteSub}</p>
       </div>
       <button
         type="button"
         onClick={onOpenTutorial}
         className="shrink-0 rounded-full bg-ink px-3 py-1.5 text-xs font-semibold text-canvas transition-opacity hover:opacity-90"
       >
-        Ver como
+        {voz.titulos.uiInstalarVerComo}
       </button>
       <button
         type="button"
-        aria-label="Fechar convite"
+        aria-label={voz.titulos.uiInstalarFecharConvite}
         onClick={dismiss}
         className="shrink-0 rounded-full p-1 text-ink-faint transition-colors hover:bg-surface hover:text-ink"
       >

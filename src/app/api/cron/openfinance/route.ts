@@ -21,7 +21,7 @@ export async function GET(request: Request) {
   for (const c of connections) {
     try {
       const perfil = await getOrCreateActiveProfile(c.userId);
-      const r = await syncConnection({ userId: c.userId, role: c.user.role, profileId: perfil.id }, c.id);
+      const r = await syncConnection({ userId: c.userId, role: c.user.role, profileId: perfil.id, profileTheme: perfil.theme, profileKind: perfil.kind }, c.id);
       created += r.created;
     } catch (err) {
       failed += 1;

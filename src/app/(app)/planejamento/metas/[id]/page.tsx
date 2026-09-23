@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation";
 import { getRequiredSession } from "@/lib/auth/session";
+import { vozDoTema } from "@/lib/profiles/voice";
+import { ehEmpresa } from "@/lib/profiles/empresa";
 import { getGoalWithProgress } from "@/lib/repositories/goal.repo";
 import { computeGoalPlan, computeGoalTrajectory } from "@/lib/planning/goal";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -18,18 +20,12 @@ const STATUS_CHART_TONE: Record<string, "success" | "accent" | "danger"> = {
   ACHIEVED: "success",
 };
 
-
-const STATUS_LABEL: Record<string, string> = {
-  NOT_STARTED: "Sem prazo hábil",
-  ON_TRACK: "Em progresso",
-  BEHIND: "Atrasada",
-  ACHIEVED: "Concluída",
-};
-
 export default async function GoalDetailPage(props: PageProps<"/planejamento/metas/[id]">) {
   const money = await serverMoney();
   const { id } = await props.params;
   const ctx = await getRequiredSession();
+  const voz = vozDoTema(ctx.profileTheme, ctx.profileKind);
+  const t = voz.titulos;
   const goal = await getGoalWithProgress(ctx, id);
 
   if (!goal) {
@@ -51,8 +47,11 @@ export default async function GoalDetailPage(props: PageProps<"/planejamento/met
     <div className="flex flex-col gap-6">
       <Breadcrumb
         items={[
-          { label: "Planejamento Financeiro", href: "/planejamento/acumulo" },
-          { label: "Metas", href: "/planejamento/metas" },
+          // O primeiro degrau leva pra Aposentadoria, que não existe no perfil Empresa: lá o
+          // caminho começa direto nas metas.
+          ...(ehEmpresa(ctx.profileKind) ? [] : [{ label: t.metaBreadcrumbPlanejamento, href: "/planejamento/acumulo" }]),
+          // O mesmo nome da aba de metas na barra: se o tema chama de "Missões", o caminho também.
+          { label: voz.nav.metas, href: "/planejamento/metas" },
           { label: goal.name },
         ]}
       />
@@ -65,18 +64,18 @@ export default async function GoalDetailPage(props: PageProps<"/planejamento/met
       <StatRows
         items={[
           {
-            label: "Ritmo",
-            value: STATUS_LABEL[plan.status],
+            label: t.metaRitmoLabel,
+            value: t.metaRitmo[plan.status],
             tone: plan.status === "BEHIND" ? "danger" : plan.status === "ACHIEVED" ? "success" : "accent",
           },
-          { label: "Meses restantes", value: `${plan.monthsRemaining}` },
-          { label: "Falta guardar", value: money(plan.amountMissing), tone: "danger" },
-          { label: "Guardar por mês", value: money(plan.requiredMonthlyContribution), tone: "success" },
+          { label: t.metaMesesRestantes, value: `${plan.monthsRemaining}` },
+          { label: t.metaFaltaGuardar, value: money(plan.amountMissing), tone: "danger" },
+          { label: t.metaGuardarPorMes, value: money(plan.requiredMonthlyContribution), tone: "success" },
         ]}
       />
 
       <Card className="p-5">
-        <p className="mb-2 text-xs font-medium text-ink-muted">Trajetória projetada até a meta</p>
+        <p className="mb-2 text-xs font-medium text-ink-muted">{t.metaTrajetoria}</p>
         <GoalTrajectoryChart
           data={trajectory}
           targetAmount={Number(goal.targetAmount)}
@@ -87,7 +86,7 @@ export default async function GoalDetailPage(props: PageProps<"/planejamento/met
       <Card className="p-4">
         <GoalForm
           goalId={goal.id}
-          submitLabel="Salvar alterações"
+          submitLabel={t.metaSalvarAlteracoes}
           defaults={{
             name: goal.name,
             targetAmount: Number(goal.targetAmount),

@@ -13,10 +13,14 @@
  * da própria tela, com o mês certo. O que sobrou aqui é o que é verdade em qualquer tela e em
  * qualquer mês: a saudação e a data de hoje.
  */
-export function GreetingStrip({ greeting, dateLabel }: { greeting: string; dateLabel: string }) {
+export function GreetingStrip({ greeting, dateLabel }: { greeting: string | null; dateLabel: string }) {
+  // Tema sem saudação (o Game abre no ranking): a faixa some inteira, não fica um vazio.
+  if (greeting === null) return null;
   return (
     <div className="mb-6 flex flex-col gap-0.5 border-b border-border pb-5">
       <p className="text-h2 font-serif font-normal italic tracking-tight text-ink">{greeting}</p>
+      {/* A linha de baixo é a data, a não ser que o tema tenha algo a dizer no lugar dela
+          ("Seu dinheiro não vai se organizar sozinho."). */}
       <p className="text-body text-ink-muted">{dateLabel}</p>
     </div>
   );

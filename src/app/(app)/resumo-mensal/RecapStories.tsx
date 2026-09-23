@@ -8,6 +8,7 @@ import type { MonthlyRecap } from "@/lib/recap/monthly";
 import { dismissMonthlyRecapAction } from "./actions";
 import { buildRecapShareImage, buildRecapShareText } from "./share-image";
 import { useMoney } from "@/components/money/MoneyProvider";
+import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 
 
 /** Paleta dos stories, tema escuro imersivo fixo (independente do tema do app). */
@@ -56,6 +57,9 @@ function CompareBar({ label, value, max, color }: { label: string; value: number
 export function RecapStories({ recap, monthKey }: { recap: MonthlyRecap; monthKey: string }) {
   const money = useMoney();
   const router = useRouter();
+  // Os stories falam na voz do tema; os números e a paleta escura são os mesmos pra todos.
+  const { voz } = useProfileTheme();
+  const t = voz.titulos;
   const [index, setIndex] = useState(0);
   const [mounted, setMounted] = useState(false);
   const [sharing, setSharing] = useState(false);
@@ -74,16 +78,16 @@ export function RecapStories({ recap, monthKey }: { recap: MonthlyRecap; monthKe
     if (sharing) return;
     setSharing(true);
     try {
-      const blob = await buildRecapShareImage(recap, money);
+      const blob = await buildRecapShareImage(recap, money, t);
       const file = new File([blob], "resumo-mensal.png", { type: "image/png" });
-      const shareData: ShareData = { files: [file], title: "Meu resumo do mês" };
+      const shareData: ShareData = { files: [file], title: t.impShareTitulo };
       const nav = navigator as Navigator & { canShare?: (data: ShareData) => boolean };
       if (nav.canShare?.(shareData) && navigator.share) {
         await navigator.share(shareData);
       } else if (navigator.share) {
-        await navigator.share({ title: "Meu resumo do mês", text: buildRecapShareText(recap, money) });
+        await navigator.share({ title: t.impShareTitulo, text: buildRecapShareText(recap, money, t) });
       } else {
-        await navigator.clipboard.writeText(buildRecapShareText(recap, money));
+        await navigator.clipboard.writeText(buildRecapShareText(recap, money, t));
         // Baixa a imagem como alternativa quando não há API de compartilhamento (desktop).
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
@@ -118,8 +122,8 @@ export function RecapStories({ recap, monthKey }: { recap: MonthlyRecap; monthKe
       content: (
         <div className="flex flex-col items-center gap-3 text-center">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/60">{recap.rangeLabel}</p>
-          <h1 className="font-serif text-5xl text-white">Resumo Mensal</h1>
-          <p className="text-base text-white/70">O que aconteceu com o seu dinheiro este mês.</p>
+          <h1 className="font-serif text-5xl text-white">{t.impStoryTitulo}</h1>
+          <p className="text-base text-white/70">{t.impStorySub}</p>
         </div>
       ),
     },
@@ -128,11 +132,11 @@ export function RecapStories({ recap, monthKey }: { recap: MonthlyRecap; monthKe
       tone: "gold",
       content: (
         <div className="flex flex-col items-center gap-4 text-center">
-          <p className="text-lg text-white/80">Este mês você gastou</p>
+          <p className="text-lg text-white/80">{t.impStoryGastou}</p>
           <BigNumber>{money(recap.monthSpent, { round: true })}</BigNumber>
           {recap.topCategory && (
             <p className="text-base text-white/70">
-              A maior parte foi com{" "}
+              {t.impStoryMaiorParte}{" "}
               <span className="font-semibold" style={{ color: GOLD }}>
                 {recap.topCategory.label}
               </span>{" "}
@@ -148,20 +152,20 @@ export function RecapStories({ recap, monthKey }: { recap: MonthlyRecap; monthKe
       content: (
         <div className="flex w-full flex-col gap-8">
           <div className="text-center">
-            <p className="text-lg text-white/80">Comparado com o mês anterior, você gastou</p>
+            <p className="text-lg text-white/80">{t.impStoryComparado}</p>
             <BigNumber color={delta === null ? GOLD : spentLess ? SAGE : TERRA}>
-              {delta === null ? "—" : `${Math.abs(Math.round(delta * 100))}% ${spentLess ? "menos" : "a mais"}`}
+              {delta === null ? "—" : t.impStoryDelta(Math.abs(Math.round(delta * 100)), spentLess)}
             </BigNumber>
           </div>
           <div className="flex flex-col gap-5">
             <CompareBar
-              label="Este mês"
+              label={t.impStoryEsteMes}
               value={recap.monthSpent}
               max={Math.max(recap.monthSpent, recap.prevMonthSpent)}
               color={delta !== null && !spentLess ? TERRA : SAGE}
             />
             <CompareBar
-              label="Mês passado"
+              label={t.impStoryMesPassado}
               value={recap.prevMonthSpent}
               max={Math.max(recap.monthSpent, recap.prevMonthSpent)}
               color="rgba(255,255,255,0.25)"
@@ -177,7 +181,7 @@ export function RecapStories({ recap, monthKey }: { recap: MonthlyRecap; monthKe
         <div className="flex w-full flex-col gap-8">
           {recap.bestDay && (
             <p className="text-center text-xl text-white/90">
-              Seu dia da semana mais econômico foi{" "}
+              {t.impStoryDiaEconomico}{" "}
               <span className="font-bold" style={{ color: SAGE }}>
                 {recap.bestDay.label}
               </span>
@@ -207,11 +211,11 @@ export function RecapStories({ recap, monthKey }: { recap: MonthlyRecap; monthKe
           </div>
           {recap.worstDay && (
             <p className="text-center text-xl text-white/90">
-              O dia da semana mais gastador foi{" "}
+              {t.impStoryDiaGastador}{" "}
               <span className="font-bold" style={{ color: TERRA }}>
                 {recap.worstDay.label}
               </span>{" "}
-              com {money(recap.worstDay.value, { round: true })}
+              {t.impStoryDiaGastadorCom(money(recap.worstDay.value, { round: true }))}
             </p>
           )}
         </div>
@@ -222,15 +226,13 @@ export function RecapStories({ recap, monthKey }: { recap: MonthlyRecap; monthKe
       tone: savedPositive ? "sage" : "terra",
       content: (
         <div className="flex flex-col items-center gap-4 text-center">
-          <p className="text-lg text-white/80">
-            Desde que você chegou aqui ({recap.monthsActive} {recap.monthsActive === 1 ? "mês" : "meses"}),
-            {savedPositive ? " ficou no seu bolso" : " o saldo ficou"}
-          </p>
+          <p className="text-lg text-white/80">{t.impStoryDesdeQueChegou(recap.monthsActive, savedPositive)}</p>
           <BigNumber color={savedPositive ? SAGE : TERRA}>{money(recap.allTimeSaved, { round: true })}</BigNumber>
           <p className="text-base text-white/70">
-            {savedPositive
-              ? "É renda acumulada que não virou gasto, e pode virar patrimônio."
-              : "Mês a mês dá pra virar esse jogo. O primeiro passo é ver o número."}
+            {/* A frase do saldo positivo fica aqui (não no catálogo) de propósito: ela diz
+                "patrimônio", e o teste da voz proíbe jargão em toda chave que o Girly herda
+                do Padrão. Entra no catálogo quando o Girly ganhar a frase dele. */}
+            {savedPositive ? "É renda acumulada que não virou gasto, e pode virar patrimônio." : t.impStoryAcumuladoRuim}
           </p>
         </div>
       ),
@@ -240,11 +242,9 @@ export function RecapStories({ recap, monthKey }: { recap: MonthlyRecap; monthKe
       tone: "gold",
       content: (
         <div className="flex flex-col items-center gap-4 text-center">
-          <p className="text-lg text-white/80">Se você investisse hoje, de uma vez, tudo que já juntou, em 10 anos isso vira até…</p>
+          <p className="text-lg text-white/80">{t.impStoryProjecaoUnica}</p>
           <BigNumber>{money(Math.max(0, recap.lumpSumProjection10y), { round: true })}</BigNumber>
-          <p className="text-sm text-white/50">
-            *{money(Math.max(0, recap.allTimeSaved), { round: true })} investidos de uma vez a 10% a.a., estimativa educativa, não garantia.
-          </p>
+          <p className="text-sm text-white/50">{t.impStoryProjecaoUnicaNota(money(Math.max(0, recap.allTimeSaved), { round: true }))}</p>
         </div>
       ),
     },
@@ -253,12 +253,9 @@ export function RecapStories({ recap, monthKey }: { recap: MonthlyRecap; monthKe
       tone: "gold",
       content: (
         <div className="flex flex-col items-center gap-4 text-center">
-          <p className="text-lg text-white/80">Mantendo sua poupança média todo mês, reinvestindo, em 10 anos isso vira até…</p>
+          <p className="text-lg text-white/80">{t.impStoryProjecaoMensal}</p>
           <BigNumber>{money(Math.max(0, recap.recurringProjection10y), { round: true })}</BigNumber>
-          <p className="text-sm text-white/50">
-            *Poupança média de {money(Math.max(0, recap.avgMonthlySaving), { round: true })}/mês (poupado no ano ÷ meses preenchidos) a 10% a.a.,
-            estimativa educativa, não garantia.
-          </p>
+          <p className="text-sm text-white/50">{t.impStoryProjecaoMensalNota(money(Math.max(0, recap.avgMonthlySaving), { round: true }))}</p>
         </div>
       ),
     },
@@ -269,13 +266,13 @@ export function RecapStories({ recap, monthKey }: { recap: MonthlyRecap; monthKe
         <div className="flex w-full flex-col gap-6">
           <div className="text-center">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/60">{recap.rangeLabel}</p>
-            <h2 className="mt-1 font-serif text-4xl text-white">Destaques</h2>
+            <h2 className="mt-1 font-serif text-4xl text-white">{t.impStoryDestaques}</h2>
           </div>
           <div className="flex flex-col divide-y divide-white/10">
             <div className="flex items-center justify-between py-4">
               <div>
                 <p className="text-3xl font-bold text-white">{money(recap.monthSpent, { round: true })}</p>
-                <p className="text-sm text-white/60">Gastos do mês</p>
+                <p className="text-sm text-white/60">{t.impStoryGastosDoMes}</p>
               </div>
               {delta !== null && (
                 <span
@@ -289,7 +286,7 @@ export function RecapStories({ recap, monthKey }: { recap: MonthlyRecap; monthKe
             <div className="flex items-center justify-between py-4">
               <div>
                 <p className="text-3xl font-bold text-white">{money(recap.allTimeSaved, { round: true })}</p>
-                <p className="text-sm text-white/60">No bolso desde o início</p>
+                <p className="text-sm text-white/60">{t.impStoryNoBolso}</p>
               </div>
               <span
                 className="rounded-full px-3 py-1.5 text-sm font-bold"
@@ -302,7 +299,7 @@ export function RecapStories({ recap, monthKey }: { recap: MonthlyRecap; monthKe
               <p className="text-3xl font-bold" style={{ color: GOLD }}>
                 {money(Math.max(0, recap.recurringProjection10y), { round: true })}
               </p>
-              <p className="text-sm text-white/60">Potencial em 10 anos mantendo sua poupança média</p>
+              <p className="text-sm text-white/60">{t.impStoryPotencial}</p>
             </div>
           </div>
           {/* Espaço reservado pros botões de ação, que ficam FORA do trilho de slides (ver
@@ -430,14 +427,14 @@ export function RecapStories({ recap, monthKey }: { recap: MonthlyRecap; monthKe
             className="flex w-full max-w-xs items-center justify-center gap-2 rounded-full bg-white px-6 py-3.5 text-sm font-semibold text-black transition-transform hover:opacity-90 active:scale-95 disabled:opacity-60"
           >
             <Share2 size={18} strokeWidth={2.2} />
-            {sharing ? "Gerando imagem…" : "Compartilhar resumo"}
+            {sharing ? t.impStoryGerando : t.impStoryCompartilhar}
           </button>
           <button
             type="button"
             onClick={closeAndDismiss}
             className="text-sm font-medium text-white/60 transition-colors hover:text-white"
           >
-            Concluir
+            {t.impConcluir}
           </button>
         </div>
       )}

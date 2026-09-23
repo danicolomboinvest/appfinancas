@@ -5,6 +5,8 @@ import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useMoney } from "@/components/money/MoneyProvider";
 import { FitText } from "@/components/ui/FitText";
+import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
+import { estadoDoMes, type Ritmo } from "@/lib/profiles/voice";
 
 const MONTH_LABELS = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
@@ -131,6 +133,7 @@ export function FlowIndicators({
   monthly,
   annual,
   pacing,
+  mesFechado = false,
 }: {
   year: number;
   month: number;
@@ -139,11 +142,20 @@ export function FlowIndicators({
   annual: FlowBundle;
   /** Ritmo do mês (orçamento consumido vs. mês decorrido), só no mês corrente com orçamento. */
   pacing?: Pacing | null;
+  /** O mês já acabou? A voz muda "ainda dá" pra "acabou". */
+  mesFechado?: boolean;
 }) {
   const money = useMoney();
+  const { voz } = useProfileTheme();
   const [view, setView] = useState<View>(initialView);
   const bundle = view === "mensal" ? monthly : annual;
   const rate = savingsRate(bundle);
+  // Bom, normal ou ruim vem ANTES da frase: é o que impede "É pouco? Sim" de aparecer pra
+  // quem tem R$ 3.200 sobrando. Cada tema só escolhe COMO dizer o que os números já disseram.
+  const estado = estadoDoMes(bundle);
+  const fraseDoResultado =
+    view === "mensal" ? voz.fraseResultado(estado, { resultado: bundle.balance, income: bundle.income, expense: bundle.expense, money, mesFechado }) : null;
+  const ritmoAtual: Ritmo | null = !pacing ? null : pacing.budgetUsed > pacing.monthElapsed + 0.05 ? "rapido" : pacing.budgetUsed > pacing.monthElapsed ? "limite" : "dentro";
 
   const prev = adjacentMonth(year, month, -1);
   const next = adjacentMonth(year, month, 1);
@@ -191,7 +203,7 @@ export function FlowIndicators({
               type="button"
               onClick={() => setView(v)}
               className={`rounded-full px-3 py-1 text-xs font-medium capitalize transition-colors ${
-                view === v ? "bg-ink text-canvas" : "text-ink-muted hover:text-ink"
+                view === v ? "bg-pill text-on-pill" : "text-ink-muted hover:text-ink"
               }`}
             >
               {v}
@@ -205,20 +217,25 @@ export function FlowIndicators({
           Saldo; em linhas, com o resultado destacado no fim, a conta se lê de cima pra baixo.
           As DUAS saídas (gastos e aportes) ficam aqui dentro, senão a soma da tela não fecha.
           Planejamento e poupança são contexto e ficam abaixo, menores. */}
+      {/* O painel é o MESMO nos sete temas: Entrou, Gastou, Aportou e a linha de baixo. O que
+          o tema muda é o nome da linha de baixo ("Sobrou", "Guardado", "Você guardou 💖"), um
+          rótulo em cima quando ele quer ("Seu resultado") e a frase logo abaixo. */}
+      {voz.tituloPainel && <p className="-mb-2 text-caption font-medium text-ink-muted">{voz.tituloPainel}</p>}
       <div className="overflow-hidden rounded-2xl border border-border lg:grid lg:grid-cols-4 lg:items-stretch lg:divide-x lg:divide-border">
-        <SummaryCell label="Entrou" value={money(bundle.income)} sign="+" tone="success" />
-        <SummaryCell label="Gastou" value={money(bundle.expense)} sign="−" tone="danger" />
+        <SummaryCell label={voz.titulos.entrou} value={money(bundle.income)} sign="+" tone="success" />
+        <SummaryCell label={voz.titulos.gastou} value={money(bundle.expense)} sign="−" tone="danger" />
         {/* Aportar também TIRA dinheiro do mês. Sem esta parcela a conta da tela não fechava:
             "entrou 12, saiu 8" e um resultado de −7 que só se explicava por um número que
             estava noutro lugar da página. Dinheiro que sai fica junto do dinheiro que sai. */}
-        <SummaryCell label="Aportou" value={money(bundle.investment)} sign="−" tone="accent" />
+        <SummaryCell label={voz.titulos.aportou} value={money(bundle.investment)} sign="−" tone="accent" />
         <SummaryCell
-          label="Resultado"
+          label={voz.rotuloResultado}
           value={money(bundle.balance)}
           tone={bundle.balance >= 0 ? "success" : "danger"}
           emphasis
         />
       </div>
+      {fraseDoResultado && <p className="-mt-1 text-sm text-ink lg:text-[15px]">{fraseDoResultado}</p>}
 
       {/* No computador, os números de contexto e o ritmo do mês dividem a mesma faixa: sozinhos,
           cada um esticava por um monitor inteiro pra dizer duas palavras. */}
@@ -230,9 +247,9 @@ export function FlowIndicators({
         }
       >
         <div className="grid grid-cols-2 divide-x divide-border">
-          <SecondaryStat label="Planejamento" value={money(bundle.planned)} tone="ink" />
+          <SecondaryStat label={voz.titulos.planejamento} value={money(bundle.planned)} tone="ink" />
           <SecondaryStat
-            label="Poupança"
+            label={voz.titulos.poupanca}
             value={rate === null ? "—" : `${Math.round(rate * 100)}%`}
             tone={rate !== null && rate >= 0 ? "success" : "danger"}
           />
@@ -242,21 +259,13 @@ export function FlowIndicators({
       {view === "mensal" && pacing && (
         <div className="flex flex-col gap-2.5 border-t border-border pt-5 lg:border-t-0 lg:pt-0">
           <div className="flex items-center justify-between">
-            <p className="text-caption font-medium text-ink-muted lg:text-[13px]">Ritmo do mês</p>
+            <p className="text-caption font-medium text-ink-muted lg:text-[13px]">{voz.titulos.ritmoDoMes}</p>
             <p
               className={`text-caption font-semibold ${
-                pacing.budgetUsed > pacing.monthElapsed + 0.05
-                  ? "text-danger"
-                  : pacing.budgetUsed > pacing.monthElapsed
-                    ? "text-accent-strong"
-                    : "text-success"
+                ritmoAtual === "rapido" ? "text-danger" : ritmoAtual === "limite" ? "text-accent-strong" : "text-success"
               }`}
             >
-              {pacing.budgetUsed > pacing.monthElapsed + 0.05
-                ? "Gastando rápido demais"
-                : pacing.budgetUsed > pacing.monthElapsed
-                  ? "No limite do ritmo"
-                  : "Dentro do ritmo"}
+              {voz.ritmo[ritmoAtual ?? "dentro"]}
             </p>
           </div>
           <div className="flex flex-col gap-1.5">

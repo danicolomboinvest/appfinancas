@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { AlertTriangle, Check, HelpCircle } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { CHECKLIST_ANSWERS, type ChecklistAnswer } from "@/lib/analysis/checklist";
+import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { answerChecklistAction } from "./laudo-actions";
 
 export type ChecklistQuestion = {
@@ -34,6 +35,7 @@ export function Checklist({ sheetId, questions }: { sheetId: string; questions: 
   const [showAll, setShowAll] = useState(false);
   const [hintFor, setHintFor] = useState<string | null>(null);
   const [, startTransition] = useTransition();
+  const t = useProfileTheme().voz.titulos;
 
   if (questions.length === 0) return null;
 
@@ -51,10 +53,8 @@ export function Checklist({ sheetId, questions }: { sheetId: string; questions: 
   return (
     <Card className="flex flex-col gap-3 p-4">
       <div className="flex items-baseline justify-between gap-3">
-        <h2 className="text-[15px] font-semibold text-ink">Só você responde</h2>
-        <span className="shrink-0 text-caption tabular-nums text-ink-faint">
-          {answered} de {questions.length}
-        </span>
+        <h2 className="text-[15px] font-semibold text-ink">{t.fichasSoVoce}</h2>
+        <span className="shrink-0 text-caption tabular-nums text-ink-faint">{t.fichasRespondidas(answered, questions.length)}</span>
       </div>
 
       {visible.map((q) => (
@@ -90,13 +90,13 @@ export function Checklist({ sheetId, questions }: { sheetId: string; questions: 
               })}
             </span>
           </div>
-          {hintFor === q.criterionId && q.where && <p className="text-caption text-ink-faint">Onde olhar: {q.where}</p>}
+          {hintFor === q.criterionId && q.where && <p className="text-caption text-ink-faint">{t.fichasOndeOlhar(q.where)}</p>}
         </div>
       ))}
 
       {questions.length > VISIBLE && (
         <button type="button" onClick={() => setShowAll((v) => !v)} className="w-fit text-sm font-medium text-accent-strong hover:underline">
-          {showAll ? "Menos" : `Mais ${questions.length - VISIBLE} ›`}
+          {showAll ? t.fichasMenos : t.fichasMais(questions.length - VISIBLE)}
         </button>
       )}
     </Card>
