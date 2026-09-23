@@ -499,7 +499,7 @@ export const semfiltro: Voz = {
     impDesbloquear: "Destrancar e seguir",
     impConcluir: "Fechou 😎",
     // Extrato/fatura
-    impArquivoGrande: "Arquivo grande demais (máx. ~7 MB). Exporta um período menor do extrato e tenta de novo.",
+    impArquivoGrande: "Arquivo grande demais (máx. 4 MB). Exporta um período menor, ou salva em Excel (.xlsx) ou CSV — pesa muito menos que PDF.",
     impOQueSubindo: "O que você tá me mandando?",
     impExtratoDica: "Entrada vira renda, saída vira gasto, pelo sinal do valor. Simples assim.",
     impFaturaDica: "Todas as linhas entram como gasto (compras do cartão). Todas, até as parceladas 🫣",

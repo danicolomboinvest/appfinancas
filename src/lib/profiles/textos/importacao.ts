@@ -228,7 +228,7 @@ export const PADRAO_IMPORTACAO: TextosImportacao = {
   impRemover: "Remover",
   impConcluir: "Concluir",
   // Extrato/fatura: subir o arquivo
-  impArquivoGrande: "Arquivo muito grande (máx. ~7 MB). Exporte um período menor do extrato e tente de novo.",
+  impArquivoGrande: "Arquivo muito grande (máx. 4 MB). Exporte um período menor do extrato, ou salve em Excel (.xlsx) ou CSV, que pesam bem menos que PDF.",
   impOQueSubindo: "O que você está subindo?",
   impTipoExtrato: "Extrato bancário",
   impTipoFatura: "Fatura de cartão",

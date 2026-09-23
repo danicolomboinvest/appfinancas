@@ -382,7 +382,7 @@ const GIRLY_IMP: Partial<Titulos> = {
   impPular: "Pular",
   impRemover: "Tirar",
   impConcluir: "Prontinho ✨",
-  impArquivoGrande: "Arquivo grande demais (o máximo é uns 7 MB) 🫣 Exporta um período menor do extrato e tenta de novo.",
+  impArquivoGrande: "Arquivo grande demais (o máximo são 4 MB) 🫣 Exporta um período menor, ou salva em Excel (.xlsx) ou CSV, que pesam bem menos que PDF.",
   impOQueSubindo: "O que você tá me mandando? 📄",
   impTipoExtrato: "Extrato do banco",
   impTipoFatura: "Fatura do cartão",

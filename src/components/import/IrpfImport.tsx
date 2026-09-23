@@ -11,6 +11,7 @@ import {
 } from "@/app/(app)/carteira/irpf-actions";
 import { useMoney } from "@/components/money/MoneyProvider";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
+import { UPLOAD_MAX_BYTES } from "@/lib/import/limites";
 
 type Phase = "upload" | "confirm" | "done";
 
@@ -49,7 +50,8 @@ export function IrpfImport({ onDone }: { onDone: () => void }) {
 
   function handleFile(file: File) {
     setError(null);
-    if (file.size > 7.5 * 1024 * 1024) {
+    // Barra aqui o que a Vercel recusaria com 413 lá fora, onde não sobra nem registro.
+    if (file.size > UPLOAD_MAX_BYTES) {
       setError(t.impIrpfArquivoGrande);
       return;
     }

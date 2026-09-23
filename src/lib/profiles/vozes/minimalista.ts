@@ -404,7 +404,7 @@ export const minimalista: Voz = {
     impDesbloquear: "Desbloquear",
     impOutroArquivo: "Outro arquivo",
     impAplicando: "Aplicando…",
-    impArquivoGrande: "Arquivo acima de ~7 MB. Exporte um período menor.",
+    impArquivoGrande: "Arquivo acima de 4 MB. Exporte um período menor, ou em Excel (.xlsx) ou CSV.",
     impOQueSubindo: "Tipo de arquivo",
     impExtratoDica: "Entradas viram renda, saídas viram gasto.",
     impFaturaDica: "Todas as linhas viram gasto.",

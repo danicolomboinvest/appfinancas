@@ -37,9 +37,13 @@ const nextConfig: NextConfig = {
 
   experimental: {
     serverActions: {
-      // Importação de extrato/carteira manda o arquivo em base64 pela Server Action —
-      // o limite padrão de 1 MB derruba PDFs/Excels normais de banco. 8 MB dá folga
-      // (base64 infla ~33%, então cobre arquivos de ~6 MB reais).
+      // Importação de extrato/carteira manda o arquivo pela Server Action — o limite padrão de
+      // 1 MB derruba PDFs/Excels normais de banco.
+      //
+      // ATENÇÃO: este número NÃO é o teto de verdade. A Vercel recusa a requisição com 413
+      // antes de chamar o servidor quando o corpo passa de ~4,5 MB (medido em produção: 4 MB
+      // passa, 5 MB volta 413), e aumentar aqui não muda aquilo. Quem barra o arquivo grande é
+      // UPLOAD_MAX_BYTES, em src/lib/import/limites.ts — é lá que o número se mexe.
       bodySizeLimit: "8mb",
     },
   },

@@ -306,7 +306,7 @@ export const disciplina: Voz = {
     impErroSalvar: "Não consegui salvar. Confere a internet e tenta de novo.",
     impProtegido: "Arquivo protegido por senha",
     impDesbloquear: "Desbloquear e seguir",
-    impArquivoGrande: "Arquivo grande demais (máx. ~7 MB). Exporta um período menor do extrato e tenta de novo.",
+    impArquivoGrande: "Arquivo grande demais (máx. 4 MB). Exporta um período menor, ou salva em Excel (.xlsx) ou CSV — pesa muito menos que PDF.",
     impOQueSubindo: "O que é esse arquivo?",
     impExtratoDica: "Entrada vira renda, saída vira gasto, pelo sinal do valor.",
     impFaturaDica: "Toda linha entra como gasto (compras do cartão).",

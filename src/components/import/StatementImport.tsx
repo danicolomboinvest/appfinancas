@@ -20,6 +20,7 @@ import {
 } from "@/app/(app)/mensal/import-actions";
 import { useMoney } from "@/components/money/MoneyProvider";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
+import { UPLOAD_MAX_BYTES } from "@/lib/import/limites";
 
 type Phase = "upload" | "password" | "review" | "confirm" | "done";
 
@@ -109,8 +110,8 @@ export function StatementImport({ onDone }: { onDone: () => void }) {
 
   function handleFile(file: File) {
     setError(null);
-    // Limite do corpo da Server Action é 8 MB, barra antes com mensagem clara.
-    if (file.size > 7.5 * 1024 * 1024) {
+    // Barra aqui o que a Vercel recusaria com 413 lá fora, onde não sobra nem registro.
+    if (file.size > UPLOAD_MAX_BYTES) {
       setError(t.impArquivoGrande);
       return;
     }
