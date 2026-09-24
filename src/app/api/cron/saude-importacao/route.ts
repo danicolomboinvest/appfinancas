@@ -56,7 +56,10 @@ export async function GET(request: Request) {
     return NextResponse.json({ ok: true, ...resumo(health), erros: 0, arquivosApagados, avisos: avisos.length, enviado: false, motivo: "dia sem falha" });
   }
 
-  const destino = process.env.SUPPORT_EMAIL ?? process.env.SMTP_USER;
+  // `||` e não `??`: o .env.example documenta "padrão: SMTP_USER" e deixa SUPPORT_EMAIL vazia.
+  // Com `??`, string vazia conta como valor, então destino virava "" e o raio-X não ia pra
+  // ninguém, sem erro e sem log. O resto do projeto já trata vazio como não configurado.
+  const destino = process.env.SUPPORT_EMAIL || process.env.SMTP_USER;
   let enviado = false;
   if (!dryRun && destino && isEmailConfigured()) {
     const { subject, html } = relatorioEmail(health, days, erros, avisos);
