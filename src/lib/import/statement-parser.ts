@@ -8,6 +8,7 @@
 
 import { isCaixaAppStatement, parseCaixaAppStatement } from "./caixa-pdf";
 import { isNubankStatement, parseNubankStatement } from "./nubank-pdf";
+import { isSantanderConsolidatedStatement, parseSantanderConsolidatedStatement } from "./santander-pdf";
 
 export type ParsedTransaction = {
   /** ISO (YYYY-MM-DD) quando possível; string original caso não dê pra normalizar. */
@@ -446,6 +447,10 @@ export function parseStatement(content: string, source: "auto" | "pdf" = "auto",
     if (isCaixaAppStatement(content)) {
       const caixa = parseCaixaAppStatement(content, refYear);
       if (caixa.length > 0) return caixa;
+    }
+    if (isSantanderConsolidatedStatement(content)) {
+      const santander = parseSantanderConsolidatedStatement(content, refYear);
+      if (santander.length > 0) return santander;
     }
     return parseTextLines(content, refYear);
   }

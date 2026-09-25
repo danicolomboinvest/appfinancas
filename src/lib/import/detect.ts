@@ -1,3 +1,4 @@
+import { isSantanderConsolidatedStatement } from "./santander-pdf";
 import type { ParsedTransaction } from "./statement-parser";
 
 export type DocKind = "extrato" | "fatura" | "unknown";
@@ -26,6 +27,8 @@ export function detectDocKind(text: string, fileName?: string | null): { kind: D
   // Texto (PDF/planilha): palavras que só uma fatura tem.
   if (/fatura|vencimento|limite dispon[ií]vel|pagamento m[ií]nimo/.test(headLower) && !/extrato/.test(headLower)) return { kind: "fatura", reason: "cabeçalho de fatura" };
   if (/extrato|saldo (anterior|do dia|final)|conta corrente/.test(headLower)) return { kind: "extrato", reason: "cabeçalho de extrato" };
+  // O PDF do Santander quebra as palavras no meio ("EXT R ATO"): só reconhece sem os espaços.
+  if (isSantanderConsolidatedStatement(text)) return { kind: "extrato", reason: "extrato do Santander" };
 
   if (/fatura|invoice/.test(name) || /^nubank_\d{4}-\d{2}-\d{2}\.csv$/.test(name)) return { kind: "fatura", reason: "nome do arquivo" };
   if (/extrato|statement|^nu_\d+_/.test(name)) return { kind: "extrato", reason: "nome do arquivo" };
