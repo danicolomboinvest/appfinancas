@@ -17,6 +17,7 @@ import {
   deleteImportBatchWithEntries,
 } from "@/lib/repositories/import-batch.repo";
 import { listCustomCategories } from "@/lib/repositories/custom-category.repo";
+import { listProfiles } from "@/lib/repositories/profile.repo";
 import { listTransactionRules, upsertTransactionRule } from "@/lib/repositories/transaction-rule.repo";
 import { parseStatement } from "@/lib/import/statement-parser";
 import { isFaturaSummaryLine, comprasDaFaturaSaoPositivas } from "@/lib/import/fatura-lines";
@@ -35,6 +36,11 @@ const PARENT_CATEGORY_VALUES: ParentCategory[] = [
   "OUTROS",
 ];
 
+/** O tipo do lançamento. O parser só decide entre Renda e Gasto pelo sinal — Aporte é sempre
+ * escolha manual na revisão (um Pix pra você mesma cai como gasto/renda pelo sinal, e só você
+ * sabe que era pra investimento). */
+export type EntryType = "INCOME" | "EXPENSE" | "INVESTMENT_CONTRIBUTION";
+
 export type ReviewItem = {
   /** Chave estável no cliente (índice na lista original). */
   key: number;
@@ -42,7 +48,7 @@ export type ReviewItem = {
   description: string;
   /** Sempre positivo aqui; o sinal virou `category`. */
   amount: number;
-  category: "INCOME" | "EXPENSE";
+  category: EntryType;
   parentCategory: ParentCategory | null;
   /** Categoria personalizada escolhida/criada na revisão (alternativa às 7 categorias-mãe fixas). */
   customCategoryId: string | null;
@@ -53,6 +59,9 @@ export type ReviewItem = {
   installment: { current: number; total: number; confident: boolean } | null;
   /** Mesma data, valor e descrição repetidos DENTRO do arquivo: chave do grupo e quantas vezes. */
   fileRepeat: { key: string; total: number } | null;
+  /** Perfil de destino escolhido na revisão (compra da Empresa que caiu no cartão Pessoal, por
+   * exemplo). `null` = o perfil ativo de sempre, o padrão pra toda a importação. */
+  profileId: string | null;
 };
 
 /** O que o app entendeu do arquivo, pra pessoa conferir antes de gravar. */
@@ -218,6 +227,7 @@ export async function parseStatementAction(formData: FormData): Promise<ParseSta
         const total = repeatCount.get(k) ?? 1;
         return total > 1 ? { key: k, total } : null;
       })(),
+      profileId: null,
     };
   });
 
@@ -268,7 +278,7 @@ export type ConfirmedItem = {
   date: string;
   description: string;
   amount: number;
-  category: "INCOME" | "EXPENSE";
+  category: EntryType;
   parentCategory: ParentCategory | null;
   /** Categoria personalizada (quando a pessoa escolheu/criou uma na revisão). */
   customCategoryId: string | null;
@@ -276,6 +286,9 @@ export type ConfirmedItem = {
   /** true quando o usuário definiu/ajustou a categoria na revisão, vira regra aprendida. */
   learn: boolean;
   installment?: { current: number; total: number; confident: boolean } | null;
+  /** Perfil de destino escolhido na revisão; `null`/ausente = o perfil ativo de sempre. Validado
+   * de novo no servidor (tem que ser um perfil do próprio usuário) antes de gravar. */
+  profileId?: string | null;
 };
 
 /** Lançamento do extrato bancário que PODE ser o pagamento desta fatura — mostrado pra pessoa
@@ -379,22 +392,39 @@ export async function importTransactionsAction(
   const faturaTarget =
     docType === "fatura" && targetYear && targetMonth ? { year: targetYear, month: targetMonth } : null;
 
-  // Só aceita customCategoryId que seja REALMENTE do usuário (evita linkar categoria de outra conta).
-  const ownCustomIds = new Set((await listCustomCategories(ctx)).map((c) => c.id));
+  // Cada linha pode ir pro perfil ativo ou pra OUTRO perfil do usuário (fatura Pessoal com
+  // compra da Empresa, por exemplo — ver `profileId` em ReviewItem). Um id que não é REALMENTE
+  // de um perfil do usuário é ignorado, sem quebrar o lançamento nem vazar dado de outra conta.
+  const ownProfileIds = new Set((await listProfiles(ctx.userId)).map((p) => p.id));
+  const profileIdOf = (item: ConfirmedItem): string =>
+    item.profileId && ownProfileIds.has(item.profileId) ? item.profileId : ctx.profileId;
+
+  // Categoria personalizada só vale se for do MESMO perfil de destino do lançamento — uma
+  // categoria da Pessoal não existe pro banco quando o lançamento é gravado na Empresa. Busca
+  // todas de uma vez (sem filtrar por perfil) e agrupa, em vez de uma consulta por perfil.
+  const customCategoriesByProfile = new Map<string, Set<string>>();
+  for (const cc of await prisma.customCategory.findMany({ where: { userId: ctx.userId }, select: { id: true, profileId: true } })) {
+    if (!cc.profileId) continue; // categoria de antes dos perfis, sem dono — não entra em nenhum grupo
+    if (!customCategoriesByProfile.has(cc.profileId)) customCategoriesByProfile.set(cc.profileId, new Set());
+    customCategoriesByProfile.get(cc.profileId)!.add(cc.id);
+  }
 
   // Meses afetados pela importação → busca os lançamentos existentes deles de uma vez. Entram
   // também os meses das PARCELAS futuras: sem eles, subir a fatura de outubro recriava as
   // parcelas que a fatura de setembro já tinha lançado, e a cada mês sobrava mais uma cópia.
+  // A chave leva o PERFIL de destino junto: mesma data/valor/descrição em perfis diferentes
+  // (Pessoal e Empresa) não é duplicata uma da outra, é o mesmo gasto do cartão dividido em duas contas.
   const monthOf = (item: ConfirmedItem) =>
     faturaTarget ?? yearMonthFromISO(item.date) ?? { year: now.getFullYear(), month: now.getMonth() + 1 };
   const monthsInBatch = new Set<string>();
   for (const item of items) {
     const ym = monthOf(item);
-    monthsInBatch.add(`${ym.year}/${ym.month}`);
+    const profileId = profileIdOf(item);
+    monthsInBatch.add(`${profileId}|${ym.year}/${ym.month}`);
     if (faturaTarget && item.installment?.confident && item.installment.current < item.installment.total) {
       for (let n = item.installment.current + 1; n <= item.installment.total; n += 1) {
         const d = new Date(ym.year, ym.month - 1 + (n - item.installment.current), 1);
-        monthsInBatch.add(`${d.getFullYear()}/${d.getMonth() + 1}`);
+        monthsInBatch.add(`${profileId}|${d.getFullYear()}/${d.getMonth() + 1}`);
       }
     }
   }
@@ -402,13 +432,14 @@ export async function importTransactionsAction(
   // na revisão) fica com os dois. Só é pulado o que já existe no banco, um a um.
   const existingCounts = new Map<string, number>();
   for (const key of monthsInBatch) {
-    const [y, m] = key.split("/").map(Number);
+    const [profileId, ym] = key.split("|");
+    const [y, m] = ym.split("/").map(Number);
     const existing = await prisma.monthlyEntry.findMany({
-      where: { userId: ctx.userId, profileId: ctx.profileId, year: y, month: m },
+      where: { userId: ctx.userId, profileId, year: y, month: m },
       select: { entryDate: true, amount: true, description: true },
     });
     for (const e of existing) {
-      const k = `${y}/${m}|${dedupeKey(e.entryDate ? e.entryDate.toISOString().slice(0, 10) : null, Number(e.amount), e.description)}`;
+      const k = `${profileId}|${y}/${m}|${dedupeKey(e.entryDate ? e.entryDate.toISOString().slice(0, 10) : null, Number(e.amount), e.description)}`;
       existingCounts.set(k, (existingCounts.get(k) ?? 0) + 1);
     }
   }
@@ -422,6 +453,8 @@ export async function importTransactionsAction(
 
   for (const item of items) {
     if (item.amount <= 0) continue;
+    const profileId = profileIdOf(item);
+    const ownCustomIds = customCategoriesByProfile.get(profileId) ?? new Set<string>();
     const customCategoryId =
       item.category === "EXPENSE" && item.customCategoryId && ownCustomIds.has(item.customCategoryId)
         ? item.customCategoryId
@@ -441,7 +474,7 @@ export async function importTransactionsAction(
     // (entryDate nulo), então a chave também vai sem data — com a data da compra, nenhuma
     // chave batia e subir a mesma fatura duas vezes duplicava a fatura inteira. A confusão com
     // assinatura recorrente não acontece porque a busca é feita mês a mês.
-    const key = `${ym.year}/${ym.month}|${dedupeKey(!faturaTarget && originalYm ? item.date : null, item.amount, item.description)}`;
+    const key = `${profileId}|${ym.year}/${ym.month}|${dedupeKey(!faturaTarget && originalYm ? item.date : null, item.amount, item.description)}`;
     if (alreadyThere(key)) {
       skipped += 1;
       continue;
@@ -460,6 +493,7 @@ export async function importTransactionsAction(
       // data exata de cada transação, como sempre foi.
       entryDate: !faturaTarget && originalYm ? new Date(`${item.date}T12:00:00`) : undefined,
       importBatchId: batch.id,
+      profileId,
     });
     created += 1;
     touchedMonths.add(`${ym.year}/${ym.month}`);
@@ -486,6 +520,7 @@ export async function importTransactionsAction(
           description: desc,
           amount: item.amount,
           importBatchId: batch.id,
+          profileId,
         });
         created += 1;
         touchedMonths.add(`${d.getFullYear()}/${d.getMonth() + 1}`);

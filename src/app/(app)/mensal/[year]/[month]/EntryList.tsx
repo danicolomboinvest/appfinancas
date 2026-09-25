@@ -15,6 +15,7 @@ import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import { useToast } from "@/components/ui/toast-context";
 import { useMoney } from "@/components/money/MoneyProvider";
 import {
+  PARENT_CATEGORIES,
   PARENT_CATEGORY_COLOR,
   CUSTOM_CATEGORY_ICON_MAP,
   categoryIcon,
@@ -26,6 +27,7 @@ import { EntryForm } from "./EntryForm";
 import {
   deleteMonthlyEntriesAction,
   undoDeleteEntriesAction,
+  updateMonthlyEntriesCategoryAction,
   type DeletedEntrySnapshot,
 } from "./actions";
 
@@ -156,6 +158,7 @@ export function EntryList({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkCategorizing, setBulkCategorizing] = useState(false);
 
   const open = entries.find((e) => e.id === openId) ?? null;
   const editing = entries.find((e) => e.id === editingId) ?? null;
@@ -184,6 +187,18 @@ export function EntryList({
         },
       });
     });
+  }
+
+  /** Muda a categoria de todos os marcados de uma vez — as parcelas de uma mesma compra que
+   * caíram em "Outros" na importação, por exemplo, todas pra mesma categoria de verdade. */
+  function applyBulkCategory(category: { parentCategory: ParentCategory | null; customCategoryId: string | null }) {
+    const ids = [...selected];
+    setBulkCategorizing(false);
+    startTransition(async () => {
+      const { count } = await updateMonthlyEntriesCategoryAction(ids, category, year, month);
+      showToast(t.uiCategoriaAtualizada(count));
+    });
+    leaveSelection();
   }
 
   function toggle(id: string) {
@@ -272,6 +287,12 @@ export function EntryList({
   const primeiros = entries.slice(0, VISIBLE_COUNT);
   const resto = entries.slice(VISIBLE_COUNT);
 
+  // Categoria só existe em Gasto (Renda e Aporte não têm categoria-mãe): o botão de mudar em
+  // lote só aparece quando TUDO que está marcado é gasto, pra não prometer uma troca que não
+  // faz sentido pro que a pessoa selecionou.
+  const selectedEntries = entries.filter((e) => selected.has(e.id));
+  const podeCategorizarEmLote = selectedEntries.length > 0 && selectedEntries.every((e) => e.category === "EXPENSE");
+
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between px-1">
@@ -313,6 +334,16 @@ export function EntryList({
               )}
             </span>
             <span className="flex items-center gap-2">
+              {podeCategorizarEmLote && (
+                <button
+                  type="button"
+                  onClick={() => setBulkCategorizing(true)}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-accent-gradient px-4 py-2 text-sm font-semibold text-on-accent transition-opacity"
+                >
+                  <Pencil size={15} strokeWidth={2} />
+                  {t.uiMudarCategoria}
+                </button>
+              )}
               <button
                 type="button"
                 disabled={selected.size === 0}
@@ -337,6 +368,33 @@ export function EntryList({
           </div>
         </div>
       )}
+
+      {/* Muda a categoria de todos os marcados de uma vez — parcelas de uma mesma compra, por
+          exemplo, que a classificação automática jogou em "Outros" mas são todas a mesma coisa. */}
+      <Modal open={bulkCategorizing} onClose={() => setBulkCategorizing(false)} title={t.uiMudarCategoriaTitulo(selected.size)}>
+        <div className="flex flex-wrap gap-2">
+          {PARENT_CATEGORIES.map((pc) => (
+            <button
+              key={pc}
+              type="button"
+              onClick={() => applyBulkCategory({ parentCategory: pc, customCategoryId: null })}
+              className="rounded-full border border-border-strong bg-surface px-3 py-2 text-sm font-medium text-ink transition-colors hover:border-accent hover:bg-accent-soft"
+            >
+              {categoryLabel(kind, pc)}
+            </button>
+          ))}
+          {customCategories.map((cc) => (
+            <button
+              key={cc.id}
+              type="button"
+              onClick={() => applyBulkCategory({ parentCategory: null, customCategoryId: cc.id })}
+              className="rounded-full border border-border-strong bg-surface px-3 py-2 text-sm font-medium text-ink transition-colors hover:border-accent hover:bg-accent-soft"
+            >
+              {cc.name}
+            </button>
+          ))}
+        </div>
+      </Modal>
 
       {/* Folha do lançamento: tudo por extenso e os dois botões com espaço de sobra. */}
       <Modal open={open !== null} onClose={() => setOpenId(null)} title={t.uiLancamento}>

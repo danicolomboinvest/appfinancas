@@ -9,11 +9,13 @@ import {
   updateOwnMonthlyEntry,
   deleteOwnMonthlyEntry,
   deleteOwnMonthlyEntries,
+  updateOwnMonthlyEntriesCategory,
   type MonthlyEntryInput,
 } from "@/lib/repositories/monthly-entry.repo";
 import { monthlyEntrySchema } from "@/lib/validations/monthly-entry.schema";
 import { getUserCurrency } from "@/lib/money-server";
 import { convertAmount, getExchangeRate } from "@/lib/fx/rates";
+import type { ParentCategory } from "@prisma/client";
 import type { z } from "zod";
 
 export type MonthlyEntryState = { error?: string };
@@ -150,6 +152,24 @@ export async function deleteMonthlyEntriesAction(ids: string[], year: number, mo
   revalidatePath(`/mensal/${year}`);
   revalidatePath(`/mensal/${year}/${month}`);
   return { jaNaCarteira };
+}
+
+/**
+ * Troca a categoria de vários lançamentos de uma vez (modo "Selecionar"): as parcelas de uma
+ * mesma compra que caíram em "Outros" na importação, por exemplo — todas pra mesma categoria,
+ * num toque só. `customCategoryId` manda; sem ele, usa a categoria-mãe fixa.
+ */
+export async function updateMonthlyEntriesCategoryAction(
+  ids: string[],
+  category: { parentCategory: ParentCategory | null; customCategoryId: string | null },
+  year: number,
+  month: number,
+) {
+  const ctx = await getRequiredSession();
+  const { count } = await updateOwnMonthlyEntriesCategory(ctx, ids, category);
+  revalidatePath(`/mensal/${year}`);
+  revalidatePath(`/mensal/${year}/${month}`);
+  return { count };
 }
 
 export type DeletedEntrySnapshot = {

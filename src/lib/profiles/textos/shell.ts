@@ -90,6 +90,11 @@ export type TextosShell = {
   uiSairDaSelecao: string;
   uiEditar: string;
   uiRemover: string;
+  /** Botão que muda a categoria de vários lançamentos marcados de uma vez (parcelas de uma
+   * mesma compra, por exemplo) — modo "Selecionar" da lista. */
+  uiMudarCategoria: string;
+  uiMudarCategoriaTitulo(quantos: number): string;
+  uiCategoriaAtualizada(quantos: number): string;
   uiEditarLancamento: string;
   uiRemoverLancamento: string;
   /** Título da folha que abre ao tocar numa linha. */
@@ -215,6 +220,9 @@ export const PADRAO_SHELL: TextosShell = {
   uiVerMaisLancamentos: (quantos) => `Ver mais ${quantos} lançamentos`,
   uiSelecionados: (quantos) => `**${quantos}** ${quantos === 1 ? "selecionado" : "selecionados"}`,
   uiSairDaSelecao: "Sair da seleção",
+  uiMudarCategoria: "Categoria",
+  uiMudarCategoriaTitulo: (quantos) => `Mudar a categoria de ${quantos} ${quantos === 1 ? "lançamento" : "lançamentos"}`,
+  uiCategoriaAtualizada: (quantos) => `${quantos} ${quantos === 1 ? "lançamento atualizado" : "lançamentos atualizados"}`,
   uiEditar: "Editar",
   uiRemover: "Remover",
   uiEditarLancamento: "Editar lançamento",

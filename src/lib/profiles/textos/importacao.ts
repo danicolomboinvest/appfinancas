@@ -43,6 +43,8 @@ export type TextosImportacao = {
   impOutroArquivo: string;
   impAplicando: string;
   impPular: string;
+  /** Volta pro lançamento anterior da fila de revisão, pra corrigir uma categoria escolhida errado. */
+  impVoltarAnterior: string;
   impRemover: string;
   impConcluir: string;
   // Extrato/fatura: subir o arquivo
@@ -91,6 +93,9 @@ export type TextosImportacao = {
   impRepetidosDica: string;
   impDeixarSo1: string;
   impRotuloRenda: string;
+  /** Botão que manda a linha pra OUTRO perfil do usuário (compra da Empresa que caiu no cartão
+   * Pessoal, por exemplo). Recebe o nome do perfil de destino. */
+  impMoverPra(nome: string): string;
   impImportando: string;
   impImportarN(n: number): string;
   // Extrato/fatura: pronto
@@ -225,6 +230,7 @@ export const PADRAO_IMPORTACAO: TextosImportacao = {
   impOutroArquivo: "Escolher outro arquivo",
   impAplicando: "Aplicando...",
   impPular: "Pular",
+  impVoltarAnterior: "← Voltar pro anterior",
   impRemover: "Remover",
   impConcluir: "Concluir",
   // Extrato/fatura: subir o arquivo
@@ -279,6 +285,7 @@ export const PADRAO_IMPORTACAO: TextosImportacao = {
     "Mesma data, valor e descrição mais de uma vez. Se foi compra de verdade, mantenha; se é o arquivo repetindo, deixe só uma.",
   impDeixarSo1: "Deixar só 1",
   impRotuloRenda: "Renda",
+  impMoverPra: (nome) => `→ ${nome}`,
   impImportando: "Importando...",
   impImportarN: (n) => `Importar ${n} lançamento${s(n)}`,
   // Extrato/fatura: pronto

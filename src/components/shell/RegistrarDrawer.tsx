@@ -11,7 +11,7 @@ import { Modal } from "@/components/ui/Modal";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { EntryForm } from "@/app/(app)/mensal/[year]/[month]/EntryForm";
 import { subcategoriesFor, incomeTypesFor } from "@/lib/categories";
-import { getRecentSubcategoriesAction, getCustomCategoriesAction, getGoalsAction } from "@/app/(app)/mensal/actions";
+import { getRecentSubcategoriesAction, getCustomCategoriesAction, getGoalsAction, getOtherProfilesAction } from "@/app/(app)/mensal/actions";
 import { currentYearMonthFromPath } from "@/app/(app)/mensal/current-month";
 import { VoiceRecorder } from "@/app/(app)/mensal/VoiceRecorder";
 import { StatementImport } from "@/components/import/StatementImport";
@@ -38,6 +38,7 @@ export function RegistrarDrawer({
   const [recentSubcategories, setRecentSubcategories] = useState<Partial<Record<ParentCategory, string[]>>>({});
   const [customCategories, setCustomCategories] = useState<{ id: string; name: string }[]>([]);
   const [goals, setGoals] = useState<{ id: string; name: string }[]>([]);
+  const [otherProfiles, setOtherProfiles] = useState<{ id: string; name: string }[]>([]);
   const { year, month } = currentYearMonthFromPath(pathname);
 
   // Carrega chips de categoria uma vez ao abrir; reseta o fluxo pro início ao fechar.
@@ -46,6 +47,7 @@ export function RegistrarDrawer({
       getRecentSubcategoriesAction().then(setRecentSubcategories);
       getCustomCategoriesAction().then(setCustomCategories);
       getGoalsAction().then(setGoals);
+      getOtherProfilesAction().then(setOtherProfiles);
     } else {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- reset ao fechar, não sincronização
       setMode("choice");
@@ -127,7 +129,7 @@ export function RegistrarDrawer({
         </div>
       )}
 
-      {mode === "import" && <StatementImport onDone={onClose} />}
+      {mode === "import" && <StatementImport onDone={onClose} otherProfiles={otherProfiles} />}
 
       {mode === "voice" && (
         <VoiceRecorder

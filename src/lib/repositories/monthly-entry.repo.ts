@@ -30,38 +30,43 @@ export type MonthlyEntryInput = {
   originalAmount?: number;
   originalCurrency?: string;
   exchangeRate?: number;
+  /** Perfil dono deste lançamento, quando é OUTRO que não o ativo na sessão — o import de
+   * fatura manda pra cá compra que é da Empresa mas caiu no cartão Pessoal. `undefined` = o
+   * perfil ativo de sempre. Quem chama já validou que o id é mesmo de um perfil do usuário. */
+  profileId?: string;
 };
 
 /**
- * goalId/customCategoryId chegam do cliente: só valem se pertencerem MESMO ao usuário, senão
- * um id adivinhado/vazado linkaria lançamento à meta ou categoria de outra conta. Id que não
- * é do usuário é simplesmente descartado (vira sem vínculo), sem quebrar o lançamento.
+ * goalId/customCategoryId chegam do cliente: só valem se pertencerem MESMO ao usuário E ao
+ * perfil de destino do lançamento (não necessariamente o perfil ativo — ver `profileId` em
+ * `MonthlyEntryInput`), senão um id adivinhado/vazado linkaria lançamento à meta ou categoria
+ * de outro perfil. Id que não bate é simplesmente descartado (vira sem vínculo).
  */
 async function resolveOwnRefs(
   ctx: AuthContext,
+  profileId: string,
   input: Pick<MonthlyEntryInput, "goalId" | "customCategoryId">,
 ): Promise<{ goalId?: string; customCategoryId?: string }> {
   const [goal, category] = await Promise.all([
-    input.goalId
-      ? prisma.goal.findFirst({ where: { id: input.goalId, userId: ctx.userId, profileId: ctx.profileId }, select: { id: true } })
-      : null,
+    input.goalId ? prisma.goal.findFirst({ where: { id: input.goalId, userId: ctx.userId, profileId }, select: { id: true } }) : null,
     input.customCategoryId
-      ? prisma.customCategory.findFirst({ where: { id: input.customCategoryId, userId: ctx.userId, profileId: ctx.profileId }, select: { id: true } })
+      ? prisma.customCategory.findFirst({ where: { id: input.customCategoryId, userId: ctx.userId, profileId }, select: { id: true } })
       : null,
   ]);
   return { goalId: goal?.id, customCategoryId: category?.id };
 }
 
 export async function createMonthlyEntry(ctx: AuthContext, input: MonthlyEntryInput) {
-  const refs = await resolveOwnRefs(ctx, input);
+  const profileId = input.profileId ?? ctx.profileId;
+  const refs = await resolveOwnRefs(ctx, profileId, input);
   return prisma.monthlyEntry.create({
-    data: { ...input, ...refs, userId: ctx.userId, profileId: ctx.profileId },
+    data: { ...input, ...refs, userId: ctx.userId, profileId },
   });
 }
 
 /** Atualiza um lançamento do próprio usuário (updateMany garante o filtro por userId). */
 export async function updateOwnMonthlyEntry(ctx: AuthContext, id: string, input: MonthlyEntryInput) {
-  const refs = await resolveOwnRefs(ctx, input);
+  const refs = await resolveOwnRefs(ctx, ctx.profileId, input);
   return prisma.monthlyEntry.updateMany({
     where: { id, userId: ctx.userId, profileId: ctx.profileId },
     data: {
@@ -103,7 +108,7 @@ export async function createRecurringMonthlyEntries(
     entryDate?: Date;
   },
 ) {
-  const refs = await resolveOwnRefs(ctx, input);
+  const refs = await resolveOwnRefs(ctx, ctx.profileId, input);
   const months = [];
   for (let m = input.month; m <= 12; m++) {
     months.push(m);
@@ -156,6 +161,25 @@ export async function deleteOwnMonthlyEntry(ctx: AuthContext, id: string) {
 export async function deleteOwnMonthlyEntries(ctx: AuthContext, ids: string[]) {
   if (ids.length === 0) return { count: 0 };
   return prisma.monthlyEntry.deleteMany({ where: { id: { in: ids }, userId: ctx.userId, profileId: ctx.profileId } });
+}
+
+/**
+ * Muda a categoria de VÁRIOS lançamentos de uma vez (modo "Selecionar" da lista) — pras parcelas
+ * de uma mesma compra que a classificação automática jogou em "Outros" e são, todas, a mesma
+ * categoria de verdade. `customCategoryId` e `parentCategory` são exclusivos: manda só um dos
+ * dois, o outro precisa vir `null` explícito pra limpar o que já tinha.
+ */
+export async function updateOwnMonthlyEntriesCategory(
+  ctx: AuthContext,
+  ids: string[],
+  category: { parentCategory: ParentCategory | null; customCategoryId: string | null },
+) {
+  if (ids.length === 0) return { count: 0 };
+  const refs = await resolveOwnRefs(ctx, ctx.profileId, { customCategoryId: category.customCategoryId ?? undefined });
+  return prisma.monthlyEntry.updateMany({
+    where: { id: { in: ids }, userId: ctx.userId, profileId: ctx.profileId },
+    data: { parentCategory: category.parentCategory, customCategoryId: refs.customCategoryId ?? null },
+  });
 }
 
 /**

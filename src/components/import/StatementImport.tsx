@@ -17,6 +17,7 @@ import {
   type ParseStats,
   type ConfirmedItem,
   type CardPaymentCandidate,
+  type EntryType,
 } from "@/app/(app)/mensal/import-actions";
 import { useMoney } from "@/components/money/MoneyProvider";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
@@ -61,7 +62,16 @@ function buildUploadForm(file: File, docType: "extrato" | "fatura", faturaMonth?
  * revisão (uma transação por vez, chips de categoria em 1 toque) → confirmação. As categorias
  * definidas na revisão viram regra aprendida no servidor pra próxima importação.
  */
-export function StatementImport({ onDone }: { onDone: () => void }) {
+export function StatementImport({
+  onDone,
+  otherProfiles = [],
+}: {
+  onDone: () => void;
+  /** Os OUTROS perfis do usuário (não o ativo) — deixa mandar uma linha da fatura pra lá em vez
+   * do perfil ativo (ex.: compra da Empresa que caiu no cartão Pessoal). Vazio pra quem só tem
+   * um perfil: nenhum botão extra aparece. */
+  otherProfiles?: { id: string; name: string }[];
+}) {
   const money = useMoney();
   const { showToast } = useToast();
   // Tudo que a pessoa lê aqui (instruções, botões, avisos) vem da voz do tema; a lógica de
@@ -208,9 +218,35 @@ export function StatementImport({ onDone }: { onDone: () => void }) {
     });
   }
 
+  /** Corrigiu a categoria errado no anterior? Volta um passo na fila, sem sair da importação
+   * nem perder o que já foi classificado — ao contrário do "Voltar" do topo do drawer, que
+   * fecha o fluxo inteiro e reseta tudo (a pessoa tinha que subir o arquivo de novo). */
+  function retreatReview() {
+    setReviewIdx((i) => Math.max(0, i - 1));
+  }
+
+  /** Alterna o destino da linha entre o perfil ativo e `profileId` (compra da Empresa que caiu
+   * no cartão Pessoal, por exemplo). Clicar de novo no mesmo perfil volta pro ativo. */
+  function toggleProfile(itemKey: number, profileId: string) {
+    setItems((prev) => prev.map((it) => (it.key === itemKey ? { ...it, profileId: it.profileId === profileId ? null : profileId } : it)));
+  }
+
+  /** Muda o TIPO do lançamento (Gasto/Renda/Aporte) — pro Pix que a pessoa manda pra ela mesma
+   * pra investir, por exemplo: o sinal do extrato só sabe "saiu da conta", não sabe que virou
+   * aporte. Categoria/personalizada só fazem sentido em Gasto, então saem ao trocar pra outro tipo. */
+  function toggleType(itemKey: number, tipo: EntryType) {
+    setItems((prev) =>
+      prev.map((it) =>
+        it.key === itemKey
+          ? { ...it, category: tipo, ...(tipo === "EXPENSE" ? {} : { parentCategory: null, customCategoryId: null }) }
+          : it,
+      ),
+    );
+  }
+
   function handleImport() {
     const confirmed: ConfirmedItem[] = items
-      .filter((it) => it.category === "INCOME" || it.parentCategory || it.customCategoryId) // pula gastos ainda sem categoria
+      .filter((it) => it.category === "INCOME" || it.category === "INVESTMENT_CONTRIBUTION" || it.parentCategory || it.customCategoryId) // pula gastos ainda sem categoria
       .map((it) => ({
         date: it.date,
         description: it.description,
@@ -222,6 +258,7 @@ export function StatementImport({ onDone }: { onDone: () => void }) {
         // Aprende quando foi o usuário quem classificou (não veio 100% automático).
         learn: !it.autoClassified,
         installment: it.installment,
+        profileId: it.profileId,
       }));
     const [targetYear, targetMonth] = docType === "fatura" ? faturaMonth.split("-").map(Number) : [undefined, undefined];
     startTransition(async () => {
@@ -414,6 +451,13 @@ export function StatementImport({ onDone }: { onDone: () => void }) {
     return (
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between text-caption text-ink-muted">
+          {reviewIdx > 0 ? (
+            <button type="button" onClick={retreatReview} className="text-ink-faint hover:text-ink">
+              {t.impVoltarAnterior}
+            </button>
+          ) : (
+            <span />
+          )}
           <span>{t.impRevisar(reviewIdx + 1, reviewQueue.length)}</span>
           <button type="button" onClick={advanceReview} className="text-ink-faint hover:text-ink">
             {t.impPular}
@@ -517,7 +561,7 @@ export function StatementImport({ onDone }: { onDone: () => void }) {
 
   // --- CONFIRM ---
   if (phase === "confirm") {
-    const importable = items.filter((it) => it.category === "INCOME" || it.parentCategory || it.customCategoryId);
+    const importable = items.filter((it) => it.category === "INCOME" || it.category === "INVESTMENT_CONTRIBUTION" || it.parentCategory || it.customCategoryId);
     // Gastos que ficaram sem categoria (pulados na revisão) NÃO entram. Antes sumiam calados:
     // o botão dizia "Importar 12" e 3 gastos simplesmente não existiam depois.
     const semCategoria = items.filter((it) => it.category === "EXPENSE" && !it.parentCategory && !it.customCategoryId);
@@ -634,14 +678,58 @@ export function StatementImport({ onDone }: { onDone: () => void }) {
                   {formatDate(it.date)} ·{" "}
                   {it.category === "INCOME"
                     ? t.impRotuloRenda
-                    : it.parentCategory
-                      ? categoryLabel(kind, it.parentCategory)
-                      : it.customCategoryId
-                        ? customName(it.customCategoryId)
-                        : "—"}
+                    : it.category === "INVESTMENT_CONTRIBUTION"
+                      ? t.uiTipoAporte
+                      : it.parentCategory
+                        ? categoryLabel(kind, it.parentCategory)
+                        : it.customCategoryId
+                          ? customName(it.customCategoryId)
+                          : "—"}
                 </p>
+                {/* Troca o TIPO do lançamento (Gasto/Renda/Aporte) — o Pix pra você mesma
+                    investir cai como gasto pelo sinal, e só a pessoa sabe que era aporte. */}
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {(["EXPENSE", "INCOME", "INVESTMENT_CONTRIBUTION"] as const).map((tipo) => (
+                    <button
+                      key={tipo}
+                      type="button"
+                      onClick={() => toggleType(it.key, tipo)}
+                      className={`rounded-full border px-2 py-0.5 text-[11px] font-medium transition-colors ${
+                        it.category === tipo
+                          ? "border-accent bg-accent-soft text-accent-strong"
+                          : "border-border-strong bg-surface text-ink-faint hover:text-ink"
+                      }`}
+                    >
+                      {tipo === "EXPENSE" ? t.uiTipoGasto : tipo === "INCOME" ? t.uiTipoRenda : t.uiTipoAporte}
+                    </button>
+                  ))}
+                </div>
+                {/* Manda essa linha pra OUTRO perfil do usuário — compra da Empresa que caiu no
+                    cartão Pessoal, por exemplo. Só aparece pra quem tem mais de um perfil. */}
+                {otherProfiles.length > 0 && (
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    {otherProfiles.map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => toggleProfile(it.key, p.id)}
+                        className={`rounded-full border px-2 py-0.5 text-[11px] font-medium transition-colors ${
+                          it.profileId === p.id
+                            ? "border-accent bg-accent-soft text-accent-strong"
+                            : "border-border-strong bg-surface text-ink-faint hover:text-ink"
+                        }`}
+                      >
+                        {t.impMoverPra(p.name)}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
-              <span className={`shrink-0 text-sm font-medium tabular-nums ${it.category === "INCOME" ? "text-success" : "text-danger"}`}>
+              <span
+                className={`shrink-0 text-sm font-medium tabular-nums ${
+                  it.category === "INCOME" ? "text-success" : it.category === "INVESTMENT_CONTRIBUTION" ? "text-accent-strong" : "text-danger"
+                }`}
+              >
                 {it.category === "INCOME" ? "+" : "−"} {money(it.amount)}
               </span>
             </li>
