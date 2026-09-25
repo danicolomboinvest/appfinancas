@@ -229,7 +229,11 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
   // No mês corrente, compara o que saiu ATÉ HOJE (a curva diária já para em hoje) com o mesmo
   // pedaço do mês passado. summary.totalExpense inclui conta datada pra frente, o que inflava
   // o "acima do mês passado" pra quem lança o boleto do dia 25 no dia 10.
-  const expenseSoFar = isCurrentMonth ? (dailyFlow.points.at(-1)?.expense ?? summary.totalExpense) : summary.totalExpense;
+  // Lançamento SEM data (toda fatura de cartão importada cai assim, de propósito — "no mês",
+  // não "no dia da compra") não entra na curva dia a dia, mas já aconteceu: sem somar
+  // `undatedAmount` aqui, quem lançou o mês inteiro via fatura tinha `expenseSoFar` zerado e a
+  // frase saía "gastando 100% a menos", mesmo tendo gastado a fatura inteira.
+  const expenseSoFar = isCurrentMonth ? (dailyFlow.points.at(-1)?.expense ?? 0) + dailyFlow.undatedAmount : summary.totalExpense;
   const insights = buildMonthInsights({
     currentExpense: expenseSoFar,
     previousExpense: previousSummary.totalExpense,
