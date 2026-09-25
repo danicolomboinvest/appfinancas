@@ -1,4 +1,5 @@
 import { formatMoney, type CurrencyCode } from "@/lib/money";
+import type { Titulos } from "@/lib/profiles/voice";
 
 /**
  * Templates de e-mail (HTML inline, clientes de e-mail não entendem CSS externo).
@@ -69,30 +70,33 @@ export function monthlyRecapEmail(params: {
   currency: CurrencyCode;
   appUrl: string;
   preferencesUrl: string;
+  /** A voz do tema do perfil ativo da pessoa — cada frase sai no jeito de falar do tema dela. */
+  t: Titulos;
 }): { subject: string; html: string } {
+  const { t } = params;
   const firstName = params.name?.split(" ")[0];
-  const hi = firstName ? `Oi, ${firstName}!` : "Oi!";
+  const hi = t.emailSaudacao(firstName);
   const positive = params.balance >= 0;
 
   // A manchete do e-mail é a comparação, não o valor solto: "sobrou R$ 2.378" não diz se foi
   // um bom mês; "e você gastou 12% menos que no mês passado" diz.
   const deltaLine =
     params.expenseDelta === null
-      ? "Esse foi seu primeiro mês com registros — no próximo dá pra comparar."
+      ? t.emailRecapPrimeiroMes
       : Math.abs(params.expenseDelta) < 0.08
-        ? "Seus gastos ficaram praticamente no mesmo nível do mês anterior."
+        ? t.emailRecapGastosIguais
         : params.expenseDelta < 0
-          ? `Você gastou <strong style="color:#2e7d5b;">${Math.round(Math.abs(params.expenseDelta) * 100)}% menos</strong> que no mês anterior.`
-          : `Seus gastos ficaram <strong style="color:#c0523c;">${Math.round(params.expenseDelta * 100)}% acima</strong> do mês anterior.`;
+          ? t.emailRecapGastosMenos(`<strong style="color:#2e7d5b;">${Math.round(Math.abs(params.expenseDelta) * 100)}% menos</strong>`)
+          : t.emailRecapGastosMais(`<strong style="color:#c0523c;">${Math.round(params.expenseDelta * 100)}% acima</strong>`);
 
   return {
-    subject: `Seu resumo de ${params.monthLabel} está pronto`,
+    subject: t.emailRecapAssunto(params.monthLabel),
     html: shell(`
       <p style="margin:0 0 6px;">${hi}</p>
-      <p style="margin:0 0 20px;color:${MUTED};">Fechamos ${params.monthLabel}. Veja como foi:</p>
+      <p style="margin:0 0 20px;color:${MUTED};">${t.emailRecapIntro(params.monthLabel)}</p>
 
       <div style="background:#faf8f3;border:1px solid #f0ece2;border-radius:12px;padding:18px 20px;margin:0 0 20px;">
-        <p style="margin:0 0 2px;color:${MUTED};font-size:13px;">${positive ? "Sobrou no mês" : "Faltou no mês"}</p>
+        <p style="margin:0 0 2px;color:${MUTED};font-size:13px;">${positive ? t.emailRecapSobrou : t.emailRecapFaltou}</p>
         <p style="margin:0;font-size:30px;font-weight:700;color:${positive ? INK : "#c0523c"};letter-spacing:-0.5px;">
           ${money(Math.abs(params.balance), params.currency)}
         </p>
@@ -104,16 +108,16 @@ export function monthlyRecapEmail(params: {
            um saldo de -7 não tinha como fechar a conta — o número que faltava estava fora do
            e-mail. -->
       <table style="width:100%;border-collapse:collapse;margin:0 0 8px;">
-        ${statRow("Entrou", money(params.income, params.currency), "#2e7d5b")}
-        ${statRow("Gastou", money(params.expense, params.currency), "#c0523c")}
-        ${params.investment > 0 ? statRow("Aportou", money(params.investment, params.currency), "#8a6414") : ""}
-        ${params.topCategory ? statRow(`Maior gasto: ${params.topCategory.label}`, money(params.topCategory.value, params.currency)) : ""}
+        ${statRow(t.entrou, money(params.income, params.currency), "#2e7d5b")}
+        ${statRow(t.gastou, money(params.expense, params.currency), "#c0523c")}
+        ${params.investment > 0 ? statRow(t.aportou, money(params.investment, params.currency), "#8a6414") : ""}
+        ${params.topCategory ? statRow(`${t.emailMaiorGasto}: ${params.topCategory.label}`, money(params.topCategory.value, params.currency)) : ""}
       </table>
 
-      <p style="margin:24px 0 0;">${button(params.appUrl, "Ver o mês completo")}</p>
+      <p style="margin:24px 0 0;">${button(params.appUrl, t.emailRecapBotao)}</p>
 
       <p style="margin:22px 0 0;color:${MUTED};font-size:12px;line-height:1.5;">
-        Você recebe este resumo uma vez por mês.
+        ${t.emailRecapRodape}
         <a href="${params.preferencesUrl}" style="color:${MUTED};">Desativar</a> quando quiser.
       </p>
     `),
@@ -134,25 +138,25 @@ export function monthlyNudgeEmail(params: {
   newMonthLabel: string;
   appUrl: string;
   preferencesUrl: string;
+  /** A voz do tema do perfil ativo da pessoa — cada frase sai no jeito de falar do tema dela. */
+  t: Titulos;
 }): { subject: string; html: string } {
+  const { t } = params;
   const firstName = params.name?.split(" ")[0];
-  const hi = firstName ? `Oi, ${firstName}!` : "Oi!";
+  const hi = t.emailSaudacao(firstName);
 
   return {
-    subject: `Bora organizar ${params.newMonthLabel}?`,
+    subject: t.emailConviteAssunto(params.newMonthLabel),
     html: shell(`
       <p style="margin:0 0 12px;">${hi}</p>
       <p style="margin:0 0 16px;">
-        Começou ${params.newMonthLabel} — e mês novo é a melhor hora pra começar, porque você
-        acompanha ele inteiro, do início ao fim.
+        ${t.emailConviteIntro1(params.newMonthLabel)}
       </p>
       <p style="margin:0 0 20px;">
-        Não precisa organizar tudo de uma vez. <strong>Anote um gasto de hoje</strong>, só um,
-        e o app já começa a montar o resto: pra onde seu dinheiro está indo, quanto sobra,
-        quanto dá pra guardar.
+        ${t.emailConviteIntro2}
       </p>
 
-      <p style="margin:0 0 4px;">${button(params.appUrl, "Anotar meu primeiro gasto")}</p>
+      <p style="margin:0 0 4px;">${button(params.appUrl, t.emailConviteBotao)}</p>
 
       <p style="margin:22px 0 0;color:${MUTED};font-size:12px;line-height:1.5;">
         Se preferir não receber esses lembretes,

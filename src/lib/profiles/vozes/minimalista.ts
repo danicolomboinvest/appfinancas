@@ -1,4 +1,4 @@
-import { TITULOS_PADRAO, CUMPRIMENTO, inteiro, pctDaRenda, semDiaria, simuladoresDoTema, tarefasDoTema, type Voz } from "../voice-base";
+import { TITULOS_PADRAO, CUMPRIMENTO, inteiro, pctDaRenda, semDiaria, simuladoresDoTema, tarefasDoTema, estadoParaFrase, type Voz } from "../voice-base";
 
 /** "1 ativo" / "2 ativos": o plural, sem repetir a conta em cada frase. */
 const s = (n: number) => (n === 1 ? "" : "s");
@@ -8,7 +8,8 @@ export const minimalista: Voz = {
   subSaudacao: () => null,
   tituloPainel: null,
   rotuloResultado: "Sobrou",
-  fraseResultado: (estado, d) => {
+  fraseResultado: (estadoBruto, d) => {
+    const estado = estadoParaFrase(estadoBruto, d.resultado);
     const v = inteiro(d.money, d.resultado);
     if (estado === "ruim") return `Saldo negativo: −${v}.`;
     if (estado === "vazio") return null;
@@ -854,5 +855,23 @@ export const minimalista: Voz = {
     invReceitaAbaixo: " Estimativa abaixo do necessário.",
     invReceitaAcima: " Estimativa acima do necessário.",
     invRodapeNota: "Conta simples, sem inflação nem imposto sobre a aplicação. Decisão apertada: consulte o contador.",
+
+    // E-mail
+    emailSaudacao: (nome) => (nome ? `Oi, ${nome}.` : "Oi."),
+    emailRecapAssunto: (mes) => `Resumo de ${mes}`,
+    emailRecapIntro: (mes) => `${mes} fechado.`,
+    emailRecapSobrou: "Sobrou",
+    emailRecapFaltou: "Faltou",
+    emailRecapPrimeiroMes: "Primeiro mês com registro. Sem base de comparação ainda.",
+    emailRecapGastosIguais: "Gastos no mesmo nível do mês anterior.",
+    emailRecapGastosMenos: (valor) => `Gastos ${valor} que no mês anterior.`,
+    emailRecapGastosMais: (valor) => `Gastos ${valor} do mês anterior.`,
+    emailMaiorGasto: "Maior gasto",
+    emailRecapBotao: "Ver o mês",
+    emailRecapRodape: "Resumo mensal.",
+    emailConviteAssunto: (mes) => `${mes}`,
+    emailConviteIntro1: (mes) => `${mes} começou.`,
+    emailConviteIntro2: "<strong>Registre um gasto</strong> pra começar. O resto se monta a partir daí.",
+    emailConviteBotao: "Registrar",
   },
 };

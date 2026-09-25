@@ -1,4 +1,4 @@
-import { TITULOS_PADRAO, simuladoresDoTema, tarefasDoTema, inteiro, semDiaria, type Voz } from "../voice-base";
+import { TITULOS_PADRAO, simuladoresDoTema, tarefasDoTema, inteiro, semDiaria, estadoParaFrase, type Voz } from "../voice-base";
 
 /** O menu na voz do Manifestação, por rota. */
 const SECOES: Record<string, string> = {
@@ -23,7 +23,8 @@ export const manifestacao: Voz = {
   subSaudacao: () => null,
   tituloPainel: null,
   rotuloResultado: "Sobrou",
-  fraseResultado: (estado, d) => {
+  fraseResultado: (estadoBruto, d) => {
+    const estado = estadoParaFrase(estadoBruto, d.resultado);
     const v = inteiro(d.money, d.resultado);
     if (estado === "bom") return `${v} financiando a vida que você quer ✨`;
     if (estado === "normal") return `${v} a mais construindo seu futuro.`;
@@ -441,5 +442,24 @@ export const manifestacao: Voz = {
     invReceitaAbaixo: " Você estimou menos que isso.",
     invReceitaAcima: " Você estimou acima disso.",
     invRodapeNota: "Conta simples, sem inflação nem imposto sobre a aplicação, pra dar a ordem de grandeza. Se a decisão for apertada, converse com o contador antes de assinar.",
+
+    // E-mail: o resumo do mês e o convite pra voltar, no tom aspiracional de sempre.
+    emailSaudacao: (nome) => (nome ? `Oi, ${nome} ✨` : "Oi ✨"),
+    emailRecapAssunto: (mes) => `O que ${mes} revelou sobre você ✨`,
+    emailRecapIntro: (mes) => `${mes} se foi. Veja o que ele revelou sobre sua jornada:`,
+    emailRecapSobrou: "Guardado pro seu futuro",
+    emailRecapFaltou: "Faltou no mês",
+    emailRecapPrimeiroMes: "Esse foi seu primeiro passo registrado — o próximo já vem com comparação.",
+    emailRecapGastosIguais: "Seus gastos seguiram no mesmo ritmo do mês anterior.",
+    emailRecapGastosMenos: (valor) => `Você gastou ${valor} que no mês anterior. Um passo a mais na direção certa.`,
+    emailRecapGastosMais: (valor) => `Seus gastos ficaram ${valor} do mês anterior. Um detalhe a ajustar no caminho.`,
+    emailMaiorGasto: "Pra onde mais foi",
+    emailRecapBotao: "Ver minha vida em números",
+    emailRecapRodape: "Você recebe esse resumo uma vez por mês ✨",
+    emailConviteAssunto: (mes) => `${mes} começou — hora de sonhar com números ✨`,
+    emailConviteIntro1: (mes) => `Começou ${mes} — e mês novo é o convite certo pra recomeçar, porque você acompanha essa jornada inteira, do início ao fim.`,
+    emailConviteIntro2:
+      "Não precisa desenhar tudo de uma vez. <strong>Registre um gasto de hoje</strong>, só um, e o app já começa a montar o resto: pra onde seu dinheiro está indo, quanto sobra, quanto dá pra guardar.",
+    emailConviteBotao: "Registrar meu primeiro passo",
   },
 };

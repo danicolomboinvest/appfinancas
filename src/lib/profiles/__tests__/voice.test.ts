@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { PROFILE_THEMES } from "../themes";
-import { estadoDoMes, vozDoTema, type Estado, type Money, type SituacaoOrcamento } from "../voice";
+import { estadoDoMes, estadoParaFrase, vozDoTema, type Estado, type Money, type SituacaoOrcamento } from "../voice";
 
 const money: Money = (n, o) => (o?.round ? `R$ ${Math.round(n).toLocaleString("pt-BR")}` : `R$ ${n.toFixed(2)}`);
 const ESTADOS: Estado[] = ["bom", "normal", "ruim", "vazio"];
@@ -23,6 +23,41 @@ describe("estado do mês", () => {
   it("aporte conta como guardado, não como gasto", () => {
     // Entrou 10.000, gastou 8.500, aportou 1.500: sobrou 15% pra poupança. Normal, não ruim.
     expect(estadoDoMes({ income: 10000, expense: 8500, investment: 1500 })).toBe("normal");
+  });
+});
+
+describe("estadoParaFrase: nunca comemora um Resultado negativo", () => {
+  it("aporte grande o bastante deixa o estado bom mas o Resultado no vermelho — vira ruim pra frase", () => {
+    // Entrou 23.668,15, gastou 15.967,46, aportou 10.000: sobra (antes do aporte) é 32% da
+    // renda — "bom" pelo estadoDoMes — mas o Resultado mostrado na tela (renda − gastos −
+    // aportes) é -2.299,31. Nenhum tema pode comemorar esse número.
+    const estado = estadoDoMes({ income: 23668.15, expense: 15967.46, investment: 10000 });
+    expect(estado).toBe("bom");
+    const resultado = 23668.15 - 15967.46 - 10000;
+    expect(resultado).toBeLessThan(0);
+    expect(estadoParaFrase(estado, resultado)).toBe("ruim");
+  });
+
+  it("resultado positivo mantém o estado como veio", () => {
+    expect(estadoParaFrase("bom", 500)).toBe("bom");
+    expect(estadoParaFrase("normal", 10)).toBe("normal");
+  });
+
+  it("vazio nunca vira ruim, mesmo com resultado zerado/negativo por conta de arredondamento", () => {
+    expect(estadoParaFrase("vazio", -0.01)).toBe("vazio");
+  });
+
+  it("nenhum tema comemora um Resultado negativo, mesmo quando o estadoDoMes diz bom ou normal", () => {
+    const resultadoNegativo = -2299.31;
+    const dados = { resultado: resultadoNegativo, income: 23668.15, expense: 15967.46, money, mesFechado: true };
+    const PALAVRAS_DE_COMEMORACAO = /voando|arrasou|rica|financiando a vida|construindo seu futuro|é assim que se constrói|melhor mês/i;
+    for (const t of PROFILE_THEMES) {
+      const voz = vozDoTema(t.key);
+      for (const estadoBruto of ["bom", "normal"] as const) {
+        const f = voz.fraseResultado(estadoBruto, dados);
+        if (f) expect(f, `${t.label}/${estadoBruto} com resultado negativo: "${f}"`).not.toMatch(PALAVRAS_DE_COMEMORACAO);
+      }
+    }
   });
 });
 

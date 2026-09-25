@@ -36,7 +36,7 @@ import { game } from "./vozes/game";
 import { manifestacao } from "./vozes/manifestacao";
 
 export type { Estado, Periodo, Ritmo, SituacaoOrcamento, Money, Voz, Titulos } from "./voice-base";
-export { estadoDoMes } from "./voice-base";
+export { estadoDoMes, estadoParaFrase } from "./voice-base";
 
 const VOZES: Record<ProfileThemeKey, Voz> = { padrao, girly, minimalista, disciplina, semfiltro, game, manifestacao };
 

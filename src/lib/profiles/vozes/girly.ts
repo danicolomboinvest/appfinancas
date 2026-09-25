@@ -1,4 +1,4 @@
-import { TITULOS_PADRAO, simuladoresDoTema, inteiro, semDiaria, type Voz, type Titulos, numeros } from "../voice-base";
+import { TITULOS_PADRAO, simuladoresDoTema, inteiro, semDiaria, estadoParaFrase, type Voz, type Titulos, numeros } from "../voice-base";
 
 /**
  * Os catálogos por área, na voz do Girly. Cada bloco é um Partial: o que não está aqui sai
@@ -951,7 +951,8 @@ export const girly: Voz = {
   // "Sobrou pra você", e não "guardou": a linha de cima já é o que ela guardou pra investir,
   // e chamar as duas de guardado confundia. Sobrou é a palavra que qualquer pessoa entende.
   rotuloResultado: "Sobrou pra você 💖",
-  fraseResultado: (estado, d) => {
+  fraseResultado: (estadoBruto, d) => {
+    const estado = estadoParaFrase(estadoBruto, d.resultado);
     const v = inteiro(d.money, d.resultado);
     if (estado === "bom") return `Amiga, sobrou ${v}!! 💖✨ Tá voando, hein.`;
     if (estado === "normal") return `Sobrou ${v} 💗 Pouquinho, mas é seu. Boaaaa.`;
@@ -1223,5 +1224,24 @@ export const girly: Voz = {
     invReceitaAbaixo: " Você estimou menos que isso.",
     invReceitaAcima: " Você estimou acima disso 💪",
     invRodapeNota: "Conta simples, sem inflação nem imposto sobre o que fica guardado, só pra te dar uma ideia. Se a decisão for apertada, fala com seu contador antes de assinar qualquer coisa 💕",
+
+    // E-mail: o resumo do mês e o convite pra voltar, do jeito que uma amiga escreveria.
+    emailSaudacao: (nome) => (nome ? `Oii, ${nome}! 💕` : "Oii! 💕"),
+    emailRecapAssunto: (mes) => `Seu resumo de ${mes} chegou 🎀`,
+    emailRecapIntro: (mes) => `${mes} terminou! Vem ver como foi 💕`,
+    emailRecapSobrou: "Sobrou pra você 💖",
+    emailRecapFaltou: "Faltou no mês 🫣",
+    emailRecapPrimeiroMes: "Esse foi seu primeiro mês anotando comigo — no próximo já dá pra comparar 💕",
+    emailRecapGastosIguais: "Seus gastos ficaram bem parecidos com o mês passado.",
+    emailRecapGastosMenos: (valor) => `Você gastou ${valor} que no mês passado. Arrasou 👏`,
+    emailRecapGastosMais: (valor) => `Seus gastos ficaram ${valor} do mês passado. Bora ficar de olho 👀`,
+    emailMaiorGasto: "Onde mais saiu dinheiro",
+    emailRecapBotao: "Ver meu mês completo 💕",
+    emailRecapRodape: "Você recebe esse resumo uma vez por mês 🎀",
+    emailConviteAssunto: (mes) => `${mes} começou, bora organizar? 🌸`,
+    emailConviteIntro1: (mes) => `Começou ${mes}! Mês novo é a melhor hora pra começar, porque você me conta ele inteirinho, do começo ao fim 💕`,
+    emailConviteIntro2:
+      "Não precisa organizar tudo de uma vez, amiga. <strong>Me conta um gasto de hoje</strong>, só um, que eu já começo a montar o resto: pra onde seu dinheiro tá indo, quanto sobra, quanto dá pra guardar 🐷",
+    emailConviteBotao: "Anotar meu primeiro gasto 📝",
   },
 };

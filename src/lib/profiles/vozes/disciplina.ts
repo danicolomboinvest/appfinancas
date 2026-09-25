@@ -1,4 +1,4 @@
-import { TITULOS_PADRAO, simuladoresDoTema, tarefasDoTema, inteiro, semDiaria, type Voz } from "../voice-base";
+import { TITULOS_PADRAO, simuladoresDoTema, tarefasDoTema, inteiro, semDiaria, estadoParaFrase, type Voz } from "../voice-base";
 
 /** "1 ativo" / "3 ativos": a mesma regra de plural do catálogo de importação. */
 const s = (n: number) => (n === 1 ? "" : "s");
@@ -16,7 +16,8 @@ export const disciplina: Voz = {
   subSaudacao: () => "Seu dinheiro não se organiza sozinho. Você organiza.",
   tituloPainel: "Seu resultado",
   rotuloResultado: "Guardado",
-  fraseResultado: (estado, d) => {
+  fraseResultado: (estadoBruto, d) => {
+    const estado = estadoParaFrase(estadoBruto, d.resultado);
     const v = inteiro(d.money, d.resultado);
     if (estado === "bom") return `${v} guardados. É assim que se constrói patrimônio. Bora manter. 🔥`;
     if (estado === "normal") return `${v} guardados. Dá pra mais. Bora subir a régua.`;
@@ -568,5 +569,24 @@ export const disciplina: Voz = {
     invReceitaAbaixo: " Você estimou menos que isso. Ajusta a meta ou o prazo.",
     invReceitaAcima: " Você estimou acima disso. No caminho certo.",
     invRodapeNota: "Conta simples, sem inflação nem imposto sobre a aplicação — só pra dar a ordem de grandeza. Decisão apertada, chama o contador antes de assinar.",
+
+    // E-mail: o resumo do mês e o convite pra voltar. Mesma voz de coach, comando curto.
+    emailSaudacao: (nome) => (nome ? `Bora, ${nome}!` : "Bora!"),
+    emailRecapAssunto: (mes) => `Seu resultado de ${mes} tá pronto`,
+    emailRecapIntro: (mes) => `${mes} fechado. Olha o que os números dizem:`,
+    emailRecapSobrou: "Guardado no mês",
+    emailRecapFaltou: "Faltou no mês",
+    emailRecapPrimeiroMes: "Primeiro mês com registro. Do próximo em diante, dá pra comparar e cobrar evolução.",
+    emailRecapGastosIguais: "Mesmo nível do mês anterior. Sem piora, sem evolução ainda.",
+    emailRecapGastosMenos: (valor) => `Você gastou ${valor} que no mês anterior. Isso é evolução.`,
+    emailRecapGastosMais: (valor) => `Seus gastos ficaram ${valor} do mês anterior. Corrige agora, antes que vire hábito.`,
+    emailMaiorGasto: "Maior gasto",
+    emailRecapBotao: "Ver o resultado completo",
+    emailRecapRodape: "Você recebe este resultado uma vez por mês.",
+    emailConviteAssunto: (mes) => `Bora começar ${mes}?`,
+    emailConviteIntro1: (mes) => `${mes} começou. Mês novo, placar zerado — a hora certa de começar é agora, não depois do dia 10.`,
+    emailConviteIntro2:
+      "Não precisa organizar tudo hoje. <strong>Registra um gasto agora</strong>, só um, e o app já começa a montar o resto: pra onde o dinheiro foi, quanto sobrou, quanto dá pra guardar.",
+    emailConviteBotao: "Bora: registrar meu primeiro gasto",
   },
 };

@@ -1,4 +1,4 @@
-import { TITULOS_PADRAO, simuladoresDoTema, tarefasDoTema, inteiro, semDiaria, type Voz } from "../voice-base";
+import { TITULOS_PADRAO, simuladoresDoTema, tarefasDoTema, inteiro, semDiaria, estadoParaFrase, type Voz } from "../voice-base";
 
 /**
  * Sem filtro: a amiga brasileira debochada, a que manda áudio de três minutos e fala a verdade
@@ -87,7 +87,8 @@ export const semfiltro: Voz = {
   subSaudacao: (mes) => `Bora ver o estrago de ${mes.toLowerCase()}.`,
   tituloPainel: null,
   rotuloResultado: "Sobrou",
-  fraseResultado: (estado, d) => {
+  fraseResultado: (estadoBruto, d) => {
+    const estado = estadoParaFrase(estadoBruto, d.resultado);
     const v = inteiro(d.money, d.resultado);
     if (estado === "bom") return `${v}?! Tá rica e não me contou. Quem é o gerente? 😎`;
     if (estado === "normal") return `${v}. Deu pro gasto. Mal, mas deu 🙃`;
@@ -861,5 +862,24 @@ export const semfiltro: Voz = {
     invReceitaAbaixo: " Você estimou menos que isso. Hora de rever a conta.",
     invReceitaAcima: " Você estimou acima disso. Tá andando bem.",
     invRodapeNota: "Conta simples, sem inflação nem imposto sobre a aplicação — é só pra dar a ordem de grandeza. Se a decisão for apertada, chama o contador antes de assinar qualquer coisa.",
+
+    // ── E-mail: o resumo do mês e o convite pra voltar, mesmo deboche de sempre ─────
+    emailSaudacao: (nome) => (nome ? `Oi, ${nome} 👋` : "Oi 👋"),
+    emailRecapAssunto: (mes) => `O extrato de ${mes} chegou (respira antes de abrir)`,
+    emailRecapIntro: (mes) => `${mes} fechou. Bora ver o estrago:`,
+    emailRecapSobrou: "Sobrou no mês",
+    emailRecapFaltou: "Faltou no mês (foi mal)",
+    emailRecapPrimeiroMes: "Foi seu primeiro mês registrando — no próximo já dá pra comparar e te cobrar 😏",
+    emailRecapGastosIguais: "Gastos praticamente iguais ao mês passado. Nem melhorou, nem piorou. Consistência, né 🙃",
+    emailRecapGastosMenos: (valor) => `Você gastou ${valor} que no mês anterior. Olha ela economizando 👏`,
+    emailRecapGastosMais: (valor) => `Seus gastos ficaram ${valor} do mês anterior. O iFood não se paga sozinho, né 🫣`,
+    emailMaiorGasto: "Campeão do mês",
+    emailRecapBotao: "Ver o mês inteiro",
+    emailRecapRodape: "Esse resumo cai uma vez por mês, sem chantagem.",
+    emailConviteAssunto: (mes) => `${mes} começou. Vamos fingir que vai ser diferente?`,
+    emailConviteIntro1: (mes) => `Começou ${mes} — mês novo, ficha limpa. É a desculpa perfeita pra começar (de novo, eu sei).`,
+    emailConviteIntro2:
+      "Não precisa virar planilha logo de cara. <strong>Confessa um gasto de hoje</strong>, só um, e eu já começo a montar o resto: pra onde seu dinheiro foi, quanto sobrou, quanto dá pra guardar.",
+    emailConviteBotao: "Confessar meu primeiro gasto",
   },
 };

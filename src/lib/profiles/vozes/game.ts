@@ -1,4 +1,4 @@
-import { TITULOS_PADRAO, simuladoresDoTema, tarefasDoTema, inteiro, semDiaria, type Voz } from "../voice-base";
+import { TITULOS_PADRAO, simuladoresDoTema, tarefasDoTema, inteiro, semDiaria, estadoParaFrase, type Voz } from "../voice-base";
 
 /**
  * O menu na voz do Game, por rota. O mês é a temporada (a carteira continua "carteira": "inventário" soou ruim), os
@@ -32,7 +32,8 @@ export const game: Voz = {
   subSaudacao: () => null,
   tituloPainel: null,
   rotuloResultado: "Guardado",
-  fraseResultado: (estado, d) => {
+  fraseResultado: (estadoBruto, d) => {
+    const estado = estadoParaFrase(estadoBruto, d.resultado);
     const v = inteiro(d.money, d.resultado);
     if (estado === "bom") return `+${v} na reserva. ${d.recorde ? "Seu melhor mês da temporada." : "Temporada fechando forte."} +100 pontos`;
     if (estado === "normal") return `+${v} na reserva. Chega a 20% do que entrou e a temporada pontua +100.`;
@@ -478,5 +479,24 @@ export const game: Voz = {
     invReceitaAbaixo: " Sua estimativa está abaixo disso.",
     invReceitaAcima: " Sua estimativa está acima disso.",
     invRodapeNota: "Conta simples, sem inflação nem imposto sobre a aplicação, pra dar a ordem de grandeza. Decisão apertada, chama o contador antes de fechar.",
+
+    // E-mail: o placar da temporada por e-mail e o convite pra abrir a próxima.
+    emailSaudacao: (nome) => (nome ? `Oi, ${nome}!` : "Oi!"),
+    emailRecapAssunto: (mes) => `Seu placar de ${mes} saiu`,
+    emailRecapIntro: (mes) => `Temporada de ${mes} encerrada. Confira o placar:`,
+    emailRecapSobrou: "Saldo positivo",
+    emailRecapFaltou: "Saldo negativo",
+    emailRecapPrimeiroMes: "Primeira temporada registrada — a próxima já entra com comparação.",
+    emailRecapGastosIguais: "Gastos no mesmo nível da temporada anterior.",
+    emailRecapGastosMenos: (valor) => `Você gastou ${valor} que na temporada anterior. Boa jogada.`,
+    emailRecapGastosMais: (valor) => `Seus gastos ficaram ${valor} da temporada anterior. Hora de recuperar.`,
+    emailMaiorGasto: "Categoria que mais pesou",
+    emailRecapBotao: "Ver o placar completo",
+    emailRecapRodape: "Esse placar cai uma vez por mês.",
+    emailConviteAssunto: (mes) => `Temporada de ${mes} começou`,
+    emailConviteIntro1: (mes) => `${mes} começou: nova temporada, placar zerado. É o melhor momento pra jogar, porque você acompanha do início ao fim.`,
+    emailConviteIntro2:
+      "Não precisa jogar tudo de uma vez. <strong>Registre um gasto hoje</strong>, só um, e o placar já começa a rodar: pra onde o dinheiro foi, quanto sobrou, quanto dá pra guardar.",
+    emailConviteBotao: "Registrar e abrir a temporada",
   },
 };

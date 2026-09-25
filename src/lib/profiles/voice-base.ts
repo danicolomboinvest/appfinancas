@@ -15,6 +15,7 @@ import { type TextosConfiguracoes, PADRAO_CONFIGURACOES } from "./textos/configu
 import { type TextosCarteira, PADRAO_CARTEIRA } from "./textos/carteira";
 import { type TextosCasal, PADRAO_CASAL } from "./textos/casal";
 import { type TextosInvestirEmpresa, PADRAO_INVESTIR } from "./textos/investir";
+import { type TextosEmail, PADRAO_EMAIL } from "./textos/email";
 
 export type Estado = "bom" | "normal" | "ruim" | "vazio";
 export type Periodo = "manha" | "tarde" | "noite";
@@ -36,6 +37,18 @@ export function estadoDoMes(v: { income: number; expense: number; investment: nu
   if (sobra <= 0) return "ruim";
   if (v.income > 0 && sobra / v.income >= 0.2) return "bom";
   return "normal";
+}
+
+/**
+ * `estadoDoMes` de propósito não pune quem aportou bastante (ver comentário acima) — mas isso
+ * pode deixar `estado` em "bom"/"normal" com o "Resultado" (renda − gastos − aportes, o número
+ * que a tela REALMENTE mostra) negativo: um aporte grande o bastante consome a sobra inteira e
+ * ainda entra no vermelho. Nesse caso a frase de cada tema não pode comemorar — ninguém deveria
+ * ler "Tá voando, hein 💖✨" embaixo de um saldo negativo. Todo `fraseResultado` deve passar o
+ * `estado` por aqui ANTES de decidir o que dizer.
+ */
+export function estadoParaFrase(estado: Estado, resultado: number): Estado {
+  return estado !== "vazio" && resultado < 0 ? "ruim" : estado;
 }
 
 export type DadosResultado = {
@@ -448,7 +461,8 @@ export type Titulos = TitulosBase &
   TextosConfiguracoes &
   TextosCarteira &
   TextosCasal &
-  TextosInvestirEmpresa;
+  TextosInvestirEmpresa &
+  TextosEmail;
 
 export const TITULOS_PADRAO: Titulos = {
   ...TITULOS_BASE,
@@ -460,6 +474,7 @@ export const TITULOS_PADRAO: Titulos = {
   ...PADRAO_CARTEIRA,
   ...PADRAO_CASAL,
   ...PADRAO_INVESTIR,
+  ...PADRAO_EMAIL,
 };
 
 /** Um mapa por rota vira a função de simulador de um tema; sem entrada, fica o Padrão. */
