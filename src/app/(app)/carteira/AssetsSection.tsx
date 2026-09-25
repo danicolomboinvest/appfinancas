@@ -24,6 +24,7 @@ import { bulkSetObjectiveAction } from "./actions";
 import { formatPercentNumber } from "@/lib/format";
 import { useMoney, useCurrency } from "@/components/money/MoneyProvider";
 import { currencySymbol } from "@/lib/money";
+import { EQI_SIGNUP_URL } from "@/lib/eqi";
 
 
 const CLASS_LABEL: Record<string, string> = {
@@ -282,6 +283,19 @@ export function AssetsSection({
         <EmptyState
           icon={Briefcase}
           message={voz.titulos.carteiraVazio}
+          action={
+            <div className="flex flex-col items-center gap-2">
+              <p className="text-caption text-ink-faint">{t.carteiraAbrirContaPergunta}</p>
+              <a
+                href={EQI_SIGNUP_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center justify-center gap-2 rounded-full bg-accent-gradient px-4 py-2.5 text-sm font-semibold text-on-accent shadow-premium-sm transition-all duration-150 ease-out hover:opacity-95"
+              >
+                {t.carteiraAbrirContaBotao}
+              </a>
+            </div>
+          }
         />
       ) : (
         <>

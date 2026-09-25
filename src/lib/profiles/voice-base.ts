@@ -214,6 +214,11 @@ export type TitulosBase = {
   carteiraSub: string;
   carteiraLink: string;
   carteiraVazio: string;
+  /** Carteira vazia, sem ativo nenhum: convite pra abrir conta numa corretora (link da EQI).
+   * Em duas partes pra caber num botão sem quebrar feio no celular: a pergunta vem em texto
+   * simples acima, o botão é só a ação, curta. */
+  carteiraAbrirContaPergunta: string;
+  carteiraAbrirContaBotao: string;
   porObjetivo: string;
   porObjetivoSub: string;
   porObjetivoEditar: string;
@@ -380,6 +385,8 @@ const TITULOS_BASE: TitulosBase = {
   carteiraSub: "Acompanhe seus ativos e o objetivo de cada um.",
   carteiraLink: "Ver consolidação por objetivo →",
   carteiraVazio: "Nenhum ativo cadastrado ainda. Adicione o primeiro para acompanhar sua carteira aqui.",
+  carteiraAbrirContaPergunta: "Ainda não tem conta em uma corretora?",
+  carteiraAbrirContaBotao: "Abrir minha conta →",
   porObjetivo: "Carteira por Objetivo",
   porObjetivoSub: "Posição atual por objetivo e alocação atual vs. ideal por classe.",
   porObjetivoEditar: "← editar ativos",
