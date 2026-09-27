@@ -8,6 +8,7 @@
 
 import { isBanestesStatement, parseBanestesStatement } from "./banestes-pdf";
 import { isCaixaAppStatement, parseCaixaAppStatement } from "./caixa-pdf";
+import { isInterStatement, parseInterStatement } from "./inter-pdf";
 import { isNubankStatement, parseNubankStatement } from "./nubank-pdf";
 import { isSantanderConsolidatedStatement, parseSantanderConsolidatedStatement } from "./santander-pdf";
 
@@ -452,6 +453,10 @@ export function parseStatement(content: string, source: "auto" | "pdf" = "auto",
     if (isSantanderConsolidatedStatement(content)) {
       const santander = parseSantanderConsolidatedStatement(content, refYear);
       if (santander.length > 0) return santander;
+    }
+    if (isInterStatement(content)) {
+      const inter = parseInterStatement(content);
+      if (inter.length > 0) return inter;
     }
     if (isBanestesStatement(content)) {
       const banestes = parseBanestesStatement(content, refYear);

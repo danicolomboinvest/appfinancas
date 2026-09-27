@@ -181,6 +181,14 @@ export async function extractUploadFromForm(
     throw new UploadReadError("Nenhum arquivo recebido. Tente selecionar o arquivo de novo.");
   }
   const buffer = Buffer.from(await file.arrayBuffer());
+  // Arquivo de 0 bytes: o download no celular não terminou. Sem isto o PDF caía em "não consegui
+  // ler PDF neste servidor, mande em Excel" — culpando o app e mandando atrás de outro formato.
+  if (buffer.length === 0) {
+    throw new UploadReadError(
+      "O arquivo chegou vazio (0 KB) — o download provavelmente não terminou. Baixe de novo no app do banco e envie outra vez.",
+      "arquivo com 0 bytes",
+    );
+  }
   if (encoding === "xlsx") return { text: semNulo(await xlsxToCsv(buffer, password)), source: "auto" };
   if (encoding === "pdf") return { text: semNulo(await pdfToText(buffer, password)), source: "pdf" };
   return { text: semNulo(buffer.toString("utf-8")), source: "auto" };
