@@ -181,7 +181,16 @@ export async function extractUploadFromForm(
     throw new UploadReadError("Nenhum arquivo recebido. Tente selecionar o arquivo de novo.");
   }
   const buffer = Buffer.from(await file.arrayBuffer());
-  if (encoding === "xlsx") return { text: await xlsxToCsv(buffer, password), source: "auto" };
-  if (encoding === "pdf") return { text: await pdfToText(buffer, password), source: "pdf" };
-  return { text: buffer.toString("utf-8"), source: "auto" };
+  if (encoding === "xlsx") return { text: semNulo(await xlsxToCsv(buffer, password)), source: "auto" };
+  if (encoding === "pdf") return { text: semNulo(await pdfToText(buffer, password)), source: "pdf" };
+  return { text: semNulo(buffer.toString("utf-8")), source: "auto" };
+}
+
+/**
+ * Tira o caractere NULO (código 0, invisível). Alguns arquivos de banco trazem esse caractere
+ * no meio do texto: a revisão mostrava os lançamentos normalmente, mas o banco de dados recusa
+ * gravar texto com ele e a importação inteira caía na hora de confirmar.
+ */
+function semNulo(text: string): string {
+  return text.includes("\u0000") ? text.replace(/\u0000/g, "") : text;
 }

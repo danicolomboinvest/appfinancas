@@ -56,11 +56,20 @@ async function resolveOwnRefs(
   return { goalId: goal?.id, customCategoryId: category?.id };
 }
 
+/**
+ * O Postgres recusa texto com o caractere NULO (código 0) e derruba a gravação inteira — foi
+ * assim que uma importação de 32 lançamentos falhou 12 vezes seguidas. Tira antes de gravar,
+ * venha o texto de arquivo importado ou de onde for.
+ */
+function semNulo<T extends string | undefined>(text: T): T {
+  return (text?.includes("\u0000") ? text.replace(/\u0000/g, "") : text) as T;
+}
+
 export async function createMonthlyEntry(ctx: AuthContext, input: MonthlyEntryInput) {
   const profileId = input.profileId ?? ctx.profileId;
   const refs = await resolveOwnRefs(ctx, profileId, input);
   return prisma.monthlyEntry.create({
-    data: { ...input, ...refs, userId: ctx.userId, profileId },
+    data: { ...input, ...refs, userId: ctx.userId, profileId, description: semNulo(input.description), subcategory: semNulo(input.subcategory) },
   });
 }
 
@@ -75,8 +84,8 @@ export async function updateOwnMonthlyEntry(ctx: AuthContext, id: string, input:
       // para personalizada), não manter, por isso null explícito em vez de undefined.
       parentCategory: input.parentCategory ?? null,
       customCategoryId: refs.customCategoryId ?? null,
-      subcategory: input.subcategory ?? null,
-      description: input.description ?? null,
+      subcategory: semNulo(input.subcategory) ?? null,
+      description: semNulo(input.description) ?? null,
       entryDate: input.entryDate ?? null,
       goalId: refs.goalId ?? null,
       originalAmount: input.originalAmount ?? null,
