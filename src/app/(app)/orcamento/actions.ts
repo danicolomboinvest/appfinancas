@@ -63,9 +63,12 @@ export async function applyAllBudgetsAction(
     return { error: "Algum valor não pôde ser salvo, confira os campos e tente de novo." };
   }
 
-  revalidatePath("/orcamento");
-  revalidatePath("/orcamento/comparativo");
+  // A tela do plano é /orcamento/[ano]: sem revalidar ela, a página continuava com os valores
+  // antigos depois de salvar. O Foco e o Posso comprar também leem o orçamento.
+  revalidatePath("/orcamento", "layout");
   revalidatePath(`/mensal/${year}`);
+  revalidatePath("/mensal/foco");
+  revalidatePath("/decidir/comprar");
   return {};
 }
 

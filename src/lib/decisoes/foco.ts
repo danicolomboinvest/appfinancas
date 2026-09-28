@@ -74,6 +74,8 @@ export type FocoEntrada = {
   tetos?: { categoria: string; valor: number }[];
   /** Gastos recorrentes do Raio-X que ela ainda não decidiu. */
   raiox?: { n: number; anual: number } | null;
+  /** Avisos que ela já dispensou ("foi pontual", "entendi") neste mês ou nesta semana. */
+  dispensados?: string[];
   money: (valor: number) => string;
   t: Titulos;
 };
@@ -99,7 +101,20 @@ export type FocoLivre =
       porCategoria: { key: string; label: string; restante: number }[];
     };
 
-export type FocoItem = { id: string; nivel: 1 | 2 | 3; titulo: string; texto: string; href: string; acao: string };
+/**
+ * Os números por trás de cada aviso: é o que a janela "Ver o que fazer" mostra e usa pra oferecer
+ * a ação certa ali mesmo (teto, subir o orçamento, "já transferi"), em vez de só mandar pra
+ * outra tela.
+ */
+export type FocoDetalhe =
+  | { tipo: "estouro" | "ritmo"; categoria: string; label: string; gasto: number; planejado: number; sobra: number; dias: number }
+  | { tipo: "fora"; valor: number; livre: number }
+  | { tipo: "aporte"; falta: number; guardado: number; planejado: number }
+  | { tipo: "meta"; metaId: string; nome: string; porMes: number; quando: string; vencida: boolean; ultimoMes: boolean }
+  | { tipo: "reserva"; meses: number; minimo: number }
+  | { tipo: "raiox"; n: number; anual: number };
+
+export type FocoItem = { id: string; nivel: 1 | 2 | 3; titulo: string; texto: string; href: string; acao: string; detalhe?: FocoDetalhe };
 export type FocoBem = { titulo: string };
 export type FocoFio = { meta: string; quando: string; guardarNoMes: number | null; guardadoNoMes: number };
 
@@ -182,6 +197,7 @@ export function montarFoco(e: FocoEntrada): FocoSaida {
         texto: t.focoEstouroP(money(c.gasto), money(c.planejado), diasRestantes),
         href: hrefOrcamento,
         acao: t.focoAcao,
+        detalhe: { tipo: "estouro", categoria: c.key, label: c.label, gasto: c.gasto, planejado: c.planejado, sobra: 0, dias: diasRestantes },
       });
     }
   }
@@ -192,7 +208,7 @@ export function montarFoco(e: FocoEntrada): FocoSaida {
   if (!semDadoDoMes && planejado > 0 && fora >= FOLGA_ESTOURO && livre.tipo !== "semOrcamento") {
     const semFora = e.categorias.reduce((s, c) => s + Math.max(0, c.planejado - c.gasto), 0);
     if (livre.restante < semFora - FOLGA_ESTOURO) {
-      itens.push({ id: "fora", nivel: 1, titulo: t.focoForaT(money(fora)), texto: t.focoForaP(money(livre.restante)), href: e.hrefMes, acao: t.focoAcao });
+      itens.push({ id: "fora", nivel: 1, titulo: t.focoForaT(money(fora)), texto: t.focoForaP(money(livre.restante)), href: e.hrefMes, acao: t.focoAcao, detalhe: { tipo: "fora", valor: fora, livre: livre.restante } });
     }
   }
 
@@ -206,6 +222,7 @@ export function montarFoco(e: FocoEntrada): FocoSaida {
       texto: t.focoAporteP,
       href: e.hrefMes,
       acao: t.focoAcao,
+      detalhe: { tipo: "aporte", falta: e.aportePlanejado - e.aportadoNoMes, guardado: e.aportadoNoMes, planejado: e.aportePlanejado },
     });
   }
 
@@ -220,6 +237,7 @@ export function montarFoco(e: FocoEntrada): FocoSaida {
       texto: m.vencida ? t.focoMetaVencidaP : m.ultimoMes ? t.focoMetaUltimoMesP(money(m.porMes)) : t.focoMetaP(money(m.porMes)),
       href: `/planejamento/metas/${m.id}`,
       acao: t.focoAcao,
+      detalhe: { tipo: "meta", metaId: m.id, nome: m.nome, porMes: m.porMes, quando: m.quando, vencida: Boolean(m.vencida), ultimoMes: Boolean(m.ultimoMes) },
     });
   }
 
@@ -242,6 +260,7 @@ export function montarFoco(e: FocoEntrada): FocoSaida {
           texto: t.focoRitmoP(diasRestantes, money(Math.max(0, c.planejado - c.gasto))),
           href: hrefOrcamento,
           acao: t.focoAcao,
+          detalhe: { tipo: "ritmo", categoria: c.key, label: c.label, gasto: c.gasto, planejado: c.planejado, sobra: Math.max(0, c.planejado - c.gasto), dias: diasRestantes },
         });
       }
     }
@@ -260,12 +279,19 @@ export function montarFoco(e: FocoEntrada): FocoSaida {
         texto: t.focoReservaP,
         href: "/planejamento/reserva-emergencia",
         acao: t.focoAcao,
+        detalhe: { tipo: "reserva", meses: cortado, minimo: e.reservaMinimaMeses ?? MESES_RESERVA_MINIMO },
       });
     }
   }
 
   if (e.raiox && e.raiox.n > 0) {
-    itens.push({ id: "raiox", nivel: 3, titulo: t.focoRaioXT(e.raiox.n), texto: t.focoRaioXP(money(e.raiox.anual)), href: "/decidir/raio-x", acao: t.focoAcao });
+    itens.push({ id: "raiox", nivel: 3, titulo: t.focoRaioXT(e.raiox.n), texto: t.focoRaioXP(money(e.raiox.anual)), href: "/decidir/raio-x", acao: t.focoAcao, detalhe: { tipo: "raiox", n: e.raiox.n, anual: e.raiox.anual } });
+  }
+
+  // O que ela dispensou ("foi pontual", "entendi") some da lista até o mês (ou a semana) virar.
+  if (e.dispensados && e.dispensados.length > 0) {
+    const fora = new Set(e.dispensados);
+    for (let i = itens.length - 1; i >= 0; i--) if (fora.has(itens[i].id)) itens.splice(i, 1);
   }
 
   // Estável: dentro do mesmo nível, fica a ordem em que foram achados (estouro maior primeiro

@@ -1,12 +1,12 @@
 import Link from "next/link";
-import { ChevronRight, Search, Check } from "lucide-react";
+import { ChevronRight, Search, Check, ShoppingBag, ScanSearch, Signpost } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
-import type { FocoItem } from "@/lib/decisoes/foco";
 import { Card } from "@/components/ui/Card";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { ReportarErro } from "@/components/decisoes/ReportarErro";
 import { confirmarCancelamentoRaioXAction, escolherRitmoAction, responderCompraAmanhaAction } from "./actions";
 import { carregarFoco, MESES } from "./dados";
+import { AvisoFoco } from "./AvisoFoco";
 import { carregarBlocosDoMes } from "./blocos";
 import { ThemeHero } from "@/app/(app)/mensal/[year]/[month]/ThemeHero";
 import { MonthHighlight } from "@/app/(app)/mensal/[year]/[month]/MonthHighlight";
@@ -234,17 +234,54 @@ export default async function FocoPage() {
           {t.focoNadaSub && <p className="mt-1 text-caption text-ink-muted">{t.focoNadaSub}</p>}
         </Card>
       ) : (
-        foco.atencao.map((item) => <ItemAtencao key={item.id} item={item} />)
+        foco.atencao.map((item) => <AvisoFoco key={item.id} item={item} hrefMes={d.hrefMes} />)
       )}
       {foco.depois.length > 0 && (
         <details>
           <summary className="cursor-pointer px-1 text-caption text-ink-muted">{t.focoMaisEsperam(foco.depois.length)}</summary>
           <div className="mt-3 flex flex-col gap-3">
             {foco.depois.map((item) => (
-              <ItemAtencao key={item.id} item={item} />
+              <AvisoFoco key={item.id} item={item} hrefMes={d.hrefMes} />
             ))}
           </div>
         </details>
+      )}
+
+      {/* Central de decisões: as perguntas que o app responde com os números dela. Antes ficava
+          só no "Mais", e o Foco parecia não levar a lugar nenhum. A empresa não tem Decidir. */}
+      {!d.empresa && (
+        <Card className="flex flex-col gap-3 p-5">
+          <div>
+            <p className="text-caption font-semibold uppercase tracking-[0.11em] text-ink-muted">Central de decisões</p>
+            <p className="mt-1 text-sm font-semibold text-ink">Antes de decidir, pergunte pros seus números</p>
+          </div>
+          <div className="grid grid-cols-1 gap-2">
+            <Link href="/decidir/comprar" className="flex items-center gap-3 rounded-2xl border border-border px-4 py-3 transition-colors hover:bg-surface-hover">
+              <ShoppingBag size={18} className="shrink-0 text-accent-strong" />
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-semibold text-ink">{t.compraTitulo}</span>
+                <span className="block text-caption text-ink-muted">Cabe no mês? Parcelar ou à vista? Atrasa alguma meta?</span>
+              </span>
+              <ChevronRight size={16} className="shrink-0 text-ink-faint" />
+            </Link>
+            <Link href="/decidir/raio-x" className="flex items-center gap-3 rounded-2xl border border-border px-4 py-3 transition-colors hover:bg-surface-hover">
+              <ScanSearch size={18} className="shrink-0 text-accent-strong" />
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-semibold text-ink">{t.raioxTitulo}</span>
+                <span className="block text-caption text-ink-muted">O que se repete todo mês e quanto isso dá no ano.</span>
+              </span>
+              <ChevronRight size={16} className="shrink-0 text-ink-faint" />
+            </Link>
+            <Link href="/decidir" className="flex items-center gap-3 rounded-2xl border border-border px-4 py-3 transition-colors hover:bg-surface-hover">
+              <Signpost size={18} className="shrink-0 text-accent-strong" />
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-semibold text-ink">Todas as perguntas</span>
+                <span className="block text-caption text-ink-muted">Financiar ou alugar, amortizar ou investir, e mais.</span>
+              </span>
+              <ChevronRight size={16} className="shrink-0 text-ink-faint" />
+            </Link>
+          </div>
+        </Card>
       )}
 
       {ritmo === "semanal" && !d.fechamentoFeito && d.dia <= 15 && (
@@ -339,18 +376,3 @@ export default async function FocoPage() {
   );
 }
 
-function ItemAtencao({ item }: { item: FocoItem }) {
-  const faixa = item.nivel === 1 ? "bg-danger" : item.nivel === 2 ? "bg-accent" : "bg-ink-faint";
-  return (
-    <Card className="flex gap-4 p-5">
-      <span className={`w-1 shrink-0 rounded-full ${faixa}`} aria-hidden />
-      <div className="min-w-0">
-        <p className="text-sm font-semibold text-ink">{item.titulo}</p>
-        <p className="mt-1 text-caption text-ink-muted">{item.texto}</p>
-        <Link href={item.href} className="mt-3 inline-flex rounded-xl bg-accent-soft px-3 py-1.5 text-caption font-semibold text-accent-strong">
-          {item.acao}
-        </Link>
-      </div>
-    </Card>
-  );
-}

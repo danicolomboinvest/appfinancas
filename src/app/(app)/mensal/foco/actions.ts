@@ -19,7 +19,7 @@ import { upsertBudget } from "@/lib/repositories/budget.repo";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import { PARENT_CATEGORIES } from "@/lib/categories";
 import type { ParentCategory } from "@prisma/client";
-import type { Ritmo } from "./ritmo";
+import { chaveDaSemana, type Ritmo } from "./ritmo";
 
 /** Semanal ou mensal. Vale pra conta toda (é o jeito da PESSOA, não do perfil). */
 export async function escolherRitmoAction(ritmo: Ritmo) {
@@ -338,4 +338,17 @@ export async function resolverLancamentoAntigoAction(entryId: string, acao: "gua
   }
   await registrarDecisaoUnica(ctx, { tipo: "revisao_lancamento", chave: entrada.id, descricao: acao });
   revalidatePath("/mensal", "layout");
+}
+
+/**
+ * "Foi pontual, sigo o plano" / "Entendi" num aviso do Foco: ele some até o mês virar. O aviso de
+ * guardar ("vou transferir essa semana") some só até a semana virar.
+ */
+export async function dispensarAvisoAction(itemId: string, escopo: "mes" | "semana") {
+  const id = z.string().regex(/^[a-z]+(-[A-Za-z0-9_]+)?$/).max(80).parse(itemId);
+  const ctx = await getRequiredSession();
+  const now = nowInBrazil();
+  const periodo = escopo === "semana" ? chaveDaSemana(now) : `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  await registrarDecisaoUnica(ctx, { tipo: "aviso_dispensado", chave: `${periodo}|${id}` });
+  revalidatePath("/mensal/foco");
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useMemo, useState, useTransition } from "react";
+import { useActionState, useEffect, useMemo, useState, useTransition } from "react";
 import type { ParentCategory } from "@prisma/client";
 import type { LucideIcon } from "lucide-react";
 import { Minus, Plus, Sparkles, Tag, Trash2 } from "lucide-react";
@@ -111,6 +111,21 @@ export function BudgetWizard({
       ...customCategories.map((c) => [c.id, c.defaultValue]),
     ]),
   );
+
+  // Mudou algo em relação ao que está salvo? A gravação só acontece no "Salvar": quem mexia no
+  // passo 1 ou 2 e saía achava que tinha salvo, e o plano voltava ao antigo toda vez que abria.
+  const alterado =
+    income !== plan.plannedIncome ||
+    investment !== plan.plannedInvestment ||
+    parentCategories.some((c) => (values[c.key] ?? 0) !== c.defaultValue) ||
+    customCategories.some((c) => (values[c.id] ?? 0) !== c.defaultValue);
+  useEffect(() => {
+    if (!alterado) return;
+    // Fechar a aba ou recarregar com mudança não salva: o navegador pergunta antes.
+    const avisar = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener("beforeunload", avisar);
+    return () => window.removeEventListener("beforeunload", avisar);
+  }, [alterado]);
 
   const toSpend = Math.max(0, income - investment);
   const distributed = cats.reduce((sum, c) => sum + (values[c.key] ?? 0), 0);
@@ -401,6 +416,17 @@ export function BudgetWizard({
             )}
           </div>
         </>
+      )}
+
+      {/* Barra fixa enquanto houver mudança não salva, em qualquer passo: salvar não depende de
+          chegar ao passo 3. Fica acima da barra de navegação do celular. */}
+      {alterado && (
+        <div className="fixed inset-x-3 bottom-24 z-40 flex items-center justify-between gap-3 rounded-2xl border border-accent/40 bg-surface px-4 py-3 shadow-premium md:inset-x-auto md:bottom-6 md:right-6 md:w-96">
+          <span className="text-sm font-medium text-ink">Mudanças ainda não salvas</span>
+          <Button type="submit" size="sm" disabled={isPending}>
+            {isPending ? t.formSalvando : "Salvar"}
+          </Button>
+        </div>
       )}
     </form>
   );

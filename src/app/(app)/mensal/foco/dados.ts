@@ -14,7 +14,7 @@ import { contarGastosReaisDoMes, getUltimoGastoAte, listEntriesForMonths, somarG
 import { getOwnUser } from "@/lib/repositories/user.repo";
 import { prisma } from "@/lib/db/prisma";
 import { carregarRevisaoAntigos } from "./revisar/dados";
-import { existeDecisao, listarCancelamentosPraConfirmar, listarCompraAmanhaPendentes, listarDecisoesRaioX, listarTetosDoMes } from "@/lib/repositories/decisao.repo";
+import { existeDecisao, listarAvisosDispensados, listarCancelamentosPraConfirmar, listarCompraAmanhaPendentes, listarDecisoesRaioX, listarTetosDoMes } from "@/lib/repositories/decisao.repo";
 import { computeGoalPlan } from "@/lib/planning/goal";
 import { ehEmpresa } from "@/lib/profiles/empresa";
 import { montarFoco } from "@/lib/decisoes/foco";
@@ -66,7 +66,7 @@ export async function carregarFoco(ctx: AuthContext) {
   const mesAnterior = { year: anterior.getFullYear(), month: anterior.getMonth() + 1, label: MESES[anterior.getMonth()] };
   const semana = chaveDaSemana(now);
 
-  const [user, budgets, spentByParent, spentByCustom, customCategories, summary, plan, goals, fund, lastExpense, tetos, pendentes, ritualFeito, fechamentoFeito, raiox, gastosReais, preCriados, cancelamentos, viradaFeita, lancamentosAnoPassado, paraRevisar] =
+  const [user, budgets, spentByParent, spentByCustom, customCategories, summary, plan, goals, fund, lastExpense, tetos, pendentes, ritualFeito, fechamentoFeito, raiox, gastosReais, preCriados, cancelamentos, viradaFeita, lancamentosAnoPassado, paraRevisar, dispensados] =
     await Promise.all([
       getOwnUser(ctx),
       listBudgets(ctx, year, month),
@@ -91,6 +91,7 @@ export async function carregarFoco(ctx: AuthContext) {
       month <= 3 ? existeDecisao(ctx, "virada_ano", String(year)) : Promise.resolve(true),
       month <= 3 ? prisma.monthlyEntry.count({ where: { userId: ctx.userId, profileId: ctx.profileId, year: year - 1 } }) : Promise.resolve(0),
       carregarRevisaoAntigos(ctx),
+      listarAvisosDispensados(ctx, chaveDoMes(year, month), semana),
     ]);
   const ritmo = lerRitmo(user.ritmoAcompanhamento);
 
@@ -154,6 +155,7 @@ export async function carregarFoco(ctx: AuthContext) {
     reservaMinimaMeses: fund && fund.targetMonths > 0 ? fund.targetMonths : empresa ? 3 : 6,
     hrefMes,
     tetos,
+    dispensados,
     raiox: naoDecididos.length > 0 ? { n: naoDecididos.length, anual: naoDecididos.reduce((s, i) => s + i.anual, 0) } : null,
     money: m,
     t,

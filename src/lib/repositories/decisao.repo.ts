@@ -20,7 +20,9 @@ export type TipoDecisao =
   /** Virada do ano: como a pessoa quis começar o ano novo ("sugestao" | "zerado"). */
   | "virada_ano"
   /** Revisão de um lançamento antigo (chave = id do lançamento): o que ela escolheu fazer. */
-  | "revisao_lancamento";
+  | "revisao_lancamento"
+  /** Aviso do Foco dispensado ("foi pontual", "entendi"): chave "2026-09|estouro-LAZER" ou "2026-W40|aporte". */
+  | "aviso_dispensado";
 
 export type NovaDecisao = {
   tipo: TipoDecisao;
@@ -151,4 +153,13 @@ export async function listarCancelamentosPraConfirmar(ctx: AuthContext, inicioDo
   return cancelar
     .filter((c) => c.chave && !respondidas.has(`${c.chave}|sim`) && !respondidas.has(`${c.chave}|nao|${anoMes}`))
     .map((c) => ({ chave: c.chave as string, nome: c.descricao ?? c.chave ?? "", anual: Number(c.valor ?? 0) }));
+}
+
+/** Ids dos avisos do Foco dispensados neste mês ("2026-09|…") ou nesta semana ("2026-W40|…"). */
+export async function listarAvisosDispensados(ctx: AuthContext, anoMes: string, semana: string): Promise<string[]> {
+  const rows = await prisma.decisao.findMany({
+    where: { userId: ctx.userId, profileId: ctx.profileId, tipo: "aviso_dispensado", OR: [{ chave: { startsWith: `${anoMes}|` } }, { chave: { startsWith: `${semana}|` } }] },
+    select: { chave: true },
+  });
+  return rows.map((r) => (r.chave ?? "").split("|").slice(1).join("|"));
 }
