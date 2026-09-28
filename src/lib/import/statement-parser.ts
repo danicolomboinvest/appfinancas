@@ -7,7 +7,10 @@
  */
 
 import { isBanestesStatement, parseBanestesStatement } from "./banestes-pdf";
+import { isBancoDoBrasilStatement, parseBancoDoBrasilStatement } from "./bb-pdf";
+import { isBradescoStatement, parseBradescoStatement } from "./bradesco-pdf";
 import { isCaixaAppStatement, parseCaixaAppStatement } from "./caixa-pdf";
+import { isCoraStatement, parseCoraStatement } from "./cora-pdf";
 import { isInterStatement, parseInterStatement } from "./inter-pdf";
 import { isNubankStatement, parseNubankStatement } from "./nubank-pdf";
 import { isSantanderConsolidatedStatement, parseSantanderConsolidatedStatement } from "./santander-pdf";
@@ -330,7 +333,7 @@ const CREDIT_HINTS = /\b(sal[aá]rio|rendimento|dep[oó]sito|cr[eé]dito|recebid
  */
 const MONTH_ABBR: Record<string, string> = { jan: "01", fev: "02", mar: "03", abr: "04", mai: "05", jun: "06", jul: "07", ago: "08", set: "09", out: "10", nov: "11", dez: "12" };
 /** Linhas que são saldo/total, não movimento. */
-const BALANCE_LINE_RE = /\b(saldo|total\s+(da|desta|de|a\s+pagar)|subtotal|limite)\b/i;
+const BALANCE_LINE_RE = /\b(saldo|total\s+(da|desta|de|a\s+pagar)|subtotal|limite|hist[óo]rico\s+de\s+faturas)\b/i;
 
 /**
  * Data no COMEÇO de uma linha de PDF: "12/08/2026", "12/08", "12 AGO", "12 ago 2026",
@@ -350,8 +353,22 @@ function backdateIfFuture(iso: string, today: Date): string {
   return `${Number(iso.slice(0, 4)) - 1}${iso.slice(4)}`;
 }
 
+/**
+ * Na fatura do Santander, parte das compras vem com um algarismo solto ANTES da data
+ * ("2 \t05/11 AMAZON PRIME BR \t11/12 \t13,90"). Sem tirar esse algarismo a data não era
+ * reconhecida e a compra sumia: 14 de 37 compras de uma fatura ficaram de fora.
+ */
+const MARCADOR_ANTES_DA_DATA_RE = /^[1-9]\s+(?=\d{2}\/\d{2}(?![\d/])\s+\S)/;
+
 function leadingDate(line: string, refYear: number): { iso: string; length: number } | null {
-  const t = line.trimStart();
+  const semMarcador = line.trimStart();
+  const marcador = semMarcador.match(MARCADOR_ANTES_DA_DATA_RE);
+  const t = marcador ? semMarcador.slice(marcador[0].length) : semMarcador;
+  const found = leadingDateCore(t, refYear);
+  return found && marcador ? { iso: found.iso, length: found.length + marcador[0].length } : found;
+}
+
+function leadingDateCore(t: string, refYear: number): { iso: string; length: number } | null {
   const pad = (n: string) => n.padStart(2, "0");
   let m = t.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
   if (m) return { iso: `${m[3]}-${m[2]}-${m[1]}`, length: m[0].length };
@@ -385,7 +402,9 @@ function leadingDate(line: string, refYear: number): { iso: string; length: numb
  * contam. Sinal: "-" explícito ou "D" = saída; palavra de crédito ou "C" = entrada; senão saída.
  */
 export function parseTextLines(content: string, refYear: number = new Date().getFullYear()): ParsedTransaction[] {
-  const lines = content.split(/\r?\n/);
+  // "−R$ 1.671,14": a fatura do Nubank usa o sinal de menos tipográfico (U+2212), não o hífen.
+  // Sem isto o pagamento da fatura anterior perdia o sinal e entrava como mais uma compra.
+  const lines = content.replace(/\u2212/g, "-").split(/\r?\n/);
   const transactions: ParsedTransaction[] = [];
   const moneyRe = /-?\s?(?:R\$\s?)?\d{1,3}(?:\.\d{3})*,\d{2}(?!\d)/g;
   const anyDateRe = /(\d{2}\/\d{2}\/\d{4})|(\d{4}-\d{2}-\d{2})/;
@@ -461,6 +480,18 @@ export function parseStatement(content: string, source: "auto" | "pdf" = "auto",
     if (isBanestesStatement(content)) {
       const banestes = parseBanestesStatement(content, refYear);
       if (banestes.length > 0) return banestes;
+    }
+    if (isBancoDoBrasilStatement(content)) {
+      const bb = parseBancoDoBrasilStatement(content);
+      if (bb.length > 0) return bb;
+    }
+    if (isBradescoStatement(content)) {
+      const bradesco = parseBradescoStatement(content);
+      if (bradesco.length > 0) return bradesco;
+    }
+    if (isCoraStatement(content)) {
+      const cora = parseCoraStatement(content);
+      if (cora.length > 0) return cora;
     }
     return parseTextLines(content, refYear);
   }

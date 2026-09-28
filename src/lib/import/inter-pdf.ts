@@ -27,6 +27,10 @@ const MESES: Record<string, string> = {
 const DIA_RE = /^(\d{1,2})\s+de\s+([a-zç]+)\s+de\s+(\d{4})\b/i;
 /** "-R$ 50,00", "- R$ 50,00", "R$ -50,00", "R$ 100,00": o sinal pode vir antes ou depois do R$. */
 const VALOR_RE = /(-\s*)?R\$\s*(-\s*)?(\d{1,3}(?:\.\d{3})*,\d{2})(?!\d)/g;
+/** No PDF de verdade, o primeiro dia vem grudado no título da coluna, na mesma linha:
+ * "Valor  Saldo por transação  27 de Agosto de 2026 Saldo do dia: ...". Sem tirar o título, o
+ * primeiro dia não abria e os lançamentos dele sumiam. */
+const TITULO_RE = /^Valor\s+Saldo por transa[çc][ãa]o\s*/i;
 const RUIDO_RE = [
   /^Solicitado em:/i,
   /^Per[íi]odo:/i,
@@ -42,7 +46,7 @@ export function isInterStatement(texto: string): boolean {
 }
 
 function primeiroDia(texto: string): string {
-  return texto.split(/\r?\n/).map((l) => l.trim()).find((l) => DIA_RE.test(l)) ?? "";
+  return texto.split(/\r?\n/).map((l) => l.replace(/\t/g, " ").trim().replace(TITULO_RE, "")).find((l) => DIA_RE.test(l)) ?? "";
 }
 
 function mesPorExtenso(nome: string): string | undefined {
@@ -50,7 +54,7 @@ function mesPorExtenso(nome: string): string | undefined {
 }
 
 export function parseInterStatement(texto: string): ParsedTransaction[] {
-  const linhas = texto.split(/\r?\n/).map((l) => l.replace(/\t/g, " ").trim());
+  const linhas = texto.split(/\r?\n/).map((l) => l.replace(/\t/g, " ").trim().replace(TITULO_RE, ""));
   const out: ParsedTransaction[] = [];
   let data: string | null = null;
   let pendente: string[] = [];

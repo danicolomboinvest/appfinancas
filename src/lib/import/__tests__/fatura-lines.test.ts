@@ -45,6 +45,11 @@ describe("isFaturaSummaryLine: linhas que não são uma compra de verdade", () =
     expect(isFaturaSummaryLine(txn({ description: "2525/0004841-5 175/04314114-1" }))).toBe(true);
   });
 
+  it("pagamento da fatura anterior no meio das compras (Nubank e Bradesco em PDF) não é compra", () => {
+    expect(isFaturaSummaryLine(txn({ description: "Pagamento em 09 AGO" }))).toBe(true);
+    expect(isFaturaSummaryLine(txn({ description: "PAGTO. POR DEB EM C/C -" }))).toBe(true);
+  });
+
   it("uma compra de verdade, com nome de loja, não é linha de resumo", () => {
     expect(isFaturaSummaryLine(txn({ description: "HTM *mepoup 11/12" }))).toBe(false);
     expect(isFaturaSummaryLine(txn({ description: "PAYGO*LGSTAR A 03/04" }))).toBe(false);

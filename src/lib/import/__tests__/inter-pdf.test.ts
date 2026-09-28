@@ -47,4 +47,14 @@ describe("extrato do Banco Inter (PDF)", () => {
   it("entra pelo caminho normal de PDF", () => {
     expect(parseStatement(INTER, "pdf")).toHaveLength(4);
   });
+
+  it("não perde o primeiro dia quando ele vem grudado no título da coluna", () => {
+    const grudado = INTER.replace(
+      "Valor \tSaldo por transação\n27 de Agosto de 2026",
+      "Valor \tSaldo por transação\t27 de Agosto de 2026",
+    );
+    expect(grudado).not.toBe(INTER);
+    expect(isInterStatement(grudado)).toBe(true);
+    expect(parseInterStatement(grudado)).toEqual(parseInterStatement(INTER));
+  });
 });

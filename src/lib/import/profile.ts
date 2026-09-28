@@ -1,4 +1,5 @@
 import { detectDocKind } from "./detect";
+import { isBancoDoBrasilStatement } from "./bb-pdf";
 import { isNubankStatement } from "./nubank-pdf";
 
 /**
@@ -51,6 +52,7 @@ const INSTITUTIONS: [RegExp, string][] = [
   [/picpay/i, "PicPay"],
   [/sicoob/i, "Sicoob"],
   [/sicredi/i, "Sicredi"],
+  [/\bcora scfi\b/i, "Cora"],
   [/pagbank|pagseguro/i, "PagBank"],
   [/genial investimentos/i, "Genial"],
   [/\bwarren\b/i, "Warren"],
@@ -159,6 +161,9 @@ function detectInstitution(text: string): string | null {
   // dizem o banco do OUTRO lado do Pix. Foi assim que o extrato de uma cliente apareceu na tela
   // como "Sicredi" — banco que ela não tem. O molde do documento vale mais que as citações.
   if (isNubankStatement(text)) return "Nubank";
+  // O extrato do BB não diz "Banco do Brasil" em lugar nenhum, só "BB Rende Fácil"; um boleto
+  // pago ao "BANCO C6 S.A." fazia a tela chamar o arquivo de C6.
+  if (isBancoDoBrasilStatement(text)) return "Banco do Brasil";
   const head = text.slice(0, 2500);
   let best: { name: string; score: number } | null = null;
   for (const [re, name] of INSTITUTIONS) {
