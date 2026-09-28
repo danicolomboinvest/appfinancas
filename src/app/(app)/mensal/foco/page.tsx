@@ -234,14 +234,14 @@ export default async function FocoPage() {
           {t.focoNadaSub && <p className="mt-1 text-caption text-ink-muted">{t.focoNadaSub}</p>}
         </Card>
       ) : (
-        foco.atencao.map((item) => <AvisoFoco key={item.id} item={item} hrefMes={d.hrefMes} />)
+        foco.atencao.map((item) => <AvisoFoco key={item.id} item={item} hrefMes={d.hrefMes} opcoes={d.opcoesDeCategoria} gastos={item.detalhe?.tipo === "fora" ? d.gastosFora : item.detalhe?.tipo === "estouro" || item.detalhe?.tipo === "ritmo" ? (d.gastosPorCategoria[item.detalhe.categoria] ?? []) : []} />)
       )}
       {foco.depois.length > 0 && (
         <details>
           <summary className="cursor-pointer px-1 text-caption text-ink-muted">{t.focoMaisEsperam(foco.depois.length)}</summary>
           <div className="mt-3 flex flex-col gap-3">
             {foco.depois.map((item) => (
-              <AvisoFoco key={item.id} item={item} hrefMes={d.hrefMes} />
+              <AvisoFoco key={item.id} item={item} hrefMes={d.hrefMes} opcoes={d.opcoesDeCategoria} gastos={item.detalhe?.tipo === "fora" ? d.gastosFora : item.detalhe?.tipo === "estouro" || item.detalhe?.tipo === "ritmo" ? (d.gastosPorCategoria[item.detalhe.categoria] ?? []) : []} />
             ))}
           </div>
         </details>

@@ -3,7 +3,6 @@ import { ehEmpresa } from "@/lib/profiles/empresa";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ChevronRight, ShoppingBag, CalendarDays, Gauge, MapPin, PiggyBank, Flag, ShieldCheck, Zap, TrendingUp, Home, Car, Landmark, Scale } from "lucide-react";
-import { nowInBrazil } from "@/lib/date/brazil-now";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
 
@@ -17,18 +16,17 @@ import { Card } from "@/components/ui/Card";
 export default async function DecidirPage() {
   // Decidir é da pessoa (regra dos 90% da renda, pequenos gastos): a empresa não vê no menu.
   if (ehEmpresa((await getRequiredSession()).profileKind)) redirect("/mensal/foco");
-  const now = nowInBrazil();
-  const mes = `/mensal/${now.getFullYear()}/${now.getMonth() + 1}`;
   const dia = [
     { href: "/decidir/comprar", icon: ShoppingBag, t: "Posso comprar isso?", destaque: true },
-    { href: "/mensal/foco", icon: CalendarDays, t: "Quanto posso gastar essa semana?" },
-    { href: "/orcamento", icon: Gauge, t: "Estou gastando demais?" },
-    { href: "/orcamento", icon: MapPin, t: "Onde estou exagerando?" },
-    { href: "/planejamento/metas", icon: PiggyBank, t: "Quanto preciso guardar?" },
-    { href: "/planejamento/metas", icon: Flag, t: "Quando atinjo minha meta?" },
-    { href: "/planejamento/reserva-emergencia", icon: ShieldCheck, t: "Minha reserva está suficiente?" },
-    { href: mes, icon: Zap, t: "Por que meu dinheiro acabou mais rápido?" },
-    { href: "/dashboard", icon: TrendingUp, t: "Melhorei em relação ao mês passado?" },
+    // Cada pergunta abre a RESPOSTA, com os números dela, e não a tela que ela mesma preencheu.
+    { href: "/decidir/pergunta/semana", icon: CalendarDays, t: "Quanto posso gastar essa semana?" },
+    { href: "/decidir/pergunta/gastando", icon: Gauge, t: "Estou gastando demais?" },
+    { href: "/decidir/pergunta/exagerando", icon: MapPin, t: "Onde estou exagerando?" },
+    { href: "/decidir/pergunta/guardar", icon: PiggyBank, t: "Quanto preciso guardar?" },
+    { href: "/decidir/pergunta/meta", icon: Flag, t: "Quando atinjo minha meta?" },
+    { href: "/decidir/pergunta/reserva", icon: ShieldCheck, t: "Minha reserva está suficiente?" },
+    { href: "/decidir/pergunta/acabou", icon: Zap, t: "Por que meu dinheiro acabou mais rápido?" },
+    { href: "/decidir/pergunta/melhorei", icon: TrendingUp, t: "Melhorei em relação ao mês passado?" },
   ];
   const grandes = [
     { href: "/simuladores/financiar-vs-alugar", icon: Home, t: "Financiar ou alugar?" },

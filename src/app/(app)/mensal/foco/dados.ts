@@ -66,7 +66,7 @@ export async function carregarFoco(ctx: AuthContext) {
   const mesAnterior = { year: anterior.getFullYear(), month: anterior.getMonth() + 1, label: MESES[anterior.getMonth()] };
   const semana = chaveDaSemana(now);
 
-  const [user, budgets, spentByParent, spentByCustom, customCategories, summary, plan, goals, fund, lastExpense, tetos, pendentes, ritualFeito, fechamentoFeito, raiox, gastosReais, preCriados, cancelamentos, viradaFeita, lancamentosAnoPassado, paraRevisar, dispensados] =
+  const [user, budgets, spentByParent, spentByCustom, customCategories, summary, plan, goals, fund, lastExpense, tetos, pendentes, ritualFeito, fechamentoFeito, raiox, gastosReais, preCriados, cancelamentos, viradaFeita, lancamentosAnoPassado, paraRevisar, dispensados, gastosDoMes] =
     await Promise.all([
       getOwnUser(ctx),
       listBudgets(ctx, year, month),
@@ -92,6 +92,14 @@ export async function carregarFoco(ctx: AuthContext) {
       month <= 3 ? prisma.monthlyEntry.count({ where: { userId: ctx.userId, profileId: ctx.profileId, year: year - 1 } }) : Promise.resolve(0),
       carregarRevisaoAntigos(ctx),
       listarAvisosDispensados(ctx, chaveDoMes(year, month), semana),
+      // Cada gasto do mês: é o que a janela de um aviso mostra ("onde foi o dinheiro") e deixa
+      // classificar ali mesmo.
+      prisma.monthlyEntry.findMany({
+        where: { userId: ctx.userId, profileId: ctx.profileId, year, month, category: "EXPENSE" },
+        select: { id: true, description: true, subcategory: true, amount: true, entryDate: true, parentCategory: true, customCategoryId: true },
+        orderBy: { amount: "desc" },
+        take: 400,
+      }),
     ]);
   const ritmo = lerRitmo(user.ritmoAcompanhamento);
 
@@ -161,9 +169,39 @@ export async function carregarFoco(ctx: AuthContext) {
     t,
   });
 
+  // Gastos do mês por categoria do orçamento, e os que estão FORA dele (sem categoria, ou numa
+  // categoria sem valor planejado). A janela do aviso lista e deixa classificar na hora.
+  const chaveDoGasto = (g: (typeof gastosDoMes)[number]) => g.customCategoryId ?? (g.parentCategory as string | null);
+  const noOrcamento = new Set(categorias.map((c) => c.key));
+  const rotuloDe = (g: (typeof gastosDoMes)[number]) =>
+    g.parentCategory ? categoryLabel(ctx.profileKind, g.parentCategory) : g.customCategoryId ? (nomePersonalizada.get(g.customCategoryId) ?? "Personalizada") : null;
+  const paraLista = (g: (typeof gastosDoMes)[number]) => ({
+    id: g.id,
+    descricao: g.description ?? g.subcategory ?? "Sem descrição",
+    dia: g.entryDate ? g.entryDate.getUTCDate() : null,
+    valor: Number(g.amount),
+    categoria: rotuloDe(g),
+  });
+  const gastosFora = gastosDoMes.filter((g) => { const k = chaveDoGasto(g); return !k || !noOrcamento.has(k); }).slice(0, 60).map(paraLista);
+  const gastosPorCategoria: Record<string, ReturnType<typeof paraLista>[]> = {};
+  for (const g of gastosDoMes) {
+    const k = chaveDoGasto(g);
+    if (!k || !noOrcamento.has(k)) continue;
+    (gastosPorCategoria[k] ??= []).length < 15 && gastosPorCategoria[k].push(paraLista(g));
+  }
+  const opcoesDeCategoria = categorias.map((c) => ({ key: c.key, label: c.label }));
+  const maioresGastos = gastosDoMes.slice(0, 5).map(paraLista);
+  const raioxAnual = naoDecididos.reduce((s, i) => s + i.anual, 0);
+
   return {
     t,
     m,
+    gastosFora,
+    maioresGastos,
+    raioxAnual,
+
+    gastosPorCategoria,
+    opcoesDeCategoria,
     empresa,
     ritmo,
     now,

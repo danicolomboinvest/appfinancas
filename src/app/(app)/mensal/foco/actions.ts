@@ -7,14 +7,15 @@ import { prisma } from "@/lib/db/prisma";
 import { existeDecisao, registrarDecisao, registrarDecisaoUnica, resolverCompraAmanha, travarNaTransacao } from "@/lib/repositories/decisao.repo";
 import { applyBudgetToWholeYear, applyBudgetToWholeYearForCustomCategory } from "@/lib/repositories/budget.repo";
 import { applyMonthlyPlanToWholeYear } from "@/lib/repositories/monthly-plan.repo";
-import { createRecurringMonthlyEntries } from "@/lib/repositories/monthly-entry.repo";
+import { createRecurringMonthlyEntries, updateOwnMonthlyEntriesCategory } from "@/lib/repositories/monthly-entry.repo";
+import { upsertTransactionRule } from "@/lib/repositories/transaction-rule.repo";
 import { serverMoney } from "@/lib/money-server";
 import { carregarViradaDoAno } from "./ano/dados";
 import { ehEmpresa } from "@/lib/profiles/empresa";
 import { MESES } from "./dados";
 import { chaveRaioX } from "@/lib/decisoes/raio-x";
 import { classificarAntigo, type TipoRevisao } from "@/lib/decisoes/revisao-antigos";
-import { classify } from "@/lib/import/classify";
+import { classify, normalizeMerchant } from "@/lib/import/classify";
 import { upsertBudget } from "@/lib/repositories/budget.repo";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import { PARENT_CATEGORIES } from "@/lib/categories";
@@ -351,4 +352,31 @@ export async function dispensarAvisoAction(itemId: string, escopo: "mes" | "sema
   const periodo = escopo === "semana" ? chaveDaSemana(now) : `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   await registrarDecisaoUnica(ctx, { tipo: "aviso_dispensado", chave: `${periodo}|${id}` });
   revalidatePath("/mensal/foco");
+}
+
+/**
+ * Classificar um gasto na hora, de dentro de um aviso do Foco: põe na categoria escolhida (ou
+ * marca como aplicação, que é guardar e não gasto) e ensina o app, pra próxima importação já
+ * vir certa. Só categorias do próprio perfil.
+ */
+export async function classificarGastoAction(entryId: string, destino: string) {
+  const id = z.string().min(1).max(60).parse(entryId);
+  const alvo = z.string().min(1).max(60).parse(destino);
+  const ctx = await getRequiredSession();
+  const gasto = await prisma.monthlyEntry.findFirst({ where: { id, userId: ctx.userId, profileId: ctx.profileId, category: "EXPENSE" }, select: { id: true, description: true } });
+  if (!gasto) return false;
+  if (alvo === "aplicacao") {
+    await prisma.monthlyEntry.updateMany({ where: { id, userId: ctx.userId, profileId: ctx.profileId }, data: { category: "INVESTMENT_CONTRIBUTION", parentCategory: null, customCategoryId: null, subcategory: null } });
+  } else if ((PARENT_CATEGORIES as readonly string[]).includes(alvo)) {
+    await updateOwnMonthlyEntriesCategory(ctx, [id], { parentCategory: alvo as ParentCategory, customCategoryId: null });
+    const padrao = gasto.description ? normalizeMerchant(gasto.description) : "";
+    if (padrao) await upsertTransactionRule(ctx, { pattern: padrao, parentCategory: alvo as ParentCategory });
+  } else {
+    const propria = await prisma.customCategory.findFirst({ where: { id: alvo, userId: ctx.userId, profileId: ctx.profileId }, select: { id: true } });
+    if (!propria) return false;
+    await updateOwnMonthlyEntriesCategory(ctx, [id], { parentCategory: null, customCategoryId: propria.id });
+  }
+  revalidatePath("/mensal", "layout");
+  revalidatePath("/orcamento", "layout");
+  return true;
 }
