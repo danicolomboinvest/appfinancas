@@ -18,21 +18,41 @@ import { getContributionContext } from "@/lib/portfolio/contribution";
 import { getContributionLinkState } from "@/lib/portfolio/contribution-link";
 import { AllocateContributionCard } from "./AllocateContributionCard";
 import { PARENT_CATEGORY_COLOR } from "@/lib/categories";
+import { getEmergencyFund } from "@/lib/repositories/emergency-fund.repo";
+import { serverMoney } from "@/lib/money-server";
+import { ReservaDivergente } from "@/components/decisoes/ReservaDivergente";
+import { nowInBrazil } from "@/lib/date/brazil-now";
 
 export default async function CarteiraPage() {
   const ctx = await getRequiredSession();
   const voz = vozDoTema(ctx.profileTheme, ctx.profileKind);
   const empresa = ehEmpresa(ctx.profileKind);
-  const now = new Date();
-  const [assets, goals, comparison, dividends, contribution, aporteDoMes] = await Promise.all([
+  // Relógio de Brasília, igual ao /mensal e às actions: às 22h do dia 30 o mês ainda é este.
+  const now = nowInBrazil();
+  const mesPassado = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const [assets, goals, comparison, dividends, contribution, aporteDoMes, fund, money, aporteDoMesPassado] = await Promise.all([
     listAssets(ctx),
     listGoals(ctx),
     getPortfolioStrategyComparison(ctx),
     listUpcomingDividendsForUser(ctx),
     getContributionContext(ctx, now.getFullYear(), now.getMonth() + 1),
     getContributionLinkState(ctx, now.getFullYear(), now.getMonth() + 1),
+    getEmergencyFund(ctx),
+    serverMoney(),
+    getContributionLinkState(ctx, mesPassado.getFullYear(), mesPassado.getMonth() + 1),
   ]);
   const goalNameById = new Map(goals.map((goal) => [goal.id, goal.name]));
+  // Ordem da pergunta: primeiro os ativos ligados a uma meta (o dinheiro costuma ir pra lá),
+  // depois os maiores. Assim os seis primeiros já respondem quase sempre.
+  const ativosPraDistribuir = [...assets]
+    .sort((a, b) => Number(Boolean(b.goalId)) - Number(Boolean(a.goalId)) || Number(b.currentValue) - Number(a.currentValue))
+    .map((a) => ({
+      id: a.id,
+      name: a.name,
+      ticker: a.ticker,
+      goalName: a.goalId ? (goalNameById.get(a.goalId) ?? null) : null,
+      color: PARENT_CATEGORY_COLOR.OUTROS,
+    }));
 
   // A Estratégia da Carteira é a alocação ideal, vira o gráfico-alvo e a dica de
   // rebalanceamento na tela principal (o detalhe completo continua em Por Objetivo).
@@ -67,24 +87,34 @@ export default async function CarteiraPage() {
         }
       />
 
+      {fund && (
+        <ReservaDivergente
+          naTelaDaReserva={Number(fund.currentAmount)}
+          naCarteira={assets.filter((a) => a.objective === "RESERVA_EMERGENCIA").reduce((s, a) => s + Number(a.currentValue), 0)}
+          temInvestimentos={assets.length > 0}
+          nomeDaReserva={voz.titulos.reserva}
+          onde="carteira"
+          money={(v) => money(v)}
+        />
+      )}
+
       {/* O que a pessoa já lançou como aporte no mês e ainda não disse onde foi. Aparece ANTES
           da sugestão de aporte: primeiro fecha o que já aconteceu, depois planeja o próximo. */}
+      {aporteDoMesPassado.pending > 0 && (
+        <AllocateContributionCard
+          month={mesPassado.getMonth() + 1}
+          mesPassado
+          pending={aporteDoMesPassado.pending}
+          goalOfMonth={aporteDoMesPassado.contributions.find((c) => c.goalName)?.goalName ?? null}
+          assets={ativosPraDistribuir}
+        />
+      )}
       {aporteDoMes.pending > 0 && (
         <AllocateContributionCard
           month={now.getMonth() + 1}
           pending={aporteDoMes.pending}
           goalOfMonth={aporteDoMes.contributions.find((c) => c.goalName)?.goalName ?? null}
-          // Ordem da pergunta: primeiro os ativos ligados a uma meta (o dinheiro costuma ir
-          // pra lá), depois os maiores. Assim os seis primeiros já respondem quase sempre.
-          assets={[...assets]
-            .sort((a, b) => Number(Boolean(b.goalId)) - Number(Boolean(a.goalId)) || Number(b.currentValue) - Number(a.currentValue))
-            .map((a) => ({
-              id: a.id,
-              name: a.name,
-              ticker: a.ticker,
-              goalName: a.goalId ? (goalNameById.get(a.goalId) ?? null) : null,
-              color: PARENT_CATEGORY_COLOR.OUTROS,
-            }))}
+          assets={ativosPraDistribuir}
         />
       )}
 

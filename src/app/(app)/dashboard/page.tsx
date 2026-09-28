@@ -6,7 +6,7 @@ import { getYearlySummary } from "@/lib/consolidation/yearly";
 import { getMonthlySummary } from "@/lib/consolidation/monthly";
 import { getPortfolioByObjective } from "@/lib/consolidation/portfolio";
 import { getEmergencyFund } from "@/lib/repositories/emergency-fund.repo";
-import { listGoals } from "@/lib/repositories/goal.repo";
+import { listGoalsWithProgress } from "@/lib/repositories/goal.repo";
 import { getPlanningParams } from "@/lib/repositories/planning-params.repo";
 import { sumUpcomingDividends } from "@/lib/repositories/dividend.repo";
 import { getAnnualPlannedVsActual, compareCategoryBudget } from "@/lib/planning/budget-comparison";
@@ -40,6 +40,8 @@ import { sumIncomeBySubcategory } from "@/lib/repositories/monthly-entry.repo";
 import { listCustomCategories } from "@/lib/repositories/custom-category.repo";
 import { montarDadosDoTema } from "@/app/(app)/mensal/[year]/[month]/theme-hero-data";
 import { ThemeHero } from "@/app/(app)/mensal/[year]/[month]/ThemeHero";
+import { listarDecisoesDesde } from "@/lib/repositories/decisao.repo";
+import { somarConquistas } from "@/lib/decisoes/conquistas";
 
 const MONTH_LABELS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 const MONTH_LABELS_FULL = [
@@ -108,7 +110,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
     getYearlySummary(ctx, year),
     getPortfolioByObjective(ctx),
     getEmergencyFund(ctx),
-    listGoals(ctx),
+    listGoalsWithProgress(ctx),
     getPlanningParams(ctx),
     getMonthlySummary(ctx, year, currentMonth),
     getMonthlySummary(ctx, previousMonthDate.getFullYear(), previousMonthDate.getMonth() + 1),
@@ -119,6 +121,13 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
     sumExpensesByParentCategory(ctx, year, currentMonth),
     sumExpensesByCustomCategory(ctx, year, currentMonth),
   ]);
+
+  // O que a pessoa decidiu no app este ano: é a prova de valor, na tela do ano.
+  const conquistas = isCurrentYear && !empresa
+    ? somarConquistas(
+        (await listarDecisoesDesde(ctx, new Date(year, 0, 1))).map((d) => ({ tipo: d.tipo, valor: d.valor === null ? null : Number(d.valor), createdAt: d.createdAt })),
+      )
+    : null;
 
   const plannedByMonth = Object.fromEntries(
     plannedVsActual.months.map((m) => [m.month, m.totalPlanned]),
@@ -142,17 +151,23 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
   const emergencyCurrent = emergencyFund ? Number(emergencyFund.currentAmount) : 0;
   const emergencyProgress = emergencyTarget && emergencyTarget > 0 ? emergencyCurrent / emergencyTarget : null;
 
+  // Mesmo critério de Metas e do Foco: o progresso inclui ativos e aportes da meta (não só o
+  // valor digitado à mão), meta sem data nunca é "atrasada", e meta recém-criada não é atrasada.
   const goalStatuses = goals.map((goal) =>
-    computeGoalPlan({
-      targetAmount: Number(goal.targetAmount),
-      currentAmount: Number(goal.currentAmount),
-      targetDate: goal.targetDate ?? new Date(),
-      annualRate: Number(goal.annualRate ?? 0),
-      startedAt: goal.createdAt,
-    }).status,
+    goal.targetDate
+      ? computeGoalPlan({
+          targetAmount: Number(goal.targetAmount),
+          currentAmount: goal.computedCurrentAmount,
+          targetDate: goal.targetDate,
+          annualRate: Number(goal.annualRate ?? 0),
+          startedAt: goal.createdAt,
+        }).status
+      : goal.computedCurrentAmount >= Number(goal.targetAmount)
+        ? "ACHIEVED"
+        : "NOT_STARTED",
   );
   const goalsOnTrack = goalStatuses.filter((status) => status === "ON_TRACK" || status === "ACHIEVED").length;
-  const goalsBehind = goalStatuses.filter((status) => status === "BEHIND" || status === "NOT_STARTED").length;
+  const goalsBehind = goalStatuses.filter((status) => status === "BEHIND").length;
 
   // Checklist da semana: quantas categorias já passaram do que foi planejado no mês corrente.
   // Gasto de categoria sem plano não conta como "estouro" — não havia teto pra estourar.
@@ -313,6 +328,26 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
           </div>
         }
       />
+
+      {conquistas && conquistas.decisoes > 0 && (
+        <Link href="/seu-ano" className="block">
+          <Card className="p-5 transition-colors hover:bg-surface-hover">
+            <p className="text-caption font-semibold uppercase tracking-[0.11em] text-ink-muted">{voz.titulos.conqTitulo}</p>
+            <p className="mt-1 text-h2 font-bold tracking-tight text-ink">
+              {conquistas.decisoes} {conquistas.decisoes > 1 ? "decisões" : "decisão"} em {year}
+            </p>
+            <dl className="mt-3 grid grid-cols-[1fr_auto] gap-x-4 gap-y-1.5 text-sm">
+              <dt className="text-ink-muted">Compras que você desistiu</dt>
+              <dd className="text-right tabular-nums text-ink">{money(conquistas.desistidas, { round: true })}</dd>
+              <dt className="text-ink-muted">Pequenos gastos cortados (por ano)</dt>
+              <dd className="text-right tabular-nums text-ink">{money(conquistas.raioxAnual, { round: true })}</dd>
+              <dt className="text-ink-muted">Rituais e fechamentos</dt>
+              <dd className="text-right tabular-nums text-ink">{conquistas.rituais + conquistas.fechamentos}</dd>
+            </dl>
+            <p className="mt-3 text-caption font-semibold text-accent-strong">Ver &ldquo;Seu ano com o SPI&rdquo; ›</p>
+          </Card>
+        </Link>
+      )}
 
       {!empresa && (
       <>

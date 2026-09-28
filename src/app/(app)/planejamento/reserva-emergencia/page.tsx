@@ -12,6 +12,7 @@ import { EmergencyFundForm } from "./EmergencyFundForm";
 import { formatPercentNumber } from "@/lib/format";
 import { serverMoney } from "@/lib/money-server";
 import { Section } from "@/components/ui/Section";
+import { ReservaDivergente } from "@/components/decisoes/ReservaDivergente";
 
 
 export default async function ReservaEmergenciaPage() {
@@ -46,6 +47,17 @@ export default async function ReservaEmergenciaPage() {
         title={voz.titulos.reserva}
         subtitle={voz.titulos.reservaSub}
       />
+
+      {fund && (
+        <ReservaDivergente
+          naTelaDaReserva={Number(fund.currentAmount)}
+          naCarteira={reserveInAssets}
+          temInvestimentos={assets.length > 0}
+          nomeDaReserva={voz.titulos.reserva}
+          onde="reserva"
+          money={(v) => money(v)}
+        />
+      )}
 
       {fund && plan && (
         <div className="flex flex-col gap-4">

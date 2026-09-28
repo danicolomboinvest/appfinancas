@@ -10,6 +10,7 @@ import {
   Target,
   Plane,
   Scale,
+  Signpost,
   type LucideIcon,
 } from "lucide-react";
 
@@ -78,10 +79,11 @@ export const NAV_SECTIONS: NavSection[] = [
   { basePath: "/dashboard", href: "/dashboard", label: "Visão Geral", icon: LayoutDashboard },
   {
     basePath: "/mensal",
-    href: "/mensal",
+    href: "/mensal/foco",
     label: "Fluxo Financeiro",
     icon: ArrowLeftRight,
     children: [
+      { href: "/mensal/foco", label: "Foco" },
       { href: "/mensal", label: "Visão mensal" },
       { href: "/mensal/gastos", label: "Só gastos" },
       { href: "/orcamento", label: "Orçamento" },
@@ -114,20 +116,23 @@ export const NAV_SECTIONS: NavSection[] = [
       { href: "/carteira/estrategia", label: "Estratégia", soPessoa: true },
     ],
   },
+  // Decidir junta o que antes eram Simuladores com o "Posso comprar?": o catálogo de perguntas
+  // que o app responde com os números da pessoa. O principal já chega sozinho na aba Foco.
   {
-    basePath: "/simuladores",
-    href: "/simuladores",
-    label: "Simuladores",
-    icon: Calculator,
-    premium: true,
+    basePath: "/decidir",
+    href: "/decidir",
+    label: "Decidir",
+    icon: Signpost,
     soPessoa: true,
+    alsoMatches: ["/simuladores"],
     children: [
-      { href: "/simuladores/financiar-vs-alugar", label: "Financiar vs. Alugar" },
-      { href: "/simuladores/amortizar-vs-investir", label: "Amortizar vs. Investir" },
-      { href: "/simuladores/consorcio", label: "Consórcio vs. Financiamento" },
-      { href: "/simuladores/marcacao-mercado", label: "Marcação a Mercado" },
-      { href: "/simuladores/carro", label: "Carro: Assinar vs. Comprar" },
-      { href: "/simuladores/vale-a-pena", label: "Vale a pena comprar?" },
+      { href: "/decidir", label: "Perguntas" },
+      { href: "/decidir/comprar", label: "Posso comprar?" },
+      { href: "/simuladores/financiar-vs-alugar", label: "Financiar vs. Alugar", premium: true },
+      { href: "/simuladores/amortizar-vs-investir", label: "Amortizar vs. Investir", premium: true },
+      { href: "/simuladores/consorcio", label: "Consórcio vs. Financiamento", premium: true },
+      { href: "/simuladores/marcacao-mercado", label: "Marcação a Mercado", premium: true },
+      { href: "/simuladores/carro", label: "Carro: Assinar vs. Comprar", premium: true },
     ],
   },
   {
@@ -182,6 +187,7 @@ export const ADMIN_NAV_SECTION: NavSection = {
     { href: "/admin/resultados", label: "Resultados" },
     { href: "/admin/criterios", label: "Critérios" },
     { href: "/admin/importacoes", label: "Importações" },
+    { href: "/admin/avisos", label: "Isso está errado?" },
   ],
 };
 
@@ -191,7 +197,7 @@ export type MobileTab = { basePath: string; href: string; label: string; icon: L
  * Fluxo | Metas | [ + Registrar ] | Carteira | Mais, o "+" central (registro) e o "Mais"
  * (MoreSheet) são renderizados à parte pelo MobileTabBar, entre e depois destes 3 links. */
 export const MOBILE_TABS: MobileTab[] = [
-  { basePath: "/mensal", href: "/mensal", label: "Fluxo", icon: ArrowLeftRight },
+  { basePath: "/mensal", href: "/mensal/foco", label: "Fluxo", icon: ArrowLeftRight },
   { basePath: "/planejamento", href: "/planejamento/metas", label: "Metas", icon: Target },
   { basePath: "/carteira", href: "/carteira", label: "Carteira", icon: Briefcase },
 ];

@@ -11,7 +11,7 @@ import { normalizeUsagePath } from "@/lib/usage/normalize-path";
  * ditado terminam idênticos na tabela — sem marcar na hora, não dá pra saber se o áudio serve
  * pra alguém.
  */
-const ALLOWED_EVENTS = new Set(["pageview", "registro_voz", "registro_digitado", "registro_importacao"]);
+const ALLOWED_EVENTS = new Set(["pageview", "registro_voz", "registro_digitado", "registro_importacao", "posso_comprar"]);
 
 /**
  * Recebe os eventos de uso do próprio app (rastreio primeiro, sem script de terceiro).

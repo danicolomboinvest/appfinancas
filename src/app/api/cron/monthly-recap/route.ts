@@ -136,12 +136,14 @@ export async function GET(request: Request) {
     const [grouped, byCategory] = await Promise.all([
       prisma.monthlyEntry.groupBy({
         by: ["category"],
-        where: { userId: user.id, year, month },
+        // Só o perfil ativo: o e-mail leva pra /mensal, que mostra um perfil só. Somar Pessoal +
+        // Empresa dava um resultado que não aparece em tela nenhuma.
+        where: { userId: user.id, profileId: activeProfile.id, year, month },
         _sum: { amount: true },
       }),
       prisma.monthlyEntry.groupBy({
         by: ["parentCategory"],
-        where: { userId: user.id, year, month, category: "EXPENSE", parentCategory: { not: null } },
+        where: { userId: user.id, profileId: activeProfile.id, year, month, category: "EXPENSE", parentCategory: { not: null } },
         _sum: { amount: true },
       }),
     ]);
@@ -158,7 +160,7 @@ export async function GET(request: Request) {
     const previousExpense = Number(
       (
         await prisma.monthlyEntry.aggregate({
-          where: { userId: user.id, year: previous.year, month: previous.month, category: "EXPENSE" },
+          where: { userId: user.id, profileId: activeProfile.id, year: previous.year, month: previous.month, category: "EXPENSE" },
           _sum: { amount: true },
         })
       )._sum.amount ?? 0,

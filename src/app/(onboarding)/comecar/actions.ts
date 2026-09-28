@@ -34,5 +34,5 @@ export async function comecarAction(input: { kind: string; theme: string; name?:
   await updateProfile(ctx, ctx.profileId, { name, kind, theme, icon: ICONE[kind] });
   await markOnboarded(ctx.userId);
   revalidatePath("/", "layout");
-  redirect("/mensal");
+  redirect("/mensal/foco");
 }

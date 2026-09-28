@@ -167,6 +167,9 @@ model User {
   /// Mês do Resumo Mensal já visto/fechado, formato "YYYY-MM". Enquanto for o mesmo mês do
   /// resumo atual, o card na Visão Mensal não aparece de novo (fecha uma vez por mês).
   recapDismissedMonth String?
+  /// Como a pessoa quer acompanhar o dinheiro: "semanal" (ritual de 5 min toda semana) ou
+  /// "mensal" (fechamento de 15 min por mês). Nulo = ainda não escolheu; a aba Foco pergunta.
+  ritmoAcompanhamento String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -199,6 +202,7 @@ model User {
   notificationLogs  NotificationLog[]
   bankConnections   BankConnection[]
   financialProfiles FinancialProfile[]
+  decisoes          Decisao[]
 }
 
 /// Ambiente financeiro independente dentro da MESMA conta: Pessoal, Empresa, Casal, Casa…
@@ -253,8 +257,41 @@ model FinancialProfile {
   analysisSheets          AnalysisSheet[]
   yearlyConsolidations    YearlyConsolidationCache[]
   accumulationCache       AccumulationProjectionCache[]
+  decisoes                Decisao[]
 
   @@index([userId, position])
+}
+
+/// Uma decisão que a pessoa tomou dentro do app: desistiu de uma compra, deixou pra decidir
+/// amanhã, fechou o ritual da semana, fechou o mês, pôs um teto numa categoria, cancelou uma
+/// assinatura no Raio-X, avisou que uma resposta estava errada.
+///
+/// Existe porque o app dizia o que fazer, mas não lembrava do que a pessoa fez. Sem esse
+/// registro não dá pra mostrar "o que você conquistou" nem saber se o ritual da semana já foi
+/// feito. Um tipo por string (não enum) de propósito: tipo novo não pode exigir migração.
+model Decisao {
+  id          String            @id @default(cuid())
+  userId      String
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  profileId   String?
+  profile     FinancialProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  /// compra_desisti | compra_amanha | compra_comprei | ritual | fechamento | teto |
+  /// raiox_cancelar | raiox_metade | raiox_manter | resposta_errada
+  tipo        String
+  /// Identifica a decisão pra não repetir: a semana ("2026-W40"), o mês ("2026-08"), o gasto
+  /// recorrente do Raio-X. Nulo quando cada decisão é única (uma compra).
+  chave       String?
+  /// Valor em reais quando existe (a compra que não foi feita, o teto da categoria).
+  valor       Decimal?          @db.Decimal(18, 2)
+  descricao   String?
+  /// Detalhes que só servem pra exibir (parcelas, categoria, a regra que rodou).
+  dados       Json?
+  /// "Decidir amanhã": quando a pessoa respondeu. Nulo = ainda esperando.
+  resolvidaEm DateTime?
+  createdAt   DateTime          @default(now())
+
+  @@index([userId, profileId, tipo])
+  @@index([userId, createdAt])
 }
 
 /// Tipo do perfil. Muda texto e sugestão, nunca a estrutura — a pessoa continua livre pra

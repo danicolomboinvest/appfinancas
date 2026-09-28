@@ -1,3 +1,4 @@
+import { nowInBrazil } from "@/lib/date/brazil-now";
 import { getRequiredSession } from "@/lib/auth/session";
 import { vozDoTema } from "@/lib/profiles/voice";
 import { listCustomCategories } from "@/lib/repositories/custom-category.repo";
@@ -58,7 +59,7 @@ export default async function SpendingByCategoryPage(props: PageProps<"/mensal/g
   const searchParams = await props.searchParams;
   const ctx = await getRequiredSession();
   const voz = vozDoTema(ctx.profileTheme, ctx.profileKind);
-  const now = new Date();
+  const now = nowInBrazil();
 
   // Mês/ano selecionáveis via URL (?year&month), as setas do seletor navegam por aqui,
   // e o servidor recalcula os dados do período pedido. `view` preserva a aba ativa.

@@ -1,7 +1,7 @@
 import type { AuthContext } from "@/lib/auth/session";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import { getEmergencyFund } from "@/lib/repositories/emergency-fund.repo";
-import { listGoals } from "@/lib/repositories/goal.repo";
+import { listGoalsWithProgress } from "@/lib/repositories/goal.repo";
 import { getMonthlySummary } from "@/lib/consolidation/monthly";
 import { getPortfolioStrategyComparison } from "@/lib/portfolio/strategy";
 import { computeGoalPlan } from "@/lib/planning/goal";
@@ -193,7 +193,7 @@ export async function computeFinancialHealthScore(ctx: AuthContext): Promise<Fin
 
   const [emergencyFund, goals, resumoAtual, resumoAnterior, strategyComparison] = await Promise.all([
     getEmergencyFund(ctx),
-    listGoals(ctx),
+    listGoalsWithProgress(ctx),
     getMonthlySummary(ctx, now.getFullYear(), now.getMonth() + 1),
     getMonthlySummary(ctx, anterior.getFullYear(), anterior.getMonth() + 1),
     getPortfolioStrategyComparison(ctx),
@@ -214,14 +214,18 @@ export async function computeFinancialHealthScore(ctx: AuthContext): Promise<Fin
     .map((p) => p.deviationPercent);
   const estrategia = scoreEstrategia(strategyDeviations);
 
+  // Progresso real (ativos + aportes), como em Metas. Meta sem data não tem prazo pra perder:
+  // conta como no ritmo.
   const goalPlans = goals.map((goal) =>
-    computeGoalPlan({
-      targetAmount: Number(goal.targetAmount),
-      currentAmount: Number(goal.currentAmount),
-      targetDate: goal.targetDate ?? now,
-      annualRate: Number(goal.annualRate ?? 0),
-      startedAt: goal.createdAt,
-    }),
+    goal.targetDate
+      ? computeGoalPlan({
+          targetAmount: Number(goal.targetAmount),
+          currentAmount: goal.computedCurrentAmount,
+          targetDate: goal.targetDate,
+          annualRate: Number(goal.annualRate ?? 0),
+          startedAt: goal.createdAt,
+        })
+      : { status: "ON_TRACK" as const },
   );
   const onTrackOrAchieved = goalPlans.filter((p) => p.status === "ON_TRACK" || p.status === "ACHIEVED").length;
   const metas = scoreMetas(onTrackOrAchieved, goals.length);

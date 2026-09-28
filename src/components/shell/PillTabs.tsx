@@ -32,7 +32,9 @@ export function PillTabs({ tabs, fit = false }: { tabs: PillTab[]; fit?: boolean
               // mobile): com 3 rótulos a soma das larguras mínimas ficava no limite dos 375px
               // e estourava em aparelhos de 320-360px.
               className={`whitespace-nowrap rounded-full py-2 text-sm font-medium transition-all duration-300 ${
-                fit ? "min-w-0 flex-1 truncate px-2 text-center sm:px-4" : "px-4"
+                // flex-auto (e não flex-1): cada aba cresce a partir da largura do próprio nome,
+                // então "Foco" cede espaço pra "Visão mensal" em vez de todas terem o mesmo tamanho.
+                fit ? "min-w-0 flex-auto truncate px-2 text-center sm:px-4" : "px-4"
               } ${isActive ? "bg-pill text-on-pill shadow-premium-sm" : "text-ink-muted hover:text-ink"}`}
             >
               {tab.label}

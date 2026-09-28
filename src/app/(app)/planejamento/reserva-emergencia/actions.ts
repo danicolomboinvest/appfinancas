@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getRequiredSession } from "@/lib/auth/session";
-import { upsertEmergencyFund } from "@/lib/repositories/emergency-fund.repo";
+import { alinharReservaComCarteira, upsertEmergencyFund } from "@/lib/repositories/emergency-fund.repo";
 import { emergencyFundSchema } from "@/lib/validations/emergency-fund.schema";
 
 export type EmergencyFundState = { error?: string };
@@ -27,4 +27,14 @@ export async function saveEmergencyFundAction(
   await upsertEmergencyFund(ctx, parsed.data);
   revalidatePath("/planejamento/reserva-emergencia");
   return {};
+}
+
+/** O aviso de "valores diferentes" (tela da reserva × Carteira): fica valendo o da Carteira. */
+export async function usarReservaDaCarteiraAction(): Promise<void> {
+  const ctx = await getRequiredSession();
+  await alinharReservaComCarteira(ctx);
+  revalidatePath("/planejamento/reserva-emergencia");
+  revalidatePath("/carteira", "layout");
+  revalidatePath("/mensal/foco");
+  revalidatePath("/dashboard");
 }

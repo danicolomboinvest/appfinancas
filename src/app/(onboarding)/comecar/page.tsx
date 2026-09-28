@@ -13,7 +13,7 @@ export default async function ComecarPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
   const user = await getOwnUser({ userId: session.user.id, role: session.user.role });
-  if (user.onboardedAt !== null) redirect("/mensal");
+  if (user.onboardedAt !== null) redirect("/mensal/foco");
 
   return (
     <main className="flex min-h-screen items-start justify-center bg-canvas p-6 sm:items-center">

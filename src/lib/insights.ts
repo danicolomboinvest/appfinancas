@@ -1,3 +1,5 @@
+import { nowInBrazil } from "@/lib/date/brazil-now";
+import { listGoalsWithProgress } from "@/lib/repositories/goal.repo";
 import { prisma } from "@/lib/db/prisma";
 import type { AuthContext } from "@/lib/auth/session";
 import { sumExpensesByParentCategory, listBudgets } from "@/lib/repositories/budget.repo";
@@ -56,7 +58,8 @@ const TRAILING_MONTHS_FOR_AVERAGE = 6;
  * carrega uma `category` para permitir agrupar a tela de Análises por domínio.
  */
 export async function computeInsights(ctx: AuthContext, money: MoneyFormatter): Promise<Insight[]> {
-  const now = new Date();
+  // Relógio de Brasília, como o resto do app: às 22h do último dia o mês ainda é este.
+  const now = nowInBrazil();
   const year = now.getFullYear();
   const month = now.getMonth() + 1;
 
@@ -75,7 +78,7 @@ export async function computeInsights(ctx: AuthContext, money: MoneyFormatter): 
     prisma.user.findUnique({ where: { id: ctx.userId } }),
     listBudgets(ctx, year, month),
     sumExpensesByParentCategory(ctx, year, month),
-    prisma.goal.findMany({ where: { userId: ctx.userId, profileId: ctx.profileId } }),
+    listGoalsWithProgress(ctx),
     prisma.emergencyFund.findUnique({ where: { userId: ctx.userId, profileId: ctx.profileId } }),
     getPortfolioStrategyComparison(ctx),
     getPortfolioByObjective(ctx),
@@ -288,16 +291,24 @@ export async function computeInsights(ctx: AuthContext, money: MoneyFormatter): 
 
   // --- Metas ---
 
-  const goalPlans = goals.map((goal) => ({
-    goal,
-    plan: computeGoalPlan({
-      targetAmount: Number(goal.targetAmount),
-      currentAmount: Number(goal.currentAmount),
-      targetDate: goal.targetDate ?? now,
-      annualRate: Number(goal.annualRate ?? 0),
-      startedAt: goal.createdAt,
-    }),
-  }));
+  // Progresso real (ativos + aportes), como em Metas e no Foco; meta sem data não entra no
+  // "atrasada".
+  const goalPlans = goals.flatMap((goal) =>
+    goal.targetDate
+      ? [
+          {
+            goal,
+            plan: computeGoalPlan({
+              targetAmount: Number(goal.targetAmount),
+              currentAmount: goal.computedCurrentAmount,
+              targetDate: goal.targetDate,
+              annualRate: Number(goal.annualRate ?? 0),
+              startedAt: goal.createdAt,
+            }),
+          },
+        ]
+      : [],
+  );
 
   const goalsHref = "/planejamento/metas";
 

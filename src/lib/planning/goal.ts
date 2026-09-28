@@ -105,6 +105,20 @@ export function computeGoalPlan(input: GoalCalcInput): GoalCalcResult {
   }
 
   const futureValueOfSaved = fv(monthlyRate, monthsRemaining, 0, input.currentAmount);
+  // Só o rendimento do que já está guardado chega no alvo até o prazo: não falta nada por mês, e
+  // "atrasada" com um aporte negativo ("precisa de −R$ 31 por mês") não faz sentido.
+  if (futureValueOfSaved.gte(input.targetAmount)) {
+    return {
+      monthsRemaining,
+      timeElapsed,
+      progress,
+      monthlyRate: monthlyRate.toNumber(),
+      futureValueOfSaved: futureValueOfSaved.toNumber(),
+      amountMissing: 0,
+      requiredMonthlyContribution: 0,
+      status: "ON_TRACK",
+    };
+  }
   const amountMissing = new Decimal(input.targetAmount).minus(futureValueOfSaved);
   const requiredMonthlyContribution = pmt(monthlyRate, monthsRemaining, input.currentAmount, input.targetAmount, 1);
 

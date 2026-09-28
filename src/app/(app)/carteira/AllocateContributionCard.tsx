@@ -34,8 +34,11 @@ export function AllocateContributionCard({
   pending,
   assets,
   goalOfMonth,
+  mesPassado = false,
 }: {
   month: number;
+  /** O card é do mês passado (a sobra do fechamento): a distribuição vai pra aquele mês. */
+  mesPassado?: boolean;
   pending: number;
   assets: AllocatableAsset[];
   /** Meta que a pessoa escolheu ao lançar o aporte, se escolheu. */
@@ -149,6 +152,7 @@ export function AllocateContributionCard({
                 Object.entries(valores)
                   .filter(([, v]) => v > 0)
                   .map(([assetId, amount]) => ({ assetId, amount })),
+                mesPassado,
               );
               if (!res.ok) {
                 showToast(res.error);

@@ -1,3 +1,4 @@
+import { nowInBrazil } from "@/lib/date/brazil-now";
 import Link from "next/link";
 import type { AuthContext } from "@/lib/auth/session";
 import { listBudgets, sumExpensesByParentCategory, sumExpensesByCustomCategory } from "@/lib/repositories/budget.repo";
@@ -65,7 +66,7 @@ export async function BudgetSection({
   }
 
   const rows = buildBudgetBullets(comparison.categories, {
-    paceRatio: elapsedRatioOfMonth(new Date(), year, month),
+    paceRatio: elapsedRatioOfMonth(nowInBrazil(), year, month),
     money,
     labelFor: (key) => (isParentCategoryKey(key) ? categoryLabel(ctx.profileKind, key) : (customLabels.get(key) ?? "Categoria personalizada")),
     colorFor: (key) => colorForCategorySlice(isParentCategoryKey(key) ? { kind: "parent", value: key } : { kind: "custom", value: key }),
@@ -79,7 +80,7 @@ export async function BudgetSection({
   return (
     <Section
       title={titulo}
-      hint={totalIncome > 0 ? `${formatPercentNumber(committed * 100, 1)} da renda comprometida. O tracinho é onde o mês está.` : "O tracinho é onde o mês está."}
+      hint={totalIncome > 0 ? `${formatPercentNumber(committed * 100, 1)} da renda do mês já gasto. O tracinho é onde o mês está.` : "O tracinho é onde o mês está."}
       action={
         <Link href={`/orcamento/${year}`} className="text-sm font-medium text-accent-strong hover:underline">
           {comparison.totalPlanned > 0 ? "Ajustar plano →" : "Montar meu orçamento →"}

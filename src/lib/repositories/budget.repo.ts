@@ -114,7 +114,7 @@ export async function applyBudgetToWholeYearForCustomCategory(
  * plano anual.
  */
 export async function getAnnualBudgetPlan(ctx: AuthContext, year: number): Promise<Record<ParentCategory, number>> {
-  const now = new Date();
+  const now = nowInBrazil();
   const referenceMonth = year === now.getFullYear() ? now.getMonth() + 1 : 1;
   const budgets = await prisma.budget.findMany({
     where: { userId: ctx.userId, profileId: ctx.profileId, year, month: referenceMonth, parentCategory: { not: null } },
@@ -133,7 +133,7 @@ export async function getAnnualBudgetPlanForCustomCategories(
   customCategoryIds: string[],
 ): Promise<Record<string, number>> {
   if (customCategoryIds.length === 0) return {};
-  const now = new Date();
+  const now = nowInBrazil();
   const referenceMonth = year === now.getFullYear() ? now.getMonth() + 1 : 1;
   const budgets = await prisma.budget.findMany({
     where: { userId: ctx.userId, profileId: ctx.profileId, year, month: referenceMonth, customCategoryId: { in: customCategoryIds } },

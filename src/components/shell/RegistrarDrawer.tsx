@@ -4,8 +4,9 @@ import type { ProfileKind } from "@prisma/client";
 
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronLeft, FileUp, Keyboard, Mic } from "lucide-react";
+import { ChevronLeft, FileUp, Keyboard, Mic, ShoppingBag } from "lucide-react";
 import type { ParentCategory } from "@prisma/client";
 import { Modal } from "@/components/ui/Modal";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
@@ -17,6 +18,7 @@ import { VoiceRecorder } from "@/app/(app)/mensal/VoiceRecorder";
 import { StatementImport } from "@/components/import/StatementImport";
 import type { ParsedVoiceEntry } from "@/lib/entries/voice-expense-parser";
 import { trackEvent } from "@/lib/usage/track-event";
+import { ehEmpresa } from "@/lib/profiles/empresa";
 
 type Mode = "choice" | "type" | "voice" | "import";
 
@@ -85,6 +87,26 @@ export function RegistrarDrawer({
 
       {mode === "choice" && (
         <div className="grid grid-cols-2 gap-3">
+          {/* Antes de registrar, decidir: a única hora em que dá pra mudar o resultado do mês é
+              antes de passar o cartão. */}
+          {!ehEmpresa(kind) && (
+          <Link
+            href="/decidir/comprar"
+            onClick={() => {
+              trackEvent("posso_comprar", "/registrar");
+              onClose();
+            }}
+            className="col-span-2 flex items-center gap-3 rounded-2xl border border-border bg-surface px-4 py-4 text-left transition-all hover:border-border-strong hover:bg-surface-hover active:scale-[0.98]"
+          >
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent text-on-accent">
+              <ShoppingBag size={20} strokeWidth={1.75} />
+            </span>
+            <span>
+              <span className="block text-sm font-semibold text-ink">{voz.titulos.compraTitulo}</span>
+              <span className="block text-caption text-ink-muted">Antes de passar o cartão</span>
+            </span>
+          </Link>
+          )}
           <button
             type="button"
             onClick={() => {

@@ -289,7 +289,7 @@ export const PADRAO_IMPORTACAO: TextosImportacao = {
   impImportando: "Importando...",
   impImportarN: (n) => `Importar ${n} lançamento${s(n)}`,
   // Extrato/fatura: pronto
-  impImportadosSucesso: (n) => `${n} lançamentos importados com sucesso.`,
+  impImportadosSucesso: (n) => `${n === 1 ? "1 lançamento importado" : `${n} lançamentos importados`} com sucesso.`,
   impToastImportados: (n) => `${n} lançamentos importados`,
   impToastJaExistiam: (n) => `${n} já existiam (ignorados)`,
   impPagamentoFatura: (n) =>

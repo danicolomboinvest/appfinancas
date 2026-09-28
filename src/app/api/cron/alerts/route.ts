@@ -54,8 +54,10 @@ export async function GET(request: Request) {
 
     if (user.notifyBudgetAlerts) {
       const [budgets, spent] = await Promise.all([
-        prisma.budget.findMany({ where: { userId: user.id, year, month, parentCategory: { not: null } }, select: { parentCategory: true, plannedAmount: true } }),
-        prisma.monthlyEntry.groupBy({ by: ["parentCategory"], where: { userId: user.id, year, month, category: "EXPENSE", parentCategory: { not: null } }, _sum: { amount: true } }),
+        // Só o perfil ativo: somar Pessoal + Casal + Empresa mandava "Alimentação estourou" com
+        // um número que não aparece em nenhuma tela.
+        prisma.budget.findMany({ where: { userId: user.id, profileId: perfil.id, year, month, parentCategory: { not: null } }, select: { parentCategory: true, plannedAmount: true } }),
+        prisma.monthlyEntry.groupBy({ by: ["parentCategory"], where: { userId: user.id, profileId: perfil.id, year, month, category: "EXPENSE", parentCategory: { not: null } }, _sum: { amount: true } }),
       ]);
       alerts.push(
         ...buildBudgetAlerts({
@@ -75,9 +77,11 @@ export async function GET(request: Request) {
         ...buildGoalAlerts({
           year,
           month,
-          goals: goals.map((g) => {
-            const plan = computeGoalPlan({ targetAmount: Number(g.targetAmount), currentAmount: g.computedCurrentAmount, targetDate: g.targetDate ?? now, annualRate: Number(g.annualRate ?? 0), startedAt: g.createdAt });
-            return { id: g.id, name: g.name, behind: plan.status === "BEHIND", monthly: plan.requiredMonthlyContribution };
+          // Meta sem data não tem "atrasada" (o mesmo critério do Foco): fica fora do aviso.
+          goals: goals.flatMap((g) => {
+            if (!g.targetDate) return [];
+            const plan = computeGoalPlan({ targetAmount: Number(g.targetAmount), currentAmount: g.computedCurrentAmount, targetDate: g.targetDate, annualRate: Number(g.annualRate ?? 0), startedAt: g.createdAt });
+            return [{ id: g.id, name: g.name, behind: plan.status === "BEHIND", monthly: plan.requiredMonthlyContribution }];
           }),
           money: (v) => money(v, { round: true }),
         }),

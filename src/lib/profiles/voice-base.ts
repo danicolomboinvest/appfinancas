@@ -16,6 +16,7 @@ import { type TextosCarteira, PADRAO_CARTEIRA } from "./textos/carteira";
 import { type TextosCasal, PADRAO_CASAL } from "./textos/casal";
 import { type TextosInvestirEmpresa, PADRAO_INVESTIR } from "./textos/investir";
 import { type TextosEmail, PADRAO_EMAIL } from "./textos/email";
+import { type TextosFoco, PADRAO_FOCO } from "./textos/foco";
 
 export type Estado = "bom" | "normal" | "ruim" | "vazio";
 export type Periodo = "manha" | "tarde" | "noite";
@@ -93,6 +94,8 @@ export type Voz = {
   nav: {
     /** A aba de metas na barra de baixo e no menu: "Metas", "Missões", "Sonhos". */
     metas: string;
+    /** A primeira aba do Fluxo, a que abre o app: "Foco", "Objetivo", "Intenção". */
+    foco?: string;
     /** As três abas do Fluxo: visão mensal, só gastos, orçamento. */
     flowTabs: [string, string, string];
     /** A aba de carteira na barra de baixo. Só a Empresa muda ("Caixa"). */
@@ -462,7 +465,8 @@ export type Titulos = TitulosBase &
   TextosCarteira &
   TextosCasal &
   TextosInvestirEmpresa &
-  TextosEmail;
+  TextosEmail &
+  TextosFoco;
 
 export const TITULOS_PADRAO: Titulos = {
   ...TITULOS_BASE,
@@ -475,6 +479,7 @@ export const TITULOS_PADRAO: Titulos = {
   ...PADRAO_CASAL,
   ...PADRAO_INVESTIR,
   ...PADRAO_EMAIL,
+  ...PADRAO_FOCO,
 };
 
 /** Um mapa por rota vira a função de simulador de um tema; sem entrada, fica o Padrão. */

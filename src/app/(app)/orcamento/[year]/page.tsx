@@ -1,3 +1,4 @@
+import { nowInBrazil } from "@/lib/date/brazil-now";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -41,7 +42,7 @@ import { resumoDoMes } from "@/lib/planning/month-budget-summary";
 import { ResumoDoMesCard } from "@/components/budget/ResumoDoMesCard";
 import { vozDoTema } from "@/lib/profiles/voice";
 import { AtualizarMesButton } from "@/components/budget/AtualizarMesButton";
-import { getLastExpenseDate } from "@/lib/repositories/monthly-entry.repo";
+import { getUltimoGastoAte } from "@/lib/repositories/monthly-entry.repo";
 
 const MONTH_LABELS = [
   "Janeiro",
@@ -70,7 +71,7 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
   }
   const ctx = await getRequiredSession();
   const voz = vozDoTema(ctx.profileTheme, ctx.profileKind);
-  const agora = new Date();
+  const agora = nowInBrazil();
   // Uma consulta a mais na página já custou caro antes: vai junto das outras, não em fila.
   const [comparison, customCategories, plan, annualPlan, monthSummary, hints, savingsTargets] = await Promise.all([
     getAnnualPlannedVsActual(ctx, year),
@@ -106,14 +107,17 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
     );
   }
 
-  const now = new Date();
+  // Relógio de Brasília, igual ao Foco e ao /mensal: às 22h do dia 30 o mês ainda é este.
+  const now = nowInBrazil();
   const isCurrentYear = year === now.getFullYear();
   const currentMonthData = isCurrentYear ? comparison.months.find((m) => m.month === now.getMonth() + 1) : undefined;
 
   // O resumo que abre a página. Só do mês corrente: "quanto posso gastar por dia" não existe
   // pra um mês que já acabou, e é justamente essa conta que faz o cartão valer a tela.
   const ultimoGasto =
-    currentMonthData && isCurrentYear ? await getLastExpenseDate(ctx, year, currentMonthData.month) : null;
+    // A mesma "última data de gasto" do Foco: conta fixa pré-lançada (o aluguel do dia 25) não
+    // conta como dado novo, senão uma tela dizia "atualizado" e a outra "dados velhos".
+    currentMonthData && isCurrentYear ? await getUltimoGastoAte(ctx, new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()))) : null;
   const resumoMes =
     currentMonthData && isCurrentYear
       ? resumoDoMes({

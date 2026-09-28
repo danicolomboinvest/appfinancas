@@ -84,6 +84,7 @@ export function StatementImport({
   const [items, setItems] = useState<ReviewItem[]>([]);
   const [reviewIdx, setReviewIdx] = useState(0);
   const [createdCount, setCreatedCount] = useState(0);
+  const [skippedCount, setSkippedCount] = useState(0);
   const [docType, setDocType] = useState<"extrato" | "fatura">("extrato");
   // Mês/ano de destino da FATURA (todas as compras entram nesse mês, escolhido por quem importa
   // — não no mês de cada compra, que fica espalhado pelo período de fechamento da fatura).
@@ -168,7 +169,8 @@ export function StatementImport({
       setCustomCategories(result.customCategories);
       setReviewIdx(0);
       // Se nada precisa de revisão, pula direto pra confirmação.
-      const pendentes = result.items.filter((it) => it.category === "EXPENSE" && !it.parentCategory && !it.customCategoryId);
+      // O que é dúvida (dinheiro dela mesma) ou fica de fora não pede categoria agora.
+      const pendentes = result.items.filter((it) => it.category === "EXPENSE" && !it.parentCategory && !it.customCategoryId && !it.ignorar && !it.duvida);
       setReviewKeys(pendentes.map((it) => it.key));
       setPhase(pendentes.length > 0 ? "review" : "confirm");
     });
@@ -234,19 +236,42 @@ export function StatementImport({
   /** Muda o TIPO do lançamento (Gasto/Renda/Aporte) — pro Pix que a pessoa manda pra ela mesma
    * pra investir, por exemplo: o sinal do extrato só sabe "saiu da conta", não sabe que virou
    * aporte. Categoria/personalizada só fazem sentido em Gasto, então saem ao trocar pra outro tipo. */
-  function toggleType(itemKey: number, tipo: EntryType) {
+  function toggleType(itemKey: number, tipo: EntryType | "ESTORNO") {
     setItems((prev) =>
-      prev.map((it) =>
-        it.key === itemKey
-          ? { ...it, category: tipo, ...(tipo === "EXPENSE" ? {} : { parentCategory: null, customCategoryId: null }) }
-          : it,
-      ),
+      prev.map((it) => {
+        if (it.key !== itemKey) return it;
+        // Estorno = gasto que voltou: fica como gasto (negativo) e precisa de categoria pra
+        // descontar da compra; sem uma, vai pra Outros.
+        if (tipo === "ESTORNO") return { ...it, category: "EXPENSE", estorno: true, parentCategory: it.parentCategory ?? (it.customCategoryId ? null : "OUTROS") };
+        return { ...it, category: tipo, estorno: false, ...(tipo === "EXPENSE" ? {} : { parentCategory: null, customCategoryId: null }) };
+      }),
     );
+  }
+
+  /**
+   * Dinheiro dela mesma: "gasto" (categoria depois), "guardei" (aporte), "renda", ou "mudei"
+   * (só passou de uma conta pra outra, ou voltou da aplicação: fica de fora).
+   */
+  function responderDinheiroProprio(itemKey: number, resposta: "gasto" | "guardei" | "renda" | "mudei") {
+    setItems((prev) =>
+      prev.map((it) => {
+        if (it.key !== itemKey) return it;
+        if (resposta === "gasto") return { ...it, category: "EXPENSE", duvida: null };
+        if (resposta === "guardei") return { ...it, category: "INVESTMENT_CONTRIBUTION", parentCategory: null, customCategoryId: null, duvida: null };
+        if (resposta === "renda") return { ...it, category: "INCOME", parentCategory: null, customCategoryId: null, duvida: null };
+        return { ...it, ignorar: true, duvida: null, nota: "Dinheiro seu mudando de lugar: fica de fora." };
+      }),
+    );
+  }
+
+  /** "É o mesmo que eu lancei à mão?": sim tira da importação; não, importa normalmente. */
+  function responderDuplicata(itemKey: number, mesmo: boolean) {
+    setItems((prev) => (mesmo ? prev.filter((it) => it.key !== itemKey) : prev.map((it) => (it.key === itemKey ? { ...it, possivelDuplicata: null } : it))));
   }
 
   function handleImport() {
     const confirmed: ConfirmedItem[] = items
-      .filter((it) => it.category === "INCOME" || it.category === "INVESTMENT_CONTRIBUTION" || it.parentCategory || it.customCategoryId) // pula gastos ainda sem categoria
+      .filter((it) => !it.ignorar && (it.category === "INCOME" || it.category === "INVESTMENT_CONTRIBUTION" || it.parentCategory || it.customCategoryId)) // pula gastos ainda sem categoria
       .map((it) => ({
         date: it.date,
         description: it.description,
@@ -259,6 +284,7 @@ export function StatementImport({
         learn: !it.autoClassified,
         installment: it.installment,
         profileId: it.profileId,
+        estorno: it.estorno ?? false,
       }));
     const [targetYear, targetMonth] = docType === "fatura" ? faturaMonth.split("-").map(Number) : [undefined, undefined];
     startTransition(async () => {
@@ -275,6 +301,7 @@ export function StatementImport({
         return;
       }
       setCreatedCount(result.created);
+      setSkippedCount(result.skipped);
       setCardPaymentCandidates(result.cardPaymentCandidates);
       setPhase("done");
       const parts = [t.impToastImportados(result.created)];
@@ -561,17 +588,23 @@ export function StatementImport({
 
   // --- CONFIRM ---
   if (phase === "confirm") {
-    const importable = items.filter((it) => it.category === "INCOME" || it.category === "INVESTMENT_CONTRIBUTION" || it.parentCategory || it.customCategoryId);
+    const importable = items.filter((it) => !it.ignorar && (it.category === "INCOME" || it.category === "INVESTMENT_CONTRIBUTION" || it.parentCategory || it.customCategoryId));
     // Gastos que ficaram sem categoria (pulados na revisão) NÃO entram. Antes sumiam calados:
     // o botão dizia "Importar 12" e 3 gastos simplesmente não existiam depois.
-    const semCategoria = items.filter((it) => it.category === "EXPENSE" && !it.parentCategory && !it.customCategoryId);
+    // O que ainda é dúvida (dinheiro dela mesma) ou fica de fora não é "gasto sem categoria".
+    const semCategoria = items.filter((it) => it.category === "EXPENSE" && !it.parentCategory && !it.customCategoryId && !it.ignorar && !it.duvida);
     const customName = (id: string) => customCategories.find((c) => c.id === id)?.name ?? "Personalizada";
     // Repetidos dentro do arquivo: mesma data, valor e descrição mais de uma vez. Pode ser real
     // (dois Uber no mesmo dia) ou não; a pessoa decide com um toque, em vez de descobrir depois.
     const repeatGroups = new Map<string, ReviewItem[]>();
     for (const it of items) if (it.fileRepeat) repeatGroups.set(it.fileRepeat.key, [...(repeatGroups.get(it.fileRepeat.key) ?? []), it]);
-    const sumImportable = importable.reduce((s, it) => s + (it.category === "INCOME" ? it.amount : -it.amount), 0);
-    const expenseSum = importable.filter((it) => it.category === "EXPENSE").reduce((s, it) => s + it.amount, 0);
+    const sumImportable = importable.reduce((s, it) => s + (it.category === "INCOME" || it.estorno ? it.amount : -it.amount), 0);
+    const expenseSum = importable.filter((it) => it.category === "EXPENSE").reduce((s, it) => s + (it.estorno ? -it.amount : it.amount), 0);
+    // Parece com algo que a pessoa já lançou à mão: precisa de resposta antes de importar.
+    const duvidas = items.filter((it) => it.possivelDuplicata && !it.ignorar);
+    // Dinheiro que pode ser dela mesma (conta própria, resgate): também precisa de resposta.
+    const duvidasDinheiro = items.filter((it) => it.duvida && !it.ignorar);
+    const deFora = items.filter((it) => it.ignorar);
     const lowCoverage = stats ? stats.moneyLines > 0 && stats.parsed < stats.moneyLines * 0.5 && stats.moneyLines - stats.parsed >= 3 : false;
     const totalGap = stats?.invoiceTotal ? Math.round((stats.invoiceTotal - expenseSum) * 100) / 100 : 0;
     return (
@@ -645,6 +678,98 @@ export function StatementImport({
           )}
         </div>
 
+        {duvidasDinheiro.length > 0 && (
+          <div className="flex flex-col gap-2 rounded-xl border border-accent/40 bg-accent-soft/40 px-4 py-3">
+            <p className="text-sm font-semibold text-ink">Isso é gasto ou dinheiro seu mudando de lugar?</p>
+            <p className="text-caption text-ink-muted">Transferência pra você mesma e dinheiro voltando da aplicação não são gasto nem renda.</p>
+            <ul className="flex flex-col gap-2">
+              {duvidasDinheiro.map((it) => (
+                <li key={it.key} className="flex flex-col gap-1.5 border-t border-border/60 pt-2 first:border-t-0 first:pt-0">
+                  <span className="text-sm text-ink">
+                    <b>{it.description}</b> · {it.category === "INCOME" ? "+" : "−"} {money(it.amount)} · {formatDate(it.date)}
+                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    {it.category === "EXPENSE" ? (
+                      <>
+                        <button type="button" onClick={() => responderDinheiroProprio(it.key, "guardei")} className="rounded-full bg-pill px-3 py-1 text-xs font-semibold text-on-pill">
+                          Guardei (aplicação)
+                        </button>
+                        <button type="button" onClick={() => responderDinheiroProprio(it.key, "mudei")} className="rounded-full border border-border-strong bg-surface px-3 py-1 text-xs font-medium text-ink-muted hover:text-ink">
+                          Só mudei de conta
+                        </button>
+                        <button type="button" onClick={() => responderDinheiroProprio(it.key, "gasto")} className="rounded-full border border-border-strong bg-surface px-3 py-1 text-xs font-medium text-ink-muted hover:text-ink">
+                          Foi gasto
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button type="button" onClick={() => responderDinheiroProprio(it.key, "mudei")} className="rounded-full bg-pill px-3 py-1 text-xs font-semibold text-on-pill">
+                          {it.duvida === "resgate" ? "Voltou da aplicação (não conta)" : "Só mudei de conta"}
+                        </button>
+                        <button type="button" onClick={() => responderDinheiroProprio(it.key, "renda")} className="rounded-full border border-border-strong bg-surface px-3 py-1 text-xs font-medium text-ink-muted hover:text-ink">
+                          É renda
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {deFora.length > 0 && (
+          <div className="flex flex-col gap-2 rounded-xl border border-border bg-surface-2 px-4 py-3">
+            <p className="text-sm font-semibold text-ink">{deFora.length === 1 ? "1 lançamento fica de fora" : `${deFora.length} lançamentos ficam de fora`}</p>
+            <ul className="flex flex-col gap-2">
+              {deFora.map((it) => (
+                <li key={it.key} className="flex flex-col gap-1">
+                  <span className="text-sm text-ink">
+                    {it.description} · {money(it.amount)} · {formatDate(it.date)}
+                  </span>
+                  {it.nota && <span className="text-caption text-ink-muted">{it.nota}</span>}
+                  <button
+                    type="button"
+                    onClick={() => setItems((prev) => prev.map((x) => (x.key === it.key ? { ...x, ignorar: false, nota: null } : x)))}
+                    className="w-fit text-xs font-medium text-accent-strong hover:underline"
+                  >
+                    Contar mesmo assim
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {duvidas.length > 0 && (
+          <div className="flex flex-col gap-2 rounded-xl border border-accent/40 bg-accent-soft/40 px-4 py-3">
+            <p className="text-sm font-semibold text-ink">
+              {duvidas.length === 1 ? "1 lançamento parece com um que você já lançou à mão" : `${duvidas.length} lançamentos parecem com alguns que você já lançou à mão`}
+            </p>
+            <p className="text-caption text-ink-muted">Mesmo valor e data perto. Se for o mesmo, eu não importo de novo.</p>
+            <ul className="flex flex-col gap-2">
+              {duvidas.map((it) => (
+                <li key={it.key} className="flex flex-col gap-1.5 border-t border-border/60 pt-2 first:border-t-0 first:pt-0">
+                  <span className="text-sm text-ink">
+                    <b>{it.description}</b> · {money(it.amount)} · {formatDate(it.date)}
+                  </span>
+                  <span className="text-caption text-ink-muted">
+                    Você lançou: &ldquo;{it.possivelDuplicata!.descricao}&rdquo;{it.possivelDuplicata!.data ? ` em ${formatDate(it.possivelDuplicata!.data)}` : " no mesmo mês"}
+                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    <button type="button" onClick={() => responderDuplicata(it.key, true)} className="rounded-full bg-pill px-3 py-1 text-xs font-semibold text-on-pill">
+                      É o mesmo, não importar
+                    </button>
+                    <button type="button" onClick={() => responderDuplicata(it.key, false)} className="rounded-full border border-border-strong bg-surface px-3 py-1 text-xs font-medium text-ink-muted hover:text-ink">
+                      São diferentes
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {repeatGroups.size > 0 && (
           <div className="flex flex-col gap-2 rounded-xl border border-accent/40 bg-accent-soft/40 px-4 py-3">
             <p className="text-sm font-semibold text-ink">{t.impRepetidos}</p>
@@ -674,8 +799,10 @@ export function StatementImport({
             <li key={it.key} className="flex items-center justify-between gap-2 px-3 py-2">
               <div className="min-w-0">
                 <p className="truncate text-sm text-ink">{it.description}</p>
+                {it.nota && <p className="text-caption text-accent-strong">{it.nota}</p>}
                 <p className="text-caption text-ink-faint">
                   {formatDate(it.date)} ·{" "}
+                  {it.estorno && "Estorno · "}
                   {it.category === "INCOME"
                     ? t.impRotuloRenda
                     : it.category === "INVESTMENT_CONTRIBUTION"
@@ -689,20 +816,21 @@ export function StatementImport({
                 {/* Troca o TIPO do lançamento (Gasto/Renda/Aporte) — o Pix pra você mesma
                     investir cai como gasto pelo sinal, e só a pessoa sabe que era aporte. */}
                 <div className="mt-1 flex flex-wrap gap-1">
-                  {(["EXPENSE", "INCOME", "INVESTMENT_CONTRIBUTION"] as const).map((tipo) => (
-                    <button
-                      key={tipo}
-                      type="button"
-                      onClick={() => toggleType(it.key, tipo)}
-                      className={`rounded-full border px-2 py-0.5 text-[11px] font-medium transition-colors ${
-                        it.category === tipo
-                          ? "border-accent bg-accent-soft text-accent-strong"
-                          : "border-border-strong bg-surface text-ink-faint hover:text-ink"
-                      }`}
-                    >
-                      {tipo === "EXPENSE" ? t.uiTipoGasto : tipo === "INCOME" ? t.uiTipoRenda : t.uiTipoAporte}
-                    </button>
-                  ))}
+                  {(["EXPENSE", "INCOME", "INVESTMENT_CONTRIBUTION", "ESTORNO"] as const).map((tipo) => {
+                    const ativo = tipo === "ESTORNO" ? Boolean(it.estorno) : it.category === tipo && !it.estorno;
+                    return (
+                      <button
+                        key={tipo}
+                        type="button"
+                        onClick={() => toggleType(it.key, tipo)}
+                        className={`rounded-full border px-2 py-0.5 text-[11px] font-medium transition-colors ${
+                          ativo ? "border-accent bg-accent-soft text-accent-strong" : "border-border-strong bg-surface text-ink-faint hover:text-ink"
+                        }`}
+                      >
+                        {tipo === "EXPENSE" ? t.uiTipoGasto : tipo === "INCOME" ? t.uiTipoRenda : tipo === "INVESTMENT_CONTRIBUTION" ? t.uiTipoAporte : "Estorno"}
+                      </button>
+                    );
+                  })}
                 </div>
                 {/* Manda essa linha pra OUTRO perfil do usuário — compra da Empresa que caiu no
                     cartão Pessoal, por exemplo. Só aparece pra quem tem mais de um perfil. */}
@@ -727,15 +855,16 @@ export function StatementImport({
               </div>
               <span
                 className={`shrink-0 text-sm font-medium tabular-nums ${
-                  it.category === "INCOME" ? "text-success" : it.category === "INVESTMENT_CONTRIBUTION" ? "text-accent-strong" : "text-danger"
+                  it.category === "INCOME" || it.estorno ? "text-success" : it.category === "INVESTMENT_CONTRIBUTION" ? "text-accent-strong" : "text-danger"
                 }`}
               >
-                {it.category === "INCOME" ? "+" : "−"} {money(it.amount)}
+                {it.category === "INCOME" || it.estorno ? "+" : "−"} {money(it.amount)}
               </span>
             </li>
           ))}
         </ul>
-        <Button type="button" onClick={handleImport} disabled={isPending || importable.length === 0}>
+        {duvidas.length + duvidasDinheiro.length > 0 && <p className="text-center text-caption text-ink-muted">Responda as dúvidas acima pra importar.</p>}
+        <Button type="button" onClick={handleImport} disabled={isPending || importable.length === 0 || duvidas.length + duvidasDinheiro.length > 0}>
           {isPending ? t.impImportando : t.impImportarN(importable.length)}
           <ArrowRight size={16} className="ml-1.5" />
         </Button>
@@ -749,7 +878,13 @@ export function StatementImport({
       <span className="flex h-14 w-14 items-center justify-center rounded-full bg-success-soft text-success">
         <Check size={28} strokeWidth={2} />
       </span>
-      <p className="text-sm font-medium text-ink">{t.impImportadosSucesso(createdCount)}</p>
+      <p className="text-sm font-medium text-ink">
+        {/* Extrato subido de novo: nada entrou porque tudo já estava lá. Dizer "0 importados com
+            sucesso" parecia erro. */}
+        {createdCount === 0 && skippedCount > 0
+          ? `Nada novo: ${skippedCount === 1 ? "esse lançamento já estava" : `os ${skippedCount} lançamentos já estavam`} no app, então não dupliquei.`
+          : t.impImportadosSucesso(createdCount)}
+      </p>
 
       {/* Candidatos a "pagamento desta fatura" já lançados no extrato: a pessoa decide, nunca
           removemos sozinhos (fatura raramente é paga por inteiro, o valor quase nunca bate

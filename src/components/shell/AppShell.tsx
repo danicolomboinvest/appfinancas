@@ -197,10 +197,14 @@ export function AppShell({
   );
 }
 
-/** As três abas do Fluxo com o nome que o tema dá a elas ("Resultado · Gastos · Missões" no Game). */
+/** As abas do Fluxo com o nome que o tema dá a elas ("Objetivo · Mensal · Gastos · Missões" no Game). */
 function FlowTabsDoTema() {
   const { voz } = useProfileTheme();
-  const tabs = FLOW_TABS.map((tab, i) => ({ ...tab, label: voz.nav.flowTabs[i] ?? tab.label }));
+  const [foco, ...resto] = FLOW_TABS;
+  const tabs = [
+    { ...foco, label: voz.nav.foco ?? voz.titulos.focoTitulo },
+    ...resto.map((tab, i) => ({ ...tab, label: voz.nav.flowTabs[i] ?? tab.label })),
+  ];
   return <PillTabs tabs={tabs} fit />;
 }
 

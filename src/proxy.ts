@@ -13,7 +13,7 @@ export default auth((req) => {
   }
 
   if (req.auth && isPublicPath) {
-    return NextResponse.redirect(new URL("/mensal", req.nextUrl.origin));
+    return NextResponse.redirect(new URL("/mensal/foco", req.nextUrl.origin));
   }
 
   return NextResponse.next();

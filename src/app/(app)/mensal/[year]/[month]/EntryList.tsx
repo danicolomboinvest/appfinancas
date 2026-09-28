@@ -249,8 +249,9 @@ export function EntryList({
             </span>
           </span>
           <span className="flex shrink-0 flex-col items-end">
-            <span className={`text-[15px] font-semibold tabular-nums ${CATEGORY_AMOUNT_CLASS[entry.category]}`}>
-              {money(entry.amount)}
+            {/* Estorno: gasto negativo, dinheiro de uma compra que voltou. */}
+            <span className={`text-[15px] font-semibold tabular-nums ${entry.category === "EXPENSE" && entry.amount < 0 ? "text-success" : CATEGORY_AMOUNT_CLASS[entry.category]}`}>
+              {entry.category === "EXPENSE" && entry.amount < 0 ? `Estorno +${money(Math.abs(entry.amount))}` : money(entry.amount)}
             </span>
             {entry.originalLabel && <span className="text-[11px] tabular-nums text-ink-faint">{entry.originalLabel}</span>}
           </span>
@@ -413,8 +414,8 @@ export function EntryList({
                 </p>
               </div>
               <div className="shrink-0 text-right">
-                <p className={`text-xl font-semibold tabular-nums ${CATEGORY_AMOUNT_CLASS[open.category]}`}>
-                  {money(open.amount)}
+                <p className={`text-xl font-semibold tabular-nums ${open.category === "EXPENSE" && open.amount < 0 ? "text-success" : CATEGORY_AMOUNT_CLASS[open.category]}`}>
+                  {open.category === "EXPENSE" && open.amount < 0 ? `Estorno +${money(Math.abs(open.amount))}` : money(open.amount)}
                 </p>
                 {open.originalLabel && open.exchangeRate && (
                   <p className="text-xs tabular-nums text-ink-faint">
@@ -465,7 +466,7 @@ export function EntryList({
             layout="stacked"
             onSuccess={() => setEditingId(null)}
             defaultDescription={editing.description ?? undefined}
-            defaultAmount={editing.originalCurrency ? (editing.originalAmount ?? editing.amount) : editing.amount}
+            defaultAmount={Math.abs(editing.originalCurrency ? (editing.originalAmount ?? editing.amount) : editing.amount)}
             defaultCurrency={editing.originalCurrency ?? undefined}
             defaultExchangeRate={editing.exchangeRate ?? undefined}
             defaultCategory={editing.category}

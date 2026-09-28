@@ -34,8 +34,6 @@ import { EntryList } from "./EntryList";
 import { ImportHistory } from "./ImportHistory";
 import { listImportBatches } from "@/lib/repositories/import-batch.repo";
 import { MonthlyRecapCard } from "./MonthlyRecapCard";
-import { OnboardingChecklist } from "./OnboardingChecklist";
-import { prisma } from "@/lib/db/prisma";
 import { FlowIndicators, type FlowBundle } from "./FlowIndicators";
 import { BudgetSection } from "../BudgetSection";
 import { MonthHighlight } from "./MonthHighlight";
@@ -115,7 +113,6 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
     goals,
     spentByParent,
     spentByCustom,
-    onboardingCounts,
     recapDismissedMonth,
     importBatches,
     dailyFlow,
@@ -135,12 +132,6 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
     listGoals(ctx),
     sumExpensesByParentCategory(ctx, year, month),
     sumExpensesByCustomCategory(ctx, year, month),
-    // Primeiros passos do onboarding: 1 registro de cada tipo basta pra saber o que falta.
-    Promise.all([
-      prisma.monthlyEntry.count({ where: { userId: ctx.userId, profileId: ctx.profileId }, take: 1 }),
-      prisma.budget.count({ where: { userId: ctx.userId, profileId: ctx.profileId }, take: 1 }),
-      prisma.asset.count({ where: { userId: ctx.userId, profileId: ctx.profileId }, take: 1 }),
-    ]),
     getRecapDismissedMonth(ctx),
     listImportBatches(ctx),
     getDailyFlow(ctx, year, month),
@@ -149,7 +140,6 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
     getMonthlySummary(ctx, month === 1 ? year - 1 : year, month === 1 ? 12 : month - 1),
     getContributionLinkState(ctx, year, month),
   ]);
-  const [entryCount, budgetCount, assetCount] = onboardingCounts;
 
   // Planejamento = soma dos valores planejados (orçamento). Mensal: só o mês; anual: o ano todo.
   const monthlyPlanned = monthBudgets.reduce((sum, b) => sum + Number(b.plannedAmount), 0);
@@ -294,13 +284,13 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
   return (
     <div className="flex flex-col gap-7 lg:gap-5">
 
-      {/* O bloco próprio do tema (ranking, recado, mural, campeão) abre a tela. */}
-      <ThemeHero dados={dadosDoTema} money={money} mesLabel={MONTH_LABELS[month - 1]} />
+      {/* O bloco próprio do tema abre a tela — nos meses passados. O do mês atual mora na aba
+          Foco, junto com o "o que mudou" e o checklist de primeiros passos. */}
+      {!isCurrentMonth && <ThemeHero dados={dadosDoTema} money={money} mesLabel={MONTH_LABELS[month - 1]} />}
 
       <div className={LADO_A_LADO}>
         {paidDividends.length > 0 && <PaidDividendsCard items={paidDividends} titulo={voz.titulos.caiuNaConta} sub={voz.titulos.caiuNaContaSub} />}
 
-        <OnboardingChecklist hasEntry={entryCount > 0} hasBudget={budgetCount > 0} hasAsset={assetCount > 0} />
 
         {isCurrentMonth && recapEligibility.eligible && <MonthlyRecapCard monthKey={recapEligibility.monthKey} />}
       </div>
@@ -323,13 +313,13 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
           ao lado da curva do mês: um terço de texto, dois terços de gráfico. */}
       <div className="contents lg:flex lg:flex-wrap lg:gap-5 [&>*]:lg:min-w-0 [&>*]:lg:grow">
       <div className="contents lg:block lg:basis-[calc(33.333%-0.625rem)]">
-      <MonthHighlight
+      {!isCurrentMonth && <MonthHighlight
         income={summary.totalIncome}
         expense={summary.totalExpense}
         investment={summary.totalInvestment}
         insights={insights}
         titulo={voz.titulos.oQueMudou}
-      />
+      />}
       </div>
 
       {/* O aporte do mês que ainda não virou ativo nenhum. Sem esse aviso, a pessoa lançava o
