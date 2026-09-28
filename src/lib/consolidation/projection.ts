@@ -10,6 +10,7 @@ export type ProjectionInput = {
   monthlyContributionAccumulation: number;
   accumulationAnnualRate: number;
   inflationAnnualRate: number;
+  /** Já acima da inflação (real), como em computeUsufruct: o saldo do usufruto é em dinheiro de hoje. */
   usufructAnnualRate: number;
   desiredPassiveIncome: number;
   otherPassiveIncome: number;

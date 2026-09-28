@@ -125,6 +125,7 @@ export function GoalForm({
         id="currentAmount"
         name="currentAmount"
         defaultValue={defaults.currentAmount ?? 0}
+        hint={t.formMetaJaGuardadoHint}
       />
       <MonthYearField label={t.formMetaMesAno} id="targetDate" name="targetDate" required defaultValue={defaults.targetDate} />
       <PercentField

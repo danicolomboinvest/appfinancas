@@ -120,6 +120,7 @@ export async function createRecurringMonthlyEntries(
     description?: string;
     amount: number;
     entryDate?: Date;
+    goalId?: string;
   },
 ) {
   const refs = await resolveOwnRefs(ctx, ctx.profileId, input);
@@ -131,6 +132,9 @@ export async function createRecurringMonthlyEntries(
     data: months.map((month) => ({
       ...input,
       customCategoryId: refs.customCategoryId,
+      // A meta vinha no ...input direto do formulário, sem passar pela checagem de dono/perfil.
+      // Cada cópia leva a meta, mas só conta nela quando o mês dela chegar (goal.repo).
+      goalId: refs.goalId ?? null,
       month,
       entryDate: input.entryDate ? sameDayInMonth(input.entryDate, input.year, month) : null,
       userId: ctx.userId, profileId: ctx.profileId,

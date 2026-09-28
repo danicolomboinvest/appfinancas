@@ -182,6 +182,15 @@ export function AssetForm({
             className="w-full sm:w-40"
           />
           <input type="hidden" name="investedValue" value={investedFromQty ?? ""} />
+          {/* Na edição o valor atual vem preenchido com o salvo. Mandar o de antes deixa o
+              servidor saber se ela mexeu nele; se não mexeu, vale a cotação de hoje × a
+              quantidade nova, senão mudar a quantidade deixava o valor velho e um prejuízo falso. */}
+          {assetId && (
+            <>
+              <input type="hidden" name="originalCurrentValue" value={defaults.currentValue ?? ""} />
+              <input type="hidden" name="originalQuantity" value={defaults.quantity ?? ""} />
+            </>
+          )}
           <CurrencyField
             label={t.formAtivoValorAtualOpcional}
             id="currentValue"

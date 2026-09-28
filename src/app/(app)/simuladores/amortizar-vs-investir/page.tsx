@@ -84,7 +84,9 @@ export default function AmortizarVsInvestirPage() {
               <OutcomeComparison
                 a={{
                   label: t.simAmortBarraAmortizar,
-                  value: result.interestSavings,
+                  // Na mesma régua do investimento: a economia de juros com as parcelas
+                  // liberadas rendendo até o fim do prazo (ver simulateAmortizeVsInvest).
+                  value: result.amortizeGain,
                   hint: t.simAmortBarraAmortizarHint(String(result.scheduleWithExtra.length)),
                 }}
                 b={{

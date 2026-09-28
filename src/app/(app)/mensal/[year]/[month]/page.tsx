@@ -266,6 +266,7 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
     ? (await listRecentlyPaidDividends(ctx, 10))
         .filter((d) => !d.registered)
         .map((d) => ({
+          id: d.id,
           ticker: d.ticker,
           kind: d.kind,
           paymentDate: d.paymentDate.toISOString().slice(0, 10),

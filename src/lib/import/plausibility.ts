@@ -76,5 +76,18 @@ export function checarPlausibilidade(
     }
   }
 
+  // 4. Extrato com data que o app não entendeu. Cada lançamento entra no mês da própria data;
+  //    sem data legível ele cai no mês ATUAL, e um extrato de julho importado em setembro
+  //    inflava setembro inteiro sem ninguém ver. (Na fatura não importa: o mês é escolhido.)
+  if (docType === "extrato") {
+    const semData = txns.filter((t) => !/^\d{4}-\d{2}-\d{2}$/.test(t.date));
+    if (semData.length > 0) {
+      suspeitas.push({
+        texto: `${semData.length === 1 ? "Um lançamento veio" : `${semData.length} lançamentos vieram`} com uma data que não entendi. ${semData.length === 1 ? "Ele vai" : "Eles vão"} pro mês atual, não pro mês em que aconteceram.`,
+        exemplos: semData.slice(0, 3).map((t) => `${(t.description ?? "").slice(0, 34)} — data "${t.date.slice(0, 20)}"`),
+      });
+    }
+  }
+
   return suspeitas;
 }

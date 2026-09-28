@@ -21,6 +21,19 @@ export function looksLikeMarketTicker(ticker: string): boolean {
   return false;
 }
 
+/**
+ * Provento que dá pra mostrar e lançar como está: só ticker da B3 (PETR4, MXRF11, BOVA11, e
+ * BDR como AAPL34), que paga em real.
+ *
+ * AAPL, VOO e cia. chegam pelas páginas /stocks/ e /etfs-global/ do investidor10 com o valor
+ * em DÓLAR, e o banco não guarda moeda: 50 × 0,27 virava "R$ 13,50" na carteira, no Dashboard
+ * e no "Caiu na conta" (o certo é ~US$ 13,50, uns R$ 70 antes dos 30% retidos nos EUA), e um
+ * toque lançava o número errado como renda do mês. Até existir conversão, esses ficam de fora.
+ */
+export function paysDividendsInReais(ticker: string): boolean {
+  return /^[A-Z]{4}\d{1,2}$/.test(ticker.trim().toUpperCase());
+}
+
 export type DividendRow = {
   kind: string;
   exDate: Date;

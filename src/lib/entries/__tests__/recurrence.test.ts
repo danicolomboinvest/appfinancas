@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { detectRecurring, installmentDescription, parseInstallment, type RecurrenceEntry } from "../recurrence";
+import { detectRecurring, installmentCanonical, installmentDescription, parseInstallment, type RecurrenceEntry } from "../recurrence";
 
 const e = (year: number, month: number, day: number, patch: Partial<RecurrenceEntry> = {}): RecurrenceEntry => ({
   year,
@@ -51,6 +51,24 @@ describe("parseInstallment", () => {
 
   it("rewrites the installment number for the next months", () => {
     expect(installmentDescription("MAGAZINE LUIZA 03/10", 4, 10)).toBe("MAGAZINE LUIZA 04/10");
-    expect(installmentDescription("Parcela 2 de 6 - Notebook", 3, 6)).toBe("Parcela 03 de 6 - Notebook");
+    expect(installmentDescription("Parcela 2 de 6 - Notebook", 3, 6)).toBe("Parcela 3 de 6 - Notebook");
+  });
+
+  it("escreve a parcela seguinte no MESMO formato do banco — senão a fatura do mês que vem não bate e duplica", () => {
+    expect(installmentDescription("NETSHOES PARC 03/06", 4, 6)).toBe("NETSHOES PARC 04/06");
+    expect(installmentDescription("Loja - Parcela 3/6", 4, 6)).toBe("Loja - Parcela 4/6");
+    expect(installmentDescription("LOJA 2 DE 6", 3, 6)).toBe("LOJA 3 DE 6");
+    expect(installmentDescription("PARC 09/12", 10, 12)).toBe("PARC 10/12");
+    expect(installmentDescription("Loja Parcela 9/12", 10, 12)).toBe("Loja Parcela 10/12");
+  });
+
+  it("installmentCanonical: mesma parcela escrita de jeitos diferentes vira a mesma coisa", () => {
+    // "PARC 04/6" é como versões antigas do app gravavam; "PARC 04/06" é como o banco imprime.
+    expect(installmentCanonical("NETSHOES PARC 04/06")).toBe("NETSHOES PARC 4/6");
+    expect(installmentCanonical("NETSHOES PARC 04/6")).toBe(installmentCanonical("NETSHOES PARC 4/6"));
+    expect(installmentCanonical("Parcela 03 DE 6")).toBe("Parcela 3 de 6");
+    // O separador fica: é ele que decide se parseInstallment tem certeza.
+    expect(installmentCanonical("LOJA 2 de 6")).not.toBe(installmentCanonical("LOJA 2/6"));
+    expect(installmentCanonical("IFOOD")).toBe("IFOOD");
   });
 });

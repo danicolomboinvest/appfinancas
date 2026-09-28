@@ -55,10 +55,15 @@ export async function listImportBatches(ctx: AuthContext, limit = 20): Promise<I
  * Desfaz um lote: apaga TODOS os lançamentos criados por ele e o próprio registro, numa
  * transação (ou tudo, ou nada). O filtro por userId nos dois deletes garante que ninguém
  * apaga lote dos outros. Devolve quantos lançamentos saíram.
+ *
+ * O perfil que manda é o do LOTE, não o de cada lançamento: na revisão dá pra mandar uma linha
+ * pra outro perfil ("Mover pra Empresa"), e ela continua sendo deste upload. Filtrando os
+ * lançamentos pelo perfil ativo, essas linhas sobreviviam ao desfazer, perdiam o lote (SetNull)
+ * e passavam a parecer lançadas à mão — sem nenhum histórico que as desfizesse depois.
  */
 export async function deleteImportBatchWithEntries(ctx: AuthContext, id: string): Promise<number> {
   const [entries] = await prisma.$transaction([
-    prisma.monthlyEntry.deleteMany({ where: { importBatchId: id, userId: ctx.userId, profileId: ctx.profileId } }),
+    prisma.monthlyEntry.deleteMany({ where: { importBatchId: id, userId: ctx.userId, importBatch: { is: { userId: ctx.userId, profileId: ctx.profileId } } } }),
     prisma.importBatch.deleteMany({ where: { id, userId: ctx.userId, profileId: ctx.profileId } }),
   ]);
   return entries.count;

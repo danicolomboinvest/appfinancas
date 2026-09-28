@@ -2,7 +2,8 @@ import { prisma } from "@/lib/db/prisma";
 import type { AuthContext } from "@/lib/auth/session";
 import { classify, type LearnedRule } from "@/lib/import/classify";
 import { listTransactionRules } from "@/lib/repositories/transaction-rule.repo";
-import { getItem, listAccounts, listTransactions, type PluggyTransaction } from "./client";
+import { getItem, listAccounts, listTransactions, type PluggyAccount, type PluggyTransaction } from "./client";
+import { escolherPerfilDaConexao } from "./perfil-da-conexao";
 
 export type SyncResult = { created: number; skipped: number; uncategorized: number; accounts: number };
 
@@ -24,6 +25,11 @@ function describe(t: PluggyTransaction): string {
  * busca (com 5 dias de folga, porque o banco posta atrasado) e grava como lançamentos, num
  * lote de importação próprio ("openfinance") pra aparecer no histórico e poder ser desfeito.
  * Cada transação leva o id do banco: a segunda vez que aparecer, é ignorada.
+ *
+ * O ctx diz QUEM é a pessoa e qual perfil está ativo, mas não é necessariamente onde os
+ * lançamentos entram: o banco fica no perfil em que já vinha importando (ver
+ * escolherPerfilDaConexao). O cron roda com o perfil que estiver ativo na hora, e isso não pode
+ * mudar o destino do dinheiro.
  */
 export async function syncConnection(ctx: AuthContext, connectionId: string): Promise<SyncResult> {
   const conn = await prisma.bankConnection.findFirst({ where: { id: connectionId, userId: ctx.userId } });
@@ -36,7 +42,32 @@ export async function syncConnection(ctx: AuthContext, connectionId: string): Pr
   const to = new Date();
   const from = new Date(conn.lastSyncAt ? conn.lastSyncAt.getTime() - OVERLAP_DAYS * 86_400_000 : to.getTime() - FIRST_SYNC_DAYS * 86_400_000);
 
-  const rules = await listTransactionRules(ctx);
+  // Busca tudo antes de gravar: o que já existe decide o perfil de destino e o que pular.
+  const porConta: { account: PluggyAccount; txns: PluggyTransaction[] }[] = [];
+  for (const account of accounts) porConta.push({ account, txns: await listTransactions(account.id, from, to) });
+
+  // "Já existe" olha a conta inteira, não só um perfil: a mesma transação do banco não pode
+  // morar em dois perfis. Antes a checagem era por perfil, e trocar de perfil reimportava a
+  // folga de 5 dias no outro — gasto dobrado.
+  const ids = porConta.flatMap(({ txns }) => txns.map((t) => `pluggy:${t.id}`));
+  const existentes = new Map<string, string | null>();
+  for (let i = 0; i < ids.length; i += 1000) {
+    const achados = await prisma.monthlyEntry.findMany({ where: { userId: ctx.userId, externalId: { in: ids.slice(i, i + 1000) } }, select: { externalId: true, profileId: true } });
+    for (const a of achados) if (a.externalId) existentes.set(a.externalId, a.profileId);
+  }
+
+  // Primeira sincronização (nada importado ainda): vai pro perfil ativo, que é onde ela está ao
+  // conectar o banco. Adivinhar pelo último lote com o mesmo nome de banco mandava a conta PJ
+  // reconectada na Empresa pro Pessoal da conexão antiga, já apagada.
+  const destinoId = escolherPerfilDaConexao({ jaImportadas: [...existentes.values()], perfilDoUltimoLote: null, perfilAtivo: ctx.profileId });
+  const perfilDestino = destinoId === ctx.profileId
+    ? null
+    : await prisma.financialProfile.findFirst({ where: { id: destinoId, userId: ctx.userId }, select: { id: true, theme: true, kind: true } });
+  const destino: AuthContext = perfilDestino
+    ? { ...ctx, profileId: perfilDestino.id, profileTheme: perfilDestino.theme, profileKind: perfilDestino.kind }
+    : ctx;
+
+  const rules = await listTransactionRules(destino);
   const learned: LearnedRule[] = rules.map((r) => ({ pattern: r.pattern, parentCategory: r.parentCategory, subcategory: r.subcategory ?? undefined }));
 
   let created = 0;
@@ -44,13 +75,11 @@ export async function syncConnection(ctx: AuthContext, connectionId: string): Pr
   let uncategorized = 0;
   let batchId: string | null = null;
 
-  for (const account of accounts) {
-    const txns = await listTransactions(account.id, from, to);
+  for (const { account, txns } of porConta) {
     for (const t of txns) {
       if (t.status === "PENDING") continue;
       const externalId = `pluggy:${t.id}`;
-      const exists = await prisma.monthlyEntry.findFirst({ where: { userId: ctx.userId, profileId: ctx.profileId, externalId }, select: { id: true } });
-      if (exists) {
+      if (existentes.has(externalId)) {
         skipped += 1;
         continue;
       }
@@ -69,16 +98,16 @@ export async function syncConnection(ctx: AuthContext, connectionId: string): Pr
       }
       if (amount <= 0) continue;
       const description = describe(t);
-      const classification = category === "EXPENSE" ? classify(description, learned) : null;
+      const classification = category === "EXPENSE" ? classify(description, learned, destino.profileKind) : null;
       if (category === "EXPENSE" && !classification) uncategorized += 1;
       const date = new Date(`${t.date.slice(0, 10)}T12:00:00`);
       if (!batchId) {
-        const batch = await prisma.importBatch.create({ data: { userId: ctx.userId, profileId: ctx.profileId, docType: "openfinance", fileName: `${conn.connectorName} · ${to.toLocaleDateString("pt-BR")}` } });
+        const batch = await prisma.importBatch.create({ data: { userId: destino.userId, profileId: destino.profileId, docType: "openfinance", fileName: `${conn.connectorName} · ${to.toLocaleDateString("pt-BR")}` } });
         batchId = batch.id;
       }
       await prisma.monthlyEntry.create({
         data: {
-          userId: ctx.userId, profileId: ctx.profileId,
+          userId: destino.userId, profileId: destino.profileId,
           year: date.getFullYear(),
           month: date.getMonth() + 1,
           category,
@@ -91,6 +120,7 @@ export async function syncConnection(ctx: AuthContext, connectionId: string): Pr
           importBatchId: batchId,
         },
       });
+      existentes.set(externalId, destino.profileId);
       created += 1;
     }
   }

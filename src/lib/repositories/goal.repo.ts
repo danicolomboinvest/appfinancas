@@ -1,5 +1,6 @@
 import type { GoalIcon } from "@prisma/client";
-import { goalProgress } from "@/lib/planning/goal-progress";
+import { aportesJaOcorridosWhere, goalCurrentAmount, goalProgress } from "@/lib/planning/goal-progress";
+import { nowInBrazil } from "@/lib/date/brazil-now";
 import { prisma } from "@/lib/db/prisma";
 import type { AuthContext } from "@/lib/auth/session";
 import { computeGoalPlan } from "@/lib/planning/goal";
@@ -30,6 +31,9 @@ export async function getOwnGoal(ctx: AuthContext, id: string) {
  * R$ 2.000). Mas descontar o aporte que foi pra um ativo que NÃO é da meta some com dinheiro que
  * a pessoa guardou de verdade. Então só é descontado o pedaço que entrou num ativo ligado à
  * MESMA meta — esse já está sendo contado pelo valor do ativo.
+ *
+ * Junto disso vale o "Já guardado" digitado (`currentAmount`): a meta mostra o maior dos dois,
+ * pra o digitado nunca sumir e o mesmo dinheiro nunca contar duas vezes (ver `goalCurrentAmount`).
  */
 export async function getGoalWithProgress(ctx: AuthContext, id: string) {
   const goal = await prisma.goal.findFirst({ where: { id, userId: ctx.userId, profileId: ctx.profileId } });
@@ -37,7 +41,7 @@ export async function getGoalWithProgress(ctx: AuthContext, id: string) {
   const [a, e] = await Promise.all([
     prisma.asset.aggregate({ where: { userId: ctx.userId, profileId: ctx.profileId, goalId: id }, _sum: { currentValue: true } }),
     prisma.monthlyEntry.findMany({
-      where: { userId: ctx.userId, profileId: ctx.profileId, goalId: id, category: "INVESTMENT_CONTRIBUTION" },
+      where: { userId: ctx.userId, profileId: ctx.profileId, goalId: id, category: "INVESTMENT_CONTRIBUTION", ...aportesJaOcorridosWhere(nowInBrazil()) },
       select: { amount: true, allocations: { select: { amount: true, asset: { select: { goalId: true } } } } },
     }),
   ]);
@@ -49,7 +53,7 @@ export async function getGoalWithProgress(ctx: AuthContext, id: string) {
       allocations: entry.allocations.map((x) => ({ amount: Number(x.amount), assetGoalId: x.asset.goalId })),
     })),
   );
-  return { ...goal, computedCurrentAmount: computed > 0 ? computed : Number(goal.currentAmount) };
+  return { ...goal, computedCurrentAmount: goalCurrentAmount(Number(goal.currentAmount), computed) };
 }
 
 function computedFields(input: GoalInput) {
@@ -77,8 +81,8 @@ export async function deleteOwnGoal(ctx: AuthContext, id: string) {
 /**
  * Progresso REAL de cada meta, calculado (integração, item 6): soma o valor atual dos ativos
  * vinculados à meta + os aportes registrados para ela (lançamentos INVESTMENT_CONTRIBUTION com
- * goalId). Assim, vincular um ativo ou registrar um aporte atualiza a meta sozinho. Se não há
- * nada vinculado, cai no valor manual antigo (`currentAmount`) pra não zerar metas legadas.
+ * goalId). Assim, vincular um ativo ou registrar um aporte atualiza a meta sozinho. O valor
+ * manual (`currentAmount`) é o saldo de partida e soma com isso — ver `goalCurrentAmount`.
  */
 export async function listGoalsWithProgress(ctx: AuthContext) {
   const [goals, assetSums, aportes] = await Promise.all([
@@ -92,7 +96,8 @@ export async function listGoalsWithProgress(ctx: AuthContext) {
     // contar os dois fazia a meta andar o dobro. O que foi pra outro ativo continua contando:
     // é dinheiro guardado pra meta, só que num lugar que a meta não enxerga sozinha.
     prisma.monthlyEntry.findMany({
-      where: { userId: ctx.userId, profileId: ctx.profileId, goalId: { not: null }, category: "INVESTMENT_CONTRIBUTION" },
+      // Aporte de mês que ainda não chegou (cópia do "Repetir todo mês") não é dinheiro guardado.
+      where: { userId: ctx.userId, profileId: ctx.profileId, goalId: { not: null }, category: "INVESTMENT_CONTRIBUTION", ...aportesJaOcorridosWhere(nowInBrazil()) },
       select: { goalId: true, amount: true, allocations: { select: { amount: true, asset: { select: { goalId: true } } } } },
     }),
   ]);
@@ -118,6 +123,6 @@ export async function listGoalsWithProgress(ctx: AuthContext) {
 
   return goals.map((g) => {
     const computed = byGoal.get(g.id) ?? 0;
-    return { ...g, computedCurrentAmount: computed > 0 ? computed : Number(g.currentAmount) };
+    return { ...g, computedCurrentAmount: goalCurrentAmount(Number(g.currentAmount), computed) };
   });
 }

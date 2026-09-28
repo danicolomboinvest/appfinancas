@@ -92,9 +92,30 @@ export function parseInstallment(
   return { current, total, confident };
 }
 
-/** Reescreve "3/10" como "4/10" na descrição da parcela seguinte. */
+const INSTALLMENT_RE = /(^|\D)(\d{1,2})(\s*(?:\/|de)\s*)(\d{1,2})(?!\d)/i;
+
+/**
+ * Reescreve "3/10" como "4/10" na descrição da parcela seguinte, no MESMO formato que o banco
+ * escreveu: "PARC 03/06" → "PARC 04/06", "Parcela 3/6" → "Parcela 4/6", "2 DE 6" → "3 DE 6".
+ * Antes o número atual ganhava sempre zero à esquerda e o total nunca ("PARC 04/6"), e a linha
+ * da fatura do mês seguinte ("PARC 04/06") não batia com a parcela já lançada: entrava de novo e
+ * recriava as seguintes, uma cópia a mais a cada fatura importada.
+ */
 export function installmentDescription(description: string, current: number, total: number): string {
-  return description.replace(/(?:^|\D)(\d{1,2})\s*(\/|de)\s*(\d{1,2})(?!\d)/i, (whole, _c, sep) =>
-    whole.replace(/\d{1,2}\s*(\/|de)\s*\d{1,2}/i, `${String(current).padStart(2, "0")}${sep === "/" ? "/" : " de "}${total}`),
+  return description.replace(INSTALLMENT_RE, (_whole, before: string, c: string, sep: string, t: string) =>
+    `${before}${String(current).padStart(c.length, "0")}${sep}${String(total).padStart(t.length, "0")}`,
+  );
+}
+
+/**
+ * A descrição com o "N/T" da parcela escrito de um jeito só ("PARC 04/06" e "PARC 4/6" viram
+ * "PARC 4/6"; "04 DE 6" vira "4 de 6"), pra comparar parcelas sem depender de como cada fatura
+ * (ou uma versão antiga do app) escreveu os números. O separador continua "/" ou "de" porque é
+ * ele que decide se parseInstallment tem certeza — duas descrições iguais aqui têm a mesma
+ * certeza. Não mexe no resto do texto.
+ */
+export function installmentCanonical(description: string): string {
+  return description.replace(INSTALLMENT_RE, (_whole, before: string, c: string, sep: string, t: string) =>
+    `${before}${Number(c)}${/de/i.test(sep) ? " de " : "/"}${Number(t)}`,
   );
 }

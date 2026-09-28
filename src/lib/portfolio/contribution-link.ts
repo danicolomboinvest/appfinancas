@@ -89,16 +89,20 @@ export async function getContributionLinkState(ctx: AuthContext, year: number, m
 export type AllocationInput = { assetId: string; amount: number };
 
 export type AllocationResult =
-  | { ok: true; applied: number; assets: number; goals: { name: string; amount: number }[] }
+  | {
+      ok: true;
+      applied: number;
+      assets: number;
+      goals: { name: string; amount: number }[];
+      /** Ativos cotados cuja quantidade foi estimada pela cotação — o card pede pra ela conferir. */
+      quantityEstimated: string[];
+    }
   | { ok: false; error: string };
 
 /**
- * Aplica a distribuição: cada pedaço entra no ativo escolhido (aumenta o quanto foi investido
- * e o valor atual) e fica registrado contra o aporte de origem.
- *
- * Quantidade não é mexida de propósito: o app não tem como saber a que preço a pessoa comprou,
- * e chutar cota estragaria o preço médio. Ela ajusta na próxima atualização de cotação ou ao
- * subir a posição da corretora.
+ * Aplica a distribuição: cada pedaço entra no ativo escolhido (aumenta o quanto foi investido,
+ * o valor atual e, em ativo com quantidade, a quantidade) e fica registrado contra o aporte de
+ * origem. A conta de cada ativo mora em `assetAfterContribution`.
  */
 export async function applyContributionAllocations(
   ctx: AuthContext,
@@ -120,7 +124,17 @@ export async function applyContributionAllocations(
   // Só ativos do próprio usuário: id vindo do formulário nunca é confiável.
   const assets = await prisma.asset.findMany({
     where: { userId: ctx.userId, profileId: ctx.profileId, id: { in: validas.map((a) => a.assetId) } },
-    select: { id: true, name: true, investedValue: true, currentValue: true, goalId: true, goal: { select: { name: true } } },
+    select: {
+      id: true,
+      name: true,
+      ticker: true,
+      investedValue: true,
+      currentValue: true,
+      quantity: true,
+      currentUnitPrice: true,
+      goalId: true,
+      goal: { select: { name: true } },
+    },
   });
   const byId = new Map(assets.map((a) => [a.id, a]));
   if (validas.some((a) => !byId.has(a.assetId))) return { ok: false, error: "Um dos ativos não existe mais. Recarregue a página." };
@@ -130,20 +144,38 @@ export async function applyContributionAllocations(
     validas,
   );
 
+  // Um update por ativo com a soma do que entrou nele: dois pedaços pro mesmo ativo em updates
+  // separados partiriam do mesmo valor lido, e o segundo apagaria o primeiro.
+  const porAtivo = new Map<string, number>();
+  for (const a of validas) porAtivo.set(a.assetId, Math.round(((porAtivo.get(a.assetId) ?? 0) + a.amount) * 100) / 100);
+  const quantityEstimated: string[] = [];
+  const updates = [...porAtivo.entries()].map(([assetId, amount]) => {
+    const asset = byId.get(assetId)!;
+    const depois = assetAfterContribution(
+      {
+        investedValue: asset.investedValue === null ? null : Number(asset.investedValue),
+        currentValue: Number(asset.currentValue),
+        quantity: asset.quantity === null ? null : Number(asset.quantity),
+        currentUnitPrice: asset.currentUnitPrice === null ? null : Number(asset.currentUnitPrice),
+      },
+      amount,
+    );
+    if (depois.quantityEstimated) quantityEstimated.push(asset.ticker ?? asset.name);
+    return prisma.asset.update({
+      where: { id: assetId },
+      data: {
+        investedValue: depois.investedValue,
+        currentValue: depois.currentValue,
+        ...(depois.quantityEstimated ? { quantity: depois.quantity } : {}),
+      },
+    });
+  });
+
   await prisma.$transaction([
     ...linhas.map((l) =>
       prisma.contributionAllocation.create({ data: { userId: ctx.userId, profileId: ctx.profileId, entryId: l.entryId, assetId: l.assetId, amount: l.amount } }),
     ),
-    ...validas.map((a) => {
-      const asset = byId.get(a.assetId)!;
-      return prisma.asset.update({
-        where: { id: a.assetId },
-        data: {
-          investedValue: Number(asset.investedValue) + a.amount,
-          currentValue: Number(asset.currentValue) + a.amount,
-        },
-      });
-    }),
+    ...updates,
   ]);
 
   // Metas que andaram: é o que a tela devolve pra pessoa ver que tudo se moveu junto.
@@ -158,7 +190,45 @@ export async function applyContributionAllocations(
     applied: Math.round(pedido * 100) / 100,
     assets: validas.length,
     goals: [...porMeta.entries()].map(([name, amount]) => ({ name, amount })),
+    quantityEstimated,
   };
+}
+
+export type AssetPosition = {
+  investedValue: number | null;
+  currentValue: number;
+  quantity: number | null;
+  currentUnitPrice: number | null;
+};
+
+/**
+ * Como um ativo fica depois de receber `amount` de um aporte.
+ *
+ * - Investido desconhecido (null) continua desconhecido. Tratar null como zero deixava um CDB
+ *   de R$ 10.000 sem "valor investido" com investido R$ 500 depois de um aporte de R$ 500 — a
+ *   carteira passava a mostrar +R$ 10.000 (+2000%) de um lucro que ninguém sabe se existe.
+ * - Em ativo com quantidade, a quantidade cresce pelo preço de hoje (a cotação salva, ou o
+ *   valor atual ÷ quantidade quando não há cotação). Sem isso, a atualização de cotação (o
+ *   botão ou o cron diário) recalcula quantidade × preço com a quantidade velha e apaga o
+ *   aporte do valor atual, enquanto o investido continua com ele: prejuízo falso, e a meta do
+ *   ativo recuava junto. É uma estimativa — por isso o card pede pra ela conferir —, mas mantém
+ *   o preço médio (investido ÷ quantidade) no lugar em vez de inflá-lo.
+ */
+export function assetAfterContribution(
+  asset: AssetPosition,
+  amount: number,
+): { investedValue: number | null; currentValue: number; quantity: number | null; quantityEstimated: boolean } {
+  const investedValue = asset.investedValue === null ? null : Math.round((asset.investedValue + amount) * 100) / 100;
+  const currentValue = Math.round((asset.currentValue + amount) * 100) / 100;
+  const qtd = asset.quantity ?? 0;
+  const precoUnitario =
+    asset.currentUnitPrice && asset.currentUnitPrice > 0 ? asset.currentUnitPrice : qtd > 0 && asset.currentValue > 0 ? asset.currentValue / qtd : 0;
+  if (qtd > 0 && precoUnitario > 0) {
+    // 6 casas: é a precisão da coluna (Decimal 18,6).
+    const quantity = Math.round((qtd + amount / precoUnitario) * 1e6) / 1e6;
+    return { investedValue, currentValue, quantity, quantityEstimated: true };
+  }
+  return { investedValue, currentValue, quantity: asset.quantity, quantityEstimated: false };
 }
 
 export type PendingSlot = { entryId: string; pending: number };
@@ -193,6 +263,37 @@ export function planAllocationLines(pendings: PendingSlot[], allocations: Alloca
       c.restante = Math.round((c.restante - pedaco) * 100) / 100;
       falta = Math.round((falta - pedaco) * 100) / 100;
     }
+  }
+  return linhas;
+}
+
+export type SnapshotAllocation = { assetId: string; amount: number };
+
+/**
+ * Quais distribuições voltar junto quando ela desfaz a exclusão de um aporte.
+ *
+ * Apagar o aporte apaga em cascata as linhas de ContributionAllocation, mas o dinheiro fica no
+ * ativo (de propósito). Se o "Desfazer" recriasse só o lançamento, ele voltava como "ainda sem
+ * destino": a carteira perguntava de novo onde o dinheiro entrou (e responder somava outra vez
+ * no ativo) e a meta contava o aporte E o ativo — o dobro.
+ *
+ * A lista vem do cliente (o snapshot mora no toast), então só entra ativo que ainda é dela e
+ * nunca mais do que o próprio aporte. O valor do ativo não é tocado: ele nunca saiu de lá.
+ */
+export function allocationsToRestore(
+  snapshot: SnapshotAllocation[] | undefined,
+  ownAssetIds: ReadonlySet<string>,
+  entryAmount: number,
+): SnapshotAllocation[] {
+  const linhas: SnapshotAllocation[] = [];
+  let restante = Math.round(entryAmount * 100) / 100;
+  for (const a of snapshot ?? []) {
+    if (restante <= 0) break;
+    if (!ownAssetIds.has(a.assetId) || !(a.amount > 0)) continue;
+    const amount = Math.round(Math.min(a.amount, restante) * 100) / 100;
+    if (amount <= 0) continue;
+    linhas.push({ assetId: a.assetId, amount });
+    restante = Math.round((restante - amount) * 100) / 100;
   }
   return linhas;
 }

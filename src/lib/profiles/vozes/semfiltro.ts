@@ -416,7 +416,7 @@ export const semfiltro: Voz = {
     simAmortVenceInvestir: "Melhor investir 🤑",
     simAmortAMais: (valor) => `(${valor} a mais no bolso)`,
     simAmortBarraAmortizar: "Quitar a dívida",
-    simAmortBarraAmortizarHint: (meses) => `Juros que você não paga · quita em ${meses} meses`,
+    simAmortBarraAmortizarHint: (meses) => `Juros que você não paga, reinvestidos · quita em ${meses} meses`,
     simAmortBarraInvestir: "Investir a grana",
     simAmortBarraInvestirHint: (taxa) => `Ganho já sem o IR · ${taxa} a.a.`,
     simAmortVeredito: (vencedor, valor) => `${vencedor === "AMORTIZAR" ? "Quitar" : "Investir"} rende ${valor} a mais. Matemática, não opinião de grupo de família 😏`,
@@ -540,7 +540,7 @@ export const semfiltro: Voz = {
     formApPremissasNota: "Nenhum desses números é promessa: é o cenário que você escolheu simular. Simular, não garantir 👀",
     formApRendemHint: "Antes de descontar a inflação. Se investe perto do CDI, usa a taxa do CDI.",
     formApInflacaoHint: "É ela que traz o dinheiro do futuro pro poder de compra de hoje. E ela sempre vem, junto com o aumento do ônibus 🙃",
-    formApRendVivendoHint: "Mais conservador que na fase de acumular, porque agora você depende dele pra viver. Não é hora de aventura em cripto 😏",
+    formApRendVivendoHint: "Já descontada a inflação: 4% aqui é uns 8,7% ao ano com inflação de 4,5%. Mais conservador que na fase de acumular, porque agora você depende dele pra viver. Não é hora de aventura em cripto 😏",
     // Estratégia
     formEstSalva: "Estratégia salva. Agora segue ela, e não o primo do churrasco 😏",
     formEstPerfis: {

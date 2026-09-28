@@ -4,6 +4,7 @@ import { useEffect, useId, useState } from "react";
 import { CURRENCY_CODES, CURRENCIES, currencySymbol, formatMoney, type CurrencyCode } from "@/lib/money";
 import { convertAmount } from "@/lib/fx/rates";
 import { getExchangeRateAction } from "@/lib/fx/actions";
+import { parseRate } from "@/lib/fx/parse-rate";
 
 /**
  * Seletor de moeda do lançamento, ao lado do rótulo "Valor". Discreto de propósito: quem lança
@@ -25,12 +26,6 @@ export function CurrencySwitch({ value, onChange }: { value: CurrencyCode; onCha
       ))}
     </select>
   );
-}
-
-/** Aceita "5,9071" e "5.9071". */
-function parseRate(text: string): number | null {
-  const n = Number(text.trim().replace(/\./g, "").replace(",", "."));
-  return Number.isFinite(n) && n > 0 ? n : null;
 }
 
 function formatRate(rate: number): string {

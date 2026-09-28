@@ -48,6 +48,8 @@ export type TextosFormularios = {
   formMetaIcones: Record<IconeDeMeta, string>;
   formMetaValorAlvo: string;
   formMetaJaGuardado: string;
+  /** "Já guardado" é saldo de partida: soma com aportes e ativos ligados, não é trocado por eles. */
+  formMetaJaGuardadoHint: string;
   formMetaMesAno: string;
   formMetaRende: string;
   formMetaRendeHint: string;
@@ -248,6 +250,7 @@ export const PADRAO_FORMULARIOS: TextosFormularios = {
   formMetaIcones: { VIAGEM: "Viagem", CASA: "Casa", CARRO: "Carro", APOSENTADORIA: "Aposentadoria", GENERICO: "Genérico" },
   formMetaValorAlvo: "Valor-alvo",
   formMetaJaGuardado: "Já guardado",
+  formMetaJaGuardadoHint: "O que já está guardado pra essa meta. Quando os aportes marcados e os investimentos ligados a ela passarem desse valor, a meta passa a contar por eles.",
   formMetaMesAno: "Mês/ano alvo",
   formMetaRende: "Quanto o dinheiro guardado rende por ano",
   formMetaRendeHint: "Poupança rende perto de 6%. CDB e Tesouro Selic, perto de 10%. Se não sabe, deixe 10%.",
@@ -366,7 +369,7 @@ export const PADRAO_FORMULARIOS: TextosFormularios = {
   formApPremissasHelp: "Já preenchemos valores comuns, ajuste se quiser. Taxas ao ano.",
   formApRendAcumulo: "Rendimento na fase de acúmulo",
   formApInflacao: "Inflação média",
-  formApRendUsufruto: "Rendimento vivendo de renda",
+  formApRendUsufruto: "Rendimento vivendo de renda (acima da inflação)",
   formApCalculando: "Calculando...",
   formApVerPlano: "Ver meu plano",
   formApGuardarPergunta: "Quanto consegue guardar por mês?",
@@ -380,8 +383,8 @@ export const PADRAO_FORMULARIOS: TextosFormularios = {
   formApRendemHint: "Antes de descontar a inflação. Se você investe perto do CDI, use a taxa do CDI.",
   formApInflacaoAssume: "Inflação que você assume",
   formApInflacaoHint: "É ela que traz o dinheiro do futuro para o poder de compra de hoje.",
-  formApRendVivendo: "Rendimento já vivendo de renda",
-  formApRendVivendoHint: "Mais conservador que o da fase de acumular, porque agora você depende dele para viver.",
+  formApRendVivendo: "Rendimento já vivendo de renda (acima da inflação)",
+  formApRendVivendoHint: "Já descontada a inflação: 4% aqui é cerca de 8,7% ao ano com inflação de 4,5%. Mais conservador que o da fase de acumular, porque agora você depende dele para viver.",
   formApAteIdade: "Até que idade (opcional)",
   formApOutrasRendas: "Outras rendas por mês (opcional)",
 

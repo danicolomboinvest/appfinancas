@@ -1,29 +1,65 @@
 import { cache } from "react";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db/prisma";
+import { PERFIL_INICIAL } from "@/lib/repositories/profile.repo";
+import { normalizeEmail } from "@/lib/repositories/allowedEmail.repo";
 import type { AccountContext, AuthContext } from "@/lib/auth/session";
 
 const SALT_ROUNDS = 10;
 
-export async function findUserByEmail(email: string) {
-  return prisma.user.findUnique({ where: { email } });
+/**
+ * Das contas que o banco devolveu pra um e-mail sem olhar maiúscula, qual é a da pessoa.
+ *
+ * Existe porque o e-mail era gravado do jeito que foi digitado: "Maria.Silva@Gmail.com" no
+ * cadastro e "maria.silva@gmail.com" no login não se achavam, e o login dizia senha errada.
+ * Hoje tudo entra minúsculo, mas as contas antigas continuam com a caixa original — por isso a
+ * busca ignora a caixa em vez de só minusculizar o que chega.
+ *
+ * O filtro final compara de novo em memória porque o "insensitive" do Prisma no Postgres pode
+ * virar ILIKE, e aí "_" num e-mail ("maria_silva@") casaria com qualquer letra. Se já existirem duas contas que
+ * só diferem na caixa (o bug antigo criava), vence a grafada exatamente como digitado, e depois
+ * a mais antiga — que é onde estão os dados dela.
+ */
+export function escolherContaDoEmail<T extends { email: string }>(contas: T[], digitado: string): T | null {
+  const alvo = normalizeEmail(digitado);
+  const mesmas = contas.filter((c) => normalizeEmail(c.email) === alvo);
+  return mesmas.find((c) => c.email === digitado.trim()) ?? mesmas[0] ?? null;
 }
 
-/** Dentre os e-mails dados, quais já têm conta criada (pra não convidar quem já se cadastrou). */
+export async function findUserByEmail(email: string) {
+  const contas = await prisma.user.findMany({
+    where: { email: { equals: normalizeEmail(email), mode: "insensitive" } },
+    orderBy: { createdAt: "asc" },
+  });
+  return escolherContaDoEmail(contas, email);
+}
+
+/**
+ * Dentre os e-mails dados, quais já têm conta criada (pra não convidar quem já se cadastrou).
+ * Devolve minúsculo, que é como a lista de acessos guarda: conta antiga gravada com maiúscula
+ * também conta como "já tem conta".
+ */
 export async function findExistingUserEmails(emails: string[]): Promise<string[]> {
   if (emails.length === 0) return [];
-  const users = await prisma.user.findMany({ where: { email: { in: emails } }, select: { email: true } });
-  return users.map((u) => u.email);
+  const procurados = new Set(emails.map(normalizeEmail));
+  const users = await prisma.user.findMany({
+    where: { OR: [...procurados].map((e) => ({ email: { equals: e, mode: "insensitive" as const } })) },
+    select: { email: true },
+  });
+  return [...new Set(users.map((u) => normalizeEmail(u.email)).filter((e) => procurados.has(e)))];
 }
 
 export async function createUser(input: { email: string; password: string; name: string; phone?: string }) {
   const passwordHash = await bcrypt.hash(input.password, SALT_ROUNDS);
   return prisma.user.create({
     data: {
-      email: input.email,
+      email: normalizeEmail(input.email),
       passwordHash,
       name: input.name,
       phone: input.phone ?? null,
+      // O perfil nasce junto, no mesmo INSERT: deixar pra primeira tela criar abria uma corrida
+      // entre o layout e a página, e a conta podia nascer com dois perfis "Pessoal".
+      financialProfiles: { create: { ...PERFIL_INICIAL } },
     },
   });
 }
@@ -37,9 +73,11 @@ export async function createUserInvite(input: { email: string; name: string; pas
   const passwordHash = await bcrypt.hash(input.password, SALT_ROUNDS);
   return prisma.user.create({
     data: {
-      email: input.email,
+      email: normalizeEmail(input.email),
       passwordHash,
       name: input.name,
+      // Mesmo motivo do createUser: a conta já nasce com o perfil ativo.
+      financialProfiles: { create: { ...PERFIL_INICIAL } },
     },
   });
 }
@@ -85,7 +123,8 @@ export async function updateOwnProfile(
   return prisma.user.update({ where: { id: ctx.userId }, data: input });
 }
 
-export async function updateOwnPreferences(ctx: AuthContext, input: { currency: string; theme: string }) {
+/** Sem theme, só a moeda muda: o Prisma ignora campo undefined. */
+export async function updateOwnPreferences(ctx: AuthContext, input: { currency: string; theme?: string }) {
   return prisma.user.update({ where: { id: ctx.userId }, data: input });
 }
 

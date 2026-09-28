@@ -7,6 +7,7 @@ import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { CONTROL_CLASSES } from "@/components/ui/Field";
 import { createCategoryAction } from "@/lib/actions/category";
 import { classify } from "@/lib/import/classify";
+import { initialCategoryState } from "./category-fields-utils";
 
 const CATEGORY_OPTIONS = [
   { value: "INCOME", label: "Renda" },
@@ -52,6 +53,7 @@ export function CategoryFields({
   defaultCategory = "EXPENSE",
   defaultParentCategory,
   defaultSubcategory,
+  defaultCustomCategoryId,
   descriptionHint = "",
 }: {
   /** Subcategorias mais usadas recentemente, por categoria-mãe, só as da categoria-mãe
@@ -63,6 +65,8 @@ export function CategoryFields({
   defaultCategory?: string;
   defaultParentCategory?: ParentCategory;
   defaultSubcategory?: string;
+  /** Categoria personalizada já gravada no lançamento (edição); o tipo dela vem em defaultSubcategory. */
+  defaultCustomCategoryId?: string;
   /** O que a pessoa digitou na descrição: "ifood" já marca Alimentação › Delivery sozinho. */
   descriptionHint?: string;
 }) {
@@ -71,17 +75,21 @@ export function CategoryFields({
   // "Estrutura" e a renda é "Vendas", não "Salário". A chave gravada no banco é a mesma.
   const { kind } = useProfileTheme();
   const [category, setCategory] = useState(defaultCategory);
-  const [parentCategory, setParentCategory] = useState<ParentCategory | undefined>(defaultParentCategory);
-  const [customCategoryId, setCustomCategoryId] = useState<string | undefined>(undefined);
-  const initialIsOutro =
-    defaultSubcategory !== undefined &&
-    defaultParentCategory !== undefined &&
-    !subcategoriesFor(kind, defaultParentCategory)?.includes(defaultSubcategory);
-  const [subcategory, setSubcategory] = useState<string | undefined>(
-    initialIsOutro ? undefined : defaultSubcategory,
+  const [initial] = useState(() =>
+    initialCategoryState({
+      defaultParentCategory,
+      defaultCustomCategoryId,
+      defaultSubcategory,
+      standardSubcategories: defaultParentCategory ? subcategoriesFor(kind, defaultParentCategory) : undefined,
+    }),
   );
-  const [isOutro, setIsOutro] = useState(initialIsOutro);
-  const [customText, setCustomText] = useState(initialIsOutro ? (defaultSubcategory ?? "") : "");
+  const [parentCategory, setParentCategory] = useState<ParentCategory | undefined>(initial.parentCategory);
+  // Começa com a categoria personalizada do lançamento: isso também impede o classificador da
+  // descrição (logo abaixo) de trocar "Pet" por Alimentação na hora de abrir a edição.
+  const [customCategoryId, setCustomCategoryId] = useState<string | undefined>(initial.customCategoryId);
+  const [subcategory, setSubcategory] = useState<string | undefined>(initial.subcategory);
+  const [isOutro, setIsOutro] = useState(initial.isOutro);
+  const [customText, setCustomText] = useState(initial.customText);
 
   const isExpense = category === "EXPENSE";
   const [freeSubcategory, setFreeSubcategory] = useState(!isExpense ? (defaultSubcategory ?? "") : "");
@@ -96,7 +104,7 @@ export function CategoryFields({
     setLastHint(descriptionHint);
     const untouched = isExpense && !customCategoryId && (parentCategory === undefined || guessed);
     if (untouched) {
-      const hit = descriptionHint.trim().length >= 3 ? classify(descriptionHint) : null;
+      const hit = descriptionHint.trim().length >= 3 ? classify(descriptionHint, [], kind) : null;
       if (hit) {
         setParentCategory(hit.parentCategory);
         setSubcategory(hit.subcategory);
@@ -191,6 +199,8 @@ export function CategoryFields({
                 label={cc.name}
                 active={customCategoryId === cc.id}
                 onClick={() => {
+                  // Tocar de novo na categoria já marcada não pode apagar o tipo que ela digitou.
+                  if (customCategoryId === cc.id) return;
                   setCustomCategoryId(cc.id);
                   setParentCategory(undefined);
                   setSubcategory(undefined);

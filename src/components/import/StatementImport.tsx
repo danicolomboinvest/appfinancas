@@ -98,8 +98,9 @@ export function StatementImport({
   const [fileName, setFileName] = useState<string | null>(null);
   const [password, setPassword] = useState("");
   const [stats, setStats] = useState<ParseStats | null>(null);
-  /** O app achou que o arquivo é de outro tipo: pergunta antes de seguir. */
-  const [kindMismatch, setKindMismatch] = useState<{ file: File; suggested: "extrato" | "fatura"; reason: string } | null>(null);
+  /** O app achou que o arquivo é de outro tipo: pergunta antes de seguir. `pwd` é a senha que
+   * abriu o arquivo, se ele era trancado — a resposta reenvia o arquivo e precisa dela de novo. */
+  const [kindMismatch, setKindMismatch] = useState<{ file: File; suggested: "extrato" | "fatura"; reason: string; pwd?: string } | null>(null);
   // Categorias personalizadas do usuário + a criação na hora ("+ Outra") durante a revisão.
   const [customCategories, setCustomCategories] = useState<{ id: string; name: string }[]>([]);
   const [creatingCat, setCreatingCat] = useState(false);
@@ -121,6 +122,8 @@ export function StatementImport({
 
   function handleFile(file: File) {
     setError(null);
+    // Arquivo novo: a pergunta de tipo (e a senha guardada nela) era do anterior.
+    setKindMismatch(null);
     // Barra aqui o que a Vercel recusaria com 413 lá fora, onde não sobra nem registro.
     if (file.size > UPLOAD_MAX_BYTES) {
       setError(t.impArquivoGrande);
@@ -160,7 +163,11 @@ export function StatementImport({
       // Fatura subida como extrato vira renda; extrato subido como fatura vira gasto. Se o
       // conteúdo diz que é o outro tipo, pergunta antes de mostrar qualquer lançamento.
       if (!acceptKind && result.stats.detectedKind !== "unknown" && result.stats.detectedKind !== type) {
-        setKindMismatch({ file, suggested: result.stats.detectedKind, reason: result.stats.detectedReason });
+        // A pergunta só aparece na tela de upload. Vindo da tela de senha, sem voltar pra ela o
+        // "Desbloquear" parava de carregar e nada acontecia; e sem guardar a senha, responder
+        // "é extrato mesmo" reenviava o arquivo trancado e caía na senha de novo, em loop.
+        setKindMismatch({ file, suggested: result.stats.detectedKind, reason: result.stats.detectedReason, pwd });
+        setPhase("upload");
         return;
       }
       setKindMismatch(null);
@@ -341,12 +348,12 @@ export function StatementImport({
                 size="sm"
                 onClick={() => {
                   setDocType(kindMismatch.suggested);
-                  runParse(kindMismatch.file, undefined, kindMismatch.suggested, true);
+                  runParse(kindMismatch.file, kindMismatch.pwd, kindMismatch.suggested, true);
                 }}
               >
                 {t.impImportarComo(kindMismatch.suggested)}
               </Button>
-              <Button type="button" size="sm" variant="ghost" onClick={() => runParse(kindMismatch.file, undefined, docType, true)}>
+              <Button type="button" size="sm" variant="ghost" onClick={() => runParse(kindMismatch.file, kindMismatch.pwd, docType, true)}>
                 {t.impEMesmo(docType)}
               </Button>
             </div>
@@ -456,6 +463,7 @@ export function StatementImport({
               setPendingFile(null);
               setPassword("");
               setError(null);
+              setKindMismatch(null);
             }}
             className="text-center text-xs font-medium text-ink-faint hover:text-ink"
           >

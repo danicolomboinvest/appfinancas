@@ -50,6 +50,7 @@ function roundStep(v: number): number {
  */
 export function BudgetWizard({
   year,
+  profileId,
   plan,
   parentCategories,
   customCategories,
@@ -58,6 +59,8 @@ export function BudgetWizard({
   savingsTargets = [],
 }: {
   year: number;
+  /** Perfil com que a tela foi montada: o "Salvar" recusa se o ativo já for outro. */
+  profileId: string;
   plan: { plannedIncome: number; plannedInvestment: number };
   parentCategories: { key: ParentCategory; label: string; description: string; defaultValue: number }[];
   customCategories: { id: string; name: string; icon: string; defaultValue: number }[];
@@ -169,6 +172,7 @@ export function BudgetWizard({
   return (
     <form action={formAction} className="flex flex-col gap-5">
       <input type="hidden" name="year" value={year} />
+      <input type="hidden" name="profileId" value={profileId} />
       <input type="hidden" name="plannedIncome" value={income} />
       <input type="hidden" name="plannedInvestment" value={investment} />
       {parentCategories.map((c) => (

@@ -90,7 +90,9 @@ export default async function GoalDetailPage(props: PageProps<"/planejamento/met
           defaults={{
             name: goal.name,
             targetAmount: Number(goal.targetAmount),
-            currentAmount: goal.computedCurrentAmount,
+            // Só o saldo de partida: o total (com aportes e ativos) é calculado, e salvá-lo aqui
+            // contaria os aportes duas vezes.
+            currentAmount: Number(goal.currentAmount),
             annualRate: Number(goal.annualRate ?? 0),
             targetDate: targetDate.toISOString().slice(0, 10),
             icon: goal.icon,

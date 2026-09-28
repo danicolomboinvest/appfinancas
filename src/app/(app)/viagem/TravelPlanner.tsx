@@ -13,6 +13,7 @@ import { useSuccessToast } from "@/components/ui/useSuccessToast";
 import {
   estimateTrip,
   findCheaperMonth,
+  monthValuePlus,
   computeTripTotals,
   clampCategoryValue,
   MAX_EXTRA_CATEGORIES,
@@ -49,13 +50,6 @@ const MONTH_NAMES = [
 function monthNumberOf(monthValue: string): number | undefined {
   const m = Number(monthValue.split("-")[1]);
   return Number.isInteger(m) && m >= 1 && m <= 12 ? m : undefined;
-}
-
-/** Próxima vez que esse mês acontece no futuro, como "YYYY-MM" (pra trocar num toque). */
-function nextOccurrenceOf(month: number): string {
-  const now = new Date();
-  const year = month - 1 > now.getMonth() ? now.getFullYear() : now.getFullYear() + 1;
-  return `${year}-${String(month).padStart(2, "0")}`;
 }
 
 /** Meses inteiros entre hoje e o mês da viagem (mínimo 1, pra dica de poupança mensal). */
@@ -331,7 +325,8 @@ export function TravelPlanner() {
               {cheaper && (
                 <button
                   type="button"
-                  onClick={() => setTripMonth(nextOccurrenceOf(cheaper.month))}
+                  // Conta a partir do mês ESCOLHIDO (a dica procura depois dele), não de hoje.
+                  onClick={() => setTripMonth(monthValuePlus(tripMonth, cheaper.ahead) ?? tripMonth)}
                   className="flex items-center gap-2 rounded-lg border border-border-strong bg-surface-2 px-3 py-2 text-left transition-colors hover:bg-surface"
                 >
                   <TrendingDown className="size-4 shrink-0 text-success" aria-hidden />

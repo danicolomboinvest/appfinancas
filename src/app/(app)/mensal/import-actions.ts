@@ -1,8 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { installmentDescription, parseInstallment } from "@/lib/entries/recurrence";
-import { countMoneyLines, detectInvoiceTotal, looksLikeCardInvoice, type DocKind } from "@/lib/import/detect";
+import { installmentCanonical, installmentDescription, parseInstallment } from "@/lib/entries/recurrence";
+import { countMoneyLines, detectInvoiceTotal, looksLikeCardInvoice, MOTIVO_SINAIS_FATURA, sinaisDesmentemExtrato, type DocKind } from "@/lib/import/detect";
 import { profileDocument } from "@/lib/import/profile";
 import { checarPlausibilidade, type Suspeita } from "@/lib/import/plausibility";
 import { isPartialRead, mensagemImplausivel, recordImportDiagnostic, safeHeader } from "@/lib/repositories/import-diagnostic.repo";
@@ -208,7 +208,17 @@ export async function parseStatementAction(formData: FormData): Promise<ParseSta
   // fatura costuma trazer "extrato" escrito no cabeçalho, o que fazia o perfil dizer "statement"
   // e esta checagem nem rodar. Foi assim que duas pessoas lançaram a fatura inteira como RENDA:
   // R$ 5.528 de compras no MercadoLivre e na Apple viraram receita do mês, sem nenhum aviso.
-  if (detectedKind !== "fatura" && looksLikeCardInvoice(parsedRaw)) detectedKind = "fatura";
+  // Mas só desmente o perfil no lado caro (quase tudo entrada) e nunca a estrutura do arquivo:
+  // o extrato com um salário e doze saídas também tem "quase tudo do mesmo sinal", e virar
+  // fatura fazia do salário um estorno. O motivo passa a ser o dos sinais, não o do perfil —
+  // senão a tela dizia "parece uma fatura (extrato do Nubank)".
+  let detectedReason = profile.reason;
+  const sinaisDizemFatura =
+    detectedKind === "unknown" ? looksLikeCardInvoice(parsedRaw) : detectedKind === "extrato" && sinaisDesmentemExtrato(parsedRaw, profile.reason);
+  if (sinaisDizemFatura) {
+    detectedKind = "fatura";
+    detectedReason = MOTIVO_SINAIS_FATURA;
+  }
   const repeatCount = new Map<string, number>();
   for (const txn of parsed) {
     const k = dedupeKey(txn.date, Math.abs(txn.amount), txn.description);
@@ -228,8 +238,9 @@ export async function parseStatementAction(formData: FormData): Promise<ParseSta
     // Estorno: na fatura, todo crédito que não é linha de resumo é dinheiro de compra voltando
     // (antes virava RENDA e inflava o mês); no extrato, a entrada que diz que é estorno.
     const estorno = !isExpense && (docType === "fatura" || pareceEstorno(txn.description));
-    // Categoriza saídas e estornos (o estorno desconta da categoria da compra).
-    const classification = isExpense || estorno ? classify(txn.description, learned) : null;
+    // Categoriza saídas e estornos (o estorno desconta da categoria da compra). O tipo do
+    // perfil escolhe as regras: na Empresa, "iFood" não é Mercadorias e insumos.
+    const classification = isExpense || estorno ? classify(txn.description, learned, ctx.profileKind) : null;
     return {
       key: index,
       date: txn.date,
@@ -255,7 +266,7 @@ export async function parseStatementAction(formData: FormData): Promise<ParseSta
 
   const stats: ParseStats = {
     detectedKind,
-    detectedReason: profile.reason,
+    detectedReason,
     summary: profile.summary,
     moneyLines,
     parsed: items.length,
@@ -383,9 +394,28 @@ function yearMonthFromISO(date: string): { year: number; month: number } | null 
   return { year: Number(match[1]), month: Number(match[2]) };
 }
 
+/** Descrição comparável: sem diferença de maiúscula/espaço nem de como o "N/T" da parcela foi
+ * escrito ("PARC 04/06" do banco e "PARC 04/6" que versões antigas do app gravavam são a mesma). */
+function descricaoComparavel(description: string | null): string {
+  return installmentCanonical(description ?? "").trim().toLowerCase();
+}
+
 /** Chave de duplicata: mesma data + valor + descrição = mesma transação do extrato. */
 function dedupeKey(date: string | null, amount: number, description: string | null): string {
-  return `${date ?? ""}|${amount.toFixed(2)}|${(description ?? "").trim().toLowerCase()}`;
+  return `${date ?? ""}|${amount.toFixed(2)}|${descricaoComparavel(description)}`;
+}
+
+/** Parcela de fatura com CERTEZA (ver parseInstallment): só essas têm a comparação por parcela. */
+function parcelaCerta(description: string | null) {
+  const p = parseInstallment(description);
+  return p?.confident ? p : null;
+}
+
+/** A mesma compra parcelada pode vir com centavos diferentes de um mês pro outro: a 1ª parcela
+ * absorve o arredondamento (R$ 100 em 3x = 33,34 + 33,33 + 33,33). A diferença nunca passa de
+ * um centavo por parcela. */
+function mesmaParcela(a: number, b: number, total: number): boolean {
+  return Math.abs(a - b) <= (total - 1) * 0.01 + 0.005;
 }
 
 
@@ -530,6 +560,10 @@ export async function importTransactionsAction(
   // veio de um arquivo. É o extrato da semana subido de novo no fim do mês (ou em outro formato,
   // CSV numa semana e PDF no mês), em que o banco escreve a mesma transação de outro jeito.
   const looseCounts = new Map<string, number>();
+  // Terceira, só pra parcela de fatura: mesma descrição (com o "N/T" normalizado) e valor com a
+  // folga dos centavos (ver mesmaParcela). Sem ela, "PARC 02/03" de R$ 33,33 não batia com a
+  // parcela 02/03 de R$ 33,34 que a fatura anterior já tinha lançado, e a compra duplicava.
+  const parcelasExistentes = new Map<string, number[]>();
   for (const key of monthsInBatch) {
     const [profileId, ym] = key.split("|");
     const [y, m] = ym.split("/").map(Number);
@@ -541,6 +575,10 @@ export async function importTransactionsAction(
       const dia = e.entryDate ? e.entryDate.toISOString().slice(0, 10) : null;
       const k = `${profileId}|${y}/${m}|${dedupeKey(dia, Number(e.amount), e.description)}`;
       existingCounts.set(k, (existingCounts.get(k) ?? 0) + 1);
+      if (!dia && Number(e.amount) > 0 && parcelaCerta(e.description)) {
+        const pk = `${profileId}|${y}/${m}|${descricaoComparavel(e.description)}`;
+        parcelasExistentes.set(pk, [...(parcelasExistentes.get(pk) ?? []), Number(e.amount)]);
+      }
       if (dia && e.importBatchId) {
         const lk = `${profileId}|${dia}|${Number(e.amount).toFixed(2)}|${e.category}`;
         looseCounts.set(lk, (looseCounts.get(lk) ?? 0) + 1);
@@ -561,6 +599,23 @@ export async function importTransactionsAction(
     const ym = faturaTarget ?? originalYm ?? { year: now.getFullYear(), month: now.getMonth() + 1 };
     return `${profileIdOf(item)}|${ym.year}/${ym.month}|${dedupeKey(!faturaTarget && originalYm ? item.date : null, valorGravado(item), item.description)}`;
   };
+  /** Já existe esta parcela (valor com folga de centavos)? Consome uma e diz que sim. */
+  const parcelaJaLancada = (k: string, valor: number, total: number) => {
+    const valores = parcelasExistentes.get(k) ?? [];
+    const i = valores.findIndex((v) => mesmaParcela(v, valor, total));
+    if (i === -1) return false;
+    valores.splice(i, 1);
+    return true;
+  };
+  /** Parcela de fatura usa SÓ a comparação por parcela (que já cobre o valor exato); o resto usa
+   * a chave exata. Como os dois lados decidem pela mesma descrição, um lançamento do banco nunca
+   * é "gasto" duas vezes, uma por cada caminho. */
+  const chaveParcela = (item: ConfirmedItem) => {
+    const parcela = faturaTarget && !item.estorno ? parcelaCerta(item.description) : null;
+    return parcela
+      ? { key: `${profileIdOf(item)}|${faturaTarget!.year}/${faturaTarget!.month}|${descricaoComparavel(item.description)}`, total: parcela.total }
+      : null;
+  };
   const chaveSolta = (item: ConfirmedItem) =>
     !faturaTarget && yearMonthFromISO(item.date) ? `${profileIdOf(item)}|${item.date}|${valorGravado(item).toFixed(2)}|${item.category}` : null;
   // Duas passadas: primeiro o que bate EXATO (mesma descrição), depois, só entre os que sobraram,
@@ -569,7 +624,8 @@ export async function importTransactionsAction(
   const pular = new Set<number>();
   items.forEach((item, i) => {
     if (item.amount <= 0) return;
-    if (alreadyThere(chaveExata(item))) {
+    const parcela = chaveParcela(item);
+    if (parcela ? parcelaJaLancada(parcela.key, valorGravado(item), parcela.total) : alreadyThere(chaveExata(item))) {
       pular.add(i);
       const solta = chaveSolta(item);
       if (solta) alreadyThere(solta, looseCounts);
@@ -637,8 +693,11 @@ export async function importTransactionsAction(
         const offset = n - current;
         const d = new Date(ym.year, ym.month - 1 + offset, 1);
         const desc = installmentDescription(item.description, n, total);
-        const futureKey = `${d.getFullYear()}/${d.getMonth() + 1}|${dedupeKey(null, item.amount, desc)}`;
-        if (alreadyThere(futureKey)) continue;
+        // Com o perfil na frente, como todas as chaves de lançamentos existentes: sem ele a
+        // checagem nunca achava nada, e subir as faturas fora de ordem (outubro antes de
+        // setembro) recriava as parcelas que já estavam lá.
+        const futureKey = `${profileId}|${d.getFullYear()}/${d.getMonth() + 1}|${descricaoComparavel(desc)}`;
+        if (parcelaJaLancada(futureKey, item.amount, total)) continue;
         await createMonthlyEntry(ctx, {
           year: d.getFullYear(),
           month: d.getMonth() + 1,

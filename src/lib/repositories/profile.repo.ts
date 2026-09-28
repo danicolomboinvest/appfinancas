@@ -64,30 +64,49 @@ export async function listProfiles(userId: string): Promise<ProfileRow[]> {
   });
 }
 
+/** O perfil com que toda conta nasce: criado junto com o usuário e, na falta dele, na hora. */
+export const PERFIL_INICIAL = {
+  name: "Pessoal",
+  kind: "PESSOAL",
+  icon: ICONE_PADRAO.PESSOAL,
+  theme: DEFAULT_PROFILE_THEME,
+  isDefault: true,
+} as const;
+
 /**
  * O perfil ativo da conta. Cria um na hora se a pessoa ainda não tiver nenhum.
  *
  * A criação preguiçosa aqui não é preciosismo: sem ela, uma conta nova (ou uma que escapou do
  * backfill) ficaria sem perfil e TODA consulta com escopo devolveria vazio — a pessoa veria o
  * app inteiro zerado sem nenhuma explicação.
+ *
+ * O layout e a página rodam em paralelo e os dois chamam isto na primeira entrada: sem trava,
+ * cada um achava "nenhum perfil" e criava o seu, e a conta nascia com dois "Pessoal" ativos.
+ * Por isso a parte que cria roda sob um lock do Postgres por conta, relendo depois de travar.
+ * O `orderBy` deixa a resposta estável pra conta que já ficou com duas marcas: sempre o mais
+ * antigo, em vez de um diferente a cada consulta.
  */
 export async function getOrCreateActiveProfile(userId: string): Promise<ProfileRow> {
-  const ativo = await prisma.financialProfile.findFirst({ where: { userId, isDefault: true }, select: CAMPOS });
+  const ativo = await prisma.financialProfile.findFirst({ where: { userId, isDefault: true }, select: CAMPOS, orderBy: { createdAt: "asc" } });
   if (ativo) return ativo;
 
-  const qualquer = await prisma.financialProfile.findFirst({
-    where: { userId },
-    select: CAMPOS,
-    orderBy: { createdAt: "asc" },
-  });
-  if (qualquer) {
-    await prisma.financialProfile.update({ where: { id: qualquer.id }, data: { isDefault: true } });
-    return { ...qualquer, isDefault: true };
-  }
+  return prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`perfil-ativo|${userId}`}))`;
+    // Quem esperou a trava encontra o perfil que a outra chamada acabou de criar.
+    const criadoEnquantoEsperava = await tx.financialProfile.findFirst({ where: { userId, isDefault: true }, select: CAMPOS, orderBy: { createdAt: "asc" } });
+    if (criadoEnquantoEsperava) return criadoEnquantoEsperava;
 
-  return prisma.financialProfile.create({
-    data: { userId, name: "Pessoal", kind: "PESSOAL", icon: ICONE_PADRAO.PESSOAL, theme: DEFAULT_PROFILE_THEME, isDefault: true },
-    select: CAMPOS,
+    const qualquer = await tx.financialProfile.findFirst({
+      where: { userId },
+      select: CAMPOS,
+      orderBy: { createdAt: "asc" },
+    });
+    if (qualquer) {
+      await tx.financialProfile.update({ where: { id: qualquer.id }, data: { isDefault: true } });
+      return { ...qualquer, isDefault: true };
+    }
+
+    return tx.financialProfile.create({ data: { userId, ...PERFIL_INICIAL }, select: CAMPOS });
   });
 }
 

@@ -30,7 +30,8 @@ import { serverMoney } from "@/lib/money-server";
 import { listMonthlyEntries } from "@/lib/repositories/monthly-entry.repo";
 import { getCategorySpending } from "@/lib/consolidation/month-analysis";
 import { PARENT_CATEGORIES, categoryLabel } from "@/lib/categories";
-import { ehEmpresa } from "@/lib/profiles/empresa";
+import { ehEmpresa, soMesesJaVividos } from "@/lib/profiles/empresa";
+import { monthsElapsedInYear } from "@/lib/consolidation/realized-months";
 import { dadosDaEmpresa } from "@/lib/profiles/empresa-dados";
 import { ehCasal } from "@/lib/profiles/casal";
 import { PainelEmpresa } from "./PainelEmpresa";
@@ -217,6 +218,11 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
           listCustomCategories(ctx),
         ]);
         const gastoPersonalizadoMes = spentByCustom.reduce((s, r) => s + r.spent, 0);
+        // A receita do ano (summary.totalIncome) só soma mês já vivido; o gasto tem que ser
+        // cortado no mesmo mês, senão as cópias recorrentes de out–dez derrubam o lucro do ano.
+        const mesesPassados = monthsElapsedInYear(year);
+        const porMaeAteHoje = soMesesJaVividos(porMaeAno, mesesPassados);
+        const porPersonalizadaAteHoje = soMesesJaVividos(porPersonalizadaAno, mesesPassados);
         const [mes, ano] = await Promise.all([
           dadosDaEmpresa(ctx, { receita: currentMonthSummary.totalIncome, retido: currentMonthSummary.totalInvestment, gastoPorCategoria: spentByParent, gastoPersonalizado: gastoPersonalizadoMes }, { year, month: currentMonth }),
           dadosDaEmpresa(
@@ -224,8 +230,8 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
             {
               receita: summary.totalIncome,
               retido: summary.totalInvestment,
-              gastoPorCategoria: porMaeAno.map((r) => ({ parentCategory: r.parentCategory, spent: r.spent })),
-              gastoPersonalizado: porPersonalizadaAno.reduce((s, r) => s + r.spent, 0),
+              gastoPorCategoria: porMaeAteHoje.map((r) => ({ parentCategory: r.parentCategory, spent: r.spent })),
+              gastoPersonalizado: porPersonalizadaAteHoje.reduce((s, r) => s + r.spent, 0),
             },
             { year, month: currentMonth },
           ),

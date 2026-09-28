@@ -1,17 +1,22 @@
 import type { ParentCategory } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import type { AuthContext } from "@/lib/auth/session";
+import { padraoAprendivel } from "@/lib/import/classify";
 
 export async function listTransactionRules(ctx: AuthContext) {
   return prisma.transactionCategoryRule.findMany({ where: { userId: ctx.userId, profileId: ctx.profileId } });
 }
 
-/** Grava (ou atualiza) uma regra aprendida merchant → categoria para o usuário. */
+/**
+ * Grava (ou atualiza) uma regra aprendida merchant → categoria para o usuário. Padrão sem nome
+ * de quem recebeu ("no" de "Compra no débito", "enviado" de "PIX ENVIADO") não vira regra:
+ * pegaria toda compra e todo Pix dali pra frente, na importação e no Open Finance.
+ */
 export async function upsertTransactionRule(
   ctx: AuthContext,
   input: { pattern: string; parentCategory: ParentCategory; subcategory?: string },
 ) {
-  if (!input.pattern.trim()) return null;
+  if (!input.pattern.trim() || !padraoAprendivel(input.pattern)) return null;
   const existing = await prisma.transactionCategoryRule.findFirst({
     where: { userId: ctx.userId, profileId: ctx.profileId, pattern: input.pattern },
   });

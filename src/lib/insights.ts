@@ -48,6 +48,21 @@ function formatMonthYear(date: Date) {
   return new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric" }).format(date);
 }
 
+/**
+ * "Se continuar nesse ritmo, vai economizar R$ X neste ano": o que já sobrou nos meses fechados
+ * mais a média deles vezes os meses que AINDA vêm (do mês corrente até dezembro). Contar
+ * "12 − meses fechados" tratava os meses antes de a pessoa começar no app como se estivessem
+ * pela frente: quem entrou em julho via, em setembro, o dobro da projeção certa.
+ * `null` sem nenhum mês fechado (não há ritmo pra projetar).
+ */
+export function projetarEconomiaDoAno(closedMonths: { totalPlanned: number; totalSpent: number }[], currentMonth: number): number | null {
+  if (closedMonths.length === 0) return null;
+  const accumulatedSavings = closedMonths.reduce((soma, m) => soma + (m.totalPlanned - m.totalSpent), 0);
+  const averageMonthlySavings = accumulatedSavings / closedMonths.length;
+  const remainingMonths = Math.max(0, 13 - currentMonth);
+  return accumulatedSavings + averageMonthlySavings * remainingMonths;
+}
+
 /** Meses anteriores ao atual usados para calcular a taxa de poupança "média pessoal". */
 const TRAILING_MONTHS_FOR_AVERAGE = 6;
 
@@ -221,21 +236,16 @@ export async function computeInsights(ctx: AuthContext, money: MoneyFormatter): 
     // A projeção do ano só pode partir de meses FECHADOS: o corrente, pela metade, entra como
     // "economia" que ainda não aconteceu e infla o "se continuar nesse ritmo".
     const closedMonths = realizedMonths.filter((m) => m.month < month);
-    if (closedMonths.length > 0) {
-      const accumulatedSavings = closedMonths.reduce((soma, m) => soma + (m.totalPlanned - m.totalSpent), 0);
-      const averageMonthlySavings = accumulatedSavings / closedMonths.length;
-      const remainingMonths = 12 - closedMonths.length;
-      const projectedAnnualSavings = accumulatedSavings + averageMonthlySavings * remainingMonths;
-      if (projectedAnnualSavings > 0) {
-        insights.push({
-          id: "budget-projected-annual-savings",
-          message: `Se continuar nesse ritmo, você vai economizar aproximadamente ${money(projectedAnnualSavings)} neste ano.`,
-          tone: "success",
-          category: "fluxo",
-          href: comparativoHref,
-          actionLabel: "Ver comparativo",
-        });
-      }
+    const projectedAnnualSavings = projetarEconomiaDoAno(closedMonths, month);
+    if (projectedAnnualSavings !== null && projectedAnnualSavings > 0) {
+      insights.push({
+        id: "budget-projected-annual-savings",
+        message: `Se continuar nesse ritmo, você vai economizar aproximadamente ${money(projectedAnnualSavings)} neste ano.`,
+        tone: "success",
+        category: "fluxo",
+        href: comparativoHref,
+        actionLabel: "Ver comparativo",
+      });
     }
 
     const monthsDescending = [...realizedMonths].sort((a, b) => b.month - a.month);

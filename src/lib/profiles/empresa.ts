@@ -109,6 +109,17 @@ export function naturezaDaCategoria(parent: ParentCategory | null | undefined): 
 
 // ─── DRE ─────────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Só as linhas dos meses que já aconteceram (`month <= mesesPassados`). A DRE do ano soma a
+ * receita só até o mês corrente (o resumo do ano não conta mês futuro), mas o gasto por
+ * categoria vem do banco com as cópias de lançamento recorrente até dezembro. Sem cortar os
+ * dois no mesmo ponto, o aluguel de out–dez entra contra uma receita de jan–set e o lucro,
+ * as margens e o ponto de equilíbrio do ano saem menores do que são.
+ */
+export function soMesesJaVividos<T extends { month: number }>(linhas: T[], mesesPassados: number): T[] {
+  return linhas.filter((l) => l.month <= mesesPassados);
+}
+
 export type EntradaDRE = {
   /** Tudo que entrou no período (receita bruta). */
   receita: number;

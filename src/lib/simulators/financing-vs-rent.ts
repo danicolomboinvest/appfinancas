@@ -12,6 +12,12 @@ export type FinancingVsRentInput = {
   monthlyRent: number;
   rentAnnualAdjustment: number;
   investmentAnnualRate: number;
+  /**
+   * Alíquota de IR sobre o rendimento de quem aluga e investe. A valorização do imóvel já
+   * entra sem desconto, então comparar com a taxa BRUTA do investimento inflava o lado do
+   * aluguel e chegava a virar o veredito (mesma regra do Amortizar vs. Investir).
+   */
+  incomeTaxRate: number;
 };
 
 export type FinancingVsRentMonth = {
@@ -30,6 +36,9 @@ export type FinancingVsRentResult = {
   finalFinancingPatrimony: number;
   finalInvestedPatrimony: number;
   winner: "FINANCIAR" | "ALUGAR_E_INVESTIR";
+  /** Prazo menor que 1 mês não gera tabela: não há o que comparar (ex.: campo apagado). */
+  invalidTerm: boolean;
+  netInvestmentAnnualRate: number;
 };
 
 /**
@@ -41,13 +50,29 @@ export function simulateFinancingVsRent(input: FinancingVsRentInput): FinancingV
   const financedAmount = input.propertyValue - input.downPayment;
   const monthlyRate = annualToMonthly(input.cetAnnualRate);
   const appreciationMonthly = annualToMonthly(input.propertyAppreciationAnnualRate);
-  const investmentMonthly = annualToMonthly(input.investmentAnnualRate);
+  const netInvestmentAnnualRate = new Decimal(input.investmentAnnualRate).times(new Decimal(1).minus(input.incomeTaxRate));
+  const investmentMonthly = annualToMonthly(netInvestmentAnnualRate);
+
+  // Prazo fracionado vira meses inteiros; abaixo de 1 mês não há tabela (e antes a tela
+  // quebrava lendo o último mês de uma lista vazia ao apagar o campo para redigitar).
+  const termMonths = Number.isFinite(input.termMonths) ? Math.floor(input.termMonths) : 0;
+  if (termMonths < 1) {
+    return {
+      financedAmount,
+      schedule: [],
+      finalFinancingPatrimony: 0,
+      finalInvestedPatrimony: 0,
+      winner: "FINANCIAR",
+      invalidTerm: true,
+      netInvestmentAnnualRate: netInvestmentAnnualRate.toNumber(),
+    };
+  }
 
   const amortizationRows = generateAmortizationSchedule({
     system: input.system,
     principal: financedAmount,
     monthlyRate,
-    months: input.termMonths,
+    months: termMonths,
   });
 
   const schedule: FinancingVsRentMonth[] = [];
@@ -82,5 +107,7 @@ export function simulateFinancingVsRent(input: FinancingVsRentInput): FinancingV
     finalFinancingPatrimony: last.financingPatrimony,
     finalInvestedPatrimony: last.investedPatrimony,
     winner: last.financingPatrimony >= last.investedPatrimony ? "FINANCIAR" : "ALUGAR_E_INVESTIR",
+    invalidTerm: false,
+    netInvestmentAnnualRate: netInvestmentAnnualRate.toNumber(),
   };
 }

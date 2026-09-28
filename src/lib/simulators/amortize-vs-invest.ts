@@ -25,6 +25,11 @@ export type AmortizeVsInvestResult = {
   totalInterestWithoutExtra: number;
   totalInterestWithExtra: number;
   interestSavings: number;
+  /**
+   * Ganho de amortizar medido na mesma régua do investimento: as parcelas que deixam de sair
+   * do bolso, reinvestidas à taxa líquida até o fim do prazo original, menos o valor extra.
+   */
+  amortizeGain: number;
   netInvestmentAnnualRate: number;
   investmentGain: number;
   winner: "AMORTIZAR" | "INVESTIR";
@@ -62,9 +67,10 @@ function runWithFixedInstallment(
 }
 
 /**
- * "Sobrou dinheiro: amortizo o financiamento ou invisto?" Compara a economia de juros de
- * uma amortização extraordinária (reduzindo o prazo, mantendo a parcela/amortização
- * original) contra o ganho líquido de IR de investir o mesmo valor pelo prazo restante.
+ * "Sobrou dinheiro: amortizo o financiamento ou invisto?" Compara o ganho de uma amortização
+ * extraordinária (reduzindo o prazo, mantendo a parcela/amortização original) contra o ganho
+ * líquido de IR de investir o mesmo valor pelo prazo restante — os dois medidos no fim do
+ * prazo original, com o mesmo dinheiro rendendo à mesma taxa.
  */
 export function simulateAmortizeVsInvest(input: AmortizeVsInvestInput): AmortizeVsInvestResult {
   const monthlyRate = annualToMonthly(input.cetAnnualRate);
@@ -100,8 +106,21 @@ export function simulateAmortizeVsInvest(input: AmortizeVsInvestInput): Amortize
     input.extraAmount,
   );
 
-  const winner = interestSavings.greaterThanOrEqualTo(investmentGain) ? "AMORTIZAR" : "INVESTIR";
-  const differenceInFavorOfWinner = interestSavings.minus(investmentGain).abs();
+  // A soma nominal dos juros economizados não pode ser comparada com o ganho COMPOSTO do
+  // investimento: a economia chega aos poucos (mês a mês no SAC, só no fim no Price) e, somada
+  // sem render, perde sempre — mesmo com CET acima da taxa líquida. A comparação justa leva
+  // cada parcela que deixa de sair do bolso ao mês N, rendendo à mesma taxa líquida. Se o extra
+  // for maior que o saldo, a sobra também fica investida desde o início.
+  const leftover = Decimal.max(new Decimal(input.extraAmount).minus(input.outstandingBalance), 0);
+  let amortizeFutureValue = leftover;
+  for (let i = 0; i < input.remainingMonths; i += 1) {
+    const freedPayment = new Decimal(scheduleWithoutExtra[i]?.payment ?? 0).minus(scheduleWithExtra[i]?.payment ?? 0);
+    amortizeFutureValue = amortizeFutureValue.times(netInvestmentMonthlyRate.plus(1)).plus(freedPayment);
+  }
+  const amortizeGain = amortizeFutureValue.minus(input.extraAmount);
+
+  const winner = amortizeGain.greaterThanOrEqualTo(investmentGain) ? "AMORTIZAR" : "INVESTIR";
+  const differenceInFavorOfWinner = amortizeGain.minus(investmentGain).abs();
 
   return {
     scheduleWithoutExtra,
@@ -109,6 +128,7 @@ export function simulateAmortizeVsInvest(input: AmortizeVsInvestInput): Amortize
     totalInterestWithoutExtra: totalInterestWithoutExtra.toNumber(),
     totalInterestWithExtra: totalInterestWithExtra.toNumber(),
     interestSavings: interestSavings.toNumber(),
+    amortizeGain: amortizeGain.toNumber(),
     netInvestmentAnnualRate: netInvestmentAnnualRate.toNumber(),
     investmentGain: investmentGain.toNumber(),
     winner,

@@ -3,6 +3,16 @@ import type { ParsedTransaction } from "./statement-parser";
 
 export type DocKind = "extrato" | "fatura" | "unknown";
 
+const OFX_DE_CONTA = "OFX de conta bancária";
+const CSV_EXTRATO_NUBANK = "extrato do Nubank (CSV)";
+const EXTRATO_SANTANDER = "extrato do Santander";
+/**
+ * Motivos que vêm da ESTRUTURA do arquivo, não de uma palavra solta: o OFX declara que é conta
+ * bancária, o CSV do Nubank tem cabeçalho próprio. Fatura nenhuma sai nesses formatos, então a
+ * contagem de sinais não desmente esses motivos.
+ */
+const MOTIVOS_ESTRUTURAIS_DE_EXTRATO = new Set([OFX_DE_CONTA, CSV_EXTRATO_NUBANK, EXTRATO_SANTANDER]);
+
 /**
  * O que o arquivo É, pelo nome e pelo conteúdo. O erro mais caro da importação, nos dados
  * reais, era fatura de cartão subida como extrato: toda compra virava renda. Quando dá pra
@@ -15,12 +25,12 @@ export function detectDocKind(text: string, fileName?: string | null): { kind: D
 
   // OFX declara o tipo de conta.
   if (/<creditcardmsgsrsv1>|<ccstmtrs>|<ccacctfrom>/i.test(head)) return { kind: "fatura", reason: "OFX de cartão de crédito" };
-  if (/<bankmsgsrsv1>|<stmtrs>|<bankacctfrom>/i.test(head)) return { kind: "extrato", reason: "OFX de conta bancária" };
+  if (/<bankmsgsrsv1>|<stmtrs>|<bankacctfrom>/i.test(head)) return { kind: "extrato", reason: OFX_DE_CONTA };
 
   // Cabeçalhos conhecidos.
   const firstLine = head.split(/\r?\n/).find((l) => l.trim())?.toLowerCase() ?? "";
   if (/^date\s*,\s*title\s*,\s*amount/.test(firstLine)) return { kind: "fatura", reason: "fatura do Nubank (CSV)" };
-  if (/identificador/.test(firstLine) && /descri/.test(firstLine)) return { kind: "extrato", reason: "extrato do Nubank (CSV)" };
+  if (/identificador/.test(firstLine) && /descri/.test(firstLine)) return { kind: "extrato", reason: CSV_EXTRATO_NUBANK };
   if (/final do cart[aã]o|nome no cart[aã]o|parcela/.test(firstLine)) return { kind: "fatura", reason: "fatura de cartão (CSV)" };
   if (/saldo/.test(firstLine)) return { kind: "extrato", reason: "extrato com coluna de saldo" };
 
@@ -28,7 +38,7 @@ export function detectDocKind(text: string, fileName?: string | null): { kind: D
   if (/fatura|vencimento|limite dispon[ií]vel|pagamento m[ií]nimo/.test(headLower) && !/extrato/.test(headLower)) return { kind: "fatura", reason: "cabeçalho de fatura" };
   if (/extrato|saldo (anterior|do dia|final)|conta corrente/.test(headLower)) return { kind: "extrato", reason: "cabeçalho de extrato" };
   // O PDF do Santander quebra as palavras no meio ("EXT R ATO"): só reconhece sem os espaços.
-  if (isSantanderConsolidatedStatement(text)) return { kind: "extrato", reason: "extrato do Santander" };
+  if (isSantanderConsolidatedStatement(text)) return { kind: "extrato", reason: EXTRATO_SANTANDER };
 
   if (/fatura|invoice/.test(name) || /^nubank_\d{4}-\d{2}-\d{2}\.csv$/.test(name)) return { kind: "fatura", reason: "nome do arquivo" };
   if (/extrato|statement|^nu_\d+_/.test(name)) return { kind: "extrato", reason: "nome do arquivo" };
@@ -44,6 +54,21 @@ export function looksLikeCardInvoice(txns: ParsedTransaction[]): boolean {
   const positive = txns.filter((t) => t.amount > 0).length;
   const ratio = positive / txns.length;
   return ratio >= 0.9 || ratio <= 0.1;
+}
+
+/** Motivo mostrado quando quem decidiu foram os sinais, e não o cabeçalho do arquivo. */
+export const MOTIVO_SINAIS_FATURA = "quase todos os lançamentos vão pro mesmo lado";
+
+/**
+ * O perfil disse "extrato"; os sinais desmentem? Só no caso CARO: quase tudo entrando como
+ * dinheiro que chegou. É a fatura com "extrato" escrito no cabeçalho, que lançou compras como
+ * renda. O contrário — quase tudo saída — é o extrato normal de quem recebe um salário e paga
+ * doze contas no mês; tratar isso como fatura transformava o salário em estorno e a renda sumia.
+ * E quando o motivo do perfil é a estrutura do arquivo (OFX, CSV do Nubank), ele vence sempre.
+ */
+export function sinaisDesmentemExtrato(txns: ParsedTransaction[], reason: string): boolean {
+  if (MOTIVOS_ESTRUTURAIS_DE_EXTRATO.has(reason) || !looksLikeCardInvoice(txns)) return false;
+  return txns.filter((t) => t.amount > 0).length / txns.length >= 0.9;
 }
 
 /** "Total da fatura R$ 2.345,67" / "Total a pagar" / "Valor total": pra conferir se a leitura fechou. */

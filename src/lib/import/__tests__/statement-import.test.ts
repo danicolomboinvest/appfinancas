@@ -17,6 +17,29 @@ describe("normalizeDate", () => {
     expect(normalizeDate("2026-05-12")).toBe("2026-05-12");
     expect(normalizeDate("20260512120000")).toBe("2026-05-12");
   });
+
+  it("aceita dia/mês com um dígito e ano com dois (Banco Inter), senão tudo caía no mês atual", () => {
+    expect(normalizeDate("1/07/26")).toBe("2026-07-01");
+    expect(normalizeDate("10/07/26")).toBe("2026-07-10");
+    expect(normalizeDate("5/9/2026")).toBe("2026-09-05");
+    expect(normalizeDate("12/05/2026 14:30")).toBe("2026-05-12");
+    // Não inventa data: mês 13 ou texto solto voltam como vieram.
+    expect(normalizeDate("1/13/26")).toBe("1/13/26");
+    expect(normalizeDate("ontem")).toBe("ontem");
+  });
+
+  it("lê o extrato do Inter com a data certa e sem a data grudada na descrição", () => {
+    const inter = [
+      ";;;;;Extrato de conta;;;;;;;",
+      "TRANSACAO;DATA;DESCRICAO;;VALOR (R$);SALDO (R$);;;;;;;",
+      "1/07/26;1/07/26;PAGAMENTO BOLETO LOJA PARC02;;-R$ 1,234.56;R$ 2,000.00;;;;;;;",
+      "10/07/26;10/07/26;COMPRA DEBITO MERC01 LOJA;;-R$ 89.90;R$ 2,210.10;;;;;;;",
+    ].join("\n");
+    expect(parseCsv(inter)).toEqual([
+      { date: "2026-07-01", description: "PAGAMENTO BOLETO LOJA PARC02", amount: -1234.56 },
+      { date: "2026-07-10", description: "COMPRA DEBITO MERC01 LOJA", amount: -89.9 },
+    ]);
+  });
 });
 
 describe("parseOfx", () => {

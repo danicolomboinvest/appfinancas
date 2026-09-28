@@ -49,7 +49,7 @@ export default async function MetasPage() {
 
   const withPlans = goals.map((goal) => {
     const targetAmount = Number(goal.targetAmount);
-    // Progresso REAL (ativos vinculados + aportes), não mais o campo manual, item 6.
+    // Progresso REAL: o maior entre o "Já guardado" digitado e ativos vinculados + aportes (item 6).
     const currentAmount = goal.computedCurrentAmount;
     const targetDate = goal.targetDate ?? new Date();
     const goalInput = {
@@ -122,6 +122,7 @@ export default async function MetasPage() {
               icon={goal.icon}
               targetAmount={targetAmount}
               currentAmount={currentAmount}
+              openingBalance={Number(goal.currentAmount)}
               targetDate={targetDate}
               annualRate={Number(goal.annualRate ?? 0)}
               plan={plan}

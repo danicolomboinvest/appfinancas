@@ -231,4 +231,29 @@ describe("avaliarCompra: casal com conta conjunta", () => {
     expect(r.titulo).not.toContain("90%");
     expect(r.avisos?.some((a) => a.includes("conta conjunta"))).toBe(true);
   });
+
+  it("parcela maior que o que entra na conta conjunta é não, e não fala em 90%", () => {
+    // Renda 5.000, orçamento 5.000, sem metas: R$ 30.000 em 10x (R$ 3.000/mês) leva a conta a 160%.
+    const b = { ...base, renda: 5000, gastoPlanejado: 5000, sobraDoMes: 1000, metas: [], regra90: false };
+    const r = avaliarCompra(b, { valor: 30000, modo: "parcelado", parcelas: 10, juros: 0, desconto: 0 }, fmt);
+    if ("erro" in r) throw new Error();
+    expect(r.veredito).toBe("nao");
+    expect(r.titulo).toContain("conta conjunta");
+    expect(r.explicacao).not.toContain("90%");
+    expect(r.conta.some((c) => c.rotulo.includes("90%"))).toBe(false);
+  });
+
+  it("cabe no guardado da conta conjunta: não é 'não', e a explicação não fala em 90%", () => {
+    const b = { ...base, renda: 6000, gastoPlanejado: 5000, sobraDoMes: 800, metas: [], guardarPlanejado: 500, regra90: false };
+    // Sem destino 500 + guardado 500 = 1.000 por mês; parcela de 900 cabe (a regra dos 90% diria não).
+    const r = avaliarCompra(b, { valor: 9000, modo: "parcelado", parcelas: 10, juros: 0, desconto: 0 }, fmt);
+    if ("erro" in r) throw new Error();
+    expect(r.veredito).toBe("ok");
+    expect(r.explicacao).not.toContain("90%");
+    // Um real a mais por mês e já não cabe.
+    const estoura = avaliarCompra(b, { valor: 10010, modo: "parcelado", parcelas: 10, juros: 0, desconto: 0 }, fmt);
+    if ("erro" in estoura) throw new Error();
+    expect(estoura.veredito).toBe("nao");
+    expect(estoura.sugestao).toContain("11x");
+  });
 });

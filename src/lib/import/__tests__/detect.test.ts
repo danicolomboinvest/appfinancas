@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { detectDocKind, detectInvoiceTotal, looksLikeCardInvoice } from "../detect";
+import { detectDocKind, detectInvoiceTotal, looksLikeCardInvoice, sinaisDesmentemExtrato } from "../detect";
 import { parseCsv, parseTextLines, parseAmountFlexible } from "../statement-parser";
 
 describe("detectDocKind", () => {
@@ -17,6 +17,24 @@ describe("detectDocKind", () => {
     const allPositive = Array.from({ length: 10 }, (_, i) => ({ date: "2026-08-01", description: `Loja ${i}`, amount: 10 + i }));
     expect(looksLikeCardInvoice(allPositive)).toBe(true);
     expect(looksLikeCardInvoice([...allPositive.slice(0, 5), ...allPositive.slice(5).map((t) => ({ ...t, amount: -t.amount }))])).toBe(false);
+  });
+
+  it("extrato com um salário e muitas saídas continua extrato; fatura com cara de renda, não", () => {
+    const salarioEDozeContas = [
+      { date: "2026-08-05", description: "SALARIO", amount: 5000 },
+      ...Array.from({ length: 12 }, (_, i) => ({ date: "2026-08-10", description: `PIX ${i}`, amount: -(50 + i) })),
+    ];
+    // Os sinais sozinhos dizem "mesmo lado"…
+    expect(looksLikeCardInvoice(salarioEDozeContas)).toBe(true);
+    // …mas não desmentem o extrato: nem com motivo estrutural, nem com o cabeçalho.
+    expect(sinaisDesmentemExtrato(salarioEDozeContas, "extrato do Nubank (CSV)")).toBe(false);
+    expect(sinaisDesmentemExtrato(salarioEDozeContas, "cabeçalho de extrato")).toBe(false);
+
+    // A fatura que já lançou compras como RENDA: "extrato" no cabeçalho, tudo positivo.
+    const compras = Array.from({ length: 10 }, (_, i) => ({ date: "2026-08-01", description: `MERCADOLIVRE ${i}`, amount: 100 + i }));
+    expect(sinaisDesmentemExtrato(compras, "cabeçalho de extrato")).toBe(true);
+    // Estrutura do arquivo vence: OFX de conta bancária não é fatura, digam os sinais o que disserem.
+    expect(sinaisDesmentemExtrato(compras, detectDocKind("<OFX><BANKMSGSRSV1><STMTRS>", "x.ofx").reason)).toBe(false);
   });
 
   it("reads the invoice total to reconcile", () => {

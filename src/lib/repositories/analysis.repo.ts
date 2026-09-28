@@ -2,6 +2,7 @@ import type { Prisma, SheetType } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import type { AuthContext } from "@/lib/auth/session";
 import type { CreateAnalysisSheetInput, SaveAnalysisResponsesInput } from "@/lib/validations/analysis-sheet.schema";
+import { notaGuardandoObservacao } from "@/lib/analysis/checklist";
 
 export async function listCriteria(sheetType: SheetType, categories?: string[]) {
   return prisma.analysisCriterionDefinition.findMany({
@@ -87,9 +88,16 @@ export async function saveLaudo(ctx: AuthContext, sheetId: string, laudo: Prisma
 export async function saveSingleResponse(ctx: AuthContext, sheetId: string, criterionId: string, value: string | null) {
   const sheet = await prisma.analysisSheet.findFirst({ where: { id: sheetId, userId: ctx.userId, profileId: ctx.profileId }, select: { id: true } });
   if (!sheet) throw new Error("Ficha não encontrada.");
+  // A Observação escrita à mão na ficha antiga mora na mesma coluna: vai pro Comentário antes
+  // de o toque gravar por cima.
+  const atual = await prisma.analysisResponse.findUnique({
+    where: { sheetId_criterionId: { sheetId, criterionId } },
+    select: { value: true, note: true },
+  });
+  const note = atual && atual.value !== value ? notaGuardandoObservacao(atual.value, atual.note) : undefined;
   return prisma.analysisResponse.upsert({
     where: { sheetId_criterionId: { sheetId, criterionId } },
-    update: { value },
+    update: note !== undefined ? { value, note } : { value },
     create: { sheetId, criterionId, value },
   });
 }

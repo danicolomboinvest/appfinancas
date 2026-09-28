@@ -32,7 +32,10 @@ function campos(t: Titulos): WizardField[] {
     { name: "rentAnnualAdjustment", label: t.simFinReajuste, kind: "percent", help: t.simFinReajusteHint },
     // O rótulo fica escrito aqui (e não no catálogo) por causa do teste de jargão do Girly —
     // ver o cabeçalho de textos/simuladores.ts.
-    { name: "investmentAnnualRate", label: "Rentabilidade ao investir a diferença", kind: "percent", help: t.simFinRentabilidadeHint },
+    // Bruta, com o IR logo abaixo: quem aluga paga imposto sobre o que rende, e ignorar isso
+    // virava o veredito a favor do aluguel. Mesmos textos de IR do Amortizar vs. Investir.
+    { name: "investmentAnnualRate", label: "Rentabilidade ao investir a diferença (bruta)", kind: "percent", help: t.simFinRentabilidadeHint },
+    { name: "incomeTaxRate", label: t.simAmortIr, kind: "percent", help: t.simAmortIrHint },
   ];
 }
 
@@ -46,6 +49,7 @@ const DEFAULTS: WizardValues = {
   monthlyRent: 2200,
   rentAnnualAdjustment: 0.05,
   investmentAnnualRate: 0.11,
+  incomeTaxRate: 0.15,
 };
 
 function toInput(values: WizardValues): FinancingVsRentInput {
@@ -59,15 +63,21 @@ function toInput(values: WizardValues): FinancingVsRentInput {
     monthlyRent: Number(values.monthlyRent),
     rentAnnualAdjustment: Number(values.rentAnnualAdjustment),
     investmentAnnualRate: Number(values.investmentAnnualRate),
+    incomeTaxRate: Number(values.incomeTaxRate),
   };
 }
+
+const PRAZO_INVALIDO = "Informe o prazo do financiamento, em meses";
 
 export default function FinanciarVsAlugarPage() {
   const money = useMoney();
   const { voz } = useProfileTheme();
   const t = voz.titulos;
-  const veredito = (values: WizardValues) =>
-    simulateFinancingVsRent(toInput(values)).winner === "FINANCIAR" ? t.simFinVenceFinanciar : t.simFinVenceAlugar;
+  const veredito = (values: WizardValues) => {
+    const result = simulateFinancingVsRent(toInput(values));
+    if (result.invalidTerm) return PRAZO_INVALIDO;
+    return result.winner === "FINANCIAR" ? t.simFinVenceFinanciar : t.simFinVenceAlugar;
+  };
   return (
     <SimulatorWizard
       eyebrow={t.simFinEyebrow}
@@ -76,6 +86,16 @@ export default function FinanciarVsAlugarPage() {
       save={{ type: "FINANCIAR_VS_ALUGAR", resumo: veredito }}
       renderResult={(values) => {
         const result = simulateFinancingVsRent(toInput(values));
+        // Prazo apagado ou zerado no "Ajustar respostas": sem tabela, não há veredito — pede o
+        // prazo em vez de mostrar números vazios (antes a tela inteira caía).
+        if (result.invalidTerm) {
+          return (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-accent-strong">{t.simResultado}</p>
+              <h1 className="mt-1 text-h2 font-bold tracking-tight text-ink">{PRAZO_INVALIDO}</h1>
+            </div>
+          );
+        }
         return (
           <div className="flex flex-col gap-4">
             <div>

@@ -2,7 +2,7 @@
 
 import { AuthError } from "next-auth";
 import { signIn } from "@/lib/auth/auth.config";
-import { prisma } from "@/lib/db/prisma";
+import { findUserByEmail } from "@/lib/repositories/user.repo";
 import { loginSchema } from "@/lib/validations/auth.schema";
 
 export type LoginState = { error?: string };
@@ -19,10 +19,7 @@ export async function loginAction(_prevState: LoginState, formData: FormData): P
 
   // Conta travada por excesso de tentativas → mensagem clara com o tempo restante,
   // em vez do genérico "email ou senha incorretos".
-  const user = await prisma.user.findUnique({
-    where: { email: parsed.data.email },
-    select: { lockedUntil: true },
-  });
+  const user = await findUserByEmail(parsed.data.email);
   if (user?.lockedUntil && user.lockedUntil > new Date()) {
     const minutes = Math.max(1, Math.ceil((user.lockedUntil.getTime() - Date.now()) / 60_000));
     return {

@@ -283,7 +283,7 @@ export const PADRAO_SIMULADORES: TextosSimuladores = {
   simAmortVenceInvestir: "Melhor investir",
   simAmortAMais: (valor) => `(${valor} a mais)`,
   simAmortBarraAmortizar: "Amortizar a dívida",
-  simAmortBarraAmortizarHint: (meses) => `Economia de juros · quita em ${meses} meses`,
+  simAmortBarraAmortizarHint: (meses) => `Economia de juros, reinvestida · quita em ${meses} meses`,
   simAmortBarraInvestir: "Investir o dinheiro",
   simAmortBarraInvestirHint: (taxa) => `Ganho já líquido de IR · ${taxa} a.a.`,
   simAmortVeredito: (vencedor, valor) => `${vencedor === "AMORTIZAR" ? "Amortizar" : "Investir"} rende ${valor} a mais.`,

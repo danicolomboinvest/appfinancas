@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CATEGORIAS_EMPRESA, calcularDRE, ehEmpresa, saudeDoCaixa } from "../empresa";
+import { CATEGORIAS_EMPRESA, calcularDRE, ehEmpresa, saudeDoCaixa, soMesesJaVividos } from "../empresa";
 import { PARENT_CATEGORIES } from "@/lib/categories";
 
 describe("perfil Empresa: DRE", () => {
@@ -63,5 +63,25 @@ describe("perfil Empresa: caixa", () => {
     expect(ehEmpresa("EMPRESA")).toBe(true);
     expect(ehEmpresa("PESSOAL")).toBe(false);
     expect(ehEmpresa(null)).toBe(false);
+  });
+});
+
+describe("perfil Empresa: DRE do ano só com meses já vividos", () => {
+  it("corta o gasto no mesmo mês da receita, sem as cópias recorrentes de out–dez", () => {
+    // Aluguel recorrente lançado em janeiro: o banco tem uma linha por mês até dezembro.
+    const aluguel = Array.from({ length: 12 }, (_, i) => ({ month: i + 1, parentCategory: "MORADIA", spent: 1000 }));
+    const ateSetembro = soMesesJaVividos(aluguel, 9);
+    expect(ateSetembro).toHaveLength(9);
+    expect(ateSetembro.every((l) => l.month <= 9)).toBe(true);
+
+    // Receita de jan–set 12.000 contra 9 meses de aluguel: lucro de 3.000, e não zero como daria contando os 12 meses.
+    const dre = calcularDRE({ receita: 12000, gastoPorCategoria: { MORADIA: ateSetembro.reduce((s, l) => s + l.spent, 0) } });
+    expect(dre.lucroOperacional).toBe(3000);
+  });
+
+  it("ano que já acabou mantém os 12 meses; ano futuro não tem mês vivido", () => {
+    const linhas = [{ month: 1 }, { month: 12 }];
+    expect(soMesesJaVividos(linhas, 12)).toEqual(linhas);
+    expect(soMesesJaVividos(linhas, 0)).toEqual([]);
   });
 });

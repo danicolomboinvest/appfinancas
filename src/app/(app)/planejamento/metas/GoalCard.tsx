@@ -63,6 +63,7 @@ export async function GoalCard({
   icon,
   targetAmount,
   currentAmount,
+  openingBalance,
   targetDate,
   annualRate,
   plan,
@@ -80,6 +81,9 @@ export async function GoalCard({
   icon: GoalIcon;
   targetAmount: number;
   currentAmount: number;
+  /** O "Já guardado" digitado (saldo de partida). O card mostra o total, mas a edição mexe só
+   *  neste: pré-preencher com o total fazia salvar o calculado por cima do digitado. */
+  openingBalance: number;
   targetDate: Date;
   annualRate: number;
   plan: GoalCalcResult;
@@ -173,7 +177,7 @@ export async function GoalCard({
             name,
             icon,
             targetAmount,
-            currentAmount,
+            currentAmount: openingBalance,
             // Componentes locais, não toISOString(): o valor cru é UTC, e por volta de meia-noite
             // no Brasil (UTC-3) vira o mês ANTERIOR — foi assim que "novembro" virou "dezembro"
             // no formulário de edição, o mês mudava sozinho.

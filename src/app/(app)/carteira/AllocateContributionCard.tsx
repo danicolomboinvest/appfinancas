@@ -50,7 +50,7 @@ export function AllocateContributionCard({
   const { showToast } = useToast();
   const [valores, setValores] = useState<Record<string, number>>({});
   const [isPending, startTransition] = useTransition();
-  const [pronto, setPronto] = useState<{ assets: number; goals: { name: string; amount: number }[] } | null>(null);
+  const [pronto, setPronto] = useState<{ assets: number; goals: { name: string; amount: number }[]; quantityEstimated: string[] } | null>(null);
   const [verTodos, setVerTodos] = useState(false);
   // Fechado por padrão: a carteira já é uma tela cheia, e a pergunta importante é só "você
   // aportou tanto, confere?". A lista de ativos com um campo cada só aparece pra quem toca.
@@ -71,6 +71,11 @@ export function AllocateContributionCard({
             <> {t.cartMetasAndaram(pronto.goals.map((g) => `${g.name} +${money(g.amount, { round: true })}`).join(", "))}</>
           )}
         </p>
+        {/* A quantidade foi estimada pela cotação de hoje (senão a próxima atualização de
+            cotação desfazia o aporte): ela precisa saber, pra corrigir se comprou a outro preço. */}
+        {pronto.quantityEstimated.length > 0 && (
+          <p className="text-caption text-ink-muted">{t.cartQuantidadeEstimada(pronto.quantityEstimated.join(", "))}</p>
+        )}
       </Card>
     );
   }
@@ -158,7 +163,7 @@ export function AllocateContributionCard({
                 showToast(res.error);
                 return;
               }
-              setPronto({ assets: res.assets, goals: res.goals });
+              setPronto({ assets: res.assets, goals: res.goals, quantityEstimated: res.quantityEstimated });
               showToast(t.cartAporteAplicado);
             })
           }

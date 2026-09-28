@@ -20,6 +20,8 @@ export async function GET(request: Request) {
   let failed = 0;
   for (const c of connections) {
     try {
+      // O perfil ativo só vale pra conexão que nunca importou: as demais continuam no perfil
+      // em que já estavam (syncConnection decide), por mais que ela tenha trocado de perfil.
       const perfil = await getOrCreateActiveProfile(c.userId);
       const r = await syncConnection({ userId: c.userId, role: c.user.role, profileId: perfil.id, profileTheme: perfil.theme, profileKind: perfil.kind }, c.id);
       created += r.created;

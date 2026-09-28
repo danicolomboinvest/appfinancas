@@ -769,7 +769,13 @@ function weightedSeasonFactor(legs: LegEstimate[]): number {
   return legs.reduce((sum, leg) => sum + leg.seasonFactor * leg.days, 0) / totalDays;
 }
 
-export type CheaperMonth = { month: number; total: number; savings: number };
+export type CheaperMonth = {
+  month: number;
+  /** Quantos meses DEPOIS do escolhido fica esse mês (1-12). É daqui que sai o ano certo. */
+  ahead: number;
+  total: number;
+  savings: number;
+};
 
 /**
  * Procura, entre os 12 meses seguintes ao escolhido, um que saia sensivelmente mais barato —
@@ -786,9 +792,26 @@ export function findCheaperMonth(input: TripInput & { month: number }): CheaperM
     if (!candidate) continue;
     const savings = current.total - candidate.total;
     if (savings > 0 && (!best || savings > best.savings)) {
-      best = { month, total: candidate.total, savings };
+      best = { month, ahead, total: candidate.total, savings };
     }
   }
   if (!best || best.savings < current.total * 0.08) return null;
   return best;
+}
+
+/**
+ * O "YYYY-MM" que fica `ahead` meses depois de `monthValue` — o mês mais barato no ano certo.
+ *
+ * O "Trocar" montava o ano a partir de HOJE, não do mês escolhido: viagem em julho/2027 com
+ * dica de novembro virava novembro/2026, a dois meses de hoje, e o "guardando por mês"
+ * pedia quase a viagem inteira de uma vez. A dica procura depois do mês escolhido, então a
+ * troca também tem que andar a partir dele.
+ */
+export function monthValuePlus(monthValue: string, ahead: number): string | null {
+  const [y, m] = monthValue.split("-").map(Number);
+  if (!Number.isInteger(y) || !Number.isInteger(m) || m < 1 || m > 12 || !Number.isInteger(ahead)) return null;
+  const total = y * 12 + (m - 1) + ahead;
+  const year = Math.floor(total / 12);
+  const month = (total % 12) + 1;
+  return `${year}-${String(month).padStart(2, "0")}`;
 }

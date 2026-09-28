@@ -2,6 +2,7 @@ import type { AssetClass } from "@prisma/client";
 import { Decimal } from "@/lib/finance/decimal";
 import { prisma } from "@/lib/db/prisma";
 import type { AuthContext } from "@/lib/auth/session";
+import { listGoalsWithProgress } from "@/lib/repositories/goal.repo";
 
 export type GoalAllocation = {
   goalId: string;
@@ -27,7 +28,10 @@ export async function getPortfolioByObjective(ctx: AuthContext): Promise<Portfol
   const [assets, emergencyFund, goals] = await Promise.all([
     prisma.asset.findMany({ where: { userId: ctx.userId, profileId: ctx.profileId } }),
     prisma.emergencyFund.findUnique({ where: { userId: ctx.userId, profileId: ctx.profileId } }),
-    prisma.goal.findMany({ where: { userId: ctx.userId, profileId: ctx.profileId } }),
+    // Mesma conta da tela de Metas e do Dashboard (ativos da meta + aportes que ainda não
+    // entraram num ativo dela + o "já guardado" digitado). Somar só os ativos aqui fazia a
+    // mesma meta mostrar R$ 3.000 / 30% lá e R$ 0 / 0% no "Por objetivo".
+    listGoalsWithProgress(ctx),
   ]);
 
   const sumByObjective = (objective: "RESERVA_EMERGENCIA" | "LIBERDADE_FINANCEIRA" | "OUTRO") =>
@@ -39,11 +43,8 @@ export async function getPortfolioByObjective(ctx: AuthContext): Promise<Portfol
   const liberdadeValue = sumByObjective("LIBERDADE_FINANCEIRA");
   const outroValue = sumByObjective("OUTRO");
 
-  const metaAssets = assets.filter((asset) => asset.objective === "META" && asset.goalId);
   const metas: GoalAllocation[] = goals.map((goal) => {
-    const currentValue = metaAssets
-      .filter((asset) => asset.goalId === goal.id)
-      .reduce((sum, asset) => sum.plus(asset.currentValue), new Decimal(0));
+    const currentValue = new Decimal(goal.computedCurrentAmount);
     const targetAmount = new Decimal(goal.targetAmount);
     return {
       goalId: goal.id,

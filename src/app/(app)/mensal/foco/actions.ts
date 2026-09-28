@@ -334,7 +334,7 @@ export async function resolverLancamentoAntigoAction(entryId: string, acao: "gua
   } else if (acao === "tirar") {
     await prisma.monthlyEntry.deleteMany({ where: onde });
   } else if (acao === "estorno") {
-    const categoria = classify(entrada.description ?? "")?.parentCategory ?? "OUTROS";
+    const categoria = classify(entrada.description ?? "", [], ctx.profileKind)?.parentCategory ?? "OUTROS";
     await prisma.monthlyEntry.updateMany({ where: onde, data: { category: "EXPENSE", amount: -Math.abs(Number(entrada.amount)), parentCategory: categoria, customCategoryId: null } });
   }
   await registrarDecisaoUnica(ctx, { tipo: "revisao_lancamento", chave: entrada.id, descricao: acao });

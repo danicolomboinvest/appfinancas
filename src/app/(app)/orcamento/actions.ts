@@ -25,6 +25,13 @@ export async function applyAllBudgetsAction(
   const year = Number(formData.get("year"));
   const customCategoryIds = formData.getAll("customCategoryId").map(String);
   const ctx = await getRequiredSession();
+  // O plano do ano inteiro é gravado no perfil ATIVO. Se ela trocou de perfil em outra aba
+  // depois de abrir esta tela, os números do formulário são do perfil anterior: gravar aqui
+  // copiaria o plano de um perfil no outro.
+  const perfilDaTela = formData.get("profileId");
+  if (typeof perfilDaTela === "string" && perfilDaTela !== "" && perfilDaTela !== ctx.profileId) {
+    return { error: "Você trocou de perfil; recarregue a página." };
+  }
 
   const parentWrites = PARENT_CATEGORIES.map((parentCategory) => {
     const raw = formData.get(`plannedAmount_${parentCategory}`);

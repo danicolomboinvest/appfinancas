@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db/prisma";
 import type { AuthContext } from "@/lib/auth/session";
-import { fetchTickerDividends, looksLikeMarketTicker } from "@/lib/analysis/dividend-scraper";
+import { fetchTickerDividends, looksLikeMarketTicker, paysDividendsInReais } from "@/lib/analysis/dividend-scraper";
 import { classifyDividendTax, netValuePerShare, type TaxTreatment } from "@/lib/analysis/dividend-tax";
 
 /**
@@ -72,8 +72,11 @@ export async function listUpcomingDividendsForUser(ctx: AuthContext, limit = 20)
   const qtyByTicker = new Map<string, number>();
   for (const asset of assets) {
     const ticker = asset.ticker!.toUpperCase();
+    // Provento em dólar (AAPL, VOO) sairia como se fosse real — ver paysDividendsInReais.
+    if (!paysDividendsInReais(ticker)) continue;
     qtyByTicker.set(ticker, (qtyByTicker.get(ticker) ?? 0) + Number(asset.quantity));
   }
+  if (qtyByTicker.size === 0) return [];
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -113,6 +116,8 @@ export async function sumUpcomingDividends(ctx: AuthContext, days = 30): Promise
 }
 
 export type PaidDividend = {
+  /** DividendEvent.id: identifica o provento (JSCP e Dividendos do mesmo ativo no mesmo dia são dois). */
+  id: string;
   ticker: string;
   kind: string;
   paymentDate: Date;
@@ -124,8 +129,9 @@ export type PaidDividend = {
 
 /**
  * Proventos dos ativos da pessoa pagos nos últimos `days` dias, com a marca de "já lancei".
- * O lançamento é reconhecido pela descrição padrão ("Proventos PETR4") no dia do pagamento —
- * é assim que registerDividendIncomeAction grava, e é o que impede sugerir duas vezes.
+ * O lançamento é reconhecido pela descrição padrão ("Proventos PETR4 (JSCP)") no dia do
+ * pagamento — é assim que registerDividendIncomeAction grava, e é o que impede sugerir duas
+ * vezes (a conta mora em `registeredDividendIds`).
  */
 export async function listRecentlyPaidDividends(ctx: AuthContext, days = 10): Promise<PaidDividend[]> {
   const assets = await prisma.asset.findMany({
@@ -136,8 +142,10 @@ export async function listRecentlyPaidDividends(ctx: AuthContext, days = 10): Pr
   const qtyByTicker = new Map<string, number>();
   for (const a of assets) {
     const t = a.ticker!.toUpperCase();
+    if (!paysDividendsInReais(t)) continue;
     qtyByTicker.set(t, (qtyByTicker.get(t) ?? 0) + Number(a.quantity));
   }
+  if (qtyByTicker.size === 0) return [];
   const today = new Date();
   today.setHours(23, 59, 59, 999);
   const since = new Date(today);
@@ -151,22 +159,68 @@ export async function listRecentlyPaidDividends(ctx: AuthContext, days = 10): Pr
     }),
     prisma.monthlyEntry.findMany({
       where: { userId: ctx.userId, profileId: ctx.profileId, category: "INCOME", description: { startsWith: "Proventos " }, entryDate: { gte: since, lte: today } },
-      select: { description: true, entryDate: true },
+      select: { description: true, entryDate: true, amount: true },
     }),
   ]);
-  const done = new Set(entries.map((e) => `${(e.description ?? "").split(" ")[1]}|${e.entryDate?.toISOString().slice(0, 10)}`));
 
-  return events
-    .map((ev) => {
-      const quantity = qtyByTicker.get(ev.ticker) ?? 0;
-      const amount = Math.round(quantity * netValuePerShare(ev.kind, Number(ev.valuePerShare)) * 100) / 100;
-      return {
-        ticker: ev.ticker,
-        kind: ev.kind,
-        paymentDate: ev.paymentDate,
-        amount,
-        registered: done.has(`${ev.ticker}|${ev.paymentDate.toISOString().slice(0, 10)}`),
-      };
-    })
-    .filter((d) => d.amount > 0);
+  const paid = events.map((ev) => {
+    const quantity = qtyByTicker.get(ev.ticker) ?? 0;
+    const amount = Math.round(quantity * netValuePerShare(ev.kind, Number(ev.valuePerShare)) * 100) / 100;
+    return { id: ev.id, ticker: ev.ticker, kind: ev.kind, paymentDate: ev.paymentDate, amount };
+  });
+  const done = registeredDividendIds(
+    paid.map((p) => ({ id: p.id, ticker: p.ticker, kind: p.kind, day: p.paymentDate.toISOString().slice(0, 10), amount: p.amount })),
+    entries.map((e) => ({ description: e.description, day: e.entryDate?.toISOString().slice(0, 10) ?? null, amount: Number(e.amount) })),
+  );
+
+  return paid.map((p) => ({ ...p, registered: done.has(p.id) })).filter((d) => d.amount > 0);
+}
+
+/**
+ * Quais proventos já viraram lançamento de renda.
+ *
+ * A chave é ticker + TIPO + dia. Antes era só ticker + dia, e é comum a empresa pagar JSCP e
+ * Dividendos no mesmo dia (a PETR4 faz isso em metade das datas): lançar o JSCP escondia os
+ * Dividendos, e ela perdia a maior parte do provento sem aviso.
+ *
+ * Quando o mesmo tipo sai duas vezes no mesmo dia (BBAS3 já pagou dois JSCP numa data), cada
+ * lançamento marca UM provento: primeiro o de valor igual, depois os que sobraram, na ordem —
+ * o valor pode não bater se a quantidade mudou depois de lançar.
+ *
+ * Só conta a descrição no formato que o app grava ("Proventos PETR4 (JSCP)"): um lançamento
+ * digitado à mão com "Proventos PETR4" não pode esconder a sugestão.
+ */
+export function registeredDividendIds(
+  events: { id: string; ticker: string; kind: string; day: string; amount: number }[],
+  entries: { description: string | null; day: string | null; amount: number }[],
+): Set<string> {
+  const lancados = new Map<string, number[]>();
+  for (const e of entries) {
+    const m = (e.description ?? "").match(/^Proventos (\S+) \((.+)\)$/);
+    if (!m || !e.day) continue;
+    const key = `${m[1].toUpperCase()}|${m[2]}|${e.day}`;
+    lancados.set(key, [...(lancados.get(key) ?? []), e.amount]);
+  }
+
+  const porChave = new Map<string, typeof events>();
+  for (const ev of events) {
+    const key = `${ev.ticker}|${ev.kind}|${ev.day}`;
+    porChave.set(key, [...(porChave.get(key) ?? []), ev]);
+  }
+
+  const done = new Set<string>();
+  for (const [key, evs] of porChave) {
+    const valores = [...(lancados.get(key) ?? [])];
+    if (valores.length === 0) continue;
+    const sobraram: typeof evs = [];
+    for (const ev of evs) {
+      const i = valores.findIndex((v) => Math.abs(v - ev.amount) <= 0.01);
+      if (i >= 0) {
+        done.add(ev.id);
+        valores.splice(i, 1);
+      } else sobraram.push(ev);
+    }
+    for (const ev of sobraram.slice(0, valores.length)) done.add(ev.id);
+  }
+  return done;
 }

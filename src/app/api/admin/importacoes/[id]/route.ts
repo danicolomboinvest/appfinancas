@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth/rbac";
 import { readStoredImportFile } from "@/lib/repositories/import-file.repo";
+import { contentDispositionAttachment } from "@/lib/http/content-disposition";
 
 /**
  * Baixa um arquivo de importação que falhou. Só ADMIN: é extrato bancário de cliente.
@@ -20,7 +21,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       "Content-Type": arquivo.mimeType,
       // `attachment` força o download: abrir um HTML/SVG de origem desconhecida no mesmo domínio
       // do app deixaria ele rodar script com a sessão da Dani.
-      "Content-Disposition": `attachment; filename="${arquivo.fileName.replace(/["\r\n]/g, "")}"`,
+      "Content-Disposition": contentDispositionAttachment(arquivo.fileName),
       "Cache-Control": "no-store",
     },
   });

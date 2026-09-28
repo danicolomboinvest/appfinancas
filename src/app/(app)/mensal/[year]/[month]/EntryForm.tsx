@@ -13,17 +13,10 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useSuccessToast } from "@/components/ui/useSuccessToast";
 import { CategoryFields } from "@/components/forms/CategoryFields";
+import { defaultEntryDateValue } from "@/lib/date/entry-date-default";
 import { createMonthlyEntryAction, updateMonthlyEntryAction, type MonthlyEntryState } from "./actions";
 
 const initialState: MonthlyEntryState = {};
-
-/** "YYYY-MM-DD" local (não usar toISOString, vira UTC e pode voltar um dia). */
-function toDateInputValue(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
 
 export function EntryForm({
   year,
@@ -39,6 +32,7 @@ export function EntryForm({
   defaultCategory,
   defaultParentCategory,
   defaultSubcategory,
+  defaultCustomCategoryId,
   defaultEntryDate,
   defaultGoalId,
   defaultCurrency,
@@ -64,6 +58,9 @@ export function EntryForm({
   defaultCategory?: string;
   defaultParentCategory?: ParentCategory;
   defaultSubcategory?: string;
+  /** Categoria personalizada do lançamento (edição): sem ela o gasto de "Pet" abria sem categoria. */
+  defaultCustomCategoryId?: string;
+  /** Vazio na edição = lançamento sem data (compra de fatura), e continua sem data. */
   defaultEntryDate?: string;
   defaultGoalId?: string;
   /** Lançamento em outra moeda (salário em euro): `defaultAmount` vem NESSA moeda, com a cotação usada. */
@@ -114,6 +111,7 @@ export function EntryForm({
         defaultCategory={defaultCategory}
         defaultParentCategory={defaultParentCategory}
         defaultSubcategory={defaultSubcategory}
+        defaultCustomCategoryId={defaultCustomCategoryId}
         descriptionHint={description}
       />
       <Field
@@ -152,7 +150,7 @@ export function EntryForm({
         id="entryDate"
         name="entryDate"
         type="date"
-        defaultValue={defaultEntryDate ?? toDateInputValue(new Date())}
+        defaultValue={defaultEntryDateValue({ defaultEntryDate, isEditing, year, month, today: new Date() })}
         className={stacked ? "w-full" : "w-36"}
       />
       {goals.length > 0 && (

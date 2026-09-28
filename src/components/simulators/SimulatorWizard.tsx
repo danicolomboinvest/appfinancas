@@ -11,6 +11,7 @@ import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { SaveSimulation } from "./SaveSimulation";
 import { useSearchParams } from "next/navigation";
 import { loadSimulationInputsAction } from "@/app/(app)/simuladores/actions";
+import { parseWizardNumber } from "@/lib/simulators/wizard-number";
 
 export type SimulationKind =
   | "FINANCIAR_VS_ALUGAR"
@@ -85,6 +86,10 @@ export function SimulatorWizard({
 }) {
   const [values, setValues] = useState<WizardValues>(defaults);
   const [step, setStep] = useState(0);
+  // Texto cru do campo de percentual/número que está em foco. Enquanto ela digita, o campo
+  // mostra exatamente o que foi digitado ("10," ou "0.") e só o número já legível vai para a
+  // conta; ao sair do campo, volta a mostrar o valor guardado.
+  const [draft, setDraft] = useState<{ name: string; text: string } | null>(null);
   // Os botões e o "Ajustar respostas" falam na voz do tema; as perguntas vêm prontas de cada
   // página, que já as pegou do mesmo catálogo.
   const { voz } = useProfileTheme();
@@ -176,27 +181,31 @@ export function SimulatorWizard({
       );
     }
 
-    // percent e number
+    // percent e number: texto, e não <input type=number>. No type=number, "10." chega vazio
+    // (badInput), virava 0, o React regravava "0" e o "5" seguinte dava "05": 10,5% virava 5%
+    // e 0,8% a.m. virava 8%. Apagar o prazo para redigitar também zerava o campo na hora.
     const isPercent = field.kind === "percent";
+    const stored = isPercent
+      ? percentDisplay(value)
+      : value === "" || value === undefined
+        ? ""
+        : String(value);
+    const editing = draft !== null && draft.name === field.name;
     return (
       <div className={big ? "flex items-baseline gap-2" : "flex items-center gap-2"}>
         <input
-          type="number"
+          type="text"
           inputMode="decimal"
           autoFocus={big}
-          step={isPercent ? "0.1" : "any"}
-          value={
-            isPercent
-              ? percentDisplay(value)
-              : value === "" || value === undefined
-                ? ""
-                : String(value)
-          }
+          value={editing ? draft.text : stored}
+          onFocus={() => setDraft({ name: field.name, text: stored })}
           onChange={(e) => {
-            const raw = e.target.value;
-            if (raw === "") return setField(field.name, isPercent ? 0 : 0);
-            setField(field.name, isPercent ? Number(raw) / 100 : Number(raw));
+            const text = e.target.value.replace(/[^\d.,-]/g, "");
+            setDraft({ name: field.name, text });
+            const n = parseWizardNumber(text);
+            if (n !== null) setField(field.name, isPercent ? n / 100 : n);
           }}
+          onBlur={() => setDraft(null)}
           className={big ? baseBig : baseSmall}
         />
         {(isPercent || field.suffix) && (

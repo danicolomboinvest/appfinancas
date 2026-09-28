@@ -4,6 +4,7 @@ import {
   findDestination,
   searchDestinations,
   findCheaperMonth,
+  monthValuePlus,
   computeTripTotals,
   clampCategoryValue,
   MAX_CATEGORY_VALUE,
@@ -254,5 +255,31 @@ describe("temporada (o mesmo lugar custa diferente conforme o mês)", () => {
       const est = estimateTrip({ legs: [{ destinationKey: "cabo-frio", days: 5 }], travelers: 2, style: "medio", month })!;
       expect(est.seasonFactor).toBe(1);
     }
+  });
+});
+
+describe("Trocar pro mês mais barato — ano certo", () => {
+  it("anda a partir do mês escolhido, não de hoje", () => {
+    // Viagem em julho/2027 com dica de novembro: novembro/2027, não novembro/2026.
+    expect(monthValuePlus("2027-07", 4)).toBe("2027-11");
+  });
+
+  it("vira o ano quando a dica passa de dezembro", () => {
+    expect(monthValuePlus("2027-07", 10)).toBe("2028-05");
+    expect(monthValuePlus("2026-12", 1)).toBe("2027-01");
+    expect(monthValuePlus("2027-03", 12)).toBe("2028-03");
+  });
+
+  it("a dica sai com o 'ahead' que leva ao mês sugerido, sempre depois do escolhido", () => {
+    const dica = findCheaperMonth({ legs: [{ destinationKey: "cabo-frio", days: 7 }], travelers: 2, style: "medio", month: 12 })!;
+    expect(dica.ahead).toBeGreaterThanOrEqual(1);
+    const trocado = monthValuePlus("2026-12", dica.ahead)!;
+    expect(Number(trocado.split("-")[1])).toBe(dica.month);
+    expect(trocado > "2026-12").toBe(true);
+  });
+
+  it("valor inválido não inventa data", () => {
+    expect(monthValuePlus("", 3)).toBeNull();
+    expect(monthValuePlus("2027-13", 1)).toBeNull();
   });
 });

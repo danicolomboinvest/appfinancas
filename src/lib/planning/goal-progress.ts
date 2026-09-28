@@ -29,3 +29,32 @@ export function goalProgress(goalId: string, assetsValueOfGoal: number, contribu
   }, 0);
   return Math.round((assetsValueOfGoal + naoContado) * 100) / 100;
 }
+
+/**
+ * Quanto a meta mostra como "já guardado": o MAIOR entre o que a pessoa digitou em "Já
+ * guardado" e o que o app enxerga (ativos + aportes).
+ *
+ * Antes o digitado só valia enquanto não houvesse nada vinculado: bastava tocar em "Marcar
+ * aporte" uma vez que os R$ 5.000 que ela já tinha guardado sumiam, a meta caía pro valor do
+ * aporte e o "guardar por mês" subia. Somar os dois também não serve: até setembro/2026 o
+ * formulário de edição preenchia "Já guardado" com o total calculado, então em 6 de 8 metas
+ * de produção com os dois o digitado JÁ É o vinculado, e somar mostraria o dobro. O maior dos
+ * dois nunca perde o que ela digitou e nunca conta o mesmo dinheiro duas vezes.
+ */
+export function goalCurrentAmount(openingBalance: number, progress: number): number {
+  return Math.round(Math.max(Math.max(0, openingBalance), progress) * 100) / 100;
+}
+
+/**
+ * Filtro dos aportes que já podem contar na meta: só os de meses que já começaram (no
+ * calendário do Brasil).
+ *
+ * O "Repetir todo mês" cria as cópias até dezembro de uma vez, e cada cópia leva a meta junto.
+ * Sem esse corte, R$ 500 marcado em setembro virava R$ 2.000 guardados na hora — meta pequena
+ * aparecia "atingida" com dinheiro que ainda nem saiu da conta.
+ */
+export function aportesJaOcorridosWhere(today: Date) {
+  const year = today.getFullYear();
+  const month = today.getMonth() + 1;
+  return { OR: [{ year: { lt: year } }, { year, month: { lte: month } }] };
+}

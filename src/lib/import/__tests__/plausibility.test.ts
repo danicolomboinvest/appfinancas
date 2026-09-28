@@ -75,4 +75,16 @@ describe("checarPlausibilidade", () => {
   it("arquivo vazio não vira alarme", () => {
     expect(checarPlausibilidade([], "extrato")).toEqual([]);
   });
+
+  it("avisa quando o extrato traz data que o app não entendeu (cairia no mês atual)", () => {
+    const txns = [
+      { date: "2026-07-01", description: "MERCADO", amount: -80.5 },
+      { date: "6/30/26", description: "PADARIA", amount: -12.3 },
+    ];
+    const suspeitas = checarPlausibilidade(txns, "extrato");
+    expect(suspeitas.map((s) => s.texto).join(" ")).toMatch(/data que não entendi/);
+    expect(suspeitas[0].exemplos[0]).toContain("PADARIA");
+    // Na fatura o mês é escolhido pela pessoa: a data da compra não decide nada.
+    expect(checarPlausibilidade(txns, "fatura")).toEqual([]);
+  });
 });

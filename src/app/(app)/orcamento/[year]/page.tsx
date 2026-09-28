@@ -247,6 +247,7 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
       >
         <BudgetWizard
           year={year}
+          profileId={ctx.profileId}
           hasPlan={hasPlan}
           hints={hints}
           savingsTargets={savingsTargets}

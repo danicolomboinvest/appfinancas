@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { prisma } from "@/lib/db/prisma";
+import { findUserByEmail } from "@/lib/repositories/user.repo";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   // Necessário em produção atrás de um domínio próprio (ex.: financas.danicolombo.com.br) —
@@ -22,7 +23,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const password = typeof credentials?.password === "string" ? credentials.password : undefined;
         if (!email || !password) return null;
 
-        const user = await prisma.user.findUnique({ where: { email } });
+        // Sem olhar maiúscula: contas antigas guardaram o e-mail do jeito que foi digitado.
+        const user = await findUserByEmail(email);
         if (!user) return null;
 
         // Modelo freemium: qualquer conta loga (parte de finanças pessoais é grátis). Quem não

@@ -168,11 +168,16 @@ export function EntryList({
     const snapshots = targets.map((t) => toSnapshot(t, year, month));
     const quantos = targets.length;
     startTransition(async () => {
-      const { jaNaCarteira } = await deleteMonthlyEntriesAction(
+      const { jaNaCarteira, allocations } = await deleteMonthlyEntriesAction(
         targets.map((t) => t.id),
         year,
         month,
       );
+      // O "Desfazer" devolve o aporte com os ativos em que ele já tinha entrado; sem isso ele
+      // voltava "sem destino" e a meta contava aporte + ativo.
+      targets.forEach((entry, i) => {
+        snapshots[i].allocations = allocations[entry.id] ?? [];
+      });
       // Aporte que já tinha sido distribuído: o dinheiro fica no ativo de propósito (é a posição
       // real da pessoa). Dizer isso na hora é o que impede o mês e a carteira de divergirem
       // sem ninguém perceber.
@@ -472,6 +477,7 @@ export function EntryList({
             defaultCategory={editing.category}
             defaultParentCategory={(editing.parentCategory as ParentCategory) ?? undefined}
             defaultSubcategory={editing.subcategory ?? undefined}
+            defaultCustomCategoryId={editing.customCategoryId ?? undefined}
             defaultEntryDate={editing.entryDate ?? undefined}
             defaultGoalId={editing.goalId ?? undefined}
           />

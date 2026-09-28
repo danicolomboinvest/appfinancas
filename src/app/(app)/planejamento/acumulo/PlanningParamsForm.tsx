@@ -106,7 +106,8 @@ export function PlanningParamsForm({ defaults }: { defaults: Defaults }) {
             label={t.formApRendVivendo}
             name="usufructAnnualRate"
             defaultValue={defaults.usufructAnnualRate}
-            suggestions={[0.04, 0.05, 0.06]}
+            // Acima da inflação: sugestões abaixo do rendimento real típico da fase de acumular.
+            suggestions={[0.03, 0.04, 0.05]}
             hint={t.formApRendVivendoHint}
             required
           />

@@ -6,7 +6,8 @@ import type { SheetType } from "@prisma/client";
  * Sócios, polêmicas, Reclame Aqui, Glassdoor — nenhum scraper responde isso. A ficha antiga
  * pedia, pra cada um, "Observação + Nota 0–10 + Comentário"; era ali que a aluna desistia.
  * Aqui cada pergunta tem três respostas possíveis e diz onde olhar. A resposta vai pro mesmo
- * AnalysisResponse.value de sempre, então nada do que já foi salvo se perde.
+ * AnalysisResponse.value de sempre; o texto que já estava ali vai pro Comentário antes (ver
+ * notaGuardandoObservacao), então nada do que já foi salvo se perde.
  */
 
 export const CHECKLIST_ANSWERS = [
@@ -19,6 +20,24 @@ export type ChecklistAnswer = (typeof CHECKLIST_ANSWERS)[number]["value"];
 
 export function isChecklistAnswer(value: string | null | undefined): value is ChecklistAnswer {
   return CHECKLIST_ANSWERS.some((a) => a.value === value);
+}
+
+/**
+ * O checklist e a "Observação" da nota detalhada dividem a mesma coluna (value). Ficha antiga
+ * com texto escrito à mão ali ("Família Setubal, sem histórico ruim") aparece no checklist como
+ * sem resposta, e um toque gravaria "tranquilo" por cima, apagando o texto pra sempre. Antes de
+ * gravar, o texto vai pro Comentário (note), na frente do que já estava lá.
+ *
+ * Devolve a nota nova, ou `undefined` quando não há texto a salvar (nada muda na nota).
+ */
+export function notaGuardandoObservacao(valorAtual: string | null | undefined, notaAtual: string | null | undefined): string | undefined {
+  const texto = valorAtual?.trim();
+  if (!texto || isChecklistAnswer(texto)) return undefined;
+  const nota = notaAtual?.trim();
+  if (!nota) return texto;
+  // Já foi guardado antes (tocou, limpou e tocou de novo): não duplica.
+  if (nota.includes(texto)) return undefined;
+  return `${texto}\n\n${nota}`;
 }
 
 /** Quais categorias do catálogo são "de gente" (sem régua automática), por tipo de ficha. */

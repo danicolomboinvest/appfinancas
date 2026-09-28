@@ -278,15 +278,18 @@ function avaliarSemAvisos(base: CompraBase, compraBruta: Compra, fmt: Formatos):
     if (resto <= sobra) {
       return { veredito: "custo", titulo: "Cabe, mas aperta o resto do mês", explicacao: `Sobram ${money(porSemana(depois))} por semana até o fim do mês.`, linhas, sugestao: null, comparacao: null, custoJuros: null, comprometimento: cmp, conta };
     }
-    const folga = Math.max(0, margem90);
+    // Casal com conta conjunta não usa a regra dos 90%: o limite é o que entra na conta.
+    const semRegra90 = base.regra90 === false;
+    const folga = Math.max(0, semRegra90 ? base.renda - comprometido : margem90);
+    const limite = semRegra90 ? "no que vocês põem na conta todo mês" : "na regra dos 90%";
     // Parcelado a loja cobra o preço cheio: o desconto é só pra quem paga à vista.
     const parcelasSugeridas = folga > 0 ? Math.max(2, Math.ceil(compra.valor / folga)) : null;
     const mesesGuardando = folga > 0 ? Math.ceil(custo / folga) : null;
     const sugestao =
       folga > 0 && custo <= folga
-        ? `Cabe dentro da regra dos 90% da renda se sair do que você guardaria este mês, sem mexer no básico. Aí a decisão é sua: a compra agora ou o guardado do mês.`
+        ? `Cabe ${semRegra90 ? "no que vocês põem na conta" : "dentro da regra dos 90% da renda"} se sair do que ${semRegra90 ? "vocês guardariam" : "você guardaria"} este mês, sem mexer no básico. Aí a decisão é ${semRegra90 ? "de vocês" : "sua"}: a compra agora ou o guardado do mês.`
         : parcelasSugeridas && parcelasSugeridas <= 24 && mesesGuardando
-          ? `Se a loja parcelar em ${parcelasSugeridas}x sem juros (${money(compra.valor / parcelasSugeridas)} por mês), cabe na regra dos 90%. Ou, guardando ${money(folga)} por mês, dá pra comprar à vista em ${mesesGuardando} ${mesesGuardando > 1 ? "meses" : "mês"}, sem dívida.`
+          ? `Se a loja parcelar em ${parcelasSugeridas}x sem juros (${money(compra.valor / parcelasSugeridas)} por mês), cabe ${limite}. Ou, guardando ${money(folga)} por mês, dá pra comprar à vista em ${mesesGuardando} ${mesesGuardando > 1 ? "meses" : "mês"}, sem dívida.`
           : "Esse valor pede uma meta própria: guardar antes e comprar depois.";
     return {
       veredito: "nao",
@@ -332,12 +335,18 @@ function avaliarSemAvisos(base: CompraBase, compraBruta: Compra, fmt: Formatos):
     else if (atraso > 0 && (!maiorAtraso || atraso > maiorAtraso.meses)) maiorAtraso = { nome: m.nome, meses: atraso };
   }
 
+  // Casal que só conta o que cada um põe na conta conjunta: a regra dos 90% não vale, mas a
+  // parcela ainda tem que caber no que entra nessa conta. O teto é o dinheiro sem destino mais
+  // o que se guarda (o guardado pode virar parcela, os gastos combinados não).
+  const cabeNaConjunta = semDestino + guardadoHoje;
   const conta = [
     { rotulo: "Parcela", valor: money(parcela) },
     ...(parcelasPedidas > 48 ? [{ rotulo: "Parcelas consideradas", valor: "48 (o máximo que o app simula)" }] : []),
     contaComprometido,
     { rotulo: "Comprometido + parcela", valor: money(comprometido + parcela) },
-    { rotulo: "Limite da regra dos 90%", valor: money(base.renda * LIMITE_GASTO) },
+    base.regra90 === false
+      ? { rotulo: "Cabe por mês na conta conjunta", valor: money(cabeNaConjunta) }
+      : { rotulo: "Limite da regra dos 90%", valor: money(base.renda * LIMITE_GASTO) },
     { rotulo: "Sai do dinheiro sem destino", valor: money(Math.min(parcela, semDestino)) },
     { rotulo: "Sai do que você guarda", valor: money(Math.min(doGuardado, guardadoHoje)) },
     { rotulo: "Primeira parcela", valor: "na próxima fatura" },
@@ -377,6 +386,21 @@ function avaliarSemAvisos(base: CompraBase, compraBruta: Compra, fmt: Formatos):
       conta,
     };
   }
+  if (base.regra90 === false && parcela > cabeNaConjunta + 1e-9) {
+    const minimo = cabeNaConjunta > 0 ? Math.max(2, Math.ceil(compra.valor / cabeNaConjunta)) : null;
+    return {
+      veredito: "nao",
+      titulo: "Não cabe no que vocês colocam na conta conjunta",
+      explicacao: `Com essa parcela, os gastos da conta iriam a ${pct(gastoDepois)} do que entra nela. Faltariam ${money(parcela - cabeNaConjunta)} por mês.`,
+      linhas,
+      sugestao: minimo && minimo <= 48 && compra.juros === 0 ? `Em ${minimo}x sem juros (${money(compra.valor / minimo)} por mês), cabe no que entra na conta.` : "Vale guardar antes e comprar depois.",
+      comparacao,
+      custoJuros,
+      alertaJuros,
+      comprometimento: comprometimento(comprometido + parcela),
+      conta,
+    };
+  }
   if (atrasoReserva > 0) {
     return { veredito: "custo", titulo: "Cabe, mas atrasa sua reserva", explicacao: `A reserva é a sua segurança e passaria a chegar ${atrasoReserva} ${atrasoReserva > 1 ? "meses" : "mês"} depois.`, linhas, sugestao: null, comparacao, custoJuros, alertaJuros, comprometimento: comprometimento(comprometido + parcela), conta };
   }
@@ -392,7 +416,9 @@ function avaliarSemAvisos(base: CompraBase, compraBruta: Compra, fmt: Formatos):
         ? algumaAtrasada
           ? "Essa compra não muda o prazo das suas metas."
           : "Suas metas continuam no prazo."
-        : "Seus gastos continuam dentro da regra dos 90%.",
+        : base.regra90 === false
+          ? "Cabe no que vocês colocam na conta conjunta."
+          : "Seus gastos continuam dentro da regra dos 90%.",
     linhas,
     sugestao: null,
     comparacao,

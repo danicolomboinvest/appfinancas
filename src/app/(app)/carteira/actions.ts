@@ -8,6 +8,7 @@ import { createAsset, updateOwnAsset, deleteOwnAsset } from "@/lib/repositories/
 import { refreshDividendsForTicker } from "@/lib/repositories/dividend.repo";
 import { assetSchema } from "@/lib/validations/asset.schema";
 import { fetchTickerPrice } from "@/lib/analysis/price-scraper";
+import { resolveQuotedCurrentValue } from "@/lib/portfolio/asset-current-value";
 
 export type AssetFormState = { error?: string };
 
@@ -22,16 +23,21 @@ async function parseAssetForm(formData: FormData) {
   const quantity = quantityRaw ? Number(quantityRaw) : undefined;
   const typedCurrent = String(formData.get("currentValue") ?? "").trim();
   const investedRaw = String(formData.get("investedValue") ?? "").trim();
-  let currentValue: string | number = typedCurrent;
   let currentUnitPrice: number | undefined;
 
   if (quantity && quantity > 0 && ticker && /^[A-Z]{4}\d{1,2}$/.test(ticker)) {
     const price = await fetchTickerPrice(ticker);
-    if (price) {
-      currentUnitPrice = price;
-      if (!typedCurrent) currentValue = Math.round(quantity * price * 100) / 100;
-    }
+    if (price) currentUnitPrice = price;
   }
+  // Na edição o campo vem pré-preenchido: sem os valores de antes, o servidor não distingue
+  // "ela digitou 300" de "o 300 já estava ali" (ver resolveQuotedCurrentValue).
+  let currentValue = resolveQuotedCurrentValue({
+    typedCurrent,
+    originalCurrent: String(formData.get("originalCurrentValue") ?? "").trim(),
+    originalQuantity: String(formData.get("originalQuantity") ?? "").trim(),
+    quantity,
+    price: currentUnitPrice,
+  });
   if (currentValue === "" && investedRaw) currentValue = Number(investedRaw);
 
   return assetSchema.safeParse({

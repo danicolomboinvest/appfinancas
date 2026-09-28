@@ -16,6 +16,8 @@ import { monthlyEntrySchema } from "@/lib/validations/monthly-entry.schema";
 import { getUserCurrency } from "@/lib/money-server";
 import { convertAmount, getExchangeRate } from "@/lib/fx/rates";
 import type { ParentCategory } from "@prisma/client";
+import { allocationsToRestore, type SnapshotAllocation } from "@/lib/portfolio/contribution-link";
+import { listRecentlyPaidDividends } from "@/lib/repositories/dividend.repo";
 import type { z } from "zod";
 
 export type MonthlyEntryState = { error?: string };
@@ -139,19 +141,30 @@ export async function deleteMonthlyEntryAction(id: string, year: number, month: 
  * posição real da pessoa, e mexer nele por tabela seria pior. Mas ela precisa saber disso na
  * hora, senão o mês e a carteira passam a contar histórias diferentes sem ninguém perceber.
  */
-async function countAllocationsOf(ctx: Awaited<ReturnType<typeof getRequiredSession>>, ids: string[]): Promise<number> {
-  if (ids.length === 0) return 0;
-  return prisma.contributionAllocation.count({ where: { userId: ctx.userId, profileId: ctx.profileId, entryId: { in: ids } } });
+async function allocationsOf(ctx: Awaited<ReturnType<typeof getRequiredSession>>, ids: string[]) {
+  if (ids.length === 0) return [];
+  return prisma.contributionAllocation.findMany({
+    where: { userId: ctx.userId, profileId: ctx.profileId, entryId: { in: ids } },
+    select: { entryId: true, assetId: true, amount: true },
+  });
 }
 
-/** Exclusão em lote (modo "Selecionar"): uma ida ao banco, uma revalidação. */
+/**
+ * Exclusão em lote (modo "Selecionar"): uma ida ao banco, uma revalidação.
+ *
+ * Devolve também as distribuições de cada aporte apagado (a exclusão as leva em cascata): o
+ * cliente guarda no snapshot do "Desfazer" pra que o aporte volte já com destino, e não como
+ * dinheiro esperando a carteira perguntar de novo.
+ */
 export async function deleteMonthlyEntriesAction(ids: string[], year: number, month: number) {
   const ctx = await getRequiredSession();
-  const jaNaCarteira = await countAllocationsOf(ctx, ids);
+  const linhas = await allocationsOf(ctx, ids);
   await deleteOwnMonthlyEntries(ctx, ids);
   revalidatePath(`/mensal/${year}`);
   revalidatePath(`/mensal/${year}/${month}`);
-  return { jaNaCarteira };
+  const allocations: Record<string, SnapshotAllocation[]> = {};
+  for (const l of linhas) (allocations[l.entryId] ??= []).push({ assetId: l.assetId, amount: Number(l.amount) });
+  return { jaNaCarteira: linhas.length, allocations };
 }
 
 /**
@@ -186,6 +199,8 @@ export type DeletedEntrySnapshot = {
   originalAmount?: number | null;
   originalCurrency?: string | null;
   exchangeRate?: number | null;
+  /** Em quais ativos este aporte já tinha entrado (vem de deleteMonthlyEntriesAction). */
+  allocations?: SnapshotAllocation[];
 };
 
 /** Desfazer exclusão: recria o lançamento a partir do snapshot guardado no cliente. */
@@ -195,7 +210,7 @@ export async function undoDeleteEntryAction(snapshot: DeletedEntrySnapshot): Pro
     // Data do snapshot vem do cliente: fora do formato, vira Invalid Date e estouraria no
     // Prisma — melhor restaurar sem a data do que falhar o "Desfazer" inteiro.
     const entryDate = snapshot.entryDate ? new Date(snapshot.entryDate) : undefined;
-    await createMonthlyEntry(ctx, {
+    const entry = await createMonthlyEntry(ctx, {
       year: snapshot.year,
       month: snapshot.month,
       category: snapshot.category,
@@ -210,11 +225,36 @@ export async function undoDeleteEntryAction(snapshot: DeletedEntrySnapshot): Pro
       originalCurrency: snapshot.originalCurrency ?? undefined,
       exchangeRate: snapshot.exchangeRate ?? undefined,
     });
+    // O aporte volta com o destino que tinha. Sem isso a carteira perguntava de novo onde ele
+    // entrou (e responder somava outra vez no ativo) e a meta contava aporte + ativo, o dobro.
+    if (snapshot.category === "INVESTMENT_CONTRIBUTION" && snapshot.allocations?.length) {
+      const own = await prisma.asset.findMany({
+        where: { userId: ctx.userId, profileId: ctx.profileId, id: { in: snapshot.allocations.map((a) => a.assetId) } },
+        select: { id: true },
+      });
+      const linhas = allocationsToRestore(snapshot.allocations, new Set(own.map((a) => a.id)), Number(entry.amount));
+      try {
+        if (linhas.length > 0) {
+          await prisma.contributionAllocation.createMany({
+            data: linhas.map((l) => ({ userId: ctx.userId, profileId: ctx.profileId, entryId: entry.id, assetId: l.assetId, amount: l.amount })),
+          });
+        }
+      } catch (err) {
+        // Meio restaurado é pior que nada: o aporte voltaria "sem destino" e contaria em dobro.
+        console.error("undoDeleteEntryAction: distribuições não voltaram, desfazendo o lançamento:", err);
+        await deleteOwnMonthlyEntry(ctx, entry.id);
+        return { ok: false };
+      }
+    }
   } catch {
     return { ok: false };
   }
   revalidatePath(`/mensal/${snapshot.year}`);
   revalidatePath(`/mensal/${snapshot.year}/${snapshot.month}`);
+  if (snapshot.allocations?.length) {
+    revalidatePath("/carteira");
+    revalidatePath("/planejamento/metas");
+  }
   return { ok: true };
 }
 
@@ -271,20 +311,31 @@ export async function createFromRecurringAction(
   return { ok: true };
 }
 
-/** "Caiu na conta": lança o provento como renda, no dia do pagamento, com a descrição padrão que evita repetir. */
-export async function registerDividendIncomeAction(input: { ticker: string; kind: string; paymentDate: string; amount: number }): Promise<{ ok: boolean }> {
+/**
+ * "Caiu na conta": lança o provento como renda, no dia do pagamento, com a descrição padrão que
+ * evita repetir.
+ *
+ * Recebe só o id do provento: ticker, tipo, dia e valor saem do servidor (a mesma conta que
+ * montou o card), então ninguém lança um valor inventado pela requisição, e o que já foi lançado
+ * — noutra aba, num toque duplo — não vira um segundo lançamento.
+ */
+export async function registerDividendIncomeAction(input: { eventId: string }): Promise<{ ok: boolean }> {
   const ctx = await getRequiredSession();
-  const date = new Date(`${input.paymentDate}T12:00:00`);
-  if (Number.isNaN(date.getTime()) || !(input.amount > 0)) return { ok: false };
-  const ticker = input.ticker.trim().toUpperCase();
+  // Janela maior que a do card (10 dias): quem deixou a página aberta de um dia pro outro
+  // ainda consegue lançar o que estava vendo.
+  const paid = (await listRecentlyPaidDividends(ctx, 31)).find((d) => d.id === input.eventId);
+  if (!paid) return { ok: false };
+  if (paid.registered) return { ok: true };
+  const date = new Date(`${paid.paymentDate.toISOString().slice(0, 10)}T12:00:00`);
+  if (Number.isNaN(date.getTime()) || !(paid.amount > 0)) return { ok: false };
   try {
     await createMonthlyEntry(ctx, {
       year: date.getFullYear(),
       month: date.getMonth() + 1,
       category: "INCOME",
       subcategory: "Dividendos",
-      description: `Proventos ${ticker} (${input.kind})`,
-      amount: Math.round(input.amount * 100) / 100,
+      description: `Proventos ${paid.ticker} (${paid.kind})`,
+      amount: paid.amount,
       entryDate: date,
     });
   } catch (err) {

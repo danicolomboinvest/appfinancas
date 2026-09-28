@@ -7,7 +7,7 @@ import { hasPremiumAccess } from "@/lib/repositories/allowedEmail.repo";
 import { PaywallCard } from "@/components/shell/PaywallCard";
 import { getPlanningParams } from "@/lib/repositories/planning-params.repo";
 import { computeAccumulation } from "@/lib/planning/accumulation";
-import { computeUsufruct } from "@/lib/planning/usufruct";
+import { computeUsufruct, usufructRateAboveAccumulation } from "@/lib/planning/usufruct";
 import { computeYearByYearProjection, type ProjectionYear } from "@/lib/consolidation/projection";
 import { PatrimonyProjectionChart } from "@/components/charts/PatrimonyProjectionChart";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -231,8 +231,22 @@ export default async function IndependenciaFinanceiraPage() {
                           { label: "Rendimento ao ano", value: formatPercent(accumulation.nominalAnnualRate) },
                           { label: "Inflação assumida", value: formatPercent(Number(params.inflationAnnualRate)) },
                           { label: "Rendimento acima da inflação", value: formatPercent(accumulation.realAnnualRate) },
+                          {
+                            label: "Vivendo de renda (acima da inflação)",
+                            value: formatPercent(Number(params.usufructAnnualRate)),
+                          },
                         ]}
                       />
+
+                      {/* A renda da manchete usa essa taxa já acima da inflação. Se ela passa do
+                          que o acúmulo rende acima da inflação, a renda sai otimista demais. */}
+                      {usufructRateAboveAccumulation(Number(params.usufructAnnualRate), accumulation.realAnnualRate) && (
+                        <p className="text-sm leading-relaxed text-ink-muted">
+                          O rendimento vivendo de renda ({formatPercent(Number(params.usufructAnnualRate))} acima da
+                          inflação) está maior que o da fase de acumular ({formatPercent(accumulation.realAnnualRate)}).
+                          Na aposentadoria o normal é ser mais conservador, então a renda acima pode estar otimista.
+                        </p>
+                      )}
 
                       {/* O número grande e empolgante que NÃO é o mesmo cenário da manchete.
                           Fica aqui embaixo, dito por extenso, em vez de disputar a tela. */}

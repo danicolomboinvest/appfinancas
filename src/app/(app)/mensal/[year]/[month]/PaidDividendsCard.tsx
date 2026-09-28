@@ -7,7 +7,8 @@ import { useMoney } from "@/components/money/MoneyProvider";
 import { useToast } from "@/components/ui/toast-context";
 import { registerDividendIncomeAction } from "./actions";
 
-export type PaidDividendItem = { ticker: string; kind: string; paymentDate: string; dateLabel: string; amount: number };
+/** `id` é o do provento (DividendEvent): JSCP e Dividendos do mesmo ativo no mesmo dia são dois itens. */
+export type PaidDividendItem = { id: string; ticker: string; kind: string; paymentDate: string; dateLabel: string; amount: number };
 
 /** "Caiu na conta": proventos pagos nos últimos dias que ainda não viraram renda no mês. */
 export function PaidDividendsCard({
@@ -23,7 +24,8 @@ export function PaidDividendsCard({
   const { showToast } = useToast();
   const [done, setDone] = useState<Set<string>>(new Set());
   const [isPending, startTransition] = useTransition();
-  const visible = items.filter((d) => !done.has(`${d.ticker}|${d.paymentDate}`));
+  // Pelo id, não por ativo + dia: lançar o JSCP não pode esconder os Dividendos pagos junto.
+  const visible = items.filter((d) => !done.has(d.id));
   if (visible.length === 0) return null;
 
   return (
@@ -35,7 +37,7 @@ export function PaidDividendsCard({
       <p className="text-caption text-ink-muted">{sub}</p>
       <ul className="flex flex-col divide-y divide-border">
         {visible.map((d) => (
-          <li key={`${d.ticker}|${d.paymentDate}`} className="flex items-center justify-between gap-3 py-2.5">
+          <li key={d.id} className="flex items-center justify-between gap-3 py-2.5">
             <div className="min-w-0">
               <p className="text-sm font-medium text-ink">
                 {d.ticker} <span className="font-normal text-ink-muted">· {d.kind}</span>
@@ -47,12 +49,12 @@ export function PaidDividendsCard({
               disabled={isPending}
               onClick={() =>
                 startTransition(async () => {
-                  const res = await registerDividendIncomeAction({ ticker: d.ticker, kind: d.kind, paymentDate: d.paymentDate, amount: d.amount });
+                  const res = await registerDividendIncomeAction({ eventId: d.id });
                   if (!res.ok) {
                     showToast("Não consegui lançar. Tente de novo.");
                     return;
                   }
-                  setDone((prev) => new Set(prev).add(`${d.ticker}|${d.paymentDate}`));
+                  setDone((prev) => new Set(prev).add(d.id));
                   showToast(`${money(d.amount)} de ${d.ticker} lançado como renda.`);
                 })
               }

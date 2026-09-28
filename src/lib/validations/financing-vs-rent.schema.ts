@@ -11,6 +11,7 @@ export const financingVsRentSchema = z
     monthlyRent: z.coerce.number().min(0),
     rentAnnualAdjustment: z.coerce.number(),
     investmentAnnualRate: z.coerce.number(),
+    incomeTaxRate: z.coerce.number().min(0).max(1),
   })
   .refine((data) => data.downPayment <= data.propertyValue, {
     message: "A entrada não pode ser maior que o valor do imóvel.",

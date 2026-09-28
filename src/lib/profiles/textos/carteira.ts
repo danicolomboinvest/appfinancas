@@ -61,6 +61,8 @@ export type TextosCarteira = {
   cartAporteProntoTitulo: string;
   cartAporteEntrouEm(mes: string, n: number): string;
   cartMetasAndaram(lista: string): string;
+  /** `lista` são os ativos cuja quantidade o app estimou pela cotação ao receber o aporte. */
+  cartQuantidadeEstimada(lista: string): string;
   cartVoceAportou(valor: string, mes: string): string;
   cartCadastreAtivo: string;
   cartDigaQuanto: string;
@@ -256,6 +258,8 @@ export const PADRAO_CARTEIRA: TextosCarteira = {
   cartAporteProntoTitulo: "Pronto, tudo conversando.",
   cartAporteEntrouEm: (mes, n) => `O aporte de ${mes} entrou em ${n} ativo${n === 1 ? "" : "s"}.`,
   cartMetasAndaram: (lista) => `Suas metas andaram junto: ${lista}.`,
+  cartQuantidadeEstimada: (lista) =>
+    `A quantidade de ${lista} foi estimada pela cotação de hoje. Se comprou a outro preço, ajuste em Editar.`,
   cartVoceAportou: (valor, mes) => `Você aportou ${valor} em ${mes}`,
   cartCadastreAtivo: "Cadastre o ativo que recebeu esse dinheiro e a carteira passa a bater com o que você lançou no mês.",
   cartDigaQuanto: "Diga quanto entrou em cada ativo.",

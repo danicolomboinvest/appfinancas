@@ -74,12 +74,21 @@ function parseAmountCore(t: string): number {
   return Number(normalized);
 }
 
-/** Normaliza data para ISO (YYYY-MM-DD). Aceita DD/MM/YYYY, YYYY-MM-DD e YYYYMMDD (OFX). */
+/**
+ * Normaliza data para ISO (YYYY-MM-DD). Aceita DD/MM/YYYY, D/M/AA, YYYY-MM-DD e YYYYMMDD (OFX).
+ *
+ * O dia/mês com um dígito e o ano com dois ("1/07/26") vêm do extrato do Banco Inter. Antes a
+ * data voltava do jeito que chegou, e na hora de gravar, sem ano/mês legível, TODO lançamento
+ * caía no mês corrente: o extrato de julho importado em setembro inflava setembro inteiro.
+ */
 export function normalizeDate(raw: string): string {
   const trimmed = raw.trim();
   // Aceita "DD/MM/YYYY" e também "DD/MM/YYYY HH:MM" (extrato BTG traz data e hora juntas).
-  const br = trimmed.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
-  if (br) return `${br[3]}-${br[2]}-${br[1]}`;
+  const br = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4}|\d{2})(?!\d)/);
+  if (br && Number(br[1]) >= 1 && Number(br[1]) <= 31 && Number(br[2]) >= 1 && Number(br[2]) <= 12) {
+    const ano = br[3].length === 2 ? `20${br[3]}` : br[3];
+    return `${ano}-${br[2].padStart(2, "0")}-${br[1].padStart(2, "0")}`;
+  }
   const iso = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
   const ofx = trimmed.match(/^(\d{4})(\d{2})(\d{2})/); // OFX DTPOSTED: YYYYMMDD[HHMMSS]
@@ -150,6 +159,8 @@ const DEBIT_HEADERS = ["débito", "debito", "saída", "saida", "debit"];
 const DC_HEADERS = ["d/c", "natureza", "tipo"];
 /** Coluna separada de "Transação"/"Tipo" (ex.: extrato BTG), enriquece a descrição. */
 const TRANSACTION_HEADERS = ["transa", "tipo de lanç", "tipo"];
+/** Célula que é SÓ uma data: no Inter a coluna "TRANSACAO" traz a data, não o tipo. */
+const CELL_IS_DATE_RE = /^\d{1,2}\/\d{1,2}(?:\/\d{2,4})?$|^\d{4}-\d{2}-\d{2}$/;
 /** Linhas que NÃO são transações (saldo diário/atual/anterior, totais), não viram lançamento. */
 const NON_TRANSACTION_RE = /\bsaldo\b/i;
 
@@ -252,7 +263,9 @@ function readTransactionLine(line: string, layout: CsvLayout, refYear: number): 
 
   const juntas = dateCol !== -1 && dateCol === descCol ? splitDateFromDescription(cols[dateCol] ?? "", refYear) : null;
   const desc = (juntas ? juntas.description : (cols[descCol] ?? "")).trim();
-  const trans = transCol !== -1 ? (cols[transCol] ?? "").trim() : "";
+  // Data repetida na coluna de "Transação" não enriquece nada: virava "1/07/26 · PAGAMENTO…".
+  const transRaw = transCol !== -1 ? (cols[transCol] ?? "").trim() : "";
+  const trans = CELL_IS_DATE_RE.test(transRaw) ? "" : transRaw;
   // Pula saldos/totais, são fotografias do saldo, não transações.
   if (NON_TRANSACTION_RE.test(desc) || NON_TRANSACTION_RE.test(trans)) return null;
 

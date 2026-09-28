@@ -1,15 +1,14 @@
 "use server";
 
 import { headers } from "next/headers";
-import { z } from "zod";
-import { prisma } from "@/lib/db/prisma";
+import { findUserByEmail } from "@/lib/repositories/user.repo";
+import { emailSchema } from "@/lib/validations/auth.schema";
 import { createPasswordResetToken } from "@/lib/auth/password-reset";
 import { sendEmail } from "@/lib/email/send";
 import { passwordResetEmail } from "@/lib/email/templates";
 
 export type ForgotState = { sent?: boolean; error?: string };
 
-const emailSchema = z.string().email("Email inválido.");
 
 /** Monta a URL absoluta do app a partir do request (funciona em localhost e na Vercel). */
 async function baseUrl(): Promise<string> {
@@ -28,7 +27,8 @@ export async function requestPasswordResetAction(_prev: ForgotState, formData: F
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Email inválido." };
 
   const email = parsed.data;
-  const user = await prisma.user.findUnique({ where: { email }, select: { id: true, name: true } });
+  // Sem olhar maiúscula: conta antiga com "Maria@..." recebia "enviamos o link" e nada chegava.
+  const user = await findUserByEmail(email);
 
   if (user) {
     const rawToken = await createPasswordResetToken(user.id);

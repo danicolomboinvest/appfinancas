@@ -70,7 +70,7 @@ function montarPassos(t: Titulos): StepDef[] {
       fields: [
         { name: "accumulationAnnualRate", label: t.formApRendAcumulo, affix: "%", placeholder: "10" },
         { name: "inflationAnnualRate", label: t.formApInflacao, affix: "%", placeholder: "4,5" },
-        { name: "usufructAnnualRate", label: t.formApRendUsufruto, affix: "%", placeholder: "6" },
+        { name: "usufructAnnualRate", label: t.formApRendUsufruto, affix: "%", placeholder: "4" },
       ],
     },
   ];
@@ -83,7 +83,9 @@ const DEFAULT_VALUES: Record<string, string> = {
   otherPassiveIncome: "0",
   accumulationAnnualRate: "10",
   inflationAnnualRate: "4.5",
-  usufructAnnualRate: "6",
+  // Acima da inflação (ver computeUsufruct): 4% fica abaixo dos ~5,3% reais que 10% com 4,5%
+  // de inflação dão na fase de acumular. O 6% antigo contradizia o "mais conservador".
+  usufructAnnualRate: "4",
 };
 
 export function PlanningWizard() {

@@ -13,7 +13,9 @@ export async function updatePreferencesAction(
 ): Promise<PreferencesState> {
   const parsed = preferencesSchema.safeParse({
     currency: formData.get("currency"),
-    theme: formData.get("theme"),
+    // Ausente (tema que já decide o modo) vira undefined, não null: aí o schema aceita e o
+    // modo guardado não é tocado.
+    theme: formData.get("theme") ?? undefined,
   });
 
   if (!parsed.success) {

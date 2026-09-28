@@ -84,7 +84,10 @@ async function xlsxToCsv(buffer: Buffer, password: string | undefined): Promise<
   } catch {
     throw new UploadReadError("Não consegui abrir o Excel neste servidor. Tente exportar como CSV.");
   }
-  const workbook = XLSX.read(decrypted, { type: "buffer" });
+  // Data de verdade do Excel (célula com o formato "data abreviada") sai por padrão no jeito
+  // americano, "6/30/26", e nenhum leitor entendia: o lançamento caía no mês corrente. Com
+  // dateNF ela sai como a pessoa vê no Brasil, "30/06/2026".
+  const workbook = XLSX.read(decrypted, { type: "buffer", dateNF: "dd/mm/yyyy" });
   return workbook.SheetNames.map((name) => XLSX.utils.sheet_to_csv(workbook.Sheets[name], { FS: ";" })).join("\n");
 }
 
@@ -166,7 +169,7 @@ async function pdfToText(buffer: Buffer, password: string | undefined): Promise<
 /**
  * Lê o upload de um FormData ({ file, encoding }) e normaliza num par { text, source }
  * que os parsers entendem.
- * - text: CSV/OFX, decodifica os bytes como UTF-8
+ * - text: CSV/OFX, decodifica os bytes como UTF-8 (ou Windows-1252, ver decodificarTexto)
  * - xlsx: Excel → CSV
  * - pdf: PDF → texto cru (source "pdf" para o parser de linhas)
  */
@@ -191,7 +194,22 @@ export async function extractUploadFromForm(
   }
   if (encoding === "xlsx") return { text: semNulo(await xlsxToCsv(buffer, password)), source: "auto" };
   if (encoding === "pdf") return { text: semNulo(await pdfToText(buffer, password)), source: "pdf" };
-  return { text: semNulo(buffer.toString("utf-8")), source: "auto" };
+  return { text: semNulo(decodificarTexto(buffer)), source: "auto" };
+}
+
+/**
+ * CSV/OFX → texto. Muito banco brasileiro exporta em Latin-1 (Windows-1252), não em UTF-8, e
+ * lido como UTF-8 cada acento virava "�": o cabeçalho "Histórico;Crédito;Débito" deixava de ser
+ * reconhecido, as saídas sumiam e toda descrição virava "Lançamento". Byte que não é UTF-8
+ * válido só acontece nesses arquivos, então é esse o sinal pra ler de novo como Windows-1252
+ * (que cobre o Latin-1 e o CHARSET:1252 do OFX).
+ */
+export function decodificarTexto(buffer: Buffer): string {
+  try {
+    return new TextDecoder("utf-8", { fatal: true }).decode(buffer);
+  } catch {
+    return new TextDecoder("windows-1252").decode(buffer);
+  }
 }
 
 /**

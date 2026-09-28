@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import { after } from "next/server";
 import { redirect } from "next/navigation";
 import { isPluggyConfigured } from "@/lib/pluggy/client";
@@ -36,6 +37,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   let isPremium = false;
   let perfis: { id: string; name: string; icon: string; theme: string; isDefault: boolean }[] = [];
   let cssDoTema = "";
+  let perfilAtivoId = "";
   if (session?.user) {
     const ctx: AccountContext = { userId: session.user.id, role: session.user.role };
     // Uma consulta a menos em TODA navegação: o resumo do mês só existia pra alimentar a
@@ -53,6 +55,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     theme = user.theme;
     isPremium = premium;
     perfis = todos.map((p) => ({ id: p.id, name: p.name, icon: p.icon, theme: p.theme, isDefault: p.id === ativo.id }));
+    perfilAtivoId = ativo.id;
     profileTheme = ativo.theme;
     profileKind = ativo.kind;
     // O TEMA do perfil ativo redefine a paleta do app inteiro — fundo, cartão, tinta e
@@ -93,7 +96,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         profileKind={profileKind}
         podeEscolherModo={podeEscolherModo}
       >
-        {children}
+        {/* Trocar de perfil só revalida a página, e o React guarda o estado dos formulários que
+            re-renderizam: o orçamento continuava com os números do perfil anterior e o "Salvar"
+            gravava no perfil novo. A chave do perfil ativo remonta a tela inteira na troca. */}
+        <Fragment key={perfilAtivoId}>{children}</Fragment>
       </AppShell>
       </MoneyProvider>
     </>
