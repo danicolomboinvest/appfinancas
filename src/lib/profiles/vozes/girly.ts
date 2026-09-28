@@ -974,7 +974,7 @@ export const girly: Voz = {
   mesVazio: "Nada anotado ainda 🌸 Toca no + e me conta o primeiro gasto, ou o que entrou 💕",
   metaBatida: (nome) => `ARRASOU!! 🎉🥳 ${nome} concluída, amiga!`,
   rodape: () => "Progresso, não perfeição 💗",
-  nav: { foco: "Foco 💖", metas: "Sonhos", flowTabs: ["Visão mensal", "Só gastos", "Combinado"] },
+  nav: { foco: "Foco", metas: "Sonhos", flowTabs: ["Mensal", "Gastos", "Combinado"] },
   titulos: {
     ...TITULOS_PADRAO,
     // Aba Foco e "Posso comprar?"

@@ -28,7 +28,7 @@ export const minimalista: Voz = {
   mesVazio: "Sem dados. Registre o primeiro lançamento no +.",
   metaBatida: () => "Meta 100% concluída.",
   rodape: () => null,
-  nav: { metas: "Metas", flowTabs: ["Visão mensal", "Só gastos", "Orçamento"] },
+  nav: { metas: "Metas", flowTabs: ["Mensal", "Gastos", "Orçamento"] },
   titulos: {
     ...TITULOS_PADRAO,
     // Aba Foco e "Posso comprar?"

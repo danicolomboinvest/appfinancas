@@ -46,7 +46,7 @@ export const manifestacao: Voz = {
   mesVazio: "Todo plano começa com o primeiro registro.",
   metaBatida: (nome) => `${nome}: você chegou lá ✨`,
   rodape: () => "Você está financiando a vida que quer.",
-  nav: { foco: "Intenção", metas: "Sonhos", flowTabs: ["Visão mensal", "Só gastos", "Orçamento"] },
+  nav: { foco: "Intenção", metas: "Sonhos", flowTabs: ["Mensal", "Gastos", "Orçamento"] },
   titulos: {
     ...TITULOS_PADRAO,
     // Aba Foco e "Posso comprar?"

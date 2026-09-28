@@ -15,6 +15,6 @@ export const padrao: Voz = {
     "Nenhum lançamento neste mês ainda. Toque em Registrar (o + no meio da barra de baixo) para lançar o primeiro — digitando, por áudio ou importando o extrato.",
   metaBatida: () => "Meta alcançada.",
   rodape: () => null,
-  nav: { metas: "Metas", flowTabs: ["Visão mensal", "Só gastos", "Orçamento"] },
+  nav: { metas: "Metas", flowTabs: ["Mensal", "Gastos", "Orçamento"] },
   titulos: TITULOS_PADRAO,
 };

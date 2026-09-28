@@ -4,7 +4,7 @@ import type { PillTab } from "./PillTabs";
  * escondido no "Mais". Compartilhado entre /mensal e /orcamento pra a navegação ser a mesma. */
 export const FLOW_TABS: PillTab[] = [
   { href: "/mensal/foco", label: "Foco" },
-  { href: "/mensal", label: "Visão mensal" },
-  { href: "/mensal/gastos", label: "Só gastos" },
+  { href: "/mensal", label: "Mensal" },
+  { href: "/mensal/gastos", label: "Gastos" },
   { href: "/orcamento", label: "Orçamento" },
 ];

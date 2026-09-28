@@ -34,7 +34,9 @@ export function PillTabs({ tabs, fit = false }: { tabs: PillTab[]; fit?: boolean
               className={`whitespace-nowrap rounded-full py-2 text-sm font-medium transition-all duration-300 ${
                 // flex-auto (e não flex-1): cada aba cresce a partir da largura do próprio nome,
                 // então "Foco" cede espaço pra "Visão mensal" em vez de todas terem o mesmo tamanho.
-                fit ? "min-w-0 flex-auto truncate px-2 text-center sm:px-4" : "px-4"
+                // Celular bem estreito (320–359px): letra e respiro um tico menores, pra quatro
+                // nomes caberem inteiros em vez de virarem "Foco ...".
+                fit ? "min-w-0 flex-auto truncate px-2 text-center max-[359px]:px-1.5 max-[359px]:text-[13px] sm:px-4" : "px-4"
               } ${isActive ? "bg-pill text-on-pill shadow-premium-sm" : "text-ink-muted hover:text-ink"}`}
             >
               {tab.label}
