@@ -86,6 +86,8 @@ vi.mock("@/lib/repositories/import-diagnostic.repo", () => ({
   isPartialRead: vi.fn(() => false),
   mensagemImplausivel: vi.fn(() => ""),
   safeHeader: vi.fn(() => ""),
+  MARCA_CONFERIDO: "[conferido]",
+  MARCA_NAO_FECHOU: "[não fechou]",
 }));
 vi.mock("@/lib/repositories/import-file.repo", () => ({ storeFailedImportFile: vi.fn(async () => {}) }));
 

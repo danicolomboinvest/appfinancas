@@ -471,51 +471,42 @@ export function parseTextLines(content: string, refYear: number = new Date().get
   return transactions;
 }
 
-/** `source` "pdf" força os parsers de texto (o do Nubank primeiro, depois o genérico por
+/** Leitores próprios de cada banco, na ordem em que são tentados. Cada um foi conferido com
+ * arquivo real do banco contra os totais impressos — por isso a leitura deles vale mesmo quando
+ * o arquivo não traz um total pra conferir (ver `leituraIncompleta` em conferencia.ts). */
+const LEITORES_PDF: { nome: string; reconhece: (t: string) => boolean; le: (t: string, ano?: number) => ParsedTransaction[] }[] = [
+  { nome: "nubank", reconhece: isNubankStatement, le: (t) => parseNubankStatement(t) },
+  { nome: "caixa", reconhece: isCaixaAppStatement, le: (t, ano) => parseCaixaAppStatement(t, ano) },
+  { nome: "santander", reconhece: isSantanderConsolidatedStatement, le: (t, ano) => parseSantanderConsolidatedStatement(t, ano) },
+  { nome: "inter", reconhece: isInterStatement, le: (t) => parseInterStatement(t) },
+  { nome: "banestes", reconhece: isBanestesStatement, le: (t, ano) => parseBanestesStatement(t, ano) },
+  { nome: "banco-do-brasil", reconhece: isBancoDoBrasilStatement, le: (t) => parseBancoDoBrasilStatement(t) },
+  { nome: "bradesco", reconhece: isBradescoStatement, le: (t) => parseBradescoStatement(t) },
+  { nome: "cora", reconhece: isCoraStatement, le: (t) => parseCoraStatement(t) },
+  { nome: "inter-fatura", reconhece: isInterInvoice, le: (t) => parseInterInvoice(t) },
+  { nome: "ourocard", reconhece: isOurocardInvoice, le: (t, ano) => parseOurocardInvoice(t, ano) },
+];
+
+/** Igual a `parseStatement`, e diz QUEM leu: o nome do leitor próprio do banco, ou null quando
+ * foi o leitor genérico (texto solto, CSV, OFX). */
+export function parseStatementComLeitor(
+  content: string,
+  source: "auto" | "pdf" = "auto",
+  refYear?: number,
+): { txns: ParsedTransaction[]; leitor: string | null } {
+  if (source === "pdf") {
+    for (const leitor of LEITORES_PDF) {
+      if (!leitor.reconhece(content)) continue;
+      const txns = leitor.le(content, refYear);
+      if (txns.length > 0) return { txns, leitor: leitor.nome };
+    }
+    return { txns: parseTextLines(content, refYear), leitor: null };
+  }
+  return { txns: isOfx(content) ? parseOfx(content) : parseCsv(content, refYear), leitor: null };
+}
+
+/** `source` "pdf" força os parsers de texto (os de cada banco primeiro, depois o genérico por
  * linha); caso contrário detecta OFX vs CSV. */
 export function parseStatement(content: string, source: "auto" | "pdf" = "auto", refYear?: number): ParsedTransaction[] {
-  if (source === "pdf") {
-    if (isNubankStatement(content)) {
-      const nubank = parseNubankStatement(content);
-      if (nubank.length > 0) return nubank;
-    }
-    if (isCaixaAppStatement(content)) {
-      const caixa = parseCaixaAppStatement(content, refYear);
-      if (caixa.length > 0) return caixa;
-    }
-    if (isSantanderConsolidatedStatement(content)) {
-      const santander = parseSantanderConsolidatedStatement(content, refYear);
-      if (santander.length > 0) return santander;
-    }
-    if (isInterStatement(content)) {
-      const inter = parseInterStatement(content);
-      if (inter.length > 0) return inter;
-    }
-    if (isBanestesStatement(content)) {
-      const banestes = parseBanestesStatement(content, refYear);
-      if (banestes.length > 0) return banestes;
-    }
-    if (isBancoDoBrasilStatement(content)) {
-      const bb = parseBancoDoBrasilStatement(content);
-      if (bb.length > 0) return bb;
-    }
-    if (isBradescoStatement(content)) {
-      const bradesco = parseBradescoStatement(content);
-      if (bradesco.length > 0) return bradesco;
-    }
-    if (isCoraStatement(content)) {
-      const cora = parseCoraStatement(content);
-      if (cora.length > 0) return cora;
-    }
-    if (isInterInvoice(content)) {
-      const interFatura = parseInterInvoice(content);
-      if (interFatura.length > 0) return interFatura;
-    }
-    if (isOurocardInvoice(content)) {
-      const ourocard = parseOurocardInvoice(content, refYear);
-      if (ourocard.length > 0) return ourocard;
-    }
-    return parseTextLines(content, refYear);
-  }
-  return isOfx(content) ? parseOfx(content) : parseCsv(content, refYear);
+  return parseStatementComLeitor(content, source, refYear).txns;
 }

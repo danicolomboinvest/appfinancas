@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db/prisma";
 import { avisarErroDeImportacao, isManychatConfigured } from "@/lib/manychat/client";
-import { isImplausivelMessage, isPartialRead } from "@/lib/repositories/import-diagnostic.repo";
+import { isImplausivelMessage, leituraIncompletaDoRegistro, MARCA_NAO_FECHOU } from "@/lib/repositories/import-diagnostic.repo";
 
 /**
  * Puxa conversa com quem teve problema na importação, em vez de esperar a pessoa pedir ajuda.
@@ -60,8 +60,10 @@ export function escolherQuemAvisar(rows: TentativaDeImport[]): PessoaAAvisar[] {
   const problemaDe = (r: TentativaDeImport): string | null => {
     if (!r.ok) return r.message?.split(".")[0] ?? "o app não conseguiu ler o arquivo";
     if (isImplausivelMessage(r.message)) return "os valores entraram errados no app";
-    if (r.stage === "parse" && isPartialRead(r.moneyLines, r.parsed))
-      return `o app leu só ${r.parsed} de ${r.moneyLines} linhas do arquivo`;
+    if (leituraIncompletaDoRegistro(r))
+      return r.message?.startsWith(MARCA_NAO_FECHOU)
+        ? "a soma do que o app leu não bateu com o total do arquivo"
+        : `o app leu só ${r.parsed} de ${r.moneyLines} linhas do arquivo`;
     return null;
   };
 

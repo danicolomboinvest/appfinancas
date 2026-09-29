@@ -5,11 +5,13 @@ import { installmentCanonical, installmentDescription, parseInstallment } from "
 import { countMoneyLines, detectInvoiceTotal, looksLikeCardInvoice, MOTIVO_SINAIS_FATURA, sinaisDesmentemExtrato, type DocKind } from "@/lib/import/detect";
 import { profileDocument } from "@/lib/import/profile";
 import { checarPlausibilidade, type Suspeita } from "@/lib/import/plausibility";
-import { isPartialRead, mensagemImplausivel, recordImportDiagnostic, safeHeader } from "@/lib/repositories/import-diagnostic.repo";
+import { isPartialRead, MARCA_CONFERIDO, MARCA_NAO_FECHOU, mensagemImplausivel, recordImportDiagnostic, safeHeader } from "@/lib/repositories/import-diagnostic.repo";
+import { conferirLeitura, leituraIncompleta, type Conferencia } from "@/lib/import/conferencia";
 import { storeFailedImportFile } from "@/lib/repositories/import-file.repo";
 import type { ParentCategory } from "@prisma/client";
 import { getRequiredSession, type AuthContext } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
+import { formatMoney } from "@/lib/money";
 import { createMonthlyEntry } from "@/lib/repositories/monthly-entry.repo";
 import {
   createImportBatch,
@@ -19,7 +21,7 @@ import {
 import { listCustomCategories } from "@/lib/repositories/custom-category.repo";
 import { listProfiles } from "@/lib/repositories/profile.repo";
 import { listTransactionRules, upsertTransactionRule } from "@/lib/repositories/transaction-rule.repo";
-import { parseStatement } from "@/lib/import/statement-parser";
+import { parseStatementComLeitor } from "@/lib/import/statement-parser";
 import { isFaturaSummaryLine, comprasDaFaturaSaoPositivas, pareceCreditoDePagamento } from "@/lib/import/fatura-lines";
 import { extractUploadFromForm, UploadReadError, PasswordRequiredError } from "@/lib/import/extract-text";
 import { pdfTextQuality } from "@/lib/import/pdf-quality";
@@ -96,11 +98,28 @@ export type ParseStats = {
   sumIncome: number;
   /** Sinais de que o app leu o arquivo errado. Vazio = nada estranho. */
   suspeitas: Suspeita[];
+  /** A soma lida bateu com o total que o próprio documento imprime? (ver conferencia.ts) */
+  conferencia: Conferencia;
+  /** Faltou coisa de verdade na leitura — a MESMA régua do relatório diário e do arquivo guardado. */
+  leituraIncompleta: boolean;
 };
 
 export type ParseStatementResult =
   | { ok: true; items: ReviewItem[]; customCategories: { id: string; name: string }[]; stats: ParseStats }
   | { ok: false; error: string; needsPassword?: boolean };
+
+/** A conferência vai na mensagem do diagnóstico: é o que o relatório diário e o aviso de suporte
+ * leem pra saber se faltou coisa (ver `leituraIncompletaDoRegistro`). */
+function mensagemDaConferencia(conf: Conferencia, incompleta: boolean): string | null {
+  // O documento importado é em real: o valor impresso nele vem em real, seja qual for a moeda da conta.
+  const reais = (n: number) => formatMoney(n, "BRL");
+  if (incompleta) {
+    return conf.status === "nao-fechou"
+      ? `${MARCA_NAO_FECHOU} li ${reais(conf.lido)}, o arquivo diz ${reais(conf.esperado)}`
+      : null; // sem total pra conferir: a régua das linhas continua valendo pra esta linha
+  }
+  return conf.status === "fechou" ? `${MARCA_CONFERIDO} bateu com o total do arquivo (${reais(conf.esperado)})` : MARCA_CONFERIDO;
+}
 
 /** Lê o extrato (CSV/OFX/Excel/PDF), classifica cada transação e devolve a fila pra revisão.
  * O arquivo vem CRU num FormData ({ file, encoding }), string grande como argumento de
@@ -183,7 +202,7 @@ export async function parseStatementAction(formData: FormData): Promise<ParseSta
   }
 
   const faturaYear = Number(String(formData.get("faturaMonth") ?? "").slice(0, 4)) || undefined;
-  const parsedRaw = parseStatement(text, source, faturaYear);
+  const { txns: parsedRaw, leitor } = parseStatementComLeitor(text, source, faturaYear);
   // Fatura: linhas de RESUMO ("pagamento efetuado", "total de compras", "total de crédito
   // recebido") são agregados que a própria fatura já detalha em outras linhas — não são uma
   // compra a mais. Sem isso, o "pagamento de fatura" virava um gasto extra na revisão.
@@ -280,7 +299,10 @@ export async function parseStatementAction(formData: FormData): Promise<ParseSta
     sumExpense: items.filter((i) => i.category === "EXPENSE").reduce((s, i) => s + (i.estorno ? -i.amount : i.amount), 0),
     sumIncome: items.filter((i) => i.category === "INCOME").reduce((s, i) => s + i.amount, 0),
     suspeitas: checarPlausibilidade(parsed, docType),
+    conferencia: conferirLeitura(text, docType, parsed),
+    leituraIncompleta: false,
   };
+  stats.leituraIncompleta = leituraIncompleta(stats.conferencia, leitor !== null, isPartialRead(moneyLines, items.length));
   if (docType !== "fatura") await separarDinheiroProprio(ctx, items);
   await marcarPossiveisDuplicatas(ctx, items);
   const diagnosticId = await recordImportDiagnostic({
@@ -298,12 +320,15 @@ export async function parseStatementAction(formData: FormData): Promise<ParseSta
     // Leitura implausível entra na mensagem pra aparecer na checagem diária. Sem isso ela é uma
     // importação "ok" como outra qualquer, e foi assim que quatro extratos corrompidos passaram
     // semanas no banco sem ninguém ficar sabendo.
-    message: stats.suspeitas.length > 0 ? mensagemImplausivel(stats.suspeitas.map((x) => x.texto)) : null,
+    message:
+      stats.suspeitas.length > 0
+        ? mensagemImplausivel(stats.suspeitas.map((x) => x.texto))
+        : mensagemDaConferencia(stats.conferencia, stats.leituraIncompleta),
   });
   // Leu, mas achou muito menos do que o arquivo tinha: pra pessoa é "só veio um pedaço da
   // fatura". Guarda o arquivo também nesse caso — é o único jeito de conferir se o que ficou
   // de fora era transação de verdade ou só linha de resumo.
-  if (isPartialRead(moneyLines, items.length)) {
+  if (stats.leituraIncompleta) {
     await storeFailedImportFile({ userId: ctx.userId, diagnosticId, file: uploaded, encoding, reason: "parcial" });
   }
   // Leitura que saiu implausível guarda o arquivo pelo mesmo motivo: sem ele, não dá pra

@@ -58,6 +58,29 @@ export function isPartialRead(moneyLines: number, parsed: number): boolean {
   return moneyLines > 3 && parsed < moneyLines * 0.5;
 }
 
+/**
+ * Resultado da conferência com o próprio documento (ver `conferirLeitura`), gravado no começo da
+ * mensagem de uma leitura "ok" — do mesmo jeito que a marca de implausível, pra não precisar de
+ * coluna nova. "[não fechou]" = faltou ou sobrou dinheiro de verdade; "[conferido]" = a leitura
+ * vale, por mais linha com número que o arquivo tenha (simulação de parcela, taxa, comprovante).
+ */
+export const MARCA_NAO_FECHOU = "[não fechou]";
+export const MARCA_CONFERIDO = "[conferido]";
+
+/** Na conferência, a leitura ficou incompleta? Linhas antigas (sem marca) seguem a régua das linhas. */
+export function leituraIncompletaDoRegistro(r: {
+  ok: boolean;
+  stage: string;
+  moneyLines: number;
+  parsed: number;
+  message: string | null;
+}): boolean {
+  if (!r.ok || r.stage !== "parse") return false;
+  if (r.message?.startsWith(MARCA_NAO_FECHOU)) return true;
+  if (r.message?.startsWith(MARCA_CONFERIDO)) return false;
+  return isPartialRead(r.moneyLines, r.parsed);
+}
+
 /** Cabeçalho sem valores: corta em 160 caracteres e tira qualquer número com 6+ dígitos. */
 export function safeHeader(text: string): string {
   const first = text.split(/\r?\n/).find((l) => l.trim()) ?? "";
@@ -130,7 +153,7 @@ export async function getImportHealth(days = 1): Promise<ImportHealthWindow> {
 
   const falhas = rows.filter((r) => !r.ok);
   // Leu menos da metade das linhas com valor (e ficou faltando coisa de verdade).
-  const parciais = rows.filter((r) => r.ok && r.stage === "parse" && isPartialRead(r.moneyLines, r.parsed));
+  const parciais = rows.filter((r) => leituraIncompletaDoRegistro(r));
   // Leu tudo e o resultado não parece dinheiro de gente.
   const implausiveis = rows.filter((r) => r.ok && isImplausivelMessage(r.message));
 
@@ -141,7 +164,9 @@ export async function getImportHealth(days = 1): Promise<ImportHealthWindow> {
     const motivo = isImplausivelMessage(r.message)
       ? `leu números implausíveis — ${r.message!.slice(MARCA_IMPLAUSIVEL.length).trim().split(".")[0]}`
       : r.ok
-        ? "leu só parte do arquivo"
+        ? r.message?.startsWith(MARCA_NAO_FECHOU)
+          ? `a soma não bateu com o documento — ${r.message.slice(MARCA_NAO_FECHOU.length).trim()}`
+          : "leu só parte do arquivo"
         : (r.message ?? "erro sem mensagem").split(".")[0];
     const causa = `${r.target}/${extOf(r.fileName)} · ${motivo}`;
     const g = grupos.get(causa) ?? { vezes: 0, pessoas: new Set<string>(), exemplos: new Set<string>() };

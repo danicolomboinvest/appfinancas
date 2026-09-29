@@ -624,7 +624,9 @@ export function StatementImport({
     // Dinheiro que pode ser dela mesma (conta própria, resgate): também precisa de resposta.
     const duvidasDinheiro = items.filter((it) => it.duvida && !it.ignorar);
     const deFora = items.filter((it) => it.ignorar);
-    const lowCoverage = stats ? stats.moneyLines > 0 && stats.parsed < stats.moneyLines * 0.5 && stats.moneyLines - stats.parsed >= 3 : false;
+    // "Faltou coisa": a mesma régua do relatório diário (conferencia.ts). Contar linhas sozinho
+    // acusava fatura lida perfeita — simulação de parcela e tabela de juros também têm número.
+    const lowCoverage = stats?.leituraIncompleta ?? false;
     const totalGap = stats?.invoiceTotal ? Math.round((stats.invoiceTotal - expenseSum) * 100) / 100 : 0;
     return (
       <div className="flex flex-col gap-4">
@@ -700,7 +702,9 @@ export function StatementImport({
               <FalarComSuporte arquivo={fileName} problema="o app leu só parte do arquivo" rotulo={t.impFaltouCoisa} />
             </div>
           )}
-          {stats?.invoiceTotal && Math.abs(totalGap) >= 1 && (
+          {/* Só quando a soma NÃO bateu com nenhum total do documento: a fatura do Ourocard traz
+              "Total" = saldo anterior − pagamento + compras, que nunca é a soma das compras. */}
+          {stats?.invoiceTotal && stats.conferencia.status !== "fechou" && Math.abs(totalGap) >= 1 && (
             <p className="mt-1 text-caption text-danger">{t.impSomaDiferente(totalGap > 0, money(Math.abs(totalGap)))}</p>
           )}
         </div>
