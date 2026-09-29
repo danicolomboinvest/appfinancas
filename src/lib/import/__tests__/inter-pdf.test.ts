@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { isInterStatement, parseInterStatement } from "../inter-pdf";
+import { detectInvoiceTotal } from "../detect";
+import { isFaturaSummaryLine } from "../fatura-lines";
+import { isInterInvoice, isInterStatement, parseInterInvoice, parseInterStatement } from "../inter-pdf";
 import { parseStatement } from "../statement-parser";
 
 /**
@@ -56,5 +58,52 @@ describe("extrato do Banco Inter (PDF)", () => {
     expect(grudado).not.toBe(INTER);
     expect(isInterStatement(grudado)).toBe(true);
     expect(parseInterStatement(grudado)).toEqual(parseInterStatement(INTER));
+  });
+});
+
+/**
+ * Fatura FICTÍCIA com a mesma estrutura do PDF da fatura do cartão do Inter: resumo com
+ * simulação de pagamento mínimo, data "23 de jun. 2026", crédito com "+ R$", pagamento da fatura
+ * anterior, dois cartões com total cada.
+ */
+const INTER_FATURA = [
+  "Resumo da fatura",
+  "Total da sua fatura",
+  "R$ 250,00",
+  "Pagamento mínimo: R$ 37,50",
+  "Total a pagar \tR$ 290,00",
+  "1 + 2 de R$ 95,00 \tR$ 285,00",
+  "Despesas da fatura",
+  "CARTÃO 0000****1111",
+  "Data \tMovimentação \tBeneficiário \tValor",
+  "23 de jun. 2026 LOJA EXEMPLO (Parcela 03 de 03) \t- \tR$ 70,00",
+  "06 de ago. 2026 ESTORNO EXEMPLO \t- \t+ R$ 20,00",
+  "11 de ago. 2026 PAGAMENTO ON LINE \t- \t+ R$ 300,00",
+  "12 de ago. 2026 MERCADO FICTICIO \t- \tR$ 1.000,00",
+  "Total CARTÃO 0000****1111 \tR$ 1.070,00",
+  "CARTÃO 0000****2222",
+  "02 de ago. 2026 RESTAURANTE EXEMPLO \t- \tR$ 30,00",
+].join("\n");
+
+describe("fatura do cartão do Banco Inter (PDF)", () => {
+  it("reconhece a fatura e não confunde com o extrato", () => {
+    expect(isInterInvoice(INTER_FATURA)).toBe(true);
+    expect(isInterInvoice(INTER)).toBe(false);
+  });
+
+  it("compra positiva, crédito negativo, data por extenso abreviada, dos dois cartões", () => {
+    expect(parseInterInvoice(INTER_FATURA)).toEqual([
+      { date: "2026-06-23", description: "LOJA EXEMPLO (Parcela 03 de 03)", amount: 70 },
+      { date: "2026-08-06", description: "ESTORNO EXEMPLO", amount: -20 },
+      { date: "2026-08-11", description: "PAGAMENTO ON LINE", amount: -300 },
+      { date: "2026-08-12", description: "MERCADO FICTICIO", amount: 1000 },
+      { date: "2026-08-02", description: "RESTAURANTE EXEMPLO", amount: 30 },
+    ]);
+  });
+
+  it("sem o pagamento, as compras entram, e o total conferido é o da fatura (não o da simulação)", () => {
+    const linhas = parseStatement(INTER_FATURA, "pdf").filter((t) => !isFaturaSummaryLine(t));
+    expect(linhas.map((t) => t.description)).not.toContain("PAGAMENTO ON LINE");
+    expect(detectInvoiceTotal(INTER_FATURA)).toBe(250);
   });
 });

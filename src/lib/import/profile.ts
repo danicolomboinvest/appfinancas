@@ -1,6 +1,7 @@
 import { detectDocKind } from "./detect";
 import { isBancoDoBrasilStatement } from "./bb-pdf";
 import { isNubankStatement } from "./nubank-pdf";
+import { isSafraMonthlyReport } from "./safra-pdf";
 
 /**
  * Perfil do arquivo importado, lido INTEIRO antes de qualquer decisão.
@@ -52,6 +53,7 @@ const INSTITUTIONS: [RegExp, string][] = [
   [/picpay/i, "PicPay"],
   [/sicoob/i, "Sicoob"],
   [/sicredi/i, "Sicredi"],
+  [/banco safra|\bsafra\b/i, "Safra"],
   [/\bcora scfi\b/i, "Cora"],
   [/pagbank|pagseguro/i, "PagBank"],
   [/genial investimentos/i, "Genial"],
@@ -269,6 +271,14 @@ export function profileDocument(text: string, fileName?: string | null): DocProf
   } else if (known.kind !== "unknown") {
     kind = known.kind === "fatura" ? "invoice" : "statement";
     reason = known.reason;
+  }
+
+  // Relatório mensal do Safra: posição sem código de ativo, e "vencimento" em todo canto (do CDB,
+  // do suitability) — pela contagem de palavras virava FATURA e a Carteira recusava o arquivo.
+  if (isSafraMonthlyReport(text)) {
+    kind = "position";
+    reason = "relatório mensal de investimentos";
+    if (!contents.includes("position")) contents.push("position");
   }
 
   const institution = detectInstitution(text);

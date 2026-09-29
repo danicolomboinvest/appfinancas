@@ -12,12 +12,12 @@ const FATURA_SUMMARY_RE =
 /**
  * Outras redações do MESMO pagamento da fatura anterior, que cada banco escreve do seu jeito:
  * "Pagamento da fatura", "PAGAMENTO FATURA", "PAGTO FATURA", "Inclusao de Pagamento" (C6),
- * "PAGAMENTO ON LINE", "Pagto debito automatico", "Pagamentos Validos Normais". Sem elas a
- * linha passava como crédito, e na fatura todo crédito vira estorno: a fatura anterior inteira
+ * "PAGAMENTO ON LINE", "Pagto debito automatico", "Pagamentos Validos Normais", "PGTO. CASH AG."
+ * (Ourocard). Sem elas a linha passava como crédito, e na fatura todo crédito vira estorno: a fatura anterior inteira
  * (R$ 2.800) entrava como gasto NEGATIVO e o mês parecia ter gastado quase nada.
  */
 const FATURA_PAGAMENTO_RE =
-  /\b((pagamentos?|pagto|pgto)\.?\s+(d[aeo]\s+)?fatura|pagamentos?\s+on\s*-?\s*line|inclus[aã]o\s+de\s+pagamentos?|(pagamentos?|pagto|pgto)\.?\s+(por\s+)?d[eé]b(ito)?\.?\s+autom([aá]tico)?|pagamentos?\s+v[aá]lidos)(?![a-z])/i;
+  /\b((pagamentos?|pagto|pgto)\.?\s+(d[aeo]\s+)?fatura|pagamentos?\s+on\s*-?\s*line|inclus[aã]o\s+de\s+pagamentos?|(pagamentos?|pagto|pgto)\.?\s+(por\s+)?d[eé]b(ito)?\.?\s+autom([aá]tico)?|pagamentos?\s+v[aá]lidos|pgto\.?\s+cash)(?![a-z])/i;
 /**
  * Linha do quadro "Limites" da fatura do Bradesco ("Compras  R$ 14.400,00  R$ 3.626,29
  * R$ 10.773,71"): a data do quadro vem na linha de cima, então o leitor achava que era uma compra

@@ -1,5 +1,6 @@
 import type { AssetClass, FixedIncomeIndex } from "@prisma/client";
 import { KNOWN_ETF_BR } from "@/lib/market/known-names";
+import { isSafraMonthlyReport, parseSafraMonthlyReport } from "./safra-pdf";
 import { parseBrazilianNumber } from "./statement-parser";
 
 /**
@@ -469,6 +470,12 @@ function parseAllocationTemplate(lines: string[]): ParsedHolding[] {
 export function parsePortfolioStatement(content: string): ParsedHolding[] {
   const lines = content.split(/\r?\n/).filter((l) => l.trim() !== "");
   if (lines.length === 0) return [];
+
+  // Relatório mensal do Safra: aplicações pelo nome, sem código de ativo (ver safra-pdf.ts).
+  if (isSafraMonthlyReport(content)) {
+    const safra = parseSafraMonthlyReport(content);
+    if (safra.length > 0) return safra;
+  }
 
   // 1º: Planilha de Alocação própria da Dani (Classificação + Ativo + Preço atual) — cada
   // aluna preenche à mão, sem quantidade de cotas.

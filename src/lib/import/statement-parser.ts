@@ -11,8 +11,9 @@ import { isBancoDoBrasilStatement, parseBancoDoBrasilStatement } from "./bb-pdf"
 import { isBradescoStatement, parseBradescoStatement } from "./bradesco-pdf";
 import { isCaixaAppStatement, parseCaixaAppStatement } from "./caixa-pdf";
 import { isCoraStatement, parseCoraStatement } from "./cora-pdf";
-import { isInterStatement, parseInterStatement } from "./inter-pdf";
+import { isInterInvoice, isInterStatement, parseInterInvoice, parseInterStatement } from "./inter-pdf";
 import { isNubankStatement, parseNubankStatement } from "./nubank-pdf";
+import { isOurocardInvoice, parseOurocardInvoice } from "./ourocard-pdf";
 import { isSantanderConsolidatedStatement, parseSantanderConsolidatedStatement } from "./santander-pdf";
 
 export type ParsedTransaction = {
@@ -505,6 +506,14 @@ export function parseStatement(content: string, source: "auto" | "pdf" = "auto",
     if (isCoraStatement(content)) {
       const cora = parseCoraStatement(content);
       if (cora.length > 0) return cora;
+    }
+    if (isInterInvoice(content)) {
+      const interFatura = parseInterInvoice(content);
+      if (interFatura.length > 0) return interFatura;
+    }
+    if (isOurocardInvoice(content)) {
+      const ourocard = parseOurocardInvoice(content, refYear);
+      if (ourocard.length > 0) return ourocard;
     }
     return parseTextLines(content, refYear);
   }

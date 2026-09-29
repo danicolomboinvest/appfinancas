@@ -132,6 +132,19 @@ function ehSenhaErrada(err: unknown): boolean {
 }
 
 /** PDF → texto cru (todas as páginas). Descriptografa se vier senha. */
+/**
+ * PDF com "lixo" antes do começo de verdade: uma fatura do Inter chegou com a primeira METADE do
+ * arquivo só de zeros (451 KB) e o PDF inteiro, perfeito, logo depois. O leitor procura o começo
+ * ("%PDF-") só no início do arquivo e desistia com "Invalid Root reference" — a pessoa ouvia
+ * "não consegui ler PDF neste servidor" duas vezes, com um arquivo que dava pra ler. Aqui o
+ * arquivo passa a começar onde o PDF começa.
+ */
+function semLixoAntesDoPdf(buffer: Buffer): Buffer {
+  const inicio = buffer.indexOf("%PDF-");
+  // Cópia, não uma "janela" do mesmo buffer: o pdf.js lê o buffer por baixo a partir do zero.
+  return inicio > 0 ? Buffer.from(buffer.subarray(inicio)) : buffer;
+}
+
 async function pdfToText(buffer: Buffer, password: string | undefined): Promise<string> {
   prepararAmbienteDoPdf();
   let PDFParse: typeof import("pdf-parse").PDFParse;
@@ -140,7 +153,7 @@ async function pdfToText(buffer: Buffer, password: string | undefined): Promise<
   } catch (err) {
     throw new UploadReadError(PDF_INDISPONIVEL, `biblioteca não carregou · ${causa(err)}`);
   }
-  const parser = new PDFParse({ data: buffer, password });
+  const parser = new PDFParse({ data: semLixoAntesDoPdf(buffer), password });
   try {
     const result = await parser.getText();
     // Fatura escrita letra por letra ("R $ 2 4 0 , 0 0") volta a ser texto normal aqui, antes de

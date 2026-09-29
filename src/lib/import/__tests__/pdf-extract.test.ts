@@ -153,6 +153,13 @@ describe("leitura de PDF", () => {
     expect(lancamentos.map((l) => l.amount)).toEqual(expect.arrayContaining([1234.56, -89.9, -212.45]));
   });
 
+  it("lê o PDF que chega com zeros ANTES do começo (fatura do Inter com metade do arquivo vazia)", async () => {
+    const pdf = pdfFicticio(["LINHA COM ZEROS NA FRENTE 10,00"]);
+    const comLixo = Buffer.concat([Buffer.alloc(pdf.length), pdf]);
+    const { text } = await extractUploadFromForm(formDataComPdf(comLixo));
+    expect(text).toContain("LINHA COM ZEROS NA FRENTE");
+  });
+
   it("não devolve texto vazio num PDF com conteúdo (o sintoma de quando o leitor não sobe)", async () => {
     const { text } = await extractUploadFromForm(formDataComPdf(pdfFicticio(["LINHA UNICA 10,00"])));
     expect(text.replace(/[^\p{L}\p{N}]/gu, "").length).toBeGreaterThan(8);

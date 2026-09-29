@@ -71,9 +71,11 @@ export function sinaisDesmentemExtrato(txns: ParsedTransaction[], reason: string
   return txns.filter((t) => t.amount > 0).length / txns.length >= 0.9;
 }
 
-/** "Total da fatura R$ 2.345,67" / "Total a pagar" / "Valor total": pra conferir se a leitura fechou. */
+/** "Total da fatura R$ 2.345,67" / "Total a pagar" / "Valor total": pra conferir se a leitura fechou.
+ * "Total da sua fatura" é o do Inter: sem ele valia o "Total a pagar" da simulação do pagamento
+ * mínimo (com juros), mais abaixo, e a conferência dizia que a leitura não fechou quando fechou. */
 export function detectInvoiceTotal(text: string): number | null {
-  const m = text.match(/(?:total\s+(?:da\s+fatura|desta\s+fatura|a\s+pagar|geral)|valor\s+total(?:\s+da\s+fatura)?)\s*[:\-]?\s*(?:R\$\s?)?(-?\d{1,3}(?:\.\d{3})*,\d{2})/i);
+  const m = text.match(/(?:total\s+(?:da\s+(?:sua\s+)?fatura|desta\s+fatura|a\s+pagar|geral)|valor\s+total(?:\s+da\s+fatura)?)\s*[:\-]?\s*(?:R\$\s?)?(-?\d{1,3}(?:\.\d{3})*,\d{2})/i);
   if (!m) return null;
   const n = Number(m[1].replace(/\./g, "").replace(",", "."));
   return Number.isFinite(n) && n > 0 ? n : null;

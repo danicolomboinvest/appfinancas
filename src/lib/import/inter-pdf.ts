@@ -96,3 +96,41 @@ export function parseInterStatement(texto: string): ParsedTransaction[] {
 
   return out;
 }
+
+/**
+ * Fatura do cartão do Banco Inter em PDF.
+ *
+ *   Despesas da fatura
+ *   CARTÃO 0000****0000
+ *   Data  Movimentação  Beneficiário  Valor
+ *   23 de jun. 2026 LOJA EXEMPLO (Parcela 03 de 03)   -   R$ 73,61      ← compra
+ *   06 de ago. 2026 LOJA ESTORNADA                    -   + R$ 67,20    ← estorno/crédito
+ *   11 de ago. 2026 PAGAMENTO ON LINE                 -   + R$ 450,00   ← pagamento da anterior
+ *   Total CARTÃO 0000****0000   R$ 6,41
+ *
+ * O leitor genérico não reconhecia a data "23 de jun. 2026" e pegava números das tabelas de
+ * parcelamento: uma fatura de R$ 4.527 saiu com 10 lançamentos somando R$ 41 mil. Aqui a compra
+ * sai POSITIVA e o crédito ("+ R$") NEGATIVO; quem importa decide pelo sinal da maioria (ver
+ * `comprasDaFaturaSaoPositivas`) e o pagamento sai como linha de resumo.
+ */
+const FATURA_LINHA_RE =
+  /^(\d{1,2})\s+de\s+([a-zç]{3})[a-zç]*\.?\s+(\d{4})\s+(.+?)\s+-\s+(\+\s*)?R\$\s*(\d{1,3}(?:\.\d{3})*,\d{2})$/i;
+
+export function isInterInvoice(texto: string): boolean {
+  return /Despesas da fatura/i.test(texto) && /\bCART[ÃA]O\s+\d{4}\*{4}\d{4}/i.test(texto);
+}
+
+export function parseInterInvoice(texto: string): ParsedTransaction[] {
+  const out: ParsedTransaction[] = [];
+  for (const bruta of texto.split(/\r?\n/)) {
+    const linha = bruta.replace(/\t/g, " ").replace(/\s+/g, " ").trim();
+    const m = linha.match(FATURA_LINHA_RE);
+    if (!m) continue;
+    const [, dia, mesAbrev, ano, descricao, credito, valor] = m;
+    const mes = mesPorExtenso(Object.keys(MESES).find((nome) => nome.startsWith(mesAbrev.toLowerCase().replace("ç", "c"))) ?? "");
+    const magnitude = parseBrazilianNumber(valor);
+    if (!mes || Number.isNaN(magnitude) || magnitude === 0) continue;
+    out.push({ date: `${ano}-${mes}-${dia.padStart(2, "0")}`, description: descricao.trim(), amount: credito ? -magnitude : magnitude });
+  }
+  return out;
+}
