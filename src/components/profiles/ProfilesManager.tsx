@@ -21,7 +21,7 @@ import type { ProfileKind } from "@prisma/client";
  * num clique, e um "tem certeza?" comum não é proporcional a isso.
  */
 export function ProfilesManager({ perfis, ativoId }: { perfis: ProfileRow[]; ativoId: string }) {
-  const { showToast } = useToast();
+  const { showToast, showError } = useToast();
   // A voz do perfil ATIVO: é ele quem fala enquanto a pessoa gerencia os outros.
   const { titulos: t } = useProfileTheme().voz;
   const [pendente, iniciar] = useTransition();
@@ -32,7 +32,8 @@ export function ProfilesManager({ perfis, ativoId }: { perfis: ProfileRow[]; ati
   function executar(fn: () => Promise<{ ok: boolean; error?: string }>, sucesso: string, aoFim?: () => void) {
     iniciar(async () => {
       const r = await fn();
-      showToast(r.ok ? sucesso : (r.error ?? t.cfgPerfisFalhou));
+      if (r.ok) showToast(sucesso);
+      else showError(r.error ?? t.cfgPerfisFalhou);
       if (r.ok) aoFim?.();
     });
   }

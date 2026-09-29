@@ -25,4 +25,11 @@ export const assetSchema = z.object({
   idealAllocationPercent: z.coerce.number().min(0).max(1).optional(),
   acquisitionDate: z.coerce.date().optional(),
   notes: z.string().trim().optional(),
-});
+})
+  // Objetivo "Meta" sem a meta escolhida deixava o ativo fora de todos os cards do "Por
+  // objetivo" (não é reserva, nem liberdade, nem "sem objetivo", nem de meta nenhuma).
+  .superRefine((v, ctx) => {
+    if (v.objective === "META" && !v.goalId) {
+      ctx.addIssue({ code: "custom", path: ["goalId"], message: "Escolha a meta desse ativo." });
+    }
+  });

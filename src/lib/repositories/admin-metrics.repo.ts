@@ -32,7 +32,7 @@ export type AdminUserMetric = {
   taxaPoupanca: number | null;
   /** Aportes (INVESTMENT_CONTRIBUTION) médios por mês com movimentação. */
   aporteMedioMensal: number;
-  /** Quantos meses distintos a pessoa registrou algo. */
+  /** Quantos meses distintos a pessoa registrou algo no perfil pessoal (divisor da poupança). */
   mesesAtivos: number;
   /** Data do lançamento mais recente (proxy de "está usando"). */
   ultimoLancamento: Date | null;
@@ -57,17 +57,34 @@ const SORTERS: Record<AdminUserSort, (a: AdminUserMetric, b: AdminUserMetric) =>
 
 const num = (v: unknown): number => (v == null ? 0 : Number(v));
 
+/**
+ * Lançamento que entra nas contas de poupança: só do perfil pessoal (ou de antes dos perfis,
+ * sem profileId). Somar Empresa junto contava o pró-labore duas vezes (gasto na Empresa, renda
+ * no Pessoal) e o faturamento como renda pessoal, e a taxa de poupança que a Dani publica
+ * saía distorcida. O total "organizado no app" continua contando todos os perfis.
+ */
+export function contaParaPoupanca(profileId: string | null, perfisNaoPessoais: Set<string>): boolean {
+  return profileId === null || !perfisNaoPessoais.has(profileId);
+}
+
+/** Ids dos perfis que não são o pessoal (Empresa, Casal, Casa, Projeto, Outro). */
+export async function perfisNaoPessoais(): Promise<Set<string>> {
+  const perfis = await prisma.financialProfile.findMany({ where: { kind: { not: "PESSOAL" } }, select: { id: true } });
+  return new Set(perfis.map((p) => p.id));
+}
+
 export async function getAdminOverview(sort: AdminUserSort = "patrimonio"): Promise<AdminOverview> {
-  const [users, assetsByUser, entriesByCat, monthsRows] = await Promise.all([
+  const [users, assetsByUser, entriesByCat, monthsRows, naoPessoais] = await Promise.all([
     prisma.user.findMany({ select: { id: true, name: true, email: true, phone: true, createdAt: true } }),
     prisma.asset.groupBy({ by: ["userId"], _sum: { currentValue: true, investedValue: true } }),
     prisma.monthlyEntry.groupBy({
-      by: ["userId", "category"],
+      by: ["userId", "profileId", "category"],
       _sum: { amount: true },
       _max: { createdAt: true },
     }),
-    // Uma linha por (usuário, ano, mês) com movimentação → contamos meses distintos em JS.
-    prisma.monthlyEntry.groupBy({ by: ["userId", "year", "month"], _count: { _all: true } }),
+    // Uma linha por (usuário, perfil, ano, mês) com movimentação → contamos meses distintos em JS.
+    prisma.monthlyEntry.groupBy({ by: ["userId", "profileId", "year", "month"], _count: { _all: true } }),
+    perfisNaoPessoais(),
   ]);
 
   const assetMap = new Map(assetsByUser.map((a) => [a.userId, a._sum]));
@@ -76,16 +93,27 @@ export async function getAdminOverview(sort: AdminUserSort = "patrimonio"): Prom
   for (const row of entriesByCat) {
     const cur = fin.get(row.userId) ?? { income: 0, expense: 0, invested: 0, last: null };
     const amount = num(row._sum.amount);
-    if (row.category === "INCOME") cur.income += amount;
-    else if (row.category === "EXPENSE") cur.expense += amount;
-    else cur.invested += amount;
+    // O último lançamento vale de qualquer perfil (é sinal de uso); a poupança, só do pessoal.
+    if (contaParaPoupanca(row.profileId, naoPessoais)) {
+      if (row.category === "INCOME") cur.income += amount;
+      else if (row.category === "EXPENSE") cur.expense += amount;
+      else cur.invested += amount;
+    }
     const last = row._max.createdAt;
     if (last && (!cur.last || last > cur.last)) cur.last = last;
     fin.set(row.userId, cur);
   }
 
-  const monthsCount = new Map<string, number>();
-  for (const r of monthsRows) monthsCount.set(r.userId, (monthsCount.get(r.userId) ?? 0) + 1);
+  // Meses do perfil pessoal: são o divisor da poupança média. O mesmo mês pode vir em mais de
+  // uma linha (perfil pessoal + lançamentos antigos sem perfil), então conta meses distintos.
+  const monthsSeen = new Map<string, Set<string>>();
+  for (const r of monthsRows) {
+    if (!contaParaPoupanca(r.profileId, naoPessoais)) continue;
+    const meses = monthsSeen.get(r.userId) ?? new Set<string>();
+    meses.add(`${r.year}-${r.month}`);
+    monthsSeen.set(r.userId, meses);
+  }
+  const monthsCount = new Map([...monthsSeen].map(([userId, meses]) => [userId, meses.size]));
 
   const metrics: AdminUserMetric[] = users.map((u) => {
     const assets = assetMap.get(u.id);

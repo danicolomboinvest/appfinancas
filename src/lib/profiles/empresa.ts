@@ -1,5 +1,6 @@
 import type { ParentCategory, ProfileKind } from "@prisma/client";
 import { Building2, Package, Truck, Users, Megaphone, Handshake, Landmark, Shapes, type LucideIcon } from "lucide-react";
+import { ehNaoGasto } from "@/lib/planning/nao-e-gasto";
 
 /**
  * O perfil EMPRESA: o app deixa de falar de moradia e lazer e passa a falar de custos,
@@ -192,7 +193,7 @@ export function calcularDRE(e: EntradaDRE): DRE {
 // ─── Caixa ───────────────────────────────────────────────────────────────────────────────
 
 export type SaudeDoCaixa = {
-  /** O que está marcado como reserva na carteira da empresa. */
+  /** O caixa de segurança: o digitado na tela do caixa ou o marcado como reserva na carteira. */
   caixa: number;
   /** Despesas fixas por mês (média dos últimos meses). */
   despesasFixasMes: number;
@@ -206,6 +207,52 @@ export function saudeDoCaixa(caixa: number, despesasFixasMes: number): SaudeDoCa
   if (despesasFixasMes <= 0) return { caixa, despesasFixasMes, mesesDeCaixa: null, situacao: "sem-dado" };
   const meses = caixa / despesasFixasMes;
   return { caixa, despesasFixasMes, mesesDeCaixa: meses, situacao: meses < 3 ? "curto" : meses < 6 ? "ok" : "folgado" };
+}
+
+export type LinhaDoHistorico = {
+  year: number;
+  month: number;
+  category: string;
+  parentCategory: ParentCategory | null;
+  subcategory?: string | null;
+  description?: string | null;
+  amount: number | { toString(): string };
+  createdAt?: Date | null;
+};
+
+/**
+ * Despesas fixas de um mês típico, a partir dos lançamentos dos meses fechados. É a MESMA régua
+ * da tela do caixa de segurança (`getTypicalMonthlyExpense`): sem ela, o Painel dizia "1,3 mês,
+ * curto" enquanto a tela do caixa dizia "8 meses" pro mesmo dinheiro. Por isso:
+ * - aplicação e pagamento de fatura não são despesa (o extrato traz os dois como débito);
+ * - mês que só tem as cópias automáticas da conta fixa (nada lançado nele ou depois) não entra,
+ *   senão puxaria a média pra baixo.
+ * `null` quando não há nenhum mês com despesa fixa pra medir.
+ */
+export function despesasFixasTipicas(historico: LinhaDoHistorico[]): number | null {
+  const fixas = new Map<string, number>();
+  const reais = new Set<string>();
+  for (const e of historico) {
+    if (e.category !== "EXPENSE") continue;
+    const chave = `${e.year}-${e.month}`;
+    // Sem a data de criação (lançamento antigo) não dá pra saber: conta como mês real.
+    if (!e.createdAt || e.createdAt.getTime() >= Date.UTC(e.year, e.month - 1, 1, 3)) reais.add(chave);
+    if (naturezaDaCategoria(e.parentCategory) !== "fixa" || ehNaoGasto(e)) continue;
+    fixas.set(chave, (fixas.get(chave) ?? 0) + Number(e.amount));
+  }
+  const meses = [...fixas].filter(([chave, v]) => v > 0 && reais.has(chave));
+  if (meses.length === 0) return null;
+  return meses.reduce((s, [, v]) => s + v, 0) / meses.length;
+}
+
+/**
+ * O caixa da empresa: o maior entre o que ela digitou na tela do caixa de segurança e o que está
+ * marcado como reserva na carteira. Mesma regra da fila do que guardar (`savings-targets.ts`):
+ * quem não usa a carteira via "0,0 mês" no Painel com R$ 50 mil digitados na tela do caixa, e
+ * somar os dois contaria o mesmo dinheiro duas vezes.
+ */
+export function caixaDaEmpresa(digitado: number | null, marcadoNaCarteira: number): number {
+  return Math.max(digitado ?? 0, marcadoNaCarteira);
 }
 
 /** Quantos meses de despesas fixas uma empresa deveria ter em caixa (Sebrae: 3 a 6). */

@@ -20,7 +20,10 @@ export function AddEmailsForm() {
     state.error,
     state.added
       ? `${state.added} e-mail${state.added === 1 ? "" : "s"} liberado${state.added === 1 ? "" : "s"}.` +
-          (state.emailed ? ` ${state.emailed} convite${state.emailed === 1 ? "" : "s"} enviado${state.emailed === 1 ? "" : "s"} por e-mail.` : "")
+          (state.emailed ? ` ${state.emailed} convite${state.emailed === 1 ? "" : "s"} enviado${state.emailed === 1 ? "" : "s"} por e-mail.` : "") +
+          (state.keptLonger
+            ? ` ${state.keptLonger} já tinha${state.keptLonger === 1 ? "" : "m"} acesso mais longo e ${state.keptLonger === 1 ? "ficou" : "ficaram"} com ele.`
+            : "")
       : undefined,
   );
 
@@ -33,6 +36,7 @@ export function AddEmailsForm() {
         name="emails"
         rows={5}
         placeholder={"maria@email.com\njoao@email.com\nana@email.com"}
+        defaultValue={state.values?.emails}
       />
       <div className="flex flex-wrap items-end gap-3">
         <Field
@@ -41,6 +45,7 @@ export function AddEmailsForm() {
           name="note"
           className="w-56"
           placeholder="Turma 1"
+          defaultValue={state.values?.note}
         />
         <Field
           label="Acesso até (opcional)"
@@ -64,8 +69,8 @@ export function AddEmailsForm() {
         </Button>
       </div>
       <p className="text-xs text-ink-faint">
-        Colar de novo um e-mail que estava desativado reativa o acesso. Duplicados são ignorados. Deixe &quot;Acesso
-        até&quot; em branco pra liberar sem prazo.
+        Colar de novo um e-mail que estava desativado ou vencido reativa o acesso com o prazo daqui. Quem já tem acesso
+        valendo nunca perde prazo: fica com o mais longo. Deixe &quot;Acesso até&quot; em branco pra liberar sem prazo.
       </p>
     </Card>
   );

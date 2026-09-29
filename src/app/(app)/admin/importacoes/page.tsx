@@ -63,8 +63,9 @@ export default async function AdminImportacoesPage() {
 
               <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-ink-faint">
                 <span>
-                  {a.createdAt.toLocaleString("pt-BR")} · {formatarTamanho(a.bytes)} · apaga em{" "}
-                  {a.expiresAt.toLocaleDateString("pt-BR")}
+                  {a.createdAt.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })} ·{" "}
+                  {formatarTamanho(a.bytes)} · apaga em{" "}
+                  {a.expiresAt.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}
                 </span>
                 <a
                   href={`/api/admin/importacoes/${a.id}`}

@@ -17,7 +17,7 @@ const DISMISS_KEY = "spi.recurring.dismissed";
  */
 export function RecurringSuggestions({ candidates, year, month }: { candidates: RecurringCandidate[]; year: number; month: number }) {
   const money = useMoney();
-  const { showToast } = useToast();
+  const { showToast, showError } = useToast();
   // O convite e os botões vêm da voz do tema; o que se repete continua vindo do servidor.
   const { voz } = useProfileTheme();
   const t = voz.titulos;
@@ -68,7 +68,7 @@ export function RecurringSuggestions({ candidates, year, month }: { candidates: 
         repeat,
       );
       if (!res.ok) {
-        showToast(t.impRepeteErro);
+        showError(t.impRepeteErro);
         return;
       }
       hide(c.key);

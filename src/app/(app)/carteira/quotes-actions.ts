@@ -4,6 +4,9 @@ import { revalidatePath } from "next/cache";
 import { getRequiredSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
 import { fetchTickerPrice } from "@/lib/analysis/price-scraper";
+import { getOwnUser } from "@/lib/repositories/user.repo";
+import { toCurrencyCode } from "@/lib/money";
+import { precoNaMoeda, reaisPorUnidadeDa } from "@/lib/portfolio/cotacao-na-moeda";
 
 export type UpdateQuotesResult =
   | { ok: true; updated: number; failed: string[] }
@@ -36,10 +39,16 @@ export async function updatePortfolioQuotesAction(): Promise<UpdateQuotesResult>
     ),
   );
 
+  // A cotação vem em reais; a carteira de quem usa o app em euro/dólar está nessa moeda.
+  const moeda = toCurrencyCode((await getOwnUser(ctx)).currency);
+  const reaisPorUnidade = await reaisPorUnidadeDa(moeda);
+
   let updated = 0;
   const failed: string[] = [];
   for (const asset of assets) {
-    const price = priceByTicker.get(asset.ticker as string) ?? null;
+    const precoEmReais = priceByTicker.get(asset.ticker as string) ?? null;
+    // Sem o câmbio, conta como "não consegui": gravar reais com o símbolo dela seria pior.
+    const price = precoEmReais === null ? null : precoNaMoeda(precoEmReais, moeda, reaisPorUnidade);
     if (price === null) {
       if (!failed.includes(asset.ticker as string)) failed.push(asset.ticker as string);
       continue;

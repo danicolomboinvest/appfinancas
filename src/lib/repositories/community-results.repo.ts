@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db/prisma";
 import { nowInBrazil } from "@/lib/date/brazil-now";
+import { contaParaPoupanca, perfisNaoPessoais } from "@/lib/repositories/admin-metrics.repo";
 
 /**
  * O resultado das alunas em números — o "depoimento sem depoimento".
@@ -108,19 +109,20 @@ export async function getCommunityResults(): Promise<CommunityResults> {
   /** Mês corrente não entra: ele ainda está acontecendo e puxaria todo mundo pra baixo. */
   const ehFechado = (ano: number, mes: number) => ano < anoAtual || (ano === anoAtual && mes < mesAtual);
 
-  const [clientes, totalContas, ativas30d, porMes, metas, reservas] = await Promise.all([
+  const [clientes, totalContas, ativas30d, porMes, metas, reservas, naoPessoais] = await Promise.all([
     prisma.user.findMany({ where: { role: "CLIENT" }, select: { id: true, email: true } }),
     prisma.user.count({ where: { role: "CLIENT" } }),
     prisma.usageEvent
       .findMany({ where: { createdAt: { gte: new Date(Date.now() - 30 * 86_400_000) } }, select: { userId: true }, distinct: ["userId"] })
       .then((r) => r.length),
     prisma.monthlyEntry.groupBy({
-      by: ["userId", "year", "month", "category"],
+      by: ["userId", "profileId", "year", "month", "category"],
       _sum: { amount: true },
       _count: true,
     }),
     prisma.goal.findMany({ select: { userId: true, targetAmount: true, currentAmount: true } }),
     prisma.emergencyFund.findMany({ select: { userId: true, targetAmount: true, currentAmount: true } }),
+    perfisNaoPessoais(),
   ]);
 
   // Só conta de aluna: admin e conta de teste não são resultado de ninguém.
@@ -161,6 +163,9 @@ export async function getCommunityResults(): Promise<CommunityResults> {
     totalOrganizado += valor;
     lancamentos += linha._count;
     if (!ehFechado(linha.year, linha.month)) continue;
+    // Taxa de poupança, "melhoraram" e "guardado" saem só do perfil pessoal (ver
+    // contaParaPoupanca): Empresa somada contava o pró-labore em dobro.
+    if (!contaParaPoupanca(linha.profileId, naoPessoais)) continue;
     const chaveMes = `${linha.year}-${String(linha.month).padStart(2, "0")}`;
     mesesVistos.add(chaveMes);
     const meses = porPessoa.get(linha.userId) ?? new Map<string, Mes>();

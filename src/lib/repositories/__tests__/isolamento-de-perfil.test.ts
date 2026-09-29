@@ -34,6 +34,7 @@ const EXCECOES: { arquivo: string; motivo: string }[] = [
   { arquivo: "admin-analytics.repo.ts", motivo: "relatório da plataforma conta a base inteira" },
   { arquivo: "community-results.repo.ts", motivo: "resultados agregados somam todos os perfis" },
   { arquivo: "adoption-funnel.repo.ts", motivo: "funil mede contas, não perfis" },
+  { arquivo: "configuracoes/dados/actions.ts", motivo: "a exportação leva a conta inteira, com a coluna Perfil: a tela promete todos os lançamentos, e é o que se exporta antes de excluir a conta" },
   { arquivo: "pluggy/sync.ts", motivo: "a mesma transação do banco não pode existir em dois perfis, e o perfil de destino da conexão é deduzido do que ela já importou" },
 ];
 

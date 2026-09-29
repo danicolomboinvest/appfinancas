@@ -70,8 +70,11 @@ export type FocoEntrada = {
   reservaMinimaMeses?: number;
   /** Rota da tela do mês, pra onde vão as ações de lançar. */
   hrefMes: string;
-  /** Tetos que a pessoa pôs neste mês (chave da categoria → valor). Categoria com teto não vira alerta de ritmo. */
-  tetos?: { categoria: string; valor: number }[];
+  /**
+   * Tetos que a pessoa pôs neste mês (chave da categoria → valor). Categoria com teto não vira
+   * alerta de ritmo; com teto zero ("não gastar mais nada"), também não vira alerta de estouro.
+   */
+  tetos?: { categoria: string; valor: number; gastoNaHora?: number | null }[];
   /** Gastos recorrentes do Raio-X que ela ainda não decidiu. */
   raiox?: { n: number; anual: number } | null;
   /** Avisos que ela já dispensou ("foi pontual", "entendi") neste mês ou nesta semana. */
@@ -107,7 +110,7 @@ export type FocoLivre =
  * outra tela.
  */
 export type FocoDetalhe =
-  | { tipo: "estouro" | "ritmo"; categoria: string; label: string; gasto: number; planejado: number; sobra: number; dias: number }
+  | { tipo: "estouro" | "ritmo"; categoria: string; label: string; gasto: number; planejado: number; sobra: number; dias: number; /** Quanto do mês já passou (0 a 1): a marca de "hoje" na barra. */ decorrido: number }
   | { tipo: "fora"; valor: number; livre: number }
   | { tipo: "aporte"; falta: number; guardado: number; planejado: number }
   | { tipo: "meta"; metaId: string; nome: string; porMes: number; quando: string; vencida: boolean; ultimoMes: boolean }
@@ -116,6 +119,22 @@ export type FocoDetalhe =
 
 export type FocoItem = { id: string; nivel: 1 | 2 | 3; titulo: string; texto: string; href: string; acao: string; detalhe?: FocoDetalhe };
 export type FocoBem = { titulo: string };
+/**
+ * O que ela já decidiu num aviso ("não gastar mais nada em Moradia", "teto de R$ 90 em Lazer").
+ * Sai de "precisa da sua atenção" e vira um card de combinado, que mostra se está sendo cumprido.
+ */
+export type FocoCombinado = {
+  categoria: string;
+  label: string;
+  titulo: string;
+  /** 0 = "nada mais este mês". */
+  teto: number;
+  gasto: number;
+  planejado: number;
+  /** O que entrou na categoria depois do combinado. */
+  depois: number;
+  quebrou: boolean;
+};
 export type FocoFio = { meta: string; quando: string; guardarNoMes: number | null; guardadoNoMes: number };
 
 export type FocoSaida = {
@@ -123,6 +142,7 @@ export type FocoSaida = {
   atencao: FocoItem[];
   depois: FocoItem[];
   bem: FocoBem[];
+  combinados: FocoCombinado[];
   fio: FocoFio | null;
 };
 
@@ -187,8 +207,15 @@ export function montarFoco(e: FocoEntrada): FocoSaida {
   const hrefOrcamento = "/orcamento";
 
   if (!semDadoDoMes) {
+    // "Não gastar mais nada em X este mês" (teto zero) é a resposta dela a este aviso: com ele o
+    // estouro já está decidido e sai da lista (o teto aparece em "indo bem"). Sem isso o mesmo
+    // aviso voltava com os mesmos botões, e parecia que o botão não tinha feito nada. Teto maior
+    // que zero veio do aviso de ritmo, antes do estouro: passar do plano depois dele é novidade.
+    const decidiuParar = (key: string) => e.tetos?.some((x) => x.categoria === key && x.valor <= 0) ?? false;
     // O maior estouro (em reais) primeiro: é ele que não pode cair no "+N podem esperar".
-    const estouradas = e.categorias.filter((c) => c.planejado > 0 && c.gasto - c.planejado >= FOLGA_ESTOURO).sort((a, b) => b.gasto - b.planejado - (a.gasto - a.planejado));
+    const estouradas = e.categorias
+      .filter((c) => c.planejado > 0 && c.gasto - c.planejado >= FOLGA_ESTOURO && !decidiuParar(c.key))
+      .sort((a, b) => b.gasto - b.planejado - (a.gasto - a.planejado));
     for (const c of estouradas) {
       itens.push({
         id: `estouro-${c.key}`,
@@ -197,7 +224,7 @@ export function montarFoco(e: FocoEntrada): FocoSaida {
         texto: t.focoEstouroP(money(c.gasto), money(c.planejado), diasRestantes),
         href: hrefOrcamento,
         acao: t.focoAcao,
-        detalhe: { tipo: "estouro", categoria: c.key, label: c.label, gasto: c.gasto, planejado: c.planejado, sobra: 0, dias: diasRestantes },
+        detalhe: { tipo: "estouro", categoria: c.key, label: c.label, gasto: c.gasto, planejado: c.planejado, sobra: 0, dias: diasRestantes, decorrido },
       });
     }
   }
@@ -260,7 +287,7 @@ export function montarFoco(e: FocoEntrada): FocoSaida {
           texto: t.focoRitmoP(diasRestantes, money(Math.max(0, c.planejado - c.gasto))),
           href: hrefOrcamento,
           acao: t.focoAcao,
-          detalhe: { tipo: "ritmo", categoria: c.key, label: c.label, gasto: c.gasto, planejado: c.planejado, sobra: Math.max(0, c.planejado - c.gasto), dias: diasRestantes },
+          detalhe: { tipo: "ritmo", categoria: c.key, label: c.label, gasto: c.gasto, planejado: c.planejado, sobra: Math.max(0, c.planejado - c.gasto), dias: diasRestantes, decorrido },
         });
       }
     }
@@ -301,9 +328,24 @@ export function montarFoco(e: FocoEntrada): FocoSaida {
   // Categoria que já é aviso não aparece também como "indo bem".
   const comAviso = new Set(itens.map((i) => i.id.replace(/^(estouro|ritmo)-/, "")));
   const bem: FocoBem[] = [];
+  const combinados: FocoCombinado[] = [];
   for (const teto of e.tetos ?? []) {
     const c = e.categorias.find((x) => x.key === teto.categoria);
-    if (c && !comAviso.has(c.key)) bem.push({ titulo: teto.valor > 0 ? t.focoBemTeto(c.label, money(teto.valor)) : t.focoSegurarBotao(c.label) });
+    if (!c || comAviso.has(c.key)) continue;
+    // Combinado de antes desta versão não guardou o gasto da hora: o "nada mais" assume o gasto de
+    // agora (nada quebrado), e o teto do aviso de ritmo era o que sobrava do plano.
+    const naHora = teto.gastoNaHora ?? (teto.valor > 0 ? Math.max(0, c.planejado - teto.valor) : c.gasto);
+    const depois = Math.max(0, c.gasto - naHora);
+    combinados.push({
+      categoria: c.key,
+      label: c.label,
+      titulo: teto.valor > 0 ? t.focoBemTeto(c.label, money(teto.valor)) : t.focoSegurarBotao(c.label),
+      teto: teto.valor,
+      gasto: c.gasto,
+      planejado: c.planejado,
+      depois,
+      quebrou: depois > teto.valor + FOLGA_ESTOURO,
+    });
   }
   // Com dado velho, "dentro do ritmo" pode ser só gasto que ainda não foi lançado.
   const dadoVelho = livre.tipo !== "semOrcamento" && (livre.diasSemLancar !== null || livre.semGastoComData);
@@ -323,5 +365,5 @@ export function montarFoco(e: FocoEntrada): FocoSaida {
     ? { meta: metaDoFio.nome, quando: metaDoFio.quando, guardarNoMes: e.aportePlanejado, guardadoNoMes: e.aportadoNoMes }
     : null;
 
-  return { livre, atencao: ordenados.slice(0, MAX_ATENCAO), depois: ordenados.slice(MAX_ATENCAO), bem: bem.slice(0, 3), fio };
+  return { livre, atencao: ordenados.slice(0, MAX_ATENCAO), depois: ordenados.slice(MAX_ATENCAO), bem: bem.slice(0, 3), combinados, fio };
 }

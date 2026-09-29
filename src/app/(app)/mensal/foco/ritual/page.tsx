@@ -36,9 +36,14 @@ export default async function RitualPage() {
   const porSemana = (v: number) => (diasRestantes < 7 ? v : (v / diasRestantes) * 7);
   // O mesmo alvo que a aba Foco põe em primeiro: o ritual nunca contradiz o Foco (ordem por
   // estouro em reais, "correndo rápido" só antes de 70% do mês, conta fixa fora).
-  const itemAlvo = [...d.foco.atencao, ...d.foco.depois].find((i) => /^(estouro|ritmo)-/.test(i.id));
-  const chaveAlvo = itemAlvo?.id.replace(/^(estouro|ritmo)-/, "");
-  const categoriaAlvo = d.categorias.find((c) => c.key === chaveAlvo && !d.tetos.some((x) => x.categoria === c.key));
+  // Categoria que já tem teto está decidida: fica fora ANTES de escolher, senão o primeiro aviso
+  // (com teto) virava "nada pedindo atenção" e escondia a próxima categoria estourada.
+  const chaveDoAviso = (id: string) => id.replace(/^(estouro|ritmo)-/, "");
+  const itemAlvo = [...d.foco.atencao, ...d.foco.depois].find(
+    (i) => /^(estouro|ritmo)-/.test(i.id) && !d.tetos.some((x) => x.categoria === chaveDoAviso(i.id)),
+  );
+  const chaveAlvo = itemAlvo ? chaveDoAviso(itemAlvo.id) : undefined;
+  const categoriaAlvo = d.categorias.find((c) => c.key === chaveAlvo);
   const alvo = categoriaAlvo ? { ...categoriaAlvo, uso: categoriaAlvo.gasto / categoriaAlvo.planejado } : undefined;
 
   const dados: DadosRitual = {

@@ -110,7 +110,13 @@ export function EmergencyFundForm({
         <MonthsField defaultValue={defaults.targetMonths} />
 
         <div className="grid grid-cols-2 gap-4">
+          {/* A chave é o valor salvo: o campo guarda o que foi digitado e só lê o valor inicial ao
+              montar. Quando outra ação muda o "já tenho" ("Usar o da Carteira", a sobra do
+              fechamento), o campo remonta com o número novo, senão o próximo Salvar regravava o
+              antigo sem aviso. Só este campo: o formulário inteiro remontando perderia o aviso
+              de "salvo". */}
           <CurrencyField
+            key={`ja-tenho-${defaults.currentAmount ?? ""}`}
             label={voz.titulos.formJaTenho}
             name="currentAmount"
             defaultValue={defaults.currentAmount}

@@ -28,6 +28,8 @@ export type DadosFechamento = {
   livreSemana: number | null;
   /** Pra onde a sobra pode ir: sem reserva criada, reserva já completa, ou reserva aberta. */
   reserva: "sem" | "completa" | "aberta";
+  /** Quanto falta pra reserva ficar completa: a action nunca manda mais que isso. */
+  faltaNaReserva: number;
 };
 
 export function Fechamento({ d }: { d: DadosFechamento }) {
@@ -48,6 +50,9 @@ export function Fechamento({ d }: { d: DadosFechamento }) {
   const maior = d.passaram.find((p) => p.mae && Math.ceil(p.gasto / 10) * 10 > p.planejadoAgora);
   const arredondado = maior ? Math.ceil(maior.gasto / 10) * 10 : 0;
   const maiuscula = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+  // O que vai pra reserva de verdade: a action limita ao que falta pra ela completar. O botão diz
+  // esse número, não a sobra inteira (dizia "Mandar R$ 1.500" e gravava R$ 200).
+  const praReserva = Math.min(d.sobra, d.faltaNaReserva);
 
   return (
     <div className="flex flex-col gap-4">
@@ -112,6 +117,11 @@ export function Fechamento({ d }: { d: DadosFechamento }) {
                 <b>{t.fechLicao}</b> {d.passaram.length} {d.passaram.length > 1 ? "categorias passaram" : "categoria passou"} do plano: {d.passaram.map((p) => p.label).join(", ")}.
               </p>
             </div>
+          ) : d.planejado <= 0 ? (
+            // Sem orçamento no mês não existe "dentro do plano": sem dado não tem conclusão.
+            <p className="text-sm text-ink">
+              <b>{t.fechLicao}</b> {d.mes} não tinha orçamento, então não há plano pra comparar.
+            </p>
           ) : (
             <p className="text-sm text-ink">
               <b>{t.fechLicao}</b> todas as categorias ficaram dentro do plano.
@@ -134,6 +144,7 @@ export function Fechamento({ d }: { d: DadosFechamento }) {
           ) : d.sobra >= 1 && d.reserva === "aberta" ? (
             <>
               <p className="text-sm text-ink-muted">{t.fechSobraP}</p>
+              {praReserva < d.sobra && <p className="text-sm text-ink">{t.fechSobraSoOQueFalta(m(praReserva), m(d.sobra - praReserva))}</p>}
               <Botao
                 disabled={salvando}
                 onClick={() =>
@@ -144,7 +155,7 @@ export function Fechamento({ d }: { d: DadosFechamento }) {
                   })
                 }
               >
-                {t.fechSobraReserva(m(d.sobra))}
+                {t.fechSobraReserva(m(praReserva))}
               </Botao>
               <Botao secundario onClick={() => seguir("sobra na conta")}>
                 {t.fechSobraConta}

@@ -88,6 +88,9 @@ export function ImportHistory({ batches }: { batches: ImportBatchView[] }) {
                     <span className="tabular-nums">{money(batch.totalAmount)}</span>
                     {batch.months.length > 0 && ` · ${batch.months.map(formatMonthChip).join(", ")}`}
                   </p>
+                  {/* O "Remover" do pagamento no extrato apaga de vez (não há onde guardar o que
+                      saiu): desfazer a fatura depois deixava o mês sem as compras E sem o pagamento. */}
+                  {confirming && batch.docType === "fatura" && <p className="mt-1 text-xs text-danger">{t.impHistoricoFaturaAviso}</p>}
                 </div>
               </div>
               <Button

@@ -42,3 +42,26 @@ export function decideRecapEmail(candidate: RecapCandidate): RecapDecision {
   if (candidate.nudgeCount >= MAX_NUDGES) return "nada";
   return "convite";
 }
+
+/**
+ * De qual perfil é o resumo do mês. A decisão (resumo ou convite) e os números precisam sair do
+ * MESMO perfil: antes a atividade contava todos os perfis e os totais só o ativo, e quem lançou
+ * o mês inteiro no Pessoal e terminou olhando a Empresa recebia "entrou R$ 0, gastou R$ 0" — com
+ * o e-mail do mês marcado como enviado, o resumo certo nunca chegava.
+ *
+ * Vale o perfil ativo se ele teve lançamento no mês (é o que ela vê ao clicar no e-mail); senão,
+ * o perfil com mais lançamentos. null = nenhum perfil teve movimento (lançamento sem perfil é
+ * histórico de antes dos perfis e não aparece em tela nenhuma), então não há resumo pra mandar.
+ */
+export function escolherPerfilDoResumo(
+  lancamentosPorPerfil: { profileId: string | null; lancamentos: number }[],
+  perfilAtivoId: string,
+): string | null {
+  const comMovimento = lancamentosPorPerfil.filter(
+    (p): p is { profileId: string; lancamentos: number } => p.profileId !== null && p.lancamentos > 0,
+  );
+  if (comMovimento.some((p) => p.profileId === perfilAtivoId)) return perfilAtivoId;
+  let melhor: { profileId: string; lancamentos: number } | null = null;
+  for (const p of comMovimento) if (!melhor || p.lancamentos > melhor.lancamentos) melhor = p;
+  return melhor?.profileId ?? null;
+}

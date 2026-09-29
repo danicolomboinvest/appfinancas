@@ -75,3 +75,54 @@ export function sugerirAno(e: ViradaEntrada, money: (v: number) => string): Vira
   }
   return { renda, guardar, categorias, totalGastos, semDestino, avisos };
 }
+
+/** O que identifica uma conta fixa: a descrição e a categoria. */
+export type ContaFixaChave = { descricao: string | null; valor: number; parentCategory: string | null; customCategoryId: string | null };
+
+const normalizar = (s: string | null) =>
+  (s ?? "")
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+
+/** Mesma conta, qualquer valor: o aluguel de R$ 2.000 e o de R$ 2.100 (reajuste de janeiro) são uma conta só. */
+const chaveSemValor = (f: Omit<ContaFixaChave, "valor">) => `${normalizar(f.descricao)}|${f.customCategoryId ?? f.parentCategory ?? ""}`;
+
+/** A chave que a tela usa pra ela marcar ou desmarcar cada conta fixa (aqui o valor entra: são linhas diferentes). */
+export function chaveDaContaFixa(f: ContaFixaChave): string {
+  return `${chaveSemValor(f)}|${f.valor.toFixed(2)}`;
+}
+
+/**
+ * As contas fixas do ano passado que ainda NÃO estão no ano novo. Compara pela descrição e pela
+ * categoria, sem o valor: com o valor, o aluguel reajustado que ela já lançou em janeiro
+ * (R$ 2.100, repetindo até dezembro) não batia com o de dezembro (R$ 2.000), e o ano inteiro
+ * ficava com aluguel em dobro. Olha todos os meses que a série vai ocupar (`jaNoAnoNovo` vem do
+ * mês de início em diante), não só o primeiro. Duas contas com o mesmo nome no mesmo mês (a
+ * escola de cada filho) contam duas vezes.
+ */
+export function contasFixasQueFaltam<T extends ContaFixaChave>(
+  fixas: T[],
+  jaNoAnoNovo: (Omit<ContaFixaChave, "valor"> & { month: number })[],
+): T[] {
+  const porMes = new Map<string, Map<number, number>>();
+  for (const e of jaNoAnoNovo) {
+    const k = chaveSemValor(e);
+    const meses = porMes.get(k) ?? new Map<number, number>();
+    meses.set(e.month, (meses.get(e.month) ?? 0) + 1);
+    porMes.set(k, meses);
+  }
+  const usadas = new Map<string, number>();
+  return fixas.filter((f) => {
+    const k = chaveSemValor(f);
+    const existentes = Math.max(0, ...(porMes.get(k)?.values() ?? []));
+    const jaUsadas = usadas.get(k) ?? 0;
+    if (jaUsadas < existentes) {
+      usadas.set(k, jaUsadas + 1);
+      return false;
+    }
+    return true;
+  });
+}

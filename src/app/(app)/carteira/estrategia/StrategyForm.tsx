@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
+import { startTransition, useActionState, useEffect, useMemo, useState } from "react";
 import { riskProfileFromAnswers, type RiskProfileKey, type GoalHorizon } from "@/lib/portfolio/risk-profile";
 import type { StrategyAssetClass } from "@prisma/client";
 import { Button } from "@/components/ui/Button";
@@ -105,6 +105,30 @@ export function StrategyForm({
   const sum = STRATEGY_ASSET_CLASSES.reduce((acc, key) => acc + (values[key] || 0), 0);
   const sumOk = Math.abs(sum - 100) < 0.01;
 
+  // Diferente do que está salvo? `defaults` vem do banco e volta atualizado depois de salvar
+  // (a action revalida a página), então a comparação se resolve sozinha.
+  const alterado = STRATEGY_ASSET_CLASSES.some((k) => Math.round(values[k] || 0) !== Math.round(defaults[k] || 0));
+  useEffect(() => {
+    if (!alterado) return;
+    // Fechar a aba ou recarregar com mudança não salva: o navegador pergunta antes.
+    const avisar = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener("beforeunload", avisar);
+    return () => window.removeEventListener("beforeunload", avisar);
+  }, [alterado]);
+
+  /**
+   * "Usar esse perfil" já salva. Antes só preenchia os campos: o quiz fechava, a pizza mudava,
+   * a barra ficava verde com "fecha em 100%" — e o botão de salvar ficava lá embaixo, depois de
+   * sete sliders. Ela voltava pra Carteira achando que estava feito, e nada tinha sido gravado.
+   */
+  function usarPerfil(novos: Record<StrategyAssetClass, number>) {
+    setValues(novos);
+    setQuizOpen(false);
+    const fd = new FormData();
+    for (const k of STRATEGY_ASSET_CLASSES) fd.set(k, String(novos[k] ?? 0));
+    startTransition(() => formAction(fd));
+  }
+
   // Gráfico de pizza ao vivo: converte % (0-100) em fração (0-1) que o donut espera.
   const liveData = STRATEGY_ASSET_CLASSES.map((key) => ({
     id: key,
@@ -162,7 +186,7 @@ export function StrategyForm({
                   {t.formEstPerfilAntes} <b>{suggested.label}</b>. {suggested.description}
                   {resultado && <span className="mt-1 block text-caption text-ink-muted">{resultado.reason}</span>}
                 </p>
-                <Button type="button" size="sm" onClick={() => { setValues(suggested.values); setQuizOpen(false); }}>
+                <Button type="button" size="sm" disabled={isPending} onClick={() => usarPerfil(suggested.values)}>
                   {t.formEstUsarPerfil}
                 </Button>
               </div>
@@ -244,8 +268,13 @@ export function StrategyForm({
       {/* Validação dos 100% com barra e cor. */}
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
-          <span className={`text-sm font-semibold tabular-nums ${sumOk ? "text-success" : "text-danger"}`}>
-            {t.formEstSoma(formatPercentNumber(sum, 1))} {sumOk ? t.formEstFecha : t.formEstNaoFecha}
+          <span className="flex flex-col">
+            <span className={`text-sm font-semibold tabular-nums ${sumOk ? "text-success" : "text-danger"}`}>
+              {t.formEstSoma(formatPercentNumber(sum, 1))} {sumOk ? t.formEstFecha : t.formEstNaoFecha}
+            </span>
+            {/* Perfil pronto e sliders só mudam a tela: sem esse aviso, "fecha em 100%" em verde
+                parecia "salvo". */}
+            {alterado && !isPending && <span className="text-caption text-ink-muted">{t.formEstNaoSalva}</span>}
           </span>
           <Button type="submit" disabled={isPending || !sumOk}>
             {isPending ? t.formSalvando : t.formEstSalvar}

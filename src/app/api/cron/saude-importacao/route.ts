@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { recusarSeNaoForCron } from "@/lib/cron/autorizacao";
 import { getImportHealth } from "@/lib/repositories/import-diagnostic.repo";
 import { purgeExpiredImportFiles } from "@/lib/repositories/import-file.repo";
 import { sendEmail, isEmailConfigured } from "@/lib/email/send";
@@ -21,11 +22,8 @@ export const maxDuration = 60;
  * `?days=7` amplia a janela e `?dryRun=1` devolve o relatório sem enviar nada.
  */
 export async function GET(request: Request) {
-  const secret = process.env.CRON_SECRET;
-  const authorized = secret
-    ? request.headers.get("authorization") === `Bearer ${secret}`
-    : (request.headers.get("user-agent") ?? "").startsWith("vercel-cron");
-  if (!authorized) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const recusa = recusarSeNaoForCron(request);
+  if (recusa) return recusa;
 
   const url = new URL(request.url);
   const days = Math.min(Math.max(Number(url.searchParams.get("days") ?? 1), 1), 30);

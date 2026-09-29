@@ -187,15 +187,55 @@ export function padraoAprendivel(pattern: string): boolean {
   return proprias.join("").length >= 3;
 }
 
+/** Um lançamento como estava ANTES de ela trocar a categoria na tela do mês. */
+export type LinhaCorrigida = {
+  description: string | null;
+  category: string;
+  parentCategory: ParentCategory | null;
+  customCategoryId: string | null;
+  /** Veio de extrato/fatura importado ou do Open Finance (importBatchId ou externalId). */
+  importada: boolean;
+};
+
+/** Teto de regras gravadas numa troca em lote: 200 linhas selecionadas não viram 200 escritas. */
+const MAX_PADROES_POR_CORRECAO = 30;
+
+/**
+ * Quais padrões a troca de categoria na tela do mês deve ensinar. Antes só a revisão da
+ * importação ensinava: consertar depois (no mês, em lote) não mudava nada e a próxima
+ * importação repetia o erro. Só aprende de gasto que VEIO de importação ou do Open Finance (o
+ * lançado à mão não volta em extrato nenhum) e só quando a categoria mudou de fato: salvar o
+ * formulário pra corrigir o valor não pode transformar o palpite do app em regra dela.
+ */
+export function padroesDaCorrecao(linhas: LinhaCorrigida[], nova: ParentCategory): string[] {
+  const padroes = new Set<string>();
+  for (const l of linhas) {
+    if (!l.importada || l.category !== "EXPENSE" || !l.description) continue;
+    if (l.parentCategory === nova && !l.customCategoryId) continue;
+    const padrao = normalizeMerchant(l.description);
+    if (padrao && padraoAprendivel(padrao)) padroes.add(padrao);
+    if (padroes.size >= MAX_PADROES_POR_CORRECAO) break;
+  }
+  return [...padroes];
+}
+
+/**
+ * Entre as regras que casam, vence a mais ESPECÍFICA (o padrão mais comprido), não a primeira
+ * da lista. A lista vem do banco sem ordem garantida (e pelo índice único sai em ordem
+ * alfabética, onde "uber" vem antes de "uber eats"): a correção dela pra "UBER EATS" virava uma
+ * regra nova que perdia pra "uber" genérica, e a categoria corrigida voltava errada na próxima
+ * importação. Empate de tamanho fica com a primeira da lista (o repositório manda a mais
+ * recente primeiro, ou seja, a última correção dela).
+ */
 function matchLearned(normalized: string, userRules: LearnedRule[]): Classification | null {
   // Palavra inteira: a regra "maria" não pega "MARIANA", "bar" não pega "BARBEARIA".
   const texto = ` ${normalized} `;
+  let melhor: LearnedRule | null = null;
   for (const rule of userRules) {
-    if (rule.pattern && padraoAprendivel(rule.pattern) && texto.includes(` ${rule.pattern} `)) {
-      return { parentCategory: rule.parentCategory, subcategory: rule.subcategory };
-    }
+    if (!rule.pattern || !padraoAprendivel(rule.pattern) || !texto.includes(` ${rule.pattern} `)) continue;
+    if (!melhor || rule.pattern.length > melhor.pattern.length) melhor = rule;
   }
-  return null;
+  return melhor ? { parentCategory: melhor.parentCategory, subcategory: melhor.subcategory } : null;
 }
 
 function matchBuiltin(description: string, empresa: boolean): Classification | null {

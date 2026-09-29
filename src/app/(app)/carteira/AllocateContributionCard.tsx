@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import Link from "next/link";
 import { PiggyBank, ArrowRight, ChevronDown } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -12,6 +11,7 @@ import { emojiDaCategoria } from "@/lib/profiles/icones";
 import { useMoney } from "@/components/money/MoneyProvider";
 import { useToast } from "@/components/ui/toast-context";
 import { allocateContributionAction } from "./contribution-actions";
+import { ABRIR_NOVO_ATIVO } from "./novo-ativo";
 
 const MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
 
@@ -47,7 +47,7 @@ export function AllocateContributionCard({
   const { key: tema, voz } = useProfileTheme();
   const t = voz.titulos;
   const money = useMoney();
-  const { showToast } = useToast();
+  const { showToast, showError } = useToast();
   const [valores, setValores] = useState<Record<string, number>>({});
   const [isPending, startTransition] = useTransition();
   const [pronto, setPronto] = useState<{ assets: number; goals: { name: string; amount: number }[]; quantityEstimated: string[] } | null>(null);
@@ -160,7 +160,7 @@ export function AllocateContributionCard({
                 mesPassado,
               );
               if (!res.ok) {
-                showToast(res.error);
+                showError(res.error);
                 return;
               }
               setPronto({ assets: res.assets, goals: res.goals, quantityEstimated: res.quantityEstimated });
@@ -172,9 +172,15 @@ export function AllocateContributionCard({
         </Button>
       </div>
 
-      <Link href="/carteira#ativos" className="flex w-fit items-center gap-1 text-caption text-ink-faint hover:text-ink">
+      {/* Abre o "Novo ativo" da lista logo abaixo (ver novo-ativo.ts). Depois de cadastrar, a
+          página recarrega os dados e o ativo novo já aparece aqui pra receber o aporte. */}
+      <button
+        type="button"
+        onClick={() => window.dispatchEvent(new Event(ABRIR_NOVO_ATIVO))}
+        className="flex w-fit items-center gap-1 text-left text-caption text-ink-faint hover:text-ink"
+      >
         {t.cartAtivoNaoEstaAqui} <ArrowRight size={12} />
-      </Link>
+      </button>
       </>
       )}
     </Card>

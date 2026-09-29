@@ -17,7 +17,7 @@ type ConnectionRow = { id: string; connectorName: string; status: string; lastSy
  * sendo o caminho principal; isto é o "beta" pra quem quiser.
  */
 export function Connections({ configured, connections }: { configured: boolean; connections: ConnectionRow[] }) {
-  const { showToast } = useToast();
+  const { showToast, showError } = useToast();
   const { titulos: t } = useProfileTheme().voz;
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<{ connectorName: string; created: number; uncategorized: number } | null>(null);
@@ -28,7 +28,7 @@ export function Connections({ configured, connections }: { configured: boolean; 
     try {
       const tk = await createConnectTokenAction();
       if (!tk.ok) {
-        showToast(tk.error);
+        showError(tk.error);
         return;
       }
       const { PluggyConnect } = await import("pluggy-connect-sdk");
@@ -40,19 +40,19 @@ export function Connections({ configured, connections }: { configured: boolean; 
           startTransition(async () => {
             const res = await registerConnectionAction(data.item.id);
             if (!res.ok) {
-              showToast(res.error);
+              showError(res.error);
               return;
             }
             setResult({ connectorName: res.connectorName, created: res.result.created, uncategorized: res.result.uncategorized });
             showToast(t.cfgConexaoConectadoToast(res.connectorName));
           });
         },
-        onError: (err: { message?: string }) => showToast(err?.message ? t.cfgConexaoNaoDeu(err.message) : t.cfgConexaoNaoConcluida),
+        onError: (err: { message?: string }) => showError(err?.message ? t.cfgConexaoNaoDeu(err.message) : t.cfgConexaoNaoConcluida),
       });
       widget.init();
     } catch (err) {
       console.error(err);
-      showToast(t.cfgConexaoNaoAbriu);
+      showError(t.cfgConexaoNaoAbriu);
     } finally {
       setBusy(false);
     }
@@ -132,7 +132,8 @@ export function Connections({ configured, connections }: { configured: boolean; 
                   onClick={() =>
                     startTransition(async () => {
                       const res = await syncConnectionAction(c.id);
-                      showToast(res.ok ? t.cfgConexaoNovos(res.result.created) : res.error);
+                      if (res.ok) showToast(t.cfgConexaoNovos(res.result.created));
+                      else showError(res.error);
                     })
                   }
                   className="flex flex-1 items-center justify-center gap-1.5 rounded-full border border-border-strong bg-surface-2 px-3 py-2 text-xs font-semibold text-ink-muted hover:text-ink disabled:opacity-50"

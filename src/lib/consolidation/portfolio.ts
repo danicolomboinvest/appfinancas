@@ -34,9 +34,10 @@ export async function getPortfolioByObjective(ctx: AuthContext): Promise<Portfol
     listGoalsWithProgress(ctx),
   ]);
 
+  const goalIds = new Set(goals.map((g) => g.id));
   const sumByObjective = (objective: "RESERVA_EMERGENCIA" | "LIBERDADE_FINANCEIRA" | "OUTRO") =>
     assets
-      .filter((asset) => asset.objective === objective)
+      .filter((asset) => objectiveBucket(asset, goalIds) === objective)
       .reduce((sum, asset) => sum.plus(asset.currentValue), new Decimal(0));
 
   const reservaValue = sumByObjective("RESERVA_EMERGENCIA");
@@ -71,34 +72,48 @@ export async function getPortfolioByObjective(ctx: AuthContext): Promise<Portfol
   };
 }
 
+/**
+ * Em qual card do "Por objetivo" o ativo entra. Ativo marcado "Meta" sem meta (salvo com
+ * "Selecione", ou cuja meta foi apagada — a FK zera o goalId e deixa o objetivo) não entrava
+ * em card nenhum: R$ 20.000 sumiam da tela, e os cards não somavam o total da carteira. Ele
+ * conta como "sem objetivo", que é o que ele é agora.
+ */
+export function objectiveBucket(
+  asset: { objective: string; goalId: string | null },
+  goalIds: ReadonlySet<string>,
+): "RESERVA_EMERGENCIA" | "LIBERDADE_FINANCEIRA" | "META" | "OUTRO" {
+  if (asset.objective === "RESERVA_EMERGENCIA" || asset.objective === "LIBERDADE_FINANCEIRA") return asset.objective;
+  if (asset.objective === "META" && asset.goalId && goalIds.has(asset.goalId)) return "META";
+  return "OUTRO";
+}
+
 export type ClassAllocation = {
   assetClass: AssetClass;
   currentValue: number;
   currentPercent: number;
-  idealPercent: number;
 };
 
 /**
- * Alocação atual vs ideal por classe de ativo: soma o valor atual de cada classe e compara
- * com a soma dos "idealAllocationPercent" declarados por ativo, base para rebalanceamento.
+ * Alocação atual por classe de ativo: soma o valor atual de cada classe.
+ *
+ * Já teve uma série "ideal", somada do `idealAllocationPercent` de cada ativo. Esse campo saiu
+ * do formulário quando a Estratégia da Carteira virou a alocação ideal única, e ninguém mais o
+ * preenche: o gráfico mostrava "ideal 0%" em tudo logo abaixo da seção que diz "deveria ter
+ * 40%". O ideal mora na Estratégia (getPortfolioStrategyComparison); aqui fica só o retrato.
  */
 export async function getAllocationByClass(ctx: AuthContext): Promise<{ classes: ClassAllocation[]; totalPortfolio: number }> {
   const assets = await prisma.asset.findMany({ where: { userId: ctx.userId, profileId: ctx.profileId } });
   const totalPortfolio = assets.reduce((sum, asset) => sum.plus(asset.currentValue), new Decimal(0));
 
-  const byClass = new Map<AssetClass, { currentValue: Decimal; idealPercent: Decimal }>();
+  const byClass = new Map<AssetClass, Decimal>();
   for (const asset of assets) {
-    const entry = byClass.get(asset.assetClass) ?? { currentValue: new Decimal(0), idealPercent: new Decimal(0) };
-    entry.currentValue = entry.currentValue.plus(asset.currentValue);
-    entry.idealPercent = entry.idealPercent.plus(asset.idealAllocationPercent ?? 0);
-    byClass.set(asset.assetClass, entry);
+    byClass.set(asset.assetClass, (byClass.get(asset.assetClass) ?? new Decimal(0)).plus(asset.currentValue));
   }
 
-  const classes: ClassAllocation[] = Array.from(byClass.entries()).map(([assetClass, v]) => ({
+  const classes: ClassAllocation[] = Array.from(byClass.entries()).map(([assetClass, currentValue]) => ({
     assetClass,
-    currentValue: v.currentValue.toNumber(),
-    currentPercent: totalPortfolio.greaterThan(0) ? v.currentValue.div(totalPortfolio).toNumber() : 0,
-    idealPercent: v.idealPercent.toNumber(),
+    currentValue: currentValue.toNumber(),
+    currentPercent: totalPortfolio.greaterThan(0) ? currentValue.div(totalPortfolio).toNumber() : 0,
   }));
 
   return { classes, totalPortfolio: totalPortfolio.toNumber() };

@@ -88,7 +88,7 @@ function ScoreArc({ score, status }: { score: number | null; status: HealthStatu
  * base, então a mais curta salta aos olhos — e é exatamente isso que a pessoa veio procurar:
  * onde ela está perdendo ponto.
  */
-function DimensionBar({ label, score, status }: { label: string; score: number | null; status: HealthStatus }) {
+function DimensionBar({ label, score, status, detail }: { label: string; score: number | null; status: HealthStatus; detail: string }) {
   const [, to] = STATUS_GRADIENT[status];
   const fraction = (score ?? 0) / 100;
   const [grown, setGrown] = useState(false);
@@ -97,22 +97,27 @@ function DimensionBar({ label, score, status }: { label: string; score: number |
     return () => cancelAnimationFrame(raf);
   }, []);
 
+  // O porquê da nota (e de qual mês ela é) logo abaixo da barra: "Taxa de poupança 0" sozinho
+  // contradizia a tela do mês sem explicar, e o "—" não dizia o que faltava cadastrar.
   return (
-    <div className="flex items-center gap-3">
-      <p className="w-28 shrink-0 text-caption leading-tight text-ink-muted">{label}</p>
-      <span className="relative h-2 flex-1 rounded-full bg-surface-2">
-        <span
-          className="absolute inset-y-0 left-0 rounded-full"
-          style={{
-            width: grown ? `${Math.round(fraction * 100)}%` : "0%",
-            backgroundColor: to,
-            transition: "width 1.3s ease-out",
-          }}
-        />
-      </span>
-      <span className={`w-7 shrink-0 text-right text-sm font-bold tabular-nums ${STATUS_TEXT_CLASS[status]}`}>
-        {score === null ? "—" : <CountUp value={score} />}
-      </span>
+    <div>
+      <div className="flex items-center gap-3">
+        <p className="w-28 shrink-0 text-caption leading-tight text-ink-muted">{label}</p>
+        <span className="relative h-2 flex-1 rounded-full bg-surface-2">
+          <span
+            className="absolute inset-y-0 left-0 rounded-full"
+            style={{
+              width: grown ? `${Math.round(fraction * 100)}%` : "0%",
+              backgroundColor: to,
+              transition: "width 1.3s ease-out",
+            }}
+          />
+        </span>
+        <span className={`w-7 shrink-0 text-right text-sm font-bold tabular-nums ${STATUS_TEXT_CLASS[status]}`}>
+          {score === null ? "—" : <CountUp value={score} />}
+        </span>
+      </div>
+      {detail && <p className="mt-1 text-[11px] leading-snug text-ink-faint">{detail}</p>}
     </div>
   );
 }
@@ -131,7 +136,7 @@ export function HealthScoreCard({ score }: { score: FinancialHealthScore }) {
 
       <div className="mx-auto mt-6 flex max-w-sm flex-col gap-2.5">
         {score.dimensions.map((dimension) => (
-          <DimensionBar key={dimension.key} label={dimension.label} score={dimension.score} status={dimension.status} />
+          <DimensionBar key={dimension.key} label={dimension.label} score={dimension.score} status={dimension.status} detail={dimension.detail} />
         ))}
       </div>
     </Card>

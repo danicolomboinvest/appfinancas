@@ -7,12 +7,16 @@ import { getYearlySummary } from "@/lib/consolidation/yearly";
 import { listBudgetsForYear } from "@/lib/repositories/budget.repo";
 import { listCustomCategories } from "@/lib/repositories/custom-category.repo";
 import { getMonthlyPlan } from "@/lib/repositories/monthly-plan.repo";
-import { sugerirAno, type ViradaCategoria } from "@/lib/decisoes/virada-ano";
+import { chaveDaContaFixa, sugerirAno, type ViradaCategoria } from "@/lib/decisoes/virada-ano";
 
 /** Quantos meses do fim do ano entram na média do "gasto de verdade". */
 const MESES_DA_MEDIA = 3;
+/** Quantos gastos lançados à mão em dezembro a tela oferece como "talvez conta fixa". */
+const MAX_CANDIDATAS = 12;
 
 export type ContaFixa = {
+  /** Identifica a linha na tela (marcar/desmarcar) e na action, que confere contra esta lista. */
+  chave: string;
   descricao: string;
   valor: number;
   dia: number | null;
@@ -103,25 +107,43 @@ export async function carregarViradaDoAno(ctx: AuthContext, money: (v: number) =
 
   // Contas fixas: as cópias da despesa recorrente que estavam lançadas pra dezembro antes de
   // dezembro começar. São elas que "somem" na virada, e que a sugestão traz pro ano novo.
-  const copias = await prisma.monthlyEntry.findMany({
-    where: { userId: ctx.userId, profileId: ctx.profileId, year: passado, month: 12, category: "EXPENSE", importBatchId: null, externalId: null, amount: { gt: 0 }, createdAt: { lt: new Date(Date.UTC(passado, 11, 1, 3)) } },
-    select: { description: true, amount: true, entryDate: true, parentCategory: true, customCategoryId: true, subcategory: true },
+  // Os lançados à mão DENTRO de dezembro ficam de fora dessa lista: a conta fixa que ela
+  // configurou em dezembro ("repetir todo mês") só tem a cópia de dezembro, igual a um gasto
+  // avulso, e não há como distinguir as duas. Esses vão pra uma segunda lista, desmarcados:
+  // ela escolhe quais continuam, em vez de ter que lançar tudo de novo em janeiro.
+  const inicioDeDezembro = new Date(Date.UTC(passado, 11, 1, 3));
+  const deDezembro = await prisma.monthlyEntry.findMany({
+    where: { userId: ctx.userId, profileId: ctx.profileId, year: passado, month: 12, category: "EXPENSE", importBatchId: null, externalId: null, amount: { gt: 0 } },
+    select: { description: true, amount: true, entryDate: true, parentCategory: true, customCategoryId: true, subcategory: true, createdAt: true },
+    orderBy: { amount: "desc" },
   });
   const vistas = new Set<string>();
-  const fixas: ContaFixa[] = [];
-  for (const c of copias) {
-    const k = `${(c.description ?? "").trim().toLowerCase()}|${Number(c.amount).toFixed(2)}`;
-    if (vistas.has(k)) continue;
-    vistas.add(k);
-    fixas.push({
-      descricao: c.description ?? c.subcategory ?? "Conta fixa",
+  const paraConta = (c: (typeof deDezembro)[number]): ContaFixa => {
+    const descricao = c.description ?? c.subcategory ?? "Conta fixa";
+    return {
+      chave: chaveDaContaFixa({ descricao, valor: Number(c.amount), parentCategory: c.parentCategory, customCategoryId: c.customCategoryId }),
+      descricao,
       valor: Number(c.amount),
       dia: c.entryDate ? c.entryDate.getUTCDate() : null,
       parentCategory: c.parentCategory,
       customCategoryId: c.customCategoryId,
       subcategory: c.subcategory,
       categoria: c.parentCategory ? categoryLabel(ctx.profileKind, c.parentCategory) : c.customCategoryId ? (nomePersonalizada.get(c.customCategoryId) ?? "Personalizada") : "Sem categoria",
-    });
+    };
+  };
+  const fixas: ContaFixa[] = [];
+  for (const c of deDezembro.filter((e) => e.createdAt < inicioDeDezembro)) {
+    const conta = paraConta(c);
+    if (vistas.has(conta.chave)) continue;
+    vistas.add(conta.chave);
+    fixas.push(conta);
+  }
+  const talvezFixas: ContaFixa[] = [];
+  for (const c of deDezembro.filter((e) => e.createdAt >= inicioDeDezembro && e.description)) {
+    const conta = paraConta(c);
+    if (vistas.has(conta.chave) || talvezFixas.length >= MAX_CANDIDATAS) continue;
+    vistas.add(conta.chave);
+    talvezFixas.push(conta);
   }
 
   const maior = porCategoriaAno
@@ -141,6 +163,7 @@ export async function carregarViradaDoAno(ctx: AuthContext, money: (v: number) =
     },
     sugestao,
     fixas,
+    talvezFixas,
     jaTemOrcamentoNoAnoNovo: orcamentosDoAnoNovo > 0,
   };
 }

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { recusarSeNaoForCron } from "@/lib/cron/autorizacao";
 import { getOrCreateActiveProfile } from "@/lib/repositories/profile.repo";
 import { prisma } from "@/lib/db/prisma";
 import { isPluggyConfigured } from "@/lib/pluggy/client";
@@ -8,11 +9,8 @@ export const maxDuration = 300;
 
 /** Toda noite: busca lançamentos novos de todos os bancos conectados. */
 export async function GET(request: Request) {
-  const secret = process.env.CRON_SECRET;
-  const authorized = secret
-    ? request.headers.get("authorization") === `Bearer ${secret}`
-    : (request.headers.get("user-agent") ?? "").startsWith("vercel-cron");
-  if (!authorized) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const recusa = recusarSeNaoForCron(request);
+  if (recusa) return recusa;
   if (!isPluggyConfigured()) return NextResponse.json({ ok: true, skipped: "not configured" });
 
   const connections = await prisma.bankConnection.findMany({ include: { user: { select: { role: true } } } });

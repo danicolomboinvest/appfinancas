@@ -9,6 +9,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  */
 
 type Linha = {
+  id?: string;
   userId: string;
   profileId: string;
   year: number;
@@ -21,6 +22,7 @@ type Linha = {
 };
 
 const banco: Linha[] = [];
+let proximoId = 0;
 
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/auth/session", () => ({ getRequiredSession: vi.fn(async () => ({ userId: "u1", profileId: "pessoal" })) }));
@@ -30,9 +32,20 @@ vi.mock("@/lib/db/prisma", () => ({
       findMany: vi.fn(async ({ where }: { where: Record<string, unknown> }) => {
         // Consultas por período (candidatos a pagamento de fatura, duplicata à mão) não importam aqui.
         if ("OR" in where) return [];
+        // Meses de cada lote (pra saber qual parcela foi projetada por ele).
+        if (where.importBatchId && typeof where.importBatchId === "object") {
+          const ids = (where.importBatchId as { in: string[] }).in;
+          const perfis = (where.profileId as { in: string[] }).in;
+          return banco.filter((e) => e.userId === where.userId && perfis.includes(e.profileId) && e.importBatchId !== null && ids.includes(e.importBatchId));
+        }
         return banco.filter(
           (e) => e.userId === where.userId && e.profileId === where.profileId && e.year === where.year && e.month === where.month,
         );
+      }),
+      updateMany: vi.fn(async ({ where, data }: { where: { id: string; userId: string; profileId: string }; data: { importBatchId: string } }) => {
+        const alvo = banco.filter((e) => e.id === where.id && e.userId === where.userId && e.profileId === where.profileId);
+        for (const e of alvo) e.importBatchId = data.importBatchId;
+        return { count: alvo.length };
       }),
     },
     customCategory: { findMany: vi.fn(async () => []) },
@@ -43,6 +56,7 @@ vi.mock("@/lib/db/prisma", () => ({
 vi.mock("@/lib/repositories/monthly-entry.repo", () => ({
   createMonthlyEntry: vi.fn(async (ctx: { userId: string; profileId: string }, input: Record<string, unknown>) => {
     banco.push({
+      id: `e${++proximoId}`,
       userId: ctx.userId,
       profileId: (input.profileId as string) ?? ctx.profileId,
       year: input.year as number,
@@ -93,6 +107,10 @@ const compra = (description: string, amount: number) => ({
 });
 
 const doMes = (year: number, month: number) => banco.filter((e) => e.year === year && e.month === month);
+/** O que o "Desfazer" do histórico faz: apaga tudo que é do lote. */
+const desfazer = (loteId: string) => {
+  for (let i = banco.length - 1; i >= 0; i -= 1) if (banco[i].importBatchId === loteId) banco.splice(i, 1);
+};
 
 beforeEach(() => {
   banco.length = 0;
@@ -169,5 +187,51 @@ describe("tipo do arquivo", () => {
     if (!r.ok) return;
     expect(r.stats.detectedKind).toBe("fatura");
     expect(r.stats.detectedReason).toMatch(/mesmo lado/);
+  });
+});
+
+describe("desfazer uma fatura não leva as parcelas que a fatura seguinte confirmou", () => {
+  it("setembro projeta 04..12; outubro traz a 04; desfazer setembro deixa outubro em diante", async () => {
+    await importTransactionsAction([compra("AMAZON PARC 03/12", 90)], "fatura", 2026, 9);
+    const loteSetembro = banco[0].importBatchId!;
+    const outubro = await importTransactionsAction([compra("AMAZON PARC 04/12", 90), compra("PADARIA", 20)], "fatura", 2026, 10);
+    expect(outubro).toMatchObject({ ok: true, created: 1, skipped: 1 });
+    const loteOutubro = doMes(2026, 10).find((e) => e.description === "PADARIA")!.importBatchId!;
+    desfazer(loteSetembro);
+    expect(doMes(2026, 9)).toHaveLength(0);
+    expect(doMes(2026, 10).map((e) => e.description).sort()).toEqual(["AMAZON PARC 04/12", "PADARIA"]);
+    // As seguintes que setembro projetou também ficam (agora são da fatura de outubro).
+    expect(doMes(2027, 6).map((e) => e.importBatchId)).toEqual([loteOutubro]);
+    expect(banco).toHaveLength(10); // 04..12 + padaria
+  });
+
+  it("a mesma fatura subida de novo não tira as parcelas da original", async () => {
+    await importTransactionsAction([compra("AMAZON PARC 03/12", 90)], "fatura", 2026, 9);
+    const loteOriginal = banco[0].importBatchId;
+    const copia = await importTransactionsAction([compra("AMAZON PARC 03/12", 90)], "fatura", 2026, 9);
+    expect(copia).toMatchObject({ created: 0, skipped: 1 });
+    expect(banco.every((e) => e.importBatchId === loteOriginal)).toBe(true);
+  });
+});
+
+describe("pagamento da fatura anterior dentro da fatura", () => {
+  it("redação nova sai como resumo; crédito que fala em pagamento fica de fora, não vira estorno", async () => {
+    const linhas = ["Data;Descrição;Valor"];
+    for (let i = 1; i <= 6; i += 1) linhas.push(`${String(i).padStart(2, "0")}/09/2026;LOJA ${i};${100 + i},00`);
+    linhas.push("05/09/2026;Pagamento da fatura;-2800,00");
+    linhas.push("06/09/2026;PGTO CARTAO OBRIGADO;-2800,00");
+    linhas.push("07/09/2026;ESTORNO LOJA 2;-50,00");
+    const form = new FormData();
+    form.set("file", new File([linhas.join("\n")], "fatura.csv"));
+    form.set("encoding", "text");
+    form.set("docType", "fatura");
+    form.set("faturaMonth", "2026-09");
+    const r = await parseStatementAction(form);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.items.find((i) => i.description === "Pagamento da fatura")).toBeUndefined();
+    expect(r.items.find((i) => i.description === "PGTO CARTAO OBRIGADO")).toMatchObject({ ignorar: true, estorno: true });
+    expect(r.items.find((i) => i.description === "ESTORNO LOJA 2")).toMatchObject({ estorno: true });
+    expect(r.items.find((i) => i.description === "ESTORNO LOJA 2")?.ignorar).toBeFalsy();
   });
 });

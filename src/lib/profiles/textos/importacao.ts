@@ -146,6 +146,8 @@ export type TextosImportacao = {
   impHistoricoLancamentos(n: number): string;
   impHistoricoDesfazer: string;
   impHistoricoConfirmar: string;
+  /** Aviso ao desfazer uma FATURA: o pagamento dela que a pessoa removeu do extrato não volta. */
+  impHistoricoFaturaAviso: string;
   impHistoricoDesfeita(n: number): string;
   impHistoricoNota: string;
   // "Parece que se repete"
@@ -350,6 +352,8 @@ export const PADRAO_IMPORTACAO: TextosImportacao = {
   impHistoricoLancamentos: (n) => `${n} lançamento${s(n)}`,
   impHistoricoDesfazer: "Desfazer",
   impHistoricoConfirmar: "Confirmar exclusão?",
+  impHistoricoFaturaAviso:
+    "Se você removeu do extrato o pagamento desta fatura, ele não volta sozinho: lance de novo à mão depois de desfazer.",
   impHistoricoDesfeita: (n) => `Importação desfeita: ${n} lançamento${s(n)} removido${s(n)}.`,
   impHistoricoNota:
     "Desfazer uma importação apaga todos os lançamentos que aquele arquivo criou. Importações feitas antes deste histórico existir não aparecem aqui.",

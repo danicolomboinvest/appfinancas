@@ -9,6 +9,10 @@ import { refreshDividendsForTicker } from "@/lib/repositories/dividend.repo";
 import { assetSchema } from "@/lib/validations/asset.schema";
 import { fetchTickerPrice } from "@/lib/analysis/price-scraper";
 import { resolveQuotedCurrentValue } from "@/lib/portfolio/asset-current-value";
+import { parseQuantityInput } from "@/lib/portfolio/asset-form-values";
+import { precoNaMoeda, reaisPorUnidadeDa } from "@/lib/portfolio/cotacao-na-moeda";
+import { getOwnUser } from "@/lib/repositories/user.repo";
+import { toCurrencyCode } from "@/lib/money";
 
 export type AssetFormState = { error?: string };
 
@@ -19,15 +23,21 @@ export type AssetFormState = { error?: string };
  */
 async function parseAssetForm(formData: FormData) {
   const ticker = String(formData.get("ticker") ?? "").trim().toUpperCase() || undefined;
-  const quantityRaw = String(formData.get("quantity") ?? "").trim().replace(",", ".");
-  const quantity = quantityRaw ? Number(quantityRaw) : undefined;
+  // Mesmo leitor do formulário: "1.000" são mil cotas, não uma (ver parseQuantityInput).
+  const quantityRaw = String(formData.get("quantity") ?? "").trim();
+  const quantity = quantityRaw ? parseQuantityInput(quantityRaw) : undefined;
   const typedCurrent = String(formData.get("currentValue") ?? "").trim();
   const investedRaw = String(formData.get("investedValue") ?? "").trim();
   let currentUnitPrice: number | undefined;
 
   if (quantity && quantity > 0 && ticker && /^[A-Z]{4}\d{1,2}$/.test(ticker)) {
-    const price = await fetchTickerPrice(ticker);
-    if (price) currentUnitPrice = price;
+    const precoEmReais = await fetchTickerPrice(ticker);
+    if (precoEmReais) {
+      // A cotação vem em reais; quem usa o app em outra moeda digita a carteira nela. Sem o
+      // câmbio, fica sem cotação e vale o que ela digitou (nunca reais com o símbolo dela).
+      const moeda = toCurrencyCode((await getOwnUser(await getRequiredSession())).currency);
+      currentUnitPrice = precoNaMoeda(precoEmReais, moeda, await reaisPorUnidadeDa(moeda)) ?? undefined;
+    }
   }
   // Na edição o campo vem pré-preenchido: sem os valores de antes, o servidor não distingue
   // "ela digitou 300" de "o 300 já estava ali" (ver resolveQuotedCurrentValue).

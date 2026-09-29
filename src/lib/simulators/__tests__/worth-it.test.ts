@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { simulateWorthIt, WORTH_IT_ANNUAL_RATE } from "../worth-it";
+import { rendaDeReferencia, simulateWorthIt, WORTH_IT_ANNUAL_RATE } from "../worth-it";
 
 describe("simulateWorthIt", () => {
   it("computes hours equivalent from price and hourly rate (income / 220h)", () => {
@@ -31,5 +31,21 @@ describe("simulateWorthIt", () => {
     const short = simulateWorthIt({ price: 500, monthlyIncome: 3500, mode: "SINGLE", horizonYears: 1 });
     const long = simulateWorthIt({ price: 500, monthlyIncome: 3500, mode: "SINGLE", horizonYears: 10 });
     expect(long.futureValueIfInvested).toBeGreaterThan(short.futureValueIfInvested);
+  });
+});
+
+describe("rendaDeReferencia", () => {
+  it("prefers the month's plan over the typical income and what came in so far", () => {
+    expect(rendaDeReferencia(6000, 5000, 500)).toEqual({ valor: 6000, fonte: "plano" });
+  });
+
+  it("falls back to the typical income when there is no plan (day 3, salary not in yet)", () => {
+    expect(rendaDeReferencia(null, 5000, 500)).toEqual({ valor: 5000, fonte: "media" });
+    expect(rendaDeReferencia(0, 5000, 0)).toEqual({ valor: 5000, fonte: "media" });
+  });
+
+  it("uses what came in this month only when there is no plan nor history", () => {
+    expect(rendaDeReferencia(undefined, null, 500)).toEqual({ valor: 500, fonte: "mes" });
+    expect(rendaDeReferencia(null, null, 0)).toEqual({ valor: 0, fonte: "mes" });
   });
 });

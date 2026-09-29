@@ -36,7 +36,10 @@ const fila = [...ORDEM.filter((t) => arquivos.includes(t)), ...arquivos.filter((
 const modelo = (Nome) => prisma[Nome.charAt(0).toLowerCase() + Nome.slice(1)];
 
 async function inserir(Nome) {
-  const linhas = JSON.parse(fs.readFileSync(path.join(pasta, `${Nome}.json`), "utf8"));
+  // { $bytes } é como o backup guarda campos Bytes (o arquivo de importação): volta a ser Buffer.
+  const linhas = JSON.parse(fs.readFileSync(path.join(pasta, `${Nome}.json`), "utf8"), (_k, v) =>
+    v && typeof v === "object" && typeof v.$bytes === "string" ? Buffer.from(v.$bytes, "base64") : v,
+  );
   const m = modelo(Nome);
   if (!m) return { ok: false, motivo: "modelo não existe mais" };
   let feitas = 0;

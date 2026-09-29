@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { classificarAntigo } from "../revisao-antigos";
+import { acharCompraDoEstorno, classificarAntigo } from "../revisao-antigos";
 
 const e = (category: "INCOME" | "EXPENSE", description: string, amount = 100) => ({ category, description, amount });
 
@@ -16,5 +16,29 @@ describe("classificarAntigo", () => {
   });
   it("estorno já gravado (negativo) não volta pra revisão", () => {
     expect(classificarAntigo(e("EXPENSE", "Estorno compra", -50), null, false)).toBeNull();
+  });
+});
+
+describe("acharCompraDoEstorno", () => {
+  const compra = (description: string, amount: number, parentCategory: string | null, customCategoryId: string | null = null) => ({ description, amount, parentCategory, customCategoryId });
+
+  it("acha a compra da mesma loja e prefere o mesmo valor", () => {
+    const compras = [compra("NETSHOES*PEDIDO 1", 80, "VESTUARIO"), compra("Netshoes", 250, "LAZER"), compra("iFood", 250, "ALIMENTACAO")];
+    expect(acharCompraDoEstorno({ description: "ESTORNO NETSHOES", amount: 250 }, compras)?.parentCategory).toBe("LAZER");
+  });
+
+  it("estorno parcial: valor diferente, fica a compra mais recente da loja", () => {
+    const compras = [compra("Cinemark Shopping", 120, "LAZER"), compra("Cinemark", 60, "OUTROS")];
+    expect(acharCompraDoEstorno({ description: "Estorno Cinemark", amount: 40 }, compras)?.parentCategory).toBe("LAZER");
+  });
+
+  it("categoria personalizada vem junto", () => {
+    const compras = [compra("Decathlon", 300, null, "cat-esporte")];
+    expect(acharCompraDoEstorno({ description: "Reembolso Decathlon", amount: 300 }, compras)?.customCategoryId).toBe("cat-esporte");
+  });
+
+  it("palavra genérica não vira loja: sem nome, não acha nada", () => {
+    const compras = [compra("Compra loja", 100, "LAZER"), compra("Mercado Pago", 100, "OUTROS")];
+    expect(acharCompraDoEstorno({ description: "ESTORNO COMPRA LOJA", amount: 100 }, compras)).toBeNull();
   });
 });

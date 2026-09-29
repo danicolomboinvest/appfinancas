@@ -30,8 +30,16 @@ export default function RegisterPage() {
           {state.error && (
             <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{state.error}</p>
           )}
-          <Field label="Nome" id="name" name="name" type="text" required />
-          <Field label="Email" id="email" name="email" type="email" required autoComplete="email" />
+          <Field label="Nome" id="name" name="name" type="text" required defaultValue={state.values?.name} />
+          <Field
+            label="Email"
+            id="email"
+            name="email"
+            type="email"
+            required
+            autoComplete="email"
+            defaultValue={state.values?.email}
+          />
           <Field
             label="Celular (WhatsApp)"
             id="phone"
@@ -41,6 +49,7 @@ export default function RegisterPage() {
             placeholder="(11) 98765-4321"
             autoComplete="tel"
             inputMode="tel"
+            defaultValue={state.values?.phone}
           />
           <Field
             label="Senha"
@@ -53,7 +62,13 @@ export default function RegisterPage() {
           />
           <p className="-mt-3 text-xs text-ink-faint">Mínimo de 8 caracteres.</p>
           <label className="flex items-start gap-2 text-xs text-ink-muted">
-            <input type="checkbox" name="acceptTerms" required className="mt-0.5 accent-current" />
+            <input
+              type="checkbox"
+              name="acceptTerms"
+              required
+              defaultChecked={state.values?.acceptTerms}
+              className="mt-0.5 accent-current"
+            />
             <span>
               Li e aceito os{" "}
               <Link href="/termos" target="_blank" className="font-medium text-accent-strong hover:underline">

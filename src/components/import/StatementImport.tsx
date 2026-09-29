@@ -342,6 +342,14 @@ export function StatementImport({
             <p className="text-caption text-ink-muted">
               {kindMismatch.suggested === "fatura" ? t.impPareceFaturaAviso : t.impPareceExtratoAviso}
             </p>
+            {/* Virar fatura por aqui segue direto pra revisão: sem a pergunta do mês neste ponto,
+                a fatura de maio subida em setembro caía inteira em setembro sem ela ver. */}
+            {kindMismatch.suggested === "fatura" && (
+              <div className="flex flex-col gap-1.5">
+                <MonthPicker label={t.impFaturaMes} id="fatura-month-aviso" value={faturaMonth} onChange={setFaturaMonth} />
+                <span className="text-caption text-ink-faint">{t.impFaturaMesDica(formatMonthYear(faturaMonth))}</span>
+              </div>
+            )}
             <div className="flex flex-wrap gap-2">
               <Button
                 type="button"
@@ -505,7 +513,10 @@ export function StatementImport({
             <span className="text-caption text-ink-faint">{formatDate(it.date)}</span>
             <span className="text-indicator font-semibold tabular-nums text-danger">− {money(it.amount)}</span>
           </div>
-          {it.installment && it.installment.current < it.installment.total && (
+          {/* Só a parcela com certeza: é a única que o servidor lança nos meses seguintes. "03/10"
+              sem "parc" pode ser data ("POSTO SHELL 03/09"), e prometer que "as 7 seguintes
+              entram sozinhas" fazia ela planejar os próximos meses com gasto que não existe. */}
+          {it.installment?.confident && it.installment.current < it.installment.total && (
             <p className="mt-1.5 text-caption text-accent-strong">
               {t.impParcela(it.installment.current, it.installment.total, it.installment.total - it.installment.current)}
             </p>
@@ -669,6 +680,14 @@ export function StatementImport({
             {docType !== "fatura" && ` ${t.impNoSaldo(sumImportable >= 0)}`}
           </p>
           {stats && <p className="text-caption text-ink-muted">{t.impEntendiComo(stats.summary)}</p>}
+          {/* Fatura: o mês de destino fica à vista (e dá pra trocar) até o último toque. Quem
+              chegou aqui pelo aviso "parece fatura" nunca tinha visto a pergunta do mês. */}
+          {docType === "fatura" && (
+            <div className="mt-2 flex flex-col gap-1.5">
+              <MonthPicker label={t.impFaturaMes} id="fatura-month-confirmar" value={faturaMonth} onChange={setFaturaMonth} />
+              <span className="text-caption text-ink-faint">{t.impFaturaMesDica(formatMonthYear(faturaMonth))}</span>
+            </div>
+          )}
           {stats && (
             <p className="text-caption text-ink-muted">
               {t.impLinhasLidas(stats.parsed, stats.moneyLines)}
@@ -840,6 +859,15 @@ export function StatementImport({
                     );
                   })}
                 </div>
+                {/* Tira só esta linha da importação (o pagamento da fatura anterior que o app não
+                    reconheceu, por exemplo). Vai pro "fica de fora", de onde volta com um toque. */}
+                <button
+                  type="button"
+                  onClick={() => setItems((prev) => prev.map((x) => (x.key === it.key ? { ...x, ignorar: true, nota: "Você tirou da importação." } : x)))}
+                  className="mt-1 block text-[11px] font-medium text-ink-faint hover:text-ink hover:underline"
+                >
+                  Não importar
+                </button>
                 {/* Manda essa linha pra OUTRO perfil do usuário — compra da Empresa que caiu no
                     cartão Pessoal, por exemplo. Só aparece pra quem tem mais de um perfil. */}
                 {otherProfiles.length > 0 && (

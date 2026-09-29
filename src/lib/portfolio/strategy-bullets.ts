@@ -57,10 +57,10 @@ export function summarizeStrategy(positions: StrategyClassPosition[]): { below: 
   let above = 0;
   for (const p of positions) {
     if (p.targetPercent <= 0) continue;
-    // Um ponto percentual de folga: alvo de 20% com 19,6% não é "fora do alvo", é arredondamento.
-    const diff = p.currentPercent - p.targetPercent;
-    if (diff < -0.01) below += 1;
-    else if (diff > 0.01) above += 1;
+    // A mesma folga das sugestões e dos cards do Por objetivo (strategyStatusOf). Com uma folga
+    // própria aqui, 18,5% num alvo de 20% virava selo "abaixo do alvo" sem sugestão nenhuma.
+    if (p.status === "ABAIXO") below += 1;
+    else if (p.status === "ACIMA") above += 1;
   }
   return { below, above };
 }

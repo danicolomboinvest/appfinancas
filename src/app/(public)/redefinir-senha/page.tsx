@@ -33,7 +33,7 @@ export default function RedefinirSenhaPage({ searchParams }: PageProps<"/redefin
             <span className="flex h-12 w-12 items-center justify-center rounded-full bg-success-soft text-success">
               <CheckCircle2 size={28} strokeWidth={2} />
             </span>
-            <p className="text-sm text-ink">Senha alterada com sucesso! Já pode entrar com a nova senha.</p>
+            <p className="text-sm text-ink">Senha alterada com sucesso! Já pode entrar com a nova senha. Por segurança, a conta saiu dos aparelhos em que estava aberta.</p>
             <Link
               href="/login"
               className="w-full rounded-lg bg-ink px-4 py-2.5 text-sm font-medium text-canvas hover:opacity-90"

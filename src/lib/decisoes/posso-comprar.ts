@@ -55,6 +55,12 @@ export type CompraBase = {
   regra90?: boolean;
   /** O que ainda sobra do orçamento do dia a dia no mês. */
   sobraDoMes: number;
+  /**
+   * Compras que ela já decidiu fazer ("Vou comprar") e ainda não apareceram nos lançamentos: o
+   * valor das à vista e a soma das parcelas mensais das parceladas. Sem isso, cada compra
+   * aprovada parecia caber sozinha, e o mesmo dinheiro livre aprovava a segunda e a terceira.
+   */
+  jaDecidido?: { vista: number; parcelaMensal: number };
   diasRestantes: number;
   metas: CompraMeta[];
   /** Taxa mensal de referência pro "dinheiro rendendo" na comparação à vista × parcelado. */
@@ -214,8 +220,14 @@ function avaliarSemAvisos(base: CompraBase, compraBruta: Compra, fmt: Formatos):
   // quando o mês já gastou mais que ele.
   const real = base.gastoReal && base.gastoReal > 0 ? base.gastoReal : 0;
   const doMes = base.gastoDoMesAtual && base.gastoDoMesAtual > 0 ? base.gastoDoMesAtual : 0;
-  const comprometido = Math.max(base.gastoPlanejado, real, doMes);
-  const fonte: "real" | "planejado" | "mes" = comprometido === base.gastoPlanejado ? "planejado" : comprometido === real ? "real" : "mes";
+  const comprometidoSemDecididas = Math.max(base.gastoPlanejado, real, doMes);
+  const fonte: "real" | "planejado" | "mes" = comprometidoSemDecididas === base.gastoPlanejado ? "planejado" : comprometidoSemDecididas === real ? "real" : "mes";
+  // O que ela já decidiu comprar e ainda não lançou: as parcelas entram no compromisso de todo
+  // mês; o à vista sai do dinheiro sem destino e, no que ele não cobrir, da sobra do dia a dia,
+  // do mesmo jeito que a compra de agora sairia.
+  const decididoVista = Math.max(0, base.jaDecidido?.vista ?? 0);
+  const decididoParcela = Math.max(0, base.jaDecidido?.parcelaMensal ?? 0);
+  const comprometido = comprometidoSemDecididas + decididoParcela;
   const margem90 = base.renda * LIMITE_GASTO - comprometido;
   const temMetas = base.metas.some((m) => m.atual < m.alvo);
   const temReserva = base.reservaComSaldo ?? base.metas.some((m) => m.reserva && m.atual < m.alvo);
@@ -227,18 +239,29 @@ function avaliarSemAvisos(base: CompraBase, compraBruta: Compra, fmt: Formatos):
   const algumaAtrasada = base.metas.some((m) => m.status === "BEHIND" && m.atual < m.alvo);
   // Dinheiro do mês que não tem destino (nem gasto planejado nem meta): a compra sai dele
   // primeiro, à vista ou parcelada. Só o que ele não cobre mexe no dia a dia ou nas metas.
-  const semDestino = Math.max(0, base.renda - comprometido - guardadoHoje);
+  const semDestinoAntes = Math.max(0, base.renda - comprometido - guardadoHoje);
+  const decididoDoSemDestino = Math.min(decididoVista, semDestinoAntes);
+  const semDestino = semDestinoAntes - decididoDoSemDestino;
+  const sobraDoMes = Math.max(0, base.sobraDoMes - (decididoVista - decididoDoSemDestino));
   const linhaComprometida = (depois: number): LinhaAntesDepois => ({ rotulo: "Renda comprometida", hoje: pct(comprometido / base.renda), depois: pct(depois / base.renda) });
   const comprometimento = (depois: number) => ({ hoje: comprometido / base.renda, depois: depois / base.renda, valor: comprometido, renda: base.renda, fonte });
   const contaComprometido = {
     rotulo:
       fonte === "real" ? "Já comprometido (média do que você gastou nos últimos meses)" : fonte === "mes" ? "Já comprometido (o que já saiu neste mês)" : "Já comprometido (seu orçamento do mês)",
-    valor: money(comprometido),
+    // As parcelas já decididas aparecem na linha delas, logo abaixo.
+    valor: money(comprometidoSemDecididas),
   };
+  const contaDecididas =
+    decididoVista + decididoParcela > 0
+      ? [
+          ...(decididoParcela > 0 ? [{ rotulo: "Parcelas de compras que você já decidiu fazer", valor: `${money(decididoParcela)} por mês` }] : []),
+          ...(decididoVista > 0 ? [{ rotulo: "Compras à vista que você já decidiu fazer", valor: money(decididoVista) }] : []),
+        ]
+      : [];
 
   if (compra.modo === "vista") {
     const custo = compra.valor * (1 - compra.desconto);
-    const sobra = base.sobraDoMes;
+    const sobra = sobraDoMes;
     const doSemDestino = Math.min(custo, semDestino);
     const resto = custo - doSemDestino;
     const depois = Math.max(0, sobra - resto);
@@ -258,6 +281,7 @@ function avaliarSemAvisos(base: CompraBase, compraBruta: Compra, fmt: Formatos):
     }
     const conta = [
       contaComprometido,
+      ...contaDecididas,
       { rotulo: compra.desconto > 0 ? `Valor com ${pct(compra.desconto)} de desconto` : "Valor", valor: money(custo) },
       ...(semDestino > 0 ? [{ rotulo: "Sai do dinheiro sem destino", valor: money(doSemDestino) }] : []),
       { rotulo: "Sobra do orçamento no mês", valor: money(sobra) },
@@ -343,6 +367,7 @@ function avaliarSemAvisos(base: CompraBase, compraBruta: Compra, fmt: Formatos):
     { rotulo: "Parcela", valor: money(parcela) },
     ...(parcelasPedidas > 48 ? [{ rotulo: "Parcelas consideradas", valor: "48 (o máximo que o app simula)" }] : []),
     contaComprometido,
+    ...contaDecididas,
     { rotulo: "Comprometido + parcela", valor: money(comprometido + parcela) },
     base.regra90 === false
       ? { rotulo: "Cabe por mês na conta conjunta", valor: money(cabeNaConjunta) }
@@ -427,4 +452,37 @@ function avaliarSemAvisos(base: CompraBase, compraBruta: Compra, fmt: Formatos):
     comprometimento: comprometimento(comprometido + parcela),
     conta,
   };
+}
+
+export type CompraDecidida = { valor: number; modo: "vista" | "parcelado"; parcelas: number; criadaEm: Date };
+export type GastoLancado = { valor: number; criadoEm: Date };
+
+/** Folga pro relógio: o gasto lançado logo antes de tocar "Vou comprar" ainda é a mesma compra. */
+const FOLGA_LANCAMENTO_MS = 30 * 60_000;
+
+/**
+ * Das compras que ela decidiu fazer ("Vou comprar"), as que ainda não viraram lançamento: um
+ * gasto criado depois da decisão, com o valor da compra (à vista) ou da parcela (parcelado),
+ * quer dizer que a compra já está nos números e não pode contar duas vezes. Cada gasto só
+ * responde por uma compra.
+ */
+export function comprasAindaNaoLancadas(decididas: CompraDecidida[], gastos: GastoLancado[]): { vista: number; parcelaMensal: number } {
+  const usados = new Set<number>();
+  let vista = 0;
+  let parcelaMensal = 0;
+  for (const d of [...decididas].sort((a, b) => a.criadaEm.getTime() - b.criadaEm.getTime())) {
+    if (!(d.valor > 0)) continue;
+    const parcelado = d.modo === "parcelado" && d.parcelas > 1;
+    const esperado = parcelado ? d.valor / d.parcelas : d.valor;
+    const i = gastos.findIndex(
+      (g, j) => !usados.has(j) && g.criadoEm.getTime() >= d.criadaEm.getTime() - FOLGA_LANCAMENTO_MS && Math.abs(g.valor - esperado) <= Math.max(1, esperado * 0.01),
+    );
+    if (i >= 0) {
+      usados.add(i);
+      continue;
+    }
+    if (parcelado) parcelaMensal += esperado;
+    else vista += esperado;
+  }
+  return { vista, parcelaMensal };
 }

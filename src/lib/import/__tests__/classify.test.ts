@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ParentCategory } from "@prisma/client";
-import { classify, normalizeMerchant, padraoAprendivel, type LearnedRule } from "../classify";
+import { classify, normalizeMerchant, padraoAprendivel, padroesDaCorrecao, type LearnedRule, type LinhaCorrigida } from "../classify";
 import { CATEGORIAS_EMPRESA } from "@/lib/profiles/empresa";
 
 // Descrições FICTÍCIAS no formato dos bancos, nada de extrato de cliente.
@@ -120,5 +120,59 @@ describe("regras aprendidas: palavra inteira e nada genérico", () => {
     const rules = [regra("Pix - Enviado MARIA", "EDUCACAO")];
     expect(classify("Pix - Enviado MARIANA COSTA", rules)).toBeNull();
     expect(classify("Pix - Enviado MARIA 12/05", rules)?.parentCategory).toBe("EDUCACAO");
+  });
+});
+
+describe("regras aprendidas: a mais específica vence", () => {
+  const uber: LearnedRule = { pattern: "uber", parentCategory: "TRANSPORTE" };
+  const uberEats: LearnedRule = { pattern: "uber eats", parentCategory: "ALIMENTACAO" };
+
+  it("\"uber eats\" ganha de \"uber\" em qualquer ordem que o banco devolver", () => {
+    for (const rules of [[uber, uberEats], [uberEats, uber]]) {
+      expect(classify("UBER EATS 12/05", rules)?.parentCategory).toBe("ALIMENTACAO");
+      expect(classify("UBER TRIP", rules)?.parentCategory).toBe("TRANSPORTE");
+    }
+  });
+
+  it("empate de tamanho fica com a primeira da lista (a mais recente)", () => {
+    const rules: LearnedRule[] = [
+      { pattern: "loja abc", parentCategory: "LAZER" },
+      { pattern: "casa xyz", parentCategory: "MORADIA" },
+    ];
+    expect(classify("LOJA ABC CASA XYZ", rules)?.parentCategory).toBe("LAZER");
+  });
+});
+
+describe("padroesDaCorrecao: corrigir no mês ensina o app", () => {
+  const linha = (over: Partial<LinhaCorrigida>): LinhaCorrigida => ({
+    description: "KALUNGA 1234",
+    category: "EXPENSE",
+    parentCategory: "OUTROS",
+    customCategoryId: null,
+    importada: true,
+    ...over,
+  });
+
+  it("aprende do gasto importado cuja categoria mudou", () => {
+    expect(padroesDaCorrecao([linha({})], "EDUCACAO")).toEqual(["kalunga"]);
+  });
+
+  it("não aprende do lançado à mão, de quem não mudou, de entrada nem de padrão genérico", () => {
+    expect(padroesDaCorrecao([linha({ importada: false })], "EDUCACAO")).toEqual([]);
+    expect(padroesDaCorrecao([linha({ parentCategory: "EDUCACAO" })], "EDUCACAO")).toEqual([]);
+    expect(padroesDaCorrecao([linha({ category: "INCOME" })], "EDUCACAO")).toEqual([]);
+    expect(padroesDaCorrecao([linha({ description: "Compra no débito" })], "EDUCACAO")).toEqual([]);
+    expect(padroesDaCorrecao([linha({ description: null })], "EDUCACAO")).toEqual([]);
+  });
+
+  it("sair de categoria personalizada pra mesma mãe conta como mudança", () => {
+    expect(padroesDaCorrecao([linha({ parentCategory: null, customCategoryId: "cc1" })], "OUTROS")).toEqual(["kalunga"]);
+  });
+
+  it("parcelas da mesma compra viram um padrão só, com teto no lote", () => {
+    const parcelas = [1, 2, 3].map((n) => linha({ description: `KALUNGA ${n}/3` }));
+    expect(padroesDaCorrecao(parcelas, "EDUCACAO")).toEqual(["kalunga"]);
+    const muitas = Array.from({ length: 80 }, (_, i) => linha({ description: `LOJA ${String.fromCharCode(97 + (i % 26))}${String.fromCharCode(97 + Math.floor(i / 26))}xz` }));
+    expect(padroesDaCorrecao(muitas, "EDUCACAO").length).toBe(30);
   });
 });

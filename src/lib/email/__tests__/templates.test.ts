@@ -51,6 +51,14 @@ describe("monthlyRecapEmail: cada tema fala diferente sobre o mesmo mês", () =>
     expect(html).toContain(girly.emailRecapPrimeiroMes);
   });
 
+  it("quem tem mais de um perfil vê de qual perfil são os números (e o nome não vira HTML)", () => {
+    const { subject, html } = monthlyRecapEmail({ ...baseRecap, t: padrao, perfil: "Loja <b>" });
+    expect(subject).toBe("Seu resumo de setembro de 2026 está pronto · Loja <b>");
+    expect(html).toContain("Perfil Loja &lt;b&gt;");
+    const semPerfil = monthlyRecapEmail({ ...baseRecap, t: padrao });
+    expect(semPerfil.html).not.toContain("Perfil ");
+  });
+
   it("sem aporte no mês, a linha de aporte não aparece", () => {
     const { html } = monthlyRecapEmail({ ...baseRecap, investment: 0, t: padrao });
     expect(html).not.toContain(">Aportou<");

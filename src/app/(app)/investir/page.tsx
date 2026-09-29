@@ -7,6 +7,7 @@ import { dadosDaEmpresa } from "@/lib/profiles/empresa-dados";
 import { getYearlySummary } from "@/lib/consolidation/yearly";
 import { sumExpensesByParentCategoryForYear, sumExpensesByCustomCategoryForYear } from "@/lib/repositories/budget.repo";
 import { listReferenceRates } from "@/lib/repositories/reference-rate.repo";
+import { escolherTaxaDeReferencia } from "@/lib/finance/taxa-de-referencia";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import { InvestirCalculadora } from "./InvestirCalculadora";
 
@@ -42,7 +43,8 @@ export default async function InvestirPage() {
     { year, month: now.getMonth() + 1 },
   );
   const margem = dados.dre.margemContribuicaoPct !== null && dados.dre.margemContribuicaoPct > 0 ? dados.dre.margemContribuicaoPct : 0.4;
-  const cdi = taxas.find((t) => /cdi|selic/i.test(t.name));
+  // A taxa que ela cadastrou ganha da global do sistema (ver escolherTaxaDeReferencia).
+  const cdi = escolherTaxaDeReferencia(taxas, ctx.userId, /cdi|selic/i);
   const taxa = cdi ? Number(cdi.rateValue) : TAXA_PADRAO;
 
   return (

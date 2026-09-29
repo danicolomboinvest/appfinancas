@@ -10,9 +10,14 @@ import { loginAction, type LoginState } from "./actions";
 
 const initialState: LoginState = {};
 
-export default function LoginPage({ searchParams }: { searchParams: Promise<{ created?: string }> }) {
+export default function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ created?: string; callbackUrl?: string }>;
+}) {
   // ?created=1 vem do redirect do cadastro, confirma que a conta foi criada com sucesso.
-  const { created } = use(searchParams);
+  // ?callbackUrl= vem do proxy: a tela que ela tentou abrir sem sessão (link de e-mail etc.).
+  const { created, callbackUrl } = use(searchParams);
   const [state, formAction, isPending] = useActionState(loginAction, initialState);
 
   return (
@@ -39,7 +44,16 @@ export default function LoginPage({ searchParams }: { searchParams: Promise<{ cr
           {state.error && (
             <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{state.error}</p>
           )}
-          <Field label="Email" id="email" name="email" type="email" required autoComplete="email" />
+          {typeof callbackUrl === "string" && <input type="hidden" name="callbackUrl" value={callbackUrl} />}
+          <Field
+            label="Email"
+            id="email"
+            name="email"
+            type="email"
+            required
+            autoComplete="email"
+            defaultValue={state.email}
+          />
           <Field label="Senha" id="password" name="password" type="password" required autoComplete="current-password" />
           <div className="-mt-1 text-right">
             <Link href="/esqueci-senha" className="text-xs font-medium text-accent-strong hover:underline">

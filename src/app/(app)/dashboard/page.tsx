@@ -31,7 +31,7 @@ import { listMonthlyEntries } from "@/lib/repositories/monthly-entry.repo";
 import { getCategorySpending } from "@/lib/consolidation/month-analysis";
 import { PARENT_CATEGORIES, categoryLabel } from "@/lib/categories";
 import { ehEmpresa, soMesesJaVividos } from "@/lib/profiles/empresa";
-import { monthsElapsedInYear } from "@/lib/consolidation/realized-months";
+import { mesesDaComparacao, monthsElapsedInYear } from "@/lib/consolidation/realized-months";
 import { dadosDaEmpresa } from "@/lib/profiles/empresa-dados";
 import { ehCasal } from "@/lib/profiles/casal";
 import { PainelEmpresa } from "./PainelEmpresa";
@@ -60,7 +60,7 @@ function changePercent(current: number, previous: number): number | null {
 /**
  * Diferença em R$ entre o mês atual e o anterior, usada só para o saldo, em vez de %.
  * Perto de zero (ou quando não há renda no mês), o saldo tende a ficar bem próximo do gasto
- * invertido (saldo = renda - gastos - aportes, e com renda/aportes zerados vira -gastos), o
+ * invertido (sobrou = renda - gastos, e com renda zerada vira -gastos), o
  * que faz a variação percentual do saldo coincidir com a dos gastos por pura matemática —
  * parecendo um bug de "número repetido" sem ser. Um delta em R$ não sofre dessa ilusão.
  */
@@ -92,6 +92,10 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
   // passados, dezembro (último mês fechado do ano).
   const currentMonth = isCurrentYear ? now.getMonth() + 1 : 12;
   const previousMonthDate = new Date(year, currentMonth - 2, 1);
+  // A seta dos cards compara só meses fechados (o mês em andamento contra o anterior inteiro
+  // dizia "Renda ↓ 100%" todo começo de mês). No ano corrente o mês comparado é o anterior, que
+  // já vem em previousMonthSummary; falta buscar o mês antes dele.
+  const comparacao = mesesDaComparacao(year, now);
 
   const [
     summary,
@@ -107,6 +111,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
     monthBudgets,
     spentByParent,
     spentByCustom,
+    antesDoAnteriorSummary,
   ] = await Promise.all([
     getYearlySummary(ctx, year),
     getPortfolioByObjective(ctx),
@@ -121,6 +126,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
     listBudgets(ctx, year, currentMonth),
     sumExpensesByParentCategory(ctx, year, currentMonth),
     sumExpensesByCustomCategory(ctx, year, currentMonth),
+    comparacao && isCurrentYear ? getMonthlySummary(ctx, comparacao.anterior.year, comparacao.anterior.month) : Promise.resolve(null),
   ]);
 
   // O que a pessoa decidiu no app este ano: é a prova de valor, na tela do ano.
@@ -138,15 +144,25 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
   // num total anual, os 14% pareciam ser sobre o ano inteiro. Dizer o NOME do mês já entrega
   // que a comparação é mensal, sem trocar a métrica.
   const rotuloComparacao = MONTH_LABELS_FULL[previousMonthDate.getMonth()].toLowerCase();
-  const rotuloMesAtual = MONTH_LABELS_FULL[currentMonth - 1].toLowerCase();
-  const incomeTrend = changePercent(currentMonthSummary.totalIncome, previousMonthSummary.totalIncome);
-  const expenseTrend = changePercent(currentMonthSummary.totalExpense, previousMonthSummary.totalExpense);
-  const balanceDelta = changeAmount(currentMonthSummary.balance, previousMonthSummary.balance);
+  const [resumoComparado, resumoDeAntes] = !comparacao
+    ? [null, null]
+    : isCurrentYear
+      ? [previousMonthSummary, antesDoAnteriorSummary]
+      : [currentMonthSummary, previousMonthSummary];
+  const rotuloDeAntes = comparacao ? MONTH_LABELS_FULL[comparacao.anterior.month - 1].toLowerCase() : "";
+  const rotuloComparado = comparacao ? MONTH_LABELS_FULL[comparacao.atual.month - 1].toLowerCase() : "";
+  const incomeTrend = resumoComparado && resumoDeAntes ? changePercent(resumoComparado.totalIncome, resumoDeAntes.totalIncome) : null;
+  const expenseTrend = resumoComparado && resumoDeAntes ? changePercent(resumoComparado.totalExpense, resumoDeAntes.totalExpense) : null;
+  // "Sobrou" é o que ficou com ela: renda − gastos, com o aporte dentro (guardar não é gastar).
+  // É a mesma conta da dica "de cada R$ 100, você manteve R$ 30"; com o saldo depois do aporte,
+  // quem investiu tudo que sobrou via "Na reserva: R$ 0" do lado de "R$ 30 pra reserva".
+  const sobrou = (m: { totalIncome: number; totalExpense: number }) => m.totalIncome - m.totalExpense;
+  const balanceDelta = resumoComparado && resumoDeAntes ? changeAmount(sobrou(resumoComparado), sobrou(resumoDeAntes)) : null;
 
   const monthsSoFar = summary.months.filter((m) => m.isRealized);
   const incomeSparkline = monthsSoFar.map((m) => ({ label: MONTH_LABELS[m.month - 1], value: m.totalIncome }));
   const expenseSparkline = monthsSoFar.map((m) => ({ label: MONTH_LABELS[m.month - 1], value: m.totalExpense }));
-  const balanceSparkline = monthsSoFar.map((m) => ({ label: MONTH_LABELS[m.month - 1], value: m.balance }));
+  const balanceSparkline = monthsSoFar.map((m) => ({ label: MONTH_LABELS[m.month - 1], value: sobrou(m) }));
 
   const emergencyTarget = emergencyFund ? Number(emergencyFund.targetAmount) : null;
   const emergencyCurrent = emergencyFund ? Number(emergencyFund.currentAmount) : 0;
@@ -246,6 +262,9 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
             year={year}
             mesLabel={MONTH_LABELS_FULL[currentMonth - 1]}
             mesAnteriorLabel={rotuloComparacao}
+            // O mês do ano corrente está em andamento: comparar com o anterior inteiro diria
+            // "Receita ↓ 100%" no dia 2. A comparação só aparece com o mês fechado.
+            compararComAnterior={!isCurrentYear}
             isCurrentYear={isCurrentYear}
             months={summary.months}
             mes={mes}
@@ -385,7 +404,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
           label={voz.titulos.rendaNoAno}
           value={money(summary.totalIncome)}
           tone="success"
-          trend={incomeTrend === null ? undefined : { percent: incomeTrend, periodLabel: rotuloComparacao, scopeLabel: rotuloMesAtual }}
+          trend={incomeTrend === null ? undefined : { percent: incomeTrend, periodLabel: rotuloDeAntes, scopeLabel: rotuloComparado }}
           sparkline={incomeSparkline}
         />
         <StatCard
@@ -396,14 +415,14 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
           trend={
             expenseTrend === null
               ? undefined
-              : { percent: expenseTrend, periodLabel: rotuloComparacao, scopeLabel: rotuloMesAtual, goodDirection: "down" }
+              : { percent: expenseTrend, periodLabel: rotuloDeAntes, scopeLabel: rotuloComparado, goodDirection: "down" }
           }
           sparkline={expenseSparkline}
         />
         <StatCard
           layout="row"
           label={voz.titulos.sobrouNoAno}
-          value={money(summary.balance)}
+          value={money(sobrou(summary))}
           tone="accent"
           hint={
             summary.savingsRate === null
@@ -415,8 +434,8 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
               ? undefined
               : {
                   percent: balanceDelta,
-                  periodLabel: rotuloComparacao,
-                  scopeLabel: rotuloMesAtual,
+                  periodLabel: rotuloDeAntes,
+                  scopeLabel: rotuloComparado,
                   displayValue: money(Math.abs(balanceDelta), { round: true }),
                 }
           }

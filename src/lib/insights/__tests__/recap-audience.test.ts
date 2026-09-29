@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { decideRecapEmail, MAX_NUDGES, type RecapCandidate } from "../recap-audience";
+import { decideRecapEmail, escolherPerfilDoResumo, MAX_NUDGES, type RecapCandidate } from "../recap-audience";
 
 const base: RecapCandidate = {
   hasActivityInMonth: false,
@@ -41,5 +41,26 @@ describe("decideRecapEmail", () => {
 
   it("quem passou a usar volta a receber resumo, mesmo tendo esgotado os convites", () => {
     expect(decide({ nudgeCount: 99, hasActivityInMonth: true })).toBe("resumo");
+  });
+});
+
+describe("escolherPerfilDoResumo", () => {
+  it("perfil ativo com lançamento no mês é o do resumo", () => {
+    expect(escolherPerfilDoResumo([{ profileId: "pessoal", lancamentos: 3 }, { profileId: "empresa", lancamentos: 40 }], "pessoal")).toBe("pessoal");
+  });
+
+  it("lançou tudo no Pessoal e terminou o mês na Empresa vazia: o resumo é do Pessoal, não zerado", () => {
+    expect(escolherPerfilDoResumo([{ profileId: "pessoal", lancamentos: 25 }], "empresa")).toBe("pessoal");
+  });
+
+  it("perfil ativo vazio e dois com movimento: vence o que tem mais lançamentos", () => {
+    expect(
+      escolherPerfilDoResumo([{ profileId: "casal", lancamentos: 4 }, { profileId: "pessoal", lancamentos: 12 }, { profileId: "empresa", lancamentos: 0 }], "empresa"),
+    ).toBe("pessoal");
+  });
+
+  it("sem movimento em perfil nenhum (ou só lançamento antigo sem perfil): não há resumo", () => {
+    expect(escolherPerfilDoResumo([], "pessoal")).toBeNull();
+    expect(escolherPerfilDoResumo([{ profileId: null, lancamentos: 7 }], "pessoal")).toBeNull();
   });
 });

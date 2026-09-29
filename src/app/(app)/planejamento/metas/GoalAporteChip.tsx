@@ -37,7 +37,7 @@ export function GoalAporteChip({
 }) {
   const { voz } = useProfileTheme();
   const money = useMoney();
-  const { showToast } = useToast();
+  const { showToast, showError } = useToast();
   const [marked, setMarked] = useState(done);
   const [openAmount, setOpenAmount] = useState(false);
   const [amount, setAmount] = useState("");
@@ -53,7 +53,7 @@ export function GoalAporteChip({
     const result = await checkinGoalAction({}, formData);
     setPending(false);
     if (result.error) {
-      showToast(result.error);
+      showError(result.error);
       return;
     }
     setMarked(true);

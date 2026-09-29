@@ -166,6 +166,8 @@ export type TitulosBase = {
   // Miolo da meta
   metaStatus: Record<"ahead" | "onTrack" | "behind" | "achieved", string>;
   metaGuardar(valor: string): string;
+  /** Depois de marcar o aporte do mês: o que vem no mês seguinte (no lugar de "guardar X este mês"). */
+  metaProximoAporte(valor: string, mes: string): string;
   metaMeses(n: number): string;
   metaAporteFeito(mes: string): string;
   metaAporteToast(mes: string): string;
@@ -298,7 +300,9 @@ const TITULOS_BASE: TitulosBase = {
   rendaNoAno: "Renda no ano",
   gastosNoAno: "Gastos no ano",
   sobrouNoAno: "Sobrou no ano",
-  sobrouNoAnoDica: (cem, manteve) => `De cada ${cem} que entraram, você manteve ${manteve}`,
+  // Ano no vermelho não tem "você manteve −R$ 25": vira a frase do que aconteceu.
+  sobrouNoAnoDica: (cem, manteve, pct) =>
+    pct > 0 ? `De cada ${cem} que entraram, você manteve ${manteve}` : pct < 0 ? "Este ano os gastos passaram da renda" : "Este ano tudo que entrou foi gasto",
   statusModulos: "Status dos módulos",
   modReserva: "Reserva de emergência",
   modMetas: "Metas",
@@ -344,6 +348,7 @@ const TITULOS_BASE: TitulosBase = {
   aposentadoriaWizardSub: "Vamos montar seu plano em alguns passos rápidos.",
   metaStatus: { ahead: "Adiantada", onTrack: "No ritmo", behind: "Atrasada", achieved: "Concluída" },
   metaGuardar: (v) => `Guardar ${v} este mês`,
+  metaProximoAporte: (v, mes) => `Próximo aporte: ${v} em ${mes}`,
   metaMeses: (n) => `${n} ${n === 1 ? "mês restante" : "meses restantes"}`,
   metaAporteFeito: (mes) => `Aporte de ${mes} feito`,
   metaAporteToast: (mes) => `Aporte de ${mes} registrado na meta.`,
@@ -413,7 +418,7 @@ const TITULOS_BASE: TitulosBase = {
   objSemMetaHint: "Sem meta cadastrada em Reserva de Emergência",
   secaoMetas: "Metas",
   estrategiaVsAlvo: "Carteira atual × estratégia-alvo",
-  alocacaoPorClasse: "Alocação atual × ideal por classe",
+  alocacaoPorClasse: "Alocação atual por classe",
   estrategia: "Estratégia da Carteira",
   estrategiaSub: "Defina os percentuais-alvo por classe de estratégia (somando 100%), independente da alocação-ideal de cada ativo individual.",
   contribTitulo: (mes) => `Qual é o seu aporte de ${mes}?`,

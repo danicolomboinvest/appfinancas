@@ -99,3 +99,15 @@ export function questionFor(key: string, label: string, helpText: string | null)
   if (q) return q;
   return { question: label, where: helpText };
 }
+
+/**
+ * Quais critérios viram pergunta no checklist. Nos FIIs as categorias COMUM/TIJOLO/PAPEL misturam
+ * o que só a pessoa responde com números que o laudo já lê sozinho (P/VP, vacância, taxa de
+ * administração, liquidez…): "P/VP" com botões Tranquila/Não sei/Vi algo não é pergunta, e um
+ * Híbrido chegava a ~30 delas. Fica só quem tem pergunta escrita; o resto continua na nota
+ * detalhada. Ações, ETFs e exterior já vêm só com o "Qualitativo" e passam inteiros.
+ */
+export function criteriosDoChecklist<T extends { key: string }>(sheetType: SheetType, criteria: T[]): T[] {
+  if (sheetType !== "FII") return criteria;
+  return criteria.filter((c) => c.key in QUESTION_BY_KEY);
+}

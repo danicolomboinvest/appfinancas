@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useState, useTransition } from "react";
+import { useActionState, useEffect, useId, useMemo, useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import type { ParentCategory } from "@prisma/client";
 import type { LucideIcon } from "lucide-react";
 import { Minus, Plus, Sparkles, Tag, Trash2 } from "lucide-react";
@@ -127,8 +128,26 @@ export function BudgetWizard({
     // Fechar a aba ou recarregar com mudança não salva: o navegador pergunta antes.
     const avisar = (e: BeforeUnloadEvent) => e.preventDefault();
     window.addEventListener("beforeunload", avisar);
-    return () => window.removeEventListener("beforeunload", avisar);
+    // O beforeunload não vale pra navegação dentro do app (a barra de abas troca de tela sem
+    // recarregar) e o Safari do iPhone nem mostra a pergunta: o clique num link pergunta aqui.
+    const aoClicar = (e: MouseEvent) => {
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      const link = e.target instanceof Element ? e.target.closest("a[href]") : null;
+      if (!(link instanceof HTMLAnchorElement) || link.target === "_blank" || link.hasAttribute("download")) return;
+      const destino = new URL(link.href, window.location.href);
+      if (destino.origin !== window.location.origin || destino.pathname === window.location.pathname) return;
+      if (!window.confirm("Você mudou o plano e ainda não salvou. Sair sem salvar?")) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+    document.addEventListener("click", aoClicar, true);
+    return () => {
+      window.removeEventListener("beforeunload", avisar);
+      document.removeEventListener("click", aoClicar, true);
+    };
   }, [alterado]);
+  const formId = useId();
 
   const toSpend = Math.max(0, income - investment);
   const distributed = cats.reduce((sum, c) => sum + (values[c.key] ?? 0), 0);
@@ -170,18 +189,27 @@ export function BudgetWizard({
   );
 
   return (
-    <form action={formAction} className="flex flex-col gap-5">
+    <form id={formId} action={formAction} className="flex flex-col gap-5">
       <input type="hidden" name="year" value={year} />
       <input type="hidden" name="profileId" value={profileId} />
       <input type="hidden" name="plannedIncome" value={income} />
       <input type="hidden" name="plannedInvestment" value={investment} />
+      {/* O valor com que a tela abriu, ao lado de cada um: o "Salvar" só grava o que ela mexeu.
+          Sem isso, um ajuste "só deste mês" (Fechamento, aviso do Foco) virava o valor do resto
+          do ano no próximo salvar, mesmo sem ela tocar naquela categoria. */}
+      <input type="hidden" name="plannedIncomeOriginal" value={plan.plannedIncome} />
+      <input type="hidden" name="plannedInvestmentOriginal" value={plan.plannedInvestment} />
       {parentCategories.map((c) => (
-        <input key={c.key} type="hidden" name={`plannedAmount_${c.key}`} value={values[c.key] ?? 0} />
+        <span key={c.key}>
+          <input type="hidden" name={`plannedAmount_${c.key}`} value={values[c.key] ?? 0} />
+          <input type="hidden" name={`plannedOriginal_${c.key}`} value={c.defaultValue} />
+        </span>
       ))}
       {customCategories.map((c) => (
         <span key={c.id}>
           <input type="hidden" name="customCategoryId" value={c.id} />
           <input type="hidden" name={`plannedAmount_custom_${c.id}`} value={values[c.id] ?? 0} />
+          <input type="hidden" name={`plannedOriginal_custom_${c.id}`} value={c.defaultValue} />
         </span>
       ))}
       {state.error && <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{state.error}</p>}
@@ -423,15 +451,22 @@ export function BudgetWizard({
       )}
 
       {/* Barra fixa enquanto houver mudança não salva, em qualquer passo: salvar não depende de
-          chegar ao passo 3. Fica acima da barra de navegação do celular. */}
-      {alterado && (
-        <div className="fixed inset-x-3 bottom-24 z-40 flex items-center justify-between gap-3 rounded-2xl border border-accent/40 bg-surface px-4 py-3 shadow-premium md:inset-x-auto md:bottom-6 md:right-6 md:w-96">
-          <span className="text-sm font-medium text-ink">Mudanças ainda não salvas</span>
-          <Button type="submit" size="sm" disabled={isPending}>
-            {isPending ? t.formSalvando : "Salvar"}
-          </Button>
-        </div>
-      )}
+          chegar ao passo 3. Fica acima da barra de navegação do celular: a altura dela, o "+"
+          que sobe dela e a área segura do iPhone com o app instalado (sem somar a área segura,
+          a barra de abas cobria o botão). Vai pro <body> pra continuar à vista quando ela
+          recolhe "Editar seu plano" (o formulário fica escondido, com as mudanças guardadas);
+          o botão salva pelo id do formulário. */}
+      {alterado &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div className="fixed inset-x-3 bottom-[calc(7rem_+_env(safe-area-inset-bottom))] z-40 flex items-center justify-between gap-3 rounded-2xl border border-accent/40 bg-surface px-4 py-3 shadow-premium md:inset-x-auto md:bottom-6 md:right-6 md:w-96">
+            <span className="text-sm font-medium text-ink">Mudanças ainda não salvas</span>
+            <Button type="submit" form={formId} size="sm" disabled={isPending}>
+              {isPending ? t.formSalvando : "Salvar"}
+            </Button>
+          </div>,
+          document.body,
+        )}
     </form>
   );
 }

@@ -39,3 +39,38 @@ export function classificarAntigo(e: LancamentoAntigo, nomeDaPessoa: string | nu
   }
   return null;
 }
+
+/** Palavras que não dizem de ONDE veio a compra: não servem pra achar a compra de um estorno. */
+const PALAVRAS_SEM_LOJA = new Set([
+  "estorno", "estornado", "estornada", "reembolso", "devolucao", "chargeback", "cancelamento", "cancelada", "cancelado",
+  "credito", "compra", "pagamento", "pagto", "loja", "pix", "ted", "debito", "cartao", "transferencia", "recebido",
+  "recebida", "enviado", "enviada", "parcela", "ltda", "eireli", "mercado", "pago", "online", "brasil", "comercio",
+]);
+
+/** As palavras da descrição que podem ser o nome da loja (4 letras ou mais, sem acento). */
+function palavrasDaLoja(descricao: string | null): Set<string> {
+  const texto = (descricao ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z\s]/g, " ");
+  return new Set(texto.split(/\s+/).filter((p) => p.length >= 4 && !PALAVRAS_SEM_LOJA.has(p)));
+}
+
+export type CompraAnterior = { description: string | null; amount: number; parentCategory: string | null; customCategoryId: string | null };
+
+/**
+ * A compra que um estorno devolve: a mais recente com o nome da mesma loja, de preferência com o
+ * mesmo valor (estorno parcial acontece, então valor diferente ainda serve, mas perde pra igual).
+ * É dela que vem a categoria do estorno: sem isso, "ESTORNO LOJA X" ia pra Outros, a compra
+ * seguia contando inteira em Lazer e Outros ficava negativo. `compras` vem da mais recente pra
+ * mais antiga.
+ */
+export function acharCompraDoEstorno<T extends CompraAnterior>(estorno: { description: string | null; amount: number }, compras: T[]): T | null {
+  const loja = palavrasDaLoja(estorno.description);
+  if (loja.size === 0) return null;
+  const valor = Math.abs(estorno.amount);
+  const mesmaLoja = compras.filter((c) => c.amount > 0 && [...palavrasDaLoja(c.description)].some((p) => loja.has(p)));
+  return mesmaLoja.find((c) => Math.abs(c.amount - valor) < 0.01) ?? mesmaLoja[0] ?? null;
+}
+

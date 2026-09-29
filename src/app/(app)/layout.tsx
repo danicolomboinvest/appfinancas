@@ -27,7 +27,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // e o mês do resumo trocariam umas horas antes da hora certa pra quem está no Brasil.
   const now = nowInBrazil();
 
-  const firstName = session?.user.name?.split(" ")[0] ?? session?.user.email?.split("@")[0];
+  // Do token da sessão só como reserva: o nome ali é o do dia do login e nunca atualiza. Quem
+  // corrigia o nome em Perfil via "Salvo" e a saudação continuava com o antigo até sair e entrar.
+  let firstName = session?.user.name?.split(" ")[0] ?? session?.user.email?.split("@")[0];
   const hoje = capitalize(now.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" }));
   const mesLabel = capitalize(now.toLocaleDateString("pt-BR", { month: "long" }));
   let theme = "dark";
@@ -51,6 +53,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     // Primeira entrada: antes de ver qualquer tela, a pessoa escolhe o tipo e o tema do
     // perfil dela em /comecar. Uma vez só; quem já usava o app nasceu com a data preenchida.
     if (user.onboardedAt === null) redirect("/comecar");
+    firstName = user.name?.split(" ")[0] || user.email.split("@")[0];
     currency = toCurrencyCode(user.currency);
     theme = user.theme;
     isPremium = premium;

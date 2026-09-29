@@ -14,29 +14,56 @@ const FROM_NAME = "SPI Finance";
 
 let cached: Transporter | null = null;
 
-function getTransporter(): Transporter | null {
+function createTransport(pool: boolean): Transporter | null {
   const host = process.env.SMTP_HOST;
   const user = process.env.SMTP_USER;
   const pass = process.env.SMTP_PASSWORD;
   // Sem credenciais configuradas, não quebra o app, só não envia (útil em dev/preview).
   if (!host || !user || !pass) return null;
-  if (cached) return cached;
 
   const port = Number(process.env.SMTP_PORT ?? 465);
-  cached = nodemailer.createTransport({
+  const base = {
     host,
     port,
     secure: port === 465, // 465 = SSL direto; 587 = STARTTLS
     auth: { user, pass },
-  });
+  };
+  // Uma conexão só, reaproveitada: o Hostinger limita conexões simultâneas por conta.
+  return pool ? nodemailer.createTransport({ ...base, pool: true, maxConnections: 1, maxMessages: 100 }) : nodemailer.createTransport(base);
+}
+
+function getTransporter(): Transporter | null {
+  if (cached) return cached;
+  cached = createTransport(false);
   return cached;
 }
 
 export type SendEmailResult = { ok: true } | { ok: false; reason: "not-configured" | "error" };
+type EmailParams = { to: string; subject: string; html: string };
 
 /** Envia um e-mail HTML. Nunca lança, devolve um resultado pro chamador decidir o que fazer. */
-export async function sendEmail(params: { to: string; subject: string; html: string }): Promise<SendEmailResult> {
-  const transporter = getTransporter();
+export async function sendEmail(params: EmailParams): Promise<SendEmailResult> {
+  return enviarCom(getTransporter(), params);
+}
+
+/**
+ * Pra envio em massa (o resumo do dia 1º): uma conexão SMTP aberta e reaproveitada em todos os
+ * e-mails, fechada no fim com `fechar()`.
+ *
+ * Sem isso cada e-mail abria conexão nova com TLS e login no Hostinger (1 a 2 segundos), e o
+ * cron estourava o teto de tempo depois de algumas dezenas de envios. Fica separado do
+ * sendEmail de propósito: uma conexão parada entre uma função e outra da Vercel morre calada, e
+ * o e-mail de "esqueci minha senha" não pode depender dela.
+ */
+export function abrirEnvioEmLote(): { enviar: (params: EmailParams) => Promise<SendEmailResult>; fechar: () => void } {
+  const transporter = createTransport(true);
+  return {
+    enviar: (params) => enviarCom(transporter, params),
+    fechar: () => transporter?.close(),
+  };
+}
+
+async function enviarCom(transporter: Transporter | null, params: EmailParams): Promise<SendEmailResult> {
   if (!transporter) {
     console.warn("[email] SMTP não configurado, e-mail não enviado:", params.subject);
     return { ok: false, reason: "not-configured" };

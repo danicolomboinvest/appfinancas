@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { montarPassos, semanaDe } from "../adoption-funnel.repo";
+import { abriuOApp, montarPassos, semanaDe, ultimoAcesso } from "../adoption-funnel.repo";
 
 describe("montarPassos", () => {
   it("mostra onde as pessoas se perdem entre um passo e o seguinte", () => {
@@ -51,5 +51,31 @@ describe("semanaDe", () => {
   it("não joga o domingo pra semana seguinte", () => {
     expect(semanaDe(new Date(2026, 8, 20))).toBe("2026-09-14");
     expect(semanaDe(new Date(2026, 8, 21))).toBe("2026-09-21");
+  });
+});
+
+describe("abriuOApp", () => {
+  it("quem só usou antes do rastreio de pageview conta como quem abriu, pelos lançamentos", () => {
+    expect(abriuOApp({ temEvento: false, lastSeenAt: null, lancou: true })).toBe(true);
+  });
+
+  it("lastSeenAt sozinho também prova que abriu", () => {
+    expect(abriuOApp({ temEvento: false, lastSeenAt: new Date(2026, 6, 25), lancou: false })).toBe(true);
+  });
+
+  it("sem rastro nenhum, nunca abriu", () => {
+    expect(abriuOApp({ temEvento: false, lastSeenAt: null, lancou: false })).toBe(false);
+  });
+});
+
+describe("ultimoAcesso", () => {
+  it("fica com o mais recente entre evento e lastSeenAt", () => {
+    const julho = new Date(2026, 6, 25);
+    const agosto = new Date(2026, 7, 10);
+    expect(ultimoAcesso(agosto, julho)).toEqual(agosto);
+    expect(ultimoAcesso(julho, agosto)).toEqual(agosto);
+    expect(ultimoAcesso(undefined, julho)).toEqual(julho);
+    expect(ultimoAcesso(agosto, null)).toEqual(agosto);
+    expect(ultimoAcesso(null, null)).toBeNull();
   });
 });

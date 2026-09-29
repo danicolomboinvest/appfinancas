@@ -20,12 +20,16 @@ export function CollapsibleSection({
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
+        aria-expanded={open}
         className="flex w-fit items-center gap-1.5 text-sm font-medium text-accent-strong hover:underline"
       >
         {label}
         <ChevronDown size={14} className={`transition-transform duration-150 ${open ? "rotate-180" : ""}`} />
       </button>
-      {open && children}
+      {/* Recolher esconde, não desmonta: dentro daqui moram formulários (o plano do orçamento, os
+          parâmetros do acúmulo, a nota da ficha), e desmontar jogava fora tudo o que ela tinha
+          digitado sem aviso. `contents` deixa o layout igual ao de quando o filho vinha direto. */}
+      <div className={open ? "contents" : "hidden"}>{children}</div>
     </div>
   );
 }

@@ -39,7 +39,9 @@ const projectionColumns = (money: MoneyFormatter): ResponsiveColumn<ProjectionYe
     ),
   },
   { key: "invested", label: "Investido", render: (y) => money(y.totalInvested ?? 0, { round: true }) },
-  { key: "interest", label: "Juros acumulados", render: (y) => money(y.cumulativeInterest ?? 0, { round: true }) },
+  // Juros em dinheiro de hoje: Investido + Juros fecha com o Patrimônio (real) e com o
+  // "Os juros põem" da barra acima. O nominal aqui dava um terceiro número sem dizer de onde.
+  { key: "interest", label: "Juros (real)", render: (y) => money(y.cumulativeInterestReal ?? 0, { round: true }) },
   { key: "nominal", label: "Patrimônio (nominal)", render: (y) => money(y.balanceNominal ?? 0, { round: true }) },
   { key: "real", label: "Patrimônio (real)", render: (y) => money(y.balanceReal ?? 0, { round: true }) },
 ];

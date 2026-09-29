@@ -60,6 +60,7 @@ export default async function FechamentoPage() {
     livreMes: livre.tipo === "semOrcamento" ? null : livre.restante,
     livreSemana: livre.tipo === "semOrcamento" ? null : livre.porSemana,
     reserva: !d.fund ? "sem" : Number(d.fund.currentAmount) >= Number(d.fund.targetAmount) ? "completa" : "aberta",
+    faltaNaReserva: d.fund ? Math.max(0, Number(d.fund.targetAmount) - Number(d.fund.currentAmount)) : 0,
   };
 
   return (

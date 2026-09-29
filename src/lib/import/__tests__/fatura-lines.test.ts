@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { comprasDaFaturaSaoPositivas, isFaturaSummaryLine } from "../fatura-lines";
+import { comprasDaFaturaSaoPositivas, isFaturaSummaryLine, pareceCreditoDePagamento } from "../fatura-lines";
 import type { ParsedTransaction } from "@/lib/import/statement-parser";
 
 const txn = (over: Partial<ParsedTransaction> = {}): ParsedTransaction => ({
@@ -53,5 +53,42 @@ describe("isFaturaSummaryLine: linhas que não são uma compra de verdade", () =
   it("uma compra de verdade, com nome de loja, não é linha de resumo", () => {
     expect(isFaturaSummaryLine(txn({ description: "HTM *mepoup 11/12" }))).toBe(false);
     expect(isFaturaSummaryLine(txn({ description: "PAYGO*LGSTAR A 03/04" }))).toBe(false);
+  });
+});
+
+describe("pagamento da fatura anterior escrito de outro jeito também é resumo", () => {
+  // Sem isso a linha virava estorno e a fatura anterior inteira saía do gasto do mês.
+  it.each([
+    "Pagamento da fatura",
+    "PAGAMENTO FATURA",
+    "PAGTO FATURA",
+    "Pgto. da fatura",
+    "Inclusao de Pagamento",
+    "Inclusão de pagamento",
+    "PAGAMENTO ON LINE",
+    "Pagamento online",
+    "Pagto debito automatico",
+    "PAGAMENTO DEB. AUTOM.",
+    "Pagamentos Validos Normais",
+    "PAGAMENTO DE FATURA",
+  ])("%s", (description) => {
+    expect(isFaturaSummaryLine(txn({ description, amount: -2800 }))).toBe(true);
+  });
+
+  it("compra com nome de loja parecido não vira resumo", () => {
+    expect(isFaturaSummaryLine(txn({ description: "FATURA SEGURA LTDA" }))).toBe(false);
+    expect(isFaturaSummaryLine(txn({ description: "PAGUE MENOS 123" }))).toBe(false);
+  });
+});
+
+describe("pareceCreditoDePagamento: crédito da fatura que é pagamento, não devolução", () => {
+  it("fala em pagamento e não diz que é devolução", () => {
+    expect(pareceCreditoDePagamento("PAGAMENTO RECEBIDO OBRIGADO")).toBe(true);
+    expect(pareceCreditoDePagamento("Pgto cartao")).toBe(true);
+  });
+
+  it("estorno de compra continua estorno", () => {
+    expect(pareceCreditoDePagamento("ESTORNO PAGAMENTO LOJA X")).toBe(false);
+    expect(pareceCreditoDePagamento("AMAZON MARKETPLACE")).toBe(false);
   });
 });

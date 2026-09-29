@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { summarizeStrategy } from "../strategy-bullets";
-import type { StrategyClassPosition } from "../strategy";
+import { strategyStatusOf, type StrategyClassPosition } from "../strategy";
 
 const pos = (assetClass: string, currentPercent: number, targetPercent: number) =>
   ({
@@ -11,7 +11,7 @@ const pos = (assetClass: string, currentPercent: number, targetPercent: number) 
     deviationPercent: currentPercent - targetPercent,
     targetValue: 0,
     rebalanceAmount: 0,
-    status: "DENTRO",
+    status: strategyStatusOf(currentPercent - targetPercent),
   }) as unknown as StrategyClassPosition;
 
 describe("summarizeStrategy", () => {
@@ -26,5 +26,22 @@ describe("summarizeStrategy", () => {
 
   it("dá um ponto percentual de folga — 19,6% num alvo de 20% não é desequilíbrio", () => {
     expect(summarizeStrategy([pos("FII", 0.196, 0.2)])).toEqual({ above: 0, below: 0 });
+  });
+
+  it("usa a mesma folga das sugestões: 18,5% num alvo de 20% não vira selo sem sugestão", () => {
+    // Antes: selo "1 abaixo do alvo" (folga de 1 p.p.) e nenhuma sugestão (folga de 2 p.p.).
+    const posicoes = [pos("ACOES_BRASIL", 0.185, 0.2), pos("FIIS", 0.815, 0.8)];
+    expect(summarizeStrategy(posicoes)).toEqual({ above: 0, below: 0 });
+    expect(posicoes.filter((p) => p.status !== "DENTRO")).toEqual([]);
+  });
+});
+
+describe("strategyStatusOf", () => {
+  it("2 pontos percentuais de folga pros dois lados", () => {
+    expect(strategyStatusOf(0.015)).toBe("DENTRO");
+    expect(strategyStatusOf(-0.015)).toBe("DENTRO");
+    expect(strategyStatusOf(0)).toBe("DENTRO");
+    expect(strategyStatusOf(0.03)).toBe("ACIMA");
+    expect(strategyStatusOf(-0.03)).toBe("ABAIXO");
   });
 });

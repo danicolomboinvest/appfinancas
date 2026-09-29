@@ -10,6 +10,8 @@ import {
   deleteOwnMonthlyEntry,
   deleteOwnMonthlyEntries,
   updateOwnMonthlyEntriesCategory,
+  listSeriesFrom,
+  updateSeriesFrom,
   type MonthlyEntryInput,
 } from "@/lib/repositories/monthly-entry.repo";
 import { monthlyEntrySchema } from "@/lib/validations/monthly-entry.schema";
@@ -18,6 +20,7 @@ import { convertAmount, getExchangeRate } from "@/lib/fx/rates";
 import type { ParentCategory } from "@prisma/client";
 import { allocationsToRestore, type SnapshotAllocation } from "@/lib/portfolio/contribution-link";
 import { listRecentlyPaidDividends } from "@/lib/repositories/dividend.repo";
+import { aprenderComCorrecao, linhasAntesDaCorrecao } from "@/lib/repositories/transaction-rule.repo";
 import type { z } from "zod";
 
 export type MonthlyEntryState = { error?: string };
@@ -116,12 +119,27 @@ export async function updateMonthlyEntryAction(
   const ctx = await getRequiredSession();
   const entry = await toEntryInput(parsed.data);
   if ("error" in entry) return entry;
+  // Gasto importado que ela põe em outra categoria-mãe ensina o app (ver padroesDaCorrecao).
+  // O "antes" é lido antes de salvar: é ele que diz se a categoria mudou e qual era a descrição
+  // do extrato (ela pode ter renomeado a linha, e o próximo extrato vem com o nome do banco).
+  const aprender = entry.category === "EXPENSE" && entry.parentCategory && !entry.customCategoryId ? entry.parentCategory : null;
+  const antes = aprender ? await linhasAntesDaCorrecao(ctx, [entryId]) : [];
+  // Despesa fixa: "Só este mês" (o padrão) ou "Este e os próximos" (a série inteira daqui pra frente).
+  const serie = formData.get("escopo") === "proximos";
   try {
-    await updateOwnMonthlyEntry(ctx, entryId, entry);
+    const { count } = serie ? await updateSeriesFrom(ctx, entryId, entry) : await updateOwnMonthlyEntry(ctx, entryId, entry);
+    // Nada casou: o lançamento é de outro perfil (ela trocou de perfil em outra aba ou
+    // aparelho, e esta tela ficou pra trás) ou já foi apagado. Antes respondia "salvo" e a
+    // edição sumia sem aviso.
+    if (count === 0) {
+      return { error: "Não achei esse lançamento no perfil aberto agora. Se você trocou de perfil em outra tela, recarregue a página." };
+    }
   } catch (err) {
     console.error("updateMonthlyEntryAction falhou:", err);
     return { error: "Não consegui salvar as alterações. Tente novamente." };
   }
+  if (aprender) await aprenderComCorrecao(ctx, antes, { parentCategory: aprender, subcategory: entry.subcategory });
+  if (serie) revalidatePath("/mensal", "layout");
   revalidatePath(`/mensal/${parsed.data.year}`);
   revalidatePath(`/mensal/${parsed.data.year}/${parsed.data.month}`);
   return {};
@@ -158,13 +176,26 @@ async function allocationsOf(ctx: Awaited<ReturnType<typeof getRequiredSession>>
  */
 export async function deleteMonthlyEntriesAction(ids: string[], year: number, month: number) {
   const ctx = await getRequiredSession();
-  const linhas = await allocationsOf(ctx, ids);
+  const [linhas, origem] = await Promise.all([
+    allocationsOf(ctx, ids),
+    // De onde o lançamento veio (lote de importação, transação do Open Finance). Não aparece
+    // na lista, então o snapshot do cliente não tinha: o "Desfazer" devolvia um lançamento
+    // "à mão" — o "Desfazer importação" deixava de levá-lo e o próximo sync o trazia de novo.
+    ids.length === 0
+      ? []
+      : prisma.monthlyEntry.findMany({
+          where: { id: { in: ids }, userId: ctx.userId, profileId: ctx.profileId, OR: [{ importBatchId: { not: null } }, { externalId: { not: null } }] },
+          select: { id: true, importBatchId: true, externalId: true },
+        }),
+  ]);
   await deleteOwnMonthlyEntries(ctx, ids);
   revalidatePath(`/mensal/${year}`);
   revalidatePath(`/mensal/${year}/${month}`);
   const allocations: Record<string, SnapshotAllocation[]> = {};
   for (const l of linhas) (allocations[l.entryId] ??= []).push({ assetId: l.assetId, amount: Number(l.amount) });
-  return { jaNaCarteira: linhas.length, allocations };
+  const origens: Record<string, { importBatchId: string | null; externalId: string | null }> = {};
+  for (const o of origem) origens[o.id] = { importBatchId: o.importBatchId, externalId: o.externalId };
+  return { jaNaCarteira: linhas.length, allocations, origens };
 }
 
 /**
@@ -179,7 +210,12 @@ export async function updateMonthlyEntriesCategoryAction(
   month: number,
 ) {
   const ctx = await getRequiredSession();
+  // Trocar pra uma categoria-mãe também ensina o app (categoria personalizada não vira regra:
+  // a regra só guarda a categoria-mãe). Ver padroesDaCorrecao.
+  const aprender = category.parentCategory && !category.customCategoryId ? category.parentCategory : null;
+  const antes = aprender ? await linhasAntesDaCorrecao(ctx, ids) : [];
   const { count } = await updateOwnMonthlyEntriesCategory(ctx, ids, category);
+  if (aprender && count > 0) await aprenderComCorrecao(ctx, antes, { parentCategory: aprender });
   revalidatePath(`/mensal/${year}`);
   revalidatePath(`/mensal/${year}/${month}`);
   return { count };
@@ -201,7 +237,44 @@ export type DeletedEntrySnapshot = {
   exchangeRate?: number | null;
   /** Em quais ativos este aporte já tinha entrado (vem de deleteMonthlyEntriesAction). */
   allocations?: SnapshotAllocation[];
+  /** Lote de importação e id do Open Finance do lançamento apagado (vêm de deleteMonthlyEntriesAction). */
+  importBatchId?: string | null;
+  externalId?: string | null;
+  /** Série de despesa fixa: o "Desfazer" devolve a cópia pra mesma série. */
+  recurrenceId?: string | null;
 };
+
+/**
+ * "Apagar este e os próximos" numa despesa fixa. Devolve o snapshot de cada cópia apagada
+ * (com os ativos de um aporte e a série), pro "Desfazer" trazer todas de volta.
+ */
+export async function deleteSeriesFromAction(id: string): Promise<{ apagados: number; snapshots: DeletedEntrySnapshot[] }> {
+  const ctx = await getRequiredSession();
+  const serie = await listSeriesFrom(ctx, String(id));
+  if (serie.length === 0) return { apagados: 0, snapshots: [] };
+  const ids = serie.map((e) => e.id);
+  const linhas = await allocationsOf(ctx, ids);
+  const snapshots: DeletedEntrySnapshot[] = serie.map((e) => ({
+    year: e.year,
+    month: e.month,
+    category: e.category,
+    parentCategory: e.parentCategory,
+    customCategoryId: e.customCategoryId,
+    subcategory: e.subcategory,
+    description: e.description,
+    amount: Number(e.amount),
+    entryDate: e.entryDate ? e.entryDate.toISOString().slice(0, 10) : null,
+    goalId: e.goalId,
+    originalAmount: e.originalAmount === null ? null : Number(e.originalAmount),
+    originalCurrency: e.originalCurrency,
+    exchangeRate: e.exchangeRate === null ? null : Number(e.exchangeRate),
+    allocations: linhas.filter((l) => l.entryId === e.id).map((l) => ({ assetId: l.assetId, amount: Number(l.amount) })),
+    recurrenceId: e.recurrenceId,
+  }));
+  const { count } = await deleteOwnMonthlyEntries(ctx, ids);
+  revalidatePath("/mensal", "layout");
+  return { apagados: count, snapshots };
+}
 
 /** Desfazer exclusão: recria o lançamento a partir do snapshot guardado no cliente. */
 export async function undoDeleteEntryAction(snapshot: DeletedEntrySnapshot): Promise<{ ok: boolean }> {
@@ -210,6 +283,25 @@ export async function undoDeleteEntryAction(snapshot: DeletedEntrySnapshot): Pro
     // Data do snapshot vem do cliente: fora do formato, vira Invalid Date e estouraria no
     // Prisma — melhor restaurar sem a data do que falhar o "Desfazer" inteiro.
     const entryDate = snapshot.entryDate ? new Date(snapshot.entryDate) : undefined;
+    // O lote vem do cliente: só volta se for mesmo um lote desta pessoa neste perfil (e se ainda
+    // existir — o "Desfazer importação" pode ter apagado o lote nesse meio-tempo).
+    const importBatchId = snapshot.importBatchId
+      ? (
+          await prisma.importBatch.findFirst({
+            where: { id: snapshot.importBatchId, userId: ctx.userId, profileId: ctx.profileId },
+            select: { id: true },
+          })
+        )?.id
+      : undefined;
+    // Transação do Open Finance que o sync já trouxe de volta nesse meio-tempo: ela já está no
+    // mês, recriar seria contar duas vezes (e o externalId é único por perfil).
+    if (snapshot.externalId) {
+      const jaVoltou = await prisma.monthlyEntry.findFirst({
+        where: { userId: ctx.userId, profileId: ctx.profileId, externalId: snapshot.externalId },
+        select: { id: true },
+      });
+      if (jaVoltou) return { ok: true };
+    }
     const entry = await createMonthlyEntry(ctx, {
       year: snapshot.year,
       month: snapshot.month,
@@ -224,6 +316,9 @@ export async function undoDeleteEntryAction(snapshot: DeletedEntrySnapshot): Pro
       originalAmount: snapshot.originalAmount ?? undefined,
       originalCurrency: snapshot.originalCurrency ?? undefined,
       exchangeRate: snapshot.exchangeRate ?? undefined,
+      importBatchId,
+      externalId: snapshot.externalId ?? undefined,
+      recurrenceId: typeof snapshot.recurrenceId === "string" && snapshot.recurrenceId.length <= 60 ? snapshot.recurrenceId : undefined,
     });
     // O aporte volta com o destino que tinha. Sem isso a carteira perguntava de novo onde ele
     // entrou (e responder somava outra vez no ativo) e a meta contava aporte + ativo, o dobro.

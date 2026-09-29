@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db/prisma";
 import type { AuthContext } from "@/lib/auth/session";
-import { fetchTickerDividends, looksLikeMarketTicker, paysDividendsInReais } from "@/lib/analysis/dividend-scraper";
+import { fetchTickerDividends, looksLikeMarketTicker, paysDividendsInReais, type DividendRow } from "@/lib/analysis/dividend-scraper";
+import { addUtcDays, brazilTodayUtc } from "@/lib/date/brazil-day";
 import { classifyDividendTax, netValuePerShare, type TaxTreatment } from "@/lib/analysis/dividend-tax";
 
 /**
@@ -8,26 +9,65 @@ import { classifyDividendTax, netValuePerShare, type TaxTreatment } from "@/lib/
  * pode derrubar quem chamou, seja um `after()` de criação de ativo ou o cron diário).
  * Idempotente: `createMany` + `skipDuplicates` usa a constraint única da tabela, refresh do
  * mesmo ticker no dia seguinte não duplica as linhas que já tinham vindo.
+ *
+ * Provento A PAGAR que sumiu da página sai do banco na mesma transação (ver
+ * staleUpcomingDividendIds). O histórico já pago nunca é mexido.
  */
 export async function refreshDividendsForTicker(rawTicker: string): Promise<void> {
   const ticker = rawTicker.trim().toUpperCase();
   if (!looksLikeMarketTicker(ticker)) return;
   try {
     const rows = await fetchTickerDividends(ticker);
+    // Busca falha ou página sem linhas: não dá pra concluir nada, nem apagar nada.
     if (!rows || rows.length === 0) return;
-    await prisma.dividendEvent.createMany({
-      data: rows.map((r) => ({
-        ticker,
-        kind: r.kind,
-        exDate: r.exDate,
-        paymentDate: r.paymentDate,
-        valuePerShare: r.valuePerShare,
-      })),
-      skipDuplicates: true,
+    const today = brazilTodayUtc();
+    const futuros = await prisma.dividendEvent.findMany({
+      where: { ticker, paymentDate: { gte: today } },
+      select: { id: true, kind: true, exDate: true, paymentDate: true, valuePerShare: true },
     });
+    const stale = staleUpcomingDividendIds(
+      futuros.map((e) => ({ ...e, valuePerShare: Number(e.valuePerShare) })),
+      rows,
+      today,
+    );
+    await prisma.$transaction([
+      ...(stale.length > 0 ? [prisma.dividendEvent.deleteMany({ where: { id: { in: stale } } })] : []),
+      prisma.dividendEvent.createMany({
+        data: rows.map((r) => ({
+          ticker,
+          kind: r.kind,
+          exDate: r.exDate,
+          paymentDate: r.paymentDate,
+          valuePerShare: r.valuePerShare,
+        })),
+        skipDuplicates: true,
+      }),
+    ]);
   } catch {
     // Scraping é melhor esforço — a pessoa continua com o ativo criado normalmente.
   }
+}
+
+/**
+ * Quais proventos A PAGAR (pagamento de hoje em diante) não vieram mais na página.
+ *
+ * A chave única da tabela inclui valor e datas. Quando o investidor10 corrige um anúncio (JSCP
+ * de 0,2025 que vira 0,2030, ou data de pagamento remarcada), a linha corrigida entrava como
+ * NOVA e a antiga ficava pra sempre: "Próximos proventos", o card do Dashboard e o "Caiu na
+ * conta" contavam o mesmo pagamento duas vezes. O que já foi pago fica como está (é histórico,
+ * e pode já ter virado lançamento de renda).
+ */
+export function staleUpcomingDividendIds(
+  existing: { id: string; kind: string; exDate: Date; paymentDate: Date; valuePerShare: number }[],
+  scraped: DividendRow[],
+  today: Date,
+): string[] {
+  // Datas pelo dia UTC: o banco devolve @db.Date à meia-noite UTC e o scraper monta meio-dia
+  // local — os dois caem no mesmo dia. Valor com as 8 casas da coluna.
+  const chave = (r: { kind: string; exDate: Date; paymentDate: Date; valuePerShare: number }) =>
+    `${r.kind}|${r.exDate.toISOString().slice(0, 10)}|${r.paymentDate.toISOString().slice(0, 10)}|${r.valuePerShare.toFixed(8)}`;
+  const vieram = new Set(scraped.map(chave));
+  return existing.filter((e) => e.paymentDate >= today && !vieram.has(chave(e))).map((e) => e.id);
 }
 
 /** Vários tickers em sequência (lote de importação, ou o cron). */
@@ -78,8 +118,9 @@ export async function listUpcomingDividendsForUser(ctx: AuthContext, limit = 20)
   }
   if (qtyByTicker.size === 0) return [];
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  // Hoje pelo calendário de Brasília (ver brazilTodayUtc): depois das 21h o servidor em UTC já
+  // está amanhã, e o provento que paga HOJE saía dos "Próximos" (e do card do Dashboard).
+  const today = brazilTodayUtc();
   const events = await prisma.dividendEvent.findMany({
     where: { ticker: { in: [...qtyByTicker.keys()] }, paymentDate: { gte: today } },
     orderBy: { paymentDate: "asc" },
@@ -109,9 +150,8 @@ export async function listUpcomingDividendsForUser(ctx: AuthContext, limit = 20)
 /** Soma estimada de proventos a pagar nos próximos N dias — para o card do Dashboard. */
 export async function sumUpcomingDividends(ctx: AuthContext, days = 30): Promise<number> {
   const list = await listUpcomingDividendsForUser(ctx, 500);
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() + days);
-  cutoff.setHours(23, 59, 59, 999);
+  // paymentDate é @db.Date (meia-noite UTC): `<=` na data de corte inclui o dia inteiro.
+  const cutoff = addUtcDays(brazilTodayUtc(), days);
   return list.filter((event) => event.paymentDate <= cutoff).reduce((sum, event) => sum + event.estimatedTotal, 0);
 }
 
@@ -146,11 +186,11 @@ export async function listRecentlyPaidDividends(ctx: AuthContext, days = 10): Pr
     qtyByTicker.set(t, (qtyByTicker.get(t) ?? 0) + Number(a.quantity));
   }
   if (qtyByTicker.size === 0) return [];
-  const today = new Date();
-  today.setHours(23, 59, 59, 999);
-  const since = new Date(today);
-  since.setDate(since.getDate() - days);
-  since.setHours(0, 0, 0, 0);
+  // Hoje pelo calendário de Brasília, como as datas @db.Date do banco (meia-noite UTC). Com o
+  // relógio do servidor (UTC), às 22h30 de Brasília "hoje" já era amanhã, e o provento de
+  // amanhã aparecia como "Caiu na conta" — dava pra lançar uma renda que ainda não tinha caído.
+  const today = brazilTodayUtc();
+  const since = addUtcDays(today, -days);
 
   const [events, entries] = await Promise.all([
     prisma.dividendEvent.findMany({

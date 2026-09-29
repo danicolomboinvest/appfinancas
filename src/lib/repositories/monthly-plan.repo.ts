@@ -33,9 +33,17 @@ export async function getMonthlyPlan(ctx: AuthContext, year: number, month: numb
  *
  * Uma linha por mês, mesmo com valor repetido, porque um dia ela vai querer ajustar dezembro
  * (décimo terceiro) sem mexer no resto do ano, e o formato já comporta isso.
+ *
+ * `meses` limita quais meses são gravados: o "Salvar" do /orcamento passa só do mês corrente em
+ * diante (a mesma regra das categorias), senão renda e aporte de meses já vividos eram reescritos.
  */
-export async function applyMonthlyPlanToWholeYear(ctx: AuthContext, year: number, values: MonthPlanValues) {
-  const meses = Array.from({ length: 12 }, (_, i) => i + 1);
+export async function applyMonthlyPlanToWholeYear(
+  ctx: AuthContext,
+  year: number,
+  values: MonthPlanValues,
+  meses: number[] = Array.from({ length: 12 }, (_, i) => i + 1),
+) {
+  if (meses.length === 0) return;
   await prisma.$transaction(
     meses.map((month) =>
       prisma.monthlyPlan.upsert({

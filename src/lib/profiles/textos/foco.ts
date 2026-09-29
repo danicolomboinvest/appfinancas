@@ -101,6 +101,8 @@ export type TextosFoco = {
   fechLicao: string;
   fechSobraP: string;
   fechSobraReserva(valor: string): string;
+  /** A sobra passa do que falta pra reserva ficar completa: vai só o que falta, o resto fica. */
+  fechSobraSoOQueFalta(falta: string, resto: string): string;
   fechSobraConta: string;
   fechSobraSemReserva: string;
   fechSobraReservaCompleta: string;
@@ -226,6 +228,7 @@ export const PADRAO_FOCO: TextosFoco = {
   fechLicao: "A lição do mês:",
   fechSobraP: "Reserva primeiro, enquanto ela não estiver completa.",
   fechSobraReserva: (v) => `Mandar ${v} pra reserva`,
+  fechSobraSoOQueFalta: (f, r) => `Faltam só ${f} pra sua reserva ficar completa. Vai esse valor, e os outros ${r} continuam na conta.`,
   fechSobraConta: "Deixar na conta",
   fechSobraSemReserva: "Essa sobra ainda não tem destino. Montar sua reserva de emergência é o primeiro passo pra ela ter um.",
   fechSobraReservaCompleta: "Sua reserva já está completa. Essa sobra pode ir pra uma das suas metas.",

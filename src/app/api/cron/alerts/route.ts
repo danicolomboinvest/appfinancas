@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { recusarSeNaoForCron } from "@/lib/cron/autorizacao";
 import { getOrCreateActiveProfile } from "@/lib/repositories/profile.repo";
 import { prisma } from "@/lib/db/prisma";
 import { nowInBrazil } from "@/lib/date/brazil-now";
@@ -20,11 +21,8 @@ export const maxDuration = 60;
  * ligou recebe por e-mail, no máximo um e-mail por dia com todos os avisos do dia.
  */
 export async function GET(request: Request) {
-  const secret = process.env.CRON_SECRET;
-  const authorized = secret
-    ? request.headers.get("authorization") === `Bearer ${secret}`
-    : (request.headers.get("user-agent") ?? "").startsWith("vercel-cron");
-  if (!authorized) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const recusa = recusarSeNaoForCron(request);
+  if (recusa) return recusa;
 
   const url = new URL(request.url);
   const dryRun = url.searchParams.get("dryRun") === "1";
@@ -96,17 +94,28 @@ export async function GET(request: Request) {
     preview.push({ email: user.email, alerts: fresh.map((a) => a.title) });
     if (dryRun) continue;
 
-    let delivered = 0;
+    // Só vira "já avisado" o que chegou de fato. Antes o log era gravado mesmo com o e-mail
+    // falhando (SMTP fora do ar, ou não configurado) — e como a chave é do mês, o aviso de
+    // "Alimentação estourou" nunca mais era tentado e ela não recebia nada. O que não chegou
+    // hoje volta amanhã.
+    const entregues: string[] = [];
     if (isPushConfigured()) {
-      for (const a of fresh) delivered += await sendPushToUser(user.id, { title: a.title, body: a.body, url: a.url, tag: a.key });
+      for (const a of fresh) {
+        if ((await sendPushToUser(user.id, { title: a.title, body: a.body, url: a.url, tag: a.key })) > 0) entregues.push(a.key);
+      }
     }
-    if (delivered > 0) pushed += 1;
+    if (entregues.length > 0) pushed += 1;
     else if (isEmailConfigured()) {
       const { subject, html } = alertEmail({ name: user.name, alerts: fresh.map((a) => ({ title: a.title, body: a.body, url: `${baseUrl}${a.url}` })), preferencesUrl: `${baseUrl}/configuracoes/notificacoes` });
       const res = await sendEmail({ to: user.email, subject, html });
-      if (res.ok) mailed += 1;
+      if (res.ok) {
+        mailed += 1;
+        entregues.push(...fresh.map((a) => a.key));
+      }
     }
-    await prisma.notificationLog.createMany({ data: fresh.map((a) => ({ userId: user.id, key: a.key })), skipDuplicates: true });
+    if (entregues.length > 0) {
+      await prisma.notificationLog.createMany({ data: entregues.map((key) => ({ userId: user.id, key })), skipDuplicates: true });
+    }
   }
 
   return NextResponse.json({ ok: true, dryRun, users: users.length, pushed, mailed, preview: dryRun ? preview : preview.length });

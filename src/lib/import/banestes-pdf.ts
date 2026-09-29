@@ -29,7 +29,7 @@ const MESES: Record<string, string> = {
 
 const DIA_RE = /^(\d{1,2})$/;
 const MES_RE = /^(JAN|FEV|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ)$/;
-const PERIODO_RE = /PER[IÍ]ODO:\s*\d{2}\/\d{2}\/(\d{4})/i;
+const PERIODO_RE = /PER[IÍ]ODO:\s*\d{2}\/(\d{2})\/(\d{4})/i;
 const DATA_NA_LINHA_RE = /\b(\d{2})\/(\d{2})\/(\d{4})\b/;
 const VALOR = String.raw`-?\d{1,3}(?:\.\d{3})*,\d{2}`;
 const VALOR_NO_FIM_RE = new RegExp(`^(.*?)\\t\\s*(${VALOR})$`);
@@ -45,7 +45,13 @@ export function parseBanestesStatement(texto: string, refYear: number = new Date
   // As setinhas de entrada/saída do site viram caracteres "de uso privado" do PDF, invisíveis, numa
   // linha que parece vazia — e grudavam na descrição seguinte, escondendo o "SALDO" do começo.
   const linhas = texto.split(/\r?\n/).map((l) => l.replace(/\p{Co}/gu, "").trim());
-  const ano = texto.match(PERIODO_RE)?.[1] ?? String(refYear);
+  // O dia vem só com dia e mês; o ano sai do "PERÍODO:". Um período que cruza o ano (15/12/2025
+  // a 14/01/2026) tem meses MENORES que o do início: esses são do ano seguinte. Com o ano do
+  // início pra tudo, o salário de 10/JAN caía em janeiro de 2025, um ano pra trás.
+  const periodo = texto.match(PERIODO_RE);
+  const mesInicio = periodo ? Number(periodo[1]) : null;
+  const anoInicio = periodo ? Number(periodo[2]) : refYear;
+  const anoDoMes = (mes: string) => (mesInicio !== null && Number(mes) < mesInicio ? anoInicio + 1 : anoInicio);
   const out: ParsedTransaction[] = [];
 
   let dentro = false;
@@ -80,7 +86,8 @@ export function parseBanestesStatement(texto: string, refYear: number = new Date
 
     // "18" numa linha e "SET" na seguinte abrem o dia.
     if (DIA_RE.test(linha) && MES_RE.test(linhas[i + 1] ?? "")) {
-      data = `${ano}-${MESES[linhas[i + 1]]}-${linha.padStart(2, "0")}`;
+      const mes = MESES[linhas[i + 1]];
+      data = `${anoDoMes(mes)}-${mes}-${linha.padStart(2, "0")}`;
       pendente = [];
       i += 1;
       continue;

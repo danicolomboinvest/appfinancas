@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isExpired } from "../allowedEmail.repo";
+import { isExpired, prazoAoLiberarDeNovo } from "../allowedEmail.repo";
 
 // Instantes sempre ao meio-dia: evita que uma diferença de fuso entre a máquina que roda o
 // teste e o Brasil (America/Sao_Paulo, usado por dentro de isExpired) empurre a data pro dia
@@ -26,5 +26,40 @@ describe("isExpired", () => {
 
   it("vence bem depois do prazo (virada de ano)", () => {
     expect(isExpired(noon(2026, 11, 31), noon(2027, 0, 1))).toBe(true);
+  });
+});
+
+describe("prazoAoLiberarDeNovo (colar a lista de novo)", () => {
+  const hoje = noon(2026, 8, 28);
+  const umAno = noon(2027, 8, 28);
+
+  it("VIP sem prazo continua sem prazo quando a lista vem com +1 ano", () => {
+    expect(prazoAoLiberarDeNovo({ active: true, expiresAt: null }, umAno, hoje)).toBeUndefined();
+  });
+
+  it("quem tinha até 2028 não cai pra daqui a um ano", () => {
+    expect(prazoAoLiberarDeNovo({ active: true, expiresAt: noon(2028, 0, 10) }, umAno, hoje)).toBeUndefined();
+  });
+
+  it("prazo novo mais longo estende quem está valendo", () => {
+    expect(prazoAoLiberarDeNovo({ active: true, expiresAt: noon(2026, 11, 1) }, umAno, hoje)).toEqual(umAno);
+  });
+
+  it("campo em branco libera sem prazo, inclusive para quem já está valendo", () => {
+    expect(prazoAoLiberarDeNovo({ active: true, expiresAt: noon(2026, 11, 1) }, null, hoje)).toBeNull();
+  });
+
+  it("vencida recebe o prazo novo — e campo em branco tira o vencimento antigo", () => {
+    const vencida = { active: true, expiresAt: noon(2026, 7, 1) };
+    expect(prazoAoLiberarDeNovo(vencida, umAno, hoje)).toEqual(umAno);
+    expect(prazoAoLiberarDeNovo(vencida, null, hoje)).toBeNull();
+  });
+
+  it("desativada recomeça com o prazo informado agora, mesmo que fosse sem prazo antes", () => {
+    expect(prazoAoLiberarDeNovo({ active: false, expiresAt: null }, umAno, hoje)).toEqual(umAno);
+  });
+
+  it("sem prazo informado (undefined) não mexe", () => {
+    expect(prazoAoLiberarDeNovo({ active: false, expiresAt: noon(2026, 7, 1) }, undefined, hoje)).toBeUndefined();
   });
 });

@@ -187,6 +187,10 @@ export type TextosSimuladores = {
   simValeRendaSua: string;
   simValeRendaSimulada: string;
   simValeRendaMes(mes: string): string;
+  /** Sufixo quando a renda veio do plano do mês (mesma cascata do "Posso comprar?"). */
+  simValeRendaPlano(mes: string): string;
+  /** Sufixo quando não há plano e a renda é a típica dos últimos meses. */
+  simValeRendaTipica: string;
   simValeAlterar: string;
   simValeUsarCadastrada: string;
   /** "Você ainda não lançou renda em X. [simule um valor] pra ver…, ou [cadastre em Fluxo Financeiro]." */
@@ -310,9 +314,9 @@ export const PADRAO_SIMULADORES: TextosSimuladores = {
   simConsVenceFinanciamento: "Financiamento sai mais barato",
   simConsDiferenca: (valor) => `(${valor})`,
   simConsBarraConsorcio: "Consórcio",
-  simConsBarraConsorcioHint: (parcela) => `Total pago · parcela de ${parcela}`,
+  simConsBarraConsorcioHint: (parcela) => `Custo: a taxa de administração · parcela de ${parcela}`,
   simConsBarraFinanciamento: "Financiamento",
-  simConsBarraFinanciamentoHint: "Custo total, já com o custo de oportunidade da entrada",
+  simConsBarraFinanciamentoHint: "Custo: os juros, mais o que a entrada renderia investida",
   simConsVeredito: (vencedor, valor) => `${vencedor === "CONSORCIO" ? "Consórcio" : "Financiamento"} sai ${valor} mais barato.`,
   simConsParcela: "Consórcio, parcela",
   simConsPrimeiraParcela: "Financiamento, 1ª parcela",
@@ -389,6 +393,8 @@ export const PADRAO_SIMULADORES: TextosSimuladores = {
   simValeRendaSua: "sua renda de",
   simValeRendaSimulada: "uma renda simulada de",
   simValeRendaMes: (mes) => `em ${mes} (Fluxo Financeiro)`,
+  simValeRendaPlano: (mes) => `planejada pra ${mes} (Orçamento)`,
+  simValeRendaTipica: "(a típica dos seus últimos meses)",
   simValeAlterar: "alterar",
   simValeUsarCadastrada: "usar renda cadastrada",
   simValeSemRenda: (mes) => `Você ainda não lançou renda em ${mes}.`,

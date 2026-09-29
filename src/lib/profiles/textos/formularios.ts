@@ -75,6 +75,8 @@ export type TextosFormularios = {
   formAtivoMetaVinculada: string;
   formAtivoQuantidade: string;
   formAtivoQuantidadePlaceholder: string;
+  /** Embaixo do campo, quando tem ponto ou vírgula: o número que o app entendeu ("1.000" = mil). */
+  formAtivoQuantidadeLida(qtd: string): string;
   formAtivoPrecoMedio: string;
   formAtivoValorAtualOpcional: string;
   formAtivoValorAtualHint: string;
@@ -214,6 +216,8 @@ export type TextosFormularios = {
   formEstFecha: string;
   formEstNaoFecha: string;
   formEstSalvar: string;
+  /** Embaixo da soma, quando os percentuais na tela ainda não foram salvos. */
+  formEstNaoSalva: string;
 
   // Lançamento do mês (EntryForm)
   formLancDescricao: string;
@@ -283,6 +287,7 @@ export const PADRAO_FORMULARIOS: TextosFormularios = {
   formAtivoMetaVinculada: "Meta vinculada",
   formAtivoQuantidade: "Quantidade",
   formAtivoQuantidadePlaceholder: "Ex.: 10",
+  formAtivoQuantidadeLida: (qtd) => `São ${qtd}`,
   formAtivoPrecoMedio: "Preço médio de compra",
   formAtivoValorAtualOpcional: "Valor atual (opcional)",
   formAtivoValorAtualHint: "Deixe em branco: o app busca a cotação de hoje e multiplica pela quantidade.",
@@ -415,6 +420,7 @@ export const PADRAO_FORMULARIOS: TextosFormularios = {
   formEstFecha: "✓ fecha em 100%",
   formEstNaoFecha: "— precisa somar 100%",
   formEstSalvar: "Salvar estratégia",
+  formEstNaoSalva: "Ainda não salvo",
 
   formLancDescricao: "Descrição (opcional)",
   formLancDescricaoPlaceholder: "Ex.: o nome do lugar, o que comprou",

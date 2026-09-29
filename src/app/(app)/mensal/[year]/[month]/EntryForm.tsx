@@ -2,7 +2,7 @@
 
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 
-import { useActionState, useEffect, useRef, useState } from "react";
+import { startTransition, useActionState, useEffect, useRef, useState, type FormEvent } from "react";
 import type { ParentCategory } from "@prisma/client";
 import { Field } from "@/components/ui/Field";
 import { CurrencyField } from "@/components/ui/CurrencyField";
@@ -37,6 +37,7 @@ export function EntryForm({
   defaultGoalId,
   defaultCurrency,
   defaultExchangeRate,
+  recorrente = false,
 }: {
   year: number;
   month: number;
@@ -66,6 +67,8 @@ export function EntryForm({
   /** Lançamento em outra moeda (salário em euro): `defaultAmount` vem NESSA moeda, com a cotação usada. */
   defaultCurrency?: CurrencyCode;
   defaultExchangeRate?: number;
+  /** Editando uma cópia de despesa fixa: pergunta se a mudança vale só pra este mês ou daqui pra frente. */
+  recorrente?: boolean;
 }) {
   const isEditing = Boolean(entryId);
   const [state, formAction, isPending] = useActionState(
@@ -97,7 +100,15 @@ export function EntryForm({
   return (
     <Card
       as="form"
-      action={formAction}
+      // onSubmit + startTransition em vez de action={formAction}: no React 19 o <form action>
+      // reseta o formulário depois de TODA ação, inclusive quando ela volta com erro. A data
+      // voltava pra hoje, a meta pra "Nenhuma" e o "Repetir" desmarcava — e na segunda tentativa
+      // o gasto ia pro mês errado sem ela perceber. Aqui nada é apagado; no sucesso o modal fecha.
+      onSubmit={(e: FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        const data = new FormData(e.currentTarget);
+        startTransition(() => formAction(data));
+      }}
       className={stacked ? "flex flex-col gap-3 p-4" : "flex flex-wrap items-end gap-3 p-4"}
     >
       <input type="hidden" name="year" value={year} />
@@ -175,6 +186,19 @@ export function EntryForm({
           <input type="checkbox" name="repeatMonthly" className="h-3.5 w-3.5 accent-accent" />
           {t.formLancRepetir(year)}
         </label>
+      )}
+      {isEditing && recorrente && (
+        <fieldset className={`flex flex-col gap-2 ${stacked ? "w-full" : ""}`}>
+          <legend className="mb-1.5 text-xs font-medium text-ink-muted">Despesa fixa: mudar em quais meses?</legend>
+          <label className="flex items-center gap-2 text-sm text-ink">
+            <input type="radio" name="escopo" value="este" defaultChecked className="h-4 w-4 accent-accent" />
+            Só este mês
+          </label>
+          <label className="flex items-center gap-2 text-sm text-ink">
+            <input type="radio" name="escopo" value="proximos" className="h-4 w-4 accent-accent" />
+            Este e os próximos meses
+          </label>
+        </fieldset>
       )}
       <Button type="submit" disabled={isPending} size="sm" className={stacked ? "w-full" : ""}>
         {isPending ? t.formSalvando : isEditing ? t.formLancSalvar : t.formLancLancar}

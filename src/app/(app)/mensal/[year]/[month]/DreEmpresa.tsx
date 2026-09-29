@@ -96,9 +96,12 @@ export function DreEmpresa({ dados, money, periodo, compacto = false }: { dados:
             <p className="text-caption font-medium text-ink-muted">Caixa de segurança</p>
             <p className={`mt-0.5 text-[17px] font-semibold tabular-nums ${corDoCaixa}`}>{mesesTexto}</p>
             <p className="mt-0.5 text-caption text-ink-faint">
-              {caixa.situacao === "sem-dado"
-                ? "Marque o caixa da empresa como reserva na carteira."
-                : `${money(caixa.caixa, { round: true })} cobre as despesas fixas por esse tempo. Sebrae: ${MESES_DE_CAIXA_RECOMENDADOS.minimo} a ${MESES_DE_CAIXA_RECOMENDADOS.confortavel} meses.`}
+              {/* Caixa zerado pede o caixa; caixa sem despesa fixa pra medir pede os lançamentos. */}
+              {caixa.caixa <= 0
+                ? "Informe quanto a empresa tem guardado de caixa."
+                : caixa.situacao === "sem-dado"
+                  ? `${money(caixa.caixa, { round: true })} guardados. Lance as despesas fixas pra ver quantos meses isso cobre.`
+                  : `${money(caixa.caixa, { round: true })} cobre as despesas fixas por esse tempo. Sebrae: ${MESES_DE_CAIXA_RECOMENDADOS.minimo} a ${MESES_DE_CAIXA_RECOMENDADOS.confortavel} meses.`}
             </p>
           </Link>
         </div>

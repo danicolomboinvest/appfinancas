@@ -1,8 +1,8 @@
 import type { SheetType } from "@prisma/client";
 import type { AuthContext } from "@/lib/auth/session";
 import { listAssets } from "@/lib/repositories/asset.repo";
-import { getPortfolioStrategyComparison, STRATEGY_ASSET_CLASS_LABEL } from "@/lib/portfolio/strategy";
-import type { StrategyAssetClass } from "@prisma/client";
+import { getPortfolioStrategyComparison, mapAssetToStrategyClass, STRATEGY_ASSET_CLASS_LABEL } from "@/lib/portfolio/strategy";
+import type { AssetClass, FixedIncomeIndex, StrategyAssetClass } from "@prisma/client";
 import { parseIndicatorNumber } from "./stock-overview";
 import type { Laudo } from "./laudo";
 
@@ -25,12 +25,27 @@ export type ParaVoce = {
   totalPortfolio: number;
 };
 
-const CLASS_BY_SHEET_TYPE: Record<SheetType, StrategyAssetClass> = {
+// ETF fica de fora: IVVB11 é exterior, HASH11 é cripto, IMAB11 é renda fixa. O tipo da ficha
+// não diz a classe, e "Ações Brasil" pra todos gerava alerta de "concentra" onde não havia.
+const CLASS_BY_SHEET_TYPE: Record<SheetType, StrategyAssetClass | null> = {
   STOCK: "ACOES_BRASIL",
   FII: "FIIS",
   STOCK_INTL: "EXTERIOR",
-  ETF: "ACOES_BRASIL",
+  ETF: null,
 };
+
+/**
+ * Em que classe da estratégia este ativo cai. Se ela já tem o ticker, vale a classe do ativo
+ * cadastrado — a mesma que a Carteira usa, pras duas telas não discordarem. Sem ele, o tipo da
+ * ficha; ETF sem posição não tem classe (melhor calar do que comparar com a classe errada).
+ */
+export function classeNaEstrategia(
+  sheetType: SheetType,
+  own: { assetClass: AssetClass; fixedIncomeIndex: FixedIncomeIndex | null }[],
+): StrategyAssetClass | null {
+  if (own.length > 0) return mapAssetToStrategyClass(own[0]);
+  return CLASS_BY_SHEET_TYPE[sheetType];
+}
 
 function dividendYieldOf(laudo: Laudo | null): number | null {
   if (!laudo) return null;
@@ -53,11 +68,11 @@ export async function getParaVoce(ctx: AuthContext, sheetType: SheetType, ticker
       ? { value, percentOfPortfolio: value / comparison.totalPortfolio }
       : null;
 
-  const cls = CLASS_BY_SHEET_TYPE[sheetType];
-  const pos = comparison.positions.find((p) => p.assetClass === cls);
+  const cls = classeNaEstrategia(sheetType, own);
+  const pos = cls ? comparison.positions.find((p) => p.assetClass === cls) : undefined;
   // Sem alvo definido na estratégia, não existe "pede X%": melhor calar do que comparar com zero.
   const strategy =
-    pos && pos.targetPercent > 0
+    cls && pos && pos.targetPercent > 0
       ? { classLabel: STRATEGY_ASSET_CLASS_LABEL[cls], targetPercent: pos.targetPercent, currentPercent: pos.currentPercent, status: pos.status }
       : null;
 

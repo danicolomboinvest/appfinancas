@@ -31,7 +31,12 @@ const DESTINOS = [
 ];
 
 // Datas/Decimal do Prisma não viram JSON sozinhos; BigInt também estoura o JSON.stringify.
-function serializar(_chave, valor) {
+// Bytes (o arquivo de importação guardado) vira base64: sem isso cada byte saía como `"123": 45`,
+// o ImportFile passou de 450 MB e em 28/09/2026 o backup inteiro parou com "Invalid string length".
+// O restore-db.mjs desfaz o { $bytes }.
+function serializar(chave, valor) {
+  const original = this?.[chave];
+  if (original instanceof Uint8Array) return { $bytes: Buffer.from(original).toString("base64") };
   if (typeof valor === "bigint") return valor.toString();
   if (valor !== null && typeof valor === "object" && typeof valor.toFixed === "function") return valor.toString();
   return valor;
@@ -72,27 +77,33 @@ const tabelas = Object.keys(prisma).filter(
 
 const nome = carimbo();
 const linhasPorTabela = {};
-const arquivos = [];
 
+// Grava primeiro no Mac, uma linha do banco por vez: montar a tabela inteira numa string só
+// estoura o limite do Node quando ela cresce (foi o que derrubou o backup em 28/09/2026).
+const pastaLocal = path.join(DESTINOS[0], nome);
+fs.mkdirSync(pastaLocal, { recursive: true });
 for (const tabela of tabelas) {
   const linhas = await prisma[tabela].findMany();
   const Nome = tabela.charAt(0).toUpperCase() + tabela.slice(1);
   linhasPorTabela[Nome] = linhas.length;
-  arquivos.push([`${Nome}.json`, JSON.stringify(linhas, serializar, 2)]);
+  const fd = fs.openSync(path.join(pastaLocal, `${Nome}.json`), "w");
+  fs.writeSync(fd, "[\n");
+  linhas.forEach((linha, i) => fs.writeSync(fd, (i ? ",\n" : "") + JSON.stringify(linha, serializar)));
+  fs.writeSync(fd, "\n]\n");
+  fs.closeSync(fd);
 }
 
 const total = Object.values(linhasPorTabela).reduce((a, b) => a + b, 0);
-arquivos.push([
-  "_resumo.json",
+fs.writeFileSync(
+  path.join(pastaLocal, "_resumo.json"),
   JSON.stringify({ geradoEm: new Date().toISOString(), totalDeLinhas: total, linhasPorTabela }, null, 2),
-]);
+);
 
-// Escreve num destino de cada vez: se o iCloud estiver fora do ar, o backup no Mac já está feito.
+// Depois copia pro iCloud: se ele estiver fora do ar, o backup no Mac já está feito.
 for (const destino of DESTINOS) {
   try {
     const pasta = path.join(destino, nome);
-    fs.mkdirSync(pasta, { recursive: true });
-    for (const [arquivo, conteudo] of arquivos) fs.writeFileSync(path.join(pasta, arquivo), conteudo);
+    if (pasta !== pastaLocal) fs.cpSync(pastaLocal, pasta, { recursive: true });
     const apagadas = limparAntigos(destino);
     console.log(`OK  ${pasta}  (${total} linhas${apagadas ? `, ${apagadas} backup(s) antigo(s) apagado(s)` : ""})`);
   } catch (erro) {

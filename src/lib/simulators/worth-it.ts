@@ -48,3 +48,21 @@ export function simulateWorthIt(input: WorthItInput): WorthItResult {
     difference: futureValue.minus(totalInvested).toNumber(),
   };
 }
+
+export type FonteRenda = "plano" | "media" | "mes";
+
+/**
+ * A renda que serve de base pro valor-hora, na MESMA ordem do "Posso comprar?": o plano do
+ * mês; sem plano, a renda típica dos últimos meses; sem histórico, o que entrou até agora.
+ * Usar só o que já entrou no mês fazia o dia 3 (antes do salário) dizer que um item de R$ 300
+ * custa 132 horas, e as duas telas davam horas diferentes pra mesma compra.
+ */
+export function rendaDeReferencia(
+  plannedIncome: number | null | undefined,
+  rendaTipica: number | null | undefined,
+  rendaDoMes: number,
+): { valor: number; fonte: FonteRenda } {
+  if (plannedIncome != null && plannedIncome > 0) return { valor: plannedIncome, fonte: "plano" };
+  if (rendaTipica != null && rendaTipica > 0) return { valor: rendaTipica, fonte: "media" };
+  return { valor: rendaDoMes, fonte: "mes" };
+}

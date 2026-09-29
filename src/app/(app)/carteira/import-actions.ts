@@ -13,6 +13,7 @@ import { profileDocument } from "@/lib/import/profile";
 import { isPartialRead, recordImportDiagnostic, safeHeader } from "@/lib/repositories/import-diagnostic.repo";
 import { storeFailedImportFile } from "@/lib/repositories/import-file.repo";
 import { NUMBERS_ONLY_MESSAGE, pdfTextQuality } from "@/lib/import/pdf-quality";
+import { planPositionUpdate, summarizeRows, valueAfterImport, type ExistingPositionRow } from "@/lib/portfolio/import-position";
 
 /** Record (não array solto) por classe existente: se um valor novo entrar no enum AssetClass
  * sem passar por aqui, o TypeScript acusa na hora — evita repetir o bug de uma classe nova
@@ -28,6 +29,31 @@ const ASSET_CLASS_GUARD: Record<AssetClass, true> = {
   OUTRO: true,
 };
 const ASSET_CLASS_VALUES = Object.keys(ASSET_CLASS_GUARD) as AssetClass[];
+
+/**
+ * Do código (ticker ou nome, em maiúsculas) pra TODAS as linhas daquele papel. O mesmo papel
+ * pode estar em mais de uma linha (objetivos diferentes, ex.: PETR4 na meta da casa e PETR4 na
+ * liberdade financeira) — a revisão e a gravação têm que olhar as mesmas linhas, somadas.
+ */
+function rowsByKeyOf(
+  existing: { id: string; name: string; ticker: string | null; quantity: unknown; currentValue: unknown; currentUnitPrice: unknown }[],
+): Map<string, ExistingPositionRow[]> {
+  const map = new Map<string, ExistingPositionRow[]>();
+  for (const a of existing) {
+    const row: ExistingPositionRow = {
+      id: a.id,
+      quantity: a.quantity !== null ? Number(a.quantity) : null,
+      currentValue: Number(a.currentValue),
+      currentUnitPrice: a.currentUnitPrice !== null ? Number(a.currentUnitPrice) : null,
+    };
+    // Set: ativo com nome igual ao ticker (imports antigos) não entra duas vezes na mesma chave.
+    for (const k of new Set([a.ticker?.toUpperCase(), a.name.toUpperCase()])) {
+      if (!k) continue;
+      map.set(k, [...(map.get(k) ?? []), row]);
+    }
+  }
+  return map;
+}
 
 /** Situação de cada ativo do extrato em relação à carteira atual:
  * novo (não existe), atualizado (quantidade/valor mudou) ou igual (nada a fazer). */
@@ -149,22 +175,25 @@ export async function parsePortfolioAction(formData: FormData): Promise<ParsePor
   // Carteira atual indexada por ticker E por nome, imports antigos usam o ticker como nome.
   const existing = await prisma.asset.findMany({
     where: { userId: ctx.userId, profileId: ctx.profileId },
-    select: { name: true, ticker: true, quantity: true, currentValue: true },
+    select: { id: true, name: true, ticker: true, quantity: true, currentValue: true, currentUnitPrice: true },
+    orderBy: { createdAt: "asc" },
   });
-  const byKey = new Map<string, (typeof existing)[number]>();
-  for (const a of existing) {
-    if (a.ticker) byKey.set(a.ticker.toUpperCase(), a);
-    byKey.set(a.name.toUpperCase(), a);
-  }
+  const rowsByKey = rowsByKeyOf(existing);
 
   const holdings: ParsedHoldingItem[] = parsed.map((h, index) => {
-    const match = byKey.get(h.ticker.toUpperCase());
+    const rows = rowsByKey.get(h.ticker.toUpperCase());
     let status: HoldingStatus = "new";
     let prevQuantity: number | null = null;
     let prevValue: number | null = null;
-    if (match) {
-      prevQuantity = match.quantity !== null ? Number(match.quantity) : null;
-      prevValue = Number(match.currentValue);
+    let value = h.value;
+    if (rows && rows.length > 0) {
+      // O "antes" é a soma de todas as linhas do papel: é com ela que a posição da corretora
+      // se compara (ver import-position.ts).
+      const antes = summarizeRows(rows);
+      prevQuantity = antes.quantity;
+      prevValue = antes.value;
+      // Extrato sem valor: a revisão mostra o valor estimado (ou o de hoje), nunca "→ R$ 0,00".
+      if (h.value <= 0) value = valueAfterImport(rows, { quantity: h.quantity, value: h.value, investedValue: h.investedValue ?? null });
       // Mudança de verdade: quantidade diferente (compra/venda) ou valor >1% distante
       // (rendimento acumulado). Oscilação diária de preço não vira ruído na revisão.
       const qtyChanged = h.quantity > 0 && prevQuantity !== null && Math.abs(h.quantity - prevQuantity) > 1e-6;
@@ -176,7 +205,7 @@ export async function parsePortfolioAction(formData: FormData): Promise<ParsePor
       key: index,
       ticker: h.ticker,
       quantity: h.quantity,
-      value: h.value,
+      value,
       investedValue: h.investedValue ?? null,
       // Extratos em seções (BTG etc.) já dizem a classe (Renda Fixa, Tesouro, Fundo, FII);
       // senão, inferimos pela terminação do ticker.
@@ -233,37 +262,37 @@ export async function importPortfolioAction(holdings: ConfirmedHolding[]): Promi
   // Proteção contra duplicar em cliques repetidos/reenvio: create de quem já existe vira skip.
   const existing = await prisma.asset.findMany({
     where: { userId: ctx.userId, profileId: ctx.profileId },
-    select: { id: true, name: true, ticker: true, createdAt: true },
+    select: { id: true, name: true, ticker: true, quantity: true, currentValue: true, currentUnitPrice: true },
     orderBy: { createdAt: "asc" },
   });
-  const existingKeys = new Set(existing.flatMap((a) => [a.ticker?.toUpperCase(), a.name.toUpperCase()].filter(Boolean)));
-  // Do código pro ID de UM ativo. O mesmo papel pode estar em duas linhas (objetivos
-  // diferentes, ex.: PETR4 na meta da casa e PETR4 na liberdade financeira); o updateMany
-  // gravava a posição inteira do extrato NAS DUAS e dobrava a carteira. Atualiza a mais antiga.
-  const idByKey = new Map<string, string>();
-  for (const a of existing) {
-    for (const k of [a.ticker?.toUpperCase(), a.name.toUpperCase()]) {
-      if (k && !idByKey.has(k)) idByKey.set(k, a.id);
-    }
-  }
+  const rowsByKey = rowsByKeyOf(existing);
+  const existingKeys = new Set(rowsByKey.keys());
 
   for (const h of holdings) {
     const key = h.ticker.toUpperCase();
     if (h.mode === "update" || existingKeys.has(key)) {
-      const targetId = idByKey.get(key);
-      if (!targetId) continue;
-      const result = await prisma.asset.updateMany({
-        // updateMany com o id + userId: uma linha só, e ainda com a trava de dono.
-        where: { id: targetId, userId: ctx.userId, profileId: ctx.profileId },
-        data: {
-          ...(h.quantity > 0 ? { quantity: h.quantity } : {}),
-          ...(h.value >= 0 ? { currentValue: h.value } : {}),
-          // Preço médio do extrato mantém o investido fiel após novos aportes; sem ele, não mexe.
-          ...(h.investedValue !== null ? { investedValue: h.investedValue } : {}),
-          ...(h.fixedIncomeIndex !== null ? { fixedIncomeIndex: h.fixedIncomeIndex } : {}),
-        },
-      });
-      if (result.count > 0) updated += 1;
+      const rows = rowsByKey.get(key);
+      if (!rows || rows.length === 0) continue;
+      // Posição inteira do extrato repartida entre as linhas do papel (gravar tudo numa só
+      // deixava a outra com a posição velha: 150 PETR4 no lugar de 100). Valor ausente no
+      // extrato não vira R$ 0 — ver planPositionUpdate.
+      const plano = planPositionUpdate(rows, { quantity: h.quantity, value: h.value, investedValue: h.investedValue });
+      const results = await prisma.$transaction(
+        plano.map((u) =>
+          prisma.asset.updateMany({
+            // updateMany com o id + userId: uma linha só, e ainda com a trava de dono.
+            where: { id: u.id, userId: ctx.userId, profileId: ctx.profileId },
+            data: {
+              ...(u.quantity !== undefined ? { quantity: u.quantity } : {}),
+              ...(u.currentValue !== undefined ? { currentValue: u.currentValue } : {}),
+              // Preço médio do extrato mantém o investido fiel após novos aportes; sem ele, não mexe.
+              ...(u.investedValue !== undefined ? { investedValue: u.investedValue } : {}),
+              ...(h.fixedIncomeIndex !== null ? { fixedIncomeIndex: h.fixedIncomeIndex } : {}),
+            },
+          }),
+        ),
+      );
+      if (results.some((r) => r.count > 0)) updated += 1;
       continue;
     }
 

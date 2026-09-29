@@ -16,12 +16,14 @@ import {
   monthValuePlus,
   computeTripTotals,
   clampCategoryValue,
+  tripGoalTargetDate,
   MAX_EXTRA_CATEGORIES,
   TRAVEL_STYLE_LABEL,
   TRIP_LIMITS,
   type TravelDestination,
   type TravelStyle,
 } from "@/lib/travel/estimates";
+import { computeGoalPlan } from "@/lib/planning/goal";
 import { DestinationSearch } from "./DestinationSearch";
 import { createTravelGoalAction, type TravelGoalState } from "./actions";
 import { BulletBar, type BulletRow } from "@/components/charts/BulletBar";
@@ -33,13 +35,20 @@ import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 const initialState: TravelGoalState = {};
 
 
-/** "YYYY-MM" daqui a seis meses. Com "mês que vem" o app dizia "guardando R$ 9.768/mês você
- * chega lá em 1 mês", que é o oposto de planejar. */
-function nextMonthValue(): string {
+/** "YYYY-MM" daqui a `ahead` meses. */
+function monthValueFromToday(ahead: number): string {
   const now = new Date();
-  const next = new Date(now.getFullYear(), now.getMonth() + 6, 1);
+  const next = new Date(now.getFullYear(), now.getMonth() + ahead, 1);
   return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, "0")}`;
 }
+
+/** Mês que o planejador sugere de cara: daqui a seis meses. Com "mês que vem" o app dizia
+ * "guardando R$ 9.768/mês você chega lá em 1 mês", que é o oposto de planejar. */
+const defaultTripMonth = () => monthValueFromToday(6);
+
+/** O mês mais cedo que dá pra escolher: o que vem, igual ao que o servidor aceita. O mínimo era
+ * a MESMA função do padrão (+6), e o réveillon ou as férias de janeiro ficavam cinza no seletor. */
+const minTripMonth = () => monthValueFromToday(1);
 
 const MONTH_NAMES = [
   "janeiro", "fevereiro", "março", "abril", "maio", "junho",
@@ -50,14 +59,6 @@ const MONTH_NAMES = [
 function monthNumberOf(monthValue: string): number | undefined {
   const m = Number(monthValue.split("-")[1]);
   return Number.isInteger(m) && m >= 1 && m <= 12 ? m : undefined;
-}
-
-/** Meses inteiros entre hoje e o mês da viagem (mínimo 1, pra dica de poupança mensal). */
-function monthsUntil(monthValue: string): number {
-  const [y, m] = monthValue.split("-").map(Number);
-  if (!y || !m) return 1;
-  const now = new Date();
-  return Math.max((y - now.getFullYear()) * 12 + (m - 1 - now.getMonth()), 1);
 }
 
 type FixedKey = "flights" | "lodging" | "food" | "activities";
@@ -76,6 +77,33 @@ type ExtraRow = { id: number; name: string; value: number };
 const VALUE_INPUT_CLASSES =
   "w-28 shrink-0 rounded-lg border border-border-strong bg-surface py-1 pl-8 pr-2 text-right text-sm tabular-nums text-ink transition-colors focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent";
 
+/**
+ * Dias de um destino. O texto digitado fica num rascunho enquanto ela edita: com o input preso
+ * direto no número, apagar o "5" virava "1" na hora (vazio não é número) e o "7" digitado em
+ * seguida virava "17". Só número válido vai pro roteiro; ao sair do campo, volta o valor real.
+ */
+function DaysInput({ days, label, onCommit }: { days: number; label: string; onCommit: (days: number) => void }) {
+  const [draft, setDraft] = useState<string | null>(null);
+  return (
+    <input
+      type="number"
+      inputMode="numeric"
+      min={TRIP_LIMITS.minDays}
+      max={TRIP_LIMITS.maxDaysPerLeg}
+      aria-label={label}
+      value={draft ?? days}
+      onChange={(e) => {
+        const raw = e.target.value;
+        setDraft(raw);
+        const n = Math.round(Number(raw));
+        if (raw.trim() !== "" && Number.isFinite(n) && n >= TRIP_LIMITS.minDays) onCommit(n);
+      }}
+      onBlur={() => setDraft(null)}
+      className="w-14 shrink-0 rounded-lg border border-border-strong bg-surface px-2 py-1 text-right text-sm tabular-nums text-ink transition-colors focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+    />
+  );
+}
+
 /** Input de valor com o "R$" fixo dentro — número solto parecia campo vazio, não dinheiro. */
 function MoneyInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
   const currency = useCurrency();
@@ -93,15 +121,22 @@ function MoneyInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
  * valores são editáveis e dá pra criar categorias próprias. O cálculo roda aqui pra resposta
  * instantânea; o servidor saneia e recalcula tudo na criação da meta.
  */
-export function TravelPlanner() {
+export function TravelPlanner({ annualRate }: { annualRate: number }) {
   const money = useMoney();
+  const currency = useCurrency();
+  // A base de custos é em reais, saindo do Brasil; a moeda do app é só rótulo, não câmbio. Pra
+  // quem usa €/US$/£, "€ 4.600" de passagem seria 5 a 6 vezes o real — então os blocos começam
+  // zerados e ela digita os valores dela (a dica de mês mais barato, em dinheiro, some junto).
+  const usaEstimativas = currency === "BRL";
   const { titulos: t } = useProfileTheme().voz;
   const [legs, setLegs] = useState<Leg[]>([]);
   const [travelers, setTravelers] = useState(2);
   const [style, setStyle] = useState<TravelStyle>("medio");
-  const [tripMonth, setTripMonth] = useState(nextMonthValue());
-  // Edições dos valores fixos, presas à "assinatura" do plano: mudou roteiro/pessoas/estilo, a
-  // assinatura muda e as edições antigas deixam de valer (sem useEffect pra resetar).
+  const [tripMonth, setTripMonth] = useState(defaultTripMonth);
+  // Edições dos valores fixos, presas à "assinatura" do plano: mudou destinos/pessoas/estilo, a
+  // assinatura muda e as edições antigas deixam de valer (sem useEffect pra resetar). Mês e
+  // dias ficam FORA de propósito: trocar pro mês mais barato ou ajustar um dia apagava em
+  // silêncio a passagem de R$ 2.800 que ela achou, e a meta saía com a estimativa.
   const [overrides, setOverrides] = useState<{ sig: string; values: Partial<Record<FixedKey, number>> }>({
     sig: "",
     values: {},
@@ -112,7 +147,7 @@ export function TravelPlanner() {
   useSuccessToast(isPending, state.error, state.created ? t.viagemMetaCriadaToast : undefined);
 
   const tripMonthNumber = monthNumberOf(tripMonth);
-  const sig = `${legs.map((leg) => `${leg.destination.key}:${leg.days}`).join("|")}#${travelers}#${style}#${tripMonthNumber}`;
+  const sig = `${legs.map((leg) => leg.destination.key).join("|")}#${travelers}#${style}`;
   const estimate = useMemo(
     () =>
       estimateTrip({
@@ -136,20 +171,56 @@ export function TravelPlanner() {
   }, [legs, travelers, style, tripMonthNumber]);
 
   const activeOverrides = overrides.sig === sig ? overrides.values : {};
+  // Havia edições e a assinatura mudou: avisa em vez de trocar os números dela calada.
+  const editsDiscarded = overrides.sig !== sig && Object.keys(overrides.values).length > 0;
+  const base = (key: FixedKey) => (estimate && usaEstimativas ? estimate[key] : 0);
   const values: Record<FixedKey, number> | null = estimate
     ? {
-        flights: activeOverrides.flights ?? estimate.flights,
-        lodging: activeOverrides.lodging ?? estimate.lodging,
-        food: activeOverrides.food ?? estimate.food,
-        activities: activeOverrides.activities ?? estimate.activities,
+        flights: activeOverrides.flights ?? base("flights"),
+        lodging: activeOverrides.lodging ?? base("lodging"),
+        food: activeOverrides.food ?? base("food"),
+        activities: activeOverrides.activities ?? base("activities"),
       }
     : null;
 
+  // A economia da dica sai só dos blocos que ainda são estimativa: a passagem que ela digitou
+  // não fica mais barata porque o mês mudou.
+  const cheaperSavings = useMemo(() => {
+    if (!cheaper || !estimate || !usaEstimativas) return 0;
+    const candidate = estimateTrip({
+      legs: legs.map((leg) => ({ destinationKey: leg.destination.key, days: leg.days })),
+      travelers,
+      style,
+      month: cheaper.month,
+    });
+    if (!candidate) return 0;
+    const edited = overrides.sig === sig ? overrides.values : {};
+    const diff = FIXED_ROWS.reduce(
+      (sum, { key }) => sum + (edited[key] === undefined ? estimate[key] - candidate[key] : 0),
+      0,
+    );
+    return Math.round(diff * 1.1); // a margem de 10% acompanha
+  }, [cheaper, estimate, usaEstimativas, legs, travelers, style, overrides, sig]);
+
+  // Extra com valor e sem nome entra na meta com o mesmo rótulo que o gráfico mostra ("Extra").
+  // Antes a tela somava e a meta ignorava: R$ 1.650 a menos, sem aviso. Linha vazia (sem nome e
+  // sem valor) continua de fora.
+  const extrasNaMeta = extras
+    .filter((e) => e.name.trim().length > 0 || e.value > 0)
+    .map((e) => ({ name: e.name.trim() || t.viagemExtra, value: e.value }));
+
   const totals = values
-    ? computeTripTotals([values.flights, values.lodging, values.food, values.activities, ...extras.map((e) => e.value)])
+    ? computeTripTotals([values.flights, values.lodging, values.food, values.activities, ...extrasNaMeta.map((e) => e.value)])
     : null;
-  const months = monthsUntil(tripMonth);
-  const monthlyHint = totals ? Math.ceil(totals.total / months) : 0;
+  // O "guardando R$ X/mês" é a MESMA conta da meta que vai nascer (mesma data-alvo, mesma taxa):
+  // dividir o total pelos meses de calendário prometia um número e a meta pedia ~17% a mais.
+  const tripTarget = tripGoalTargetDate(tripMonth);
+  const tripPlan =
+    totals && tripTarget
+      ? computeGoalPlan({ targetAmount: totals.total, currentAmount: 0, targetDate: tripTarget, annualRate })
+      : null;
+  const months = Math.max(tripPlan?.monthsRemaining ?? 1, 1);
+  const monthlyHint = tripPlan ? tripPlan.requiredMonthlyContribution : 0;
   const BLOCK_COLORS = ["var(--color-info)", "var(--color-accent)", "var(--color-success)", "var(--color-chart-5)"];
   const tripBullets: BulletRow[] =
     values && totals && totals.total > 0
@@ -157,7 +228,7 @@ export function TravelPlanner() {
           ...FIXED_ROWS.map(({ key }, i) => ({ key, label: t.viagemBlocos[key], value: values[key], color: BLOCK_COLORS[i] })),
           ...extras.map((e) => ({
             key: `extra-${e.id}`,
-            label: e.name || t.viagemExtra,
+            label: e.name.trim() || t.viagemExtra,
             value: e.value,
             color: "var(--color-ink-faint)",
           })),
@@ -184,8 +255,8 @@ export function TravelPlanner() {
     );
   }
 
-  function setLegDays(key: string, raw: string) {
-    const days = Math.min(Math.max(Math.round(Number(raw)) || 1, TRIP_LIMITS.minDays), TRIP_LIMITS.maxDaysPerLeg);
+  function setLegDays(key: string, typed: number) {
+    const days = Math.min(Math.max(Math.round(typed) || 1, TRIP_LIMITS.minDays), TRIP_LIMITS.maxDaysPerLeg);
     setLegs((prev) => prev.map((leg) => (leg.destination.key === key ? { ...leg, days } : leg)));
   }
 
@@ -211,12 +282,22 @@ export function TravelPlanner() {
     setExtras((prev) => prev.filter((e) => e.id !== id));
   }
 
-  // Só extras com nome preenchido entram na meta (linha em branco esquecida não polui).
-  const validExtras = extras.filter((e) => e.name.trim().length > 0);
-
   return (
     <div className="flex flex-col gap-4">
-      <Card as="form" action={formAction} className="flex flex-col gap-5 p-5">
+      <Card
+        as="form"
+        action={formAction}
+        // O "Ir"/Enter do teclado num campo qualquer enviava o formulário (envio implícito) e a
+        // meta nascia no meio da digitação — o seguro sem valor, e sem jeito de refazer. Aqui o
+        // Enter só fecha o teclado; a meta sai pelo botão. A busca de destino trata o próprio
+        // Enter antes (escolhe da lista) e marca o evento, por isso o `defaultPrevented`.
+        onKeyDown={(e: React.KeyboardEvent<HTMLFormElement>) => {
+          if (e.key !== "Enter" || e.defaultPrevented || !(e.target instanceof HTMLInputElement)) return;
+          e.preventDefault();
+          e.target.blur();
+        }}
+        className="flex flex-col gap-5 p-5"
+      >
         <div className="flex flex-col gap-2">
           <div className="flex items-baseline justify-between gap-3">
             <span className="text-xs font-medium text-ink-muted">{t.viagemRoteiro}</span>
@@ -232,15 +313,10 @@ export function TravelPlanner() {
                 <span className="block truncate text-sm font-medium text-ink">{leg.destination.label}</span>
                 <span className="block truncate text-xs text-ink-faint">{leg.destination.country}</span>
               </span>
-              <input
-                type="number"
-                inputMode="numeric"
-                min={TRIP_LIMITS.minDays}
-                max={TRIP_LIMITS.maxDaysPerLeg}
-                aria-label={`Dias em ${leg.destination.label}`}
-                value={leg.days}
-                onChange={(e) => setLegDays(leg.destination.key, e.target.value)}
-                className="w-14 shrink-0 rounded-lg border border-border-strong bg-surface px-2 py-1 text-right text-sm tabular-nums text-ink transition-colors focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+              <DaysInput
+                days={leg.days}
+                label={`Dias em ${leg.destination.label}`}
+                onCommit={(days) => setLegDays(leg.destination.key, days)}
               />
               <span className="shrink-0 text-xs text-ink-faint">{t.viagemDias(leg.days)}</span>
               <button
@@ -297,7 +373,7 @@ export function TravelPlanner() {
               <MonthPicker
                 label={t.viagemQuando}
                 name="tripMonth"
-                min={nextMonthValue()}
+                min={minTripMonth()}
                 value={tripMonth}
                 onChange={setTripMonth}
               />
@@ -322,7 +398,7 @@ export function TravelPlanner() {
                 </p>
               )}
 
-              {cheaper && (
+              {cheaper && totals && cheaperSavings > 0 && cheaperSavings >= totals.total * 0.08 && (
                 <button
                   type="button"
                   // Conta a partir do mês ESCOLHIDO (a dica procura depois dele), não de hoje.
@@ -335,7 +411,7 @@ export function TravelPlanner() {
                     {t.viagemMesMaisBarato[0]}
                     <strong>{MONTH_NAMES[cheaper.month - 1]}</strong>
                     {t.viagemMesMaisBarato[1]}
-                    <strong>{money(cheaper.savings, { round: true })}</strong>
+                    <strong>{money(cheaperSavings, { round: true })}</strong>
                     {t.viagemMesMaisBarato[2]}
                   </span>
                   <span className="shrink-0 text-xs font-semibold text-accent-strong">{t.viagemTrocar}</span>
@@ -347,7 +423,31 @@ export function TravelPlanner() {
 
         {values && totals && estimate && (
           <div className="flex flex-col gap-2.5 rounded-xl bg-surface-2 p-4">
-            <p className="text-xs text-ink-faint">{t.viagemMediaDica}</p>
+            {usaEstimativas ? (
+              <p className="text-xs text-ink-faint">{t.viagemMediaDica}</p>
+            ) : (
+              <p className="rounded-lg bg-accent-soft px-3 py-2 text-xs text-accent-strong">{t.viagemOutraMoeda(currencySymbol(currency))}</p>
+            )}
+            {editsDiscarded && (
+              <div className="flex items-start gap-2 rounded-lg bg-surface px-3 py-2 text-xs text-ink-muted">
+                <p className="min-w-0 flex-1">{t.viagemValoresVoltaram}</p>
+                <button
+                  type="button"
+                  onClick={() => setOverrides((prev) => ({ sig, values: prev.values }))}
+                  className="shrink-0 font-semibold text-accent-strong"
+                >
+                  {t.viagemUsarMeus}
+                </button>
+                <button
+                  type="button"
+                  aria-label="Dispensar aviso"
+                  onClick={() => setOverrides({ sig, values: {} })}
+                  className="shrink-0 rounded-full text-ink-faint hover:text-ink"
+                >
+                  <X className="size-3.5" aria-hidden />
+                </button>
+              </div>
+            )}
             {FIXED_ROWS.map(({ key, icon: Icon }) => (
               <div key={key} className="flex items-center justify-between gap-3">
                 <label htmlFor={`trip-${key}`} className="flex min-w-0 items-center gap-2 text-sm text-ink-muted">
@@ -406,7 +506,7 @@ export function TravelPlanner() {
               <span className="shrink-0 text-sm font-medium tabular-nums text-ink">{money(totals.buffer, { round: true })}</span>
             </div>
 
-            {estimate.legs.length > 1 && (
+            {usaEstimativas && estimate.legs.length > 1 && (
               <div className="flex flex-col gap-1 border-t border-border pt-2.5">
                 <p className="text-xs text-ink-muted">{t.viagemDiariasPorDestino}</p>
                 {estimate.legs.map((leg) => (
@@ -456,7 +556,7 @@ export function TravelPlanner() {
             <input
               type="hidden"
               name="extras"
-              value={JSON.stringify(validExtras.map((e) => ({ name: e.name.trim(), value: e.value })))}
+              value={JSON.stringify(extrasNaMeta)}
             />
           </>
         )}

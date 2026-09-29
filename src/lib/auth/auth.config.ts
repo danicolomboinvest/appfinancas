@@ -3,6 +3,7 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { prisma } from "@/lib/db/prisma";
 import { findUserByEmail } from "@/lib/repositories/user.repo";
+import { sessaoValeParaSenha, versaoDaSenha } from "@/lib/auth/sessao";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   // Necessário em produção atrás de um domínio próprio (ex.: financas.danicolombo.com.br) —
@@ -61,16 +62,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           email: user.email,
           name: user.name,
           role: user.role,
+          senhaVersao: versaoDaSenha(user.passwordHash),
         };
       },
     }),
   ],
   callbacks: {
     async jwt({ token, user }) {
-      // Login (authorize() já validou tudo): grava id/role no token, uma vez só.
+      // Login (authorize() já validou tudo): grava id, papel e a marca da senha no token.
       if (user?.id) {
         token.id = user.id;
         token.role = user.role;
+        token.senhaVersao = user.senhaVersao;
         return token;
       }
       // Toda chamada seguinte (sessão já existente, sem `user` de novo): confirma que a
@@ -78,9 +81,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // conta) deixava quem já estava logado preso num erro 500 em qualquer aba com o
       // cookie antigo — só funcionava em aba anônima, sem cookie nenhum. Retornar null
       // aqui invalida a sessão e a pessoa cai pro login normalmente, como se tivesse saído.
+      //
+      // A mesma consulta (que já acontecia) também traz papel e senha atuais:
+      // - senha trocada ("esqueci minha senha") derruba as sessões abertas em outros aparelhos,
+      //   senão quem pegou o celular dela continuava vendo tudo por até 30 dias renováveis;
+      // - papel é relido do banco: admin rebaixado perde o /admin na requisição seguinte, em vez
+      //   de carregar o ADMIN congelado no token enquanto continuar usando o app.
       if (token.id) {
-        const stillExists = await prisma.user.findUnique({ where: { id: token.id }, select: { id: true } });
-        if (!stillExists) return null;
+        const atual = await prisma.user.findUnique({
+          where: { id: token.id },
+          select: { role: true, passwordHash: true },
+        });
+        if (!atual) return null;
+        const marca = versaoDaSenha(atual.passwordHash);
+        if (!sessaoValeParaSenha(token.senhaVersao, marca)) return null;
+        token.senhaVersao = marca;
+        token.role = atual.role;
       }
       return token;
     },

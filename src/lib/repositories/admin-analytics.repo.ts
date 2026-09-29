@@ -168,8 +168,9 @@ export async function getPlatformReport(): Promise<PlatformReport> {
     prisma.user.count({ where: { lastSeenAt: { gte: since(30) } } }),
     prisma.user.count({ where: { createdAt: { gte: since(7) } } }),
     prisma.user.count({ where: { createdAt: { gte: since(30) } } }),
-    // Cadastrou mas nunca abriu depois: lastSeenAt nulo (o layout só grava quando a pessoa entra).
-    prisma.user.count({ where: { lastSeenAt: null } }),
+    // Cadastrou mas nunca abriu: nenhum rastro de uso. Mesma definição do funil de adoção
+    // (abriuOApp): quem usou antes do lastSeenAt/UsageEvent existirem só aparece pelos lançamentos.
+    prisma.user.count({ where: { lastSeenAt: null, usageEvents: { none: {} }, monthlyEntries: { none: {} } } }),
     prisma.user.findMany({ select: { createdAt: true }, orderBy: { createdAt: "asc" } }),
     getFeatureAdoption(),
     prisma.simulation.groupBy({ by: ["type"], _count: { _all: true } }),

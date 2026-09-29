@@ -685,11 +685,17 @@ function estimateFlights(destinations: TravelDestination[], month?: number): num
   for (let i = 1; i < destinations.length; i++) {
     const previous = destinations[i - 1];
     const current = destinations[i];
+    // A conexão entre regiões é cobrada pela faixa do lado MAIS BARATO do trecho. Cobrar pela
+    // do destino de chegada contava o voo longo duas vezes quando o destino caro vinha depois:
+    // "São Paulo, depois Lisboa" pagava a ida e volta pra Europa E mais 55% dela pra ir de SP a
+    // Lisboa (R$ 2 mil a mais por pessoa do que "Lisboa, depois São Paulo"). A ida e volta
+    // principal já leva a pessoa até o destino caro; o trecho extra é o do lugar mais perto.
+    const cheaperSide = FLIGHT_BAND[previous.band] < FLIGHT_BAND[current.band] ? previous : current;
     const hop =
       previous.region === current.region
         ? HOP_SAME_REGION[current.region]
-        : FLIGHT_BAND[current.band] * 0.55;
-    total += hop * seasonFactorFor(current, month);
+        : FLIGHT_BAND[cheaperSide.band] * 0.55;
+    total += hop * seasonFactorFor(previous.region === current.region ? current : cheaperSide, month);
   }
   return Math.round(total);
 }
@@ -814,4 +820,21 @@ export function monthValuePlus(monthValue: string, ahead: number): string | null
   const year = Math.floor(total / 12);
   const month = (total % 12) + 1;
   return `${year}-${String(month).padStart(2, "0")}`;
+}
+
+/**
+ * Data-alvo da meta de uma viagem no mês "YYYY-MM": o ÚLTIMO dia do mês, ao meio-dia — a
+ * mesma convenção do formulário de metas (MonthYearField manda o último dia, goalSchema põe
+ * 12h). Com o dia 1º, que a viagem usava antes, três telas davam três números: o planejador
+ * contava meses de calendário, a meta arredondava um mês a menos e pedia ~17% a mais por mês,
+ * virava "atrasada" já no dia 2 do mês da viagem, e bastava abrir "Editar" e salvar que o prazo
+ * pulava pro fim do mês e o aporte mudava sozinho.
+ *
+ * O dinheiro continua chegando antes do embarque: o aporte é antecipado (o primeiro é já), então
+ * o último cai no mês anterior ao da viagem ou, no máximo, no começo do próprio mês.
+ */
+export function tripGoalTargetDate(monthValue: string): Date | null {
+  const [y, m] = monthValue.split("-").map(Number);
+  if (!Number.isInteger(y) || !Number.isInteger(m) || m < 1 || m > 12) return null;
+  return new Date(y, m, 0, 12);
 }

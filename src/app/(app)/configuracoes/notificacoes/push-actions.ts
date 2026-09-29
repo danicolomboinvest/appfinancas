@@ -22,3 +22,14 @@ export async function removePushSubscriptionAction(endpoint: string): Promise<{ 
   await prisma.pushSubscription.deleteMany({ where: { userId: ctx.userId, endpoint } });
   return { ok: true };
 }
+
+/**
+ * A inscrição deste navegador é da conta logada? Um aparelho compartilhado pode ter a inscrição
+ * de quem usou antes: sem essa pergunta, a tela dizia "Ligado aqui" pra quem não recebia nada.
+ */
+export async function isMyPushSubscriptionAction(endpoint: string): Promise<boolean> {
+  const ctx = await getRequiredSession();
+  if (typeof endpoint !== "string" || !endpoint) return false;
+  const sub = await prisma.pushSubscription.findFirst({ where: { userId: ctx.userId, endpoint }, select: { id: true } });
+  return Boolean(sub);
+}

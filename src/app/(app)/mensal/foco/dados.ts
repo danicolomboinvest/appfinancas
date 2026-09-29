@@ -66,7 +66,7 @@ export async function carregarFoco(ctx: AuthContext) {
   const mesAnterior = { year: anterior.getFullYear(), month: anterior.getMonth() + 1, label: MESES[anterior.getMonth()] };
   const semana = chaveDaSemana(now);
 
-  const [user, budgets, spentByParent, spentByCustom, customCategories, summary, plan, goals, fund, lastExpense, tetos, pendentes, ritualFeito, fechamentoFeito, raiox, gastosReais, preCriados, cancelamentos, viradaFeita, lancamentosAnoPassado, paraRevisar, dispensados, gastosDoMes] =
+  const [user, budgets, spentByParent, spentByCustom, customCategories, summary, plan, goals, fund, lastExpense, tetos, pendentes, ritualFeito, fechamentoFeito, raiox, gastosReais, preCriados, cancelamentos, viradaFeita, lancamentosAnoPassado, paraRevisar, dispensados, gastosDoMes, lancamentosMesAnterior] =
     await Promise.all([
       getOwnUser(ctx),
       listBudgets(ctx, year, month),
@@ -100,6 +100,7 @@ export async function carregarFoco(ctx: AuthContext) {
         orderBy: { amount: "desc" },
         take: 400,
       }),
+      prisma.monthlyEntry.count({ where: { userId: ctx.userId, profileId: ctx.profileId, year: mesAnterior.year, month: mesAnterior.month }, take: 1 }),
     ]);
   const ritmo = lerRitmo(user.ritmoAcompanhamento);
 
@@ -187,7 +188,8 @@ export async function carregarFoco(ctx: AuthContext) {
   for (const g of gastosDoMes) {
     const k = chaveDoGasto(g);
     if (!k || !noOrcamento.has(k)) continue;
-    (gastosPorCategoria[k] ??= []).length < 15 && gastosPorCategoria[k].push(paraLista(g));
+    const lista = (gastosPorCategoria[k] ??= []);
+    if (lista.length < 15) lista.push(paraLista(g));
   }
   const opcoesDeCategoria = categorias.map((c) => ({ key: c.key, label: c.label }));
   const maioresGastos = gastosDoMes.slice(0, 5).map(paraLista);
@@ -221,6 +223,9 @@ export async function carregarFoco(ctx: AuthContext) {
     // createdAt é um instante real; nowInBrazil() é um relógio deslocado. A conta é com Date.now().
     cancelamentos,
     viradaPendente: !viradaFeita && lancamentosAnoPassado > 0,
+    // Fechar um mês em que ela nem usava o app (conta criada agora) só elogiava um plano que não
+    // existia. Como na virada do ano: só oferece com algum lançamento no mês anterior.
+    mesAnteriorTemDados: lancamentosMesAnterior > 0,
     lancamentosParaRevisar: paraRevisar.length,
     pendentes: pendentes.filter((p) => Date.now() - p.createdAt.getTime() > 20 * 3_600_000),
     ritualFeito,

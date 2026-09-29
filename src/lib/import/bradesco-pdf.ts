@@ -24,6 +24,7 @@ const DATA_RE = /^(\d{2})\/(\d{2})\/(\d{4})\s+/;
 const MONEY = String.raw`-?\d{1,3}(?:\.\d{3})*,\d{2}`;
 /** "... 1000001 19,00 26,72": docto (opcional), valor e saldo no fim da linha. */
 const FECHA_RE = new RegExp(String.raw`^(.*?)\s*(?:\b\d{5,}\s+)?(${MONEY})\s+(${MONEY})$`);
+const RODAPE_TOTAL_RE = new RegExp(String.raw`^Total(?:\s+${MONEY}){2,3}$`, "i");
 const RUIDO_RE = [
   /^Bradesco Celular$/i,
   /^Data:\s*\d{2}\/\d{2}\/\d{4}/i,
@@ -54,7 +55,10 @@ export function parseBradescoStatement(texto: string): ParsedTransaction[] {
       continue;
     }
     if (!dentro || RUIDO_RE.some((re) => re.test(linha))) continue;
-    if (/^Total\b/i.test(linha)) break;
+    // Só o rodapé de verdade ("Total 1.100,00 619,00 526,72": crédito, débito e saldo) encerra.
+    // Qualquer linha começando com "Total" encerrava: "TOTAL EXPRESS" (transportadora) ou um
+    // posto Total na 2ª linha do histórico cortava o resto do extrato sem nenhum aviso.
+    if (RODAPE_TOTAL_RE.test(linha)) break;
 
     const d = linha.match(DATA_RE);
     if (d) {

@@ -102,7 +102,18 @@ export function scorePoupanca(income: number, expense: number, mesLabel?: string
   };
 }
 
-export function scoreEstrategia(deviations: number[]): HealthDimension {
+export function scoreEstrategia(deviations: number[], totalCarteira?: number): HealthDimension {
+  // Estratégia definida e nenhum investimento cadastrado: cada classe fica "100% abaixo do alvo"
+  // e a nota despencava pra crítica por uma carteira que ela ainda nem tem.
+  if (deviations.length > 0 && totalCarteira !== undefined && totalCarteira <= 0) {
+    return {
+      key: "estrategia",
+      label: "Aderência à estratégia",
+      score: null,
+      status: "sem-dados",
+      detail: "Cadastre seus investimentos para comparar com a estratégia.",
+    };
+  }
   if (deviations.length === 0) {
     return {
       key: "estrategia",
@@ -122,7 +133,7 @@ export function scoreEstrategia(deviations: number[]): HealthDimension {
     detail:
       score >= 90
         ? "Sua carteira está bem alinhada à estratégia definida."
-        : `Sua carteira se desvia em média ${avgDeviationPP.toFixed(1)} p.p. por classe da estratégia definida.`,
+        : `Sua carteira se desvia em média ${avgDeviationPP.toFixed(1).replace(".", ",")} p.p. por classe da estratégia definida.`,
   };
 }
 
@@ -212,7 +223,7 @@ export async function computeFinancialHealthScore(ctx: AuthContext): Promise<Fin
   const strategyDeviations = strategyComparison.positions
     .filter((p) => p.targetPercent > 0)
     .map((p) => p.deviationPercent);
-  const estrategia = scoreEstrategia(strategyDeviations);
+  const estrategia = scoreEstrategia(strategyDeviations, strategyComparison.totalPortfolio);
 
   // Progresso real (ativos + aportes), como em Metas. Meta sem data não tem prazo pra perder:
   // conta como no ritmo.

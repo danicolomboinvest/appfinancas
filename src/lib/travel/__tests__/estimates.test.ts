@@ -10,7 +10,9 @@ import {
   MAX_CATEGORY_VALUE,
   TRAVEL_DESTINATIONS,
   TRIP_LIMITS,
+  tripGoalTargetDate,
 } from "../estimates";
+import { computeGoalPlan } from "@/lib/planning/goal";
 
 const trip = (legs: { destinationKey: string; days: number }[], travelers = 2, style: "economico" | "medio" | "confortavel" = "medio") =>
   estimateTrip({ legs, travelers, style });
@@ -97,6 +99,62 @@ describe("estimateTrip — vários destinos", () => {
       { destinationKey: "toquio", days: 3 },
     ])!;
     expect(primeiro.flights).toBe(invertido.flights);
+  });
+
+  it("escala num lugar mais barato ANTES do destino caro não cobra o voo longo duas vezes", () => {
+    const spDepoisLisboa = trip([
+      { destinationKey: "sao-paulo", days: 2 },
+      { destinationKey: "lisboa", days: 7 },
+    ])!;
+    const lisboaDepoisSp = trip([
+      { destinationKey: "lisboa", days: 7 },
+      { destinationKey: "sao-paulo", days: 2 },
+    ])!;
+    // Ida e volta pra Europa (4600) + o trecho do lado barato (nacional 950 × 0,55), por pessoa.
+    expect(spDepoisLisboa.flights).toBe(Math.round(4600 + 950 * 0.55) * 2);
+    expect(spDepoisLisboa.flights).toBe(lisboaDepoisSp.flights);
+    // Com mês escolhido (temporada), a ordem também não muda a passagem.
+    const comMes = (legs: { destinationKey: string; days: number }[]) =>
+      estimateTrip({ legs, travelers: 2, style: "medio", month: 12 })!.flights;
+    expect(
+      comMes([
+        { destinationKey: "sao-paulo", days: 2 },
+        { destinationKey: "lisboa", days: 7 },
+      ]),
+    ).toBe(
+      comMes([
+        { destinationKey: "lisboa", days: 7 },
+        { destinationKey: "sao-paulo", days: 2 },
+      ]),
+    );
+  });
+});
+
+describe("tripGoalTargetDate", () => {
+  it("último dia do mês da viagem ao meio-dia — a mesma data que o formulário de metas grava", () => {
+    const dezembro = tripGoalTargetDate("2026-12")!;
+    expect([dezembro.getFullYear(), dezembro.getMonth(), dezembro.getDate(), dezembro.getHours()]).toEqual([2026, 11, 31, 12]);
+    const fevereiro = tripGoalTargetDate("2027-02")!;
+    expect(fevereiro.getDate()).toBe(28);
+    // Igual ao que MonthYearField ("YYYY-MM-último dia") + goalSchema (T12:00) produzem: editar
+    // a meta sem mexer no mês não pode mudar o prazo.
+    expect(fevereiro.getTime()).toBe(new Date("2027-02-28T12:00:00").getTime());
+  });
+
+  it("recusa mês inválido", () => {
+    expect(tripGoalTargetDate("")).toBeNull();
+    expect(tripGoalTargetDate("2026-13")).toBeNull();
+    expect(tripGoalTargetDate("abc")).toBeNull();
+  });
+
+  it("o prazo da meta conta os mesmos meses que o planejador promete, e o mês da viagem não é 'atrasada'", () => {
+    const hoje = new Date(2026, 8, 28, 10); // 28/09
+    const plano = computeGoalPlan({ targetAmount: 9_000, currentAmount: 0, targetDate: tripGoalTargetDate("2026-12")!, annualRate: 0, now: hoje });
+    expect(plano.monthsRemaining).toBe(3);
+    expect(plano.requiredMonthlyContribution).toBeCloseTo(3_000, 0);
+    // 2 de dezembro, no mês da viagem: o prazo ainda não venceu.
+    const noMes = computeGoalPlan({ targetAmount: 9_000, currentAmount: 3_000, targetDate: tripGoalTargetDate("2026-12")!, annualRate: 0, now: new Date(2026, 11, 2) });
+    expect(noMes.status).not.toBe("BEHIND");
   });
 });
 

@@ -2,6 +2,7 @@ import type { EntryCategory, ParentCategory } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import type { AuthContext } from "@/lib/auth/session";
 import { PARENT_CATEGORIES } from "@/lib/categories";
+import { randomUUID } from "node:crypto";
 import { sameDayInMonth } from "@/lib/date/recurrence";
 
 export async function listMonthlyEntries(ctx: AuthContext, year: number, month: number) {
@@ -26,10 +27,14 @@ export type MonthlyEntryInput = {
   goalId?: string;
   /** Lote de importação que criou este lançamento (só em imports de extrato/fatura). */
   importBatchId?: string;
+  /** Id da transação no Open Finance ("pluggy:<id>"); hoje só o "Desfazer" exclusão devolve por aqui. */
+  externalId?: string;
   /** Lançado em outra moeda: o valor digitado, a moeda dele e a cotação. `amount` já vem convertido. */
   originalAmount?: number;
   originalCurrency?: string;
   exchangeRate?: number;
+  /** Série de despesa fixa a que ele pertence (só o "Desfazer" devolve por aqui; quem cria é createRecurringMonthlyEntries). */
+  recurrenceId?: string;
   /** Perfil dono deste lançamento, quando é OUTRO que não o ativo na sessão — o import de
    * fatura manda pra cá compra que é da Empresa mas caiu no cartão Pessoal. `undefined` = o
    * perfil ativo de sempre. Quem chama já validou que o id é mesmo de um perfil do usuário. */
@@ -124,6 +129,8 @@ export async function createRecurringMonthlyEntries(
   },
 ) {
   const refs = await resolveOwnRefs(ctx, ctx.profileId, input);
+  // Todas as cópias levam o mesmo id: é o que deixa editar ou apagar "este e os próximos".
+  const recurrenceId = randomUUID();
   const months = [];
   for (let m = input.month; m <= 12; m++) {
     months.push(m);
@@ -137,9 +144,59 @@ export async function createRecurringMonthlyEntries(
       goalId: refs.goalId ?? null,
       month,
       entryDate: input.entryDate ? sameDayInMonth(input.entryDate, input.year, month) : null,
+      recurrenceId,
       userId: ctx.userId, profileId: ctx.profileId,
     })),
   });
+}
+
+/**
+ * As cópias de uma despesa fixa a partir do mês deste lançamento (ele incluso), em ordem.
+ * Vazio se o lançamento não é de uma série. Os meses que já passaram ficam como estão: o
+ * aluguel de março foi o que foi, mesmo que o de outubro tenha subido.
+ */
+export async function listSeriesFrom(ctx: AuthContext, id: string) {
+  const base = await prisma.monthlyEntry.findFirst({ where: { id, userId: ctx.userId, profileId: ctx.profileId }, select: { recurrenceId: true, year: true, month: true } });
+  if (!base?.recurrenceId) return [];
+  return prisma.monthlyEntry.findMany({
+    where: {
+      userId: ctx.userId, profileId: ctx.profileId,
+      recurrenceId: base.recurrenceId,
+      OR: [{ year: { gt: base.year } }, { year: base.year, month: { gte: base.month } }],
+    },
+    orderBy: [{ year: "asc" }, { month: "asc" }],
+  });
+}
+
+/**
+ * "Este e os próximos": aplica a edição em cada cópia da série a partir deste mês. Cada uma
+ * continua no seu mês, e a data muda de dia em todas (dia 10 → dia 15), não de mês.
+ */
+export async function updateSeriesFrom(ctx: AuthContext, id: string, input: MonthlyEntryInput) {
+  const serie = await listSeriesFrom(ctx, id);
+  if (serie.length === 0) return { count: 0 };
+  const refs = await resolveOwnRefs(ctx, ctx.profileId, input);
+  await prisma.$transaction(
+    serie.map((e) =>
+      prisma.monthlyEntry.updateMany({
+        where: { id: e.id, userId: ctx.userId, profileId: ctx.profileId },
+        data: {
+          category: input.category,
+          amount: input.amount,
+          parentCategory: input.parentCategory ?? null,
+          customCategoryId: refs.customCategoryId ?? null,
+          subcategory: semNulo(input.subcategory) ?? null,
+          description: semNulo(input.description) ?? null,
+          entryDate: input.entryDate ? sameDayInMonth(input.entryDate, e.year, e.month) : null,
+          goalId: refs.goalId ?? null,
+          originalAmount: input.originalAmount ?? null,
+          originalCurrency: input.originalCurrency ?? null,
+          exchangeRate: input.exchangeRate ?? null,
+        },
+      }),
+    ),
+  );
+  return { count: serie.length };
 }
 
 /**
@@ -206,9 +263,15 @@ export async function updateOwnMonthlyEntriesCategory(
  * que aconteceu nesta semana (o mês/ano do lançamento não diz o dia).
  */
 export async function countRecentDatedEntries(ctx: AuthContext, days: number): Promise<number> {
-  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+  const DIA = 24 * 60 * 60 * 1000;
+  const since = new Date(Date.now() - days * DIA);
+  // Limite de cima: as cópias do aluguel recorrente (out–dez) e as parcelas futuras já existem
+  // com data no futuro e marcavam a semana como registrada sem nada lançado. Folga de um dia
+  // porque o lançamento de hoje é gravado ao meio-dia e pode estar "depois de agora".
+  // E só conta o que foi lançado NESTA semana (createdAt): a cópia criada em janeiro com data
+  // de hoje não é hábito de registrar.
   return prisma.monthlyEntry.count({
-    where: { userId: ctx.userId, profileId: ctx.profileId, entryDate: { gte: since } },
+    where: { userId: ctx.userId, profileId: ctx.profileId, entryDate: { gte: since, lt: new Date(Date.now() + DIA) }, createdAt: { gte: since } },
   });
 }
 
@@ -219,7 +282,7 @@ export async function listEntriesForMonths(ctx: AuthContext, months: { year: num
     where: { userId: ctx.userId, profileId: ctx.profileId, OR: months.map((m) => ({ year: m.year, month: m.month })) },
     select: {
       year: true, month: true, category: true, parentCategory: true, customCategoryId: true,
-      subcategory: true, description: true, amount: true, entryDate: true,
+      subcategory: true, description: true, amount: true, entryDate: true, createdAt: true,
     },
   });
 }
@@ -262,12 +325,17 @@ export async function sumExpensesBetweenDates(ctx: AuthContext, from: Date, to: 
  */
 export async function getUltimoGastoAte(ctx: AuthContext, ate: Date): Promise<Date | null> {
   const rows = await prisma.monthlyEntry.findMany({
-    where: { userId: ctx.userId, profileId: ctx.profileId, category: "EXPENSE", entryDate: { not: null, lte: ate } },
+    // O dia `ate` inteiro: o gasto de hoje é gravado ao meio-dia (UTC) e ficava de fora com `lte`,
+    // e o aviso "você não lança há N dias" seguia o dia todo depois de ela lançar.
+    where: { userId: ctx.userId, profileId: ctx.profileId, category: "EXPENSE", entryDate: { not: null, lt: new Date(ate.getTime() + 86_400_000) } },
     orderBy: { entryDate: "desc" },
     take: 60,
     select: { entryDate: true, createdAt: true, importBatchId: true, externalId: true },
   });
-  const real = rows.find((r) => r.importBatchId || r.externalId || (r.entryDate && r.createdAt.getTime() >= r.entryDate.getTime()));
+  // Criado no DIA do gasto ou depois (não no instante): o gasto de hoje lançado às 8h de Brasília
+  // tem createdAt antes do meio-dia UTC da data dele, e nunca contava como lançado.
+  const inicioDoDia = (d: Date) => Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+  const real = rows.find((r) => r.importBatchId || r.externalId || (r.entryDate && r.createdAt.getTime() >= inicioDoDia(r.entryDate)));
   // Fatura importada não tem dia por compra (entryDate vazio): o dia da importação é o dado mais
   // novo que a pessoa trouxe. Sem isso, quem acabou de importar a fatura via "dados velhos".
   const fatura = await prisma.monthlyEntry.findFirst({

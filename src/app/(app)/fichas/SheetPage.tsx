@@ -6,7 +6,7 @@ import { getOwnSheetWithResponses, listCriteria } from "@/lib/repositories/analy
 import { listAssets } from "@/lib/repositories/asset.repo";
 import { isLaudo } from "@/lib/analysis/laudo";
 import { getParaVoce } from "@/lib/analysis/para-voce";
-import { HUMAN_CATEGORIES, isChecklistAnswer, questionFor } from "@/lib/analysis/checklist";
+import { HUMAN_CATEGORIES, criteriosDoChecklist, isChecklistAnswer, questionFor } from "@/lib/analysis/checklist";
 import { serverMoney } from "@/lib/money-server";
 import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
@@ -62,7 +62,7 @@ export async function SheetPage({ id, sheetType }: { id: string; sheetType: Shee
   const inPortfolio = assets.some((a) => (a.ticker ?? a.name).trim().toUpperCase() === sheet.ticker.trim().toUpperCase());
 
   const responseByCriterion = new Map(sheet.responses.map((r) => [r.criterionId, r]));
-  const questions = humanCriteria.map((c) => {
+  const questions = criteriosDoChecklist(sheetType, humanCriteria).map((c) => {
     const q = questionFor(c.key, c.label, c.helpText);
     return {
       criterionId: c.id,

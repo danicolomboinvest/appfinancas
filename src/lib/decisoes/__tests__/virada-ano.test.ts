@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { sugerirAno } from "../virada-ano";
+import { chaveDaContaFixa, contasFixasQueFaltam, sugerirAno } from "../virada-ano";
 
 const money = (v: number) => `R$ ${Math.round(v)}`;
 const cat = (key: string, planejado: number, realMedio: number) => ({ key, label: key, planejado, realMedio, mae: true });
@@ -28,5 +28,35 @@ describe("sugerirAno", () => {
     const s = sugerirAno({ ano: 2026, renda: { planejada: 6000, mediana: null }, guardarPlanejado: 600, categorias: [cat("A", 4000, 4000), cat("B", 0, 1500)] }, money);
     expect(s.categorias.find((c) => c.key === "B")?.motivo).toBe("novo");
     expect(s.avisos.some((a) => a.includes("90%"))).toBe(true);
+  });
+});
+
+describe("contasFixasQueFaltam", () => {
+  const aluguel = { descricao: "Aluguel", valor: 2000, parentCategory: "MORADIA", customCategoryId: null };
+  const escola = { descricao: "Escola", valor: 900, parentCategory: "EDUCACAO", customCategoryId: null };
+
+  it("aluguel reajustado já lançado no ano novo não é criado de novo (mesmo com outro valor)", () => {
+    const jaNoAno = [1, 2, 3].map((month) => ({ descricao: "aluguel ", parentCategory: "MORADIA", customCategoryId: null, month }));
+    expect(contasFixasQueFaltam([aluguel, escola], jaNoAno)).toEqual([escola]);
+  });
+
+  it("vale pra série que começa num mês seguinte, e ignora acento e maiúscula", () => {
+    const jaNoAno = [{ descricao: "ÁLUGUEL", parentCategory: "MORADIA", customCategoryId: null, month: 3 }];
+    expect(contasFixasQueFaltam([aluguel], jaNoAno)).toEqual([]);
+  });
+
+  it("mesma descrição em outra categoria é outra conta", () => {
+    const jaNoAno = [{ descricao: "Aluguel", parentCategory: "IMPOSTOS", customCategoryId: null, month: 1 }];
+    expect(contasFixasQueFaltam([aluguel], jaNoAno)).toEqual([aluguel]);
+  });
+
+  it("duas contas com o mesmo nome no mês contam duas vezes", () => {
+    const escola2 = { ...escola, valor: 1100 };
+    const umaSo = [{ descricao: "Escola", parentCategory: "EDUCACAO", customCategoryId: null, month: 1 }];
+    expect(contasFixasQueFaltam([escola, escola2], umaSo)).toEqual([escola2]);
+  });
+
+  it("a chave da tela separa valores diferentes", () => {
+    expect(chaveDaContaFixa(escola)).not.toBe(chaveDaContaFixa({ ...escola, valor: 1100 }));
   });
 });

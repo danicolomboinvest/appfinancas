@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getRequiredSession } from "@/lib/auth/session";
-import { prisma } from "@/lib/db/prisma";
+import { defaultGoalAnnualRate } from "@/lib/repositories/reference-rate.repo";
+import { nowInBrazil } from "@/lib/date/brazil-now";
 import { createGoal } from "@/lib/repositories/goal.repo";
 import {
   computeTripTotals,
@@ -12,6 +13,7 @@ import {
   MAX_CATEGORY_VALUE,
   MAX_EXTRA_CATEGORIES,
   TRIP_LIMITS,
+  tripGoalTargetDate,
 } from "@/lib/travel/estimates";
 
 export type TravelGoalState = { error?: string; created?: boolean; goalName?: string };
@@ -53,23 +55,6 @@ function parseJsonField<T>(raw: FormDataEntryValue | null, schema: z.ZodType<T>)
   }
 }
 
-/** Taxa anual padrão pra meta, como FRAÇÃO (0.1065 = 10,65% — unidade de taxa do sistema
- * inteiro): o CDI das taxas de referência do app (global ou do usuário); sem CDI cadastrado,
- * 0.08 (8% a.a.) conservador. A pessoa edita na meta depois se quiser. */
-async function defaultAnnualRate(userId: string): Promise<number> {
-  const cdi = await prisma.referenceRate.findFirst({
-    where: {
-      OR: [{ userId }, { userId: null }],
-      name: { contains: "CDI", mode: "insensitive" },
-      basis: { in: ["ANNUAL_252", "ANNUAL_365"] },
-    },
-    orderBy: [{ userId: "desc" }, { effectiveDate: "desc" }], // taxa do próprio usuário ganha da global
-    select: { rateValue: true },
-  });
-  const rate = cdi ? Number(cdi.rateValue) : NaN;
-  return Number.isFinite(rate) && rate > 0 && rate <= 3 ? rate : 0.08;
-}
-
 /** "Viagem: Paris" com um destino; "Viagem: Paris e Roma" com dois; "Viagem: Paris +2" acima. */
 function goalNameFor(labels: string[]): string {
   if (labels.length === 1) return `Viagem: ${labels[0]}`;
@@ -80,8 +65,8 @@ function goalNameFor(labels: string[]): string {
 /**
  * Cria a meta da viagem: os valores por categoria (incluindo os editados pela pessoa e as
  * categorias extras criadas por ela) são saneados AQUI no servidor e o total (com a margem de
- * 10%) recalculado — nunca se confia num total pronto vindo do cliente. Data-alvo = dia 1º do
- * mês da viagem, o dinheiro precisa estar na mão ANTES de embarcar.
+ * 10%) recalculado — nunca se confia num total pronto vindo do cliente. Data-alvo = último dia
+ * do mês da viagem, a mesma convenção de toda meta (ver `tripGoalTargetDate`).
  */
 export async function createTravelGoalAction(_prev: TravelGoalState, formData: FormData): Promise<TravelGoalState> {
   const parsed = tripSchema.safeParse({
@@ -116,8 +101,11 @@ export async function createTravelGoalAction(_prev: TravelGoalState, formData: F
   if (total <= 0) return { error: "O custo da viagem precisa ser maior que zero." };
 
   const [year, month] = parsed.data.tripMonth.split("-").map(Number);
-  const targetDate = new Date(year, month - 1, 1, 12);
-  if (targetDate.getTime() <= Date.now()) {
+  const targetDate = tripGoalTargetDate(parsed.data.tripMonth);
+  // A partir do mês que vem (no calendário do Brasil): viagem neste mês não dá mais tempo de
+  // juntar. Com a data no último dia, comparar só com "agora" deixaria passar o mês atual.
+  const hoje = nowInBrazil();
+  if (!targetDate || year * 12 + month <= hoje.getFullYear() * 12 + hoje.getMonth() + 1) {
     return { error: "Escolha um mês no futuro." };
   }
 
@@ -128,7 +116,7 @@ export async function createTravelGoalAction(_prev: TravelGoalState, formData: F
     targetAmount: total,
     targetDate,
     currentAmount: 0,
-    annualRate: await defaultAnnualRate(ctx.userId),
+    annualRate: await defaultGoalAnnualRate(ctx.userId),
     icon: "VIAGEM",
   });
 

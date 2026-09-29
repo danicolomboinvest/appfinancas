@@ -359,7 +359,9 @@ export async function computeInsights(ctx: AuthContext, money: MoneyFormatter): 
     const monthsWithBoost = nper(
       monthlyRate,
       boostedContribution,
-      Number(goal.currentAmount),
+      // O mesmo ponto de partida do plano (ativos + aportes). O campo digitado à mão fica velho
+      // assim que ela vincula ativos ou faz check-in, e o "antecipa N meses" sumia ou exagerava.
+      goal.computedCurrentAmount,
       Number(goal.targetAmount),
       1,
     ).toNumber();
@@ -380,7 +382,9 @@ export async function computeInsights(ctx: AuthContext, money: MoneyFormatter): 
 
   const strategyHref = "/carteira/por-objetivo";
 
-  for (const position of strategyComparison.positions) {
+  // Sem nenhum investimento cadastrado, toda classe fica "100% abaixo do alvo": não é desvio, é
+  // carteira que ainda não existe (a saúde financeira também não conta essa nota).
+  for (const position of strategyComparison.totalPortfolio > 0 ? strategyComparison.positions : []) {
     if (position.targetPercent <= 0 || position.status === "DENTRO") continue;
     const label = STRATEGY_ASSET_CLASS_LABEL[position.assetClass];
     const pp = formatPercentNumber(Math.abs(position.deviationPercent * 100), 1).replace("%", "");

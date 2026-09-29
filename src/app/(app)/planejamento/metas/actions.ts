@@ -8,6 +8,7 @@ import { prisma } from "@/lib/db/prisma";
 import { createGoal, deleteOwnGoal, updateOwnGoal, getGoalWithProgress } from "@/lib/repositories/goal.repo";
 import { createMonthlyEntry } from "@/lib/repositories/monthly-entry.repo";
 import { computeGoalPlan } from "@/lib/planning/goal";
+import { aporteDoMesFeito } from "@/lib/planning/goal-checkin";
 import { goalSchema } from "@/lib/validations/goal.schema";
 
 export type GoalFormState = { error?: string };
@@ -98,7 +99,22 @@ export async function checkinGoalAction(
 
   const [year, month] = parsed.data.monthKey.split("-").map(Number);
 
-  if (parsed.data.decision === "done") {
+  // "Fiz o aporte" quando o aporte do mês JÁ existe é confirmação, não um segundo aporte: o
+  // mês já respondido (outra aba, página velha do cache) ou um aporte da meta neste mês lançado
+  // no Fluxo ou importado do extrato. Antes o app criava outro lançamento do mesmo valor e a
+  // meta e o total do mês dobravam. "Outro valor" continua criando: ali ela digitou a quantia.
+  const aporteJaFeito =
+    parsed.data.decision === "done" &&
+    aporteDoMesFeito({
+      checkinDismissedMonth: goal.checkinDismissedMonth,
+      monthKey: parsed.data.monthKey,
+      temAporteNoMes:
+        (await prisma.monthlyEntry.count({
+          where: { userId: ctx.userId, profileId: ctx.profileId, goalId: goal.id, category: "INVESTMENT_CONTRIBUTION", year, month },
+        })) > 0,
+    });
+
+  if (parsed.data.decision === "done" && !aporteJaFeito) {
     // Recalcula o aporte sugerido no SERVIDOR (nunca confia num valor vindo do cliente pra
     // criar um lançamento financeiro real) — mesma fórmula que a tela usa pra mostrar.
     const plan = computeGoalPlan({

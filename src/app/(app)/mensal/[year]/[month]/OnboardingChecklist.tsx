@@ -11,7 +11,8 @@ type Step = { label: string; done: boolean; href: string };
 
 /**
  * Guia dos primeiros passos: aparece pra quem ainda não completou o básico e some sozinho
- * quando os 3 passos estão feitos (ou se a pessoa dispensar, lembrado no aparelho).
+ * quando os passos estão feitos (ou se a pessoa dispensar, lembrado no aparelho).
+ * `hasAsset: null` = sem acesso à Carteira (plano grátis): o passo dela sai do guia.
  */
 export function OnboardingChecklist({
   hasEntry,
@@ -20,10 +21,10 @@ export function OnboardingChecklist({
 }: {
   hasEntry: boolean;
   hasBudget: boolean;
-  hasAsset: boolean;
+  hasAsset: boolean | null;
 }) {
   const [dismissed, setDismissed] = useState(true); // começa oculto até ler o localStorage (evita piscar)
-  // O que o guia diz vem da voz do tema; o que ele checa (os três passos) é igual nos sete.
+  // O que o guia diz vem da voz do tema; o que ele checa (os passos) é igual nos sete.
   const { voz } = useProfileTheme();
 
   useEffect(() => {
@@ -34,7 +35,7 @@ export function OnboardingChecklist({
     // O formulário inline (#lancamento) não existe mais: o registro vive na gaveta do "+".
     { label: voz.titulos.uiPassoRegistrar, done: hasEntry, href: "#registrar" },
     { label: voz.titulos.uiPassoOrcamento, done: hasBudget, href: "/orcamento" },
-    { label: voz.titulos.uiPassoCarteira, done: hasAsset, href: "/carteira" },
+    ...(hasAsset === null ? [] : [{ label: voz.titulos.uiPassoCarteira, done: hasAsset, href: "/carteira" }]),
   ];
   const doneCount = steps.filter((s) => s.done).length;
 

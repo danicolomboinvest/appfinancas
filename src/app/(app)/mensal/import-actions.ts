@@ -20,7 +20,7 @@ import { listCustomCategories } from "@/lib/repositories/custom-category.repo";
 import { listProfiles } from "@/lib/repositories/profile.repo";
 import { listTransactionRules, upsertTransactionRule } from "@/lib/repositories/transaction-rule.repo";
 import { parseStatement } from "@/lib/import/statement-parser";
-import { isFaturaSummaryLine, comprasDaFaturaSaoPositivas } from "@/lib/import/fatura-lines";
+import { isFaturaSummaryLine, comprasDaFaturaSaoPositivas, pareceCreditoDePagamento } from "@/lib/import/fatura-lines";
 import { extractUploadFromForm, UploadReadError, PasswordRequiredError } from "@/lib/import/extract-text";
 import { pdfTextQuality } from "@/lib/import/pdf-quality";
 import { classify, normalizeMerchant, type LearnedRule } from "@/lib/import/classify";
@@ -261,6 +261,12 @@ export async function parseStatementAction(formData: FormData): Promise<ParseSta
         return total > 1 ? { key: k, total } : null;
       })(),
       profileId: null,
+      // Crédito da fatura que fala em "pagamento" é o pagamento da fatura anterior escrito de
+      // um jeito novo, não devolução de compra: como estorno, descontava a fatura anterior
+      // inteira do mês. Fica de fora com o motivo à vista, e um toque traz de volta.
+      ...(estorno && docType === "fatura" && pareceCreditoDePagamento(txn.description)
+        ? { ignorar: true, nota: "Parece o pagamento da fatura anterior: fica de fora. Se foi devolução de compra, toque em Contar mesmo assim." }
+        : {}),
     };
   });
 
@@ -369,8 +375,11 @@ async function findCardPaymentCandidates(ctx: AuthContext, year: number, month: 
     select: { id: true, description: true, amount: true, entryDate: true },
     orderBy: { entryDate: "asc" },
   });
+  // Valor negativo é estorno (gasto que voltou), nunca o pagamento saindo do extrato: o
+  // "Pagamento da fatura" que uma fatura antiga deixou entrar como estorno aparecia aqui como
+  // "− -R$ 2.800", e remover apagava o estorno em vez do pagamento.
   return candidates
-    .filter((c) => looksLikeCardPayment(c.description))
+    .filter((c) => Number(c.amount) > 0 && looksLikeCardPayment(c.description))
     .map((c) => ({
       id: c.id,
       description: c.description ?? "Pagamento de fatura",
@@ -410,6 +419,9 @@ function parcelaCerta(description: string | null) {
   const p = parseInstallment(description);
   return p?.confident ? p : null;
 }
+
+/** Parcela de fatura já gravada (sem dia), com o lote que a criou e o mês em que caiu (ano*12+mês). */
+type ParcelaExistente = { valor: number; id: string; loteId: string | null; mes: number };
 
 /** A mesma compra parcelada pode vir com centavos diferentes de um mês pro outro: a 1ª parcela
  * absorve o arredondamento (R$ 100 em 3x = 33,34 + 33,33 + 33,33). A diferença nunca passa de
@@ -563,13 +575,14 @@ export async function importTransactionsAction(
   // Terceira, só pra parcela de fatura: mesma descrição (com o "N/T" normalizado) e valor com a
   // folga dos centavos (ver mesmaParcela). Sem ela, "PARC 02/03" de R$ 33,33 não batia com a
   // parcela 02/03 de R$ 33,34 que a fatura anterior já tinha lançado, e a compra duplicava.
-  const parcelasExistentes = new Map<string, number[]>();
+  // Guarda o id e o lote de cada uma: a parcela que esta fatura confirma passa a ser dela (ver `adotar`).
+  const parcelasExistentes = new Map<string, ParcelaExistente[]>();
   for (const key of monthsInBatch) {
     const [profileId, ym] = key.split("|");
     const [y, m] = ym.split("/").map(Number);
     const existing = await prisma.monthlyEntry.findMany({
       where: { userId: ctx.userId, profileId, year: y, month: m },
-      select: { entryDate: true, amount: true, description: true, category: true, importBatchId: true },
+      select: { id: true, entryDate: true, amount: true, description: true, category: true, importBatchId: true },
     });
     for (const e of existing) {
       const dia = e.entryDate ? e.entryDate.toISOString().slice(0, 10) : null;
@@ -577,7 +590,7 @@ export async function importTransactionsAction(
       existingCounts.set(k, (existingCounts.get(k) ?? 0) + 1);
       if (!dia && Number(e.amount) > 0 && parcelaCerta(e.description)) {
         const pk = `${profileId}|${y}/${m}|${descricaoComparavel(e.description)}`;
-        parcelasExistentes.set(pk, [...(parcelasExistentes.get(pk) ?? []), Number(e.amount)]);
+        parcelasExistentes.set(pk, [...(parcelasExistentes.get(pk) ?? []), { valor: Number(e.amount), id: e.id, loteId: e.importBatchId, mes: y * 12 + m }]);
       }
       if (dia && e.importBatchId) {
         const lk = `${profileId}|${dia}|${Number(e.amount).toFixed(2)}|${e.category}`;
@@ -585,6 +598,39 @@ export async function importTransactionsAction(
       }
     }
   }
+  // Mês da fatura de cada lote que lançou parcela = o primeiro mês em que ele gravou algo (as
+  // compras vão todas pro mês escolhido; só as parcelas projetadas caem depois). Parcela num mês
+  // DEPOIS desse foi projetada ("as seguintes entram sozinhas"), não veio na fatura daquele lote.
+  const lotesComParcela = [...new Set([...parcelasExistentes.values()].flat().flatMap((p) => (p.loteId ? [p.loteId] : [])))];
+  const mesDaFaturaDoLote = new Map<string, number>();
+  if (faturaTarget && lotesComParcela.length > 0) {
+    const mesesDosLotes = await prisma.monthlyEntry.findMany({
+      // Todos os perfis dela: o lote é de um perfil, mas a revisão pode ter mandado linhas pra outro.
+      where: { userId: ctx.userId, profileId: { in: [...ownProfileIds] }, importBatchId: { in: lotesComParcela } },
+      select: { importBatchId: true, year: true, month: true },
+      distinct: ["importBatchId", "year", "month"],
+    });
+    for (const { importBatchId, year, month } of mesesDosLotes) {
+      if (!importBatchId) continue;
+      const mes = year * 12 + month;
+      mesDaFaturaDoLote.set(importBatchId, Math.min(mesDaFaturaDoLote.get(importBatchId) ?? mes, mes));
+    }
+  }
+  const ehProjecao = (p: ParcelaExistente) => p.loteId !== null && p.mes > (mesDaFaturaDoLote.get(p.loteId) ?? Infinity);
+  /**
+   * A parcela que outro lote PROJETOU e esta fatura confirma passa pra este lote. Sem isso,
+   * desfazer a fatura de setembro (que tinha projetado 04..12) apagava também a parcela de
+   * outubro que a fatura de outubro trouxe e pulou como "já existia", e o mês perdia o gasto
+   * sem aviso. A linha que a fatura do outro lote trazia de verdade (mesma fatura subida de
+   * novo) não muda de dono: desfazer a cópia não pode levar a original.
+   */
+  let adotados = 0;
+  const adotar = async (id: string, profileId: string, year: number, month: number) => {
+    const r = await prisma.monthlyEntry.updateMany({ where: { id, userId: ctx.userId, profileId }, data: { importBatchId: batch.id } });
+    adotados += r.count;
+    if (r.count > 0) touchedMonths.add(`${year}/${month}`);
+  };
+
   /** Já existe no banco uma cópia ainda não "gasta" desta chave? Consome uma e diz que sim. */
   const alreadyThere = (k: string, counts = existingCounts) => {
     const left = counts.get(k) ?? 0;
@@ -599,13 +645,12 @@ export async function importTransactionsAction(
     const ym = faturaTarget ?? originalYm ?? { year: now.getFullYear(), month: now.getMonth() + 1 };
     return `${profileIdOf(item)}|${ym.year}/${ym.month}|${dedupeKey(!faturaTarget && originalYm ? item.date : null, valorGravado(item), item.description)}`;
   };
-  /** Já existe esta parcela (valor com folga de centavos)? Consome uma e diz que sim. */
-  const parcelaJaLancada = (k: string, valor: number, total: number) => {
-    const valores = parcelasExistentes.get(k) ?? [];
-    const i = valores.findIndex((v) => mesmaParcela(v, valor, total));
-    if (i === -1) return false;
-    valores.splice(i, 1);
-    return true;
+  /** Já existe esta parcela (valor com folga de centavos)? Consome uma e devolve qual era. */
+  const parcelaJaLancada = (k: string, valor: number, total: number): ParcelaExistente | null => {
+    const existentes = parcelasExistentes.get(k) ?? [];
+    const i = existentes.findIndex((p) => mesmaParcela(p.valor, valor, total));
+    if (i === -1) return null;
+    return existentes.splice(i, 1)[0];
   };
   /** Parcela de fatura usa SÓ a comparação por parcela (que já cobre o valor exato); o resto usa
    * a chave exata. Como os dois lados decidem pela mesma descrição, um lançamento do banco nunca
@@ -622,10 +667,14 @@ export async function importTransactionsAction(
   // o que bate por data + valor. Na ordem inversa, o "Uber R$ 15" novo podia consumir a vaga do
   // "99 R$ 15" já importado, e o 99 entrava de novo.
   const pular = new Set<number>();
+  // Parcela pulada que era projeção de outro lote: índice → a parcela (ver `adotar`).
+  const confirmadas = new Map<number, ParcelaExistente>();
   items.forEach((item, i) => {
     if (item.amount <= 0) return;
     const parcela = chaveParcela(item);
-    if (parcela ? parcelaJaLancada(parcela.key, valorGravado(item), parcela.total) : alreadyThere(chaveExata(item))) {
+    const achada = parcela ? parcelaJaLancada(parcela.key, valorGravado(item), parcela.total) : null;
+    if (achada && ehProjecao(achada)) confirmadas.set(i, achada);
+    if (parcela ? achada !== null : alreadyThere(chaveExata(item))) {
       pular.add(i);
       const solta = chaveSolta(item);
       if (solta) alreadyThere(solta, looseCounts);
@@ -636,6 +685,56 @@ export async function importTransactionsAction(
     const solta = chaveSolta(item);
     if (solta && alreadyThere(solta, looseCounts)) pular.add(i);
   });
+
+  /**
+   * Compra parcelada: as parcelas que ainda vêm entram nos meses seguintes, no mesmo lote
+   * (desfazer o lote leva todas). "03/10" em setembro vira 04/10 em outubro… até 10/10.
+   * `confident`: "POSTO SHELL 03/09" é data de compra, não parcela 3 de 9 — sem essa checagem
+   * o app inventava seis gastos nos meses seguintes. `adotarDe`: a parcela desta fatura era
+   * projeção desse lote; as seguintes que ele projetou passam pra este (ver `adotar`), e nada
+   * novo é criado (foi assim antes: a parcela que já existia só era pulada).
+   */
+  const lancarParcelasFuturas = async (
+    item: ConfirmedItem,
+    ym: { year: number; month: number },
+    profileId: string,
+    parentCategory: ParentCategory | undefined,
+    customCategoryId: string | undefined,
+    adotarDe: string | null,
+  ) => {
+    if (!faturaTarget || item.estorno || !item.installment?.confident || item.installment.current >= item.installment.total) return;
+    const { current, total } = item.installment;
+    for (let n = current + 1; n <= total; n += 1) {
+      const offset = n - current;
+      const d = new Date(ym.year, ym.month - 1 + offset, 1);
+      const desc = installmentDescription(item.description, n, total);
+      // Com o perfil na frente, como todas as chaves de lançamentos existentes: sem ele a
+      // checagem nunca achava nada, e subir as faturas fora de ordem (outubro antes de
+      // setembro) recriava as parcelas que já estavam lá.
+      const futureKey = `${profileId}|${d.getFullYear()}/${d.getMonth() + 1}|${descricaoComparavel(desc)}`;
+      const achada = parcelaJaLancada(futureKey, item.amount, total);
+      if (achada) {
+        if (adotarDe && achada.loteId === adotarDe) await adotar(achada.id, profileId, d.getFullYear(), d.getMonth() + 1);
+        continue;
+      }
+      // Só adotando: a parcela projetada que não está mais lá foi apagada por ela, não volta.
+      if (adotarDe) continue;
+      await createMonthlyEntry(ctx, {
+        year: d.getFullYear(),
+        month: d.getMonth() + 1,
+        category: item.category,
+        parentCategory: item.category === "EXPENSE" ? parentCategory : undefined,
+        customCategoryId,
+        subcategory: item.subcategory ?? undefined,
+        description: desc,
+        amount: item.amount,
+        importBatchId: batch.id,
+        profileId,
+      });
+      created += 1;
+      touchedMonths.add(`${d.getFullYear()}/${d.getMonth() + 1}`);
+    }
+  };
 
   for (const [indice, item] of items.entries()) {
     if (item.amount <= 0) continue;
@@ -662,6 +761,12 @@ export async function importTransactionsAction(
     // assinatura recorrente não acontece porque a busca é feita mês a mês.
     if (pular.has(indice)) {
       skipped += 1;
+      const confirmada = confirmadas.get(indice);
+      if (confirmada) {
+        await adotar(confirmada.id, profileId, ym.year, ym.month);
+        // As parcelas seguintes que o mesmo lote projetou também passam pra esta fatura.
+        await lancarParcelasFuturas(item, ym, profileId, parentCategory, customCategoryId, confirmada.loteId);
+      }
       continue;
     }
 
@@ -683,49 +788,23 @@ export async function importTransactionsAction(
     created += 1;
     touchedMonths.add(`${ym.year}/${ym.month}`);
 
-    // Compra parcelada: as parcelas que ainda vêm entram nos meses seguintes, no mesmo lote
-    // (desfazer o lote leva todas). "03/10" em setembro vira 04/10 em outubro… até 10/10.
-    // `confident`: "POSTO SHELL 03/09" é data de compra, não parcela 3 de 9 — sem essa checagem
-    // o app inventava seis gastos nos meses seguintes.
-    if (faturaTarget && !item.estorno && item.installment?.confident && item.installment.current < item.installment.total) {
-      const { current, total } = item.installment;
-      for (let n = current + 1; n <= total; n += 1) {
-        const offset = n - current;
-        const d = new Date(ym.year, ym.month - 1 + offset, 1);
-        const desc = installmentDescription(item.description, n, total);
-        // Com o perfil na frente, como todas as chaves de lançamentos existentes: sem ele a
-        // checagem nunca achava nada, e subir as faturas fora de ordem (outubro antes de
-        // setembro) recriava as parcelas que já estavam lá.
-        const futureKey = `${profileId}|${d.getFullYear()}/${d.getMonth() + 1}|${descricaoComparavel(desc)}`;
-        if (parcelaJaLancada(futureKey, item.amount, total)) continue;
-        await createMonthlyEntry(ctx, {
-          year: d.getFullYear(),
-          month: d.getMonth() + 1,
-          category: item.category,
-          parentCategory: item.category === "EXPENSE" ? parentCategory : undefined,
-          customCategoryId,
-          subcategory: item.subcategory ?? undefined,
-          description: desc,
-          amount: item.amount,
-          importBatchId: batch.id,
-          profileId,
-        });
-        created += 1;
-        touchedMonths.add(`${d.getFullYear()}/${d.getMonth() + 1}`);
-      }
-    }
+    await lancarParcelasFuturas(item, ym, profileId, parentCategory, customCategoryId, null);
 
     // Aprende a classificação só para gastos com categoria definida pelo usuário.
     if (item.learn && item.category === "EXPENSE" && parentCategory) {
       const pattern = normalizeMerchant(item.description);
       if (pattern) {
-        await upsertTransactionRule(ctx, { pattern, parentCategory, subcategory: item.subcategory ?? undefined });
+        // A regra mora no perfil pra onde a linha FOI, não no aberto: a compra da Kalunga
+        // mandada pra Empresa como "Mercadorias e insumos" (chave ALIMENTACAO) virava
+        // "Alimentação" na próxima importação da Pessoal, e a Empresa não aprendia nada.
+        await upsertTransactionRule({ ...ctx, profileId }, { pattern, parentCategory, subcategory: item.subcategory ?? undefined });
       }
     }
   }
 
-  // Upload que só tinha duplicata não criou nada: não polui o histórico com lote vazio.
-  if (created === 0) await deleteEmptyImportBatch(ctx, batch.id);
+  // Upload que só tinha duplicata não criou nada: não polui o histórico com lote vazio. (O que
+  // só confirmou parcelas projetadas por outro lote não está vazio: agora elas são dele.)
+  if (created === 0 && adotados === 0) await deleteEmptyImportBatch(ctx, batch.id);
 
   // Fatura: lista candidatos a "pagamento de fatura" no extrato pra pessoa decidir se remove
   // (evita contar em dobro), sem apagar nada sozinho.

@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
+import { recusarSeNaoForCron } from "@/lib/cron/autorizacao";
 import { prisma } from "@/lib/db/prisma";
 import { looksLikeMarketTicker } from "@/lib/analysis/dividend-scraper";
 import { refreshDividendsForTicker } from "@/lib/repositories/dividend.repo";
+import { girarLista, processarComPrazo } from "@/lib/cron/lote";
 
-// Dezenas de tickers via scraping podem passar dos 10s padrão (mesmo teto do cron de cotações).
-export const maxDuration = 60;
+// Centenas de tickers via scraping: o mesmo teto do cron do Open Finance, e o loop para sozinho
+// com folga antes dele (PRAZO_MS) em vez de ser morto no meio.
+export const maxDuration = 300;
+const PRAZO_MS = 270_000;
 
 /**
  * Cron diário (vercel.json): mantém o calendário de dividendos em dia pra TODOS os tickers em
@@ -16,28 +20,9 @@ export const maxDuration = 60;
  * mexer na carteira de novo.
  */
 export async function GET(request: Request) {
-  const secret = process.env.CRON_SECRET;
-  const authorized = secret
-    ? request.headers.get("authorization") === `Bearer ${secret}`
-    : (request.headers.get("user-agent") ?? "").startsWith("vercel-cron");
-  if (!authorized) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
-
-  // O freio vale SÓ para chamada sem o segredo (o user-agent dá pra forjar). Com
-  // CRON_SECRET conferido, quem chamou é a Vercel e a rodada tem que acontecer: antes,
-  // uma pessoa salvando um ativo nos 10 minutos anteriores cancelava o dia de todo mundo.
-  if (!secret) {
-    // Mesmo freio anti-abuso do cron de cotações: sem CRON_SECRET configurado, o user-agent é
-    // forjável — isso garante que rodar de novo em <10min nunca acontece de verdade.
-    const lastRun = await prisma.dividendEvent.findFirst({
-      orderBy: { fetchedAt: "desc" },
-      select: { fetchedAt: true },
-    });
-    if (lastRun && Date.now() - lastRun.fetchedAt.getTime() < 10 * 60 * 1000) {
-      return NextResponse.json({ ok: true, skipped: "ran recently" });
-    }
-  }
+  const inicio = Date.now();
+  const recusa = recusarSeNaoForCron(request);
+  if (recusa) return recusa;
 
   const withTicker = await prisma.asset.findMany({
     where: { ticker: { not: null } },
@@ -45,9 +30,12 @@ export async function GET(request: Request) {
   });
   const tickers = [...new Set(withTicker.map((a) => a.ticker as string).filter(looksLikeMarketTicker))];
 
-  for (const ticker of tickers) {
-    await refreshDividendsForTicker(ticker);
-  }
+  // Alguns de cada vez, com prazo e em rodízio: um por vez, a função morria no teto com a
+  // lista pela metade, e como a ordem do banco é estável eram sempre os mesmos tickers do fim
+  // que nunca ganhavam o provento novo no calendário. O início sorteado a cada dia garante que
+  // quem ficar de fora hoje (se um dia ficar) entra nos próximos.
+  const fila = girarLista(tickers.sort(), Math.floor(Math.random() * tickers.length));
+  const r = await processarComPrazo(fila, { paralelo: 5, prazo: inicio + PRAZO_MS }, (ticker) => refreshDividendsForTicker(ticker));
 
-  return NextResponse.json({ ok: true, tickers: tickers.length });
+  return NextResponse.json({ ok: true, tickers: tickers.length, processados: r.processados, pendentes: r.pendentes });
 }

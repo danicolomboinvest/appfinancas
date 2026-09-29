@@ -21,7 +21,7 @@ export function PaidDividendsCard({
   sub?: string;
 }) {
   const money = useMoney();
-  const { showToast } = useToast();
+  const { showToast, showError } = useToast();
   const [done, setDone] = useState<Set<string>>(new Set());
   const [isPending, startTransition] = useTransition();
   // Pelo id, não por ativo + dia: lançar o JSCP não pode esconder os Dividendos pagos junto.
@@ -51,7 +51,7 @@ export function PaidDividendsCard({
                 startTransition(async () => {
                   const res = await registerDividendIncomeAction({ eventId: d.id });
                   if (!res.ok) {
-                    showToast("Não consegui lançar. Tente de novo.");
+                    showError("Não consegui lançar. Tente de novo.");
                     return;
                   }
                   setDone((prev) => new Set(prev).add(d.id));

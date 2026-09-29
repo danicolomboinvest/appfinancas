@@ -90,6 +90,15 @@ export type StrategyClassPosition = {
 
 const TOLERANCE_PP = 0.02; // 2 pontos percentuais de tolerância antes de considerar "fora do alvo"
 
+/**
+ * A ÚNICA régua de "fora do alvo" do app. Carteira (selo e sugestões) e Por objetivo (cards de
+ * Aportar/Reduzir) usavam três folgas diferentes (1 p.p., 2 p.p. e zero): o selo dizia "abaixo
+ * do alvo" sem sugestão nenhuma, e o card pedia "Reduzir" até quando a classe estava no alvo.
+ */
+export function strategyStatusOf(deviationPercent: number): StrategyClassPosition["status"] {
+  return deviationPercent > TOLERANCE_PP ? "ACIMA" : deviationPercent < -TOLERANCE_PP ? "ABAIXO" : "DENTRO";
+}
+
 export async function getPortfolioStrategyComparison(ctx: AuthContext): Promise<{
   positions: StrategyClassPosition[];
   totalPortfolio: number;
@@ -118,8 +127,7 @@ export async function getPortfolioStrategyComparison(ctx: AuthContext): Promise<
     const deviationPercent = currentPercent - targetPercent;
     const targetValue = totalPortfolio.times(targetPercent);
     const rebalanceAmount = targetValue.minus(currentValue).toNumber();
-    const status: StrategyClassPosition["status"] =
-      deviationPercent > TOLERANCE_PP ? "ACIMA" : deviationPercent < -TOLERANCE_PP ? "ABAIXO" : "DENTRO";
+    const status = strategyStatusOf(deviationPercent);
 
     return {
       assetClass,

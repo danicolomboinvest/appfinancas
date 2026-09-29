@@ -83,9 +83,12 @@ export default function ConsorcioPage() {
               </h1>
             </div>
             <Card className="p-4">
-              {/* Barras de CUSTO: a menor é a melhor, então quem diz o vencedor é a cor. */}
+              {/* Barras de CUSTO: a menor é a melhor, então quem diz o vencedor é a cor.
+                  As duas precisam estar na mesma base do veredito (custo da operação, sem o bem):
+                  com o total pago do consórcio (bem + taxa) de um lado e só juros do outro, a
+                  barra do vencedor saía a maior e a diferença não batia com nenhuma das duas. */}
               <OutcomeComparison
-                a={{ label: t.simConsBarraConsorcio, value: result.consortium.totalPaid, hint: t.simConsBarraConsorcioHint(money(result.consortium.installment)) }}
+                a={{ label: t.simConsBarraConsorcio, value: result.consortium.operationCost, hint: t.simConsBarraConsorcioHint(money(result.consortium.installment)) }}
                 b={{ label: t.simConsBarraFinanciamento, value: result.financing.totalCostWithOpportunity, hint: t.simConsBarraFinanciamentoHint }}
                 winner={vencedor === "CONSORCIO" ? "a" : "b"}
                 verdict={t.simConsVeredito(vencedor, diferenca)}

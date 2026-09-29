@@ -139,6 +139,11 @@ describe("a voz dos sete temas", () => {
     expect(vozDoTema("manifestacao").nav.metas).toBe("Sonhos");
     expect(vozDoTema("girly").nav.metas).toBe("Sonhos");
     expect(vozDoTema("disciplina").nav.flowTabs).toEqual(["Resultado", "Gastos", "Plano"]);
+    // A aba do orçamento e a das metas aparecem juntas no celular: nome igual, destinos diferentes.
+    for (const t of PROFILE_THEMES) {
+      const voz = vozDoTema(t.key);
+      expect(voz.nav.flowTabs[2]).not.toBe(voz.nav.metas);
+    }
   });
 
   /** O Girly fala com a pessoa nos títulos também — e o Padrão continua com os de hoje. */
@@ -151,6 +156,9 @@ describe("a voz dos sete temas", () => {
     expect(g.nenhumaEstourou).toContain("amiga");
     expect(g.sobrouNoAnoDica("R$ 100", "R$ 31", 31)).toContain("Orgulho");
     expect(g.sobrouNoAnoDica("R$ 100", "R$ 0", 0)).not.toContain("Orgulho");
+    // Ano no vermelho: nada de "você manteve −R$ 25" no tema de fábrica.
+    expect(p.sobrouNoAnoDica("R$ 100", "−R$ 25", -25)).not.toContain("manteve");
+    expect(p.sobrouNoAnoDica("R$ 100", "R$ 30", 30)).toBe("De cada R$ 100 que entraram, você manteve R$ 30");
     // Mesmo elogiando, nada de adjetivo negativo sobre a pessoa em lugar nenhum.
     for (const v of Object.values(g)) {
       const texto = typeof v === "function" ? (v as (...a: never[]) => unknown)(...(["10%", "R$ 10", 10] as never[])) : v;

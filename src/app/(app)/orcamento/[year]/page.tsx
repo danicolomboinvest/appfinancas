@@ -15,6 +15,7 @@ import {
 import { getAnnualBudgetPlan, getAnnualBudgetPlanForCustomCategories } from "@/lib/repositories/budget.repo";
 import { getAnnualMonthlyPlan } from "@/lib/repositories/monthly-plan.repo";
 import { getBudgetHints } from "@/lib/planning/budget-hints";
+import { anoFechado, mesDeReferenciaDoPlano } from "@/lib/planning/plano-anual";
 import { getSavingsTargets } from "@/lib/planning/savings-targets";
 import { BudgetWizard } from "../BudgetWizard";
 import { getMonthlySummary } from "@/lib/consolidation/monthly";
@@ -82,9 +83,13 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
     getBudgetHints(ctx, year),
     getSavingsTargets(ctx, agora),
   ]);
-  // Qualquer mês serve para preencher o formulário: o valor é o mesmo nos 12, e é o primeiro
-  // que existir que responde "o que eu já tinha planejado?".
-  const monthPlan = annualPlan.get(1) ?? [...annualPlan.values()][0] ?? null;
+  // O mês de referência, o mesmo das categorias (o mês corrente no ano corrente): o salvar grava
+  // dele em diante, então é ele que responde "o que eu tenho planejado?". Janeiro já não serve:
+  // depois de salvar em setembro, janeiro continua com o valor antigo e a tela "desfazia" a
+  // mudança (e a barra de "não salvas" nunca sumia).
+  const monthPlan = annualPlan.get(mesDeReferenciaDoPlano(year, agora)) ?? annualPlan.get(1) ?? [...annualPlan.values()][0] ?? null;
+  // Ano que já acabou: o plano dele é história. O salvar não grava nada nele, então nem oferece.
+  const planoFechado = anoFechado(year, agora);
   const hasPlan = Object.values(plan).some((v) => v > 0) || (monthPlan?.plannedIncome ?? 0) > 0;
   const customPlan = await getAnnualBudgetPlanForCustomCategories(
     ctx,
@@ -131,7 +136,9 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
       : null;
   const ultimoDiaDoMes = currentMonthData ? new Date(year, currentMonthData.month, 0).getDate() : 0;
 
-  const monthSavings = currentMonthData ? computeMonthSavings(currentMonthData) : null;
+  // Sem plano por categoria (só renda e aporte), "0 − gasto" não é economia nem estouro: o card
+  // dizia "Acima do planejado" em vermelho enquanto o resumo do mês, logo acima, dizia "sem plano".
+  const monthSavings = currentMonthData && currentMonthData.totalPlanned > 0 ? computeMonthSavings(currentMonthData) : null;
   const biggestOverrun = currentMonthData ? findBiggestOverrun(currentMonthData.categories) : null;
   const biggestSaving = currentMonthData ? findBiggestSaving(currentMonthData.categories) : null;
   const unrecorded = currentMonthData ? findUnrecorded(currentMonthData.categories) : [];
@@ -241,6 +248,14 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
         />
       )}
 
+      {planoFechado ? (
+        <p className="text-sm text-ink-muted">
+          {year} já fechou: o plano dele fica como estava, pra comparação.{" "}
+          <Link href={`/orcamento/${agora.getFullYear()}`} className="font-semibold text-accent-strong hover:underline">
+            Planejar {agora.getFullYear()}
+          </Link>
+        </p>
+      ) : (
       <CollapsibleSection
         label={hasPlan ? `Editar seu plano de ${year}: renda, aporte e gastos` : `Vamos montar seu orçamento de ${year}`}
         defaultOpen={!hasPlan}
@@ -269,6 +284,7 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
           }))}
         />
       </CollapsibleSection>
+      )}
 
       {/* Três linhas no celular, três colunas no computador — e "sem lançamento" no lugar de
           "melhor categoria" quando o que existe é categoria em zero, não economia. */}

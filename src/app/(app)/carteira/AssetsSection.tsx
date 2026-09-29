@@ -2,7 +2,7 @@
 
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { Briefcase, Eye, EyeOff, FileText, FileUp, Pencil, Plus, RefreshCw } from "lucide-react";
 import { Card } from "@/components/ui/Card";
@@ -19,6 +19,7 @@ import { PortfolioImport } from "@/components/import/PortfolioImport";
 import { IrpfImport } from "@/components/import/IrpfImport";
 import { DeleteAssetButton } from "./DeleteAssetButton";
 import { AssetForm } from "./AssetForm";
+import { ABRIR_NOVO_ATIVO } from "./novo-ativo";
 import { updatePortfolioQuotesAction } from "./quotes-actions";
 import { bulkSetObjectiveAction } from "./actions";
 import { formatPercentNumber } from "@/lib/format";
@@ -113,6 +114,7 @@ export function AssetsSection({
   goalNameById,
   strategy,
   empresa = false,
+  comAporteRecente = [],
 }: {
   assets: Asset[];
   goals: { id: string; name: string }[];
@@ -120,6 +122,8 @@ export function AssetsSection({
   strategy: StrategySummary;
   /** Perfil Empresa: só o caixa e os ativos, sem estratégia de alocação. */
   empresa?: boolean;
+  /** Ativos que receberam aporte deste mês ou do anterior: remover avisa que o aporte volta a pedir destino. */
+  comAporteRecente?: string[];
 }) {
   const { voz } = useProfileTheme();
   const currency = useCurrency();
@@ -133,8 +137,15 @@ export function AssetsSection({
   const [hidden, setHidden] = useState(false); // botão de olho: oculta os valores em dinheiro
   const [isUpdatingQuotes, startQuotesTransition] = useTransition();
   const [isBulkPending, startBulkTransition] = useTransition();
-  const { showToast } = useToast();
+  const { showToast, showError } = useToast();
   const t = voz.titulos;
+
+  // O card do aporte pede o "Novo ativo" quando o ativo onde ela investiu ainda não existe.
+  useEffect(() => {
+    const abrir = () => setCreateOpen(true);
+    window.addEventListener(ABRIR_NOVO_ATIVO, abrir);
+    return () => window.removeEventListener(ABRIR_NOVO_ATIVO, abrir);
+  }, []);
 
   // O nome de cada objetivo vem da voz do tema (reserva e liberdade já existiam no catálogo
   // por causa da tela Por Objetivo; aqui só se reaproveita, pra não ter duas fontes).
@@ -154,7 +165,7 @@ export function AssetsSection({
       const goalId = isGoal ? value.slice(5) : undefined;
       const objective = (isGoal ? "META" : value) as "RESERVA_EMERGENCIA" | "LIBERDADE_FINANCEIRA" | "OUTRO" | "META";
       const result = await bulkSetObjectiveAction(classFilter, objective, goalId);
-      if (!result.ok) return showToast(result.error);
+      if (!result.ok) return showError(result.error);
       const label = isGoal ? t.cartRotuloMeta(goals.find((g) => g.id === goalId)?.name ?? "") : `"${objectiveLabel[objective]}"`;
       showToast(t.cartVinculados(result.updated, label));
     });
@@ -166,7 +177,7 @@ export function AssetsSection({
     startQuotesTransition(async () => {
       const result = await updatePortfolioQuotesAction();
       if (!result.ok) {
-        showToast(result.error);
+        showError(result.error);
         return;
       }
       showToast(
@@ -501,7 +512,7 @@ export function AssetsSection({
                   </button>
 
                   {expanded && (
-                    <div className="flex items-center justify-end gap-4 border-t border-border px-3 py-2">
+                    <div className="flex flex-wrap items-center justify-end gap-4 border-t border-border px-3 py-2">
                       <button
                         type="button"
                         onClick={() => setEditingAsset(asset)}
@@ -511,7 +522,7 @@ export function AssetsSection({
                         <Pencil size={13} strokeWidth={1.75} />
                         {t.cartEditar}
                       </button>
-                      <DeleteAssetButton id={asset.id} />
+                      <DeleteAssetButton id={asset.id} name={asset.ticker ?? asset.name} temAporteRecente={comAporteRecente.includes(asset.id)} />
                     </div>
                   )}
                 </Card>

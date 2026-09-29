@@ -201,6 +201,11 @@ export type TextosConfiguracoes = {
   viagemDeOndeVemCusto: string;
   viagemCustoEstimado: string;
   viagemPorPessoa(porPessoa: string, porMes: string, meses: number): string;
+  /** Mudou roteiro, pessoas ou estilo e os valores que ela digitou deixaram de valer. */
+  viagemValoresVoltaram: string;
+  viagemUsarMeus: string;
+  /** Quem usa outra moeda: as estimativas do app são em reais, então os blocos começam zerados. */
+  viagemOutraMoeda(simbolo: string): string;
   viagemMetaCriadaToast: string;
   viagemVerMeta: string;
   viagemCriarMeta: string;
@@ -410,6 +415,10 @@ export const PADRAO_CONFIGURACOES: TextosConfiguracoes = {
   viagemCustoEstimado: "Custo estimado da viagem",
   viagemPorPessoa: (porPessoa, porMes, meses) =>
     `${porPessoa} por pessoa · guardando ${porMes}/mês, você chega lá em ${meses} ${meses === 1 ? "mês" : "meses"}.`,
+  viagemValoresVoltaram: "Os valores que você editou voltaram para a estimativa, porque o roteiro, as pessoas ou o estilo mudaram.",
+  viagemUsarMeus: "Usar os meus",
+  viagemOutraMoeda: (simbolo) =>
+    `As estimativas do app são em reais, para quem sai do Brasil, e não valem em ${simbolo}. Digite em cada bloco quanto a sua viagem custa em ${simbolo}.`,
   viagemMetaCriadaToast: "Meta da viagem criada! Veja em Metas.",
   viagemVerMeta: "Ver minha meta em Metas",
   viagemCriarMeta: "Criar meta desta viagem",

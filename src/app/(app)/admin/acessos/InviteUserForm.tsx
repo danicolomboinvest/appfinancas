@@ -59,14 +59,30 @@ export function InviteUserForm() {
       )}
 
       <div className="flex flex-wrap items-end gap-3">
-        <Field label="Nome" id="invite-name" name="name" className="w-56" placeholder="Maria Silva" />
-        <Field label="E-mail" id="invite-email" name="email" type="email" className="w-64" placeholder="maria@email.com" />
+        <Field
+          label="Nome"
+          id="invite-name"
+          name="name"
+          className="w-56"
+          placeholder="Maria Silva"
+          defaultValue={state.values?.name}
+        />
+        <Field
+          label="E-mail"
+          id="invite-email"
+          name="email"
+          type="email"
+          className="w-64"
+          placeholder="maria@email.com"
+          defaultValue={state.values?.email}
+        />
         <Field
           label="Senha"
           id="invite-password"
           name="password"
           className="w-48"
           placeholder="Mínimo 8 caracteres"
+          defaultValue={state.values?.password}
         />
         <Field
           label="Acesso até (opcional)"

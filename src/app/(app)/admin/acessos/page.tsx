@@ -9,7 +9,14 @@ import { InviteUserForm } from "./InviteUserForm";
 import { ProductsSection } from "./ProductsSection";
 import { RowActions } from "./RowActions";
 
-const dateFmt = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+// No fuso do Brasil: o servidor roda em UTC, e uma compra no Hubla às 22h30 de 28/09 aparecia
+// "até 29/09" enquanto isExpired (que olha o dia no Brasil) já bloqueava em 29/09.
+const dateFmt = new Intl.DateTimeFormat("pt-BR", {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+  timeZone: "America/Sao_Paulo",
+});
 
 export default async function AdminAcessosPage() {
   await requireAdmin();

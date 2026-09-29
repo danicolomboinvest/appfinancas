@@ -3,7 +3,7 @@
 import type { ProfileKind } from "@prisma/client";
 
 import { useEffect, useState, useTransition } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Sidebar } from "./Sidebar";
 import { PillTabs } from "./PillTabs";
 import { NavProgressProvider } from "./nav-progress";
@@ -20,6 +20,7 @@ import { InstallAppSheet } from "./InstallAppSheet";
 import { UsageTracker } from "./UsageTracker";
 import { MORE_NAV_SECTIONS, sectionMatches } from "./nav-sections";
 import { logoutAction } from "@/lib/auth/actions";
+import { desinscreverAvisosDesteAparelho } from "@/lib/push/aparelho";
 import { ToastProvider } from "@/components/ui/toast-context";
 import { ProfileThemeProvider, useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 
@@ -65,6 +66,25 @@ export function AppShell({
   const [registrarOpen, setRegistrarOpen] = useState(false);
   const [, startTransition] = useTransition();
   const pathname = usePathname();
+  const router = useRouter();
+
+  // O perfil ativo é da CONTA, não da aba: trocar pra Empresa no computador vale também no
+  // celular. Uma tela que ficou aberta no Pessoal continuava mostrando o Pessoal e gravava na
+  // Empresa. Ao voltar pra aba (ou pro app) depois de um tempo fora, a tela é recarregada do
+  // servidor — se o perfil mudou, ela remonta no perfil certo antes de ela lançar algo.
+  useEffect(() => {
+    let escondidaDesde = 0;
+    function aoMudarVisibilidade() {
+      if (document.visibilityState === "hidden") {
+        escondidaDesde = Date.now();
+        return;
+      }
+      if (escondidaDesde && Date.now() - escondidaDesde > 30_000) router.refresh();
+      escondidaDesde = 0;
+    }
+    document.addEventListener("visibilitychange", aoMudarVisibilidade);
+    return () => document.removeEventListener("visibilitychange", aoMudarVisibilidade);
+  }, [router]);
 
   useEffect(() => {
     // Lido só depois de montar (não na inicialização do estado) para o HTML do
@@ -83,8 +103,10 @@ export function AppShell({
   }
 
   function handleLogout() {
-    startTransition(() => {
-      logoutAction();
+    startTransition(async () => {
+      // Desliga os avisos deste aparelho antes de sair: quem entrar depois aqui não pode receber
+      // os avisos (com valores) da conta que saiu. Pra voltar a receber, é ligar de novo.
+      await logoutAction(await desinscreverAvisosDesteAparelho());
     });
   }
 

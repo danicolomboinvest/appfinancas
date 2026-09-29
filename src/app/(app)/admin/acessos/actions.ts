@@ -19,9 +19,21 @@ import { adminInviteSchema } from "@/lib/validations/auth.schema";
 import { sendEmail } from "@/lib/email/send";
 import { welcomeEmail, accessGrantedEmail } from "@/lib/email/templates";
 
-export type AccessFormState = { error?: string; added?: number; emailed?: number };
+// `values` volta junto com o erro: o React 19 limpa o formulário a cada envio, e sem isso um
+// único token inválido ("Maria Silva maria@x.com") apagava a lista inteira colada.
+export type AccessFormState = {
+  error?: string;
+  added?: number;
+  emailed?: number;
+  keptLonger?: number;
+  values?: { emails: string; note: string };
+};
 export type ProductFormState = { error?: string; ok?: boolean };
-export type InviteFormState = { error?: string; created?: { email: string; password: string } };
+export type InviteFormState = {
+  error?: string;
+  created?: { email: string; password: string };
+  values?: { name: string; email: string; password: string };
+};
 
 /** Aceita a lista colada em qualquer separador comum: quebra de linha, vírgula, ponto-e-vírgula ou espaço. */
 function parseEmails(raw: string): string[] {
@@ -32,10 +44,12 @@ function parseEmails(raw: string): string[] {
 }
 
 /** "YYYY-MM-DD" (input type="date") → meio-dia local, evita a data "voltar um dia" na
- * conversão pra UTC (mesmo golpe usado no lançamento mensal). Campo vazio = undefined (não
- * mexe no prazo de quem já existia); "" nunca deve virar Invalid Date no Prisma. */
-function parseExpiryDate(raw: FormDataEntryValue | null): Date | undefined {
-  if (typeof raw !== "string" || !raw.trim()) return undefined;
+ * conversão pra UTC (mesmo golpe usado no lançamento mensal). Campo apagado = null (sem
+ * prazo, como o formulário promete); campo ausente ou ilegível = undefined (não mexe no prazo
+ * de quem já existia). "" nunca deve virar Invalid Date no Prisma. */
+function parseExpiryDate(raw: FormDataEntryValue | null): Date | null | undefined {
+  if (typeof raw !== "string") return undefined;
+  if (!raw.trim()) return null;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return undefined;
   return new Date(`${raw}T12:00:00`);
 }
@@ -46,17 +60,22 @@ export async function addEmailsAction(_prev: AccessFormState, formData: FormData
   const raw = typeof formData.get("emails") === "string" ? (formData.get("emails") as string) : "";
   const note = typeof formData.get("note") === "string" ? (formData.get("note") as string).trim() : "";
 
+  const values = { emails: raw, note };
+
   const emails = parseEmails(raw);
   if (emails.length === 0) {
-    return { error: "Cole ao menos um e-mail." };
+    return { error: "Cole ao menos um e-mail.", values };
   }
   const invalid = emails.filter((e) => !e.includes("@"));
   if (invalid.length > 0) {
-    return { error: `Estes não parecem e-mails válidos: ${invalid.slice(0, 3).join(", ")}${invalid.length > 3 ? "…" : ""}` };
+    return {
+      error: `Estes não parecem e-mails válidos: ${invalid.slice(0, 3).join(", ")}${invalid.length > 3 ? "…" : ""}`,
+      values,
+    };
   }
 
   const expiresAt = parseExpiryDate(formData.get("expiresAt"));
-  const { affected, toNotify } = await addAllowedEmails(emails, note || undefined, expiresAt);
+  const { affected, toNotify, keptLonger } = await addAllowedEmails(emails, note || undefined, expiresAt);
 
   // Avisa por e-mail quem acabou de ser liberado e ainda não tem conta ("crie sua conta com
   // este e-mail"). Melhor esforço: falha de envio não desfaz a liberação.
@@ -75,7 +94,7 @@ export async function addEmailsAction(_prev: AccessFormState, formData: FormData
   }
 
   revalidatePath("/admin/acessos");
-  return { added: affected, emailed };
+  return { added: affected, emailed, keptLonger };
 }
 
 export async function toggleAccessAction(id: string, active: boolean) {
@@ -143,12 +162,15 @@ export async function inviteUserAction(_prev: InviteFormState, formData: FormDat
   const emailRaw = typeof formData.get("email") === "string" ? (formData.get("email") as string).trim() : "";
   const password = typeof formData.get("password") === "string" ? (formData.get("password") as string) : "";
 
+  // A senha volta também: é a Dani quem escolhe e ela já aparece em claro no formulário.
+  const values = { name, email: emailRaw, password };
+
   const parsed = adminInviteSchema.safeParse({ name, email: emailRaw, password });
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Dados inválidos.", values };
   const { email } = parsed.data;
 
   const existing = await findUserByEmail(email);
-  if (existing) return { error: "Já existe uma conta com este e-mail." };
+  if (existing) return { error: "Já existe uma conta com este e-mail.", values };
 
   const expiresAt = parseExpiryDate(formData.get("expiresAt"));
   await createUserInvite({ email, name, password: parsed.data.password });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { notaGuardandoObservacao } from "../checklist";
+import { criteriosDoChecklist, notaGuardandoObservacao } from "../checklist";
 
 describe("checklist: não apaga a Observação escrita à mão", () => {
   it("texto antigo na Observação vai pro Comentário antes do toque gravar por cima", () => {
@@ -19,5 +19,17 @@ describe("checklist: não apaga a Observação escrita à mão", () => {
 
   it("não duplica o texto se ele já foi guardado na nota", () => {
     expect(notaGuardandoObservacao("Família Setubal", "Família Setubal\n\nOlhar de novo")).toBeUndefined();
+  });
+});
+
+describe("checklist: só pergunta de verdade", () => {
+  it("FII: tira os números que o laudo já lê (P/VP, vacância, taxa)", () => {
+    const criterios = ["mandato", "p_vp", "vacancia_atual", "taxa_administracao", "qualidade_inquilinos", "ltv", "subordinacao"].map((key) => ({ key }));
+    expect(criteriosDoChecklist("FII", criterios).map((c) => c.key)).toEqual(["mandato", "qualidade_inquilinos", "subordinacao"]);
+  });
+
+  it("ações passam inteiras (já vêm só com o Qualitativo)", () => {
+    const criterios = [{ key: "socios_majoritarios" }, { key: "qualquer_qualitativo" }];
+    expect(criteriosDoChecklist("STOCK", criterios)).toEqual(criterios);
   });
 });

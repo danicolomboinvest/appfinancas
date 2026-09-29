@@ -39,6 +39,11 @@ function money(value: number, currency: CurrencyCode): string {
   return formatMoney(value, currency, { round: true });
 }
 
+/** Texto que a pessoa digitou (nome de perfil) não pode virar HTML dentro do e-mail. */
+function escaparHtml(texto: string): string {
+  return texto.replace(/[<>&"]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" })[c] ?? c);
+}
+
 /** Linha "rótulo … valor" do quadro de números do resumo. */
 function statRow(label: string, value: string, color = INK): string {
   return `<tr>
@@ -70,13 +75,19 @@ export function monthlyRecapEmail(params: {
   currency: CurrencyCode;
   appUrl: string;
   preferencesUrl: string;
-  /** A voz do tema do perfil ativo da pessoa — cada frase sai no jeito de falar do tema dela. */
+  /** A voz do tema do perfil do resumo — cada frase sai no jeito de falar do tema dela. */
   t: Titulos;
+  /**
+   * Nome do perfil dos números, só pra quem tem mais de um: "entrou R$ 12 mil" sem dizer se é
+   * o Pessoal ou a Empresa deixa ela sem saber de onde veio a conta.
+   */
+  perfil?: string;
 }): { subject: string; html: string } {
   const { t } = params;
   const firstName = params.name?.split(" ")[0];
   const hi = t.emailSaudacao(firstName);
   const positive = params.balance >= 0;
+  const perfil = params.perfil?.trim();
 
   // A manchete do e-mail é a comparação, não o valor solto: "sobrou R$ 2.378" não diz se foi
   // um bom mês; "e você gastou 12% menos que no mês passado" diz.
@@ -90,8 +101,9 @@ export function monthlyRecapEmail(params: {
           : t.emailRecapGastosMais(`<strong style="color:#c0523c;">${Math.round(params.expenseDelta * 100)}% acima</strong>`);
 
   return {
-    subject: t.emailRecapAssunto(params.monthLabel),
+    subject: perfil ? `${t.emailRecapAssunto(params.monthLabel)} · ${perfil}` : t.emailRecapAssunto(params.monthLabel),
     html: shell(`
+      ${perfil ? `<p style="margin:0 0 10px;color:${MUTED};font-size:12px;letter-spacing:0.4px;text-transform:uppercase;">Perfil ${escaparHtml(perfil)}</p>` : ""}
       <p style="margin:0 0 6px;">${hi}</p>
       <p style="margin:0 0 20px;color:${MUTED};">${t.emailRecapIntro(params.monthLabel)}</p>
 

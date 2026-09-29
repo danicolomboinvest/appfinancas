@@ -4,7 +4,7 @@ import { vozDoTema } from "@/lib/profiles/voice";
 import { ehEmpresa } from "@/lib/profiles/empresa";
 import { listGoalsWithProgress } from "@/lib/repositories/goal.repo";
 import { computeGoalPlan, type GoalCalcResult } from "@/lib/planning/goal";
-import { monthKeyLabel } from "@/lib/planning/goal-checkin";
+import { aporteDoMesFeito, monthKeyLabel, proximoAporte } from "@/lib/planning/goal-checkin";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -66,15 +66,23 @@ export default async function MetasPage() {
     // só na janela do dia 25 ao 7. Aquela janela servia para uma pergunta ("fez o aporte?"),
     // que não cabe no meio do mês; aqui é um botão, e o dinheiro sai da conta no dia 10.
     const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    const done = aporteDoMesFeito({
+      checkinDismissedMonth: goal.checkinDismissedMonth,
+      monthKey,
+      temAporteNoMes: goal.temAporteNoMes,
+    });
     const checkin =
       variant !== "achieved" && plan.requiredMonthlyContribution > 0
         ? {
             monthKey,
             monthLabel: monthKeyLabel(monthKey),
             suggestedAmount: plan.requiredMonthlyContribution,
-            done: goal.checkinDismissedMonth === monthKey,
+            done,
           }
         : null;
+    // Aporte do mês feito: o card passa a falar do mês que vem, não de "guardar X este mês".
+    const proximo = done ? proximoAporte({ ...goalInput, now }) : null;
+    const nextContribution = proximo ? { monthLabel: monthKeyLabel(proximo.monthKey), amount: proximo.amount } : null;
 
     return {
       goal,
@@ -84,6 +92,8 @@ export default async function MetasPage() {
       targetDate,
       variant,
       checkin,
+      done,
+      nextContribution,
     };
   });
 
@@ -114,7 +124,7 @@ export default async function MetasPage() {
         />
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {sorted.map(({ goal, plan, targetAmount, currentAmount, targetDate, variant, checkin }) => (
+          {sorted.map(({ goal, plan, targetAmount, currentAmount, targetDate, variant, checkin, done, nextContribution }) => (
             <GoalCard
               key={goal.id}
               id={goal.id}
@@ -128,6 +138,8 @@ export default async function MetasPage() {
               plan={plan}
               variant={variant}
               checkin={checkin}
+              monthDone={done}
+              nextContribution={nextContribution}
               voz={voz}
               empresa={empresa}
             />

@@ -51,3 +51,13 @@ describe("extrato do Bradesco Celular (PDF)", () => {
     expect(txns.filter((t) => t.amount < 0).reduce((s, t) => s - t.amount, 0)).toBeCloseTo(619);
   });
 });
+
+describe("extrato do Bradesco com histórico começando com 'Total'", () => {
+  it("TOTAL EXPRESS no meio do extrato não corta o resto; só o rodapé encerra", () => {
+    const texto = BRADESCO.replace("DES: PADARIA EXEMPLO 27/08 1000001 19,00 26,72", "VISA ELECTRON\nTOTAL EXPRESS 27/08 1000001 19,00 26,72");
+    const lidos = parseBradescoStatement(texto);
+    expect(lidos).toHaveLength(4);
+    expect(lidos[0]).toEqual({ date: "2026-08-27", description: "PIX ENVIADO VISA ELECTRON TOTAL EXPRESS", amount: -19 });
+    expect(lidos[3].description).toBe("PIX RECEBIDO REM: FULANO DE TAL");
+  });
+});

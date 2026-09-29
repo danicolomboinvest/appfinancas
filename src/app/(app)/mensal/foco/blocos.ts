@@ -6,6 +6,7 @@ import { getMonthlySummary } from "@/lib/consolidation/monthly";
 import { getCategorySpending, getDailyFlow } from "@/lib/consolidation/month-analysis";
 import { listBudgets, sumExpensesByParentCategory } from "@/lib/repositories/budget.repo";
 import { listMonthlyEntries } from "@/lib/repositories/monthly-entry.repo";
+import { hasPremiumAccess } from "@/lib/repositories/allowedEmail.repo";
 import { buildMonthInsights } from "@/lib/insights/month-insights";
 import { montarDadosDoTema } from "@/app/(app)/mensal/[year]/[month]/theme-hero-data";
 
@@ -21,7 +22,7 @@ export async function carregarBlocosDoMes(ctx: AuthContext, now: Date) {
   const anterior = new Date(year, month - 2, 1);
   const rotulos = Object.fromEntries(PARENT_CATEGORIES.map((k) => [k, categoryLabel(ctx.profileKind, k)]));
 
-  const [money, summary, previousSummary, monthBudgets, spentByParent, categorySpending, entries, dailyFlow, counts] = await Promise.all([
+  const [money, summary, previousSummary, monthBudgets, spentByParent, categorySpending, entries, dailyFlow, counts, premium] = await Promise.all([
     serverMoney(),
     getMonthlySummary(ctx, year, month),
     getMonthlySummary(ctx, anterior.getFullYear(), anterior.getMonth() + 1),
@@ -32,9 +33,12 @@ export async function carregarBlocosDoMes(ctx: AuthContext, now: Date) {
     getDailyFlow(ctx, year, month),
     Promise.all([
       prisma.monthlyEntry.count({ where: { userId: ctx.userId, profileId: ctx.profileId }, take: 1 }),
-      prisma.budget.count({ where: { userId: ctx.userId, profileId: ctx.profileId }, take: 1 }),
+      // Só orçamento com valor: salvar o assistente com tudo em 0 grava linhas zeradas, e o passo
+      // aparecia feito com o cartão "Falta o seu orçamento do mês" logo abaixo.
+      prisma.budget.count({ where: { userId: ctx.userId, profileId: ctx.profileId, plannedAmount: { gt: 0 } }, take: 1 }),
       prisma.asset.count({ where: { userId: ctx.userId, profileId: ctx.profileId }, take: 1 }),
     ]),
+    hasPremiumAccess(ctx.userId),
   ]);
 
   const dadosDoTema = await montarDadosDoTema(ctx, {
@@ -63,5 +67,13 @@ export async function carregarBlocosDoMes(ctx: AuthContext, now: Date) {
   });
 
   const [entryCount, budgetCount, assetCount] = counts;
-  return { money, dadosDoTema, insights, summary, onboarding: { hasEntry: entryCount > 0, hasBudget: budgetCount > 0, hasAsset: assetCount > 0 } };
+  // Sem o plano pago a Carteira é só o paywall: o passo dela ficava em 2/3 pra sempre. Aí o guia
+  // só pede o que ela consegue fazer.
+  return {
+    money,
+    dadosDoTema,
+    insights,
+    summary,
+    onboarding: { hasEntry: entryCount > 0, hasBudget: budgetCount > 0, hasAsset: premium ? assetCount > 0 : null },
+  };
 }

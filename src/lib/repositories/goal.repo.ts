@@ -75,7 +75,16 @@ export async function updateOwnGoal(ctx: AuthContext, id: string, input: GoalInp
 }
 
 export async function deleteOwnGoal(ctx: AuthContext, id: string) {
-  return prisma.goal.deleteMany({ where: { id, userId: ctx.userId, profileId: ctx.profileId } });
+  // Os ativos da meta viram "sem objetivo" junto. A FK só zerava o goalId e deixava o objetivo
+  // "Meta": o ativo ficava fora de todos os cards do "Por objetivo" e o valor sumia da tela.
+  const [, result] = await prisma.$transaction([
+    prisma.asset.updateMany({
+      where: { goalId: id, userId: ctx.userId, profileId: ctx.profileId },
+      data: { objective: "OUTRO", goalId: null },
+    }),
+    prisma.goal.deleteMany({ where: { id, userId: ctx.userId, profileId: ctx.profileId } }),
+  ]);
+  return result;
 }
 
 /**
@@ -85,6 +94,7 @@ export async function deleteOwnGoal(ctx: AuthContext, id: string) {
  * manual (`currentAmount`) é o saldo de partida e soma com isso — ver `goalCurrentAmount`.
  */
 export async function listGoalsWithProgress(ctx: AuthContext) {
+  const hoje = nowInBrazil();
   const [goals, assetSums, aportes] = await Promise.all([
     prisma.goal.findMany({ where: { userId: ctx.userId, profileId: ctx.profileId }, orderBy: { targetDate: "asc" } }),
     prisma.asset.groupBy({
@@ -97,8 +107,8 @@ export async function listGoalsWithProgress(ctx: AuthContext) {
     // é dinheiro guardado pra meta, só que num lugar que a meta não enxerga sozinha.
     prisma.monthlyEntry.findMany({
       // Aporte de mês que ainda não chegou (cópia do "Repetir todo mês") não é dinheiro guardado.
-      where: { userId: ctx.userId, profileId: ctx.profileId, goalId: { not: null }, category: "INVESTMENT_CONTRIBUTION", ...aportesJaOcorridosWhere(nowInBrazil()) },
-      select: { goalId: true, amount: true, allocations: { select: { amount: true, asset: { select: { goalId: true } } } } },
+      where: { userId: ctx.userId, profileId: ctx.profileId, goalId: { not: null }, category: "INVESTMENT_CONTRIBUTION", ...aportesJaOcorridosWhere(hoje) },
+      select: { goalId: true, year: true, month: true, amount: true, allocations: { select: { amount: true, asset: { select: { goalId: true } } } } },
     }),
   ]);
 
@@ -107,8 +117,12 @@ export async function listGoalsWithProgress(ctx: AuthContext) {
   const ativosPorMeta = new Map<string, number>();
   for (const a of assetSums) if (a.goalId) ativosPorMeta.set(a.goalId, Number(a._sum.currentValue ?? 0));
   const aportesPorMeta = new Map<string, { amount: number; allocations: { amount: number; assetGoalId: string | null }[] }[]>();
+  // Metas que já têm aporte NESTE mês (Fluxo, extrato, "Marcar aporte"): o card não pode
+  // oferecer "Marcar aporte" de novo e duplicar o dinheiro.
+  const comAporteNoMes = new Set<string>();
   for (const e of aportes) {
     if (!e.goalId) continue;
+    if (e.year === hoje.getFullYear() && e.month === hoje.getMonth() + 1) comAporteNoMes.add(e.goalId);
     const lista = aportesPorMeta.get(e.goalId) ?? [];
     lista.push({
       amount: Number(e.amount),
@@ -123,6 +137,10 @@ export async function listGoalsWithProgress(ctx: AuthContext) {
 
   return goals.map((g) => {
     const computed = byGoal.get(g.id) ?? 0;
-    return { ...g, computedCurrentAmount: goalCurrentAmount(Number(g.currentAmount), computed) };
+    return {
+      ...g,
+      computedCurrentAmount: goalCurrentAmount(Number(g.currentAmount), computed),
+      temAporteNoMes: comAporteNoMes.has(g.id),
+    };
   });
 }

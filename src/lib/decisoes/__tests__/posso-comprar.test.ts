@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { avaliarCompra, cortesPorMeta, mesesAteMeta, valorPresente, type CompraBase } from "../posso-comprar";
+import { avaliarCompra, comprasAindaNaoLancadas, cortesPorMeta, mesesAteMeta, valorPresente, type CompraBase } from "../posso-comprar";
 
 const fmt = { money: (v: number) => `R$ ${Math.round(v)}`, mesDaqui: (m: number | null) => (m === null ? "sem previsão" : `+${m}`) };
 const base: CompraBase = {
@@ -255,5 +255,45 @@ describe("avaliarCompra: casal com conta conjunta", () => {
     if ("erro" in estoura) throw new Error();
     expect(estoura.veredito).toBe("nao");
     expect(estoura.sugestao).toContain("11x");
+  });
+});
+
+describe("compras que ela já decidiu fazer", () => {
+  const b = { ...base, renda: 10000, gastoPlanejado: 7000, sobraDoMes: 1500, guardarPlanejado: 1500, metas: [] };
+  const bota = { valor: 1200, modo: "vista" as const, parcelas: 1, juros: 0, desconto: 0 };
+
+  it("a segunda compra não usa de novo o dinheiro sem destino que a primeira já levou", () => {
+    const primeira = avaliarCompra(b, bota, fmt);
+    if ("erro" in primeira) throw new Error();
+    expect(primeira.titulo).toBe("Cabe no dinheiro que ainda não tem destino");
+    const segunda = avaliarCompra({ ...b, jaDecidido: { vista: 1200, parcelaMensal: 0 } }, bota, fmt);
+    if ("erro" in segunda) throw new Error();
+    expect(segunda.titulo).not.toBe("Cabe no dinheiro que ainda não tem destino");
+    expect(segunda.conta.some((c) => c.rotulo.includes("já decidiu"))).toBe(true);
+  });
+
+  it("parcelas já decididas entram no compromisso de todo mês", () => {
+    const r = avaliarCompra({ ...b, jaDecidido: { vista: 0, parcelaMensal: 300 } }, { valor: 3000, modo: "parcelado", parcelas: 10, juros: 0, desconto: 0 }, fmt);
+    if ("erro" in r) throw new Error();
+    expect(r.comprometimento?.hoje).toBeCloseTo(0.73, 5);
+  });
+
+  it("compra que já virou lançamento não conta de novo", () => {
+    const decidida = new Date("2026-09-10T15:00:00Z");
+    const depois = new Date("2026-09-12T10:00:00Z");
+    const decididas = [
+      { valor: 1200, modo: "vista" as const, parcelas: 1, criadaEm: decidida },
+      { valor: 3000, modo: "parcelado" as const, parcelas: 10, criadaEm: decidida },
+      { valor: 500, modo: "vista" as const, parcelas: 1, criadaEm: decidida },
+    ];
+    // A bota foi importada; a parcela da jaqueta também; o tênis de 500 ainda não.
+    const gastos = [
+      { valor: 1200, criadoEm: depois },
+      { valor: 300, criadoEm: depois },
+      // Gasto de 500 lançado ANTES da decisão (outra compra): não é o tênis.
+      { valor: 500, criadoEm: new Date("2026-09-01T10:00:00Z") },
+    ];
+    expect(comprasAindaNaoLancadas(decididas, gastos)).toEqual({ vista: 500, parcelaMensal: 0 });
+    expect(comprasAindaNaoLancadas(decididas, [])).toEqual({ vista: 1700, parcelaMensal: 300 });
   });
 });

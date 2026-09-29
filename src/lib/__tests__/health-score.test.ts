@@ -81,6 +81,16 @@ describe("scoreEstrategia", () => {
     const result = scoreEstrategia([0.25, -0.25]); // média de 25 p.p.
     expect(result.score).toBe(50);
   });
+  it("estratégia definida sem nenhum investimento ainda não vira nota crítica", () => {
+    const result = scoreEstrategia([-0.4, -0.3, -0.3], 0);
+    expect(result.score).toBeNull();
+    expect(result.status).toBe("sem-dados");
+    // Com carteira, a mesma conta de sempre.
+    expect(scoreEstrategia([0.25, -0.25], 1000).score).toBe(50);
+  });
+  it("mostra o desvio com vírgula", () => {
+    expect(scoreEstrategia([0.333, -0.333]).detail).toContain("33,3 p.p.");
+  });
 });
 
 describe("scoreMetas", () => {

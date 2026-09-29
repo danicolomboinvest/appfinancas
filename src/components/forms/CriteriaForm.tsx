@@ -8,7 +8,7 @@ import { ProgressBar } from "@/components/ui/ProgressBar";
 import { useToast } from "@/components/ui/toast-context";
 import { AnalysisRadarChart, type CategoryScore } from "@/components/charts/AnalysisRadarChart";
 import { HelpTooltip } from "./HelpTooltip";
-import { mergeSuggestionsIntoResponses, type ResponseState } from "./criteria-form-utils";
+import { mergeSuggestionsIntoResponses, respostasAlteradas, type ResponseState } from "./criteria-form-utils";
 
 export type FormCriterion = {
   id: string;
@@ -72,7 +72,7 @@ export function CriteriaForm({
   analysisPending?: boolean;
 }) {
   const responseByCriterion = new Map(initialResponses.map((r) => [r.criterionId, r]));
-  const [responses, setResponses] = useState<Record<string, ResponseState>>(() => {
+  const montarIniciais = () => {
     const initial: Record<string, ResponseState> = {};
     for (const criterion of criteria) {
       const existing = responseByCriterion.get(criterion.id);
@@ -83,8 +83,12 @@ export function CriteriaForm({
       };
     }
     return initial;
-  });
+  };
+  const [responses, setResponses] = useState<Record<string, ResponseState>>(montarIniciais);
+  // O que está gravado desde o último "Salvar": só vai pro banco o que ela mudou em relação a isso.
+  const [salvo, setSalvo] = useState<Record<string, ResponseState>>(montarIniciais);
   const [conclusion, setConclusion] = useState(initialConclusion ?? "");
+  const [conclusaoSalva, setConclusaoSalva] = useState(initialConclusion ?? "");
   const [totalScore, setTotalScore] = useState(initialTotalScore);
   const [isPending, startTransition] = useTransition();
   const [savedAt, setSavedAt] = useState<Date | null>(null);
@@ -138,21 +142,23 @@ export function CriteriaForm({
   }
 
   function handleSave() {
-    const responsePayload = criteria.map((criterion) => {
-      const response = responses[criterion.id];
-      return {
-        criterionId: criterion.id,
-        value: response.value || undefined,
-        score: response.score !== "" ? Number(response.score) : undefined,
-        note: response.note || undefined,
-      };
-    });
+    const snapshot = responses;
+    const responsePayload = respostasAlteradas(snapshot, salvo, criteria.map((c) => c.id));
+    const conclusaoMudou = conclusion.trim() !== conclusaoSalva.trim();
 
-    const scores = responsePayload.map((r) => r.score).filter((score): score is number => score !== undefined);
+    const scores = criteria
+      .map((c) => snapshot[c.id]?.score)
+      .filter((score): score is string => score !== undefined && score !== "")
+      .map(Number);
     const nextTotalScore = scores.length > 0 ? scores.reduce((sum, score) => sum + score, 0) / scores.length : null;
 
     startTransition(async () => {
-      await saveResponsesAction({ sheetId, conclusion: conclusion || undefined, responses: responsePayload }, basePath);
+      await saveResponsesAction(
+        { sheetId, ...(conclusaoMudou ? { conclusion: conclusion.trim() || null } : {}), responses: responsePayload },
+        basePath,
+      );
+      setSalvo(snapshot);
+      setConclusaoSalva(conclusion);
       setTotalScore(nextTotalScore);
       setSavedAt(new Date());
       showToast("Ficha salva com sucesso.");

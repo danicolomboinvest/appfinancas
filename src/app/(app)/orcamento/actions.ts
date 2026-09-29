@@ -3,11 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { getRequiredSession } from "@/lib/auth/session";
 import { applyBudgetToWholeYear, applyBudgetToWholeYearForCustomCategory } from "@/lib/repositories/budget.repo";
-import { createCustomCategory, deleteOwnCustomCategory } from "@/lib/repositories/custom-category.repo";
+import { createCustomCategory, deleteOwnCustomCategory, listCustomCategories } from "@/lib/repositories/custom-category.repo";
 import { applyMonthlyPlanToWholeYear } from "@/lib/repositories/monthly-plan.repo";
 import { annualBudgetSchema, annualBudgetForCustomCategorySchema } from "@/lib/validations/budget.schema";
 import { customCategorySchema } from "@/lib/validations/custom-category.schema";
 import { PARENT_CATEGORIES } from "@/lib/categories";
+import { nowInBrazil } from "@/lib/date/brazil-now";
+import { anoFechado, mesesQueOSalvarGrava, mudouDoCarregado } from "@/lib/planning/plano-anual";
 
 export type AnnualBudgetState = { error?: string };
 
@@ -23,8 +25,14 @@ export async function applyAllBudgetsAction(
   formData: FormData,
 ): Promise<AnnualBudgetState> {
   const year = Number(formData.get("year"));
-  const customCategoryIds = formData.getAll("customCategoryId").map(String);
   const ctx = await getRequiredSession();
+  const hoje = nowInBrazil();
+  // Ano que já acabou: as categorias não eram gravadas (nenhum mês a tocar), mas a tela dizia
+  // "salvo" e renda/aporte dos 12 meses eram reescritos. Recusa dizendo o porquê.
+  if (!Number.isInteger(year)) return { error: "Algum valor não pôde ser salvo, confira os campos e tente de novo." };
+  if (anoFechado(year, hoje)) {
+    return { error: "Esse ano já fechou, o plano dele não pode mais ser alterado." };
+  }
   // O plano do ano inteiro é gravado no perfil ATIVO. Se ela trocou de perfil em outra aba
   // depois de abrir esta tela, os números do formulário são do perfil anterior: gravar aqui
   // copiaria o plano de um perfil no outro.
@@ -33,18 +41,32 @@ export async function applyAllBudgetsAction(
     return { error: "Você trocou de perfil; recarregue a página." };
   }
 
-  const parentWrites = PARENT_CATEGORIES.map((parentCategory) => {
+  // Só as categorias do próprio perfil: o id vem do formulário, e um id qualquer criava orçamento
+  // neste perfil apontando pra categoria de outro.
+  const proprias = new Set((await listCustomCategories(ctx)).map((c) => c.id));
+  const customCategoryIds = formData
+    .getAll("customCategoryId")
+    .map(String)
+    .filter((id) => proprias.has(id));
+
+  // Só grava o que ela mexeu. O formulário manda todas as categorias, e regravar as intocadas
+  // espalhava pro resto do ano um ajuste "só deste mês" (o do Fechamento, o do aviso do Foco).
+  const parentWrites = PARENT_CATEGORIES.flatMap((parentCategory) => {
     const raw = formData.get(`plannedAmount_${parentCategory}`);
+    if (!mudouDoCarregado(raw, formData.get(`plannedOriginal_${parentCategory}`))) return [];
     const parsed = annualBudgetSchema.safeParse({ year, parentCategory, plannedAmount: raw });
-    return parsed.success ? applyBudgetToWholeYear(ctx, parsed.data) : Promise.reject(parsed.error);
+    return [parsed.success ? applyBudgetToWholeYear(ctx, parsed.data) : Promise.reject(parsed.error)];
   });
 
-  const customWrites = customCategoryIds.map((customCategoryId) => {
+  const customWrites = customCategoryIds.flatMap((customCategoryId) => {
     const raw = formData.get(`plannedAmount_custom_${customCategoryId}`);
+    if (!mudouDoCarregado(raw, formData.get(`plannedOriginal_custom_${customCategoryId}`))) return [];
     const parsed = annualBudgetForCustomCategorySchema.safeParse({ year, customCategoryId, plannedAmount: raw });
-    return parsed.success
-      ? applyBudgetToWholeYearForCustomCategory(ctx, parsed.data)
-      : Promise.reject(parsed.error);
+    return [
+      parsed.success
+        ? applyBudgetToWholeYearForCustomCategory(ctx, parsed.data)
+        : Promise.reject(parsed.error),
+    ];
   });
 
   // Renda e aporte planejados vêm no MESMO formulário: planejar é decidir quanto entra,
@@ -59,12 +81,16 @@ export async function applyAllBudgetsAction(
     Number.isFinite(planejado.plannedInvestment) &&
     planejado.plannedIncome >= 0 &&
     planejado.plannedInvestment >= 0;
+  const planoMudou =
+    mudouDoCarregado(formData.get("plannedIncome"), formData.get("plannedIncomeOriginal")) ||
+    mudouDoCarregado(formData.get("plannedInvestment"), formData.get("plannedInvestmentOriginal"));
 
   try {
     await Promise.all([
       ...parentWrites,
       ...customWrites,
-      planoValido ? applyMonthlyPlanToWholeYear(ctx, year, planejado) : Promise.resolve(),
+      // Mesmos meses das categorias: renda e aporte de mês já vivido não são reescritos.
+      planoValido && planoMudou ? applyMonthlyPlanToWholeYear(ctx, year, planejado, mesesQueOSalvarGrava(year, hoje)) : Promise.resolve(),
     ]);
   } catch {
     return { error: "Algum valor não pôde ser salvo, confira os campos e tente de novo." };

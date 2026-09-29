@@ -6,7 +6,7 @@ import { ProgressBar } from "@/components/ui/ProgressBar";
 import { ReportarErro } from "@/components/decisoes/ReportarErro";
 import { confirmarCancelamentoRaioXAction, escolherRitmoAction, responderCompraAmanhaAction } from "./actions";
 import { carregarFoco, MESES } from "./dados";
-import { AvisoFoco } from "./AvisoFoco";
+import { AvisoFoco, CombinadoFoco } from "./AvisoFoco";
 import { carregarBlocosDoMes } from "./blocos";
 import { ThemeHero } from "@/app/(app)/mensal/[year]/[month]/ThemeHero";
 import { MonthHighlight } from "@/app/(app)/mensal/[year]/[month]/MonthHighlight";
@@ -113,7 +113,7 @@ export default async function FocoPage() {
         </Card>
       ))}
 
-      {ritmo === "mensal" && !d.fechamentoFeito && (
+      {ritmo === "mensal" && !d.fechamentoFeito && d.mesAnteriorTemDados && (
         <Link href="/mensal/foco/fechamento">
           <Card className={`${cartaoAcao} p-5`}>
             <span>
@@ -236,6 +236,10 @@ export default async function FocoPage() {
       ) : (
         foco.atencao.map((item) => <AvisoFoco key={item.id} item={item} hrefMes={d.hrefMes} opcoes={d.opcoesDeCategoria} gastos={item.detalhe?.tipo === "fora" ? d.gastosFora : item.detalhe?.tipo === "estouro" || item.detalhe?.tipo === "ritmo" ? (d.gastosPorCategoria[item.detalhe.categoria] ?? []) : []} />)
       )}
+      {/* O que ela já decidiu num aviso vira combinado, logo abaixo: dá pra ver se está sendo cumprido. */}
+      {foco.combinados.map((c) => (
+        <CombinadoFoco key={c.categoria} c={c} opcoes={d.opcoesDeCategoria} gastos={d.gastosPorCategoria[c.categoria] ?? []} />
+      ))}
       {foco.depois.length > 0 && (
         <details>
           <summary className="cursor-pointer px-1 text-caption text-ink-muted">{t.focoMaisEsperam(foco.depois.length)}</summary>
@@ -284,7 +288,7 @@ export default async function FocoPage() {
         </Card>
       )}
 
-      {ritmo === "semanal" && !d.fechamentoFeito && d.dia <= 15 && (
+      {ritmo === "semanal" && !d.fechamentoFeito && d.mesAnteriorTemDados && d.dia <= 15 && (
         <Link href="/mensal/foco/fechamento" className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-surface px-5 py-4 transition-colors hover:bg-surface-hover">
           <span>
             <span className="block text-sm font-semibold text-ink">{t.fechTitulo(d.mesAnterior.label)}</span>

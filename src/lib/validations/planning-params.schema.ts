@@ -4,7 +4,8 @@ export const planningParamsSchema = z
   .object({
     currentAge: z.coerce.number().int().min(0).max(120),
     retirementAge: z.coerce.number().int().min(0).max(120),
-    lifeExpectancyAge: z.coerce.number().int().min(0).max(130).optional(),
+    // null = "apagou o campo" (limpa a coluna); undefined = não veio no formulário (não mexe).
+    lifeExpectancyAge: z.coerce.number().int().min(0).max(130).nullable().optional(),
     currentPatrimony: z.coerce.number().min(0),
     monthlyContributionAccumulation: z.coerce.number().min(0),
     // Taxas viajam como FRAÇÃO (PercentField: digita 11 → envia 0.11). Faixa sã: abaixo de
@@ -20,7 +21,7 @@ export const planningParamsSchema = z
     message: "A idade objetivo deve ser maior ou igual à idade atual.",
     path: ["retirementAge"],
   })
-  .refine((data) => data.lifeExpectancyAge === undefined || data.lifeExpectancyAge >= data.retirementAge, {
+  .refine((data) => data.lifeExpectancyAge == null || data.lifeExpectancyAge >= data.retirementAge, {
     message: "A expectativa de vida deve ser maior ou igual à idade objetivo.",
     path: ["lifeExpectancyAge"],
   });

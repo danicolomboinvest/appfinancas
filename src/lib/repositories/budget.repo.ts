@@ -3,6 +3,7 @@ import { nowInBrazil } from "@/lib/date/brazil-now";
 import { prisma } from "@/lib/db/prisma";
 import type { AuthContext } from "@/lib/auth/session";
 import { PARENT_CATEGORIES } from "@/lib/categories";
+import { mesesQueOSalvarGrava } from "@/lib/planning/plano-anual";
 
 export async function listBudgets(ctx: AuthContext, year: number, month: number) {
   return prisma.budget.findMany({ where: { userId: ctx.userId, profileId: ctx.profileId, year, month } });
@@ -66,17 +67,12 @@ export async function applyBudgetToWholeYear(
 }
 
 /**
- * Meses que um "salvar tudo" pode tocar: do mês corrente em diante, no ano corrente; o ano
- * inteiro em ano futuro; nenhum em ano já fechado. Reescrever mês já vivido mudava a história:
- * quem planejou R$ 800 em janeiro, cumpriu, e em setembro ajustou pra R$ 1.200 passava a ver
- * "economizou R$ 400" em todos os meses anteriores.
+ * Meses que um "salvar tudo" pode tocar (regra em plano-anual.ts): do mês corrente em diante.
+ * Renda e aporte (monthly-plan.repo) seguem a mesma regra, pra os dois lados do plano não
+ * divergirem.
  */
 function monthsToApply(year: number): number[] {
-  const hoje = nowInBrazil();
-  const todos = Array.from({ length: 12 }, (_, i) => i + 1);
-  if (year > hoje.getFullYear()) return todos;
-  if (year < hoje.getFullYear()) return [];
-  return todos.filter((m) => m >= hoje.getMonth() + 1);
+  return mesesQueOSalvarGrava(year, nowInBrazil());
 }
 
 /** Mesma coisa que applyBudgetToWholeYear, só que pra uma categoria personalizada (por id). */
@@ -161,12 +157,38 @@ export async function sumExpensesByParentCategoryForYear(ctx: AuthContext, year:
   }));
 }
 
-/** Soma de gastos por categoria-mãe lançados a partir de uma data (por createdAt), usado na
- * visão "semana" da tela Só gastos, já que o lançamento guarda só ano/mês, não o dia da despesa. */
+/**
+ * Quais gastos são "da semana" (aba Semana da tela Só gastos).
+ *
+ * Antes era só `createdAt` nos últimos 7 dias: o aluguel com "Repetir até dezembro" entrava 4
+ * vezes (as cópias de outubro a dezembro nascem no mesmo instante) e cada parcela futura que a
+ * importação da fatura cria entrava inteira — "Moradia R$ 8.000" numa semana de aluguel de
+ * R$ 2.000. Agora:
+ * - com dia (`entryDate`, coluna só de data): o dia está entre hoje−6 e hoje;
+ * - sem dia (compra de fatura): lançado nos últimos 7 dias, e só se o mês dele já chegou —
+ *   parcela de novembro não é gasto desta semana.
+ * `since` e `hoje` vêm com os componentes do calendário do Brasil (nowInBrazil).
+ */
+export function filtroDaSemana(since: Date, hoje: Date) {
+  const diaDe = (d: Date, delta = 0) => new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate() + delta));
+  return {
+    OR: [
+      { entryDate: { gte: diaDe(hoje, -6), lte: diaDe(hoje) } },
+      {
+        entryDate: null,
+        createdAt: { gte: since },
+        OR: [{ year: { lt: hoje.getFullYear() } }, { year: hoje.getFullYear(), month: { lte: hoje.getMonth() + 1 } }],
+      },
+    ],
+  };
+}
+
+/** Soma de gastos por categoria-mãe da última semana (ver filtroDaSemana), usado na visão
+ * "semana" da tela Só gastos. */
 export async function sumExpensesByParentCategorySince(ctx: AuthContext, since: Date) {
   const grouped = await prisma.monthlyEntry.groupBy({
     by: ["parentCategory"],
-    where: { userId: ctx.userId, profileId: ctx.profileId, category: "EXPENSE", parentCategory: { not: null }, createdAt: { gte: since } },
+    where: { userId: ctx.userId, profileId: ctx.profileId, category: "EXPENSE", parentCategory: { not: null }, ...filtroDaSemana(since, nowInBrazil()) },
     _sum: { amount: true },
   });
   return grouped.map((g) => ({
@@ -179,7 +201,7 @@ export async function sumExpensesByParentCategorySince(ctx: AuthContext, since: 
 export async function sumExpensesByCustomCategorySince(ctx: AuthContext, since: Date) {
   const grouped = await prisma.monthlyEntry.groupBy({
     by: ["customCategoryId"],
-    where: { userId: ctx.userId, profileId: ctx.profileId, category: "EXPENSE", customCategoryId: { not: null }, createdAt: { gte: since } },
+    where: { userId: ctx.userId, profileId: ctx.profileId, category: "EXPENSE", customCategoryId: { not: null }, ...filtroDaSemana(since, nowInBrazil()) },
     _sum: { amount: true },
   });
   return grouped.map((g) => ({

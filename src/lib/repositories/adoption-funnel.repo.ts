@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db/prisma";
+import { normalizeEmail } from "@/lib/repositories/allowedEmail.repo";
 
 /**
  * O funil de ativação e quem ficou preso nele.
@@ -26,7 +27,7 @@ export type PessoaTravada = {
   userId: string;
   nome: string | null;
   email: string;
-  /** Dias desde que abriu o app pela última vez. Null = nunca abriu. */
+  /** Dias desde que abriu o app pela última vez. Null = sem data (nunca abriu, ou só usou antes do rastreio). */
   diasDesdeUltimoAcesso: number | null;
   /** Quantas páginas já viu. Zero = nunca abriu. */
   paginasVistas: number;
@@ -83,15 +84,35 @@ export function semanaDe(d: Date): string {
   return data.toISOString().slice(0, 10);
 }
 
+/**
+ * Último sinal de que a pessoa esteve no app: o evento mais recente ou o lastSeenAt, o que for
+ * mais novo. O UsageEvent só começou a ser gravado em 03/08/2026; quem usou antes disso só tem
+ * o lastSeenAt (desde 23/07) — ou nem isso, e aí só os lançamentos provam que ela entrou.
+ */
+export function ultimoAcesso(ultimoEvento: Date | null | undefined, lastSeenAt: Date | null): Date | null {
+  if (!ultimoEvento) return lastSeenAt;
+  if (!lastSeenAt) return ultimoEvento;
+  return ultimoEvento > lastSeenAt ? ultimoEvento : lastSeenAt;
+}
+
+/**
+ * Abriu o app = qualquer rastro de uso: evento, lastSeenAt ou lançamento. Contar só o
+ * UsageEvent jogava a aluna de julho, com dezenas de lançamentos, no card "Pagaram e nunca
+ * abriram" (e a tirava de "Lançou alguma coisa", porque o funil é encaixado).
+ */
+export function abriuOApp(u: { temEvento: boolean; lastSeenAt: Date | null; lancou: boolean }): boolean {
+  return u.temEvento || u.lastSeenAt !== null || u.lancou;
+}
+
 export async function getFunilDeAdocao(): Promise<FunilDeAdocao> {
   const agora = Date.now();
   const users = await prisma.user.findMany({
     where: { role: "CLIENT" },
-    select: { id: true, name: true, email: true, createdAt: true },
+    select: { id: true, name: true, email: true, createdAt: true, lastSeenAt: true },
   });
   const ids = users.map((u) => u.id);
 
-  const [eventos, comLancamento, comOrcamento, comMeta, comCarteira, lancamentos] = await Promise.all([
+  const [eventos, comLancamento, comOrcamento, comMeta, comCarteira, lancamentos, liberados] = await Promise.all([
     prisma.usageEvent.groupBy({
       by: ["userId"],
       where: { userId: { in: ids } },
@@ -103,6 +124,9 @@ export async function getFunilDeAdocao(): Promise<FunilDeAdocao> {
     prisma.goal.findMany({ where: { userId: { in: ids } }, select: { userId: true }, distinct: ["userId"] }),
     prisma.asset.findMany({ where: { userId: { in: ids } }, select: { userId: true }, distinct: ["userId"] }),
     prisma.monthlyEntry.groupBy({ by: ["importBatchId"], where: { userId: { in: ids } }, _count: true }),
+    // Quem pagou: está na lista de acesso ativa (manual ou Hubla). Desde o freemium qualquer
+    // e-mail cria conta, então role=CLIENT sozinho não quer dizer que pagou.
+    prisma.allowedEmail.findMany({ where: { active: true }, select: { email: true } }),
   ]);
 
   // Digitar e ditar terminam idênticos na tabela de lançamentos, então a única forma de separar
@@ -119,11 +143,14 @@ export async function getFunilDeAdocao(): Promise<FunilDeAdocao> {
   const orcou = new Set(comOrcamento.map((r) => r.userId));
   const meteou = new Set(comMeta.map((r) => r.userId));
   const investiu = new Set(comCarteira.map((r) => r.userId));
+  const pagantes = new Set(liberados.map((r) => r.email));
 
   const total = users.length;
+  const abriuApp = (u: (typeof users)[number]) =>
+    abriuOApp({ temEvento: uso.has(u.id), lastSeenAt: u.lastSeenAt, lancou: lancou.has(u.id) });
+  const acessoDe = (u: (typeof users)[number]) => ultimoAcesso(uso.get(u.id)?._max.createdAt, u.lastSeenAt);
   // Encaixado de verdade: cada passo só conta quem fez TUDO o que veio antes.
-  const abriuApp = (id: string) => uso.has(id);
-  const passo2 = users.filter((u) => abriuApp(u.id));
+  const passo2 = users.filter(abriuApp);
   const passo3 = passo2.filter((u) => lancou.has(u.id));
   const passo4 = passo3.filter((u) => orcou.has(u.id));
   const passo5 = passo4.filter((u) => meteou.has(u.id) || investiu.has(u.id));
@@ -141,20 +168,24 @@ export async function getFunilDeAdocao(): Promise<FunilDeAdocao> {
 
   const comoTravada = (u: (typeof users)[number]): PessoaTravada => {
     const e = uso.get(u.id);
+    const acesso = acessoDe(u);
     return {
       userId: u.id,
       nome: u.name,
       email: u.email,
-      diasDesdeUltimoAcesso: e?._max.createdAt ? Math.floor((agora - e._max.createdAt.getTime()) / 86_400_000) : null,
+      diasDesdeUltimoAcesso: acesso ? Math.floor((agora - acesso.getTime()) / 86_400_000) : null,
       paginasVistas: e?._count ?? 0,
       criadaEm: u.createdAt,
     };
   };
 
   // Mais antigas primeiro: quem está parada há mais tempo é quem está mais perto de pedir dinheiro de volta.
-  const nuncaAbriram = users.filter((u) => !uso.has(u.id)).map(comoTravada).sort((a, b) => +a.criadaEm - +b.criadaEm);
+  const nuncaAbriram = users
+    .filter((u) => !abriuApp(u) && pagantes.has(normalizeEmail(u.email)))
+    .map(comoTravada)
+    .sort((a, b) => +a.criadaEm - +b.criadaEm);
   const abriramSemLancar = users
-    .filter((u) => uso.has(u.id) && !lancou.has(u.id))
+    .filter((u) => abriuApp(u) && !lancou.has(u.id))
     .map(comoTravada)
     .sort((a, b) => (a.diasDesdeUltimoAcesso ?? 999) - (b.diasDesdeUltimoAcesso ?? 999));
 
@@ -164,10 +195,10 @@ export async function getFunilDeAdocao(): Promise<FunilDeAdocao> {
     const chave = semanaDe(u.createdAt);
     const c = porSemana.get(chave) ?? { semana: chave, entraram: 0, abriram: 0, lancaram: 0, aindaAtivas: 0 };
     c.entraram += 1;
-    const e = uso.get(u.id);
-    if (e) c.abriram += 1;
+    if (abriuApp(u)) c.abriram += 1;
     if (lancou.has(u.id)) c.lancaram += 1;
-    if (e?._max.createdAt && agora - e._max.createdAt.getTime() <= 14 * 86_400_000) c.aindaAtivas += 1;
+    const acesso = acessoDe(u);
+    if (acesso && agora - acesso.getTime() <= 14 * 86_400_000) c.aindaAtivas += 1;
     porSemana.set(chave, c);
   }
 

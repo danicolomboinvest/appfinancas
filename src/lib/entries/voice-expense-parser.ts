@@ -12,12 +12,18 @@ export type ParsedVoiceEntry = {
   currency: CurrencyCode | null;
 };
 
-/** As moedas como se fala: "euros", "dólares", "libras", "reais" (já sem acento, ver `normalize`). */
+/**
+ * As moedas como se fala: "euros", "dólares", "libras", "reais" (já sem acento, ver `normalize`).
+ * E como o reconhecedor de voz escreve: em pt-BR ele costuma formatar "50 dólares" como
+ * "US$ 50" e "2 mil euros" como "€ 2.000" — sem o símbolo aqui, o valor era lido mas a moeda
+ * não, e o gasto em dólar era gravado como se fosse em real.
+ */
 const SPOKEN_CURRENCY: { code: CurrencyCode; pattern: RegExp }[] = [
-  { code: "EUR", pattern: /\b(euros?)\b/ },
-  { code: "USD", pattern: /\b(dolar(?:es)?)\b/ },
-  { code: "GBP", pattern: /\b(libras?)\b/ },
-  { code: "BRL", pattern: /\b(reais?|r\$)/ },
+  { code: "EUR", pattern: /€|\beuros?\b/ },
+  // "us$" antes do real: não contém "r$", mas o "$" solto não pode decidir nada sozinho.
+  { code: "USD", pattern: /us\$|\bdolar(?:es)?\b/ },
+  { code: "GBP", pattern: /£|\blibras?\b/ },
+  { code: "BRL", pattern: /\breais?\b|r\$/ },
 ];
 
 /** Palavras de dinheiro que ancoram um número ("45 reais", "2 mil euros"). */
@@ -114,22 +120,35 @@ const SCALE: Record<string, number> = { mil: 1000, milhao: 1_000_000, milhoes: 1
 function amountCandidates(normalized: string): { value: number; index: number; hasCurrency: boolean }[] {
   const re = /(r\$|us\$|\$|€|£)?\s*(\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)\s*(milhoes|milhao|mil|k)?/g;
   const out: { value: number; index: number; hasCurrency: boolean }[] = [];
+  // Até onde a frase já foi lida por um número composto ("4 mil e 500"): o "500" não pode
+  // virar um candidato sozinho.
+  let lidoAte = 0;
   for (const m of normalized.matchAll(re)) {
+    if ((m.index ?? 0) < lidoAte) continue;
     const num = parseFloat(m[2].replace(/\./g, "").replace(",", "."));
     if (isNaN(num)) continue;
     const scale = m[3] ? SCALE[m[3]] : 1;
     let value = num * scale;
-    const resto = normalized.slice((m.index ?? 0) + m[0].length);
+    let resto = normalized.slice((m.index ?? 0) + m[0].length);
     if (m[3] === "mil") {
       // "4 mil e quinhentos": a sobra só vale se for menor que a escala, senão vira outro número.
       const tail = resto.match(new RegExp(`^\\s*e\\s+([a-z\\s]{1,30}?)(?=\\s*(${MONEY_WORDS}|$))`))?.[1];
       const extra = tail ? wordsToNumber(tail) : null;
       if (extra !== null && extra < 1000) value += extra;
+      // "4 mil e 500 reais": o reconhecedor de voz escreve a sobra em dígito. Sem isto o "500"
+      // (encostado no "reais") ganhava do "4 mil" e o salário entrava nove vezes menor.
+      const emDigito = resto.match(/^\s*e\s+(\d{1,3})(?![\d]|[.,]\d)/);
+      if (extra === null && emDigito) {
+        value += Number(emDigito[1]);
+        resto = resto.slice(emDigito[0].length);
+        lidoAte = (m.index ?? 0) + m[0].length + emDigito[0].length;
+      }
     }
     out.push({
       value,
       index: m.index ?? 0,
-      hasCurrency: Boolean(m[1]) || new RegExp(`^\\s*(milhoes|milhao|mil)?\\s*(${MONEY_WORDS})\\b`).test(resto),
+      hasCurrency:
+        Boolean(m[1]) || new RegExp(`^\\s*(milhoes|milhao|mil)?\\s*(?:(?:${MONEY_WORDS})\\b|€|£)`).test(resto),
     });
   }
   return out;

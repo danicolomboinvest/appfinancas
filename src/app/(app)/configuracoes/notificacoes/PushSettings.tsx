@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useToast } from "@/components/ui/toast-context";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
-import { removePushSubscriptionAction, savePushSubscriptionAction } from "./push-actions";
+import { isMyPushSubscriptionAction, removePushSubscriptionAction, savePushSubscriptionAction } from "./push-actions";
 
 type Status = "checking" | "unsupported" | "ios-not-installed" | "blocked" | "off" | "on";
 
@@ -22,7 +22,7 @@ function urlBase64ToUint8Array(base64: string): Uint8Array {
  * site instalado na tela de início que recebe a mensagem — no iPhone, só depois de instalar.
  */
 export function PushSettings({ publicKey, devices }: { publicKey: string | null; devices: number }) {
-  const { showToast } = useToast();
+  const { showToast, showError } = useToast();
   const { titulos: t } = useProfileTheme().voz;
   const [status, setStatus] = useState<Status>("checking");
   const [busy, setBusy] = useState(false);
@@ -39,7 +39,9 @@ export function PushSettings({ publicKey, devices }: { publicKey: string | null;
       else {
         const reg = await navigator.serviceWorker.getRegistration("/sw.js");
         const sub = await reg?.pushManager.getSubscription();
-        next = sub ? "on" : "off";
+        // O navegador ter inscrição não basta: ela pode ser de outra conta que usou este
+        // aparelho. "Ligado" só quando é desta; senão ela vê "Ligar", e ligar passa pra ela.
+        next = sub && (await isMyPushSubscriptionAction(sub.endpoint).catch(() => false)) ? "on" : "off";
       }
       if (alive) setStatus(next);
     })();
@@ -67,7 +69,7 @@ export function PushSettings({ publicKey, devices }: { publicKey: string | null;
       showToast(t.cfgPushLigadoToast);
     } catch (err) {
       console.error(err);
-      showToast(t.cfgPushFalhouToast);
+      showError(t.cfgPushFalhouToast);
     } finally {
       setBusy(false);
     }

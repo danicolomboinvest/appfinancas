@@ -3,6 +3,7 @@ import type { AuthContext } from "@/lib/auth/session";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import { CATEGORIAS_EMPRESA, ehEmpresa } from "@/lib/profiles/empresa";
 import type { ParentCategory } from "@prisma/client";
+import { SUBCATEGORIA_NAO_E_GASTO, TERMOS_NAO_E_GASTO } from "./nao-e-gasto";
 
 export type TypicalExpense = {
   /** Média mensal dos gastos nos meses considerados. */
@@ -11,14 +12,10 @@ export type TypicalExpense = {
   monthsUsed: number;
 };
 
-/**
- * Saída de dinheiro que NÃO é gasto: aplicação (RDB, CDB, caixinha, Tesouro) e pagamento da
- * fatura do cartão (as compras da fatura já estão lançadas uma a uma). O extrato traz tudo
- * isso como débito, e contar como gasto dizia que a renda estava 130% comprometida.
- */
+/** O filtro SQL de "não é gasto" (a lista mora em `nao-e-gasto.ts`, sem banco). */
 export const NAO_E_GASTO = [
-  { subcategory: "Investimento" },
-  ...["aplicação", "aplicacao", "caixinha", "rdb", "cdb", "tesouro direto", "pagamento de fatura", "pagamento fatura", "pgto fatura", "pag fatura", "fatura do cartão", "fatura do cartao"].map((t) => ({
+  { subcategory: SUBCATEGORIA_NAO_E_GASTO },
+  ...TERMOS_NAO_E_GASTO.map((t) => ({
     description: { contains: t, mode: "insensitive" as const },
   })),
 ];

@@ -33,4 +33,17 @@ describe("simulateConsortiumVsFinancing", () => {
     const financingCost = result.financing.totalCostWithOpportunity;
     expect(result.winner).toBe(consortiumCost <= financingCost ? "CONSORCIO" : "FINANCIAMENTO");
   });
+
+  // A tela desenha as barras com operationCost × totalCostWithOpportunity: o vencedor tem
+  // que ser a barra menor e a diferença escrita tem que sair exatamente dessas duas.
+  it("keeps winner and difference on the same basis the bars use", () => {
+    for (const input of [baseInput, { ...baseInput, consortiumAdminFeeRate: 0.6, opportunityCostAnnualRate: 0.01 }]) {
+      const result = simulateConsortiumVsFinancing(input);
+      const a = result.consortium.operationCost;
+      const b = result.financing.totalCostWithOpportunity;
+      const winnerValue = result.winner === "CONSORCIO" ? a : b;
+      expect(winnerValue).toBe(Math.min(a, b));
+      expect(result.differenceInFavorOfWinner).toBeCloseTo(Math.abs(a - b), 6);
+    }
+  });
 });

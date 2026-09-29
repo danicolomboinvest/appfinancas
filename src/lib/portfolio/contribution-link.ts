@@ -1,5 +1,6 @@
 import type { AuthContext } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
+import { brazilTodayUtc } from "@/lib/date/brazil-day";
 
 /**
  * A costura entre Fluxo, Carteira e Metas.
@@ -41,7 +42,16 @@ export type ContributionLinkState = {
  */
 export async function getContributionLinkState(ctx: AuthContext, year: number, month: number): Promise<ContributionLinkState> {
   const entries = await prisma.monthlyEntry.findMany({
-    where: { userId: ctx.userId, profileId: ctx.profileId, year, month, category: "INVESTMENT_CONTRIBUTION" },
+    where: {
+      userId: ctx.userId, profileId: ctx.profileId,
+      year,
+      month,
+      category: "INVESTMENT_CONTRIBUTION",
+      // Aporte com data que ainda não chegou (o do dia 25 de um "Repetir todo mês") não foi
+      // aportado: no dia 1º a carteira já perguntava "você aportou R$ 1.000, em quais ativos?".
+      // Sem data, vale o mês (é o que ela lançou à mão).
+      OR: [{ entryDate: null }, { entryDate: { lte: brazilTodayUtc() } }],
+    },
     select: {
       id: true,
       description: true,
@@ -84,6 +94,21 @@ export async function getContributionLinkState(ctx: AuthContext, year: number, m
     pending: Math.round(pending * 100) / 100,
     contributions: contributions.filter((c) => c.pending > 0.009),
   };
+}
+
+/**
+ * Ativos que receberam aporte dos meses informados (a carteira passa o atual e o anterior — os
+ * dois cujo aporte ela ainda pergunta onde entrou). Apagar um desses ativos apaga junto as
+ * distribuições (cascata), e o aporte volta a pedir destino: o "Remover" avisa antes.
+ */
+export async function assetIdsWithAllocationsIn(ctx: AuthContext, months: { year: number; month: number }[]): Promise<string[]> {
+  if (months.length === 0) return [];
+  const rows = await prisma.contributionAllocation.findMany({
+    where: { userId: ctx.userId, profileId: ctx.profileId, entry: { OR: months.map((m) => ({ year: m.year, month: m.month })) } },
+    select: { assetId: true },
+    distinct: ["assetId"],
+  });
+  return rows.map((r) => r.assetId);
 }
 
 export type AllocationInput = { assetId: string; amount: number };

@@ -150,7 +150,8 @@ export function PossoComprar({ base, hoje }: { base: CompraBase; hoje: { ano: nu
                     ? " (o que já saiu neste mês, que passou do orçamento)"
                     : " (seu orçamento do mês)"}
                 . Com a compra:{" "}
-                <b className={r.comprometimento.depois > 0.9 ? "text-danger" : "text-ink"}>{pctRenda(r.comprometimento.depois)}</b>.
+                {/* Casal só com a conta conjunta não tem regra dos 90%: o vermelho é passar do que entra na conta. */}
+                <b className={r.comprometimento.depois > (base.regra90 === false ? 1 : 0.9) ? "text-danger" : "text-ink"}>{pctRenda(r.comprometimento.depois)}</b>.
               </p>
             )}
             {r.alertaJuros && (

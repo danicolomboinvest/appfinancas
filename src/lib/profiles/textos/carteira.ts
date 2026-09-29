@@ -79,6 +79,13 @@ export type TextosCarteira = {
   cartAplicandoAporte: string;
   cartAtualizarCarteira: string;
   cartAtivoNaoEstaAqui: string;
+  /** Confirmação do "Remover" do ativo: apagar é definitivo. */
+  cartRemoverPergunta(nome: string): string;
+  /** Só quando o ativo recebeu aporte deste mês ou do anterior: a distribuição sai junto. */
+  cartRemoverAvisoAporte: string;
+  cartRemoverSim: string;
+  /** Card do Por objetivo quando a classe está dentro da folga do alvo (nem aportar, nem reduzir). */
+  compNoAlvo: string;
   // Carteira · por objetivo (page + StrategyComparisonSection)
   cartDaMeta(pct: string, valor: string): string;
   cartEditarEstrategia: string;
@@ -276,6 +283,10 @@ export const PADRAO_CARTEIRA: TextosCarteira = {
   cartAplicandoAporte: "Aplicando...",
   cartAtualizarCarteira: "É isso, atualizar carteira",
   cartAtivoNaoEstaAqui: "O ativo ainda não está aqui? Cadastre primeiro",
+  cartRemoverPergunta: (nome) => `Remover ${nome}? Não dá pra desfazer.`,
+  cartRemoverAvisoAporte: "O dinheiro do mês que você disse que entrou nele volta a pedir destino.",
+  cartRemoverSim: "Sim, remover",
+  compNoAlvo: "No alvo",
   // Carteira · por objetivo
   cartDaMeta: (pct, valor) => `${pct} da meta (${valor})`,
   cartEditarEstrategia: "editar estratégia",

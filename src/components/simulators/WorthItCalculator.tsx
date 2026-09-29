@@ -3,7 +3,7 @@
 import { useId, useState } from "react";
 import Link from "next/link";
 import { ChevronLeft, Repeat, ShoppingBag } from "lucide-react";
-import { simulateWorthIt, WORTH_IT_ANNUAL_RATE, type WorthItMode } from "@/lib/simulators/worth-it";
+import { simulateWorthIt, WORTH_IT_ANNUAL_RATE, type FonteRenda, type WorthItMode } from "@/lib/simulators/worth-it";
 import { formatHours } from "@/lib/format";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -41,9 +41,12 @@ const CHOICE_COPY: Record<"comprar" | "nao" | "duvida", { tone: "success" | "neu
 
 export function WorthItCalculator({
   monthlyIncome,
+  incomeSource,
   incomeMonthLabel,
 }: {
   monthlyIncome: number;
+  /** De onde veio a renda (plano, típica ou o que já entrou), pra tela dizer qual base usou. */
+  incomeSource: FonteRenda;
   incomeMonthLabel: string;
 }) {
   const currency = useCurrency();
@@ -63,6 +66,12 @@ export function WorthItCalculator({
   const isIncomeSimulated = simulatedIncomeCents !== null;
   const effectiveIncome = isIncomeSimulated ? simulatedIncomeCents / 100 : monthlyIncome;
   const hasIncome = effectiveIncome > 0;
+  const fonteDaRenda =
+    incomeSource === "plano"
+      ? t.simValeRendaPlano(incomeMonthLabel)
+      : incomeSource === "media"
+        ? t.simValeRendaTipica
+        : t.simValeRendaMes(incomeMonthLabel);
   const result = simulateWorthIt({ price, monthlyIncome: effectiveIncome, mode, horizonYears });
 
   function startSimulatingIncome() {
@@ -141,7 +150,8 @@ export function WorthItCalculator({
                 <span>
                   {t.simValeRendaIntro} {isIncomeSimulated ? t.simValeRendaSimulada : t.simValeRendaSua}{" "}
                   <b className="font-semibold text-ink">{money(effectiveIncome, { round: true })}</b>
-                  {!isIncomeSimulated && <> {t.simValeRendaMes(incomeMonthLabel)}</>}{" "}
+                  {/* Sufixo que começa com vírgula (tom do Girly) cola no valor, sem espaço. */}
+                  {!isIncomeSimulated && (/^[,.]/.test(fonteDaRenda) ? fonteDaRenda : ` ${fonteDaRenda}`)}{" "}
                   <button type="button" onClick={startSimulatingIncome} className="font-medium text-accent-strong hover:underline">
                     {t.simValeAlterar}
                   </button>

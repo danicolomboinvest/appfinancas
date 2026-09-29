@@ -26,6 +26,7 @@ import {
 import { EntryForm } from "./EntryForm";
 import {
   deleteMonthlyEntriesAction,
+  deleteSeriesFromAction,
   undoDeleteEntriesAction,
   updateMonthlyEntriesCategoryAction,
   type DeletedEntrySnapshot,
@@ -44,6 +45,8 @@ export type ListEntry = {
   /** "Hoje", "Ontem" ou "dd/mm" — já calculado no servidor, no fuso do Brasil. */
   dayLabel: string | null;
   goalId: string | null;
+  /** Cópia de uma despesa fixa ("Repetir todo mês"): editar e apagar perguntam se é só este mês. */
+  recurrenceId?: string | null;
   /** Lançado em outra moeda: "€ 2.000,00" já formatado no servidor, e os dados pra editar. */
   originalLabel?: string | null;
   originalAmount?: number | null;
@@ -114,6 +117,7 @@ function toSnapshot(entry: ListEntry, year: number, month: number): DeletedEntry
     originalAmount: entry.originalAmount ?? null,
     originalCurrency: entry.originalCurrency ?? null,
     exchangeRate: entry.exchangeRate ?? null,
+    recurrenceId: entry.recurrenceId ?? null,
   };
 }
 
@@ -151,7 +155,7 @@ export function EntryList({
   const { key: tema, voz, kind } = useProfileTheme();
   const t = voz.titulos;
   const money = useMoney();
-  const { showToast } = useToast();
+  const { showToast, showError } = useToast();
   const [, startTransition] = useTransition();
 
   const [openId, setOpenId] = useState<string | null>(null);
@@ -159,6 +163,8 @@ export function EntryList({
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkCategorizing, setBulkCategorizing] = useState(false);
+  // Despesa fixa: antes de apagar, pergunta se é só este mês ou este e os próximos.
+  const [apagandoFixa, setApagandoFixa] = useState<ListEntry | null>(null);
 
   const open = entries.find((e) => e.id === openId) ?? null;
   const editing = entries.find((e) => e.id === editingId) ?? null;
@@ -168,15 +174,18 @@ export function EntryList({
     const snapshots = targets.map((t) => toSnapshot(t, year, month));
     const quantos = targets.length;
     startTransition(async () => {
-      const { jaNaCarteira, allocations } = await deleteMonthlyEntriesAction(
+      const { jaNaCarteira, allocations, origens } = await deleteMonthlyEntriesAction(
         targets.map((t) => t.id),
         year,
         month,
       );
       // O "Desfazer" devolve o aporte com os ativos em que ele já tinha entrado; sem isso ele
-      // voltava "sem destino" e a meta contava aporte + ativo.
+      // voltava "sem destino" e a meta contava aporte + ativo. E devolve o lote/transação de
+      // origem, senão o lançamento voltava como "feito à mão".
       targets.forEach((entry, i) => {
         snapshots[i].allocations = allocations[entry.id] ?? [];
+        snapshots[i].importBatchId = origens[entry.id]?.importBatchId ?? null;
+        snapshots[i].externalId = origens[entry.id]?.externalId ?? null;
       });
       // Aporte que já tinha sido distribuído: o dinheiro fica no ativo de propósito (é a posição
       // real da pessoa). Dizer isso na hora é o que impede o mês e a carteira de divergirem
@@ -187,7 +196,34 @@ export function EntryList({
         onClick: () => {
           startTransition(async () => {
             const result = await undoDeleteEntriesAction(snapshots);
-            showToast(result.ok ? t.uiRestaurado(quantos) : t.uiRestaurarFalhou);
+            if (result.ok) showToast(t.uiRestaurado(quantos));
+            else showError(t.uiRestaurarFalhou);
+          });
+        },
+      });
+    });
+  }
+
+  function pedirRemocao(entry: ListEntry) {
+    if (entry.recurrenceId) setApagandoFixa(entry);
+    else removeEntries([entry]);
+  }
+
+  /** "Este e os próximos": a série inteira daqui pra frente, com Desfazer pra todas as cópias. */
+  function removeSerie(entry: ListEntry) {
+    startTransition(async () => {
+      const { apagados, snapshots } = await deleteSeriesFromAction(entry.id);
+      if (apagados === 0) {
+        showError("Não achei essa despesa fixa. Recarregue a página.");
+        return;
+      }
+      showToast(t.uiExcluido(apagados), {
+        label: t.uiDesfazer,
+        onClick: () => {
+          startTransition(async () => {
+            const result = await undoDeleteEntriesAction(snapshots);
+            if (result.ok) showToast(t.uiRestaurado(apagados));
+            else showError(t.uiRestaurarFalhou);
           });
         },
       });
@@ -277,7 +313,7 @@ export function EntryList({
             </button>
             <button
               type="button"
-              onClick={() => removeEntries([entry])}
+              onClick={() => pedirRemocao(entry)}
               aria-label={t.uiRemoverLancamento}
               title={t.uiRemover}
               className="rounded-full p-2 text-ink-muted transition-colors hover:bg-danger-soft hover:text-danger"
@@ -323,11 +359,15 @@ export function EntryList({
         </CollapsibleSection>
       )}
 
-      {/* Barra do modo seleção: acima da tab bar do celular, com o que dá pra fazer. */}
+      {/* Barra do modo seleção: acima da tab bar do celular, com o que dá pra fazer.
+          No celular os botões são só ícone (o nome vai no aria-label): com "Categoria" e
+          "Remover" por extenso a barra pedia ~390px em 343, e o .glass (overflow: hidden)
+          cortava o "Remover" e sumia com o X de sair. No computador a barra cresce com o
+          conteúdo em vez de ficar presa em 384px. */}
       {selecting && (
-        <div className="fixed inset-x-4 bottom-[calc(6.5rem_+_env(safe-area-inset-bottom))] z-30 md:inset-x-auto md:bottom-6 md:right-10 md:w-96">
+        <div className="fixed inset-x-4 bottom-[calc(6.5rem_+_env(safe-area-inset-bottom))] z-30 md:inset-x-auto md:bottom-6 md:right-10">
           <div className="glass flex items-center justify-between gap-3 rounded-2xl border border-border-strong p-3 shadow-premium">
-            <span className="text-sm text-ink">
+            <span className="min-w-0 text-sm text-ink">
               {/* "**3** selecionados": o número vem marcado na voz e vira o destaque aqui. */}
               {partesDoTexto(t.uiSelecionados(selected.size)).map((p, i) =>
                 p.negrito ? (
@@ -339,15 +379,17 @@ export function EntryList({
                 ),
               )}
             </span>
-            <span className="flex items-center gap-2">
+            <span className="flex shrink-0 items-center gap-2">
               {podeCategorizarEmLote && (
                 <button
                   type="button"
                   onClick={() => setBulkCategorizing(true)}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-accent-gradient px-4 py-2 text-sm font-semibold text-on-accent transition-opacity"
+                  aria-label={t.uiMudarCategoria}
+                  title={t.uiMudarCategoria}
+                  className="inline-flex h-10 min-w-10 items-center justify-center gap-1.5 rounded-full bg-accent-gradient px-3 text-sm font-semibold text-on-accent transition-opacity md:px-4"
                 >
                   <Pencil size={15} strokeWidth={2} />
-                  {t.uiMudarCategoria}
+                  <span className="hidden whitespace-nowrap md:inline">{t.uiMudarCategoria}</span>
                 </button>
               )}
               <button
@@ -357,10 +399,12 @@ export function EntryList({
                   removeEntries(entries.filter((e) => selected.has(e.id)));
                   leaveSelection();
                 }}
-                className="inline-flex items-center gap-1.5 rounded-full bg-danger px-4 py-2 text-sm font-semibold text-canvas transition-opacity disabled:opacity-40"
+                aria-label={t.uiRemover}
+                title={t.uiRemover}
+                className="inline-flex h-10 min-w-10 items-center justify-center gap-1.5 rounded-full bg-danger px-3 text-sm font-semibold text-canvas transition-opacity disabled:opacity-40 md:px-4"
               >
                 <Trash2 size={15} strokeWidth={2} />
-                {t.uiRemover}
+                <span className="hidden whitespace-nowrap md:inline">{t.uiRemover}</span>
               </button>
               <button
                 type="button"
@@ -447,7 +491,7 @@ export function EntryList({
                 onClick={() => {
                   const alvo = open;
                   setOpenId(null);
-                  removeEntries([alvo]);
+                  pedirRemocao(alvo);
                 }}
                 className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-danger-soft text-sm font-semibold text-danger transition-colors hover:bg-danger hover:text-canvas"
               >
@@ -455,6 +499,36 @@ export function EntryList({
                 {t.uiRemover}
               </button>
             </div>
+          </div>
+        )}
+      </Modal>
+
+      <Modal open={apagandoFixa !== null} onClose={() => setApagandoFixa(null)} title="Apagar despesa fixa">
+        {apagandoFixa && (
+          <div className="flex flex-col gap-3">
+            <p className="text-sm text-ink-muted">Ela se repete todo mês. Os meses que já passaram ficam como estão.</p>
+            <button
+              type="button"
+              onClick={() => {
+                const alvo = apagandoFixa;
+                setApagandoFixa(null);
+                removeEntries([alvo]);
+              }}
+              className="inline-flex min-h-12 items-center justify-center rounded-full border border-border-strong bg-surface-2 text-sm font-semibold text-ink transition-colors hover:bg-surface-hover"
+            >
+              Só este mês
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const alvo = apagandoFixa;
+                setApagandoFixa(null);
+                removeSerie(alvo);
+              }}
+              className="inline-flex min-h-12 items-center justify-center rounded-full bg-danger-soft text-sm font-semibold text-danger transition-colors hover:bg-danger hover:text-canvas"
+            >
+              Este e os próximos meses
+            </button>
           </div>
         )}
       </Modal>
@@ -480,6 +554,7 @@ export function EntryList({
             defaultCustomCategoryId={editing.customCategoryId ?? undefined}
             defaultEntryDate={editing.entryDate ?? undefined}
             defaultGoalId={editing.goalId ?? undefined}
+            recorrente={Boolean(editing.recurrenceId)}
           />
         )}
       </Modal>

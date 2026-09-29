@@ -4,7 +4,8 @@ import type { AuthContext } from "@/lib/auth/session";
 export type PlanningParamsInput = {
   currentAge: number;
   retirementAge: number;
-  lifeExpectancyAge?: number;
+  /** null limpa a coluna (campo apagado); undefined deixa como está. */
+  lifeExpectancyAge?: number | null;
   currentPatrimony: number;
   monthlyContributionAccumulation: number;
   accumulationAnnualRate: number;

@@ -1,19 +1,29 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth/auth.config";
+import { destinoDepoisDoLogin } from "@/lib/auth/sessao";
 
 const PUBLIC_PATHS = ["/login", "/register", "/termos", "/privacidade", "/esqueci-senha", "/redefinir-senha", "/suporte"];
 
+// Só estas mandam quem já está logada pra dentro do app. As outras públicas abrem com ou sem
+// sessão: o link "Criar nova senha" do e-mail costuma abrir no navegador onde ela está logada
+// (e sumia sem aviso, levando junto o único jeito de trocar a senha), e Termos, Privacidade e
+// Suporte precisam ser legíveis de dentro do app.
+const AUTH_ONLY_PATHS = ["/login", "/register"];
+
 export default auth((req) => {
-  const isPublicPath = PUBLIC_PATHS.some((path) => req.nextUrl.pathname.startsWith(path));
+  const { pathname, search } = req.nextUrl;
+  const isPublicPath = PUBLIC_PATHS.some((path) => pathname.startsWith(path));
 
   if (!req.auth && !isPublicPath) {
     const loginUrl = new URL("/login", req.nextUrl.origin);
-    loginUrl.searchParams.set("callbackUrl", req.nextUrl.pathname);
+    // Com a query junto: "/mensal/2026/9?aba=x" do e-mail volta inteiro depois do login.
+    loginUrl.searchParams.set("callbackUrl", `${pathname}${search}`);
     return NextResponse.redirect(loginUrl);
   }
 
-  if (req.auth && isPublicPath) {
-    return NextResponse.redirect(new URL("/mensal/foco", req.nextUrl.origin));
+  if (req.auth && AUTH_ONLY_PATHS.some((path) => pathname.startsWith(path))) {
+    const destino = destinoDepoisDoLogin(req.nextUrl.searchParams.get("callbackUrl"));
+    return NextResponse.redirect(new URL(destino, req.nextUrl.origin));
   }
 
   return NextResponse.next();

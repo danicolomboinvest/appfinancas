@@ -25,23 +25,32 @@ export function SaveSimulation({
   /** Frase do resultado, ex.: "Alugar sai R$ 125 mil à frente em 20 anos." */
   resumo: string;
 }) {
-  const { showToast } = useToast();
+  const { showToast, showError } = useToast();
   const { voz } = useProfileTheme();
   const t = voz.titulos;
   const [aberto, setAberto] = useState(false);
   const [nome, setNome] = useState("");
-  const [salvo, setSalvo] = useState(false);
+  // "Salva" vale para o cenário que foi guardado, não para o componente: ele continua montado
+  // enquanto a pessoa mexe em "Ajustar respostas", então um booleano deixava o selo na tela
+  // dizendo que o cenário B estava salvo (e escondia o botão pra salvar o B de verdade).
+  // Guardando a foto dos valores, basta mudar uma resposta pra o botão voltar.
+  const [salvoComo, setSalvoComo] = useState<string | null>(null);
   const [pendente, startTransition] = useTransition();
+  const fotoAtual = JSON.stringify(values);
+  const salvo = salvoComo === fotoAtual;
 
   function salvar() {
+    const foto = fotoAtual;
     startTransition(async () => {
       const r = await saveSimulationAction({ type, name: nome, inputs: values, resumo });
       if (r.error) {
-        showToast(r.error);
+        showError(r.error);
         return;
       }
-      setSalvo(true);
+      setSalvoComo(foto);
       setAberto(false);
+      // O próximo cenário vai precisar de outro nome pra ser distinguido deste.
+      setNome("");
       showToast(t.simSalvaToast);
     });
   }

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useMoney } from "@/components/money/MoneyProvider";
 import { comecarAnoAction } from "../actions";
 import { Botao, Passo, Pontos } from "../Passos";
-import type { DadosVirada } from "./dados";
+import type { ContaFixa, DadosVirada } from "./dados";
 
 const pct = (v: number) => `${(v * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`;
 
@@ -16,11 +16,21 @@ export function ViradaDoAno({ v }: { v: DadosVirada }) {
   const [passo, setPasso] = useState(0);
   const [salvando, start] = useTransition();
   const [erro, setErro] = useState(false);
+  // As contas fixas de sempre começam marcadas; as lançadas à mão em dezembro, desmarcadas (pode
+  // ser conta fixa nova, pode ser gasto avulso: só ela sabe).
+  const [escolhidas, setEscolhidas] = useState<Set<string>>(() => new Set(v.fixas.map((f) => f.chave)));
+  const alternar = (chave: string) =>
+    setEscolhidas((atual) => {
+      const nova = new Set(atual);
+      if (nova.has(chave)) nova.delete(chave);
+      else nova.add(chave);
+      return nova;
+    });
   const s = v.sugestao;
   const comecar = (modo: "sugestao" | "zerado") =>
     start(async () => {
       try {
-        await comecarAnoAction(modo);
+        await comecarAnoAction(modo, [...escolhidas]);
         router.push("/mensal/foco");
       } catch {
         setErro(true);
@@ -88,14 +98,18 @@ export function ViradaDoAno({ v }: { v: DadosVirada }) {
           {v.fixas.length > 0 && (
             <div className="flex flex-col gap-1.5">
               <p className="text-caption font-semibold uppercase tracking-[0.11em] text-ink-muted">Contas fixas que continuam</p>
+              <p className="text-caption text-ink-muted">Desmarque a que acabou ou mudou de valor (a nova você lança em {v.ano}).</p>
               {v.fixas.map((f) => (
-                <div key={`${f.descricao}|${f.valor}`} className="flex justify-between gap-3 text-sm">
-                  <span className="min-w-0 truncate text-ink">
-                    {f.descricao}
-                    {f.dia ? <span className="text-ink-faint"> · dia {f.dia}</span> : null}
-                  </span>
-                  <span className="shrink-0 tabular-nums text-ink">{m(f.valor)}</span>
-                </div>
+                <LinhaConta key={f.chave} f={f} marcada={escolhidas.has(f.chave)} onAlternar={() => alternar(f.chave)} valor={m(f.valor)} />
+              ))}
+            </div>
+          )}
+          {v.talvezFixas.length > 0 && (
+            <div className="flex flex-col gap-1.5">
+              <p className="text-caption font-semibold uppercase tracking-[0.11em] text-ink-muted">Lançados em dezembro</p>
+              <p className="text-caption text-ink-muted">Algum destes é conta fixa que continua em {v.ano}? Marque pra ele repetir todo mês.</p>
+              {v.talvezFixas.map((f) => (
+                <LinhaConta key={f.chave} f={f} marcada={escolhidas.has(f.chave)} onAlternar={() => alternar(f.chave)} valor={m(f.valor)} />
               ))}
             </div>
           )}
@@ -129,5 +143,20 @@ export function ViradaDoAno({ v }: { v: DadosVirada }) {
         </Passo>
       )}
     </div>
+  );
+}
+
+function LinhaConta({ f, marcada, onAlternar, valor }: { f: ContaFixa; marcada: boolean; onAlternar: () => void; valor: string }) {
+  return (
+    <label className="flex cursor-pointer items-center justify-between gap-3 py-1 text-sm">
+      <span className="flex min-w-0 items-center gap-2.5">
+        <input type="checkbox" checked={marcada} onChange={onAlternar} className="size-4 shrink-0 accent-accent" />
+        <span className={`min-w-0 truncate ${marcada ? "text-ink" : "text-ink-faint line-through"}`}>
+          {f.descricao}
+          {f.dia ? <span className="text-ink-faint"> · dia {f.dia}</span> : null}
+        </span>
+      </span>
+      <span className={`shrink-0 tabular-nums ${marcada ? "text-ink" : "text-ink-faint"}`}>{valor}</span>
+    </label>
   );
 }

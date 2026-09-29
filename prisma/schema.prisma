@@ -567,9 +567,13 @@ model MonthlyEntry {
   /// sempre explícita na action, dentro de uma transação.
   importBatchId    String?
   importBatch      ImportBatch?    @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
+  /// Série de uma despesa fixa ("Repetir todo mês"): todas as cópias levam o mesmo id. É o que
+  /// deixa editar ou apagar "este e os próximos" de uma vez. Nulo = lançamento avulso.
+  recurrenceId     String?
   createdAt        DateTime        @default(now())
 
   @@index([userId, year, month])
+  @@index([userId, recurrenceId])
   @@index([userId, parentCategory])
   @@index([userId, customCategoryId])
   @@index([importBatchId])

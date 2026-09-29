@@ -28,6 +28,7 @@ export function PainelEmpresa({
   year,
   mesLabel,
   mesAnteriorLabel,
+  compararComAnterior,
   isCurrentYear,
   months,
   mes,
@@ -48,6 +49,8 @@ export function PainelEmpresa({
   year: number;
   mesLabel: string;
   mesAnteriorLabel: string;
+  /** Falso com o mês ainda em andamento: parcial contra o mês anterior inteiro não é comparação. */
+  compararComAnterior: boolean;
   isCurrentYear: boolean;
   months: MonthlyBreakdown[];
   /** DRE e caixa do mês corrente. */
@@ -69,7 +72,7 @@ export function PainelEmpresa({
   receitaPlanejadaDoMes: number | null;
 }) {
   const pct = (v: number | null) => (v === null ? "—" : `${Math.round(v * 100)}%`);
-  const variacao = (i: IndicadorMensal) => (i.anterior > 0 ? (i.atual - i.anterior) / i.anterior : null);
+  const variacao = (i: IndicadorMensal) => (compararComAnterior && i.anterior > 0 ? (i.atual - i.anterior) / i.anterior : null);
   const receitaDoMes = mes.dre.receitaBruta;
   const gastoDoMes = gastoPorFrenteMes.reduce((s, g) => s + g.spent, 0) + gastoPersonalizadoMes.reduce((s, g) => s + g.spent, 0);
   const anteriorPorFrente = new Map(gastoPorFrenteMesAnterior.map((g) => [g.parentCategory, g.spent]));
@@ -94,12 +97,12 @@ export function PainelEmpresa({
     <div className="flex flex-col gap-4 lg:gap-5">
       {/* Linha 1: os seis números que um dono olha todo dia. */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6 lg:gap-4">
-        <Indicador rotulo={`Receita · ${mesLabel}`} valor={money(receita.atual, { round: true })} tom="success" variacao={variacao(receita)} periodo={mesAnteriorLabel} money={money} />
-        <Indicador rotulo={`Custos e despesas · ${mesLabel}`} valor={money(despesas.atual, { round: true })} tom="danger" variacao={variacao(despesas)} periodo={mesAnteriorLabel} bomQuandoCai money={money} />
-        <Indicador rotulo={`Lucro · ${mesLabel}`} valor={money(lucro.atual, { round: true })} tom={lucro.atual >= 0 ? "success" : "danger"} variacao={lucro.anterior !== 0 ? (lucro.atual - lucro.anterior) / Math.abs(lucro.anterior) : null} periodo={mesAnteriorLabel} money={money} />
+        <Indicador rotulo={`Receita · ${mesLabel}`} valor={money(receita.atual, { round: true })} tom="success" variacao={variacao(receita)} periodo={compararComAnterior ? mesAnteriorLabel : undefined} money={money} />
+        <Indicador rotulo={`Custos e despesas · ${mesLabel}`} valor={money(despesas.atual, { round: true })} tom="danger" variacao={variacao(despesas)} periodo={compararComAnterior ? mesAnteriorLabel : undefined} bomQuandoCai money={money} />
+        <Indicador rotulo={`Lucro · ${mesLabel}`} valor={money(lucro.atual, { round: true })} tom={lucro.atual >= 0 ? "success" : "danger"} variacao={compararComAnterior && lucro.anterior !== 0 ? (lucro.atual - lucro.anterior) / Math.abs(lucro.anterior) : null} periodo={compararComAnterior ? mesAnteriorLabel : undefined} money={money} />
         <Indicador rotulo="Margem líquida" valor={pct(mes.dre.margemLiquidaPct)} tom={mes.dre.margemLiquidaPct !== null && mes.dre.margemLiquidaPct < 0 ? "danger" : "neutral"} nota="lucro ÷ receita" money={money} />
         <Indicador rotulo="Margem de contribuição" valor={pct(mes.dre.margemContribuicaoPct)} tom="neutral" nota="o que sobra da venda pra pagar o fixo" money={money} />
-        <Indicador rotulo="Caixa de segurança" valor={caixaTexto} tom={caixaTom} nota={mes.caixa.situacao === "sem-dado" ? "marque o caixa como reserva" : `${money(mes.caixa.caixa, { round: true })} · Sebrae: ${MESES_DE_CAIXA_RECOMENDADOS.minimo} a ${MESES_DE_CAIXA_RECOMENDADOS.confortavel}`} money={money} href="/planejamento/reserva-emergencia" />
+        <Indicador rotulo="Caixa de segurança" valor={caixaTexto} tom={caixaTom} nota={mes.caixa.caixa <= 0 ? "informe o caixa da empresa" : mes.caixa.situacao === "sem-dado" ? `${money(mes.caixa.caixa, { round: true })} · sem despesa fixa pra medir` : `${money(mes.caixa.caixa, { round: true })} · Sebrae: ${MESES_DE_CAIXA_RECOMENDADOS.minimo} a ${MESES_DE_CAIXA_RECOMENDADOS.confortavel}`} money={money} href="/planejamento/reserva-emergencia" />
       </div>
 
       {/* Linha 2: receita × despesas × lucro no ano, e o orçamento do mês em anéis. */}
@@ -145,7 +148,7 @@ export function PainelEmpresa({
                 <th className="pb-2 text-right font-medium">Gasto</th>
                 <th className="hidden pb-2 text-right font-medium sm:table-cell">Teto</th>
                 <th className="pb-2 text-right font-medium">% receita</th>
-                <th className="hidden pb-2 text-right font-medium sm:table-cell">vs. {mesAnteriorLabel}</th>
+                {compararComAnterior && <th className="hidden pb-2 text-right font-medium sm:table-cell">vs. {mesAnteriorLabel}</th>}
               </tr>
             </thead>
             <tbody>
@@ -165,9 +168,11 @@ export function PainelEmpresa({
                     <td className={`py-2 text-right tabular-nums ${estourou ? "text-danger" : "text-ink"}`}>{money(gasto, { round: true })}</td>
                     <td className="hidden py-2 text-right tabular-nums text-ink-muted sm:table-cell">{teto > 0 ? money(teto, { round: true }) : "—"}</td>
                     <td className="py-2 text-right tabular-nums text-ink-muted">{receitaDoMes > 0 ? `${Math.round((gasto / receitaDoMes) * 100)}%` : "—"}</td>
-                    <td className={`hidden py-2 text-right tabular-nums sm:table-cell ${delta === null ? "text-ink-faint" : delta > 0 ? "text-danger" : "text-success"}`}>
-                      {delta === null ? "—" : `${delta > 0 ? "↑" : "↓"} ${Math.abs(Math.round(delta * 100))}%`}
-                    </td>
+                    {compararComAnterior && (
+                      <td className={`hidden py-2 text-right tabular-nums sm:table-cell ${delta === null ? "text-ink-faint" : delta > 0 ? "text-danger" : "text-success"}`}>
+                        {delta === null ? "—" : `${delta > 0 ? "↑" : "↓"} ${Math.abs(Math.round(delta * 100))}%`}
+                      </td>
+                    )}
                   </tr>
                 );
               })}

@@ -41,7 +41,11 @@ export async function deleteOwnSheet(ctx: AuthContext, id: string) {
   return prisma.analysisSheet.deleteMany({ where: { id, userId: ctx.userId, profileId: ctx.profileId } });
 }
 
-/** Salva as respostas da ficha e recalcula a nota geral (média das notas informadas). */
+/**
+ * Salva as respostas da ficha e recalcula a nota geral (média das notas informadas).
+ * Chegam só os campos que mudaram (ver respostasAlteradas): a nota geral sai do que está no banco
+ * depois de gravar, não do que veio no pedido.
+ */
 export async function saveResponses(ctx: AuthContext, input: SaveAnalysisResponsesInput) {
   const sheet = await prisma.analysisSheet.findFirst({ where: { id: input.sheetId, userId: ctx.userId, profileId: ctx.profileId } });
   if (!sheet) {
@@ -64,7 +68,8 @@ export async function saveResponses(ctx: AuthContext, input: SaveAnalysisRespons
     ),
   );
 
-  const scores = input.responses.map((r) => r.score).filter((score): score is number => score !== undefined);
+  const salvas = await prisma.analysisResponse.findMany({ where: { sheetId: input.sheetId, score: { not: null } }, select: { score: true } });
+  const scores = salvas.map((r) => Number(r.score));
   const totalScore = scores.length > 0 ? scores.reduce((sum, score) => sum + score, 0) / scores.length : null;
 
   return prisma.analysisSheet.update({

@@ -125,5 +125,28 @@ describe("parseVoiceEntry", () => {
       expect(parseVoiceEntry("gastei 50 no mercado").currency).toBeNull();
       expect(parseVoiceEntry("recebi 3000 reais de salário").currency).toBe("BRL");
     });
+
+    it("reads the currency symbols the speech recognizer writes (US$, €, £)", () => {
+      expect(parseVoiceEntry("gastei US$ 50 no uber")).toMatchObject({ amount: 50, currency: "USD" });
+      expect(parseVoiceEntry("gastei € 2.000")).toMatchObject({ amount: 2000, currency: "EUR" });
+      expect(parseVoiceEntry("gastei 2.000 €")).toMatchObject({ amount: 2000, currency: "EUR" });
+      expect(parseVoiceEntry("paguei £ 30")).toMatchObject({ amount: 30, currency: "GBP" });
+      expect(parseVoiceEntry("gastei R$ 50 no mercado").currency).toBe("BRL");
+    });
+  });
+
+  describe("milhar com a sobra em dígito (\"4 mil e 500\")", () => {
+    it("adds the digit tail to the thousands instead of picking it alone", () => {
+      expect(parseVoiceEntry("recebi 4 mil e 500 reais de salário").amount).toBe(4500);
+      expect(parseVoiceEntry("paguei 1 mil e 200 reais de aluguel").amount).toBe(1200);
+      expect(parseVoiceEntry("recebi 4 mil e 500").amount).toBe(4500);
+      expect(parseVoiceEntry("recebi 2 mil e 50 euros").amount).toBe(2050);
+    });
+
+    it("keeps the words tail and the plain thousands working", () => {
+      expect(parseVoiceEntry("recebi 4 mil e quinhentos reais").amount).toBe(4500);
+      expect(parseVoiceEntry("recebi 4 mil reais").amount).toBe(4000);
+      expect(parseVoiceEntry("gastei R$ 4.500 no mercado").amount).toBe(4500);
+    });
   });
 });

@@ -4,19 +4,20 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getRequiredSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
-import { existeDecisao, registrarDecisao, registrarDecisaoUnica, resolverCompraAmanha, travarNaTransacao } from "@/lib/repositories/decisao.repo";
+import { apagarTetoDoMes, existeDecisao, registrarDecisao, registrarDecisaoUnica, resolverCompraAmanha, travarNaTransacao } from "@/lib/repositories/decisao.repo";
 import { applyBudgetToWholeYear, applyBudgetToWholeYearForCustomCategory } from "@/lib/repositories/budget.repo";
 import { applyMonthlyPlanToWholeYear } from "@/lib/repositories/monthly-plan.repo";
 import { createRecurringMonthlyEntries, updateOwnMonthlyEntriesCategory } from "@/lib/repositories/monthly-entry.repo";
-import { upsertTransactionRule } from "@/lib/repositories/transaction-rule.repo";
+import { listTransactionRules, upsertTransactionRule } from "@/lib/repositories/transaction-rule.repo";
 import { serverMoney } from "@/lib/money-server";
 import { carregarViradaDoAno } from "./ano/dados";
 import { ehEmpresa } from "@/lib/profiles/empresa";
 import { MESES } from "./dados";
 import { chaveRaioX } from "@/lib/decisoes/raio-x";
-import { classificarAntigo, type TipoRevisao } from "@/lib/decisoes/revisao-antigos";
-import { classify, normalizeMerchant } from "@/lib/import/classify";
-import { upsertBudget } from "@/lib/repositories/budget.repo";
+import { contasFixasQueFaltam } from "@/lib/decisoes/virada-ano";
+import { acharCompraDoEstorno, classificarAntigo, type TipoRevisao } from "@/lib/decisoes/revisao-antigos";
+import { classify, normalizeMerchant, type LearnedRule } from "@/lib/import/classify";
+import { sumExpensesByCustomCategory, sumExpensesByParentCategory, upsertBudget } from "@/lib/repositories/budget.repo";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import { PARENT_CATEGORIES } from "@/lib/categories";
 import type { ParentCategory } from "@prisma/client";
@@ -39,7 +40,10 @@ const compraSchema = z.object({
   parcelas: z.number().int().min(1).max(48),
 });
 
-/** O que a pessoa decidiu no "Posso comprar?". Só registra: não lança gasto nenhum. */
+/**
+ * O que a pessoa decidiu no "Posso comprar?". Só registra: não lança gasto nenhum. O "Vou comprar"
+ * ainda sem lançamento conta no "Posso comprar?" seguinte (comprasAindaNaoLancadas).
+ */
 export async function registrarCompraAction(input: z.infer<typeof compraSchema>) {
   const d = compraSchema.parse(input);
   const ctx = await getRequiredSession();
@@ -50,12 +54,15 @@ export async function registrarCompraAction(input: z.infer<typeof compraSchema>)
     dados: { modo: d.modo, parcelas: d.parcelas },
   });
   revalidatePath("/mensal/foco");
+  // O "Posso comprar?" desconta o que ela já decidiu comprar: a próxima simulação já sabe.
+  revalidatePath("/decidir/comprar");
 }
 
 export async function responderCompraAmanhaAction(id: string, desistiu: boolean) {
   const ctx = await getRequiredSession();
   await resolverCompraAmanha(ctx, z.string().min(1).parse(id), Boolean(desistiu));
   revalidatePath("/mensal/foco");
+  revalidatePath("/decidir/comprar");
 }
 
 const tetoSchema = z.object({ categoria: z.string().min(1).max(60), valor: z.number().min(0).max(100_000_000) });
@@ -65,9 +72,35 @@ export async function definirTetoAction(input: z.infer<typeof tetoSchema>) {
   const d = tetoSchema.parse(input);
   const ctx = await getRequiredSession();
   const now = nowInBrazil();
-  const anoMes = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-  await registrarDecisaoUnica(ctx, { tipo: "teto", chave: `${anoMes}|${d.categoria}`, valor: d.valor });
+  const ano = now.getFullYear();
+  const mes = now.getMonth() + 1;
+  const anoMes = `${ano}-${String(mes).padStart(2, "0")}`;
+  // O gasto da categoria na hora do combinado: o card "Combinado" mostra o que entrou DEPOIS.
+  const [porMae, porPersonalizada] = await Promise.all([sumExpensesByParentCategory(ctx, ano, mes), sumExpensesByCustomCategory(ctx, ano, mes)]);
+  const gastoNaHora = Math.max(0, porMae.find((x) => x.parentCategory === d.categoria)?.spent ?? porPersonalizada.find((x) => x.customCategoryId === d.categoria)?.spent ?? 0);
+  await registrarDecisaoUnica(ctx, { tipo: "teto", chave: `${anoMes}|${d.categoria}`, valor: d.valor, dados: { gastoNaHora } });
   revalidatePath("/mensal/foco");
+}
+
+/** "Desfazer": o combinado sai e, se a categoria ainda passa do plano, o aviso volta. */
+export async function desfazerTetoAction(categoria: string) {
+  const c = z.string().min(1).max(60).parse(categoria);
+  const ctx = await getRequiredSession();
+  const now = nowInBrazil();
+  await apagarTetoDoMes(ctx, `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`, c);
+  revalidatePath("/mensal/foco");
+}
+
+const descricaoSchema = z.string().trim().min(1).max(120);
+
+/** "Definir descrição" na lista de um aviso: o extrato traz "PIX 1234 JOAO", ela escreve "Aluguel". */
+export async function renomearGastoAction(entryId: string, descricao: string): Promise<boolean> {
+  const id = z.string().min(1).max(60).parse(entryId);
+  const texto = descricaoSchema.parse(descricao);
+  const ctx = await getRequiredSession();
+  const r = await prisma.monthlyEntry.updateMany({ where: { id, userId: ctx.userId, profileId: ctx.profileId }, data: { description: texto } });
+  revalidatePath("/mensal", "layout");
+  return r.count > 0;
 }
 
 /**
@@ -250,11 +283,13 @@ export async function confirmarCancelamentoRaioXAction(chave: string, cancelou: 
 
 /**
  * Virada do ano: "começar com a sugestão" grava o orçamento (deste mês até dezembro), o plano do
- * mês (renda e quanto guardar) e as contas fixas do ano passado no ano novo. "Começar do zero"
- * só registra a escolha. A sugestão é recalculada aqui, nunca a que veio da tela.
+ * mês (renda e quanto guardar) e as contas fixas do ano passado que ela deixou marcadas no ano
+ * novo. "Começar do zero" só registra a escolha. A sugestão é recalculada aqui, nunca a que veio
+ * da tela: as chaves escolhidas só valem se estiverem na lista recalculada.
  */
-export async function comecarAnoAction(modo: "sugestao" | "zerado"): Promise<boolean> {
+export async function comecarAnoAction(modo: "sugestao" | "zerado", contasEscolhidas?: string[]): Promise<boolean> {
   if (modo !== "sugestao" && modo !== "zerado") return false;
+  const escolhidas = contasEscolhidas === undefined ? null : new Set(z.array(z.string().max(300)).max(200).parse(contasEscolhidas));
   const ctx = await getRequiredSession();
   const money = await serverMoney();
   const v = await carregarViradaDoAno(ctx, (x) => money(x, { round: true }));
@@ -269,14 +304,19 @@ export async function comecarAnoAction(modo: "sugestao" | "zerado"): Promise<boo
     if (v.sugestao.renda > 0) await applyMonthlyPlanToWholeYear(ctx, v.ano, { plannedIncome: v.sugestao.renda, plannedInvestment: v.sugestao.guardar });
     const now = nowInBrazil();
     const mes = now.getFullYear() === v.ano ? now.getMonth() + 1 : 1;
-    // Não recria a conta fixa que ela já lançou no ano novo (mesma descrição e valor neste mês).
-    const jaNoMes = await prisma.monthlyEntry.findMany({
-      where: { userId: ctx.userId, profileId: ctx.profileId, year: v.ano, month: mes, category: "EXPENSE" },
-      select: { description: true, amount: true },
+    // Sem escolha vinda da tela (aba aberta antes desta versão), vão as contas fixas como antes.
+    const escolhidasDaLista = escolhidas === null ? v.fixas : [...v.fixas, ...v.talvezFixas].filter((f) => escolhidas.has(f.chave));
+    // Não recria a conta fixa que ela já lançou no ano novo: mesma descrição e categoria, com
+    // qualquer valor (o aluguel reajustado em janeiro), em qualquer mês que a série vai ocupar.
+    const jaNoAno = await prisma.monthlyEntry.findMany({
+      where: { userId: ctx.userId, profileId: ctx.profileId, year: v.ano, month: { gte: mes }, category: "EXPENSE" },
+      select: { description: true, parentCategory: true, customCategoryId: true, month: true },
     });
-    const existe = new Set(jaNoMes.map((e) => `${(e.description ?? "").trim().toLowerCase()}|${Number(e.amount).toFixed(2)}`));
-    for (const f of v.fixas) {
-      if (existe.has(`${f.descricao.trim().toLowerCase()}|${f.valor.toFixed(2)}`)) continue;
+    const faltam = contasFixasQueFaltam(
+      escolhidasDaLista,
+      jaNoAno.map((e) => ({ descricao: e.description, parentCategory: e.parentCategory, customCategoryId: e.customCategoryId, month: e.month })),
+    );
+    for (const f of faltam) {
       const ultimoDia = new Date(v.ano, mes, 0).getDate();
       await createRecurringMonthlyEntries(ctx, {
         year: v.ano,
@@ -334,8 +374,36 @@ export async function resolverLancamentoAntigoAction(entryId: string, acao: "gua
   } else if (acao === "tirar") {
     await prisma.monthlyEntry.deleteMany({ where: onde });
   } else if (acao === "estorno") {
-    const categoria = classify(entrada.description ?? "", [], ctx.profileKind)?.parentCategory ?? "OUTROS";
-    await prisma.monthlyEntry.updateMany({ where: onde, data: { category: "EXPENSE", amount: -Math.abs(Number(entrada.amount)), parentCategory: categoria, customCategoryId: null } });
+    // A categoria é a da COMPRA que o estorno devolve (a mesma loja, nos meses até ele): é lá que
+    // o gasto tem que diminuir. Sem a compra, as regras que ela ensinou ao app; só então Outros.
+    // Antes era só a regra embutida, que não conhece a maioria das lojas: tudo ia pra Outros, a
+    // compra seguia contando inteira na categoria dela e Outros ficava negativo.
+    const desde = new Date(entrada.year, entrada.month - 7, 1);
+    const [compras, regras] = await Promise.all([
+      prisma.monthlyEntry.findMany({
+        where: {
+          userId: ctx.userId, profileId: ctx.profileId, category: "EXPENSE", amount: { gt: 0 }, id: { not: entrada.id },
+          OR: [
+            { year: entrada.year, month: { lte: entrada.month } },
+            { year: { lt: entrada.year, gte: desde.getFullYear() } },
+          ],
+        },
+        select: { description: true, amount: true, parentCategory: true, customCategoryId: true, year: true, month: true },
+        orderBy: [{ year: "desc" }, { month: "desc" }, { createdAt: "desc" }],
+        take: 500,
+      }),
+      listTransactionRules(ctx),
+    ]);
+    const daCompra = acharCompraDoEstorno(
+      { description: entrada.description, amount: Number(entrada.amount) },
+      compras.map((c) => ({ ...c, amount: Number(c.amount) })),
+    );
+    const aprendidas: LearnedRule[] = regras.map((r) => ({ pattern: r.pattern, parentCategory: r.parentCategory, subcategory: r.subcategory ?? undefined }));
+    const destino =
+      daCompra && (daCompra.parentCategory || daCompra.customCategoryId)
+        ? { parentCategory: daCompra.parentCategory as ParentCategory | null, customCategoryId: daCompra.customCategoryId }
+        : { parentCategory: classify(entrada.description ?? "", aprendidas, ctx.profileKind)?.parentCategory ?? ("OUTROS" as ParentCategory), customCategoryId: null };
+    await prisma.monthlyEntry.updateMany({ where: onde, data: { category: "EXPENSE", amount: -Math.abs(Number(entrada.amount)), ...destino } });
   }
   await registrarDecisaoUnica(ctx, { tipo: "revisao_lancamento", chave: entrada.id, descricao: acao });
   revalidatePath("/mensal", "layout");

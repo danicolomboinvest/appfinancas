@@ -54,40 +54,76 @@ export async function listAllowedEmails() {
 }
 
 /**
+ * Prazo que fica numa linha que JÁ existia quando a Dani cola a lista de novo. `undefined` =
+ * não mexe.
+ *
+ * O campo "Acesso até" vem sempre preenchido com +1 ano, então aplicar o prazo às cegas
+ * encurtava em silêncio quem já tinha mais: a VIP sem prazo ganhava vencimento e quem tinha
+ * até 2028 caía pra daqui a um ano. Regra: quem está com acesso valendo nunca sai perdendo —
+ * fica com o melhor entre o que tinha e o novo (sem prazo é o melhor de todos). Quem estava
+ * desativado ou vencido recomeça com o prazo informado agora, e aí campo vazio (null) libera
+ * sem prazo, como o formulário promete.
+ */
+export function prazoAoLiberarDeNovo(
+  atual: { active: boolean; expiresAt: Date | null },
+  novo: Date | null | undefined,
+  now: Date = nowInBrazil(),
+): Date | null | undefined {
+  if (novo === undefined) return undefined;
+  const valendo = atual.active && !isExpired(atual.expiresAt, now);
+  if (!valendo) return novo;
+  if (atual.expiresAt === null) return undefined;
+  if (novo === null || novo > atual.expiresAt) return novo;
+  return undefined;
+}
+
+/**
  * Adiciona vários e-mails de uma vez (a Dani cola a lista de compradores). Ignora duplicados
  * e reativa quem já existia mas estava inativo. Além do total, devolve quem entrou AGORA
  * (novo ou reativado) — é só essa turma que deve receber o e-mail de "acesso liberado";
- * quem já estava ativo na lista já foi avisado antes.
+ * quem já estava ativo na lista já foi avisado antes — e quantos já tinham um acesso mais
+ * longo e ficaram com ele (ver prazoAoLiberarDeNovo), pra isso não passar despercebido.
  */
 export async function addAllowedEmails(
   emails: string[],
   note?: string,
-  /** Data-limite do acesso (ex.: liberação por 1 ano). Nulo = sem prazo (padrão); undefined =
-   * não mexe no prazo de quem já existia (só se aplica a quem é criado agora). */
+  /** Data-limite do acesso (ex.: liberação por 1 ano). Nulo = sem prazo; undefined = não mexe
+   * no prazo de quem já existia (quem é criado agora fica sem prazo). */
   expiresAt?: Date | null,
-): Promise<{ affected: number; toNotify: string[] }> {
+): Promise<{ affected: number; toNotify: string[]; keptLonger: number }> {
   const unique = [...new Set(emails.map(normalizeEmail).filter((e) => e.includes("@")))];
-  if (unique.length === 0) return { affected: 0, toNotify: [] };
+  if (unique.length === 0) return { affected: 0, toNotify: [], keptLonger: 0 };
 
-  const alreadyActive = new Set(
+  const existing = new Map(
     (
       await prisma.allowedEmail.findMany({
-        where: { email: { in: unique }, active: true },
-        select: { email: true },
+        where: { email: { in: unique } },
+        select: { email: true, active: true, expiresAt: true },
       })
-    ).map((e) => e.email),
+    ).map((e) => [e.email, e]),
   );
 
+  let keptLonger = 0;
   for (const email of unique) {
+    const atual = existing.get(email);
+    const prazo = atual ? prazoAoLiberarDeNovo(atual, expiresAt) : expiresAt;
+    if (atual && expiresAt !== undefined && prazo === undefined) keptLonger++;
     await prisma.allowedEmail.upsert({
       where: { email },
-      // Colar de novo a lista deve reativar quem foi desativado, sem apagar a origem/nota;
-      // o prazo só é atualizado se foi informado agora (não apaga um prazo já definido antes).
-      update: { active: true, ...(note ? { note } : {}), ...(expiresAt !== undefined ? { expiresAt } : {}) },
+      // Colar de novo a lista deve reativar quem foi desativado, sem apagar a origem/nota.
+      update: { active: true, ...(note ? { note } : {}), ...(prazo !== undefined ? { expiresAt: prazo } : {}) },
       create: { email, source: "MANUAL", note: note ?? null, expiresAt: expiresAt ?? null },
     });
   }
-  return { affected: unique.length, toNotify: unique.filter((e) => !alreadyActive.has(e)) };
+  return {
+    affected: unique.length,
+    // Vencido também conta como "entrou agora": pra ela o acesso estava fechado.
+    toNotify: unique.filter((e) => {
+      const atual = existing.get(e);
+      return !atual || !atual.active || isExpired(atual.expiresAt);
+    }),
+    keptLonger,
+  };
 }
 
 /** Renovação: a Dani volta na linha de alguém e estende (ou remove, passando null) o prazo. */

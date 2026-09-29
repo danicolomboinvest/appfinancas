@@ -46,7 +46,10 @@ export async function StrategyComparisonSection({
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {visible.map((p) => {
           const targetValue = p.currentValue + p.rebalanceAmount;
-          const aportar = p.rebalanceAmount >= 0;
+          // Pelo status (a mesma folga do selo e das sugestões da Carteira), não pelo sinal: R$ 1
+          // acima do alvo não é "Reduzir", e carteira no alvo não é "Aportar + R$ 0".
+          const aportar = p.status === "ABAIXO";
+          const noAlvo = p.status === "DENTRO";
           return (
             <Card key={p.assetClass} className="flex flex-col gap-3 p-4">
               <p className="flex items-center gap-1.5 text-sm font-semibold text-ink">
@@ -74,18 +77,24 @@ export async function StrategyComparisonSection({
                 </div>
               </div>
 
-              <div
-                className={`flex items-center justify-between rounded-lg px-3 py-2 ${
-                  aportar ? "bg-success-soft" : "bg-danger-soft"
-                }`}
-              >
-                <span className={`text-caption font-medium ${aportar ? "text-success" : "text-danger"}`}>
-                  {aportar ? voz.titulos.compAportar : voz.titulos.compReduzir}
-                </span>
-                <span className={`text-sm font-semibold tabular-nums ${aportar ? "text-success" : "text-danger"}`}>
-                  {aportar ? "+" : "−"} {money(Math.abs(p.rebalanceAmount), { round: true })}
-                </span>
-              </div>
+              {noAlvo ? (
+                <div className="flex items-center justify-between rounded-lg bg-surface-2 px-3 py-2">
+                  <span className="text-caption font-medium text-ink-muted">{voz.titulos.compNoAlvo}</span>
+                </div>
+              ) : (
+                <div
+                  className={`flex items-center justify-between rounded-lg px-3 py-2 ${
+                    aportar ? "bg-success-soft" : "bg-danger-soft"
+                  }`}
+                >
+                  <span className={`text-caption font-medium ${aportar ? "text-success" : "text-danger"}`}>
+                    {aportar ? voz.titulos.compAportar : voz.titulos.compReduzir}
+                  </span>
+                  <span className={`text-sm font-semibold tabular-nums ${aportar ? "text-success" : "text-danger"}`}>
+                    {aportar ? "+" : "−"} {money(Math.abs(p.rebalanceAmount), { round: true })}
+                  </span>
+                </div>
+              )}
             </Card>
           );
         })}

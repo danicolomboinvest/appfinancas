@@ -1,6 +1,6 @@
 "use client";
 
-import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { ClassAllocation } from "@/lib/consolidation/portfolio";
 import { CHART_COLORS, CHART_TOOLTIP_STYLE } from "./chart-theme";
 import { formatPercentNumber } from "@/lib/format";
@@ -13,18 +13,18 @@ const CLASS_LABEL: Record<string, string> = {
   TESOURO_DIRETO: "Tesouro Direto",
   FUNDO: "Fundo",
   CRIPTO: "Cripto",
+  INTERNACIONAL: "Internacional",
   OUTRO: "Outro",
 };
 
 export function AllocationChart({ classes }: { classes: ClassAllocation[] }) {
   const t = useProfileTheme().voz.titulos;
-  // O nome da série é o que a legenda e o tooltip mostram, então ele vem da voz do tema.
+  // O nome da série é o que o tooltip mostra, então ele vem da voz do tema. Só a alocação
+  // atual: o ideal é o da Estratégia, mostrado na seção de cima (ver getAllocationByClass).
   const atual = t.grafAtual;
-  const ideal = t.grafIdeal;
   const data = classes.map((c) => ({
     name: CLASS_LABEL[c.assetClass] ?? c.assetClass,
     [atual]: Number((c.currentPercent * 100).toFixed(2)),
-    [ideal]: Number((c.idealPercent * 100).toFixed(2)),
   }));
 
   return (
@@ -38,9 +38,7 @@ export function AllocationChart({ classes }: { classes: ClassAllocation[] }) {
           formatter={(value) => formatPercentNumber(Number(value), 2)}
           cursor={{ fill: "rgba(255,255,255,0.04)" }}
         />
-        <Legend wrapperStyle={{ fontSize: 12, color: CHART_COLORS.axis }} />
         <Bar dataKey={atual} fill={CHART_COLORS.accent} radius={[4, 4, 0, 0]} />
-        <Bar dataKey={ideal} fill={CHART_COLORS.muted} radius={[4, 4, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
   );

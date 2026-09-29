@@ -132,15 +132,60 @@ describe("montarFoco: casos que os testes de persona acharam", () => {
   });
 
   it("categoria com aviso não aparece também em 'indo bem'", () => {
+    // Teto do aviso de ritmo (R$ 90) e depois ela passou do plano: o estouro é novidade e aparece.
     const f = montarFoco(
       base({
         categorias: [{ key: "LAZER", label: "Lazer", planejado: 700, gasto: 900 }],
         gastoDoMes: 900,
-        tetos: [{ categoria: "LAZER", valor: 0 }],
+        tetos: [{ categoria: "LAZER", valor: 90 }],
       }),
     );
     expect(f.atencao[0].id).toBe("estouro-LAZER");
     expect(f.bem.map((b) => b.titulo).join(" ")).not.toContain("Lazer");
+    expect(f.combinados).toHaveLength(0);
+  });
+
+  it("'não gastar mais nada' (teto zero) resolve o estouro: sai da lista e vira combinado", () => {
+    const f = montarFoco(
+      base({
+        categorias: [
+          { key: "LAZER", label: "Lazer", planejado: 500, gasto: 700 },
+          { key: "ALIMENTACAO", label: "Alimentação", planejado: 1500, gasto: 1700 },
+        ],
+        gastoDoMes: 2400,
+        tetos: [{ categoria: "LAZER", valor: 0 }],
+      }),
+    );
+    const ids = [...f.atencao, ...f.depois].map((i) => i.id);
+    expect(ids).not.toContain("estouro-LAZER");
+    // As outras categorias estouradas continuam avisando.
+    expect(ids).toContain("estouro-ALIMENTACAO");
+    // Vira um card de combinado, cumprido: nada entrou depois.
+    expect(f.combinados).toHaveLength(1);
+    expect(f.combinados[0]).toMatchObject({ categoria: "LAZER", teto: 0, quebrou: false });
+  });
+
+  it("combinado quebrado: o que entrou depois do 'nada mais' aparece", () => {
+    const f = montarFoco(
+      base({
+        categorias: [{ key: "LAZER", label: "Lazer", planejado: 500, gasto: 780 }],
+        gastoDoMes: 780,
+        tetos: [{ categoria: "LAZER", valor: 0, gastoNaHora: 700 }],
+      }),
+    );
+    expect([...f.atencao, ...f.depois].map((i) => i.id)).not.toContain("estouro-LAZER");
+    expect(f.combinados[0]).toMatchObject({ depois: 80, quebrou: true });
+  });
+
+  it("teto do aviso de ritmo: conta só o que entrou depois contra o teto", () => {
+    const f = montarFoco(
+      base({
+        categorias: [{ key: "LAZER", label: "Lazer", planejado: 500, gasto: 450 }],
+        gastoDoMes: 450,
+        tetos: [{ categoria: "LAZER", valor: 90, gastoNaHora: 410 }],
+      }),
+    );
+    expect(f.combinados[0]).toMatchObject({ teto: 90, depois: 40, quebrou: false });
   });
 
   it("semanal sem gasto nenhum no mês depois do dia 7 avisa dado velho e não comemora", () => {

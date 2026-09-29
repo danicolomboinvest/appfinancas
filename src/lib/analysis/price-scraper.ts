@@ -3,6 +3,9 @@ import * as cheerio from "cheerio";
 const USER_AGENT =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36";
 
+/** Teto de espera por página: um caminho pendurado vira "não achei aqui" e segue pro próximo. */
+const FETCH_TIMEOUT_MS = 8000;
+
 /** Caminhos do investidor10 a tentar, na ordem, o mesmo ticker pode ser ação, FII ou ETF. */
 const PATHS = ["acoes", "fiis", "etfs", "bdrs"] as const;
 
@@ -33,6 +36,8 @@ export async function fetchTickerPrice(ticker: string): Promise<number | null> {
       const res = await fetch(`https://investidor10.com.br/${path}/${slug}/`, {
         headers: { "User-Agent": USER_AGENT },
         redirect: "follow",
+        // Sem teto, uma página que não responde prendia o cron até a Vercel matar a função.
+        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
       });
       if (!res.ok) continue;
       const price = extractPriceFromPage(await res.text());

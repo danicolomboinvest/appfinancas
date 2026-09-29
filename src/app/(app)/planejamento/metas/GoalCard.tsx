@@ -69,6 +69,8 @@ export async function GoalCard({
   plan,
   variant,
   checkin,
+  monthDone = false,
+  nextContribution = null,
   voz,
   empresa = false,
 }: {
@@ -90,6 +92,10 @@ export async function GoalCard({
   variant: GoalVariant;
   /** Presente = está na janela de perguntar "você fez o aporte sugerido?" este mês. */
   checkin: { monthKey: string; monthLabel: string; suggestedAmount: number; done: boolean } | null;
+  /** O aporte deste mês já foi feito (marcado aqui ou lançado no Fluxo). */
+  monthDone?: boolean;
+  /** Com o mês feito: quanto guardar no mês que vem. null = nada a pedir antes do prazo. */
+  nextContribution?: { monthLabel: string; amount: number } | null;
 }) {
   const money = await serverMoney();
   const progressPercent = targetAmount > 0 ? Math.min(currentAmount / targetAmount, 1) : 0;
@@ -142,9 +148,17 @@ export async function GoalCard({
 
       {!achieved && (
         <div className="border-t border-border pt-3">
-          <p className="text-[15px] font-bold tracking-tight text-accent-strong">
-            {voz.titulos.metaGuardar(money(plan.requiredMonthlyContribution, { round: true }))}
-          </p>
+          {/* Com o aporte do mês feito, "guardar R$ X este mês" recalculado com o saldo novo lia
+              como se ainda faltasse dinheiro em setembro. Aí o card fala do mês que vem. */}
+          {!monthDone ? (
+            <p className="text-[15px] font-bold tracking-tight text-accent-strong">
+              {voz.titulos.metaGuardar(money(plan.requiredMonthlyContribution, { round: true }))}
+            </p>
+          ) : nextContribution ? (
+            <p className="text-[15px] font-bold tracking-tight text-accent-strong">
+              {voz.titulos.metaProximoAporte(money(nextContribution.amount, { round: true }), nextContribution.monthLabel)}
+            </p>
+          ) : null}
           <p className="mt-0.5 text-caption text-ink-muted">
             {voz.titulos.metaMeses(plan.monthsRemaining)}
           </p>

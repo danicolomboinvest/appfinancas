@@ -65,3 +65,14 @@ describe("extrato do Banestes (PDF do Internet Banking)", () => {
     expect(txns.filter((t) => t.amount < 0).reduce((s, t) => s - t.amount, 0)).toBeCloseTo(1260, 2);
   });
 });
+
+describe("extrato do Banestes que cruza a virada do ano", () => {
+  it("os dias de janeiro ficam no ano do fim do período, não no do começo", () => {
+    const texto = BANESTES.replace("PERÍODO: 18/09/2026 À 24/09/2026", "PERÍODO: 15/12/2025 À 14/01/2026")
+      .replace("18\nSET", "20\nDEZ")
+      .replace("21\nSET", "10\nJAN");
+    const lidos = parseBanestesStatement(texto);
+    expect(lidos.find((t) => t.description === "LÍQUIDO DE VENCIMENTOS")?.date).toBe("2025-12-20");
+    expect(lidos.find((t) => t.description === "DÉB AUTOMÁTICO CARTAO EXEMPLO")?.date).toBe("2026-01-10");
+  });
+});

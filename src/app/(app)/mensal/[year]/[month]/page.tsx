@@ -13,9 +13,10 @@ import {
   listBudgets,
   listBudgetsForYear,
 } from "@/lib/repositories/budget.repo";
-import { getMonthlySummary, getAnnualSummary } from "@/lib/consolidation/monthly";
+import { getMonthlySummary } from "@/lib/consolidation/monthly";
 import { getDailyFlow, getCategorySpending } from "@/lib/consolidation/month-analysis";
 import { buildMonthInsights } from "@/lib/insights/month-insights";
+import { ritmoDoMes } from "@/lib/insights/ritmo-do-mes";
 import { getYearlySummary } from "@/lib/consolidation/yearly";
 import { getRecapDismissedMonth } from "@/lib/repositories/user.repo";
 import { getRecapEligibility } from "@/lib/recap/monthly";
@@ -104,7 +105,6 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
     money,
     entries,
     summary,
-    annualSummary,
     yearlySummary,
     monthBudgets,
     yearBudgets,
@@ -123,7 +123,6 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
     serverMoney(),
     listMonthlyEntries(ctx, year, month),
     getMonthlySummary(ctx, year, month),
-    getAnnualSummary(ctx, year),
     getYearlySummary(ctx, year),
     listBudgets(ctx, year, month),
     listBudgetsForYear(ctx, year),
@@ -154,11 +153,29 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
   const now = nowInBrazil();
   const isCurrentMonth = year === now.getFullYear() && month === now.getMonth() + 1;
   const isFutureMonth = year > now.getFullYear() || (year === now.getFullYear() && month > now.getMonth() + 1);
+  // A carteira só pergunta onde entrou o aporte deste mês e do anterior (é o que a action aceita):
+  // o aviso de "aporte sem destino" em outro mês levava a uma tela sem nada pra responder.
+  const mesAnterior = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const carteiraPerguntaEsteMes =
+    isCurrentMonth || (year === mesAnterior.getFullYear() && month === mesAnterior.getMonth() + 1);
   const daysInMonth = new Date(year, month, 0).getDate();
-  const pacing =
-    isCurrentMonth && monthlyPlanned > 0
-      ? { budgetUsed: summary.totalExpense / monthlyPlanned, monthElapsed: now.getDate() / daysInMonth }
-      : null;
+  // Sem as contas já marcadas antes do mês (recorrente, parcela) e sem o que está datado pra
+  // frente — ver ritmoDoMes. É a mesma conta do Foco, pras duas telas não se contradizerem.
+  const pacing = isCurrentMonth
+    ? ritmoDoMes({
+        entries: entries.map((e) => ({
+          category: e.category,
+          amount: Number(e.amount),
+          entryDay: e.entryDate ? e.entryDate.toISOString().slice(0, 10) : null,
+          createdAt: e.createdAt,
+        })),
+        planejado: monthlyPlanned,
+        year,
+        month,
+        today: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`,
+        monthElapsed: now.getDate() / daysInMonth,
+      })
+    : null;
 
   // Resumo Mensal: só perto da virada do mês (fim ou início), e só se ainda não foi fechado
   // para aquele mês específico — não é um banner permanente.
@@ -171,12 +188,16 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
     investment: summary.totalInvestment,
     balance: summary.balance,
   };
+  // Visão "Anual": só os meses que já aconteceram, os mesmos totais da tela do ano
+  // (/mensal/[year]). A soma dos 12 meses entrava com o aluguel de outubro a dezembro que a
+  // recorrência já criou, e o "Gastou" e o "Resultado" do ano davam números diferentes nas
+  // duas telas.
   const annualBundle: FlowBundle = {
-    income: annualSummary.totalIncome,
-    expense: annualSummary.totalExpense,
+    income: yearlySummary.totalIncome,
+    expense: yearlySummary.totalExpense,
     planned: annualPlanned,
-    investment: annualSummary.totalInvestment,
-    balance: annualSummary.balance,
+    investment: yearlySummary.totalInvestment,
+    balance: yearlySummary.balance,
   };
 
   const customCategoryNameById = new Map(customCategories.map((c) => [c.id, c.name]));
@@ -326,7 +347,7 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
       {/* O aporte do mês que ainda não virou ativo nenhum. Sem esse aviso, a pessoa lançava o
           aporte aqui, ia na carteira e não via nada mudar — e achava que o app tinha perdido o
           dinheiro dela. O link leva pro lugar onde ela diz em quais ativos entrou. */}
-      {aporteSemDestino.pending > 0 && (
+      {aporteSemDestino.pending > 0 && carteiraPerguntaEsteMes && (
         <Link
           href="/carteira"
           className="flex items-center justify-between gap-3 rounded-2xl border border-accent/40 bg-accent-soft/30 px-4 py-3 transition-colors hover:border-accent"
@@ -414,6 +435,7 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
             entryDate: toDateInput(entry.entryDate),
             dayLabel: formatRelativeDay(entry.entryDate),
             goalId: entry.goalId,
+            recurrenceId: entry.recurrenceId,
             ...(entry.originalCurrency && entry.originalAmount !== null && isCurrencyCode(entry.originalCurrency)
               ? {
                   originalLabel: formatMoney(Number(entry.originalAmount), entry.originalCurrency),

@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { useSuccessToast } from "@/components/ui/useSuccessToast";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import type { ClasseDeAtivo, IndexadorRendaFixa, ObjetivoDeAtivo } from "@/lib/profiles/textos/formularios";
+import { averagePriceOf, formatQuantityInput, investedToSend, parseQuantityInput } from "@/lib/portfolio/asset-form-values";
 import { createAssetAction, updateAssetAction, type AssetFormState } from "./actions";
 
 const initialState: AssetFormState = {};
@@ -64,12 +65,23 @@ export function AssetForm({
   // Ação, FII, ETF: quem compra sabe "10 ações a R$ 30", não o valor de hoje. Quantidade e
   // preço médio dão o investido; a cotação de hoje o app busca sozinho ao salvar.
   const quoted = Boolean(pickerKinds);
-  const [quantity, setQuantity] = useState<string>(defaults.quantity ? String(defaults.quantity) : "");
-  const [avgPrice, setAvgPrice] = useState<number>(
-    defaults.quantity && defaults.investedValue ? Math.round((defaults.investedValue / defaults.quantity) * 100) / 100 : 0,
-  );
-  const qtyNumber = Number(quantity.replace(",", "."));
-  const investedFromQty = Number.isFinite(qtyNumber) && qtyNumber > 0 && avgPrice > 0 ? Math.round(qtyNumber * avgPrice * 100) / 100 : undefined;
+  // Quantidade no campo com vírgula decimal: "1.000" é mil cotas (ver parseQuantityInput).
+  const [quantity, setQuantity] = useState<string>(formatQuantityInput(defaults.quantity));
+  const [avgPrice, setAvgPrice] = useState<number>(averagePriceOf(defaults.quantity, defaults.investedValue));
+  const qtyNumber = parseQuantityInput(quantity);
+  // Na edição, sem mexer em quantidade nem preço médio, volta o investido salvo (o preço médio
+  // em centavos mudaria o investido sozinho — ver investedToSend).
+  const investedFromQty = investedToSend({
+    quantity: qtyNumber,
+    avgPrice,
+    original: assetId ? { quantity: defaults.quantity, investedValue: defaults.investedValue } : undefined,
+  });
+  // Mostra o número que o app entendeu quando há ponto ou vírgula: "1.000" e "1,000" são coisas
+  // bem diferentes, e o engano não dava erro nenhum.
+  const quantidadeLida =
+    /[.,]/.test(quantity) && Number.isFinite(qtyNumber) && qtyNumber > 0
+      ? qtyNumber.toLocaleString("pt-BR", { maximumFractionDigits: 6 })
+      : null;
   const isFixedIncome = assetClass === "RENDA_FIXA" || assetClass === "TESOURO_DIRETO";
   const wasPending = useRef(false);
   useSuccessToast(isPending, state.error, assetId ? t.formAtivoAtualizado : t.formAtivoAdicionado);
@@ -151,7 +163,8 @@ export function AssetForm({
         ))}
       </SelectField>
       {objective === "META" && (
-        <SelectField label={t.formAtivoMetaVinculada} id="goalId" name="goalId" defaultValue={defaults.goalId}>
+        // Obrigatória: "Meta" sem meta deixava o ativo fora de todos os cards do Por objetivo.
+        <SelectField label={t.formAtivoMetaVinculada} id="goalId" name="goalId" required defaultValue={defaults.goalId}>
           <option value="">{t.formSelecione}</option>
           {goals.map((goal) => (
             <option key={goal.id} value={goal.id}>
@@ -162,17 +175,20 @@ export function AssetForm({
       )}
       {quoted ? (
         <>
-          <Field
-            label={t.formAtivoQuantidade}
-            id="quantity"
-            name="quantity"
-            type="text"
-            inputMode="decimal"
-            value={quantity}
-            onChange={(e) => setQuantity(e.target.value)}
-            placeholder={t.formAtivoQuantidadePlaceholder}
-            className="w-full sm:w-28"
-          />
+          <div className="flex flex-col gap-1">
+            <Field
+              label={t.formAtivoQuantidade}
+              id="quantity"
+              name="quantity"
+              type="text"
+              inputMode="decimal"
+              value={quantity}
+              onChange={(e) => setQuantity(e.target.value)}
+              placeholder={t.formAtivoQuantidadePlaceholder}
+              className="w-full sm:w-28"
+            />
+            {quantidadeLida && <p className="text-caption text-ink-faint">{t.formAtivoQuantidadeLida(quantidadeLida)}</p>}
+          </div>
           <CurrencyField
             label={t.formAtivoPrecoMedio}
             id="avgPrice"

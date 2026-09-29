@@ -11,10 +11,14 @@ export async function savePlanningParamsAction(
   _prevState: PlanningParamsState,
   formData: FormData,
 ): Promise<PlanningParamsState> {
+  // Campo de expectativa APAGADO chega como "" e vira null, pra limpar a coluna: undefined o
+  // Prisma ignora no update, então o valor antigo voltava e podia travar os próximos salvamentos
+  // ("expectativa deve ser maior…" contra uma idade objetivo nova). Campo ausente segue undefined.
+  const expectativa = formData.get("lifeExpectancyAge");
   const raw = {
     currentAge: formData.get("currentAge"),
     retirementAge: formData.get("retirementAge"),
-    lifeExpectancyAge: formData.get("lifeExpectancyAge") || undefined,
+    lifeExpectancyAge: expectativa === null ? undefined : expectativa === "" ? null : expectativa,
     currentPatrimony: formData.get("currentPatrimony"),
     monthlyContributionAccumulation: formData.get("monthlyContributionAccumulation"),
     accumulationAnnualRate: formData.get("accumulationAnnualRate"),

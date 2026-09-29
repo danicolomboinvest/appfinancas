@@ -4,6 +4,7 @@ import { categoryLabel } from "@/lib/categories";
 import { fv } from "@/lib/finance/fv";
 import { annualToMonthly } from "@/lib/finance/rate-conversion";
 import type { ParentCategory } from "@prisma/client";
+import { nowInBrazil } from "@/lib/date/brazil-now";
 
 export type WeekdaySpend = { label: string; value: number };
 
@@ -15,11 +16,13 @@ export type MonthlyRecap = {
   /** (monthSpent - prevMonthSpent) / prevMonthSpent; null quando não há base de comparação. */
   monthDeltaPercent: number | null;
   topCategory: { label: string; value: number } | null;
-  /** Seg..Dom, sempre 7 posições — distribuição de gasto por dia da semana no mês inteiro. */
+  /** Seg..Dom, sempre 7 posições — distribuição de gasto por dia da semana no mês inteiro
+   * (só o que tem dia: compra de fatura importada fica de fora, ver weekdayOfExpense). */
   byWeekday: WeekdaySpend[];
   bestDay: { label: string; value: number } | null;
   worstDay: { label: string; value: number } | null;
-  /** Renda − gastos desde o primeiro lançamento ("ficou no bolso"). Acumulado, não é média. */
+  /** Renda − gastos desde o primeiro lançamento até o mês de hoje ("ficou no bolso").
+   * Acumulado, não é média; meses futuros (recorrência, parcelas) ficam de fora. */
   allTimeSaved: number;
   /** Quantos meses de uso (mínimo 1), só para a frase "desde que você chegou aqui". */
   monthsActive: number;
@@ -41,9 +44,25 @@ function monthLabel(year: number, month: number): string {
   return new Date(year, month - 1, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
 }
 
-/** Início e fim (exclusivo) de um mês corrido, em horário local. */
-function monthRange(year: number, month: number): { start: Date; end: Date } {
-  return { start: new Date(year, month - 1, 1), end: new Date(year, month, 1) };
+/**
+ * Em que dia da semana (0 = domingo) o gasto aconteceu, pro gráfico "por dia da semana".
+ *
+ * Pelo `entryDate` (coluna só de data, gravada à meia-noite UTC — por isso getUTCDay). Sem
+ * data, o `createdAt` só serve quando o lançamento foi digitado à mão DENTRO do mês recapeado
+ * (o dia em que ela lançou é o dia do gasto). Compra de fatura importada, parcela futura e cópia
+ * de despesa recorrente não têm dia: o createdAt delas é o dia da importação ou de janeiro, e
+ * jogaria a fatura inteira numa terça-feira qualquer.
+ */
+export function weekdayOfExpense(
+  e: { entryDate: Date | null; createdAt: Date; importBatchId: string | null },
+  year: number,
+  month: number,
+): number | null {
+  if (e.entryDate) return e.entryDate.getUTCDay();
+  if (e.importBatchId) return null;
+  const criado = nowInBrazil(e.createdAt);
+  if (criado.getFullYear() !== year || criado.getMonth() + 1 !== month) return null;
+  return criado.getDay();
 }
 
 /**
@@ -76,41 +95,38 @@ export function getRecapEligibility(
  * dia da semana, quanto "ficou no bolso" desde o começo, e as duas projeções de 10 anos —
  * uma do que JÁ tem acumulado (investido de uma vez) e outra da poupança média mensal de
  * verdade (reinvestida todo mês), sem misturar as duas.
- * A data de referência de cada gasto é entryDate (quando existe) ou createdAt (fallback para
- * lançamentos antigos, de antes do campo).
+ *
+ * O gasto do mês é o do ano/mês do lançamento — a mesma conta do Fluxo e do e-mail. Antes ia
+ * pela data de criação quando o lançamento não tinha dia, e a fatura de agosto importada em
+ * setembro (mais as 9 parcelas futuras que a importação cria) entrava como gasto de setembro.
+ * A data só decide o dia da semana (ver weekdayOfExpense).
  */
 export async function computeMonthlyRecap(ctx: AuthContext, year: number, month: number): Promise<MonthlyRecap> {
-  const { start: monthStart, end: monthEnd } = monthRange(year, month);
   const prev = new Date(year, month - 2, 1);
-  const { start: prevMonthStart } = monthRange(prev.getFullYear(), prev.getMonth() + 1);
+  // "Desde o começo" é até hoje: a despesa recorrente de outubro a dezembro e as parcelas
+  // futuras já existem no banco, mas ainda não saíram do bolso.
+  const hoje = nowInBrazil();
+  const jaAconteceu = {
+    OR: [{ year: { lt: hoje.getFullYear() } }, { year: hoje.getFullYear(), month: { lte: hoje.getMonth() + 1 } }],
+  };
 
   const [monthExpenses, prevMonthAgg, allTime, firstEntry, yearAgg] = await Promise.all([
-    // Gastos do mês recapeado, por qualquer uma das datas (entryDate nova ou createdAt).
     prisma.monthlyEntry.findMany({
-      where: {
-        userId: ctx.userId, profileId: ctx.profileId,
-        category: "EXPENSE",
-        OR: [
-          { entryDate: { gte: monthStart, lt: monthEnd } },
-          { entryDate: null, createdAt: { gte: monthStart, lt: monthEnd } },
-        ],
-      },
-      select: { amount: true, entryDate: true, createdAt: true, parentCategory: true },
+      where: { userId: ctx.userId, profileId: ctx.profileId, category: "EXPENSE", year, month },
+      select: { amount: true, entryDate: true, createdAt: true, importBatchId: true, parentCategory: true },
     }),
     prisma.monthlyEntry.aggregate({
       where: {
         userId: ctx.userId, profileId: ctx.profileId,
         category: "EXPENSE",
-        OR: [
-          { entryDate: { gte: prevMonthStart, lt: monthStart } },
-          { entryDate: null, createdAt: { gte: prevMonthStart, lt: monthStart } },
-        ],
+        year: prev.getFullYear(),
+        month: prev.getMonth() + 1,
       },
       _sum: { amount: true },
     }),
     prisma.monthlyEntry.groupBy({
       by: ["category"],
-      where: { userId: ctx.userId, profileId: ctx.profileId },
+      where: { userId: ctx.userId, profileId: ctx.profileId, ...jaAconteceu },
       _sum: { amount: true },
     }),
     prisma.monthlyEntry.findFirst({
@@ -127,19 +143,17 @@ export async function computeMonthlyRecap(ctx: AuthContext, year: number, month:
     }),
   ]);
 
-  const refDate = (e: { entryDate: Date | null; createdAt: Date }) => e.entryDate ?? e.createdAt;
-
   let monthSpent = 0;
   const byCategory = new Map<string, number>();
   const byWeekday = new Array(7).fill(0) as number[];
 
   for (const e of monthExpenses) {
-    const d = refDate(e);
     const amount = Number(e.amount);
     monthSpent += amount;
     const label = e.parentCategory ? categoryLabel(ctx.profileKind, e.parentCategory as ParentCategory) : "Outros";
     byCategory.set(label, (byCategory.get(label) ?? 0) + amount);
-    byWeekday[d.getDay()] += amount;
+    const weekday = weekdayOfExpense(e, year, month);
+    if (weekday !== null) byWeekday[weekday] += amount;
   }
   const prevMonthSpent = Number(prevMonthAgg._sum.amount ?? 0);
 

@@ -25,7 +25,14 @@ export type ProjectionYear = {
   /** Linha principal do gráfico: patrimônio em termos reais, contínua entre as duas fases. */
   balanceReal: number;
   totalInvested: number | null;
+  /** Juros NOMINAIS (saldo nominal - investido): só somam com `balanceNominal`. */
   cumulativeInterest: number | null;
+  /**
+   * Juros em dinheiro de hoje (saldo real - investido): a mesma conta de `totalReturnReal`, que é
+   * o "Os juros põem" da tela. A tabela usa este; com o nominal ao lado do patrimônio real, as
+   * colunas não fechavam e o número brigava com a barra logo acima.
+   */
+  cumulativeInterestReal: number | null;
 };
 
 /**
@@ -59,6 +66,7 @@ export function computeYearByYearProjection(input: ProjectionInput): ProjectionY
       balanceReal: totalAccumulatedReal.toNumber(),
       totalInvested: totalInvested.toNumber(),
       cumulativeInterest: totalAccumulatedNominal.minus(totalInvested).toNumber(),
+      cumulativeInterestReal: totalAccumulatedReal.minus(totalInvested).toNumber(),
     });
   }
 
@@ -80,6 +88,7 @@ export function computeYearByYearProjection(input: ProjectionInput): ProjectionY
         balanceReal: balance.toNumber(),
         totalInvested: null,
         cumulativeInterest: null,
+        cumulativeInterestReal: null,
       });
     }
   }

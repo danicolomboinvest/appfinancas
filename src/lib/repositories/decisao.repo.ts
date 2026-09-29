@@ -106,12 +106,44 @@ export async function resolverCompraAmanha(ctx: AuthContext, id: string, desisti
   });
 }
 
+/** "Vou comprar" registrados desde `desde` (direto ou depois do "decidir amanhã"), com o jeito de pagar. */
+export async function listarComprasDecididasDesde(ctx: AuthContext, desde: Date) {
+  const rows = await prisma.decisao.findMany({
+    where: { userId: ctx.userId, profileId: ctx.profileId, tipo: "compra_comprei", createdAt: { gte: desde } },
+    select: { valor: true, dados: true, createdAt: true },
+  });
+  return rows.map((r) => {
+    const dados = (r.dados ?? {}) as { modo?: unknown; parcelas?: unknown };
+    const parcelas = Number(dados.parcelas);
+    return {
+      valor: Number(r.valor ?? 0),
+      modo: dados.modo === "parcelado" ? ("parcelado" as const) : ("vista" as const),
+      parcelas: Number.isFinite(parcelas) && parcelas >= 1 ? Math.round(parcelas) : 1,
+      criadaEm: r.createdAt,
+    };
+  });
+}
+
 /** Tetos que a pessoa pôs em categorias NESTE mês (chave "2026-09|ALIMENTACAO"). */
 export async function listarTetosDoMes(ctx: AuthContext, anoMes: string) {
   const tetos = await prisma.decisao.findMany({
     where: { userId: ctx.userId, profileId: ctx.profileId, tipo: "teto", chave: { startsWith: `${anoMes}|` } },
   });
-  return tetos.map((t) => ({ categoria: (t.chave ?? "").split("|")[1] ?? "", valor: Number(t.valor ?? 0) }));
+  return tetos.map((t) => {
+    const dados = (t.dados ?? {}) as { gastoNaHora?: unknown };
+    return {
+      categoria: (t.chave ?? "").split("|")[1] ?? "",
+      valor: Number(t.valor ?? 0),
+      // Quanto a categoria já tinha gasto quando ela combinou: é o que separa o gasto de antes
+      // (já sabido) do gasto que veio depois e quebrou o combinado. Tetos antigos não têm.
+      gastoNaHora: typeof dados.gastoNaHora === "number" ? dados.gastoNaHora : null,
+    };
+  });
+}
+
+/** Desfaz o combinado ("teto") de uma categoria no mês. */
+export async function apagarTetoDoMes(ctx: AuthContext, anoMes: string, categoria: string) {
+  await prisma.decisao.deleteMany({ where: { userId: ctx.userId, profileId: ctx.profileId, tipo: "teto", chave: `${anoMes}|${categoria}` } });
 }
 
 /** O que a pessoa já decidiu no Raio-X, por gasto recorrente. */
