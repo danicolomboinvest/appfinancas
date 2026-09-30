@@ -15,7 +15,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
  * risco. Ajustar pro horário do deploy (UTC) — conta criada entre este horário e o deploy cairia
  * na tela de confirmação sem ter recebido o e-mail (ela ainda consegue pedir pelo "Reenviar").
  */
-export const CONFIRMACAO_DESDE = new Date("2026-09-30T15:00:00Z");
+export const CONFIRMACAO_DESDE = new Date("2026-09-30T14:51:00Z");
 
 /** A conta pode usar o app? Não olha papel: quem chama decide se admin passa direto. */
 export function emailConfirmado(user: { emailVerifiedAt: Date | null; createdAt: Date }): boolean {
