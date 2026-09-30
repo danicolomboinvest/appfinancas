@@ -6,7 +6,7 @@ import type { ProfileKind } from "@prisma/client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronLeft, FileUp, Keyboard, Mic, ShoppingBag } from "lucide-react";
+import { ChevronLeft, ChevronRight, FileUp, Keyboard, Mic, ShoppingBag } from "lucide-react";
 import type { ParentCategory } from "@prisma/client";
 import { Modal } from "@/components/ui/Modal";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
@@ -19,8 +19,9 @@ import { StatementImport } from "@/components/import/StatementImport";
 import type { ParsedVoiceEntry } from "@/lib/entries/voice-expense-parser";
 import { trackEvent } from "@/lib/usage/track-event";
 import { ehEmpresa } from "@/lib/profiles/empresa";
+import type { ModoDoRegistrar } from "./registrar-eventos";
 
-type Mode = "choice" | "type" | "voice" | "import";
+type Mode = ModoDoRegistrar;
 
 /**
  * Ponto de entrada ÚNICO de registro no app (item 1 da Rodada 2). Aberto só pelo "+" central da
@@ -30,12 +31,15 @@ type Mode = "choice" | "type" | "voice" | "import";
 export function RegistrarDrawer({
   open,
   onClose,
+  modoInicial = "choice",
 }: {
   open: boolean;
   onClose: () => void;
+  /** Onde a gaveta abre. O "+" abre na escolha; "Importe seu extrato" da conta nova, na importação. */
+  modoInicial?: ModoDoRegistrar;
 }) {
   const pathname = usePathname();
-  const [mode, setMode] = useState<Mode>("choice");
+  const [mode, setMode] = useState<Mode>(open ? modoInicial : "choice");
   const [parsed, setParsed] = useState<ParsedVoiceEntry | null>(null);
   const [recentSubcategories, setRecentSubcategories] = useState<Partial<Record<ParentCategory, string[]>>>({});
   const [customCategories, setCustomCategories] = useState<{ id: string; name: string }[]>([]);
@@ -43,18 +47,22 @@ export function RegistrarDrawer({
   const [otherProfiles, setOtherProfiles] = useState<{ id: string; name: string }[]>([]);
   const { year, month } = currentYearMonthFromPath(pathname);
 
-  // Carrega chips de categoria uma vez ao abrir; reseta o fluxo pro início ao fechar.
+  // Ao abrir, começa no modo pedido; ao fechar, volta pro início. Feito no render (e não num
+  // efeito) pra gaveta nunca aparecer um quadro na escolha antes de pular pra importação.
+  const [estavaAberta, setEstavaAberta] = useState(open);
+  if (open !== estavaAberta) {
+    setEstavaAberta(open);
+    setMode(open ? modoInicial : "choice");
+    setParsed(null);
+  }
+
+  // Carrega chips de categoria uma vez ao abrir (o reset ao fechar mora no render, acima).
   useEffect(() => {
-    if (open) {
-      getRecentSubcategoriesAction().then(setRecentSubcategories);
-      getCustomCategoriesAction().then(setCustomCategories);
-      getGoalsAction().then(setGoals);
-      getOtherProfilesAction().then(setOtherProfiles);
-    } else {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- reset ao fechar, não sincronização
-      setMode("choice");
-      setParsed(null);
-    }
+    if (!open) return;
+    getRecentSubcategoriesAction().then(setRecentSubcategories);
+    getCustomCategoriesAction().then(setCustomCategories);
+    getGoalsAction().then(setGoals);
+    getOtherProfilesAction().then(setOtherProfiles);
   }, [open]);
 
   // Título, cartões e "Voltar" vêm da voz do tema: é aqui que um tema pode chamar "Digitar" de
@@ -87,26 +95,25 @@ export function RegistrarDrawer({
 
       {mode === "choice" && (
         <div className="grid grid-cols-2 gap-3">
-          {/* Antes de registrar, decidir: a única hora em que dá pra mudar o resultado do mês é
-              antes de passar o cartão. */}
-          {!ehEmpresa(kind) && (
-          <Link
-            href="/decidir/comprar"
+          {/* Importar vem PRIMEIRO e maior: é a promessa do app ("solta o extrato, o mês se monta
+              sozinho") e quem só digita à mão é quem mais desiste nos 7 dias de garantia. Antes
+              ele era o último cartão, depois de "Posso comprar?", Digitar e Áudio. */}
+          <button
+            type="button"
             onClick={() => {
-              trackEvent("posso_comprar", "/registrar");
-              onClose();
+              trackEvent("registro_importacao", "/registrar");
+              setMode("import");
             }}
-            className="col-span-2 flex items-center gap-3 rounded-2xl border border-border bg-surface px-4 py-4 text-left transition-all hover:border-border-strong hover:bg-surface-hover active:scale-[0.98]"
+            className="col-span-2 flex min-h-11 items-center gap-3 rounded-2xl border border-accent/40 bg-surface-2 px-4 py-4 text-left transition-all hover:border-accent hover:bg-surface-hover active:scale-[0.98]"
           >
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent text-on-accent">
-              <ShoppingBag size={20} strokeWidth={1.75} />
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-accent text-on-accent">
+              <FileUp size={22} strokeWidth={1.75} />
             </span>
-            <span>
-              <span className="block text-sm font-semibold text-ink">{voz.titulos.compraTitulo}</span>
-              <span className="block text-caption text-ink-muted">Antes de passar o cartão</span>
+            <span className="min-w-0">
+              <span className="block text-sm font-semibold text-ink">{voz.titulos.impImportarArquivo}</span>
+              <span className="block text-caption text-ink-muted">{voz.titulos.impImportarSub}</span>
             </span>
-          </Link>
-          )}
+          </button>
           <button
             type="button"
             onClick={() => {
@@ -130,24 +137,31 @@ export function RegistrarDrawer({
             }}
             className="flex flex-col items-center gap-3 rounded-2xl border border-border bg-surface-2 px-4 py-6 text-center transition-all hover:border-border-strong hover:bg-surface-hover active:scale-95"
           >
-            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-accent text-on-accent">
+            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-pill text-on-pill">
               <Mic size={22} strokeWidth={1.75} />
             </span>
             <span className="text-sm font-medium text-ink">{voz.titulos.impGravarAudio}</span>
           </button>
-          <button
-            type="button"
+          {/* "Posso comprar?" por ÚLTIMO e discreto: ele leva pra OUTRA tela e fecha a gaveta.
+              Quando era o primeiro cartão, quem abria o "+" só pra anotar o pão caía num
+              simulador. Continua aqui porque a hora de decidir é antes de passar o cartão. */}
+          {!ehEmpresa(kind) && (
+          <Link
+            href="/decidir/comprar"
             onClick={() => {
-              trackEvent("registro_importacao", "/registrar");
-              setMode("import");
+              trackEvent("posso_comprar", "/registrar");
+              onClose();
             }}
-            className="col-span-2 flex items-center justify-center gap-3 rounded-2xl border border-border bg-surface-2 px-4 py-4 text-center transition-all hover:border-border-strong hover:bg-surface-hover active:scale-95"
+            className="col-span-2 flex min-h-11 items-center gap-3 rounded-2xl px-4 py-2.5 text-left transition-colors hover:bg-surface-2"
           >
-            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-pill text-on-pill">
-              <FileUp size={20} strokeWidth={1.75} />
+            <ShoppingBag size={18} strokeWidth={1.75} className="shrink-0 text-ink-muted" />
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-medium text-ink">{voz.titulos.compraTitulo}</span>
+              <span className="block text-caption text-ink-muted">{voz.titulos.impCompraAntes}</span>
             </span>
-            <span className="text-sm font-medium text-ink">{voz.titulos.impImportarArquivo}</span>
-          </button>
+            <ChevronRight size={16} className="shrink-0 text-ink-faint" />
+          </Link>
+          )}
         </div>
       )}
 

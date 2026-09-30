@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Lock, LogOut, Smartphone, MessageCircle, Wallet } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
-import { MORE_NAV_SECTIONS, ADMIN_NAV_SECTION, withNavFlags, secoesVisiveis } from "./nav-sections";
+import { secoesDoMais, ADMIN_NAV_SECTION, withNavFlags, secoesVisiveis } from "./nav-sections";
 import { ThemeToggle } from "./ThemeToggle";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 
@@ -19,6 +19,7 @@ export function MoreSheet({
   theme,
   openFinance,
   podeEscolherModo,
+  barraComCarteira = true,
 }: {
   open: boolean;
   onClose: () => void;
@@ -35,9 +36,16 @@ export function MoreSheet({
   openFinance: boolean;
   /** O tema do perfil deixa escolher claro/escuro? Só o Padrão deixa; nos outros a chave some. */
   podeEscolherModo: boolean;
+  /** A barra de baixo está mostrando a Carteira? Tem que ser o MESMO valor que a MobileTabBar
+   * usa (o isPremium dela), senão a Carteira some dos dois lugares ou aparece nos dois. Padrão
+   * `true` = a barra de sempre, com a Carteira. */
+  barraComCarteira?: boolean;
 }) {
   const { voz, empresa, casal } = useProfileTheme();
-  const sections = secoesVisiveis(withNavFlags(isAdmin ? [...MORE_NAV_SECTIONS, ADMIN_NAV_SECTION] : MORE_NAV_SECTIONS, { openFinance }), { empresa, casal });
+  // Sem a área paga, a Carteira sai da barra de baixo e aparece aqui (com o cadeado); a Visão
+  // Geral, que tomou o lugar dela na barra, sai daqui. Mesma regra da MobileTabBar.
+  const doMais = secoesDoMais(barraComCarteira);
+  const sections = secoesVisiveis(withNavFlags(isAdmin ? [...doMais, ADMIN_NAV_SECTION] : doMais, { openFinance }), { empresa, casal });
 
   return (
     <Modal open={open} onClose={onClose} title={voz.titulos.navMais}>
@@ -49,11 +57,16 @@ export function MoreSheet({
               key={section.basePath}
               href={section.href}
               onClick={onClose}
-              className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-ink transition-colors hover:bg-surface-2"
+              className="flex min-h-11 items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-ink transition-colors hover:bg-surface-2"
             >
               <Icon size={18} strokeWidth={1.75} className="text-ink-muted" />
               <span className="flex-1">{voz.titulos.navSecao(section.basePath, section.label)}</span>
-              {section.premium && !isPremium && <Lock size={14} strokeWidth={2} className="shrink-0 text-ink-faint" />}
+              {section.premium && !isPremium && (
+                <>
+                  <Lock size={14} strokeWidth={2} className="shrink-0 text-ink-faint" aria-hidden />
+                  <span className="sr-only">(área do curso de investimentos)</span>
+                </>
+              )}
             </Link>
           );
         })}

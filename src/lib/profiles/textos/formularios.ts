@@ -33,6 +33,25 @@ export type TextosFormularios = {
   formOpcional: string;
   formEditar: string;
   formRemover: string;
+  /** O mesmo botão de remover depois do 1º toque (DeleteButton apaga em dois toques). */
+  formRemoverConfirma: string;
+
+  // CategoryFields — o "o que é", a categoria e o tipo de um lançamento (formulário do +)
+  formLancOQueE: string;
+  formLancCategoria: string;
+  /** Ao lado de "Categoria", quando o app adivinhou pela descrição. */
+  formLancSugerida: string;
+  formLancNovaCategoria: string;
+  formLancNomeCategoria: string;
+  formLancCriar: string;
+  formLancCriando: string;
+  formLancTipo: string;
+  formLancTipoOpcional: string;
+  formLancTipoExemplo: string;
+  formLancRecentes: string;
+  formLancOutroTipo: string;
+  /** Exemplo do campo livre de renda ou de dinheiro guardado. */
+  formLancOutroExemplo(tipo: "INCOME" | "INVESTMENT_CONTRIBUTION"): string;
 
   // Meta (GoalForm, NewGoalButton, EditGoalButton, DeleteGoalButton)
   formMetaNova: string;
@@ -248,6 +267,21 @@ export const PADRAO_FORMULARIOS: TextosFormularios = {
   formOpcional: "(opcional)",
   formEditar: "Editar",
   formRemover: "Remover",
+  formRemoverConfirma: "Sim, remover",
+
+  formLancOQueE: "O que é",
+  formLancCategoria: "Categoria",
+  formLancSugerida: "sugerida pela descrição",
+  formLancNovaCategoria: "+ Nova",
+  formLancNomeCategoria: "Nome da nova categoria",
+  formLancCriar: "Criar",
+  formLancCriando: "Criando…",
+  formLancTipo: "Tipo",
+  formLancTipoOpcional: "Tipo (opcional)",
+  formLancTipoExemplo: "Ex.: ração, banho e tosa",
+  formLancRecentes: "Usadas recentemente:",
+  formLancOutroTipo: "Que tipo de gasto é?",
+  formLancOutroExemplo: (tipo) => (tipo === "INCOME" ? "Ex.: venda de um móvel" : "Ex.: consórcio"),
 
   formMetaNova: "Nova meta",
   formMetaEditar: "Editar meta",
@@ -287,8 +321,15 @@ export const PADRAO_FORMULARIOS: TextosFormularios = {
   formAtivoNome: "Nome",
   formAtivoNomePlaceholderLista: "Preenchido ao escolher na lista",
   formAtivoNomePlaceholder: "Ex.: Tesouro Selic 2029",
-  formAtivoIndexador: "Indexador",
-  formAtivoIndexadores: { "": "Não definido", POS_FIXADO: "Pós-fixado (CDI/Selic)", IPCA: "IPCA+", PREFIXADO: "Prefixado" },
+  // "Indexador" e "IPCA+" ficam só aqui, na Carteira, onde é o nome que o banco usa, mas com
+  // o que cada um quer dizer do lado: quem tem caixinha ou CDB não sabe que isso é pós-fixado.
+  formAtivoIndexador: "Como ele rende (indexador)",
+  formAtivoIndexadores: {
+    "": "Não sei / não definido",
+    POS_FIXADO: "Pós-fixado: segue o CDI (caixinha, CDB)",
+    IPCA: "IPCA+: inflação + uma taxa",
+    PREFIXADO: "Prefixado: taxa fixa combinada",
+  },
   formAtivoObjetivo: "Objetivo",
   formAtivoObjetivos: { OUTRO: "Outro", RESERVA_EMERGENCIA: "Reserva de emergência", LIBERDADE_FINANCEIRA: "Liberdade financeira", META: "Meta" },
   formAtivoMetaVinculada: "Meta vinculada",
@@ -345,11 +386,12 @@ export const PADRAO_FORMULARIOS: TextosFormularios = {
   formOrcEstourou: "As categorias somam mais do que sobra. Volte e ajuste, ou guarde menos.",
   formOrcSalvar: "Salvar meu plano",
   formOrcAjustar: "Ajustar as categorias",
-  formOrcRendaEAporte: "Renda e aporte",
-  formOrcEditarPlano: (ano) => `Editar seu plano de ${ano}: renda, aporte e gastos`,
-  formOrcRendaEAporteNoMes: (mes) => `Renda e aporte em ${mes}`,
+  // "Aporte" saiu do orçamento do Padrão: é a tela que ela mais abre depois do mês.
+  formOrcRendaEAporte: "Renda e o que guardar",
+  formOrcEditarPlano: (ano) => `Editar seu plano de ${ano}: renda, quanto guardar e gastos`,
+  formOrcRendaEAporteNoMes: (mes) => `Renda e dinheiro guardado em ${mes}`,
   formOrcBarraRenda: "Renda",
-  formOrcBarraAporte: "Aporte",
+  formOrcBarraAporte: "Guardado",
   formOrcPorMes: "Por mês",
   formOrcSemGasto: "sem gasto mês passado",
   formOrcMesPassado: (mes, valor) => `${mes}: ${valor}`,

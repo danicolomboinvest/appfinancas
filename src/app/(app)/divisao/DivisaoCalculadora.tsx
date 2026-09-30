@@ -6,7 +6,7 @@ import { CONTROL_CLASSES } from "@/components/ui/Field";
 import { Card } from "@/components/ui/Card";
 import { useMoney } from "@/components/money/MoneyProvider";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
-import { dividirDespesasDoCasal } from "@/lib/simulators/divisao-casal";
+import { comparacaoCom5050, dividirDespesasDoCasal } from "@/lib/simulators/divisao-casal";
 
 /**
  * "Quanto cada um contribui?": recalcula a cada tecla, no cliente. Sem servidor no meio
@@ -35,6 +35,8 @@ export function DivisaoCalculadora({ despesasComunsInicial }: { despesasComunsIn
     [rendaA, rendaB, despesasComuns, pctBManual],
   );
   const semRenda = rendaA === 0 && rendaB === 0;
+  // A frase fala de "quem ganha menos", seja qual for o campo em que essa renda foi digitada.
+  const comparacao = comparacaoCom5050(r);
 
   return (
     <div className="flex flex-col gap-5 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] lg:items-start lg:gap-6">
@@ -96,11 +98,13 @@ export function DivisaoCalculadora({ despesasComunsInicial }: { despesasComunsIn
               <p className="text-[15px] font-semibold text-ink">{t.casComparandoTitulo}</p>
               <p className="mt-1 text-sm text-ink-muted">
                 {t.casComparandoIgual(money(r.contribuicaoIgual, { round: true }))}{" "}
-                {r.diferencaParaB > 0.5
-                  ? t.casComparandoMenos(money(r.diferencaParaB, { round: true }))
-                  : r.diferencaParaB < -0.5
-                    ? t.casComparandoMais(money(-r.diferencaParaB, { round: true }))
-                    : t.casComparandoParecido}
+                {comparacao.tipo === "menos"
+                  ? t.casComparandoMenos(money(comparacao.valor, { round: true }))
+                  : comparacao.tipo === "mais"
+                    ? t.casComparandoMais(money(comparacao.valor, { round: true }))
+                    : comparacao.tipo === "parecido"
+                      ? t.casComparandoParecido
+                      : null}
               </p>
               {r.manual && <p className="mt-1.5 text-caption text-ink-faint">{t.casComparandoManualNota(Math.round(r.pctBSugeridoPelaRenda * 100))}</p>}
             </Card>
@@ -132,8 +136,8 @@ function Contribuicao({
     <div className="rounded-xl border border-border bg-surface px-3.5 py-3">
       <p className="text-caption text-ink-muted">{rotulo}</p>
       <p className="mt-0.5 text-[17px] font-semibold tabular-nums text-ink">{money(valor, { round: true })}</p>
-      <p className="mt-0.5 text-[11px] text-ink-faint">{t.casContribPct(Math.round(pct * 100))}</p>
-      <p className="mt-1.5 text-[11px] text-ink-faint">{t.casSobraLivre(money(Math.max(0, sobra), { round: true }))}</p>
+      <p className="mt-0.5 text-xs text-ink-faint">{t.casContribPct(Math.round(pct * 100))}</p>
+      <p className="mt-1.5 text-xs text-ink-faint">{t.casSobraLivre(money(Math.max(0, sobra), { round: true }))}</p>
     </div>
   );
 }

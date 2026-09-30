@@ -138,7 +138,7 @@ export function LaudoView({
         <p className="mt-0.5 flex flex-wrap items-center gap-2 text-sm text-ink-muted">
           {companyName && <span className="line-clamp-2 min-w-0">{companyName}</span>}
           {inPortfolio && (
-            <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-semibold text-accent-strong">{t.fichasNaCarteira}</span>
+            <span className="rounded-full bg-accent-soft px-2 py-0.5 text-xs font-semibold text-accent-strong">{t.fichasNaCarteira}</span>
           )}
         </p>
       </div>
@@ -187,7 +187,7 @@ export function LaudoView({
         {(["favoravel", "neutro", "atencao"] as OverviewSignal[]).map((s) => (
           <div key={s} className={`rounded-2xl py-3 text-center ${SIGNAL_BG[s]}`}>
             <p className={`text-3xl font-extrabold leading-none ${SIGNAL_TEXT[s]}`}>{laudo.counts[s]}</p>
-            <p className={`mt-1 text-[11px] ${SIGNAL_TEXT[s]}`}>{signalLabel[s]}</p>
+            <p className={`mt-1 text-xs ${SIGNAL_TEXT[s]}`}>{signalLabel[s]}</p>
           </div>
         ))}
       </div>
@@ -217,7 +217,7 @@ export function LaudoView({
       {laudo.facts.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {laudo.facts.map((f) => (
-            <span key={f.label} className="rounded-full bg-surface-2 px-2.5 py-1 text-[11px] text-ink-muted">
+            <span key={f.label} className="rounded-full bg-surface-2 px-2.5 py-1 text-xs text-ink-muted">
               {f.label}: <span className="text-ink">{f.value}</span>
             </span>
           ))}
@@ -357,7 +357,7 @@ function Gauge({ section }: { section: LaudoSection }) {
           aria-hidden
         />
       </div>
-      <div className="flex items-baseline justify-between text-[11px] text-ink-faint">
+      <div className="flex items-baseline justify-between text-xs text-ink-faint">
         <span>{scale.low}</span>
         <span>{scale.high}</span>
       </div>
@@ -368,7 +368,7 @@ function Gauge({ section }: { section: LaudoSection }) {
         {chave.map((i) => (
           <span
             key={i.key}
-            className={`inline-flex items-baseline gap-1 rounded-full px-2 py-0.5 text-[11px] ${
+            className={`inline-flex items-baseline gap-1 rounded-full px-2 py-0.5 text-xs ${
               i.signal === "atencao" ? "bg-danger-soft text-danger" : "bg-surface-2 text-ink-muted"
             }`}
           >
@@ -413,7 +413,7 @@ function NumberTile({ item, open, onToggle }: { item: LaudoItem; open: boolean; 
         <p className={`mt-1.5 line-clamp-2 text-[12px] font-medium leading-tight ${bad ? "text-danger" : "text-ink"}`}>
           {FRIENDLY_LABEL[item.key] ?? technicalLabel(item)}
         </p>
-        <p className="truncate text-[10px] uppercase tracking-wide text-ink-faint">{SHORT_LABEL[item.key] ?? technicalLabel(item)}</p>
+        <p className="truncate text-xs uppercase tracking-wide text-ink-faint">{SHORT_LABEL[item.key] ?? technicalLabel(item)}</p>
       </button>
     </div>
   );

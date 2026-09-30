@@ -46,6 +46,17 @@ export type ResultadoDivisao = {
   sobraB: number;
   /** Quanto a divisão usada poupa de B, comparado ao 50/50 (negativo = B paga mais que 50/50). */
   diferencaParaB: number;
+  /**
+   * Quem ganha menos: "A", "B" ou null quando as duas rendas são iguais. A frase da tela fala
+   * de "quem ganha menos", e não de B: com a renda menor digitada no primeiro campo, usar a
+   * diferença de B invertia o sentido ("quem ganha menos paga R$ 200 a mais", quando pagava a menos).
+   */
+  quemGanhaMenos: "A" | "B" | null;
+  /**
+   * Quanto a divisão usada poupa de quem ganha menos, comparado ao 50/50 (negativo = paga mais
+   * que no 50/50). Zero quando as rendas são iguais: aí não existe "quem ganha menos".
+   */
+  diferencaParaQuemGanhaMenos: number;
 };
 
 export function dividirDespesasDoCasal(e: EntradaDivisao): ResultadoDivisao {
@@ -63,6 +74,10 @@ export function dividirDespesasDoCasal(e: EntradaDivisao): ResultadoDivisao {
   const contribuicaoB = despesasComuns * pctB;
   const contribuicaoIgual = despesasComuns / 2;
 
+  const quemGanhaMenos = rendaA < rendaB ? "A" : rendaB < rendaA ? "B" : null;
+  const diferencaParaQuemGanhaMenos =
+    quemGanhaMenos === "A" ? contribuicaoIgual - contribuicaoA : quemGanhaMenos === "B" ? contribuicaoIgual - contribuicaoB : 0;
+
   return {
     rendaConjunta,
     pctA,
@@ -75,5 +90,22 @@ export function dividirDespesasDoCasal(e: EntradaDivisao): ResultadoDivisao {
     sobraA: rendaA - contribuicaoA,
     sobraB: rendaB - contribuicaoB,
     diferencaParaB: contribuicaoIgual - contribuicaoB,
+    quemGanhaMenos,
+    diferencaParaQuemGanhaMenos,
   };
+}
+
+/**
+ * Qual frase de "Comparando com 50/50" mostrar, sempre do ponto de vista de quem ganha menos
+ * (é o que a frase diz). Menos de R$ 0,50 de diferença conta como "quase igual".
+ *
+ * "parecido" só vale quando a conta segue a renda: com um percentual digitado à mão, dar 50/50
+ * com rendas diferentes não quer dizer que as rendas são parecidas, e a frase mentiria. Nesse
+ * caso fica só a linha "se dividissem igual…" e a nota do percentual manual.
+ */
+export function comparacaoCom5050(r: ResultadoDivisao): { tipo: "menos" | "mais" | "parecido" | "nenhum"; valor: number } {
+  const d = r.diferencaParaQuemGanhaMenos;
+  if (r.quemGanhaMenos !== null && d > 0.5) return { tipo: "menos", valor: d };
+  if (r.quemGanhaMenos !== null && d < -0.5) return { tipo: "mais", valor: -d };
+  return { tipo: r.manual ? "nenhum" : "parecido", valor: 0 };
 }

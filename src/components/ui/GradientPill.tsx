@@ -28,7 +28,7 @@ export function GradientPill({
       }}
     >
       <span className="text-sm font-semibold tabular-nums text-ink">{value}</span>
-      <span className="text-[10px] font-medium uppercase tracking-wide" style={{ color: colorTo }}>
+      <span className="text-xs font-medium uppercase tracking-wide" style={{ color: colorTo }}>
         {label}
       </span>
     </div>

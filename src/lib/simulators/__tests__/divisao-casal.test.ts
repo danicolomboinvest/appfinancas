@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dividirDespesasDoCasal } from "../divisao-casal";
+import { comparacaoCom5050, dividirDespesasDoCasal } from "../divisao-casal";
 
 describe("divisão proporcional das contas do casal", () => {
   it("divide as despesas comuns na mesma proporção da renda de cada um", () => {
@@ -96,5 +96,47 @@ describe("percentual combinado à mão (o casal já decidiu um número próprio)
     const abaixo = dividirDespesasDoCasal({ rendaA: 3600, rendaB: 2400, despesasComuns: 2000, pctBManual: -0.2 });
     expect(abaixo.pctB).toBe(0);
     expect(abaixo.contribuicaoB).toBe(0);
+  });
+
+  describe("frase de comparação com 50/50 (sempre do ponto de vista de quem ganha menos)", () => {
+    it("renda maior no primeiro campo: quem ganha menos (B) paga menos que no 50/50", () => {
+      const r = dividirDespesasDoCasal({ rendaA: 3600, rendaB: 2400, despesasComuns: 2000 });
+      expect(r.quemGanhaMenos).toBe("B");
+      expect(comparacaoCom5050(r)).toEqual({ tipo: "menos", valor: expect.closeTo(200) });
+    });
+
+    it("renda MENOR no primeiro campo não inverte a frase: continua pagando menos", () => {
+      // O bug: a frase usava a diferença de B (aqui, quem ganha MAIS) e dizia que quem ganha
+      // menos pagava R$ 200 a mais, o contrário do que a divisão proporcional faz.
+      const r = dividirDespesasDoCasal({ rendaA: 2400, rendaB: 3600, despesasComuns: 2000 });
+      expect(r.quemGanhaMenos).toBe("A");
+      expect(r.diferencaParaQuemGanhaMenos).toBeCloseTo(200);
+      expect(comparacaoCom5050(r)).toEqual({ tipo: "menos", valor: expect.closeTo(200) });
+    });
+
+    it("percentual manual que pesa pra quem ganha menos vira 'paga a mais', nos dois sentidos", () => {
+      // Quem ganha menos (A, 2.400) ficou com 70% das contas: 1.400 em vez de 1.000.
+      const a = dividirDespesasDoCasal({ rendaA: 2400, rendaB: 3600, despesasComuns: 2000, pctBManual: 0.3 });
+      expect(comparacaoCom5050(a)).toEqual({ tipo: "mais", valor: expect.closeTo(400) });
+      // Mesma situação com os campos trocados: quem ganha menos (B) com 70%.
+      const b = dividirDespesasDoCasal({ rendaA: 3600, rendaB: 2400, despesasComuns: 2000, pctBManual: 0.7 });
+      expect(comparacaoCom5050(b)).toEqual({ tipo: "mais", valor: expect.closeTo(400) });
+    });
+
+    it("rendas iguais pela proporção: 'parecido'", () => {
+      const r = dividirDespesasDoCasal({ rendaA: 4000, rendaB: 4000, despesasComuns: 3000 });
+      expect(r.quemGanhaMenos).toBeNull();
+      expect(comparacaoCom5050(r).tipo).toBe("parecido");
+    });
+
+    it("50% digitado à mão com rendas diferentes não diz que as rendas são parecidas", () => {
+      const r = dividirDespesasDoCasal({ rendaA: 2400, rendaB: 3600, despesasComuns: 2000, pctBManual: 0.5 });
+      expect(comparacaoCom5050(r).tipo).toBe("nenhum");
+    });
+
+    it("rendas iguais com percentual manual também não diz 'parecido'", () => {
+      const r = dividirDespesasDoCasal({ rendaA: 4000, rendaB: 4000, despesasComuns: 3000, pctBManual: 0.7 });
+      expect(comparacaoCom5050(r).tipo).toBe("nenhum");
+    });
   });
 });

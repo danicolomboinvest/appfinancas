@@ -2,6 +2,12 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useLinkStatus } from "next/link";
+import { usePathname } from "next/navigation";
+import { destinoDaNavegacao } from "./nav-progress-link";
+
+/** Se a tela nova não chegar nesse tempo (link que o próprio Next cancelou, redirecionamento
+ * de volta pra mesma tela), a barra some sozinha em vez de ficar parada em 90%. */
+const DESISTE_EM_MS = 10_000;
 
 /**
  * Feedback de navegação SEM apagar a tela.
@@ -25,7 +31,52 @@ export function NavProgressProvider({ children }: { children: React.ReactNode })
   const start = useCallback(() => setPendentes((n) => n + 1), []);
   const stop = useCallback(() => setPendentes((n) => Math.max(0, n - 1)), []);
   const value = useMemo(() => ({ start, stop }), [start, stop]);
-  const carregando = pendentes > 0;
+
+  // Toque em QUALQUER link do app: barra de baixo, menu "Mais", menu lateral, cartões.
+  //
+  // O `NavPending` (lá embaixo) só funciona dentro de um <Link> que continua na tela até a
+  // navegação acabar. O menu "Mais" fecha no mesmo toque e desmonta os links junto — a barra
+  // nunca acendia ali, e no celular a pessoa tocava de novo achando que não tinha pegado. Ouvir
+  // o toque no documento inteiro cobre todos os links sem precisar lembrar de pôr nada em cada um.
+  const pathname = usePathname();
+  const [indoPara, setIndoPara] = useState<string | null>(null);
+  const [pathnameAnterior, setPathnameAnterior] = useState(pathname);
+  if (pathname !== pathnameAnterior) {
+    // A tela nova chegou: apaga a barra no mesmo render, sem esperar um efeito.
+    setPathnameAnterior(pathname);
+    if (indoPara !== null) setIndoPara(null);
+  }
+
+  useEffect(() => {
+    function aoTocar(event: MouseEvent) {
+      const alvo = event.target instanceof Element ? event.target.closest("a[href]") : null;
+      if (!alvo) return;
+      const destino = destinoDaNavegacao(
+        {
+          href: alvo.getAttribute("href"),
+          target: alvo.getAttribute("target"),
+          download: alvo.hasAttribute("download"),
+          button: event.button,
+          comModificador: event.metaKey || event.ctrlKey || event.shiftKey || event.altKey,
+        },
+        { origin: window.location.origin, pathname: window.location.pathname },
+      );
+      if (destino) setIndoPara(destino);
+    }
+    // Fase de captura: roda ANTES do onClick do React, que no menu "Mais" fecha a gaveta e tira
+    // o link da tela. Não olha `defaultPrevented`: o próprio <Link> do Next chama
+    // preventDefault pra navegar sem recarregar, então todo link interno viria "cancelado".
+    document.addEventListener("click", aoTocar, true);
+    return () => document.removeEventListener("click", aoTocar, true);
+  }, []);
+
+  useEffect(() => {
+    if (indoPara === null) return;
+    const desiste = window.setTimeout(() => setIndoPara(null), DESISTE_EM_MS);
+    return () => window.clearTimeout(desiste);
+  }, [indoPara]);
+
+  const carregando = pendentes > 0 || indoPara !== null;
 
   return (
     <NavProgressContext.Provider value={value}>

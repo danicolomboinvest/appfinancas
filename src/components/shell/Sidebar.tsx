@@ -123,7 +123,11 @@ export function Sidebar({
                   <Icon size={18} strokeWidth={1.75} className="shrink-0" />
                   <span className={`truncate ${hideLabelDesktopOnly}`}>{voz.titulos.navSecao(section.basePath, section.label)}</span>
                   {section.premium && !isPremium && (
-                    <Lock size={13} strokeWidth={2} className={`ml-auto shrink-0 text-ink-faint ${hideLabelDesktopOnly}`} />
+                    <>
+                      <Lock size={13} strokeWidth={2} aria-hidden className={`ml-auto shrink-0 text-ink-faint ${hideLabelDesktopOnly}`} />
+                      {/* Quem usa leitor de tela ouvia só o nome da seção, sem saber do cadeado. */}
+                      <span className="sr-only">(área do curso de investimentos)</span>
+                    </>
                   )}
                 </Link>
 
@@ -142,7 +146,12 @@ export function Sidebar({
                             }`}
                           >
                             <span className="truncate">{voz.titulos.navFilho(child.href, child.label)}</span>
-                            {locked && <Lock size={11} strokeWidth={2} className="shrink-0" />}
+                            {locked && (
+                              <>
+                                <Lock size={11} strokeWidth={2} aria-hidden className="shrink-0" />
+                                <span className="sr-only">(área do curso de investimentos)</span>
+                              </>
+                            )}
                           </Link>
                         </li>
                       );

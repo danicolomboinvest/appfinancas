@@ -14,6 +14,7 @@ import {
   BookOpen,
   type LucideIcon,
 } from "lucide-react";
+import { ROTAS_DO_FLUXO } from "./flow-tabs";
 
 export type NavChild = {
   href: string;
@@ -70,8 +71,9 @@ export function secoesVisiveis<T extends NavSection>(sections: T[], flags: { emp
   return sections.filter((s) => (flags.empresa ? !s.soPessoa : !s.soEmpresa) && (flags.casal || !s.soCasal));
 }
 
-/** Uma rota pertence à seção se está sob o basePath ou sob alguma rota extra declarada. */
-export function sectionMatches(section: NavSection, pathname: string): boolean {
+/** Uma rota pertence à seção se está sob o basePath ou sob alguma rota extra declarada.
+ * Serve também pras abas da barra de baixo (`MobileTab`), que têm os mesmos dois campos. */
+export function sectionMatches(section: Pick<NavSection, "basePath" | "alsoMatches">, pathname: string): boolean {
   const bate = (base: string) => pathname === base || pathname.startsWith(`${base}/`);
   return bate(section.basePath) || (section.alsoMatches?.some(bate) ?? false);
 }
@@ -83,6 +85,9 @@ export const NAV_SECTIONS: NavSection[] = [
     href: "/mensal/foco",
     label: "Fluxo Financeiro",
     icon: ArrowLeftRight,
+    // O Orçamento é a quarta aba do Fluxo, mas mora em /orcamento: sem isso o menu lateral
+    // apagava o Fluxo justo quando a pessoa estava numa aba dele.
+    alsoMatches: ROTAS_DO_FLUXO,
     children: [
       { href: "/mensal/foco", label: "Foco" },
       { href: "/mensal", label: "Visão mensal" },
@@ -194,18 +199,50 @@ export const ADMIN_NAV_SECTION: NavSection = {
   ],
 };
 
-export type MobileTab = { basePath: string; href: string; label: string; icon: LucideIcon };
+export type MobileTab = {
+  basePath: string;
+  href: string;
+  label: string;
+  icon: LucideIcon;
+  /** Rotas fora do basePath em que a aba também acende (mesma ideia da `NavSection`). */
+  alsoMatches?: string[];
+};
 
 /** Destinos de navegação da tab bar inferior. A barra final tem 5 posições:
  * Fluxo | Metas | [ + Registrar ] | Carteira | Mais, o "+" central (registro) e o "Mais"
  * (MoreSheet) são renderizados à parte pelo MobileTabBar, entre e depois destes 3 links. */
 export const MOBILE_TABS: MobileTab[] = [
-  { basePath: "/mensal", href: "/mensal/foco", label: "Fluxo", icon: ArrowLeftRight },
+  // Acende também no Orçamento, a quarta aba do Fluxo (ver ROTAS_DO_FLUXO).
+  { basePath: "/mensal", href: "/mensal/foco", label: "Fluxo", icon: ArrowLeftRight, alsoMatches: ROTAS_DO_FLUXO },
   { basePath: "/planejamento", href: "/planejamento/metas", label: "Metas", icon: Target },
   { basePath: "/carteira", href: "/carteira", label: "Carteira", icon: Briefcase },
 ];
 
-/** Seções que não têm tab própria na barra inferior, acessadas via "Mais". */
-export const MORE_NAV_SECTIONS: NavSection[] = NAV_SECTIONS.filter(
-  (section) => !MOBILE_TABS.some((tab) => tab.basePath === section.basePath),
-);
+/**
+ * A aba que entra no lugar da Carteira pra quem não tem a área de investimentos liberada, pra
+ * barra não ficar com o "+" fora do meio. Visão Geral porque existe em todo tipo de perfil e
+ * não é aba do Fluxo (o Orçamento já acende o "Fluxo"; duas abas acesas juntas confundem).
+ * Rótulo curto e fixo: nos temas o nome da seção pode ser longo demais pros 5 espaços da barra.
+ */
+export const ABA_VISAO_GERAL: MobileTab = { basePath: "/dashboard", href: "/dashboard", label: "Visão geral", icon: LayoutDashboard };
+
+/**
+ * As 3 abas da barra de baixo de quem está logado. Sem acesso à área paga, a Carteira sai da
+ * barra: era uma das 3 portas principais do celular e abria direto num cadeado, e quem comprou
+ * com outro e-mail achava que o app inteiro era pago à parte. Ela continua no "Mais", com o
+ * cadeado (ver secoesDoMais).
+ */
+export function abasDoCelular(isPremium: boolean): MobileTab[] {
+  return isPremium ? MOBILE_TABS : MOBILE_TABS.map((tab) => (tab.basePath === "/carteira" ? ABA_VISAO_GERAL : tab));
+}
+
+/** Seções que não têm tab própria na barra inferior, acessadas via "Mais". Muda com o acesso:
+ * sem a área paga, a Carteira sai da barra e entra aqui, e a Visão Geral faz o caminho inverso.
+ * O destaque do "Mais" (AppShell) precisa usar esta mesma lista, senão acende junto com a aba. */
+export function secoesDoMais(isPremium: boolean): NavSection[] {
+  const abas = abasDoCelular(isPremium);
+  return NAV_SECTIONS.filter((section) => !abas.some((tab) => tab.basePath === section.basePath));
+}
+
+/** As seções do "Mais" de quem tem a área paga (Carteira na barra de baixo). */
+export const MORE_NAV_SECTIONS: NavSection[] = secoesDoMais(true);

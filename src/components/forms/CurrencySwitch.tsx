@@ -17,7 +17,9 @@ export function CurrencySwitch({ value, onChange }: { value: CurrencyCode; onCha
       aria-label="Moeda do lançamento"
       value={value}
       onChange={(e) => onChange(e.target.value as CurrencyCode)}
-      className="h-6 rounded-md border border-border-strong bg-surface-2 px-1.5 text-[11px] font-medium text-ink-muted focus:border-accent focus:outline-none"
+      // No celular: 44px de altura pro dedo acertar, e a letra sobe pra 16px (regra do globals.css)
+      // pra o iPhone não dar zoom sozinho ao abrir a lista. No computador continua discreto.
+      className="h-11 rounded-md border border-border-strong bg-surface-2 px-1.5 text-xs font-medium text-ink-muted focus:border-accent focus:outline-none sm:h-6"
     >
       {CURRENCY_CODES.map((code) => (
         <option key={code} value={code}>
@@ -106,7 +108,7 @@ export function ExchangeRateLine({
           <span className="ml-1 text-xs font-normal text-ink-muted">é o que entra no seu mês</span>
         </p>
       ) : null}
-      <p className="text-[11px] leading-snug text-ink-faint">
+      <p className="text-xs leading-snug text-ink-faint">
         {status === "loading" && "Buscando a cotação de hoje…"}
         {status === "today" && today && `Cotação de hoje. Se o seu banco fechou diferente, ajuste aqui.`}
         {status === "stale" &&

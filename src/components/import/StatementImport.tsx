@@ -2,6 +2,7 @@
 
 import { FalarComSuporte } from "@/components/support/FalarComSuporte";
 import { useRef, useState, useTransition } from "react";
+import Link from "next/link";
 import { Upload, Check, ArrowRight, Lock, Plus } from "lucide-react";
 import type { ParentCategory } from "@prisma/client";
 import { PARENT_CATEGORIES, categoryLabel } from "@/lib/categories";
@@ -22,7 +23,12 @@ import {
 import { useMoney } from "@/components/money/MoneyProvider";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { UPLOAD_MAX_BYTES } from "@/lib/import/limites";
+import { iguaisPraAplicar, proximaPendente, semCategoria as gastoSemCategoria } from "@/lib/import/revisao-em-grupo";
+import { mesDaRevelacao, type Revelacao } from "@/lib/import/revelacao";
+import { resumoDoMesImportadoAction } from "@/app/(app)/mensal/revelacao-actions";
 import { ComoImportar } from "./ComoImportar";
+import { ComoTirarExtrato } from "./ComoTirarExtrato";
+import { ProtegerSaida } from "./ProtegerSaida";
 
 type Phase = "upload" | "password" | "review" | "confirm" | "done";
 
@@ -37,6 +43,21 @@ function formatDate(iso: string) {
   const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   return m ? `${m[3]}/${m[2]}` : iso;
 }
+
+/** "2026-10-10" → "10/10/2026", pro "achei no arquivo: vence em…". */
+function formatFullDate(iso: string) {
+  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : iso;
+}
+
+/** Linha que já pode ir pro banco. Gasto SEM categoria também vai (ver `handleImport`). */
+function entraNaImportacao(it: ReviewItem): boolean {
+  return !it.ignorar;
+}
+
+/** Quantas linhas a conferência mostra antes do "Mostrar todos": no celular, 200 linhas de
+ * extrato empurravam o botão de importar pra muito longe. */
+const LINHAS_VISIVEIS = 30;
 
 /** "2027-06" → "junho de 2027", pro texto de confirmação do mês da fatura. */
 function formatMonthYear(monthValue: string): string {
@@ -109,6 +130,25 @@ export function StatementImport({
   const [customCategories, setCustomCategories] = useState<{ id: string; name: string }[]>([]);
   const [creatingCat, setCreatingCat] = useState(false);
   const [newCatName, setNewCatName] = useState("");
+  // Ela mexeu no mês da fatura à mão: o vencimento lido do arquivo vira só uma sugestão, não
+  // troca a escolha dela.
+  const [faturaMesTocado, setFaturaMesTocado] = useState(false);
+  // Conferência: a linha aberta pra trocar categoria/tipo, e se a lista longa está inteira.
+  const [editandoKey, setEditandoKey] = useState<number | null>(null);
+  const [mostrarTodos, setMostrarTodos] = useState(false);
+  // Depois de importar: o mês montado. `mes` null = arquivo sem data, fica só o "pronto".
+  const [revelacao, setRevelacao] = useState<{ mes: { year: number; month: number } | null; dados: Revelacao | null; carregando: boolean }>({
+    mes: null,
+    dados: null,
+    carregando: false,
+  });
+  // A área da revisão/conferência: toque fora dela (Voltar, X, fundo escuro) pergunta antes de fechar.
+  const areaRef = useRef<HTMLDivElement>(null);
+
+  function escolherMesFatura(valor: string) {
+    setFaturaMonth(valor);
+    setFaturaMesTocado(true);
+  }
 
   /**
    * Fila de revisão CONGELADA na entrada: as chaves dos gastos que chegaram sem categoria.
@@ -128,6 +168,8 @@ export function StatementImport({
     setError(null);
     // Arquivo novo: a pergunta de tipo (e a senha guardada nela) era do anterior.
     setKindMismatch(null);
+    // …e o vencimento lido também: sem isso o "achei no arquivo" do anterior aparecia no novo.
+    setStats(null);
     // Barra aqui o que a Vercel recusaria com 413 lá fora, onde não sobra nem registro.
     if (file.size > UPLOAD_MAX_BYTES) {
       setError(t.impArquivoGrande);
@@ -171,9 +213,15 @@ export function StatementImport({
         // "Desbloquear" parava de carregar e nada acontecia; e sem guardar a senha, responder
         // "é extrato mesmo" reenviava o arquivo trancado e caía na senha de novo, em loop.
         setKindMismatch({ file, suggested: result.stats.detectedKind, reason: result.stats.detectedReason, pwd });
+        // Só pro "achei no arquivo: vence em…" da pergunta; a leitura de verdade vem na resposta.
+        setStats(result.stats);
+        if (result.stats.detectedKind === "fatura" && result.stats.vencimento && !faturaMesTocado) setFaturaMonth(result.stats.vencimento.slice(0, 7));
         setPhase("upload");
         return;
       }
+      // Fatura: o mês certo é o do vencimento. Se o arquivo diz e ela não escolheu outro à mão,
+      // já fica escolhido (o seletor começa no mês de hoje, e era aí que a fatura caía errada).
+      if (type === "fatura" && result.stats.vencimento && !faturaMesTocado) setFaturaMonth(result.stats.vencimento.slice(0, 7));
       setKindMismatch(null);
       setStats(result.stats);
       setItems(result.items);
@@ -181,28 +229,35 @@ export function StatementImport({
       setReviewIdx(0);
       // Se nada precisa de revisão, pula direto pra confirmação.
       // O que é dúvida (dinheiro dela mesma) ou fica de fora não pede categoria agora.
-      const pendentes = result.items.filter((it) => it.category === "EXPENSE" && !it.parentCategory && !it.customCategoryId && !it.ignorar && !it.duvida);
+      const pendentes = result.items.filter((it) => gastoSemCategoria(it) && !it.ignorar && !it.duvida);
       setReviewKeys(pendentes.map((it) => it.key));
       setPhase(pendentes.length > 0 ? "review" : "confirm");
     });
   }
 
-  /** Categoria-mãe fixa: zera a personalizada. */
-  function assignParent(itemKey: number, parentCategory: ParentCategory) {
+  /**
+   * Põe a categoria na linha E nos iguais dela (mesma loja, mesmo Pix — ver revisao-em-grupo):
+   * cinco Pix pra mesma pessoa eram cinco toques. Devolve as chaves que ganharam categoria, pra
+   * fila pular as que já foram resolvidas junto.
+   */
+  function aplicarCategoria(itemKey: number, escolha: { parentCategory: ParentCategory | null; customCategoryId: string | null }): Set<number> {
+    const iguais = iguaisPraAplicar(items, itemKey);
+    const resolvidas = new Set([itemKey, ...iguais]);
     setItems((prev) =>
-      prev.map((it) =>
-        it.key === itemKey ? { ...it, parentCategory, customCategoryId: null, subcategory: null, autoClassified: false } : it,
-      ),
+      prev.map((it) => (resolvidas.has(it.key) ? { ...it, ...escolha, subcategory: null, autoClassified: false } : it)),
     );
+    if (iguais.length > 0) showToast(t.impAplicadoAosIguais(iguais.length));
+    return resolvidas;
+  }
+
+  /** Categoria-mãe fixa: zera a personalizada. */
+  function assignParent(itemKey: number, parentCategory: ParentCategory): Set<number> {
+    return aplicarCategoria(itemKey, { parentCategory, customCategoryId: null });
   }
 
   /** Categoria personalizada: zera a categoria-mãe fixa. */
-  function assignCustom(itemKey: number, customCategoryId: string) {
-    setItems((prev) =>
-      prev.map((it) =>
-        it.key === itemKey ? { ...it, customCategoryId, parentCategory: null, subcategory: null, autoClassified: false } : it,
-      ),
-    );
+  function assignCustom(itemKey: number, customCategoryId: string): Set<number> {
+    return aplicarCategoria(itemKey, { parentCategory: null, customCategoryId });
   }
 
   /** Cria a categoria na hora ("+ Outra"), já disponível pra planejar depois no Orçamento. */
@@ -225,19 +280,30 @@ export function StatementImport({
         return;
       }
       setCustomCategories((prev) => (prev.some((c) => c.id === res.id) ? prev : [...prev, { id: res.id, name: res.name }]));
-      assignCustom(itemKey, res.id);
+      const resolvidas = assignCustom(itemKey, res.id);
       setCreatingCat(false);
       setNewCatName("");
-      advanceReview();
+      // Criada na conferência (fora da fila), não há fila pra andar.
+      if (phase === "review") advanceReview(resolvidas);
     });
   }
 
-  function advanceReview() {
-    setReviewIdx((i) => {
-      if (i + 1 < reviewKeys.length) return i + 1;
-      setPhase("confirm");
-      return i;
-    });
+  /**
+   * Anda a fila até o próximo gasto que ainda pede resposta. `resolvidas` são as linhas que o
+   * último toque resolveu (a própria e as iguais): o estado de `items` ainda não mudou neste
+   * render, então elas vêm à parte. "Não sei agora" chama sem nada: a linha segue sem categoria
+   * e a fila só anda.
+   */
+  function advanceReview(resolvidas: Set<number> = new Set()) {
+    const pendente = (key: number) => {
+      if (resolvidas.has(key)) return false;
+      const it = items.find((x) => x.key === key);
+      return Boolean(it && gastoSemCategoria(it) && !it.ignorar && !it.duvida);
+    };
+    const proxima = proximaPendente(reviewKeys, reviewIdx, pendente);
+    setCreatingCat(false);
+    if (proxima === null) setPhase("confirm");
+    else setReviewIdx(proxima);
   }
 
   /** Corrigiu a categoria errado no anterior? Volta um passo na fila, sem sair da importação
@@ -299,8 +365,11 @@ export function StatementImport({
   }
 
   function handleImport() {
+    // Gasto sem categoria ("Não sei agora") ENTRA, sem categoria: antes ele sumia calado da
+    // importação, e o mês ficava com o saldo inflado. O servidor já grava gasto sem categoria
+    // (ele aparece como "Sem categoria" na tela do mês) e só não aprende regra dele.
     const confirmed: ConfirmedItem[] = items
-      .filter((it) => !it.ignorar && (it.category === "INCOME" || it.category === "INVESTMENT_CONTRIBUTION" || it.parentCategory || it.customCategoryId)) // pula gastos ainda sem categoria
+      .filter(entraNaImportacao)
       .map((it) => ({
         date: it.date,
         description: it.description,
@@ -332,6 +401,22 @@ export function StatementImport({
       setCreatedCount(result.created);
       setSkippedCount(result.skipped);
       setCardPaymentCandidates(result.cardPaymentCandidates);
+      // O mês montado: busca DEPOIS de gravar, fora da transição (o "pronto" aparece já, e os
+      // números chegam em seguida). Linha mandada pra outro perfil não conta pro mês deste.
+      const mes = mesDaRevelacao(
+        confirmed.filter((c) => !c.profileId).map((c) => c.date),
+        targetYear && targetMonth ? { year: targetYear, month: targetMonth } : null,
+      );
+      setRevelacao({ mes, dados: null, carregando: mes !== null });
+      if (mes) {
+        resumoDoMesImportadoAction(mes.year, mes.month, perfilDaTela)
+          .then((dados) => setRevelacao({ mes, dados, carregando: false }))
+          .catch((err) => {
+            // Sem os números, fica o "pronto" de sempre: a importação já deu certo.
+            console.error("resumoDoMesImportadoAction falhou", err);
+            setRevelacao({ mes, dados: null, carregando: false });
+          });
+      }
       setPhase("done");
       const parts = [t.impToastImportados(result.created)];
       if (result.skipped > 0) parts.push(t.impToastJaExistiam(result.skipped));
@@ -342,6 +427,36 @@ export function StatementImport({
   /** Some da lista assim que a pessoa decide (removeu ou manteve), sem esperar recarregar a página. */
   function dismissCandidate(id: string) {
     setCardPaymentCandidates((prev) => prev.filter((c) => c.id !== id));
+  }
+
+  /**
+   * "Em que mês essa fatura vence?" — o mesmo bloco nos três lugares em que o mês aparece
+   * (envio, aviso de "parece fatura" e conferência). Se o arquivo trouxe o vencimento, diz o que
+   * achou; se ela escolheu outro mês, oferece o do arquivo com um toque, sem trocar sozinho.
+   */
+  function mesDaFatura(id: string) {
+    const venc = stats?.vencimento ?? null;
+    const mesDoVencimento = venc ? venc.slice(0, 7) : null;
+    return (
+      <div className="flex flex-col gap-1.5">
+        <MonthPicker label={t.impFaturaVence} id={id} value={faturaMonth} onChange={escolherMesFatura} />
+        <span className="text-caption text-ink-faint">{t.impFaturaVenceDica(formatMonthYear(faturaMonth))}</span>
+        {venc && mesDoVencimento && (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-caption text-accent-strong">{t.impFaturaVencimentoLido(formatFullDate(venc))}</span>
+            {mesDoVencimento !== faturaMonth && (
+              <button
+                type="button"
+                onClick={() => setFaturaMonth(mesDoVencimento)}
+                className="inline-flex min-h-11 items-center rounded-full border border-accent px-3 text-sm font-medium text-accent-strong hover:bg-accent-soft"
+              >
+                {t.impFaturaUsarMes(formatMonthYear(mesDoVencimento))}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    );
   }
 
   // --- UPLOAD ---
@@ -366,16 +481,11 @@ export function StatementImport({
             </p>
             {/* Virar fatura por aqui segue direto pra revisão: sem a pergunta do mês neste ponto,
                 a fatura de maio subida em setembro caía inteira em setembro sem ela ver. */}
-            {kindMismatch.suggested === "fatura" && (
-              <div className="flex flex-col gap-1.5">
-                <MonthPicker label={t.impFaturaMes} id="fatura-month-aviso" value={faturaMonth} onChange={setFaturaMonth} />
-                <span className="text-caption text-ink-faint">{t.impFaturaMesDica(formatMonthYear(faturaMonth))}</span>
-              </div>
-            )}
+            {kindMismatch.suggested === "fatura" && mesDaFatura("fatura-month-aviso")}
             <div className="flex flex-wrap gap-2">
               <Button
                 type="button"
-                size="sm"
+                className="min-h-11"
                 onClick={() => {
                   setDocType(kindMismatch.suggested);
                   runParse(kindMismatch.file, kindMismatch.pwd, kindMismatch.suggested, true);
@@ -383,7 +493,7 @@ export function StatementImport({
               >
                 {t.impImportarComo(kindMismatch.suggested)}
               </Button>
-              <Button type="button" size="sm" variant="ghost" onClick={() => runParse(kindMismatch.file, kindMismatch.pwd, docType, true)}>
+              <Button type="button" variant="ghost" className="min-h-11" onClick={() => runParse(kindMismatch.file, kindMismatch.pwd, docType, true)}>
                 {t.impEMesmo(docType)}
               </Button>
             </div>
@@ -401,7 +511,8 @@ export function StatementImport({
                 key={tipo}
                 type="button"
                 onClick={() => setDocType(tipo)}
-                className={`flex-1 rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
+                aria-pressed={docType === tipo}
+                className={`min-h-11 flex-1 rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
                   docType === tipo ? "bg-pill text-on-pill" : "text-ink-muted hover:text-ink"
                 }`}
               >
@@ -417,17 +528,7 @@ export function StatementImport({
         {/* Fatura: a pessoa escolhe o mês de destino — todas as compras entram nesse mês (o
             período de fechamento da fatura costuma cruzar dois meses do calendário, e a data
             de cada compra não é o que importa aqui, é quando a fatura foi paga). */}
-        {docType === "fatura" && (
-          <div className="flex flex-col gap-1.5">
-            <MonthPicker
-              label={t.impFaturaMes}
-              id="fatura-month"
-              value={faturaMonth}
-              onChange={setFaturaMonth}
-            />
-            <span className="text-caption text-ink-faint">{t.impFaturaMesDica(formatMonthYear(faturaMonth))}</span>
-          </div>
-        )}
+        {docType === "fatura" && mesDaFatura("fatura-month")}
 
         <button
           type="button"
@@ -454,6 +555,9 @@ export function StatementImport({
             if (file) handleFile(file);
           }}
         />
+
+        {/* Onde pegar o arquivo, banco por banco: a dúvida nº 1 de quem nunca importou. */}
+        <ComoTirarExtrato />
       </div>
     );
   }
@@ -468,6 +572,8 @@ export function StatementImport({
           </span>
           <p className="text-sm font-medium text-ink">{t.impProtegido}</p>
           <p className="text-caption text-ink-faint">{t.impSenhaDicaBanco}</p>
+          {/* O medo na hora da senha era "estão pedindo a senha do meu banco?". */}
+          <p className="rounded-xl bg-surface-2 px-3 py-2 text-caption text-ink">{t.impSenhaConfianca}</p>
         </div>
 
         {error && <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p>}
@@ -500,11 +606,57 @@ export function StatementImport({
               setError(null);
               setKindMismatch(null);
             }}
-            className="text-center text-xs font-medium text-ink-faint hover:text-ink"
+            className="min-h-11 text-center text-sm font-medium text-ink-faint hover:text-ink"
           >
             {t.impOutroArquivo}
           </button>
         </form>
+      </div>
+    );
+  }
+
+  /**
+   * Os botões de categoria: os mesmos na fila de revisão e na conferência (trocar a categoria de
+   * uma linha que o app já tinha classificado). `aoEscolher` recebe as linhas resolvidas (a
+   * própria e as iguais).
+   */
+  function chipsDeCategoria(it: ReviewItem, aoEscolher: (resolvidas: Set<number>) => void, comCriar: boolean) {
+    const classe = (ativo: boolean) =>
+      `inline-flex min-h-11 items-center rounded-full border px-3 text-sm font-medium transition-colors active:scale-95 ${
+        ativo ? "border-accent bg-accent-soft text-accent-strong" : "border-border-strong bg-surface text-ink hover:border-accent hover:bg-accent-soft"
+      }`;
+    return (
+      <div className="flex flex-wrap gap-2">
+        {PARENT_CATEGORIES.map((pc) => (
+          <button key={pc} type="button" aria-pressed={it.parentCategory === pc} onClick={() => aoEscolher(assignParent(it.key, pc))} className={classe(it.parentCategory === pc)}>
+            {categoryLabel(kind, pc)}
+          </button>
+        ))}
+        {/* Categorias que a própria pessoa criou (aqui ou no Orçamento). Só fica "dourada"
+            quando de fato selecionada (it.customCategoryId === cc.id) — antes vinha sempre
+            dourada de cara, dava a entender que já estava escolhida sem ter clicado em nada. */}
+        {/* Linha mandada pra outro perfil: as personalizadas (e a criada aqui) são do perfil
+            ativo e não valem lá, então só as fixas aparecem. */}
+        {!it.profileId &&
+          customCategories.map((cc) => (
+            <button key={cc.id} type="button" aria-pressed={it.customCategoryId === cc.id} onClick={() => aoEscolher(assignCustom(it.key, cc.id))} className={classe(it.customCategoryId === cc.id)}>
+              {cc.name}
+            </button>
+          ))}
+        {comCriar && !it.profileId && (
+          <button
+            type="button"
+            onClick={() => {
+              setCreatingCat((v) => !v);
+              setNewCatName("");
+              setError(null);
+            }}
+            className="inline-flex min-h-11 items-center gap-1 rounded-full border border-dashed border-border-strong bg-transparent px-3 text-sm font-medium text-ink-muted transition-colors hover:text-ink"
+          >
+            <Plus size={14} strokeWidth={2.2} />
+            {t.impOutra}
+          </button>
+        )}
       </div>
     );
   }
@@ -519,19 +671,21 @@ export function StatementImport({
     }
     const it = entry.it;
     return (
-      <div className="flex flex-col gap-4">
-        <div className="flex items-center justify-between text-caption text-ink-muted">
+      <div ref={areaRef} className="flex flex-col gap-4">
+        <ProtegerSaida
+          ativo
+          areaRef={areaRef}
+          textos={{ titulo: t.impSairTitulo, dica: t.impSairDica, ficar: t.impSairFicar, sair: t.impSairSim }}
+        />
+        <div className="flex items-center justify-between gap-2 text-caption text-ink-muted">
           {reviewIdx > 0 ? (
-            <button type="button" onClick={retreatReview} className="text-ink-faint hover:text-ink">
+            <button type="button" onClick={retreatReview} className="inline-flex min-h-11 items-center text-sm text-ink-faint hover:text-ink">
               {t.impVoltarAnterior}
             </button>
           ) : (
             <span />
           )}
           <span>{t.impRevisar(reviewIdx + 1, reviewQueue.length)}</span>
-          <button type="button" onClick={advanceReview} className="text-ink-faint hover:text-ink">
-            {t.impPular}
-          </button>
         </div>
 
         {/* Falha ao criar categoria ("+ Outra") aparece aqui mesmo, e não só na confirmação. */}
@@ -553,61 +707,11 @@ export function StatementImport({
           )}
         </div>
 
-        <p className="text-xs font-medium text-ink-muted">{t.impQualCategoria}</p>
-        <div className="flex flex-wrap gap-2">
-          {PARENT_CATEGORIES.map((pc) => (
-            <button
-              key={pc}
-              type="button"
-              onClick={() => {
-                assignParent(it.key, pc);
-                advanceReview();
-              }}
-              className={`rounded-full border px-3 py-2 text-sm font-medium transition-colors active:scale-95 ${
-                it.parentCategory === pc
-                  ? "border-accent bg-accent-soft text-accent-strong"
-                  : "border-border-strong bg-surface text-ink hover:border-accent hover:bg-accent-soft"
-              }`}
-            >
-              {categoryLabel(kind, pc)}
-            </button>
-          ))}
-          {/* Categorias que a própria pessoa criou (aqui ou no Orçamento). Só fica "dourada"
-              quando de fato selecionada (it.customCategoryId === cc.id) — antes vinha sempre
-              dourada de cara, dava a entender que já estava escolhida sem ter clicado em nada. */}
-          {/* Linha mandada pra outro perfil: as personalizadas (e a criada aqui) são do perfil
-              ativo e não valem lá, então só as fixas aparecem. */}
-          {!it.profileId && customCategories.map((cc) => (
-            <button
-              key={cc.id}
-              type="button"
-              onClick={() => {
-                assignCustom(it.key, cc.id);
-                advanceReview();
-              }}
-              className={`rounded-full border px-3 py-2 text-sm font-medium transition-colors active:scale-95 ${
-                it.customCategoryId === cc.id
-                  ? "border-accent bg-accent-soft text-accent-strong"
-                  : "border-border-strong bg-surface text-ink hover:border-accent hover:bg-accent-soft"
-              }`}
-            >
-              {cc.name}
-            </button>
-          ))}
-          {!it.profileId && <button
-            type="button"
-            onClick={() => {
-              setCreatingCat((v) => !v);
-              setNewCatName("");
-              setError(null);
-            }}
-            className="inline-flex items-center gap-1 rounded-full border border-dashed border-border-strong bg-transparent px-3 py-2 text-sm font-medium text-ink-muted transition-colors hover:text-ink"
-          >
-            <Plus size={14} strokeWidth={2.2} />
-            {t.impOutra}
-          </button>}
+        <div className="flex flex-col gap-1">
+          <p className="text-sm font-medium text-ink">{t.impQualCategoria}</p>
+          <p className="text-caption text-ink-muted">{t.impNaoSeiAgoraDica}</p>
         </div>
-
+        {chipsDeCategoria(it, (resolvidas) => advanceReview(resolvidas), true)}
         {/* Criar categoria na hora: fica disponível pra planejar depois no Orçamento. */}
         {creatingCat && !it.profileId && (
           <div className="flex flex-col gap-1.5">
@@ -624,26 +728,34 @@ export function StatementImport({
                 }}
                 placeholder={t.impNovaCategoriaPlaceholder}
                 autoFocus
-                className="min-w-0 flex-1 rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
+                className="min-h-11 min-w-0 flex-1 rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
               />
-              <Button type="button" size="sm" onClick={() => createAndAssign(it.key)} disabled={isPending || !newCatName.trim()}>
+              <Button type="button" className="min-h-11" onClick={() => createAndAssign(it.key)} disabled={isPending || !newCatName.trim()}>
                 {isPending ? t.impCriando : t.impCriarEUsar}
               </Button>
             </div>
             <span className="text-caption text-ink-faint">{t.impNovaCategoriaDica}</span>
           </div>
         )}
+
+        {/* "Pular" tirava o gasto da importação sem ela saber. "Não sei agora" deixa o gasto
+            entrar sem categoria: ele aparece no mês e dá pra classificar depois. */}
+        <Button type="button" variant="secondary" className="min-h-11" onClick={() => advanceReview()}>
+          {t.impNaoSeiAgora}
+        </Button>
       </div>
     );
   }
 
   // --- CONFIRM ---
   if (phase === "confirm") {
-    const importable = items.filter((it) => !it.ignorar && (it.category === "INCOME" || it.category === "INVESTMENT_CONTRIBUTION" || it.parentCategory || it.customCategoryId));
-    // Gastos que ficaram sem categoria (pulados na revisão) NÃO entram. Antes sumiam calados:
-    // o botão dizia "Importar 12" e 3 gastos simplesmente não existiam depois.
+    // Tudo que não ficou de fora entra, inclusive o gasto sem categoria ("Não sei agora").
+    const importable = items.filter(entraNaImportacao);
+    // Gasto sem categoria ENTRA (sem categoria). Antes ficava de fora calado: o botão dizia
+    // "Importar 12" e 3 gastos simplesmente não existiam depois. O aviso agora diz que ele entra
+    // e oferece escolher a categoria já.
     // O que ainda é dúvida (dinheiro dela mesma) ou fica de fora não é "gasto sem categoria".
-    const semCategoria = items.filter((it) => it.category === "EXPENSE" && !it.parentCategory && !it.customCategoryId && !it.ignorar && !it.duvida);
+    const semCategoria = items.filter((it) => gastoSemCategoria(it) && !it.ignorar && !it.duvida);
     const customName = (id: string) => customCategories.find((c) => c.id === id)?.name ?? "Personalizada";
     // Repetidos dentro do arquivo: mesma data, valor e descrição mais de uma vez. Pode ser real
     // (dois Uber no mesmo dia) ou não; a pessoa decide com um toque, em vez de descobrir depois.
@@ -660,15 +772,38 @@ export function StatementImport({
     // acusava fatura lida perfeita — simulação de parcela e tabela de juros também têm número.
     const lowCoverage = stats?.leituraIncompleta ?? false;
     const totalGap = stats?.invoiceTotal ? Math.round((stats.invoiceTotal - expenseSum) * 100) / 100 : 0;
+    const visiveis = mostrarTodos ? importable : importable.slice(0, LINHAS_VISIVEIS);
+    const rotuloDaLinha = (it: ReviewItem) =>
+      it.category === "INCOME"
+        ? t.impRotuloRenda
+        : it.category === "INVESTMENT_CONTRIBUTION"
+          ? t.uiTipoAporte
+          : it.parentCategory
+            ? categoryLabel(kind, it.parentCategory)
+            : it.customCategoryId
+              ? customName(it.customCategoryId)
+              : t.impRotuloSemCategoria;
+    // Botões de resposta das caixas de pergunta: 44px de altura, letra de 14px.
+    const respostaForte = "inline-flex min-h-11 items-center rounded-full bg-pill px-4 text-sm font-semibold text-on-pill";
+    const respostaFraca = "inline-flex min-h-11 items-center rounded-full border border-border-strong bg-surface px-4 text-sm font-medium text-ink-muted hover:text-ink";
+    const chipPequeno = (ativo: boolean) =>
+      `inline-flex min-h-11 items-center rounded-full border px-3 text-sm font-medium transition-colors ${
+        ativo ? "border-accent bg-accent-soft text-accent-strong" : "border-border-strong bg-surface text-ink-muted hover:text-ink"
+      }`;
     return (
-      <div className="flex flex-col gap-4">
+      <div ref={areaRef} className="flex flex-col gap-4">
+        <ProtegerSaida
+          ativo={importable.length > 0}
+          areaRef={areaRef}
+          textos={{ titulo: t.impSairTitulo, dica: t.impSairDica, ficar: t.impSairFicar, sair: t.impSairSim }}
+        />
         {error && <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p>}
 
         {semCategoria.length > 0 && (
           <div className="rounded-xl border border-accent/40 bg-accent-soft/30 px-4 py-3 text-sm">
-            <p className="font-medium text-ink">{t.impSemCategoriaTitulo(semCategoria.length)}</p>
+            <p className="font-medium text-ink">{t.impSemCategoriaEntraTitulo(semCategoria.length)}</p>
             <p className="text-caption text-ink-muted">
-              {t.impSemCategoriaSub(semCategoria.length, money(semCategoria.reduce((sum, it) => sum + it.amount, 0)))}
+              {t.impSemCategoriaEntraSub(semCategoria.length, money(semCategoria.reduce((sum, it) => sum + it.amount, 0)))}
             </p>
             <button
               type="button"
@@ -677,7 +812,7 @@ export function StatementImport({
                 setReviewIdx(0);
                 setPhase("review");
               }}
-              className="mt-1 text-sm font-medium text-accent-strong hover:underline"
+              className="mt-1 inline-flex min-h-11 items-center text-sm font-medium text-accent-strong hover:underline"
             >
               {t.impCategorizar(semCategoria.length)}
             </button>
@@ -716,17 +851,21 @@ export function StatementImport({
           {stats && <p className="text-caption text-ink-muted">{t.impEntendiComo(stats.summary)}</p>}
           {/* Fatura: o mês de destino fica à vista (e dá pra trocar) até o último toque. Quem
               chegou aqui pelo aviso "parece fatura" nunca tinha visto a pergunta do mês. */}
-          {docType === "fatura" && (
-            <div className="mt-2 flex flex-col gap-1.5">
-              <MonthPicker label={t.impFaturaMes} id="fatura-month-confirmar" value={faturaMonth} onChange={setFaturaMonth} />
-              <span className="text-caption text-ink-faint">{t.impFaturaMesDica(formatMonthYear(faturaMonth))}</span>
-            </div>
-          )}
-          {stats && (
-            <p className="text-caption text-ink-muted">
-              {t.impLinhasLidas(stats.parsed, stats.moneyLines)}
-              {stats.invoiceTotal ? ` ${t.impTotalImpresso(money(stats.invoiceTotal))}` : ""}
+          {docType === "fatura" && <div className="mt-2">{mesDaFatura("fatura-month-confirmar")}</div>}
+          {/* Bateu com o total impresso no documento: é isso que ela precisa ouvir. O "Li 40 de
+              52 linhas" assustava até na leitura perfeita (as outras linhas são saldo e totais). */}
+          {stats?.conferencia.status === "fechou" ? (
+            <p className="mt-1 flex items-center gap-1.5 text-caption font-medium text-success">
+              <Check size={14} strokeWidth={2.5} aria-hidden />
+              {t.impBateuComTotal(money(stats.conferencia.esperado))}
             </p>
+          ) : (
+            stats && (
+              <p className="text-caption text-ink-muted">
+                {t.impLinhasLidas(stats.parsed, stats.moneyLines)}
+                {stats.invoiceTotal ? ` ${t.impTotalImpresso(money(stats.invoiceTotal))}` : ""}
+              </p>
+            )
           )}
           {lowCoverage && (
             <div className="mt-1 flex flex-col gap-2">
@@ -743,34 +882,37 @@ export function StatementImport({
 
         {duvidasDinheiro.length > 0 && (
           <div className="flex flex-col gap-2 rounded-xl border border-accent/40 bg-accent-soft/40 px-4 py-3">
-            <p className="text-sm font-semibold text-ink">Isso é gasto ou dinheiro seu mudando de lugar?</p>
-            <p className="text-caption text-ink-muted">Transferência pra você mesma e dinheiro voltando da aplicação não são gasto nem renda.</p>
+            <p className="text-sm font-semibold text-ink">{t.impProprioTitulo}</p>
+            <p className="text-caption text-ink-muted">{t.impProprioDica}</p>
             <ul className="flex flex-col gap-2">
               {duvidasDinheiro.map((it) => (
                 <li key={it.key} className="flex flex-col gap-1.5 border-t border-border/60 pt-2 first:border-t-0 first:pt-0">
                   <span className="text-sm text-ink">
                     <b>{it.description}</b> · {it.category === "INCOME" ? "+" : "−"} {money(it.amount)} · {formatDate(it.date)}
                   </span>
+                  {/* O destaque vai pra resposta certa quase sempre: dinheiro indo pra outra conta
+                      dela é "só mudei de conta". Antes o botão forte era "Guardei (aplicação)", e
+                      quem só passou o dinheiro do Nubank pro Itaú marcava investimento que não fez. */}
                   <div className="flex flex-wrap gap-2">
                     {it.category === "EXPENSE" ? (
                       <>
-                        <button type="button" onClick={() => responderDinheiroProprio(it.key, "guardei")} className="rounded-full bg-pill px-3 py-1 text-xs font-semibold text-on-pill">
-                          Guardei (aplicação)
+                        <button type="button" onClick={() => responderDinheiroProprio(it.key, "mudei")} className={respostaForte}>
+                          {t.impProprioMudei}
                         </button>
-                        <button type="button" onClick={() => responderDinheiroProprio(it.key, "mudei")} className="rounded-full border border-border-strong bg-surface px-3 py-1 text-xs font-medium text-ink-muted hover:text-ink">
-                          Só mudei de conta
+                        <button type="button" onClick={() => responderDinheiroProprio(it.key, "guardei")} className={respostaFraca}>
+                          {t.impProprioGuardei}
                         </button>
-                        <button type="button" onClick={() => responderDinheiroProprio(it.key, "gasto")} className="rounded-full border border-border-strong bg-surface px-3 py-1 text-xs font-medium text-ink-muted hover:text-ink">
-                          Foi gasto
+                        <button type="button" onClick={() => responderDinheiroProprio(it.key, "gasto")} className={respostaFraca}>
+                          {t.impProprioGasto}
                         </button>
                       </>
                     ) : (
                       <>
-                        <button type="button" onClick={() => responderDinheiroProprio(it.key, "mudei")} className="rounded-full bg-pill px-3 py-1 text-xs font-semibold text-on-pill">
-                          {it.duvida === "resgate" ? "Voltou da aplicação (não conta)" : "Só mudei de conta"}
+                        <button type="button" onClick={() => responderDinheiroProprio(it.key, "mudei")} className={respostaForte}>
+                          {it.duvida === "resgate" ? t.impProprioVoltou : t.impProprioMudei}
                         </button>
-                        <button type="button" onClick={() => responderDinheiroProprio(it.key, "renda")} className="rounded-full border border-border-strong bg-surface px-3 py-1 text-xs font-medium text-ink-muted hover:text-ink">
-                          É renda
+                        <button type="button" onClick={() => responderDinheiroProprio(it.key, "renda")} className={respostaFraca}>
+                          {t.impProprioRenda}
                         </button>
                       </>
                     )}
@@ -794,7 +936,7 @@ export function StatementImport({
                   <button
                     type="button"
                     onClick={() => setItems((prev) => prev.map((x) => (x.key === it.key ? { ...x, ignorar: false, nota: null } : x)))}
-                    className="w-fit text-xs font-medium text-accent-strong hover:underline"
+                    className="inline-flex min-h-11 w-fit items-center text-sm font-medium text-accent-strong hover:underline"
                   >
                     Contar mesmo assim
                   </button>
@@ -826,10 +968,10 @@ export function StatementImport({
                     )}
                   </span>
                   <div className="flex flex-wrap gap-2">
-                    <button type="button" onClick={() => responderDuplicata(it.key, true)} className="rounded-full bg-pill px-3 py-1 text-xs font-semibold text-on-pill">
+                    <button type="button" onClick={() => responderDuplicata(it.key, true)} className={respostaForte}>
                       {t.impDuplicataEOMesmo}
                     </button>
-                    <button type="button" onClick={() => responderDuplicata(it.key, false)} className="rounded-full border border-border-strong bg-surface px-3 py-1 text-xs font-medium text-ink-muted hover:text-ink">
+                    <button type="button" onClick={() => responderDuplicata(it.key, false)} className={respostaFraca}>
                       {t.impDuplicataSaoDiferentes}
                     </button>
                   </div>
@@ -853,7 +995,7 @@ export function StatementImport({
                     <button
                       type="button"
                       onClick={() => setItems((prev) => prev.filter((it) => it.fileRepeat?.key !== key || it.key === group[0].key))}
-                      className="w-fit rounded-full border border-border-strong bg-surface px-3 py-1 text-xs font-medium text-ink-muted hover:text-ink"
+                      className={`w-fit ${respostaFraca}`}
                     >
                       {t.impDeixarSo1}
                     </button>
@@ -863,96 +1005,127 @@ export function StatementImport({
             </ul>
           </div>
         )}
-        <ul className="flex max-h-64 flex-col divide-y divide-border overflow-y-auto rounded-xl border border-border">
-          {importable.map((it) => (
-            <li key={it.key} className="flex items-center justify-between gap-2 px-3 py-2">
-              <div className="min-w-0">
-                <p className="truncate text-sm text-ink">{it.description}</p>
-                {it.nota && <p className="text-caption text-accent-strong">{it.nota}</p>}
-                <p className="text-caption text-ink-faint">
-                  {formatDate(it.date)} ·{" "}
-                  {it.estorno && "Estorno · "}
-                  {it.category === "INCOME"
-                    ? t.impRotuloRenda
-                    : it.category === "INVESTMENT_CONTRIBUTION"
-                      ? t.uiTipoAporte
-                      : it.parentCategory
-                        ? categoryLabel(kind, it.parentCategory)
-                        : it.customCategoryId
-                          ? customName(it.customCategoryId)
-                          : "—"}
-                </p>
-                {/* Troca o TIPO do lançamento (Gasto/Renda/Aporte) — o Pix pra você mesma
-                    investir cai como gasto pelo sinal, e só a pessoa sabe que era aporte. */}
-                <div className="mt-1 flex flex-wrap gap-1">
-                  {(["EXPENSE", "INCOME", "INVESTMENT_CONTRIBUTION", "ESTORNO"] as const).map((tipo) => {
-                    const ativo = tipo === "ESTORNO" ? Boolean(it.estorno) : it.category === tipo && !it.estorno;
-                    return (
-                      <button
-                        key={tipo}
-                        type="button"
-                        onClick={() => toggleType(it.key, tipo)}
-                        className={`rounded-full border px-2 py-0.5 text-[11px] font-medium transition-colors ${
-                          ativo ? "border-accent bg-accent-soft text-accent-strong" : "border-border-strong bg-surface text-ink-faint hover:text-ink"
-                        }`}
-                      >
-                        {tipo === "EXPENSE" ? t.uiTipoGasto : tipo === "INCOME" ? t.uiTipoRenda : tipo === "INVESTMENT_CONTRIBUTION" ? t.uiTipoAporte : "Estorno"}
-                      </button>
-                    );
-                  })}
+
+        {/* A lista do que vai entrar. Cada linha mostra o que o app entendeu e um "Mudar" que abre
+            ali mesmo a categoria, o tipo, "não importar" e o outro perfil: antes só dava pra
+            trocar o TIPO, e o palpite errado do app (iFood em Mercado) só se corrigia depois de
+            importar, um por um. Fechada, a linha é curta; os botões de 44px só aparecem na aberta.
+            No celular a lista NÃO tem rolagem própria (brigava com a da janela); do sm pra cima,
+            caixa com altura fixa. */}
+        <ul className="flex flex-col divide-y divide-border rounded-xl border border-border sm:max-h-96 sm:overflow-y-auto">
+          {visiveis.map((it) => {
+            const aberta = editandoKey === it.key;
+            return (
+              <li key={it.key} className="flex flex-col gap-2 px-3 py-2">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm text-ink">{it.description}</p>
+                    {it.nota && <p className="text-caption text-accent-strong">{it.nota}</p>}
+                    <p className="text-caption text-ink-faint">
+                      {formatDate(it.date)} · {it.estorno && `${t.impTipoDevolucao} · `}
+                      <span className={gastoSemCategoria(it) && !it.duvida ? "font-medium text-accent-strong" : undefined}>{rotuloDaLinha(it)}</span>
+                      {it.profileId && ` · ${t.impMoverPra(otherProfiles.find((p) => p.id === it.profileId)?.name ?? "")}`}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <span
+                      className={`text-sm font-medium tabular-nums ${
+                        it.category === "INCOME" || it.estorno ? "text-success" : it.category === "INVESTMENT_CONTRIBUTION" ? "text-accent-strong" : "text-danger"
+                      }`}
+                    >
+                      {it.category === "INCOME" || it.estorno ? "+" : "−"} {money(it.amount)}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setEditandoKey(aberta ? null : it.key)}
+                      aria-expanded={aberta}
+                      className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full px-2 text-sm font-medium text-accent-strong hover:bg-accent-soft"
+                    >
+                      {aberta ? t.impMudarPronto : t.impMudar}
+                    </button>
+                  </div>
                 </div>
-                {/* Tira só esta linha da importação (o pagamento da fatura anterior que o app não
-                    reconheceu, por exemplo). Vai pro "fica de fora", de onde volta com um toque. */}
-                <button
-                  type="button"
-                  onClick={() => setItems((prev) => prev.map((x) => (x.key === it.key ? { ...x, ignorar: true, nota: "Você tirou da importação." } : x)))}
-                  className="mt-1 block text-[11px] font-medium text-ink-faint hover:text-ink hover:underline"
-                >
-                  Não importar
-                </button>
-                {/* Manda essa linha pra OUTRO perfil do usuário — compra da Empresa que caiu no
-                    cartão Pessoal, por exemplo. Só aparece pra quem tem mais de um perfil. */}
-                {otherProfiles.length > 0 && (
-                  <div className="mt-1 flex flex-wrap gap-1">
-                    {otherProfiles.map((p) => (
-                      <button
-                        key={p.id}
-                        type="button"
-                        onClick={() => toggleProfile(it.key, p.id)}
-                        className={`rounded-full border px-2 py-0.5 text-[11px] font-medium transition-colors ${
-                          it.profileId === p.id
-                            ? "border-accent bg-accent-soft text-accent-strong"
-                            : "border-border-strong bg-surface text-ink-faint hover:text-ink"
-                        }`}
-                      >
-                        {t.impMoverPra(p.name)}
-                      </button>
-                    ))}
+
+                {aberta && (
+                  <div className="flex flex-col gap-3 rounded-xl bg-surface-2 p-3">
+                    {/* Categoria só existe em gasto. Trocar aqui também troca nos iguais que o app
+                        tinha classificado sozinho, e vira regra pra próxima importação. */}
+                    {it.category === "EXPENSE" && (
+                      <div className="flex flex-col gap-1.5">
+                        <span className="text-caption font-medium text-ink-muted">{t.impRotuloCategoria}</span>
+                        {chipsDeCategoria(it, () => undefined, false)}
+                      </div>
+                    )}
+                    {/* Troca o TIPO do lançamento — o Pix pra você mesma guardar cai como gasto
+                        pelo sinal, e só a pessoa sabe que era dinheiro guardado. */}
+                    <div className="flex flex-col gap-1.5">
+                      <span className="text-caption font-medium text-ink-muted">{t.impRotuloTipo}</span>
+                      <div className="flex flex-wrap gap-2">
+                        {(["EXPENSE", "INCOME", "INVESTMENT_CONTRIBUTION", "ESTORNO"] as const).map((tipo) => {
+                          const ativo = tipo === "ESTORNO" ? Boolean(it.estorno) : it.category === tipo && !it.estorno;
+                          return (
+                            <button key={tipo} type="button" onClick={() => toggleType(it.key, tipo)} aria-pressed={ativo} className={chipPequeno(ativo)}>
+                              {tipo === "EXPENSE" ? t.uiTipoGasto : tipo === "INCOME" ? t.uiTipoRenda : tipo === "INVESTMENT_CONTRIBUTION" ? t.uiTipoAporte : t.impTipoDevolucao}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    {/* Manda essa linha pra OUTRO perfil do usuário — compra da Empresa que caiu no
+                        cartão Pessoal, por exemplo. Só aparece pra quem tem mais de um perfil. */}
+                    {otherProfiles.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {otherProfiles.map((p) => (
+                          <button key={p.id} type="button" onClick={() => toggleProfile(it.key, p.id)} aria-pressed={it.profileId === p.id} className={chipPequeno(it.profileId === p.id)}>
+                            {t.impMoverPra(p.name)}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {/* Tira só esta linha da importação (o pagamento da fatura anterior que o app não
+                        reconheceu, por exemplo). Vai pro "fica de fora", de onde volta com um toque. */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setItems((prev) => prev.map((x) => (x.key === it.key ? { ...x, ignorar: true, nota: "Você tirou da importação." } : x)));
+                        setEditandoKey(null);
+                      }}
+                      className="inline-flex min-h-11 w-fit items-center text-sm font-medium text-ink-muted hover:text-ink hover:underline"
+                    >
+                      {t.impNaoImportar}
+                    </button>
                   </div>
                 )}
-              </div>
-              <span
-                className={`shrink-0 text-sm font-medium tabular-nums ${
-                  it.category === "INCOME" || it.estorno ? "text-success" : it.category === "INVESTMENT_CONTRIBUTION" ? "text-accent-strong" : "text-danger"
-                }`}
-              >
-                {it.category === "INCOME" || it.estorno ? "+" : "−"} {money(it.amount)}
-              </span>
-            </li>
-          ))}
+              </li>
+            );
+          })}
         </ul>
-        {duvidas.length + duvidasDinheiro.length > 0 && <p className="text-center text-caption text-ink-muted">Responda as dúvidas acima pra importar.</p>}
-        <Button type="button" onClick={handleImport} disabled={isPending || importable.length === 0 || duvidas.length + duvidasDinheiro.length > 0}>
-          {isPending ? t.impImportando : t.impImportarN(importable.length)}
-          <ArrowRight size={16} className="ml-1.5" />
-        </Button>
+        {!mostrarTodos && importable.length > LINHAS_VISIVEIS && (
+          <button type="button" onClick={() => setMostrarTodos(true)} className="inline-flex min-h-11 items-center justify-center text-sm font-medium text-accent-strong hover:underline">
+            {t.impMostrarTodos(importable.length)}
+          </button>
+        )}
+
+        {/* O botão fica grudado no pé da gaveta: com a lista longa, ele sumia lá embaixo. A faixa
+            depois dele cobre o respiro da gaveta, pra lista não aparecer por baixo. */}
+        <div className="sticky bottom-0 z-10 flex flex-col gap-2 border-t border-border bg-surface pt-3 after:absolute after:inset-x-0 after:top-full after:h-6 after:bg-surface">
+          {duvidas.length + duvidasDinheiro.length > 0 && <p className="text-center text-caption text-ink-muted">Responda as dúvidas acima pra importar.</p>}
+          <Button type="button" className="min-h-11" onClick={handleImport} disabled={isPending || importable.length === 0 || duvidas.length + duvidasDinheiro.length > 0}>
+            {isPending ? t.impImportando : t.impImportarN(importable.length)}
+            <ArrowRight size={16} className="ml-1.5" />
+          </Button>
+        </div>
       </div>
     );
   }
 
   // --- DONE ---
+  const mesDaRevelacaoNome = revelacao.mes
+    ? new Date(revelacao.mes.year, revelacao.mes.month - 1, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" })
+    : null;
+  const dados = revelacao.dados;
   return (
-    <div className="flex flex-col items-center gap-4 py-6 text-center">
+    <div className="flex flex-col items-center gap-4 py-4 text-center">
       <span className="flex h-14 w-14 items-center justify-center rounded-full bg-success-soft text-success">
         <Check size={28} strokeWidth={2} />
       </span>
@@ -964,21 +1137,73 @@ export function StatementImport({
           : t.impImportadosSucesso(createdCount)}
       </p>
 
+      {/* O mês montado: a promessa da página de venda ("o mês se monta sozinho") acontecendo na
+          frente dela. Os números são do mês INTEIRO, com o que ela já tinha lançado. */}
+      {revelacao.mes && mesDaRevelacaoNome && (revelacao.carregando || dados) && (
+        <div className="flex w-full flex-col gap-3 rounded-2xl border border-border bg-surface-2 p-4 text-left">
+          <p className="text-sm font-semibold text-ink">{t.impRevelaTitulo(mesDaRevelacaoNome)}</p>
+          {revelacao.carregando || !dados ? (
+            <p className="text-caption text-ink-muted" aria-live="polite">{t.impRevelaCarregando}</p>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="rounded-xl bg-surface px-3 py-2">
+                  <p className="text-caption text-ink-muted">{t.impRevelaEntrou}</p>
+                  <p className="text-base font-semibold tabular-nums text-success">{money(dados.entrou)}</p>
+                </div>
+                <div className="rounded-xl bg-surface px-3 py-2">
+                  <p className="text-caption text-ink-muted">{t.impRevelaSaiu}</p>
+                  <p className="text-base font-semibold tabular-nums text-ink">{money(dados.saiu)}</p>
+                </div>
+              </div>
+              {dados.maiores.length > 0 && (
+                <div className="flex flex-col gap-2">
+                  <p className="text-caption font-medium text-ink-muted">{t.impRevelaMaiores}</p>
+                  <ul className="flex flex-col gap-2">
+                    {dados.maiores.map((c) => (
+                      <li key={c.rotulo} className="flex flex-col gap-1">
+                        <div className="flex items-baseline justify-between gap-2 text-sm">
+                          <span className="min-w-0 truncate text-ink">{c.rotulo}</span>
+                          <span className="shrink-0 tabular-nums text-ink">{money(c.valor)}</span>
+                        </div>
+                        {/* Trilho com borda: visível até nos temas claros, onde o fundo translúcido sumia. */}
+                        <div className="h-2 w-full overflow-hidden rounded-full border border-border bg-surface" aria-hidden>
+                          <div className="h-full rounded-full bg-accent" style={{ width: `${Math.max(4, Math.round(c.fracao * 100))}%` }} />
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {dados.livre !== null && (
+                <div className="rounded-xl bg-accent-soft px-3 py-2">
+                  <p className="text-caption text-ink-muted">{t.impRevelaLivre}</p>
+                  <p className="text-lg font-semibold tabular-nums text-ink">{money(dados.livre)}</p>
+                  <p className="text-caption text-ink-muted">{t.impRevelaLivreSub(money(dados.planejado))}</p>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
       {/* Candidatos a "pagamento desta fatura" já lançados no extrato: a pessoa decide, nunca
           removemos sozinhos (fatura raramente é paga por inteiro, o valor quase nunca bate
           exato — só ela sabe se aquele lançamento é mesmo esta fatura). */}
       {cardPaymentCandidates.length > 0 && (
         <div className="w-full rounded-xl border border-border bg-surface-2 p-3 text-left">
-          <p className="text-xs font-medium text-ink-muted">{t.impPagamentoFatura(cardPaymentCandidates.length)}</p>
+          <p className="text-sm font-medium text-ink">{t.impPagamentoFatura(cardPaymentCandidates.length)}</p>
           <ul className="mt-2 flex flex-col divide-y divide-border">
             {cardPaymentCandidates.map((c) => (
-              <li key={c.id} className="flex items-center justify-between gap-2 py-2">
-                <div className="min-w-0">
-                  <p className="truncate text-sm text-ink">{c.description}</p>
-                  <p className="text-caption text-ink-faint">{c.date ? formatDate(c.date) : t.impSemData}</p>
+              <li key={c.id} className="flex flex-col gap-1 py-2">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm text-ink">{c.description}</p>
+                    <p className="text-caption text-ink-faint">{c.date ? formatDate(c.date) : t.impSemData}</p>
+                  </div>
+                  <span className="shrink-0 text-sm font-medium tabular-nums text-danger">− {money(c.amount)}</span>
                 </div>
-                <div className="flex shrink-0 items-center gap-3">
-                  <span className="text-sm font-medium tabular-nums text-danger">− {money(c.amount)}</span>
+                <div className="flex gap-2">
                   <button
                     type="button"
                     disabled={isPending}
@@ -996,15 +1221,11 @@ export function StatementImport({
                         showToast(t.impRemovidoExtrato);
                       });
                     }}
-                    className="text-xs font-medium text-danger hover:underline disabled:opacity-40"
+                    className="inline-flex min-h-11 items-center rounded-full border border-danger/40 px-4 text-sm font-medium text-danger hover:bg-danger-soft disabled:opacity-40"
                   >
                     {t.impRemover}
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => dismissCandidate(c.id)}
-                    className="text-xs text-ink-faint hover:text-ink"
-                  >
+                  <button type="button" onClick={() => dismissCandidate(c.id)} className="inline-flex min-h-11 items-center rounded-full px-4 text-sm text-ink-muted hover:text-ink">
                     {t.impManter}
                   </button>
                 </div>
@@ -1014,9 +1235,26 @@ export function StatementImport({
         </div>
       )}
 
-      <Button type="button" onClick={onDone}>
-        {t.impConcluir}
-      </Button>
+      {revelacao.mes ? (
+        <>
+          <Link
+            href={`/mensal/${revelacao.mes.year}/${revelacao.mes.month}`}
+            onClick={onDone}
+            className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-accent-gradient px-4 py-2.5 text-sm font-semibold text-on-accent shadow-premium-sm hover:opacity-95"
+          >
+            {t.impVerMeuMes}
+            <ArrowRight size={16} aria-hidden />
+          </Link>
+          <Button type="button" variant="ghost" className="min-h-11" onClick={onDone}>
+            {t.impConcluir}
+          </Button>
+        </>
+      ) : (
+        <Button type="button" className="min-h-11" onClick={onDone}>
+          {t.impConcluir}
+        </Button>
+      )}
+      {createdCount > 0 && <p className="text-caption text-ink-muted">{t.impRevelaDesfazer(t.impHistoricoTitulo)}</p>}
     </div>
   );
 }

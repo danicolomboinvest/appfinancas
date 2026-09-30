@@ -9,8 +9,10 @@ import { Card } from "@/components/ui/Card";
 import { Modal } from "@/components/ui/Modal";
 import { useMoney } from "@/components/money/MoneyProvider";
 import { useToast } from "@/components/ui/toast-context";
+import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { isParentCategoryKey } from "@/lib/categories";
 import type { FocoCombinado, FocoItem } from "@/lib/decisoes/foco";
+import { faltamDias } from "@/lib/profiles/textos/foco";
 import { ajustarOrcamentoAction, classificarGastoAction, definirTetoAction, desfazerTetoAction, dispensarAvisoAction, registrarAporteDoMesAction, renomearGastoAction } from "./actions";
 
 export type GastoDaLista = {
@@ -25,17 +27,20 @@ type Opcao = { key: string; label: string };
 type ResumoDaLista = { n: number; total: number };
 
 const arredonda10 = (v: number) => Math.ceil(v / 10) * 10;
-const faltam = (dias: number) => (dias === 1 ? "falta 1 dia" : `faltam ${dias} dias`);
 
 /**
  * Um aviso do Foco. "Ver o que fazer" abre a resposta ali mesmo, em formato de painel: o número
  * grande, a barra do gasto contra o plano e os botões que resolvem (teto, subir o plano, "já
  * transferi", "foi pontual"). Antes era um parágrafo de texto, e ninguém lia.
+ *
+ * Todo texto vem da voz do tema (`aviso*` em textos/foco.ts): escrito aqui, o Girly abria a
+ * janela de um aviso que dizia "combinado" e lia "Plano" e "aplicação" logo embaixo.
  */
 export function AvisoFoco({ item, hrefMes, gastos = [], resumo, opcoes = [] }: { item: FocoItem; hrefMes?: string; gastos?: GastoDaLista[]; resumo?: ResumoDaLista; opcoes?: Opcao[] }) {
   const money = useMoney();
   const m = (v: number) => money(v, { round: true });
   const router = useRouter();
+  const t = useProfileTheme().voz.titulos;
   const [aberto, setAberto] = useState(false);
   const [salvando, start] = useTransition();
   const { showToast, showError } = useToast();
@@ -51,11 +56,11 @@ export function AvisoFoco({ item, hrefMes, gastos = [], resumo, opcoes = [] }: {
         showToast(mensagem);
         router.refresh();
       } catch {
-        showError("Não consegui salvar agora. Tenta de novo em instantes.");
+        showError(t.avisoErroSalvar);
       }
     });
   const pontual =
-    (quando: "mes" | "semana" = "mes", mensagem = "Anotado. Esse aviso some até o mês que vem.") =>
+    (quando: "mes" | "semana" = "mes", mensagem = t.avisoAnotado) =>
     () =>
       fazer(() => dispensarAvisoAction(item.id, quando), mensagem);
 
@@ -65,61 +70,61 @@ export function AvisoFoco({ item, hrefMes, gastos = [], resumo, opcoes = [] }: {
     const planoNovo = d.planoNovo ?? arredonda10(d.gasto);
     corpo = (
       <>
-        <Numero valor={`+${m(d.gasto - d.planejado)}`} legenda={`acima do plano em ${d.label}`} cor="text-danger" />
+        <Numero valor={`+${m(d.gasto - d.planejado)}`} legenda={t.avisoAcimaDoPlano(d.label)} cor="text-danger" />
         <Barra gasto={d.gasto} planejado={d.planejado} decorrido={d.decorrido} />
-        <Rodape esquerda={`Gasto ${m(d.gasto)}`} direita={`Plano ${m(d.planejado)}`} />
-        <Selo icone={Clock}>{faltam(d.dias)}</Selo>
+        <Rodape esquerda={t.avisoRodapeGasto(m(d.gasto))} direita={t.avisoRodapePlano(m(d.planejado))} />
+        <Selo icone={Clock}>{faltamDias(d.dias)}</Selo>
         <Botoes>
           <Botao
             icone={Ban}
             destaque
             disabled={salvando}
-            titulo="Não gastar mais nada"
-            sub={`em ${d.label} até o mês virar`}
-            onClick={() => fazer(() => definirTetoAction({ categoria: d.categoria, valor: 0 }), `Combinado: nada mais em ${d.label} até o fim do mês.`)}
+            titulo={t.avisoNadaMaisT}
+            sub={t.avisoNadaMaisSub(d.label)}
+            onClick={() => fazer(() => definirTetoAction({ categoria: d.categoria, valor: 0 }), t.avisoNadaMaisFeito(d.label))}
           />
           {isParentCategoryKey(d.categoria) && (
             <Botao
               icone={TrendingUp}
               disabled={salvando}
-              titulo="O plano estava baixo"
-              sub={`subir ${d.label} pra ${m(planoNovo)}, com folga pro resto do mês`}
-              onClick={() => fazer(() => ajustarOrcamentoAction(d.categoria, planoNovo), `${d.label} agora tem ${m(planoNovo)} este mês.`)}
+              titulo={t.avisoPlanoBaixoT}
+              sub={t.avisoPlanoBaixoSub(d.label, m(planoNovo))}
+              onClick={() => fazer(() => ajustarOrcamentoAction(d.categoria, planoNovo), t.avisoPlanoBaixoFeito(d.label, m(planoNovo)))}
             />
           )}
-          <Botao icone={Check} disabled={salvando} titulo="Foi pontual" sub="sigo o plano" onClick={pontual()} />
+          <Botao icone={Check} disabled={salvando} titulo={t.avisoPontualT} sub={t.avisoPontualSub} onClick={pontual()} />
         </Botoes>
-        <ListaDeGastos titulo={`Onde foi o dinheiro de ${d.label}`} gastos={gastos} resumo={resumo} hrefMes={hrefMes} opcoes={opcoes.filter((o) => o.key !== d.categoria)} />
+        <ListaDeGastos titulo={t.avisoOndeFoi(d.label)} gastos={gastos} resumo={resumo} hrefMes={hrefMes} opcoes={opcoes.filter((o) => o.key !== d.categoria)} />
       </>
     );
   } else if (d?.tipo === "ritmo") {
     corpo = (
       <>
-        <Numero valor={m(d.sobra)} legenda={`sobram em ${d.label} pra ${d.dias === 1 ? "1 dia" : `${d.dias} dias`}`} cor="text-accent-strong" />
+        <Numero valor={m(d.sobra)} legenda={t.avisoSobramEm(d.label, d.dias)} cor="text-accent-strong" />
         <Barra gasto={d.gasto} planejado={d.planejado} decorrido={d.decorrido} />
-        <Rodape esquerda={`Gasto ${m(d.gasto)}`} direita={`Plano ${m(d.planejado)}`} />
-        <Selo icone={TrendingUp}>nesse ritmo, estoura antes do mês acabar</Selo>
+        <Rodape esquerda={t.avisoRodapeGasto(m(d.gasto))} direita={t.avisoRodapePlano(m(d.planejado))} />
+        <Selo icone={TrendingUp}>{t.avisoRitmoSelo}</Selo>
         <Botoes>
           <Botao
             icone={Lock}
             destaque
             disabled={salvando}
-            titulo={`Teto de ${m(d.sobra)}`}
-            sub={`em ${d.label} até o fim do mês`}
-            onClick={() => fazer(() => definirTetoAction({ categoria: d.categoria, valor: d.sobra }), `Teto de ${m(d.sobra)} em ${d.label} até o fim do mês.`)}
+            titulo={t.avisoTetoT(m(d.sobra))}
+            sub={t.avisoTetoSub(d.label)}
+            onClick={() => fazer(() => definirTetoAction({ categoria: d.categoria, valor: d.sobra }), t.avisoTetoFeito(m(d.sobra), d.label))}
           />
-          <Botao icone={Check} disabled={salvando} titulo="Foi pontual" sub="sigo o plano" onClick={pontual()} />
+          <Botao icone={Check} disabled={salvando} titulo={t.avisoPontualT} sub={t.avisoPontualSub} onClick={pontual()} />
         </Botoes>
-        <ListaDeGastos titulo={`Onde foi o dinheiro de ${d.label}`} gastos={gastos} resumo={resumo} hrefMes={hrefMes} opcoes={opcoes.filter((o) => o.key !== d.categoria)} />
+        <ListaDeGastos titulo={t.avisoOndeFoi(d.label)} gastos={gastos} resumo={resumo} hrefMes={hrefMes} opcoes={opcoes.filter((o) => o.key !== d.categoria)} />
       </>
     );
   } else if (d?.tipo === "fora") {
     corpo = (
       <>
-        <Numero valor={m(d.valor)} legenda="em gastos sem categoria no orçamento" cor="text-danger" />
-        <Selo icone={PiggyBank}>{`saem do mesmo dinheiro: o livre caiu pra ${m(d.livre)}`}</Selo>
+        <Numero valor={m(d.valor)} legenda={t.avisoForaLegenda} cor="text-danger" />
+        <Selo icone={PiggyBank}>{t.avisoForaSelo(m(d.livre))}</Selo>
         <ListaDeGastos
-          titulo={(resumo?.n ?? gastos.length) === 1 ? "O gasto fora do orçamento" : `Os ${resumo?.n ?? gastos.length} gastos fora do orçamento`}
+          titulo={t.avisoForaLista(resumo?.n ?? gastos.length)}
           gastos={gastos}
           resumo={resumo}
           hrefMes={hrefMes}
@@ -127,21 +132,21 @@ export function AvisoFoco({ item, hrefMes, gastos = [], resumo, opcoes = [] }: {
           jaAberta
         />
         <Botoes>
-          <Botao icone={Plus} href="/orcamento" titulo="Criar uma categoria nova" sub="no orçamento" />
-          <Botao icone={Check} disabled={salvando} titulo="Entendi" sub="esconder até o mês que vem" onClick={pontual()} />
+          <Botao icone={Plus} href="/orcamento" titulo={t.avisoCriarCategoriaT} sub={t.avisoCriarCategoriaSub} />
+          <Botao icone={Check} disabled={salvando} titulo={t.avisoEntendiT} sub={t.avisoEntendiSub} onClick={pontual()} />
         </Botoes>
       </>
     );
   } else if (d?.tipo === "aporte") {
     corpo = (
       <>
-        <Numero valor={m(d.falta)} legenda="faltam guardar este mês" cor="text-accent-strong" />
+        <Numero valor={m(d.falta)} legenda={t.avisoGuardarLegenda} cor="text-accent-strong" />
         <Barra gasto={d.guardado} planejado={d.planejado} boa />
-        <Rodape esquerda={`Guardado ${m(d.guardado)}`} direita={`Plano ${m(d.planejado)}`} />
-        <Selo icone={PiggyBank}>primeiro você se paga, depois o resto do mês</Selo>
+        <Rodape esquerda={t.avisoRodapeGuardado(m(d.guardado))} direita={t.avisoRodapePlano(m(d.planejado))} />
+        <Selo icone={PiggyBank}>{t.avisoGuardarSelo}</Selo>
         <Botoes>
-          <Botao icone={Check} destaque disabled={salvando} titulo="Já transferi" sub={`lançar ${m(d.falta)} guardados`} onClick={() => fazer(() => registrarAporteDoMesAction(), `${m(d.falta)} guardados. Entrou no seu mês.`)} />
-          <Botao icone={Clock} disabled={salvando} titulo="Vou transferir essa semana" sub="me lembra de novo" onClick={pontual("semana", "Combinado. Eu lembro de novo na semana que vem.")} />
+          <Botao icone={Check} destaque disabled={salvando} titulo={t.fechAporteFeito} sub={t.avisoGuardarFeitoSub(m(d.falta))} onClick={() => fazer(() => registrarAporteDoMesAction(), t.avisoGuardarFeito(m(d.falta)))} />
+          <Botao icone={Clock} disabled={salvando} titulo={t.fechAporteDepois} sub={t.avisoGuardarDepoisSub} onClick={pontual("semana", t.avisoGuardarDepoisFeito)} />
         </Botoes>
       </>
     );
@@ -149,27 +154,27 @@ export function AvisoFoco({ item, hrefMes, gastos = [], resumo, opcoes = [] }: {
     corpo = (
       <>
         {d.vencida ? (
-          <Numero valor="Prazo passou" legenda={`${d.nome} ainda não chegou lá`} cor="text-danger" />
+          <Numero valor={t.avisoMetaPrazoPassou} legenda={t.avisoMetaNaoChegou(d.nome)} cor="text-danger" />
         ) : (
           // Prazo neste mês: o número é tudo que falta, não "por mês" (como o texto do aviso).
-          <Numero valor={d.ultimoMes ? m(d.porMes) : `${m(d.porMes)}/mês`} legenda={d.ultimoMes ? `faltam pra ${d.nome}, e o prazo é este mês` : `pra ${d.nome} chegar em ${d.quando}`} cor="text-accent-strong" />
+          <Numero valor={d.ultimoMes ? m(d.porMes) : `${m(d.porMes)}/mês`} legenda={d.ultimoMes ? t.avisoMetaFaltamUltimoMes(d.nome) : t.avisoMetaChegaEm(d.nome, d.quando)} cor="text-accent-strong" />
         )}
-        <Selo icone={Target}>{d.ultimoMes ? "guardar o que falta, ou escolher uma data que caiba" : "guardar mais por mês, ou escolher uma data que caiba"}</Selo>
+        <Selo icone={Target}>{t.avisoMetaSelo(Boolean(d.ultimoMes))}</Selo>
         <Botoes>
-          <Botao icone={Target} destaque href={`/planejamento/metas/${d.metaId}`} titulo="Ajustar a meta" sub="valor por mês ou data" />
-          <Botao icone={Check} disabled={salvando} titulo="Entendi" sub="esconder até o mês que vem" onClick={pontual()} />
+          <Botao icone={Target} destaque href={`/planejamento/metas/${d.metaId}`} titulo={t.avisoMetaAjustarT} sub={t.avisoMetaAjustarSub} />
+          <Botao icone={Check} disabled={salvando} titulo={t.avisoEntendiT} sub={t.avisoEntendiSub} onClick={pontual()} />
         </Botoes>
       </>
     );
   } else if (d?.tipo === "reserva") {
     corpo = (
       <>
-        <Numero valor={d.meses < 1 ? "< 1 mês" : `${d.meses.toLocaleString("pt-BR")} ${d.meses === 1 ? "mês" : "meses"}`} legenda={`de reserva, a sua meta é ${d.minimo} meses`} cor="text-accent-strong" />
+        <Numero valor={d.meses < 1 ? "< 1 mês" : `${d.meses.toLocaleString("pt-BR")} ${d.meses === 1 ? "mês" : "meses"}`} legenda={t.avisoReservaLegenda(d.minimo)} cor="text-accent-strong" />
         <Barra gasto={d.meses} planejado={d.minimo} boa />
-        <Selo icone={ShieldCheck}>segura um imprevisto sem virar dívida</Selo>
+        <Selo icone={ShieldCheck}>{t.avisoReservaSelo}</Selo>
         <Botoes>
-          <Botao icone={ShieldCheck} destaque href="/planejamento/reserva-emergencia" titulo="Ver minha reserva" sub="quanto falta e como chegar" />
-          <Botao icone={Check} disabled={salvando} titulo="Entendi" sub="esconder até o mês que vem" onClick={pontual()} />
+          <Botao icone={ShieldCheck} destaque href="/planejamento/reserva-emergencia" titulo={t.avisoReservaVerT} sub={t.avisoReservaVerSub} />
+          <Botao icone={Check} disabled={salvando} titulo={t.avisoEntendiT} sub={t.avisoEntendiSub} onClick={pontual()} />
         </Botoes>
       </>
     );
@@ -182,11 +187,11 @@ export function AvisoFoco({ item, hrefMes, gastos = [], resumo, opcoes = [] }: {
         <p className="text-sm font-semibold text-ink">{item.titulo}</p>
         <p className="mt-1 text-caption text-ink-muted">{item.texto}</p>
         {d && d.tipo !== "raiox" ? (
-          <button type="button" onClick={() => setAberto(true)} className="mt-3 inline-flex rounded-xl bg-accent-soft px-3 py-1.5 text-caption font-semibold text-accent-strong">
+          <button type="button" onClick={() => setAberto(true)} className="mt-3 inline-flex min-h-11 items-center rounded-xl bg-accent-soft px-4 py-2 text-caption font-semibold text-accent-strong">
             {item.acao}
           </button>
         ) : (
-          <Link href={item.href} className="mt-3 inline-flex rounded-xl bg-accent-soft px-3 py-1.5 text-caption font-semibold text-accent-strong">
+          <Link href={item.href} className="mt-3 inline-flex min-h-11 items-center rounded-xl bg-accent-soft px-4 py-2 text-caption font-semibold text-accent-strong">
             {item.acao}
           </Link>
         )}
@@ -206,6 +211,7 @@ export function CombinadoFoco({ c, hrefMes, gastos = [], resumo, opcoes = [] }: 
   const money = useMoney();
   const m = (v: number) => money(v, { round: true });
   const router = useRouter();
+  const t = useProfileTheme().voz.titulos;
   const { showToast, showError } = useToast();
   const [salvando, start] = useTransition();
   const [aberto, setAberto] = useState(false);
@@ -213,29 +219,29 @@ export function CombinadoFoco({ c, hrefMes, gastos = [], resumo, opcoes = [] }: 
     start(async () => {
       try {
         await desfazerTetoAction(c.categoria);
-        showToast("Combinado desfeito.");
+        showToast(t.avisoDesfeito);
         router.refresh();
       } catch {
-        showError("Não consegui desfazer agora. Tenta de novo em instantes.");
+        showError(t.avisoDesfazerFalhou);
       }
     });
 
   const status = c.quebrou
     ? c.teto > 0
-      ? `Passou do teto: ${m(c.depois)} de ${m(c.teto)}`
-      : `Depois do combinado entraram ${m(c.depois)}`
+      ? t.avisoPassouTeto(m(c.depois), m(c.teto))
+      : t.avisoEntraramDepois(m(c.depois))
     : c.teto > 0
-      ? `${m(c.depois)} de ${m(c.teto)} usados desde o combinado`
+      ? t.avisoUsadosDesde(m(c.depois), m(c.teto))
       : c.depois >= 1
-        ? `${m(c.depois)} entraram depois, dentro da margem`
-        : "Nada entrou depois do combinado";
+        ? t.avisoDentroDaMargem(m(c.depois))
+        : t.avisoNadaEntrou;
 
   return (
     <Card className="flex gap-4 p-5">
       <span className={`w-1 shrink-0 rounded-full ${c.quebrou ? "bg-danger" : "bg-success"}`} aria-hidden />
       <div className="min-w-0 flex-1">
         <p className="flex items-center gap-1.5 text-caption font-semibold uppercase tracking-[0.11em] text-ink-muted">
-          <Handshake size={14} aria-hidden /> Você combinou
+          <Handshake size={14} aria-hidden /> {t.avisoVoceCombinou}
         </p>
         <p className="mt-1 text-sm font-semibold text-ink">{c.titulo}</p>
         {c.teto > 0 && <Barra gasto={c.depois} planejado={c.teto} className="mt-3" />}
@@ -244,24 +250,24 @@ export function CombinadoFoco({ c, hrefMes, gastos = [], resumo, opcoes = [] }: 
           {status}
         </p>
         <p className="mt-0.5 text-caption text-ink-faint">
-          {c.label} no mês: {m(c.gasto)} de {m(c.planejado)}
+          {t.avisoNoMes(c.label, m(c.gasto), m(c.planejado))}
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
           {gastos.length > 0 && (
-            <button type="button" onClick={() => setAberto(true)} className="inline-flex rounded-xl bg-accent-soft px-3 py-1.5 text-caption font-semibold text-accent-strong">
-              Ver os gastos
+            <button type="button" onClick={() => setAberto(true)} className="inline-flex min-h-11 items-center rounded-xl bg-accent-soft px-4 py-2 text-caption font-semibold text-accent-strong">
+              {t.avisoVerGastos}
             </button>
           )}
-          <button type="button" disabled={salvando} onClick={desfazer} className="inline-flex rounded-xl border border-border px-3 py-1.5 text-caption font-semibold text-ink-muted disabled:opacity-60">
-            Desfazer
+          <button type="button" disabled={salvando} onClick={desfazer} className="inline-flex min-h-11 items-center rounded-xl border border-border px-4 py-2 text-caption font-semibold text-ink-muted disabled:opacity-60">
+            {t.uiDesfazer}
           </button>
         </div>
       </div>
-      <Modal open={aberto} onClose={() => setAberto(false)} title={`Gastos de ${c.label}`}>
+      <Modal open={aberto} onClose={() => setAberto(false)} title={t.avisoGastosDe(c.label)}>
         <div className="flex flex-col gap-3">
           <Barra gasto={c.gasto} planejado={c.planejado} />
-          <Rodape esquerda={`Gasto ${m(c.gasto)}`} direita={`Plano ${m(c.planejado)}`} />
-          <ListaDeGastos titulo={`Onde foi o dinheiro de ${c.label}`} gastos={gastos} resumo={resumo} hrefMes={hrefMes} opcoes={opcoes.filter((o) => o.key !== c.categoria)} />
+          <Rodape esquerda={t.avisoRodapeGasto(m(c.gasto))} direita={t.avisoRodapePlano(m(c.planejado))} />
+          <ListaDeGastos titulo={t.avisoOndeFoi(c.label)} gastos={gastos} resumo={resumo} hrefMes={hrefMes} opcoes={opcoes.filter((o) => o.key !== c.categoria)} />
         </div>
       </Modal>
     </Card>
@@ -357,7 +363,7 @@ function Botao({ icone: Icone, titulo, sub, destaque, onClick, href, disabled }:
 
 /**
  * Os gastos por trás de um aviso, com uma barra do tamanho de cada um. Tocar num gasto abre a
- * edição ali mesmo: mudar a categoria ("É aplicação" tira do gasto) ou escrever uma descrição
+ * edição ali mesmo: mudar a categoria ("Guardei esse dinheiro" tira do gasto) ou escrever uma descrição
  * melhor que a do extrato ("PIX 1234 JOAO" → "Aluguel"). A lista começa fechada, só com o título, o
  * total e "Revisar": aberta de cara, junto com os botões, a janela virava um paredão. `jaAberta`:
  * nos gastos fora do orçamento, revisar é o motivo de abrir a janela.
@@ -365,6 +371,7 @@ function Botao({ icone: Icone, titulo, sub, destaque, onClick, href, disabled }:
 function ListaDeGastos({ titulo, gastos, resumo, hrefMes, opcoes, jaAberta = false }: { titulo: string; gastos: GastoDaLista[]; resumo?: ResumoDaLista; hrefMes?: string; opcoes: Opcao[]; jaAberta?: boolean }) {
   const money = useMoney();
   const router = useRouter();
+  const t = useProfileTheme().voz.titulos;
   const { showToast, showError } = useToast();
   const [salvando, start] = useTransition();
   const [emAndamento, setEmAndamento] = useState<string | null>(null);
@@ -376,7 +383,7 @@ function ListaDeGastos({ titulo, gastos, resumo, hrefMes, opcoes, jaAberta = fal
   // "15 gastos · R$ 620" ficava do lado de "Gasto R$ 1.140" e os números não batiam.
   const cortada = resumo !== undefined && resumo.n > gastos.length;
   const total = resumo?.total ?? gastos.reduce((s, g) => s + g.valor, 0);
-  const contagem = cortada ? `${gastos.length} maiores de ${resumo.n} gastos` : gastos.length === 1 ? "1 gasto" : `${gastos.length} gastos`;
+  const contagem = t.avisoContagem(gastos.length, cortada ? resumo.n : gastos.length);
 
   const salvar = (g: GastoDaLista, acao: () => Promise<boolean>, mensagem: string) => {
     setEmAndamento(g.id);
@@ -385,18 +392,18 @@ function ListaDeGastos({ titulo, gastos, resumo, hrefMes, opcoes, jaAberta = fal
         if (await acao()) {
           showToast(mensagem);
           setEditando(null);
-        } else showError("Não consegui mudar esse gasto.");
+        } else showError(t.avisoNaoMudou);
         router.refresh();
       } catch {
-        showError("Não consegui salvar agora. Tenta de novo em instantes.");
+        showError(t.avisoErroSalvar);
       } finally {
         setEmAndamento(null);
       }
     });
   };
   const classificar = (g: GastoDaLista, destino: string) => {
-    const nome = destino === "aplicacao" ? "guardado (aplicação)" : (opcoes.find((o) => o.key === destino)?.label ?? "");
-    salvar(g, () => classificarGastoAction(g.id, destino), `${g.descricao} foi pra ${nome}.`);
+    const mensagem = destino === "aplicacao" ? t.avisoVirouGuardado(g.descricao) : t.avisoFoiPara(g.descricao, opcoes.find((o) => o.key === destino)?.label ?? "");
+    salvar(g, () => classificarGastoAction(g.id, destino), mensagem);
   };
 
   return (
@@ -409,13 +416,13 @@ function ListaDeGastos({ titulo, gastos, resumo, hrefMes, opcoes, jaAberta = fal
           </span>
         </span>
         <span className="flex shrink-0 items-center gap-1 rounded-xl bg-accent-soft px-3 py-1.5 text-caption font-semibold text-accent-strong">
-          {revisando ? "Fechar" : "Revisar"}
+          {revisando ? t.avisoFechar : t.avisoRevisar}
           <ChevronRight size={14} className={`transition-transform ${revisando ? "-rotate-90" : "rotate-90"}`} aria-hidden />
         </span>
       </button>
       {revisando && (
         <>
-          <p className="text-caption text-ink-faint">Toque num gasto pra mudar a categoria ou a descrição.</p>
+          <p className="text-caption text-ink-faint">{t.avisoToqueNumGasto}</p>
           <ul className="flex flex-col divide-y divide-border rounded-2xl border border-border">
             {gastos.map((g) => {
               const aberto = editando === g.id;
@@ -432,14 +439,14 @@ function ListaDeGastos({ titulo, gastos, resumo, hrefMes, opcoes, jaAberta = fal
                   className="w-full rounded-xl border border-border-strong bg-surface px-3 py-2 text-sm text-ink disabled:opacity-60"
                 >
                   <option value="" disabled>
-                    {g.categoria ? "Mover pra…" : "Classificar…"}
+                    {g.categoria ? t.avisoMoverPra : t.avisoClassificar}
                   </option>
                   {opcoes.map((o) => (
                     <option key={o.key} value={o.key}>
                       {o.label}
                     </option>
                   ))}
-                  <option value="aplicacao">É aplicação (guardei, não é gasto)</option>
+                  <option value="aplicacao">{t.avisoEhGuardado}</option>
                 </select>
               );
               return (
@@ -453,7 +460,7 @@ function ListaDeGastos({ titulo, gastos, resumo, hrefMes, opcoes, jaAberta = fal
                         </span>
                         <span className="block text-caption text-ink-faint">
                           {g.dia ? `dia ${g.dia} · ` : ""}
-                          {g.categoria ?? <span className="font-semibold text-accent-strong">sem categoria</span>}
+                          {g.categoria ?? <span className="font-semibold text-accent-strong">{t.avisoSemCategoria}</span>}
                         </span>
                       </span>
                       <span className="shrink-0 text-sm font-semibold tabular-nums text-ink">{money(g.valor, { round: Math.abs(g.valor) >= 100 })}</span>
@@ -474,11 +481,11 @@ function ListaDeGastos({ titulo, gastos, resumo, hrefMes, opcoes, jaAberta = fal
                         e.preventDefault();
                         const texto = String(new FormData(e.currentTarget).get("descricao") ?? "").trim();
                         if (!texto || texto === g.descricao) return setEditando(null);
-                        salvar(g, () => renomearGastoAction(g.id, texto), `Descrição salva: ${texto}.`);
+                        salvar(g, () => renomearGastoAction(g.id, texto), t.avisoDescricaoSalva(texto));
                       }}
                     >
                       <label className="text-caption font-semibold text-ink-muted" htmlFor={`desc-${g.id}`}>
-                        Descrição
+                        {t.avisoDescricao}
                       </label>
                       <div className="flex gap-2">
                         <input
@@ -490,10 +497,10 @@ function ListaDeGastos({ titulo, gastos, resumo, hrefMes, opcoes, jaAberta = fal
                           className="min-w-0 flex-1 rounded-xl border border-border-strong bg-surface px-3 py-2 text-base text-ink sm:text-sm"
                         />
                         <button type="submit" disabled={salvando} className="shrink-0 rounded-xl bg-pill px-3 py-2 text-sm font-semibold text-on-pill disabled:opacity-60">
-                          Salvar
+                          {t.formSalvar}
                         </button>
                       </div>
-                      <span className="text-caption font-semibold text-ink-muted">Categoria</span>
+                      <span className="text-caption font-semibold text-ink-muted">{t.avisoCategoria}</span>
                       {seletor}
                     </form>
                   )}
@@ -503,7 +510,7 @@ function ListaDeGastos({ titulo, gastos, resumo, hrefMes, opcoes, jaAberta = fal
           </ul>
           {cortada && hrefMes && (
             <Link href={hrefMes} className="self-start text-caption font-semibold text-accent-strong underline-offset-2 hover:underline">
-              Ver todos os {resumo.n} gastos no mês
+              {t.avisoVerTodos(resumo.n)}
             </Link>
           )}
         </>

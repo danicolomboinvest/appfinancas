@@ -319,7 +319,7 @@ export function EntryList({
             <span className={`text-[15px] font-semibold tabular-nums ${entry.category === "EXPENSE" && entry.amount < 0 ? "text-success" : CATEGORY_AMOUNT_CLASS[entry.category]}`}>
               {entry.category === "EXPENSE" && entry.amount < 0 ? `Estorno +${money(Math.abs(entry.amount))}` : money(entry.amount)}
             </span>
-            {entry.originalLabel && <span className="text-[11px] tabular-nums text-ink-faint">{entry.originalLabel}</span>}
+            {entry.originalLabel && <span className="text-xs tabular-nums text-ink-faint">{entry.originalLabel}</span>}
           </span>
           {!selecting && <ChevronRight size={16} className="shrink-0 text-ink-faint md:hidden" />}
         </button>

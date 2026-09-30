@@ -181,7 +181,7 @@ function Numero({ rotulo, valor, tom, nota }: { rotulo: string; valor: string; t
     <div className="rounded-xl border border-border bg-surface px-3.5 py-3">
       <p className="text-caption text-ink-muted">{rotulo}</p>
       <p className={`mt-0.5 text-[17px] font-semibold tabular-nums ${cor}`}>{valor}</p>
-      {nota && <p className="mt-0.5 text-[11px] text-ink-faint">{nota}</p>}
+      {nota && <p className="mt-0.5 text-xs text-ink-faint">{nota}</p>}
     </div>
   );
 }

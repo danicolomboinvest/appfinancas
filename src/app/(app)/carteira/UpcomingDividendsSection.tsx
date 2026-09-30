@@ -59,8 +59,8 @@ export async function UpcomingDividendsSection({ dividends, voz }: { dividends: 
                 <p className="text-sm font-medium tabular-nums text-success">{money(d.estimatedTotal)}</p>
                 {/* JSCP: já líquido de 15% de IR. Tipo sem regra certa (ex.: "Rend. Trib."): valor
                     é bruto, aviso explícito em vez de fingir que sabemos o imposto. */}
-                {d.taxTreatment === "jscp_15" && <p className="text-[10px] text-ink-faint">{voz.titulos.divLiquido}</p>}
-                {d.taxTreatment === "desconhecido" && <p className="text-[10px] text-ink-faint">{voz.titulos.divBruto}</p>}
+                {d.taxTreatment === "jscp_15" && <p className="text-xs text-ink-faint">{voz.titulos.divLiquido}</p>}
+                {d.taxTreatment === "desconhecido" && <p className="text-xs text-ink-faint">{voz.titulos.divBruto}</p>}
               </div>
             </div>
           ))}

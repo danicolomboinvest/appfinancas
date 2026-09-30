@@ -2,23 +2,24 @@
 
 import type { ProfileKind } from "@prisma/client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Sidebar } from "./Sidebar";
 import { PillTabs } from "./PillTabs";
 import { NavProgressProvider } from "./nav-progress";
-import { FLOW_TABS } from "./flow-tabs";
+import { FLOW_TABS, ehRotaDoFluxo } from "./flow-tabs";
 import { MobileTabBar } from "./MobileTabBar";
 import { MoreSheet } from "./MoreSheet";
 import { GreetingStrip } from "./GreetingStrip";
 import { ThemeQuickToggle } from "./ThemeQuickToggle";
 import { RegistrarDrawer } from "./RegistrarDrawer";
+import { modoPedidoNoEvento, EVENTO_IMPORTAR, EVENTO_REGISTRAR, type ModoDoRegistrar } from "./registrar-eventos";
 import { ProfileSwitcher, type PerfilResumo } from "@/components/profiles/ProfileSwitcher";
 import { WelcomeTour } from "./WelcomeTour";
 import { InstallAppBanner } from "./InstallAppBanner";
 import { InstallAppSheet } from "./InstallAppSheet";
 import { UsageTracker } from "./UsageTracker";
-import { MORE_NAV_SECTIONS, sectionMatches } from "./nav-sections";
+import { secoesDoMais, sectionMatches } from "./nav-sections";
 import { logoutAction } from "@/lib/auth/actions";
 import { desinscreverAvisosDesteAparelho } from "@/lib/push/aparelho";
 import { ToastProvider } from "@/components/ui/toast-context";
@@ -64,6 +65,13 @@ export function AppShell({
   const [moreOpen, setMoreOpen] = useState(false);
   const [installOpen, setInstallOpen] = useState(false);
   const [registrarOpen, setRegistrarOpen] = useState(false);
+  // Em que tela a gaveta abre: o "+" abre na escolha; um botão "Importar extrato" de dentro de
+  // uma tela abre direto na importação, sem fazer a pessoa escolher de novo o que já tocou.
+  const [modoDoRegistrar, setModoDoRegistrar] = useState<ModoDoRegistrar>("choice");
+  const abrirRegistrar = useCallback((modo: ModoDoRegistrar = "choice") => {
+    setModoDoRegistrar(modo);
+    setRegistrarOpen(true);
+  }, []);
   const [, startTransition] = useTransition();
   const pathname = usePathname();
   const router = useRouter();
@@ -127,14 +135,14 @@ export function AppShell({
    * "Visão mensal" e "Só gastos" ela deslizava. A mesma barra de abas, visualmente, se
    * comportava de dois jeitos dependendo de qual aba você clicava.
    */
-  const isFlow =
-    pathname === "/mensal" || pathname.startsWith("/mensal/") ||
-    pathname === "/orcamento" || pathname.startsWith("/orcamento/");
+  const isFlow = ehRotaDoFluxo(pathname);
   const showGreeting = isFlow;
 
   // "Mais" fica em destaque na tab bar quando a rota atual é uma das seções que só
-  // existem dentro da sheet (Visão Geral, Orçamento, Simuladores, Análises, Configurações).
-  const moreActive = MORE_NAV_SECTIONS.some(
+  // existem dentro da sheet (Visão Geral, Simuladores, Análises, Configurações). A lista muda
+  // com o acesso (sem a área paga, a Carteira vai pro "Mais"): tem que ser a MESMA da barra,
+  // senão a aba e o "Mais" acendem juntos.
+  const moreActive = secoesDoMais(isPremium).some(
     (section) => sectionMatches(section, pathname),
   );
 
@@ -145,7 +153,7 @@ export function AppShell({
       <div className="flex min-h-screen">
         {/* Sidebar: navegação primária no desktop; no mobile fica sempre fora da tela
             (a gaveta hambúrguer foi substituída pela tab bar + MoreSheet abaixo). */}
-        <RegistrarOpener onOpen={() => setRegistrarOpen(true)} />
+        <RegistrarOpener onOpen={abrirRegistrar} />
         <Sidebar
           collapsed={collapsed}
           onToggleCollapsed={toggleCollapsed}
@@ -155,7 +163,7 @@ export function AppShell({
           isPremium={isPremium}
           userEmail={userEmail}
           onLogout={handleLogout}
-          onOpenRegistrar={() => setRegistrarOpen(true)}
+          onOpenRegistrar={() => abrirRegistrar()}
           openFinance={openFinance}
         />
 
@@ -191,14 +199,18 @@ export function AppShell({
 
         <MobileTabBar
           onOpenMore={() => setMoreOpen(true)}
-          onOpenRegistrar={() => setRegistrarOpen(true)}
+          onOpenRegistrar={() => abrirRegistrar()}
           moreActive={moreActive}
+          isPremium={isPremium}
         />
         <MoreSheet
           open={moreOpen}
           onClose={() => setMoreOpen(false)}
           isAdmin={isAdmin}
           isPremium={isPremium}
+          // O mesmo valor que a barra de baixo recebe: sem a área paga, a Carteira sai de lá e
+          // entra aqui. Valores diferentes nos dois fariam ela sumir dos dois (ou aparecer duas vezes).
+          barraComCarteira={isPremium}
           userEmail={userEmail}
           onLogout={handleLogout}
           onOpenInstall={() => setInstallOpen(true)}
@@ -212,7 +224,7 @@ export function AppShell({
 
         {/* Ponto de entrada ÚNICO de registro, aberto pelo "+" central da tab bar (mobile) ou
             pelo botão "Registrar" da sidebar (desktop). O microfone vive dentro dele. */}
-        <RegistrarDrawer open={registrarOpen} onClose={() => setRegistrarOpen(false)} />
+        <RegistrarDrawer open={registrarOpen} modoInicial={modoDoRegistrar} onClose={() => setRegistrarOpen(false)} />
 
         {/* Tour de boas-vindas, só na primeira entrada (lembrado no aparelho). */}
         <WelcomeTour />
@@ -237,12 +249,21 @@ function FlowTabsDoTema() {
   return <PillTabs tabs={tabs} fit />;
 }
 
-/** Qualquer tela pode pedir a gaveta de registro (ex.: o guia "Primeiros passos") sem prop drilling. */
-function RegistrarOpener({ onOpen }: { onOpen: () => void }) {
+/**
+ * Qualquer tela pode pedir a gaveta de registro (ex.: o guia "Primeiros passos") sem prop
+ * drilling. `spi:registrar` abre na escolha (ou no modo pedido em `detail.modo`); `spi:importar`
+ * abre direto na importação — é o atalho dos botões "Importe seu extrato" de conta nova.
+ */
+function RegistrarOpener({ onOpen }: { onOpen: (modo?: ModoDoRegistrar) => void }) {
   useEffect(() => {
-    const handler = () => onOpen();
-    window.addEventListener("spi:registrar", handler);
-    return () => window.removeEventListener("spi:registrar", handler);
+    const registrar = (event: Event) => onOpen(modoPedidoNoEvento(event));
+    const importar = () => onOpen("import");
+    window.addEventListener(EVENTO_REGISTRAR, registrar);
+    window.addEventListener(EVENTO_IMPORTAR, importar);
+    return () => {
+      window.removeEventListener(EVENTO_REGISTRAR, registrar);
+      window.removeEventListener(EVENTO_IMPORTAR, importar);
+    };
   }, [onOpen]);
   return null;
 }

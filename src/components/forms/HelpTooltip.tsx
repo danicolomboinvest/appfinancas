@@ -74,7 +74,8 @@ export function HelpTooltip({ text }: { text: React.ReactNode }) {
           e.stopPropagation();
           setOpen((v) => !v);
         }}
-        className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-surface-2 text-[10px] text-ink-faint transition-colors hover:bg-border-strong hover:text-ink"
+        // O "?" continua pequenininho, mas o ::before invisível estende o toque pra 44px (16 + 2×14).
+        className="relative inline-flex h-4 w-4 items-center justify-center rounded-full bg-surface-2 text-xs text-ink-faint transition-colors before:absolute before:-inset-3.5 before:content-[''] hover:bg-border-strong hover:text-ink"
       >
         ?
       </button>

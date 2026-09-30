@@ -23,6 +23,8 @@ export type TipoDecisao =
   | "revisao_lancamento"
   /** Aviso do Foco dispensado ("foi pontual", "entendi"): chave "2026-09|estouro-LAZER" ou "2026-W40|aporte". */
   | "aviso_dispensado"
+  /** "Guardei este mês" da reserva (chave "2026-09"): o mês já lançado, pra não somar duas vezes. */
+  | "reserva_guardei"
   /**
    * O nome que o banco deu a um lançamento importado que ela renomeou (chave = id do lançamento).
    * Não existe campo pra isso no lançamento: sem guardar, a regra aprendida saía com o nome novo

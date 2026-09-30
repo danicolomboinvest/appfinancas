@@ -326,11 +326,13 @@ html {
   color-scheme: dark;
 }
 
-/* Comportamento de app nativo: sem zoom por gesto, sem "puxão" elástico ao rolar além do fim,
-   sem o flash azul de toque (cara de página web) e sem barra de rolagem à vista. */
+/* Comportamento de app nativo: sem "puxão" elástico ao rolar além do fim, sem o flash azul de
+   toque (cara de página web) e sem barra de rolagem à vista. O zoom por pinça fica LIBERADO:
+   "manipulation" tira só o zoom do duplo toque (e o atraso de 300ms que ele causa); o antigo
+   "pan-x pan-y" bloqueava a pinça no Android, e quem enxerga mal não conseguia ampliar nada. */
 html,
 body {
-  touch-action: pan-x pan-y;
+  touch-action: manipulation;
   overscroll-behavior: none;
   -webkit-tap-highlight-color: transparent;
   scrollbar-width: none; /* Firefox */
@@ -352,6 +354,15 @@ body {
   [contenteditable="true"] {
     user-select: text;
     -webkit-user-select: text;
+  }
+  /* Com o zoom liberado (layout.tsx), o Safari do iPhone dá zoom sozinho ao tocar num campo com
+     letra abaixo de 16px, e a tela fica "presa" ampliada. No celular, campo com letra pequena
+     (xs, sm, caption, label) sobe pra 16px; campos com letra maior (o valor grandão do lançamento) ficam como estão.
+     O seletor com a tag vence o .text-sm do Tailwind por especificidade, dentro da mesma camada. */
+  @media (max-width: 639px) {
+    :is(input, select, textarea):is(.text-xs, .text-sm, .text-caption, .text-label) {
+      font-size: 16px;
+    }
   }
 }
 /* Tira o realce azul/cinza ao tocar em botões e links (comportamento de app, não de site). */

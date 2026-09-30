@@ -1,5 +1,6 @@
 "use server";
 
+import { caminhoDoCadastro } from "@/lib/auth/convite-cadastro";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth/rbac";
@@ -83,10 +84,11 @@ export async function addEmailsAction(_prev: AccessFormState, formData: FormData
   const inviteTargets = toNotify.filter((e) => !withAccount.has(e));
   let emailed = 0;
   if (inviteTargets.length > 0) {
-    const registerUrl = `${await baseUrl()}/register`;
+    const base = await baseUrl();
     const results = await Promise.allSettled(
       inviteTargets.map((email) => {
-        const { subject, html } = accessGrantedEmail({ email, registerUrl });
+        // Link com o e-mail já preenchido (e travado), igual ao da Hubla: ela não erra o e-mail.
+        const { subject, html } = accessGrantedEmail({ email, registerUrl: `${base}${caminhoDoCadastro(email)}` });
         return sendEmail({ to: email, subject, html });
       }),
     );

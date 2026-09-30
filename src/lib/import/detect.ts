@@ -1,3 +1,17 @@
+import { isBanestesStatement } from "./banestes-pdf";
+import { isBancoDoBrasilStatement } from "./bb-pdf";
+import { isBradescoInvoice } from "./bradesco-fatura-pdf";
+import { isBradescoStatement } from "./bradesco-pdf";
+import { isC6Invoice } from "./c6-fatura-pdf";
+import { isCaixaAppStatement } from "./caixa-pdf";
+import { isCoraStatement } from "./cora-pdf";
+import { isInterInvoice, isInterStatement } from "./inter-pdf";
+import { isItauInvoice } from "./itau-fatura-pdf";
+import { isMidwayInvoice } from "./midway-fatura-pdf";
+import { isNubankInvoice } from "./nubank-fatura-pdf";
+import { isNubankStatement } from "./nubank-pdf";
+import { isOurocardInvoice } from "./ourocard-pdf";
+import { isSantanderInvoice } from "./santander-fatura-pdf";
 import { isSantanderConsolidatedStatement } from "./santander-pdf";
 import type { ParsedTransaction } from "./statement-parser";
 
@@ -11,7 +25,57 @@ const EXTRATO_SANTANDER = "extrato do Santander";
  * bancária, o CSV do Nubank tem cabeçalho próprio. Fatura nenhuma sai nesses formatos, então a
  * contagem de sinais não desmente esses motivos.
  */
-const MOTIVOS_ESTRUTURAIS_DE_EXTRATO = new Set([OFX_DE_CONTA, CSV_EXTRATO_NUBANK, EXTRATO_SANTANDER]);
+/**
+ * O molde de cada banco que o app sabe ler, no lugar das palavras soltas. Uma linha de
+ * lançamento "Pagamento de fatura" no extrato do Nubank vinha antes do rodapé "Extrato gerado
+ * dia" (que às vezes só aparece na última página), e o teste de palavras chamava o extrato de
+ * FATURA: as saídas viravam compra e as entradas (resgates, Pix recebidos) viravam estorno, tudo
+ * num mês só, com o gasto do mês negativo e nenhum aviso. Quem reconheceu o molde sabe o que é.
+ */
+const MOLDES_DE_EXTRATO: [(t: string) => boolean, string][] = [
+  [isNubankStatement, "extrato do Nubank"],
+  [isInterStatement, "extrato do Inter"],
+  [isCoraStatement, "extrato da Cora"],
+  [isBanestesStatement, "extrato do Banestes"],
+  [isCaixaAppStatement, "extrato da Caixa"],
+  [isBancoDoBrasilStatement, "extrato do Banco do Brasil"],
+  [isBradescoStatement, "extrato do Bradesco"],
+  [isSantanderConsolidatedStatement, EXTRATO_SANTANDER],
+];
+const MOLDES_DE_FATURA: [(t: string) => boolean, string][] = [
+  [isNubankInvoice, "fatura do Nubank"],
+  [isInterInvoice, "fatura do Inter"],
+  [isC6Invoice, "fatura do C6"],
+  [isMidwayInvoice, "fatura Riachuelo"],
+  [isItauInvoice, "fatura do Itaú"],
+  [isOurocardInvoice, "fatura Ourocard"],
+  [isSantanderInvoice, "fatura do Santander"],
+  [isBradescoInvoice, "fatura do Bradesco"],
+];
+
+const MOTIVOS_ESTRUTURAIS_DE_EXTRATO = new Set([OFX_DE_CONTA, CSV_EXTRATO_NUBANK, ...MOLDES_DE_EXTRATO.map(([, motivo]) => motivo)]);
+
+/** O molde de algum banco conhecido diz o que o arquivo é? Na dúvida (casou dos dois lados), não. */
+function tipoPeloMolde(text: string): { kind: DocKind; reason: string } | null {
+  const extrato = MOLDES_DE_EXTRATO.find(([reconhece]) => reconhece(text));
+  const fatura = MOLDES_DE_FATURA.find(([reconhece]) => reconhece(text));
+  if (extrato && !fatura) return { kind: "extrato", reason: extrato[1] };
+  if (fatura && !extrato) return { kind: "fatura", reason: fatura[1] };
+  return null;
+}
+
+/**
+ * O pedaço do começo do arquivo em que as PALAVRAS de fatura valem: sem as linhas de lançamento
+ * e sem "pagamento de fatura", que é o nome de uma saída comum no extrato de quem paga o cartão
+ * pela conta (o caso mais comum), não o cabeçalho de uma fatura.
+ */
+function cabecalhoSemLancamentos(headLower: string): string {
+  return headLower
+    .split(/\r?\n/)
+    .filter((l) => !(/\d,\d{2}/.test(l) && /^\s*\d{1,2}(?:\/|\s+[a-zç]{3}\b)/.test(l)))
+    .join("\n")
+    .replace(/\b(?:pagamento|pagto|pgto|pag)\.?\s+(?:d[ae]\s+|da\s+sua\s+)?fatura\b/g, " ");
+}
 
 /**
  * O que o arquivo É, pelo nome e pelo conteúdo. O erro mais caro da importação, nos dados
@@ -34,11 +98,16 @@ export function detectDocKind(text: string, fileName?: string | null): { kind: D
   if (/final do cart[aã]o|nome no cart[aã]o|parcela/.test(firstLine)) return { kind: "fatura", reason: "fatura de cartão (CSV)" };
   if (/saldo/.test(firstLine)) return { kind: "extrato", reason: "extrato com coluna de saldo" };
 
-  // Texto (PDF/planilha): palavras que só uma fatura tem.
-  if (/fatura|vencimento|limite dispon[ií]vel|pagamento m[ií]nimo/.test(headLower) && !/extrato/.test(headLower)) return { kind: "fatura", reason: "cabeçalho de fatura" };
+  // PDF de banco que o app conhece: o molde decide, não as palavras. (Inclui o Santander, que
+  // quebra as palavras no meio, "EXT R ATO", e só é reconhecido sem os espaços.)
+  const molde = tipoPeloMolde(text);
+  if (molde) return molde;
+
+  // Texto (PDF/planilha): palavras que só uma fatura tem. "vencimento" como palavra inteira
+  // (não "vencimentos" de um CDB) e "fatura" fora das linhas de lançamento.
+  const cabeca = cabecalhoSemLancamentos(headLower);
+  if (/fatura|\bvencimento\b|limite dispon[ií]vel|pagamento m[ií]nimo/.test(cabeca) && !/extrato/.test(headLower)) return { kind: "fatura", reason: "cabeçalho de fatura" };
   if (/extrato|saldo (anterior|do dia|final)|conta corrente/.test(headLower)) return { kind: "extrato", reason: "cabeçalho de extrato" };
-  // O PDF do Santander quebra as palavras no meio ("EXT R ATO"): só reconhece sem os espaços.
-  if (isSantanderConsolidatedStatement(text)) return { kind: "extrato", reason: EXTRATO_SANTANDER };
 
   if (/fatura|invoice/.test(name) || /^nubank_\d{4}-\d{2}-\d{2}\.csv$/.test(name)) return { kind: "fatura", reason: "nome do arquivo" };
   if (/extrato|statement|^nu_\d+_/.test(name)) return { kind: "extrato", reason: "nome do arquivo" };

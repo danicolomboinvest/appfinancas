@@ -23,6 +23,16 @@ export type TextosEmail = {
   emailMaiorGasto: string;
   emailRecapBotao: string;
   emailRecapRodape: string;
+  /**
+   * Rótulo do valor grande quando ela guardou dinheiro no mês. O e-mail mostra o que sobrou
+   * DEPOIS DOS GASTOS e o guardado ao lado, como conquista (ver ajustarResumoPorEmail): antes o
+   * guardado era descontado, e quem guardou muito recebia "Faltou no mês" em vermelho.
+   */
+  emailRecapSobrouDepoisDosGastos: string;
+  /** Rótulo da linha do quanto ela guardou no mês, no lugar do "Aportou". */
+  emailRecapGuardou: string;
+  /** Botão do resumo, que leva pro fechamento do mês: "Fechar setembro". */
+  emailRecapBotaoFechar(mes: string): string;
   emailConviteAssunto(mes: string): string;
   emailConviteIntro1(mes: string): string;
   /** Parágrafo com o `<strong>` já embutido no HTML, sem parte dinâmica. */
@@ -43,6 +53,9 @@ export const PADRAO_EMAIL: TextosEmail = {
   emailMaiorGasto: "Maior gasto",
   emailRecapBotao: "Ver o mês completo",
   emailRecapRodape: "Você recebe este resumo uma vez por mês.",
+  emailRecapSobrouDepoisDosGastos: "Sobrou depois dos gastos",
+  emailRecapGuardou: "E você ainda guardou",
+  emailRecapBotaoFechar: (mes) => `Fechar ${mes}`,
   emailConviteAssunto: (mes) => `Bora organizar ${mes}?`,
   emailConviteIntro1: (mes) =>
     `Começou ${mes} — e mês novo é a melhor hora pra começar, porque você acompanha ele inteiro, do início ao fim.`,

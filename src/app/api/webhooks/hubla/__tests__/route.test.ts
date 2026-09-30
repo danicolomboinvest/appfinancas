@@ -128,6 +128,22 @@ describe("webhook Hubla: liberação", () => {
     expect(email.html).toContain("https://financas.exemplo.test/register");
   });
 
+  it("o link do convite leva o e-mail da compra assinado, pra o cadastro já abrir com ele", async () => {
+    const antes = process.env.AUTH_SECRET;
+    process.env.AUTH_SECRET = "segredo-de-teste";
+    try {
+      await chamar(compra("invoice.payment_succeeded", { user: { email: "Compradora@X.com" }, product: CURSO }));
+      const { html } = sendEmail.mock.calls[0][0] as { html: string };
+      const token = /\/register\?convite=([A-Za-z0-9_.%-]+)/.exec(html)?.[1];
+      expect(token).toBeTruthy();
+      const { lerTokenDeConvite } = await import("@/lib/auth/convite-cadastro");
+      expect(lerTokenDeConvite(decodeURIComponent(token!))).toBe("compradora@x.com");
+    } finally {
+      if (antes === undefined) delete process.env.AUTH_SECRET;
+      else process.env.AUTH_SECRET = antes;
+    }
+  });
+
   it("combo: o curso como SEGUNDO produto ainda libera", async () => {
     const r = await chamar(
       compra("invoice.payment_succeeded", {

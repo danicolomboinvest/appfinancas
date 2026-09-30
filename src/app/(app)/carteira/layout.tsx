@@ -17,7 +17,9 @@ export default async function CarteiraLayout({ children }: { children: React.Rea
   // carteira de investimento pessoal; a Dani não quis esse peso no perfil de negócio.
   return (
     <>
-      {!ehEmpresa(ctx.profileKind) && <PillTabs tabs={tabs} />}
+      {/* `fit`: as três abas dividem a largura e cabem em 375px, como no Planejamento. Sem ele
+          a última aba ficava cortada e a tela rolava de lado. */}
+      {!ehEmpresa(ctx.profileKind) && <PillTabs tabs={tabs} fit />}
       {premium ? children : <PaywallCard feature="Carteira de Investimentos" />}
     </>
   );

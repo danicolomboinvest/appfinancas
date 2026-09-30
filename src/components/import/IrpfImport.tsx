@@ -174,7 +174,7 @@ export function IrpfImport({ onDone }: { onDone: () => void }) {
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium text-ink">
                       {i.irTicker ?? i.irName}
-                      <span className="ml-1.5 rounded-full bg-surface-2 px-1.5 py-0.5 text-[10px] text-ink-muted">
+                      <span className="ml-1.5 rounded-full bg-surface-2 px-1.5 py-0.5 text-xs text-ink-muted">
                         {KIND_LABEL[i.kind]}
                       </span>
                     </p>

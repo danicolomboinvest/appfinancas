@@ -31,7 +31,9 @@ export function PillTabs({ tabs, fit = false }: { tabs: PillTab[]; fit?: boolean
               // No modo `fit` as abas podem ENCOLHER (min-w-0 + truncate + padding menor no
               // mobile): com 3 rótulos a soma das larguras mínimas ficava no limite dos 375px
               // e estourava em aparelhos de 320-360px.
-              className={`whitespace-nowrap rounded-full py-2 text-sm font-medium transition-all duration-300 ${
+              // py-3 no celular: 20px de linha + 24px = 44px de alvo de toque, o mínimo pra quem
+              // tem dedo menos certeiro. No computador, com mouse, volta ao py-2 de antes.
+              className={`whitespace-nowrap rounded-full py-3 text-sm font-medium transition-all duration-300 md:py-2 ${
                 // flex-auto (e não flex-1): cada aba cresce a partir da largura do próprio nome,
                 // então "Foco" cede espaço pra "Visão mensal" em vez de todas terem o mesmo tamanho.
                 // Celular bem estreito (320–359px): letra e respiro um tico menores, pra quatro

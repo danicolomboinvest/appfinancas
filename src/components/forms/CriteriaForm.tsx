@@ -212,7 +212,7 @@ export function CriteriaForm({
                       {criterion.label}
                       {criterion.helpText && <HelpTooltip text={criterion.helpText} />}
                       {autoFilledIds.has(criterion.id) && (
-                        <span className="text-[10px] font-normal text-accent-strong" title="Preenchido automaticamente a partir de uma fonte externa, revise antes de salvar">
+                        <span className="text-xs font-normal text-accent-strong" title="Preenchido automaticamente a partir de uma fonte externa, revise antes de salvar">
                           (auto)
                         </span>
                       )}
@@ -221,14 +221,14 @@ export function CriteriaForm({
                     {analysisByCriterionId?.[criterion.id] && (
                       <div className="flex flex-col gap-1">
                         <span
-                          className={`inline-flex w-fit items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                          className={`inline-flex w-fit items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium ${
                             ANALYSIS_SIGNAL[analysisByCriterionId[criterion.id].signal].cls
                           }`}
                         >
                           <span className="h-1.5 w-1.5 rounded-full bg-current opacity-80" />
                           {ANALYSIS_SIGNAL[analysisByCriterionId[criterion.id].signal].label}
                         </span>
-                        <span className="text-[11px] leading-snug text-ink-faint">
+                        <span className="text-xs leading-snug text-ink-faint">
                           {analysisByCriterionId[criterion.id].reference}
                         </span>
                       </div>

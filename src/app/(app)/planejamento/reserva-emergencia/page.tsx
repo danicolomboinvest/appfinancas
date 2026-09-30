@@ -13,13 +13,23 @@ import { formatPercentNumber } from "@/lib/format";
 import { serverMoney } from "@/lib/money-server";
 import { Section } from "@/components/ui/Section";
 import { ReservaDivergente } from "@/components/decisoes/ReservaDivergente";
+import { existeDecisao } from "@/lib/repositories/decisao.repo";
+import { chaveDoMesDaReserva, mesesAteCompletar, mostraGuardei } from "@/lib/planning/reserva-guardei";
+import { monthKeyLabel } from "@/lib/planning/goal-checkin";
+import { GuardeiNaReservaButton } from "./GuardeiNaReservaButton";
 
 
 export default async function ReservaEmergenciaPage() {
   const money = await serverMoney();
   const ctx = await getRequiredSession();
   const voz = vozDoTema(ctx.profileTheme, ctx.profileKind);
-  const [fund, typicalExpense, assets] = await Promise.all([getEmergencyFund(ctx), getTypicalMonthlyExpense(ctx), listAssets(ctx)]);
+  const chaveDoMes = chaveDoMesDaReserva(nowInBrazil());
+  const [fund, typicalExpense, assets, guardouEsteMes] = await Promise.all([
+    getEmergencyFund(ctx),
+    getTypicalMonthlyExpense(ctx),
+    listAssets(ctx),
+    existeDecisao(ctx, "reserva_guardei", chaveDoMes),
+  ]);
   // Quem marcou um CDB como "reserva de emergência" na carteira já respondeu "quanto tem guardado".
   const reserveInAssets = assets.filter((a) => a.objective === "RESERVA_EMERGENCIA").reduce((sum, a) => sum + Number(a.currentValue), 0);
 
@@ -31,6 +41,14 @@ export default async function ReservaEmergenciaPage() {
         annualRate: Number(fund.annualRate),
       })
     : null;
+
+  const reservaNumeros = fund
+    ? { targetAmount: Number(fund.targetAmount), currentAmount: Number(fund.currentAmount), monthlyContribution: Number(fund.monthlyContribution) }
+    : null;
+  // O botão fica visível no mês já marcado (mostrando "Guardado em setembro"), pra ela ver que
+  // anotou; some quando a reserva completa ou não há valor por mês combinado.
+  const mostrarGuardei = guardouEsteMes ? reservaNumeros !== null : mostraGuardei(reservaNumeros);
+  const tempo = plan ? mesesAteCompletar(plan.monthsToTarget) : null;
 
   // Mês previsto de conclusão vira data de verdade ("junho de 2027"). "Faltam 9 meses" obriga
   // a pessoa a contar no calendário pra saber quando é.
@@ -66,12 +84,21 @@ export default async function ReservaEmergenciaPage() {
               { label: voz.titulos.reservaAtual, value: money(Number(fund.currentAmount)) },
               {
                 label: voz.titulos.reservaTempo,
-                value: plan.monthsToTarget === null ? "Não fecha" : `${plan.monthsToTarget} meses`,
-                hint: plan.monthsToTarget === null ? voz.titulos.reservaNaoFechaHint : undefined,
+                value: tempo?.tipo === "naoFecha" ? "Não fecha" : tempo?.tipo === "pronta" ? voz.titulos.reservaPronta : (tempo?.texto ?? ""),
+                hint: tempo?.tipo === "naoFecha" ? voz.titulos.reservaNaoFechaHint : undefined,
+                tone: tempo?.tipo === "pronta" ? "success" : undefined,
               },
               { label: voz.titulos.reservaRendimento, value: formatPercentNumber(plan.monthlyRate * 100, 3) },
             ]}
           />
+
+          {mostrarGuardei && (
+            <GuardeiNaReservaButton
+              valorCombinado={Number(fund.monthlyContribution)}
+              mesLabel={monthKeyLabel(chaveDoMes)}
+              feito={guardouEsteMes}
+            />
+          )}
 
           {plan.projection.length > 0 && (
             <Section title={voz.titulos.reservaProjecao}>

@@ -187,7 +187,7 @@ export function TickerPicker({
           className="z-[110] overflow-y-auto rounded-lg border border-border-strong bg-surface-2 shadow-premium-sm"
         >
           {text.trim() === "" && hits.length > 0 && (
-            <p className="sticky top-0 border-b border-border bg-surface-2 px-3 py-1.5 text-[11px] font-medium uppercase tracking-wide text-ink-faint">
+            <p className="sticky top-0 border-b border-border bg-surface-2 px-3 py-1.5 text-xs font-medium uppercase tracking-wide text-ink-faint">
               Mais negociados
             </p>
           )}
@@ -204,7 +204,7 @@ export function TickerPicker({
             >
               <span className="w-[4.5rem] shrink-0 text-sm font-semibold tabular-nums text-ink">{hit.ticker}</span>
               <span className="min-w-0 flex-1 truncate text-sm text-ink-muted">{hit.name || "—"}</span>
-              {showKind && <span className="shrink-0 text-[10px] uppercase text-ink-faint">{KIND_LABEL[hit.kind]}</span>}
+              {showKind && <span className="shrink-0 text-xs uppercase text-ink-faint">{KIND_LABEL[hit.kind]}</span>}
             </button>
           ))}
           {!loading && hits.length === 0 && text.trim() !== "" && (

@@ -1,5 +1,6 @@
 "use client";
 
+import { PasswordField } from "@/components/ui/PasswordField";
 import Link from "next/link";
 import { use, useActionState } from "react";
 import { CheckCircle2 } from "lucide-react";
@@ -54,7 +55,7 @@ export default function LoginPage({
             autoComplete="email"
             defaultValue={state.email}
           />
-          <Field label="Senha" id="password" name="password" type="password" required autoComplete="current-password" />
+          <PasswordField label="Senha" id="password" name="password" required autoComplete="current-password" />
           <div className="-mt-1 text-right">
             <Link href="/esqueci-senha" className="text-xs font-medium text-accent-strong hover:underline">
               Esqueci minha senha

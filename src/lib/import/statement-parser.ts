@@ -204,7 +204,14 @@ const AMOUNT_AVOID = ["us$", "usd", "dólar", "dolar", "cotação", "cotacao"];
 const CREDIT_HEADERS = ["crédito", "credito", "entrada", "credit"];
 const DEBIT_HEADERS = ["débito", "debito", "saída", "saida", "debit"];
 /** Coluna "D/C", "Natureza", "Tipo" com D ou C: o sinal vem dela. */
-const DC_HEADERS = ["d/c", "natureza", "tipo"];
+const DC_HEADERS = ["d/c", "c/d", "natureza", "tipo"];
+/**
+ * Célula de sinal que diz SAÍDA: "D", "Débito", "Saída", "Debit". Antes só "D"/"Déb" contavam, e
+ * no CSV com "Saída"/"Entrada" o gasto entrava como renda.
+ */
+const SINAL_SAIDA_RE = /^(?:d\b|d[eé]b|sa[ií]da|debit|-$)/i;
+/** Célula que é SÓ o sinal (nada de "Pix enviado"): essa não enriquece a descrição. */
+const CELULA_SO_SINAL_RE = /^(?:d|c|d[eé]b(?:ito)?|cr[eé]d(?:ito)?|sa[ií]da|entrada|debit|credit|[+-])$/i;
 /** Coluna separada de "Transação"/"Tipo" (ex.: extrato BTG), enriquece a descrição. */
 const TRANSACTION_HEADERS = ["transa", "tipo de lanç", "tipo"];
 /** Célula que é SÓ uma data: no Inter a coluna "TRANSACAO" traz a data, não o tipo. */
@@ -279,9 +286,19 @@ function readHeaderLayout(line: string): CsvLayout | null {
   if (amountCol === -1 && !(creditCol !== -1 && debitCol !== -1)) return null;
   if (dateCol === -1 && descCol === -1) return null;
   const transCol = findColumn(cells, TRANSACTION_HEADERS);
-  const dcCol = cells.findIndex(
-    (h, idx) => idx !== descCol && idx !== transCol && DC_HEADERS.some((n) => h === n || h.startsWith(n)),
-  );
+  const ehColunaDeSinal = (h: string, idx: number) => idx !== descCol && DC_HEADERS.some((n) => h === n || h.startsWith(n));
+  // Uma coluna só pra sinal ("D/C", "Natureza") vence. Sem ela, a coluna "Tipo" faz os dois
+  // papéis: quando a célula é D/C/Saída/Entrada ela dá o sinal, quando é "Pix enviado" ela
+  // enriquece a descrição (extrato BTG). Antes "Tipo" era só descrição: "Mercado;45,90;D" entrava
+  // como RENDA de R$ 45,90 com a descrição "D · Mercado".
+  let dcCol = cells.findIndex((h, idx) => idx !== transCol && ehColunaDeSinal(h, idx));
+  if (dcCol === -1 && transCol !== -1 && ehColunaDeSinal(cells[transCol], transCol)) dcCol = transCol;
+  // "Entrada/Saída" ou "Débito/Crédito" numa célula só: é a coluna do sinal, não um par de
+  // colunas de crédito e débito (as duas apontavam pra ela, a conta dava zero e o sinal sumia).
+  if (creditCol !== -1 && creditCol === debitCol && amountCol !== -1) {
+    if (dcCol === -1) dcCol = creditCol;
+    return { delimiter, dateCol, descCol, amountCol, transCol, creditCol: -1, debitCol: -1, dcCol };
+  }
   return { delimiter, dateCol, descCol, amountCol, transCol, creditCol, debitCol, dcCol };
 }
 
@@ -311,14 +328,16 @@ function readTransactionLine(line: string, layout: CsvLayout, refYear: number): 
   } else {
     amount = parseAmountFlexible(cols[amountCol] ?? "");
   }
-  if (dcCol !== -1 && amount > 0 && /^d\b|^d[eé]b/i.test((cols[dcCol] ?? "").trim())) amount = -amount;
+  const sinalCelula = dcCol !== -1 ? (cols[dcCol] ?? "").trim() : "";
+  if (amount > 0 && SINAL_SAIDA_RE.test(sinalCelula)) amount = -amount;
   if (Number.isNaN(amount) || amount === 0) return null;
 
   const juntas = dateCol !== -1 && dateCol === descCol ? splitDateFromDescription(cols[dateCol] ?? "", refYear) : null;
   const desc = (juntas ? juntas.description : (cols[descCol] ?? "")).trim();
   // Data repetida na coluna de "Transação" não enriquece nada: virava "1/07/26 · PAGAMENTO…".
   const transRaw = transCol !== -1 ? (cols[transCol] ?? "").trim() : "";
-  const trans = CELL_IS_DATE_RE.test(transRaw) ? "" : transRaw;
+  // A coluna "Tipo" que só traz D/C/Saída/Entrada já deu o sinal: não vira "D · Mercado".
+  const trans = CELL_IS_DATE_RE.test(transRaw) || CELULA_SO_SINAL_RE.test(transRaw) ? "" : transRaw;
   // Pula saldos/totais, são fotografias do saldo, não transações.
   if (NON_TRANSACTION_RE.test(desc) || NON_TRANSACTION_RE.test(trans)) return null;
 
@@ -420,9 +439,8 @@ function temPalavraDeEntrada(text: string): boolean {
 
 /**
  * Parser de texto solto, usado pra PDF, cujo texto extraído não é delimitado como CSV. Em cada
- * linha procura uma data e um valor monetário (formato BR); o resto vira a descrição. Sinal:
- * "-" explícito ou coluna "D" = saída; palavra de crédito/entrada = entrada; senão, assume saída
- * (a maioria das linhas é gasto), o usuário revisa depois.
+ * linha procura uma data e um valor monetário (formato BR); o resto vira a descrição. O sinal
+ * é decidido em `parseTextLines`, olhando o arquivo inteiro (saldo corrido, "-", C/D, palavras).
  */
 const MONTH_ABBR: Record<string, string> = { jan: "01", fev: "02", mar: "03", abr: "04", mai: "05", jun: "06", jul: "07", ago: "08", set: "09", out: "10", nov: "11", dez: "12" };
 /** Linhas que são saldo/total, não movimento. */
@@ -492,39 +510,147 @@ function leadingDateCore(t: string, refYear: number): { iso: string; length: num
 }
 
 /**
+ * Um valor em dinheiro achado numa linha de PDF, com o que está colado nele: o menos, o mais e
+ * a letra C/D logo depois. A letra é lida junto do VALOR, não do fim da linha: na Caixa e no
+ * Santander de internet banking a linha traz o lançamento e o saldo ("250,00 C 1.250,00 C"), e o
+ * C/D do fim da linha é o do saldo.
+ */
+type ValorNaLinha = { magnitude: number; menos: boolean; tracoSolto: boolean; mais: boolean; marca: "C" | "D" | null };
+
+/** Um lançamento lido do texto, antes de decidir o sinal: a decisão olha o arquivo inteiro. */
+type RegistroDeTexto = { date: string; text: string; valores: ValorNaLinha[]; linhaDeSaldo: boolean };
+
+// O número começa numa borda (nada de dígito, ponto ou vírgula colado à esquerda) e aceita
+// valor sem ponto de milhar: em "1500,00" o regex antigo pegava só "500,00" e o "1" ia pra
+// descrição — o gasto de R$ 1.500 entrava como R$ 500.
+const DINHEIRO_SRC = String.raw`-?\s?(?:R\$\s?)?(?<![\d.,])(?:\d{1,3}(?:\.\d{3})+|\d+),\d{2}(?!\d)`;
+/** Valor com o "+" antes e o C/D depois ("+R$ 50,00", "250,00 C"), que também saem da descrição. */
+const VALOR_NA_LINHA_RE = new RegExp(String.raw`(\+\s?)?(${DINHEIRO_SRC})(?:\s*([CD])\b)?`, "g");
+
+function lerValores(trecho: string): ValorNaLinha[] {
+  return [...trecho.matchAll(VALOR_NA_LINHA_RE)].map((m) => {
+    const bruto = m[2].trim();
+    return {
+      magnitude: Math.abs(parseBrazilianNumber(bruto)),
+      // Menos colado no número ("-3.000,00", "-R$ 80,00") é sinal. Traço com espaço
+      // ("SALARIO EMPRESA - 3.000,00") pode ser só o separador entre descrição e valor.
+      menos: /^-(?:\d|R\$)/.test(bruto),
+      tracoSolto: /^-\s/.test(bruto),
+      mais: Boolean(m[1]),
+      marca: (m[3] as "C" | "D" | undefined) ?? null,
+    };
+  });
+}
+
+/** Valor com o sinal que ele mesmo carrega: serve pro SALDO, que não passa pelas palavras. */
+function comSinalProprio(v: ValorNaLinha): number {
+  return v.menos || v.marca === "D" ? -v.magnitude : v.magnitude;
+}
+
+/** Os dois números batem? (Centavo de arredondamento não conta.) */
+function mesmoValor(a: number, b: number): boolean {
+  return Math.abs(a - b) < 0.005;
+}
+
+/** "Data  Histórico  Valor  Saldo": cabeçalho de extrato que tem coluna de saldo. */
+function temCabecalhoComSaldo(content: string): boolean {
+  return content
+    .split(/\r?\n/)
+    .some((l) => !/\d,\d{2}/.test(l) && /\bsaldo\b/i.test(l) && /\b(valor|hist[óo]rico|descri|lan[çc]amento|docto|documento|entrada|sa[íi]da|cr[ée]dito|d[ée]bito)/i.test(l));
+}
+
+/**
+ * O arquivo tem coluna de saldo? Então o ÚLTIMO número de cada linha é o saldo, e o lançamento é
+ * o penúltimo. Antes o genérico pegava sempre o último: na Caixa "PAG BOLETO 150,00 D 1.100,00 C"
+ * virava ENTRADA de R$ 1.100, e no Santander "PIX RECEBIDO 250,00 1.250,00" virava R$ 1.250.
+ * Vale quando o cabeçalho diz "saldo" (e não é fatura) e ao menos 30% dos lançamentos trazem dois
+ * números — tem banco que só imprime o saldo no último lançamento do dia —, OU quando metade traz
+ * dois números e o saldo corre (o de uma linha é o da anterior mais ou menos o valor desta).
+ * Fatura com "US$ 10,00  R$ 52,30" não cai aqui: não tem cabeçalho de saldo e os números não correm.
+ */
+function temColunaDeSaldo(registros: RegistroDeTexto[], content: string): boolean {
+  const movimentos = registros.filter((r) => !r.linhaDeSaldo && r.valores.length > 0);
+  // EXATAMENTE dois: com três ou mais ("R$ 1.500,00  R$ 0,00  R$ 0,00  R$ 1.500,00" do extrato
+  // de fundo: bruto, IR, IOF, líquido) o último não é saldo, e o penúltimo seria o IOF zerado.
+  const comDois = movimentos.filter((r) => r.valores.length === 2);
+  if (comDois.length < 2) return false;
+  if (temCabecalhoComSaldo(content) && !PALAVRAS_DE_FATURA_RE.test(content) && comDois.length >= movimentos.length * 0.3) return true;
+  if (comDois.length * 2 < movimentos.length) return false;
+  let anterior: number | null = null;
+  let conferidos = 0;
+  let batem = 0;
+  for (const r of registros) {
+    const ultimo = r.valores[r.valores.length - 1];
+    if (r.linhaDeSaldo) {
+      if (ultimo && /saldo/i.test(r.text)) anterior = comSinalProprio(ultimo);
+      continue;
+    }
+    if (r.valores.length !== 2) {
+      anterior = null;
+      continue;
+    }
+    const saldo = comSinalProprio(ultimo);
+    if (anterior !== null) {
+      conferidos += 1;
+      if (mesmoValor(Math.abs(saldo - anterior), r.valores[r.valores.length - 2].magnitude)) batem += 1;
+    }
+    anterior = saldo;
+  }
+  return batem >= 1 && batem * 2 >= conferidos;
+}
+
+/** Palavras que só a fatura de cartão tem: nela, número sem sinal é COMPRA, nunca entrada. */
+const PALAVRAS_DE_FATURA_RE =
+  /limite\s+(?:dispon[ií]vel|total|de\s+cr[eé]dito)|pagamento\s+m[ií]nimo|total\s+(?:da|desta)\s+fatura|fatura\s+anterior|melhor\s+dia\s+de\s+compra|resumo\s+da\s+fatura/i;
+
+/**
+ * O banco marca só a SAÍDA, com "-", e a entrada vem sem sinal? É o extrato do Itaú (e de vários
+ * outros): "-180,00" é o boleto, "3.000,00" é o salário. Antes todo número sem sinal e sem
+ * palavra de entrada virava gasto: "SISPAG SALARIOS", "PIX TRANSF MARIA" e o TED recebido
+ * entravam como saída, e nenhum aviso disparava. Vale quando o arquivo não usa C/D, pelo menos
+ * 30% dos valores vêm com "-" (é o jeito do banco, não um estorno perdido) e não há palavra de
+ * fatura: na fatura o "-" é o pagamento ou o estorno, e o resto é compra.
+ */
+function sinalSoPeloMenos(escolhidos: ValorNaLinha[], content: string): boolean {
+  if (escolhidos.some((v) => v.marca !== null || v.mais)) return false;
+  const comMenos = escolhidos.filter((v) => v.menos).length;
+  return comMenos >= 2 && comMenos < escolhidos.length && comMenos >= escolhidos.length * 0.3 && !PALAVRAS_DE_FATURA_RE.test(content);
+}
+
+/** Sinal pelo próprio valor e pelas palavras da linha, quando o saldo não diz. */
+function sinalPelaLinha(v: ValorNaLinha, text: string, semSinalEEntrada: boolean): 1 | -1 {
+  const entrada = temPalavraDeEntrada(text);
+  // Traço solto com palavra de entrada ("SALARIO EMPRESA - 3.000,00") é separador, não sinal.
+  if (v.menos || v.marca === "D" || (v.tracoSolto && !entrada)) return -1;
+  if (v.mais || v.marca === "C" || entrada) return 1;
+  // Sem sinal nenhum: saída (a maioria das linhas é gasto), menos no banco que só marca a saída.
+  return semSinalEEntrada && !v.tracoSolto ? 1 : -1;
+}
+
+/**
  * Parser de texto solto (PDF). Um lançamento COMEÇA numa linha com data e termina na primeira
  * linha que traz um valor: pode ser a mesma linha ("12/08 IFOOD 45,90") ou a descrição pode
  * descer por uma ou duas linhas antes do valor (Inter, C6, Itaú). Linhas de saldo/total não
- * contam. Sinal: "-" explícito ou "D" = saída; palavra de crédito ou "C" = entrada; senão saída.
+ * contam. O sinal é decidido depois de ler o arquivo inteiro, na ordem: a variação do saldo
+ * (quando o arquivo tem coluna de saldo), o sinal do próprio valor ("-", "+", C/D), a palavra
+ * de entrada e, por último, o jeito do banco (ver `sinalSoPeloMenos`); sem nada disso, saída.
  */
 export function parseTextLines(content: string, refYear: number = new Date().getFullYear()): ParsedTransaction[] {
   // "−R$ 1.671,14": a fatura do Nubank usa o sinal de menos tipográfico (U+2212), não o hífen.
   // Sem isto o pagamento da fatura anterior perdia o sinal e entrava como mais uma compra.
-  const lines = content.replace(/\u2212/g, "-").split(/\r?\n/);
-  const transactions: ParsedTransaction[] = [];
-  // O número começa numa borda (nada de dígito, ponto ou vírgula colado à esquerda) e aceita
-  // valor sem ponto de milhar: em "1500,00" o regex antigo pegava só "500,00" e o "1" ia pra
-  // descrição — o gasto de R$ 1.500 entrava como R$ 500.
-  const moneyRe = /-?\s?(?:R\$\s?)?(?<![\d.,])(?:\d{1,3}(?:\.\d{3})+|\d+),\d{2}(?!\d)/g;
+  const texto = content.replace(/\u2212/g, "-");
+  const lines = texto.split(/\r?\n/);
   const anyDateRe = /(\d{2}\/\d{2}\/\d{4})|(\d{4}-\d{2}-\d{2})/;
 
+  // 1ª passada: separa os lançamentos (data, descrição e os números da linha do valor).
+  const registros: RegistroDeTexto[] = [];
   let open: { date: string; parts: string[]; lines: number } | null = null;
-
-  const flush = (rawAmount: string, lineForSign: string) => {
+  const fechar = (valores: ValorNaLinha[]) => {
     if (!open) return;
-    const magnitude = Math.abs(parseBrazilianNumber(rawAmount));
-    const text = open.parts.join(" ").replace(/\s+/g, " ").trim();
-    if (!Number.isNaN(magnitude) && magnitude > 0 && !BALANCE_LINE_RE.test(text)) {
-      // Menos colado no número ("-3.000,00", "-R$ 80,00") é sinal. Traço com espaço
-      // ("SALARIO EMPRESA - 3.000,00") pode ser só o separador entre descrição e valor: quando a
-      // linha tem palavra de entrada, ela decide; sem palavra, continua saída como antes.
-      const entrada = temPalavraDeEntrada(text);
-      const menosColado = /^-(?:\d|R\$)/.test(rawAmount.trim());
-      const tracoSolto = /^-\s/.test(rawAmount.trim());
-      const isNegative = menosColado || (tracoSolto && !entrada) || /\bD\b\s*$/.test(lineForSign);
-      const isCredit = !isNegative && (entrada || /\bC\b\s*$/.test(lineForSign));
-      transactions.push({ date: open.date, description: text.replace(/\b[DC]\b\s*$/, "").trim() || "Lançamento", amount: isCredit ? magnitude : -magnitude });
-    }
+    const text = open.parts.join(" ").replace(/\s+/g, " ").replace(/\b[DC]\b\s*$/, "").trim();
+    // "Lançamentos: R$ 10.290,88" no topo de cada página (extrato do BTG) é o total, não um
+    // lançamento: entrava uma vez por página, com a data do cabeçalho.
+    registros.push({ date: open.date, text, valores, linhaDeSaldo: BALANCE_LINE_RE.test(text) || /\blan[çc]amentos:\s*$/i.test(text) });
     open = null;
   };
 
@@ -537,27 +663,58 @@ export function parseTextLines(content: string, refYear: number = new Date().get
       // Nova data = novo lançamento; o anterior sem valor é descartado (era cabeçalho/saldo).
       open = { date: lead ? lead.iso : normalizeDate(inlineDate![0]), parts: [], lines: 0 };
       const rest = lead ? line.slice(line.length - line.trimStart().length + lead.length) : line.replace(inlineDate![0], " ");
-      const moneys = rest.match(moneyRe);
-      if (moneys && moneys.length > 0) {
-        const rawAmount = moneys[moneys.length - 1];
-        open.parts.push(rest.replace(moneyRe, " "));
-        flush(rawAmount, rest);
-      } else {
-        open.parts.push(rest);
-      }
+      const valores = lerValores(rest);
+      open.parts.push(valores.length > 0 ? rest.replace(VALOR_NA_LINHA_RE, " ") : rest);
+      if (valores.length > 0) fechar(valores);
       continue;
     }
     if (!open) continue;
     open.lines += 1;
-    const moneys = line.match(moneyRe);
-    if (moneys && moneys.length > 0) {
-      open.parts.push(line.replace(moneyRe, " "));
-      flush(moneys[moneys.length - 1], line);
+    const valores = lerValores(line);
+    if (valores.length > 0) {
+      open.parts.push(line.replace(VALOR_NA_LINHA_RE, " "));
+      fechar(valores);
     } else if (open.lines <= 3) {
       open.parts.push(line);
     } else {
       open = null;
     }
+  }
+
+  // 2ª passada: com o arquivo inteiro à vista, decide qual número é o lançamento e o sinal.
+  const saldoNaColuna = temColunaDeSaldo(registros, texto);
+  // Penúltimo zerado não é lançamento: aí vale o último, como sempre foi.
+  const temDoisNumeros = (r: RegistroDeTexto) => saldoNaColuna && r.valores.length === 2 && r.valores[0].magnitude > 0;
+  const valorDo = (r: RegistroDeTexto) => r.valores[r.valores.length - (temDoisNumeros(r) ? 2 : 1)];
+  const semSinalEEntrada = sinalSoPeloMenos(
+    registros.filter((r) => !r.linhaDeSaldo).map(valorDo),
+    texto,
+  );
+
+  const transactions: ParsedTransaction[] = [];
+  let saldoAnterior: number | null = null;
+  for (const r of registros) {
+    const ultimo = r.valores[r.valores.length - 1];
+    if (r.linhaDeSaldo) {
+      // "SALDO ANTERIOR 1.000,00" não é lançamento, mas é o ponto de partida do saldo corrido.
+      if (saldoNaColuna && /saldo/i.test(r.text)) saldoAnterior = comSinalProprio(ultimo);
+      continue;
+    }
+    const v = valorDo(r);
+    let sinal: 1 | -1 | null = null;
+    if (temDoisNumeros(r)) {
+      // Com coluna de saldo, quem diz o sinal é o saldo: subiu, entrou; desceu, saiu. Vale até
+      // quando a linha não tem sinal nenhum (colunas Entrada/Saída/Saldo sem "-").
+      const saldo = comSinalProprio(ultimo);
+      if (saldoAnterior !== null && saldo !== saldoAnterior && mesmoValor(Math.abs(saldo - saldoAnterior), v.magnitude)) {
+        sinal = saldo > saldoAnterior ? 1 : -1;
+      }
+      saldoAnterior = saldo;
+    }
+    if (!(v.magnitude > 0)) continue;
+    sinal ??= sinalPelaLinha(v, r.text, semSinalEEntrada);
+    if (!temDoisNumeros(r) && saldoAnterior !== null) saldoAnterior += sinal * v.magnitude;
+    transactions.push({ date: r.date, description: r.text || "Lançamento", amount: sinal * v.magnitude });
   }
   return transactions;
 }

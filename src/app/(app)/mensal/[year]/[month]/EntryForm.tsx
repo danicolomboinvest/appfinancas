@@ -123,25 +123,10 @@ export function EntryForm({
       {entryId && <input type="hidden" name="entryId" value={entryId} />}
       {perfilDaTela && <input type="hidden" name="profileId" value={perfilDaTela} />}
       {state.error && <p className="w-full rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{state.error}</p>}
-      <CategoryFields
-        recentSubcategories={recentSubcategories}
-        customCategories={customCategories}
-        stacked={stacked}
-        defaultCategory={defaultCategory}
-        defaultParentCategory={defaultParentCategory}
-        defaultSubcategory={defaultSubcategory}
-        defaultCustomCategoryId={defaultCustomCategoryId}
-        descriptionHint={description}
-      />
-      <Field
-        label={t.formLancDescricao}
-        id="description"
-        name="description"
-        value={description}
-        onChange={(e) => setDescription(e.target.value)}
-        placeholder={t.formLancDescricaoPlaceholder}
-        className={stacked ? "w-full" : ""}
-      />
+      {/* A ordem da cabeça, não a do banco: "gastei 45 no mercado". Primeiro o VALOR (o que ela
+          tem certeza), depois o que foi, e só então a categoria — que o app já sugere a partir da
+          descrição (`descriptionHint`), então quase sempre chega pronta. Antes o formulário abria
+          com o tipo e 8 chips de categoria, e o valor ficava lá embaixo. */}
       <div className={`flex flex-col gap-1.5 ${stacked ? "w-full" : "w-40"}`}>
         <CurrencyField
           label={t.formLancValor}
@@ -164,6 +149,25 @@ export function EntryForm({
           />
         )}
       </div>
+      <Field
+        label={t.formLancDescricao}
+        id="description"
+        name="description"
+        value={description}
+        onChange={(e) => setDescription(e.target.value)}
+        placeholder={t.formLancDescricaoPlaceholder}
+        className={stacked ? "w-full" : ""}
+      />
+      <CategoryFields
+        recentSubcategories={recentSubcategories}
+        customCategories={customCategories}
+        stacked={stacked}
+        defaultCategory={defaultCategory}
+        defaultParentCategory={defaultParentCategory}
+        defaultSubcategory={defaultSubcategory}
+        defaultCustomCategoryId={defaultCustomCategoryId}
+        descriptionHint={description}
+      />
       <Field
         label={t.formLancData}
         id="entryDate"
@@ -190,8 +194,9 @@ export function EntryForm({
         </label>
       )}
       {!isEditing && (
-        <label className={`flex items-center gap-2 text-xs text-ink-muted ${stacked ? "w-full" : ""}`}>
-          <input type="checkbox" name="repeatMonthly" className="h-3.5 w-3.5 accent-accent" />
+        // min-h-11 + caixinha de 20px: a linha inteira é o alvo do toque (44px), não os 14px da caixa.
+        <label className={`flex min-h-11 items-center gap-2.5 text-xs text-ink-muted ${stacked ? "w-full" : ""}`}>
+          <input type="checkbox" name="repeatMonthly" className="h-5 w-5 shrink-0 accent-accent" />
           {t.formLancRepetir(year)}
         </label>
       )}
@@ -208,7 +213,8 @@ export function EntryForm({
           </label>
         </fieldset>
       )}
-      <Button type="submit" disabled={isPending} size="sm" className={stacked ? "w-full" : ""}>
+      {/* Na gaveta é o botão principal da tela: tamanho cheio (44px de altura), não o compacto. */}
+      <Button type="submit" disabled={isPending} size={stacked ? "md" : "sm"} className={stacked ? "w-full" : ""}>
         {isPending ? t.formSalvando : isEditing ? t.formLancSalvar : t.formLancLancar}
       </Button>
     </Card>

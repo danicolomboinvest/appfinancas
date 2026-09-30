@@ -31,6 +31,7 @@ import { classify, normalizeMerchant, type LearnedRule } from "@/lib/import/clas
 import { pareceEstorno } from "@/lib/import/estorno";
 import { pareceAplicacao, pareceContaPropria, parecePagamentoDeFatura, pareceResgate } from "@/lib/import/dinheiro-proprio";
 import { casarPorDataEValor, type ExistenteSolto } from "@/lib/import/duplicata-solta";
+import { detectarVencimento } from "@/lib/import/vencimento";
 
 const PARENT_CATEGORY_VALUES: ParentCategory[] = [
   "MORADIA",
@@ -107,6 +108,9 @@ export type ParseStats = {
   conferencia: Conferencia;
   /** Faltou coisa de verdade na leitura — a MESMA régua do relatório diário e do arquivo guardado. */
   leituraIncompleta: boolean;
+  /** Fatura: o vencimento impresso no arquivo ("YYYY-MM-DD"), pra tela já sugerir o mês em que
+   * ela entra. null quando não é fatura ou o arquivo não diz (ver lib/import/vencimento.ts). */
+  vencimento: string | null;
 };
 
 export type ParseStatementResult =
@@ -306,6 +310,9 @@ export async function parseStatementAction(formData: FormData): Promise<ParseSta
     suspeitas: checarPlausibilidade(parsed, docType),
     conferencia: conferirLeitura(text, docType, parsed),
     leituraIncompleta: false,
+    // Também quando ela escolheu "extrato" e o arquivo parece fatura: a pergunta "é fatura?"
+    // mostra o mês, e o mês certo é o do vencimento.
+    vencimento: docType === "fatura" || detectedKind === "fatura" ? detectarVencimento(text) : null,
   };
   stats.leituraIncompleta = leituraIncompleta(stats.conferencia, leitor !== null, isPartialRead(moneyLines, items.length));
   if (docType !== "fatura") await separarDinheiroProprio(ctx, items);

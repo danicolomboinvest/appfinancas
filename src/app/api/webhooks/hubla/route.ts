@@ -5,6 +5,7 @@ import { isProductAllowed, recordSeenProduct, type HublaProduct } from "@/lib/re
 import { findUserByEmail } from "@/lib/repositories/user.repo";
 import { sendEmail } from "@/lib/email/send";
 import { accessGrantedEmail } from "@/lib/email/templates";
+import { caminhoDoCadastro } from "@/lib/auth/convite-cadastro";
 
 /**
  * Webhook do Hubla (webhooks v2): libera/revoga acesso automaticamente conforme a pessoa
@@ -152,7 +153,9 @@ export async function POST(request: Request) {
     if (isNew && !(await findUserByEmail(email))) {
       const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host") ?? "financas.danicolombo.com.br";
       const proto = request.headers.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
-      const { subject, html } = accessGrantedEmail({ email, registerUrl: `${proto}://${host}/register` });
+      // O link já leva o e-mail da compra (assinado) pro cadastro: quem digitava outro e-mail
+      // ali ficava com a conta sem a compra, vendo cadeado em tudo (ver convite-cadastro.ts).
+      const { subject, html } = accessGrantedEmail({ email, registerUrl: `${proto}://${host}${caminhoDoCadastro(email)}` });
       const result = await sendEmail({ to: email, subject, html });
       emailed = result.ok;
     }

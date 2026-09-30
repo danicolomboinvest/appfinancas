@@ -35,6 +35,12 @@ function BigNumber({ children, color = GOLD }: { children: React.ReactNode; colo
   );
 }
 
+/** "setembro" → "Setembro". As barras da comparação levam o nome do mês, e não "Este mês" e
+ * "Mês passado": os stories abrem no mês seguinte, e "este mês" apontaria pro mês errado. */
+function maiuscula(texto: string): string {
+  return texto.charAt(0).toUpperCase() + texto.slice(1);
+}
+
 /** Barra horizontal comparativa (estilo "declarado vs. real" do Opal). */
 function CompareBar({ label, value, max, color }: { label: string; value: number; max: number; color: string }) {
   const money = useMoney();
@@ -132,7 +138,7 @@ export function RecapStories({ recap, monthKey }: { recap: MonthlyRecap; monthKe
       tone: "gold",
       content: (
         <div className="flex flex-col items-center gap-4 text-center">
-          <p className="text-lg text-white/80">{t.impStoryGastou}</p>
+          <p className="text-lg text-white/80">{t.impStoryGastouEm(recap.mesNome)}</p>
           <BigNumber>{money(recap.monthSpent, { round: true })}</BigNumber>
           {recap.topCategory && (
             <p className="text-base text-white/70">
@@ -159,13 +165,13 @@ export function RecapStories({ recap, monthKey }: { recap: MonthlyRecap; monthKe
           </div>
           <div className="flex flex-col gap-5">
             <CompareBar
-              label={t.impStoryEsteMes}
+              label={maiuscula(recap.mesNome)}
               value={recap.monthSpent}
               max={Math.max(recap.monthSpent, recap.prevMonthSpent)}
               color={delta !== null && !spentLess ? TERRA : SAGE}
             />
             <CompareBar
-              label={t.impStoryMesPassado}
+              label={maiuscula(recap.mesAnteriorNome)}
               value={recap.prevMonthSpent}
               max={Math.max(recap.monthSpent, recap.prevMonthSpent)}
               color="rgba(255,255,255,0.25)"

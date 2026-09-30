@@ -21,7 +21,7 @@ export function CollapsibleSection({
         type="button"
         onClick={() => setOpen((value) => !value)}
         aria-expanded={open}
-        className="flex w-fit items-center gap-1.5 text-sm font-medium text-accent-strong hover:underline"
+        className="flex min-h-11 w-fit items-center gap-1.5 text-sm font-medium text-accent-strong hover:underline"
       >
         {label}
         <ChevronDown size={14} className={`transition-transform duration-150 ${open ? "rotate-180" : ""}`} />

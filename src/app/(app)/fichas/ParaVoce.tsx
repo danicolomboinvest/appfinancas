@@ -60,7 +60,7 @@ export function ParaVoceCard({ data, ticker, money, voz }: { data: ParaVoce; tic
         </div>
       )}
 
-      <p className="text-[11px] text-ink-faint">{textos.fichasNaoRecomendacao}</p>
+      <p className="text-xs text-ink-faint">{textos.fichasNaoRecomendacao}</p>
     </Card>
   );
 }

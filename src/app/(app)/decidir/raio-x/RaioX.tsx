@@ -28,10 +28,10 @@ export function RaioX({ itens, decididos }: { itens: RaioXItem[]; decididos: Rec
   return (
     <div className="flex flex-col gap-4">
       <Card className="p-5">
-        <p className="text-caption text-ink-muted">Juntos, por ano</p>
+        <p className="text-caption text-ink-muted">{t.raioxJuntosAno}</p>
         <p className="text-[2.25rem] font-bold leading-none tracking-tight tabular-nums text-ink">{m(totalMensal * 12)}</p>
         <p className="mt-1.5 text-caption text-ink-muted">
-          Investidos por 5 anos, virariam cerca de <b className="text-ink">{m(valorFuturo(totalMensal, 60))}</b>
+          {t.raioxCincoAnos} <b className="text-ink">{m(valorFuturo(totalMensal, 60))}</b>
         </p>
       </Card>
       <p className="px-1 text-sm text-ink-muted">{t.raioxIntro}</p>
@@ -43,7 +43,7 @@ export function RaioX({ itens, decididos }: { itens: RaioXItem[]; decididos: Rec
               type="button"
               aria-pressed={e === d}
               onClick={() => decidir(item, d)}
-              className={`rounded-xl px-3 py-1.5 text-caption font-semibold transition-colors ${e === d ? "bg-accent-soft text-accent-strong ring-2 ring-accent" : d === "raiox_manter" ? "border border-border text-ink-muted" : "bg-accent-soft text-accent-strong"}`}
+              className={`min-h-11 rounded-xl px-4 py-2 text-caption font-semibold transition-colors ${e === d ? "bg-accent-soft text-accent-strong ring-2 ring-accent" : d === "raiox_manter" ? "border border-border text-ink-muted" : "bg-accent-soft text-accent-strong"}`}
             >
               {rotulo}
             </button>
@@ -54,7 +54,7 @@ export function RaioX({ itens, decididos }: { itens: RaioXItem[]; decididos: Rec
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold text-ink">{item.nome}</p>
                   <p className="text-caption text-ink-faint">
-                    {item.tipo === "assinatura" ? `Nos últimos ${item.meses} meses` : (Math.round(item.vezesPorMes) <= 1 ? "Cerca de 1 vez por mês" : `Cerca de ${Math.round(item.vezesPorMes)} vezes por mês`)}
+                    {item.tipo === "assinatura" ? t.raioxNosUltimos(item.meses) : t.raioxVezesPorMes(Math.round(item.vezesPorMes))}
                   </p>
                 </div>
                 <div className="shrink-0 text-right">
@@ -72,7 +72,7 @@ export function RaioX({ itens, decididos }: { itens: RaioXItem[]; decididos: Rec
       </Card>
       {economia > 0 && <p className="rounded-2xl bg-success/10 px-4 py-3 text-sm font-semibold text-ink">{t.raioxEconomia(m(economia), m(valorFuturo(economia / 12, 60)))}</p>}
       <p className="px-1 text-caption text-ink-faint">
-        Como achei: o mesmo estabelecimento, em pelo menos 3 meses diferentes. Moradia, saúde, educação e impostos ficam de fora. Rendimento de referência: 0,9% ao mês.
+        {t.raioxComoAchei}
       </p>
     </div>
   );

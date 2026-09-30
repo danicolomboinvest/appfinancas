@@ -1,97 +1,12 @@
-"use client";
+import { lerTokenDeConvite } from "@/lib/auth/convite-cadastro";
+import { RegisterForm } from "./RegisterForm";
 
-import Link from "next/link";
-import { useActionState } from "react";
-import { BrandMark } from "@/components/brand/BrandMark";
-import { Field } from "@/components/ui/Field";
-import { Button } from "@/components/ui/Button";
-import { registerAction, type RegisterState } from "./actions";
-
-const initialState: RegisterState = {};
-
-export default function RegisterPage() {
-  const [state, formAction, isPending] = useActionState(registerAction, initialState);
-
-  return (
-    <main className="flex min-h-screen items-center justify-center bg-canvas p-6">
-      <div className="w-full max-w-sm animate-fade-in">
-        <div className="mb-8 flex flex-col items-center gap-3 text-center">
-          <BrandMark size={48} className="rounded-2xl" />
-          <div>
-            <h1 className="text-xl font-semibold tracking-tight text-ink">Criar conta</h1>
-            <p className="mt-1 text-sm text-ink-muted">Comece a organizar sua vida financeira hoje.</p>
-          </div>
-        </div>
-
-        <form
-          action={formAction}
-          className="flex flex-col gap-4 rounded-2xl border border-border bg-surface p-6 shadow-premium-sm"
-        >
-          {state.error && (
-            <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{state.error}</p>
-          )}
-          <Field label="Nome" id="name" name="name" type="text" required maxLength={80} defaultValue={state.values?.name} />
-          <Field
-            label="Email"
-            id="email"
-            name="email"
-            type="email"
-            required
-            autoComplete="email"
-            defaultValue={state.values?.email}
-          />
-          <Field
-            label="Celular (WhatsApp)"
-            id="phone"
-            name="phone"
-            type="tel"
-            required
-            placeholder="(11) 98765-4321"
-            autoComplete="tel"
-            inputMode="tel"
-            defaultValue={state.values?.phone}
-          />
-          <Field
-            label="Senha"
-            id="password"
-            name="password"
-            type="password"
-            required
-            minLength={8}
-            autoComplete="new-password"
-          />
-          <p className="-mt-3 text-xs text-ink-faint">Mínimo de 8 caracteres.</p>
-          <label className="flex items-start gap-2 text-xs text-ink-muted">
-            <input
-              type="checkbox"
-              name="acceptTerms"
-              required
-              defaultChecked={state.values?.acceptTerms}
-              className="mt-0.5 accent-current"
-            />
-            <span>
-              Li e aceito os{" "}
-              <Link href="/termos" target="_blank" className="font-medium text-accent-strong hover:underline">
-                Termos de Uso
-              </Link>{" "}
-              e a{" "}
-              <Link href="/privacidade" target="_blank" className="font-medium text-accent-strong hover:underline">
-                Política de Privacidade
-              </Link>
-              .
-            </span>
-          </label>
-          <Button type="submit" disabled={isPending} className="w-full">
-            {isPending ? "Criando..." : "Criar conta"}
-          </Button>
-          <p className="text-center text-sm text-ink-muted">
-            Já tem conta?{" "}
-            <Link href="/login" className="font-medium text-accent-strong hover:underline">
-              Entrar
-            </Link>
-          </p>
-        </form>
-      </div>
-    </main>
-  );
+/**
+ * Cadastro. Página de servidor só pra ler o `?convite=` do e-mail "Seu acesso está liberado":
+ * o código é conferido aqui (a assinatura usa o AUTH_SECRET) e o formulário recebe só o e-mail
+ * da compra, já preenchido. Sem convite, ou com um vencido/mexido, o cadastro abre em branco.
+ */
+export default async function RegisterPage({ searchParams }: PageProps<"/register">) {
+  const { convite } = await searchParams;
+  return <RegisterForm emailDaCompra={lerTokenDeConvite(convite)} />;
 }

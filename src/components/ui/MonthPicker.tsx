@@ -155,7 +155,7 @@ export function MonthPicker({
                 aria-label="Ano anterior"
                 disabled={yearAtMin}
                 onClick={() => setPanelYear((y) => y - 1)}
-                className="rounded-full p-1.5 text-ink-muted transition-colors hover:bg-surface-2 hover:text-ink disabled:cursor-not-allowed disabled:opacity-30"
+                className="flex size-11 items-center justify-center rounded-full text-ink-muted transition-colors hover:bg-surface-2 hover:text-ink disabled:cursor-not-allowed disabled:opacity-30"
               >
                 <ChevronLeft className="size-4" aria-hidden />
               </button>
@@ -165,7 +165,7 @@ export function MonthPicker({
                 aria-label="Próximo ano"
                 disabled={yearAtMax}
                 onClick={() => setPanelYear((y) => y + 1)}
-                className="rounded-full p-1.5 text-ink-muted transition-colors hover:bg-surface-2 hover:text-ink disabled:cursor-not-allowed disabled:opacity-30"
+                className="flex size-11 items-center justify-center rounded-full text-ink-muted transition-colors hover:bg-surface-2 hover:text-ink disabled:cursor-not-allowed disabled:opacity-30"
               >
                 <ChevronRight className="size-4" aria-hidden />
               </button>
@@ -184,7 +184,7 @@ export function MonthPicker({
                       onChange(toMonthValue(panelYear, month));
                       setOpen(false);
                     }}
-                    className={`rounded-lg px-2 py-2 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-30 ${
+                    className={`min-h-11 rounded-lg px-2 py-2 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-30 ${
                       isSelected ? "bg-ink font-semibold text-canvas" : "text-ink hover:bg-surface-2"
                     }`}
                   >

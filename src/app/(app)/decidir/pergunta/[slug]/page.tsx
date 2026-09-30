@@ -3,6 +3,8 @@ import { notFound, redirect } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
 import { ehEmpresa } from "@/lib/profiles/empresa";
+import { vozDoTema } from "@/lib/profiles/voice";
+import type { PerguntaDoDecidir } from "@/lib/profiles/textos/foco";
 import { serverMoney } from "@/lib/money-server";
 import { Card } from "@/components/ui/Card";
 import { ReportarErro } from "@/components/decisoes/ReportarErro";
@@ -30,10 +32,14 @@ const TONS: Tom[] = ["padrao", "girly", "minimalista", "disciplina", "semfiltro"
  */
 export default async function PerguntaPage(props: PageProps<"/decidir/pergunta/[slug]">) {
   const { slug } = await props.params;
-  const pergunta = PERGUNTAS[slug];
-  if (!pergunta) notFound();
+  if (!PERGUNTAS[slug]) notFound();
   const ctx = await getRequiredSession();
   if (ehEmpresa(ctx.profileKind)) redirect("/mensal/foco");
+  const tx = vozDoTema(ctx.profileTheme, ctx.profileKind).titulos;
+  // A pergunta na voz do tema, a mesma do catálogo do Decidir. PERGUNTAS (dados.ts) diz quais
+  // existem e continua sendo o nome no "Isso está errado?", que a Dani lê sempre igual.
+  const naVoz = (chave: string) => tx.decPerguntas[chave as PerguntaDoDecidir] ?? PERGUNTAS[chave];
+  const pergunta = naVoz(slug);
   const money = await serverMoney();
   const m = (v: number) => money(v, { round: true });
   const r = await carregarRespostas(ctx);
@@ -95,7 +101,7 @@ export default async function PerguntaPage(props: PageProps<"/decidir/pergunta/[
   return (
     <div className="flex flex-col gap-5">
       <Link href="/decidir" className="flex w-fit items-center gap-1 text-sm text-ink-muted hover:text-ink">
-        <ChevronLeft size={16} /> Decidir
+        <ChevronLeft size={16} /> {tx.decTitulo}
       </Link>
 
       {/* A pergunta dela, como numa conversa. */}
@@ -125,7 +131,7 @@ export default async function PerguntaPage(props: PageProps<"/decidir/pergunta/[
           )}
           {resposta.conta.length > 0 && (
             <details className="border-t border-border pt-3">
-              <summary className="cursor-pointer text-caption font-semibold text-accent-strong">Como cheguei nisso</summary>
+              <summary className="cursor-pointer text-caption font-semibold text-accent-strong">{tx.focoComoCheguei}</summary>
               <dl className="mt-2 grid grid-cols-[1fr_auto] gap-x-4 gap-y-1.5 text-caption">
                 {resposta.conta.map((c) => (
                   <div key={c.rotulo} className="contents">
@@ -136,16 +142,16 @@ export default async function PerguntaPage(props: PageProps<"/decidir/pergunta/[
               </dl>
             </details>
           )}
-          <ReportarErro tela={`Decidir: ${pergunta}`} regra={`resposta calculada: ${slug}`} />
+          <ReportarErro tela={`Decidir: ${PERGUNTAS[slug]}`} regra={`resposta calculada: ${slug}`} />
         </div>
       </Card>
 
       <section className="flex flex-col gap-2">
-        <h2 className="text-caption font-semibold uppercase tracking-[0.11em] text-ink-muted">Pergunte também</h2>
+        <h2 className="text-caption font-semibold uppercase tracking-[0.11em] text-ink-muted">{tx.decPergunteTambem}</h2>
         <div className="flex flex-wrap gap-2">
-          {outras.map(([k, t]) => (
-            <Link key={k} href={`/decidir/pergunta/${k}`} className="rounded-full border border-border bg-surface px-3 py-1.5 text-caption font-medium text-ink hover:bg-surface-hover">
-              {t}
+          {outras.map(([k]) => (
+            <Link key={k} href={`/decidir/pergunta/${k}`} className="inline-flex min-h-11 items-center rounded-full border border-border bg-surface px-4 py-2 text-caption font-medium text-ink hover:bg-surface-hover">
+              {naVoz(k)}
             </Link>
           ))}
         </div>

@@ -54,13 +54,16 @@ export const SECOES_DO_MANUAL: SecaoDoManual[] = [
     id: "comecar",
     icone: "rocket",
     titulo: "Comece por aqui",
-    resumo: "Três passos, e o app passa a trabalhar pra você.",
+    resumo: "Três passos pra começar, e um hábito de 5 minutos por semana.",
     blocos: [
       {
         tipo: "passos",
         itens: [
-          { titulo: "Monte o seu {orcamento}", texto: "Quanto entra por mês, quanto você quer guardar e como dividir o resto. No fim, toque em Salvar." },
-          { titulo: "Traga os seus gastos", texto: "Suba o extrato do banco e a fatura do cartão no botão +, em \"{importarArquivo}\". Ou digite um por um." },
+          // A mesma ordem do cartão "Comece por aqui" do Foco e do tour (ver foco/comece.ts):
+          // primeiro os gastos, depois o mês montado, e o orçamento já com os gastos dela.
+          { titulo: "Traga os seus gastos", texto: "Suba o extrato do banco e a fatura do cartão no botão +, em \"{importarArquivo}\". O app monta o mês sozinho. Não tem o arquivo agora? Dá pra digitar um por um." },
+          { titulo: "Veja o seu mês montado", texto: "Na aba {mensal}: quanto entrou, quanto saiu e pra onde foi o dinheiro, separado por categoria." },
+          { titulo: "Monte o seu {orcamento}", texto: "Quanto entra por mês, quanto você quer guardar e como dividir o resto (\"{sugerir}\" faz uma primeira divisão). Com os gastos já no app, você vê se ela combina com a sua vida. No fim, toque em Salvar." },
           { titulo: "Olhe o {foco} toda semana", texto: "São 5 minutos: quanto ainda dá pra gastar e o que precisa da sua atenção." },
         ],
       },
@@ -147,7 +150,7 @@ export const SECOES_DO_MANUAL: SecaoDoManual[] = [
         tipo: "passos",
         itens: [
           { titulo: "Confira o perfil e o mês", texto: "O perfil aparece no topo do app. Na fatura, confira \"{faturaMes}\"." },
-          { titulo: "Dê categoria aos gastos novos", texto: "O app pergunta só o que não reconheceu. Gasto pulado sem categoria não é importado." },
+          { titulo: "Dê categoria aos gastos novos", texto: "O app pergunta só o que não reconheceu. Não sabe agora? Toque em \"Não sei agora\": o gasto entra sem categoria e você decide depois." },
           { titulo: "Responda as dúvidas", texto: "Transferência pra você mesma e resgate: o botão Importar só libera depois." },
           { titulo: "Importe", texto: "O que você categorizou hoje, o app acerta sozinho na próxima vez." },
         ],
@@ -173,7 +176,7 @@ export const SECOES_DO_MANUAL: SecaoDoManual[] = [
         itens: [
           { texto: "Importação errada: em {mensal}, abra \"{historico}\" e toque em Desfazer. Sai tudo que aquele arquivo criou, até as parcelas futuras." },
           { texto: "Para desfazer, você precisa estar no mesmo perfil em que importou." },
-          { texto: "Categoria errada: toque no lançamento e em \"{editar}\". Nos importados, o app aprende com a correção." },
+          { texto: "Categoria errada: toque no lançamento e em \"{editar}\". Nos importados, o app aprende com a correção (nas categorias do app)." },
         ],
       },
     ],
@@ -291,8 +294,8 @@ export const SECOES_DO_MANUAL: SecaoDoManual[] = [
         tipo: "regras",
         itens: [
           { texto: "Subir a fatura como extrato: as compras viram renda.", atencao: true },
-          { texto: "Não conferir o mês da fatura: a fatura de agosto cai em setembro.", atencao: true },
-          { texto: "Pular a categoria na revisão: o gasto não entra.", atencao: true },
+          { texto: "Não conferir o mês em que a fatura vence: a fatura de agosto cai em setembro.", atencao: true },
+          { texto: "Importar no perfil errado: confira o perfil no topo antes de subir o arquivo.", atencao: true },
           { texto: "Mexer no {orcamento} e não tocar em Salvar.", atencao: true },
           { texto: "Manter o \"Pagamento da fatura\" junto com a fatura: o gasto conta duas vezes.", atencao: true },
           { texto: "Guardar dinheiro e não dizer onde ele entrou na {carteira}.", atencao: true },

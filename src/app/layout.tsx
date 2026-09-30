@@ -37,13 +37,14 @@ export const metadata: Metadata = {
   },
 };
 
-// Trava o zoom por pinça e o gesto de duplo-toque, e estende o conteúdo até as bordas
-// (viewport-fit=cover) para o rodapé com env(safe-area-inset-bottom) funcionar como app nativo.
+// Estende o conteúdo até as bordas (viewport-fit=cover) para o rodapé com
+// env(safe-area-inset-bottom) funcionar como app nativo. O zoom por pinça fica LIBERADO de
+// propósito: boa parte do público enxerga mal de perto, e travar o zoom (maximumScale: 1 +
+// userScalable: false) deixava valores de 10–13px impossíveis de ler (WCAG 1.4.4). O zoom
+// automático do iOS ao tocar num campo não depende disso: ele só acontece com fonte abaixo de 16px.
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
   viewportFit: "cover",
   themeColor: "#0c0c0e",
 };

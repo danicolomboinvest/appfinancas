@@ -23,7 +23,7 @@ export default async function RaioXPage() {
   return (
     <div className="flex flex-col gap-5">
       <Link href="/decidir" className="flex w-fit items-center gap-1 text-sm text-ink-muted hover:text-ink">
-        <ChevronLeft size={16} /> Decidir
+        <ChevronLeft size={16} /> {t.decTitulo}
       </Link>
       <PageHeader title={t.raioxTitulo} />
       {itens.length === 0 ? (

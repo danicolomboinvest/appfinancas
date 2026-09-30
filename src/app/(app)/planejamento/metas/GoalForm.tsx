@@ -38,25 +38,30 @@ function GoalIconPicker({ defaultValue = "GENERICO", nome }: { defaultValue?: Go
   return (
     <div className="flex flex-col gap-1.5">
       <span className="text-xs font-medium text-ink-muted">{voz.titulos.formMetaIcone}</span>
-      <div className="flex gap-1.5">
+      {/* No celular não existe "passar o mouse": o nome do ícone vai no aria-label e o do
+          escolhido aparece escrito do lado, senão ninguém sabe o que o cofrinho quer dizer. */}
+      <div className="flex flex-wrap items-center gap-1.5">
         {ICON_OPTIONS.map(({ value, Icon }) => (
           <button
             key={value}
             type="button"
             title={voz.titulos.formMetaIcones[value]}
+            aria-label={voz.titulos.formMetaIcones[value]}
+            aria-pressed={atual === value}
             onClick={() => {
               setIcon(value);
               setEscolhidoAMao(true);
             }}
-            className={`flex h-9 w-9 items-center justify-center rounded-lg border transition-colors ${
+            className={`flex size-11 items-center justify-center rounded-xl border transition-colors ${
               atual === value
                 ? "border-accent bg-accent-soft text-accent-strong"
                 : "border-border-strong bg-surface-2 text-ink-muted hover:text-ink"
             }`}
           >
-            <Icon size={16} strokeWidth={1.75} />
+            <Icon size={18} strokeWidth={1.75} />
           </button>
         ))}
+        <span className="ml-1 text-caption text-ink-muted">{voz.titulos.formMetaIcones[atual]}</span>
       </div>
       <input type="hidden" name="icon" value={atual} />
     </div>
@@ -101,8 +106,10 @@ export function GoalForm({
   }, [isPending, state.error, onSuccess]);
 
   return (
-    <form action={formAction} className="flex flex-wrap items-end gap-3">
-      {state.error && <p className="w-full rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{state.error}</p>}
+    // Em coluna, como os outros formulários do app (reserva, aposentadoria). O flex-wrap em
+    // linha deixava cada campo com uma largura no modal de 375px e o botão de salvar era o
+    // menor elemento da tela, sobrando no canto.
+    <form action={formAction} className="flex flex-col gap-4">
       <Field
         label={t.formMetaNome}
         id="name"
@@ -137,7 +144,9 @@ export function GoalForm({
         suggestions={[0.06, 0.1, 0.12]}
         hint={t.formMetaRendeHint}
       />
-      <Button type="submit" disabled={isPending} size="sm">
+      {/* O erro fica colado no botão: no topo, depois de rolar o modal até aqui, ele sumia da vista. */}
+      {state.error && <p role="alert" className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{state.error}</p>}
+      <Button type="submit" disabled={isPending} className="w-full sm:w-fit">
         {isPending ? t.formSalvando : (submitLabel ?? (goalId ? t.formMetaSalvar : t.formMetaAdicionar))}
       </Button>
     </form>

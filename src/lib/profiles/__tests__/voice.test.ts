@@ -218,11 +218,12 @@ describe("Sem filtro: a tirada de cada categoria varia com o mês", () => {
 });
 
 describe("tela do orçamento: renda e o que foi guardado no mês", () => {
-  it("o Padrão fica como sempre foi; Girly sem jargão; Empresa fala de faturamento e retenção", () => {
+  it("o Padrão fala de guardar, não de aporte; Girly sem jargão; Empresa fala de faturamento e retenção", () => {
+    // O Padrão é o tema que vem marcado: "aporte" saiu do orçamento dele em set/2026.
     const p = vozDoTema("padrao").titulos;
-    expect(p.formOrcEditarPlano(2026)).toBe("Editar seu plano de 2026: renda, aporte e gastos");
-    expect(p.formOrcRendaEAporteNoMes("Setembro")).toBe("Renda e aporte em Setembro");
-    expect([p.formOrcBarraRenda, p.formOrcBarraAporte]).toEqual(["Renda", "Aporte"]);
+    expect(p.formOrcEditarPlano(2026)).toBe("Editar seu plano de 2026: renda, quanto guardar e gastos");
+    expect(p.formOrcRendaEAporteNoMes("Setembro")).toBe("Renda e dinheiro guardado em Setembro");
+    expect([p.formOrcBarraRenda, p.formOrcBarraAporte]).toEqual(["Renda", "Guardado"]);
 
     // O Girly precisa escrever a própria versão: herdar do Padrão levaria "aporte" pra tela dela.
     const g = vozDoTema("girly").titulos;
@@ -258,7 +259,7 @@ describe("lançamento que se repete e aporte sem destino", () => {
   });
 
   it("o aviso de aporte sem destino diz o mês certo e, no Girly, não diz aporte", () => {
-    expect(p.uiAporteSemDestino("R$ 500", null)).toBe("R$ 500 aportados neste mês ainda não estão na carteira");
+    expect(p.uiAporteSemDestino("R$ 500", null)).toBe("R$ 500 guardados neste mês ainda não estão na carteira");
     expect(p.uiAporteSemDestino("R$ 500", "agosto")).toContain("em agosto");
     expect(p.uiAporteSemDestino("R$ 500", "agosto")).not.toContain("neste mês");
     for (const texto of [g.uiAporteSemDestino("R$ 500", null), g.uiAporteSemDestino("R$ 500", "agosto"), g.uiAporteSemDestinoSub, g.uiFixoEscopo("INVESTMENT_CONTRIBUTION"), g.uiFixoApagarTitulo("INVESTMENT_CONTRIBUTION")]) {

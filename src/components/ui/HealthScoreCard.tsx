@@ -117,7 +117,7 @@ function DimensionBar({ label, score, status, detail }: { label: string; score: 
           {score === null ? "—" : <CountUp value={score} />}
         </span>
       </div>
-      {detail && <p className="mt-1 text-[11px] leading-snug text-ink-faint">{detail}</p>}
+      {detail && <p className="mt-1 text-xs leading-snug text-ink-faint">{detail}</p>}
     </div>
   );
 }

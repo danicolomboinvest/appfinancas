@@ -69,8 +69,8 @@ export function GoalAporteChip({
 
   if (marked) {
     return (
-      <span className="mt-2 inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-success-soft px-2.5 py-1 text-caption font-medium text-success">
-        <Check size={12} strokeWidth={3} />
+      <span className="mt-3 inline-flex min-h-11 items-center gap-1.5 rounded-full bg-success-soft px-4 text-sm font-semibold text-success">
+        <Check size={16} strokeWidth={2.5} aria-hidden />
         {voz.titulos.metaAporteFeito(monthLabel)}
       </span>
     );
@@ -78,7 +78,7 @@ export function GoalAporteChip({
 
   if (openAmount) {
     return (
-      <div className="mt-2 flex flex-wrap items-center gap-2">
+      <div className="mt-3 flex flex-wrap items-center gap-2">
         <input
           type="text"
           inputMode="numeric"
@@ -90,20 +90,21 @@ export function GoalAporteChip({
             setCents(digits === "" ? null : Number(digits));
           }}
           placeholder={money(suggestedAmount, { round: true })}
-          className="w-32 rounded-lg border border-border-strong bg-surface px-2.5 py-1.5 text-sm tabular-nums text-ink outline-none focus:border-accent"
+          // 16px: abaixo disso o Safari do iPhone dá zoom na tela ao tocar no campo.
+          className="min-h-11 w-36 rounded-xl border border-border-strong bg-surface px-3 text-base tabular-nums text-ink outline-none focus:border-accent"
         />
         <button
           type="button"
           disabled={pending || !cents}
           onClick={() => cents && send("partial", cents / 100)}
-          className="rounded-full bg-accent px-3 py-1.5 text-caption font-semibold text-on-accent disabled:opacity-50"
+          className="min-h-11 rounded-full bg-accent px-4 text-sm font-semibold text-on-accent disabled:opacity-50"
         >
           Salvar
         </button>
         <button
           type="button"
           onClick={() => setOpenAmount(false)}
-          className="text-caption text-ink-muted hover:text-ink"
+          className="min-h-11 px-2 text-sm text-ink-muted hover:text-ink"
         >
           Cancelar
         </button>
@@ -111,18 +112,20 @@ export function GoalAporteChip({
     );
   }
 
+  // Um botão de verdade (44px, largura toda no celular), logo abaixo do "Guardar R$ X". Era um
+  // chip de 26px com um quadradinho de checkbox — que no Girly ainda somava um segundo ✓ ao
+  // "Guardei em setembro ✓" do texto. Sem ícone aqui: quem quiser o ✓ é a voz do tema.
   return (
-    <div className="mt-2 flex flex-wrap items-center gap-2">
+    <div className="mt-3 flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
       <button
         type="button"
         disabled={pending}
         onClick={() => send("done")}
-        className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-surface-2 px-2.5 py-1 text-caption font-medium text-ink transition-colors hover:bg-surface-hover disabled:opacity-50"
+        className="inline-flex min-h-11 w-full items-center justify-center rounded-full border border-accent/40 bg-accent-soft px-4 text-sm font-semibold text-accent-strong transition-colors hover:bg-accent-soft/70 disabled:opacity-50 sm:w-auto"
       >
-        <span className="size-3 rounded-[4px] border-[1.5px] border-border-strong" aria-hidden />
         {voz.titulos.metaMarcar(monthLabel)}
       </button>
-      <button type="button" onClick={() => setOpenAmount(true)} className="text-caption text-ink-muted hover:text-ink">
+      <button type="button" onClick={() => setOpenAmount(true)} className="min-h-11 self-center px-2 text-sm text-ink-muted hover:text-ink sm:self-auto">
         {voz.titulos.metaOutroValor}
       </button>
     </div>

@@ -126,7 +126,9 @@ export default async function CarteiraPage() {
           a fronteira servidor→cliente. No computador, o aporte do mês e os proventos a caminho
           dividem a linha; sozinho, um deles ocupa a largura toda. */}
       <div className="contents lg:flex lg:flex-wrap lg:items-start lg:gap-5 [&>*]:lg:min-w-0 [&>*]:lg:grow [&>*]:lg:basis-[calc(50%-0.625rem)]">
-        {!empresa && <ContributionCard context={contribution} month={now.getMonth() + 1} />}
+        {/* Sem nenhum investimento cadastrado, o card de "quanto vai guardar / monte sua
+            estratégia" competia com o primeiro passo (cadastrar onde o dinheiro está). */}
+        {!empresa && assets.length > 0 && <ContributionCard context={contribution} month={now.getMonth() + 1} />}
 
         <UpcomingDividendsSection dividends={dividends} voz={voz} />
       </div>

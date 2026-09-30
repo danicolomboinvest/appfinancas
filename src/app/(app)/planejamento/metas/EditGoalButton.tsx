@@ -24,9 +24,10 @@ export function EditGoalButton({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="flex items-center gap-1 text-xs text-ink-faint transition-colors hover:text-ink"
+        // 44px de toque, igual ao "Remover" do outro lado (DeleteButton).
+        className="inline-flex min-h-11 items-center gap-1.5 rounded-full px-3 text-sm text-ink-muted transition-colors hover:bg-surface-2 hover:text-ink"
       >
-        <Pencil size={13} strokeWidth={1.75} />
+        <Pencil size={15} strokeWidth={1.75} aria-hidden />
         {voz.titulos.formEditar}
       </button>
 

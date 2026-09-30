@@ -13,8 +13,15 @@ import type { ParentCategory, ProfileKind } from "@prisma/client";
  * o erro ia direto pro total da categoria sem ninguém ver.
  */
 
-export type Classification = { parentCategory: ParentCategory; subcategory?: string };
-export type LearnedRule = { pattern: string; parentCategory: ParentCategory; subcategory?: string };
+/**
+ * `customCategoryId`: a categoria que ELA criou ("Pet", "Beleza"). Só vem de regra aprendida, e
+ * quando vem ela manda: o `parentCategory` fica como reserva (quem grava usa um ou outro, nunca
+ * os dois). Hoje a regra gravada no banco ainda não guarda a personalizada — falta o campo em
+ * TransactionCategoryRule —, então nenhuma regra chega com ele; o classificador já está pronto
+ * pra quando chegar.
+ */
+export type Classification = { parentCategory: ParentCategory; subcategory?: string; customCategoryId?: string };
+export type LearnedRule = { pattern: string; parentCategory: ParentCategory; subcategory?: string; customCategoryId?: string };
 
 /** `revisar`: a palavra é ambígua demais nesse perfil; para aqui e manda pra revisão. */
 type BuiltinRule = { keywords: string[]; parentCategory: ParentCategory; subcategory?: string } | { keywords: string[]; revisar: true };
@@ -250,7 +257,10 @@ function matchLearned(normalized: string, userRules: LearnedRule[]): Classificat
     if (!rule.pattern || !padraoAprendivel(rule.pattern) || !texto.includes(` ${rule.pattern} `)) continue;
     if (!melhor || rule.pattern.length > melhor.pattern.length) melhor = rule;
   }
-  return melhor ? { parentCategory: melhor.parentCategory, subcategory: melhor.subcategory } : null;
+  if (!melhor) return null;
+  const achada: Classification = { parentCategory: melhor.parentCategory, subcategory: melhor.subcategory };
+  if (melhor.customCategoryId) achada.customCategoryId = melhor.customCategoryId;
+  return achada;
 }
 
 function matchBuiltin(description: string, empresa: boolean): Classification | null {

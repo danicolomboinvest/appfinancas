@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Voz } from "@/lib/profiles/voice";
-import { Target, Plane, Home, Car, PiggyBank } from "lucide-react";
+import { Target, Plane, Home, Car, PiggyBank, PartyPopper } from "lucide-react";
 import type { GoalIcon } from "@prisma/client";
 import { Card } from "@/components/ui/Card";
 import { FitText } from "@/components/ui/FitText";
@@ -116,18 +116,23 @@ export async function GoalCard({
   // era remover o anel: era mudá-lo de lugar. Encostado à esquerda ele empurrava o valor para
   // uma coluna estreita; à direita, o número fica com a largura toda e o anel continua ali.
   return (
-    <Card className={`relative flex flex-col gap-3 p-5 ${achieved ? "opacity-60" : ""}`}>
+    // Meta batida é comemorada, não apagada: o card inteiro em opacity-60 lia como "desativada",
+    // e o "Chegou lá!! 🥳" que todo tema escreveu nunca aparecia. O aro verde marca a conquista
+    // sem pintar o card com cor de tema; a ordem da página continua jogando as batidas pro fim.
+    <Card className={`relative flex flex-col gap-3 p-5 ${achieved ? "ring-1 ring-success/40" : ""}`}>
       <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0 flex-1">
-          <Link href={`/planejamento/metas/${id}`} className="flex min-w-0 items-center gap-2">
+        {/* O bloco inteiro (nome + valor + "de R$ X") abre a meta. Antes só o nome cinza de 13px
+            era link, e quase ninguém descobria que o card tinha uma página. */}
+        <Link href={`/planejamento/metas/${id}`} className="group min-w-0 flex-1">
+          <div className="flex min-w-0 items-center gap-2">
             <span
               className="flex size-6 shrink-0 items-center justify-center rounded-md"
               style={{ backgroundColor: `color-mix(in srgb, ${GOAL_COLORS[kind]} 16%, transparent)`, color: GOAL_COLORS[kind] }}
             >
               <Icon size={14} strokeWidth={2} />
             </span>
-            <p className="line-clamp-1 text-caption text-ink-muted hover:text-ink">{name}</p>
-          </Link>
+            <span className="line-clamp-1 text-caption text-ink-muted group-hover:text-ink">{name}</span>
+          </div>
 
           <div className="mt-1.5">
             <FitText className="text-h1 font-bold leading-none tracking-tight tabular-nums text-ink">{money(currentAmount, { round: true })}</FitText>
@@ -141,12 +146,20 @@ export async function GoalCard({
               </>
             )}
           </p>
-        </div>
+        </Link>
 
         <ProgressRing percent={progressPercent} size={64} color={GOAL_COLORS[kind]} />
       </div>
 
-      {!achieved && (
+      {achieved ? (
+        <div className="flex flex-col gap-1.5 border-t border-border pt-3">
+          <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-success-soft px-3 py-1 text-sm font-semibold text-success">
+            <PartyPopper size={15} strokeWidth={2} aria-hidden />
+            {voz.titulos.metaStatus.achieved}
+          </span>
+          <p className="text-sm text-ink">{voz.metaBatida(name)}</p>
+        </div>
+      ) : (
         <div className="border-t border-border pt-3">
           {/* Com o aporte do mês feito, "guardar R$ X este mês" recalculado com o saldo novo lia
               como se ainda faltasse dinheiro em setembro. Aí o card fala do mês que vem. */}
@@ -162,29 +175,33 @@ export async function GoalCard({
           <p className="mt-0.5 text-caption text-ink-muted">
             {voz.titulos.metaMeses(plan.monthsRemaining)}
           </p>
+
+          {/* "Guardei este mês" logo abaixo do "Guardar R$ X": o pedido e a resposta juntos.
+              Antes era um chip de 26px depois do link da ferramenta, longe do pedido. */}
+          {checkin && (
+            <GoalAporteChip
+              goalId={id}
+              monthKey={checkin.monthKey}
+              monthLabel={checkin.monthLabel}
+              suggestedAmount={checkin.suggestedAmount}
+              done={checkin.done}
+            />
+          )}
         </div>
       )}
 
       {tool && !achieved && (
         <Link
           href={tool.href}
-          className="inline-flex w-fit items-center gap-1 text-caption font-medium text-accent-strong hover:underline"
+          // -my-1.5: o toque continua com 44px, mas sem abrir um buraco entre os blocos do card.
+          className="-my-1.5 inline-flex min-h-11 w-fit items-center gap-1 text-sm font-medium text-accent-strong hover:underline"
         >
           {tool.label} →
         </Link>
       )}
 
-      {checkin && (
-        <GoalAporteChip
-          goalId={id}
-          monthKey={checkin.monthKey}
-          monthLabel={checkin.monthLabel}
-          suggestedAmount={checkin.suggestedAmount}
-          done={checkin.done}
-        />
-      )}
-
-      <div className="flex items-center justify-end gap-4">
+      {/* Editar num canto e apagar no outro: colados, um toque errado apagava a meta. */}
+      <div className="flex items-center justify-between gap-2">
         <EditGoalButton
           goalId={id}
           defaults={{

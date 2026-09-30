@@ -83,7 +83,7 @@ function HeroGame({ dados, mesLabel }: { dados: DadosDoTema; mesLabel: string })
             title="Meses seguidos com o combo feito"
           >
             <span className="text-base font-semibold text-accent"><span aria-hidden>🔥</span> {g.sequencia}</span>
-            <span className="text-[10px] uppercase tracking-wider text-ink-faint">{g.sequencia === 1 ? "mês seguido" : "meses seguidos"}</span>
+            <span className="text-[11px] uppercase tracking-wider text-ink-faint">{g.sequencia === 1 ? "mês seguido" : "meses seguidos"}</span>
           </span>
         </div>
         <div className="relative mt-4 flex gap-1.5">
@@ -96,12 +96,12 @@ function HeroGame({ dados, mesLabel }: { dados: DadosDoTema; mesLabel: string })
             </div>
           ))}
         </div>
-        <div className="relative mt-1 flex justify-between text-[10px] font-semibold uppercase tracking-wider text-ink-faint">
+        <div className="relative mt-1 flex justify-between text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
           <span>III</span><span>II</span><span>I</span>
         </div>
         {/* O combo do mês: lançou e aportou. É o que fecha a temporada, e a pessoa vê o que falta. */}
         <div className="relative mt-4 flex items-center gap-2">
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-ink-faint">Combo do mês</span>
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">Combo do mês</span>
           <ComboChip feito={g.combo.registrou} rotulo="Lançou" />
           <ComboChip feito={g.combo.aportou} rotulo="Aportou" />
           {g.combo.registrou && g.combo.aportou && <span className="text-caption font-semibold text-accent">+{PONTOS.combo}</span>}
@@ -130,7 +130,7 @@ function HeroGame({ dados, mesLabel }: { dados: DadosDoTema; mesLabel: string })
                 />
               </div>
               <span className={`text-[11px] tabular-nums ${h.atual ? "font-semibold text-ink" : "text-ink-muted"}`}>{pts(h.pontos)}</span>
-              <span className={`text-[10px] uppercase ${h.atual ? "text-accent" : "text-ink-faint"}`}>{h.mes}</span>
+              <span className={`text-[11px] uppercase ${h.atual ? "text-accent" : "text-ink-faint"}`}>{h.mes}</span>
             </li>
           ))}
         </ul>
@@ -154,7 +154,7 @@ function HeroGame({ dados, mesLabel }: { dados: DadosDoTema; mesLabel: string })
               >
                 {c.desbloqueada ? ICONE_CONQUISTA[c.chave] ?? "🏅" : "🔒"}
               </span>
-              <span className="text-[9px] leading-tight text-ink-muted">{c.nome}</span>
+              <span className="hyphens-auto break-words text-[11px] leading-tight text-ink-muted">{c.nome}</span>
             </li>
           ))}
         </ul>
@@ -284,7 +284,7 @@ function HeroManifestacao({ dados, money }: { dados: DadosDoTema; money: Money }
               style={{ background: GRADIENTES[i % GRADIENTES.length] }}
             >
               <span className="truncate text-[11px] font-semibold drop-shadow">{s.nome}</span>
-              <span className="text-[10px] opacity-90">{s.pct}%</span>
+              <span className="text-[11px] opacity-90">{s.pct}%</span>
             </Link>
           ))}
           {sonhos.length < 3 && (

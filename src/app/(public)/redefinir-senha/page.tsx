@@ -1,10 +1,10 @@
 "use client";
 
+import { PasswordField } from "@/components/ui/PasswordField";
 import Link from "next/link";
 import { use } from "react";
 import { useActionState } from "react";
 import { KeyRound, CheckCircle2 } from "lucide-react";
-import { Field } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
 import { resetPasswordAction, type ResetState } from "./actions";
 
@@ -57,20 +57,18 @@ export default function RedefinirSenhaPage({ searchParams }: PageProps<"/redefin
           >
             {state.error && <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{state.error}</p>}
             <input type="hidden" name="token" value={token} />
-            <Field
+            <PasswordField
               label="Nova senha"
               id="password"
               name="password"
-              type="password"
               required
               minLength={8}
               autoComplete="new-password"
             />
-            <Field
+            <PasswordField
               label="Repita a nova senha"
               id="confirm"
               name="confirm"
-              type="password"
               required
               minLength={8}
               autoComplete="new-password"

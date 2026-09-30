@@ -15,7 +15,8 @@ export function NewGoalButton() {
 
   return (
     <>
-      <Button type="button" size="sm" onClick={() => setOpen(true)}>
+      {/* Tamanho normal (44px): o "sm" de 28px era o menor botão da tela e o principal dela. */}
+      <Button type="button" onClick={() => setOpen(true)}>
         <Plus size={16} strokeWidth={2} />
         {voz.titulos.formMetaNova}
       </Button>

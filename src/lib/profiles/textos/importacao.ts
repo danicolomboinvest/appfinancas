@@ -20,6 +20,10 @@ export type TextosImportacao = {
   impImportarArquivo: string;
   impConectarBanco: string;
   impConectarBancoSub: string;
+  /** Linha embaixo de "Importar extrato ou fatura" no "+": por que começar por ele. */
+  impImportarSub: string;
+  /** Linha embaixo de "Posso comprar?" no "+" (antes era texto fixo no componente). */
+  impCompraAntes: string;
   // Fluxo de voz (segurar pra falar)
   impVozSegure: string;
   impVozSolte: string;
@@ -176,6 +180,10 @@ export type TextosImportacao = {
   impStoryTitulo: string;
   impStorySub: string;
   impStoryGastou: string;
+  /** "Em setembro você gastou": os stories abrem do dia 1 ao 7, sobre o mês que fechou, e
+   * "este mês" já seria o mês novo. Chave nova (e não a impStoryGastou reescrita) pra não
+   * mexer nas frases dos temas; quem não tem a sua herda esta. */
+  impStoryGastouEm(mes: string): string;
   impStoryMaiorParte: string;
   impStoryComparado: string;
   impStoryDelta(pct: number, menos: boolean): string;
@@ -206,6 +214,67 @@ export type TextosImportacao = {
   impSharePotencial: string;
   /** O texto que vai no lugar da imagem quando o aparelho não compartilha arquivo. */
   impShareTexto(periodo: string, gastei: string, positivo: boolean, saldo: string, potencial: string): string;
+
+  // --- Revisão da importação (set/2026) ---
+  // Chaves NOVAS, no lugar de frases antigas que o componente deixou de usar (impPular,
+  // impFaturaMes/impFaturaMesDica, impSemCategoriaTitulo/Sub). As antigas ficam no tipo porque
+  // os temas ainda as sobrescrevem; a voz de cada tema não se reescreve sem a Dani.
+  /** "Pular" virou "Não sei agora": o gasto entra sem categoria, em vez de sumir da importação. */
+  impNaoSeiAgora: string;
+  /** Linha fixa embaixo da pergunta da categoria: por que ela está vendo isso e o que o botão faz. */
+  impNaoSeiAgoraDica: string;
+  /** Aviso depois do toque que resolveu também os iguais (5 Pix pra mesma pessoa = 1 toque). */
+  impAplicadoAosIguais(n: number): string;
+  /** Na conferência: gastos que vão entrar SEM categoria (antes "ficaram de fora"). */
+  impSemCategoriaEntraTitulo(n: number): string;
+  impSemCategoriaEntraSub(n: number, soma: string): string;
+  impRotuloSemCategoria: string;
+  // Conferência: trocar categoria/tipo de uma linha já classificada
+  impMudar: string;
+  impMudarPronto: string;
+  impRotuloCategoria: string;
+  impRotuloTipo: string;
+  impTipoDevolucao: string;
+  impNaoImportar: string;
+  impMostrarTodos(n: number): string;
+  /** A soma lida bateu com o total impresso no documento: a frase positiva no lugar de "Li X de Y". */
+  impBateuComTotal(valor: string): string;
+  // Fatura: o mês é o do vencimento
+  impFaturaVence: string;
+  impFaturaVenceDica(mes: string): string;
+  impFaturaVencimentoLido(data: string): string;
+  impFaturaUsarMes(mes: string): string;
+  /** Embaixo do campo de senha do PDF: é a senha do arquivo, não a do banco. */
+  impSenhaConfianca: string;
+  // "Isso é gasto ou dinheiro seu mudando de lugar?" (antes escrito direto no componente)
+  impProprioTitulo: string;
+  impProprioDica: string;
+  impProprioMudei: string;
+  impProprioGuardei: string;
+  impProprioGasto: string;
+  impProprioVoltou: string;
+  impProprioRenda: string;
+  // Sair no meio da revisão
+  impSairTitulo: string;
+  impSairDica: string;
+  impSairFicar: string;
+  impSairSim: string;
+  // Depois de importar: o mês montado
+  impRevelaCarregando: string;
+  impRevelaTitulo(mes: string): string;
+  impRevelaEntrou: string;
+  impRevelaSaiu: string;
+  impRevelaMaiores: string;
+  impRevelaLivre: string;
+  impRevelaLivreSub(planejado: string): string;
+  impVerMeuMes: string;
+  /** Onde desfazer. Recebe o título do histórico do tema ("Histórico de importações"). */
+  impRevelaDesfazer(historico: string): string;
+  // "Como tiro o extrato do meu banco?"
+  impComoTirarTitulo: string;
+  impComoTirarAviso: string;
+  impComoTirarFatura: string;
+  impComoTirarOutro: string;
 };
 
 const s = (n: number) => (n === 1 ? "" : "s");
@@ -218,6 +287,8 @@ export const PADRAO_IMPORTACAO: TextosImportacao = {
   impImportarArquivo: "Importar extrato ou fatura (PDF, Excel, CSV, OFX)",
   impConectarBanco: "Conectar meu banco",
   impConectarBancoSub: "Open Finance · os lançamentos chegam sozinhos, todo dia",
+  impImportarSub: "O jeito mais rápido: o mês se monta sozinho",
+  impCompraAntes: "Antes de passar o cartão",
   // Fluxo de voz
   impVozSegure: "Segure para falar",
   impVozSolte: "Solte para transcrever",
@@ -398,6 +469,7 @@ export const PADRAO_IMPORTACAO: TextosImportacao = {
   impStoryTitulo: "Resumo Mensal",
   impStorySub: "O que aconteceu com o seu dinheiro este mês.",
   impStoryGastou: "Este mês você gastou",
+  impStoryGastouEm: (mes) => `Em ${mes} você gastou`,
   impStoryMaiorParte: "A maior parte foi com",
   impStoryComparado: "Comparado com o mês anterior, você gastou",
   impStoryDelta: (pct, menos) => `${pct}% ${menos ? "menos" : "a mais"}`,
@@ -434,4 +506,54 @@ export const PADRAO_IMPORTACAO: TextosImportacao = {
       `• ${positivo ? "Ficou no bolso" : "Saldo"} desde o início: ${saldo}`,
       `• Potencial em 10 anos: ${potencial}`,
     ].join("\n"),
+
+  // Revisão da importação (set/2026)
+  impNaoSeiAgora: "Não sei agora",
+  impNaoSeiAgoraDica:
+    "Esses eu não reconheci. Escolha uma vez e da próxima eu já sei. Não sabe? Toque em \"Não sei agora\": o gasto entra sem categoria e você escolhe depois.",
+  impAplicadoAosIguais: (n) => `Pus a mesma categoria em mais ${n === 1 ? "1 lançamento igual" : `${n} lançamentos iguais`}.`,
+  impSemCategoriaEntraTitulo: (n) => `${n} gasto${s(n)} ${n === 1 ? "vai" : "vão"} entrar sem categoria`,
+  impSemCategoriaEntraSub: (n, soma) =>
+    `${n === 1 ? "Ele entra" : "Eles entram"} no seu mês (${n === 1 ? "é" : "somam"} ${soma}) e você escolhe a categoria depois, na tela do mês. Se preferir, escolha agora.`,
+  impRotuloSemCategoria: "Sem categoria",
+  impMudar: "Mudar",
+  impMudarPronto: "Pronto",
+  impRotuloCategoria: "Categoria",
+  impRotuloTipo: "É o quê?",
+  impTipoDevolucao: "Devolução",
+  impNaoImportar: "Não importar",
+  impMostrarTodos: (n) => `Mostrar todos os ${n}`,
+  impBateuComTotal: (valor) => `Conferi: bateu com o total do documento (${valor}). ✓`,
+  impFaturaVence: "Em que mês essa fatura vence?",
+  impFaturaVenceDica: (mes) =>
+    `Olhe a data de vencimento. Todas as compras desta fatura entram em ${mes}, mesmo as que aconteceram no mês anterior.`,
+  impFaturaVencimentoLido: (data) => `Achei no arquivo: vence em ${data}.`,
+  impFaturaUsarMes: (mes) => `Usar ${mes}`,
+  impSenhaConfianca: "É a senha do arquivo, não a do seu banco. A gente não guarda a senha e não entra na sua conta.",
+  impProprioTitulo: "Isso é gasto ou dinheiro seu mudando de lugar?",
+  impProprioDica: "Transferência pra você mesma e dinheiro voltando do que você guardou não são gasto nem renda.",
+  impProprioMudei: "Só mudei de conta",
+  impProprioGuardei: "Guardei",
+  impProprioGasto: "Foi gasto",
+  impProprioVoltou: "Voltou do que eu guardei",
+  impProprioRenda: "É renda",
+  impSairTitulo: "Sair da importação?",
+  impSairDica: "O que você já conferiu aqui se perde, e aí vai precisar subir o arquivo de novo.",
+  impSairFicar: "Continuar conferindo",
+  impSairSim: "Sair mesmo assim",
+  impRevelaCarregando: "Montando seu mês...",
+  impRevelaTitulo: (mes) => `Seu mês de ${mes} ficou assim`,
+  impRevelaEntrou: "Entrou",
+  impRevelaSaiu: "Saiu",
+  impRevelaMaiores: "Pra onde mais foi o dinheiro",
+  impRevelaLivre: "Livre pra gastar no mês",
+  impRevelaLivreSub: (planejado) => `Do seu orçamento de ${planejado}.`,
+  impVerMeuMes: "Ver meu mês",
+  impRevelaDesfazer: (historico) => `Errou alguma coisa? Dá pra desfazer em "${historico}", no fim da tela do mês.`,
+  impComoTirarTitulo: "Como tiro o extrato do meu banco?",
+  impComoTirarAviso:
+    "Print e foto não funcionam. Use o arquivo que o app do banco gera (PDF, Excel, CSV ou OFX), pela opção Exportar, Baixar ou Enviar por e-mail. \"Imprimir\" pelo celular também não serve.",
+  impComoTirarFatura: "A fatura do cartão costuma chegar todo mês no seu e-mail, em PDF: esse arquivo serve.",
+  impComoTirarOutro:
+    "Outro banco? Procure \"Extrato\" no app e a opção de exportar, baixar ou enviar por e-mail. Se o app só deixar compartilhar como imagem, entre pelo site do banco no computador e baixe em PDF.",
 };

@@ -86,6 +86,25 @@ export type TextosCarteira = {
   cartRemoverSim: string;
   /** Card do Por objetivo quando a classe está dentro da folga do alvo (nem aportar, nem reduzir). */
   compNoAlvo: string;
+  // Carteira vazia (AssetsSection, quem ainda não cadastrou nada): UM caminho só.
+  /** O botão grande da carteira vazia. */
+  cartVazioCadastrar: string;
+  /** Acima dos atalhos de Poupança e Caixinha. */
+  cartVazioAtalhos: string;
+  cartVazioPoupanca: string;
+  cartVazioCaixinha: string;
+  /** Link discreto pra quem já tem o arquivo da corretora. */
+  cartVazioTenhoArquivo: string;
+  // Reserva · "Guardei este mês" (planejamento/reserva-emergencia)
+  /** O botão: lança o valor combinado por mês e soma na reserva. */
+  reservaGuardeiBotao(valor: string): string;
+  /** Embaixo do botão: o que ele faz, pra ela não achar que o dinheiro sai de algum lugar. */
+  reservaGuardeiDica: string;
+  /** Depois de marcar: o mês já guardado. */
+  reservaGuardeiFeito(mes: string): string;
+  reservaGuardeiToast(valor: string): string;
+  /** "Tempo até completar" quando a reserva já chegou no valor. */
+  reservaPronta: string;
   // Carteira · por objetivo (page + StrategyComparisonSection)
   cartDaMeta(pct: string, valor: string): string;
   cartEditarEstrategia: string;
@@ -287,6 +306,18 @@ export const PADRAO_CARTEIRA: TextosCarteira = {
   cartRemoverAvisoAporte: "O dinheiro do mês que você disse que entrou nele volta a pedir destino.",
   cartRemoverSim: "Sim, remover",
   compNoAlvo: "No alvo",
+  // Carteira vazia
+  cartVazioCadastrar: "Cadastrar onde seu dinheiro está",
+  cartVazioAtalhos: "Ou comece por um destes:",
+  cartVazioPoupanca: "Poupança",
+  cartVazioCaixinha: "Caixinha do banco",
+  cartVazioTenhoArquivo: "Tenho o arquivo da corretora",
+  // Reserva · "Guardei este mês"
+  reservaGuardeiBotao: (v) => `Guardei ${v} este mês`,
+  reservaGuardeiDica: "Soma na reserva e entra no mês como dinheiro guardado.",
+  reservaGuardeiFeito: (mes) => `Guardado em ${mes}`,
+  reservaGuardeiToast: (v) => `${v} somados na reserva.`,
+  reservaPronta: "Pronta!",
   // Carteira · por objetivo
   cartDaMeta: (pct, valor) => `${pct} da meta (${valor})`,
   cartEditarEstrategia: "editar estratégia",

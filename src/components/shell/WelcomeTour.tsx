@@ -11,25 +11,34 @@ const SEEN_KEY = "welcome-tour-seen";
 /** Só as chaves da voz cujo valor é uma frase pronta (não função, não lista). */
 type ChaveDeFrase = { [K in keyof Titulos]: Titulos[K] extends string ? K : never }[keyof Titulos];
 
+type TipoDoPerfil = "pessoa" | "casal" | "empresa";
+
 type Step = {
   /** Valor do data-tour do elemento a destacar. Sem target = cartão centralizado (abertura/fim). */
   target?: string;
   /** Alvo redondo (o botão "+") ganha recorte circular. */
   round?: boolean;
-  /** As chaves do título e do texto na voz do tema: o que o passo DIZ muda de tema pra tema. */
+  /** As chaves do título e do texto na voz do tema: o que o passo DIZ muda de tema pra tema.
+   * O texto pode depender do tipo de perfil (o menu "Mais" da Empresa tem outras telas). */
   title: ChaveDeFrase;
-  text: ChaveDeFrase;
+  text: ChaveDeFrase | ((t: Titulos, tipo: TipoDoPerfil) => string);
 };
 
-/** Os passos, na ordem: o que cada um aponta é igual nos sete temas; o que diz vem da voz. */
+/**
+ * Os passos, na ordem: o que cada um aponta é igual nos sete temas; o que diz vem da voz.
+ *
+ * Sem o passo da Carteira: ele falava de "preço médio" e "declaração de Imposto de Renda" pra
+ * quem nunca investiu (e, sem o plano pago, apontava pra uma tela trancada). O "Mais" diz o que
+ * tem lá de verdade, e o fim aponta pro primeiro passo do "Comece por aqui" (subir o extrato ou
+ * a fatura), a mesma ordem do Foco e do manual.
+ */
 const STEPS: Step[] = [
   { title: "uiTourBoasVindasTitulo", text: "uiTourBoasVindasTexto" },
   { target: "registrar", round: true, title: "uiTourRegistrarTitulo", text: "uiTourRegistrarTexto" },
   { target: "fluxo", title: "uiTourFluxoTitulo", text: "uiTourFluxoTexto" },
   { target: "metas", title: "uiTourMetasTitulo", text: "uiTourMetasTexto" },
-  { target: "carteira", title: "uiTourCarteiraTitulo", text: "uiTourCarteiraTexto" },
-  { target: "mais", title: "uiTourMaisTitulo", text: "uiTourMaisTexto" },
-  { title: "uiTourFimTitulo", text: "uiTourFimTexto" },
+  { target: "mais", title: "uiTourMaisTitulo", text: (t, tipo) => t.focoTourMaisTexto(tipo) },
+  { title: "uiTourFimTitulo", text: "focoTourFimTexto" },
 ];
 
 /** Acha, entre os elementos com aquele data-tour (a tab bar do mobile E a sidebar do desktop
@@ -52,7 +61,8 @@ function findVisibleTarget(name: string): HTMLElement | null {
  * está visível. Complementa o checklist de "primeiros passos" (que guia O QUE FAZER primeiro).
  */
 export function WelcomeTour() {
-  const { voz } = useProfileTheme();
+  const { voz, empresa, casal } = useProfileTheme();
+  const tipo: TipoDoPerfil = empresa ? "empresa" : casal ? "casal" : "pessoa";
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(0);
   const [rect, setRect] = useState<DOMRect | null>(null);
@@ -135,25 +145,26 @@ export function WelcomeTour() {
       {/* Cartão de explicação */}
       <div style={calloutStyle} className="glass rounded-2xl p-5">
         <h2 className="text-base font-semibold tracking-tight text-ink">{voz.titulos[s.title]}</h2>
-        <p className="mt-1.5 text-sm leading-relaxed text-ink-muted">{voz.titulos[s.text]}</p>
+        <p className="mt-1.5 text-sm leading-relaxed text-ink-muted">{typeof s.text === "function" ? s.text(voz.titulos, tipo) : voz.titulos[s.text]}</p>
 
         <div className="mt-4 flex items-center justify-between gap-3">
           <div className="flex items-center gap-1.5">
             {STEPS.map((st, i) => (
               <span
                 key={st.title}
-                className={`h-1.5 rounded-full transition-all duration-300 ${i === step ? "w-4 bg-accent" : "w-1.5 bg-white/20"}`}
+                // bg-border-strong e não branco translúcido: nos temas claros o branco sumia no cartão.
+                className={`h-1.5 rounded-full transition-all duration-300 ${i === step ? "w-4 bg-accent" : "w-1.5 bg-border-strong"}`}
               />
             ))}
           </div>
           <div className="flex items-center gap-3">
             {isLast && (
-              <a href="/guia" onClick={finish} className="text-xs font-semibold text-accent-strong hover:underline">
+              <a href="/guia" onClick={finish} className="inline-flex min-h-11 items-center text-caption font-semibold text-accent-strong hover:underline">
                 Ler o manual
               </a>
             )}
             {!isLast && (
-              <button type="button" onClick={finish} className="text-xs font-medium text-ink-faint hover:text-ink">
+              <button type="button" onClick={finish} className="inline-flex min-h-11 items-center px-1 text-caption font-medium text-ink-faint hover:text-ink">
                 {voz.titulos.uiTourPular}
               </button>
             )}

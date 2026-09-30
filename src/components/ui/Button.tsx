@@ -13,9 +13,15 @@ const VARIANT_CLASSES: Record<Variant, string> = {
   danger: "bg-transparent text-danger hover:bg-danger-soft",
 };
 
+/**
+ * Alvo de toque de 44px (WCAG 2.5.5 / Apple HIG): o público tem muita gente com dedo menos
+ * certeiro e vista cansada. O md cresce de fato (min-h-11). O sm continua com a MESMA cara
+ * compacta (~28px) — ele aparece em linha de lista e cartão apertado —, mas ganha uma área
+ * invisível de 8px em cima e embaixo (o ::before), então o toque pega em 44px de altura.
+ */
 const SIZE_CLASSES: Record<Size, string> = {
-  sm: "px-3 py-1.5 text-xs gap-1.5",
-  md: "px-4 py-2.5 text-sm gap-2",
+  sm: "relative px-3 py-1.5 text-xs gap-1.5 before:absolute before:inset-x-0 before:-inset-y-2 before:content-['']",
+  md: "min-h-11 px-4 py-2.5 text-sm gap-2",
 };
 
 export function Button({

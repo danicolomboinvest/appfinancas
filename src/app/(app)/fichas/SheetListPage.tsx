@@ -69,12 +69,12 @@ export async function SheetListPage({ sheetType, createForm }: { sheetType: Shee
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-[17px] font-bold text-ink">{sheet.ticker.toUpperCase()}</span>
                       {naCarteira && (
-                        <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-semibold text-accent-strong">
+                        <span className="rounded-full bg-accent-soft px-2 py-0.5 text-xs font-semibold text-accent-strong">
                           {t.fichasNaCarteira}
                         </span>
                       )}
                       {sheet.fiiType && (
-                        <span className="rounded-full bg-surface-2 px-2 py-0.5 text-[11px] font-medium text-ink-muted">
+                        <span className="rounded-full bg-surface-2 px-2 py-0.5 text-xs font-medium text-ink-muted">
                           {FII_TYPE_LABEL[sheet.fiiType] ?? sheet.fiiType}
                         </span>
                       )}

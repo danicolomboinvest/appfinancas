@@ -55,7 +55,7 @@ export default async function PossoComprarPage() {
     return (
       <div className="flex flex-col gap-5">
         <Link href="/decidir" className="flex w-fit items-center gap-1 text-sm text-ink-muted hover:text-ink">
-          <ChevronLeft size={16} /> Decidir
+          <ChevronLeft size={16} /> {t.decTitulo}
         </Link>
         <PageHeader title={t.compraTitulo} subtitle="Uma pergunta antes da primeira conta." />
         <PerguntaRendaDoCasal />
@@ -200,9 +200,9 @@ export default async function PossoComprarPage() {
   return (
     <div className="flex flex-col gap-5">
       <Link href="/decidir" className="flex w-fit items-center gap-1 text-sm text-ink-muted hover:text-ink">
-        <ChevronLeft size={16} /> Decidir
+        <ChevronLeft size={16} /> {t.decTitulo}
       </Link>
-      <PageHeader title={t.compraTitulo} subtitle="Antes de passar o cartão: o que essa compra faz com o seu mês e com as suas metas." />
+      <PageHeader title={t.compraTitulo} subtitle={t.compraSub} />
       {casal && (
         <form action={responderRendaDoCasalAction.bind(null, rendaDoCasal === "conjunta" ? "casal" : "conjunta")} className="-mt-2 flex flex-wrap items-center gap-x-2 text-caption text-ink-muted">
           Renda considerada: {rendaDoCasal === "conjunta" ? "só o que cada um põe na conta conjunta" : "a do casal inteira"}.

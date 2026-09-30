@@ -90,7 +90,6 @@ export async function computeInsights(ctx: AuthContext, money: MoneyFormatter): 
     emergencyFund,
     strategyComparison,
     portfolio,
-    currentMonthSummary,
     annualBudgetComparison,
     customCategories,
   ] = await Promise.all([
@@ -101,7 +100,6 @@ export async function computeInsights(ctx: AuthContext, money: MoneyFormatter): 
     prisma.emergencyFund.findUnique({ where: { userId: ctx.userId, profileId: ctx.profileId } }),
     getPortfolioStrategyComparison(ctx),
     getPortfolioByObjective(ctx),
-    getMonthlySummary(ctx, year, month),
     getAnnualPlannedVsActual(ctx, year),
     listCustomCategories(ctx),
   ]);
@@ -181,9 +179,6 @@ export async function computeInsights(ctx: AuthContext, money: MoneyFormatter): 
       return getMonthlySummary(ctx, pastDate.getFullYear(), pastDate.getMonth() + 1);
     }),
   );
-  const trailingRates = trailingSummaries
-    .filter((s) => s.totalIncome > 0)
-    .map((s) => (s.totalIncome - s.totalExpense) / s.totalIncome);
   // A taxa de poupança julgada é a do último mês FECHADO (trailingSummaries[0]), contra a
   // média dos anteriores a ele. O mês corrente pela metade — salário já caiu, gastos não —
   // "poupava acima da média" todo dia 5.

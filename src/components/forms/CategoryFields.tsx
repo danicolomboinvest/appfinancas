@@ -45,7 +45,7 @@ function Chip({
 }
 
 /**
- * Campos de categorização de um lançamento: nível 1 (Renda/Gasto/Aporte, select) e, quando
+ * Campos de categorização de um lançamento: nível 1 (Renda/Gasto/Guardado, select) e, quando
  * "Gasto" é selecionado, o nível 2 (categoria-mãe + subcategoria) via chips clicáveis em vez
  * de dropdown, inclui sugestão das subcategorias mais usadas recentemente e um chip "Outro"
  * com texto livre. Publica os valores via inputs escondidos (category/parentCategory/subcategory)
@@ -79,6 +79,7 @@ export function CategoryFields({
   // Os rótulos, subcategorias e chips de tipo mudam com o perfil: numa Empresa, MORADIA é
   // "Estrutura" e a renda é "Vendas", não "Salário". A chave gravada no banco é a mesma.
   const { kind, voz } = useProfileTheme();
+  const t = voz.titulos;
   const [category, setCategory] = useState(defaultCategory);
   const [initial] = useState(() =>
     initialCategoryState({
@@ -160,7 +161,7 @@ export function CategoryFields({
     <div className={stacked ? "flex w-full flex-col gap-3" : "flex flex-wrap items-start gap-3"}>
       <div className="flex flex-col gap-1.5">
         <label htmlFor={selectId} className="text-xs font-medium text-ink-muted">
-          O que é
+          {t.formLancOQueE}
         </label>
         <select
           id={selectId}
@@ -180,8 +181,8 @@ export function CategoryFields({
       {isExpense && (
         <div className={`flex flex-col gap-2 ${stacked ? "w-full" : ""}`}>
           <span className="text-xs font-medium text-ink-muted">
-            Categoria
-            {guessed && parentCategory && <span className="ml-2 font-normal text-accent-strong">sugerida pela descrição</span>}
+            {t.formLancCategoria}
+            {guessed && parentCategory && <span className="ml-2 font-normal text-accent-strong">{t.formLancSugerida}</span>}
           </span>
           <div className="flex flex-wrap gap-1.5">
             {PARENT_CATEGORIES.map((pc) => (
@@ -223,7 +224,7 @@ export function CategoryFields({
               }}
               className="rounded-full border border-dashed border-border-strong bg-transparent px-3 py-1.5 text-xs font-medium text-ink-muted transition-colors hover:text-ink"
             >
-              + Nova
+              {t.formLancNovaCategoria}
             </button>
           </div>
           {addingCategory && (
@@ -239,7 +240,7 @@ export function CategoryFields({
                       handleCreateCategory();
                     }
                   }}
-                  placeholder="Nome da nova categoria"
+                  placeholder={t.formLancNomeCategoria}
                   autoFocus
                   className={`${CONTROL_CLASSES} ${stacked ? "w-full" : "w-56"}`}
                 />
@@ -249,10 +250,10 @@ export function CategoryFields({
                   disabled={creating || !newCategoryName.trim()}
                   className="shrink-0 rounded-full border border-accent bg-accent-soft px-3 py-1.5 text-xs font-medium text-accent-strong transition-opacity disabled:opacity-50"
                 >
-                  {creating ? "Criando…" : "Criar"}
+                  {creating ? t.formLancCriando : t.formLancCriar}
                 </button>
               </div>
-              {createError && <span className="text-[11px] text-danger">{createError}</span>}
+              {createError && <span className="text-xs text-danger">{createError}</span>}
             </div>
           )}
         </div>
@@ -260,12 +261,12 @@ export function CategoryFields({
 
       {isExpense && customCategoryId && (
         <div className={`flex flex-col gap-1.5 ${stacked ? "w-full" : ""}`}>
-          <label className="text-xs font-medium text-ink-muted">Tipo (opcional)</label>
+          <label className="text-xs font-medium text-ink-muted">{t.formLancTipoOpcional}</label>
           <input
             type="text"
             value={customText}
             onChange={(e) => setCustomText(e.target.value)}
-            placeholder="Ex.: ração, banho e tosa"
+            placeholder={t.formLancTipoExemplo}
             className={`${CONTROL_CLASSES} ${stacked ? "w-full" : "w-48"}`}
           />
         </div>
@@ -275,10 +276,10 @@ export function CategoryFields({
           O nome do lugar vai na descrição, que é livre e opcional. */}
       {isExpense && parentCategory && (
         <div className={`flex flex-col gap-2 ${stacked ? "w-full" : ""}`}>
-          <span className="text-xs font-medium text-ink-muted">Tipo</span>
+          <span className="text-xs font-medium text-ink-muted">{t.formLancTipo}</span>
           {(recentSubcategories[parentCategory]?.length ?? 0) > 0 && (
             <div className="flex flex-wrap gap-1.5">
-              <span className="text-[11px] text-ink-faint">Usadas recentemente:</span>
+              <span className="text-xs text-ink-faint">{t.formLancRecentes}</span>
               {recentSubcategories[parentCategory]!.map((s) => (
                 <Chip
                   key={`recent-${s}`}
@@ -311,7 +312,7 @@ export function CategoryFields({
               type="text"
               value={customText}
               onChange={(e) => setCustomText(e.target.value)}
-              placeholder="Que tipo de gasto é?"
+              placeholder={t.formLancOutroTipo}
               className={`${CONTROL_CLASSES} ${stacked ? "w-full" : "w-48"}`}
             />
           )}
@@ -320,10 +321,10 @@ export function CategoryFields({
 
       {!isExpense && (
         <div className={`flex flex-col gap-2 ${stacked ? "w-full" : ""}`}>
-          <span className="text-xs font-medium text-ink-muted">Tipo</span>
+          <span className="text-xs font-medium text-ink-muted">{t.formLancTipo}</span>
           <div className="flex flex-wrap gap-1.5">
-            {freeTypes.map((t) => (
-              <Chip key={t} label={t} active={freeSubcategory === t} onClick={() => setFreeSubcategory(t)} />
+            {freeTypes.map((tipo) => (
+              <Chip key={tipo} label={tipo} active={freeSubcategory === tipo} onClick={() => setFreeSubcategory(tipo)} />
             ))}
             <Chip
               label={OUTRO_SUBCATEGORY_LABEL}
@@ -336,7 +337,7 @@ export function CategoryFields({
               type="text"
               value={freeSubcategory.trim()}
               onChange={(e) => setFreeSubcategory(e.target.value || " ")}
-              placeholder={category === "INCOME" ? "Ex.: venda de um móvel" : "Ex.: consórcio"}
+              placeholder={t.formLancOutroExemplo(category === "INCOME" ? "INCOME" : "INVESTMENT_CONTRIBUTION")}
               autoFocus
               className={`${CONTROL_CLASSES} ${stacked ? "w-full" : ""}`}
             />

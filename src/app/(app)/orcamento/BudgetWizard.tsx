@@ -179,7 +179,7 @@ export function BudgetWizard({
 
   const header = (
     <div className="flex items-center justify-between">
-      <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-accent-strong">{t.formOrcPasso(step, 3)}</span>
+      <span className="text-xs font-bold uppercase tracking-[0.12em] text-accent-strong">{t.formOrcPasso(step, 3)}</span>
       <div className="flex gap-1" aria-hidden>
         {[1, 2, 3].map((s) => (
           <span key={s} className={`h-1 w-7 rounded-full ${s <= step ? "bg-accent" : "bg-border"}`} />
@@ -522,8 +522,8 @@ function CategoryTile({
         <CategoryIcon icon={Icon} color={cat.color} size={36} emoji={cat.custom ? emojiDaCategoria(tema, { kind: "custom" }) : emojiDaCategoria(tema, { kind: "parent", value: cat.key })} />
         <p className="min-w-0 flex-1 truncate text-[13px] font-semibold text-ink">{cat.label}</p>
         {cat.custom && (
-          <button type="button" onClick={() => setConfirmOpen(true)} aria-label={`Apagar categoria ${cat.label}`} className="text-ink-faint hover:text-danger">
-            <Trash2 size={14} />
+          <button type="button" onClick={() => setConfirmOpen(true)} aria-label={`Apagar categoria ${cat.label}`} className="-my-1 -mr-2 flex size-11 shrink-0 items-center justify-center rounded-full text-ink-faint hover:text-danger">
+            <Trash2 size={16} />
           </button>
         )}
       </div>
@@ -543,14 +543,14 @@ function CategoryTile({
           {money(value, { round: true })}
         </button>
       )}
-      <p className="text-[11px] text-ink-faint">
+      <p className="text-xs text-ink-faint">
         {lastMonth > 0 ? t.formOrcMesPassado(lastMonthLabel.slice(0, 3), money(lastMonth, { round: true })) : t.formOrcSemGasto}
       </p>
       <div className="mt-auto flex gap-1.5">
-        <button type="button" onClick={() => onChange(Math.max(0, value - STEP))} aria-label={`Menos ${STEP} em ${cat.label}`} className="flex flex-1 items-center justify-center rounded-lg border border-border-strong bg-surface-2 py-1.5 text-ink-muted hover:text-ink">
+        <button type="button" onClick={() => onChange(Math.max(0, value - STEP))} aria-label={`Menos ${STEP} em ${cat.label}`} className="flex min-h-11 flex-1 items-center justify-center rounded-lg border border-border-strong bg-surface-2 text-ink-muted hover:text-ink">
           <Minus size={16} />
         </button>
-        <button type="button" onClick={() => onChange(value + STEP)} aria-label={`Mais ${STEP} em ${cat.label}`} className="flex flex-1 items-center justify-center rounded-lg border border-border-strong bg-surface-2 py-1.5 text-ink-muted hover:text-ink">
+        <button type="button" onClick={() => onChange(value + STEP)} aria-label={`Mais ${STEP} em ${cat.label}`} className="flex min-h-11 flex-1 items-center justify-center rounded-lg border border-border-strong bg-surface-2 text-ink-muted hover:text-ink">
           <Plus size={16} />
         </button>
       </div>

@@ -48,6 +48,8 @@ import { estadoDoMes, vozDoTema } from "@/lib/profiles/voice";
 import { montarDadosDoTema } from "./theme-hero-data";
 import { ThemeHero } from "./ThemeHero";
 import { ThemeFooter } from "./ThemeFooter";
+import { PrimeiroPassoDoMes } from "./PrimeiroPassoDoMes";
+import { prisma } from "@/lib/db/prisma";
 
 const MONTH_LABELS = [
   "Janeiro",
@@ -139,6 +141,27 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
     getMonthlySummary(ctx, month === 1 ? year - 1 : year, month === 1 ? 12 : month - 1),
     getContributionLinkState(ctx, year, month),
   ]);
+
+  // Conta nova: nenhum lançamento em NENHUM mês deste perfil. Aí a tela inteira seria cartão
+  // zerado ("Entrou R$ 0", roscas vazias, calendário em branco) — no lugar, um passo só:
+  // importar o extrato. Mês vazio de quem já usa o app (um mês futuro, o dia 1º) continua com
+  // a tela de sempre. A consulta extra só roda quando o mês aberto está vazio.
+  const contaNova =
+    entries.length === 0 &&
+    !(await prisma.monthlyEntry.findFirst({ where: { userId: ctx.userId, profileId: ctx.profileId }, select: { id: true } }));
+  if (contaNova) {
+    const t = vozDoTema(ctx.profileTheme, ctx.profileKind).titulos;
+    return (
+      <PrimeiroPassoDoMes
+        titulo={t.uiMesNovoTitulo}
+        texto={t.uiMesNovoTexto}
+        importar={t.uiMesNovoImportar}
+        digitar={t.uiMesNovoDigitar}
+        ajuda={t.uiMesNovoAjuda}
+        confianca={t.uiMesNovoConfianca}
+      />
+    );
+  }
 
   // Planejamento = soma dos valores planejados (orçamento). Mensal: só o mês; anual: o ano todo.
   const monthlyPlanned = monthBudgets.reduce((sum, b) => sum + Number(b.plannedAmount), 0);

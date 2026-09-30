@@ -119,9 +119,11 @@ export default async function MetasPage() {
       <SavingsSplitCard amount={monthPlan?.plannedInvestment ?? 0} targets={savingsTargets} money={money} monthLabel={monthLabel} voz={voz} />
 
       {sorted.length === 0 ? (
+        // Vazio com saída: o botão de criar fica aqui também, não só no canto do cabeçalho.
         <EmptyState
           icon={Target}
           message={voz.titulos.metasVazio}
+          action={<NewGoalButton />}
         />
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">

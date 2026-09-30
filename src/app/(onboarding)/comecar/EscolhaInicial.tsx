@@ -60,11 +60,11 @@ export function EscolhaInicial({ nome }: { nome: string | undefined }) {
               >
                 {/* A mesma prévia da tela de perfis: fundo, tinta, destaque e a primeira frase. */}
                 <span className="flex w-24 shrink-0 flex-col gap-1 overflow-hidden rounded-lg border p-2" style={{ backgroundColor: opcao.paleta.canvas, borderColor: opcao.paleta.borderStrong }}>
-                  <span className="truncate text-[10px] font-semibold leading-tight" style={{ color: opcao.paleta.ink }}>
+                  <span className="truncate text-[11px] font-semibold leading-tight" style={{ color: opcao.paleta.ink }}>
                     {voz.saudacao("manha", primeiroNome) ?? "Platina II · 940 pts"}
                   </span>
                   <span className="h-1.5 w-3/5 rounded-full" style={{ backgroundColor: opcao.paleta.accent }} />
-                  <span className="truncate text-[9px] leading-tight" style={{ color: opcao.paleta.inkMuted }}>{voz.rotuloResultado}</span>
+                  <span className="truncate text-[11px] leading-tight" style={{ color: opcao.paleta.inkMuted }}>{voz.rotuloResultado}</span>
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block text-sm text-ink">{opcao.label}</span>

@@ -11,6 +11,10 @@ export type WeekdaySpend = { label: string; value: number };
 export type MonthlyRecap = {
   /** Rótulo do mês recapeado, ex.: "Julho de 2026". */
   rangeLabel: string;
+  /** Só o nome do mês recapeado, minúsculo ("setembro"): "Em setembro você gastou". */
+  mesNome: string;
+  /** Nome do mês anterior a ele ("agosto"), pra legenda da barra de comparação. */
+  mesAnteriorNome: string;
   monthSpent: number;
   prevMonthSpent: number;
   /** (monthSpent - prevMonthSpent) / prevMonthSpent; null quando não há base de comparação. */
@@ -42,6 +46,12 @@ const PROJECTION_YEARS = 10;
 
 function monthLabel(year: number, month: number): string {
   return new Date(year, month - 1, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+}
+
+/** "setembro": o nome do mês, sem o ano. Os stories nomeiam o mês em vez de dizer "este mês",
+ * que do dia 1 ao 7 (a janela deles) já é o mês seguinte. */
+export function nomeDoMes(year: number, month: number): string {
+  return new Date(year, month - 1, 1).toLocaleDateString("pt-BR", { month: "long" });
 }
 
 /**
@@ -91,27 +101,30 @@ export function maiorCategoriaDoMes(
 }
 
 /**
- * Qual mês recapear e se o card deve aparecer agora: só no fim do mês corrente (dia >= 25) ou
- * no começo do mês seguinte (dia <= 7), e só se esse mês ainda não foi fechado pelo usuário
- * (User.recapDismissedMonth). Fora dessa janela, ou já visto, o card não aparece.
+ * Qual mês recapear e se o card deve aparecer agora: só no começo do mês (dia 1 a 7), sobre o
+ * mês ANTERIOR, e só se esse mês ainda não foi fechado pelo usuário (User.recapDismissedMonth).
+ * Fora dessa janela, ou já visto, o card não aparece.
+ *
+ * Até 30/09/2026 a janela abria também do dia 25 ao fim do mês, com o mês CORRENTE pela metade.
+ * Dois problemas: (1) a chave era a mesma do resumo do dia 1 ao 7 ("2026-09" nos dois), então
+ * quem via ou fechava os stories no dia 26 nunca mais via o resumo de setembro fechado; (2) o
+ * mês incompleto contra agosto inteiro quase sempre dava "gastou 40% a menos 👏", um elogio falso.
  */
 export function getRecapEligibility(
   now: Date,
   recapDismissedMonth: string | null,
 ): { eligible: boolean; year: number; month: number; monthKey: string } {
   const day = now.getDate();
-  let year = now.getFullYear();
-  let month = now.getMonth() + 1; // recapeia o mês CORRENTE (quase fechado)
-  if (day <= 7) {
-    // Início do mês: recapeia o mês ANTERIOR (já fechado de verdade).
-    const prev = new Date(year, month - 2, 1);
-    year = prev.getFullYear();
-    month = prev.getMonth() + 1;
-  } else if (day < 25) {
-    // Meio do mês: fora da janela, não mostra nada.
-    return { eligible: false, year, month, monthKey: `${year}-${String(month).padStart(2, "0")}` };
-  }
-  const monthKey = `${year}-${String(month).padStart(2, "0")}`;
+  // Recapeia o mês ANTERIOR (já fechado de verdade).
+  const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const year = prev.getFullYear();
+  const month = prev.getMonth() + 1;
+  // Chave própria do mês FECHADO ("2026-09-fechado"), diferente da antiga ("2026-09"): quem
+  // fechou os stories do mês pela metade entre 25 e 30/09/2026 ficou com "2026-09" gravado, e com
+  // a chave antiga não veria o resumo de setembro de verdade no dia 1º.
+  const monthKey = `${year}-${String(month).padStart(2, "0")}-fechado`;
+  // Do dia 8 em diante: fora da janela, não mostra nada.
+  if (day > 7) return { eligible: false, year, month, monthKey };
   return { eligible: recapDismissedMonth !== monthKey, year, month, monthKey };
 }
 
@@ -230,6 +243,8 @@ export async function computeMonthlyRecap(ctx: AuthContext, year: number, month:
 
   return {
     rangeLabel: monthLabel(year, month),
+    mesNome: nomeDoMes(year, month),
+    mesAnteriorNome: nomeDoMes(prev.getFullYear(), prev.getMonth() + 1),
     monthSpent,
     prevMonthSpent,
     monthDeltaPercent: prevMonthSpent > 0 ? (monthSpent - prevMonthSpent) / prevMonthSpent : null,

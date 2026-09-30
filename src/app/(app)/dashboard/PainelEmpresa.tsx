@@ -245,12 +245,12 @@ function Indicador({
         <FitText className={`text-[22px] font-semibold tracking-tight tabular-nums ${cor}`}>{valor}</FitText>
       </div>
       {variacao !== undefined && variacao !== null && (
-        <p className={`mt-1.5 inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${bom ? "bg-success-soft text-success" : "bg-danger-soft text-danger"}`}>
+        <p className={`mt-1.5 inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${bom ? "bg-success-soft text-success" : "bg-danger-soft text-danger"}`}>
           {subiu ? "↑" : "↓"} {Math.abs(Math.round(variacao * 100))}% vs. {periodo}
         </p>
       )}
-      {variacao === null && periodo && <p className="mt-1.5 text-[11px] text-ink-faint">sem {periodo} pra comparar</p>}
-      {nota && <p className="mt-1.5 text-[11px] leading-snug text-ink-faint">{nota}</p>}
+      {variacao === null && periodo && <p className="mt-1.5 text-xs text-ink-faint">sem {periodo} pra comparar</p>}
+      {nota && <p className="mt-1.5 text-xs leading-snug text-ink-faint">{nota}</p>}
     </>
   );
   const classe = "rounded-2xl border border-border bg-surface p-3.5 sm:p-4";

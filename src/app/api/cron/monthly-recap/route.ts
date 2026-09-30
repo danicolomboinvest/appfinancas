@@ -15,7 +15,9 @@ import { toCurrencyCode } from "@/lib/money";
 import { categoryLabel, isParentCategoryKey } from "@/lib/categories";
 import { getOrCreateActiveProfile } from "@/lib/repositories/profile.repo";
 import { vozDoTema } from "@/lib/profiles/voice";
-import { maiorCategoriaDoMes } from "@/lib/recap/monthly";
+import { maiorCategoriaDoMes, nomeDoMes } from "@/lib/recap/monthly";
+import { ajustarResumoPorEmail } from "@/lib/recap/email-do-resumo";
+import { ehEmpresa } from "@/lib/profiles/empresa";
 
 // Centenas de e-mails em sequência: o teto maior da Vercel (o mesmo do cron do Open Finance), e
 // o loop para sozinho com folga antes dele (PRAZO_MS). Quem ficar pra trás recebe na rodada do
@@ -230,7 +232,10 @@ export async function GET(request: Request) {
       const income = totalOf("INCOME");
       const expense = totalOf("EXPENSE");
       const investment = totalOf("INVESTMENT_CONTRIBUTION");
-      const balance = income - expense - investment;
+      // O valor grande é renda − gastos, e o guardado vai ao lado como conquista: descontar o
+      // guardado fazia quem guardou muito receber "Faltou no mês" em vermelho. O botão leva pro
+      // fechamento do mês e diz isso. Ver ajustarResumoPorEmail.
+      const ajuste = ajustarResumoPorEmail(t, { income, expense, investment }, nomeDoMes(year, month), ehEmpresa(perfilDoEmail.kind));
 
       // Gasto do mês anterior ao recapeado, só pra frase de comparação.
       const previous = month === 1 ? { year: year - 1, month: 12 } : { year, month: month - 1 };
@@ -261,14 +266,17 @@ export async function GET(request: Request) {
         income,
         expense,
         investment,
-        balance,
+        balance: ajuste.balance,
         // Comparar só com um mês anterior que ela viveu inteiro no app: conta criada no dia 25 de
         // agosto, com 2 gastos anotados, levava "seus gastos ficaram 400% acima" em setembro.
         expenseDelta: previousExpense > 0 && user.createdAt < new Date(Date.UTC(previous.year, previous.month - 1, 1, 3)) ? expense / previousExpense - 1 : null,
         topCategory: top,
-        appUrl: `${baseUrl}/mensal/${year}/${month}`,
+        // O fechamento do mês (o ritual de passos), e não a tela crua do mês: é lá que ela vê
+        // se fechou no azul, decide o que fazer com a sobra e ajusta o plano do mês novo. Ele
+        // fecha sempre o mês anterior, o mesmo deste e-mail.
+        appUrl: `${baseUrl}/mensal/foco/fechamento`,
         preferencesUrl: `${baseUrl}/configuracoes/notificacoes`,
-        t,
+        t: ajuste.t,
         perfil: user._count.financialProfiles > 1 ? perfilDoEmail.name : undefined,
       });
 

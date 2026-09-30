@@ -31,8 +31,17 @@ export function ProgressBar({
     return () => cancelAnimationFrame(raf);
   }, [clamped]);
 
+  // Trilho em bg-border (token de cada tema), não em bg-white/8: branco translúcido some em
+  // tema claro, e a barra do orçamento virava um traço solto sem o "cheio" pra comparar. No
+  // escuro o border tem quase a mesma opacidade do white/8 antigo, então lá nada muda.
   return (
-    <div className={`h-2 w-full overflow-hidden rounded-full bg-white/8 ${className}`}>
+    <div
+      role="progressbar"
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={Math.round(clamped * 100)}
+      className={`h-2 w-full overflow-hidden rounded-full bg-border ${className}`}
+    >
       <div
         className="h-full rounded-full transition-[width] duration-[800ms] ease-out"
         style={

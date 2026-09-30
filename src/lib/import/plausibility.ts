@@ -63,6 +63,20 @@ export function checarPlausibilidade(
     }
   }
 
+  // 2b. O contrário: extrato comprido SEM NENHUMA entrada. Foi o que o extrato do Itaú fazia:
+  //     o banco escreve a entrada sem sinal, o app lia como saída, e salário, Pix recebido e TED
+  //     viravam gasto sem aviso nenhum (a regra 2 só olhava o "quase tudo entrada"). Conta que
+  //     só paga existe, por isso aqui é pergunta, não bloqueio. Com menos de 8 linhas, uma
+  //     semana sem salário é normal e o aviso só atrapalharia.
+  if (docType === "extrato" && txns.length >= 8 && txns.every((t) => t.amount < 0)) {
+    const pareceEntrada = /sal[aá]rio|sispag|recebid|pix\s+transf|\bted\b|\bdoc\b|dep[oó]sito|transf/i;
+    const exemplos = [...txns.filter((t) => pareceEntrada.test(t.description ?? "")), ...txns.filter((t) => !pareceEntrada.test(t.description ?? ""))];
+    suspeitas.push({
+      texto: `Não achei nenhuma entrada de dinheiro nesses ${txns.length} lançamentos. Se caiu salário ou Pix nessa conta no período, pode ser que eu tenha lido o sinal errado: confira antes de importar.`,
+      exemplos: exemplos.slice(0, 3).map((t) => `${(t.description ?? "").slice(0, 34)} — entrou como saída de ${money(t.amount)}`),
+    });
+  }
+
   // 3. Valores sem centavo nenhum. Dinheiro de extrato quase sempre tem centavo; número de
   //    documento, de autenticação e valor lido sem a vírgula nunca têm. É o sinal que pega a
   //    leitura torta mesmo quando os valores são pequenos demais pra chamar atenção sozinhos.

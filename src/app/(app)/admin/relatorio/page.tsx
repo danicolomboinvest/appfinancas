@@ -52,7 +52,7 @@ export default async function AdminRelatorioPage() {
                   style={{ height: `${Math.max(2, (w.count / maxSignup) * 72)}px` }}
                   title={`Semana de ${w.weekLabel}: ${w.count} cadastro(s)`}
                 />
-                <span className="text-[10px] text-ink-faint">{w.weekLabel}</span>
+                <span className="text-[11px] text-ink-faint">{w.weekLabel}</span>
               </div>
             ))}
           </div>
@@ -196,13 +196,13 @@ export default async function AdminRelatorioPage() {
               const maxDay = Math.max(1, ...usage.visitorsByDay.map((x) => x.count));
               return (
                 <div key={d.dayLabel} className="flex flex-1 flex-col items-center gap-1">
-                  <span className="text-[10px] text-ink-muted">{d.count > 0 ? d.count : ""}</span>
+                  <span className="text-[11px] text-ink-muted">{d.count > 0 ? d.count : ""}</span>
                   <div
                     className="w-full rounded-t bg-accent/70"
                     style={{ height: `${Math.max(2, (d.count / maxDay) * 56)}px` }}
                     title={`${d.dayLabel}: ${d.count} pessoa(s)`}
                   />
-                  <span className="text-[9px] text-ink-faint">{d.dayLabel}</span>
+                  <span className="text-[11px] text-ink-faint">{d.dayLabel}</span>
                 </div>
               );
             })}

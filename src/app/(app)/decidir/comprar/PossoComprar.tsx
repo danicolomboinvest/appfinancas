@@ -110,10 +110,10 @@ export function PossoComprar({ base, hoje }: { base: CompraBase; hoje: { ano: nu
         {/* Depois da decisão o formulário trava: a resposta mostrada é a da hora da decisão. */}
         <fieldset disabled={decisao !== null || salvando} className="flex min-w-0 flex-col gap-4 disabled:opacity-70">
           <label className="flex flex-col gap-1.5 text-label font-medium text-ink-muted">
-            O que você quer comprar?
-            <input className={CONTROL_CLASSES} value={descricao} maxLength={120} onChange={(e) => setDescricao(e.target.value)} placeholder="Ex.: celular" />
+            {t.compraOQue}
+            <input className={CONTROL_CLASSES} value={descricao} maxLength={120} onChange={(e) => setDescricao(e.target.value)} placeholder={t.compraOQueExemplo} />
           </label>
-          <CurrencyInputControlled label="Valor total" value={valor} onChange={setValor} />
+          <CurrencyInputControlled label={t.compraValorTotal} value={valor} onChange={setValor} />
           <div className="grid grid-cols-2 gap-1 rounded-full border border-border bg-surface-2 p-1" role="group" aria-label="Forma de pagamento">
             {(["vista", "parcelado"] as const).map((op) => (
               <button
@@ -123,24 +123,24 @@ export function PossoComprar({ base, hoje }: { base: CompraBase; hoje: { ano: nu
                 onClick={() => setModo(op)}
                 className={`rounded-full py-2 text-sm font-medium transition-all ${modo === op ? "bg-pill text-on-pill" : "text-ink-muted"}`}
               >
-                {op === "vista" ? "À vista" : "Parcelado"}
+                {op === "vista" ? t.compraAVista : t.compraParcelado}
               </button>
             ))}
           </div>
           {modo === "parcelado" && (
             <div className="grid grid-cols-2 gap-3">
               <label className="flex flex-col gap-1.5 text-label font-medium text-ink-muted">
-                Em quantas vezes
+                {t.compraVezes}
                 <input className={CONTROL_CLASSES} inputMode="numeric" value={parcelas} onChange={(e) => setParcelas(e.target.value)} />
               </label>
               <label className="flex flex-col gap-1.5 text-label font-medium text-ink-muted">
-                Juros ao mês (%)
+                {t.compraJurosMes}
                 <input className={CONTROL_CLASSES} inputMode="decimal" value={juros} onChange={(e) => setJuros(e.target.value)} />
               </label>
             </div>
           )}
           <label className="flex flex-col gap-1.5 text-label font-medium text-ink-muted">
-            Desconto se pagar à vista (%)
+            {t.compraDescontoVista}
             <input className={CONTROL_CLASSES} inputMode="decimal" value={desconto} onChange={(e) => setDesconto(e.target.value)} />
           </label>
           </fieldset>
@@ -148,15 +148,15 @@ export function PossoComprar({ base, hoje }: { base: CompraBase; hoje: { ano: nu
 
       {"erro" in r ? (
         r.erro === "valor" ? (
-          <p className="px-1 text-caption text-ink-muted">Digite o valor pra eu fazer a conta.</p>
+          <p className="px-1 text-caption text-ink-muted">{t.compraDigiteValor}</p>
         ) : (
           <Card className="p-5">
             <p className="text-sm font-semibold text-ink">
-              {r.erro === "renda" ? "Pra responder isso, preciso saber sua renda do mês." : "Pra responder isso, preciso do seu orçamento do mês."}
+              {r.erro === "renda" ? t.compraPrecisoRenda : t.compraPrecisoOrcamento}
             </p>
-            <p className="mt-1 text-caption text-ink-muted">Sem esse número eu estaria chutando, e sobre dinheiro eu prefiro perguntar.</p>
-            <Link href="/orcamento" className="mt-3 inline-flex rounded-xl bg-pill px-4 py-2 text-sm font-semibold text-on-pill">
-              Preencher agora
+            <p className="mt-1 text-caption text-ink-muted">{t.compraSemChute}</p>
+            <Link href="/orcamento" className="mt-3 inline-flex min-h-11 items-center rounded-xl bg-pill px-4 py-2 text-sm font-semibold text-on-pill">
+              {t.compraPreencher}
             </Link>
           </Card>
         )
@@ -175,21 +175,17 @@ export function PossoComprar({ base, hoje }: { base: CompraBase; hoje: { ano: nu
             <p className="mt-1 text-sm text-ink">{r.explicacao}</p>
             {r.comprometimento && (
               <p className="mt-2 text-caption text-ink-muted">
-                Hoje sua renda já está <b className="text-ink">{pctRenda(r.comprometimento.hoje)}</b> comprometida: {m(r.comprometimento.valor)} de {m(r.comprometimento.renda)}
-                {r.comprometimento.fonte === "real"
-                  ? " (a média do que você gastou nos últimos meses, que é maior que o seu orçamento)"
-                  : r.comprometimento.fonte === "mes"
-                    ? " (o que já saiu neste mês, que passou do orçamento)"
-                    : " (seu orçamento do mês)"}
-                {comDecididas ? ", mais as compras que você já decidiu fazer" : ""}
-                . Com a compra:{" "}
+                {/* Sem a palavra de banco pra renda: a frase diz quanto do que entra já tem destino. */}
+                {t.compraJaTemDestino} <b className="text-ink">{pctRenda(r.comprometimento.hoje)}</b>: {m(r.comprometimento.valor)} de {m(r.comprometimento.renda)}
+                {r.comprometimento.fonte === "real" ? t.compraFonteReal : r.comprometimento.fonte === "mes" ? t.compraFonteMes : t.compraFontePlano}
+                {comDecididas ? t.compraMaisDecididas : ""}. {t.compraComACompra}{" "}
                 {/* Casal só com a conta conjunta não tem regra dos 90%: o vermelho é passar do que entra na conta. */}
                 <b className={r.comprometimento.depois > (base.regra90 === false ? 1 : 0.9) ? "text-danger" : "text-ink"}>{pctRenda(r.comprometimento.depois)}</b>.
               </p>
             )}
             {r.alertaJuros && (
               <p className="mt-3 rounded-xl border border-accent/40 bg-accent-soft px-3 py-2.5 text-sm font-medium text-ink">
-                ⚠️ {r.alertaJuros} Se der, junte e compre à vista.
+                ⚠️ {r.alertaJuros} {t.compraJunteAVista}
               </p>
             )}
           </div>
@@ -199,8 +195,8 @@ export function PossoComprar({ base, hoje }: { base: CompraBase; hoje: { ano: nu
               <thead>
                 <tr className="text-caption uppercase tracking-wide text-ink-faint">
                   <th className="pb-2 text-left font-semibold" />
-                  <th className="pb-2 text-right font-semibold">Hoje</th>
-                  <th className="pb-2 text-right font-semibold">Com a compra</th>
+                  <th className="pb-2 text-right font-semibold">{t.compraColunaHoje}</th>
+                  <th className="pb-2 text-right font-semibold">{t.compraColunaComCompra}</th>
                 </tr>
               </thead>
               <tbody>
@@ -219,18 +215,19 @@ export function PossoComprar({ base, hoje }: { base: CompraBase; hoje: { ano: nu
 
           {r.comparacao && (
             <Card className="p-5">
-              <p className="text-caption font-semibold uppercase tracking-[0.11em] text-ink-muted">À vista ou parcelado? A regra de ouro</p>
+              <p className="text-caption font-semibold uppercase tracking-[0.11em] text-ink-muted">{t.compraRegraDeOuro}</p>
               <dl className="mt-2 grid grid-cols-[1fr_auto] gap-x-4 gap-y-1.5 text-sm">
-                <dt className="text-ink-muted">À vista{descontoPct > 0 ? ` com ${descontoPct.toLocaleString("pt-BR")}%` : ""}</dt>
+                <dt className="text-ink-muted">{descontoPct > 0 ? t.compraAVistaComDesconto(`${descontoPct.toLocaleString("pt-BR")}%`) : t.compraAVista}</dt>
                 <dd className="text-right tabular-nums text-ink">{m(r.comparacao.vista)}</dd>
-                <dt className="text-ink-muted">Parcelado, com o dinheiro rendendo</dt>
-                <dd className="text-right tabular-nums text-ink">{m(r.comparacao.parceladoHoje)} em valor de hoje</dd>
+                <dt className="text-ink-muted">{t.compraParceladoRendendo}</dt>
+                <dd className="text-right tabular-nums text-ink">{t.compraParceladoValorHoje(m(r.comparacao.parceladoHoje))}</dd>
               </dl>
               <p className="mt-2 text-sm text-ink">
-                <b>{r.comparacao.melhor === "vista" ? "À vista vale mais" : "Parcelar vale mais"}</b>: cerca de {m(r.comparacao.diferenca)} de diferença.
-                {r.comparacao.melhor === "parcelado" ? " Mas só se o dinheiro ficar de fato rendendo até a última parcela." : " O desconto é maior que o rendimento do dinheiro parado."}
+                <b>{r.comparacao.melhor === "vista" ? t.compraVistaVale : t.compraParcelarVale}</b>
+                {t.compraDiferenca(m(r.comparacao.diferenca))}
+                {r.comparacao.melhor === "parcelado" ? t.compraSoSeRender : t.compraDescontoGanha}
               </p>
-              <p className="mt-1 text-caption text-ink-faint">Rendimento de referência: {(base.taxaReferencia * 100).toLocaleString("pt-BR", { maximumFractionDigits: 2 })}% ao mês.</p>
+              <p className="mt-1 text-caption text-ink-faint">{t.compraRendimentoRef(`${(base.taxaReferencia * 100).toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%`)}</p>
             </Card>
           )}
 
@@ -252,19 +249,20 @@ export function PossoComprar({ base, hoje }: { base: CompraBase; hoje: { ano: nu
             <div className="grid gap-2">
               <p className="rounded-2xl bg-surface-2 px-4 py-3 text-sm text-ink">{decisao}</p>
               <button type="button" onClick={simularOutra} className="rounded-2xl border border-border px-4 py-3 text-sm font-semibold text-ink-muted">
-                Simular outra compra
+                {t.compraSimularOutra}
               </button>
             </div>
           ) : (
             <div className="grid gap-2">
-              {erroAoSalvar && <p className="rounded-2xl bg-danger/10 px-4 py-3 text-sm text-danger">Não consegui salvar agora. Tenta de novo em instantes.</p>}
+              {erroAoSalvar && <p className="rounded-2xl bg-danger/10 px-4 py-3 text-sm text-danger">{t.compraErroSalvar}</p>}
               <button
                 type="button"
                 disabled={salvando}
-                onClick={() => registrar("compra_amanha", "Combinado. Amanhã ela aparece no seu Foco e você decide com a cabeça fria.")}
+                onClick={() => registrar("compra_amanha", t.compraAmanhaFeito)}
                 className="rounded-2xl bg-pill px-4 py-3 text-sm font-semibold text-on-pill disabled:opacity-60"
               >
-                {t.compraAmanha} (regra das 24 horas)
+                {t.compraAmanha}
+                {t.compraAmanhaDica}
               </button>
               <button
                 type="button"
@@ -272,17 +270,17 @@ export function PossoComprar({ base, hoje }: { base: CompraBase; hoje: { ano: nu
                 onClick={() =>
                   registrar(
                     "compra_comprei",
-                    r.veredito === "nao" ? "Registrado. Essa compra passa do plano do mês: vale rever o orçamento no próximo fechamento." : "Registrado. Boa compra: agora é seguir o plano.",
+                    r.veredito === "nao" ? t.compraCompreiNaoCabe : t.compraCompreiCabe,
                   )
                 }
                 className="rounded-2xl bg-accent-soft px-4 py-3 text-sm font-semibold text-accent-strong disabled:opacity-60"
               >
-                Vou comprar
+                {t.compraVouComprar}
               </button>
               <button
                 type="button"
                 disabled={salvando}
-                onClick={() => registrar("compra_desisti", `Ficou com você: ${m(custoDecidido)}. Entrou no que você conquistou.`)}
+                onClick={() => registrar("compra_desisti", t.compraDesistiFeito(m(custoDecidido)))}
                 className="rounded-2xl border border-border px-4 py-3 text-sm font-semibold text-ink-muted disabled:opacity-60"
               >
                 {t.compraDesisti}
