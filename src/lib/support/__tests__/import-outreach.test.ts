@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { escolherQuemAvisar, marcaComoAvisada, type TentativaDeImport } from "../import-outreach";
+import { escolherQuemAvisar, type TentativaDeImport } from "../import-outreach";
 import { mensagemImplausivel } from "@/lib/repositories/import-diagnostic.repo";
 
 /**
@@ -103,21 +103,3 @@ describe("escolherQuemAvisar", () => {
  * não conseguia nem TENTAR, e mesmo assim marcava todo mundo. No dia em que o token entrasse,
  * essas pessoas já teriam sido riscadas da fila sem nunca ter recebido nada.
  */
-describe("marcaComoAvisada", () => {
-  it("marca quando a mensagem foi entregue", () => {
-    expect(marcaComoAvisada("enviado")).toBe(true);
-  });
-
-  /** Fato sobre a pessoa: insistir amanhã não muda. */
-  it("marca quando o motivo não vai mudar sozinho", () => {
-    expect(marcaComoAvisada("nao-encontrado")).toBe(true);
-    expect(marcaComoAvisada("fora-da-janela")).toBe(true);
-  });
-
-  /** Buraco nosso: quando for tapado, essas pessoas ainda precisam ser avisadas. */
-  it("NÃO marca quando faltava configuração do nosso lado", () => {
-    expect(marcaComoAvisada("sem-token")).toBe(false);
-    expect(marcaComoAvisada("sem-fluxo")).toBe(false);
-    expect(marcaComoAvisada("sem-configuracao")).toBe(false);
-  });
-});

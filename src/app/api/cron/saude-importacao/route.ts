@@ -4,7 +4,7 @@ import { getImportHealth } from "@/lib/repositories/import-diagnostic.repo";
 import { purgeExpiredImportFiles } from "@/lib/repositories/import-file.repo";
 import { sendEmail, isEmailConfigured } from "@/lib/email/send";
 import { prisma } from "@/lib/db/prisma";
-import { avisarPessoas, pessoasAAvisar, type ResultadoDoAviso } from "@/lib/support/import-outreach";
+import { pessoasAAvisar, type PessoaAAvisar } from "@/lib/support/import-outreach";
 
 export const maxDuration = 60;
 
@@ -37,20 +37,19 @@ export async function GET(request: Request) {
     select: { routePath: true, message: true, vezes: true, ultimoEm: true },
   });
 
-  // Puxa conversa com quem ficou na mão. Roda todo dia, mesmo em dia sem falha nova: o que
-  // importa aqui não é o erro ter acontecido hoje, é a pessoa ainda estar sem solução.
-  // `?avisar=0` desliga o disparo sem desligar o relatório.
-  const podeAvisar = url.searchParams.get("avisar") !== "0";
-  const avisos = podeAvisar ? await avisarPessoas(await pessoasAAvisar(), dryRun) : [];
+  // Quem ficou na mão, pra Dani decidir quem chamar. NÃO manda nada pra cliente: em 29/09/2026
+  // ela pediu que nenhuma mensagem saia sem aprovação dela no dia — alarme falso pra quem
+  // importou certo é pior que não avisar (a régua de "leu só parte" já errou 10 de 19 num dia).
+  // Antes isto disparava o ManyChat sozinho; só não saía nada porque ele não estava configurado.
+  const avisos = await pessoasAAvisar();
 
   // Retenção dos arquivos guardados. Roda ANTES de qualquer saída antecipada: em dia sem falha
   // a função retornava cedo, e aí extrato de cliente ficaria parado no banco além do prazo.
   const arquivosApagados = await purgeExpiredImportFiles();
 
   const problemas = health.falhas + health.parciais + health.implausiveis + erros.length;
-  // Aviso que não chegou é problema mesmo em dia sem falha nova: é alguém esperando resposta.
-  const naoAlcancadas = avisos.filter((a) => !a.enviado && a.status !== "simulado");
-  if (problemas === 0 && naoAlcancadas.length === 0 && !dryRun) {
+  // Quem está esperando ajuda entra no e-mail mesmo em dia sem falha nova.
+  if (problemas === 0 && avisos.length === 0 && !dryRun) {
     return NextResponse.json({ ok: true, ...resumo(health), erros: 0, arquivosApagados, avisos: avisos.length, enviado: false, motivo: "dia sem falha" });
   }
 
@@ -91,22 +90,11 @@ function resumo(h: Awaited<ReturnType<typeof getImportHealth>>) {
 
 type ErroServidor = { routePath: string | null; message: string; vezes: number; ultimoEm: Date };
 
-/** Por que o aviso não chegou, em português, com o que a Dani precisa fazer a respeito. */
-const MOTIVO_DO_AVISO: Record<string, string> = {
-  "fora-da-janela": "o WhatsApp não deixou (faz mais de 24h que ela não fala com você) — precisa chamar na mão",
-  "nao-encontrado": "não achei essa pessoa no ManyChat pelo e-mail dela — precisa chamar na mão",
-  "sem-token": "o ManyChat ainda não está configurado no app",
-  "sem-fluxo": "falta dizer ao app qual fluxo do ManyChat disparar",
-  erro: "o ManyChat recusou o envio",
-  "sem-configuracao": "o ManyChat ainda não está configurado no app",
-  simulado: "simulação (nada foi enviado)",
-};
-
 function relatorioEmail(
   h: Awaited<ReturnType<typeof getImportHealth>>,
   days: number,
   erros: ErroServidor[],
-  avisos: ResultadoDoAviso[],
+  avisos: PessoaAAvisar[],
 ): { subject: string; html: string } {
   const periodo = days === 1 ? "nas últimas 24 horas" : `nos últimos ${days} dias`;
   const linhas = h.porCausa
@@ -123,16 +111,13 @@ function relatorioEmail(
     .map((p) => `<li>${escapar(p.email)} — ${p.tentativas} tentativa${p.tentativas === 1 ? "" : "s"}, nenhum lançamento importado</li>`)
     .join("");
 
-  const enviados = avisos.filter((a) => a.enviado);
-  const naoEnviados = avisos.filter((a) => !a.enviado);
-  const listaAvisadas = enviados
-    .map((a) => `<li>${escapar(a.nome ?? a.email)} — ${escapar(a.problema)}</li>`)
-    .join("");
-  const listaNaMao = naoEnviados
+  const quando = (d: Date) => d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" });
+  const listaParaAprovar = avisos
     .map(
       (a) =>
-        `<li><b>${escapar(a.nome ?? a.email)}</b> — ${escapar(a.problema)}<br/>
-         <span style="color:#666">${escapar(a.email)} · ${escapar(MOTIVO_DO_AVISO[a.status] ?? a.status)}</span></li>`,
+        `<li style="margin-bottom:8px"><b>${escapar(a.nome?.trim() || a.email)}</b> · ${escapar(a.email)}<br/>
+         ${escapar(a.problema)}<br/>
+         <span style="color:#666">${escapar(a.fileName ?? "arquivo sem nome")} · ${quando(a.quando)}</span></li>`,
     )
     .join("");
 
@@ -151,8 +136,7 @@ function relatorioEmail(
       </p>
       ${linhas ? `<h3>O que quebrou</h3><ul>${linhas}</ul>` : "<p>Nenhuma falha agrupada.</p>"}
       ${semSucesso ? `<h3>Quem tentou e não conseguiu nada</h3><ul>${semSucesso}</ul>` : ""}
-      ${listaAvisadas ? `<h3>O ManyChat já puxou conversa com</h3><ul>${listaAvisadas}</ul>` : ""}
-      ${listaNaMao ? `<h3 style="color:#b00">Estas você precisa chamar na mão</h3><ul>${listaNaMao}</ul><p style="color:#666">O app tentou e não conseguiu entregar. Elas estão esperando resposta sem saber.</p>` : ""}
+      ${listaParaAprovar ? `<h3>Pra você decidir se chama (nada foi enviado)</h3><ul>${listaParaAprovar}</ul><p style="color:#666">Ficaram sem conseguir importar nos últimos 7 dias. Antes de chamar, confira se é mesmo problema: o Claude confere na checagem diária e te mostra o texto pra aprovar. Por e-mail primeiro.</p>` : ""}
       ${listaErros ? `<h3>Erros de servidor</h3><ul>${listaErros}</ul>` : ""}
       <p style="color:#999;font-size:12px">O cabeçalho do arquivo aparece acima quando existe — é a linha de nomes de coluna, o que identifica o formato do banco. Nenhum valor ou transação é guardado.</p>
     </div>`,

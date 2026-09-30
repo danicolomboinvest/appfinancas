@@ -1,25 +1,21 @@
 import { prisma } from "@/lib/db/prisma";
-import { avisarErroDeImportacao, isManychatConfigured } from "@/lib/manychat/client";
 import { isImplausivelMessage, leituraIncompletaDoRegistro, MARCA_NAO_FECHOU } from "@/lib/repositories/import-diagnostic.repo";
 
 /**
- * Puxa conversa com quem teve problema na importação, em vez de esperar a pessoa pedir ajuda.
+ * Quem teve problema na importação e continua sem solução — a lista que chega pra Dani decidir
+ * quem chamar, em vez de esperar a pessoa pedir ajuda.
  *
  * Sete pessoas pediram reembolso sem nunca ter falado com a Dani. Elas subiram um arquivo, não
- * deu certo, e o app não fez nada — nem avisou, nem ofereceu ajuda, nem contou pra ninguém. Esta
- * função é o outro lado disso: todo dia olha quem ficou na mão e manda o ManyChat abrir conversa.
+ * deu certo, e o app não fez nada. Até 29/09/2026 esta lista disparava o ManyChat sozinha; a Dani
+ * pediu que nenhuma mensagem saia pra cliente sem ela aprovar no dia (alarme falso pra quem
+ * importou certo é pior que o silêncio), então agora ela só vai no e-mail diário.
  *
- * Três decisões que importam mais que o código:
+ * Quem entra na lista:
  *
- * 1. **Só quem ficou sem solução.** Quem errou e na tentativa seguinte conseguiu importar não
- *    recebe nada — ser abordada por um problema que ela já resolveu sozinha é ruído, e ruído
- *    faz a próxima mensagem ser ignorada.
- * 2. **Uma vez por problema.** O aviso fica marcado no diagnóstico. Sem isso o cron repetiria a
- *    mesma mensagem todo dia, que é a forma mais rápida de virar spam pra quem já está irritada.
- * 3. **Falha de entrega não vira silêncio.** Fora da janela de 24h do WhatsApp, ou sem contato
- *    no ManyChat, a tentativa fica registrada com o motivo e a pessoa entra na lista que vai no
- *    e-mail da Dani, pra ela chamar na mão. O pior resultado possível seria o app "avisar" e
- *    ninguém ficar sabendo que não chegou.
+ * 1. **Só quem ficou sem solução.** Quem errou e na tentativa seguinte conseguiu importar sai da
+ *    lista — ser abordada por um problema que ela já resolveu sozinha é ruído.
+ * 2. **Quem já foi avisada sobre o problema mais recente, não.** A marca `avisadoEm` no
+ *    diagnóstico vem da época do ManyChat; hoje nada grava ela.
  */
 
 /** Quanto tempo depois do erro ainda faz sentido puxar conversa. Depois disso é estranho. */
@@ -107,48 +103,4 @@ export async function pessoasAAvisar(agora = new Date()): Promise<PessoaAAvisar[
     orderBy: { createdAt: "desc" },
   });
   return escolherQuemAvisar(rows);
-}
-
-/**
- * Falhas que são configuração NOSSA, não um fato sobre a pessoa.
- *
- * A diferença importa: um contato que não existe no ManyChat hoje também não vai existir amanhã,
- * então insistir só gasta chamada. Mas "falta o token" é um buraco do nosso lado — no dia em que
- * for preenchido, essas pessoas precisam ser avisadas. Marcá-las como avisadas enquanto o app
- * nem conseguia tentar as apagaria da fila pra sempre, e elas são justamente quem já estava
- * esperando ajuda.
- */
-const FALTA_CONFIGURACAO = new Set(["sem-token", "sem-fluxo", "sem-configuracao"]);
-
-export function marcaComoAvisada(status: string): boolean {
-  return !FALTA_CONFIGURACAO.has(status);
-}
-
-export type ResultadoDoAviso = PessoaAAvisar & {
-  enviado: boolean;
-  /** "enviado" | "fora-da-janela" | "nao-encontrado" | "sem-token" | "sem-fluxo" | "erro" */
-  status: string;
-};
-
-/**
- * Manda o ManyChat abrir conversa com cada uma. `dryRun` devolve a lista sem mandar nada —
- * é como dá pra conferir quem receberia antes de mandar de verdade pra cliente de verdade.
- */
-export async function avisarPessoas(pessoas: PessoaAAvisar[], dryRun = false): Promise<ResultadoDoAviso[]> {
-  const resultados: ResultadoDoAviso[] = [];
-  for (const p of pessoas) {
-    if (dryRun) {
-      resultados.push({ ...p, enviado: false, status: isManychatConfigured() ? "simulado" : "sem-configuracao" });
-      continue;
-    }
-    const r = await avisarErroDeImportacao(p.email);
-    const status = r.ok ? "enviado" : r.motivo;
-    resultados.push({ ...p, enviado: r.ok, status });
-    if (marcaComoAvisada(status)) {
-      await prisma.importDiagnostic
-        .update({ where: { id: p.diagnosticId }, data: { avisadoEm: new Date(), avisoStatus: status } })
-        .catch((err) => console.error("marcar aviso falhou (ignorado)", err));
-    }
-  }
-  return resultados;
 }
