@@ -5,6 +5,7 @@ import {
   CHAVE_VAZIO_DIA5,
   etapaComConta,
   etapaSemConta,
+  liberadosSemConta,
 } from "../boas-vindas";
 
 const DIA = 86_400_000;
@@ -52,5 +53,13 @@ describe("etapaComConta: boas-vindas, e empurrão no 2º e no 5º dia só pra qu
   });
   it("depois do prazo a trilha acaba", () => {
     expect(etapaComConta(base, depois(13))).toBeNull();
+  });
+});
+
+describe("liberadosSemConta: quem já tem conta nunca recebe 'crie a sua conta'", () => {
+  it("ignora maiúscula e espaço dos dois lados (caso real: contas antigas com maiúscula)", () => {
+    const liberados = [{ email: "camila@exemplo.com" }, { email: "ana@exemplo.com" }, { email: " Bia@Exemplo.com" }];
+    const contas = ["Camila@Exemplo.com ", "bia@exemplo.com"];
+    expect(liberadosSemConta(liberados, contas).map((l) => l.email)).toEqual(["ana@exemplo.com"]);
   });
 });

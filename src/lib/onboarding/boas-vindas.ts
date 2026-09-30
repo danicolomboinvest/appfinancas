@@ -56,3 +56,19 @@ export function etapaComConta(
   if (dias >= 2) return p.enviados.has(CHAVE_VAZIO_DIA2) ? null : CHAVE_VAZIO_DIA2;
   return p.enviados.has(CHAVE_BOAS_VINDAS) ? null : CHAVE_BOAS_VINDAS;
 }
+
+/** O e-mail como ele deve ser comparado: sem maiúscula e sem espaço nas pontas. */
+export function chaveDeEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
+/**
+ * Quem, dos liberados, ainda não tem conta. A comparação ignora maiúscula e espaço: em 30/09/2026
+ * havia 5 contas antigas gravadas com letra maiúscula, e 3 delas caíam como "sem conta" numa
+ * comparação exata, o que mandaria "crie a sua conta" para quem já tem.
+ */
+export function liberadosSemConta<T extends { email: string }>(liberados: readonly T[], emailsDeContas: Iterable<string>): T[] {
+  const temConta = new Set<string>();
+  for (const e of emailsDeContas) temConta.add(chaveDeEmail(e));
+  return liberados.filter((l) => !temConta.has(chaveDeEmail(l.email)));
+}

@@ -9,6 +9,7 @@ import {
   PRAZO_SEM_CONTA_DIAS,
   etapaComConta,
   etapaSemConta,
+  liberadosSemConta,
   type EtapaSemConta,
 } from "@/lib/onboarding/boas-vindas";
 import { emailSemConta, enviarEtapaComConta, RESPONDER_PARA } from "@/lib/onboarding/enviar-boas-vindas";
@@ -65,14 +66,12 @@ export async function GET(request: Request) {
       },
       select: { id: true, email: true, createdAt: true, lembreteConta1Em: true, lembreteConta2Em: true },
     });
-    const comConta = new Set(
-      (await prisma.user.findMany({ where: { email: { in: liberados.map((l) => l.email.toLowerCase()) } }, select: { email: true } })).map((u) =>
-        u.email.toLowerCase(),
-      ),
-    );
+    // Todas as contas, e não um `in` com a lista: há conta antiga gravada com maiúscula, e a
+    // comparação exata a daria como "sem conta" (ver liberadosSemConta). São poucas centenas.
+    const contas = liberados.length ? await prisma.user.findMany({ select: { email: true } }) : [];
+    const semConta = liberadosSemConta(liberados, contas.map((u) => u.email));
 
-    for (const l of liberados) {
-      if (comConta.has(l.email.toLowerCase())) continue;
+    for (const l of semConta) {
       const etapa: EtapaSemConta | null = atrasados ? "conta-dia4" : etapaSemConta({ liberadoEm: l.createdAt, lembrete1Em: l.lembreteConta1Em, lembrete2Em: l.lembreteConta2Em }, agora);
       if (!etapa) continue;
       if (dryRun) {
