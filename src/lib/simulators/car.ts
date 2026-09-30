@@ -31,10 +31,12 @@ const HORIZON_MONTHS = 24;
  * depreciação do carro comprado e o custo de oportunidade do capital imobilizado na compra.
  */
 export function simulateCarComparison(input: CarComparisonInput): CarComparisonResult {
-  const depreciationRateAfter1Year = new Decimal(input.carPrice).minus(input.priceAfter1Year).div(input.carPrice);
-  const depreciationRateAfter2Years = new Decimal(input.carPrice)
-    .minus(input.priceAfter2Years)
-    .div(input.carPrice);
+  // Preço "0" digitado (campo apagado pra redigitar) dividia por zero e o resultado carregava
+  // NaN. Sem preço não há o que desvalorizar: a taxa fica zero.
+  const depreciation = (priceAfter: number) =>
+    input.carPrice > 0 ? new Decimal(input.carPrice).minus(priceAfter).div(input.carPrice) : new Decimal(0);
+  const depreciationRateAfter1Year = depreciation(input.priceAfter1Year);
+  const depreciationRateAfter2Years = depreciation(input.priceAfter2Years);
 
   const subscriptionCashCost = new Decimal(input.subscriptionMonthlyFee)
     .plus(input.monthlyFuelCost)

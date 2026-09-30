@@ -20,8 +20,12 @@ export function normalizeEmail(email: string): string {
 }
 
 /** Vencido = tinha prazo e a data-limite já passou (comparando só o dia, no fuso do Brasil —
- * "acesso até 30/08" continua valendo o dia inteiro de 30/08). */
-export function isExpired(expiresAt: Date | null, now: Date = nowInBrazil()): boolean {
+ * "acesso até 30/08" continua valendo o dia inteiro de 30/08).
+ *
+ * `now` é o instante REAL (new Date()), não o relógio de Brasília: a conversão pro Brasil
+ * acontece aqui dentro. O padrão era nowInBrazil(), convertido de novo abaixo — no servidor UTC
+ * "hoje" ficava 3h atrás de Brasília, e entre 00h e 03h quem venceu ontem ainda entrava. */
+export function isExpired(expiresAt: Date | null, now: Date = new Date()): boolean {
   if (!expiresAt) return false;
   const limit = nowInBrazil(expiresAt);
   const today = nowInBrazil(now);
@@ -75,7 +79,8 @@ export async function listAllowedEmails() {
 export function prazoAoLiberarDeNovo(
   atual: { active: boolean; expiresAt: Date | null },
   novo: Date | null | undefined,
-  now: Date = nowInBrazil(),
+  // Instante real: isExpired já converte pro dia de Brasília (nowInBrazil aqui converteria duas vezes).
+  now: Date = new Date(),
 ): Date | null | undefined {
   if (novo === undefined) return undefined;
   const valendo = atual.active && !isExpired(atual.expiresAt, now);
@@ -158,13 +163,20 @@ export async function removeAllowedEmail(id: string) {
 export const ACCESS_YEARS = 1;
 
 /** Mesma data, um ano à frente. 29/02 vira 28/02 no ano seguinte (setFullYear sozinho viraria
- * 01/03, empurrando a renovação pro mês errado). */
+ * 01/03, empurrando a renovação pro mês errado).
+ *
+ * A data é a do calendário de Brasília (regra da Hubla, e é o dia que isExpired olha). Lendo no
+ * fuso do servidor (UTC na Vercel), a compra às 22h de 28/02/2028 em Brasília já era 29/02 e
+ * vencia em 27/02/2029 — a cliente perdia um dia. Brasília não tem horário de verão desde 2019,
+ * então somar os dias de calendário ao instante mantém também a hora de Brasília. */
 export function addAccessPeriod(from: Date, years = ACCESS_YEARS): Date {
-  const next = new Date(from);
-  const day = next.getDate();
-  next.setFullYear(next.getFullYear() + years);
-  if (next.getDate() !== day) next.setDate(0);
-  return next;
+  const b = nowInBrazil(from);
+  const ano = b.getFullYear() + years;
+  const mes = b.getMonth();
+  const ultimoDiaDoMes = new Date(Date.UTC(ano, mes + 1, 0)).getUTCDate();
+  const dia = Math.min(b.getDate(), ultimoDiaDoMes);
+  const diasSomados = Date.UTC(ano, mes, dia) - Date.UTC(b.getFullYear(), mes, b.getDate());
+  return new Date(from.getTime() + diasSomados);
 }
 
 /**

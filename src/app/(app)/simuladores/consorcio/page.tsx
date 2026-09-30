@@ -57,12 +57,17 @@ function toInput(values: WizardValues): ConsortiumFormValues {
   };
 }
 
+const PRAZO_INVALIDO = "Informe os dois prazos, em meses";
+
 export default function ConsorcioPage() {
   const money = useMoney();
   const { voz } = useProfileTheme();
   const t = voz.titulos;
-  const veredito = (values: WizardValues) =>
-    simulateConsortiumVsFinancing(toInput(values)).winner === "CONSORCIO" ? t.simConsVenceConsorcio : t.simConsVenceFinanciamento;
+  const veredito = (values: WizardValues) => {
+    const result = simulateConsortiumVsFinancing(toInput(values));
+    if (result.invalidTerm) return PRAZO_INVALIDO;
+    return result.winner === "CONSORCIO" ? t.simConsVenceConsorcio : t.simConsVenceFinanciamento;
+  };
   return (
     <SimulatorWizard
       eyebrow={t.simConsEyebrow}
@@ -76,6 +81,16 @@ export default function ConsorcioPage() {
       save={{ type: "CONSORCIO_VS_FINANCIAMENTO", resumo: veredito }}
       renderResult={(values) => {
         const result = simulateConsortiumVsFinancing(toInput(values));
+        // Prazo zerado ou apagado no "Ajustar respostas": sem conta, não há veredito — pede o
+        // prazo em vez de mostrar parcela infinita ou um financiamento "vencendo" com custo negativo.
+        if (result.invalidTerm) {
+          return (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-accent-strong">{t.simResultado}</p>
+              <h2 className="mt-1 text-xl font-bold leading-snug tracking-tight text-ink">{PRAZO_INVALIDO}</h2>
+            </div>
+          );
+        }
         const diferenca = money(result.differenceInFavorOfWinner);
         const vencedor = result.winner === "CONSORCIO" ? "CONSORCIO" : "FINANCIAMENTO";
         return (

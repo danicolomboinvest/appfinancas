@@ -121,7 +121,10 @@ export async function GET(request: Request) {
     const ids = candidates.slice(i, i + 1000).map((c) => c.id);
     const grupos = await prisma.monthlyEntry.groupBy({
       by: ["userId", "profileId"],
-      where: { userId: { in: ids }, year, month },
+      // Só conta o que ela lançou ou importou DEPOIS que o mês começou: conta fixa "todo mês" e
+      // parcela criadas antes já estão no banco, e com elas quem sumiu recebia "resumo" com um
+      // mês de mentira (e o contador de convites zerava). Mesmo corte de contarGastosReaisDoMes.
+      where: { userId: { in: ids }, year, month, createdAt: { gte: new Date(Date.UTC(year, month - 1, 1, 3)) } },
       _count: { _all: true },
     });
     for (const g of grupos) {
@@ -259,7 +262,9 @@ export async function GET(request: Request) {
         expense,
         investment,
         balance,
-        expenseDelta: previousExpense > 0 ? expense / previousExpense - 1 : null,
+        // Comparar só com um mês anterior que ela viveu inteiro no app: conta criada no dia 25 de
+        // agosto, com 2 gastos anotados, levava "seus gastos ficaram 400% acima" em setembro.
+        expenseDelta: previousExpense > 0 && user.createdAt < new Date(Date.UTC(previous.year, previous.month - 1, 1, 3)) ? expense / previousExpense - 1 : null,
         topCategory: top,
         appUrl: `${baseUrl}/mensal/${year}/${month}`,
         preferencesUrl: `${baseUrl}/configuracoes/notificacoes`,

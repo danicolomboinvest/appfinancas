@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db/prisma";
 import { normalizeEmail } from "@/lib/repositories/allowedEmail.repo";
+import { nowInBrazil } from "@/lib/date/brazil-now";
 
 /**
  * O funil de ativação e quem ficou preso nele.
@@ -76,11 +77,18 @@ export function montarPassos(cru: { label: string; pessoas: number }[], total: n
   }));
 }
 
-/** Segunda-feira da semana da data, em ISO curto, pra agrupar coortes. */
+/**
+ * Segunda-feira da semana da data, em ISO curto, pra agrupar coortes.
+ *
+ * O dia é o do calendário de Brasília: `d` é um instante real (createdAt), e lido no fuso do
+ * servidor (UTC na Vercel) quem se cadastrava domingo depois das 21h já era segunda e caía na
+ * coorte da semana seguinte. A conta de dias é em UTC pra não depender do fuso da máquina.
+ */
 export function semanaDe(d: Date): string {
-  const data = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  const diaDaSemana = (data.getDay() + 6) % 7; // segunda = 0
-  data.setDate(data.getDate() - diaDaSemana);
+  const b = nowInBrazil(d);
+  const data = new Date(Date.UTC(b.getFullYear(), b.getMonth(), b.getDate()));
+  const diaDaSemana = (data.getUTCDay() + 6) % 7; // segunda = 0
+  data.setUTCDate(data.getUTCDate() - diaDaSemana);
   return data.toISOString().slice(0, 10);
 }
 

@@ -24,7 +24,13 @@ export async function recordPatrimonySnapshotIfNeeded(ctx: AuthContext, totalVal
 /** Snapshot mais próximo (na data ou antes dela) de N meses atrás, null se não houver histórico suficiente. */
 export async function getPatrimonySnapshotMonthsAgo(ctx: AuthContext, monthsAgo: number) {
   const now = nowInBrazil();
-  const targetDate = startOfDay(new Date(now.getFullYear(), now.getMonth() - monthsAgo, now.getDate()));
+  // Dia que não existe no mês de destino encosta no último dia dele: `new Date(ano, mês - N, 31)`
+  // sozinho transbordava pro mês seguinte (29/02 "um ano atrás" virava 01/03; 31/03 "um mês
+  // atrás" virava 03/03) e a comparação pegava um período mais curto do que o anunciado.
+  const ultimoDiaDoDestino = new Date(now.getFullYear(), now.getMonth() - monthsAgo + 1, 0).getDate();
+  const targetDate = startOfDay(
+    new Date(now.getFullYear(), now.getMonth() - monthsAgo, Math.min(now.getDate(), ultimoDiaDoDestino)),
+  );
   const snapshot = await prisma.patrimonySnapshot.findFirst({
     where: { userId: ctx.userId, profileId: ctx.profileId, date: { lte: targetDate } },
     orderBy: { date: "desc" },

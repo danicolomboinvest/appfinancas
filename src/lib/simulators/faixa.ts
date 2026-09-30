@@ -23,7 +23,9 @@ export function faixaDoCampo(campo: CampoComFaixa, exemplo: number): { min: numb
   }
   if (campo.kind === "percent") {
     const mensal = campo.suffix === "a.m.";
-    const max = campo.max ?? (mensal ? Math.max(0.03, exemplo * 2) : Math.max(0.2, Math.min(1, arredondaBonito(exemplo * 2))));
+    // Exemplo 0% (IR zero) ou negativo (imóvel que desvaloriza): arredondaBonito devolve 1 pra
+    // valor não positivo, e a faixa virava 0–100% ao ano. Sem exemplo positivo, vale o teto de 20%.
+    const max = campo.max ?? (mensal ? Math.max(0.03, exemplo * 2) : exemplo > 0 ? Math.max(0.2, Math.min(1, arredondaBonito(exemplo * 2))) : 0.2);
     return { min: campo.min ?? 0, max, step: campo.step ?? (mensal ? 0.0005 : 0.0025) };
   }
   const max = campo.max ?? Math.max(12, Math.ceil(exemplo * 2));

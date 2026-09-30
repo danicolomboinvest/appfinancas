@@ -119,8 +119,13 @@ export function simulateAmortizeVsInvest(input: AmortizeVsInvestInput): Amortize
   }
   const amortizeGain = amortizeFutureValue.minus(input.extraAmount);
 
-  const winner = amortizeGain.greaterThanOrEqualTo(investmentGain) ? "AMORTIZAR" : "INVESTIR";
-  const differenceInFavorOfWinner = amortizeGain.minus(investmentGain).abs();
+  // Diferença abaixo de meio centavo é empate: com juros 0% e rendimento 0% os dois caminhos
+  // dão o mesmo, mas o ruído de ponto flutuante (8e-13) decidia o veredito e aparecia como
+  // "diferença a favor". No empate a diferença é zero e o desempate continua indo pra amortizar.
+  const rawDifference = amortizeGain.minus(investmentGain);
+  const empate = rawDifference.abs().lessThan(0.005);
+  const winner = empate || rawDifference.greaterThan(0) ? "AMORTIZAR" : "INVESTIR";
+  const differenceInFavorOfWinner = empate ? new Decimal(0) : rawDifference.abs();
 
   return {
     scheduleWithoutExtra,

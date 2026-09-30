@@ -56,7 +56,12 @@ export function simulateMarkToMarket(input: MarkToMarketInput): MarkToMarketResu
   const carryingPrice = bondPrice(input.faceValue, input.originalRate, pricingTime);
   const marketPrice = bondPrice(input.faceValue, input.newRate, pricingTime);
   const profitOrLoss = marketPrice.minus(carryingPrice);
-  const approximateSensitivity = profitOrLoss.div(carryingPrice);
+  // A sensibilidade é uma razão de preços e não depende do valor de face: calculada por
+  // unidade (face 1), um valor de face "0" digitado não vira 0/0 = NaN. O mesmo vale pra
+  // escala do valor investido, que antes dividia pelo preço de carrego (zero, nesse caso).
+  const unitCarryingPrice = bondPrice(1, input.originalRate, pricingTime);
+  const unitMarketPrice = bondPrice(1, input.newRate, pricingTime);
+  const approximateSensitivity = unitMarketPrice.div(unitCarryingPrice).minus(1);
 
   const durationScenarios = DURATION_SCENARIOS_YEARS.filter((d) => d <= input.totalYears);
 
@@ -75,9 +80,9 @@ export function simulateMarkToMarket(input: MarkToMarketInput): MarkToMarketResu
   let scaledMarketValue: number | undefined;
   let scaledProfitOrLoss: number | undefined;
   if (input.investedAmount !== undefined && input.investedAmount > 0) {
-    const scaleFactor = new Decimal(input.investedAmount).div(carryingPrice);
-    scaledMarketValue = marketPrice.times(scaleFactor).toNumber();
-    scaledProfitOrLoss = profitOrLoss.times(scaleFactor).toNumber();
+    const invested = new Decimal(input.investedAmount);
+    scaledMarketValue = invested.times(approximateSensitivity.plus(1)).toNumber();
+    scaledProfitOrLoss = invested.times(approximateSensitivity).toNumber();
   }
 
   return {

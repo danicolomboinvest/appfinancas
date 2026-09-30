@@ -17,7 +17,7 @@ export function HomeSectionCard({
       href={href}
       className="group relative flex flex-col gap-5 overflow-hidden rounded-2xl border border-border bg-surface p-6 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-accent-strong/40 hover:bg-surface-hover hover:shadow-premium"
     >
-      <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-accent-soft text-accent-strong transition-colors duration-200 group-hover:bg-accent group-hover:text-ink">
+      <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-accent-soft text-accent-strong transition-colors duration-200 group-hover:bg-accent group-hover:text-on-accent">
         <Icon size={22} strokeWidth={1.75} />
       </div>
       <div>

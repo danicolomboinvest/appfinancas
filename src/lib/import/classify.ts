@@ -26,7 +26,12 @@ const KW_COMBUSTIVEL = ["posto", "shell", "ipiranga", "petrobras", "combustivel"
 const KW_ESTACIONAMENTO = ["estacionamento", "estapar", "zona azul"];
 const KW_ALUGUEL = ["aluguel", "imobiliaria", "imobiliária"];
 const KW_CONDOMINIO = ["condominio", "condomínio"];
-const KW_LUZ = ["enel", "cpfl", "light", "energia", "eletropaulo", "cemig", "copel"];
+// "energia" sozinha não: "BEBIDA ENERGIA", "ENERGIA FITNESS" e loja de energia solar viravam conta
+// de luz sem passar pela revisão. No lugar, o nome das distribuidoras e o "conta de luz" do boleto.
+const KW_LUZ = [
+  "enel", "cpfl", "light", "eletropaulo", "cemig", "copel", "energisa", "neoenergia", "equatorial", "coelba", "celpe",
+  "cosern", "celesc", "edp", "conta de luz", "energia eletrica", "energia elétrica",
+];
 const KW_AGUA = ["sabesp", "sanepar", "copasa", "aegea", "conta de agua", "conta de água"];
 // "oi", "tim" e "net" só como palavra solta: como pedaço, "BOI GORDO" virava conta de internet.
 const KW_TELEFONIA = ["vivo", "claro", "tim", "oi", "net", "internet", "telefonia"];
@@ -34,10 +39,18 @@ const KW_DELIVERY = ["ifood", "rappi", "uber eats", "ubereats", "delivery"];
 
 const BUILTIN_RULES: BuiltinRule[] = [
   // Impostos primeiro: "PAGAMENTO IMPOSTO DE RENDA" não pode ser pego por nenhuma regra de consumo.
-  { keywords: KW_IMPOSTO, parentCategory: "IMPOSTOS", subcategory: "Imposto de renda" },
+  // Cada imposto na sua subcategoria (a lista de Impostos tem IPVA, IPTU, DARF separados): antes
+  // tudo virava "Imposto de renda" e o IPVA do carro aparecia como imposto de renda no mês.
+  { keywords: ["ipva"], parentCategory: "IMPOSTOS", subcategory: "IPVA" },
+  { keywords: ["iptu"], parentCategory: "IMPOSTOS", subcategory: "IPTU" },
+  { keywords: ["imposto de renda", "irpf", "receita federal"], parentCategory: "IMPOSTOS", subcategory: "Imposto de renda" },
+  { keywords: ["darf"], parentCategory: "IMPOSTOS", subcategory: "DARF" },
+  // "IMPOSTO", "TRIBUTO", "DAE" soltos: é imposto, mas qual só ela sabe. Fica sem subcategoria.
+  { keywords: KW_IMPOSTO, parentCategory: "IMPOSTOS" },
   // Alimentação
   { keywords: KW_DELIVERY, parentCategory: "ALIMENTACAO", subcategory: "Delivery" },
-  { keywords: ["restaurante", "lanchonete", "bar", "pizzaria", "hamburgueria", "mcdonald", "mc donald", "burger king", "bk", "subway", "outback", "cafe", "café", "cafeteria", "padaria", "confeitaria"], parentCategory: "ALIMENTACAO", subcategory: "Restaurante" },
+  // "lanche" aqui, antes do Lazer: "SHOW DE BOLA LANCHES" é lanchonete, não Cinema/Shows.
+  { keywords: ["restaurante", "lanchonete", "lanche", "bar", "pizzaria", "hamburgueria", "mcdonald", "mc donald", "burger king", "bk", "subway", "outback", "cafe", "café", "cafeteria", "padaria", "confeitaria"], parentCategory: "ALIMENTACAO", subcategory: "Restaurante" },
   // "mercado" sozinho; Mercado Pago e Mercado Livre viram uma palavra só antes (ver textoParaRegras).
   { keywords: ["supermercado", "mercado", "atacadao", "atacadão", "carrefour", "pao de acucar", "pão de açúcar", "assai", "assaí", "hortifruti", "sacolao"], parentCategory: "ALIMENTACAO", subcategory: "Supermercado" },
   // Transporte
@@ -53,7 +66,9 @@ const BUILTIN_RULES: BuiltinRule[] = [
   // Lazer
   { keywords: ["netflix", "spotify", "disney", "disneyplus", "hbo", "hbomax", "max com", "amazon prime", "amazonprime", "prime video", "primevideo", "youtube premium", "youtubepremium", "deezer", "globoplay", "paramount", "apple tv"], parentCategory: "LAZER", subcategory: "Streaming" },
   { keywords: ["cinema", "cinemark", "ingresso", "teatro", "show", "sympla", "ticket"], parentCategory: "LAZER", subcategory: "Cinema/Shows" },
-  { keywords: ["hotel", "airbnb", "booking", "hospedagem", "passagem", "latam", "gol", "azul", "cvc"], parentCategory: "LAZER", subcategory: "Viagens" },
+  // "azul" e "gol" sozinhos não: são sobrenome e palavra comum, e o Pix pra "ANA AZUL" virava
+  // Viagens sem passar pela revisão. Só o nome da companhia como aparece na fatura.
+  { keywords: ["hotel", "airbnb", "booking", "hospedagem", "passagem", "latam", "gol linhas", "gol transportes", "voegol", "azul linhas", "azul viagens", "voeazul", "cvc"], parentCategory: "LAZER", subcategory: "Viagens" },
   // Moradia
   { keywords: KW_ALUGUEL, parentCategory: "MORADIA", subcategory: "Aluguel" },
   { keywords: KW_CONDOMINIO, parentCategory: "MORADIA", subcategory: "Condomínio" },

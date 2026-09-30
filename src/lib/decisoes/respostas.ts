@@ -397,10 +397,18 @@ export function porqueAcabouMaisRapido(e: { money: (v: number) => string; atual:
 export function melhoreiDoMesPassado(e: { money: (v: number) => string; atual: ResumoMes; anterior: ResumoMes }): Resposta {
   const { money } = e;
   const taxa = (m: ResumoMes) => (m.renda > 0 ? m.guardado / m.renda : 0);
+  // Mês sem nada lançado não é base de comparação: cliente nova recebia "Não" em vermelho
+  // (dois meses zerados empatam e empate dava 0 pontos) ou "Sim" verde contra o nada (guardou
+  // R$ 500 "a mais" que zero no primeiro mês de uso). Sem base, a resposta é que não dá pra dizer.
+  const vazio = (m: ResumoMes) => m.renda === 0 && m.gastos === 0 && m.guardado === 0;
+  const semBase = vazio(e.anterior);
   const pontos = [e.atual.gastos < e.anterior.gastos, e.atual.guardado > e.anterior.guardado, taxa(e.atual) > taxa(e.anterior)].filter(Boolean).length;
-  const veredito: Veredito = pontos >= 2 ? "bom" : pontos === 1 ? "atencao" : "ruim";
-  const frase =
-    veredito === "bom"
+  const veredito: Veredito = semBase ? "atencao" : pontos >= 2 ? "bom" : pontos === 1 ? "atencao" : "ruim";
+  const frase = semBase
+    ? vazio(e.atual)
+      ? `Ainda não dá pra comparar: não tem nada lançado em ${e.anterior.label} nem em ${e.atual.label}.`
+      : `Ainda não dá pra comparar: não tem nada lançado em ${e.anterior.label}. Em ${e.atual.label} você gastou ${money(e.atual.gastos)} e guardou ${money(e.atual.guardado)}.`
+    : veredito === "bom"
       ? `Sim. Em ${e.atual.label} você gastou ${money(e.atual.gastos)} (em ${e.anterior.label} foram ${money(e.anterior.gastos)}) e guardou ${money(e.atual.guardado)}.`
       : veredito === "atencao"
         ? `Em parte. Em ${e.atual.label} você gastou ${money(e.atual.gastos)} e guardou ${money(e.atual.guardado)}; em ${e.anterior.label}, ${money(e.anterior.gastos)} e ${money(e.anterior.guardado)}.`

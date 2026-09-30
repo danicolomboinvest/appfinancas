@@ -207,7 +207,7 @@ export function WorthItCalculator({
           >
             <span
               className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
-                mode === "SINGLE" ? "bg-accent text-canvas" : "bg-surface-2 text-ink-muted"
+                mode === "SINGLE" ? "bg-accent text-on-accent" : "bg-surface-2 text-ink-muted"
               }`}
             >
               <ShoppingBag className="h-5 w-5" />
@@ -227,7 +227,7 @@ export function WorthItCalculator({
           >
             <span
               className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
-                mode === "RECURRING" ? "bg-accent text-canvas" : "bg-surface-2 text-ink-muted"
+                mode === "RECURRING" ? "bg-accent text-on-accent" : "bg-surface-2 text-ink-muted"
               }`}
             >
               <Repeat className="h-5 w-5" />
@@ -271,7 +271,7 @@ export function WorthItCalculator({
                     onClick={() => setHorizonYears(years)}
                     className={`flex-1 rounded-full border px-2 py-1.5 text-xs font-medium transition-colors ${
                       horizonYears === years
-                        ? "border-accent bg-accent text-canvas"
+                        ? "border-accent bg-accent text-on-accent"
                         : "border-border bg-surface-2 text-ink-muted hover:bg-surface-hover"
                     }`}
                   >

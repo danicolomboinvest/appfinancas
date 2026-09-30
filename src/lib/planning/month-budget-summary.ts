@@ -75,7 +75,11 @@ export function resumoDoMes(input: {
   hoje: Date;
   ano: number;
   mes: number;
-  /** Data do último gasto lançado no mês, pra saber até onde o mês foi contado. */
+  /**
+   * Data do último gasto lançado no mês, pra saber até onde o mês foi contado. É um dia de
+   * calendário em UTC (a coluna `entryDate`, @db.Date, que o Prisma entrega à meia-noite UTC):
+   * lida com getUTC*, ao contrário de `hoje`, que carrega o relógio de Brasília nos campos locais.
+   */
   ultimoGasto?: Date | null;
 }): ResumoDoMes {
   const { planejado, gasto, hoje, ano, mes, ultimoGasto } = input;
@@ -95,9 +99,14 @@ export function resumoDoMes(input: {
   else if (usado! < doMes - FOLGA) situacao = "folgado";
   else situacao = "no-ritmo";
 
-  const ultimoDiaLancado = ultimoGasto ? ultimoGasto.getDate() : null;
+  // `ultimoGasto` é @db.Date: lido no fuso local, qualquer processo fora de UTC (o next dev no
+  // Mac, que lê o mesmo banco) via "último gasto dia 9" quando foi dia 10, e um dia a mais sem
+  // lançar — o que escondia o "R$ X por dia" um dia antes da hora.
+  const ultimoDiaLancado = ultimoGasto ? ultimoGasto.getUTCDate() : null;
   const diasSemLancar =
-    ehMesCorrente && ultimoGasto ? Math.max(0, Math.floor((meiaNoite(hoje) - meiaNoite(ultimoGasto)) / 86_400_000)) : null;
+    ehMesCorrente && ultimoGasto
+      ? Math.max(0, Math.round((diaDeHoje(hoje) - diaGravado(ultimoGasto)) / 86_400_000))
+      : null;
   // Mês corrente COM plano e sem gasto nenhum também está desatualizado: é o caso de quem ainda
   // não subiu o extrato do mês, e é justamente quem mais precisa do aviso.
   const desatualizado =
@@ -127,7 +136,16 @@ export function resumoDoMes(input: {
   };
 }
 
-/** Compara dias de calendário, não instantes: 23h de ontem para 1h de hoje é 1 dia, não 0. */
-function meiaNoite(d: Date): number {
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+/**
+ * Compara dias de calendário, não instantes: 23h de ontem para 1h de hoje é 1 dia, não 0.
+ *
+ * Os dois lados viram meia-noite UTC do seu dia pra a subtração não pegar horário de verão do
+ * servidor. `hoje` vem de nowInBrazil (o dia está nos campos locais); o gasto é @db.Date (o dia
+ * está nos campos UTC).
+ */
+function diaDeHoje(d: Date): number {
+  return Date.UTC(d.getFullYear(), d.getMonth(), d.getDate());
+}
+function diaGravado(d: Date): number {
+  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
 }

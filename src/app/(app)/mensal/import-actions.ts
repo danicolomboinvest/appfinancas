@@ -375,13 +375,6 @@ export type ImportResult =
   | { ok: true; created: number; skipped: number; cardPaymentCandidates: CardPaymentCandidate[] }
   | { ok: false; error: string };
 
-/** Reconhece a linha de "pagamento de fatura de cartão" que vem no EXTRATO bancário. */
-const CARD_PAYMENT_RE = /fatura/i;
-function looksLikeCardPayment(description: string | null): boolean {
-  const d = (description ?? "").toLowerCase();
-  return CARD_PAYMENT_RE.test(d) && (/pagament/.test(d) || /cart[aã]o/.test(d));
-}
-
 /** (ano, mês) do mês anterior/seguinte, sem depender de Date pra virada de ano (mês 1 → mês 12
  * do ano anterior, mês 12 → mês 1 do ano seguinte). */
 function shiftMonth(year: number, month: number, delta: number): { year: number; month: number } {
@@ -411,7 +404,10 @@ async function findCardPaymentCandidates(ctx: AuthContext, year: number, month: 
   // "Pagamento da fatura" que uma fatura antiga deixou entrar como estorno aparecia aqui como
   // "− -R$ 2.800", e remover apagava o estorno em vez do pagamento.
   return candidates
-    .filter((c) => Number(c.amount) > 0 && looksLikeCardPayment(c.description))
+    // A MESMA regra que deixa o pagamento de fora na leitura do extrato (ver dinheiro-proprio):
+    // com duas, "PGTO FATURA" e o "Pagto cartão crédito" do BB passavam numa e não na outra, e a
+    // fatura não oferecia remover o pagamento que o extrato já tinha lançado.
+    .filter((c) => Number(c.amount) > 0 && parecePagamentoDeFatura(c.description))
     .map((c) => ({
       id: c.id,
       description: c.description ?? "Pagamento de fatura",
@@ -639,11 +635,15 @@ export async function importTransactionsAction(
     const ym = monthOf(item);
     const profileId = profileIdOf(item);
     monthsInBatch.add(`${profileId}|${ym.year}/${ym.month}`);
-    if (faturaTarget && item.installment?.confident && item.installment.current < item.installment.total) {
-      for (let n = item.installment.current + 1; n <= item.installment.total; n += 1) {
+    if (faturaTarget && item.installment?.confident) {
+      // Um mês antes e um depois das parcelas também: é onde a parcela projetada por outra fatura
+      // está quando o mês escolhido ficou um mês fora (ver `parcelaJaLancada`).
+      for (let n = item.installment.current; n <= item.installment.total + 1; n += 1) {
         const d = new Date(ym.year, ym.month - 1 + (n - item.installment.current), 1);
         monthsInBatch.add(`${profileId}|${d.getFullYear()}/${d.getMonth() + 1}`);
       }
+      const antes = shiftMonth(ym.year, ym.month, -1);
+      monthsInBatch.add(`${profileId}|${antes.year}/${antes.month}`);
     }
   }
   // CONTAGEM, não presença: quem tem dois cafés iguais no mesmo dia (e escolheu manter os dois
@@ -662,7 +662,8 @@ export async function importTransactionsAction(
   const parcelasExistentes = new Map<string, ParcelaExistente[]>();
   // Linha importada que ela renomeou ("Definir descrição" no Foco) é comparada pelo nome que o
   // banco deu: com o nome novo, a mesma fatura subida de novo entrava em dobro.
-  const nomesDoBanco = await descricoesOriginais(ctx, [...new Set([...monthsInBatch].map((k) => k.split("|")[0]))]);
+  // Todos os perfis dela: a linha que este perfil mandou pra outro também é comparada (ver abaixo).
+  const nomesDoBanco = await descricoesOriginais(ctx, [...new Set([...[...monthsInBatch].map((k) => k.split("|")[0]), ...ownProfileIds])]);
   for (const key of monthsInBatch) {
     const [profileId, ym] = key.split("|");
     const [y, m] = ym.split("/").map(Number);
@@ -681,6 +682,32 @@ export async function importTransactionsAction(
       }
       if (dia && e.importBatchId) {
         const lk = `${profileId}|${chaveSoltaDe(dia, Number(e.amount), e.category)}`;
+        looseDescricoes.set(lk, [...(looseDescricoes.get(lk) ?? []), { descricao }]);
+      }
+    }
+  }
+  // Linha que uma importação DESTE perfil mandou pra outro ("mandar pra Empresa" na revisão da
+  // semana) conta como já lançada aqui também. O extrato do mês traz a mesma linha sem perfil, ela
+  // vai pro ativo, e as chaves acima só olham o perfil de destino: a compra entrava de novo no
+  // Pessoal, calada. Só a chave exata e a solta (a do extrato); a parcela de fatura continua como era.
+  const outrosPerfis = [...ownProfileIds].filter((id) => id !== ctx.profileId);
+  const mesesDoAtivo = [...monthsInBatch].flatMap((k) => {
+    const [profileId, ym] = k.split("|");
+    const [year, month] = ym.split("/").map(Number);
+    return profileId === ctx.profileId ? [{ year, month }] : [];
+  });
+  if (outrosPerfis.length > 0 && mesesDoAtivo.length > 0) {
+    const mandadas = await prisma.monthlyEntry.findMany({
+      where: { userId: ctx.userId, profileId: { in: outrosPerfis }, importBatchId: { not: null }, importBatch: { is: { profileId: ctx.profileId } }, OR: mesesDoAtivo },
+      select: { id: true, entryDate: true, amount: true, description: true, category: true, year: true, month: true },
+    });
+    for (const e of mandadas) {
+      const dia = e.entryDate ? e.entryDate.toISOString().slice(0, 10) : null;
+      const descricao = nomesDoBanco.get(e.id) ?? e.description;
+      const k = `${ctx.profileId}|${e.year}/${e.month}|${dedupeKey(dia, Number(e.amount), descricao)}`;
+      existingCounts.set(k, (existingCounts.get(k) ?? 0) + 1);
+      if (dia) {
+        const lk = `${ctx.profileId}|${chaveSoltaDe(dia, Number(e.amount), e.category)}`;
         looseDescricoes.set(lk, [...(looseDescricoes.get(lk) ?? []), { descricao }]);
       }
     }
@@ -712,10 +739,12 @@ export async function importTransactionsAction(
    * novo) não muda de dono: desfazer a cópia não pode levar a original.
    */
   let adotados = 0;
-  const adotar = async (id: string, profileId: string, year: number, month: number) => {
+  const adotar = async (id: string, profileId: string, mes: number) => {
     const r = await prisma.monthlyEntry.updateMany({ where: { id, userId: ctx.userId, profileId }, data: { importBatchId: batch.id } });
     adotados += r.count;
-    if (r.count > 0) touchedMonths.add(`${year}/${month}`);
+    // O mês em que a parcela ESTÁ (pode ser o vizinho do esperado, ver `parcelaJaLancada`).
+    const year = Math.floor((mes - 1) / 12);
+    if (r.count > 0) touchedMonths.add(`${year}/${mes - year * 12}`);
   };
 
   /** Já existe no banco uma cópia ainda não "gasta" desta chave? Consome uma e diz que sim. */
@@ -727,17 +756,40 @@ export async function importTransactionsAction(
   };
   /** Estorno é gravado negativo: a chave tem que usar o mesmo sinal que está no banco. */
   const valorGravado = (item: ConfirmedItem) => (item.estorno && item.category === "EXPENSE" ? -item.amount : item.amount);
-  const chaveExata = (item: ConfirmedItem) => {
+  const chaveExata = (item: ConfirmedItem, valor = valorGravado(item)) => {
     const originalYm = yearMonthFromISO(item.date);
     const ym = faturaTarget ?? originalYm ?? { year: now.getFullYear(), month: now.getMonth() + 1 };
-    return `${profileIdOf(item)}|${ym.year}/${ym.month}|${dedupeKey(!faturaTarget && originalYm ? item.date : null, valorGravado(item), item.description)}`;
+    return `${profileIdOf(item)}|${ym.year}/${ym.month}|${dedupeKey(!faturaTarget && originalYm ? item.date : null, valor, item.description)}`;
   };
-  /** Já existe esta parcela (valor com folga de centavos)? Consome uma e devolve qual era. */
+  /**
+   * Crédito do extrato que ela já tinha marcado como ESTORNO numa importação anterior (gravado
+   * como gasto negativo). O extrato do mês traz a mesma linha como renda de novo: a chave exata
+   * compara o valor com sinal e a solta compara o tipo, então nenhuma batia e a devolução entrava
+   * outra vez, agora como renda que não existe. Só o extrato, e só renda contra valor negativo:
+   * valor negativo no banco é sempre estorno, nunca uma compra com a mesma descrição.
+   */
+  const jaLancadoComoEstorno = (item: ConfirmedItem) => !faturaTarget && item.category === "INCOME" && alreadyThere(chaveExata(item, -item.amount));
+  /**
+   * Já existe esta parcela (valor com folga de centavos)? Consome uma e devolve qual era.
+   * Primeiro no mês certo; se não achar, a parcela que outra fatura PROJETOU no mês vizinho. É o
+   * caso do mês escolhido um mês fora (o seletor começa no mês de hoje): setembro projetou a
+   * 04/10 em outubro, a fatura de outubro foi lançada em novembro, e a 04/10 e as seguintes
+   * ficavam todas em dobro. Só projeção no vizinho: parcela que veio de verdade numa fatura
+   * daquele mês é de outra compra igual, não desta.
+   */
   const parcelaJaLancada = (k: string, valor: number, total: number): ParcelaExistente | null => {
-    const existentes = parcelasExistentes.get(k) ?? [];
-    const i = existentes.findIndex((p) => mesmaParcela(p.valor, valor, total));
-    if (i === -1) return null;
-    return existentes.splice(i, 1)[0];
+    const pegar = (chave: string, aceita: (p: ParcelaExistente) => boolean) => {
+      const existentes = parcelasExistentes.get(chave) ?? [];
+      const i = existentes.findIndex((p) => mesmaParcela(p.valor, valor, total) && aceita(p));
+      return i === -1 ? null : existentes.splice(i, 1)[0];
+    };
+    const [profileId, ym, ...resto] = k.split("|");
+    const [year, month] = ym.split("/").map(Number);
+    const vizinho = (delta: number) => {
+      const v = shiftMonth(year, month, delta);
+      return [profileId, `${v.year}/${v.month}`, ...resto].join("|");
+    };
+    return pegar(k, () => true) ?? pegar(vizinho(-1), ehProjecao) ?? pegar(vizinho(1), ehProjecao);
   };
   /** Parcela de fatura usa SÓ a comparação por parcela (que já cobre o valor exato); o resto usa
    * a chave exata. Como os dois lados decidem pela mesma descrição, um lançamento do banco nunca
@@ -760,7 +812,7 @@ export async function importTransactionsAction(
     const parcela = chaveParcela(item);
     const achada = parcela ? parcelaJaLancada(parcela.key, valorGravado(item), parcela.total) : null;
     if (achada && ehProjecao(achada)) confirmadas.set(i, achada);
-    if (parcela ? achada !== null : alreadyThere(chaveExata(item))) pular.add(i);
+    if (parcela ? achada !== null : alreadyThere(chaveExata(item)) || jaLancadoComoEstorno(item)) pular.add(i);
   });
   const soltas = casarPorDataEValor(items.map(chaveSolta), items.map((item) => item.description), looseDescricoes, { perguntar: false, jaCasados: pular });
   for (const [i, casamento] of soltas) if (casamento.tipo === "mesmo") pular.add(i);
@@ -793,7 +845,7 @@ export async function importTransactionsAction(
       const futureKey = `${profileId}|${d.getFullYear()}/${d.getMonth() + 1}|${descricaoComparavel(desc)}`;
       const achada = parcelaJaLancada(futureKey, item.amount, total);
       if (achada) {
-        if (adotarDe && achada.loteId === adotarDe) await adotar(achada.id, profileId, d.getFullYear(), d.getMonth() + 1);
+        if (adotarDe && achada.loteId === adotarDe) await adotar(achada.id, profileId, achada.mes);
         continue;
       }
       // Só adotando: a parcela projetada que não está mais lá foi apagada por ela, não volta.
@@ -848,7 +900,7 @@ export async function importTransactionsAction(
       skipped += 1;
       const confirmada = confirmadas.get(indice);
       if (confirmada) {
-        await adotar(confirmada.id, profileId, ym.year, ym.month);
+        await adotar(confirmada.id, profileId, confirmada.mes);
         // As parcelas seguintes que o mesmo lote projetou também passam pra esta fatura.
         await lancarParcelasFuturas(item, ym, profileId, parentCategory, customCategoryId, confirmada.loteId);
       }

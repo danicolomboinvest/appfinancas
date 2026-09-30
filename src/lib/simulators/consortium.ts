@@ -33,6 +33,8 @@ export type ConsortiumVsFinancingResult = {
   };
   winner: "CONSORCIO" | "FINANCIAMENTO";
   differenceInFavorOfWinner: number;
+  /** Algum prazo menor que 1 mês (campo zerado ou apagado): não há conta a fazer. */
+  invalidTerm: boolean;
 };
 
 /**
@@ -41,8 +43,31 @@ export type ConsortiumVsFinancingResult = {
  * financiar, a pessoa tivesse optado pelo consórcio, que não exige entrada).
  */
 export function simulateConsortiumVsFinancing(input: ConsortiumVsFinancingInput): ConsortiumVsFinancingResult {
+  // Prazo digitado "0" chegava nas contas: o consórcio dividia por zero (parcela infinita na
+  // tela) e o financiamento virava tabela vazia com custo negativo, "vencendo" a comparação.
+  // Igual ao Financiar vs Alugar: prazo fracionado vira meses inteiros e abaixo de 1 mês não
+  // há veredito.
+  const consortiumTermMonths = Number.isFinite(input.consortiumTermMonths) ? Math.floor(input.consortiumTermMonths) : 0;
+  const financingTermMonths = Number.isFinite(input.financingTermMonths) ? Math.floor(input.financingTermMonths) : 0;
+  if (consortiumTermMonths < 1 || financingTermMonths < 1) {
+    return {
+      consortium: { totalPaid: 0, installment: 0, operationCost: 0 },
+      financing: {
+        financedAmount: input.creditValue - input.financingDownPayment,
+        totalPaid: 0,
+        firstInstallment: 0,
+        operationCost: 0,
+        downPaymentOpportunityCost: 0,
+        totalCostWithOpportunity: 0,
+      },
+      winner: "CONSORCIO",
+      differenceInFavorOfWinner: 0,
+      invalidTerm: true,
+    };
+  }
+
   const consortiumTotalPaid = new Decimal(input.creditValue).times(new Decimal(1).plus(input.consortiumAdminFeeRate));
-  const consortiumInstallment = consortiumTotalPaid.div(input.consortiumTermMonths);
+  const consortiumInstallment = consortiumTotalPaid.div(consortiumTermMonths);
   const consortiumOperationCost = consortiumTotalPaid.minus(input.creditValue);
 
   const financedAmount = input.creditValue - input.financingDownPayment;
@@ -51,7 +76,7 @@ export function simulateConsortiumVsFinancing(input: ConsortiumVsFinancingInput)
     system: input.financingSystem,
     principal: financedAmount,
     monthlyRate: financingMonthlyRate,
-    months: input.financingTermMonths,
+    months: financingTermMonths,
   });
   const financingTotalPaid = totalPaid(financingSchedule);
   const financingOperationCost = financingTotalPaid.minus(financedAmount);
@@ -59,7 +84,7 @@ export function simulateConsortiumVsFinancing(input: ConsortiumVsFinancingInput)
   const opportunityMonthlyRate = annualToMonthly(input.opportunityCostAnnualRate);
   const downPaymentOpportunityCost = fv(
     opportunityMonthlyRate,
-    input.financingTermMonths,
+    financingTermMonths,
     0,
     input.financingDownPayment,
   ).minus(input.financingDownPayment);
@@ -85,5 +110,6 @@ export function simulateConsortiumVsFinancing(input: ConsortiumVsFinancingInput)
     },
     winner,
     differenceInFavorOfWinner: differenceInFavorOfWinner.toNumber(),
+    invalidTerm: false,
   };
 }

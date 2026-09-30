@@ -9,6 +9,7 @@
 import { isBanestesStatement, parseBanestesStatement } from "./banestes-pdf";
 import { isBancoDoBrasilStatement, parseBancoDoBrasilStatement } from "./bb-pdf";
 import { isBradescoStatement, parseBradescoStatement } from "./bradesco-pdf";
+import { isBradescoInvoice, parseBradescoInvoice } from "./bradesco-fatura-pdf";
 import { isCaixaAppStatement, parseCaixaAppStatement } from "./caixa-pdf";
 import { isCoraStatement, parseCoraStatement } from "./cora-pdf";
 import { isInterInvoice, isInterStatement, parseInterInvoice, parseInterStatement } from "./inter-pdf";
@@ -59,6 +60,12 @@ export function parseAmountFlexible(raw: string): number {
     negativeByMark = negativeByMark || /[dD]$/.test(t);
     t = t.slice(0, -1);
   }
+  // "50,00-": exportação contábil (SAP e afins) põe o menos DEPOIS do número. Sem isto o
+  // Number("50.00-") dava NaN e a saída era jogada fora calada.
+  if (/\d-$/.test(t)) {
+    negativeByMark = true;
+    t = t.slice(0, -1);
+  }
   const parsed = parseAmountCore(t);
   return negativeByMark && parsed > 0 ? -parsed : parsed;
 }
@@ -91,15 +98,23 @@ export function normalizeDate(raw: string): string {
   const trimmed = raw.trim();
   // Aceita "DD/MM/YYYY" e também "DD/MM/YYYY HH:MM" (extrato BTG traz data e hora juntas).
   const br = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4}|\d{2})(?!\d)/);
-  if (br && Number(br[1]) >= 1 && Number(br[1]) <= 31 && Number(br[2]) >= 1 && Number(br[2]) <= 12) {
+  if (br) {
     const ano = br[3].length === 2 ? `20${br[3]}` : br[3];
-    return `${ano}-${br[2].padStart(2, "0")}-${br[1].padStart(2, "0")}`;
+    // "31/02" passava (dia até 31 em qualquer mês) e na gravação o new Date rolava pra 3 de
+    // março: o gasto mudava de mês calado. Dia que o mês não tem não é data.
+    if (diaExiste(Number(ano), Number(br[2]), Number(br[1]))) return `${ano}-${br[2].padStart(2, "0")}-${br[1].padStart(2, "0")}`;
   }
   const iso = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
   const ofx = trimmed.match(/^(\d{4})(\d{2})(\d{2})/); // OFX DTPOSTED: YYYYMMDD[HHMMSS]
   if (ofx) return `${ofx[1]}-${ofx[2]}-${ofx[3]}`;
   return trimmed;
+}
+
+/** O dia existe nesse mês? (31/02 não, 29/02 só no ano bissexto.) */
+function diaExiste(ano: number, mes: number, dia: number): boolean {
+  if (!(mes >= 1 && mes <= 12 && dia >= 1)) return false;
+  return dia <= new Date(Date.UTC(ano, mes, 0)).getUTCDate();
 }
 
 function isOfx(content: string): boolean {
@@ -112,17 +127,44 @@ function tag(block: string, name: string): string | null {
   return match ? match[1].trim() : null;
 }
 
+/** "&amp;", "&lt;", "&#231;": o OFX escapa como XML, e a descrição mostrava "P&amp;B LTDA". */
+function decodeEntities(text: string): string {
+  return text.replace(/&(amp|lt|gt|quot|apos|#\d+|#x[0-9a-f]+);/gi, (whole, ent: string) => {
+    const e = ent.toLowerCase();
+    if (e === "amp") return "&";
+    if (e === "lt") return "<";
+    if (e === "gt") return ">";
+    if (e === "quot") return '"';
+    if (e === "apos") return "'";
+    const code = e.startsWith("#x") ? parseInt(e.slice(2), 16) : Number(e.slice(1));
+    return Number.isFinite(code) && code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : whole;
+  });
+}
+
+/**
+ * Valor do OFX. O padrão manda ponto decimal ("-1234.56"); aí o ponto É o decimal, mesmo com
+ * três casas. Com vírgula, é banco que escreveu do seu jeito: "-10,00" (BR) ou "-1,234.56"
+ * (milhar americano), e quem decide é o último separador. Antes a vírgula era sempre decimal
+ * e R$ 1.234,56 virava R$ 1,23.
+ */
+function parseOfxAmount(raw: string): number {
+  const t = raw.replace(/[R$\s]/gi, "");
+  if (t === "") return NaN;
+  return t.includes(",") ? parseAmountFlexible(t) : Number(t);
+}
+
 export function parseOfx(content: string): ParsedTransaction[] {
   const blocks = content.match(/<STMTTRN>[\s\S]*?<\/STMTTRN>/gi) ?? [];
   const transactions: ParsedTransaction[] = [];
   for (const block of blocks) {
     const amountRaw = tag(block, "TRNAMT");
     if (amountRaw === null) continue;
-    const amount = parseBrazilianNumber(amountRaw);
+    const amount = parseOfxAmount(amountRaw);
     if (Number.isNaN(amount)) continue;
-    const description = tag(block, "MEMO") ?? tag(block, "NAME") ?? "Lançamento";
+    // `||`, não `??`: MEMO vazio ("<MEMO>" sem nada) vem como "", e o NAME ficava de fora.
+    const description = decodeEntities(tag(block, "MEMO") || tag(block, "NAME") || "").trim() || "Lançamento";
     const date = normalizeDate(tag(block, "DTPOSTED") ?? "");
-    transactions.push({ date, description: description.trim(), amount });
+    transactions.push({ date, description, amount });
   }
   return transactions;
 }
@@ -167,8 +209,13 @@ const DC_HEADERS = ["d/c", "natureza", "tipo"];
 const TRANSACTION_HEADERS = ["transa", "tipo de lanç", "tipo"];
 /** Célula que é SÓ uma data: no Inter a coluna "TRANSACAO" traz a data, não o tipo. */
 const CELL_IS_DATE_RE = /^\d{1,2}\/\d{1,2}(?:\/\d{2,4})?$|^\d{4}-\d{2}-\d{2}$/;
-/** Linhas que NÃO são transações (saldo diário/atual/anterior, totais), não viram lançamento. */
-const NON_TRANSACTION_RE = /\bsaldo\b/i;
+/**
+ * Linhas que NÃO são transações (saldo diário/atual/anterior), não viram lançamento. Só quando
+ * a descrição COMEÇA com "saldo" ou diz que tipo de saldo é: antes bastava citar a palavra, e
+ * um Pix de verdade ("Quitação saldo devedor") sumia calado.
+ */
+const NON_TRANSACTION_RE =
+  /^[^a-z0-9]*saldo\b|\bsaldo\s+(?:do\s+dia|anterior|atual|final|inicial|dispon[ií]vel|bloqueado|em\s+c|total|parcial|de\s+abertura|l[ií]quido)\b/i;
 
 function findColumn(headers: string[], needles: string[]): number {
   return headers.findIndex((h) => needles.some((n) => h.includes(n)));
@@ -280,7 +327,19 @@ function readTransactionLine(line: string, layout: CsvLayout, refYear: number): 
     [trans, desc].filter((s) => s && s !== "-").filter((s, i, arr) => arr.indexOf(s) === i).join(" · ") ||
     "Lançamento";
 
-  return { date: juntas ? juntas.date : normalizeDate(cols[dateCol] ?? ""), description, amount };
+  return { date: juntas ? juntas.date : csvDate(cols[dateCol] ?? "", refYear), description, amount };
+}
+
+/**
+ * Data da coluna de data do CSV. "10/08" sem ano ficava crua e, na gravação, caía no MÊS ATUAL:
+ * o gasto de agosto aparecia em setembro. Usa o ano de referência (fatura escolhida ou o atual),
+ * do mesmo jeito que o texto de PDF já fazia, recuando um ano se cair no futuro.
+ */
+function csvDate(cell: string, refYear: number): string {
+  const iso = normalizeDate(cell);
+  const semAno = cell.trim().match(/^(\d{1,2})\/(\d{1,2})$/);
+  if (!semAno || !diaExiste(refYear, Number(semAno[2]), Number(semAno[1]))) return iso;
+  return backdateIfFuture(`${refYear}-${semAno[2].padStart(2, "0")}-${semAno[1].padStart(2, "0")}`, new Date());
 }
 
 /**
@@ -343,6 +402,21 @@ export function parseCsv(content: string, refYear: number = new Date().getFullYe
 
 /** Palavras que indicam entrada (crédito) numa linha de extrato sem coluna de débito/crédito. */
 const CREDIT_HINTS = /\b(sal[aá]rio|rendimento|dep[oó]sito|cr[eé]dito|recebid[oa]|estorno|reembolso|proventos)\b/i;
+/**
+ * "Crédito" que é o PRODUTO, não o sentido do dinheiro: pagar o cartão de crédito ou a parcela
+ * do crédito pessoal é saída. Antes a palavra sozinha virava entrada, e como renda o pagamento
+ * da fatura nem chegava em parecePagamentoDeFatura (que só olha gasto).
+ */
+const CREDITO_QUE_E_SAIDA_RE =
+  /cart[aã]o\s+(?:de\s+)?cr[eé]dito|cr[eé]dito\s+(?:pessoal|consignado|rotativo|imobili[aá]rio|parcelado)|\b(?:pagamento|pagto|pgto|parcela|presta[cç][aã]o)\b.*\bcr[eé]dito/i;
+
+/** A linha tem palavra de entrada? "Crédito" só conta quando não é o nome do produto. */
+function temPalavraDeEntrada(text: string): boolean {
+  if (!CREDIT_HINTS.test(text)) return false;
+  if (!CREDITO_QUE_E_SAIDA_RE.test(text)) return true;
+  // Tirando o "crédito" do produto, sobra outra palavra de entrada ("ESTORNO ... CARTAO DE CREDITO")?
+  return CREDIT_HINTS.test(text.replace(/cr[eé]dito/gi, " "));
+}
 
 /**
  * Parser de texto solto, usado pra PDF, cujo texto extraído não é delimitado como CSV. Em cada
@@ -393,7 +467,10 @@ function leadingDateCore(t: string, refYear: number): { iso: string; length: num
   if (m) return { iso: `${m[3]}-${m[2]}-${m[1]}`, length: m[0].length };
   m = t.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (m) return { iso: `${m[1]}-${m[2]}-${m[3]}`, length: m[0].length };
-  m = t.match(/^(\d{1,2})\s+(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)[a-z]*\.?(?:\s+(\d{4}))?/i);
+  // O mês é a abreviação OU o nome inteiro, e nada colado depois: "2 MAIONESE" (quantidade +
+  // item na nota) era lido como "2 de MAIo", virava lançamento de maio e a compra de cima
+  // ficava sem valor.
+  m = t.match(/^(\d{1,2})\s+(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)(?:eiro|ereiro|[cç]o|il|o|ho|sto|embro|ubro)?\.?(?![A-Za-zÀ-ÿ])(?:\s+(\d{4}))?/i);
   if (m) {
     const iso = `${m[3] ?? refYear}-${MONTH_ABBR[m[2].toLowerCase()]}-${pad(m[1])}`;
     return { iso: m[3] ? iso : backdateIfFuture(iso, new Date()), length: m[0].length };
@@ -425,7 +502,10 @@ export function parseTextLines(content: string, refYear: number = new Date().get
   // Sem isto o pagamento da fatura anterior perdia o sinal e entrava como mais uma compra.
   const lines = content.replace(/\u2212/g, "-").split(/\r?\n/);
   const transactions: ParsedTransaction[] = [];
-  const moneyRe = /-?\s?(?:R\$\s?)?\d{1,3}(?:\.\d{3})*,\d{2}(?!\d)/g;
+  // O número começa numa borda (nada de dígito, ponto ou vírgula colado à esquerda) e aceita
+  // valor sem ponto de milhar: em "1500,00" o regex antigo pegava só "500,00" e o "1" ia pra
+  // descrição — o gasto de R$ 1.500 entrava como R$ 500.
+  const moneyRe = /-?\s?(?:R\$\s?)?(?<![\d.,])(?:\d{1,3}(?:\.\d{3})+|\d+),\d{2}(?!\d)/g;
   const anyDateRe = /(\d{2}\/\d{2}\/\d{4})|(\d{4}-\d{2}-\d{2})/;
 
   let open: { date: string; parts: string[]; lines: number } | null = null;
@@ -435,8 +515,14 @@ export function parseTextLines(content: string, refYear: number = new Date().get
     const magnitude = Math.abs(parseBrazilianNumber(rawAmount));
     const text = open.parts.join(" ").replace(/\s+/g, " ").trim();
     if (!Number.isNaN(magnitude) && magnitude > 0 && !BALANCE_LINE_RE.test(text)) {
-      const isNegative = /-/.test(rawAmount) || /\bD\b\s*$/.test(lineForSign);
-      const isCredit = !isNegative && (CREDIT_HINTS.test(text) || /\bC\b\s*$/.test(lineForSign));
+      // Menos colado no número ("-3.000,00", "-R$ 80,00") é sinal. Traço com espaço
+      // ("SALARIO EMPRESA - 3.000,00") pode ser só o separador entre descrição e valor: quando a
+      // linha tem palavra de entrada, ela decide; sem palavra, continua saída como antes.
+      const entrada = temPalavraDeEntrada(text);
+      const menosColado = /^-(?:\d|R\$)/.test(rawAmount.trim());
+      const tracoSolto = /^-\s/.test(rawAmount.trim());
+      const isNegative = menosColado || (tracoSolto && !entrada) || /\bD\b\s*$/.test(lineForSign);
+      const isCredit = !isNegative && (entrada || /\bC\b\s*$/.test(lineForSign));
       transactions.push({ date: open.date, description: text.replace(/\b[DC]\b\s*$/, "").trim() || "Lançamento", amount: isCredit ? magnitude : -magnitude });
     }
     open = null;
@@ -487,6 +573,7 @@ const LEITORES_PDF: { nome: string; reconhece: (t: string) => boolean; le: (t: s
   { nome: "banestes", reconhece: isBanestesStatement, le: (t, ano) => parseBanestesStatement(t, ano) },
   { nome: "banco-do-brasil", reconhece: isBancoDoBrasilStatement, le: (t) => parseBancoDoBrasilStatement(t) },
   { nome: "bradesco", reconhece: isBradescoStatement, le: (t) => parseBradescoStatement(t) },
+  { nome: "bradesco-fatura", reconhece: isBradescoInvoice, le: (t, ano) => parseBradescoInvoice(t, ano) },
   { nome: "cora", reconhece: isCoraStatement, le: (t) => parseCoraStatement(t) },
   { nome: "inter-fatura", reconhece: isInterInvoice, le: (t) => parseInterInvoice(t) },
   { nome: "ourocard", reconhece: isOurocardInvoice, le: (t, ano) => parseOurocardInvoice(t, ano) },

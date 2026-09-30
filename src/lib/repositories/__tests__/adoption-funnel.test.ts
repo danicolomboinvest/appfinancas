@@ -40,17 +40,22 @@ describe("montarPassos", () => {
 });
 
 describe("semanaDe", () => {
+  // Meio-dia: semanaDe recebe um instante (createdAt) e olha o dia em Brasília. Meia-noite local
+  // num processo em UTC já é 21h do dia anterior em Brasília, e o teste passaria a medir o fuso
+  // da máquina, não a regra da semana (o fuso tem teste próprio em coorte-semana-fuso.test.ts).
+  const meioDia = (ano: number, mes: number, dia: number) => new Date(ano, mes, dia, 12);
+
   it("agrupa a semana pela segunda-feira", () => {
     // 17/08/2026 é uma segunda; 20 e 23 do mesmo mês caem na mesma semana dela.
-    expect(semanaDe(new Date(2026, 7, 17))).toBe("2026-08-17");
-    expect(semanaDe(new Date(2026, 7, 20))).toBe("2026-08-17");
-    expect(semanaDe(new Date(2026, 7, 23))).toBe("2026-08-17");
+    expect(semanaDe(meioDia(2026, 7, 17))).toBe("2026-08-17");
+    expect(semanaDe(meioDia(2026, 7, 20))).toBe("2026-08-17");
+    expect(semanaDe(meioDia(2026, 7, 23))).toBe("2026-08-17");
   });
 
   /** Domingo pertence à semana que começou na segunda anterior, não à seguinte. */
   it("não joga o domingo pra semana seguinte", () => {
-    expect(semanaDe(new Date(2026, 8, 20))).toBe("2026-09-14");
-    expect(semanaDe(new Date(2026, 8, 21))).toBe("2026-09-21");
+    expect(semanaDe(meioDia(2026, 8, 20))).toBe("2026-09-14");
+    expect(semanaDe(meioDia(2026, 8, 21))).toBe("2026-09-21");
   });
 });
 

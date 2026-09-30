@@ -19,8 +19,11 @@ const cents = (v: number) => Math.round(v * 100) / 100;
  * aporte combinado dela e 60% do valor, pra meta não ficar parada meses a fio.
  */
 export function splitSavings(amount: number, targets: SavingsTarget[]): { slices: SavingsSlice[]; leftover: number } {
-  if (amount <= 0) return { slices: [], leftover: 0 };
-  let left = amount;
+  // Reparte em centavos desde o começo: sem isso, um valor abaixo de meio centavo (0,004)
+  // passava do "> 0" e virava uma fatia "livre" de fração de centavo.
+  const total = cents(amount);
+  if (total <= 0) return { slices: [], leftover: 0 };
+  let left = total;
   const slices: SavingsSlice[] = [];
   const reserva = targets.find((t) => t.kind === "reserva" && t.remaining > 0);
   const metas = targets.filter((t) => t.kind === "meta" && t.remaining > 0);
@@ -28,7 +31,7 @@ export function splitSavings(amount: number, targets: SavingsTarget[]): { slices
   if (reserva) {
     // Com metas na fila, a reserva leva entre 60% e 80% do valor (o aporte combinado dela
     // manda dentro dessa faixa); sem metas, leva tudo.
-    const cap = metas.length > 0 ? Math.min(amount * 0.8, Math.max(reserva.monthlyNeeded, amount * 0.6)) : amount;
+    const cap = metas.length > 0 ? Math.min(total * 0.8, Math.max(reserva.monthlyNeeded, total * 0.6)) : total;
     const take = cents(Math.min(left, reserva.remaining, cap));
     if (take > 0) {
       slices.push({ id: reserva.id, name: reserva.name, kind: "reserva", amount: take });

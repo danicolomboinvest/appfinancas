@@ -23,10 +23,15 @@ export type DailyFlow = {
   /** Total de dias do mês, mesmo que a curva pare em hoje — o mapa de calor desenha o mês
    * inteiro, com os dias que ainda não chegaram apagados. */
   daysInMonth: number;
-  /** Lançamentos SEM data no mês — o gráfico diário não consegue posicioná-los. Serve pra
-   * avisar honestamente que a curva não conta o mês inteiro, em vez de mentir por omissão. */
+  /** GASTOS sem data no mês — o gráfico diário não consegue posicioná-los. Serve pra avisar
+   * honestamente que a curva não conta o mês inteiro, em vez de mentir por omissão. Só gasto:
+   * a página do mês e o Foco somam `undatedAmount` ao "gasto até hoje", e um salário lançado
+   * à mão sem data virava gasto ali. */
   undatedCount: number;
   undatedAmount: number;
+  /** Renda sem data, separada do gasto pelo mesmo motivo: também fica fora da curva. */
+  undatedIncomeCount: number;
+  undatedIncomeAmount: number;
 };
 
 /**
@@ -50,12 +55,19 @@ export async function getDailyFlow(ctx: AuthContext, year: number, month: number
   const expenseByDay = new Array<number>(lastDay + 1).fill(0);
   let undatedCount = 0;
   let undatedAmount = 0;
+  let undatedIncomeCount = 0;
+  let undatedIncomeAmount = 0;
 
   for (const entry of entries) {
     const amount = Number(entry.amount);
     if (!entry.entryDate) {
-      undatedCount += 1;
-      undatedAmount += amount;
+      if (entry.category === "INCOME") {
+        undatedIncomeCount += 1;
+        undatedIncomeAmount += amount;
+      } else {
+        undatedCount += 1;
+        undatedAmount += amount;
+      }
       continue;
     }
     // O campo é @db.Date (sem hora útil): lê os componentes em UTC pra não escorregar um dia
@@ -75,7 +87,7 @@ export async function getDailyFlow(ctx: AuthContext, year: number, month: number
     points.push({ day, income, expense, expenseOfDay: expenseByDay[day] });
   }
 
-  return { points, daysInMonth, undatedCount, undatedAmount };
+  return { points, daysInMonth, undatedCount, undatedAmount, undatedIncomeCount, undatedIncomeAmount };
 }
 
 export type CategorySpending = {

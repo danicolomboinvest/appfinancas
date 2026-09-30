@@ -38,9 +38,16 @@ export async function MonthFlowCard({
     >
       <MonthFlowChart points={flow.points} isCurrentMonth={isCurrentMonth} />
 
+      {/* Gasto e renda sem data em linhas separadas: somar os dois num valor só misturava o
+          salário com o gasto (e o número deixava de significar qualquer coisa). */}
       {flow.undatedCount > 0 && (
         <p className="text-caption text-ink-faint">
           {t.uiFluxoSemData(flow.undatedCount, money(flow.undatedAmount, { round: true }))}
+        </p>
+      )}
+      {flow.undatedIncomeCount > 0 && (
+        <p className="text-caption text-ink-faint">
+          {t.uiFluxoSemData(flow.undatedIncomeCount, money(flow.undatedIncomeAmount, { round: true }))}
         </p>
       )}
     </Section>

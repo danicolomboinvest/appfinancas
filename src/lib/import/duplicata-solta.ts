@@ -73,14 +73,19 @@ export function casarPorDataEValor(
     const [e] = lista.splice(i, 1);
     return { achou: true, descricao: e.mostrar ?? e.descricao };
   };
-  const iguais = (a: string) => (d: string | null) => descricaoNormalizada(d) === descricaoNormalizada(a);
+  const mesmoTexto = (a: string) => (d: string | null) => descricaoNormalizada(d) === descricaoNormalizada(a);
+  // Pra pular SOZINHO, precisa ter nome dos dois lados: "" com "" não prova nada (OFX com MEMO
+  // vazio, linha sem histórico). Dois lançamentos sem nome no mesmo dia e valor viram pergunta,
+  // como já era em `mesmaDescricao`; antes o segundo era pulado calado.
+  const iguais = (a: string) => (d: string | null) => descricaoNormalizada(a) !== "" && mesmoTexto(a)(d);
 
-  // O que já foi dado como existente só gasta a vaga do seu par.
+  // O que já foi dado como existente só gasta a vaga do seu par. Aqui "" com "" vale: a chave
+  // exata (com a descrição) já disse que é o mesmo, só falta tirar o par dele da lista.
   chaves.forEach((k, i) => {
     if (!k || !jaCasados.has(i)) return;
     // Sem par de descrição, o que ele achou foi um lançamento à mão: não gasta a vaga de um
     // importado diferente, que continua disponível pro item dele.
-    if (!tirar(k, iguais(descricoes[i])).achou) tirar(k, (d) => mesmaDescricao(d, descricoes[i]));
+    if (!tirar(k, mesmoTexto(descricoes[i])).achou) tirar(k, (d) => mesmaDescricao(d, descricoes[i]));
   });
   const passada = (aceita: (i: number) => (d: string | null) => boolean, marca: (descricao: string | null) => CasamentoSolto) => {
     chaves.forEach((k, i) => {
