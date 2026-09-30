@@ -147,6 +147,11 @@ export function WelcomeTour() {
             ))}
           </div>
           <div className="flex items-center gap-3">
+            {isLast && (
+              <a href="/guia" onClick={finish} className="text-xs font-semibold text-accent-strong hover:underline">
+                Ler o manual
+              </a>
+            )}
             {!isLast && (
               <button type="button" onClick={finish} className="text-xs font-medium text-ink-faint hover:text-ink">
                 {voz.titulos.uiTourPular}

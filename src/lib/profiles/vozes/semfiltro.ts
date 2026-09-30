@@ -499,7 +499,7 @@ export const semfiltro: Voz = {
     formAtivoAtualizado: "Ativo atualizado.",
     formAtivoValorAtualHint: "Deixa em branco que eu busco a cotação de hoje e multiplico pela quantidade. Trabalho meu 😎",
     // Orçamento
-    formOrcSalvo: "Combinado salvo pro ano inteiro. Agora é cumprir. Combinado não sai caro, descumprir sai 😏",
+    formOrcSalvo: "Combinado salvo daqui até dezembro. Agora é cumprir. Combinado não sai caro, descumprir sai 😏",
     formOrcTitulo: "Bora combinar o orçamento",
     formOrcSub: "Três perguntas. Parte das respostas eu já sei pelos seus lançamentos 👀",
     formOrcRendaSugestao: (mes, valor) => `Em ${mes} entraram ${valor}. Eu vi o Pix 👀`,

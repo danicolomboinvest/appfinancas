@@ -11,6 +11,7 @@ import {
   Plane,
   Scale,
   Signpost,
+  BookOpen,
   type LucideIcon,
 } from "lucide-react";
 
@@ -150,6 +151,8 @@ export const NAV_SECTIONS: NavSection[] = [
       { href: "/fichas/etfs", label: "ETFs" },
     ],
   },
+  // O manual: as regras de importação, orçamento e Foco que ninguém descobre sozinha.
+  { basePath: "/guia", href: "/guia", label: "Como usar o app", icon: BookOpen },
   {
     basePath: "/configuracoes",
     href: "/configuracoes/perfil",

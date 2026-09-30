@@ -322,7 +322,7 @@ export const disciplina: Voz = {
     formAtivoObjetivos: { OUTRO: "Outro", RESERVA_EMERGENCIA: "Reserva", LIBERDADE_FINANCEIRA: "Liberdade", META: "Meta" },
     formAtivoMetaVinculada: "Meta vinculada",
     formAtivoValorAtualHint: "Deixa em branco: o app busca a cotação de hoje e multiplica pela quantidade.",
-    formOrcSalvo: "Plano salvo pro ano inteiro. Agora é cumprir.",
+    formOrcSalvo: "Plano salvo daqui até dezembro. Agora é cumprir.",
     formOrcTitulo: "Monta o plano",
     formOrcSub: "Três perguntas. Parte das respostas o app já tirou dos seus lançamentos.",
     formOrcRendaSugestao: (mes, valor) => `${mes}: entraram ${valor}.`,

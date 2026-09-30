@@ -67,6 +67,13 @@ export function AppShell({
   const [, startTransition] = useTransition();
   const pathname = usePathname();
   const router = useRouter();
+  // Um link de dentro da gaveta do Registrar (o "Ler o manual" da importação) muda de tela:
+  // a gaveta fecha junto, senão a página nova abria escondida atrás dela.
+  const [pathDaGaveta, setPathDaGaveta] = useState(pathname);
+  if (pathname !== pathDaGaveta) {
+    setPathDaGaveta(pathname);
+    setRegistrarOpen(false);
+  }
 
   // O perfil ativo é da CONTA, não da aba: trocar pra Empresa no computador vale também no
   // celular. Uma tela que ficou aberta no Pessoal continuava mostrando o Pessoal e gravava na

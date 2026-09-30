@@ -22,6 +22,7 @@ import {
 import { useMoney } from "@/components/money/MoneyProvider";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { UPLOAD_MAX_BYTES } from "@/lib/import/limites";
+import { ComoImportar } from "./ComoImportar";
 
 type Phase = "upload" | "password" | "review" | "confirm" | "done";
 
@@ -367,6 +368,8 @@ export function StatementImport({
             </div>
           </div>
         )}
+
+        <ComoImportar />
 
         {/* Extrato bancário (sinal manda) vs Fatura de cartão (tudo é gasto). */}
         <div className="flex flex-col gap-1.5">

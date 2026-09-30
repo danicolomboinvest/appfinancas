@@ -297,7 +297,7 @@ export const manifestacao: Voz = {
     formMetaMesAno: "Quando quer realizar",
     formAtivoObjetivos: { OUTRO: "Outro", RESERVA_EMERGENCIA: "Sua segurança", LIBERDADE_FINANCEIRA: "Sua liberdade", META: "Um sonho" },
     formAtivoMetaVinculada: "Sonho vinculado",
-    formOrcSalvo: "Plano salvo pro ano inteiro ✨",
+    formOrcSalvo: "Plano salvo daqui até dezembro ✨",
     formOrcTitulo: "Vamos desenhar o seu plano",
     formOrcSub: "Três perguntas. O app já sabe parte das respostas pelos seus registros.",
     formOrcQuantoGuardar: "Quanto vai pro seu futuro?",

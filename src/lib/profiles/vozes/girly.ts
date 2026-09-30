@@ -226,7 +226,7 @@ const GIRLY_FORM: Partial<Titulos> = {
   formAtivoValorAtual: "Quanto vale hoje",
 
   formOrcPasso: (passo, total) => `Passo ${passo} de ${total} 🎀`,
-  formOrcSalvo: "Combinado salvo pro ano inteiro! 🎉",
+  formOrcSalvo: "Combinado salvo daqui até dezembro! 🎉",
   formOrcTitulo: "Bora combinar seu mês? 🎀",
   formOrcSub: "Três perguntinhas. Parte das respostas eu já sei pelo que você anotou 💕",
   formOrcQuantoEntra: "Quanto entra por mês? 💸",

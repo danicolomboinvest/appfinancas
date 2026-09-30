@@ -325,7 +325,7 @@ export const game: Voz = {
     formAtivoAtualizado: "Ativo atualizado.",
     formAtivoObjetivos: { OUTRO: "Outro", RESERVA_EMERGENCIA: "Reserva (vida extra)", LIBERDADE_FINANCEIRA: "Liberdade financeira", META: "Missão" },
     formAtivoMetaVinculada: "Missão vinculada",
-    formOrcSalvo: "Limites salvos pro ano inteiro.",
+    formOrcSalvo: "Limites salvos daqui até dezembro.",
     formOrcTitulo: "Vamos definir os limites da temporada",
     formOrcSub: "Três perguntas. O app já sabe parte das respostas pelos seus registros.",
     formOrcQuantoGuardar: "Quanto você quer guardar por temporada?",

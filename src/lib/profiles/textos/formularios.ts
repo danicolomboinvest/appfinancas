@@ -295,7 +295,7 @@ export const PADRAO_FORMULARIOS: TextosFormularios = {
   formAtivoValorAtual: "Valor atual",
 
   formOrcPasso: (passo, total) => `Passo ${passo} de ${total}`,
-  formOrcSalvo: "Plano salvo para o ano inteiro.",
+  formOrcSalvo: "Plano salvo daqui até dezembro. Os meses que já passaram ficam como estavam.",
   formOrcTitulo: "Vamos montar seu orçamento",
   formOrcSub: "Três perguntas. O app já sabe parte das respostas pelos seus lançamentos.",
   formOrcQuantoEntra: "Quanto entra por mês?",
