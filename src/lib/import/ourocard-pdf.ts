@@ -25,9 +25,18 @@ import { parseBrazilianNumber, type ParsedTransaction } from "./statement-parser
  */
 
 const LINHA_RE = /^(\d{2})\/(\d{2})\s+(.+?)\s+R\$\s*(-)?\s*(\d{1,3}(?:\.\d{3})*,\d{2})$/;
-const FECHADA_RE = /Fatura fechada em\s+\d{2}\/(\d{2})\/(\d{4})/i;
+/**
+ * O outro layout do BB (visto no cartão Smiles): descrição ANTES da data, depois o país (ou a
+ * agência, no pagamento) e o menos DEPOIS do valor.
+ *   CARAMELO RESTAURANTE CIDADE <TAB> 31/08 BR R$ 23,00
+ *   PGTO. CASH AG. 0000 000000000 200 <TAB> 08/09 10 R$ 800,00-
+ */
+const LINHA_DATA_NO_MEIO_RE = /^(.+?)\s+(\d{2})\/(\d{2})\s+\S{2}\s+R\$\s*(\d{1,3}(?:\.\d{3})*,\d{2})(-)?$/;
+// "Fatura fechada em 21/09/2026", ou o rótulo numa coluna e as datas noutra, logo abaixo.
+const FECHADA_RE = /Fatura fechada em[\s\S]{0,120}?\d{2}\/(\d{2})\/(\d{4})/i;
 const INICIO_RE = /^Lan[çc]amentos nesta fatura/i;
-const FIM_RE = /^Total da Fatura\b/i;
+// "Parcelamentos Próxima Fatura" lista parcelas que só vencem no mês que vem.
+const FIM_RE = /^(Total da Fatura|Subtotal|Parcelamentos Pr[óo]xima Fatura)\b/i;
 
 export function isOurocardInvoice(texto: string): boolean {
   return /\bOUROCARD\b/i.test(texto) && /Lan[çc]amentos nesta fatura/i.test(texto);
@@ -51,8 +60,9 @@ export function parseOurocardInvoice(texto: string, refYear: number = new Date()
     if (!dentro) continue;
     if (FIM_RE.test(linha)) break;
     const m = linha.match(LINHA_RE);
-    if (!m) continue;
-    const [, dd, mm, descricao, menos, valor] = m;
+    const n = m ? null : linha.match(LINHA_DATA_NO_MEIO_RE);
+    if (!m && !n) continue;
+    const [dd, mm, descricao, menos, valor] = m ? m.slice(1) : [n![2], n![3], n![1], n![5], n![4]];
     const magnitude = parseBrazilianNumber(valor);
     if (Number.isNaN(magnitude) || magnitude === 0) continue;
     const ano = mesFechamento !== null && Number(mm) > mesFechamento ? anoFechamento - 1 : anoFechamento;

@@ -58,3 +58,58 @@ describe("fatura do Ourocard (PDF)", () => {
     expect(linhas.some((t) => t.description.startsWith("PGTO"))).toBe(false);
   });
 });
+
+/**
+ * O outro layout do BB (visto no cartão Smiles), FICTÍCIO: descrição antes da data, país depois,
+ * o menos do pagamento DEPOIS do valor, datas do fechamento numa coluna separada do rótulo e, no
+ * fim, as parcelas da PRÓXIMA fatura (que não são gasto deste mês). O leitor antigo não lia
+ * nenhuma linha: 0 de 93.
+ */
+const OUROCARD_SMILES = [
+  "SMILES PLATINUM VISA",
+  "App BB/App Ourocard",
+  "Resumo da fatura",
+  "Saldo fatura anterior R$ 800,00",
+  "Pagamentos/Créditos R$ 800,00-",
+  "Compras nacionais R$ 260,00",
+  "Total R$ 260,00",
+  "Datas fatura",
+  "Fatura fechada em",
+  "Fechamento da próxima fatura",
+  "Melhor data de compra",
+  "29/09/2026",
+  "28/10/2026",
+  "Lançamentos nesta fatura",
+  "Data Descrição País Valor",
+  "Pagamentos",
+  "PGTO. CASH AG. 0000 000000000 200\t08/09 10 R$ 800,00-",
+  "Restaurantes",
+  "RESTAURANTE EXEMPLO CIDADE\t31/08 BR R$ 60,00",
+  "Página 003/004",
+  "Compras diversas",
+  "LOJA EXEMPLO PARC 10/10 CIDADE\t28/11 BR R$ 100,00",
+  "ANUIDADE DIFERENCIADA TIT-PARC 11/12\t28/09 BR R$ 100,00",
+  "Subtotal R$ 260,00",
+  "Total R$ 260,00",
+  "Parcelamentos Próxima Fatura",
+  "LOJA EXEMPLO PARC 02/03 CIDADE\t23/09 R$ 126,94",
+  "Total parcelado para próxima fatura R$ 126,94",
+].join("\n");
+
+describe("fatura do Ourocard, layout com a data no meio (cartão Smiles)", () => {
+  it("lê as compras, o pagamento negativo e o ano do fechamento em coluna", () => {
+    expect(isOurocardInvoice(OUROCARD_SMILES)).toBe(true);
+    expect(parseOurocardInvoice(OUROCARD_SMILES, 2030)).toEqual([
+      { date: "2026-09-08", description: "PGTO. CASH AG. 0000 000000000 200", amount: -800 },
+      { date: "2026-08-31", description: "RESTAURANTE EXEMPLO CIDADE", amount: 60 },
+      { date: "2025-11-28", description: "LOJA EXEMPLO PARC 10/10 CIDADE", amount: 100 },
+      { date: "2026-09-28", description: "ANUIDADE DIFERENCIADA TIT-PARC 11/12", amount: 100 },
+    ]);
+  });
+
+  it("parcela da próxima fatura fica de fora e a soma fecha com o resumo", () => {
+    const linhas = parseStatement(OUROCARD_SMILES, "pdf", 2026).filter((t) => !isFaturaSummaryLine(t));
+    expect(linhas.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0)).toBeCloseTo(260);
+    expect(linhas.some((t) => t.description.startsWith("PGTO"))).toBe(false);
+  });
+});
