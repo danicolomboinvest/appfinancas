@@ -6,7 +6,7 @@ import { auth } from "@/lib/auth/auth.config";
 import { AppShell } from "@/components/shell/AppShell";
 import { ThemeSync } from "@/components/shell/ThemeSync";
 import { getOwnUser, touchLastSeen } from "@/lib/repositories/user.repo";
-import { hasPremiumAccess } from "@/lib/repositories/allowedEmail.repo";
+import { compraComOCelular, situacaoDoAcesso, usoDoApp } from "@/lib/repositories/allowedEmail.repo";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import type { AccountContext } from "@/lib/auth/session";
 import type { ProfileKind } from "@prisma/client";
@@ -17,6 +17,9 @@ import { modoEfetivo, profileThemeCss, temaDeixaEscolherModo } from "@/lib/profi
 import { periodoDoDia, vozDoTema } from "@/lib/profiles/voice";
 import { emailConfirmado } from "@/lib/auth/confirmacao-email";
 import { TelaConfirmeEmail } from "@/components/auth/TelaConfirmeEmail";
+import { TelaSemAcesso } from "@/components/auth/TelaSemAcesso";
+import { linkDoSuporte } from "@/lib/support/whatsapp-link";
+import { mensagemDeContaSemAcesso } from "@/lib/support/contato";
 
 
 function capitalize(text: string) {
@@ -46,12 +49,17 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     const ctx: AccountContext = { userId: session.user.id, role: session.user.role };
     // Uma consulta a menos em TODA navegação: o resumo do mês só existia pra alimentar a
     // faixa de saudação, que não mostra mais números.
-    const [user, premium, ativo, todos] = await Promise.all([
-      getOwnUser(ctx),
-      hasPremiumAccess(ctx.userId),
-      getOrCreateActiveProfile(ctx.userId),
-      listProfiles(ctx.userId),
-    ]);
+    const [user, ativo, todos] = await Promise.all([getOwnUser(ctx), getOrCreateActiveProfile(ctx.userId), listProfiles(ctx.userId)]);
+    // Só quem comprou usa o app (fim do freemium, 30/09/2026); quem criou conta no tempo do
+    // grátis continua com a parte grátis (ver usoDoApp). Vem antes da confirmação do e-mail:
+    // quem não tem compra não precisa confirmar nada, precisa saber o que fazer. O e-mail é o da
+    // conta no banco, não o do token, que é o do dia do login.
+    const acesso = ctx.role === "ADMIN" ? "ativo" : await situacaoDoAcesso(user.email);
+    const uso = usoDoApp(acesso, user.createdAt);
+    if (uso === "bloqueado" && acesso !== "ativo") {
+      const compraDoCelular = acesso === "sem-compra" ? await compraComOCelular(user.phone) : null;
+      return <TelaSemAcesso email={user.email} situacao={acesso} compraDoCelular={compraDoCelular} whatsapp={linkDoSuporte(mensagemDeContaSemAcesso(user.email))} />;
+    }
     // Conta nova só abre depois de confirmar o e-mail: sem isso qualquer um criava a conta com
     // o e-mail de outra pessoa (de uma compradora, inclusive). Vem antes do /comecar, que
     // também manda de volta pra cá quem não confirmou. Admin sempre passa.
@@ -62,7 +70,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     firstName = user.name?.split(" ")[0] || user.email.split("@")[0];
     currency = toCurrencyCode(user.currency);
     theme = user.theme;
-    isPremium = premium;
+    // Compra valendo e e-mail confirmado: a área de investimentos abre toda. Quem sobrou do
+    // grátis vê o cadeado nela, como antes.
+    isPremium = uso === "completo";
     perfis = todos.map((p) => ({ id: p.id, name: p.name, icon: p.icon, theme: p.theme, isDefault: p.id === ativo.id }));
     perfilAtivoId = ativo.id;
     profileTheme = ativo.theme;

@@ -28,7 +28,7 @@ export default async function AdminAcessosPage() {
     <div className="flex flex-col gap-8">
       <PageHeader
         title="Acessos"
-        subtitle="Quem tem acesso à área de investimentos (conteúdo do curso). Qualquer um cria conta e usa a parte de finanças pessoais de graça — só quem está nesta lista (e ativo) destrava o resto. Compras dos produtos liberados no Hubla entram sozinhas."
+        subtitle="Quem pode usar o app. Conta nova só com e-mail desta lista (ativo, dentro do prazo). Quem sai dela (reembolso, cancelamento) vê “Seu acesso não está ativo”; quem criou conta no tempo do grátis, até 30/09/2026, continua com a parte grátis. Convite VIP usa tudo e o Hubla nunca desliga. Compras dos produtos liberados no Hubla entram sozinhas. Comprou com outro e-mail? Adicione aqui o e-mail da conta dela."
       />
 
       <ProductsSection products={products} />

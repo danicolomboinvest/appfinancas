@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth/rbac";
 import {
   addAllowedEmails,
+  NOTA_DO_CONVITE_VIP,
   removeAllowedEmail,
   setAllowedEmailActive,
   setAllowedEmailExpiry,
@@ -176,7 +177,7 @@ export async function inviteUserAction(_prev: InviteFormState, formData: FormDat
 
   const expiresAt = parseExpiryDate(formData.get("expiresAt"));
   await createUserInvite({ email, name, password: parsed.data.password });
-  await addAllowedEmails([email], "Convite VIP (criado pelo admin)", expiresAt);
+  await addAllowedEmails([email], NOTA_DO_CONVITE_VIP, expiresAt);
 
   // E-mail de boas-vindas é só um aviso ("sua conta está pronta") — nunca leva a senha, essa a
   // Dani repassa por fora. Melhor esforço: se o envio falhar, a conta continua valendo.

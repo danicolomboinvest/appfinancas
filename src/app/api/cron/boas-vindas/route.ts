@@ -13,6 +13,7 @@ import {
   type EtapaSemConta,
 } from "@/lib/onboarding/boas-vindas";
 import { emailSemConta, enviarEtapaComConta, RESPONDER_PARA } from "@/lib/onboarding/enviar-boas-vindas";
+import { contasQueUsamOApp, normalizeEmail } from "@/lib/repositories/allowedEmail.repo";
 
 export const maxDuration = 300;
 const PRAZO_MS = 270_000;
@@ -98,10 +99,13 @@ export async function GET(request: Request) {
     // ── Trilha 2: criou a conta (confirmada) e ainda não lançou nada ──────────────────────
     if (!atrasados && !parouPorTempo) {
       const desdeComConta = new Date(Math.max(BOAS_VINDAS_DESDE.getTime(), agora.getTime() - PRAZO_COM_CONTA_DIAS * DIA_MS));
-      const usuarios = await prisma.user.findMany({
+      const confirmados = await prisma.user.findMany({
         where: { role: "CLIENT", emailVerifiedAt: { gte: desdeComConta }, ...(onlyEmail ? { email: onlyEmail } : {}) },
-        select: { id: true, email: true, name: true, emailVerifiedAt: true },
+        select: { id: true, email: true, name: true, emailVerifiedAt: true, createdAt: true },
       });
+      // Reembolsou logo depois de entrar: "que tal lançar o primeiro gasto?" não vai pra ela.
+      const comAcesso = await contasQueUsamOApp(confirmados);
+      const usuarios = confirmados.filter((u) => comAcesso.has(normalizeEmail(u.email)));
       const ids = usuarios.map((u) => u.id);
       const [logs, comLancamento] = await Promise.all([
         prisma.notificationLog.findMany({ where: { userId: { in: ids }, key: { startsWith: CHAVE_BOAS_VINDAS } }, select: { userId: true, key: true } }),

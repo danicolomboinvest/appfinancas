@@ -3,11 +3,11 @@ import { nowInBrazil } from "@/lib/date/brazil-now";
 import { emailConfirmado } from "@/lib/auth/confirmacao-email";
 
 /**
- * Lista de e-mails com acesso PREMIUM (área de investimentos: Carteira, Simuladores, Análises,
- * Aposentadoria — o conteúdo do curso). Desde a mudança pro modelo freemium, isso NÃO controla
- * mais quem consegue criar conta/logar — qualquer um cadastra e usa a parte de finanças pessoais
- * de graça; essa lista só decide o que aparece nas telas trancadas (ver hasPremiumAccess). A
- * liberação vem de dois lugares:
+ * Lista de e-mails com acesso ao app. Só quem comprou usa: o cadastro exige um e-mail daqui e a
+ * conta que perde a liberação (reembolso, cancelamento, prazo vencido) vê a tela "Seu acesso não
+ * está ativo" no lugar do app (ver situacaoDoAcesso). De 11/09 a 30/09/2026 o app foi freemium
+ * (qualquer um cadastrava, só a área de investimentos era trancada) e compradora que usou outro
+ * e-mail caía no grátis sem saber; a Dani encerrou isso. A liberação vem de dois lugares:
  *  - MANUAL: a Dani adiciona no painel /admin/acessos (cola a lista de compradores).
  *  - HUBLA: o webhook libera/revoga sozinho conforme a compra ou assinatura.
  *
@@ -59,6 +59,98 @@ export async function hasPremiumAccess(userId: string): Promise<boolean> {
   if (user.role === "ADMIN") return true;
   if (!emailConfirmado(user)) return false;
   return isEmailAllowed(user.email);
+}
+
+/**
+ * Por que um e-mail pode (ou não) usar o app. "encerrado" = a liberação existe mas foi desligada
+ * (reembolso, cancelamento, ou a Dani desativou); "vencido" = passou do prazo. A diferença muda
+ * só o texto: quem nunca comprou precisa ouvir "use o e-mail da compra", não "seu acesso acabou".
+ */
+export type SituacaoDoAcesso = "ativo" | "sem-compra" | "encerrado" | "vencido";
+
+export function situacaoDaLiberacao(entry: { active: boolean; expiresAt: Date | null } | null, now: Date = new Date()): SituacaoDoAcesso {
+  if (!entry) return "sem-compra";
+  if (!entry.active) return "encerrado";
+  return isExpired(entry.expiresAt, now) ? "vencido" : "ativo";
+}
+
+/**
+ * Fim do grátis: meia-noite de 01/10/2026 em Brasília. Conta criada antes disso, sem compra, veio
+ * do tempo do freemium (11/09 a 30/09) e a Dani decidiu manter a parte grátis pra ela (eram 17).
+ * Conta nova sem compra nem nasce (o cadastro barra), então a data só separa quem já existia.
+ * Reembolso e cancelamento não entram aqui: a liberação existe e foi encerrada ("encerrado").
+ */
+export const FIM_DO_GRATIS = new Date("2026-10-01T03:00:00Z");
+
+/** O que a conta usa: tudo (comprou), só a parte de finanças (sobrou do grátis) ou nada. */
+export type UsoDoApp = "completo" | "gratis" | "bloqueado";
+
+export function usoDoApp(situacao: SituacaoDoAcesso, contaCriadaEm: Date): UsoDoApp {
+  if (situacao === "ativo") return "completo";
+  return situacao === "sem-compra" && contaCriadaEm < FIM_DO_GRATIS ? "gratis" : "bloqueado";
+}
+
+export async function situacaoDoAcesso(email: string): Promise<SituacaoDoAcesso> {
+  const entry = await prisma.allowedEmail.findUnique({
+    where: { email: normalizeEmail(email) },
+    select: { active: true, expiresAt: true },
+  });
+  return situacaoDaLiberacao(entry);
+}
+
+/** DDD + número: o Hubla manda com 55, o cadastro guarda com 55, gente digita sem. */
+function finalDoCelular(phone: string | null | undefined): string | null {
+  const digitos = (phone ?? "").replace(/\D/g, "");
+  return digitos.length >= 10 ? digitos.slice(-11) : null;
+}
+
+/** "thanize@ymail.com" → "th•••••@ymail.com": dá pra ela reconhecer o próprio e-mail, e quem
+ * digitar o celular de outra pessoa não leva o endereço inteiro. */
+export function mascararEmail(email: string): string {
+  const [local, dominio] = normalizeEmail(email).split("@");
+  if (!dominio) return "•••";
+  const visivel = local.length <= 3 ? local.slice(0, 1) : local.slice(0, 2);
+  return `${visivel}${"•".repeat(Math.max(3, local.length - visivel.length))}@${dominio}`;
+}
+
+/**
+ * A compra que tem o mesmo celular desta pessoa, feita com outro e-mail que ainda não virou conta.
+ * É o caso mais comum de "comprei e não consigo entrar": todas as 7 compradoras que caíram no
+ * grátis em set/2026 batiam por celular. Volta só o e-mail mascarado (ver mascararEmail).
+ */
+export async function compraComOCelular(phone: string | null | undefined): Promise<string | null> {
+  const alvo = finalDoCelular(phone);
+  if (!alvo) return null;
+  const agora = new Date();
+  const candidatas = (
+    await prisma.allowedEmail.findMany({ where: { active: true, phone: { not: null } }, select: { email: true, phone: true, expiresAt: true } })
+  ).filter((a) => finalDoCelular(a.phone) === alvo && !isExpired(a.expiresAt, agora));
+  if (candidatas.length === 0) return null;
+  const comConta = await prisma.user.findMany({
+    where: { OR: candidatas.map((a) => ({ email: { equals: a.email, mode: "insensitive" as const } })) },
+    select: { email: true },
+  });
+  const usados = new Set(comConta.map((u) => normalizeEmail(u.email)));
+  const livre = candidatas.find((a) => !usados.has(a.email));
+  return livre ? mascararEmail(livre.email) : null;
+}
+
+/** Das contas dadas, os e-mails (normalizados) que ainda usam o app, completo ou grátis — pros
+ * crons não mandarem resumo e alerta pra quem pediu reembolso. */
+export async function contasQueUsamOApp(contas: { email: string; createdAt: Date }[]): Promise<Set<string>> {
+  if (contas.length === 0) return new Set();
+  const agora = new Date();
+  const linhas = await prisma.allowedEmail.findMany({
+    where: { email: { in: [...new Set(contas.map((c) => normalizeEmail(c.email)))] } },
+    select: { email: true, active: true, expiresAt: true },
+  });
+  const porEmail = new Map(linhas.map((l) => [l.email, l]));
+  return new Set(
+    contas
+      .map((c) => ({ email: normalizeEmail(c.email), createdAt: c.createdAt }))
+      .filter((c) => usoDoApp(situacaoDaLiberacao(porEmail.get(c.email) ?? null, agora), c.createdAt) !== "bloqueado")
+      .map((c) => c.email),
+  );
 }
 
 export async function listAllowedEmails() {
@@ -297,12 +389,22 @@ export async function getAllowedPhone(email: string): Promise<string | null> {
  * reembolso de um item no Hubla não pode levar junto um acesso que não veio dele. Ela corta na
  * mão pelo painel se quiser.
  */
+/** A nota que o convite VIP do painel grava (ver inviteUserAction). É por ela que o webhook sabe
+ * que não pode desligar essa liberação. */
+export const NOTA_DO_CONVITE_VIP = "Convite VIP (criado pelo admin)";
+
 export async function revokeFromHubla(email: string) {
   const normalized = normalizeEmail(email);
   return prisma.allowedEmail.updateMany({
     // Liberação MANUAL fica, a não ser que o Hubla tenha estendido o prazo dela (a pessoa comprou
     // em cima de um acesso dado na mão): aí o ano reembolsado sai junto.
-    where: { email: normalized, OR: [{ source: "HUBLA" }, { lastHublaInvoiceId: { not: null } }] },
+    // Convite VIP nunca cai: a Dani quer que VIP use tudo, sempre. O OR com nota nula é
+    // obrigatório: em SQL, NOT (nota LIKE ...) com a nota NULA dá NULL e a linha escaparia.
+    where: {
+      email: normalized,
+      OR: [{ source: "HUBLA" }, { lastHublaInvoiceId: { not: null } }],
+      AND: [{ OR: [{ note: null }, { NOT: { note: { startsWith: NOTA_DO_CONVITE_VIP } } }] }],
+    },
     data: { active: false },
   });
 }

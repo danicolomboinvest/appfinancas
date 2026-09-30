@@ -18,6 +18,7 @@ import { vozDoTema } from "@/lib/profiles/voice";
 import { maiorCategoriaDoMes, nomeDoMes } from "@/lib/recap/monthly";
 import { ajustarResumoPorEmail } from "@/lib/recap/email-do-resumo";
 import { ehEmpresa } from "@/lib/profiles/empresa";
+import { contasQueUsamOApp, normalizeEmail } from "@/lib/repositories/allowedEmail.repo";
 
 // Centenas de e-mails em sequência: o teto maior da Vercel (o mesmo do cron do Open Finance), e
 // o loop para sozinho com folga antes dele (PRAZO_MS). Quem ficar pra trás recebe na rodada do
@@ -92,7 +93,7 @@ export async function GET(request: Request) {
   // O OR com null explícito é obrigatório: em SQL, `NOT (coluna = 'x')` com a coluna NULA dá
   // NULL (nem verdadeiro nem falso) e a linha fica de fora — e a coluna é nula pra quem nunca
   // recebeu, ou seja, o filtro sozinho não enviaria pra NINGUÉM, em silêncio.
-  const candidates = await prisma.user.findMany({
+  const todos = await prisma.user.findMany({
     where: {
       notifyMonthlyRecap: true,
       role: "CLIENT",
@@ -115,6 +116,10 @@ export async function GET(request: Request) {
     // recebeu sai da consulta pela trava do mês).
     orderBy: { id: "asc" },
   });
+  // Reembolso ou cancelamento: o app nem abre pra ela, e o resumo levaria pra uma tela trancada.
+  // Quem sobrou do grátis continua recebendo (ver usoDoApp).
+  const comAcesso = await contasQueUsamOApp(todos);
+  const candidates = todos.filter((u) => comAcesso.has(normalizeEmail(u.email)));
 
   // Lançamentos do mês por pessoa E por perfil, numa consulta só (em blocos, pra lista de ids
   // não crescer sem limite). A atividade precisa ser do mesmo perfil dos números do e-mail.

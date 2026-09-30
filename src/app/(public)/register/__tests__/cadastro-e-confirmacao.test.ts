@@ -52,9 +52,13 @@ vi.mock("@/lib/repositories/user.repo", async (importOriginal) => {
 });
 
 const getAllowedPhone = vi.fn();
+const situacaoDoAcesso = vi.fn();
+const compraComOCelular = vi.fn();
 vi.mock("@/lib/repositories/allowedEmail.repo", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/repositories/allowedEmail.repo")>()),
   getAllowedPhone: (e: string) => getAllowedPhone(e),
+  situacaoDoAcesso: (e: string) => situacaoDoAcesso(e),
+  compraComOCelular: (p: string) => compraComOCelular(p),
 }));
 
 const enviarConfirmacaoDeEmail = vi.fn();
@@ -110,6 +114,8 @@ beforeEach(() => {
   createUser.mockReset().mockImplementation(async (i: { email: string; name: string }) => ({ id: "novo", email: i.email.toLowerCase(), name: i.name }));
   findUserByEmail.mockReset().mockResolvedValue(null);
   getAllowedPhone.mockReset().mockResolvedValue(null);
+  situacaoDoAcesso.mockReset().mockResolvedValue("ativo");
+  compraComOCelular.mockReset().mockResolvedValue(null);
   enviarConfirmacaoDeEmail.mockReset().mockResolvedValue("enviado");
   signIn.mockReset();
   auth.mockReset();
@@ -153,6 +159,39 @@ describe("registerAction: travas antes de criar a conta", () => {
     expect(r.error).toContain("Esqueci minha senha");
     expect(createUser).not.toHaveBeenCalled();
     expect(enviarConfirmacaoDeEmail).not.toHaveBeenCalled();
+  });
+});
+
+describe("registerAction: só quem comprou cria conta", () => {
+  it("e-mail sem compra não cria, e o celular que bate com uma compra aponta o e-mail dela, mascarado", async () => {
+    situacaoDoAcesso.mockResolvedValue("sem-compra");
+    compraComOCelular.mockResolvedValue("cl•••••@gmail.com");
+    const r = await registerAction({}, form(VALIDO));
+    expect(situacaoDoAcesso).toHaveBeenCalledWith("cliente.a@exemplo.com");
+    expect(compraComOCelular).toHaveBeenCalledWith("5511987654321");
+    expect(r.error).toContain("Use o mesmo e-mail que você usou pra comprar");
+    expect(r.error).toContain("cl•••••@gmail.com");
+    expect(r.values?.email).toBe("Cliente.A@Exemplo.com");
+    expect(createUser).not.toHaveBeenCalled();
+    expect(enviarConfirmacaoDeEmail).not.toHaveBeenCalled();
+  });
+
+  it("sem compra e sem celular conhecido: pede o e-mail da compra, sem dica", async () => {
+    situacaoDoAcesso.mockResolvedValue("sem-compra");
+    const r = await registerAction({}, form(VALIDO));
+    expect(r.error).toContain("Não achamos compra");
+    expect(r.error).not.toContain("celular");
+    expect(createUser).not.toHaveBeenCalled();
+  });
+
+  it("compra reembolsada ou vencida não cria, e não sai procurando outra compra pelo celular", async () => {
+    for (const situacao of ["encerrado", "vencido"]) {
+      situacaoDoAcesso.mockResolvedValue(situacao);
+      const r = await registerAction({}, form(VALIDO));
+      expect(r.error).toContain("não está mais ativa");
+    }
+    expect(compraComOCelular).not.toHaveBeenCalled();
+    expect(createUser).not.toHaveBeenCalled();
   });
 });
 

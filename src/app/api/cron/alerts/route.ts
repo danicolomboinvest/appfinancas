@@ -12,6 +12,7 @@ import { sendEmail, isEmailConfigured } from "@/lib/email/send";
 import { alertEmail } from "@/lib/email/templates";
 import { makeMoneyFormatter, toCurrencyCode } from "@/lib/money";
 import { PARENT_CATEGORIES } from "@/lib/categories";
+import { contasQueUsamOApp, normalizeEmail } from "@/lib/repositories/allowedEmail.repo";
 
 export const maxDuration = 60;
 
@@ -34,11 +35,15 @@ export async function GET(request: Request) {
   const month = now.getMonth() + 1;
   const baseUrl = `${request.headers.get("x-forwarded-proto") ?? "https"}://${request.headers.get("x-forwarded-host") ?? request.headers.get("host")}`;
 
-  const users = await prisma.user.findMany({
+  const todos = await prisma.user.findMany({
     // Sem e-mail confirmado (conta criada com o e-mail de outra pessoa?), nada sai pra ela.
     where: { OR: [{ notifyBudgetAlerts: true }, { notifyLateGoals: true }], AND: [{ OR: [{ emailVerifiedAt: { not: null } }, { createdAt: { lt: CONFIRMACAO_DESDE } }] }], ...(onlyEmail ? { email: onlyEmail } : {}) },
-    select: { id: true, email: true, name: true, role: true, currency: true, notifyBudgetAlerts: true, notifyLateGoals: true },
+    select: { id: true, email: true, name: true, role: true, currency: true, notifyBudgetAlerts: true, notifyLateGoals: true, createdAt: true },
   });
+  // Reembolso ou cancelamento: o app nem abre pra ela, e o aviso levaria pra uma tela trancada.
+  // Quem sobrou do grátis continua recebendo (ver usoDoApp).
+  const comAcesso = await contasQueUsamOApp(todos);
+  const users = todos.filter((u) => u.role === "ADMIN" || comAcesso.has(normalizeEmail(u.email)));
 
   let pushed = 0;
   let mailed = 0;

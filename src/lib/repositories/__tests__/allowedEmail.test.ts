@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isExpired, prazoAoLiberarDeNovo } from "../allowedEmail.repo";
+import { isExpired, mascararEmail, prazoAoLiberarDeNovo, situacaoDaLiberacao } from "../allowedEmail.repo";
 
 // Instantes sempre ao meio-dia: evita que uma diferença de fuso entre a máquina que roda o
 // teste e o Brasil (America/Sao_Paulo, usado por dentro de isExpired) empurre a data pro dia
@@ -61,5 +61,32 @@ describe("prazoAoLiberarDeNovo (colar a lista de novo)", () => {
 
   it("sem prazo informado (undefined) não mexe", () => {
     expect(prazoAoLiberarDeNovo({ active: false, expiresAt: noon(2026, 7, 1) }, undefined, hoje)).toBeUndefined();
+  });
+});
+
+describe("situacaoDaLiberacao (quem usa o app, desde o fim do freemium)", () => {
+  const hoje = noon(2026, 8, 30);
+  it("sem linha na lista = nunca comprou com este e-mail", () => {
+    expect(situacaoDaLiberacao(null, hoje)).toBe("sem-compra");
+  });
+  it("desativada (reembolso, cancelamento) = encerrado, mesmo dentro do prazo", () => {
+    expect(situacaoDaLiberacao({ active: false, expiresAt: noon(2027, 8, 30) }, hoje)).toBe("encerrado");
+  });
+  it("ativa mas passou do prazo = vencido; no último dia ainda vale", () => {
+    expect(situacaoDaLiberacao({ active: true, expiresAt: noon(2026, 8, 29) }, hoje)).toBe("vencido");
+    expect(situacaoDaLiberacao({ active: true, expiresAt: noon(2026, 8, 30) }, hoje)).toBe("ativo");
+  });
+  it("ativa sem prazo = ativo", () => {
+    expect(situacaoDaLiberacao({ active: true, expiresAt: null }, hoje)).toBe("ativo");
+  });
+});
+
+describe("mascararEmail", () => {
+  it("mostra o começo e o domínio, pra ela reconhecer sem entregar o endereço inteiro", () => {
+    expect(mascararEmail("Thanize@Ymail.com ")).toBe("th•••••@ymail.com");
+  });
+  it("e-mail curtinho mostra só a primeira letra e ainda esconde com 3 pontos no mínimo", () => {
+    expect(mascararEmail("ana@x.com")).toBe("a•••@x.com");
+    expect(mascararEmail("jo@x.com")).toBe("j•••@x.com");
   });
 });

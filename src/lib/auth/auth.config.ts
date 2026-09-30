@@ -28,9 +28,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const user = await findUserByEmail(email);
         if (!user) return null;
 
-        // Modelo freemium: qualquer conta loga (parte de finanças pessoais é grátis). Quem não
-        // pagou só esbarra na trava depois, dentro das telas de investimento (ver
-        // hasPremiumAccess em allowedEmail.repo.ts) — login em si não é mais fechado.
+        // Conta sem compra valendo também loga: o layout do app mostra "Seu acesso não está
+        // ativo" no lugar das telas (ver situacaoDoAcesso em allowedEmail.repo.ts).
 
         // Conta travada por excesso de tentativas, nem compara a senha.
         if (user.lockedUntil && user.lockedUntil > new Date()) return null;

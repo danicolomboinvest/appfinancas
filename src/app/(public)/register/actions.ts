@@ -8,7 +8,8 @@ import { enviarConfirmacaoDeEmail } from "@/lib/auth/enviar-confirmacao";
 import { createUser, findUserByEmail } from "@/lib/repositories/user.repo";
 import { registerSchema } from "@/lib/validations/auth.schema";
 import { normalizePhone } from "@/lib/phone";
-import { getAllowedPhone } from "@/lib/repositories/allowedEmail.repo";
+import { compraComOCelular, getAllowedPhone, situacaoDoAcesso } from "@/lib/repositories/allowedEmail.repo";
+import { erroDeCadastroSemCompra } from "@/lib/support/contato";
 
 // `values` volta junto com o erro: o React 19 limpa o formulário a cada envio, e sem isso
 // "Celular inválido" aparecia com os quatro campos em branco. A senha nunca volta.
@@ -49,11 +50,18 @@ export async function registerAction(_prevState: RegisterState, formData: FormDa
     return { error: "É preciso aceitar os Termos de Uso e a Política de Privacidade.", values };
   }
 
-  // Modelo freemium: qualquer e-mail cadastra (a parte de finanças pessoais é grátis). Ter
-  // comprado o curso na Hubla só destrava depois a área de investimentos (ver hasPremiumAccess).
   const existing = await findUserByEmail(parsed.data.email);
   if (existing) {
     return { error: "Já existe uma conta com este email. Se ela é sua, use \"Esqueci minha senha\" no login pra entrar.", values };
+  }
+
+  // Só quem comprou cria conta (fim do freemium, 30/09/2026): no grátis, quem comprava com um
+  // e-mail e cadastrava com outro entrava sem a compra e não entendia o cadeado. Agora ela é
+  // parada aqui, com a dica do e-mail da compra quando o celular bate.
+  const situacao = await situacaoDoAcesso(parsed.data.email);
+  if (situacao !== "ativo") {
+    const compraDoCelular = situacao === "sem-compra" ? await compraComOCelular(phone) : null;
+    return { error: erroDeCadastroSemCompra(situacao, compraDoCelular), values };
   }
 
   // Se a compra no Hubla trouxe celular, ele vale como reserva (mas o digitado agora manda).

@@ -32,8 +32,9 @@ export async function loginAction(_prevState: LoginState, formData: FormData): P
     };
   }
 
-  // Modelo freemium: login não depende mais de ter acesso premium (isso só é checado dentro
-  // das telas de investimento). Não ter comprado o curso não impede logar.
+  // Conta sem compra valendo também entra: quem barra é o layout do app, com a tela "Seu acesso
+  // não está ativo" (o e-mail da conta, o motivo e o caminho pro suporte). Recusar aqui daria só
+  // "e-mail ou senha incorretos" pra quem digitou tudo certo.
   try {
     await signIn("credentials", {
       email: parsed.data.email,

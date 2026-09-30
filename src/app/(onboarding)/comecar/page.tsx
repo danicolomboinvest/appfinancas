@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth/auth.config";
 import { getOwnUser } from "@/lib/repositories/user.repo";
 import { emailConfirmado } from "@/lib/auth/confirmacao-email";
+import { situacaoDoAcesso, usoDoApp } from "@/lib/repositories/allowedEmail.repo";
 import { BrandMark } from "@/components/brand/BrandMark";
 import { EscolhaInicial } from "./EscolhaInicial";
 
@@ -18,6 +19,8 @@ export default async function ComecarPage() {
   // Sem e-mail confirmado, o layout do app mostra a tela "Confirme seu e-mail": escolher o tema
   // antes disso seria abrir a porta por aqui.
   if (session.user.role !== "ADMIN" && !emailConfirmado(user)) redirect("/mensal/foco");
+  // Sem compra valendo, idem: o layout mostra "Seu acesso não está ativo".
+  if (session.user.role !== "ADMIN" && usoDoApp(await situacaoDoAcesso(user.email), user.createdAt) === "bloqueado") redirect("/mensal/foco");
 
   return (
     <main className="flex min-h-screen items-start justify-center bg-canvas p-6 sm:items-center">
