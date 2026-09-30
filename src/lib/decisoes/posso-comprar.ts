@@ -243,8 +243,14 @@ function avaliarSemAvisos(base: CompraBase, compraBruta: Compra, fmt: Formatos):
   const decididoDoSemDestino = Math.min(decididoVista, semDestinoAntes);
   const semDestino = semDestinoAntes - decididoDoSemDestino;
   const sobraDoMes = Math.max(0, base.sobraDoMes - (decididoVista - decididoDoSemDestino));
-  const linhaComprometida = (depois: number): LinhaAntesDepois => ({ rotulo: "Renda comprometida", hoje: pct(comprometido / base.renda), depois: pct(depois / base.renda) });
-  const comprometimento = (depois: number) => ({ hoje: comprometido / base.renda, depois: depois / base.renda, valor: comprometido, renda: base.renda, fonte });
+  // O gasto DESTE mês: a parte das à vista já decididas que saiu do dinheiro sem destino é gasto
+  // a mais no mês (a parte que saiu da sobra do dia a dia já estava no orçamento). Sem isso, a
+  // segunda compra à vista via 74% da renda quando o mês já ia a 94%, e escapava da regra dos 90%.
+  // O parcelado continua olhando o compromisso de TODO mês (comprometido): a compra à vista é uma
+  // vez só e a primeira parcela vem na próxima fatura.
+  const comprometidoNoMes = comprometido + decididoDoSemDestino;
+  const linhaComprometida = (depois: number, hoje = comprometido): LinhaAntesDepois => ({ rotulo: "Renda comprometida", hoje: pct(hoje / base.renda), depois: pct(depois / base.renda) });
+  const comprometimento = (depois: number, hoje = comprometido) => ({ hoje: hoje / base.renda, depois: depois / base.renda, valor: hoje, renda: base.renda, fonte });
   const contaComprometido = {
     rotulo:
       fonte === "real" ? "Já comprometido (média do que você gastou nos últimos meses)" : fonte === "mes" ? "Já comprometido (o que já saiu neste mês)" : "Já comprometido (seu orçamento do mês)",
@@ -267,10 +273,10 @@ function avaliarSemAvisos(base: CompraBase, compraBruta: Compra, fmt: Formatos):
     const depois = Math.max(0, sobra - resto);
     const falta = resto - sobra;
     // O que sai da sobra do dia a dia já estava no orçamento; o resto aumenta o gasto do mês.
-    const gastoMesDepois = comprometido + custo - Math.min(resto, sobra);
+    const gastoMesDepois = comprometidoNoMes + custo - Math.min(resto, sobra);
     const passa90 = base.regra90 !== false && gastoMesDepois / base.renda > LIMITE_GASTO + 1e-9;
     const linhas: LinhaAntesDepois[] = [
-      linhaComprometida(gastoMesDepois),
+      linhaComprometida(gastoMesDepois, comprometidoNoMes),
       { rotulo: "Livre por semana", hoje: money(porSemana(sobra)), depois: money(porSemana(depois)) },
       { rotulo: "Sobra do mês pro dia a dia", hoje: money(sobra), depois: falta > 0 ? `falta ${money(falta)}` : money(depois) },
     ];
@@ -287,7 +293,7 @@ function avaliarSemAvisos(base: CompraBase, compraBruta: Compra, fmt: Formatos):
       { rotulo: "Sobra do orçamento no mês", valor: money(sobra) },
       { rotulo: "Depois da compra", valor: falta > 0 ? `falta ${money(falta)}` : money(depois) },
     ];
-    const cmp = comprometimento(gastoMesDepois);
+    const cmp = comprometimento(gastoMesDepois, comprometidoNoMes);
     // Cabe no dinheiro do mês, mas os gastos passam de 90% da renda: sobra menos de 10% pra
     // guardar. Não é "não", mas também não é verde.
     if (falta <= 0 && passa90) {
@@ -304,13 +310,16 @@ function avaliarSemAvisos(base: CompraBase, compraBruta: Compra, fmt: Formatos):
     }
     // Casal com conta conjunta não usa a regra dos 90%: o limite é o que entra na conta.
     const semRegra90 = base.regra90 === false;
+    // Folga de TODO mês (parcelas, guardar pra comprar depois) e folga DESTE mês, que já perdeu o
+    // que saiu pras compras à vista decididas.
     const folga = Math.max(0, semRegra90 ? base.renda - comprometido : margem90);
+    const folgaNoMes = Math.max(0, folga - decididoDoSemDestino);
     const limite = semRegra90 ? "no que vocês põem na conta todo mês" : "na regra dos 90%";
     // Parcelado a loja cobra o preço cheio: o desconto é só pra quem paga à vista.
     const parcelasSugeridas = folga > 0 ? Math.max(2, Math.ceil(compra.valor / folga)) : null;
     const mesesGuardando = folga > 0 ? Math.ceil(custo / folga) : null;
     const sugestao =
-      folga > 0 && custo <= folga
+      folgaNoMes > 0 && custo <= folgaNoMes
         ? `Cabe ${semRegra90 ? "no que vocês põem na conta" : "dentro da regra dos 90% da renda"} se sair do que ${semRegra90 ? "vocês guardariam" : "você guardaria"} este mês, sem mexer no básico. Aí a decisão é ${semRegra90 ? "de vocês" : "sua"}: a compra agora ou o guardado do mês.`
         : parcelasSugeridas && parcelasSugeridas <= 24 && mesesGuardando
           ? `Se a loja parcelar em ${parcelasSugeridas}x sem juros (${money(compra.valor / parcelasSugeridas)} por mês), cabe ${limite}. Ou, guardando ${money(folga)} por mês, dá pra comprar à vista em ${mesesGuardando} ${mesesGuardando > 1 ? "meses" : "mês"}, sem dívida.`
@@ -458,30 +467,68 @@ export type CompraDecidida = { valor: number; modo: "vista" | "parcelado"; parce
 export type GastoLancado = { valor: number; criadoEm: Date };
 
 /** Folga pro relógio: o gasto lançado logo antes de tocar "Vou comprar" ainda é a mesma compra. */
-const FOLGA_LANCAMENTO_MS = 30 * 60_000;
+export const FOLGA_LANCAMENTO_MS = 30 * 60_000;
+
+/** Até quantos meses atrás uma compra parcelada decidida ainda pode estar sendo paga (o máximo que o app simula). */
+export const MAX_PARCELAS = 48;
+
+const ehParcelada = (d: CompraDecidida) => d.modo === "parcelado" && d.parcelas > 1;
+
+/** O lançamento que mostra que a compra já está nos números: o valor à vista, ou uma parcela. */
+export function valorDoLancamentoEsperado(d: CompraDecidida): number {
+  return ehParcelada(d) ? d.valor / d.parcelas : d.valor;
+}
+
+/** Tolerância pra reconhecer o lançamento: 1% (arredondamento da loja), no mínimo R$ 1. */
+export function toleranciaDoLancamento(esperado: number): number {
+  return Math.max(1, esperado * 0.01);
+}
+
+/** Meses de calendário, no horário de Brasília, entre o mês da decisão e o mês de `agora`. */
+function mesesDesde(criadaEm: Date, agora: Date): number {
+  const br = (d: Date) => new Date(d.getTime() - 3 * 3_600_000);
+  const a = br(criadaEm);
+  const b = br(agora);
+  return (b.getUTCFullYear() - a.getUTCFullYear()) * 12 + (b.getUTCMonth() - a.getUTCMonth());
+}
+
+/**
+ * A compra decidida ainda pesa no mês de `agora`? À vista, só no mês em que foi decidida (no mês
+ * seguinte ela já saiu, ou virou lançamento). Parcelada, enquanto durarem as parcelas: a geladeira
+ * em 12x decidida no dia 28 não pode sumir da conta no dia 1 só porque o mês virou.
+ */
+export function compraDecididaEmAberto(d: CompraDecidida, agora: Date): boolean {
+  const meses = mesesDesde(d.criadaEm, agora);
+  if (meses < 0) return true;
+  return ehParcelada(d) ? meses < d.parcelas : meses === 0;
+}
 
 /**
  * Das compras que ela decidiu fazer ("Vou comprar"), as que ainda não viraram lançamento: um
  * gasto criado depois da decisão, com o valor da compra (à vista) ou da parcela (parcelado),
  * quer dizer que a compra já está nos números e não pode contar duas vezes. Cada gasto só
  * responde por uma compra.
+ *
+ * Parcelada que já teve uma parcela lançada (neste mês ou antes) também sai: a fatura dela está
+ * sendo importada, então as parcelas já aparecem no gasto do mês e na média dos meses fechados.
+ * Com `agora`, também saem as à vista de meses anteriores e as parceladas que já terminaram.
  */
-export function comprasAindaNaoLancadas(decididas: CompraDecidida[], gastos: GastoLancado[]): { vista: number; parcelaMensal: number } {
+export function comprasAindaNaoLancadas(decididas: CompraDecidida[], gastos: GastoLancado[], agora?: Date): { vista: number; parcelaMensal: number } {
   const usados = new Set<number>();
   let vista = 0;
   let parcelaMensal = 0;
   for (const d of [...decididas].sort((a, b) => a.criadaEm.getTime() - b.criadaEm.getTime())) {
     if (!(d.valor > 0)) continue;
-    const parcelado = d.modo === "parcelado" && d.parcelas > 1;
-    const esperado = parcelado ? d.valor / d.parcelas : d.valor;
+    if (agora && !compraDecididaEmAberto(d, agora)) continue;
+    const esperado = valorDoLancamentoEsperado(d);
     const i = gastos.findIndex(
-      (g, j) => !usados.has(j) && g.criadoEm.getTime() >= d.criadaEm.getTime() - FOLGA_LANCAMENTO_MS && Math.abs(g.valor - esperado) <= Math.max(1, esperado * 0.01),
+      (g, j) => !usados.has(j) && g.criadoEm.getTime() >= d.criadaEm.getTime() - FOLGA_LANCAMENTO_MS && Math.abs(g.valor - esperado) <= toleranciaDoLancamento(esperado),
     );
     if (i >= 0) {
       usados.add(i);
       continue;
     }
-    if (parcelado) parcelaMensal += esperado;
+    if (ehParcelada(d)) parcelaMensal += esperado;
     else vista += esperado;
   }
   return { vista, parcelaMensal };

@@ -1,9 +1,8 @@
 import { z } from "zod";
 
 export const profileSchema = z.object({
-  name: z.string().trim().min(1, "Informe seu nome.").optional(),
+  name: z.string().trim().min(1, "Informe seu nome.").max(80, "Nome muito longo (até 80 letras).").optional(),
   email: z.string().trim().email("E-mail inválido."),
-  avatarUrl: z.string().trim().url("URL inválida.").optional().or(z.literal("")),
 });
 
 export const preferencesSchema = z.object({

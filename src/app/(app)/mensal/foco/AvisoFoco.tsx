@@ -21,6 +21,8 @@ export type GastoDaLista = {
   categoria: string | null;
 };
 type Opcao = { key: string; label: string };
+/** Quantos gastos a lista tem ao todo e quanto somam: ela mostra só os maiores. */
+type ResumoDaLista = { n: number; total: number };
 
 const arredonda10 = (v: number) => Math.ceil(v / 10) * 10;
 const faltam = (dias: number) => (dias === 1 ? "falta 1 dia" : `faltam ${dias} dias`);
@@ -30,7 +32,7 @@ const faltam = (dias: number) => (dias === 1 ? "falta 1 dia" : `faltam ${dias} d
  * grande, a barra do gasto contra o plano e os botões que resolvem (teto, subir o plano, "já
  * transferi", "foi pontual"). Antes era um parágrafo de texto, e ninguém lia.
  */
-export function AvisoFoco({ item, gastos = [], opcoes = [] }: { item: FocoItem; hrefMes?: string; gastos?: GastoDaLista[]; opcoes?: Opcao[] }) {
+export function AvisoFoco({ item, hrefMes, gastos = [], resumo, opcoes = [] }: { item: FocoItem; hrefMes?: string; gastos?: GastoDaLista[]; resumo?: ResumoDaLista; opcoes?: Opcao[] }) {
   const money = useMoney();
   const m = (v: number) => money(v, { round: true });
   const router = useRouter();
@@ -59,6 +61,8 @@ export function AvisoFoco({ item, gastos = [], opcoes = [] }: { item: FocoItem; 
 
   let corpo: React.ReactNode = null;
   if (d?.tipo === "estouro") {
+    // O plano novo cabe no resto do mês (ver planoQueCabe); aviso de antes desta versão não traz.
+    const planoNovo = d.planoNovo ?? arredonda10(d.gasto);
     corpo = (
       <>
         <Numero valor={`+${m(d.gasto - d.planejado)}`} legenda={`acima do plano em ${d.label}`} cor="text-danger" />
@@ -79,13 +83,13 @@ export function AvisoFoco({ item, gastos = [], opcoes = [] }: { item: FocoItem; 
               icone={TrendingUp}
               disabled={salvando}
               titulo="O plano estava baixo"
-              sub={`subir ${d.label} pra ${m(arredonda10(d.gasto))}`}
-              onClick={() => fazer(() => ajustarOrcamentoAction(d.categoria, arredonda10(d.gasto)), `${d.label} agora tem ${m(arredonda10(d.gasto))} este mês.`)}
+              sub={`subir ${d.label} pra ${m(planoNovo)}, com folga pro resto do mês`}
+              onClick={() => fazer(() => ajustarOrcamentoAction(d.categoria, planoNovo), `${d.label} agora tem ${m(planoNovo)} este mês.`)}
             />
           )}
           <Botao icone={Check} disabled={salvando} titulo="Foi pontual" sub="sigo o plano" onClick={pontual()} />
         </Botoes>
-        <ListaDeGastos titulo={`Onde foi o dinheiro de ${d.label}`} gastos={gastos} opcoes={opcoes.filter((o) => o.key !== d.categoria)} />
+        <ListaDeGastos titulo={`Onde foi o dinheiro de ${d.label}`} gastos={gastos} resumo={resumo} hrefMes={hrefMes} opcoes={opcoes.filter((o) => o.key !== d.categoria)} />
       </>
     );
   } else if (d?.tipo === "ritmo") {
@@ -106,7 +110,7 @@ export function AvisoFoco({ item, gastos = [], opcoes = [] }: { item: FocoItem; 
           />
           <Botao icone={Check} disabled={salvando} titulo="Foi pontual" sub="sigo o plano" onClick={pontual()} />
         </Botoes>
-        <ListaDeGastos titulo={`Onde foi o dinheiro de ${d.label}`} gastos={gastos} opcoes={opcoes.filter((o) => o.key !== d.categoria)} />
+        <ListaDeGastos titulo={`Onde foi o dinheiro de ${d.label}`} gastos={gastos} resumo={resumo} hrefMes={hrefMes} opcoes={opcoes.filter((o) => o.key !== d.categoria)} />
       </>
     );
   } else if (d?.tipo === "fora") {
@@ -114,7 +118,14 @@ export function AvisoFoco({ item, gastos = [], opcoes = [] }: { item: FocoItem; 
       <>
         <Numero valor={m(d.valor)} legenda="em gastos sem categoria no orçamento" cor="text-danger" />
         <Selo icone={PiggyBank}>{`saem do mesmo dinheiro: o livre caiu pra ${m(d.livre)}`}</Selo>
-        <ListaDeGastos titulo={gastos.length === 1 ? "O gasto fora do orçamento" : `Os ${gastos.length} gastos fora do orçamento`} gastos={gastos} opcoes={opcoes} jaAberta />
+        <ListaDeGastos
+          titulo={(resumo?.n ?? gastos.length) === 1 ? "O gasto fora do orçamento" : `Os ${resumo?.n ?? gastos.length} gastos fora do orçamento`}
+          gastos={gastos}
+          resumo={resumo}
+          hrefMes={hrefMes}
+          opcoes={opcoes}
+          jaAberta
+        />
         <Botoes>
           <Botao icone={Plus} href="/orcamento" titulo="Criar uma categoria nova" sub="no orçamento" />
           <Botao icone={Check} disabled={salvando} titulo="Entendi" sub="esconder até o mês que vem" onClick={pontual()} />
@@ -140,9 +151,10 @@ export function AvisoFoco({ item, gastos = [], opcoes = [] }: { item: FocoItem; 
         {d.vencida ? (
           <Numero valor="Prazo passou" legenda={`${d.nome} ainda não chegou lá`} cor="text-danger" />
         ) : (
-          <Numero valor={`${m(d.porMes)}/mês`} legenda={d.ultimoMes ? `faltam pra ${d.nome}, e o prazo é este mês` : `pra ${d.nome} chegar em ${d.quando}`} cor="text-accent-strong" />
+          // Prazo neste mês: o número é tudo que falta, não "por mês" (como o texto do aviso).
+          <Numero valor={d.ultimoMes ? m(d.porMes) : `${m(d.porMes)}/mês`} legenda={d.ultimoMes ? `faltam pra ${d.nome}, e o prazo é este mês` : `pra ${d.nome} chegar em ${d.quando}`} cor="text-accent-strong" />
         )}
-        <Selo icone={Target}>guardar mais por mês, ou escolher uma data que caiba</Selo>
+        <Selo icone={Target}>{d.ultimoMes ? "guardar o que falta, ou escolher uma data que caiba" : "guardar mais por mês, ou escolher uma data que caiba"}</Selo>
         <Botoes>
           <Botao icone={Target} destaque href={`/planejamento/metas/${d.metaId}`} titulo="Ajustar a meta" sub="valor por mês ou data" />
           <Botao icone={Check} disabled={salvando} titulo="Entendi" sub="esconder até o mês que vem" onClick={pontual()} />
@@ -190,7 +202,7 @@ export function AvisoFoco({ item, gastos = [], opcoes = [] }: { item: FocoItem; 
  * O que ela já decidiu num aviso. Antes o aviso sumia (ou voltava igual, com o mesmo "Bora ver");
  * agora vira o combinado, e mostra se está sendo cumprido: nada entrou depois, ou quanto entrou.
  */
-export function CombinadoFoco({ c, gastos = [], opcoes = [] }: { c: FocoCombinado; gastos?: GastoDaLista[]; opcoes?: Opcao[] }) {
+export function CombinadoFoco({ c, hrefMes, gastos = [], resumo, opcoes = [] }: { c: FocoCombinado; hrefMes?: string; gastos?: GastoDaLista[]; resumo?: ResumoDaLista; opcoes?: Opcao[] }) {
   const money = useMoney();
   const m = (v: number) => money(v, { round: true });
   const router = useRouter();
@@ -249,7 +261,7 @@ export function CombinadoFoco({ c, gastos = [], opcoes = [] }: { c: FocoCombinad
         <div className="flex flex-col gap-3">
           <Barra gasto={c.gasto} planejado={c.planejado} />
           <Rodape esquerda={`Gasto ${m(c.gasto)}`} direita={`Plano ${m(c.planejado)}`} />
-          <ListaDeGastos titulo={`Onde foi o dinheiro de ${c.label}`} gastos={gastos} opcoes={opcoes.filter((o) => o.key !== c.categoria)} />
+          <ListaDeGastos titulo={`Onde foi o dinheiro de ${c.label}`} gastos={gastos} resumo={resumo} hrefMes={hrefMes} opcoes={opcoes.filter((o) => o.key !== c.categoria)} />
         </div>
       </Modal>
     </Card>
@@ -350,7 +362,7 @@ function Botao({ icone: Icone, titulo, sub, destaque, onClick, href, disabled }:
  * total e "Revisar": aberta de cara, junto com os botões, a janela virava um paredão. `jaAberta`:
  * nos gastos fora do orçamento, revisar é o motivo de abrir a janela.
  */
-function ListaDeGastos({ titulo, gastos, opcoes, jaAberta = false }: { titulo: string; gastos: GastoDaLista[]; opcoes: Opcao[]; jaAberta?: boolean }) {
+function ListaDeGastos({ titulo, gastos, resumo, hrefMes, opcoes, jaAberta = false }: { titulo: string; gastos: GastoDaLista[]; resumo?: ResumoDaLista; hrefMes?: string; opcoes: Opcao[]; jaAberta?: boolean }) {
   const money = useMoney();
   const router = useRouter();
   const { showToast, showError } = useToast();
@@ -360,7 +372,11 @@ function ListaDeGastos({ titulo, gastos, opcoes, jaAberta = false }: { titulo: s
   const [revisando, setRevisando] = useState(jaAberta);
   if (gastos.length === 0) return null;
   const maior = Math.max(...gastos.map((g) => Math.abs(g.valor)), 1);
-  const total = gastos.reduce((s, g) => s + g.valor, 0);
+  // A lista vem cortada nos maiores: a contagem e o total são os de verdade (o `resumo`), senão
+  // "15 gastos · R$ 620" ficava do lado de "Gasto R$ 1.140" e os números não batiam.
+  const cortada = resumo !== undefined && resumo.n > gastos.length;
+  const total = resumo?.total ?? gastos.reduce((s, g) => s + g.valor, 0);
+  const contagem = cortada ? `${gastos.length} maiores de ${resumo.n} gastos` : gastos.length === 1 ? "1 gasto" : `${gastos.length} gastos`;
 
   const salvar = (g: GastoDaLista, acao: () => Promise<boolean>, mensagem: string) => {
     setEmAndamento(g.id);
@@ -389,7 +405,7 @@ function ListaDeGastos({ titulo, gastos, opcoes, jaAberta = false }: { titulo: s
         <span className="min-w-0">
           <span className="block text-caption font-semibold uppercase tracking-[0.11em] text-ink-muted">{titulo}</span>
           <span className="block text-caption text-ink-faint">
-            {gastos.length === 1 ? "1 gasto" : `${gastos.length} gastos`} · {money(total, { round: true })}
+            {contagem} · {money(total, { round: true })}
           </span>
         </span>
         <span className="flex shrink-0 items-center gap-1 rounded-xl bg-accent-soft px-3 py-1.5 text-caption font-semibold text-accent-strong">
@@ -485,6 +501,11 @@ function ListaDeGastos({ titulo, gastos, opcoes, jaAberta = false }: { titulo: s
               );
             })}
           </ul>
+          {cortada && hrefMes && (
+            <Link href={hrefMes} className="self-start text-caption font-semibold text-accent-strong underline-offset-2 hover:underline">
+              Ver todos os {resumo.n} gastos no mês
+            </Link>
+          )}
         </>
       )}
     </div>

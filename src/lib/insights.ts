@@ -18,6 +18,7 @@ import {
 } from "@/lib/portfolio/snapshot";
 import { formatPercentNumber } from "@/lib/format";
 import type { MoneyFormatter } from "@/lib/money";
+import { vozDoTema } from "@/lib/profiles/voice";
 
 export type InsightTone = "success" | "warning" | "danger" | "info";
 export type InsightCategory = "fluxo" | "metas" | "carteira" | "reserva";
@@ -77,6 +78,9 @@ export async function computeInsights(ctx: AuthContext, money: MoneyFormatter): 
   const now = nowInBrazil();
   const year = now.getFullYear();
   const month = now.getMonth() + 1;
+  // As frases com jargão (aporte, patrimônio) vêm da voz do tema: no Girly elas não podem
+  // aparecer, e fixas aqui escapavam do teste de jargão do catálogo.
+  const t = vozDoTema(ctx.profileTheme, ctx.profileKind).titulos;
 
   const [
     user,
@@ -281,7 +285,7 @@ export async function computeInsights(ctx: AuthContext, money: MoneyFormatter): 
     } else if (percent >= 0.5) {
       insights.push({
         id: "emergency-fund",
-        message: `Sua reserva de emergência está ${formatPercent(percent)} completa (${money(current)} de ${money(target)}), continue aportando até cobrir o valor-alvo.`,
+        message: t.paiReservaParcial(formatPercent(percent), money(current), money(target)),
         tone: "warning",
         category: "reserva",
         href: reserveHref,
@@ -290,7 +294,7 @@ export async function computeInsights(ctx: AuthContext, money: MoneyFormatter): 
     } else {
       insights.push({
         id: "emergency-fund",
-        message: `Sua reserva de emergência cobre só ${formatPercent(percent)} do valor-alvo, priorize esse aporte antes de outros objetivos, para não precisar recorrer a dívida em um imprevisto.`,
+        message: t.paiReservaNoComeco(formatPercent(percent)),
         tone: "danger",
         category: "reserva",
         href: reserveHref,
@@ -327,7 +331,7 @@ export async function computeInsights(ctx: AuthContext, money: MoneyFormatter): 
     if (behindGoals.length > 0) {
       insights.push({
         id: "goals-behind",
-        message: `${behindGoals.length} meta${behindGoals.length > 1 ? "s está" : " está"} atrasada${behindGoals.length > 1 ? "s" : ""} (${behindGoals.map(({ goal }) => goal.name).join(", ")}), revise o prazo ou aumente o aporte mensal para voltar ao ritmo.`,
+        message: t.paiMetasAtrasadas(behindGoals.length, behindGoals.map(({ goal }) => goal.name).join(", ")),
         tone: "danger",
         category: "metas",
         href: goalsHref,
@@ -369,7 +373,7 @@ export async function computeInsights(ctx: AuthContext, money: MoneyFormatter): 
     if (monthsSaved >= 1 && Number.isFinite(monthsWithBoost)) {
       insights.push({
         id: `goal-what-if-${goal.id}`,
-        message: `Aumentando o aporte de "${goal.name}" em ${money(extra)}/mês, você antecipa a conquista em ${monthsSaved} mês${monthsSaved > 1 ? "es" : ""}.`,
+        message: t.paiMetaEAumentar(goal.name, money(extra), monthsSaved),
         tone: "info",
         category: "metas",
         href: `/planejamento/metas/${goal.id}`,
@@ -413,12 +417,12 @@ export async function computeInsights(ctx: AuthContext, money: MoneyFormatter): 
         id: "patrimony-growth-12m",
         message:
           growth >= 0
-            ? `Seu patrimônio cresceu ${formatPercent(growth)} nos últimos 12 meses, você está construindo patrimônio de verdade.`
-            : `Seu patrimônio caiu ${formatPercent(Math.abs(growth))} nos últimos 12 meses, vale entender se foi desvalorização de mercado ou saques.`,
+            ? t.paiPatrimonioCresceu(formatPercent(growth))
+            : t.paiPatrimonioCaiu(formatPercent(Math.abs(growth))),
         tone: growth >= 0 ? "success" : "warning",
         category: "carteira",
         href: "/carteira",
-        actionLabel: "Ver patrimônio",
+        actionLabel: t.paiVerPatrimonio,
       });
     }
 
@@ -426,11 +430,11 @@ export async function computeInsights(ctx: AuthContext, money: MoneyFormatter): 
     if (previousHigh !== null && portfolio.totalPortfolio > previousHigh) {
       insights.push({
         id: "patrimony-new-high",
-        message: `Seu patrimônio bateu um novo recorde hoje: ${money(portfolio.totalPortfolio)}.`,
+        message: t.paiPatrimonioRecorde(money(portfolio.totalPortfolio)),
         tone: "success",
         category: "carteira",
         href: "/carteira",
-        actionLabel: "Ver patrimônio",
+        actionLabel: t.paiVerPatrimonio,
       });
     }
   }

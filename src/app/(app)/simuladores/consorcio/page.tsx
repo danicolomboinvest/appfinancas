@@ -2,9 +2,8 @@
 
 import { simulateConsortiumVsFinancing } from "@/lib/simulators/consortium";
 import type { ConsortiumFormValues } from "@/lib/validations/consortium.schema";
-import { StatCard } from "@/components/ui/StatCard";
-import { Card } from "@/components/ui/Card";
 import { OutcomeComparison } from "@/components/charts/OutcomeComparison";
+import { DetalhesDoResultado } from "@/components/simulators/DetalhesDoResultado";
 import { SimulatorWizard, type WizardField, type WizardValues } from "@/components/simulators/SimulatorWizard";
 import { useMoney } from "@/components/money/MoneyProvider";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
@@ -14,12 +13,12 @@ import type { Titulos } from "@/lib/profiles/voice";
 /** As perguntas vêm do catálogo de voz, então a lista é montada com o tema em mãos. */
 function campos(t: Titulos): WizardField[] {
   return [
-    { name: "creditValue", label: t.simConsValorBem, kind: "currency", help: t.simConsValorBemHint },
-    { name: "consortiumAdminFeeRate", label: t.simConsTaxaAdm, kind: "percent", suffix: "total", help: t.simConsTaxaAdmHint },
-    { name: "consortiumTermMonths", label: t.simConsPrazo, kind: "number", suffix: "meses", help: t.simConsPrazoHint },
-    { name: "financingDownPayment", label: t.simConsEntrada, kind: "currency", help: t.simConsEntradaHint },
-    { name: "financingCetAnnualRate", label: t.simCet, kind: "percent", help: t.simConsCetHint },
-    { name: "financingTermMonths", label: t.simConsPrazoFin, kind: "number", suffix: "meses", help: t.simConsPrazoFinHint },
+    { name: "creditValue", label: t.simConsValorBem, kind: "currency", help: t.simConsValorBemHint, grupo: "bem", max: 1000000, step: 5000, chips: [50000, 100000, 300000, 500000] },
+    { name: "consortiumAdminFeeRate", label: t.simConsTaxaAdm, kind: "percent", suffix: "total", help: t.simConsTaxaAdmHint, grupo: "consorcio", min: 0.05, max: 0.3, chips: [0.12, 0.15, 0.18, 0.22] },
+    { name: "consortiumTermMonths", label: t.simConsPrazo, kind: "number", suffix: "meses", help: t.simConsPrazoHint, grupo: "consorcio", min: 12, max: 240, step: 12, chips: [60, 120, 180, 200] },
+    { name: "financingDownPayment", label: t.simConsEntrada, kind: "currency", help: t.simConsEntradaHint, grupo: "financiamento", max: 500000, step: 1000 },
+    { name: "financingCetAnnualRate", label: t.simCet, kind: "percent", help: t.simConsCetHint, grupo: "financiamento", min: 0.05, max: 0.3, chips: [0.1, 0.12, 0.15, 0.2] },
+    { name: "financingTermMonths", label: t.simConsPrazoFin, kind: "number", suffix: "meses", help: t.simConsPrazoFinHint, grupo: "financiamento", min: 12, max: 420, step: 12, chips: [48, 60, 120, 240] },
     {
       name: "financingSystem",
       label: t.simSistema,
@@ -30,7 +29,7 @@ function campos(t: Titulos): WizardField[] {
         { value: "SAC", label: t.simSac },
       ],
     },
-    { name: "opportunityCostAnnualRate", label: t.simConsOportunidade, kind: "percent", help: t.simConsOportunidadeHint },
+    { name: "opportunityCostAnnualRate", label: t.simConsOportunidade, kind: "percent", help: t.simConsOportunidadeHint, avancado: true, max: 0.18 },
   ];
 }
 
@@ -68,6 +67,11 @@ export default function ConsorcioPage() {
     <SimulatorWizard
       eyebrow={t.simConsEyebrow}
       fields={campos(t)}
+      grupos={[
+        { id: "bem", titulo: "O que você quer comprar" },
+        { id: "consorcio", titulo: "No consórcio" },
+        { id: "financiamento", titulo: "No financiamento" },
+      ]}
       defaults={DEFAULTS}
       save={{ type: "CONSORCIO_VS_FINANCIAMENTO", resumo: veredito }}
       renderResult={(values) => {
@@ -78,11 +82,10 @@ export default function ConsorcioPage() {
           <div className="flex flex-col gap-4">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-accent-strong">{t.simResultado}</p>
-              <h1 className="mt-1 text-h2 font-bold tracking-tight text-ink">
+              <h2 className="mt-1 text-xl font-bold leading-snug tracking-tight text-ink">
                 {veredito(values)} <span className="text-ink-muted">{t.simConsDiferenca(diferenca)}</span>
-              </h1>
+              </h2>
             </div>
-            <Card className="p-4">
               {/* Barras de CUSTO: a menor é a melhor, então quem diz o vencedor é a cor.
                   As duas precisam estar na mesma base do veredito (custo da operação, sem o bem):
                   com o total pago do consórcio (bem + taxa) de um lado e só juros do outro, a
@@ -93,12 +96,7 @@ export default function ConsorcioPage() {
                 winner={vencedor === "CONSORCIO" ? "a" : "b"}
                 verdict={t.simConsVeredito(vencedor, diferenca)}
               />
-            </Card>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <StatCard label={t.simConsParcela} value={money(result.consortium.installment)} />
-              <StatCard label={t.simConsPrimeiraParcela} value={money(result.financing.firstInstallment)} />
-              <StatCard label={t.simConsCustoOportunidade} value={money(result.financing.downPaymentOpportunityCost)} />
-            </div>
+            <DetalhesDoResultado itens={[{ rotulo: t.simConsParcela, valor: money(result.consortium.installment) }, { rotulo: t.simConsPrimeiraParcela, valor: money(result.financing.firstInstallment) }, { rotulo: t.simConsCustoOportunidade, valor: money(result.financing.downPaymentOpportunityCost) }]} />
           </div>
         );
       }}

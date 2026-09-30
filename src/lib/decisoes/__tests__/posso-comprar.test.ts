@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { avaliarCompra, comprasAindaNaoLancadas, cortesPorMeta, mesesAteMeta, valorPresente, type CompraBase } from "../posso-comprar";
+import { avaliarCompra, compraDecididaEmAberto, comprasAindaNaoLancadas, cortesPorMeta, mesesAteMeta, valorPresente, type CompraBase } from "../posso-comprar";
 
 const fmt = { money: (v: number) => `R$ ${Math.round(v)}`, mesDaqui: (m: number | null) => (m === null ? "sem previsão" : `+${m}`) };
 const base: CompraBase = {
@@ -295,5 +295,55 @@ describe("compras que ela já decidiu fazer", () => {
     ];
     expect(comprasAindaNaoLancadas(decididas, gastos)).toEqual({ vista: 500, parcelaMensal: 0 });
     expect(comprasAindaNaoLancadas(decididas, [])).toEqual({ vista: 1700, parcelaMensal: 300 });
+  });
+});
+
+describe("compras decididas: o que a revisão achou", () => {
+  it("a compra à vista já decidida entra na regra dos 90% da compra seguinte", () => {
+    // Renda 10.000, orçamento 7.000, guardar 500: a compra A de 2.000 à vista já foi decidida.
+    const b: CompraBase = { ...base, renda: 10000, gastoPlanejado: 7000, sobraDoMes: 1000, guardarPlanejado: 500, metas: [], jaDecidido: { vista: 2000, parcelaMensal: 0 } };
+    const r = avaliarCompra(b, { valor: 400, modo: "vista", parcelas: 1, juros: 0, desconto: 0 }, fmt);
+    if ("erro" in r) throw new Error();
+    // 7.000 + 2.000 + 400 = 94% da renda: cabe no dinheiro, mas não é verde.
+    expect(r.veredito).toBe("custo");
+    expect(r.titulo).toBe("Cabe, mas passa da regra dos 90%");
+    expect(r.comprometimento?.hoje).toBeCloseTo(0.9, 5);
+    expect(r.comprometimento?.depois).toBeCloseTo(0.94, 5);
+  });
+
+  it("parcelado olha o compromisso de todo mês: a compra à vista decidida é uma vez só", () => {
+    const b: CompraBase = { ...base, renda: 10000, gastoPlanejado: 7000, sobraDoMes: 1000, guardarPlanejado: 500, metas: [], jaDecidido: { vista: 2000, parcelaMensal: 0 } };
+    const r = avaliarCompra(b, { valor: 4800, modo: "parcelado", parcelas: 12, juros: 0, desconto: 0 }, fmt);
+    if ("erro" in r) throw new Error();
+    expect(r.comprometimento?.depois).toBeCloseTo(0.74, 5);
+  });
+
+  it("parcelado decidido no fim do mês continua na conta depois da virada", () => {
+    const geladeira = { valor: 9600, modo: "parcelado" as const, parcelas: 12, criadaEm: new Date("2026-09-28T15:00:00Z") };
+    const bota = { valor: 300, modo: "vista" as const, parcelas: 1, criadaEm: new Date("2026-09-28T15:00:00Z") };
+    const dia1 = new Date("2026-10-01T12:00:00Z");
+    expect(comprasAindaNaoLancadas([geladeira, bota], [], dia1)).toEqual({ vista: 0, parcelaMensal: 800 });
+    // Uma parcela já lançada (a fatura dela está sendo importada): já está nos números.
+    expect(comprasAindaNaoLancadas([geladeira], [{ valor: 800, criadoEm: new Date("2026-09-29T10:00:00Z") }], dia1)).toEqual({ vista: 0, parcelaMensal: 0 });
+    // Depois da última parcela, sai.
+    expect(compraDecididaEmAberto(geladeira, new Date("2027-08-15T12:00:00Z"))).toBe(true);
+    expect(compraDecididaEmAberto(geladeira, new Date("2027-09-15T12:00:00Z"))).toBe(false);
+  });
+
+  it("o mês da decisão é o de Brasília", () => {
+    // 22h do dia 30/09 em Brasília já é 01/10 em UTC: ainda é compra de setembro.
+    const noite = { valor: 300, modo: "vista" as const, parcelas: 1, criadaEm: new Date("2026-10-01T01:00:00Z") };
+    expect(compraDecididaEmAberto(noite, new Date("2026-09-30T23:30:00-03:00"))).toBe(true);
+    expect(compraDecididaEmAberto(noite, new Date("2026-10-01T12:00:00Z"))).toBe(false);
+  });
+
+  it("parcelado com juros: o valor gravado (com juros) faz a parcela bater com o lançamento", () => {
+    const r = avaliarCompra({ ...base, metas: [] }, { valor: 3000, modo: "parcelado", parcelas: 12, juros: 0.04, desconto: 0 }, fmt);
+    if ("erro" in r) throw new Error();
+    // O que a tela grava no "Vou comprar": o preço mais os juros.
+    const gravado = 3000 + (r.custoJuros ?? 0);
+    expect(gravado / 12).toBeCloseTo(319.66, 2);
+    const decidida = { valor: gravado, modo: "parcelado" as const, parcelas: 12, criadaEm: new Date("2026-09-10T15:00:00Z") };
+    expect(comprasAindaNaoLancadas([decidida], [{ valor: 319.66, criadoEm: new Date("2026-09-12T10:00:00Z") }])).toEqual({ vista: 0, parcelaMensal: 0 });
   });
 });

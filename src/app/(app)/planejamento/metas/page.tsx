@@ -49,7 +49,8 @@ export default async function MetasPage() {
 
   const withPlans = goals.map((goal) => {
     const targetAmount = Number(goal.targetAmount);
-    // Progresso REAL: o maior entre o "Já guardado" digitado e ativos vinculados + aportes (item 6).
+    // Progresso REAL: "Já guardado" digitado + aportes marcados depois, ou ativos vinculados +
+    // aportes quando passam disso (item 6; regra em goalCurrentAmount).
     const currentAmount = goal.computedCurrentAmount;
     const targetDate = goal.targetDate ?? new Date();
     const goalInput = {

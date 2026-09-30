@@ -21,7 +21,8 @@ export default async function ConexoesPage() {
           id: c.id,
           connectorName: c.connectorName,
           status: c.status,
-          lastSyncAt: c.lastSyncAt ? c.lastSyncAt.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : null,
+          // O servidor roda em UTC: sem o fuso, "Atualizar" às 21h30 aparecia como 00:30 do dia seguinte.
+          lastSyncAt: c.lastSyncAt ? c.lastSyncAt.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : null,
           lastSyncCount: c.lastSyncCount,
           lastError: c.lastError,
         }))}

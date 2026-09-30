@@ -140,7 +140,7 @@ export function AppShell({
 
   return (
     <ToastProvider>
-      <ProfileThemeProvider theme={profileTheme} kind={profileKind}>
+      <ProfileThemeProvider theme={profileTheme} kind={profileKind} profileId={perfis.find((p) => p.isDefault)?.id ?? null}>
       <NavProgressProvider>
       <div className="flex min-h-screen">
         {/* Sidebar: navegação primária no desktop; no mobile fica sempre fora da tela

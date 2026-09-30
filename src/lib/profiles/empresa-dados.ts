@@ -3,7 +3,7 @@ import type { AuthContext } from "@/lib/auth/session";
 import { listAssets } from "@/lib/repositories/asset.repo";
 import { getEmergencyFund } from "@/lib/repositories/emergency-fund.repo";
 import { listEntriesForMonths } from "@/lib/repositories/monthly-entry.repo";
-import { caixaDaEmpresa, calcularDRE, despesasFixasTipicas, saudeDoCaixa, type DRE, type SaudeDoCaixa } from "./empresa";
+import { caixaDaEmpresa, calcularDRE, despesasFixasTipicas, gastoSemCategoriaDoPeriodo, saudeDoCaixa, type DRE, type SaudeDoCaixa } from "./empresa";
 
 /**
  * Os números do perfil Empresa já calculados pra tela: a DRE do período e a saúde do caixa.
@@ -25,6 +25,12 @@ export type PeriodoDRE = {
   retido: number;
   gastoPorCategoria: { parentCategory: string; spent: number }[];
   gastoPersonalizado: number;
+  /**
+   * Todo o gasto do período (o mesmo total do card "Despesas"/"Lucro"). O que passar do que
+   * está categorizado é gasto sem categoria e entra na DRE como despesa fixa. Sem ele, a DRE
+   * soma só as categorias.
+   */
+  despesaTotal?: number;
 };
 
 /** Os N meses fechados antes deste, do mais antigo pro mais recente. */
@@ -44,7 +50,13 @@ export async function dadosDaEmpresa(ctx: AuthContext, periodo: PeriodoDRE, ref:
 
   const gastoPorCategoria: Partial<Record<ParentCategory, number>> = {};
   for (const g of periodo.gastoPorCategoria) gastoPorCategoria[g.parentCategory as ParentCategory] = (gastoPorCategoria[g.parentCategory as ParentCategory] ?? 0) + g.spent;
-  const dre = calcularDRE({ receita: periodo.receita, gastoPorCategoria, gastoPersonalizado: periodo.gastoPersonalizado, retido: periodo.retido });
+  const dre = calcularDRE({
+    receita: periodo.receita,
+    gastoPorCategoria,
+    gastoPersonalizado: periodo.gastoPersonalizado,
+    gastoSemCategoria: gastoSemCategoriaDoPeriodo(periodo),
+    retido: periodo.retido,
+  });
 
   // Caixa: a mesma conta das outras telas (digitado na tela do caixa ou marcado na carteira).
   // Despesas fixas: média dos três meses fechados anteriores (com o mês aberto a média cairia no

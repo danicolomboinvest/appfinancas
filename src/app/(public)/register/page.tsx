@@ -30,7 +30,7 @@ export default function RegisterPage() {
           {state.error && (
             <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{state.error}</p>
           )}
-          <Field label="Nome" id="name" name="name" type="text" required defaultValue={state.values?.name} />
+          <Field label="Nome" id="name" name="name" type="text" required maxLength={80} defaultValue={state.values?.name} />
           <Field
             label="Email"
             id="email"

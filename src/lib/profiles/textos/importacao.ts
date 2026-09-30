@@ -92,6 +92,14 @@ export type TextosImportacao = {
   impRepetidos: string;
   impRepetidosDica: string;
   impDeixarSo1: string;
+  /** "É o mesmo?": linha parecida com um lançamento à mão ou com um de outra importação.
+   * `soAMao` = todas as parecidas são com lançamento à mão. */
+  impDuplicataTitulo(n: number, soAMao: boolean): string;
+  impDuplicataDica: string;
+  /** O que já está no app. `quando` é a data formatada, ou null (lançamento à mão sem dia). */
+  impDuplicataJaTem(descricao: string, quando: string | null, importado: boolean): string;
+  impDuplicataEOMesmo: string;
+  impDuplicataSaoDiferentes: string;
   impRotuloRenda: string;
   /** Botão que manda a linha pra OUTRO perfil do usuário (compra da Empresa que caiu no cartão
    * Pessoal, por exemplo). Recebe o nome do perfil de destino. */
@@ -286,6 +294,21 @@ export const PADRAO_IMPORTACAO: TextosImportacao = {
   impRepetidosDica:
     "Mesma data, valor e descrição mais de uma vez. Se foi compra de verdade, mantenha; se é o arquivo repetindo, deixe só uma.",
   impDeixarSo1: "Deixar só 1",
+  impDuplicataTitulo: (n, soAMao) =>
+    soAMao
+      ? n === 1
+        ? "1 lançamento parece com um que você já lançou à mão"
+        : `${n} lançamentos parecem com alguns que você já lançou à mão`
+      : n === 1
+        ? "1 lançamento parece com um que já está no app"
+        : `${n} lançamentos parecem com alguns que já estão no app`,
+  impDuplicataDica: "Mesmo valor e data perto. Se for o mesmo, eu não importo de novo.",
+  impDuplicataJaTem: (descricao, quando, importado) =>
+    importado
+      ? `Já está no app, de outro arquivo: “${descricao}”${quando ? ` em ${quando}` : ""}`
+      : `Você lançou: “${descricao}”${quando ? ` em ${quando}` : " no mesmo mês"}`,
+  impDuplicataEOMesmo: "É o mesmo, não importar",
+  impDuplicataSaoDiferentes: "São diferentes",
   impRotuloRenda: "Renda",
   impMoverPra: (nome) => `→ ${nome}`,
   impImportando: "Importando...",
@@ -300,7 +323,7 @@ export const PADRAO_IMPORTACAO: TextosImportacao = {
   impRemovidoExtrato: "Removido do extrato.",
   impManter: "Manter",
   // Posição da corretora
-  impCarteiraArquivoGrande: "Arquivo muito grande (máx. ~7 MB). Exporte um relatório menor e tente de novo.",
+  impCarteiraArquivoGrande: "Arquivo muito grande (máx. 4 MB). Exporte um relatório menor e tente de novo.",
   impCarteiraEscolher: "Escolher a posição da corretora",
   impCarteiraFormato: "Posição da corretora ou da B3 (CSV, Excel ou PDF)",
   impSenhaDicaCorretora:
@@ -323,7 +346,7 @@ export const PADRAO_IMPORTACAO: TextosImportacao = {
       .filter(Boolean)
       .join(" · ") || "Nada pra mudar, carteira já estava em dia.",
   // Declaração de IR
-  impIrpfArquivoGrande: "Arquivo muito grande (máx. ~7 MB).",
+  impIrpfArquivoGrande: "Arquivo muito grande (máx. 4 MB).",
   impIrpfSelecioneUm: "Selecione ao menos um ativo pra aplicar o preço médio.",
   impIrpfIntro: [
     "Sua declaração de IR tem o ",

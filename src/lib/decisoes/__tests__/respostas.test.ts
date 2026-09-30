@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { comAbertura, estouGastandoDemais, minhaReservaBasta, ondeEstouExagerando, porqueAcabouMaisRapido, quandoAtinjoMinhaMeta, quantoPrecisoGuardar } from "../respostas";
+import { comAbertura, estouGastandoDemais, minhaReservaBasta, ondeEstouExagerando, porqueAcabouMaisRapido, quandoAtinjoMinhaMeta, quantoPrecisoGuardar, ritmoMensalDaMeta } from "../respostas";
 
 const money = (v: number) => `R$ ${Math.round(v)}`;
 const cat = (key: string, planejado: number, gasto: number) => ({ key, label: key, planejado, gasto });
@@ -56,5 +56,67 @@ describe("respostas: conta fixa", () => {
   it("aluguel pago no começo do mês não aparece como exagero", () => {
     const r = ondeEstouExagerando({ money, decorrido: 0.3, categorias: [{ key: "MORADIA", label: "Moradia", planejado: 3000, gasto: 2900, fixa: true }], fora: 0, maiores: [], recorrentesAno: null });
     expect(r.veredito).toBe("bom");
+  });
+});
+
+describe("respostas da Central: o que a revisão achou", () => {
+  it("aluguel já pago não faz o mês parecer acima do ritmo", () => {
+    const r = estouGastandoDemais({
+      money,
+      gastoDoMes: 2000,
+      planejado: 5000,
+      decorrido: 5 / 30,
+      renda: 10000,
+      categorias: [
+        { key: "MORADIA", label: "Moradia", planejado: 2000, gasto: 2000, fixa: true },
+        { key: "ALIMENTACAO", label: "Alimentação", planejado: 3000, gasto: 0 },
+      ],
+    });
+    expect(r.veredito).toBe("bom");
+    expect(r.conta.some((c) => c.rotulo.includes("Contas fixas"))).toBe(true);
+  });
+
+  it("recorrente lançado no dia 1 também entra inteiro; o resto continua correndo com os dias", () => {
+    const r = estouGastandoDemais({
+      money,
+      gastoDoMes: 1800,
+      planejado: 3000,
+      decorrido: 5 / 30,
+      renda: 10000,
+      categorias: [{ key: "SAUDE", label: "Saúde", planejado: 3000, gasto: 1800, fixoAutomatico: 800 }],
+    });
+    // Esperado: 800 + 2.200 × 5/30 ≈ 1.167; gastou 1.800: acima do ritmo.
+    expect(r.veredito).toBe("atencao");
+  });
+
+  it("casal só com a conta conjunta: não cobra a regra dos 90%", () => {
+    const r = estouGastandoDemais({ money, gastoDoMes: 4600, planejado: 5000, decorrido: 24 / 30, renda: 5000, categorias: [], regra90: false });
+    expect(r.veredito).not.toBe("ruim");
+    expect(r.detalhes.join(" ")).not.toMatch(/passam de 90%/);
+    expect(r.conta.some((c) => c.rotulo === "90% da renda")).toBe(false);
+    const comRegra = estouGastandoDemais({ money, gastoDoMes: 4600, planejado: 5000, decorrido: 24 / 30, renda: 5000, categorias: [] });
+    expect(comRegra.veredito).toBe("ruim");
+  });
+
+  it("meta vencida: pede data nova em vez de cobrar o que falta inteiro por mês", () => {
+    const viagem = { nome: "Viagem", alvo: 10000, atual: 2000, prazo: "agosto de 2026", necessarioPorMes: 500, ritmoPorMes: 500, chegaEm: "junho de 2028", noPrazo: false, vencida: true };
+    const meta = quandoAtinjoMinhaMeta({ money, metas: [viagem] });
+    expect(meta.frase).toContain("já passou");
+    expect(meta.frase).not.toContain("Pra chegar a tempo");
+    expect(meta.acoes[0].rotulo).toBe("Escolher uma data nova");
+    const guardar = quantoPrecisoGuardar({ money, metas: [viagem], reserva: null, guardarPlanejado: 500, renda: null });
+    expect(guardar.frase).toMatch(/^R\$ 500 por mês/);
+    expect(guardar.detalhes[0]).toContain("já passou");
+    const semValor = quantoPrecisoGuardar({ money, metas: [{ ...viagem, necessarioPorMes: 0 }], reserva: null, guardarPlanejado: 0, renda: null });
+    expect(semValor.frase).toContain("data nova");
+  });
+
+  it("ritmo da meta divide pelos meses em que ela já existia", () => {
+    // Criada em agosto, 600 em agosto e 600 em setembro: em outubro, 600 por mês.
+    expect(ritmoMensalDaMeta({ soma: 1200, mesesComGuardado: 2, criadaEm: { ano: 2026, mes: 8 }, hoje: { ano: 2026, mes: 10 } })).toBe(600);
+    expect(ritmoMensalDaMeta({ soma: 1800, mesesComGuardado: 3, criadaEm: { ano: 2025, mes: 1 }, hoje: { ano: 2026, mes: 10 } })).toBe(600);
+    // Guardado lançado com data de antes da criação conta o mês dele.
+    expect(ritmoMensalDaMeta({ soma: 1800, mesesComGuardado: 3, criadaEm: { ano: 2026, mes: 9 }, hoje: { ano: 2026, mes: 10 } })).toBe(600);
+    expect(ritmoMensalDaMeta({ soma: 600, mesesComGuardado: 1, criadaEm: { ano: 2026, mes: 10 }, hoje: { ano: 2026, mes: 10 } })).toBe(600);
   });
 });

@@ -36,6 +36,30 @@ export function mesDeReferenciaDoPlano(ano: number, hoje: Date): number {
 }
 
 /**
+ * O mês que as dicas do plano usam como "mês passado" (sugestão de renda, "Copiar …", gasto
+ * por categoria e a média de três meses): o último mês já fechado. Em ano futuro também, porque
+ * quem planeja 2027 em dezembro de 2026 quer ver o que já aconteceu, e dezembro de 2027 ainda
+ * está vazio: a tela abria sem sugestão de renda e sem o botão de copiar. Só o ano que já
+ * acabou usa o dezembro dele, que é o último mês fechado daquele ano.
+ */
+export function mesDeReferenciaDasDicas(ano: number, hoje: Date): { year: number; month: number } {
+  if (ano < hoje.getFullYear()) return { year: ano, month: 12 };
+  const d = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1);
+  return { year: d.getFullYear(), month: d.getMonth() + 1 };
+}
+
+/**
+ * Meses do ano que ainda serão vividos com o plano, contando o atual: pra "R$ X por mês nos N
+ * meses que faltam". Tem que bater com o que o Salvar grava (mesesQueOSalvarGrava), senão a
+ * tela promete um total e grava outro.
+ */
+export function mesesQueFaltamNoAno(ano: number, hoje: Date): number {
+  // Ano fechado não mostra o assistente (o plano dele é história): fica com 12, como sempre foi.
+  if (ano !== hoje.getFullYear()) return 12;
+  return mesesQueOSalvarGrava(ano, hoje).length;
+}
+
+/**
  * O valor enviado mudou em relação ao que a tela carregou? Só o que ela mexeu é gravado: o
  * resto fica como está em cada mês, inclusive um ajuste pontual feito só num mês.
  *

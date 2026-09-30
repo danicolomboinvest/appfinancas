@@ -21,8 +21,8 @@ export type MonthlyRecap = {
   byWeekday: WeekdaySpend[];
   bestDay: { label: string; value: number } | null;
   worstDay: { label: string; value: number } | null;
-  /** Renda − gastos desde o primeiro lançamento até o mês de hoje ("ficou no bolso").
-   * Acumulado, não é média; meses futuros (recorrência, parcelas) ficam de fora. */
+  /** Renda − gastos desde o primeiro lançamento até o mês RECAPEADO ("ficou no bolso").
+   * Acumulado, não é média; meses depois dele (recorrência, parcelas, o mês novo) ficam de fora. */
   allTimeSaved: number;
   /** Quantos meses de uso (mínimo 1), só para a frase "desde que você chegou aqui". */
   monthsActive: number;
@@ -66,6 +66,31 @@ export function weekdayOfExpense(
 }
 
 /**
+ * A maior categoria do mês, pelo nome que a pessoa vê na tela do mês (getCategorySpending):
+ * categoria-mãe pelo rótulo do perfil, personalizada pelo NOME dela. Antes toda personalizada
+ * virava "Outros" (ela tem parentCategory nulo), e Pet R$ 900 + Academia R$ 600 davam "A maior
+ * parte foi para Outros", uma categoria que ela não usa.
+ *
+ * Gasto sem categoria nenhuma não entra no ranking (como na tela do mês): não é um lugar pra
+ * onde o dinheiro foi, é lançamento por classificar.
+ */
+export function maiorCategoriaDoMes(
+  gastos: { amount: number; parentCategory: string | null; customCategoryId: string | null }[],
+  rotulo: (g: { parentCategory: string | null; customCategoryId: string | null }) => string,
+): { label: string; value: number } | null {
+  const porChave = new Map<string, { label: string; value: number }>();
+  for (const g of gastos) {
+    const chave = g.parentCategory ? `parent:${g.parentCategory}` : g.customCategoryId ? `custom:${g.customCategoryId}` : null;
+    if (!chave) continue;
+    const atual = porChave.get(chave) ?? { label: rotulo(g), value: 0 };
+    atual.value += g.amount;
+    porChave.set(chave, atual);
+  }
+  const maior = [...porChave.values()].sort((a, b) => b.value - a.value)[0];
+  return maior && maior.value > 0 ? maior : null;
+}
+
+/**
  * Qual mês recapear e se o card deve aparecer agora: só no fim do mês corrente (dia >= 25) ou
  * no começo do mês seguinte (dia <= 7), e só se esse mês ainda não foi fechado pelo usuário
  * (User.recapDismissedMonth). Fora dessa janela, ou já visto, o card não aparece.
@@ -103,17 +128,18 @@ export function getRecapEligibility(
  */
 export async function computeMonthlyRecap(ctx: AuthContext, year: number, month: number): Promise<MonthlyRecap> {
   const prev = new Date(year, month - 2, 1);
-  // "Desde o começo" é até hoje: a despesa recorrente de outubro a dezembro e as parcelas
-  // futuras já existem no banco, mas ainda não saíram do bolso.
-  const hoje = nowInBrazil();
+  // "Desde o começo" vai até o mês RECAPEADO, não até hoje: a despesa recorrente de outubro a
+  // dezembro e as parcelas futuras já existem no banco, mas ainda não saíram do bolso. E no dia
+  // 2/10 o resumo é de setembro: com o corte em hoje, o aluguel e as parcelas de outubro entravam
+  // sem o salário de outubro, e o "no bolso" de setembro saía menor (às vezes negativo).
   const jaAconteceu = {
-    OR: [{ year: { lt: hoje.getFullYear() } }, { year: hoje.getFullYear(), month: { lte: hoje.getMonth() + 1 } }],
+    OR: [{ year: { lt: year } }, { year, month: { lte: month } }],
   };
 
-  const [monthExpenses, prevMonthAgg, allTime, firstEntry, yearAgg] = await Promise.all([
+  const [monthExpenses, prevMonthAgg, allTime, firstEntry, yearAgg, personalizadas] = await Promise.all([
     prisma.monthlyEntry.findMany({
       where: { userId: ctx.userId, profileId: ctx.profileId, category: "EXPENSE", year, month },
-      select: { amount: true, entryDate: true, createdAt: true, importBatchId: true, parentCategory: true },
+      select: { amount: true, entryDate: true, createdAt: true, importBatchId: true, parentCategory: true, customCategoryId: true },
     }),
     prisma.monthlyEntry.aggregate({
       where: {
@@ -141,23 +167,29 @@ export async function computeMonthlyRecap(ctx: AuthContext, year: number, month:
       where: { userId: ctx.userId, profileId: ctx.profileId, year, month: { lte: month } },
       _sum: { amount: true },
     }),
+    // Nomes das categorias personalizadas, pra maior categoria sair com o nome que ela deu.
+    prisma.customCategory.findMany({ where: { userId: ctx.userId, profileId: ctx.profileId }, select: { id: true, name: true } }),
   ]);
+  const nomeDaPersonalizada = new Map(personalizadas.map((c) => [c.id, c.name]));
 
   let monthSpent = 0;
-  const byCategory = new Map<string, number>();
   const byWeekday = new Array(7).fill(0) as number[];
 
   for (const e of monthExpenses) {
     const amount = Number(e.amount);
     monthSpent += amount;
-    const label = e.parentCategory ? categoryLabel(ctx.profileKind, e.parentCategory as ParentCategory) : "Outros";
-    byCategory.set(label, (byCategory.get(label) ?? 0) + amount);
     const weekday = weekdayOfExpense(e, year, month);
     if (weekday !== null) byWeekday[weekday] += amount;
   }
   const prevMonthSpent = Number(prevMonthAgg._sum.amount ?? 0);
 
-  const topCategoryEntry = [...byCategory.entries()].sort((a, b) => b[1] - a[1])[0];
+  const topCategory = maiorCategoriaDoMes(
+    monthExpenses.map((e) => ({ amount: Number(e.amount), parentCategory: e.parentCategory, customCategoryId: e.customCategoryId })),
+    (g) =>
+      g.parentCategory
+        ? categoryLabel(ctx.profileKind, g.parentCategory as ParentCategory)
+        : (nomeDaPersonalizada.get(g.customCategoryId ?? "") ?? "Personalizada"),
+  );
   const weekdaySeries: WeekdaySpend[] = Array.from({ length: 7 }, (_, i) => {
     // Começa em segunda (getDay: 0=Dom) pra ler como semana BR: Seg..Dom.
     const dayIndex = (i + 1) % 7;
@@ -201,7 +233,7 @@ export async function computeMonthlyRecap(ctx: AuthContext, year: number, month:
     monthSpent,
     prevMonthSpent,
     monthDeltaPercent: prevMonthSpent > 0 ? (monthSpent - prevMonthSpent) / prevMonthSpent : null,
-    topCategory: topCategoryEntry ? { label: topCategoryEntry[0], value: topCategoryEntry[1] } : null,
+    topCategory,
     byWeekday: weekdaySeries,
     bestDay,
     worstDay,

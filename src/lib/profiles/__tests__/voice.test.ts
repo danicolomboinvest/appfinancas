@@ -171,10 +171,11 @@ describe("a voz dos sete temas", () => {
     const g = vozDoTema("girly").titulos;
     const p = vozDoTema("padrao").titulos;
     const jargao = /aport|provento|patrim[oô]nio|rentabilidade|ac[uú]mulo|consolidado|proje[cç][aã]o/i;
-    // Só o que o Girly ESCREVEU: o que ele herda do Padrão (catálogo ainda sem versão dele)
-    // não é voz do Girly, é ausência dela — e o teste seguinte cobra que ela apareça.
+    // TODAS as chaves, as herdadas do Padrão também: o que o Girly não reescreve chega na tela
+    // dela do mesmo jeito. Pular as herdadas deixava "aportes" e "patrimônio" passarem, e ainda
+    // incentivava deixar frase com jargão fora do catálogo pra escapar daqui. Chave nova do
+    // Padrão com jargão entra junto com a versão do Girly.
     for (const [chave, v] of Object.entries(g)) {
-      if (v === p[chave as keyof typeof p]) continue;
       const texto = typeof v === "function" ? (v as (...a: never[]) => unknown)(...(["10%", "R$ 10", 10] as never[])) : v;
       expect(String(texto), chave).not.toMatch(jargao);
     }
@@ -183,7 +184,7 @@ describe("a voz dos sete temas", () => {
     expect(g.metaGuardar("R$ 300")).toBe("Me dá R$ 300 esse mês e a gente chega lá 💪✨");
     expect(g.metaAporteFeito("setembro")).toContain("Boaaaa");
     expect(g.apJuros).not.toMatch(/põem/);
-    expect(vozDoTema("padrao").titulos.aportou).toBe("Aportou");
+    expect(p.aportou).toBe("Aportou");
   });
 
   it("o Game não cumprimenta: abre no ranking", () => {
@@ -213,5 +214,80 @@ describe("Sem filtro: a tirada de cada categoria varia com o mês", () => {
   it("categoria personalizada cai na frase neutra", () => {
     expect(sf.titulos.comparacao("mais", "R$ 10", "agosto")).toBe("R$ 10 a mais que agosto. Foi mal, foi? 🫣");
     expect(sf.titulos.comparacao("menos", "R$ 10", "agosto", undefined)).toContain("Olha ela economizando");
+  });
+});
+
+describe("tela do orçamento: renda e o que foi guardado no mês", () => {
+  it("o Padrão fica como sempre foi; Girly sem jargão; Empresa fala de faturamento e retenção", () => {
+    const p = vozDoTema("padrao").titulos;
+    expect(p.formOrcEditarPlano(2026)).toBe("Editar seu plano de 2026: renda, aporte e gastos");
+    expect(p.formOrcRendaEAporteNoMes("Setembro")).toBe("Renda e aporte em Setembro");
+    expect([p.formOrcBarraRenda, p.formOrcBarraAporte]).toEqual(["Renda", "Aporte"]);
+
+    // O Girly precisa escrever a própria versão: herdar do Padrão levaria "aporte" pra tela dela.
+    const g = vozDoTema("girly").titulos;
+    const jargao = /aport|provento|patrim[oô]nio|rentabilidade|ac[uú]mulo|consolidado|proje[cç][aã]o/i;
+    for (const texto of [g.formOrcEditarPlano(2026), g.formOrcRendaEAporteNoMes("Setembro"), g.formOrcBarraRenda, g.formOrcBarraAporte]) {
+      expect(texto).not.toMatch(jargao);
+    }
+
+    for (const tema of ["padrao", "girly"]) {
+      const e = vozDoTema(tema, "EMPRESA").titulos;
+      expect(e.formOrcRenda).toBe("Faturamento por mês");
+      expect(e.formOrcGuardarPorMes).toBe("Reter por mês");
+      expect(e.formOrcRendaEAporte).toBe("Faturamento e retenção");
+      expect(e.formOrcRendaEAporteNoMes("Setembro")).toBe("Faturamento e retenção em Setembro");
+      expect([e.formOrcBarraRenda, e.formOrcBarraAporte]).toEqual(["Faturamento", "Retenção"]);
+      expect(e.formOrcEditarPlano(2026)).not.toMatch(/aporte|renda/i);
+    }
+  });
+});
+
+describe("lançamento que se repete e aporte sem destino", () => {
+  const p = vozDoTema("padrao").titulos;
+  const g = vozDoTema("girly").titulos;
+
+  it("o salário repetido não vira \"despesa fixa\" ao apagar ou editar", () => {
+    expect(p.uiFixoApagarTitulo("EXPENSE")).toBe("Apagar despesa fixa");
+    expect(p.uiFixoEscopo("EXPENSE")).toBe("Despesa fixa: mudar em quais meses?");
+    for (const t of [p, g]) {
+      expect(t.uiFixoApagarTitulo("INCOME")).not.toMatch(/despesa|gasto/i);
+      expect(t.uiFixoEscopo("INCOME")).not.toMatch(/despesa|gasto/i);
+      expect(t.uiFixoApagarTitulo("INVESTMENT_CONTRIBUTION")).not.toMatch(/despesa|gasto/i);
+    }
+  });
+
+  it("o aviso de aporte sem destino diz o mês certo e, no Girly, não diz aporte", () => {
+    expect(p.uiAporteSemDestino("R$ 500", null)).toBe("R$ 500 aportados neste mês ainda não estão na carteira");
+    expect(p.uiAporteSemDestino("R$ 500", "agosto")).toContain("em agosto");
+    expect(p.uiAporteSemDestino("R$ 500", "agosto")).not.toContain("neste mês");
+    for (const texto of [g.uiAporteSemDestino("R$ 500", null), g.uiAporteSemDestino("R$ 500", "agosto"), g.uiAporteSemDestinoSub, g.uiFixoEscopo("INVESTMENT_CONTRIBUTION"), g.uiFixoApagarTitulo("INVESTMENT_CONTRIBUTION")]) {
+      expect(texto).not.toMatch(/aport|ativo/i);
+    }
+  });
+});
+
+describe("painéis (Análises, Visão geral, Fluxo do ano, story do resumo)", () => {
+  it("o Girly escreve a própria versão de cada frase dos painéis, sem jargão", () => {
+    const g = vozDoTema("girly").titulos;
+    const p = vozDoTema("padrao").titulos;
+    const jargao = /aport|provento|patrim[oô]nio|rentabilidade|ac[uú]mulo|consolida|proje[cç][aã]o|super[aá]vit|d[eé]ficit/i;
+    const chaves = Object.keys(p).filter((k) => k.startsWith("pai"));
+    expect(chaves.length).toBeGreaterThan(10);
+    for (const chave of chaves) {
+      const v = g[chave as keyof typeof g];
+      // Herdar do Padrão levaria "aporte"/"patrimônio" pra tela dela: cada chave precisa da versão dela.
+      expect(v, chave).not.toBe(p[chave as keyof typeof p]);
+      const texto = typeof v === "function" ? (v as (...a: never[]) => unknown)(...(["10%", "R$ 10", "R$ 20"] as never[])) : v;
+      expect(String(texto), chave).not.toMatch(jargao);
+    }
+  });
+
+  it("o Padrão continua com as frases de antes (e a concordância certa no plural)", () => {
+    const p = vozDoTema("padrao").titulos;
+    expect(p.paiVerPatrimonio).toBe("Ver patrimônio");
+    expect(p.paiMetasAtrasadas(1, "Carro")).toBe("1 meta está atrasada (Carro), revise o prazo ou aumente o aporte mensal para voltar ao ritmo.");
+    expect(p.paiMetasAtrasadas(2, "Carro, Viagem")).toContain("2 metas estão atrasadas");
+    expect(vozDoTema("girly").titulos.paiMetasAtrasadas(2, "Carro, Viagem")).toContain("2 sonhos ficaram pra trás");
   });
 });

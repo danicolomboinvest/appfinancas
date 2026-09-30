@@ -23,27 +23,30 @@ import { PlanningWizard } from "./PlanningWizard";
 import { formatPercentNumber } from "@/lib/format";
 import { serverMoney } from "@/lib/money-server";
 import type { MoneyFormatter } from "@/lib/money";
+import type { Voz } from "@/lib/profiles/voice";
 
 
 function formatPercent(value: number) {
   return formatPercentNumber(value * 100, 2);
 }
 
-const projectionColumns = (money: MoneyFormatter): ResponsiveColumn<ProjectionYear>[] => [
+// Fase e colunas pela voz do tema: "Acúmulo" e "Patrimônio" fixos aqui apareciam no Girly,
+// que proíbe esse jargão (lá é "Guardando" e "Em dinheiro de hoje").
+const projectionColumns = (money: MoneyFormatter, voz: Voz): ResponsiveColumn<ProjectionYear>[] => [
   { key: "age", label: "Idade", render: (y) => y.age },
   {
     key: "phase",
     label: "Fase",
     render: (y) => (
-      <Badge tone={y.phase === "ACCUMULATION" ? "accent" : "info"}>{y.phase === "ACCUMULATION" ? "Acúmulo" : "Usufruto"}</Badge>
+      <Badge tone={y.phase === "ACCUMULATION" ? "accent" : "info"}>{y.phase === "ACCUMULATION" ? voz.titulos.apAcumulo : voz.titulos.apUsufruto}</Badge>
     ),
   },
   { key: "invested", label: "Investido", render: (y) => money(y.totalInvested ?? 0, { round: true }) },
   // Juros em dinheiro de hoje: Investido + Juros fecha com o Patrimônio (real) e com o
   // "Os juros põem" da barra acima. O nominal aqui dava um terceiro número sem dizer de onde.
   { key: "interest", label: "Juros (real)", render: (y) => money(y.cumulativeInterestReal ?? 0, { round: true }) },
-  { key: "nominal", label: "Patrimônio (nominal)", render: (y) => money(y.balanceNominal ?? 0, { round: true }) },
-  { key: "real", label: "Patrimônio (real)", render: (y) => money(y.balanceReal ?? 0, { round: true }) },
+  { key: "nominal", label: voz.titulos.apNominal, render: (y) => money(y.balanceNominal ?? 0, { round: true }) },
+  { key: "real", label: voz.titulos.apReal, render: (y) => money(y.balanceReal ?? 0, { round: true }) },
 ];
 
 export default async function IndependenciaFinanceiraPage() {
@@ -229,7 +232,7 @@ export default async function IndependenciaFinanceiraPage() {
                     <div className="flex flex-col gap-4">
                       <StatRows
                         items={[
-                          { label: "Tempo de contribuição", value: `${accumulation.years} anos` },
+                          { label: voz.titulos.apTempoGuardando, value: `${accumulation.years} anos` },
                           { label: "Rendimento ao ano", value: formatPercent(accumulation.nominalAnnualRate) },
                           { label: "Inflação assumida", value: formatPercent(Number(params.inflationAnnualRate)) },
                           { label: "Rendimento acima da inflação", value: formatPercent(accumulation.realAnnualRate) },
@@ -254,7 +257,7 @@ export default async function IndependenciaFinanceiraPage() {
                           Fica aqui embaixo, dito por extenso, em vez de disputar a tela. */}
                       <Card className="flex flex-col gap-2 p-5">
                         <p className="text-sm font-semibold text-ink">
-                          E se você nunca reajustar o aporte?
+                          {voz.titulos.apSemReajuste}
                         </p>
                         <p className="text-sm leading-relaxed text-ink-muted">
                           O plano acima assume que você acompanha a inflação: guardar{" "}
@@ -296,7 +299,7 @@ export default async function IndependenciaFinanceiraPage() {
 
                       <CollapsibleSection label={voz.titulos.apAnoAAno}>
                         <ResponsiveTable
-                          columns={projectionColumns(money)}
+                          columns={projectionColumns(money, voz)}
                           rows={years}
                           rowKey={(y) => String(y.year)}
                           maxHeightClassName="max-h-[520px] overflow-y-auto"

@@ -4,11 +4,11 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getRequiredSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
-import { apagarTetoDoMes, existeDecisao, registrarDecisao, registrarDecisaoUnica, resolverCompraAmanha, travarNaTransacao } from "@/lib/repositories/decisao.repo";
+import { apagarTetoDoMes, existeDecisao, guardarDescricaoOriginal, lerDecisao, registrarDecisao, registrarDecisaoUnica, resolverCompraAmanha, travarNaTransacao } from "@/lib/repositories/decisao.repo";
 import { applyBudgetToWholeYear, applyBudgetToWholeYearForCustomCategory } from "@/lib/repositories/budget.repo";
 import { applyMonthlyPlanToWholeYear } from "@/lib/repositories/monthly-plan.repo";
 import { createRecurringMonthlyEntries, updateOwnMonthlyEntriesCategory } from "@/lib/repositories/monthly-entry.repo";
-import { listTransactionRules, upsertTransactionRule } from "@/lib/repositories/transaction-rule.repo";
+import { aprenderComCorrecao, linhasAntesDaCorrecao, listTransactionRules } from "@/lib/repositories/transaction-rule.repo";
 import { serverMoney } from "@/lib/money-server";
 import { carregarViradaDoAno } from "./ano/dados";
 import { ehEmpresa } from "@/lib/profiles/empresa";
@@ -16,9 +16,10 @@ import { MESES } from "./dados";
 import { chaveRaioX } from "@/lib/decisoes/raio-x";
 import { contasFixasQueFaltam } from "@/lib/decisoes/virada-ano";
 import { acharCompraDoEstorno, classificarAntigo, type TipoRevisao } from "@/lib/decisoes/revisao-antigos";
-import { classify, normalizeMerchant, type LearnedRule } from "@/lib/import/classify";
+import { classify, type LearnedRule } from "@/lib/import/classify";
 import { sumExpensesByCustomCategory, sumExpensesByParentCategory, upsertBudget } from "@/lib/repositories/budget.repo";
 import { nowInBrazil } from "@/lib/date/brazil-now";
+import { mesesQueOSalvarGrava } from "@/lib/planning/plano-anual";
 import { PARENT_CATEGORIES } from "@/lib/categories";
 import type { ParentCategory } from "@prisma/client";
 import { chaveDaSemana, type Ritmo } from "./ritmo";
@@ -98,6 +99,14 @@ export async function renomearGastoAction(entryId: string, descricao: string): P
   const id = z.string().min(1).max(60).parse(entryId);
   const texto = descricaoSchema.parse(descricao);
   const ctx = await getRequiredSession();
+  // Linha importada: o nome do banco fica guardado antes de sumir. É com ele que a próxima
+  // importação reconhece a compra (a regra aprendida no "Classificar" e a deduplicação da
+  // fatura subida de novo); o nome que ela deu só serve pra ela ler.
+  const antes = await prisma.monthlyEntry.findFirst({ where: { id, userId: ctx.userId, profileId: ctx.profileId }, select: { description: true, importBatchId: true, externalId: true } });
+  if (!antes) return false;
+  if (antes.description && antes.description !== texto && (antes.importBatchId !== null || antes.externalId !== null)) {
+    await guardarDescricaoOriginal(ctx, id, antes.description);
+  }
   const r = await prisma.monthlyEntry.updateMany({ where: { id, userId: ctx.userId, profileId: ctx.profileId }, data: { description: texto } });
   revalidatePath("/mensal", "layout");
   return r.count > 0;
@@ -301,7 +310,9 @@ export async function comecarAnoAction(modo: "sugestao" | "zerado", contasEscolh
       if (c.mae) await applyBudgetToWholeYear(ctx, { year: v.ano, parentCategory: c.key as ParentCategory, plannedAmount: c.sugerido });
       else await applyBudgetToWholeYearForCustomCategory(ctx, { year: v.ano, customCategoryId: c.key, plannedAmount: c.sugerido });
     }
-    if (v.sugestao.renda > 0) await applyMonthlyPlanToWholeYear(ctx, v.ano, { plannedIncome: v.sugestao.renda, plannedInvestment: v.sugestao.guardar });
+    // Renda e quanto guardar seguem a mesma regra das categorias: deste mês em diante. A virada
+    // fica aberta até março, e sem isso janeiro e fevereiro (já vividos) eram reescritos.
+    if (v.sugestao.renda > 0) await applyMonthlyPlanToWholeYear(ctx, v.ano, { plannedIncome: v.sugestao.renda, plannedInvestment: v.sugestao.guardar }, mesesQueOSalvarGrava(v.ano, nowInBrazil()));
     const now = nowInBrazil();
     const mes = now.getFullYear() === v.ano ? now.getMonth() + 1 : 1;
     // Sem escolha vinda da tela (aba aberta antes desta versão), vão as contas fixas como antes.
@@ -425,20 +436,25 @@ export async function dispensarAvisoAction(itemId: string, escopo: "mes" | "sema
 /**
  * Classificar um gasto na hora, de dentro de um aviso do Foco: põe na categoria escolhida (ou
  * marca como aplicação, que é guardar e não gasto) e ensina o app, pra próxima importação já
- * vir certa. Só categorias do próprio perfil.
+ * vir certa. Só categorias do próprio perfil. Ensina pelas mesmas regras da Visão mensal
+ * (padroesDaCorrecao): só gasto importado e só quando a categoria mudou de fato, e sempre com o
+ * nome que o BANCO deu. Antes gravava a regra com a descrição de agora: renomeado pra "Mercado",
+ * virava a regra MERCADO, que pega toda compra no MERCADO LIVRE, e o próximo "PIX 1234 JOAO"
+ * chegava sem categoria.
  */
 export async function classificarGastoAction(entryId: string, destino: string) {
   const id = z.string().min(1).max(60).parse(entryId);
   const alvo = z.string().min(1).max(60).parse(destino);
   const ctx = await getRequiredSession();
-  const gasto = await prisma.monthlyEntry.findFirst({ where: { id, userId: ctx.userId, profileId: ctx.profileId, category: "EXPENSE" }, select: { id: true, description: true } });
+  const gasto = await prisma.monthlyEntry.findFirst({ where: { id, userId: ctx.userId, profileId: ctx.profileId, category: "EXPENSE" }, select: { id: true } });
   if (!gasto) return false;
   if (alvo === "aplicacao") {
     await prisma.monthlyEntry.updateMany({ where: { id, userId: ctx.userId, profileId: ctx.profileId }, data: { category: "INVESTMENT_CONTRIBUTION", parentCategory: null, customCategoryId: null, subcategory: null } });
   } else if ((PARENT_CATEGORIES as readonly string[]).includes(alvo)) {
+    // O "antes" é lido antes de salvar: é ele que diz se a categoria mudou.
+    const [antes, nomeDoBanco] = await Promise.all([linhasAntesDaCorrecao(ctx, [id]), lerDecisao(ctx, "descricao_original", id)]);
     await updateOwnMonthlyEntriesCategory(ctx, [id], { parentCategory: alvo as ParentCategory, customCategoryId: null });
-    const padrao = gasto.description ? normalizeMerchant(gasto.description) : "";
-    if (padrao) await upsertTransactionRule(ctx, { pattern: padrao, parentCategory: alvo as ParentCategory });
+    await aprenderComCorrecao(ctx, antes.map((l) => ({ ...l, description: nomeDoBanco || l.description })), { parentCategory: alvo as ParentCategory });
   } else {
     const propria = await prisma.customCategory.findFirst({ where: { id: alvo, userId: ctx.userId, profileId: ctx.profileId }, select: { id: true } });
     if (!propria) return false;

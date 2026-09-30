@@ -404,7 +404,7 @@ export const disciplina: Voz = {
     impPagamentoFatura: (n) =>
       `Achei ${n === 1 ? "este lançamento" : "estes lançamentos"} no seu extrato que ${n === 1 ? "pode ser" : "podem ser"} o pagamento desta fatura. Remove pra não contar o gasto duas vezes?`,
     impRemovidoExtrato: "Removido do extrato ✓",
-    impCarteiraArquivoGrande: "Arquivo grande demais (máx. ~7 MB). Exporta um relatório menor e tenta de novo.",
+    impCarteiraArquivoGrande: "Arquivo grande demais (máx. 4 MB). Exporta um relatório menor e tenta de novo.",
     impSenhaDicaCorretora: "Digita a senha do arquivo (a mesma que a corretora pede pra abrir). Ela é usada só pra abrir e não fica salva.",
     impCarteiraEmDia: (n) => `Carteira em dia com esse extrato: ${n} ativo${s(n)} conferido${s(n)}, nenhuma mudança. ✓`,
     impCarteiraFeito: (criados, atualizados) =>

@@ -14,7 +14,18 @@ const MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "O
  * previsão de caixa é outra conversa, e uma linha que cai no futuro por falta de lançamento
  * assustaria sem motivo.
  */
-export function CaixaAcumuladoChart({ months, caixaInicial }: { months: MonthlyBreakdown[]; caixaInicial: number }) {
+export function CaixaAcumuladoChart({
+  months,
+  caixaInicial,
+}: {
+  months: MonthlyBreakdown[];
+  /**
+   * O caixa de hoje, ponto de chegada do último mês realizado. `null` num ano que já passou: o
+   * caixa de hoje inclui o resultado dos anos seguintes, então o gráfico parte do zero e mostra
+   * só o resultado acumulado daquele ano.
+   */
+  caixaInicial: number | null;
+}) {
   const money = useMoney();
   const realizados = months.filter((m) => m.isRealized);
   // Caixa hoje = caixa marcado na carteira. Pra desenhar o caminho, anda pra trás: cada mês
@@ -26,7 +37,7 @@ export function CaixaAcumuladoChart({ months, caixaInicial }: { months: MonthlyB
       const acumulado = s.acumulado + contribuicao[i];
       return { acumulado, linhas: [...s.linhas, { name: MESES[m.month - 1], Caixa: Math.round(acumulado) }] };
     },
-    { acumulado: caixaInicial - totalAno, linhas: [] },
+    { acumulado: caixaInicial === null ? 0 : caixaInicial - totalAno, linhas: [] },
   ).linhas;
   const compacto = (v: number) => money(v, { round: true }).replace(/,\d\d$/, "");
 

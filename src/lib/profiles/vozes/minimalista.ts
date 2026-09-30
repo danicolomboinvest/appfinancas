@@ -375,7 +375,7 @@ export const minimalista: Voz = {
     formAtivoAtualizado: "Ativo atualizado.",
     formAtivoQual: "Ativo",
     formAtivoValorAtualHint: "Em branco: cotação de hoje × quantidade.",
-    formOrcSalvo: "Plano salvo para o ano.",
+    formOrcSalvo: "Plano salvo daqui até dezembro.",
     formOrcTitulo: "Orçamento",
     formOrcSub: "Três perguntas. Parte já vem dos lançamentos.",
     formOrcQuantoEntra: "Renda mensal",
@@ -530,7 +530,7 @@ export const minimalista: Voz = {
     impPagamentoFatura: (n) =>
       `${n === 1 ? "Este lançamento" : "Estes lançamentos"} do extrato ${n === 1 ? "parece" : "parecem"} o pagamento desta fatura. Remover pra não contar duas vezes?`,
     impRemovidoExtrato: "Removido.",
-    impCarteiraArquivoGrande: "Arquivo acima de ~7 MB. Exporte um relatório menor.",
+    impCarteiraArquivoGrande: "Arquivo acima de 4 MB. Exporte um relatório menor.",
     impCarteiraEscolher: "Escolher arquivo",
     impSenhaDicaCorretora: "A senha da corretora. Usada só pra abrir, não fica salva.",
     impCarteiraLiTudo: (resumo) => `Arquivo lido: ${resumo}.`,
@@ -541,7 +541,7 @@ export const minimalista: Voz = {
       [criados > 0 ? `${criados} novo${s(criados)}` : null, atualizados > 0 ? `${atualizados} atualizado${s(atualizados)}` : null]
         .filter(Boolean)
         .join(" · ") || "Sem mudança.",
-    impIrpfArquivoGrande: "Arquivo acima de ~7 MB.",
+    impIrpfArquivoGrande: "Arquivo acima de 4 MB.",
     impIrpfSelecioneUm: "Selecione ao menos um ativo.",
     impIrpfIntro: [
       "A declaração de IR traz o ",

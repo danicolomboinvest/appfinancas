@@ -5,11 +5,11 @@
  * Regras pra quem cataloga: a chave começa com o prefixo da área; o valor do Padrão é a
  * frase atual do componente, sem mudar uma vírgula; frase com número ou nome vira função.
  *
- * O que ficou de fora de propósito: os rótulos que dizem "patrimônio" e "rentabilidade" (dois
- * cartões do Financiar vs. Alugar, dois campos de rentabilidade e a nota de rodapé do "Vale a
- * pena?"). O teste do Girly varre TODAS as chaves de títulos procurando jargão, e o Girly herda
- * o Padrão no que não reescreve — então essas frases só podem entrar aqui no mesmo passo em que
- * o Girly ganhar a versão dele. Até lá, continuam escritas no componente.
+ * Os rótulos que dizem "patrimônio" e "rentabilidade" (dois cartões do Financiar vs. Alugar,
+ * dois campos de rentabilidade e a nota de rodapé do "Vale a pena?") entraram aqui junto com a
+ * versão do Girly. Antes ficavam escritos no componente pra fugir do teste de jargão, e com isso
+ * chegavam sem tradução na tela dela. O teste do Girly varre TODAS as chaves de títulos, as
+ * herdadas do Padrão também: frase com jargão só entra aqui com a versão do Girly no mesmo passo.
  */
 export type TextosSimuladores = {
   // Comum aos simuladores: o assistente passo a passo, guardar e a lista de salvas
@@ -55,7 +55,11 @@ export type TextosSimuladores = {
   simFinAluguelHint: string;
   simFinReajuste: string;
   simFinReajusteHint: string;
+  simFinRentabilidade: string;
   simFinRentabilidadeHint: string;
+  /** Os dois cartões do resultado: quanto a pessoa tem no fim de cada caminho. */
+  simFinPatrimonioFinanciar: string;
+  simFinPatrimonioAlugar: string;
   simFinVenceFinanciar: string;
   simFinVenceAlugar: string;
   simFinValorFinanciado: string;
@@ -70,6 +74,7 @@ export type TextosSimuladores = {
   simAmortSistemaHint: string;
   simAmortValorDisponivel: string;
   simAmortValorDisponivelHint: string;
+  simAmortRentabilidade: string;
   simAmortRentabilidadeHint: string;
   simAmortIr: string;
   simAmortIrHint: string;
@@ -217,6 +222,8 @@ export type TextosSimuladores = {
   simValeBarraGastarUnicoHint: string;
   simValeBarraGastarMensalHint: string;
   simValeVeredito(valor: string): string;
+  /** A nota de rodapé: é estimativa, e com que taxa ela foi feita. */
+  simValeNota(taxa: string): string;
   simValeComprar: string;
   simValeNaoComprar: string;
   simValeAindaNaoSei: string;
@@ -265,7 +272,10 @@ export const PADRAO_SIMULADORES: TextosSimuladores = {
   simFinAluguelHint: "Quanto custaria alugar o mesmo imóvel por mês (cenário alternativo).",
   simFinReajuste: "Reajuste anual do aluguel",
   simFinReajusteHint: "Quanto o aluguel sobe por ano (ex.: IGP-M ou IPCA).",
+  simFinRentabilidade: "Rentabilidade ao investir a diferença (bruta)",
   simFinRentabilidadeHint: "Quanto rende por ano o dinheiro que você investiria em vez de comprar.",
+  simFinPatrimonioFinanciar: "Patrimônio final, Financiar",
+  simFinPatrimonioAlugar: "Patrimônio final, Alugar + investir",
   simFinVenceFinanciar: "Financiar sai na frente",
   simFinVenceAlugar: "Alugar e investir sai na frente",
   simFinValorFinanciado: "Valor financiado",
@@ -280,6 +290,7 @@ export const PADRAO_SIMULADORES: TextosSimuladores = {
   simAmortSistemaHint: "SAC: parcelas decrescentes. Price: parcelas fixas.",
   simAmortValorDisponivel: "Valor disponível",
   simAmortValorDisponivelHint: "O dinheiro que sobrou e que você vai usar para amortizar OU investir.",
+  simAmortRentabilidade: "Rentabilidade do investimento (bruta)",
   simAmortRentabilidadeHint: "Quanto o investimento rende ao ano, antes de descontar o Imposto de Renda.",
   simAmortIr: "Alíquota de IR do investimento",
   simAmortIrHint: "Imposto de Renda sobre o rendimento (ex.: 15% para prazos longos).",
@@ -419,6 +430,8 @@ export const PADRAO_SIMULADORES: TextosSimuladores = {
   simValeBarraGastarUnicoHint: "O preço de hoje",
   simValeBarraGastarMensalHint: "O que você pagaria no período",
   simValeVeredito: (valor) => `Investindo, você teria ${valor} a mais no fim.`,
+  simValeNota: (taxa) =>
+    `Estimativa educada, não garantia de rentabilidade. Considera 220h úteis/mês e retorno composto de ${taxa} ao ano, sem descontar inflação ou impostos.`,
   simValeComprar: "Comprar",
   simValeNaoComprar: "Não comprar",
   simValeAindaNaoSei: "Ainda não sei",

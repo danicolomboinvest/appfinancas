@@ -1,16 +1,18 @@
 /**
  * Restaura o banco a partir de uma pasta de backup (um JSON por tabela, ver backup-db.mjs).
- * Insere em ordem de dependência; tabela que falhar por chave estrangeira volta pra fila
+ * Insere em ordem de dependência; linha que falhar (ex.: chave estrangeira) volta pra fila
  * até ninguém mais avançar. Linhas já existentes são puladas (skipDuplicates).
  *
  * Rodar:  node --env-file=.env scripts/restore-db.mjs "<pasta do backup>"
  */
-import { PrismaClient } from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
 import { PrismaNeon } from "@prisma/adapter-neon";
 import { neonConfig } from "@neondatabase/serverless";
 import ws from "ws";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
+import readline from "node:readline";
 
 neonConfig.webSocketConstructor = ws;
 neonConfig.poolQueryViaFetch = true;
@@ -22,52 +24,144 @@ if (!pasta || !fs.existsSync(pasta)) {
 }
 const prisma = new PrismaClient({ adapter: new PrismaNeon({ connectionString: process.env.DATABASE_URL }) });
 
-const ORDEM = [
-  "User", "AllowedEmail", "AllowedProduct", "ReferenceRate", "AnalysisCriterionDefinition",
-  "CustomCategory", "Goal", "Asset", "AnalysisSheet", "AnalysisResponse", "Budget", "MonthlyPlan",
-  "ImportBatch", "MonthlyEntry", "EmergencyFund", "PlanningParams", "PortfolioStrategy",
-  "TransactionCategoryRule", "PatrimonySnapshot", "PasswordResetToken", "DividendEvent", "UsageEvent",
-  "AdvisorClientLink", "Simulation", "AccumulationProjectionCache", "YearlyConsolidationCache",
-  "NotificationLog", "PushSubscription", "BankConnection",
-];
+/**
+ * Ordem de dependência tirada do próprio schema (quem aponta pra quem), não de uma lista à mão:
+ * a lista antiga não tinha FinancialProfile nem ImportFile, que caíam no fim em ordem alfabética,
+ * e todo lançamento esperava uma rodada inteira pelo perfil. Tabela nova entra sozinha.
+ */
+function ordemDasTabelas() {
+  const modelos = Prisma.dmmf.datamodel.models;
+  const dependeDe = new Map(
+    modelos.map((m) => [
+      m.name,
+      m.fields.filter((f) => f.kind === "object" && f.relationFromFields?.length && f.type !== m.name).map((f) => f.type),
+    ]),
+  );
+  const ordem = [];
+  const visto = new Set();
+  const visitar = (nome) => {
+    if (visto.has(nome)) return;
+    visto.add(nome); // marca antes de descer: um ciclo, se um dia existir, não trava aqui
+    for (const pai of dependeDe.get(nome) ?? []) visitar(pai);
+    ordem.push(nome);
+  };
+  for (const m of modelos) visitar(m.name);
+  return ordem;
+}
+
+const ORDEM = ordemDasTabelas();
 const arquivos = fs.readdirSync(pasta).filter((f) => f.endsWith(".json") && !f.startsWith("_")).map((f) => f.replace(/\.json$/, ""));
 const fila = [...ORDEM.filter((t) => arquivos.includes(t)), ...arquivos.filter((t) => !ORDEM.includes(t))];
 
 const modelo = (Nome) => prisma[Nome.charAt(0).toLowerCase() + Nome.slice(1)];
 
-async function inserir(Nome) {
-  // { $bytes } é como o backup guarda campos Bytes (o arquivo de importação): volta a ser Buffer.
-  const linhas = JSON.parse(fs.readFileSync(path.join(pasta, `${Nome}.json`), "utf8"), (_k, v) =>
-    v && typeof v === "object" && typeof v.$bytes === "string" ? Buffer.from(v.$bytes, "base64") : v,
-  );
-  const m = modelo(Nome);
-  if (!m) return { ok: false, motivo: "modelo não existe mais" };
-  let feitas = 0;
-  for (let i = 0; i < linhas.length; i += 300) {
-    const lote = linhas.slice(i, i + 300);
-    try {
-      const r = await m.createMany({ data: lote, skipDuplicates: true });
-      feitas += r.count;
-    } catch (e) {
-      return { ok: false, motivo: String(e.message).split("\n").slice(-3).join(" ").slice(0, 300), feitas };
+// { $bytes } é como o backup guarda campos Bytes (o arquivo de importação): volta a ser Buffer.
+const reviver = (_k, v) => (v && typeof v === "object" && typeof v.$bytes === "string" ? Buffer.from(v.$bytes, "base64") : v);
+
+/**
+ * Lê o JSON da tabela. O backup grava uma linha do banco por linha do arquivo, então lê linha a
+ * linha: o ImportFile inteiro numa string só passa do limite de tamanho de string do Node quando
+ * cresce (foi o que derrubou o backup em 28/09/2026). Arquivo em outro formato cai no JSON.parse.
+ */
+async function lerTabela(Nome) {
+  const arquivo = path.join(pasta, `${Nome}.json`);
+  const linhas = [];
+  const leitor = readline.createInterface({ input: fs.createReadStream(arquivo, "utf8"), crlfDelay: Infinity });
+  try {
+    for await (const bruta of leitor) {
+      const t = bruta.trim();
+      if (!t || t === "[" || t === "]") continue;
+      linhas.push(JSON.parse(t.endsWith(",") ? t.slice(0, -1) : t, reviver));
     }
+    return linhas;
+  } catch {
+    leitor.close();
+    return JSON.parse(fs.readFileSync(arquivo, "utf8"), reviver);
   }
-  return { ok: true, feitas, total: linhas.length };
 }
 
-let pendentes = fila;
-for (let rodada = 1; rodada <= 6 && pendentes.length > 0; rodada += 1) {
-  const proximas = [];
-  for (const Nome of pendentes) {
-    const r = await inserir(Nome);
-    if (r.ok) console.log(`✓ ${Nome}: ${r.feitas}/${r.total}`);
-    else {
-      console.log(`… ${Nome}: adiada (${r.motivo})`);
-      proximas.push(Nome);
+// Cada arquivo guardado tem até 4–6 MB e o Neon recusa pedido acima de 64 MB (em hex o Bytes
+// dobra de tamanho): o ImportFile vai de um em um. O resto vai de 300 em 300.
+const tamanhoDoLote = (Nome) => (Nome === "ImportFile" ? 1 : 300);
+const motivoDe = (e) => String(e?.message ?? e).split("\n").slice(-3).join(" ").slice(0, 300);
+
+/**
+ * Tenta gravar as linhas pendentes de uma tabela e devolve as que ficaram de fora, com o motivo.
+ * Antes, o primeiro lote que falhava abandonava a tabela inteira, e a rodada seguinte caía no
+ * mesmo lote: um lançamento apontando pra uma categoria criada durante o backup (que não está
+ * no CustomCategory.json) deixava de fora os até 299 lançamentos mais recentes. Agora o lote que
+ * falha é refeito linha a linha, e só a linha ruim fica de fora.
+ */
+async function inserir(Nome, pendentes) {
+  const m = modelo(Nome);
+  if (!m) return { feitas: 0, falhas: pendentes.map((linha) => ({ linha, motivo: "modelo não existe mais" })) };
+  const tamanho = tamanhoDoLote(Nome);
+  let feitas = 0;
+  const falhas = [];
+  for (let i = 0; i < pendentes.length; i += tamanho) {
+    const lote = pendentes.slice(i, i + tamanho);
+    try {
+      feitas += (await m.createMany({ data: lote, skipDuplicates: true })).count;
+      continue;
+    } catch (e) {
+      if (lote.length === 1) {
+        falhas.push({ linha: lote[0], motivo: motivoDe(e) });
+        continue;
+      }
+    }
+    for (const linha of lote) {
+      try {
+        feitas += (await m.createMany({ data: [linha], skipDuplicates: true })).count;
+      } catch (e) {
+        falhas.push({ linha, motivo: motivoDe(e) });
+      }
     }
   }
-  if (proximas.length === pendentes.length) break;
-  pendentes = proximas;
+  return { feitas, falhas };
 }
-if (pendentes.length) console.log("NÃO restauradas:", pendentes.join(", "));
+
+// Rodadas: cada uma tenta de novo só as linhas que ficaram de fora (a dona delas pode ter
+// entrado depois, noutra tabela). Para quando uma rodada inteira não grava nenhuma linha.
+const pendentesPorTabela = new Map();
+const totalPorTabela = new Map();
+for (const Nome of fila) {
+  const linhas = await lerTabela(Nome);
+  pendentesPorTabela.set(Nome, linhas);
+  totalPorTabela.set(Nome, linhas.length);
+}
+const ultimaFalha = new Map();
+for (let rodada = 1; rodada <= 6; rodada += 1) {
+  let avancou = false;
+  for (const Nome of fila) {
+    const pendentes = pendentesPorTabela.get(Nome);
+    if (!pendentes.length) continue;
+    const { feitas, falhas } = await inserir(Nome, pendentes);
+    const gravadas = pendentes.length - falhas.length;
+    if (gravadas > 0) avancou = true;
+    pendentesPorTabela.set(Nome, falhas.map((f) => f.linha));
+    ultimaFalha.set(Nome, falhas);
+    if (!falhas.length) console.log(`✓ ${Nome}: ${totalPorTabela.get(Nome)} linhas (${feitas} novas)`);
+    else console.log(`… ${Nome}: ${falhas.length} linha(s) adiada(s) (${falhas[0].motivo})`);
+  }
+  if (!avancou || [...pendentesPorTabela.values()].every((p) => !p.length)) break;
+}
+
+// Relatório final: só o que ficou de fora, linha por linha, com o motivo.
+const naoRestauradas = [...pendentesPorTabela.entries()].filter(([, p]) => p.length);
+if (naoRestauradas.length) {
+  const relatorio = {};
+  console.log("\nNÃO restauradas:");
+  for (const [Nome, pendentes] of naoRestauradas) {
+    const falhas = ultimaFalha.get(Nome) ?? [];
+    relatorio[Nome] = falhas.map((f) => ({ id: f.linha?.id ?? null, motivo: f.motivo }));
+    console.log(`  ${Nome}: ${pendentes.length} de ${totalPorTabela.get(Nome)} linha(s)`);
+    for (const f of relatorio[Nome].slice(0, 20)) console.log(`    ${f.id ?? "(sem id)"}  ${f.motivo}`);
+    if (relatorio[Nome].length > 20) console.log(`    … e mais ${relatorio[Nome].length - 20}`);
+  }
+  const arquivoRelatorio = path.join(os.tmpdir(), `restore-nao-restauradas-${Date.now()}.json`);
+  fs.writeFileSync(arquivoRelatorio, JSON.stringify(relatorio, null, 2));
+  console.log(`\nLista completa (ids e motivos): ${arquivoRelatorio}`);
+} else {
+  console.log("\nTudo restaurado.");
+}
 await prisma.$disconnect();

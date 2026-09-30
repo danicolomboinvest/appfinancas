@@ -56,7 +56,16 @@ export function IrpfImport({ onDone }: { onDone: () => void }) {
       return;
     }
     startTransition(async () => {
-      const result = await parseIrpfAction(buildForm(file));
+      // Falha de rede rejeita a action: sem o catch, o erro subia pro error boundary e a
+      // Carteira inteira virava a tela de erro em vez do aviso de "tenta de novo".
+      let result: Awaited<ReturnType<typeof parseIrpfAction>>;
+      try {
+        result = await parseIrpfAction(buildForm(file));
+      } catch (err) {
+        console.error("parseIrpfAction falhou no envio", err);
+        setError(t.impErroEnvio);
+        return;
+      }
       if (!result.ok) {
         setError(result.error);
         return;
@@ -87,7 +96,14 @@ export function IrpfImport({ onDone }: { onDone: () => void }) {
       return;
     }
     startTransition(async () => {
-      const result = await applyIrpfAction(confirmed);
+      let result: Awaited<ReturnType<typeof applyIrpfAction>>;
+      try {
+        result = await applyIrpfAction(confirmed);
+      } catch (err) {
+        console.error("applyIrpfAction falhou no envio", err);
+        setError(t.impErroSalvar);
+        return;
+      }
       if (!result.ok) {
         setError(result.error);
         return;
@@ -126,6 +142,9 @@ export function IrpfImport({ onDone }: { onDone: () => void }) {
           className="hidden"
           onChange={(e) => {
             const file = e.target.files?.[0];
+            // Zera o campo: depois de um erro, escolher o MESMO arquivo de novo não dispara
+            // change (o valor não mudou) e o toque não fazia nada, justo quando o aviso mandou tentar de novo.
+            e.target.value = "";
             if (file) handleFile(file);
           }}
         />

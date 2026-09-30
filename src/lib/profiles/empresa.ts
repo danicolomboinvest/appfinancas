@@ -128,6 +128,12 @@ export type EntradaDRE = {
   gastoPorCategoria: Partial<Record<ParentCategory, number>>;
   /** Gasto em categorias personalizadas (entram como despesa fixa). */
   gastoPersonalizado?: number;
+  /**
+   * Gasto SEM categoria nenhuma (o Open Finance grava assim o que não conseguiu classificar).
+   * Entra como despesa fixa, igual à personalizada: fora da DRE, o "Lucro" do card de cima
+   * (entrou − saiu) e o "Lucro operacional"/margem da DRE davam números diferentes na mesma tela.
+   */
+  gastoSemCategoria?: number;
   /** O que a empresa reteve: reserva de caixa, reinvestimento (os "aportes" do app). */
   retido?: number;
 };
@@ -141,6 +147,8 @@ export type DRE = {
   /** Margem de contribuição sobre a receita bruta, 0–1. `null` sem receita. */
   margemContribuicaoPct: number | null;
   despesasFixas: number;
+  /** Parte de `despesasFixas` que não tem categoria (pra tela pedir a classificação). */
+  semCategoria: number;
   lucroOperacional: number;
   /** Lucro operacional sobre a receita bruta, 0–1. `null` sem receita. */
   margemLiquidaPct: number | null;
@@ -159,7 +167,8 @@ export function calcularDRE(e: EntradaDRE): DRE {
   const receitaBruta = Math.max(0, e.receita);
   let impostos = 0;
   let custosVariaveis = 0;
-  let despesasFixas = e.gastoPersonalizado ?? 0;
+  const semCategoria = Math.max(0, e.gastoSemCategoria ?? 0);
+  let despesasFixas = (e.gastoPersonalizado ?? 0) + semCategoria;
   for (const c of Object.keys(CATEGORIAS_EMPRESA) as ParentCategory[]) {
     const v = e.gastoPorCategoria[c] ?? 0;
     const n = CATEGORIAS_EMPRESA[c].natureza;
@@ -182,12 +191,29 @@ export function calcularDRE(e: EntradaDRE): DRE {
     margemContribuicao,
     margemContribuicaoPct,
     despesasFixas,
+    semCategoria,
     lucroOperacional,
     margemLiquidaPct,
     retido,
     sobraNoCaixa: lucroOperacional - retido,
     pontoDeEquilibrio,
   };
+}
+
+/**
+ * Gasto sem categoria do período: o total de despesas menos o que tem categoria (mãe ou
+ * personalizada), a mesma conta da fatia "Sem categoria" da rosca do mês. Arredonda o centavo
+ * pra sobra de soma de decimais não virar uma linha de R$ 0,00. Sem o total, 0.
+ */
+export function gastoSemCategoriaDoPeriodo(p: {
+  despesaTotal?: number;
+  gastoPorCategoria: { spent: number }[];
+  gastoPersonalizado: number;
+}): number {
+  if (p.despesaTotal === undefined) return 0;
+  const categorizado = p.gastoPorCategoria.reduce((s, g) => s + g.spent, 0) + p.gastoPersonalizado;
+  const sobra = Math.round((p.despesaTotal - categorizado) * 100) / 100;
+  return sobra > 0 ? sobra : 0;
 }
 
 // ─── Caixa ───────────────────────────────────────────────────────────────────────────────

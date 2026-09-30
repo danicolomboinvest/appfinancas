@@ -17,6 +17,7 @@ export type ImportBatchView = {
   /** ISO string (Date não atravessa a fronteira server → client component). */
   createdAt: string;
   entryCount: number;
+  /** Fatura: o total da fatura. Extrato/banco: o saldo com sinal (ver lib/import/total-do-lote). */
   totalAmount: number;
   months: string[];
 };
@@ -40,7 +41,7 @@ function formatMonthChip(ym: string) {
  */
 export function ImportHistory({ batches }: { batches: ImportBatchView[] }) {
   const money = useMoney();
-  const { showToast } = useToast();
+  const { showToast, showError } = useToast();
   // Rótulos e avisos vêm da voz do tema; o que apaga continua sendo o servidor.
   const { voz } = useProfileTheme();
   const t = voz.titulos;
@@ -57,7 +58,16 @@ export function ImportHistory({ batches }: { batches: ImportBatchView[] }) {
       return;
     }
     startTransition(async () => {
-      const result = await deleteImportBatchAction(batch.id);
+      // Sem o try, a internet caindo no meio do "desfazer" trocava o app inteiro pela tela de erro.
+      let result: Awaited<ReturnType<typeof deleteImportBatchAction>>;
+      try {
+        result = await deleteImportBatchAction(batch.id);
+      } catch (err) {
+        console.error("deleteImportBatchAction falhou", err);
+        setConfirmingId(null);
+        showError(t.acaoFalhou);
+        return;
+      }
       setConfirmingId(null);
       if (!result.ok) return;
       setRemovedIds((prev) => new Set(prev).add(batch.id));
@@ -85,7 +95,11 @@ export function ImportHistory({ batches }: { batches: ImportBatchView[] }) {
                     {" · "}
                     {t.impHistoricoLancamentos(batch.entryCount)}
                     {" · "}
-                    <span className="tabular-nums">{money(batch.totalAmount)}</span>
+                    {/* Extrato mostra o saldo com sinal, como na confirmação: somar renda e gasto
+                        juntos dava um número maior que o arquivo e parecia importação duplicada. */}
+                    <span className="tabular-nums">
+                      {batch.docType === "fatura" ? money(batch.totalAmount) : `${batch.totalAmount >= 0 ? "+" : "−"} ${money(Math.abs(batch.totalAmount))}`}
+                    </span>
                     {batch.months.length > 0 && ` · ${batch.months.map(formatMonthChip).join(", ")}`}
                   </p>
                   {/* O "Remover" do pagamento no extrato apaga de vez (não há onde guardar o que

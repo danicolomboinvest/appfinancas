@@ -45,6 +45,26 @@ describe("conferirLeitura: extrato", () => {
     expect(conferirLeitura(texto, "extrato", [t(1000), t(-1000)]).status).toBe("nao-fechou");
   });
 
+  it("Nubank: usa o total do mês (rótulos numa coluna, números na outra), não o subtotal do 1º dia", () => {
+    const texto = [
+      "Saldo inicial",
+      "Rendimento líquido",
+      "Total de entradas",
+      "Total de saídas",
+      "Saldo final do período",
+      "50,00",
+      "+0,00",
+      "+1.100,00",
+      "-1.000,00",
+      "150,00",
+      "Movimentações",
+      "02 AGO 2026 Total de entradas + 100,00",
+      "Total de saídas - 1.000,00",
+    ].join("\n");
+    expect(conferirLeitura(texto, "extrato", [t(100), t(1000), t(-1000)]).status).toBe("fechou");
+    expect(conferirLeitura(texto, "extrato", [t(100), t(-1000)]).status).toBe("nao-fechou");
+  });
+
   it("sem os dois totais, não inventa referência (saldo muda de nome e sinal a cada banco)", () => {
     expect(conferirLeitura("Saldo anterior 10,00\nSaldo final 20,00", "extrato", [t(10)]).status).toBe("sem-referencia");
   });

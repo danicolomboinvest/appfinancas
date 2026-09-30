@@ -1,7 +1,7 @@
-import type { EntryCategory, ParentCategory } from "@prisma/client";
+import type { EntryCategory, ParentCategory, ProfileKind } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import type { AuthContext } from "@/lib/auth/session";
-import { PARENT_CATEGORIES } from "@/lib/categories";
+import { PARENT_CATEGORIES, subcategoriesFor } from "@/lib/categories";
 import { randomUUID } from "node:crypto";
 import { sameDayInMonth } from "@/lib/date/recurrence";
 
@@ -251,10 +251,56 @@ export async function updateOwnMonthlyEntriesCategory(
 ) {
   if (ids.length === 0) return { count: 0 };
   const refs = await resolveOwnRefs(ctx, ctx.profileId, { customCategoryId: category.customCategoryId ?? undefined });
-  return prisma.monthlyEntry.updateMany({
+  const alvo = { parentCategory: category.parentCategory, customCategoryId: refs.customCategoryId ?? null };
+  // O tipo antigo só fica se ainda fizer sentido na categoria nova (ver subcategoriaAposTroca).
+  // Então são dois grupos: quem mantém o tipo e quem perde. Lido antes, gravado junto.
+  const linhas = await prisma.monthlyEntry.findMany({
     where: { id: { in: ids }, userId: ctx.userId, profileId: ctx.profileId },
-    data: { parentCategory: category.parentCategory, customCategoryId: refs.customCategoryId ?? null },
+    select: { id: true, parentCategory: true, customCategoryId: true, subcategory: true },
   });
+  const limpar = new Set(
+    linhas.filter((l) => l.subcategory !== null && subcategoriaAposTroca(l, alvo, ctx.profileKind) === null).map((l) => l.id),
+  );
+  const manter = linhas.filter((l) => !limpar.has(l.id)).map((l) => l.id);
+  const [mantidos, limpos] = await prisma.$transaction([
+    prisma.monthlyEntry.updateMany({
+      where: { id: { in: manter }, userId: ctx.userId, profileId: ctx.profileId },
+      data: alvo,
+    }),
+    prisma.monthlyEntry.updateMany({
+      where: { id: { in: [...limpar] }, userId: ctx.userId, profileId: ctx.profileId },
+      data: { ...alvo, subcategory: null },
+    }),
+  ]);
+  return { count: mantidos.count + limpos.count };
+}
+
+/**
+ * O "tipo" (subcategoria) de um lançamento depois de trocar a categoria dele.
+ *
+ * A compra do iFood importada caía em Transporte com o tipo "Aplicativo"; trocada em lote pra
+ * Alimentação, o tipo ficava. A linha continuava com o título "Aplicativo" (a lista mostra o
+ * tipo como título) e o ícone novo, parecia que a troca não tinha funcionado, e "Aplicativo"
+ * virava chip sugerido dentro de Alimentação. Na edição de um só, o formulário escolhe o tipo
+ * dentro da categoria nova; aqui, sem formulário, a regra é:
+ * - mesma categoria de antes: o tipo fica (inclusive um que a pessoa digitou);
+ * - categoria nova que tem esse tipo na lista dela: fica ("IPTU" existe em Moradia e em Impostos);
+ * - senão, sai, e a linha passa a mostrar o nome da categoria.
+ */
+export function subcategoriaAposTroca(
+  linha: { parentCategory: ParentCategory | null; customCategoryId: string | null; subcategory: string | null },
+  alvo: { parentCategory: ParentCategory | null; customCategoryId: string | null },
+  kind: ProfileKind | string | null | undefined,
+): string | null {
+  if (linha.subcategory === null) return null;
+  const mesmaCategoria = alvo.customCategoryId
+    ? linha.customCategoryId === alvo.customCategoryId
+    : !linha.customCategoryId && linha.parentCategory === alvo.parentCategory;
+  if (mesmaCategoria) return linha.subcategory;
+  if (!alvo.customCategoryId && alvo.parentCategory && subcategoriesFor(kind, alvo.parentCategory).includes(linha.subcategory)) {
+    return linha.subcategory;
+  }
+  return null;
 }
 
 /**

@@ -14,7 +14,16 @@ import { contarGastosReaisDoMes } from "@/lib/repositories/monthly-entry.repo";
 import { getRendaTipica, getTypicalMonthlyExpense } from "@/lib/planning/typical-expense";
 import { computeGoalPlan } from "@/lib/planning/goal";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { comprasAindaNaoLancadas, type CompraBase, type CompraMeta } from "@/lib/decisoes/posso-comprar";
+import {
+  compraDecididaEmAberto,
+  comprasAindaNaoLancadas,
+  FOLGA_LANCAMENTO_MS,
+  MAX_PARCELAS,
+  toleranciaDoLancamento,
+  valorDoLancamentoEsperado,
+  type CompraBase,
+  type CompraMeta,
+} from "@/lib/decisoes/posso-comprar";
 import { prisma } from "@/lib/db/prisma";
 import { lerRitmo } from "@/app/(app)/mensal/foco/ritmo";
 import { getOwnUser } from "@/lib/repositories/user.repo";
@@ -54,9 +63,12 @@ export default async function PossoComprarPage() {
     );
   }
 
-  // 00:00 de Brasília do dia 1: as compras decididas neste mês, e os gastos lançados desde então.
-  const inicioDoMes = new Date(Date.UTC(year, month - 1, 1, 3));
-  const [budgets, spentByParent, spentByCustom, summary, plan, goals, fund, gastosReais, gastoTipico, rendaTipica, decididas, lancadosNoMes] = await Promise.all([
+  // As compras decididas que ainda podem pesar: à vista deste mês e parceladas ainda no prazo
+  // (até 48 parcelas). Antes só vinham as deste mês, e a geladeira em 12x decidida no dia 28
+  // sumia da conta no dia 1.
+  const agora = new Date();
+  const desdeParcelas = new Date(Date.UTC(year, month - 1 - MAX_PARCELAS, 1, 3));
+  const [budgets, spentByParent, spentByCustom, summary, plan, goals, fund, gastosReais, gastoTipico, rendaTipica, todasDecididas] = await Promise.all([
     listBudgets(ctx, year, month),
     sumExpensesByParentCategory(ctx, year, month),
     sumExpensesByCustomCategory(ctx, year, month),
@@ -67,18 +79,32 @@ export default async function PossoComprarPage() {
     contarGastosReaisDoMes(ctx, year, month),
     getTypicalMonthlyExpense(ctx),
     getRendaTipica(ctx),
-    listarComprasDecididasDesde(ctx, inicioDoMes),
-    prisma.monthlyEntry.findMany({
-      where: { userId: ctx.userId, profileId: ctx.profileId, category: "EXPENSE", amount: { gt: 0 }, createdAt: { gte: new Date(inicioDoMes.getTime() - 3_600_000) } },
-      select: { amount: true, createdAt: true },
-      take: 2000,
-    }),
+    listarComprasDecididasDesde(ctx, desdeParcelas),
   ]);
+  const decididas = todasDecididas.filter((d) => compraDecididaEmAberto(d, agora));
+  // Os gastos lançados depois de cada decisão com o valor dela (ou da parcela): só esses dizem
+  // se a compra já está nos números. Busca por faixa de valor pra não varrer anos de lançamentos.
+  const faixas = decididas
+    .filter((d) => d.valor > 0)
+    .map((d) => {
+      const esperado = valorDoLancamentoEsperado(d);
+      const tolerancia = toleranciaDoLancamento(esperado);
+      return { amount: { gte: esperado - tolerancia, lte: esperado + tolerancia }, createdAt: { gte: new Date(d.criadaEm.getTime() - FOLGA_LANCAMENTO_MS) } };
+    });
+  const lancados =
+    faixas.length > 0
+      ? await prisma.monthlyEntry.findMany({
+          where: { userId: ctx.userId, profileId: ctx.profileId, category: "EXPENSE", amount: { gt: 0 }, OR: faixas },
+          select: { amount: true, createdAt: true },
+          take: 2000,
+        })
+      : [];
   // O "Vou comprar" só registra a decisão; até o extrato ou a fatura chegar, a compra não está
   // nos números. Sem contar essas, o mesmo dinheiro livre aprovava a segunda e a terceira compra.
   const jaDecidido = comprasAindaNaoLancadas(
     decididas,
-    lancadosNoMes.map((g) => ({ valor: Number(g.amount), criadoEm: g.createdAt })),
+    lancados.map((g) => ({ valor: Number(g.amount), criadoEm: g.createdAt })),
+    agora,
   );
 
   const gastoPorMae = new Map(spentByParent.map((s) => [s.parentCategory as string, s.spent]));

@@ -26,6 +26,7 @@ export type IndicadorMensal = { atual: number; anterior: number };
 export function PainelEmpresa({
   money,
   year,
+  mesNumero,
   mesLabel,
   mesAnteriorLabel,
   compararComAnterior,
@@ -47,6 +48,8 @@ export function PainelEmpresa({
 }: {
   money: Money;
   year: number;
+  /** O mês dos indicadores (1–12): o link pra classificar o gasto sem categoria da DRE do mês. */
+  mesNumero: number;
   mesLabel: string;
   mesAnteriorLabel: string;
   /** Falso com o mês ainda em andamento: parcial contra o mês anterior inteiro não é comparação. */
@@ -107,7 +110,7 @@ export function PainelEmpresa({
 
       {/* Linha 2: receita × despesas × lucro no ano, e o orçamento do mês em anéis. */}
       <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:gap-5">
-        <Bloco titulo={`Receita, despesas e lucro em ${year}`} nota="barras: receita e despesas · linha: lucro · apagado: previsto">
+        <Bloco titulo={`Receita, despesas e lucro em ${year}`} nota={isCurrentYear ? "barras: receita e despesas · linha: lucro até hoje · apagado: previsto" : "barras: receita e despesas · linha: lucro"}>
           <ReceitaDespesaLucroChart months={months} />
         </Bloco>
         <Bloco titulo={`Orçamento de ${mesLabel}`} nota={orcamentoDoMes > 0 || receitaPlanejadaDoMes ? "quanto do planejado já aconteceu" : "monte o orçamento da empresa pra acompanhar"}>
@@ -133,9 +136,11 @@ export function PainelEmpresa({
       {/* Linha 3: caixa ao longo do ano e a DRE do mês. */}
       <div className="grid gap-4 lg:grid-cols-2 lg:gap-5">
         <Bloco titulo={`Caixa no fim de cada mês · ${year}`} nota={isCurrentYear ? "parte do caixa de hoje e refaz o caminho com o resultado de cada mês" : "resultado acumulado, mês a mês"}>
-          <CaixaAcumuladoChart months={months} caixaInicial={mes.caixa.caixa} />
+          {/* O caixa de HOJE só serve de ponto de chegada no ano corrente. Num ano passado o
+              gráfico parte do zero (resultado acumulado), senão dezembro mostraria o caixa de hoje. */}
+          <CaixaAcumuladoChart months={months} caixaInicial={isCurrentYear ? mes.caixa.caixa : null} />
         </Bloco>
-        <DreEmpresa dados={mes} money={money} periodo={mesLabel.toLowerCase()} compacto />
+        <DreEmpresa dados={mes} money={money} periodo={mesLabel.toLowerCase()} compacto hrefClassificar={`/mensal/${year}/${mesNumero}`} />
       </div>
 
       {/* Linha 4: por frente (centro de custo) e por tipo de receita. */}
@@ -188,7 +193,7 @@ export function PainelEmpresa({
       </div>
 
       {/* Linha 5: a DRE do ano inteiro e a porta pro simulador de investimento. */}
-      <DreEmpresa dados={ano} money={money} periodo={String(year)} />
+      <DreEmpresa dados={ano} money={money} periodo={String(year)} hrefClassificar={`/mensal/${year}`} />
       <Link href="/investir" className="flex items-center justify-between gap-3 rounded-2xl border border-accent/40 bg-accent-soft/30 px-4 py-3 transition-colors hover:border-accent">
         <span className="min-w-0">
           <span className="block text-sm font-medium text-ink">Pensando em investir na empresa?</span>

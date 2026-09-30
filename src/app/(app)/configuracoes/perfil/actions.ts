@@ -12,7 +12,6 @@ export async function updateProfileAction(_prevState: ProfileState, formData: Fo
   const parsed = profileSchema.safeParse({
     name: formData.get("name") || undefined,
     email: formData.get("email"),
-    avatarUrl: formData.get("avatarUrl") || "",
   });
   const phoneRaw = String(formData.get("phone") ?? "").trim();
   // Campo vazio = quer remover; preenchido tem que ser um celular válido.
@@ -37,9 +36,10 @@ export async function updateProfileAction(_prevState: ProfileState, formData: Fo
     };
   }
 
+  // A foto (avatarUrl) saiu do formulário: não aparecia em lugar nenhum do app, e apagar o
+  // link nem apagava (vazio virava undefined e o Prisma ignorava).
   await updateOwnProfile(ctx, {
     name: parsed.data.name,
-    avatarUrl: parsed.data.avatarUrl || undefined,
     phone,
   });
   revalidatePath("/configuracoes/perfil");

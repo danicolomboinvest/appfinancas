@@ -49,6 +49,8 @@ vi.mock("@/lib/db/prisma", () => ({
       }),
     },
     customCategory: { findMany: vi.fn(async () => []) },
+    // Nome do banco das linhas renomeadas (descricoesOriginais): ninguém renomeou nada aqui.
+    decisao: { findMany: vi.fn(async () => []) },
     importBatch: { count: vi.fn(async () => 0) },
     user: { findUnique: vi.fn(async () => ({ name: "Fulana" })) },
   },

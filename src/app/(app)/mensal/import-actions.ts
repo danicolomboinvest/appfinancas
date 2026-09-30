@@ -10,6 +10,7 @@ import { conferirLeitura, leituraIncompleta, type Conferencia } from "@/lib/impo
 import { storeFailedImportFile } from "@/lib/repositories/import-file.repo";
 import type { ParentCategory } from "@prisma/client";
 import { getRequiredSession, type AuthContext } from "@/lib/auth/session";
+import { MSG_TROCOU_DE_PERFIL, trocouDePerfil } from "@/lib/profiles/perfil-da-tela";
 import { prisma } from "@/lib/db/prisma";
 import { formatMoney } from "@/lib/money";
 import { createMonthlyEntry } from "@/lib/repositories/monthly-entry.repo";
@@ -20,6 +21,7 @@ import {
 } from "@/lib/repositories/import-batch.repo";
 import { listCustomCategories } from "@/lib/repositories/custom-category.repo";
 import { listProfiles } from "@/lib/repositories/profile.repo";
+import { descricoesOriginais } from "@/lib/repositories/decisao.repo";
 import { listTransactionRules, upsertTransactionRule } from "@/lib/repositories/transaction-rule.repo";
 import { parseStatementComLeitor } from "@/lib/import/statement-parser";
 import { isFaturaSummaryLine, comprasDaFaturaSaoPositivas, pareceCreditoDePagamento } from "@/lib/import/fatura-lines";
@@ -28,6 +30,7 @@ import { pdfTextQuality } from "@/lib/import/pdf-quality";
 import { classify, normalizeMerchant, type LearnedRule } from "@/lib/import/classify";
 import { pareceEstorno } from "@/lib/import/estorno";
 import { pareceAplicacao, pareceContaPropria, parecePagamentoDeFatura, pareceResgate } from "@/lib/import/dinheiro-proprio";
+import { casarPorDataEValor, type ExistenteSolto } from "@/lib/import/duplicata-solta";
 
 const PARENT_CATEGORY_VALUES: ParentCategory[] = [
   "MORADIA",
@@ -72,8 +75,10 @@ export type ReviewItem = {
    * se anulam em todas as somas.
    */
   estorno?: boolean;
-  /** Parece com um lançamento que a pessoa já fez à mão (mesmo valor, data perto): a tela pergunta. */
-  possivelDuplicata?: { descricao: string; data: string | null } | null;
+  /** Parece com um lançamento que a pessoa já fez à mão (mesmo valor, data perto), ou com um de
+   * outra importação (mesmo dia, valor e tipo, descrição diferente): a tela pergunta.
+   * `importado` diz qual dos dois, pra tela não dizer "você lançou" do que veio de arquivo. */
+  possivelDuplicata?: { descricao: string; data: string | null; importado?: boolean } | null;
   /** Fica de fora da importação (pagamento de fatura de quem importa a fatura, "só mudei de conta"). */
   ignorar?: boolean;
   /** Por que o app tratou a linha diferente ("Aplicação: entra como guardado"). */
@@ -305,6 +310,8 @@ export async function parseStatementAction(formData: FormData): Promise<ParseSta
   stats.leituraIncompleta = leituraIncompleta(stats.conferencia, leitor !== null, isPartialRead(moneyLines, items.length));
   if (docType !== "fatura") await separarDinheiroProprio(ctx, items);
   await marcarPossiveisDuplicatas(ctx, items);
+  // Fatura não tem a chave solta (entra sem dia): só o extrato compara com outras importações.
+  if (docType !== "fatura") await marcarParecidosDeOutraImportacao(ctx, items);
   const diagnosticId = await recordImportDiagnostic({
     userId: ctx.userId,
     target: docType,
@@ -522,6 +529,49 @@ async function marcarPossiveisDuplicatas(ctx: AuthContext, items: ReviewItem[]) 
   }
 }
 
+/** Chave solta (ver lib/import/duplicata-solta): mesmo dia, mesmo valor gravado e mesmo tipo. */
+function chaveSoltaDe(date: string, valorGravado: number, category: string): string {
+  return `${date}|${valorGravado.toFixed(2)}|${category}`;
+}
+
+/**
+ * Extrato: linha com o mesmo dia, valor e tipo de um lançamento que JÁ veio de outra importação,
+ * mas com outra descrição. Pode ser o mesmo extrato em outro formato ou um gasto de outra conta
+ * (o Pix de R$ 100 no Nubank e o saque de R$ 100 no Itaú). Antes a confirmação pulava calada;
+ * agora a revisão pergunta, mostrando o que já está lá. Descrição igual continua pulando sozinha
+ * na confirmação, sem pergunta: é o mesmo arquivo de novo.
+ */
+async function marcarParecidosDeOutraImportacao(ctx: AuthContext, items: ReviewItem[]) {
+  const meses = [...new Set(items.flatMap((i) => (yearMonthFromISO(i.date) ? [i.date.slice(0, 7)] : [])))].map((ym) => ({
+    year: Number(ym.slice(0, 4)),
+    month: Number(ym.slice(5, 7)),
+  }));
+  if (meses.length === 0) return;
+  const [importados, nomesDoBanco] = await Promise.all([
+    prisma.monthlyEntry.findMany({
+      where: { userId: ctx.userId, profileId: ctx.profileId, importBatchId: { not: null }, entryDate: { not: null }, OR: meses },
+      select: { id: true, entryDate: true, amount: true, description: true, category: true },
+    }),
+    descricoesOriginais(ctx, [ctx.profileId]),
+  ]);
+  const existentes = new Map<string, ExistenteSolto[]>();
+  for (const e of importados) {
+    if (!e.entryDate) continue;
+    const k = chaveSoltaDe(e.entryDate.toISOString().slice(0, 10), Number(e.amount), e.category);
+    // Compara pelo nome do banco (o mesmo da confirmação) e mostra o nome que ela deu.
+    existentes.set(k, [...(existentes.get(k) ?? []), { descricao: nomesDoBanco.get(e.id) ?? e.description, mostrar: e.description }]);
+  }
+  const chaves = items.map((it) =>
+    it.amount > 0 && yearMonthFromISO(it.date) ? chaveSoltaDe(it.date, it.estorno && it.category === "EXPENSE" ? -it.amount : it.amount, it.category) : null,
+  );
+  const casados = casarPorDataEValor(chaves, items.map((it) => it.description), existentes, { perguntar: true });
+  for (const [i, c] of casados) {
+    // A pergunta do lançamento à mão já cobre a linha: uma pergunta por linha.
+    if (c.tipo !== "parecido" || items[i].possivelDuplicata) continue;
+    items[i].possivelDuplicata = { descricao: c.descricao ?? "(sem descrição)", data: items[i].date, importado: true };
+  }
+}
+
 /**
  * Cria os lançamentos escolhidos e memoriza as categorias definidas manualmente (item 3).
  * Transações idênticas já lançadas (mesma data+valor+descrição) são puladas, importar o
@@ -540,8 +590,14 @@ export async function importTransactionsAction(
   targetYear?: number,
   targetMonth?: number,
   fileName?: string,
+  /** O perfil que a tela de revisão mostrava (ver perfil-da-tela.ts). */
+  perfilDaTela?: string | null,
 ): Promise<ImportResult> {
   const ctx = await getRequiredSession();
+  // A revisão foi montada num perfil (as categorias, os "mandar pra outro perfil") e as linhas
+  // sem perfil próprio iam pro ATIVO na hora do toque: trocar de perfil noutro aparelho no meio
+  // da revisão punha o extrato inteiro da Empresa no Pessoal, com o lote no histórico errado.
+  if (trocouDePerfil(perfilDaTela, ctx.profileId)) return { ok: false, error: MSG_TROCOU_DE_PERFIL };
   const now = new Date();
   const touchedMonths = new Set<string>();
   let created = 0;
@@ -595,13 +651,18 @@ export async function importTransactionsAction(
   const existingCounts = new Map<string, number>();
   // Segunda chave, sem a descrição: mesma data + mesmo valor + mesmo tipo, só contra o que JÁ
   // veio de um arquivo. É o extrato da semana subido de novo no fim do mês (ou em outro formato,
-  // CSV numa semana e PDF no mês), em que o banco escreve a mesma transação de outro jeito.
-  const looseCounts = new Map<string, number>();
+  // CSV numa semana e PDF no mês), em que o banco escreve a mesma transação de outro jeito. Só
+  // pula sozinho quando a descrição bate (ver lib/import/duplicata-solta); com descrição diferente
+  // a revisão já perguntou "é o mesmo?", e o que ela manteve entra.
+  const looseDescricoes = new Map<string, ExistenteSolto[]>();
   // Terceira, só pra parcela de fatura: mesma descrição (com o "N/T" normalizado) e valor com a
   // folga dos centavos (ver mesmaParcela). Sem ela, "PARC 02/03" de R$ 33,33 não batia com a
   // parcela 02/03 de R$ 33,34 que a fatura anterior já tinha lançado, e a compra duplicava.
   // Guarda o id e o lote de cada uma: a parcela que esta fatura confirma passa a ser dela (ver `adotar`).
   const parcelasExistentes = new Map<string, ParcelaExistente[]>();
+  // Linha importada que ela renomeou ("Definir descrição" no Foco) é comparada pelo nome que o
+  // banco deu: com o nome novo, a mesma fatura subida de novo entrava em dobro.
+  const nomesDoBanco = await descricoesOriginais(ctx, [...new Set([...monthsInBatch].map((k) => k.split("|")[0]))]);
   for (const key of monthsInBatch) {
     const [profileId, ym] = key.split("|");
     const [y, m] = ym.split("/").map(Number);
@@ -611,15 +672,16 @@ export async function importTransactionsAction(
     });
     for (const e of existing) {
       const dia = e.entryDate ? e.entryDate.toISOString().slice(0, 10) : null;
-      const k = `${profileId}|${y}/${m}|${dedupeKey(dia, Number(e.amount), e.description)}`;
+      const descricao = nomesDoBanco.get(e.id) ?? e.description;
+      const k = `${profileId}|${y}/${m}|${dedupeKey(dia, Number(e.amount), descricao)}`;
       existingCounts.set(k, (existingCounts.get(k) ?? 0) + 1);
-      if (!dia && Number(e.amount) > 0 && parcelaCerta(e.description)) {
-        const pk = `${profileId}|${y}/${m}|${descricaoComparavel(e.description)}`;
+      if (!dia && Number(e.amount) > 0 && parcelaCerta(descricao)) {
+        const pk = `${profileId}|${y}/${m}|${descricaoComparavel(descricao)}`;
         parcelasExistentes.set(pk, [...(parcelasExistentes.get(pk) ?? []), { valor: Number(e.amount), id: e.id, loteId: e.importBatchId, mes: y * 12 + m }]);
       }
       if (dia && e.importBatchId) {
-        const lk = `${profileId}|${dia}|${Number(e.amount).toFixed(2)}|${e.category}`;
-        looseCounts.set(lk, (looseCounts.get(lk) ?? 0) + 1);
+        const lk = `${profileId}|${chaveSoltaDe(dia, Number(e.amount), e.category)}`;
+        looseDescricoes.set(lk, [...(looseDescricoes.get(lk) ?? []), { descricao }]);
       }
     }
   }
@@ -657,10 +719,10 @@ export async function importTransactionsAction(
   };
 
   /** Já existe no banco uma cópia ainda não "gasta" desta chave? Consome uma e diz que sim. */
-  const alreadyThere = (k: string, counts = existingCounts) => {
-    const left = counts.get(k) ?? 0;
+  const alreadyThere = (k: string) => {
+    const left = existingCounts.get(k) ?? 0;
     if (left <= 0) return false;
-    counts.set(k, left - 1);
+    existingCounts.set(k, left - 1);
     return true;
   };
   /** Estorno é gravado negativo: a chave tem que usar o mesmo sinal que está no banco. */
@@ -687,10 +749,9 @@ export async function importTransactionsAction(
       : null;
   };
   const chaveSolta = (item: ConfirmedItem) =>
-    !faturaTarget && yearMonthFromISO(item.date) ? `${profileIdOf(item)}|${item.date}|${valorGravado(item).toFixed(2)}|${item.category}` : null;
-  // Duas passadas: primeiro o que bate EXATO (mesma descrição), depois, só entre os que sobraram,
-  // o que bate por data + valor. Na ordem inversa, o "Uber R$ 15" novo podia consumir a vaga do
-  // "99 R$ 15" já importado, e o 99 entrava de novo.
+    item.amount > 0 && !faturaTarget && yearMonthFromISO(item.date) ? `${profileIdOf(item)}|${chaveSoltaDe(item.date, valorGravado(item), item.category)}` : null;
+  // Duas etapas: primeiro o que bate EXATO (mesma descrição), depois, só entre os que sobraram,
+  // o que bate por data + valor com a descrição do mesmo jeito (ver casarPorDataEValor).
   const pular = new Set<number>();
   // Parcela pulada que era projeção de outro lote: índice → a parcela (ver `adotar`).
   const confirmadas = new Map<number, ParcelaExistente>();
@@ -699,17 +760,10 @@ export async function importTransactionsAction(
     const parcela = chaveParcela(item);
     const achada = parcela ? parcelaJaLancada(parcela.key, valorGravado(item), parcela.total) : null;
     if (achada && ehProjecao(achada)) confirmadas.set(i, achada);
-    if (parcela ? achada !== null : alreadyThere(chaveExata(item))) {
-      pular.add(i);
-      const solta = chaveSolta(item);
-      if (solta) alreadyThere(solta, looseCounts);
-    }
+    if (parcela ? achada !== null : alreadyThere(chaveExata(item))) pular.add(i);
   });
-  items.forEach((item, i) => {
-    if (item.amount <= 0 || pular.has(i)) return;
-    const solta = chaveSolta(item);
-    if (solta && alreadyThere(solta, looseCounts)) pular.add(i);
-  });
+  const soltas = casarPorDataEValor(items.map(chaveSolta), items.map((item) => item.description), looseDescricoes, { perguntar: false, jaCasados: pular });
+  for (const [i, casamento] of soltas) if (casamento.tipo === "mesmo") pular.add(i);
 
   /**
    * Compra parcelada: as parcelas que ainda vêm entram nos meses seguintes, no mesmo lote
@@ -770,10 +824,16 @@ export async function importTransactionsAction(
         ? item.customCategoryId
         : undefined;
     // Categoria personalizada e categoria-mãe são exclusivas: com uma custom, a mãe fica de fora.
-    const parentCategory =
+    // A personalizada que não existe no perfil de destino (a "Pet" da Pessoal numa linha mandada
+    // pra Empresa) cai em Outros: sem isso o gasto era gravado sem categoria nenhuma e sumia de
+    // todo orçamento. A tela já tira a personalizada ao mover; isto cobre o que escapar.
+    const personalizadaDeOutroPerfil = item.category === "EXPENSE" && Boolean(item.customCategoryId) && !customCategoryId;
+    const parentCategory: ParentCategory | undefined =
       !customCategoryId && item.parentCategory && PARENT_CATEGORY_VALUES.includes(item.parentCategory)
         ? item.parentCategory
-        : undefined;
+        : personalizadaDeOutroPerfil
+          ? "OUTROS"
+          : undefined;
 
     // Fatura com mês escolhido: todas as compras vão pro MESMO mês, não no de cada compra.
     // Sem isso, uma fatura com período de fechamento cruzando dois meses (ex.: 13/06 a 13/07)
@@ -816,7 +876,8 @@ export async function importTransactionsAction(
     await lancarParcelasFuturas(item, ym, profileId, parentCategory, customCategoryId, null);
 
     // Aprende a classificação só para gastos com categoria definida pelo usuário.
-    if (item.learn && item.category === "EXPENSE" && parentCategory) {
+    // O Outros de reserva (personalizada de outro perfil) não foi escolha dela: não vira regra.
+    if (item.learn && item.category === "EXPENSE" && parentCategory && !personalizadaDeOutroPerfil) {
       const pattern = normalizeMerchant(item.description);
       if (pattern) {
         // A regra mora no perfil pra onde a linha FOI, não no aberto: a compra da Kalunga

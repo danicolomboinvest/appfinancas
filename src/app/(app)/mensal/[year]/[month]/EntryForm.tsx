@@ -14,6 +14,7 @@ import { Card } from "@/components/ui/Card";
 import { useSuccessToast } from "@/components/ui/useSuccessToast";
 import { CategoryFields } from "@/components/forms/CategoryFields";
 import { defaultEntryDateValue } from "@/lib/date/entry-date-default";
+import type { TipoDoLancamento } from "@/lib/profiles/textos/shell";
 import { createMonthlyEntryAction, updateMonthlyEntryAction, type MonthlyEntryState } from "./actions";
 
 const initialState: MonthlyEntryState = {};
@@ -38,6 +39,7 @@ export function EntryForm({
   defaultCurrency,
   defaultExchangeRate,
   recorrente = false,
+  tipoRecorrente = "EXPENSE",
 }: {
   year: number;
   month: number;
@@ -69,6 +71,8 @@ export function EntryForm({
   defaultExchangeRate?: number;
   /** Editando uma cópia de despesa fixa: pergunta se a mudança vale só pra este mês ou daqui pra frente. */
   recorrente?: boolean;
+  /** O tipo da cópia fixa: a pergunta diz "Despesa fixa", "Renda mensal" ou "Aporte mensal". */
+  tipoRecorrente?: TipoDoLancamento;
 }) {
   const isEditing = Boolean(entryId);
   const [state, formAction, isPending] = useActionState(
@@ -76,8 +80,11 @@ export function EntryForm({
     initialState,
   );
   const wasPending = useRef(false);
-  const { voz } = useProfileTheme();
+  const { voz, profileId } = useProfileTheme();
   const t = voz.titulos;
+  // O perfil de quando o formulário abriu (não o de agora): se a tela se atualizar com outro
+  // perfil enquanto ela preenche, o servidor recusa em vez de gravar no perfil novo.
+  const [perfilDaTela] = useState(profileId);
   useSuccessToast(isPending, state.error, t.lancamentoSalvo);
 
   useEffect(() => {
@@ -114,6 +121,7 @@ export function EntryForm({
       <input type="hidden" name="year" value={year} />
       <input type="hidden" name="month" value={month} />
       {entryId && <input type="hidden" name="entryId" value={entryId} />}
+      {perfilDaTela && <input type="hidden" name="profileId" value={perfilDaTela} />}
       {state.error && <p className="w-full rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{state.error}</p>}
       <CategoryFields
         recentSubcategories={recentSubcategories}
@@ -189,14 +197,14 @@ export function EntryForm({
       )}
       {isEditing && recorrente && (
         <fieldset className={`flex flex-col gap-2 ${stacked ? "w-full" : ""}`}>
-          <legend className="mb-1.5 text-xs font-medium text-ink-muted">Despesa fixa: mudar em quais meses?</legend>
+          <legend className="mb-1.5 text-xs font-medium text-ink-muted">{t.uiFixoEscopo(tipoRecorrente)}</legend>
           <label className="flex items-center gap-2 text-sm text-ink">
             <input type="radio" name="escopo" value="este" defaultChecked className="h-4 w-4 accent-accent" />
-            Só este mês
+            {t.uiFixoSoEste}
           </label>
           <label className="flex items-center gap-2 text-sm text-ink">
             <input type="radio" name="escopo" value="proximos" className="h-4 w-4 accent-accent" />
-            Este e os próximos meses
+            {t.uiFixoEsteEProximos}
           </label>
         </fieldset>
       )}

@@ -13,6 +13,18 @@
  * O marcador é `**`, como no Markdown, e o componente troca por <strong> com `partesDoTexto`.
  * Quem escrever a voz de um tema pode usar o mesmo marcador — ou nenhum.
  */
+/** O tipo do lançamento, igual ao enum do banco — texto puro, sem importar o Prisma aqui. */
+export type TipoDoLancamento = "INCOME" | "EXPENSE" | "INVESTMENT_CONTRIBUTION";
+
+/** Como o Padrão chama um lançamento que se repete, por tipo. A despesa é o nome de sempre. */
+const NOME_DO_FIXO: Record<TipoDoLancamento, string> = {
+  EXPENSE: "despesa fixa",
+  INCOME: "renda mensal",
+  INVESTMENT_CONTRIBUTION: "aporte mensal",
+};
+const maiuscula = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+const nomeDoFixo = (tipo: TipoDoLancamento) => NOME_DO_FIXO[tipo] ?? "lançamento fixo";
+
 export type TextosShell = {
   // OnboardingChecklist — o guia dos primeiros passos
   uiPrimeirosPassos: string;
@@ -111,6 +123,21 @@ export type TextosShell = {
   uiDesfazer: string;
   uiRestaurado(quantos: number): string;
   uiRestaurarFalhou: string;
+  /** Lançamento que se repete todo mês ("Repetir todo mês"). Pode ser renda ou aporte, não só
+   * despesa: chamar o salário de "despesa fixa" confundia justo na hora de escolher entre
+   * apagar só este mês ou a série inteira. */
+  uiFixoApagarTitulo(tipo: TipoDoLancamento): string;
+  uiFixoApagarTexto(tipo: TipoDoLancamento): string;
+  /** Legenda da escolha ao editar uma cópia ("Despesa fixa: mudar em quais meses?"). */
+  uiFixoEscopo(tipo: TipoDoLancamento): string;
+  uiFixoSoEste: string;
+  uiFixoEsteEProximos: string;
+  uiFixoNaoAchei: string;
+  /** Aviso no mês: aporte lançado que ainda não entrou em nenhum ativo da carteira. `mes` vem
+   * null quando a página é a do mês atual ("neste mês") e com o nome no mês anterior. */
+  uiAporteSemDestino(valor: string, mes: string | null): string;
+  uiAporteSemDestinoSub: string;
+  uiAporteSemDestinoLink: string;
 
   // InstallAppBanner — o convite pra instalar no celular
   uiInstalarConviteTitulo: string;
@@ -238,6 +265,16 @@ export const PADRAO_SHELL: TextosShell = {
   uiDesfazer: "Desfazer",
   uiRestaurado: (quantos) => (quantos === 1 ? "Lançamento restaurado." : `${quantos} lançamentos restaurados.`),
   uiRestaurarFalhou: "Não foi possível restaurar. Lance de novo manualmente.",
+  uiFixoApagarTitulo: (tipo) => `Apagar ${nomeDoFixo(tipo)}`,
+  uiFixoApagarTexto: (tipo) =>
+    `${tipo === "INVESTMENT_CONTRIBUTION" ? "Ele" : "Ela"} se repete todo mês. Os meses que já passaram ficam como estão.`,
+  uiFixoEscopo: (tipo) => `${maiuscula(nomeDoFixo(tipo))}: mudar em quais meses?`,
+  uiFixoSoEste: "Só este mês",
+  uiFixoEsteEProximos: "Este e os próximos meses",
+  uiFixoNaoAchei: "Não achei esse lançamento fixo. Recarregue a página.",
+  uiAporteSemDestino: (valor, mes) => `${valor} aportados ${mes ? `em ${mes}` : "neste mês"} ainda não estão na carteira`,
+  uiAporteSemDestinoSub: "Diga em quais ativos esse dinheiro entrou e suas metas andam junto.",
+  uiAporteSemDestinoLink: "Dizer onde foi →",
 
   // InstallAppBanner
   uiInstalarConviteTitulo: "Instale no seu celular",

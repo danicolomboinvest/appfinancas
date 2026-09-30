@@ -299,13 +299,7 @@ export function WorthItCalculator({
               verdict={t.simValeVeredito(money(result.difference, { round: true }))}
             />
 
-            {/* A nota fica escrita aqui (e não no catálogo) por causa do teste de jargão do Girly —
-                ver o cabeçalho de textos/simuladores.ts. */}
-
-            <p className="text-xs leading-relaxed text-ink-faint">
-              Estimativa educada, não garantia de rentabilidade. Considera 220h úteis/mês e retorno composto de{" "}
-              {WORTH_IT_ANNUAL_RATE * 100}% ao ano, sem descontar inflação ou impostos.
-            </p>
+            <p className="text-xs leading-relaxed text-ink-faint">{t.simValeNota(`${WORTH_IT_ANNUAL_RATE * 100}%`)}</p>
           </Card>
 
           <div className="flex gap-2">

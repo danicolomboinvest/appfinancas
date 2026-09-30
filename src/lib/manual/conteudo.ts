@@ -6,10 +6,17 @@
  * PDF (scripts/gerar-manual-pdf.tsx, com os nomes do tema Padrão). Mudou uma regra no app?
  * Muda aqui e gera o PDF de novo.
  *
- * Os nomes que mudam de tema pra tema vão entre chaves: {foco}, {mensal}, {orcamento},
- * {metas}, {carteira} e {guardar} (o tipo de lançamento de dinheiro guardado).
+ * Os nomes que mudam de tema pra tema vão entre chaves: as abas ({foco}, {mensal}, {orcamento},
+ * {metas}, {carteira}), os tipos de lançamento ({renda}, {gasto}, {guardar}) e os botões e
+ * seções que o manual manda procurar ({historico}, {editar}, {focoAcao}...). Cada um vem da
+ * chave de voz que a tela usa (ver `nomesDoTema`): o Girly procura "Tirar", não "Remover",
+ * porque é isso que o botão dela diz. Nome escrito à mão aqui só quando é igual em todo tema.
+ * Cor também não: "aviso amarelo" é rosa no Girly e preto no Minimalista.
  * Sem jargão de investidor: o Girly não diz "aporte", "patrimônio", "rentabilidade".
  */
+
+import type { Voz } from "@/lib/profiles/voice";
+import { vozDoTema } from "@/lib/profiles/voice";
 
 export type IconeDoManual =
   | "rocket"
@@ -53,7 +60,7 @@ export const SECOES_DO_MANUAL: SecaoDoManual[] = [
         tipo: "passos",
         itens: [
           { titulo: "Monte o seu {orcamento}", texto: "Quanto entra por mês, quanto você quer guardar e como dividir o resto. No fim, toque em Salvar." },
-          { titulo: "Traga os seus gastos", texto: "Suba o extrato do banco e a fatura do cartão no botão +, em Importar arquivo. Ou digite um por um." },
+          { titulo: "Traga os seus gastos", texto: "Suba o extrato do banco e a fatura do cartão no botão +, em \"{importarArquivo}\". Ou digite um por um." },
           { titulo: "Olhe o {foco} toda semana", texto: "São 5 minutos: quanto ainda dá pra gastar e o que precisa da sua atenção." },
         ],
       },
@@ -86,7 +93,7 @@ export const SECOES_DO_MANUAL: SecaoDoManual[] = [
               "Todas as compras do cartão",
               "Toda compra vira gasto",
               "Crédito na fatura vira estorno e abate o gasto",
-              "Tudo cai no mês que você escolher em \"De qual mês é esta fatura?\"",
+              "Tudo cai no mês que você escolher em \"{faturaMes}\"",
               "\"Parcela 3 de 10\" já cria as próximas nos meses seguintes",
             ],
           },
@@ -106,7 +113,7 @@ export const SECOES_DO_MANUAL: SecaoDoManual[] = [
         itens: [
           { texto: "No extrato aparece \"Pagamento da fatura\". Se a fatura também está no app, esse pagamento não pode contar: as compras já estão lá, uma por uma." },
           { texto: "Fatura subida antes do extrato: o pagamento fica de fora sozinho. Se precisar, toque em \"Contar mesmo assim\"." },
-          { texto: "Fatura subida depois do extrato: no fim, o app mostra o pagamento e pergunta. Toque em Remover." },
+          { texto: "Fatura subida depois do extrato: no fim, o app mostra o pagamento e pergunta. Toque em \"{remover}\"." },
           { texto: "Não usa fatura? Aí o pagamento conta como gasto, e está certo assim." },
         ],
       },
@@ -125,7 +132,7 @@ export const SECOES_DO_MANUAL: SecaoDoManual[] = [
           { texto: "O mesmo arquivo duas vezes: o que já está no app é pulado." },
           { texto: "Extrato da semana e depois o do mês (até em formatos diferentes): o app confere data e valor e não repete." },
           { texto: "Algo que você digitou e também veio no extrato (mesmo valor, até 3 dias de diferença): o app pergunta se é o mesmo." },
-          { texto: "Linhas iguais dentro do mesmo arquivo aparecem em \"Repetidos no arquivo\", com o botão \"Deixar só 1\"." },
+          { texto: "Linhas iguais dentro do mesmo arquivo aparecem em \"{repetidos}\", com o botão \"Deixar só 1\"." },
         ],
       },
     ],
@@ -139,7 +146,7 @@ export const SECOES_DO_MANUAL: SecaoDoManual[] = [
       {
         tipo: "passos",
         itens: [
-          { titulo: "Confira o perfil e o mês", texto: "O perfil aparece no topo do app. Na fatura, confira \"De qual mês é esta fatura?\"." },
+          { titulo: "Confira o perfil e o mês", texto: "O perfil aparece no topo do app. Na fatura, confira \"{faturaMes}\"." },
           { titulo: "Dê categoria aos gastos novos", texto: "O app pergunta só o que não reconheceu. Gasto pulado sem categoria não é importado." },
           { titulo: "Responda as dúvidas", texto: "Transferência pra você mesma e resgate: o botão Importar só libera depois." },
           { titulo: "Importe", texto: "O que você categorizou hoje, o app acerta sozinho na próxima vez." },
@@ -164,9 +171,9 @@ export const SECOES_DO_MANUAL: SecaoDoManual[] = [
       {
         tipo: "regras",
         itens: [
-          { texto: "Importação errada: em {mensal}, abra \"Histórico de importações\" e toque em Desfazer. Sai tudo que aquele arquivo criou, até as parcelas futuras." },
+          { texto: "Importação errada: em {mensal}, abra \"{historico}\" e toque em Desfazer. Sai tudo que aquele arquivo criou, até as parcelas futuras." },
           { texto: "Para desfazer, você precisa estar no mesmo perfil em que importou." },
-          { texto: "Categoria errada: toque no lançamento e em Editar. Nos importados, o app aprende com a correção." },
+          { texto: "Categoria errada: toque no lançamento e em \"{editar}\". Nos importados, o app aprende com a correção." },
         ],
       },
     ],
@@ -180,10 +187,10 @@ export const SECOES_DO_MANUAL: SecaoDoManual[] = [
       {
         tipo: "regras",
         itens: [
-          { texto: "Três tipos: Renda, Gasto e \"{guardar}\" (dinheiro que você guardou)." },
+          { texto: "Três tipos: \"{renda}\", \"{gasto}\" e \"{guardar}\" (dinheiro que você guardou)." },
           { texto: "A data decide o mês: um gasto com data de agosto vai pra agosto, mesmo lançado em setembro." },
           { texto: "Conta fixa (aluguel, academia): marque \"Repetir todo mês\" e ela é criada até dezembro." },
-          { texto: "Pra mudar ou apagar uma conta fixa, o app pergunta: \"Só este mês\" ou \"Este e os próximos meses\". Os meses que já passaram não mudam." },
+          { texto: "Pra mudar ou apagar uma conta fixa, o app pergunta: \"{soEsteMes}\" ou \"{esteEProximos}\". Os meses que já passaram não mudam." },
         ],
       },
     ],
@@ -199,7 +206,7 @@ export const SECOES_DO_MANUAL: SecaoDoManual[] = [
         itens: [
           { titulo: "Quanto entra", texto: "A sua renda do mês." },
           { titulo: "Quanto guardar", texto: "Primeiro você se paga. Os atalhos ajudam a escolher." },
-          { titulo: "Dividir o resto", texto: "Entre as categorias. \"Sugerir pra mim\" faz uma primeira divisão." },
+          { titulo: "Dividir o resto", texto: "Entre as categorias. \"{sugerir}\" faz uma primeira divisão." },
         ],
       },
       { tipo: "dica", alerta: true, texto: "Só vale depois de tocar em Salvar. Vale do mês atual em diante; os meses que já passaram ficam como estavam." },
@@ -214,9 +221,9 @@ export const SECOES_DO_MANUAL: SecaoDoManual[] = [
       {
         tipo: "regras",
         itens: [
-          { texto: "\"Livre pra gastar\" é o {orcamento} do mês menos tudo que já saiu, com ou sem categoria." },
-          { texto: "No ritmo semanal, o app mostra quanto dá pra gastar nesta semana. No mensal, até o fim do mês." },
-          { texto: "Até 3 avisos por vez. \"Ver o que fazer\" resolve ali mesmo: pôr um teto, subir o plano ou marcar como pontual." },
+          { texto: "\"{livreMes}\" é o {orcamento} do mês menos tudo que já saiu, com ou sem categoria." },
+          { texto: "No ritmo semanal, o número vira \"{livreSemana}\": quanto dá pra gastar nesta semana." },
+          { texto: "Até 3 avisos por vez. \"{focoAcao}\" resolve ali mesmo: pôr um teto, subir o plano ou marcar como pontual." },
           { texto: "\"Não gastar mais nada\" vira um combinado, e o app mostra se algo entrou depois." },
           { texto: "Mais de 7 dias sem lançar gasto? O número pode estar alto demais: suba o extrato.", atencao: true },
         ],
@@ -234,8 +241,8 @@ export const SECOES_DO_MANUAL: SecaoDoManual[] = [
         itens: [
           { texto: "Lance como \"{guardar}\", ou suba o extrato: aplicação e caixinha entram sozinhas." },
           { texto: "Depois, em {carteira}, diga em quais investimentos o dinheiro entrou. Até lá ele fica \"esperando destino\"." },
-          { texto: "Meta: o progresso é o maior entre o que você digitou em \"Já guardado\" e o que o app enxerga. Os dois não somam." },
-          { texto: "Reserva de emergência: o \"Já tenho\" é digitado. No fechamento do mês, \"Mandar a sobra pra reserva\" faz isso por você." },
+          { texto: "Meta: o que você digitou em \"{jaGuardado}\" mais o que marcar como guardado depois. Se os investimentos ligados à meta valerem mais que isso, vale o que eles valem. O mesmo dinheiro nunca conta duas vezes." },
+          { texto: "{reserva}: o \"{jaTenho}\" é digitado. No fechamento do mês, \"{sobraReserva}\" faz isso por você." },
         ],
       },
     ],
@@ -252,7 +259,7 @@ export const SECOES_DO_MANUAL: SecaoDoManual[] = [
         itens: [
           { texto: "O app responde se cabe no mês, se é melhor parcelar ou pagar à vista, e se atrasa alguma meta." },
           { texto: "A regra dos 90%: gastos e parcelas somados até 90% da renda. Os outros 10% são pra você." },
-          { texto: "Parcelado com juros acima do que o dinheiro renderia: aviso amarelo, com quanto você paga a mais." },
+          { texto: "Parcelado com juros acima do que o dinheiro renderia: o app avisa, com quanto você paga a mais." },
           { texto: "\"Vou comprar\" não lança o gasto. Quando comprar, lance ou suba o extrato.", atencao: true },
           { texto: "\"Decidir amanhã\": o app te lembra no dia seguinte." },
         ],
@@ -295,11 +302,76 @@ export const SECOES_DO_MANUAL: SecaoDoManual[] = [
   },
 ];
 
-export type NomesDoTema = { foco: string; mensal: string; orcamento: string; metas: string; carteira: string; guardar: string };
+/** Os nomes que o manual cita, do jeito que a tela de cada tema escreve. */
+export type NomesDoTema = {
+  foco: string;
+  mensal: string;
+  orcamento: string;
+  metas: string;
+  carteira: string;
+  renda: string;
+  gasto: string;
+  guardar: string;
+  importarArquivo: string;
+  faturaMes: string;
+  remover: string;
+  repetidos: string;
+  historico: string;
+  editar: string;
+  soEsteMes: string;
+  esteEProximos: string;
+  sugerir: string;
+  livreMes: string;
+  livreSemana: string;
+  focoAcao: string;
+  jaGuardado: string;
+  reserva: string;
+  jaTenho: string;
+  sobraReserva: string;
+};
 
-/** Os nomes do tema Padrão: é o que o PDF usa (ele é o mesmo pra todo mundo). */
-export const NOMES_PADRAO: NomesDoTema = { foco: "Foco", mensal: "Mensal", orcamento: "Orçamento", metas: "Metas", carteira: "Carteira", guardar: "Aporte" };
+/** "Importar extrato ou fatura (PDF, Excel, CSV, OFX)": no meio da frase, só o nome do botão. */
+const semFormatos = (t: string) => t.replace(/\s*\([^)]*\)/g, "").trim();
+
+/**
+ * Os nomes a partir da voz, com as MESMAS chaves que as telas usam: mudou o botão no tema, o
+ * manual acompanha. Passe a voz já com o tipo do perfil (`vozDoTema(tema, kind)`): na Empresa
+ * a reserva é "Caixa de segurança" e o botão do fechamento diz "pro caixa de segurança".
+ */
+export function nomesDoTema(voz: Voz): NomesDoTema {
+  const t = voz.titulos;
+  return {
+    foco: voz.nav.foco ?? "Foco",
+    mensal: voz.nav.flowTabs[0],
+    orcamento: voz.nav.flowTabs[2],
+    metas: voz.nav.metas,
+    carteira: voz.nav.carteira ?? "Carteira",
+    renda: t.uiTipoRenda,
+    gasto: t.uiTipoGasto,
+    guardar: t.uiTipoAporte,
+    importarArquivo: semFormatos(t.impImportarArquivo),
+    faturaMes: t.impFaturaMes,
+    remover: t.impRemover,
+    repetidos: t.impRepetidos,
+    historico: t.impHistoricoTitulo,
+    editar: t.uiEditar,
+    soEsteMes: t.uiFixoSoEste,
+    esteEProximos: t.uiFixoEsteEProximos,
+    sugerir: t.formOrcSugerir,
+    livreMes: t.focoLivreMes,
+    livreSemana: t.focoLivreSemana,
+    focoAcao: t.focoAcao,
+    jaGuardado: t.formMetaJaGuardado,
+    reserva: t.reserva,
+    jaTenho: t.formJaTenho,
+    sobraReserva: t.fechSobraReserva("a sobra"),
+  };
+}
+
+/** Os nomes do tema Padrão: é o que o PDF usa (ele é o mesmo pra todo mundo, e avisa na
+ * primeira página que os nomes mudam com o tema). */
+export const NOMES_PADRAO: NomesDoTema = nomesDoTema(vozDoTema("padrao"));
 
 export function comNomes(texto: string, nomes: NomesDoTema): string {
-  return texto.replace(/\{(foco|mensal|orcamento|metas|carteira|guardar)\}/g, (_, k: keyof NomesDoTema) => nomes[k]);
+  return texto.replace(/\{([A-Za-z]+)\}/g, (marca, k: string) => (k in nomes ? nomes[k as keyof NomesDoTema] : marca));
 }

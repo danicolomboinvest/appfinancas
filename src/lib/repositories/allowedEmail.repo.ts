@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db/prisma";
 import { nowInBrazil } from "@/lib/date/brazil-now";
+import { emailConfirmado } from "@/lib/auth/confirmacao-email";
 
 /**
  * Lista de e-mails com acesso PREMIUM (área de investimentos: Carteira, Simuladores, Análises,
@@ -41,11 +42,18 @@ export async function isEmailAllowed(email: string): Promise<boolean> {
 }
 
 /** Acesso premium (área de investimentos) de um usuário já logado. ADMIN sempre tem — mesma
- * exceção do login, a Dani não pode ficar trancada fora do próprio painel. */
+ * exceção do login, a Dani não pode ficar trancada fora do próprio painel.
+ *
+ * O e-mail precisa estar confirmado: a liberação é pelo e-mail, e sem isso quem se cadastrasse
+ * com o e-mail de uma compradora (antes dela) levava a área paga dela. */
 export async function hasPremiumAccess(userId: string): Promise<boolean> {
-  const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true, role: true } });
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { email: true, role: true, emailVerifiedAt: true, createdAt: true },
+  });
   if (!user) return false;
   if (user.role === "ADMIN") return true;
+  if (!emailConfirmado(user)) return false;
   return isEmailAllowed(user.email);
 }
 
@@ -169,6 +177,58 @@ export function renewedExpiry(currentExpiry: Date | null, now: Date = new Date()
   return addAccessPeriod(base);
 }
 
+/**
+ * Marca em lastHublaInvoiceId de "este período foi dado por um evento SEM fatura". O Hubla manda
+ * customer.member_added (sem invoice) e invoice.payment_succeeded (com invoice) pra mesma compra,
+ * em qualquer ordem. Se o member_added chegava antes, ele dava o ano e deixava a fatura nula; o
+ * payment_succeeded via uma fatura "nova" e somava outro ano — a primeira compra saía com 2 anos.
+ * Com a marca, a primeira fatura que chega depois só é registrada, sem estender de novo.
+ */
+export const FATURA_PENDENTE = "pendente";
+
+/** Até quantos dias depois de um período sem fatura a próxima fatura ainda é "a dele". Passado
+ * isso, a fatura que chega é renovação de verdade e estende normalmente. */
+const JANELA_DA_FATURA_PENDENTE_DIAS = 30;
+
+/**
+ * O que um evento de liberação do Hubla faz com o prazo. Sem banco, pra dar pra testar cada
+ * ordem de chegada dos eventos.
+ * - `extended`: se o evento deu (ou somou) um período pago.
+ * - `lastHublaInvoiceId`: o que gravar na trava de fatura (undefined = não mexe).
+ */
+export function decidirPrazoHubla(
+  existing: { active: boolean; expiresAt: Date | null; lastHublaInvoiceId: string | null } | null,
+  invoiceId: string | null | undefined,
+  now: Date = new Date(),
+): { extended: boolean; expiresAt: Date | null; lastHublaInvoiceId: string | undefined } {
+  const fatura = invoiceId || null;
+  // Primeira liberação: um ano. Sem fatura, fica a marca de que a fatura desse ano ainda vem.
+  if (!existing) {
+    return { extended: true, expiresAt: addAccessPeriod(now), lastHublaInvoiceId: fatura ?? FATURA_PENDENTE };
+  }
+  const semMudanca = { extended: false, expiresAt: existing.expiresAt, lastHublaInvoiceId: fatura ?? undefined };
+
+  // Fatura já processada = reenvio/evento irmão da mesma compra: não estende de novo.
+  if (fatura && existing.lastHublaInvoiceId === fatura) return semMudanca;
+  // Acesso sem prazo e valendo (VIP da Dani): nenhum evento de compra encurta pra um ano.
+  if (existing.active && existing.expiresAt === null) return semMudanca;
+
+  if (fatura) {
+    // A fatura do período que um evento sem fatura acabou de dar: só registra.
+    if (existing.lastHublaInvoiceId === FATURA_PENDENTE && existing.expiresAt) {
+      const limite = addAccessPeriod(new Date(now.getTime() - JANELA_DA_FATURA_PENDENTE_DIAS * 24 * 60 * 60 * 1000));
+      if (existing.expiresAt >= limite) return semMudanca;
+    }
+    return { extended: true, expiresAt: renewedExpiry(existing.expiresAt, now), lastHublaInvoiceId: fatura };
+  }
+  // Sem id de fatura no payload, o único movimento seguro é dar prazo a quem não tem nenhum —
+  // estender às cegas abriria a porta pro acesso infinito por reenvio.
+  if (!existing.expiresAt) {
+    return { extended: true, expiresAt: renewedExpiry(null, now), lastHublaInvoiceId: FATURA_PENDENTE };
+  }
+  return semMudanca;
+}
+
 export async function grantFromHubla(
   email: string,
   note?: string,
@@ -184,14 +244,7 @@ export async function grantFromHubla(
     select: { active: true, expiresAt: true, lastHublaInvoiceId: true },
   });
 
-  // Fatura já processada = é reenvio/evento irmão da mesma compra: garante o acesso ativo,
-  // mas NÃO estende o prazo de novo.
-  const alreadyProcessed = Boolean(invoiceId) && existing?.lastHublaInvoiceId === invoiceId;
-  // Sem id de fatura no payload, o único movimento seguro é dar prazo a quem não tem nenhum —
-  // estender às cegas abriria a porta pro acesso infinito por reenvio.
-  const shouldExtend = !alreadyProcessed && (Boolean(invoiceId) || !existing?.expiresAt);
-
-  const expiresAt = shouldExtend ? renewedExpiry(existing?.expiresAt ?? null) : (existing?.expiresAt ?? null);
+  const decisao = decidirPrazoHubla(existing, invoiceId);
 
   await prisma.allowedEmail.upsert({
     where: { email: normalized },
@@ -199,19 +252,19 @@ export async function grantFromHubla(
     update: {
       active: true,
       ...(phone ? { phone } : {}),
-      ...(shouldExtend ? { expiresAt } : {}),
-      ...(invoiceId ? { lastHublaInvoiceId: invoiceId } : {}),
+      ...(decisao.extended ? { expiresAt: decisao.expiresAt } : {}),
+      ...(decisao.lastHublaInvoiceId !== undefined ? { lastHublaInvoiceId: decisao.lastHublaInvoiceId } : {}),
     },
     create: {
       email: normalized,
       source: "HUBLA",
       note: note ?? null,
       phone: phone ?? null,
-      expiresAt: addAccessPeriod(new Date()),
-      lastHublaInvoiceId: invoiceId ?? null,
+      expiresAt: decisao.expiresAt,
+      lastHublaInvoiceId: decisao.lastHublaInvoiceId ?? null,
     },
   });
-  return { isNew: existing?.active !== true, expiresAt, extended: shouldExtend };
+  return { isNew: existing?.active !== true, expiresAt: decisao.expiresAt, extended: decisao.extended };
 }
 
 /** Celular que veio da compra no Hubla (se veio) — usado como reserva no cadastro. */
@@ -227,11 +280,17 @@ export async function getAllowedPhone(email: string): Promise<string | null> {
  * Revoga o acesso a partir do webhook do Hubla (reembolso / assinatura cancelada / acesso
  * removido). Não apaga o registro (mantém histórico) — só desativa. Se o e-mail nem estava
  * na lista, não faz nada.
+ *
+ * Liberação MANUAL não cai: é a Dani quem decidiu (VIP, cortesia, compra fora do Hubla), e o
+ * reembolso de um item no Hubla não pode levar junto um acesso que não veio dele. Ela corta na
+ * mão pelo painel se quiser.
  */
 export async function revokeFromHubla(email: string) {
   const normalized = normalizeEmail(email);
   return prisma.allowedEmail.updateMany({
-    where: { email: normalized },
+    // Liberação MANUAL fica, a não ser que o Hubla tenha estendido o prazo dela (a pessoa comprou
+    // em cima de um acesso dado na mão): aí o ano reembolsado sai junto.
+    where: { email: normalized, OR: [{ source: "HUBLA" }, { lastHublaInvoiceId: { not: null } }] },
     data: { active: false },
   });
 }

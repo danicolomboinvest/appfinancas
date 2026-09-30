@@ -76,6 +76,9 @@ export async function createUserInvite(input: { email: string; name: string; pas
       email: normalizeEmail(input.email),
       passwordHash,
       name: input.name,
+      // Quem cria é a Dani, com o e-mail que ela mesma conferiu com a pessoa: não faz sentido
+      // a conta VIP esbarrar na tela de "confirme seu e-mail" no primeiro acesso.
+      emailVerifiedAt: new Date(),
       // Mesmo motivo do createUser: a conta já nasce com o perfil ativo.
       financialProfiles: { create: { ...PERFIL_INICIAL } },
     },
@@ -92,6 +95,20 @@ export async function createUserInvite(input: { email: string; name: string; pas
 export const getOwnUser = cache(async (ctx: AccountContext) => {
   return prisma.user.findUniqueOrThrow({ where: { id: ctx.userId } });
 });
+
+/**
+ * Grava a confirmação do e-mail a partir do link. Só vale se o e-mail do link ainda é o da conta
+ * (o link carrega o e-mail pra que um link antigo não confirme um endereço que a conta não tem
+ * mais). Confirmar de novo não muda a data da primeira vez. Devolve se a conta existe e bate.
+ */
+export async function marcarEmailConfirmado(userId: string, email: string): Promise<boolean> {
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true, emailVerifiedAt: true } });
+  if (!user || normalizeEmail(user.email) !== normalizeEmail(email)) return false;
+  if (!user.emailVerifiedAt) {
+    await prisma.user.update({ where: { id: userId }, data: { emailVerifiedAt: new Date() } });
+  }
+  return true;
+}
 
 /** A pessoa passou pela tela de boas-vindas: não volta mais lá. */
 export async function markOnboarded(userId: string): Promise<void> {
@@ -118,7 +135,7 @@ export async function touchLastSeen(userId: string, previous: Date | null): Prom
 /** E-mail fica de fora de propósito: é a chave do acesso (allowlist), só muda via suporte. */
 export async function updateOwnProfile(
   ctx: AuthContext,
-  input: { name?: string; avatarUrl?: string; phone?: string | null },
+  input: { name?: string; phone?: string | null },
 ) {
   return prisma.user.update({ where: { id: ctx.userId }, data: input });
 }

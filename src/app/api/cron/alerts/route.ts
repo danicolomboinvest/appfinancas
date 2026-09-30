@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { CONFIRMACAO_DESDE } from "@/lib/auth/confirmacao-email";
 import { recusarSeNaoForCron } from "@/lib/cron/autorizacao";
 import { getOrCreateActiveProfile } from "@/lib/repositories/profile.repo";
 import { prisma } from "@/lib/db/prisma";
@@ -16,7 +17,7 @@ export const maxDuration = 60;
 
 /**
  * Avisos do meio do mês, uma vez por dia (vercel.json): categoria em 80% com metade do mês
- * pela frente, categoria estourada, meta que ficou pra trás. Cada aviso tem uma chave por
+ * pela frente, categoria estourada (gasto acima do plano), meta que ficou pra trás. Cada aviso tem uma chave por
  * mês e só sai uma vez (NotificationLog). Vai pro celular de quem ligou os avisos; quem não
  * ligou recebe por e-mail, no máximo um e-mail por dia com todos os avisos do dia.
  */
@@ -34,7 +35,8 @@ export async function GET(request: Request) {
   const baseUrl = `${request.headers.get("x-forwarded-proto") ?? "https"}://${request.headers.get("x-forwarded-host") ?? request.headers.get("host")}`;
 
   const users = await prisma.user.findMany({
-    where: { OR: [{ notifyBudgetAlerts: true }, { notifyLateGoals: true }], ...(onlyEmail ? { email: onlyEmail } : {}) },
+    // Sem e-mail confirmado (conta criada com o e-mail de outra pessoa?), nada sai pra ela.
+    where: { OR: [{ notifyBudgetAlerts: true }, { notifyLateGoals: true }], AND: [{ OR: [{ emailVerifiedAt: { not: null } }, { createdAt: { lt: CONFIRMACAO_DESDE } }] }], ...(onlyEmail ? { email: onlyEmail } : {}) },
     select: { id: true, email: true, name: true, role: true, currency: true, notifyBudgetAlerts: true, notifyLateGoals: true },
   });
 
@@ -51,11 +53,15 @@ export async function GET(request: Request) {
     const perfil = await getOrCreateActiveProfile(user.id);
 
     if (user.notifyBudgetAlerts) {
-      const [budgets, spent] = await Promise.all([
+      // Meia-noite do dia 1 em Brasília (03:00 UTC), a mesma fronteira de ritmoDoMes: o que foi
+      // criado antes é conta marcada e não conta como ritmo no aviso de 80%.
+      const inicioDoMes = new Date(Date.UTC(year, month - 1, 1, 3));
+      const [budgets, spent, preCriado] = await Promise.all([
         // Só o perfil ativo: somar Pessoal + Casal + Empresa mandava "Alimentação estourou" com
         // um número que não aparece em nenhuma tela.
         prisma.budget.findMany({ where: { userId: user.id, profileId: perfil.id, year, month, parentCategory: { not: null } }, select: { parentCategory: true, plannedAmount: true } }),
         prisma.monthlyEntry.groupBy({ by: ["parentCategory"], where: { userId: user.id, profileId: perfil.id, year, month, category: "EXPENSE", parentCategory: { not: null } }, _sum: { amount: true } }),
+        prisma.monthlyEntry.groupBy({ by: ["parentCategory"], where: { userId: user.id, profileId: perfil.id, year, month, category: "EXPENSE", parentCategory: { not: null }, createdAt: { lt: inicioDoMes } }, _sum: { amount: true } }),
       ]);
       alerts.push(
         ...buildBudgetAlerts({
@@ -64,6 +70,7 @@ export async function GET(request: Request) {
           today: now,
           planned: budgets.filter((b) => b.parentCategory && PARENT_CATEGORIES.includes(b.parentCategory)).map((b) => ({ parentCategory: b.parentCategory!, planned: Number(b.plannedAmount) })),
           spent: spent.filter((s) => s.parentCategory).map((s) => ({ parentCategory: s.parentCategory!, spent: Number(s._sum.amount ?? 0) })),
+          preCriado: preCriado.filter((s) => s.parentCategory).map((s) => ({ parentCategory: s.parentCategory!, spent: Number(s._sum.amount ?? 0) })),
           money: (v) => money(v, { round: true }),
           kind: perfil.kind,
         }),

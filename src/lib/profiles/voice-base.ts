@@ -17,6 +17,7 @@ import { type TextosCasal, PADRAO_CASAL } from "./textos/casal";
 import { type TextosInvestirEmpresa, PADRAO_INVESTIR } from "./textos/investir";
 import { type TextosEmail, PADRAO_EMAIL } from "./textos/email";
 import { type TextosFoco, PADRAO_FOCO } from "./textos/foco";
+import { type TextosPaineis, PADRAO_PAINEIS } from "./textos/paineis";
 
 export type Estado = "bom" | "normal" | "ruim" | "vazio";
 export type Periodo = "manha" | "tarde" | "noite";
@@ -160,6 +161,8 @@ export type TitulosBase = {
   reservaTempo: string;
   reservaRendimento: string;
   reservaProjecao: string;
+  /** Dica embaixo de "Não fecha": o valor por mês não alcança a meta da reserva. */
+  reservaNaoFechaHint: string;
   aposentadoria: string;
   aposentadoriaSub: string;
   aposentadoriaWizardSub: string;
@@ -212,6 +215,10 @@ export type TitulosBase = {
   apAnoAAno: string;
   apNominal: string;
   apReal: string;
+  /** Premissas: quantos anos até parar de guardar. */
+  apTempoGuardando: string;
+  /** Cartão "e se o valor guardado nunca acompanhar a inflação". */
+  apSemReajuste: string;
   // Abas, menu e a lista da semana
   planTabs: [string, string, string];
   carteiraTabs: [string, string, string];
@@ -278,6 +285,9 @@ export type TitulosBase = {
   registrarFalar: string;
   registrarImportar: string;
   lancamentoSalvo: string;
+  /** Uma ação do dia a dia (excluir, trocar categoria, passo do Fechamento) não chegou ao servidor:
+   * internet caiu ou a sessão expirou. Vira aviso na própria tela, sem trocar o app pela tela de erro. */
+  acaoFalhou: string;
   /**
    * "R$ 513 a mais que em agosto" — a linha embaixo de cada categoria em Só gastos.
    * `categoriaKey` é a categoria-mãe (ALIMENTACAO, MORADIA…) ou undefined nas personalizadas:
@@ -343,6 +353,7 @@ const TITULOS_BASE: TitulosBase = {
   reservaTempo: "Tempo para concluir",
   reservaRendimento: "Rentabilidade mensal",
   reservaProjecao: "Projeção da reserva",
+  reservaNaoFechaHint: "Com esse aporte a reserva não chega na meta. Aumente o valor por mês.",
   aposentadoria: "Aposentadoria",
   aposentadoriaSub: "Da fase de acúmulo até viver de renda: acompanhe a jornada inteira em um só lugar.",
   aposentadoriaWizardSub: "Vamos montar seu plano em alguns passos rápidos.",
@@ -390,6 +401,8 @@ const TITULOS_BASE: TitulosBase = {
   apAnoAAno: "Ver dados detalhados ano a ano",
   apNominal: "Patrimônio (nominal)",
   apReal: "Patrimônio (real)",
+  apTempoGuardando: "Tempo de contribuição",
+  apSemReajuste: "E se você nunca reajustar o aporte?",
   planTabs: ["Metas", "Reserva", "Aposentadoria"],
   carteiraTabs: ["Meus Ativos", "Por Objetivo", "Estratégia"],
   visaoGeralLink: "Ver Fluxo Financeiro",
@@ -447,6 +460,7 @@ const TITULOS_BASE: TitulosBase = {
   registrarFalar: "Falar lançamento",
   registrarImportar: "Importar extrato",
   lancamentoSalvo: "Lançamento salvo com sucesso.",
+  acaoFalhou: "Não consegui fazer isso agora. Confira a internet e tente de novo.",
   comparacao: (tipo, valor, mes) =>
     tipo === "sem" ? `Não teve gasto em ${mes}` : tipo === "igual" ? `Igual a ${mes}` : tipo === "mais" ? `${valor} a mais que em ${mes}` : `${valor} a menos que em ${mes}`,
   campeaoTitulo: "O campeão do mês",
@@ -471,7 +485,8 @@ export type Titulos = TitulosBase &
   TextosCasal &
   TextosInvestirEmpresa &
   TextosEmail &
-  TextosFoco;
+  TextosFoco &
+  TextosPaineis;
 
 export const TITULOS_PADRAO: Titulos = {
   ...TITULOS_BASE,
@@ -485,6 +500,7 @@ export const TITULOS_PADRAO: Titulos = {
   ...PADRAO_INVESTIR,
   ...PADRAO_EMAIL,
   ...PADRAO_FOCO,
+  ...PADRAO_PAINEIS,
 };
 
 /** Um mapa por rota vira a função de simulador de um tema; sem entrada, fica o Padrão. */

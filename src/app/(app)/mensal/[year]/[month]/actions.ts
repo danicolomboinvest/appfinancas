@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { getRequiredSession } from "@/lib/auth/session";
+import { MSG_TROCOU_DE_PERFIL, trocouDePerfil } from "@/lib/profiles/perfil-da-tela";
 import {
   createMonthlyEntry,
   createRecurringMonthlyEntries,
@@ -86,6 +87,9 @@ export async function createMonthlyEntryAction(
   }
 
   const ctx = await getRequiredSession();
+  // Lançamento novo vai pro perfil ATIVO: se a tela foi aberta em outro (ela trocou em outra aba
+  // ou aparelho), gravar aqui punha o gasto da Empresa no Pessoal. Ver perfil-da-tela.ts.
+  if (trocouDePerfil(formData.get("profileId"), ctx.profileId)) return { error: MSG_TROCOU_DE_PERFIL };
   const entry = await toEntryInput(parsed.data);
   if ("error" in entry) return entry;
   try {
@@ -117,6 +121,7 @@ export async function updateMonthlyEntryAction(
   }
 
   const ctx = await getRequiredSession();
+  if (trocouDePerfil(formData.get("profileId"), ctx.profileId)) return { error: MSG_TROCOU_DE_PERFIL };
   const entry = await toEntryInput(parsed.data);
   if ("error" in entry) return entry;
   // Gasto importado que ela põe em outra categoria-mãe ensina o app (ver padroesDaCorrecao).
@@ -247,11 +252,17 @@ export type DeletedEntrySnapshot = {
 /**
  * "Apagar este e os próximos" numa despesa fixa. Devolve o snapshot de cada cópia apagada
  * (com os ativos de um aporte e a série), pro "Desfazer" trazer todas de volta.
+ *
+ * `jaNaCarteira` é o mesmo aviso do "Só este mês" (deleteMonthlyEntriesAction): numa série de
+ * aportes já distribuídos, o dinheiro fica nos ativos de propósito, e sem dizer isso o mês
+ * perdia o aporte enquanto a carteira continuava com ele, sem ninguém perceber.
  */
-export async function deleteSeriesFromAction(id: string): Promise<{ apagados: number; snapshots: DeletedEntrySnapshot[] }> {
+export async function deleteSeriesFromAction(
+  id: string,
+): Promise<{ apagados: number; jaNaCarteira: number; snapshots: DeletedEntrySnapshot[] }> {
   const ctx = await getRequiredSession();
   const serie = await listSeriesFrom(ctx, String(id));
-  if (serie.length === 0) return { apagados: 0, snapshots: [] };
+  if (serie.length === 0) return { apagados: 0, jaNaCarteira: 0, snapshots: [] };
   const ids = serie.map((e) => e.id);
   const linhas = await allocationsOf(ctx, ids);
   const snapshots: DeletedEntrySnapshot[] = serie.map((e) => ({
@@ -273,7 +284,7 @@ export async function deleteSeriesFromAction(id: string): Promise<{ apagados: nu
   }));
   const { count } = await deleteOwnMonthlyEntries(ctx, ids);
   revalidatePath("/mensal", "layout");
-  return { apagados: count, snapshots };
+  return { apagados: count, jaNaCarteira: linhas.length, snapshots };
 }
 
 /** Desfazer exclusão: recria o lançamento a partir do snapshot guardado no cliente. */

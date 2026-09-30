@@ -3,6 +3,8 @@
 import type { Prisma } from "@prisma/client";
 import { getRequiredSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
+import { nowInBrazil } from "@/lib/date/brazil-now";
+import { filtroDaSemana } from "@/lib/repositories/budget.repo";
 
 export type CategoryTransaction = {
   id: string;
@@ -19,7 +21,7 @@ export type CategoryRef =
 /**
  * Lista os lançamentos (gastos) de uma categoria dentro do período selecionado na tela "Só
  * gastos", alimenta o clique na fatia/legenda da pizza, que expande pra mostrar o que compõe
- * aquele valor. Semana usa a data de lançamento (createdAt); mês/ano usam year/month.
+ * aquele valor. Semana usa filtroDaSemana (o mesmo do total da fatia); mês/ano usam year/month.
  */
 export async function getCategoryTransactionsAction(
   period: "semana" | "mes" | "ano",
@@ -34,8 +36,12 @@ export async function getCategoryTransactionsAction(
 
   let periodWhere: Prisma.MonthlyEntryWhereInput;
   if (period === "semana") {
-    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-    periodWhere = { createdAt: { gte: weekAgo } };
+    // O mesmo critério do total da fatia (sumExpenses*Since na página): antes a lista usava só
+    // createdAt dos últimos 7 dias, então o aluguel com "Repetir até dezembro" aparecia 4 vezes
+    // na lista (R$ 8.000) numa fatia que somava R$ 2.000.
+    const hoje = nowInBrazil();
+    const weekAgo = new Date(hoje.getTime() - 7 * 24 * 60 * 60 * 1000);
+    periodWhere = filtroDaSemana(weekAgo, hoje);
   } else if (period === "ano") {
     periodWhere = { year };
   } else {

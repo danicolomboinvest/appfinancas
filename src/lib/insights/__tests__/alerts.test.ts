@@ -40,6 +40,62 @@ describe("buildBudgetAlerts", () => {
   });
 });
 
+describe("buildBudgetAlerts: igualdade e conta fixa pré-lançada", () => {
+  it("gasto IGUAL ao planejado não é 'estourou' (o painel marca DENTRO)", () => {
+    const alerts = buildBudgetAlerts({
+      year: 2026,
+      month: 10,
+      today: new Date(2026, 9, 1),
+      planned: [{ parentCategory: "MORADIA", planned: 2000 }],
+      spent: [{ parentCategory: "MORADIA", spent: 2000 }],
+      preCriado: [{ parentCategory: "MORADIA", spent: 2000 }],
+      money,
+    });
+    expect(alerts).toEqual([]);
+  });
+
+  it("aluguel recorrente lançado antes do mês não dispara o aviso de 80% no dia 1", () => {
+    const alerts = buildBudgetAlerts({
+      year: 2026,
+      month: 10,
+      today: new Date(2026, 9, 1),
+      planned: [{ parentCategory: "MORADIA", planned: 2000 }],
+      spent: [{ parentCategory: "MORADIA", spent: 1800 }],
+      preCriado: [{ parentCategory: "MORADIA", spent: 1800 }],
+      money,
+    });
+    expect(alerts).toEqual([]);
+  });
+
+  it("o gasto do próprio mês ainda avisa aos 80% do que sobrou do plano", () => {
+    const alerts = buildBudgetAlerts({
+      year: 2026,
+      month: 10,
+      today: new Date(2026, 9, 10),
+      planned: [{ parentCategory: "MORADIA", planned: 2000 }],
+      // 1.800 de aluguel marcado + 170 de conserto no mês: 170/200 = 85% do que sobrava.
+      spent: [{ parentCategory: "MORADIA", spent: 1970 }],
+      preCriado: [{ parentCategory: "MORADIA", spent: 1800 }],
+      money,
+    });
+    expect(alerts.map((a) => a.key)).toEqual(["2026-10:MORADIA:80"]);
+    expect(alerts[0].title).toBe("Moradia já usou 99%");
+  });
+
+  it("passar do plano ainda é 'estourou', mesmo sendo conta marcada", () => {
+    const alerts = buildBudgetAlerts({
+      year: 2026,
+      month: 10,
+      today: new Date(2026, 9, 1),
+      planned: [{ parentCategory: "MORADIA", planned: 2000 }],
+      spent: [{ parentCategory: "MORADIA", spent: 2100 }],
+      preCriado: [{ parentCategory: "MORADIA", spent: 2100 }],
+      money,
+    });
+    expect(alerts.map((a) => a.key)).toEqual(["2026-10:MORADIA:100"]);
+  });
+});
+
 describe("buildGoalAlerts", () => {
   it("only names goals that fell behind", () => {
     const alerts = buildGoalAlerts({

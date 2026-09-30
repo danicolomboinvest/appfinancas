@@ -94,7 +94,14 @@ const TITULOS_EMPRESA: Partial<Titulos> = {
   // Orçamento
   formOrcTitulo: "Vamos montar o orçamento da empresa",
   formOrcSub: "Três perguntas: quanto fatura, quanto retém e quanto gasta em cada frente.",
+  formOrcRenda: "Faturamento por mês",
   formOrcRendaSugestao: (mes, valor) => `Em ${mes} a empresa faturou ${valor}.`,
+  formOrcGuardarPorMes: "Reter por mês",
+  formOrcRendaEAporte: "Faturamento e retenção",
+  formOrcEditarPlano: (ano) => `Editar o orçamento de ${ano}: faturamento e custos`,
+  formOrcRendaEAporteNoMes: (mes) => `Faturamento e retenção em ${mes}`,
+  formOrcBarraRenda: "Faturamento",
+  formOrcBarraAporte: "Retenção",
   formOrcQuantoGuardar: "Quanto a empresa vai reter por mês?",
   formOrcCursoNota: () =>
     "Retenção é o que sai do faturamento antes de virar despesa: a reserva de caixa e o reinvestimento. Quem está começando costuma conseguir 10%. Impostos não entram aqui: eles têm a própria categoria.",

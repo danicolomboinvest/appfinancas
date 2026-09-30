@@ -15,6 +15,10 @@ import { isInterInvoice, isInterStatement, parseInterInvoice, parseInterStatemen
 import { isNubankStatement, parseNubankStatement } from "./nubank-pdf";
 import { isOurocardInvoice, parseOurocardInvoice } from "./ourocard-pdf";
 import { isItauInvoice, parseItauInvoice } from "./itau-fatura-pdf";
+import { isMidwayInvoice, parseMidwayInvoice } from "./midway-fatura-pdf";
+import { isC6Invoice, parseC6Invoice } from "./c6-fatura-pdf";
+import { isSantanderInvoice, parseSantanderInvoice } from "./santander-fatura-pdf";
+import { isNubankInvoice, parseNubankInvoice } from "./nubank-fatura-pdf";
 import { isSantanderConsolidatedStatement, parseSantanderConsolidatedStatement } from "./santander-pdf";
 
 export type ParsedTransaction = {
@@ -487,6 +491,10 @@ const LEITORES_PDF: { nome: string; reconhece: (t: string) => boolean; le: (t: s
   { nome: "inter-fatura", reconhece: isInterInvoice, le: (t) => parseInterInvoice(t) },
   { nome: "ourocard", reconhece: isOurocardInvoice, le: (t, ano) => parseOurocardInvoice(t, ano) },
   { nome: "itau-fatura", reconhece: isItauInvoice, le: (t, ano) => parseItauInvoice(t, ano) },
+  { nome: "riachuelo-midway", reconhece: isMidwayInvoice, le: (t) => parseMidwayInvoice(t) },
+  { nome: "c6-fatura", reconhece: isC6Invoice, le: (t, ano) => parseC6Invoice(t, ano) },
+  { nome: "santander-fatura", reconhece: isSantanderInvoice, le: (t, ano) => parseSantanderInvoice(t, ano) },
+  { nome: "nubank-fatura", reconhece: isNubankInvoice, le: (t, ano) => parseNubankInvoice(t, ano) },
 ];
 
 /** Igual a `parseStatement`, e diz QUEM leu: o nome do leitor próprio do banco, ou null quando

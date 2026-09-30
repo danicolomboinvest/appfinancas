@@ -2,6 +2,8 @@ import type { AuthContext } from "@/lib/auth/session";
 import { PARENT_CATEGORIES } from "@/lib/categories";
 import { getMonthlySummary } from "@/lib/consolidation/monthly";
 import { sumExpensesByParentCategory, sumExpensesByCustomCategory } from "@/lib/repositories/budget.repo";
+import { nowInBrazil } from "@/lib/date/brazil-now";
+import { mesDeReferenciaDasDicas, mesesQueFaltamNoAno } from "@/lib/planning/plano-anual";
 
 export type BudgetHints = {
   /** "agosto" — o último mês fechado, que é a referência de "copiar" e de "entrou". */
@@ -27,9 +29,11 @@ function shift(year: number, month: number, back: number): { year: number; month
  * categoria, e a média dos últimos três meses. É o que deixa o orçamento começar preenchido
  * em vez de em branco — a pessoa ajusta, não inventa.
  */
-export async function getBudgetHints(ctx: AuthContext, year: number, today: Date = new Date()): Promise<BudgetHints> {
-  const isCurrentYear = year === today.getFullYear();
-  const ref = isCurrentYear ? shift(today.getFullYear(), today.getMonth() + 1, 1) : { year, month: 12 };
+export async function getBudgetHints(ctx: AuthContext, year: number, today: Date = nowInBrazil()): Promise<BudgetHints> {
+  // `today` é o relógio de Brasília: com o do servidor (UTC), das 21h à meia-noite do último dia
+  // do mês o "mês passado" virava o mês corrente, ainda aberto, e os "meses que faltam" ficavam
+  // um a menos do que o Salvar grava.
+  const ref = mesDeReferenciaDasDicas(year, today);
   const windows = [0, 1, 2].map((back) => shift(ref.year, ref.month, back));
 
   const [summary, ...spent] = await Promise.all([
@@ -59,6 +63,6 @@ export async function getBudgetHints(ctx: AuthContext, year: number, today: Date
     lastMonthIncome: summary.totalIncome,
     lastMonthByCategory: perMonth[0],
     averageByCategory,
-    monthsLeftInYear: isCurrentYear ? 12 - today.getMonth() : 12,
+    monthsLeftInYear: mesesQueFaltamNoAno(year, today),
   };
 }

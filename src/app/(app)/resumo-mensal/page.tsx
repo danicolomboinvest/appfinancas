@@ -10,7 +10,11 @@ import { RecapStories } from "./RecapStories";
 export default async function ResumoMensalPage() {
   const ctx = await getRequiredSession();
   const dismissedMonth = await getRecapDismissedMonth(ctx);
-  const { year, month, monthKey } = getRecapEligibility(nowInBrazil(), dismissedMonth);
+  const { eligible, year, month, monthKey } = getRecapEligibility(nowInBrazil(), dismissedMonth);
+  // Fora da janela (dia 8 a 24) ou já fechado: aberto pelo histórico do navegador ou atalho do
+  // app no dia 15, mostrava o mês pela metade, e fechar gravava o mês como dispensado — o resumo
+  // de verdade daquele mês (25 a 7) nunca mais aparecia.
+  if (!eligible) redirect("/mensal");
   const recap = await computeMonthlyRecap(ctx, year, month);
   if (!recap.hasData) redirect("/mensal");
   return <RecapStories recap={recap} monthKey={monthKey} />;

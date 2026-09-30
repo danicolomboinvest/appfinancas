@@ -31,18 +31,45 @@ export function goalProgress(goalId: string, assetsValueOfGoal: number, contribu
 }
 
 /**
- * Quanto a meta mostra como "já guardado": o MAIOR entre o que a pessoa digitou em "Já
- * guardado" e o que o app enxerga (ativos + aportes).
+ * A partir de quando um aporte marcado é dinheiro NOVO em cima do "Já guardado" digitado.
  *
- * Antes o digitado só valia enquanto não houvesse nada vinculado: bastava tocar em "Marcar
- * aporte" uma vez que os R$ 5.000 que ela já tinha guardado sumiam, a meta caía pro valor do
- * aporte e o "guardar por mês" subia. Somar os dois também não serve: até setembro/2026 o
- * formulário de edição preenchia "Já guardado" com o total calculado, então em 6 de 8 metas
- * de produção com os dois o digitado JÁ É o vinculado, e somar mostraria o dobro. O maior dos
- * dois nunca perde o que ela digitou e nunca conta o mesmo dinheiro duas vezes.
+ * Até 28/09/2026 o formulário de edição preenchia "Já guardado" com o total calculado (ativos +
+ * aportes), então nas metas antigas o digitado JÁ INCLUI os aportes feitos até ali: em 6 de 8
+ * metas de produção com os dois, o digitado era o vinculado. A correção do formulário foi ao ar
+ * na noite de 28/09 (push às 19h30 de Brasília); o corte fica em 21h de Brasília, depois do
+ * deploy, pra nenhuma edição feita no formulário antigo ter engolido um aporte "novo".
  */
-export function goalCurrentAmount(openingBalance: number, progress: number): number {
-  return Math.round(Math.max(Math.max(0, openingBalance), progress) * 100) / 100;
+export const APORTES_SOMAM_DESDE = new Date("2026-09-29T00:00:00.000Z");
+
+/**
+ * Quanto a meta mostra como "já guardado", juntando o "Já guardado" digitado com o que o app
+ * enxerga (ativos da meta + aportes).
+ *
+ * Só o maior dos dois (a regra anterior) travava a meta: com R$ 5.000 digitados e R$ 500 por
+ * mês marcados, ela ficava parada em R$ 5.000 até o 10º aporte e virava "atrasada" no 6º mês,
+ * mesmo com a pessoa fazendo tudo o que o app pediu. Somar tudo também não serve: nas metas
+ * antigas o digitado já contém os aportes de antes (ver `APORTES_SOMAM_DESDE`), e o CDB que ela
+ * digitou como "Já guardado" e depois ligou à meta contaria duas vezes.
+ *
+ * Então: o digitado + os aportes marcados depois do corte são um piso ("o que eu tinha + o que
+ * marquei desde então"), e o que o app enxerga (todos os aportes e ativos, pela regra de
+ * `goalProgress`) vale quando passa disso. Ligar o CDB que já era o "Já guardado" continua sem
+ * dobrar (ele só entra no lado do app), e cada aporte novo move a meta.
+ *
+ * Sem nada digitado, vale só o que o app enxerga — igual a sempre.
+ */
+export function goalCurrentAmount(
+  goalId: string,
+  openingBalance: number,
+  assetsValueOfGoal: number,
+  contributions: (GoalContribution & { createdAt: Date })[],
+): number {
+  const enxergado = goalProgress(goalId, assetsValueOfGoal, contributions);
+  if (!(openingBalance > 0)) return enxergado;
+  const novos = contributions
+    .filter((c) => c.createdAt.getTime() >= APORTES_SOMAM_DESDE.getTime())
+    .reduce((s, c) => s + c.amount, 0);
+  return Math.round(Math.max(openingBalance + novos, enxergado) * 100) / 100;
 }
 
 /**

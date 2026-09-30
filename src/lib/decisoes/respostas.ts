@@ -45,7 +45,29 @@ export function comAbertura(tom: Tom, r: Resposta): Resposta {
   return { ...r, frase: a ? `${a}${r.frase.charAt(0).toLowerCase()}${r.frase.slice(1)}` : primeiraMaiuscula(r.frase) };
 }
 
-export type Categoria = { key: string; label: string; planejado: number; gasto: number; fixa?: boolean };
+export type Categoria = {
+  key: string;
+  label: string;
+  planejado: number;
+  gasto: number;
+  fixa?: boolean;
+  /** Quanto do gasto já veio de lançamento recorrente criado antes do mês (o plano de saúde do dia 1). */
+  fixoAutomatico?: number;
+};
+
+/**
+ * Quanto do orçamento já devia ter saído a esta altura do mês. Conta fixa (aluguel, escola) é paga
+ * de uma vez: o que já foi pago dela entra inteiro, e só o resto corre com os dias. O mesmo vale
+ * pro recorrente que já nasce lançado no dia 1. É a regra do Foco e do "Onde estou exagerando?":
+ * sem isso, o aluguel pago no dia 5 fazia o mês inteiro parecer "acima do ritmo".
+ */
+export function esperadoNoRitmo(planejado: number, decorrido: number, categorias: Categoria[]): { esperado: number; fixoPago: number } {
+  const fixoPago = categorias
+    .filter((c) => c.planejado > 0)
+    .reduce((s, c) => s + Math.max(0, Math.min(c.planejado, c.gasto, c.fixa ? c.gasto : (c.fixoAutomatico ?? 0))), 0);
+  const pago = Math.min(fixoPago, planejado);
+  return { esperado: pago + (planejado - pago) * Math.max(decorrido, 0.03), fixoPago: pago };
+}
 
 /** "Estou gastando demais?": o gasto do mês contra o ritmo do plano e contra 90% da renda. */
 export function estouGastandoDemais(e: {
@@ -55,6 +77,12 @@ export function estouGastandoDemais(e: {
   decorrido: number;
   renda: number | null;
   categorias: Categoria[];
+  /**
+   * Casal que só conta o que cada um põe na conta conjunta: gastar 100% dessa "renda" é o
+   * combinado, então a regra dos 90% não vale. O limite passa a ser o que entra na conta.
+   * Omitido = vale.
+   */
+  regra90?: boolean;
 }): Resposta {
   const { money } = e;
   if (!(e.planejado > 0)) {
@@ -66,11 +94,13 @@ export function estouGastandoDemais(e: {
       acoes: [{ rotulo: "Montar meu orçamento", href: "/orcamento" }],
     };
   }
-  const esperado = e.planejado * Math.max(e.decorrido, 0.03);
+  const { esperado, fixoPago } = esperadoNoRitmo(e.planejado, e.decorrido, e.categorias);
   const diferenca = e.gastoDoMes - esperado;
   const estouradas = e.categorias.filter((c) => c.planejado > 0 && c.gasto - c.planejado >= 1).sort((a, b) => b.gasto - b.planejado - (a.gasto - a.planejado));
   const pesadas = [...e.categorias].filter((c) => c.planejado > 0 && c.gasto > 0).sort((a, b) => b.gasto / b.planejado - a.gasto / a.planejado);
-  const acimaDa90 = e.renda && e.renda > 0 ? e.gastoDoMes > e.renda * 0.9 : false;
+  const semRegra90 = e.regra90 === false;
+  const limiteDaRenda = e.renda && e.renda > 0 ? e.renda * (semRegra90 ? 1 : 0.9) : null;
+  const acimaDa90 = limiteDaRenda !== null ? e.gastoDoMes > limiteDaRenda : false;
   // R$ 13 acima numa categoria, com o mês inteiro abaixo do ritmo, não é "gastando demais".
   const estouroRelevante = estouradas.some((c) => c.gasto - c.planejado > Math.max(50, c.planejado * 0.05));
   const veredito: Veredito = e.gastoDoMes > e.planejado || acimaDa90 ? "ruim" : diferenca > e.planejado * 0.05 || estouroRelevante ? "atencao" : "bom";
@@ -83,7 +113,17 @@ export function estouGastandoDemais(e: {
   const detalhes: string[] = [];
   if (estouradas.length > 0) detalhes.push(`Passou do plano: ${estouradas.slice(0, 3).map((c) => `${c.label} (${money(c.gasto)} de ${money(c.planejado)})`).join(", ")}.`);
   else if (pesadas[0]) detalhes.push(`Onde mais pesou: ${pesadas[0].label}, ${money(pesadas[0].gasto)} de ${money(pesadas[0].planejado)}.`);
-  if (e.renda && e.renda > 0) detalhes.push(acimaDa90 ? `Os gastos já passam de 90% da renda (${money(e.renda * 0.9)}): sobra menos de 10% pra guardar.` : `Pela regra dos 90%, seus gastos podem ir até ${money(e.renda * 0.9)} este mês.`);
+  if (limiteDaRenda !== null) {
+    detalhes.push(
+      semRegra90
+        ? acimaDa90
+          ? `Os gastos já passam do que vocês põem na conta conjunta (${money(limiteDaRenda)}).`
+          : `Aqui a renda é o que vocês põem na conta conjunta (${money(limiteDaRenda)}): a regra dos 90% vale pra renda de cada um, não pra ela.`
+        : acimaDa90
+          ? `Os gastos já passam de 90% da renda (${money(limiteDaRenda)}): sobra menos de 10% pra guardar.`
+          : `Pela regra dos 90%, seus gastos podem ir até ${money(limiteDaRenda)} este mês.`,
+    );
+  }
   return {
     veredito,
     frase,
@@ -91,8 +131,9 @@ export function estouGastandoDemais(e: {
     conta: [
       { rotulo: "Gasto do mês até agora", valor: money(e.gastoDoMes) },
       { rotulo: "Orçamento do mês", valor: money(e.planejado) },
+      ...(fixoPago >= 1 ? [{ rotulo: "Contas fixas já pagas (entram inteiras)", valor: money(fixoPago) }] : []),
       { rotulo: `No ritmo (${pct(e.decorrido)} do mês)`, valor: money(esperado) },
-      ...(e.renda ? [{ rotulo: "90% da renda", valor: money(e.renda * 0.9) }] : []),
+      ...(limiteDaRenda !== null ? [{ rotulo: semRegra90 ? "O que entra na conta conjunta" : "90% da renda", valor: money(limiteDaRenda) }] : []),
     ],
     acoes: veredito === "bom" ? [{ rotulo: "Onde estou exagerando?", href: "/decidir/pergunta/exagerando" }] : [{ rotulo: "Ver onde estou exagerando", href: "/decidir/pergunta/exagerando" }, { rotulo: "Voltar pro Foco", href: "/mensal/foco" }],
   };
@@ -150,7 +191,25 @@ export type MetaResposta = {
   /** Quando chega no ritmo atual ("março de 2027"), ou null se não chega. */
   chegaEm: string | null;
   noPrazo: boolean;
+  /**
+   * O mês do prazo já acabou e ela não chegou. Aí não existe "por mês pra chegar a tempo": o
+   * necessário é o que ela combinou guardar, e a resposta pede uma data nova em vez de cobrar o
+   * que falta inteiro como se fosse mensal.
+   */
+  vencida?: boolean;
 };
+
+/**
+ * Quanto ela guarda por mês pra uma meta, de verdade: o que foi pra ela nos últimos meses fechados
+ * (até 3), dividido pelos meses em que a meta já existia. A meta criada em agosto com R$ 600 em
+ * agosto e R$ 600 em setembro guarda R$ 600 por mês, não R$ 400. Mês com dinheiro pra meta conta
+ * mesmo antes da criação (guardado lançado com data antiga).
+ */
+export function ritmoMensalDaMeta(e: { soma: number; mesesComGuardado: number; criadaEm: { ano: number; mes: number }; hoje: { ano: number; mes: number } }): number {
+  const mesesFechadosDesdeACriacao = (e.hoje.ano - e.criadaEm.ano) * 12 + (e.hoje.mes - e.criadaEm.mes);
+  const meses = Math.min(3, Math.max(1, mesesFechadosDesdeACriacao, e.mesesComGuardado));
+  return e.soma / meses;
+}
 
 /** "Quanto preciso guardar?": o que as metas e a reserva pedem por mês, contra o que está planejado. */
 export function quantoPrecisoGuardar(e: {
@@ -165,6 +224,16 @@ export function quantoPrecisoGuardar(e: {
   const total = abertas.reduce((s, m) => s + m.necessarioPorMes, 0) + (e.reserva?.porMes ?? 0);
   const minimoAula = e.renda ? e.renda * 0.1 : 0;
   const alvo = Math.max(total, minimoAula);
+  const vencidasSemValor = e.metas.filter((x) => x.vencida && x.atual < x.alvo && !(x.necessarioPorMes > 0));
+  if (alvo <= 0 && vencidasSemValor.length > 0) {
+    return {
+      veredito: "atencao",
+      frase: `Ainda não sei: o prazo de ${vencidasSemValor[0].nome} (${vencidasSemValor[0].prazo}) já passou. Com uma data nova, eu calculo quanto guardar por mês.`,
+      detalhes: ["A aula pede no mínimo 10% da renda todo mês, pro seu futuro."],
+      conta: [],
+      acoes: [{ rotulo: "Escolher uma data nova", href: "/planejamento/metas" }],
+    };
+  }
   if (alvo <= 0) {
     return {
       veredito: "atencao",
@@ -180,7 +249,13 @@ export function quantoPrecisoGuardar(e: {
     veredito === "bom"
       ? `${money(alvo)} por mês, e o seu plano já guarda ${money(planejado)}. Está coberto.`
       : `${money(alvo)} por mês. Hoje o plano guarda ${money(planejado)}: faltam ${money(alvo - planejado)} por mês.`;
-  const detalhes: string[] = abertas.slice(0, 4).map((m) => `${m.nome}: ${money(m.necessarioPorMes)} por mês${m.prazo ? ` pra chegar em ${m.prazo}` : ""}.`);
+  const detalhes: string[] = abertas
+    .slice(0, 4)
+    .map((m) => (m.vencida ? `${m.nome}: ${money(m.necessarioPorMes)} por mês, o que você combinou. O prazo (${m.prazo}) já passou: vale escolher uma data nova.` : `${m.nome}: ${money(m.necessarioPorMes)} por mês${m.prazo ? ` pra chegar em ${m.prazo}` : ""}.`));
+  // Vencida sem valor combinado não entra na soma, mas também não some da resposta.
+  for (const m of vencidasSemValor.slice(0, 2)) {
+    detalhes.push(`${m.nome}: o prazo (${m.prazo}) já passou. Escolha uma data nova e eu calculo quanto guardar.`);
+  }
   if (e.reserva && e.reserva.porMes > 0) detalhes.push(`Reserva de emergência: ${money(e.reserva.porMes)} por mês (faltam ${money(e.reserva.falta)}).`);
   if (minimoAula > total) detalhes.push(`As metas pedem menos que isso, mas a aula pede no mínimo 10% da renda: ${money(minimoAula)}.`);
   return {
@@ -212,8 +287,9 @@ export function quandoAtinjoMinhaMeta(e: { money: (v: number) => string; metas: 
   const atrasadas = abertas.filter((m) => !m.noPrazo);
   const principal = atrasadas[0] ?? abertas[0];
   const veredito: Veredito = atrasadas.length === 0 ? "bom" : atrasadas.some((m) => m.chegaEm === null) ? "ruim" : "atencao";
-  const frase =
-    principal.chegaEm === null
+  const frase = principal.vencida
+    ? `${principal.nome}: o prazo (${principal.prazo}) já passou${principal.chegaEm ? `. No ritmo de hoje, chega em ${principal.chegaEm}` : ""}. Quer escolher uma data nova?`
+    : principal.chegaEm === null
       ? `${principal.nome}, no ritmo de hoje, não chega: você está guardando ${money(principal.ritmoPorMes)} por mês e ela pede ${money(principal.necessarioPorMes)}.`
       : principal.noPrazo
         ? `${principal.nome} chega em ${principal.chegaEm}${principal.prazo ? `, dentro do prazo (${principal.prazo})` : ""}.`
@@ -221,13 +297,19 @@ export function quandoAtinjoMinhaMeta(e: { money: (v: number) => string; metas: 
   const detalhes = abertas
     .filter((m) => m !== principal)
     .slice(0, 4)
-    .map((m) => (m.chegaEm ? `${m.nome}: chega em ${m.chegaEm}${m.prazo ? (m.noPrazo ? " (no prazo)" : ` (o prazo era ${m.prazo})`) : ""}.` : `${m.nome}: no ritmo de hoje, não chega.`));
+    .map((m) =>
+      m.vencida
+        ? `${m.nome}: o prazo (${m.prazo}) já passou${m.chegaEm ? `; no ritmo de hoje, chega em ${m.chegaEm}` : ""}.`
+        : m.chegaEm
+          ? `${m.nome}: chega em ${m.chegaEm}${m.prazo ? (m.noPrazo ? " (no prazo)" : ` (o prazo era ${m.prazo})`) : ""}.`
+          : `${m.nome}: no ritmo de hoje, não chega.`,
+    );
   return {
     veredito,
     frase,
     detalhes,
     conta: abertas.map((m) => ({ rotulo: m.nome, valor: `${money(m.atual)} de ${money(m.alvo)} · ${money(m.ritmoPorMes)}/mês` })),
-    acoes: [{ rotulo: "Ver minhas metas", href: "/planejamento/metas" }],
+    acoes: [{ rotulo: principal.vencida ? "Escolher uma data nova" : "Ver minhas metas", href: "/planejamento/metas" }],
   };
 }
 

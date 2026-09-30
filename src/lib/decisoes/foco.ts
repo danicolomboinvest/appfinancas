@@ -74,7 +74,17 @@ export type FocoEntrada = {
    * Tetos que a pessoa pôs neste mês (chave da categoria → valor). Categoria com teto não vira
    * alerta de ritmo; com teto zero ("não gastar mais nada"), também não vira alerta de estouro.
    */
-  tetos?: { categoria: string; valor: number; gastoNaHora?: number | null }[];
+  tetos?: {
+    categoria: string;
+    valor: number;
+    gastoNaHora?: number | null;
+    /**
+     * O que entrou na categoria DEPOIS do combinado, somado lançamento a lançamento (ver
+     * gastoDepoisDoCombinado). Quando vem, é o que vale: a diferença entre o total de agora e o
+     * `gastoNaHora` acusava de "quebrado" a fatura importada depois com compras de antes.
+     */
+    gastoDepois?: number | null;
+  }[];
   /** Gastos recorrentes do Raio-X que ela ainda não decidiu. */
   raiox?: { n: number; anual: number } | null;
   /** Avisos que ela já dispensou ("foi pontual", "entendi") neste mês ou nesta semana. */
@@ -110,7 +120,19 @@ export type FocoLivre =
  * outra tela.
  */
 export type FocoDetalhe =
-  | { tipo: "estouro" | "ritmo"; categoria: string; label: string; gasto: number; planejado: number; sobra: number; dias: number; /** Quanto do mês já passou (0 a 1): a marca de "hoje" na barra. */ decorrido: number }
+  | {
+      tipo: "estouro" | "ritmo";
+      categoria: string;
+      label: string;
+      gasto: number;
+      planejado: number;
+      sobra: number;
+      dias: number;
+      /** Quanto do mês já passou (0 a 1): a marca de "hoje" na barra. */
+      decorrido: number;
+      /** Estouro: o plano que o "O plano estava baixo" oferece (ver planoQueCabe). */
+      planoNovo?: number;
+    }
   | { tipo: "fora"; valor: number; livre: number }
   | { tipo: "aporte"; falta: number; guardado: number; planejado: number }
   | { tipo: "meta"; metaId: string; nome: string; porMes: number; quando: string; vencida: boolean; ultimoMes: boolean }
@@ -153,6 +175,53 @@ const DIAS_DADO_VELHO = 7;
 const MESES_RESERVA_MINIMO = 6;
 /** Diferença de centavos não é estouro: "R$ 500 de R$ 500 passou do orçamento" não ajuda ninguém. */
 const FOLGA_ESTOURO = 1;
+
+const arredonda10 = (v: number) => Math.ceil(v / 10) * 10;
+
+/**
+ * "O plano estava baixo": o plano novo tem que caber no resto do mês. Antes subia só até o que já
+ * tinha sido gasto (R$ 703 → R$ 710): no refresh vinha "99% usado, sobram R$ 7 pra 21 dias", e o
+ * próximo café estourava de novo. Agora é o gasto até aqui mais o plano de sempre pros dias que
+ * faltam, só da parte que corre: o que já estava marcado antes do mês (plano de saúde, parcela)
+ * não se repete. Conta fixa (o aluguel reajustado) não corre: o plano novo é o que ela pagou.
+ */
+export function planoQueCabe(c: Pick<FocoCategoria, "gasto" | "planejado" | "fixa" | "fixoAutomatico">, diasRestantes: number, diasNoMes: number): number {
+  if (c.fixa) return arredonda10(c.gasto);
+  const fixo = Math.min(c.fixoAutomatico ?? 0, c.planejado);
+  const resto = (Math.max(0, c.planejado - fixo) * Math.max(0, diasRestantes)) / Math.max(1, diasNoMes);
+  return arredonda10(c.gasto + resto);
+}
+
+/** Um gasto da categoria de um combinado, com o que diz QUANDO ele aconteceu. */
+export type GastoDoCombinado = {
+  valor: number;
+  /** A data do gasto ("2026-09-12"), ou null quando não tem. */
+  dia: string | null;
+  /** Quando entrou no app. */
+  criadoEm: Date;
+  /** Veio de extrato, fatura ou Open Finance. */
+  importado: boolean;
+};
+
+/**
+ * O que entrou na categoria DEPOIS do combinado, gasto a gasto. A diferença entre o total de agora
+ * e o da hora acusava de "quebrado" quem não gastou nada: a fatura importada no dia 20 com as
+ * compras dos dias 1 a 11, ou o iFood do dia 3 movido pra categoria. Conta só o que:
+ * - entrou no app depois do combinado (o que já existia estava no total da hora, até a conta
+ *   fixa lançada lá atrás com data mais pra frente no mês);
+ * - e aconteceu depois dele: importado, com data DEPOIS do dia do combinado (no próprio dia não
+ *   dá pra saber se foi antes ou depois da hora, e na dúvida o app não acusa; linha sem data, como
+ *   a de fatura, não diz quando foi); lançado à mão, sem data ou com data do dia em diante.
+ */
+export function gastoDepoisDoCombinado(gastos: GastoDoCombinado[], combinadoEm: Date, diaDoCombinado: string): number {
+  let soma = 0;
+  for (const g of gastos) {
+    if (g.criadoEm.getTime() < combinadoEm.getTime()) continue;
+    const depois = g.importado ? g.dia !== null && g.dia > diaDoCombinado : g.dia === null || g.dia >= diaDoCombinado;
+    if (depois) soma += g.valor;
+  }
+  return Math.max(0, soma);
+}
 
 export function montarFoco(e: FocoEntrada): FocoSaida {
   const { t, money } = e;
@@ -224,7 +293,7 @@ export function montarFoco(e: FocoEntrada): FocoSaida {
         texto: t.focoEstouroP(money(c.gasto), money(c.planejado), diasRestantes),
         href: hrefOrcamento,
         acao: t.focoAcao,
-        detalhe: { tipo: "estouro", categoria: c.key, label: c.label, gasto: c.gasto, planejado: c.planejado, sobra: 0, dias: diasRestantes, decorrido },
+        detalhe: { tipo: "estouro", categoria: c.key, label: c.label, gasto: c.gasto, planejado: c.planejado, sobra: 0, dias: diasRestantes, decorrido, planoNovo: planoQueCabe(c, diasRestantes, e.diasNoMes) },
       });
     }
   }
@@ -332,10 +401,11 @@ export function montarFoco(e: FocoEntrada): FocoSaida {
   for (const teto of e.tetos ?? []) {
     const c = e.categorias.find((x) => x.key === teto.categoria);
     if (!c || comAviso.has(c.key)) continue;
+    // Sem a soma lançamento a lançamento (quem chama sem ela), cai na diferença entre totais.
     // Combinado de antes desta versão não guardou o gasto da hora: o "nada mais" assume o gasto de
     // agora (nada quebrado), e o teto do aviso de ritmo era o que sobrava do plano.
     const naHora = teto.gastoNaHora ?? (teto.valor > 0 ? Math.max(0, c.planejado - teto.valor) : c.gasto);
-    const depois = Math.max(0, c.gasto - naHora);
+    const depois = Math.max(0, teto.gastoDepois ?? c.gasto - naHora);
     combinados.push({
       categoria: c.key,
       label: c.label,

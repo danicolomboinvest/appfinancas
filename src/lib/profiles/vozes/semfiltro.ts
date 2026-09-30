@@ -620,7 +620,7 @@ export const semfiltro: Voz = {
     impPagamentoFatura: (n) =>
       `Achei ${n === 1 ? "este lançamento" : "estes lançamentos"} no seu extrato que ${n === 1 ? "parece ser" : "parecem ser"} o pagamento dessa fatura. Remove, pra não contar o gasto duas vezes? Uma já dói 🙃`,
     // Posição da corretora
-    impCarteiraArquivoGrande: "Arquivo grande demais (máx. ~7 MB). Exporta um relatório menor e tenta de novo.",
+    impCarteiraArquivoGrande: "Arquivo grande demais (máx. 4 MB). Exporta um relatório menor e tenta de novo.",
     impSenhaDicaCorretora: "Digita a senha do arquivo (a mesma que a corretora pede pra abrir). Ela só serve pra abrir e não fica salva. Nem eu guardo 😏",
     impCarteiraLiTudo: (resumo) => `Li o arquivo inteiro: ${resumo}. Tudinho 👀`,
     impCarteiraEmDia: (n) => `A carteira já batia com esse extrato: ${n} ativo${s(n)} conferido${s(n)}, nenhuma mudança. Em dia, olha ela 👏`,
@@ -629,7 +629,7 @@ export const semfiltro: Voz = {
         .filter(Boolean)
         .join(" · ") || "Nada pra mudar, a carteira já tava em dia 😎",
     // Declaração de IR
-    impIrpfArquivoGrande: "Arquivo grande demais (máx. ~7 MB).",
+    impIrpfArquivoGrande: "Arquivo grande demais (máx. 4 MB).",
     impIrpfSelecioneUm: "Escolhe pelo menos um ativo pra aplicar o preço médio.",
     impIrpfIntro: [
       "Sua declaração de IR tem o ",

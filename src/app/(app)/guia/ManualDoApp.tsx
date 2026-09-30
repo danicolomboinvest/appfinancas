@@ -4,7 +4,7 @@ import { AlertTriangle, Check, Copy, Download, FileText, Layers, ListChecks, Pig
 import { Card } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
-import { SECOES_DO_MANUAL, comNomes, type BlocoDoManual, type IconeDoManual, type NomesDoTema } from "@/lib/manual/conteudo";
+import { SECOES_DO_MANUAL, comNomes, nomesDoTema, type BlocoDoManual, type IconeDoManual } from "@/lib/manual/conteudo";
 
 const ICONES: Record<IconeDoManual, LucideIcon> = {
   rocket: Rocket,
@@ -27,18 +27,12 @@ export const PDF_DO_MANUAL = "/manual-spi-finance.pdf";
 
 /**
  * O manual, com os nomes que ESTE tema usa: quem está no Girly lê "Combinado", e não
- * "Orçamento", porque é isso que a aba dela diz.
+ * "Orçamento", porque é isso que a aba dela diz. Os botões também ("Tirar", "Mexer ✏️"):
+ * a voz aqui já vem com o tipo do perfil, então a Empresa lê "Caixa de segurança".
  */
 export function ManualDoApp() {
   const { voz, empresa } = useProfileTheme();
-  const nomes: NomesDoTema = {
-    foco: voz.nav.foco ?? "Foco",
-    mensal: voz.nav.flowTabs[0],
-    orcamento: voz.nav.flowTabs[2],
-    metas: voz.nav.metas,
-    carteira: voz.nav.carteira ?? "Carteira",
-    guardar: voz.titulos.uiTipoAporte,
-  };
+  const nomes = nomesDoTema(voz);
   const n = (t: string) => comNomes(t, nomes);
   const secoes = SECOES_DO_MANUAL.filter((s) => !(empresa && s.soPessoa));
 

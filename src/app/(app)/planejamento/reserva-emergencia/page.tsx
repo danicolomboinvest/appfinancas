@@ -3,7 +3,7 @@ import { vozDoTema } from "@/lib/profiles/voice";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import { getEmergencyFund } from "@/lib/repositories/emergency-fund.repo";
 import { getTypicalMonthlyExpense } from "@/lib/planning/typical-expense";
-import { computeEmergencyFundPlan } from "@/lib/planning/emergency-fund";
+import { computeEmergencyFundPlan, mesDeConclusao } from "@/lib/planning/emergency-fund";
 import { SavingsProjectionChart } from "@/components/charts/SavingsProjectionChart";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatRows } from "@/components/ui/StatRows";
@@ -36,8 +36,7 @@ export default async function ReservaEmergenciaPage() {
   // a pessoa a contar no calendário pra saber quando é.
   let completionLabel: string | null = null;
   if (plan && plan.monthsToTarget !== null) {
-    const done = nowInBrazil();
-    done.setMonth(done.getMonth() + plan.monthsToTarget);
+    const done = mesDeConclusao(nowInBrazil(), plan.monthsToTarget);
     completionLabel = done.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
   }
 
@@ -68,7 +67,7 @@ export default async function ReservaEmergenciaPage() {
               {
                 label: voz.titulos.reservaTempo,
                 value: plan.monthsToTarget === null ? "Não fecha" : `${plan.monthsToTarget} meses`,
-                hint: plan.monthsToTarget === null ? "Com esse aporte a reserva não chega na meta. Aumente o valor por mês." : undefined,
+                hint: plan.monthsToTarget === null ? voz.titulos.reservaNaoFechaHint : undefined,
               },
               { label: voz.titulos.reservaRendimento, value: formatPercentNumber(plan.monthlyRate * 100, 3) },
             ]}

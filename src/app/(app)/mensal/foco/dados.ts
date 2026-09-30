@@ -17,12 +17,14 @@ import { carregarRevisaoAntigos } from "./revisar/dados";
 import { existeDecisao, listarAvisosDispensados, listarCancelamentosPraConfirmar, listarCompraAmanhaPendentes, listarDecisoesRaioX, listarTetosDoMes } from "@/lib/repositories/decisao.repo";
 import { computeGoalPlan } from "@/lib/planning/goal";
 import { ehEmpresa } from "@/lib/profiles/empresa";
-import { montarFoco } from "@/lib/decisoes/foco";
+import { gastoDepoisDoCombinado, montarFoco } from "@/lib/decisoes/foco";
 import { acharRecorrentes } from "@/lib/decisoes/raio-x";
 import { chaveDaSemana, chaveDoMes, lerRitmo } from "./ritmo";
 
 export const MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
 const DIA_MS = 86_400_000;
+/** Quantos gastos a lista de um aviso tem ao todo, e quanto somam (ela mostra só os maiores). */
+export type ResumoDaLista = { n: number; total: number };
 /** Contas fixas: pagas de uma vez no começo do mês, não "correm". Só estouro vale aviso. */
 const CATEGORIAS_FIXAS = new Set<string>(["MORADIA", "EDUCACAO", "IMPOSTOS"]);
 
@@ -104,6 +106,40 @@ export async function carregarFoco(ctx: AuthContext) {
     ]);
   const ritmo = lerRitmo(user.ritmoAcompanhamento);
 
+  // Os combinados contam só o que aconteceu DEPOIS deles (ver gastoDepoisDoCombinado): basta o
+  // que entrou no app desde o primeiro combinado do mês. E a lista de um aviso mostra só os
+  // maiores gastos: a contagem e o total de verdade vêm à parte, pra os números baterem.
+  const desdeOPrimeiroCombinado = tetos.length > 0 ? new Date(Math.min(...tetos.map((x) => x.combinadoEm.getTime()))) : null;
+  const [gastosDesdeOCombinado, resumoDosGastos] = await Promise.all([
+    desdeOPrimeiroCombinado
+      ? prisma.monthlyEntry.findMany({
+          where: { userId: ctx.userId, profileId: ctx.profileId, year, month, category: "EXPENSE", createdAt: { gte: desdeOPrimeiroCombinado } },
+          select: { amount: true, entryDate: true, createdAt: true, importBatchId: true, externalId: true, parentCategory: true, customCategoryId: true },
+        })
+      : Promise.resolve([]),
+    prisma.monthlyEntry.groupBy({
+      by: ["parentCategory", "customCategoryId"],
+      where: { userId: ctx.userId, profileId: ctx.profileId, year, month, category: "EXPENSE" },
+      _count: { _all: true },
+      _sum: { amount: true },
+    }),
+  ]);
+  // O dia do combinado no calendário do Brasil ("2026-09-12"), no formato da data do gasto.
+  const diaNoBrasil = (instante: Date) => {
+    const b = nowInBrazil(instante);
+    return `${b.getFullYear()}-${String(b.getMonth() + 1).padStart(2, "0")}-${String(b.getDate()).padStart(2, "0")}`;
+  };
+  const tetosDoFoco = tetos.map((x) => ({
+    ...x,
+    gastoDepois: gastoDepoisDoCombinado(
+      gastosDesdeOCombinado
+        .filter((g) => (g.customCategoryId ?? g.parentCategory) === x.categoria)
+        .map((g) => ({ valor: Number(g.amount), dia: g.entryDate ? g.entryDate.toISOString().slice(0, 10) : null, criadoEm: g.createdAt, importado: g.importBatchId !== null || g.externalId !== null })),
+      x.combinadoEm,
+      diaNoBrasil(x.combinadoEm),
+    ),
+  }));
+
   const nomePersonalizada = new Map(customCategories.map((c) => [c.id, c.name]));
   const gastoPorMae = new Map(spentByParent.map((s) => [s.parentCategory as string, s.spent]));
   const gastoPorPersonalizada = new Map(spentByCustom.map((s) => [s.customCategoryId, s.spent]));
@@ -163,7 +199,7 @@ export async function carregarFoco(ctx: AuthContext) {
     // "100% concluída"); sem reserva montada, a referência da aula (6) ou do Sebrae (3).
     reservaMinimaMeses: fund && fund.targetMonths > 0 ? fund.targetMonths : empresa ? 3 : 6,
     hrefMes,
-    tetos,
+    tetos: tetosDoFoco,
     dispensados,
     raiox: naoDecididos.length > 0 ? { n: naoDecididos.length, anual: naoDecididos.reduce((s, i) => s + i.anual, 0) } : null,
     money: m,
@@ -191,6 +227,16 @@ export async function carregarFoco(ctx: AuthContext) {
     const lista = (gastosPorCategoria[k] ??= []);
     if (lista.length < 15) lista.push(paraLista(g));
   }
+  // Quantos gastos e quanto somam de verdade, por categoria e fora do orçamento: a lista acima
+  // para em 15 (ou 60), e sem isso dizia "15 gastos · R$ 620" do lado de "Gasto R$ 1.140".
+  const resumoPorCategoria: Record<string, ResumoDaLista> = {};
+  const resumoFora: ResumoDaLista = { n: 0, total: 0 };
+  for (const r of resumoDosGastos) {
+    const k = r.customCategoryId ?? (r.parentCategory as string | null);
+    const alvo = k && noOrcamento.has(k) ? (resumoPorCategoria[k] ??= { n: 0, total: 0 }) : resumoFora;
+    alvo.n += r._count._all;
+    alvo.total += Number(r._sum.amount ?? 0);
+  }
   const opcoesDeCategoria = categorias.map((c) => ({ key: c.key, label: c.label }));
   const maioresGastos = gastosDoMes.slice(0, 5).map(paraLista);
   const raioxAnual = naoDecididos.reduce((s, i) => s + i.anual, 0);
@@ -203,6 +249,8 @@ export async function carregarFoco(ctx: AuthContext) {
     raioxAnual,
 
     gastosPorCategoria,
+    resumoPorCategoria,
+    resumoFora,
     opcoesDeCategoria,
     empresa,
     ritmo,

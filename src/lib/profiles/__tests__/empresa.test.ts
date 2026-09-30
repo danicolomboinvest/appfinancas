@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CATEGORIAS_EMPRESA, caixaDaEmpresa, calcularDRE, despesasFixasTipicas, ehEmpresa, saudeDoCaixa, soMesesJaVividos } from "../empresa";
+import { CATEGORIAS_EMPRESA, caixaDaEmpresa, calcularDRE, despesasFixasTipicas, ehEmpresa, gastoSemCategoriaDoPeriodo, saudeDoCaixa, soMesesJaVividos } from "../empresa";
 import { PARENT_CATEGORIES } from "@/lib/categories";
 
 describe("perfil Empresa: DRE", () => {
@@ -23,6 +23,22 @@ describe("perfil Empresa: DRE", () => {
     expect(dre.sobraNoCaixa).toBe(1300);
     // Ponto de equilíbrio: despesas fixas / margem de contribuição = 4200 / 0,6 = 7.000.
     expect(dre.pontoDeEquilibrio).toBeCloseTo(7000);
+  });
+
+  it("gasto sem categoria entra como despesa fixa: o lucro da DRE bate com entrou − saiu", () => {
+    // Receita 20.000, 12.000 em categorias e 3.000 que o Open Finance não classificou.
+    const periodo = { despesaTotal: 15000, gastoPorCategoria: [{ spent: 12000 }], gastoPersonalizado: 0 };
+    const semCategoria = gastoSemCategoriaDoPeriodo(periodo);
+    expect(semCategoria).toBe(3000);
+    const dre = calcularDRE({ receita: 20000, gastoPorCategoria: { MORADIA: 12000 }, gastoSemCategoria: semCategoria });
+    expect(dre.semCategoria).toBe(3000);
+    expect(dre.lucroOperacional).toBe(20000 - 15000);
+    expect(dre.margemLiquidaPct).toBeCloseTo(0.25);
+  });
+
+  it("sem o total do período, ou com tudo categorizado, não inventa gasto sem categoria", () => {
+    expect(gastoSemCategoriaDoPeriodo({ gastoPorCategoria: [{ spent: 100 }], gastoPersonalizado: 0 })).toBe(0);
+    expect(gastoSemCategoriaDoPeriodo({ despesaTotal: 300.1, gastoPorCategoria: [{ spent: 100.1 }], gastoPersonalizado: 200 })).toBe(0);
   });
 
   it("sem receita não inventa margem nem ponto de equilíbrio", () => {

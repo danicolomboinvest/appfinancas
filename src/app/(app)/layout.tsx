@@ -15,6 +15,8 @@ import { toCurrencyCode, type CurrencyCode } from "@/lib/money";
 import { listProfiles, getOrCreateActiveProfile } from "@/lib/repositories/profile.repo";
 import { modoEfetivo, profileThemeCss, temaDeixaEscolherModo } from "@/lib/profiles/themes";
 import { periodoDoDia, vozDoTema } from "@/lib/profiles/voice";
+import { emailConfirmado } from "@/lib/auth/confirmacao-email";
+import { TelaConfirmeEmail } from "@/components/auth/TelaConfirmeEmail";
 
 
 function capitalize(text: string) {
@@ -50,6 +52,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       getOrCreateActiveProfile(ctx.userId),
       listProfiles(ctx.userId),
     ]);
+    // Conta nova só abre depois de confirmar o e-mail: sem isso qualquer um criava a conta com
+    // o e-mail de outra pessoa (de uma compradora, inclusive). Vem antes do /comecar, que
+    // também manda de volta pra cá quem não confirmou. Admin sempre passa.
+    if (ctx.role !== "ADMIN" && !emailConfirmado(user)) return <TelaConfirmeEmail email={user.email} />;
     // Primeira entrada: antes de ver qualquer tela, a pessoa escolhe o tipo e o tema do
     // perfil dela em /comecar. Uma vez só; quem já usava o app nasceu com a data preenchida.
     if (user.onboardedAt === null) redirect("/comecar");

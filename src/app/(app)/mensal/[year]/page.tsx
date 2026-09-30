@@ -18,6 +18,7 @@ import { QuickEntryButton } from "./QuickEntryButton";
 import { formatPercentNumber } from "@/lib/format";
 import { serverMoney } from "@/lib/money-server";
 import type { MoneyFormatter } from "@/lib/money";
+import { vozDoTema, type Titulos } from "@/lib/profiles/voice";
 
 const MONTH_LABELS = [
   "Janeiro",
@@ -51,6 +52,8 @@ export default async function YearPage(props: PageProps<"/mensal/[year]">) {
   // URL editada à mão ("/mensal/abc") viraria NaN direto no Prisma → erro 500.
   if (!Number.isInteger(year) || year < 2000 || year > 2100) notFound();
   const ctx = await getRequiredSession();
+  // Subtítulo e "Aportes" vêm da voz do tema (no Girly, sem "consolidação" nem "aporte").
+  const t = vozDoTema(ctx.profileTheme, ctx.profileKind).titulos;
   const [summary, recentSubcategories, customCategories] = await Promise.all([
     getYearlySummary(ctx, year),
     listRecentSubcategories(ctx),
@@ -71,7 +74,7 @@ export default async function YearPage(props: PageProps<"/mensal/[year]">) {
 
       <PageHeader
         title={yearPageTitle(year)}
-        subtitle="Consolidação automática dos 12 meses do ano."
+        subtitle={t.paiAnoSub}
         action={
           <div className="flex items-center gap-1">
             <Link
@@ -93,7 +96,7 @@ export default async function YearPage(props: PageProps<"/mensal/[year]">) {
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-5">
         <StatCard label="Renda" value={money(summary.totalIncome)} tone="success" sparkline={incomeSparkline} />
         <StatCard label="Gastos" value={money(summary.totalExpense)} tone="danger" sparkline={expenseSparkline} />
-        <StatCard label="Aportes" value={money(summary.totalInvestment)} sparkline={investmentSparkline} />
+        <StatCard label={t.paiAnoAportes} value={money(summary.totalInvestment)} sparkline={investmentSparkline} />
         <StatCard label="Saldo" value={money(summary.balance)} tone="accent" sparkline={balanceSparkline} />
         <StatCard
           label="Taxa de poupança"
@@ -107,7 +110,7 @@ export default async function YearPage(props: PageProps<"/mensal/[year]">) {
 
       <CollapsibleSection label="Ver os 12 meses em detalhe">
         <ResponsiveTable
-          columns={monthColumns(money, year, recentSubcategories, customCategories)}
+          columns={monthColumns(money, year, recentSubcategories, customCategories, t)}
           rows={summary.months}
           rowKey={(m) => String(m.month)}
         />
@@ -121,12 +124,13 @@ function monthColumns(
   year: number,
   recentSubcategories: Record<ParentCategory, string[]>,
   customCategories: { id: string; name: string }[],
+  t: Titulos,
 ): ResponsiveColumn<MonthlyBreakdown>[] {
   return [
     { key: "month", label: "Mês", render: (m) => MONTH_LABELS[m.month - 1] },
     { key: "income", label: "Renda", render: (m) => money(m.totalIncome) },
     { key: "expense", label: "Gastos", render: (m) => money(m.totalExpense) },
-    { key: "investment", label: "Aportes", render: (m) => money(m.totalInvestment) },
+    { key: "investment", label: t.paiAnoAportes, render: (m) => money(m.totalInvestment) },
     { key: "balance", label: "Saldo", render: (m) => money(m.balance) },
     {
       key: "actions",

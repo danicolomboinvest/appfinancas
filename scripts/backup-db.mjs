@@ -13,7 +13,7 @@
  *
  * Rodar na mão:  npm run backup
  */
-import { PrismaClient } from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
 import { PrismaNeon } from "@prisma/adapter-neon";
 import { neonConfig } from "@neondatabase/serverless";
 import ws from "ws";
@@ -75,6 +75,56 @@ const tabelas = Object.keys(prisma).filter(
   (k) => !k.startsWith("_") && !k.startsWith("$") && typeof prisma[k]?.findMany === "function",
 );
 
+// Lê quem aponta ANTES de quem é apontado (lançamento antes de categoria, perfil antes de
+// usuária). O backup não é um retrato único do banco, e na ordem do schema a categoria "Pet"
+// criada no meio do backup ficava fora do CustomCategory.json mas o gasto nela entrava no
+// MonthlyEntry.json: no restore, lançamento órfão. Lendo o filho primeiro, tudo que ele aponta
+// já existia e ainda vai estar lá quando a tabela-mãe for lida.
+{
+  const modelos = Prisma.dmmf.datamodel.models;
+  const pais = new Map(modelos.map((m) => [m.name, m.fields.filter((f) => f.kind === "object" && f.relationFromFields?.length && f.type !== m.name).map((f) => f.type)]));
+  const paisPrimeiro = [];
+  const visto = new Set();
+  const visitar = (nome) => {
+    if (visto.has(nome)) return;
+    visto.add(nome);
+    for (const pai of pais.get(nome) ?? []) visitar(pai);
+    paisPrimeiro.push(nome);
+  };
+  modelos.forEach((m) => visitar(m.name));
+  const posicao = (tabela) => {
+    const i = paisPrimeiro.indexOf(tabela.charAt(0).toUpperCase() + tabela.slice(1));
+    return i < 0 ? -1 : paisPrimeiro.length - i; // fora do schema: primeiro
+  };
+  tabelas.sort((a, b) => posicao(a) - posicao(b));
+}
+
+/**
+ * Lê a tabela em pedaços. O Neon recusa resposta acima de 64 MB, e a tabela dos arquivos de
+ * importação guardados (ImportFile) passou disso em 29/09/2026: o backup parava no meio, sem
+ * aviso no diário, e as tabelas depois dela (lançamentos, orçamento, metas) ficavam de fora.
+ * Tabela com `id` anda pelo id; ImportFile vai de poucos em poucos (cada arquivo tem até 4 MB).
+ */
+const TEM_ID = new Set(Prisma.dmmf.datamodel.models.filter((m) => m.fields.some((f) => f.name === "id" && f.isId)).map((m) => m.name));
+async function* lerEmPartes(tabela, Nome) {
+  if (!TEM_ID.has(Nome)) {
+    yield* await prisma[tabela].findMany();
+    return;
+  }
+  const tamanho = Nome === "ImportFile" ? 2 : 1000; // arquivos antigos têm até ~7,5 MB: 5 juntos passavam dos 64 MB de resposta do Neon
+  let depoisDe;
+  for (;;) {
+    const lote = await prisma[tabela].findMany({
+      take: tamanho,
+      orderBy: { id: "asc" },
+      ...(depoisDe ? { cursor: { id: depoisDe }, skip: 1 } : {}),
+    });
+    yield* lote;
+    if (lote.length < tamanho) return;
+    depoisDe = lote.at(-1).id;
+  }
+}
+
 const nome = carimbo();
 const linhasPorTabela = {};
 
@@ -83,12 +133,15 @@ const linhasPorTabela = {};
 const pastaLocal = path.join(DESTINOS[0], nome);
 fs.mkdirSync(pastaLocal, { recursive: true });
 for (const tabela of tabelas) {
-  const linhas = await prisma[tabela].findMany();
   const Nome = tabela.charAt(0).toUpperCase() + tabela.slice(1);
-  linhasPorTabela[Nome] = linhas.length;
   const fd = fs.openSync(path.join(pastaLocal, `${Nome}.json`), "w");
   fs.writeSync(fd, "[\n");
-  linhas.forEach((linha, i) => fs.writeSync(fd, (i ? ",\n" : "") + JSON.stringify(linha, serializar)));
+  let n = 0;
+  for await (const linha of lerEmPartes(tabela, Nome)) {
+    fs.writeSync(fd, (n ? ",\n" : "") + JSON.stringify(linha, serializar));
+    n += 1;
+  }
+  linhasPorTabela[Nome] = n;
   fs.writeSync(fd, "\n]\n");
   fs.closeSync(fd);
 }

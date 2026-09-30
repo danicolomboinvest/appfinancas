@@ -45,7 +45,7 @@ export type ListEntry = {
   /** "Hoje", "Ontem" ou "dd/mm" — já calculado no servidor, no fuso do Brasil. */
   dayLabel: string | null;
   goalId: string | null;
-  /** Cópia de uma despesa fixa ("Repetir todo mês"): editar e apagar perguntam se é só este mês. */
+  /** Cópia de um lançamento fixo ("Repetir todo mês": despesa, renda ou aporte): editar e apagar perguntam se é só este mês. */
   recurrenceId?: string | null;
   /** Lançado em outra moeda: "€ 2.000,00" já formatado no servidor, e os dados pra editar. */
   originalLabel?: string | null;
@@ -174,11 +174,21 @@ export function EntryList({
     const snapshots = targets.map((t) => toSnapshot(t, year, month));
     const quantos = targets.length;
     startTransition(async () => {
-      const { jaNaCarteira, allocations, origens } = await deleteMonthlyEntriesAction(
-        targets.map((t) => t.id),
-        year,
-        month,
-      );
+      // Sem o try, a internet caindo (ou a sessão expirando) no meio da exclusão subia pro
+      // error boundary da raiz e trocava o app inteiro — menu e abas — pela tela de erro.
+      let resultado: Awaited<ReturnType<typeof deleteMonthlyEntriesAction>>;
+      try {
+        resultado = await deleteMonthlyEntriesAction(
+          targets.map((t) => t.id),
+          year,
+          month,
+        );
+      } catch (err) {
+        console.error("deleteMonthlyEntriesAction falhou", err);
+        showError(t.acaoFalhou);
+        return;
+      }
+      const { jaNaCarteira, allocations, origens } = resultado;
       // O "Desfazer" devolve o aporte com os ativos em que ele já tinha entrado; sem isso ele
       // voltava "sem destino" e a meta contava aporte + ativo. E devolve o lote/transação de
       // origem, senão o lançamento voltava como "feito à mão".
@@ -195,7 +205,7 @@ export function EntryList({
         label: t.uiDesfazer,
         onClick: () => {
           startTransition(async () => {
-            const result = await undoDeleteEntriesAction(snapshots);
+            const result = await undoDeleteEntriesAction(snapshots).catch(() => ({ ok: false }));
             if (result.ok) showToast(t.uiRestaurado(quantos));
             else showError(t.uiRestaurarFalhou);
           });
@@ -212,16 +222,26 @@ export function EntryList({
   /** "Este e os próximos": a série inteira daqui pra frente, com Desfazer pra todas as cópias. */
   function removeSerie(entry: ListEntry) {
     startTransition(async () => {
-      const { apagados, snapshots } = await deleteSeriesFromAction(entry.id);
-      if (apagados === 0) {
-        showError("Não achei essa despesa fixa. Recarregue a página.");
+      let resultado: Awaited<ReturnType<typeof deleteSeriesFromAction>>;
+      try {
+        resultado = await deleteSeriesFromAction(entry.id);
+      } catch (err) {
+        console.error("deleteSeriesFromAction falhou", err);
+        showError(t.acaoFalhou);
         return;
       }
-      showToast(t.uiExcluido(apagados), {
+      const { apagados, jaNaCarteira, snapshots } = resultado;
+      if (apagados === 0) {
+        showError(t.uiFixoNaoAchei);
+        return;
+      }
+      // Mesmo aviso do "Só este mês": aporte já distribuído fica no ativo, e ela precisa saber.
+      const base = t.uiExcluido(apagados);
+      showToast(jaNaCarteira > 0 ? `${base} ${t.uiExcluidoContinuaNaCarteira}` : base, {
         label: t.uiDesfazer,
         onClick: () => {
           startTransition(async () => {
-            const result = await undoDeleteEntriesAction(snapshots);
+            const result = await undoDeleteEntriesAction(snapshots).catch(() => ({ ok: false }));
             if (result.ok) showToast(t.uiRestaurado(apagados));
             else showError(t.uiRestaurarFalhou);
           });
@@ -236,8 +256,13 @@ export function EntryList({
     const ids = [...selected];
     setBulkCategorizing(false);
     startTransition(async () => {
-      const { count } = await updateMonthlyEntriesCategoryAction(ids, category, year, month);
-      showToast(t.uiCategoriaAtualizada(count));
+      try {
+        const { count } = await updateMonthlyEntriesCategoryAction(ids, category, year, month);
+        showToast(t.uiCategoriaAtualizada(count));
+      } catch (err) {
+        console.error("updateMonthlyEntriesCategoryAction falhou", err);
+        showError(t.acaoFalhou);
+      }
     });
     leaveSelection();
   }
@@ -503,10 +528,16 @@ export function EntryList({
         )}
       </Modal>
 
-      <Modal open={apagandoFixa !== null} onClose={() => setApagandoFixa(null)} title="Apagar despesa fixa">
+      {/* O título diz o tipo: renda e aporte também se repetem, e chamar o salário de "despesa
+          fixa" confundia bem na hora de escolher entre só este mês e a série. */}
+      <Modal
+        open={apagandoFixa !== null}
+        onClose={() => setApagandoFixa(null)}
+        title={t.uiFixoApagarTitulo(apagandoFixa?.category ?? "EXPENSE")}
+      >
         {apagandoFixa && (
           <div className="flex flex-col gap-3">
-            <p className="text-sm text-ink-muted">Ela se repete todo mês. Os meses que já passaram ficam como estão.</p>
+            <p className="text-sm text-ink-muted">{t.uiFixoApagarTexto(apagandoFixa.category)}</p>
             <button
               type="button"
               onClick={() => {
@@ -516,7 +547,7 @@ export function EntryList({
               }}
               className="inline-flex min-h-12 items-center justify-center rounded-full border border-border-strong bg-surface-2 text-sm font-semibold text-ink transition-colors hover:bg-surface-hover"
             >
-              Só este mês
+              {t.uiFixoSoEste}
             </button>
             <button
               type="button"
@@ -527,7 +558,7 @@ export function EntryList({
               }}
               className="inline-flex min-h-12 items-center justify-center rounded-full bg-danger-soft text-sm font-semibold text-danger transition-colors hover:bg-danger hover:text-canvas"
             >
-              Este e os próximos meses
+              {t.uiFixoEsteEProximos}
             </button>
           </div>
         )}
@@ -555,6 +586,7 @@ export function EntryList({
             defaultEntryDate={editing.entryDate ?? undefined}
             defaultGoalId={editing.goalId ?? undefined}
             recorrente={Boolean(editing.recurrenceId)}
+            tipoRecorrente={editing.category}
           />
         )}
       </Modal>

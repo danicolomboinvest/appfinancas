@@ -9,7 +9,9 @@ import { listGoalsWithProgress } from "@/lib/repositories/goal.repo";
 import { getRendaTipica, getTypicalMonthlyExpense } from "@/lib/planning/typical-expense";
 import { computeGoalPlan } from "@/lib/planning/goal";
 import { mesesAteMeta } from "@/lib/decisoes/posso-comprar";
-import type { MetaResposta, ResumoMes } from "@/lib/decisoes/respostas";
+import { ritmoMensalDaMeta, type MetaResposta, type ResumoMes } from "@/lib/decisoes/respostas";
+import { ehCasal } from "@/lib/profiles/casal";
+import { lerDecisao } from "@/lib/repositories/decisao.repo";
 import { carregarFoco, MESES } from "@/app/(app)/mensal/foco/dados";
 
 /** As perguntas do dia a dia da Central, pelo endereço. A regra de cada uma está em lib/decisoes/respostas. */
@@ -44,14 +46,15 @@ export async function carregarRespostas(ctx: AuthContext) {
   const passado = new Date(year, month - 2, 1);
   const retrasado = new Date(year, month - 3, 1);
   const tresMesesAtras = new Date(Date.UTC(year, month - 4, 1));
-  const [plano, rendaTipica, gastoTipico, metas, aportesPorMeta, mesPassado, mesRetrasado, maioresPassado] = await Promise.all([
+  const [plano, rendaTipica, gastoTipico, metas, aportesPorMeta, mesPassado, mesRetrasado, maioresPassado, rendaDoCasal] = await Promise.all([
     getMonthlyPlan(ctx, year, month),
     getRendaTipica(ctx),
     getTypicalMonthlyExpense(ctx),
     listGoalsWithProgress(ctx),
     // O ritmo de verdade de cada meta: o que foi guardado pra ela nos últimos 3 meses fechados.
+    // Por mês também: dá pra saber em quantos meses entrou dinheiro pra meta.
     prisma.monthlyEntry.groupBy({
-      by: ["goalId"],
+      by: ["goalId", "year", "month"],
       where: { userId: ctx.userId, profileId: ctx.profileId, category: "INVESTMENT_CONTRIBUTION", goalId: { not: null }, entryDate: { gte: tresMesesAtras, lt: new Date(Date.UTC(year, month - 1, 1)) } },
       _sum: { amount: true },
     }),
@@ -63,8 +66,24 @@ export async function carregarRespostas(ctx: AuthContext) {
       orderBy: { amount: "desc" },
       take: 3,
     }),
+    // Casal que só conta a conta conjunta: a regra dos 90% não vale (o mesmo do "Posso comprar?").
+    ehCasal(ctx.profileKind) ? lerDecisao(ctx, "casal_renda", "renda") : Promise.resolve(null),
   ]);
-  const ritmoMeta = new Map(aportesPorMeta.map((a) => [a.goalId as string, Number(a._sum.amount ?? 0) / 3]));
+  const somaPorMeta = new Map<string, { soma: number; meses: number }>();
+  for (const a of aportesPorMeta) {
+    const atual = somaPorMeta.get(a.goalId as string) ?? { soma: 0, meses: 0 };
+    const valor = Number(a._sum.amount ?? 0);
+    somaPorMeta.set(a.goalId as string, { soma: atual.soma + valor, meses: atual.meses + (valor > 0 ? 1 : 0) });
+  }
+  // A média divide pelos meses em que a meta já existia (até 3): meta de agosto não divide por 3 em outubro.
+  const ritmoMeta = new Map(
+    metas.flatMap((g) => {
+      const s = somaPorMeta.get(g.id);
+      if (!s) return [];
+      const criada = new Date(g.createdAt.getTime() - 3 * 3_600_000); // horário de Brasília
+      return [[g.id, ritmoMensalDaMeta({ soma: s.soma, mesesComGuardado: s.meses, criadaEm: { ano: criada.getUTCFullYear(), mes: criada.getUTCMonth() + 1 }, hoje: { ano: year, mes: month } })] as const];
+    }),
+  );
   const mesLabel = (k: number | null) => {
     if (k === null) return null;
     const dt = new Date(year, month - 1 + k, 1);
@@ -78,15 +97,19 @@ export async function carregarRespostas(ctx: AuthContext) {
     const ritmo = ritmoMeta.get(g.id) ?? Number(g.monthlyContribution ?? 0);
     const k = atual >= alvo ? 0 : ritmo > 0 ? mesesAteMeta({ atual, alvo, taxa: mensal(Number(g.annualRate ?? 0)) }, () => ritmo) : null;
     const mesesAtePrazo = g.targetDate ? (g.targetDate.getUTCFullYear() - year) * 12 + (g.targetDate.getUTCMonth() + 1 - month) : null;
+    // Vencida só depois que o MÊS do prazo acabou (a mesma regra do Foco). Aí o plano da meta
+    // devolve o que falta inteiro como "por mês"; o certo é o que ela combinou guardar.
+    const vencida = atual < alvo && mesesAtePrazo !== null && mesesAtePrazo < 0;
     return {
       nome: g.name,
       alvo,
       atual,
       prazo: g.targetDate ? `${MESES[g.targetDate.getUTCMonth()]} de ${g.targetDate.getUTCFullYear()}` : null,
-      necessarioPorMes: plan ? plan.requiredMonthlyContribution : Number(g.monthlyContribution ?? 0),
+      necessarioPorMes: plan && !vencida ? plan.requiredMonthlyContribution : Number(g.monthlyContribution ?? 0),
       ritmoPorMes: ritmo,
       chegaEm: mesLabel(k),
-      noPrazo: mesesAtePrazo === null ? k !== null : k !== null && k <= mesesAtePrazo,
+      noPrazo: vencida ? false : mesesAtePrazo === null ? k !== null : k !== null && k <= mesesAtePrazo,
+      vencida,
     };
   });
 
@@ -97,6 +120,7 @@ export async function carregarRespostas(ctx: AuthContext) {
   return {
     d,
     renda,
+    regra90: rendaDoCasal !== "conjunta",
     gastoReal: gastoTipico?.monthlyAverage ?? null,
     metas: metasResposta,
     reserva: fund

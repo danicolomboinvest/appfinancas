@@ -1,5 +1,5 @@
 import type { GoalIcon } from "@prisma/client";
-import { aportesJaOcorridosWhere, goalCurrentAmount, goalProgress } from "@/lib/planning/goal-progress";
+import { aportesJaOcorridosWhere, goalCurrentAmount, type GoalContribution } from "@/lib/planning/goal-progress";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import { prisma } from "@/lib/db/prisma";
 import type { AuthContext } from "@/lib/auth/session";
@@ -32,8 +32,9 @@ export async function getOwnGoal(ctx: AuthContext, id: string) {
  * a pessoa guardou de verdade. Então só é descontado o pedaço que entrou num ativo ligado à
  * MESMA meta — esse já está sendo contado pelo valor do ativo.
  *
- * Junto disso vale o "Já guardado" digitado (`currentAmount`): a meta mostra o maior dos dois,
- * pra o digitado nunca sumir e o mesmo dinheiro nunca contar duas vezes (ver `goalCurrentAmount`).
+ * Junto disso vale o "Já guardado" digitado (`currentAmount`): ele mais os aportes marcados depois
+ * dele são o piso, pra o digitado nunca sumir, cada aporte novo mover a meta e o mesmo dinheiro
+ * nunca contar duas vezes (ver `goalCurrentAmount`).
  */
 export async function getGoalWithProgress(ctx: AuthContext, id: string) {
   const goal = await prisma.goal.findFirst({ where: { id, userId: ctx.userId, profileId: ctx.profileId } });
@@ -42,18 +43,21 @@ export async function getGoalWithProgress(ctx: AuthContext, id: string) {
     prisma.asset.aggregate({ where: { userId: ctx.userId, profileId: ctx.profileId, goalId: id }, _sum: { currentValue: true } }),
     prisma.monthlyEntry.findMany({
       where: { userId: ctx.userId, profileId: ctx.profileId, goalId: id, category: "INVESTMENT_CONTRIBUTION", ...aportesJaOcorridosWhere(nowInBrazil()) },
-      select: { amount: true, allocations: { select: { amount: true, asset: { select: { goalId: true } } } } },
+      // createdAt: aporte marcado depois da correção do formulário soma em cima do "Já guardado".
+      select: { amount: true, createdAt: true, allocations: { select: { amount: true, asset: { select: { goalId: true } } } } },
     }),
   ]);
-  const computed = goalProgress(
+  const computedCurrentAmount = goalCurrentAmount(
     id,
+    Number(goal.currentAmount),
     Number(a._sum.currentValue ?? 0),
     e.map((entry) => ({
       amount: Number(entry.amount),
+      createdAt: entry.createdAt,
       allocations: entry.allocations.map((x) => ({ amount: Number(x.amount), assetGoalId: x.asset.goalId })),
     })),
   );
-  return { ...goal, computedCurrentAmount: goalCurrentAmount(Number(goal.currentAmount), computed) };
+  return { ...goal, computedCurrentAmount };
 }
 
 function computedFields(input: GoalInput) {
@@ -91,7 +95,7 @@ export async function deleteOwnGoal(ctx: AuthContext, id: string) {
  * Progresso REAL de cada meta, calculado (integração, item 6): soma o valor atual dos ativos
  * vinculados à meta + os aportes registrados para ela (lançamentos INVESTMENT_CONTRIBUTION com
  * goalId). Assim, vincular um ativo ou registrar um aporte atualiza a meta sozinho. O valor
- * manual (`currentAmount`) é o saldo de partida e soma com isso — ver `goalCurrentAmount`.
+ * manual (`currentAmount`) é o saldo de partida e entra pela regra de `goalCurrentAmount`.
  */
 export async function listGoalsWithProgress(ctx: AuthContext) {
   const hoje = nowInBrazil();
@@ -108,7 +112,7 @@ export async function listGoalsWithProgress(ctx: AuthContext) {
     prisma.monthlyEntry.findMany({
       // Aporte de mês que ainda não chegou (cópia do "Repetir todo mês") não é dinheiro guardado.
       where: { userId: ctx.userId, profileId: ctx.profileId, goalId: { not: null }, category: "INVESTMENT_CONTRIBUTION", ...aportesJaOcorridosWhere(hoje) },
-      select: { goalId: true, year: true, month: true, amount: true, allocations: { select: { amount: true, asset: { select: { goalId: true } } } } },
+      select: { goalId: true, year: true, month: true, amount: true, createdAt: true, allocations: { select: { amount: true, asset: { select: { goalId: true } } } } },
     }),
   ]);
 
@@ -116,7 +120,7 @@ export async function listGoalsWithProgress(ctx: AuthContext) {
   // diferentes é como a meta passou a divergir entre a tela de Metas e o Dashboard.
   const ativosPorMeta = new Map<string, number>();
   for (const a of assetSums) if (a.goalId) ativosPorMeta.set(a.goalId, Number(a._sum.currentValue ?? 0));
-  const aportesPorMeta = new Map<string, { amount: number; allocations: { amount: number; assetGoalId: string | null }[] }[]>();
+  const aportesPorMeta = new Map<string, (GoalContribution & { createdAt: Date })[]>();
   // Metas que já têm aporte NESTE mês (Fluxo, extrato, "Marcar aporte"): o card não pode
   // oferecer "Marcar aporte" de novo e duplicar o dinheiro.
   const comAporteNoMes = new Set<string>();
@@ -126,21 +130,14 @@ export async function listGoalsWithProgress(ctx: AuthContext) {
     const lista = aportesPorMeta.get(e.goalId) ?? [];
     lista.push({
       amount: Number(e.amount),
+      createdAt: e.createdAt,
       allocations: e.allocations.map((x) => ({ amount: Number(x.amount), assetGoalId: x.asset.goalId })),
     });
     aportesPorMeta.set(e.goalId, lista);
   }
-  const byGoal = new Map<string, number>();
-  for (const g of goals) {
-    byGoal.set(g.id, goalProgress(g.id, ativosPorMeta.get(g.id) ?? 0, aportesPorMeta.get(g.id) ?? []));
-  }
-
-  return goals.map((g) => {
-    const computed = byGoal.get(g.id) ?? 0;
-    return {
-      ...g,
-      computedCurrentAmount: goalCurrentAmount(Number(g.currentAmount), computed),
-      temAporteNoMes: comAporteNoMes.has(g.id),
-    };
-  });
+  return goals.map((g) => ({
+    ...g,
+    computedCurrentAmount: goalCurrentAmount(g.id, Number(g.currentAmount), ativosPorMeta.get(g.id) ?? 0, aportesPorMeta.get(g.id) ?? []),
+    temAporteNoMes: comAporteNoMes.has(g.id),
+  }));
 }

@@ -7,7 +7,7 @@ import { useMoney } from "@/components/money/MoneyProvider";
 
 const MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
-type Linha = { name: string; Receita: number; Despesas: number; Lucro: number; realizado: boolean };
+type Linha = { name: string; Receita: number; Despesas: number; Lucro: number | null; realizado: boolean };
 
 /**
  * O gráfico clássico de painel de empresa: receita e despesas lado a lado, mês a mês, com o
@@ -22,7 +22,10 @@ export function ReceitaDespesaLucroChart({ months }: { months: MonthlyBreakdown[
     name: MESES[m.month - 1],
     Receita: m.totalIncome,
     Despesas: m.totalExpense,
-    Lucro: m.totalIncome - m.totalExpense,
+    // A linha do lucro para no último mês que aconteceu. Nos meses futuros só existe a despesa
+    // recorrente já lançada (a receita ainda não), e uma linha sólida despencando em out–dez
+    // parecia três meses de prejuízo que não aconteceram. As barras apagadas já mostram o previsto.
+    Lucro: m.isRealized ? m.totalIncome - m.totalExpense : null,
     realizado: m.isRealized,
   }));
   const compacto = (v: number) => money(v, { round: true }).replace(/,\d\d$/, "");
@@ -36,7 +39,7 @@ export function ReceitaDespesaLucroChart({ months }: { months: MonthlyBreakdown[
           <Tooltip
             {...CHART_TOOLTIP_STYLE}
             cursor={{ fill: "var(--color-surface-2)" }}
-            formatter={(v, nome) => [money(Number(v)), nome as string]}
+            formatter={(v, nome) => [v === null || v === undefined ? "—" : money(Number(v)), nome as string]}
           />
           <Bar dataKey="Receita" radius={[4, 4, 0, 0]} maxBarSize={22}>
             {dados.map((d) => (

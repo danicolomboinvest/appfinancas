@@ -136,7 +136,7 @@ ul.regras li.atencao span { color: #3A2A20; }
   </div>
 </div>
 
-<p class="aviso-temas"><b>Os nomes podem mudar com o tema que você escolheu.</b> Orçamento pode aparecer como Combinado, Limites ou Plano; Foco como Objetivo, Intenção ou Na real; Metas como Sonhos ou Missões; Aporte como Guardou. As regras são as mesmas.</p>
+<p class="aviso-temas"><b>Os nomes podem mudar com o tema que você escolheu.</b> Orçamento pode aparecer como Combinado, Limites ou Plano; Foco como Objetivo, Intenção ou Na real; Metas como Sonhos ou Missões; Aporte como Guardou. O nome de alguns botões também muda. As regras são as mesmas.</p>
 ${secoes}
 <div class="fim">
   <img src="${ICONE_APP}">

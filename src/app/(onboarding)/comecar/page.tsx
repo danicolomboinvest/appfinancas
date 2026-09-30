@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth/auth.config";
 import { getOwnUser } from "@/lib/repositories/user.repo";
+import { emailConfirmado } from "@/lib/auth/confirmacao-email";
 import { BrandMark } from "@/components/brand/BrandMark";
 import { EscolhaInicial } from "./EscolhaInicial";
 
@@ -14,6 +15,9 @@ export default async function ComecarPage() {
   if (!session?.user) redirect("/login");
   const user = await getOwnUser({ userId: session.user.id, role: session.user.role });
   if (user.onboardedAt !== null) redirect("/mensal/foco");
+  // Sem e-mail confirmado, o layout do app mostra a tela "Confirme seu e-mail": escolher o tema
+  // antes disso seria abrir a porta por aqui.
+  if (session.user.role !== "ADMIN" && !emailConfirmado(user)) redirect("/mensal/foco");
 
   return (
     <main className="flex min-h-screen items-start justify-center bg-canvas p-6 sm:items-center">

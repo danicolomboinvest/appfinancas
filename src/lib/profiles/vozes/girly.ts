@@ -41,7 +41,10 @@ const GIRLY_SIM: Partial<Titulos> = {
   simFinAluguelHint: "Quanto custaria alugar o mesmo apê por mês (o outro caminho).",
   simFinReajuste: "Quanto o aluguel sobe por ano 📈",
   simFinReajusteHint: "O reajuste anual do aluguel (ex.: IGP-M ou IPCA).",
-  simFinRentabilidadeHint: "Quanto rende por ano o dinheiro que você investiria em vez de comprar.",
+  simFinRentabilidade: "Quanto rende o que você investir 🐷",
+  simFinRentabilidadeHint: "Quanto rende por ano o dinheiro que você investiria em vez de comprar, antes do Imposto de Renda.",
+  simFinPatrimonioFinanciar: "Quanto você teria no fim, comprando 🏠",
+  simFinPatrimonioAlugar: "Quanto você teria no fim, alugando e investindo 🔑",
   simFinVenceFinanciar: "Financiar sai na frente 🏠✨",
   simFinVenceAlugar: "Alugar e investir sai na frente 🔑✨",
   simFinValorFinanciado: "O que o banco financia",
@@ -55,6 +58,7 @@ const GIRLY_SIM: Partial<Titulos> = {
   simAmortSistemaHint: "SAC: parcelas que vão caindo. Price: parcelas iguaizinhas.",
   simAmortValorDisponivel: "Quanto sobrou pra decidir 💸",
   simAmortValorDisponivelHint: "O dinheiro que sobrou e que você vai usar pra quitar antes OU investir.",
+  simAmortRentabilidade: "Quanto o investimento rende 🐷",
   simAmortRentabilidadeHint: "Quanto o investimento rende por ano, antes de descontar o Imposto de Renda.",
   simAmortIr: "Imposto de Renda do investimento",
   simAmortIrHint: "O imposto sobre o que rende (ex.: 15% pra prazos longos).",
@@ -170,6 +174,8 @@ const GIRLY_SIM: Partial<Titulos> = {
   simValeBarraGastarUnicoHint: "O preço de hoje",
   simValeBarraGastarMensalHint: "O que você pagaria nesse tempo todo",
   simValeVeredito: (valor) => `Guardando, você teria ${valor} a mais no fim, amiga 💕`,
+  simValeNota: (taxa) =>
+    `É uma conta aproximada, não uma promessa de quanto vai render. Considera 220h de trabalho por mês e o dinheiro rendendo ${taxa} ao ano, sem descontar inflação nem imposto.`,
   simValeComprar: "Vou comprar 🛍️",
   simValeNaoComprar: "Não vou comprar 💅",
   simValeAindaNaoSei: "Ainda não sei 🤔",
@@ -266,6 +272,10 @@ const GIRLY_FORM: Partial<Titulos> = {
   formOrcSalvar: "Salvar meu combinado 💕",
   formOrcAjustar: "Ajustar as categorias ✏️",
   formOrcRendaEAporte: "O que entra e o que você guarda",
+  formOrcEditarPlano: (ano) => `Mexer no seu combinado de ${ano} 🎀`,
+  formOrcRendaEAporteNoMes: (mes) => `O que entrou e o que você guardou em ${mes} 💕`,
+  formOrcBarraRenda: "Entrou",
+  formOrcBarraAporte: "Guardou 🐷",
   formOrcPorMes: "Por mês",
   formOrcSemGasto: "nadinha mês passado",
   formOrcApagarTitulo: "Apagar categoria? 🫣",
@@ -439,7 +449,7 @@ const GIRLY_IMP: Partial<Titulos> = {
   impSemData: "sem data",
   impRemovidoExtrato: "Tirei do extrato ✨",
   impManter: "Deixar",
-  impCarteiraArquivoGrande: "Arquivo grande demais (o máximo é uns 7 MB) 🫣 Exporta um relatório menor e tenta de novo.",
+  impCarteiraArquivoGrande: "Arquivo grande demais (o máximo são 4 MB) 🫣 Exporta um relatório menor e tenta de novo.",
   impCarteiraEscolher: "Escolher o arquivo da corretora 📄",
   impCarteiraFormato: "Posição da corretora ou da B3 (CSV, Excel ou PDF)",
   impSenhaDicaCorretora: "Digita a senha do arquivo (a mesma que a corretora pede pra abrir). Ela só serve pra abrir e não fica salva, prometo 💕",
@@ -453,7 +463,7 @@ const GIRLY_IMP: Partial<Titulos> = {
     [criados > 0 ? `${criados} novo${s(criados)} nos seus investimentos` : null, atualizados > 0 ? `${atualizados} atualizado${s(atualizados)}` : null]
       .filter(Boolean)
       .join(" · ") || "Nada pra mudar, já tava tudo em dia 💅",
-  impIrpfArquivoGrande: "Arquivo grande demais (o máximo é uns 7 MB) 🫣",
+  impIrpfArquivoGrande: "Arquivo grande demais (o máximo são 4 MB) 🫣",
   impIrpfSelecioneUm: "Escolhe pelo menos um investimento pra aplicar o preço médio 💕",
   impIrpfIntro: [
     "Sua declaração de IR tem o ",
@@ -598,6 +608,22 @@ const GIRLY_UI: Partial<Titulos> = {
   uiDesfazer: "Desfazer",
   uiRestaurado: (quantos) => (quantos === 1 ? "Voltou! 💕" : `Os ${quantos} voltaram! 💕`),
   uiRestaurarFalhou: "Não consegui trazer de volta 🫣 Anota de novo, amiga.",
+  // O que se repete todo mês, por tipo: o salário não é "gasto fixo", e o Girly não diz aporte.
+  uiFixoApagarTitulo: (tipo) =>
+    tipo === "INCOME" ? "Tirar o que entra todo mês" : tipo === "INVESTMENT_CONTRIBUTION" ? "Tirar o que você guarda todo mês" : "Tirar gasto fixo",
+  uiFixoApagarTexto: () => "Esse se repete todo mês. Os meses que já passaram ficam do jeitinho que estão 💕",
+  uiFixoEscopo: (tipo) =>
+    tipo === "INCOME"
+      ? "Entra todo mês: mudar em quais meses?"
+      : tipo === "INVESTMENT_CONTRIBUTION"
+        ? "Você guarda todo mês: mudar em quais meses?"
+        : "Gasto fixo: mudar em quais meses?",
+  uiFixoSoEste: "Só esse mês",
+  uiFixoEsteEProximos: "Esse e os próximos meses",
+  uiFixoNaoAchei: "Não achei esse lançamento 🫣 Recarrega a página, amiga.",
+  uiAporteSemDestino: (valor, mes) => `${valor} que você guardou ${mes ? `em ${mes}` : "esse mês"} ainda não tão nos seus investimentos`,
+  uiAporteSemDestinoSub: "Me conta onde esse dinheiro foi, que seus sonhos andam junto 💕",
+  uiAporteSemDestinoLink: "Contar onde foi →",
 
   uiInstalarConviteTitulo: "Coloca no seu celular 📲",
   uiInstalarConviteSub: "Abre em tela cheia, com ícone próprio ✨",
@@ -901,6 +927,28 @@ const GIRLY_CART: Partial<Titulos> = {
   grafVereditoFinanciar: (diferenca, anos) => `Financiar sai ${diferenca} na frente em ${anos} anos 🏠✨`,
 };
 
+/** Painéis (Análises, Visão geral, Fluxo do ano, story do resumo) sem jargão. */
+const GIRLY_PAINEIS: Partial<Titulos> = {
+  paiReservaParcial: (pct, atual, alvo) =>
+    `Sua reserva de emergência já tá ${pct} completa (${atual} de ${alvo}) 💪 Continua guardando até chegar no valor que você definiu.`,
+  paiReservaNoComeco: (pct) =>
+    `Sua reserva de emergência cobre só ${pct} do valor que você quer, amiga. Guarda pra ela primeiro, antes dos outros sonhos, pra não precisar pegar empréstimo num imprevisto 🫶`,
+  paiMetasAtrasadas: (qtd, nomes) =>
+    `${qtd === 1 ? "1 sonho ficou" : `${qtd} sonhos ficaram`} pra trás (${nomes}). Dá pra mudar o prazo ou guardar um pouquinho mais por mês pra voltar ao ritmo 💕`,
+  paiMetaEAumentar: (nome, extra, meses) =>
+    `Guardando ${extra} a mais por mês pra "${nome}", você chega lá ${meses} ${meses === 1 ? "mês" : "meses"} antes ✨`,
+  paiPatrimonioCresceu: (pct) => `Seus investimentos cresceram ${pct} nos últimos 12 meses. Tá construindo de verdade, amiga 💖`,
+  paiPatrimonioCaiu: (pct) => `Seus investimentos caíram ${pct} nos últimos 12 meses. Vale ver se foi o mercado ou se saiu dinheiro de lá 🤔`,
+  paiPatrimonioRecorde: (valor) => `Seus investimentos bateram recorde hoje: ${valor} 🎉`,
+  paiVerPatrimonio: "Ver meus investimentos",
+  paiAposentadoriaSuperavit: "O que seus investimentos rendem já paga a vida que você quer ✨",
+  paiAposentadoriaDeficit: "Ainda falta juntar pra viver do que seus investimentos rendem 🌱",
+  paiDividendosVazio: "Aparece quando um investimento avisar que vai pingar dinheirinho 💸",
+  paiAnoSub: "Seus 12 meses juntinhos, sem precisar somar nada 💕",
+  paiAnoAportes: "Guardou",
+  paiStoryAcumuladoBom: "É dinheiro que entrou e não virou gasto, e ainda pode render muito 💖",
+};
+
 /** O menu na voz do Girly, por rota. */
 const GIRLY_SECOES: Record<string, string> = {
   "/dashboard": "Visão geral 💖",
@@ -1073,6 +1121,7 @@ export const girly: Voz = {
     ...GIRLY_UI,
     ...GIRLY_CFG,
     ...GIRLY_CART,
+    ...GIRLY_PAINEIS,
     comparacao: (tipo, valor, mes) =>
       tipo === "sem" ? `Nadinha em ${mes} 🌸` : tipo === "igual" ? `Igualzinho a ${mes} 💕` : tipo === "mais" ? `${valor} a mais que ${mes} 🫣` : `${valor} a menos que ${mes}! Boaaaa 👏`,
     simuladores: "Bora simular? 🧮✨",
@@ -1090,6 +1139,7 @@ export const girly: Voz = {
     registrarFalar: "Me conta por voz 🎤",
     registrarImportar: "Manda o extrato 📄",
     lancamentoSalvo: "Anotado, amiga! 💕",
+    acaoFalhou: "Não consegui fazer isso agora 🫣 Dá uma olhada na internet e tenta de novo.",
     visaoGeral: "Visão geral 💖",
     visaoGeralSub: "Seu {ano} inteiro, amiga 💕",
     patrimonio: "Tudo que você tem ✨",
@@ -1140,6 +1190,7 @@ export const girly: Voz = {
     reservaTempo: "Falta quanto tempo ⏳",
     reservaRendimento: "Quanto rende por mês ✨",
     reservaProjecao: "Até chegar lá 🌸",
+    reservaNaoFechaHint: "Guardando esse valor por mês, a reserva não chega lá. Tenta guardar um pouquinho mais 💗",
     aposentadoria: "Sua liberdade ✨",
     aposentadoriaSub: "Do guardar de hoje até viver do que o dinheiro rende — o caminho inteiro, amiga 💕",
     aposentadoriaWizardSub: "Vamos montar seu plano juntas, em poucos passos 💗",
@@ -1187,6 +1238,8 @@ export const girly: Voz = {
     apAnoAAno: "Ver ano a ano 📅",
     apNominal: "Se o dinheiro não perdesse valor",
     apReal: "Em dinheiro de hoje",
+    apTempoGuardando: "Anos guardando",
+    apSemReajuste: "E se você guardar sempre o mesmo valor?",
     planTabs: ["Sonhos", "Reserva", "Liberdade"],
     carteiraTabs: ["Meus investimentos", "Por sonho", "Estratégia"],
     visaoGeralLink: "Ver meu mês 💸",

@@ -6,6 +6,7 @@ import { emailSchema } from "@/lib/validations/auth.schema";
 import { createPasswordResetToken } from "@/lib/auth/password-reset";
 import { sendEmail } from "@/lib/email/send";
 import { passwordResetEmail } from "@/lib/email/templates";
+import { LIMITES_SENHA, reservarEnvio } from "@/lib/auth/limite-de-envio";
 
 export type ForgotState = { sent?: boolean; error?: string };
 
@@ -30,7 +31,10 @@ export async function requestPasswordResetAction(_prev: ForgotState, formData: F
   // Sem olhar maiúscula: conta antiga com "Maria@..." recebia "enviamos o link" e nada chegava.
   const user = await findUserByEmail(email);
 
-  if (user) {
+  // Com limite por conta (ver limite-de-envio.ts): pedido fora do limite não manda nada e
+  // responde igual, pra não contar se a conta existe. Dentro do intervalo o link anterior
+  // continua valendo — antes cada pedido novo matava o anterior.
+  if (user && (await reservarEnvio(user.id, "senha", LIMITES_SENHA))) {
     const rawToken = await createPasswordResetToken(user.id);
     const resetUrl = `${await baseUrl()}/redefinir-senha?token=${rawToken}`;
     const { subject, html } = passwordResetEmail({ name: user.name, resetUrl });

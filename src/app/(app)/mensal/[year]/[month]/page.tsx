@@ -278,6 +278,8 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
           retido: summary.totalInvestment,
           gastoPorCategoria: spentByParent,
           gastoPersonalizado: spentByCustom.reduce((s, c) => s + c.spent, 0),
+          // O que não tem categoria entra como despesa fixa (a mesma fatia "Sem categoria" da rosca).
+          despesaTotal: summary.totalExpense,
         },
         { year, month },
       )
@@ -354,11 +356,16 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
         >
           <span className="min-w-0">
             <span className="block text-sm font-medium text-ink">
-              {money(aporteSemDestino.pending, { round: true })} aportados neste mês ainda não estão na carteira
+              {/* Na voz do tema: o Girly não diz "aportados". E o cartão também aparece no mês
+                  anterior, onde "neste mês" seria mentira — lá vai o nome do mês. */}
+              {voz.titulos.uiAporteSemDestino(
+                money(aporteSemDestino.pending, { round: true }),
+                isCurrentMonth ? null : MONTH_LABELS[month - 1].toLowerCase(),
+              )}
             </span>
-            <span className="block text-caption text-ink-muted">Diga em quais ativos esse dinheiro entrou e suas metas andam junto.</span>
+            <span className="block text-caption text-ink-muted">{voz.titulos.uiAporteSemDestinoSub}</span>
           </span>
-          <span className="shrink-0 text-sm font-medium text-accent-strong">Dizer onde foi →</span>
+          <span className="shrink-0 text-sm font-medium text-accent-strong">{voz.titulos.uiAporteSemDestinoLink}</span>
         </Link>
       )}
 

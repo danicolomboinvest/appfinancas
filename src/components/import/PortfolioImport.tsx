@@ -171,6 +171,9 @@ export function PortfolioImport({ onDone }: { onDone: () => void }) {
           className="hidden"
           onChange={(e) => {
             const file = e.target.files?.[0];
+            // Zera o campo: depois de um erro, escolher o MESMO arquivo de novo não dispara
+            // change (o valor não mudou) e o toque não fazia nada, justo quando o aviso mandou tentar de novo.
+            e.target.value = "";
             if (file) handleFile(file);
           }}
         />

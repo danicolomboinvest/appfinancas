@@ -7,7 +7,7 @@ import { listPortfolioStrategy } from "@/lib/repositories/portfolio-strategy.rep
 import { STRATEGY_ASSET_CLASSES } from "@/lib/portfolio/strategy";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StrategyForm } from "./StrategyForm";
-import { listGoals } from "@/lib/repositories/goal.repo";
+import { listGoalsWithProgress } from "@/lib/repositories/goal.repo";
 import { horizonFromGoals } from "@/lib/portfolio/risk-profile";
 
 export default async function EstrategiaCarteiraPage() {
@@ -15,11 +15,12 @@ export default async function EstrategiaCarteiraPage() {
   // Empresa não monta estratégia de carteira: só o caixa e os ativos.
   if (ehEmpresa(ctx.profileKind)) redirect("/carteira");
   const voz = vozDoTema(ctx.profileTheme, ctx.profileKind);
-  const [rows, goals] = await Promise.all([listPortfolioStrategy(ctx), listGoals(ctx)]);
+  const [rows, goals] = await Promise.all([listPortfolioStrategy(ctx), listGoalsWithProgress(ctx)]);
   // O prazo do quiz sai das metas dela; perguntar de novo seria pedir a mesma informação duas
-  // vezes, e aceitar uma resposta que pode contradizer o que ela já cadastrou.
+  // vezes, e aceitar uma resposta que pode contradizer o que ela já cadastrou. Com o progresso
+  // de cada meta, a que já foi atingida sai da conta (sem nenhuma aberta, o quiz pergunta).
   const goalHorizon = horizonFromGoals(
-    goals.map((g) => ({ name: g.name, targetAmount: Number(g.targetAmount), targetDate: g.targetDate })),
+    goals.map((g) => ({ name: g.name, targetAmount: Number(g.targetAmount), targetDate: g.targetDate, currentAmount: g.computedCurrentAmount })),
   );
 
   const defaults = Object.fromEntries(

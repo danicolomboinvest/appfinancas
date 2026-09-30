@@ -1,25 +1,44 @@
 import { NextResponse } from "next/server";
+import { CONFIRMACAO_DESDE } from "@/lib/auth/confirmacao-email";
 import { recusarSeNaoForCron } from "@/lib/cron/autorizacao";
 import { prisma } from "@/lib/db/prisma";
 import { abrirEnvioEmLote } from "@/lib/email/send";
 import { monthlyRecapEmail, monthlyNudgeEmail } from "@/lib/email/templates";
-import { decideRecapEmail, escolherPerfilDoResumo, MAX_NUDGES } from "@/lib/insights/recap-audience";
+import {
+  decideRecapEmail,
+  escolherPerfilDoResumo,
+  MAX_NUDGES,
+  podeEnviarResumoHoje,
+} from "@/lib/insights/recap-audience";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import { toCurrencyCode } from "@/lib/money";
 import { categoryLabel, isParentCategoryKey } from "@/lib/categories";
 import { getOrCreateActiveProfile } from "@/lib/repositories/profile.repo";
 import { vozDoTema } from "@/lib/profiles/voice";
+import { maiorCategoriaDoMes } from "@/lib/recap/monthly";
 
 // Centenas de e-mails em sequência: o teto maior da Vercel (o mesmo do cron do Open Finance), e
 // o loop para sozinho com folga antes dele (PRAZO_MS). Quem ficar pra trás recebe na rodada do
-// dia seguinte — o cron roda nos dias 1, 2 e 3 (vercel.json), e a trava recapEmailSentMonth
-// impede que alguém receba duas vezes.
+// dia seguinte, e a trava recapEmailSentMonth impede que alguém receba duas vezes.
+//
+// O AGENDAMENTO É DIÁRIO, e não "dias 1 a 3" como foi até 29/09/2026. O motivo não é de produto:
+// o projeto está no plano Hobby da Vercel, onde tarefa agendada dispara UMA VEZ POR DIA, e um
+// agendamento restrito a dias do mês nunca chega a ser chamado. Medido em 29/09/2026, com contas
+// na base desde 11/07: `recapEmailSentMonth` nulo e `recapNudgeCount` zero nas 284 contas —
+// nenhum resumo e nenhum convite saíram, em quase três meses. O cron de alertas, esse diário,
+// rodava todo dia normalmente, o que descarta falta de CRON_SECRET.
+//
+// Rodar todo dia é seguro por causa da trava: quem já recebeu tem o monthKey gravado, e quem
+// criou conta DENTRO do mês fechado é excluído por decideRecapEmail. Do dia 4 em diante a rodada
+// sai logo no começo (podeEnviarResumoHoje): sem isso, um deploy no dia 30 ou quem religa o
+// e-mail no dia 20 recebia o resumo do mês passado fora de hora.
 export const maxDuration = 300;
 const PRAZO_MS = 270_000;
 
 /**
- * Resumo do mês por e-mail — o único e-mail recorrente do app. Roda no dia 1º e fecha o mês
- * ANTERIOR, pra todo mundo que teve movimento nele.
+ * Resumo do mês por e-mail — o único e-mail recorrente do app. Roda todo dia e fecha o mês
+ * ANTERIOR, pra todo mundo que teve movimento nele. Na prática quem recebe é a rodada do dia 1º;
+ * as outras existem para pegar quem ficou de fora.
  *
  * Por que existe: o app não tinha nada que trouxesse a pessoa de volta. Os outros três e-mails
  * (senha, acesso liberado, boas-vindas) disparam uma vez só, no começo — e os números de uso
@@ -33,8 +52,8 @@ const PRAZO_MS = 270_000;
  *
  * Regras que evitam virar spam (ver decideRecapEmail, testado à parte):
  * - só quem não desativou em Notificações (notifyMonthlyRecap);
- * - uma vez por mês por pessoa, garantido por recapEmailSentMonth (o cron repete nos dias 2 e 3
- *   só pra completar quem não coube na rodada do dia 1º);
+ * - uma vez por mês por pessoa, garantido por recapEmailSentMonth (o cron repete nos dias
+ *   seguintes só pra completar quem não coube na rodada do dia 1º);
  * - convite no máximo MAX_NUDGES vezes: quem não usou em 3 meses não vai usar no 4º e-mail;
  * - quem criou conta DENTRO do mês fechado não recebe cobrança de um mês que mal viu.
  */
@@ -53,6 +72,11 @@ export async function GET(request: Request) {
   // Mês fechado = o anterior ao de hoje (fuso do Brasil; no fim da noite, o servidor em UTC
   // já estaria no dia seguinte e recaparia o mês errado na virada).
   const now = nowInBrazil();
+  // O agendamento é diário, mas o envio só vale na virada (dias 1 a 3): fora dela a rodada sai
+  // sem consultar nada. Ver podeEnviarResumoHoje.
+  if (!podeEnviarResumoHoje(now.getDate(), { dryRun, onlyEmail })) {
+    return NextResponse.json({ ok: true, skipped: true, motivo: "fora dos dias 1 a 3 do mês" });
+  }
   const target = new Date(now.getFullYear(), now.getMonth() - 1, 1);
   const year = target.getFullYear();
   const month = target.getMonth() + 1;
@@ -71,6 +95,9 @@ export async function GET(request: Request) {
       notifyMonthlyRecap: true,
       role: "CLIENT",
       OR: [{ recapEmailSentMonth: null }, { recapEmailSentMonth: { not: monthKey } }],
+      // Conta que nunca confirmou o e-mail pode ter sido criada com o e-mail de outra pessoa:
+      // não manda nada pra essa caixa.
+      AND: [{ OR: [{ emailVerifiedAt: { not: null } }, { createdAt: { lt: CONFIRMACAO_DESDE } }] }],
       ...(onlyEmail ? { email: onlyEmail } : {}),
     },
     select: {
@@ -176,7 +203,7 @@ export async function GET(request: Request) {
         continue;
       }
 
-      const [grouped, byCategory] = await Promise.all([
+      const [grouped, byCategory, personalizadas] = await Promise.all([
         prisma.monthlyEntry.groupBy({
           by: ["category"],
           // Um perfil só (o do resumo): o e-mail leva pra /mensal, que mostra um perfil só. Somar
@@ -184,11 +211,15 @@ export async function GET(request: Request) {
           where: { userId: user.id, profileId: perfilDoEmail.id, year, month },
           _sum: { amount: true },
         }),
+        // Por categoria-mãe E personalizada: só pela mãe, o "Pet" que foi o maior gasto do mês
+        // ficava de fora e o e-mail apontava a segunda categoria como a maior (a tela do mês,
+        // que o link abre, mostra Pet em 1º).
         prisma.monthlyEntry.groupBy({
-          by: ["parentCategory"],
-          where: { userId: user.id, profileId: perfilDoEmail.id, year, month, category: "EXPENSE", parentCategory: { not: null } },
+          by: ["parentCategory", "customCategoryId"],
+          where: { userId: user.id, profileId: perfilDoEmail.id, year, month, category: "EXPENSE" },
           _sum: { amount: true },
         }),
+        prisma.customCategory.findMany({ where: { userId: user.id, profileId: perfilDoEmail.id }, select: { id: true, name: true } }),
       ]);
 
       const totalOf = (category: string) =>
@@ -209,10 +240,16 @@ export async function GET(request: Request) {
         )._sum.amount ?? 0,
       );
 
-      const top = byCategory
-        .map((c) => ({ key: c.parentCategory as string, value: Number(c._sum.amount ?? 0) }))
-        .sort((a, b) => b.value - a.value)[0];
-      // O nome da maior categoria é o do perfil do resumo (numa Empresa, "Estrutura", não "Moradia").
+      // O nome da maior categoria é o do perfil do resumo (numa Empresa, "Estrutura", não "Moradia");
+      // a personalizada vai pelo nome que ela deu. Gasto sem categoria não entra no ranking.
+      const nomeDaPersonalizada = new Map(personalizadas.map((c) => [c.id, c.name]));
+      const top = maiorCategoriaDoMes(
+        byCategory.map((c) => ({ amount: Number(c._sum.amount ?? 0), parentCategory: c.parentCategory, customCategoryId: c.customCategoryId })),
+        (g) =>
+          g.parentCategory && isParentCategoryKey(g.parentCategory)
+            ? categoryLabel(perfilDoEmail.kind, g.parentCategory)
+            : (nomeDaPersonalizada.get(g.customCategoryId ?? "") ?? "Personalizada"),
+      );
 
       const { subject, html } = monthlyRecapEmail({
         name: user.name,
@@ -223,10 +260,7 @@ export async function GET(request: Request) {
         investment,
         balance,
         expenseDelta: previousExpense > 0 ? expense / previousExpense - 1 : null,
-        topCategory:
-          top && isParentCategoryKey(top.key)
-            ? { label: categoryLabel(perfilDoEmail.kind, top.key), value: top.value }
-            : null,
+        topCategory: top,
         appUrl: `${baseUrl}/mensal/${year}/${month}`,
         preferencesUrl: `${baseUrl}/configuracoes/notificacoes`,
         t,

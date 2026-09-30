@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth/auth.config";
 import { destinoDepoisDoLogin } from "@/lib/auth/sessao";
 
-const PUBLIC_PATHS = ["/login", "/register", "/termos", "/privacidade", "/esqueci-senha", "/redefinir-senha", "/suporte"];
+// /confirmar-email é o destino do link do cadastro: abre no navegador do celular, quase sempre
+// sem sessão, e quem vale ali é o código assinado do link.
+const PUBLIC_PATHS = ["/login", "/register", "/termos", "/privacidade", "/esqueci-senha", "/redefinir-senha", "/suporte", "/confirmar-email"];
 
 // Só estas mandam quem já está logada pra dentro do app. As outras públicas abrem com ou sem
 // sessão: o link "Criar nova senha" do e-mail costuma abrir no navegador onde ela está logada

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db/prisma";
 import type { AuthContext } from "@/lib/auth/session";
+import { totalDoLote } from "@/lib/import/total-do-lote";
 
 /**
  * Lotes de importação (histórico do que foi subido em massa via extrato/fatura). Cada upload
@@ -14,6 +15,7 @@ export type ImportBatchSummary = {
   fileName: string | null;
   createdAt: Date;
   entryCount: number;
+  /** Fatura: o total da fatura (sem as parcelas projetadas). Extrato: o saldo com sinal. Ver totalDoLote. */
   totalAmount: number;
   /** Meses (ano/mês) onde os lançamentos deste lote caíram, ex.: ["2026/7"]. */
   months: string[];
@@ -35,7 +37,7 @@ export async function listImportBatches(ctx: AuthContext, limit = 20): Promise<I
     where: { userId: ctx.userId, profileId: ctx.profileId },
     orderBy: { createdAt: "desc" },
     take: limit,
-    include: { entries: { select: { amount: true, year: true, month: true } } },
+    include: { entries: { select: { amount: true, category: true, year: true, month: true } } },
   });
   return batches.map((b) => {
     const months = [...new Set(b.entries.map((e) => `${e.year}/${e.month}`))].sort();
@@ -45,7 +47,7 @@ export async function listImportBatches(ctx: AuthContext, limit = 20): Promise<I
       fileName: b.fileName,
       createdAt: b.createdAt,
       entryCount: b.entries.length,
-      totalAmount: b.entries.reduce((sum, e) => sum + Number(e.amount), 0),
+      totalAmount: totalDoLote(b.docType, b.entries.map((e) => ({ amount: Number(e.amount), category: e.category, year: e.year, month: e.month }))),
       months,
     };
   });

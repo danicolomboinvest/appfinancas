@@ -46,3 +46,13 @@ export function computeEmergencyFundPlan(input: EmergencyFundInput): EmergencyFu
 
   return { monthlyRate: monthlyRate.toNumber(), monthsToTarget, projection };
 }
+
+/**
+ * O mês em que a reserva completa, contando `meses` a partir do mês de `hoje`.
+ *
+ * Sempre a partir do dia 1: somar meses a "30 de setembro" dava "30 de fevereiro", que o Date
+ * vira 2 de março, e a tela dizia "março" quando o certo é fevereiro.
+ */
+export function mesDeConclusao(hoje: Date, meses: number): Date {
+  return new Date(hoje.getFullYear(), hoje.getMonth() + meses, 1);
+}

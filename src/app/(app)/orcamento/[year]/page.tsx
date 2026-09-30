@@ -80,7 +80,7 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
     getAnnualBudgetPlan(ctx, year),
     getAnnualMonthlyPlan(ctx, year),
     year === agora.getFullYear() ? getMonthlySummary(ctx, year, agora.getMonth() + 1) : null,
-    getBudgetHints(ctx, year),
+    getBudgetHints(ctx, year, agora),
     getSavingsTargets(ctx, agora),
   ]);
   // O mês de referência, o mesmo das categorias (o mês corrente no ano corrente): o salvar grava
@@ -257,7 +257,7 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
         </p>
       ) : (
       <CollapsibleSection
-        label={hasPlan ? `Editar seu plano de ${year}: renda, aporte e gastos` : `Vamos montar seu orçamento de ${year}`}
+        label={hasPlan ? voz.titulos.formOrcEditarPlano(year) : `Vamos montar seu orçamento de ${year}`}
         defaultOpen={!hasPlan}
       >
         <BudgetWizard
@@ -339,12 +339,12 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
       <div className="contents lg:flex lg:flex-wrap lg:items-start lg:gap-5 [&>*]:lg:min-w-0 [&>*]:lg:grow [&>*]:lg:basis-[calc(50%-0.625rem)]">
       {currentMonthData && monthSummary && (
         <Section
-          title={`Renda e aporte em ${MONTH_LABELS[currentMonthData.month - 1]}`}
+          title={voz.titulos.formOrcRendaEAporteNoMes(MONTH_LABELS[currentMonthData.month - 1])}
           hint="Planejar é decidir quanto entra, quanto sai e quanto fica guardado — não só o que gastar."
         >
           <div className="grid gap-4 lg:grid-cols-2 lg:gap-x-8">
           <PlanVsActualRow
-            label="Renda"
+            label={voz.titulos.formOrcBarraRenda}
             planned={monthPlan?.plannedIncome ?? 0}
             actual={monthSummary.totalIncome}
             formatted={{
@@ -354,7 +354,7 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
             color="var(--color-success)"
           />
           <PlanVsActualRow
-            label="Aporte"
+            label={voz.titulos.formOrcBarraAporte}
             planned={monthPlan?.plannedInvestment ?? 0}
             actual={monthSummary.totalInvestment}
             formatted={{

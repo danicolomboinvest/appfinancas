@@ -78,8 +78,11 @@ export function StatementImport({
   // Tudo que a pessoa lê aqui (instruções, botões, avisos) vem da voz do tema; a lógica de
   // leitura do arquivo não sabe de tema nenhum.
   // `kind` porque os chips de categoria têm o nome do perfil (Empresa: "Estrutura", não "Moradia").
-  const { voz, kind } = useProfileTheme();
+  const { voz, kind, profileId } = useProfileTheme();
   const t = voz.titulos;
+  // O perfil de quando a tela abriu: a revisão (categorias, "mandar pra outro perfil") é dele. Se
+  // ela trocar de perfil noutro aparelho no meio, o servidor recusa em vez de importar no novo.
+  const [perfilDaTela] = useState(profileId);
   const fileRef = useRef<HTMLInputElement>(null);
   const [phase, setPhase] = useState<Phase>("upload");
   const [items, setItems] = useState<ReviewItem[]>([]);
@@ -207,7 +210,16 @@ export function StatementImport({
     const name = newCatName.trim();
     if (!name) return;
     startTransition(async () => {
-      const res = await createCategoryAction(name);
+      // Falha de rede rejeita a action: sem o catch, o erro subia pro error boundary e a
+      // importação inteira (com a revisão feita até ali) virava a tela de erro.
+      let res: Awaited<ReturnType<typeof createCategoryAction>>;
+      try {
+        res = await createCategoryAction(name);
+      } catch (err) {
+        console.error("createCategoryAction falhou no envio", err);
+        setError(t.impErroSalvar);
+        return;
+      }
       if (!res.ok) {
         setError(res.error);
         return;
@@ -238,7 +250,16 @@ export function StatementImport({
   /** Alterna o destino da linha entre o perfil ativo e `profileId` (compra da Empresa que caiu
    * no cartão Pessoal, por exemplo). Clicar de novo no mesmo perfil volta pro ativo. */
   function toggleProfile(itemKey: number, profileId: string) {
-    setItems((prev) => prev.map((it) => (it.key === itemKey ? { ...it, profileId: it.profileId === profileId ? null : profileId } : it)));
+    // Categoria personalizada é do perfil ATIVO: no outro perfil ela não existe, e o gasto era
+    // gravado lá sem categoria nenhuma enquanto esta tela seguia mostrando o nome dela. Sai junto
+    // com a troca, e a linha cai em "sem categoria" pra ser classificada com as fixas.
+    setItems((prev) =>
+      prev.map((it) =>
+        it.key === itemKey
+          ? { ...it, profileId: it.profileId === profileId ? null : profileId, ...(it.customCategoryId ? { customCategoryId: null, autoClassified: false } : {}) }
+          : it,
+      ),
+    );
   }
 
   /** Muda o TIPO do lançamento (Gasto/Renda/Aporte) — pro Pix que a pessoa manda pra ela mesma
@@ -272,7 +293,7 @@ export function StatementImport({
     );
   }
 
-  /** "É o mesmo que eu lancei à mão?": sim tira da importação; não, importa normalmente. */
+  /** "É o mesmo que já está no app (lançado à mão ou de outro arquivo)?": sim tira da importação; não, importa normalmente. */
   function responderDuplicata(itemKey: number, mesmo: boolean) {
     setItems((prev) => (mesmo ? prev.filter((it) => it.key !== itemKey) : prev.map((it) => (it.key === itemKey ? { ...it, possivelDuplicata: null } : it))));
   }
@@ -298,7 +319,7 @@ export function StatementImport({
     startTransition(async () => {
       let result: Awaited<ReturnType<typeof importTransactionsAction>>;
       try {
-        result = await importTransactionsAction(confirmed, docType, targetYear, targetMonth, fileName ?? undefined);
+        result = await importTransactionsAction(confirmed, docType, targetYear, targetMonth, fileName ?? undefined, perfilDaTela);
       } catch (err) {
         console.error("importTransactionsAction falhou no envio", err);
         setError(t.impErroSalvar);
@@ -427,6 +448,9 @@ export function StatementImport({
           className="hidden"
           onChange={(e) => {
             const file = e.target.files?.[0];
+            // Zera o campo: depois de um erro, escolher o MESMO arquivo de novo não dispara
+            // change (o valor não mudou) e o toque não fazia nada, justo quando o aviso mandou tentar de novo.
+            e.target.value = "";
             if (file) handleFile(file);
           }}
         />
@@ -510,6 +534,9 @@ export function StatementImport({
           </button>
         </div>
 
+        {/* Falha ao criar categoria ("+ Outra") aparece aqui mesmo, e não só na confirmação. */}
+        {error && <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p>}
+
         <div className="rounded-xl border border-border bg-surface-2 p-4">
           <p className="text-sm font-medium text-ink">{it.description}</p>
           <div className="mt-1 flex items-center justify-between">
@@ -548,7 +575,9 @@ export function StatementImport({
           {/* Categorias que a própria pessoa criou (aqui ou no Orçamento). Só fica "dourada"
               quando de fato selecionada (it.customCategoryId === cc.id) — antes vinha sempre
               dourada de cara, dava a entender que já estava escolhida sem ter clicado em nada. */}
-          {customCategories.map((cc) => (
+          {/* Linha mandada pra outro perfil: as personalizadas (e a criada aqui) são do perfil
+              ativo e não valem lá, então só as fixas aparecem. */}
+          {!it.profileId && customCategories.map((cc) => (
             <button
               key={cc.id}
               type="button"
@@ -565,7 +594,7 @@ export function StatementImport({
               {cc.name}
             </button>
           ))}
-          <button
+          {!it.profileId && <button
             type="button"
             onClick={() => {
               setCreatingCat((v) => !v);
@@ -576,11 +605,11 @@ export function StatementImport({
           >
             <Plus size={14} strokeWidth={2.2} />
             {t.impOutra}
-          </button>
+          </button>}
         </div>
 
         {/* Criar categoria na hora: fica disponível pra planejar depois no Orçamento. */}
-        {creatingCat && (
+        {creatingCat && !it.profileId && (
           <div className="flex flex-col gap-1.5">
             <div className="flex flex-wrap items-center gap-2">
               <input
@@ -778,24 +807,30 @@ export function StatementImport({
         {duvidas.length > 0 && (
           <div className="flex flex-col gap-2 rounded-xl border border-accent/40 bg-accent-soft/40 px-4 py-3">
             <p className="text-sm font-semibold text-ink">
-              {duvidas.length === 1 ? "1 lançamento parece com um que você já lançou à mão" : `${duvidas.length} lançamentos parecem com alguns que você já lançou à mão`}
+              {t.impDuplicataTitulo(duvidas.length, duvidas.every((it) => !it.possivelDuplicata!.importado))}
             </p>
-            <p className="text-caption text-ink-muted">Mesmo valor e data perto. Se for o mesmo, eu não importo de novo.</p>
+            <p className="text-caption text-ink-muted">{t.impDuplicataDica}</p>
             <ul className="flex flex-col gap-2">
               {duvidas.map((it) => (
                 <li key={it.key} className="flex flex-col gap-1.5 border-t border-border/60 pt-2 first:border-t-0 first:pt-0">
                   <span className="text-sm text-ink">
                     <b>{it.description}</b> · {money(it.amount)} · {formatDate(it.date)}
                   </span>
-                  <span className="text-caption text-ink-muted">
-                    Você lançou: &ldquo;{it.possivelDuplicata!.descricao}&rdquo;{it.possivelDuplicata!.data ? ` em ${formatDate(it.possivelDuplicata!.data)}` : " no mesmo mês"}
+                  {/* Veio de outro arquivo (outro banco, ou o mesmo extrato em outro formato) ou foi
+                      lançado à mão: a frase diz qual, e ela decide olhando as duas descrições. */}
+                  <span className="break-words text-caption text-ink-muted">
+                    {t.impDuplicataJaTem(
+                      it.possivelDuplicata!.descricao,
+                      it.possivelDuplicata!.data ? formatDate(it.possivelDuplicata!.data) : null,
+                      Boolean(it.possivelDuplicata!.importado),
+                    )}
                   </span>
                   <div className="flex flex-wrap gap-2">
                     <button type="button" onClick={() => responderDuplicata(it.key, true)} className="rounded-full bg-pill px-3 py-1 text-xs font-semibold text-on-pill">
-                      É o mesmo, não importar
+                      {t.impDuplicataEOMesmo}
                     </button>
                     <button type="button" onClick={() => responderDuplicata(it.key, false)} className="rounded-full border border-border-strong bg-surface px-3 py-1 text-xs font-medium text-ink-muted hover:text-ink">
-                      São diferentes
+                      {t.impDuplicataSaoDiferentes}
                     </button>
                   </div>
                 </li>
@@ -949,7 +984,14 @@ export function StatementImport({
                     disabled={isPending}
                     onClick={() => {
                       startTransition(async () => {
-                        await removeCardPaymentCandidateAction(c.id);
+                        // Sem o catch, a falha de rede derrubava a tela no error boundary.
+                        try {
+                          await removeCardPaymentCandidateAction(c.id);
+                        } catch (err) {
+                          console.error("removeCardPaymentCandidateAction falhou", err);
+                          showToast(t.impErroSalvar);
+                          return;
+                        }
                         dismissCandidate(c.id);
                         showToast(t.impRemovidoExtrato);
                       });

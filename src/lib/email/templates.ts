@@ -39,9 +39,19 @@ function money(value: number, currency: CurrencyCode): string {
   return formatMoney(value, currency, { round: true });
 }
 
-/** Texto que a pessoa digitou (nome de perfil) não pode virar HTML dentro do e-mail. */
-function escaparHtml(texto: string): string {
+/**
+ * Texto que a pessoa digitou (nome, nome de perfil, de categoria, de meta) não pode virar HTML
+ * dentro do e-mail. O cadastro não confirmava o e-mail: alguém se cadastrava com o endereço de
+ * uma aluna e punha no nome um link de golpe, que chegava pra ela saindo do remetente do app.
+ */
+export function escaparHtml(texto: string): string {
   return texto.replace(/[<>&"]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" })[c] ?? c);
+}
+
+/** Primeiro nome já escapado, pronto pra saudação (as frases de voz dos temas não escapam). */
+function primeiroNome(nome: string | null): string | undefined {
+  const primeiro = nome?.trim().split(" ")[0];
+  return primeiro ? escaparHtml(primeiro) : undefined;
 }
 
 /** Linha "rótulo … valor" do quadro de números do resumo. */
@@ -84,7 +94,7 @@ export function monthlyRecapEmail(params: {
   perfil?: string;
 }): { subject: string; html: string } {
   const { t } = params;
-  const firstName = params.name?.split(" ")[0];
+  const firstName = primeiroNome(params.name);
   const hi = t.emailSaudacao(firstName);
   const positive = params.balance >= 0;
   const perfil = params.perfil?.trim();
@@ -123,7 +133,7 @@ export function monthlyRecapEmail(params: {
         ${statRow(t.entrou, money(params.income, params.currency), "#2e7d5b")}
         ${statRow(t.gastou, money(params.expense, params.currency), "#c0523c")}
         ${params.investment > 0 ? statRow(t.aportou, money(params.investment, params.currency), "#8a6414") : ""}
-        ${params.topCategory ? statRow(`${t.emailMaiorGasto}: ${params.topCategory.label}`, money(params.topCategory.value, params.currency)) : ""}
+        ${params.topCategory ? statRow(`${t.emailMaiorGasto}: ${escaparHtml(params.topCategory.label)}`, money(params.topCategory.value, params.currency)) : ""}
       </table>
 
       <p style="margin:24px 0 0;">${button(params.appUrl, t.emailRecapBotao)}</p>
@@ -154,7 +164,7 @@ export function monthlyNudgeEmail(params: {
   t: Titulos;
 }): { subject: string; html: string } {
   const { t } = params;
-  const firstName = params.name?.split(" ")[0];
+  const firstName = primeiroNome(params.name);
   const hi = t.emailSaudacao(firstName);
 
   return {
@@ -180,7 +190,10 @@ export function monthlyNudgeEmail(params: {
 
 /** E-mail de recuperação de senha. */
 export function passwordResetEmail(params: { name: string | null; resetUrl: string }): { subject: string; html: string } {
-  const hi = params.name ? `Oi, ${params.name}!` : "Oi!";
+  // Só o primeiro nome: o nome é digitado por quem se cadastra, e uma frase inteira ("pague em
+  // golpe.com") viraria link no Gmail de quem recebe.
+  const nomeCurto = primeiroNome(params.name);
+  const hi = nomeCurto ? `Oi, ${nomeCurto}!` : "Oi!";
   return {
     subject: "Redefinir sua senha · SPI Finance",
     html: shell(`
@@ -205,14 +218,15 @@ export function accessGrantedEmail(params: { email: string; registerUrl: string 
       <p style="margin:0 0 12px;">Oi!</p>
       <p style="margin:0 0 20px;">Seu acesso ao <strong>SPI Finance</strong> foi liberado. Falta só criar sua conta para começar a organizar suas finanças:</p>
       <p style="margin:0 0 24px;">${button(params.registerUrl, "Criar minha conta")}</p>
-      <p style="margin:0;color:${MUTED};font-size:13px;">Importante: cadastre-se usando exatamente este e-mail (<strong>${params.email}</strong>) — é ele que está autorizado.</p>
+      <p style="margin:0;color:${MUTED};font-size:13px;">Importante: cadastre-se usando exatamente este e-mail (<strong>${escaparHtml(params.email)}</strong>) — é ele que está autorizado.</p>
     `),
   };
 }
 
 /** E-mail de boas-vindas ao criar a conta. */
 export function welcomeEmail(params: { name: string | null; appUrl: string }): { subject: string; html: string } {
-  const hi = params.name ? `Bem-vinda, ${params.name}!` : "Bem-vinda!";
+  const nomeCurto = primeiroNome(params.name);
+  const hi = nomeCurto ? `Bem-vinda, ${nomeCurto}!` : "Bem-vinda!";
   return {
     subject: "Sua conta no SPI Finance está pronta 🎉",
     html: shell(`
@@ -224,13 +238,33 @@ export function welcomeEmail(params: { name: string | null; appUrl: string }): {
   };
 }
 
+/**
+ * "Confirme seu e-mail": vai no cadastro (e no "Reenviar" da tela de confirmação). Substitui o
+ * boas-vindas do autocadastro — a conta só abre depois do clique, então um "sua conta está
+ * pronta" antes disso seria mentira.
+ */
+export function confirmEmailEmail(params: { name: string | null; confirmUrl: string }): { subject: string; html: string } {
+  const primeiro = primeiroNome(params.name);
+  const hi = primeiro ? `Oi, ${primeiro}!` : "Oi!";
+  return {
+    subject: "Confirme seu e-mail · SPI Finance",
+    html: shell(`
+      <p style="margin:0 0 12px;">${hi}</p>
+      <p style="margin:0 0 20px;">Falta um passo pra abrir sua conta no SPI Finance: confirmar que este e-mail é seu. É só tocar no botão:</p>
+      <p style="margin:0 0 24px;">${button(params.confirmUrl, "Confirmar meu e-mail")}</p>
+      <p style="margin:0 0 8px;color:${MUTED};font-size:13px;">Este link vale por 7 dias. Se ele vencer, entre no app e peça outro.</p>
+      <p style="margin:0;color:${MUTED};font-size:13px;">Se você não criou uma conta, ignore este e-mail: sem a confirmação, ninguém entra com ele.</p>
+    `),
+  };
+}
+
 /** Avisos do meio do mês pra quem não ligou os avisos no celular: um e-mail, todos os avisos do dia. */
 export function alertEmail(params: {
   name: string | null;
   alerts: { title: string; body: string; url: string }[];
   preferencesUrl: string;
 }): { subject: string; html: string } {
-  const firstName = params.name?.split(" ")[0];
+  const firstName = primeiroNome(params.name);
   const hi = firstName ? `Oi, ${firstName}.` : "Oi.";
   const first = params.alerts[0];
   const subject = params.alerts.length === 1 ? first.title : `${first.title} e mais ${params.alerts.length - 1}`;
@@ -241,8 +275,8 @@ export function alertEmail(params: {
       ${params.alerts
         .map(
           (a) => `
-      <p style="margin:0 0 4px;"><strong>${a.title}</strong></p>
-      <p style="margin:0 0 6px;">${a.body}</p>
+      <p style="margin:0 0 4px;"><strong>${escaparHtml(a.title)}</strong></p>
+      <p style="margin:0 0 6px;">${escaparHtml(a.body)}</p>
       <p style="margin:0 0 18px;"><a href="${a.url}" style="color:${MUTED};">Ver no app</a></p>`,
         )
         .join("")}

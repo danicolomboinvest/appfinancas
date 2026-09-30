@@ -4,13 +4,15 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { useMoney } from "@/components/money/MoneyProvider";
-import { concluirRitualAction, definirTetoAction, registrarAporteDoMesAction } from "../actions";
+import { useToast } from "@/components/ui/toast-context";
+import { concluirRitualAction, definirTetoAction, dispensarAvisoAction, registrarAporteDoMesAction } from "../actions";
 import { Botao, Passo, Pontos } from "../Passos";
 
 export type DadosRitual = {
   semana: string;
   semanaPassada: { total: number; media: number | null; maior: { label: string; valor: number } | null };
-  alvo: { key: string; label: string; uso: number; gasto: number; planejado: number; sobra: number; diasRestantes: number } | null;
+  /** `avisoId`: o mesmo aviso do Foco ("estouro-LAZER"), pra "Foi só dessa vez" dispensar ele lá também. */
+  alvo: { key: string; label: string; uso: number; gasto: number; planejado: number; sobra: number; diasRestantes: number; avisoId: string } | null;
   aporteFaltando: number;
   /** null = sem orçamento: não existe "livre" pra mostrar. */
   livreSemana: number | null;
@@ -30,6 +32,18 @@ export function Ritual({ d }: { d: DadosRitual }) {
     if (escolha) setEscolhas((e) => [...e, escolha]);
     setPasso((p) => p + 1);
   };
+  const { showError } = useToast();
+  // Igual ao Fechamento: uma gravação que falha (internet, sessão expirada) vira aviso no mesmo
+  // passo, em vez de derrubar o app inteiro na tela de erro; o passo só avança se deu certo.
+  const gravar = (acao: () => Promise<void>) =>
+    start(async () => {
+      try {
+        await acao();
+      } catch (err) {
+        console.error("Ritual: a gravação falhou", err);
+        showError(t.acaoFalhou);
+      }
+    });
 
   const variacao = d.semanaPassada.media && d.semanaPassada.media > 0 ? (d.semanaPassada.total - d.semanaPassada.media) / d.semanaPassada.media : null;
 
@@ -77,7 +91,7 @@ export function Ritual({ d }: { d: DadosRitual }) {
               <Botao
                 disabled={salvando}
                 onClick={() =>
-                  start(async () => {
+                  gravar(async () => {
                     await definirTetoAction({ categoria: d.alvo!.key, valor: d.alvo!.sobra });
                     seguir(`teto em ${d.alvo!.label}`);
                   })
@@ -85,7 +99,18 @@ export function Ritual({ d }: { d: DadosRitual }) {
               >
                 {d.alvo.uso > 1 ? t.focoSegurarBotao(d.alvo.label) : t.focoTetoBotao(m(d.alvo.sobra))}
               </Botao>
-              <Botao secundario onClick={() => seguir("seguir o plano")}>
+              {/* A mesma resposta do "Foi pontual" no Foco: o aviso some até o mês virar. Antes só
+                  seguia o ritual, e o aviso esperava lá no Foco com o mesmo botão. */}
+              <Botao
+                secundario
+                disabled={salvando}
+                onClick={() =>
+                  gravar(async () => {
+                    await dispensarAvisoAction(d.alvo!.avisoId, "mes");
+                    seguir("seguir o plano");
+                  })
+                }
+              >
                 {t.focoPontual}
               </Botao>
             </>
@@ -103,7 +128,7 @@ export function Ritual({ d }: { d: DadosRitual }) {
               <Botao
                 disabled={salvando}
                 onClick={() =>
-                  start(async () => {
+                  gravar(async () => {
                     await registrarAporteDoMesAction();
                     seguir("aporte feito");
                   })
@@ -147,7 +172,7 @@ export function Ritual({ d }: { d: DadosRitual }) {
           <Botao
             disabled={salvando}
             onClick={() =>
-              start(async () => {
+              gravar(async () => {
                 await concluirRitualAction("ritual", d.semana, escolhas.join(" · ") || "seguir o plano");
                 router.push("/mensal/foco");
               })

@@ -29,19 +29,20 @@ export async function getMonthlyPlan(ctx: AuthContext, year: number, month: numb
 }
 
 /**
- * Grava o mesmo valor nos 12 meses do ano — mesma lógica do orçamento por categoria.
+ * Grava o mesmo valor nos meses pedidos do ano — mesma lógica do orçamento por categoria.
  *
  * Uma linha por mês, mesmo com valor repetido, porque um dia ela vai querer ajustar dezembro
  * (décimo terceiro) sem mexer no resto do ano, e o formato já comporta isso.
  *
- * `meses` limita quais meses são gravados: o "Salvar" do /orcamento passa só do mês corrente em
- * diante (a mesma regra das categorias), senão renda e aporte de meses já vividos eram reescritos.
+ * `meses` diz quais meses são gravados e é obrigatório: quem chama passa mesesQueOSalvarGrava
+ * (do mês corrente em diante, a mesma regra das categorias). Já teve padrão "os 12 meses", e a
+ * virada do ano esqueceu de passar: renda e aporte de meses já vividos eram reescritos.
  */
 export async function applyMonthlyPlanToWholeYear(
   ctx: AuthContext,
   year: number,
   values: MonthPlanValues,
-  meses: number[] = Array.from({ length: 12 }, (_, i) => i + 1),
+  meses: number[],
 ) {
   if (meses.length === 0) return;
   await prisma.$transaction(

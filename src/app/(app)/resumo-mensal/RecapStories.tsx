@@ -229,10 +229,9 @@ export function RecapStories({ recap, monthKey }: { recap: MonthlyRecap; monthKe
           <p className="text-lg text-white/80">{t.impStoryDesdeQueChegou(recap.monthsActive, savedPositive)}</p>
           <BigNumber color={savedPositive ? SAGE : TERRA}>{money(recap.allTimeSaved, { round: true })}</BigNumber>
           <p className="text-base text-white/70">
-            {/* A frase do saldo positivo fica aqui (não no catálogo) de propósito: ela diz
-                "patrimônio", e o teste da voz proíbe jargão em toda chave que o Girly herda
-                do Padrão. Entra no catálogo quando o Girly ganhar a frase dele. */}
-            {savedPositive ? "É renda acumulada que não virou gasto, e pode virar patrimônio." : t.impStoryAcumuladoRuim}
+            {/* As duas frases vêm do catálogo: a do saldo positivo diz "patrimônio" no Padrão, e
+                o Girly tem a versão dele sem jargão (paiStoryAcumuladoBom). */}
+            {savedPositive ? t.paiStoryAcumuladoBom : t.impStoryAcumuladoRuim}
           </p>
         </div>
       ),

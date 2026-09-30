@@ -1,13 +1,14 @@
 "use server";
 
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { AuthError } from "next-auth";
+import { signIn } from "@/lib/auth/auth.config";
+import { DESTINO_PADRAO } from "@/lib/auth/sessao";
+import { enviarConfirmacaoDeEmail } from "@/lib/auth/enviar-confirmacao";
 import { createUser, findUserByEmail } from "@/lib/repositories/user.repo";
 import { registerSchema } from "@/lib/validations/auth.schema";
 import { normalizePhone } from "@/lib/phone";
 import { getAllowedPhone } from "@/lib/repositories/allowedEmail.repo";
-import { sendEmail } from "@/lib/email/send";
-import { welcomeEmail } from "@/lib/email/templates";
 
 // `values` volta junto com o erro: o React 19 limpa o formulário a cada envio, e sem isso
 // "Celular inválido" aparecia com os quatro campos em branco. A senha nunca volta.
@@ -52,25 +53,29 @@ export async function registerAction(_prevState: RegisterState, formData: FormDa
   // comprado o curso na Hubla só destrava depois a área de investimentos (ver hasPremiumAccess).
   const existing = await findUserByEmail(parsed.data.email);
   if (existing) {
-    return { error: "Já existe uma conta com este email.", values };
+    return { error: "Já existe uma conta com este email. Se ela é sua, use \"Esqueci minha senha\" no login pra entrar.", values };
   }
 
   // Se a compra no Hubla trouxe celular, ele vale como reserva (mas o digitado agora manda).
   const hublaPhone = await getAllowedPhone(parsed.data.email);
-  await createUser({ ...parsed.data, phone: phone ?? hublaPhone ?? undefined });
+  const user = await createUser({ ...parsed.data, phone: phone ?? hublaPhone ?? undefined });
 
-  // E-mail de boas-vindas, melhor esforço: se o envio falhar, o cadastro continua valendo.
+  // "Confirme seu e-mail" no lugar do antigo boas-vindas: a conta só abre (e a área paga só
+  // libera) depois do clique no link, senão qualquer um se cadastrava com o e-mail de uma
+  // compradora. Melhor esforço: se o envio falhar, a tela de confirmação tem o "Reenviar".
+  await enviarConfirmacaoDeEmail(user).catch(() => "falhou");
+
+  // Já entra logada: cai direto na tela "Confirme seu e-mail", que mostra pra qual endereço o
+  // link foi e deixa reenviar. Se o login automático falhar por algum motivo, o login normal
+  // ainda funciona (e mostra "conta criada").
   try {
-    const h = await headers();
-    const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3001";
-    const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
-    const { subject, html } = welcomeEmail({ name: parsed.data.name, appUrl: `${proto}://${host}/login` });
-    await sendEmail({ to: parsed.data.email, subject, html });
-  } catch {
-    /* ignora, não bloqueia o cadastro por causa do e-mail */
+    await signIn("credentials", {
+      email: parsed.data.email,
+      password: parsed.data.password,
+      redirectTo: DESTINO_PADRAO,
+    });
+  } catch (error) {
+    if (!(error instanceof AuthError)) throw error; // o redirect do signIn também chega aqui
   }
-
-  // ?created=1 mostra a confirmação "conta criada" no login, sem isso a pessoa caía num
-  // formulário vazio sem saber se o cadastro tinha funcionado.
   redirect("/login?created=1");
 }

@@ -76,9 +76,22 @@ describe("prazo tirado das metas", () => {
     expect(h.summary).toContain("20 anos");
   });
 
-  it("meta vencida conta como prazo zero, não negativo", () => {
-    const h = horizonFromGoals([meta("Atrasada", 1000, "2020-01-01")], hoje)!;
-    expect(h.months).toBe(0);
-    expect(h.prazo).toBe(0);
+  it("meta com prazo já passado sai da conta; sem nenhuma aberta, o quiz pergunta", () => {
+    expect(horizonFromGoals([meta("Atrasada", 1000, "2020-01-01")], hoje)).toBeNull();
+    const h = horizonFromGoals([meta("Carro", 20000, "2026-08-01"), meta("Casa", 20000, "2032-09-19")], hoje)!;
+    expect(h.months).toBe(72);
+    expect(h.prazo).toBe(2);
+    expect(h.summary).not.toContain("Carro");
+  });
+
+  it("meta já atingida sai da conta: não puxa a média pra baixo", () => {
+    // Carro concluído (R$ 20.000 guardados) + Casa daqui a 6 anos: o prazo é o da Casa, não 3 anos.
+    const h = horizonFromGoals(
+      [{ ...meta("Carro", 20000, "2026-12-01"), currentAmount: 20000 }, { ...meta("Casa", 20000, "2032-09-19"), currentAmount: 3000 }],
+      hoje,
+    )!;
+    expect(h.months).toBe(72);
+    expect(h.prazo).toBe(2);
+    expect(horizonFromGoals([{ ...meta("Carro", 20000, "2026-12-01"), currentAmount: 20500 }], hoje)).toBeNull();
   });
 });

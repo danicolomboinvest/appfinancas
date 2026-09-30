@@ -22,7 +22,13 @@ export type TipoDecisao =
   /** Revisão de um lançamento antigo (chave = id do lançamento): o que ela escolheu fazer. */
   | "revisao_lancamento"
   /** Aviso do Foco dispensado ("foi pontual", "entendi"): chave "2026-09|estouro-LAZER" ou "2026-W40|aporte". */
-  | "aviso_dispensado";
+  | "aviso_dispensado"
+  /**
+   * O nome que o banco deu a um lançamento importado que ela renomeou (chave = id do lançamento).
+   * Não existe campo pra isso no lançamento: sem guardar, a regra aprendida saía com o nome novo
+   * ("ALUGUEL" em vez de "PIX 1234 JOAO") e a fatura renomeada entrava em dobro se subida de novo.
+   */
+  | "descricao_original";
 
 export type NovaDecisao = {
   tipo: TipoDecisao;
@@ -124,6 +130,26 @@ export async function listarComprasDecididasDesde(ctx: AuthContext, desde: Date)
   });
 }
 
+/**
+ * Guarda o nome do banco antes do primeiro "Definir descrição" num lançamento importado. Só o
+ * primeiro: renomear de novo não pode trocar o nome do banco pelo nome que ela deu antes.
+ */
+export async function guardarDescricaoOriginal(ctx: AuthContext, entryId: string, descricao: string) {
+  if (await existeDecisao(ctx, "descricao_original", entryId)) return;
+  await registrarDecisaoUnica(ctx, { tipo: "descricao_original", chave: entryId, descricao });
+}
+
+/** O nome do banco de cada lançamento renomeado (id do lançamento → descrição do extrato). */
+export async function descricoesOriginais(ctx: AuthContext, perfis: (string | null)[]): Promise<Map<string, string>> {
+  const ids = perfis.filter((p): p is string => p !== null);
+  if (ids.length === 0) return new Map();
+  const rows = await prisma.decisao.findMany({
+    where: { userId: ctx.userId, profileId: { in: ids }, tipo: "descricao_original" },
+    select: { chave: true, descricao: true },
+  });
+  return new Map(rows.flatMap((r) => (r.chave && r.descricao ? [[r.chave, r.descricao] as [string, string]] : [])));
+}
+
 /** Tetos que a pessoa pôs em categorias NESTE mês (chave "2026-09|ALIMENTACAO"). */
 export async function listarTetosDoMes(ctx: AuthContext, anoMes: string) {
   const tetos = await prisma.decisao.findMany({
@@ -137,6 +163,8 @@ export async function listarTetosDoMes(ctx: AuthContext, anoMes: string) {
       // Quanto a categoria já tinha gasto quando ela combinou: é o que separa o gasto de antes
       // (já sabido) do gasto que veio depois e quebrou o combinado. Tetos antigos não têm.
       gastoNaHora: typeof dados.gastoNaHora === "number" ? dados.gastoNaHora : null,
+      // A hora do combinado: o card conta só os gastos que aconteceram depois dela.
+      combinadoEm: t.createdAt,
     };
   });
 }

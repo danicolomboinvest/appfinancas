@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { decideRecapEmail, escolherPerfilDoResumo, MAX_NUDGES, type RecapCandidate } from "../recap-audience";
+import {
+  decideRecapEmail,
+  escolherPerfilDoResumo,
+  MAX_NUDGES,
+  podeEnviarResumoHoje,
+  type RecapCandidate,
+} from "../recap-audience";
 
 const base: RecapCandidate = {
   hasActivityInMonth: false,
@@ -62,5 +68,20 @@ describe("escolherPerfilDoResumo", () => {
   it("sem movimento em perfil nenhum (ou só lançamento antigo sem perfil): não há resumo", () => {
     expect(escolherPerfilDoResumo([], "pessoal")).toBeNull();
     expect(escolherPerfilDoResumo([{ profileId: null, lancamentos: 7 }], "pessoal")).toBeNull();
+  });
+});
+
+describe("podeEnviarResumoHoje", () => {
+  it("envia só nos dias 1 a 3 (o cron roda todo dia)", () => {
+    expect(podeEnviarResumoHoje(1, { dryRun: false })).toBe(true);
+    expect(podeEnviarResumoHoje(3, { dryRun: false })).toBe(true);
+    expect(podeEnviarResumoHoje(4, { dryRun: false })).toBe(false);
+    // O caso do deploy no dia 30: não pode mandar o resumo do mês retrasado.
+    expect(podeEnviarResumoHoje(30, { dryRun: false, onlyEmail: null })).toBe(false);
+  });
+
+  it("dryRun e onlyEmail (teste manual) passam em qualquer dia", () => {
+    expect(podeEnviarResumoHoje(20, { dryRun: true })).toBe(true);
+    expect(podeEnviarResumoHoje(20, { dryRun: false, onlyEmail: "a@b.com" })).toBe(true);
   });
 });

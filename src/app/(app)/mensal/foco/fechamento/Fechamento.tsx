@@ -7,6 +7,7 @@ import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { useMoney } from "@/components/money/MoneyProvider";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { ReportarErro } from "@/components/decisoes/ReportarErro";
+import { useToast } from "@/components/ui/toast-context";
 import { ajustarOrcamentoAction, concluirRitualAction, mandarSobraPraReservaAction, registrarAporteDoMesAction } from "../actions";
 import { Botao, Passo, Pontos } from "../Passos";
 
@@ -46,6 +47,20 @@ export function Fechamento({ d }: { d: DadosFechamento }) {
     if (escolha) setEscolhas((e) => [...e, escolha]);
     setPasso((p) => p + 1);
   };
+  const { showError } = useToast();
+  // Toda gravação dos passos passa por aqui. Sem o try, a internet caindo (ou a sessão
+  // expirando) no "Mandar pra reserva" subia pro error boundary da raiz: o app inteiro virava a
+  // tela de erro e as escolhas do fechamento se perdiam. Agora ela fica no mesmo passo, com o
+  // aviso, e o passo só avança (`seguir` dentro da ação) quando a gravação deu certo.
+  const gravar = (acao: () => Promise<void>) =>
+    start(async () => {
+      try {
+        await acao();
+      } catch (err) {
+        console.error("Fechamento: a gravação falhou", err);
+        showError(t.acaoFalhou);
+      }
+    });
   // Só oferece "subir" quando sobe de verdade: se o orçamento deste mês já é maior, o botão baixaria.
   const maior = d.passaram.find((p) => p.mae && Math.ceil(p.gasto / 10) * 10 > p.planejadoAgora);
   const arredondado = maior ? Math.ceil(maior.gasto / 10) * 10 : 0;
@@ -148,7 +163,7 @@ export function Fechamento({ d }: { d: DadosFechamento }) {
               <Botao
                 disabled={salvando}
                 onClick={() =>
-                  start(async () => {
+                  gravar(async () => {
                     const ok = await mandarSobraPraReservaAction(d.ano, d.mesNumero);
                     setLembrarCarteira(ok);
                     seguir(ok ? "sobra pra reserva" : "sobra na conta");
@@ -183,7 +198,7 @@ export function Fechamento({ d }: { d: DadosFechamento }) {
               <Botao
                 disabled={salvando}
                 onClick={() =>
-                  start(async () => {
+                  gravar(async () => {
                     await ajustarOrcamentoAction(maior.key, arredondado);
                     seguir(`${maior.label} em ${m(arredondado)}`);
                   })
@@ -209,7 +224,7 @@ export function Fechamento({ d }: { d: DadosFechamento }) {
               <Botao
                 disabled={salvando}
                 onClick={() =>
-                  start(async () => {
+                  gravar(async () => {
                     await registrarAporteDoMesAction();
                     seguir("aporte feito");
                   })
@@ -244,7 +259,7 @@ export function Fechamento({ d }: { d: DadosFechamento }) {
           <Botao
             disabled={salvando}
             onClick={() =>
-              start(async () => {
+              gravar(async () => {
                 await concluirRitualAction("fechamento", d.chave, escolhas.join(" · ") || "lição registrada");
                 router.push("/mensal/foco");
               })

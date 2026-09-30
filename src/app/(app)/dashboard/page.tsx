@@ -240,7 +240,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
         const porMaeAteHoje = soMesesJaVividos(porMaeAno, mesesPassados);
         const porPersonalizadaAteHoje = soMesesJaVividos(porPersonalizadaAno, mesesPassados);
         const [mes, ano] = await Promise.all([
-          dadosDaEmpresa(ctx, { receita: currentMonthSummary.totalIncome, retido: currentMonthSummary.totalInvestment, gastoPorCategoria: spentByParent, gastoPersonalizado: gastoPersonalizadoMes }, { year, month: currentMonth }),
+          dadosDaEmpresa(ctx, { receita: currentMonthSummary.totalIncome, retido: currentMonthSummary.totalInvestment, gastoPorCategoria: spentByParent, gastoPersonalizado: gastoPersonalizadoMes, despesaTotal: currentMonthSummary.totalExpense }, { year, month: currentMonth }),
           dadosDaEmpresa(
             ctx,
             {
@@ -248,6 +248,8 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
               retido: summary.totalInvestment,
               gastoPorCategoria: porMaeAteHoje.map((r) => ({ parentCategory: r.parentCategory, spent: r.spent })),
               gastoPersonalizado: porPersonalizadaAteHoje.reduce((s, r) => s + r.spent, 0),
+              // Mesmo corte dos meses vividos (summary.totalExpense só soma mês realizado).
+              despesaTotal: summary.totalExpense,
             },
             { year, month: currentMonth },
           ),
@@ -260,6 +262,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
           <PainelEmpresa
             money={money}
             year={year}
+            mesNumero={currentMonth}
             mesLabel={MONTH_LABELS_FULL[currentMonth - 1]}
             mesAnteriorLabel={rotuloComparacao}
             // O mês do ano corrente está em andamento: comparar com o anterior inteiro diria
@@ -494,8 +497,8 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
               usufructSurplus === null
                 ? "Configure seu planejamento"
                 : usufructSurplus >= 0
-                  ? "Superávit: renda passiva cobre o padrão de vida desejado"
-                  : "Déficit: falta patrimônio para o padrão de vida desejado"
+                  ? voz.titulos.paiAposentadoriaSuperavit
+                  : voz.titulos.paiAposentadoriaDeficit
             }
             tone={usufructSurplus === null ? "neutral" : usufructSurplus >= 0 ? "success" : "danger"}
           />
@@ -505,7 +508,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
             icon={Coins}
             label={voz.titulos.modDividendos}
             value={upcomingDividends > 0 ? money(upcomingDividends) : "Nenhum previsto"}
-            hint={upcomingDividends > 0 ? "Estimativa dos ativos da sua carteira" : "Aparece quando houver provento anunciado"}
+            hint={upcomingDividends > 0 ? "Estimativa dos ativos da sua carteira" : voz.titulos.paiDividendosVazio}
             tone={upcomingDividends > 0 ? "success" : "neutral"}
           />
         </div>

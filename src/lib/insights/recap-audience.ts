@@ -65,3 +65,23 @@ export function escolherPerfilDoResumo(
   for (const p of comMovimento) if (!melhor || p.lancamentos > melhor.lancamentos) melhor = p;
   return melhor?.profileId ?? null;
 }
+
+/** Último dia do mês (horário de Brasília) em que o cron diário ainda envia o resumo. */
+export const ULTIMO_DIA_DO_ENVIO = 3;
+
+/**
+ * O cron do resumo roda TODO DIA (o plano Hobby da Vercel não chama agendamento restrito a dias
+ * do mês), mas só pode ENVIAR na virada. Sem esta trava, um deploy no dia 30 mandava o resumo do
+ * mês retrasado a todo mundo com a trava do mês nula ("setembro começou" no último dia de
+ * setembro), e no dia seguinte saía um segundo e-mail — com o recapNudgeCount subindo duas vezes.
+ * Quem religa o e-mail no dia 20 também recebia o resumo do mês passado no dia 20.
+ *
+ * dryRun e onlyEmail passam em qualquer dia: são o teste manual, não o disparo pra base.
+ */
+export function podeEnviarResumoHoje(
+  diaDoMesNoBrasil: number,
+  opcoes: { dryRun: boolean; onlyEmail?: string | null },
+): boolean {
+  if (opcoes.dryRun || opcoes.onlyEmail) return true;
+  return diaDoMesNoBrasil <= ULTIMO_DIA_DO_ENVIO;
+}

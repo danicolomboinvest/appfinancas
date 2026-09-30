@@ -5,7 +5,8 @@ import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { useState } from "react";
 import { Check } from "lucide-react";
 import { useToast } from "@/components/ui/toast-context";
-import { useMoney } from "@/components/money/MoneyProvider";
+import { useCurrency, useMoney } from "@/components/money/MoneyProvider";
+import { formatMoney } from "@/lib/money";
 import { checkinGoalAction } from "./actions";
 
 /**
@@ -37,10 +38,15 @@ export function GoalAporteChip({
 }) {
   const { voz } = useProfileTheme();
   const money = useMoney();
+  const currency = useCurrency();
   const { showToast, showError } = useToast();
   const [marked, setMarked] = useState(done);
   const [openAmount, setOpenAmount] = useState(false);
-  const [amount, setAmount] = useState("");
+  // Em centavos, com a máscara de moeda do resto do app. O <input type="number"> cru lia
+  // "1.200" (mil e duzentos, como o próprio placeholder escreve) como 1,2 no Chrome do
+  // computador: salvava um aporte de R$ 1,20. Na máscara, cada dígito empurra os centavos,
+  // então ponto e vírgula digitados não mudam o valor, e ela vê "R$ 1.200,00" antes de salvar.
+  const [cents, setCents] = useState<number | null>(null);
   const [pending, setPending] = useState(false);
 
   async function send(decision: "done" | "partial", value?: number) {
@@ -74,20 +80,22 @@ export function GoalAporteChip({
     return (
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <input
-          type="number"
-          inputMode="decimal"
+          type="text"
+          inputMode="numeric"
           autoFocus
-          min={0}
-          step="0.01"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
+          aria-label={voz.titulos.metaOutroValor}
+          value={cents === null ? "" : formatMoney(cents / 100, currency)}
+          onChange={(e) => {
+            const digits = e.target.value.replace(/\D/g, "");
+            setCents(digits === "" ? null : Number(digits));
+          }}
           placeholder={money(suggestedAmount, { round: true })}
-          className="w-28 rounded-lg border border-border-strong bg-surface px-2.5 py-1.5 text-sm tabular-nums text-ink outline-none focus:border-accent"
+          className="w-32 rounded-lg border border-border-strong bg-surface px-2.5 py-1.5 text-sm tabular-nums text-ink outline-none focus:border-accent"
         />
         <button
           type="button"
-          disabled={pending || !Number(amount.replace(",", "."))}
-          onClick={() => send("partial", Number(amount.replace(",", ".")))}
+          disabled={pending || !cents}
+          onClick={() => cents && send("partial", cents / 100)}
           className="rounded-full bg-accent px-3 py-1.5 text-caption font-semibold text-on-accent disabled:opacity-50"
         >
           Salvar

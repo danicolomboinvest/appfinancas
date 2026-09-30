@@ -4,16 +4,21 @@ import { useId, useState, useTransition } from "react";
 import type { ParentCategory } from "@prisma/client";
 import { PARENT_CATEGORIES, OUTRO_SUBCATEGORY_LABEL, categoryLabel, subcategoriesFor, incomeTypesFor, investmentTypesFor } from "@/lib/categories";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
+import type { Voz } from "@/lib/profiles/voice";
 import { CONTROL_CLASSES } from "@/components/ui/Field";
 import { createCategoryAction } from "@/lib/actions/category";
 import { classify } from "@/lib/import/classify";
 import { initialCategoryState } from "./category-fields-utils";
 
-const CATEGORY_OPTIONS = [
-  { value: "INCOME", label: "Renda" },
-  { value: "EXPENSE", label: "Gasto" },
-  { value: "INVESTMENT_CONTRIBUTION", label: "Aporte" },
-];
+/** Os três tipos na voz do tema: no Girly é "Entrou / Gasto / Guardou", igual à lista do mês
+ * e ao /guia. Texto fixo aqui fazia o formulário do + dizer "Aporte" e desmentir o manual. */
+function categoryOptions(voz: Voz) {
+  return [
+    { value: "INCOME", label: voz.titulos.uiTipoRenda },
+    { value: "EXPENSE", label: voz.titulos.uiTipoGasto },
+    { value: "INVESTMENT_CONTRIBUTION", label: voz.titulos.uiTipoAporte },
+  ];
+}
 
 function Chip({
   label,
@@ -73,7 +78,7 @@ export function CategoryFields({
   const selectId = useId();
   // Os rótulos, subcategorias e chips de tipo mudam com o perfil: numa Empresa, MORADIA é
   // "Estrutura" e a renda é "Vendas", não "Salário". A chave gravada no banco é a mesma.
-  const { kind } = useProfileTheme();
+  const { kind, voz } = useProfileTheme();
   const [category, setCategory] = useState(defaultCategory);
   const [initial] = useState(() =>
     initialCategoryState({
@@ -164,7 +169,7 @@ export function CategoryFields({
           onChange={(e) => setCategory(e.target.value)}
           className={`${CONTROL_CLASSES} ${stacked ? "w-full" : ""}`}
         >
-          {CATEGORY_OPTIONS.map((option) => (
+          {categoryOptions(voz).map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
             </option>

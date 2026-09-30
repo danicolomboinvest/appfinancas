@@ -38,7 +38,7 @@ export default function LoginPage({
           {created === "1" && !state.error && (
             <p className="flex items-center gap-2 rounded-lg bg-success-soft px-3 py-2 text-sm text-success">
               <CheckCircle2 size={16} className="shrink-0" />
-              Conta criada! Agora é só entrar.
+              Conta criada! Entre e confirme seu e-mail pelo link que mandamos.
             </p>
           )}
           {state.error && (

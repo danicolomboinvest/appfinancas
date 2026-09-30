@@ -131,6 +131,13 @@ export type TextosFormularios = {
   formOrcSalvar: string;
   formOrcAjustar: string;
   formOrcRendaEAporte: string;
+  /** O link que abre o plano já salvo, no topo do /orcamento. */
+  formOrcEditarPlano(ano: number): string;
+  /** O título do "planejado × realizado" de renda e do que foi guardado no mês. */
+  formOrcRendaEAporteNoMes(mes: string): string;
+  /** Os nomes das duas barras desse bloco. */
+  formOrcBarraRenda: string;
+  formOrcBarraAporte: string;
   // O quadradinho de cada categoria
   formOrcPorMes: string;
   formOrcSemGasto: string;
@@ -254,7 +261,7 @@ export const PADRAO_FORMULARIOS: TextosFormularios = {
   formMetaIcones: { VIAGEM: "Viagem", CASA: "Casa", CARRO: "Carro", APOSENTADORIA: "Aposentadoria", GENERICO: "Genérico" },
   formMetaValorAlvo: "Valor-alvo",
   formMetaJaGuardado: "Já guardado",
-  formMetaJaGuardadoHint: "O que já está guardado pra essa meta. Quando os aportes marcados e os investimentos ligados a ela passarem desse valor, a meta passa a contar por eles.",
+  formMetaJaGuardadoHint: "O que você já tinha guardado pra essa meta. O que você marcar como guardado daqui pra frente soma em cima. Se ligar a ela o investimento onde esse dinheiro está, ele não conta duas vezes.",
   formMetaMesAno: "Mês/ano alvo",
   formMetaRende: "Quanto o dinheiro guardado rende por ano",
   formMetaRendeHint: "Poupança rende perto de 6%. CDB e Tesouro Selic, perto de 10%. Se não sabe, deixe 10%.",
@@ -339,6 +346,10 @@ export const PADRAO_FORMULARIOS: TextosFormularios = {
   formOrcSalvar: "Salvar meu plano",
   formOrcAjustar: "Ajustar as categorias",
   formOrcRendaEAporte: "Renda e aporte",
+  formOrcEditarPlano: (ano) => `Editar seu plano de ${ano}: renda, aporte e gastos`,
+  formOrcRendaEAporteNoMes: (mes) => `Renda e aporte em ${mes}`,
+  formOrcBarraRenda: "Renda",
+  formOrcBarraAporte: "Aporte",
   formOrcPorMes: "Por mês",
   formOrcSemGasto: "sem gasto mês passado",
   formOrcMesPassado: (mes, valor) => `${mes}: ${valor}`,

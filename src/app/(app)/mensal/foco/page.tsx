@@ -234,18 +234,18 @@ export default async function FocoPage() {
           {t.focoNadaSub && <p className="mt-1 text-caption text-ink-muted">{t.focoNadaSub}</p>}
         </Card>
       ) : (
-        foco.atencao.map((item) => <AvisoFoco key={item.id} item={item} hrefMes={d.hrefMes} opcoes={d.opcoesDeCategoria} gastos={item.detalhe?.tipo === "fora" ? d.gastosFora : item.detalhe?.tipo === "estouro" || item.detalhe?.tipo === "ritmo" ? (d.gastosPorCategoria[item.detalhe.categoria] ?? []) : []} />)
+        foco.atencao.map((item) => <AvisoFoco key={item.id} item={item} hrefMes={d.hrefMes} opcoes={d.opcoesDeCategoria} gastos={item.detalhe?.tipo === "fora" ? d.gastosFora : item.detalhe?.tipo === "estouro" || item.detalhe?.tipo === "ritmo" ? (d.gastosPorCategoria[item.detalhe.categoria] ?? []) : []} resumo={item.detalhe?.tipo === "fora" ? d.resumoFora : item.detalhe?.tipo === "estouro" || item.detalhe?.tipo === "ritmo" ? d.resumoPorCategoria[item.detalhe.categoria] : undefined} />)
       )}
       {/* O que ela já decidiu num aviso vira combinado, logo abaixo: dá pra ver se está sendo cumprido. */}
       {foco.combinados.map((c) => (
-        <CombinadoFoco key={c.categoria} c={c} opcoes={d.opcoesDeCategoria} gastos={d.gastosPorCategoria[c.categoria] ?? []} />
+        <CombinadoFoco key={c.categoria} c={c} hrefMes={d.hrefMes} opcoes={d.opcoesDeCategoria} gastos={d.gastosPorCategoria[c.categoria] ?? []} resumo={d.resumoPorCategoria[c.categoria]} />
       ))}
       {foco.depois.length > 0 && (
         <details>
           <summary className="cursor-pointer px-1 text-caption text-ink-muted">{t.focoMaisEsperam(foco.depois.length)}</summary>
           <div className="mt-3 flex flex-col gap-3">
             {foco.depois.map((item) => (
-              <AvisoFoco key={item.id} item={item} hrefMes={d.hrefMes} opcoes={d.opcoesDeCategoria} gastos={item.detalhe?.tipo === "fora" ? d.gastosFora : item.detalhe?.tipo === "estouro" || item.detalhe?.tipo === "ritmo" ? (d.gastosPorCategoria[item.detalhe.categoria] ?? []) : []} />
+              <AvisoFoco key={item.id} item={item} hrefMes={d.hrefMes} opcoes={d.opcoesDeCategoria} gastos={item.detalhe?.tipo === "fora" ? d.gastosFora : item.detalhe?.tipo === "estouro" || item.detalhe?.tipo === "ritmo" ? (d.gastosPorCategoria[item.detalhe.categoria] ?? []) : []} resumo={item.detalhe?.tipo === "fora" ? d.resumoFora : item.detalhe?.tipo === "estouro" || item.detalhe?.tipo === "ritmo" ? d.resumoPorCategoria[item.detalhe.categoria] : undefined} />
             ))}
           </div>
         </details>

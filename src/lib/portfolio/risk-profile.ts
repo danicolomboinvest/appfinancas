@@ -62,7 +62,13 @@ export function riskProfileFromAnswers(answers: RiskAnswers): RiskProfileResult 
   return { profile, reason };
 }
 
-export type GoalHorizonInput = { name: string; targetAmount: number; targetDate: Date | null };
+export type GoalHorizonInput = {
+  name: string;
+  targetAmount: number;
+  targetDate: Date | null;
+  /** Quanto a meta já tem (o progresso da tela de Metas). Meta atingida sai da conta. */
+  currentAmount?: number;
+};
 
 export type GoalHorizon = {
   /** Prazo médio em meses, pesado pelo tamanho de cada meta. */
@@ -81,10 +87,19 @@ export type GoalHorizon = {
  * R$ 50.000 daqui a um ano e R$ 5.000 daqui a dez não pode montar carteira de dez anos. Por isso
  * a média é ponderada pelo valor de cada meta, não pela quantidade delas.
  *
- * Meta sem data fica de fora: sem prazo ela não diz nada sobre horizonte.
+ * Meta sem data fica de fora: sem prazo ela não diz nada sobre horizonte. Meta já atingida ou
+ * com o prazo já passado também: o dinheiro dela não está mais esperando o futuro. Contada como
+ * "0 meses" com o peso inteiro, a viagem já concluída puxava a média de uma casa em 6 anos pra 3,
+ * o quiz deixava de perguntar o prazo e o perfil saía no máximo moderado.
  */
 export function horizonFromGoals(goals: GoalHorizonInput[], now: Date = new Date()): GoalHorizon | null {
-  const comData = goals.filter((g) => g.targetDate && g.targetAmount > 0);
+  const comData = goals.filter(
+    (g) =>
+      g.targetDate &&
+      g.targetDate.getTime() > now.getTime() &&
+      g.targetAmount > 0 &&
+      !((g.currentAmount ?? 0) >= g.targetAmount),
+  );
   if (comData.length === 0) return null;
 
   const pesos = comData.map((g) => {

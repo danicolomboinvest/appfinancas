@@ -19,7 +19,7 @@ export default async function PerfilPage() {
 
       <PageHeader title={t.cfgPerfilTitulo} subtitle={t.cfgPerfilSub} />
 
-      <ProfileForm defaults={{ name: user.name, email: user.email, avatarUrl: user.avatarUrl, phone: formatPhone(user.phone) }} />
+      <ProfileForm defaults={{ name: user.name, email: user.email, phone: formatPhone(user.phone) }} />
 
       {/* Dentro do app não havia caminho pra trocar a senha (conta VIP nasce com senha
           provisória) nem pra ler Termos, Privacidade e Suporte depois de logada. */}

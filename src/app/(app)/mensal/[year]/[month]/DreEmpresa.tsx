@@ -12,7 +12,20 @@ import { MESES_DE_CAIXA_RECOMENDADOS } from "@/lib/profiles/empresa";
  * despesas fixas → lucro. Cada linha vem das categorias que a pessoa já usa (ver
  * CATEGORIAS_EMPRESA): nada aqui pede cadastro novo.
  */
-export function DreEmpresa({ dados, money, periodo, compacto = false }: { dados: DadosDaEmpresa; money: Money; periodo: string; compacto?: boolean }) {
+export function DreEmpresa({
+  dados,
+  money,
+  periodo,
+  compacto = false,
+  hrefClassificar,
+}: {
+  dados: DadosDaEmpresa;
+  money: Money;
+  periodo: string;
+  compacto?: boolean;
+  /** Onde classificar o gasto sem categoria. Sem ele (já na tela do mês), só o aviso. */
+  hrefClassificar?: string;
+}) {
   const { dre, caixa } = dados;
   const pct = (v: number | null) => (v === null ? "—" : `${Math.round(v * 100)}%`);
   const vazio = dre.receitaBruta === 0 && dre.despesasFixas === 0 && dre.custosVariaveis === 0 && dre.impostos === 0;
@@ -44,33 +57,50 @@ export function DreEmpresa({ dados, money, periodo, compacto = false }: { dados:
       </div>
 
       <div className={`mt-3 ${compacto ? "" : "lg:grid lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] lg:gap-6"}`}>
-        <ol className="flex flex-col">
-          {linhas.map((l) => {
-            const negativo = l.valor < 0;
-            const classe =
-              l.tipo === "total"
-                ? `border-t border-border py-2.5 text-[15px] font-semibold ${negativo ? "text-danger" : "text-success"}`
-                : l.tipo === "subtotal"
-                  ? "border-t border-border/60 py-2 text-sm font-medium text-ink"
-                  : l.tipo === "entrada"
-                    ? "py-2 text-sm text-ink"
-                    : "py-1.5 text-sm text-ink-muted";
-            return (
-              <li key={l.rotulo} className={`flex items-baseline justify-between gap-3 ${classe}`}>
-                <span className="min-w-0">
-                  {l.tipo === "saida" && <span className="mr-1 text-ink-faint">−</span>}
-                  {l.rotulo}
-                  {l.nota && <span className="ml-1.5 text-caption text-ink-faint">{l.nota}</span>}
-                </span>
-                <span className="flex shrink-0 items-baseline gap-2 tabular-nums">
-                  {negativo ? `−${money(Math.abs(l.valor), { round: true })}` : money(l.valor, { round: true })}
-                  {/* O peso de cada linha na receita, como nos painéis de gestão: "impostos 6%, lucro 15%". */}
-                  <span className="w-9 text-right text-caption text-ink-faint">{dre.receitaBruta > 0 ? `${Math.round((l.valor / dre.receitaBruta) * 100)}%` : ""}</span>
-                </span>
-              </li>
-            );
-          })}
-        </ol>
+        <div className="min-w-0">
+          <ol className="flex flex-col">
+            {linhas.map((l) => {
+              const negativo = l.valor < 0;
+              const classe =
+                l.tipo === "total"
+                  ? `border-t border-border py-2.5 text-[15px] font-semibold ${negativo ? "text-danger" : "text-success"}`
+                  : l.tipo === "subtotal"
+                    ? "border-t border-border/60 py-2 text-sm font-medium text-ink"
+                    : l.tipo === "entrada"
+                      ? "py-2 text-sm text-ink"
+                      : "py-1.5 text-sm text-ink-muted";
+              return (
+                <li key={l.rotulo} className={`flex items-baseline justify-between gap-3 ${classe}`}>
+                  <span className="min-w-0">
+                    {l.tipo === "saida" && <span className="mr-1 text-ink-faint">−</span>}
+                    {l.rotulo}
+                    {l.nota && <span className="ml-1.5 text-caption text-ink-faint">{l.nota}</span>}
+                  </span>
+                  <span className="flex shrink-0 items-baseline gap-2 tabular-nums">
+                    {negativo ? `−${money(Math.abs(l.valor), { round: true })}` : money(l.valor, { round: true })}
+                    {/* O peso de cada linha na receita, como nos painéis de gestão: "impostos 6%, lucro 15%". */}
+                    <span className="w-9 text-right text-caption text-ink-faint">{dre.receitaBruta > 0 ? `${Math.round((l.valor / dre.receitaBruta) * 100)}%` : ""}</span>
+                  </span>
+                </li>
+              );
+            })}
+          </ol>
+          {/* Gasto sem categoria já está dentro das despesas fixas (senão o lucro daqui não batia
+              com o "entrou − saiu" do resto do app); o aviso diz quanto e aponta onde classificar. */}
+          {dre.semCategoria > 0 && (
+            <p className="mt-1 text-caption text-ink-faint">
+              Despesas fixas incluem {money(dre.semCategoria, { round: true })} sem categoria.
+              {hrefClassificar && (
+                <>
+                  {" "}
+                  <Link href={hrefClassificar} className="font-medium text-accent-strong hover:underline">
+                    Classificar →
+                  </Link>
+                </>
+              )}
+            </p>
+          )}
+        </div>
 
         {/* Os três números que dizem se o negócio para em pé. */}
         <div className={`mt-4 grid gap-2 sm:grid-cols-3 ${compacto ? "" : "lg:mt-0 lg:grid-cols-1 lg:content-start"}`}>

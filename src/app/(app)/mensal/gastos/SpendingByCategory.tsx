@@ -11,6 +11,7 @@ import type { SpendingSlice } from "@/components/charts/SpendingPieChart";
 import { categoryIcon, isParentCategoryKey, colorForCategorySlice } from "@/lib/categories";
 import { getCategoryTransactionsAction, type CategoryTransaction } from "./actions";
 import { useMoney } from "@/components/money/MoneyProvider";
+import { useToast } from "@/components/ui/toast-context";
 
 type Period = "semana" | "mes" | "ano";
 
@@ -59,6 +60,7 @@ export function SpendingByCategory({
   // `kind` porque o ícone de cada categoria-mãe muda numa Empresa (MORADIA vira prédio, não casa).
   const { key: tema, voz, kind } = useProfileTheme();
   const money = useMoney();
+  const { showError } = useToast();
   const [period, setPeriod] = useState<Period>(initialPeriod);
   const [openCategory, setOpenCategory] = useState<string | null>(null);
   const [transactions, setTransactions] = useState<CategoryTransaction[]>([]);
@@ -84,8 +86,16 @@ export function SpendingByCategory({
     }
     setOpenCategory(slice.name);
     startTransition(async () => {
-      const txns = await getCategoryTransactionsAction(period, selectedYear, selectedMonth, category);
-      setTransactions(txns);
+      // Sem internet (ou sessão expirada), o erro subia pro error boundary da raiz e a tela
+      // inteira virava "deu erro". Agora a lista fecha e ela vê o aviso.
+      try {
+        const txns = await getCategoryTransactionsAction(period, selectedYear, selectedMonth, category);
+        setTransactions(txns);
+      } catch (err) {
+        console.error("getCategoryTransactionsAction falhou", err);
+        setOpenCategory(null);
+        showError(voz.titulos.acaoFalhou);
+      }
     });
   }
 

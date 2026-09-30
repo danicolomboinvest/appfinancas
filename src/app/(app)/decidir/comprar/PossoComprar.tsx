@@ -7,7 +7,7 @@ import { CONTROL_CLASSES } from "@/components/ui/Field";
 import { CurrencyInputControlled } from "@/components/ui/CurrencyInputControlled";
 import { useMoney } from "@/components/money/MoneyProvider";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
-import { avaliarCompra, pct as pctDaRenda, type CompraBase, type Veredito } from "@/lib/decisoes/posso-comprar";
+import { avaliarCompra, pct as pctDaRenda, type CompraBase, type ResultadoCompra, type Veredito } from "@/lib/decisoes/posso-comprar";
 import { registrarCompraAction } from "@/app/(app)/mensal/foco/actions";
 import { ReportarErro } from "@/components/decisoes/ReportarErro";
 
@@ -29,23 +29,16 @@ export function PossoComprar({ base, hoje }: { base: CompraBase; hoje: { ano: nu
   const [juros, setJuros] = useState("0");
   const [desconto, setDesconto] = useState("0");
   const [decisao, setDecisao] = useState<string | null>(null);
+  // A resposta como estava na hora da decisão. O "Vou comprar" atualiza a página e a compra
+  // recém-registrada passa a contar em `base`: recalcular faria a mesma compra contar duas vezes
+  // e o "Boa compra" aparecia embaixo de um "Neste mês não cabe".
+  const [respostaDaDecisao, setRespostaDaDecisao] = useState<{ r: ResultadoCompra; comDecididas: boolean } | null>(null);
   const [erroAoSalvar, setErroAoSalvar] = useState(false);
   const [salvando, startTransition] = useTransition();
   // Os mesmos limites do motor: desconto de 0 a 90%, parcelas de 1 a 48, e "parcelado em 1x" é à vista.
   const descontoPct = Math.min(90, Math.max(0, numero(desconto)));
   const nParcelas = Math.max(1, Math.min(48, Math.round(numero(parcelas))));
   const modoEfetivo = modo === "parcelado" && nParcelas <= 1 ? "vista" : modo;
-  const custoDecidido = modoEfetivo === "vista" ? (valor ?? 0) * (1 - (modo === "vista" ? descontoPct : 0) / 100) : valor ?? 0;
-  const registrar = (tipo: "compra_desisti" | "compra_amanha" | "compra_comprei", mensagem: string) =>
-    startTransition(async () => {
-      try {
-        await registrarCompraAction({ tipo, valor: custoDecidido, descricao: descricao.trim().slice(0, 120) || undefined, modo: modoEfetivo, parcelas: modoEfetivo === "vista" ? 1 : nParcelas });
-        setErroAoSalvar(false);
-        setDecisao(mensagem);
-      } catch {
-        setErroAoSalvar(true);
-      }
-    });
 
   // Centavos só somem de valor grande: "R$ 0" pra uma compra de R$ 0,40 não serve.
   const m = (v: number) => money(v, { round: Math.abs(v) >= 100 });
@@ -56,7 +49,7 @@ export function PossoComprar({ base, hoje }: { base: CompraBase; hoje: { ano: nu
     return `${MESES[d.getMonth()]} de ${d.getFullYear()}`;
   };
 
-  const r = useMemo(
+  const calculado = useMemo(
     () =>
       avaliarCompra(
         base,
@@ -67,6 +60,42 @@ export function PossoComprar({ base, hoje }: { base: CompraBase; hoje: { ano: nu
     // eslint-disable-next-line react-hooks/exhaustive-deps -- m e mesDaqui só dependem de money e hoje
     [base, valor, modo, parcelas, juros, descontoPct, descricao, money],
   );
+  // O motor soma no "já comprometido" as parcelas já decididas e, na compra à vista, também as à vista decididas.
+  const comDecididasAgora = (base.jaDecidido?.parcelaMensal ?? 0) > 0 || (modoEfetivo === "vista" && (base.jaDecidido?.vista ?? 0) > 0);
+  const congelada = decisao !== null ? respostaDaDecisao : null;
+  const r = congelada ? congelada.r : calculado;
+  const comDecididas = congelada ? congelada.comDecididas : comDecididasAgora;
+
+  // Parcelado com juros: o que ela paga de verdade (parcela × vezes). É o que se grava, pra que a
+  // parcela esperada (valor ÷ parcelas) bata com o lançamento da fatura, e pra que o "desisti"
+  // conte o que ela deixou de pagar, não o preço sem juros.
+  const custoDecidido =
+    modoEfetivo === "vista" ? (valor ?? 0) * (1 - (modo === "vista" ? descontoPct : 0) / 100) : (valor ?? 0) + ("erro" in calculado ? 0 : (calculado.custoJuros ?? 0));
+  const registrar = (tipo: "compra_desisti" | "compra_amanha" | "compra_comprei", mensagem: string) => {
+    const respostaNaHora = { r: calculado, comDecididas: comDecididasAgora };
+    startTransition(async () => {
+      try {
+        await registrarCompraAction({ tipo, valor: custoDecidido, descricao: descricao.trim().slice(0, 120) || undefined, modo: modoEfetivo, parcelas: modoEfetivo === "vista" ? 1 : nParcelas });
+        setErroAoSalvar(false);
+        setRespostaDaDecisao(respostaNaHora);
+        setDecisao(mensagem);
+      } catch {
+        setErroAoSalvar(true);
+      }
+    });
+  };
+  // Outra simulação: formulário limpo, e a conta já com a compra que acabou de ser decidida.
+  const simularOutra = () => {
+    setDescricao("");
+    setValor(undefined);
+    setModo("parcelado");
+    setParcelas("10");
+    setJuros("0");
+    setDesconto("0");
+    setDecisao(null);
+    setRespostaDaDecisao(null);
+    setErroAoSalvar(false);
+  };
 
   const selo: Record<Veredito, { texto: string; classe: string }> = {
     ok: { texto: t.compraOk, classe: "bg-success/12 text-success" },
@@ -77,41 +106,44 @@ export function PossoComprar({ base, hoje }: { base: CompraBase; hoje: { ano: nu
 
   return (
     <div className="flex flex-col gap-4">
-      <Card className="flex flex-col gap-4 p-5">
-        <label className="flex flex-col gap-1.5 text-label font-medium text-ink-muted">
-          O que você quer comprar?
-          <input className={CONTROL_CLASSES} value={descricao} maxLength={120} onChange={(e) => setDescricao(e.target.value)} placeholder="Ex.: celular" />
-        </label>
-        <CurrencyInputControlled label="Valor total" value={valor} onChange={setValor} />
-        <div className="grid grid-cols-2 gap-1 rounded-full border border-border bg-surface-2 p-1" role="group" aria-label="Forma de pagamento">
-          {(["vista", "parcelado"] as const).map((op) => (
-            <button
-              key={op}
-              type="button"
-              aria-pressed={modo === op}
-              onClick={() => setModo(op)}
-              className={`rounded-full py-2 text-sm font-medium transition-all ${modo === op ? "bg-pill text-on-pill" : "text-ink-muted"}`}
-            >
-              {op === "vista" ? "À vista" : "Parcelado"}
-            </button>
-          ))}
-        </div>
-        {modo === "parcelado" && (
-          <div className="grid grid-cols-2 gap-3">
-            <label className="flex flex-col gap-1.5 text-label font-medium text-ink-muted">
-              Em quantas vezes
-              <input className={CONTROL_CLASSES} inputMode="numeric" value={parcelas} onChange={(e) => setParcelas(e.target.value)} />
-            </label>
-            <label className="flex flex-col gap-1.5 text-label font-medium text-ink-muted">
-              Juros ao mês (%)
-              <input className={CONTROL_CLASSES} inputMode="decimal" value={juros} onChange={(e) => setJuros(e.target.value)} />
-            </label>
+      <Card className="p-5">
+        {/* Depois da decisão o formulário trava: a resposta mostrada é a da hora da decisão. */}
+        <fieldset disabled={decisao !== null || salvando} className="flex min-w-0 flex-col gap-4 disabled:opacity-70">
+          <label className="flex flex-col gap-1.5 text-label font-medium text-ink-muted">
+            O que você quer comprar?
+            <input className={CONTROL_CLASSES} value={descricao} maxLength={120} onChange={(e) => setDescricao(e.target.value)} placeholder="Ex.: celular" />
+          </label>
+          <CurrencyInputControlled label="Valor total" value={valor} onChange={setValor} />
+          <div className="grid grid-cols-2 gap-1 rounded-full border border-border bg-surface-2 p-1" role="group" aria-label="Forma de pagamento">
+            {(["vista", "parcelado"] as const).map((op) => (
+              <button
+                key={op}
+                type="button"
+                aria-pressed={modo === op}
+                onClick={() => setModo(op)}
+                className={`rounded-full py-2 text-sm font-medium transition-all ${modo === op ? "bg-pill text-on-pill" : "text-ink-muted"}`}
+              >
+                {op === "vista" ? "À vista" : "Parcelado"}
+              </button>
+            ))}
           </div>
-        )}
-        <label className="flex flex-col gap-1.5 text-label font-medium text-ink-muted">
-          Desconto se pagar à vista (%)
-          <input className={CONTROL_CLASSES} inputMode="decimal" value={desconto} onChange={(e) => setDesconto(e.target.value)} />
-        </label>
+          {modo === "parcelado" && (
+            <div className="grid grid-cols-2 gap-3">
+              <label className="flex flex-col gap-1.5 text-label font-medium text-ink-muted">
+                Em quantas vezes
+                <input className={CONTROL_CLASSES} inputMode="numeric" value={parcelas} onChange={(e) => setParcelas(e.target.value)} />
+              </label>
+              <label className="flex flex-col gap-1.5 text-label font-medium text-ink-muted">
+                Juros ao mês (%)
+                <input className={CONTROL_CLASSES} inputMode="decimal" value={juros} onChange={(e) => setJuros(e.target.value)} />
+              </label>
+            </div>
+          )}
+          <label className="flex flex-col gap-1.5 text-label font-medium text-ink-muted">
+            Desconto se pagar à vista (%)
+            <input className={CONTROL_CLASSES} inputMode="decimal" value={desconto} onChange={(e) => setDesconto(e.target.value)} />
+          </label>
+          </fieldset>
       </Card>
 
       {"erro" in r ? (
@@ -149,6 +181,7 @@ export function PossoComprar({ base, hoje }: { base: CompraBase; hoje: { ano: nu
                   : r.comprometimento.fonte === "mes"
                     ? " (o que já saiu neste mês, que passou do orçamento)"
                     : " (seu orçamento do mês)"}
+                {comDecididas ? ", mais as compras que você já decidiu fazer" : ""}
                 . Com a compra:{" "}
                 {/* Casal só com a conta conjunta não tem regra dos 90%: o vermelho é passar do que entra na conta. */}
                 <b className={r.comprometimento.depois > (base.regra90 === false ? 1 : 0.9) ? "text-danger" : "text-ink"}>{pctRenda(r.comprometimento.depois)}</b>.
@@ -216,7 +249,12 @@ export function PossoComprar({ base, hoje }: { base: CompraBase; hoje: { ano: nu
           <ReportarErro tela="Posso comprar?" regra="regra dos 90% + sonhos mais distantes perdem aporte primeiro; reserva por último" />
 
           {decisao ? (
-            <p className="rounded-2xl bg-surface-2 px-4 py-3 text-sm text-ink">{decisao}</p>
+            <div className="grid gap-2">
+              <p className="rounded-2xl bg-surface-2 px-4 py-3 text-sm text-ink">{decisao}</p>
+              <button type="button" onClick={simularOutra} className="rounded-2xl border border-border px-4 py-3 text-sm font-semibold text-ink-muted">
+                Simular outra compra
+              </button>
+            </div>
           ) : (
             <div className="grid gap-2">
               {erroAoSalvar && <p className="rounded-2xl bg-danger/10 px-4 py-3 text-sm text-danger">Não consegui salvar agora. Tenta de novo em instantes.</p>}

@@ -171,16 +171,20 @@ export async function POST(request: Request) {
   // dos que dão acesso. Se não dá pra identificar o produto, não revoga — errar a favor do
   // cliente pagante é menos grave do que cortar acesso de quem tem direito (a Dani pode cortar
   // na mão).
-  if (products.length > 0) {
-    if (!(await findAllowedProduct(products))) {
-      return NextResponse.json({
-        ok: true,
-        action: "ignored",
-        reason: "product not allowed",
-        products: products.map((p) => p.name ?? p.id),
-      });
-    }
+  // Antes a conferência só rodava com produto na lista, e o evento SEM produto caía direto na
+  // revogação — o contrário do que está escrito acima.
+  if (products.length === 0) {
+    return NextResponse.json({ ok: true, action: "ignored", reason: "no product" });
   }
+  if (!(await findAllowedProduct(products))) {
+    return NextResponse.json({
+      ok: true,
+      action: "ignored",
+      reason: "product not allowed",
+      products: products.map((p) => p.name ?? p.id),
+    });
+  }
+  // Só desativa liberação que veio do Hubla: a MANUAL da Dani fica (ver revokeFromHubla).
   await revokeFromHubla(email);
   return NextResponse.json({ ok: true, action: "revoked" });
 }

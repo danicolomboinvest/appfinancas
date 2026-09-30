@@ -132,6 +132,10 @@ enum StrategyAssetClass {
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
+  /// Quando ela clicou no link de confirmação do e-mail. Contas novas só entram no app depois
+  /// disso (senão qualquer um cria a conta com o e-mail de uma compradora). Nulo nas contas
+  /// criadas antes da regra, que continuam valendo (ver emailConfirmado em src/lib/auth).
+  emailVerifiedAt DateTime?
   passwordHash String
   /// Celular (WhatsApp) — pedido no cadastro e/ou puxado da compra no Hubla.
   phone                String?
