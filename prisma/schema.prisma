@@ -943,6 +943,10 @@ model AllowedEmail {
   /// (member_added + payment_succeeded, além de reenvios); sem essa trava, cada reenvio
   /// esticaria o acesso em mais um ano de graça.
   lastHublaInvoiceId String?
+  /// Lembretes de "crie sua conta" (boas-vindas, 30/09/2026): quando saiu o do 1º e o do 4º dia.
+  /// Servem de trava: gravados ANTES do envio, uma rodada repetida não manda duas vezes.
+  lembreteConta1Em DateTime?
+  lembreteConta2Em DateTime?
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
 }

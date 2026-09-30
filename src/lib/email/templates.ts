@@ -11,7 +11,7 @@ const INK = "#1a1a1a";
 const MUTED = "#6b6b6b";
 
 /** Moldura padrão: cabeçalho com a marca + corpo + rodapé. */
-function shell(bodyHtml: string): string {
+export function shell(bodyHtml: string): string {
   return `
   <div style="margin:0;padding:24px;background:#f4f2ec;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;">
     <div style="max-width:480px;margin:0 auto;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #eee;">
@@ -29,7 +29,7 @@ function shell(bodyHtml: string): string {
   </div>`;
 }
 
-function button(href: string, label: string): string {
+export function button(href: string, label: string): string {
   return `<a href="${href}" style="display:inline-block;background:${INK};color:#ffffff;text-decoration:none;font-weight:600;font-size:15px;padding:12px 24px;border-radius:10px;">${label}</a>`;
 }
 
@@ -49,7 +49,7 @@ export function escaparHtml(texto: string): string {
 }
 
 /** Primeiro nome já escapado, pronto pra saudação (as frases de voz dos temas não escapam). */
-function primeiroNome(nome: string | null): string | undefined {
+export function primeiroNome(nome: string | null): string | undefined {
   const primeiro = nome?.trim().split(" ")[0];
   return primeiro ? escaparHtml(primeiro) : undefined;
 }

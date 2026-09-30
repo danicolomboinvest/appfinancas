@@ -1,8 +1,12 @@
 import Link from "next/link";
+import { headers } from "next/headers";
+import { after } from "next/server";
 import { CheckCircle2, MailWarning } from "lucide-react";
 import { BrandMark } from "@/components/brand/BrandMark";
 import { lerTokenDeConfirmacao } from "@/lib/auth/confirmacao-email";
 import { marcarEmailConfirmado } from "@/lib/repositories/user.repo";
+import { sendEmail } from "@/lib/email/send";
+import { enviarBoasVindasSeDevido } from "@/lib/onboarding/enviar-boas-vindas";
 
 /**
  * Destino do link "Confirmar meu e-mail". Pública (está em PUBLIC_PATHS): o link costuma abrir
@@ -17,6 +21,17 @@ export default async function ConfirmarEmailPage({
   const { t } = await searchParams;
   const lido = lerTokenDeConfirmacao(typeof t === "string" ? t : null);
   const confirmado = lido ? await marcarEmailConfirmado(lido.userId, lido.email) : false;
+
+  // Boas-vindas na hora em que a conta abre (texto aprovado pela Dani em 30/09/2026). Depois da
+  // resposta, pra página não esperar o SMTP. Reabrir o link não manda de novo: a trava é o
+  // NotificationLog, e se o envio falhar aqui o cron das boas-vindas manda no dia seguinte.
+  if (confirmado && lido) {
+    const h = await headers();
+    const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
+    const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
+    const userId = lido.userId;
+    after(() => enviarBoasVindasSeDevido(userId, `${proto}://${host}`, sendEmail));
+  }
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-canvas p-6">

@@ -39,7 +39,9 @@ function getTransporter(): Transporter | null {
 }
 
 export type SendEmailResult = { ok: true } | { ok: false; reason: "not-configured" | "error" };
-type EmailParams = { to: string; subject: string; html: string };
+/** `replyTo`: pra onde vai a resposta. Os e-mails que pedem "responde aqui" mandam pra caixa de
+ * suporte (contato@), que alguém lê; o remetente do app (app@) ninguém olha. */
+type EmailParams = { to: string; subject: string; html: string; replyTo?: string };
 
 /** Envia um e-mail HTML. Nunca lança, devolve um resultado pro chamador decidir o que fazer. */
 export async function sendEmail(params: EmailParams): Promise<SendEmailResult> {
@@ -74,6 +76,7 @@ async function enviarCom(transporter: Transporter | null, params: EmailParams): 
       to: params.to,
       subject: params.subject,
       html: params.html,
+      ...(params.replyTo ? { replyTo: params.replyTo } : {}),
     });
     return { ok: true };
   } catch (err) {
