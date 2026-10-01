@@ -52,6 +52,9 @@ const RESUMO_EM_COLUNA = new RegExp(
   "i",
 );
 
+const MERCADO_PAGO_ENTRADAS = new RegExp(String.raw`\bEntradas:\s*${VALOR}`);
+const MERCADO_PAGO_SAIDAS = new RegExp(String.raw`\bSa[íi]das:\s*(?:R\$\s*)?-?(\d{1,3}(?:\.\d{3})*,\d{2})`);
+
 function numero(m: RegExpMatchArray | null): number | null {
   if (!m) return null;
   const n = Number(m[1].replace(/\./g, "").replace(",", "."));
@@ -95,8 +98,9 @@ export function conferirLeitura(texto: string, docType: string, txns: ParsedTran
   // Extrato: só o que é inequívoco. Saldo inicial/final muda de nome e de sinal a cada banco, e
   // uma referência lida errada acusaria (e mandaria mensagem pra) quem teve a leitura certa.
   const coluna = texto.match(RESUMO_EM_COLUNA);
-  const entradas = coluna ? numero([coluna[0], coluna[1]]) : numero(texto.match(TOTAL_ENTRADAS));
-  const saidas = coluna ? numero([coluna[0], coluna[2]]) : numero(texto.match(TOTAL_SAIDAS));
+  // Mercado Pago: "Entradas: R$ 10.635,42" e "Saidas: R$ -10.625,71" no topo.
+  const entradas = coluna ? numero([coluna[0], coluna[1]]) : numero(texto.match(TOTAL_ENTRADAS) ?? texto.match(MERCADO_PAGO_ENTRADAS));
+  const saidas = coluna ? numero([coluna[0], coluna[2]]) : numero(texto.match(TOTAL_SAIDAS) ?? texto.match(MERCADO_PAGO_SAIDAS));
   if (entradas === null || saidas === null) return { status: "sem-referencia" };
   const lidoEntradas = txns.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0);
   const lidoSaidas = txns.filter((t) => t.amount < 0).reduce((s, t) => s - t.amount, 0);

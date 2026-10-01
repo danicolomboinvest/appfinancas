@@ -11,6 +11,7 @@ import { isBancoDoBrasilStatement, parseBancoDoBrasilStatement } from "./bb-pdf"
 import { isBradescoStatement, parseBradescoStatement } from "./bradesco-pdf";
 import { isBradescoInvoice, parseBradescoInvoice } from "./bradesco-fatura-pdf";
 import { fechaComoFatura, lerFaturaTestando } from "./leitor-inteligente";
+import { isMercadoPagoStatement, parseMercadoPagoStatement } from "./mercado-pago-pdf";
 import { isCaixaAppStatement, parseCaixaAppStatement } from "./caixa-pdf";
 import { isCoraStatement, parseCoraStatement } from "./cora-pdf";
 import { isInterInvoice, isInterStatement, parseInterInvoice, parseInterStatement } from "./inter-pdf";
@@ -98,18 +99,28 @@ function parseAmountCore(t: string): number {
 export function normalizeDate(raw: string): string {
   const trimmed = raw.trim();
   // Aceita "DD/MM/YYYY" e também "DD/MM/YYYY HH:MM" (extrato BTG traz data e hora juntas).
-  const br = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4}|\d{2})(?!\d)/);
+  // "02-08-2026" (Mercado Pago) e "02.08.2026" também: sem isso a data não era entendida e o
+  // extrato de agosto inteiro caía no mês de hoje.
+  const br = trimmed.match(/^(\d{1,2})([/.-])(\d{1,2})\2(\d{4}|\d{2})(?!\d)/);
   if (br) {
-    const ano = br[3].length === 2 ? `20${br[3]}` : br[3];
+    const ano = br[4].length === 2 ? `20${br[4]}` : br[4];
     // "31/02" passava (dia até 31 em qualquer mês) e na gravação o new Date rolava pra 3 de
     // março: o gasto mudava de mês calado. Dia que o mês não tem não é data.
-    if (diaExiste(Number(ano), Number(br[2]), Number(br[1]))) return `${ano}-${br[2].padStart(2, "0")}-${br[1].padStart(2, "0")}`;
+    if (diaExiste(Number(ano), Number(br[3]), Number(br[1]))) return `${ano}-${br[3].padStart(2, "0")}-${br[1].padStart(2, "0")}`;
   }
   const iso = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
   const ofx = trimmed.match(/^(\d{4})(\d{2})(\d{2})/); // OFX DTPOSTED: YYYYMMDD[HHMMSS]
   if (ofx) return `${ofx[1]}-${ofx[2]}-${ofx[3]}`;
   return trimmed;
+}
+
+/** Data ISO de um ano que faz sentido pra um extrato (nem "ano 2", nem "ano 9999"). */
+function dataPlausivel(iso: string): boolean {
+  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return false;
+  const ano = Number(m[1]);
+  return ano >= 1990 && ano <= new Date().getFullYear() + 5 && diaExiste(ano, Number(m[2]), Number(m[3]));
 }
 
 /** O dia existe nesse mês? (31/02 não, 29/02 só no ano bissexto.) */
@@ -164,7 +175,12 @@ export function parseOfx(content: string): ParsedTransaction[] {
     if (Number.isNaN(amount)) continue;
     // `||`, não `??`: MEMO vazio ("<MEMO>" sem nada) vem como "", e o NAME ficava de fora.
     const description = decodeEntities(tag(block, "MEMO") || tag(block, "NAME") || "").trim() || "Lançamento";
-    const date = normalizeDate(tag(block, "DTPOSTED") ?? "");
+    const dtposted = tag(block, "DTPOSTED");
+    const date = normalizeDate(dtposted ?? "");
+    // Data impossível ("00000000"): não é movimento, é linha de saldo que o banco põe no OFX.
+    // Em 21/09/2026 sete delas entraram como R$ 19,6 mil de renda no "ano 2", e a conta "do
+    // primeiro mês até hoje" passou a percorrer 24 mil meses.
+    if (dtposted && /^\d{8}/.test(dtposted) && !dataPlausivel(date)) continue;
     transactions.push({ date, description, amount });
   }
   return transactions;
@@ -384,6 +400,16 @@ function guessLayoutFromRows(lines: string[], refYear: number): CsvLayout {
   return { ...base, dateCol: 0, descCol: 1, amountCol: 2 };
 }
 
+/**
+ * Planilha em que os lançamentos têm data: linha SEM data não é lançamento. É o quadro do fim do
+ * extrato do Itaú ("LIMITE DA CONTA TOTAL 15.500", "JUROS DO LIMITE"), que sem data caía no mês
+ * de hoje — o limite do cheque especial entrava como R$ 15.500 de renda.
+ */
+function semLinhaSemData(txns: ParsedTransaction[]): ParsedTransaction[] {
+  const comData = txns.filter((t) => /^\d{4}-\d{2}-\d{2}$/.test(t.date));
+  return comData.length >= 3 && comData.length > txns.length / 2 ? comData : txns;
+}
+
 export function parseCsv(content: string, refYear: number = new Date().getFullYear()): ParsedTransaction[] {
   const lines = content.split(/\r?\n/).filter((l) => l.trim() !== "");
   if (lines.length === 0) return [];
@@ -409,7 +435,7 @@ export function parseCsv(content: string, refYear: number = new Date().getFullYe
     const transaction = readTransactionLine(line, layout, refYear);
     if (transaction) transactions.push(transaction);
   }
-  if (layout !== null) return transactions;
+  if (layout !== null) return semLinhaSemData(transactions);
 
   // Nenhum cabeçalho no arquivo inteiro: as colunas saem do formato das próprias linhas.
   const semCabecalho = guessLayoutFromRows(lines, refYear);
@@ -417,7 +443,7 @@ export function parseCsv(content: string, refYear: number = new Date().getFullYe
     const transaction = readTransactionLine(line, semCabecalho, refYear);
     if (transaction) transactions.push(transaction);
   }
-  return transactions;
+  return semLinhaSemData(transactions);
 }
 
 /** Palavras que indicam entrada (crédito) numa linha de extrato sem coluna de débito/crédito. */
@@ -482,7 +508,7 @@ function leadingDate(line: string, refYear: number): { iso: string; length: numb
 
 function leadingDateCore(t: string, refYear: number): { iso: string; length: number } | null {
   const pad = (n: string) => n.padStart(2, "0");
-  let m = t.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  let m = t.match(/^(\d{2})[/-](\d{2})[/-](\d{4})/);
   if (m) return { iso: `${m[3]}-${m[2]}-${m[1]}`, length: m[0].length };
   m = t.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (m) return { iso: `${m[1]}-${m[2]}-${m[3]}`, length: m[0].length };
@@ -733,6 +759,7 @@ const LEITORES_PDF: { nome: string; reconhece: (t: string) => boolean; le: (t: s
   { nome: "bradesco", reconhece: isBradescoStatement, le: (t) => parseBradescoStatement(t) },
   { nome: "bradesco-fatura", reconhece: isBradescoInvoice, le: (t, ano) => parseBradescoInvoice(t, ano) },
   { nome: "cora", reconhece: isCoraStatement, le: (t) => parseCoraStatement(t) },
+  { nome: "mercado-pago", reconhece: isMercadoPagoStatement, le: (t) => parseMercadoPagoStatement(t) },
   { nome: "inter-fatura", reconhece: isInterInvoice, le: (t) => parseInterInvoice(t) },
   { nome: "ourocard", reconhece: isOurocardInvoice, le: (t, ano) => parseOurocardInvoice(t, ano) },
   { nome: "itau-fatura", reconhece: isItauInvoice, le: (t, ano) => parseItauInvoice(t, ano) },

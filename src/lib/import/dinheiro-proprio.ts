@@ -15,10 +15,13 @@
 
 const semAcento = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 
-const APLICACAO = /\b(aplicacao|aplic|caixinha|rdb|cdb|lci|lca|tesouro|poupanca|investimento|guardar dinheiro|cofrinho)\b/;
+/** "Dinheiro reservado <nome da reserva>": é como o Mercado Pago chama guardar na caixinha. */
+const APLICACAO = /\b(aplicacao|aplic|caixinha|rdb|cdb|lci|lca|tesouro|poupanca|investimento|guardar dinheiro|cofrinho|dinheiro reservado)\b/;
 /** As palavras que só dizem "guardei" (o verbo ou o lugar), sem ser nome de produto. */
-const APLICACAO_VERBO = /\b(aplicacao|aplic|caixinha|guardar dinheiro|cofrinho)\b/;
-const RESGATE_PALAVRA = /\b(resgate|resg|retirada (da|de) caixinha|retirada do cofrinho|resgatad[oa])\b/;
+const APLICACAO_VERBO = /\b(aplicacao|aplic|caixinha|guardar dinheiro|cofrinho|dinheiro reservado)\b/;
+/** "Dinheiro retirado <nome da reserva>": a volta da caixinha no Mercado Pago (21 linhas num extrato
+ * de agosto entravam como renda). */
+const RESGATE_PALAVRA = /\b(resgate|resg|retirada (da|de) caixinha|retirada do cofrinho|resgatad[oa]|dinheiro retirado)\b/;
 /**
  * Onde o dinheiro guardado mora. "poupanc" e "poup": o extrato corta ("CRÉD.TRANSF.POUPANÇ",
  * "JUROS POUP AUT").

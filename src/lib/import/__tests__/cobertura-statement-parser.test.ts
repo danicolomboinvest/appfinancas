@@ -225,3 +225,24 @@ describe("parseStatementComLeitor: quem leu", () => {
     expect(parseStatementComLeitor("").txns).toEqual([]);
   });
 });
+
+describe("data impossível e linha sem data (01/10/2026)", () => {
+  const ofxBloco = (dt: string, valor: string) => `<STMTTRN><TRNTYPE>CREDIT<DTPOSTED>${dt}<TRNAMT>${valor}<MEMO>X</STMTTRN>`;
+
+  it("OFX com DTPOSTED zerado é linha de saldo, não renda no 'ano 2'", () => {
+    const ofx = `<OFX>${ofxBloco("20260910", "-10.00")}${ofxBloco("00000000", "6636.33")}</OFX>`;
+    expect(parseOfx(ofx).map((t) => t.date)).toEqual(["2026-09-10"]);
+  });
+
+  it("planilha com data: o quadro de limite do fim (sem data) não vira lançamento do mês", () => {
+    const csv = [
+      "data;lançamento;ag./origem;valor (R$);saldos (R$)",
+      "01/09/2026;PIX RECEBIDO PESSOA;;100,00;",
+      "02/09/2026;PADARIA EXEMPLO;;-20,00;",
+      "03/09/2026;MERCADO EXEMPLO;;-30,00;",
+      ";(+) LIMITE DA CONTA TOTAL;;15.500,00;",
+      ";JUROS DO LIMITE DA CONTA;;0,20;",
+    ].join("\n");
+    expect(parseCsv(csv).map((t) => t.description)).toEqual(["PIX RECEBIDO PESSOA", "PADARIA EXEMPLO", "MERCADO EXEMPLO"]);
+  });
+});

@@ -41,6 +41,16 @@ export function isItauInvoice(texto: string): boolean {
 }
 
 export function parseItauInvoice(texto: string, refYear: number = new Date().getFullYear()): ParsedTransaction[] {
+  const porSecao = lerItau(texto, refYear, true);
+  if (fechaComOMes(texto, porSecao)) return porSecao;
+  // PDF de duas colunas: a extração mistura as colunas e há compras do mês ANTES do primeiro
+  // título (25 linhas, R$ 1.616, numa fatura de 30/09/2026). Lê toda linha com data, tira o
+  // quadro das próximas faturas pelo total impresso dele, e só fica com isso se fechar no centavo.
+  const tudo = semProximasFaturas(texto, lerItau(texto, refYear, false));
+  return fechaComOMes(texto, tudo) ? tudo : porSecao;
+}
+
+function lerItau(texto: string, refYear: number, soNasSecoes: boolean): ParsedTransaction[] {
   // A fatura não traz o ano de cada compra. A emissão traz: compra de um mês DEPOIS do mês da
   // emissão só pode ser do ano anterior (parcela de compra antiga).
   const emissao = texto.match(EMISSAO_RE);
@@ -48,10 +58,15 @@ export function parseItauInvoice(texto: string, refYear: number = new Date().get
   const anoEmissao = emissao ? Number(emissao[3]) : refYear;
 
   const out: ParsedTransaction[] = [];
-  let dentro = false;
+  let dentro = !soNasSecoes;
   for (const bruta of texto.split(/\r?\n/)) {
     const linha = bruta.replace(/\t/g, " ").replace(/\s+/g, " ").trim();
-    if (FIM_RE.test(linha)) break;
+    // Pausa, não fim: em PDF de duas colunas, compras DESTE mês voltam depois do quadro das
+    // próximas faturas, embaixo de um novo "Lançamentos: compras e saques".
+    if (FIM_RE.test(linha)) {
+      dentro = !soNasSecoes;
+      continue;
+    }
     if (INICIO_RE.test(linha)) {
       dentro = true;
       continue;
@@ -75,5 +90,42 @@ export function parseItauInvoice(texto: string, refYear: number = new Date().get
     const ano = mesEmissao !== null && Number(mm) > mesEmissao ? anoEmissao - 1 : anoEmissao;
     out.push({ date: `${ano}-${mm}-${dd}`, description: descricao.trim(), amount: menos ? -magnitude : magnitude });
   }
-  return out;
+  return soNasSecoes ? semProximasFaturas(texto, out) : out;
+}
+
+const VALOR = String.raw`(\d{1,3}(?:\.\d{3})*,\d{2})`;
+const TOTAL_ATUAL_RE = new RegExp(String.raw`Total dos lan[çc]amentos atuais\s*${VALOR}`, "i");
+const PROXIMA_RE = new RegExp(String.raw`^Pr[óo]xima fatura\s*${VALOR}`, "im");
+const centavos = (n: number) => Math.round(n * 100);
+const somaDoMes = (txns: ParsedTransaction[]) => centavos(txns.filter((t) => !/^pagamento/i.test(t.description)).reduce((s, t) => s + t.amount, 0));
+
+/** A leitura soma exatamente o "Total dos lançamentos atuais" impresso? */
+function fechaComOMes(texto: string, txns: ParsedTransaction[]): boolean {
+  const total = texto.match(TOTAL_ATUAL_RE);
+  return !!total && txns.length > 0 && Math.abs(somaDoMes(txns) - centavos(parseBrazilianNumber(total[1]))) <= 1;
+}
+
+/**
+ * PDF em duas colunas: a extração às vezes solta as linhas do quadro "Compras parceladas -
+ * próximas faturas" ANTES do título dele, e aí nada indica que não são desta fatura (R$ 2.800 a
+ * mais numa de R$ 9.457). A fatura imprime o total do quadro ("Próxima fatura 3.716,75"): se a
+ * leitura passou do total do mês exatamente nesse valor, tira o bloco seguido de linhas que soma
+ * isso. Só mexe quando as duas contas batem no centavo.
+ */
+function semProximasFaturas(texto: string, txns: ParsedTransaction[]): ParsedTransaction[] {
+  const total = texto.match(TOTAL_ATUAL_RE);
+  const proxima = texto.match(PROXIMA_RE);
+  if (!total || !proxima) return txns;
+  const alvo = centavos(parseBrazilianNumber(proxima[1]));
+  const lido = somaDoMes(txns);
+  if (lido - centavos(parseBrazilianNumber(total[1])) !== alvo || alvo <= 0) return txns;
+  for (let a = 0; a < txns.length; a++) {
+    let soma = 0;
+    for (let b = a; b < txns.length; b++) {
+      soma += centavos(txns[b].amount);
+      if (soma === alvo) return [...txns.slice(0, a), ...txns.slice(b + 1)];
+      if (soma > alvo) break;
+    }
+  }
+  return txns;
 }
