@@ -55,16 +55,11 @@ describe("legibilidade", () => {
     expect(ocorrencias(/text-\[11(\.\d+)?px\]/, (a) => !PODE_11PX.some((r) => r.test(a)))).toEqual([]);
   });
 
-  it("o zoom por pinça fica liberado", () => {
-    // Sem as linhas de comentário: o comentário do layout cita as opções antigas pra explicar por que saíram.
-    const layout = readFileSync(join(RAIZ, "src/app/layout.tsx"), "utf8")
-      .split("\n")
-      .filter((linha) => !linha.trim().startsWith("//"))
-      .join("\n");
-    expect(layout).not.toMatch(/maximumScale\s*:\s*1\b/);
-    expect(layout).not.toMatch(/userScalable\s*:\s*false/);
+  it("o app não dá zoom: nem pinça, nem duplo toque (a Dani quer o app parado, 01/10/2026)", () => {
+    const layout = readFileSync(join(RAIZ, "src/app/layout.tsx"), "utf8");
+    expect(layout).toMatch(/maximumScale\s*:\s*1\b/);
+    expect(layout).toMatch(/userScalable\s*:\s*false/);
     const css = readFileSync(join(RAIZ, "src/app/globals.css"), "utf8");
-    // "pan-x pan-y" sem pinch-zoom bloqueia a pinça no Android mesmo com o viewport liberado.
-    expect(css).not.toMatch(/touch-action:\s*pan-x pan-y\s*;/);
+    expect(css).toMatch(/touch-action:\s*pan-x pan-y\s*;/);
   });
 });

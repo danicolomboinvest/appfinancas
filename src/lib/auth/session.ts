@@ -1,6 +1,7 @@
 import type { ProfileKind } from "@prisma/client";
 import { auth } from "@/lib/auth/auth.config";
 import { getOrCreateActiveProfile } from "@/lib/repositories/profile.repo";
+import { lerPreferenciasDeCategoria, type PreferenciasDeCategoria } from "@/lib/categories";
 
 /**
  * Quem é a pessoa, sem dizer em qual perfil ela está.
@@ -30,6 +31,12 @@ export type AuthContext = AccountContext & {
   profileTheme: string;
   /** Tipo do perfil ativo (PESSOAL, EMPRESA, CASAL…). Empresa muda vocabulário, categorias e a DRE. */
   profileKind: ProfileKind;
+  /**
+   * O tipo do perfil com as preferências de categoria dele (nome, ícone, escondida). É o que se
+   * passa para categoryLabel/categoryIcon. Opcional porque os crons montam o contexto à mão;
+   * sem ele, os nomes de fábrica.
+   */
+  categorias?: { kind: ProfileKind; prefs: PreferenciasDeCategoria };
 };
 
 /**
@@ -42,7 +49,14 @@ export async function getRequiredSession(): Promise<AuthContext> {
     throw new Error("Não autenticado.");
   }
   const perfil = await getOrCreateActiveProfile(session.user.id);
-  return { userId: session.user.id, role: session.user.role, profileId: perfil.id, profileTheme: perfil.theme, profileKind: perfil.kind };
+  return {
+    userId: session.user.id,
+    role: session.user.role,
+    profileId: perfil.id,
+    profileTheme: perfil.theme,
+    profileKind: perfil.kind,
+    categorias: { kind: perfil.kind, prefs: lerPreferenciasDeCategoria(perfil.categorias) },
+  };
 }
 
 /**

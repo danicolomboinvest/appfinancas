@@ -18,6 +18,7 @@ import { PortfolioImport } from "@/components/import/PortfolioImport";
 import { IrpfImport } from "@/components/import/IrpfImport";
 import { DeleteAssetButton } from "./DeleteAssetButton";
 import { AssetForm } from "./AssetForm";
+import { ResgatarDoAtivo } from "./ResgatarDoAtivo";
 import { ABRIR_NOVO_ATIVO } from "./novo-ativo";
 import { CLASS_COLOR, CLASS_ORDER } from "./cores-das-classes";
 import { updatePortfolioQuotesAction } from "./quotes-actions";
@@ -125,7 +126,13 @@ export function AssetsSection({
   const [atalho, setAtalho] = useState<AtalhoDeAtivo | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [irpfOpen, setIrpfOpen] = useState(false);
-  const [editingAsset, setEditingAsset] = useState<Asset | null>(null);
+  const [editingAsset, setEditingAssetBruto] = useState<Asset | null>(null);
+  const [modoEdicao, setModoEdicao] = useState<"valores" | "resgate">("valores");
+  // Abrir outro investimento sempre começa em "Atualizar valores".
+  const setEditingAsset = (a: Asset | null) => {
+    setModoEdicao("valores");
+    setEditingAssetBruto(a);
+  };
   const [classFilter, setClassFilter] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [hidden, setHidden] = useState(false); // botão de olho: oculta os valores em dinheiro
@@ -592,6 +599,31 @@ export function AssetsSection({
 
       <Modal open={editingAsset !== null} onClose={() => setEditingAsset(null)} title={t.cartEditarAtivo}>
         {editingAsset && (
+          <div className="flex flex-col gap-4">
+          {/* Dois caminhos no "Mexer": corrigir os números, ou registrar que tirou dinheiro dali. */}
+          <div role="radiogroup" aria-label="O que você quer fazer" className="grid grid-cols-2 gap-1 rounded-xl border border-border-strong bg-surface-2 p-1">
+            {(["valores", "resgate"] as const).map((m) => (
+              <button
+                key={m}
+                type="button"
+                role="radio"
+                aria-checked={modoEdicao === m}
+                onClick={() => setModoEdicao(m)}
+                className={`min-h-11 rounded-lg px-2 text-sm font-semibold transition-colors ${modoEdicao === m ? "bg-surface text-ink shadow-premium-sm" : "text-ink-muted hover:text-ink"}`}
+              >
+                {m === "valores" ? "Atualizar valores" : "Resgatei"}
+              </button>
+            ))}
+          </div>
+          {modoEdicao === "resgate" ? (
+            <ResgatarDoAtivo
+              assetId={editingAsset.id}
+              nome={editingAsset.ticker ?? editingAsset.name}
+              valorAtual={editingAsset.currentValue}
+              investido={editingAsset.investedValue}
+              onPronto={() => setEditingAsset(null)}
+            />
+          ) : (
           <AssetForm
             goals={goals}
             assetId={editingAsset.id}
@@ -609,6 +641,8 @@ export function AssetsSection({
               fixedIncomeIndex: editingAsset.fixedIncomeIndex ?? undefined,
             }}
           />
+          )}
+          </div>
         )}
       </Modal>
     </div>

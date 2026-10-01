@@ -5,7 +5,7 @@ import { useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { Upload, Check, ArrowRight, Lock, Plus } from "lucide-react";
 import type { ParentCategory } from "@prisma/client";
-import { PARENT_CATEGORIES, categoryLabel } from "@/lib/categories";
+import { PARENT_CATEGORIES, categoryLabel, categoriaOculta } from "@/lib/categories";
 import { Button } from "@/components/ui/Button";
 import { MonthPicker } from "@/components/ui/MonthPicker";
 import { useToast } from "@/components/ui/toast-context";
@@ -99,7 +99,7 @@ export function StatementImport({
   // Tudo que a pessoa lê aqui (instruções, botões, avisos) vem da voz do tema; a lógica de
   // leitura do arquivo não sabe de tema nenhum.
   // `kind` porque os chips de categoria têm o nome do perfil (Empresa: "Estrutura", não "Moradia").
-  const { voz, kind, profileId } = useProfileTheme();
+  const { voz, profileId, categorias } = useProfileTheme();
   const t = voz.titulos;
   // O perfil de quando a tela abriu: a revisão (categorias, "mandar pra outro perfil") é dele. Se
   // ela trocar de perfil noutro aparelho no meio, o servidor recusa em vez de importar no novo.
@@ -634,9 +634,9 @@ export function StatementImport({
       }`;
     return (
       <div className="flex flex-wrap gap-2">
-        {PARENT_CATEGORIES.map((pc) => (
+        {PARENT_CATEGORIES.filter((pc) => !categoriaOculta(categorias, pc) || it.parentCategory === pc).map((pc) => (
           <button key={pc} type="button" aria-pressed={it.parentCategory === pc} onClick={() => aoEscolher(assignParent(it.key, pc))} className={classe(it.parentCategory === pc)}>
-            {categoryLabel(kind, pc)}
+            {categoryLabel(categorias, pc)}
           </button>
         ))}
         {/* Categorias que a própria pessoa criou (aqui ou no Orçamento). Só fica "dourada"
@@ -788,7 +788,7 @@ export function StatementImport({
             ? t.uiTipoResgate
             : t.uiTipoAporte
           : it.parentCategory
-            ? categoryLabel(kind, it.parentCategory)
+            ? categoryLabel(categorias, it.parentCategory)
             : it.customCategoryId
               ? customName(it.customCategoryId)
               : t.impRotuloSemCategoria;

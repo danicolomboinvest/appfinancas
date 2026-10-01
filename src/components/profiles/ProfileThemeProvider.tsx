@@ -7,6 +7,7 @@ import { profileTheme } from "@/lib/profiles/themes";
 import { ehEmpresa } from "@/lib/profiles/empresa";
 import { ehCasal } from "@/lib/profiles/casal";
 import type { ProfileKind } from "@prisma/client";
+import type { PreferenciasDeCategoria } from "@/lib/categories";
 
 type Contexto = {
   key: ProfileThemeKey;
@@ -18,9 +19,19 @@ type Contexto = {
   /** Id do perfil que a tela está mostrando. Vai junto no que grava (lançamento, importação): se
    * ela trocou de perfil em outra aba ou aparelho, o servidor recusa em vez de gravar no perfil novo. */
   profileId: string | null;
+  /** O tipo com as preferências de categoria do perfil: é o que vai para categoryLabel/categoryIcon. */
+  categorias: { kind: ProfileKind; prefs: PreferenciasDeCategoria };
 };
 
-const ProfileThemeContext = createContext<Contexto>({ key: "padrao", voz: vozDoTema("padrao"), kind: "PESSOAL", empresa: false, casal: false, profileId: null });
+const ProfileThemeContext = createContext<Contexto>({
+  key: "padrao",
+  voz: vozDoTema("padrao"),
+  kind: "PESSOAL",
+  empresa: false,
+  casal: false,
+  profileId: null,
+  categorias: { kind: "PESSOAL", prefs: {} },
+});
 
 /**
  * O tema do perfil ativo, pros componentes de cliente que falam com a pessoa (barra de baixo,
@@ -30,16 +41,18 @@ export function ProfileThemeProvider({
   theme,
   kind = "PESSOAL",
   profileId = null,
+  prefsDeCategoria = {},
   children,
 }: {
   theme: string;
   kind?: ProfileKind;
   profileId?: string | null;
+  prefsDeCategoria?: PreferenciasDeCategoria;
   children: ReactNode;
 }) {
   const key = profileTheme(theme).key;
   return (
-    <ProfileThemeContext.Provider value={{ key, voz: vozDoTema(key, kind), kind, empresa: ehEmpresa(kind), casal: ehCasal(kind), profileId }}>
+    <ProfileThemeContext.Provider value={{ key, voz: vozDoTema(key, kind), kind, empresa: ehEmpresa(kind), casal: ehCasal(kind), profileId, categorias: { kind, prefs: prefsDeCategoria } }}>
       {children}
     </ProfileThemeContext.Provider>
   );

@@ -185,7 +185,7 @@ export function PainelEmpresa({
           </table>
         </Bloco>
         <Bloco titulo={`Despesas por frente · ${mesLabel}`}>
-          <Donut slices={fatiasFrentes} centerLabel="Gastos" size={150} emptyMessage="Nenhum gasto no mês ainda." />
+          <Donut slices={fatiasFrentes} centerLabel="Gastos" size={150} emptyMessage="Nenhum gasto no mês ainda. Registre o primeiro (o + na barra) para ver para onde vai o dinheiro." />
         </Bloco>
         <Bloco titulo={receitaPorTipoMes.length > 0 ? `Receita por tipo · ${mesLabel}` : `Receita por tipo · ${year}`} nota="Vendas, serviços, assinaturas: o tipo que você marca ao registrar">
           <Donut slices={fatiasReceita} centerLabel="Receita" size={150} emptyMessage="Registre uma entrada com o tipo (Vendas, Serviços…)." />

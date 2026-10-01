@@ -68,7 +68,7 @@ export async function BudgetSection({
   const rows = buildBudgetBullets(comparison.categories, {
     paceRatio: elapsedRatioOfMonth(nowInBrazil(), year, month),
     money,
-    labelFor: (key) => (isParentCategoryKey(key) ? categoryLabel(ctx.profileKind, key) : (customLabels.get(key) ?? "Categoria personalizada")),
+    labelFor: (key) => (isParentCategoryKey(key) ? categoryLabel(ctx.categorias ?? ctx.profileKind, key) : (customLabels.get(key) ?? "Categoria personalizada")),
     colorFor: (key) => colorForCategorySlice(isParentCategoryKey(key) ? { kind: "parent", value: key } : { kind: "custom", value: key }),
     labelStyle: "restante",
   });

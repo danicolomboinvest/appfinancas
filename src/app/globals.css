@@ -327,12 +327,11 @@ html {
 }
 
 /* Comportamento de app nativo: sem "puxão" elástico ao rolar além do fim, sem o flash azul de
-   toque (cara de página web) e sem barra de rolagem à vista. O zoom por pinça fica LIBERADO:
-   "manipulation" tira só o zoom do duplo toque (e o atraso de 300ms que ele causa); o antigo
-   "pan-x pan-y" bloqueava a pinça no Android, e quem enxerga mal não conseguia ampliar nada. */
+   toque (cara de página web), sem barra de rolagem à vista e sem zoom (nem pinça, nem duplo
+   toque): a Dani quer o app parado como app (01/10/2026; ver o viewport em layout.tsx). */
 html,
 body {
-  touch-action: manipulation;
+  touch-action: pan-x pan-y;
   overscroll-behavior: none;
   -webkit-tap-highlight-color: transparent;
   scrollbar-width: none; /* Firefox */

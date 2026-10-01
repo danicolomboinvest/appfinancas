@@ -141,6 +141,11 @@ export async function updateOwnProfile(
 }
 
 /** Sem theme, só a moeda muda: o Prisma ignora campo undefined. */
+/** Só a moeda (a escolha do primeiro acesso); o resto das preferências fica como está. */
+export async function updateOwnCurrency(ctx: AuthContext, currency: string) {
+  return prisma.user.update({ where: { id: ctx.userId }, data: { currency } });
+}
+
 export async function updateOwnPreferences(ctx: AuthContext, input: { currency: string; theme?: string }) {
   return prisma.user.update({ where: { id: ctx.userId }, data: input });
 }

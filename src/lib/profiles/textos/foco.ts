@@ -32,7 +32,7 @@ export type PerguntaDoDecidir =
 
 export type TextosFoco = {
   focoTitulo: string;
-  /** "Livre pra gastar essa semana" (ritmo semanal). */
+  /** "Livre para gastar essa semana" (ritmo semanal). */
   focoLivreSemana: string;
   /** "Livre até o fim do mês" (ritmo mensal). */
   focoLivreMes: string;
@@ -69,7 +69,7 @@ export type TextosFoco = {
   focoRitmoP(dias: number, sobra: string): string;
   focoMetaT(meta: string): string;
   focoMetaP(falta: string): string;
-  /** Meta com o prazo vencido: não dá pra "voltar ao prazo". */
+  /** Meta com o prazo vencido: não dá para "voltar ao prazo". */
   focoMetaVencidaP: string;
   /** Meta com prazo neste mês: o que falta é o total, não "por mês". */
   focoMetaUltimoMesP(falta: string): string;
@@ -271,7 +271,7 @@ export type TextosFoco = {
   fechLicao: string;
   fechSobraP: string;
   fechSobraReserva(valor: string): string;
-  /** A sobra passa do que falta pra reserva ficar completa: vai só o que falta, o resto fica. */
+  /** A sobra passa do que falta para a reserva ficar completa: vai só o que falta, o resto fica. */
   fechSobraSoOQueFalta(falta: string, resto: string): string;
   fechSobraConta: string;
   fechSobraSemReserva: string;
@@ -319,7 +319,7 @@ export type TextosFoco = {
   focoComeceImportarBotao: string;
   /** O caminho de quem não quer (ou não consegue) subir arquivo agora. */
   focoComeceDigitar: string;
-  /** Link pro manual: onde achar o arquivo e extrato × fatura. */
+  /** Link para o manual: onde achar o arquivo e extrato × fatura. */
   focoComeceAjuda: string;
   focoComeceMesT: string;
   focoComeceMesP: string;
@@ -328,13 +328,13 @@ export type TextosFoco = {
   focoComeceOrcamentoP: string;
   focoComeceOrcamentoBotao: string;
   focoComeceDispensar: string;
-  /** Rodapé do Foco de conta nova: o manual pra quem quer ler antes. */
+  /** Rodapé do Foco de conta nova: o manual para quem quer ler antes. */
   focoComeceManual: string;
   // Tour de boas-vindas: os passos que mudaram com o "Comece por aqui". Os outros continuam
   // nas chaves uiTour* de textos/shell.ts.
   /** O menu "Mais" de cada tipo de perfil: o que tem lá de verdade, com os nomes do menu. */
   focoTourMaisTexto(tipo: "pessoa" | "casal" | "empresa"): string;
-  /** O último cartão do tour aponta pro primeiro passo: subir o extrato ou a fatura. */
+  /** O último cartão do tour aponta para o primeiro passo: subir o extrato ou a fatura. */
   focoTourFimTexto: string;
 };
 
@@ -345,13 +345,13 @@ export const faltamDias = (n: number) => (n === 1 ? "falta 1 dia" : `faltam ${n}
 
 export const PADRAO_FOCO: TextosFoco = {
   focoTitulo: "Foco",
-  focoLivreSemana: "Livre pra gastar essa semana",
+  focoLivreSemana: "Livre para gastar essa semana",
   focoLivreMes: "Livre até o fim do mês",
   focoLivreSub: "o que ainda sobra no seu orçamento do mês",
   focoLivreEstimativa: "Livre até o fim do mês (estimativa)",
   focoLivreEstimativaSub: (s) => `cerca de ${s} por semana, se você seguir o que planejou`,
   focoSemOrcamentoTitulo: "Falta o seu orçamento do mês",
-  focoSemOrcamentoSub: "Sem ele não dá pra dizer quanto está livre. Leva dois minutos.",
+  focoSemOrcamentoSub: "Sem ele não dá para dizer quanto está livre. Leva dois minutos.",
   focoSemOrcamentoBotao: "Montar meu orçamento",
   focoMesPassou: "Mês que já passou",
   focoOrcamentoUsado: "Orçamento já usado",
@@ -371,15 +371,15 @@ export const PADRAO_FOCO: TextosFoco = {
   focoEstouroT: (c) => `${c} passou do orçamento`,
   focoEstouroP: (g, p, d) => `${g} de ${p}, com ${nDias(d)} pela frente.`,
   focoAporteT: (v) => `Guardar ${v} este mês`,
-  focoAporteP: 'É o seu compromisso do mês. Como na aula: "Mês: transferir pro investimento".',
+  focoAporteP: 'É o seu compromisso do mês. Como na aula: "Mês: transferir para o investimento".',
   focoRitmoT: (c, p) => `${c}: ${p} do orçamento já usado`,
   focoRitmoP: (d, s) => `E ainda ${faltamDias(d)}. Sobram ${s} até o fim do mês.`,
   focoMetaT: (m) => `${m} saiu do ritmo`,
-  focoMetaP: (f) => `Pra voltar ao prazo, precisa guardar ${f} por mês.`,
-  focoMetaVencidaP: "A data que você escolheu pra ela já passou. Vale escolher uma data nova.",
-  focoMetaUltimoMesP: (f) => `O prazo é este mês e ainda faltam ${f}. Dá pra completar ou escolher uma data nova.`,
+  focoMetaP: (f) => `Para voltar ao prazo, precisa guardar ${f} por mês.`,
+  focoMetaVencidaP: "A data que você escolheu para ela já passou. Vale escolher uma data nova.",
+  focoMetaUltimoMesP: (f) => `O prazo é este mês e ainda faltam ${f}. Dá para completar ou escolher uma data nova.`,
   focoForaT: (v) => `${v} em gastos fora do orçamento`,
-  focoForaP: (l) => `Eles não têm categoria planejada, mas saem do mesmo dinheiro do mês. Por isso o livre caiu pra ${l}.`,
+  focoForaP: (l) => `Eles não têm categoria planejada, mas saem do mesmo dinheiro do mês. Por isso o livre caiu para ${l}.`,
   focoDadosNenhum: "Nenhum gasto lançado ainda. Esse número é só o que você planejou.",
   focoReservaT: (m) => `Sua reserva cobre ${m} de custo de vida`,
   focoReservaP: "A referência é de 6 a 12 meses do custo de vida.",
@@ -410,9 +410,9 @@ export const PADRAO_FOCO: TextosFoco = {
   compraVezes: "Em quantas vezes",
   compraJurosMes: "Juros ao mês (%)",
   compraDescontoVista: "Desconto se pagar à vista (%)",
-  compraDigiteValor: "Digite o valor pra eu fazer a conta.",
-  compraPrecisoRenda: "Pra responder isso, preciso saber sua renda do mês.",
-  compraPrecisoOrcamento: "Pra responder isso, preciso do seu orçamento do mês.",
+  compraDigiteValor: "Digite o valor para eu fazer a conta.",
+  compraPrecisoRenda: "Para responder isso, preciso saber sua renda do mês.",
+  compraPrecisoOrcamento: "Para responder isso, preciso do seu orçamento do mês.",
   compraSemChute: "Sem esse número eu estaria chutando, e sobre dinheiro eu prefiro perguntar.",
   compraPreencher: "Preencher agora",
   compraJaTemDestino: "Do que entra por mês, já tem destino",
@@ -476,11 +476,11 @@ export const PADRAO_FOCO: TextosFoco = {
   raioxNosUltimos: (n) => `Nos últimos ${n} meses`,
   raioxVezesPorMes: (n) => (n <= 1 ? "Cerca de 1 vez por mês" : `Cerca de ${n} vezes por mês`),
   focoRitualEy: "Seu ritual da semana",
-  focoRitualT: "Seus 5 minutos pro dinheiro",
+  focoRitualT: "Seus 5 minutos para o dinheiro",
   focoRitualP: "4 cartões e uma decisão. Bora?",
   focoFechEy: "Seu fechamento do mês",
   focoFechT: (m) => `Fechar ${m} · 15 minutos`,
-  focoFechP: "Sem pressa. Dá pra fazer hoje, com calma.",
+  focoFechP: "Sem pressa. Dá para fazer hoje, com calma.",
   focoComecar: "Começar",
   focoAmanhaT: (d, v) => `Ontem você pensou em comprar: ${d} (${v})`,
   focoAmanhaP: "Um dia depois, ainda quer?",
@@ -501,20 +501,20 @@ export const PADRAO_FOCO: TextosFoco = {
   avisoNadaMaisSub: (c) => `em ${c} até o mês virar`,
   avisoNadaMaisFeito: (c) => `Combinado: nada mais em ${c} até o fim do mês.`,
   avisoPlanoBaixoT: "O plano estava baixo",
-  avisoPlanoBaixoSub: (c, v) => `subir ${c} pra ${v}, com folga pro resto do mês`,
+  avisoPlanoBaixoSub: (c, v) => `subir ${c} para ${v}, com folga para o resto do mês`,
   avisoPlanoBaixoFeito: (c, v) => `${c} agora tem ${v} este mês.`,
   avisoPontualT: "Foi pontual",
   avisoPontualSub: "sigo o plano",
   avisoAnotado: "Anotado. Esse aviso some até o mês que vem.",
   avisoErroSalvar: "Não consegui salvar agora. Tenta de novo em instantes.",
   avisoOndeFoi: (c) => `Onde foi o dinheiro de ${c}`,
-  avisoSobramEm: (c, d) => `sobram em ${c} pra ${nDias(d)}`,
+  avisoSobramEm: (c, d) => `sobram em ${c} para ${nDias(d)}`,
   avisoRitmoSelo: "nesse ritmo, estoura antes do mês acabar",
   avisoTetoT: (v) => `Teto de ${v}`,
   avisoTetoSub: (c) => `em ${c} até o fim do mês`,
   avisoTetoFeito: (v, c) => `Teto de ${v} em ${c} até o fim do mês.`,
   avisoForaLegenda: "em gastos sem categoria no orçamento",
-  avisoForaSelo: (l) => `saem do mesmo dinheiro: o livre caiu pra ${l}`,
+  avisoForaSelo: (l) => `saem do mesmo dinheiro: o livre caiu para ${l}`,
   avisoForaLista: (n) => (n === 1 ? "O gasto fora do orçamento" : `Os ${n} gastos fora do orçamento`),
   avisoCriarCategoriaT: "Criar uma categoria nova",
   avisoCriarCategoriaSub: "no orçamento",
@@ -528,8 +528,8 @@ export const PADRAO_FOCO: TextosFoco = {
   avisoGuardarDepoisFeito: "Combinado. Eu lembro de novo na semana que vem.",
   avisoMetaPrazoPassou: "Prazo passou",
   avisoMetaNaoChegou: (n) => `${n} ainda não chegou lá`,
-  avisoMetaFaltamUltimoMes: (n) => `faltam pra ${n}, e o prazo é este mês`,
-  avisoMetaChegaEm: (n, q) => `pra ${n} chegar em ${q}`,
+  avisoMetaFaltamUltimoMes: (n) => `faltam para ${n}, e o prazo é este mês`,
+  avisoMetaChegaEm: (n, q) => `para ${n} chegar em ${q}`,
   avisoMetaSelo: (u) => (u ? "guardar o que falta, ou escolher uma data que caiba" : "guardar mais por mês, ou escolher uma data que caiba"),
   avisoMetaAjustarT: "Ajustar a meta",
   avisoMetaAjustarSub: "valor por mês ou data",
@@ -552,12 +552,12 @@ export const PADRAO_FOCO: TextosFoco = {
     total > mostrados ? `${mostrados} maiores de ${total} gastos` : mostrados === 1 ? "1 gasto" : `${mostrados} gastos`,
   avisoRevisar: "Revisar",
   avisoFechar: "Fechar",
-  avisoToqueNumGasto: "Toque num gasto pra mudar a categoria ou a descrição.",
-  avisoMoverPra: "Mover pra…",
+  avisoToqueNumGasto: "Toque em um gasto para mudar a categoria ou a descrição.",
+  avisoMoverPra: "Mover para…",
   avisoClassificar: "Classificar…",
   // Era "É aplicação (guardei, não é gasto)": quem não investe não sabe o que é aplicação.
   avisoEhGuardado: "Guardei esse dinheiro (não é gasto)",
-  avisoFoiPara: (d, c) => `${d} foi pra ${c}.`,
+  avisoFoiPara: (d, c) => `${d} foi para ${c}.`,
   avisoVirouGuardado: (d) => `${d} agora conta como dinheiro guardado.`,
   avisoNaoMudou: "Não consegui mudar esse gasto.",
   avisoSemCategoria: "sem categoria",
@@ -572,24 +572,24 @@ export const PADRAO_FOCO: TextosFoco = {
   fechImportadoT: (m, n) => `${n} ${n === 1 ? "lançamento" : "lançamentos"} de ${m} no app`,
   fechLicao: "A lição do mês:",
   fechSobraP: "Reserva primeiro, enquanto ela não estiver completa.",
-  fechSobraReserva: (v) => `Mandar ${v} pra reserva`,
-  fechSobraSoOQueFalta: (f, r) => `Faltam só ${f} pra sua reserva ficar completa. Vai esse valor, e os outros ${r} continuam na conta.`,
+  fechSobraReserva: (v) => `Mandar ${v} para a reserva`,
+  fechSobraSoOQueFalta: (f, r) => `Faltam só ${f} para sua reserva ficar completa. Vai esse valor, e os outros ${r} continuam na conta.`,
   fechSobraConta: "Deixar na conta",
-  fechSobraSemReserva: "Essa sobra ainda não tem destino. Montar sua reserva de emergência é o primeiro passo pra ela ter um.",
-  fechSobraReservaCompleta: "Sua reserva já está completa. Essa sobra pode ir pra uma das suas metas.",
+  fechSobraSemReserva: "Essa sobra ainda não tem destino. Montar sua reserva de emergência é o primeiro passo para ela ter um.",
+  fechSobraReservaCompleta: "Sua reserva já está completa. Essa sobra pode ir para uma das suas metas.",
   fechSemSobra: "Esse mês fechou sem sobra. Sem problema: o próximo passo é ajustar o plano.",
   fechAjusteP: "Ou o plano está baixo, ou o hábito está alto. Você decide qual dos dois.",
-  fechAjusteSubir: (v) => `Subir o orçamento pra ${v}`,
+  fechAjusteSubir: (v) => `Subir o orçamento para ${v}`,
   fechAjusteManter: "Manter e segurar",
   fechAporteEy: "O que guardar no mês",
   fechAporteT: (v) => `Guardar ${v} este mês`,
-  fechAporteP: 'Como na sua aula: "Mês: transferir pro investimento".',
+  fechAporteP: 'Como na sua aula: "Mês: transferir para o investimento".',
   fechAporteFeito: "Já transferi",
   fechAporteDepois: "Vou transferir essa semana",
-  fechNumeroSub: "Livre pro dia a dia até o fim do mês",
+  fechNumeroSub: "Livre para o dia a dia até o fim do mês",
   fechNumeroP: (s) => `Cerca de ${s} por semana. É o único número que você precisa lembrar até o próximo fechamento.`,
   fechFechar: "Fechar o mês",
-  ritTitulo: "5 minutos pro dinheiro",
+  ritTitulo: "5 minutos para o dinheiro",
   ritSemanaPassada: "Semana passada",
   ritAtencao: "Precisa da sua atenção",
   ritFio: "Seu fio",
@@ -600,10 +600,10 @@ export const PADRAO_FOCO: TextosFoco = {
   raioxCancelar: "Vou cancelar",
   raioxMetade: "Cortar pela metade",
   raioxManter: "Vale a pena, mantenho",
-  raioxEconomia: (a, c) => `${a} por ano de volta pro seu bolso. Investidos por 5 anos, viram cerca de ${c}.`,
+  raioxEconomia: (a, c) => `${a} por ano de volta para o seu bolso. Investidos por 5 anos, viram cerca de ${c}.`,
   raioxVazio: "Ainda não achei gasto que se repete. Preciso de pelo menos 3 meses de extrato.",
   erradoLink: "Isso está errado?",
-  erradoObrigada: "Obrigada! Isso foi pra revisão.",
+  erradoObrigada: "Obrigada! Isso foi para a revisão.",
   conqTitulo: "O que você conquistou",
   conqNota: "Só conta o que você decidiu aqui dentro. É o que você fez, não \"graças ao app\".",
   focoComeceTitulo: "Comece por aqui",
@@ -614,10 +614,10 @@ export const PADRAO_FOCO: TextosFoco = {
   focoComeceDigitar: "Prefiro anotar à mão",
   focoComeceAjuda: "Onde eu acho esse arquivo?",
   focoComeceMesT: "Veja o seu mês montado",
-  focoComeceMesP: "Quanto entrou, quanto saiu e pra onde foi o dinheiro, separado por categoria.",
+  focoComeceMesP: "Quanto entrou, quanto saiu e para onde foi o dinheiro, separado por categoria.",
   focoComeceMesBotao: "Ver meu mês",
   focoComeceOrcamentoT: "Monte o seu orçamento do mês",
-  focoComeceOrcamentoP: "Com os seus gastos já aqui fica mais fácil: o app sugere uma divisão e você confere quanto vai pra cada coisa.",
+  focoComeceOrcamentoP: "Com os seus gastos já aqui fica mais fácil: o app sugere uma divisão e você confere quanto vai para cada coisa.",
   focoComeceOrcamentoBotao: "Montar meu orçamento",
   focoComeceDispensar: "Esconder os primeiros passos",
   focoComeceManual: "Quer ler antes? Veja o manual Como usar o app",

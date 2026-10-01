@@ -35,7 +35,7 @@ export default async function FechamentoPage() {
     .filter((b) => Number(b.plannedAmount) > 0)
     .map((b) =>
       b.parentCategory
-        ? { key: b.parentCategory as string, label: categoryLabel(ctx.profileKind, b.parentCategory as ParentCategory), planejado: Number(b.plannedAmount), gasto: gastoMae.get(b.parentCategory) ?? 0, mae: true }
+        ? { key: b.parentCategory as string, label: categoryLabel(ctx.categorias ?? ctx.profileKind, b.parentCategory as ParentCategory), planejado: Number(b.plannedAmount), gasto: gastoMae.get(b.parentCategory) ?? 0, mae: true }
         : { key: b.customCategoryId ?? b.id, label: nome.get(b.customCategoryId ?? "") ?? "Personalizada", planejado: Number(b.plannedAmount), gasto: gastoPers.get(b.customCategoryId ?? "") ?? 0, mae: false },
     );
   const livre = d.foco.livre;

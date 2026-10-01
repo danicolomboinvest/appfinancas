@@ -35,7 +35,7 @@ async function resumoDoMes(ctx: AuthContext, ano: number, mes: number): Promise<
     renda: s.totalIncome,
     gastos: s.totalExpense,
     guardado: s.totalInvestment,
-    porCategoria: Object.fromEntries(porMae.filter((p) => p.parentCategory).map((p) => [p.parentCategory as string, { label: categoryLabel(ctx.profileKind, p.parentCategory as ParentCategory), valor: p.spent }])),
+    porCategoria: Object.fromEntries(porMae.filter((p) => p.parentCategory).map((p) => [p.parentCategory as string, { label: categoryLabel(ctx.categorias ?? ctx.profileKind, p.parentCategory as ParentCategory), valor: p.spent }])),
   };
 }
 
@@ -129,6 +129,6 @@ export async function carregarRespostas(ctx: AuthContext) {
     livre,
     mesPassado,
     mesRetrasado,
-    maioresPassado: maioresPassado.map((g) => ({ descricao: g.description ?? g.subcategory ?? "Sem descrição", valor: Number(g.amount), categoria: g.parentCategory ? categoryLabel(ctx.profileKind, g.parentCategory) : null })),
+    maioresPassado: maioresPassado.map((g) => ({ descricao: g.description ?? g.subcategory ?? "Sem descrição", valor: Number(g.amount), categoria: g.parentCategory ? categoryLabel(ctx.categorias ?? ctx.profileKind, g.parentCategory) : null })),
   };
 }

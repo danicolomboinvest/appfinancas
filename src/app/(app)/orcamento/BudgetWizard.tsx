@@ -15,14 +15,7 @@ import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { Modal } from "@/components/ui/Modal";
 import { useSuccessToast } from "@/components/ui/useSuccessToast";
 import { useMoney } from "@/components/money/MoneyProvider";
-import {
-  PARENT_CATEGORY_COLOR,
-  CUSTOM_CATEGORY_ICON_MAP,
-  colorForCategorySlice,
-  categoryLabel,
-  categoryDescription,
-  categoryIcon,
-} from "@/lib/categories";
+import { PARENT_CATEGORY_COLOR, CUSTOM_CATEGORY_ICON_MAP, colorForCategorySlice, categoryLabel, categoryDescription, categoryIcon, categoriaOculta } from "@/lib/categories";
 import type { BudgetHints } from "@/lib/planning/budget-hints";
 import { splitSavings, type SavingsTarget } from "@/lib/planning/savings-split";
 import { idealBudgetSplit, COURSE_SAVINGS_PERCENT, EMPRESA_RETENTION_PERCENT, courseShareOf, savingsPercentFor } from "@/lib/planning/ideal-budget";
@@ -72,7 +65,7 @@ export function BudgetWizard({
   savingsTargets?: SavingsTarget[];
 }) {
   const money = useMoney();
-  const { kind, empresa, voz } = useProfileTheme();
+  const { kind, empresa, voz, categorias } = useProfileTheme();
   const t = voz.titulos;
   const [state, formAction, isPending] = useActionState(applyAllBudgetsAction, initialState);
   useSuccessToast(isPending, state.error, t.formOrcSalvo);
@@ -86,12 +79,13 @@ export function BudgetWizard({
   // já planejado; o rótulo de pessoa física que ela carrega só vale pra pessoa física.
   const cats: Cat[] = useMemo(
     () => [
-      ...parentCategories.map((c) => ({
+      // Escondida por ela ("não uso Impostos") sai do orçamento, a não ser que já tenha valor.
+      ...parentCategories.filter((c) => !categoriaOculta(categorias, c.key) || c.defaultValue > 0).map((c) => ({
         key: c.key,
-        label: categoryLabel(kind, c.key),
-        description: categoryDescription(kind, c.key),
+        label: categoryLabel(categorias, c.key),
+        description: categoryDescription(categorias, c.key),
         color: PARENT_CATEGORY_COLOR[c.key],
-        icon: categoryIcon(kind, c.key),
+        icon: categoryIcon(categorias, c.key),
         custom: false,
       })),
       ...customCategories.map((c) => ({
@@ -102,7 +96,7 @@ export function BudgetWizard({
         custom: true,
       })),
     ],
-    [parentCategories, customCategories, kind],
+    [parentCategories, customCategories, categorias],
   );
 
   const [step, setStep] = useState<1 | 2 | 3>(hasPlan ? 3 : 1);

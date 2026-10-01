@@ -2,12 +2,12 @@
  * Textos da área "simuladores", na voz do Padrão — as frases EXATAS que o app tem hoje. Os temas
  * sobrescrevem o que quiserem em `vozes/<tema>.ts`; o que não sobrescrevem, cai aqui.
  *
- * Regras pra quem cataloga: a chave começa com o prefixo da área; o valor do Padrão é a
+ * Regras para quem cataloga: a chave começa com o prefixo da área; o valor do Padrão é a
  * frase atual do componente, sem mudar uma vírgula; frase com número ou nome vira função.
  *
  * Os rótulos que dizem "patrimônio" e "rentabilidade" (dois cartões do Financiar vs. Alugar,
  * dois campos de rentabilidade e a nota de rodapé do "Vale a pena?") entraram aqui junto com a
- * versão do Girly. Antes ficavam escritos no componente pra fugir do teste de jargão, e com isso
+ * versão do Girly. Antes ficavam escritos no componente para fugir do teste de jargão, e com isso
  * chegavam sem tradução na tela dela. O teste do Girly varre TODAS as chaves de títulos, as
  * herdadas do Padrão também: frase com jargão só entra aqui com a versão do Girly no mesmo passo.
  */
@@ -198,7 +198,7 @@ export type TextosSimuladores = {
   simValeRendaTipica: string;
   simValeAlterar: string;
   simValeUsarCadastrada: string;
-  /** "Você ainda não lançou renda em X. [simule um valor] pra ver…, ou [cadastre em Fluxo Financeiro]." */
+  /** "Você ainda não lançou renda em X. [simule um valor] para ver…, ou [cadastre em Fluxo Financeiro]." */
   simValeSemRenda(mes: string): string;
   simValeSimuleValor: string;
   simValeSemRendaMeio: string;
@@ -404,13 +404,13 @@ export const PADRAO_SIMULADORES: TextosSimuladores = {
   simValeRendaSua: "sua renda de",
   simValeRendaSimulada: "uma renda simulada de",
   simValeRendaMes: (mes) => `em ${mes} (Fluxo Financeiro)`,
-  simValeRendaPlano: (mes) => `planejada pra ${mes} (Orçamento)`,
+  simValeRendaPlano: (mes) => `planejada para ${mes} (Orçamento)`,
   simValeRendaTipica: "(a típica dos seus últimos meses)",
   simValeAlterar: "alterar",
   simValeUsarCadastrada: "usar renda cadastrada",
   simValeSemRenda: (mes) => `Você ainda não lançou renda em ${mes}.`,
   simValeSimuleValor: "simule um valor",
-  simValeSemRendaMeio: "pra ver o tempo de trabalho equivalente, ou",
+  simValeSemRendaMeio: "para ver o tempo de trabalho equivalente, ou",
   simValeCadastre: "cadastre em Fluxo Financeiro",
   simValePasso2Titulo: "Que tipo de gasto é esse?",
   simValePasso2Sub: "Isso muda como calculamos o quanto você deixaria de ganhar.",
@@ -435,7 +435,7 @@ export const PADRAO_SIMULADORES: TextosSimuladores = {
   simValeComprar: "Comprar",
   simValeNaoComprar: "Não comprar",
   simValeAindaNaoSei: "Ainda não sei",
-  simValeEscolhaComprar: "Se é prioridade pra você, ótimo, só garanta que cabe no seu orçamento do mês.",
+  simValeEscolhaComprar: "Se é prioridade para você, ótimo, só garanta que cabe no seu orçamento do mês.",
   simValeEscolhaNao: "Boa escolha. Isso te aproxima das suas metas.",
-  simValeEscolhaDuvida: "Sem problema. Dá pra voltar aqui quando tiver mais clareza, a dúvida já é um sinal de que vale pensar mais um pouco.",
+  simValeEscolhaDuvida: "Sem problema. Dá para voltar aqui quando tiver mais clareza, a dúvida já é um sinal de que vale pensar mais um pouco.",
 };

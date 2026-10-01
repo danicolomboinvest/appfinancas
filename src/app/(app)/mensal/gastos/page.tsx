@@ -10,7 +10,7 @@ import {
   sumExpensesByParentCategorySince,
   sumExpensesByCustomCategorySince,
 } from "@/lib/repositories/budget.repo";
-import { categoryLabel } from "@/lib/categories";
+import { categoryLabel, type CategoriasDoPerfil } from "@/lib/categories";
 import type { ParentCategory, ProfileKind } from "@prisma/client";
 import { PageHeader } from "@/components/ui/PageHeader";
 import type { SpendingSlice } from "@/components/charts/SpendingPieChart";
@@ -24,7 +24,7 @@ const MONTH_LABELS = [
 /** Junta gastos por categoria-mãe (padrão) e personalizadas num único array {name, value, key}.
  * O nome da categoria-mãe é o do perfil (`kind`): numa Empresa, MORADIA aparece como "Estrutura". */
 function toSlices(
-  kind: ProfileKind,
+  kind: CategoriasDoPerfil,
   parent: { parentCategory: ParentCategory; spent: number }[],
   custom: { customCategoryId: string; spent: number }[],
   customNameById: Map<string, string>,
@@ -125,10 +125,10 @@ export default async function SpendingByCategoryPage(props: PageProps<"/mensal/g
       <SpendingByCategory
         selectedYear={year}
         selectedMonth={month}
-        week={toSlices(ctx.profileKind, parentWeek, customWeek, customNameById)}
-        month={toSlices(ctx.profileKind, parentMonth, customMonth, customNameById, { parent: parentPrev, custom: customPrev })}
+        week={toSlices(ctx.categorias ?? ctx.profileKind, parentWeek, customWeek, customNameById)}
+        month={toSlices(ctx.categorias ?? ctx.profileKind, parentMonth, customMonth, customNameById, { parent: parentPrev, custom: customPrev })}
         previousMonthLabel={MONTH_LABELS[prevMonth.getMonth()].toLowerCase()}
-        year={toSlices(ctx.profileKind, parentYear, customYear, customNameById)}
+        year={toSlices(ctx.categorias ?? ctx.profileKind, parentYear, customYear, customNameById)}
         initialPeriod={initialPeriod}
         subtitle={{
           semana: "Últimos 7 dias",

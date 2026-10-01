@@ -44,7 +44,7 @@ export async function resumoDoMesImportadoAction(year: number, month: number, pe
     const rotulo = g.customCategoryId
       ? (nomes.get(g.customCategoryId) ?? "Personalizada")
       : g.parentCategory
-        ? categoryLabel(ctx.profileKind, g.parentCategory)
+        ? categoryLabel(ctx.categorias ?? ctx.profileKind, g.parentCategory)
         : null;
     return { category: g.category, chave, rotulo, valor: Number(g._sum.amount ?? 0) };
   });

@@ -12,6 +12,9 @@ import { GoalForm } from "../GoalForm";
 import { DeleteGoalButton } from "../DeleteGoalButton";
 import { GoalTrajectoryChart } from "../GoalTrajectoryChart";
 import { serverMoney } from "@/lib/money-server";
+import { prisma } from "@/lib/db/prisma";
+import { nowInBrazil } from "@/lib/date/brazil-now";
+import { GuardadosDoSonho } from "./GuardadosDoSonho";
 
 const STATUS_CHART_TONE: Record<string, "success" | "accent" | "danger"> = {
   NOT_STARTED: "danger",
@@ -41,6 +44,24 @@ export default async function GoalDetailPage(props: PageProps<"/planejamento/met
       startedAt: goal.createdAt,
   };
   const plan = computeGoalPlan(goalInput);
+  // Cada "Guardei" deste sonho (e resgate tirado dele), do mais novo pro mais antigo: é o que o
+  // bloco "O que você guardou" deixa corrigir no próprio registro.
+  const hoje = nowInBrazil();
+  const guardados = (
+    await prisma.monthlyEntry.findMany({
+      where: { userId: ctx.userId, profileId: ctx.profileId, goalId: goal.id, category: "INVESTMENT_CONTRIBUTION" },
+      select: { id: true, amount: true, year: true, month: true, description: true },
+      orderBy: [{ year: "desc" }, { month: "desc" }, { createdAt: "desc" }],
+      take: 60,
+    })
+  ).map((e) => ({
+    id: e.id,
+    amount: Number(e.amount),
+    year: e.year,
+    month: e.month,
+    description: e.description,
+    futuro: e.year > hoje.getFullYear() || (e.year === hoje.getFullYear() && e.month > hoje.getMonth() + 1),
+  }));
   const trajectory = computeGoalTrajectory(goalInput, plan);
 
   return (
@@ -82,6 +103,8 @@ export default async function GoalDetailPage(props: PageProps<"/planejamento/met
           tone={STATUS_CHART_TONE[plan.status]}
         />
       </Card>
+
+      <GuardadosDoSonho itens={guardados} />
 
       <Card className="p-4">
         <GoalForm

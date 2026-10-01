@@ -174,33 +174,91 @@ export function isParentCategoryKey(key: string): key is ParentCategory {
 // pró-labore" (ver src/lib/profiles/empresa.ts). Toda tela que mostra categoria passa por aqui
 // com o tipo do perfil, em vez de ler as constantes fixas de pessoa física.
 
-export function categoryLabel(kind: ProfileKind | string | null | undefined, key: ParentCategory): string {
-  return ehEmpresa(kind) ? CATEGORIAS_EMPRESA[key].label : PARENT_CATEGORY_LABEL[key];
+/**
+ * O que a pessoa mudou nas categorias padrão DESTE perfil (01/10/2026): outro nome, outro ícone,
+ * ou escondida ("não uso Impostos"). Mora num campo JSON do perfil (FinancialProfile.categorias);
+ * a chave gravada nos lançamentos continua a mesma, então renomear nunca mexe no histórico.
+ */
+export type PreferenciaDeCategoria = { nome?: string; icone?: string; oculta?: boolean };
+export type PreferenciasDeCategoria = Partial<Record<ParentCategory, PreferenciaDeCategoria>>;
+
+/**
+ * Quem pergunta o nome de uma categoria: só o tipo do perfil (como sempre foi) ou o tipo com as
+ * preferências dele. As telas passam o objeto (ctx.categorias, useProfileTheme().categorias);
+ * quem só tem o tipo continua funcionando, com os nomes padrão.
+ */
+export type CategoriasDoPerfil = ProfileKind | string | null | undefined | { kind: ProfileKind | string; prefs?: PreferenciasDeCategoria | null };
+
+function kindDe(c: CategoriasDoPerfil): ProfileKind | string | null | undefined {
+  return c !== null && typeof c === "object" ? c.kind : c;
+}
+function prefDe(c: CategoriasDoPerfil, key: ParentCategory): PreferenciaDeCategoria | undefined {
+  return c !== null && typeof c === "object" ? c.prefs?.[key] : undefined;
 }
 
-export function categoryDescription(kind: ProfileKind | string | null | undefined, key: ParentCategory): string {
-  return ehEmpresa(kind) ? CATEGORIAS_EMPRESA[key].descricao : PARENT_CATEGORY_DESCRIPTION[key];
+/** Lê o JSON do banco sem confiar nele: só as 8 chaves, nome curto, ícone conhecido. */
+export function lerPreferenciasDeCategoria(json: unknown): PreferenciasDeCategoria {
+  if (!json || typeof json !== "object") return {};
+  const saida: PreferenciasDeCategoria = {};
+  for (const key of PARENT_CATEGORIES) {
+    const v = (json as Record<string, unknown>)[key];
+    if (!v || typeof v !== "object") continue;
+    const { nome, icone, oculta } = v as Record<string, unknown>;
+    const pref: PreferenciaDeCategoria = {};
+    if (typeof nome === "string" && nome.trim()) pref.nome = nome.trim().slice(0, 40);
+    if (typeof icone === "string" && CUSTOM_CATEGORY_ICON_MAP[icone]) pref.icone = icone;
+    if (oculta === true) pref.oculta = true;
+    if (Object.keys(pref).length > 0) saida[key] = pref;
+  }
+  return saida;
 }
 
-export function categoryIcon(kind: ProfileKind | string | null | undefined, key: ParentCategory): LucideIcon {
-  return ehEmpresa(kind) ? CATEGORIAS_EMPRESA[key].icone : PARENT_CATEGORY_ICON[key];
+export function categoryLabel(categorias: CategoriasDoPerfil, key: ParentCategory): string {
+  const nome = prefDe(categorias, key)?.nome;
+  if (nome) return nome;
+  return ehEmpresa(kindDe(categorias)) ? CATEGORIAS_EMPRESA[key].label : PARENT_CATEGORY_LABEL[key];
 }
 
-export function subcategoriesFor(kind: ProfileKind | string | null | undefined, key: ParentCategory): string[] {
-  return ehEmpresa(kind) ? CATEGORIAS_EMPRESA[key].subcategorias : SUBCATEGORIES[key];
+/** O nome de fábrica, sem a troca dela: é o que a tela de categorias mostra como "era". */
+export function categoryDefaultLabel(categorias: CategoriasDoPerfil, key: ParentCategory): string {
+  return ehEmpresa(kindDe(categorias)) ? CATEGORIAS_EMPRESA[key].label : PARENT_CATEGORY_LABEL[key];
+}
+
+export function categoryDescription(categorias: CategoriasDoPerfil, key: ParentCategory): string {
+  return ehEmpresa(kindDe(categorias)) ? CATEGORIAS_EMPRESA[key].descricao : PARENT_CATEGORY_DESCRIPTION[key];
+}
+
+export function categoryIcon(categorias: CategoriasDoPerfil, key: ParentCategory): LucideIcon {
+  const icone = prefDe(categorias, key)?.icone;
+  if (icone && CUSTOM_CATEGORY_ICON_MAP[icone]) return CUSTOM_CATEGORY_ICON_MAP[icone];
+  return ehEmpresa(kindDe(categorias)) ? CATEGORIAS_EMPRESA[key].icone : PARENT_CATEGORY_ICON[key];
+}
+
+/** Escondida pela pessoa: sai das escolhas (formulário, orçamento, importação), nunca do histórico. */
+export function categoriaOculta(categorias: CategoriasDoPerfil, key: ParentCategory): boolean {
+  return prefDe(categorias, key)?.oculta === true;
+}
+
+/** As categorias que aparecem pra escolher, na ordem de sempre, sem as que ela escondeu. */
+export function categoriasParaEscolher(categorias: CategoriasDoPerfil): ParentCategory[] {
+  return PARENT_CATEGORIES.filter((k) => !categoriaOculta(categorias, k));
+}
+
+export function subcategoriesFor(categorias: CategoriasDoPerfil, key: ParentCategory): string[] {
+  return ehEmpresa(kindDe(categorias)) ? CATEGORIAS_EMPRESA[key].subcategorias : SUBCATEGORIES[key];
 }
 
 /** Os chips de tipo de entrada: "Salário, Freela…" pra pessoa, "Vendas, Serviços…" pra empresa. */
-export function incomeTypesFor(kind: ProfileKind | string | null | undefined): string[] {
-  return ehEmpresa(kind) ? RECEITAS_EMPRESA : INCOME_TYPES;
+export function incomeTypesFor(kind: CategoriasDoPerfil): string[] {
+  return ehEmpresa(kindDe(kind)) ? RECEITAS_EMPRESA : INCOME_TYPES;
 }
 
 /** Os chips de tipo de aporte: "Reserva de emergência, CDB…" pra pessoa, "Reserva de caixa, Reinvestimento…" pra empresa. */
-export function investmentTypesFor(kind: ProfileKind | string | null | undefined): string[] {
-  return ehEmpresa(kind) ? RETENCOES_EMPRESA : INVESTMENT_TYPES;
+export function investmentTypesFor(kind: CategoriasDoPerfil): string[] {
+  return ehEmpresa(kindDe(kind)) ? RETENCOES_EMPRESA : INVESTMENT_TYPES;
 }
 
 /** Todas as categorias-mãe com rótulo e ícone do perfil, na ordem de sempre. */
-export function parentCategoriesFor(kind: ProfileKind | string | null | undefined): { key: ParentCategory; label: string; description: string; icon: LucideIcon }[] {
+export function parentCategoriesFor(kind: CategoriasDoPerfil): { key: ParentCategory; label: string; description: string; icon: LucideIcon }[] {
   return PARENT_CATEGORIES.map((key) => ({ key, label: categoryLabel(kind, key), description: categoryDescription(kind, key), icon: categoryIcon(kind, key) }));
 }

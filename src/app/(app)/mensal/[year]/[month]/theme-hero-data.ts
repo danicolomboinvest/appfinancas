@@ -210,7 +210,7 @@ export async function montarDadosDoTema(
   const gastoPorCategoria = new Map(a.spentByParent.map((s) => [s.parentCategory, s.spent]));
   const categorias = a.monthBudgets.flatMap((b) =>
     b.parentCategory && isParentCategoryKey(b.parentCategory)
-      ? [{ label: categoryLabel(ctx.profileKind, b.parentCategory), planejado: Number(b.plannedAmount), gasto: gastoPorCategoria.get(b.parentCategory) ?? 0 }]
+      ? [{ label: categoryLabel(ctx.categorias ?? ctx.profileKind, b.parentCategory), planejado: Number(b.plannedAmount), gasto: gastoPorCategoria.get(b.parentCategory) ?? 0 }]
       : [],
   );
   const recado = recadoDeHoje({

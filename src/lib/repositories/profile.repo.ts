@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import type { AuthContext } from "@/lib/auth/session";
 import { DEFAULT_PROFILE_THEME, isProfileThemeKey } from "@/lib/profiles/themes";
@@ -52,9 +53,11 @@ export type ProfileRow = {
   theme: string;
   position: number;
   isDefault: boolean;
+  /** Preferências das categorias padrão (JSON cru; ler com lerPreferenciasDeCategoria). */
+  categorias: Prisma.JsonValue | null;
 };
 
-const CAMPOS = { id: true, name: true, kind: true, icon: true, theme: true, position: true, isDefault: true } as const;
+const CAMPOS = { id: true, name: true, kind: true, icon: true, theme: true, position: true, isDefault: true, categorias: true } as const;
 
 export async function listProfiles(userId: string): Promise<ProfileRow[]> {
   return prisma.financialProfile.findMany({

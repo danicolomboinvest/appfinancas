@@ -2,7 +2,7 @@
  * Textos da área "importacao", na voz do Padrão — as frases EXATAS que o app tem hoje. Os temas
  * sobrescrevem o que quiserem em `vozes/<tema>.ts`; o que não sobrescrevem, cai aqui.
  *
- * Regras pra quem cataloga: a chave começa com o prefixo da área; o valor do Padrão é a
+ * Regras para quem cataloga: a chave começa com o prefixo da área; o valor do Padrão é a
  * frase atual do componente, sem mudar uma vírgula; frase com número ou nome vira função.
  *
  * A área cobre o drawer "Registrar" (os quatro cartões e o fluxo de voz), os três importadores
@@ -24,7 +24,7 @@ export type TextosImportacao = {
   impImportarSub: string;
   /** Linha embaixo de "Posso comprar?" no "+" (antes era texto fixo no componente). */
   impCompraAntes: string;
-  // Fluxo de voz (segurar pra falar)
+  // Fluxo de voz (segurar para falar)
   impVozSegure: string;
   impVozSolte: string;
   impVozNaoSuportado: string;
@@ -47,7 +47,7 @@ export type TextosImportacao = {
   impOutroArquivo: string;
   impAplicando: string;
   impPular: string;
-  /** Volta pro lançamento anterior da fila de revisão, pra corrigir uma categoria escolhida errado. */
+  /** Volta para o lançamento anterior da fila de revisão, para corrigir uma categoria escolhida errado. */
   impVoltarAnterior: string;
   impRemover: string;
   impConcluir: string;
@@ -105,7 +105,7 @@ export type TextosImportacao = {
   impDuplicataEOMesmo: string;
   impDuplicataSaoDiferentes: string;
   impRotuloRenda: string;
-  /** Botão que manda a linha pra OUTRO perfil do usuário (compra da Empresa que caiu no cartão
+  /** Botão que manda a linha para OUTRO perfil do usuário (compra da Empresa que caiu no cartão
    * Pessoal, por exemplo). Recebe o nome do perfil de destino. */
   impMoverPra(nome: string): string;
   impImportando: string;
@@ -181,7 +181,7 @@ export type TextosImportacao = {
   impStorySub: string;
   impStoryGastou: string;
   /** "Em setembro você gastou": os stories abrem do dia 1 ao 7, sobre o mês que fechou, e
-   * "este mês" já seria o mês novo. Chave nova (e não a impStoryGastou reescrita) pra não
+   * "este mês" já seria o mês novo. Chave nova (e não a impStoryGastou reescrita) para não
    * mexer nas frases dos temas; quem não tem a sua herda esta. */
   impStoryGastouEm(mes: string): string;
   impStoryMaiorParte: string;
@@ -223,7 +223,7 @@ export type TextosImportacao = {
   impNaoSeiAgora: string;
   /** Linha fixa embaixo da pergunta da categoria: por que ela está vendo isso e o que o botão faz. */
   impNaoSeiAgoraDica: string;
-  /** Aviso depois do toque que resolveu também os iguais (5 Pix pra mesma pessoa = 1 toque). */
+  /** Aviso depois do toque que resolveu também os iguais (5 Pix para a mesma pessoa = 1 toque). */
   impAplicadoAosIguais(n: number): string;
   /** Na conferência: gastos que vão entrar SEM categoria (antes "ficaram de fora"). */
   impSemCategoriaEntraTitulo(n: number): string;
@@ -311,7 +311,7 @@ export const PADRAO_IMPORTACAO: TextosImportacao = {
   impOutroArquivo: "Escolher outro arquivo",
   impAplicando: "Aplicando...",
   impPular: "Pular",
-  impVoltarAnterior: "← Voltar pro anterior",
+  impVoltarAnterior: "← Voltar para o anterior",
   impRemover: "Remover",
   impConcluir: "Concluir",
   // Extrato/fatura: subir o arquivo
@@ -343,7 +343,7 @@ export const PADRAO_IMPORTACAO: TextosImportacao = {
   impNovaCategoriaPlaceholder: "Nome da categoria (ex.: Fatura, Pet, Farmácia)",
   impCriando: "Criando...",
   impCriarEUsar: "Criar e usar",
-  impNovaCategoriaDica: "A categoria nova já aparece no Orçamento pra você planejar um valor pra ela.",
+  impNovaCategoriaDica: "A categoria nova já aparece no Orçamento para você planejar um valor para ela.",
   // Extrato/fatura: conferência
   impSemCategoriaTitulo: (n) => `${n} gasto${s(n)} sem categoria ${n === 1 ? "ficou" : "ficaram"} de fora`,
   impSemCategoriaSub: (n, soma) => `${n === 1 ? "Ele não entra" : "Eles não entram"} na importação. Some ${soma}.`,
@@ -389,7 +389,7 @@ export const PADRAO_IMPORTACAO: TextosImportacao = {
   impToastImportados: (n) => `${n} lançamentos importados`,
   impToastJaExistiam: (n) => `${n} já existiam (ignorados)`,
   impPagamentoFatura: (n) =>
-    `Encontrei ${n === 1 ? "este lançamento" : "estes lançamentos"} no seu extrato que ${n === 1 ? "pode ser" : "podem ser"} o pagamento desta fatura. Quer remover pra não contar o gasto duas vezes?`,
+    `Encontrei ${n === 1 ? "este lançamento" : "estes lançamentos"} no seu extrato que ${n === 1 ? "pode ser" : "podem ser"} o pagamento desta fatura. Quer remover para não contar o gasto duas vezes?`,
   impSemData: "sem data",
   impRemovidoExtrato: "Removido do extrato.",
   impManter: "Manter",
@@ -398,7 +398,7 @@ export const PADRAO_IMPORTACAO: TextosImportacao = {
   impCarteiraEscolher: "Escolher a posição da corretora",
   impCarteiraFormato: "Posição da corretora ou da B3 (CSV, Excel ou PDF)",
   impSenhaDicaCorretora:
-    "Digite a senha do arquivo (a mesma que a corretora pede pra abrir). Ela é usada só pra abrir e não fica salva.",
+    "Digite a senha do arquivo (a mesma que a corretora pede para abrir). Ela é usada só para abrir e não fica salva.",
   impCarteiraLiTudo: (resumo) => `Li o arquivo inteiro: ${resumo}.`,
   impCarteiraEmDia: (n) =>
     `Sua carteira já está em dia com esse extrato, ${n} ativo${s(n)} conferido${s(n)}, nenhuma mudança encontrada. 🎉`,
@@ -415,14 +415,14 @@ export const PADRAO_IMPORTACAO: TextosImportacao = {
   impCarteiraFeito: (criados, atualizados) =>
     [criados > 0 ? `${criados} novo${s(criados)} na carteira` : null, atualizados > 0 ? `${atualizados} atualizado${s(atualizados)}` : null]
       .filter(Boolean)
-      .join(" · ") || "Nada pra mudar, carteira já estava em dia.",
+      .join(" · ") || "Nada para mudar, carteira já estava em dia.",
   // Declaração de IR
   impIrpfArquivoGrande: "Arquivo muito grande (máx. 4 MB).",
-  impIrpfSelecioneUm: "Selecione ao menos um ativo pra aplicar o preço médio.",
+  impIrpfSelecioneUm: "Selecione ao menos um ativo para aplicar o preço médio.",
   impIrpfIntro: [
     "Sua declaração de IR tem o ",
     "preço médio",
-    " de cada ação e FII (o custo de aquisição), o que os extratos de corretora não trazem. Suba o PDF do recibo da declaração e eu preencho o investido de cada ativo, pra o lucro/prejuízo calcular certo.",
+    " de cada ação e FII (o custo de aquisição), o que os extratos de corretora não trazem. Suba o PDF do recibo da declaração e eu preencho o investido de cada ativo, para o lucro/prejuízo calcular certo.",
   ],
   impIrpfLendo: "Lendo declaração...",
   impIrpfEscolher: "Escolher PDF da declaração",
@@ -480,7 +480,7 @@ export const PADRAO_IMPORTACAO: TextosImportacao = {
   impStoryDiaGastadorCom: (valor) => `com ${valor}`,
   impStoryDesdeQueChegou: (meses, positivo) =>
     `Desde que você chegou aqui (${meses} ${meses === 1 ? "mês" : "meses"}),${positivo ? " ficou no seu bolso" : " o saldo ficou"}`,
-  impStoryAcumuladoRuim: "Mês a mês dá pra virar esse jogo. O primeiro passo é ver o número.",
+  impStoryAcumuladoRuim: "Mês a mês dá para virar esse jogo. O primeiro passo é ver o número.",
   impStoryProjecaoUnica: "Se você investisse hoje, de uma vez, tudo que já juntou, em 10 anos isso vira até…",
   impStoryProjecaoUnicaNota: (valor) => `*${valor} investidos de uma vez a 10% a.a., estimativa educativa, não garantia.`,
   impStoryProjecaoMensal: "Mantendo sua poupança média todo mês, reinvestindo, em 10 anos isso vira até…",
@@ -531,7 +531,7 @@ export const PADRAO_IMPORTACAO: TextosImportacao = {
   impFaturaUsarMes: (mes) => `Usar ${mes}`,
   impSenhaConfianca: "É a senha do arquivo, não a do seu banco. A gente não guarda a senha e não entra na sua conta.",
   impProprioTitulo: "Isso é gasto ou dinheiro seu mudando de lugar?",
-  impProprioDica: "Transferência pra você mesma e dinheiro voltando do que você guardou não são gasto nem renda.",
+  impProprioDica: "Transferência para você mesma e dinheiro voltando do que você guardou não são gasto nem renda.",
   impProprioMudei: "Só mudei de conta",
   impProprioGuardei: "Guardei",
   impProprioGasto: "Foi gasto",
@@ -545,11 +545,11 @@ export const PADRAO_IMPORTACAO: TextosImportacao = {
   impRevelaTitulo: (mes) => `Seu mês de ${mes} ficou assim`,
   impRevelaEntrou: "Entrou",
   impRevelaSaiu: "Saiu",
-  impRevelaMaiores: "Pra onde mais foi o dinheiro",
-  impRevelaLivre: "Livre pra gastar no mês",
+  impRevelaMaiores: "Para onde mais foi o dinheiro",
+  impRevelaLivre: "Livre para gastar no mês",
   impRevelaLivreSub: (planejado) => `Do seu orçamento de ${planejado}.`,
   impVerMeuMes: "Ver meu mês",
-  impRevelaDesfazer: (historico) => `Errou alguma coisa? Dá pra desfazer em "${historico}", no fim da tela do mês.`,
+  impRevelaDesfazer: (historico) => `Errou alguma coisa? Dá para desfazer em "${historico}", no fim da tela do mês.`,
   impComoTirarTitulo: "Como tiro o extrato do meu banco?",
   impComoTirarAviso:
     "Print e foto não funcionam. Use o arquivo que o app do banco gera (PDF, Excel, CSV ou OFX), pela opção Exportar, Baixar ou Enviar por e-mail. \"Imprimir\" pelo celular também não serve.",

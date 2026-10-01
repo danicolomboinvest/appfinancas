@@ -41,7 +41,7 @@ describe("o Padrão sem jargão nas telas do dia a dia", () => {
     expect([p.uiTipoRenda, p.uiTipoGasto, p.uiTipoAporte]).toEqual(["Renda", "Gasto", "Guardado"]);
     expect(p.uiRendaFatiaAportes).toBe("Guardado");
     expect(p.uiFixoApagarTitulo("INVESTMENT_CONTRIBUTION")).toBe("Apagar dinheiro guardado todo mês");
-    expect(p.focoMetaP("R$ 300")).toBe("Pra voltar ao prazo, precisa guardar R$ 300 por mês.");
+    expect(p.focoMetaP("R$ 300")).toBe("Para voltar ao prazo, precisa guardar R$ 300 por mês.");
     expect(p.focoRitmoMensalSub).toBe("15 minutos no fechamento: o que aconteceu × o que você combinou.");
     expect(p.fechAporteEy).not.toMatch(/aporte/i);
   });

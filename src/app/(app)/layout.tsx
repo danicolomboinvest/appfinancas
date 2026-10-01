@@ -20,6 +20,7 @@ import { TelaConfirmeEmail } from "@/components/auth/TelaConfirmeEmail";
 import { TelaSemAcesso } from "@/components/auth/TelaSemAcesso";
 import { linkDoSuporte } from "@/lib/support/whatsapp-link";
 import { mensagemDeContaSemAcesso } from "@/lib/support/contato";
+import { lerPreferenciasDeCategoria, type PreferenciasDeCategoria } from "@/lib/categories";
 
 
 function capitalize(text: string) {
@@ -40,6 +41,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   let theme = "dark";
   let profileTheme = "padrao";
   let profileKind: ProfileKind = "PESSOAL";
+  let prefsDeCategoria: PreferenciasDeCategoria = {};
   let currency: CurrencyCode = toCurrencyCode(null);
   let isPremium = false;
   let perfis: { id: string; name: string; icon: string; theme: string; isDefault: boolean }[] = [];
@@ -77,6 +79,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     perfilAtivoId = ativo.id;
     profileTheme = ativo.theme;
     profileKind = ativo.kind;
+    prefsDeCategoria = lerPreferenciasDeCategoria(ativo.categorias);
     // O TEMA do perfil ativo redefine a paleta do app inteiro — fundo, cartão, tinta e
     // destaque. Como tudo já pinta com var(--color-*), a tela toda muda junto sem nenhum
     // componente saber que existe tema. Trocar de perfil troca a cara do app.
@@ -113,6 +116,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         openFinance={isPluggyConfigured()}
         profileTheme={profileTheme}
         profileKind={profileKind}
+        prefsDeCategoria={prefsDeCategoria}
         podeEscolherModo={podeEscolherModo}
       >
         {/* Trocar de perfil só revalida a página, e o React guarda o estado dos formulários que

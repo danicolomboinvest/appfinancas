@@ -2,7 +2,7 @@
 
 import { useId, useState, useTransition } from "react";
 import type { ParentCategory } from "@prisma/client";
-import { PARENT_CATEGORIES, OUTRO_SUBCATEGORY_LABEL, categoryLabel, subcategoriesFor, incomeTypesFor, investmentTypesFor } from "@/lib/categories";
+import { PARENT_CATEGORIES, OUTRO_SUBCATEGORY_LABEL, categoryLabel, subcategoriesFor, incomeTypesFor, investmentTypesFor, categoriaOculta } from "@/lib/categories";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import type { Voz } from "@/lib/profiles/voice";
 import { CONTROL_CLASSES } from "@/components/ui/Field";
@@ -89,7 +89,7 @@ export function CategoryFields({
   const selectId = useId();
   // Os rótulos, subcategorias e chips de tipo mudam com o perfil: numa Empresa, MORADIA é
   // "Estrutura" e a renda é "Vendas", não "Salário". A chave gravada no banco é a mesma.
-  const { kind, voz } = useProfileTheme();
+  const { kind, voz, categorias } = useProfileTheme();
   const t = voz.titulos;
   const [category, setCategory] = useState(defaultCategory);
   const [initial] = useState(() =>
@@ -206,10 +206,11 @@ export function CategoryFields({
             {guessed && parentCategory && <span className="ml-2 font-normal text-accent-strong">{t.formLancSugerida}</span>}
           </span>
           <div className="flex flex-wrap gap-1.5">
-            {PARENT_CATEGORIES.map((pc) => (
+            {/* A escondida sai dos chips, menos quando é a do lançamento que ela está editando. */}
+            {PARENT_CATEGORIES.filter((pc) => !categoriaOculta(categorias, pc) || pc === parentCategory).map((pc) => (
               <Chip
                 key={pc}
-                label={categoryLabel(kind, pc)}
+                label={categoryLabel(categorias, pc)}
                 active={parentCategory === pc}
                 onClick={() => {
                   setParentCategory(pc);

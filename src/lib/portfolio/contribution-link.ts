@@ -436,3 +436,58 @@ export function allocationsToRestore(
   }
   return linhas;
 }
+
+/**
+ * "Resgatei" direto no investimento (01/10/2026): a Dani abria o "Mexer" de um ativo e só havia
+ * como trocar quanto vale e quantas cotas, sem o resgate ficar registrado em lugar nenhum.
+ *
+ * Num passo só: o resgate entra no mês como guardado NEGATIVO (ver lib/entries/resgate.ts), fica
+ * ligado ao ativo pela mesma ContributionAllocation (negativa) que a pergunta da carteira usa, e
+ * o ativo perde o valor pela regra de assetAfterWithdrawal — o investido cai na mesma proporção,
+ * então a rentabilidade em % não muda e o lucro que saiu junto deixa de ser contado.
+ */
+export async function resgatarDeUmAtivo(
+  ctx: AuthContext,
+  input: { assetId: string; amount: number; date: Date },
+): Promise<{ ok: true; meta: string | null } | { ok: false; error: string }> {
+  if (!(input.amount > 0)) return { ok: false, error: "Diga quanto você resgatou." };
+  const asset = await prisma.asset.findFirst({
+    where: { id: input.assetId, userId: ctx.userId, profileId: ctx.profileId },
+    select: { id: true, name: true, ticker: true, investedValue: true, currentValue: true, quantity: true, currentUnitPrice: true, goalId: true, goal: { select: { name: true } } },
+  });
+  if (!asset) return { ok: false, error: "Esse investimento não existe mais. Recarregue a página." };
+  const valor = Math.round(input.amount * 100) / 100;
+  if (valor > Number(asset.currentValue) + 0.01) {
+    return { ok: false, error: `Na carteira ele vale ${Number(asset.currentValue).toFixed(2)}. Se rendeu mais, atualize o valor de hoje antes de resgatar.` };
+  }
+  const depois = assetAfterWithdrawal(
+    {
+      investedValue: asset.investedValue === null ? null : Number(asset.investedValue),
+      currentValue: Number(asset.currentValue),
+      quantity: asset.quantity === null ? null : Number(asset.quantity),
+      currentUnitPrice: asset.currentUnitPrice === null ? null : Number(asset.currentUnitPrice),
+    },
+    valor,
+  );
+  await prisma.$transaction(async (tx) => {
+    const entrada = await tx.monthlyEntry.create({
+      data: {
+        userId: ctx.userId, profileId: ctx.profileId,
+        year: input.date.getFullYear(),
+        month: input.date.getMonth() + 1,
+        category: "INVESTMENT_CONTRIBUTION",
+        amount: -valor,
+        description: `Resgate de ${asset.ticker ?? asset.name}`,
+        entryDate: input.date,
+        goalId: asset.goalId,
+      },
+      select: { id: true },
+    });
+    await tx.contributionAllocation.create({ data: { userId: ctx.userId, profileId: ctx.profileId, entryId: entrada.id, assetId: asset.id, amount: -valor } });
+    await tx.asset.update({
+      where: { id: asset.id },
+      data: { investedValue: depois.investedValue, currentValue: depois.currentValue, ...(depois.quantityEstimated ? { quantity: depois.quantity } : {}) },
+    });
+  });
+  return { ok: true, meta: asset.goal?.name ?? null };
+}

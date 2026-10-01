@@ -19,7 +19,7 @@ export async function carregarBlocosDoMes(ctx: AuthContext, now: Date) {
   const month = now.getMonth() + 1;
   const daysInMonth = new Date(year, month, 0).getDate();
   const anterior = new Date(year, month - 2, 1);
-  const rotulos = Object.fromEntries(PARENT_CATEGORIES.map((k) => [k, categoryLabel(ctx.profileKind, k)]));
+  const rotulos = Object.fromEntries(PARENT_CATEGORIES.map((k) => [k, categoryLabel(ctx.categorias ?? ctx.profileKind, k)]));
 
   const [money, summary, previousSummary, monthBudgets, spentByParent, categorySpending, entries, dailyFlow, primeiros] = await Promise.all([
     serverMoney(),

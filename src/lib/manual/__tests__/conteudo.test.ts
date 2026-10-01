@@ -50,6 +50,6 @@ describe("manual: os nomes que ele cita são os que a tela do tema mostra", () =
   it("o PDF usa os nomes do Padrão, os mesmos da tela de quem não trocou de tema", () => {
     expect(NOMES_PADRAO.historico).toBe("Histórico de importações");
     expect(NOMES_PADRAO.importarArquivo).toBe("Importar extrato ou fatura");
-    expect(NOMES_PADRAO.sobraReserva).toBe("Mandar a sobra pra reserva");
+    expect(NOMES_PADRAO.sobraReserva).toBe("Mandar a sobra para a reserva");
   });
 });

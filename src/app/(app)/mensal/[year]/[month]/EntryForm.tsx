@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 
 import { startTransition, useActionState, useEffect, useRef, useState, type FormEvent } from "react";
@@ -8,7 +9,7 @@ import { Field } from "@/components/ui/Field";
 import { CurrencyField } from "@/components/ui/CurrencyField";
 import { CurrencySwitch, ExchangeRateLine } from "@/components/forms/CurrencySwitch";
 import { useCurrency } from "@/components/money/MoneyProvider";
-import type { CurrencyCode } from "@/lib/money";
+import { CURRENCIES, type CurrencyCode } from "@/lib/money";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useSuccessToast } from "@/components/ui/useSuccessToast";
@@ -147,6 +148,13 @@ export function EntryForm({
             amount={amount}
             defaultRate={defaultCurrency === currency ? defaultExchangeRate : undefined}
           />
+        )}
+        {/* Quem mora fora e lança sempre em outra moeda não sabia que dava pra trocar a do app
+            inteiro (cliente, 01/10/2026): o caminho fica aqui, na hora em que a moeda importa. */}
+        {foreign && (
+          <Link href="/configuracoes/preferencias" className="text-caption font-medium text-accent-strong hover:underline">
+            Usa sempre {CURRENCIES[currency].label.toLowerCase()}? Troque a moeda do app em Preferências →
+          </Link>
         )}
       </div>
       <Field

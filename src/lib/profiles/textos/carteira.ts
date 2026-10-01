@@ -2,13 +2,13 @@
  * Textos da área "carteira", na voz do Padrão — as frases EXATAS que o app tem hoje. Os temas
  * sobrescrevem o que quiserem em `vozes/<tema>.ts`; o que não sobrescrevem, cai aqui.
  *
- * Regras pra quem cataloga: a chave começa com o prefixo da área; o valor do Padrão é a
+ * Regras para quem cataloga: a chave começa com o prefixo da área; o valor do Padrão é a
  * frase atual do componente, sem mudar uma vírgula; frase com número ou nome vira função.
  *
  * Prefixos: `cart` é o miolo da carteira (lista de ativos, aporte do mês, por objetivo),
  * `fichas` é o módulo Análises, `meta` é a página de uma meta, e `graf` são os gráficos de
  * `components/charts` — eles são de cliente e servem várias telas, então o texto que mora
- * dentro deles (legenda, dica, chip) fica num prefixo só, em vez de espalhado pelas áreas.
+ * dentro deles (legenda, dica, chip) fica em um prefixo só, em vez de espalhado pelas áreas.
  *
  * Nomes de mercado (Ações, FIIs, Tijolo, Pós-fixado, "Duration") NÃO viram chave: são o
  * nome da coisa, não a voz do app.
@@ -75,7 +75,7 @@ export type TextosCarteira = {
   cartFaltaDizer(valor: string): string;
   cartPassouDoAporte(valor: string): string;
   cartTudoDistribuido: string;
-  /** Resgate (guardado negativo): o espelho do "você aportou", pra carteira descontar o que saiu. */
+  /** Resgate (guardado negativo): o espelho do "você aportou", para a carteira descontar o que saiu. */
   cartVoceResgatou(valor: string, mes: string): string;
   cartToquePraDizerResgate: string;
   cartDigaQuantoSaiu: string;
@@ -105,12 +105,12 @@ export type TextosCarteira = {
   cartVazioAtalhos: string;
   cartVazioPoupanca: string;
   cartVazioCaixinha: string;
-  /** Link discreto pra quem já tem o arquivo da corretora. */
+  /** Link discreto para quem já tem o arquivo da corretora. */
   cartVazioTenhoArquivo: string;
   // Reserva · "Guardei este mês" (planejamento/reserva-emergencia)
   /** O botão: lança o valor combinado por mês e soma na reserva. */
   reservaGuardeiBotao(valor: string): string;
-  /** Embaixo do botão: o que ele faz, pra ela não achar que o dinheiro sai de algum lugar. */
+  /** Embaixo do botão: o que ele faz, para ela não achar que o dinheiro sai de algum lugar. */
   reservaGuardeiDica: string;
   /** Depois de marcar: o mês já guardado. */
   reservaGuardeiFeito(mes: string): string;
@@ -274,7 +274,7 @@ export const PADRAO_CARTEIRA: TextosCarteira = {
   cartNaEstrategia: "Carteira na estratégia",
   cartDefinaQuanto: "Defina quanto quer ter em cada tipo e compare com a carteira atual.",
   cartDefinirEstrategia: "Definir estratégia →",
-  cartPraFicarNoAlvo: "Pra ficar no alvo:",
+  cartPraFicarNoAlvo: "Para ficar no alvo:",
   cartVerRebalanceamento: "Ver rebalanceamento →",
   cartTodos: (n) => `Todos (${n})`,
   cartDaCarteira: (pct) => `${pct} da carteira`,
@@ -301,7 +301,7 @@ export const PADRAO_CARTEIRA: TextosCarteira = {
   cartVoceAportou: (valor, mes) => `Você aportou ${valor} em ${mes}`,
   cartCadastreAtivo: "Cadastre o ativo que recebeu esse dinheiro e a carteira passa a bater com o que você lançou no mês.",
   cartDigaQuanto: "Diga quanto entrou em cada ativo.",
-  cartToquePraDizer: "Toque pra dizer em quais ativos entrou.",
+  cartToquePraDizer: "Toque para dizer em quais ativos entrou.",
   cartEnquantoNaoDisser: (meta) =>
     `Enquanto não disser, a carteira fica com um valor e o mês com outro${meta ? `, e a meta ${meta} não anda junto` : ""}.`,
   cartMetaDoAtivo: (nome) => `meta: ${nome}`,
@@ -311,7 +311,7 @@ export const PADRAO_CARTEIRA: TextosCarteira = {
   cartPassouDoAporte: (valor) => `Passou ${valor} do que você aportou`,
   cartTudoDistribuido: "Tudo distribuído",
   cartVoceResgatou: (valor, mes) => `Você resgatou ${valor} em ${mes}`,
-  cartToquePraDizerResgate: "Toque pra dizer de qual investimento saiu.",
+  cartToquePraDizerResgate: "Toque para dizer de qual investimento saiu.",
   cartDigaQuantoSaiu: "Diga quanto saiu de cada investimento.",
   cartEnquantoNaoDisserResgate: "Enquanto você não disser, a carteira continua contando esse dinheiro como investido.",
   cartQuantoSaiuDe: (nome) => `Quanto saiu de ${nome}`,
@@ -325,7 +325,7 @@ export const PADRAO_CARTEIRA: TextosCarteira = {
   cartAplicandoAporte: "Aplicando...",
   cartAtualizarCarteira: "É isso, atualizar carteira",
   cartAtivoNaoEstaAqui: "O ativo ainda não está aqui? Cadastre primeiro",
-  cartRemoverPergunta: (nome) => `Remover ${nome}? Não dá pra desfazer.`,
+  cartRemoverPergunta: (nome) => `Remover ${nome}? Não dá para desfazer.`,
   cartRemoverAvisoAporte: "O dinheiro do mês que você disse que entrou nele volta a pedir destino.",
   cartRemoverSim: "Sim, remover",
   compNoAlvo: "No alvo",
@@ -393,7 +393,7 @@ export const PADRAO_CARTEIRA: TextosCarteira = {
   fichasAnalisar: "Analisar",
   // Análises · a ficha
   fichasNotaDetalhada: "Minha nota detalhada (avançado)",
-  fichasNotaDetalhadaSub: "A ficha completa, com nota de 0 a 10 por critério, pra quem quer registrar a própria análise por escrito.",
+  fichasNotaDetalhadaSub: "A ficha completa, com nota de 0 a 10 por critério, para quem quer registrar a própria análise por escrito.",
   fichasSinal: { favoravel: "a favor", neutro: "na média", atencao: "atenção" },
   fichasTentarDeNovo: "Tentar de novo",
   fichasLendoNumeros: (ticker) => `Lendo os números de ${ticker}…`,

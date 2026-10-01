@@ -22,3 +22,8 @@ export async function deleteOwnCustomCategory(ctx: AuthContext, id: string) {
     prisma.customCategory.deleteMany({ where: { id, userId: ctx.userId, profileId: ctx.profileId } }),
   ]);
 }
+
+/** Troca nome e ícone de uma categoria dela (01/10/2026): antes só dava para apagar e criar de novo. */
+export async function updateOwnCustomCategory(ctx: AuthContext, id: string, input: { name: string; icon: string }) {
+  return prisma.customCategory.updateMany({ where: { id, userId: ctx.userId, profileId: ctx.profileId }, data: input });
+}

@@ -21,18 +21,26 @@ describe("estimateTrip — um destino", () => {
   it("calcula diárias e passagem de uma viagem simples", () => {
     const est = trip([{ destinationKey: "gramado", days: 7 }])!;
     expect(est).not.toBeNull();
-    // Gramado: tier "caro" (620/400... hosp 620, comida 220, passeios 160), band "nacional" (950).
+    // Gramado: tier "caro" (hosp 620, comida 250, passeios 160; revisto em 01/10/2026), band "nacional" (950).
     // 2 pessoas = 1 quarto; 7 dias no último (único) trecho = 6 noites.
     expect(est.legs).toHaveLength(1);
     expect(est.legs[0].nights).toBe(6);
     expect(est.lodging).toBe(620 * 6);
-    expect(est.food).toBe(220 * 7 * 2);
+    expect(est.food).toBe(250 * 7 * 2);
     expect(est.activities).toBe(160 * 7 * 2);
     expect(est.flights).toBe(950 * 2);
     const subtotal = est.flights + est.lodging + est.food + est.activities;
     expect(est.buffer).toBe(Math.round(subtotal * 0.1));
     expect(est.total).toBe(subtotal + est.buffer);
     expect(est.perPerson).toBe(Math.round(est.total / 2));
+  });
+
+  it("econômico não encolhe a comida até o impraticável: num destino barato, pelo menos R$ 80 por pessoa/dia", () => {
+    // Cliente (01/10/2026): o Econômico dava R$ 58/dia de comida. Um prato feito já custa R$ 31,90
+    // na média nacional (FAC-SP, 2º tri 2026); três refeições simples não saem por menos de ~R$ 80.
+    const legs = [{ destinationKey: "gramado", days: 5 }];
+    const eco = trip(legs, 1, "economico")!;
+    expect(eco.food / 5).toBeGreaterThanOrEqual(80);
   });
 
   it("estilo econômico sai mais barato e confortável mais caro que o médio", () => {

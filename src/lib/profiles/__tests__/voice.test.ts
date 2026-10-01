@@ -179,7 +179,7 @@ describe("a voz dos sete temas", () => {
       const texto = typeof v === "function" ? (v as (...a: never[]) => unknown)(...(["10%", "R$ 10", 10] as never[])) : v;
       expect(String(texto), chave).not.toMatch(jargao);
     }
-    expect(g.aportou).toBe("Guardou pra investir 🐷");
+    expect(g.aportou).toBe("Guardou para investir 🐷");
     // O tom que ela pediu: "me dá R$ 300 pra eu chegar lá", como uma amiga escreveria.
     expect(g.metaGuardar("R$ 300")).toBe("Me dá R$ 300 esse mês e a gente chega lá 💪✨");
     expect(g.metaAporteFeito("setembro")).toContain("Boaaaa");
@@ -289,6 +289,16 @@ describe("painéis (Análises, Visão geral, Fluxo do ano, story do resumo)", ()
     expect(p.paiVerPatrimonio).toBe("Ver patrimônio");
     expect(p.paiMetasAtrasadas(1, "Carro")).toBe("1 meta está atrasada (Carro), revise o prazo ou aumente o aporte mensal para voltar ao ritmo.");
     expect(p.paiMetasAtrasadas(2, "Carro, Viagem")).toContain("2 metas estão atrasadas");
-    expect(vozDoTema("girly").titulos.paiMetasAtrasadas(2, "Carro, Viagem")).toContain("2 sonhos ficaram pra trás");
+    expect(vozDoTema("girly").titulos.paiMetasAtrasadas(2, "Carro, Viagem")).toContain("2 sonhos ficaram para trás");
+  });
+});
+
+describe("Girly: amiga que entende de dinheiro, não conversa de WhatsApp (01/10/2026)", () => {
+  it("escreve 'para', 'está', 'estou' por extenso: carinho sim, abreviação não", () => {
+    const g = vozDoTema("girly").titulos as unknown as Record<string, unknown>;
+    const textos = Object.values(g)
+      .map((v) => (typeof v === "string" ? v : typeof v === "function" ? String((v as (...a: unknown[]) => unknown)("X", "Y", "Z")) : ""))
+      .join(" \n ");
+    expect(textos).not.toMatch(/\b(pra|pro|tá|tô|num)\b/i);
   });
 });

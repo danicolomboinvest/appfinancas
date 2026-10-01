@@ -50,6 +50,7 @@ import { ThemeHero } from "./ThemeHero";
 import { ThemeFooter } from "./ThemeFooter";
 import { PrimeiroPassoDoMes } from "./PrimeiroPassoDoMes";
 import { prisma } from "@/lib/db/prisma";
+import { BotoesDeLancar } from "@/components/ui/BotoesDeLancar";
 
 const MONTH_LABELS = [
   "Janeiro",
@@ -100,7 +101,7 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
 
   const ctx = await getRequiredSession();
   // Os nomes das categorias na cara do perfil: "Moradia" pra pessoa, "Estrutura" pra empresa.
-  const rotulosDeCategoria = Object.fromEntries(PARENT_CATEGORIES.map((k) => [k, categoryLabel(ctx.profileKind, k)]));
+  const rotulosDeCategoria = Object.fromEntries(PARENT_CATEGORIES.map((k) => [k, categoryLabel(ctx.categorias ?? ctx.profileKind, k)]));
   // `serverMoney` entra na leva paralela em vez de ficar sozinho antes dela: sozinho, ele
   // custava uma ida ao banco inteira antes de qualquer outra consulta começar.
   const [
@@ -434,7 +435,7 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
 
       {/* O ranking completa a rosca: ela mostra a fatia, ele mostra quanto exatamente e o que
           mudou desde o mês passado. */}
-      <TopCategories categories={categorySpending} tema={ctx.profileTheme} kind={ctx.profileKind} voz={voz} />
+      <TopCategories categories={categorySpending} tema={ctx.profileTheme} kind={ctx.categorias ?? ctx.profileKind} voz={voz} />
       </div>
 
       {/* O botão "Registrar" (drawer global) já cobre lançamento; aqui embaixo, algo pra olhar
@@ -446,7 +447,7 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
       <BudgetSection ctx={ctx} year={year} month={month} totalIncome={summary.totalIncome} />
 
       {entries.length === 0 ? (
-        <EmptyState icon={Receipt} message={voz.mesVazio} />
+        <EmptyState icon={Receipt} message={voz.mesVazio} action={<BotoesDeLancar rotulo="Adicionar lançamento" />} />
       ) : (
         <EntryList
           year={year}

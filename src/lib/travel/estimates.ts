@@ -63,13 +63,20 @@ export const TRAVEL_STYLE_LABEL: Record<TravelStyle, string> = {
   confortavel: "Confortável",
 };
 
-/** Diárias no estilo "médio": hospedagem por QUARTO/noite; comida e passeios por pessoa/dia. */
+/**
+ * Diárias no estilo "médio": hospedagem por QUARTO/noite; comida e passeios por pessoa/dia.
+ *
+ * Revistas em 01/10/2026: cliente achou a comida do Econômico "impraticável" (R$ 58/dia num destino
+ * barato). Base: prato feito a R$ 31,90 na média nacional (FAC-SP, 2º tri 2026) e R$ 38,65 em São
+ * Paulo (Procon-SP, fev/2026); três refeições simples saem R$ 80–110/dia no Brasil. Fora, Numbeo,
+ * Hostelz e Budget Your Trip, com dólar a R$ 5,47 e euro a R$ 5,88 (set/2026).
+ */
 const TIER_DAILY: Record<CostTier, { lodging: number; food: number; activities: number }> = {
-  economico: { lodging: 200, food: 90, activities: 70 },
-  barato: { lodging: 300, food: 120, activities: 90 },
-  medio: { lodging: 420, food: 160, activities: 120 },
-  caro: { lodging: 620, food: 220, activities: 160 },
-  premium: { lodging: 900, food: 300, activities: 220 },
+  economico: { lodging: 210, food: 115, activities: 70 },
+  barato: { lodging: 300, food: 145, activities: 90 },
+  medio: { lodging: 430, food: 180, activities: 120 },
+  caro: { lodging: 620, food: 250, activities: 160 },
+  premium: { lodging: 900, food: 320, activities: 240 },
 };
 
 /** Passagem ida e volta por pessoa, saindo do Brasil, no estilo "médio". */
@@ -233,11 +240,15 @@ export function seasonLevelFor(factor: number): SeasonLevel {
   return "media";
 }
 
-/** Passagem varia menos entre estilos (tarifa é tarifa); diárias variam bem mais. */
-const STYLE_MULTIPLIER: Record<TravelStyle, { flight: number; daily: number }> = {
-  economico: { flight: 0.85, daily: 0.65 },
-  medio: { flight: 1, daily: 1 },
-  confortavel: { flight: 1.5, daily: 1.7 },
+/**
+ * Passagem varia menos entre estilos (tarifa é tarifa); diárias variam bem mais. Cada parte da
+ * diária tem o seu: era um "daily" só, a 0,65, e a comida encolhia tanto quanto a hospedagem —
+ * mas quarto simples existe, refeição de R$ 20 não (ver TIER_DAILY).
+ */
+const STYLE_MULTIPLIER: Record<TravelStyle, { flight: number; lodging: number; food: number; activities: number }> = {
+  economico: { flight: 0.85, lodging: 0.7, food: 0.7, activities: 0.75 },
+  medio: { flight: 1, lodging: 1, food: 1, activities: 1 },
+  confortavel: { flight: 1.5, lodging: 1.7, food: 1.7, activities: 1.7 },
 };
 
 function d(
@@ -722,9 +733,9 @@ export function estimateTrip(input: TripInput): TripEstimate | null {
     const daily = TIER_DAILY[leg.destination.tier];
     // Temporada pesa na hospedagem (comida e passeios variam pouco, ficam fora).
     const seasonFactor = seasonFactorFor(leg.destination, input.month);
-    const lodging = Math.round(daily.lodging * nights * rooms * mult.daily * seasonFactor);
-    const food = Math.round(daily.food * days * travelers * mult.daily);
-    const activities = Math.round(daily.activities * days * travelers * mult.daily);
+    const lodging = Math.round(daily.lodging * nights * rooms * mult.lodging * seasonFactor);
+    const food = Math.round(daily.food * days * travelers * mult.food);
+    const activities = Math.round(daily.activities * days * travelers * mult.activities);
     return {
       destination: leg.destination,
       days,

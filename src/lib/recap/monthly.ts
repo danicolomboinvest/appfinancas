@@ -200,7 +200,7 @@ export async function computeMonthlyRecap(ctx: AuthContext, year: number, month:
     monthExpenses.map((e) => ({ amount: Number(e.amount), parentCategory: e.parentCategory, customCategoryId: e.customCategoryId })),
     (g) =>
       g.parentCategory
-        ? categoryLabel(ctx.profileKind, g.parentCategory as ParentCategory)
+        ? categoryLabel(ctx.categorias ?? ctx.profileKind, g.parentCategory as ParentCategory)
         : (nomeDaPersonalizada.get(g.customCategoryId ?? "") ?? "Personalizada"),
   );
   const weekdaySeries: WeekdaySpend[] = Array.from({ length: 7 }, (_, i) => {

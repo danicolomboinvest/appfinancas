@@ -1,10 +1,10 @@
 /**
  * A base da voz: os tipos, as frases do Padrão (as EXATAS que o app sempre teve) e os
- * ajudantes que os temas usam pra escrever as deles.
+ * ajudantes que os temas usam para escrever as deles.
  *
  * Cada tema mora em `vozes/<tema>.ts` e só sobrescreve o que quer dizer diferente. Foi
- * separado assim pra seis pessoas (ou seis agentes) escreverem a voz de seis temas ao mesmo
- * tempo sem disputar o mesmo arquivo. A regra de ouro continua valendo pra todos: a cobrança
+ * separado assim para seis pessoas (ou seis agentes) escreverem a voz de seis temas ao mesmo
+ * tempo sem disputar o mesmo arquivo. A regra de ouro continua valendo para todos: a cobrança
  * fala do NÚMERO, nunca da pessoa — e o teste em voice.test.ts confere.
  */
 import { type TextosSimuladores, PADRAO_SIMULADORES } from "./textos/simuladores";
@@ -31,7 +31,7 @@ export type Money = (n: number, o?: { round?: boolean }) => string;
  *
  * "Sobra" aqui é o que não virou gasto: saldo mais aportes, porque aporte é dinheiro guardado.
  * Bom = sobrou 20% ou mais do que entrou (a régua clássica de poupança). Ruim = não sobrou
- * nada ou gastou mais do que entrou. O resto é normal: fechou de pé, dá pra mais.
+ * nada ou gastou mais do que entrou. O resto é normal: fechou de pé, dá para mais.
  */
 export function estadoDoMes(v: { income: number; expense: number; investment: number }): Estado {
   if (v.income === 0 && v.expense === 0 && v.investment === 0) return "vazio";
@@ -46,7 +46,7 @@ export function estadoDoMes(v: { income: number; expense: number; investment: nu
  * pode deixar `estado` em "bom"/"normal" com o "Resultado" (renda − gastos − aportes, o número
  * que a tela REALMENTE mostra) negativo: um aporte grande o bastante consome a sobra inteira e
  * ainda entra no vermelho. Nesse caso a frase de cada tema não pode comemorar — ninguém deveria
- * ler "Tá voando, hein 💖✨" embaixo de um saldo negativo. Todo `fraseResultado` deve passar o
+ * ler "Está voando, hein 💖✨" embaixo de um saldo negativo. Todo `fraseResultado` deve passar o
  * `estado` por aqui ANTES de decidir o que dizer.
  */
 export function estadoParaFrase(estado: Estado, resultado: number): Estado {
@@ -61,7 +61,7 @@ export type DadosResultado = {
   money: Money;
   /** Game: o resultado deste mês é o maior dos últimos meses? */
   recorde?: boolean;
-  /** O mês já acabou? Muda "ainda dá" pra "acabou". */
+  /** O mês já acabou? Muda "ainda dá" para "acabou". */
   mesFechado?: boolean;
 };
 
@@ -176,7 +176,7 @@ export type TitulosBase = {
   metaAporteToast(mes: string): string;
   metaMarcar(mes: string): string;
   metaOutroValor: string;
-  // Pra onde vai o que guarda
+  // Para onde vai o que guarda
   splitTitulo(mes: string): string;
   splitSub(valor: string): string;
   splitVazioTitulo: string;
@@ -239,8 +239,8 @@ export type TitulosBase = {
   carteiraSub: string;
   carteiraLink: string;
   carteiraVazio: string;
-  /** Carteira vazia, sem ativo nenhum: convite pra abrir conta numa corretora (link da EQI).
-   * Em duas partes pra caber num botão sem quebrar feio no celular: a pergunta vem em texto
+  /** Carteira vazia, sem ativo nenhum: convite para abrir conta numa corretora (link da EQI).
+   * Em duas partes para caber em um botão sem quebrar feio no celular: a pergunta vem em texto
    * simples acima, o botão é só a ação, curta. */
   carteiraAbrirContaPergunta: string;
   carteiraAbrirContaBotao: string;
@@ -291,7 +291,7 @@ export type TitulosBase = {
   /**
    * "R$ 513 a mais que em agosto" — a linha embaixo de cada categoria em Só gastos.
    * `categoriaKey` é a categoria-mãe (ALIMENTACAO, MORADIA…) ou undefined nas personalizadas:
-   * o Sem filtro usa pra tirada ser da categoria certa (iFood é só em comida, não em moradia).
+   * o Sem filtro usa para tirada ser da categoria certa (iFood é só em comida, não em moradia).
    */
   comparacao(tipo: "sem" | "igual" | "mais" | "menos", valor: string, mes: string, categoriaKey?: string): string;
   /** O card do campeão do mês (Sem filtro): a pergunta muda com a categoria. */
@@ -365,9 +365,9 @@ const TITULOS_BASE: TitulosBase = {
   metaAporteToast: (mes) => `Aporte de ${mes} registrado na meta.`,
   metaMarcar: (mes) => `Marcar aporte de ${mes}`,
   metaOutroValor: "outro valor",
-  splitTitulo: (mes) => `Pra onde vai o que você guarda em ${mes}`,
+  splitTitulo: (mes) => `Para onde vai o que você guarda em ${mes}`,
   splitSub: (v) => `${v} por mês, do seu orçamento. Reserva primeiro, depois as metas por prazo.`,
-  splitVazioTitulo: "Pra onde vai o que você guarda?",
+  splitVazioTitulo: "Para onde vai o que você guarda?",
   splitVazioSub: "Diga no orçamento quanto quer guardar por mês, e o app divide entre reserva e metas.",
   formCusto: "Quanto custa um mês da sua vida?",
   formCustoHint: "É esse valor que a reserva precisa cobrir enquanto a renda não volta.",
@@ -440,7 +440,7 @@ const TITULOS_BASE: TitulosBase = {
   contribSemAtivo: " · ainda sem ativo desse tipo",
   contribVazio: "Sua carteira ainda está vazia, então a divisão segue só a estratégia.",
   contribSemEstrategiaTitulo: "Onde colocar o aporte deste mês?",
-  contribSemEstrategiaSub: "Com uma estratégia definida, o app diz quanto vai pra cada tipo de investimento pra sua carteira chegar no alvo. São três perguntas.",
+  contribSemEstrategiaSub: "Com uma estratégia definida, o app diz quanto vai para cada tipo de investimento para sua carteira chegar no alvo. São três perguntas.",
   contribDefinir: "Definir minha estratégia →",
   divTitulo: (total) => `Próximos dividendos · ${total} previstos`,
   divDatas: (dataCom, pagamento) => `Data com ${dataCom} · Pagamento ${pagamento}`,
@@ -545,7 +545,7 @@ export function fraseOrcamentoPadrao(d: DadosOrcamento): string {
   if (porDia === null || diasRestantes === 0) return `Sobrou ${inteiro(money, restante)} do planejado.`;
   const sobra = `Sobram ${inteiro(money, restante)} para ${diasRestantes} ${diasRestantes === 1 ? "dia" : "dias"}: ${inteiro(money, porDia)} por dia até dia ${ultimoDia}.`;
   if (situacao === "adiantado") return `${sobra} Você está gastando adiantado para a altura do mês.`;
-  if (situacao === "folgado") return `${sobra} Está sobrando mais do que o esperado — dá pra guardar a diferença.`;
+  if (situacao === "folgado") return `${sobra} Está sobrando mais do que o esperado — dá para guardar a diferença.`;
   return sobra;
 }
 

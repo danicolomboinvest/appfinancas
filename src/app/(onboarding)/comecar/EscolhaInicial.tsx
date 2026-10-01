@@ -8,6 +8,7 @@ import { PROFILE_THEMES } from "@/lib/profiles/themes";
 import { vozDoTema } from "@/lib/profiles/voice";
 import { PROFILE_KIND_LABEL, PROFILE_KINDS_ESCOLHIVEIS } from "@/lib/repositories/profile.repo";
 import { comecarAction } from "./actions";
+import { CURRENCIES, CURRENCY_CODES, DEFAULT_CURRENCY, type CurrencyCode } from "@/lib/money";
 
 /**
  * A primeira tela de quem acabou de criar a conta: de quem é esse dinheiro, e como o app deve
@@ -18,6 +19,7 @@ import { comecarAction } from "./actions";
 export function EscolhaInicial({ nome }: { nome: string | undefined }) {
   const [tipo, setTipo] = useState<ProfileKind>("PESSOAL");
   const [tema, setTema] = useState("padrao");
+  const [moeda, setMoeda] = useState<CurrencyCode>(DEFAULT_CURRENCY);
   const [pendente, comecar] = useTransition();
   const primeiroNome = nome?.split(" ")[0];
 
@@ -77,7 +79,26 @@ export function EscolhaInicial({ nome }: { nome: string | undefined }) {
         </div>
       </section>
 
-      <Button type="button" disabled={pendente} onClick={() => comecar(() => comecarAction({ kind: tipo, theme: tema }))} className="w-full sm:w-fit">
+      {/* Quem mora fora só descobria a troca de moeda explorando todas as abas. Real já vem marcado. */}
+      <section className="flex flex-col gap-2">
+        <h2 className="text-[15px] font-semibold text-ink">Em que moeda você vive?</h2>
+        <div className="flex flex-wrap gap-2">
+          {CURRENCY_CODES.map((c) => (
+            <button
+              key={c}
+              type="button"
+              onClick={() => setMoeda(c)}
+              aria-pressed={moeda === c}
+              className={`min-h-11 rounded-full border px-4 py-2 text-sm transition-colors ${moeda === c ? "border-accent bg-accent-soft text-ink" : "border-border text-ink-muted hover:text-ink"}`}
+            >
+              {CURRENCIES[c].symbol} {CURRENCIES[c].label}
+            </button>
+          ))}
+        </div>
+        <p className="text-caption text-ink-faint">Dá para trocar depois em Configurações › Preferências.</p>
+      </section>
+
+      <Button type="button" disabled={pendente} onClick={() => comecar(() => comecarAction({ kind: tipo, theme: tema, currency: moeda }))} className="w-full sm:w-fit">
         {pendente ? "Preparando…" : "Começar"}
       </Button>
     </div>

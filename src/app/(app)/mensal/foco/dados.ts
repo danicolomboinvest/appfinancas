@@ -143,13 +143,13 @@ export async function carregarFoco(ctx: AuthContext) {
   const nomePersonalizada = new Map(customCategories.map((c) => [c.id, c.name]));
   const gastoPorMae = new Map(spentByParent.map((s) => [s.parentCategory as string, s.spent]));
   const gastoPorPersonalizada = new Map(spentByCustom.map((s) => [s.customCategoryId, s.spent]));
-  const rotulosDasMaes = new Set(budgets.filter((b) => b.parentCategory).map((b) => categoryLabel(ctx.profileKind, b.parentCategory as ParentCategory)));
+  const rotulosDasMaes = new Set(budgets.filter((b) => b.parentCategory).map((b) => categoryLabel(ctx.categorias ?? ctx.profileKind, b.parentCategory as ParentCategory)));
   const categorias = budgets
     .filter((b) => Number(b.plannedAmount) > 0)
     .map((b) => {
       if (b.parentCategory) {
         const key = b.parentCategory as string;
-        return { key, label: categoryLabel(ctx.profileKind, b.parentCategory as ParentCategory), planejado: Number(b.plannedAmount), gasto: Math.max(0, gastoPorMae.get(key) ?? 0), fixa: CATEGORIAS_FIXAS.has(key), fixoAutomatico: preCriados.porMae.get(key) ?? 0 };
+        return { key, label: categoryLabel(ctx.categorias ?? ctx.profileKind, b.parentCategory as ParentCategory), planejado: Number(b.plannedAmount), gasto: Math.max(0, gastoPorMae.get(key) ?? 0), fixa: CATEGORIAS_FIXAS.has(key), fixoAutomatico: preCriados.porMae.get(key) ?? 0 };
       }
       const nome = nomePersonalizada.get(b.customCategoryId ?? "") ?? "Personalizada";
       // Personalizada com o mesmo nome de uma categoria-mãe: sem diferenciar, a tela dizia
@@ -211,7 +211,7 @@ export async function carregarFoco(ctx: AuthContext) {
   const chaveDoGasto = (g: (typeof gastosDoMes)[number]) => g.customCategoryId ?? (g.parentCategory as string | null);
   const noOrcamento = new Set(categorias.map((c) => c.key));
   const rotuloDe = (g: (typeof gastosDoMes)[number]) =>
-    g.parentCategory ? categoryLabel(ctx.profileKind, g.parentCategory) : g.customCategoryId ? (nomePersonalizada.get(g.customCategoryId) ?? "Personalizada") : null;
+    g.parentCategory ? categoryLabel(ctx.categorias ?? ctx.profileKind, g.parentCategory) : g.customCategoryId ? (nomePersonalizada.get(g.customCategoryId) ?? "Personalizada") : null;
   const paraLista = (g: (typeof gastosDoMes)[number]) => ({
     id: g.id,
     descricao: g.description ?? g.subcategory ?? "Sem descrição",

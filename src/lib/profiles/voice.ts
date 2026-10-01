@@ -5,7 +5,7 @@
  * escolhia a cor. O que separa um tema do outro é o texto: "Amiga, R$ 9.510 guardados! 💖"
  * contra "Você economizou R$ 9.510 este mês. 31% da renda." sobre o MESMO número.
  *
- * Duas regras que valem pros sete, as duas dela:
+ * Duas regras que valem para os sete, as duas dela:
  *
  * 1. A frase muda com o ESTADO do mês, não só com o momento. "É pouco? Sim" só pode aparecer
  *    se for pouco. Então toda frase de resultado recebe bom/normal/ruim, calculado dos números
@@ -14,10 +14,10 @@
  *    mês. "Você é péssima com dinheiro" é sobre ela — e essa frase não existe em tema nenhum,
  *    nem no Sem filtro. O teste procura por adjetivo sobre a pessoa na coluna ruim.
  *
- * O Padrão está aqui com as frases EXATAS que o app já tinha, pra ele continuar como é hoje.
+ * O Padrão está aqui com as frases EXATAS que o app já tinha, para ele continuar como é hoje.
  * Se alguém mudar a frase no componente e esquecer aqui, o teste do Padrão cai.
  *
- * Texto puro, sem React, sem banco: dá pra testar cada frase de cada tema em cada estado.
+ * Texto puro, sem React, sem banco: dá para testar cada frase de cada tema em cada estado.
  */
 
 
@@ -44,7 +44,7 @@ const VOZES: Record<ProfileThemeKey, Voz> = { padrao, girly, minimalista, discip
 /**
  * A voz de um perfil: o tema escolhe o jeito de falar; o TIPO do perfil escolhe do que se
  * fala. Um perfil Empresa no tema Girly continua fofo, mas diz "Faturou" e "Lucro" em vez
- * de "Entrou" e "Sobrou pra você". A camada da empresa só troca o vocabulário de negócio;
+ * de "Entrou" e "Sobrou para você". A camada da empresa só troca o vocabulário de negócio;
  * saudação, frases de estado e piadas continuam do tema.
  */
 export function vozDoTema(key: string | null | undefined, kind?: ProfileKind | string | null): Voz {

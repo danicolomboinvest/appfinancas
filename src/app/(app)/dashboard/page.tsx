@@ -79,7 +79,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
   const ctx = await getRequiredSession();
   const voz = vozDoTema(ctx.profileTheme, ctx.profileKind);
   const empresa = ehEmpresa(ctx.profileKind);
-  const rotulosDeCategoria = Object.fromEntries(PARENT_CATEGORIES.map((k) => [k, categoryLabel(ctx.profileKind, k)]));
+  const rotulosDeCategoria = Object.fromEntries(PARENT_CATEGORIES.map((k) => [k, categoryLabel(ctx.categorias ?? ctx.profileKind, k)]));
   // Fuso do Brasil, o relógio UTC do servidor viraria o ano mais cedo na noite de 31/12.
   const now = nowInBrazil();
 

@@ -24,6 +24,7 @@ import { logoutAction } from "@/lib/auth/actions";
 import { desinscreverAvisosDesteAparelho } from "@/lib/push/aparelho";
 import { ToastProvider } from "@/components/ui/toast-context";
 import { ProfileThemeProvider, useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
+import type { PreferenciasDeCategoria } from "@/lib/categories";
 
 export function AppShell({
   children,
@@ -37,8 +38,11 @@ export function AppShell({
   perfis = [],
   profileTheme,
   profileKind = "PESSOAL",
+  prefsDeCategoria = {},
   podeEscolherModo,
 }: {
+  /** Nome, ícone e categorias escondidas do perfil ativo (ver lib/categories.ts). */
+  prefsDeCategoria?: PreferenciasDeCategoria;
   children: React.ReactNode;
   isAdmin: boolean;
   isPremium: boolean;
@@ -148,7 +152,7 @@ export function AppShell({
 
   return (
     <ToastProvider>
-      <ProfileThemeProvider theme={profileTheme} kind={profileKind} profileId={perfis.find((p) => p.isDefault)?.id ?? null}>
+      <ProfileThemeProvider theme={profileTheme} kind={profileKind} prefsDeCategoria={prefsDeCategoria} profileId={perfis.find((p) => p.isDefault)?.id ?? null}>
       <NavProgressProvider>
       <div className="flex min-h-screen">
         {/* Sidebar: navegação primária no desktop; no mobile fica sempre fora da tela

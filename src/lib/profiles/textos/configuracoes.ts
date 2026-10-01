@@ -2,7 +2,7 @@
  * Textos da área "configuracoes", na voz do Padrão — as frases EXATAS que o app tem hoje. Os temas
  * sobrescrevem o que quiserem em `vozes/<tema>.ts`; o que não sobrescrevem, cai aqui.
  *
- * Regras pra quem cataloga: a chave começa com o prefixo da área; o valor do Padrão é a
+ * Regras para quem cataloga: a chave começa com o prefixo da área; o valor do Padrão é a
  * frase atual do componente, sem mudar uma vírgula; frase com número ou nome vira função.
  *
  * Duas famílias moram aqui: `cfg*` (Configurações e Perfis financeiros) e `viagem*` (o
@@ -242,7 +242,7 @@ export const PADRAO_CONFIGURACOES: TextosConfiguracoes = {
   cfgTema: "Tema",
   cfgTemaEscuro: "Escuro",
   cfgTemaClaro: "Claro",
-  cfgModoDecididoPeloTema: "Claro ou escuro é decidido pelo tema do perfil ativo. Pra escolher, mude o tema em Perfis financeiros — só o Padrão tem os dois.",
+  cfgModoDecididoPeloTema: "Claro ou escuro é decidido pelo tema do perfil ativo. Para escolher, mude o tema em Perfis financeiros — só o Padrão tem os dois.",
   cfgMoedaAviso: ["Trocar a moeda ", "não converte seus valores", "."],
   cfgMoedaAvisoTexto1: (exemploNovo, exemploAntigo) =>
     `Os números continuam exatamente os mesmos — só o símbolo muda. Um lançamento de 3.000 passa a aparecer como "${exemploNovo}" em vez de "${exemploAntigo}". Use se a sua vida financeira é toda em outra moeda.`,
@@ -252,7 +252,7 @@ export const PADRAO_CONFIGURACOES: TextosConfiguracoes = {
   // Categorias
   cfgCategoriasTitulo: "Categorias",
   cfgCategoriasSub:
-    "Categorias-mãe e subcategorias pré-cadastradas, usadas na categorização de gastos no Fluxo Financeiro. Em qualquer lançamento, o chip 'Outro' permite descrever uma subcategoria livre.",
+    "Mude o nome e o ícone das categorias, esconda a que você não usa e edite as que você criou. O que já foi lançado continua no lugar.",
   // Notificações
   cfgNotificacoesTitulo: "Notificações",
   cfgNotificacoesSub: "Avisos no celular, o resumo por e-mail e o que aparece em Análises.",
@@ -262,17 +262,17 @@ export const PADRAO_CONFIGURACOES: TextosConfiguracoes = {
   cfgAlertasOrcamentoDica:
     "Categoria com 80% do planejado gasto e ainda com metade do mês pela frente, ou já estourada. Chega no celular (se ligado) ou por e-mail.",
   cfgMetasAtrasadas: "Metas atrasadas",
-  cfgMetasAtrasadasDica: "Quando uma meta fica pra trás do ritmo. Um aviso por meta por mês.",
+  cfgMetasAtrasadasDica: "Quando uma meta fica para trás do ritmo. Um aviso por meta por mês.",
   // Notificações: avisos no celular
   cfgPushTitulo: "Avisos no celular",
   cfgPushDica:
-    "Uma mensagem no celular, como as de um app: quando uma categoria está perto de estourar e ainda falta metade do mês, ou uma meta ficou pra trás. Sem e-mail.",
+    "Uma mensagem no celular, como as de um app: quando uma categoria está perto de estourar e ainda falta metade do mês, ou uma meta ficou para trás. Sem e-mail.",
   cfgPushLigadoEm: (n) => `Ligado em ${n} aparelho${n === 1 ? "" : "s"}.`,
   cfgPushVerificando: "Verificando este aparelho…",
   cfgPushIos:
     "No iPhone, os avisos só funcionam com o app instalado na tela de início. Toque em Compartilhar › Adicionar à Tela de Início, abra por lá e volte aqui.",
   cfgPushNaoSuportado: "Este navegador não recebe notificações. No celular, instale o app na tela de início.",
-  cfgPushBloqueado: "Você bloqueou as notificações deste site. Libere nas configurações do navegador pra ligar de novo.",
+  cfgPushBloqueado: "Você bloqueou as notificações deste site. Libere nas configurações do navegador para ligar de novo.",
   cfgPushLigar: "Ligar avisos neste aparelho",
   cfgPushLigando: "Ligando…",
   cfgPushLigadoAqui: "Ligado aqui",
@@ -297,7 +297,7 @@ export const PADRAO_CONFIGURACOES: TextosConfiguracoes = {
   cfgConexoesPasso2: "Conecte seu banco lá",
   cfgConexoesPasso2Dica: "Nubank, Itaú, Inter, C6… O banco pede sua autorização pelo app dele. Cartão entra junto.",
   cfgConexoesPasso3: "Autorize o SPI a ler",
-  cfgConexoesPasso3Dica: "Volte pra cá e toque em autorizar. Só leitura: o SPI não move dinheiro.",
+  cfgConexoesPasso3Dica: "Volte para cá e toque em autorizar. Só leitura: o SPI não move dinheiro.",
   cfgConexoesCriarConta: "Criar conta no Meu Pluggy ↗",
   cfgConexoesAutorizar: "Já conectei lá → autorizar o SPI",
   cfgConexoesAbrindo: "Abrindo…",
@@ -388,7 +388,7 @@ export const PADRAO_CONFIGURACOES: TextosConfiguracoes = {
   viagemDiasNoTotal: (dias) => `${dias} ${dias === 1 ? "dia" : "dias"} no total`,
   viagemDias: (dias) => (dias === 1 ? "dia" : "dias"),
   viagemMaxDestinos: (max) => `Máximo de ${max} destinos por viagem.`,
-  viagemVazio: "Busque o primeiro destino acima. Dá pra somar vários lugares na mesma viagem e dizer quantos dias fica em cada um.",
+  viagemVazio: "Busque o primeiro destino acima. Dá para somar vários lugares na mesma viagem e dizer quantos dias fica em cada um.",
   viagemBuscarPlaceholder: "Buscar destino (ex.: Paris, Jeri, Japão)",
   viagemNenhumDestino: "Nenhum destino encontrado. Tente outro nome ou o país.",
   // Viagem: pessoas, estilo e quando

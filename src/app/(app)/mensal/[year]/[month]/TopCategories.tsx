@@ -1,9 +1,9 @@
+import type { CategoriasDoPerfil } from "@/lib/categories";
 import { Receipt } from "lucide-react";
 import type { CategorySpending } from "@/lib/consolidation/month-analysis";
 import { Section } from "@/components/ui/Section";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import { emojiDaCategoria } from "@/lib/profiles/icones";
-import type { ProfileKind } from "@prisma/client";
 import { getRequiredSession } from "@/lib/auth/session";
 import {
   categoryIcon,
@@ -35,12 +35,13 @@ export async function TopCategories({
   tema: string;
   /** A voz do tema do perfil, que a página já resolveu: o card não vai ao banco de novo por ela. */
   voz: Voz;
-  /** Tipo do perfil: numa Empresa o ícone de cada categoria-mãe é outro. A página passa `ctx.profileKind`. */
-  kind?: ProfileKind;
+  /** Tipo do perfil (com o ícone que ela escolheu): numa Empresa o ícone de cada categoria-mãe é outro. */
+  kind?: CategoriasDoPerfil;
 }) {
   const money = await serverMoney();
   // Enquanto a página não passar o tipo, lemos da sessão pra Empresa nunca ver ícone de casa.
-  const profileKind = kind ?? (await getRequiredSession()).profileKind;
+  const sessao = kind ? null : await getRequiredSession();
+  const profileKind = kind ?? sessao?.categorias ?? sessao!.profileKind;
   if (categories.length === 0) return null;
   const top = categories.slice(0, TOP_COUNT);
   const rest = categories.length - top.length;

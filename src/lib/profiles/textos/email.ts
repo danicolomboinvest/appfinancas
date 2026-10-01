@@ -1,9 +1,9 @@
 /**
- * Textos dos e-mails recorrentes (o resumo do mês e o convite pra quem não usou), na voz do
+ * Textos dos e-mails recorrentes (o resumo do mês e o convite para quem não usou), na voz do
  * Padrão — as frases EXATAS que o e-mail já tinha antes de existir por tema. O visual do e-mail
- * (cores, moldura) fica igual pra todo mundo — cliente de e-mail lida mal com CSS variável, e a
+ * (cores, moldura) fica igual para todo mundo — cliente de e-mail lida mal com CSS variável, e a
  * cor de sucesso/erro (verde/vermelho) é semântica, não do tema. O que muda por tema é só o
- * texto: saudação, o jeito de contar como foi o mês, e o convite pra voltar.
+ * texto: saudação, o jeito de contar como foi o mês, e o convite para voltar.
  *
  * Prefixo `email`.
  */
@@ -31,7 +31,7 @@ export type TextosEmail = {
   emailRecapSobrouDepoisDosGastos: string;
   /** Rótulo da linha do quanto ela guardou no mês, no lugar do "Aportou". */
   emailRecapGuardou: string;
-  /** Botão do resumo, que leva pro fechamento do mês: "Fechar setembro". */
+  /** Botão do resumo, que leva para o fechamento do mês: "Fechar setembro". */
   emailRecapBotaoFechar(mes: string): string;
   emailConviteAssunto(mes: string): string;
   emailConviteIntro1(mes: string): string;
@@ -46,7 +46,7 @@ export const PADRAO_EMAIL: TextosEmail = {
   emailRecapIntro: (mes) => `Fechamos ${mes}. Veja como foi:`,
   emailRecapSobrou: "Sobrou no mês",
   emailRecapFaltou: "Faltou no mês",
-  emailRecapPrimeiroMes: "Esse foi seu primeiro mês com registros — no próximo dá pra comparar.",
+  emailRecapPrimeiroMes: "Esse foi seu primeiro mês com registros — no próximo dá para comparar.",
   emailRecapGastosIguais: "Seus gastos ficaram praticamente no mesmo nível do mês anterior.",
   emailRecapGastosMenos: (valor) => `Você gastou ${valor} que no mês anterior.`,
   emailRecapGastosMais: (valor) => `Seus gastos ficaram ${valor} do mês anterior.`,
@@ -58,8 +58,8 @@ export const PADRAO_EMAIL: TextosEmail = {
   emailRecapBotaoFechar: (mes) => `Fechar ${mes}`,
   emailConviteAssunto: (mes) => `Bora organizar ${mes}?`,
   emailConviteIntro1: (mes) =>
-    `Começou ${mes} — e mês novo é a melhor hora pra começar, porque você acompanha ele inteiro, do início ao fim.`,
+    `Começou ${mes} — e mês novo é a melhor hora para começar, porque você acompanha ele inteiro, do início ao fim.`,
   emailConviteIntro2:
-    "Não precisa organizar tudo de uma vez. <strong>Anote um gasto de hoje</strong>, só um, e o app já começa a montar o resto: pra onde seu dinheiro está indo, quanto sobra, quanto dá pra guardar.",
+    "Não precisa organizar tudo de uma vez. <strong>Anote um gasto de hoje</strong>, só um, e o app já começa a montar o resto: para onde seu dinheiro está indo, quanto sobra, quanto dá para guardar.",
   emailConviteBotao: "Anotar meu primeiro gasto",
 };

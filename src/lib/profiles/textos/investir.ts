@@ -48,7 +48,7 @@ export type TextosInvestirEmpresa = {
   invGraficoDescNaoSupera: string;
   invGraficoLegendaEmpresa: string;
   invGraficoLegendaAplicacao: string;
-  /** Vem em duas partes porque o valor entra em negrito no meio: "Pra se pagar em X meses, precisa trazer pelo menos" + [valor] + "de vendas a mais por mês." */
+  /** Vem em duas partes porque o valor entra em negrito no meio: "Para se pagar em X meses, precisa trazer pelo menos" + [valor] + "de vendas a mais por mês." */
   invReceitaNecessariaAntes(horizonte: number): string;
   invReceitaNecessariaDepois: string;
   invReceitaAbaixo: string;
@@ -72,7 +72,7 @@ export const PADRAO_INVESTIR: TextosInvestirEmpresa = {
   invMargemHint: "A margem de contribuição da sua empresa, pela DRE. Vender mais só vale o que sobra depois de mercadoria, taxa e frete.",
   invCustoMensal: "Custo fixo novo por mês",
   invCustoMensalHint: "O que o investimento passa a custar todo mês: manutenção, salário, aluguel maior, software. Zero se não tiver.",
-  invPrazoLabel: "Prazo pra avaliar",
+  invPrazoLabel: "Prazo para avaliar",
   invTaxaLabel: "Aplicação rende ao ano",
   invVeredictoEyebrow: "Veredito",
   invVeredictoValeTitulo: "Vale a pena",
@@ -98,9 +98,9 @@ export const PADRAO_INVESTIR: TextosInvestirEmpresa = {
   invGraficoDescNaoSupera: "No prazo dado, a aplicação rende mais.",
   invGraficoLegendaEmpresa: "Na empresa",
   invGraficoLegendaAplicacao: "Na aplicação",
-  invReceitaNecessariaAntes: (horizonte) => `Pra se pagar dentro de ${horizonte} meses, esse investimento precisa trazer pelo menos `,
+  invReceitaNecessariaAntes: (horizonte) => `Para se pagar dentro de ${horizonte} meses, esse investimento precisa trazer pelo menos `,
   invReceitaNecessariaDepois: " de vendas a mais por mês.",
   invReceitaAbaixo: " Você estimou menos que isso.",
   invReceitaAcima: " Você estimou acima disso.",
-  invRodapeNota: "Conta simples, sem inflação nem imposto sobre a aplicação, pra dar a ordem de grandeza. Se a decisão for apertada, converse com o contador antes de assinar.",
+  invRodapeNota: "Conta simples, sem inflação nem imposto sobre a aplicação, para dar a ordem de grandeza. Se a decisão for apertada, converse com o contador antes de assinar.",
 };

@@ -2,11 +2,11 @@
  * Textos da área "formularios", na voz do Padrão — as frases EXATAS que o app tem hoje. Os temas
  * sobrescrevem o que quiserem em `vozes/<tema>.ts`; o que não sobrescrevem, cai aqui.
  *
- * Regras pra quem cataloga: a chave começa com o prefixo da área; o valor do Padrão é a
+ * Regras para quem cataloga: a chave começa com o prefixo da área; o valor do Padrão é a
  * frase atual do componente, sem mudar uma vírgula; frase com número ou nome vira função.
  *
  * Algumas frases têm um trecho em negrito no meio ("Tem certeza que quer apagar <b>Pet</b>?").
- * Essas viram DUAS chaves, antes e depois do negrito, pra o componente continuar desenhando
+ * Essas viram DUAS chaves, antes e depois do negrito, para o componente continuar desenhando
  * igual — uma função que devolvesse a frase inteira perderia o destaque.
  */
 
@@ -116,7 +116,7 @@ export type TextosFormularios = {
   /** O chip "outro" depois dos percentuais prontos. */
   formOrcOutro: string;
   formOrcGuardarPorMes: string;
-  /** A nota do curso: 18% ao todo, 10% liberdade financeira. O "8% pros sonhos" é fixo. */
+  /** A nota do curso: 18% ao todo, 10% liberdade financeira. O "8% para os sonhos" é fixo. */
   formOrcCursoNota(pct: number, liberdade: number): string;
   formOrcSobraTitulo: string;
   formOrcSobraSub(valor: string): string;
@@ -298,7 +298,7 @@ export const PADRAO_FORMULARIOS: TextosFormularios = {
   formMetaIcones: { VIAGEM: "Viagem", CASA: "Casa", CARRO: "Carro", APOSENTADORIA: "Aposentadoria", GENERICO: "Genérico" },
   formMetaValorAlvo: "Valor-alvo",
   formMetaJaGuardado: "Já guardado",
-  formMetaJaGuardadoHint: "O que você já tinha guardado pra essa meta. O que você marcar como guardado daqui pra frente soma em cima. Se ligar a ela o investimento onde esse dinheiro está, ele não conta duas vezes.",
+  formMetaJaGuardadoHint: "O que você já tinha guardado para essa meta. O que você marcar como guardado daqui para frente soma em cima. Se ligar a ela o investimento onde esse dinheiro está, ele não conta duas vezes.",
   formMetaMesAno: "Mês/ano alvo",
   formMetaRende: "Quanto o dinheiro guardado rende por ano",
   formMetaRendeHint: "Poupança rende perto de 6%. CDB e Tesouro Selic, perto de 10%. Se não sabe, deixe 10%.",
@@ -356,15 +356,15 @@ export const PADRAO_FORMULARIOS: TextosFormularios = {
   formOrcOutro: "outro",
   formOrcGuardarPorMes: "Guardar por mês",
   formOrcCursoNota: (pct, liberdade) =>
-    `No curso, a conta é ${pct}%: ${liberdade}% pra liberdade financeira e 8% pros sonhos. Quem está começando costuma conseguir 10% — se ficar apertado, dá pra mudar depois. Nada aqui é promessa.`,
-  formOrcSobraTitulo: "Sobra pra gastar",
+    `No curso, a conta é ${pct}%: ${liberdade}% para a liberdade financeira e 8% para os sonhos. Quem está começando costuma conseguir 10% — se ficar apertado, dá para mudar depois. Nada aqui é promessa.`,
+  formOrcSobraTitulo: "Sobra para gastar",
   formOrcSobraSub: (valor) => `por mês, depois de guardar ${valor}`,
   formOrcDividir: (valor) => `Dividir os ${valor} →`,
   formOrcDividaTitulo: (valor) => `Divida os ${valor}`,
   formOrcDistribuido: "Distribuído",
-  formOrcSobram: (valor) => `Sobram ${valor} pra distribuir`,
+  formOrcSobram: (valor) => `Sobram ${valor} para distribuir`,
   formOrcPassou: (valor) => `Passou ${valor} do que sobra`,
-  formOrcSugerir: "Sugerir pra mim",
+  formOrcSugerir: "Sugerir para mim",
   formOrcCopiar: (mes) => `Copiar ${mes}`,
   formOrcSugestaoNota: (moradia, alimentacao, saude, pct) =>
     `A sugestão segue a distribuição do orçamento do curso: moradia ${moradia}% da renda, alimentação ${alimentacao}%, saúde ${saude}%, e assim por diante. Guardando menos que ${pct}% sobra uma folga; guardando mais, tudo encolhe junto. É um ponto de partida: mexa à vontade.`,
@@ -380,7 +380,7 @@ export const PADRAO_FORMULARIOS: TextosFormularios = {
   formOrcFimDoAno: "O que isso dá no fim do ano",
   formOrcFimDoAnoValor: (valor) => `${valor} guardados`,
   formOrcFimDoAnoSub: (valor, meses) => `${valor} por mês nos ${meses} meses que faltam, mais o que sobrar.`,
-  formOrcPraOnde: "Pra onde vai o que você guarda",
+  formOrcPraOnde: "Para onde vai o que você guarda",
   formOrcPraOndeNota: "Reserva primeiro, depois as metas por prazo. O resto fica livre.",
   formOrcEntra: "Entra",
   formOrcGuarda: "Guarda",
@@ -461,8 +461,8 @@ export const PADRAO_FORMULARIOS: TextosFormularios = {
   formEstPrazoPergunta: "Quando você vai precisar desse dinheiro?",
   formEstPrazoOpcoes: ["Em menos de 2 anos", "Entre 2 e 5 anos", "Daqui a mais de 5 anos"],
   formEstPrazoNomes: ["menos de 2 anos", "2 a 5 anos", "mais de 5 anos"],
-  formEstQuedaPergunta: "Se a carteira caísse 15% num mês, você…",
-  formEstQuedaOpcoes: ["Venderia tudo, não dormiria", "Ficaria tensa, mas seguraria", "Aproveitaria pra comprar mais"],
+  formEstQuedaPergunta: "Se a carteira caísse 15% em um mês, você…",
+  formEstQuedaOpcoes: ["Venderia tudo, não dormiria", "Ficaria tensa, mas seguraria", "Aproveitaria para comprar mais"],
   formEstReservaPergunta: "Sua reserva de emergência já está completa?",
   formEstReservaOpcoes: ["Ainda não", "Quase lá", "Sim"],
   formEstPelasMetasAntes: "Pelas suas metas, você vai precisar do dinheiro em",

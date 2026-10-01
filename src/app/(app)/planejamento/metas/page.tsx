@@ -113,7 +113,9 @@ export default async function MetasPage() {
       <PageHeader
         title={voz.titulos.metas}
         subtitle={voz.titulos.metasSub}
-        action={<NewGoalButton />}
+        // Sem nenhum sonho, o botão fica só no meio da tela vazia: dois "Novo sonho" iguais, um
+        // em cima do outro, fizeram cliente perguntar qual era a diferença (01/10/2026).
+        action={sorted.length > 0 ? <NewGoalButton /> : undefined}
       />
 
       <SavingsSplitCard amount={monthPlan?.plannedInvestment ?? 0} targets={savingsTargets} money={money} monthLabel={monthLabel} voz={voz} />

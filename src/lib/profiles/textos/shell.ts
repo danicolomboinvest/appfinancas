@@ -2,14 +2,14 @@
  * Textos da área "shell", na voz do Padrão — as frases EXATAS que o app tem hoje. Os temas
  * sobrescrevem o que quiserem em `vozes/<tema>.ts`; o que não sobrescrevem, cai aqui.
  *
- * Regras pra quem cataloga: a chave começa com o prefixo da área; o valor do Padrão é a
+ * Regras para quem cataloga: a chave começa com o prefixo da área; o valor do Padrão é a
  * frase atual do componente, sem mudar uma vírgula; frase com número ou nome vira função.
  * Exceção de set/2026: o Padrão é o tema que vem marcado, e quase todo mundo fica nele. O
  * jargão de investidor ("aporte", "ativos") saiu das telas do dia a dia; os outros temas herdam.
  *
  * Aqui moram o guia dos primeiros passos, o tour de boas-vindas, os cartões do Fluxo (curva do
  * mês, divisão da renda, ranking de gastos, mapa de calor, lista de lançamentos), o convite
- * pra instalar o app, o cartão do curso, os botões de claro/escuro e as telas de erro.
+ * para instalar o app, o cartão do curso, os botões de claro/escuro e as telas de erro.
  *
  * Negrito dentro da frase: algumas frases têm um pedaço em destaque ("Toque em **Adicionar**").
  * O marcador é `**`, como no Markdown, e o componente troca por <strong> com `partesDoTexto`.
@@ -58,7 +58,7 @@ export type TextosShell = {
 
   // MobileTabBar — a barra de baixo no celular
   /** A aba do mês (/mensal). Era "Fluxo" fixo no código, em todos os temas, e o tour do Girly
-   * apontava pra ela dizendo "Aqui é o seu mês". */
+   * apontava para ela dizendo "Aqui é o seu mês". */
   navAbaMes: string;
 
   // MonthFlowCard — a curva do mês dia a dia
@@ -74,7 +74,7 @@ export type TextosShell = {
   /** Lançamentos sem data ficam fora da curva: a frase concorda em número com `quantos`. */
   uiFluxoSemData(quantos: number, valor: string): string;
 
-  // IncomeSplitCard — pra onde a renda foi
+  // IncomeSplitCard — para onde a renda foi
   uiRendaDividida: string;
   /** O rótulo do centro da rosca (o total de onde as fatias saíram). */
   uiRendaCentro: string;
@@ -155,12 +155,12 @@ export type TextosShell = {
   uiMesNovoTexto: string;
   uiMesNovoImportar: string;
   uiMesNovoDigitar: string;
-  /** Link pro manual, na seção que explica extrato × fatura. */
+  /** Link para o manual, na seção que explica extrato × fatura. */
   uiMesNovoAjuda: string;
   /** O medo nº 1 de quem nunca subiu extrato: "o app vai mexer na minha conta?". */
   uiMesNovoConfianca: string;
 
-  // InstallAppBanner — o convite pra instalar no celular
+  // InstallAppBanner — o convite para instalar no celular
   uiInstalarConviteTitulo: string;
   uiInstalarConviteSub: string;
   uiInstalarVerComo: string;
@@ -178,20 +178,20 @@ export type TextosShell = {
   uiInstalarPassosIosOutro: [string, string, string];
   uiInstalarPassosAndroid: [string, string, string];
 
-  // PaywallCard — o convite pra área do curso
+  // PaywallCard — o convite para a área do curso
   uiPaywallTitulo(recurso: string): string;
   /** Não aparece mais no cartão (trocado por uiPaywallCursoTexto + o quadro "Comprou?").
-   * Continua aqui pra não apagar a frase que cada tema escreveu: os temas vão ser revistos
+   * Continua aqui para não apagar a frase que cada tema escreveu: os temas vão ser revistos
    * juntos, e aí decide-se se ela volta ou sai de vez. */
   uiPaywallTexto: string;
   uiPaywallBotao: string;
   /** A frase de baixo do título: de onde vem essa parte e que o resto do app continua liberado
    * (quem vê o cadeado achava que o app inteiro era pago à parte). */
   uiPaywallCursoTexto: string;
-  /** O quadro pra quem comprou e caiu aqui por ter usado outro e-mail na compra. */
+  /** O quadro para quem comprou e caiu aqui por ter usado outro e-mail na compra. */
   uiPaywallComprouTitulo: string;
   uiPaywallComprouTexto: string;
-  /** Rótulo do e-mail da conta, mostrado logo abaixo pra ela comparar com o da compra. */
+  /** Rótulo do e-mail da conta, mostrado logo abaixo para ela comparar com o da compra. */
   uiPaywallEmailDaConta: string;
   /** Rótulo do contato do suporte (o e-mail vem logo depois, como texto). */
   uiPaywallContato: string;
@@ -224,15 +224,15 @@ export const PADRAO_SHELL: TextosShell = {
 
   // WelcomeTour
   uiTourBoasVindasTitulo: "Boas-vindas ao SPI Finance 👋",
-  uiTourBoasVindasTexto: "Um tour rápido mostrando ONDE fica cada coisa, vou destacar os botões um por um. Dá pra pular quando quiser.",
+  uiTourBoasVindasTexto: "Um tour rápido mostrando ONDE fica cada coisa, vou destacar os botões um por um. Dá para pular quando quiser.",
   uiTourRegistrarTitulo: "Este + é o coração do app",
   uiTourRegistrarTexto: "É por aqui que você registra tudo: digite um gasto, fale por áudio, ou importe o extrato do banco. Comece sempre por ele.",
   uiTourFluxoTitulo: "Aqui é o seu mês",
   uiTourFluxoTexto: "Seu mês em um lugar: renda, gastos e o orçamento por categoria, com um alerta quando você gasta rápido demais.",
   uiTourMetasTitulo: "Aqui são as Metas",
-  uiTourMetasTexto: "Crie metas (viagem, casa), a reserva de emergência e a aposentadoria. O app calcula quanto guardar por mês pra você chegar lá.",
+  uiTourMetasTexto: "Crie metas (viagem, casa), a reserva de emergência e a aposentadoria. O app calcula quanto guardar por mês para você chegar lá.",
   uiTourCarteiraTitulo: "Aqui é a Carteira",
-  uiTourCarteiraTexto: "Seus investimentos e o lucro de cada um. Dá até pra puxar o preço médio direto da sua declaração de Imposto de Renda.",
+  uiTourCarteiraTexto: "Seus investimentos e o lucro de cada um. Dá até para puxar o preço médio direto da sua declaração de Imposto de Renda.",
   uiTourMaisTitulo: "E tem mais aqui",
   uiTourMaisTexto: "Visão Geral, Simuladores e Análises ficam neste menu.",
   uiTourFimTitulo: "Tudo pronto! 🎉",
@@ -297,7 +297,7 @@ export const PADRAO_SHELL: TextosShell = {
   uiTipoRenda: "Renda",
   uiTipoGasto: "Gasto",
   // Era "Aporte": aparecia no formulário do +, na lista do mês e na revisão da importação de
-  // todo tema que herda o Padrão. "Guardado" diz o que é pra quem nunca investiu.
+  // todo tema que herda o Padrão. "Guardado" diz o que é para quem nunca investiu.
   uiTipoAporte: "Guardado",
   uiTipoResgate: "Resgatei",
   uiCategoriaSemNome: "Categoria",
@@ -317,7 +317,7 @@ export const PADRAO_SHELL: TextosShell = {
   uiAporteSemDestinoSub: "Diga em quais investimentos esse dinheiro entrou e suas metas andam junto.",
   uiAporteSemDestinoLink: "Dizer onde foi →",
   uiMesNovoTitulo: "Seu mês ainda está vazio",
-  uiMesNovoTexto: "Importe o extrato do banco ou a fatura do cartão. O app lê o arquivo e monta o mês pra você: o que entrou, o que saiu e pra onde foi. Leva uns 2 minutos.",
+  uiMesNovoTexto: "Importe o extrato do banco ou a fatura do cartão. O app lê o arquivo e monta o mês para você: o que entrou, o que saiu e para onde foi. Leva uns 2 minutos.",
   uiMesNovoImportar: "Importar meu extrato",
   uiMesNovoDigitar: "Prefiro anotar à mão",
   uiMesNovoAjuda: "Extrato ou fatura? Veja a diferença",
@@ -359,9 +359,9 @@ export const PADRAO_SHELL: TextosShell = {
   uiPaywallTexto:
     "Essa área faz parte do curso de investimentos. Quem já é aluna(o) e está vendo essa mensagem por engano, fale com o suporte — pode ser só o e-mail de cadastro diferente do e-mail da compra.",
   uiPaywallBotao: "Conhecer o curso",
-  uiPaywallCursoTexto: "Essa parte faz parte do curso de investimentos. O resto do app continua todo liberado pra você.",
+  uiPaywallCursoTexto: "Essa parte faz parte do curso de investimentos. O resto do app continua todo liberado para você.",
   uiPaywallComprouTitulo: "Comprou o SPI Finance e está vendo isso?",
-  uiPaywallComprouTexto: "Talvez você tenha usado outro e-mail na compra. Fale com a gente e diga qual foi: a gente libera pra você.",
+  uiPaywallComprouTexto: "Talvez você tenha usado outro e-mail na compra. Fale com a gente e diga qual foi: a gente libera para você.",
   uiPaywallEmailDaConta: "E-mail desta conta",
   uiPaywallContato: "Fale com a gente",
   uiPaywallWhatsapp: "Chamar no WhatsApp",

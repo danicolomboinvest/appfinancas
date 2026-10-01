@@ -51,7 +51,7 @@ export default async function RitualPage() {
     semanaPassada: {
       total: total(0),
       media: anteriores.length > 0 ? anteriores.reduce((s, v) => s + v, 0) / anteriores.length : null,
-      maior: maior ? { label: categoryLabel(ctx.profileKind, maior.parentCategory as ParentCategory), valor: maior.spent } : null,
+      maior: maior ? { label: categoryLabel(ctx.categorias ?? ctx.profileKind, maior.parentCategory as ParentCategory), valor: maior.spent } : null,
     },
     alvo: alvo && itemAlvo ? { key: alvo.key, label: alvo.label, uso: alvo.uso, gasto: alvo.gasto, planejado: alvo.planejado, sobra: Math.max(0, alvo.planejado - alvo.gasto), diasRestantes, avisoId: itemAlvo.id } : null,
     aporteFaltando: d.aportePlanejado && d.aportePlanejado - d.summary.totalInvestment >= 1 ? d.aportePlanejado - d.summary.totalInvestment : 0,

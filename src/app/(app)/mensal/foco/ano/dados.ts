@@ -79,14 +79,14 @@ export async function carregarViradaDoAno(ctx: AuthContext, money: (v: number) =
   const categorias = new Map<string, ViradaCategoria>();
   for (const b of plano) {
     if (b.parentCategory) {
-      categorias.set(b.parentCategory, { key: b.parentCategory, label: categoryLabel(ctx.profileKind, b.parentCategory), planejado: Number(b.plannedAmount), realMedio: realMae.get(b.parentCategory) ?? 0, mae: true });
+      categorias.set(b.parentCategory, { key: b.parentCategory, label: categoryLabel(ctx.categorias ?? ctx.profileKind, b.parentCategory), planejado: Number(b.plannedAmount), realMedio: realMae.get(b.parentCategory) ?? 0, mae: true });
     } else if (b.customCategoryId && nomePersonalizada.has(b.customCategoryId)) {
       categorias.set(b.customCategoryId, { key: b.customCategoryId, label: nomePersonalizada.get(b.customCategoryId)!, planejado: Number(b.plannedAmount), realMedio: realPers.get(b.customCategoryId) ?? 0, mae: false });
     }
   }
   // Categoria em que ela gastou sem ter planejado também entra (com o gasto de verdade).
   for (const [key, real] of realMae) {
-    if (!categorias.has(key)) categorias.set(key, { key, label: categoryLabel(ctx.profileKind, key as ParentCategory), planejado: 0, realMedio: real, mae: true });
+    if (!categorias.has(key)) categorias.set(key, { key, label: categoryLabel(ctx.categorias ?? ctx.profileKind, key as ParentCategory), planejado: 0, realMedio: real, mae: true });
   }
   for (const [key, real] of realPers) {
     if (!categorias.has(key) && nomePersonalizada.has(key)) categorias.set(key, { key, label: nomePersonalizada.get(key)!, planejado: 0, realMedio: real, mae: false });
@@ -128,7 +128,7 @@ export async function carregarViradaDoAno(ctx: AuthContext, money: (v: number) =
       parentCategory: c.parentCategory,
       customCategoryId: c.customCategoryId,
       subcategory: c.subcategory,
-      categoria: c.parentCategory ? categoryLabel(ctx.profileKind, c.parentCategory) : c.customCategoryId ? (nomePersonalizada.get(c.customCategoryId) ?? "Personalizada") : "Sem categoria",
+      categoria: c.parentCategory ? categoryLabel(ctx.categorias ?? ctx.profileKind, c.parentCategory) : c.customCategoryId ? (nomePersonalizada.get(c.customCategoryId) ?? "Personalizada") : "Sem categoria",
     };
   };
   const fixas: ContaFixa[] = [];
@@ -147,7 +147,7 @@ export async function carregarViradaDoAno(ctx: AuthContext, money: (v: number) =
   }
 
   const maior = porCategoriaAno
-    .map((g) => ({ label: categoryLabel(ctx.profileKind, g.parentCategory as ParentCategory), valor: Number(g._sum.amount ?? 0) }))
+    .map((g) => ({ label: categoryLabel(ctx.categorias ?? ctx.profileKind, g.parentCategory as ParentCategory), valor: Number(g._sum.amount ?? 0) }))
     .sort((a, b) => b.valor - a.valor)[0] ?? null;
 
   return {

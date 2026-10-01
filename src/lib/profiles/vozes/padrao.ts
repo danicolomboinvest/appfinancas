@@ -12,7 +12,7 @@ export const padrao: Voz = {
   tituloOrcamento: (mes) => `Seu orçamento de ${mes}`,
   fraseOrcamento: fraseOrcamentoPadrao,
   mesVazio:
-    "Nenhum lançamento neste mês ainda. Toque em Registrar (o + no meio da barra de baixo) para lançar o primeiro — digitando, por áudio ou importando o extrato.",
+    "Ainda não tem nada neste mês. Lance o primeiro gasto para começar a entender para onde seu dinheiro está indo, ou suba o extrato de uma vez.",
   metaBatida: () => "Meta alcançada.",
   rodape: () => null,
   nav: { metas: "Metas", flowTabs: ["Mensal", "Gastos", "Orçamento"] },

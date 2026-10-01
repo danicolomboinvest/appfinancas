@@ -12,6 +12,7 @@ import { categoryIcon, isParentCategoryKey, colorForCategorySlice } from "@/lib/
 import { getCategoryTransactionsAction, type CategoryTransaction } from "./actions";
 import { useMoney } from "@/components/money/MoneyProvider";
 import { useToast } from "@/components/ui/toast-context";
+import { BotoesDeLancar } from "@/components/ui/BotoesDeLancar";
 
 type Period = "semana" | "mes" | "ano";
 
@@ -58,7 +59,7 @@ export function SpendingByCategory({
   previousMonthLabel: string;
 }) {
   // `kind` porque o ícone de cada categoria-mãe muda numa Empresa (MORADIA vira prédio, não casa).
-  const { key: tema, voz, kind } = useProfileTheme();
+  const { key: tema, voz, categorias: kind } = useProfileTheme();
   const money = useMoney();
   const { showError } = useToast();
   const [period, setPeriod] = useState<Period>(initialPeriod);
@@ -147,7 +148,11 @@ export function SpendingByCategory({
           tocar numa categoria e ver os lançamentos que formam aquele valor. Então a lista é a
           tela, e cada linha abre. */}
       {data.length === 0 ? (
-        <p className="py-8 text-center text-sm text-ink-faint">Nenhum gasto neste período.</p>
+        <div className="flex flex-col items-center gap-3 py-8 text-center">
+          <p className="text-sm font-semibold text-ink">Ainda não tem nenhum gasto por aqui.</p>
+          <p className="max-w-xs text-sm text-ink-muted">Adicione seu primeiro gasto para começar a entender para onde seu dinheiro está indo.</p>
+          <BotoesDeLancar />
+        </div>
       ) : (
         <>
         {/* A dica UMA vez, aqui. Repetida em cada linha, na segunda já era ruído — e ocupava

@@ -38,13 +38,14 @@ export const metadata: Metadata = {
 };
 
 // Estende o conteúdo até as bordas (viewport-fit=cover) para o rodapé com
-// env(safe-area-inset-bottom) funcionar como app nativo. O zoom por pinça fica LIBERADO de
-// propósito: boa parte do público enxerga mal de perto, e travar o zoom (maximumScale: 1 +
-// userScalable: false) deixava valores de 10–13px impossíveis de ler (WCAG 1.4.4). O zoom
-// automático do iOS ao tocar num campo não depende disso: ele só acontece com fonte abaixo de 16px.
+// env(safe-area-inset-bottom) funcionar como app nativo. Zoom TRAVADO, como app: a revisão de
+// 30/09/2026 liberou a pinça e a Dani não gostou (01/10/2026: "não gosto de dar zoom em
+// aplicativo"). A legibilidade fica por conta do tamanho das letras, não da pinça.
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
   viewportFit: "cover",
   themeColor: "#0c0c0e",
 };

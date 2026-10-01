@@ -235,6 +235,10 @@ model FinancialProfile {
   /// pelo tema em set/2026 e não lida mais por tela nenhuma. Fica na tabela porque derrubar
   /// coluna em banco de produção é risco sem ganho — sai numa limpeza própria, depois.
   color  String  @default("ambar")
+  /// O que a pessoa mudou nas categorias padrão deste perfil: nome, ícone, escondida
+  /// ({ "IMPOSTOS": { "oculta": true }, "LAZER": { "nome": "Rolês", "icone": "coffee" } }).
+  /// Lido por lerPreferenciasDeCategoria (src/lib/categories.ts). Nulo = tudo de fábrica.
+  categorias Json?
   /// Ordem na troca rápida de perfil.
   position Int   @default(0)
   /// O perfil que abre quando a pessoa entra. Exatamente um por conta.

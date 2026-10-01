@@ -3,6 +3,7 @@
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Check } from "lucide-react";
 import { useToast } from "@/components/ui/toast-context";
 import { useCurrency, useMoney } from "@/components/money/MoneyProvider";
@@ -69,10 +70,16 @@ export function GoalAporteChip({
 
   if (marked) {
     return (
-      <span className="mt-3 inline-flex min-h-11 items-center gap-1.5 rounded-full bg-success-soft px-4 text-sm font-semibold text-success">
-        <Check size={16} strokeWidth={2.5} aria-hidden />
-        {voz.titulos.metaAporteFeito(monthLabel)}
-      </span>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <span className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-success-soft px-4 text-sm font-semibold text-success">
+          <Check size={16} strokeWidth={2.5} aria-hidden />
+          {voz.titulos.metaAporteFeito(monthLabel)}
+        </span>
+        {/* Marcou o valor errado? O caminho para corrigir fica ao lado do próprio registro. */}
+        <Link href={`/planejamento/metas/${goalId}#guardado`} className="inline-flex min-h-11 items-center px-2 text-sm font-medium text-accent-strong hover:underline">
+          Corrigir
+        </Link>
+      </div>
     );
   }
 

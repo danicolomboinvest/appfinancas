@@ -14,15 +14,7 @@ import { partesDoTexto } from "@/lib/profiles/textos/shell";
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import { useToast } from "@/components/ui/toast-context";
 import { useMoney } from "@/components/money/MoneyProvider";
-import {
-  PARENT_CATEGORIES,
-  PARENT_CATEGORY_COLOR,
-  CUSTOM_CATEGORY_ICON_MAP,
-  categoryIcon,
-  categoryLabel,
-  colorForCategorySlice,
-  isParentCategoryKey,
-} from "@/lib/categories";
+import { PARENT_CATEGORIES, PARENT_CATEGORY_COLOR, CUSTOM_CATEGORY_ICON_MAP, categoryIcon, categoryLabel, colorForCategorySlice, isParentCategoryKey, categoriasParaEscolher, type CategoriasDoPerfil } from "@/lib/categories";
 import { EntryForm } from "./EntryForm";
 import { RESGATE } from "@/components/forms/CategoryFields";
 import { ehResgate } from "@/lib/entries/resgate";
@@ -85,7 +77,7 @@ function categoryVisual(
   entry: ListEntry,
   customCategories: { id: string; icon: string }[],
   tema: string,
-  kind: ProfileKind,
+  kind: CategoriasDoPerfil,
 ): { icon: LucideIcon; color: string; emoji: string | undefined } {
   if (entry.category === "INCOME") return { icon: TrendingUp, color: "var(--color-success)", emoji: emojiDaCategoria(tema, { kind: "income" }) };
   if (entry.category === "INVESTMENT_CONTRIBUTION") return { icon: PiggyBank, color: "var(--color-accent)", emoji: emojiDaCategoria(tema, { kind: "investment" }) };
@@ -107,7 +99,7 @@ function categoryVisual(
   return { icon: Receipt, color: "var(--color-ink-faint)", emoji: emojiDaCategoria(tema, { kind: "none" }) };
 }
 
-function categoryName(entry: ListEntry, customCategories: { id: string; name: string }[], voz: Voz, kind: ProfileKind): string {
+function categoryName(entry: ListEntry, customCategories: { id: string; name: string }[], voz: Voz, kind: CategoriasDoPerfil): string {
   if (entry.parentCategory && isParentCategoryKey(entry.parentCategory)) return categoryLabel(kind, entry.parentCategory);
   if (entry.customCategoryId) return customCategories.find((c) => c.id === entry.customCategoryId)?.name ?? voz.titulos.uiCategoriaSemNome;
   return categoryKindLabel(entry.category, voz, entry.amount);
@@ -163,7 +155,8 @@ export function EntryList({
   // O tema decide se a categoria é ícone de linha ou emoji (ver icones.ts); a voz, o que a
   // lista diz ("Ver mais", "Remover", os avisos de excluído/restaurado); o tipo do perfil,
   // como cada categoria-mãe se chama (numa Empresa, MORADIA é "Estrutura").
-  const { key: tema, voz, kind } = useProfileTheme();
+  // `categorias`: o tipo do perfil com o nome, o ícone e as escondidas que ela escolheu.
+  const { key: tema, voz, categorias: kind } = useProfileTheme();
   const t = voz.titulos;
   const money = useMoney();
   const { showToast, showError } = useToast();
@@ -459,7 +452,7 @@ export function EntryList({
           exemplo, que a classificação automática jogou em "Outros" mas são todas a mesma coisa. */}
       <Modal open={bulkCategorizing} onClose={() => setBulkCategorizing(false)} title={t.uiMudarCategoriaTitulo(selected.size)}>
         <div className="flex flex-wrap gap-2">
-          {PARENT_CATEGORIES.map((pc) => (
+          {categoriasParaEscolher(kind).map((pc) => (
             <button
               key={pc}
               type="button"
