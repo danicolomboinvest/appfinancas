@@ -67,6 +67,22 @@ export type CompraBase = {
   taxaReferencia: number;
   /** Tem dinheiro na reserva (mesmo completa): é de onde sairia o que falta, e o texto diz isso. */
   reservaComSaldo?: boolean;
+  /** O orçamento deste mês por categoria-mãe (chave do banco, nome na tela, planejado, já gasto):
+   * é daqui que saem os cortes sugeridos quando a compra não cabe (ver saidasDaCompra). */
+  categorias?: { chave: string; nome: string; planejado: number; gasto: number }[];
+};
+
+/**
+ * Como fazer caber (01/10/2026): quando a resposta é "não" ou "cabe com custo", a Dani queria que o
+ * app usasse o orçamento da pessoa e dissesse de onde tirar, ou quanto guardar por mês, virando
+ * mais um sonho. `cortes` cobre `precisa` (do mês, ou de todo mês se `porMes`) até onde dá.
+ */
+export type Saidas = {
+  precisa: number;
+  porMes: boolean;
+  cortes: { nome: string; valor: number }[];
+  cobre: number;
+  guardar: { mensal: number; meses: number; alvo: number };
 };
 
 export type Compra = {
@@ -104,6 +120,9 @@ export type ResultadoCompra =
       comprometimento?: { hoje: number; depois: number; valor: number; renda: number; fonte: "real" | "planejado" | "mes" };
       /** Dado que parece incompleto ou ambíguo: a tela avisa em vez de fingir certeza. */
       avisos?: string[];
+      /** Quanto falta para caber (interno: alimenta `saidas`). */
+      precisa?: { valor: number; porMes: boolean; ritmo?: number } | null;
+      saidas?: Saidas | null;
       conta: { rotulo: string; valor: string }[];
     };
 
@@ -193,7 +212,8 @@ export function avisosDaBase(base: CompraBase, money: (v: number) => string): st
 
 export function avaliarCompra(base: CompraBase, compraBruta: Compra, fmt: Formatos): ResultadoCompra {
   const r = avaliarSemAvisos(base, compraBruta, fmt);
-  return "erro" in r ? r : { ...r, avisos: avisosDaBase(base, fmt.money) };
+  if ("erro" in r) return r;
+  return { ...r, avisos: avisosDaBase(base, fmt.money), saidas: r.precisa ? saidasDaCompra(base, compraBruta, r.precisa) : null };
 }
 
 function avaliarSemAvisos(base: CompraBase, compraBruta: Compra, fmt: Formatos): ResultadoCompra {
@@ -297,7 +317,7 @@ function avaliarSemAvisos(base: CompraBase, compraBruta: Compra, fmt: Formatos):
     // Cabe no dinheiro do mês, mas os gastos passam de 90% da renda: sobra menos de 10% pra
     // guardar. Não é "não", mas também não é verde.
     if (falta <= 0 && passa90) {
-      return { veredito: "custo", titulo: "Cabe, mas passa da regra dos 90%", explicacao: `Neste mês seus gastos iriam a ${pct(gastoMesDepois / base.renda)} da renda: sobra menos de 10% pra guardar.`, linhas, sugestao: null, comparacao: null, custoJuros: null, comprometimento: cmp, conta };
+      return { veredito: "custo", titulo: "Cabe, mas passa da regra dos 90%", explicacao: `Neste mês seus gastos iriam a ${pct(gastoMesDepois / base.renda)} da renda: sobra menos de 10% pra guardar.`, linhas, sugestao: null, comparacao: null, custoJuros: null, comprometimento: cmp, conta, precisa: { valor: gastoMesDepois - base.renda * LIMITE_GASTO, porMes: false } };
     }
     if (resto <= 0) {
       return { veredito: "ok", titulo: "Cabe no dinheiro que ainda não tem destino", explicacao: temMetas ? "Não mexe no dia a dia nem nas suas metas." : "Não mexe no dinheiro do dia a dia.", linhas, sugestao: null, comparacao: null, custoJuros: null, comprometimento: cmp, conta };
@@ -306,7 +326,7 @@ function avaliarSemAvisos(base: CompraBase, compraBruta: Compra, fmt: Formatos):
       return { veredito: "ok", titulo: "Cabe no que está livre este mês", explicacao: temMetas ? "Suas metas não mudam. Só sobra um pouco menos pro resto do mês." : "Só sobra um pouco menos pro resto do mês.", linhas, sugestao: null, comparacao: null, custoJuros: null, comprometimento: cmp, conta };
     }
     if (resto <= sobra) {
-      return { veredito: "custo", titulo: "Cabe, mas aperta o resto do mês", explicacao: `Sobram ${money(porSemana(depois))} por semana até o fim do mês.`, linhas, sugestao: null, comparacao: null, custoJuros: null, comprometimento: cmp, conta };
+      return { veredito: "custo", titulo: "Cabe, mas aperta o resto do mês", explicacao: `Sobram ${money(porSemana(depois))} por semana até o fim do mês.`, linhas, sugestao: null, comparacao: null, custoJuros: null, comprometimento: cmp, conta, precisa: { valor: resto - sobra * 0.35, porMes: false } };
     }
     // Casal com conta conjunta não usa a regra dos 90%: o limite é o que entra na conta.
     const semRegra90 = base.regra90 === false;
@@ -322,7 +342,7 @@ function avaliarSemAvisos(base: CompraBase, compraBruta: Compra, fmt: Formatos):
       folgaNoMes > 0 && custo <= folgaNoMes
         ? `Cabe ${semRegra90 ? "no que vocês põem na conta" : "dentro da regra dos 90% da renda"} se sair do que ${semRegra90 ? "vocês guardariam" : "você guardaria"} este mês, sem mexer no básico. Aí a decisão é ${semRegra90 ? "de vocês" : "sua"}: a compra agora ou o guardado do mês.`
         : parcelasSugeridas && parcelasSugeridas <= 24 && mesesGuardando
-          ? `Se a loja parcelar em ${parcelasSugeridas}x sem juros (${money(compra.valor / parcelasSugeridas)} por mês), cabe ${limite}. Ou, guardando ${money(folga)} por mês, dá pra comprar à vista em ${mesesGuardando} ${mesesGuardando > 1 ? "meses" : "mês"}, sem dívida.`
+          ? `Se a loja parcelar em ${parcelasSugeridas}x sem juros (${money(compra.valor / parcelasSugeridas)} por mês), cabe ${limite}. Ou, guardando ${money(Math.ceil(custo / mesesGuardando))} por mês, dá pra comprar à vista em ${mesesGuardando} ${mesesGuardando > 1 ? "meses" : "mês"}, sem dívida.`
           : "Esse valor pede uma meta própria: guardar antes e comprar depois.";
     return {
       veredito: "nao",
@@ -334,6 +354,8 @@ function avaliarSemAvisos(base: CompraBase, compraBruta: Compra, fmt: Formatos):
       custoJuros: null,
       comprometimento: cmp,
       conta,
+      // O mesmo ritmo da sugestão de cima ("guardando X por mês"), para as duas não se contradizerem.
+      precisa: { valor: falta, porMes: false, ritmo: folga > 0 ? folga : undefined },
     };
   }
 
@@ -418,6 +440,7 @@ function avaliarSemAvisos(base: CompraBase, compraBruta: Compra, fmt: Formatos):
       alertaJuros,
       comprometimento: comprometimento(comprometido + parcela),
       conta,
+      precisa: { valor: comprometido + parcela - base.renda * LIMITE_GASTO, porMes: true },
     };
   }
   if (base.regra90 === false && parcela > cabeNaConjunta + 1e-9) {
@@ -433,13 +456,14 @@ function avaliarSemAvisos(base: CompraBase, compraBruta: Compra, fmt: Formatos):
       alertaJuros,
       comprometimento: comprometimento(comprometido + parcela),
       conta,
+      precisa: { valor: parcela - cabeNaConjunta, porMes: true },
     };
   }
   if (atrasoReserva > 0) {
-    return { veredito: "custo", titulo: "Cabe, mas atrasa sua reserva", explicacao: `A reserva é a sua segurança e passaria a chegar ${atrasoReserva} ${atrasoReserva > 1 ? "meses" : "mês"} depois.`, linhas, sugestao: null, comparacao, custoJuros, alertaJuros, comprometimento: comprometimento(comprometido + parcela), conta };
+    return { veredito: "custo", titulo: "Cabe, mas atrasa sua reserva", explicacao: `A reserva é a sua segurança e passaria a chegar ${atrasoReserva} ${atrasoReserva > 1 ? "meses" : "mês"} depois.`, linhas, sugestao: null, comparacao, custoJuros, alertaJuros, comprometimento: comprometimento(comprometido + parcela), conta, precisa: { valor: doGuardado, porMes: true } };
   }
   if (maiorAtraso && maiorAtraso.meses > 1) {
-    return { veredito: "custo", titulo: "Cabe, mas tem um custo", explicacao: `${maiorAtraso.nome} atrasa ${maiorAtraso.meses} meses. A reserva continua no prazo, porque ela é a última a ser mexida.`, linhas, sugestao: null, comparacao, custoJuros, alertaJuros, comprometimento: comprometimento(comprometido + parcela), conta };
+    return { veredito: "custo", titulo: "Cabe, mas tem um custo", explicacao: `${maiorAtraso.nome} atrasa ${maiorAtraso.meses} meses. A reserva continua no prazo, porque ela é a última a ser mexida.`, linhas, sugestao: null, comparacao, custoJuros, alertaJuros, comprometimento: comprometimento(comprometido + parcela), conta, precisa: { valor: doGuardado, porMes: true } };
   }
   return {
     veredito: jurosAltos ? "custo" : "ok",
@@ -532,4 +556,43 @@ export function comprasAindaNaoLancadas(decididas: CompraDecidida[], gastos: Gas
     else vista += esperado;
   }
   return { vista, parcelaMensal };
+}
+
+/**
+ * Até quanto dá para apertar cada categoria sem mexer no básico: lazer e "outros" têm folga de
+ * verdade; comida e transporte, só um pouco (troca de delivery por mercado, menos aplicativo).
+ * Moradia, saúde, educação e impostos não entram: não se corta aluguel para comprar um celular.
+ */
+const APERTO: Record<string, number> = { LAZER: 0.4, OUTROS: 0.3, ALIMENTACAO: 0.15, TRANSPORTE: 0.1 };
+
+/** As saídas de uma compra que não cabe: cortes no orçamento e o "guardar antes" como sonho. */
+export function saidasDaCompra(base: CompraBase, compra: Compra, precisa: { valor: number; porMes: boolean; ritmo?: number }): Saidas | null {
+  const alvo = Math.round(Math.max(0, precisa.valor) * 100) / 100;
+  if (!(alvo > 0.5)) return null;
+  const opcoes = (base.categorias ?? [])
+    .filter((c) => APERTO[c.chave] !== undefined && c.planejado > 0)
+    .map((c) => {
+      const teto = c.planejado * APERTO[c.chave];
+      // No mês: só o que ainda não foi gasto da categoria. Todo mês: o teto sobre o planejado.
+      const pode = precisa.porMes ? teto : Math.min(teto, Math.max(0, c.planejado - c.gasto));
+      return { nome: c.nome, pode: Math.floor(pode) };
+    })
+    .filter((c) => c.pode >= 10)
+    .sort((a, b) => b.pode - a.pode);
+  const cortes: { nome: string; valor: number }[] = [];
+  let falta = alvo;
+  for (const c of opcoes) {
+    if (falta <= 0) break;
+    const v = Math.min(c.pode, Math.ceil(falta));
+    cortes.push({ nome: c.nome, valor: v });
+    falta -= v;
+  }
+  const cobre = cortes.reduce((s, c) => s + c.valor, 0);
+  // Guardar antes: o preço à vista, num ritmo de até 10% da renda por mês (a parte da renda que a
+  // regra dos 90% já reserva para o futuro), de 2 a 24 meses.
+  const total = Math.round(compra.valor * (1 - Math.min(0.9, Math.max(0, compra.desconto || 0))) * 100) / 100;
+  // O que ela tem livre por mês, quando a conta já sabe; senão, 10% da renda.
+  const ritmo = Math.max(50, precisa.ritmo && precisa.ritmo > 0 ? precisa.ritmo : base.renda * 0.1);
+  const meses = Math.min(24, Math.max(2, Math.ceil(total / ritmo)));
+  return { precisa: alvo, porMes: precisa.porMes, cortes, cobre, guardar: { mensal: Math.ceil(total / meses), meses, alvo: total } };
 }

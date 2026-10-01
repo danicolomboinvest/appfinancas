@@ -10,6 +10,7 @@ import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { avaliarCompra, pct as pctDaRenda, type CompraBase, type ResultadoCompra, type Veredito } from "@/lib/decisoes/posso-comprar";
 import { registrarCompraAction } from "@/app/(app)/mensal/foco/actions";
 import { ReportarErro } from "@/components/decisoes/ReportarErro";
+import { ComoFazerCaber } from "./ComoFazerCaber";
 
 const MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
 
@@ -212,6 +213,8 @@ export function PossoComprar({ base, hoje }: { base: CompraBase; hoje: { ano: nu
           </Card>
 
           {r.sugestao && <p className="rounded-2xl bg-accent-soft px-4 py-3 text-sm text-ink">{r.sugestao}</p>}
+
+          {r.saidas && <ComoFazerCaber saidas={r.saidas} descricao={descricao} money={m} />}
 
           {r.comparacao && (
             <Card className="p-5">

@@ -219,3 +219,23 @@ export async function excluirGuardadoDoSonhoAction(entryId: string): Promise<{ e
   revalidarSonho(entrada.goalId, entrada.year, entrada.month);
   return {};
 }
+
+/**
+ * "Guardar antes e comprar depois" vira sonho de verdade, direto do "Posso comprar?" (01/10/2026):
+ * o nome da compra, o valor à vista e o prazo que a conta sugeriu. Sem isso a sugestão ficava só
+ * no texto e ninguém voltava para criar a meta.
+ */
+export async function criarSonhoDaCompraAction(input: { nome: string; alvo: number; meses: number }): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+  const ctx = await getRequiredSession();
+  const nome = (input.nome ?? "").trim().slice(0, 60) || "Compra planejada";
+  const alvo = Number(input.alvo);
+  const meses = Math.round(Number(input.meses));
+  if (!(alvo > 0) || alvo > 1e9) return { ok: false, error: "Valor inválido." };
+  if (!(meses >= 1 && meses <= 120)) return { ok: false, error: "Prazo inválido." };
+  const hoje = new Date();
+  const targetDate = new Date(hoje.getFullYear(), hoje.getMonth() + meses, 1, 12);
+  const meta = await createGoal(ctx, { name: nome.charAt(0).toUpperCase() + nome.slice(1), targetAmount: alvo, targetDate, currentAmount: 0, annualRate: 0, icon: "GENERICO" });
+  revalidatePath("/planejamento/metas");
+  revalidatePath("/mensal/foco");
+  return { ok: true, id: meta.id };
+}

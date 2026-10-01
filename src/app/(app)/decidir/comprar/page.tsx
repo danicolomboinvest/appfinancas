@@ -32,6 +32,7 @@ import { PerguntaRendaDoCasal } from "./PerguntaRendaDoCasal";
 import { responderRendaDoCasalAction } from "@/app/(app)/mensal/foco/actions";
 import { ehCasal } from "@/lib/profiles/casal";
 import { lerDecisao, listarComprasDecididasDesde } from "@/lib/repositories/decisao.repo";
+import { categoryLabel } from "@/lib/categories";
 
 /** Rendimento de referência quando a pessoa não informou nenhum (≈ CDI líquido, ao mês). */
 const TAXA_PADRAO = 0.009;
@@ -112,6 +113,8 @@ export default async function PossoComprarPage() {
   const categorias = budgets
     .filter((b) => Number(b.plannedAmount) > 0)
     .map((b) => ({
+      chave: b.parentCategory ?? "",
+      nome: b.parentCategory ? categoryLabel(ctx.categorias ?? ctx.profileKind, b.parentCategory) : "",
       planejado: Number(b.plannedAmount),
       gasto: b.parentCategory ? (gastoPorMae.get(b.parentCategory) ?? 0) : (gastoPorPersonalizada.get(b.customCategoryId ?? "") ?? 0),
     }));
@@ -195,6 +198,8 @@ export default async function PossoComprarPage() {
     fonteRenda,
     regra90: rendaDoCasal !== "conjunta",
     jaDecidido,
+    // Só as categorias padrão: é delas que saem os cortes sugeridos ("Como fazer caber").
+    categorias: categorias.filter((c) => c.chave),
   };
 
   return (
