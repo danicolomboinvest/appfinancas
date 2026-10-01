@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parecePagamentoDeFatura, pareceAplicacao } from "../dinheiro-proprio";
+import { parecePagamentoDeFatura, pareceAplicacao, pareceContaPropria } from "../dinheiro-proprio";
 
 /** Casos que a revisão pegou depois da regra única de pagamento de fatura e de aplicação. */
 describe("pagamento de fatura pelo canal internet", () => {
@@ -17,5 +17,19 @@ describe("aplicação por transferência", () => {
   });
   it.each(["Pix enviado LCA Modas", "PIX CDB CALCADOS"])("%s é gasto numa loja", (d) => {
     expect(pareceAplicacao(d)).toBe(false);
+  });
+});
+
+describe("fatura do Nubank paga por outro banco (01/10/2026)", () => {
+  it.each(["Pagamento de boleto NU PAGAMENTOS S.A.", "PAG BOLETO NU PAGAMENTOS SA", "BOLETO PAGO - NU PAGAMENTOS SA - IP", "PAGAMENTO TITULO NU PAGAMENTOS", "Pagto boleto Banco Itaucard", "Boleto Bradescard"])(
+    "boleto para a empresa do cartão é pagamento de fatura: %s",
+    (d) => expect(parecePagamentoDeFatura(d)).toBe(true),
+  );
+  it.each(["Boleto Itaú Seguros", "Pagamento de boleto Enel", "Boleto condomínio"])("boleto que não é da empresa do cartão continua gasto: %s", (d) =>
+    expect(parecePagamentoDeFatura(d)).toBe(false),
+  );
+  it("Pix para Nu Pagamentos vira pergunta (fatura por Pix ou conta Nubank dela), não some sozinho", () => {
+    expect(parecePagamentoDeFatura("Pix enviado Nu Pagamentos S.A.")).toBe(false);
+    expect(pareceContaPropria("Pix enviado Nu Pagamentos S.A.", "Maria Exemplo")).toBe(true);
   });
 });

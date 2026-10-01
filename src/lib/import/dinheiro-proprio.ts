@@ -131,6 +131,15 @@ const EMISSOR_DE_CARTAO =
 const CONTA_DE_CONSUMO =
   /\b(claro|vivo|tim|oi|net|sky|nextel|algar|telefone|telefonia|celular|operadora|internet|banda larga|luz|energia|eletrica|enel|cemig|copel|celesc|coelba|cpfl|light|equatorial|neoenergia|elektro|energisa|agua|saneamento|sabesp|cedae|copasa|sanepar|embasa|caesb|compesa|gas|comgas|naturgy|condominio|aluguel|escola|faculdade|mensalidade|unimed|amil)\b/;
 
+/**
+ * A empresa que EMITE o boleto da fatura (01/10/2026). Quem paga a fatura do Nubank por outro
+ * banco vê no extrato "Pagamento de boleto NU PAGAMENTOS S.A.", sem a palavra "fatura": a linha
+ * entrava como gasto e somava em dobro com as compras da fatura importada. Só nomes que existem
+ * para cartão (Itaucard, não "Itaú"), para não tirar boleto de outra coisa do mesmo banco.
+ */
+const EMPRESA_DO_CARTAO = /\b(nu pagamentos|nubank|itaucard|banco itaucard|bradescard|credicard|hipercard|midway|porto seguro cartoes|portoseguro cartoes|ourocard)\b/;
+const BOLETO = /\b(boleto|bolet|titulo|tit|cobranca)\b/;
+
 export function parecePagamentoDeFatura(descricao: string | null | undefined): boolean {
   // "via internet banking", "PAG FATURA VIA INTERNET": é o canal do pagamento, não a conta de
   // internet. E numa linha que fala de cartão/crédito/emissor, "internet" é sempre o canal.
@@ -140,6 +149,9 @@ export function parecePagamentoDeFatura(descricao: string | null | undefined): b
   if (/\b(cartao|credito)\b/.test(d) || EMISSOR_DE_CARTAO.test(d)) d = d.replace(/\binternet\b/g, " ");
   if (CONTA_DE_CONSUMO.test(d)) return false;
   if (PAGAR_CARTAO.test(d)) return true;
+  // Boleto pago para a empresa do cartão: é a fatura, mesmo sem a palavra "fatura".
+  const semPontos = d.replace(/[.\-_/*]+/g, " ").replace(/\s+/g, " ");
+  if (BOLETO.test(semPontos) && EMPRESA_DO_CARTAO.test(semPontos)) return true;
   return FATURA.test(d) && (PAGAR.test(d) || EMISSOR_DE_CARTAO.test(d));
 }
 
@@ -150,6 +162,9 @@ export function parecePagamentoDeFatura(descricao: string | null | undefined): b
 export function pareceContaPropria(descricao: string | null | undefined, nomeDaPessoa: string | null | undefined): boolean {
   const d = semAcento(descricao ?? "");
   if (CONTA_PROPRIA.test(d)) return true;
+  // Pix para "Nu Pagamentos" é a fatura paga por Pix OU dinheiro indo para a conta Nubank dela:
+  // nos dois casos não é gasto novo, e a tela pergunta ("Só mudei de conta" tira da importação).
+  if (/\bpix\b/.test(d) && /\bnu pagamentos\b/.test(d.replace(/[.\-_/*]+/g, " "))) return true;
   // Só as letras do nome: ele vem do perfil (texto livre) e entra num RegExp. Um ")" ou "***"
   // no nome derrubava a leitura do extrato inteiro e a revisão dos antigos.
   const partes = semAcento(nomeDaPessoa ?? "").replace(/[^a-z\s]/g, " ").split(/\s+/).filter((p) => p.length >= 3);
