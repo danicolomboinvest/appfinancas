@@ -110,7 +110,8 @@ export async function checkinGoalAction(
       monthKey: parsed.data.monthKey,
       temAporteNoMes:
         (await prisma.monthlyEntry.count({
-          where: { userId: ctx.userId, profileId: ctx.profileId, goalId: goal.id, category: "INVESTMENT_CONTRIBUTION", year, month },
+          // amount > 0: um resgate da meta no mês não é "já aportou".
+          where: { userId: ctx.userId, profileId: ctx.profileId, goalId: goal.id, category: "INVESTMENT_CONTRIBUTION", amount: { gt: 0 }, year, month },
         })) > 0,
     });
 

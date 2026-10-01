@@ -10,7 +10,7 @@ import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { emojiDaCategoria } from "@/lib/profiles/icones";
 import { useMoney } from "@/components/money/MoneyProvider";
 import { useToast } from "@/components/ui/toast-context";
-import { allocateContributionAction } from "./contribution-actions";
+import { allocateContributionAction, allocateWithdrawalAction } from "./contribution-actions";
 import { ABRIR_NOVO_ATIVO } from "./novo-ativo";
 
 const MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
@@ -28,6 +28,9 @@ const VISIVEIS = 6;
  * que ela já lançou aparece esperando destino; ao dizer em quais ativos entrou, o ativo cresce,
  * a meta ligada àquele ativo anda junto, e o mês continua com o mesmo número de sempre (o aporte
  * não é lançado de novo — este card não cria dinheiro, só diz pra onde o que existe foi).
+ *
+ * `resgate`: o mesmo cartão ao contrário. "Você resgatou R$ X em setembro. De onde saiu?" — sem
+ * isso o dinheiro voltava pro mês (pelo extrato) e a carteira continuava mostrando como investido.
  */
 export function AllocateContributionCard({
   month,
@@ -35,7 +38,10 @@ export function AllocateContributionCard({
   assets,
   goalOfMonth,
   mesPassado = false,
+  resgate = false,
 }: {
+  /** Resgate em vez de aporte: o valor SAI dos ativos escolhidos. */
+  resgate?: boolean;
   month: number;
   /** O card é do mês passado (a sobra do fechamento): a distribuição vai pra aquele mês. */
   mesPassado?: boolean;
@@ -52,6 +58,36 @@ export function AllocateContributionCard({
   const [isPending, startTransition] = useTransition();
   const [pronto, setPronto] = useState<{ assets: number; goals: { name: string; amount: number }[]; quantityEstimated: string[] } | null>(null);
   const [verTodos, setVerTodos] = useState(false);
+  // Os textos que mudam entre aporte e resgate; o resto do cartão é o mesmo.
+  const txt = resgate
+    ? {
+        titulo: t.cartVoceResgatou(money(pending, { round: true }), MESES[month - 1]),
+        toque: t.cartToquePraDizerResgate,
+        diga: t.cartDigaQuantoSaiu,
+        enquanto: t.cartEnquantoNaoDisserResgate,
+        campo: t.cartQuantoSaiuDe,
+        falta: t.cartFaltaDizerResgate,
+        passou: t.cartPassouDoResgate,
+        prontoTitulo: t.cartResgateProntoTitulo,
+        prontoTexto: t.cartResgateSaiuDe,
+        metas: t.cartMetasRecuaram,
+        aplicado: t.cartResgateAplicado,
+        sinal: "−",
+      }
+    : {
+        titulo: t.cartVoceAportou(money(pending, { round: true }), MESES[month - 1]),
+        toque: t.cartToquePraDizer,
+        diga: t.cartDigaQuanto,
+        enquanto: t.cartEnquantoNaoDisser(goalOfMonth),
+        campo: t.cartQuantoEntrouEm,
+        falta: t.cartFaltaDizer,
+        passou: t.cartPassouDoAporte,
+        prontoTitulo: t.cartAporteProntoTitulo,
+        prontoTexto: t.cartAporteEntrouEm,
+        metas: t.cartMetasAndaram,
+        aplicado: t.cartAporteAplicado,
+        sinal: "+",
+      };
   // Fechado por padrão: a carteira já é uma tela cheia, e a pergunta importante é só "você
   // aportou tanto, confere?". A lista de ativos com um campo cada só aparece pra quem toca.
   const [aberto, setAberto] = useState(false);
@@ -64,12 +100,10 @@ export function AllocateContributionCard({
   if (pronto) {
     return (
       <Card className="flex flex-col gap-1 border-success/30 bg-success-soft/40 p-4">
-        <p className="text-[15px] font-semibold text-success">{t.cartAporteProntoTitulo}</p>
+        <p className="text-[15px] font-semibold text-success">{txt.prontoTitulo}</p>
         <p className="text-sm text-ink-muted">
-          {t.cartAporteEntrouEm(MESES[month - 1], pronto.assets)}
-          {pronto.goals.length > 0 && (
-            <> {t.cartMetasAndaram(pronto.goals.map((g) => `${g.name} +${money(g.amount, { round: true })}`).join(", "))}</>
-          )}
+          {txt.prontoTexto(MESES[month - 1], pronto.assets)}
+          {pronto.goals.length > 0 && <> {txt.metas(pronto.goals.map((g) => `${g.name} ${txt.sinal}${money(g.amount, { round: true })}`).join(", "))}</>}
         </p>
         {/* A quantidade foi estimada pela cotação de hoje (senão a próxima atualização de
             cotação desfazia o aporte): ela precisa saber, pra corrigir se comprou a outro preço. */}
@@ -81,6 +115,8 @@ export function AllocateContributionCard({
   }
 
   if (assets.length === 0) {
+    // Resgate sem investimento cadastrado: não há de onde descontar, e o mês já está certo.
+    if (resgate) return null;
     return (
       <Card className="flex flex-col gap-2 border-accent/30 bg-accent-soft/30 p-4">
         <p className="text-[15px] font-semibold text-ink">{t.cartVoceAportou(money(pending, { round: true }), MESES[month - 1])}</p>
@@ -101,16 +137,14 @@ export function AllocateContributionCard({
           <PiggyBank size={18} strokeWidth={1.75} />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block text-[15px] font-semibold text-ink">
-            {t.cartVoceAportou(money(pending, { round: true }), MESES[month - 1])}
-          </span>
-          <span className="block text-caption text-ink-muted">{aberto ? t.cartDigaQuanto : t.cartToquePraDizer}</span>
+          <span className="block text-[15px] font-semibold text-ink">{txt.titulo}</span>
+          <span className="block text-caption text-ink-muted">{aberto ? txt.diga : txt.toque}</span>
         </span>
         <ChevronDown size={18} className={`shrink-0 text-ink-muted transition-transform ${aberto ? "rotate-180" : ""}`} />
       </button>
 
       {!aberto && (
-        <p className="text-caption text-ink-faint">{t.cartEnquantoNaoDisser(goalOfMonth)}</p>
+        <p className="text-caption text-ink-faint">{txt.enquanto}</p>
       )}
 
       {aberto && (
@@ -124,7 +158,7 @@ export function AllocateContributionCard({
               {a.goalName && <p className="truncate text-caption text-ink-faint">{t.cartMetaDoAtivo(a.goalName)}</p>}
             </div>
             <CurrencyField
-              label={t.cartQuantoEntrouEm(a.ticker ?? a.name)}
+              label={txt.campo(a.ticker ?? a.name)}
               name={`aporte_${a.id}`}
               onValueChange={(v) => setValores((prev) => ({ ...prev, [a.id]: v }))}
               className="w-32 [&_label]:sr-only"
@@ -142,9 +176,9 @@ export function AllocateContributionCard({
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <p className={`text-sm font-semibold ${falta < -0.01 ? "text-danger" : "text-ink-muted"}`}>
           {falta > 0.01
-            ? t.cartFaltaDizer(money(falta, { round: true }))
+            ? txt.falta(money(falta, { round: true }))
             : falta < -0.01
-              ? t.cartPassouDoAporte(money(-falta, { round: true }))
+              ? txt.passou(money(-falta, { round: true }))
               : t.cartTudoDistribuido}
         </p>
         <Button
@@ -153,7 +187,7 @@ export function AllocateContributionCard({
           disabled={isPending || distribuido <= 0 || falta < -0.01}
           onClick={() =>
             startTransition(async () => {
-              const res = await allocateContributionAction(
+              const res = await (resgate ? allocateWithdrawalAction : allocateContributionAction)(
                 Object.entries(valores)
                   .filter(([, v]) => v > 0)
                   .map(([assetId, amount]) => ({ assetId, amount })),
@@ -164,7 +198,7 @@ export function AllocateContributionCard({
                 return;
               }
               setPronto({ assets: res.assets, goals: res.goals, quantityEstimated: res.quantityEstimated });
-              showToast(t.cartAporteAplicado);
+              showToast(txt.aplicado);
             })
           }
         >
@@ -174,6 +208,7 @@ export function AllocateContributionCard({
 
       {/* Abre o "Novo ativo" da lista logo abaixo (ver novo-ativo.ts). Depois de cadastrar, a
           página recarrega os dados e o ativo novo já aparece aqui pra receber o aporte. */}
+      {!resgate && (
       <button
         type="button"
         onClick={() => window.dispatchEvent(new Event(ABRIR_NOVO_ATIVO))}
@@ -181,6 +216,7 @@ export function AllocateContributionCard({
       >
         {t.cartAtivoNaoEstaAqui} <ArrowRight size={12} />
       </button>
+      )}
       </>
       )}
     </Card>

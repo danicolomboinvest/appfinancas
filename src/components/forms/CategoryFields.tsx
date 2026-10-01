@@ -17,8 +17,19 @@ function categoryOptions(voz: Voz) {
     { value: "INCOME", label: voz.titulos.uiTipoRenda },
     { value: "EXPENSE", label: voz.titulos.uiTipoGasto },
     { value: "INVESTMENT_CONTRIBUTION", label: voz.titulos.uiTipoAporte },
+    { value: RESGATE, label: voz.titulos.uiTipoResgate },
   ];
 }
+
+/**
+ * "Resgatei" não é um tipo no banco: é guardado com valor negativo (ver lib/entries/resgate.ts).
+ * No formulário ele é o quarto botão, e vai como category=INVESTMENT_CONTRIBUTION + resgate=on.
+ */
+export const RESGATE = "RESGATE";
+
+/** Gasto primeiro: é o que se lança quase sempre, e é o tipo que já vem marcado. Resgatei por
+ * último, junto do Guardado que ele desfaz. */
+const ORDEM_DOS_TIPOS = ["EXPENSE", "INCOME", "INVESTMENT_CONTRIBUTION", RESGATE] as const;
 
 function Chip({
   label,
@@ -45,7 +56,7 @@ function Chip({
 }
 
 /**
- * Campos de categorização de um lançamento: nível 1 (Renda/Gasto/Guardado, select) e, quando
+ * Campos de categorização de um lançamento: nível 1 (Gasto/Renda/Guardado/Resgatei, botões) e, quando
  * "Gasto" é selecionado, o nível 2 (categoria-mãe + subcategoria) via chips clicáveis em vez
  * de dropdown, inclui sugestão das subcategorias mais usadas recentemente e um chip "Outro"
  * com texto livre. Publica os valores via inputs escondidos (category/parentCategory/subcategory)
@@ -159,23 +170,33 @@ export function CategoryFields({
 
   return (
     <div className={stacked ? "flex w-full flex-col gap-3" : "flex flex-wrap items-start gap-3"}>
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor={selectId} className="text-xs font-medium text-ink-muted">
+      {/* Os três tipos à vista, não num select: fechado ele mostrava só "Gasto", e cliente escreveu
+          ao suporte que não conseguia lançar dinheiro extra que recebeu (30/09/2026) — a Renda
+          estava lá dentro, escondida. */}
+      <div className={`flex flex-col gap-1.5 ${stacked ? "w-full" : ""}`}>
+        <span id={selectId} className="text-xs font-medium text-ink-muted">
           {t.formLancOQueE}
-        </label>
-        <select
-          id={selectId}
-          name="category"
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
-          className={`${CONTROL_CLASSES} ${stacked ? "w-full" : ""}`}
-        >
-          {categoryOptions(voz).map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
+        </span>
+        <input type="hidden" name="category" value={category === RESGATE ? "INVESTMENT_CONTRIBUTION" : category} />
+        <input type="hidden" name="resgate" value={category === RESGATE ? "on" : ""} />
+        <div role="radiogroup" aria-labelledby={selectId} className="grid grid-cols-4 gap-1 rounded-xl border border-border-strong bg-surface-2 p-1">
+          {ORDEM_DOS_TIPOS.map((valor) => {
+            const opcao = categoryOptions(voz).find((o) => o.value === valor)!;
+            const ativo = category === valor;
+            return (
+              <button
+                key={valor}
+                type="button"
+                role="radio"
+                aria-checked={ativo}
+                onClick={() => setCategory(valor)}
+                className={`min-h-11 rounded-lg px-1 text-sm font-semibold transition-colors ${ativo ? "bg-surface text-ink shadow-premium-sm" : "text-ink-muted hover:text-ink"}`}
+              >
+                {opcao.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {isExpense && (
@@ -321,7 +342,7 @@ export function CategoryFields({
 
       {!isExpense && (
         <div className={`flex flex-col gap-2 ${stacked ? "w-full" : ""}`}>
-          <span className="text-xs font-medium text-ink-muted">{t.formLancTipo}</span>
+          <span className="text-xs font-medium text-ink-muted">{category === RESGATE ? t.formLancDeOndeSaiu : t.formLancTipo}</span>
           <div className="flex flex-wrap gap-1.5">
             {freeTypes.map((tipo) => (
               <Chip key={tipo} label={tipo} active={freeSubcategory === tipo} onClick={() => setFreeSubcategory(tipo)} />

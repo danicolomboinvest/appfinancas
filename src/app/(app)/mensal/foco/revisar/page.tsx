@@ -11,7 +11,7 @@ import { carregarRevisaoAntigos } from "./dados";
 const MESES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
 
 /** A pergunta e as respostas possíveis de cada tipo de lançamento antigo. */
-const PERGUNTA: Record<TipoRevisao, { texto: string; opcoes: { acao: "guardado" | "tirar" | "estorno" | "manter"; rotulo: string }[] }> = {
+const PERGUNTA: Record<TipoRevisao, { texto: string; opcoes: { acao: "guardado" | "tirar" | "estorno" | "resgate" | "manter"; rotulo: string }[] }> = {
   aplicacao: {
     texto: "Parece dinheiro que você guardou, não gasto.",
     opcoes: [
@@ -44,7 +44,7 @@ const PERGUNTA: Record<TipoRevisao, { texto: string; opcoes: { acao: "guardado" 
   resgate: {
     texto: "Parece dinheiro voltando da aplicação, não renda.",
     opcoes: [
-      { acao: "tirar", rotulo: "Voltou da aplicação: tirar" },
+      { acao: "resgate", rotulo: "É resgate: descontar do guardado" },
       { acao: "manter", rotulo: "É renda" },
     ],
   },

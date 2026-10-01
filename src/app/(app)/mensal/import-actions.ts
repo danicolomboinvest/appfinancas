@@ -86,6 +86,9 @@ export type ReviewItem = {
   nota?: string | null;
   /** Dinheiro que pode ser dela mesma: a tela pergunta antes de importar. */
   duvida?: "conta_propria" | "resgate" | null;
+  /** Resgate: dinheiro voltando do que ela guardou. Grava como guardado NEGATIVO (ver
+   * lib/entries/resgate.ts) e a carteira pergunta de qual investimento saiu. */
+  resgate?: boolean;
 };
 
 /** O que o app entendeu do arquivo, pra pessoa conferir antes de gravar. */
@@ -371,6 +374,8 @@ export type ConfirmedItem = {
   profileId?: string | null;
   /** Estorno: grava como gasto negativo (ver ReviewItem.estorno). */
   estorno?: boolean;
+  /** Resgate: grava como guardado negativo (ver ReviewItem.resgate). */
+  resgate?: boolean;
 };
 
 /** Lançamento do extrato bancário que PODE ser o pagamento desta fatura — mostrado pra pessoa
@@ -761,8 +766,9 @@ export async function importTransactionsAction(
     existingCounts.set(k, left - 1);
     return true;
   };
-  /** Estorno é gravado negativo: a chave tem que usar o mesmo sinal que está no banco. */
-  const valorGravado = (item: ConfirmedItem) => (item.estorno && item.category === "EXPENSE" ? -item.amount : item.amount);
+  /** Estorno e resgate são gravados negativos: a chave tem que usar o mesmo sinal que está no banco. */
+  const valorGravado = (item: ConfirmedItem) =>
+    (item.estorno && item.category === "EXPENSE") || (item.resgate && item.category === "INVESTMENT_CONTRIBUTION") ? -item.amount : item.amount;
   const chaveExata = (item: ConfirmedItem, valor = valorGravado(item)) => {
     const originalYm = yearMonthFromISO(item.date);
     const ym = faturaTarget ?? originalYm ?? { year: now.getFullYear(), month: now.getMonth() + 1 };

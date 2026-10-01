@@ -75,6 +75,18 @@ export type TextosCarteira = {
   cartFaltaDizer(valor: string): string;
   cartPassouDoAporte(valor: string): string;
   cartTudoDistribuido: string;
+  /** Resgate (guardado negativo): o espelho do "você aportou", pra carteira descontar o que saiu. */
+  cartVoceResgatou(valor: string, mes: string): string;
+  cartToquePraDizerResgate: string;
+  cartDigaQuantoSaiu: string;
+  cartEnquantoNaoDisserResgate: string;
+  cartQuantoSaiuDe(nome: string): string;
+  cartFaltaDizerResgate(valor: string): string;
+  cartPassouDoResgate(valor: string): string;
+  cartResgateProntoTitulo: string;
+  cartResgateSaiuDe(mes: string, n: number): string;
+  cartMetasRecuaram(lista: string): string;
+  cartResgateAplicado: string;
   cartAporteAplicado: string;
   cartAplicandoAporte: string;
   cartAtualizarCarteira: string;
@@ -298,6 +310,17 @@ export const PADRAO_CARTEIRA: TextosCarteira = {
   cartFaltaDizer: (valor) => `Falta dizer onde foram ${valor}`,
   cartPassouDoAporte: (valor) => `Passou ${valor} do que você aportou`,
   cartTudoDistribuido: "Tudo distribuído",
+  cartVoceResgatou: (valor, mes) => `Você resgatou ${valor} em ${mes}`,
+  cartToquePraDizerResgate: "Toque pra dizer de qual investimento saiu.",
+  cartDigaQuantoSaiu: "Diga quanto saiu de cada investimento.",
+  cartEnquantoNaoDisserResgate: "Enquanto você não disser, a carteira continua contando esse dinheiro como investido.",
+  cartQuantoSaiuDe: (nome) => `Quanto saiu de ${nome}`,
+  cartFaltaDizerResgate: (valor) => `Falta dizer de onde saíram ${valor}`,
+  cartPassouDoResgate: (valor) => `Passou ${valor} do que você resgatou`,
+  cartResgateProntoTitulo: "Pronto, a carteira já desconta o resgate.",
+  cartResgateSaiuDe: (mes, n) => `O resgate de ${mes} saiu de ${n} investimento${n === 1 ? "" : "s"}.`,
+  cartMetasRecuaram: (lista) => `Suas metas recuaram junto: ${lista}.`,
+  cartResgateAplicado: "Carteira atualizada com o resgate.",
   cartAporteAplicado: "Carteira e metas atualizadas com o aporte do mês.",
   cartAplicandoAporte: "Aplicando...",
   cartAtualizarCarteira: "É isso, atualizar carteira",

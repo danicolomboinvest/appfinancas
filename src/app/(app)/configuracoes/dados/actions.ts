@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db/prisma";
 import { categoryLabel } from "@/lib/categories";
 import { vozDoTema } from "@/lib/profiles/voice";
 import { TIPO_DO_LANCAMENTO, dataCsv, dinheiroCsv, montarCsv, quantidadeCsv } from "@/lib/export/csv-brasil";
+import { ehResgate } from "@/lib/entries/resgate";
 
 /*
  * As duas exportações levam TODOS os perfis, com a coluna "Perfil". A tela promete "todos os
@@ -27,7 +28,8 @@ export async function exportEntriesCsvAction(): Promise<string> {
     String(entry.year),
     String(entry.month),
     dataCsv(entry.entryDate),
-    TIPO_DO_LANCAMENTO[entry.category] ?? entry.category,
+    // Guardado negativo é resgate (ver lib/entries/resgate.ts): "Aporte -500" confundiria.
+    ehResgate({ category: entry.category, amount: Number(entry.amount) }) ? "Resgate" : (TIPO_DO_LANCAMENTO[entry.category] ?? entry.category),
     // O nome é o que a pessoa vê na tela: numa Empresa, "Estrutura", não "Moradia"; e a
     // categoria que ela criou sai pelo nome dela (antes saía vazia).
     entry.customCategory?.name ??

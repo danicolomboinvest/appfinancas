@@ -41,6 +41,7 @@ function parseEntryForm(formData: FormData) {
     repeatMonthly: formData.get("repeatMonthly") ?? undefined,
     currency: formData.get("currency") || undefined,
     exchangeRate: formData.get("exchangeRate") || undefined,
+    resgate: formData.get("resgate") ?? undefined,
   });
 }
 
@@ -61,6 +62,11 @@ async function toEntryInput(data: z.output<typeof monthlyEntrySchema>): Promise<
     if (!rate) return { error: "Não consegui a cotação de hoje. Informe a cotação pra continuar." };
     amount = convertAmount(data.amount, rate);
     conversion = { originalAmount: data.amount, originalCurrency: currency, exchangeRate: rate };
+  }
+  // Resgate: guardado negativo, o valor E o original (a lista mostra o original quando há).
+  if (data.resgate) {
+    amount = -amount;
+    if (conversion.originalAmount) conversion = { ...conversion, originalAmount: -conversion.originalAmount };
   }
   return {
     year: data.year,

@@ -125,6 +125,8 @@ export type TextosShell = {
   uiTipoRenda: string;
   uiTipoGasto: string;
   uiTipoAporte: string;
+  /** Dinheiro voltando do que ela guardou (guardado negativo, ver lib/entries/resgate.ts). */
+  uiTipoResgate: string;
   /** Nome de uma categoria própria que já não existe mais. */
   uiCategoriaSemNome: string;
   uiExcluido(quantos: number): string;
@@ -297,6 +299,7 @@ export const PADRAO_SHELL: TextosShell = {
   // Era "Aporte": aparecia no formulário do +, na lista do mês e na revisão da importação de
   // todo tema que herda o Padrão. "Guardado" diz o que é pra quem nunca investiu.
   uiTipoAporte: "Guardado",
+  uiTipoResgate: "Resgatei",
   uiCategoriaSemNome: "Categoria",
   uiExcluido: (quantos) => (quantos === 1 ? "Lançamento excluído." : `${quantos} lançamentos excluídos.`),
   uiExcluidoContinuaNaCarteira: "O que já estava distribuído continua na carteira.",

@@ -126,7 +126,8 @@ export async function listGoalsWithProgress(ctx: AuthContext) {
   const comAporteNoMes = new Set<string>();
   for (const e of aportes) {
     if (!e.goalId) continue;
-    if (e.year === hoje.getFullYear() && e.month === hoje.getMonth() + 1) comAporteNoMes.add(e.goalId);
+    // Resgate (guardado negativo) não é aporte do mês: a meta continua oferecendo "Marcar aporte".
+    if (e.year === hoje.getFullYear() && e.month === hoje.getMonth() + 1 && Number(e.amount) > 0) comAporteNoMes.add(e.goalId);
     const lista = aportesPorMeta.get(e.goalId) ?? [];
     lista.push({
       amount: Number(e.amount),

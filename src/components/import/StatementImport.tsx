@@ -331,14 +331,15 @@ export function StatementImport({
   /** Muda o TIPO do lançamento (Gasto/Renda/Aporte) — pro Pix que a pessoa manda pra ela mesma
    * pra investir, por exemplo: o sinal do extrato só sabe "saiu da conta", não sabe que virou
    * aporte. Categoria/personalizada só fazem sentido em Gasto, então saem ao trocar pra outro tipo. */
-  function toggleType(itemKey: number, tipo: EntryType | "ESTORNO") {
+  function toggleType(itemKey: number, tipo: EntryType | "ESTORNO" | "RESGATE") {
     setItems((prev) =>
       prev.map((it) => {
         if (it.key !== itemKey) return it;
         // Estorno = gasto que voltou: fica como gasto (negativo) e precisa de categoria pra
         // descontar da compra; sem uma, vai pra Outros.
-        if (tipo === "ESTORNO") return { ...it, category: "EXPENSE", estorno: true, parentCategory: it.parentCategory ?? (it.customCategoryId ? null : "OUTROS") };
-        return { ...it, category: tipo, estorno: false, ...(tipo === "EXPENSE" ? {} : { parentCategory: null, customCategoryId: null }) };
+        if (tipo === "ESTORNO") return { ...it, category: "EXPENSE", estorno: true, resgate: false, parentCategory: it.parentCategory ?? (it.customCategoryId ? null : "OUTROS") };
+        if (tipo === "RESGATE") return { ...it, category: "INVESTMENT_CONTRIBUTION", resgate: true, estorno: false, parentCategory: null, customCategoryId: null };
+        return { ...it, category: tipo, estorno: false, resgate: false, ...(tipo === "EXPENSE" ? {} : { parentCategory: null, customCategoryId: null }) };
       }),
     );
   }
@@ -351,6 +352,11 @@ export function StatementImport({
     setItems((prev) =>
       prev.map((it) => {
         if (it.key !== itemKey) return it;
+        // Voltou do que ela guardou: entra como resgate (guardado negativo), não fica de fora.
+        // Ficando de fora, o dinheiro aparecia na conta e o investimento nunca diminuía.
+        if (resposta === "mudei" && it.duvida === "resgate") {
+          return { ...it, category: "INVESTMENT_CONTRIBUTION", resgate: true, parentCategory: null, customCategoryId: null, duvida: null, nota: "Resgate: desconta do que você guardou. Depois, na Carteira, diga de qual investimento saiu." };
+        }
         if (resposta === "gasto") return { ...it, category: "EXPENSE", duvida: null };
         if (resposta === "guardei") return { ...it, category: "INVESTMENT_CONTRIBUTION", parentCategory: null, customCategoryId: null, duvida: null };
         if (resposta === "renda") return { ...it, category: "INCOME", parentCategory: null, customCategoryId: null, duvida: null };
@@ -383,6 +389,7 @@ export function StatementImport({
         installment: it.installment,
         profileId: it.profileId,
         estorno: it.estorno ?? false,
+        resgate: it.resgate ?? false,
       }));
     const [targetYear, targetMonth] = docType === "fatura" ? faturaMonth.split("-").map(Number) : [undefined, undefined];
     startTransition(async () => {
@@ -761,7 +768,7 @@ export function StatementImport({
     // (dois Uber no mesmo dia) ou não; a pessoa decide com um toque, em vez de descobrir depois.
     const repeatGroups = new Map<string, ReviewItem[]>();
     for (const it of items) if (it.fileRepeat) repeatGroups.set(it.fileRepeat.key, [...(repeatGroups.get(it.fileRepeat.key) ?? []), it]);
-    const sumImportable = importable.reduce((s, it) => s + (it.category === "INCOME" || it.estorno ? it.amount : -it.amount), 0);
+    const sumImportable = importable.reduce((s, it) => s + (it.category === "INCOME" || it.estorno || it.resgate ? it.amount : -it.amount), 0);
     const expenseSum = importable.filter((it) => it.category === "EXPENSE").reduce((s, it) => s + (it.estorno ? -it.amount : it.amount), 0);
     // Parece com algo que a pessoa já lançou à mão: precisa de resposta antes de importar.
     const duvidas = items.filter((it) => it.possivelDuplicata && !it.ignorar);
@@ -777,7 +784,9 @@ export function StatementImport({
       it.category === "INCOME"
         ? t.impRotuloRenda
         : it.category === "INVESTMENT_CONTRIBUTION"
-          ? t.uiTipoAporte
+          ? it.resgate
+            ? t.uiTipoResgate
+            : t.uiTipoAporte
           : it.parentCategory
             ? categoryLabel(kind, it.parentCategory)
             : it.customCategoryId
@@ -1033,7 +1042,7 @@ export function StatementImport({
                         it.category === "INCOME" || it.estorno ? "text-success" : it.category === "INVESTMENT_CONTRIBUTION" ? "text-accent-strong" : "text-danger"
                       }`}
                     >
-                      {it.category === "INCOME" || it.estorno ? "+" : "−"} {money(it.amount)}
+                      {it.category === "INCOME" || it.estorno || it.resgate ? "+" : "−"} {money(it.amount)}
                     </span>
                     <button
                       type="button"
@@ -1061,11 +1070,11 @@ export function StatementImport({
                     <div className="flex flex-col gap-1.5">
                       <span className="text-caption font-medium text-ink-muted">{t.impRotuloTipo}</span>
                       <div className="flex flex-wrap gap-2">
-                        {(["EXPENSE", "INCOME", "INVESTMENT_CONTRIBUTION", "ESTORNO"] as const).map((tipo) => {
-                          const ativo = tipo === "ESTORNO" ? Boolean(it.estorno) : it.category === tipo && !it.estorno;
+                        {(["EXPENSE", "INCOME", "INVESTMENT_CONTRIBUTION", "RESGATE", "ESTORNO"] as const).map((tipo) => {
+                          const ativo = tipo === "ESTORNO" ? Boolean(it.estorno) : tipo === "RESGATE" ? Boolean(it.resgate) : it.category === tipo && !it.estorno && !it.resgate;
                           return (
                             <button key={tipo} type="button" onClick={() => toggleType(it.key, tipo)} aria-pressed={ativo} className={chipPequeno(ativo)}>
-                              {tipo === "EXPENSE" ? t.uiTipoGasto : tipo === "INCOME" ? t.uiTipoRenda : tipo === "INVESTMENT_CONTRIBUTION" ? t.uiTipoAporte : t.impTipoDevolucao}
+                              {tipo === "EXPENSE" ? t.uiTipoGasto : tipo === "INCOME" ? t.uiTipoRenda : tipo === "INVESTMENT_CONTRIBUTION" ? t.uiTipoAporte : tipo === "RESGATE" ? t.uiTipoResgate : t.impTipoDevolucao}
                             </button>
                           );
                         })}

@@ -355,9 +355,11 @@ export async function comecarAnoAction(modo: "sugestao" | "zerado", contasEscolh
  * - "guardado": vira aporte (aplicação, dinheiro que ela guardou);
  * - "tirar": sai do app (pagamento de fatura já detalhada, dinheiro só mudando de conta, resgate);
  * - "estorno": vira gasto negativo na categoria da compra;
+ * - "resgate": vira guardado negativo (dinheiro voltando do que ela guardou), e a carteira
+ *   pergunta de qual investimento saiu;
  * - "manter": fica como está, e não é perguntado de novo.
  */
-export async function resolverLancamentoAntigoAction(entryId: string, acao: "guardado" | "tirar" | "estorno" | "manter") {
+export async function resolverLancamentoAntigoAction(entryId: string, acao: "guardado" | "tirar" | "estorno" | "resgate" | "manter") {
   const id = z.string().min(1).max(60).parse(entryId);
   const ctx = await getRequiredSession();
   const entrada = await prisma.monthlyEntry.findFirst({
@@ -375,13 +377,18 @@ export async function resolverLancamentoAntigoAction(entryId: string, acao: "gua
     fatura: ["tirar", "manter"],
     conta_propria_saida: ["guardado", "tirar", "manter"],
     conta_propria_entrada: ["tirar", "manter"],
-    resgate: ["tirar", "manter"],
+    resgate: ["resgate", "tirar", "manter"],
     estorno: ["estorno", "manter"],
   };
   if (!tipo || !permitidas[tipo].includes(acao)) return;
   const onde = { id: entrada.id, userId: ctx.userId, profileId: ctx.profileId };
   if (acao === "guardado") {
     await prisma.monthlyEntry.updateMany({ where: onde, data: { category: "INVESTMENT_CONTRIBUTION", parentCategory: null, customCategoryId: null, subcategory: null } });
+  } else if (acao === "resgate") {
+    await prisma.monthlyEntry.updateMany({
+      where: onde,
+      data: { category: "INVESTMENT_CONTRIBUTION", amount: -Math.abs(Number(entrada.amount)), parentCategory: null, customCategoryId: null, subcategory: null },
+    });
   } else if (acao === "tirar") {
     await prisma.monthlyEntry.deleteMany({ where: onde });
   } else if (acao === "estorno") {

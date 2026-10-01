@@ -15,7 +15,7 @@ import { buildStrategyBullets, summarizeStrategy } from "@/lib/portfolio/strateg
 import { UpcomingDividendsSection } from "./UpcomingDividendsSection";
 import { ContributionCard } from "./ContributionCard";
 import { getContributionContext } from "@/lib/portfolio/contribution";
-import { assetIdsWithAllocationsIn, getContributionLinkState } from "@/lib/portfolio/contribution-link";
+import { assetIdsWithAllocationsIn, getContributionLinkState, getWithdrawalLinkState } from "@/lib/portfolio/contribution-link";
 import { AllocateContributionCard } from "./AllocateContributionCard";
 import { PARENT_CATEGORY_COLOR } from "@/lib/categories";
 import { getEmergencyFund } from "@/lib/repositories/emergency-fund.repo";
@@ -30,7 +30,7 @@ export default async function CarteiraPage() {
   // Relógio de Brasília, igual ao /mensal e às actions: às 22h do dia 30 o mês ainda é este.
   const now = nowInBrazil();
   const mesPassado = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const [assets, goals, comparison, dividends, contribution, aporteDoMes, fund, money, aporteDoMesPassado, comAporteRecente] = await Promise.all([
+  const [assets, goals, comparison, dividends, contribution, aporteDoMes, fund, money, aporteDoMesPassado, comAporteRecente, resgateDoMes, resgateDoMesPassado] = await Promise.all([
     listAssets(ctx),
     listGoals(ctx),
     getPortfolioStrategyComparison(ctx),
@@ -44,6 +44,8 @@ export default async function CarteiraPage() {
       { year: now.getFullYear(), month: now.getMonth() + 1 },
       { year: mesPassado.getFullYear(), month: mesPassado.getMonth() + 1 },
     ]),
+    getWithdrawalLinkState(ctx, now.getFullYear(), now.getMonth() + 1),
+    getWithdrawalLinkState(ctx, mesPassado.getFullYear(), mesPassado.getMonth() + 1),
   ]);
   const goalNameById = new Map(goals.map((goal) => [goal.id, goal.name]));
   // Ordem da pergunta: primeiro os ativos ligados a uma meta (o dinheiro costuma ir pra lá),
@@ -120,6 +122,14 @@ export default async function CarteiraPage() {
           goalOfMonth={aporteDoMes.contributions.find((c) => c.goalName)?.goalName ?? null}
           assets={ativosPraDistribuir}
         />
+      )}
+      {/* Resgate lançado no mês (à mão ou pelo extrato) que ainda não disse de onde saiu: sem
+          isso o dinheiro voltava pro mês e a carteira seguia mostrando como investido. */}
+      {resgateDoMesPassado.pending > 0 && (
+        <AllocateContributionCard resgate mesPassado month={mesPassado.getMonth() + 1} pending={resgateDoMesPassado.pending} goalOfMonth={resgateDoMesPassado.goalName} assets={ativosPraDistribuir} />
+      )}
+      {resgateDoMes.pending > 0 && (
+        <AllocateContributionCard resgate month={now.getMonth() + 1} pending={resgateDoMes.pending} goalOfMonth={resgateDoMes.goalName} assets={ativosPraDistribuir} />
       )}
 
       {/* Componente de servidor (sem "use client"): recebe os Date do Prisma direto, sem cruzar

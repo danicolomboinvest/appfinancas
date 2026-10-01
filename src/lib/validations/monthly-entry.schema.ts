@@ -43,6 +43,12 @@ export const monthlyEntrySchema = z
   repeatMonthly: z
     .union([z.literal("on"), z.literal("true"), z.literal(""), z.undefined()])
     .transform((v) => v === "on" || v === "true"),
+  /** "Resgatei": dinheiro voltando do que ela guardou. Grava como guardado NEGATIVO (ver
+   * lib/entries/resgate.ts); o valor do formulário continua positivo. */
+  resgate: z
+    .union([z.literal("on"), z.literal("true"), z.literal(""), z.null()])
+    .optional()
+    .transform((v) => v === "on" || v === "true"),
 })
   // O formulário manda year/month da página onde foi aberto (ex.: setembro) e a entryDate que a
   // pessoa escolheu no campo de data, sem os dois se atualizarem juntos: mudar a data pra outubro
@@ -52,6 +58,7 @@ export const monthlyEntrySchema = z
   .transform((d) => (d.entryDate ? { ...d, year: d.entryDate.getFullYear(), month: d.entryDate.getMonth() + 1 } : d))
   // Gasto sem categoria some do orçamento e do "para onde foi seu dinheiro": a pessoa lançava
   // R$ 250 no mercado e o app dizia que ela economizou R$ 250 em alimentação.
+  .refine((d) => !d.resgate || d.category === "INVESTMENT_CONTRIBUTION", { message: "Resgate é dinheiro voltando do que você guardou.", path: ["category"] })
   .refine((d) => d.category !== "EXPENSE" || Boolean(d.parentCategory) || Boolean(d.customCategoryId), {
     message: "Escolha uma categoria pro gasto.",
     path: ["parentCategory"],

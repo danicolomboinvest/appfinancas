@@ -130,7 +130,7 @@ export const SUBCATEGORIES: Record<ParentCategory, string[]> = {
 };
 
 /** Tipos de renda e de aporte, como chips, pelo mesmo motivo dos gastos: escolher é mais rápido que digitar. */
-export const INCOME_TYPES = ["Salário", "Freela", "Pró-labore", "Dividendos", "Aluguel recebido", "13º", "Restituição", "Presente"];
+export const INCOME_TYPES = ["Salário", "Renda extra", "Freela", "Pró-labore", "Dividendos", "Aluguel recebido", "13º", "Restituição", "Presente"];
 export const INVESTMENT_TYPES = ["Reserva de emergência", "Tesouro Direto", "CDB", "Ações", "FIIs", "Fundos", "Previdência", "Cripto"];
 
 export const OUTRO_SUBCATEGORY_LABEL = "Outro";

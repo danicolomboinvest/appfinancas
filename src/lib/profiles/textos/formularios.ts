@@ -46,6 +46,8 @@ export type TextosFormularios = {
   formLancCriar: string;
   formLancCriando: string;
   formLancTipo: string;
+  /** No resgate, os chips de tipo dizem de onde o dinheiro saiu (CDB, Tesouro, reserva). */
+  formLancDeOndeSaiu: string;
   formLancTipoOpcional: string;
   formLancTipoExemplo: string;
   formLancRecentes: string;
@@ -277,6 +279,7 @@ export const PADRAO_FORMULARIOS: TextosFormularios = {
   formLancCriar: "Criar",
   formLancCriando: "Criando…",
   formLancTipo: "Tipo",
+  formLancDeOndeSaiu: "De onde saiu",
   formLancTipoOpcional: "Tipo (opcional)",
   formLancTipoExemplo: "Ex.: ração, banho e tosa",
   formLancRecentes: "Usadas recentemente:",

@@ -24,6 +24,8 @@ import {
   isParentCategoryKey,
 } from "@/lib/categories";
 import { EntryForm } from "./EntryForm";
+import { RESGATE } from "@/components/forms/CategoryFields";
+import { ehResgate } from "@/lib/entries/resgate";
 import {
   deleteMonthlyEntriesAction,
   deleteSeriesFromAction,
@@ -61,10 +63,19 @@ const CATEGORY_AMOUNT_CLASS: Record<ListEntry["category"], string> = {
 };
 
 /** "Renda", "Gasto", "Aporte" — na voz do tema, porque o Girly não diz "aporte". */
-function categoryKindLabel(category: ListEntry["category"], voz: Voz): string {
+function categoryKindLabel(category: ListEntry["category"], voz: Voz, amount = 0): string {
   if (category === "INCOME") return voz.titulos.uiTipoRenda;
   if (category === "EXPENSE") return voz.titulos.uiTipoGasto;
-  return voz.titulos.uiTipoAporte;
+  // Guardado negativo é resgate (ver lib/entries/resgate.ts).
+  return ehResgate({ category, amount }) ? voz.titulos.uiTipoResgate : voz.titulos.uiTipoAporte;
+}
+
+/** O valor da linha. Estorno (gasto negativo) e resgate (guardado negativo) são dinheiro voltando:
+ * aparecem com "+" e o nome, em vez de um "-R$" que pareceria gasto. */
+function valorDaLinha(entry: Pick<ListEntry, "category" | "amount">, voz: Voz, money: (v: number) => string): string {
+  if (entry.amount < 0 && entry.category === "EXPENSE") return `Estorno +${money(Math.abs(entry.amount))}`;
+  if (ehResgate(entry)) return `${voz.titulos.uiTipoResgate} +${money(Math.abs(entry.amount))}`;
+  return money(entry.amount);
 }
 
 /** Meses movimentados podem ter dezenas de lançamentos: os mais recentes direto, o resto atrás de "Ver mais". */
@@ -99,7 +110,7 @@ function categoryVisual(
 function categoryName(entry: ListEntry, customCategories: { id: string; name: string }[], voz: Voz, kind: ProfileKind): string {
   if (entry.parentCategory && isParentCategoryKey(entry.parentCategory)) return categoryLabel(kind, entry.parentCategory);
   if (entry.customCategoryId) return customCategories.find((c) => c.id === entry.customCategoryId)?.name ?? voz.titulos.uiCategoriaSemNome;
-  return categoryKindLabel(entry.category, voz);
+  return categoryKindLabel(entry.category, voz, entry.amount);
 }
 
 function toSnapshot(entry: ListEntry, year: number, month: number): DeletedEntrySnapshot {
@@ -317,7 +328,7 @@ export function EntryList({
           <span className="flex shrink-0 flex-col items-end">
             {/* Estorno: gasto negativo, dinheiro de uma compra que voltou. */}
             <span className={`text-[15px] font-semibold tabular-nums ${entry.category === "EXPENSE" && entry.amount < 0 ? "text-success" : CATEGORY_AMOUNT_CLASS[entry.category]}`}>
-              {entry.category === "EXPENSE" && entry.amount < 0 ? `Estorno +${money(Math.abs(entry.amount))}` : money(entry.amount)}
+              {valorDaLinha(entry, voz, money)}
             </span>
             {entry.originalLabel && <span className="text-xs tabular-nums text-ink-faint">{entry.originalLabel}</span>}
           </span>
@@ -482,14 +493,14 @@ export function EntryList({
                   {open.subcategory ?? categoryName(open, customCategories, voz, kind)}
                 </p>
                 <p className="mt-0.5 text-sm text-ink-muted">
-                  {categoryKindLabel(open.category, voz)}
+                  {categoryKindLabel(open.category, voz, open.amount)}
                   {open.subcategory && ` · ${categoryName(open, customCategories, voz, kind)}`}
                   {open.dayLabel && ` · ${open.dayLabel}`}
                 </p>
               </div>
               <div className="shrink-0 text-right">
                 <p className={`text-xl font-semibold tabular-nums ${open.category === "EXPENSE" && open.amount < 0 ? "text-success" : CATEGORY_AMOUNT_CLASS[open.category]}`}>
-                  {open.category === "EXPENSE" && open.amount < 0 ? `Estorno +${money(Math.abs(open.amount))}` : money(open.amount)}
+                  {valorDaLinha(open, voz, money)}
                 </p>
                 {open.originalLabel && open.exchangeRate && (
                   <p className="text-xs tabular-nums text-ink-faint">
@@ -579,7 +590,7 @@ export function EntryList({
             defaultAmount={Math.abs(editing.originalCurrency ? (editing.originalAmount ?? editing.amount) : editing.amount)}
             defaultCurrency={editing.originalCurrency ?? undefined}
             defaultExchangeRate={editing.exchangeRate ?? undefined}
-            defaultCategory={editing.category}
+            defaultCategory={ehResgate(editing) ? RESGATE : editing.category}
             defaultParentCategory={(editing.parentCategory as ParentCategory) ?? undefined}
             defaultSubcategory={editing.subcategory ?? undefined}
             defaultCustomCategoryId={editing.customCategoryId ?? undefined}

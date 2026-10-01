@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getRequiredSession } from "@/lib/auth/session";
-import { applyContributionAllocations, type AllocationInput, type AllocationResult } from "@/lib/portfolio/contribution-link";
+import { applyContributionAllocations, applyWithdrawalAllocations, type AllocationInput, type AllocationResult } from "@/lib/portfolio/contribution-link";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 
 /**
@@ -19,6 +19,22 @@ export async function allocateContributionAction(allocations: AllocationInput[],
   const res = await applyContributionAllocations(ctx, hoje.getFullYear(), hoje.getMonth() + 1, allocations);
   if (res.ok) {
     // Os três módulos mostram o mesmo dinheiro: todos precisam ser recarregados juntos.
+    revalidatePath("/carteira");
+    revalidatePath("/carteira/por-objetivo");
+    revalidatePath("/planejamento/metas");
+    revalidatePath("/dashboard");
+    revalidatePath(`/mensal/${hoje.getFullYear()}/${hoje.getMonth() + 1}`);
+  }
+  return res;
+}
+
+/** "Esse resgate saiu desses investimentos": o espelho do allocateContributionAction, mesmo mês. */
+export async function allocateWithdrawalAction(allocations: AllocationInput[], doMesPassado = false): Promise<AllocationResult> {
+  const ctx = await getRequiredSession();
+  const agora = nowInBrazil();
+  const hoje = doMesPassado === true ? new Date(agora.getFullYear(), agora.getMonth() - 1, 1) : agora;
+  const res = await applyWithdrawalAllocations(ctx, hoje.getFullYear(), hoje.getMonth() + 1, allocations);
+  if (res.ok) {
     revalidatePath("/carteira");
     revalidatePath("/carteira/por-objetivo");
     revalidatePath("/planejamento/metas");

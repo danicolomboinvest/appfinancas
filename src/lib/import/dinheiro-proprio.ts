@@ -18,7 +18,43 @@ const semAcento = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-�
 const APLICACAO = /\b(aplicacao|aplic|caixinha|rdb|cdb|lci|lca|tesouro|poupanca|investimento|guardar dinheiro|cofrinho)\b/;
 /** As palavras que só dizem "guardei" (o verbo ou o lugar), sem ser nome de produto. */
 const APLICACAO_VERBO = /\b(aplicacao|aplic|caixinha|guardar dinheiro|cofrinho)\b/;
-const RESGATE = /\b(resgate|resg|retirada (da|de) caixinha|retirada do cofrinho|resgatad[oa])\b/;
+const RESGATE_PALAVRA = /\b(resgate|resg|retirada (da|de) caixinha|retirada do cofrinho|resgatad[oa])\b/;
+/**
+ * Onde o dinheiro guardado mora. "poupanc" e "poup": o extrato corta ("CRÉD.TRANSF.POUPANÇ",
+ * "JUROS POUP AUT").
+ */
+const PRODUTO = "(poupanc\\w*|poup|caixinhas?|cofrinhos?|cdb|rdb|rdc|tesouro|lci|lca|aplicac\\w*|aplic|investimentos?)";
+/**
+ * Resgate escrito de outro jeito (30/09/2026): cliente fez uma "retirada" da poupança, o Banco do
+ * Brasil escreveu "Transferido da poupança <nome>", e a linha entrou como renda. Cada banco
+ * escreve de um jeito, então vale o SENTIDO: o dinheiro vem DA poupança/caixinha/CDB/Tesouro.
+ * - "retirada/saque/resgate (da) poupança": sair do produto é sempre resgate;
+ * - "transferido/transferência/TED/Pix/crédito DA poupança";
+ * - "poupança p/ conta": do produto pra conta corrente;
+ * - "créd. transf. poupanç": o crédito que chega na conta.
+ * Nunca o contrário ("transferência PARA poupança", "DÉB.TRANSF.POUPANÇA" é aplicação) nem saque
+ * comum no caixa eletrônico ("SAQUE CASH", "saque dinheiro ATM" não falam de produto nenhum).
+ */
+const RESGATE_DE_PRODUTO = new RegExp(
+  [
+    `\\b(retirada|retir|saque|resgate)\\s+(d[aeo]s?\\s+)?(conta\\s+)?${PRODUTO}`,
+    `\\b(transferid[oa]|transferencia|transf|tr|ted|pix|cred|credito)\\s+(d[aeo]s?)\\s+(conta\\s+)?${PRODUTO}`,
+    `\\b${PRODUTO}\\s+(p|para|pra)\\s+(a\\s+)?(conta|cc|c c|corrente)\\b`,
+    `\\b(cred|credito)\\s+(transf\\w*|tr)\\s+${PRODUTO}`,
+  ].join("|"),
+);
+/** Pontuação vira espaço: "CRÉD.TRANSF.POUPANÇ" e "p/ conta" passam a ser palavras separadas. */
+const semPontuacao = (s: string) => s.replace(/[./\\*\-_:]+/g, " ").replace(/\s+/g, " ");
+const ehResgateEscrito = (d: string) => RESGATE_PALAVRA.test(d) || RESGATE_DE_PRODUTO.test(semPontuacao(d));
+/**
+ * Só numa ENTRADA: produto sem direção ("Transf poupança", "Débito poupança"). Chegando dinheiro na
+ * conta, só pode ter vindo de lá. Numa saída é o oposto (aplicação), por isso fica fora da regra
+ * que a aplicação usa.
+ */
+const ENTRADA_DE_PRODUTO = new RegExp(`\\b(transf\\w*|transferencia|tr|debito|deb)\\s+(\\w+\\s+)?${PRODUTO}`);
+const PARA_O_PRODUTO = new RegExp(`\\b(para|p|pra)\\s+(a\\s+|o\\s+)?${PRODUTO}`);
+/** Juros e rendimento da poupança ("JUROS POUP AUT", "REMUNER BASICA POUP"): é ganho, não resgate. */
+const RENDIMENTO = /\b(juros|remuner\w*|rendimentos?|rend)\b/;
 const CONTA_PROPRIA = /\b(mesma titularidade|entre contas|conta propria|transferencia propria|contas proprias)\b/;
 /** Siglas de produto que também são nome de loja ("LCA Modas", "CDB Calçados"). */
 const SIGLA_QUE_E_LOJA = /\b(rdb|cdb|lci|lca|tesouro)\b/g;
@@ -46,7 +82,7 @@ export function descricaoSemFalsaAplicacao(descricao: string | null | undefined)
 
 export function pareceAplicacao(descricao: string | null | undefined): boolean {
   const d = descricaoSemFalsaAplicacao(descricao);
-  if (RESGATE.test(d)) return false;
+  if (ehResgateEscrito(d)) return false;
   // "LCA", "LCI", "CDB" e "Tesouro" também são nome de loja: o Pix pra "LCA Modas" virava aporte
   // e saía do gasto do mês sem perguntar. Num Pix, essas siglas sozinhas não bastam; o resto
   // continua valendo ("Transferência para poupança", "TED Tesouro Direto" são aplicação).
@@ -54,8 +90,17 @@ export function pareceAplicacao(descricao: string | null | undefined): boolean {
   return APLICACAO.test(d);
 }
 
+/**
+ * Entrada que parece dinheiro voltando do que ela guardou. Só é chamada com ENTRADAS (a leitura do
+ * extrato e a revisão dos antigos perguntam só pra renda): por isso aceita "Transf poupança" sem
+ * direção, que numa saída seria aplicação.
+ */
 export function pareceResgate(descricao: string | null | undefined): boolean {
-  return RESGATE.test(semAcento(descricao ?? ""));
+  const d = semAcento(descricao ?? "");
+  const limpa = semPontuacao(d);
+  if (RENDIMENTO.test(limpa)) return false;
+  if (ehResgateEscrito(d)) return true;
+  return ENTRADA_DE_PRODUTO.test(limpa) && !PARA_O_PRODUTO.test(limpa);
 }
 
 /**
