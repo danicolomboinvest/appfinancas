@@ -31,6 +31,8 @@ const TOTAIS_DE_COMPRAS: RegExp[] = [
   new RegExp(String.raw`compras\/d[ée]bitos\.*\s*${VALOR}`, "i"), // Bradesco
   new RegExp(String.raw`total\s+da\s+fatura\s+em\s+real\s*${VALOR}`, "i"), // Bradesco
   new RegExp(String.raw`^despesas\/d[ée]bitos\s+no\s+brasil\s*\+\s*${VALOR}`, "im"), // Riachuelo (Midway)
+  // Itaú: "Lançamentos atuais 5.271,04" é só o mês; o total da fatura soma o que sobrou da anterior.
+  new RegExp(String.raw`^(?:total\s+dos\s+)?lan[çc]amentos\s+atuais\s*${VALOR}`, "im"),
 ];
 
 /** Saldo da fatura anterior que não foi pago e veio somado no total a pagar (C6). Não é compra
@@ -79,10 +81,14 @@ export function conferirLeitura(texto: string, docType: string, txns: ParsedTran
     if (total !== null && remanescente !== null) referencias.push(Math.round((total - remanescente) * 100) / 100);
     if (referencias.length === 0) return { status: "sem-referencia" };
     const lidos = [compras, compras - creditos];
-    for (const esperado of referencias) {
-      const lido = lidos.find((l) => bate(l, esperado));
-      if (lido !== undefined) return { status: "fechou", lido, esperado };
-    }
+    // De todas as combinações que batem, a mais próxima: com a folga de 0,5%, o total a pagar
+    // (que inclui saldo da anterior) "batia" antes do total exato das compras.
+    let melhor: { lido: number; esperado: number } | null = null;
+    for (const esperado of referencias)
+      for (const lido of lidos)
+        if (bate(lido, esperado) && (!melhor || Math.abs(lido - esperado) < Math.abs(melhor.lido - melhor.esperado)))
+          melhor = { lido, esperado };
+    if (melhor) return { status: "fechou", ...melhor };
     return { status: "nao-fechou", lido: compras, esperado: referencias[0] };
   }
 

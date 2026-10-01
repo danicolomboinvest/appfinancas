@@ -10,6 +10,7 @@ import { isBanestesStatement, parseBanestesStatement } from "./banestes-pdf";
 import { isBancoDoBrasilStatement, parseBancoDoBrasilStatement } from "./bb-pdf";
 import { isBradescoStatement, parseBradescoStatement } from "./bradesco-pdf";
 import { isBradescoInvoice, parseBradescoInvoice } from "./bradesco-fatura-pdf";
+import { fechaComoFatura, lerFaturaTestando } from "./leitor-inteligente";
 import { isCaixaAppStatement, parseCaixaAppStatement } from "./caixa-pdf";
 import { isCoraStatement, parseCoraStatement } from "./cora-pdf";
 import { isInterInvoice, isInterStatement, parseInterInvoice, parseInterStatement } from "./inter-pdf";
@@ -749,12 +750,23 @@ export function parseStatementComLeitor(
   refYear?: number,
 ): { txns: ParsedTransaction[]; leitor: string | null } {
   if (source === "pdf") {
+    let proprio: { txns: ParsedTransaction[]; leitor: string } | null = null;
     for (const leitor of LEITORES_PDF) {
       if (!leitor.reconhece(content)) continue;
       const txns = leitor.le(content, refYear);
-      if (txns.length > 0) return { txns, leitor: leitor.nome };
+      if (txns.length > 0) {
+        proprio = { txns, leitor: leitor.nome };
+        break;
+      }
     }
-    return { txns: parseTextLines(content, refYear), leitor: null };
+    // O leitor do banco vale, a menos que a soma dele NÃO bata com a fatura (layout novo do
+    // mesmo banco). O genérico vale quando fecha. Senão, o leitor que testa jeitos de ler
+    // (leitor-inteligente.ts) tenta — e só entra se fechar no centavo com o total impresso.
+    if (proprio && fechaComoFatura(content, proprio.txns) !== "nao-fechou") return proprio;
+    const generico = proprio ?? { txns: parseTextLines(content, refYear), leitor: null };
+    if (!proprio && fechaComoFatura(content, generico.txns) === "fechou") return generico;
+    const testando = lerFaturaTestando(content, refYear);
+    return testando ? { txns: testando, leitor: "inteligente" } : generico;
   }
   return { txns: isOfx(content) ? parseOfx(content) : parseCsv(content, refYear), leitor: null };
 }

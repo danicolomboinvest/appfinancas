@@ -12,12 +12,12 @@ const FATURA_SUMMARY_RE =
 /**
  * Outras redações do MESMO pagamento da fatura anterior, que cada banco escreve do seu jeito:
  * "Pagamento da fatura", "PAGAMENTO FATURA", "PAGTO FATURA", "Inclusao de Pagamento" (C6),
- * "PAGAMENTO ON LINE", "Pagto debito automatico", "Pagamentos Validos Normais", "PGTO. CASH AG."
+ * "PAGAMENTO ON LINE", "Pagto debito automatico", "PAGAMENTO DEB AUTOMATIC" (Itaú, cortado), "Pagamentos Validos Normais", "PGTO. CASH AG."
  * (Ourocard). Sem elas a linha passava como crédito, e na fatura todo crédito vira estorno: a fatura anterior inteira
  * (R$ 2.800) entrava como gasto NEGATIVO e o mês parecia ter gastado quase nada.
  */
 const FATURA_PAGAMENTO_RE =
-  /\b((pagamentos?|pagto|pgto)\.?\s+(d[aeo]\s+)?fatura|pagamentos?\s+on\s*-?\s*line|inclus[aã]o\s+de\s+pagamentos?|(pagamentos?|pagto|pgto)\.?\s+(por\s+)?d[eé]b(ito)?\.?\s+autom([aá]tico)?|pagamentos?\s+v[aá]lidos|pgto\.?\s+cash)(?![a-z])/i;
+  /\b((pagamentos?|pagto|pgto)\.?\s+(d[aeo]\s+)?fatura|pagamentos?\s+on\s*-?\s*line|inclus[aã]o\s+de\s+pagamentos?|(pagamentos?|pagto|pgto)\.?\s+(por\s+)?d[eé]b(ito)?\.?\s+autom([aá]tic[oa]?)?|pagamentos?\s+v[aá]lidos|pgto\.?\s+cash)(?![a-z])/i;
 /**
  * Linha do quadro "Limites" da fatura do Bradesco ("Compras  R$ 14.400,00  R$ 3.626,29
  * R$ 10.773,71"): a data do quadro vem na linha de cima, então o leitor achava que era uma compra
@@ -32,6 +32,8 @@ export function isFaturaSummaryLine(txn: ParsedTransaction): boolean {
   if (FATURA_SUMMARY_RE.test(txn.description) || FATURA_SUMMARY_RE.test(txn.date)) return true;
   if (FATURA_PAGAMENTO_RE.test(txn.description)) return true;
   if (QUADRO_LIMITE_RE.test(txn.description.trim())) return true;
+  // "PAGAMENTO" sozinho, sem dizer de quê (Riachuelo/Midway): numa fatura é o da anterior.
+  if (/^(\d{1,4}\s+)?pagamentos?$/i.test(txn.description.trim())) return true;
   // "2525/0004841-5 175/04314114-1": a linha digitável do boleto de pagamento da fatura, sem
   // nenhuma letra — nunca é o nome de um estabelecimento, então nunca é uma compra de verdade.
   if (/^[\d\s./-]+$/.test(txn.description)) return true;
