@@ -1,18 +1,19 @@
 import Link from "next/link";
 import { ondeMostrarFechamento } from "./fechamento/quando-mostrar";
-import { ChevronRight, Search, Check, ShoppingBag, ScanSearch, Signpost } from "lucide-react";
+import { ChevronRight, Check, ShoppingBag, ScanSearch, Signpost } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
 import { Card } from "@/components/ui/Card";
-import { ProgressBar } from "@/components/ui/ProgressBar";
 import { ReportarErro } from "@/components/decisoes/ReportarErro";
 import { confirmarCancelamentoRaioXAction, escolherRitmoAction, responderCompraAmanhaAction } from "./actions";
 import { carregarFoco, MESES } from "./dados";
 import { AvisoFoco, CombinadoFoco } from "./AvisoFoco";
 import { carregarBlocosDoMes } from "./blocos";
 import { ThemeHero } from "@/app/(app)/mensal/[year]/[month]/ThemeHero";
-import { MonthHighlight } from "@/app/(app)/mensal/[year]/[month]/MonthHighlight";
 import { OnboardingChecklist } from "@/app/(app)/mensal/[year]/[month]/OnboardingChecklist";
 import { perguntarRitmo } from "./comece";
+import { SemanaFoco } from "./SemanaFoco";
+import { ritmoDoMes } from "@/lib/decisoes/foco-semana";
+import { vozDoTema } from "@/lib/profiles/voice";
 
 /**
  * A aba Foco: a primeira coisa que a pessoa vê ao abrir o app. Só o que importa agora — quanto
@@ -28,12 +29,96 @@ export default async function FocoPage() {
   // Quem nunca escolheu o ritmo conta como mensal: sem isso a iniciante nunca via o fechamento.
   const ondeFechar = ondeMostrarFechamento({ ritmo, fechamentoFeito: d.fechamentoFeito, mesAnteriorTemDados: d.mesAnteriorTemDados, dia: d.dia });
   const livre = foco.livre;
+  const voz = vozDoTema(ctx.profileTheme, ctx.profileKind);
+  // A mesma régua da Visão mensal: o que já saiu do orçamento contra o quanto do mês já passou.
+  const ritmoAtual = livre.tipo === "semana" || livre.tipo === "mes" ? ritmoDoMes(livre.gastoTotal / livre.planejado, livre.decorrido) : "dentro";
   const comece = blocos.onboarding;
   const contaNova = !comece.temLancamento;
   const cartaoAcao = "flex w-full items-center justify-between gap-4 text-left";
 
   return (
     <div className="flex flex-col gap-4">
+      {/* O topo da Foco é a pergunta da semana (01/10/2026): antes ficava abaixo do fechamento e
+          da pergunta do ritmo, e o número que importa era o terceiro bloco. */}
+      {!contaNova && (
+        <>
+          <ThemeHero dados={blocos.dadosDoTema} money={blocos.money} mesLabel={mesTitulo} />
+
+          {livre.tipo === "semOrcamento" ? (
+            <Card className="p-5">
+              <p className="text-body font-semibold text-ink">{t.focoSemOrcamentoTitulo}</p>
+              <p className="mt-1 text-caption text-ink-muted">{t.focoSemOrcamentoSub}</p>
+              <Link href="/orcamento" className="mt-3 inline-flex rounded-xl bg-pill px-4 py-2 text-sm font-semibold text-on-pill">
+                {t.focoSemOrcamentoBotao}
+              </Link>
+            </Card>
+          ) : (
+            <SemanaFoco
+              rotulo={livre.tipo === "estimativa" ? t.focoLivreEstimativa : livre.tipo === "semana" ? t.focoLivreSemana : t.focoLivreMes}
+              valor={livre.valor}
+              tipo={livre.tipo}
+              hoje={d.now}
+              ritmo={ritmoAtual}
+              frase={voz.ritmo[ritmoAtual]}
+              planejado={livre.planejado}
+              gastoTotal={livre.tipo === "estimativa" ? 0 : livre.gastoTotal}
+              decorrido={livre.tipo === "estimativa" ? 0 : livre.decorrido}
+              diasRestantes={livre.diasRestantes}
+              money={m}
+            >
+              {(livre.diasSemLancar !== null || livre.semGastoComData) && (
+                <p className="rounded-xl bg-surface/70 px-3 py-2 text-caption text-ink">
+                  {livre.diasSemLancar !== null ? t.focoDadosVelhos(livre.diasSemLancar) : t.focoDadosNenhum}
+                </p>
+              )}
+              <details className="border-t border-ink/10 pt-3">
+                <summary className="cursor-pointer text-caption font-semibold text-ink-muted">{t.focoComoCheguei}</summary>
+                <dl className="mt-2 grid grid-cols-[1fr_auto] gap-x-4 gap-y-1.5 text-caption">
+                  <dt className="text-ink-muted">Orçamento do mês</dt>
+                  <dd className="text-right tabular-nums text-ink">{m(livre.planejado)}</dd>
+                  {livre.tipo === "estimativa" ? (
+                    <>
+                      <dt className="text-ink-muted">Dias que faltam</dt>
+                      <dd className="text-right tabular-nums text-ink">
+                        {livre.diasRestantes} de {d.diasNoMes}
+                      </dd>
+                      <dt className="font-semibold text-ink">Estimativa pelo planejado</dt>
+                      <dd className="text-right font-semibold tabular-nums text-ink">{m(livre.restante)}</dd>
+                    </>
+                  ) : (
+                    <>
+                      <dt className="text-ink-muted">Já gasto nas categorias do orçamento</dt>
+                      <dd className="text-right tabular-nums text-ink">− {m(livre.gastoNoOrcamento)}</dd>
+                      {livre.gastoTotal - livre.gastoNoOrcamento >= 1 && (
+                        <>
+                          <dt className="text-ink-muted">Gasto fora do orçamento</dt>
+                          <dd className="text-right tabular-nums text-ink">− {m(livre.gastoTotal - livre.gastoNoOrcamento)}</dd>
+                        </>
+                      )}
+                      <dt className="text-ink-muted">Sobra até o fim do mês</dt>
+                      <dd className="text-right tabular-nums text-ink">{m(livre.restante)}</dd>
+                      <dt className="text-ink-muted">Dias que faltam (com hoje)</dt>
+                      <dd className="text-right tabular-nums text-ink">{livre.diasRestantes}</dd>
+                      <dt className="font-semibold text-ink">Por semana</dt>
+                      <dd className="text-right font-semibold tabular-nums text-ink">{m(livre.porSemana)}</dd>
+                    </>
+                  )}
+                </dl>
+                <p className="mt-2 text-caption text-ink-faint">
+                  {livre.tipo === "estimativa"
+                    ? "Ainda não há gasto lançado neste mês: suponho que você está gastando no ritmo do que planejou."
+                    : "Orçamento do mês menos tudo que já saiu, com ou sem categoria: o que estoura numa categoria e o que é gasto fora do orçamento saem do mesmo dinheiro. Contas que ainda vão vencer continuam guardadas nas categorias delas."}
+                </p>
+                <div className="mt-3">
+                  <ReportarErro tela="Foco: livre pra gastar" regra="(orçamento do mês − tudo que já saiu no mês) ÷ dias restantes × 7" />
+                </div>
+              </details>
+            </SemanaFoco>
+          )}
+
+        </>
+      )}
+
       {d.pendentes.map((p) => (
         <Card key={p.id} className="flex gap-4 p-5">
           <span className="w-1 shrink-0 rounded-full bg-accent" aria-hidden />
@@ -145,114 +230,6 @@ export default async function FocoPage() {
         </Link>
       ) : (
         <>
-          {/* Semanal ou mensal? Só depois do primeiro lançamento: antes disso é uma decisão sem
-              nada pra acompanhar (enquanto isso vale o semanal, em silêncio, como em dados.ts). */}
-          {perguntarRitmo(ritmo !== null, comece.temLancamento) && (
-            <Card className="p-5">
-              <p className="text-body font-semibold text-ink">{t.focoRitmoPergunta}</p>
-              <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                {(["semanal", "mensal"] as const).map((r) => (
-                  <form key={r} action={escolherRitmoAction.bind(null, r)}>
-                    <button type="submit" className="w-full rounded-2xl border border-border bg-surface px-4 py-3 text-left transition-colors hover:bg-surface-hover">
-                      <span className="block text-sm font-semibold text-ink">{r === "semanal" ? t.focoRitmoSemanal : t.focoRitmoMensal}</span>
-                      <span className="mt-0.5 block text-caption text-ink-muted">{r === "semanal" ? t.focoRitmoSemanalSub : t.focoRitmoMensalSub}</span>
-                    </button>
-                  </form>
-                ))}
-              </div>
-            </Card>
-          )}
-
-          <ThemeHero dados={blocos.dadosDoTema} money={blocos.money} mesLabel={mesTitulo} />
-
-          {livre.tipo === "semOrcamento" ? (
-            <Card className="p-5">
-              <p className="text-body font-semibold text-ink">{t.focoSemOrcamentoTitulo}</p>
-              <p className="mt-1 text-caption text-ink-muted">{t.focoSemOrcamentoSub}</p>
-              <Link href="/orcamento" className="mt-3 inline-flex rounded-xl bg-pill px-4 py-2 text-sm font-semibold text-on-pill">
-                {t.focoSemOrcamentoBotao}
-              </Link>
-            </Card>
-          ) : (
-            <Card className="p-5">
-              <p className="text-caption font-semibold uppercase tracking-[0.11em] text-ink-muted">
-                {livre.tipo === "estimativa" ? t.focoLivreEstimativa : livre.tipo === "semana" ? t.focoLivreSemana : t.focoLivreMes}
-              </p>
-              <p className="mt-1 text-[2.5rem] font-bold leading-none tracking-tight text-ink tabular-nums">{m(livre.valor)}</p>
-              <p className="mt-1.5 text-caption text-ink-muted">
-                {livre.tipo === "estimativa" ? t.focoLivreEstimativaSub(m(livre.porSemana)) : t.focoLivreSub}
-              </p>
-              {livre.tipo !== "estimativa" && (
-                <div className="mt-4 flex flex-col gap-3">
-                  <div>
-                    <div className="mb-1 flex justify-between text-caption text-ink-muted">
-                      <span>{t.focoMesPassou}</span>
-                      <span className="tabular-nums">{Math.round(livre.decorrido * 100)}%</span>
-                    </div>
-                    <ProgressBar percent={livre.decorrido} tone="neutral" />
-                  </div>
-                  <div>
-                    <div className="mb-1 flex justify-between text-caption text-ink-muted">
-                      <span>{t.focoOrcamentoUsado}</span>
-                      {/* Tudo que saiu ÷ orçamento: a mesma conta da Visão mensal. */}
-                      <span className="tabular-nums">{Math.round((livre.gastoTotal / livre.planejado) * 100)}%</span>
-                    </div>
-                    <ProgressBar percent={livre.gastoTotal / livre.planejado} tone={livre.gastoTotal / livre.planejado > livre.decorrido + 0.1 ? "accent" : "success"} />
-                  </div>
-                </div>
-              )}
-              {(livre.diasSemLancar !== null || livre.semGastoComData) && (
-                <p className="mt-3 rounded-xl bg-accent-soft px-3 py-2 text-caption text-ink">
-                  {livre.diasSemLancar !== null ? t.focoDadosVelhos(livre.diasSemLancar) : t.focoDadosNenhum}
-                </p>
-              )}
-              <details className="mt-4 border-t border-border pt-3">
-                <summary className="cursor-pointer text-caption font-semibold text-accent-strong">{t.focoComoCheguei}</summary>
-                <dl className="mt-2 grid grid-cols-[1fr_auto] gap-x-4 gap-y-1.5 text-caption">
-                  <dt className="text-ink-muted">Orçamento do mês</dt>
-                  <dd className="text-right tabular-nums text-ink">{m(livre.planejado)}</dd>
-                  {livre.tipo === "estimativa" ? (
-                    <>
-                      <dt className="text-ink-muted">Dias que faltam</dt>
-                      <dd className="text-right tabular-nums text-ink">
-                        {livre.diasRestantes} de {d.diasNoMes}
-                      </dd>
-                      <dt className="font-semibold text-ink">Estimativa pelo planejado</dt>
-                      <dd className="text-right font-semibold tabular-nums text-ink">{m(livre.restante)}</dd>
-                    </>
-                  ) : (
-                    <>
-                      <dt className="text-ink-muted">Já gasto nas categorias do orçamento</dt>
-                      <dd className="text-right tabular-nums text-ink">− {m(livre.gastoNoOrcamento)}</dd>
-                      {livre.gastoTotal - livre.gastoNoOrcamento >= 1 && (
-                        <>
-                          <dt className="text-ink-muted">Gasto fora do orçamento</dt>
-                          <dd className="text-right tabular-nums text-ink">− {m(livre.gastoTotal - livre.gastoNoOrcamento)}</dd>
-                        </>
-                      )}
-                      <dt className="text-ink-muted">Sobra até o fim do mês</dt>
-                      <dd className="text-right tabular-nums text-ink">{m(livre.restante)}</dd>
-                      <dt className="text-ink-muted">Dias que faltam (com hoje)</dt>
-                      <dd className="text-right tabular-nums text-ink">{livre.diasRestantes}</dd>
-                      <dt className="font-semibold text-ink">Por semana</dt>
-                      <dd className="text-right font-semibold tabular-nums text-ink">{m(livre.porSemana)}</dd>
-                    </>
-                  )}
-                </dl>
-                <p className="mt-2 text-caption text-ink-faint">
-                  {livre.tipo === "estimativa"
-                    ? "Ainda não há gasto lançado neste mês: suponho que você está gastando no ritmo do que planejou."
-                    : "Orçamento do mês menos tudo que já saiu, com ou sem categoria: o que estoura numa categoria e o que é gasto fora do orçamento saem do mesmo dinheiro. Contas que ainda vão vencer continuam guardadas nas categorias delas."}
-                </p>
-                <div className="mt-3">
-                  <ReportarErro tela="Foco: livre pra gastar" regra="(orçamento do mês − tudo que já saiu no mês) ÷ dias restantes × 7" />
-                </div>
-              </details>
-            </Card>
-          )}
-
-          {/* "Nada pedindo atenção" só quando dá pra saber: sem orçamento não há o que conferir, e a
-              frase soava como "tudo certo" pra quem ainda não montou nada. */}
           {(foco.atencao.length > 0 || livre.tipo !== "semOrcamento") && (
             <h2 className="mt-2 text-caption font-semibold uppercase tracking-[0.11em] text-ink-muted">{t.focoAtencao}</h2>
           )}
@@ -281,41 +258,44 @@ export default async function FocoPage() {
             </details>
           )}
 
-          {/* Central de decisões: as perguntas que o app responde com os números dela. Antes ficava
-              só no "Mais", e o Foco parecia não levar a lugar nenhum. A empresa não tem Decidir. */}
-          {!d.empresa && (
-            <Card className="flex flex-col gap-3 p-5">
-              <div>
-                <p className="text-caption font-semibold uppercase tracking-[0.11em] text-ink-muted">Central de decisões</p>
-                <p className="mt-1 text-sm font-semibold text-ink">Antes de decidir, pergunte pros seus números</p>
-              </div>
-              <div className="grid grid-cols-1 gap-2">
-                <Link href="/decidir/comprar" className="flex items-center gap-3 rounded-2xl border border-border px-4 py-3 transition-colors hover:bg-surface-hover">
-                  <ShoppingBag size={18} className="shrink-0 text-accent-strong" />
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-semibold text-ink">{t.compraTitulo}</span>
-                    <span className="block text-caption text-ink-muted">Cabe no mês? Parcelar ou à vista? Atrasa alguma meta?</span>
-                  </span>
-                  <ChevronRight size={16} className="shrink-0 text-ink-faint" />
-                </Link>
-                <Link href="/decidir/raio-x" className="flex items-center gap-3 rounded-2xl border border-border px-4 py-3 transition-colors hover:bg-surface-hover">
-                  <ScanSearch size={18} className="shrink-0 text-accent-strong" />
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-semibold text-ink">{t.raioxTitulo}</span>
-                    <span className="block text-caption text-ink-muted">O que se repete todo mês e quanto isso dá no ano.</span>
-                  </span>
-                  <ChevronRight size={16} className="shrink-0 text-ink-faint" />
-                </Link>
-                <Link href="/decidir" className="flex items-center gap-3 rounded-2xl border border-border px-4 py-3 transition-colors hover:bg-surface-hover">
-                  <Signpost size={18} className="shrink-0 text-accent-strong" />
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-semibold text-ink">Todas as perguntas</span>
-                    <span className="block text-caption text-ink-muted">Financiar ou alugar, amortizar ou investir, e mais.</span>
-                  </span>
-                  <ChevronRight size={16} className="shrink-0 text-ink-faint" />
-                </Link>
+          {/* Semanal ou mensal? Só depois do primeiro lançamento: antes disso é uma decisão sem
+              nada pra acompanhar (enquanto isso vale o semanal, em silêncio, como em dados.ts). */}
+          {perguntarRitmo(ritmo !== null, comece.temLancamento) && (
+            <Card className="p-5">
+              <p className="text-body font-semibold text-ink">{t.focoRitmoPergunta}</p>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                {(["semanal", "mensal"] as const).map((r) => (
+                  <form key={r} action={escolherRitmoAction.bind(null, r)}>
+                    <button type="submit" className="w-full rounded-2xl border border-border bg-surface px-4 py-3 text-left transition-colors hover:bg-surface-hover">
+                      <span className="block text-sm font-semibold text-ink">{r === "semanal" ? t.focoRitmoSemanal : t.focoRitmoMensal}</span>
+                      <span className="mt-0.5 block text-caption text-ink-muted">{r === "semanal" ? t.focoRitmoSemanalSub : t.focoRitmoMensalSub}</span>
+                    </button>
+                  </form>
+                ))}
               </div>
             </Card>
+          )}
+
+          {/* "Nada pedindo atenção" só quando dá pra saber: sem orçamento não há o que conferir, e a
+              frase soava como "tudo certo" pra quem ainda não montou nada. */}
+          {/* Central de decisões em pílulas (01/10/2026): antes era um cartão de três linhas com
+              explicação cada; as perguntas já dizem o que fazem. A empresa não tem Decidir. */}
+          {!d.empresa && (
+            <section className="flex flex-col gap-2">
+              <p className="px-1 text-caption font-medium text-ink-muted">Antes de decidir, pergunte</p>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { href: "/decidir/comprar", icone: ShoppingBag, rotulo: t.compraTitulo },
+                  { href: "/decidir/raio-x", icone: ScanSearch, rotulo: t.raioxTitulo },
+                  { href: "/decidir", icone: Signpost, rotulo: "Todas as perguntas" },
+                ].map(({ href, icone: Icone, rotulo }) => (
+                  <Link key={href} href={href} className="inline-flex min-h-11 items-center gap-2 rounded-full border border-border bg-surface px-4 text-sm font-semibold text-ink transition-colors hover:bg-surface-hover">
+                    <Icone size={16} className="text-accent-strong" aria-hidden />
+                    {rotulo}
+                  </Link>
+                ))}
+              </div>
+            </section>
           )}
 
           {ondeFechar === "discreto" && (
@@ -328,64 +308,23 @@ export default async function FocoPage() {
             </Link>
           )}
 
-          {foco.fio && (
-            <Card className="p-5">
-              <p className="text-caption font-semibold uppercase tracking-[0.11em] text-ink-muted">{t.focoFioTitulo}</p>
-              <ol className="relative mt-3 flex flex-col gap-3 border-l-2 border-accent-soft pl-4">
-                <li>
-                  <p className="text-caption text-ink-faint">Meta</p>
-                  <p className="text-sm font-semibold text-ink">
-                    {foco.fio.meta} · {foco.fio.quando}
-                  </p>
-                </li>
-                {foco.fio.guardarNoMes !== null && (
-                  <li>
-                    <p className="text-caption text-ink-faint">Este mês</p>
-                    <p className="text-sm font-semibold text-ink">
-                      {t.fechAporteT(m(foco.fio.guardarNoMes))} ({m(foco.fio.guardadoNoMes)} feitos)
-                    </p>
-                  </li>
-                )}
-                {livre.tipo !== "semOrcamento" && (
-                  <li>
-                    <p className="text-caption text-ink-faint">{livre.tipo === "semana" ? "Esta semana" : "Até o fim do mês"}</p>
-                    <p className="text-sm font-semibold text-accent-strong">{m(livre.valor)} livres, sem mexer em nada acima</p>
-                  </li>
-                )}
-              </ol>
-            </Card>
-          )}
-
+          {/* O que vai bem cabe numa linha: aberta, a lista de sempre. */}
           {foco.bem.length > 0 && (
-            <>
-              <h2 className="mt-2 text-caption font-semibold uppercase tracking-[0.11em] text-ink-muted">{t.focoBem}</h2>
-              <Card className="flex flex-col divide-y divide-border px-5 py-2">
+            <details className="rounded-2xl border border-border bg-surface px-4">
+              <summary className="flex min-h-11 cursor-pointer items-center gap-2 text-sm font-medium text-ink">
+                <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-success/15 text-success">
+                  <Check size={14} strokeWidth={2.5} />
+                </span>
+                {foco.bem.length === 1 ? "1 coisa indo bem" : `${foco.bem.length} coisas indo bem`}
+              </summary>
+              <ul className="flex flex-col divide-y divide-border pb-2">
                 {foco.bem.map((b, i) => (
-                  <p key={i} className="flex items-center gap-3 py-3 text-sm font-medium text-ink">
-                    <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-success/15 text-success">
-                      <Check size={14} strokeWidth={2.5} />
-                    </span>
+                  <li key={i} className="py-2.5 text-sm text-ink-muted">
                     {b.titulo}
-                  </p>
+                  </li>
                 ))}
-              </Card>
-            </>
-          )}
-
-          <MonthHighlight
-            income={blocos.summary.totalIncome}
-            expense={blocos.summary.totalExpense}
-            investment={blocos.summary.totalInvestment}
-            insights={blocos.insights}
-            titulo={t.oQueMudou}
-          />
-
-          {!d.empresa && (
-            <Link href="/decidir" className="flex items-center gap-3 rounded-2xl border border-border bg-surface px-5 py-4 transition-colors hover:bg-surface-hover">
-              <Search size={18} className="text-accent-strong" />
-              <span className="text-sm font-semibold text-ink">{t.focoDuvida}</span>
-              <ChevronRight size={16} className="ml-auto text-ink-faint" />
-            </Link>
+              </ul>
+            </details>
           )}
 
           <Link href={d.hrefMes} className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-surface px-5 py-4 transition-colors hover:bg-surface-hover">
