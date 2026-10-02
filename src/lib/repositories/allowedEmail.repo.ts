@@ -294,6 +294,11 @@ export const FATURA_PENDENTE = "pendente";
  * isso, a fatura que chega é renovação de verdade e estende normalmente. */
 const JANELA_DA_FATURA_PENDENTE_DIAS = 30;
 
+/** Uma fatura nova só é renovação se o acesso vence em até tantos dias (ou já venceu). O Hubla
+ * manda uma fatura por item do pedido (curso + app, order bump), todas no mesmo minuto: antes,
+ * cada uma somava um ano, e 129 compras de set/2026 saíram com 2 a 5 anos (02/10/2026). */
+export const JANELA_DE_RENOVACAO_DIAS = 60;
+
 /**
  * O que um evento de liberação do Hubla faz com o prazo. Sem banco, pra dar pra testar cada
  * ordem de chegada dos eventos.
@@ -323,7 +328,12 @@ export function decidirPrazoHubla(
       const limite = addAccessPeriod(new Date(now.getTime() - JANELA_DA_FATURA_PENDENTE_DIAS * 24 * 60 * 60 * 1000));
       if (existing.expiresAt >= limite) return semMudanca;
     }
-    return { extended: true, expiresAt: renewedExpiry(existing.expiresAt, now), lastHublaInvoiceId: fatura };
+    // Acesso valendo e longe de vencer: é outra fatura da MESMA compra, não renovação.
+    const inicioDaRenovacao = new Date(now.getTime() + JANELA_DE_RENOVACAO_DIAS * 24 * 60 * 60 * 1000);
+    if (existing.active && existing.expiresAt && existing.expiresAt > inicioDaRenovacao) return semMudanca;
+    // Reembolsada que compra de novo: o ano conta da compra nova, não do prazo que ela devolveu.
+    const base = existing.active ? existing.expiresAt : null;
+    return { extended: true, expiresAt: renewedExpiry(base, now), lastHublaInvoiceId: fatura };
   }
   // Sem id de fatura no payload, o único movimento seguro é dar prazo a quem não tem nenhum —
   // estender às cegas abriria a porta pro acesso infinito por reenvio.

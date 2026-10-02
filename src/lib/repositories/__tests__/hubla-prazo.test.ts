@@ -71,4 +71,29 @@ describe("decidirPrazoHubla: a primeira compra dá UM ano, em qualquer ordem dos
     expect(d.extended).toBe(true);
     expect(iso(d.expiresAt)).toBe(iso(umAno));
   });
+
+  it("pedido com várias faturas no mesmo minuto (curso + app, order bump): continua 1 ano", () => {
+    const curso = aplicar(null, "inv_curso");
+    const app = aplicar(curso.linha, "inv_app");
+    const bump = aplicar(app.linha, "inv_bump");
+    expect(app.decisao.extended).toBe(false);
+    expect(bump.decisao.extended).toBe(false);
+    expect(iso(bump.linha.expiresAt)).toBe(iso(umAno));
+    expect(bump.linha.lastHublaInvoiceId).toBe("inv_bump");
+  });
+
+  it("fatura nova meses antes de vencer também não soma (não é renovação)", () => {
+    const pagamento = aplicar(null, "inv_1");
+    const outra = aplicar(pagamento.linha, "inv_2", new Date("2027-05-01T12:00:00Z"));
+    expect(outra.decisao.extended).toBe(false);
+    expect(iso(outra.linha.expiresAt)).toBe(iso(umAno));
+  });
+
+  it("quem foi reembolsado e compra de novo ganha um ano a partir de agora", () => {
+    const reembolsada = { active: false, expiresAt: umAno, lastHublaInvoiceId: "inv_1" };
+    const depois = new Date("2027-01-10T12:00:00Z");
+    const d = decidirPrazoHubla(reembolsada, "inv_2", depois);
+    expect(d.extended).toBe(true);
+    expect(iso(d.expiresAt)).toBe(iso(addAccessPeriod(depois)));
+  });
 });
