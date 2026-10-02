@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Smartphone, X } from "lucide-react";
 import { useInstallPlatform, useIsStandalone } from "@/lib/pwa/install";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
+import { conviteAndroidAtivo } from "./ConviteTesteAndroid";
 
 const DISMISS_KEY = "install-banner-dismissed";
 /** O tour de boas-vindas avisa quando termina — o convite só entra DEPOIS, pra não competirem. */
@@ -27,12 +28,14 @@ export function InstallAppBanner({ onOpenTutorial }: { onOpenTutorial: () => voi
     function refresh() {
       const dismissed = window.localStorage.getItem(DISMISS_KEY) === "1";
       const tourSeen = window.localStorage.getItem(TOUR_SEEN_KEY) === "1";
-      setAllowed(!dismissed && tourSeen);
+      // No Android, o convite do teste do app da Play Store tem a vez: um cartão por vez no topo.
+      const esperaConviteAndroid = platform === "android" && conviteAndroidAtivo();
+      setAllowed(!dismissed && tourSeen && !esperaConviteAndroid);
     }
     refresh();
     window.addEventListener(TOUR_DONE_EVENT, refresh);
     return () => window.removeEventListener(TOUR_DONE_EVENT, refresh);
-  }, []);
+  }, [platform]);
 
   const isMobile = platform === "android" || platform === "ios-safari" || platform === "ios-outro";
   if (!allowed || isStandalone || !isMobile) return null;

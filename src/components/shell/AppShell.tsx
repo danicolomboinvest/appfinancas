@@ -17,6 +17,7 @@ import { modoPedidoNoEvento, EVENTO_IMPORTAR, EVENTO_REGISTRAR, type ModoDoRegis
 import { ProfileSwitcher, type PerfilResumo } from "@/components/profiles/ProfileSwitcher";
 import { WelcomeTour } from "./WelcomeTour";
 import { InstallAppBanner } from "./InstallAppBanner";
+import { ConviteTesteAndroid } from "./ConviteTesteAndroid";
 import { InstallAppSheet } from "./InstallAppSheet";
 import { UsageTracker } from "./UsageTracker";
 import { secoesDoMais, sectionMatches } from "./nav-sections";
@@ -194,6 +195,7 @@ export function AppShell({
                 )}
               </div>
               {showGreeting && <GreetingStrip greeting={greeting} dateLabel={dateLabel} />}
+              <ConviteTesteAndroid userEmail={userEmail} />
               <InstallAppBanner onOpenTutorial={() => setInstallOpen(true)} />
               {isFlow && <FlowTabsDoTema />}
               {children}
