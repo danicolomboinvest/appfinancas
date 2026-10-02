@@ -103,6 +103,9 @@ export function useInstallPlatform(): InstallPlatform {
 /** Já está instalado (aberto pela tela de início / janela do app)? Aí não convidamos ninguém. */
 function isStandalone(): boolean {
   return (
+    // Dentro do app da loja (iOS ou Android, Capacitor) já está "instalado": o convite de pôr o
+    // site na tela de início não faz sentido lá e confunde o revisor da loja.
+    /SPIFinanceApp-(iOS|Android)/.test(window.navigator.userAgent) ||
     window.matchMedia("(display-mode: standalone)").matches ||
     // Safari no iOS não implementa display-mode: standalone; usa esta propriedade própria.
     (window.navigator as Navigator & { standalone?: boolean }).standalone === true

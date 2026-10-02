@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { JWSTransactionDecodedPayload } from "@apple/app-store-server-library";
 import { PRODUTOS_APPLE, tokenDaConta } from "../config";
-import { ehAppDaApple } from "../app-da-apple";
+import { ehAppAndroid, ehAppDaApple } from "../app-da-apple";
 import { anteriorAoReembolso, decidirLiberacaoApple, revogacaoAppleCorta, transacaoValendo } from "@/lib/repositories/assinaturaApple.repo";
 
 const agora = new Date("2026-10-02T12:00:00Z");
@@ -30,6 +30,11 @@ describe("ehAppDaApple", () => {
     expect(ehAppDaApple("Mozilla/5.0 (iPhone) AppleWebKit/605 SPIFinanceApp-iOS")).toBe(true);
     expect(ehAppDaApple("Mozilla/5.0 (iPhone) Version/18 Mobile Safari/604.1")).toBe(false);
     expect(ehAppDaApple(null)).toBe(false);
+  });
+  it("o app Android tem marca própria e não vira app da Apple", () => {
+    const android = "Mozilla/5.0 (Linux; Android 15) Chrome/140 Mobile SPIFinanceApp-Android";
+    expect(ehAppAndroid(android)).toBe(true);
+    expect(ehAppDaApple(android)).toBe(false);
   });
 });
 

@@ -6,6 +6,7 @@ import { Modal } from "@/components/ui/Modal";
 import { secoesDoMais, ADMIN_NAV_SECTION, withNavFlags, secoesVisiveis } from "./nav-sections";
 import { ThemeToggle } from "./ThemeToggle";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
+import { useIsStandalone } from "@/lib/pwa/install";
 
 /** Bottom sheet com as seções que não têm tab própria na barra inferior (mobile). */
 export function MoreSheet({
@@ -42,6 +43,8 @@ export function MoreSheet({
   barraComCarteira?: boolean;
 }) {
   const { voz, empresa, casal } = useProfileTheme();
+  // Já instalado (atalho na tela de início ou app da loja): não há o que instalar.
+  const instalado = useIsStandalone();
   // Sem a área paga, a Carteira sai da barra de baixo e aparece aqui (com o cadeado); a Visão
   // Geral, que tomou o lugar dela na barra, sai daqui. Mesma regra da MobileTabBar.
   const doMais = secoesDoMais(barraComCarteira);
@@ -96,6 +99,7 @@ export function MoreSheet({
 
       <div className="mt-3 border-t border-border pt-3">
         {/* Fica aqui pra quem fechou o convite do topo (ou trocou de aparelho) achar depois. */}
+        {!instalado && (
         <button
           type="button"
           onClick={() => {
@@ -107,6 +111,7 @@ export function MoreSheet({
           <Smartphone size={18} strokeWidth={1.75} className="text-ink-muted" />
           {voz.titulos.navInstalar}
         </button>
+        )}
         {process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP && (
           <a
             href={`https://wa.me/${process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP.replace(/\D/g, "")}?text=${encodeURIComponent("Oi! Preciso de ajuda com o SPI Finance.")}`}

@@ -7,7 +7,7 @@ import { vozDoTema } from "@/lib/profiles/voice";
 import { EMAIL_DO_SUPORTE, mensagemDeAcessoTrancado } from "@/lib/support/contato";
 import { linkDoSuporte } from "@/lib/support/whatsapp-link";
 import Link from "next/link";
-import { naAppDaApple } from "@/lib/apple/app-da-apple";
+import { naAppDaApple, noAppAndroid } from "@/lib/apple/app-da-apple";
 
 /**
  * Tela de "isso é do curso" — mostrada no lugar do conteúdo real pra quem não tem acesso
@@ -95,7 +95,11 @@ export async function PaywallCard({ feature }: { feature: string }) {
         )}
       </div>
 
-      {/* Link estilizado igual Button primary — Button não é polimórfico (só renderiza <button>). */}
+      {/* No app Android o Google não deixa link de compra fora: fica só o texto. */}
+      {(await noAppAndroid()) ? (
+        <p className="text-sm text-ink-muted">Assine pelo site do SPI Finance e entre com o mesmo e-mail.</p>
+      ) : (
+      /* Link estilizado igual Button primary — Button não é polimórfico (só renderiza <button>). */
       <a
         href={COURSE_CHECKOUT_URL}
         target="_blank"
@@ -104,6 +108,7 @@ export async function PaywallCard({ feature }: { feature: string }) {
       >
         {t.uiPaywallBotao}
       </a>
+      )}
     </Card>
   );
 }
