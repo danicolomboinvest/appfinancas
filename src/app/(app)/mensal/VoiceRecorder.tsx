@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useInstallPlatform, useIsStandalone } from "@/lib/pwa/install";
 import { Mic } from "lucide-react";
 import { parseVoiceEntry, type ParsedVoiceEntry } from "@/lib/entries/voice-expense-parser";
+import { ondaPodeAbrirMicrofone } from "@/lib/entries/onda-do-microfone";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import type { Titulos } from "@/lib/profiles/voice";
 
@@ -79,7 +80,9 @@ function errorMessageFor(code: string, t: Titulos): string {
     case "audio-capture":
       return t.impVozErroSemMicrofone;
     default:
-      return t.impVozErroGenerico;
+      // O código vai junto: sem ele, "não foi possível gravar" não diz o que aconteceu, e quem
+      // manda o print pro suporte já manda a causa.
+      return code ? `${t.impVozErroGenerico} (${code})` : t.impVozErroGenerico;
   }
 }
 
@@ -156,6 +159,7 @@ export function VoiceRecorder({ onParsed }: { onParsed: (parsed: ParsedVoiceEntr
 
   async function startVisualizer() {
     try {
+      if (!ondaPodeAbrirMicrofone(navigator.userAgent)) return;
       const AudioContextCtor = getAudioContextConstructor();
       if (!AudioContextCtor) return;
       // A onda é decorativa; o getUserMedia dela dispara um SEGUNDO pedido de permissão de
@@ -185,8 +189,8 @@ export function VoiceRecorder({ onParsed }: { onParsed: (parsed: ParsedVoiceEntr
     }
   }
 
-  function startRecording() {
-    if (isHeldRef.current) return;
+  function startRecording(tentativa = 1) {
+    if (isHeldRef.current && tentativa === 1) return;
     const SpeechRecognitionCtor = getSpeechRecognitionConstructor();
     if (!SpeechRecognitionCtor) {
       setUnsupported(true);
@@ -205,6 +209,18 @@ export function VoiceRecorder({ onParsed }: { onParsed: (parsed: ParsedVoiceEntr
       latestResultsRef.current = event.results;
     };
     recognition.onerror = (event) => {
+      // "aborted" com o dedo ainda no botão é o reconhecimento cortado por outro uso do
+      // microfone, não uma falha da pessoa: tenta de novo uma vez, sem a onda. Com o dedo já
+      // solto, foi o próprio app que parou, e o "onend" cuida do que foi dito.
+      if (event.error === "aborted") {
+        if (isHeldRef.current && tentativa === 1) {
+          recognition.onend = null;
+          stopVisualizer();
+          startRecording(2);
+          return;
+        }
+        if (!isHeldRef.current) return;
+      }
       isHeldRef.current = false;
       setRecording(false);
       setErrorMessage(errorMessageFor(event.error, voz.titulos));
@@ -224,8 +240,17 @@ export function VoiceRecorder({ onParsed }: { onParsed: (parsed: ParsedVoiceEntr
       }
     };
     recognitionRef.current = recognition;
-    recognition.start();
-    startVisualizer();
+    try {
+      recognition.start();
+    } catch {
+      // start() lança se o navegador ainda não soltou o reconhecimento anterior (toque duplo
+      // rápido). Antes isso subia como erro da tela; agora vira o aviso de sempre.
+      isHeldRef.current = false;
+      setRecording(false);
+      setErrorMessage(voz.titulos.impVozErroGenerico);
+      return;
+    }
+    if (tentativa === 1) startVisualizer();
   }
 
   function stopRecording() {
@@ -265,7 +290,7 @@ export function VoiceRecorder({ onParsed }: { onParsed: (parsed: ParsedVoiceEntr
         type="button"
         onPointerDown={(e) => {
           e.currentTarget.setPointerCapture(e.pointerId);
-          startRecording();
+          startRecording(1);
         }}
         onPointerUp={stopRecording}
         onPointerCancel={stopRecording}
