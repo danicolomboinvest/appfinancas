@@ -569,6 +569,7 @@ export const semfiltro: Voz = {
     impVozSolte: "Solta que eu transcrevo",
     impVozNaoSuportado: "Seu navegador não sabe ouvir. Usa a opção de digitar.",
     impVozNaoEntendi: "Não entendi nada. Fala de novo, mais devagar, sem ser áudio de 3 minutos 🙃",
+    impVozToqueRapido: "Calma: segura o botão enquanto fala e solta quando acabar 😅",
     impVozErroPermissao: "Libera o microfone nas configurações do navegador e tenta de novo.",
     impVozErroSemFala: "Não te ouvi. Chega mais perto do microfone e tenta de novo.",
     impVozErroRede: "A conexão caiu no meio da gravação. Tenta de novo.",

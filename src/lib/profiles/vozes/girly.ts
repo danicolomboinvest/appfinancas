@@ -380,6 +380,7 @@ const GIRLY_IMP: Partial<Titulos> = {
   impVozSolte: "Solta que eu anoto ✨",
   impVozNaoSuportado: "Seu navegador não sabe ouvir voz 🫣 Usa a opção de digitar, amiga.",
   impVozNaoEntendi: "Não entendi o que você disse 🫣 Fala de novo?",
+  impVozToqueRapido: "Segura o botão enquanto fala e solta quando terminar 🎤",
   impVozErroPermissao: "Libera o microfone nas configurações do navegador e tenta de novo 🎤",
   impVozErroSemFala: "Não consegui te ouvir 🫣 Chega mais perto do microfone e tenta de novo.",
   impVozErroRede: "A internet caiu no meio da gravação 🫣 Tenta de novo?",

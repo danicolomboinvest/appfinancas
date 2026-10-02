@@ -479,6 +479,7 @@ export const minimalista: Voz = {
     impConectarBancoSub: "Open Finance · lançamentos chegam todo dia",
     impVozNaoSuportado: "Sem reconhecimento de voz neste navegador. Use Digitar.",
     impVozNaoEntendi: "Não entendi. Fale de novo.",
+    impVozToqueRapido: "Segure enquanto fala.",
     impVozErroPermissao: "Libere o microfone nas configurações do navegador.",
     impVozErroSemFala: "Nada ouvido. Aproxime o microfone.",
     impVozErroRede: "Sem conexão na gravação. Tente de novo.",

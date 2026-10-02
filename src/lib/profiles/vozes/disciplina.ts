@@ -369,6 +369,7 @@ export const disciplina: Voz = {
     impVozSolte: "Solta pra transcrever",
     impVozNaoSuportado: "Seu navegador não suporta reconhecimento de voz. Usa a opção de digitar.",
     impVozNaoEntendi: "Não entendi. Fala de novo.",
+    impVozToqueRapido: "Segure o botão enquanto fala. Solte ao terminar.",
     impVozErroPermissao: "Libera o microfone nas configurações do navegador e tenta de novo.",
     impVozErroSemFala: "Não te ouvi. Aproxima o microfone e tenta de novo.",
     impVozErroRede: "A conexão caiu durante a gravação. Tenta de novo.",

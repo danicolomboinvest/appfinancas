@@ -135,6 +135,8 @@ export function VoiceRecorder({ onParsed }: { onParsed: (parsed: ParsedVoiceEntr
   const [recording, setRecording] = useState(false);
   const [unsupported, setUnsupported] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  /** Instrução, não erro: tocou e soltou sem segurar. Sai em cinza, não em vermelho. */
+  const [dica, setDica] = useState<string | null>(null);
 
   const recognitionRef = useRef<MinimalSpeechRecognition | null>(null);
   const latestResultsRef = useRef<ArrayLike<SpeechRecognitionResultLike> | null>(null);
@@ -144,6 +146,8 @@ export function VoiceRecorder({ onParsed }: { onParsed: (parsed: ParsedVoiceEntr
   const barRefs = useRef<(HTMLDivElement | null)[]>([]);
   const timerElRef = useRef<HTMLSpanElement | null>(null);
   const isHeldRef = useRef(false);
+  const apertouEmRef = useRef(0);
+  const toqueRapidoRef = useRef(false);
 
   function stopVisualizer() {
     if (rafHolderRef.current.id !== null) {
@@ -199,6 +203,11 @@ export function VoiceRecorder({ onParsed }: { onParsed: (parsed: ParsedVoiceEntr
     isHeldRef.current = true;
     setRecording(true);
     setErrorMessage(null);
+    setDica(null);
+    if (tentativa === 1) {
+      apertouEmRef.current = Date.now();
+      toqueRapidoRef.current = false;
+    }
     latestResultsRef.current = null;
 
     const recognition = new SpeechRecognitionCtor();
@@ -209,6 +218,12 @@ export function VoiceRecorder({ onParsed }: { onParsed: (parsed: ParsedVoiceEntr
       latestResultsRef.current = event.results;
     };
     recognition.onerror = (event) => {
+      // Toque rápido: o reconhecimento parou antes de ouvir qualquer coisa, e o erro que vem
+      // ("no-speech", "aborted") é consequência do jeito de usar, não falha. A dica já está na tela.
+      if (toqueRapidoRef.current) {
+        stopVisualizer();
+        return;
+      }
       // "aborted" com o dedo ainda no botão é o reconhecimento cortado por outro uso do
       // microfone, não uma falha da pessoa: tenta de novo uma vez, sem a onda. Com o dedo já
       // solto, foi o próprio app que parou, e o "onend" cuida do que foi dito.
@@ -232,7 +247,10 @@ export function VoiceRecorder({ onParsed }: { onParsed: (parsed: ParsedVoiceEntr
       const results = latestResultsRef.current;
       const transcript = results ? joinFinalTranscript(results) : "";
       if (transcript.trim()) {
+        setDica(null);
         onParsed(parseVoiceEntry(transcript));
+      } else if (toqueRapidoRef.current) {
+        // A dica de segurar o botão já apareceu ao soltar.
       } else {
         // "onerror" já tratou os casos de falha explícita, aqui é o caso de terminar sem
         // erro mas sem nenhuma fala reconhecida (silêncio, murmúrio), que antes não avisava nada.
@@ -256,6 +274,12 @@ export function VoiceRecorder({ onParsed }: { onParsed: (parsed: ParsedVoiceEntr
   function stopRecording() {
     if (!isHeldRef.current) return;
     isHeldRef.current = false;
+    // Menos de 0,7 s com o dedo no botão é toque, não fala: quem toca e solta esperando que o app
+    // grave sozinho via "não foi possível gravar" e achava que estava quebrado.
+    if (Date.now() - apertouEmRef.current < 700) {
+      toqueRapidoRef.current = true;
+      setDica(voz.titulos.impVozToqueRapido);
+    }
     setRecording(false);
     recognitionRef.current?.stop();
     recognitionRef.current = null;
@@ -310,8 +334,8 @@ export function VoiceRecorder({ onParsed }: { onParsed: (parsed: ParsedVoiceEntr
         <span ref={timerElRef} className="text-sm font-medium tabular-nums text-ink-muted">
           0:00
         </span>
-        <span className={`text-xs ${errorMessage ? "text-danger" : "text-ink-faint"}`}>
-          {errorMessage ?? (recording ? voz.titulos.impVozSolte : voz.titulos.impVozSegure)}
+        <span className={`text-xs ${errorMessage ? "text-danger" : dica ? "font-medium text-ink-muted" : "text-ink-faint"}`}>
+          {errorMessage ?? dica ?? (recording ? voz.titulos.impVozSolte : voz.titulos.impVozSegure)}
         </span>
       </div>
 

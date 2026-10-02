@@ -29,6 +29,8 @@ export type TextosImportacao = {
   impVozSolte: string;
   impVozNaoSuportado: string;
   impVozNaoEntendi: string;
+  /** Tocou e soltou rápido, sem segurar: não é erro, é só o jeito de usar. */
+  impVozToqueRapido: string;
   impVozErroPermissao: string;
   impVozErroSemFala: string;
   impVozErroRede: string;
@@ -299,6 +301,7 @@ export const PADRAO_IMPORTACAO: TextosImportacao = {
   impVozSolte: "Solte para transcrever",
   impVozNaoSuportado: "Seu navegador não suporta reconhecimento de voz. Use a opção de digitar.",
   impVozNaoEntendi: "Não entendemos o que foi dito. Tente falar de novo.",
+  impVozToqueRapido: "Segure o botão enquanto fala e solte quando terminar.",
   impVozErroPermissao: "Permita o acesso ao microfone nas configurações do navegador e tente de novo.",
   impVozErroSemFala: "Não conseguimos te ouvir. Aproxime o microfone e tente de novo.",
   impVozErroRede: "Falha de conexão durante a gravação. Tente de novo.",
