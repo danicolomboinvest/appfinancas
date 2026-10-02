@@ -750,6 +750,18 @@ export function StatementImport({
         <Button type="button" variant="secondary" className="min-h-11" onClick={() => advanceReview()}>
           {t.impNaoSeiAgora}
         </Button>
+        {/* Sair da fila a qualquer momento: com 23 cartões pela frente (a mediana do 1º arquivo),
+            muita gente fechava a tela antes de ver o botão de importar e ficava sem nada. O que
+            falta entra sem categoria, igual a tocar "Não sei agora" em cada um. */}
+        {reviewQueue.length - reviewIdx > 3 && (
+          <button
+            type="button"
+            onClick={() => setPhase("confirm")}
+            className="inline-flex min-h-11 items-center justify-center text-sm font-medium text-accent-strong hover:underline"
+          >
+            {t.impImportarJa(reviewQueue.length - reviewIdx)}
+          </button>
+        )}
       </div>
     );
   }
@@ -893,6 +905,15 @@ export function StatementImport({
           <div className="flex flex-col gap-2 rounded-xl border border-accent/40 bg-accent-soft/40 px-4 py-3">
             <p className="text-sm font-semibold text-ink">{t.impProprioTitulo}</p>
             <p className="text-caption text-ink-muted">{t.impProprioDica}</p>
+            {duvidasDinheiro.length > 1 && (
+              <button
+                type="button"
+                onClick={() => duvidasDinheiro.forEach((it) => responderDinheiroProprio(it.key, "mudei"))}
+                className="inline-flex min-h-11 w-fit items-center text-sm font-semibold text-accent-strong hover:underline"
+              >
+                {t.impProprioTodasMudei(duvidasDinheiro.length)}
+              </button>
+            )}
             <ul className="flex flex-col gap-2">
               {duvidasDinheiro.map((it) => (
                 <li key={it.key} className="flex flex-col gap-1.5 border-t border-border/60 pt-2 first:border-t-0 first:pt-0">

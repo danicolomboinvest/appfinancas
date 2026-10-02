@@ -225,6 +225,11 @@ export type TextosImportacao = {
   impNaoSeiAgoraDica: string;
   /** Aviso depois do toque que resolveu também os iguais (5 Pix para a mesma pessoa = 1 toque). */
   impAplicadoAosIguais(n: number): string;
+  /** Na fila "Revisar 1 de N": sai da fila e vai pra conferência; o que falta entra sem categoria.
+   * (out/2026: a cliente típica tinha 23 cartões pela frente antes de ver o botão de importar.) */
+  impImportarJa(restantes: number): string;
+  /** Nas perguntas de dinheiro próprio: responde todas de uma vez com "só mudei de conta". */
+  impProprioTodasMudei(n: number): string;
   /** Na conferência: gastos que vão entrar SEM categoria (antes "ficaram de fora"). */
   impSemCategoriaEntraTitulo(n: number): string;
   impSemCategoriaEntraSub(n: number, soma: string): string;
@@ -512,6 +517,8 @@ export const PADRAO_IMPORTACAO: TextosImportacao = {
   impNaoSeiAgoraDica:
     "Esses eu não reconheci. Escolha uma vez e da próxima eu já sei. Não sabe? Toque em \"Não sei agora\": o gasto entra sem categoria e você escolhe depois.",
   impAplicadoAosIguais: (n) => `Pus a mesma categoria em mais ${n === 1 ? "1 lançamento igual" : `${n} lançamentos iguais`}.`,
+  impImportarJa: (n) => `Importar agora e escolher ${n === 1 ? "a categoria" : `as ${n} categorias`} depois`,
+  impProprioTodasMudei: (n) => `Todas as ${n}: só mudei de conta`,
   impSemCategoriaEntraTitulo: (n) => `${n} gasto${s(n)} ${n === 1 ? "vai" : "vão"} entrar sem categoria`,
   impSemCategoriaEntraSub: (n, soma) =>
     `${n === 1 ? "Ele entra" : "Eles entram"} no seu mês (${n === 1 ? "é" : "somam"} ${soma}) e você escolhe a categoria depois, na tela do mês. Se preferir, escolha agora.`,
