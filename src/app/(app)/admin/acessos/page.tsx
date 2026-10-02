@@ -82,7 +82,7 @@ export default async function AdminAcessosPage() {
                   <td className="px-4 py-3 text-ink">{entry.email}</td>
                   <td className="px-4 py-3">
                     <Badge tone={entry.source === "HUBLA" ? "accent" : "info"}>
-                      {entry.source === "HUBLA" ? "Hubla" : "Manual"}
+                      {entry.source === "HUBLA" ? "Hubla" : entry.source === "APPLE" ? "Apple" : "Manual"}
                     </Badge>
                   </td>
                   <td className="px-4 py-3 text-ink-muted">{entry.note ?? "—"}</td>

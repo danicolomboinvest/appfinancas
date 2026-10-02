@@ -1,8 +1,11 @@
 import Link from "next/link";
+import { naAppDaApple } from "@/lib/apple/app-da-apple";
 
 export const metadata = { title: "Suporte · SPI Finance" };
 
-export default function SuportePage() {
+export default async function SuportePage() {
+  // Dentro do app iOS esta página também abre, e lá não se fala de compra feita fora (3.1.1).
+  const appDaApple = await naAppDaApple();
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-2xl flex-col gap-6 px-6 py-12">
       <div>
@@ -27,14 +30,21 @@ export default function SuportePage() {
 
         <div>
           <h3 className="font-medium text-ink">Como faço para ter acesso ao SPI Finance?</h3>
-          <p>
-            O acesso é liberado automaticamente para quem compra o curso Seu Primeiro Investimento. Use o mesmo
-            e-mail da compra para se cadastrar em{" "}
-            <Link href="/register" className="text-accent-strong hover:underline">
-              /register
-            </Link>
-            .
-          </p>
+          {appDaApple ? (
+            <p>
+              Crie sua conta no app e assine pela App Store, no plano mensal ou anual. Se você já assinou, toque em
+              Restaurar compras na tela de assinatura.
+            </p>
+          ) : (
+            <p>
+              O acesso é liberado automaticamente para quem compra o curso Seu Primeiro Investimento. Use o mesmo
+              e-mail da compra para se cadastrar em{" "}
+              <Link href="/register" className="text-accent-strong hover:underline">
+                /register
+              </Link>
+              . No app para iPhone, também dá para assinar pela App Store.
+            </p>
+          )}
         </div>
 
         <div>
@@ -48,6 +58,7 @@ export default function SuportePage() {
           </p>
         </div>
 
+        {!appDaApple && (
         <div>
           <h3 className="font-medium text-ink">Comprei o curso mas ainda não recebi acesso</h3>
           <p>
@@ -55,6 +66,7 @@ export default function SuportePage() {
             cadastrar, escreva para o e-mail de suporte acima com o e-mail usado na compra.
           </p>
         </div>
+        )}
 
         <div>
           <h3 className="font-medium text-ink">Como excluo minha conta e meus dados?</h3>

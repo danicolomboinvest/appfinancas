@@ -1,0 +1,177 @@
+import type { JWSTransactionDecodedPayload } from "@apple/app-store-server-library";
+import { prisma } from "@/lib/db/prisma";
+import { IDS_DOS_PRODUTOS, tokenDaConta } from "@/lib/apple/config";
+import { isExpired, normalizeEmail } from "./allowedEmail.repo";
+
+/**
+ * Assinatura comprada pela Apple dentro do app iOS (out/2026). A compra vira uma liberação no
+ * AllowedEmail com source APPLE, então o resto do app (cadeado, e-mails automáticos, painel de
+ * acessos) trata igual a uma compra do Hubla, sem saber de onde veio.
+ */
+
+export type LiberacaoAtual = { source: string; active: boolean; expiresAt: Date | null; lastHublaInvoiceId: string | null } | null;
+
+/** Transação que dá acesso agora: um dos nossos produtos, sem reembolso e dentro do prazo. */
+export function transacaoValendo(tx: JWSTransactionDecodedPayload, agora: Date = new Date()): boolean {
+  if (!tx.productId || !IDS_DOS_PRODUTOS.includes(tx.productId)) return false;
+  if (tx.revocationDate) return false;
+  return typeof tx.expiresDate === "number" && tx.expiresDate > agora.getTime();
+}
+
+/**
+ * Transação de ANTES de um reembolso. O recibo assinado é uma foto do dia da compra: depois do
+ * reembolso ele continua "valendo" por dentro, e quem guardou uma cópia (ou um aviso velho que a
+ * Apple reenvia fora de ordem) reabriria o acesso de graça. Só uma compra feita depois do
+ * reembolso passa.
+ */
+export function anteriorAoReembolso(tx: JWSTransactionDecodedPayload, revogadaEm: Date | null): boolean {
+  if (!revogadaEm) return false;
+  return (tx.purchaseDate ?? 0) <= revogadaEm.getTime();
+}
+
+/**
+ * O que a compra pela Apple faz com a liberação do e-mail. `null` = não mexe.
+ * Quem já tem acesso valendo por outro caminho (Hubla, liberação da Dani) não é tocado: a
+ * assinatura fica registrada, mas o prazo que vale é o que ela já tinha.
+ */
+export function decidirLiberacaoApple(atual: LiberacaoAtual, expiraEm: Date, agora: Date = new Date()): { expiresAt: Date } | null {
+  const valendo = atual && atual.active && !isExpired(atual.expiresAt, agora);
+  if (valendo && atual.source !== "APPLE") return null;
+  if (valendo && atual.expiresAt && atual.expiresAt >= expiraEm) return null;
+  return { expiresAt: expiraEm };
+}
+
+/** Reembolso/revogação pela Apple só corta o que a Apple deu: compra do Hubla ou VIP da Dani
+ * no mesmo e-mail continuam valendo. */
+export function revogacaoAppleCorta(atual: LiberacaoAtual): boolean {
+  return atual !== null && atual.source === "APPLE" && atual.active && atual.lastHublaInvoiceId === null;
+}
+
+const CAMPOS_DA_LIBERACAO = { source: true, active: true, expiresAt: true, lastHublaInvoiceId: true } as const;
+
+async function liberar(email: string, expiraEm: Date) {
+  const normalizado = normalizeEmail(email);
+  const atual = await prisma.allowedEmail.findUnique({ where: { email: normalizado }, select: CAMPOS_DA_LIBERACAO });
+  const decisao = decidirLiberacaoApple(atual, expiraEm);
+  if (!decisao) return;
+  await prisma.allowedEmail.upsert({
+    where: { email: normalizado },
+    // A fatura do Hubla vencida sai junto: a linha agora é da Apple, e o reembolso da Apple tem
+    // que conseguir cortar (ver revogacaoAppleCorta).
+    update: { source: "APPLE", active: true, expiresAt: decisao.expiresAt, lastHublaInvoiceId: null },
+    create: { email: normalizado, source: "APPLE", active: true, expiresAt: decisao.expiresAt, note: "Apple: assinatura no app iOS" },
+  });
+}
+
+async function revogar(email: string) {
+  const normalizado = normalizeEmail(email);
+  const atual = await prisma.allowedEmail.findUnique({ where: { email: normalizado }, select: CAMPOS_DA_LIBERACAO });
+  if (revogacaoAppleCorta(atual)) await prisma.allowedEmail.update({ where: { email: normalizado }, data: { active: false } });
+}
+
+/** Grava na conta o token das compras dela, pra o aviso da Apple achar a conta (ver
+ * User.tokenApple). Chamado quando a tela de assinatura aparece, antes de qualquer compra. */
+export async function guardarTokenApple(conta: { id: string; email: string }): Promise<string> {
+  const token = tokenDaConta(conta.email);
+  await prisma.user.updateMany({ where: { id: conta.id, tokenApple: null }, data: { tokenApple: token } });
+  return token;
+}
+
+export type ResultadoDaCompra = { ok: true; expiresAt: Date } | { ok: false; motivo: "outra-conta" | "sem-validade" };
+
+/**
+ * Registra a compra (ou a restauração) que o app mandou depois do StoreKit. A transação já vem
+ * com a assinatura conferida (ver verificarTransacao).
+ */
+export async function registrarCompraApple(
+  conta: { id: string; email: string },
+  tx: JWSTransactionDecodedPayload,
+  agora: Date = new Date(),
+): Promise<ResultadoDaCompra> {
+  if (!tx.originalTransactionId || tx.appAccountToken?.toLowerCase() !== tokenDaConta(conta.email)) return { ok: false, motivo: "outra-conta" };
+  const ja = await prisma.assinaturaApple.findUnique({
+    where: { originalTransactionId: tx.originalTransactionId },
+    select: { userId: true, revogadaEm: true },
+  });
+  // Mesma compra presa a uma conta excluída e recriada com o mesmo e-mail: o token (do e-mail)
+  // bate, então ela volta pra conta nova. Conta diferente de verdade não passa no token acima.
+  if (!transacaoValendo(tx, agora) || anteriorAoReembolso(tx, ja?.revogadaEm ?? null)) return { ok: false, motivo: "sem-validade" };
+
+  const expiresAt = new Date(tx.expiresDate!);
+  await prisma.assinaturaApple.upsert({
+    where: { originalTransactionId: tx.originalTransactionId },
+    update: { userId: conta.id, productId: tx.productId!, expiresAt, revogadaEm: null },
+    create: {
+      originalTransactionId: tx.originalTransactionId,
+      userId: conta.id,
+      productId: tx.productId!,
+      expiresAt,
+      ambiente: String(tx.environment ?? "Production"),
+    },
+  });
+  await liberar(conta.email, expiresAt);
+  return { ok: true, expiresAt };
+}
+
+/** Os avisos que a Apple manda sozinha (App Store Server Notifications V2). */
+const RENOVOU = new Set(["SUBSCRIBED", "DID_RENEW", "RENEWAL_EXTENDED", "OFFER_REDEEMED", "REFUND_REVERSED"]);
+const REVOGOU = new Set(["REFUND", "REVOKE"]);
+
+export async function aplicarAvisoApple(tipo: string, tx: JWSTransactionDecodedPayload): Promise<"renovou" | "revogou" | "ignorado"> {
+  if (!tx.originalTransactionId) return "ignorado";
+  const id = tx.originalTransactionId;
+  let assinatura = await prisma.assinaturaApple.findUnique({
+    where: { originalTransactionId: id },
+    select: { revogadaEm: true, user: { select: { id: true, email: true } } },
+  });
+
+  // Compra que o app ainda não registrou: compra aprovada depois ("Pedir para comprar"), app
+  // fechado no meio, ou reembolso que chegou antes. A conta é achada pelo token da compra.
+  if (!assinatura) {
+    if (!tx.appAccountToken || !tx.productId || !IDS_DOS_PRODUTOS.includes(tx.productId)) return "ignorado";
+    const user = await prisma.user.findUnique({ where: { tokenApple: tx.appAccountToken.toLowerCase() }, select: { id: true, email: true } });
+    if (!user) return "ignorado";
+    await prisma.assinaturaApple.create({
+      data: {
+        originalTransactionId: id,
+        userId: user.id,
+        productId: tx.productId,
+        expiresAt: new Date(tx.expiresDate ?? Date.now()),
+        ambiente: String(tx.environment ?? "Production"),
+        revogadaEm: REVOGOU.has(tipo) ? new Date() : null,
+      },
+    });
+    assinatura = { revogadaEm: REVOGOU.has(tipo) ? new Date() : null, user };
+  }
+
+  if (REVOGOU.has(tipo)) {
+    await prisma.assinaturaApple.update({ where: { originalTransactionId: id }, data: { revogadaEm: new Date() } });
+    await revogar(assinatura.user.email);
+    return "revogou";
+  }
+  // Aviso de renovação velho chegando depois do reembolso não reabre nada.
+  if (RENOVOU.has(tipo) && transacaoValendo(tx) && !anteriorAoReembolso(tx, assinatura.revogadaEm)) {
+    const expiresAt = new Date(tx.expiresDate!);
+    await prisma.assinaturaApple.update({
+      where: { originalTransactionId: id },
+      data: { expiresAt, productId: tx.productId!, revogadaEm: null },
+    });
+    await liberar(assinatura.user.email, expiresAt);
+    return "renovou";
+  }
+  return "ignorado";
+}
+
+/**
+ * O acesso desta conta veio de uma compra pela Apple feita por ELA: a compra prova quem ela é,
+ * então não precisa confirmar o e-mail (o revisor da Apple não abre e-mail). Só vale quando a
+ * liberação do e-mail é da Apple: se o e-mail tem compra do Hubla, quem entra precisa provar que
+ * é a dona do e-mail, senão bastava assinar o mensal pra herdar o ano de outra pessoa.
+ */
+export async function acessoVeioDaApple(conta: { id: string; email: string }): Promise<boolean> {
+  const [liberacao, assinaturas] = await Promise.all([
+    prisma.allowedEmail.findUnique({ where: { email: normalizeEmail(conta.email) }, select: { source: true } }),
+    prisma.assinaturaApple.count({ where: { userId: conta.id, revogadaEm: null, expiresAt: { gt: new Date() } } }),
+  ]);
+  return liberacao?.source === "APPLE" && assinaturas > 0;
+}

@@ -30,8 +30,9 @@ vi.mock("next/navigation", () => ({
     throw Object.assign(new Error("NEXT_REDIRECT"), { url });
   }),
 }));
+const userAgent = { valor: "Mozilla/5.0 Safari" };
 vi.mock("next/headers", () => ({
-  headers: vi.fn(async () => new Headers({ host: "app.exemplo.test", "x-forwarded-proto": "https" })),
+  headers: vi.fn(async () => new Headers({ host: "app.exemplo.test", "x-forwarded-proto": "https", "user-agent": userAgent.valor })),
 }));
 
 const signIn = vi.fn();
@@ -176,6 +177,18 @@ describe("registerAction: só quem comprou cria conta", () => {
     expect(enviarConfirmacaoDeEmail).not.toHaveBeenCalled();
   });
 
+  it("no app da Apple a conta nasce sem compra (ela assina pela Apple depois)", async () => {
+    situacaoDoAcesso.mockResolvedValue("sem-compra");
+    signIn.mockResolvedValue(undefined);
+    userAgent.valor = "Mozilla/5.0 (iPhone) AppleWebKit SPIFinanceApp-iOS";
+    try {
+      await expect(registerAction({}, form(VALIDO))).rejects.toMatchObject({ url: "/login?created=1" });
+      expect(createUser).toHaveBeenCalled();
+    } finally {
+      userAgent.valor = "Mozilla/5.0 Safari";
+    }
+  });
+
   it("sem compra e sem celular conhecido: pede o e-mail da compra, sem dica", async () => {
     situacaoDoAcesso.mockResolvedValue("sem-compra");
     const r = await registerAction({}, form(VALIDO));
@@ -202,6 +215,13 @@ describe("registerAction: conta criada", () => {
     expect(createUser).toHaveBeenCalledWith({ name: "Cliente A", email: "cliente.a@exemplo.com", password: "senha-forte-1", phone: "5511987654321" });
     expect(enviarConfirmacaoDeEmail).toHaveBeenCalledWith(expect.objectContaining({ id: "novo" }));
     expect(signIn).toHaveBeenCalledWith("credentials", { email: "cliente.a@exemplo.com", password: "senha-forte-1", redirectTo: DESTINO_PADRAO });
+  });
+
+  it("celular é opcional (Apple 5.1.1(v)): sem ele a conta nasce sem celular", async () => {
+    signIn.mockResolvedValue(undefined);
+    getAllowedPhone.mockResolvedValue(null);
+    await expect(registerAction({}, form({ ...VALIDO, phone: "" }))).rejects.toMatchObject({ url: "/login?created=1" });
+    expect(createUser).toHaveBeenCalledWith(expect.objectContaining({ email: "cliente.a@exemplo.com", phone: undefined }));
   });
 
   it("o redirect do login automático (não é AuthError) sobe e leva pro app", async () => {

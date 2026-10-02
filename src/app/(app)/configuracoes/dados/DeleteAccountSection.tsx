@@ -10,7 +10,7 @@ import { deleteAccountAction, type DeleteAccountState } from "./delete-account-a
 const initialState: DeleteAccountState = {};
 
 /** Zona de perigo: exclusão definitiva da conta com dupla confirmação (expandir + senha). */
-export function DeleteAccountSection() {
+export function DeleteAccountSection({ avisoDaApple = false }: { avisoDaApple?: boolean }) {
   const [open, setOpen] = useState(false);
   const [state, formAction, isPending] = useActionState(deleteAccountAction, initialState);
   const { titulos: t } = useProfileTheme().voz;
@@ -30,6 +30,13 @@ export function DeleteAccountSection() {
             <strong className="text-ink">{textoForte}</strong>
             {textoDepois}
           </p>
+          {/* Exigência da Apple pra quem vende assinatura: excluir a conta não cancela a cobrança. */}
+          {avisoDaApple && (
+            <p className="mt-2 text-sm text-ink-muted">
+              Assinou pelo iPhone? Excluir a conta não cancela a assinatura da Apple. Cancele em Ajustes, no seu nome, em
+              Assinaturas.
+            </p>
+          )}
 
           {!open ? (
             <Button type="button" variant="secondary" size="sm" className="mt-3" onClick={() => setOpen(true)}>

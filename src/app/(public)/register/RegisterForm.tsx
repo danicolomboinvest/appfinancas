@@ -16,7 +16,7 @@ const initialState: RegisterState = {};
  * que lê o código do convite (assinado com o AUTH_SECRET, que não pode ir pro navegador) e passa
  * só o e-mail da compra pra cá.
  */
-export function RegisterForm({ emailDaCompra }: { emailDaCompra: string | null }) {
+export function RegisterForm({ emailDaCompra, appDaApple = false }: { emailDaCompra: string | null; appDaApple?: boolean }) {
   const [state, formAction, isPending] = useActionState(registerAction, initialState);
 
   return (
@@ -37,6 +37,9 @@ export function RegisterForm({ emailDaCompra }: { emailDaCompra: string | null }
           {/* O aviso vem ANTES dos campos, e não como letra miúda embaixo do e-mail: quem se
               cadastrava com outro e-mail criava uma conta sem a compra, via cadeado em tudo e
               achava que tinha pago por nada (teve pedido de reembolso 12 minutos depois). */}
+          {/* No app da Apple não se fala de compra feita fora (guideline 3.1.1): lá quem não tem
+              acesso assina pela própria Apple depois de criar a conta. */}
+          {!appDaApple && (
           <div className="flex gap-2.5 rounded-xl bg-accent-soft px-3 py-2.5 text-sm text-ink">
             <Mail size={18} strokeWidth={1.75} className="mt-0.5 shrink-0 text-accent-strong" />
             {emailDaCompra ? (
@@ -51,6 +54,7 @@ export function RegisterForm({ emailDaCompra }: { emailDaCompra: string | null }
               </p>
             )}
           </div>
+          )}
 
           {state.error && (
             <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{state.error}</p>
@@ -70,11 +74,10 @@ export function RegisterForm({ emailDaCompra }: { emailDaCompra: string | null }
             defaultValue={emailDaCompra ?? state.values?.email}
           />
           <Field
-            label="Celular (WhatsApp)"
+            label="Celular (WhatsApp, opcional)"
             id="phone"
             name="phone"
             type="tel"
-            required
             placeholder="(11) 98765-4321"
             autoComplete="tel"
             inputMode="tel"

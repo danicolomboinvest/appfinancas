@@ -6,6 +6,8 @@ import { getOwnUser } from "@/lib/repositories/user.repo";
 import { vozDoTema } from "@/lib/profiles/voice";
 import { EMAIL_DO_SUPORTE, mensagemDeAcessoTrancado } from "@/lib/support/contato";
 import { linkDoSuporte } from "@/lib/support/whatsapp-link";
+import Link from "next/link";
+import { naAppDaApple } from "@/lib/apple/app-da-apple";
 
 /**
  * Tela de "isso é do curso" — mostrada no lugar do conteúdo real pra quem não tem acesso
@@ -24,6 +26,27 @@ import { linkDoSuporte } from "@/lib/support/whatsapp-link";
  */
 export async function PaywallCard({ feature }: { feature: string }) {
   const ctx = await getRequiredSession();
+  // No app da Apple não pode haver link de compra fora (guideline 3.1.1): o cartão leva pra
+  // assinatura da própria Apple, sem falar de curso nem de compra.
+  if (await naAppDaApple()) {
+    return (
+      <Card className="mx-auto flex max-w-md flex-col items-center gap-4 p-6 text-center sm:p-8">
+        <span className="flex h-12 w-12 items-center justify-center rounded-full bg-accent-soft text-accent-strong">
+          <Lock size={22} strokeWidth={1.75} />
+        </span>
+        <div>
+          <h2 className="text-base font-semibold tracking-tight text-ink">{feature}</h2>
+          <p className="mt-1.5 text-sm text-ink-muted">Faz parte da assinatura do SPI Finance.</p>
+        </div>
+        <Link
+          href="/assinar"
+          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-accent-gradient px-4 py-2.5 text-sm font-semibold text-on-accent shadow-premium-sm"
+        >
+          Ver a assinatura
+        </Link>
+      </Card>
+    );
+  }
   // getOwnUser e não o e-mail do token da sessão: o do token é o do dia do login, e quem trocou o
   // e-mail no Perfil veria o antigo — justo na tela que pede pra conferir o e-mail. A consulta é
   // a mesma que o layout já fez nesta requisição (cache), então não custa uma ida a mais ao banco.

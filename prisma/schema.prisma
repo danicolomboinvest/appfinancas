@@ -16,10 +16,12 @@ enum Role {
 }
 
 /// De onde veio a liberação de acesso de um e-mail: MANUAL (a Dani liberou no painel)
-/// ou HUBLA (liberado automaticamente pelo webhook quando a pessoa comprou/assinou).
+/// ou HUBLA (liberado automaticamente pelo webhook quando a pessoa comprou/assinou)
+/// ou APPLE (assinatura comprada dentro do app iOS, ver AssinaturaApple).
 enum AccessSource {
   MANUAL
   HUBLA
+  APPLE
 }
 
 enum EntryCategory {
@@ -130,25 +132,25 @@ enum StrategyAssetClass {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
+  id                  String    @id @default(cuid())
+  email               String    @unique
   /// Quando ela clicou no link de confirmação do e-mail. Contas novas só entram no app depois
   /// disso (senão qualquer um cria a conta com o e-mail de uma compradora). Nulo nas contas
   /// criadas antes da regra, que continuam valendo (ver emailConfirmado em src/lib/auth).
-  emailVerifiedAt DateTime?
-  passwordHash String
+  emailVerifiedAt     DateTime?
+  passwordHash        String
   /// Celular (WhatsApp) — pedido no cadastro e/ou puxado da compra no Hubla.
-  phone                String?
-  name         String?
-  avatarUrl    String?
-  role         Role     @default(CLIENT)
-  currency     String   @default("BRL")
-  theme        String   @default("light")
-  notifyBudgetAlerts Boolean @default(true)
-  notifyLateGoals    Boolean @default(true)
+  phone               String?
+  name                String?
+  avatarUrl           String?
+  role                Role      @default(CLIENT)
+  currency            String    @default("BRL")
+  theme               String    @default("light")
+  notifyBudgetAlerts  Boolean   @default(true)
+  notifyLateGoals     Boolean   @default(true)
   /// Resumo do mês por e-mail (o único e-mail recorrente do app). Ligado por padrão; quem não
   /// quiser desliga em Configurações › Preferências.
-  notifyMonthlyRecap Boolean @default(true)
+  notifyMonthlyRecap  Boolean   @default(true)
   /// Último mês cujo resumo JÁ foi enviado por e-mail, formato "YYYY-MM". Trava de idempotência:
   /// o cron pode rodar de novo (retry da Vercel, execução manual) sem reenviar o mesmo resumo.
   /// Vale para os DOIS e-mails do dia 1º (resumo de quem usou, convite de quem não usou) — o
@@ -157,51 +159,56 @@ model User {
   /// Quantos convites "vamos começar?" já foram enviados. Quem não usa o app não pode receber
   /// esse lembrete todo mês pra sempre — depois de algumas tentativas sem resposta, o app para
   /// de insistir. Zera sozinho quando a pessoa passa a usar (aí ela recebe o resumo, não o convite).
-  recapNudgeCount Int @default(0)
+  recapNudgeCount     Int       @default(0)
   /// Proteção contra força bruta: erros de senha consecutivos e trava temporária.
-  failedLoginCount Int       @default(0)
-  lockedUntil      DateTime?
+  failedLoginCount    Int       @default(0)
+  lockedUntil         DateTime?
   /// Última vez que o usuário abriu o app (atualizado no layout, no máx. 1x a cada ~15min).
   /// Base das métricas de engajamento (ativos em 24h/7d/30d) no relatório de admin.
-  lastSeenAt   DateTime?
+  lastSeenAt          DateTime?
   /// Quando a pessoa passou pela tela de boas-vindas (escolheu tipo e tema do primeiro perfil).
   /// Nulo = ainda não passou: o app manda pra /comecar na primeira entrada. Quem já usava o app
   /// antes de set/2026 nasceu preenchido pela migração, pra não ver a tela.
-  onboardedAt  DateTime?
+  onboardedAt         DateTime?
   /// Mês do Resumo Mensal já visto/fechado, formato "YYYY-MM". Enquanto for o mesmo mês do
   /// resumo atual, o card na Visão Mensal não aparece de novo (fecha uma vez por mês).
   recapDismissedMonth String?
   /// Como a pessoa quer acompanhar o dinheiro: "semanal" (ritual de 5 min toda semana) ou
   /// "mensal" (fechamento de 15 min por mês). Nulo = ainda não escolheu; a aba Foco pergunta.
   ritmoAcompanhamento String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
-  monthlyEntries       MonthlyEntry[]
-  importFiles          ImportFile[]
-  budgets              Budget[]
-  monthlyPlans         MonthlyPlan[]
-  customCategories     CustomCategory[]
-  portfolioStrategy    PortfolioStrategy[]
-  patrimonySnapshots   PatrimonySnapshot[]
-  assets               Asset[]
-  goals                Goal[]
-  emergencyFunds       EmergencyFund[]
-  planningParams       PlanningParams[]
-  simulations          Simulation[]
-  analysisSheets       AnalysisSheet[]
-  referenceRates       ReferenceRate[]
-  yearlyConsolidations YearlyConsolidationCache[]
-  accumulationCache    AccumulationProjectionCache[]
-  transactionRules     TransactionCategoryRule[]
-  passwordResetTokens  PasswordResetToken[]
-  importBatches        ImportBatch[]
-  importDiagnostics ImportDiagnostic[]
+  monthlyEntries          MonthlyEntry[]
+  importFiles             ImportFile[]
+  budgets                 Budget[]
+  monthlyPlans            MonthlyPlan[]
+  customCategories        CustomCategory[]
+  portfolioStrategy       PortfolioStrategy[]
+  patrimonySnapshots      PatrimonySnapshot[]
+  assets                  Asset[]
+  goals                   Goal[]
+  emergencyFunds          EmergencyFund[]
+  planningParams          PlanningParams[]
+  simulations             Simulation[]
+  analysisSheets          AnalysisSheet[]
+  assinaturasApple        AssinaturaApple[]
+  /// appAccountToken das compras pela Apple (ver tokenDaConta). Guardado pra o aviso da Apple
+  /// achar a conta sozinho: compra aprovada depois ("Pedir para comprar") ou reembolso que chega
+  /// antes de o app registrar a compra.
+  tokenApple              String?                       @unique
+  referenceRates          ReferenceRate[]
+  yearlyConsolidations    YearlyConsolidationCache[]
+  accumulationCache       AccumulationProjectionCache[]
+  transactionRules        TransactionCategoryRule[]
+  passwordResetTokens     PasswordResetToken[]
+  importBatches           ImportBatch[]
+  importDiagnostics       ImportDiagnostic[]
   contributionAllocations ContributionAllocation[]
-  usageEvents          UsageEvent[]
+  usageEvents             UsageEvent[]
 
-  asAdvisorLinks AdvisorClientLink[] @relation("advisor")
-  asClientLinks  AdvisorClientLink[] @relation("client")
+  asAdvisorLinks    AdvisorClientLink[] @relation("advisor")
+  asClientLinks     AdvisorClientLink[] @relation("client")
   pushSubscriptions PushSubscription[]
   notificationLogs  NotificationLog[]
   bankConnections   BankConnection[]
@@ -220,33 +227,33 @@ model User {
 /// isto entrou. A coluna entra vazia, o backfill preenche, e só então as leituras passam a
 /// filtrar. Em nenhum instante o dado de alguém deixa de ser encontrado.
 model FinancialProfile {
-  id     String  @id @default(cuid())
-  userId String
-  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name   String
+  id         String      @id @default(cuid())
+  userId     String
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String
   /// Adapta textos e sugestões; a estrutura é a mesma pra todos.
-  kind   ProfileKind @default(PESSOAL)
+  kind       ProfileKind @default(PESSOAL)
   /// Nome do ícone na biblioteca do app (lucide), não emoji: o produto não depende de emoji.
-  icon   String  @default("wallet")
+  icon       String      @default("wallet")
   /// Chave do TEMA do perfil (ver src/lib/profiles/themes.ts), nunca cor crua vinda da tela.
   /// O tema traz a paleta inteira — fundo, cartão, tinta e destaque —, não só o realce.
-  theme  String  @default("padrao")
+  theme      String      @default("padrao")
   /// Chave da paleta antiga, de quando o perfil escolhia só a cor de destaque. Substituída
   /// pelo tema em set/2026 e não lida mais por tela nenhuma. Fica na tabela porque derrubar
   /// coluna em banco de produção é risco sem ganho — sai numa limpeza própria, depois.
-  color  String  @default("ambar")
+  color      String      @default("ambar")
   /// O que a pessoa mudou nas categorias padrão deste perfil: nome, ícone, escondida
   /// ({ "IMPOSTOS": { "oculta": true }, "LAZER": { "nome": "Rolês", "icone": "coffee" } }).
   /// Lido por lerPreferenciasDeCategoria (src/lib/categories.ts). Nulo = tudo de fábrica.
   categorias Json?
   /// Ordem na troca rápida de perfil.
-  position Int   @default(0)
+  position   Int         @default(0)
   /// O perfil que abre quando a pessoa entra. Exatamente um por conta.
-  isDefault Boolean @default(false)
+  isDefault  Boolean     @default(false)
   /// Perfil criado pelo backfill pra abrigar o histórico de quem já usava o app.
-  isLegacy  Boolean @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  isLegacy   Boolean     @default(false)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
 
   monthlyEntries          MonthlyEntry[]
   budgets                 Budget[]
@@ -331,17 +338,17 @@ model PasswordResetToken {
 /// uma transação na fila de revisão, guardamos merchant → categoria para classificar sozinho
 /// as próximas transações parecidas. `pattern` é a chave normalizada (ver normalizeMerchant).
 model TransactionCategoryRule {
-  id             String         @id @default(cuid())
+  id             String            @id @default(cuid())
   userId         String
-  user           User           @relation(fields: [userId], references: [id])
+  user           User              @relation(fields: [userId], references: [id])
   /// Perfil financeiro dono deste registro. Nulo só no histórico anterior aos perfis.
-  profileId String?
-  profile   FinancialProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  profileId      String?
+  profile        FinancialProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
   pattern        String
   parentCategory ParentCategory
   subcategory    String?
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
 
   @@unique([userId, profileId, pattern])
   @@index([userId])
@@ -381,17 +388,17 @@ model ReferenceRate {
 /// categoria: ou uma ParentCategory fixa, ou uma CustomCategory — nunca as duas (invariante
 /// de aplicação, no mesmo espírito pragmático da subcategoria "Outro", que também não é enum).
 model CustomCategory {
-  id            String         @id @default(cuid())
-  userId        String
-  user          User           @relation(fields: [userId], references: [id])
+  id             String            @id @default(cuid())
+  userId         String
+  user           User              @relation(fields: [userId], references: [id])
   /// Perfil financeiro dono deste registro. Nulo só no histórico anterior aos perfis.
-  profileId String?
-  profile   FinancialProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  name          String
-  icon          String
-  createdAt     DateTime       @default(now())
+  profileId      String?
+  profile        FinancialProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  name           String
+  icon           String
+  createdAt      DateTime          @default(now())
   monthlyEntries MonthlyEntry[]
-  budgets       Budget[]
+  budgets        Budget[]
 
   @@unique([userId, profileId, name])
 }
@@ -451,9 +458,9 @@ model AppError {
 /// gente saber qual banco quebrou. Aqui fica o suficiente pra reproduzir: nome do arquivo,
 /// o que o app entendeu, quantas linhas viu, quantas leu e o erro — nunca o conteúdo.
 model ImportDiagnostic {
-  id          String   @id @default(cuid())
+  id          String      @id @default(cuid())
   userId      String
-  user        User     @relation(fields: [userId], references: [id])
+  user        User        @relation(fields: [userId], references: [id])
   /// "extrato" | "fatura" | "carteira"
   target      String
   /// "parse" (leitura) | "confirm" (gravação)
@@ -466,10 +473,10 @@ model ImportDiagnostic {
   kind        String?
   institution String?
   /// Linhas com cara de dinheiro no arquivo × lançamentos/ativos que o app conseguiu ler.
-  moneyLines  Int      @default(0)
-  parsed      Int      @default(0)
-  created     Int      @default(0)
-  skipped     Int      @default(0)
+  moneyLines  Int         @default(0)
+  parsed      Int         @default(0)
+  created     Int         @default(0)
+  skipped     Int         @default(0)
   /// Mensagem que a pessoa viu na tela, quando deu errado.
   message     String?
   /// Primeira linha do arquivo (cabeçalho), cortada — é o que identifica o formato do banco.
@@ -482,7 +489,7 @@ model ImportDiagnostic {
   /// Como terminou o aviso: "enviado", ou o motivo de não ter ido (fora-da-janela,
   /// nao-encontrado...). Guardado pra Dani saber quem precisa ser chamada na mão.
   avisoStatus String?
-  createdAt   DateTime @default(now())
+  createdAt   DateTime    @default(now())
 
   @@index([createdAt])
   @@index([ok, createdAt])
@@ -523,87 +530,87 @@ model ImportFile {
 }
 
 model ImportBatch {
-  id        String         @id @default(cuid())
+  id        String            @id @default(cuid())
   userId    String
-  user      User           @relation(fields: [userId], references: [id])
+  user      User              @relation(fields: [userId], references: [id])
   /// Perfil financeiro dono deste registro. Nulo só no histórico anterior aos perfis.
   profileId String?
   profile   FinancialProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
   /// "extrato" | "fatura"
   docType   String
   fileName  String?
-  createdAt DateTime       @default(now())
+  createdAt DateTime          @default(now())
   entries   MonthlyEntry[]
 
   @@index([userId, createdAt])
 }
 
 model MonthlyEntry {
-  id               String          @id @default(cuid())
+  id               String                   @id @default(cuid())
   userId           String
-  user             User            @relation(fields: [userId], references: [id])
+  user             User                     @relation(fields: [userId], references: [id])
   /// Perfil financeiro dono deste registro. Nulo só no histórico anterior aos perfis.
-  profileId String?
-  profile   FinancialProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  profileId        String?
+  profile          FinancialProfile?        @relation(fields: [profileId], references: [id], onDelete: Cascade)
   year             Int
   month            Int
   category         EntryCategory
   parentCategory   ParentCategory?
   customCategoryId String?
-  customCategory   CustomCategory? @relation(fields: [customCategoryId], references: [id])
+  customCategory   CustomCategory?          @relation(fields: [customCategoryId], references: [id])
   subcategory      String?
   description      String?
-  amount           Decimal         @db.Decimal(18, 2)
+  amount           Decimal                  @db.Decimal(18, 2)
   /// Lançamento feito em outra moeda (salário em euro pra quem mora fora): o valor digitado, a
   /// moeda dele e a cotação usada. `amount` continua sempre na moeda do usuário — todo o resto do
   /// app soma `amount` e não precisa saber que houve conversão.
   /// Id da transação no banco (Open Finance): "pluggy:<id>". É o que garante que uma
   /// transação nunca entra duas vezes, por definição, sem depender de descrição ou data.
   externalId       String?
-  originalAmount   Decimal?        @db.Decimal(18, 2)
-  originalCurrency String?         @db.VarChar(3)
-  exchangeRate     Decimal?        @db.Decimal(14, 6)
+  originalAmount   Decimal?                 @db.Decimal(18, 2)
+  originalCurrency String?                  @db.VarChar(3)
+  exchangeRate     Decimal?                 @db.Decimal(14, 6)
   /// Data em que a despesa/renda de fato aconteceu (opcional — lançamentos antigos não têm).
   /// year/month continuam sendo a verdade para a consolidação mensal; entryDate refina o dia.
-  entryDate        DateTime?       @db.Date
+  entryDate        DateTime?                @db.Date
   goalId           String?
-  goal             Goal?           @relation(fields: [goalId], references: [id])
+  goal             Goal?                    @relation(fields: [goalId], references: [id])
   /// Pedaços deste aporte que já foram para ativos da carteira.
   allocations      ContributionAllocation[]
   /// Lote de importação que criou este lançamento (nulo = lançado à mão). SetNull: apagar o
   /// registro do lote nunca apaga lançamentos por efeito colateral — a exclusão em massa é
   /// sempre explícita na action, dentro de uma transação.
   importBatchId    String?
-  importBatch      ImportBatch?    @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
+  importBatch      ImportBatch?             @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
   /// Série de uma despesa fixa ("Repetir todo mês"): todas as cópias levam o mesmo id. É o que
   /// deixa editar ou apagar "este e os próximos" de uma vez. Nulo = lançamento avulso.
   recurrenceId     String?
-  createdAt        DateTime        @default(now())
+  createdAt        DateTime                 @default(now())
 
+  @@unique([userId, profileId, externalId])
   @@index([userId, year, month])
   @@index([userId, recurrenceId])
   @@index([userId, parentCategory])
   @@index([userId, customCategoryId])
   @@index([importBatchId])
-  @@unique([userId, profileId, externalId])
 }
 
 /// Orçamento mensal planejado por categoria-mãe (para a barra "gasto realizado vs. planejado").
 model Budget {
-  id               String          @id @default(cuid())
+  id               String            @id @default(cuid())
   userId           String
-  user             User            @relation(fields: [userId], references: [id])
+  user             User              @relation(fields: [userId], references: [id])
   /// Perfil financeiro dono deste registro. Nulo só no histórico anterior aos perfis.
-  profileId String?
-  profile   FinancialProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  profileId        String?
+  profile          FinancialProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
   year             Int
   month            Int
   parentCategory   ParentCategory?
   customCategoryId String?
-  customCategory   CustomCategory? @relation(fields: [customCategoryId], references: [id])
-  plannedAmount    Decimal         @db.Decimal(18, 2)
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
+  customCategory   CustomCategory?   @relation(fields: [customCategoryId], references: [id])
+  plannedAmount    Decimal           @db.Decimal(18, 2)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
 
   @@unique([userId, profileId, year, month, parentCategory, customCategoryId])
 }
@@ -618,20 +625,20 @@ model Budget {
 /// Uma linha por mês (igual ao Budget), mesmo quando o valor é o mesmo o ano todo: assim dá pra
 /// ajustar um mês específico (décimo terceiro, férias) sem mexer nos outros.
 model MonthlyPlan {
-  id                String   @id @default(cuid())
+  id                String            @id @default(cuid())
   userId            String
-  user              User     @relation(fields: [userId], references: [id])
+  user              User              @relation(fields: [userId], references: [id])
   /// Perfil financeiro dono deste registro. Nulo só no histórico anterior aos perfis.
-  profileId String?
-  profile   FinancialProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  profileId         String?
+  profile           FinancialProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
   year              Int
   month             Int
   /// Renda esperada no mês.
-  plannedIncome     Decimal  @db.Decimal(18, 2)
+  plannedIncome     Decimal           @db.Decimal(18, 2)
   /// Aporte pretendido no mês.
-  plannedInvestment Decimal  @db.Decimal(18, 2)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  plannedInvestment Decimal           @db.Decimal(18, 2)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
 
   @@unique([userId, profileId, year, month])
 }
@@ -639,46 +646,46 @@ model MonthlyPlan {
 /// Cache opcional de consolidação anual (substitui Database -> Pivôs -> Consolidado do Ano).
 /// Só deve ser preenchido/usado se aggregation queries diretas apresentarem latência real.
 model YearlyConsolidationCache {
-  id              String   @id @default(cuid())
+  id              String            @id @default(cuid())
   userId          String
-  user            User     @relation(fields: [userId], references: [id])
+  user            User              @relation(fields: [userId], references: [id])
   /// Perfil financeiro dono deste registro. Nulo só no histórico anterior aos perfis.
-  profileId String?
-  profile   FinancialProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  profileId       String?
+  profile         FinancialProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
   year            Int
-  totalIncome     Decimal  @db.Decimal(18, 2)
-  totalExpense    Decimal  @db.Decimal(18, 2)
-  totalInvestment Decimal  @db.Decimal(18, 2)
-  balance         Decimal  @db.Decimal(18, 2)
-  updatedAt       DateTime @updatedAt
+  totalIncome     Decimal           @db.Decimal(18, 2)
+  totalExpense    Decimal           @db.Decimal(18, 2)
+  totalInvestment Decimal           @db.Decimal(18, 2)
+  balance         Decimal           @db.Decimal(18, 2)
+  updatedAt       DateTime          @updatedAt
 
   @@unique([userId, profileId, year])
 }
 
 /// Metas múltiplas (uma linha por meta na planilha original).
 model Goal {
-  id                  String         @id @default(cuid())
-  userId              String
-  user                User           @relation(fields: [userId], references: [id])
+  id                    String            @id @default(cuid())
+  userId                String
+  user                  User              @relation(fields: [userId], references: [id])
   /// Perfil financeiro dono deste registro. Nulo só no histórico anterior aos perfis.
-  profileId String?
-  profile   FinancialProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  name                String
-  targetAmount        Decimal        @db.Decimal(18, 2)
-  targetDate          DateTime?
-  currentAmount       Decimal        @default(0) @db.Decimal(18, 2)
-  monthlyContribution Decimal?       @db.Decimal(18, 2)
-  annualRate          Decimal?       @db.Decimal(12, 6)
-  status              GoalStatus     @default(NOT_STARTED)
-  icon                GoalIcon       @default(GENERICO)
+  profileId             String?
+  profile               FinancialProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  name                  String
+  targetAmount          Decimal           @db.Decimal(18, 2)
+  targetDate            DateTime?
+  currentAmount         Decimal           @default(0) @db.Decimal(18, 2)
+  monthlyContribution   Decimal?          @db.Decimal(18, 2)
+  annualRate            Decimal?          @db.Decimal(12, 6)
+  status                GoalStatus        @default(NOT_STARTED)
+  icon                  GoalIcon          @default(GENERICO)
   /// Mês (YYYY-MM) já perguntado "fez o aporte sugerido?" pra esta meta — mesmo padrão do
   /// User.recapDismissedMonth. Enquanto for o mesmo mês da janela atual, o check-in não
   /// aparece de novo (já foi respondido, seja "fiz", "fiz parcial" ou "não fiz").
   checkinDismissedMonth String?
-  entries             MonthlyEntry[]
-  assets              Asset[]
-  createdAt           DateTime       @default(now())
-  updatedAt           DateTime       @updatedAt
+  entries               MonthlyEntry[]
+  assets                Asset[]
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
 }
 
 /// Para onde foi o dinheiro de um aporte: liga o lançamento do fluxo aos ativos da carteira.
@@ -688,18 +695,18 @@ model Goal {
 /// aporte E o ativo, contando o mesmo dinheiro duas vezes. Um aporte pode ser dividido em
 /// vários ativos, então é uma linha por pedaço.
 model ContributionAllocation {
-  id        String       @id @default(cuid())
+  id        String            @id @default(cuid())
   userId    String
-  user      User         @relation(fields: [userId], references: [id])
+  user      User              @relation(fields: [userId], references: [id])
   /// Perfil financeiro dono deste registro. Nulo só no histórico anterior aos perfis.
   profileId String?
   profile   FinancialProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
   entryId   String
-  entry     MonthlyEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  entry     MonthlyEntry      @relation(fields: [entryId], references: [id], onDelete: Cascade)
   assetId   String
-  asset     Asset        @relation(fields: [assetId], references: [id], onDelete: Cascade)
-  amount    Decimal      @db.Decimal(18, 2)
-  createdAt DateTime     @default(now())
+  asset     Asset             @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  amount    Decimal           @db.Decimal(18, 2)
+  createdAt DateTime          @default(now())
 
   @@index([userId, createdAt])
   @@index([entryId])
@@ -708,93 +715,93 @@ model ContributionAllocation {
 
 /// Reserva de emergência./// Reserva de emergência.
 model EmergencyFund {
-  id                  String   @id @default(cuid())
+  id                  String            @id @default(cuid())
   userId              String
-  user                User     @relation(fields: [userId], references: [id])
+  user                User              @relation(fields: [userId], references: [id])
   /// Perfil financeiro dono deste registro. Nulo só no histórico anterior aos perfis.
-  profileId String? @unique
-  profile   FinancialProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  profileId           String?           @unique
+  profile             FinancialProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
   targetMonths        Int
-  monthlyExpenseBase  Decimal  @db.Decimal(18, 2)
-  targetAmount        Decimal  @db.Decimal(18, 2)
-  currentAmount       Decimal  @default(0) @db.Decimal(18, 2)
-  monthlyContribution Decimal  @db.Decimal(18, 2)
-  annualRate          Decimal  @db.Decimal(12, 6)
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  monthlyExpenseBase  Decimal           @db.Decimal(18, 2)
+  targetAmount        Decimal           @db.Decimal(18, 2)
+  currentAmount       Decimal           @default(0) @db.Decimal(18, 2)
+  monthlyContribution Decimal           @db.Decimal(18, 2)
+  annualRate          Decimal           @db.Decimal(12, 6)
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
 }
 
 /// Núcleo "Planejamento Financeiro" (acúmulo + usufruto).
 model PlanningParams {
-  id                              String   @id @default(cuid())
+  id                              String            @id @default(cuid())
   userId                          String
-  user                            User     @relation(fields: [userId], references: [id])
+  user                            User              @relation(fields: [userId], references: [id])
   /// Perfil financeiro dono deste registro. Nulo só no histórico anterior aos perfis.
-  profileId String? @unique
-  profile   FinancialProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  profileId                       String?           @unique
+  profile                         FinancialProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
   currentAge                      Int
   retirementAge                   Int
   lifeExpectancyAge               Int?
-  currentPatrimony                Decimal  @db.Decimal(18, 2)
-  monthlyContributionAccumulation Decimal  @db.Decimal(18, 2)
-  accumulationAnnualRate          Decimal  @db.Decimal(12, 6)
-  inflationAnnualRate             Decimal  @db.Decimal(12, 6)
-  usufructAnnualRate              Decimal  @db.Decimal(12, 6)
-  desiredPassiveIncome            Decimal  @db.Decimal(18, 2)
-  otherPassiveIncome              Decimal  @default(0) @db.Decimal(18, 2)
-  createdAt                       DateTime @default(now())
-  updatedAt                       DateTime @updatedAt
+  currentPatrimony                Decimal           @db.Decimal(18, 2)
+  monthlyContributionAccumulation Decimal           @db.Decimal(18, 2)
+  accumulationAnnualRate          Decimal           @db.Decimal(12, 6)
+  inflationAnnualRate             Decimal           @db.Decimal(12, 6)
+  usufructAnnualRate              Decimal           @db.Decimal(12, 6)
+  desiredPassiveIncome            Decimal           @db.Decimal(18, 2)
+  otherPassiveIncome              Decimal           @default(0) @db.Decimal(18, 2)
+  createdAt                       DateTime          @default(now())
+  updatedAt                       DateTime          @updatedAt
 }
 
 /// Cache opcional da projeção ano a ano (equivalente "Base Dash acum").
 model AccumulationProjectionCache {
-  id                String   @id @default(cuid())
+  id                String            @id @default(cuid())
   userId            String
-  user              User     @relation(fields: [userId], references: [id])
+  user              User              @relation(fields: [userId], references: [id])
   /// Perfil financeiro dono deste registro. Nulo só no histórico anterior aos perfis.
-  profileId String?
-  profile   FinancialProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  profileId         String?
+  profile           FinancialProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
   year              Int
   age               Int
-  contributions     Decimal  @db.Decimal(18, 2)
-  interestEarned    Decimal  @db.Decimal(18, 2)
-  endingBalanceNom  Decimal  @db.Decimal(18, 2)
-  endingBalanceReal Decimal  @db.Decimal(18, 2)
-  updatedAt         DateTime @updatedAt
+  contributions     Decimal           @db.Decimal(18, 2)
+  interestEarned    Decimal           @db.Decimal(18, 2)
+  endingBalanceNom  Decimal           @db.Decimal(18, 2)
+  endingBalanceReal Decimal           @db.Decimal(18, 2)
+  updatedAt         DateTime          @updatedAt
 
   @@unique([userId, profileId, year])
 }
 
 /// Minha Carteira.
 model Asset {
-  id                     String         @id @default(cuid())
+  id                     String                   @id @default(cuid())
   userId                 String
-  user                   User           @relation(fields: [userId], references: [id])
+  user                   User                     @relation(fields: [userId], references: [id])
   /// Perfil financeiro dono deste registro. Nulo só no histórico anterior aos perfis.
-  profileId String?
-  profile   FinancialProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  profileId              String?
+  profile                FinancialProfile?        @relation(fields: [profileId], references: [id], onDelete: Cascade)
   name                   String
   ticker                 String?
   assetClass             AssetClass
-  objective              AssetObjective @default(OUTRO)
+  objective              AssetObjective           @default(OUTRO)
   goalId                 String?
-  goal                   Goal?          @relation(fields: [goalId], references: [id])
+  goal                   Goal?                    @relation(fields: [goalId], references: [id])
   /// Aportes do fluxo que entraram neste ativo.
   allocations            ContributionAllocation[]
-  quantity               Decimal?          @db.Decimal(18, 6)
-  currentUnitPrice       Decimal?          @db.Decimal(18, 6)
+  quantity               Decimal?                 @db.Decimal(18, 6)
+  currentUnitPrice       Decimal?                 @db.Decimal(18, 6)
   /// Indexador do título de renda fixa (CDI/Selic, IPCA+ ou prefixado). Refina o mapeamento
   /// pra Estratégia da Carteira; nulo para ações/FIIs/fundos ou RF sem indexador conhecido.
   fixedIncomeIndex       FixedIncomeIndex?
   /// Quanto foi investido (compra/aportes). A atualização de cotações NUNCA mexe aqui —
   /// é a referência fixa pro lucro/prejuízo (currentValue - investedValue).
-  investedValue          Decimal?       @db.Decimal(18, 2)
-  currentValue           Decimal        @db.Decimal(18, 2)
-  idealAllocationPercent Decimal?       @db.Decimal(6, 3)
+  investedValue          Decimal?                 @db.Decimal(18, 2)
+  currentValue           Decimal                  @db.Decimal(18, 2)
+  idealAllocationPercent Decimal?                 @db.Decimal(6, 3)
   acquisitionDate        DateTime?
   notes                  String?
-  createdAt              DateTime       @default(now())
-  updatedAt              DateTime       @updatedAt
+  createdAt              DateTime                 @default(now())
+  updatedAt              DateTime                 @updatedAt
 }
 
 /// Provento (dividendo/JSCP/rendimento) de um TICKER — não de um Asset/usuário: um MXRF11 só
@@ -827,8 +834,8 @@ model PortfolioStrategy {
   userId        String
   user          User               @relation(fields: [userId], references: [id])
   /// Perfil financeiro dono deste registro. Nulo só no histórico anterior aos perfis.
-  profileId String?
-  profile   FinancialProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  profileId     String?
+  profile       FinancialProfile?  @relation(fields: [profileId], references: [id], onDelete: Cascade)
   assetClass    StrategyAssetClass
   targetPercent Decimal            @db.Decimal(6, 3)
   updatedAt     DateTime           @updatedAt
@@ -841,15 +848,15 @@ model PortfolioStrategy {
 /// histórico real que o app guarda sobre patrimônio — sem ela não há como responder "quanto
 /// cresceu" ou "é um novo recorde", já que Asset só guarda o valor atual.
 model PatrimonySnapshot {
-  id         String   @id @default(cuid())
+  id         String            @id @default(cuid())
   userId     String
-  user       User     @relation(fields: [userId], references: [id])
+  user       User              @relation(fields: [userId], references: [id])
   /// Perfil financeiro dono deste registro. Nulo só no histórico anterior aos perfis.
-  profileId String?
-  profile   FinancialProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  date       DateTime @db.Date
-  totalValue Decimal  @db.Decimal(18, 2)
-  createdAt  DateTime @default(now())
+  profileId  String?
+  profile    FinancialProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  date       DateTime          @db.Date
+  totalValue Decimal           @db.Decimal(18, 2)
+  createdAt  DateTime          @default(now())
 
   @@unique([userId, profileId, date])
   @@index([userId, date])
@@ -857,17 +864,17 @@ model PatrimonySnapshot {
 
 /// Histórico opcional de simulações (financiar vs alugar, consórcio, marcação a mercado, carro).
 model Simulation {
-  id         String         @id @default(cuid())
+  id         String            @id @default(cuid())
   userId     String
-  user       User           @relation(fields: [userId], references: [id])
+  user       User              @relation(fields: [userId], references: [id])
   /// Perfil financeiro dono deste registro. Nulo só no histórico anterior aos perfis.
-  profileId String?
-  profile   FinancialProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  profileId  String?
+  profile    FinancialProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
   type       SimulationType
   name       String?
   inputJson  Json
   outputJson Json
-  createdAt  DateTime       @default(now())
+  createdAt  DateTime          @default(now())
 }
 
 /// Catálogo compartilhado de critérios das fichas de análise (Ações / FIIs).
@@ -893,8 +900,8 @@ model AnalysisSheet {
   userId       String
   user         User               @relation(fields: [userId], references: [id])
   /// Perfil financeiro dono deste registro. Nulo só no histórico anterior aos perfis.
-  profileId String?
-  profile   FinancialProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  profileId    String?
+  profile      FinancialProfile?  @relation(fields: [profileId], references: [id], onDelete: Cascade)
   sheetType    SheetType
   ticker       String
   companyName  String?
@@ -931,28 +938,28 @@ model AnalysisResponse {
 /// Existe independente de User porque a checagem acontece no cadastro, antes da conta existir.
 /// O e-mail é sempre guardado normalizado (minúsculo, sem espaços) para casar com o login.
 model AllowedEmail {
-  id        String       @id @default(cuid())
-  email     String       @unique
-  source    AccessSource @default(MANUAL)
-  active    Boolean      @default(true)
+  id                 String       @id @default(cuid())
+  email              String       @unique
+  source             AccessSource @default(MANUAL)
+  active             Boolean      @default(true)
   /// Anotação livre: turma, nome do produto no Hubla, motivo da liberação manual etc.
-  note      String?
+  note               String?
   /// Celular que veio da compra no Hubla — copiado pro User quando a conta é criada.
-  phone     String?
+  phone              String?
   /// Data-limite do acesso (a assinatura é anual). Nulo = acesso sem prazo. Vencido não
   /// desativa sozinho (não apaga `active`) — só bloqueia login/cadastro e aparece como
   /// "Expirado" no painel, pra Dani decidir se renova ou desativa de vez.
-  expiresAt DateTime?
+  expiresAt          DateTime?
   /// Última fatura do Hubla já processada. O Hubla manda o mesmo evento mais de uma vez
   /// (member_added + payment_succeeded, além de reenvios); sem essa trava, cada reenvio
   /// esticaria o acesso em mais um ano de graça.
   lastHublaInvoiceId String?
   /// Lembretes de "crie sua conta" (boas-vindas, 30/09/2026): quando saiu o do 1º e o do 4º dia.
   /// Servem de trava: gravados ANTES do envio, uma rodada repetida não manda duas vezes.
-  lembreteConta1Em DateTime?
-  lembreteConta2Em DateTime?
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
+  lembreteConta1Em   DateTime?
+  lembreteConta2Em   DateTime?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
 }
 
 /// Produtos do Hubla que dão acesso ao app. O webhook só libera uma compra se o produto
@@ -1011,6 +1018,25 @@ model BankConnection {
   lastError     String?
   createdAt     DateTime  @default(now())
   user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+/// Assinatura do SPI Finance comprada pela Apple dentro do app iOS (out/2026, guideline 3.1.1).
+/// Liga a compra (originalTransactionId, que se repete em toda renovação) à conta que comprou:
+/// os avisos da Apple (renovou, reembolsou) só trazem a transação, não o e-mail. O acesso em si
+/// fica no AllowedEmail com source APPLE, igual às compras do Hubla.
+model AssinaturaApple {
+  originalTransactionId String    @id
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId             String
+  expiresAt             DateTime
+  /// "Production" ou "Sandbox" (o revisor da Apple compra no Sandbox).
+  ambiente              String
+  revogadaEm            DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 
   @@index([userId])
 }

@@ -10,6 +10,7 @@ import { registerSchema } from "@/lib/validations/auth.schema";
 import { normalizePhone } from "@/lib/phone";
 import { compraComOCelular, getAllowedPhone, situacaoDoAcesso } from "@/lib/repositories/allowedEmail.repo";
 import { erroDeCadastroSemCompra } from "@/lib/support/contato";
+import { naAppDaApple } from "@/lib/apple/app-da-apple";
 
 // `values` volta junto com o erro: o React 19 limpa o formulário a cada envio, e sem isso
 // "Celular inválido" aparecia com os quatro campos em branco. A senha nunca volta.
@@ -39,9 +40,9 @@ export async function registerAction(_prevState: RegisterState, formData: FormDa
     return { error: parsed.error.issues[0]?.message ?? "Dados inválidos.", values };
   }
 
-  // Aceita qualquer formato digitado — "(11) 98765-4321", "+55 11...", só dígitos.
-  const phone = normalizePhone(parsed.data.phone);
-  if (!phone) {
+  // Opcional. Se veio, aceita qualquer formato digitado: "(11) 98765-4321", "+55 11...", só dígitos.
+  const phone = parsed.data.phone ? normalizePhone(parsed.data.phone) : null;
+  if (parsed.data.phone && !phone) {
     return { error: "Celular inválido. Use DDD + número, ex.: (11) 98765-4321.", values };
   }
 
@@ -58,9 +59,11 @@ export async function registerAction(_prevState: RegisterState, formData: FormDa
   // Só quem comprou cria conta (fim do freemium, 30/09/2026): no grátis, quem comprava com um
   // e-mail e cadastrava com outro entrava sem a compra e não entendia o cadeado. Agora ela é
   // parada aqui, com a dica do e-mail da compra quando o celular bate.
+  // No app da Apple a conta nasce sem compra: ela assina pela Apple logo em seguida (a tela de
+  // assinatura entra no lugar do cadeado). Fora dele, continua só pra quem comprou.
   const situacao = await situacaoDoAcesso(parsed.data.email);
-  if (situacao !== "ativo") {
-    const compraDoCelular = situacao === "sem-compra" ? await compraComOCelular(phone) : null;
+  if (situacao !== "ativo" && !(await naAppDaApple())) {
+    const compraDoCelular = situacao === "sem-compra" && phone ? await compraComOCelular(phone) : null;
     return { error: erroDeCadastroSemCompra(situacao, compraDoCelular), values };
   }
 

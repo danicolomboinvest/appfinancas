@@ -19,9 +19,9 @@ export const registerSchema = z.object({
   name: nomeSchema,
   email: emailSchema,
   password: z.string().min(8, "A senha deve ter ao menos 8 caracteres."),
-  // Validação/normalização de verdade acontece com normalizePhone (aceita qualquer formato
-  // digitado); aqui só garante que veio algo.
-  phone: z.string().min(1, "Informe seu celular com DDD."),
+  // Opcional (Apple, 5.1.1(v), 01/10/2026: celular não é essencial pro app). Se veio, a
+  // validação de verdade é a do normalizePhone, que aceita qualquer formato digitado.
+  phone: z.string().nullish().transform((v) => v?.trim() ?? ""),
 });
 
 /** Conta criada pelo admin (cortesia/VIP), sem celular — diferente do autocadastro normal,

@@ -18,6 +18,10 @@ import { periodoDoDia, vozDoTema } from "@/lib/profiles/voice";
 import { emailConfirmado } from "@/lib/auth/confirmacao-email";
 import { TelaConfirmeEmail } from "@/components/auth/TelaConfirmeEmail";
 import { TelaSemAcesso } from "@/components/auth/TelaSemAcesso";
+import { AssinarPelaApple } from "@/components/auth/AssinarPelaApple";
+import { naAppDaApple } from "@/lib/apple/app-da-apple";
+import { IDS_DOS_PRODUTOS } from "@/lib/apple/config";
+import { acessoVeioDaApple, guardarTokenApple } from "@/lib/repositories/assinaturaApple.repo";
 import { linkDoSuporte } from "@/lib/support/whatsapp-link";
 import { mensagemDeContaSemAcesso } from "@/lib/support/contato";
 import { lerPreferenciasDeCategoria, type PreferenciasDeCategoria } from "@/lib/categories";
@@ -59,13 +63,18 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     const acesso = ctx.role === "ADMIN" ? "ativo" : await situacaoDoAcesso(user.email);
     const uso = usoDoApp(acesso, user.createdAt);
     if (uso === "bloqueado" && acesso !== "ativo") {
+      // No app da Apple, quem não tem acesso assina ali mesmo (guideline 3.1.1); a tela do
+      // cadeado, que fala de compra feita fora, não pode aparecer lá.
+      if (await naAppDaApple()) return <AssinarPelaApple token={await guardarTokenApple(user)} produtosIds={[...IDS_DOS_PRODUTOS]} />;
       const compraDoCelular = acesso === "sem-compra" ? await compraComOCelular(user.phone) : null;
       return <TelaSemAcesso email={user.email} situacao={acesso} compraDoCelular={compraDoCelular} whatsapp={linkDoSuporte(mensagemDeContaSemAcesso(user.email))} />;
     }
     // Conta nova só abre depois de confirmar o e-mail: sem isso qualquer um criava a conta com
     // o e-mail de outra pessoa (de uma compradora, inclusive). Vem antes do /comecar, que
     // também manda de volta pra cá quem não confirmou. Admin sempre passa.
-    if (ctx.role !== "ADMIN" && !emailConfirmado(user)) return <TelaConfirmeEmail email={user.email} />;
+    // Exceção: quem assinou pela Apple a partir desta conta. A compra já prova que a conta é
+    // dela, e o revisor da Apple, que assina no Sandbox, não abre e-mail de confirmação.
+    if (ctx.role !== "ADMIN" && !emailConfirmado(user) && !(await acessoVeioDaApple(user))) return <TelaConfirmeEmail email={user.email} />;
     // Primeira entrada: antes de ver qualquer tela, a pessoa escolhe o tipo e o tema do
     // perfil dela em /comecar. Uma vez só; quem já usava o app nasceu com a data preenchida.
     if (user.onboardedAt === null) redirect("/comecar");

@@ -12,7 +12,7 @@ type Product = {
   id: string;
   name: string;
   hublaProductId: string | null;
-  source: "MANUAL" | "HUBLA";
+  source: "MANUAL" | "HUBLA" | "APPLE";
   active: boolean;
 };
 

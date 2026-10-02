@@ -1,4 +1,5 @@
 import { lerTokenDeConvite } from "@/lib/auth/convite-cadastro";
+import { naAppDaApple } from "@/lib/apple/app-da-apple";
 import { RegisterForm } from "./RegisterForm";
 
 /**
@@ -8,5 +9,5 @@ import { RegisterForm } from "./RegisterForm";
  */
 export default async function RegisterPage({ searchParams }: PageProps<"/register">) {
   const { convite } = await searchParams;
-  return <RegisterForm emailDaCompra={lerTokenDeConvite(convite)} />;
+  return <RegisterForm emailDaCompra={lerTokenDeConvite(convite)} appDaApple={await naAppDaApple()} />;
 }
