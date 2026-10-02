@@ -28,6 +28,8 @@ import { isFaturaSummaryLine, comprasDaFaturaSaoPositivas, pareceCreditoDePagame
 import { extractUploadFromForm, UploadReadError, PasswordRequiredError } from "@/lib/import/extract-text";
 import { pdfTextQuality } from "@/lib/import/pdf-quality";
 import { classify, normalizeMerchant, type LearnedRule } from "@/lib/import/classify";
+import { classificarPelaComunidade } from "@/lib/import/comunidade";
+import { regrasDaComunidade } from "@/lib/repositories/comunidade.repo";
 import { pareceEstorno } from "@/lib/import/estorno";
 import { pareceAplicacao, pareceContaPropria, parecePagamentoDeFatura, pareceResgate } from "@/lib/import/dinheiro-proprio";
 import { casarPorDataEValor, type ExistenteSolto } from "@/lib/import/duplicata-solta";
@@ -264,6 +266,7 @@ export async function parseStatementAction(formData: FormData): Promise<ParseSta
     subcategory: r.subcategory ?? undefined,
   }));
 
+  const comunidade = ctx.profileKind === "EMPRESA" ? new Map() : await regrasDaComunidade();
   const comprasSaoPositivas = docType !== "fatura" || comprasDaFaturaSaoPositivas(parsed);
   const items: ReviewItem[] = parsed.map((txn, index) => {
     const isExpense = docType === "fatura" ? (comprasSaoPositivas ? txn.amount > 0 : txn.amount < 0) : txn.amount < 0;
@@ -272,7 +275,10 @@ export async function parseStatementAction(formData: FormData): Promise<ParseSta
     const estorno = !isExpense && (docType === "fatura" || pareceEstorno(txn.description));
     // Categoriza saídas e estornos (o estorno desconta da categoria da compra). O tipo do
     // perfil escolhe as regras: na Empresa, "iFood" não é Mercadorias e insumos.
-    const classification = isExpense || estorno ? classify(txn.description, learned, ctx.profileKind) : null;
+    // Sem regra dela nem do app, o que as outras clientes escolheram pra mesma loja (Pessoal só).
+    const doApp = isExpense || estorno ? classify(txn.description, learned, ctx.profileKind) : null;
+    const daComunidade = !doApp && isExpense ? classificarPelaComunidade(txn.description, comunidade) : null;
+    const classification = doApp ?? (daComunidade ? { parentCategory: daComunidade } : null);
     return {
       key: index,
       date: txn.date,

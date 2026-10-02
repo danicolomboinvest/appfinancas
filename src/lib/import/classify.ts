@@ -53,22 +53,28 @@ const BUILTIN_RULES: BuiltinRule[] = [
   { keywords: ["imposto de renda", "irpf", "receita federal"], parentCategory: "IMPOSTOS", subcategory: "Imposto de renda" },
   { keywords: ["darf"], parentCategory: "IMPOSTOS", subcategory: "DARF" },
   // "IMPOSTO", "TRIBUTO", "DAE" soltos: é imposto, mas qual só ela sabe. Fica sem subcategoria.
+  // DAS do MEI: 5 clientes escolheram Impostos pra "Simples Nacional" (out/2026).
+  { keywords: ["simples nacional"], parentCategory: "IMPOSTOS", subcategory: "Taxas públicas" },
   { keywords: KW_IMPOSTO, parentCategory: "IMPOSTOS" },
   // Alimentação
   { keywords: KW_DELIVERY, parentCategory: "ALIMENTACAO", subcategory: "Delivery" },
   // "lanche" aqui, antes do Lazer: "SHOW DE BOLA LANCHES" é lanchonete, não Cinema/Shows.
-  { keywords: ["restaurante", "lanchonete", "lanche", "bar", "pizzaria", "hamburgueria", "mcdonald", "mc donald", "burger king", "bk", "subway", "outback", "cafe", "café", "cafeteria", "padaria", "confeitaria"], parentCategory: "ALIMENTACAO", subcategory: "Restaurante" },
+  { keywords: ["restaurante", "lanchonete", "lanche", "bar", "pizzaria", "pizza", "almoco", "almoço", "hamburgueria", "mcdonald", "mc donald", "burger king", "bk", "subway", "outback", "cafe", "café", "cafeteria", "padaria", "confeitaria"], parentCategory: "ALIMENTACAO", subcategory: "Restaurante" },
   // "mercado" sozinho; Mercado Pago e Mercado Livre viram uma palavra só antes (ver textoParaRegras).
   { keywords: ["supermercado", "mercado", "atacadao", "atacadão", "carrefour", "pao de acucar", "pão de açúcar", "assai", "assaí", "hortifruti", "sacolao"], parentCategory: "ALIMENTACAO", subcategory: "Supermercado" },
   // Transporte
   { keywords: KW_APLICATIVO, parentCategory: "TRANSPORTE", subcategory: "Aplicativo" },
   { keywords: KW_COMBUSTIVEL, parentCategory: "TRANSPORTE", subcategory: "Combustível" },
   { keywords: KW_ESTACIONAMENTO, parentCategory: "TRANSPORTE", subcategory: "Estacionamento" },
+  // Tag de pedágio: 4 clientes escolheram Transporte pra "Sem Parar" (out/2026).
+  { keywords: ["sem parar", "semparar", "conectcar", "veloe", "pedagio", "pedágio"], parentCategory: "TRANSPORTE", subcategory: "Pedágio" },
   { keywords: ["metro", "metrô", "cptm", "bilhete unico", "bilhete único", "sptrans", "onibus", "ônibus", "brt"], parentCategory: "TRANSPORTE", subcategory: "Transporte público" },
   // Saúde. "raia" e "pacheco" sozinhos pegavam PRAIA e qualquer JOAO PACHECO de Pix.
   { keywords: ["farmacia", "farmácia", "drogaria", "drogasil", "droga raia", "drogaraia", "raiadrogasil", "drogariasaopaulo", "drogasaopaulo", "pague menos", "paguemenos"], parentCategory: "SAUDE", subcategory: "Farmácia" },
   { keywords: ["unimed", "amil", "bradesco saude", "sulamerica saude", "plano de saude", "hapvida"], parentCategory: "SAUDE", subcategory: "Plano de saúde" },
   { keywords: ["hospital", "clinica", "clínica", "laboratorio", "laboratório", "consultorio", "consultório", "dentista", "exame"], parentCategory: "SAUDE", subcategory: "Consultas" },
+  // Psicóloga e terapia: clientes escolhiam Saúde à mão toda vez (out/2026).
+  { keywords: ["psicologa", "psicóloga", "psicologo", "psicólogo", "psicologia", "terapia", "terapeuta"], parentCategory: "SAUDE", subcategory: "Terapia" },
   { keywords: ["academia", "smartfit", "smart fit", "gympass", "wellhub"], parentCategory: "SAUDE", subcategory: "Academia" },
   // Lazer
   { keywords: ["netflix", "spotify", "disney", "disneyplus", "hbo", "hbomax", "max com", "amazon prime", "amazonprime", "prime video", "primevideo", "youtube premium", "youtubepremium", "deezer", "globoplay", "paramount", "apple tv"], parentCategory: "LAZER", subcategory: "Streaming" },
