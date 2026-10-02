@@ -7,10 +7,6 @@ import {
   getAnnualPlannedVsActual,
   computeMonthSavings,
   findBiggestOverrun,
-  findUnrecorded,
-  findBiggestSaving,
-  compareCategoryBudget,
-  type CategoryComparison,
 } from "@/lib/planning/budget-comparison";
 import { getAnnualBudgetPlan, getAnnualBudgetPlanForCustomCategories } from "@/lib/repositories/budget.repo";
 import { getAnnualMonthlyPlan } from "@/lib/repositories/monthly-plan.repo";
@@ -19,7 +15,6 @@ import { anoFechado, mesDeReferenciaDoPlano } from "@/lib/planning/plano-anual";
 import { getSavingsTargets } from "@/lib/planning/savings-targets";
 import { BudgetWizard } from "../BudgetWizard";
 import { getMonthlySummary } from "@/lib/consolidation/monthly";
-import { PlanVsActualRow } from "@/components/charts/PlanVsActualRow";
 import {
   PARENT_CATEGORIES,
   categoryLabel as parentCategoryLabel,
@@ -29,18 +24,19 @@ import {
 } from "@/lib/categories";
 import { listCustomCategories } from "@/lib/repositories/custom-category.repo";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { StatCard } from "@/components/ui/StatCard";
 
-import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
-import { ResponsiveTable, type ResponsiveColumn } from "@/components/ui/ResponsiveTable";
-import { BulletBar } from "@/components/charts/BulletBar";
-import { buildBudgetBullets, elapsedRatioOfMonth } from "@/lib/planning/budget-bullets";
-import { formatPercentNumber } from "@/lib/format";
-import type { MonthlyPlannedVsActual } from "@/lib/planning/budget-comparison";
+import { elapsedRatioOfMonth } from "@/lib/planning/budget-bullets";
 import { serverMoney } from "@/lib/money-server";
 import { Section } from "@/components/ui/Section";
 import { resumoDoMes } from "@/lib/planning/month-budget-summary";
 import { ResumoDoMesCard } from "@/components/budget/ResumoDoMesCard";
+import { EditarPlano } from "@/components/budget/EditarPlano";
+import { CategoriasDoMes, type LinhaDaCategoria } from "@/components/budget/CategoriasDoMes";
+import { CurvaDoMes } from "@/components/budget/CurvaDoMes";
+import { ResumoDoAno, type MesDoResumo } from "@/components/budget/ResumoDoAno";
+import { carregarDetalheDoOrcamento } from "@/lib/repositories/orcamento-detalhe.repo";
+import { categoriaDoMes, ordenarCategorias, planoMaisRealista, sugestaoDeCobrir } from "@/lib/planning/orcamento-categorias";
+import { MapaDoAno, type LinhaDoMapa } from "@/components/budget/MapaDoAno";
 import { vozDoTema } from "@/lib/profiles/voice";
 import { AtualizarMesButton } from "@/components/budget/AtualizarMesButton";
 import { getUltimoGastoAte } from "@/lib/repositories/monthly-entry.repo";
@@ -100,7 +96,7 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
   // O nome de cada categoria-mãe vem do tipo do perfil (Empresa fala "Estrutura", não "Moradia").
   function categoryLabel(categoryKey: string): string {
     return isParentCategoryKey(categoryKey)
-      ? parentCategoryLabel(ctx.profileKind, categoryKey)
+      ? parentCategoryLabel(ctx.categorias ?? ctx.profileKind, categoryKey)
       : (customCategoryLabels.get(categoryKey) ?? "Categoria personalizada");
   }
   const allCategoryKeys: string[] = [...PARENT_CATEGORIES, ...customCategories.map((c) => c.id)];
@@ -140,78 +136,110 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
   // dizia "Acima do planejado" em vermelho enquanto o resumo do mês, logo acima, dizia "sem plano".
   const monthSavings = currentMonthData && currentMonthData.totalPlanned > 0 ? computeMonthSavings(currentMonthData) : null;
   const biggestOverrun = currentMonthData ? findBiggestOverrun(currentMonthData.categories) : null;
-  const biggestSaving = currentMonthData ? findBiggestSaving(currentMonthData.categories) : null;
-  const unrecorded = currentMonthData ? findUnrecorded(currentMonthData.categories) : [];
 
-  // Comparação por categoria no ANO DA PESSOA: o planejado soma do mês em que ela começou
-  // até dezembro (o que ela se propôs a gastar de lá pra frente); o gasto, só os meses já
-  // vividos. Quem começou em setembro vê "R$ 0 de R$ 6.000" com o tracinho em 1/4, não
-  // "R$ 0 de R$ 13.500" com janeiro a agosto em dívida.
-  const realizedMonths = comparison.months.filter((m) => m.isRealized);
-  const windowMonths = comparison.months.filter((m) => m.month >= comparison.startMonth);
-  const categoryTotals = new Map<string, { planned: number; spent: number }>();
-  for (const month of windowMonths) {
-    for (const cat of month.categories) {
-      const existing = categoryTotals.get(cat.categoryKey) ?? { planned: 0, spent: 0 };
-      existing.planned += cat.planned;
-      if (month.isRealized) existing.spent += cat.spent;
-      categoryTotals.set(cat.categoryKey, existing);
-    }
-  }
-  const categoryComparisons: CategoryComparison[] = allCategoryKeys.map((categoryKey) => {
-    const totals = categoryTotals.get(categoryKey) ?? { planned: 0, spent: 0 };
-    const { deviationPercent, status } = compareCategoryBudget(totals.planned, totals.spent);
-    return { categoryKey, planned: totals.planned, spent: totals.spent, deviationPercent, status };
-  });
 
-  // Tracinho do ano: a fração do ano que já passou (meses realizados / 12). Gastar 80% do
-  // orçamento anual em março é a mesma informação que gastar 80% do mensal no dia 5.
-  const yearPace = realizedMonths.length > 0 && windowMonths.length > 0 ? realizedMonths.length / windowMonths.length : null;
-  const yearBullets = buildBudgetBullets(categoryComparisons, {
-    paceRatio: isCurrentYear ? yearPace : 1,
-    money,
-    labelFor: categoryLabel,
-    colorFor: categoryColor,
-    labelStyle: "de",
-  });
 
-  const monthOverCounts = { over: 0, within: 0, unplanned: 0 };
-  const monthBullets = currentMonthData
-    ? buildBudgetBullets(currentMonthData.categories, {
-        paceRatio: elapsedRatioOfMonth(now, year, currentMonthData.month),
-        money,
-        labelFor: categoryLabel,
-        colorFor: categoryColor,
-        labelStyle: "restante",
-      })
+  // As categorias do mês no jeito do Copilot (ver CategoriasDoMes): previsão, a vencer, Cobrir.
+  const detalhe = currentMonthData && isCurrentYear ? await carregarDetalheDoOrcamento(ctx, year, currentMonthData.month, now) : null;
+  const decorrido = currentMonthData ? elapsedRatioOfMonth(now, year, currentMonthData.month) : 0;
+  const ROTULO_MES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+  const categoriasDoMes = currentMonthData && detalhe
+    ? ordenarCategorias(
+        currentMonthData.categories
+          .filter((c) => c.planned > 0 || (detalhe.porCategoria[c.categoryKey]?.gasto ?? 0) + (detalhe.porCategoria[c.categoryKey]?.aVencer ?? 0) > 0)
+          .map((c) =>
+            categoriaDoMes(
+              { key: c.categoryKey, label: categoryLabel(c.categoryKey), planejado: c.planned, gasto: detalhe.porCategoria[c.categoryKey]?.gasto ?? 0, aVencer: detalhe.porCategoria[c.categoryKey]?.aVencer ?? 0 },
+              decorrido,
+            ),
+          ),
+      )
     : [];
-  for (const row of monthBullets) {
-    if (row.isUnplanned) monthOverCounts.unplanned += 1;
-    else if (row.isOver) monthOverCounts.over += 1;
-    else monthOverCounts.within += 1;
-  }
-  const { over: monthOver, within: monthWithin, unplanned: monthUnplanned } = monthOverCounts;
+  const linhasDoMes: LinhaDaCategoria[] = categoriasDoMes.map((c) => {
+    const historico = (detalhe?.historico ?? []).map((h, i, arr) => ({
+      rotulo: ROTULO_MES[h.mes - 1],
+      gasto: i === arr.length - 1 ? c.gasto + c.aVencer : (h.porCategoria[c.key]?.gasto ?? 0),
+      planejado: h.porCategoria[c.key]?.planejado ?? 0,
+      atual: i === arr.length - 1,
+    }));
+    const fechados = historico.slice(0, -1).filter((h) => h.gasto > 0 || h.planejado > 0);
+    return {
+      ...c,
+      cor: categoryColor(c.key),
+      iconeProprio: customCategories.find((cc) => cc.id === c.key)?.icon,
+      maiores: detalhe?.porCategoria[c.key]?.maiores ?? [],
+      historico,
+      media: fechados.length > 0 ? fechados.reduce((s, h) => s + h.gasto, 0) / fechados.length : c.gasto + c.aVencer,
+      sugestao: planoMaisRealista(historico.slice(0, -1), c.planejado),
+    };
+  });
+  const sugestaoCobrir = sugestaoDeCobrir(categoriasDoMes);
+  const cobrir = sugestaoCobrir ? { de: sugestaoCobrir.de.key, deLabel: sugestaoCobrir.de.label, para: sugestaoCobrir.para.key, paraLabel: sugestaoCobrir.para.label, valor: sugestaoCobrir.valor } : null;
+  // A previsão do mês é a soma das previsões das categorias (as fixas não são projetadas pelo
+  // ritmo), e só depois de 15% do mês, como no Foco.
+  const previsaoDoMesTotal = categoriasDoMes.length > 0 && decorrido >= 0.15 && decorrido < 1 ? Math.round(categoriasDoMes.reduce((s, c) => s + c.previsto, 0)) : null;
 
-  const monthColumns: ResponsiveColumn<MonthlyPlannedVsActual>[] = [
-    { key: "month", label: "Mês", render: (m) => MONTH_LABELS[m.month - 1] },
-    { key: "planned", label: "Planejado", render: (m) => money(m.totalPlanned) },
-    { key: "spent", label: "Realizado", render: (m) => (m.isRealized ? money(m.totalSpent) : "—") },
-    {
-      key: "diff",
-      label: "Diferença",
-      render: (m) =>
-        m.isRealized ? (
-          <span className={m.totalPlanned - m.totalSpent >= 0 ? "text-success" : "text-danger"}>
-            {money(m.totalPlanned - m.totalSpent)}
-          </span>
-        ) : (
-          "—"
-        ),
-    },
-  ];
+  // "Seu ano até agora" (ver ResumoDoAno), no lugar da tabela de 12 cartões.
+  const mesesDoResumo: MesDoResumo[] = comparison.months.map((mm) => ({
+    rotulo: ROTULO_MES[mm.month - 1].charAt(0).toUpperCase(),
+    nome: MONTH_LABELS[mm.month - 1],
+    planejado: mm.totalPlanned,
+    gasto: mm.totalSpent,
+    // Só mês FECHADO: o mês em andamento entrava com o gasto pela metade (no dia 1, R$ 0) e virava
+    // "melhor mês", inflando a economia do ano.
+    realizado: mm.isRealized && mm.month >= comparison.startMonth && (!isCurrentYear || mm.month < now.getMonth() + 1),
+    pesaram: mm.categories
+      .filter((c) => c.planned > 0 && c.spent > c.planned)
+      .sort((a, b) => b.spent - b.planned - (a.spent - a.planned))
+      .slice(0, 2)
+      .map((c) => ({ label: categoryLabel(c.categoryKey), valor: Math.round(c.spent - c.planned) })),
+  }));
+
+  const assistente = (
+    <BudgetWizard
+      year={year}
+      profileId={ctx.profileId}
+      hasPlan={hasPlan}
+      hints={hints}
+      savingsTargets={savingsTargets}
+      plan={{
+        plannedIncome: monthPlan?.plannedIncome ?? 0,
+        plannedInvestment: monthPlan?.plannedInvestment ?? 0,
+      }}
+      parentCategories={PARENT_CATEGORIES.map((parentCategory) => ({
+        key: parentCategory,
+        label: parentCategoryLabel(ctx.profileKind, parentCategory),
+        description: categoryDescription(ctx.profileKind, parentCategory),
+        defaultValue: plan[parentCategory],
+      }))}
+      customCategories={customCategories.map((category) => ({
+        id: category.id,
+        name: category.name,
+        icon: category.icon,
+        defaultValue: customPlan[category.id] ?? 0,
+      }))}
+    />
+  );
+
+  // O mapa do ano: por categoria com plano no ano, o estado de cada mês (ver MapaDoAno).
+  const mesAtual = isCurrentYear ? now.getMonth() + 1 : 13;
+  const linhasDoAno: LinhaDoMapa[] = allCategoryKeys
+    .filter((key) => comparison.months.some((m) => (m.categories.find((c) => c.categoryKey === key)?.planned ?? 0) > 0))
+    .map((key) => ({
+      key,
+      label: categoryLabel(key),
+      meses: Array.from({ length: 12 }, (_, i) => {
+        const mes = comparison.months.find((m) => m.month === i + 1);
+        const cat = mes?.categories.find((c) => c.categoryKey === key);
+        if (i + 1 === mesAtual) return "agora" as const;
+        if (!mes || !mes.isRealized) return "futuro" as const;
+        if (!cat || cat.planned <= 0) return "sem-plano" as const;
+        return cat.spent > cat.planned ? ("passou" as const) : ("dentro" as const);
+      }),
+    }));
 
   return (
-    <div className="flex flex-col gap-8 lg:gap-5">
+    <div className="flex flex-col gap-6 lg:gap-5">
       {/* Subtítulo curto de propósito: o cartão logo abaixo diz a mesma coisa com os números
           DELA, e no celular cada linha aqui empurra pra fora da tela o número que ela veio ver. */}
       <PageHeader
@@ -245,6 +273,28 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
           money={money}
           onAtualizar={<AtualizarMesButton />}
           voz={voz}
+          grafico={
+            detalhe && currentMonthData ? (
+              <CurvaDoMes
+                acumulado={detalhe.acumulado}
+                acumuladoAnterior={detalhe.acumuladoAnterior}
+                planejado={currentMonthData.totalPlanned}
+                diasNoMes={ultimoDiaDoMes}
+                previsao={previsaoDoMesTotal}
+                marco={detalhe.marco && detalhe.marco.valor >= currentMonthData.totalPlanned * 0.05 ? detalhe.marco : null}
+                cor={resumoMes.situacao === "estourou" ? "var(--color-danger)" : "var(--color-accent)"}
+                money={(v) => money(v, { round: true })}
+              />
+            ) : undefined
+          }
+          previsaoTexto={
+            previsaoDoMesTotal !== null && currentMonthData && currentMonthData.totalPlanned > 0
+              ? previsaoDoMesTotal > currentMonthData.totalPlanned
+                ? `Nesse ritmo, o mês fecha em ${money(previsaoDoMesTotal, { round: true })}: ${money(previsaoDoMesTotal - currentMonthData.totalPlanned, { round: true })} acima.`
+                : `Nesse ritmo, o mês fecha em ${money(previsaoDoMesTotal, { round: true })}, dentro do planejado.`
+              : null
+          }
+          previsaoRuim={previsaoDoMesTotal !== null && currentMonthData !== undefined && previsaoDoMesTotal > currentMonthData.totalPlanned}
         />
       )}
 
@@ -255,166 +305,72 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
             Planejar {agora.getFullYear()}
           </Link>
         </p>
+      ) : hasPlan ? (
+        // Com plano: um botão que abre o assistente por cima (ver EditarPlano). Sem plano, ele é
+        // a própria página e continua aberto aqui.
+        <EditarPlano rotulo={`Editar plano ${year}`} titulo={`Editar plano ${year}`}>
+          {assistente}
+        </EditarPlano>
       ) : (
-      <CollapsibleSection
-        label={hasPlan ? voz.titulos.formOrcEditarPlano(year) : `Vamos montar seu orçamento de ${year}`}
-        defaultOpen={!hasPlan}
-      >
-        <BudgetWizard
-          year={year}
-          profileId={ctx.profileId}
-          hasPlan={hasPlan}
-          hints={hints}
-          savingsTargets={savingsTargets}
-          plan={{
-            plannedIncome: monthPlan?.plannedIncome ?? 0,
-            plannedInvestment: monthPlan?.plannedInvestment ?? 0,
-          }}
-          parentCategories={PARENT_CATEGORIES.map((parentCategory) => ({
-            key: parentCategory,
-            label: parentCategoryLabel(ctx.profileKind, parentCategory),
-            description: categoryDescription(ctx.profileKind, parentCategory),
-            defaultValue: plan[parentCategory],
-          }))}
-          customCategories={customCategories.map((category) => ({
-            id: category.id,
-            name: category.name,
-            icon: category.icon,
-            defaultValue: customPlan[category.id] ?? 0,
-          }))}
-        />
-      </CollapsibleSection>
+        <Section title={`Vamos montar seu orçamento de ${year}`}>{assistente}</Section>
       )}
 
-      {/* Três linhas no celular, três colunas no computador — e "sem lançamento" no lugar de
-          "melhor categoria" quando o que existe é categoria em zero, não economia. */}
-      {isCurrentYear && hasPlan && (
-        <div className="grid grid-cols-1 gap-3 lg:grid-cols-3 lg:gap-4">
-          <StatCard
-            layout="row"
-            label={voz.titulos.economiaNoMes}
-            value={monthSavings === null ? "—" : money(Math.abs(monthSavings))}
-            tone={monthSavings === null ? "neutral" : monthSavings >= 0 ? "success" : "danger"}
-            hint={monthSavings === null ? "Defina um planejamento para ver essa comparação." : monthSavings >= 0 ? voz.titulos.economiaAbaixo : voz.titulos.economiaAcima}
-          />
-          <StatCard
-            layout="row"
-            label={voz.titulos.categoriaEstourou}
-            value={biggestOverrun ? categoryLabel(biggestOverrun.categoryKey) : "Nenhuma"}
-            tone={biggestOverrun ? "danger" : "neutral"}
-            hint={
-              biggestOverrun && biggestOverrun.deviationPercent !== null
-                ? voz.titulos.categoriaEstourouDica(formatPercentNumber(biggestOverrun.deviationPercent * 100, 0))
-                : voz.titulos.nenhumaEstourou
-            }
-          />
-          {biggestSaving ? (
-            <StatCard
-              layout="row"
-              label={voz.titulos.economizouMaisEm}
-              value={categoryLabel(biggestSaving.categoryKey)}
-              tone="success"
-              hint={
-                biggestSaving.deviationPercent !== null
-                  ? voz.titulos.economizouMaisEmDica(formatPercentNumber(Math.abs(biggestSaving.deviationPercent) * 100, 0))
-                  : undefined
-              }
-            />
-          ) : (
-            <StatCard
-              layout="row"
-              label={unrecorded.length === 1 ? voz.titulos.semLancamento : `${voz.titulos.semLancamento} (${unrecorded.length})`}
-              value={unrecorded.length > 0 ? categoryLabel(unrecorded[0].categoryKey) : "Nenhuma"}
-              tone="neutral"
-              hint={
-                unrecorded.length > 0
-                  ? `${money(0, { round: true })} de ${money(unrecorded[0].planned, { round: true })} planejados — vale conferir`
-                  : "Sem economia de destaque este mês"
-              }
-            />
-          )}
+      {/* Os três números do mês numa linha (01/10/2026): eram três cartões de texto empilhados. */}
+      {isCurrentYear && hasPlan && currentMonthData && (
+        <div className="grid grid-cols-3 gap-2">
+          {[
+            {
+              rotulo: "Economia",
+              valor: monthSavings === null ? "—" : money(Math.abs(monthSavings), { round: true }),
+              cor: monthSavings === null ? "text-ink" : monthSavings >= 0 ? "text-success" : "text-danger",
+            },
+            {
+              rotulo: "Estourou",
+              valor: biggestOverrun ? categoryLabel(biggestOverrun.categoryKey) : "Nenhuma",
+              cor: biggestOverrun ? "text-danger" : "text-ink",
+            },
+            {
+              rotulo: voz.titulos.formOrcBarraAporte,
+              valor: money(monthSummary?.totalInvestment ?? 0, { round: true }),
+              cor: "text-ink",
+            },
+          ].map((n) => (
+            <div key={n.rotulo} className="flex flex-col gap-0.5 rounded-2xl bg-surface-2 px-2.5 py-3 text-center">
+              <span className="truncate text-caption text-ink-muted">{n.rotulo}</span>
+              <span className={`truncate text-sm font-semibold tabular-nums ${n.cor}`}>{n.valor}</span>
+            </div>
+          ))}
         </div>
       )}
 
-      <div className="contents lg:flex lg:flex-wrap lg:items-start lg:gap-5 [&>*]:lg:min-w-0 [&>*]:lg:grow [&>*]:lg:basis-[calc(50%-0.625rem)]">
-      {currentMonthData && monthSummary && (
-        <Section
-          title={voz.titulos.formOrcRendaEAporteNoMes(MONTH_LABELS[currentMonthData.month - 1])}
-          hint="Planejar é decidir quanto entra, quanto sai e quanto fica guardado — não só o que gastar."
-        >
-          <div className="grid gap-4 lg:grid-cols-2 lg:gap-x-8">
-          <PlanVsActualRow
-            label={voz.titulos.formOrcBarraRenda}
-            planned={monthPlan?.plannedIncome ?? 0}
-            actual={monthSummary.totalIncome}
-            formatted={{
-              planned: money(monthPlan?.plannedIncome ?? 0, { round: true }),
-              actual: money(monthSummary.totalIncome, { round: true }),
-            }}
-            color="var(--color-success)"
-          />
-          <PlanVsActualRow
-            label={voz.titulos.formOrcBarraAporte}
-            planned={monthPlan?.plannedInvestment ?? 0}
-            actual={monthSummary.totalInvestment}
-            formatted={{
-              planned: money(monthPlan?.plannedInvestment ?? 0, { round: true }),
-              actual: money(monthSummary.totalInvestment, { round: true }),
-            }}
-            color="var(--color-accent)"
-          />
-          </div>
+      {linhasDoMes.length > 0 && (
+        <Section title={`Categorias de ${MONTH_LABELS[(currentMonthData?.month ?? 1) - 1].toLowerCase()}`}>
+          <CategoriasDoMes mes={MONTH_LABELS[(currentMonthData?.month ?? 1) - 1].toLowerCase()} linhas={linhasDoMes} cobrir={cobrir} />
         </Section>
       )}
 
-      </div>
-
-      <Section
-        title="Planejado × realizado no ano"
-        hint="O preenchimento é o que você já gastou no ano. O tracinho é onde o ano está."
-      >
-        <BulletBar
-          rows={yearBullets}
-          targetHint="Passou do tracinho? Está gastando adiantado para a altura do ano."
-          wide
-        />
-      </Section>
-
-      {monthBullets.length > 0 && (
-        <Section
-          title={`Por categoria em ${MONTH_LABELS[(currentMonthData?.month ?? 1) - 1]}`}
-          hint="Ordenado por quem está mais perto de estourar — quem precisa de atenção fica no topo."
-        >
-          <BulletBar rows={monthBullets} wide />
-          {/* O veredito em uma linha: o desenho aprovado fecha a lista com a conta feita, pra
-              a pessoa não precisar somar quantas barras estão vermelhas. */}
-          <div className="flex flex-wrap items-center gap-2">
-            {monthOver > 0 && (
-              <span className="rounded-full bg-danger-soft px-2.5 py-1 text-caption font-medium text-danger">
-                {monthOver} categoria{monthOver === 1 ? "" : "s"} estourou{monthOver === 1 ? "" : "ram"}
-              </span>
-            )}
-            {monthWithin > 0 && (
-              <span className="rounded-full bg-success-soft px-2.5 py-1 text-caption font-medium text-success">
-                {monthWithin} dentro do plano
-              </span>
-            )}
-            {monthUnplanned > 0 && (
-              <span className="rounded-full bg-surface-2 px-2.5 py-1 text-caption font-medium text-ink-muted">
-                {monthUnplanned} sem plano
-              </span>
-            )}
-          </div>
-          <p className="text-caption text-ink-faint">
-            Categoria sem plano definido fica cinza: o app não tem como dizer que você estourou um limite que
-            não existe.
-          </p>
+      {linhasDoAno.length > 0 && (
+        <Section title={`Seu ${year}, mês a mês`}>
+          <MapaDoAno linhas={linhasDoAno} />
         </Section>
       )}
 
-      <CollapsibleSection label="Ver dados detalhados mês a mês">
-        <ResponsiveTable columns={monthColumns} rows={comparison.months} rowKey={(m) => String(m.month)} />
-      </CollapsibleSection>
+      {/* As explicações de cada desenho, num lugar só (antes, uma frase por bloco). */}
+      <details className="px-1">
+        <summary className="cursor-pointer text-caption font-semibold text-accent-strong">Como ler esta página</summary>
+        <ul className="mt-2 flex flex-col gap-1.5 text-caption text-ink-muted">
+          <li>Meia-lua: o quanto do orçamento do mês já saiu. O tracinho é o dia de hoje; passou dele, está gastando adiantado.</li>
+          <li>Anéis: cada categoria no mês. Verde está dentro, amarelo está perto do limite, vermelho passou.</li>
+          <li>Mapa do ano: um quadrado por mês. Verde ficou dentro do planejado, vermelho passou.</li>
+          <li>Categoria sem plano fica cinza: não dá para estourar um limite que não existe.</li>
+        </ul>
+      </details>
+
+      {mesesDoResumo.some((x) => x.realizado && x.planejado > 0) && (
+        <Section title={`Seu ${year} até agora`}>
+          <ResumoDoAno ano={year} meses={mesesDoResumo} />
+        </Section>
+      )}
     </div>
   );
 }

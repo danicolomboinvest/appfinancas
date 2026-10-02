@@ -184,28 +184,32 @@ export function BudgetWizard({
 
   return (
     <form id={formId} action={formAction} className="flex flex-col gap-5">
-      <input type="hidden" name="year" value={year} />
-      <input type="hidden" name="profileId" value={profileId} />
-      <input type="hidden" name="plannedIncome" value={income} />
-      <input type="hidden" name="plannedInvestment" value={investment} />
-      {/* O valor com que a tela abriu, ao lado de cada um: o "Salvar" só grava o que ela mexeu.
-          Sem isso, um ajuste "só deste mês" (Fechamento, aviso do Foco) virava o valor do resto
-          do ano no próximo salvar, mesmo sem ela tocar naquela categoria. */}
-      <input type="hidden" name="plannedIncomeOriginal" value={plan.plannedIncome} />
-      <input type="hidden" name="plannedInvestmentOriginal" value={plan.plannedInvestment} />
-      {parentCategories.map((c) => (
-        <span key={c.key}>
-          <input type="hidden" name={`plannedAmount_${c.key}`} value={values[c.key] ?? 0} />
-          <input type="hidden" name={`plannedOriginal_${c.key}`} value={c.defaultValue} />
-        </span>
-      ))}
-      {customCategories.map((c) => (
-        <span key={c.id}>
-          <input type="hidden" name="customCategoryId" value={c.id} />
-          <input type="hidden" name={`plannedAmount_custom_${c.id}`} value={values[c.id] ?? 0} />
-          <input type="hidden" name={`plannedOriginal_custom_${c.id}`} value={c.defaultValue} />
-        </span>
-      ))}
+      {/* Os campos escondidos num bloco só, fora do layout: cada <span> de categoria era um item
+          vazio do flex com gap-5, e as 8 somavam 160px em branco antes do "Passo 3 de 3". */}
+      <div hidden>
+        <input type="hidden" name="year" value={year} />
+        <input type="hidden" name="profileId" value={profileId} />
+        <input type="hidden" name="plannedIncome" value={income} />
+        <input type="hidden" name="plannedInvestment" value={investment} />
+        {/* O valor com que a tela abriu, ao lado de cada um: o "Salvar" só grava o que ela mexeu.
+            Sem isso, um ajuste "só deste mês" (Fechamento, aviso do Foco) virava o valor do resto
+            do ano no próximo salvar, mesmo sem ela tocar naquela categoria. */}
+        <input type="hidden" name="plannedIncomeOriginal" value={plan.plannedIncome} />
+        <input type="hidden" name="plannedInvestmentOriginal" value={plan.plannedInvestment} />
+        {parentCategories.map((c) => (
+          <span key={c.key}>
+            <input type="hidden" name={`plannedAmount_${c.key}`} value={values[c.key] ?? 0} />
+            <input type="hidden" name={`plannedOriginal_${c.key}`} value={c.defaultValue} />
+          </span>
+        ))}
+        {customCategories.map((c) => (
+          <span key={c.id}>
+            <input type="hidden" name="customCategoryId" value={c.id} />
+            <input type="hidden" name={`plannedAmount_custom_${c.id}`} value={values[c.id] ?? 0} />
+            <input type="hidden" name={`plannedOriginal_custom_${c.id}`} value={c.defaultValue} />
+          </span>
+        ))}
+      </div>
       {state.error && <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{state.error}</p>}
 
       {step === 1 && (

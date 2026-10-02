@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getRequiredSession } from "@/lib/auth/session";
-import { applyBudgetToWholeYear, applyBudgetToWholeYearForCustomCategory } from "@/lib/repositories/budget.repo";
+import { applyBudgetToWholeYear, applyBudgetToWholeYearForCustomCategory, definirPlanoDoMes, listBudgets } from "@/lib/repositories/budget.repo";
 import { createCustomCategory, deleteOwnCustomCategory, listCustomCategories } from "@/lib/repositories/custom-category.repo";
 import { applyMonthlyPlanToWholeYear } from "@/lib/repositories/monthly-plan.repo";
 import { annualBudgetSchema, annualBudgetForCustomCategorySchema } from "@/lib/validations/budget.schema";
@@ -135,4 +135,44 @@ export async function deleteCustomCategoryAction(id: string): Promise<void> {
   await deleteOwnCustomCategory(ctx, id);
   revalidatePath("/orcamento");
   revalidatePath("/orcamento/comparativo");
+}
+
+function revalidarOrcamento() {
+  revalidatePath("/orcamento", "layout");
+  revalidatePath("/mensal", "layout");
+}
+
+/**
+ * "Lazer passou R$ 60. Cobrir com a sobra de Transporte?" (01/10/2026): só este mês, tira `valor`
+ * do planejado de uma categoria e põe na outra. O total do mês não muda.
+ */
+export async function cobrirCategoriaAction(input: { de: string; para: string; valor: number }): Promise<{ error?: string }> {
+  const ctx = await getRequiredSession();
+  const valor = Math.round(Number(input.valor) * 100) / 100;
+  if (!(valor > 0) || valor > 1e8 || input.de === input.para) return { error: "Valor inválido." };
+  const agora = nowInBrazil();
+  const year = agora.getFullYear();
+  const month = agora.getMonth() + 1;
+  const planos = await listBudgets(ctx, year, month);
+  const plano = (k: string) => Number(planos.find((b) => (b.customCategoryId ?? b.parentCategory) === k)?.plannedAmount ?? 0);
+  if (plano(input.de) < valor) return { error: "Essa categoria não tem essa sobra no plano." };
+  const ok1 = await definirPlanoDoMes(ctx, { key: input.de, year, month, plannedAmount: plano(input.de) - valor });
+  const ok2 = ok1 && (await definirPlanoDoMes(ctx, { key: input.para, year, month, plannedAmount: plano(input.para) + valor }));
+  if (!ok2) return { error: "Categoria não encontrada." };
+  revalidarOrcamento();
+  return {};
+}
+
+/** O lápis do "Planejado" no detalhe da categoria: vale deste mês até dezembro. */
+export async function definirPlanoDaCategoriaAction(input: { key: string; valor: number }): Promise<{ error?: string }> {
+  const ctx = await getRequiredSession();
+  const valor = Math.round(Number(input.valor) * 100) / 100;
+  if (!(valor >= 0) || valor > 1e8) return { error: "Valor inválido." };
+  const agora = nowInBrazil();
+  const year = agora.getFullYear();
+  for (const month of mesesQueOSalvarGrava(year, agora)) {
+    if (!(await definirPlanoDoMes(ctx, { key: input.key, year, month, plannedAmount: valor }))) return { error: "Categoria não encontrada." };
+  }
+  revalidarOrcamento();
+  return {};
 }

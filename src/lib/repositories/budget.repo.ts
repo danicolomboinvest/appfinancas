@@ -255,3 +255,20 @@ export async function getFirstEntryMonth(ctx: AuthContext, year: number, today: 
   if (first.year > year) return 12;
   return first.month;
 }
+
+/**
+ * Planejado de UMA categoria (padrão ou dela) num mês, criando se não existir. É o que o "Cobrir"
+ * e o lápis do detalhe da categoria gravam (01/10/2026). Categoria dela tem que ser do perfil.
+ */
+export async function definirPlanoDoMes(ctx: AuthContext, input: { key: string; year: number; month: number; plannedAmount: number }): Promise<boolean> {
+  const padrao = (PARENT_CATEGORIES as readonly string[]).includes(input.key);
+  if (!padrao) {
+    const dela = await prisma.customCategory.findFirst({ where: { id: input.key, userId: ctx.userId, profileId: ctx.profileId }, select: { id: true } });
+    if (!dela) return false;
+  }
+  const filtro = padrao ? { parentCategory: input.key as ParentCategory, customCategoryId: null } : { parentCategory: null, customCategoryId: input.key };
+  const existente = await prisma.budget.findFirst({ where: { userId: ctx.userId, profileId: ctx.profileId, year: input.year, month: input.month, ...filtro } });
+  if (existente) await prisma.budget.update({ where: { id: existente.id }, data: { plannedAmount: input.plannedAmount } });
+  else await prisma.budget.create({ data: { userId: ctx.userId, profileId: ctx.profileId, year: input.year, month: input.month, ...filtro, plannedAmount: input.plannedAmount } });
+  return true;
+}

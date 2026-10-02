@@ -20,7 +20,15 @@ export function ResumoDoMesCard({
   money,
   onAtualizar,
   voz,
+  grafico,
+  previsaoTexto,
+  previsaoRuim,
 }: {
+  /** O gráfico do mês (a curva). */
+  grafico?: ReactNode;
+  /** "Nesse ritmo, o mês fecha em R$ X": vem pronta da página. */
+  previsaoTexto?: string | null;
+  previsaoRuim?: boolean;
   resumo: ResumoDoMes;
   /** "Setembro" */
   mesLabel: string;
@@ -32,54 +40,23 @@ export function ResumoDoMesCard({
   /** O tema do perfil fala aqui: título ("Missão do mês 🎯" no Game) e a frase do "ainda dá?". */
   voz: Voz;
 }) {
-  const { planejado, gasto, restante, usado, doMes, diasRestantes, porDia, situacao, ultimoDiaLancado, desatualizado } =
+  const { planejado, gasto, restante, diasRestantes, porDia, situacao, ultimoDiaLancado, desatualizado } =
     resumo;
 
-  // Vermelho é só pra quem estourou de verdade. "Adiantado" ainda tem dinheiro sobrando, e
-  // pintar isso de vermelho colocava a barra em alarme logo acima de um "economia no mês" em
-  // verde, na mesma tela — dois veredictos opostos sobre o mesmo mês. Âmbar é atenção, não susto.
-  // Dado velho não recebe veredicto de cor. Pintar de verde um mês contado só até o dia 12 é
-  // dizer "está tudo bem" sobre uma conta que ninguém terminou de fazer.
-  const cor = desatualizado
-    ? "var(--color-ink-faint)"
-    : situacao === "estourou"
-      ? "var(--color-danger)"
-      : situacao === "adiantado"
-        ? "var(--color-accent)"
-        : situacao === "sem-plano"
-          ? "var(--color-ink-faint)"
-          : "var(--color-success)";
-
-  const preenchimento = usado === null ? 0 : Math.min(Math.max(usado * 100, 0), 100);
 
   return (
     <section className="rounded-2xl border border-border bg-surface p-5 shadow-premium-sm sm:p-6">
       <p className="text-caption text-ink-muted">{voz.tituloOrcamento(mesLabel)}</p>
 
-      {/* O gasto é o número grande porque é o que a pessoa veio conferir; o planejado fica do
-          lado, menor, como a régua dele. */}
+      {/* O gasto é o número grande; o planejado do lado, menor, como a régua dele. */}
       <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
         <span className="text-3xl font-semibold tabular-nums text-ink sm:text-4xl">{money(gasto, { round: true })}</span>
-        {planejado > 0 && (
-          <span className="text-base text-ink-muted sm:text-lg">de {money(planejado, { round: true })}</span>
-        )}
+        {planejado > 0 && <span className="text-base text-ink-muted sm:text-lg">de {money(planejado, { round: true })}</span>}
       </div>
 
-      <div className="relative mt-4 block h-3 rounded-full bg-surface-2">
-        <span
-          className="absolute inset-y-0 left-0 rounded-full"
-          style={{ width: `${preenchimento}%`, backgroundColor: cor }}
-        />
-        {/* Mesmo tracinho das outras barras do app: onde o mês está. Passar dele é gastar
-            adiantado, não é estourar — são coisas diferentes e a pessoa precisa ver as duas. */}
-        {planejado > 0 && diasRestantes > 0 && (
-          <span
-            aria-hidden
-            className="absolute -top-1 -bottom-1 w-0.5 rounded-full bg-ink/80"
-            style={{ left: `calc(${Math.min(Math.max(doMes * 100, 0), 100)}% - 1px)` }}
-          />
-        )}
-      </div>
+      {/* A curva do mês (01/10/2026, aprovada pela Dani no lugar da barra): ver CurvaDoMes. */}
+      {grafico}
+      {previsaoTexto && <p className={`mt-2 rounded-xl px-3 py-2 text-sm ${previsaoRuim ? "bg-danger-soft text-danger" : "bg-success-soft text-success"}`}>{previsaoTexto}</p>}
 
       {/* Quando o mês está contado pela metade, a conversa muda: não adianta dizer "ainda dá"
           sobre um número que não terminou de acontecer. A frase vira o convite pra completar. */}
