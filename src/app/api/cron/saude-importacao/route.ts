@@ -69,6 +69,7 @@ export async function GET(request: Request) {
     ...resumo(health),
     porCausa: health.porCausa,
     pessoasSemSucesso: health.pessoasSemSucesso,
+    pararamNaRevisao: health.pararamNaRevisao,
     errosDeServidor: erros,
     avisos,
     arquivosApagados,
@@ -85,6 +86,7 @@ function resumo(h: Awaited<ReturnType<typeof getImportHealth>>) {
     leiturasParciais: h.parciais,
     leiturasImplausiveis: h.implausiveis,
     pessoasSemSucesso: h.pessoasSemSucesso.length,
+    pararamNaRevisao: h.pararamNaRevisao.length,
   };
 }
 
@@ -107,8 +109,14 @@ function relatorioEmail(
     )
     .join("");
 
+  const naRevisao = new Set(h.pararamNaRevisao.map((p) => p.userId));
   const semSucesso = h.pessoasSemSucesso
-    .map((p) => `<li>${escapar(p.email)} — ${p.tentativas} tentativa${p.tentativas === 1 ? "" : "s"}, nenhum lançamento importado</li>`)
+    .map(
+      (p) =>
+        `<li>${escapar(p.email)} — ${p.tentativas} tentativa${p.tentativas === 1 ? "" : "s"}, nenhum lançamento importado${
+          naRevisao.has(p.userId) ? " <b>(o arquivo foi lido certo: parou na revisão, antes de salvar)</b>" : ""
+        }</li>`,
+    )
     .join("");
 
   const quando = (d: Date) => d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" });

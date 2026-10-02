@@ -131,6 +131,12 @@ export type ImportHealthWindow = {
   porCausa: { causa: string; vezes: number; pessoas: number; exemplos: string[] }[];
   /** Pessoas que tentaram e não conseguiram nada — é quem pede reembolso. */
   pessoasSemSucesso: { userId: string; email: string; tentativas: number }[];
+  /**
+   * Das sem sucesso: o arquivo foi LIDO CERTO e mesmo assim nada foi salvo — a pessoa parou na
+   * revisão. Em out/2026 eram 10 de 18 pessoas que nunca importaram nada, invisíveis no
+   * relatório, que só olhava arquivo que o app não leu.
+   */
+  pararamNaRevisao: { userId: string; email: string; leiturasCertas: number }[];
 };
 
 /** Extensão do arquivo, que é o que separa "csv do Nubank" de "xls do Itaú". */
@@ -184,6 +190,12 @@ export async function getImportHealth(days = 1): Promise<ImportHealthWindow> {
     if (r.stage === "confirm" && r.ok && r.created > 0) atual.sucesso = true;
     porPessoa.set(r.userId, atual);
   }
+  const problematicoIds = new Set(problematicos.map((r) => r.id));
+  const leiturasCertas = new Map<string, number>();
+  for (const r of rows) {
+    if (r.stage === "confirm" || !r.ok || r.parsed === 0 || problematicoIds.has(r.id)) continue;
+    leiturasCertas.set(r.userId, (leiturasCertas.get(r.userId) ?? 0) + 1);
+  }
 
   return {
     desde,
@@ -197,5 +209,8 @@ export async function getImportHealth(days = 1): Promise<ImportHealthWindow> {
     pessoasSemSucesso: [...porPessoa.entries()]
       .filter(([, v]) => !v.sucesso)
       .map(([userId, v]) => ({ userId, email: v.email, tentativas: v.tentativas })),
+    pararamNaRevisao: [...porPessoa.entries()]
+      .filter(([userId, v]) => !v.sucesso && leiturasCertas.has(userId))
+      .map(([userId, v]) => ({ userId, email: v.email, leiturasCertas: leiturasCertas.get(userId)! })),
   };
 }

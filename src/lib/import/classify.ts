@@ -84,6 +84,9 @@ const BUILTIN_RULES: BuiltinRule[] = [
   { keywords: KW_TELEFONIA, parentCategory: "MORADIA", subcategory: "Internet" },
   // Educação
   { keywords: ["escola", "faculdade", "universidade", "curso", "udemy", "alura", "mensalidade", "colegio", "colégio"], parentCategory: "EDUCACAO", subcategory: "Mensalidade" },
+  // Hubla é a plataforma onde se vende curso online (inclusive o da Dani): 13 clientes tinham
+  // "HUBLA*DANICOLOMBO" na fatura e escolheram Educação em 76 de 89 vezes (out/2026).
+  { keywords: ["hubla", "hotmart", "kiwify", "eduzz"], parentCategory: "EDUCACAO", subcategory: "Cursos" },
   // "amazon" sozinho não: é marketplace de tudo (eletrônico, casa, mercado). Vai pra revisão.
   { keywords: ["livraria", "kindle", "livro"], parentCategory: "EDUCACAO", subcategory: "Livros/Material" },
   // Outros: tarifa de banco, seguro, juros — o que sobra
