@@ -42,7 +42,8 @@ const FIM_RE = /^Em cumprimento à regula[çc][ãa]o/i;
 const SALDO_RESTANTE_RE = /^Saldo restante da fatura anterior/i;
 
 export function isNubankInvoice(texto: string): boolean {
-  return /Nu Pagamentos/i.test(texto) && /RESUMO DA FATURA ATUAL/.test(texto) && /^TRANSA[ÇC][ÕO]ES DE /m.test(texto);
+  // "Nu Pagamentos" some em parte das faturas (só sobra "O Nubank declara..." no resumo).
+  return /Nu Pagamentos|\bNubank\b/i.test(texto) && /RESUMO DA FATURA ATUAL/.test(texto) && /^TRANSA[ÇC][ÕO]ES DE /m.test(texto);
 }
 
 export function parseNubankInvoice(texto: string, refYear: number = new Date().getFullYear()): ParsedTransaction[] {

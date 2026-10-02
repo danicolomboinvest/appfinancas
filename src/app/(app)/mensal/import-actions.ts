@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { installmentCanonical, installmentDescription, parseInstallment } from "@/lib/entries/recurrence";
-import { countMoneyLines, detectInvoiceTotal, looksLikeCardInvoice, MOTIVO_SINAIS_FATURA, sinaisDesmentemExtrato, type DocKind } from "@/lib/import/detect";
+import { countMoneyLines, detectInvoiceTotal, looksLikeCardInvoice, MOTIVO_SINAIS_FATURA, periodoSemMovimento, sinaisDesmentemExtrato, type DocKind } from "@/lib/import/detect";
 import { profileDocument } from "@/lib/import/profile";
 import { checarPlausibilidade, type Suspeita } from "@/lib/import/plausibility";
 import { isPartialRead, MARCA_CONFERIDO, MARCA_NAO_FECHOU, mensagemImplausivel, recordImportDiagnostic, safeHeader } from "@/lib/repositories/import-diagnostic.repo";
@@ -224,8 +224,9 @@ export async function parseStatementAction(formData: FormData): Promise<ParseSta
     // Diagnóstico pro suporte: perfil + cabeçalho (sem valores), pra reconhecer o formato do banco.
     const header = text.split(/\r?\n/).find((l) => l.trim())?.slice(0, 200) ?? "";
     console.error("parseStatementAction: zero lançamentos", { fileName, encoding, docType, kind: profile.kind, institution: profile.institution, moneyLines, chars: text.length, header });
-    const msg =
-      moneyLines > 3
+    const msg = periodoSemMovimento(text)
+      ? `Esse arquivo não tem nenhum lançamento: o período escolhido no app do banco não teve movimentação. Baixe de novo escolhendo um período maior (o mês inteiro, por exemplo).`
+      : moneyLines > 3
         ? `Li o arquivo inteiro (${profile.summary}) e vi ${moneyLines} linhas com valor, mas não consegui ler nenhuma como lançamento. Esse formato eu ainda não conheço: manda o arquivo pro suporte que a gente ensina o app.`
         : `Li o arquivo inteiro (${profile.summary}) e não encontrei transações. Se for um PDF escaneado/foto, exporte em Excel (.xlsx) ou CSV, costuma ler melhor.`;
     await falha(msg, { kind: profile.kind, institution: profile.institution, moneyLines, header: safeHeader(text) });

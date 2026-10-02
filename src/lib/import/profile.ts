@@ -41,8 +41,12 @@ const INSTITUTIONS: [RegExp, string][] = [
   [/nubank|nu pagamentos|nu financeira/i, "Nubank"],
   [/itaucard|\bita[uú]\b/i, "Itaú"],
   [/banco inter\b|inter\s*&\s*co|\binter s\.?a\.?\b/i, "Inter"],
+  // Cabeçalho da XP antes do C6: um extrato da Conta Digital XP com "Pagamento para BANCO C6"
+  // dentro saía como C6 Bank.
+  [/conta digital xp|banco xp s\.?a/i, "XP"],
   [/c6 bank|\bc6\b/i, "C6 Bank"],
   [/xp investimentos|\bxp inc\b|\bxpi\b/i, "XP"],
+  [/banrisul|b a n r i s u l/i, "Banrisul"],
   [/rico investimentos|rico\.com/i, "Rico"],
   [/clear corretora/i, "Clear"],
   [/bradesco/i, "Bradesco"],

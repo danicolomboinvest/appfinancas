@@ -22,15 +22,20 @@ export type Conferencia =
 
 const VALOR = String.raw`(?:R\$\s*)?(\d{1,3}(?:\.\d{3})*,\d{2})`;
 
+const TOTAL_DE_COMPRAS_NUBANK = new RegExp(String.raw`total\s+de\s+compras[^\n]*?R\$\s*(\d{1,3}(?:\.\d{3})*,\d{2})`, "i");
+
 /** Totais de COMPRAS que as faturas imprimem, além do total a pagar (que mistura saldo anterior e pagamento). */
 const TOTAIS_DE_COMPRAS: RegExp[] = [
   new RegExp(String.raw`compras\s+nacionais\s*${VALOR}`, "i"), // Ourocard
   new RegExp(String.raw`despesas\s+do\s+m[êe]s\s*${VALOR}`, "i"), // Inter
-  new RegExp(String.raw`total\s+de\s+compras[^\n]*?R\$\s*(\d{1,3}(?:\.\d{3})*,\d{2})`, "i"), // Nubank
+  TOTAL_DE_COMPRAS_NUBANK,
   new RegExp(String.raw`total\s+despesas\/d[ée]bitos\s+no\s+brasil\s*${VALOR}`, "i"), // Santander
   new RegExp(String.raw`compras\/d[ée]bitos\.*\s*${VALOR}`, "i"), // Bradesco
-  new RegExp(String.raw`total\s+da\s+fatura\s+em\s+real\s*${VALOR}`, "i"), // Bradesco
+  new RegExp(String.raw`total\s+da\s+fatura\s+em\s+real[\s.]*${VALOR}`, "i"), // Bradesco (o app Bradesco Cartões põe ". . ." no meio)
   new RegExp(String.raw`^despesas\/d[ée]bitos\s+no\s+brasil\s*\+\s*${VALOR}`, "im"), // Riachuelo (Midway)
+  new RegExp(String.raw`^despesas\s+atuais\s*\|\s*d[ée]bitos\s+no\s+brasil\s*${VALOR}`, "im"), // Sicredi
+  new RegExp(String.raw`^consumos\s+de\s+\d{2}\/\d{2}\s+a\s+\d{2}\/\d{2}\s*${VALOR}`, "im"), // Mercado Pago
+  new RegExp(String.raw`^total\s+de\s+gastos\s*${VALOR}`, "im"), // Banrisul
   // Itaú: "Lançamentos atuais 5.271,04" é só o mês; o total da fatura soma o que sobrou da anterior.
   new RegExp(String.raw`^(?:total\s+dos\s+)?lan[çc]amentos\s+atuais\s*${VALOR}`, "im"),
 ];
@@ -38,6 +43,8 @@ const TOTAIS_DE_COMPRAS: RegExp[] = [
 /** Saldo da fatura anterior que não foi pago e veio somado no total a pagar (C6). Não é compra
  * deste mês, então o total a pagar menos ele é o que as linhas têm que somar. */
 const REMANESCENTE = new RegExp(String.raw`valor\s+remanescente\s+da\s+fatura\s+anterior\s*${VALOR}`, "i");
+
+const OUTROS_LANCAMENTOS = new RegExp(String.raw`^outros\s+lan[çc]amentos\s*${VALOR}`, "im");
 
 const TOTAL_ENTRADAS = new RegExp(String.raw`total\s+de\s+entradas\s*\+?\s*${VALOR}`, "i");
 const TOTAL_SAIDAS = new RegExp(String.raw`total\s+de\s+sa[íi]das\s*-?\s*${VALOR}`, "i");
@@ -80,6 +87,11 @@ export function conferirLeitura(texto: string, docType: string, txns: ParsedTran
     const referencias = [total, ...TOTAIS_DE_COMPRAS.map((re) => numero(texto.match(re)))].filter(
       (n): n is number => n !== null,
     );
+    // Nubank: "Outros lançamentos R$ 62,31" (IOF, encargos, Pix no crédito) fica fora do "Total de
+    // compras", mas vem linha a linha na fatura.
+    const outros = numero(texto.match(OUTROS_LANCAMENTOS));
+    const comprasNubank = numero(texto.match(TOTAL_DE_COMPRAS_NUBANK));
+    if (outros !== null && comprasNubank !== null) referencias.push(Math.round((comprasNubank + outros) * 100) / 100);
     const remanescente = numero(texto.match(REMANESCENTE));
     if (total !== null && remanescente !== null) referencias.push(Math.round((total - remanescente) * 100) / 100);
     if (referencias.length === 0) return { status: "sem-referencia" };

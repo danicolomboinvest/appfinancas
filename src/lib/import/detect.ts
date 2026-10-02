@@ -1,5 +1,8 @@
 import { isBanestesStatement } from "./banestes-pdf";
+import { isBanrisulInvoice } from "./banrisul-fatura-pdf";
+import { isBanrisulStatement } from "./banrisul-pdf";
 import { isBancoDoBrasilStatement } from "./bb-pdf";
+import { isBradescoCartoesApp } from "./bradesco-cartoes-app-pdf";
 import { isBradescoInvoice } from "./bradesco-fatura-pdf";
 import { isBradescoStatement } from "./bradesco-pdf";
 import { isC6Invoice } from "./c6-fatura-pdf";
@@ -7,12 +10,16 @@ import { isCaixaAppStatement } from "./caixa-pdf";
 import { isCoraStatement } from "./cora-pdf";
 import { isInterInvoice, isInterStatement } from "./inter-pdf";
 import { isItauInvoice } from "./itau-fatura-pdf";
+import { isMercadoPagoInvoice } from "./mercado-pago-fatura-pdf";
 import { isMidwayInvoice } from "./midway-fatura-pdf";
 import { isNubankInvoice } from "./nubank-fatura-pdf";
 import { isNubankStatement } from "./nubank-pdf";
 import { isOurocardInvoice } from "./ourocard-pdf";
+import { isPicPayInvoice } from "./picpay-fatura-pdf";
 import { isSantanderInvoice } from "./santander-fatura-pdf";
 import { isSantanderConsolidatedStatement } from "./santander-pdf";
+import { isSicrediInvoice } from "./sicredi-fatura-pdf";
+import { isXpContaDigitalStatement } from "./xp-conta-pdf";
 import type { ParsedTransaction } from "./statement-parser";
 
 export type DocKind = "extrato" | "fatura" | "unknown";
@@ -41,6 +48,8 @@ const MOLDES_DE_EXTRATO: [(t: string) => boolean, string][] = [
   [isBancoDoBrasilStatement, "extrato do Banco do Brasil"],
   [isBradescoStatement, "extrato do Bradesco"],
   [isSantanderConsolidatedStatement, EXTRATO_SANTANDER],
+  [isBanrisulStatement, "extrato do Banrisul"],
+  [isXpContaDigitalStatement, "extrato da Conta Digital XP"],
 ];
 const MOLDES_DE_FATURA: [(t: string) => boolean, string][] = [
   [isNubankInvoice, "fatura do Nubank"],
@@ -51,6 +60,11 @@ const MOLDES_DE_FATURA: [(t: string) => boolean, string][] = [
   [isOurocardInvoice, "fatura Ourocard"],
   [isSantanderInvoice, "fatura do Santander"],
   [isBradescoInvoice, "fatura do Bradesco"],
+  [isBradescoCartoesApp, "fatura do app Bradesco Cartões"],
+  [isPicPayInvoice, "fatura do PicPay"],
+  [isSicrediInvoice, "fatura do Sicredi"],
+  [isMercadoPagoInvoice, "fatura do Mercado Pago"],
+  [isBanrisulInvoice, "fatura do Banrisul"],
 ];
 
 const MOTIVOS_ESTRUTURAIS_DE_EXTRATO = new Set([OFX_DE_CONTA, CSV_EXTRATO_NUBANK, ...MOLDES_DE_EXTRATO.map(([, motivo]) => motivo)]);
@@ -153,4 +167,17 @@ export function detectInvoiceTotal(text: string): number | null {
 /** Linhas do arquivo que têm cara de valor em dinheiro: base do "achei X linhas mas só li Y". */
 export function countMoneyLines(text: string): number {
   return text.split(/\r?\n/).filter((l) => /-?\d{1,3}(?:\.\d{3})*,\d{2}\b|-?\d+\.\d{2}\b/.test(l)).length;
+}
+
+/**
+ * O arquivo é de um período em que nada aconteceu: o PDF do Nubank escreve "Nenhuma movimentação
+ * realizada", o CSV vem só com o cabeçalho e o OFX vem sem nenhum <STMTTRN>. Sem isto a tela dizia
+ * "esse formato eu ainda não conheço, manda pro suporte" — e a cliente tentou PDF, CSV e OFX
+ * (8 vezes) de um extrato de um dia só, sem saber que o problema era o período.
+ */
+export function periodoSemMovimento(text: string): boolean {
+  if (/nenhuma movimenta[çc][ãa]o/i.test(text)) return true;
+  if (/<OFX>/i.test(text)) return !/<STMTTRN>/i.test(text);
+  const linhas = text.split(/\r?\n/).filter((l) => l.trim());
+  return linhas.length === 1 && /[;,\t]/.test(linhas[0]) && !/\d{1,3},\d{2}/.test(linhas[0]);
 }

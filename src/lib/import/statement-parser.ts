@@ -7,6 +7,13 @@
  */
 
 import { isBanestesStatement, parseBanestesStatement } from "./banestes-pdf";
+import { isBanrisulStatement, parseBanrisulStatement } from "./banrisul-pdf";
+import { isXpContaDigitalStatement, parseXpContaDigitalStatement } from "./xp-conta-pdf";
+import { isPicPayInvoice, parsePicPayInvoice } from "./picpay-fatura-pdf";
+import { isSicrediInvoice, parseSicrediInvoice } from "./sicredi-fatura-pdf";
+import { isMercadoPagoInvoice, parseMercadoPagoInvoice } from "./mercado-pago-fatura-pdf";
+import { isBanrisulInvoice, parseBanrisulInvoice } from "./banrisul-fatura-pdf";
+import { isBradescoCartoesApp, parseBradescoCartoesApp } from "./bradesco-cartoes-app-pdf";
 import { isBancoDoBrasilStatement, parseBancoDoBrasilStatement } from "./bb-pdf";
 import { isBradescoStatement, parseBradescoStatement } from "./bradesco-pdf";
 import { isBradescoInvoice, parseBradescoInvoice } from "./bradesco-fatura-pdf";
@@ -755,6 +762,8 @@ const LEITORES_PDF: { nome: string; reconhece: (t: string) => boolean; le: (t: s
   { nome: "santander", reconhece: isSantanderConsolidatedStatement, le: (t, ano) => parseSantanderConsolidatedStatement(t, ano) },
   { nome: "inter", reconhece: isInterStatement, le: (t) => parseInterStatement(t) },
   { nome: "banestes", reconhece: isBanestesStatement, le: (t, ano) => parseBanestesStatement(t, ano) },
+  { nome: "banrisul", reconhece: isBanrisulStatement, le: (t) => parseBanrisulStatement(t) },
+  { nome: "xp-conta-digital", reconhece: isXpContaDigitalStatement, le: (t) => parseXpContaDigitalStatement(t) },
   { nome: "banco-do-brasil", reconhece: isBancoDoBrasilStatement, le: (t) => parseBancoDoBrasilStatement(t) },
   { nome: "bradesco", reconhece: isBradescoStatement, le: (t) => parseBradescoStatement(t) },
   { nome: "bradesco-fatura", reconhece: isBradescoInvoice, le: (t, ano) => parseBradescoInvoice(t, ano) },
@@ -767,6 +776,11 @@ const LEITORES_PDF: { nome: string; reconhece: (t: string) => boolean; le: (t: s
   { nome: "c6-fatura", reconhece: isC6Invoice, le: (t, ano) => parseC6Invoice(t, ano) },
   { nome: "santander-fatura", reconhece: isSantanderInvoice, le: (t, ano) => parseSantanderInvoice(t, ano) },
   { nome: "nubank-fatura", reconhece: isNubankInvoice, le: (t, ano) => parseNubankInvoice(t, ano) },
+  { nome: "picpay-fatura", reconhece: isPicPayInvoice, le: (t, ano) => parsePicPayInvoice(t, ano) },
+  { nome: "sicredi-fatura", reconhece: isSicrediInvoice, le: (t, ano) => parseSicrediInvoice(t, ano) },
+  { nome: "mercado-pago-fatura", reconhece: isMercadoPagoInvoice, le: (t, ano) => parseMercadoPagoInvoice(t, ano) },
+  { nome: "banrisul-fatura", reconhece: isBanrisulInvoice, le: (t, ano) => parseBanrisulInvoice(t, ano) },
+  { nome: "bradesco-cartoes-app", reconhece: isBradescoCartoesApp, le: (t, ano) => parseBradescoCartoesApp(t, ano) },
 ];
 
 /** Igual a `parseStatement`, e diz QUEM leu: o nome do leitor próprio do banco, ou null quando
