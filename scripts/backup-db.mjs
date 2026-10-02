@@ -137,9 +137,22 @@ for (const tabela of tabelas) {
   const fd = fs.openSync(path.join(pastaLocal, `${Nome}.json`), "w");
   fs.writeSync(fd, "[\n");
   let n = 0;
-  for await (const linha of lerEmPartes(tabela, Nome)) {
-    fs.writeSync(fd, (n ? ",\n" : "") + JSON.stringify(linha, serializar));
-    n += 1;
+  try {
+    for await (const linha of lerEmPartes(tabela, Nome)) {
+      fs.writeSync(fd, (n ? ",\n" : "") + JSON.stringify(linha, serializar));
+      n += 1;
+    }
+  } catch (e) {
+    // O backup roda ANTES de aplicar uma migração (02/10/2026): o schema já conhece a tabela ou
+    // a coluna nova, o banco ainda não. Tabela que não existe não tem o que copiar; coluna que
+    // não existe faz o Prisma recusar a tabela inteira, então ela vem crua, com o que o banco tem.
+    if (n > 0 || (e?.code !== "P2021" && e?.code !== "P2022")) throw e;
+    if (e.code === "P2022") {
+      for (const linha of await prisma.$queryRawUnsafe(`SELECT * FROM "${Nome}"`)) {
+        fs.writeSync(fd, (n ? ",\n" : "") + JSON.stringify(linha, serializar));
+        n += 1;
+      }
+    }
   }
   linhasPorTabela[Nome] = n;
   fs.writeSync(fd, "\n]\n");
