@@ -29,7 +29,8 @@ import { parseStatementComLeitor } from "@/lib/import/statement-parser";
 import { isFaturaSummaryLine, comprasDaFaturaSaoPositivas, pareceCreditoDePagamento } from "@/lib/import/fatura-lines";
 import { extractUploadFromForm, UploadReadError, PasswordRequiredError } from "@/lib/import/extract-text";
 import { pdfTextQuality } from "@/lib/import/pdf-quality";
-import { classify, normalizeMerchant, type LearnedRule } from "@/lib/import/classify";
+import { classify, classifyLearnedOnly, normalizeMerchant, type LearnedRule } from "@/lib/import/classify";
+import { categoriaDoBancoParaOApp } from "@/lib/import/categoria-do-banco";
 import { classificarPelaComunidade } from "@/lib/import/comunidade";
 import { regrasDaComunidade } from "@/lib/repositories/comunidade.repo";
 import { pareceEstorno } from "@/lib/import/estorno";
@@ -285,7 +286,13 @@ export async function parseStatementAction(formData: FormData): Promise<ParseSta
     // Categoriza saídas e estornos (o estorno desconta da categoria da compra). O tipo do
     // perfil escolhe as regras: na Empresa, "iFood" não é Mercadorias e insumos.
     // Sem regra dela nem do app, o que as outras clientes escolheram pra mesma loja (Pessoal só).
-    const doApp = isExpense || estorno ? classify(txn.description, learned, ctx.profileKind) : null;
+    // Ordem (03/10/2026): a correção DELA > a categoria que o BANCO escreveu na fatura > o palpite
+    // embutido do app > o que as outras clientes escolheram. O banco sabe o ramo da loja pelo
+    // cadastro na maquininha; o app só adivinha pelo nome. Na Empresa, as categorias são outras.
+    const categorizar = isExpense || estorno;
+    const dela = categorizar ? classifyLearnedOnly(txn.description, learned) : null;
+    const doBanco = categorizar && !dela && ctx.profileKind !== "EMPRESA" ? categoriaDoBancoParaOApp(txn.categoriaDoBanco) : null;
+    const doApp = dela ?? (doBanco ? { parentCategory: doBanco } : categorizar ? classify(txn.description, learned, ctx.profileKind) : null);
     const daComunidade = !doApp && isExpense ? classificarPelaComunidade(txn.description, comunidade) : null;
     const classification = doApp ?? (daComunidade ? { parentCategory: daComunidade } : null);
     return {

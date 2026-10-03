@@ -65,13 +65,18 @@ describe("fatura do cartão Itaú (PDF)", () => {
   it("lê compras, estorno, exterior, IOF e anuidade — e para antes das próximas faturas", () => {
     expect(parseItauInvoice(ITAU, 2026)).toEqual([
       { date: "2026-09-04", description: "Pagamento via conta", amount: -1000 },
-      { date: "2025-12-09", description: "LOJA ANTIGA 10/10", amount: 50 },
-      { date: "2026-09-15", description: "MERCADO EXEMPLO", amount: 120 },
-      { date: "2026-09-16", description: "LOJA ESTORNO", amount: -20 },
+      { date: "2025-12-09", description: "LOJA ANTIGA 10/10", amount: 50, categoriaDoBanco: "outros" },
+      { date: "2026-09-15", description: "MERCADO EXEMPLO", amount: 120, categoriaDoBanco: "supermercado" },
+      { date: "2026-09-16", description: "LOJA ESTORNO", amount: -20, categoriaDoBanco: "outros" },
       { date: "2026-08-29", description: "FARMACIA EXEMPLO", amount: 100 },
       { date: "2026-09-26", description: "Repasse de IOF (compras no exterior)", amount: 3.5 },
       { date: "2026-08-26", description: "Anuidade Diferenciada", amount: 87.27 },
     ]);
+  });
+
+  it("a linha de categoria fica na compra de cima, e a moeda de origem (200,00 BOB) não vira categoria", () => {
+    const farmacia = parseItauInvoice(ITAU, 2026).find((t) => t.description === "FARMACIA EXEMPLO");
+    expect(farmacia?.categoriaDoBanco).toBeUndefined();
   });
 
   it("sem o pagamento, a leitura fecha com o total da fatura", () => {

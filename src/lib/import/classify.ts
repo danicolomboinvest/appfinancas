@@ -284,6 +284,15 @@ function matchBuiltin(description: string, empresa: boolean): Classification | n
 }
 
 /**
+ * Só as regras que ELA ensinou (correções dela), sem as embutidas do app. A importação usa para
+ * pôr a correção dela acima da categoria que o banco escreveu, e a do banco acima do palpite
+ * embutido do app (ver categoria-do-banco.ts).
+ */
+export function classifyLearnedOnly(description: string, userRules: LearnedRule[] = []): Classification | null {
+  return matchLearned(normalizeMerchant(description), userRules);
+}
+
+/**
  * Classifica uma descrição. Regras aprendidas do usuário vêm primeiro. `null` = revisar.
  * `profileKind` escolhe o jogo de regras embutidas: Empresa não usa o da pessoa física.
  */

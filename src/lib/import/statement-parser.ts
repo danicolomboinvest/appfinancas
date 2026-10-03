@@ -37,6 +37,8 @@ export type ParsedTransaction = {
   description: string;
   /** Em reais. Negativo = gasto, positivo = entrada. */
   amount: number;
+  /** A categoria que o banco escreveu na linha (fatura do Itaú: "alimentação"). Ver categoria-do-banco.ts. */
+  categoriaDoBanco?: string;
 };
 
 /** Converte "1.234,56", "1234.56", "-1.234,56", "R$ 100,00" em número. Retorna NaN se vazio. */
