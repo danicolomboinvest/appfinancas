@@ -14,6 +14,7 @@ import {
   parseStatementAction,
   importTransactionsAction,
   removeCardPaymentCandidateAction,
+  conciliarComExtratoAction,
   type ReviewItem,
   type ParseStats,
   type ConfirmedItem,
@@ -95,7 +96,7 @@ export function StatementImport({
   otherProfiles?: { id: string; name: string }[];
 }) {
   const money = useMoney();
-  const { showToast } = useToast();
+  const { showToast, showError } = useToast();
   // Tudo que a pessoa lê aqui (instruções, botões, avisos) vem da voz do tema; a lógica de
   // leitura do arquivo não sabe de tema nenhum.
   // `kind` porque os chips de categoria têm o nome do perfil (Empresa: "Estrutura", não "Moradia").
@@ -369,6 +370,16 @@ export function StatementImport({
 
   /** "É o mesmo que já está no app (lançado à mão ou de outro arquivo)?": sim tira da importação; não, importa normalmente. */
   function responderDuplicata(itemKey: number, mesmo: boolean) {
+    // Lançamento à mão com valor ou dia diferentes (a conta prevista antes de pagar): "é o mesmo"
+    // deixa o lançamento com o que o extrato diz que aconteceu, em vez de manter o estimado.
+    const item = items.find((it) => it.key === itemKey);
+    const dup = item?.possivelDuplicata;
+    const ajustar = mesmo && item && dup?.id && (Math.abs((dup.valor ?? item.amount) - item.amount) > 0.005 || (dup.data ?? item.date) !== item.date);
+    if (ajustar) {
+      void conciliarComExtratoAction({ id: dup!.id!, valor: item!.amount, data: item!.date }).then((r) => {
+        if (r.error) showError(r.error);
+      });
+    }
     setItems((prev) => (mesmo ? prev.filter((it) => it.key !== itemKey) : prev.map((it) => (it.key === itemKey ? { ...it, possivelDuplicata: null } : it))));
   }
 
@@ -1022,6 +1033,9 @@ export function StatementImport({
                       Boolean(it.possivelDuplicata!.importado),
                     )}
                   </span>
+                  {it.possivelDuplicata!.id && it.possivelDuplicata!.valor !== undefined && Math.abs(it.possivelDuplicata!.valor - it.amount) > 0.005 && (
+                    <span className="text-caption text-ink-muted">{t.impDuplicataAtualiza(money(it.possivelDuplicata!.valor), money(it.amount))}</span>
+                  )}
                   <div className="flex flex-wrap gap-2">
                     <button type="button" onClick={() => responderDuplicata(it.key, true)} className={respostaForte}>
                       {t.impDuplicataEOMesmo}

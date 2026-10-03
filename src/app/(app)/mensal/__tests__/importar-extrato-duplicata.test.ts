@@ -204,3 +204,48 @@ describe("categoria personalizada numa linha mandada pra outro perfil", () => {
     expect(banco[0]).toMatchObject({ profileId: "pessoal", parentCategory: null, customCategoryId: "pet" });
   });
 });
+
+/** Conta lançada à mão antes de pagar (03/10/2026): a data é a do vencimento, o valor é o previsto. */
+function lancadoAMao(description: string, amount: number, dia: string) {
+  banco.push({
+    id: `mao${++proximoId}`,
+    userId: "u1",
+    profileId: "pessoal",
+    year: Number(dia.slice(0, 4)),
+    month: Number(dia.slice(5, 7)),
+    entryDate: new Date(`${dia}T12:00:00`),
+    amount,
+    description,
+    category: "EXPENSE",
+    importBatchId: null,
+  });
+}
+
+describe("conta lançada à mão antes de pagar", () => {
+  it("paga 5 dias antes do vencimento ainda pergunta, e diz qual lançamento é", async () => {
+    lancadoAMao("Aluguel", 1500, "2026-09-10");
+    const items = await lerExtrato(["05/09/2026;PIX ENVIADO IMOBILIARIA;-1500,00"]);
+    expect(items[0].possivelDuplicata).toMatchObject({ descricao: "Aluguel", data: "2026-09-10", valor: 1500 });
+    expect(items[0].possivelDuplicata?.id).toMatch(/^mao/);
+  });
+
+  it("conta com valor um pouco diferente do previsto (luz de 180 que veio 192) pergunta", async () => {
+    lancadoAMao("Conta de luz", 180, "2026-09-15");
+    const items = await lerExtrato(["14/09/2026;ENEL;-192,00"]);
+    expect(items[0].possivelDuplicata).toMatchObject({ descricao: "Conta de luz", valor: 180 });
+  });
+
+  it("valor muito diferente ou mais de uma semana de distância não pergunta", async () => {
+    lancadoAMao("Conta de luz", 180, "2026-09-15");
+    lancadoAMao("Internet", 100, "2026-09-25");
+    const items = await lerExtrato(["14/09/2026;ENEL;-260,00", "10/09/2026;VIVO;-100,00"]);
+    expect(items.every((i) => !i.possivelDuplicata)).toBe(true);
+  });
+
+  it("o valor exato e perto ganha do valor parecido: cada lançamento casa com uma linha só", async () => {
+    lancadoAMao("Academia", 100, "2026-09-10");
+    const items = await lerExtrato(["09/09/2026;SMART FIT;-95,00", "10/09/2026;SMART FIT;-100,00"]);
+    expect(items.find((i) => i.amount === 100)?.possivelDuplicata).toMatchObject({ descricao: "Academia" });
+    expect(items.find((i) => i.amount === 95)?.possivelDuplicata).toBeFalsy();
+  });
+});

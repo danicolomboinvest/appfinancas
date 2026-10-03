@@ -112,6 +112,13 @@ export function EntryForm({
   const foreign = currency !== userCurrency;
   // O tipo escolhido nos chips: os campos do Casal perguntam "quem pagou" ou "quem recebeu".
   const [tipo, setTipo] = useState(defaultCategory ?? "EXPENSE");
+  // "Esse dinheiro é para as contas do mês seguinte" (ver aplicarMesSeguinte em actions.ts). O mês
+  // de base é o da DATA: na edição de uma entrada já empurrada, a página é a do mês seguinte e a
+  // data continua no mês em que o dinheiro caiu, e é isso que diz que ela já está marcada.
+  const mesDaData = defaultEntryDate ? Number(defaultEntryDate.slice(5, 7)) : month;
+  const anoDaData = defaultEntryDate ? Number(defaultEntryDate.slice(0, 4)) : year;
+  const jaNoMesSeguinte = isEditing && Boolean(defaultEntryDate) && (anoDaData !== year || mesDaData !== month);
+  const nomeDoMesSeguinte = new Date(anoDaData, mesDaData, 1).toLocaleDateString("pt-BR", { month: "long" });
 
   return (
     <Card
@@ -209,6 +216,15 @@ export function EntryForm({
               </option>
             ))}
           </select>
+        </label>
+      )}
+      {tipo === "INCOME" && (
+        <label className={`flex min-h-11 items-start gap-2.5 text-xs text-ink-muted ${stacked ? "w-full" : ""}`}>
+          <input type="checkbox" name="paraMesSeguinte" defaultChecked={jaNoMesSeguinte} className="mt-0.5 h-5 w-5 shrink-0 accent-accent" />
+          <span className="flex flex-col gap-0.5">
+            <span className="text-sm text-ink">{t.formLancMesSeguinte(nomeDoMesSeguinte)}</span>
+            <span>{t.formLancMesSeguinteNota}</span>
+          </span>
         </label>
       )}
       {!isEditing && (

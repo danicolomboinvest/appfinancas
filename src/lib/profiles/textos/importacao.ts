@@ -102,6 +102,8 @@ export type TextosImportacao = {
    * `soAMao` = todas as parecidas são com lançamento à mão. */
   impDuplicataTitulo(n: number, soAMao: boolean): string;
   impDuplicataDica: string;
+  /** Conta lançada à mão com valor estimado: com "é o mesmo", fica o valor do extrato. */
+  impDuplicataAtualiza(antes: string, depois: string): string;
   /** O que já está no app. `quando` é a data formatada, ou null (lançamento à mão sem dia). */
   impDuplicataJaTem(descricao: string, quando: string | null, importado: boolean): string;
   impDuplicataEOMesmo: string;
@@ -381,7 +383,8 @@ export const PADRAO_IMPORTACAO: TextosImportacao = {
       : n === 1
         ? "1 lançamento parece com um que já está no app"
         : `${n} lançamentos parecem com alguns que já estão no app`,
-  impDuplicataDica: "Mesmo valor e data perto. Se for o mesmo, eu não importo de novo.",
+  impDuplicataDica: "Valor e data parecidos. Se for o mesmo, eu não importo de novo.",
+  impDuplicataAtualiza: (antes, depois) => `Você lançou ${antes}. Se for o mesmo, o lançamento passa a ${depois}, o valor que saiu de verdade.`,
   impDuplicataJaTem: (descricao, quando, importado) =>
     importado
       ? `Já está no app, de outro arquivo: “${descricao}”${quando ? ` em ${quando}` : ""}`

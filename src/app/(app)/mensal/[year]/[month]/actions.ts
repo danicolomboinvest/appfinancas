@@ -26,6 +26,22 @@ import type { z } from "zod";
 
 export type MonthlyEntryState = { error?: string };
 
+/**
+ * "Esse dinheiro é para o mês seguinte" (03/10/2026). Cliente: "recebo dia 25 e as contas vencem
+ * dia 5; preciso deixar o dinheiro reservado para o mês seguinte". A entrada passa a CONTAR no mês
+ * seguinte (year/month), com a data real guardada (entryDate), como a compra de fatura, que também
+ * conta num mês diferente do dia. Assim o mês em que o salário caiu não mostra esse dinheiro como
+ * livre, e o mês das contas mostra a entrada que vai pagá-las. Só vale para entrada (INCOME).
+ * Desmarcar na edição volta o lançamento para o mês da data (o schema já deriva o mês dela).
+ */
+function aplicarMesSeguinte(formData: FormData, data: { category: string; year: number; month: number }): boolean {
+  if (formData.get("paraMesSeguinte") !== "on" || data.category !== "INCOME") return false;
+  const proximo = new Date(data.year, data.month, 1);
+  data.year = proximo.getFullYear();
+  data.month = proximo.getMonth() + 1;
+  return true;
+}
+
 function parseEntryForm(formData: FormData) {
   return monthlyEntrySchema.safeParse({
     year: formData.get("year"),
@@ -98,6 +114,7 @@ export async function createMonthlyEntryAction(
     return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
   }
 
+  aplicarMesSeguinte(formData, parsed.data);
   const ctx = await getRequiredSession();
   // Lançamento novo vai pro perfil ATIVO: se a tela foi aberta em outro (ela trocou em outra aba
   // ou aparelho), gravar aqui punha o gasto da Empresa no Pessoal. Ver perfil-da-tela.ts.
@@ -132,6 +149,9 @@ export async function updateMonthlyEntryAction(
     return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
   }
 
+  // O mês de onde ele sai (a página aberta): revalidado também, senão continua aparecendo lá.
+  const mesDaTela = { year: Number(formData.get("year")), month: Number(formData.get("month")) };
+  aplicarMesSeguinte(formData, parsed.data);
   const ctx = await getRequiredSession();
   if (trocouDePerfil(formData.get("profileId"), ctx.profileId)) return { error: MSG_TROCOU_DE_PERFIL };
   const entry = await toEntryInput(parsed.data);
@@ -159,6 +179,7 @@ export async function updateMonthlyEntryAction(
   if (serie) revalidatePath("/mensal", "layout");
   revalidatePath(`/mensal/${parsed.data.year}`);
   revalidatePath(`/mensal/${parsed.data.year}/${parsed.data.month}`);
+  if (Number.isInteger(mesDaTela.year) && Number.isInteger(mesDaTela.month)) revalidatePath(`/mensal/${mesDaTela.year}/${mesDaTela.month}`);
   return {};
 }
 

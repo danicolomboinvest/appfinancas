@@ -262,6 +262,9 @@ export type TextosFormularios = {
   formLancMetaVinculada: string;
   formLancNenhuma: string;
   formLancRepetir(ano: number): string;
+  /** Entrada que paga o mês seguinte (salário do dia 25 que paga as contas do dia 5). */
+  formLancMesSeguinte(mes: string): string;
+  formLancMesSeguinteNota: string;
   formLancSalvar: string;
   formLancLancar: string;
 };
@@ -497,6 +500,8 @@ export const PADRAO_FORMULARIOS: TextosFormularios = {
   formLancData: "Data",
   formLancMetaVinculada: "Meta vinculada (opcional)",
   formLancNenhuma: "Nenhuma",
+  formLancMesSeguinte: (mes) => `Esse dinheiro é para as contas de ${mes}`,
+  formLancMesSeguinteNota: "Ele passa a contar no mês seguinte, e este mês não mostra esse valor como livre para gastar.",
   formLancRepetir: (ano) => `Repetir lançamento todo mês (despesa fixa) até dezembro de ${ano}`,
   formLancSalvar: "Salvar alterações",
   formLancLancar: "Lançar",

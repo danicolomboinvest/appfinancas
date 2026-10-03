@@ -83,7 +83,14 @@ export type ReviewItem = {
   /** Parece com um lançamento que a pessoa já fez à mão (mesmo valor, data perto), ou com um de
    * outra importação (mesmo dia, valor e tipo, descrição diferente): a tela pergunta.
    * `importado` diz qual dos dois, pra tela não dizer "você lançou" do que veio de arquivo. */
-  possivelDuplicata?: { descricao: string; data: string | null; importado?: boolean } | null;
+  possivelDuplicata?: {
+    descricao: string;
+    data: string | null;
+    importado?: boolean;
+    /** Lançamento à mão: o id e o valor dele. Com "é o mesmo", ele fica com o valor e a data do extrato. */
+    id?: string;
+    valor?: number;
+  } | null;
   /** Fica de fora da importação (pagamento de fatura de quem importa a fatura, "só mudei de conta"). */
   ignorar?: boolean;
   /** Por que o app tratou a linha diferente ("Aplicação: entra como guardado"). */
@@ -530,20 +537,62 @@ async function marcarPossiveisDuplicatas(ctx: AuthContext, items: ReviewItem[]) 
     select: { id: true, category: true, amount: true, entryDate: true, description: true, year: true, month: true },
   });
   const usados = new Set<string>();
-  for (const item of items) {
-    const t = Date.parse(`${item.date}T12:00:00Z`);
-    if (!Number.isFinite(t)) continue;
-    const valor = item.estorno ? -item.amount : item.amount;
-    const par = manuais.find((m) => {
-      if (usados.has(m.id) || m.category !== item.category || Math.abs(Number(m.amount) - valor) > 0.005) return false;
+  /*
+   * Duas passadas. A primeira é a de sempre: valor exato e até 3 dias. A segunda (03/10/2026) é
+   * a conta lançada antes de pagar: quem lança o aluguel com a data do vencimento e paga dias
+   * antes, ou a conta de luz prevista em R$ 180 que veio R$ 192, não era perguntada e entrava em
+   * dobro. Só gasto, até 7 dias e até 15% de diferença. Continua sendo PERGUNTA, nunca pula sozinho.
+   */
+  const passadas: ((m: (typeof manuais)[number], item: ReviewItem, valor: number, t: number) => boolean)[] = [
+    (m, item, valor, t) => {
+      if (Math.abs(Number(m.amount) - valor) > 0.005) return false;
       if (m.entryDate) return Math.abs(m.entryDate.getTime() - t) <= 3 * DIA_MS + 12 * 3_600_000;
       // Lançamento à mão sem dia: basta ser do mesmo mês.
       return m.year === Number(item.date.slice(0, 4)) && m.month === Number(item.date.slice(5, 7));
-    });
-    if (!par) continue;
-    usados.add(par.id);
-    item.possivelDuplicata = { descricao: par.description ?? "(sem descrição)", data: par.entryDate ? par.entryDate.toISOString().slice(0, 10) : null };
+    },
+    (m, item, valor, t) =>
+      item.category === "EXPENSE" &&
+      valor > 0 &&
+      m.entryDate !== null &&
+      Math.abs(m.entryDate.getTime() - t) <= 7 * DIA_MS + 12 * 3_600_000 &&
+      Math.abs(Number(m.amount) - valor) <= valor * 0.15,
+  ];
+  for (const casa of passadas) {
+    for (const item of items) {
+      if (item.possivelDuplicata) continue;
+      const t = Date.parse(`${item.date}T12:00:00Z`);
+      if (!Number.isFinite(t)) continue;
+      const valor = item.estorno ? -item.amount : item.amount;
+      const par = manuais.find((m) => !usados.has(m.id) && m.category === item.category && casa(m, item, valor, t));
+      if (!par) continue;
+      usados.add(par.id);
+      item.possivelDuplicata = {
+        descricao: par.description ?? "(sem descrição)",
+        data: par.entryDate ? par.entryDate.toISOString().slice(0, 10) : null,
+        id: par.id,
+        valor: Number(par.amount),
+      };
+    }
   }
+}
+
+/**
+ * "É o mesmo" de um lançamento à mão com valor ou data diferentes do extrato: o lançamento fica
+ * com o que de fato aconteceu (valor e dia do extrato), e a linha do extrato não entra. A conta
+ * prevista vira a conta paga, sem duplicar e sem ficar com o valor estimado.
+ */
+export async function conciliarComExtratoAction(input: { id: string; valor: number; data: string }): Promise<{ error?: string }> {
+  const ctx = await getRequiredSession();
+  const valor = Math.round(Number(input.valor) * 100) / 100;
+  const dia = new Date(`${input.data}T12:00:00`);
+  if (typeof input.id !== "string" || !(valor > 0) || valor > 1e8 || Number.isNaN(dia.getTime())) return { error: "Dados inválidos." };
+  const r = await prisma.monthlyEntry.updateMany({
+    where: { id: input.id, userId: ctx.userId, profileId: ctx.profileId, importBatchId: null, category: "EXPENSE" },
+    data: { amount: valor, entryDate: dia, year: dia.getFullYear(), month: dia.getMonth() + 1 },
+  });
+  if (r.count === 0) return { error: "Não achei esse lançamento." };
+  revalidatePath("/mensal", "layout");
+  return {};
 }
 
 /** Chave solta (ver lib/import/duplicata-solta): mesmo dia, mesmo valor gravado e mesmo tipo. */

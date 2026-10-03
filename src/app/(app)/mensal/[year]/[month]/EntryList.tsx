@@ -166,6 +166,8 @@ export function EntryList({
   const [, startTransition] = useTransition();
 
   const [openId, setOpenId] = useState<string | null>(null);
+  // Hoje no aparelho, para marcar a conta que ainda vai vencer. No inicializador, não no render.
+  const [hoje] = useState(() => new Date().toLocaleDateString("en-CA"));
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -322,6 +324,16 @@ export function EntryList({
                   {nomesDoCasal[entry.pessoa]}
                   {entry.category === "EXPENSE" && entry.doCasal === false ? " · Pessoal" : ""}
                   {(entry.dayLabel || entry.description) && " · "}
+                </span>
+              )}
+              {/* Conta lançada antes de pagar (03/10/2026): mostra que ainda vai vencer. */}
+              {entry.category === "EXPENSE" && entry.entryDate && entry.entryDate > hoje && (
+                <span className="mr-1 rounded-full border border-border-strong px-1.5 py-px font-medium text-ink-muted">a vencer</span>
+              )}
+              {/* Entrada que ela marcou como "para o mês seguinte": caiu em outro mês. */}
+              {entry.category === "INCOME" && entry.entryDate && Number(entry.entryDate.slice(5, 7)) !== month && (
+                <span className="mr-1 rounded-full bg-accent-soft px-1.5 py-px font-medium text-accent-strong">
+                  recebido {entry.entryDate.slice(8, 10)}/{entry.entryDate.slice(5, 7)}
                 </span>
               )}
               {entry.dayLabel && <span className="tabular-nums">{entry.dayLabel}</span>}
