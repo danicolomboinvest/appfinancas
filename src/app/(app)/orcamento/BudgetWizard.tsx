@@ -18,6 +18,7 @@ import { useMoney } from "@/components/money/MoneyProvider";
 import { PARENT_CATEGORY_COLOR, CUSTOM_CATEGORY_ICON_MAP, colorForCategorySlice, categoryLabel, categoryDescription, categoryIcon, categoriaOculta } from "@/lib/categories";
 import type { BudgetHints } from "@/lib/planning/budget-hints";
 import { arredondaPlano, MESES_MINIMOS_DO_PADRAO } from "@/lib/planning/padrao-orcamento";
+import { EVENTO_IMPORTAR } from "@/components/shell/registrar-eventos";
 import { splitSavings, type SavingsTarget } from "@/lib/planning/savings-split";
 import { idealBudgetSplit, COURSE_SAVINGS_PERCENT, EMPRESA_RETENTION_PERCENT, courseShareOf, savingsPercentFor } from "@/lib/planning/ideal-budget";
 import { NewCustomCategoryCard } from "./NewCustomCategoryCard";
@@ -33,9 +34,6 @@ const PCT_CHIPS_EMPRESA = [5, EMPRESA_RETENTION_PERCENT, 15, 20];
 
 type Cat = { key: string; label: string; description?: string; color: string; icon: LucideIcon; custom: boolean };
 
-function roundStep(v: number): number {
-  return Math.max(0, Math.round(v / STEP) * STEP);
-}
 
 /**
  * "Vamos montar seu orçamento": três passos na ordem em que o dinheiro anda — quanto entra,
@@ -175,11 +173,7 @@ export function BudgetWizard({
     setValues((prev) => ({ ...prev, ...Object.fromEntries(cats.map((c) => [c.key, arredondaPlano(hints.padraoByCategory[c.key] ?? 0)])) }));
   }
   const temPadrao = hints.mesesComDado >= MESES_MINIMOS_DO_PADRAO;
-  function copyLastMonth() {
-    setValues(Object.fromEntries(cats.map((c) => [c.key, roundStep(hints.lastMonthByCategory[c.key] ?? 0)])));
-  }
 
-  const hasHistory = Object.values(hints.averageByCategory).some((v) => v > 0);
 
   const header = (
     <div className="flex items-center justify-between">
@@ -324,38 +318,43 @@ export function BudgetWizard({
             </p>
           </Card>
 
-          {/* "Sugerir" não depende mais de ter histórico: é justamente quem está começando que
-              não sabe quanto pôr em cada coisa. "Copiar" continua só pra quem tem o mês passado. */}
-          <div className="flex flex-col gap-1.5">
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={suggest}
-                disabled={toSpend <= 0}
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-full border border-accent bg-accent-soft px-3 py-2 text-[13px] font-semibold text-accent-strong disabled:opacity-40"
-              >
-                <Sparkles size={14} /> {t.formOrcSugerir}
-              </button>
-              {temPadrao && (
+          {/* Duas portas, na ordem que a Dani pediu (03/10/2026): primeiro o jeito dela de gastar
+              (subir os últimos 3 extratos, ou usar o padrão de quem já subiu), embaixo o "Sugerir
+              para mim" do curso, para quem está começando. O "Copiar mês" saiu: com um mês só não
+              há padrão, e o convite de subir os extratos resolve melhor. */}
+          <div className="flex flex-col gap-2">
+            {temPadrao ? (
+              <>
                 <button
                   type="button"
                   onClick={usarPadrao}
-                  className="flex-1 rounded-full border border-border-strong bg-surface-2 px-3 py-2 text-[13px] font-semibold text-ink hover:text-ink"
+                  className="flex min-h-11 items-center justify-center gap-1.5 rounded-full bg-pill px-4 text-sm font-semibold text-on-pill"
                 >
-                  {t.formOrcPadrao}
+                  <Sparkles size={14} /> {t.formOrcPadrao}
                 </button>
-              )}
-              {hasHistory && !temPadrao && (
+                <p className="text-caption text-ink-faint">{t.formOrcPadraoNota(hints.mesesComDado)}</p>
+              </>
+            ) : (
+              <div className="flex flex-col gap-2 rounded-2xl border border-accent bg-accent-soft p-4">
+                <p className="text-sm font-semibold text-ink">{t.formOrcExtratosTitulo}</p>
+                <p className="text-caption text-ink-muted">{t.formOrcExtratosNota}</p>
                 <button
                   type="button"
-                  onClick={copyLastMonth}
-                  className="flex-1 rounded-full border border-border-strong bg-surface-2 px-3 py-2 text-[13px] font-semibold text-ink-muted hover:text-ink"
+                  onClick={() => window.dispatchEvent(new Event(EVENTO_IMPORTAR))}
+                  className="min-h-11 w-fit rounded-full bg-pill px-4 text-sm font-semibold text-on-pill"
                 >
-                  {t.formOrcCopiar(hints.lastMonthLabel)}
+                  {t.formOrcSubirExtratos}
                 </button>
-              )}
-            </div>
-            {temPadrao && <p className="text-caption text-ink-faint">{t.formOrcPadraoNota(hints.mesesComDado)}</p>}
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={suggest}
+              disabled={toSpend <= 0}
+              className="flex min-h-11 items-center justify-center gap-1.5 rounded-full border border-border-strong bg-surface-2 px-4 text-sm font-semibold text-ink disabled:opacity-40"
+            >
+              {t.formOrcSugerir}
+            </button>
             <p className="text-caption text-ink-faint">
               {t.formOrcSugestaoNota(
                 Math.round(courseShareOf("MORADIA", kind) * 100),

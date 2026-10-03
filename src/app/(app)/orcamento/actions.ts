@@ -176,3 +176,27 @@ export async function definirPlanoDaCategoriaAction(input: { key: string; valor:
   revalidarOrcamento();
   return {};
 }
+
+/**
+ * "Ajustar categorias" (03/10/2026): aplica de uma vez todos os ajustes do padrão dos últimos
+ * 3 meses. Ela pediu um botão só em vez de um por categoria; depois mexe no que quiser pelo lápis.
+ * Vale deste mês até dezembro, igual ao lápis. Para no primeiro erro e diz qual categoria falhou.
+ */
+export async function aplicarAjustesDoPadraoAction(itens: { key: string; valor: number }[]): Promise<{ error?: string; aplicados?: number }> {
+  const ctx = await getRequiredSession();
+  if (!Array.isArray(itens) || itens.length === 0 || itens.length > 20) return { error: "Nada para ajustar." };
+  const agora = nowInBrazil();
+  const year = agora.getFullYear();
+  const meses = mesesQueOSalvarGrava(year, agora);
+  let aplicados = 0;
+  for (const item of itens) {
+    const valor = Math.round(Number(item.valor) * 100) / 100;
+    if (typeof item.key !== "string" || !(valor >= 0) || valor > 1e8) return { error: "Valor inválido.", aplicados };
+    for (const month of meses) {
+      if (!(await definirPlanoDoMes(ctx, { key: item.key, year, month, plannedAmount: valor }))) return { error: "Categoria não encontrada.", aplicados };
+    }
+    aplicados++;
+  }
+  revalidarOrcamento();
+  return { aplicados };
+}

@@ -2,98 +2,91 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Sparkles } from "lucide-react";
+import { ChevronDown, Sparkles } from "lucide-react";
 import { useToast } from "@/components/ui/toast-context";
 import { useMoney } from "@/components/money/MoneyProvider";
 import type { AjusteDoPadrao } from "@/lib/planning/padrao-orcamento";
-import { definirPlanoDaCategoriaAction } from "@/app/(app)/orcamento/actions";
+import { aplicarAjustesDoPadraoAction } from "@/app/(app)/orcamento/actions";
 
 export type AjusteComRotulo = AjusteDoPadrao & { label: string };
 
 /**
- * "Seu padrão dos últimos 3 meses": o orçamento que aprende com os extratos e faturas dela.
+ * "Olhamos o seu padrão dos últimos 3 meses": o orçamento que aprende com os extratos e faturas.
  *
- * Cada linha diz o que viu (os três meses), o que propõe e por quê, com um botão só. Aplicar vale
- * deste mês até dezembro, igual ao lápis do "Planejado" (definirPlanoDaCategoriaAction). Nada
- * muda sozinho: o plano é dela, o app só aponta onde ele não bate com a vida real.
+ * Um aviso curto e UM botão que ajusta todas as categorias de uma vez (pedido da Dani,
+ * 03/10/2026: a primeira versão, uma linha com explicação e botão por categoria, "fica muito
+ * textão"). O que muda fica num "ver o que muda", fechado. Depois de ajustar, ela mexe no que
+ * quiser pelo lápis de cada categoria. Vale deste mês até dezembro.
  */
-export function SugestoesDoPadrao({ ajustes, mes, rotulosDosMeses }: { ajustes: AjusteComRotulo[]; mes: string; rotulosDosMeses: string[] }) {
+export function SugestoesDoPadrao({ ajustes, mes, meses }: { ajustes: AjusteComRotulo[]; mes: string; meses: number }) {
   const money = useMoney();
   const m = (v: number) => money(v, { round: true });
   const router = useRouter();
   const { showToast, showError } = useToast();
-  const [aplicados, setAplicados] = useState<Set<string>>(new Set());
+  const [aberto, setAberto] = useState(false);
+  const [feito, setFeito] = useState(false);
   const [pendente, iniciar] = useTransition();
 
-  const visiveis = ajustes.filter((a) => !aplicados.has(a.chave));
-  if (visiveis.length === 0) return null;
+  if (feito || ajustes.length === 0) return null;
 
-  function aplicar(a: AjusteComRotulo) {
+  function ajustarTudo() {
     iniciar(async () => {
-      const r = await definirPlanoDaCategoriaAction({ key: a.chave, valor: a.sugerido });
+      const r = await aplicarAjustesDoPadraoAction(ajustes.map((a) => ({ key: a.chave, valor: a.sugerido })));
       if (r.error) return showError(r.error);
-      showToast(`${a.label}: ${m(a.sugerido)} por mês de ${mes} em diante.`);
-      setAplicados((prev) => new Set(prev).add(a.chave));
+      showToast(`Pronto: ${ajustes.length === 1 ? "1 categoria ajustada" : `${ajustes.length} categorias ajustadas`} de ${mes} em diante.`);
+      setFeito(true);
       router.refresh();
     });
   }
-
-  const meses = rotulosDosMeses.slice(-(visiveis[0]?.meses.length ?? 0));
 
   return (
     <section className="flex flex-col gap-3 rounded-2xl border border-border bg-surface p-4">
       <div className="flex items-start gap-2.5">
         <Sparkles size={18} className="mt-0.5 shrink-0 text-accent-strong" aria-hidden />
         <div className="flex flex-col gap-0.5">
-          <h2 className="text-base font-semibold text-ink">Seu padrão dos últimos {meses.length} meses</h2>
+          <h2 className="text-base font-semibold text-ink">Olhamos o seu padrão dos últimos {meses} meses</h2>
           <p className="text-sm text-ink-muted">
-            Olhei os seus extratos e faturas e achei onde o plano não bate com o jeito que você gasta de verdade.
+            {ajustes.length === 1 ? "Uma categoria não bate" : `${ajustes.length} categorias não batem`} com o jeito que você gasta de
+            verdade.
           </p>
         </div>
       </div>
 
-      <ul className="flex flex-col divide-y divide-border">
-        {visiveis.map((a) => (
-          <li key={a.chave} className="flex flex-col gap-2 py-3 first:pt-1 last:pb-0">
-            <p className="text-sm text-ink">
-              <b>{a.label}</b>
-              {": "}
-              {a.tipo === "subir" && (
-                <>
-                  o plano é {m(a.planoAtual)}, mas você costuma gastar uns <b>{m(a.padrao)}</b>. Um plano que você não consegue cumprir
-                  vira estouro todo mês.
-                </>
-              )}
-              {a.tipo === "baixar" && (
-                <>
-                  o plano é {m(a.planoAtual)}, mas você costuma gastar só uns <b>{m(a.padrao)}</b>. Baixando, sobram{" "}
-                  <b>{m(a.planoAtual - a.sugerido)}</b> por mês para guardar.
-                </>
-              )}
-              {a.tipo === "criar" && (
-                <>
-                  não tem plano, e você costuma gastar uns <b>{m(a.padrao)}</b> por mês.
-                </>
-              )}
-            </p>
-            <p className="text-xs text-ink-muted">
-              {a.meses.map((v, i) => `${meses[i] ?? ""} ${m(v)}`.trim()).join(" · ")}
-            </p>
-            <button
-              type="button"
-              disabled={pendente}
-              onClick={() => aplicar(a)}
-              className="min-h-11 w-fit rounded-full bg-pill px-4 text-sm font-semibold text-on-pill disabled:opacity-50"
-            >
-              {a.tipo === "criar" ? `Criar com ${m(a.sugerido)}` : `Mudar para ${m(a.sugerido)}`}
-            </button>
-          </li>
-        ))}
-      </ul>
+      <div className="flex flex-wrap items-center gap-3">
+        <button
+          type="button"
+          disabled={pendente}
+          onClick={ajustarTudo}
+          className="min-h-11 rounded-full bg-pill px-5 text-sm font-semibold text-on-pill disabled:opacity-50"
+        >
+          {pendente ? "Ajustando…" : "Ajustar categorias"}
+        </button>
+        <button
+          type="button"
+          onClick={() => setAberto((v) => !v)}
+          aria-expanded={aberto}
+          className="flex min-h-11 items-center gap-1 text-sm font-medium text-ink-muted hover:text-ink"
+        >
+          Ver o que muda <ChevronDown size={16} className={`transition-transform ${aberto ? "rotate-180" : ""}`} aria-hidden />
+        </button>
+      </div>
 
-      <p className="text-caption text-ink-faint">
-        Vale de {mes} em diante. O número é o do mês do meio dos três: um mês fora da curva, como uma viagem, não puxa a sugestão.
-      </p>
+      {aberto && (
+        <ul className="flex flex-col gap-1.5 border-t border-border pt-3 text-sm">
+          {ajustes.map((a) => (
+            <li key={a.chave} className="flex items-baseline justify-between gap-3">
+              <span className="text-ink">{a.label}</span>
+              <span className="tabular-nums text-ink-muted">
+                {a.planoAtual > 0 ? `${m(a.planoAtual)} → ` : "sem plano → "}
+                <b className="text-ink">{m(a.sugerido)}</b>
+              </span>
+            </li>
+          ))}
+          <li className="pt-1 text-caption text-ink-faint">
+            Cada valor é o que você costuma gastar (o mês do meio dos {meses}). Depois dá para mexer em qualquer um pelo lápis.
+          </li>
+        </ul>
+      )}
     </section>
   );
 }

@@ -130,6 +130,10 @@ export type TextosFormularios = {
   /** Preenche cada categoria com o padrão dos últimos meses (padrao-orcamento.ts). */
   formOrcPadrao: string;
   formOrcPadraoNota(meses: number): string;
+  /** Quem ainda não tem 2 meses de dado: o convite para subir os extratos vem antes do "Sugerir". */
+  formOrcExtratosTitulo: string;
+  formOrcExtratosNota: string;
+  formOrcSubirExtratos: string;
   formOrcSugestaoNota(moradia: number, alimentacao: number, saude: number, pct: number): string;
   formOrcCustomNota: string;
   formOrcVerPlano: string;
@@ -370,6 +374,9 @@ export const PADRAO_FORMULARIOS: TextosFormularios = {
   formOrcSugerir: "Sugerir para mim",
   formOrcCopiar: (mes) => `Copiar ${mes}`,
   formOrcPadrao: "Usar o meu padrão",
+  formOrcExtratosTitulo: "Monte pelo seu jeito de gastar",
+  formOrcExtratosNota: "Suba os extratos e as faturas dos seus últimos 3 meses e eu sugiro cada categoria pelo que você gasta de verdade.",
+  formOrcSubirExtratos: "Subir extratos",
   formOrcPadraoNota: (meses) =>
     `"Usar o meu padrão" coloca em cada categoria o que você costuma gastar de verdade, olhando os seus últimos ${meses} meses. Um mês fora da curva, como uma viagem, não puxa o número.`,
   formOrcSugestaoNota: (moradia, alimentacao, saude, pct) =>
