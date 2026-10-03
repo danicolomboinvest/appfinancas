@@ -41,3 +41,18 @@ describe("monthlyEntrySchema: o mês da consolidação segue a entryDate escolhi
     expect(r.data.month).toBe(1);
   });
 });
+
+describe("monthlyEntrySchema: campos do perfil Casal", () => {
+  const base = form();
+  it("aceita quem pagou e da casa/pessoal", () => {
+    const r = monthlyEntrySchema.safeParse({ ...base, pessoa: "B", tipoCasal: "pessoal" });
+    expect(r.success && r.data.pessoa).toBe("B");
+    expect(r.success && r.data.tipoCasal).toBe("pessoal");
+  });
+  it("fora do Casal os campos não vêm e continua válido", () => {
+    expect(monthlyEntrySchema.safeParse(base).success).toBe(true);
+  });
+  it("recusa pessoa que não é A nem B", () => {
+    expect(monthlyEntrySchema.safeParse({ ...base, pessoa: "C" }).success).toBe(false);
+  });
+});

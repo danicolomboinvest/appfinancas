@@ -467,6 +467,8 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
             dayLabel: formatRelativeDay(entry.entryDate),
             goalId: entry.goalId,
             recurrenceId: entry.recurrenceId,
+            pessoa: entry.pessoa,
+            doCasal: entry.doCasal,
             ...(entry.originalCurrency && entry.originalAmount !== null && isCurrencyCode(entry.originalCurrency)
               ? {
                   originalLabel: formatMoney(Number(entry.originalAmount), entry.originalCurrency),

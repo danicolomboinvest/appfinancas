@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useSuccessToast } from "@/components/ui/useSuccessToast";
 import { CategoryFields } from "@/components/forms/CategoryFields";
+import { CasalFields } from "@/components/forms/CasalFields";
 import { defaultEntryDateValue } from "@/lib/date/entry-date-default";
 import type { TipoDoLancamento } from "@/lib/profiles/textos/shell";
 import { createMonthlyEntryAction, updateMonthlyEntryAction, type MonthlyEntryState } from "./actions";
@@ -41,6 +42,8 @@ export function EntryForm({
   defaultExchangeRate,
   recorrente = false,
   tipoRecorrente = "EXPENSE",
+  defaultPessoa,
+  defaultDoCasal,
 }: {
   year: number;
   month: number;
@@ -74,6 +77,9 @@ export function EntryForm({
   recorrente?: boolean;
   /** O tipo da cópia fixa: a pergunta diz "Despesa fixa", "Renda mensal" ou "Aporte mensal". */
   tipoRecorrente?: TipoDoLancamento;
+  /** Perfil Casal (edição): quem pagou e se era da casa. */
+  defaultPessoa?: string | null;
+  defaultDoCasal?: boolean | null;
 }) {
   const isEditing = Boolean(entryId);
   const [state, formAction, isPending] = useActionState(
@@ -104,6 +110,8 @@ export function EntryForm({
   const [amount, setAmount] = useState<number>(defaultAmount ?? 0);
   const [description, setDescription] = useState(defaultDescription ?? "");
   const foreign = currency !== userCurrency;
+  // O tipo escolhido nos chips: os campos do Casal perguntam "quem pagou" ou "quem recebeu".
+  const [tipo, setTipo] = useState(defaultCategory ?? "EXPENSE");
 
   return (
     <Card
@@ -175,7 +183,9 @@ export function EntryForm({
         defaultSubcategory={defaultSubcategory}
         defaultCustomCategoryId={defaultCustomCategoryId}
         descriptionHint={description}
+        onTipoChange={setTipo}
       />
+      <CasalFields tipo={tipo} defaultPessoa={defaultPessoa} defaultDoCasal={defaultDoCasal} />
       <Field
         label={t.formLancData}
         id="entryDate"

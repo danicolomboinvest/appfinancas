@@ -25,6 +25,7 @@ import { acessoVeioDaApple, guardarTokenApple } from "@/lib/repositories/assinat
 import { linkDoSuporte } from "@/lib/support/whatsapp-link";
 import { mensagemDeContaSemAcesso } from "@/lib/support/contato";
 import { lerPreferenciasDeCategoria, type PreferenciasDeCategoria } from "@/lib/categories";
+import { lerConfigCasal } from "@/lib/casal/acerto";
 
 
 function capitalize(text: string) {
@@ -46,6 +47,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   let profileTheme = "padrao";
   let profileKind: ProfileKind = "PESSOAL";
   let prefsDeCategoria: PreferenciasDeCategoria = {};
+  let nomesDoCasal: { A: string; B: string } | null = null;
   let currency: CurrencyCode = toCurrencyCode(null);
   let isPremium = false;
   let perfis: { id: string; name: string; icon: string; theme: string; isDefault: boolean }[] = [];
@@ -89,6 +91,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     profileTheme = ativo.theme;
     profileKind = ativo.kind;
     prefsDeCategoria = lerPreferenciasDeCategoria(ativo.categorias);
+    if (ativo.kind === "CASAL") {
+      const casal = lerConfigCasal(ativo.casal);
+      nomesDoCasal = { A: casal.nomeA, B: casal.nomeB };
+    }
     // O TEMA do perfil ativo redefine a paleta do app inteiro — fundo, cartão, tinta e
     // destaque. Como tudo já pinta com var(--color-*), a tela toda muda junto sem nenhum
     // componente saber que existe tema. Trocar de perfil troca a cara do app.
@@ -126,6 +132,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         profileTheme={profileTheme}
         profileKind={profileKind}
         prefsDeCategoria={prefsDeCategoria}
+        nomesDoCasal={nomesDoCasal}
         podeEscolherModo={podeEscolherModo}
       >
         {/* Trocar de perfil só revalida a página, e o React guarda o estado dos formulários que

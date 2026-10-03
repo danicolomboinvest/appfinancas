@@ -26,6 +26,8 @@ import { FitText } from "@/components/ui/FitText";
 import { CountUp } from "@/components/ui/CountUp";
 import { LinkedStatCard } from "@/components/ui/LinkedStatCard";
 import { nowInBrazil } from "@/lib/date/brazil-now";
+import { carregarAcertoDoMes } from "@/lib/repositories/casal.repo";
+import { AcertoDoMesCard } from "@/components/casal/AcertoDoMesCard";
 import { serverMoney } from "@/lib/money-server";
 import { listMonthlyEntries } from "@/lib/repositories/monthly-entry.repo";
 import { getCategorySpending } from "@/lib/consolidation/month-analysis";
@@ -92,6 +94,8 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
   // passados, dezembro (último mês fechado do ano).
   const currentMonth = isCurrentYear ? now.getMonth() + 1 : 12;
   const previousMonthDate = new Date(year, currentMonth - 2, 1);
+  // Só o perfil Casal: o acerto do mês corrente (fora dele, nenhuma consulta a mais).
+  const acertoDoCasal = ehCasal(ctx.profileKind) ? await carregarAcertoDoMes(ctx, year, currentMonth) : null;
   // A seta dos cards compara só meses fechados (o mês em andamento contra o anterior inteiro
   // dizia "Renda ↓ 100%" todo começo de mês). No ano corrente o mês comparado é o anterior, que
   // já vem em previousMonthSummary; falta buscar o mês antes dele.
@@ -449,6 +453,8 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
       </>
       )}
       {painelEmpresa}
+      {/* Perfil Casal: quem deve pra quem neste mês (quem pagou cada gasto da casa). */}
+      {acertoDoCasal && <AcertoDoMesCard acerto={acertoDoCasal} comLinkParaDivisao />}
 
       {/* Próximos passos antes do status: o painel dizia como as coisas ESTÃO, mas não o que
           fazer a seguir — e é aí que a maioria abre o app, olha, e não volta. */}

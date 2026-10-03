@@ -39,6 +39,9 @@ export type MonthlyEntryInput = {
    * fatura manda pra cá compra que é da Empresa mas caiu no cartão Pessoal. `undefined` = o
    * perfil ativo de sempre. Quem chama já validou que o id é mesmo de um perfil do usuário. */
   profileId?: string;
+  /** Perfil Casal: quem pagou/recebeu ("A"/"B") e se o gasto é da casa (false = pessoal). */
+  pessoa?: string;
+  doCasal?: boolean;
 };
 
 /**
@@ -126,6 +129,8 @@ export async function createRecurringMonthlyEntries(
     amount: number;
     entryDate?: Date;
     goalId?: string;
+    pessoa?: string;
+    doCasal?: boolean;
   },
 ) {
   const refs = await resolveOwnRefs(ctx, ctx.profileId, input);
@@ -192,6 +197,9 @@ export async function updateSeriesFrom(ctx: AuthContext, id: string, input: Mont
           originalAmount: input.originalAmount ?? null,
           originalCurrency: input.originalCurrency ?? null,
           exchangeRate: input.exchangeRate ?? null,
+          // Perfil Casal: só muda quando o formulário mandou (fora do Casal fica como está).
+          ...(input.pessoa !== undefined ? { pessoa: input.pessoa } : {}),
+          ...(input.doCasal !== undefined ? { doCasal: input.doCasal } : {}),
         },
       }),
     ),

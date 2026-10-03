@@ -46,6 +46,9 @@ export type ListEntry = {
   originalAmount?: number | null;
   originalCurrency?: CurrencyCode | null;
   exchangeRate?: number | null;
+  /** Perfil Casal: quem pagou/recebeu ("A"/"B") e se o gasto é da casa (false = pessoal). */
+  pessoa?: string | null;
+  doCasal?: boolean | null;
 };
 
 const CATEGORY_AMOUNT_CLASS: Record<ListEntry["category"], string> = {
@@ -156,7 +159,7 @@ export function EntryList({
   // lista diz ("Ver mais", "Remover", os avisos de excluído/restaurado); o tipo do perfil,
   // como cada categoria-mãe se chama (numa Empresa, MORADIA é "Estrutura").
   // `categorias`: o tipo do perfil com o nome, o ícone e as escondidas que ela escolheu.
-  const { key: tema, voz, categorias: kind } = useProfileTheme();
+  const { key: tema, voz, categorias: kind, nomesDoCasal } = useProfileTheme();
   const t = voz.titulos;
   const money = useMoney();
   const { showToast, showError } = useToast();
@@ -313,6 +316,14 @@ export function EntryList({
               {entry.subcategory ?? categoryName(entry, customCategories, voz, kind)}
             </span>
             <span className="block truncate text-xs text-ink-faint">
+              {/* Perfil Casal: de quem é, e "Pessoal" quando o gasto fica fora do acerto. */}
+              {nomesDoCasal && (entry.pessoa === "A" || entry.pessoa === "B") && (
+                <span className="font-medium text-ink-muted">
+                  {nomesDoCasal[entry.pessoa]}
+                  {entry.category === "EXPENSE" && entry.doCasal === false ? " · Pessoal" : ""}
+                  {(entry.dayLabel || entry.description) && " · "}
+                </span>
+              )}
               {entry.dayLabel && <span className="tabular-nums">{entry.dayLabel}</span>}
               {entry.dayLabel && entry.description && " · "}
               {entry.description}
@@ -591,6 +602,8 @@ export function EntryList({
             defaultGoalId={editing.goalId ?? undefined}
             recorrente={Boolean(editing.recurrenceId)}
             tipoRecorrente={editing.category}
+            defaultPessoa={editing.pessoa}
+            defaultDoCasal={editing.doCasal}
           />
         )}
       </Modal>

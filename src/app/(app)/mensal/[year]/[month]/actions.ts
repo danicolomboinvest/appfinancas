@@ -42,6 +42,8 @@ function parseEntryForm(formData: FormData) {
     currency: formData.get("currency") || undefined,
     exchangeRate: formData.get("exchangeRate") || undefined,
     resgate: formData.get("resgate") ?? undefined,
+    pessoa: formData.get("pessoa") ?? undefined,
+    tipoCasal: formData.get("tipoCasal") ?? undefined,
   });
 }
 
@@ -80,6 +82,10 @@ async function toEntryInput(data: z.output<typeof monthlyEntrySchema>): Promise<
     subcategory: data.subcategory || undefined,
     description: data.description || undefined,
     goalId: data.goalId || undefined,
+    // Perfil Casal. Fora dele o formulário nem manda os campos, e undefined não mexe no que
+    // estava gravado.
+    pessoa: data.pessoa || undefined,
+    doCasal: data.tipoCasal === "pessoal" ? false : data.tipoCasal === "casa" ? true : undefined,
   };
 }
 

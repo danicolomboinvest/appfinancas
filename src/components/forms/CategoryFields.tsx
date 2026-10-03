@@ -71,6 +71,7 @@ export function CategoryFields({
   defaultSubcategory,
   defaultCustomCategoryId,
   descriptionHint = "",
+  onTipoChange,
 }: {
   /** Subcategorias mais usadas recentemente, por categoria-mãe, só as da categoria-mãe
    * selecionada no momento são exibidas, pra não sugerir algo de outra categoria. */
@@ -85,6 +86,8 @@ export function CategoryFields({
   defaultCustomCategoryId?: string;
   /** O que a pessoa digitou na descrição: "ifood" já marca Alimentação › Delivery sozinho. */
   descriptionHint?: string;
+  /** Avisa quem está em volta quando o tipo muda (gasto/entrada/aporte), ex.: os campos do Casal. */
+  onTipoChange?: (tipo: string) => void;
 }) {
   const selectId = useId();
   // Os rótulos, subcategorias e chips de tipo mudam com o perfil: numa Empresa, MORADIA é
@@ -189,7 +192,10 @@ export function CategoryFields({
                 type="button"
                 role="radio"
                 aria-checked={ativo}
-                onClick={() => setCategory(valor)}
+                onClick={() => {
+                  setCategory(valor);
+                  onTipoChange?.(valor === RESGATE ? "INVESTMENT_CONTRIBUTION" : valor);
+                }}
                 className={`min-h-11 rounded-lg px-1 text-sm font-semibold transition-colors ${ativo ? "bg-surface text-ink shadow-premium-sm" : "text-ink-muted hover:text-ink"}`}
               >
                 {opcao.label}

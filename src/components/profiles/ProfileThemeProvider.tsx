@@ -9,6 +9,9 @@ import { ehCasal } from "@/lib/profiles/casal";
 import type { ProfileKind } from "@prisma/client";
 import type { PreferenciasDeCategoria } from "@/lib/categories";
 
+/** Perfil Casal: os nomes das duas pessoas (quem pagou / recebeu). Nulo nos outros perfis. */
+export type NomesDoCasal = { A: string; B: string } | null;
+
 type Contexto = {
   key: ProfileThemeKey;
   voz: Voz;
@@ -21,6 +24,7 @@ type Contexto = {
   profileId: string | null;
   /** O tipo com as preferências de categoria do perfil: é o que vai para categoryLabel/categoryIcon. */
   categorias: { kind: ProfileKind; prefs: PreferenciasDeCategoria };
+  nomesDoCasal: NomesDoCasal;
 };
 
 const ProfileThemeContext = createContext<Contexto>({
@@ -31,6 +35,7 @@ const ProfileThemeContext = createContext<Contexto>({
   casal: false,
   profileId: null,
   categorias: { kind: "PESSOAL", prefs: {} },
+  nomesDoCasal: null,
 });
 
 /**
@@ -42,17 +47,19 @@ export function ProfileThemeProvider({
   kind = "PESSOAL",
   profileId = null,
   prefsDeCategoria = {},
+  nomesDoCasal = null,
   children,
 }: {
   theme: string;
   kind?: ProfileKind;
   profileId?: string | null;
   prefsDeCategoria?: PreferenciasDeCategoria;
+  nomesDoCasal?: NomesDoCasal;
   children: ReactNode;
 }) {
   const key = profileTheme(theme).key;
   return (
-    <ProfileThemeContext.Provider value={{ key, voz: vozDoTema(key, kind), kind, empresa: ehEmpresa(kind), casal: ehCasal(kind), profileId, categorias: { kind, prefs: prefsDeCategoria } }}>
+    <ProfileThemeContext.Provider value={{ key, voz: vozDoTema(key, kind), kind, empresa: ehEmpresa(kind), casal: ehCasal(kind), profileId, categorias: { kind, prefs: prefsDeCategoria }, nomesDoCasal: ehCasal(kind) ? nomesDoCasal : null }}>
       {children}
     </ProfileThemeContext.Provider>
   );

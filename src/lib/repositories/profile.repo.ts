@@ -55,9 +55,11 @@ export type ProfileRow = {
   isDefault: boolean;
   /** Preferências das categorias padrão (JSON cru; ler com lerPreferenciasDeCategoria). */
   categorias: Prisma.JsonValue | null;
+  /** Perfil Casal: nomes, forma de divisão e meses acertados (ler com lerConfigCasal). */
+  casal: Prisma.JsonValue;
 };
 
-const CAMPOS = { id: true, name: true, kind: true, icon: true, theme: true, position: true, isDefault: true, categorias: true } as const;
+const CAMPOS = { id: true, name: true, kind: true, icon: true, theme: true, position: true, isDefault: true, categorias: true, casal: true } as const;
 
 export async function listProfiles(userId: string): Promise<ProfileRow[]> {
   return prisma.financialProfile.findMany({

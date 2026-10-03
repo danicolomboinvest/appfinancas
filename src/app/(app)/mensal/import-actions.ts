@@ -1,5 +1,7 @@
 "use server";
 
+import { ehCasal } from "@/lib/profiles/casal";
+import { ehPessoa } from "@/lib/casal/acerto";
 import { revalidatePath } from "next/cache";
 import { installmentCanonical, installmentDescription, parseInstallment } from "@/lib/entries/recurrence";
 import { countMoneyLines, detectInvoiceTotal, looksLikeCardInvoice, MOTIVO_SINAIS_FATURA, periodoSemMovimento, sinaisDesmentemExtrato, type DocKind } from "@/lib/import/detect";
@@ -607,8 +609,13 @@ export async function importTransactionsAction(
   fileName?: string,
   /** O perfil que a tela de revisão mostrava (ver perfil-da-tela.ts). */
   perfilDaTela?: string | null,
+  /** Perfil Casal: de quem é o extrato ("A"/"B"). Todas as linhas que ficam no perfil levam o nome. */
+  pessoaDoExtrato?: string | null,
 ): Promise<ImportResult> {
   const ctx = await getRequiredSession();
+  // Só no Casal, e só nas linhas que ficam nele (a que foi mandada pra outro perfil não leva).
+  const pessoaDasLinhas = ehCasal(ctx.profileKind) && ehPessoa(pessoaDoExtrato) ? pessoaDoExtrato : undefined;
+  const pessoaPara = (destino: string | undefined) => (destino === undefined || destino === ctx.profileId ? pessoaDasLinhas : undefined);
   // A revisão foi montada num perfil (as categorias, os "mandar pra outro perfil") e as linhas
   // sem perfil próprio iam pro ATIVO na hora do toque: trocar de perfil noutro aparelho no meio
   // da revisão punha o extrato inteiro da Empresa no Pessoal, com o lote no histórico errado.
@@ -881,6 +888,7 @@ export async function importTransactionsAction(
         amount: item.amount,
         importBatchId: batch.id,
         profileId,
+        pessoa: pessoaPara(profileId),
       });
       created += 1;
       touchedMonths.add(`${d.getFullYear()}/${d.getMonth() + 1}`);
@@ -941,6 +949,7 @@ export async function importTransactionsAction(
       entryDate: !faturaTarget && originalYm ? new Date(`${item.date}T12:00:00`) : undefined,
       importBatchId: batch.id,
       profileId,
+      pessoa: pessoaPara(profileId),
     });
     created += 1;
     touchedMonths.add(`${ym.year}/${ym.month}`);

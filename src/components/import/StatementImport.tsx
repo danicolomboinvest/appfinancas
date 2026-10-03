@@ -99,7 +99,7 @@ export function StatementImport({
   // Tudo que a pessoa lê aqui (instruções, botões, avisos) vem da voz do tema; a lógica de
   // leitura do arquivo não sabe de tema nenhum.
   // `kind` porque os chips de categoria têm o nome do perfil (Empresa: "Estrutura", não "Moradia").
-  const { voz, profileId, categorias } = useProfileTheme();
+  const { voz, profileId, categorias, nomesDoCasal } = useProfileTheme();
   const t = voz.titulos;
   // O perfil de quando a tela abriu: a revisão (categorias, "mandar pra outro perfil") é dele. Se
   // ela trocar de perfil noutro aparelho no meio, o servidor recusa em vez de importar no novo.
@@ -111,6 +111,8 @@ export function StatementImport({
   const [createdCount, setCreatedCount] = useState(0);
   const [skippedCount, setSkippedCount] = useState(0);
   const [docType, setDocType] = useState<"extrato" | "fatura">("extrato");
+  // Perfil Casal: de quem é o extrato/fatura. Todas as linhas entram com esse nome em "quem pagou".
+  const [pessoaDoExtrato, setPessoaDoExtrato] = useState<"A" | "B">("A");
   // Mês/ano de destino da FATURA (todas as compras entram nesse mês, escolhido por quem importa
   // — não no mês de cada compra, que fica espalhado pelo período de fechamento da fatura).
   const [faturaMonth, setFaturaMonth] = useState(currentMonthValue());
@@ -395,7 +397,7 @@ export function StatementImport({
     startTransition(async () => {
       let result: Awaited<ReturnType<typeof importTransactionsAction>>;
       try {
-        result = await importTransactionsAction(confirmed, docType, targetYear, targetMonth, fileName ?? undefined, perfilDaTela);
+        result = await importTransactionsAction(confirmed, docType, targetYear, targetMonth, fileName ?? undefined, perfilDaTela, nomesDoCasal ? pessoaDoExtrato : null);
       } catch (err) {
         console.error("importTransactionsAction falhou no envio", err);
         setError(t.impErroSalvar);
@@ -536,6 +538,29 @@ export function StatementImport({
             período de fechamento da fatura costuma cruzar dois meses do calendário, e a data
             de cada compra não é o que importa aqui, é quando a fatura foi paga). */}
         {docType === "fatura" && mesDaFatura("fatura-month")}
+
+        {/* Perfil Casal: uma pergunta por arquivo, e cada linha já entra com "quem pagou". */}
+        {nomesDoCasal && (
+          <div className="flex flex-col gap-1.5">
+            <span className="text-caption text-ink-muted">{docType === "fatura" ? "De quem é essa fatura?" : "De quem é esse extrato?"}</span>
+            <div className="inline-flex rounded-full border border-border bg-surface-2 p-1">
+              {(["A", "B"] as const).map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => setPessoaDoExtrato(p)}
+                  aria-pressed={pessoaDoExtrato === p}
+                  className={`min-h-11 flex-1 truncate rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
+                    pessoaDoExtrato === p ? "bg-pill text-on-pill" : "text-ink-muted hover:text-ink"
+                  }`}
+                >
+                  {nomesDoCasal[p]}
+                </button>
+              ))}
+            </div>
+            <span className="text-caption text-ink-faint">Todos os lançamentos entram como pagos (ou recebidos) por {nomesDoCasal[pessoaDoExtrato]}.</span>
+          </div>
+        )}
 
         <button
           type="button"
