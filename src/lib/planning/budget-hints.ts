@@ -4,6 +4,7 @@ import { getMonthlySummary } from "@/lib/consolidation/monthly";
 import { sumExpensesByParentCategory, sumExpensesByCustomCategory } from "@/lib/repositories/budget.repo";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import { mesDeReferenciaDasDicas, mesesQueFaltamNoAno } from "@/lib/planning/plano-anual";
+import { padraoPorCategoria } from "@/lib/planning/padrao-orcamento";
 
 export type BudgetHints = {
   /** "agosto" — o último mês fechado, que é a referência de "copiar" e de "entrou". */
@@ -15,6 +16,16 @@ export type BudgetHints = {
   averageByCategory: Record<string, number>;
   /** Meses que ainda faltam no ano (contando o atual): pra "R$ X guardados até dezembro". */
   monthsLeftInYear: number;
+  /**
+   * O padrão dela: o mês do meio dos últimos 3 fechados, por categoria (ver padrao-orcamento.ts).
+   * É a base do "Usar o meu padrão" e das sugestões de ajuste. Mediana, não média: um mês fora
+   * da curva não vira plano.
+   */
+  padraoByCategory: Record<string, number>;
+  /** Quantos dos 3 meses tinham algum gasto. Abaixo de 2 não se fala em padrão. */
+  mesesComDado: number;
+  /** Gasto por categoria de cada um dos 3 meses, do mais antigo ao mais recente. */
+  porMes: Record<string, number>[];
 };
 
 const MONTHS = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
@@ -58,7 +69,13 @@ export async function getBudgetHints(ctx: AuthContext, year: number, today: Date
     averageByCategory[k] = Math.round(total / monthsWithData);
   }
 
+  const porMes = [...perMonth].reverse();
+  const { padrao: padraoByCategory, mesesComDado } = padraoPorCategoria(porMes);
+
   return {
+    padraoByCategory,
+    mesesComDado,
+    porMes,
     lastMonthLabel: MONTHS[ref.month - 1],
     lastMonthIncome: summary.totalIncome,
     lastMonthByCategory: perMonth[0],

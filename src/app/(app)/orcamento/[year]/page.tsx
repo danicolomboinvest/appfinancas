@@ -40,6 +40,10 @@ import { MapaDoAno, type LinhaDoMapa } from "@/components/budget/MapaDoAno";
 import { vozDoTema } from "@/lib/profiles/voice";
 import { AtualizarMesButton } from "@/components/budget/AtualizarMesButton";
 import { getUltimoGastoAte } from "@/lib/repositories/monthly-entry.repo";
+import { ajustesDoPadrao } from "@/lib/planning/padrao-orcamento";
+import { mesDeReferenciaDasDicas } from "@/lib/planning/plano-anual";
+import { categoriaOculta } from "@/lib/categories";
+import { SugestoesDoPadrao, type AjusteComRotulo } from "@/components/budget/SugestoesDoPadrao";
 
 const MONTH_LABELS = [
   "Janeiro",
@@ -173,6 +177,22 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
       sugestao: planoMaisRealista(historico.slice(0, -1), c.planejado),
     };
   });
+  /*
+   * "Seu padrão dos últimos 3 meses" (pedido de 03/10/2026): onde o plano não bate com o que ela
+   * gasta de verdade nos últimos meses fechados. Só no ano corrente, porque aplicar vale deste mês
+   * até dezembro. Categoria escondida e personalizada que não existe mais ficam de fora.
+   */
+  const ignorarNoPadrao = new Set<string>([
+    ...(ctx.categorias ? PARENT_CATEGORIES.filter((k) => categoriaOculta(ctx.categorias!, k)) : []),
+    ...Object.keys(hints.padraoByCategory).filter((k) => !isParentCategoryKey(k) && !customCategoryLabels.has(k)),
+  ]);
+  const ajustesPadrao: AjusteComRotulo[] = isCurrentYear
+    ? ajustesDoPadrao({ meses: hints.porMes, plano: { ...plan, ...customPlan }, ignorar: ignorarNoPadrao }).map((a) => ({ ...a, label: categoryLabel(a.chave) }))
+    : [];
+  const refDoPadrao = mesDeReferenciaDasDicas(year, agora);
+  const rotulosDoPadrao = [2, 1, 0]
+    .map((volta) => ROTULO_MES[(((refDoPadrao.month - 1 - volta) % 12) + 12) % 12])
+    .filter((_, i) => Object.values(hints.porMes[i] ?? {}).some((v) => v > 0));
   const sugestaoCobrir = sugestaoDeCobrir(categoriasDoMes);
   const cobrir = sugestaoCobrir ? { de: sugestaoCobrir.de.key, deLabel: sugestaoCobrir.de.label, para: sugestaoCobrir.para.key, paraLabel: sugestaoCobrir.para.label, valor: sugestaoCobrir.valor } : null;
   // A previsão do mês é a soma das previsões das categorias (as fixas não são projetadas pelo
@@ -313,6 +333,10 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
         </EditarPlano>
       ) : (
         <Section title={`Vamos montar seu orçamento de ${year}`}>{assistente}</Section>
+      )}
+
+      {ajustesPadrao.length > 0 && (
+        <SugestoesDoPadrao ajustes={ajustesPadrao} mes={MONTH_LABELS[agora.getMonth()].toLowerCase()} rotulosDosMeses={rotulosDoPadrao} />
       )}
 
       {/* Os três números do mês numa linha (01/10/2026): eram três cartões de texto empilhados. */}

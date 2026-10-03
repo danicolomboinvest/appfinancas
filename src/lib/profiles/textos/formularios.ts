@@ -127,6 +127,9 @@ export type TextosFormularios = {
   formOrcPassou(valor: string): string;
   formOrcSugerir: string;
   formOrcCopiar(mes: string): string;
+  /** Preenche cada categoria com o padrão dos últimos meses (padrao-orcamento.ts). */
+  formOrcPadrao: string;
+  formOrcPadraoNota(meses: number): string;
   formOrcSugestaoNota(moradia: number, alimentacao: number, saude: number, pct: number): string;
   formOrcCustomNota: string;
   formOrcVerPlano: string;
@@ -366,6 +369,9 @@ export const PADRAO_FORMULARIOS: TextosFormularios = {
   formOrcPassou: (valor) => `Passou ${valor} do que sobra`,
   formOrcSugerir: "Sugerir para mim",
   formOrcCopiar: (mes) => `Copiar ${mes}`,
+  formOrcPadrao: "Usar o meu padrão",
+  formOrcPadraoNota: (meses) =>
+    `"Usar o meu padrão" coloca em cada categoria o que você costuma gastar de verdade, olhando os seus últimos ${meses} meses. Um mês fora da curva, como uma viagem, não puxa o número.`,
   formOrcSugestaoNota: (moradia, alimentacao, saude, pct) =>
     `A sugestão segue a distribuição do orçamento do curso: moradia ${moradia}% da renda, alimentação ${alimentacao}%, saúde ${saude}%, e assim por diante. Guardando menos que ${pct}% sobra uma folga; guardando mais, tudo encolhe junto. É um ponto de partida: mexa à vontade.`,
   formOrcCustomNota: "Pet, academia, filhos: o que é grande na sua vida e não cabe nas de cima. O que vem uma vez por ano, divida por 12.",

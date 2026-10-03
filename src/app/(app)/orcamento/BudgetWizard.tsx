@@ -17,6 +17,7 @@ import { useSuccessToast } from "@/components/ui/useSuccessToast";
 import { useMoney } from "@/components/money/MoneyProvider";
 import { PARENT_CATEGORY_COLOR, CUSTOM_CATEGORY_ICON_MAP, colorForCategorySlice, categoryLabel, categoryDescription, categoryIcon, categoriaOculta } from "@/lib/categories";
 import type { BudgetHints } from "@/lib/planning/budget-hints";
+import { arredondaPlano, MESES_MINIMOS_DO_PADRAO } from "@/lib/planning/padrao-orcamento";
 import { splitSavings, type SavingsTarget } from "@/lib/planning/savings-split";
 import { idealBudgetSplit, COURSE_SAVINGS_PERCENT, EMPRESA_RETENTION_PERCENT, courseShareOf, savingsPercentFor } from "@/lib/planning/ideal-budget";
 import { NewCustomCategoryCard } from "./NewCustomCategoryCard";
@@ -165,6 +166,15 @@ export function BudgetWizard({
     const ideal = idealBudgetSplit(toSpend, income, { reserved, kind });
     setValues((prev) => ({ ...prev, ...ideal }));
   }
+  /**
+   * O plano no jeito dela: o mês do meio dos últimos três, por categoria. Pedido da Dani
+   * (03/10/2026): quem já subiu extratos e faturas não quer começar de uma régua genérica.
+   * Só entram as categorias que aparecem nesta tela; as outras ficam como estão.
+   */
+  function usarPadrao() {
+    setValues((prev) => ({ ...prev, ...Object.fromEntries(cats.map((c) => [c.key, arredondaPlano(hints.padraoByCategory[c.key] ?? 0)])) }));
+  }
+  const temPadrao = hints.mesesComDado >= MESES_MINIMOS_DO_PADRAO;
   function copyLastMonth() {
     setValues(Object.fromEntries(cats.map((c) => [c.key, roundStep(hints.lastMonthByCategory[c.key] ?? 0)])));
   }
@@ -326,7 +336,16 @@ export function BudgetWizard({
               >
                 <Sparkles size={14} /> {t.formOrcSugerir}
               </button>
-              {hasHistory && (
+              {temPadrao && (
+                <button
+                  type="button"
+                  onClick={usarPadrao}
+                  className="flex-1 rounded-full border border-border-strong bg-surface-2 px-3 py-2 text-[13px] font-semibold text-ink hover:text-ink"
+                >
+                  {t.formOrcPadrao}
+                </button>
+              )}
+              {hasHistory && !temPadrao && (
                 <button
                   type="button"
                   onClick={copyLastMonth}
@@ -336,6 +355,7 @@ export function BudgetWizard({
                 </button>
               )}
             </div>
+            {temPadrao && <p className="text-caption text-ink-faint">{t.formOrcPadraoNota(hints.mesesComDado)}</p>}
             <p className="text-caption text-ink-faint">
               {t.formOrcSugestaoNota(
                 Math.round(courseShareOf("MORADIA", kind) * 100),
