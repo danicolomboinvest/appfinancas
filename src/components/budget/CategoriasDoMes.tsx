@@ -8,7 +8,7 @@ import { useToast } from "@/components/ui/toast-context";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { useMoney } from "@/components/money/MoneyProvider";
 import { emojiDaCategoria } from "@/lib/profiles/icones";
-import { isParentCategoryKey } from "@/lib/categories";
+import { emojiEscolhido, isParentCategoryKey } from "@/lib/categories";
 import { ehEmpresa } from "@/lib/profiles/empresa";
 import type { CategoriaDoMes, EstadoDaCategoria } from "@/lib/planning/orcamento-categorias";
 import { cobrirCategoriaAction, definirPlanoDaCategoriaAction } from "@/app/(app)/orcamento/actions";
@@ -59,7 +59,7 @@ export function CategoriasDoMes({
 }) {
   const money = useMoney();
   const m = (v: number) => money(v, { round: true });
-  const { key: tema, kind } = useProfileTheme();
+  const { key: tema, kind, categorias } = useProfileTheme();
   const router = useRouter();
   const { showToast, showError } = useToast();
   // A mais urgente (a primeira da lista) já vem aberta: o detalhe faz parte da página.
@@ -67,6 +67,9 @@ export function CategoriasDoMes({
   const [pendente, iniciar] = useTransition();
 
   const emoji = (l: LinhaDaCategoria): string | null => {
+    // O emoji que ela escolheu (04/10/2026) vale em qualquer tema, até no Minimalista.
+    const escolhido = emojiEscolhido(categorias, l.key);
+    if (escolhido) return escolhido;
     if (tema === "minimalista") return null;
     const doTema = isParentCategoryKey(l.key) ? emojiDaCategoria(tema, { kind: "parent", value: l.key }) : emojiDaCategoria(tema, { kind: "custom", iconKey: l.iconeProprio });
     if (doTema) return doTema;

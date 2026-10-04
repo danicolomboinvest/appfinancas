@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CORES_DE_CATEGORIA, PARENT_CATEGORY_COLOR, categoriaOculta, categoriasParaEscolher, colorForCategorySlice, corEscolhida, corValida, categoryDefaultLabel, categoryIcon, categoryLabel, lerPreferenciasDeCategoria, PARENT_CATEGORIES } from "@/lib/categories";
+import { CORES_DE_CATEGORIA, PARENT_CATEGORY_COLOR, categoriaOculta, categoriasParaEscolher, colorForCategorySlice, corEscolhida, corValida, emojiEscolhido, emojiValido, categoryDefaultLabel, categoryIcon, categoryLabel, lerPreferenciasDeCategoria, PARENT_CATEGORIES } from "@/lib/categories";
 import { Coffee } from "lucide-react";
 
 /**
@@ -58,5 +58,26 @@ describe("cor escolhida da categoria", () => {
 
   it("toda cor da paleta passa na validação", () => {
     for (const c of CORES_DE_CATEGORIA) expect(corValida(c)).toBe(true);
+  });
+});
+
+/** Emoji do celular no lugar do ícone (sugestão de cliente, 04/10/2026): um emoji só, nunca texto. */
+describe("emoji da categoria", () => {
+  it("aceita um emoji, inclusive os compostos", () => {
+    for (const e of ["🍕", "🐶", "👩‍💻", "👍🏽", "🇧🇷", "❤️"]) expect(emojiValido(e)).toBe(true);
+  });
+
+  it("recusa texto, dois emojis, vazio e espaço", () => {
+    for (const e of ["a", "🍕🍕", "", " 🍕", "VR", "<b>", 1]) expect(emojiValido(e)).toBe(false);
+  });
+
+  it("vale o emoji escolhido, na padrão e na dela; o inválido é ignorado", () => {
+    const prefs = lerPreferenciasDeCategoria({ LAZER: { emoji: "🎉" }, SAUDE: { emoji: "oi" }, proprias: { abc: { emoji: "🐶" }, ruim: { emoji: "xx" } } });
+    const perfil = { kind: "PESSOAL", prefs };
+    expect(emojiEscolhido(perfil, "LAZER")).toBe("🎉");
+    expect(emojiEscolhido(perfil, "abc")).toBe("🐶");
+    expect(emojiEscolhido(perfil, "SAUDE")).toBeNull();
+    expect(prefs.proprias?.ruim).toBeUndefined();
+    expect(emojiEscolhido("PESSOAL", "LAZER")).toBeNull();
   });
 });

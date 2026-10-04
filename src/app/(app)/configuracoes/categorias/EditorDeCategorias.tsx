@@ -15,6 +15,8 @@ import {
   categoriaOculta,
   colorForCategorySlice,
   corEscolhida,
+  emojiEscolhido,
+  emojiValido,
   categoryDefaultLabel,
   categoryIcon,
   categoryLabel,
@@ -51,7 +53,7 @@ export function EditorDeCategorias({ proprias }: { proprias: Propria[] }) {
               <li key={key}>
                 <button type="button" onClick={() => setAberta(key)} className="flex min-h-11 w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-surface-2">
                   <span className={`flex size-9 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent-strong ${oculta ? "opacity-40" : ""}`}>
-                    <Icone size={18} strokeWidth={1.75} />
+                    {emojiEscolhido(categorias, key) ? <span className="text-lg leading-none">{emojiEscolhido(categorias, key)}</span> : <Icone size={18} strokeWidth={1.75} />}
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className={`block text-sm font-medium ${oculta ? "text-ink-faint" : "text-ink"}`}>{categoryLabel(categorias, key)}</span>
@@ -84,7 +86,7 @@ export function EditorDeCategorias({ proprias }: { proprias: Propria[] }) {
                 <li key={c.id}>
                   <button type="button" onClick={() => setAberta(c.id)} className="flex min-h-11 w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-surface-2">
                     <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent-strong">
-                      <Icone size={18} strokeWidth={1.75} />
+                      {emojiEscolhido(categorias, c.id) ? <span className="text-lg leading-none">{emojiEscolhido(categorias, c.id)}</span> : <Icone size={18} strokeWidth={1.75} />}
                     </span>
                     <span className="min-w-0 flex-1 truncate text-sm font-medium text-ink">{c.name}</span>
                     <ChevronRight size={16} className="shrink-0 text-ink-faint" aria-hidden />
@@ -163,6 +165,36 @@ function EscolherCor({ valor, onEscolher, padrao }: { valor: string | null; onEs
   );
 }
 
+/**
+ * Emoji do celular no lugar do ícone (sugestão de cliente, 04/10/2026). Um campo onde ela abre o
+ * teclado de emoji do celular; vale um emoji só, e o "x" volta para o ícone.
+ */
+function EscolherEmoji({ valor, onEscolher }: { valor: string; onEscolher: (e: string) => void }) {
+  const invalido = valor !== "" && !emojiValido(valor);
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="flex items-center gap-2">
+        <input
+          value={valor}
+          onChange={(e) => onEscolher(e.target.value.trim())}
+          placeholder="🙂"
+          aria-label="Emoji da categoria"
+          maxLength={16}
+          className="min-h-11 w-16 rounded-xl border border-border-strong bg-surface text-center text-2xl text-ink outline-none focus:border-accent"
+        />
+        {valor ? (
+          <button type="button" onClick={() => onEscolher("")} className="min-h-11 px-2 text-sm text-ink-muted hover:text-ink">
+            Tirar emoji
+          </button>
+        ) : (
+          <span className="text-caption text-ink-faint">Use o teclado de emoji do celular. Fica no lugar do ícone.</span>
+        )}
+      </div>
+      {invalido && <p className="text-caption text-danger">Coloque um emoji só.</p>}
+    </div>
+  );
+}
+
 const CAMPO = "min-h-11 w-full rounded-xl border border-border-strong bg-surface px-3 text-base text-ink outline-none focus:border-accent";
 
 export function EditarPadrao({ chave, onFechar }: { chave: ParentCategory; onFechar: () => void }) {
@@ -172,11 +204,12 @@ export function EditarPadrao({ chave, onFechar }: { chave: ParentCategory; onFec
   const [nome, setNome] = useState(pref.nome ?? "");
   const [icone, setIcone] = useState<string | null>(pref.icone ?? null);
   const [cor, setCor] = useState<string | null>(pref.cor ?? null);
+  const [emoji, setEmoji] = useState(pref.emoji ?? "");
   const [oculta, setOculta] = useState(pref.oculta === true);
   const [pendente, iniciar] = useTransition();
   const deFabrica = categoryDefaultLabel(categorias, chave);
 
-  function salvar(valores: { nome: string; icone: string | null; oculta: boolean; cor: string | null }) {
+  function salvar(valores: { nome: string; icone: string | null; oculta: boolean; cor: string | null; emoji: string | null }) {
     iniciar(async () => {
       const r = await salvarCategoriaPadraoAction({ key: chave, ...valores });
       if (r.error) return showError(r.error);
@@ -196,6 +229,10 @@ export function EditarPadrao({ chave, onFechar }: { chave: ParentCategory; onFec
         <EscolherIcone valor={icone} onEscolher={setIcone} comPadrao />
       </div>
       <div className="flex flex-col gap-1.5">
+        <span className="text-xs font-medium text-ink-muted">Ou um emoji</span>
+        <EscolherEmoji valor={emoji} onEscolher={setEmoji} />
+      </div>
+      <div className="flex flex-col gap-1.5">
         <span className="text-xs font-medium text-ink-muted">Cor</span>
         <EscolherCor valor={cor} onEscolher={setCor} padrao={PARENT_CATEGORY_COLOR[chave]} />
       </div>
@@ -205,14 +242,14 @@ export function EditarPadrao({ chave, onFechar }: { chave: ParentCategory; onFec
       </label>
       {oculta && <p className="text-caption text-ink-muted">Ela sai das escolhas ao lançar e do orçamento. O que você já lançou nela continua aparecendo.</p>}
       <div className="flex flex-wrap items-center gap-2">
-        <button type="button" disabled={pendente} onClick={() => salvar({ nome, icone, oculta, cor })} className="min-h-11 rounded-full bg-accent px-5 text-sm font-semibold text-on-accent disabled:opacity-50">
+        <button type="button" disabled={pendente || (emoji !== "" && !emojiValido(emoji))} onClick={() => salvar({ nome, icone, oculta, cor, emoji: emoji || null })} className="min-h-11 rounded-full bg-accent px-5 text-sm font-semibold text-on-accent disabled:opacity-50">
           {pendente ? "Salvando…" : "Salvar"}
         </button>
         <button type="button" onClick={onFechar} className="min-h-11 px-3 text-sm text-ink-muted hover:text-ink">
           Cancelar
         </button>
-        {(pref.nome || pref.icone || pref.oculta || pref.cor) && (
-          <button type="button" disabled={pendente} onClick={() => salvar({ nome: "", icone: null, oculta: false, cor: null })} className="ml-auto min-h-11 px-3 text-sm font-medium text-accent-strong hover:underline">
+        {(pref.nome || pref.icone || pref.oculta || pref.cor || pref.emoji) && (
+          <button type="button" disabled={pendente} onClick={() => salvar({ nome: "", icone: null, oculta: false, cor: null, emoji: null })} className="ml-auto min-h-11 px-3 text-sm font-medium text-accent-strong hover:underline">
             Voltar para &quot;{deFabrica}&quot;
           </button>
         )}
@@ -227,12 +264,13 @@ export function EditarPropria({ categoria, onFechar }: { categoria: Propria; onF
   const [nome, setNome] = useState(categoria.name);
   const [icone, setIcone] = useState<string | null>(categoria.icon);
   const [cor, setCor] = useState<string | null>(corEscolhida(categorias, categoria.id));
+  const [emoji, setEmoji] = useState(emojiEscolhido(categorias, categoria.id) ?? "");
   const [confirmar, setConfirmar] = useState(false);
   const [pendente, iniciar] = useTransition();
 
   function salvar() {
     iniciar(async () => {
-      const r = await editarCategoriaPropriaAction({ id: categoria.id, nome, icone: icone ?? "tag", cor });
+      const r = await editarCategoriaPropriaAction({ id: categoria.id, nome, icone: icone ?? "tag", cor, emoji: emoji || null });
       if (r.error) return showError(r.error);
       showToast("Categoria salva.");
       onFechar();
@@ -260,11 +298,15 @@ export function EditarPropria({ categoria, onFechar }: { categoria: Propria; onF
         <EscolherIcone valor={icone} onEscolher={setIcone} />
       </div>
       <div className="flex flex-col gap-1.5">
+        <span className="text-xs font-medium text-ink-muted">Ou um emoji</span>
+        <EscolherEmoji valor={emoji} onEscolher={setEmoji} />
+      </div>
+      <div className="flex flex-col gap-1.5">
         <span className="text-xs font-medium text-ink-muted">Cor</span>
         <EscolherCor valor={cor} onEscolher={setCor} padrao={colorForCategorySlice({ kind: "custom", value: categoria.id })} />
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <button type="button" disabled={pendente || !nome.trim()} onClick={salvar} className="min-h-11 rounded-full bg-accent px-5 text-sm font-semibold text-on-accent disabled:opacity-50">
+        <button type="button" disabled={pendente || !nome.trim() || (emoji !== "" && !emojiValido(emoji))} onClick={salvar} className="min-h-11 rounded-full bg-accent px-5 text-sm font-semibold text-on-accent disabled:opacity-50">
           {pendente ? "Salvando…" : "Salvar"}
         </button>
         <button type="button" onClick={onFechar} className="min-h-11 px-3 text-sm text-ink-muted hover:text-ink">

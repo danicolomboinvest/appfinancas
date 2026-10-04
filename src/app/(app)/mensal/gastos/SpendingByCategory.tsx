@@ -8,7 +8,7 @@ import { emojiDaCategoria } from "@/lib/profiles/icones";
 import type { Voz } from "@/lib/profiles/voice";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import type { SpendingSlice } from "@/components/charts/SpendingPieChart";
-import { categoryIcon, isParentCategoryKey, colorForCategorySlice } from "@/lib/categories";
+import { categoryIcon, isParentCategoryKey, colorForCategorySlice, emojiEscolhido } from "@/lib/categories";
 import { getCategoryTransactionsAction, type CategoryTransaction } from "./actions";
 import { useMoney } from "@/components/money/MoneyProvider";
 import { useToast } from "@/components/ui/toast-context";
@@ -174,7 +174,7 @@ export function SpendingByCategory({
                 slice.category?.kind === "parent" && isParentCategoryKey(slice.category.value)
                   ? categoryIcon(kind, slice.category.value)
                   : Receipt;
-              const emoji = slice.category?.kind === "parent" ? emojiDaCategoria(tema, { kind: "parent", value: slice.category.value }) : emojiDaCategoria(tema, { kind: "custom" });
+              const emoji = emojiEscolhido(kind, slice.category?.value) ?? (slice.category?.kind === "parent" ? emojiDaCategoria(tema, { kind: "parent", value: slice.category.value }) : emojiDaCategoria(tema, { kind: "custom" }));
               const parcela = total > 0 ? Math.round((slice.value / total) * 100) : 0;
               const comparacao = compareWithPrevious(slice, previousMonthLabel, money, voz);
               return (

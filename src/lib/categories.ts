@@ -133,7 +133,9 @@ export const SUBCATEGORIES: Record<ParentCategory, string[]> = {
 };
 
 /** Tipos de renda e de aporte, como chips, pelo mesmo motivo dos gastos: escolher é mais rápido que digitar. */
-export const INCOME_TYPES = ["Salário", "Renda extra", "Freela", "Pró-labore", "Dividendos", "Aluguel recebido", "13º", "Restituição", "Presente"];
+// "VR / VA" (04/10/2026, sugestão de cliente): o vale entra separado do salário, para ela ver
+// quanto do mês é vale. Fica logo depois do salário, que é de onde ele vem.
+export const INCOME_TYPES = ["Salário", "VR / VA", "Renda extra", "Freela", "Pró-labore", "Dividendos", "Aluguel recebido", "13º", "Restituição", "Presente"];
 export const INVESTMENT_TYPES = ["Reserva de emergência", "Tesouro Direto", "CDB", "Ações", "FIIs", "Fundos", "Previdência", "Cripto"];
 
 export const OUTRO_SUBCATEGORY_LABEL = "Outro";
@@ -182,12 +184,35 @@ export function isParentCategoryKey(key: string): key is ParentCategory {
  * ou escondida ("não uso Impostos"). Mora num campo JSON do perfil (FinancialProfile.categorias);
  * a chave gravada nos lançamentos continua a mesma, então renomear nunca mexe no histórico.
  */
-export type PreferenciaDeCategoria = { nome?: string; icone?: string; oculta?: boolean; cor?: string };
+export type PreferenciaDeCategoria = { nome?: string; icone?: string; oculta?: boolean; cor?: string; emoji?: string };
 /**
- * `proprias`: a cor das categorias que ELA criou, pelo id (04/10/2026). Nome e ícone delas moram
- * na própria CustomCategory; a cor mora aqui, junto das outras preferências, sem mexer no banco.
+ * `proprias`: a cor e o emoji das categorias que ELA criou, pelo id (04/10/2026). Nome e ícone delas
+ * moram na própria CustomCategory; cor e emoji moram aqui, junto das outras preferências, sem mexer
+ * no banco.
  */
-export type PreferenciasDeCategoria = Partial<Record<ParentCategory, PreferenciaDeCategoria>> & { proprias?: Record<string, { cor: string }> };
+export type PreferenciaDePropria = { cor?: string; emoji?: string };
+export type PreferenciasDeCategoria = Partial<Record<ParentCategory, PreferenciaDeCategoria>> & { proprias?: Record<string, PreferenciaDePropria> };
+
+/**
+ * Emoji do celular no lugar do ícone (sugestão de cliente, 04/10/2026: "poder colocar os emojis do
+ * celular nesses ícones"). Vale UM emoji, inclusive os compostos (👩‍💻, bandeiras, tom de pele);
+ * texto, dois emojis ou letra são recusados, para o quadradinho não quebrar.
+ */
+export function emojiValido(emoji: unknown): emoji is string {
+  if (typeof emoji !== "string") return false;
+  const e = emoji.trim();
+  if (!e || e.length > 16 || e !== emoji) return false;
+  if ([...new Intl.Segmenter("pt-BR", { granularity: "grapheme" }).segment(e)].length !== 1) return false;
+  return /\p{Extended_Pictographic}|\p{Regional_Indicator}/u.test(e);
+}
+
+/** O emoji que ela escolheu para uma categoria (padrão pela chave, criada pelo id), ou null. */
+export function emojiEscolhido(categorias: CategoriasDoPerfil, chave: string | null | undefined): string | null {
+  if (!chave || categorias === null || typeof categorias !== "object" || !categorias.prefs) return null;
+  const prefs = categorias.prefs;
+  const emoji = isParentCategoryKey(chave) ? prefs[chave]?.emoji : prefs.proprias?.[chave]?.emoji;
+  return emojiValido(emoji) ? emoji : null;
+}
 
 /**
  * As cores que dá pra escolher: as de fábrica das categorias e a paleta das criadas. Só tokens
@@ -238,22 +263,27 @@ export function lerPreferenciasDeCategoria(json: unknown): PreferenciasDeCategor
   for (const key of PARENT_CATEGORIES) {
     const v = (json as Record<string, unknown>)[key];
     if (!v || typeof v !== "object") continue;
-    const { nome, icone, oculta, cor } = v as Record<string, unknown>;
+    const { nome, icone, oculta, cor, emoji } = v as Record<string, unknown>;
     const pref: PreferenciaDeCategoria = {};
     if (typeof nome === "string" && nome.trim()) pref.nome = nome.trim().slice(0, 40);
     if (typeof icone === "string" && CUSTOM_CATEGORY_ICON_MAP[icone]) pref.icone = icone;
     if (oculta === true) pref.oculta = true;
     if (corValida(cor)) pref.cor = cor;
+    if (emojiValido(emoji)) pref.emoji = emoji;
     if (Object.keys(pref).length > 0) saida[key] = pref;
   }
   const proprias = (json as Record<string, unknown>).proprias;
   if (proprias && typeof proprias === "object") {
-    const cores: Record<string, { cor: string }> = {};
+    const lidas: Record<string, PreferenciaDePropria> = {};
     for (const [id, v] of Object.entries(proprias as Record<string, unknown>)) {
-      const cor = v && typeof v === "object" ? (v as Record<string, unknown>).cor : undefined;
-      if (id.length <= 60 && corValida(cor)) cores[id] = { cor };
+      if (id.length > 60 || !v || typeof v !== "object") continue;
+      const { cor, emoji } = v as Record<string, unknown>;
+      const pref: PreferenciaDePropria = {};
+      if (corValida(cor)) pref.cor = cor;
+      if (emojiValido(emoji)) pref.emoji = emoji;
+      if (Object.keys(pref).length > 0) lidas[id] = pref;
     }
-    if (Object.keys(cores).length > 0) saida.proprias = cores;
+    if (Object.keys(lidas).length > 0) saida.proprias = lidas;
   }
   return saida;
 }

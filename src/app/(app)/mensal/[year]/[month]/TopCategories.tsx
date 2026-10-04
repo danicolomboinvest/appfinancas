@@ -9,6 +9,7 @@ import {
   categoryIcon,
   CUSTOM_CATEGORY_ICON_MAP,
   colorForCategorySlice,
+  emojiEscolhido,
   isParentCategoryKey,
 } from "@/lib/categories";
 import { serverMoney } from "@/lib/money-server";
@@ -59,7 +60,7 @@ export async function TopCategories({
               ? categoryIcon(profileKind, category.key)
               : (CUSTOM_CATEGORY_ICON_MAP[category.iconKey ?? ""] ?? Receipt);
           const color = colorForCategorySlice({ kind: category.kind, value: category.key }, profileKind);
-          const emoji = category.kind === "parent" ? emojiDaCategoria(tema, { kind: "parent", value: category.key }) : emojiDaCategoria(tema, { kind: "custom", iconKey: category.iconKey });
+          const emoji = emojiEscolhido(profileKind, category.key) ?? (category.kind === "parent" ? emojiDaCategoria(tema, { kind: "parent", value: category.key }) : emojiDaCategoria(tema, { kind: "custom", iconKey: category.iconKey }));
           return (
             <li
               key={`${category.kind}:${category.key}`}

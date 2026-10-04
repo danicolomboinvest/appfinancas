@@ -15,7 +15,7 @@ import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { Modal } from "@/components/ui/Modal";
 import { useSuccessToast } from "@/components/ui/useSuccessToast";
 import { useMoney } from "@/components/money/MoneyProvider";
-import { CUSTOM_CATEGORY_ICON_MAP, colorForCategorySlice, categoryLabel, categoryDescription, categoryIcon, categoriaOculta } from "@/lib/categories";
+import { CUSTOM_CATEGORY_ICON_MAP, colorForCategorySlice, emojiEscolhido, categoryLabel, categoryDescription, categoryIcon, categoriaOculta } from "@/lib/categories";
 import type { BudgetHints } from "@/lib/planning/budget-hints";
 import { arredondaPlano, MESES_MINIMOS_DO_PADRAO } from "@/lib/planning/padrao-orcamento";
 import { EVENTO_IMPORTAR } from "@/components/shell/registrar-eventos";
@@ -533,7 +533,7 @@ function CategoryTile({
   const [editarAberto, setEditarAberto] = useState(false);
   const [isDeleting, startDelete] = useTransition();
   const Icon = cat.icon;
-  const { key: tema, voz } = useProfileTheme();
+  const { key: tema, voz, categorias } = useProfileTheme();
   const t = voz.titulos;
 
   return (
@@ -549,7 +549,7 @@ function CategoryTile({
       </button>
       {/* pr-6: a lixeira das que ela criou não fica embaixo do lápis. */}
       <div className="flex items-center gap-2 pr-6">
-        <CategoryIcon icon={Icon} color={cat.color} size={36} emoji={cat.custom ? emojiDaCategoria(tema, { kind: "custom" }) : emojiDaCategoria(tema, { kind: "parent", value: cat.key })} />
+        <CategoryIcon icon={Icon} color={cat.color} size={36} emoji={emojiEscolhido(categorias, cat.key) ?? (cat.custom ? emojiDaCategoria(tema, { kind: "custom" }) : emojiDaCategoria(tema, { kind: "parent", value: cat.key }))} />
         <p className="min-w-0 flex-1 truncate text-[13px] font-semibold text-ink">{cat.label}</p>
         {cat.custom && (
           <button type="button" onClick={() => setConfirmOpen(true)} aria-label={`Apagar categoria ${cat.label}`} className="-my-1 -mr-2 flex size-11 shrink-0 items-center justify-center rounded-full text-ink-faint hover:text-danger">
