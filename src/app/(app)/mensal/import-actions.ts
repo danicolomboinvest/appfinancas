@@ -233,9 +233,9 @@ export async function parseStatementAction(formData: FormData): Promise<ParseSta
   const parsed = docType === "fatura" ? parsedRaw.filter((txn) => !isFaturaSummaryLine(txn)) : parsedRaw;
   const moneyLines = countMoneyLines(text);
   if (parsed.length === 0) {
-    // Diagnóstico pro suporte: perfil + cabeçalho (sem valores), pra reconhecer o formato do banco.
-    const header = text.split(/\r?\n/).find((l) => l.trim())?.slice(0, 200) ?? "";
-    console.error("parseStatementAction: zero lançamentos", { fileName, encoding, docType, kind: profile.kind, institution: profile.institution, moneyLines, chars: text.length, header });
+    // Diagnóstico pro suporte: só o perfil do arquivo. A primeira linha do extrato saía aqui sem
+    // máscara (nome do titular, número da conta) e os logs da Vercel não são lugar disso (04/10/2026).
+    console.error("parseStatementAction: zero lançamentos", { fileName, encoding, docType, kind: profile.kind, institution: profile.institution, moneyLines, chars: text.length });
     const msg = periodoSemMovimento(text)
       ? `Esse arquivo não tem nenhum lançamento: o período escolhido no app do banco não teve movimentação. Baixe de novo escolhendo um período maior (o mês inteiro, por exemplo).`
       : moneyLines > 3

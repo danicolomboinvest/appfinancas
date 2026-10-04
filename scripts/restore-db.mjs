@@ -3,7 +3,10 @@
  * Insere em ordem de dependência; linha que falhar (ex.: chave estrangeira) volta pra fila
  * até ninguém mais avançar. Linhas já existentes são puladas (skipDuplicates).
  *
- * Rodar:  node --env-file=.env scripts/restore-db.mjs "<pasta do backup>"
+ * Rodar:  node --env-file=.env scripts/restore-db.mjs "<pasta do backup ou arquivo .tar.gz.enc>"
+ *
+ * Desde 04/10/2026 o backup é um arquivo cifrado (ver backup-cripto.mjs): ele é aberto com a
+ * chave do Mac numa pasta temporária, que some no fim. As pastas abertas antigas continuam valendo.
  */
 import { Prisma, PrismaClient } from "@prisma/client";
 import { PrismaNeon } from "@prisma/adapter-neon";
@@ -13,14 +16,26 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import readline from "node:readline";
+import { execFileSync } from "node:child_process";
+import { carregarChave, decifrarArquivo } from "./backup-cripto.mjs";
 
 neonConfig.webSocketConstructor = ws;
 neonConfig.poolQueryViaFetch = true;
 
-const pasta = process.argv[2];
+let pasta = process.argv[2];
 if (!pasta || !fs.existsSync(pasta)) {
-  console.error("Uso: node --env-file=.env scripts/restore-db.mjs <pasta>");
+  console.error("Uso: node --env-file=.env scripts/restore-db.mjs <pasta ou arquivo .tar.gz.enc>");
   process.exit(1);
+}
+if (pasta.endsWith(".tar.gz.enc")) {
+  const trabalho = fs.mkdtempSync(path.join(os.tmpdir(), "spi-restore-"));
+  process.on("exit", () => fs.rmSync(trabalho, { recursive: true, force: true }));
+  const compactado = path.join(trabalho, "backup.tar.gz");
+  await decifrarArquivo(pasta, compactado, carregarChave());
+  execFileSync("tar", ["-xzf", compactado, "-C", trabalho]);
+  const dentro = fs.readdirSync(trabalho).filter((n) => fs.statSync(path.join(trabalho, n)).isDirectory());
+  if (dentro.length !== 1) throw new Error("O backup cifrado não tem a pasta esperada dentro.");
+  pasta = path.join(trabalho, dentro[0]);
 }
 const prisma = new PrismaClient({ adapter: new PrismaNeon({ connectionString: process.env.DATABASE_URL }) });
 

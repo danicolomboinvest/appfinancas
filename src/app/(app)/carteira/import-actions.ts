@@ -161,9 +161,9 @@ export async function parsePortfolioAction(formData: FormData): Promise<ParsePor
 
   const parsed = parsePortfolioStatement(text);
   if (parsed.length === 0) {
-    // Diagnóstico pro suporte: perfil + cabeçalho (sem valores), pra reconhecer o formato.
-    const header = text.split(/\r?\n/).find((l) => l.trim())?.slice(0, 200) ?? "";
-    console.error("parsePortfolioAction: zero ativos", { fileName, encoding, kind: profile.kind, contents: profile.contents, positionRows: profile.positionRows, chars: text.length, header });
+    // Diagnóstico pro suporte: só o perfil do arquivo. A primeira linha do extrato saía aqui sem
+    // máscara (nome do titular, número da conta) e os logs da Vercel não são lugar disso (04/10/2026).
+    console.error("parsePortfolioAction: zero ativos", { fileName, encoding, kind: profile.kind, contents: profile.contents, positionRows: profile.positionRows, chars: text.length });
     const msg =
       profile.kind === "position"
         ? `Li o arquivo inteiro (${profile.summary}) e reconheci ${profile.positionRows} linha${profile.positionRows === 1 ? "" : "s"} de ativo, mas não consegui ler as quantidades e valores nesse formato. Manda o arquivo pro suporte que a gente ensina o app.`

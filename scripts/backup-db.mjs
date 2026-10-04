@@ -5,13 +5,18 @@
  * são backup (são cópias do programa, não das informações) e o Git também não (guarda o código).
  * Quem guarda os dados é só isto aqui.
  *
- * Grava uma pasta por dia com um arquivo JSON por tabela, em DOIS lugares:
- *  1. ~/Documents/spi-finance-backups  — no Mac, pra abrir na hora;
+ * Monta um JSON por tabela numa pasta temporária (fora do iCloud) e grava UM arquivo cifrado
+ * por dia (`<data>.tar.gz.enc`, ver backup-cripto.mjs) em DOIS lugares:
+ *  1. ~/Documents/spi-finance-backups  — no Mac;
  *  2. iCloud Drive                     — sai do Mac sozinho, sobrevive a perder/quebrar o Mac.
+ * Desde 04/10/2026 nada sai em texto aberto: os dois lugares sobem pra nuvem (Documentos também
+ * sincroniza com o iCloud) e o backup tem os dados financeiros de todos os clientes. A chave fica
+ * só no Mac, em ~/.config/spi-finance/backup.key.
  *
  * Mantém os últimos 30 dias e apaga os mais velhos, senão a pasta cresce pra sempre.
  *
  * Rodar na mão:  npm run backup
+ * Abrir um backup:  node --env-file=.env scripts/restore-db.mjs <arquivo .tar.gz.enc>
  */
 import { Prisma, PrismaClient } from "@prisma/client";
 import { PrismaNeon } from "@prisma/adapter-neon";
@@ -20,6 +25,8 @@ import ws from "ws";
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
+import { execFileSync } from "node:child_process";
+import { carregarChave, cifrarArquivo, decifrarArquivo } from "./backup-cripto.mjs";
 
 neonConfig.webSocketConstructor = ws;
 neonConfig.poolQueryViaFetch = true;
@@ -54,7 +61,8 @@ function limparAntigos(destino) {
   if (!fs.existsSync(destino)) return 0;
   const pastas = fs
     .readdirSync(destino)
-    .filter((n) => /^\d{4}-\d{2}-\d{2}_\d{4}$/.test(n))
+    // A pasta aberta (antes de 04/10/2026) e o arquivo cifrado contam igual: os 30 mais novos ficam.
+    .filter((n) => /^\d{4}-\d{2}-\d{2}_\d{4}(\.tar\.gz\.enc)?$/.test(n))
     .sort()
     .reverse();
   let apagadas = 0;
@@ -125,12 +133,17 @@ async function* lerEmPartes(tabela, Nome) {
   }
 }
 
+// A chave vem antes de ler o banco: sem chave não tem backup cifrado, e é melhor falhar já.
+const chave = carregarChave({ criar: true });
 const nome = carimbo();
 const linhasPorTabela = {};
 
-// Grava primeiro no Mac, uma linha do banco por vez: montar a tabela inteira numa string só
-// estoura o limite do Node quando ela cresce (foi o que derrubou o backup em 28/09/2026).
-const pastaLocal = path.join(DESTINOS[0], nome);
+// Monta numa pasta temporária do sistema (fora de Documentos e do iCloud), uma linha do banco por
+// vez: montar a tabela inteira numa string só estoura o limite do Node quando ela cresce (foi o
+// que derrubou o backup em 28/09/2026). A pasta aberta é apagada no fim, dê certo ou não.
+const trabalho = fs.mkdtempSync(path.join(os.tmpdir(), "spi-backup-"));
+process.on("exit", () => fs.rmSync(trabalho, { recursive: true, force: true }));
+const pastaLocal = path.join(trabalho, nome);
 fs.mkdirSync(pastaLocal, { recursive: true });
 for (const tabela of tabelas) {
   const Nome = tabela.charAt(0).toUpperCase() + tabela.slice(1);
@@ -165,13 +178,21 @@ fs.writeFileSync(
   JSON.stringify({ geradoEm: new Date().toISOString(), totalDeLinhas: total, linhasPorTabela }, null, 2),
 );
 
-// Depois copia pro iCloud: se ele estiver fora do ar, o backup no Mac já está feito.
+// Compacta, cifra e confere: o arquivo cifrado só vale se abrir de volta com a chave.
+const compactado = path.join(trabalho, `${nome}.tar.gz`);
+execFileSync("tar", ["-czf", compactado, "-C", trabalho, nome]);
+const cifrado = path.join(trabalho, `${nome}.tar.gz.enc`);
+await cifrarArquivo(compactado, cifrado, chave);
+await decifrarArquivo(cifrado, path.join(trabalho, "conferencia.tar.gz"), chave);
+
+// Primeiro no Mac, depois no iCloud: se ele estiver fora do ar, o backup no Mac já está feito.
 for (const destino of DESTINOS) {
   try {
-    const pasta = path.join(destino, nome);
-    if (pasta !== pastaLocal) fs.cpSync(pastaLocal, pasta, { recursive: true });
+    fs.mkdirSync(destino, { recursive: true });
+    const arquivo = path.join(destino, `${nome}.tar.gz.enc`);
+    fs.copyFileSync(cifrado, arquivo);
     const apagadas = limparAntigos(destino);
-    console.log(`OK  ${pasta}  (${total} linhas${apagadas ? `, ${apagadas} backup(s) antigo(s) apagado(s)` : ""})`);
+    console.log(`OK  ${arquivo}  (${total} linhas${apagadas ? `, ${apagadas} backup(s) antigo(s) apagado(s)` : ""})`);
   } catch (erro) {
     console.error(`FALHOU  ${destino}:`, erro.message);
   }
@@ -183,7 +204,7 @@ console.log(`\n${tabelas.length} tabelas, ${total} linhas no total.`);
 // Diário legível, pra ela conferir "rodou ontem?" sem abrir terminal. Quem escreve é o node,
 // não o script de shell: no agendamento automático o macOS barra o bash dentro de Documentos.
 try {
-  const linha = `${new Date().toLocaleString("pt-BR")}  —  backup feito: ${total} linhas, ${tabelas.length} tabelas\n`;
+  const linha = `${new Date().toLocaleString("pt-BR")}  —  backup feito (cifrado): ${total} linhas, ${tabelas.length} tabelas\n`;
   fs.appendFileSync(path.join(DESTINOS[0], "_quando-rodou.txt"), linha);
 } catch {
   // Log é conveniência; se falhar, o backup em si já está gravado e isso não pode derrubar nada.
