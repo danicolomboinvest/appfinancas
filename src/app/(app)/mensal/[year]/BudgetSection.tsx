@@ -69,7 +69,7 @@ export async function BudgetSection({
     paceRatio: elapsedRatioOfMonth(nowInBrazil(), year, month),
     money,
     labelFor: (key) => (isParentCategoryKey(key) ? categoryLabel(ctx.categorias ?? ctx.profileKind, key) : (customLabels.get(key) ?? "Categoria personalizada")),
-    colorFor: (key) => colorForCategorySlice(isParentCategoryKey(key) ? { kind: "parent", value: key } : { kind: "custom", value: key }),
+    colorFor: (key) => colorForCategorySlice(isParentCategoryKey(key) ? { kind: "parent", value: key } : { kind: "custom", value: key }, ctx.categorias),
     labelStyle: "restante",
   });
   const over = rows.filter((r) => r.isOver && !r.isUnplanned).length;

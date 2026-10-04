@@ -104,8 +104,11 @@ export function customCategoryColor(index: number): string {
 /** Cor estável de uma fatia de gasto (categoria-mãe ou personalizada), a MESMA categoria
  * sempre com a MESMA cor, em vez de uma cor por posição no ranking (que mudaria a cada
  * período conforme o que gastou mais). Usada na pizza de "Só gastos". */
-export function colorForCategorySlice(category?: { kind: "parent" | "custom"; value: string }): string {
+export function colorForCategorySlice(category?: { kind: "parent" | "custom"; value: string }, categorias?: CategoriasDoPerfil): string {
   if (!category) return "var(--color-ink-faint)";
+  // A cor que ela escolheu (04/10/2026) ganha da de fábrica, nas padrão e nas dela.
+  const escolhida = corEscolhida(categorias, category.value);
+  if (escolhida) return escolhida;
   if (category.kind === "parent" && isParentCategoryKey(category.value)) {
     return PARENT_CATEGORY_COLOR[category.value];
   }
@@ -179,8 +182,40 @@ export function isParentCategoryKey(key: string): key is ParentCategory {
  * ou escondida ("não uso Impostos"). Mora num campo JSON do perfil (FinancialProfile.categorias);
  * a chave gravada nos lançamentos continua a mesma, então renomear nunca mexe no histórico.
  */
-export type PreferenciaDeCategoria = { nome?: string; icone?: string; oculta?: boolean };
-export type PreferenciasDeCategoria = Partial<Record<ParentCategory, PreferenciaDeCategoria>>;
+export type PreferenciaDeCategoria = { nome?: string; icone?: string; oculta?: boolean; cor?: string };
+/**
+ * `proprias`: a cor das categorias que ELA criou, pelo id (04/10/2026). Nome e ícone delas moram
+ * na própria CustomCategory; a cor mora aqui, junto das outras preferências, sem mexer no banco.
+ */
+export type PreferenciasDeCategoria = Partial<Record<ParentCategory, PreferenciaDeCategoria>> & { proprias?: Record<string, { cor: string }> };
+
+/**
+ * As cores que dá pra escolher: as de fábrica das categorias e a paleta das criadas. Só tokens
+ * do tema, para a cor escolhida funcionar no claro e no escuro. O que vier fora daqui é ignorado.
+ */
+export const CORES_DE_CATEGORIA: string[] = [
+  "var(--color-cat-moradia)",
+  "var(--color-cat-alimentacao)",
+  "var(--color-cat-transporte)",
+  "var(--color-cat-saude)",
+  "var(--color-cat-lazer)",
+  "var(--color-cat-educacao)",
+  "var(--color-cat-impostos)",
+  "var(--color-cat-outros)",
+  ...Array.from({ length: 10 }, (_, i) => `var(--color-custom-${i + 1})`),
+];
+
+export function corValida(cor: unknown): cor is string {
+  return typeof cor === "string" && CORES_DE_CATEGORIA.includes(cor);
+}
+
+/** A cor que ela escolheu para uma categoria (padrão pela chave, criada pelo id), ou null. */
+export function corEscolhida(categorias: CategoriasDoPerfil, chave: string): string | null {
+  if (categorias === null || typeof categorias !== "object" || !categorias.prefs) return null;
+  const prefs = categorias.prefs;
+  const cor = isParentCategoryKey(chave) ? prefs[chave]?.cor : prefs.proprias?.[chave]?.cor;
+  return corValida(cor) ? cor : null;
+}
 
 /**
  * Quem pergunta o nome de uma categoria: só o tipo do perfil (como sempre foi) ou o tipo com as
@@ -203,12 +238,22 @@ export function lerPreferenciasDeCategoria(json: unknown): PreferenciasDeCategor
   for (const key of PARENT_CATEGORIES) {
     const v = (json as Record<string, unknown>)[key];
     if (!v || typeof v !== "object") continue;
-    const { nome, icone, oculta } = v as Record<string, unknown>;
+    const { nome, icone, oculta, cor } = v as Record<string, unknown>;
     const pref: PreferenciaDeCategoria = {};
     if (typeof nome === "string" && nome.trim()) pref.nome = nome.trim().slice(0, 40);
     if (typeof icone === "string" && CUSTOM_CATEGORY_ICON_MAP[icone]) pref.icone = icone;
     if (oculta === true) pref.oculta = true;
+    if (corValida(cor)) pref.cor = cor;
     if (Object.keys(pref).length > 0) saida[key] = pref;
+  }
+  const proprias = (json as Record<string, unknown>).proprias;
+  if (proprias && typeof proprias === "object") {
+    const cores: Record<string, { cor: string }> = {};
+    for (const [id, v] of Object.entries(proprias as Record<string, unknown>)) {
+      const cor = v && typeof v === "object" ? (v as Record<string, unknown>).cor : undefined;
+      if (id.length <= 60 && corValida(cor)) cores[id] = { cor };
+    }
+    if (Object.keys(cores).length > 0) saida.proprias = cores;
   }
   return saida;
 }

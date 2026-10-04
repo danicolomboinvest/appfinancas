@@ -169,7 +169,7 @@ export function SpendingByCategory({
             .sort((a, b) => b.value - a.value)
             .map((slice) => {
               const aberta = openCategory === slice.name;
-              const cor = colorForCategorySlice(slice.category);
+              const cor = colorForCategorySlice(slice.category, kind);
               const icone =
                 slice.category?.kind === "parent" && isParentCategoryKey(slice.category.value)
                   ? categoryIcon(kind, slice.category.value)

@@ -7,10 +7,14 @@ import { Card } from "@/components/ui/Card";
 import { useToast } from "@/components/ui/toast-context";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import {
+  CORES_DE_CATEGORIA,
   CUSTOM_CATEGORY_ICON_MAP,
   CUSTOM_CATEGORY_ICON_OPTIONS,
   PARENT_CATEGORIES,
+  PARENT_CATEGORY_COLOR,
   categoriaOculta,
+  colorForCategorySlice,
+  corEscolhida,
   categoryDefaultLabel,
   categoryIcon,
   categoryLabel,
@@ -128,19 +132,51 @@ function EscolherIcone({ valor, onEscolher, comPadrao }: { valor: string | null;
   );
 }
 
+/**
+ * A cor da categoria (04/10/2026): as bolinhas são os tokens do tema (CORES_DE_CATEGORIA), então a
+ * escolha vale no claro e no escuro. "A de sempre" volta para a cor de fábrica.
+ */
+function EscolherCor({ valor, onEscolher, padrao }: { valor: string | null; onEscolher: (c: string | null) => void; padrao: string }) {
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <button
+        type="button"
+        onClick={() => onEscolher(null)}
+        aria-pressed={valor === null}
+        className={`flex min-h-11 items-center gap-1.5 rounded-full border px-3 text-xs font-medium ${valor === null ? "border-accent bg-accent-soft text-accent-strong" : "border-border-strong text-ink-muted"}`}
+      >
+        <span className="size-3.5 rounded-full" style={{ background: padrao }} aria-hidden />A de sempre
+      </button>
+      {CORES_DE_CATEGORIA.map((cor, i) => (
+        <button
+          key={cor}
+          type="button"
+          onClick={() => onEscolher(cor)}
+          aria-pressed={valor === cor}
+          aria-label={`Cor ${i + 1}`}
+          className={`flex size-11 items-center justify-center rounded-full border ${valor === cor ? "border-ink" : "border-transparent"}`}
+        >
+          <span className="size-6 rounded-full" style={{ background: cor }} />
+        </button>
+      ))}
+    </div>
+  );
+}
+
 const CAMPO = "min-h-11 w-full rounded-xl border border-border-strong bg-surface px-3 text-base text-ink outline-none focus:border-accent";
 
-function EditarPadrao({ chave, onFechar }: { chave: ParentCategory; onFechar: () => void }) {
+export function EditarPadrao({ chave, onFechar }: { chave: ParentCategory; onFechar: () => void }) {
   const { categorias } = useProfileTheme();
   const { showToast, showError } = useToast();
   const pref = categorias.prefs[chave] ?? {};
   const [nome, setNome] = useState(pref.nome ?? "");
   const [icone, setIcone] = useState<string | null>(pref.icone ?? null);
+  const [cor, setCor] = useState<string | null>(pref.cor ?? null);
   const [oculta, setOculta] = useState(pref.oculta === true);
   const [pendente, iniciar] = useTransition();
   const deFabrica = categoryDefaultLabel(categorias, chave);
 
-  function salvar(valores: { nome: string; icone: string | null; oculta: boolean }) {
+  function salvar(valores: { nome: string; icone: string | null; oculta: boolean; cor: string | null }) {
     iniciar(async () => {
       const r = await salvarCategoriaPadraoAction({ key: chave, ...valores });
       if (r.error) return showError(r.error);
@@ -159,20 +195,24 @@ function EditarPadrao({ chave, onFechar }: { chave: ParentCategory; onFechar: ()
         <span className="text-xs font-medium text-ink-muted">Ícone</span>
         <EscolherIcone valor={icone} onEscolher={setIcone} comPadrao />
       </div>
+      <div className="flex flex-col gap-1.5">
+        <span className="text-xs font-medium text-ink-muted">Cor</span>
+        <EscolherCor valor={cor} onEscolher={setCor} padrao={PARENT_CATEGORY_COLOR[chave]} />
+      </div>
       <label className="flex min-h-11 items-center gap-2.5 text-sm text-ink">
         <input type="checkbox" checked={oculta} onChange={(e) => setOculta(e.target.checked)} className="h-5 w-5 shrink-0 accent-accent" />
         Esconder: não uso esta categoria
       </label>
       {oculta && <p className="text-caption text-ink-muted">Ela sai das escolhas ao lançar e do orçamento. O que você já lançou nela continua aparecendo.</p>}
       <div className="flex flex-wrap items-center gap-2">
-        <button type="button" disabled={pendente} onClick={() => salvar({ nome, icone, oculta })} className="min-h-11 rounded-full bg-accent px-5 text-sm font-semibold text-on-accent disabled:opacity-50">
+        <button type="button" disabled={pendente} onClick={() => salvar({ nome, icone, oculta, cor })} className="min-h-11 rounded-full bg-accent px-5 text-sm font-semibold text-on-accent disabled:opacity-50">
           {pendente ? "Salvando…" : "Salvar"}
         </button>
         <button type="button" onClick={onFechar} className="min-h-11 px-3 text-sm text-ink-muted hover:text-ink">
           Cancelar
         </button>
-        {(pref.nome || pref.icone || pref.oculta) && (
-          <button type="button" disabled={pendente} onClick={() => salvar({ nome: "", icone: null, oculta: false })} className="ml-auto min-h-11 px-3 text-sm font-medium text-accent-strong hover:underline">
+        {(pref.nome || pref.icone || pref.oculta || pref.cor) && (
+          <button type="button" disabled={pendente} onClick={() => salvar({ nome: "", icone: null, oculta: false, cor: null })} className="ml-auto min-h-11 px-3 text-sm font-medium text-accent-strong hover:underline">
             Voltar para &quot;{deFabrica}&quot;
           </button>
         )}
@@ -181,16 +221,18 @@ function EditarPadrao({ chave, onFechar }: { chave: ParentCategory; onFechar: ()
   );
 }
 
-function EditarPropria({ categoria, onFechar }: { categoria: Propria; onFechar: () => void }) {
+export function EditarPropria({ categoria, onFechar }: { categoria: Propria; onFechar: () => void }) {
   const { showToast, showError } = useToast();
+  const { categorias } = useProfileTheme();
   const [nome, setNome] = useState(categoria.name);
   const [icone, setIcone] = useState<string | null>(categoria.icon);
+  const [cor, setCor] = useState<string | null>(corEscolhida(categorias, categoria.id));
   const [confirmar, setConfirmar] = useState(false);
   const [pendente, iniciar] = useTransition();
 
   function salvar() {
     iniciar(async () => {
-      const r = await editarCategoriaPropriaAction({ id: categoria.id, nome, icone: icone ?? "tag" });
+      const r = await editarCategoriaPropriaAction({ id: categoria.id, nome, icone: icone ?? "tag", cor });
       if (r.error) return showError(r.error);
       showToast("Categoria salva.");
       onFechar();
@@ -216,6 +258,10 @@ function EditarPropria({ categoria, onFechar }: { categoria: Propria; onFechar: 
       <div className="flex flex-col gap-1.5">
         <span className="text-xs font-medium text-ink-muted">Ícone</span>
         <EscolherIcone valor={icone} onEscolher={setIcone} />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <span className="text-xs font-medium text-ink-muted">Cor</span>
+        <EscolherCor valor={cor} onEscolher={setCor} padrao={colorForCategorySlice({ kind: "custom", value: categoria.id })} />
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <button type="button" disabled={pendente || !nome.trim()} onClick={salvar} className="min-h-11 rounded-full bg-accent px-5 text-sm font-semibold text-on-accent disabled:opacity-50">

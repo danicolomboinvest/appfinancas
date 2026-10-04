@@ -58,7 +58,7 @@ export async function TopCategories({
             category.kind === "parent" && isParentCategoryKey(category.key)
               ? categoryIcon(profileKind, category.key)
               : (CUSTOM_CATEGORY_ICON_MAP[category.iconKey ?? ""] ?? Receipt);
-          const color = colorForCategorySlice({ kind: category.kind, value: category.key });
+          const color = colorForCategorySlice({ kind: category.kind, value: category.key }, profileKind);
           const emoji = category.kind === "parent" ? emojiDaCategoria(tema, { kind: "parent", value: category.key }) : emojiDaCategoria(tema, { kind: "custom", iconKey: category.iconKey });
           return (
             <li

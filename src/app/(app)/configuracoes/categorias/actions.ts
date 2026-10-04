@@ -5,7 +5,7 @@ import { z } from "zod";
 import { getRequiredSession } from "@/lib/auth/session";
 import { deleteOwnTransactionRule } from "@/lib/repositories/transaction-rule.repo";
 import { prisma } from "@/lib/db/prisma";
-import { CUSTOM_CATEGORY_ICON_KEYS, PARENT_CATEGORIES, isParentCategoryKey, lerPreferenciasDeCategoria } from "@/lib/categories";
+import { CUSTOM_CATEGORY_ICON_KEYS, PARENT_CATEGORIES, corValida, isParentCategoryKey, lerPreferenciasDeCategoria } from "@/lib/categories";
 import { deleteOwnCustomCategory, updateOwnCustomCategory } from "@/lib/repositories/custom-category.repo";
 
 /**
@@ -31,15 +31,21 @@ function revalidarCategorias() {
  * tirar "Impostos", que não usa, e chamar as outras do jeito dela. A chave gravada nos lançamentos
  * não muda: é só como o app mostra. Nome vazio ou ícone vazio = volta ao de fábrica.
  */
-export async function salvarCategoriaPadraoAction(input: { key: string; nome: string; icone: string | null; oculta: boolean }): Promise<{ error?: string }> {
+export async function salvarCategoriaPadraoAction(input: { key: string; nome: string; icone: string | null; oculta: boolean; cor?: string | null }): Promise<{ error?: string }> {
   const ctx = await getRequiredSession();
   if (!isParentCategoryKey(input.key)) return { error: "Categoria inválida." };
   const nome = input.nome.trim().slice(0, 40);
   if (input.icone !== null && !ICONE.safeParse(input.icone).success) return { error: "Ícone inválido." };
+  if (input.cor && !corValida(input.cor)) return { error: "Cor inválida." };
   const perfil = await prisma.financialProfile.findFirst({ where: { id: ctx.profileId, userId: ctx.userId }, select: { categorias: true } });
   if (!perfil) return { error: "Perfil não encontrado." };
   const prefs = lerPreferenciasDeCategoria(perfil.categorias);
-  const pref = { ...(nome ? { nome } : {}), ...(input.icone ? { icone: input.icone } : {}), ...(input.oculta ? { oculta: true } : {}) };
+  const pref = {
+    ...(nome ? { nome } : {}),
+    ...(input.icone ? { icone: input.icone } : {}),
+    ...(input.oculta ? { oculta: true } : {}),
+    ...(input.cor ? { cor: input.cor } : {}),
+  };
   if (Object.keys(pref).length === 0) delete prefs[input.key];
   else prefs[input.key] = pref;
   // Escondidas demais deixariam o gasto sem onde cair: pelo menos 3 continuam à vista.
@@ -50,7 +56,7 @@ export async function salvarCategoriaPadraoAction(input: { key: string; nome: st
 }
 
 /** Nome e ícone de uma categoria criada por ela, sem precisar apagar e criar de novo. */
-export async function editarCategoriaPropriaAction(input: { id: string; nome: string; icone: string }): Promise<{ error?: string }> {
+export async function editarCategoriaPropriaAction(input: { id: string; nome: string; icone: string; cor?: string | null }): Promise<{ error?: string }> {
   const ctx = await getRequiredSession();
   const id = z.string().min(1).max(60).safeParse(input.id);
   const nome = input.nome.trim().slice(0, 40);
@@ -58,7 +64,20 @@ export async function editarCategoriaPropriaAction(input: { id: string; nome: st
   if (!ICONE.safeParse(input.icone).success) return { error: "Ícone inválido." };
   const igual = await prisma.customCategory.findFirst({ where: { userId: ctx.userId, profileId: ctx.profileId, name: nome, NOT: { id: id.data } }, select: { id: true } });
   if (igual) return { error: "Você já tem uma categoria com esse nome." };
+  if (input.cor && !corValida(input.cor)) return { error: "Cor inválida." };
   await updateOwnCustomCategory(ctx, id.data, { name: nome, icon: input.icone });
+  // A cor da categoria dela mora nas preferências do perfil (ver PreferenciasDeCategoria.proprias).
+  if (input.cor !== undefined) {
+    const perfil = await prisma.financialProfile.findFirst({ where: { id: ctx.profileId, userId: ctx.userId }, select: { categorias: true } });
+    if (perfil) {
+      const prefs = lerPreferenciasDeCategoria(perfil.categorias);
+      const proprias = { ...(prefs.proprias ?? {}) };
+      if (input.cor) proprias[id.data] = { cor: input.cor };
+      else delete proprias[id.data];
+      prefs.proprias = Object.keys(proprias).length > 0 ? proprias : undefined;
+      await prisma.financialProfile.updateMany({ where: { id: ctx.profileId, userId: ctx.userId }, data: { categorias: JSON.parse(JSON.stringify(prefs)) } });
+    }
+  }
   revalidarCategorias();
   return {};
 }

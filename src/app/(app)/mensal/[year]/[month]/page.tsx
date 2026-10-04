@@ -233,14 +233,14 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
       .map((s) => ({
         name: rotulosDeCategoria[s.parentCategory],
         value: s.spent,
-        color: colorForCategorySlice({ kind: "parent", value: s.parentCategory }),
+        color: colorForCategorySlice({ kind: "parent", value: s.parentCategory }, ctx.categorias),
       })),
     ...spentByCustom
       .filter((s) => s.spent > 0)
       .map((s) => ({
         name: customCategoryNameById.get(s.customCategoryId) ?? "Outro",
         value: s.spent,
-        color: colorForCategorySlice({ kind: "custom", value: s.customCategoryId }),
+        color: colorForCategorySlice({ kind: "custom", value: s.customCategoryId }, ctx.categorias),
       })),
   ];
 

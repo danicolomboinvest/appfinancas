@@ -28,13 +28,14 @@ export function SpendingPieChart({
   onSelect?: (slice: SpendingSlice) => void;
   selectedName?: string | null;
 }) {
-  const t = useProfileTheme().voz.titulos;
+  const { voz, categorias } = useProfileTheme();
+  const t = voz.titulos;
   const slices: DonutSlice[] = data
     .filter((d) => d.value > 0)
     .map((d) => ({
       name: d.name,
       value: d.value,
-      color: colorForCategorySlice(d.category),
+      color: colorForCategorySlice(d.category, categorias),
       meta: d,
     }));
 

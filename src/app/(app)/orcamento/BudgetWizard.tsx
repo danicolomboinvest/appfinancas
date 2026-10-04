@@ -4,7 +4,7 @@ import { useActionState, useEffect, useId, useMemo, useState, useTransition } fr
 import { createPortal } from "react-dom";
 import type { ParentCategory } from "@prisma/client";
 import type { LucideIcon } from "lucide-react";
-import { Minus, Plus, Sparkles, Tag, Trash2 } from "lucide-react";
+import { Minus, Pencil, Plus, Sparkles, Tag, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { CurrencyField } from "@/components/ui/CurrencyField";
@@ -15,12 +15,13 @@ import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { Modal } from "@/components/ui/Modal";
 import { useSuccessToast } from "@/components/ui/useSuccessToast";
 import { useMoney } from "@/components/money/MoneyProvider";
-import { PARENT_CATEGORY_COLOR, CUSTOM_CATEGORY_ICON_MAP, colorForCategorySlice, categoryLabel, categoryDescription, categoryIcon, categoriaOculta } from "@/lib/categories";
+import { CUSTOM_CATEGORY_ICON_MAP, colorForCategorySlice, categoryLabel, categoryDescription, categoryIcon, categoriaOculta } from "@/lib/categories";
 import type { BudgetHints } from "@/lib/planning/budget-hints";
 import { arredondaPlano, MESES_MINIMOS_DO_PADRAO } from "@/lib/planning/padrao-orcamento";
 import { EVENTO_IMPORTAR } from "@/components/shell/registrar-eventos";
 import { splitSavings, type SavingsTarget } from "@/lib/planning/savings-split";
 import { idealBudgetSplit, COURSE_SAVINGS_PERCENT, EMPRESA_RETENTION_PERCENT, courseShareOf, savingsPercentFor } from "@/lib/planning/ideal-budget";
+import { EditarPadrao, EditarPropria } from "@/app/(app)/configuracoes/categorias/EditorDeCategorias";
 import { NewCustomCategoryCard } from "./NewCustomCategoryCard";
 import { applyAllBudgetsAction, deleteCustomCategoryAction, type AnnualBudgetState } from "./actions";
 
@@ -32,7 +33,7 @@ const PCT_CHIPS = [10, COURSE_SAVINGS_PERCENT, 20, 30];
 // 5% existe porque negócio apertado ainda precisa reter alguma coisa pro DAS e pro caixa.
 const PCT_CHIPS_EMPRESA = [5, EMPRESA_RETENTION_PERCENT, 15, 20];
 
-type Cat = { key: string; label: string; description?: string; color: string; icon: LucideIcon; custom: boolean };
+type Cat = { key: string; label: string; description?: string; color: string; icon: LucideIcon; custom: boolean; iconName?: string };
 
 
 /**
@@ -83,15 +84,16 @@ export function BudgetWizard({
         key: c.key,
         label: categoryLabel(categorias, c.key),
         description: categoryDescription(categorias, c.key),
-        color: PARENT_CATEGORY_COLOR[c.key],
+        color: colorForCategorySlice({ kind: "parent", value: c.key }, categorias),
         icon: categoryIcon(categorias, c.key),
         custom: false,
       })),
       ...customCategories.map((c) => ({
         key: c.id,
         label: c.name,
-        color: colorForCategorySlice({ kind: "custom", value: c.id }),
+        color: colorForCategorySlice({ kind: "custom", value: c.id }, categorias),
         icon: CUSTOM_CATEGORY_ICON_MAP[c.icon] ?? Tag,
+        iconName: c.icon,
         custom: true,
       })),
     ],
@@ -528,14 +530,25 @@ function CategoryTile({
   const money = useMoney();
   const [editing, setEditing] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [editarAberto, setEditarAberto] = useState(false);
   const [isDeleting, startDelete] = useTransition();
   const Icon = cat.icon;
   const { key: tema, voz } = useProfileTheme();
   const t = voz.titulos;
 
   return (
-    <Card className="flex flex-col gap-2 p-3" style={{ borderTop: `3px solid ${cat.color}` }}>
-      <div className="flex items-center gap-2">
+    <Card className="relative flex flex-col gap-2 p-3" style={{ borderTop: `3px solid ${cat.color}` }}>
+      {/* O lapizinho (04/10/2026): nome, ícone e cor da categoria, discreto no canto do quadradinho. */}
+      <button
+        type="button"
+        onClick={() => setEditarAberto(true)}
+        aria-label={`Editar categoria ${cat.label}`}
+        className="absolute right-1 top-1 flex size-6 items-center justify-center rounded-full text-ink-faint opacity-60 hover:text-ink hover:opacity-100 focus-visible:opacity-100"
+      >
+        <Pencil size={11} />
+      </button>
+      {/* pr-6: a lixeira das que ela criou não fica embaixo do lápis. */}
+      <div className="flex items-center gap-2 pr-6">
         <CategoryIcon icon={Icon} color={cat.color} size={36} emoji={cat.custom ? emojiDaCategoria(tema, { kind: "custom" }) : emojiDaCategoria(tema, { kind: "parent", value: cat.key })} />
         <p className="min-w-0 flex-1 truncate text-[13px] font-semibold text-ink">{cat.label}</p>
         {cat.custom && (
@@ -571,6 +584,15 @@ function CategoryTile({
           <Plus size={16} />
         </button>
       </div>
+
+      <Modal open={editarAberto} onClose={() => setEditarAberto(false)} title="Editar categoria">
+        {editarAberto &&
+          (cat.custom ? (
+            <EditarPropria categoria={{ id: cat.key, name: cat.label, icon: cat.iconName ?? "tag" }} onFechar={() => setEditarAberto(false)} />
+          ) : (
+            <EditarPadrao chave={cat.key as ParentCategory} onFechar={() => setEditarAberto(false)} />
+          ))}
+      </Modal>
 
       {cat.custom && (
         <Modal open={confirmOpen} onClose={() => setConfirmOpen(false)} title={t.formOrcApagarTitulo}>

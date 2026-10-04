@@ -264,6 +264,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
         ) as Partial<Record<ParentCategory, number>>;
         return (
           <PainelEmpresa
+            categorias={ctx.categorias}
             money={money}
             year={year}
             mesNumero={currentMonth}

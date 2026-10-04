@@ -14,7 +14,7 @@ import { partesDoTexto } from "@/lib/profiles/textos/shell";
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import { useToast } from "@/components/ui/toast-context";
 import { useMoney } from "@/components/money/MoneyProvider";
-import { PARENT_CATEGORIES, PARENT_CATEGORY_COLOR, CUSTOM_CATEGORY_ICON_MAP, categoryIcon, categoryLabel, colorForCategorySlice, isParentCategoryKey, categoriasParaEscolher, type CategoriasDoPerfil } from "@/lib/categories";
+import { PARENT_CATEGORIES, CUSTOM_CATEGORY_ICON_MAP, categoryIcon, categoryLabel, colorForCategorySlice, isParentCategoryKey, categoriasParaEscolher, type CategoriasDoPerfil } from "@/lib/categories";
 import { EntryForm } from "./EntryForm";
 import { RESGATE } from "@/components/forms/CategoryFields";
 import { ehResgate } from "@/lib/entries/resgate";
@@ -87,7 +87,7 @@ function categoryVisual(
   if (entry.parentCategory && isParentCategoryKey(entry.parentCategory)) {
     return {
       icon: categoryIcon(kind, entry.parentCategory),
-      color: PARENT_CATEGORY_COLOR[entry.parentCategory],
+      color: colorForCategorySlice({ kind: "parent", value: entry.parentCategory }, kind),
       emoji: emojiDaCategoria(tema, { kind: "parent", value: entry.parentCategory }),
     };
   }
@@ -95,7 +95,7 @@ function categoryVisual(
     const custom = customCategories.find((c) => c.id === entry.customCategoryId);
     return {
       icon: custom ? (CUSTOM_CATEGORY_ICON_MAP[custom.icon] ?? Receipt) : Receipt,
-      color: colorForCategorySlice({ kind: "custom", value: entry.customCategoryId }),
+      color: colorForCategorySlice({ kind: "custom", value: entry.customCategoryId }, kind),
       emoji: emojiDaCategoria(tema, { kind: "custom", iconKey: custom?.icon }),
     };
   }

@@ -108,6 +108,7 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
       isParentCategoryKey(categoryKey)
         ? { kind: "parent", value: categoryKey }
         : { kind: "custom", value: categoryKey },
+      ctx.categorias,
     );
   }
 

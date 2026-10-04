@@ -4,7 +4,7 @@ import type { MonthlyBreakdown } from "@/lib/consolidation/yearly";
 import type { Money } from "@/lib/profiles/voice";
 import type { DadosDaEmpresa } from "@/lib/profiles/empresa-dados";
 import { CATEGORIAS_EMPRESA, MESES_DE_CAIXA_RECOMENDADOS } from "@/lib/profiles/empresa";
-import { PARENT_CATEGORIES, colorForCategorySlice, customCategoryColor } from "@/lib/categories";
+import { PARENT_CATEGORIES, colorForCategorySlice, customCategoryColor, type CategoriasDoPerfil } from "@/lib/categories";
 import { Donut, type DonutSlice } from "@/components/charts/Donut";
 import { ReceitaDespesaLucroChart } from "@/components/charts/ReceitaDespesaLucroChart";
 import { CaixaAcumuladoChart } from "@/components/charts/CaixaAcumuladoChart";
@@ -45,7 +45,10 @@ export function PainelEmpresa({
   receitaPorTipoMes,
   orcamentoDoMes,
   receitaPlanejadaDoMes,
+  categorias,
 }: {
+  /** Nome, ícone e cor que ela escolheu pras categorias. */
+  categorias?: CategoriasDoPerfil;
   money: Money;
   year: number;
   /** O mês dos indicadores (1–12): o link pra classificar o gasto sem categoria da DRE do mês. */
@@ -88,7 +91,7 @@ export function PainelEmpresa({
     ...PARENT_CATEGORIES.filter((k) => (gastoPorFrente.get(k) ?? 0) > 0).map((k) => ({
       name: CATEGORIAS_EMPRESA[k].label,
       value: gastoPorFrente.get(k) ?? 0,
-      color: colorForCategorySlice({ kind: "parent", value: k }),
+      color: colorForCategorySlice({ kind: "parent", value: k }, categorias),
     })),
     ...gastoPersonalizadoMes.map((g, i) => ({ name: g.name, value: g.spent, color: customCategoryColor(i) })),
   ];
@@ -166,7 +169,7 @@ export function PainelEmpresa({
                 return (
                   <tr key={k} className="border-t border-border/60">
                     <td className="py-2 pr-2">
-                      <span className="mr-2 inline-block size-2 rounded-full align-middle" style={{ background: colorForCategorySlice({ kind: "parent", value: k }) }} />
+                      <span className="mr-2 inline-block size-2 rounded-full align-middle" style={{ background: colorForCategorySlice({ kind: "parent", value: k }, categorias) }} />
                       {CATEGORIAS_EMPRESA[k].label}
                       <span className="ml-1 text-caption text-ink-faint">{CATEGORIAS_EMPRESA[k].natureza === "variavel" ? "variável" : CATEGORIAS_EMPRESA[k].natureza === "imposto" ? "imposto" : "fixa"}</span>
                     </td>
