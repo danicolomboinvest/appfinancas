@@ -1,5 +1,5 @@
 import { nDias } from "../textos/foco";
-import { TITULOS_PADRAO, simuladoresDoTema, tarefasDoTema, inteiro, semDiaria, estadoParaFrase, type Voz } from "../voice-base";
+import { TITULOS_PADRAO, simuladoresDoTema, tarefasDoTema, inteiro, semDiaria, estadoParaFrase, type Voz, type Titulos } from "../voice-base";
 
 /**
  * O menu na voz do Game, por rota. O mês é a temporada (a carteira continua "carteira": "inventário" soou ruim), os
@@ -28,6 +28,91 @@ const GAME_FILHOS: Record<string, string> = {
 };
 
 const s = (n: number) => (n === 1 ? "" : "s");
+
+// "Posso comprar?" passo a passo (05/10/2026): a compra é uma jogada da temporada. Metas são
+// missões, a reserva é a vida extra; o placar fala do número, nunca de quem joga.
+const mesesGm = (n: number) => `${n} ${n === 1 ? "mês" : "meses"}`;
+const GAME_COMPRA: Partial<Titulos> = {
+  compraOutraCoisaPergunta: "Qual é o item?",
+  compraQuantoCusta: "Quanto custa o item?",
+  compraContinuar: "Próximo",
+  compraComoPagar: "Como você quer pagar?",
+  compraDecideVoce: "O app escolhe a jogada",
+  compraDecideVoceSub: "Pega a rota que pesa menos no mês",
+  compraEmQuantasVezes: "Em quantas vezes?",
+  compraTotalPago: (t) => `Custo total da jogada: ${t}`,
+  compraSincera: "Jogo limpo:",
+  compraSinceraSub: "Essa compra é",
+  compraSinceridade: {
+    precisa: { titulo: "Preciso mesmo", sub: "Faz falta no dia a dia" },
+    quero: { titulo: "Quero muito", sub: "Penso nela faz tempo" },
+    impulso: { titulo: "Impulso", sub: "Vi agora e quis" },
+  },
+  compraAnalisando: "Lendo o placar do mês…",
+  compraAnaliseItens: ["Seus gastos da temporada", "Compras que você já decidiu", "Suas missões e a vida extra", "Quanto costuma sobrar"],
+  compraVereditoTitulo: (v, s, soPorImpulso) => {
+    if (v === "ok") return "Pode comprar. Jogada limpa.";
+    if (s === "precisa") return v === "custo" ? "Precisa? Dá pra fazer, com ajuste." : "Hoje o placar não fecha, nem apertando.";
+    if (v === "custo") return soPorImpulso ? "Cabe, mas foi jogada de impulso." : "Dá, mas a jogada tem custo.";
+    return "Eu seguraria essa jogada agora.";
+  },
+  compraOQueValeMais: "Qual jogada vale mais pra você?",
+  compraPrioridadeCompra: "Comprar agora",
+  compraPrioridadeCompraSub: (meta, mes) => `A missão ${meta} passa para ${mes}`,
+  compraPrioridadeSonho: (meta, mes) => `Missão ${meta} em ${mes}`,
+  compraPrioridadeSonhoSub: "A compra vira uma missão e vem depois",
+  compraVerComoCaber: "Ver jogadas para fazer caber",
+  compraCaberTitulo: "Dá pra fazer caber",
+  compraCaberSub: "Escolha uma jogada. Cada uma mostra o que acontece com a sua temporada.",
+  compraCaberNadaTitulo: "Esse item ainda não cabe",
+  compraCaberNada: (v) => `Para ${v}, não tem atalho que caiba na temporada de hoje. Vale um plano com calma: juntar uma entrada maior primeiro ou esperar a renda subir.`,
+  compraCaminho: (c) => {
+    switch (c?.chave) {
+      case "parcelar":
+        return { titulo: `Parcelar em ${c.vezes}x sem juros`, detalhe: `${c.vezes}x de ${c.porMes}`, comoCompra: `Em ${c.vezes}x de ${c.porMes}, sem juros` };
+      case "barato":
+        return c.vezes && c.vezes > 1
+          ? { titulo: `Buscar um de até ${c.valor}`, detalhe: `Em ${c.vezes}x sem juros, cabe no que sobra`, comoCompra: `Um de até ${c.valor}, em ${c.vezes}x sem juros` }
+          : { titulo: `Buscar um de até ${c.valor}`, detalhe: "À vista, cabe no que sobra", comoCompra: `Um de até ${c.valor}, à vista` };
+      case "cortar":
+        return {
+          titulo: `Travar ${c.valor}`,
+          detalhe: `Em ${c.cortes}${c.cortePorMes ? ", por mês" : ", só nesta temporada"}`,
+          comoCompra: `Travando ${c.valor}${c.cortePorMes ? " por mês" : " nesta temporada"}`,
+        };
+      case "desconto":
+        return { titulo: "Pedir desconto à vista", detalhe: `Loja costuma dar uns 10%: ${c.valor} em vez de ${c.parcelado} parcelado`, comoCompra: `À vista com desconto, por ${c.valor}` };
+      case "juntarRapido":
+        return { titulo: `Juntar mais rápido: compra em ${c.mes}`, detalhe: `Gastando ${c.cortes} a menos por mês, à vista`, comoCompra: `Juntando ${c.porMes} por mês` };
+      case "juntar":
+        return { titulo: `Juntar e comprar em ${c.mes}`, detalhe: `Guardando ${c.porMes} por mês, à vista`, comoCompra: `Juntando ${c.porMes} por mês` };
+      default:
+        return { titulo: "", detalhe: "", comoCompra: "" };
+    }
+  },
+  compraSeloCabe: "Cabe ✓",
+  compraSeloSemDivida: "Sem dívida ✓",
+  compraSeloCusto: "Ainda tem custo",
+  compraSeguirCom: "Fechar essa jogada",
+  compraEscolhaUm: "Escolha uma jogada",
+  compraOQueVaiFazer: "Qual vai ser a jogada?",
+  compraSugestao: "Jogada sugerida",
+  compraDecComprarSub: (precisa) => (precisa ? "Pela rota que pesa menos" : "Pela rota que a gente viu"),
+  compraDecGuardar: "Vou juntar primeiro",
+  compraDecGuardarSub: "Vira uma missão no app",
+  compraDecGuardarMeta: (mensal, mes) => `Missão de ${mensal} por mês, compra em ${mes}`,
+  compraDecDesistir: "Vou passar a vez",
+  compraDecDesistirSub: "Não preciso disso agora",
+  compraFimComprarTitulo: "Jogada feita.",
+  compraFimGuardarTitulo: "Jogada planejada.",
+  compraFimGuardar: (mensal, meses, mes, corte) =>
+    `${mensal} por mês por ${mesesGm(meses)}${corte ? `, gastando ${corte} a menos` : ""}. Em ${mes} você compra à vista, sem dívida.`,
+  compraFimAmanhaTitulo: "Jogada pausada até amanhã.",
+  compraFimDesistirTitulo: "Crédito mantido.",
+  compraCriarMeta: "Criar a missão",
+  compraMetaCriada: "Missão criada.",
+  compraVerMeta: "Ver a missão",
+};
 
 export const game: Voz = {
   // O Game não cumprimenta: a tela abre no ranking (divisão, pontos, temporada).
@@ -591,5 +676,6 @@ export const game: Voz = {
     emailConviteIntro2:
       "Não precisa jogar tudo de uma vez. <strong>Registre um gasto hoje</strong>, só um, e o placar já começa a rodar: pra onde o dinheiro foi, quanto sobrou, quanto dá pra guardar.",
     emailConviteBotao: "Registrar e abrir a temporada",
+    ...GAME_COMPRA,
   },
 };

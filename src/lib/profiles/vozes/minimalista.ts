@@ -1,8 +1,96 @@
 import { nDias } from "../textos/foco";
-import { TITULOS_PADRAO, CUMPRIMENTO, inteiro, pctDaRenda, semDiaria, simuladoresDoTema, tarefasDoTema, estadoParaFrase, type Voz } from "../voice-base";
+import { TITULOS_PADRAO, CUMPRIMENTO, inteiro, pctDaRenda, semDiaria, simuladoresDoTema, tarefasDoTema, estadoParaFrase, type Voz, type Titulos } from "../voice-base";
 
 /** "1 ativo" / "2 ativos": o plural, sem repetir a conta em cada frase. */
 const s = (n: number) => (n === 1 ? "" : "s");
+
+/** "1 mês" / "3 meses". */
+const mesesM = (n: number) => `${n} ${n === 1 ? "mês" : "meses"}`;
+
+/** "Posso comprar?" passo a passo: só o número e a frase mínima. */
+const MINIMALISTA_COMPRA: Partial<Titulos> = {
+  compraOutraCoisaPergunta: "O quê?",
+  compraQuantoCusta: "Valor",
+  compraComoPagar: "Pagamento",
+  compraAVistaSub: "Tudo agora",
+  compraParceladoSub: "Cartão ou financiamento",
+  compraDecideVoce: "O app escolhe",
+  compraDecideVoceSub: "O jeito que pesa menos",
+  compraEmQuantasVezes: "Parcelas",
+  compraQuantoJuros: "Juros ao mês",
+  compraResumoParcela: (n, p, j, t) =>
+    `${n}x de ${p}${j === "nao" ? ", sem juros" : j === "sim" ? `, ${t} ao mês` : `. Sem a taxa: ${t} ao mês, o comum em loja.`}`,
+  compraTotalPago: (t) => `Total: ${t}`,
+  compraSincera: "Motivo",
+  compraSinceraSub: "Esta compra é",
+  compraSinceridade: {
+    precisa: { titulo: "Necessidade", sub: "Faz falta no dia a dia" },
+    quero: { titulo: "Desejo antigo", sub: "Penso nela faz tempo" },
+    impulso: { titulo: "Impulso", sub: "Vi agora" },
+  },
+  compraAnalisando: "Calculando…",
+  compraAnaliseItens: ["Gastos do mês", "Compras decididas", "Metas e reserva", "Sobra média"],
+  compraVereditoTitulo: (v, s, soPorImpulso) => {
+    if (v === "ok") return "Cabe.";
+    if (s === "precisa") return v === "custo" ? "Cabe, com ajuste." : "Não cabe.";
+    if (v === "custo") return soPorImpulso ? "Cabe. Mas é impulso." : "Cabe, com custo.";
+    return "Não cabe agora.";
+  },
+  compraOQueValeMais: "Prioridade",
+  compraPrioridadeCompra: "Comprar agora",
+  compraPrioridadeSonhoSub: "A compra vira meta",
+  compraVerComoCaber: "Ver como fazer caber",
+  compraCaberTitulo: "Caminhos",
+  compraCaberSub: "Escolha um. O efeito no mês aparece em cada um.",
+  compraCaberNadaTitulo: "Não cabe",
+  compraCaberNada: (v) => `${v}: nenhum caminho cabe no mês de hoje. Opções: juntar uma entrada maior ou esperar a renda subir.`,
+  compraCaminho: (c) => {
+    switch (c?.chave) {
+      case "parcelar":
+        return { titulo: `${c.vezes}x sem juros`, detalhe: `${c.vezes}x de ${c.porMes}`, comoCompra: `${c.vezes}x de ${c.porMes}, sem juros` };
+      case "barato":
+        return c.vezes && c.vezes > 1
+          ? { titulo: `Até ${c.valor}`, detalhe: `${c.vezes}x sem juros`, comoCompra: `Até ${c.valor}, ${c.vezes}x sem juros` }
+          : { titulo: `Até ${c.valor}`, detalhe: "À vista", comoCompra: `Até ${c.valor}, à vista` };
+      case "cortar":
+        return {
+          titulo: `Menos ${c.valor}`,
+          detalhe: `Em ${c.cortes}${c.cortePorMes ? ", por mês" : ", só neste mês"}`,
+          comoCompra: `Menos ${c.valor}${c.cortePorMes ? " por mês" : " neste mês"}`,
+        };
+      case "desconto":
+        return { titulo: "Desconto à vista", detalhe: `Cerca de 10%: ${c.valor} em vez de ${c.parcelado}`, comoCompra: `À vista, ${c.valor}` };
+      case "juntarRapido":
+        return { titulo: `Juntar com cortes: ${c.mes}`, detalhe: `Menos ${c.cortes} por mês, à vista`, comoCompra: `${c.porMes} por mês` };
+      case "juntar":
+        return { titulo: `Juntar: ${c.mes}`, detalhe: `${c.porMes} por mês, à vista`, comoCompra: `${c.porMes} por mês` };
+      default:
+        return { titulo: "", detalhe: "", comoCompra: "" };
+    }
+  },
+  compraSeloCabe: "Cabe",
+  compraSeloSemDivida: "Sem dívida",
+  compraSeloCusto: "Com custo",
+  compraSeguirCom: "Escolher",
+  compraEscolhaUm: "Escolha um",
+  compraOQueVaiFazer: "Decisão",
+  compraSugestao: "Sugerido",
+  compraDecGuardar: "Guardar antes",
+  compraDecGuardarSub: "Vira meta",
+  compraDecGuardarMeta: (mensal, mes) => `${mensal} por mês. Compra em ${mes}`,
+  compraDecAmanhaSub: "A conta fica salva",
+  compraDecDesistir: "Desistir",
+  compraDecDesistirSub: "Não é necessário agora",
+  compraFimComprarTitulo: "Compra registrada.",
+  compraFimGuardarTitulo: "Meta definida.",
+  compraFimGuardar: (mensal, meses, mes, corte) =>
+    `${mensal} por mês, ${mesesM(meses)}${corte ? `. Menos ${corte}` : ""}. Compra à vista em ${mes}.`,
+  compraFimAmanhaTitulo: "Adiado.",
+  compraFimDesistirTitulo: "Dinheiro mantido.",
+  compraCriarMeta: "Criar meta",
+  compraMetaCriada: "Meta criada.",
+  compraVerMeta: "Ver meta",
+};
 
 export const minimalista: Voz = {
   saudacao: (p, nome) => `${CUMPRIMENTO[p]}${nome ? `, ${nome}` : ""}.`,
@@ -118,6 +206,7 @@ export const minimalista: Voz = {
     compraOk: "Cabe",
     compraCusto: "Cabe, com custo",
     compraNao: "Não cabe",
+    ...MINIMALISTA_COMPRA,
     comparacao: (tipo, valor, mes) =>
       tipo === "sem" ? `Sem gasto em ${mes}` : tipo === "igual" ? `= ${mes}` : tipo === "mais" ? `+${valor} vs. ${mes}` : `−${valor} vs. ${mes}`,
     simuladores: "Simuladores",

@@ -1,8 +1,88 @@
 import { faltamDias } from "../textos/foco";
-import { TITULOS_PADRAO, simuladoresDoTema, tarefasDoTema, inteiro, semDiaria, estadoParaFrase, type Voz } from "../voice-base";
+import { TITULOS_PADRAO, simuladoresDoTema, tarefasDoTema, inteiro, semDiaria, estadoParaFrase, type Voz, type Titulos } from "../voice-base";
 
 /** "1 ativo" / "3 ativos": a mesma regra de plural do catálogo de importação. */
 const s = (n: number) => (n === 1 ? "" : "s");
+
+const mesesD = (n: number) => `${n} ${n === 1 ? "mês" : "meses"}`;
+
+/**
+ * "Posso comprar?" passo a passo (05/10/2026), na voz do coach: pergunta direta, número na
+ * frente, e a cobrança sempre em cima da conta, nunca de quem está decidindo.
+ */
+const DISCIPLINA_COMPRA: Partial<Titulos> = {
+  compraOutraCoisaPergunta: "O que é? Nome e segue.",
+  compraQuantoCusta: "Quanto custa? O número exato.",
+  compraContinuar: "Próximo →",
+  compraComoPagar: "Como você vai pagar?",
+  compraDecideVoce: "Decide pela conta",
+  compraDecideVoceSub: "O app escolhe o jeito que pesa menos",
+  compraEmQuantasVezes: "Quantas parcelas?",
+  compraTotalPago: (t) => `Total pago: ${t}. Esse é o preço real.`,
+  compraSincera: "Sem rodeio:",
+  compraSinceraSub: "essa compra é…",
+  compraSinceridade: {
+    precisa: { titulo: "Preciso mesmo", sub: "Faz falta no dia a dia" },
+    quero: { titulo: "Quero muito", sub: "Penso nela faz tempo" },
+    impulso: { titulo: "Impulso", sub: "Vi agora e quis" },
+  },
+  compraAnalisando: "Conferindo os números do seu mês…",
+  compraVereditoTitulo: (v, s, soPorImpulso) => {
+    if (v === "ok") return "Liberado. Cabe no plano ✓";
+    if (s === "precisa") return v === "custo" ? "Precisa? Dá. Com ajuste." : "Hoje não fecha. Nem apertando.";
+    if (v === "custo") return soPorImpulso ? "Cabe, mas foi impulso." : "Dá, mas cobra um preço.";
+    return "Agora não. A conta não fecha.";
+  },
+  compraOQueValeMais: "Decide: o que vem primeiro?",
+  compraPrioridadeCompra: "A compra agora",
+  compraPrioridadeSonhoSub: "A compra vira meta e vem depois 🎯",
+  compraVerComoCaber: "Bora fazer caber",
+  compraCaberTitulo: "Dá para fazer caber 🎯",
+  compraCaberSub: "Escolhe um caminho. Cada um mostra o efeito no seu mês.",
+  compraCaberNadaTitulo: "Esse ainda não cabe",
+  compraCaberNada: (v) => `Para ${v}, nenhum atalho cabe no mês de hoje. O plano: juntar uma entrada maior primeiro ou esperar a renda subir.`,
+  compraCaminho: (c) => {
+    switch (c?.chave) {
+      case "parcelar":
+        return { titulo: `${c.vezes}x sem juros`, detalhe: `${c.vezes}x de ${c.porMes}`, comoCompra: `Em ${c.vezes}x de ${c.porMes}, sem juros` };
+      case "barato":
+        return c.vezes && c.vezes > 1
+          ? { titulo: `Teto: ${c.valor}`, detalhe: `Em ${c.vezes}x sem juros, cabe no que sobra`, comoCompra: `Um de até ${c.valor}, em ${c.vezes}x sem juros` }
+          : { titulo: `Teto: ${c.valor}`, detalhe: "À vista, cabe no que sobra", comoCompra: `Um de até ${c.valor}, à vista` };
+      case "cortar":
+        return {
+          titulo: `Cortar ${c.valor}`,
+          detalhe: `Em ${c.cortes}${c.cortePorMes ? ", por mês" : ", só neste mês"}`,
+          comoCompra: `Cortando ${c.valor}${c.cortePorMes ? " por mês" : " neste mês"}`,
+        };
+      case "desconto":
+        return { titulo: "Negociar desconto à vista", detalhe: `Loja costuma dar uns 10%: ${c.valor} em vez de ${c.parcelado} parcelado`, comoCompra: `À vista com desconto, por ${c.valor}` };
+      case "juntarRapido":
+        return { titulo: `Acelerar: compra em ${c.mes}`, detalhe: `Cortando ${c.cortes} por mês, à vista`, comoCompra: `Juntando ${c.porMes} por mês` };
+      case "juntar":
+        return { titulo: `Juntar e comprar em ${c.mes}`, detalhe: `${c.porMes} por mês, à vista`, comoCompra: `Juntando ${c.porMes} por mês` };
+      default:
+        return { titulo: "", detalhe: "", comoCompra: "" };
+    }
+  },
+  compraSeloCabe: "Cabe ✓",
+  compraSeloSemDivida: "Zero dívida ✓",
+  compraSeguirCom: "Fechado, vou por esse",
+  compraOQueVaiFazer: "Hora de decidir. Qual é o movimento?",
+  compraSugestao: "Melhor jogada",
+  compraDecGuardar: "Juntar primeiro",
+  compraDecGuardarSub: "Vira meta no app 🎯",
+  compraDecDesistir: "Desistir",
+  compraFimComprarTitulo: "Compra feita com número ✓",
+  compraFimGuardarTitulo: "Plano fechado 🎯",
+  compraFimGuardar: (mensal, meses, mes, corte) =>
+    `${mensal} por mês por ${mesesD(meses)}${corte ? `, cortando ${corte}` : ""}. Em ${mes} você compra à vista, sem dívida.`,
+  compraFimAmanhaTitulo: "Combinado. Amanhã a gente confere.",
+  compraFimDesistirTitulo: "Dinheiro no lugar ✓",
+  compraCriarMeta: "Criar a meta",
+  compraMetaCriada: "Meta criada ✓",
+  compraVerMeta: "Ver a meta",
+};
 
 /**
  * Disciplina: o coach que cobra porque acredita que a pessoa consegue. Comando curto, número
@@ -661,5 +741,7 @@ export const disciplina: Voz = {
     emailConviteIntro2:
       "Não precisa organizar tudo hoje. <strong>Registra um gasto agora</strong>, só um, e o app já começa a montar o resto: pra onde o dinheiro foi, quanto sobrou, quanto dá pra guardar.",
     emailConviteBotao: "Bora: registrar meu primeiro gasto",
+    // "Posso comprar?" passo a passo: por último, para ganhar.
+    ...DISCIPLINA_COMPRA,
   },
 };

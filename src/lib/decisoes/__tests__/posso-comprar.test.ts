@@ -77,13 +77,17 @@ describe("avaliarCompra: casos que o teste achou", () => {
     expect(r.sugestao).toContain("R$ 1056");
   });
 
-  it("parcelado em 1x é à vista; parcelas acima de 48 avisam o limite", () => {
+  it("parcelado em 1x é à vista; parcelas acima de 420 avisam o limite", () => {
     const uma = avaliarCompra(base, { valor: 500, modo: "parcelado", parcelas: 1, juros: 0, desconto: 0 }, fmt);
     if ("erro" in uma) throw new Error();
     expect(uma.linhas.some((l) => l.rotulo === "Parcela")).toBe(false);
-    const muitas = avaliarCompra(base, { valor: 5000, modo: "parcelado", parcelas: 60, juros: 0, desconto: 0 }, fmt);
+    const muitas = avaliarCompra(base, { valor: 5000, modo: "parcelado", parcelas: 500, juros: 0, desconto: 0 }, fmt);
     if ("erro" in muitas) throw new Error();
-    expect(muitas.conta.some((c) => c.valor.includes("48"))).toBe(true);
+    expect(muitas.conta.some((c) => c.valor.includes("420"))).toBe(true);
+    // Financiamento longo (até 35 anos) é simulado de verdade, sem cortar em 48.
+    const casa = avaliarCompra(base, { valor: 300000, modo: "parcelado", parcelas: 360, juros: 0.008, desconto: 0 }, fmt);
+    if ("erro" in casa || casa.quadro?.modo !== "parcelado") throw new Error();
+    expect(casa.quadro.vezes).toBe(360);
   });
 
   it("perto de 90% mostra casa decimal, e entrada estranha não vira NaN", () => {

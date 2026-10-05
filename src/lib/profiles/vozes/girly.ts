@@ -1069,7 +1069,6 @@ const GIRLY_FIXOS: Partial<Titulos> = {
   decVerCalculadoras: "Ver todas as calculadoras 🧮",
   decPergunteTambem: "Pergunta também 💭",
 
-  compraSub: "Antes de passar o cartão, amiga: o que essa compra faz com o seu mês e com os seus sonhos 💕",
   compraOQue: "O que você quer comprar? 🛍️",
   compraPrecisoRenda: "Para responder, preciso saber quanto entra no seu mês 💸",
   compraPrecisoOrcamento: "Para responder, preciso do seu combinado do mês 📝",
@@ -1187,6 +1186,119 @@ function tarefaGirly(chave: string, texto: string, feita: boolean): string {
     default: return texto;
   }
 }
+
+// "Posso comprar?" passo a passo (05/10/2026): a amiga que pergunta antes de você passar o
+// cartão. Sonho no lugar de meta, combinado no lugar de orçamento, e nada de "pra".
+const mesesG = (n: number) => `${n} ${n === 1 ? "mês" : "meses"}`;
+const GIRLY_COMPRA: Partial<Titulos> = {
+  compraOutraCoisa: "Outra coisa",
+  compraOutraCoisaPergunta: "Me conta, o que é? 👀",
+  compraOutraCoisaExemplo: "Ex.: bolsa, bicicleta, presente",
+  compraQuantoCusta: "Quanto custa? 💸",
+  compraDigitarExato: "Prefiro digitar o valor certinho",
+  compraVoltarRoleta: "Voltar para a roleta",
+  compraContinuar: "Próxima 💕",
+  compraComoPagar: "Como você pensou em pagar? 💳",
+  compraAVistaSub: "Tudo de uma vez",
+  compraParceladoSub: "No cartão ou financiado",
+  compraDecideVoce: "Decide para mim 🙏",
+  compraDecideVoceSub: "Eu vejo o jeito que pesa menos",
+  compraEmQuantasVezes: "Em quantas vezes? 🗓️",
+  compraTemJuros: "Tem juros?",
+  compraJurosNao: "Não 🙌",
+  compraJurosSim: "Sim",
+  compraJurosNaoSei: "Não sei 🤷‍♀️",
+  compraQuantoJuros: "Quanto de juros por mês?",
+  compraResumoParcela: (n, p, j, t) =>
+    `${n}x de ${p}${j === "nao" ? " sem juros 💕" : j === "sim" ? ` com ${t} ao mês` : `. Sem saber, eu conto ${t} ao mês, que é o comum em loja.`}`,
+  compraTotalPago: (t) => `No fim você paga ${t} 👀`,
+  compraSincera: "Seja sincera, amiga 👀",
+  compraSinceraSub: "Essa compra é…",
+  compraSinceridade: {
+    precisa: { titulo: "Preciso mesmo", sub: "Faz falta no dia a dia" },
+    quero: { titulo: "Quero muito", sub: "Penso nela faz tempo" },
+    impulso: { titulo: "Impulso total", sub: "Vi agora e quis" },
+  },
+  compraAnalisando: "Deixa eu ver o seu mês… 🔍",
+  compraAnaliseItens: ["Seus gastos do mês", "O que você já decidiu comprar", "Seus sonhos e a reserva", "Quanto costuma sobrar"],
+  compraVereditoTitulo: (v, s, soPorImpulso) => {
+    if (v === "ok") return "Pode ir, amiga! 💖";
+    if (s === "precisa") return v === "custo" ? "Precisa? A gente dá um jeito 💪" : "Hoje não fecha, nem apertando 🫣";
+    if (v === "custo") return soPorImpulso ? "Cabe, mas foi impulso, hein 👀" : "Dá, mas tem um preço 🤔";
+    return "Eu seguraria essa 🫣";
+  },
+  compraQPreco: "Preço",
+  compraEscolhi: (f) => `Escolhi para você: ${f} 💕`,
+  compraLegLivre: "Livre",
+  compraLegSobra: "Dia a dia",
+  compraLegGuardado: "Do que você guarda",
+  compraLegFalta: "Falta",
+  compraAtraso: (n) => `+${n} ${n === 1 ? "mês" : "meses"} 😬`,
+  compraJurosChip: (v) => `🫣 +${v} só de juros`,
+  compraAvisoDados: "Amiga, confere um dado aqui 👀",
+  compraParcelasAcima: "Passou de 15% do que entra 🫣",
+  compraPagandoAte: (mes) => `⏳ Ainda pagando em ${mes}`,
+  compraQCabe: "Cabe no que está livre 💖",
+  compraQParcelasMes: "Suas parcelas por mês",
+  compraOQueValeMais: "O que vale mais para você? 💭",
+  compraPrioridadeCompra: "Comprar agora",
+  compraPrioridadeCompraSub: (meta, mes) => `${meta} vai para ${mes}`,
+  compraPrioridadeSonho: (meta, mes) => `${meta} em ${mes} ✨`,
+  compraPrioridadeSonhoSub: "A compra vira um sonho e vem depois",
+  compraVerComoCaber: "Me mostra como fazer caber ✨",
+  compraDecidir: "Decidir",
+  compraCaberTitulo: "Dá para fazer caber ✨",
+  compraCaberSub: "Escolhe um caminho. Cada um mostra o que acontece com o seu mês.",
+  compraCaberNadaTitulo: "Essa ainda não cabe, amiga",
+  compraCaberNada: (v) => `Para ${v}, não tem atalho que caiba no seu mês de hoje. Vale ir com calma: juntar uma entrada maior primeiro ou esperar a renda subir 💕`,
+  compraCaminho: (c) => {
+    switch (c?.chave) {
+      case "parcelar":
+        return { titulo: `Parcelar em ${c.vezes}x sem juros`, detalhe: `${c.vezes}x de ${c.porMes}`, comoCompra: `Em ${c.vezes}x de ${c.porMes}, sem juros 💕` };
+      case "barato":
+        return c.vezes && c.vezes > 1
+          ? { titulo: `Achar um de até ${c.valor}`, detalhe: `Em ${c.vezes}x sem juros, cabe no que sobra`, comoCompra: `Um de até ${c.valor}, em ${c.vezes}x sem juros` }
+          : { titulo: `Achar um de até ${c.valor}`, detalhe: "À vista, cabe no que sobra", comoCompra: `Um de até ${c.valor}, à vista` };
+      case "cortar":
+        return {
+          titulo: `Segurar ${c.valor}`,
+          detalhe: `Em ${c.cortes}${c.cortePorMes ? ", por mês" : ", só esse mês"}`,
+          comoCompra: `Segurando ${c.valor}${c.cortePorMes ? " por mês" : " esse mês"}`,
+        };
+      case "desconto":
+        return { titulo: "Pedir desconto à vista 🤝", detalhe: `Loja costuma dar uns 10%: ${c.valor} em vez de ${c.parcelado} parcelado`, comoCompra: `À vista com desconto, por ${c.valor}` };
+      case "juntarRapido":
+        return { titulo: `Juntar mais rápido e comprar em ${c.mes}`, detalhe: `Gastando ${c.cortes} a menos por mês, à vista`, comoCompra: `Juntando ${c.porMes} por mês` };
+      case "juntar":
+        return { titulo: `Juntar e comprar em ${c.mes}`, detalhe: `Guardando ${c.porMes} por mês, à vista`, comoCompra: `Juntando ${c.porMes} por mês` };
+      default:
+        return { titulo: "", detalhe: "", comoCompra: "" };
+    }
+  },
+  compraSeloCabe: "Cabe 💖",
+  compraSeloSemDivida: "Sem dívida 💖",
+  compraSeloCusto: "Ainda pesa um pouco",
+  compraSeguirCom: "Vou por esse 💕",
+  compraEscolhaUm: "Escolhe um caminho",
+  compraOQueVaiFazer: "E aí, o que você vai fazer? 💭",
+  compraSugestao: "Minha sugestão 💡",
+  compraDecComprarSub: (precisa) => (precisa ? "Do jeito que pesa menos" : "Do jeito que a gente viu"),
+  compraDecGuardar: "Vou juntar primeiro",
+  compraDecGuardarSub: "Vira um sonho no app",
+  compraDecGuardarMeta: (mensal, mes) => `${mensal} por mês, e em ${mes} é sua ✨`,
+  compraDecAmanhaSub: "Se amanhã ainda quiser, volta aqui",
+  compraDecDesistir: "Vou deixar para lá",
+  compraDecDesistirSub: "Não preciso disso agora",
+  compraFimComprarTitulo: "Boa compra, amiga! ✨",
+  compraFimGuardarTitulo: "Compra planejada! 🐷",
+  compraFimGuardar: (mensal, meses, mes, corte) =>
+    `${mensal} por mês por ${mesesG(meses)}${corte ? `, gastando ${corte} a menos` : ""}. Em ${mes} você compra à vista, sem dívida 💖`,
+  compraFimAmanhaTitulo: "Combinado! 🤝",
+  compraFimDesistirTitulo: "O dinheiro ficou com você! 🙌",
+  compraCriarMeta: "Criar o sonho ✨",
+  compraMetaCriada: "Sonho criado! 💖",
+  compraVerMeta: "Ver o sonho",
+};
 
 export const girly: Voz = {
   // Como se uma amiga tivesse escrito. Simples, sem financês, com emoji — e "boaaaa" quando
@@ -1338,6 +1450,7 @@ export const girly: Voz = {
     ...GIRLY_CART,
     ...GIRLY_PAINEIS,
     ...GIRLY_FIXOS,
+    ...GIRLY_COMPRA,
     comparacao: (tipo, valor, mes) =>
       tipo === "sem" ? `Nadinha em ${mes} 🌸` : tipo === "igual" ? `Igualzinho a ${mes} 💕` : tipo === "mais" ? `${valor} a mais que ${mes} 🫣` : `${valor} a menos que ${mes}! Boaaaa 👏`,
     simuladores: "Bora simular? 🧮✨",

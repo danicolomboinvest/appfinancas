@@ -33,6 +33,7 @@ import { responderRendaDoCasalAction } from "@/app/(app)/mensal/foco/actions";
 import { ehCasal } from "@/lib/profiles/casal";
 import { lerDecisao, listarComprasDecididasDesde } from "@/lib/repositories/decisao.repo";
 import { categoryLabel } from "@/lib/categories";
+import { parcelasPorMes } from "@/lib/decisoes/compra-guiada";
 
 /** Rendimento de referência quando a pessoa não informou nenhum (≈ CDI líquido, ao mês). */
 const TAXA_PADRAO = 0.009;
@@ -65,7 +66,7 @@ export default async function PossoComprarPage() {
   }
 
   // As compras decididas que ainda podem pesar: à vista deste mês e parceladas ainda no prazo
-  // (até 48 parcelas). Antes só vinham as deste mês, e a geladeira em 12x decidida no dia 28
+  // (até 420 parcelas: financiamento também). Antes só vinham as deste mês, e a geladeira em 12x decidida no dia 28
   // sumia da conta no dia 1.
   const agora = new Date();
   const desdeParcelas = new Date(Date.UTC(year, month - 1 - MAX_PARCELAS, 1, 3));
@@ -83,6 +84,19 @@ export default async function PossoComprarPage() {
     listarComprasDecididasDesde(ctx, desdeParcelas),
   ]);
   const decididas = todasDecididas.filter((d) => compraDecididaEmAberto(d, agora));
+  // As parcelas que ela já paga ("LOJA 03/10" na fatura), deste mês e do mês passado: a regra de
+  // não sugerir parcelinha olha a soma de todas, não só a nova.
+  const mesPassado = month === 1 ? { year: year - 1, month: 12 } : { year, month: month - 1 };
+  const gastosComParcela = await prisma.monthlyEntry.findMany({
+    where: { userId: ctx.userId, profileId: ctx.profileId, category: "EXPENSE", amount: { gt: 0 }, description: { contains: "/" }, OR: [{ year, month }, mesPassado] },
+    select: { year: true, month: true, description: true, amount: true },
+    take: 3000,
+  });
+  const comoGasto = (g: (typeof gastosComParcela)[number]) => ({ descricao: g.description ?? "", valor: Number(g.amount) });
+  const parcelasNaFatura = parcelasPorMes(
+    gastosComParcela.filter((g) => g.year === year && g.month === month).map(comoGasto),
+    gastosComParcela.filter((g) => g.year !== year || g.month !== month).map(comoGasto),
+  );
   // Os gastos lançados depois de cada decisão com o valor dela (ou da parcela): só esses dizem
   // se a compra já está nos números. Busca por faixa de valor pra não varrer anos de lançamentos.
   const faixas = decididas
@@ -107,6 +121,8 @@ export default async function PossoComprarPage() {
     lancados.map((g) => ({ valor: Number(g.amount), criadoEm: g.createdAt })),
     agora,
   );
+  // As decididas que ainda não chegaram na fatura somam com as que já aparecem nela.
+  const parcelasNoMes = parcelasNaFatura + jaDecidido.parcelaMensal;
 
   const gastoPorMae = new Map(spentByParent.map((s) => [s.parentCategory as string, s.spent]));
   const gastoPorPersonalizada = new Map(spentByCustom.map((s) => [s.customCategoryId, s.spent]));
@@ -207,7 +223,7 @@ export default async function PossoComprarPage() {
       <Link href="/decidir" className="flex w-fit items-center gap-1 text-sm text-ink-muted hover:text-ink">
         <ChevronLeft size={16} /> {t.decTitulo}
       </Link>
-      <PageHeader title={t.compraTitulo} subtitle={t.compraSub} />
+      <PageHeader title={t.compraTitulo} />
       {casal && (
         <form action={responderRendaDoCasalAction.bind(null, rendaDoCasal === "conjunta" ? "casal" : "conjunta")} className="-mt-2 flex flex-wrap items-center gap-x-2 text-caption text-ink-muted">
           Renda considerada: {rendaDoCasal === "conjunta" ? "só o que cada um põe na conta conjunta" : "a do casal inteira"}.
@@ -216,7 +232,7 @@ export default async function PossoComprarPage() {
           </button>
         </form>
       )}
-      <PossoComprar base={base} hoje={{ ano: year, mes: month }} />
+      <PossoComprar base={base} hoje={{ ano: year, mes: month }} parcelasNoMes={parcelasNoMes} />
     </div>
   );
 }

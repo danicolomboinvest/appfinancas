@@ -99,6 +99,40 @@ export type Compra = {
 
 export type Veredito = "ok" | "custo" | "nao";
 
+/**
+ * A conta em linhas de gente (05/10/2026): a Dani olhou "Guardado por mês R$ 729 → R$ 620" e não
+ * entendeu de onde vinha. O quadro conta a mesma conta como história: quanto custa, quanto disso
+ * o dinheiro livre cobre, e de onde sai o resto (do que ela guarda pras metas, da sobra do dia a
+ * dia, ou do básico). A tela monta as frases; aqui só os números.
+ */
+export type QuadroDaCompra =
+  | {
+      modo: "vista";
+      custo: number;
+      /** Dinheiro do mês sem destino, antes da compra. */
+      livre: number;
+      doLivre: number;
+      /** Da sobra do orçamento do dia a dia. */
+      daSobra: number;
+      /** O que nem a sobra cobre: sairia do básico do mês ou da reserva. */
+      falta: number;
+    }
+  | {
+      modo: "parcelado";
+      parcela: number;
+      vezes: number;
+      livre: number;
+      doLivre: number;
+      /** O que ela guarda por mês hoje (metas + plano). */
+      guardado: number;
+      /** Quanto da parcela sai do guardado, por mês. */
+      doGuardado: number;
+      /** As metas que recebem menos, e quanto menos por mês. */
+      metas: { nome: string; aMenos: number }[];
+      /** As metas cuja data muda: meses daqui até chegar, hoje e com a compra (null = sem previsão). */
+      datas: { nome: string; antes: number | null; depois: number | null }[];
+    };
+
 export type LinhaAntesDepois = { rotulo: string; hoje: string; depois: string };
 
 export type ResultadoCompra =
@@ -124,10 +158,16 @@ export type ResultadoCompra =
       precisa?: { valor: number; porMes: boolean; ritmo?: number } | null;
       saidas?: Saidas | null;
       conta: { rotulo: string; valor: string }[];
+      quadro?: QuadroDaCompra;
+      /**
+       * Dá pra pagar sem mexer no básico do mês (sai do livre, da sobra do dia a dia ou do que
+       * ela guarda)? É o que separa "precisa, então vamos achar o jeito" de "não fecha".
+       */
+      pagavel?: boolean;
     };
 
 export const LIMITE_GASTO = 0.9;
-const MAX_MESES = 600;
+const MAX_MESES = 900;
 
 /** Meses até a meta chegar no alvo, com o aporte de cada mês dado por `aporteNoMes(k)`. */
 export function mesesAteMeta(meta: Pick<CompraMeta, "atual" | "alvo" | "taxa">, aporteNoMes: (k: number) => number): number | null {
@@ -221,7 +261,8 @@ function avaliarSemAvisos(base: CompraBase, compraBruta: Compra, fmt: Formatos):
   if (!(base.renda > 0)) return { erro: "renda" };
   if (!(base.gastoPlanejado > 0)) return { erro: "orcamento" };
   const { money, mesDaqui } = fmt;
-  // Entrada saneada: desconto entre 0 e 90%, juros nunca negativo, parcelas inteiras de 1 a 48.
+  // Entrada saneada: desconto entre 0 e 90%, juros nunca negativo, parcelas inteiras de 1 a 420
+  // (35 anos: financiamento de moto, carro e casa também passa por aqui).
   const parcelasPedidas = Number.isFinite(compraBruta.parcelas) ? Math.round(compraBruta.parcelas) : 1;
   const compra: Compra = {
     ...compraBruta,
@@ -314,19 +355,21 @@ function avaliarSemAvisos(base: CompraBase, compraBruta: Compra, fmt: Formatos):
       { rotulo: "Depois da compra", valor: falta > 0 ? `falta ${money(falta)}` : money(depois) },
     ];
     const cmp = comprometimento(gastoMesDepois, comprometidoNoMes);
+    const quadro: QuadroDaCompra = { modo: "vista", custo, livre: semDestino, doLivre: doSemDestino, daSobra: Math.min(Math.max(0, resto), sobra), falta: Math.max(0, falta) };
+    const pagavel = falta <= 0;
     // Cabe no dinheiro do mês, mas os gastos passam de 90% da renda: sobra menos de 10% pra
     // guardar. Não é "não", mas também não é verde.
     if (falta <= 0 && passa90) {
-      return { veredito: "custo", titulo: "Cabe, mas passa da regra dos 90%", explicacao: `Neste mês seus gastos iriam a ${pct(gastoMesDepois / base.renda)} da renda: sobra menos de 10% pra guardar.`, linhas, sugestao: null, comparacao: null, custoJuros: null, comprometimento: cmp, conta, precisa: { valor: gastoMesDepois - base.renda * LIMITE_GASTO, porMes: false } };
+      return { veredito: "custo", titulo: "Cabe, mas passa da regra dos 90%", explicacao: `Neste mês seus gastos iriam a ${pct(gastoMesDepois / base.renda)} da renda: sobra menos de 10% pra guardar.`, linhas, sugestao: null, comparacao: null, custoJuros: null, comprometimento: cmp, conta, quadro, pagavel, precisa: { valor: gastoMesDepois - base.renda * LIMITE_GASTO, porMes: false } };
     }
     if (resto <= 0) {
-      return { veredito: "ok", titulo: "Cabe no dinheiro que ainda não tem destino", explicacao: temMetas ? "Não mexe no dia a dia nem nas suas metas." : "Não mexe no dinheiro do dia a dia.", linhas, sugestao: null, comparacao: null, custoJuros: null, comprometimento: cmp, conta };
+      return { veredito: "ok", titulo: "Cabe no dinheiro que ainda não tem destino", explicacao: temMetas ? "Não mexe no dia a dia nem nas suas metas." : "Não mexe no dinheiro do dia a dia.", linhas, sugestao: null, comparacao: null, custoJuros: null, comprometimento: cmp, conta, quadro, pagavel };
     }
     if (resto <= sobra * 0.35) {
-      return { veredito: "ok", titulo: "Cabe no que está livre este mês", explicacao: temMetas ? "Suas metas não mudam. Só sobra um pouco menos pro resto do mês." : "Só sobra um pouco menos pro resto do mês.", linhas, sugestao: null, comparacao: null, custoJuros: null, comprometimento: cmp, conta };
+      return { veredito: "ok", titulo: "Cabe no que está livre este mês", explicacao: temMetas ? "Suas metas não mudam. Só sobra um pouco menos pro resto do mês." : "Só sobra um pouco menos pro resto do mês.", linhas, sugestao: null, comparacao: null, custoJuros: null, comprometimento: cmp, conta, quadro, pagavel };
     }
     if (resto <= sobra) {
-      return { veredito: "custo", titulo: "Cabe, mas aperta o resto do mês", explicacao: `Sobram ${money(porSemana(depois))} por semana até o fim do mês.`, linhas, sugestao: null, comparacao: null, custoJuros: null, comprometimento: cmp, conta, precisa: { valor: resto - sobra * 0.35, porMes: false } };
+      return { veredito: "custo", titulo: "Cabe, mas aperta o resto do mês", explicacao: `Sobram ${money(porSemana(depois))} por semana até o fim do mês.`, linhas, sugestao: null, comparacao: null, custoJuros: null, comprometimento: cmp, conta, quadro, pagavel, precisa: { valor: resto - sobra * 0.35, porMes: false } };
     }
     // Casal com conta conjunta não usa a regra dos 90%: o limite é o que entra na conta.
     const semRegra90 = base.regra90 === false;
@@ -354,16 +397,31 @@ function avaliarSemAvisos(base: CompraBase, compraBruta: Compra, fmt: Formatos):
       custoJuros: null,
       comprometimento: cmp,
       conta,
+      quadro,
+      pagavel,
       // O mesmo ritmo da sugestão de cima ("guardando X por mês"), para as duas não se contradizerem.
       precisa: { valor: falta, porMes: false, ritmo: folga > 0 ? folga : undefined },
     };
   }
 
-  const n = Math.max(2, Math.min(48, parcelasPedidas));
+  const n = Math.max(2, Math.min(MAX_PARCELAS, parcelasPedidas));
   const parcela = compra.juros > 0 ? (compra.valor * compra.juros) / (1 - Math.pow(1 + compra.juros, -n)) : compra.valor / n;
   const gastoDepois = (comprometido + parcela) / base.renda;
   const doGuardado = Math.max(0, parcela - semDestino);
   const cortes = cortesPorMeta(base.metas, Math.max(0, doGuardado - guardadoSemMeta));
+  const quadro: QuadroDaCompra = {
+    modo: "parcelado",
+    parcela,
+    vezes: n,
+    livre: semDestino,
+    doLivre: Math.min(parcela, semDestino),
+    guardado: guardadoHoje,
+    doGuardado: Math.min(doGuardado, guardadoHoje),
+    metas: base.metas.filter((m) => (cortes.get(m.id) ?? 0) > 0).map((m) => ({ nome: m.nome, aMenos: cortes.get(m.id) ?? 0 })),
+    datas: [],
+  };
+  // Pagável: a parcela cabe no livre + no que ela guarda. Passar disso é tirar do básico.
+  const pagavel = parcela <= semDestino + guardadoHoje + 1e-9;
   const linhas: LinhaAntesDepois[] = [
     { rotulo: "Parcela", hoje: "—", depois: `${money(parcela)} × ${n}` },
     linhaComprometida(comprometido + parcela),
@@ -386,6 +444,10 @@ function avaliarSemAvisos(base: CompraBase, compraBruta: Compra, fmt: Formatos):
       hoje: usaPrazo ? mesDaqui(m.mesesAtePrazo!) : mesDaqui(antes),
       depois: usaPrazo ? (depois === null ? mesDaqui(null) : mesDaqui(m.mesesAtePrazo! + Math.max(0, atraso))) : mesDaqui(depois),
     });
+    if (atraso !== 0) {
+      const hojeMeses = usaPrazo ? m.mesesAtePrazo! : antes;
+      quadro.datas.push({ nome: m.nome, antes: hojeMeses, depois: depois === null ? null : usaPrazo ? m.mesesAtePrazo! + Math.max(0, atraso) : depois });
+    }
     if (m.reserva) atrasoReserva = atraso;
     else if (atraso > 0 && (!maiorAtraso || atraso > maiorAtraso.meses)) maiorAtraso = { nome: m.nome, meses: atraso };
   }
@@ -396,7 +458,7 @@ function avaliarSemAvisos(base: CompraBase, compraBruta: Compra, fmt: Formatos):
   const cabeNaConjunta = semDestino + guardadoHoje;
   const conta = [
     { rotulo: "Parcela", valor: money(parcela) },
-    ...(parcelasPedidas > 48 ? [{ rotulo: "Parcelas consideradas", valor: "48 (o máximo que o app simula)" }] : []),
+    ...(parcelasPedidas > MAX_PARCELAS ? [{ rotulo: "Parcelas consideradas", valor: `${MAX_PARCELAS} (o máximo que o app simula)` }] : []),
     contaComprometido,
     ...contaDecididas,
     { rotulo: "Comprometido + parcela", valor: money(comprometido + parcela) },
@@ -440,6 +502,8 @@ function avaliarSemAvisos(base: CompraBase, compraBruta: Compra, fmt: Formatos):
       alertaJuros,
       comprometimento: comprometimento(comprometido + parcela),
       conta,
+      quadro,
+      pagavel,
       precisa: { valor: comprometido + parcela - base.renda * LIMITE_GASTO, porMes: true },
     };
   }
@@ -456,14 +520,16 @@ function avaliarSemAvisos(base: CompraBase, compraBruta: Compra, fmt: Formatos):
       alertaJuros,
       comprometimento: comprometimento(comprometido + parcela),
       conta,
+      quadro,
+      pagavel,
       precisa: { valor: parcela - cabeNaConjunta, porMes: true },
     };
   }
   if (atrasoReserva > 0) {
-    return { veredito: "custo", titulo: "Cabe, mas atrasa sua reserva", explicacao: `A reserva é a sua segurança e passaria a chegar ${atrasoReserva} ${atrasoReserva > 1 ? "meses" : "mês"} depois.`, linhas, sugestao: null, comparacao, custoJuros, alertaJuros, comprometimento: comprometimento(comprometido + parcela), conta, precisa: { valor: doGuardado, porMes: true } };
+    return { veredito: "custo", titulo: "Cabe, mas atrasa sua reserva", explicacao: `A reserva é a sua segurança e passaria a chegar ${atrasoReserva} ${atrasoReserva > 1 ? "meses" : "mês"} depois.`, linhas, sugestao: null, comparacao, custoJuros, alertaJuros, comprometimento: comprometimento(comprometido + parcela), conta, quadro, pagavel, precisa: { valor: doGuardado, porMes: true } };
   }
   if (maiorAtraso && maiorAtraso.meses > 1) {
-    return { veredito: "custo", titulo: "Cabe, mas tem um custo", explicacao: `${maiorAtraso.nome} atrasa ${maiorAtraso.meses} meses. A reserva continua no prazo, porque ela é a última a ser mexida.`, linhas, sugestao: null, comparacao, custoJuros, alertaJuros, comprometimento: comprometimento(comprometido + parcela), conta, precisa: { valor: doGuardado, porMes: true } };
+    return { veredito: "custo", titulo: "Cabe, mas tem um custo", explicacao: `${maiorAtraso.nome} atrasa ${maiorAtraso.meses} meses. A reserva continua no prazo, porque ela é a última a ser mexida.`, linhas, sugestao: null, comparacao, custoJuros, alertaJuros, comprometimento: comprometimento(comprometido + parcela), conta, quadro, pagavel, precisa: { valor: doGuardado, porMes: true } };
   }
   return {
     veredito: jurosAltos ? "custo" : "ok",
@@ -484,6 +550,8 @@ function avaliarSemAvisos(base: CompraBase, compraBruta: Compra, fmt: Formatos):
     alertaJuros,
     comprometimento: comprometimento(comprometido + parcela),
     conta,
+    quadro,
+    pagavel,
   };
 }
 
@@ -494,7 +562,7 @@ export type GastoLancado = { valor: number; criadoEm: Date };
 export const FOLGA_LANCAMENTO_MS = 30 * 60_000;
 
 /** Até quantos meses atrás uma compra parcelada decidida ainda pode estar sendo paga (o máximo que o app simula). */
-export const MAX_PARCELAS = 48;
+export const MAX_PARCELAS = 420;
 
 const ehParcelada = (d: CompraDecidida) => d.modo === "parcelado" && d.parcelas > 1;
 

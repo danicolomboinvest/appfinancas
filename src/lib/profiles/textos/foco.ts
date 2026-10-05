@@ -99,7 +99,6 @@ export type TextosFoco = {
   compraDesisti: string;
   compraAmanha: string;
   /** A linha embaixo do título da tela. */
-  compraSub: string;
   compraOQue: string;
   compraOQueExemplo: string;
   compraValorTotal: string;
@@ -400,7 +399,6 @@ export const PADRAO_FOCO: TextosFoco = {
   compraNao: "Não recomendo agora",
   compraDesisti: "Desisti",
   compraAmanha: "Decidir amanhã",
-  compraSub: "Antes de passar o cartão: o que essa compra faz com o seu mês e com as suas metas.",
   compraOQue: "O que você quer comprar?",
   compraOQueExemplo: "Ex.: celular",
   compraValorTotal: "Valor total",

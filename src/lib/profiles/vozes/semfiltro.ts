@@ -1,5 +1,5 @@
 import { nDias } from "../textos/foco";
-import { TITULOS_PADRAO, simuladoresDoTema, tarefasDoTema, inteiro, semDiaria, estadoParaFrase, type Voz } from "../voice-base";
+import { TITULOS_PADRAO, simuladoresDoTema, tarefasDoTema, inteiro, semDiaria, estadoParaFrase, type Voz, type Titulos } from "../voice-base";
 
 /**
  * Sem filtro: a amiga brasileira debochada, a que manda áudio de três minutos e fala a verdade
@@ -77,6 +77,85 @@ function escolhe(opcoes: [string, string, string] | undefined, mes: string, cate
   for (const c of categoria) h += c.charCodeAt(0);
   return opcoes[h % 3];
 }
+
+/**
+ * "Posso comprar?" passo a passo (05/10/2026). Ri da vitrine, do "12x sem juros" e da fatura;
+ * número, prazo e aviso continuam onde o Padrão deixou.
+ */
+const mesesSF = (n: number) => `${n} ${n === 1 ? "mês" : "meses"}`;
+
+const SEMFILTRO_COMPRA: Partial<Titulos> = {
+  compraOutraCoisaPergunta: "Fala, o que é? 👀",
+  compraQuantoCusta: "Quanto custa? (o preço de verdade)",
+  compraComoPagar: "E vai pagar como?",
+  compraDecideVoce: "Decide por mim, vai",
+  compraDecideVoceSub: "Eu acho o jeito que dói menos",
+  compraEmQuantasVezes: "Em quantas vezes? 💳",
+  compraTotalPago: (t) => `No fim sai ${t}. A loja agradece 🙃`,
+  compraSincera: "Sem filtro agora 👀",
+  compraSinceraSub: "Essa compra é…",
+  compraSinceridade: {
+    precisa: { titulo: "Preciso mesmo", sub: "Faz falta no dia a dia" },
+    quero: { titulo: "Quero muito", sub: "Penso nela faz tempo" },
+    impulso: { titulo: "Impulso, confesso", sub: "Vi agora e quis 🫣" },
+  },
+  compraAnalisando: "Deixa eu olhar o seu mês… 🔍",
+  compraVereditoTitulo: (v, s, soPorImpulso) => {
+    if (v === "ok") return "Pode comprar. Sem drama 😎";
+    if (s === "precisa") return v === "custo" ? "Precisa? Dá pra fazer." : "Hoje não fecha, nem apertando 🫠";
+    if (v === "custo") return soPorImpulso ? "Cabe, mas foi impulso 👀" : "Dá, mas vai doer um pouco.";
+    return "Eu não compraria agora 🫠";
+  },
+  compraOQueValeMais: "O que vale mais pra você?",
+  compraPrioridadeCompra: "Comprar agora",
+  compraPrioridadeSonhoSub: "A compra vira meta e vem depois",
+  compraVerComoCaber: "Ver como fazer caber",
+  compraCaberTitulo: "Dá pra fazer caber 😏",
+  compraCaberSub: "Escolhe um caminho. Cada um mostra o que acontece com o seu mês.",
+  compraCaberNadaTitulo: "Esse ainda não cabe 🫠",
+  compraCaberNada: (v) => `Pra ${v}, não tem atalho que caiba no mês de hoje. Nem o 12x salva. Melhor juntar uma entrada maior antes ou esperar a renda subir.`,
+  compraCaminho: (c) => {
+    switch (c?.chave) {
+      case "parcelar":
+        return { titulo: `Parcelar em ${c.vezes}x sem juros`, detalhe: `${c.vezes}x de ${c.porMes}`, comoCompra: `Em ${c.vezes}x de ${c.porMes}, sem juros` };
+      case "barato":
+        return c.vezes && c.vezes > 1
+          ? { titulo: `Achar um de até ${c.valor}`, detalhe: `Em ${c.vezes}x sem juros, cabe no que sobra`, comoCompra: `Um de até ${c.valor}, em ${c.vezes}x sem juros` }
+          : { titulo: `Achar um de até ${c.valor}`, detalhe: "À vista, cabe no que sobra", comoCompra: `Um de até ${c.valor}, à vista` };
+      case "cortar":
+        return {
+          titulo: `Segurar ${c.valor}`,
+          detalhe: `Em ${c.cortes}${c.cortePorMes ? ", por mês" : ", só neste mês"}`,
+          comoCompra: `Segurando ${c.valor}${c.cortePorMes ? " por mês" : " neste mês"}`,
+        };
+      case "desconto":
+        return { titulo: "Chorar desconto à vista 🤝", detalhe: `Loja costuma dar uns 10%: ${c.valor} em vez de ${c.parcelado} parcelado`, comoCompra: `À vista com desconto, por ${c.valor}` };
+      case "juntarRapido":
+        return { titulo: `Juntar mais rápido e comprar em ${c.mes}`, detalhe: `Gastando ${c.cortes} a menos por mês, à vista`, comoCompra: `Juntando ${c.porMes} por mês` };
+      case "juntar":
+        return { titulo: `Juntar e comprar em ${c.mes}`, detalhe: `Guardando ${c.porMes} por mês, à vista`, comoCompra: `Juntando ${c.porMes} por mês` };
+      default:
+        return { titulo: "", detalhe: "", comoCompra: "" };
+    }
+  },
+  compraSeloCabe: "Cabe ✓",
+  compraSeloSemDivida: "Zero fatura ✓",
+  compraSeguirCom: "Vou nesse",
+  compraOQueVaiFazer: "E aí, vai fazer o quê?",
+  compraSugestao: "Se fosse eu",
+  compraDecGuardar: "Vou juntar antes",
+  compraDecGuardarSub: "Vira meta no app",
+  compraDecDesistir: "Vou deixar pra lá",
+  compraFimComprarTitulo: "Comprado, e com a conta feita 😎",
+  compraFimGuardarTitulo: "Compra planejada. Quem diria 😏",
+  compraFimGuardar: (mensal, meses, mes, corte) =>
+    `${mensal} por mês por ${mesesSF(meses)}${corte ? `, gastando ${corte} a menos` : ""}. Em ${mes} você compra à vista, sem fatura te esperando.`,
+  compraFimAmanhaTitulo: "Fechado. Dorme em cima 😴",
+  compraFimDesistirTitulo: "O dinheiro ficou. A loja chora 😌",
+  compraCriarMeta: "Criar a meta",
+  compraMetaCriada: "Meta criada. Agora é com você 😏",
+  compraVerMeta: "Ver a meta",
+};
 
 export const semfiltro: Voz = {
   saudacao: (p, nome) => {
@@ -196,6 +275,7 @@ export const semfiltro: Voz = {
     compraOk: "Vai fundo",
     compraCusto: "Dá, mas vai doer",
     compraNao: "Nem pensar 🫠",
+    ...SEMFILTRO_COMPRA,
     comparacao: (tipo, valor, mes, categoria) => {
       if (tipo === "sem") return `Em ${mes} foi zero. Ninguém sabe, ninguém viu 👀`;
       if (tipo === "igual") return `Igual a ${mes}. Consistente, pelo menos 😐`;

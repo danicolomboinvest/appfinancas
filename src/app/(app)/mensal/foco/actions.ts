@@ -38,7 +38,7 @@ const compraSchema = z.object({
   valor: z.number().positive().transform((v) => Math.min(v, 100_000_000)),
   descricao: z.string().optional().transform((s) => s?.slice(0, 120)),
   modo: z.enum(["vista", "parcelado"]),
-  parcelas: z.number().int().min(1).max(48),
+  parcelas: z.number().int().min(1).max(420),
 });
 
 /**
