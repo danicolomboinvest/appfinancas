@@ -30,8 +30,12 @@ export default async function FocoPage() {
   const ondeFechar = ondeMostrarFechamento({ ritmo, fechamentoFeito: d.fechamentoFeito, mesAnteriorTemDados: d.mesAnteriorTemDados, dia: d.dia });
   const livre = foco.livre;
   const voz = vozDoTema(ctx.profileTheme, ctx.profileKind);
-  // A mesma régua da Visão mensal: o que já saiu do orçamento contra o quanto do mês já passou.
-  const ritmoAtual = livre.tipo === "semana" || livre.tipo === "mes" ? ritmoDoMes(livre.gastoTotal / livre.planejado, livre.decorrido) : "dentro";
+  // O que já correu do orçamento contra o quanto do mês já passou, sem as contas fixas: com elas,
+  // o aluguel do dia 1 fazia todo começo de mês parecer "gastando rápido demais" (05/10/2026).
+  const ritmoAtual =
+    (livre.tipo === "semana" || livre.tipo === "mes") && livre.planoVariavel > 0
+      ? ritmoDoMes(livre.gastoVariavel / livre.planoVariavel, livre.decorrido)
+      : "dentro";
   const comece = blocos.onboarding;
   const contaNova = !comece.temLancamento;
   const cartaoAcao = "flex w-full items-center justify-between gap-4 text-left";
@@ -60,8 +64,8 @@ export default async function FocoPage() {
               hoje={d.now}
               ritmo={ritmoAtual}
               frase={voz.ritmo[ritmoAtual]}
-              planejado={livre.planejado}
-              gastoTotal={livre.tipo === "estimativa" ? 0 : livre.gastoTotal}
+              planejado={livre.planoVariavel}
+              gastoTotal={livre.tipo === "estimativa" ? 0 : livre.gastoVariavel}
               decorrido={livre.tipo === "estimativa" ? 0 : livre.decorrido}
               diasRestantes={livre.diasRestantes}
               money={m}

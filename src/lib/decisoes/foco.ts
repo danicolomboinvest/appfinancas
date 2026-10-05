@@ -112,7 +112,44 @@ export type FocoLivre =
       semGastoComData: boolean;
       /** O mesmo "livre", dividido por categoria (soma = `restante`): é o que o ritual mostra. */
       porCategoria: { key: string; label: string; restante: number }[];
+      /**
+       * O pedaço do orçamento que "corre" ao longo do mês, e quanto dele já saiu: sem as contas
+       * fixas (moradia, escola, impostos) e sem as despesas recorrentes já lançadas. É a régua do
+       * ritmo e da previsão do cartão (ver `ritmoVariavel`).
+       */
+      planoVariavel: number;
+      gastoVariavel: number;
     };
+
+/**
+ * O que já "correu" do mês, sem as contas que se pagam de uma vez.
+ *
+ * Achado em 05/10/2026: no começo de todo mês o cartão do Foco dizia "gastando rápido demais" pra
+ * quem estava gastando certinho. O ritmo era o gasto TOTAL sobre o planejado, contra quanto do mês
+ * passou: o aluguel pago no dia 1 sozinho já era 25% do mês, no dia em que tinha passado 3%. E a
+ * previsão multiplicava o aluguel pelos dias que faltam, como se ele fosse pago de novo.
+ *
+ * Aqui a conta fixa sai dos dois lados (do gasto e do plano) e só volta como estouro, o que passou
+ * do planejado dela. O mesmo vale pra despesa recorrente já lançada no mês (`fixoAutomatico`). O
+ * gasto fora do orçamento continua contando: ele corre como qualquer outro.
+ */
+export function ritmoVariavel(
+  categorias: Pick<FocoCategoria, "gasto" | "planejado" | "fixa" | "fixoAutomatico">[],
+  foraDoOrcamento: number,
+): { planoVariavel: number; gastoVariavel: number } {
+  let planoVariavel = 0;
+  let gastoVariavel = Math.max(0, foraDoOrcamento);
+  for (const c of categorias) {
+    if (c.fixa) {
+      gastoVariavel += Math.max(0, c.gasto - c.planejado);
+      continue;
+    }
+    const fixo = Math.min(c.fixoAutomatico ?? 0, c.planejado);
+    planoVariavel += c.planejado - fixo;
+    gastoVariavel += Math.max(0, c.gasto - Math.min(fixo, c.gasto));
+  }
+  return { planoVariavel, gastoVariavel };
+}
 
 /**
  * Os números por trás de cada aviso: é o que a janela "Ver o que fazer" mostra e usa pra oferecer
@@ -256,8 +293,10 @@ export function montarFoco(e: FocoEntrada): FocoSaida {
     // ganha outro aviso depois da primeira semana (não dá pra dizer "há N dias").
     const velho = e.ritmo === "semanal" && e.diasDesdeUltimoGasto !== null && e.diasDesdeUltimoGasto > DIAS_DADO_VELHO ? e.diasDesdeUltimoGasto : null;
     const semGastoComData = e.ritmo === "semanal" && e.diasDesdeUltimoGasto === null && e.dia > DIAS_DADO_VELHO;
+    const variavel = ritmoVariavel(e.categorias, Math.max(0, e.gastoDoMes - gastoNoOrcamento));
     livre = {
       tipo: semDadoDoMes ? "estimativa" : e.ritmo === "semanal" ? "semana" : "mes",
+      ...variavel,
       valor: e.ritmo === "semanal" && !semDadoDoMes ? porSemana : restante,
       porSemana,
       restante,
