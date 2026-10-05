@@ -338,6 +338,12 @@ html.app-margem-nativa {
   --safe-top: 0px;
   --safe-bottom: 0px;
 }
+/* O app de iPhone da versão 1.0 aumenta as letras em 14% (html { font-size: 114% !important }).
+   A Dani achou tudo grande e fora de proporção (05/10/2026): com a classe, o seletor ganha em
+   especificidade e o app mostra o site no tamanho dele. A versão 1.0.1 nem aumenta mais. */
+html.app-ios {
+  font-size: 100% !important;
+}
 
 /* Comportamento de app nativo: sem "puxão" elástico ao rolar além do fim, sem o flash azul de
    toque (cara de página web), sem barra de rolagem à vista e sem zoom (nem pinça, nem duplo

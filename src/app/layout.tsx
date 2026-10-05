@@ -67,6 +67,7 @@ try {
   // App de iPhone da primeira versão: ele mesmo já tira as margens do relógio e da barrinha de
   // baixo. A versão nova vai até as bordas e se anuncia como "SPIFinanceApp-iOS/2".
   if (/SPIFinanceApp-iOS(?!\/)/.test(navigator.userAgent)) document.documentElement.classList.add("app-margem-nativa");
+  if (/SPIFinanceApp-iOS/.test(navigator.userAgent)) document.documentElement.classList.add("app-ios");
 } catch (e) {}
 `;
 
