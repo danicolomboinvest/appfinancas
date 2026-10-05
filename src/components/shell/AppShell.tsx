@@ -143,6 +143,9 @@ export function AppShell({
    * comportava de dois jeitos dependendo de qual aba você clicava.
    */
   const isFlow = ehRotaDoFluxo(pathname);
+  // "Posso comprar?" em tela cheia (05/10/2026): sem a barra de baixo e sem o seletor de perfil,
+  // para cada pergunta caber na tela do celular sem rolar.
+  const focado = pathname?.startsWith("/decidir/comprar") ?? false;
   const showGreeting = isFlow;
 
   // "Mais" fica em destaque na tab bar quando a rota atual é uma das seções que só
@@ -179,14 +182,14 @@ export function AppShell({
               - pt: sem var(--safe-top) o conteúdo (ex.: "Bom dia") fica embaixo do
                 relógio/câmera no modo standalone. Com o inset, começa abaixo da status bar.
               - pb: limpa a tab bar flutuante (home indicator) + o botão "+" elevado. */}
-          <main className="flex-1 px-5 pb-[calc(7.5rem_+_var(--safe-bottom))] pt-[calc(1.5rem_+_var(--safe-top))] md:px-10 md:pb-8 md:pt-8">
+          <main className={`flex-1 px-5 ${focado ? "pb-[calc(1rem_+_var(--safe-bottom))] pt-[calc(0.75rem_+_var(--safe-top))]" : "pb-[calc(7.5rem_+_var(--safe-bottom))] pt-[calc(1.5rem_+_var(--safe-top))]"} md:px-10 md:pb-8 md:pt-8`}>
             <div className="mx-auto w-full max-w-6xl">
               {/* Sol/lua no alto de TODA tela — a saudação só existe no Fluxo, então prender
                   o botão nela o faria sumir em Metas, Carteira e Orçamento. */}
               {/* O perfil ativo fica no alto de TODA tela, ao lado do sol/lua: lançar um gasto
                   no perfil errado é o erro mais caro que este recurso pode causar, então ele
                   não pode viver escondido dentro de um menu. */}
-              <div className="mb-1 flex items-center justify-between gap-2">
+              <div className={`mb-1 items-center justify-between gap-2 ${focado ? "hidden md:flex" : "flex"}`}>
                 <ProfileSwitcher perfis={perfis} />
                 {/* Sol/lua só quando o tema deixa: Girly é branco e Disciplina é preto por
                     definição, e uma chave que não faz nada é pior que nenhuma. */}
@@ -205,12 +208,14 @@ export function AppShell({
           </main>
         </div>
 
+        {!focado && (
         <MobileTabBar
           onOpenMore={() => setMoreOpen(true)}
           onOpenRegistrar={() => abrirRegistrar()}
           moreActive={moreActive}
           isPremium={isPremium}
         />
+        )}
         <MoreSheet
           open={moreOpen}
           onClose={() => setMoreOpen(false)}

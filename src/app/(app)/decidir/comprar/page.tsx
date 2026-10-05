@@ -219,11 +219,7 @@ export default async function PossoComprarPage() {
   };
 
   return (
-    <div className="flex flex-col gap-5">
-      <Link href="/decidir" className="flex w-fit items-center gap-1 text-sm text-ink-muted hover:text-ink">
-        <ChevronLeft size={16} /> {t.decTitulo}
-      </Link>
-      <PageHeader title={t.compraTitulo} />
+    <div className="flex flex-col gap-3">
       {casal && (
         <form action={responderRendaDoCasalAction.bind(null, rendaDoCasal === "conjunta" ? "casal" : "conjunta")} className="-mt-2 flex flex-wrap items-center gap-x-2 text-caption text-ink-muted">
           Renda considerada: {rendaDoCasal === "conjunta" ? "só o que cada um põe na conta conjunta" : "a do casal inteira"}.

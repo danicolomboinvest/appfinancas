@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 
-const ALTURA = 56;
+const ALTURA = 50;
 
 /**
  * Roleta de valores: a lista gira com o dedo e encaixa no valor do meio, como o seletor de hora

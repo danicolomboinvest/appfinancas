@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, X } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Roleta } from "@/components/ui/Roleta";
 import { useMoney } from "@/components/money/MoneyProvider";
@@ -198,15 +198,21 @@ export function PossoComprar({ base, hoje, parcelasNoMes }: { base: CompraBase; 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-3">
-        <button
-          type="button"
-          onClick={voltar}
-          disabled={historico.length === 0 || passo === "analise" || passo === "fim"}
-          aria-label="Voltar"
-          className="flex size-11 items-center justify-center rounded-full bg-surface text-ink disabled:invisible"
-        >
-          <ChevronLeft size={20} />
-        </button>
+        {historico.length === 0 ? (
+          <Link href="/decidir" aria-label="Fechar" className="flex size-11 items-center justify-center rounded-full bg-surface text-ink">
+            <X size={20} />
+          </Link>
+        ) : (
+          <button
+            type="button"
+            onClick={voltar}
+            disabled={passo === "analise" || passo === "fim"}
+            aria-label="Voltar"
+            className="flex size-11 items-center justify-center rounded-full bg-surface text-ink disabled:invisible"
+          >
+            <ChevronLeft size={20} />
+          </button>
+        )}
         <div className="flex gap-1.5" aria-hidden>
           {PASSOS.map((p, i) => (
             <span key={p} className={`h-1.5 rounded-full transition-all ${i === indice ? "w-5 bg-accent" : i < indice ? "w-1.5 bg-accent/50" : "w-1.5 bg-border-strong"}`} />
@@ -310,9 +316,9 @@ export function PossoComprar({ base, hoje, parcelasNoMes }: { base: CompraBase; 
           ) : (
             <>
               <Roleta valores={VALORES_DA_ROLETA} valor={valor} onChange={setValor} formatar={(x) => mi(x)} rotulo={t.compraQuantoCusta} irParaRef={irParaValor} />
-              <div className="flex flex-wrap justify-center gap-2">
+              <div className="grid grid-cols-4 gap-1.5">
                 {cat.atalhos.map((a) => (
-                  <button key={a} type="button" className={chip(valor === a)} onClick={() => irParaValor.current?.(a)}>
+                  <button key={a} type="button" className={`${chip(valor === a)} px-1 text-[13px]`} onClick={() => irParaValor.current?.(a)}>
                     {mi(a)}
                   </button>
                 ))}
@@ -694,6 +700,7 @@ function Resultado({
   const fundo: Record<Veredito, string> = { ok: "bg-success/12", custo: "bg-accent-soft", nao: "bg-danger/10" };
   const corSelo: Record<Veredito, string> = { ok: "bg-success", custo: "bg-accent", nao: "bg-danger" };
   const selo: Record<Veredito, string> = { ok: t.compraOk, custo: t.compraCusto, nao: t.compraNao };
+  const tom = t.compraTom(v, sinceridade);
   const mesCurto = (meses: number | null) => {
     if (meses === null) return t.compraSemPrevisao;
     const d = new Date(hoje.ano, hoje.mes - 1 + meses, 1);
@@ -740,10 +747,14 @@ function Resultado({
         </details>
       )}
 
-      <div className={`flex flex-col gap-3 rounded-[28px] px-5 py-6 ${fundo[v]}`}>
+      <div className={`flex flex-col gap-2 rounded-[28px] px-5 py-5 ${fundo[v]}`}>
         {/* Só a cor: o selo em texto repetia o título ("Não recomendo agora" + "Eu não compraria agora"). */}
         <span className={`size-4 rounded-full ${corSelo[v]}`} role="img" aria-label={selo[v]} />
-        <p className="text-[36px] font-black leading-[1.02] tracking-tight text-ink [text-wrap:balance]">{t.compraVereditoTitulo(v, sinceridade, r.veredito === "ok" && v !== "ok")}</p>
+        <p className="text-[32px] font-black leading-[1.04] tracking-tight text-ink [text-wrap:balance]">{t.compraVereditoTitulo(v, sinceridade, r.veredito === "ok" && v !== "ok")}</p>
+        {/* O porquê (05/10/2026: "resumiu demais, não dá para entender por que chegou nisso"): a
+            frase da conta, que fala das metas e da reserva, e o tom pelo quanto ela precisa. */}
+        <p className="text-[15px] leading-snug text-ink">{r.explicacao}</p>
+        {tom && <p className="text-[15px] leading-snug text-ink/75">{tom}</p>}
         {(appDecidiu || r.custoJuros) && (
           <div className="flex flex-wrap gap-2">
             {appDecidiu && q && (

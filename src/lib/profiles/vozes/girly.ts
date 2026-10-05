@@ -1229,6 +1229,12 @@ const GIRLY_COMPRA: Partial<Titulos> = {
   },
   compraQPreco: "Preço",
   compraEscolhi: (f) => `Escolhi para você: ${f} 💕`,
+  compraTom: (v, s) => {
+    if (v === "ok") return null;
+    if (s === "precisa") return v === "custo" ? "Se precisa, bora achar o jeito que pesa menos no seu mês 💕" : "Vale procurar uma opção mais em conta ou juntar uma parte antes 💕";
+    if (s === "impulso") return "Vontade de impulso costuma passar em um dia. Se amanhã você ainda quiser, a conta continua aqui 😴";
+    return null;
+  },
   compraLegLivre: "Livre",
   compraLegSobra: "Dia a dia",
   compraLegGuardado: "Do que você guarda",

@@ -68,6 +68,8 @@ export type TextosCompra = {
   // Resultado
   /** O título grande, pelo resultado e pelo quanto ela precisa. `soPorImpulso`: cabia, ficou amarelo por ser impulso. */
   compraVereditoTitulo(v: Veredito, s: Sinceridade, soPorImpulso: boolean): string;
+  /** A frase embaixo do porquê, conforme o quanto ela precisa (null = nada). */
+  compraTom(v: Veredito, s: Sinceridade): string | null;
   /** "Escolhi: 10x sem juros", quando ela pediu para o app decidir. */
   compraEscolhi(forma: string): string;
   // O quadro visual (05/10: "tem muito texto na tela"): uma barra de onde sai o dinheiro, a data
@@ -166,6 +168,12 @@ export const PADRAO_COMPRA: TextosCompra = {
     if (s === "precisa") return v === "custo" ? "Precisa? Dá para fazer." : "Hoje não fecha, nem apertando.";
     if (v === "custo") return soPorImpulso ? "Cabe, mas foi impulso." : "Dá, mas tem um custo.";
     return "Eu não compraria agora.";
+  },
+  compraTom: (v, s) => {
+    if (v === "ok") return null;
+    if (s === "precisa") return v === "custo" ? "Precisa, então vamos achar o jeito que pesa menos." : "Vale procurar uma opção mais em conta ou juntar uma parte antes.";
+    if (s === "impulso") return "Vontade de impulso costuma passar em um dia. Se amanhã ainda quiser, a conta continua aqui.";
+    return null;
   },
   compraEscolhi: (f) => `Escolhi: ${f}`,
   compraQPreco: "Preço",
