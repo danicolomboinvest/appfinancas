@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { use, useActionState, useState, type ComponentType, type InputHTMLAttributes } from "react";
-import { CheckCircle2, Eye, EyeOff, Lock, LockKeyhole, Mail } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Eye, EyeOff, Lock, LockKeyhole, Mail } from "lucide-react";
 import { BrandMark } from "@/components/brand/BrandMark";
 import { Button } from "@/components/ui/Button";
 import { loginAction, type LoginState } from "./actions";
@@ -18,6 +18,9 @@ export default function LoginPage({
   // ?callbackUrl= vem do proxy: a tela que ela tentou abrir sem sessão (link de e-mail etc.).
   const { created, callbackUrl } = use(searchParams);
   const [state, formAction, isPending] = useActionState(loginAction, initialState);
+  // Primeiro a escolha: criar conta ou já tenho conta (05/10/2026). Quem chega vindo do cadastro
+  // (?created=1) ou de um link que pedia login (?callbackUrl=) vai direto pro formulário.
+  const [etapa, setEtapa] = useState<"escolha" | "entrar">(created === "1" || typeof callbackUrl === "string" ? "entrar" : "escolha");
 
   return (
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-canvas px-6 py-10">
@@ -33,18 +36,57 @@ export default function LoginPage({
       />
 
       <div className="relative w-full max-w-sm animate-fade-in">
-        <div className="mb-10 flex flex-col items-center gap-5 text-center">
-          <BrandMark size={72} className="rounded-[22px] shadow-premium" />
+        {etapa === "entrar" && (
+          <button
+            type="button"
+            onClick={() => setEtapa("escolha")}
+            aria-label="Voltar"
+            className="absolute -left-2 -top-2 flex h-11 w-11 items-center justify-center rounded-full text-ink-muted transition-colors hover:bg-white/[0.06] hover:text-ink"
+          >
+            <ArrowLeft size={20} strokeWidth={1.75} />
+          </button>
+        )}
+
+        <div className={`flex flex-col items-center gap-5 text-center ${etapa === "escolha" ? "mb-12" : "mb-10"}`}>
+          <BrandMark size={etapa === "escolha" ? 84 : 64} className="rounded-[22px] shadow-premium transition-all" />
           <div className="flex flex-col gap-2">
             <p className="text-xs font-medium uppercase tracking-[0.18em] text-accent-strong">SPI Finance</p>
-            <h1 className="text-balance text-[26px] font-semibold leading-tight tracking-tight text-ink">
-              O app que te diz o que fazer com o seu dinheiro.
-            </h1>
-            <p className="text-sm text-ink-muted">Bem-vinda de volta. Entre para continuar.</p>
+            {etapa === "escolha" ? (
+              <>
+                <h1 className="text-balance text-[28px] font-semibold leading-tight tracking-tight text-ink">
+                  O app que te diz o que fazer com o seu dinheiro.
+                </h1>
+                <p className="text-balance text-sm leading-relaxed text-ink-muted">
+                  Quanto dá pra gastar na semana, pra onde o dinheiro foi e como o mês vai fechar.
+                </p>
+              </>
+            ) : (
+              <>
+                <h1 className="text-[26px] font-semibold leading-tight tracking-tight text-ink">Bem-vinda de volta</h1>
+                <p className="text-sm text-ink-muted">Entre com o seu e-mail e a sua senha.</p>
+              </>
+            )}
           </div>
         </div>
 
-        <form action={formAction} className="flex flex-col gap-4">
+        {etapa === "escolha" ? (
+          <div key="escolha" className="flex animate-fade-in flex-col gap-3">
+            <Link
+              href="/register"
+              className="flex h-14 items-center justify-center rounded-full bg-accent-gradient text-base font-semibold text-on-accent transition-opacity hover:opacity-95"
+            >
+              Criar minha conta
+            </Link>
+            <button
+              type="button"
+              onClick={() => setEtapa("entrar")}
+              className="flex h-14 items-center justify-center rounded-full border border-border-strong bg-white/[0.04] text-base font-semibold text-ink backdrop-blur-sm transition-colors hover:bg-white/[0.08]"
+            >
+              Já tenho conta
+            </button>
+          </div>
+        ) : (
+        <form key="entrar" action={formAction} className="flex animate-fade-in flex-col gap-4">
           {created === "1" && !state.error && (
             <p className="flex items-center gap-2 rounded-xl bg-success-soft px-3 py-2 text-sm text-success">
               <CheckCircle2 size={16} className="shrink-0" />
@@ -82,6 +124,7 @@ export default function LoginPage({
             </Link>
           </p>
         </form>
+        )}
 
         {/* Verdade da política de privacidade (04/10/2026): servidores em São Paulo, banco criptografado. */}
         <p className="mt-10 flex items-center justify-center gap-1.5 text-caption text-ink-faint">
