@@ -218,9 +218,11 @@ export function PossoComprar({ base, hoje, parcelasNoMes }: { base: CompraBase; 
             <span key={p} className={`h-1.5 rounded-full transition-all ${i === indice ? "w-5 bg-accent" : i < indice ? "w-1.5 bg-accent/50" : "w-1.5 bg-border-strong"}`} />
           ))}
         </div>
-        <button type="button" onClick={recomecar} className="min-h-11 px-1 text-sm font-semibold text-ink-muted">
-          Recomeçar
-        </button>
+        {/* Só o X e a seta (05/10/2026: "deixa a tela realmente só o comprar"). Recomeçar mora no
+            "Simular outra compra" do fim. */}
+        <Link href="/decidir" aria-label="Fechar" className={`flex size-11 items-center justify-center rounded-full bg-surface text-ink ${historico.length === 0 ? "invisible" : ""}`}>
+          <X size={20} />
+        </Link>
       </div>
 
       {passo === "cat" && (
