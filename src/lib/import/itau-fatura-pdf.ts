@@ -1,3 +1,4 @@
+import { remendarNumeros, semParcelaSeguinte } from "./numeros-quebrados";
 import { parseBrazilianNumber, type ParsedTransaction } from "./statement-parser";
 
 /**
@@ -95,40 +96,7 @@ function lerItauEspacado(texto: string, refYear: number): ParsedTransaction[] {
 
 /** Data que não é parte de data maior ("29/08/2026" fica de fora), descrição, valor. */
 const COMPRA_NA_LINHA_RE = /(?<![\d/])(\d{2})\/(\d{2})(?![\d/])\s+(.+?)\s+(-)?\s?(\d{1,3}(?:\.\d{3})*,\d{2})(?=\s|$)/g;
-const DATA_QUEBRADA_RE = /(?<![\d/])(\d) ?(\d) ?\/ ?(\d) ?(\d)(?!\d)/g;
-/** Valor com espaço perdido no meio. Termina nos 2 centavos, seguido de fim, de texto ou de outra data. */
-const VALOR_QUEBRADO_RE = /(?<![\d.,/])((?:0(?= ?,)|[1-9])(?: ?[\d.])*? ?, ?\d ?\d)(?=$|[^\d ]| [^\d]| \d\d\/)/g;
-const VALOR_INTEIRO_RE = /^\d{1,3}(?:\.\d{3})*,\d{2}$/;
 
-function remendarNumeros(linha: string): string {
-  return linha
-    .replace(DATA_QUEBRADA_RE, "$1$2/$3$4")
-    .replace(VALOR_QUEBRADO_RE, (trecho) => {
-      const junto = trecho.replace(/ /g, "");
-      return VALOR_INTEIRO_RE.test(junto) ? junto : trecho;
-    });
-}
-
-/**
- * A mesma compra parcelada duas vezes no arquivo — "02/05" (desta fatura) e "03/05" (do quadro
- * das próximas), mesma data, mesmo valor: a parcela seguinte não é deste mês. "Mesmo valor" com
- * folga de centavos: o banco arredonda uma parcela diferente da outra (232,34 e depois 232,33).
- */
-function semParcelaSeguinte(txns: ParsedTransaction[]): ParsedTransaction[] {
-  const PARCELA_RE = /^(.*?)(\d{2})\/(\d{2})$/;
-  const chave = (t: ParsedTransaction) => {
-    const m = semEspacos(t.description).match(PARCELA_RE);
-    return m ? { base: m[1], n: Number(m[2]), de: m[3] } : null;
-  };
-  return txns.filter((t) => {
-    const p = chave(t);
-    if (!p || p.n < 2) return true;
-    return !txns.some((o) => {
-      const q = o !== t ? chave(o) : null;
-      return q && o.date === t.date && Math.abs(o.amount - t.amount) <= 0.05 && q.base === p.base && q.de === p.de && q.n === p.n - 1;
-    });
-  });
-}
 
 function lerItau(texto: string, refYear: number, soNasSecoes: boolean): ParsedTransaction[] {
   // A fatura não traz o ano de cada compra. A emissão traz: compra de um mês DEPOIS do mês da

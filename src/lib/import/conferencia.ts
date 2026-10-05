@@ -38,6 +38,13 @@ const TOTAIS_DE_COMPRAS: RegExp[] = [
   new RegExp(String.raw`^total\s+de\s+gastos\s*${VALOR}`, "im"), // Banrisul
   new RegExp(String.raw`^despesas\s+e\s+cr[ée]ditos\s+do\s+m[êe]s\s*${VALOR}`, "im"), // Nomad
   new RegExp(String.raw`^despesas\s+at[ée]\s+a\s+emiss[ãa]o\s+desta\s+fatura\s*${VALOR}`, "im"), // XP
+  // "Esta é a fatura de setembro / no valor total de R$ 349,90." (Ailos, Porto Seguro).
+  // "DESPESAS/DÉBITOS <TAB> + R$ 3.240,53" (Unicred, Ailos).
+  new RegExp(String.raw`^despesas\s*\/\s*d[ée]bitos\s*\+?\s*${VALOR}`, "im"),
+  new RegExp(String.raw`\bno\s+valor\s+total\s+de\s*${VALOR}`, "i"),
+  // "O valor total é / R$ 7.437,33" (Porto Seguro), "1.900,04 <TAB> Total R$" (Renner/Realize).
+  new RegExp(String.raw`\bo\s+valor\s+total\s+[ée]\s*${VALOR}`, "i"),
+  /^(\d{1,3}(?:\.\d{3})*,\d{2})\s+total\s+R\$\s*$/im,
   // Itaú: "Lançamentos atuais 5.271,04" é só o mês; o total da fatura soma o que sobrou da anterior.
   new RegExp(String.raw`^(?:total\s+dos\s+)?lan[çc]amentos\s+atuais\s*${VALOR}`, "im"),
 ];
