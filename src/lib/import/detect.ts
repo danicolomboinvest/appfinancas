@@ -8,6 +8,7 @@ import { isBradescoStatement } from "./bradesco-pdf";
 import { isC6Invoice } from "./c6-fatura-pdf";
 import { isCarrefourInvoice } from "./carrefour-fatura-pdf";
 import { isNomadInvoice } from "./nomad-fatura-pdf";
+import { isXpInvoice } from "./xp-fatura-pdf";
 import { isCaixaAppStatement } from "./caixa-pdf";
 import { isCoraStatement } from "./cora-pdf";
 import { isInterInvoice, isInterStatement } from "./inter-pdf";
@@ -60,6 +61,7 @@ const MOLDES_DE_FATURA: [(t: string) => boolean, string][] = [
   [isMidwayInvoice, "fatura Riachuelo"],
   [isCarrefourInvoice, "fatura do Cartão Carrefour"],
   [isNomadInvoice, "fatura do cartão Nomad"],
+  [isXpInvoice, "fatura do cartão XP"],
   [isItauInvoice, "fatura do Itaú"],
   [isOurocardInvoice, "fatura Ourocard"],
   [isSantanderInvoice, "fatura do Santander"],

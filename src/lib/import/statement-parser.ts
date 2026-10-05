@@ -28,6 +28,7 @@ import { isItauInvoice, parseItauInvoice } from "./itau-fatura-pdf";
 import { isMidwayInvoice, parseMidwayInvoice } from "./midway-fatura-pdf";
 import { isCarrefourInvoice, parseCarrefourInvoice } from "./carrefour-fatura-pdf";
 import { isNomadInvoice, parseNomadInvoice } from "./nomad-fatura-pdf";
+import { isXpInvoice, parseXpInvoice } from "./xp-fatura-pdf";
 import { isC6Invoice, parseC6Invoice } from "./c6-fatura-pdf";
 import { isSantanderInvoice, parseSantanderInvoice } from "./santander-fatura-pdf";
 import { isNubankInvoice, parseNubankInvoice } from "./nubank-fatura-pdf";
@@ -783,6 +784,7 @@ const LEITORES_PDF: { nome: string; reconhece: (t: string) => boolean; le: (t: s
   { nome: "riachuelo-midway", reconhece: isMidwayInvoice, le: (t) => parseMidwayInvoice(t) },
   { nome: "carrefour-fatura", reconhece: isCarrefourInvoice, le: (t, ano) => parseCarrefourInvoice(t, ano) },
   { nome: "nomad-fatura", reconhece: isNomadInvoice, le: (t) => parseNomadInvoice(t) },
+  { nome: "xp-fatura", reconhece: isXpInvoice, le: (t) => parseXpInvoice(t) },
   { nome: "c6-fatura", reconhece: isC6Invoice, le: (t, ano) => parseC6Invoice(t, ano) },
   { nome: "santander-fatura", reconhece: isSantanderInvoice, le: (t, ano) => parseSantanderInvoice(t, ano) },
   { nome: "nubank-fatura", reconhece: isNubankInvoice, le: (t, ano) => parseNubankInvoice(t, ano) },
