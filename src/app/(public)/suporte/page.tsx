@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { EMAIL_DO_SUPORTE } from "@/lib/support/contato";
 import { naAppDaApple } from "@/lib/apple/app-da-apple";
 
 export const metadata = { title: "Suporte · SPI Finance" };
@@ -19,8 +20,8 @@ export default async function SuportePage() {
         <div className="rounded-lg border border-line bg-surface p-4">
           <p className="text-ink">
             <strong>E-mail de suporte:</strong>{" "}
-            <a href="mailto:suporte.danielacolombo@gmail.com" className="text-accent-strong hover:underline">
-              suporte.danielacolombo@gmail.com
+            <a href={`mailto:${EMAIL_DO_SUPORTE}`} className="text-accent-strong hover:underline">
+              {EMAIL_DO_SUPORTE}
             </a>
           </p>
           <p className="mt-1">Respondemos em até 2 dias úteis.</p>

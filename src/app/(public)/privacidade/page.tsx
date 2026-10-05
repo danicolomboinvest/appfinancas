@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { EMAIL_DO_SUPORTE } from "@/lib/support/contato";
 import { IMPORT_FILE_RETENTION_DAYS } from "@/lib/repositories/import-file.repo";
 import { isPluggyConfigured } from "@/lib/pluggy/client";
 
@@ -129,8 +130,8 @@ export default function PrivacidadePage() {
         <h2 className="mt-2 text-base font-semibold text-ink">9. Contato do responsável</h2>
         <p>
           Para exercer seus direitos ou tirar dúvidas sobre privacidade:{" "}
-          <a href="mailto:suporte.danielacolombo@gmail.com" className="text-accent-strong hover:underline">
-            suporte.danielacolombo@gmail.com
+          <a href={`mailto:${EMAIL_DO_SUPORTE}`} className="text-accent-strong hover:underline">
+            {EMAIL_DO_SUPORTE}
           </a>
           .
         </p>
