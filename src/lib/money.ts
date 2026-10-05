@@ -17,6 +17,7 @@ export const CURRENCIES = {
   USD: { label: "Dólar", symbol: "US$" },
   EUR: { label: "Euro", symbol: "€" },
   GBP: { label: "Libra", symbol: "£" },
+  ILS: { label: "Shekel", symbol: "₪" },
 } as const;
 
 /** Ordem dos seletores de moeda: a do Brasil primeiro, depois as mais comuns de quem mora fora. */

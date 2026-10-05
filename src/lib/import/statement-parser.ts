@@ -20,6 +20,7 @@ import { isBradescoInvoice, parseBradescoInvoice } from "./bradesco-fatura-pdf";
 import { fechaComoFatura, lerFaturaTestando } from "./leitor-inteligente";
 import { isMercadoPagoStatement, parseMercadoPagoStatement } from "./mercado-pago-pdf";
 import { isPicPayStatement, parsePicPayStatement } from "./picpay-pdf";
+import { isIsraelCardStatement, parseIsraelCardStatement } from "./israel-cartao-pdf";
 import { isSafraJsonPdf, parseSafraJsonPdf } from "./safra-json-pdf";
 import { isCaixaAppStatement, parseCaixaAppStatement } from "./caixa-pdf";
 import { isCoraStatement, parseCoraStatement } from "./cora-pdf";
@@ -789,6 +790,7 @@ const LEITORES_PDF: { nome: string; reconhece: (t: string) => boolean; le: (t: s
   { nome: "bradesco-fatura", reconhece: isBradescoInvoice, le: (t, ano) => parseBradescoInvoice(t, ano) },
   { nome: "cora", reconhece: isCoraStatement, le: (t) => parseCoraStatement(t) },
   { nome: "safra-json", reconhece: isSafraJsonPdf, le: (t) => parseSafraJsonPdf(t) },
+  { nome: "israel-cartao", reconhece: isIsraelCardStatement, le: (t) => parseIsraelCardStatement(t) },
   { nome: "picpay", reconhece: isPicPayStatement, le: (t) => parsePicPayStatement(t) },
   { nome: "mercado-pago", reconhece: isMercadoPagoStatement, le: (t) => parseMercadoPagoStatement(t) },
   { nome: "inter-fatura", reconhece: isInterInvoice, le: (t) => parseInterInvoice(t) },
