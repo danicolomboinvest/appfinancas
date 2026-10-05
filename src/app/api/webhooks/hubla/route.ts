@@ -34,15 +34,25 @@ import { caminhoDoCadastro } from "@/lib/auth/convite-cadastro";
 const GRANT_EVENTS = new Set(["customer.member_added", "invoice.payment_succeeded"]);
 const REVOKE_EVENTS = new Set(["customer.member_removed", "invoice.refunded"]);
 
-/** O e-mail do comprador vem em lugares diferentes conforme o evento (membro vs. fatura). */
-function extractEmail(event: unknown): string | null {
-  if (!event || typeof event !== "object") return null;
+/**
+ * Os e-mails do comprador: o da conta Hubla (event.user) e o digitado no checkout
+ * (invoice.payer). Quase sempre são o mesmo, mas não sempre: em out/2026 a Tamires pagou com
+ * tamireslara@ numa conta Hubla fatinhame@, a liberação e o convite foram só pro fatinhame@, e
+ * ela entrou no app pelo próprio e-mail, achou que o app era pago à parte e pediu estorno. Dos
+ * 14 casos assim até ali, 3 a Dani liberou na mão. Por isso libera os dois.
+ */
+function extractEmails(event: unknown): string[] {
+  if (!event || typeof event !== "object") return [];
   const e = event as Record<string, unknown>;
   const user = e.user as Record<string, unknown> | undefined;
   const invoice = e.invoice as Record<string, unknown> | undefined;
   const payer = invoice?.payer as Record<string, unknown> | undefined;
-  const email = user?.email ?? payer?.email;
-  return typeof email === "string" && email.includes("@") ? email : null;
+  const emails: string[] = [];
+  for (const email of [user?.email, payer?.email]) {
+    if (typeof email !== "string" || !email.includes("@")) continue;
+    if (!emails.some((x) => x.trim().toLowerCase() === email.trim().toLowerCase())) emails.push(email);
+  }
+  return emails;
 }
 
 /** Id da fatura (event.invoice.id) — trava anti-duplicata da renovação: o Hubla manda mais de
@@ -115,13 +125,13 @@ export async function POST(request: Request) {
   }
 
   const type = payload.type ?? "";
-  const email = extractEmail(payload.event);
+  const emails = extractEmails(payload.event);
   const products = extractProducts(payload.event);
 
   if (!GRANT_EVENTS.has(type) && !REVOKE_EVENTS.has(type)) {
     return NextResponse.json({ ok: true, ignored: type || "unknown" });
   }
-  if (!email) {
+  if (emails.length === 0) {
     // Evento relevante mas sem e-mail: responde 200 pra não gerar reenvio infinito, mas sinaliza.
     return NextResponse.json({ ok: false, reason: "no email in payload", type });
   }
@@ -139,25 +149,31 @@ export async function POST(request: Request) {
         products: products.map((p) => p.name ?? p.id),
       });
     }
-    const { isNew, expiresAt, extended } = await grantFromHubla(
-      email,
-      allowed.name ? `Hubla: ${allowed.name}` : `Hubla: ${type}`,
-      extractPhone(payload.event),
-      extractInvoiceId(payload.event),
-    );
+    const note = allowed.name ? `Hubla: ${allowed.name}` : `Hubla: ${type}`;
+    const phone = extractPhone(payload.event);
+    const invoiceId = extractInvoiceId(payload.event);
+    const liberacoes = [];
+    for (const email of emails) liberacoes.push({ email, ...(await grantFromHubla(email, note, phone, invoiceId)) });
+    const { expiresAt, extended } = liberacoes[0];
 
     // Convite por e-mail ("crie sua conta") só na 1ª liberação — o Hubla manda mais de um
-    // evento pra mesma compra — e só se a pessoa ainda não tem conta. Melhor esforço: se o
-    // envio falhar, o acesso continua liberado (a pessoa ainda consegue se cadastrar sozinha).
+    // evento pra mesma compra — e só se a pessoa ainda não tem conta em NENHUM dos e-mails
+    // dela. Vai pros dois quando são diferentes: não dá pra saber qual ela lê. Melhor esforço:
+    // se o envio falhar, o acesso continua liberado (a pessoa ainda consegue se cadastrar sozinha).
     let emailed = false;
-    if (isNew && !(await findUserByEmail(email))) {
+    let temConta = false;
+    for (const email of emails) if (await findUserByEmail(email)) temConta = true;
+    if (!temConta) {
       const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host") ?? "financas.danicolombo.com.br";
       const proto = request.headers.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
-      // O link já leva o e-mail da compra (assinado) pro cadastro: quem digitava outro e-mail
-      // ali ficava com a conta sem a compra, vendo cadeado em tudo (ver convite-cadastro.ts).
-      const { subject, html } = accessGrantedEmail({ email, registerUrl: `${proto}://${host}${caminhoDoCadastro(email)}` });
-      const result = await sendEmail({ to: email, subject, html });
-      emailed = result.ok;
+      for (const { email, isNew } of liberacoes) {
+        if (!isNew) continue;
+        // O link já leva o e-mail da compra (assinado) pro cadastro: quem digitava outro e-mail
+        // ali ficava com a conta sem a compra, vendo cadeado em tudo (ver convite-cadastro.ts).
+        const { subject, html } = accessGrantedEmail({ email, registerUrl: `${proto}://${host}${caminhoDoCadastro(email)}` });
+        const result = await sendEmail({ to: email, subject, html });
+        if (result.ok) emailed = true;
+      }
     }
     return NextResponse.json({
       ok: true,
@@ -188,6 +204,6 @@ export async function POST(request: Request) {
     });
   }
   // Só desativa liberação que veio do Hubla: a MANUAL da Dani fica (ver revokeFromHubla).
-  await revokeFromHubla(email);
+  for (const email of emails) await revokeFromHubla(email);
   return NextResponse.json({ ok: true, action: "revoked" });
 }

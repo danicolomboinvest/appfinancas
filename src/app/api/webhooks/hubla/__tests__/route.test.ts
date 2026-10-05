@@ -199,6 +199,33 @@ describe("webhook Hubla: liberação", () => {
     expect(grantFromHubla).not.toHaveBeenCalled();
   });
 
+  it("conta Hubla com e-mail diferente do pagador: libera e convida os dois (caso Tamires)", async () => {
+    const r = await chamar(
+      compra("invoice.payment_succeeded", {
+        user: { email: "fatinhame@yahoo.com.br" },
+        invoice: { id: "fat-t", payer: { email: "tamireslara@yahoo.com.br" } },
+        product: CURSO,
+      }),
+    );
+    expect(await r.json()).toMatchObject({ ok: true, action: "granted", emailed: true });
+    expect(grantFromHubla.mock.calls.map((c) => c[0])).toEqual(["fatinhame@yahoo.com.br", "tamireslara@yahoo.com.br"]);
+    expect(grantFromHubla.mock.calls[1][3]).toBe("fat-t");
+    expect(sendEmail.mock.calls.map((c) => (c[0] as { to: string }).to)).toEqual(["fatinhame@yahoo.com.br", "tamireslara@yahoo.com.br"]);
+  });
+
+  it("mesmo e-mail com caixa diferente na conta e no pagador libera uma vez só", async () => {
+    await chamar(compra("invoice.payment_succeeded", { user: { email: "Ana@x.com" }, invoice: { payer: { email: "ana@x.com " } }, product: CURSO }));
+    expect(grantFromHubla).toHaveBeenCalledTimes(1);
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+  });
+
+  it("dois e-mails e conta já criada num deles: libera os dois, mas não manda 'crie sua conta'", async () => {
+    findUserByEmail.mockImplementation(async (e: string) => (e === "conta@x.com" ? { id: "u1", email: e } : null));
+    await chamar(compra("invoice.payment_succeeded", { user: { email: "conta@x.com" }, invoice: { payer: { email: "outro@x.com" } }, product: CURSO }));
+    expect(grantFromHubla).toHaveBeenCalledTimes(2);
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
   it("celular estrangeiro não é gravado como brasileiro", async () => {
     await chamar(compra("invoice.payment_succeeded", { user: { email: "h@x.com", phone: "+1 647 919 5010" }, product: CURSO }));
     expect(grantFromHubla.mock.calls[0][2]).toBeNull();
@@ -215,6 +242,11 @@ describe("webhook Hubla: reembolso e cancelamento", () => {
   it("member_removed do curso revoga", async () => {
     await chamar(compra("customer.member_removed", { user: { email: "j@x.com" }, product: CURSO }));
     expect(revokeFromHubla).toHaveBeenCalledWith("j@x.com");
+  });
+
+  it("reembolso com e-mail da conta diferente do pagador revoga os dois", async () => {
+    await chamar(compra("invoice.refunded", { user: { email: "conta@x.com" }, invoice: { payer: { email: "pagou@x.com" } }, product: CURSO }));
+    expect(revokeFromHubla.mock.calls.map((c) => c[0])).toEqual(["conta@x.com", "pagou@x.com"]);
   });
 
   it("reembolso SEM produto no payload não corta (erra a favor de quem pagou)", async () => {
