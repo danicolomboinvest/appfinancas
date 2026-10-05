@@ -67,7 +67,7 @@ export function Modal({
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
-        className="relative z-10 max-h-[90dvh] w-full max-w-lg animate-fade-in overflow-y-auto overscroll-contain rounded-t-2xl border border-border bg-surface px-6 pt-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-premium outline-none sm:rounded-2xl sm:pb-6"
+        className="relative z-10 max-h-[90dvh] w-full max-w-lg animate-fade-in overflow-y-auto overscroll-contain rounded-t-2xl border border-border bg-surface px-6 pt-6 pb-[calc(1.5rem+var(--safe-bottom))] shadow-premium outline-none sm:rounded-2xl sm:pb-6"
       >
         <div className="mb-4 flex items-center justify-between gap-2">
           <h2 id={titleId} className="text-lg font-semibold text-ink">

@@ -326,6 +326,19 @@ html {
   color-scheme: dark;
 }
 
+/* As margens do celular (relógio em cima, barrinha de casa embaixo). Tudo no app usa estas duas
+   variáveis em vez de env() direto. O app de iPhone da primeira versão (build 2, out/2026) já
+   empurra a página para dentro dessas margens sozinho; lá elas viram zero, senão a margem
+   aparecia dobrada (a Dani mostrou, 05/10/2026). Ver o script no layout. */
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+html.app-margem-nativa {
+  --safe-top: 0px;
+  --safe-bottom: 0px;
+}
+
 /* Comportamento de app nativo: sem "puxão" elástico ao rolar além do fim, sem o flash azul de
    toque (cara de página web), sem barra de rolagem à vista e sem zoom (nem pinça, nem duplo
    toque): a Dani quer o app parado como app (01/10/2026; ver o viewport em layout.tsx). */

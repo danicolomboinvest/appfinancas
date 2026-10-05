@@ -356,7 +356,7 @@ export function RecapStories({ recap, monthKey }: { recap: MonthlyRecap; monthKe
       }}
     >
       {/* Barrinhas de progresso (uma por slide) */}
-      <div className="absolute inset-x-4 top-0 z-20 flex gap-1.5" style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 1rem)" }}>
+      <div className="absolute inset-x-4 top-0 z-20 flex gap-1.5" style={{ paddingTop: "calc(var(--safe-top) + 1rem)" }}>
         {slides.map((s, i) => (
           <div key={s.key} className="h-1 flex-1 overflow-hidden rounded-full bg-white/20">
             <div
@@ -367,13 +367,13 @@ export function RecapStories({ recap, monthKey }: { recap: MonthlyRecap; monthKe
         ))}
       </div>
 
-      {/* Fechar: mesmo offset-base da barra de progresso (env(safe-area-inset-top)) + folga
+      {/* Fechar: mesmo offset-base da barra de progresso (var(--safe-top)) + folga
           fixa abaixo dela, pra nunca colidir com as barrinhas em telas com notch. */}
       <button
         type="button"
         onClick={closeAndDismiss}
         aria-label="Fechar resumo"
-        style={{ top: "calc(env(safe-area-inset-top, 0px) + 2.5rem)" }}
+        style={{ top: "calc(var(--safe-top) + 2.5rem)" }}
         className="absolute left-4 z-20 flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-white/20 transition-colors hover:bg-white/15"
       >
         <X size={20} />
@@ -409,7 +409,7 @@ export function RecapStories({ recap, monthKey }: { recap: MonthlyRecap; monthKe
           onClick={next}
           aria-label="Avançar"
           className="absolute bottom-10 right-6 z-20 flex h-16 w-16 items-center justify-center rounded-full border border-white/15 bg-white/20 shadow-[0_8px_32px_rgba(0,0,0,0.5)] transition-all hover:bg-white/25 active:scale-90"
-          style={{ marginBottom: "env(safe-area-inset-bottom)" }}
+          style={{ marginBottom: "var(--safe-bottom)" }}
         >
           <ChevronRight size={26} strokeWidth={2.2} />
         </button>
@@ -423,7 +423,7 @@ export function RecapStories({ recap, monthKey }: { recap: MonthlyRecap; monthKe
       {isLast && (
         <div
           className="absolute inset-x-6 z-20 flex flex-col items-center gap-3"
-          style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 2rem)" }}
+          style={{ bottom: "calc(var(--safe-bottom) + 2rem)" }}
         >
           <button
             type="button"

@@ -478,7 +478,7 @@ export function BudgetWizard({
       {alterado &&
         typeof document !== "undefined" &&
         createPortal(
-          <div className="fixed inset-x-3 bottom-[calc(7rem_+_env(safe-area-inset-bottom))] z-40 flex items-center justify-between gap-3 rounded-2xl border border-accent/40 bg-surface px-4 py-3 shadow-premium md:inset-x-auto md:bottom-6 md:right-6 md:w-96">
+          <div className="fixed inset-x-3 bottom-[calc(7rem_+_var(--safe-bottom))] z-40 flex items-center justify-between gap-3 rounded-2xl border border-accent/40 bg-surface px-4 py-3 shadow-premium md:inset-x-auto md:bottom-6 md:right-6 md:w-96">
             <span className="text-sm font-medium text-ink">Mudanças ainda não salvas</span>
             <Button type="submit" form={formId} size="sm" disabled={isPending}>
               {isPending ? t.formSalvando : "Salvar"}

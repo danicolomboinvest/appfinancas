@@ -73,7 +73,7 @@ export function MobileTabBar({
     <nav
       aria-label="Navegação principal"
       className="glass-pill fixed inset-x-3 z-40 flex items-stretch gap-1 rounded-full p-1.5 md:hidden"
-      style={{ bottom: "calc(0.75rem + env(safe-area-inset-bottom))" }}
+      style={{ bottom: "calc(0.75rem + var(--safe-bottom))" }}
     >
       {tabLink(abas[0])}
       {tabLink(abas[1])}

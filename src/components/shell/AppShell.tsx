@@ -176,10 +176,10 @@ export function AppShell({
 
         <div className="flex min-w-0 flex-1 flex-col">
           {/* Margens de segurança do iPhone (o app é viewport-fit=cover, vai até as bordas):
-              - pt: sem env(safe-area-inset-top) o conteúdo (ex.: "Bom dia") fica embaixo do
+              - pt: sem var(--safe-top) o conteúdo (ex.: "Bom dia") fica embaixo do
                 relógio/câmera no modo standalone. Com o inset, começa abaixo da status bar.
               - pb: limpa a tab bar flutuante (home indicator) + o botão "+" elevado. */}
-          <main className="flex-1 px-5 pb-[calc(7.5rem_+_env(safe-area-inset-bottom))] pt-[calc(1.5rem_+_env(safe-area-inset-top))] md:px-10 md:pb-8 md:pt-8">
+          <main className="flex-1 px-5 pb-[calc(7.5rem_+_var(--safe-bottom))] pt-[calc(1.5rem_+_var(--safe-top))] md:px-10 md:pb-8 md:pt-8">
             <div className="mx-auto w-full max-w-6xl">
               {/* Sol/lua no alto de TODA tela — a saudação só existe no Fluxo, então prender
                   o botão nela o faria sumir em Metas, Carteira e Orçamento. */}

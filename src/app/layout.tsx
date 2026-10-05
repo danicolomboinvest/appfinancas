@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Albert_Sans, Geist_Mono } from "next/font/google";
+import { BarraDoIphone } from "@/components/shell/BarraDoIphone";
 import { BootSplash } from "@/components/brand/BootSplash";
 import "./globals.css";
 
@@ -38,7 +39,7 @@ export const metadata: Metadata = {
 };
 
 // Estende o conteúdo até as bordas (viewport-fit=cover) para o rodapé com
-// env(safe-area-inset-bottom) funcionar como app nativo. Zoom TRAVADO, como app: a revisão de
+// var(--safe-bottom) funcionar como app nativo. Zoom TRAVADO, como app: a revisão de
 // 30/09/2026 liberou a pinça e a Dani não gostou (01/10/2026: "não gosto de dar zoom em
 // aplicativo"). A legibilidade fica por conta do tamanho das letras, não da pinça.
 export const viewport: Viewport = {
@@ -61,6 +62,11 @@ try {
   var t = localStorage.getItem("theme");
   if (t === "dark") document.documentElement.classList.add("dark");
   if (t === "light") document.documentElement.classList.add("light");
+} catch (e) {}
+try {
+  // App de iPhone da primeira versão: ele mesmo já tira as margens do relógio e da barrinha de
+  // baixo. A versão nova vai até as bordas e se anuncia como "SPIFinanceApp-iOS/2".
+  if (/SPIFinanceApp-iOS(?!\/)/.test(navigator.userAgent)) document.documentElement.classList.add("app-margem-nativa");
 } catch (e) {}
 `;
 
@@ -100,6 +106,10 @@ export default function RootLayout({
       </head>
       <body className="flex min-h-full flex-col bg-canvas text-ink">
         <BootSplash />
+        <BarraDoIphone />
+        {/* Atrás do relógio e da bateria: o que rola por baixo some num vidro da cor do fundo, como
+            nos apps do iPhone. Fora do app (Safari, computador) a margem é zero e isto não aparece. */}
+        <div aria-hidden className="pointer-events-none fixed inset-x-0 top-0 z-[60] h-[var(--safe-top)] bg-canvas/85 backdrop-blur-md" />
         {children}
       </body>
     </html>

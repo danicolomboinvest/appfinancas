@@ -417,7 +417,7 @@ export function EntryList({
           cortava o "Remover" e sumia com o X de sair. No computador a barra cresce com o
           conteúdo em vez de ficar presa em 384px. */}
       {selecting && (
-        <div className="fixed inset-x-4 bottom-[calc(6.5rem_+_env(safe-area-inset-bottom))] z-30 md:inset-x-auto md:bottom-6 md:right-10">
+        <div className="fixed inset-x-4 bottom-[calc(6.5rem_+_var(--safe-bottom))] z-30 md:inset-x-auto md:bottom-6 md:right-10">
           <div className="glass flex items-center justify-between gap-3 rounded-2xl border border-border-strong p-3 shadow-premium">
             <span className="min-w-0 text-sm text-ink">
               {/* "**3** selecionados": o número vem marcado na voz e vira o destaque aqui. */}
