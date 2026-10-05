@@ -1,11 +1,9 @@
 "use client";
 
-import { PasswordField } from "@/components/ui/PasswordField";
 import Link from "next/link";
-import { use, useActionState } from "react";
-import { CheckCircle2, Lock } from "lucide-react";
+import { use, useActionState, useState, type ComponentType, type InputHTMLAttributes } from "react";
+import { CheckCircle2, Eye, EyeOff, Lock, LockKeyhole, Mail } from "lucide-react";
 import { BrandMark } from "@/components/brand/BrandMark";
-import { Field } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
 import { loginAction, type LoginState } from "./actions";
 
@@ -57,16 +55,18 @@ export default function LoginPage({
             <p className="rounded-xl bg-danger-soft px-3 py-2 text-sm text-danger">{state.error}</p>
           )}
           {typeof callbackUrl === "string" && <input type="hidden" name="callbackUrl" value={callbackUrl} />}
-          <Field
-            label="Email"
+          <CampoDeEntrada
+            label="E-mail"
+            icone={Mail}
             id="email"
             name="email"
             type="email"
+            inputMode="email"
             required
             autoComplete="email"
             defaultValue={state.email}
           />
-          <PasswordField label="Senha" id="password" name="password" required autoComplete="current-password" />
+          <CampoDeEntrada label="Senha" icone={LockKeyhole} id="password" name="password" type="password" required autoComplete="current-password" />
           <div className="-mt-1 text-right">
             <Link href="/esqueci-senha" className="text-xs font-medium text-accent-strong hover:underline">
               Esqueci minha senha
@@ -90,5 +90,58 @@ export default function LoginPage({
         </p>
       </div>
     </main>
+  );
+}
+
+/**
+ * O campo da tela de entrada (05/10/2026, "algo mais moderno, mais bonito de preencher").
+ *
+ * O rótulo mora DENTRO do campo e sobe quando ela toca ou quando já tem texto (o truque do
+ * `placeholder=" "`: `:placeholder-shown` só é verdadeiro com o campo vazio, inclusive no
+ * preenchimento automático do celular). O ícone e a borda ficam dourados no campo em uso, com
+ * um brilho fraco em volta. Fundo translúcido, para a luz dourada do topo atravessar.
+ */
+function CampoDeEntrada({
+  label,
+  icone: Icone,
+  id,
+  type,
+  ...props
+}: InputHTMLAttributes<HTMLInputElement> & { label: string; id: string; icone: ComponentType<{ size?: number; strokeWidth?: number; className?: string }> }) {
+  const senha = type === "password";
+  const [visivel, setVisivel] = useState(false);
+  return (
+    <div className="group relative">
+      <Icone
+        size={18}
+        strokeWidth={1.75}
+        className="pointer-events-none absolute left-4 top-1/2 z-10 -translate-y-1/2 text-ink-faint transition-colors group-focus-within:text-accent"
+      />
+      <input
+        id={id}
+        type={senha && visivel ? "text" : type}
+        placeholder=" "
+        {...props}
+        className={`peer h-[60px] w-full rounded-2xl border border-border bg-white/[0.04] pb-2 pl-12 pt-6 text-base text-ink outline-none backdrop-blur-sm transition-all placeholder-transparent hover:border-border-strong focus:border-accent focus:bg-white/[0.06] focus:shadow-[0_0_0_4px_var(--color-accent-soft)] ${senha ? "pr-14" : "pr-4"}`}
+      />
+      <label
+        htmlFor={id}
+        className="pointer-events-none absolute left-12 top-1/2 origin-left -translate-y-[130%] text-xs font-medium text-ink-muted transition-all duration-200 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-base peer-placeholder-shown:font-normal peer-placeholder-shown:text-ink-faint peer-focus:-translate-y-[130%] peer-focus:text-xs peer-focus:font-medium peer-focus:text-accent"
+      >
+        {label}
+      </label>
+      {senha && (
+        <button
+          type="button"
+          onClick={() => setVisivel((v) => !v)}
+          aria-label={visivel ? "Esconder a senha" : "Mostrar a senha"}
+          aria-pressed={visivel}
+          aria-controls={id}
+          className="absolute right-2 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-xl text-ink-faint transition-colors hover:text-ink"
+        >
+          {visivel ? <EyeOff size={18} strokeWidth={1.75} /> : <Eye size={18} strokeWidth={1.75} />}
+        </button>
+      )}
+    </div>
   );
 }
