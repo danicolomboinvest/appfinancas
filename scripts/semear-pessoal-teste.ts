@@ -28,9 +28,17 @@ async function main() {
   console.log(`Perfil ${perfil.name}: ${apagados.count} lançamentos antigos do mês apagados.`);
 
   const linhas: Prisma.MonthlyEntryCreateManyInput[] = [];
+  // Conta que se repete todo mês é lançada uma vez, lá atrás, com "Repetir": o app reconhece
+  // pelo createdAt antes do mês começar, e ela sai do ritmo. Aqui fica assim também.
+  const RECORRENTES = new Set(["Aluguel", "Condomínio", "Internet fibra", "Plano de saúde", "Streaming", "Academia", "Curso de inglês"]);
+  const antesDoMes = new Date(Date.UTC(year, month - 1, 1) - 864e5 * 20);
   const push = (category: "INCOME" | "EXPENSE" | "INVESTMENT_CONTRIBUTION", parentCategory: ParentCategory | null, subcategory: string, description: string, amount: number, dia: number) => {
-    if (dia > hoje.getDate()) return;
-    linhas.push({ ...dono, year, month, category, parentCategory, subcategory, description, externalId: MARCA + linhas.length, amount, entryDate: new Date(Date.UTC(year, month - 1, dia)) });
+    if (dia > hoje.getDate() && !RECORRENTES.has(description)) return;
+    linhas.push({
+      ...dono, year, month, category, parentCategory, subcategory, description, externalId: MARCA + linhas.length, amount,
+      entryDate: new Date(Date.UTC(year, month - 1, dia)),
+      ...(RECORRENTES.has(description) ? { createdAt: antesDoMes } : {}),
+    });
   };
 
   push("INCOME", null, "Salário", "Salário", 6800, 1);
