@@ -10,7 +10,7 @@ export default function PrivacidadePage() {
     <main className="mx-auto flex min-h-screen w-full max-w-2xl flex-col gap-6 px-6 py-12">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-ink">Política de Privacidade</h1>
-        <p className="mt-1 text-sm text-ink-muted">Última atualização: 23 de julho de 2026</p>
+        <p className="mt-1 text-sm text-ink-muted">Última atualização: 4 de outubro de 2026</p>
       </div>
 
       <section className="flex flex-col gap-4 text-sm leading-relaxed text-ink-muted">
@@ -35,6 +35,10 @@ export default function PrivacidadePage() {
           experiência. <strong className="text-ink">Não vendemos nem compartilhamos seus dados</strong> com terceiros
           para publicidade.
         </p>
+        <p>
+          Quando você muda a categoria de uma loja, essa escolha (só o nome da loja e a categoria, sem valor, sem data
+          e sem nada que identifique você) ajuda o app a sugerir a categoria certa para outras pessoas.
+        </p>
 
         <h2 className="mt-2 text-base font-semibold text-ink">3. Quem, além de você, pode ver seus dados</h2>
         <p>
@@ -45,7 +49,7 @@ export default function PrivacidadePage() {
           usa o app e, quando fizer sentido, apresentar a você produtos e serviços financeiros próprios (como conteúdos,
           cursos ou consultoria/assessoria). Isso não muda o essencial: seus dados{" "}
           <strong className="text-ink">continuam não sendo vendidos nem compartilhados com terceiros</strong> para
-          publicidade, e você pode excluir tudo quando quiser (seção 5).
+          publicidade, e você pode excluir tudo quando quiser (seção 6).
         </p>
         {isPluggyConfigured() && (
         <p>
@@ -59,10 +63,16 @@ export default function PrivacidadePage() {
 
         <h2 className="mt-2 text-base font-semibold text-ink">4. Onde ficam armazenados</h2>
         <p>
-          Em provedores de nuvem contratados para hospedar o serviço (banco de dados e servidores), com acesso restrito
-          e tráfego criptografado (HTTPS). Arquivos de extrato, fatura ou posição que o app consegue ler são processados
-          na hora e <strong className="text-ink">não ficam salvos</strong> — guardamos só as transações e ativos que
-          você confirmar.
+          O app roda na <strong className="text-ink">Vercel</strong> e o banco de dados fica na{" "}
+          <strong className="text-ink">Neon</strong>, os dois em servidores em{" "}
+          <strong className="text-ink">São Paulo</strong>. O tráfego é criptografado (HTTPS), o banco é criptografado
+          em repouso pelo provedor, e cada conta só enxerga os próprios dados. Os e-mails do app (confirmação, aviso,
+          resumo) saem pelo servidor de e-mail da <strong className="text-ink">Hostinger</strong>.
+        </p>
+        <p>
+          Arquivos de extrato, fatura ou posição que o app consegue ler são processados na hora e{" "}
+          <strong className="text-ink">não ficam salvos</strong>: guardamos só as transações e ativos que você
+          confirmar.
         </p>
         <p>
           <strong className="text-ink">Quando a leitura falha</strong> (o app não entende o formato do seu banco, ou lê
@@ -74,25 +84,49 @@ export default function PrivacidadePage() {
           junto. Para pedir a exclusão imediata de um arquivo específico, fale com a gente no contato abaixo.
         </p>
 
-        <h2 className="mt-2 text-base font-semibold text-ink">5. Seus direitos (LGPD)</h2>
+        <p>
+          <strong className="text-ink">Cópia de segurança:</strong> uma vez por dia o banco de dados inteiro é copiado,
+          para que nenhum dado seja perdido se algo der errado. Cada cópia é{" "}
+          <strong className="text-ink">criptografada</strong> antes de ser guardada, só a administração tem a chave, e
+          ela é apagada automaticamente depois de 30 dias.
+        </p>
+
+        <h2 className="mt-2 text-base font-semibold text-ink">5. Inteligência artificial</h2>
+        <p>
+          O SPI Finance <strong className="text-ink">não envia seus dados para serviços de inteligência artificial</strong>.
+          A leitura dos extratos e a sugestão de categorias são feitas por regras dentro do próprio app. Se você usar o
+          microfone para lançar um gasto, quem transforma a sua fala em texto é o reconhecimento de voz do seu próprio
+          celular ou navegador (Apple ou Google, conforme o aparelho); o app recebe só o texto.
+        </p>
+
+        <h2 className="mt-2 text-base font-semibold text-ink">6. Seus direitos (LGPD)</h2>
         <p>
           Você pode, a qualquer momento: <strong className="text-ink">acessar</strong> e{" "}
           <strong className="text-ink">corrigir</strong> seus dados (dentro do próprio app),{" "}
           <strong className="text-ink">exportar</strong> (Configurações → Dados) e{" "}
           <strong className="text-ink">excluir sua conta com todos os dados</strong> (Configurações → Dados → Excluir
-          conta). A exclusão é definitiva e imediata, e leva junto qualquer arquivo de importação que estivesse
-          guardado para suporte. Você também pode{" "}
+          conta). A exclusão é definitiva e imediata no app, e leva junto qualquer arquivo de importação que estivesse
+          guardado para suporte. As cópias de segurança criptografadas que ainda tiverem seus dados são apagadas
+          sozinhas em até 30 dias. Fica guardado só o registro da compra (e-mail e produto comprado), que é o que
+          libera o acesso ao app e serve de comprovante. Você também pode{" "}
           <strong className="text-ink">se opor</strong> a essa retenção ou pedir a exclusão de um arquivo específico
           pelo contato abaixo.
         </p>
 
-        <h2 className="mt-2 text-base font-semibold text-ink">6. Cookies e sessão</h2>
+        <h2 className="mt-2 text-base font-semibold text-ink">7. Incidentes de segurança</h2>
+        <p>
+          Se acontecer um incidente de segurança que possa trazer risco ou dano para você, avisamos por e-mail quem
+          foi afetado, dizendo o que aconteceu, quais dados foram envolvidos e o que estamos fazendo, e comunicamos a
+          Autoridade Nacional de Proteção de Dados (ANPD), como manda a LGPD.
+        </p>
+
+        <h2 className="mt-2 text-base font-semibold text-ink">8. Cookies e sessão</h2>
         <p>
           Usamos apenas cookies essenciais para manter você conectado(a) com segurança. Não usamos cookies de
           rastreamento ou publicidade.
         </p>
 
-        <h2 className="mt-2 text-base font-semibold text-ink">7. Contato do responsável</h2>
+        <h2 className="mt-2 text-base font-semibold text-ink">9. Contato do responsável</h2>
         <p>
           Para exercer seus direitos ou tirar dúvidas sobre privacidade:{" "}
           <a href="mailto:suporte.danielacolombo@gmail.com" className="text-accent-strong hover:underline">
