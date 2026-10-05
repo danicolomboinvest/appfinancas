@@ -21,15 +21,35 @@ export function normalizeProductName(name: string): string {
     .replace(/[\u0300-\u036f]/g, "");
 }
 
-/** A compra libera acesso? Confere id e nome contra a lista de produtos ativos. */
-export async function isProductAllowed(product: HublaProduct): Promise<boolean> {
-  const actives = await prisma.allowedProduct.findMany({ where: { active: true } });
+/**
+ * O que um produto da lista libera (05/10/2026): "app" é o acesso de sempre; "money_reset" é só o
+ * programa de 21 dias, vendido no order bump. O Money Reset sozinho NÃO abre o app.
+ */
+export type Concede = "app" | "money_reset";
+export const CONCESSOES: Concede[] = ["app", "money_reset"];
+
+function casaCom(p: { hublaProductId: string | null; name: string }, product: HublaProduct): boolean {
   const nName = product.name ? normalizeProductName(product.name) : null;
-  return actives.some(
-    (p) =>
-      (product.id != null && p.hublaProductId === product.id) ||
-      (nName != null && normalizeProductName(p.name) === nName),
-  );
+  return (product.id != null && p.hublaProductId === product.id) || (nName != null && normalizeProductName(p.name) === nName);
+}
+
+/**
+ * Cada produto da compra contra a lista ativa: o primeiro que libera o app, o primeiro que libera
+ * o Money Reset e os que não estão ligados na lista. Uma compra com order bump traz os dois (o
+ * SPI Finance e o Money Reset) e precisa liberar os dois.
+ */
+export async function oQueACompraLibera(products: HublaProduct[]): Promise<{ app: HublaProduct | null; moneyReset: HublaProduct | null; foraDaLista: HublaProduct[] }> {
+  const ativos = await prisma.allowedProduct.findMany({ where: { active: true } });
+  let app: HublaProduct | null = null;
+  let moneyReset: HublaProduct | null = null;
+  const foraDaLista: HublaProduct[] = [];
+  for (const product of products) {
+    const achado = ativos.find((p) => casaCom(p, product));
+    if (!achado) foraDaLista.push(product);
+    else if (achado.concede === "money_reset") moneyReset ??= product;
+    else app ??= product;
+  }
+  return { app, moneyReset, foraDaLista };
 }
 
 /**
@@ -90,11 +110,15 @@ export async function setAllowedProductActive(id: string, active: boolean) {
   return prisma.allowedProduct.update({ where: { id }, data: { active } });
 }
 
+export async function setAllowedProductConcede(id: string, concede: Concede) {
+  return prisma.allowedProduct.update({ where: { id }, data: { concede } });
+}
+
 export async function removeAllowedProduct(id: string) {
   return prisma.allowedProduct.delete({ where: { id } });
 }
 
-/** Existe algum produto ativo? Se não, o webhook não liberaria nada — o painel avisa a Dani. */
+/** Existe algum produto ativo que libera o app? Se não, o webhook não liberaria ninguém — o painel avisa a Dani. */
 export async function hasActiveProduct(): Promise<boolean> {
-  return (await prisma.allowedProduct.count({ where: { active: true } })) > 0;
+  return (await prisma.allowedProduct.count({ where: { active: true, concede: "app" } })) > 0;
 }

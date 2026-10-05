@@ -126,7 +126,12 @@ function nomeLegivel(description: string): string {
   return (boa ?? partes[0]).slice(0, 40);
 }
 
-export function acharRecorrentes(lancamentos: RaioXLancamento[], limite = 10): RaioXItem[] {
+/**
+ * `essenciais`: o Money Reset (dia 5, "o que já tem dono no mês") quer a lista inteira do que sai
+ * todo mês, aluguel, escola e plano de saúde incluídos e sem o teto do "pequeno gasto". O Raio-X
+ * continua sem eles: lá a pergunta é o que dá para cortar.
+ */
+export function acharRecorrentes(lancamentos: RaioXLancamento[], limite = 10, opcoes: { essenciais?: boolean } = {}): RaioXItem[] {
   type Cobranca = { mes: number; valor: number; fracoes: [number, number][] };
   type Grupo = { nomes: Map<string, number>; cobrancas: Cobranca[]; transferencia: boolean };
   const grupos = new Map<string, Grupo>();
@@ -141,7 +146,7 @@ export function acharRecorrentes(lancamentos: RaioXLancamento[], limite = 10): R
     // Categoria personalizada não diz se é essencial: a descrição diz ("Escola Pequeno Príncipe"
     // numa categoria "Filhos" continua sendo escola, e escola não é "pequeno gasto pra cortar").
     const categoria = l.parentCategory ?? classify(l.description)?.parentCategory ?? null;
-    if (categoria && FORA.has(categoria) && !(categoria === "SAUDE" && ACADEMIA.test(baixa))) continue;
+    if (!opcoes.essenciais && categoria && FORA.has(categoria) && !(categoria === "SAUDE" && ACADEMIA.test(baixa))) continue;
     if (l.subcategory === "Investimento" || NAO_E_GASTO.test(baixa)) continue;
     if (PARCELA_EXPLICITA.test(l.description) || ENCARGO.test(baixa) || CPF_MASCARADO.test(l.description)) continue;
     const chave = chaveRaioX(l.description);
@@ -181,7 +186,7 @@ export function acharRecorrentes(lancamentos: RaioXLancamento[], limite = 10): R
     if (Math.max(...porMes.keys()) < ultimoMes - 1) continue;
     const meses = [...porMes.values()];
     const mensalTipico = mediana(meses.map((m) => m.total));
-    if (mensalTipico > TETO_MENSAL) continue;
+    if (!opcoes.essenciais && mensalTipico > TETO_MENSAL) continue;
     const vezesPorMes = meses.reduce((s, m) => s + m.vezes, 0) / meses.length;
     const nome = [...g.nomes.entries()].sort((a, b) => b[1] - a[1])[0][0];
     // Assinatura = uma cobrança na maioria dos meses E valor estável nas últimas cobranças (um

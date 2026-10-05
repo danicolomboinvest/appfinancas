@@ -1,6 +1,8 @@
 import { requireAdmin } from "@/lib/auth/rbac";
 import { listAllowedEmails, isExpired } from "@/lib/repositories/allowedEmail.repo";
 import { listAllowedProducts } from "@/lib/repositories/allowedProduct.repo";
+import { listarProdutosLiberados, MONEY_RESET } from "@/lib/repositories/produtoLiberado.repo";
+import { MoneyResetSection } from "./MoneyResetSection";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -20,7 +22,7 @@ const dateFmt = new Intl.DateTimeFormat("pt-BR", {
 
 export default async function AdminAcessosPage() {
   await requireAdmin();
-  const [emails, products] = await Promise.all([listAllowedEmails(), listAllowedProducts()]);
+  const [emails, products, moneyReset] = await Promise.all([listAllowedEmails(), listAllowedProducts(), listarProdutosLiberados(MONEY_RESET)]);
   const active = emails.filter((e) => e.active && !isExpired(e.expiresAt)).length;
   const expiredCount = emails.filter((e) => e.active && isExpired(e.expiresAt)).length;
 
@@ -32,6 +34,8 @@ export default async function AdminAcessosPage() {
       />
 
       <ProductsSection products={products} />
+
+      <MoneyResetSection liberacoes={moneyReset} />
 
       <AddEmailsForm />
 

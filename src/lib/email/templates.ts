@@ -287,3 +287,33 @@ export function alertEmail(params: {
     `),
   };
 }
+
+/**
+ * Lembrete das contas a pagar (05/10/2026): as que vencem amanhã e hoje, num e-mail só, na voz do
+ * tema do perfil. O nome da conta foi a pessoa que digitou: escapado.
+ */
+export function contasEmail(params: {
+  name: string | null;
+  t: Pick<Titulos, "contasEmailAssunto" | "contasEmailIntro" | "contasEmailBotao" | "contasEmailRodape">;
+  contas: { nome: string; titulo: string; corpo: string }[];
+  url: string;
+}): { subject: string; html: string } {
+  const firstName = primeiroNome(params.name);
+  const hi = firstName ? `Oi, ${firstName}.` : "Oi.";
+  return {
+    subject: params.t.contasEmailAssunto(params.contas[0]?.nome ?? "", params.contas.length),
+    html: shell(`
+      <p style="margin:0 0 6px;">${hi}</p>
+      <p style="margin:0 0 18px;">${params.t.contasEmailIntro}</p>
+      ${params.contas
+        .map(
+          (c) => `
+      <p style="margin:0 0 2px;"><strong>${escaparHtml(c.titulo)}</strong></p>
+      <p style="margin:0 0 14px;color:${MUTED};">${escaparHtml(c.corpo)}</p>`,
+        )
+        .join("")}
+      <p style="margin:22px 0 0;">${button(params.url, params.t.contasEmailBotao)}</p>
+      <p style="margin:22px 0 0;color:${MUTED};font-size:12px;line-height:1.5;">${params.t.contasEmailRodape}</p>
+    `),
+  };
+}

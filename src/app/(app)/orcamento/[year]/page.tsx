@@ -1,7 +1,7 @@
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { CalendarClock, ChevronLeft, ChevronRight } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
 import {
   getAnnualPlannedVsActual,
@@ -38,6 +38,8 @@ import { carregarDetalheDoOrcamento } from "@/lib/repositories/orcamento-detalhe
 import { categoriaDoMes, ordenarCategorias, planoMaisRealista, sugestaoDeCobrir } from "@/lib/planning/orcamento-categorias";
 import { MapaDoAno, type LinhaDoMapa } from "@/components/budget/MapaDoAno";
 import { vozDoTema } from "@/lib/profiles/voice";
+import { listarContasAPagar } from "@/lib/repositories/conta-a-pagar.repo";
+import { contasDoFoco, hojeEmBrasilia } from "@/lib/contas/contas";
 import { AtualizarMesButton } from "@/components/budget/AtualizarMesButton";
 import { getUltimoGastoAte } from "@/lib/repositories/monthly-entry.repo";
 import { ajustesDoPadrao } from "@/lib/planning/padrao-orcamento";
@@ -73,7 +75,7 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
   const voz = vozDoTema(ctx.profileTheme, ctx.profileKind);
   const agora = nowInBrazil();
   // Uma consulta a mais na página já custou caro antes: vai junto das outras, não em fila.
-  const [comparison, customCategories, plan, annualPlan, monthSummary, hints, savingsTargets] = await Promise.all([
+  const [comparison, customCategories, plan, annualPlan, monthSummary, hints, savingsTargets, contas] = await Promise.all([
     getAnnualPlannedVsActual(ctx, year),
     listCustomCategories(ctx),
     getAnnualBudgetPlan(ctx, year),
@@ -81,7 +83,12 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
     year === agora.getFullYear() ? getMonthlySummary(ctx, year, agora.getMonth() + 1) : null,
     getBudgetHints(ctx, year, agora),
     getSavingsTargets(ctx, agora),
+    listarContasAPagar(ctx),
   ]);
+  // Contas a pagar moram aqui (05/10/2026, pedido da Dani): o atalho diz o que vence na semana.
+  const contasDaSemana = contasDoFoco(contas, hojeEmBrasilia());
+  const contasAtrasadas = contasDaSemana.filter((c) => c.situacao === "atrasada").length;
+  const totalDasContas = contasDaSemana.reduce((s, c) => s + (c.valor ?? 0), 0);
   // O mês de referência, o mesmo das categorias (o mês corrente no ano corrente): o salvar grava
   // dele em diante, então é ele que responde "o que eu tenho planejado?". Janeiro já não serve:
   // depois de salvar em setembro, janeiro continua com o valor antigo e a tela "desfazia" a
@@ -361,6 +368,27 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
             </div>
           ))}
         </div>
+      )}
+
+      {isCurrentYear && (
+        <Link
+          href={contas.length > 0 ? "/orcamento/contas" : "/orcamento/contas?nova=1"}
+          className="flex items-center gap-3 rounded-2xl border border-border bg-surface px-5 py-4 transition-colors hover:bg-surface-hover"
+        >
+          <CalendarClock size={18} className={`shrink-0 ${contasAtrasadas > 0 ? "text-danger" : "text-accent-strong"}`} aria-hidden />
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-semibold text-ink">{voz.titulos.contasTitulo}</span>
+            <span className={`mt-0.5 block text-caption ${contasAtrasadas > 0 ? "font-semibold text-danger" : "text-ink-muted"}`}>
+              {contasDaSemana.length > 0
+                ? voz.titulos.contasFocoTitulo(contasAtrasadas, contasDaSemana.length - contasAtrasadas)
+                : contas.length > 0
+                  ? voz.titulos.contasFocoNenhuma
+                  : voz.titulos.contasRegistrarSub}
+            </span>
+          </span>
+          {totalDasContas > 0 && <span className="shrink-0 text-sm font-semibold tabular-nums text-ink">{money(totalDasContas, { round: true })}</span>}
+          <ChevronRight size={16} className="shrink-0 text-ink-faint" />
+        </Link>
       )}
 
       {linhasDoMes.length > 0 && (

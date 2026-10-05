@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { normalizePhone } from "@/lib/phone";
 import { grantFromHubla, revokeFromHubla } from "@/lib/repositories/allowedEmail.repo";
-import { isProductAllowed, recordSeenProduct, type HublaProduct } from "@/lib/repositories/allowedProduct.repo";
+import { oQueACompraLibera, recordSeenProduct, type HublaProduct } from "@/lib/repositories/allowedProduct.repo";
+import { liberarProdutoDaHubla, MONEY_RESET, revogarProdutoDaHubla } from "@/lib/repositories/produtoLiberado.repo";
 import { findUserByEmail } from "@/lib/repositories/user.repo";
 import { sendEmail } from "@/lib/email/send";
 import { accessGrantedEmail } from "@/lib/email/templates";
@@ -18,6 +19,10 @@ import { caminhoDoCadastro } from "@/lib/auth/convite-cadastro";
  * Filtro por produto: só libera se o produto comprado estiver na lista de produtos que dão
  * acesso (AllowedProduct ativo). Produto não listado numa compra é registrado como inativo
  * (aparece no painel pra a Dani decidir) e NÃO libera.
+ *
+ * Money Reset (05/10/2026): produto da lista marcado "money_reset" libera SÓ o programa de 21
+ * dias (ProdutoLiberado), nunca o app. No order bump a compra traz os dois produtos e libera
+ * os dois; o reembolso tira os dois.
  *
  * Eventos tratados (event.type):
  *  - customer.member_added     → libera (ganhou acesso ao produto), se o produto liberar
@@ -99,14 +104,6 @@ function extractProducts(event: unknown): HublaProduct[] {
   return result;
 }
 
-/** A compra libera acesso se QUALQUER produto dela estiver na lista de produtos ativos. */
-async function findAllowedProduct(products: HublaProduct[]): Promise<HublaProduct | null> {
-  for (const product of products) {
-    if (await isProductAllowed(product)) return product;
-  }
-  return null;
-}
-
 export async function POST(request: Request) {
   const expected = process.env.HUBLA_WEBHOOK_TOKEN;
   if (!expected) {
@@ -139,13 +136,14 @@ export async function POST(request: Request) {
   if (GRANT_EVENTS.has(type)) {
     // Só libera se ALGUM produto da compra dá acesso (combo/order bump conta). Produto não
     // listado fica registrado (inativo) pra a Dani decidir depois, e não libera ninguém.
-    const allowed = await findAllowedProduct(products);
+    const { app: allowed, moneyReset, foraDaLista } = await oQueACompraLibera(products);
+    for (const product of foraDaLista) await recordSeenProduct(product);
+    if (moneyReset) for (const email of emails) await liberarProdutoDaHubla(email, MONEY_RESET);
     if (!allowed) {
-      for (const product of products) await recordSeenProduct(product);
       return NextResponse.json({
         ok: true,
-        action: "ignored",
-        reason: "product not allowed",
+        action: moneyReset ? "granted_money_reset" : "ignored",
+        ...(moneyReset ? {} : { reason: "product not allowed" }),
         products: products.map((p) => p.name ?? p.id),
       });
     }
@@ -178,6 +176,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       ok: true,
       action: "granted",
+      moneyReset: Boolean(moneyReset),
       emailed,
       // `extended: false` = evento irmão/reenvio da mesma fatura, acesso seguiu com o prazo
       // que já tinha (é o comportamento certo, não uma falha).
@@ -195,7 +194,8 @@ export async function POST(request: Request) {
   if (products.length === 0) {
     return NextResponse.json({ ok: true, action: "ignored", reason: "no product" });
   }
-  if (!(await findAllowedProduct(products))) {
+  const { app, moneyReset } = await oQueACompraLibera(products);
+  if (!app && !moneyReset) {
     return NextResponse.json({
       ok: true,
       action: "ignored",
@@ -204,6 +204,8 @@ export async function POST(request: Request) {
     });
   }
   // Só desativa liberação que veio do Hubla: a MANUAL da Dani fica (ver revokeFromHubla).
+  if (moneyReset) for (const email of emails) await revogarProdutoDaHubla(email, MONEY_RESET);
+  if (!app) return NextResponse.json({ ok: true, action: "revoked_money_reset" });
   for (const email of emails) await revokeFromHubla(email);
-  return NextResponse.json({ ok: true, action: "revoked" });
+  return NextResponse.json({ ok: true, action: "revoked", moneyReset: Boolean(moneyReset) });
 }

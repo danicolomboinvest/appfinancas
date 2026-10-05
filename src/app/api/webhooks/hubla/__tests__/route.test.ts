@@ -13,7 +13,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  * grava a liberação (allowedEmail.repo) é espião, porque as contas dele já têm teste próprio.
  */
 
-type Produto = { id: string; hublaProductId: string | null; name: string; active: boolean; source: string };
+type Produto = { id: string; hublaProductId: string | null; name: string; active: boolean; source: string; concede?: string };
 const produtos: Produto[] = [];
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -52,6 +52,14 @@ vi.mock("@/lib/repositories/allowedEmail.repo", () => ({
   revokeFromHubla: (...a: unknown[]) => revokeFromHubla(...a),
 }));
 
+const liberarProdutoDaHubla = vi.fn();
+const revogarProdutoDaHubla = vi.fn();
+vi.mock("@/lib/repositories/produtoLiberado.repo", () => ({
+  MONEY_RESET: "money_reset",
+  liberarProdutoDaHubla: (...a: unknown[]) => liberarProdutoDaHubla(...a),
+  revogarProdutoDaHubla: (...a: unknown[]) => revogarProdutoDaHubla(...a),
+}));
+
 const findUserByEmail = vi.fn();
 vi.mock("@/lib/repositories/user.repo", () => ({ findUserByEmail: (e: string) => findUserByEmail(e) }));
 
@@ -83,6 +91,8 @@ beforeEach(() => {
   produtos.push({ id: "p0", hublaProductId: null, name: "Do Zero à Liberdade Financeira", active: true, source: "MANUAL" });
   grantFromHubla.mockReset().mockResolvedValue({ isNew: true, expiresAt: new Date("2027-09-30T12:00:00Z"), extended: true });
   revokeFromHubla.mockReset().mockResolvedValue({ count: 1 });
+  liberarProdutoDaHubla.mockReset().mockResolvedValue({});
+  revogarProdutoDaHubla.mockReset().mockResolvedValue({ count: 1 });
   findUserByEmail.mockReset().mockResolvedValue(null);
   sendEmail.mockReset().mockResolvedValue({ ok: true });
 });
@@ -280,5 +290,56 @@ describe("webhook Hubla: eventos que não interessam", () => {
   it("payload sem type também é ignorado com 200", async () => {
     const r = await chamar({ event: { user: { email: "o@x.com" } } });
     expect(await r.json()).toMatchObject({ ok: true, ignored: "unknown" });
+  });
+});
+
+describe("webhook Hubla: Money Reset no order bump (05/10/2026)", () => {
+  const SPI = { id: "GOXMpHHLZgsvZTE1fjTm", name: "SPI Finance" };
+  const RESET = { id: "DvUmU7wOlfeO5Mibhjry", name: "Money Reset" };
+  beforeEach(() => {
+    produtos.push({ id: "p1", hublaProductId: SPI.id, name: "SPI Finance", active: true, source: "HUBLA", concede: "app" });
+    produtos.push({ id: "p2", hublaProductId: RESET.id, name: "Money Reset", active: true, source: "HUBLA", concede: "money_reset" });
+  });
+
+  it("app + Money Reset na mesma compra: libera o app E o Money Reset, nos dois e-mails", async () => {
+    const r = await chamar(compra("invoice.payment_succeeded", { user: { email: "ana@x.com" }, invoice: { payer: { email: "ana.pag@x.com" } }, product: SPI, products: [SPI, RESET] }));
+    expect(await r.json()).toMatchObject({ ok: true, action: "granted", moneyReset: true });
+    expect(grantFromHubla).toHaveBeenCalledTimes(2);
+    expect(liberarProdutoDaHubla.mock.calls).toEqual([["ana@x.com", "money_reset"], ["ana.pag@x.com", "money_reset"]]);
+  });
+
+  it("o Money Reset sozinho libera só ele: nada de app, nada de convite pra criar conta", async () => {
+    const r = await chamar(compra("invoice.payment_succeeded", { user: { email: "bia@x.com" }, product: RESET }));
+    expect(await r.json()).toMatchObject({ ok: true, action: "granted_money_reset" });
+    expect(liberarProdutoDaHubla).toHaveBeenCalledWith("bia@x.com", "money_reset");
+    expect(grantFromHubla).not.toHaveBeenCalled();
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  it("compra só do app não libera o Money Reset", async () => {
+    await chamar(compra("invoice.payment_succeeded", { user: { email: "cris@x.com" }, product: SPI }));
+    expect(grantFromHubla).toHaveBeenCalledTimes(1);
+    expect(liberarProdutoDaHubla).not.toHaveBeenCalled();
+  });
+
+  it("Money Reset desligado no painel não libera", async () => {
+    produtos.find((p) => p.id === "p2")!.active = false;
+    const r = await chamar(compra("invoice.payment_succeeded", { user: { email: "duda@x.com" }, product: RESET }));
+    expect(await r.json()).toMatchObject({ action: "ignored" });
+    expect(liberarProdutoDaHubla).not.toHaveBeenCalled();
+  });
+
+  it("reembolso da compra com os dois tira os dois", async () => {
+    const r = await chamar(compra("invoice.refunded", { user: { email: "eva@x.com" }, product: SPI, products: [SPI, RESET] }));
+    expect(await r.json()).toMatchObject({ action: "revoked", moneyReset: true });
+    expect(revokeFromHubla).toHaveBeenCalledWith("eva@x.com");
+    expect(revogarProdutoDaHubla).toHaveBeenCalledWith("eva@x.com", "money_reset");
+  });
+
+  it("perdeu só o Money Reset: o app continua", async () => {
+    const r = await chamar(compra("customer.member_removed", { user: { email: "fabi@x.com" }, product: RESET }));
+    expect(await r.json()).toMatchObject({ action: "revoked_money_reset" });
+    expect(revogarProdutoDaHubla).toHaveBeenCalledWith("fabi@x.com", "money_reset");
+    expect(revokeFromHubla).not.toHaveBeenCalled();
   });
 });

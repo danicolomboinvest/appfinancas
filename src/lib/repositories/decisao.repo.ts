@@ -30,7 +30,12 @@ export type TipoDecisao =
    * Não existe campo pra isso no lançamento: sem guardar, a regra aprendida saía com o nome novo
    * ("ALUGUEL" em vez de "PIX 1234 JOAO") e a fatura renomeada entrava em dobro se subida de novo.
    */
-  | "descricao_original";
+  | "descricao_original"
+  /** Money Reset (05/10/2026): o Dia 0 feito (chave "reset|inicio"), cada dia feito ("reset|dia|5")
+   * e as respostas das missões ("reset|motivo", "reset|regra", "reset|passos"...). */
+  | "reset_inicio"
+  | "reset_dia"
+  | "reset_resposta";
 
 export type NovaDecisao = {
   tipo: TipoDecisao;

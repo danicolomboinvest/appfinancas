@@ -49,7 +49,7 @@ export function RaioX({ itens, decididos }: { itens: RaioXItem[]; decididos: Rec
             </button>
           );
           return (
-            <div key={item.chave} className="py-4">
+            <div key={item.chave} className="py-4" data-guia="raiox-item">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold text-ink">{item.nome}</p>

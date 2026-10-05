@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { useSuccessToast } from "@/components/ui/useSuccessToast";
-import { addProductAction, toggleProductAction, removeProductAction, type ProductFormState } from "./actions";
+import { addProductAction, toggleProductAction, removeProductAction, setProductConcedeAction, type ProductFormState } from "./actions";
 
 type Product = {
   id: string;
@@ -14,6 +14,8 @@ type Product = {
   hublaProductId: string | null;
   source: "MANUAL" | "HUBLA" | "APPLE";
   active: boolean;
+  /** "app" libera o app; "money_reset" libera só o Money Reset (order bump). */
+  concede: string;
 };
 
 const initialState: ProductFormState = {};
@@ -22,7 +24,7 @@ export function ProductsSection({ products }: { products: Product[] }) {
   const [state, formAction, isPending] = useActionState(addProductAction, initialState);
   useSuccessToast(isPending, state.error, state.ok ? "Produto salvo." : undefined);
 
-  const noneActive = products.every((p) => !p.active);
+  const noneActive = products.every((p) => !p.active || p.concede !== "app");
 
   return (
     <Card className="flex flex-col gap-4 p-4">
@@ -30,7 +32,7 @@ export function ProductsSection({ products }: { products: Product[] }) {
         <p className="text-sm font-medium text-ink">Produtos do Hubla que liberam acesso</p>
         <p className="mt-0.5 text-xs text-ink-muted">
           Só compras destes produtos liberam o app automaticamente. Cada produto vendido também aparece aqui sozinho
-          (desligado) para você decidir.
+          (desligado) para você decidir. Produto marcado &ldquo;Money Reset&rdquo; libera só os 21 dias, nunca o app.
         </p>
       </div>
 
@@ -75,6 +77,21 @@ function ProductRow({ product }: { product: Product }) {
         {product.source === "HUBLA" && !product.active && (
           <div className="text-xs text-ink-faint">Visto numa compra. Ligue se este produto deve dar acesso.</div>
         )}
+      </div>
+      {/* O que este produto abre: o app inteiro ou só o Money Reset (o order bump). */}
+      <div className="flex overflow-hidden rounded-full border border-border text-xs" role="group" aria-label="O que este produto libera">
+        {(["app", "money_reset"] as const).map((c) => (
+          <button
+            key={c}
+            type="button"
+            disabled={isPending || product.concede === c}
+            aria-pressed={product.concede === c}
+            onClick={() => startTransition(() => setProductConcedeAction(product.id, c))}
+            className={`px-2.5 py-1 ${product.concede === c ? "bg-accent-soft font-semibold text-accent-strong" : "text-ink-muted hover:bg-surface-2"}`}
+          >
+            {c === "app" ? "App" : "Money Reset"}
+          </button>
+        ))}
       </div>
       <Badge tone={product.active ? "success" : "neutral"}>{product.active ? "Libera" : "Não libera"}</Badge>
       <button

@@ -13,9 +13,13 @@ import {
 } from "@/lib/repositories/allowedEmail.repo";
 import {
   addAllowedProductByName,
+  CONCESSOES,
   removeAllowedProduct,
   setAllowedProductActive,
+  setAllowedProductConcede,
+  type Concede,
 } from "@/lib/repositories/allowedProduct.repo";
+import { liberarProdutoManual, MONEY_RESET, setProdutoLiberadoAtivo } from "@/lib/repositories/produtoLiberado.repo";
 import { createUserInvite, findUserByEmail, findExistingUserEmails } from "@/lib/repositories/user.repo";
 import { adminInviteSchema } from "@/lib/validations/auth.schema";
 import { sendEmail } from "@/lib/email/send";
@@ -141,6 +145,32 @@ export async function toggleProductAction(id: string, active: boolean) {
 export async function removeProductAction(id: string) {
   await requireAdmin();
   await removeAllowedProduct(id);
+  revalidatePath("/admin/acessos");
+}
+
+/** O que o produto libera: o app inteiro ou só o Money Reset (o order bump). */
+export async function setProductConcedeAction(id: string, concede: Concede) {
+  await requireAdmin();
+  if (!CONCESSOES.includes(concede)) return;
+  await setAllowedProductConcede(id, concede);
+  revalidatePath("/admin/acessos");
+}
+
+/** Libera o Money Reset na mão (cortesia, compra com outro e-mail, compra que não chegou). */
+export async function addMoneyResetAction(_prev: ProductFormState, formData: FormData): Promise<ProductFormState> {
+  await requireAdmin();
+  const emails = parseEmails(typeof formData.get("emails") === "string" ? (formData.get("emails") as string) : "");
+  if (emails.length === 0) return { error: "Cole ao menos um e-mail." };
+  const invalidos = emails.filter((e) => !e.includes("@"));
+  if (invalidos.length > 0) return { error: `Estes não parecem e-mails válidos: ${invalidos.slice(0, 3).join(", ")}` };
+  for (const email of emails) await liberarProdutoManual(email, MONEY_RESET);
+  revalidatePath("/admin/acessos");
+  return { ok: true };
+}
+
+export async function toggleMoneyResetAction(id: string, ativo: boolean) {
+  await requireAdmin();
+  await setProdutoLiberadoAtivo(id, ativo);
   revalidatePath("/admin/acessos");
 }
 

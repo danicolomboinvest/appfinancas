@@ -290,7 +290,7 @@ export function BudgetWizard({
             <p className="text-caption text-ink-muted">{t.formOrcSobraSub(money(investment, { round: true }))}</p>
           </div>
 
-          <Button type="button" onClick={() => setStep(2)} disabled={income <= 0} className="w-full">
+          <Button type="button" onClick={() => setStep(2)} disabled={income <= 0} className="w-full" data-guia="orc-ir-divisao" data-guia-txt="Confira a renda e toque em Dividir">
             {t.formOrcDividir(money(toSpend, { round: true }))}
           </Button>
         </>
@@ -353,6 +353,7 @@ export function BudgetWizard({
               type="button"
               onClick={suggest}
               disabled={toSpend <= 0}
+              data-guia="orc-sugerir"
               className="flex min-h-11 items-center justify-center gap-1.5 rounded-full border border-border-strong bg-surface-2 px-4 text-sm font-semibold text-ink disabled:opacity-40"
             >
               {t.formOrcSugerir}
@@ -457,7 +458,7 @@ export function BudgetWizard({
             <Button type="submit" disabled={isPending} className="w-full sm:w-auto">
               {isPending ? t.formSalvando : t.formOrcSalvar}
             </Button>
-            <Button type="button" variant="ghost" onClick={() => setStep(2)} className="w-full sm:w-auto">
+            <Button type="button" variant="ghost" onClick={() => setStep(2)} className="w-full sm:w-auto" data-guia="orc-ir-divisao" data-guia-txt="Toque em Ajustar as categorias">
               {t.formOrcAjustar}
             </Button>
             {hasPlan && (

@@ -1,3 +1,4 @@
+import { GIRLY_RESET } from "../textos/reset";
 import { faltamDias } from "../textos/foco";
 import { TITULOS_PADRAO, simuladoresDoTema, inteiro, semDiaria, estadoParaFrase, type Voz, type Titulos, numeros } from "../voice-base";
 
@@ -1187,6 +1188,57 @@ function tarefaGirly(chave: string, texto: string, feita: boolean): string {
   }
 }
 
+// Contas a pagar (05/10/2026): a amiga que lembra do boleto antes de virar juros. Sem "pra".
+const nG = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : 0);
+const diasG = (d: number) => `${d} ${d === 1 ? "dia" : "dias"}`;
+const GIRLY_CONTAS: Partial<Titulos> = {
+  contasTitulo: "Contas a pagar 🧾",
+  contasSub: "Me conta o que vence que eu te lembro um dia antes e no dia 💕",
+  contasVazio: "Nenhuma conta anotada ainda",
+  contasVazioSub: "Luz, aluguel, escola, a fatura do cartão: me conta quando vence que eu te lembro um dia antes e no dia 🔔",
+  contasNova: "Nova conta",
+  contasEditarTitulo: "Editar conta",
+  contasNome: "O que é?",
+  contasNomeExemplo: "Ex.: luz, aluguel, escola",
+  contasValor: "Valor",
+  contasValorMuda: "O valor muda todo mês",
+  contasValorMudaHint: "Luz, água, fatura do cartão. Eu te lembro do mesmo jeito 💕",
+  contasVencimento: "Vence em",
+  contasRepete: "Repete todo mês",
+  contasRepeteHint: "Quando você marcar que pagou, ela volta sozinha no mês seguinte ✨",
+  contasLembrar: "Me lembra 🔔",
+  contasLembrarHint: "Um dia antes e no dia do vencimento.",
+  contasTotalSemana: (valor) => `${valor} para pagar nos próximos 7 dias 💸`,
+  contasPaguei: "Paguei ✓",
+  contasPagaToast: (nome, proxima) => (proxima ? `${nome} paga 🎉 A próxima vence ${proxima}.` : `${nome} paga 🎉`),
+  contasQuando: (situacao, d, data) => {
+    switch (situacao) {
+      case "atrasada": return `Atrasada há ${diasG(Math.abs(nG(d)))} 🫣`;
+      case "hoje": return "Vence hoje!";
+      case "amanha": return "Vence amanhã";
+      case "semana": return `Vence em ${diasG(nG(d))}`;
+      default: return `Vence ${data}`;
+    }
+  },
+  contasGrupoPagas: "Pagas há pouco 🎉",
+  contasFocoTitulo: (atrasadas, naSemana) => {
+    const a = nG(atrasadas);
+    const s = nG(naSemana);
+    if (a > 0) return a === 1 ? "1 conta atrasada 🫣" : `${a} contas atrasadas 🫣`;
+    return s === 1 ? "1 conta vence esta semana 🔔" : `${s} contas vencem esta semana 🔔`;
+  },
+  contasFocoAnotar: "Anotar conta",
+  contasFocoNenhuma: "Nada vencendo nos próximos 7 dias ✨",
+  contasRegistrar: "Conta a pagar 🧾",
+  contasRegistrarSub: "Me conta o vencimento que eu te lembro 🔔",
+  contasLembreteTitulo: (nome, quando) => (quando === "vespera" ? `${nome} vence amanhã 🔔` : `${nome} vence hoje! 🔔`),
+  contasLembreteCorpo: (valor) => (valor ? `${valor}. Pagou? Me conta no app 💕` : "Confere o valor e me conta no app quando pagar 💕"),
+  contasEmailAssunto: (nome, total) => (nG(total) > 1 ? `${nG(total)} contas vencendo, amiga 🔔` : `${nome} está vencendo 🔔`),
+  contasEmailIntro: "Passando aqui para te lembrar das contas que você me contou 💕",
+  contasEmailBotao: "Ver minhas contas 🧾",
+  contasEmailRodape: "Você recebe esse lembrete porque marcou \"Me lembra\" na conta. Dá para desligar em cada uma 🎀",
+};
+
 // "Posso comprar?" passo a passo (05/10/2026): a amiga que pergunta antes de você passar o
 // cartão. Sonho no lugar de meta, combinado no lugar de orçamento, e nada de "pra".
 const mesesG = (n: number) => `${n} ${n === 1 ? "mês" : "meses"}`;
@@ -1457,6 +1509,8 @@ export const girly: Voz = {
     ...GIRLY_PAINEIS,
     ...GIRLY_FIXOS,
     ...GIRLY_COMPRA,
+    ...GIRLY_CONTAS,
+    ...GIRLY_RESET,
     comparacao: (tipo, valor, mes) =>
       tipo === "sem" ? `Nadinha em ${mes} 🌸` : tipo === "igual" ? `Igualzinho a ${mes} 💕` : tipo === "mais" ? `${valor} a mais que ${mes} 🫣` : `${valor} a menos que ${mes}! Boaaaa 👏`,
     simuladores: "Bora simular? 🧮✨",

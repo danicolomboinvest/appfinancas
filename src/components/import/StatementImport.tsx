@@ -532,6 +532,7 @@ export function StatementImport({
                 type="button"
                 onClick={() => setDocType(tipo)}
                 aria-pressed={docType === tipo}
+                data-guia={`tipo-${tipo}`}
                 className={`min-h-11 flex-1 rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
                   docType === tipo ? "bg-pill text-on-pill" : "text-ink-muted hover:text-ink"
                 }`}
@@ -577,6 +578,7 @@ export function StatementImport({
           type="button"
           onClick={() => fileRef.current?.click()}
           disabled={isPending}
+          data-guia="escolher-arquivo"
           className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border-strong bg-surface-2 px-4 py-10 text-center transition-colors hover:border-accent hover:bg-surface-hover disabled:opacity-60"
         >
           <span className="flex h-12 w-12 items-center justify-center rounded-full bg-pill text-on-pill">

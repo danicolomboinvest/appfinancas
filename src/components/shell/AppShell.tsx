@@ -16,6 +16,7 @@ import { RegistrarDrawer } from "./RegistrarDrawer";
 import { modoPedidoNoEvento, EVENTO_IMPORTAR, EVENTO_REGISTRAR, type ModoDoRegistrar } from "./registrar-eventos";
 import { ProfileSwitcher, type PerfilResumo } from "@/components/profiles/ProfileSwitcher";
 import { WelcomeTour } from "./WelcomeTour";
+import { GuiaDoReset } from "@/components/money-reset/GuiaDoReset";
 import { InstallAppBanner } from "./InstallAppBanner";
 import { ConviteTesteAndroid } from "./ConviteTesteAndroid";
 import { InstallAppSheet } from "./InstallAppSheet";
@@ -241,6 +242,8 @@ export function AppShell({
 
         {/* Tour de boas-vindas, só na primeira entrada (lembrado no aparelho). */}
         <WelcomeTour />
+        {/* O guia do Money Reset: só aparece quando uma missão liga (sessionStorage). */}
+        <GuiaDoReset />
 
         {/* Rastreio de uso primeiro (pageviews → /admin/relatorio). Não renderiza nada. */}
         <UsageTracker />

@@ -139,7 +139,7 @@ export function EmergencyFundForm({
           required
         />
       </div>
-      <Button type="submit" disabled={isPending} className="w-fit">
+      <Button type="submit" disabled={isPending} className="w-fit" data-guia="reserva-salvar">
         {isPending ? voz.titulos.formSalvando : voz.titulos.formSalvar}
       </Button>
     </Card>

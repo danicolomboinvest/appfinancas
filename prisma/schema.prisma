@@ -214,6 +214,7 @@ model User {
   bankConnections   BankConnection[]
   financialProfiles FinancialProfile[]
   decisoes          Decisao[]
+  contasAPagar      ContaAPagar[]
 }
 
 /// Ambiente financeiro independente dentro da MESMA conta: Pessoal, Empresa, Casal, Casa…
@@ -275,6 +276,7 @@ model FinancialProfile {
   yearlyConsolidations    YearlyConsolidationCache[]
   accumulationCache       AccumulationProjectionCache[]
   decisoes                Decisao[]
+  contasAPagar            ContaAPagar[]
 
   @@index([userId, position])
 }
@@ -983,6 +985,10 @@ model AllowedProduct {
   name           String
   source         AccessSource @default(MANUAL)
   active         Boolean      @default(true)
+  /// O que a compra deste produto libera (05/10/2026): "app" (o acesso de sempre) ou
+  /// "money_reset" (só o programa de 21 dias, vendido no order bump). Produto do Money Reset
+  /// sozinho NÃO libera o app: sem isso, quem comprasse só ele ganharia o app inteiro.
+  concede        String       @default("app")
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 }
@@ -1047,4 +1053,48 @@ model AssinaturaApple {
   updatedAt             DateTime  @updatedAt
 
   @@index([userId])
+}
+
+/// O que a pessoa comprou além do app (05/10/2026): hoje só o Money Reset. Fica no e-mail da
+/// compra, como o AllowedEmail, porque a compra chega pela Hubla antes de a conta existir.
+model ProdutoLiberado {
+  id        String   @id @default(cuid())
+  email     String
+  /// "money_reset"
+  produto   String
+  /// "hubla" | "manual" | "apple"
+  origem    String   @default("hubla")
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([email, produto])
+}
+
+/// Conta a pagar com lembrete (05/10/2026): a Dani pediu "colocar contas a pagar, e o app lembrar
+/// você", inclusive as de valor que muda. Aparece no Foco e avisa na véspera e no dia.
+model ContaAPagar {
+  id         String            @id @default(cuid())
+  userId     String
+  user       User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  profileId  String?
+  profile    FinancialProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  nome       String            @db.VarChar(80)
+  /// Nulo = o valor muda todo mês (luz, cartão). O lembrete vale do mesmo jeito.
+  valor      Decimal?          @db.Decimal(18, 2)
+  /// O próximo vencimento (só a data). Conta que repete anda um mês quando ela marca "paguei".
+  vencimento DateTime          @db.Date
+  /// O dia de sempre (1–31). A do dia 31 passa por fevereiro no 28 e volta pro 31 em março.
+  diaDoMes   Int?
+  repete     Boolean           @default(false)
+  /// Avisar na véspera e no dia (Foco, notificação ou e-mail).
+  lembrar    Boolean           @default(true)
+  /// Quando foi paga pela última vez.
+  pagaEm     DateTime?
+  /// Conta que não repete e já foi paga: sai da lista.
+  quitada    Boolean           @default(false)
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+
+  @@index([userId, profileId, vencimento])
 }

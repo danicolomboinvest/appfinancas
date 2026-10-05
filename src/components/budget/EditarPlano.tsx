@@ -15,6 +15,7 @@ export function EditarPlano({ rotulo, titulo, children }: { rotulo: string; titu
       <button
         type="button"
         onClick={() => setAberto(true)}
+        data-guia="orc-editar"
         className="inline-flex min-h-11 w-fit items-center gap-2 rounded-full border border-border-strong bg-surface px-4 text-sm font-semibold text-ink transition-colors hover:bg-surface-hover"
       >
         <Pencil size={15} aria-hidden /> {rotulo}

@@ -6,7 +6,7 @@ import type { ProfileKind } from "@prisma/client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronLeft, ChevronRight, FileUp, Keyboard, Mic, ShoppingBag } from "lucide-react";
+import { CalendarClock, ChevronLeft, ChevronRight, FileUp, Keyboard, Mic, ShoppingBag } from "lucide-react";
 import type { ParentCategory } from "@prisma/client";
 import { Modal } from "@/components/ui/Modal";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
@@ -104,6 +104,7 @@ export function RegistrarDrawer({
               trackEvent("registro_importacao", "/registrar");
               setMode("import");
             }}
+            data-guia="importar"
             className="col-span-2 flex min-h-11 items-center gap-3 rounded-2xl border border-accent/40 bg-surface-2 px-4 py-4 text-left transition-all hover:border-accent hover:bg-surface-hover active:scale-[0.98]"
           >
             <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-accent text-on-accent">
@@ -135,6 +136,7 @@ export function RegistrarDrawer({
               trackEvent("registro_voz", "/registrar");
               setMode("voice");
             }}
+            data-guia="gravar-audio"
             className="flex flex-col items-center gap-3 rounded-2xl border border-border bg-surface-2 px-4 py-6 text-center transition-all hover:border-border-strong hover:bg-surface-hover active:scale-95"
           >
             <span className="flex h-12 w-12 items-center justify-center rounded-full bg-pill text-on-pill">
@@ -148,6 +150,7 @@ export function RegistrarDrawer({
           {!ehEmpresa(kind) && (
           <Link
             href="/decidir/comprar"
+            data-guia="posso-comprar"
             onClick={() => {
               trackEvent("posso_comprar", "/registrar");
               onClose();
@@ -162,6 +165,23 @@ export function RegistrarDrawer({
             <ChevronRight size={16} className="shrink-0 text-ink-faint" />
           </Link>
           )}
+          {/* Conta a pagar (05/10/2026): o boleto que ainda vai vencer não é gasto ainda, mas é a
+              hora em que ela lembra dele. Abre a tela das contas já no formulário. */}
+          <Link
+            href="/orcamento/contas?nova=1"
+            onClick={() => {
+              trackEvent("conta_a_pagar", "/registrar");
+              onClose();
+            }}
+            className="col-span-2 -mt-2 flex min-h-11 items-center gap-3 rounded-2xl px-4 py-2.5 text-left transition-colors hover:bg-surface-2"
+          >
+            <CalendarClock size={18} strokeWidth={1.75} className="shrink-0 text-ink-muted" />
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-medium text-ink">{voz.titulos.contasRegistrar}</span>
+              <span className="block text-caption text-ink-muted">{voz.titulos.contasRegistrarSub}</span>
+            </span>
+            <ChevronRight size={16} className="shrink-0 text-ink-faint" />
+          </Link>
         </div>
       )}
 

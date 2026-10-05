@@ -14,6 +14,11 @@ import { perguntarRitmo } from "./comece";
 import { SemanaFoco } from "./SemanaFoco";
 import { ritmoDoMes } from "@/lib/decisoes/foco-semana";
 import { vozDoTema } from "@/lib/profiles/voice";
+import { listarContasAPagar } from "@/lib/repositories/conta-a-pagar.repo";
+import { contasDoFoco, hojeEmBrasilia } from "@/lib/contas/contas";
+import { iso, serializarConta } from "@/app/(app)/orcamento/contas/serializar";
+import { ContasDoFoco } from "./ContasDoFoco";
+import { CartaoMoneyReset } from "./CartaoMoneyReset";
 
 /**
  * A aba Foco: a primeira coisa que a pessoa vê ao abrir o app. Só o que importa agora — quanto
@@ -22,8 +27,10 @@ import { vozDoTema } from "@/lib/profiles/voice";
  */
 export default async function FocoPage() {
   const ctx = await getRequiredSession();
-  const d = await carregarFoco(ctx);
+  const [d, contas] = await Promise.all([carregarFoco(ctx), listarContasAPagar(ctx)]);
   const blocos = await carregarBlocosDoMes(ctx, d.now);
+  const hoje = hojeEmBrasilia();
+  const contasDaSemana = contasDoFoco(contas, hoje);
   const mesTitulo = MESES[d.month - 1].charAt(0).toUpperCase() + MESES[d.month - 1].slice(1);
   const { t, m, foco, ritmo } = d;
   // Quem nunca escolheu o ritmo conta como mensal: sem isso a iniciante nunca via o fechamento.
@@ -141,6 +148,16 @@ export default async function FocoPage() {
           </div>
         </Card>
       ))}
+
+      {/* Money Reset: a missão de hoje, só para quem comprou (o resto nem vê). */}
+      <CartaoMoneyReset ctx={ctx} t={t} />
+
+      {/* Conta vencendo é o que mais custa esquecer (juros, multa): logo abaixo do número da semana. */}
+      <ContasDoFoco
+        contas={contasDaSemana.map(serializarConta)}
+        atrasadas={contasDaSemana.filter((c) => c.situacao === "atrasada").length}
+        hoje={iso(hoje)}
+      />
 
       {/* Janeiro a março: fechar o ano passado e escolher como começar este (com a sugestão ou do zero). */}
       {d.viradaPendente && (

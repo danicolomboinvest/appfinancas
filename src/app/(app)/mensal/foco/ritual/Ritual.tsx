@@ -48,7 +48,7 @@ export function Ritual({ d }: { d: DadosRitual }) {
   const variacao = d.semanaPassada.media && d.semanaPassada.media > 0 ? (d.semanaPassada.total - d.semanaPassada.media) / d.semanaPassada.media : null;
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4" data-guia="ritual">
       <Pontos total={4} atual={passo} />
 
       {passo === 0 && (
