@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { conferirLeitura } from "../conferencia";
 import { isBancoDoBrasilStatement, parseBancoDoBrasilStatement } from "../bb-pdf";
 import { profileDocument } from "../profile";
 import { parseStatement } from "../statement-parser";
@@ -64,5 +65,22 @@ describe("extrato de conta corrente do Banco do Brasil (PDF)", () => {
     const txns = parseStatement(BB, "pdf");
     expect(txns).toHaveLength(5);
     expect(txns.reduce((s, t) => s + t.amount, 0)).toBeCloseTo(500);
+  });
+});
+
+describe("conferência pelo saldo do Banco do Brasil", () => {
+  const txt = (corpo: string) => `Extrato de Conta Corrente\nDia Documento Valor Lote Histórico\n25/09/2026 1.060,00 (+)\tSaldo Anterior\n${corpo}\n05/10/2026 210,95 (-)\tS A L D O\n`;
+  it("fecha quando saldo anterior + lançamentos = saldo final, mesmo com valores redondos", () => {
+    const t = txt("25/09/2026 100,00 (+)\t1 2 Pix - Recebido\n25/09/2026 1.370,95 (-)\t1 2 Pix - Enviado");
+    const r = conferirLeitura(t, "extrato", [
+      { date: "2026-09-25", description: "Pix - Recebido", amount: 100 },
+      { date: "2026-09-25", description: "Pix - Enviado", amount: -1370.95 },
+    ]);
+    expect(r.status).toBe("fechou");
+  });
+  it("acusa quando falta lançamento", () => {
+    const t = txt("25/09/2026 100,00 (+)\t1 2 Pix - Recebido\n25/09/2026 1.370,95 (-)\t1 2 Pix - Enviado");
+    const r = conferirLeitura(t, "extrato", [{ date: "2026-09-25", description: "Pix - Recebido", amount: 100 }]);
+    expect(r.status).toBe("nao-fechou");
   });
 });

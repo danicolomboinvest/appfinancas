@@ -215,7 +215,9 @@ export async function parseStatementAction(formData: FormData): Promise<ParseSta
   const fileName = fileMeta instanceof File ? fileMeta.name : null;
   const profile = profileDocument(text, fileName);
   if (profile.kind === "position" && !profile.contents.includes("movements")) {
-    const msg = `Li o arquivo inteiro: ${profile.summary}. É a posição dos investimentos, não entradas e saídas: suba em Carteira › Importar.`;
+    const msg = /extrato de cust[óo]dia/i.test(profile.reason)
+      ? `Li o arquivo inteiro: esse é o extrato de custódia, o saldo de cada caixinha e fundo. Ele não traz entradas e saídas, então não serve aqui. Para lançar o dia a dia, baixe o extrato da conta (Conta › Extrato) no app do banco.`
+      : `Li o arquivo inteiro: ${profile.summary}. É a posição dos investimentos, não entradas e saídas: suba em Carteira › Importar.`;
     await falha(msg, { kind: profile.kind, institution: profile.institution, header: safeHeader(text) });
     return { ok: false, error: msg };
   }

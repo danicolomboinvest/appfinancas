@@ -144,6 +144,12 @@ export function conferirLeitura(texto: string, docType: string, txns: ParsedTran
     return { status: "nao-fechou", lido: compras, esperado: referencias[0] };
   }
 
+  // Banco do Brasil: "1.060,00 (+) Saldo Anterior" no começo e "210,95 (-) S A L D O" no fim. Saldo
+  // anterior + o que as linhas somam tem que dar o saldo final — a conta que o banco mesmo faz.
+  // (Pix de valor redondo parecia "coluna errada" e dava alarme falso: 05/10/2026.)
+  const porSaldo = conferirPorSaldoBB(texto, txns);
+  if (porSaldo) return porSaldo;
+
   // Extrato: só o que é inequívoco. Saldo inicial/final muda de nome e de sinal a cada banco, e
   // uma referência lida errada acusaria (e mandaria mensagem pra) quem teve a leitura certa.
   // C6: "Entradas: R$ 10.857,25 • Saídas: R$ 10.931,35" em cada mês do arquivo — soma os meses.
@@ -178,4 +184,24 @@ export function leituraIncompleta(conf: Conferencia, leitorDedicado: boolean, li
   if (conf.status === "fechou") return false;
   if (conf.status === "nao-fechou") return true;
   return leitorDedicado ? false : linhasPartial;
+}
+
+const BB_SALDO_ANTERIOR = /(\d{1,3}(?:\.\d{3})*,\d{2})\s*\(([+-])\)\s*Saldo\s+Anterior/i;
+const BB_SALDO_FINAL = /(\d{1,3}(?:\.\d{3})*,\d{2})\s*\(([+-])\)\s*S\s*A\s*L\s*D\s*O\b/g;
+
+const valorBR = (v: string) => Number(v.replace(/\./g, "").replace(",", "."));
+
+function conferirPorSaldoBB(texto: string, txns: ParsedTransaction[]): Conferencia | null {
+  const ini = texto.match(BB_SALDO_ANTERIOR);
+  const fins = [...texto.matchAll(BB_SALDO_FINAL)];
+  const fim = fins[fins.length - 1];
+  if (!ini || !fim) return null;
+  const sinal = (m: RegExpMatchArray) => (m[2] === "-" ? -1 : 1);
+  const inicial = sinal(ini) * valorBR(ini[1]);
+  const final = sinal(fim) * valorBR(fim[1]);
+  if (Number.isNaN(inicial) || Number.isNaN(final)) return null;
+  const soma = txns.reduce((acc, t) => acc + t.amount, 0);
+  const esperado = Math.round((final - inicial) * 100) / 100;
+  const lido = Math.round(soma * 100) / 100;
+  return Math.abs(lido - esperado) <= 0.05 ? { status: "fechou", lido, esperado } : { status: "nao-fechou", lido, esperado };
 }

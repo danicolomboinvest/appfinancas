@@ -277,6 +277,13 @@ export function profileDocument(text: string, fileName?: string | null): DocProf
     reason = known.reason;
   }
 
+  // Extrato de custódia (Nubank): só o saldo de cada caixinha/fundo, sem entrada nem saída. Sem
+  // código de ativo o perfil lia como "extrato bancário" e a cliente via "não achei transações".
+  if (/extrato de cust[óo]dia/i.test(text) && /posi[çc][ãa]o consolidada/i.test(text)) {
+    kind = "position";
+    reason = "extrato de custódia (saldo dos investimentos)";
+  }
+
   // Relatório mensal do Safra: posição sem código de ativo, e "vencimento" em todo canto (do CDB,
   // do suitability) — pela contagem de palavras virava FATURA e a Carteira recusava o arquivo.
   if (isSafraMonthlyReport(text)) {
