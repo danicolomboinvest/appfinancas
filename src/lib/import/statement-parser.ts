@@ -26,6 +26,7 @@ import { isNubankStatement, parseNubankStatement } from "./nubank-pdf";
 import { isOurocardInvoice, parseOurocardInvoice } from "./ourocard-pdf";
 import { isItauInvoice, parseItauInvoice } from "./itau-fatura-pdf";
 import { isMidwayInvoice, parseMidwayInvoice } from "./midway-fatura-pdf";
+import { isCarrefourInvoice, parseCarrefourInvoice } from "./carrefour-fatura-pdf";
 import { isC6Invoice, parseC6Invoice } from "./c6-fatura-pdf";
 import { isSantanderInvoice, parseSantanderInvoice } from "./santander-fatura-pdf";
 import { isNubankInvoice, parseNubankInvoice } from "./nubank-fatura-pdf";
@@ -233,11 +234,13 @@ const DEBIT_HEADERS = ["débito", "debito", "saída", "saida", "debit"];
 const DC_HEADERS = ["d/c", "c/d", "natureza", "tipo"];
 /**
  * Célula de sinal que diz SAÍDA: "D", "Débito", "Saída", "Debit". Antes só "D"/"Déb" contavam, e
- * no CSV com "Saída"/"Entrada" o gasto entrava como renda.
+ * no CSV com "Saída"/"Entrada" o gasto entrava como renda. "Gasto"/"Aporte" é a coluna Tipo do
+ * CSV que o PRÓPRIO app exporta (Configurações > Dados): subido de volta, os 99 gastos e 3 aportes
+ * entravam como renda, porque ali o valor sai sempre positivo.
  */
-const SINAL_SAIDA_RE = /^(?:d\b|d[eé]b|sa[ií]da|debit|-$)/i;
+const SINAL_SAIDA_RE = /^(?:d\b|d[eé]b|sa[ií]da|debit|-$|gasto$|aporte$)/i;
 /** Célula que é SÓ o sinal (nada de "Pix enviado"): essa não enriquece a descrição. */
-const CELULA_SO_SINAL_RE = /^(?:d|c|d[eé]b(?:ito)?|cr[eé]d(?:ito)?|sa[ií]da|entrada|debit|credit|[+-])$/i;
+const CELULA_SO_SINAL_RE = /^(?:d|c|d[eé]b(?:ito)?|cr[eé]d(?:ito)?|sa[ií]da|entrada|debit|credit|[+-]|gasto|renda|aporte|resgate)$/i;
 /** Coluna separada de "Transação"/"Tipo" (ex.: extrato BTG), enriquece a descrição. */
 const TRANSACTION_HEADERS = ["transa", "tipo de lanç", "tipo"];
 /** Célula que é SÓ uma data: no Inter a coluna "TRANSACAO" traz a data, não o tipo. */
@@ -775,6 +778,7 @@ const LEITORES_PDF: { nome: string; reconhece: (t: string) => boolean; le: (t: s
   { nome: "ourocard", reconhece: isOurocardInvoice, le: (t, ano) => parseOurocardInvoice(t, ano) },
   { nome: "itau-fatura", reconhece: isItauInvoice, le: (t, ano) => parseItauInvoice(t, ano) },
   { nome: "riachuelo-midway", reconhece: isMidwayInvoice, le: (t) => parseMidwayInvoice(t) },
+  { nome: "carrefour-fatura", reconhece: isCarrefourInvoice, le: (t, ano) => parseCarrefourInvoice(t, ano) },
   { nome: "c6-fatura", reconhece: isC6Invoice, le: (t, ano) => parseC6Invoice(t, ano) },
   { nome: "santander-fatura", reconhece: isSantanderInvoice, le: (t, ano) => parseSantanderInvoice(t, ano) },
   { nome: "nubank-fatura", reconhece: isNubankInvoice, le: (t, ano) => parseNubankInvoice(t, ano) },

@@ -6,6 +6,7 @@ import { isBradescoCartoesApp } from "./bradesco-cartoes-app-pdf";
 import { isBradescoInvoice } from "./bradesco-fatura-pdf";
 import { isBradescoStatement } from "./bradesco-pdf";
 import { isC6Invoice } from "./c6-fatura-pdf";
+import { isCarrefourInvoice } from "./carrefour-fatura-pdf";
 import { isCaixaAppStatement } from "./caixa-pdf";
 import { isCoraStatement } from "./cora-pdf";
 import { isInterInvoice, isInterStatement } from "./inter-pdf";
@@ -56,6 +57,7 @@ const MOLDES_DE_FATURA: [(t: string) => boolean, string][] = [
   [isInterInvoice, "fatura do Inter"],
   [isC6Invoice, "fatura do C6"],
   [isMidwayInvoice, "fatura Riachuelo"],
+  [isCarrefourInvoice, "fatura do Cartão Carrefour"],
   [isItauInvoice, "fatura do Itaú"],
   [isOurocardInvoice, "fatura Ourocard"],
   [isSantanderInvoice, "fatura do Santander"],

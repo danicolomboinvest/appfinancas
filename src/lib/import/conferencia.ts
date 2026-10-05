@@ -46,6 +46,22 @@ const REMANESCENTE = new RegExp(String.raw`valor\s+remanescente\s+da\s+fatura\s+
 
 const OUTROS_LANCAMENTOS = new RegExp(String.raw`^outros\s+lan[çc]amentos\s*${VALOR}`, "im");
 
+/**
+ * O resumo que quase toda fatura imprime: anterior − pagamento + o que entrou no mês = total. As
+ * linhas do mês (sem o pagamento, que é linha de resumo) somam então total − anterior +
+ * pagamento. Faz falta quando o mês tem CRÉDITO além de compra: renegociação no Nubank
+ * ("Crédito de parcelamento −R$ 5.150,07", antecipações, descontos) e encargos de atraso na
+ * Riachuelo — leituras certas no centavo que o alarme acusava de "não fechou".
+ */
+const ANTERIOR = new RegExp(String.raw`^(?:total\s+da\s+)?(?:fatura|saldo)\s+anterior:?\s*${VALOR}`, "im");
+const PAGAMENTO_DO_RESUMO = new RegExp(
+  String.raw`^(?:\(\+\)\s*)?(?:pagamento\s+recebido|pagamentos(?:\s+efetuados)?\/cr[ée]ditos):?\s*[−-]?\s*(?:R\$\s*)?[−-]?\s*(\d{1,3}(?:\.\d{3})*,\d{2})`,
+  "im",
+);
+const TOTAL_ITAU_JUNTO = /Totaldoslan[çc]amentosatuais(\d{1,3}(?:\.\d{3})*,\d{2})/i;
+/** O total no próprio resumo ("Saldo desta Fatura 254,49" na Riachuelo, que o detector geral não pega). */
+const TOTAL_DO_RESUMO = new RegExp(String.raw`^(?:saldo\s+desta\s+fatura|total\s+da\s+fatura\s+atual|total\s+a\s+pagar):?\s*${VALOR}`, "im");
+
 const TOTAL_ENTRADAS = new RegExp(String.raw`total\s+de\s+entradas\s*\+?\s*${VALOR}`, "i");
 const TOTAL_SAIDAS = new RegExp(String.raw`total\s+de\s+sa[íi]das\s*-?\s*${VALOR}`, "i");
 
@@ -94,6 +110,16 @@ export function conferirLeitura(texto: string, docType: string, txns: ParsedTran
     if (outros !== null && comprasNubank !== null) referencias.push(Math.round((comprasNubank + outros) * 100) / 100);
     const remanescente = numero(texto.match(REMANESCENTE));
     if (total !== null && remanescente !== null) referencias.push(Math.round((total - remanescente) * 100) / 100);
+    // Itaú com espaço no meio das palavras e números ("L Tot al dos lançam ent os atuais 2.30 9,02").
+    const totalItauJunto = numero(texto.replace(/[ \t]+/g, "").match(TOTAL_ITAU_JUNTO));
+    if (totalItauJunto !== null) referencias.push(totalItauJunto);
+    const anterior = numero(texto.match(ANTERIOR));
+    const pagamento = numero(texto.match(PAGAMENTO_DO_RESUMO));
+    const totalDoResumo = numero(texto.match(TOTAL_DO_RESUMO)) ?? total;
+    if (totalDoResumo !== null && anterior !== null && pagamento !== null) {
+      const doMes = Math.round((totalDoResumo - anterior + pagamento) * 100) / 100;
+      if (doMes > 0) referencias.push(doMes);
+    }
     if (referencias.length === 0) return { status: "sem-referencia" };
     const lidos = [compras, compras - creditos];
     // De todas as combinações que batem, a mais próxima: com a folga de 0,5%, o total a pagar
