@@ -3,7 +3,7 @@
 import { PasswordField } from "@/components/ui/PasswordField";
 import Link from "next/link";
 import { use, useActionState } from "react";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, Lock } from "lucide-react";
 import { BrandMark } from "@/components/brand/BrandMark";
 import { Field } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
@@ -22,28 +22,39 @@ export default function LoginPage({
   const [state, formAction, isPending] = useActionState(loginAction, initialState);
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-canvas p-6">
-      <div className="w-full max-w-sm animate-fade-in">
-        <div className="mb-8 flex flex-col items-center gap-3 text-center">
-          <BrandMark size={48} className="rounded-2xl" />
-          <div>
-            <h1 className="text-xl font-semibold tracking-tight text-ink">Bem-vinda de volta</h1>
-            <p className="mt-1 text-sm text-ink-muted">Entre para continuar seu planejamento financeiro.</p>
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-canvas px-6 py-10">
+      {/*
+        A luz dourada atrás da marca (05/10/2026, "visual sem graça"): a referência de design do app
+        pede um brilho difuso atrás do elemento principal de cada tela, nunca o fundo chapado. É a
+        única cor de marca (o dourado), bem fraca, vazando pra fora da tela.
+      */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute left-1/2 top-[-7rem] h-[32rem] w-[32rem] -translate-x-1/2 rounded-full"
+        style={{ background: "radial-gradient(closest-side, color-mix(in srgb, var(--color-accent) 30%, transparent), transparent 80%)" }}
+      />
+
+      <div className="relative w-full max-w-sm animate-fade-in">
+        <div className="mb-10 flex flex-col items-center gap-5 text-center">
+          <BrandMark size={72} className="rounded-[22px] shadow-premium" />
+          <div className="flex flex-col gap-2">
+            <p className="text-xs font-medium uppercase tracking-[0.18em] text-accent-strong">SPI Finance</p>
+            <h1 className="text-balance text-[26px] font-semibold leading-tight tracking-tight text-ink">
+              O app que te diz o que fazer com o seu dinheiro.
+            </h1>
+            <p className="text-sm text-ink-muted">Bem-vinda de volta. Entre para continuar.</p>
           </div>
         </div>
 
-        <form
-          action={formAction}
-          className="flex flex-col gap-4 rounded-2xl border border-border bg-surface p-6 shadow-premium-sm"
-        >
+        <form action={formAction} className="flex flex-col gap-4">
           {created === "1" && !state.error && (
-            <p className="flex items-center gap-2 rounded-lg bg-success-soft px-3 py-2 text-sm text-success">
+            <p className="flex items-center gap-2 rounded-xl bg-success-soft px-3 py-2 text-sm text-success">
               <CheckCircle2 size={16} className="shrink-0" />
               Conta criada! Entre e confirme seu e-mail pelo link que mandamos.
             </p>
           )}
           {state.error && (
-            <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{state.error}</p>
+            <p className="rounded-xl bg-danger-soft px-3 py-2 text-sm text-danger">{state.error}</p>
           )}
           {typeof callbackUrl === "string" && <input type="hidden" name="callbackUrl" value={callbackUrl} />}
           <Field
@@ -61,7 +72,7 @@ export default function LoginPage({
               Esqueci minha senha
             </Link>
           </div>
-          <Button type="submit" disabled={isPending} className="w-full">
+          <Button type="submit" disabled={isPending} className="mt-1 h-12 w-full rounded-full text-base">
             {isPending ? "Entrando..." : "Entrar"}
           </Button>
           <p className="text-center text-sm text-ink-muted">
@@ -71,6 +82,12 @@ export default function LoginPage({
             </Link>
           </p>
         </form>
+
+        {/* Verdade da política de privacidade (04/10/2026): servidores em São Paulo, banco criptografado. */}
+        <p className="mt-10 flex items-center justify-center gap-1.5 text-caption text-ink-faint">
+          <Lock size={12} aria-hidden />
+          Seus dados ficam no Brasil, criptografados.
+        </p>
       </div>
     </main>
   );
