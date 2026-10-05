@@ -111,7 +111,8 @@ function remendarNumeros(linha: string): string {
 
 /**
  * A mesma compra parcelada duas vezes no arquivo — "02/05" (desta fatura) e "03/05" (do quadro
- * das próximas), mesma data, mesmo valor: a parcela seguinte não é deste mês.
+ * das próximas), mesma data, mesmo valor: a parcela seguinte não é deste mês. "Mesmo valor" com
+ * folga de centavos: o banco arredonda uma parcela diferente da outra (232,34 e depois 232,33).
  */
 function semParcelaSeguinte(txns: ParsedTransaction[]): ParsedTransaction[] {
   const PARCELA_RE = /^(.*?)(\d{2})\/(\d{2})$/;
@@ -124,7 +125,7 @@ function semParcelaSeguinte(txns: ParsedTransaction[]): ParsedTransaction[] {
     if (!p || p.n < 2) return true;
     return !txns.some((o) => {
       const q = o !== t ? chave(o) : null;
-      return q && o.date === t.date && o.amount === t.amount && q.base === p.base && q.de === p.de && q.n === p.n - 1;
+      return q && o.date === t.date && Math.abs(o.amount - t.amount) <= 0.05 && q.base === p.base && q.de === p.de && q.n === p.n - 1;
     });
   });
 }

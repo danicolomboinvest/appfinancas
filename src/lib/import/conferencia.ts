@@ -36,6 +36,7 @@ const TOTAIS_DE_COMPRAS: RegExp[] = [
   new RegExp(String.raw`^despesas\s+atuais\s*\|\s*d[ée]bitos\s+no\s+brasil\s*${VALOR}`, "im"), // Sicredi
   new RegExp(String.raw`^consumos\s+de\s+\d{2}\/\d{2}\s+a\s+\d{2}\/\d{2}\s*${VALOR}`, "im"), // Mercado Pago
   new RegExp(String.raw`^total\s+de\s+gastos\s*${VALOR}`, "im"), // Banrisul
+  new RegExp(String.raw`^despesas\s+e\s+cr[ée]ditos\s+do\s+m[êe]s\s*${VALOR}`, "im"), // Nomad
   // Itaú: "Lançamentos atuais 5.271,04" é só o mês; o total da fatura soma o que sobrou da anterior.
   new RegExp(String.raw`^(?:total\s+dos\s+)?lan[çc]amentos\s+atuais\s*${VALOR}`, "im"),
 ];

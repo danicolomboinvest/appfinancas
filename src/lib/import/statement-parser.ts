@@ -27,6 +27,7 @@ import { isOurocardInvoice, parseOurocardInvoice } from "./ourocard-pdf";
 import { isItauInvoice, parseItauInvoice } from "./itau-fatura-pdf";
 import { isMidwayInvoice, parseMidwayInvoice } from "./midway-fatura-pdf";
 import { isCarrefourInvoice, parseCarrefourInvoice } from "./carrefour-fatura-pdf";
+import { isNomadInvoice, parseNomadInvoice } from "./nomad-fatura-pdf";
 import { isC6Invoice, parseC6Invoice } from "./c6-fatura-pdf";
 import { isSantanderInvoice, parseSantanderInvoice } from "./santander-fatura-pdf";
 import { isNubankInvoice, parseNubankInvoice } from "./nubank-fatura-pdf";
@@ -458,8 +459,10 @@ export function parseCsv(content: string, refYear: number = new Date().getFullYe
   return semLinhaSemData(transactions);
 }
 
-/** Palavras que indicam entrada (crédito) numa linha de extrato sem coluna de débito/crédito. */
-const CREDIT_HINTS = /\b(sal[aá]rio|rendimento|dep[oó]sito|cr[eé]dito|recebid[oa]|estorno|reembolso|proventos)\b/i;
+/** Palavras que indicam entrada (crédito) numa linha de extrato sem coluna de débito/crédito.
+ * "REND PAGO APLIC AUT MAIS" é o rendimento da aplicação automática do Itaú: o "PAGO" é o banco
+ * pagando, e sem a abreviação o rendimento entrava como gasto. */
+const CREDIT_HINTS = /\b(sal[aá]rio|rendimento|rend\.?\s+pago|dep[oó]sito|cr[eé]dito|recebid[oa]|estorno|reembolso|proventos)\b/i;
 /**
  * "Crédito" que é o PRODUTO, não o sentido do dinheiro: pagar o cartão de crédito ou a parcela
  * do crédito pessoal é saída. Antes a palavra sozinha virava entrada, e como renda o pagamento
@@ -779,6 +782,7 @@ const LEITORES_PDF: { nome: string; reconhece: (t: string) => boolean; le: (t: s
   { nome: "itau-fatura", reconhece: isItauInvoice, le: (t, ano) => parseItauInvoice(t, ano) },
   { nome: "riachuelo-midway", reconhece: isMidwayInvoice, le: (t) => parseMidwayInvoice(t) },
   { nome: "carrefour-fatura", reconhece: isCarrefourInvoice, le: (t, ano) => parseCarrefourInvoice(t, ano) },
+  { nome: "nomad-fatura", reconhece: isNomadInvoice, le: (t) => parseNomadInvoice(t) },
   { nome: "c6-fatura", reconhece: isC6Invoice, le: (t, ano) => parseC6Invoice(t, ano) },
   { nome: "santander-fatura", reconhece: isSantanderInvoice, le: (t, ano) => parseSantanderInvoice(t, ano) },
   { nome: "nubank-fatura", reconhece: isNubankInvoice, le: (t, ano) => parseNubankInvoice(t, ano) },

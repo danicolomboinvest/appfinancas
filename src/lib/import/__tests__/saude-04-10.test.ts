@@ -80,7 +80,7 @@ const ITAU_ESPACADO = [
   "01/08 MER CADO EXEMPLO 53 ,90 04/ 08 PIX Ministe rio 01/02 125, 56",
   "02/ 08 RESTA URANTE EX 380,54 Co m pr as pa rce la das - pr ó xi ma s fat u ra s",
   "03/08 PA DARIA EX 190 ,00 31/05 LO JA -C 04/ 10 82,4 9",
-  "09/07 SERV ICO EXEM 03/05 100 ,00 04/ 08 PIX Ministe rio 02/02 125, 56",
+  "09/07 SERV ICO EXEM 03/05 99 ,99 04/ 08 PIX Ministe rio 02/02 125, 56", // parcela seguinte com centavo diferente
   "lazer SAO PAULO Próxima fatu ra 308,05",
   "L Tot al dos lançam ent os atuais 1.10 0,00",
   "Juro s da compra parc elada 5,9 9 % am 102, 95 % aa",
@@ -139,5 +139,57 @@ describe("CSV exportado pelo próprio app, subido de volta", () => {
     const txns = parseCsv(csv, 2026);
     expect(txns.map((x) => x.amount)).toEqual([-500, -100.23, 1886.62, 50]);
     expect(txns[1].description).toBe("PIX LOJA EXEMPLO");
+  });
+});
+
+describe("extrato Itaú em PDF: rendimento da aplicação automática", () => {
+  it('"REND PAGO APLIC AUT MAIS" é entrada, não gasto', () => {
+    const texto = [
+      "extrato conta / lançamentos",
+      "data lançamentos valor (R$) saldo (R$)",
+      "05/01/2026 PIX TRANSF EXEMPLO05/01 -4,00",
+      "05/01/2026 REND PAGO APLIC AUT MAIS 0,04",
+    ].join("\n");
+    const { txns } = parseStatementComLeitor(texto, "pdf", 2026);
+    expect(txns.map((x) => x.amount)).toEqual([-4, 0.04]);
+  });
+});
+
+/** Fatura FICTÍCIA com a estrutura do PDF do cartão Nomad: o rodapé "Valor da fatura" se repete
+ * em toda página, com a data de vencimento logo acima. */
+const NOMAD = [
+  "Resumo da sua fatura",
+  "Saldo da fatura anterior R$ 0,00",
+  "Despesas e créditos do mês R$ 330,00",
+  "Valor da fatura R$ 330,00",
+  "Parcelamentos para aliviar seu bolso",
+  "Total a pagar: R$ 360,00",
+  "Extrato Referente ao mês de Setembro de 2026",
+  "Data Descrição Valor",
+  "29/08/2026 LOJA EXEMPLO CIDADE BR R$ 30,00",
+  "11/09/2026 RESTAURANTE EXEMPLO MIAMI FL (US$ 37,33 US$1.00 = R$ 5,3149) R$ 198,41",
+  "Data de vencimento",
+  "05/10/2026",
+  "Mês de referência: Setembro",
+  "Valor da fatura",
+  "R$ 330,00",
+  "Data Descrição Valor",
+  "14/09/2026 IOF SOBRE TRANSACAO INTERNACIONAL R$ 6,94",
+  "15/09/2026 LOJA DEVOLUCAO EXEMPLO -R$ 5,35",
+  "16/09/2026 MERCADO EXEMPLO CIDADE BR R$ 100,00",
+  "Data de vencimento",
+  "05/10/2026",
+  "Mês de referência: Setembro",
+  "Valor da fatura",
+  "R$ 330,00",
+  "(11) 0000-0000 - support@nomadglobal.com",
+].join("\n");
+
+describe("fatura do cartão Nomad em PDF", () => {
+  it("não lança o rodapé 'Valor da fatura' e fecha com o total do mês", () => {
+    const { txns, leitor } = parseStatementComLeitor(NOMAD, "pdf", 2026);
+    expect(leitor).toBe("nomad-fatura");
+    expect(txns.map((x) => x.amount)).toEqual([30, 198.41, 6.94, -5.35, 100]);
+    expect(conferirLeitura(NOMAD, "fatura", txns).status).toBe("fechou");
   });
 });
