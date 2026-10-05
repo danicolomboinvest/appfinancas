@@ -33,6 +33,11 @@ export const VALOR_FORA_DE_ESCALA = 200_000;
 export function checarPlausibilidade(
   txns: ParsedTransaction[],
   docType: "extrato" | "fatura" | string,
+  /** As entradas e saídas lidas já bateram com o total impresso no documento (conferencia.ts):
+   * aí "quase tudo é entrada" é a conta da pessoa, não sinal perdido — conta que só recebe Pix
+   * de alunas mostrava o alarme, e a leitura estava certa no centavo. Vale também pro "sem
+   * centavos": Pix de valor redondo não é coluna errada quando a soma fecha. */
+  conferido = false,
 ): Suspeita[] {
   const suspeitas: Suspeita[] = [];
   if (txns.length === 0) return suspeitas;
@@ -50,7 +55,7 @@ export function checarPlausibilidade(
 
   // 2. Extrato em que quase tudo entrou como ENTRADA. Extrato de verdade tem os dois lados;
   //    quando o sinal se perde, o mês vira uma renda gigante que a pessoa nunca teve.
-  if (docType === "extrato" && txns.length >= 5) {
+  if (docType === "extrato" && txns.length >= 5 && !conferido) {
     const entradas = txns.filter((t) => t.amount > 0).length;
     if (entradas / txns.length >= 0.9) {
       suspeitas.push({
@@ -68,7 +73,7 @@ export function checarPlausibilidade(
   //     viravam gasto sem aviso nenhum (a regra 2 só olhava o "quase tudo entrada"). Conta que
   //     só paga existe, por isso aqui é pergunta, não bloqueio. Com menos de 8 linhas, uma
   //     semana sem salário é normal e o aviso só atrapalharia.
-  if (docType === "extrato" && txns.length >= 8 && txns.every((t) => t.amount < 0)) {
+  if (docType === "extrato" && txns.length >= 8 && !conferido && txns.every((t) => t.amount < 0)) {
     const pareceEntrada = /sal[aá]rio|sispag|recebid|pix\s+transf|\bted\b|\bdoc\b|dep[oó]sito|transf/i;
     const exemplos = [...txns.filter((t) => pareceEntrada.test(t.description ?? "")), ...txns.filter((t) => !pareceEntrada.test(t.description ?? ""))];
     suspeitas.push({
@@ -80,7 +85,7 @@ export function checarPlausibilidade(
   // 3. Valores sem centavo nenhum. Dinheiro de extrato quase sempre tem centavo; número de
   //    documento, de autenticação e valor lido sem a vírgula nunca têm. É o sinal que pega a
   //    leitura torta mesmo quando os valores são pequenos demais pra chamar atenção sozinhos.
-  if (txns.length >= 8) {
+  if (txns.length >= 8 && !conferido) {
     const redondos = txns.filter((t) => Math.round(Math.abs(t.amount) * 100) % 100 === 0).length;
     if (redondos / txns.length >= 0.9) {
       suspeitas.push({

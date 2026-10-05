@@ -77,6 +77,8 @@ const RESUMO_EM_COLUNA = new RegExp(
   "i",
 );
 
+const RESUMO_MENSAL_C6 = /Entradas:\s*R\$\s*(\d{1,3}(?:\.\d{3})*,\d{2})\s*•\s*Sa[íi]das:\s*R\$\s*-?(\d{1,3}(?:\.\d{3})*,\d{2})/gi;
+
 const MERCADO_PAGO_ENTRADAS = new RegExp(String.raw`\bEntradas:\s*${VALOR}`);
 const MERCADO_PAGO_SAIDAS = new RegExp(String.raw`\bSa[íi]das:\s*(?:R\$\s*)?-?(\d{1,3}(?:\.\d{3})*,\d{2})`);
 
@@ -137,6 +139,16 @@ export function conferirLeitura(texto: string, docType: string, txns: ParsedTran
 
   // Extrato: só o que é inequívoco. Saldo inicial/final muda de nome e de sinal a cada banco, e
   // uma referência lida errada acusaria (e mandaria mensagem pra) quem teve a leitura certa.
+  // C6: "Entradas: R$ 10.857,25 • Saídas: R$ 10.931,35" em cada mês do arquivo — soma os meses.
+  const meses = [...texto.matchAll(RESUMO_MENSAL_C6)];
+  if (meses.length > 0) {
+    const entradasC6 = meses.reduce((s, m) => s + (numero([m[0], m[1]]) ?? 0), 0);
+    const saidasC6 = meses.reduce((s, m) => s + (numero([m[0], m[2]]) ?? 0), 0);
+    const lidoE = txns.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0);
+    const lidoS = txns.filter((t) => t.amount < 0).reduce((s, t) => s - t.amount, 0);
+    const ok = (lido: number, esperado: number) => (esperado === 0 ? lido < 0.01 : bate(lido, esperado));
+    return { status: ok(lidoE, entradasC6) && ok(lidoS, saidasC6) ? "fechou" : "nao-fechou", lido: lidoE + lidoS, esperado: entradasC6 + saidasC6 };
+  }
   const coluna = texto.match(RESUMO_EM_COLUNA);
   // Mercado Pago: "Entradas: R$ 10.635,42" e "Saidas: R$ -10.625,71" no topo.
   const entradas = coluna ? numero([coluna[0], coluna[1]]) : numero(texto.match(TOTAL_ENTRADAS) ?? texto.match(MERCADO_PAGO_ENTRADAS));

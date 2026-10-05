@@ -678,6 +678,8 @@ function sinalPelaLinha(v: ValorNaLinha, text: string, semSinalEEntrada: boolean
  * (quando o arquivo tem coluna de saldo), o sinal do próprio valor ("-", "+", C/D), a palavra
  * de entrada e, por último, o jeito do banco (ver `sinalSoPeloMenos`); sem nada disso, saída.
  */
+const RESUMO_DO_MES_RE = /\bentradas:\s*•?\s*sa[íi]das:\s*$/i;
+
 export function parseTextLines(content: string, refYear: number = new Date().getFullYear()): ParsedTransaction[] {
   // "−R$ 1.671,14": a fatura do Nubank usa o sinal de menos tipográfico (U+2212), não o hífen.
   // Sem isto o pagamento da fatura anterior perdia o sinal e entrava como mais uma compra.
@@ -691,6 +693,13 @@ export function parseTextLines(content: string, refYear: number = new Date().get
   const fechar = (valores: ValorNaLinha[]) => {
     if (!open) return;
     const text = open.parts.join(" ").replace(/\s+/g, " ").replace(/\b[DC]\b\s*$/, "").trim();
+    // "Agosto 2026 ( 02/08/2026 - 31/08/2026 ) Entradas: R$ 10.857,25 • Saídas: R$ 10.931,35"
+    // (extrato do C6, um por mês) é o resumo do mês, não lançamento — e nem saldo: o total de
+    // saídas entrava como R$ 10 mil de renda (ou de gasto) a mais em cada mês do arquivo.
+    if (RESUMO_DO_MES_RE.test(text)) {
+      open = null;
+      return;
+    }
     // "Lançamentos: R$ 10.290,88" no topo de cada página (extrato do BTG) é o total, não um
     // lançamento: entrava uma vez por página, com a data do cabeçalho.
     registros.push({ date: open.date, text, valores, linhaDeSaldo: BALANCE_LINE_RE.test(text) || /\blan[çc]amentos:\s*$/i.test(text) });
