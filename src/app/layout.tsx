@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Albert_Sans, Geist_Mono } from "next/font/google";
 import { BarraDoIphone } from "@/components/shell/BarraDoIphone";
 import { BootSplash } from "@/components/brand/BootSplash";
+import { THEME_INIT_SCRIPT } from "./theme-init-script";
 import "./globals.css";
 
 // Identidade First Light: Albert Sans (variável) é a única família de texto, títulos em
@@ -51,25 +52,6 @@ export const viewport: Viewport = {
   themeColor: "#0c0c0e",
 };
 
-/**
- * Roda antes da primeira pintura pra evitar o flash de tema errado. Agora precisa tratar o
- * CLARO explicitamente: o padrão do CSS (`:root`) é escuro, então quem escolheu claro veria a
- * tela nascer preta e clarear depois — que é exatamente o flash que este script existe pra
- * evitar, só que ao contrário.
- */
-const THEME_INIT_SCRIPT = `
-try {
-  var t = localStorage.getItem("theme");
-  if (t === "dark") document.documentElement.classList.add("dark");
-  if (t === "light") document.documentElement.classList.add("light");
-} catch (e) {}
-try {
-  // App de iPhone da primeira versão: ele mesmo já tira as margens do relógio e da barrinha de
-  // baixo. A versão nova vai até as bordas e se anuncia como "SPIFinanceApp-iOS/2".
-  if (/SPIFinanceApp-iOS(?!\/)/.test(navigator.userAgent)) document.documentElement.classList.add("app-margem-nativa");
-  if (/SPIFinanceApp-iOS/.test(navigator.userAgent)) document.documentElement.classList.add("app-ios");
-} catch (e) {}
-`;
 
 export default function RootLayout({
   children,

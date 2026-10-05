@@ -140,8 +140,9 @@ describe("temas de perfil", () => {
 
   /** Mesma armadilha da paleta de cor: o bloco claro existir não quer dizer que ele se aplica. */
   it("usa o mesmo mecanismo de tema claro que o app", () => {
-    const layout = readFileSync("src/app/layout.tsx", "utf8");
-    expect(layout).toContain('classList.add("light")');
+    // O script que aplica o tema antes da primeira pintura mora em theme-init-script.ts.
+    const script = readFileSync("src/app/theme-init-script.ts", "utf8");
+    expect(script).toContain('classList.add("light")');
 
     const css = profileThemeCss("girly");
     expect(css).toContain("html.light:root");
