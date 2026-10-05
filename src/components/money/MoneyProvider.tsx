@@ -1,6 +1,8 @@
 "use client";
 
-import { createContext, useContext, useMemo } from "react";
+import { createContext, useCallback, useContext, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { gravarValoresOcultos } from "@/lib/valores-ocultos";
 import {
   makeMoneyFormatter,
   DEFAULT_CURRENCY,
@@ -9,6 +11,7 @@ import {
 } from "@/lib/money";
 
 const CurrencyContext = createContext<CurrencyCode>(DEFAULT_CURRENCY);
+const OcultosContext = createContext<{ ocultos: boolean; alternar: () => void }>({ ocultos: false, alternar: () => {} });
 
 /**
  * A moeda escolhida, disponível pra todo componente de cliente sem passar por prop.
@@ -19,16 +22,36 @@ const CurrencyContext = createContext<CurrencyCode>(DEFAULT_CURRENCY);
  */
 export function MoneyProvider({
   currency,
+  ocultos: ocultosDoServidor = false,
   children,
 }: {
   currency: CurrencyCode;
+  /** O olho do topo fechado (cookie lido pelo servidor). */
+  ocultos?: boolean;
   children: React.ReactNode;
 }) {
+  const router = useRouter();
+  const [ocultos, setOcultos] = useState(ocultosDoServidor);
+  // Os componentes de cliente trocam na hora; os números que vêm prontos do servidor trocam
+  // no refresh logo em seguida.
+  const alternar = useCallback(() => {
+    setOcultos((o) => {
+      gravarValoresOcultos(!o);
+      return !o;
+    });
+    router.refresh();
+  }, [router]);
+  const valorOcultos = useMemo(() => ({ ocultos, alternar }), [ocultos, alternar]);
   return (
     <CurrencyContext.Provider value={currency}>
-      {children}
+      <OcultosContext.Provider value={valorOcultos}>{children}</OcultosContext.Provider>
     </CurrencyContext.Provider>
   );
+}
+
+/** O olho do topo: os valores estão escondidos? E o toque que troca. */
+export function useValoresOcultos() {
+  return useContext(OcultosContext);
 }
 
 export function useCurrency(): CurrencyCode {
@@ -38,7 +61,8 @@ export function useCurrency(): CurrencyCode {
 /** `const money = useMoney();` e depois `money(valor)` — mesma forma do `serverMoney()`. */
 export function useMoney(): MoneyFormatter {
   const currency = useCurrency();
-  return useMemo(() => makeMoneyFormatter(currency), [currency]);
+  const { ocultos } = useContext(OcultosContext);
+  return useMemo(() => makeMoneyFormatter(currency, ocultos), [currency, ocultos]);
 }
 
 /** Valor em dinheiro pronto pra JSX, pra quando não vale a pena chamar o hook. */

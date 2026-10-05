@@ -11,6 +11,7 @@ import { nowInBrazil } from "@/lib/date/brazil-now";
 import type { AccountContext } from "@/lib/auth/session";
 import type { ProfileKind } from "@prisma/client";
 import { MoneyProvider } from "@/components/money/MoneyProvider";
+import { valoresOcultos } from "@/lib/money-server";
 import { toCurrencyCode, type CurrencyCode } from "@/lib/money";
 import { listProfiles, getOrCreateActiveProfile } from "@/lib/repositories/profile.repo";
 import { modoEfetivo, profileThemeCss, temaDeixaEscolherModo } from "@/lib/profiles/themes";
@@ -118,7 +119,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <>
       <ThemeSync theme={modo === "claro" ? "light" : "dark"} />
-      <MoneyProvider currency={currency}>
+      <MoneyProvider currency={currency} ocultos={await valoresOcultos()}>
       {cssDoTema && <style dangerouslySetInnerHTML={{ __html: cssDoTema }} />}
       <AppShell
         perfis={perfis}

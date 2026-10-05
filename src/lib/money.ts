@@ -90,6 +90,13 @@ export function formatMoney(
 /** Assinatura pronta pra ser guardada numa variável e chamada como `money(valor)`. */
 export type MoneyFormatter = (value: number, options?: MoneyOptions) => string;
 
-export function makeMoneyFormatter(currency: CurrencyCode): MoneyFormatter {
+/**
+ * `oculto`: o olho do topo ("Ocultar valores", 05/10/2026). Todo valor que passa pelo formatador
+ * do app vira "R$ ••••", sempre com 4 pontos, para nem o tamanho do número aparecer. Os campos de
+ * digitar usam formatMoney direto e continuam mostrando o valor: escondido é para olhar, não
+ * para editar.
+ */
+export function makeMoneyFormatter(currency: CurrencyCode, oculto = false): MoneyFormatter {
+  if (oculto) return () => `${currencySymbol(currency)} ••••`;
   return (value, options) => formatMoney(value, currency, options);
 }

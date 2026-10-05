@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { NumeroRolante } from "@/components/ui/NumeroRolante";
 import type { ResumoDoMes } from "@/lib/planning/month-budget-summary";
 import type { Voz } from "@/lib/profiles/voice";
 
@@ -50,7 +51,7 @@ export function ResumoDoMesCard({
 
       {/* O gasto é o número grande; o planejado do lado, menor, como a régua dele. */}
       <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-        <span className="text-3xl font-semibold tabular-nums text-ink sm:text-4xl">{money(gasto, { round: true })}</span>
+        <NumeroRolante texto={money(gasto, { round: true })} className="text-3xl font-semibold tabular-nums text-ink sm:text-4xl" />
         {planejado > 0 && <span className="text-base text-ink-muted sm:text-lg">de {money(planejado, { round: true })}</span>}
       </div>
 

@@ -53,6 +53,14 @@ export type TextosReset = {
   // Foco
   mrFocoEy: string;
   mrFocoAmanha: string;
+  // Conquistas (a notificação com confete, só nos momentos raros)
+  conqMetaTitulo: string;
+  conqMetaTexto: (nome: string) => string;
+  conqFechamentoTitulo: string;
+  conqFechamentoTexto: string;
+  conqResetTitulo: string;
+  conqResetTexto: string;
+  conqBotao: string;
 };
 
 export const PADRAO_RESET: TextosReset = {
@@ -98,6 +106,13 @@ export const PADRAO_RESET: TextosReset = {
   mrGuiaFim: "Pronto. Volte à missão para ver como ficou.",
   mrFocoEy: "Money Reset",
   mrFocoAmanha: "A próxima missão abre amanhã.",
+  conqMetaTitulo: "Meta alcançada!",
+  conqMetaTexto: (nome) => `${nome}: você chegou lá. Isso é constância, não sorte.`,
+  conqFechamentoTitulo: "Seu primeiro mês fechado",
+  conqFechamentoTexto: "Você olhou o mês inteiro, entendeu e decidiu o próximo. É assim que o dinheiro entra no lugar.",
+  conqResetTitulo: "Você terminou o Money Reset",
+  conqResetTexto: "21 dias, 21 missões. Seu plano está pronto e mora no app.",
+  conqBotao: "Continuar",
 };
 
 export const GIRLY_RESET: Partial<TextosReset> = {
@@ -120,4 +135,11 @@ export const GIRLY_RESET: Partial<TextosReset> = {
   mrCompartilhar: "Postar no story ✨",
   mrGuiaFim: "Prontinho! Volta na missão para ver como ficou 💕",
   mrFocoAmanha: "A próxima missão abre amanhã 💕",
+  conqMetaTitulo: "Sonho realizado! 🎉",
+  conqMetaTexto: (nome) => `${nome}: você chegou lá, amiga! 💖`,
+  conqFechamentoTitulo: "Primeiro mês fechado! 🎉",
+  conqFechamentoTexto: "Você olhou o mês inteirinho e decidiu o próximo. Que orgulho! 💕",
+  conqResetTitulo: "21 dias feitos! 🥳",
+  conqResetTexto: "Seu plano está pronto e mora aqui no app 💖",
+  conqBotao: "Obrigada! 💕",
 };

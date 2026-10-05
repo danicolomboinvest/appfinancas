@@ -570,3 +570,57 @@ html.light .glass-pill {
 .slider-app:focus-visible::-webkit-slider-thumb {
   box-shadow: 0 0 0 4px var(--color-accent-soft);
 }
+
+/* Toque com resposta (05/10/2026, "cara de premium"): todo botão encolhe um tiquinho ao ser
+   apertado e volta, como nos apps nativos. 3% nos botões, 1,5% nos links (muitos são cartões
+   inteiros, e 3% num cartão largo pula demais). Na camada base de propósito: quem já tem o
+   próprio active:scale (a barra de baixo, o "+") continua com o dele. A propriedade `scale` é
+   separada de transform/translate, então não briga com nenhuma animação existente. */
+@layer base {
+  :where(button, summary, a[href]) {
+    transition: scale 0.12s ease-out;
+  }
+  :where(button, summary):not(:disabled):active {
+    scale: 0.97;
+  }
+  :where(a[href]):active {
+    scale: 0.985;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    :where(button, summary, a[href]):active {
+      scale: none;
+    }
+  }
+}
+
+/* Esqueleto do carregamento (05/10/2026): no lugar da tela parada esperando o servidor, a
+   forma da tela que vem, com um brilho passando devagar. Sem brilho para quem pediu menos
+   movimento no aparelho. */
+@keyframes brilho-esqueleto {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
+}
+.esqueleto {
+  background-image: linear-gradient(90deg, var(--color-surface-2) 0%, var(--color-surface-hover) 50%, var(--color-surface-2) 100%);
+  background-size: 200% 100%;
+  animation: brilho-esqueleto 1.4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .esqueleto {
+    animation: none;
+  }
+}
+
+/* A fita do número que rola (NumeroRolante): desacelera no fim, como o contador do iPhone. */
+.numero-rolante-fita {
+  transition: transform 0.55s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .numero-rolante-fita {
+    transition: none;
+  }
+}

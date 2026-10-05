@@ -42,7 +42,7 @@ import { MonthFlowCard } from "./MonthFlowCard";
 import { getContributionLinkState } from "@/lib/portfolio/contribution-link";
 import { TopCategories } from "./TopCategories";
 import { IncomeSplitCard } from "./IncomeSplitCard";
-import { serverMoney } from "@/lib/money-server";
+import { serverMoney, valoresOcultos } from "@/lib/money-server";
 import { formatMoney, isCurrencyCode } from "@/lib/money";
 import { estadoDoMes, vozDoTema } from "@/lib/profiles/voice";
 import { montarDadosDoTema } from "./theme-hero-data";
@@ -100,6 +100,7 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
   const initialView = view === "anual" ? "anual" : "mensal";
 
   const ctx = await getRequiredSession();
+  const ocultos = await valoresOcultos();
   // Os nomes das categorias na cara do perfil: "Moradia" pra pessoa, "Estrutura" pra empresa.
   const rotulosDeCategoria = Object.fromEntries(PARENT_CATEGORIES.map((k) => [k, categoryLabel(ctx.categorias ?? ctx.profileKind, k)]));
   // `serverMoney` entra na leva paralela em vez de ficar sozinho antes dela: sozinho, ele
@@ -471,7 +472,8 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
             doCasal: entry.doCasal,
             ...(entry.originalCurrency && entry.originalAmount !== null && isCurrencyCode(entry.originalCurrency)
               ? {
-                  originalLabel: formatMoney(Number(entry.originalAmount), entry.originalCurrency),
+                  // O olho do topo fechado esconde também o valor na moeda de origem.
+                  originalLabel: ocultos ? "••••" : formatMoney(Number(entry.originalAmount), entry.originalCurrency),
                   originalAmount: Number(entry.originalAmount),
                   originalCurrency: entry.originalCurrency,
                   exchangeRate: entry.exchangeRate === null ? null : Number(entry.exchangeRate),

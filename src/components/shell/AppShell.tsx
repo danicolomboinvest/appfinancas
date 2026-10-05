@@ -15,6 +15,7 @@ import { ThemeQuickToggle } from "./ThemeQuickToggle";
 import { RegistrarDrawer } from "./RegistrarDrawer";
 import { modoPedidoNoEvento, EVENTO_IMPORTAR, EVENTO_REGISTRAR, type ModoDoRegistrar } from "./registrar-eventos";
 import { ProfileSwitcher, type PerfilResumo } from "@/components/profiles/ProfileSwitcher";
+import { OcultarValoresToggle } from "./OcultarValoresToggle";
 import { WelcomeTour } from "./WelcomeTour";
 import { GuiaDoReset } from "@/components/money-reset/GuiaDoReset";
 import { InstallAppBanner } from "./InstallAppBanner";
@@ -194,11 +195,11 @@ export function AppShell({
                 <ProfileSwitcher perfis={perfis} />
                 {/* Sol/lua só quando o tema deixa: Girly é branco e Disciplina é preto por
                     definição, e uma chave que não faz nada é pior que nenhuma. */}
-                {podeEscolherModo && (
-                  <div className="ml-auto">
-                    <ThemeQuickToggle initial={theme} />
-                  </div>
-                )}
+                <div className="ml-auto flex items-center gap-0.5">
+                  {/* O olho: esconde todo valor em dinheiro num toque (vale em todo tema). */}
+                  <OcultarValoresToggle />
+                  {podeEscolherModo && <ThemeQuickToggle initial={theme} />}
+                </div>
               </div>
               {showGreeting && <GreetingStrip greeting={greeting} dateLabel={dateLabel} />}
               <ConviteTesteAndroid userEmail={userEmail} />

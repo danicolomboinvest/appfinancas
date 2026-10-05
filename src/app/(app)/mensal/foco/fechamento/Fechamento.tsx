@@ -9,6 +9,8 @@ import { ProgressBar } from "@/components/ui/ProgressBar";
 import { ReportarErro } from "@/components/decisoes/ReportarErro";
 import { useToast } from "@/components/ui/toast-context";
 import { ajustarOrcamentoAction, concluirRitualAction, mandarSobraPraReservaAction, registrarAporteDoMesAction } from "../actions";
+import { vibrar } from "@/lib/celebrar";
+import { NotificacaoDeConquista } from "@/components/conquista/NotificacaoDeConquista";
 import { Botao, Passo, Pontos } from "../Passos";
 
 export type DadosFechamento = {
@@ -43,6 +45,8 @@ export function Fechamento({ d }: { d: DadosFechamento }) {
   const [escolhas, setEscolhas] = useState<string[]>([]);
   const [salvando, start] = useTransition();
   const [lembrarCarteira, setLembrarCarteira] = useState(false);
+  // O primeiro mês fechado na vida: a notificação de conquista (com confete) antes de voltar.
+  const [primeiroMes, setPrimeiroMes] = useState(false);
   const seguir = (escolha?: string) => {
     if (escolha) setEscolhas((e) => [...e, escolha]);
     setPasso((p) => p + 1);
@@ -71,6 +75,12 @@ export function Fechamento({ d }: { d: DadosFechamento }) {
 
   return (
     <div className="flex flex-col gap-4">
+      {primeiroMes && (
+        <NotificacaoDeConquista
+          conquistas={[{ chave: "primeiro-fechamento", icone: "🗓️", titulo: t.conqFechamentoTitulo, texto: t.conqFechamentoTexto }]}
+          onFim={() => router.push("/mensal/foco")}
+        />
+      )}
       <Pontos total={6} atual={passo} />
       {/* A reserva mora em dois lugares (tela da reserva e Carteira): quem mandou a sobra pra lá
           precisa saber que a Carteira só muda quando ela marcar onde o dinheiro foi aplicado. */}
@@ -260,7 +270,13 @@ export function Fechamento({ d }: { d: DadosFechamento }) {
             disabled={salvando}
             onClick={() =>
               gravar(async () => {
-                await concluirRitualAction("fechamento", d.chave, escolhas.join(" · ") || "lição registrada");
+                const { primeiro } = await concluirRitualAction("fechamento", d.chave, escolhas.join(" · ") || "lição registrada");
+                // Comemoração só no PRIMEIRO mês fechado (conquista rara); nos outros, o toque.
+                if (primeiro) {
+                  setPrimeiroMes(true);
+                  return;
+                }
+                vibrar("sucesso");
                 router.push("/mensal/foco");
               })
             }

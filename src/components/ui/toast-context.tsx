@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useState } from "react";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
+import { vibrar } from "@/lib/celebrar";
 
 type ToastAction = { label: string; onClick: () => void };
 type ToastItem = { id: number; message: string; action?: ToastAction; erro?: boolean };
@@ -39,7 +40,13 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     [push],
   );
   // Erro fica mais tempo: é o que ela precisa ler pra saber o que fazer.
-  const showError = useCallback((message: string) => push({ message, erro: true }, 6000), [push]);
+  const showError = useCallback(
+    (message: string) => {
+      vibrar("erro");
+      push({ message, erro: true }, 6000);
+    },
+    [push],
+  );
 
   return (
     <ToastContext.Provider value={{ showToast, showError }}>

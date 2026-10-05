@@ -23,6 +23,7 @@ import { mesesQueOSalvarGrava } from "@/lib/planning/plano-anual";
 import { PARENT_CATEGORIES } from "@/lib/categories";
 import type { ParentCategory } from "@prisma/client";
 import { chaveDaSemana, type Ritmo } from "./ritmo";
+import { ehPrimeiroFechamento } from "@/lib/repositories/conquista.repo";
 
 /** Semanal ou mensal. Vale pra conta toda (é o jeito da PESSOA, não do perfil). */
 export async function escolherRitmoAction(ritmo: Ritmo) {
@@ -203,14 +204,19 @@ export async function ajustarOrcamentoAction(categoria: string, valor: number) {
   revalidatePath("/orcamento", "layout");
 }
 
-/** Fechou o ritual da semana ("2026-W40") ou o mês ("2026-08"). */
-export async function concluirRitualAction(tipo: "ritual" | "fechamento", chave: string, resumo: string) {
-  if (tipo !== "ritual" && tipo !== "fechamento") return;
+/**
+ * Fechou o ritual da semana ("2026-W40") ou o mês ("2026-08"). Devolve se foi o PRIMEIRO mês que
+ * ela fechou na vida: esse ganha a notificação de conquista (com confete), uma vez só.
+ */
+export async function concluirRitualAction(tipo: "ritual" | "fechamento", chave: string, resumo: string): Promise<{ primeiro: boolean }> {
+  if (tipo !== "ritual" && tipo !== "fechamento") return { primeiro: false };
   const k = z.string().regex(/^\d{4}-(W\d{2}|\d{2})$/).parse(chave);
   const texto = z.string().catch("").parse(resumo).slice(0, 200);
   const ctx = await getRequiredSession();
+  const primeiro = tipo === "fechamento" && (await ehPrimeiroFechamento(ctx, k));
   await registrarDecisaoUnica(ctx, { tipo, chave: k, descricao: texto });
   revalidatePath("/mensal/foco");
+  return { primeiro };
 }
 
 const erradoSchema = z.object({

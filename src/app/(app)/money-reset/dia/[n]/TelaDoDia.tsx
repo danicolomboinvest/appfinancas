@@ -10,6 +10,8 @@ import { EVENTO_REGISTRAR } from "@/components/shell/registrar-eventos";
 import { DICAS_DA_SEMANA, PASSOS_DO_SONHO, REGRAS_DO_CARTAO, naVoz, vocabularioDaVoz } from "@/lib/money-reset/missoes";
 import { definirTetoAction, escolherRitmoAction } from "@/app/(app)/mensal/foco/actions";
 import { concluirMissaoAction, salvarRespostaAction } from "../../actions";
+import { vibrar } from "@/lib/celebrar";
+import { NotificacaoDeConquista } from "@/components/conquista/NotificacaoDeConquista";
 import type { DadosDaMissao } from "../../dados";
 import type { Respostas } from "./Missao";
 
@@ -98,6 +100,7 @@ export function TelaDoDia({ dia, dados, respostas, feita, amanha, hoje, onVoltar
     startTransition(async () => {
       if (fn) await fn();
       else await concluirMissaoAction(dia);
+      vibrar("sucesso");
       router.refresh();
       onVoltar();
     });
@@ -114,6 +117,8 @@ export function TelaDoDia({ dia, dados, respostas, feita, amanha, hoje, onVoltar
   const [passo, setPasso] = useState(0);
   const [passos, setPassos] = useState<string[]>(() => (Array.isArray(respostas.passos?.dados) ? (respostas.passos!.dados as string[]) : PASSOS_DO_SONHO.map(() => "")));
   const [recompensa, setRecompensa] = useState(respostas.recompensa?.texto ?? "");
+  // O fim dos 21 dias: a notificação de conquista (com confete), uma vez só.
+  const [fimDoReset, setFimDoReset] = useState(false);
 
   const titulo = (txt: string, sub?: string) => (
     <div>
@@ -455,6 +460,15 @@ export function TelaDoDia({ dia, dados, respostas, feita, amanha, hoje, onVoltar
       const texto = `Em 21 dias eu coloquei meu dinheiro no lugar.${d.guardar ? ` Agora guardo ${m(d.guardar)} todo mês.` : ""} #MoneyReset`;
       return (
         <div className="flex flex-col gap-4">
+          {fimDoReset && (
+            <NotificacaoDeConquista
+              conquistas={[{ chave: "reset", icone: "🏁", titulo: t.conqResetTitulo, texto: t.conqResetTexto }]}
+              onFim={() => {
+                router.refresh();
+                onVoltar();
+              }}
+            />
+          )}
           {titulo("Seu plano")}
           {linhas.length > 0 && (
             <Card className="p-4">
@@ -477,7 +491,7 @@ export function TelaDoDia({ dia, dados, respostas, feita, amanha, hoje, onVoltar
             {t.mrCompartilhar}
           </Botao>
           {!feita && (
-            <Botao disabled={salvando || !recompensa.trim()} onClick={() => concluir(() => salvarRespostaAction("recompensa", recompensa.trim(), undefined, 21))}>
+            <Botao disabled={salvando || !recompensa.trim()} onClick={() => startTransition(async () => { await salvarRespostaAction("recompensa", recompensa.trim(), undefined, 21); setFimDoReset(true); })}>
               Concluir o Money Reset
             </Botao>
           )}

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { NumeroRolante } from "@/components/ui/NumeroRolante";
 import type { Ritmo } from "@/lib/profiles/voice-base";
 import { diaDaSemana, previsaoDoMes } from "@/lib/decisoes/foco-semana";
 
@@ -52,7 +53,7 @@ export function SemanaFoco({
     <section className={`flex flex-col gap-3 rounded-3xl p-5 ${cor.fundo}`}>
       <p className="text-sm font-medium text-ink-muted">{rotulo}</p>
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <span className="text-[2.75rem] font-bold leading-none tracking-tight text-ink tabular-nums">{money(valor)}</span>
+        <NumeroRolante texto={money(valor)} className="text-[2.75rem] font-bold leading-none tracking-tight text-ink tabular-nums" />
         <span className="text-sm font-medium text-ink-muted">{money(porDia)} por dia</span>
       </div>
 

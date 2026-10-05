@@ -35,7 +35,10 @@ export type TipoDecisao =
    * e as respostas das missões ("reset|motivo", "reset|regra", "reset|passos"...). */
   | "reset_inicio"
   | "reset_dia"
-  | "reset_resposta";
+  | "reset_resposta"
+  /** Conquista já comemorada (a notificação com confete apareceu): "meta|<id>",
+   * "primeiro-fechamento", "reset". Uma vez cada, nunca de novo. */
+  | "conquista";
 
 export type NovaDecisao = {
   tipo: TipoDecisao;

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { vibrar } from "@/lib/celebrar";
 import { usePathname } from "next/navigation";
 import { MoreHorizontal, Plus } from "lucide-react";
 import { abasDoCelular, sectionMatches, type MobileTab } from "./nav-sections";
@@ -85,7 +86,10 @@ export function MobileTabBar({
       <div className="flex flex-1 flex-col items-center justify-end">
         <button
           type="button"
-          onClick={onOpenRegistrar}
+          onClick={() => {
+            vibrar("leve");
+            onOpenRegistrar();
+          }}
           aria-label={voz.titulos.registrar}
           data-tour="registrar"
           className="-mt-6 flex h-14 w-14 items-center justify-center rounded-full bg-accent-gradient text-on-accent ring-4 ring-canvas transition-transform active:scale-90"

@@ -8,6 +8,7 @@ import { useMoney } from "@/components/money/MoneyProvider";
 import { useToast } from "@/components/ui/toast-context";
 import { diasAte, lerData, situacao, type Situacao } from "@/lib/contas/contas";
 import { desfazerPagamentoAction, pagarContaAction } from "./actions";
+import { vibrar } from "@/lib/celebrar";
 
 /** A conta como chega no cliente: datas em texto ("2026-10-12"), pra atravessar a fronteira. */
 export type ContaSerial = {
@@ -59,6 +60,7 @@ export function LinhaDaConta({ conta, hoje, onAbrir }: { conta: ContaSerial; hoj
         showError("Não deu para marcar. Atualize a tela e tente de novo.");
         return;
       }
+      vibrar("sucesso");
       showToast(t.contasPagaToast(conta.nome, r.proxima ? diaMes(r.proxima) : null), {
         label: t.contasDesfazer,
         onClick: () => {

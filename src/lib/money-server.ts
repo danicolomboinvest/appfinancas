@@ -1,4 +1,6 @@
 import { cache } from "react";
+import { cookies } from "next/headers";
+import { COOKIE_VALORES_OCULTOS } from "@/lib/valores-ocultos";
 import { auth } from "@/lib/auth/auth.config";
 import { getOwnUser } from "@/lib/repositories/user.repo";
 import {
@@ -26,7 +28,11 @@ export const getUserCurrency = cache(async (): Promise<CurrencyCode> => {
   return toCurrencyCode(user.currency);
 });
 
+/** O olho do topo fechado ("Ocultar valores"), neste aparelho. */
+export const valoresOcultos = cache(async (): Promise<boolean> => (await cookies()).get(COOKIE_VALORES_OCULTOS)?.value === "1");
+
 /** Açúcar pro uso mais comum: `const money = await serverMoney();` e depois `money(valor)`. */
 export async function serverMoney(): Promise<MoneyFormatter> {
-  return makeMoneyFormatter(await getUserCurrency());
+  const [moeda, ocultos] = await Promise.all([getUserCurrency(), valoresOcultos()]);
+  return makeMoneyFormatter(moeda, ocultos);
 }

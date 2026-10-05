@@ -19,6 +19,7 @@ import { contasDoFoco, hojeEmBrasilia } from "@/lib/contas/contas";
 import { iso, serializarConta } from "@/app/(app)/orcamento/contas/serializar";
 import { ContasDoFoco } from "./ContasDoFoco";
 import { CartaoMoneyReset } from "./CartaoMoneyReset";
+import { ConquistasDeMetas } from "@/components/conquista/ConquistasDeMetas";
 
 /**
  * A aba Foco: a primeira coisa que a pessoa vê ao abrir o app. Só o que importa agora — quanto
@@ -49,6 +50,8 @@ export default async function FocoPage() {
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Meta que chegou no valor: a notificação com confete, uma vez só (conquista rara). */}
+      <ConquistasDeMetas ctx={ctx} />
       {/* O topo da Foco é a pergunta da semana (01/10/2026): antes ficava abaixo do fechamento e
           da pergunta do ritmo, e o número que importa era o terceiro bloco. */}
       {!contaNova && (

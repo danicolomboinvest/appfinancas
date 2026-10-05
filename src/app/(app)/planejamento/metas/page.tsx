@@ -3,6 +3,7 @@ import { getRequiredSession } from "@/lib/auth/session";
 import { vozDoTema } from "@/lib/profiles/voice";
 import { ehEmpresa } from "@/lib/profiles/empresa";
 import { listGoalsWithProgress } from "@/lib/repositories/goal.repo";
+import { ConquistasDeMetas } from "@/components/conquista/ConquistasDeMetas";
 import { computeGoalPlan, type GoalCalcResult } from "@/lib/planning/goal";
 import { aporteDoMesFeito, monthKeyLabel, proximoAporte } from "@/lib/planning/goal-checkin";
 import { nowInBrazil } from "@/lib/date/brazil-now";
@@ -110,6 +111,8 @@ export default async function MetasPage() {
 
   return (
     <div className="flex flex-col gap-8">
+      {/* Meta que chegou no valor (um aporte feito aqui mesmo): a notificação com confete. */}
+      <ConquistasDeMetas ctx={ctx} />
       <PageHeader
         title={voz.titulos.metas}
         subtitle={voz.titulos.metasSub}
