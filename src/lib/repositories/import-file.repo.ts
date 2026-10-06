@@ -58,6 +58,9 @@ export async function storeFailedImportFile(input: StoreImportFileInput): Promis
         reason: input.reason,
         expiresAt: new Date(Date.now() + IMPORT_FILE_RETENTION_DAYS * 86_400_000),
       },
+      // Sem isto o banco devolve a linha inteira, com o arquivo, logo depois de recebê-lo: era
+      // transferência paga à toa no Neon (06/10/2026, o plano gratuito estourou os 5 GB).
+      select: { id: true },
     });
   } catch (err) {
     console.error("storeFailedImportFile falhou (ignorado)", err);
