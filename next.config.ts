@@ -6,7 +6,7 @@ const nextConfig: NextConfig = {
   // require nativo do Node, onde o worker resolve normalmente.
   // officecrypto-tool descriptografa Excel protegido por senha (extratos de banco). É CJS e usa
   // módulos nativos (crypto/cfb); externalizar evita problemas de empacotamento no Turbopack.
-  serverExternalPackages: ["pdf-parse", "pdfjs-dist", "nodemailer", "officecrypto-tool"],
+  serverExternalPackages: ["pdf-parse", "pdfjs-dist", "nodemailer", "officecrypto-tool", "tesseract.js"],
 
   // A Vercel guarda uma cópia de tudo que cada rota "toca" — e são 68 rotas. O @prisma/client
   // publica os motores de TODOS os bancos que suporta (MySQL, SQLite, SQL Server, CockroachDB);
@@ -32,7 +32,16 @@ const nextConfig: NextConfig = {
   // Aqui a gente manda copiar o arquivo na mão. Verificado reproduzindo o pacote da Vercel a
   // partir do rastreamento do build: sem esta linha o PDF quebra, com ela o texto sai.
   outputFileTracingIncludes: {
-    "**/*": ["node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs"],
+    "**/*": [
+      "node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs",
+      // Leitura de PDF que é só imagem (OCR, src/lib/import/ocr.ts). O tesseract.js sobe um
+      // worker por caminho de arquivo e o motor (wasm) e o idioma português são carregados do
+      // disco: nenhum deles aparece num import, então o rastreador não os copiaria. Só as
+      // variantes "lstm" do motor (as únicas que o app usa) — o pacote inteiro tem 43 MB.
+      "node_modules/tesseract.js/src/**",
+      "node_modules/tesseract.js-core/*lstm*",
+      "node_modules/@tesseract.js-data/por/4.0.0_best_int/*",
+    ],
   },
 
   experimental: {

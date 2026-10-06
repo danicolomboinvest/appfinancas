@@ -7,6 +7,7 @@ import { agendarAvisoDoCartao } from "@/lib/cartao/agendar";
 import { installmentCanonical, installmentDescription, parseInstallment } from "@/lib/entries/recurrence";
 import { countMoneyLines, detectInvoiceTotal, looksLikeCardInvoice, MOTIVO_SINAIS_FATURA, periodoSemMovimento, sinaisDesmentemExtrato, type DocKind } from "@/lib/import/detect";
 import { profileDocument } from "@/lib/import/profile";
+import { veioDeImagem } from "@/lib/import/ocr-marca";
 import { checarPlausibilidade, type Suspeita } from "@/lib/import/plausibility";
 import { isPartialRead, MARCA_CONFERIDO, MARCA_NAO_FECHOU, mensagemImplausivel, recordImportDiagnostic, safeHeader } from "@/lib/repositories/import-diagnostic.repo";
 import { conferirLeitura, leituraIncompleta, type Conferencia } from "@/lib/import/conferencia";
@@ -239,7 +240,9 @@ export async function parseStatementAction(formData: FormData): Promise<ParseSta
     // Diagnóstico pro suporte: só o perfil do arquivo. A primeira linha do extrato saía aqui sem
     // máscara (nome do titular, número da conta) e os logs da Vercel não são lugar disso (04/10/2026).
     console.error("parseStatementAction: zero lançamentos", { fileName, encoding, docType, kind: profile.kind, institution: profile.institution, moneyLines, chars: text.length });
-    const msg = periodoSemMovimento(text)
+    const msg = veioDeImagem(text)
+      ? "Esse PDF é uma imagem (foto ou impressão da tela) e eu não consegui ler os valores com segurança: um número trocado viraria dinheiro errado no seu app, então não gravei nada. Baixe o extrato em outro formato (PDF original do banco, Excel, CSV ou OFX) e envie de novo."
+      : periodoSemMovimento(text)
       ? `Esse arquivo não tem nenhum lançamento: o período escolhido no app do banco não teve movimentação. Baixe de novo escolhendo um período maior (o mês inteiro, por exemplo).`
       : moneyLines > 3
         ? `Li o arquivo inteiro (${profile.summary}) e vi ${moneyLines} linhas com valor, mas não consegui ler nenhuma como lançamento. Esse formato eu ainda não conheço: manda o arquivo pro suporte que a gente ensina o app.`
@@ -337,7 +340,7 @@ export async function parseStatementAction(formData: FormData): Promise<ParseSta
     invoiceTotal: docType === "fatura" ? detectInvoiceTotal(text) : null,
     sumExpense: items.filter((i) => i.category === "EXPENSE").reduce((s, i) => s + (i.estorno ? -i.amount : i.amount), 0),
     sumIncome: items.filter((i) => i.category === "INCOME").reduce((s, i) => s + i.amount, 0),
-    suspeitas: checarPlausibilidade(parsed, detectedKind === "fatura" ? "fatura" : docType,conferencia.status === "fechou"),
+    suspeitas: checarPlausibilidade(parsed, detectedKind === "fatura" ? "fatura" : docType, conferencia.status === "fechou"),
     conferencia,
     leituraIncompleta: false,
     // Também quando ela escolheu "extrato" e o arquivo parece fatura: a pergunta "é fatura?"

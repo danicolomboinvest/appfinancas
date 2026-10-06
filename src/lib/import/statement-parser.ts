@@ -15,6 +15,8 @@ import { isMercadoPagoInvoice, parseMercadoPagoInvoice } from "./mercado-pago-fa
 import { isBanrisulInvoice, parseBanrisulInvoice } from "./banrisul-fatura-pdf";
 import { isBradescoCartoesApp, parseBradescoCartoesApp } from "./bradesco-cartoes-app-pdf";
 import { isBancoDoBrasilStatement, parseBancoDoBrasilStatement } from "./bb-pdf";
+import { isCaixaOcrStatement, parseCaixaOcrStatement } from "./caixa-ocr";
+import { veioDeImagem } from "./ocr-marca";
 import { isBradescoStatement, parseBradescoStatement } from "./bradesco-pdf";
 import { isBradescoInvoice, parseBradescoInvoice } from "./bradesco-fatura-pdf";
 import { fechaComoFatura, lerFaturaTestando } from "./leitor-inteligente";
@@ -817,6 +819,12 @@ export function parseStatementComLeitor(
   source: "auto" | "pdf" = "auto",
   refYear?: number,
 ): { txns: ParsedTransaction[]; leitor: string | null } {
+  // Texto de leitura por imagem (OCR) só vale por leitor que confere o que leu; os genéricos
+  // pegariam número trocado e gravariam dinheiro errado.
+  if (veioDeImagem(content)) {
+    const txns = isCaixaOcrStatement(content) ? parseCaixaOcrStatement(content) : [];
+    return { txns, leitor: txns.length > 0 ? "caixa-ocr" : null };
+  }
   if (source === "pdf") {
     let proprio: { txns: ParsedTransaction[]; leitor: string } | null = null;
     for (const leitor of LEITORES_PDF) {

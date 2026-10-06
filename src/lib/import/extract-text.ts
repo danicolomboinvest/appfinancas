@@ -11,6 +11,7 @@
  */
 
 import { normalizeLetterSpacedText } from "./letter-spaced";
+import { pdfTextQuality } from "./pdf-quality";
 
 export type UploadEncoding = "text" | "xlsx" | "pdf";
 
@@ -206,7 +207,21 @@ export async function extractUploadFromForm(
     );
   }
   if (encoding === "xlsx") return { text: semNulo(await xlsxToCsv(buffer, password)), source: "auto" };
-  if (encoding === "pdf") return { text: semNulo(await pdfToText(buffer, password)), source: "pdf" };
+  if (encoding === "pdf") {
+    const texto = await pdfToText(buffer, password);
+    // PDF que é só imagem (extrato impresso como foto): lê por OCR aqui mesmo no servidor.
+    // Falhou ou não leu nada? segue com o texto vazio, que mostra a mensagem de sempre.
+    if (pdfTextQuality(texto) === "empty") {
+      try {
+        const { lerPdfPorImagem } = await import("./ocr");
+        const porImagem = await lerPdfPorImagem(buffer, password);
+        if (porImagem) return { text: semNulo(porImagem), source: "pdf" };
+      } catch (err) {
+        console.error("leitura por imagem falhou", causa(err));
+      }
+    }
+    return { text: semNulo(texto), source: "pdf" };
+  }
   return { text: semNulo(decodificarTexto(buffer)), source: "auto" };
 }
 
