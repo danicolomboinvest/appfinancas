@@ -77,6 +77,43 @@ export async function guardarTokenApple(conta: { id: string; email: string }): P
   return token;
 }
 
+/**
+ * A linha do pagamento para o Farol (06/10/2026). Pura, para o teste conferir a conta do preço.
+ * A Apple manda o preço em milésimos da moeda (R$ 87,90 = 87900); aqui vira centavos.
+ */
+export function linhaDoPagamento(tx: JWSTransactionDecodedPayload, tipoDoAviso?: string) {
+  if (!tx.transactionId || !tx.originalTransactionId || !tx.productId) return null;
+  const renovacao = tipoDoAviso === "DID_RENEW" || tx.transactionId !== tx.originalTransactionId;
+  return {
+    transactionId: tx.transactionId,
+    originalTransactionId: tx.originalTransactionId,
+    productId: tx.productId,
+    precoCentavos: typeof tx.price === "number" ? Math.round(tx.price / 10) : null,
+    moeda: tx.currency ?? null,
+    compradaEm: new Date(tx.purchaseDate ?? Date.now()),
+    tipo: renovacao ? "renovacao" : "compra",
+    ambiente: String(tx.environment ?? "Production"),
+  };
+}
+
+/** Guarda o pagamento. Nunca derruba a compra: o acesso da pessoa vale mais que a contagem. */
+async function guardarPagamento(tx: JWSTransactionDecodedPayload, tipoDoAviso?: string, reembolsadaEm?: Date) {
+  const linha = linhaDoPagamento(tx, tipoDoAviso);
+  if (!linha) return;
+  try {
+    await prisma.transacaoApple.upsert({
+      where: { transactionId: linha.transactionId },
+      update: {
+        ...(linha.precoCentavos !== null ? { precoCentavos: linha.precoCentavos, moeda: linha.moeda, precoDeTabela: false } : {}),
+        ...(reembolsadaEm ? { reembolsadaEm } : {}),
+      },
+      create: { ...linha, reembolsadaEm: reembolsadaEm ?? null },
+    });
+  } catch (e) {
+    console.error("Apple: não consegui guardar o pagamento", e);
+  }
+}
+
 export type ResultadoDaCompra = { ok: true; expiresAt: Date } | { ok: false; motivo: "outra-conta" | "sem-validade" };
 
 /**
@@ -110,6 +147,7 @@ export async function registrarCompraApple(
     },
   });
   await liberar(conta.email, expiresAt);
+  await guardarPagamento(tx);
   return { ok: true, expiresAt };
 }
 
@@ -147,6 +185,7 @@ export async function aplicarAvisoApple(tipo: string, tx: JWSTransactionDecodedP
   if (REVOGOU.has(tipo)) {
     await prisma.assinaturaApple.update({ where: { originalTransactionId: id }, data: { revogadaEm: new Date() } });
     await revogar(assinatura.user.email);
+    await guardarPagamento(tx, tipo, new Date());
     return "revogou";
   }
   // Aviso de renovação velho chegando depois do reembolso não reabre nada.
@@ -157,6 +196,7 @@ export async function aplicarAvisoApple(tipo: string, tx: JWSTransactionDecodedP
       data: { expiresAt, productId: tx.productId!, revogadaEm: null },
     });
     await liberar(assinatura.user.email, expiresAt);
+    await guardarPagamento(tx, tipo);
     return "renovou";
   }
   return "ignorado";

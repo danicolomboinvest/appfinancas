@@ -1055,6 +1055,31 @@ model AssinaturaApple {
   @@index([userId])
 }
 
+/// Cada pagamento pela Apple (06/10/2026): a primeira compra e cada renovação, com o valor que a
+/// pessoa pagou. Serve para o Farol somar as vendas da Apple com as da Hubla. **Sem conta e sem
+/// e-mail de propósito**: o Farol lê esta tabela com um acesso que só enxerga ela.
+model TransacaoApple {
+  transactionId         String    @id
+  originalTransactionId String
+  productId             String
+  /// O que a pessoa pagou, em centavos da moeda (a Apple manda em milésimos). Bruto: a comissão
+  /// e o imposto da Apple saem depois, no relatório financeiro dela.
+  precoCentavos         Int?
+  moeda                 String?
+  /// true nas compras anteriores a esta tabela, preenchidas com o preço de tabela do plano.
+  precoDeTabela         Boolean   @default(false)
+  compradaEm            DateTime
+  /// "compra" | "renovacao"
+  tipo                  String
+  /// "Production" ou "Sandbox"
+  ambiente              String
+  reembolsadaEm         DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([compradaEm])
+}
+
 /// O que a pessoa comprou além do app (05/10/2026): hoje só o Money Reset. Fica no e-mail da
 /// compra, como o AllowedEmail, porque a compra chega pela Hubla antes de a conta existir.
 model ProdutoLiberado {

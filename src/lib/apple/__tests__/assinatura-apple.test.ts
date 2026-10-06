@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { JWSTransactionDecodedPayload } from "@apple/app-store-server-library";
 import { PRODUTOS_APPLE, tokenDaConta } from "../config";
 import { ehAppAndroid, ehAppDaApple } from "../app-da-apple";
-import { anteriorAoReembolso, decidirLiberacaoApple, revogacaoAppleCorta, transacaoValendo } from "@/lib/repositories/assinaturaApple.repo";
+import { anteriorAoReembolso, decidirLiberacaoApple, linhaDoPagamento, revogacaoAppleCorta, transacaoValendo } from "@/lib/repositories/assinaturaApple.repo";
 
 const agora = new Date("2026-10-02T12:00:00Z");
 const daqui30 = new Date("2026-11-01T12:00:00Z");
@@ -95,5 +95,25 @@ describe("anteriorAoReembolso: recibo guardado ou aviso velho não reabre acesso
   });
   it("sem reembolso, nada é barrado", () => {
     expect(anteriorAoReembolso(tx({ purchaseDate: 1 }), null)).toBe(false);
+  });
+});
+
+describe("linhaDoPagamento: o que o Farol soma (06/10/2026)", () => {
+  it("o preço vem em milésimos e vira centavos: R$ 87,90 = 87900 = 8790 centavos", () => {
+    const l = linhaDoPagamento(tx({ transactionId: "1000", price: 87900, currency: "BRL", purchaseDate: agora.getTime() }));
+    expect(l?.precoCentavos).toBe(8790);
+    expect(l?.moeda).toBe("BRL");
+    expect(l?.tipo).toBe("compra");
+    expect(l?.compradaEm.toISOString()).toBe(agora.toISOString());
+  });
+  it("renovação tem transactionId próprio e conta como renovação", () => {
+    expect(linhaDoPagamento(tx({ transactionId: "2000", price: 19900 }))?.tipo).toBe("renovacao");
+    expect(linhaDoPagamento(tx({ transactionId: "1000", price: 19900 }), "DID_RENEW")?.tipo).toBe("renovacao");
+  });
+  it("sem preço fica null, nunca zero", () => {
+    expect(linhaDoPagamento(tx({ transactionId: "1000" }))?.precoCentavos).toBeNull();
+  });
+  it("sem transactionId não vira linha", () => {
+    expect(linhaDoPagamento(tx())).toBeNull();
   });
 });
