@@ -6,7 +6,7 @@ import { auth } from "@/lib/auth/auth.config";
 import { AppShell } from "@/components/shell/AppShell";
 import { ThemeSync } from "@/components/shell/ThemeSync";
 import { getOwnUser, touchLastSeen } from "@/lib/repositories/user.repo";
-import { compraComOCelular, situacaoDoAcesso, usoDoApp } from "@/lib/repositories/allowedEmail.repo";
+import { compraComOCelular, contaConfirmada, situacaoDoAcesso, usoDoApp } from "@/lib/repositories/allowedEmail.repo";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import type { AccountContext } from "@/lib/auth/session";
 import type { ProfileKind } from "@prisma/client";
@@ -16,13 +16,12 @@ import { toCurrencyCode, type CurrencyCode } from "@/lib/money";
 import { listProfiles, getOrCreateActiveProfile } from "@/lib/repositories/profile.repo";
 import { modoEfetivo, profileThemeCss, temaDeixaEscolherModo } from "@/lib/profiles/themes";
 import { periodoDoDia, vozDoTema } from "@/lib/profiles/voice";
-import { emailConfirmado } from "@/lib/auth/confirmacao-email";
 import { TelaConfirmeEmail } from "@/components/auth/TelaConfirmeEmail";
 import { TelaSemAcesso } from "@/components/auth/TelaSemAcesso";
 import { AssinarPelaApple } from "@/components/auth/AssinarPelaApple";
 import { naAppDaApple } from "@/lib/apple/app-da-apple";
 import { IDS_DOS_PRODUTOS } from "@/lib/apple/config";
-import { acessoVeioDaApple, guardarTokenApple } from "@/lib/repositories/assinaturaApple.repo";
+import { guardarTokenApple } from "@/lib/repositories/assinaturaApple.repo";
 import { linkDoSuporte } from "@/lib/support/whatsapp-link";
 import { mensagemDeContaSemAcesso } from "@/lib/support/contato";
 import { lerPreferenciasDeCategoria, type PreferenciasDeCategoria } from "@/lib/categories";
@@ -77,7 +76,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     // também manda de volta pra cá quem não confirmou. Admin sempre passa.
     // Exceção: quem assinou pela Apple a partir desta conta. A compra já prova que a conta é
     // dela, e o revisor da Apple, que assina no Sandbox, não abre e-mail de confirmação.
-    if (ctx.role !== "ADMIN" && !emailConfirmado(user) && !(await acessoVeioDaApple(user))) return <TelaConfirmeEmail email={user.email} />;
+    if (ctx.role !== "ADMIN" && !(await contaConfirmada(user))) return <TelaConfirmeEmail email={user.email} />;
     // Primeira entrada: antes de ver qualquer tela, a pessoa escolhe o tipo e o tema do
     // perfil dela em /comecar. Uma vez só; quem já usava o app nasceu com a data preenchida.
     if (user.onboardedAt === null) redirect("/comecar");

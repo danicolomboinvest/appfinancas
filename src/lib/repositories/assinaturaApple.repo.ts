@@ -162,16 +162,5 @@ export async function aplicarAvisoApple(tipo: string, tx: JWSTransactionDecodedP
   return "ignorado";
 }
 
-/**
- * O acesso desta conta veio de uma compra pela Apple feita por ELA: a compra prova quem ela é,
- * então não precisa confirmar o e-mail (o revisor da Apple não abre e-mail). Só vale quando a
- * liberação do e-mail é da Apple: se o e-mail tem compra do Hubla, quem entra precisa provar que
- * é a dona do e-mail, senão bastava assinar o mensal pra herdar o ano de outra pessoa.
- */
-export async function acessoVeioDaApple(conta: { id: string; email: string }): Promise<boolean> {
-  const [liberacao, assinaturas] = await Promise.all([
-    prisma.allowedEmail.findUnique({ where: { email: normalizeEmail(conta.email) }, select: { source: true } }),
-    prisma.assinaturaApple.count({ where: { userId: conta.id, revogadaEm: null, expiresAt: { gt: new Date() } } }),
-  ]);
-  return liberacao?.source === "APPLE" && assinaturas > 0;
-}
+// Mudou para o repo da liberação (06/10/2026), junto da regra que as três portas usam.
+export { acessoVeioDaApple } from "./allowedEmail.repo";

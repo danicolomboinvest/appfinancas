@@ -1,8 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth/auth.config";
 import { getOwnUser } from "@/lib/repositories/user.repo";
-import { emailConfirmado } from "@/lib/auth/confirmacao-email";
-import { situacaoDoAcesso, usoDoApp } from "@/lib/repositories/allowedEmail.repo";
+import { contaConfirmada, situacaoDoAcesso, usoDoApp } from "@/lib/repositories/allowedEmail.repo";
 import { BrandMark } from "@/components/brand/BrandMark";
 import { EscolhaInicial } from "./EscolhaInicial";
 
@@ -17,8 +16,9 @@ export default async function ComecarPage() {
   const user = await getOwnUser({ userId: session.user.id, role: session.user.role });
   if (user.onboardedAt !== null) redirect("/mensal/foco");
   // Sem e-mail confirmado, o layout do app mostra a tela "Confirme seu e-mail": escolher o tema
-  // antes disso seria abrir a porta por aqui.
-  if (session.user.role !== "ADMIN" && !emailConfirmado(user)) redirect("/mensal/foco");
+  // antes disso seria abrir a porta por aqui. A MESMA regra do layout (quem assinou pela Apple
+  // passa): com regras diferentes, um mandava para o outro sem parar.
+  if (session.user.role !== "ADMIN" && !(await contaConfirmada(user))) redirect("/mensal/foco");
   // Sem compra valendo, idem: o layout mostra "Seu acesso não está ativo".
   if (session.user.role !== "ADMIN" && usoDoApp(await situacaoDoAcesso(user.email), user.createdAt) === "bloqueado") redirect("/mensal/foco");
 
