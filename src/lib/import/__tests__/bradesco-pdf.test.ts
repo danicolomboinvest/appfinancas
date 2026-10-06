@@ -61,3 +61,34 @@ describe("extrato do Bradesco com histórico começando com 'Total'", () => {
     expect(lidos[3].description).toBe("PIX RECEBIDO REM: FULANO DE TAL");
   });
 });
+
+describe("Bradesco: tela 'Últimos Lançamentos' (débito já com sinal, duas tabelas)", () => {
+  const texto = [
+    "Extrato (Últimos Lançamentos)",
+    "EMPRESA EXEMPLO LTDA | CNPJ: 00.000.000/0001-00",
+    "Data Lançamento Dcto. Crédito (R$) Débito (R$) Saldo (R$)",
+    "04/09/2026 SALDO ANTERIOR 1.000,00",
+    "09/09/2026 PAGTO ELETRON COBRANCA",
+    "ALUGUEL 6 -300,00 700,00",
+    "PIX RECEBIDO",
+    "REM: FULANO 09/09 1306184 2.000,00 2.700,00",
+    "GASTOS CARTAO DE CREDITO 3990253 -3.000,00 -300,00",
+    "Total 2.000,00 -3.300,00 -300,00",
+    "Últimos Lançamentos",
+    "Data Lançamento Dcto. Crédito (R$) Débito (R$) Saldo (R$)",
+    "29/09/2026 SALDO ANTERIOR -300,00",
+    "02/10/2026 ENCARGOS LIMITE DE CRED 4550275 -5,00 -305,00",
+    "Total 0,00 -5,00 -305,00",
+    "Lançamentos Futuros",
+    "Data Lançamento Dcto. Crédito (R$) Débito (R$)",
+    "13/10/2026 GASTOS CARTAO DE CREDITO 3720268 -1.522,00",
+    "Total do Dia 0,00 -1.522,00",
+  ].join("\n");
+
+  it("lê as duas tabelas, com o sinal certo, e ignora os lançamentos futuros", () => {
+    expect(isBradescoStatement(texto)).toBe(true);
+    const t = parseBradescoStatement(texto);
+    expect(t.map((x) => x.amount)).toEqual([-300, 2000, -3000, -5]);
+    expect(t[3].date).toBe("2026-10-02");
+  });
+});

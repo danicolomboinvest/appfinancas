@@ -19,10 +19,14 @@ import { parseBrazilianNumber, type ParsedTransaction } from "./statement-parser
  * e o sinal sai da variação do saldo — que é a única coisa que diz se foi crédito ou débito.
  */
 
-const CABECALHO_RE = /^Data\s+Hist[óo]rico\s+Docto\.?\s+Cr[ée]dito/i;
+// "Histórico" no extrato do Bradesco Celular; "Lançamento" na tela "Últimos Lançamentos" do
+// internet banking (lá os débitos já vêm com "-"). Exige "Saldo": a tabela de "Lançamentos
+// Futuros" tem as mesmas colunas sem o saldo e NÃO é movimento que já aconteceu.
+const CABECALHO_RE = /^Data\s+(?:Hist[óo]rico|Lan[çc]amento)\s+Do?cto\.?\s+Cr[ée]dito.*Saldo/i;
 const DATA_RE = /^(\d{2})\/(\d{2})\/(\d{4})\s+/;
 const MONEY = String.raw`-?\d{1,3}(?:\.\d{3})*,\d{2}`;
 /** "... 1000001 19,00 26,72": docto (opcional), valor e saldo no fim da linha. */
+const SALDO_ANTERIOR_RE = new RegExp(String.raw`^SALDO ANTERIOR\s+(${MONEY})$`, "i");
 const FECHA_RE = new RegExp(String.raw`^(.*?)\s*(?:\b\d{5,}\s+)?(${MONEY})\s+(${MONEY})$`);
 const RODAPE_TOTAL_RE = new RegExp(String.raw`^Total(?:\s+${MONEY}){2,3}$`, "i");
 const RUIDO_RE = [
@@ -36,7 +40,9 @@ const RUIDO_RE = [
 const CREDITO_RE = /^(REM:|PIX RECEBIDO|TED RECEBID|TRANSF.*RECEBID|RENTAB|CR[ÉE]DITO|DEP[ÓO]SITO)/i;
 
 export function isBradescoStatement(texto: string): boolean {
-  return texto.split(/\r?\n/).some((l) => CABECALHO_RE.test(l.trim())) && /Bradesco/i.test(texto);
+  return texto.split(/\r?\n/).some((l) => CABECALHO_RE.test(l.trim())) &&
+    // A tela "Últimos Lançamentos" do internet banking não escreve "Bradesco" no texto.
+    (/Bradesco/i.test(texto) || /Extrato \(.ltimos Lan[çc]amentos\)/i.test(texto));
 }
 
 export function parseBradescoStatement(texto: string): ParsedTransaction[] {
@@ -58,7 +64,12 @@ export function parseBradescoStatement(texto: string): ParsedTransaction[] {
     // Só o rodapé de verdade ("Total 1.100,00 619,00 526,72": crédito, débito e saldo) encerra.
     // Qualquer linha começando com "Total" encerrava: "TOTAL EXPRESS" (transportadora) ou um
     // posto Total na 2ª linha do histórico cortava o resto do extrato sem nenhum aviso.
-    if (RODAPE_TOTAL_RE.test(linha)) break;
+    // Em "Últimos Lançamentos" há mais de uma tabela (o mês e depois os dias recentes): o total
+    // fecha só a tabela, a próxima abre de novo no cabeçalho.
+    if (RODAPE_TOTAL_RE.test(linha)) {
+      dentro = false;
+      continue;
+    }
 
     const d = linha.match(DATA_RE);
     if (d) {
@@ -67,16 +78,23 @@ export function parseBradescoStatement(texto: string): ParsedTransaction[] {
       pendente = [];
     }
 
+    const sa = linha.match(SALDO_ANTERIOR_RE);
+    if (sa) {
+      saldo = parseBrazilianNumber(sa[1]);
+      pendente = [];
+      continue;
+    }
     const m = linha.match(FECHA_RE);
     if (!m || !data) {
       if (pendente.length < 3) pendente.push(linha);
       continue;
     }
-    const valor = parseBrazilianNumber(m[2]);
+    const valorLido = parseBrazilianNumber(m[2]);
+    const valor = Math.abs(valorLido);
     const novoSaldo = parseBrazilianNumber(m[3]);
     const partes = [...pendente, m[1]].map((p) => p.trim()).filter(Boolean);
     pendente = [];
-    if (Number.isNaN(valor) || Number.isNaN(novoSaldo)) continue;
+    if (Number.isNaN(valorLido) || Number.isNaN(novoSaldo)) continue;
 
     // Saldo de abertura ("COD. LANC. 0  0,00  45,72") só serve de ponto de partida.
     if (valor === 0) {
