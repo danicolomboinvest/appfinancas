@@ -1,4 +1,5 @@
 import { Fragment } from "react";
+import { perfilTemLimiteDoCartao } from "@/lib/repositories/limite-cartao.repo";
 import { after } from "next/server";
 import { redirect } from "next/navigation";
 import { isPluggyConfigured } from "@/lib/pluggy/client";
@@ -48,6 +49,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   let profileKind: ProfileKind = "PESSOAL";
   let prefsDeCategoria: PreferenciasDeCategoria = {};
   let nomesDoCasal: { A: string; B: string } | null = null;
+  // Limite do cartão é opcional (06/10/2026): o "No cartão" do + só aparece para quem montou um.
+  let cartaoComLimite = false;
   let currency: CurrencyCode = toCurrencyCode(null);
   let isPremium = false;
   let perfis: { id: string; name: string; icon: string; theme: string; isDefault: boolean }[] = [];
@@ -91,6 +94,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     profileTheme = ativo.theme;
     profileKind = ativo.kind;
     prefsDeCategoria = lerPreferenciasDeCategoria(ativo.categorias);
+    cartaoComLimite = await perfilTemLimiteDoCartao(ctx.userId, ativo.id);
     if (ativo.kind === "CASAL") {
       const casal = lerConfigCasal(ativo.casal);
       nomesDoCasal = { A: casal.nomeA, B: casal.nomeB };
@@ -133,6 +137,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         profileKind={profileKind}
         prefsDeCategoria={prefsDeCategoria}
         nomesDoCasal={nomesDoCasal}
+        cartaoComLimite={cartaoComLimite}
         podeEscolherModo={podeEscolherModo}
       >
         {/* Trocar de perfil só revalida a página, e o React guarda o estado dos formulários que

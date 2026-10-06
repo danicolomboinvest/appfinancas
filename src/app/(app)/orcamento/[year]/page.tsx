@@ -393,24 +393,29 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
         </Link>
       )}
 
-      {/* Limite do cartão (06/10/2026): sem limite convida a definir; com limite diz quanto falta. */}
-      {isCurrentYear && (
+      {/* Limite do cartão (06/10/2026): opcional. Quem montou vê quanto falta; quem não montou, só
+          um botãozinho discreto (a Dani: "não é todo mundo que vai usar dessa forma"). */}
+      {isCurrentYear && !cartao && (
+        <Link href="/orcamento/cartao" className="inline-flex min-h-11 items-center gap-2 self-start px-1 text-sm font-medium text-accent-strong hover:underline">
+          <CreditCard size={16} aria-hidden />
+          {voz.titulos.limAtalhoDefinir}
+        </Link>
+      )}
+      {isCurrentYear && cartao && (
         <Link
           href="/orcamento/cartao"
           className="flex items-center gap-3 rounded-2xl border border-border bg-surface px-5 py-4 transition-colors hover:bg-surface-hover"
         >
-          <CreditCard size={18} className={`shrink-0 ${cartao?.nivel === "passou" || cartao?.nivel === "perto" ? "text-danger" : "text-accent-strong"}`} aria-hidden />
+          <CreditCard size={18} className={`shrink-0 ${cartao.nivel === "passou" || cartao.nivel === "perto" ? "text-danger" : "text-accent-strong"}`} aria-hidden />
           <span className="min-w-0 flex-1">
             <span className="block text-sm font-semibold text-ink">{voz.titulos.limTitulo}</span>
-            <span className={`mt-0.5 block text-caption ${cartao?.nivel === "passou" ? "font-semibold text-danger" : "text-ink-muted"}`}>
-              {!cartao
-                ? voz.titulos.limAtalhoDefinir
-                : cartao.falta >= 0
-                  ? voz.titulos.limAtalhoFalta(money(cartao.falta, { round: true }))
-                  : voz.titulos.limAtalhoPassou(money(-cartao.falta, { round: true }))}
+            <span className={`mt-0.5 block text-caption ${cartao.nivel === "passou" ? "font-semibold text-danger" : "text-ink-muted"}`}>
+              {cartao.falta >= 0
+                ? voz.titulos.limAtalhoFalta(money(cartao.falta, { round: true }))
+                : voz.titulos.limAtalhoPassou(money(-cartao.falta, { round: true }))}
             </span>
           </span>
-          {cartao && <span className="shrink-0 text-sm font-semibold tabular-nums text-ink-muted">{Math.round(cartao.pct)}%</span>}
+          <span className="shrink-0 text-sm font-semibold tabular-nums text-ink-muted">{Math.round(cartao.pct)}%</span>
           <ChevronRight size={16} className="shrink-0 text-ink-faint" />
         </Link>
       )}

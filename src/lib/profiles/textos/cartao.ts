@@ -74,7 +74,7 @@ export const PADRAO_LIMITE_CARTAO: TextosLimiteCartao = {
   limVazio: "Nenhum gasto no cartão neste mês ainda.",
   limComoMarcar: "Ao lançar um gasto, toque em “No cartão” para ele contar aqui.",
   limMudar: "Mudar o limite",
-  limAtalhoDefinir: "Defina quanto pode gastar no cartão no mês",
+  limAtalhoDefinir: "Montar um limite para o cartão",
   limAtalhoFalta: (valor) => `Faltam ${valor} este mês`,
   limAtalhoPassou: (valor) => `Passou ${valor} este mês`,
   limNoCartao: "No cartão de crédito",

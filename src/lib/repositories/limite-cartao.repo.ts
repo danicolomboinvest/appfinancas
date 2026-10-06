@@ -23,6 +23,12 @@ export async function lerLimiteDoCartao(ctx: AuthContext): Promise<number | null
   return perfil?.limiteCartao != null ? Number(perfil.limiteCartao) : null;
 }
 
+/** O perfil montou um limite? Para o layout, que ainda não tem a sessão com o perfil. */
+export async function perfilTemLimiteDoCartao(userId: string, profileId: string): Promise<boolean> {
+  const perfil = await prisma.financialProfile.findFirst({ where: { id: profileId, userId }, select: { limiteCartao: true } });
+  return perfil?.limiteCartao != null;
+}
+
 /** Nulo tira o limite. */
 export async function salvarLimiteDoCartao(ctx: AuthContext, valor: number | null): Promise<void> {
   await prisma.financialProfile.updateMany({ where: { id: ctx.profileId, userId: ctx.userId }, data: { limiteCartao: valor } });

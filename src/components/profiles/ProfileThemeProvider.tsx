@@ -25,6 +25,8 @@ type Contexto = {
   /** O tipo com as preferências de categoria do perfil: é o que vai para categoryLabel/categoryIcon. */
   categorias: { kind: ProfileKind; prefs: PreferenciasDeCategoria };
   nomesDoCasal: NomesDoCasal;
+  /** Limite do cartão é opcional: o "No cartão de crédito" do + só aparece para quem montou um. */
+  cartaoComLimite: boolean;
 };
 
 const ProfileThemeContext = createContext<Contexto>({
@@ -36,6 +38,7 @@ const ProfileThemeContext = createContext<Contexto>({
   profileId: null,
   categorias: { kind: "PESSOAL", prefs: {} },
   nomesDoCasal: null,
+  cartaoComLimite: false,
 });
 
 /**
@@ -48,6 +51,7 @@ export function ProfileThemeProvider({
   profileId = null,
   prefsDeCategoria = {},
   nomesDoCasal = null,
+  cartaoComLimite = false,
   children,
 }: {
   theme: string;
@@ -55,11 +59,12 @@ export function ProfileThemeProvider({
   profileId?: string | null;
   prefsDeCategoria?: PreferenciasDeCategoria;
   nomesDoCasal?: NomesDoCasal;
+  cartaoComLimite?: boolean;
   children: ReactNode;
 }) {
   const key = profileTheme(theme).key;
   return (
-    <ProfileThemeContext.Provider value={{ key, voz: vozDoTema(key, kind), kind, empresa: ehEmpresa(kind), casal: ehCasal(kind), profileId, categorias: { kind, prefs: prefsDeCategoria }, nomesDoCasal: ehCasal(kind) ? nomesDoCasal : null }}>
+    <ProfileThemeContext.Provider value={{ key, voz: vozDoTema(key, kind), kind, empresa: ehEmpresa(kind), casal: ehCasal(kind), profileId, categorias: { kind, prefs: prefsDeCategoria }, nomesDoCasal: ehCasal(kind) ? nomesDoCasal : null, cartaoComLimite }}>
       {children}
     </ProfileThemeContext.Provider>
   );

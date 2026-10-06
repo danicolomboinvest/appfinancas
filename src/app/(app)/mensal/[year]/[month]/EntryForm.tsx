@@ -101,7 +101,7 @@ export function EntryForm({
     initialState,
   );
   const wasPending = useRef(false);
-  const { voz, profileId } = useProfileTheme();
+  const { voz, profileId, cartaoComLimite } = useProfileTheme();
   const t = voz.titulos;
   // O perfil de quando o formulário abriu (não o de agora): se a tela se atualizar com outro
   // perfil enquanto ela preenche, o servidor recusa em vez de gravar no perfil novo.
@@ -149,7 +149,7 @@ export function EntryForm({
       onSubmit={(e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         const data = new FormData(e.currentTarget);
-        if (tipo === "EXPENSE" && !isEditing) {
+        if (cartaoComLimite && tipo === "EXPENSE" && !isEditing) {
           try {
             window.localStorage.setItem(ULTIMO_NO_CARTAO, noCartao ? "1" : "0");
           } catch {
@@ -219,7 +219,9 @@ export function EntryForm({
         onTipoChange={setTipo}
       />
       <CasalFields tipo={tipo} defaultPessoa={defaultPessoa} defaultDoCasal={defaultDoCasal} />
-      {tipo === "EXPENSE" && (
+      {/* Só para quem montou um limite do cartão no Orçamento (é opcional, 06/10/2026). Sem o
+          botão, o campo nem vai e o que o gasto já era fica como estava. */}
+      {cartaoComLimite && tipo === "EXPENSE" && (
         <>
           <input type="hidden" name="noCartao" value={noCartao ? "sim" : "nao"} />
           <button

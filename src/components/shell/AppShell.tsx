@@ -43,11 +43,14 @@ export function AppShell({
   profileKind = "PESSOAL",
   prefsDeCategoria = {},
   nomesDoCasal = null,
+  cartaoComLimite = false,
   podeEscolherModo,
 }: {
   /** Nome, ícone e categorias escondidas do perfil ativo (ver lib/categories.ts). */
   prefsDeCategoria?: PreferenciasDeCategoria;
   nomesDoCasal?: { A: string; B: string } | null;
+  /** O perfil montou um limite do cartão: o + mostra o "No cartão de crédito". */
+  cartaoComLimite?: boolean;
   children: React.ReactNode;
   isAdmin: boolean;
   isPremium: boolean;
@@ -160,7 +163,7 @@ export function AppShell({
 
   return (
     <ToastProvider>
-      <ProfileThemeProvider theme={profileTheme} kind={profileKind} prefsDeCategoria={prefsDeCategoria} nomesDoCasal={nomesDoCasal} profileId={perfis.find((p) => p.isDefault)?.id ?? null}>
+      <ProfileThemeProvider theme={profileTheme} kind={profileKind} prefsDeCategoria={prefsDeCategoria} nomesDoCasal={nomesDoCasal} cartaoComLimite={cartaoComLimite} profileId={perfis.find((p) => p.isDefault)?.id ?? null}>
       <NavProgressProvider>
       <div className="flex min-h-screen">
         {/* Sidebar: navegação primária no desktop; no mobile fica sempre fora da tela

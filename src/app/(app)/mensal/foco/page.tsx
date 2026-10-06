@@ -154,8 +154,6 @@ export default async function FocoPage() {
       ))}
 
       {/* Money Reset: a missão de hoje, só para quem comprou (o resto nem vê). */}
-      {/* Limite do cartão: só aparece para quem definiu um (06/10/2026). */}
-      <CartaoDoLimite ctx={ctx} />
       <CartaoMoneyReset ctx={ctx} t={t} />
 
       {/* Conta vencendo é o que mais custa esquecer (juros, multa): logo abaixo do número da semana. */}
@@ -164,6 +162,8 @@ export default async function FocoPage() {
         atrasadas={contasDaSemana.filter((c) => c.situacao === "atrasada").length}
         hoje={iso(hoje)}
       />
+      {/* Limite do cartão: opcional (só quem montou no Orçamento) e discreto, uma linha fina. */}
+      <CartaoDoLimite ctx={ctx} compacto />
 
       {/* Janeiro a março: fechar o ano passado e escolher como começar este (com a sugestão ou do zero). */}
       {d.viradaPendente && (
