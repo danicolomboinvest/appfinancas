@@ -5,6 +5,7 @@ import { after } from "next/server";
 import type { AssetClass, FixedIncomeIndex } from "@prisma/client";
 import { getRequiredSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
+import { MAX_QUANTIDADE_ATIVO, MAX_VALOR_ATIVO } from "@/lib/validations/asset.schema";
 import { createAsset } from "@/lib/repositories/asset.repo";
 import { refreshDividendsForTickers } from "@/lib/repositories/dividend.repo";
 import { parsePortfolioStatement, guessAssetClass } from "@/lib/import/portfolio-parser";
@@ -296,6 +297,9 @@ export async function importPortfolioAction(holdings: ConfirmedHolding[]): Promi
       continue;
     }
 
+    // Número que não cabe na coluna (lido errado do arquivo) derrubava a importação inteira.
+    const grande = (n: number | null | undefined) => n != null && Math.abs(n) > MAX_VALOR_ATIVO;
+    if (grande(h.value) || grande(h.investedValue) || h.quantity > MAX_QUANTIDADE_ATIVO) continue;
     existingKeys.add(key); // evita duplicata dentro do próprio arquivo
     const assetClass = ASSET_CLASS_VALUES.includes(h.assetClass) ? h.assetClass : "OUTRO";
     await createAsset(ctx, {
