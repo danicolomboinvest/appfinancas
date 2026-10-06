@@ -60,3 +60,38 @@ describe("fatura do cartão Bradesco (PDF)", () => {
     expect(conferirLeitura(BRADESCO, "fatura", linhas)).toMatchObject({ status: "fechou", esperado: 314.43 });
   });
 });
+
+describe("Bradesco Cartões app: dia e mês em linhas separadas", () => {
+  const texto = [
+    "XXXX.XXXX.XXXX.0000",
+    "Aplicativo Bradesco Cartões",
+    "Data: 06/10/2026 - 03:03",
+    "Situação do Extrato: EM ABERTO",
+    "FULANA EXEMPLO - VISA",
+    "Data Histórico",
+    "30",
+    "/08 Loja Exemplo 2/6 BRL",
+    "600,00 0,00 R$ 0,00 100,00",
+    "27",
+    "/08",
+    "MERCADO*EXEMPLO",
+    "2/2",
+    "BRL",
+    "142,62 0,00 R$ 0,00 71,31",
+    "25",
+    "/06",
+    "LOJA ABC 4",
+    "/5",
+    "BRL",
+    "400,00 0,00 R$ 0,00 80,00",
+    ". Total da Fatura em Real . . . R$ 251,31",
+  ].join("\n");
+
+  it("lê as três compras e fecha com o total da fatura", async () => {
+    const { parseBradescoCartoesApp } = await import("../bradesco-cartoes-app-pdf");
+    const t = parseBradescoCartoesApp(texto, 2026);
+    expect(t).toHaveLength(3);
+    expect(t.map((x) => x.date)).toEqual(["2026-08-30", "2026-08-27", "2026-06-25"]);
+    expect(t.reduce((s, x) => s + x.amount, 0)).toBeCloseTo(251.31, 2);
+  });
+});

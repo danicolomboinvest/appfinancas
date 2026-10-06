@@ -19,7 +19,7 @@ import { parseBrazilianNumber, type ParsedTransaction } from "./statement-parser
  * saída de dinheiro e o pagamento antecipado de R$ 7.353,58 entrava como mais um gasto.
  */
 
-const INICIO_RE = /^(\d{2})\/(\d{2})\s+(.+)$/;
+const INICIO_RE = /^(\d{2})\/(\d{2})(?:\s+(.+))?$/;
 const BRL_RE = /^(.*?)\s*\bBRL\b\s*(.*)$/;
 const VALORES_RE = /^(-?\d{1,3}(?:\.\d{3})*,\d{2})\s+-?\d{1,3}(?:\.\d{3})*,\d{2}\s+R\$\s*-?\d{1,3}(?:\.\d{3})*,\d{2}\s+(-?\d{1,3}(?:\.\d{3})*,\d{2})$/;
 const DATA_RE = /^Data:\s*\d{2}\/(\d{2})\/(\d{4})/m;
@@ -59,8 +59,21 @@ export function parseBradescoCartoesApp(texto: string, refYear: number = new Dat
     return true;
   };
 
-  for (const bruta of texto.split(/\r?\n/)) {
-    const linha = bruta.replace(/\s+/g, " ").trim();
+  // Em algumas faturas o PDF quebra a data em duas linhas: "30" e depois "/08 Azul ... BRL".
+  // Junta quando o número sozinho é um dia e a linha seguinte começa com "/mês" — mas só fora
+  // da descrição de uma compra ("LOJA 10" / "/12": parcela 10/12 não é data).
+  const linhas = texto.split(/\r?\n/).map((l) => l.replace(/\s+/g, " ").trim());
+  const juntas: string[] = [];
+  for (let i = 0; i < linhas.length; i++) {
+    const l = linhas[i];
+    const prox = linhas[i + 1] ?? "";
+    if (/^(0[1-9]|[12]\d|3[01])$/.test(l) && /^\/(0[1-9]|1[0-2])(\s|$)/.test(prox)) {
+      juntas.push(l + prox);
+      i++;
+    } else juntas.push(l);
+  }
+
+  for (const linha of juntas) {
     if (!linha) continue;
     if (/Total da Fatura em Real/i.test(linha)) break;
     const inicio = linha.match(INICIO_RE);
@@ -68,7 +81,7 @@ export function parseBradescoCartoesApp(texto: string, refYear: number = new Dat
       const [, dd, mm, resto] = inicio;
       const ano = mesRef !== null && Number(mm) > mesRef ? anoRef - 1 : anoRef;
       pendente = { date: `${ano}-${mm}-${dd}`, partes: [], brl: false };
-      if (!aposBrl(resto)) pendente.partes.push(resto);
+      if (resto && !aposBrl(resto)) pendente.partes.push(resto);
       continue;
     }
     if (!pendente) continue;

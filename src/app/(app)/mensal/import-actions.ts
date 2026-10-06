@@ -336,7 +336,7 @@ export async function parseStatementAction(formData: FormData): Promise<ParseSta
     invoiceTotal: docType === "fatura" ? detectInvoiceTotal(text) : null,
     sumExpense: items.filter((i) => i.category === "EXPENSE").reduce((s, i) => s + (i.estorno ? -i.amount : i.amount), 0),
     sumIncome: items.filter((i) => i.category === "INCOME").reduce((s, i) => s + i.amount, 0),
-    suspeitas: checarPlausibilidade(parsed, docType, conferencia.status === "fechou"),
+    suspeitas: checarPlausibilidade(parsed, detectedKind === "fatura" ? "fatura" : docType,conferencia.status === "fechou"),
     conferencia,
     leituraIncompleta: false,
     // Também quando ela escolheu "extrato" e o arquivo parece fatura: a pergunta "é fatura?"
