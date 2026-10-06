@@ -1,4 +1,5 @@
 import { GIRLY_RESET } from "../textos/reset";
+import { GIRLY_LIMITE_CARTAO } from "../textos/cartao";
 import { faltamDias } from "../textos/foco";
 import { TITULOS_PADRAO, simuladoresDoTema, inteiro, semDiaria, estadoParaFrase, type Voz, type Titulos, numeros } from "../voice-base";
 
@@ -1516,6 +1517,7 @@ export const girly: Voz = {
     ...GIRLY_COMPRA,
     ...GIRLY_CONTAS,
     ...GIRLY_RESET,
+    ...GIRLY_LIMITE_CARTAO,
     comparacao: (tipo, valor, mes) =>
       tipo === "sem" ? `Nadinha em ${mes} 🌸` : tipo === "igual" ? `Igualzinho a ${mes} 💕` : tipo === "mais" ? `${valor} a mais que ${mes} 🫣` : `${valor} a menos que ${mes}! Boaaaa 👏`,
     simuladores: "Bora simular? 🧮✨",

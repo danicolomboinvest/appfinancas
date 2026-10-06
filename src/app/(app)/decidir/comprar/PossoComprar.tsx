@@ -757,6 +757,14 @@ function Resultado({
             frase da conta, que fala das metas e da reserva, e o tom pelo quanto ela precisa. */}
         <p className="text-[15px] leading-snug text-ink">{r.explicacao}</p>
         {tom && <p className="text-[15px] leading-snug text-ink/75">{tom}</p>}
+        {/* Limite do cartão: quanto falta nele, e se esta compra (ou a parcela do mês) passa. */}
+        {base.cartao && (
+          <p className="text-[15px] leading-snug text-ink/75">
+            {total > base.cartao.limite - base.cartao.gasto
+              ? t.limCompraPassa(m(Math.max(0, base.cartao.limite - base.cartao.gasto)))
+              : t.limCompraCabe(m(base.cartao.limite - base.cartao.gasto))}
+          </p>
+        )}
         {(appDecidiu || r.custoJuros) && (
           <div className="flex flex-wrap gap-2">
             {appDecidiu && q && (

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { situacaoDoCartao } from "@/lib/repositories/limite-cartao.repo";
 import { ChevronLeft } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
 import { ehEmpresa } from "@/lib/profiles/empresa";
@@ -199,6 +200,8 @@ export default async function PossoComprarPage() {
     });
   }
 
+  // Limite do cartão do mês (06/10/2026): o resultado diz quanto falta nele.
+  const limiteDoCartao = await situacaoDoCartao(ctx, year, month);
   const base: CompraBase = {
     renda,
     gastoPlanejado,
@@ -216,6 +219,7 @@ export default async function PossoComprarPage() {
     jaDecidido,
     // Só as categorias padrão: é delas que saem os cortes sugeridos ("Como fazer caber").
     categorias: categorias.filter((c) => c.chave),
+    ...(limiteDoCartao ? { cartao: { limite: limiteDoCartao.limite, gasto: limiteDoCartao.gasto } } : {}),
   };
 
   return (

@@ -49,6 +49,8 @@ export type ListEntry = {
   /** Perfil Casal: quem pagou/recebeu ("A"/"B") e se o gasto é da casa (false = pessoal). */
   pessoa?: string | null;
   doCasal?: boolean | null;
+  /** Conta no limite do cartão (marcado "no cartão" ou linha de fatura). */
+  noCartao?: boolean;
 };
 
 const CATEGORY_AMOUNT_CLASS: Record<ListEntry["category"], string> = {
@@ -616,6 +618,7 @@ export function EntryList({
             tipoRecorrente={editing.category}
             defaultPessoa={editing.pessoa}
             defaultDoCasal={editing.doCasal}
+            defaultNoCartao={editing.noCartao}
           />
         )}
       </Modal>

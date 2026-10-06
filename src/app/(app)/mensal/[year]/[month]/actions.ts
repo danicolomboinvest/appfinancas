@@ -22,9 +22,31 @@ import type { ParentCategory } from "@prisma/client";
 import { allocationsToRestore, type SnapshotAllocation } from "@/lib/portfolio/contribution-link";
 import { listRecentlyPaidDividends } from "@/lib/repositories/dividend.repo";
 import { aprenderComCorrecao, linhasAntesDaCorrecao } from "@/lib/repositories/transaction-rule.repo";
+import { situacaoDoCartao } from "@/lib/repositories/limite-cartao.repo";
+import { agendarAvisoDoCartao } from "@/lib/cartao/agendar";
+import { vozDoTema } from "@/lib/profiles/voice";
+import { serverMoney } from "@/lib/money-server";
 import type { z } from "zod";
 
-export type MonthlyEntryState = { error?: string };
+/** `aviso`: o texto do toast quando não é o "Lançado" de sempre (gasto no cartão com limite). */
+export type MonthlyEntryState = { error?: string; aviso?: string };
+
+type Sessao = Awaited<ReturnType<typeof getRequiredSession>>;
+
+/**
+ * Limite do cartão (06/10/2026), depois de salvar um gasto: o aviso de 70/90/100% sai depois da
+ * resposta (não atrasa o "Lançado"), e o gasto marcado no cartão já volta com quanto falta.
+ */
+async function depoisDoGasto(ctx: Sessao, entry: MonthlyEntryInput): Promise<string | undefined> {
+  if (entry.category !== "EXPENSE") return undefined;
+  await agendarAvisoDoCartao(ctx, entry.year, entry.month);
+  if (entry.noCartao !== true) return undefined;
+  const situacao = await situacaoDoCartao(ctx, entry.year, entry.month);
+  if (!situacao) return undefined;
+  const t = vozDoTema(ctx.profileTheme, ctx.profileKind).titulos;
+  const money = await serverMoney();
+  return situacao.falta >= 0 ? t.limToastFalta(money(situacao.falta)) : t.limToastPassou(money(-situacao.falta));
+}
 
 /**
  * "Esse dinheiro é para o mês seguinte" (03/10/2026). Cliente: "recebo dia 25 e as contas vencem
@@ -60,6 +82,7 @@ function parseEntryForm(formData: FormData) {
     resgate: formData.get("resgate") ?? undefined,
     pessoa: formData.get("pessoa") ?? undefined,
     tipoCasal: formData.get("tipoCasal") ?? undefined,
+    noCartao: formData.get("noCartao") ?? undefined,
   });
 }
 
@@ -102,6 +125,8 @@ async function toEntryInput(data: z.output<typeof monthlyEntrySchema>): Promise<
     // estava gravado.
     pessoa: data.pessoa || undefined,
     doCasal: data.tipoCasal === "pessoal" ? false : data.tipoCasal === "casa" ? true : undefined,
+    // Limite do cartão: só gasto é "no cartão". Virou renda ou guardado na edição: limpa.
+    noCartao: data.category === "EXPENSE" ? (data.noCartao ? data.noCartao === "sim" : undefined) : null,
   };
 }
 
@@ -133,7 +158,8 @@ export async function createMonthlyEntryAction(
   }
   revalidatePath(`/mensal/${parsed.data.year}`);
   revalidatePath(`/mensal/${parsed.data.year}/${parsed.data.month}`);
-  return {};
+  const aviso = await depoisDoGasto(ctx, entry);
+  return aviso ? { aviso } : {};
 }
 
 /** Edição de um lançamento existente, mesmo formulário do create, com `entryId` extra. */
@@ -180,7 +206,8 @@ export async function updateMonthlyEntryAction(
   revalidatePath(`/mensal/${parsed.data.year}`);
   revalidatePath(`/mensal/${parsed.data.year}/${parsed.data.month}`);
   if (Number.isInteger(mesDaTela.year) && Number.isInteger(mesDaTela.month)) revalidatePath(`/mensal/${mesDaTela.year}/${mesDaTela.month}`);
-  return {};
+  const aviso = await depoisDoGasto(ctx, entry);
+  return aviso ? { aviso } : {};
 }
 
 export async function deleteMonthlyEntryAction(id: string, year: number, month: number) {

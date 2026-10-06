@@ -19,6 +19,7 @@ import { contasDoFoco, hojeEmBrasilia } from "@/lib/contas/contas";
 import { iso, serializarConta } from "@/app/(app)/orcamento/contas/serializar";
 import { ContasDoFoco } from "./ContasDoFoco";
 import { CartaoMoneyReset } from "./CartaoMoneyReset";
+import { CartaoDoLimite } from "@/components/cartao/CartaoDoLimite";
 import { ConquistasDeMetas } from "@/components/conquista/ConquistasDeMetas";
 
 /**
@@ -153,6 +154,8 @@ export default async function FocoPage() {
       ))}
 
       {/* Money Reset: a missão de hoje, só para quem comprou (o resto nem vê). */}
+      {/* Limite do cartão: só aparece para quem definiu um (06/10/2026). */}
+      <CartaoDoLimite ctx={ctx} />
       <CartaoMoneyReset ctx={ctx} t={t} />
 
       {/* Conta vencendo é o que mais custa esquecer (juros, multa): logo abaixo do número da semana. */}

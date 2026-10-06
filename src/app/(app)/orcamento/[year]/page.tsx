@@ -1,7 +1,7 @@
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CalendarClock, ChevronLeft, ChevronRight } from "lucide-react";
+import { CalendarClock, ChevronLeft, ChevronRight, CreditCard } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
 import {
   getAnnualPlannedVsActual,
@@ -40,6 +40,7 @@ import { MapaDoAno, type LinhaDoMapa } from "@/components/budget/MapaDoAno";
 import { vozDoTema } from "@/lib/profiles/voice";
 import { listarContasAPagar } from "@/lib/repositories/conta-a-pagar.repo";
 import { contasDoFoco, hojeEmBrasilia } from "@/lib/contas/contas";
+import { situacaoDoCartao } from "@/lib/repositories/limite-cartao.repo";
 import { AtualizarMesButton } from "@/components/budget/AtualizarMesButton";
 import { getUltimoGastoAte } from "@/lib/repositories/monthly-entry.repo";
 import { ajustesDoPadrao } from "@/lib/planning/padrao-orcamento";
@@ -75,7 +76,7 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
   const voz = vozDoTema(ctx.profileTheme, ctx.profileKind);
   const agora = nowInBrazil();
   // Uma consulta a mais na página já custou caro antes: vai junto das outras, não em fila.
-  const [comparison, customCategories, plan, annualPlan, monthSummary, hints, savingsTargets, contas] = await Promise.all([
+  const [comparison, customCategories, plan, annualPlan, monthSummary, hints, savingsTargets, contas, cartao] = await Promise.all([
     getAnnualPlannedVsActual(ctx, year),
     listCustomCategories(ctx),
     getAnnualBudgetPlan(ctx, year),
@@ -84,6 +85,7 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
     getBudgetHints(ctx, year, agora),
     getSavingsTargets(ctx, agora),
     listarContasAPagar(ctx),
+    year === agora.getFullYear() ? situacaoDoCartao(ctx, year, agora.getMonth() + 1) : null,
   ]);
   // Contas a pagar moram aqui (05/10/2026, pedido da Dani): o atalho diz o que vence na semana.
   const contasDaSemana = contasDoFoco(contas, hojeEmBrasilia());
@@ -387,6 +389,28 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
             </span>
           </span>
           {totalDasContas > 0 && <span className="shrink-0 text-sm font-semibold tabular-nums text-ink">{money(totalDasContas, { round: true })}</span>}
+          <ChevronRight size={16} className="shrink-0 text-ink-faint" />
+        </Link>
+      )}
+
+      {/* Limite do cartão (06/10/2026): sem limite convida a definir; com limite diz quanto falta. */}
+      {isCurrentYear && (
+        <Link
+          href="/orcamento/cartao"
+          className="flex items-center gap-3 rounded-2xl border border-border bg-surface px-5 py-4 transition-colors hover:bg-surface-hover"
+        >
+          <CreditCard size={18} className={`shrink-0 ${cartao?.nivel === "passou" || cartao?.nivel === "perto" ? "text-danger" : "text-accent-strong"}`} aria-hidden />
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-semibold text-ink">{voz.titulos.limTitulo}</span>
+            <span className={`mt-0.5 block text-caption ${cartao?.nivel === "passou" ? "font-semibold text-danger" : "text-ink-muted"}`}>
+              {!cartao
+                ? voz.titulos.limAtalhoDefinir
+                : cartao.falta >= 0
+                  ? voz.titulos.limAtalhoFalta(money(cartao.falta, { round: true }))
+                  : voz.titulos.limAtalhoPassou(money(-cartao.falta, { round: true }))}
+            </span>
+          </span>
+          {cartao && <span className="shrink-0 text-sm font-semibold tabular-nums text-ink-muted">{Math.round(cartao.pct)}%</span>}
           <ChevronRight size={16} className="shrink-0 text-ink-faint" />
         </Link>
       )}

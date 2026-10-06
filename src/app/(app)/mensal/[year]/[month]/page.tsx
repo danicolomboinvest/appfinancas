@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { Receipt } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
 import { listMonthlyEntries, listRecentSubcategories } from "@/lib/repositories/monthly-entry.repo";
+import { ehDoCartao } from "@/lib/cartao/limite";
 import { listCustomCategories } from "@/lib/repositories/custom-category.repo";
 import { listGoals } from "@/lib/repositories/goal.repo";
 import {
@@ -470,6 +471,7 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
             recurrenceId: entry.recurrenceId,
             pessoa: entry.pessoa,
             doCasal: entry.doCasal,
+            noCartao: ehDoCartao(entry),
             ...(entry.originalCurrency && entry.originalAmount !== null && isCurrencyCode(entry.originalCurrency)
               ? {
                   // O olho do topo fechado esconde também o valor na moeda de origem.

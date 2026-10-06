@@ -3,6 +3,7 @@
 import { ehCasal } from "@/lib/profiles/casal";
 import { ehPessoa } from "@/lib/casal/acerto";
 import { revalidatePath } from "next/cache";
+import { agendarAvisoDoCartao } from "@/lib/cartao/agendar";
 import { installmentCanonical, installmentDescription, parseInstallment } from "@/lib/entries/recurrence";
 import { countMoneyLines, detectInvoiceTotal, looksLikeCardInvoice, MOTIVO_SINAIS_FATURA, periodoSemMovimento, sinaisDesmentemExtrato, type DocKind } from "@/lib/import/detect";
 import { profileDocument } from "@/lib/import/profile";
@@ -1042,6 +1043,9 @@ export async function importTransactionsAction(
     revalidatePath(`/mensal/${year}`);
     revalidatePath(`/mensal/${year}/${month}`);
   }
+
+  // Limite do cartão: a fatura que entrou pode ter passado de 70/90/100% do mês dela.
+  if (faturaTarget && created > 0) await agendarAvisoDoCartao(ctx, faturaTarget.year, faturaTarget.month);
 
   await recordImportDiagnostic({
     userId: ctx.userId,

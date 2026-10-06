@@ -16,6 +16,7 @@ import { type TextosCarteira, PADRAO_CARTEIRA } from "./textos/carteira";
 import { type TextosCasal, PADRAO_CASAL } from "./textos/casal";
 import { type TextosCompra, PADRAO_COMPRA } from "./textos/compra";
 import { type TextosContas, PADRAO_CONTAS } from "./textos/contas";
+import { type TextosLimiteCartao, PADRAO_LIMITE_CARTAO } from "./textos/cartao";
 import { type TextosReset, PADRAO_RESET } from "./textos/reset";
 import { type TextosInvestirEmpresa, PADRAO_INVESTIR } from "./textos/investir";
 import { type TextosEmail, PADRAO_EMAIL } from "./textos/email";
@@ -488,6 +489,7 @@ export type Titulos = TitulosBase &
   TextosCasal &
   TextosCompra &
   TextosContas &
+  TextosLimiteCartao &
   TextosReset &
   TextosInvestirEmpresa &
   TextosEmail &
@@ -505,6 +507,7 @@ export const TITULOS_PADRAO: Titulos = {
   ...PADRAO_CASAL,
   ...PADRAO_COMPRA,
   ...PADRAO_CONTAS,
+  ...PADRAO_LIMITE_CARTAO,
   ...PADRAO_RESET,
   ...PADRAO_INVESTIR,
   ...PADRAO_EMAIL,

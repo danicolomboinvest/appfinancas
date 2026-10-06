@@ -9,6 +9,8 @@ export async function listMonthlyEntries(ctx: AuthContext, year: number, month: 
   return prisma.monthlyEntry.findMany({
     where: { userId: ctx.userId, profileId: ctx.profileId, year, month },
     orderBy: { createdAt: "desc" },
+    // O tipo do lote diz se a linha veio da fatura (conta no limite do cartão; ver ehDoCartao).
+    include: { importBatch: { select: { docType: true } } },
   });
 }
 
@@ -42,6 +44,9 @@ export type MonthlyEntryInput = {
   /** Perfil Casal: quem pagou/recebeu ("A"/"B") e se o gasto é da casa (false = pessoal). */
   pessoa?: string;
   doCasal?: boolean;
+  /** Limite do cartão: true = no cartão de crédito, false = não, null = limpa (deixou de ser
+   * gasto), undefined = não mexe. Ver lib/cartao/limite.ts. */
+  noCartao?: boolean | null;
 };
 
 /**
@@ -131,6 +136,7 @@ export async function createRecurringMonthlyEntries(
     goalId?: string;
     pessoa?: string;
     doCasal?: boolean;
+    noCartao?: boolean | null;
   },
 ) {
   const refs = await resolveOwnRefs(ctx, ctx.profileId, input);
@@ -200,6 +206,7 @@ export async function updateSeriesFrom(ctx: AuthContext, id: string, input: Mont
           // Perfil Casal: só muda quando o formulário mandou (fora do Casal fica como está).
           ...(input.pessoa !== undefined ? { pessoa: input.pessoa } : {}),
           ...(input.doCasal !== undefined ? { doCasal: input.doCasal } : {}),
+          ...(input.noCartao !== undefined ? { noCartao: input.noCartao } : {}),
         },
       }),
     ),

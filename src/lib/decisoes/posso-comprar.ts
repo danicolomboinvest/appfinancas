@@ -70,6 +70,8 @@ export type CompraBase = {
   /** O orçamento deste mês por categoria-mãe (chave do banco, nome na tela, planejado, já gasto):
    * é daqui que saem os cortes sugeridos quando a compra não cabe (ver saidasDaCompra). */
   categorias?: { chave: string; nome: string; planejado: number; gasto: number }[];
+  /** Limite do cartão do mês (06/10/2026), quando ela definiu: a tela diz quanto falta nele. */
+  cartao?: { limite: number; gasto: number };
 };
 
 /**

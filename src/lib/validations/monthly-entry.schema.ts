@@ -53,6 +53,8 @@ export const monthlyEntrySchema = z
   pessoa: z.union([z.literal("A"), z.literal("B"), z.literal("")]).optional(),
   /** Perfil Casal: gasto da casa (entra no acerto) ou pessoal. */
   tipoCasal: z.union([z.literal("casa"), z.literal("pessoal"), z.literal("")]).optional(),
+  /** Gasto no cartão de crédito (limite do cartão): "sim"/"nao". Só o gasto manda; ausente não mexe. */
+  noCartao: z.union([z.literal("sim"), z.literal("nao"), z.literal("")]).optional(),
 })
   // O formulário manda year/month da página onde foi aberto (ex.: setembro) e a entryDate que a
   // pessoa escolheu no campo de data, sem os dois se atualizarem juntos: mudar a data pra outubro

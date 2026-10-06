@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { CreditCard } from "lucide-react";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 
 import { startTransition, useActionState, useEffect, useRef, useState, type FormEvent } from "react";
@@ -20,6 +21,16 @@ import type { TipoDoLancamento } from "@/lib/profiles/textos/shell";
 import { createMonthlyEntryAction, updateMonthlyEntryAction, type MonthlyEntryState } from "./actions";
 
 const initialState: MonthlyEntryState = {};
+
+/** A última escolha do "No cartão" (quem paga tudo no cartão não precisa marcar todo gasto). */
+const ULTIMO_NO_CARTAO = "spi-ultimo-no-cartao";
+function lerUltimoNoCartao(): boolean {
+  try {
+    return window.localStorage.getItem(ULTIMO_NO_CARTAO) === "1";
+  } catch {
+    return false;
+  }
+}
 
 export function EntryForm({
   year,
@@ -44,6 +55,7 @@ export function EntryForm({
   tipoRecorrente = "EXPENSE",
   defaultPessoa,
   defaultDoCasal,
+  defaultNoCartao,
 }: {
   year: number;
   month: number;
@@ -80,6 +92,8 @@ export function EntryForm({
   /** Perfil Casal (edição): quem pagou e se era da casa. */
   defaultPessoa?: string | null;
   defaultDoCasal?: boolean | null;
+  /** Edição: o gasto conta no limite do cartão (marcado ou linha de fatura). */
+  defaultNoCartao?: boolean;
 }) {
   const isEditing = Boolean(entryId);
   const [state, formAction, isPending] = useActionState(
@@ -92,7 +106,8 @@ export function EntryForm({
   // O perfil de quando o formulário abriu (não o de agora): se a tela se atualizar com outro
   // perfil enquanto ela preenche, o servidor recusa em vez de gravar no perfil novo.
   const [perfilDaTela] = useState(profileId);
-  useSuccessToast(isPending, state.error, t.lancamentoSalvo);
+  // Gasto no cartão com limite: o toast diz quanto falta no lugar do "Lançado".
+  useSuccessToast(isPending, state.error, state.aviso ?? t.lancamentoSalvo);
 
   useEffect(() => {
     if (wasPending.current && !isPending && !state.error) {
@@ -112,6 +127,10 @@ export function EntryForm({
   const foreign = currency !== userCurrency;
   // O tipo escolhido nos chips: os campos do Casal perguntam "quem pagou" ou "quem recebeu".
   const [tipo, setTipo] = useState(defaultCategory ?? "EXPENSE");
+  // "No cartão de crédito" (limite do cartão, 06/10/2026). Novo lançamento começa com a última
+  // escolha; a edição, com o que o gasto já é. O formulário só existe dentro de um modal aberto
+  // pela pessoa, então ler o aparelho aqui não desencontra do servidor.
+  const [noCartao, setNoCartao] = useState<boolean>(() => (isEditing ? Boolean(defaultNoCartao) : lerUltimoNoCartao()));
   // "Esse dinheiro é para as contas do mês seguinte" (ver aplicarMesSeguinte em actions.ts). O mês
   // de base é o da DATA: na edição de uma entrada já empurrada, a página é a do mês seguinte e a
   // data continua no mês em que o dinheiro caiu, e é isso que diz que ela já está marcada.
@@ -130,6 +149,13 @@ export function EntryForm({
       onSubmit={(e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         const data = new FormData(e.currentTarget);
+        if (tipo === "EXPENSE" && !isEditing) {
+          try {
+            window.localStorage.setItem(ULTIMO_NO_CARTAO, noCartao ? "1" : "0");
+          } catch {
+            // Sem armazenamento no aparelho: só não lembra da escolha.
+          }
+        }
         startTransition(() => formAction(data));
       }}
       className={stacked ? "flex flex-col gap-3 p-4" : "flex flex-wrap items-end gap-3 p-4"}
@@ -193,6 +219,29 @@ export function EntryForm({
         onTipoChange={setTipo}
       />
       <CasalFields tipo={tipo} defaultPessoa={defaultPessoa} defaultDoCasal={defaultDoCasal} />
+      {tipo === "EXPENSE" && (
+        <>
+          <input type="hidden" name="noCartao" value={noCartao ? "sim" : "nao"} />
+          <button
+            type="button"
+            role="switch"
+            aria-checked={noCartao}
+            onClick={() => setNoCartao((v) => !v)}
+            className={`flex min-h-12 items-center gap-3 rounded-2xl border px-3 text-left transition-colors ${stacked ? "w-full" : ""} ${
+              noCartao ? "border-accent bg-accent-soft" : "border-border-strong bg-surface-2"
+            }`}
+          >
+            <CreditCard size={18} strokeWidth={1.9} className={noCartao ? "text-accent-strong" : "text-ink-muted"} aria-hidden />
+            <span className="flex min-w-0 flex-1 flex-col">
+              <span className="text-sm font-medium text-ink">{t.limNoCartao}</span>
+              {noCartao && <span className="text-caption text-ink-muted">{t.limNoCartaoNota}</span>}
+            </span>
+            <span aria-hidden className={`relative h-6 w-10 shrink-0 rounded-full transition-colors ${noCartao ? "bg-accent" : "bg-border-strong"}`}>
+              <span className={`absolute top-0.5 size-5 rounded-full bg-surface shadow-sm transition-all ${noCartao ? "left-[18px]" : "left-0.5"}`} />
+            </span>
+          </button>
+        </>
+      )}
       <Field
         label={t.formLancData}
         id="entryDate"
