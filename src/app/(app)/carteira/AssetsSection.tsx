@@ -4,7 +4,7 @@ import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
-import { Briefcase, Eye, EyeOff, FileText, FileUp, Pencil, Plus, RefreshCw } from "lucide-react";
+import { ArrowUpRight, Briefcase, Eye, EyeOff, FileText, FileUp, Pencil, Plus, RefreshCw, TrendingUp } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { FitText } from "@/components/ui/FitText";
 import { CountUp } from "@/components/ui/CountUp";
@@ -229,51 +229,67 @@ export function AssetsSection({
     setClassFilter((prev) => (prev === assetClass ? null : assetClass));
   }
 
-  // Carteira vazia: UM caminho só. Antes aparecia "Sua carteira · 0", R$ 0,00, três botões
-  // pequenos (um deles "Preço médio (IR)", sem sentido sem ativo) e, como único botão cheio da
-  // tela, "Abrir minha conta", que leva pra fora do app. Agora é o card de primeira vez: um
-  // botão grande pra cadastrar e os atalhos de Poupança e Caixinha. Importar e abrir conta
-  // viram links discretos.
+  // Carteira vazia (06/10/2026): dois cartões, um para cada situação. A Dani achou o cartão único
+  // cheio de texto e confuso (cinco caminhos juntos) e o "Abrir minha conta" perdido no pé. Em
+  // cima, em destaque, quem ainda não investe abre a conta na EQI; embaixo, quem já investe
+  // cadastra o que tem, com Poupança, Caixinha e o arquivo da corretora como atalhos pequenos.
+  // No perfil Empresa só o de baixo: a conta da EQI é de pessoa física.
   if (assets.length === 0) {
+    const estiloAtalho = "inline-flex min-h-11 items-center rounded-full border border-border bg-surface-2 px-3 text-sm font-medium text-ink transition-colors hover:border-border-strong";
     return (
-      <div className="flex flex-col gap-6">
-        <Card className="flex flex-col items-center gap-4 p-5 text-center sm:p-6">
-          <span className="flex size-12 items-center justify-center rounded-full bg-accent-soft text-accent-strong">
-            <Briefcase size={22} strokeWidth={1.8} aria-hidden />
-          </span>
-          <p className="max-w-sm text-sm text-ink-muted">{voz.titulos.carteiraVazio}</p>
-          <Button type="button" className="w-full sm:w-auto" onClick={() => abrirNovo()}>
+      <div className="flex flex-col gap-4">
+        {!empresa && (
+          <section className="relative overflow-hidden rounded-2xl border border-accent/30 bg-accent-soft p-5 sm:p-6">
+            <div aria-hidden className="pointer-events-none absolute -right-12 -top-12 size-44 rounded-full bg-accent/20 blur-3xl" />
+            <div className="relative flex flex-col gap-3">
+              <span className="flex size-11 items-center justify-center rounded-full bg-accent-gradient text-on-accent shadow-premium-sm">
+                <TrendingUp size={20} strokeWidth={2} aria-hidden />
+              </span>
+              <div>
+                <p className="text-caption font-semibold uppercase tracking-[0.11em] text-accent-strong">{t.cartAbrirContaEtiqueta}</p>
+                <h2 className="mt-1 text-h2 font-bold tracking-tight text-ink">{t.cartAbrirContaTitulo}</h2>
+                <p className="mt-1 text-sm text-ink-muted">{t.cartAbrirContaTexto}</p>
+              </div>
+              <a
+                href={EQI_SIGNUP_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-1 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-accent-gradient px-5 text-sm font-semibold text-on-accent shadow-premium-sm sm:w-fit"
+              >
+                {t.cartAbrirContaBotao}
+                <ArrowUpRight size={16} strokeWidth={2.2} aria-hidden />
+              </a>
+            </div>
+          </section>
+        )}
+
+        <Card className="flex flex-col gap-3 p-5 sm:p-6">
+          <div className="flex items-start gap-3">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent-strong">
+              <Briefcase size={18} strokeWidth={1.8} aria-hidden />
+            </span>
+            <div className="min-w-0">
+              {!empresa && <p className="text-caption font-semibold uppercase tracking-[0.11em] text-ink-muted">{t.cartJaInvesteEtiqueta}</p>}
+              <p className="mt-0.5 text-sm text-ink-muted">{empresa ? voz.titulos.carteiraVazio : t.cartJaInvesteTexto}</p>
+            </div>
+          </div>
+          <Button type="button" variant={empresa ? undefined : "secondary"} className="w-full sm:w-fit" onClick={() => abrirNovo()}>
             <Plus size={16} strokeWidth={2} aria-hidden />
             {t.cartVazioCadastrar}
           </Button>
-          <div className="flex w-full flex-col gap-2">
-            <p className="text-caption text-ink-muted">{t.cartVazioAtalhos}</p>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              {/* Sem ícone de propósito: no Girly o texto já traz o emoji (🐷, 💗, 📄), e ícone +
-                  emoji virava bicho repetido no botão. */}
-              <Button type="button" variant="secondary" onClick={() => abrirNovo(ATALHO_POUPANCA)}>
-                {t.cartVazioPoupanca}
-              </Button>
-              <Button type="button" variant="secondary" onClick={() => abrirNovo(ATALHO_CAIXINHA)}>
-                {t.cartVazioCaixinha}
-              </Button>
-            </div>
+          {/* Sem ícone de propósito: no Girly o texto já traz o emoji (🐷, 💗, 📄), e ícone +
+              emoji virava bicho repetido no botão. */}
+          <div className="flex flex-wrap gap-2">
+            <button type="button" className={estiloAtalho} onClick={() => abrirNovo(ATALHO_POUPANCA)}>
+              {t.cartVazioPoupanca}
+            </button>
+            <button type="button" className={estiloAtalho} onClick={() => abrirNovo(ATALHO_CAIXINHA)}>
+              {t.cartVazioCaixinha}
+            </button>
+            <button type="button" className={estiloAtalho} onClick={() => setImportOpen(true)}>
+              {t.cartVazioTenhoArquivo}
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={() => setImportOpen(true)}
-            className="inline-flex min-h-11 items-center px-2 text-sm font-medium text-accent-strong hover:underline"
-          >
-            {t.cartVazioTenhoArquivo}
-          </button>
-          {!empresa && (
-            <p className="text-caption text-ink-muted">
-              {t.carteiraAbrirContaPergunta}{" "}
-              <a href={EQI_SIGNUP_URL} target="_blank" rel="noreferrer" className="font-semibold text-accent-strong underline-offset-2 hover:underline">
-                {t.carteiraAbrirContaBotao}
-              </a>
-            </p>
-          )}
         </Card>
 
         <Modal open={createOpen} onClose={() => setCreateOpen(false)} title={t.cartNovoAtivo}>

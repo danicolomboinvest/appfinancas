@@ -84,7 +84,8 @@ export default async function CarteiraPage() {
         subtitle={
           <>
             {voz.titulos.carteiraSub}{" "}
-            {!empresa && (
+            {/* Sem nenhum ativo, "ver por objetivo" leva a uma tela vazia: some até o primeiro. */}
+            {!empresa && assets.length > 0 && (
               <Link href="/carteira/por-objetivo" className="text-accent-strong hover:underline">
                 {voz.titulos.carteiraLink}
               </Link>

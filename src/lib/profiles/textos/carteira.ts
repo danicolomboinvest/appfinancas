@@ -98,14 +98,22 @@ export type TextosCarteira = {
   cartRemoverSim: string;
   /** Card do Por objetivo quando a classe está dentro da folga do alvo (nem aportar, nem reduzir). */
   compNoAlvo: string;
-  // Carteira vazia (AssetsSection, quem ainda não cadastrou nada): UM caminho só.
-  /** O botão grande da carteira vazia. */
+  // Carteira vazia (AssetsSection, quem ainda não cadastrou nada), 06/10/2026: dois cartões,
+  // um para cada situação. Em cima, em destaque, quem ainda não investe abre a conta; embaixo,
+  // quem já investe cadastra o que tem.
+  /** Cartão de cima: a etiqueta, o título, uma linha e o botão que leva para a EQI. */
+  cartAbrirContaEtiqueta: string;
+  cartAbrirContaTitulo: string;
+  cartAbrirContaTexto: string;
+  cartAbrirContaBotao: string;
+  /** Cartão de baixo: quem já investe em algum lugar. */
+  cartJaInvesteEtiqueta: string;
+  cartJaInvesteTexto: string;
+  /** O botão do cartão de baixo. */
   cartVazioCadastrar: string;
-  /** Acima dos atalhos de Poupança e Caixinha. */
-  cartVazioAtalhos: string;
+  /** Atalhos pequenos embaixo do botão. */
   cartVazioPoupanca: string;
   cartVazioCaixinha: string;
-  /** Link discreto para quem já tem o arquivo da corretora. */
   cartVazioTenhoArquivo: string;
   // Reserva · "Guardei este mês" (planejamento/reserva-emergencia)
   /** O botão: lança o valor combinado por mês e soma na reserva. */
@@ -330,11 +338,16 @@ export const PADRAO_CARTEIRA: TextosCarteira = {
   cartRemoverSim: "Sim, remover",
   compNoAlvo: "No alvo",
   // Carteira vazia
-  cartVazioCadastrar: "Cadastrar onde seu dinheiro está",
-  cartVazioAtalhos: "Ou comece por um destes:",
+  cartVazioCadastrar: "Cadastrar meus investimentos",
   cartVazioPoupanca: "Poupança",
   cartVazioCaixinha: "Caixinha do banco",
-  cartVazioTenhoArquivo: "Tenho o arquivo da corretora",
+  cartVazioTenhoArquivo: "Arquivo da corretora",
+  cartAbrirContaEtiqueta: "Ainda não investe?",
+  cartAbrirContaTitulo: "Abra sua conta de investimentos",
+  cartAbrirContaTexto: "Pelo celular, com a assessoria da Dani na EQI.",
+  cartAbrirContaBotao: "Abrir minha conta",
+  cartJaInvesteEtiqueta: "Já investe?",
+  cartJaInvesteTexto: "Cadastre onde seu dinheiro está e acompanhe tudo aqui.",
   // Reserva · "Guardei este mês"
   reservaGuardeiBotao: (v) => `Guardei ${v} este mês`,
   reservaGuardeiDica: "Soma na reserva e entra no mês como dinheiro guardado.",
