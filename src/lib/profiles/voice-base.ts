@@ -218,6 +218,18 @@ export type TitulosBase = {
   apDeOndeVem: string;
   apDeOndeVemHint: string;
   apBolso(anos: number): string;
+  /** Os quadradinhos da Aposentadoria e da Reserva (07/10/2026, "mesma cara, menos texto"). */
+  /** O quadradinho da meta com o aporte do mês já feito: "Guardar em novembro". */
+  metaGuardarEm(mes: string): string;
+  /** O selo da categoria que não teve gasto no mês anterior, na aba Gastos (07/10/2026). */
+  novaNoMes: string;
+  apVoceQuer: string;
+  apSobraPorMes: string;
+  apFaltaPorMes: string;
+  apDoBolso: string;
+  apDosJuros: string;
+  reservaCobre: string;
+  reservaCompletaEm: string;
   apJuros: string;
   apJurosNota(um: string, mais: string): string;
   apPremissas: string;
@@ -379,7 +391,7 @@ const TITULOS_BASE: TitulosBase = {
   metaMarcar: (mes) => `Guardei em ${mes}`,
   metasResumo: (n, porMes) => `${n} ${Number(n) === 1 ? "meta" : "metas"}${porMes ? `, ${porMes} por mês` : ""}`,
   metaOutroValor: "outro valor",
-  splitTitulo: (mes) => `Para onde vai o que você guarda em ${mes}`,
+  splitTitulo: (mes) => `Guardar em ${mes}`,
   splitSub: (v) => `${v} por mês, do seu orçamento. Reserva primeiro, depois as metas por prazo.`,
   splitVazioTitulo: "Para onde vai o que você guarda?",
   splitVazioSub: "Diga no orçamento quanto quer guardar por mês, e o app divide entre reserva e metas.",
@@ -391,7 +403,7 @@ const TITULOS_BASE: TitulosBase = {
   formGuardoPorMes: "Guardo por mês",
   formRende: "Quanto a reserva rende por ano",
   formRendeHint: "Reserva fica em aplicação de liquidez diária, então costuma render perto do CDI.",
-  apSeNadaMudar: (idade) => `Se nada mudar, aos ${idade} anos você tem`,
+  apSeNadaMudar: (idade) => `Aos ${idade} anos, se nada mudar`,
   apHoje: "em dinheiro de hoje",
   apRendaExplica: "A renda é o que esse dinheiro paga por mês sem você mexer no principal.",
   apDaPe: "Dá pé",
@@ -403,6 +415,15 @@ const TITULOS_BASE: TitulosBase = {
   apDeOndeVem: "De onde vem esse dinheiro",
   apDeOndeVemHint: "Em dinheiro de hoje, a mesma moeda do número lá em cima.",
   apBolso: (anos) => `Você põe do bolso em ${anos} anos`,
+  metaGuardarEm: (mes) => `Guardar em ${mes}`,
+  novaNoMes: "Nova",
+  apVoceQuer: "Você quer",
+  apSobraPorMes: "Sobra por mês",
+  apFaltaPorMes: "Falta por mês",
+  apDoBolso: "Do seu bolso",
+  apDosJuros: "Dos juros",
+  reservaCobre: "Cobre",
+  reservaCompletaEm: "Completa em",
   apJuros: "Os juros põem",
   apJurosNota: (um, mais) => `Para cada ${um} que sai do seu bolso, os juros colocam mais ${mais}.`,
   apPremissas: "Ver as premissas",

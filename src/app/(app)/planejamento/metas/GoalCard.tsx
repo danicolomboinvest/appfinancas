@@ -14,11 +14,12 @@ import { resolveGoalKind } from "@/lib/planning/goal-kind";
 
 export type GoalVariant = "ahead" | "onTrack" | "behind" | "achieved";
 
-const VARIANT_STATUS_TEXT: Record<GoalVariant, string> = {
-  ahead: "text-success",
-  onTrack: "text-accent-strong",
-  behind: "text-danger",
-  achieved: "text-success",
+/** O estado num selo colorido (07/10/2026), não numa palavra colorida no meio da frase. */
+const VARIANT_SELO: Record<GoalVariant, string> = {
+  ahead: "bg-success-soft text-success",
+  onTrack: "bg-success-soft text-success",
+  behind: "bg-danger-soft text-danger",
+  achieved: "bg-success-soft text-success",
 };
 
 const GOAL_ICONS: Record<GoalIcon, typeof Target> = {
@@ -137,14 +138,9 @@ export async function GoalCard({
           <div className="mt-1.5">
             <FitText className="text-h1 font-bold leading-none tracking-tight tabular-nums text-ink">{money(currentAmount, { round: true })}</FitText>
           </div>
-          <p className="mt-1.5 text-caption tabular-nums text-ink-muted">
+          <p className="mt-1.5 flex flex-wrap items-center gap-2 text-caption tabular-nums text-ink-muted">
             de {money(targetAmount, { round: true })}
-            {!achieved && (
-              <>
-                {", "}
-                <span className={VARIANT_STATUS_TEXT[variant]}>{voz.titulos.metaStatus[variant]}</span>
-              </>
-            )}
+            {!achieved && <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${VARIANT_SELO[variant]}`}>{voz.titulos.metaStatus[variant]}</span>}
           </p>
         </Link>
 
@@ -160,24 +156,26 @@ export async function GoalCard({
           <p className="text-sm text-ink">{voz.metaBatida(name)}</p>
         </div>
       ) : (
-        <div className="border-t border-border pt-3">
-          {/* Com o aporte do mês feito, "guardar R$ X este mês" recalculado com o saldo novo lia
-              como se ainda faltasse dinheiro em setembro. Aí o card fala do mês que vem. */}
-          {!monthDone ? (
-            <p className="text-[15px] font-bold tracking-tight text-accent-strong">
-              {voz.titulos.metaGuardar(money(plan.requiredMonthlyContribution, { round: true }))}
-            </p>
-          ) : nextContribution ? (
-            <p className="text-[15px] font-bold tracking-tight text-accent-strong">
-              {voz.titulos.metaProximoAporte(money(nextContribution.amount, { round: true }), nextContribution.monthLabel)}
-            </p>
-          ) : null}
-          <p className="mt-0.5 text-caption text-ink-muted">
-            {voz.titulos.metaMeses(plan.monthsRemaining)}
-          </p>
+        <div className="flex flex-col gap-3 border-t border-border pt-3">
+          {/* Dois quadradinhos (07/10/2026, "mesma cara, menos texto"): quanto guardar e quantos
+              meses faltam. Eram duas frases, "Guardar X este mês" e "14 meses restantes". Com o
+              aporte do mês feito, o primeiro fala do mês que vem. */}
+          <div className="grid grid-cols-2 gap-2">
+            <div className="min-w-0 rounded-xl bg-surface-2 px-3 py-2">
+              <p className="text-caption leading-tight text-ink-muted">
+                {monthDone && nextContribution ? voz.titulos.metaGuardarEm(nextContribution.monthLabel) : voz.titulos.metaGuardarPorMes}
+              </p>
+              <p className="truncate text-[17px] font-bold tabular-nums text-ink">
+                {money(monthDone && nextContribution ? nextContribution.amount : plan.requiredMonthlyContribution, { round: true })}
+              </p>
+            </div>
+            <div className="min-w-0 rounded-xl bg-surface-2 px-3 py-2">
+              <p className="text-caption leading-tight text-ink-muted">{voz.titulos.metaMesesRestantes}</p>
+              <p className="text-[17px] font-bold tabular-nums text-ink">{plan.monthsRemaining}</p>
+            </div>
+          </div>
 
-          {/* "Guardei este mês" logo abaixo do "Guardar R$ X": o pedido e a resposta juntos.
-              Antes era um chip de 26px depois do link da ferramenta, longe do pedido. */}
+          {/* "Guardei este mês" logo abaixo dos números: o pedido e a resposta juntos. */}
           {checkin && (
             <GoalAporteChip
               goalId={id}

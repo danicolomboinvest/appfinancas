@@ -13,6 +13,7 @@ import { getCategoryTransactionsAction, type CategoryTransaction } from "./actio
 import { useMoney } from "@/components/money/MoneyProvider";
 import { useToast } from "@/components/ui/toast-context";
 import { BotoesDeLancar } from "@/components/ui/BotoesDeLancar";
+import { Explica } from "@/components/ui/Explica";
 
 type Period = "semana" | "mes" | "ano";
 
@@ -155,11 +156,15 @@ export function SpendingByCategory({
         </div>
       ) : (
         <>
-        {/* A dica UMA vez, aqui. Repetida em cada linha, na segunda já era ruído — e ocupava
-            a linha onde cabe o que muda de categoria pra categoria. */}
-        <div className="flex items-baseline justify-between gap-3">
-          <p className="text-caption text-ink-faint">Toque numa categoria para abrir os lançamentos</p>
-          <p className="shrink-0 text-caption font-semibold tabular-nums text-ink-muted">{money(total, { round: true })}</p>
+        {/* O total do período num cartão (07/10/2026, "mesma cara, menos texto"). A dica "toque numa
+            categoria" saiu: a setinha de cada linha já diz que abre. */}
+        <div className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-surface px-4 py-3">
+          <span className="flex items-center gap-1.5 text-sm text-ink-muted">
+            {voz.titulos.gastou}
+            {/* O que a seta de cada categoria compara: no "?", não numa frase fixa (07/10/2026). */}
+            {period === "mes" && previousMonthLabel && <Explica>A seta de cada categoria compara com {previousMonthLabel}. Toque na categoria para ver os lançamentos.</Explica>}
+          </span>
+          <span className="text-[22px] font-bold tabular-nums tracking-tight text-ink">{money(total, { round: true })}</span>
         </div>
         {/* No computador, duas colunas: uma linha por categoria na largura toda era um corredor
             de espaço vazio entre o nome e o valor. */}
@@ -176,7 +181,7 @@ export function SpendingByCategory({
                   : Receipt;
               const emoji = emojiEscolhido(kind, slice.category?.value) ?? (slice.category?.kind === "parent" ? emojiDaCategoria(tema, { kind: "parent", value: slice.category.value }) : emojiDaCategoria(tema, { kind: "custom" }));
               const parcela = total > 0 ? Math.round((slice.value / total) * 100) : 0;
-              const comparacao = compareWithPrevious(slice, previousMonthLabel, money, voz);
+              const comparacao = compareWithPrevious(slice, money, voz);
               return (
                 <li key={slice.name} className="border-b border-border/60 last:border-0">
                   <button
@@ -190,7 +195,7 @@ export function SpendingByCategory({
                         {slice.name}
                       </span>
                       {comparacao && (
-                        <span className={`mt-0.5 block text-caption ${comparacao.tone}`}>{comparacao.text}</span>
+                        <span className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums ${comparacao.tone}`}>{comparacao.text}</span>
                       )}
                     </span>
                     <span className="shrink-0 text-right">
@@ -241,26 +246,23 @@ export function SpendingByCategory({
 }
 
 /**
- * A segunda linha de cada categoria: o que mudou em relação ao mês anterior. Só existe na
- * visão de mês (semana e ano não têm "anterior" comparável) e some quando a diferença é
- * pequena demais pra valer uma frase — silêncio é melhor que "R$ 3 a mais".
+ * O selo de cada categoria: o que mudou em relação ao mês anterior. Só existe na visão de mês
+ * (semana e ano não têm "anterior" comparável) e some quando a diferença é pequena demais.
+ *
+ * Um selo com seta e valor (07/10/2026, "mesma cara, menos texto"): era a frase "R$ 181 a menos
+ * que em setembro" debaixo de cada categoria. Diferença pequena não ganha selo: silêncio é melhor
+ * que "igual a setembro" repetido na lista inteira.
  */
 function compareWithPrevious(
   slice: SpendingSlice,
-  previousMonthLabel: string,
   money: ReturnType<typeof useMoney>,
   voz: Voz,
 ): { text: string; tone: string } | null {
   if (slice.previousValue === undefined) return null;
-  // O texto é do tema: "R$ 513 a mais que em agosto" no Padrão, "Foi o iFood, né? 🫣" no Sem
-  // filtro — que precisa saber a categoria pra tirada fazer sentido (iFood é só em comida).
-  const categoria = slice.category?.kind === "parent" ? slice.category.value : undefined;
-  if (slice.previousValue === 0) return { text: voz.titulos.comparacao("sem", "", previousMonthLabel, categoria), tone: "text-ink-muted" };
+  if (slice.previousValue === 0) return { text: voz.titulos.novaNoMes, tone: "bg-surface-2 text-ink-muted" };
   const diff = slice.value - slice.previousValue;
-  if (Math.abs(diff) < Math.max(20, slice.previousValue * 0.05)) {
-    return { text: voz.titulos.comparacao("igual", "", previousMonthLabel, categoria), tone: "text-ink-muted" };
-  }
+  if (Math.abs(diff) < Math.max(20, slice.previousValue * 0.05)) return null;
   return diff > 0
-    ? { text: voz.titulos.comparacao("mais", money(diff, { round: true }), previousMonthLabel, categoria), tone: "text-danger" }
-    : { text: voz.titulos.comparacao("menos", money(-diff, { round: true }), previousMonthLabel, categoria), tone: "text-success" };
+    ? { text: `↑ ${money(diff, { round: true })}`, tone: "bg-danger-soft text-danger" }
+    : { text: `↓ ${money(-diff, { round: true })}`, tone: "bg-success-soft text-success" };
 }

@@ -12,7 +12,7 @@ import { EmergencyFundForm } from "./EmergencyFundForm";
 import { formatPercentNumber } from "@/lib/format";
 import { serverMoney } from "@/lib/money-server";
 import { HeroiDoTema } from "@/components/ui/HeroiDoTema";
-import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
+import { EditarNoCanto } from "@/components/ui/EditarNoCanto";
 import { ChevronDown } from "lucide-react";
 import { ReservaDivergente } from "@/components/decisoes/ReservaDivergente";
 import { existeDecisao } from "@/lib/repositories/decisao.repo";
@@ -60,23 +60,21 @@ export default async function ReservaEmergenciaPage() {
     completionLabel = done.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
   }
 
-  const formulario = (
-    <EmergencyFundForm
-      typicalExpense={typicalExpense}
-      reserveInAssets={reserveInAssets}
-      defaults={
-        fund
-          ? {
-              targetMonths: fund.targetMonths,
-              monthlyExpenseBase: Number(fund.monthlyExpenseBase),
-              currentAmount: Number(fund.currentAmount),
-              monthlyContribution: Number(fund.monthlyContribution),
-              annualRate: Number(fund.annualRate),
-            }
-          : {}
-      }
-    />
-  );
+  const dadosDoFormulario = {
+    typicalExpense,
+    reserveInAssets,
+    defaults: fund
+      ? {
+          targetMonths: fund.targetMonths,
+          monthlyExpenseBase: Number(fund.monthlyExpenseBase),
+          currentAmount: Number(fund.currentAmount),
+          monthlyContribution: Number(fund.monthlyContribution),
+          annualRate: Number(fund.annualRate),
+        }
+      : {},
+  };
+  const formulario = <EmergencyFundForm {...dadosDoFormulario} />;
+  const formularioSemMoldura = <EmergencyFundForm {...dadosDoFormulario} semMoldura />;
 
   // A pergunta da tela é "minha proteção é suficiente?" (07/10/2026). Então a resposta vem em
   // meses de vida cobertos, não só em reais: "R$ 9.000" não diz nada; "cobre 1,5 mês do seu custo"
@@ -89,7 +87,16 @@ export default async function ReservaEmergenciaPage() {
   const cobre =
     mesesCobertos === null
       ? null
-      : `Cobre ${mesesCobertos.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} ${mesesCobertos >= 1 && mesesCobertos < 2 ? "mês" : "meses"} do seu custo de vida.`;
+      : `${mesesCobertos.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} ${mesesCobertos >= 1 && mesesCobertos < 2 ? "mês" : "meses"}`;
+  // "novembro de 2028" vira "nov 2028" no quadradinho: cabe numa linha no celular.
+  const completa =
+    tempo?.tipo === "pronta"
+      ? voz.titulos.reservaPronta
+      : tempo?.tipo === "naoFecha"
+        ? "Não fecha"
+        : completionLabel
+          ? completionLabel.replace(/^(\S{3})\S* de /, "$1 ")
+          : (tempo?.texto ?? "");
 
   return (
     <div className="flex flex-col gap-6">
@@ -102,38 +109,38 @@ export default async function ReservaEmergenciaPage() {
       {fund && plan && (
         <section className="flex flex-col gap-3">
           <HeroiDoTema>
-            <p className="text-sm font-medium text-heroi-suave">{voz.titulos.reservaAtual}</p>
+            {/* O lápis no canto edita os dados (07/10/2026): era o link "Editar meus dados ▾" embaixo. */}
+            <div className="-my-1 flex items-center justify-between gap-3">
+              <p className="text-sm font-medium text-heroi-suave">{voz.titulos.reservaAtual}</p>
+              <span className="flex shrink-0 items-center gap-2">
+                <span className="heroi-veu-forte rounded-full px-2.5 py-1 text-xs font-semibold tabular-nums">{pct}%</span>
+                <EditarNoCanto titulo={voz.titulos.reserva}>{formularioSemMoldura}</EditarNoCanto>
+              </span>
+            </div>
             <div>
               <p className="text-[2.5rem] font-bold leading-none tracking-tight tabular-nums">{money(atual, { round: true })}</p>
-              <p className="mt-1.5 text-sm text-heroi-suave tabular-nums">
-                de {money(meta, { round: true })}, {pct}%
-              </p>
+              <p className="mt-1.5 text-sm text-heroi-suave tabular-nums">de {money(meta, { round: true })}</p>
             </div>
             <div className="heroi-veu h-2 overflow-hidden rounded-full" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
               {/* O destaque do herói, não o accent: no Girly o accent é rosa sobre o bloco rosa e sumia. */}
               <div className={`h-full rounded-full ${tempo?.tipo === "pronta" ? "bg-success" : "bg-[var(--color-heroi-destaque)]"}`} style={{ width: `${pct}%` }} />
             </div>
-            <p className="flex items-start gap-2 text-sm">
-              <span
-                className={`mt-1.5 size-2 shrink-0 rounded-full ${tempo?.tipo === "naoFecha" ? "bg-danger" : tempo?.tipo === "pronta" ? "bg-success" : "bg-[var(--color-heroi-destaque)]"}`}
-                aria-hidden
-              />
-              <span>
-                {tempo?.tipo === "pronta" ? (
-                  <>
-                    <b className="font-semibold">{voz.titulos.reservaPronta}</b> {cobre}
-                  </>
-                ) : tempo?.tipo === "naoFecha" ? (
-                  <>
-                    {cobre} {voz.titulos.reservaNaoFechaHint}
-                  </>
-                ) : (
-                  <>
-                    {cobre} No ritmo atual, completa {completionLabel ? `em ${completionLabel}` : `em ${tempo?.texto}`}.
-                  </>
-                )}
-              </span>
-            </p>
+            {/* Dois quadradinhos (07/10/2026, "mesma cara, menos texto"): quantos meses de custo a
+                reserva cobre e quando fica pronta. Era a frase "Cobre 1,2 mês do seu custo de vida.
+                No ritmo atual, completa em novembro de 2028." */}
+            <div className="heroi-fio grid grid-cols-2 border-t pt-3">
+              {cobre && (
+                <div className="min-w-0">
+                  <p className="text-caption text-heroi-suave">{voz.titulos.reservaCobre}</p>
+                  <p className="text-lg font-bold tabular-nums">{cobre}</p>
+                </div>
+              )}
+              <div className={`min-w-0 ${cobre ? "heroi-fio border-l pl-4" : ""}`}>
+                <p className="text-caption text-heroi-suave">{voz.titulos.reservaCompletaEm}</p>
+                <p className={`text-lg font-bold ${tempo?.tipo === "naoFecha" ? "text-danger" : ""}`}>{completa}</p>
+              </div>
+            </div>
+            {tempo?.tipo === "naoFecha" && <p className="text-caption text-heroi-suave">{voz.titulos.reservaNaoFechaHint}</p>}
           </HeroiDoTema>
 
           {mostrarGuardei && (
@@ -180,12 +187,8 @@ export default async function ReservaEmergenciaPage() {
       {/* FORA do bloco acima de propósito: conta nova não tem reserva no banco (fund === null),
           e o formulário é o ÚNICO jeito de criar uma. Dentro do `fund && plan &&`, a tela
           aparecia em branco pra quem mais precisa dela — e três lugares do app apontam pra cá.
-          Com a reserva montada, ele fica recolhido (recolher esconde, não desmonta). */}
-      {fund ? (
-        <CollapsibleSection label={voz.titulos.apEditar}>{formulario}</CollapsibleSection>
-      ) : (
-        formulario
-      )}
+          Com a reserva montada, ele abre pelo lápis no canto do cartão (07/10/2026). */}
+      {!fund && formulario}
     </div>
   );
 }

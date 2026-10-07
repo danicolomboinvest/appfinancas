@@ -1,4 +1,4 @@
-import { DicaDaPrimeiraVez } from "@/components/ui/DicaDaPrimeiraVez";
+import { Explica } from "@/components/ui/Explica";
 
 /**
  * Seção de tela. No celular, sem moldura: título na página, conteúdo logo abaixo, um fio
@@ -17,7 +17,7 @@ export function Section({
   children,
 }: {
   title: string;
-  /** A frase-guia do gráfico. Aparece só na primeira vez que a pessoa vê a seção (06/10/2026). */
+  /** A explicação do gráfico: um "?" pequeno ao lado do título, que abre ao tocar (07/10/2026). */
   hint?: string;
   /** Quando a frase é um dado (e não uma explicação), ela fica sempre. */
   hintSempre?: boolean;
@@ -28,19 +28,16 @@ export function Section({
   return (
     <section className="border-t border-border pt-8 first:border-t-0 first:pt-0 lg:min-w-0 lg:rounded-2xl lg:border lg:bg-surface lg:p-5 lg:pt-5 lg:first:border-t lg:first:pt-5">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <h2 className="text-[17px] font-semibold tracking-tight text-ink">{title}</h2>
+        <h2 className="flex items-center gap-1.5 text-[17px] font-semibold tracking-tight text-ink">
+          {title}
+          {/* A explicação num "?" ao lado do título (07/10/2026). A Dani: "não precisa se justificar
+              em tudo"; antes era uma frase embaixo do título na primeira visita. */}
+          {hint && !hintSempre && <Explica>{hint}</Explica>}
+        </h2>
         {action}
       </div>
-      {/* Frase de explicação ensina uma vez e some (a Dani: "às vezes você tenta explicar tudo em
-          muito texto"). Dado fica sempre. */}
-      {hint &&
-        (hintSempre ? (
-          <p className="mt-0.5 text-caption text-ink-faint">{hint}</p>
-        ) : (
-          <DicaDaPrimeiraVez chave={`secao:${title}`} className="mt-0.5 text-caption text-ink-faint">
-            {hint}
-          </DicaDaPrimeiraVez>
-        ))}
+      {/* Quando a frase é um dado (e não uma explicação), ela fica sempre. */}
+      {hint && hintSempre && <p className="mt-0.5 text-caption text-ink-faint">{hint}</p>}
       {/* `flex-col` com gap, e não um simples bloco: uma seção quase sempre tem mais de uma
           peça (gráfico + chips de veredito + nota de rodapé), e sem gap elas encostavam umas
           nas outras — o chip "1 categoria estourou" nascia colado na última barra. */}

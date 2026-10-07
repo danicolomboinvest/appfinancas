@@ -1,5 +1,6 @@
 "use client";
 
+import { Explica } from "@/components/ui/Explica";
 import { useId, useState } from "react";
 import { CONTROL_CLASSES } from "./Field";
 import { formatPercentNumber } from "@/lib/format";
@@ -54,9 +55,10 @@ export function PercentField({
 
   return (
     <div className="flex flex-col gap-1.5">
-      <label htmlFor={inputId} className="flex items-center text-xs font-medium text-ink-muted">
+      <label htmlFor={inputId} className="flex items-center gap-1.5 text-xs font-medium text-ink-muted">
         {label}
         {labelExtra}
+        {hint && <Explica>{hint}</Explica>}
       </label>
       <div className="relative">
         <input
@@ -100,7 +102,7 @@ export function PercentField({
           })}
         </div>
       )}
-      {hint && <p className="text-caption leading-relaxed text-ink-faint">{hint}</p>}
+      {/* A explicação do campo mora no "?" ao lado do nome (07/10/2026), não numa frase embaixo. */}
       {error && <p className="text-xs text-danger">{error}</p>}
     </div>
   );

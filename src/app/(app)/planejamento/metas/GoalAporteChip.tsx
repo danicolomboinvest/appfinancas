@@ -70,7 +70,7 @@ export function GoalAporteChip({
 
   if (marked) {
     return (
-      <div className="mt-3 flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <span className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-success-soft px-4 text-sm font-semibold text-success">
           <Check size={16} strokeWidth={2.5} aria-hidden />
           {voz.titulos.metaAporteFeito(monthLabel)}
@@ -85,7 +85,7 @@ export function GoalAporteChip({
 
   if (openAmount) {
     return (
-      <div className="mt-3 flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <input
           type="text"
           inputMode="numeric"
@@ -123,16 +123,18 @@ export function GoalAporteChip({
   // chip de 26px com um quadradinho de checkbox — que no Girly ainda somava um segundo ✓ ao
   // "Guardei em setembro ✓" do texto. Sem ícone aqui: quem quiser o ✓ é a voz do tema.
   return (
-    <div className="mt-3 flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
+    // O botão e o "outro valor" na mesma linha (07/10/2026): embaixo um do outro, o cartão da meta
+    // ganhava uma linha só para duas palavras.
+    <div className="flex items-center gap-2">
       <button
         type="button"
         disabled={pending}
         onClick={() => send("done")}
-        className="inline-flex min-h-11 w-full items-center justify-center rounded-full border border-accent/40 bg-accent-soft px-4 text-sm font-semibold text-accent-strong transition-colors hover:bg-accent-soft/70 disabled:opacity-50 sm:w-auto"
+        className="inline-flex min-h-11 flex-1 items-center justify-center rounded-full border border-accent/40 bg-accent-soft px-4 text-sm font-semibold text-accent-strong transition-colors hover:bg-accent-soft/70 disabled:opacity-50"
       >
         {voz.titulos.metaMarcar(monthLabel)}
       </button>
-      <button type="button" onClick={() => setOpenAmount(true)} className="min-h-11 self-center px-2 text-sm text-ink-muted hover:text-ink sm:self-auto">
+      <button type="button" onClick={() => setOpenAmount(true)} className="min-h-11 shrink-0 px-2 text-sm text-ink-muted hover:text-ink">
         {voz.titulos.metaOutroValor}
       </button>
     </div>

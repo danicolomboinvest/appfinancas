@@ -1,6 +1,5 @@
 import Link from "next/link";
 import type { CategoriasDoPerfil } from "@/lib/categories";
-import { DicaDaPrimeiraVez } from "@/components/ui/DicaDaPrimeiraVez";
 import { Receipt } from "lucide-react";
 import type { CategorySpending } from "@/lib/consolidation/month-analysis";
 import { Section } from "@/components/ui/Section";
@@ -56,6 +55,7 @@ export async function TopCategories({
   return (
     <Section
       title={t.paraOndeFoi}
+      hint={t.uiSetaCompara}
       action={
         <Link href="/mensal/gastos" className="text-caption font-medium text-accent-strong hover:underline">
           {rest > 0 ? t.uiMaisCategorias(rest) : "Ver lançamentos"}
@@ -99,11 +99,6 @@ export async function TopCategories({
           );
         })}
       </ul>
-
-      {/* Como ler a seta: ensina uma vez e some (06/10/2026). */}
-      <DicaDaPrimeiraVez chave="mensal:seta" className="text-caption text-ink-faint">
-        {t.uiSetaCompara}
-      </DicaDaPrimeiraVez>
     </Section>
   );
 }

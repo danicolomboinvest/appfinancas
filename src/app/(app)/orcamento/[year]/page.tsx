@@ -380,7 +380,10 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
       </div>
 
       {linhasDoMes.length > 0 && (
-        <Section title={`Categorias de ${MONTH_LABELS[(currentMonthData?.month ?? 1) - 1].toLowerCase()}`}>
+        <Section
+          title={`Categorias de ${MONTH_LABELS[(currentMonthData?.month ?? 1) - 1].toLowerCase()}`}
+          hint="Verde vai fechar dentro do plano, amarelo vai passar, vermelho já passou. O tracejado é o que ainda vai vencer."
+        >
           <CategoriasDoMes mes={MONTH_LABELS[(currentMonthData?.month ?? 1) - 1].toLowerCase()} linhas={linhasDoMes} cobrir={cobrir} />
         </Section>
       )}

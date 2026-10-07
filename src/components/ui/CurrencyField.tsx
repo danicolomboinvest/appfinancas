@@ -1,5 +1,6 @@
 "use client";
 
+import { Explica } from "@/components/ui/Explica";
 import { useId, useState } from "react";
 import { CONTROL_CLASSES } from "./Field";
 import { formatMoney, type CurrencyCode } from "@/lib/money";
@@ -69,8 +70,9 @@ export function CurrencyField({
   return (
     <div className={`flex flex-col gap-1.5 ${className}`}>
       <div className="flex items-center justify-between gap-2">
-        <label htmlFor={inputId} className="text-xs font-medium text-ink-muted">
+        <label htmlFor={inputId} className="flex items-center gap-1.5 text-xs font-medium text-ink-muted">
           {label}
+          {hint && <Explica>{hint}</Explica>}
         </label>
         {labelExtra}
       </div>
@@ -88,9 +90,10 @@ export function CurrencyField({
         className={`${CONTROL_CLASSES} w-full`}
       />
       <input type="hidden" name={name} value={decimalValue} />
+      {/* A sugestão vira um botão pequeno, com o porquê no "?" (07/10/2026): era uma frase de duas
+          linhas ("Seus gastos dos últimos 3 meses fechados dão essa média. Usar o valor"). */}
       {suggestion && Math.round(suggestion.value * 100) !== cents && (
-        <p className="text-caption leading-relaxed text-ink-faint">
-          {suggestion.label}{" "}
+        <span className="flex items-center gap-1.5">
           <button
             type="button"
             onClick={() => {
@@ -98,13 +101,14 @@ export function CurrencyField({
               setCents(novo);
               onValueChange?.(novo / 100);
             }}
-            className="font-medium text-accent-strong underline-offset-2 hover:underline"
+            className="inline-flex min-h-9 items-center rounded-full bg-accent-soft px-3 text-caption font-semibold text-accent-strong"
           >
             Usar {mask(Math.round(suggestion.value * 100))}
           </button>
-        </p>
+          <Explica>{suggestion.label}</Explica>
+        </span>
       )}
-      {hint && <p className="text-caption leading-relaxed text-ink-faint">{hint}</p>}
+      {/* A explicação do campo mora no "?" ao lado do nome (07/10/2026), não numa frase embaixo. */}
       {error && <p className="text-xs text-danger">{error}</p>}
     </div>
   );

@@ -13,12 +13,12 @@ import { PatrimonyProjectionChart } from "@/components/charts/PatrimonyProjectio
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatRows } from "@/components/ui/StatRows";
 import { HeroiDoTema } from "@/components/ui/HeroiDoTema";
-import { DicaDaPrimeiraVez } from "@/components/ui/DicaDaPrimeiraVez";
+import { Explica } from "@/components/ui/Explica";
+import { EditarNoCanto } from "@/components/ui/EditarNoCanto";
 import { Badge } from "@/components/ui/Badge";
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import { ResponsiveTable, type ResponsiveColumn } from "@/components/ui/ResponsiveTable";
 import { Section } from "@/components/ui/Section";
-import { CompositionBar } from "@/components/charts/CompositionBar";
 import { PlanningParamsForm } from "./PlanningParamsForm";
 import { PlanningWizard } from "./PlanningWizard";
 import { formatPercentNumber } from "@/lib/format";
@@ -140,7 +140,13 @@ export default async function IndependenciaFinanceiraPage() {
           /planejamento/usufruto apontam pra cá e caem direto na resposta. */}
       <section id="liberdade-financeira" className="flex scroll-mt-24 flex-col gap-3">
         <HeroiDoTema>
-          <p className="text-sm font-medium text-heroi-suave">{voz.titulos.apSeNadaMudar(params.retirementAge)}</p>
+          {/* O lápis no canto edita os dados (07/10/2026): era o link "Editar meus dados ▾" embaixo. */}
+          <div className="-my-1 flex items-center justify-between gap-3">
+            <p className="text-sm font-medium text-heroi-suave">{voz.titulos.apSeNadaMudar(params.retirementAge)}</p>
+            <EditarNoCanto titulo={voz.titulos.aposentadoria}>
+              <PlanningParamsForm defaults={defaults} />
+            </EditarNoCanto>
+          </div>
           <div>
             <p className="text-[2.5rem] font-bold leading-none tracking-tight tabular-nums">{money(accumulation.finalValueReal, { round: true })}</p>
             <p className="mt-1.5 text-sm text-heroi-suave">{voz.titulos.apHoje}</p>
@@ -148,52 +154,65 @@ export default async function IndependenciaFinanceiraPage() {
           <div className="heroi-fio flex flex-col gap-1.5 border-t pt-3">
             {/* O veredito num selo (07/10/2026), como no Foco e no Orçamento; embaixo, a conta em uma linha. */}
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-2xl font-semibold tracking-tight tabular-nums">{money(usufruct.totalPassiveIncome, { round: true })} por mês</p>
+              <p className="flex items-center gap-1.5 text-2xl font-semibold tracking-tight tabular-nums">
+                {money(usufruct.totalPassiveIncome, { round: true })} por mês
+                <Explica noHeroi>{voz.titulos.apRendaExplica}</Explica>
+              </p>
               <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold text-white ${isSurplus ? "bg-success" : "bg-danger"}`}>
                 {isSurplus ? voz.titulos.apDaPe : voz.titulos.apNaoDaPe}
               </span>
             </div>
-            <p className="text-sm text-heroi-suave">
-              Você quer {money(Number(params.desiredPassiveIncome), { round: true })} {isSurplus ? voz.titulos.apSobram : voz.titulos.apFaltam}{" "}
-              <b className="font-semibold tabular-nums text-heroi-tinta">{money(Math.abs(usufruct.surplusOrDeficit), { round: true })}</b> {voz.titulos.apTodoMes}
-            </p>
+            {/* O que ela quer e o que sobra (ou falta) em dois quadradinhos (07/10/2026, "mesma cara,
+                menos texto"); era a frase "Você quer 12 mil e sobram 2.640 todo mês". */}
+            <div className="heroi-fio grid grid-cols-2 border-t pt-3">
+              <div className="min-w-0">
+                <p className="text-caption text-heroi-suave">{voz.titulos.apVoceQuer}</p>
+                <p className="text-lg font-bold tabular-nums">{money(Number(params.desiredPassiveIncome), { round: true })}</p>
+              </div>
+              <div className="heroi-fio min-w-0 border-l pl-4">
+                <p className="text-caption text-heroi-suave">{isSurplus ? voz.titulos.apSobraPorMes : voz.titulos.apFaltaPorMes}</p>
+                <p className={`text-lg font-bold tabular-nums ${isSurplus ? "" : "text-danger"}`}>
+                  {isSurplus ? "+" : "−"}
+                  {money(Math.abs(usufruct.surplusOrDeficit), { round: true })}
+                </p>
+              </div>
+            </div>
           </div>
         </HeroiDoTema>
-        <DicaDaPrimeiraVez chave="aposentadoria-renda" className="px-1 text-caption text-ink-muted">
-          {voz.titulos.apRendaExplica}
-        </DicaDaPrimeiraVez>
-        <CollapsibleSection label={voz.titulos.apEditar} defaultOpen={false}>
-          <PlanningParamsForm defaults={defaults} />
-        </CollapsibleSection>
       </section>
 
       {/* Tudo em dinheiro de hoje, a mesma moeda do número de cima. Somar o que saiu do bolso com
           os juros NOMINAIS ao lado de um valor final REAL não fecha: são cenários diferentes (ver
           o comentário em computeAccumulation). */}
       <Section title={voz.titulos.apDeOndeVem} hint={voz.titulos.apDeOndeVemHint}>
-        <CompositionBar
-          slices={[
-            {
-              key: "bolso",
-              label: voz.titulos.apBolso(accumulation.years),
-              value: accumulation.totalInvested,
-              formatted: money(accumulation.totalInvested, { round: true }),
-              color: "var(--color-accent)",
-            },
-            {
-              key: "juros",
-              label: voz.titulos.apJuros,
-              value: accumulation.totalReturnReal,
-              formatted: money(accumulation.totalReturnReal, { round: true }),
-              color: "var(--color-success)",
-            },
-          ]}
-          footnote={
-            accumulation.totalInvested > 0 && accumulation.totalReturnReal > 0
-              ? voz.titulos.apJurosNota(money(1, { round: true }), money(accumulation.totalReturnReal / accumulation.totalInvested))
-              : undefined
-          }
-        />
+        {/* Dois quadrados e a barra (07/10/2026): quanto sai do bolso e quanto os juros põem, lado a
+            lado. Eram uma lista com frases ("Você põe do bolso em 38 anos"). */}
+        <div className="flex flex-col gap-3">
+          <div className="flex h-2.5 overflow-hidden rounded-full bg-surface-2">
+            <span className="h-full bg-accent" style={{ width: `${(accumulation.totalInvested / Math.max(1, accumulation.totalInvested + accumulation.totalReturnReal)) * 100}%` }} />
+            <span className="h-full bg-success" style={{ width: `${(accumulation.totalReturnReal / Math.max(1, accumulation.totalInvested + accumulation.totalReturnReal)) * 100}%` }} />
+          </div>
+          <div className="grid grid-cols-2 gap-2.5">
+            <div className="min-w-0 rounded-2xl border border-border bg-surface p-3.5">
+              <p className="flex items-center gap-1.5 text-caption text-ink-muted">
+                <span className="size-2.5 shrink-0 rounded-[3px] bg-accent" aria-hidden />
+                {voz.titulos.apDoBolso}
+              </p>
+              <p className="mt-1 truncate text-[17px] font-bold tabular-nums text-ink">{money(accumulation.totalInvested, { round: true })}</p>
+              <p className="text-caption text-ink-muted">em {accumulation.years} anos</p>
+            </div>
+            <div className="min-w-0 rounded-2xl border border-border bg-surface p-3.5">
+              <p className="flex items-center gap-1.5 text-caption text-ink-muted">
+                <span className="size-2.5 shrink-0 rounded-[3px] bg-success" aria-hidden />
+                {voz.titulos.apDosJuros}
+                {accumulation.totalInvested > 0 && accumulation.totalReturnReal > 0 && (
+                  <Explica>{voz.titulos.apJurosNota(money(1, { round: true }), money(accumulation.totalReturnReal / accumulation.totalInvested))}</Explica>
+                )}
+              </p>
+              <p className="mt-1 truncate text-[17px] font-bold tabular-nums text-ink">{money(accumulation.totalReturnReal, { round: true })}</p>
+            </div>
+          </div>
+        </div>
       </Section>
 
       {/* O cálculo inteiro, fechado: premissas, o cenário sem reajuste, o gráfico e o ano a ano. O

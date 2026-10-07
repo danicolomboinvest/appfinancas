@@ -25,41 +25,35 @@ export function ReservaDivergente({
   money: (v: number) => string;
 }) {
   if (!temInvestimentos || Math.abs(naTelaDaReserva - naCarteira) < 1) return null;
-  // "da reserva" / "do caixa de segurança" (Empresa).
-  const nome = nomeDaReserva.toLowerCase();
-  const daReserva = `${nome.startsWith("caixa") ? "do" : "da"} ${nome}`;
-  // Uma linha com palavra e um botão (06/10/2026), no lugar do cartão amarelo de quatro linhas que
-  // abria a Carteira antes do total. Fica na tela da reserva e no Por Objetivo, onde se resolve.
+  // Uma linha só (07/10/2026, "mesma cara, menos texto"): o rótulo curto, o número da carteira e o
+  // botão que resolve. Antes era a frase "A tela da reserva diz R$ X, mas nenhum ativo está marcado
+  // como reserva de emergência." Fica na tela da reserva e no Por Objetivo, onde se resolve.
+  const semNada = naCarteira <= 0;
+  // "Não marcada" (a reserva) ou "Não marcado" (o caixa de segurança, na Empresa).
+  const marcada = nomeDaReserva.toLowerCase().includes("caixa") ? "Não marcado na Carteira" : "Não marcada na Carteira";
   return (
-    // A ação vai embaixo do texto: ao lado, ela espremia a frase em cinco linhas no celular.
-    <div role="status" className="flex items-start gap-3 rounded-2xl border border-border bg-surface px-4 py-3">
-      <Scale size={18} strokeWidth={1.8} className="mt-0.5 shrink-0 text-accent-strong" aria-hidden />
-      <div className="flex min-w-0 flex-1 flex-col items-start gap-2">
-      <p className="text-sm text-ink-muted">
-        {naCarteira > 0 ? (
-          <>
-            A carteira diz <b className="font-semibold text-ink">{money(naCarteira)}</b>, a tela {daReserva} diz{" "}
-            <b className="font-semibold text-ink">{money(naTelaDaReserva)}</b>.
-          </>
-        ) : (
-          <>
-            A tela {daReserva} diz <b className="font-semibold text-ink">{money(naTelaDaReserva)}</b>, mas nenhum ativo está marcado como {nome}.
-          </>
-        )}
-      </p>
-      {naCarteira > 0 ? (
-        <form action={usarReservaDaCarteiraAction}>
-          <button type="submit" className="min-h-9 rounded-full bg-pill px-3.5 text-sm font-semibold text-on-pill">
-            Usar {money(naCarteira)}
+    <div role="status" className="flex items-center gap-3 rounded-2xl border border-border bg-surface px-3.5 py-2.5">
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-accent-strong" aria-hidden>
+        <Scale size={18} strokeWidth={1.8} />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[15px] font-semibold leading-snug text-ink">{semNada ? marcada : "A Carteira diz outro valor"}</span>
+        <span className="block text-caption tabular-nums text-ink-muted">
+          {semNada ? "Nenhum investimento marcado" : `Na Carteira ${money(naCarteira)}, aqui ${money(naTelaDaReserva)}`}
+        </span>
+      </span>
+      {semNada ? (
+        // Nada marcado como reserva: o caminho é marcar o ativo certo na lista da Carteira.
+        <Link href="/carteira" className="inline-flex min-h-10 shrink-0 items-center rounded-full bg-accent-soft px-4 text-sm font-semibold text-accent-strong">
+          Marcar
+        </Link>
+      ) : (
+        <form action={usarReservaDaCarteiraAction} className="shrink-0">
+          <button type="submit" className="min-h-10 rounded-full bg-pill px-4 text-sm font-semibold text-on-pill">
+            Usar
           </button>
         </form>
-      ) : (
-        // Nada marcado como reserva: o caminho é marcar o ativo certo na lista da Carteira.
-        <Link href="/carteira" className="text-sm font-medium text-accent-strong hover:underline">
-          Marcar na Carteira
-        </Link>
       )}
-      </div>
     </div>
   );
 }

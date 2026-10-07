@@ -11,8 +11,8 @@ import { CountUp } from "@/components/ui/CountUp";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
+import { Explica } from "@/components/ui/Explica";
 import { HeroiDoTema } from "@/components/ui/HeroiDoTema";
-import { DicaDaPrimeiraVez } from "@/components/ui/DicaDaPrimeiraVez";
 import { useToast } from "@/components/ui/toast-context";
 import { Donut } from "@/components/charts/Donut";
 import { BulletBar, type BulletRow } from "@/components/charts/BulletBar";
@@ -419,10 +419,14 @@ export function AssetsSection({
           </div>
           {!empresa && (
           <div className="flex flex-col gap-3">
-            <p className="text-[17px] font-semibold text-ink">{t.cartOndeVoceEsta}</p>
+            {/* Como ler o tracinho: no "?" do título (07/10/2026), não numa frase embaixo da barra. */}
+            <p className="flex items-center gap-1.5 text-[17px] font-semibold text-ink">
+              {t.cartOndeVoceEsta}
+              {strategy.hasStrategy && <Explica>{t.cartTracinhoAlvo}</Explica>}
+            </p>
             {strategy.hasStrategy ? (
               <>
-                <BulletBar rows={strategy.bullets} targetHint={t.cartTracinhoAlvo} />
+                <BulletBar rows={strategy.bullets} />
                 <div className="flex flex-wrap items-center gap-2">
                   {strategy.balance.below > 0 && (
                     <span className="rounded-full bg-info-soft px-2.5 py-1 text-caption font-medium text-info">
@@ -635,7 +639,6 @@ export function AssetsSection({
       <Modal open={aportesOpen} onClose={() => setAportesOpen(false)} title={t.cartAtualizarAportes}>
         {aportes ? (
           <div className="flex flex-col gap-3">
-            <DicaDaPrimeiraVez chave="carteira-aportes">{t.cartAportesDica}</DicaDaPrimeiraVez>
             {aportes}
           </div>
         ) : (

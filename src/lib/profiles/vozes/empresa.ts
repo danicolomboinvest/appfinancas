@@ -70,6 +70,8 @@ const TITULOS_EMPRESA: Partial<Titulos> = {
   metasSub: "Equipamento, expansão, reserva: cada meta com prazo e quanto reter por mês.",
   metasVazio: "Nenhuma meta ainda. Um equipamento, uma reforma, um caixa maior: crie a primeira.",
   metaGuardar: (v) => `Reter ${v} este mês`,
+  metaGuardarEm: (mes) => `Reter em ${mes}`,
+  metaGuardarPorMes: "Reter por mês",
   metaProximoAporte: (v, mes) => `Reter ${v} em ${mes}`,
   reserva: "Caixa de segurança",
   reservaSub: "Quantos meses de despesas fixas a empresa aguenta sem faturar. O Sebrae recomenda de 3 a 6.",

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { DicaDaPrimeiraVez } from "@/components/ui/DicaDaPrimeiraVez";
 import { useRouter } from "next/navigation";
 import { ArrowLeftRight, ChevronDown, Pencil } from "lucide-react";
 import { CurrencyInputControlled } from "@/components/ui/CurrencyInputControlled";
@@ -130,21 +129,7 @@ export function CategoriasDoMes({
         })}
       </ul>
 
-      {/* O que cada cor quer dizer: ensina na primeira vez e some (07/10/2026). */}
-      <DicaDaPrimeiraVez chave="orcamento:cores" className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-ink-muted">
-        <span className="flex items-center gap-1">
-          <span className="size-2.5 rounded-sm bg-success" /> vai fechar dentro
-        </span>
-        <span className="flex items-center gap-1">
-          <span className="size-2.5 rounded-sm" style={{ backgroundColor: AMBAR }} /> vai passar
-        </span>
-        <span className="flex items-center gap-1">
-          <span className="size-2.5 rounded-sm bg-danger" /> passou
-        </span>
-        <span className="flex items-center gap-1">
-          <span className="size-2.5 rounded-sm border-[1.5px] border-dashed border-ink-faint" /> ainda vai vencer
-        </span>
-      </DicaDaPrimeiraVez>
+      {/* O que cada cor quer dizer mora no "?" do título da seção, na página (07/10/2026). */}
 
       {cobrir && (
         <div className="flex items-center gap-3 rounded-2xl bg-surface-2 p-3">

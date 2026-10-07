@@ -108,7 +108,6 @@ export function GuardeiNaReservaButton({
           {t.metaOutroValor}
         </button>
       </div>
-      <p className="text-caption text-ink-muted">{t.reservaGuardeiDica}</p>
     </div>
   );
 }

@@ -1,8 +1,10 @@
 "use client";
 
+import { Explica } from "@/components/ui/Explica";
+
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 
-import { useActionState, useState } from "react";
+import { useActionState, useState, type ElementType } from "react";
 import { CONTROL_CLASSES } from "@/components/ui/Field";
 import { CurrencyField } from "@/components/ui/CurrencyField";
 import { PercentField } from "@/components/ui/PercentField";
@@ -22,8 +24,9 @@ function MonthsField({ defaultValue }: { defaultValue?: number }) {
   const [meses, setMeses] = useState<number | undefined>(defaultValue);
   return (
     <div className="flex flex-col gap-1.5">
-      <label htmlFor="targetMonths" className="text-xs font-medium text-ink-muted">
+      <label htmlFor="targetMonths" className="flex items-center gap-1.5 text-xs font-medium text-ink-muted">
         {voz.titulos.formMeses}
+        <Explica>{voz.titulos.formMesesHint}</Explica>
       </label>
       <input
         id="targetMonths"
@@ -52,9 +55,6 @@ function MonthsField({ defaultValue }: { defaultValue?: number }) {
           </button>
         ))}
       </div>
-      <p className="text-caption leading-relaxed text-ink-faint">
-        {voz.titulos.formMesesHint}
-      </p>
     </div>
   );
 }
@@ -74,8 +74,11 @@ export function EmergencyFundForm({
   defaults,
   typicalExpense,
   reserveInAssets = 0,
+  semMoldura = false,
 }: {
   defaults: Defaults;
+  /** Dentro da janela do lápis (07/10/2026): sem o cartão em volta, que virava moldura dupla. */
+  semMoldura?: boolean;
   /** Gasto médio dos últimos meses fechados, para o app não perguntar o que ele já sabe. */
   typicalExpense?: { monthlyAverage: number; monthsUsed: number } | null;
   /** Soma dos ativos marcados como reserva na carteira, pra sugerir o "já tenho guardado". */
@@ -84,9 +87,11 @@ export function EmergencyFundForm({
   const { voz } = useProfileTheme();
   const [state, formAction, isPending] = useActionState(saveEmergencyFundAction, initialState);
   useSuccessToast(isPending, state.error);
+  // Na janela do lápis, um <form> simples; na tela, o cartão de sempre.
+  const Raiz = (semMoldura ? "form" : Card) as ElementType;
 
   return (
-    <Card as="form" action={formAction} className="flex flex-col gap-5 p-5">
+    <Raiz {...(semMoldura ? {} : { as: "form" })} action={formAction} className={semMoldura ? "flex flex-col gap-5" : "flex flex-col gap-5 p-5"}>
       {state.error && <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{state.error}</p>}
       {/* Uma pergunta por vez, em português, na ordem em que a conta nasce: quanto custa um
           mês, quantos meses guardar, onde você está e quanto consegue pôr. */}
@@ -142,6 +147,6 @@ export function EmergencyFundForm({
       <Button type="submit" disabled={isPending} className="w-fit" data-guia="reserva-salvar">
         {isPending ? voz.titulos.formSalvando : voz.titulos.formSalvar}
       </Button>
-    </Card>
+    </Raiz>
   );
 }

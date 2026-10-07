@@ -6,7 +6,6 @@ import { Field } from "@/components/ui/Field";
 import { CurrencyField } from "@/components/ui/CurrencyField";
 import { PercentField } from "@/components/ui/PercentField";
 import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
 import { useSuccessToast } from "@/components/ui/useSuccessToast";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { savePlanningParamsAction, type PlanningParamsState } from "./actions";
@@ -32,7 +31,8 @@ export function PlanningParamsForm({ defaults }: { defaults: Defaults }) {
   useSuccessToast(isPending, state.error);
 
   return (
-    <Card as="form" action={formAction} className="flex flex-col gap-5 p-5">
+    // Sem moldura (07/10/2026): o formulário abre numa janela, e cartão dentro da janela era moldura dupla.
+    <form action={formAction} className="flex flex-col gap-5">
       {state.error && <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{state.error}</p>}
 
       {/* Duas metades com pesos diferentes. Em cima, o que a pessoa SABE responder, na mesma
@@ -74,17 +74,13 @@ export function PlanningParamsForm({ defaults }: { defaults: Defaults }) {
 
       <details className="rounded-xl border border-border bg-surface-2/40 [&[open]>summary>span:last-child]:rotate-180">
         <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4">
-          <span className="flex flex-col gap-0.5">
-            <span className="text-sm font-medium text-ink">{t.formApPremissas}</span>
-            <span className="text-caption text-ink-faint">{t.formApPremissasSub}</span>
-          </span>
+          <span className="text-sm font-medium text-ink">{t.formApPremissas}</span>
           <span className="text-ink-faint transition-transform">
             <ChevronDown size={18} strokeWidth={1.75} />
           </span>
         </summary>
 
         <div className="flex flex-col gap-5 border-t border-border p-4">
-          <p className="text-caption leading-relaxed text-ink-muted">{t.formApPremissasNota}</p>
 
           <PercentField
             label={t.formApRendem}
@@ -130,6 +126,6 @@ export function PlanningParamsForm({ defaults }: { defaults: Defaults }) {
       <Button type="submit" disabled={isPending} className="w-fit">
         {isPending ? t.formSalvando : t.formSalvar}
       </Button>
-    </Card>
+    </form>
   );
 }

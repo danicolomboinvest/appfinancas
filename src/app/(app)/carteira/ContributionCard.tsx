@@ -5,7 +5,7 @@ import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Card } from "@/components/ui/Card";
-import { DicaDaPrimeiraVez } from "@/components/ui/DicaDaPrimeiraVez";
+import { Explica } from "@/components/ui/Explica";
 import { CurrencyField } from "@/components/ui/CurrencyField";
 import { useMoney } from "@/components/money/MoneyProvider";
 import { planContribution } from "@/lib/portfolio/contribution-plan";
@@ -46,10 +46,10 @@ export function ContributionCard({ context, month }: { context: ContributionCont
   return (
     <Card className="flex flex-col gap-3 p-4">
       <div>
-        <p className="text-base font-semibold text-ink">{voz.titulos.contribTitulo(MONTHS[month - 1])}</p>
-        <DicaDaPrimeiraVez chave="carteira:aporte-do-mes" className="text-caption text-ink-muted">
-          {voz.titulos.contribSub}
-        </DicaDaPrimeiraVez>
+        <p className="flex items-center gap-1.5 text-base font-semibold text-ink">
+          {voz.titulos.contribTitulo(MONTHS[month - 1])}
+          <Explica>{voz.titulos.contribSub}</Explica>
+        </p>
       </div>
 
       <CurrencyField label={voz.titulos.contribLabel} name="_contribution" defaultValue={amount || undefined} onValueChange={setAmount} className="sm:w-48" />
