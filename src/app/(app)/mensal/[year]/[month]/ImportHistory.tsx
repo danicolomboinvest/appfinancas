@@ -23,8 +23,10 @@ export type ImportBatchView = {
 };
 
 
+/** No fuso de Brasília dos dois lados: sem ele, o servidor (em UTC) escrevia uma hora e o celular
+ * outra, e o React reclamava que o texto da página não batia (erro 418 em produção, 07/10/2026). */
 function formatDateTime(iso: string) {
-  return new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+  return new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
 }
 
 /** "2026/7" → "jul/2026" nos chips de mês do lote. */

@@ -169,7 +169,7 @@ export function EntryList({
 
   const [openId, setOpenId] = useState<string | null>(null);
   // Hoje no aparelho, para marcar a conta que ainda vai vencer. No inicializador, não no render.
-  const [hoje] = useState(() => new Date().toLocaleDateString("en-CA"));
+  const [hoje] = useState(() => new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }));
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
