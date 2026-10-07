@@ -15,6 +15,9 @@ import { isPartialRead, recordImportDiagnostic, safeHeader } from "@/lib/reposit
 import { storeFailedImportFile } from "@/lib/repositories/import-file.repo";
 import { NUMBERS_ONLY_MESSAGE, pdfTextQuality } from "@/lib/import/pdf-quality";
 import { planPositionUpdate, summarizeRows, valueAfterImport, type ExistingPositionRow } from "@/lib/portfolio/import-position";
+import { getUserCurrency } from "@/lib/money-server";
+import { getExchangeRate } from "@/lib/fx/rates";
+import { CONTA_BRASIL, naMoedaDoApp, type MoedaDaConta } from "@/lib/portfolio/conta-exterior";
 
 /** Record (não array solto) por classe existente: se um valor novo entrar no enum AssetClass
  * sem passar por aqui, o TypeScript acusa na hora — evita repetir o bug de uma classe nova
@@ -36,16 +39,32 @@ const ASSET_CLASS_VALUES = Object.keys(ASSET_CLASS_GUARD) as AssetClass[];
  * pode estar em mais de uma linha (objetivos diferentes, ex.: PETR4 na meta da casa e PETR4 na
  * liberdade financeira) — a revisão e a gravação têm que olhar as mesmas linhas, somadas.
  */
-function rowsByKeyOf(
-  existing: { id: string; name: string; ticker: string | null; quantity: unknown; currentValue: unknown; currentUnitPrice: unknown }[],
-): Map<string, ExistingPositionRow[]> {
+type ExistingAsset = {
+  id: string;
+  name: string;
+  ticker: string | null;
+  quantity: unknown;
+  currentValue: unknown;
+  currentUnitPrice: unknown;
+  nativeCurrentValue?: unknown;
+  exchangeRate?: unknown;
+};
+
+/**
+ * `emDolar`: a carteira de fora chega em US$, então o "antes" de cada papel também tem que ser
+ * em US$ (o valor em dólar guardado), senão US$ 2.000 contra R$ 10.000 viraria "mudou tudo".
+ */
+function rowsByKeyOf(existing: ExistingAsset[], emDolar = false): Map<string, ExistingPositionRow[]> {
   const map = new Map<string, ExistingPositionRow[]>();
   for (const a of existing) {
+    const nativo = a.nativeCurrentValue != null ? Number(a.nativeCurrentValue) : null;
+    const cambio = a.exchangeRate != null ? Number(a.exchangeRate) : null;
+    const precoNoApp = a.currentUnitPrice !== null ? Number(a.currentUnitPrice) : null;
     const row: ExistingPositionRow = {
       id: a.id,
       quantity: a.quantity !== null ? Number(a.quantity) : null,
-      currentValue: Number(a.currentValue),
-      currentUnitPrice: a.currentUnitPrice !== null ? Number(a.currentUnitPrice) : null,
+      currentValue: emDolar && nativo !== null ? nativo : Number(a.currentValue),
+      currentUnitPrice: emDolar ? (nativo !== null && precoNoApp !== null && cambio ? precoNoApp / cambio : null) : precoNoApp,
     };
     // Set: ativo com nome igual ao ticker (imports antigos) não entra duas vezes na mesma chave.
     for (const k of new Set([a.ticker?.toUpperCase(), a.name.toUpperCase()])) {
@@ -70,6 +89,8 @@ export type ParsedHoldingItem = {
   assetClass: AssetClass;
   /** Indexador da renda fixa detectado no extrato (pós/IPCA/prefixado), ou null. */
   fixedIncomeIndex: FixedIncomeIndex | null;
+  /** "USD" na carteira de fora: valores (e o "antes") em dólar. */
+  currency: MoedaDaConta;
   status: HoldingStatus;
   /** Valores atuais na carteira (para mostrar o "antes → depois" na revisão). */
   prevQuantity: number | null;
@@ -176,13 +197,14 @@ export async function parsePortfolioAction(formData: FormData): Promise<ParsePor
   // Carteira atual indexada por ticker E por nome, imports antigos usam o ticker como nome.
   const existing = await prisma.asset.findMany({
     where: { userId: ctx.userId, profileId: ctx.profileId },
-    select: { id: true, name: true, ticker: true, quantity: true, currentValue: true, currentUnitPrice: true },
+    select: { id: true, name: true, ticker: true, quantity: true, currentValue: true, currentUnitPrice: true, nativeCurrentValue: true, exchangeRate: true },
     orderBy: { createdAt: "asc" },
   });
   const rowsByKey = rowsByKeyOf(existing);
+  const rowsEmDolar = rowsByKeyOf(existing, true);
 
   const holdings: ParsedHoldingItem[] = parsed.map((h, index) => {
-    const rows = rowsByKey.get(h.ticker.toUpperCase());
+    const rows = (h.currency === "USD" ? rowsEmDolar : rowsByKey).get(h.ticker.toUpperCase());
     let status: HoldingStatus = "new";
     let prevQuantity: number | null = null;
     let prevValue: number | null = null;
@@ -212,6 +234,7 @@ export async function parsePortfolioAction(formData: FormData): Promise<ParsePor
       // senão, inferimos pela terminação do ticker.
       assetClass: h.assetClass ?? guessAssetClass(h.ticker),
       fixedIncomeIndex: h.fixedIncomeIndex ?? null,
+      currency: h.currency ?? CONTA_BRASIL,
       status,
       prevQuantity,
       prevValue,
@@ -244,6 +267,8 @@ export type ConfirmedHolding = {
   investedValue: number | null;
   assetClass: AssetClass;
   fixedIncomeIndex: FixedIncomeIndex | null;
+  /** "USD" na carteira de fora; ausente (planos antigos da tela) vale BRL. */
+  currency?: MoedaDaConta;
   /** create = ativo novo; update = já existe, atualiza quantidade/valores. */
   mode: "create" | "update";
 };
@@ -263,16 +288,41 @@ export async function importPortfolioAction(holdings: ConfirmedHolding[]): Promi
   // Proteção contra duplicar em cliques repetidos/reenvio: create de quem já existe vira skip.
   const existing = await prisma.asset.findMany({
     where: { userId: ctx.userId, profileId: ctx.profileId },
-    select: { id: true, name: true, ticker: true, quantity: true, currentValue: true, currentUnitPrice: true },
+    select: { id: true, name: true, ticker: true, quantity: true, currentValue: true, currentUnitPrice: true, nativeCurrentValue: true, exchangeRate: true },
     orderBy: { createdAt: "asc" },
   });
   const rowsByKey = rowsByKeyOf(existing);
+  const rowsEmDolar = rowsByKeyOf(existing, true);
   const existingKeys = new Set(rowsByKey.keys());
+
+  // Carteira de fora: um câmbio só pro arquivo inteiro (US$ → moeda do app).
+  const moedaDoApp = await getUserCurrency();
+  let cambio = 1;
+  if (holdings.some((h) => h.currency === "USD") && moedaDoApp !== "USD") {
+    const r = await getExchangeRate("USD", moedaDoApp);
+    if (!r) return { ok: false, error: "Não consegui a cotação do dólar agora. Tente de novo em instantes." };
+    cambio = r.rate;
+  }
+  /** Os campos de dinheiro na moeda do app, com o lado em dólar junto quando a linha é de fora. */
+  const emDolar = (h: ConfirmedHolding) => h.currency === "USD";
+  const comCambio = (h: ConfirmedHolding, valores: { currentValue?: number; investedValue?: number | null }) => {
+    if (!emDolar(h)) return valores;
+    const out: Record<string, unknown> = { currency: "USD", exchangeRate: cambio };
+    if (valores.currentValue !== undefined) {
+      out.nativeCurrentValue = valores.currentValue;
+      out.currentValue = naMoedaDoApp(valores.currentValue, cambio);
+    }
+    if (valores.investedValue !== undefined && valores.investedValue !== null) {
+      out.nativeInvestedValue = valores.investedValue;
+      out.investedValue = naMoedaDoApp(valores.investedValue, cambio);
+    }
+    return out;
+  };
 
   for (const h of holdings) {
     const key = h.ticker.toUpperCase();
     if (h.mode === "update" || existingKeys.has(key)) {
-      const rows = rowsByKey.get(key);
+      const rows = (emDolar(h) ? rowsEmDolar : rowsByKey).get(key);
       if (!rows || rows.length === 0) continue;
       // Posição inteira do extrato repartida entre as linhas do papel (gravar tudo numa só
       // deixava a outra com a posição velha: 150 PETR4 no lugar de 100). Valor ausente no
@@ -285,9 +335,12 @@ export async function importPortfolioAction(holdings: ConfirmedHolding[]): Promi
             where: { id: u.id, userId: ctx.userId, profileId: ctx.profileId },
             data: {
               ...(u.quantity !== undefined ? { quantity: u.quantity } : {}),
-              ...(u.currentValue !== undefined ? { currentValue: u.currentValue } : {}),
               // Preço médio do extrato mantém o investido fiel após novos aportes; sem ele, não mexe.
-              ...(u.investedValue !== undefined ? { investedValue: u.investedValue } : {}),
+              // Na carteira de fora, os valores chegam em US$ e vão também em reais (comCambio).
+              ...comCambio(h, {
+                ...(u.currentValue !== undefined ? { currentValue: u.currentValue } : {}),
+                ...(u.investedValue !== undefined ? { investedValue: u.investedValue } : {}),
+              }),
               ...(h.fixedIncomeIndex !== null ? { fixedIncomeIndex: h.fixedIncomeIndex } : {}),
             },
           }),
@@ -302,16 +355,17 @@ export async function importPortfolioAction(holdings: ConfirmedHolding[]): Promi
     if (grande(h.value) || grande(h.investedValue) || h.quantity > MAX_QUANTIDADE_ATIVO) continue;
     existingKeys.add(key); // evita duplicata dentro do próprio arquivo
     const assetClass = ASSET_CLASS_VALUES.includes(h.assetClass) ? h.assetClass : "OUTRO";
+    // Sem preço médio no extrato, o investido começa igual ao valor atual (lucro zera hoje).
+    const investido = h.investedValue ?? (h.value >= 0 ? h.value : 0);
+    const atual = h.value >= 0 ? h.value : 0;
     await createAsset(ctx, {
       name: h.ticker,
       ticker: h.ticker,
       assetClass,
       objective: "OUTRO",
       quantity: h.quantity > 0 ? h.quantity : undefined,
-      // Sem preço médio no extrato, o investido começa igual ao valor atual (lucro zera hoje).
-      investedValue: h.investedValue ?? (h.value >= 0 ? h.value : 0),
-      currentValue: h.value >= 0 ? h.value : 0,
       fixedIncomeIndex: h.fixedIncomeIndex ?? undefined,
+      ...(comCambio(h, { currentValue: atual, investedValue: investido }) as { currentValue: number; investedValue: number }),
     });
     created += 1;
   }

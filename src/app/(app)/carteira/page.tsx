@@ -132,6 +132,10 @@ export default async function CarteiraPage() {
           investedValue: asset.investedValue !== null ? Number(asset.investedValue) : null,
           fixedIncomeIndex: asset.fixedIncomeIndex,
           currentValue: Number(asset.currentValue),
+          currency: asset.currency,
+          nativeCurrentValue: asset.nativeCurrentValue !== null ? Number(asset.nativeCurrentValue) : null,
+          nativeInvestedValue: asset.nativeInvestedValue !== null ? Number(asset.nativeInvestedValue) : null,
+          exchangeRate: asset.exchangeRate !== null ? Number(asset.exchangeRate) : null,
         }))}
         goals={goals.map((goal) => ({ id: goal.id, name: goal.name }))}
         goalNameById={goalNameById}

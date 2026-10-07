@@ -28,6 +28,13 @@ export const assetSchema = z.object({
     (v) => (typeof v === "string" && v.trim() === "" ? NaN : v),
     z.coerce.number({ message: "Informe o valor atual ou a quantidade e o preço médio." }).min(0).max(MAX_VALOR_ATIVO, FORA),
   ),
+  /** Moeda em que o ativo está: "BRL" é a conta Brasil, "USD" a conta no exterior. */
+  currency: z.enum(["BRL", "USD", "EUR", "GBP"]).default("BRL"),
+  /** Valores na moeda do ativo (US$), só na conta no exterior; null limpa ao voltar pra Brasil. */
+  nativeCurrentValue: z.number().min(0).max(MAX_VALOR_ATIVO, FORA).nullable().optional(),
+  nativeInvestedValue: z.number().min(0).max(MAX_VALOR_ATIVO, FORA).nullable().optional(),
+  /** 1 unidade da moeda do ativo na moeda do app (US$ 1 = R$ 5,02). */
+  exchangeRate: z.number().positive().nullable().optional(),
   idealAllocationPercent: z.coerce.number().min(0).max(1).optional(),
   acquisitionDate: z.coerce.date().optional(),
   notes: z.string().trim().optional(),

@@ -814,6 +814,17 @@ model Asset {
   /// é a referência fixa pro lucro/prejuízo (currentValue - investedValue).
   investedValue          Decimal?                 @db.Decimal(18, 2)
   currentValue           Decimal                  @db.Decimal(18, 2)
+  /// Moeda em que o ativo está: "BRL" é a conta Brasil; "USD" é a conta no exterior (Avenue,
+  /// Nomad…). investedValue/currentValue/currentUnitPrice continuam SEMPRE na moeda do app, para
+  /// o total, as metas, a reserva e a estratégia somarem sem conversão em cada tela. O valor na
+  /// moeda do ativo fica nos campos native*, e o câmbio usado em exchangeRate.
+  currency               String                   @default("BRL") @db.VarChar(3)
+  /// Valor atual na moeda do ativo (US$ 2.000), só quando ela é diferente da moeda do app.
+  nativeCurrentValue     Decimal?                 @db.Decimal(18, 2)
+  /// Quanto foi investido na moeda do ativo (US$ 1.800).
+  nativeInvestedValue    Decimal?                 @db.Decimal(18, 2)
+  /// Câmbio da última conversão: 1 unidade da moeda do ativo = X na moeda do app (US$ 1 = R$ 5,02).
+  exchangeRate           Decimal?                 @db.Decimal(14, 6)
   idealAllocationPercent Decimal?                 @db.Decimal(6, 3)
   acquisitionDate        DateTime?
   notes                  String?

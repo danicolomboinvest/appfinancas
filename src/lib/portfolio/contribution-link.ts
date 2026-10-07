@@ -1,6 +1,7 @@
 import type { AuthContext } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
 import { brazilTodayUtc } from "@/lib/date/brazil-day";
+import { nativoAposAporte, nativoAposResgate, type PosicaoNoExterior } from "./conta-exterior";
 
 /**
  * A costura entre Fluxo, Carteira e Metas.
@@ -159,6 +160,9 @@ export async function applyContributionAllocations(
       currentValue: true,
       quantity: true,
       currentUnitPrice: true,
+      nativeCurrentValue: true,
+      nativeInvestedValue: true,
+      exchangeRate: true,
       goalId: true,
       goal: { select: { name: true } },
     },
@@ -188,12 +192,15 @@ export async function applyContributionAllocations(
       amount,
     );
     if (depois.quantityEstimated) quantityEstimated.push(asset.ticker ?? asset.name);
+    // Ativo da conta no exterior: o mesmo dinheiro entra também do lado em dólar.
+    const emDolar = nativoAposAporte(posicaoNoExterior(asset), amount);
     return prisma.asset.update({
       where: { id: assetId },
       data: {
         investedValue: depois.investedValue,
         currentValue: depois.currentValue,
         ...(depois.quantityEstimated ? { quantity: depois.quantity } : {}),
+        ...(emDolar ?? {}),
       },
     });
   });
@@ -315,7 +322,7 @@ export async function applyWithdrawalAllocations(ctx: AuthContext, year: number,
 
   const assets = await prisma.asset.findMany({
     where: { userId: ctx.userId, profileId: ctx.profileId, id: { in: validas.map((a) => a.assetId) } },
-    select: { id: true, name: true, ticker: true, investedValue: true, currentValue: true, quantity: true, currentUnitPrice: true, goal: { select: { name: true } } },
+    select: { id: true, name: true, ticker: true, investedValue: true, currentValue: true, quantity: true, currentUnitPrice: true, nativeCurrentValue: true, nativeInvestedValue: true, exchangeRate: true, goal: { select: { name: true } } },
   });
   const byId = new Map(assets.map((a) => [a.id, a]));
   if (validas.some((a) => !byId.has(a.assetId))) return { ok: false, error: "Um dos investimentos não existe mais. Recarregue a página." };
@@ -343,9 +350,10 @@ export async function applyWithdrawalAllocations(ctx: AuthContext, year: number,
       amount,
     );
     if (depois.quantityEstimated) quantityEstimated.push(asset.ticker ?? asset.name);
+    const emDolar = nativoAposResgate(posicaoNoExterior(asset), fracaoQueSaiu(Number(asset.currentValue), amount));
     return prisma.asset.update({
       where: { id: assetId },
-      data: { investedValue: depois.investedValue, currentValue: depois.currentValue, ...(depois.quantityEstimated ? { quantity: depois.quantity } : {}) },
+      data: { investedValue: depois.investedValue, currentValue: depois.currentValue, ...(depois.quantityEstimated ? { quantity: depois.quantity } : {}), ...(emDolar ?? {}) },
     });
   });
 
@@ -453,7 +461,7 @@ export async function resgatarDeUmAtivo(
   if (!(input.amount > 0)) return { ok: false, error: "Diga quanto você resgatou." };
   const asset = await prisma.asset.findFirst({
     where: { id: input.assetId, userId: ctx.userId, profileId: ctx.profileId },
-    select: { id: true, name: true, ticker: true, investedValue: true, currentValue: true, quantity: true, currentUnitPrice: true, goalId: true, goal: { select: { name: true } } },
+    select: { id: true, name: true, ticker: true, investedValue: true, currentValue: true, quantity: true, currentUnitPrice: true, nativeCurrentValue: true, nativeInvestedValue: true, exchangeRate: true, goalId: true, goal: { select: { name: true } } },
   });
   if (!asset) return { ok: false, error: "Esse investimento não existe mais. Recarregue a página." };
   const valor = Math.round(input.amount * 100) / 100;
@@ -484,10 +492,29 @@ export async function resgatarDeUmAtivo(
       select: { id: true },
     });
     await tx.contributionAllocation.create({ data: { userId: ctx.userId, profileId: ctx.profileId, entryId: entrada.id, assetId: asset.id, amount: -valor } });
+    const emDolar = nativoAposResgate(posicaoNoExterior(asset), fracaoQueSaiu(Number(asset.currentValue), valor));
     await tx.asset.update({
       where: { id: asset.id },
-      data: { investedValue: depois.investedValue, currentValue: depois.currentValue, ...(depois.quantityEstimated ? { quantity: depois.quantity } : {}) },
+      data: { investedValue: depois.investedValue, currentValue: depois.currentValue, ...(depois.quantityEstimated ? { quantity: depois.quantity } : {}), ...(emDolar ?? {}) },
     });
   });
   return { ok: true, meta: asset.goal?.name ?? null };
+}
+
+type DecimalLike = { toString(): string } | number | null;
+const numOuNull = (v: DecimalLike) => (v === null ? null : Number(v));
+
+/** Os campos do lado em dólar do ativo, como números (o Prisma devolve Decimal). */
+function posicaoNoExterior(a: { currentValue: DecimalLike; nativeCurrentValue: DecimalLike; nativeInvestedValue: DecimalLike; exchangeRate: DecimalLike }): PosicaoNoExterior {
+  return {
+    currentValue: Number(a.currentValue),
+    nativeCurrentValue: numOuNull(a.nativeCurrentValue),
+    nativeInvestedValue: numOuNull(a.nativeInvestedValue),
+    exchangeRate: numOuNull(a.exchangeRate),
+  };
+}
+
+/** Quanto do ativo saiu num resgate (a mesma fração que assetAfterWithdrawal usa). */
+function fracaoQueSaiu(valorAtual: number, resgate: number): number {
+  return valorAtual > 0 ? Math.min(1, resgate / valorAtual) : 1;
 }

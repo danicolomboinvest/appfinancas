@@ -12,7 +12,10 @@ import { resolveQuotedCurrentValue } from "@/lib/portfolio/asset-current-value";
 import { parseQuantityInput } from "@/lib/portfolio/asset-form-values";
 import { precoNaMoeda, reaisPorUnidadeDa } from "@/lib/portfolio/cotacao-na-moeda";
 import { getOwnUser } from "@/lib/repositories/user.repo";
-import { toCurrencyCode } from "@/lib/money";
+import { isCurrencyCode, toCurrencyCode } from "@/lib/money";
+import { getExchangeRate } from "@/lib/fx/rates";
+import { fetchUsPrice } from "@/lib/analysis/us-price";
+import { CONTA_BRASIL, TICKER_EUA, ehDoExterior, naMoedaDoApp } from "@/lib/portfolio/conta-exterior";
 
 export type AssetFormState = { error?: string };
 
@@ -20,6 +23,10 @@ export type AssetFormState = { error?: string };
  * Ação, FII e ETF podem vir só com quantidade e preço médio. Aí o valor atual é a cotação de
  * hoje × quantidade (mesma fonte do botão "Atualizar cotações"); se a fonte falhar, vale o que
  * a pessoa digitou em "valor atual" ou, no último caso, o próprio investido.
+ *
+ * Conta no exterior (07/10/2026): o que ela digita está em US$. O servidor busca a cotação em
+ * dólar (ticker americano) e o dólar do dia, grava os valores em US$ e, nos campos de sempre, o
+ * mesmo valor em reais (ver lib/portfolio/conta-exterior.ts).
  */
 async function parseAssetForm(formData: FormData) {
   const ticker = String(formData.get("ticker") ?? "").trim().toUpperCase() || undefined;
@@ -28,27 +35,68 @@ async function parseAssetForm(formData: FormData) {
   const quantity = quantityRaw ? parseQuantityInput(quantityRaw) : undefined;
   const typedCurrent = String(formData.get("currentValue") ?? "").trim();
   const investedRaw = String(formData.get("investedValue") ?? "").trim();
+  const moedaDoApp = toCurrencyCode((await getOwnUser(await getRequiredSession())).currency);
+  const moedaPedida = String(formData.get("assetCurrency") ?? CONTA_BRASIL);
+  const moedaDoAtivo = isCurrencyCode(moedaPedida) ? moedaPedida : CONTA_BRASIL;
+  const noExterior = ehDoExterior(moedaDoAtivo);
   let currentUnitPrice: number | undefined;
+  let precoNoExterior: number | null = null;
+  let cambio = 1;
 
-  if (quantity && quantity > 0 && ticker && /^[A-Z]{4}\d{1,2}$/.test(ticker)) {
+  if (noExterior) {
+    if (moedaDoAtivo !== moedaDoApp) {
+      const r = await getExchangeRate(moedaDoAtivo, moedaDoApp);
+      if (!r) return { success: false as const, error: { issues: [{ message: "Não consegui a cotação do dólar agora. Tente de novo em instantes." }] } };
+      cambio = r.rate;
+    }
+    if (quantity && quantity > 0 && ticker && TICKER_EUA.test(ticker)) {
+      precoNoExterior = await fetchUsPrice(ticker);
+      if (precoNoExterior) currentUnitPrice = Math.round(precoNoExterior * cambio * 1e6) / 1e6;
+    }
+  } else if (quantity && quantity > 0 && ticker && /^[A-Z]{4}\d{1,2}$/.test(ticker)) {
     const precoEmReais = await fetchTickerPrice(ticker);
     if (precoEmReais) {
       // A cotação vem em reais; quem usa o app em outra moeda digita a carteira nela. Sem o
       // câmbio, fica sem cotação e vale o que ela digitou (nunca reais com o símbolo dela).
-      const moeda = toCurrencyCode((await getOwnUser(await getRequiredSession())).currency);
-      currentUnitPrice = precoNaMoeda(precoEmReais, moeda, await reaisPorUnidadeDa(moeda)) ?? undefined;
+      currentUnitPrice = precoNaMoeda(precoEmReais, moedaDoApp, await reaisPorUnidadeDa(moedaDoApp)) ?? undefined;
     }
   }
   // Na edição o campo vem pré-preenchido: sem os valores de antes, o servidor não distingue
-  // "ela digitou 300" de "o 300 já estava ali" (ver resolveQuotedCurrentValue).
+  // "ela digitou 300" de "o 300 já estava ali" (ver resolveQuotedCurrentValue). No exterior,
+  // tudo isso acontece em US$.
   let currentValue = resolveQuotedCurrentValue({
     typedCurrent,
     originalCurrent: String(formData.get("originalCurrentValue") ?? "").trim(),
     originalQuantity: String(formData.get("originalQuantity") ?? "").trim(),
     quantity,
-    price: currentUnitPrice,
+    price: noExterior ? precoNoExterior : currentUnitPrice,
   });
   if (currentValue === "" && investedRaw) currentValue = Number(investedRaw);
+
+  let valores: Record<string, unknown> = {
+    currency: CONTA_BRASIL,
+    investedValue: investedRaw || undefined,
+    currentValue,
+    nativeCurrentValue: null,
+    nativeInvestedValue: null,
+    exchangeRate: null,
+  };
+  if (noExterior && currentValue !== "" && Number.isFinite(Number(currentValue))) {
+    const nativoAtual = Number(currentValue);
+    const nativoInvestido = investedRaw ? Number(investedRaw) : null;
+    // Investido igual ao de antes (só mudou o valor de hoje): o investido em reais fica como
+    // estava, ele pode ter vindo do IR com o câmbio de cada compra.
+    const investidoAntes = String(formData.get("originalInvestedValue") ?? "").trim();
+    const investidoIgual = nativoInvestido !== null && investidoAntes !== "" && Math.abs(nativoInvestido - Number(investidoAntes)) < 0.005;
+    valores = {
+      currency: moedaDoAtivo,
+      nativeCurrentValue: nativoAtual,
+      nativeInvestedValue: nativoInvestido,
+      exchangeRate: cambio,
+      currentValue: naMoedaDoApp(nativoAtual, cambio),
+      investedValue: nativoInvestido === null || investidoIgual ? undefined : naMoedaDoApp(nativoInvestido, cambio),
+    };
+  }
 
   return assetSchema.safeParse({
     name: formData.get("name"),
@@ -58,10 +106,9 @@ async function parseAssetForm(formData: FormData) {
     goalId: formData.get("goalId") || undefined,
     quantity: quantity && quantity > 0 ? quantity : undefined,
     currentUnitPrice,
-    investedValue: investedRaw || undefined,
     fixedIncomeIndex: formData.get("fixedIncomeIndex") || undefined,
-    currentValue,
     idealAllocationPercent: formData.get("idealAllocationPercent") || undefined,
+    ...valores,
   });
 }
 

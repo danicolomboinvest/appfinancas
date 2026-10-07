@@ -27,7 +27,8 @@ import { updatePortfolioQuotesAction } from "./quotes-actions";
 import { bulkSetObjectiveAction } from "./actions";
 import { formatPercentNumber } from "@/lib/format";
 import { useMoney, useCurrency } from "@/components/money/MoneyProvider";
-import { currencySymbol } from "@/lib/money";
+import { currencySymbol, formatMoney, toCurrencyCode } from "@/lib/money";
+import { ehDoExterior, totaisPorConta } from "@/lib/portfolio/conta-exterior";
 import { EQI_SIGNUP_URL } from "@/lib/eqi";
 
 
@@ -78,6 +79,11 @@ type Asset = {
   investedValue: number | null;
   fixedIncomeIndex: string | null;
   currentValue: number;
+  /** "BRL" conta Brasil; "USD" conta no exterior, com o valor em dólar nos campos native*. */
+  currency: string;
+  nativeCurrentValue: number | null;
+  nativeInvestedValue: number | null;
+  exchangeRate: number | null;
 };
 
 /** Resumo da Estratégia da Carteira (a alocação ideal): alvos por classe + até 3 sugestões
@@ -149,6 +155,8 @@ export function AssetsSection({
     setEditingAssetBruto(a);
   };
   const [classFilter, setClassFilter] = useState<string | null>(null);
+  /** Os quadrados Brasil/Exterior do topo também filtram a lista. */
+  const [contaFilter, setContaFilter] = useState<"brasil" | "exterior" | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [hidden, setHidden] = useState(false); // botão de olho: oculta os valores em dinheiro
   const [isUpdatingQuotes, startQuotesTransition] = useTransition();
@@ -233,8 +241,10 @@ export function AssetsSection({
   // Filtro por tipo: clicar na fatia/legenda ou nos chips mostra só os ativos daquele tipo,
   // do maior pro menor valor.
   const classesPresent = CLASS_ORDER.filter((c) => (countByClass.get(c) ?? 0) > 0);
+  const contas = totaisPorConta(assets);
   const visibleAssets = [...assets]
     .filter((a) => classFilter === null || a.assetClass === classFilter)
+    .filter((a) => contaFilter === null || (contaFilter === "exterior") === ehDoExterior(a.currency))
     .sort((a, b) => b.currentValue - a.currentValue);
 
   function abrirNovo(escolhido: AtalhoDeAtivo | null = null) {
@@ -364,6 +374,35 @@ export function AssetsSection({
             <span className="text-sm tabular-nums text-heroi-suave">
               {t.cartDesdeACompra(`${totalProfit > 0 ? "+" : "−"}${money(Math.abs(totalProfit))}`)}
             </span>
+          </div>
+        )}
+        {/* Conta Brasil × exterior (07/10/2026): só aparece quando há ativo lá fora. O exterior em
+            dólar, com o valor em reais embaixo; tocar filtra a lista. */}
+        {contas.quantosNoExterior > 0 && (
+          <div className="grid grid-cols-2 gap-2">
+            {(["brasil", "exterior"] as const).map((c) => {
+              const ativo = contaFilter === c;
+              const nativo = c === "exterior" ? contas.exteriorNativo : null;
+              return (
+                <button
+                  key={c}
+                  type="button"
+                  aria-pressed={ativo}
+                  onClick={() => setContaFilter((f) => (f === c ? null : c))}
+                  className={`min-w-0 rounded-xl px-3 py-2.5 text-left transition-colors ${ativo ? "heroi-veu-forte" : "heroi-veu"}`}
+                >
+                  <p className="text-caption text-heroi-suave">{c === "brasil" ? "Brasil" : "Exterior"}</p>
+                  <p className="truncate text-[17px] font-bold tabular-nums">
+                    {nativo
+                      ? hidden
+                        ? `${currencySymbol(toCurrencyCode(nativo.moeda))} ••••`
+                        : formatMoney(nativo.valor, toCurrencyCode(nativo.moeda), { round: true })
+                      : money(c === "brasil" ? contas.brasil : contas.exterior)}
+                  </p>
+                  {nativo && <p className="truncate text-caption tabular-nums text-heroi-suave">{money(contas.exterior)}</p>}
+                </button>
+              );
+            })}
           </div>
         )}
       </HeroiDoTema>
@@ -593,6 +632,27 @@ export function AssetsSection({
                       </p>
                     </div>
                   </div>
+                  {ehDoExterior(asset.currency) && asset.nativeCurrentValue !== null ? (
+                    // Ativo de fora: o valor e o lucro em dólar, que é como a pessoa vê na corretora.
+                    <div className="shrink-0 text-right">
+                      <p className="text-sm font-medium text-ink">
+                        {hidden ? `${currencySymbol(toCurrencyCode(asset.currency))} ••••` : formatMoney(asset.nativeCurrentValue, toCurrencyCode(asset.currency))}
+                      </p>
+                      {(() => {
+                        const investido = asset.nativeInvestedValue;
+                        if (investido === null || investido <= 0) return null;
+                        const lucro = (asset.nativeCurrentValue as number) - investido;
+                        if (Math.abs(lucro) < 0.005) return null;
+                        return (
+                          <p className={`text-xs tabular-nums ${lucro > 0 ? "text-success" : "text-danger"}`}>
+                            {lucro > 0 ? "+" : "−"}
+                            {hidden ? `${currencySymbol(toCurrencyCode(asset.currency))} ••••` : formatMoney(Math.abs(lucro), toCurrencyCode(asset.currency), { round: true })} ({lucro > 0 ? "+" : "−"}
+                            {formatPercentNumber(Math.abs((lucro / investido) * 100), 1)})
+                          </p>
+                        );
+                      })()}
+                    </div>
+                  ) : (
                   <div className="shrink-0 text-right">
                     <p className="text-sm font-medium text-ink">{money(asset.currentValue)}</p>
                     {(() => {
@@ -606,10 +666,17 @@ export function AssetsSection({
                       );
                     })()}
                   </div>
+                  )}
                 </button>
 
                 {expanded && (
                   <div className="flex flex-wrap items-center justify-end gap-4 border-t border-border px-3 py-2">
+                    {ehDoExterior(asset.currency) && asset.nativeCurrentValue !== null && (
+                      <span className="mr-auto text-xs tabular-nums text-ink-muted">
+                        {money(asset.currentValue)}
+                        {asset.exchangeRate ? `, ${currencySymbol(toCurrencyCode(asset.currency))} 1 = ${currencySymbol(currency)} ${asset.exchangeRate.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : ""}
+                      </span>
+                    )}
                     <button
                       type="button"
                       onClick={() => setEditingAsset(asset)}
@@ -720,12 +787,14 @@ export function AssetsSection({
               name: editingAsset.name,
               ticker: editingAsset.ticker ?? undefined,
               quantity: editingAsset.quantity ?? undefined,
-              investedValue: editingAsset.investedValue ?? undefined,
               assetClass: editingAsset.assetClass,
               objective: editingAsset.objective,
               goalId: editingAsset.goalId ?? undefined,
-              currentValue: editingAsset.currentValue,
               fixedIncomeIndex: editingAsset.fixedIncomeIndex ?? undefined,
+              // Ativo de fora edita em dólar: o formulário mostra e devolve US$.
+              ...(ehDoExterior(editingAsset.currency) && editingAsset.nativeCurrentValue !== null
+                ? { currency: editingAsset.currency, currentValue: editingAsset.nativeCurrentValue, investedValue: editingAsset.nativeInvestedValue ?? undefined }
+                : { currentValue: editingAsset.currentValue, investedValue: editingAsset.investedValue ?? undefined }),
             }}
           />
           )}

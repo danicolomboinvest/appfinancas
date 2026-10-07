@@ -7,6 +7,8 @@ import { fetchTickerPrice } from "@/lib/analysis/price-scraper";
 import { getOwnUser } from "@/lib/repositories/user.repo";
 import { toCurrencyCode } from "@/lib/money";
 import { precoNaMoeda, reaisPorUnidadeDa } from "@/lib/portfolio/cotacao-na-moeda";
+import { atualizarAtivosDoExterior } from "@/lib/portfolio/atualizar-exterior";
+import { CONTA_BRASIL } from "@/lib/portfolio/conta-exterior";
 
 export type UpdateQuotesResult =
   | { ok: true; updated: number; failed: string[] }
@@ -20,14 +22,23 @@ export type UpdateQuotesResult =
 export async function updatePortfolioQuotesAction(): Promise<UpdateQuotesResult> {
   const ctx = await getRequiredSession();
   const allWithTicker = await prisma.asset.findMany({
-    where: { userId: ctx.userId, profileId: ctx.profileId, ticker: { not: null } },
+    // Só a conta Brasil: os ativos de fora têm cotação em dólar (atualizarAtivosDoExterior).
+    where: { userId: ctx.userId, profileId: ctx.profileId, ticker: { not: null }, currency: CONTA_BRASIL },
     select: { id: true, ticker: true, quantity: true },
   });
   // Só tickers de bolsa de verdade (PETR4, MXRF11…), fundos/renda fixa usam o campo como
   // nome e não têm cotação pública, então não entram na busca nem na lista de "não achei".
   const assets = allWithTicker.filter((a) => /^[A-Z]{4}\d{1,2}$/.test(a.ticker as string));
 
+  // A conta no exterior primeiro: o dólar do dia muda o valor em reais mesmo sem ticker.
+  const exterior = await atualizarAtivosDoExterior({ userId: ctx.userId, profileId: ctx.profileId });
+
   if (assets.length === 0) {
+    if (exterior.updated > 0 || exterior.failed.length > 0) {
+      revalidatePath("/carteira");
+      revalidatePath("/carteira/por-objetivo");
+      return { ok: true, updated: exterior.updated, failed: exterior.failed };
+    }
     return { ok: false, error: "Nenhum ativo com ticker cadastrado, adicione o ticker para atualizar cotações." };
   }
 
@@ -43,8 +54,8 @@ export async function updatePortfolioQuotesAction(): Promise<UpdateQuotesResult>
   const moeda = toCurrencyCode((await getOwnUser(ctx)).currency);
   const reaisPorUnidade = await reaisPorUnidadeDa(moeda);
 
-  let updated = 0;
-  const failed: string[] = [];
+  let updated = exterior.updated;
+  const failed: string[] = [...exterior.failed];
   for (const asset of assets) {
     const precoEmReais = priceByTicker.get(asset.ticker as string) ?? null;
     // Sem o câmbio, conta como "não consegui": gravar reais com o símbolo dela seria pior.

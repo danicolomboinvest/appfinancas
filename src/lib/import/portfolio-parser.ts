@@ -2,6 +2,7 @@ import type { AssetClass, FixedIncomeIndex } from "@prisma/client";
 import { KNOWN_ETF_BR } from "@/lib/market/known-names";
 import { isB3Position, parseB3Position } from "./b3-posicao";
 import { isSafraMonthlyReport, parseSafraMonthlyReport } from "./safra-pdf";
+import { lerCarteiraNoExterior } from "./carteira-exterior";
 import { parseBrazilianNumber } from "./statement-parser";
 
 /**
@@ -25,6 +26,8 @@ export type ParsedHolding = {
   investedValue?: number;
   /** Indexador da renda fixa (CDI/Selic → pós, IPCA+, ou prefixado), lido da coluna de taxa. */
   fixedIncomeIndex?: FixedIncomeIndex;
+  /** "USD" na carteira de fora (Avenue, Nomad): value e investedValue estão em dólar. */
+  currency?: "USD";
 };
 
 /**
@@ -492,6 +495,10 @@ export function parsePortfolioStatement(content: string): ParsedHolding[] {
   // 2º: extrato em seções (BTG e similares), só produz resultado se achar as tabelas típicas.
   const sectioned = parseSectionedHoldings(lines);
   if (sectioned.length > 0) return mergeByTicker(sectioned);
+
+  // 3º: carteira em dólar (Avenue, Nomad, planilha de ETFs de fora): ticker americano, valor em US$.
+  const exterior = lerCarteiraNoExterior(content);
+  if (exterior.length > 0) return mergeByTicker(exterior);
 
   // Se a 1ª linha parece cabeçalho com coluna de código, trata como CSV estruturado.
   const firstLower = lines[0].toLowerCase();

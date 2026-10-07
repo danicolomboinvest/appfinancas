@@ -5,6 +5,8 @@ import { fetchTickerPrice } from "@/lib/analysis/price-scraper";
 import { processarComPrazo } from "@/lib/cron/lote";
 import { toCurrencyCode, type CurrencyCode } from "@/lib/money";
 import { precoNaMoeda, reaisPorUnidadeDa } from "@/lib/portfolio/cotacao-na-moeda";
+import { atualizarAtivosDoExterior } from "@/lib/portfolio/atualizar-exterior";
+import { CONTA_BRASIL } from "@/lib/portfolio/conta-exterior";
 
 // Cotações de dezenas de tickers via scraping podem passar dos 10s padrão. A busca para com
 // folga antes do teto (PRAZO_MS) pra sobrar tempo de gravar o que já veio.
@@ -24,13 +26,17 @@ export async function GET(request: Request) {
   if (recusa) return recusa;
 
   const allWithTicker = await prisma.asset.findMany({
-    where: { ticker: { not: null } },
+    // Só a conta Brasil aqui; a conta no exterior (cotação em US$ e dólar do dia) vem no fim.
+    where: { ticker: { not: null }, currency: CONTA_BRASIL },
     select: { id: true, ticker: true, quantity: true, user: { select: { currency: true } } },
   });
   // Só tickers de bolsa de verdade (PETR4, MXRF11…), fundos/renda fixa usam o campo como
   // nome e não têm cotação pública pra buscar.
   const assets = allWithTicker.filter((a) => /^[A-Z]{4}\d{1,2}$/.test(a.ticker as string));
-  if (assets.length === 0) return NextResponse.json({ updated: 0, failed: [] });
+  if (assets.length === 0) {
+    const exterior = await atualizarAtivosDoExterior({}, { prazo: inicio + PRAZO_MS + 10_000 });
+    return NextResponse.json({ updated: 0, failed: [], exterior });
+  }
 
   const uniqueTickers = [...new Set(assets.map((a) => a.ticker as string))];
   // Alguns de cada vez e com prazo: o Promise.all com tudo de uma vez não tinha teto, e um
@@ -71,5 +77,7 @@ export async function GET(request: Request) {
     updated += 1;
   }
 
-  return NextResponse.json({ updated, tickers: uniqueTickers.length, failed });
+  // Depois da B3, com o tempo que sobrou: o dólar muda todo dia, então todo ativo de fora passa aqui.
+  const exterior = await atualizarAtivosDoExterior({}, { prazo: inicio + PRAZO_MS + 10_000 });
+  return NextResponse.json({ updated, tickers: uniqueTickers.length, failed, exterior });
 }

@@ -15,6 +15,11 @@ export type AssetInput = {
   /** Indexador da renda fixa (pós/IPCA/prefixado), refina o mapeamento pra Estratégia. */
   fixedIncomeIndex?: FixedIncomeIndex;
   currentValue: number;
+  /** "BRL" conta Brasil, "USD" conta no exterior (ver lib/portfolio/conta-exterior.ts). */
+  currency?: string;
+  nativeCurrentValue?: number | null;
+  nativeInvestedValue?: number | null;
+  exchangeRate?: number | null;
   idealAllocationPercent?: number;
   acquisitionDate?: Date;
   notes?: string;

@@ -11,6 +11,10 @@ import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import type { ClasseDeAtivo, IndexadorRendaFixa, ObjetivoDeAtivo } from "@/lib/profiles/textos/formularios";
 import { averagePriceOf, formatQuantityInput, investedToSend, parseQuantityInput } from "@/lib/portfolio/asset-form-values";
 import { createAssetAction, updateAssetAction, type AssetFormState } from "./actions";
+import { useCurrency } from "@/components/money/MoneyProvider";
+import { getExchangeRateAction } from "@/lib/fx/actions";
+import { currencySymbol, type CurrencyCode } from "@/lib/money";
+import { CONTA_BRASIL, type MoedaDaConta } from "@/lib/portfolio/conta-exterior";
 
 const initialState: AssetFormState = {};
 
@@ -37,7 +41,28 @@ type Defaults = {
   investedValue?: number;
   currentValue?: number;
   fixedIncomeIndex?: string;
+  /** "USD" na conta no exterior: aí investido, valor atual e preço médio vêm em dólar. */
+  currency?: string;
 };
+
+/** "US$ 1 = R$ 5,02 hoje", embaixo dos valores de um ativo no exterior. */
+function CambioDeHoje({ de, para }: { de: CurrencyCode; para: CurrencyCode }) {
+  const [taxa, setTaxa] = useState<number | null>(null);
+  useEffect(() => {
+    let vivo = true;
+    getExchangeRateAction(de).then((r) => vivo && setTaxa(r?.rate ?? null));
+    return () => {
+      vivo = false;
+    };
+  }, [de]);
+  if (!taxa) return null;
+  const valor = taxa.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return (
+    <p className="w-full text-caption tabular-nums text-ink-muted">
+      {currencySymbol(de)} 1 = {currencySymbol(para)} {valor} hoje
+    </p>
+  );
+}
 
 /** Form de ativo, sem `assetId`/`defaults` cria um ativo novo; com eles, edita um existente. */
 export function AssetForm({
@@ -61,7 +86,16 @@ export function AssetForm({
   const [objective, setObjective] = useState(defaults.objective ?? "OUTRO");
   const [assetClass, setAssetClass] = useState(defaults.assetClass ?? "RENDA_FIXA");
   const [assetName, setAssetName] = useState(defaults.name ?? "");
-  const pickerKinds = PICKER_KINDS[assetClass];
+  const moedaDoApp = useCurrency();
+  // Conta Brasil ou exterior (07/10/2026): aparece em Internacional, e em qualquer ativo que já
+  // está em dólar. Internacional novo começa no exterior, que é o caso da Avenue.
+  const [conta, setConta] = useState<MoedaDaConta>(defaults.currency === "USD" ? "USD" : assetId ? CONTA_BRASIL : "USD");
+  const mostraConta = assetClass === "INTERNACIONAL" || defaults.currency === "USD";
+  const moedaDoAtivo: CurrencyCode = mostraConta ? conta : CONTA_BRASIL;
+  const noExterior = moedaDoAtivo !== CONTA_BRASIL;
+  // A busca muda com a conta: lá fora, ações e ETFs americanos; aqui, BDR e ETF da B3.
+  const pickerKinds = assetClass === "INTERNACIONAL" ? (noExterior ? (["STOCK_INTL", "ETF_INTL"] as TickerKind[]) : (["BDR", "ETF"] as TickerKind[])) : PICKER_KINDS[assetClass];
+  const moedaDosCampos = noExterior ? moedaDoAtivo : undefined;
   // Ação, FII, ETF: quem compra sabe "10 ações a R$ 30", não o valor de hoje. Quantidade e
   // preço médio dão o investido; a cotação de hoje o app busca sozinho ao salvar.
   const quoted = Boolean(pickerKinds);
@@ -109,11 +143,31 @@ export function AssetForm({
           </option>
         ))}
       </SelectField>
+      {mostraConta && (
+        <div className="flex w-full flex-col gap-1.5">
+          <span className="text-xs font-medium text-ink-muted">Conta</span>
+          <div role="radiogroup" aria-label="Conta" className="grid grid-cols-2 gap-1 rounded-full bg-surface-2 p-0.5">
+            {([CONTA_BRASIL, "USD"] as const).map((c) => (
+              <button
+                key={c}
+                type="button"
+                role="radio"
+                aria-checked={conta === c}
+                onClick={() => setConta(c)}
+                className={`min-h-10 rounded-full px-3 text-sm font-semibold transition-colors ${conta === c ? "bg-pill text-on-pill" : "text-ink-muted hover:text-ink"}`}
+              >
+                {c === CONTA_BRASIL ? "Conta Brasil" : `Exterior (${currencySymbol("USD")})`}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      <input type="hidden" name="assetCurrency" value={moedaDoAtivo} />
       {pickerKinds ? (
         // Escolher na lista preenche o nome junto — quem não sabe o código também não quer
         // digitar "Petrobras" duas vezes. O nome continua editável.
         <TickerPicker
-          key={assetClass}
+          key={`${assetClass}-${moedaDoAtivo}`}
           kinds={pickerKinds}
           label={t.formAtivoQual}
           placeholder={t.formAtivoQualPlaceholder}
@@ -193,6 +247,7 @@ export function AssetForm({
             label={t.formAtivoPrecoMedio}
             id="avgPrice"
             name="avgPrice"
+            currency={moedaDosCampos}
             defaultValue={avgPrice || undefined}
             onValueChange={setAvgPrice}
             className="w-full sm:w-40"
@@ -205,12 +260,14 @@ export function AssetForm({
             <>
               <input type="hidden" name="originalCurrentValue" value={defaults.currentValue ?? ""} />
               <input type="hidden" name="originalQuantity" value={defaults.quantity ?? ""} />
+              <input type="hidden" name="originalInvestedValue" value={defaults.investedValue ?? ""} />
             </>
           )}
           <CurrencyField
             label={t.formAtivoValorAtualOpcional}
             id="currentValue"
             name="currentValue"
+            currency={moedaDosCampos}
             defaultValue={defaults.currentValue}
             hint={t.formAtivoValorAtualHint}
             className="w-full sm:w-40"
@@ -222,19 +279,23 @@ export function AssetForm({
             label={t.formAtivoValorInvestido}
             id="investedValue"
             name="investedValue"
+            currency={moedaDosCampos}
             defaultValue={defaults.investedValue}
             className="w-full sm:w-40"
           />
+          {assetId && <input type="hidden" name="originalInvestedValue" value={defaults.investedValue ?? ""} />}
           <CurrencyField
             label={t.formAtivoValorAtual}
             id="currentValue"
             name="currentValue"
             required
+            currency={moedaDosCampos}
             defaultValue={defaults.currentValue}
             className="w-full sm:w-40"
           />
         </>
       )}
+      {noExterior && moedaDoAtivo !== moedaDoApp && <CambioDeHoje de={moedaDoAtivo} para={moedaDoApp} />}
       <Button type="submit" disabled={isPending} size="sm">
         {isPending ? t.formSalvando : (submitLabel ?? (assetId ? t.formAtivoSalvar : t.formAtivoAdicionar))}
       </Button>

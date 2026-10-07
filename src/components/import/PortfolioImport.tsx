@@ -11,6 +11,8 @@ import {
   type ConfirmedHolding,
 } from "@/app/(app)/carteira/import-actions";
 import { useMoney } from "@/components/money/MoneyProvider";
+import { formatMoney } from "@/lib/money";
+import type { MoedaDaConta } from "@/lib/portfolio/conta-exterior";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { UPLOAD_MAX_BYTES } from "@/lib/import/limites";
 
@@ -51,7 +53,9 @@ function buildUploadForm(file: File): FormData {
  * O que não mudou é só um contador; reimportar o mesmo extrato nunca duplica nada.
  */
 export function PortfolioImport({ onDone }: { onDone: () => void }) {
-  const money = useMoney();
+  const moneyDoApp = useMoney();
+  /** Linha da carteira de fora: o valor em dólar, como está no arquivo. */
+  const moneyDe = (h: { currency: MoedaDaConta }) => (v: number) => (h.currency === "USD" ? formatMoney(v, "USD") : moneyDoApp(v));
   // O que a pessoa lê vem da voz do tema; a comparação com a carteira não sabe de tema nenhum.
   const { voz } = useProfileTheme();
   const t = voz.titulos;
@@ -127,6 +131,7 @@ export function PortfolioImport({ onDone }: { onDone: () => void }) {
       investedValue: h.investedValue,
       assetClass: h.assetClass,
       fixedIncomeIndex: h.fixedIncomeIndex,
+      currency: h.currency,
       mode: h.status === "changed" ? "update" : "create",
     }));
     startTransition(async () => {
@@ -257,7 +262,7 @@ export function PortfolioImport({ onDone }: { onDone: () => void }) {
                         <p className="truncate text-sm font-medium text-ink">{h.ticker}</p>
                         <p className="text-caption text-ink-faint">
                           {h.quantity > 0 ? `${formatQty(h.quantity)}, ` : ""}
-                          {h.value > 0 ? money(h.value) : t.impCarteiraSemValor}
+                          {h.value > 0 ? moneyDe(h)(h.value) : t.impCarteiraSemValor}
                         </p>
                       </div>
                       <select
@@ -305,8 +310,8 @@ export function PortfolioImport({ onDone }: { onDone: () => void }) {
                                 {", "}
                               </>
                             )}
-                            {h.prevValue !== null ? `${money(h.prevValue)} → ` : ""}
-                            <span className="text-ink">{money(h.value)}</span>
+                            {h.prevValue !== null ? `${moneyDe(h)(h.prevValue)} → ` : ""}
+                            <span className="text-ink">{moneyDe(h)(h.value)}</span>
                           </p>
                         </div>
                         <button
