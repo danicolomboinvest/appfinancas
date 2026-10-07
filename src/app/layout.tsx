@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Albert_Sans, Geist_Mono } from "next/font/google";
 import { BarraDoIphone } from "@/components/shell/BarraDoIphone";
 import { BootSplash } from "@/components/brand/BootSplash";
+import { ToqueVivo } from "@/components/shell/ToqueVivo";
 import { THEME_INIT_SCRIPT } from "./theme-init-script";
 import "./globals.css";
 
@@ -90,6 +91,8 @@ export default function RootLayout({
       <body className="flex min-h-full flex-col bg-canvas text-ink">
         <BootSplash />
         <BarraDoIphone />
+        {/* O toque que responde: botão encolhe, volta com mola e o principal vibra (07/10/2026). */}
+        <ToqueVivo />
         {/* Atrás do relógio e da bateria: o que rola por baixo some num vidro da cor do fundo, como
             nos apps do iPhone. Fora do app (Safari, computador) a margem é zero e isto não aparece. */}
         <div aria-hidden className="pointer-events-none fixed inset-x-0 top-0 z-[60] h-[var(--safe-top)] bg-canvas/85 backdrop-blur-md" />

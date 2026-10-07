@@ -8,6 +8,7 @@ import type { PerguntaDoDecidir } from "@/lib/profiles/textos/foco";
 import { serverMoney } from "@/lib/money-server";
 import { Card } from "@/components/ui/Card";
 import { ReportarErro } from "@/components/decisoes/ReportarErro";
+import { RespostaVisual } from "@/components/decisoes/RespostaVisual";
 import {
   comAbertura,
   estouGastandoDemais,
@@ -107,15 +108,23 @@ export default async function PerguntaPage(props: PageProps<"/decidir/pergunta/[
       {/* A pergunta dela, como numa conversa. */}
       <p className="ml-auto max-w-[85%] rounded-2xl rounded-br-md bg-pill px-4 py-3 text-sm font-semibold text-on-pill">{pergunta}</p>
 
-      <Card className="flex gap-4 p-5">
-        <span className={`w-1 shrink-0 rounded-full ${cor}`} aria-hidden />
-        <div className="flex min-w-0 flex-col gap-3">
-          <p className="text-lg font-semibold leading-snug text-ink">{resposta.frase}</p>
-          {resposta.detalhes.map((t) => (
-            <p key={t} className="text-sm text-ink-muted">
-              {t}
-            </p>
-          ))}
+      <Card className={resposta.visual ? "flex flex-col gap-4 p-5" : "flex gap-4 p-5"}>
+        {!resposta.visual && <span className={`w-1 shrink-0 rounded-full ${cor}`} aria-hidden />}
+        <div className="flex min-w-0 flex-1 flex-col gap-3">
+          {/* A resposta desenhada (07/10/2026): número ou palavra grande, selo e blocos. As frases
+              ficam no "Como cheguei nisso". Sem visual (casos sem dado), a frase de sempre. */}
+          {resposta.visual ? (
+            <RespostaVisual visual={resposta.visual} veredito={resposta.veredito} />
+          ) : (
+            <>
+              <p className="text-lg font-semibold leading-snug text-ink">{resposta.frase}</p>
+              {resposta.detalhes.map((t) => (
+                <p key={t} className="text-sm text-ink-muted">
+                  {t}
+                </p>
+              ))}
+            </>
+          )}
           {resposta.acoes.length > 0 && (
             <div className="mt-1 flex flex-col gap-2">
               {resposta.acoes.map((a, i) => (
@@ -129,9 +138,17 @@ export default async function PerguntaPage(props: PageProps<"/decidir/pergunta/[
               ))}
             </div>
           )}
-          {resposta.conta.length > 0 && (
+          {(resposta.conta.length > 0 || resposta.visual) && (
             <details className="border-t border-border pt-3">
               <summary className="cursor-pointer text-caption font-medium text-ink-muted hover:text-ink">{tx.focoComoCheguei}</summary>
+              {resposta.visual && (
+                <div className="mt-2 flex flex-col gap-1.5 text-caption text-ink-muted">
+                  <p className="text-ink">{resposta.frase}</p>
+                  {resposta.detalhes.map((t) => (
+                    <p key={t}>{t}</p>
+                  ))}
+                </div>
+              )}
               <dl className="mt-2 grid grid-cols-[1fr_auto] gap-x-4 gap-y-1.5 text-caption">
                 {resposta.conta.map((c) => (
                   <div key={c.rotulo} className="contents">

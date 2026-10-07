@@ -585,25 +585,12 @@ html.light .glass-pill {
   box-shadow: 0 0 0 4px var(--color-accent-soft);
 }
 
-/* Toque com resposta (05/10/2026, "cara de premium"): todo botão encolhe um tiquinho ao ser
-   apertado e volta, como nos apps nativos. 3% nos botões, 1,5% nos links (muitos são cartões
-   inteiros, e 3% num cartão largo pula demais). Na camada base de propósito: quem já tem o
-   próprio active:scale (a barra de baixo, o "+") continua com o dele. A propriedade `scale` é
-   separada de transform/translate, então não briga com nenhuma animação existente. */
+/* Toque com resposta: desde 07/10/2026 o aperto é desenhado em ToqueVivo.tsx (animação com mola,
+   que aparece até num toque rápido no iPhone). Aqui fica só o que o CSS faz melhor: sem o flash
+   cinza do toque no iPhone. */
 @layer base {
-  :where(button, summary, a[href]) {
-    transition: scale 0.12s ease-out;
-  }
-  :where(button, summary):not(:disabled):active {
-    scale: 0.97;
-  }
-  :where(a[href]):active {
-    scale: 0.985;
-  }
-  @media (prefers-reduced-motion: reduce) {
-    :where(button, summary, a[href]):active {
-      scale: none;
-    }
+  :where(button, summary, a[href], [role="button"]) {
+    -webkit-tap-highlight-color: transparent;
   }
 }
 

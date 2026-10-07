@@ -10,6 +10,29 @@
  */
 
 export type Veredito = "bom" | "atencao" | "ruim";
+
+/**
+ * A resposta desenhada (07/10/2026). A Dani: "não dá para deixar mais dinâmico e legal do que um
+ * monte de textão? Tudo que der para transformar texto em visual". A conta e as frases continuam
+ * (são o que os testes conferem e o que vai no "Como cheguei nisso"); a tela mostra isto: o número
+ * ou a palavra grande, um selo, e blocos de quadradinhos, barras e listas.
+ */
+export type Bloco =
+  | { tipo: "numeros"; itens: { rotulo: string; valor: string; tom?: Veredito }[] }
+  | { tipo: "barra"; valor: number; total: number; marcador?: number; esquerda: string; direita: string; tom: Veredito }
+  | { tipo: "lista"; titulo?: string; itens: { nome: string; valor: string; detalhe?: string; pct?: number; selo?: { texto: string; tom: Veredito } }[] }
+  | { tipo: "comparar"; antes: string; agora: string; linhas: { rotulo: string; antes: number; agora: number; antesTexto: string; agoraTexto: string; melhorSeMenor?: boolean }[] };
+export type Visual = {
+  /** A abertura do tema ("Amiga, olha só:"), pequena em cima. */
+  abertura?: string;
+  /** O número ou a palavra grande: "R$ 5.379", "Não", "1,2 mês". */
+  destaque: string;
+  /** O que o número quer dizer, em poucas palavras: "por mês", "abaixo do ritmo". */
+  rotulo?: string;
+  selo?: { texto: string; tom: Veredito };
+  blocos: Bloco[];
+};
+
 export type Resposta = {
   veredito: Veredito;
   /** A resposta em uma frase. */
@@ -20,6 +43,8 @@ export type Resposta = {
   conta: { rotulo: string; valor: string }[];
   /** Próximos passos. */
   acoes: { rotulo: string; href: string }[];
+  /** A versão desenhada, mostrada no lugar das frases quando existe. */
+  visual?: Visual;
 };
 
 export type Tom = "padrao" | "girly" | "minimalista" | "disciplina" | "semfiltro" | "game" | "manifestacao";
@@ -42,7 +67,8 @@ const pct = (v: number) => `${Math.round(v * 100)}%`;
 const primeiraMaiuscula = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 export function comAbertura(tom: Tom, r: Resposta): Resposta {
   const a = abertura(tom, r.veredito);
-  return { ...r, frase: a ? `${a}${r.frase.charAt(0).toLowerCase()}${r.frase.slice(1)}` : primeiraMaiuscula(r.frase) };
+  const visual = r.visual && a ? { ...r.visual, abertura: a.trim() } : r.visual;
+  return { ...r, visual, frase: a ? `${a}${r.frase.charAt(0).toLowerCase()}${r.frase.slice(1)}` : primeiraMaiuscula(r.frase) };
 }
 
 export type Categoria = {
@@ -136,6 +162,30 @@ export function estouGastandoDemais(e: {
       ...(limiteDaRenda !== null ? [{ rotulo: semRegra90 ? "O que entra na conta conjunta" : "90% da renda", valor: money(limiteDaRenda) }] : []),
     ],
     acoes: veredito === "bom" ? [{ rotulo: "Onde estou exagerando?", href: "/decidir/pergunta/exagerando" }] : [{ rotulo: "Ver onde estou exagerando", href: "/decidir/pergunta/exagerando" }, { rotulo: "Voltar pro Foco", href: "/mensal/foco" }],
+    visual: {
+      destaque: veredito === "bom" ? "Não" : veredito === "atencao" ? "Um pouco" : "Sim",
+      rotulo:
+        veredito === "bom"
+          ? `${money(Math.max(0, -diferenca))} abaixo do ritmo`
+          : veredito === "atencao"
+            ? diferenca > 0
+              ? `${money(diferenca)} acima do ritmo`
+              : "uma categoria passou do plano"
+            : e.gastoDoMes > e.planejado
+              ? "passou do orçamento do mês"
+              : semRegra90
+                ? "acima do que entra na conta conjunta"
+                : "acima de 90% da renda",
+      blocos: [
+        { tipo: "barra", valor: e.gastoDoMes, total: e.planejado, marcador: esperado, esquerda: `Gastou ${money(e.gastoDoMes)}`, direita: `Plano ${money(e.planejado)}`, tom: veredito },
+        ...(estouradas.length > 0
+          ? [{ tipo: "lista" as const, titulo: "Passou do plano", itens: estouradas.slice(0, 3).map((c) => ({ nome: c.label, valor: `${money(c.gasto)} de ${money(c.planejado)}`, pct: c.gasto / c.planejado, selo: { texto: `+${money(c.gasto - c.planejado)}`, tom: "ruim" as Veredito } })) }]
+          : pesadas[0]
+            ? [{ tipo: "lista" as const, titulo: "Onde mais pesou", itens: pesadas.slice(0, 3).map((c) => ({ nome: c.label, valor: `${money(c.gasto)} de ${money(c.planejado)}`, pct: c.gasto / c.planejado })) }]
+            : []),
+        ...(limiteDaRenda !== null ? [{ tipo: "numeros" as const, itens: [{ rotulo: semRegra90 ? "Conta conjunta" : "Limite: 90% da renda", valor: money(limiteDaRenda), tom: (acimaDa90 ? "ruim" : "bom") as Veredito }] }] : []),
+      ],
+    },
   };
 }
 
@@ -172,6 +222,18 @@ export function ondeEstouExagerando(e: {
     frase,
     detalhes,
     conta: acima.slice(0, 5).map((c) => ({ rotulo: `${c.label} acima do ritmo`, valor: money(c.excesso) })),
+    visual: {
+      destaque: acima.length > 0 ? acima[0].label : e.fora >= 1 ? money(e.fora) : "Em nenhum lugar",
+      rotulo: acima.length > 0 ? `${money(acima[0].excesso)} acima do ritmo` : e.fora >= 1 ? "sem categoria no orçamento" : "tudo no ritmo do mês",
+      blocos: [
+        ...(acima.length > 0
+          ? [{ tipo: "lista" as const, titulo: "Acima do ritmo", itens: acima.slice(0, 4).map((c) => ({ nome: c.label, valor: `${money(c.gasto)} de ${money(c.planejado)}`, pct: c.gasto / c.planejado, selo: { texto: `+${money(c.excesso)}`, tom: (c.gasto > c.planejado ? "ruim" : "atencao") as Veredito } })) }]
+          : []),
+        ...(e.fora >= 1 && acima.length > 0 ? [{ tipo: "numeros" as const, itens: [{ rotulo: "Sem categoria no orçamento", valor: money(e.fora), tom: "ruim" as Veredito }] }] : []),
+        ...(e.maiores.length > 0 ? [{ tipo: "lista" as const, titulo: "Maiores gastos do mês", itens: e.maiores.slice(0, 3).map((g) => ({ nome: g.descricao, valor: money(g.valor) })) }] : []),
+        ...(e.recorrentesAno && e.recorrentesAno > 0 ? [{ tipo: "numeros" as const, itens: [{ rotulo: "O que se repete todo mês", valor: `${money(e.recorrentesAno)}/ano` }] }] : []),
+      ],
+    },
     acoes: [
       { rotulo: "Resolver no Foco", href: "/mensal/foco" },
       ...(e.recorrentesAno ? [{ rotulo: "Ver o Raio-X do que se repete", href: "/decidir/raio-x" }] : []),
@@ -267,6 +329,30 @@ export function quantoPrecisoGuardar(e: {
       ...(e.reserva && e.reserva.porMes > 0 ? [{ rotulo: "Reserva", valor: `${money(e.reserva.porMes)}/mês` }] : []),
       { rotulo: "Guardar planejado no mês", valor: money(planejado) },
     ],
+    visual: {
+      destaque: money(alvo),
+      rotulo: "por mês",
+      selo: veredito === "bom" ? { texto: "Coberto", tom: "bom" } : { texto: `Faltam ${money(alvo - planejado)}`, tom: veredito },
+      blocos: [
+        { tipo: "barra", valor: planejado, total: alvo, esquerda: `Seu plano guarda ${money(planejado)}`, direita: `Precisa ${money(alvo)}`, tom: veredito },
+        {
+          tipo: "lista",
+          titulo: "Para onde vai",
+          itens: [
+            ...abertas.slice(0, 5).map((m) => ({
+              nome: m.nome,
+              valor: `${money(m.necessarioPorMes)}/mês`,
+              detalhe: m.vencida ? undefined : m.prazo ? `até ${m.prazo}` : undefined,
+              pct: alvo > 0 ? m.necessarioPorMes / alvo : 0,
+              ...(m.vencida ? { selo: { texto: "Prazo passou", tom: "atencao" as Veredito } } : {}),
+            })),
+            ...(e.reserva && e.reserva.porMes > 0 ? [{ nome: "Reserva de emergência", valor: `${money(e.reserva.porMes)}/mês`, detalhe: `faltam ${money(e.reserva.falta)}`, pct: alvo > 0 ? e.reserva.porMes / alvo : 0 }] : []),
+            ...vencidasSemValor.slice(0, 2).map((m) => ({ nome: m.nome, valor: "sem data", selo: { texto: "Prazo passou", tom: "atencao" as Veredito } })),
+          ],
+        },
+        ...(minimoAula > total ? [{ tipo: "numeros" as const, itens: [{ rotulo: "Mínimo: 10% da renda", valor: money(minimoAula) }] }] : []),
+      ],
+    },
     acoes: veredito === "bom" ? [{ rotulo: "Quando atinjo minhas metas?", href: "/decidir/pergunta/meta" }] : [{ rotulo: "Ajustar quanto guardo no mês", href: "/orcamento" }, { rotulo: "Ver minhas metas", href: "/planejamento/metas" }],
   };
 }
@@ -308,8 +394,43 @@ export function quandoAtinjoMinhaMeta(e: { money: (v: number) => string; metas: 
     veredito,
     frase,
     detalhes,
-    conta: abertas.map((m) => ({ rotulo: m.nome, valor: `${money(m.atual)} de ${money(m.alvo)} · ${money(m.ritmoPorMes)}/mês` })),
+    conta: abertas.map((m) => ({ rotulo: m.nome, valor: `${money(m.atual)} de ${money(m.alvo)}, ${money(m.ritmoPorMes)}/mês` })),
     acoes: [{ rotulo: principal.vencida ? "Escolher uma data nova" : "Ver minhas metas", href: "/planejamento/metas" }],
+    visual: {
+      destaque: principal.chegaEm ?? "Não chega",
+      rotulo: principal.nome,
+      selo: principal.vencida
+        ? { texto: "Prazo passou", tom: "atencao" }
+        : principal.chegaEm === null
+          ? { texto: "No ritmo de hoje, não chega", tom: "ruim" }
+          : principal.noPrazo
+            ? { texto: "No prazo", tom: "bom" }
+            : { texto: "Depois do prazo", tom: "atencao" },
+      blocos: [
+        // Só quando os dois números contam histórias diferentes: R$ 2.370 e R$ 2.370 lado a lado
+        // pareciam erro (o atraso ali é de arredondamento do mês, não de dinheiro).
+        ...(!principal.vencida && !principal.noPrazo && principal.necessarioPorMes - principal.ritmoPorMes >= 10
+          ? [{ tipo: "numeros" as const, itens: [{ rotulo: "Você guarda", valor: `${money(principal.ritmoPorMes)}/mês` }, { rotulo: "Pra chegar a tempo", valor: `${money(principal.necessarioPorMes)}/mês`, tom: "atencao" as Veredito }] }]
+          : []),
+        {
+          tipo: "lista",
+          titulo: "Suas metas",
+          itens: abertas.slice(0, 6).map((m) => ({
+            nome: m.nome,
+            valor: `${money(m.atual)} de ${money(m.alvo)}`,
+            detalhe: m.chegaEm ? `chega em ${m.chegaEm}` : "no ritmo de hoje, não chega",
+            pct: m.alvo > 0 ? m.atual / m.alvo : 0,
+            selo: m.vencida
+              ? { texto: "Prazo passou", tom: "atencao" as Veredito }
+              : m.chegaEm === null
+                ? { texto: "Não chega", tom: "ruim" as Veredito }
+                : m.noPrazo
+                  ? { texto: "No prazo", tom: "bom" as Veredito }
+                  : { texto: "Atrasada", tom: "atencao" as Veredito },
+          })),
+        },
+      ],
+    },
   };
 }
 
@@ -354,6 +475,21 @@ export function minhaReservaBasta(e: {
       { rotulo: `Meta (${r.mesesMeta} meses)`, valor: money(custo * r.mesesMeta) },
     ],
     acoes: [{ rotulo: "Ver minha reserva", href: "/planejamento/reserva-emergencia" }],
+    visual: {
+      destaque: cobre,
+      rotulo: `do seu custo de vida, de ${r.mesesMeta} meses`,
+      selo: veredito === "bom" ? { texto: "Suficiente", tom: "bom" } : { texto: `Faltam ${money(falta)}`, tom: veredito },
+      blocos: [
+        { tipo: "barra", valor: meses, total: r.mesesMeta, esquerda: `Reserva ${money(r.atual)}`, direita: `Meta ${money(custo * r.mesesMeta)}`, tom: veredito },
+        {
+          tipo: "numeros",
+          itens: [
+            { rotulo: "Custo por mês", valor: money(custo) },
+            ...(veredito !== "bom" ? [{ rotulo: "Completa em", valor: mesesPraCompletar ? `${mesesPraCompletar} ${mesesPraCompletar === 1 ? "mês" : "meses"}` : "Sem valor por mês", tom: (mesesPraCompletar ? "atencao" : "ruim") as Veredito }] : []),
+          ],
+        },
+      ],
+    },
   };
 }
 
@@ -390,6 +526,23 @@ export function porqueAcabouMaisRapido(e: { money: (v: number) => string; atual:
       { rotulo: `Renda em ${e.atual.label}`, valor: money(e.atual.renda) },
     ],
     acoes: [{ rotulo: "Ver onde estou exagerando", href: "/decidir/pergunta/exagerando" }],
+    visual: {
+      destaque: diffGasto > 0 ? `+${money(diffGasto)}` : diffRenda < 0 ? `−${money(-diffRenda)}` : `−${money(-diffGasto)}`,
+      rotulo: diffGasto > 0 ? `de gastos a mais que em ${e.anterior.label}` : diffRenda < 0 ? `de renda a menos que em ${e.anterior.label}` : `de gastos a menos que em ${e.anterior.label}`,
+      blocos: [
+        {
+          tipo: "comparar",
+          antes: e.anterior.label,
+          agora: e.atual.label,
+          linhas: [
+            { rotulo: "Gastos", antes: e.anterior.gastos, agora: e.atual.gastos, antesTexto: money(e.anterior.gastos), agoraTexto: money(e.atual.gastos), melhorSeMenor: true },
+            { rotulo: "Renda", antes: e.anterior.renda, agora: e.atual.renda, antesTexto: money(e.anterior.renda), agoraTexto: money(e.atual.renda) },
+          ],
+        },
+        ...(subidas.length > 0 ? [{ tipo: "lista" as const, titulo: "O que mais subiu", itens: subidas.slice(0, 3).map((c) => ({ nome: c.label, valor: `+${money(c.diff)}`, detalhe: `${money(c.antes)} → ${money(c.agora)}` })) }] : []),
+        ...(e.maiores.length > 0 && diffGasto > 0 ? [{ tipo: "lista" as const, titulo: `Maiores gastos de ${e.atual.label}`, itens: e.maiores.slice(0, 3).map((g) => ({ nome: g.descricao, valor: money(g.valor) })) }] : []),
+      ],
+    },
   };
 }
 
@@ -424,6 +577,25 @@ export function melhoreiDoMesPassado(e: { money: (v: number) => string; atual: R
       { rotulo: `Guardado: ${e.anterior.label} → ${e.atual.label}`, valor: `${money(e.anterior.guardado)} → ${money(e.atual.guardado)}` },
     ],
     acoes: [{ rotulo: "Por que o dinheiro acabou mais rápido?", href: "/decidir/pergunta/acabou" }],
+    visual: {
+      destaque: semBase ? "Ainda não dá" : veredito === "bom" ? "Sim" : veredito === "atencao" ? "Em parte" : "Não",
+      rotulo: semBase ? `nada lançado em ${e.anterior.label}` : `${e.atual.label} contra ${e.anterior.label}`,
+      blocos: semBase
+        ? []
+        : [
+            {
+              tipo: "comparar",
+              antes: e.anterior.label,
+              agora: e.atual.label,
+              linhas: [
+                { rotulo: "Gastos", antes: e.anterior.gastos, agora: e.atual.gastos, antesTexto: money(e.anterior.gastos), agoraTexto: money(e.atual.gastos), melhorSeMenor: true },
+                { rotulo: "Guardado", antes: e.anterior.guardado, agora: e.atual.guardado, antesTexto: money(e.anterior.guardado), agoraTexto: money(e.atual.guardado) },
+                { rotulo: "Guardou da renda", antes: taxa(e.anterior), agora: taxa(e.atual), antesTexto: pct(taxa(e.anterior)), agoraTexto: pct(taxa(e.atual)) },
+              ],
+            },
+            { tipo: "numeros", itens: [{ rotulo: "Mínimo da aula", valor: "10% da renda", tom: taxa(e.atual) >= 0.1 ? "bom" : "atencao" }] },
+          ],
+    },
   };
 }
 
@@ -454,6 +626,23 @@ export function quantoPossoGastarNaSemana(e: { money: (v: number) => string; liv
       { rotulo: "Livre até o fim do mês", valor: money(e.livreMes) },
       { rotulo: "Dias que faltam", valor: String(e.diasRestantes) },
     ],
+    visual: {
+      destaque: money(Math.max(0, e.livreMes <= 0 ? 0 : e.diasRestantes < 7 ? e.livreMes : e.livreSemana)),
+      rotulo: e.livreMes <= 0 ? "livre até o fim do mês" : e.diasRestantes < 7 ? "até o fim do mês" : "livre essa semana",
+      ...(e.diasSemLancar ? { selo: { texto: `Últimos gastos há ${e.diasSemLancar} dias`, tom: "atencao" as Veredito } } : {}),
+      blocos:
+        e.livreMes <= 0
+          ? []
+          : [
+              {
+                tipo: "numeros",
+                itens: [
+                  e.diasRestantes < 7 ? { rotulo: "Dias que faltam", valor: String(e.diasRestantes) } : { rotulo: "Até o fim do mês", valor: money(e.livreMes) },
+                  { rotulo: "Por dia", valor: money(porDia) },
+                ],
+              },
+            ],
+    },
     acoes: [{ rotulo: "Posso comprar uma coisa?", href: "/decidir/comprar" }],
   };
 }
