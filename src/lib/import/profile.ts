@@ -1,6 +1,7 @@
 import { detectDocKind } from "./detect";
 import { isBancoDoBrasilStatement } from "./bb-pdf";
 import { isNubankStatement } from "./nubank-pdf";
+import { isB3Position } from "./b3-posicao";
 import { isSafraMonthlyReport } from "./safra-pdf";
 
 /**
@@ -38,6 +39,8 @@ export type DocProfile = {
 
 const INSTITUTIONS: [RegExp, string][] = [
   [/btg pactual|\bbtg\b/i, "BTG Pactual"],
+  // Pix recebido de cliente que usa Nubank fazia o relatório da InfinitePay sair como "Nubank".
+  [/infinitepay|cloudwalk/i, "InfinitePay"],
   [/nubank|nu pagamentos|nu financeira/i, "Nubank"],
   [/itaucard|\bita[uú]\b/i, "Itaú"],
   [/banco inter\b|inter\s*&\s*co|\binter s\.?a\.?\b/i, "Inter"],
@@ -289,6 +292,14 @@ export function profileDocument(text: string, fileName?: string | null): DocProf
   if (isSafraMonthlyReport(text)) {
     kind = "position";
     reason = "relatório mensal de investimentos";
+    if (!contents.includes("position")) contents.push("position");
+  }
+
+  // Posição da B3: "Vencimento" em toda linha de renda fixa fazia o perfil chamar de FATURA, e a
+  // Carteira recusava justo o arquivo que ela mesma manda baixar (13 tentativas de uma cliente).
+  if (isB3Position(text)) {
+    kind = "position";
+    reason = "posição da Área do Investidor (B3)";
     if (!contents.includes("position")) contents.push("position");
   }
 

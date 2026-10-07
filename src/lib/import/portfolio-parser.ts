@@ -1,5 +1,6 @@
 import type { AssetClass, FixedIncomeIndex } from "@prisma/client";
 import { KNOWN_ETF_BR } from "@/lib/market/known-names";
+import { isB3Position, parseB3Position } from "./b3-posicao";
 import { isSafraMonthlyReport, parseSafraMonthlyReport } from "./safra-pdf";
 import { parseBrazilianNumber } from "./statement-parser";
 
@@ -475,6 +476,12 @@ export function parsePortfolioStatement(content: string): ParsedHolding[] {
   if (isSafraMonthlyReport(content)) {
     const safra = parseSafraMonthlyReport(content);
     if (safra.length > 0) return safra;
+  }
+
+  // Posição da Área do Investidor da B3 (Excel ou PDF): renda fixa sem ticker (ver b3-posicao.ts).
+  if (isB3Position(content)) {
+    const b3 = parseB3Position(content);
+    if (b3.length > 0) return mergeByTicker(b3);
   }
 
   // 1º: Planilha de Alocação própria da Dani (Classificação + Ativo + Preço atual) — cada

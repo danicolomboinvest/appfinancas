@@ -59,6 +59,14 @@ describe("Caixa lida por OCR, conferida pelo saldo", () => {
     expect(parseCaixaOcrStatement(t)).toEqual([]);
   });
 
+  it("\"C\" lido como \"€\" no saldo não derruba a linha (nem o extrato inteiro)", () => {
+    const t = texto([
+      "30/09/2026 - 10:00:00   300001   DEB PIX CHAVE   Padaria   50,00 D   1.700,00€",
+      "20/09/2026 - 09:00:00   200001   PIX RECEBIDO   Fulana   750,00 C   1.750,00 C",
+    ]);
+    expect(parseCaixaOcrStatement(t).map((x) => x.amount)).toEqual([750, -50]);
+  });
+
   it("texto com marca de imagem nunca cai nos leitores genéricos", () => {
     const r = parseStatementComLeitor(`${OCR_MARCA}\nPIX 10/09/2026 100,00 200,00\n`, "pdf");
     expect(r.txns).toEqual([]);

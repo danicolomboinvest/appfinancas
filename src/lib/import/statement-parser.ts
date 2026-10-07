@@ -26,6 +26,7 @@ import { isIsraelCardStatement, parseIsraelCardStatement } from "./israel-cartao
 import { isSafraJsonPdf, parseSafraJsonPdf } from "./safra-json-pdf";
 import { isCaixaAppStatement, parseCaixaAppStatement } from "./caixa-pdf";
 import { isCoraStatement, parseCoraStatement } from "./cora-pdf";
+import { isInfinitePayStatement, parseInfinitePayStatement } from "./infinitepay-pdf";
 import { isInterInvoice, isInterStatement, parseInterInvoice, parseInterStatement } from "./inter-pdf";
 import { isNubankStatement, parseNubankStatement } from "./nubank-pdf";
 import { isOurocardInvoice, parseOurocardInvoice } from "./ourocard-pdf";
@@ -49,9 +50,18 @@ export type ParsedTransaction = {
   categoriaDoBanco?: string;
 };
 
+/**
+ * "−R$ 170,00" com o sinal de menos tipográfico (U+2212) ou travessão, não o hífen: é assim que
+ * vem o CSV de conta que separa "Pix enviado" de "Pix recebido". Sem trocar, toda saída virava
+ * NaN e era jogada fora calada — o extrato de 77 linhas chegava com só as 10 entradas.
+ */
+function trocarMenosTipografico(raw: string): string {
+  return raw.replace(/[\u2212\u2013\u2014]/g, "-");
+}
+
 /** Converte "1.234,56", "1234.56", "-1.234,56", "R$ 100,00" em número. Retorna NaN se vazio. */
 export function parseBrazilianNumber(raw: string): number {
-  const cleaned = raw.replace(/[R$\s]/gi, "").trim();
+  const cleaned = trocarMenosTipografico(raw).replace(/[R$\s]/gi, "").trim();
   if (cleaned === "") return NaN;
   // Se tem vírgula, ela é o separador decimal (padrão BR) e o ponto é de milhar.
   const normalized = cleaned.includes(",")
@@ -66,7 +76,7 @@ export function parseBrazilianNumber(raw: string): number {
  * "-14,097.44" (14 mil) seria lido como 14,09.
  */
 export function parseAmountFlexible(raw: string): number {
-  let t = raw.replace(/[R$\s]/gi, "").trim();
+  let t = trocarMenosTipografico(raw).replace(/[R$\s]/gi, "").trim();
   if (t === "" || t === "-") return NaN;
   // "(1.234,56)" é o jeito contábil de dizer negativo; "1.234,56 D" também.
   let negativeByMark = false;
@@ -791,6 +801,7 @@ const LEITORES_PDF: { nome: string; reconhece: (t: string) => boolean; le: (t: s
   { nome: "bradesco", reconhece: isBradescoStatement, le: (t) => parseBradescoStatement(t) },
   { nome: "bradesco-fatura", reconhece: isBradescoInvoice, le: (t, ano) => parseBradescoInvoice(t, ano) },
   { nome: "cora", reconhece: isCoraStatement, le: (t) => parseCoraStatement(t) },
+  { nome: "infinitepay", reconhece: isInfinitePayStatement, le: (t) => parseInfinitePayStatement(t) },
   { nome: "safra-json", reconhece: isSafraJsonPdf, le: (t) => parseSafraJsonPdf(t) },
   { nome: "israel-cartao", reconhece: isIsraelCardStatement, le: (t) => parseIsraelCardStatement(t) },
   { nome: "picpay", reconhece: isPicPayStatement, le: (t) => parsePicPayStatement(t) },

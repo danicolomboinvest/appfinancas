@@ -15,6 +15,7 @@ import { isInterInvoice, isInterStatement } from "./inter-pdf";
 import { isItauInvoice } from "./itau-fatura-pdf";
 import { isMercadoPagoInvoice } from "./mercado-pago-fatura-pdf";
 import { isMidwayInvoice } from "./midway-fatura-pdf";
+import { isInfinitePayStatement } from "./infinitepay-pdf";
 import { isNubankInvoice } from "./nubank-fatura-pdf";
 import { isNubankStatement } from "./nubank-pdf";
 import { isOurocardInvoice } from "./ourocard-pdf";
@@ -46,6 +47,7 @@ const MOLDES_DE_EXTRATO: [(t: string) => boolean, string][] = [
   [isNubankStatement, "extrato do Nubank"],
   [isInterStatement, "extrato do Inter"],
   [isCoraStatement, "extrato da Cora"],
+  [isInfinitePayStatement, "relatório da InfinitePay"],
   [isBanestesStatement, "extrato do Banestes"],
   [isCaixaAppStatement, "extrato da Caixa"],
   [isBancoDoBrasilStatement, "extrato do Banco do Brasil"],

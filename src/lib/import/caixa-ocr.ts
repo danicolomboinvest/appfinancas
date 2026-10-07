@@ -71,7 +71,10 @@ export function parseCaixaOcrStatement(texto: string): ParsedTransaction[] {
 
   const linhas: Linha[] = [];
   for (const bruta of texto.split(/\r?\n/)) {
-    const m = bruta.replace(/[\t ]+/g, (s) => (s.length > 1 || s === "\t" ? "  " : " ")).trim().match(LINHA_RE);
+    // O OCR às vezes lê o "C" do fim da linha como "€" ("47.511,92€"): a linha sumia e a
+    // conferência pelo saldo derrubava o extrato inteiro.
+    const limpa = bruta.replace(/€\s*$/, "C").replace(/€(?=\s+\d)/g, "C");
+    const m = limpa.replace(/[\t ]+/g, (s) => (s.length > 1 || s === "\t" ? "  " : " ")).trim().match(LINHA_RE);
     if (!m) continue;
     const [, dd, mm, aaaa, meio, valorTxt, letraValor, saldoTxt, letraSaldo] = m;
     // "SALDO DIA" (00:00:00) é o fechamento do dia, fora da ordem do tempo: não entra na conta.
