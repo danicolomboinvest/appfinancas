@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db/prisma";
 import { getAdminOverview } from "@/lib/repositories/admin-metrics.repo";
+import { contasForaDasEstatisticas } from "@/lib/repositories/community-results.repo";
 import { PROFILE_KIND_LABEL } from "@/lib/repositories/profile.repo";
 import { PROFILE_THEMES } from "@/lib/profiles/themes";
 
@@ -187,17 +188,17 @@ export async function getPlatformReport(): Promise<PlatformReport> {
     .map((s) => ({ label: SHEET_LABEL[s.sheetType] ?? s.sheetType, count: s._count._all }))
     .sort((a, b) => b.count - a.count);
 
-  // Resultado financeiro a partir da mesma base do /admin/usuarios.
-  const comDados = overview.users.filter((u) => u.mesesAtivos > 0);
-  const poupancas = comDados.map((u) => u.poupancaMediaMensal).sort((a, b) => a - b);
-  const median =
-    poupancas.length === 0
-      ? 0
-      : poupancas.length % 2 === 1
-        ? poupancas[(poupancas.length - 1) / 2]
-        : (poupancas[poupancas.length / 2 - 1] + poupancas[poupancas.length / 2]) / 2;
-  const taxas = comDados.map((u) => u.taxaPoupanca).filter((t): t is number => t != null);
-  const taxaMedia = taxas.length > 0 ? taxas.reduce((s, t) => s + t, 0) / taxas.length : null;
+  // Resultado financeiro a partir da mesma base do /admin/usuarios, com o mesmo grupo de pessoas
+  // dos Resultados: só alunas, fora quem tem extrato lido errado. Antes entravam as contas com
+  // renda de milhões (valor com a vírgula perdida), e a "taxa média" saía em −214%: uma pessoa
+  // que lançou R$ 10 de renda e R$ 2.000 de gasto pesava −19.900% na média.
+  const { alunas, contaminadas } = await contasForaDasEstatisticas();
+  const daBase = overview.users.filter((u) => alunas.has(u.id));
+  // Poupando × no vermelho só faz sentido pra quem lançou renda E gasto. Quem só importou a
+  // fatura do cartão aparecia "no vermelho" com a renda inteira faltando.
+  const comDados = daBase.filter((u) => !contaminadas.has(u.id) && u.mesesAtivos > 0 && u.taxaPoupanca != null && u.temGasto);
+  const median = mediana(comDados.map((u) => u.poupancaMediaMensal)) ?? 0;
+  const taxaMediana = mediana(comDados.map((u) => u.taxaPoupanca!));
 
   // Cadastros por semana (últimas 8), rótulo dd/mm do início da semana (segunda-feira).
   const signupsByWeek = bucketByWeek(signupUsers.map((u) => u.createdAt), 8);
@@ -219,10 +220,12 @@ export async function getPlatformReport(): Promise<PlatformReport> {
     financial: {
       poupando: comDados.filter((u) => u.poupancaMediaMensal > 0).length,
       noVermelho: comDados.filter((u) => u.poupancaMediaMensal < 0).length,
-      semDados: overview.users.length - comDados.length,
+      semDados: daBase.length - comDados.length,
       poupancaMediana: median,
-      taxaPoupancaMedia: taxaMedia,
-      patrimonioTotal: overview.totals.patrimonioTotal,
+      // Mediana (o nome do campo ficou de antes): média de proporções explode com quem lançou
+      // quase nada de renda.
+      taxaPoupancaMedia: taxaMediana,
+      patrimonioTotal: daBase.reduce((soma, u) => soma + u.patrimonioInvestido, 0),
     },
   };
 }
@@ -252,4 +255,11 @@ function bucketByWeek(dates: Date[], weeks: number): { weekLabel: string; count:
     if (b) b.count += 1;
   }
   return buckets.map(({ weekLabel, count }) => ({ weekLabel, count }));
+}
+
+function mediana(valores: number[]): number | null {
+  if (valores.length === 0) return null;
+  const v = [...valores].sort((a, b) => a - b);
+  const meio = Math.floor(v.length / 2);
+  return v.length % 2 ? v[meio] : (v[meio - 1] + v[meio]) / 2;
 }

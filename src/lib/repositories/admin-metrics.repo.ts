@@ -32,6 +32,8 @@ export type AdminUserMetric = {
   taxaPoupanca: number | null;
   /** Aportes (INVESTMENT_CONTRIBUTION) médios por mês com movimentação. */
   aporteMedioMensal: number;
+  /** Lançou algum gasto no perfil pessoal (sem isso, "poupança" é só a renda). */
+  temGasto: boolean;
   /** Quantos meses distintos a pessoa registrou algo no perfil pessoal (divisor da poupança). */
   mesesAtivos: number;
   /** Data do lançamento mais recente (proxy de "está usando"). */
@@ -67,6 +69,24 @@ export function contaParaPoupanca(profileId: string | null, perfisNaoPessoais: S
   return profileId === null || !perfisNaoPessoais.has(profileId);
 }
 
+/**
+ * Lançamento que é dinheiro de verdade. Ficam de fora duas sobras de extrato lido errado que
+ * não denunciam a conta inteira, só a linha:
+ *  - ano antes de 2000 (o OFX com data zerada caiu no "ano 2");
+ *  - "LIMITE DA CONTA" importado como renda: é o quadro de limite do extrato do Itaú, não
+ *    dinheiro que entrou. Uma conta tinha 3 × R$ 39.400 assim, e o relatório contava R$ 118 mil
+ *    de renda que ninguém recebeu. ("Juros do limite" é cobrança real, só com o sinal trocado.)
+ */
+export const LANCAMENTO_CONFIAVEL = {
+  year: { gte: 2000 },
+  NOT: {
+    category: "INCOME" as const,
+    importBatchId: { not: null },
+    description: { contains: "LIMITE DA CONTA", mode: "insensitive" as const },
+    NOT: { description: { contains: "JUROS", mode: "insensitive" as const } },
+  },
+};
+
 /** Ids dos perfis que não são o pessoal (Empresa, Casal, Casa, Projeto, Outro). */
 export async function perfisNaoPessoais(): Promise<Set<string>> {
   const perfis = await prisma.financialProfile.findMany({ where: { kind: { not: "PESSOAL" } }, select: { id: true } });
@@ -79,11 +99,12 @@ export async function getAdminOverview(sort: AdminUserSort = "patrimonio"): Prom
     prisma.asset.groupBy({ by: ["userId"], _sum: { currentValue: true, investedValue: true } }),
     prisma.monthlyEntry.groupBy({
       by: ["userId", "profileId", "category"],
+      where: LANCAMENTO_CONFIAVEL,
       _sum: { amount: true },
       _max: { createdAt: true },
     }),
     // Uma linha por (usuário, perfil, ano, mês) com movimentação → contamos meses distintos em JS.
-    prisma.monthlyEntry.groupBy({ by: ["userId", "profileId", "year", "month"], _count: { _all: true } }),
+    prisma.monthlyEntry.groupBy({ by: ["userId", "profileId", "year", "month"], where: LANCAMENTO_CONFIAVEL, _count: { _all: true } }),
     perfisNaoPessoais(),
   ]);
 
@@ -134,6 +155,7 @@ export async function getAdminOverview(sort: AdminUserSort = "patrimonio"): Prom
       poupancaMediaMensal: months > 0 ? surplus / months : 0,
       taxaPoupanca: income > 0 ? surplus / income : null,
       aporteMedioMensal: months > 0 ? invested / months : 0,
+      temGasto: expense > 0,
       mesesAtivos: months,
       ultimoLancamento: f?.last ?? null,
     };

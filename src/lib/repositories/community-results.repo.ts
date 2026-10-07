@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db/prisma";
 import { nowInBrazil } from "@/lib/date/brazil-now";
-import { contaParaPoupanca, perfisNaoPessoais } from "@/lib/repositories/admin-metrics.repo";
+import { contaParaPoupanca, LANCAMENTO_CONFIAVEL, perfisNaoPessoais } from "@/lib/repositories/admin-metrics.repo";
 
 /**
  * O resultado das alunas em números — o "depoimento sem depoimento".
@@ -102,6 +102,39 @@ function mediana(v: number[]): number {
   return ordenado.length % 2 ? ordenado[meio] : (ordenado[meio - 1] + ordenado[meio]) / 2;
 }
 
+/**
+ * Quem entra nas estatísticas da base: só conta de aluna (admin e conta de teste não são
+ * resultado de ninguém), e fora quem tem o dado contaminado por extrato lido errado.
+ * Usado pelos Resultados e pelo Relatório, pra os dois falarem do mesmo grupo de pessoas.
+ */
+export async function contasForaDasEstatisticas(
+  clientes?: { id: string; email: string }[],
+  porMes?: LinhaAgrupada[],
+): Promise<{ alunas: Set<string>; contaminadas: Set<string> }> {
+  const [lista, linhas, foraDeEscala] = await Promise.all([
+    clientes ?? prisma.user.findMany({ where: { role: "CLIENT" }, select: { id: true, email: true } }),
+    porMes ??
+      prisma.monthlyEntry.groupBy({ by: ["userId", "category"], where: LANCAMENTO_CONFIAVEL, _count: true }),
+    // Quem tem valor fora de escala sai inteiro: o dado dela está contaminado.
+    prisma.monthlyEntry.findMany({
+      where: { amount: { gt: TETO_LANCAMENTO_CONFIAVEL } },
+      select: { userId: true },
+      distinct: ["userId"],
+    }),
+  ]);
+  const alunas = new Set(lista.filter((u) => !/applereview|@example\.com/i.test(u.email)).map((u) => u.id));
+  const contaminadas = new Set(foraDeEscala.map((e) => e.userId));
+  // A outra cara da leitura errada: os valores são plausíveis, mas o SINAL se perdeu e a fatura
+  // de cartão inteira entrou como renda. Encontramos duas contas assim — R$ 5.528 de compras no
+  // MercadoLivre e na Apple contando como receita do mês. O valor não denuncia; a proporção sim:
+  // quem importou dezenas de lançamentos e NENHUM é saída não tem extrato, tem fatura lida ao
+  // contrário. Fica de fora até o dado ser corrigido.
+  for (const [userId, c] of contarPorPessoa(linhas)) {
+    if (c.total >= MIN_LANCAMENTOS_PRA_DESCONFIAR && c.entradas === c.total) contaminadas.add(userId);
+  }
+  return { alunas, contaminadas };
+}
+
 export async function getCommunityResults(): Promise<CommunityResults> {
   const agora = nowInBrazil();
   const anoAtual = agora.getFullYear();
@@ -117,6 +150,7 @@ export async function getCommunityResults(): Promise<CommunityResults> {
       .then((r) => r.length),
     prisma.monthlyEntry.groupBy({
       by: ["userId", "profileId", "year", "month", "category"],
+      where: LANCAMENTO_CONFIAVEL,
       _sum: { amount: true },
       _count: true,
     }),
@@ -125,29 +159,7 @@ export async function getCommunityResults(): Promise<CommunityResults> {
     perfisNaoPessoais(),
   ]);
 
-  // Só conta de aluna: admin e conta de teste não são resultado de ninguém.
-  const ehAluna = new Set(clientes.filter((u) => !/applereview|@example\.com/i.test(u.email)).map((u) => u.id));
-
-  // Quem tem valor fora de escala sai inteiro: o dado dela está contaminado.
-  const contaminadas = new Set(
-    (
-      await prisma.monthlyEntry.findMany({
-        where: { amount: { gt: TETO_LANCAMENTO_CONFIAVEL } },
-        select: { userId: true },
-        distinct: ["userId"],
-      })
-    ).map((e) => e.userId),
-  );
-
-  // A outra cara da leitura errada: os valores são plausíveis, mas o SINAL se perdeu e a fatura
-  // de cartão inteira entrou como renda. Encontramos duas contas assim — R$ 5.528 de compras no
-  // MercadoLivre e na Apple contando como receita do mês. O valor não denuncia; a proporção sim:
-  // quem importou dezenas de lançamentos e NENHUM é saída não tem extrato, tem fatura lida ao
-  // contrário. Fica de fora até o dado ser corrigido, senão "R$ X organizados" conta gasto como
-  // renda e a Dani publica um número que não se sustenta.
-  for (const [userId, c] of contarPorPessoa(porMes)) {
-    if (c.total >= MIN_LANCAMENTOS_PRA_DESCONFIAR && c.entradas === c.total) contaminadas.add(userId);
-  }
+  const { alunas: ehAluna, contaminadas } = await contasForaDasEstatisticas(clientes, porMes);
   const vale = (userId: string) => ehAluna.has(userId) && !contaminadas.has(userId);
 
   // Reorganiza tudo por pessoa e por mês fechado.
