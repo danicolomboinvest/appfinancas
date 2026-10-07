@@ -1,5 +1,5 @@
-import { MessageCircle } from "lucide-react";
-import { linkDoSuporte, mensagemDeErroDeImportacao } from "@/lib/support/whatsapp-link";
+import { Mail } from "lucide-react";
+import { ASSUNTO_IMPORTACAO, linkDoSuporte, mensagemDeErroDeImportacao } from "@/lib/support/whatsapp-link";
 
 /**
  * O botão que resolve o problema da pessoa na hora em que ele acontece.
@@ -7,8 +7,7 @@ import { linkDoSuporte, mensagemDeErroDeImportacao } from "@/lib/support/whatsap
  * Antes, a tela de erro MANDAVA a pessoa "falar com o suporte" e não dava caminho nenhum — ela
  * teria que sair da importação, achar o menu e começar a explicar do zero. Sete pessoas pediram
  * reembolso sem nunca ter falado com a Dani; este botão é a diferença entre desistir e resolver.
- *
- * Some quando não há número configurado, em vez de virar um botão morto.
+ * Abre o e-mail do atendimento (06/10/2026; antes era o WhatsApp) com o arquivo e o erro escritos.
  */
 export function FalarComSuporte({
   arquivo,
@@ -19,16 +18,13 @@ export function FalarComSuporte({
   problema?: string | null;
   rotulo?: string;
 }) {
-  const href = linkDoSuporte(mensagemDeErroDeImportacao({ arquivo, problema }));
-  if (!href) return null;
+  const href = linkDoSuporte(mensagemDeErroDeImportacao({ arquivo, problema }), ASSUNTO_IMPORTACAO);
   return (
     <a
       href={href}
-      target="_blank"
-      rel="noreferrer"
       className="inline-flex w-fit items-center gap-2 rounded-full bg-accent-gradient px-4 py-2 text-sm font-semibold text-on-accent shadow-premium-sm transition-opacity hover:opacity-95"
     >
-      <MessageCircle size={16} strokeWidth={2} />
+      <Mail size={16} strokeWidth={2} />
       {rotulo}
     </a>
   );

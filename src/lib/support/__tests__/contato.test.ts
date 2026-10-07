@@ -10,7 +10,7 @@ describe("contato do suporte no cadeado", () => {
     const msg = mensagemDeAcessoTrancado("Carteira de Investimentos", "maria@x.com");
     expect(msg).toContain("Carteira de Investimentos");
     expect(msg).toContain("maria@x.com");
-    expect(msg.startsWith("ACESSO:")).toBe(true);
+    expect(msg.startsWith("Oi!")).toBe(true);
   });
 
   it("sem e-mail (leitura da conta falhou), a mensagem sai mesmo assim", () => {

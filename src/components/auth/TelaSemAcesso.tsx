@@ -1,7 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
-import { Lock, MessageCircle } from "lucide-react";
+import { Lock, Mail } from "lucide-react";
 import { BrandMark } from "@/components/brand/BrandMark";
 import { Button } from "@/components/ui/Button";
 import { logoutAction } from "@/lib/auth/actions";
@@ -80,12 +80,10 @@ export function TelaSemAcesso({
             {whatsapp && (
               <a
                 href={whatsapp}
-                target="_blank"
-                rel="noopener noreferrer"
                 className="mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-border-strong px-4 text-sm font-semibold text-ink transition-colors hover:bg-surface"
               >
-                <MessageCircle size={18} strokeWidth={1.75} />
-                Chamar no WhatsApp
+                <Mail size={18} strokeWidth={1.75} />
+                Falar com a gente
               </a>
             )}
           </div>

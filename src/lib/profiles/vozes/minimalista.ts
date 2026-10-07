@@ -332,7 +332,7 @@ export const minimalista: Voz = {
       ({ "/planejamento/reserva-emergencia": "Reserva", "/carteira": "Ativos", "/carteira/por-objetivo": "Por objetivo" } as Record<string, string>)[h] ?? t,
     navPerfis: "Perfis",
     navInstalar: "Instalar",
-    navWhatsapp: "WhatsApp",
+    navWhatsapp: "Fale com a gente",
     // Carteira
     carteira: "Carteira",
     carteiraSub: "Ativos e objetivos.",

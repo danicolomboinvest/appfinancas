@@ -364,7 +364,7 @@ export const PADRAO_SHELL: TextosShell = {
   uiPaywallComprouTexto: "Talvez você tenha usado outro e-mail na compra. Fale com a gente e diga qual foi: a gente libera para você.",
   uiPaywallEmailDaConta: "E-mail desta conta",
   uiPaywallContato: "Fale com a gente",
-  uiPaywallWhatsapp: "Chamar no WhatsApp",
+  uiPaywallWhatsapp: "Falar com a gente",
 
   // ThemeQuickToggle e ThemeToggle
   uiMudarParaEscuro: "Mudar para o tema escuro",

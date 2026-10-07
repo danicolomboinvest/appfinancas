@@ -417,7 +417,7 @@ const TITULOS_BASE: TitulosBase = {
   navMais: "Mais",
   navPerfis: "Perfis financeiros",
   navInstalar: "Instalar na tela de início",
-  navWhatsapp: "Falar com a gente no WhatsApp",
+  navWhatsapp: "Falar com a gente",
   navSair: "Sair",
   carteira: "Carteira de Investimentos",
   carteiraSub: "Acompanhe seus ativos e o objetivo de cada um.",

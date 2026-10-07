@@ -704,7 +704,7 @@ const GIRLY_UI: Partial<Titulos> = {
   uiPaywallComprouTexto: "Pode ser que você tenha usado outro e-mail na compra. Chama a gente e conta qual foi, que a gente libera rapidinho 💖",
   uiPaywallEmailDaConta: "Seu e-mail aqui no app 💌",
   uiPaywallContato: "Fala com a gente 💬",
-  uiPaywallWhatsapp: "Chamar no WhatsApp 💬",
+  uiPaywallWhatsapp: "Falar comigo 💬",
 
   uiMudarParaEscuro: "Mudar para o tema escuro 🌙",
   uiMudarParaClaro: "Mudar para o tema claro ☀️",
@@ -1646,7 +1646,7 @@ export const girly: Voz = {
     navMais: "Mais 💕",
     navPerfis: "Seus perfis 🎀",
     navInstalar: "Colocar na tela de início 📲",
-    navWhatsapp: "Falar comigo no WhatsApp 💬",
+    navWhatsapp: "Falar comigo 💬",
     navSair: "Sair 👋",
     carteira: "Seus investimentos 🐷",
     carteiraSub: "Tudo que você tem investido, e para que serve cada um 💕",

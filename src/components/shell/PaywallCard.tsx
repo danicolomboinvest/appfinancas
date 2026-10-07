@@ -1,10 +1,10 @@
-import { Lock, MessageCircle } from "lucide-react";
+import { Lock, Mail } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { COURSE_CHECKOUT_URL } from "@/lib/config";
 import { getRequiredSession } from "@/lib/auth/session";
 import { getOwnUser } from "@/lib/repositories/user.repo";
 import { vozDoTema } from "@/lib/profiles/voice";
-import { EMAIL_DO_SUPORTE, mensagemDeAcessoTrancado } from "@/lib/support/contato";
+import { ASSUNTO_ACESSO, EMAIL_DO_SUPORTE, mensagemDeAcessoTrancado } from "@/lib/support/contato";
 import { linkDoSuporte } from "@/lib/support/whatsapp-link";
 import Link from "next/link";
 import { naAppDaApple, noAppAndroid } from "@/lib/apple/app-da-apple";
@@ -53,7 +53,7 @@ export async function PaywallCard({ feature }: { feature: string }) {
   const user = await getOwnUser(ctx).catch(() => null);
   const email = user?.email ?? null;
   const t = vozDoTema(ctx.profileTheme, ctx.profileKind).titulos;
-  const whatsapp = linkDoSuporte(mensagemDeAcessoTrancado(feature, email));
+  const whatsapp = linkDoSuporte(mensagemDeAcessoTrancado(feature, email), ASSUNTO_ACESSO);
 
   return (
     <Card className="mx-auto flex max-w-md flex-col items-center gap-4 p-6 text-center sm:p-8">
@@ -85,11 +85,9 @@ export async function PaywallCard({ feature }: { feature: string }) {
         {whatsapp && (
           <a
             href={whatsapp}
-            target="_blank"
-            rel="noopener noreferrer"
             className="mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-border-strong px-4 text-sm font-semibold text-ink transition-colors hover:bg-surface"
           >
-            <MessageCircle size={18} strokeWidth={1.75} />
+            <Mail size={18} strokeWidth={1.75} />
             {t.uiPaywallWhatsapp}
           </a>
         )}

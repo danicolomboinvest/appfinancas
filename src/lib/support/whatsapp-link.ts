@@ -1,28 +1,28 @@
 /**
- * O link que abre a conversa no WhatsApp da Dani (que é onde o ManyChat atende) já com a
- * mensagem escrita.
+ * O link do botão "Falar com a gente": abre o app de e-mail da pessoa já com o assunto e a
+ * mensagem escritos, endereçado a app@danicolombo.com.br.
  *
- * É QUEM manda a primeira mensagem que decide se isso funciona. O WhatsApp só permite mensagem
- * livre dentro de 24h do último contato da pessoa; quando ela inicia, a janela abre e o fluxo do
- * ManyChat pode responder à vontade. Por isso o botão na tela de erro é o caminho principal de
- * suporte, e o disparo automático do app é só o reforço pra quem não clicou.
+ * Até 06/10/2026 abria o WhatsApp (ManyChat). Trocou porque o WhatsApp só deixa responder em até
+ * 24h depois da última mensagem da pessoa; passou disso, a Dani não consegue mais responder. E-mail
+ * não tem prazo. O nome do arquivo ficou pelo histórico.
  *
  * A mensagem já vai escrita por dois motivos: a pessoa frustrada não precisa formular nada, e o
- * texto carrega o que aconteceu — o ManyChat consegue reconhecer o assunto e responder na hora.
+ * texto carrega o que aconteceu (o arquivo, o erro, o e-mail da conta), então a Dani não precisa
+ * perguntar. O assunto separa os casos na caixa de entrada.
  */
 
-/** Aparece no começo da mensagem pro fluxo do ManyChat reconhecer o assunto. */
-export const PALAVRA_CHAVE_IMPORTACAO = "ERRO-IMPORTACAO";
+import { EMAIL_DO_SUPORTE } from "./contato";
 
-export function linkDoSuporte(mensagem: string): string | null {
-  const numero = process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP?.replace(/\D/g, "");
-  if (!numero) return null;
-  return `https://wa.me/${numero}?text=${encodeURIComponent(mensagem)}`;
+export const ASSUNTO_PADRAO = "Ajuda com o SPI Finance";
+export const ASSUNTO_IMPORTACAO = "Erro ao importar no SPI Finance";
+
+export function linkDoSuporte(mensagem: string, assunto = ASSUNTO_PADRAO): string {
+  return `mailto:${EMAIL_DO_SUPORTE}?subject=${encodeURIComponent(assunto)}&body=${encodeURIComponent(mensagem)}`;
 }
 
 /** A mensagem que a pessoa manda quando a importação deu errado. */
 export function mensagemDeErroDeImportacao(opcoes: { arquivo?: string | null; problema?: string | null }): string {
-  const partes = [`${PALAVRA_CHAVE_IMPORTACAO}: oi! tentei subir meu extrato no SPI Finance e não deu certo.`];
+  const partes = ["Oi! Tentei subir meu extrato no SPI Finance e não deu certo."];
   if (opcoes.arquivo) partes.push(`Arquivo: ${opcoes.arquivo}.`);
   if (opcoes.problema) partes.push(`O app disse: ${opcoes.problema}`);
   return partes.join(" ");

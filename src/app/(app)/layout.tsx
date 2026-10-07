@@ -24,7 +24,7 @@ import { naAppDaApple } from "@/lib/apple/app-da-apple";
 import { IDS_DOS_PRODUTOS } from "@/lib/apple/config";
 import { guardarTokenApple } from "@/lib/repositories/assinaturaApple.repo";
 import { linkDoSuporte } from "@/lib/support/whatsapp-link";
-import { mensagemDeContaSemAcesso } from "@/lib/support/contato";
+import { ASSUNTO_ACESSO, mensagemDeContaSemAcesso } from "@/lib/support/contato";
 import { lerPreferenciasDeCategoria, type PreferenciasDeCategoria } from "@/lib/categories";
 import { lerConfigCasal } from "@/lib/casal/acerto";
 
@@ -72,7 +72,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       // cadeado, que fala de compra feita fora, não pode aparecer lá.
       if (await naAppDaApple()) return <AssinarPelaApple token={await guardarTokenApple(user)} produtosIds={[...IDS_DOS_PRODUTOS]} />;
       const compraDoCelular = acesso === "sem-compra" ? await compraComOCelular(user.phone) : null;
-      return <TelaSemAcesso email={user.email} situacao={acesso} compraDoCelular={compraDoCelular} whatsapp={linkDoSuporte(mensagemDeContaSemAcesso(user.email))} />;
+      return <TelaSemAcesso email={user.email} situacao={acesso} compraDoCelular={compraDoCelular} whatsapp={linkDoSuporte(mensagemDeContaSemAcesso(user.email), ASSUNTO_ACESSO)} />;
     }
     // Conta nova só abre depois de confirmar o e-mail: sem isso qualquer um criava a conta com
     // o e-mail de outra pessoa (de uma compradora, inclusive). Vem antes do /comecar, que

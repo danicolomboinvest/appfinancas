@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Lock, LogOut, Smartphone, MessageCircle, Wallet } from "lucide-react";
+import { Lock, LogOut, Mail, Smartphone, Wallet } from "lucide-react";
+import { linkDoSuporte } from "@/lib/support/whatsapp-link";
 import { Modal } from "@/components/ui/Modal";
 import { secoesDoMais, ADMIN_NAV_SECTION, withNavFlags, secoesVisiveis } from "./nav-sections";
 import { ThemeToggle } from "./ThemeToggle";
@@ -112,17 +113,14 @@ export function MoreSheet({
           {voz.titulos.navInstalar}
         </button>
         )}
-        {process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP && (
-          <a
-            href={`https://wa.me/${process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP.replace(/\D/g, "")}?text=${encodeURIComponent("Oi! Preciso de ajuda com o SPI Finance.")}`}
-            target="_blank"
-            rel="noreferrer"
-            className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-ink hover:bg-surface-2"
-          >
-            <MessageCircle size={18} strokeWidth={1.75} className="text-ink-muted" />
-            {voz.titulos.navWhatsapp}
-          </a>
-        )}
+        {/* Atendimento por e-mail (06/10/2026): no WhatsApp a Dani só pode responder em até 24h. */}
+        <a
+          href={linkDoSuporte("Oi! Preciso de ajuda com o SPI Finance.")}
+          className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-ink hover:bg-surface-2"
+        >
+          <Mail size={18} strokeWidth={1.75} className="text-ink-muted" />
+          {voz.titulos.navWhatsapp}
+        </a>
       </div>
 
       <div className="mt-3 border-t border-border pt-3">

@@ -6,17 +6,20 @@
  */
 export const EMAIL_DO_SUPORTE = "app@danicolombo.com.br";
 
-/** A mensagem pronta do WhatsApp pra quem comprou e está vendo o cadeado. Leva o e-mail da conta
+/** Assunto do e-mail de quem não consegue entrar ou vê o cadeado. */
+export const ASSUNTO_ACESSO = "Acesso ao SPI Finance";
+
+/** A mensagem pronta do e-mail de quem comprou e está vendo o cadeado. Leva o e-mail da conta
  * porque é a primeira coisa que o suporte precisa pra achar a compra e liberar. */
 export function mensagemDeAcessoTrancado(recurso: string, emailDaConta: string | null): string {
-  const partes = [`ACESSO: oi! comprei o SPI Finance, mas "${recurso}" aparece trancado pra mim.`];
+  const partes = [`Oi! Comprei o SPI Finance, mas "${recurso}" aparece trancado pra mim.`];
   if (emailDaConta) partes.push(`O e-mail da minha conta no app é ${emailDaConta}.`);
   return partes.join(" ");
 }
 
-/** A mensagem pronta do WhatsApp de quem vê "Seu acesso não está ativo" no lugar do app. */
+/** A mensagem pronta do e-mail de quem vê "Seu acesso não está ativo" no lugar do app. */
 export function mensagemDeContaSemAcesso(emailDaConta: string): string {
-  return `ACESSO: oi! não consigo entrar no SPI Finance. O e-mail da minha conta no app é ${emailDaConta}. O e-mail da minha compra é: `;
+  return `Oi! Não consigo entrar no SPI Finance. O e-mail da minha conta no app é ${emailDaConta}. O e-mail da minha compra é: `;
 }
 
 /**

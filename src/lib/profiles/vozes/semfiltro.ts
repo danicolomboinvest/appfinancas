@@ -423,7 +423,7 @@ export const semfiltro: Voz = {
     navFilho: (h, t) => FILHOS[h] ?? t,
     navMais: "Mais coisas",
     navInstalar: "Botar na tela de início",
-    navWhatsapp: "Chamar a gente no WhatsApp",
+    navWhatsapp: "Chamar a gente",
     navSair: "Sair (volta, hein)",
 
     // ── Carteira ───────────────────────────────────────────────────────────────────
