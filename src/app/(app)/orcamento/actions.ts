@@ -2,9 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { getRequiredSession } from "@/lib/auth/session";
-import { applyBudgetToWholeYear, applyBudgetToWholeYearForCustomCategory, definirPlanoDoMes, listBudgets } from "@/lib/repositories/budget.repo";
+import { definirPlanoDoMes, listBudgets, salvarPlanoDoAno } from "@/lib/repositories/budget.repo";
 import { createCustomCategory, deleteOwnCustomCategory, listCustomCategories } from "@/lib/repositories/custom-category.repo";
-import { applyMonthlyPlanToWholeYear } from "@/lib/repositories/monthly-plan.repo";
 import { annualBudgetSchema, annualBudgetForCustomCategorySchema } from "@/lib/validations/budget.schema";
 import { customCategorySchema } from "@/lib/validations/custom-category.schema";
 import { PARENT_CATEGORIES } from "@/lib/categories";
@@ -17,8 +16,8 @@ export type AnnualBudgetState = { error?: string };
  * Salva o planejamento de todas as categorias (padrão + personalizadas) de uma vez, um único
  * botão "Salvar tudo" em vez de um "Salvar" por cartão. Os campos chegam nomeados
  * `plannedAmount_<ParentCategory>` e `plannedAmount_custom_<id>` (ver BudgetWizard.tsx).
- * Cada categoria já é salva de forma atômica internamente (applyBudgetToWholeYear faz um
- * $transaction pros 12 meses); aplicamos todas em paralelo já que são independentes entre si.
+ * Tudo vai numa transação só (salvarPlanoDoAno, 07/10/2026): antes eram uma transação por categoria
+ * em paralelo, perto de 100 comandos num plano completo, e o "Salvar" demorava a confirmar.
  */
 export async function applyAllBudgetsAction(
   _prevState: AnnualBudgetState,
@@ -51,23 +50,23 @@ export async function applyAllBudgetsAction(
 
   // Só grava o que ela mexeu. O formulário manda todas as categorias, e regravar as intocadas
   // espalhava pro resto do ano um ajuste "só deste mês" (o do Fechamento, o do aviso do Foco).
-  const parentWrites = PARENT_CATEGORIES.flatMap((parentCategory) => {
+  const pais: { parentCategory: (typeof PARENT_CATEGORIES)[number]; plannedAmount: number }[] = [];
+  for (const parentCategory of PARENT_CATEGORIES) {
     const raw = formData.get(`plannedAmount_${parentCategory}`);
-    if (!mudouDoCarregado(raw, formData.get(`plannedOriginal_${parentCategory}`))) return [];
+    if (!mudouDoCarregado(raw, formData.get(`plannedOriginal_${parentCategory}`))) continue;
     const parsed = annualBudgetSchema.safeParse({ year, parentCategory, plannedAmount: raw });
-    return [parsed.success ? applyBudgetToWholeYear(ctx, parsed.data) : Promise.reject(parsed.error)];
-  });
+    if (!parsed.success) return { error: "Algum valor não pôde ser salvo, confira os campos e tente de novo." };
+    pais.push({ parentCategory: parsed.data.parentCategory, plannedAmount: parsed.data.plannedAmount });
+  }
 
-  const customWrites = customCategoryIds.flatMap((customCategoryId) => {
+  const personalizadas: { customCategoryId: string; plannedAmount: number }[] = [];
+  for (const customCategoryId of customCategoryIds) {
     const raw = formData.get(`plannedAmount_custom_${customCategoryId}`);
-    if (!mudouDoCarregado(raw, formData.get(`plannedOriginal_custom_${customCategoryId}`))) return [];
+    if (!mudouDoCarregado(raw, formData.get(`plannedOriginal_custom_${customCategoryId}`))) continue;
     const parsed = annualBudgetForCustomCategorySchema.safeParse({ year, customCategoryId, plannedAmount: raw });
-    return [
-      parsed.success
-        ? applyBudgetToWholeYearForCustomCategory(ctx, parsed.data)
-        : Promise.reject(parsed.error),
-    ];
-  });
+    if (!parsed.success) return { error: "Algum valor não pôde ser salvo, confira os campos e tente de novo." };
+    personalizadas.push({ customCategoryId: parsed.data.customCategoryId, plannedAmount: parsed.data.plannedAmount });
+  }
 
   // Renda e aporte planejados vêm no MESMO formulário: planejar é decidir quanto entra,
   // quanto sai e quanto fica guardado — separar em dois lugares faria a pessoa pensar que são
@@ -86,12 +85,8 @@ export async function applyAllBudgetsAction(
     mudouDoCarregado(formData.get("plannedInvestment"), formData.get("plannedInvestmentOriginal"));
 
   try {
-    await Promise.all([
-      ...parentWrites,
-      ...customWrites,
-      // Mesmos meses das categorias: renda e aporte de mês já vivido não são reescritos.
-      planoValido && planoMudou ? applyMonthlyPlanToWholeYear(ctx, year, planejado, mesesQueOSalvarGrava(year, hoje)) : Promise.resolve(),
-    ]);
+    // Mesmos meses para categorias, renda e aporte: mês já vivido não é reescrito.
+    await salvarPlanoDoAno(ctx, year, { pais, proprias: personalizadas, planoMensal: planoValido && planoMudou ? planejado : null }, mesesQueOSalvarGrava(year, hoje));
   } catch {
     return { error: "Algum valor não pôde ser salvo, confira os campos e tente de novo." };
   }

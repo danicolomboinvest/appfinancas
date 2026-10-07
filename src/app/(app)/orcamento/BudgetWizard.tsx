@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useId, useMemo, useState, useTransition } from "react";
+import { useActionState, useEffect, useId, useMemo, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import type { ParentCategory } from "@prisma/client";
 import type { LucideIcon } from "lucide-react";
@@ -25,6 +25,7 @@ import { EditarPadrao, EditarPropria } from "@/app/(app)/configuracoes/categoria
 import { NewCustomCategoryCard } from "./NewCustomCategoryCard";
 import { applyAllBudgetsAction, deleteCustomCategoryAction, type AnnualBudgetState } from "./actions";
 import { useVoltarAoTopo } from "@/components/ui/useVoltarAoTopo";
+import { PLANO_SALVO } from "@/components/budget/EditarPlano";
 
 const initialState: AnnualBudgetState = {};
 const STEP = 50;
@@ -68,8 +69,22 @@ export function BudgetWizard({
   const money = useMoney();
   const { kind, empresa, voz, categorias } = useProfileTheme();
   const t = voz.titulos;
-  const [state, formAction, isPending] = useActionState(applyAllBudgetsAction, initialState);
+  // Se a conexão cai no meio do salvar, a ação lança erro e a tela ficava "Salvando…" ou caía na
+  // página de erro. Agora vira uma mensagem para tentar de novo (07/10/2026).
+  const [state, formAction, isPending] = useActionState(async (anterior: AnnualBudgetState, dados: FormData): Promise<AnnualBudgetState> => {
+    try {
+      return await applyAllBudgetsAction(anterior, dados);
+    } catch {
+      return { error: "Não deu para confirmar se salvou. Confira a internet e toque em Salvar de novo." };
+    }
+  }, initialState);
   useSuccessToast(isPending, state.error, t.formOrcSalvo);
+  // Salvou sem erro: avisa a janela do "Editar plano" para fechar.
+  const estavaSalvando = useRef(false);
+  useEffect(() => {
+    if (estavaSalvando.current && !isPending && !state.error) window.dispatchEvent(new Event(PLANO_SALVO));
+    estavaSalvando.current = isPending;
+  }, [isPending, state.error]);
   // A referência de quanto guardar muda com o perfil: 18% da aula pra pessoa, 10% de
   // retenção pra empresa. Os chips e as notas de rodapé seguem o mesmo número.
   const savingsPct = savingsPercentFor(kind);

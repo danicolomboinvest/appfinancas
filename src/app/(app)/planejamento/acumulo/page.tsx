@@ -303,6 +303,7 @@ export default async function IndependenciaFinanceiraPage() {
                           rows={years}
                           rowKey={(y) => String(y.year)}
                           maxHeightClassName="max-h-[520px] overflow-y-auto"
+                          compactoNoCelular
                         />
                       </CollapsibleSection>
                     </>

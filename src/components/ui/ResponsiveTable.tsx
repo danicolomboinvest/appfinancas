@@ -21,7 +21,10 @@ export function ResponsiveTable<T>({
   rowKey,
   emptyMessage,
   maxHeightClassName,
+  compactoNoCelular = false,
 }: {
+  /** No celular, os pares em duas colunas (rótulo pequeno em cima, valor embaixo): metade da altura. */
+  compactoNoCelular?: boolean;
   columns: ResponsiveColumn<T>[];
   rows: T[];
   rowKey: (row: T) => string;
@@ -64,9 +67,22 @@ export function ResponsiveTable<T>({
         </table>
       </Card>
 
-      <div className={`flex flex-col gap-3 sm:hidden ${maxHeightClassName ?? ""}`}>
+      {/* `shrink-0` nos cartões: dentro de uma caixa com altura máxima, o flex espremia cada
+          cartão até sobrar uma tira de 30px com o número cortado (07/10/2026, a tabela ano a ano
+          da Aposentadoria no celular). */}
+      <div className={`flex flex-col gap-3 sm:hidden [&>*]:shrink-0 ${maxHeightClassName ?? ""}`}>
         {rows.map((row) => (
           <Card key={rowKey(row)} className="p-4">
+            {compactoNoCelular ? (
+              <dl className="grid grid-cols-2 gap-x-4 gap-y-2.5">
+                {columns.map((col) => (
+                  <div key={col.key} className="min-w-0">
+                    {!col.hideLabelOnMobile && <dt className="text-xs text-ink-muted">{col.label}</dt>}
+                    <dd className="truncate text-sm font-medium tabular-nums text-ink">{col.render(row)}</dd>
+                  </div>
+                ))}
+              </dl>
+            ) : (
             <div className="flex flex-col">
               {columns.map((col) => (
                 <div
@@ -78,6 +94,7 @@ export function ResponsiveTable<T>({
                 </div>
               ))}
             </div>
+            )}
           </Card>
         ))}
       </div>

@@ -1,4 +1,4 @@
-import type { ParentCategory } from "@prisma/client";
+import type { ParentCategory, Prisma } from "@prisma/client";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import { prisma } from "@/lib/db/prisma";
 import type { AuthContext } from "@/lib/auth/session";
@@ -64,6 +64,71 @@ export async function applyBudgetToWholeYear(
         : prisma.budget.create({ data: { ...input, month, userId: ctx.userId, profileId: ctx.profileId } });
     }),
   );
+}
+
+/**
+ * O "Salvar meu plano" inteiro numa ida ao banco (07/10/2026). Antes cada categoria mexida fazia a
+ * própria leitura e até 12 gravações separadas, todas ao mesmo tempo, mais 12 da renda e do que
+ * guardar: perto de 100 comandos num plano completo. A Dani via o botão carregando, o plano
+ * gravava, e a tela não confirmava. Agora: uma leitura do que já existe e, por categoria, um
+ * "atualiza os meses que existem" e um "cria os que faltam", tudo numa transação só.
+ *
+ * Mesmas regras de antes: só as categorias que ela mexeu, só os `meses` que o salvar pode tocar.
+ */
+export async function salvarPlanoDoAno(
+  ctx: AuthContext,
+  year: number,
+  mudancas: {
+    pais: { parentCategory: ParentCategory; plannedAmount: number }[];
+    proprias: { customCategoryId: string; plannedAmount: number }[];
+    /** Renda e quanto guardar; ausente quando ela não mexeu nos dois. */
+    planoMensal: { plannedIncome: number; plannedInvestment: number } | null;
+  },
+  meses: number[],
+): Promise<void> {
+  if (meses.length === 0) return;
+  const { pais, proprias, planoMensal } = mudancas;
+  if (pais.length === 0 && proprias.length === 0 && !planoMensal) return;
+  const dono = { userId: ctx.userId, profileId: ctx.profileId, year };
+
+  const [orcamentos, planos] = await Promise.all([
+    pais.length + proprias.length > 0
+      ? prisma.budget.findMany({
+          where: {
+            ...dono,
+            month: { in: meses },
+            OR: [{ parentCategory: { in: pais.map((p) => p.parentCategory) } }, { customCategoryId: { in: proprias.map((p) => p.customCategoryId) } }],
+          },
+          select: { month: true, parentCategory: true, customCategoryId: true },
+        })
+      : Promise.resolve([]),
+    planoMensal ? prisma.monthlyPlan.findMany({ where: { ...dono, month: { in: meses } }, select: { month: true } }) : Promise.resolve([]),
+  ]);
+
+  const ops: Prisma.PrismaPromise<unknown>[] = [];
+  for (const p of pais) {
+    const tem = new Set(orcamentos.filter((b) => b.parentCategory === p.parentCategory).map((b) => b.month));
+    ops.push(prisma.budget.updateMany({ where: { ...dono, month: { in: meses }, parentCategory: p.parentCategory }, data: { plannedAmount: p.plannedAmount } }));
+    const faltam = meses.filter((m) => !tem.has(m));
+    if (faltam.length > 0) {
+      ops.push(prisma.budget.createMany({ data: faltam.map((month) => ({ ...dono, month, parentCategory: p.parentCategory, plannedAmount: p.plannedAmount })) }));
+    }
+  }
+  for (const p of proprias) {
+    const tem = new Set(orcamentos.filter((b) => b.customCategoryId === p.customCategoryId).map((b) => b.month));
+    ops.push(prisma.budget.updateMany({ where: { ...dono, month: { in: meses }, customCategoryId: p.customCategoryId }, data: { plannedAmount: p.plannedAmount } }));
+    const faltam = meses.filter((m) => !tem.has(m));
+    if (faltam.length > 0) {
+      ops.push(prisma.budget.createMany({ data: faltam.map((month) => ({ ...dono, month, customCategoryId: p.customCategoryId, plannedAmount: p.plannedAmount })) }));
+    }
+  }
+  if (planoMensal) {
+    const tem = new Set(planos.map((pl) => pl.month));
+    ops.push(prisma.monthlyPlan.updateMany({ where: { ...dono, month: { in: meses } }, data: planoMensal }));
+    const faltam = meses.filter((m) => !tem.has(m));
+    if (faltam.length > 0) ops.push(prisma.monthlyPlan.createMany({ data: faltam.map((month) => ({ ...dono, month, ...planoMensal })) }));
+  }
+  await prisma.$transaction(ops);
 }
 
 /**
