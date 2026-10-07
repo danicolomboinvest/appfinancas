@@ -45,7 +45,7 @@ export function GuardadosDoSonho({ itens }: { itens: GuardadoDoSonho[] }) {
                   <span className="min-w-0 flex-1">
                     <span className="block text-sm text-ink">
                       {MESES[it.month - 1]} de {it.year}
-                      {it.futuro && <span className="text-ink-faint"> · ainda vai acontecer</span>}
+                      {it.futuro && <span className="text-ink-faint">, ainda vai acontecer</span>}
                     </span>
                     {it.description && <span className="block truncate text-caption text-ink-faint">{it.description}</span>}
                   </span>

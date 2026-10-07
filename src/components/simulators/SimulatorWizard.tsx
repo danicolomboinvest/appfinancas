@@ -191,7 +191,7 @@ export function SimulatorWizard({
           {blocos.map((b) =>
             b.campos.length === 0 ? null : (
               <Card key={b.id} className="flex flex-col gap-1 p-5">
-                <p className="text-caption font-semibold uppercase tracking-[0.11em] text-ink-muted">{b.titulo}</p>
+                <p className="text-caption font-semibold text-ink-muted">{b.titulo}</p>
                 <div className="flex flex-col divide-y divide-border">
                   {b.campos.map((f) => (
                     <Campo key={f.name} field={f} values={values} setField={setField} draft={draft} setDraft={setDraft} money={money} currency={currency} padrao={defaults[f.name]} />

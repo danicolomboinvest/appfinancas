@@ -324,8 +324,8 @@ export function EntryList({
               {nomesDoCasal && (entry.pessoa === "A" || entry.pessoa === "B") && (
                 <span className="font-medium text-ink-muted">
                   {nomesDoCasal[entry.pessoa]}
-                  {entry.category === "EXPENSE" && entry.doCasal === false ? " · Pessoal" : ""}
-                  {(entry.dayLabel || entry.description) && " · "}
+                  {entry.category === "EXPENSE" && entry.doCasal === false ? ", Pessoal" : ""}
+                  {(entry.dayLabel || entry.description) && ", "}
                 </span>
               )}
               {/* Conta lançada antes de pagar (03/10/2026): mostra que ainda vai vencer. */}
@@ -339,7 +339,7 @@ export function EntryList({
                 </span>
               )}
               {entry.dayLabel && <span className="tabular-nums">{entry.dayLabel}</span>}
-              {entry.dayLabel && entry.description && " · "}
+              {entry.dayLabel && entry.description && ", "}
               {entry.description}
             </span>
           </span>
@@ -512,8 +512,8 @@ export function EntryList({
                 </p>
                 <p className="mt-0.5 text-sm text-ink-muted">
                   {categoryKindLabel(open.category, voz, open.amount)}
-                  {open.subcategory && ` · ${categoryName(open, customCategories, voz, kind)}`}
-                  {open.dayLabel && ` · ${open.dayLabel}`}
+                  {open.subcategory && `, ${categoryName(open, customCategories, voz, kind)}`}
+                  {open.dayLabel && `, ${open.dayLabel}`}
                 </p>
               </div>
               <div className="shrink-0 text-right">
@@ -522,7 +522,7 @@ export function EntryList({
                 </p>
                 {open.originalLabel && open.exchangeRate && (
                   <p className="text-xs tabular-nums text-ink-faint">
-                    {open.originalLabel} · {t.uiCotacao(open.exchangeRate.toLocaleString("pt-BR", { maximumFractionDigits: 4 }))}
+                    {open.originalLabel}, {t.uiCotacao(open.exchangeRate.toLocaleString("pt-BR", { maximumFractionDigits: 4 }))}
                   </p>
                 )}
               </div>

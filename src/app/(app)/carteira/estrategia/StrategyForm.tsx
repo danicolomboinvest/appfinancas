@@ -281,7 +281,7 @@ export function StrategyForm({
                 if (daFaixa.length === 0) return null;
                 return (
                   <div key={faixa} className="flex flex-col gap-1.5">
-                    <p className="text-caption font-semibold uppercase tracking-[0.11em] text-accent-strong">{t.formEstFaixa[faixa]}</p>
+                    <p className="text-caption font-semibold text-accent-strong">{t.formEstFaixa[faixa]}</p>
                     <ul className="flex flex-col divide-y divide-border overflow-hidden rounded-2xl border border-border bg-surface-2">
                       {daFaixa.map((s) => {
                         const Icone = ICONE_DO_SONHO[s.tipo];
@@ -315,7 +315,7 @@ export function StrategyForm({
           <span className="flex size-14 items-center justify-center rounded-full bg-accent-gradient text-on-accent shadow-premium-sm">
             <Compass size={26} strokeWidth={1.9} aria-hidden />
           </span>
-          <p className="text-caption font-semibold uppercase tracking-[0.11em] text-accent-strong">{t.formEstSeuPerfil}</p>
+          <p className="text-caption font-semibold text-accent-strong">{t.formEstSeuPerfil}</p>
           <h2 className="text-4xl font-extrabold tracking-tight text-ink">{perfil.label}</h2>
           <p className="text-sm text-ink-muted">{perfil.description}</p>
           <p className="text-caption text-ink-faint">{resultado.reason}</p>

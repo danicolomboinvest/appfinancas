@@ -157,7 +157,9 @@ export const PROFILE_THEMES: ProfileTheme[] = [
     ink: "#2b2226", inkMuted: "#7a6670", accent: "#c53d74", onAccent: "#ffffff", accentStrong: "#b8336a",
     extras: {
       // O herói das telas (06/10/2026): o bloco do número principal pintado na cor do tema.
-      "heroi-de": "#c53d74", "heroi-para": "#e2789f", "heroi-tinta": "#ffffff", "heroi-suave": "rgba(255, 255, 255, 0.82)", "heroi-borda": "transparent", "heroi-destaque": "var(--color-brand-a)",
+      // Rosa clarinho com texto framboesa escuro desde 07/10/2026: o framboesa cheio com texto
+      // branco era forte demais ("dói os olhos até", a Dani). Contraste do texto: 10:1.
+      "heroi-de": "#f9cfe0", "heroi-para": "#fde9f1", "heroi-tinta": "#4a1d33", "heroi-suave": "rgba(74, 29, 51, 0.72)", "heroi-borda": "rgba(197, 61, 116, 0.16)", "heroi-destaque": "#d4568a",
       "tab-active": "#c53d74", "tab-active-soft": "rgba(197, 61, 116, 0.12)",
       // Uma escala do mesmo rosa por categoria, do framboesa ao blush. Varia em profundidade,
       // não em matiz, como nas referências: a rosca continua legível e continua rosa.
@@ -183,7 +185,8 @@ export const PROFILE_THEMES: ProfileTheme[] = [
       "info": "#c9789a", "info-soft": "rgba(201, 120, 154, 0.13)",
       "accent-neutral": "#c9789a", "accent-neutral-2": "#e6b3c6", "accent-neutral-soft": "rgba(201, 120, 154, 0.14)",
       // A pílula ativa das abas em rosa, não em preto.
-      "pill": "#c53d74", "on-pill": "#ffffff",
+      // A aba e o botão escolhidos em rosa claro com texto escuro (07/10/2026), pelo mesmo motivo.
+      "pill": "#f6c3d7", "on-pill": "#4a1d33",
       // A marca: o sol âmbar sobre quadrado escuro vira sol rosa sobre blush.
       "brand-a": "#f7b8d0", "brand-b": "#c53d74", "brand-bg": "#fde3ec",
       // As classes da carteira (renda fixa, ações, FIIs…) na mesma escala de rosa.
@@ -197,7 +200,9 @@ export const PROFILE_THEMES: ProfileTheme[] = [
     ink: "#191919", inkMuted: "#75746f", accent: "#191919", onAccent: "#ffffff",
     extras: {
       // O herói das telas (06/10/2026): o bloco do número principal pintado na cor do tema.
-      "heroi-de": "#191919", "heroi-para": "#2b2b2a", "heroi-tinta": "#ffffff", "heroi-suave": "rgba(255, 255, 255, 0.72)", "heroi-borda": "transparent", "heroi-destaque": "var(--color-brand-a)",
+      // Cinza clarinho com texto preto (07/10/2026), como os outros temas claros: o bloco preto
+      // cheio era o contraste mais forte da tela, e o Minimalista é o tema de "sem enfeite".
+      "heroi-de": "#ececea", "heroi-para": "#f6f6f4", "heroi-tinta": "#191919", "heroi-suave": "rgba(25, 25, 25, 0.66)", "heroi-borda": "rgba(25, 25, 25, 0.08)", "heroi-destaque": "#191919",
       // Ícone só de contorno, quadrado arredondado, tinta preta: linha, não mancha.
       "--icon-radius": "10px",
       "--icon-fill": "0%",
@@ -245,7 +250,8 @@ export const PROFILE_THEMES: ProfileTheme[] = [
     ink: "#201c1a", inkMuted: "#6b625e", accent: "#d63a3f", onAccent: "#ffffff",
     extras: {
       // O herói das telas (06/10/2026): o bloco do número principal pintado na cor do tema.
-      "heroi-de": "#d63a3f", "heroi-para": "#e8686c", "heroi-tinta": "#ffffff", "heroi-suave": "rgba(255, 255, 255, 0.84)", "heroi-borda": "transparent", "heroi-destaque": "var(--color-brand-a)",
+      // Coral clarinho com texto escuro (07/10/2026), como o Girly: o coral cheio cansava a vista.
+      "heroi-de": "#ffd9d9", "heroi-para": "#ffeded", "heroi-tinta": "#5c1d1f", "heroi-suave": "rgba(92, 29, 31, 0.72)", "heroi-borda": "rgba(214, 58, 63, 0.16)", "heroi-destaque": "#d63a3f",
       "tab-active": "#d63a3f", "tab-active-soft": "rgba(214, 58, 63, 0.12)",
       // Coral e quentes. Categoria vira emoji (ver icones.ts), num círculo coral-claro.
       "cat-moradia": "#d63a3f", "cat-alimentacao": "#ff7a7e", "cat-transporte": "#a82a2e", "cat-saude": "#ffb3b6",
@@ -289,7 +295,8 @@ export const PROFILE_THEMES: ProfileTheme[] = [
     ink: "#2b2130", inkMuted: "#6f6377", accent: "#7b5ea7", onAccent: "#ffffff",
     extras: {
       // O herói das telas (06/10/2026): o bloco do número principal pintado na cor do tema.
-      "heroi-de": "#7b5ea7", "heroi-para": "#9c80c4", "heroi-tinta": "#ffffff", "heroi-suave": "rgba(255, 255, 255, 0.84)", "heroi-borda": "transparent", "heroi-destaque": "var(--color-brand-a)",
+      // Lilás clarinho com texto escuro (07/10/2026), como o Girly: o roxo cheio pesava na tela.
+      "heroi-de": "#e6daf3", "heroi-para": "#f4eefa", "heroi-tinta": "#3b2a52", "heroi-suave": "rgba(59, 42, 82, 0.72)", "heroi-borda": "rgba(123, 94, 167, 0.18)", "heroi-destaque": "#7b5ea7",
       "tab-active": "#7b5ea7", "tab-active-soft": "rgba(123, 94, 167, 0.12)",
       // Lilás do escuro ao claro, e o ícone ganha um brilho suave em cima, como vidro.
       "cat-moradia": "#7b5ea7", "cat-alimentacao": "#a98bd4", "cat-transporte": "#5a4383", "cat-saude": "#cdb6e4",

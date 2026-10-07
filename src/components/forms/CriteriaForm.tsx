@@ -196,7 +196,7 @@ export function CriteriaForm({
 
       {categories.map((category) => (
         <div key={category}>
-          <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-faint">{category}</h2>
+          <h2 className="mb-2 text-xs font-semibold text-ink-faint">{category}</h2>
           <div className="flex flex-col gap-2">
             {criteria
               .filter((criterion) => criterion.category === category)

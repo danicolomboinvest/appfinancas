@@ -240,7 +240,7 @@ export function TravelPlanner({ annualRate }: { annualRate: number }) {
             label: row.label,
             color: row.color,
             fillPercent: (row.value / totals.total) * 100,
-            rightLabel: `${money(row.value, { round: true })} · ${Math.round((row.value / totals.total) * 100)}%`,
+            rightLabel: `${money(row.value, { round: true })}, ${Math.round((row.value / totals.total) * 100)}%`,
           }))
       : [];
 
@@ -388,11 +388,11 @@ export function TravelPlanner({ annualRate }: { annualRate: number }) {
                 >
                   {estimate.seasonLevel === "alta" ? (
                     <>
-                      <strong>{t.viagemAltaTemporada}</strong> {t.viagemAltaTemporadaDica(Math.round((estimate.seasonFactor - 1) * 100))}
+                      <strong className="block">{t.viagemAltaTemporada}</strong> {t.viagemAltaTemporadaDica(Math.round((estimate.seasonFactor - 1) * 100))}
                     </>
                   ) : (
                     <>
-                      <strong>{t.viagemBaixaTemporada}</strong> {t.viagemBaixaTemporadaDica(Math.round((1 - estimate.seasonFactor) * 100))}
+                      <strong className="block">{t.viagemBaixaTemporada}</strong> {t.viagemBaixaTemporadaDica(Math.round((1 - estimate.seasonFactor) * 100))}
                     </>
                   )}
                 </p>
@@ -512,7 +512,7 @@ export function TravelPlanner({ annualRate }: { annualRate: number }) {
                 {estimate.legs.map((leg) => (
                   <div key={leg.destination.key} className="flex items-center justify-between gap-3">
                     <span className="min-w-0 truncate text-xs text-ink-faint">
-                      {leg.destination.label} · {leg.days} {t.viagemDias(leg.days)}
+                      {leg.destination.label}, {leg.days} {t.viagemDias(leg.days)}
                     </span>
                     <span className="shrink-0 text-xs tabular-nums text-ink-muted">{money(leg.subtotal, { round: true })}</span>
                   </div>

@@ -35,7 +35,7 @@ export default async function AdminAvisosPage() {
                 <p className="text-sm text-ink">{dados.motivo}</p>
                 {dados.texto && <p className="text-sm text-ink-muted">&ldquo;{dados.texto}&rdquo;</p>}
                 {dados.regra && <p className="text-caption text-ink-faint">Regra: {dados.regra}</p>}
-                <p className="text-caption text-ink-faint">{a.user.name ?? ""} · {a.user.email}</p>
+                <p className="text-caption text-ink-faint">{a.user.name ?? ""}, {a.user.email}</p>
               </Card>
             );
           })}

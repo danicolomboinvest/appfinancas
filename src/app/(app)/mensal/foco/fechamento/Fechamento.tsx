@@ -95,7 +95,7 @@ export function Fechamento({ d }: { d: DadosFechamento }) {
       )}
 
       {passo === 0 && (
-        <Passo rotulo={`1 de 6 · ${d.mes}`} titulo={maiuscula(d.lancamentos > 0 ? t.fechImportadoT(d.mes, d.lancamentos) : t.fechImportarT(d.mes))}>
+        <Passo rotulo={`1 de 6, ${d.mes}`} titulo={maiuscula(d.lancamentos > 0 ? t.fechImportadoT(d.mes, d.lancamentos) : t.fechImportarT(d.mes))}>
           {d.lancamentos > 0 ? (
             <Botao onClick={() => seguir()}>Próximo</Botao>
           ) : (
@@ -114,7 +114,7 @@ export function Fechamento({ d }: { d: DadosFechamento }) {
       )}
 
       {passo === 1 && (
-        <Passo rotulo={`2 de 6 · Raio-X de ${d.mes}`}>
+        <Passo rotulo={`2 de 6, Raio-X de ${d.mes}`}>
           <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1.5 text-sm">
             <dt className="text-ink-muted">Renda</dt>
             <dd className="text-right tabular-nums text-ink">{m(d.renda)}</dd>
@@ -160,7 +160,7 @@ export function Fechamento({ d }: { d: DadosFechamento }) {
       )}
 
       {passo === 2 && (
-        <Passo rotulo="3 de 6 · O que sobrou" titulo={d.sobra >= 1 ? <span className="text-[2rem] font-bold tabular-nums">{m(d.sobra)}</span> : undefined}>
+        <Passo rotulo="3 de 6, O que sobrou" titulo={d.sobra >= 1 ? <span className="text-[2rem] font-bold tabular-nums">{m(d.sobra)}</span> : undefined}>
           {d.sobra >= 1 && d.lancamentos === 0 ? (
             <>
               {/* Sem os gastos do mês, "sobra" é renda menos contas fixas: não é dinheiro de verdade. */}
@@ -204,7 +204,7 @@ export function Fechamento({ d }: { d: DadosFechamento }) {
       )}
 
       {passo === 3 && (
-        <Passo rotulo="4 de 6 · Ajustar este mês" titulo={maior ? `${maior.label}: ${m(maior.gasto)} de ${m(maior.planejado)} em ${d.mes}` : t.focoNadaTitulo}>
+        <Passo rotulo="4 de 6, Ajustar este mês" titulo={maior ? `${maior.label}: ${m(maior.gasto)} de ${m(maior.planejado)} em ${d.mes}` : t.focoNadaTitulo}>
           {maior ? (
             <>
               <p className="text-sm text-ink-muted">{t.fechAjusteP}</p>
@@ -230,7 +230,7 @@ export function Fechamento({ d }: { d: DadosFechamento }) {
       )}
 
       {passo === 4 && (
-        <Passo rotulo={`5 de 6 · ${t.fechAporteEy}`} titulo={d.aporteFaltando > 0 ? t.fechAporteT(m(d.aporteFaltando)) : undefined}>
+        <Passo rotulo={`5 de 6, ${t.fechAporteEy}`} titulo={d.aporteFaltando > 0 ? t.fechAporteT(m(d.aporteFaltando)) : undefined}>
           {d.aporteFaltando > 0 ? (
             <>
               <p className="text-sm text-ink-muted">{t.fechAporteP}</p>
@@ -259,7 +259,7 @@ export function Fechamento({ d }: { d: DadosFechamento }) {
       )}
 
       {passo === 5 && (
-        <Passo rotulo="6 de 6 · Seu número do mês">
+        <Passo rotulo="6 de 6, Seu número do mês">
           <p className="text-caption text-ink-muted">{t.fechNumeroSub}</p>
           {d.livreMes !== null && d.livreSemana !== null ? (
             <>
@@ -273,7 +273,7 @@ export function Fechamento({ d }: { d: DadosFechamento }) {
             disabled={salvando}
             onClick={() =>
               gravar(async () => {
-                const { primeiro } = await concluirRitualAction("fechamento", d.chave, escolhas.join(" · ") || "lição registrada");
+                const { primeiro } = await concluirRitualAction("fechamento", d.chave, escolhas.join(", ") || "lição registrada");
                 // Comemoração só no PRIMEIRO mês fechado (conquista rara); nos outros, o toque.
                 if (primeiro) {
                   setPrimeiroMes(true);

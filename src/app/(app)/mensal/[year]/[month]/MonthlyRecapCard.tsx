@@ -2,13 +2,16 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { ChevronRight, Sparkles, X } from "lucide-react";
+import { CalendarCheck, ChevronRight, X } from "lucide-react";
 import { dismissMonthlyRecapAction } from "@/app/(app)/resumo-mensal/actions";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 
 /** Convite pro Resumo Mensal no topo do Fluxo, leva pra experiência imersiva de stories.
  * Só aparece na janela de fim/início de mês (decidido no server, ver getRecapEligibility) e
- * some assim que a pessoa fecha — não fica de banner permanente o mês inteiro. */
+ * some assim que a pessoa fecha — não fica de banner permanente o mês inteiro.
+ *
+ * Uma linha simples (07/10/2026): saiu o ícone de faísca (virou o símbolo de "feito por IA"), o
+ * degradê dourado e a frase de baixo; fica o título na voz do tema e a seta. */
 export function MonthlyRecapCard({ monthKey }: { monthKey: string }) {
   const [dismissed, setDismissed] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -17,15 +20,12 @@ export function MonthlyRecapCard({ monthKey }: { monthKey: string }) {
   if (dismissed) return null;
 
   return (
-    <div className="group relative flex items-center gap-3 overflow-hidden rounded-2xl border border-accent/30 bg-gradient-to-r from-accent-soft via-surface to-surface p-4 transition-all hover:border-accent/60">
-      <Link href="/resumo-mensal" className="flex min-w-0 flex-1 items-center gap-3 active:scale-[0.99]">
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-accent to-accent-strong text-on-accent shadow-premium-sm">
-          <Sparkles size={20} strokeWidth={1.75} />
+    <div className="group flex items-center gap-3 rounded-2xl border border-border bg-surface px-3.5 py-2.5 transition-colors hover:bg-surface-hover">
+      <Link href="/resumo-mensal" className="flex min-h-12 min-w-0 flex-1 items-center gap-3 active:scale-[0.99]">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-accent-strong">
+          <CalendarCheck size={18} aria-hidden />
         </span>
-        <span className="min-w-0 flex-1">
-          <span className="block text-sm font-semibold text-ink">{voz.titulos.impResumoPronto}</span>
-          <span className="block text-xs text-ink-muted">{voz.titulos.impResumoProntoSub}</span>
-        </span>
+        <span className="min-w-0 flex-1 text-[15px] font-semibold text-ink">{voz.titulos.impResumoPronto}</span>
         <ChevronRight size={18} className="shrink-0 text-ink-faint transition-transform group-hover:translate-x-0.5" />
       </Link>
       <button

@@ -458,7 +458,7 @@ export const PADRAO_FORMULARIOS: TextosFormularios = {
   formApIdadeHoje: "Sua idade hoje",
   formApPararAos: "Quer parar aos",
   formApPremissas: "Premissas",
-  formApPremissasSub: "Os números técnicos. Já vieram preenchidos — só abra se quiser mexer.",
+  formApPremissasSub: "Os números técnicos. Já vieram preenchidos, só abra se quiser mexer.",
   formApPremissasNota: "Nenhum destes números é promessa: são o cenário que você escolhe simular.",
   formApRendem: "Quanto seus investimentos rendem por ano",
   formApRendemHint: "Antes de descontar a inflação. Se você investe perto do CDI, use a taxa do CDI.",
@@ -507,7 +507,7 @@ export const PADRAO_FORMULARIOS: TextosFormularios = {
   formEstComoFicaria: "Como sua carteira ficaria",
   formEstSoma: (pct) => `Soma: ${pct}`,
   formEstFecha: "✓ fecha em 100%",
-  formEstNaoFecha: "— precisa somar 100%",
+  formEstNaoFecha: "✗ precisa somar 100%",
   formEstSalvar: "Salvar estratégia",
   formEstNaoSalva: "Ainda não salvo",
 

@@ -295,7 +295,7 @@ export const PADRAO_CONFIGURACOES: TextosConfiguracoes = {
   cfgConexoesAbrindo: "Abrindo…",
   cfgConexoesRodape: "Via Pluggy, regulada pelo Banco Central. Desconecte quando quiser.",
   cfgBancosConectados: "Bancos conectados",
-  cfgConexaoAtualizado: (data, novos) => `atualizado ${data} · ${novos} novo${novos === 1 ? "" : "s"}`,
+  cfgConexaoAtualizado: (data, novos) => `atualizado ${data}, ${novos} novo${novos === 1 ? "" : "s"}`,
   cfgConexaoAindaNaoBuscou: "ainda não buscou",
   cfgConexaoReautorizar: "precisa reautorizar",
   cfgBuscarAgora: "Buscar agora",
@@ -319,7 +319,7 @@ export const PADRAO_CONFIGURACOES: TextosConfiguracoes = {
   cfgExcluirContaTexto: [
     "Apaga a conta e ",
     "todos os seus dados",
-    " (lançamentos, orçamentos, metas, carteira) de forma definitiva. Não tem volta, se quiser guardar algo, exporte antes.",
+    " (lançamentos, orçamentos, metas, carteira) de forma definitiva. Não tem volta. Se quiser guardar algo, exporte antes.",
   ],
   cfgExcluirContaQuero: "Quero excluir minha conta",
   cfgExcluirContaSenha: "Digite sua senha para confirmar",
@@ -386,9 +386,9 @@ export const PADRAO_CONFIGURACOES: TextosConfiguracoes = {
   viagemEstiloLabel: (_chave, texto) => texto,
   viagemQuando: "Quando pretende ir?",
   viagemAltaTemporada: "Alta temporada",
-  viagemAltaTemporadaDica: (pct) => `— passagem e hospedagem ficam cerca de ${pct}% mais caras neste mês.`,
+  viagemAltaTemporadaDica: (pct) => `Passagem e hospedagem ficam cerca de ${pct}% mais caras neste mês.`,
   viagemBaixaTemporada: "Baixa temporada",
-  viagemBaixaTemporadaDica: (pct) => `— boa época: passagem e hospedagem saem cerca de ${pct}% mais baratas.`,
+  viagemBaixaTemporadaDica: (pct) => `Boa época: passagem e hospedagem saem cerca de ${pct}% mais baratas.`,
   viagemMesMaisBarato: ["Em ", " a mesma viagem sai ", " mais barata."],
   viagemTrocar: "Trocar",
   // Viagem: os blocos de custo e o resultado
@@ -402,7 +402,7 @@ export const PADRAO_CONFIGURACOES: TextosConfiguracoes = {
   viagemDeOndeVemCusto: "De onde vem o custo",
   viagemCustoEstimado: "Custo estimado da viagem",
   viagemPorPessoa: (porPessoa, porMes, meses) =>
-    `${porPessoa} por pessoa · guardando ${porMes}/mês, você chega lá em ${meses} ${meses === 1 ? "mês" : "meses"}.`,
+    `${porPessoa} por pessoa, guardando ${porMes}/mês, você chega lá em ${meses} ${meses === 1 ? "mês" : "meses"}.`,
   viagemValoresVoltaram: "Os valores que você editou voltaram para a estimativa, porque o roteiro, as pessoas ou o estilo mudaram.",
   viagemUsarMeus: "Usar os meus",
   viagemOutraMoeda: (simbolo) => `As estimativas são em reais. Digite quanto custa cada bloco em ${simbolo}.`,

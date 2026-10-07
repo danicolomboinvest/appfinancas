@@ -153,6 +153,10 @@ export type TitulosBase = {
   ficouComVoce(pct: string): string;
   /** Embaixo do Gastou: leva ao Orçamento, que é a casa do plano. */
   dePlanejados(valor: string): string;
+  /** O rótulo do número do Orçamento (07/10/2026): "Livre em outubro". */
+  livreEm(mes: string): string;
+  /** O detalhe de cada quadrado do Mensal (07/10/2026): "53% da renda". */
+  doQueEntrou(pct: string): string;
   /** A linha "Aportou" do painel. */
   aportou: string;
   /** As linhas "Entrou" e "Gastou" do painel. Só a Empresa muda ("Faturou", "Custos e despesas"). */
@@ -203,6 +207,8 @@ export type TitulosBase = {
   // Corpo da aposentadoria
   apSeNadaMudar(idade: number): string;
   apHoje: string;
+  /** A explicação da renda, mostrada só na primeira vez embaixo do número. */
+  apRendaExplica: string;
   apDaPe: string;
   apNaoDaPe: string;
   apVereditoIntro: string;
@@ -276,6 +282,8 @@ export type TitulosBase = {
   divLiquido: string;
   divBruto: string;
   divNota: string;
+  /** O nome da linha dos dividendos, sem o valor (07/10/2026): o valor vem em negrito ao lado. */
+  divRotulo: string;
   compAportar: string;
   compReduzir: string;
   objNenhumTitulo: string;
@@ -343,6 +351,8 @@ const TITULOS_BASE: TitulosBase = {
   poupanca: "Poupança",
   ficouComVoce: (pct) => `Ficou com você: ${pct}`,
   dePlanejados: (valor) => `de ${valor} planejados`,
+  doQueEntrou: (pct) => `${pct} da renda`,
+  livreEm: (mes) => `Livre em ${mes.toLowerCase()}`,
   aportou: "Guardado",
   entrou: "Entrou",
   gastou: "Gastou",
@@ -367,7 +377,7 @@ const TITULOS_BASE: TitulosBase = {
   metaAporteFeito: (mes) => `Aporte de ${mes} feito`,
   metaAporteToast: (mes) => `Aporte de ${mes} registrado na meta.`,
   metaMarcar: (mes) => `Guardei em ${mes}`,
-  metasResumo: (n, porMes) => `${n} ${Number(n) === 1 ? "meta" : "metas"}${porMes ? ` · ${porMes} por mês` : ""}`,
+  metasResumo: (n, porMes) => `${n} ${Number(n) === 1 ? "meta" : "metas"}${porMes ? `, ${porMes} por mês` : ""}`,
   metaOutroValor: "outro valor",
   splitTitulo: (mes) => `Para onde vai o que você guarda em ${mes}`,
   splitSub: (v) => `${v} por mês, do seu orçamento. Reserva primeiro, depois as metas por prazo.`,
@@ -383,11 +393,12 @@ const TITULOS_BASE: TitulosBase = {
   formRendeHint: "Reserva fica em aplicação de liquidez diária, então costuma render perto do CDI.",
   apSeNadaMudar: (idade) => `Se nada mudar, aos ${idade} anos você tem`,
   apHoje: "em dinheiro de hoje",
+  apRendaExplica: "A renda é o que esse dinheiro paga por mês sem você mexer no principal.",
   apDaPe: "Dá pé",
   apNaoDaPe: "Ainda não dá pé",
   apVereditoIntro: "É o que esse patrimônio paga sem consumir o principal. Você quer gastar",
-  apSobram: "— sobram",
-  apFaltam: "— faltam",
+  apSobram: "e sobram",
+  apFaltam: "e faltam",
   apTodoMes: "todo mês.",
   apDeOndeVem: "De onde vem esse dinheiro",
   apDeOndeVemHint: "Em dinheiro de hoje, a mesma moeda do número lá em cima.",
@@ -433,16 +444,17 @@ const TITULOS_BASE: TitulosBase = {
   secaoMetas: "Metas",
   estrategiaVsAlvo: "Para chegar na sua estratégia",
   estrategia: "Estratégia da Carteira",
-  contribTitulo: (mes) => `Qual é o seu aporte de ${mes}?`,
+  contribTitulo: (mes) => `Aporte de ${mes}`,
   contribSub: "Sugestão de aporte para rebalanceamento da carteira.",
   contribLabel: "Vou aportar",
-  contribSemAtivo: " · ainda sem ativo desse tipo",
+  contribSemAtivo: ", ainda sem ativo desse tipo",
   contribVazio: "Sua carteira ainda está vazia, então a divisão segue só a estratégia.",
   contribSemEstrategiaTitulo: "Onde colocar o aporte deste mês?",
   contribSemEstrategiaSub: "Com ela, o app diz quanto vai para cada tipo de investimento.",
   contribDefinir: "Definir minha estratégia →",
-  divTitulo: (total) => `Próximos dividendos · ${total} previstos`,
-  divDatas: (dataCom, pagamento) => `Data com ${dataCom} · Pagamento ${pagamento}`,
+  divTitulo: (total) => `Próximos dividendos, ${total} previstos`,
+  divRotulo: "Próximos dividendos",
+  divDatas: (dataCom, pagamento) => `Data com ${dataCom}, Pagamento ${pagamento}`,
   divLiquido: "líquido de IR",
   divBruto: "bruto, s/ IR",
   divNota: "Estimativa com a quantidade de hoje. JSCP já sem os 15% de IR. Fonte: investidor10.",
@@ -548,7 +560,7 @@ export function fraseOrcamentoPadrao(d: DadosOrcamento): string {
   if (porDia === null || diasRestantes === 0) return `Sobrou ${inteiro(money, restante)} do planejado.`;
   const sobra = `Sobram ${inteiro(money, restante)} para ${diasRestantes} ${diasRestantes === 1 ? "dia" : "dias"}: ${inteiro(money, porDia)} por dia até dia ${ultimoDia}.`;
   if (situacao === "adiantado") return `${sobra} Você está gastando adiantado para a altura do mês.`;
-  if (situacao === "folgado") return `${sobra} Está sobrando mais do que o esperado — dá para guardar a diferença.`;
+  if (situacao === "folgado") return `${sobra} Está sobrando mais do que o esperado, dá para guardar a diferença.`;
   return sobra;
 }
 

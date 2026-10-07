@@ -39,7 +39,7 @@ function Regra({ regra }: { regra: RegraAprendidaView }) {
         </p>
         <p className="text-caption text-ink-muted">
           {regra.categoria}
-          {regra.subcategory ? ` · ${regra.subcategory}` : ""}
+          {regra.subcategory ? `, ${regra.subcategory}` : ""}
         </p>
       </div>
       <button

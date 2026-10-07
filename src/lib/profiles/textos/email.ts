@@ -46,7 +46,7 @@ export const PADRAO_EMAIL: TextosEmail = {
   emailRecapIntro: (mes) => `Fechamos ${mes}. Veja como foi:`,
   emailRecapSobrou: "Sobrou no mês",
   emailRecapFaltou: "Faltou no mês",
-  emailRecapPrimeiroMes: "Esse foi seu primeiro mês com registros — no próximo dá para comparar.",
+  emailRecapPrimeiroMes: "Esse foi seu primeiro mês com registros. No próximo dá para comparar.",
   emailRecapGastosIguais: "Seus gastos ficaram praticamente no mesmo nível do mês anterior.",
   emailRecapGastosMenos: (valor) => `Você gastou ${valor} que no mês anterior.`,
   emailRecapGastosMais: (valor) => `Seus gastos ficaram ${valor} do mês anterior.`,
@@ -58,7 +58,7 @@ export const PADRAO_EMAIL: TextosEmail = {
   emailRecapBotaoFechar: (mes) => `Fechar ${mes}`,
   emailConviteAssunto: (mes) => `Bora organizar ${mes}?`,
   emailConviteIntro1: (mes) =>
-    `Começou ${mes} — e mês novo é a melhor hora para começar, porque você acompanha ele inteiro, do início ao fim.`,
+    `Começou ${mes}, e mês novo é a melhor hora para começar, porque você acompanha ele inteiro, do início ao fim.`,
   emailConviteIntro2:
     "Não precisa organizar tudo de uma vez. <strong>Anote um gasto de hoje</strong>, só um, e o app já começa a montar o resto: para onde seu dinheiro está indo, quanto sobra, quanto dá para guardar.",
   emailConviteBotao: "Anotar meu primeiro gasto",

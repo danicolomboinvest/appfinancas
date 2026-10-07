@@ -21,7 +21,7 @@ export function ContasDoFoco({ contas, atrasadas, hoje }: { contas: ContaSerial[
 
   return (
     <Card className="p-5">
-      <p className={`text-caption font-semibold uppercase tracking-[0.11em] ${atrasadas > 0 ? "text-danger" : "text-ink-muted"}`}>{t.contasFocoEy}</p>
+      <p className={`text-caption font-semibold ${atrasadas > 0 ? "text-danger" : "text-ink-muted"}`}>{t.contasFocoEy}</p>
       <p className="mt-1 text-body font-semibold text-ink">{t.contasFocoTitulo(atrasadas, contas.length - atrasadas)}</p>
       <ul className="mt-2 divide-y divide-border">
         {contas.slice(0, NO_FOCO).map((c) => (

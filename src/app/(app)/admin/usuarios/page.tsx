@@ -134,7 +134,7 @@ export default async function AdminUsuariosPage(props: PageProps<"/admin/usuario
                       rel="noreferrer"
                       className="text-xs font-medium text-success hover:underline"
                     >
-                      {formatPhone(u.phone)} · WhatsApp
+                      {formatPhone(u.phone)}, WhatsApp
                     </a>
                   ) : (
                     <div className="text-xs text-ink-faint">sem celular</div>

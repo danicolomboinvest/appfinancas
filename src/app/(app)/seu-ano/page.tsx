@@ -46,7 +46,7 @@ export default async function SeuAnoPage() {
         className="flex min-h-[70vh] flex-col gap-4 rounded-3xl p-7 text-on-accent shadow-premium"
         style={{ background: "linear-gradient(160deg, var(--color-accent), color-mix(in srgb, var(--color-accent) 72%, #000))" }}
       >
-        <p className="text-caption font-bold uppercase tracking-[0.16em] opacity-80">Seu ano com o SPI · {now.getFullYear()}</p>
+        <p className="text-caption font-bold opacity-80">Seu ano com o SPI, {now.getFullYear()}</p>
         <p className="text-[2rem] font-bold leading-tight tracking-tight">
           {c.decisoes > 0
             ? `${desde ? `Desde ${desde}, v` : "V"}ocê decidiu pelo seu futuro ${c.decisoes} ${c.decisoes > 1 ? "vezes" : "vez"}.`

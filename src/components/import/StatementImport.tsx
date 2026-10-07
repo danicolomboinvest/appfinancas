@@ -440,7 +440,7 @@ export function StatementImport({
       setPhase("done");
       const parts = [t.impToastImportados(result.created)];
       if (result.skipped > 0) parts.push(t.impToastJaExistiam(result.skipped));
-      showToast(parts.join(" · ") + ".");
+      showToast(parts.join(", ") + ".");
     });
   }
 
@@ -956,7 +956,7 @@ export function StatementImport({
               {duvidasDinheiro.map((it) => (
                 <li key={it.key} className="flex flex-col gap-1.5 border-t border-border/60 pt-2 first:border-t-0 first:pt-0">
                   <span className="text-sm text-ink">
-                    <b>{it.description}</b> · {it.category === "INCOME" ? "+" : "−"} {money(it.amount)} · {formatDate(it.date)}
+                    <b>{it.description}</b>, {it.category === "INCOME" ? "+" : "−"} {money(it.amount)}, {formatDate(it.date)}
                   </span>
                   {/* O destaque vai pra resposta certa quase sempre: dinheiro indo pra outra conta
                       dela é "só mudei de conta". Antes o botão forte era "Guardei (aplicação)", e
@@ -998,7 +998,7 @@ export function StatementImport({
               {deFora.map((it) => (
                 <li key={it.key} className="flex flex-col gap-1">
                   <span className="text-sm text-ink">
-                    {it.description} · {money(it.amount)} · {formatDate(it.date)}
+                    {it.description}, {money(it.amount)}, {formatDate(it.date)}
                   </span>
                   {it.nota && <span className="text-caption text-ink-muted">{it.nota}</span>}
                   <button
@@ -1024,7 +1024,7 @@ export function StatementImport({
               {duvidas.map((it) => (
                 <li key={it.key} className="flex flex-col gap-1.5 border-t border-border/60 pt-2 first:border-t-0 first:pt-0">
                   <span className="text-sm text-ink">
-                    <b>{it.description}</b> · {money(it.amount)} · {formatDate(it.date)}
+                    <b>{it.description}</b>, {money(it.amount)}, {formatDate(it.date)}
                   </span>
                   {/* Veio de outro arquivo (outro banco, ou o mesmo extrato em outro formato) ou foi
                       lançado à mão: a frase diz qual, e ela decide olhando as duas descrições. */}
@@ -1060,7 +1060,7 @@ export function StatementImport({
               {[...repeatGroups.entries()].map(([key, group]) => (
                 <li key={key} className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                   <span className="min-w-0 truncate text-sm text-ink">
-                    {group[0].description} · {money(group[0].amount)} · {group.length}× em {formatDate(group[0].date)}
+                    {group[0].description}, {money(group[0].amount)}, {group.length}× em {formatDate(group[0].date)}
                   </span>
                   {group.length > 1 && (
                     <button
@@ -1093,9 +1093,9 @@ export function StatementImport({
                     <p className="truncate text-sm text-ink">{it.description}</p>
                     {it.nota && <p className="text-caption text-accent-strong">{it.nota}</p>}
                     <p className="text-caption text-ink-faint">
-                      {formatDate(it.date)} · {it.estorno && `${t.impTipoDevolucao} · `}
+                      {formatDate(it.date)}, {it.estorno && `${t.impTipoDevolucao}, `}
                       <span className={gastoSemCategoria(it) && !it.duvida ? "font-medium text-accent-strong" : undefined}>{rotuloDaLinha(it)}</span>
-                      {it.profileId && ` · ${t.impMoverPra(otherProfiles.find((p) => p.id === it.profileId)?.name ?? "")}`}
+                      {it.profileId && `, ${t.impMoverPra(otherProfiles.find((p) => p.id === it.profileId)?.name ?? "")}`}
                     </p>
                   </div>
                   <div className="flex shrink-0 items-center gap-1">

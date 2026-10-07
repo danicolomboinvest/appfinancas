@@ -45,7 +45,7 @@ export function ViradaDoAno({ v }: { v: DadosVirada }) {
       <Pontos total={3} atual={passo} />
 
       {passo === 0 && (
-        <Passo rotulo={`1 de 3 · Seu ${v.passado}`}>
+        <Passo rotulo={`1 de 3, Seu ${v.passado}`}>
           <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1.5 text-sm">
             <dt className="text-ink-muted">Entrou</dt>
             <dd className="text-right tabular-nums text-ink">{m(v.resumo.renda)}</dd>
@@ -72,7 +72,7 @@ export function ViradaDoAno({ v }: { v: DadosVirada }) {
       )}
 
       {passo === 1 && (
-        <Passo rotulo={`2 de 3 · Sugestão pra ${v.ano}`} titulo="Com base no que você viveu, eu começaria assim:">
+        <Passo rotulo={`2 de 3, Sugestão pra ${v.ano}`} titulo="Com base no que você viveu, eu começaria assim:">
           <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1.5 text-sm">
             <dt className="text-ink-muted">Renda por mês</dt>
             <dd className="text-right tabular-nums text-ink">{m(s.renda)}</dd>
@@ -81,7 +81,7 @@ export function ViradaDoAno({ v }: { v: DadosVirada }) {
           </dl>
           {s.categorias.length > 0 && (
             <div className="flex flex-col gap-1.5">
-              <p className="text-caption font-semibold uppercase tracking-[0.11em] text-ink-muted">Orçamento por mês</p>
+              <p className="text-caption font-semibold text-ink-muted">Orçamento por mês</p>
               {s.categorias.map((c) => (
                 <div key={c.key} className="flex items-start justify-between gap-3 text-sm">
                   <span className="min-w-0">
@@ -100,7 +100,7 @@ export function ViradaDoAno({ v }: { v: DadosVirada }) {
           )}
           {v.fixas.length > 0 && (
             <div className="flex flex-col gap-1.5">
-              <p className="text-caption font-semibold uppercase tracking-[0.11em] text-ink-muted">Contas fixas que continuam</p>
+              <p className="text-caption font-semibold text-ink-muted">Contas fixas que continuam</p>
               <p className="text-caption text-ink-muted">Desmarque a que acabou ou mudou de valor (a nova você lança em {v.ano}).</p>
               {v.fixas.map((f) => (
                 <LinhaConta key={f.chave} f={f} marcada={escolhidas.has(f.chave)} onAlternar={() => alternar(f.chave)} valor={m(f.valor)} />
@@ -109,7 +109,7 @@ export function ViradaDoAno({ v }: { v: DadosVirada }) {
           )}
           {v.talvezFixas.length > 0 && (
             <div className="flex flex-col gap-1.5">
-              <p className="text-caption font-semibold uppercase tracking-[0.11em] text-ink-muted">Lançados em dezembro</p>
+              <p className="text-caption font-semibold text-ink-muted">Lançados em dezembro</p>
               <p className="text-caption text-ink-muted">Algum destes é conta fixa que continua em {v.ano}? Marque pra ele repetir todo mês.</p>
               {v.talvezFixas.map((f) => (
                 <LinhaConta key={f.chave} f={f} marcada={escolhidas.has(f.chave)} onAlternar={() => alternar(f.chave)} valor={m(f.valor)} />
@@ -131,7 +131,7 @@ export function ViradaDoAno({ v }: { v: DadosVirada }) {
       )}
 
       {passo === 2 && (
-        <Passo rotulo={`3 de 3 · Começar ${v.ano}`} titulo={`Como você quer começar ${v.ano}?`}>
+        <Passo rotulo={`3 de 3, Começar ${v.ano}`} titulo={`Como você quer começar ${v.ano}?`}>
           {v.jaTemOrcamentoNoAnoNovo && (
             <p className="text-sm text-ink-muted">Você já tem orçamento em {v.ano}. Começar com a sugestão troca os valores deste mês em diante.</p>
           )}
@@ -156,7 +156,7 @@ function LinhaConta({ f, marcada, onAlternar, valor }: { f: ContaFixa; marcada: 
         <input type="checkbox" checked={marcada} onChange={onAlternar} className="size-4 shrink-0 accent-accent" />
         <span className={`min-w-0 truncate ${marcada ? "text-ink" : "text-ink-faint line-through"}`}>
           {f.descricao}
-          {f.dia ? <span className="text-ink-faint"> · dia {f.dia}</span> : null}
+          {f.dia ? <span className="text-ink-faint">, dia {f.dia}</span> : null}
         </span>
       </span>
       <span className={`shrink-0 tabular-nums ${marcada ? "text-ink" : "text-ink-faint"}`}>{valor}</span>

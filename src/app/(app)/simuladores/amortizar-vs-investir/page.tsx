@@ -77,7 +77,7 @@ export default function AmortizarVsInvestirPage() {
         return (
           <div className="flex flex-col gap-4">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-accent-strong">{t.simResultado}</p>
+              <p className="text-xs font-semibold text-accent-strong">{t.simResultado}</p>
               <h2 className="mt-1 text-xl font-bold leading-snug tracking-tight text-ink">
                 {veredito(values)} <span className="text-ink-muted">{t.simAmortAMais(diferenca)}</span>
               </h2>

@@ -195,7 +195,7 @@ export function PossoComprar({ base, hoje, parcelasNoMes }: { base: CompraBase; 
   const ctaVazado = "min-h-14 w-full rounded-full border border-border-strong px-5 text-base font-bold text-ink";
   const chip = (sel: boolean) =>
     `min-h-11 rounded-full border px-4 text-sm font-semibold tabular-nums ${sel ? "border-accent bg-accent-soft text-ink" : "border-border bg-surface text-ink"}`;
-  const eyebrow = "text-caption font-bold uppercase tracking-[0.12em] text-accent-strong";
+  const eyebrow = "text-caption font-bold text-accent-strong";
   const titulo = "text-[30px] font-extrabold leading-[1.08] tracking-tight text-ink [text-wrap:balance]";
 
   return (
@@ -380,7 +380,7 @@ export function PossoComprar({ base, hoje, parcelasNoMes }: { base: CompraBase; 
       {passo === "vezes" && (
         <>
           <p className={eyebrow}>
-            {mi(valor)} · {t.compraParcelado}
+            {mi(valor)}, {t.compraParcelado}
           </p>
           <h2 className={titulo}>{t.compraEmQuantasVezes}</h2>
           <Roleta

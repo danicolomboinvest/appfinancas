@@ -88,19 +88,19 @@ export function ImportHistory({ batches }: { batches: ImportBatchView[] }) {
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium text-ink">
                     {batch.docType === "fatura" ? t.impHistoricoFatura : batch.docType === "openfinance" ? t.impHistoricoBanco : t.impHistoricoExtrato}
-                    {batch.fileName ? ` · ${batch.fileName}` : ""}
+                    {batch.fileName ? `, ${batch.fileName}` : ""}
                   </p>
                   <p className="truncate text-xs text-ink-faint">
                     <span className="tabular-nums">{formatDateTime(batch.createdAt)}</span>
-                    {" · "}
+                    {", "}
                     {t.impHistoricoLancamentos(batch.entryCount)}
-                    {" · "}
+                    {", "}
                     {/* Extrato mostra o saldo com sinal, como na confirmação: somar renda e gasto
                         juntos dava um número maior que o arquivo e parecia importação duplicada. */}
                     <span className="tabular-nums">
                       {batch.docType === "fatura" ? money(batch.totalAmount) : `${batch.totalAmount >= 0 ? "+" : "−"} ${money(Math.abs(batch.totalAmount))}`}
                     </span>
-                    {batch.months.length > 0 && ` · ${batch.months.map(formatMonthChip).join(", ")}`}
+                    {batch.months.length > 0 && `, ${batch.months.map(formatMonthChip).join(", ")}`}
                   </p>
                   {/* O "Remover" do pagamento no extrato apaga de vez (não há onde guardar o que
                       saiu): desfazer a fatura depois deixava o mês sem as compras E sem o pagamento. */}

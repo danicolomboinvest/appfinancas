@@ -90,8 +90,8 @@ export function RecurringSuggestions({ candidates, year, month }: { candidates: 
               <p className="truncate text-sm font-medium text-ink">{c.description || c.subcategory || t.impRepeteLancamento}</p>
               <p className="text-caption text-ink-faint">
                 {money(c.amount, { round: true })}
-                {c.typicalDay ? ` · ${t.impRepeteCostumaCair(c.typicalDay)}` : ""}
-                {` · ${t.impRepeteVistoEm(c.seenInMonths)}`}
+                {c.typicalDay ? `, ${t.impRepeteCostumaCair(c.typicalDay)}` : ""}
+                {`, ${t.impRepeteVistoEm(c.seenInMonths)}`}
               </p>
             </div>
             <div className="flex shrink-0 gap-1.5">

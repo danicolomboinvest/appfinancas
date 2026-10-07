@@ -295,7 +295,7 @@ export const PADRAO_IMPORTACAO: TextosImportacao = {
   impGravarAudio: "Gravar áudio",
   impImportarArquivo: "Importar extrato ou fatura (PDF, Excel, CSV, OFX)",
   impConectarBanco: "Conectar meu banco",
-  impConectarBancoSub: "Open Finance · os lançamentos chegam sozinhos, todo dia",
+  impConectarBancoSub: "Open Finance, os lançamentos chegam sozinhos, todo dia",
   impImportarSub: "O jeito mais rápido: o mês se monta sozinho",
   impCompraAntes: "Antes de passar o cartão",
   // Fluxo de voz
@@ -360,7 +360,7 @@ export const PADRAO_IMPORTACAO: TextosImportacao = {
   impNumerosErrados: "Esses números parecem errados",
   impNumerosErradosDica: "Confira antes de confirmar. Se estiver errado, fale com a gente: já guardamos o arquivo.",
   impFalarComAGente: "Falar com a gente",
-  impResumoLancamentos: (n, valor) => `${n} lançamento${s(n)} · ${valor}`,
+  impResumoLancamentos: (n, valor) => `${n} lançamento${s(n)}, ${valor}`,
   impNoSaldo: (positivo) => `${positivo ? "a mais" : "a menos"} no saldo`,
   impEntendiComo: (resumo) => `Entendi como: ${resumo}.`,
   impLinhasLidas: (lidas, total) => `Li ${lidas} de ${total} linhas com valor no arquivo.`,
@@ -422,7 +422,7 @@ export const PADRAO_IMPORTACAO: TextosImportacao = {
   impCarteiraFeito: (criados, atualizados) =>
     [criados > 0 ? `${criados} novo${s(criados)} na carteira` : null, atualizados > 0 ? `${atualizados} atualizado${s(atualizados)}` : null]
       .filter(Boolean)
-      .join(" · ") || "Nada para mudar, carteira já estava em dia.",
+      .join(", ") || "Nada para mudar, carteira já estava em dia.",
   // Declaração de IR
   impIrpfArquivoGrande: "Arquivo muito grande (máx. 4 MB).",
   impIrpfSelecioneUm: "Selecione ao menos um ativo para aplicar o preço médio.",

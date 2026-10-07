@@ -17,7 +17,7 @@ export function Pontos({ total, atual }: { total: number; atual: number }) {
 export function Passo({ rotulo, titulo, children }: { rotulo: string; titulo?: ReactNode; children: ReactNode }) {
   return (
     <Card className="flex flex-col gap-3 p-5">
-      <p className="text-caption font-semibold uppercase tracking-[0.11em] text-ink-muted">{rotulo}</p>
+      <p className="text-caption font-semibold text-ink-muted">{rotulo}</p>
       {titulo && <div className="text-body font-semibold text-ink">{titulo}</div>}
       {children}
     </Card>

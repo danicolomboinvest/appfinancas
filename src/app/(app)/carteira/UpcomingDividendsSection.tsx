@@ -1,8 +1,6 @@
-import { Coins } from "lucide-react";
+import { ChevronDown, Coins } from "lucide-react";
 import type { Voz } from "@/lib/profiles/voice";
-import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import type { UpcomingDividend } from "@/lib/repositories/dividend.repo";
 import type { MoneyFormatter } from "@/lib/money";
 
@@ -30,12 +28,22 @@ export function UpcomingDividendsSection({ dividends, voz, money }: { dividends:
 
   const total = dividends.reduce((sum, d) => sum + d.estimatedTotal, 0);
 
+  // Uma linha que abre a lista (07/10/2026, "mesma cara, menos texto"): o nome, o valor em negrito
+  // e a seta. Antes era um link dourado solto com a frase "Próximos dividendos, R$ X previstos".
   return (
-    <div id="dividendos">
-      <CollapsibleSection
-        label={voz.titulos.divTitulo(money(total))}
-      >
-        <Card className="flex flex-col gap-1 p-2">
+    <details id="dividendos" className="group rounded-2xl border border-border bg-surface">
+      <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 px-3.5 py-2.5 [&::-webkit-details-marker]:hidden">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-success-soft text-success" aria-hidden>
+          <Coins size={18} />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-caption text-ink-muted">{voz.titulos.divRotulo}</span>
+          <span className="block text-[17px] font-semibold tabular-nums text-ink">{money(total)}</span>
+        </span>
+        <ChevronDown size={18} className="shrink-0 text-ink-faint transition-transform group-open:rotate-180" aria-hidden />
+      </summary>
+      <div className="border-t border-border px-1.5 pb-3 pt-1.5">
+        <div className="flex flex-col gap-1">
           {dividends.map((d, index) => (
             <div
               key={`${d.ticker}-${d.kind}-${d.paymentDate.toISOString()}-${index}`}
@@ -64,9 +72,9 @@ export function UpcomingDividendsSection({ dividends, voz, money }: { dividends:
               </div>
             </div>
           ))}
-        </Card>
-        <p className="mt-2 text-xs text-ink-faint">{voz.titulos.divNota}</p>
-      </CollapsibleSection>
-    </div>
+        </div>
+        <p className="mt-2 px-2 text-xs text-ink-faint">{voz.titulos.divNota}</p>
+      </div>
+    </details>
   );
 }

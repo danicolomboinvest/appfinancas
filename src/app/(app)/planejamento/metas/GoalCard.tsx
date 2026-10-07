@@ -141,7 +141,7 @@ export async function GoalCard({
             de {money(targetAmount, { round: true })}
             {!achieved && (
               <>
-                {" · "}
+                {", "}
                 <span className={VARIANT_STATUS_TEXT[variant]}>{voz.titulos.metaStatus[variant]}</span>
               </>
             )}

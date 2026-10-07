@@ -64,7 +64,7 @@ export function SavedSimulations({ items }: { items: SavedSimulation[] }) {
               <p className="truncate text-[15px] font-semibold text-ink">{s.name ?? nomeDoTipo(s.type)}</p>
               <p className="mt-0.5 flex min-w-0 items-baseline gap-1 text-caption text-ink-muted">
                 <span className="truncate">{s.resumo}</span>
-                <span className="shrink-0">· {s.createdAt}</span>
+                <span className="shrink-0">{s.createdAt}</span>
               </p>
             </Link>
             <button

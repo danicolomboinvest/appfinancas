@@ -123,7 +123,7 @@ export function InvestirCalculadora({ margemInicial, taxaInicial }: { margemInic
 
       <div className="flex flex-col gap-4">
         <section className={`rounded-2xl border p-4 sm:p-5 ${VEREDITO.fundo}`}>
-          <p className="text-caption font-semibold uppercase tracking-wider text-ink-muted">{t.invVeredictoEyebrow}</p>
+          <p className="text-caption font-semibold text-ink-muted">{t.invVeredictoEyebrow}</p>
           <p className={`mt-1 text-2xl font-semibold tracking-tight ${VEREDITO.cor}`}>{VEREDITO.titulo}</p>
           <p className="mt-1.5 text-sm text-ink">{VEREDITO.texto}</p>
         </section>

@@ -11,7 +11,9 @@ import { listAssets } from "@/lib/repositories/asset.repo";
 import { EmergencyFundForm } from "./EmergencyFundForm";
 import { formatPercentNumber } from "@/lib/format";
 import { serverMoney } from "@/lib/money-server";
-import { Section } from "@/components/ui/Section";
+import { HeroiDoTema } from "@/components/ui/HeroiDoTema";
+import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
+import { ChevronDown } from "lucide-react";
 import { ReservaDivergente } from "@/components/decisoes/ReservaDivergente";
 import { existeDecisao } from "@/lib/repositories/decisao.repo";
 import { chaveDoMesDaReserva, mesesAteCompletar, mostraGuardei } from "@/lib/planning/reserva-guardei";
@@ -58,13 +60,91 @@ export default async function ReservaEmergenciaPage() {
     completionLabel = done.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
   }
 
+  const formulario = (
+    <EmergencyFundForm
+      typicalExpense={typicalExpense}
+      reserveInAssets={reserveInAssets}
+      defaults={
+        fund
+          ? {
+              targetMonths: fund.targetMonths,
+              monthlyExpenseBase: Number(fund.monthlyExpenseBase),
+              currentAmount: Number(fund.currentAmount),
+              monthlyContribution: Number(fund.monthlyContribution),
+              annualRate: Number(fund.annualRate),
+            }
+          : {}
+      }
+    />
+  );
+
+  // A pergunta da tela é "minha proteção é suficiente?" (07/10/2026). Então a resposta vem em
+  // meses de vida cobertos, não só em reais: "R$ 9.000" não diz nada; "cobre 1,5 mês do seu custo"
+  // diz. Logo abaixo, quando fica pronta nesse ritmo e o botão de guardar do mês.
+  const atual = fund ? Number(fund.currentAmount) : 0;
+  const meta = fund ? Number(fund.targetAmount) : 0;
+  const pct = meta > 0 ? Math.min(100, Math.round((atual / meta) * 100)) : 0;
+  const custo = fund ? Number(fund.monthlyExpenseBase) : 0;
+  const mesesCobertos = custo > 0 ? atual / custo : null;
+  const cobre =
+    mesesCobertos === null
+      ? null
+      : `Cobre ${mesesCobertos.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} ${mesesCobertos >= 1 && mesesCobertos < 2 ? "mês" : "meses"} do seu custo de vida.`;
+
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6">
       <PageHeader
         title={voz.titulos.reserva}
         // A explicação de como a meta é calculada fica só para quem ainda não montou a reserva.
         subtitle={fund ? undefined : voz.titulos.reservaSub}
       />
+
+      {fund && plan && (
+        <section className="flex flex-col gap-3">
+          <HeroiDoTema>
+            <p className="text-sm font-medium text-heroi-suave">{voz.titulos.reservaAtual}</p>
+            <div>
+              <p className="text-[2.5rem] font-bold leading-none tracking-tight tabular-nums">{money(atual, { round: true })}</p>
+              <p className="mt-1.5 text-sm text-heroi-suave tabular-nums">
+                de {money(meta, { round: true })}, {pct}%
+              </p>
+            </div>
+            <div className="heroi-veu h-2 overflow-hidden rounded-full" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
+              {/* O destaque do herói, não o accent: no Girly o accent é rosa sobre o bloco rosa e sumia. */}
+              <div className={`h-full rounded-full ${tempo?.tipo === "pronta" ? "bg-success" : "bg-[var(--color-heroi-destaque)]"}`} style={{ width: `${pct}%` }} />
+            </div>
+            <p className="flex items-start gap-2 text-sm">
+              <span
+                className={`mt-1.5 size-2 shrink-0 rounded-full ${tempo?.tipo === "naoFecha" ? "bg-danger" : tempo?.tipo === "pronta" ? "bg-success" : "bg-[var(--color-heroi-destaque)]"}`}
+                aria-hidden
+              />
+              <span>
+                {tempo?.tipo === "pronta" ? (
+                  <>
+                    <b className="font-semibold">{voz.titulos.reservaPronta}</b> {cobre}
+                  </>
+                ) : tempo?.tipo === "naoFecha" ? (
+                  <>
+                    {cobre} {voz.titulos.reservaNaoFechaHint}
+                  </>
+                ) : (
+                  <>
+                    {cobre} No ritmo atual, completa {completionLabel ? `em ${completionLabel}` : `em ${tempo?.texto}`}.
+                  </>
+                )}
+              </span>
+            </p>
+          </HeroiDoTema>
+
+          {mostrarGuardei && (
+            <GuardeiNaReservaButton
+              valorCombinado={Number(fund.monthlyContribution)}
+              mesLabel={monthKeyLabel(chaveDoMes)}
+              feito={guardouEsteMes}
+            />
+          )}
+        </section>
+      )}
 
       {fund && (
         <ReservaDivergente
@@ -77,62 +157,35 @@ export default async function ReservaEmergenciaPage() {
         />
       )}
 
-      {fund && plan && (
-        <div className="flex flex-col gap-4">
-          <StatRows
-            items={[
-              { label: voz.titulos.reservaMeta, value: money(Number(fund.targetAmount)), tone: "accent" },
-              { label: voz.titulos.reservaAtual, value: money(Number(fund.currentAmount)) },
-              {
-                label: voz.titulos.reservaTempo,
-                value: tempo?.tipo === "naoFecha" ? "Não fecha" : tempo?.tipo === "pronta" ? voz.titulos.reservaPronta : (tempo?.texto ?? ""),
-                hint: tempo?.tipo === "naoFecha" ? voz.titulos.reservaNaoFechaHint : undefined,
-                tone: tempo?.tipo === "pronta" ? "success" : undefined,
-              },
-              { label: voz.titulos.reservaRendimento, value: formatPercentNumber(plan.monthlyRate * 100, 3) },
-            ]}
-          />
-
-          {mostrarGuardei && (
-            <GuardeiNaReservaButton
-              valorCombinado={Number(fund.monthlyContribution)}
-              mesLabel={monthKeyLabel(chaveDoMes)}
-              feito={guardouEsteMes}
+      {/* A projeção e o rendimento ficam no toque: respondem "e se eu continuar assim?", que é a
+          segunda pergunta, não a primeira. */}
+      {fund && plan && plan.projection.length > 0 && (
+        <details className="group rounded-2xl border border-border bg-surface">
+          <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 px-5 text-base font-semibold text-ink [&::-webkit-details-marker]:hidden">
+            {voz.titulos.reservaProjecao}
+            <ChevronDown size={18} className="shrink-0 text-ink-faint transition-transform group-open:rotate-180" aria-hidden />
+          </summary>
+          <div className="flex flex-col gap-4 border-t border-border px-4 pb-5 pt-4 sm:px-5">
+            <SavingsProjectionChart
+              projection={plan.projection}
+              targetAmount={Number(fund.targetAmount)}
+              currentAmount={Number(fund.currentAmount)}
+              completionLabel={completionLabel}
             />
-          )}
-
-          {plan.projection.length > 0 && (
-            <Section title={voz.titulos.reservaProjecao}>
-              <SavingsProjectionChart
-                projection={plan.projection}
-                targetAmount={Number(fund.targetAmount)}
-                currentAmount={Number(fund.currentAmount)}
-                completionLabel={completionLabel}
-              />
-            </Section>
-          )}
-
-        </div>
+            <StatRows items={[{ label: voz.titulos.reservaRendimento, value: formatPercentNumber(plan.monthlyRate * 100, 3) }]} />
+          </div>
+        </details>
       )}
 
       {/* FORA do bloco acima de propósito: conta nova não tem reserva no banco (fund === null),
           e o formulário é o ÚNICO jeito de criar uma. Dentro do `fund && plan &&`, a tela
-          aparecia em branco pra quem mais precisa dela — e três lugares do app apontam pra cá. */}
-      <EmergencyFundForm
-        typicalExpense={typicalExpense}
-        reserveInAssets={reserveInAssets}
-        defaults={
-          fund
-            ? {
-                targetMonths: fund.targetMonths,
-                monthlyExpenseBase: Number(fund.monthlyExpenseBase),
-                currentAmount: Number(fund.currentAmount),
-                monthlyContribution: Number(fund.monthlyContribution),
-                annualRate: Number(fund.annualRate),
-              }
-            : {}
-        }
-      />
+          aparecia em branco pra quem mais precisa dela — e três lugares do app apontam pra cá.
+          Com a reserva montada, ele fica recolhido (recolher esconde, não desmonta). */}
+      {fund ? (
+        <CollapsibleSection label={voz.titulos.apEditar}>{formulario}</CollapsibleSection>
+      ) : (
+        formulario
+      )}
     </div>
   );
 }

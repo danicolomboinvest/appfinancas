@@ -104,7 +104,7 @@ export default function MarcacaoMercadoPage() {
         return (
           <div className="flex flex-col gap-4">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-accent-strong">{t.simResultado}</p>
+              <p className="text-xs font-semibold text-accent-strong">{t.simResultado}</p>
               <h2 className="mt-1 text-xl font-bold leading-snug tracking-tight text-ink">{result.profitOrLoss >= 0 ? t.simMarcLucro : t.simMarcPrejuizo}</h2>
               <p className="mt-1 text-xs text-ink-muted">{t.simMarcSub}</p>
             </div>

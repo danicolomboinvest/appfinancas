@@ -190,32 +190,32 @@ export function AvisoFoco({ item, hrefMes, gastos = [], resumo, opcoes = [] }: {
   let curto: string | null = null;
   let barra: React.ReactNode = null;
   if (d?.tipo === "estouro" || d?.tipo === "ritmo") {
-    curto = `${t.avisoRodapeGasto(m(d.gasto))} · ${t.avisoRodapePlano(m(d.planejado))}`;
+    curto = `${m(d.gasto)} de ${m(d.planejado)}`;
     barra = <Barra gasto={d.gasto} planejado={d.planejado} decorrido={d.decorrido} fina />;
   } else if (d?.tipo === "aporte") {
-    curto = `${t.avisoRodapeGuardado(m(d.guardado))} · ${t.avisoRodapePlano(m(d.planejado))}`;
+    curto = `${m(d.guardado)} de ${m(d.planejado)}`;
     barra = <Barra gasto={d.guardado} planejado={d.planejado} boa fina />;
   } else if (d?.tipo === "reserva") {
     curto = `${d.meses.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} de ${d.minimo} meses`;
     barra = <Barra gasto={d.meses} planejado={d.minimo} boa fina />;
   } else if (d?.tipo === "meta") {
-    curto = d.vencida ? t.avisoMetaNaoChegou(d.nome) : d.ultimoMes ? `${m(d.porMes)} · ${t.avisoMetaFaltamUltimoMes(d.nome)}` : `${m(d.porMes)}/mês · ${t.avisoMetaChegaEm(d.nome, d.quando)}`;
+    curto = d.vencida ? t.avisoMetaNaoChegou(d.nome) : t.avisoMetaCurto(m(d.porMes), d.ultimoMes ? null : d.quando);
   } else if (d?.tipo === "fora") {
     curto = m(d.valor);
   } else if (d?.tipo === "raiox") {
     curto = `${m(d.anual)} por ano`;
   }
   const verbo = t.focoVerbo[d?.tipo ?? "outro"] ?? item.acao;
-  const botaoVerbo = "inline-flex min-h-10 shrink-0 items-center justify-center rounded-full bg-accent-soft px-4 text-caption font-semibold text-accent-strong";
+  const botaoVerbo = "inline-flex min-h-10 shrink-0 items-center justify-center rounded-full bg-accent-soft px-4 text-sm font-semibold text-accent-strong";
 
   return (
     <div className="flex flex-col gap-2 rounded-2xl border border-border bg-surface p-3">
       <div className="flex items-center gap-3">
-        <span className={`flex size-10 shrink-0 items-center justify-center rounded-full ${tomIcone}`} aria-hidden>
+        <span className={`flex size-10 shrink-0 items-center justify-center rounded-xl ${tomIcone}`} aria-hidden>
           <Icone size={18} strokeWidth={1.9} />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold leading-snug text-ink">{item.titulo}</p>
+          <p className="text-[15px] font-semibold leading-snug text-ink">{item.titulo}</p>
           {curto && <p className="mt-0.5 text-caption tabular-nums text-ink-muted">{curto}</p>}
         </div>
         {d && d.tipo !== "raiox" ? (
@@ -276,7 +276,7 @@ export function CombinadoFoco({ c, hrefMes, gastos = [], resumo, opcoes = [] }: 
     <Card className="flex gap-4 p-5">
       <span className={`w-1 shrink-0 rounded-full ${c.quebrou ? "bg-danger" : "bg-success"}`} aria-hidden />
       <div className="min-w-0 flex-1">
-        <p className="flex items-center gap-1.5 text-caption font-semibold uppercase tracking-[0.11em] text-ink-muted">
+        <p className="flex items-center gap-1.5 text-caption font-semibold text-ink-muted">
           <Handshake size={14} aria-hidden /> {t.avisoVoceCombinou}
         </p>
         <p className="mt-1 text-sm font-semibold text-ink">{c.titulo}</p>
@@ -446,9 +446,9 @@ function ListaDeGastos({ titulo, gastos, resumo, hrefMes, opcoes, jaAberta = fal
     <div className="mt-2 flex flex-col gap-2 border-t border-border pt-3">
       <button type="button" onClick={() => setRevisando((v) => !v)} aria-expanded={revisando} className="flex w-full items-center justify-between gap-3 text-left">
         <span className="min-w-0">
-          <span className="block text-caption font-semibold uppercase tracking-[0.11em] text-ink-muted">{titulo}</span>
+          <span className="block text-caption font-semibold text-ink-muted">{titulo}</span>
           <span className="block text-caption text-ink-faint">
-            {contagem} · {money(total, { round: true })}
+            {contagem}, {money(total, { round: true })}
           </span>
         </span>
         <span className="flex shrink-0 items-center gap-1 rounded-xl bg-accent-soft px-3 py-1.5 text-caption font-semibold text-accent-strong">
@@ -495,7 +495,7 @@ function ListaDeGastos({ titulo, gastos, resumo, hrefMes, opcoes, jaAberta = fal
                           <Pencil size={12} className="shrink-0 text-ink-faint" aria-hidden />
                         </span>
                         <span className="block text-caption text-ink-faint">
-                          {g.dia ? `dia ${g.dia} · ` : ""}
+                          {g.dia ? `dia ${g.dia}, ` : ""}
                           {g.categoria ?? <span className="font-semibold text-accent-strong">{t.avisoSemCategoria}</span>}
                         </span>
                       </span>

@@ -49,7 +49,7 @@ export default async function AdminImportacoesPage() {
               {a.diagnostico && (
                 <div className="flex flex-col gap-1 text-xs text-ink-faint">
                   <p>
-                    {a.diagnostico.target} · viu {a.diagnostico.moneyLines} linhas com valor · leu{" "}
+                    {a.diagnostico.target}, viu {a.diagnostico.moneyLines} linhas com valor, leu{" "}
                     {a.diagnostico.parsed}
                   </p>
                   {a.diagnostico.message && <p className="text-ink">{a.diagnostico.message}</p>}
@@ -64,7 +64,7 @@ export default async function AdminImportacoesPage() {
               <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-ink-faint">
                 <span>
                   {a.createdAt.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })} ·{" "}
-                  {formatarTamanho(a.bytes)} · apaga em{" "}
+                  {formatarTamanho(a.bytes)}, apaga em{" "}
                   {a.expiresAt.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}
                 </span>
                 <a

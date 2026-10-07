@@ -269,13 +269,13 @@ export const PADRAO_SHELL: TextosShell = {
   uiMaioresGastos: "Maiores gastos do mês",
   uiMaisCategorias: (quantas) => `+${quantas} categoria${quantas === 1 ? "" : "s"}`,
   uiContagemLancamentos: (quantos) => `${quantos} ${quantos === 1 ? "lançamento" : "lançamentos"}`,
-  uiSetaCompara: "A seta compara com o mês passado. Variação abaixo de 8% não aparece — é oscilação normal.",
+  uiSetaCompara: "A seta compara com o mês passado. Abaixo de 8% não aparece: é oscilação normal.",
 
   // MonthHeatmap
   uiHeatmapDica: "Um quadradinho por dia, mais forte onde saiu mais dinheiro.",
   uiHeatmapMenos: "Menos",
   uiHeatmapMais: "Mais",
-  uiHeatmapPico: (dia, valor) => `Dia de maior gasto: ${dia} · ${valor}`,
+  uiHeatmapPico: (dia, valor) => `Dia de maior gasto: ${dia}, ${valor}`,
   uiHeatmapDiaFuturo: (dia) => `Dia ${dia}`,
   uiHeatmapDia: (dia, valor) => `Dia ${dia}: ${valor}`,
 
@@ -337,14 +337,14 @@ export const PADRAO_SHELL: TextosShell = {
   uiInstalarNativoDica: "Seu navegador permite instalar direto: toque no botão e confirme na janelinha que aparecer.",
   uiInstalarNoComputador: "Para ter no celular, abra o site no navegador do telefone.",
   uiInstalarPassosSafari: [
-    "Toque no botão **Compartilhar** — o quadradinho com uma seta para cima, na barra de baixo.",
+    "Toque no botão **Compartilhar**, o quadradinho com uma seta para cima, na barra de baixo.",
     "Role a lista para baixo e toque em **Adicionar à Tela de Início**.",
     "Toque em **Adicionar**, no canto de cima. Pronto: o ícone aparece na sua tela inicial.",
   ],
   uiInstalarPassosIosOutro: [
     "Toque no menu do navegador (**⋯** ou **⋮**), no canto da tela.",
     "Toque em **Compartilhar** e depois em **Adicionar à Tela de Início**.",
-    "Confirme em **Adicionar**. Se não encontrar essa opção, abra este site no **Safari** — por lá o caminho é mais direto.",
+    "Confirme em **Adicionar**. Se não encontrar essa opção, abra este site no **Safari**, por lá o caminho é mais direto.",
   ],
   uiInstalarPassosAndroid: [
     "Toque no menu **⋮**, no canto superior direito do navegador.",
@@ -355,7 +355,7 @@ export const PADRAO_SHELL: TextosShell = {
   // PaywallCard
   uiPaywallTitulo: (recurso) => `${recurso} é conteúdo do curso`,
   uiPaywallTexto:
-    "Essa área faz parte do curso de investimentos. Quem já é aluna(o) e está vendo essa mensagem por engano, fale com o suporte — pode ser só o e-mail de cadastro diferente do e-mail da compra.",
+    "Essa área faz parte do curso de investimentos. Quem já é aluna(o) e está vendo essa mensagem por engano, fale com o suporte: pode ser só o e-mail de cadastro diferente do e-mail da compra.",
   uiPaywallBotao: "Conhecer o curso",
   uiPaywallCursoTexto: "Essa parte faz parte do curso de investimentos. O resto do app continua todo liberado para você.",
   uiPaywallComprouTitulo: "Comprou o SPI Finance e está vendo isso?",

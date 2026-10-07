@@ -86,7 +86,7 @@ export default function ConsorcioPage() {
         if (result.invalidTerm) {
           return (
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-accent-strong">{t.simResultado}</p>
+              <p className="text-xs font-semibold text-accent-strong">{t.simResultado}</p>
               <h2 className="mt-1 text-xl font-bold leading-snug tracking-tight text-ink">{PRAZO_INVALIDO}</h2>
             </div>
           );
@@ -96,7 +96,7 @@ export default function ConsorcioPage() {
         return (
           <div className="flex flex-col gap-4">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-accent-strong">{t.simResultado}</p>
+              <p className="text-xs font-semibold text-accent-strong">{t.simResultado}</p>
               <h2 className="mt-1 text-xl font-bold leading-snug tracking-tight text-ink">
                 {veredito(values)} <span className="text-ink-muted">{t.simConsDiferenca(diferenca)}</span>
               </h2>

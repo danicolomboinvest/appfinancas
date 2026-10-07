@@ -120,7 +120,7 @@ export function Connections({ configured, connections }: { configured: boolean; 
                   <p className="text-sm font-semibold text-ink">{c.connectorName}</p>
                   <p className="text-caption text-ink-faint">
                     {c.lastSyncAt ? t.cfgConexaoAtualizado(c.lastSyncAt, c.lastSyncCount) : t.cfgConexaoAindaNaoBuscou}
-                    {c.status !== "UPDATED" && c.status !== "UPDATING" ? ` · ${c.status === "LOGIN_ERROR" ? t.cfgConexaoReautorizar : c.status.toLowerCase()}` : ""}
+                    {c.status !== "UPDATED" && c.status !== "UPDATING" ? `, ${c.status === "LOGIN_ERROR" ? t.cfgConexaoReautorizar : c.status.toLowerCase()}` : ""}
                   </p>
                   {c.lastError && <p className="text-caption text-danger">{c.lastError}</p>}
                 </div>

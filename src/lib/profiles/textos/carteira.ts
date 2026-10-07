@@ -262,8 +262,8 @@ export type TextosCarteira = {
 
 export const PADRAO_CARTEIRA: TextosCarteira = {
   // Carteira · lista de ativos
-  cartSuaCarteira: (n) => `Sua carteira · ${n} ativo${n === 1 ? "" : "s"}`,
-  cartResumo: (ativos, tipos) => `${ativos} ativo${ativos === 1 ? "" : "s"} · ${tipos} tipo${tipos === 1 ? "" : "s"}`,
+  cartSuaCarteira: (n) => `Sua carteira, ${n} ativo${n === 1 ? "" : "s"}`,
+  cartResumo: (ativos, tipos) => `${ativos} ativo${ativos === 1 ? "" : "s"}, ${tipos} tipo${tipos === 1 ? "" : "s"}`,
   cartAtualizarAportes: "Atualizar aportes",
   cartAportesNada: "Tudo em dia: o que você guardou já está nos ativos.",
   cartAportesComo: "Quando você marcar Guardei numa meta ou lançar um aporte, o valor espera aqui até você dizer em qual ativo entrou.",
@@ -278,7 +278,7 @@ export const PADRAO_CARTEIRA: TextosCarteira = {
   cartAtualizando: "Atualizando...",
   cartAtualizarCotacoes: "Atualizar cotações",
   cartCotacoesAtualizadas: (n) => `${n} cotações atualizadas.`,
-  cartCotacoesNaoAchei: (n, lista) => `${n} cotações atualizadas · não achei: ${lista}`,
+  cartCotacoesNaoAchei: (n, lista) => `${n} cotações atualizadas, não achei: ${lista}`,
   cartVinculados: (n, rotulo) => `${n} ativos vinculados a ${rotulo}.`,
   cartRotuloMeta: (nome) => `meta "${nome}"`,
   cartPorTipo: "Carteira atual, por tipo",
@@ -366,7 +366,7 @@ export const PADRAO_CARTEIRA: TextosCarteira = {
   cartDaMeta: (pct, valor) => `${pct} da meta (${valor})`,
   cartEditarEstrategia: "editar estratégia",
   cartReferenciaMatematica: "É a conta com a sua estratégia, não recomendação de compra ou venda.",
-  compHojeAlvo: (hoje, alvo) => `${hoje} hoje · alvo ${alvo}`,
+  compHojeAlvo: (hoje, alvo) => `${hoje} hoje, alvo ${alvo}`,
   // Análises · Insights
   fichasTitulo: "Análises",
   fichasSub: "Sua saúde financeira e o que precisa de atenção agora.",

@@ -41,12 +41,12 @@ export function PlanVsActualRow({
         <span className="text-caption tabular-nums text-ink-muted">
           {semPlano ? (
             <>
-              {formatted.actual} · <span className="text-ink-faint">sem plano definido</span>
+              {formatted.actual}, <span className="text-ink-faint">sem plano definido</span>
             </>
           ) : (
             <>
               {formatted.actual} de {formatted.planned}
-              {" · "}
+              {", "}
               <span className={alcancou ? "text-success" : "text-ink-muted"}>{Math.round(razao * 100)}%</span>
             </>
           )}

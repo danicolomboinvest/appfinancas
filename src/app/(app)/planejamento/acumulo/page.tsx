@@ -1,4 +1,4 @@
-import { TrendingDown, TrendingUp } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
 import { redirect } from "next/navigation";
 import { ehEmpresa } from "@/lib/profiles/empresa";
@@ -12,7 +12,8 @@ import { computeYearByYearProjection, type ProjectionYear } from "@/lib/consolid
 import { PatrimonyProjectionChart } from "@/components/charts/PatrimonyProjectionChart";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatRows } from "@/components/ui/StatRows";
-import { Card } from "@/components/ui/Card";
+import { HeroiDoTema } from "@/components/ui/HeroiDoTema";
+import { DicaDaPrimeiraVez } from "@/components/ui/DicaDaPrimeiraVez";
 import { Badge } from "@/components/ui/Badge";
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import { ResponsiveTable, type ResponsiveColumn } from "@/components/ui/ResponsiveTable";
@@ -98,220 +99,181 @@ export default async function IndependenciaFinanceiraPage() {
     );
   }
 
+  const accumulation = computeAccumulation({
+    currentAge: params.currentAge,
+    retirementAge: params.retirementAge,
+    currentPatrimony: Number(params.currentPatrimony),
+    monthlyContributionAccumulation: Number(params.monthlyContributionAccumulation),
+    accumulationAnnualRate: Number(params.accumulationAnnualRate),
+    inflationAnnualRate: Number(params.inflationAnnualRate),
+  });
+
+  const years = computeYearByYearProjection({
+    currentAge: params.currentAge,
+    retirementAge: params.retirementAge,
+    lifeExpectancyAge: params.lifeExpectancyAge,
+    currentPatrimony: Number(params.currentPatrimony),
+    monthlyContributionAccumulation: Number(params.monthlyContributionAccumulation),
+    accumulationAnnualRate: Number(params.accumulationAnnualRate),
+    inflationAnnualRate: Number(params.inflationAnnualRate),
+    usufructAnnualRate: Number(params.usufructAnnualRate),
+    desiredPassiveIncome: Number(params.desiredPassiveIncome),
+    otherPassiveIncome: Number(params.otherPassiveIncome),
+  });
+
+  const usufruct = computeUsufruct({
+    finalValueReal: accumulation.finalValueReal,
+    usufructAnnualRate: Number(params.usufructAnnualRate),
+    otherPassiveIncome: Number(params.otherPassiveIncome),
+    desiredPassiveIncome: Number(params.desiredPassiveIncome),
+  });
+  const isSurplus = usufruct.surplusOrDeficit >= 0;
+
+  // A resposta primeiro (07/10/2026): quanto ela chega a ter, quanto isso paga por mês e se dá a
+  // vida que ela quer, num bloco só. De onde vem o dinheiro fica logo abaixo (é a única conta que
+  // muda comportamento: o juro faz a maior parte); premissas, gráfico e ano a ano ficam no toque.
   return (
-    <div className="flex flex-col gap-8">
-      <PageHeader
-        title={voz.titulos.aposentadoria}
-        subtitle={voz.titulos.aposentadoriaSub}
-      />
+    <div className="flex flex-col gap-6">
+      <PageHeader title={voz.titulos.aposentadoria} />
 
-      <CollapsibleSection label={voz.titulos.apEditar} defaultOpen={false}>
-        <PlanningParamsForm defaults={defaults} />
-      </CollapsibleSection>
+      {/* O id da antiga seção "Renda na aposentadoria": os links do dashboard e o redirect de
+          /planejamento/usufruto apontam pra cá e caem direto na resposta. */}
+      <section id="liberdade-financeira" className="flex scroll-mt-24 flex-col gap-3">
+        <HeroiDoTema>
+          <p className="text-sm font-medium text-heroi-suave">{voz.titulos.apSeNadaMudar(params.retirementAge)}</p>
+          <div>
+            <p className="text-[2.5rem] font-bold leading-none tracking-tight tabular-nums">{money(accumulation.finalValueReal, { round: true })}</p>
+            <p className="mt-1.5 text-sm text-heroi-suave">{voz.titulos.apHoje}</p>
+          </div>
+          <div className="heroi-fio flex flex-col gap-1.5 border-t pt-3">
+            {/* O veredito num selo (07/10/2026), como no Foco e no Orçamento; embaixo, a conta em uma linha. */}
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-2xl font-semibold tracking-tight tabular-nums">{money(usufruct.totalPassiveIncome, { round: true })} por mês</p>
+              <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold text-white ${isSurplus ? "bg-success" : "bg-danger"}`}>
+                {isSurplus ? voz.titulos.apDaPe : voz.titulos.apNaoDaPe}
+              </span>
+            </div>
+            <p className="text-sm text-heroi-suave">
+              Você quer {money(Number(params.desiredPassiveIncome), { round: true })} {isSurplus ? voz.titulos.apSobram : voz.titulos.apFaltam}{" "}
+              <b className="font-semibold tabular-nums text-heroi-tinta">{money(Math.abs(usufruct.surplusOrDeficit), { round: true })}</b> {voz.titulos.apTodoMes}
+            </p>
+          </div>
+        </HeroiDoTema>
+        <DicaDaPrimeiraVez chave="aposentadoria-renda" className="px-1 text-caption text-ink-muted">
+          {voz.titulos.apRendaExplica}
+        </DicaDaPrimeiraVez>
+        <CollapsibleSection label={voz.titulos.apEditar} defaultOpen={false}>
+          <PlanningParamsForm defaults={defaults} />
+        </CollapsibleSection>
+      </section>
 
-      {(() => {
-            const accumulation = computeAccumulation({
-              currentAge: params.currentAge,
-              retirementAge: params.retirementAge,
-              currentPatrimony: Number(params.currentPatrimony),
-              monthlyContributionAccumulation: Number(params.monthlyContributionAccumulation),
-              accumulationAnnualRate: Number(params.accumulationAnnualRate),
-              inflationAnnualRate: Number(params.inflationAnnualRate),
-            });
+      {/* Tudo em dinheiro de hoje, a mesma moeda do número de cima. Somar o que saiu do bolso com
+          os juros NOMINAIS ao lado de um valor final REAL não fecha: são cenários diferentes (ver
+          o comentário em computeAccumulation). */}
+      <Section title={voz.titulos.apDeOndeVem} hint={voz.titulos.apDeOndeVemHint}>
+        <CompositionBar
+          slices={[
+            {
+              key: "bolso",
+              label: voz.titulos.apBolso(accumulation.years),
+              value: accumulation.totalInvested,
+              formatted: money(accumulation.totalInvested, { round: true }),
+              color: "var(--color-accent)",
+            },
+            {
+              key: "juros",
+              label: voz.titulos.apJuros,
+              value: accumulation.totalReturnReal,
+              formatted: money(accumulation.totalReturnReal, { round: true }),
+              color: "var(--color-success)",
+            },
+          ]}
+          footnote={
+            accumulation.totalInvested > 0 && accumulation.totalReturnReal > 0
+              ? voz.titulos.apJurosNota(money(1, { round: true }), money(accumulation.totalReturnReal / accumulation.totalInvested))
+              : undefined
+          }
+        />
+      </Section>
 
-            const years = computeYearByYearProjection({
-              currentAge: params.currentAge,
-              retirementAge: params.retirementAge,
-              lifeExpectancyAge: params.lifeExpectancyAge,
-              currentPatrimony: Number(params.currentPatrimony),
-              monthlyContributionAccumulation: Number(params.monthlyContributionAccumulation),
-              accumulationAnnualRate: Number(params.accumulationAnnualRate),
-              inflationAnnualRate: Number(params.inflationAnnualRate),
-              usufructAnnualRate: Number(params.usufructAnnualRate),
-              desiredPassiveIncome: Number(params.desiredPassiveIncome),
-              otherPassiveIncome: Number(params.otherPassiveIncome),
-            });
+      {/* O cálculo inteiro, fechado: premissas, o cenário sem reajuste, o gráfico e o ano a ano. O
+          id "projecao" é para o redirect de /planejamento/projecao. */}
+      <details id="projecao" className="group scroll-mt-24 rounded-2xl border border-border bg-surface">
+        <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 px-5 text-base font-semibold text-ink [&::-webkit-details-marker]:hidden">
+          Ver o cálculo completo
+          <ChevronDown size={18} className="shrink-0 text-ink-faint transition-transform group-open:rotate-180" aria-hidden />
+        </summary>
+        <div className="flex flex-col gap-6 border-t border-border px-4 pb-5 pt-4 sm:px-5">
+          <div className="flex flex-col gap-4">
+            <h2 className="text-base font-semibold text-ink">O que a conta assume</h2>
+            <StatRows
+              items={[
+                { label: voz.titulos.apTempoGuardando, value: `${accumulation.years} anos` },
+                { label: "Rendimento ao ano", value: formatPercent(accumulation.nominalAnnualRate) },
+                { label: "Inflação assumida", value: formatPercent(Number(params.inflationAnnualRate)) },
+                { label: "Rendimento acima da inflação", value: formatPercent(accumulation.realAnnualRate) },
+                { label: "Vivendo de renda (acima da inflação)", value: formatPercent(Number(params.usufructAnnualRate)) },
+                ...(Number(params.otherPassiveIncome) > 0
+                  ? [{ label: "Outras rendas, já contadas", value: money(Number(params.otherPassiveIncome), { round: true }) }]
+                  : []),
+              ]}
+            />
 
-            const usufruct = computeUsufruct({
-              finalValueReal: accumulation.finalValueReal,
-              usufructAnnualRate: Number(params.usufructAnnualRate),
-              otherPassiveIncome: Number(params.otherPassiveIncome),
-              desiredPassiveIncome: Number(params.desiredPassiveIncome),
-            });
-            const isSurplus = usufruct.surplusOrDeficit >= 0;
+            {/* A renda de cima usa essa taxa já acima da inflação. Se ela passa do que o acúmulo
+                rende acima da inflação, a renda sai otimista demais. */}
+            {usufructRateAboveAccumulation(Number(params.usufructAnnualRate), accumulation.realAnnualRate) && (
+              <p className="text-sm leading-relaxed text-ink-muted">
+                O rendimento vivendo de renda ({formatPercent(Number(params.usufructAnnualRate))} acima da inflação) está maior que o da fase
+                de acumular ({formatPercent(accumulation.realAnnualRate)}). Na aposentadoria o normal é ser mais conservador, então a renda
+                acima pode estar otimista.
+              </p>
+            )}
 
-            return (
+            {/* O número grande e empolgante que NÃO é o mesmo cenário de cima. Fica aqui, dito por
+                extenso, em vez de disputar a tela. */}
+            <div className="flex flex-col gap-1.5 rounded-2xl bg-surface-2 p-4">
+              <p className="text-sm font-semibold text-ink">{voz.titulos.apSemReajuste}</p>
+              <p className="text-sm leading-relaxed text-ink-muted">
+                O plano assume que você acompanha a inflação: guardar {money(Number(params.monthlyContributionAccumulation), { round: true })}{" "}
+                hoje e ir corrigindo esse valor com o tempo. Se em vez disso você guardar sempre o mesmo valor de face, o saldo chega a{" "}
+                <span className="font-semibold text-ink">{money(accumulation.finalValueNominal, { round: true })}</span>, só que em dinheiro de{" "}
+                {new Date().getFullYear() + accumulation.years}, que compra bem menos.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            <h2 className="text-base font-semibold text-ink">{voz.titulos.apProjecao}</h2>
+            <p className="-mt-1 text-sm text-ink-muted">{voz.titulos.apProjecaoSub(params.retirementAge, params.lifeExpectancyAge ?? null)}</p>
+
+            {years.length === 0 ? (
+              <p className="text-sm text-ink-muted">Idade objetivo já atingida, nada para projetar.</p>
+            ) : (
               <>
-                {/* A resposta ANTES dos números que a produzem. A tela antiga abria com nove
-                    cards do mesmo tamanho: sem hierarquia, nenhum deles era a resposta, e a
-                    pessoa tinha que descobrir sozinha qual olhar. */}
-                <section id="acumulo" className="flex flex-col gap-6">
-                  <div className="flex flex-col gap-1.5">
-                    <p className="text-sm text-ink-muted">
-                      {voz.titulos.apSeNadaMudar(params.retirementAge)}
-                    </p>
-                    <p className="text-display font-bold tracking-tight text-accent">
-                      {money(accumulation.finalValueReal, { round: true })}
-                    </p>
-                    <p className="text-sm text-ink-muted">{voz.titulos.apHoje}</p>
-                  </div>
+                <div className="mb-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-muted">
+                  <span className="flex items-center gap-1.5">
+                    <Badge tone="accent">{voz.titulos.apAcumulo}</Badge> {voz.titulos.apAcumuloDesc}
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <Badge tone="info">{voz.titulos.apUsufruto}</Badge> {voz.titulos.apUsufrutoDesc}
+                  </span>
+                </div>
+                <PatrimonyProjectionChart years={years} nomes={{ nominal: voz.titulos.apNominal, real: voz.titulos.apReal }} />
 
-                  {/* O veredito ganhou o id da antiga seção "Renda na aposentadoria": os links
-                      do dashboard e o redirect de /planejamento/usufruto apontam pra cá, e
-                      agora caem direto na resposta em vez de numa grade de números. */}
-                  <Card
-                    id="liberdade-financeira"
-                    className={`flex flex-col gap-2.5 p-5 scroll-mt-24 ${isSurplus ? "border-success/30 bg-success-soft/40" : "border-danger/30 bg-danger-soft/40"}`}
-                  >
-                    <div className="flex items-center gap-2">
-                      {isSurplus ? (
-                        <TrendingUp size={18} className="text-success" strokeWidth={1.75} />
-                      ) : (
-                        <TrendingDown size={18} className="text-danger" strokeWidth={1.75} />
-                      )}
-                      <p className={`text-sm font-semibold ${isSurplus ? "text-success" : "text-danger"}`}>
-                        {isSurplus ? voz.titulos.apDaPe : voz.titulos.apNaoDaPe}
-                      </p>
-                    </div>
-                    <p className="text-2xl font-semibold tracking-tight text-ink">
-                      {money(usufruct.totalPassiveIncome, { round: true })} por mês
-                    </p>
-                    <p className="text-sm leading-relaxed text-ink-muted">
-                      {voz.titulos.apVereditoIntro}{" "}
-                      <span className="font-semibold text-ink">
-                        {money(Number(params.desiredPassiveIncome), { round: true })}
-                      </span>{" "}
-                      {isSurplus ? `${voz.titulos.apSobram} ` : `${voz.titulos.apFaltam} `}
-                      <span className={`font-semibold ${isSurplus ? "text-success" : "text-danger"}`}>
-                        {money(Math.abs(usufruct.surplusOrDeficit), { round: true })}
-                      </span>{" "}
-                      {voz.titulos.apTodoMes}
-                      {Number(params.otherPassiveIncome) > 0 && (
-                        <>
-                          {" "}
-                          Já contando as outras rendas de{" "}
-                          {money(Number(params.otherPassiveIncome), { round: true })}.
-                        </>
-                      )}
-                    </p>
-                  </Card>
-
-                  {/* Tudo em dinheiro de hoje, a mesma moeda da manchete. Somar o que saiu do
-                      bolso com os juros NOMINAIS ao lado de um valor final REAL não fecha:
-                      são cenários diferentes (ver o comentário em computeAccumulation). */}
-                  <Section
-                    title={voz.titulos.apDeOndeVem}
-                    hint={voz.titulos.apDeOndeVemHint}
-                  >
-                    <CompositionBar
-                      slices={[
-                        {
-                          key: "bolso",
-                          label: voz.titulos.apBolso(accumulation.years),
-                          value: accumulation.totalInvested,
-                          formatted: money(accumulation.totalInvested, { round: true }),
-                          color: "var(--color-accent)",
-                        },
-                        {
-                          key: "juros",
-                          label: voz.titulos.apJuros,
-                          value: accumulation.totalReturnReal,
-                          formatted: money(accumulation.totalReturnReal, { round: true }),
-                          color: "var(--color-success)",
-                        },
-                      ]}
-                      footnote={
-                        accumulation.totalInvested > 0 && accumulation.totalReturnReal > 0
-                          ? voz.titulos.apJurosNota(money(1, { round: true }), money(accumulation.totalReturnReal / accumulation.totalInvested))
-                          : undefined
-                      }
-                    />
-                  </Section>
-
-                  <CollapsibleSection label={voz.titulos.apPremissas}>
-                    <div className="flex flex-col gap-4">
-                      <StatRows
-                        items={[
-                          { label: voz.titulos.apTempoGuardando, value: `${accumulation.years} anos` },
-                          { label: "Rendimento ao ano", value: formatPercent(accumulation.nominalAnnualRate) },
-                          { label: "Inflação assumida", value: formatPercent(Number(params.inflationAnnualRate)) },
-                          { label: "Rendimento acima da inflação", value: formatPercent(accumulation.realAnnualRate) },
-                          {
-                            label: "Vivendo de renda (acima da inflação)",
-                            value: formatPercent(Number(params.usufructAnnualRate)),
-                          },
-                        ]}
-                      />
-
-                      {/* A renda da manchete usa essa taxa já acima da inflação. Se ela passa do
-                          que o acúmulo rende acima da inflação, a renda sai otimista demais. */}
-                      {usufructRateAboveAccumulation(Number(params.usufructAnnualRate), accumulation.realAnnualRate) && (
-                        <p className="text-sm leading-relaxed text-ink-muted">
-                          O rendimento vivendo de renda ({formatPercent(Number(params.usufructAnnualRate))} acima da
-                          inflação) está maior que o da fase de acumular ({formatPercent(accumulation.realAnnualRate)}).
-                          Na aposentadoria o normal é ser mais conservador, então a renda acima pode estar otimista.
-                        </p>
-                      )}
-
-                      {/* O número grande e empolgante que NÃO é o mesmo cenário da manchete.
-                          Fica aqui embaixo, dito por extenso, em vez de disputar a tela. */}
-                      <Card className="flex flex-col gap-2 p-5">
-                        <p className="text-sm font-semibold text-ink">
-                          {voz.titulos.apSemReajuste}
-                        </p>
-                        <p className="text-sm leading-relaxed text-ink-muted">
-                          O plano acima assume que você acompanha a inflação: guardar{" "}
-                          {money(Number(params.monthlyContributionAccumulation), { round: true })} hoje e ir
-                          corrigindo esse valor com o tempo. Se em vez disso você guardar sempre o mesmo valor
-                          de face, o saldo chega a{" "}
-                          <span className="font-semibold text-ink">
-                            {money(accumulation.finalValueNominal, { round: true })}
-                          </span>
-                          , só que em dinheiro de {new Date().getFullYear() + accumulation.years} — que compra
-                          bem menos do que a manchete.
-                        </p>
-                      </Card>
-                    </div>
-                  </CollapsibleSection>
-                </section>
-
-                <section id="projecao" className="flex flex-col gap-3">
-                  <h2 className="text-h2 font-semibold tracking-tight text-ink">{voz.titulos.apProjecao}</h2>
-                  <p className="-mt-1 text-sm text-ink-muted">
-                    {voz.titulos.apProjecaoSub(params.retirementAge, params.lifeExpectancyAge ?? null)}
-                  </p>
-
-                  {years.length === 0 ? (
-                    <p className="text-sm text-ink-muted">Idade objetivo já atingida, nada para projetar.</p>
-                  ) : (
-                    <>
-                      <Card className="p-5">
-                        <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-muted">
-                          <span className="flex items-center gap-1.5">
-                            <Badge tone="accent">{voz.titulos.apAcumulo}</Badge> {voz.titulos.apAcumuloDesc}
-                          </span>
-                          <span className="flex items-center gap-1.5">
-                            <Badge tone="info">{voz.titulos.apUsufruto}</Badge> {voz.titulos.apUsufrutoDesc}
-                          </span>
-                        </div>
-                        <PatrimonyProjectionChart years={years} nomes={{ nominal: voz.titulos.apNominal, real: voz.titulos.apReal }} />
-                      </Card>
-
-                      <CollapsibleSection label={voz.titulos.apAnoAAno}>
-                        <ResponsiveTable
-                          columns={projectionColumns(money, voz)}
-                          rows={years}
-                          rowKey={(y) => String(y.year)}
-                          maxHeightClassName="max-h-[520px] overflow-y-auto"
-                          compactoNoCelular
-                        />
-                      </CollapsibleSection>
-                    </>
-                  )}
-                </section>
+                <CollapsibleSection label={voz.titulos.apAnoAAno}>
+                  <ResponsiveTable
+                    columns={projectionColumns(money, voz)}
+                    rows={years}
+                    rowKey={(y) => String(y.year)}
+                    maxHeightClassName="max-h-[520px] overflow-y-auto"
+                    compactoNoCelular
+                  />
+                </CollapsibleSection>
               </>
-            );
-          })()}
+            )}
+          </div>
+        </div>
+      </details>
     </div>
   );
 }

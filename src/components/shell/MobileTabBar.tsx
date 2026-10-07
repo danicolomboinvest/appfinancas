@@ -126,10 +126,10 @@ export function MobileTabBar({
       {tabLink(abas[0])}
       {tabLink(abas[1])}
 
-      {/* "+" central em destaque (padrão oficial de registro): gradiente dourado + brilho ao redor
-          e highlight especular no topo. O brilho é feito com box-shadow (NÃO com filter: blur) —
-          filter:blur num elemento fixo faz o Safari do iPhone renderizar um retângulo escuro
-          deslocado (o painel fantasma na lateral). box-shadow o iOS desenha sem esse bug. */}
+      {/* "+" central em destaque (padrão oficial de registro), na cor do tema e liso (07/10/2026): o
+          degradê dourado com brilho em volta era um dos sinais de "feito por IA" que a Dani quis
+          tirar. A sombra é box-shadow (NÃO filter: blur): filter:blur num elemento fixo faz o
+          Safari do iPhone renderizar um retângulo escuro deslocado (o painel fantasma na lateral). */}
       <div className="flex flex-1 flex-col items-center justify-end">
         <button
           type="button"
@@ -139,11 +139,8 @@ export function MobileTabBar({
           }}
           aria-label={voz.titulos.registrar}
           data-tour="registrar"
-          className="-mt-6 flex h-14 w-14 items-center justify-center rounded-full bg-accent-gradient text-on-accent ring-4 ring-canvas transition-transform active:scale-90"
-          style={{
-            boxShadow:
-              "0 0 20px 2px color-mix(in srgb, var(--color-accent) 50%, transparent), inset 0 1px 1px rgba(255,255,255,0.55), inset 0 -2px 6px rgba(0,0,0,0.25)",
-          }}
+          className="-mt-6 flex h-14 w-14 items-center justify-center rounded-full bg-accent text-on-accent ring-4 ring-canvas transition-transform active:scale-90"
+          style={{ boxShadow: "0 4px 12px rgba(0, 0, 0, 0.18)" }}
         >
           <Plus size={26} strokeWidth={2.4} />
         </button>

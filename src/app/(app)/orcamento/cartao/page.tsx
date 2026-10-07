@@ -31,7 +31,7 @@ export default async function LimiteDoCartaoPage() {
       <FormDoLimite limite={limite} />
 
       <section className="flex flex-col">
-        <h2 className="px-1 text-caption font-semibold uppercase tracking-[0.11em] text-ink-muted">{t.limListaTitulo}</h2>
+        <h2 className="px-1 text-caption font-semibold text-ink-muted">{t.limListaTitulo}</h2>
         {gastos.length === 0 ? (
           <div className="mt-1 rounded-2xl border border-border bg-surface p-4">
             <p className="text-sm text-ink">{t.limVazio}</p>

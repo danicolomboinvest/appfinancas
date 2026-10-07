@@ -1,18 +1,20 @@
 import type { ReactNode } from "react";
 import { NumeroRolante } from "@/components/ui/NumeroRolante";
+import { HeroiDoTema } from "@/components/ui/HeroiDoTema";
 import type { ResumoDoMes } from "@/lib/planning/month-budget-summary";
 import type { Voz } from "@/lib/profiles/voice";
 
 /**
- * O cartão que abre o orçamento: quanto você tinha, quanto já foi, e quanto isso dá por dia
- * até o fim do mês.
+ * O cartão que abre o orçamento: quanto ainda dá para gastar no mês.
  *
- * Antes a página começava por "economia no mês" e "categoria que mais estourou" — duas
- * conclusões sobre um número que não aparecia em lugar nenhum. Quem abre o orçamento no dia 20
- * quer saber uma coisa só, e quer em dois segundos: ainda dá?
+ * Quem abre o orçamento no dia 20 quer saber uma coisa só, e quer em dois segundos: ainda dá?
+ * Por isso o número grande é o que AINDA ESTÁ LIVRE (07/10/2026), com o quanto dá por dia num selo:
+ * "Sobram R$ 1.150" é um número pra guardar; "R$ 104/dia" é uma decisão que dá pra tomar na fila do
+ * mercado.
  *
- * O valor por dia é o que faz esse cartão valer a tela que ocupa. "Sobram R$ 1.150" é um número
- * pra guardar; "R$ 104 por dia até dia 30" é uma decisão que dá pra tomar na fila do mercado.
+ * Desde 07/10/2026 ("mesma cara, menos texto", aprovado pela Dani) sem nenhuma frase: a curva do
+ * mês entra baixinha dentro do cartão e embaixo dela, nas pontas, o gasto e o plano. Quando o ritmo
+ * leva a passar do plano, a ponta direita vira "Fecha em R$ X", em vermelho.
  */
 export function ResumoDoMesCard({
   resumo,
@@ -22,63 +24,71 @@ export function ResumoDoMesCard({
   onAtualizar,
   voz,
   grafico,
-  previsaoTexto,
-  previsaoRuim,
+  previsao,
 }: {
-  /** O gráfico do mês (a curva). */
+  /** A curva do mês, na versão compacta. */
   grafico?: ReactNode;
-  /** "Nesse ritmo, o mês fecha em R$ X": vem pronta da página. */
-  previsaoTexto?: string | null;
-  previsaoRuim?: boolean;
+  /** Onde o mês fecha nesse ritmo (null quando não dá para prever). */
+  previsao?: number | null;
   resumo: ResumoDoMes;
   /** "Setembro" */
   mesLabel: string;
-  /** Último dia do mês, pro "até dia 30". */
+  /** Último dia do mês, pro "até dia 30" da frase de quem ainda não tem plano. */
   ultimoDia: number;
   money: (n: number, o?: { round?: boolean }) => string;
   /** Botão de atualizar, mostrado quando o mês está contado pela metade. */
   onAtualizar?: ReactNode;
-  /** O tema do perfil fala aqui: título ("Missão do mês 🎯" no Game) e a frase do "ainda dá?". */
+  /** O tema do perfil fala aqui: o rótulo do número e a frase de quem ainda não tem plano. */
   voz: Voz;
 }) {
-  const { planejado, gasto, restante, diasRestantes, porDia, situacao, ultimoDiaLancado, desatualizado } =
-    resumo;
+  const { planejado, gasto, restante, diasRestantes, porDia, situacao, ultimoDiaLancado, desatualizado } = resumo;
+  const passou = restante < 0;
+  const fechaAcima = !desatualizado && previsao != null && planejado > 0 && previsao > planejado;
+  const r = (v: number) => money(v, { round: true });
 
+  const selo = passou
+    ? { texto: "Acima do plano", cor: "bg-danger text-white" }
+    : porDia !== null
+      ? { texto: `${r(porDia)}/dia`, cor: "bg-success text-white" }
+      : diasRestantes === 0
+        ? { texto: "Mês fechado", cor: "heroi-veu-forte" }
+        : null;
 
   return (
-    <section className="rounded-2xl border border-border bg-surface p-5 shadow-premium-sm sm:p-6">
-      <p className="text-caption text-ink-muted">{voz.tituloOrcamento(mesLabel)}</p>
+    <section className="flex flex-col gap-3">
+      <HeroiDoTema>
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm font-medium text-heroi-suave">{voz.titulos.livreEm(mesLabel)}</p>
+          {situacao !== "sem-plano" && selo && <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${selo.cor}`}>{selo.texto}</span>}
+        </div>
 
-      {/* O gasto é o número grande; o planejado do lado, menor, como a régua dele. */}
-      <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-        <NumeroRolante texto={money(gasto, { round: true })} className="text-3xl font-semibold tabular-nums text-ink sm:text-4xl" />
-        {planejado > 0 && <span className="text-base text-ink-muted sm:text-lg">de {money(planejado, { round: true })}</span>}
-      </div>
+        {situacao === "sem-plano" ? (
+          <p className="text-lg font-semibold leading-snug">{voz.fraseOrcamento({ situacao, restante, porDia, diasRestantes, ultimoDia, money })}</p>
+        ) : (
+          <NumeroRolante texto={r(Math.abs(restante))} className="text-[2.75rem] font-bold leading-none tracking-tight tabular-nums" />
+        )}
 
-      {/* A curva do mês (01/10/2026, aprovada pela Dani no lugar da barra): ver CurvaDoMes. */}
-      {grafico}
-      {previsaoTexto && <p className={`mt-2 rounded-xl px-3 py-2 text-sm ${previsaoRuim ? "bg-danger-soft text-danger" : "bg-success-soft text-success"}`}>{previsaoTexto}</p>}
+        {grafico}
 
-      {/* Quando o mês está contado pela metade, a conversa muda: não adianta dizer "ainda dá"
-          sobre um número que não terminou de acontecer. A frase vira o convite pra completar. */}
-      {desatualizado ? (
-        <>
-          <p className="mt-3 text-sm text-ink">
+        {planejado > 0 && (
+          <div className="flex items-center justify-between gap-3 text-caption tabular-nums text-heroi-suave">
+            <span>Gastou {r(gasto)}</span>
+            {fechaAcima ? <span className="rounded-full bg-danger px-2 py-0.5 font-semibold text-white">Fecha em {r(previsao!)}</span> : <span>Plano {r(planejado)}</span>}
+          </div>
+        )}
+      </HeroiDoTema>
+
+      {/* Mês contado pela metade: não adianta dizer "ainda dá" sobre um número que não terminou de
+          acontecer. A frase vira o convite para completar. */}
+      {desatualizado && (
+        <div className="flex flex-col gap-2 px-1">
+          <p className="text-sm text-ink">
             {ultimoDiaLancado === null
               ? `Você ainda não lançou nenhum gasto de ${mesLabel}.`
               : `Seus gastos estão lançados até dia ${ultimoDiaLancado}. O que veio depois ainda não está nesta conta.`}
           </p>
           {onAtualizar}
-        </>
-      ) : (
-        <>
-          <p className="mt-3 text-sm text-ink">{voz.fraseOrcamento({ situacao, restante, porDia, diasRestantes, ultimoDia, money })}</p>
-          {/* Só explica o tracinho quando a frase acima não explicou. Dizer "passou do tracinho =
-              adiantado" logo abaixo de "você está gastando adiantado" é ocupar a tela repetindo. */}
-          {planejado > 0 && diasRestantes > 0 && situacao === "no-ritmo" && (
-            <p className="mt-0.5 text-caption text-ink-faint">O tracinho é onde o mês está hoje.</p>
-          )}
-        </>
+        </div>
       )}
     </section>
   );

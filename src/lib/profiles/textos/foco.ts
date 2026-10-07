@@ -163,6 +163,12 @@ export type TextosFoco = {
   // Calculadoras com porta própria (06/10/2026): a seção, a pergunta da aposentadoria (que vive
   // em Metas › Aposentadoria) e os títulos do Mais em grade.
   calcTitulo: string;
+  /** O Foco em níveis (07/10/2026): o alerta e a próxima ação num bloco só, o resto guardado. */
+  focoParaHoje: string;
+  focoMaisCoisas(n: number): string;
+  /** Os dois quadradinhos do número livre (07/10/2026, "mesma cara, menos texto"). */
+  focoPorDia: string;
+  focoFimDoMes: string;
   calcAposentadoria: string;
   maisFerramentas: string;
   maisSuaConta: string;
@@ -234,6 +240,8 @@ export type TextosFoco = {
   avisoMetaNaoChegou(nome: string): string;
   avisoMetaFaltamUltimoMes(nome: string): string;
   avisoMetaChegaEm(nome: string, quando: string): string;
+  /** A frente do aviso da meta, sem repetir o nome que já está no título (07/10/2026). */
+  avisoMetaCurto(valor: string, quando: string | null): string;
   avisoMetaSelo(ultimoMes: boolean): string;
   avisoMetaAjustarT: string;
   avisoMetaAjustarSub: string;
@@ -354,10 +362,10 @@ export const faltamDias = (n: number) => (n === 1 ? "falta 1 dia" : `faltam ${n}
 
 export const PADRAO_FOCO: TextosFoco = {
   focoTitulo: "Foco",
-  focoLivreSemana: "Livre para gastar essa semana",
-  focoLivreMes: "Livre até o fim do mês",
+  focoLivreSemana: "Livre na semana",
+  focoLivreMes: "Livre no mês",
   focoLivreSub: "o que ainda sobra no seu orçamento do mês",
-  focoLivreEstimativa: "Livre até o fim do mês (estimativa)",
+  focoLivreEstimativa: "Livre no mês (estimativa)",
   focoLivreEstimativaSub: (s) => `cerca de ${s} por semana, se você seguir o que planejou`,
   focoSemOrcamentoTitulo: "Falta o seu orçamento do mês",
   focoSemOrcamentoSub: "Sem ele não dá para dizer quanto está livre. Leva dois minutos.",
@@ -479,6 +487,10 @@ export const PADRAO_FOCO: TextosFoco = {
   decVerCalculadoras: "Ver todas as calculadoras",
   decPergunteTambem: "Pergunte também",
   calcTitulo: "Calculadoras",
+  focoParaHoje: "Para hoje",
+  focoPorDia: "Por dia",
+  focoFimDoMes: "Fim do mês",
+  focoMaisCoisas: (n) => (n === 1 ? "Mais 1 coisa" : `Mais ${n} coisas`),
   calcAposentadoria: "Quanto preciso para me aposentar?",
   maisFerramentas: "Ferramentas",
   maisSuaConta: "Sua conta",
@@ -542,6 +554,7 @@ export const PADRAO_FOCO: TextosFoco = {
   avisoMetaNaoChegou: (n) => `${n} ainda não chegou lá`,
   avisoMetaFaltamUltimoMes: (n) => `faltam para ${n}, e o prazo é este mês`,
   avisoMetaChegaEm: (n, q) => `para ${n} chegar em ${q}`,
+  avisoMetaCurto: (v, q) => (q ? `${v}/mês até ${q}` : `${v} este mês`),
   avisoMetaSelo: (u) => (u ? "guardar o que falta, ou escolher uma data que caiba" : "guardar mais por mês, ou escolher uma data que caiba"),
   avisoMetaAjustarT: "Ajustar a meta",
   avisoMetaAjustarSub: "valor por mês ou data",

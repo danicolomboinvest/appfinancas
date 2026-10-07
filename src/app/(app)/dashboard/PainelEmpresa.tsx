@@ -103,30 +103,30 @@ export function PainelEmpresa({
     <div className="flex flex-col gap-4 lg:gap-5">
       {/* Linha 1: os seis números que um dono olha todo dia. */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6 lg:gap-4">
-        <Indicador rotulo={`Receita · ${mesLabel}`} valor={money(receita.atual, { round: true })} tom="success" variacao={variacao(receita)} periodo={compararComAnterior ? mesAnteriorLabel : undefined} money={money} />
-        <Indicador rotulo={`Custos e despesas · ${mesLabel}`} valor={money(despesas.atual, { round: true })} tom="danger" variacao={variacao(despesas)} periodo={compararComAnterior ? mesAnteriorLabel : undefined} bomQuandoCai money={money} />
-        <Indicador rotulo={`Lucro · ${mesLabel}`} valor={money(lucro.atual, { round: true })} tom={lucro.atual >= 0 ? "success" : "danger"} variacao={compararComAnterior && lucro.anterior !== 0 ? (lucro.atual - lucro.anterior) / Math.abs(lucro.anterior) : null} periodo={compararComAnterior ? mesAnteriorLabel : undefined} money={money} />
+        <Indicador rotulo={`Receita, ${mesLabel}`} valor={money(receita.atual, { round: true })} tom="success" variacao={variacao(receita)} periodo={compararComAnterior ? mesAnteriorLabel : undefined} money={money} />
+        <Indicador rotulo={`Custos e despesas, ${mesLabel}`} valor={money(despesas.atual, { round: true })} tom="danger" variacao={variacao(despesas)} periodo={compararComAnterior ? mesAnteriorLabel : undefined} bomQuandoCai money={money} />
+        <Indicador rotulo={`Lucro, ${mesLabel}`} valor={money(lucro.atual, { round: true })} tom={lucro.atual >= 0 ? "success" : "danger"} variacao={compararComAnterior && lucro.anterior !== 0 ? (lucro.atual - lucro.anterior) / Math.abs(lucro.anterior) : null} periodo={compararComAnterior ? mesAnteriorLabel : undefined} money={money} />
         <Indicador rotulo="Margem líquida" valor={pct(mes.dre.margemLiquidaPct)} tom={mes.dre.margemLiquidaPct !== null && mes.dre.margemLiquidaPct < 0 ? "danger" : "neutral"} nota="lucro ÷ receita" money={money} />
         <Indicador rotulo="Margem de contribuição" valor={pct(mes.dre.margemContribuicaoPct)} tom="neutral" nota="o que sobra da venda pra pagar o fixo" money={money} />
-        <Indicador rotulo="Caixa de segurança" valor={caixaTexto} tom={caixaTom} nota={mes.caixa.caixa <= 0 ? "informe o caixa da empresa" : mes.caixa.situacao === "sem-dado" ? `${money(mes.caixa.caixa, { round: true })} · sem despesa fixa pra medir` : `${money(mes.caixa.caixa, { round: true })} · Sebrae: ${MESES_DE_CAIXA_RECOMENDADOS.minimo} a ${MESES_DE_CAIXA_RECOMENDADOS.confortavel}`} money={money} href="/planejamento/reserva-emergencia" />
+        <Indicador rotulo="Caixa de segurança" valor={caixaTexto} tom={caixaTom} nota={mes.caixa.caixa <= 0 ? "informe o caixa da empresa" : mes.caixa.situacao === "sem-dado" ? `${money(mes.caixa.caixa, { round: true })}, sem despesa fixa pra medir` : `${money(mes.caixa.caixa, { round: true })}, Sebrae: ${MESES_DE_CAIXA_RECOMENDADOS.minimo} a ${MESES_DE_CAIXA_RECOMENDADOS.confortavel}`} money={money} href="/planejamento/reserva-emergencia" />
       </div>
 
       {/* Linha 2: receita × despesas × lucro no ano, e o orçamento do mês em anéis. */}
       <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:gap-5">
-        <Bloco titulo={`Receita, despesas e lucro em ${year}`} nota={isCurrentYear ? "barras: receita e despesas · linha: lucro até hoje · apagado: previsto" : "barras: receita e despesas · linha: lucro"}>
+        <Bloco titulo={`Receita, despesas e lucro em ${year}`} nota={isCurrentYear ? "barras: receita e despesas, linha: lucro até hoje, apagado: previsto" : "barras: receita e despesas, linha: lucro"}>
           <ReceitaDespesaLucroChart months={months} />
         </Bloco>
         <Bloco titulo={`Orçamento de ${mesLabel}`} nota={orcamentoDoMes > 0 || receitaPlanejadaDoMes ? "quanto do planejado já aconteceu" : "monte o orçamento da empresa pra acompanhar"}>
           <div className="flex items-center justify-around gap-3 py-2">
             {receitaPlanejadaDoMes ? (
-              <AnelPercentual pct={receitaDoMes / receitaPlanejadaDoMes} tom="success" rotulo={`receita · meta ${money(receitaPlanejadaDoMes, { round: true })}`} />
+              <AnelPercentual pct={receitaDoMes / receitaPlanejadaDoMes} tom="success" rotulo={`receita, meta ${money(receitaPlanejadaDoMes, { round: true })}`} />
             ) : (
               <Link href="/orcamento" className="text-center text-caption text-ink-faint hover:text-ink">
                 Sem meta de<br />receita
               </Link>
             )}
             {orcamentoDoMes > 0 ? (
-              <AnelPercentual pct={gastoDoMes / orcamentoDoMes} tom="danger" rotulo={`despesas · teto ${money(orcamentoDoMes, { round: true })}`} />
+              <AnelPercentual pct={gastoDoMes / orcamentoDoMes} tom="danger" rotulo={`despesas, teto ${money(orcamentoDoMes, { round: true })}`} />
             ) : (
               <Link href="/orcamento" className="text-center text-caption text-ink-faint hover:text-ink">
                 Sem teto de<br />despesas
@@ -138,7 +138,7 @@ export function PainelEmpresa({
 
       {/* Linha 3: caixa ao longo do ano e a DRE do mês. */}
       <div className="grid gap-4 lg:grid-cols-2 lg:gap-5">
-        <Bloco titulo={`Caixa no fim de cada mês · ${year}`} nota={isCurrentYear ? "parte do caixa de hoje e refaz o caminho com o resultado de cada mês" : "resultado acumulado, mês a mês"}>
+        <Bloco titulo={`Caixa no fim de cada mês, ${year}`} nota={isCurrentYear ? "parte do caixa de hoje e refaz o caminho com o resultado de cada mês" : "resultado acumulado, mês a mês"}>
           {/* O caixa de HOJE só serve de ponto de chegada no ano corrente. Num ano passado o
               gráfico parte do zero (resultado acumulado), senão dezembro mostraria o caixa de hoje. */}
           <CaixaAcumuladoChart months={months} caixaInicial={isCurrentYear ? mes.caixa.caixa : null} />
@@ -148,7 +148,7 @@ export function PainelEmpresa({
 
       {/* Linha 4: por frente (centro de custo) e por tipo de receita. */}
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)] lg:gap-5">
-        <Bloco titulo={`Resultado por frente · ${mesLabel}`} nota="o centro de custo de cada área: gasto, teto e o peso no faturamento">
+        <Bloco titulo={`Resultado por frente, ${mesLabel}`} nota="o centro de custo de cada área: gasto, teto e o peso no faturamento">
           <table className="w-full text-sm">
             <thead>
               <tr className="text-caption text-ink-faint">
@@ -187,10 +187,10 @@ export function PainelEmpresa({
             </tbody>
           </table>
         </Bloco>
-        <Bloco titulo={`Despesas por frente · ${mesLabel}`}>
+        <Bloco titulo={`Despesas por frente, ${mesLabel}`}>
           <Donut slices={fatiasFrentes} centerLabel="Gastos" size={150} emptyMessage="Nenhum gasto no mês ainda. Registre o primeiro (o + na barra) para ver para onde vai o dinheiro." />
         </Bloco>
-        <Bloco titulo={receitaPorTipoMes.length > 0 ? `Receita por tipo · ${mesLabel}` : `Receita por tipo · ${year}`} nota="Vendas, serviços, assinaturas: o tipo que você marca ao registrar">
+        <Bloco titulo={receitaPorTipoMes.length > 0 ? `Receita por tipo, ${mesLabel}` : `Receita por tipo, ${year}`} nota="Vendas, serviços, assinaturas: o tipo que você marca ao registrar">
           <Donut slices={fatiasReceita} centerLabel="Receita" size={150} emptyMessage="Registre uma entrada com o tipo (Vendas, Serviços…)." />
         </Bloco>
       </div>

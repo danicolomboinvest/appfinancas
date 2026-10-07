@@ -1,20 +1,15 @@
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CalendarClock, ChevronLeft, ChevronRight, CreditCard } from "lucide-react";
+import { CalendarClock, ChevronDown, ChevronLeft, ChevronRight, CreditCard } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
-import {
-  getAnnualPlannedVsActual,
-  computeMonthSavings,
-  findBiggestOverrun,
-} from "@/lib/planning/budget-comparison";
+import { getAnnualPlannedVsActual } from "@/lib/planning/budget-comparison";
 import { getAnnualBudgetPlan, getAnnualBudgetPlanForCustomCategories } from "@/lib/repositories/budget.repo";
 import { getAnnualMonthlyPlan } from "@/lib/repositories/monthly-plan.repo";
 import { getBudgetHints } from "@/lib/planning/budget-hints";
 import { anoFechado, mesDeReferenciaDoPlano } from "@/lib/planning/plano-anual";
 import { getSavingsTargets } from "@/lib/planning/savings-targets";
 import { BudgetWizard } from "../BudgetWizard";
-import { getMonthlySummary } from "@/lib/consolidation/monthly";
 import {
   PARENT_CATEGORIES,
   categoryLabel as parentCategoryLabel,
@@ -76,12 +71,11 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
   const voz = vozDoTema(ctx.profileTheme, ctx.profileKind);
   const agora = nowInBrazil();
   // Uma consulta a mais na página já custou caro antes: vai junto das outras, não em fila.
-  const [comparison, customCategories, plan, annualPlan, monthSummary, hints, savingsTargets, contas, cartao] = await Promise.all([
+  const [comparison, customCategories, plan, annualPlan, hints, savingsTargets, contas, cartao] = await Promise.all([
     getAnnualPlannedVsActual(ctx, year),
     listCustomCategories(ctx),
     getAnnualBudgetPlan(ctx, year),
     getAnnualMonthlyPlan(ctx, year),
-    year === agora.getFullYear() ? getMonthlySummary(ctx, year, agora.getMonth() + 1) : null,
     getBudgetHints(ctx, year, agora),
     getSavingsTargets(ctx, agora),
     listarContasAPagar(ctx),
@@ -144,13 +138,6 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
         })
       : null;
   const ultimoDiaDoMes = currentMonthData ? new Date(year, currentMonthData.month, 0).getDate() : 0;
-
-  // Sem plano por categoria (só renda e aporte), "0 − gasto" não é economia nem estouro: o card
-  // dizia "Acima do planejado" em vermelho enquanto o resumo do mês, logo acima, dizia "sem plano".
-  const monthSavings = currentMonthData && currentMonthData.totalPlanned > 0 ? computeMonthSavings(currentMonthData) : null;
-  const biggestOverrun = currentMonthData ? findBiggestOverrun(currentMonthData.categories) : null;
-
-
 
   // As categorias do mês no jeito do Copilot (ver CategoriasDoMes): previsão, a vencer, Cobrir.
   const detalhe = currentMonthData && isCurrentYear ? await carregarDetalheDoOrcamento(ctx, year, currentMonthData.month, now) : null;
@@ -289,135 +276,108 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
 
       {/* Primeira coisa da página, de propósito: é o número que a pessoa veio ver. Tudo o que
           vem depois (categorias, ano, tabela) explica ESTE número. */}
-      {resumoMes && (
-        <ResumoDoMesCard
-          resumo={resumoMes}
-          mesLabel={MONTH_LABELS[currentMonthData!.month - 1]}
-          ultimoDia={ultimoDiaDoMes}
-          money={money}
-          onAtualizar={<AtualizarMesButton />}
-          voz={voz}
-          grafico={
-            detalhe && currentMonthData ? (
-              <CurvaDoMes
-                acumulado={detalhe.acumulado}
-                acumuladoAnterior={detalhe.acumuladoAnterior}
-                planejado={currentMonthData.totalPlanned}
-                diasNoMes={ultimoDiaDoMes}
-                previsao={previsaoDoMesTotal}
-                marco={detalhe.marco && detalhe.marco.valor >= currentMonthData.totalPlanned * 0.05 ? detalhe.marco : null}
-                cor={resumoMes.situacao === "estourou" ? "var(--color-danger)" : "var(--color-accent)"}
-                money={(v) => money(v, { round: true })}
-              />
-            ) : undefined
-          }
-          previsaoTexto={
-            previsaoDoMesTotal !== null && currentMonthData && currentMonthData.totalPlanned > 0
-              ? previsaoDoMesTotal > currentMonthData.totalPlanned
-                ? `Nesse ritmo, o mês fecha em ${money(previsaoDoMesTotal, { round: true })}: ${money(previsaoDoMesTotal - currentMonthData.totalPlanned, { round: true })} acima.`
-                : `Nesse ritmo, o mês fecha em ${money(previsaoDoMesTotal, { round: true })}, dentro do planejado.`
-              : null
-          }
-          previsaoRuim={previsaoDoMesTotal !== null && currentMonthData !== undefined && previsaoDoMesTotal > currentMonthData.totalPlanned}
-        />
-      )}
+      {/* No computador o número fica à esquerda e o alerta, o plano e os dois quadrados à direita
+          (07/10/2026): com a curva dentro do cartão, na largura toda ela ficava do tamanho da tela. */}
+      <div className="flex flex-col gap-6 lg:grid lg:grid-cols-2 lg:items-start lg:gap-5">
+        {resumoMes && (
+          <ResumoDoMesCard
+            resumo={resumoMes}
+            mesLabel={MONTH_LABELS[currentMonthData!.month - 1]}
+            ultimoDia={ultimoDiaDoMes}
+            money={money}
+            onAtualizar={<AtualizarMesButton />}
+            voz={voz}
+            grafico={
+              detalhe && currentMonthData ? (
+                <CurvaDoMes
+                  compacta
+                  acumulado={detalhe.acumulado}
+                  acumuladoAnterior={detalhe.acumuladoAnterior}
+                  planejado={currentMonthData.totalPlanned}
+                  diasNoMes={ultimoDiaDoMes}
+                  previsao={previsaoDoMesTotal}
+                  marco={null}
+                  cor={resumoMes.situacao === "estourou" ? "var(--color-danger)" : "var(--color-heroi-destaque)"}
+                  money={(v) => money(v, { round: true })}
+                />
+              ) : undefined
+            }
+            previsao={previsaoDoMesTotal}
+          />
+        )}
+        <div className="flex min-w-0 flex-col gap-6 lg:gap-4">
+          {/* O alerta do mês, um só e numa linha (07/10/2026): logo abaixo da resposta, antes das ações. */}
+          {ajustesPadrao.length > 0 && (
+            <SugestoesDoPadrao ajustes={ajustesPadrao} mes={MONTH_LABELS[agora.getMonth()].toLowerCase()} meses={hints.mesesComDado} />
+          )}
 
-      {planoFechado ? (
-        <p className="text-sm text-ink-muted">
-          {year} já fechou: o plano dele fica como estava, pra comparação.{" "}
-          <Link href={`/orcamento/${agora.getFullYear()}`} className="font-semibold text-accent-strong hover:underline">
-            Planejar {agora.getFullYear()}
-          </Link>
-        </p>
-      ) : hasPlan ? (
-        // Com plano: um botão que abre o assistente por cima (ver EditarPlano). Sem plano, ele é
-        // a própria página e continua aberto aqui.
-        <EditarPlano rotulo={voz.titulos.formOrcEditarCurto(year)} titulo={voz.titulos.formOrcEditarCurto(year)}>
-          {assistente}
-        </EditarPlano>
-      ) : (
-        <Section title={`Vamos montar seu orçamento de ${year}`}>{assistente}</Section>
-      )}
+          {planoFechado ? (
+            <p className="text-sm text-ink-muted">
+              {year} já fechou: o plano dele fica como estava, pra comparação.{" "}
+              <Link href={`/orcamento/${agora.getFullYear()}`} className="font-semibold text-accent-strong hover:underline">
+                Planejar {agora.getFullYear()}
+              </Link>
+            </p>
+          ) : hasPlan ? (
+            // Com plano: um botão que abre o assistente por cima (ver EditarPlano). Sem plano, ele é
+            // a própria página e continua aberto aqui.
+            <EditarPlano rotulo={voz.titulos.formOrcEditarCurto(year)} titulo={voz.titulos.formOrcEditarCurto(year)}>
+              {assistente}
+            </EditarPlano>
+          ) : (
+            <Section title={`Vamos montar seu orçamento de ${year}`}>{assistente}</Section>
+          )}
 
-      {ajustesPadrao.length > 0 && (
-        <SugestoesDoPadrao ajustes={ajustesPadrao} mes={MONTH_LABELS[agora.getMonth()].toLowerCase()} meses={hints.mesesComDado} />
-      )}
-
-      {/* Os três números do mês numa linha (01/10/2026): eram três cartões de texto empilhados. */}
-      {isCurrentYear && hasPlan && currentMonthData && (
-        <div className="grid grid-cols-3 gap-2">
-          {[
-            {
-              rotulo: "Economia",
-              valor: monthSavings === null ? "—" : money(Math.abs(monthSavings), { round: true }),
-              cor: monthSavings === null ? "text-ink" : monthSavings >= 0 ? "text-success" : "text-danger",
-            },
-            {
-              rotulo: "Estourou",
-              valor: biggestOverrun ? categoryLabel(biggestOverrun.categoryKey) : "Nenhuma",
-              cor: biggestOverrun ? "text-danger" : "text-ink",
-            },
-            {
-              rotulo: voz.titulos.formOrcBarraAporte,
-              valor: money(monthSummary?.totalInvestment ?? 0, { round: true }),
-              cor: "text-ink",
-            },
-          ].map((n) => (
-            <div key={n.rotulo} className="flex flex-col gap-0.5 rounded-2xl bg-surface-2 px-2.5 py-3 text-center">
-              <span className="truncate text-caption text-ink-muted">{n.rotulo}</span>
-              <span className={`truncate text-sm font-semibold tabular-nums ${n.cor}`}>{n.valor}</span>
+          {/* Contas a pagar e Limite do cartão em dois quadrados lado a lado (07/10/2026, "mesma cara,
+              menos texto"): eram um cartão comprido com frase e um link solto. O limite é opcional (a
+              Dani: "não é todo mundo que vai usar dessa forma"), então sem ele o quadrado só convida. */}
+          {isCurrentYear && (
+            <div className="grid grid-cols-2 gap-2.5 lg:gap-3">
+              <Link
+                href={contas.length > 0 ? "/orcamento/contas" : "/orcamento/contas?nova=1"}
+                className="flex min-w-0 flex-col rounded-2xl border border-border bg-surface p-3.5 transition-colors hover:bg-surface-hover"
+              >
+                <span className="flex items-center justify-between">
+                  <CalendarClock size={20} className={contasAtrasadas > 0 ? "text-danger" : "text-accent-strong"} aria-hidden />
+                  <ChevronRight size={16} className="text-ink-faint" aria-hidden />
+                </span>
+                <span className="mt-2.5 text-caption text-ink-muted">{voz.titulos.contasTitulo}</span>
+                <span className={`truncate text-[17px] font-semibold tabular-nums ${contasAtrasadas > 0 ? "text-danger" : contas.length === 0 ? "text-accent-strong" : "text-ink"}`}>
+                  {contas.length === 0
+                    ? "Anotar"
+                    : contasDaSemana.length === 0
+                      ? "Em dia"
+                      : totalDasContas > 0
+                        ? money(totalDasContas, { round: true })
+                        : `${contasDaSemana.length} na semana`}
+                </span>
+                {contasDaSemana.length > 0 && (
+                  <span className={`mt-0.5 text-caption ${contasAtrasadas > 0 ? "font-semibold text-danger" : "text-ink-muted"}`}>
+                    {voz.titulos.contasFocoTitulo(contasAtrasadas, contasDaSemana.length - contasAtrasadas)}
+                  </span>
+                )}
+              </Link>
+              <Link href="/orcamento/cartao" className="flex min-w-0 flex-col rounded-2xl border border-border bg-surface p-3.5 transition-colors hover:bg-surface-hover">
+                <span className="flex items-center justify-between">
+                  <CreditCard size={20} className={cartao && (cartao.nivel === "passou" || cartao.nivel === "perto") ? "text-danger" : "text-accent-strong"} aria-hidden />
+                  <ChevronRight size={16} className="text-ink-faint" aria-hidden />
+                </span>
+                <span className="mt-2.5 text-caption text-ink-muted">{voz.titulos.limTitulo}</span>
+                {cartao ? (
+                  <>
+                    <span className={`text-[17px] font-semibold tabular-nums ${cartao.nivel === "passou" ? "text-danger" : "text-ink"}`}>{Math.round(cartao.pct)}%</span>
+                    <span className={`mt-0.5 text-caption ${cartao.nivel === "passou" ? "font-semibold text-danger" : "text-ink-muted"}`}>
+                      {cartao.falta >= 0 ? voz.titulos.limAtalhoFalta(money(cartao.falta, { round: true })) : voz.titulos.limAtalhoPassou(money(-cartao.falta, { round: true }))}
+                    </span>
+                  </>
+                ) : (
+                  <span className="text-[17px] font-semibold text-accent-strong">Montar</span>
+                )}
+              </Link>
             </div>
-          ))}
+          )}
         </div>
-      )}
-
-      {isCurrentYear && (
-        <Link
-          href={contas.length > 0 ? "/orcamento/contas" : "/orcamento/contas?nova=1"}
-          className="flex items-center gap-3 rounded-2xl border border-border bg-surface px-5 py-4 transition-colors hover:bg-surface-hover"
-        >
-          <CalendarClock size={18} className={`shrink-0 ${contasAtrasadas > 0 ? "text-danger" : "text-accent-strong"}`} aria-hidden />
-          <span className="min-w-0 flex-1">
-            <span className="block text-sm font-semibold text-ink">{voz.titulos.contasTitulo}</span>
-            <span className={`mt-0.5 block text-caption ${contasAtrasadas > 0 ? "font-semibold text-danger" : "text-ink-muted"}`}>
-              {contasDaSemana.length > 0
-                ? voz.titulos.contasFocoTitulo(contasAtrasadas, contasDaSemana.length - contasAtrasadas)
-                : contas.length > 0
-                  ? voz.titulos.contasFocoNenhuma
-                  : voz.titulos.contasRegistrarSub}
-            </span>
-          </span>
-          {totalDasContas > 0 && <span className="shrink-0 text-sm font-semibold tabular-nums text-ink">{money(totalDasContas, { round: true })}</span>}
-          <ChevronRight size={16} className="shrink-0 text-ink-faint" />
-        </Link>
-      )}
-
-      {/* Limite do cartão (06/10/2026): opcional. Quem montou vê quanto falta; quem não montou, só
-          um botãozinho discreto (a Dani: "não é todo mundo que vai usar dessa forma"). */}
-      {isCurrentYear && !cartao && (
-        <Link href="/orcamento/cartao" className="inline-flex min-h-11 items-center gap-2 self-start px-1 text-sm font-medium text-accent-strong hover:underline">
-          <CreditCard size={16} aria-hidden />
-          {voz.titulos.limAtalhoDefinir}
-        </Link>
-      )}
-      {isCurrentYear && cartao && (
-        <Link
-          href="/orcamento/cartao"
-          className="flex items-center gap-3 rounded-2xl border border-border bg-surface px-5 py-4 transition-colors hover:bg-surface-hover"
-        >
-          <CreditCard size={18} className={`shrink-0 ${cartao.nivel === "passou" || cartao.nivel === "perto" ? "text-danger" : "text-accent-strong"}`} aria-hidden />
-          <span className="min-w-0 flex-1">
-            <span className="block text-sm font-semibold text-ink">{voz.titulos.limTitulo}</span>
-            <span className={`mt-0.5 block text-caption ${cartao.nivel === "passou" ? "font-semibold text-danger" : "text-ink-muted"}`}>
-              {cartao.falta >= 0
-                ? voz.titulos.limAtalhoFalta(money(cartao.falta, { round: true }))
-                : voz.titulos.limAtalhoPassou(money(-cartao.falta, { round: true }))}
-            </span>
-          </span>
-          <span className="shrink-0 text-sm font-semibold tabular-nums text-ink-muted">{Math.round(cartao.pct)}%</span>
-          <ChevronRight size={16} className="shrink-0 text-ink-faint" />
-        </Link>
-      )}
+      </div>
 
       {linhasDoMes.length > 0 && (
         <Section title={`Categorias de ${MONTH_LABELS[(currentMonthData?.month ?? 1) - 1].toLowerCase()}`}>
@@ -425,27 +385,37 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
         </Section>
       )}
 
-      {linhasDoAno.length > 0 && (
-        <Section title={`Seu ${year}, mês a mês`}>
-          <MapaDoAno linhas={linhasDoAno} />
-        </Section>
-      )}
-
-      {/* As explicações de cada desenho, num lugar só (antes, uma frase por bloco). */}
-      <details className="px-1">
-        <summary className="cursor-pointer text-caption font-semibold text-accent-strong">Como ler esta página</summary>
-        <ul className="mt-2 flex flex-col gap-1.5 text-caption text-ink-muted">
-          <li>Meia-lua: o quanto do orçamento do mês já saiu. O tracinho é o dia de hoje; passou dele, está gastando adiantado.</li>
-          <li>Anéis: cada categoria no mês. Verde está dentro, amarelo está perto do limite, vermelho passou.</li>
-          <li>Mapa do ano: um quadrado por mês. Verde ficou dentro do planejado, vermelho passou.</li>
-          <li>Categoria sem plano fica cinza: não dá para estourar um limite que não existe.</li>
-        </ul>
-      </details>
-
-      {mesesDoResumo.some((x) => x.realizado && x.planejado > 0) && (
-        <Section title={`Seu ${year} até agora`}>
-          <ResumoDoAno ano={year} meses={mesesDoResumo} />
-        </Section>
+      {/* O ano inteiro fica fechado (07/10/2026): a página responde "quanto ainda posso gastar este
+          mês?"; o mapa, a tabela e o como ler são para quem toca. */}
+      {(linhasDoAno.length > 0 || mesesDoResumo.some((x) => x.realizado && x.planejado > 0)) && (
+        <details className="group rounded-2xl border border-border bg-surface">
+          <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 px-5 text-base font-semibold text-ink [&::-webkit-details-marker]:hidden">
+            Ver {year} inteiro
+            <ChevronDown size={18} className="shrink-0 text-ink-faint transition-transform group-open:rotate-180" aria-hidden />
+          </summary>
+          <div className="flex flex-col gap-6 border-t border-border px-4 pb-5 pt-4 sm:px-5">
+            {linhasDoAno.length > 0 && (
+              <Section title="Mês a mês">
+                <MapaDoAno linhas={linhasDoAno} />
+              </Section>
+            )}
+            {mesesDoResumo.some((x) => x.realizado && x.planejado > 0) && (
+              <Section title="Até agora">
+                <ResumoDoAno ano={year} meses={mesesDoResumo} />
+              </Section>
+            )}
+            {/* As explicações de cada desenho, num lugar só (antes, uma frase por bloco). */}
+            <details>
+              <summary className="cursor-pointer text-caption font-semibold text-accent-strong">Como ler esta página</summary>
+              <ul className="mt-2 flex flex-col gap-1.5 text-caption text-ink-muted">
+                <li>Curva: o quanto do orçamento do mês já saiu. O tracejado é o ritmo de quem fecha certinho; acima dele, está gastando adiantado.</li>
+                <li>Anéis: cada categoria no mês. Verde está dentro, amarelo está perto do limite, vermelho passou.</li>
+                <li>Mapa do ano: um quadrado por mês. Verde ficou dentro do planejado, vermelho passou.</li>
+                <li>Categoria sem plano fica cinza: não dá para estourar um limite que não existe.</li>
+              </ul>
+            </details>
+          </div>
+        </details>
       )}
     </div>
   );

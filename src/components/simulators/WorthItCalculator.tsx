@@ -105,7 +105,7 @@ export function WorthItCalculator({
       {step === 1 && (
         <div className="flex flex-col gap-5">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-accent-strong">{t.simValeEyebrow}</p>
+            <p className="text-xs font-semibold text-accent-strong">{t.simValeEyebrow}</p>
             <h1 className="mt-1 text-h2 font-bold tracking-tight text-ink">{t.simValePasso1Titulo}</h1>
             <p className="mt-2 text-sm text-ink-muted">{t.simValePasso1Sub}</p>
           </div>
@@ -160,7 +160,7 @@ export function WorthItCalculator({
                   </button>
                   {isIncomeSimulated && (
                     <>
-                      {" · "}
+                      {", "}
                       <button
                         type="button"
                         onClick={() => setSimulatedIncomeCents(null)}
@@ -196,7 +196,7 @@ export function WorthItCalculator({
       {step === 2 && (
         <div className="flex flex-col gap-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-accent-strong">{t.simValeEyebrow}</p>
+            <p className="text-xs font-semibold text-accent-strong">{t.simValeEyebrow}</p>
             <h1 className="mt-1 text-h2 font-bold tracking-tight text-ink">{t.simValePasso2Titulo}</h1>
             <p className="mt-2 text-sm text-ink-muted">{t.simValePasso2Sub}</p>
           </div>
@@ -250,7 +250,7 @@ export function WorthItCalculator({
       {step === 3 && (
         <div className="flex flex-col gap-5">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-accent-strong">{t.simResultado}</p>
+            <p className="text-xs font-semibold text-accent-strong">{t.simResultado}</p>
             <h1 className="mt-1 text-h2 font-bold tracking-tight text-ink">{t.simValeTitulo}</h1>
           </div>
 

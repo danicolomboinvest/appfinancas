@@ -146,7 +146,7 @@ export const game: Voz = {
     ...TITULOS_PADRAO,
     // Aba Foco e "Posso comprar?"
     focoRitualEy: "Segunda",
-    focoRitualT: "Missão semanal · 5 min",
+    focoRitualT: "Missão semanal, 5 min",
     focoRitualP: "4 etapas. Complete e pontue.",
     focoFechEy: "Fim de temporada",
     focoFechT: (m) => `Fechar a temporada de ${m}`,
@@ -234,7 +234,7 @@ export const game: Voz = {
     compraCusto: "Jogada com custo",
     compraNao: "Jogada arriscada",
     comparacao: (tipo, valor, mes) =>
-      tipo === "sem" ? `Zero em ${mes}` : tipo === "igual" ? `Igual a ${mes}` : tipo === "mais" ? `${valor} a mais que ${mes} · −pontos` : `${valor} a menos que ${mes} · +pontos`,
+      tipo === "sem" ? `Zero em ${mes}` : tipo === "igual" ? `Igual a ${mes}` : tipo === "mais" ? `${valor} a mais que ${mes}, −pontos` : `${valor} a menos que ${mes}, +pontos`,
     simuladores: "Treino de decisão",
     simuladoresSub: "Seis cenários pra testar a jogada antes de gastar de verdade.",
     simulador: simuladoresDoTema({
@@ -246,9 +246,9 @@ export const game: Voz = {
       "/simuladores/vale-a-pena": { subtitle: "Quantas horas de jogo custa esse item? Calcula antes de comprar." },
     }),
     registrar: "Registrar",
-    registrarNovo: "Novo registro · conta pro combo",
-    registrarFalar: "Por voz · conta pro combo",
-    registrarImportar: "Importar extrato · conta pro combo do mês",
+    registrarNovo: "Novo registro, conta pro combo",
+    registrarFalar: "Por voz, conta pro combo",
+    registrarImportar: "Importar extrato, conta pro combo do mês",
     lancamentoSalvo: "Registrado. Conta pro combo do mês.",
     // Ranqueada: temporada, missão, pontos. Sério, sem emoji — só o troféu quando é conquista
     // e a chama quando é sequência de meses. A divisão mede constância, nunca patrimônio.
@@ -291,7 +291,7 @@ export const game: Voz = {
     metas: "Missões",
     metasSub: "Cada missão tem prazo e pontos por mês.",
     metasVazio: "Nenhuma missão ativa. Crie a primeira e comece a pontuar.",
-    reserva: "Reserva · vida extra",
+    reserva: "Reserva, vida extra",
     reservaSub: "Sua vida extra. Sem ela, qualquer imprevisto é game over.",
     reservaMeta: "Alvo da reserva",
     reservaTempo: "Tempo pra completar",
@@ -306,7 +306,7 @@ export const game: Voz = {
     metaAporteFeito: (mes) => `Missão de ${mes} cumprida ✓`,
     metaAporteToast: (mes) => `Aporte de ${mes} registrado. Combo do mês avançando.`,
     metaMarcar: (mes) => `Cumpri ${mes}`,
-    splitTitulo: (mes) => `Divisão do aporte · ${mes}`,
+    splitTitulo: (mes) => `Divisão do aporte, ${mes}`,
     splitSub: (v) => `${v} por mês. Reserva primeiro, depois as missões por prazo.`,
     splitVazioTitulo: "Pra onde vai o aporte?",
     splitVazioSub: "Diga na missão do mês quanto quer guardar, e o app divide entre reserva e missões.",
@@ -322,7 +322,7 @@ export const game: Voz = {
     visaoGeralLink: "Ver a temporada →",
     semanaTitulo: "Missões da semana",
     tarefa: tarefasDoTema({
-      lancamentos: (n, feita) => (feita ? `Gastos da semana registrados (${n ?? 0}) ✓ metade do combo` : "Registrar os gastos da semana · metade do combo"),
+      lancamentos: (n, feita) => (feita ? `Gastos da semana registrados (${n ?? 0}) ✓ metade do combo` : "Registrar os gastos da semana, metade do combo"),
       "orcamento-definir": () => "Definir o limite de cada categoria",
       "orcamento-estourado": (n, _f, pl) => `Recuperar ${n ?? 1} categoria${pl ? "s" : ""} acima do limite`,
       "orcamento-ok": () => "Limites do mês sob controle ✓",
@@ -332,7 +332,7 @@ export const game: Voz = {
       "meta-criar": () => "Criar a primeira missão",
       "meta-atrasada": (n, _f, pl) => `Retomar ${n ?? 1} ${pl ? "missões atrasadas" : "missão atrasada"}`,
       "meta-ok": () => "Missões no ritmo ✓",
-      aporte: (_n, feita) => (feita ? "Aporte do mês feito ✓ combo fechado" : "Separar o aporte do mês · fecha o combo (+100)"),
+      aporte: (_n, feita) => (feita ? "Aporte do mês feito ✓ combo fechado" : "Separar o aporte do mês, fecha o combo (+100)"),
       "reuniao-casal": () => "Missão co-op: 15 min revisando os gastos do mês, os dois juntos",
     }),
     navSecao: (b, t) => GAME_SECOES[b] ?? t,
@@ -352,7 +352,8 @@ export const game: Voz = {
     contribSub: "Onde o aporte entra pra fechar o alvo da carteira.",
     contribVazio: "Carteira vazia: a divisão segue só a estratégia.",
     contribSemEstrategiaTitulo: "Onde vai o aporte desta temporada?",
-    divTitulo: (total) => `Bônus a caminho · ${total}`,
+    divTitulo: (total) => `Bônus a caminho, ${total}`,
+    divRotulo: "Bônus a caminho",
     objNenhumTitulo: "Nenhum ativo tem missão ainda.",
     objNenhumLink: "Dar missão aos ativos →",
 
@@ -384,9 +385,9 @@ export const game: Voz = {
     simValeTitulo: "Vale a jogada?",
     simValeBarraInvestirMensal: "Segurar e investir",
     simValeVeredito: (valor) => `Investindo, você fecha com ${valor} a mais.`,
-    simValeEscolhaComprar: "Se é prioridade, ok — só confira que cabe no limite da temporada.",
+    simValeEscolhaComprar: "Se é prioridade, ok, só confira que cabe no limite da temporada.",
     simValeEscolhaNao: "Boa jogada. Isso aproxima das suas missões.",
-    simValeEscolhaDuvida: "Sem problema. Dá pra voltar aqui quando tiver mais clareza — a dúvida já é sinal de que vale pensar mais um pouco.",
+    simValeEscolhaDuvida: "Sem problema. Dá pra voltar aqui quando tiver mais clareza, a dúvida já é sinal de que vale pensar mais um pouco.",
 
     // ── Formulários: meta vira missão, orçamento vira limite, lançar vira registrar ──
     formMetaNova: "Nova missão",
@@ -421,11 +422,11 @@ export const game: Voz = {
     formLancLancar: "Registrar",
 
     // ── Importação: a gaveta Registrar, os importadores e o placar da temporada ──
-    impConectarBancoSub: "Open Finance · os lançamentos chegam sozinhos — o combo do mês não falha 🔥",
+    impConectarBancoSub: "Open Finance, os lançamentos chegam sozinhos, o combo do mês não falha 🔥",
     impNovaCategoriaDica: "A categoria nova já aparece nas Missões pra você definir um limite pra ela.",
-    impImportarN: (n) => `Importar ${n} lançamento${s(n)} · +pontos`,
+    impImportarN: (n) => `Importar ${n} lançamento${s(n)}, +pontos`,
     impImportadosSucesso: (n) => `${n === 1 ? "1 lançamento importado" : `${n} lançamentos importados`}. Temporada pontuada.`,
-    impToastImportados: (n) => `${n} lançamentos importados · +pontos`,
+    impToastImportados: (n) => `${n} lançamentos importados, +pontos`,
     impCarteiraEscolher: "Escolher a posição da corretora",
     impCarteiraEmDia: (n) => `Carteira já em dia com esse extrato: ${n} ativo${s(n)} conferido${s(n)}, nenhuma mudança encontrada.`,
     impCarteiraNovos: "Novos na carteira",
@@ -434,7 +435,7 @@ export const game: Voz = {
     impCarteiraFeito: (criados, atualizados) =>
       [criados > 0 ? `${criados} novo${s(criados)} na carteira` : null, atualizados > 0 ? `${atualizados} atualizado${s(atualizados)}` : null]
         .filter(Boolean)
-        .join(" · ") || "Nada pra mudar, carteira já estava em dia.",
+        .join(", ") || "Nada pra mudar, carteira já estava em dia.",
     impRepeteSub: "Estava nas temporadas anteriores e ainda não está nesta. Um toque registra.",
     impRepeteLancar: "Registrar",
     impRepeteLancado: "Registrado. Conta pro combo do mês.",
@@ -466,7 +467,7 @@ export const game: Voz = {
 
     // ── Shell: primeiros passos, tour, cartões do mês, erros ──
     uiPrimeirosPassos: "Primeiras missões",
-    uiPassoRegistrar: "Registre seu primeiro gasto ou renda · metade do combo",
+    uiPassoRegistrar: "Registre seu primeiro gasto ou renda, metade do combo",
     uiPassoOrcamento: "Defina os limites da temporada",
     uiPassoCarteira: "Monte sua carteira de investimentos",
     uiTourBoasVindasTitulo: "Boas-vindas ao SPI Finance",
@@ -487,10 +488,10 @@ export const game: Voz = {
     uiRendaDividida: "Como a renda foi dividida",
     uiRendaGastouAMais: (valor) => `Saiu ${valor} a mais do que entrou nesta temporada.`,
     uiMaioresGastos: "Maiores gastos da temporada",
-    uiSetaCompara: "A seta compara com a temporada passada. Variação abaixo de 8% não aparece — é oscilação normal.",
+    uiSetaCompara: "A seta compara com a temporada passada. Abaixo de 8% não aparece: é oscilação normal.",
     uiErroTitulo: "Erro do nosso lado",
-    uiErroTexto: "Foi um erro nosso, não seu — seus dados e seus pontos estão seguros. Tente recarregar; se continuar, saia e entre de novo.",
-    uiNaoEncontradoTexto: "Verifique o endereço ou volte pro início — a temporada continua lá.",
+    uiErroTexto: "Foi um erro nosso, não seu. Seus dados e seus pontos estão seguros. Tente recarregar; se continuar, saia e entre de novo.",
+    uiNaoEncontradoTexto: "Verifique o endereço ou volte pro início. A temporada continua lá.",
     uiNaoEncontradoVoltar: "Voltar pro início",
 
     // ── Configurações: só onde o app fala de orçamento, metas e carteira ──
@@ -503,7 +504,7 @@ export const game: Voz = {
     cfgExcluirContaTexto: [
       "Apaga a conta e ",
       "todos os seus dados",
-      " (lançamentos, limites, missões, carteira) de forma definitiva. Não tem volta, se quiser guardar algo, exporte antes.",
+      " (lançamentos, limites, missões, carteira) de forma definitiva. Não tem volta. Se quiser guardar algo, exporte antes.",
     ],
     cfgPerfisSub: "Cada perfil é um dinheiro separado: lançamentos, missões e carteira não se misturam entre eles.",
     cfgPerfisExcluirTexto: [
@@ -512,14 +513,14 @@ export const game: Voz = {
     ],
     viagemSub: "Estime quanto custa o destino e transforme em missão com aporte mensal.",
     viagemPorPessoa: (porPessoa, porMes, meses) =>
-      `${porPessoa} por pessoa · guardando ${porMes}/mês, a missão fecha em ${meses} ${meses === 1 ? "mês" : "meses"}.`,
+      `${porPessoa} por pessoa, guardando ${porMes}/mês, a missão fecha em ${meses} ${meses === 1 ? "mês" : "meses"}.`,
     viagemMetaCriadaToast: "Missão da viagem criada. Veja em Missões.",
     viagemVerMeta: "Ver minha missão em Missões",
     viagemCriarMeta: "Criar missão desta viagem",
     viagemCriandoMeta: "Criando missão...",
 
     // ── Carteira: aporte do mês, por missão, análises e gráficos ──
-    cartSuaCarteira: (n) => `Sua carteira · ${n} ativo${s(n)}`,
+    cartSuaCarteira: (n) => `Sua carteira, ${n} ativo${s(n)}`,
     cartRotuloMeta: (nome) => `missão "${nome}"`,
     cartPorTipo: "Carteira atual, por tipo",
     cartTracinhoAlvo: "O tracinho é o seu alvo. Quem está atrás dele é o próximo aporte.",
@@ -578,7 +579,7 @@ export const game: Voz = {
     casComparandoMais: (valor) => `Do jeito que está, quem ganha menos paga ${valor} a mais por mês.`,
     casComparandoParecido: "Rendas parecidas: dá quase no mesmo que 50/50.",
     casComparandoManualNota: (pct) => `Pela renda, seria ${pct}% pro outro.`,
-    casRendaConjunta: (valor) => `Renda conjunta do time: ${valor}. Não fica salvo — é só pra decidir esse mês.`,
+    casRendaConjunta: (valor) => `Renda conjunta do time: ${valor}. Não fica salvo, é só pra decidir esse mês.`,
 
     // Empresa: vale a pena investir? Payback contra a aplicação, como um confronto direto.
     invTitulo: "Vale a pena investir na empresa?",
@@ -631,7 +632,7 @@ export const game: Voz = {
     emailRecapIntro: (mes) => `Temporada de ${mes} encerrada. Confira o placar:`,
     emailRecapSobrou: "Saldo positivo",
     emailRecapFaltou: "Saldo negativo",
-    emailRecapPrimeiroMes: "Primeira temporada registrada — a próxima já entra com comparação.",
+    emailRecapPrimeiroMes: "Primeira temporada registrada, a próxima já entra com comparação.",
     emailRecapGastosIguais: "Gastos no mesmo nível da temporada anterior.",
     emailRecapGastosMenos: (valor) => `Você gastou ${valor} que na temporada anterior. Boa jogada.`,
     emailRecapGastosMais: (valor) => `Seus gastos ficaram ${valor} da temporada anterior. Hora de recuperar.`,

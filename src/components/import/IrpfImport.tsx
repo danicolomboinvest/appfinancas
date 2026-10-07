@@ -180,7 +180,7 @@ export function IrpfImport({ onDone }: { onDone: () => void }) {
                     </p>
                     <p className="text-caption text-ink-faint">
                       {t.impIrpfPrecoMedio} <span className="text-ink-muted tabular-nums">{money(i.averagePrice)}</span>
-                      {i.irQuantity ? ` · ${t.impIrpfNaDeclaracao(i.irQuantity.toLocaleString("pt-BR", { maximumFractionDigits: 6 }))}` : ""}
+                      {i.irQuantity ? `, ${t.impIrpfNaDeclaracao(i.irQuantity.toLocaleString("pt-BR", { maximumFractionDigits: 6 }))}` : ""}
                     </p>
                   </div>
                   {newInvested !== null && target && (

@@ -197,7 +197,7 @@ export function BudgetWizard({
 
   const header = (
     <div className="flex items-center justify-between">
-      <span className="text-xs font-bold uppercase tracking-[0.12em] text-accent-strong">{t.formOrcPasso(step, 3)}</span>
+      <span className="text-xs font-bold text-accent-strong">{t.formOrcPasso(step, 3)}</span>
       <div className="flex gap-1" aria-hidden>
         {[1, 2, 3].map((s) => (
           <span key={s} className={`h-1 w-7 rounded-full ${s <= step ? "bg-accent" : "bg-border"}`} />
@@ -275,7 +275,7 @@ export function BudgetWizard({
                       on ? "border-accent bg-accent-soft text-accent-strong" : "border-border-strong bg-surface-2 text-ink-muted hover:text-ink"
                     }`}
                   >
-                    {pct}%{income > 0 ? ` · ${money(Math.round((income * pct) / 100), { round: true })}` : ""}
+                    {pct}%{income > 0 ? `, ${money(Math.round((income * pct) / 100), { round: true })}` : ""}
                   </button>
                 );
               })}
@@ -298,7 +298,7 @@ export function BudgetWizard({
           </Card>
 
           <div className="rounded-2xl border border-success/30 bg-success-soft/40 px-4 py-4">
-            <p className="text-xs font-bold uppercase tracking-wide text-success">{t.formOrcSobraTitulo}</p>
+            <p className="text-xs font-bold text-success">{t.formOrcSobraTitulo}</p>
             <p className="text-3xl font-extrabold tracking-tight text-success">{money(toSpend, { round: true })}</p>
             <p className="text-caption text-ink-muted">{t.formOrcSobraSub(money(investment, { round: true }))}</p>
           </div>

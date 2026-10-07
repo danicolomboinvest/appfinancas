@@ -123,7 +123,7 @@ export function DestinationSearch({
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm text-ink">{destination.label}</span>
                       <span className="block truncate text-xs text-ink-faint">
-                        {destination.country} · {destination.region}
+                        {destination.country}, {destination.region}
                       </span>
                     </span>
                   </button>

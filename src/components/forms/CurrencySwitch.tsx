@@ -113,7 +113,7 @@ export function ExchangeRateLine({
         {status === "today" && today && `Cotação de hoje. Se o seu banco fechou diferente, ajuste aqui.`}
         {status === "stale" &&
           today &&
-          `Não consegui atualizar agora. Esta é a cotação de ${formatDateBR(today.date)} — confira antes de lançar.`}
+          `Não consegui atualizar agora. Esta é a cotação de ${formatDateBR(today.date)}. Confira antes de lançar.`}
         {status === "failed" && "Não consegui buscar a cotação agora. Digite a que o seu banco usou."}
         {status === "idle" &&
           (today && rate && Math.abs(today.rate - rate) / today.rate > 0.005

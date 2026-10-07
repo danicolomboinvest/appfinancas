@@ -5,6 +5,7 @@ import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Card } from "@/components/ui/Card";
+import { DicaDaPrimeiraVez } from "@/components/ui/DicaDaPrimeiraVez";
 import { CurrencyField } from "@/components/ui/CurrencyField";
 import { useMoney } from "@/components/money/MoneyProvider";
 import { planContribution } from "@/lib/portfolio/contribution-plan";
@@ -40,11 +41,15 @@ export function ContributionCard({ context, month }: { context: ContributionCont
       </Card>
     );
   }
+  // Enxuto (07/10/2026, "mesma cara, menos texto"): o título curto, o valor e, embaixo, cada ativo
+  // com quanto vai nele. A explicação "sugestão de rebalanceamento" aparece só na primeira vez.
   return (
-    <Card className="flex flex-col gap-4 border-accent/30 bg-accent-soft/30 p-4">
+    <Card className="flex flex-col gap-3 p-4">
       <div>
-        <p className="text-[15px] font-semibold text-ink">{voz.titulos.contribTitulo(MONTHS[month - 1])}</p>
-        <p className="text-caption text-ink-muted">{voz.titulos.contribSub}</p>
+        <p className="text-base font-semibold text-ink">{voz.titulos.contribTitulo(MONTHS[month - 1])}</p>
+        <DicaDaPrimeiraVez chave="carteira:aporte-do-mes" className="text-caption text-ink-muted">
+          {voz.titulos.contribSub}
+        </DicaDaPrimeiraVez>
       </div>
 
       <CurrencyField label={voz.titulos.contribLabel} name="_contribution" defaultValue={amount || undefined} onValueChange={setAmount} className="sm:w-48" />
@@ -56,17 +61,17 @@ export function ContributionCard({ context, month }: { context: ContributionCont
               <span key={s.assetClass} className="h-full" style={{ width: `${(s.amount / amount) * 100}%`, backgroundColor: STRATEGY_ASSET_CLASS_COLOR[s.assetClass] }} />
             ))}
           </div>
-          <ul className="flex flex-col gap-1.5">
+          <ul className="flex flex-col divide-y divide-border">
             {slices.map((s) => {
               const dest = context.destinations[s.assetClass];
               return (
-                <li key={s.assetClass} className="flex items-baseline gap-2 text-sm">
-                  <span className="mt-1 size-2.5 shrink-0 rounded-[3px]" style={{ backgroundColor: STRATEGY_ASSET_CLASS_COLOR[s.assetClass] }} />
-                  <b className="shrink-0 tabular-nums text-ink">{money(s.amount, { round: true })}</b>
-                  <span className="min-w-0 leading-snug text-ink-muted">
-                    {dest ? `→ ${dest.assetName}` : `→ ${context.labels[s.assetClass]}`}
+                <li key={s.assetClass} className="flex items-center gap-2.5 py-2 text-[15px]">
+                  <span className="size-2.5 shrink-0 rounded-[3px]" style={{ backgroundColor: STRATEGY_ASSET_CLASS_COLOR[s.assetClass] }} />
+                  <span className="min-w-0 flex-1 truncate text-ink">
+                    {dest ? dest.assetName : context.labels[s.assetClass]}
                     {!dest && <span className="text-ink-faint">{voz.titulos.contribSemAtivo}</span>}
                   </span>
+                  <b className="shrink-0 font-semibold tabular-nums text-ink">{money(s.amount, { round: true })}</b>
                 </li>
               );
             })}

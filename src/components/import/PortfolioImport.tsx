@@ -256,7 +256,7 @@ export function PortfolioImport({ onDone }: { onDone: () => void }) {
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium text-ink">{h.ticker}</p>
                         <p className="text-caption text-ink-faint">
-                          {h.quantity > 0 ? `${formatQty(h.quantity)} · ` : ""}
+                          {h.quantity > 0 ? `${formatQty(h.quantity)}, ` : ""}
                           {h.value > 0 ? money(h.value) : t.impCarteiraSemValor}
                         </p>
                       </div>
@@ -302,7 +302,7 @@ export function PortfolioImport({ onDone }: { onDone: () => void }) {
                             {qtyChanged && (
                               <>
                                 {formatQty(h.prevQuantity as number)} → <span className="text-ink">{formatQty(h.quantity)}</span>
-                                {" · "}
+                                {", "}
                               </>
                             )}
                             {h.prevValue !== null ? `${money(h.prevValue)} → ` : ""}

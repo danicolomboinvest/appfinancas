@@ -137,8 +137,8 @@ export function OnboardingChecklist({
   return (
     <Card className="p-5">
       <div className="flex items-start justify-between gap-3">
-        <p className="pt-2.5 text-caption font-semibold uppercase tracking-[0.11em] text-ink-muted">
-          {t.focoComeceTitulo} <span className="font-normal normal-case tracking-normal text-ink-faint">· {t.focoComeceContagem(p.feitos, p.passos.length)}</span>
+        <p className="pt-2.5 text-caption font-semibold text-ink-muted">
+          {t.focoComeceTitulo} <span className="font-normal normal-case tracking-normal text-ink-faint">{t.focoComeceContagem(p.feitos, p.passos.length)}</span>
         </p>
         {!p.contaNova && (
           // Área de toque de 44px, com o ícone do mesmo tamanho de antes.

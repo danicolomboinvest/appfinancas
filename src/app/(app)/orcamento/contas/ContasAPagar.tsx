@@ -39,7 +39,7 @@ export function ContasAPagar({ contas, pagas, hoje, abrirNova }: { contas: Conta
   const grupo = (titulo: string, lista: ContaSerial[], destaque?: boolean) =>
     lista.length > 0 && (
       <section className="flex flex-col">
-        <h2 className={`px-1 text-caption font-semibold uppercase tracking-[0.11em] ${destaque ? "text-danger" : "text-ink-muted"}`}>{titulo}</h2>
+        <h2 className={`px-1 text-caption font-semibold ${destaque ? "text-danger" : "text-ink-muted"}`}>{titulo}</h2>
         <ul className="mt-1 divide-y divide-border rounded-2xl border border-border bg-surface px-3">
           {lista.map((c) => (
             <LinhaDaConta key={c.id} conta={c} hoje={hoje} onAbrir={() => setEditando({ conta: c })} />

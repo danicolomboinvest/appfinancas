@@ -61,7 +61,7 @@ function HeroGame({ dados, mesLabel }: { dados: DadosDoTema; mesLabel: string })
       >
         {/* O halo da divisão, atrás do emblema: é o que faz Ouro parecer Ouro sem trocar a paleta do app. */}
         <div aria-hidden className="pointer-events-none absolute -left-10 -top-16 size-48 rounded-full opacity-25 blur-3xl" style={{ background: cor }} />
-        <p className="relative text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-faint">Ranqueada · temporada de {mesLabel.toLowerCase()}</p>
+        <p className="relative text-[11px] font-semibold text-ink-faint">Ranqueada, temporada de {mesLabel.toLowerCase()}</p>
         <div className="relative mt-3 flex items-center gap-3">
           <span
             className="flex size-14 shrink-0 items-center justify-center rounded-xl border bg-surface-2"
@@ -75,7 +75,7 @@ function HeroGame({ dados, mesLabel }: { dados: DadosDoTema; mesLabel: string })
           <span className="min-w-0 flex-1">
             <span className="block text-2xl font-semibold tracking-tight text-ink">{titulo}</span>
             <span className="block text-sm text-ink-muted">
-              {g.divisao.proximo ? `${pts(g.divisao.pontos)} pts · faltam ${pts(faltam)} pra ${proximaDivisao}` : `${pts(g.divisao.pontos)} pts · divisão máxima`}
+              {g.divisao.proximo ? `${pts(g.divisao.pontos)} pts, faltam ${pts(faltam)} pra ${proximaDivisao}` : `${pts(g.divisao.pontos)} pts, divisão máxima`}
             </span>
           </span>
           <span
@@ -83,7 +83,7 @@ function HeroGame({ dados, mesLabel }: { dados: DadosDoTema; mesLabel: string })
             title="Meses seguidos com o combo feito"
           >
             <span className="text-base font-semibold text-accent"><span aria-hidden>🔥</span> {g.sequencia}</span>
-            <span className="text-[11px] uppercase tracking-wider text-ink-faint">{g.sequencia === 1 ? "mês seguido" : "meses seguidos"}</span>
+            <span className="text-[11px] text-ink-faint">{g.sequencia === 1 ? "mês seguido" : "meses seguidos"}</span>
           </span>
         </div>
         <div className="relative mt-4 flex gap-1.5">
@@ -96,20 +96,20 @@ function HeroGame({ dados, mesLabel }: { dados: DadosDoTema; mesLabel: string })
             </div>
           ))}
         </div>
-        <div className="relative mt-1 flex justify-between text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
+        <div className="relative mt-1 flex justify-between text-[11px] font-semibold text-ink-faint">
           <span>III</span><span>II</span><span>I</span>
         </div>
         {/* O combo do mês: lançou e aportou. É o que fecha a temporada, e a pessoa vê o que falta. */}
         <div className="relative mt-4 flex items-center gap-2">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">Combo do mês</span>
+          <span className="text-[11px] font-semibold text-ink-faint">Combo do mês</span>
           <ComboChip feito={g.combo.registrou} rotulo="Lançou" />
           <ComboChip feito={g.combo.aportou} rotulo="Aportou" />
           {g.combo.registrou && g.combo.aportou && <span className="text-caption font-semibold text-accent">+{PONTOS.combo}</span>}
         </div>
         <p className="relative mt-3 text-caption text-ink-muted">
           <span className="font-semibold text-ink">+{pts(g.pontosDoMes)} pts</span> nesta temporada
-          {g.diasParaFechar > 0 ? ` · faltam ${g.diasParaFechar} dias pra fechar` : " · encerrada"}
-          {g.recorde ? " · melhor temporada 🏆" : ""}
+          {g.diasParaFechar > 0 ? `, faltam ${g.diasParaFechar} dias pra fechar` : ", encerrada"}
+          {g.recorde ? ", melhor temporada 🏆" : ""}
         </p>
       </section>
 
@@ -117,7 +117,7 @@ function HeroGame({ dados, mesLabel }: { dados: DadosDoTema; mesLabel: string })
       {/* Histórico de partidas: as últimas seis temporadas. Verde quando fechou o combo. */}
       <section className="rounded-2xl border border-border bg-surface p-4 sm:p-5">
         <div className="flex items-baseline justify-between gap-3">
-          <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-faint">Últimas temporadas</span>
+          <span className="text-[11px] font-semibold text-ink-faint">Últimas temporadas</span>
           <span className="text-caption text-ink-muted">pontos por mês</span>
         </div>
         <ul className="mt-3 grid grid-cols-6 gap-1.5">
@@ -130,7 +130,7 @@ function HeroGame({ dados, mesLabel }: { dados: DadosDoTema; mesLabel: string })
                 />
               </div>
               <span className={`text-[11px] tabular-nums ${h.atual ? "font-semibold text-ink" : "text-ink-muted"}`}>{pts(h.pontos)}</span>
-              <span className={`text-[11px] uppercase ${h.atual ? "text-accent" : "text-ink-faint"}`}>{h.mes}</span>
+              <span className={`text-[11px] ${h.atual ? "text-accent" : "text-ink-faint"}`}>{h.mes}</span>
             </li>
           ))}
         </ul>
@@ -140,7 +140,7 @@ function HeroGame({ dados, mesLabel }: { dados: DadosDoTema; mesLabel: string })
           cinza com cadeado; o que falta aparece no toque longo (title). */}
       <section className="rounded-2xl border border-border bg-surface px-4 py-3 sm:px-5">
         <div className="flex items-baseline justify-between gap-3">
-          <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-faint">Conquistas</span>
+          <span className="text-[11px] font-semibold text-ink-faint">Conquistas</span>
           <span className="text-caption text-ink-muted">{desbloqueadas} de {g.conquistas.length}</span>
         </div>
         <ul className="mt-2.5 grid grid-cols-6 gap-1">
@@ -225,7 +225,7 @@ function HeroDisciplina({ dados, money }: { dados: DadosDoTema; money: Money }) 
       {metaEmAndamento && (
         <Link href="/planejamento/metas" className="block rounded-2xl border border-border bg-surface p-4 transition-colors hover:border-border-strong sm:p-5">
           <div className="flex items-baseline justify-between gap-3">
-            <span className="text-caption font-semibold uppercase tracking-wider text-ink-muted">Seu avanço</span>
+            <span className="text-caption font-semibold text-ink-muted">Seu avanço</span>
             <span className="text-lg font-semibold tabular-nums text-ink">{metaEmAndamento.pct}%</span>
           </div>
           <p className="mt-1 text-[15px] font-medium text-ink">{metaEmAndamento.nome}</p>
@@ -264,7 +264,7 @@ function HeroManifestacao({ dados, money }: { dados: DadosDoTema; money: Money }
   if (sonhos.length === 0) {
     return (
       <Link href="/planejamento/metas" className="block rounded-2xl border border-dashed border-border-strong px-4 py-4 text-sm text-ink-muted transition-colors hover:border-accent hover:text-ink">
-        <span className="block text-caption font-semibold uppercase tracking-wider text-ink-faint">Sua vida dos sonhos</span>
+        <span className="block text-caption font-semibold text-ink-faint">Sua vida dos sonhos</span>
         <span className="mt-1 block">Comece pelo primeiro sonho: uma meta com nome, valor e data. <span className="font-medium text-accent-strong">Criar →</span></span>
       </Link>
     );
@@ -272,7 +272,7 @@ function HeroManifestacao({ dados, money }: { dados: DadosDoTema; money: Money }
   return (
     <div className="flex flex-col gap-4 lg:grid lg:grid-cols-2 lg:items-start">
       <section className="rounded-2xl border border-border bg-surface p-4 sm:p-5">
-        <p className="text-caption font-semibold uppercase tracking-wider text-ink-faint">✨ Sua vida dos sonhos</p>
+        <p className="text-caption font-semibold text-ink-faint">✨ Sua vida dos sonhos</p>
         {/* Grade de três sempre: com uma meta só, o tile ocupa um terço e não vira um bloco
             roxo do tamanho da tela. Os vazios convidam a criar o próximo sonho. */}
         <div className="mt-3 grid grid-cols-3 gap-2">
@@ -306,7 +306,7 @@ function HeroManifestacao({ dados, money }: { dados: DadosDoTema; money: Money }
             <span className="min-w-0 flex-1">
               <span className="block text-sm font-medium text-ink">{metaEmAndamento.nome}</span>
               <span className="block text-caption text-ink-faint">
-                {metaEmAndamento.prazo ? `${metaEmAndamento.prazo} · ` : ""}{money(metaEmAndamento.alvo, { round: true })}
+                {metaEmAndamento.prazo ? `${metaEmAndamento.prazo}, ` : ""}{money(metaEmAndamento.alvo, { round: true })}
               </span>
             </span>
             <span className="text-base font-semibold tabular-nums text-ink">{metaEmAndamento.pct}%</span>
@@ -336,7 +336,7 @@ function HeroSemFiltro({ dados, money }: { dados: DadosDoTema; money: Money }) {
   return (
     <Link href="/mensal/gastos" className="block rounded-2xl border border-border bg-surface p-4 transition-colors hover:border-border-strong sm:p-5">
       <div className="flex items-center justify-between gap-3">
-        <span className="text-caption font-semibold uppercase tracking-wider text-ink-faint">{voz.titulos.campeaoTitulo}</span>
+        <span className="text-caption font-semibold text-ink-faint">{voz.titulos.campeaoTitulo}</span>
         <span aria-hidden className="text-lg">😂</span>
       </div>
       <div className="mt-2 flex items-baseline justify-between gap-3">

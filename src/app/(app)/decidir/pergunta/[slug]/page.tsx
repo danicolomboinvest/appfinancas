@@ -147,7 +147,7 @@ export default async function PerguntaPage(props: PageProps<"/decidir/pergunta/[
       </Card>
 
       <section className="flex flex-col gap-2">
-        <h2 className="text-caption font-semibold uppercase tracking-[0.11em] text-ink-muted">{tx.decPergunteTambem}</h2>
+        <h2 className="text-caption font-semibold text-ink-muted">{tx.decPergunteTambem}</h2>
         <div className="flex flex-wrap gap-2">
           {outras.map(([k]) => (
             <Link key={k} href={`/decidir/pergunta/${k}`} className="inline-flex min-h-11 items-center rounded-full border border-border bg-surface px-4 py-2 text-caption font-medium text-ink hover:bg-surface-hover">

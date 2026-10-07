@@ -80,9 +80,9 @@ export async function SheetListPage({ sheetType, createForm }: { sheetType: Shee
                       )}
                     </div>
                     <p className="mt-0.5 truncate text-caption text-ink-muted">
-                      {sheet.companyName ? `${sheet.companyName} · ` : ""}
+                      {sheet.companyName ? `${sheet.companyName}, ` : ""}
                       {lida ? t.fichasLidaEm(lida.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })) : t.fichasNaoLida}
-                      {previousCount > 0 && ` · ${t.fichasAnteriores(previousCount)}`}
+                      {previousCount > 0 && `, ${t.fichasAnteriores(previousCount)}`}
                     </p>
                   </div>
                   {laudo ? (
@@ -100,8 +100,8 @@ export async function SheetListPage({ sheetType, createForm }: { sheetType: Shee
             );
           })}
           <p className="px-1 text-caption text-ink-faint">
-            <span className="text-success">●</span> {t.fichasLegenda.favoravel} · <span className="text-ink-muted">●</span>{" "}
-            {t.fichasLegenda.neutro} · <span className="text-danger">●</span> {t.fichasLegenda.atencao}
+            <span className="text-success">●</span> {t.fichasLegenda.favoravel}, <span className="text-ink-muted">●</span>{" "}
+            {t.fichasLegenda.neutro}, <span className="text-danger">●</span> {t.fichasLegenda.atencao}
           </p>
         </div>
       )}

@@ -362,7 +362,7 @@ function Gauge({ section }: { section: LaudoSection }) {
         <span>{scale.high}</span>
       </div>
       {/* Os dois números-chave como fichinhas, não numa frase cortada com "…" no meio: no
-          celular "patrimônio líquido 7,57 bi · liquidez 3,2 mi" não cabia em 239px e
+          celular "patrimônio líquido 7,57 bi, liquidez 3,2 mi" não cabia em 239px e
           escondia justamente o segundo número. Fichinha quebra de linha, frase não. */}
       <div className="-mt-1 flex flex-wrap gap-1.5">
         {chave.map((i) => (
@@ -413,7 +413,7 @@ function NumberTile({ item, open, onToggle }: { item: LaudoItem; open: boolean; 
         <p className={`mt-1.5 line-clamp-2 text-[12px] font-medium leading-tight ${bad ? "text-danger" : "text-ink"}`}>
           {FRIENDLY_LABEL[item.key] ?? technicalLabel(item)}
         </p>
-        <p className="truncate text-xs uppercase tracking-wide text-ink-faint">{SHORT_LABEL[item.key] ?? technicalLabel(item)}</p>
+        <p className="truncate text-xs text-ink-faint">{SHORT_LABEL[item.key] ?? technicalLabel(item)}</p>
       </button>
     </div>
   );
@@ -425,7 +425,7 @@ function Explanation({ item }: { item: LaudoItem }) {
   return (
     <div className={`rounded-lg px-3 py-2 ${bad ? "border border-danger/30 bg-danger-soft/40" : "bg-surface-2/60"}`}>
       <p className={`text-caption leading-relaxed ${bad ? "text-danger" : "text-ink"}`}>
-        <span className="font-semibold">{FRIENDLY_LABEL[item.key] ?? technicalLabel(item)}</span> — {item.plain}.
+        <span className="font-semibold">{FRIENDLY_LABEL[item.key] ?? technicalLabel(item)}</span>: {item.plain}.
       </p>
       {GLOSSARY[item.key] && <p className="mt-1 text-caption leading-relaxed text-ink-muted">{GLOSSARY[item.key]}</p>}
       <p className="mt-1 text-caption leading-relaxed text-ink-faint">{t.fichasRegua(item.reference)}</p>

@@ -44,7 +44,7 @@ export default async function AdminAcessosPage() {
       <Card className="overflow-x-auto">
         <div className="flex items-center justify-between px-4 py-3 text-sm text-ink-muted">
           <span>
-            {emails.length} e-mail{emails.length === 1 ? "" : "s"} na lista · {active} ativo{active === 1 ? "" : "s"}
+            {emails.length} e-mail{emails.length === 1 ? "" : "s"} na lista, {active} ativo{active === 1 ? "" : "s"}
             {expiredCount > 0 && (
               <>
                 {" "}

@@ -73,7 +73,7 @@ export function ManualDoApp() {
                   <Icone size={22} strokeWidth={1.8} aria-hidden />
                 </span>
                 <div className="min-w-0">
-                  <p className="text-caption font-semibold uppercase tracking-[0.11em] text-ink-faint">Parte {i + 1}</p>
+                  <p className="text-caption font-semibold text-ink-faint">Parte {i + 1}</p>
                   <h2 className="text-lg font-semibold leading-snug text-ink">{n(s.titulo)}</h2>
                   <p className="mt-0.5 text-sm text-ink-muted">{n(s.resumo)}</p>
                 </div>

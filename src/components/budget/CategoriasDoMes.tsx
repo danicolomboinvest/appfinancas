@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { DicaDaPrimeiraVez } from "@/components/ui/DicaDaPrimeiraVez";
 import { useRouter } from "next/navigation";
 import { ArrowLeftRight, ChevronDown, Pencil } from "lucide-react";
 import { CurrencyInputControlled } from "@/components/ui/CurrencyInputControlled";
@@ -62,8 +63,9 @@ export function CategoriasDoMes({
   const { key: tema, kind, categorias } = useProfileTheme();
   const router = useRouter();
   const { showToast, showError } = useToast();
-  // A mais urgente (a primeira da lista) já vem aberta: o detalhe faz parte da página.
-  const [aberta, setAberta] = useState<string | null>(linhas[0]?.key ?? null);
+  // Todas fechadas (07/10/2026): a lista responde "qual categoria está apertada?" pelo anel e pelo
+  // valor; o detalhe de cada uma (previsão, a vencer, lápis) abre no toque.
+  const [aberta, setAberta] = useState<string | null>(null);
   const [pendente, iniciar] = useTransition();
 
   const emoji = (l: LinhaDaCategoria): string | null => {
@@ -105,9 +107,11 @@ export function CategoriasDoMes({
                       {e}
                     </span>
                   )}
-                  <span className="min-w-0 flex-1 truncate text-sm font-medium text-ink">{l.label}</span>
-                  <span className={`shrink-0 text-caption tabular-nums ${l.estado === "passou" ? "font-semibold text-danger" : "text-ink-muted"}`}>
-                    {l.estado === "sem-plano" ? `${m(l.gasto)} sem plano` : l.sobra >= 0 ? `sobra ${m(l.sobra)}` : `passou ${m(-l.sobra)}`}
+                  <span className="min-w-0 flex-1 truncate text-[15px] font-medium text-ink">{l.label}</span>
+                  {/* O número na frente, a palavra pequena atrás (07/10/2026): "R$ 1.140 livre". */}
+                  <span className={`shrink-0 text-[15px] font-semibold tabular-nums ${l.estado === "passou" ? "text-danger" : "text-ink"}`}>
+                    {m(l.estado === "sem-plano" ? l.gasto : Math.abs(l.sobra))}
+                    <span className="ml-1 text-caption font-normal text-ink-muted">{l.estado === "sem-plano" ? "sem plano" : l.sobra >= 0 ? "livre" : "acima"}</span>
                   </span>
                   <ChevronDown size={14} className={`shrink-0 text-ink-faint transition-transform ${estaAberta ? "rotate-180" : ""}`} aria-hidden />
                 </span>
@@ -126,7 +130,8 @@ export function CategoriasDoMes({
         })}
       </ul>
 
-      <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-ink-muted">
+      {/* O que cada cor quer dizer: ensina na primeira vez e some (07/10/2026). */}
+      <DicaDaPrimeiraVez chave="orcamento:cores" className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-ink-muted">
         <span className="flex items-center gap-1">
           <span className="size-2.5 rounded-sm bg-success" /> vai fechar dentro
         </span>
@@ -139,7 +144,7 @@ export function CategoriasDoMes({
         <span className="flex items-center gap-1">
           <span className="size-2.5 rounded-sm border-[1.5px] border-dashed border-ink-faint" /> ainda vai vencer
         </span>
-      </div>
+      </DicaDaPrimeiraVez>
 
       {cobrir && (
         <div className="flex items-center gap-3 rounded-2xl bg-surface-2 p-3">

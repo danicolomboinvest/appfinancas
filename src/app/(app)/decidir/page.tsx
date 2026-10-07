@@ -49,7 +49,7 @@ export default async function DecidirPage() {
       <PageHeader title={tx.decTitulo} />
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-caption font-semibold uppercase tracking-[0.11em] text-ink-muted">{tx.decDiaADia}</h2>
+        <h2 className="text-caption font-semibold text-ink-muted">{tx.decDiaADia}</h2>
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
           {dia.map((q) => (
             <Link key={q.t} href={q.href} className={q.destaque ? "col-span-2 lg:col-span-1" : ""}>
@@ -68,7 +68,7 @@ export default async function DecidirPage() {
           lista cinza de "Decisões grandes" e um link no fim, que ninguém achava. */}
       <section className="flex flex-col gap-3">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-caption font-semibold uppercase tracking-[0.11em] text-ink-muted">{tx.calcTitulo}</h2>
+          <h2 className="text-caption font-semibold text-ink-muted">{tx.calcTitulo}</h2>
           {salvas > 0 && (
             <Link href="/simuladores" className="inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-accent-strong hover:underline">
               <Bookmark size={15} strokeWidth={1.9} aria-hidden />

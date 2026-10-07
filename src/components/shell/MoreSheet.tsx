@@ -83,7 +83,7 @@ export function MoreSheet({
         </>
       }
     >
-      <p className="px-1 text-caption font-semibold uppercase tracking-[0.11em] text-ink-muted">{voz.titulos.maisFerramentas}</p>
+      <p className="px-1 text-caption font-semibold text-ink-muted">{voz.titulos.maisFerramentas}</p>
       <div className="mt-2 grid grid-cols-3 gap-2">
         {ferramentas.map((section) => {
           const Icon = section.icon;
@@ -110,7 +110,7 @@ export function MoreSheet({
         })}
       </div>
 
-      <p className="mt-4 px-1 text-caption font-semibold uppercase tracking-[0.11em] text-ink-muted">{voz.titulos.maisSuaConta}</p>
+      <p className="mt-4 px-1 text-caption font-semibold text-ink-muted">{voz.titulos.maisSuaConta}</p>
       <div className="mt-1 flex flex-col gap-0.5">
         {/* Porta fixa pros perfis. O seletor do topo some quando só existe um perfil, e até
             aqui ele era o ÚNICO link pra /perfis no app inteiro — ou seja, quem tinha um

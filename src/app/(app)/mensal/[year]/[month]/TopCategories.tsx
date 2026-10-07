@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { CategoriasDoPerfil } from "@/lib/categories";
 import { DicaDaPrimeiraVez } from "@/components/ui/DicaDaPrimeiraVez";
 import { Receipt } from "lucide-react";
@@ -22,9 +23,12 @@ import type { Voz } from "@/lib/profiles/voice";
 const TOP_COUNT = 5;
 
 /**
- * "Para onde foi o dinheiro", em ordem. A rosca ao lado mostra a proporção; esta lista mostra
- * o nome, o valor e — o que faltava — se cada categoria subiu ou caiu em relação ao mês
- * passado. Sem essa última coluna a pessoa vê onde gastou, mas não descobre o que mudou.
+ * "Para onde foi o dinheiro", em ordem: o nome, o valor, a barra da fatia e se subiu ou caiu
+ * em relação ao mês passado.
+ *
+ * É a ÚNICA lista de categorias do Mensal (07/10/2026, "mesma cara, menos texto"): antes havia
+ * a rosca "Para onde foi" e esta lista "Maiores gastos", as mesmas categorias duas vezes. A
+ * barra faz o papel da rosca; a contagem de lançamentos saiu (está na aba Gastos).
  */
 export async function TopCategories({
   categories,
@@ -51,8 +55,12 @@ export async function TopCategories({
 
   return (
     <Section
-      title={t.uiMaioresGastos}
-      action={rest > 0 ? <p className="text-caption text-ink-faint">{t.uiMaisCategorias(rest)}</p> : undefined}
+      title={t.paraOndeFoi}
+      action={
+        <Link href="/mensal/gastos" className="text-caption font-medium text-accent-strong hover:underline">
+          {rest > 0 ? t.uiMaisCategorias(rest) : "Ver lançamentos"}
+        </Link>
+      }
     >
       <ul className="flex flex-col">
         {top.map((category) => {
@@ -62,31 +70,30 @@ export async function TopCategories({
               : (CUSTOM_CATEGORY_ICON_MAP[category.iconKey ?? ""] ?? Receipt);
           const color = colorForCategorySlice({ kind: category.kind, value: category.key }, profileKind);
           const emoji = emojiEscolhido(profileKind, category.key) ?? (category.kind === "parent" ? emojiDaCategoria(tema, { kind: "parent", value: category.key }) : emojiDaCategoria(tema, { kind: "custom", iconKey: category.iconKey }));
+          const pct = Math.round(category.share * 100);
           return (
-            <li
-              key={`${category.kind}:${category.key}`}
-              className="flex items-center gap-3 border-b border-border/60 py-3 last:border-0"
-            >
-              {/* Ícone cheio e grande é o que puxa o olho — a lista passa a ser lida pela cor
-                  antes do texto. A barra de proporção saiu: ela competia com o ícone pela
-                  atenção e dizia a mesma coisa que o percentual ao lado, com menos precisão. */}
-              <CategoryIcon icon={icon} color={color} size={44} emoji={emoji} />
+            <li key={`${category.kind}:${category.key}`} className="flex items-center gap-3 border-b border-border/60 py-3 last:border-0">
+              <CategoryIcon icon={icon} color={color} size={40} emoji={emoji} />
               <div className="min-w-0 flex-1">
-                <p className="truncate text-[17px] font-semibold leading-tight text-ink">{category.label}</p>
-                <p className="mt-0.5 text-caption text-ink-muted">{t.uiContagemLancamentos(category.count)}</p>
-              </div>
-              <div className="shrink-0 text-right">
-                <p className="text-[17px] font-semibold leading-tight tabular-nums text-ink">{money(category.amount)}</p>
-                <p className="mt-0.5 text-caption tabular-nums text-ink-muted">
-                  {Math.round(category.share * 100)}%
-                  {category.changeRatio !== null && Math.abs(category.changeRatio) >= 0.08 && (
-                    <span className={category.changeRatio > 0 ? " text-danger" : " text-success"}>
-                      {" · "}
-                      {category.changeRatio > 0 ? "↑" : "↓"}
-                      {Math.round(Math.abs(category.changeRatio) * 100)}%
-                    </span>
-                  )}
-                </p>
+                <div className="flex items-baseline justify-between gap-3">
+                  <p className="truncate text-base font-semibold leading-tight text-ink">{category.label}</p>
+                  <p className="shrink-0 text-base font-semibold leading-tight tabular-nums text-ink">{money(category.amount, { round: true })}</p>
+                </div>
+                <div className="mt-2 flex items-center gap-2.5">
+                  <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-2">
+                    <div className="h-full rounded-full" style={{ width: `${Math.max(2, pct)}%`, backgroundColor: color }} />
+                  </div>
+                  <span className="shrink-0 text-caption tabular-nums text-ink-muted">
+                    {pct}%
+                    {category.changeRatio !== null && Math.abs(category.changeRatio) >= 0.08 && (
+                      <span className={category.changeRatio > 0 ? " text-danger" : " text-success"}>
+                        {" "}
+                        {category.changeRatio > 0 ? "↑" : "↓"}
+                        {Math.round(Math.abs(category.changeRatio) * 100)}%
+                      </span>
+                    )}
+                  </span>
+                </div>
               </div>
             </li>
           );

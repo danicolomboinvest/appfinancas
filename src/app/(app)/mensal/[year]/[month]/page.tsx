@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { PaidDividendsCard } from "./PaidDividendsCard";
 import { listRecentlyPaidDividends } from "@/lib/repositories/dividend.repo";
 import { notFound } from "next/navigation";
@@ -21,13 +20,12 @@ import { getYearlySummary } from "@/lib/consolidation/yearly";
 import { getRecapDismissedMonth } from "@/lib/repositories/user.repo";
 import { getRecapEligibility } from "@/lib/recap/monthly";
 import { YearlyBarChart } from "@/components/charts/YearlyBarChart";
-import { PARENT_CATEGORIES, categoryLabel, colorForCategorySlice } from "@/lib/categories";
+import { PARENT_CATEGORIES, categoryLabel } from "@/lib/categories";
 import { ehEmpresa } from "@/lib/profiles/empresa";
 import { dadosDaEmpresa } from "@/lib/profiles/empresa-dados";
 import { DreEmpresa } from "./DreEmpresa";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { Donut, type DonutSlice } from "@/components/charts/Donut";
 import { Section } from "@/components/ui/Section";
 import { MonthHeatmap } from "@/components/charts/MonthHeatmap";
 import { EntryList } from "./EntryList";
@@ -38,7 +36,7 @@ import { FlowIndicators, type FlowBundle } from "./FlowIndicators";
 import { MonthHighlight } from "./MonthHighlight";
 import { MonthFlowCard } from "./MonthFlowCard";
 import { TopCategories } from "./TopCategories";
-import { IncomeSplitCard } from "./IncomeSplitCard";
+import { MaisGraficos } from "./MaisGraficos";
 import { serverMoney, valoresOcultos } from "@/lib/money-server";
 import { formatMoney, isCurrencyCode } from "@/lib/money";
 import { estadoDoMes, vozDoTema } from "@/lib/profiles/voice";
@@ -197,42 +195,6 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
     balance: yearlySummary.balance,
   };
 
-  const customCategoryNameById = new Map(customCategories.map((c) => [c.id, c.name]));
-  const totalSpentByCategory =
-    spentByParent.reduce((sum, s) => sum + s.spent, 0) + spentByCustom.reduce((sum, s) => sum + s.spent, 0);
-  const spendingSlices: DonutSlice[] = [
-    ...spentByParent
-      .filter((s) => s.spent > 0)
-      .map((s) => ({
-        name: rotulosDeCategoria[s.parentCategory],
-        value: s.spent,
-        color: colorForCategorySlice({ kind: "parent", value: s.parentCategory }, ctx.categorias),
-      })),
-    ...spentByCustom
-      .filter((s) => s.spent > 0)
-      .map((s) => ({
-        name: customCategoryNameById.get(s.customCategoryId) ?? "Outro",
-        value: s.spent,
-        color: colorForCategorySlice({ kind: "custom", value: s.customCategoryId }, ctx.categorias),
-      })),
-  ];
-
-  // Gasto SEM categoria vira fatia própria. Sem isso, a rosca somava só o que está
-  // categorizado e mostrava esse subtotal no centro — dando duas respostas diferentes para
-  // "Gastos" na mesma tela (R$ 8.068 no card de cima, R$ 4.500 no centro da rosca) e
-  // inflando os percentuais: Moradia aparecia com 89% do mês quando era 50%.
-  const uncategorizedSpent = summary.totalExpense - totalSpentByCategory;
-  if (uncategorizedSpent > 0) {
-    // Cinza mais claro que o de "Outros": os dois são neutros de propósito (nenhum é uma
-    // categoria escolhida), mas dizem coisas diferentes — "Outros" é a cauda de categorias
-    // pequenas, "Sem categoria" é gasto por classificar, e esse a pessoa consegue resolver.
-    spendingSlices.push({
-      name: "Sem categoria",
-      value: uncategorizedSpent,
-      color: "var(--color-ink-muted)",
-    });
-  }
-
   // Números viram frase: "gastou 12% menos que no mês passado", "Alimentação subiu 28%".
   // No mês corrente, compara o que saiu ATÉ HOJE (a curva diária já para em hoje) com o mesmo
   // pedaço do mês passado. summary.totalExpense inclui conta datada pra frente, o que inflava
@@ -295,106 +257,69 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
         }))
     : [];
 
-  // No computador a página vira uma grade de cartões (ver Section): os avisos ficam dois por
-  // linha, a leitura do mês ao lado da curva, as duas roscas juntas, o calendário ao lado do
-  // ranking. No celular continua uma coluna. `flex-wrap` em vez de `grid` porque quase tudo
-  // aqui é condicional: um cartão sozinho cresce e ocupa a linha inteira em vez de deixar um
-  // buraco do lado.
-  const LADO_A_LADO = "contents lg:flex lg:flex-wrap lg:items-start lg:gap-5 [&>*]:lg:min-w-0 [&>*]:lg:grow [&>*]:lg:basis-[calc(50%-0.625rem)]";
+
+  // O Mensal na regra "mesma cara, menos texto" (07/10/2026, aprovada pela Dani): os quatro
+  // quadrados do mês em cima, os avisos numa linha cada, UMA lista de categorias e os gráficos em
+  // botões. Saíram a rosca "Como sua renda foi dividida" (repetia os quadrados) e a rosca "Para
+  // onde foi" (repetia a lista de categorias): o "Gastou" aparecia cinco vezes na mesma tela.
+  const graficos = [
+    ...(dailyFlow.points.some((p) => p.income > 0 || p.expense > 0)
+      ? [{ chave: "dia", rotulo: "Dia a dia", conteudo: <MonthFlowCard flow={dailyFlow} monthLabel={MONTH_LABELS[month - 1]} isCurrentMonth={isCurrentMonth} isFutureMonth={isFutureMonth} voz={voz} /> }]
+      : []),
+    ...(dailyFlow.points.some((p) => p.expenseOfDay > 0)
+      ? [{
+          chave: "ritmo",
+          rotulo: voz.titulos.ritmoDoMes,
+          conteudo: (
+            <Section title={voz.titulos.ritmoDoMes} hint={voz.titulos.uiHeatmapDica}>
+              <MonthHeatmap points={dailyFlow.points} daysInMonth={dailyFlow.daysInMonth} year={year} month={month} voz={voz} />
+            </Section>
+          ),
+        }]
+      : []),
+    {
+      chave: "ano",
+      rotulo: "Mês a mês",
+      conteudo: (
+        <Section title={voz.titulos.anoMesAMes}>
+          <YearlyBarChart months={yearlySummary.months} />
+        </Section>
+      ),
+    },
+  ];
 
   return (
-    <div className="flex flex-col gap-7 lg:gap-5">
+    <div className="flex flex-col gap-6 lg:gap-5">
 
       {/* O bloco próprio do tema abre a tela — nos meses passados. O do mês atual mora na aba
           Foco, junto com o "o que mudou" e o checklist de primeiros passos. */}
       {!isCurrentMonth && <ThemeHero dados={dadosDoTema} money={money} mesLabel={MONTH_LABELS[month - 1]} />}
 
-      <div className={LADO_A_LADO}>
-        {paidDividends.length > 0 && <PaidDividendsCard items={paidDividends} titulo={voz.titulos.caiuNaConta} sub={voz.titulos.caiuNaContaSub} />}
+      <FlowIndicators year={year} month={month} initialView={initialView} monthly={monthlyBundle} annual={annualBundle} />
 
-
-        {isCurrentMonth && recapEligibility.eligible && <MonthlyRecapCard monthKey={recapEligibility.monthKey} />}
-      </div>
-
-      <FlowIndicators
-        year={year}
-        month={month}
-        initialView={initialView}
-        monthly={monthlyBundle}
-        annual={annualBundle}
-        mesFechado={mesFechado}
-      />
+      {/* Os avisos depois dos números: cada um numa linha, dois por linha no computador. */}
+      {(paidDividends.length > 0 || (isCurrentMonth && recapEligibility.eligible)) && (
+        <div className="flex flex-col gap-2.5 lg:grid lg:grid-cols-2 lg:gap-3">
+          {paidDividends.length > 0 && <PaidDividendsCard items={paidDividends} titulo={voz.titulos.caiuNaConta} sub={voz.titulos.caiuNaContaSub} />}
+          {isCurrentMonth && recapEligibility.eligible && <MonthlyRecapCard monthKey={recapEligibility.monthKey} />}
+        </div>
+      )}
 
       {/* Empresa: a DRE logo abaixo do painel. É a conta que a pessoa física não tem. */}
       {empresa && <DreEmpresa dados={empresa} money={money} periodo={MONTH_LABELS[month - 1].toLowerCase()} />}
 
-      {/* A leitura do mês antes do detalhamento: quanto sobrou e o que mudou desde o mês
-          passado. Os números acima dizem "quanto"; este bloco diz "e daí". No computador fica
-          ao lado da curva do mês: um terço de texto, dois terços de gráfico. */}
-      <div className="contents lg:flex lg:flex-wrap lg:gap-5 [&>*]:lg:min-w-0 [&>*]:lg:grow">
-      {!isCurrentMonth && <div className="contents lg:block lg:basis-[calc(33.333%-0.625rem)]">
-      <MonthHighlight
-        income={summary.totalIncome}
-        expense={summary.totalExpense}
-        investment={summary.totalInvestment}
-        insights={insights}
-        titulo={voz.titulos.oQueMudou}
-      />
-      </div>}
+      {/* Mês que já fechou: o que mudou desde o anterior. */}
+      {!isCurrentMonth && (
+        <MonthHighlight income={summary.totalIncome} expense={summary.totalExpense} investment={summary.totalInvestment} insights={insights} titulo={voz.titulos.oQueMudou} />
+      )}
 
       {/* O aviso "R$ X guardados ainda não estão na carteira" saiu daqui em 06/10/2026: a Dani
           pediu que virasse o botão "Atualizar aportes" na própria Carteira, onde a tarefa é feita. */}
 
-      {/* Curva do mês dia a dia — o gráfico que faltava pra enxergar o ritmo, não só o total. */}
-      <div className={`contents lg:block ${isCurrentMonth ? "lg:basis-full" : "lg:basis-[calc(66.666%-0.625rem)]"}`}>
-      <MonthFlowCard flow={dailyFlow} monthLabel={MONTH_LABELS[month - 1]} isCurrentMonth={isCurrentMonth} isFutureMonth={isFutureMonth} voz={voz} />
+      <div className="flex flex-col gap-6 lg:grid lg:grid-cols-2 lg:items-start lg:gap-5">
+        <TopCategories categories={categorySpending} tema={ctx.profileTheme} kind={ctx.categorias ?? ctx.profileKind} voz={voz} />
+        <MaisGraficos opcoes={graficos} />
       </div>
-      </div>
-
-      {/* Duas roscas que respondem perguntas diferentes: a primeira divide a RENDA (quanto do
-          que entrou virou gasto, aporte e sobra), a segunda abre os GASTOS por categoria. */}
-      <div className="grid gap-7 lg:grid-cols-2 lg:gap-5">
-        <IncomeSplitCard
-          income={summary.totalIncome}
-          expense={summary.totalExpense}
-          investment={summary.totalInvestment}
-          balance={summary.balance}
-          voz={voz}
-        />
-        {totalSpentByCategory > 0 && (
-          <Section
-            title={voz.titulos.paraOndeFoi}
-            action={
-              <Link href="/mensal/gastos" className="text-caption font-medium text-accent-strong hover:underline">
-                ver lançamentos →
-              </Link>
-            }
-          >
-            <Donut slices={spendingSlices} centerLabel="Gastos" size={160} />
-          </Section>
-        )}
-      </div>
-
-      {/* Depois da rosca (PARA ONDE foi) e antes do ranking (QUANTO foi), o QUANDO: é a única
-          das três perguntas que o app tinha como responder e não respondia. No computador o
-          calendário e o ranking dividem a linha. */}
-      <div className={LADO_A_LADO}>
-      {dailyFlow.points.some((p) => p.expenseOfDay > 0) && (
-        <Section title={voz.titulos.ritmoDoMes} hint={voz.titulos.uiHeatmapDica}>
-          <MonthHeatmap points={dailyFlow.points} daysInMonth={dailyFlow.daysInMonth} year={year} month={month} voz={voz} />
-        </Section>
-      )}
-
-      {/* O ranking completa a rosca: ela mostra a fatia, ele mostra quanto exatamente e o que
-          mudou desde o mês passado. */}
-      <TopCategories categories={categorySpending} tema={ctx.profileTheme} kind={ctx.categorias ?? ctx.profileKind} voz={voz} />
-      </div>
-
-      {/* O botão "Registrar" (drawer global) já cobre lançamento; aqui embaixo, algo pra olhar
-          todo dia em vez de outro formulário repetido: renda/gastos/aportes mês a mês no ano. */}
-      <Section title={voz.titulos.anoMesAMes}>
-        <YearlyBarChart months={yearlySummary.months} />
-      </Section>
 
       {/* O "Orçamento por categoria" saiu daqui (06/10/2026): eram as mesmas barras da aba
           Orçamento, duas telas iguais. O "de X planejados ›" do painel leva até lá. */}

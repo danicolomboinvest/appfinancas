@@ -263,7 +263,7 @@ export function AssetsSection({
                 <TrendingUp size={20} strokeWidth={2} aria-hidden />
               </span>
               <div>
-                <p className="text-caption font-semibold uppercase tracking-[0.11em] text-accent-strong">{t.cartAbrirContaEtiqueta}</p>
+                <p className="text-caption font-semibold text-accent-strong">{t.cartAbrirContaEtiqueta}</p>
                 <h2 className="mt-1 text-h2 font-bold tracking-tight text-ink">{t.cartAbrirContaTitulo}</h2>
                 <p className="mt-1 text-sm text-ink-muted">{t.cartAbrirContaTexto}</p>
               </div>
@@ -286,7 +286,7 @@ export function AssetsSection({
               <Briefcase size={18} strokeWidth={1.8} aria-hidden />
             </span>
             <div className="min-w-0">
-              {!empresa && <p className="text-caption font-semibold uppercase tracking-[0.11em] text-ink-muted">{t.cartJaInvesteEtiqueta}</p>}
+              {!empresa && <p className="text-caption font-semibold text-ink-muted">{t.cartJaInvesteEtiqueta}</p>}
               <p className="mt-0.5 text-sm text-ink-muted">{empresa ? voz.titulos.carteiraVazio : t.cartJaInvesteTexto}</p>
             </div>
           </div>
@@ -341,7 +341,7 @@ export function AssetsSection({
             dentro do FitText ela cortava o topo do símbolo da moeda. */}
         <div>
         <div className="-my-1 flex items-center gap-2">
-          <p className="text-caption font-semibold uppercase tracking-[0.1em] text-heroi-suave">{t.cartTotal}</p>
+          <p className="text-caption font-semibold text-heroi-suave">{t.cartTotal}</p>
           <button
             type="button"
             onClick={() => setHidden((h) => !h)}
@@ -368,10 +368,10 @@ export function AssetsSection({
         )}
       </HeroiDoTema>
 
-      {/* Atalhos redondos, como no Foco: o verbo embaixo do ícone. "Atualizar aportes" é o botão que
-          a Dani pediu no lugar do aviso do Mensal; quando há valor guardado sem ativo, ele ganha a
-          cor do tema e mostra quanto. Preço médio e cotações foram para o "Mais". */}
-      <nav aria-label={t.carteira} className="-mt-2 grid grid-cols-4 gap-1 lg:flex lg:gap-3">
+      {/* Os atalhos em quadrados, como no Foco (07/10/2026). "Atualizar aportes" é o botão que a Dani
+          pediu no lugar do aviso do Mensal; quando há valor guardado sem ativo, o quadrado ganha a cor
+          do tema e mostra quanto. Preço médio e cotações foram para o "Mais". */}
+      <nav aria-label={t.carteira} className="-mt-2 grid grid-cols-4 gap-2 lg:flex lg:gap-3">
         {[
           { chave: "aportes", Icone: PiggyBank, rotulo: t.cartAtualizarAportes, acao: () => setAportesOpen(true), destaque: aportePendente > 0.005 },
           { chave: "novo", Icone: Plus, rotulo: t.cartNovoAtivo, acao: () => abrirNovo(), destaque: false },
@@ -382,18 +382,14 @@ export function AssetsSection({
             key={chave}
             type="button"
             onClick={acao}
-            className="flex min-h-20 flex-col items-center justify-start gap-1 rounded-2xl px-1 py-1.5 text-center transition-colors hover:bg-surface-hover lg:w-24"
+            className={`flex min-h-[5.25rem] flex-col items-center justify-center gap-1 rounded-2xl px-1 py-2 text-center transition-colors lg:flex-1 ${
+              destaque ? "bg-accent-soft text-accent-strong" : "bg-surface-2 text-ink hover:bg-surface-hover"
+            }`}
           >
-            <span
-              className={`relative flex size-11 items-center justify-center rounded-full ${
-                destaque ? "bg-accent-gradient text-on-accent shadow-premium-sm" : "border border-border bg-surface text-accent-strong shadow-sm"
-              }`}
-            >
-              <Icone size={19} strokeWidth={1.8} aria-hidden />
-            </span>
-            <span className="text-xs font-medium leading-tight text-ink">{rotulo}</span>
+            <Icone size={21} strokeWidth={1.8} className="text-accent-strong" aria-hidden />
+            <span className="text-xs font-medium leading-tight">{rotulo}</span>
             {chave === "aportes" && destaque && (
-              <span className="rounded-full bg-accent-soft px-2 py-0.5 text-caption font-semibold tabular-nums text-accent-strong">
+              <span className="text-caption font-bold tabular-nums">
                 {hidden ? `${currencySymbol(currency)} ••••` : formatValue(aportePendente, { round: true })}
               </span>
             )}
@@ -512,14 +508,14 @@ export function AssetsSection({
           <p className="text-sm text-ink-muted">
             {CLASS_PLURAL[classFilter]}: <span className="font-medium text-ink">{money(valueByClass.get(classFilter) ?? 0)}</span>
             {totalValue > 0 && (
-              <> · {t.cartDaCarteira(formatPercentNumber(((valueByClass.get(classFilter) ?? 0) / totalValue) * 100, 1))}</>
+              <>, {t.cartDaCarteira(formatPercentNumber(((valueByClass.get(classFilter) ?? 0) / totalValue) * 100, 1))}</>
             )}
             {(() => {
               const profit = visibleAssets.reduce((sum, a) => sum + (profitOf(a) ?? 0), 0);
               if (Math.abs(profit) < 0.005) return null;
               return (
                 <>
-                  {" · "}
+                  {", "}
                   <span className={profit > 0 ? "text-success" : "text-danger"}>
                     {profit > 0 ? "+" : "−"}{hidden ? `${currencySymbol(currency)} ••••` : money(Math.abs(profit))}
                   </span>
@@ -587,8 +583,8 @@ export function AssetsSection({
                         {asset.ticker && asset.ticker !== asset.name ? ` (${asset.ticker})` : ""}
                       </p>
                       <p className="truncate text-xs text-ink-faint">
-                        {asset.quantity !== null && asset.quantity > 0 && `${formatQuantity(asset.quantity)} un · `}
-                        {asset.fixedIncomeIndex && `${FI_LABEL[asset.fixedIncomeIndex]} · `}
+                        {asset.quantity !== null && asset.quantity > 0 && `${formatQuantity(asset.quantity)} un, `}
+                        {asset.fixedIncomeIndex && `${FI_LABEL[asset.fixedIncomeIndex]}, `}
                         {objectiveText}
                       </p>
                     </div>

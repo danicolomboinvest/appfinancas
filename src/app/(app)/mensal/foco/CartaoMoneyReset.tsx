@@ -26,7 +26,7 @@ export async function CartaoMoneyReset({ ctx, t }: { ctx: AuthContext; t: Titulo
         <Card className="flex items-center gap-4 p-5">
           <AnelDoReset feitas={0} />
           <span className="min-w-0 flex-1">
-            <span className="block text-caption font-semibold uppercase tracking-[0.11em] text-accent-strong">{t.mrFocoEy}</span>
+            <span className="block text-caption font-semibold text-accent-strong">{t.mrFocoEy}</span>
             <span className="mt-0.5 block text-body font-semibold text-ink">{t.mrBoas}</span>
             <span className="mt-0.5 block text-caption text-ink-muted">{t.mrBoasSub}</span>
           </span>
@@ -41,15 +41,15 @@ export async function CartaoMoneyReset({ ctx, t }: { ctx: AuthContext; t: Titulo
       <div className="flex items-center gap-4">
         <AnelDoReset feitas={estado.feitas} />
         <div className="min-w-0 flex-1">
-          <p className="text-caption font-semibold uppercase tracking-[0.11em] text-accent-strong">
-            {t.mrFocoEy} · {estado.disponivel ? t.mrMissaoDeHoje : t.mrProxima}
+          <p className="text-caption font-semibold text-accent-strong">
+            {t.mrFocoEy}, {estado.disponivel ? t.mrMissaoDeHoje : t.mrProxima}
           </p>
           <p className="mt-0.5 flex items-center gap-1.5 text-body font-semibold text-ink">
             <span aria-hidden>{m.ic}</span>
             <span className="truncate">{naVoz(m.t, v)}</span>
           </p>
           <p className="text-caption text-ink-muted">
-            {t.mrDia(m.d)} · {t.mrMinutos(m.min)}
+            {t.mrDia(m.d)}, {t.mrMinutos(m.min)}
           </p>
         </div>
       </div>

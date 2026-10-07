@@ -85,7 +85,7 @@ export function DivisaoCalculadora({ despesasComunsInicial }: { despesasComunsIn
         ) : (
           <>
             <section className="rounded-2xl border border-accent/30 bg-accent-soft/30 p-4 sm:p-5">
-              <p className="text-caption font-semibold uppercase tracking-wider text-ink-muted">{r.manual ? t.casHeaderManual : t.casHeaderAuto}</p>
+              <p className="text-caption font-semibold text-ink-muted">{r.manual ? t.casHeaderManual : t.casHeaderAuto}</p>
               <p className="mt-1 text-sm text-ink">{r.manual ? t.casTextoManual : t.casTextoAuto}</p>
             </section>
 

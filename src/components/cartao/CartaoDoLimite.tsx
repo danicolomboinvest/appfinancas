@@ -48,7 +48,7 @@ export async function CartaoDoLimite({ ctx, comLink = true, compacto = false }: 
         <span className="flex min-h-6 items-center gap-2.5">
           <CreditCard size={16} strokeWidth={1.9} className={`shrink-0 ${passou ? "text-danger" : "text-accent-strong"}`} aria-hidden />
           <span className="min-w-0 flex-1 truncate text-sm text-ink-muted">
-            {t.limDoMes(nomeDoMes)} ·{" "}
+            {t.limDoMes(nomeDoMes)},{" "}
             <span className={`font-semibold ${passou ? "text-danger" : "text-ink"}`}>{passou ? t.limPassou(money(-situacao.falta)) : t.limFalta(money(situacao.falta))}</span>
           </span>
           <ChevronRight size={16} className="shrink-0 text-ink-faint" aria-hidden />
@@ -68,7 +68,7 @@ export async function CartaoDoLimite({ ctx, comLink = true, compacto = false }: 
           <CreditCard size={20} strokeWidth={1.8} />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-caption font-semibold uppercase tracking-[0.11em] text-accent-strong">{t.limDoMes(nomeDoMes)}</p>
+          <p className="text-caption font-semibold text-accent-strong">{t.limDoMes(nomeDoMes)}</p>
           <p className={`mt-0.5 text-h2 font-bold tracking-tight ${passou ? "text-danger" : "text-ink"}`}>
             {passou ? t.limPassou(money(-situacao.falta)) : t.limFalta(money(situacao.falta))}
           </p>

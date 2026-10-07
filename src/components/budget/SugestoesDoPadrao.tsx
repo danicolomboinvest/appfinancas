@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronDown, Sparkles } from "lucide-react";
+import { ChevronDown, SlidersHorizontal } from "lucide-react";
 import { useToast } from "@/components/ui/toast-context";
 import { useMoney } from "@/components/money/MoneyProvider";
 import type { AjusteDoPadrao } from "@/lib/planning/padrao-orcamento";
@@ -39,40 +39,39 @@ export function SugestoesDoPadrao({ ajustes, mes, meses }: { ajustes: AjusteComR
     });
   }
 
+  // Uma linha (07/10/2026): o alerta diz quantas categorias e tem UM botão. O porquê e o que muda
+  // ficam no toque, para não competir com o número do topo.
   return (
-    <section className="flex flex-col gap-3 rounded-2xl border border-border bg-surface p-4">
-      <div className="flex items-start gap-2.5">
-        <Sparkles size={18} className="mt-0.5 shrink-0 text-accent-strong" aria-hidden />
-        <div className="flex flex-col gap-0.5">
-          <h2 className="text-base font-semibold text-ink">Olhamos o seu padrão dos últimos {meses} meses</h2>
-          <p className="text-sm text-ink-muted">
-            {ajustes.length === 1 ? "Uma categoria não bate" : `${ajustes.length} categorias não batem`} com o jeito que você gasta de
-            verdade.
-          </p>
-        </div>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-3">
-        <button
-          type="button"
-          disabled={pendente}
-          onClick={ajustarTudo}
-          className="min-h-11 rounded-full bg-pill px-5 text-sm font-semibold text-on-pill disabled:opacity-50"
-        >
-          {pendente ? "Ajustando…" : "Ajustar categorias"}
-        </button>
+    <section className="rounded-2xl border border-border bg-surface px-4 py-2">
+      <div className="flex items-center gap-3">
         <button
           type="button"
           onClick={() => setAberto((v) => !v)}
           aria-expanded={aberto}
-          className="flex min-h-11 items-center gap-1 text-sm font-medium text-ink-muted hover:text-ink"
+          className="flex min-h-12 min-w-0 flex-1 items-center gap-2.5 text-left"
         >
-          Ver o que muda <ChevronDown size={16} className={`transition-transform ${aberto ? "rotate-180" : ""}`} aria-hidden />
+          <SlidersHorizontal size={18} className="shrink-0 text-accent-strong" aria-hidden />
+          <span className="min-w-0">
+            <span className="block text-sm font-semibold text-ink">
+              {ajustes.length === 1 ? "1 categoria fora do padrão" : `${ajustes.length} categorias fora do padrão`}
+            </span>
+            <span className="flex items-center gap-1 text-caption text-ink-muted">
+              Ver o que muda <ChevronDown size={14} className={`transition-transform ${aberto ? "rotate-180" : ""}`} aria-hidden />
+            </span>
+          </span>
+        </button>
+        <button
+          type="button"
+          disabled={pendente}
+          onClick={ajustarTudo}
+          className="min-h-11 shrink-0 rounded-full bg-pill px-4 text-sm font-semibold text-on-pill disabled:opacity-50"
+        >
+          {pendente ? "Ajustando…" : "Ajustar"}
         </button>
       </div>
 
       {aberto && (
-        <ul className="flex flex-col gap-1.5 border-t border-border pt-3 text-sm">
+        <ul className="mt-1 flex flex-col gap-1.5 border-t border-border pb-2 pt-3 text-sm">
           {ajustes.map((a) => (
             <li key={a.chave} className="flex items-baseline justify-between gap-3">
               <span className="text-ink">{a.label}</span>
@@ -83,7 +82,7 @@ export function SugestoesDoPadrao({ ajustes, mes, meses }: { ajustes: AjusteComR
             </li>
           ))}
           <li className="pt-1 text-caption text-ink-faint">
-            Cada valor é o que você costuma gastar (o mês do meio dos {meses}). Depois dá para mexer em qualquer um pelo lápis.
+            O que você costuma gastar nos últimos {meses} meses. Depois dá para mexer em qualquer um pelo lápis.
           </li>
         </ul>
       )}

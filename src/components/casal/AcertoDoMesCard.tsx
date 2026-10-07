@@ -52,7 +52,7 @@ export function AcertoDoMesCard({ acerto, comLinkParaDivisao = false }: { acerto
   return (
     <Card className="flex flex-col gap-4 p-5">
       <div className={`flex flex-col gap-1 rounded-2xl p-4 ${quites ? "bg-success-soft" : "bg-accent-soft"}`}>
-        <p className="text-xs font-medium uppercase tracking-wide text-ink-muted">Acerto de {nomeDoMes}</p>
+        <p className="text-xs font-medium text-ink-muted">Acerto de {nomeDoMes}</p>
         <p className="text-xl font-semibold tracking-tight text-ink [text-wrap:balance]">
           {acerto.acertado
             ? `${nomeDoMes.charAt(0).toUpperCase() + nomeDoMes.slice(1)} acertado.`

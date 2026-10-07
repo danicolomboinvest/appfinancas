@@ -117,7 +117,7 @@ export const disciplina: Voz = {
     // "É pouco? Sim" só quando é pouco de verdade: gastando adiantado, com o que sobrou
     // espremido nos dias que faltam. Com folga, a frase seria mentira — e ela apontou isso.
     if (d.situacao === "adiantado") return `${porDia} até dia ${d.ultimoDia}. É pouco? Sim. Vai dar? Vai. Se mantiver o FOCO. Bora.`;
-    if (d.situacao === "folgado") return `${porDia} por dia. Tem folga — bora guardar mais.`;
+    if (d.situacao === "folgado") return `${porDia} por dia. Tem folga, bora guardar mais.`;
     return `${porDia} por dia até dia ${d.ultimoDia}. Mantém o FOCO. Bora.`;
   },
   mesVazio: "Nada registrado. Bora: dois minutos e o mês toma forma.",
@@ -253,7 +253,7 @@ export const disciplina: Voz = {
     poupanca: "Guardado",
     metas: "Metas 🎯",
     metasSub: "Cada meta tem prazo e um número por mês. Cumpre o número, a meta se cumpre. Bora.",
-    metasVazio: "Nenhuma meta. Bora criar a primeira — dois minutos.",
+    metasVazio: "Nenhuma meta. Bora criar a primeira: dois minutos.",
     reserva: "Reserva ⚡",
     reservaSub: "O que te mantém de pé quando o imprevisto chega. Não é opcional.",
     reservaMeta: "Alvo da reserva",
@@ -327,7 +327,8 @@ export const disciplina: Voz = {
     contribVazio: "Carteira vazia: a divisão segue só a estratégia.",
     contribSemEstrategiaTitulo: "Aporte do mês. Onde entra?",
     contribDefinir: "Definir estratégia →",
-    divTitulo: (total) => `Renda passiva a caminho · ${total}`,
+    divTitulo: (total) => `Renda passiva a caminho, ${total}`,
+    divRotulo: "Renda passiva a caminho",
     objNenhumTitulo: "Nenhum ativo tem objetivo.",
     objNenhumLink: "Dar objetivo aos ativos →",
     campeaoTitulo: "O maior gasto do mês",
@@ -348,7 +349,7 @@ export const disciplina: Voz = {
     simFinVenceFinanciar: "Financiar vence",
     simFinVenceAlugar: "Alugar e investir vence",
     simAmortSaldoHint: "O que você ainda deve no financiamento hoje.",
-    simAmortValorDisponivelHint: "O dinheiro que sobrou. Vai amortizar ou investir — um dos dois.",
+    simAmortValorDisponivelHint: "O dinheiro que sobrou. Vai amortizar ou investir, um dos dois.",
     simAmortVenceAmortizar: "Amortiza",
     simAmortVenceInvestir: "Investe",
     simAmortVeredito: (vencedor, valor) => `${vencedor === "AMORTIZAR" ? "Amortizar" : "Investir"} rende ${valor} a mais. A conta decidiu.`,
@@ -419,7 +420,7 @@ export const disciplina: Voz = {
     formApPremissasHelp: "Já vieram preenchidas com valores comuns. Ajusta se quiser. Taxas ao ano.",
     formApVerPlano: "Ver o plano",
     formApGuardarPergunta: "Quanto guarda por mês?",
-    formApPremissasSub: "Os números técnicos. Já preenchidos — abre só se for mexer.",
+    formApPremissasSub: "Os números técnicos. Já preenchidos, abre só se for mexer.",
     formApPremissasNota: "Nenhum destes números é promessa: é o cenário que você escolhe simular.",
     formEstSalva: "Estratégia salva ✓ Agora a carteira tem alvo.",
     formEstPronto: "Ou parte de um perfil pronto (ajusta depois)",
@@ -468,7 +469,7 @@ export const disciplina: Voz = {
     impCarteiraFeito: (criados, atualizados) =>
       [criados > 0 ? `${criados} novo${s(criados)} na carteira` : null, atualizados > 0 ? `${atualizados} atualizado${s(atualizados)}` : null]
         .filter(Boolean)
-        .join(" · ") || "Nada pra mudar. Carteira já estava em dia ✓",
+        .join(", ") || "Nada pra mudar. Carteira já estava em dia ✓",
     impIrpfSelecioneUm: "Seleciona ao menos um ativo pra aplicar o preço médio.",
     impIrpfIntro: [
       "Sua declaração de IR tem o ",
@@ -537,7 +538,7 @@ export const disciplina: Voz = {
     uiRendaManteve: (pct) => `Você manteve **${pct}** do que entrou (aportes e sobra).`,
     uiSetaCompara: "A seta compara com o mês passado. Abaixo de 8% não aparece: é oscilação normal.",
     uiHeatmapDica: "Um quadradinho por dia, mais forte onde saiu mais.",
-    uiHeatmapPico: (dia, valor) => `Dia que mais saiu: ${dia} · ${valor}`,
+    uiHeatmapPico: (dia, valor) => `Dia que mais saiu: ${dia}, ${valor}`,
     uiRestaurarFalhou: "Não consegui restaurar. Registra de novo à mão.",
     uiInstalarConviteTitulo: "Instala no celular",
     uiInstalarConviteSub: "Tela cheia, ícone próprio. Um toque a menos entre você e o registro.",
@@ -567,14 +568,14 @@ export const disciplina: Voz = {
     viagemVazio: "Busca o primeiro destino acima. Dá pra somar vários lugares na mesma viagem e dizer quantos dias fica em cada um.",
     viagemNenhumDestino: "Nenhum destino encontrado. Tenta outro nome ou o país.",
     viagemPorPessoa: (porPessoa, porMes, meses) =>
-      `${porPessoa} por pessoa · guardando ${porMes}/mês, você chega lá em ${meses} ${meses === 1 ? "mês" : "meses"}. Cumpre o número.`,
+      `${porPessoa} por pessoa, guardando ${porMes}/mês, você chega lá em ${meses} ${meses === 1 ? "mês" : "meses"}. Cumpre o número.`,
     viagemMetaCriadaToast: "Meta da viagem criada ✓ Está em Metas.",
     viagemVerMeta: "Ver a meta em Metas",
     viagemCriarMeta: "Criar meta desta viagem",
     viagemCriandoMeta: "Criando meta...",
 
     // ── Carteira, análises, página da meta e gráficos ──────────────────────────────────
-    cartSuaCarteira: (n) => `Seu patrimônio · ${n} ativo${s(n)}`,
+    cartSuaCarteira: (n) => `Seu patrimônio, ${n} ativo${s(n)}`,
     cartCotacoesAtualizadas: (n) => `${n} cotações atualizadas ✓`,
     cartTracinhoAlvo: "O tracinho é o alvo. O que está atrás dele é o que comprar no próximo aporte.",
     cartNaEstrategia: "Carteira no alvo ✓",
@@ -638,7 +639,7 @@ export const disciplina: Voz = {
     casComparandoMais: (valor) => `Do jeito que está, quem ganha menos paga ${valor} a mais por mês.`,
     casComparandoParecido: "Rendas parecidas. Dá quase no mesmo que 50/50.",
     casComparandoManualNota: (pct) => `Pela renda, seria ${pct}% pro outro.`,
-    casRendaConjunta: (valor) => `Renda conjunta: ${valor}. Não fica salvo — é só pra decidir esse mês.`,
+    casRendaConjunta: (valor) => `Renda conjunta: ${valor}. Não fica salvo, é só pra decidir esse mês.`,
 
     // Empresa: vale a pena investir? Payback e comparação com a aplicação, sem enrolação.
     invTitulo: "Vale a pena investir na empresa?",
@@ -649,7 +650,7 @@ export const disciplina: Voz = {
     invTipoEconomia: "Economia de custo",
     invReceitaLabelVenda: "Receita a mais por mês",
     invReceitaLabelEconomia: "Economia por mês",
-    invReceitaHintVenda: "O que você espera vender a mais. Usa a média, não o melhor mês — otimismo não paga conta.",
+    invReceitaHintVenda: "O que você espera vender a mais. Usa a média, não o melhor mês. Otimismo não paga conta.",
     invReceitaHintEconomia: "O que deixa de gastar por mês (energia, terceiro, retrabalho).",
     invMargemLabel: "Quanto sobra de cada venda, depois dos custos dela",
     invMargemHint: "Margem de contribuição, pela DRE. Vender mais só vale o que sobra depois de mercadoria, taxa e frete.",
@@ -699,7 +700,7 @@ export const disciplina: Voz = {
     emailRecapBotao: "Ver o resultado completo",
     emailRecapRodape: "Você recebe este resultado uma vez por mês.",
     emailConviteAssunto: (mes) => `Bora começar ${mes}?`,
-    emailConviteIntro1: (mes) => `${mes} começou. Mês novo, placar zerado — a hora certa de começar é agora, não depois do dia 10.`,
+    emailConviteIntro1: (mes) => `${mes} começou. Mês novo, placar zerado. A hora certa de começar é agora, não depois do dia 10.`,
     emailConviteIntro2:
       "Não precisa organizar tudo hoje. <strong>Registra um gasto agora</strong>, só um, e o app já começa a montar o resto: pra onde o dinheiro foi, quanto sobrou, quanto dá pra guardar.",
     emailConviteBotao: "Bora: registrar meu primeiro gasto",

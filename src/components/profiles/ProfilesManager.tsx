@@ -55,7 +55,7 @@ export function ProfilesManager({ perfis, ativoId }: { perfis: ProfileRow[]; ati
               <p className="truncate text-sm font-semibold text-ink">{p.name}</p>
               <p className="text-caption text-ink-faint">
                 {t.cfgPerfisTipoLabel(p.kind, PROFILE_KIND_LABEL[p.kind])}
-                {eAtivo && ` · ${t.cfgPerfisEmUso}`}
+                {eAtivo && `, ${t.cfgPerfisEmUso}`}
               </p>
             </div>
             <div className="flex shrink-0 items-center gap-1">
@@ -199,7 +199,7 @@ function FormularioPerfil({
                     style={{ backgroundColor: opcao.paleta.canvas, borderColor: opcao.paleta.borderStrong }}
                   >
                     <span className="truncate text-[11px] font-semibold leading-tight" style={{ color: opcao.paleta.ink }}>
-                      {vozDoTema(opcao.key).saudacao("manha", "Dani") ?? "Platina II · 940 pts"}
+                      {vozDoTema(opcao.key).saudacao("manha", "Dani") ?? "Platina II, 940 pts"}
                     </span>
                     <span className="h-1.5 w-3/5 rounded-full" style={{ backgroundColor: opcao.paleta.accent }} />
                     <span className="truncate text-[11px] leading-tight" style={{ color: opcao.paleta.inkMuted }}>

@@ -69,7 +69,7 @@ export default function CarroPage() {
         return (
           <div className="flex flex-col gap-4">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-accent-strong">{t.simCarroResultado}</p>
+              <p className="text-xs font-semibold text-accent-strong">{t.simCarroResultado}</p>
               <h2 className="mt-1 text-xl font-bold leading-snug tracking-tight text-ink">
                 {veredito(values)} <span className="text-ink-muted">{t.simCarroDiferenca(diferenca)}</span>
               </h2>

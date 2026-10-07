@@ -357,7 +357,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
       {conquistas && conquistas.decisoes > 0 && (
         <Link href="/seu-ano" className="block">
           <Card className="p-5 transition-colors hover:bg-surface-hover">
-            <p className="text-caption font-semibold uppercase tracking-[0.11em] text-ink-muted">{voz.titulos.conqTitulo}</p>
+            <p className="text-caption font-semibold text-ink-muted">{voz.titulos.conqTitulo}</p>
             <p className="mt-1 text-h2 font-bold tracking-tight text-ink">
               {conquistas.decisoes} {conquistas.decisoes > 1 ? "decisões" : "decisão"} em {year}
             </p>
@@ -384,7 +384,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
           <Briefcase size={20} strokeWidth={1.8} />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-caption font-semibold uppercase tracking-[0.11em] text-ink-muted">{voz.titulos.patrimonio}</p>
+          <p className="text-caption font-semibold text-ink-muted">{voz.titulos.patrimonio}</p>
           <div className="mt-0.5">
             <FitText className="text-display font-semibold tracking-tight text-accent-strong">
               {/* `brl` (não uma função): função não atravessa a fronteira server→client. */}
@@ -480,7 +480,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
               goals.length === 0
                 ? "Cadastre sua primeira meta"
                 : goalsBehind > 0
-                  ? `${goalsBehind} atrasada${goalsBehind === 1 ? "" : "s"} · ${goals.length} no total`
+                  ? `${goalsBehind} atrasada${goalsBehind === 1 ? "" : "s"}, ${goals.length} no total`
                   : `${goals.length} meta${goals.length === 1 ? "" : "s"} no total`
             }
             tone={goalsBehind > 0 ? "danger" : "success"}

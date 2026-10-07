@@ -18,8 +18,11 @@ const HOJE: Record<Ritmo, string> = { dentro: "bg-[var(--color-heroi-destaque)]"
 /**
  * O topo da Foco (01/10/2026): uma pergunta só, "quanto posso gastar?", respondida grande.
  * Desde 06/10/2026 num herói pintado na cor do tema (HeroiDoTema), com o ritmo numa pílula
- * com palavra. Os 7 tracinhos são a semana (o de hoje aceso); embaixo, a previsão de como o mês
- * fecha. A conta inteira continua no "Como cheguei nisso".
+ * com palavra. Os 7 tracinhos são a semana (o de hoje aceso).
+ *
+ * Embaixo, dois quadradinhos (07/10/2026, "mesma cara, menos texto"): quanto dá por dia e como o
+ * mês fecha. Antes eram "R$ 181 por dia" ao lado do número e a frase "Seguindo assim, o mês fecha
+ * com R$ 383 sobrando". A conta inteira abre ao tocar no cartão (ver ContaDoLivre).
  */
 export function SemanaFoco({
   rotulo,
@@ -33,6 +36,7 @@ export function SemanaFoco({
   decorrido,
   diasRestantes,
   money,
+  rotulos,
   children,
 }: {
   rotulo: string;
@@ -46,6 +50,8 @@ export function SemanaFoco({
   decorrido: number;
   diasRestantes: number;
   money: (v: number) => string;
+  /** "Por dia" e "Fim do mês", na voz do tema. */
+  rotulos: { porDia: string; fimDoMes: string };
   children?: ReactNode;
 }) {
   const { indice, diasAteDomingo } = diaDaSemana(hoje);
@@ -59,10 +65,7 @@ export function SemanaFoco({
         <p className="text-sm font-medium text-heroi-suave">{rotulo}</p>
         <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${PILULA[ritmo]}`}>{frase}</span>
       </div>
-      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <NumeroRolante texto={money(valor)} className="text-[2.75rem] font-bold leading-none tracking-tight tabular-nums" />
-        <span className="text-sm font-medium text-heroi-suave">{money(porDia)} por dia</span>
-      </div>
+      <NumeroRolante texto={money(valor)} className="text-[2.75rem] font-bold leading-none tracking-tight tabular-nums" />
 
       {tipo === "semana" ? (
         <div className="flex flex-col gap-1" aria-label={`Hoje é o dia ${indice + 1} de 7 da semana`}>
@@ -85,19 +88,21 @@ export function SemanaFoco({
         </div>
       )}
 
-      {previsao !== null && (
-        <p className="text-sm text-heroi-suave">
-          {previsao >= 0 ? (
-            <>
-              Seguindo assim, o mês fecha com <b className="tabular-nums text-heroi-tinta">{money(previsao)}</b> sobrando.
-            </>
-          ) : (
-            <>
-              Seguindo assim, o mês passa <b className="tabular-nums text-heroi-tinta">{money(-previsao)}</b> do planejado.
-            </>
-          )}
-        </p>
-      )}
+      <div className="heroi-fio grid grid-cols-2 border-t pt-3">
+        <div className="min-w-0">
+          <p className="text-caption text-heroi-suave">{rotulos.porDia}</p>
+          <p className="text-lg font-bold tabular-nums">{money(porDia)}</p>
+        </div>
+        {previsao !== null && (
+          <div className="heroi-fio min-w-0 border-l pl-4">
+            <p className="text-caption text-heroi-suave">{rotulos.fimDoMes}</p>
+            <p className="text-lg font-bold tabular-nums">
+              {previsao >= 0 ? "+" : "−"}
+              {money(Math.abs(previsao))}
+            </p>
+          </div>
+        )}
+      </div>
       {children}
     </HeroiDoTema>
   );

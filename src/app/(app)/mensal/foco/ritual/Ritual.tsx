@@ -55,7 +55,7 @@ export function Ritual({ d }: { d: DadosRitual }) {
       <Pontos total={4} atual={passo} />
 
       {passo === 0 && (
-        <Passo rotulo={`1 de 4 · ${t.ritSemanaPassada}`}>
+        <Passo rotulo={`1 de 4, ${t.ritSemanaPassada}`}>
           {d.semanaPassada.total > 0 ? (
             <>
               <p className="text-[2rem] font-bold leading-none tracking-tight tabular-nums text-ink">{m(d.semanaPassada.total)}</p>
@@ -83,7 +83,7 @@ export function Ritual({ d }: { d: DadosRitual }) {
 
       {passo === 1 && (
         <Passo
-          rotulo={`2 de 4 · ${t.ritAtencao}`}
+          rotulo={`2 de 4, ${t.ritAtencao}`}
           titulo={d.alvo ? (d.alvo.uso > 1 ? t.focoEstouroT(d.alvo.label) : t.focoRitmoT(d.alvo.label, `${Math.floor(d.alvo.uso * 100)}%`)) : t.focoNadaTitulo}
         >
           {d.alvo ? (
@@ -124,7 +124,7 @@ export function Ritual({ d }: { d: DadosRitual }) {
       )}
 
       {passo === 2 && (
-        <Passo rotulo={`3 de 4 · ${t.ritFio}`} titulo={d.aporteFaltando > 0 ? t.fechAporteT(m(d.aporteFaltando)) : t.fechAporteEy}>
+        <Passo rotulo={`3 de 4, ${t.ritFio}`} titulo={d.aporteFaltando > 0 ? t.fechAporteT(m(d.aporteFaltando)) : t.fechAporteEy}>
           {d.aporteFaltando > 0 ? (
             <>
               <p className="text-sm text-ink-muted">{t.fechAporteP}</p>
@@ -153,7 +153,7 @@ export function Ritual({ d }: { d: DadosRitual }) {
       )}
 
       {passo === 3 && (
-        <Passo rotulo={`4 de 4 · ${t.ritSemana}`}>
+        <Passo rotulo={`4 de 4, ${t.ritSemana}`}>
           {d.livreSemana !== null ? (
             <>
               <p className="text-caption text-ink-muted">{t.focoLivreSemana}</p>
@@ -176,7 +176,7 @@ export function Ritual({ d }: { d: DadosRitual }) {
             disabled={salvando}
             onClick={() =>
               gravar(async () => {
-                await concluirRitualAction("ritual", d.semana, escolhas.join(" · ") || "seguir o plano");
+                await concluirRitualAction("ritual", d.semana, escolhas.join(", ") || "seguir o plano");
                 router.push("/mensal/foco");
               })
             }

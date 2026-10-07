@@ -40,7 +40,7 @@ export default async function AdminRelatorioPage() {
           <div className="flex items-baseline justify-between">
             <p className="text-sm font-medium text-ink">Novos cadastros por semana</p>
             <p className="text-xs text-ink-faint">
-              {e.newUsers7d} nos últimos 7 dias · {e.newUsers30d} nos últimos 30
+              {e.newUsers7d} nos últimos 7 dias, {e.newUsers30d} nos últimos 30
             </p>
           </div>
           <div className="mt-4 flex items-end gap-2" style={{ height: 96 }}>
@@ -162,7 +162,7 @@ export default async function AdminRelatorioPage() {
               </p>
             ) : (
               <p className="mt-1 text-sm text-ink-muted">
-                Importar: {funil.caminhoEscolhido.importacao} · Digitar: {funil.caminhoEscolhido.digitado} · Áudio:{" "}
+                Importar: {funil.caminhoEscolhido.importacao}, Digitar: {funil.caminhoEscolhido.digitado}, Áudio:{" "}
                 {funil.caminhoEscolhido.voz}
               </p>
             )}
@@ -172,7 +172,7 @@ export default async function AdminRelatorioPage() {
 
       {/* TELAS MAIS VISITADAS (rastreio próprio de pageviews) */}
       <section className="flex flex-col gap-4">
-        <h2 className="text-sm font-semibold tracking-tight text-ink">Telas mais visitadas · últimos {usage.days} dias</h2>
+        <h2 className="text-sm font-semibold tracking-tight text-ink">Telas mais visitadas, últimos {usage.days} dias</h2>
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <StatCard label="Visitas a telas" value={String(usage.totalViews)} />
           <StatCard label="Pessoas navegando" value={String(usage.uniqueVisitors)} tone="success" />
@@ -190,7 +190,7 @@ export default async function AdminRelatorioPage() {
         </div>
 
         <Card className="p-4">
-          <p className="text-sm font-medium text-ink">Pessoas por dia · últimos 14 dias</p>
+          <p className="text-sm font-medium text-ink">Pessoas por dia, últimos 14 dias</p>
           <div className="mt-4 flex items-end gap-1.5" style={{ height: 84 }}>
             {usage.visitorsByDay.map((d) => {
               const maxDay = Math.max(1, ...usage.visitorsByDay.map((x) => x.count));

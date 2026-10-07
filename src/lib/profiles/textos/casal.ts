@@ -71,5 +71,5 @@ export const PADRAO_CASAL: TextosCasal = {
   casComparandoMais: (valor) => `Do jeito que está, quem ganha menos paga ${valor} a mais por mês.`,
   casComparandoParecido: "As duas rendas são parecidas, então dá quase no mesmo que 50/50.",
   casComparandoManualNota: (pct) => `Pela proporção da renda, seria ${pct}% para o outro.`,
-  casRendaConjunta: (valor) => `Renda conjunta: ${valor}. A conta não fica salva — é só para decidir a divisão desse mês.`,
+  casRendaConjunta: (valor) => `Renda conjunta: ${valor}. A conta não fica salva, é só para decidir a divisão desse mês.`,
 };
