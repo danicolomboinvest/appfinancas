@@ -803,7 +803,7 @@ export const semfiltro: Voz = {
     cfgPerfisFalhou: "Não consegui fazer isso agora. Tenta de novo.",
     viagemSub: "Quanto custa o destino dos sonhos, e quanto guardar por mês pra ele sair do stories alheio e entrar no seu 😏",
     viagemMaxDestinos: (max) => `Máximo de ${max} destinos por viagem. Calma, não é volta ao mundo 🙃`,
-    viagemVazio: "Busca o primeiro destino aí em cima. Dá pra somar vários lugares na mesma viagem e dizer quantos dias fica em cada um.",
+    viagemVazio: "Busca o primeiro destino aí em cima.",
     viagemNenhumDestino: "Não achei esse destino. Tenta outro nome ou o país.",
     viagemEstiloLabel: (chave, texto) =>
       ({ economico: "Econômico (mochilão chique)", medio: "Médio", confortavel: "Confortável 🤑" } as Record<string, string>)[chave] ?? texto,

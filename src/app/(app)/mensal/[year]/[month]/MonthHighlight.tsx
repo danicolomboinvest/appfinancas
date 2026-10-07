@@ -1,8 +1,8 @@
-import { Sparkles, TrendingDown, TrendingUp, Info } from "lucide-react";
+import { TrendingDown, TrendingUp, Info } from "lucide-react";
 import type { Insight, InsightTone } from "@/lib/insights/month-insights";
 import { Section } from "@/components/ui/Section";
 
-const TONE_ICON: Record<InsightTone, typeof Sparkles> = {
+const TONE_ICON: Record<InsightTone, typeof Info> = {
   positive: TrendingDown,
   warning: TrendingUp,
   neutral: Info,

@@ -19,7 +19,7 @@ export default async function ViagemPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <PageHeader title={t.viagemTitulo} subtitle={t.viagemSub} />
+      <PageHeader title={t.viagemTitulo} />
       <TravelPlanner annualRate={annualRate} />
     </div>
   );

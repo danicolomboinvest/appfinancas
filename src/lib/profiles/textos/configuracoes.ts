@@ -377,7 +377,7 @@ export const PADRAO_CONFIGURACOES: TextosConfiguracoes = {
   viagemDiasNoTotal: (dias) => `${dias} ${dias === 1 ? "dia" : "dias"} no total`,
   viagemDias: (dias) => (dias === 1 ? "dia" : "dias"),
   viagemMaxDestinos: (max) => `Máximo de ${max} destinos por viagem.`,
-  viagemVazio: "Busque o primeiro destino acima. Dá para somar vários lugares na mesma viagem e dizer quantos dias fica em cada um.",
+  viagemVazio: "Busque o primeiro destino acima.",
   viagemBuscarPlaceholder: "Buscar destino (ex.: Paris, Jeri, Japão)",
   viagemNenhumDestino: "Nenhum destino encontrado. Tente outro nome ou o país.",
   // Viagem: pessoas, estilo e quando

@@ -334,11 +334,11 @@ const TITULOS_BASE: TitulosBase = {
   // Ano no vermelho não tem "você manteve −R$ 25": vira a frase do que aconteceu.
   sobrouNoAnoDica: (cem, manteve, pct) =>
     pct > 0 ? `De cada ${cem} que entraram, você manteve ${manteve}` : pct < 0 ? "Este ano os gastos passaram da renda" : "Este ano tudo que entrou foi gasto",
-  statusModulos: "Status dos módulos",
+  statusModulos: "Seus planos",
   modReserva: "Reserva de emergência",
   modMetas: "Metas",
   modAposentadoria: "Aposentadoria",
-  modDividendos: "Dividendos (30 dias)",
+  modDividendos: "Dividendos",
   economiaNoMes: "Economia no mês",
   economiaAbaixo: "Abaixo do planejado",
   economiaAcima: "Acima do planejado",

@@ -229,7 +229,7 @@ export const disciplina: Voz = {
     modReserva: "Reserva",
     modMetas: "Metas",
     modAposentadoria: "Liberdade",
-    modDividendos: "Renda passiva (30 dias)",
+    modDividendos: "Renda passiva",
     economiaNoMes: "Guardado no mês",
     economiaAbaixo: "Dentro do plano ✓",
     economiaAcima: "Fora do plano. Bora corrigir agora.",
@@ -565,7 +565,7 @@ export const disciplina: Voz = {
     cfgPerfisCriadoToast: (nome) => `Perfil ${nome} criado ✓ Você já está nele.`,
     cfgPerfisFalhou: "Não consegui fazer isso agora. Tenta de novo.",
     viagemSub: "Calcula quanto custa o destino e transforma em meta com aporte mensal.",
-    viagemVazio: "Busca o primeiro destino acima. Dá pra somar vários lugares na mesma viagem e dizer quantos dias fica em cada um.",
+    viagemVazio: "Busca o primeiro destino acima.",
     viagemNenhumDestino: "Nenhum destino encontrado. Tenta outro nome ou o país.",
     viagemPorPessoa: (porPessoa, porMes, meses) =>
       `${porPessoa} por pessoa, guardando ${porMes}/mês, você chega lá em ${meses} ${meses === 1 ? "mês" : "meses"}. Cumpre o número.`,

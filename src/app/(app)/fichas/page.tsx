@@ -1,4 +1,4 @@
-import { Sparkles } from "lucide-react";
+import { Lightbulb } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
 import { vozDoTema } from "@/lib/profiles/voice";
 import { computeInsights } from "@/lib/insights";
@@ -23,7 +23,7 @@ export default async function AnalisesInsightsPage() {
       <HealthScoreCard score={healthScore} />
 
       {insights.length === 0 ? (
-        <EmptyState icon={Sparkles} message={voz.titulos.fichasInsightsVazio} />
+        <EmptyState icon={Lightbulb} message={voz.titulos.fichasInsightsVazio} />
       ) : (
         <Section title={voz.titulos.fichasAtencaoTitulo}>
           <InsightList insights={insights} />

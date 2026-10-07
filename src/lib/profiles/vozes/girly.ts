@@ -1040,6 +1040,7 @@ const GIRLY_FIXOS: Partial<Titulos> = {
 
   raioxJuntosAno: "Juntinhos, por ano 👀",
   raioxCincoAnos: "Guardados por 5 anos, virariam uns",
+  raioxEmCincoAnos: "Guardado, em 5 anos ✨",
 
   avisoAcimaDoPlano: (c) => `acima do combinado em ${c} 🫣`,
   avisoRodapeGasto: (v) => `Gastou ${v}`,

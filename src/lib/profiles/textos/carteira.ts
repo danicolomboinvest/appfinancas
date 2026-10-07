@@ -438,7 +438,7 @@ export const PADRAO_CARTEIRA: TextosCarteira = {
   metaMesesRestantes: "Meses restantes",
   metaFaltaGuardar: "Falta guardar",
   metaGuardarPorMes: "Guardar por mês",
-  metaTrajetoria: "Trajetória projetada até a meta",
+  metaTrajetoria: "Até a meta",
   metaSalvarAlteracoes: "Salvar alterações",
   metaDaquiAMeses: (n) => `Daqui a ${n} meses`,
   // Gráficos

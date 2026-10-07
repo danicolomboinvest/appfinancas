@@ -234,7 +234,7 @@ export const minimalista: Voz = {
     gastosNoAno: "Gastos",
     sobrouNoAno: "Saldo",
     sobrouNoAnoDica: (_cem, _manteve, pct) => `${pct}% da renda.`,
-    statusModulos: "Módulos",
+    statusModulos: "Planos",
     modReserva: "Reserva",
     modDividendos: "Dividendos",
     economiaNoMes: "Economia",

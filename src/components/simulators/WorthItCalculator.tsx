@@ -107,7 +107,6 @@ export function WorthItCalculator({
           <div>
             <p className="text-xs font-semibold text-accent-strong">{t.simValeEyebrow}</p>
             <h1 className="mt-1 text-h2 font-bold tracking-tight text-ink">{t.simValePasso1Titulo}</h1>
-            <p className="mt-2 text-sm text-ink-muted">{t.simValePasso1Sub}</p>
           </div>
 
           <Card className="p-4">

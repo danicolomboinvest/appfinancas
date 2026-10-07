@@ -1,3 +1,4 @@
+import { Explica } from "@/components/ui/Explica";
 import { getRequiredSession } from "@/lib/auth/session";
 import { listarGastosNoCartao, lerLimiteDoCartao } from "@/lib/repositories/limite-cartao.repo";
 import { vozDoTema } from "@/lib/profiles/voice";
@@ -22,20 +23,20 @@ export default async function LimiteDoCartaoPage() {
 
   return (
     <div className="flex flex-col gap-5">
-      <div>
-        <h1 className="text-h1 font-bold tracking-tight text-ink">{t.limTitulo}</h1>
-        <p className="mt-1.5 text-body text-ink-muted">{t.limSub}</p>
-      </div>
+      <h1 className="text-h1 font-bold tracking-tight text-ink">{t.limTitulo}</h1>
 
       <CartaoDoLimite ctx={ctx} comLink={false} />
       <FormDoLimite limite={limite} />
 
       <section className="flex flex-col">
-        <h2 className="px-1 text-caption font-semibold text-ink-muted">{t.limListaTitulo}</h2>
+        {/* Como um gasto entra aqui: no "?" do título (07/10/2026), não numa frase embaixo. */}
+        <h2 className="flex items-center gap-1.5 px-1 text-base font-semibold text-ink">
+          {t.limListaTitulo}
+          <Explica>{t.limComoMarcar}</Explica>
+        </h2>
         {gastos.length === 0 ? (
           <div className="mt-1 rounded-2xl border border-border bg-surface p-4">
             <p className="text-sm text-ink">{t.limVazio}</p>
-            <p className="mt-1 text-caption text-ink-muted">{t.limComoMarcar}</p>
           </div>
         ) : (
           <>
@@ -53,7 +54,6 @@ export default async function LimiteDoCartaoPage() {
                 </li>
               ))}
             </ul>
-            <p className="mt-2 px-1 text-caption text-ink-muted">{t.limComoMarcar}</p>
           </>
         )}
       </section>

@@ -51,10 +51,8 @@ export function ContasAPagar({ contas, pagas, hoje, abrirNova }: { contas: Conta
   return (
     <div className="flex flex-col gap-5">
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="text-h1 font-bold tracking-tight text-ink">{t.contasTitulo}</h1>
-          <p className="mt-1.5 text-body text-ink-muted">{t.contasSub}</p>
-        </div>
+        {/* Sem a frase embaixo do título (07/10/2026): quem não tem conta vê o convite no meio da tela. */}
+        <h1 className="min-w-0 text-h1 font-bold tracking-tight text-ink">{t.contasTitulo}</h1>
         {contas.length > 0 && (
           <button
             type="button"

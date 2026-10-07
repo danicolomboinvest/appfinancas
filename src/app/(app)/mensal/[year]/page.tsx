@@ -74,7 +74,6 @@ export default async function YearPage(props: PageProps<"/mensal/[year]">) {
 
       <PageHeader
         title={yearPageTitle(year)}
-        subtitle={t.paiAnoSub}
         action={
           <div className="flex items-center gap-1">
             <Link

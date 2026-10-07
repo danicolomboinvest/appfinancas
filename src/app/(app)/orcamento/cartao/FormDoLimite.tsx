@@ -1,5 +1,7 @@
 "use client";
 
+import { Explica } from "@/components/ui/Explica";
+
 import { useState, useTransition } from "react";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { Card } from "@/components/ui/Card";
@@ -32,9 +34,11 @@ export function FormDoLimite({ limite }: { limite: number | null }) {
 
   return (
     <Card className="flex flex-col gap-3 p-5">
-      <h2 className="text-body font-semibold text-ink">{limite === null ? t.limPergunta : t.limMudar}</h2>
+      <h2 className="flex items-center gap-1.5 text-body font-semibold text-ink">
+        {limite === null ? t.limPergunta : t.limMudar}
+        <Explica>{t.limCampoHint}</Explica>
+      </h2>
       <CurrencyInputControlled label={t.limCampo} value={valor} onChange={setValor} />
-      <p className="text-caption text-ink-muted">{t.limCampoHint}</p>
       <div className="flex flex-col gap-2 sm:flex-row">
         <Button type="button" disabled={salvando} className="w-full sm:w-fit" onClick={() => salvar(valor ?? 0)}>
           {t.limSalvar}

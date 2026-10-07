@@ -409,7 +409,7 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
             )}
             {/* As explicações de cada desenho, num lugar só (antes, uma frase por bloco). */}
             <details>
-              <summary className="cursor-pointer text-caption font-semibold text-accent-strong">Como ler esta página</summary>
+              <summary className="cursor-pointer text-caption font-medium text-ink-muted hover:text-ink">Como ler esta página</summary>
               <ul className="mt-2 flex flex-col gap-1.5 text-caption text-ink-muted">
                 <li>Curva: o quanto do orçamento do mês já saiu. O tracejado é o ritmo de quem fecha certinho; acima dele, está gastando adiantado.</li>
                 <li>Anéis: cada categoria no mês. Verde está dentro, amarelo está perto do limite, vermelho passou.</li>

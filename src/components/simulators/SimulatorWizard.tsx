@@ -1,12 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, RotateCcw, SlidersHorizontal, Sparkles } from "lucide-react";
+import { ArrowDown, ChevronDown, RotateCcw, SlidersHorizontal } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { HelpTooltip } from "@/components/forms/HelpTooltip";
 import { currencySymbol, type MoneyFormatter } from "@/lib/money";
 import { useMoney, useCurrency } from "@/components/money/MoneyProvider";
-import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { SaveSimulation } from "./SaveSimulation";
 import { useSearchParams } from "next/navigation";
 import { loadSimulationInputsAction } from "@/app/(app)/simuladores/actions";
@@ -96,7 +95,6 @@ export function SimulatorWizard({
   // Texto cru do campo que está em foco: enquanto ela digita, o campo mostra exatamente o que
   // foi digitado ("10," ou "0.") e só o número já legível vai pra conta.
   const [draft, setDraft] = useState<{ name: string; text: string } | null>(null);
-  const { voz } = useProfileTheme();
   const currency = useCurrency();
   const money = useMoney();
 
@@ -148,10 +146,9 @@ export function SimulatorWizard({
       <div className="flex flex-col gap-2">
         <h1 className="text-h2 font-bold tracking-tight text-ink">{eyebrow}</h1>
         <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-muted">
-          <span className="inline-flex items-center gap-1.5">
-            <Sparkles size={14} className="text-accent-strong" aria-hidden />
-            {mexeu ? "Mexa nos números: a resposta muda na hora." : "Começa com um exemplo. Troque pelos seus números."}
-          </span>
+          {/* Um selo "Exemplo" enquanto os números são o exemplo (07/10/2026): era a frase "Começa com
+              um exemplo. Troque pelos seus números." com o ícone de faísca. */}
+          {!mexeu && <span className="rounded-full bg-surface-2 px-2.5 py-1 text-xs font-semibold text-ink-muted">Exemplo</span>}
           {mexeu && (
             <button
               type="button"
@@ -174,7 +171,7 @@ export function SimulatorWizard({
           onClick={() => resultadoRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
           className="fixed inset-x-3 top-3 z-30 flex items-center gap-2 rounded-2xl border border-accent/40 bg-surface/95 px-4 py-3 text-left shadow-premium backdrop-blur lg:hidden"
         >
-          <Sparkles size={16} className="shrink-0 text-accent-strong" aria-hidden />
+          <ArrowDown size={16} className="shrink-0 text-accent-strong" aria-hidden />
           <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">{veredito}</span>
           <span className="shrink-0 text-caption font-semibold text-accent-strong">Ver</span>
         </button>
@@ -216,7 +213,6 @@ export function SimulatorWizard({
               </div>
             </details>
           )}
-          <p className="px-1 text-caption text-ink-faint">{voz.titulos.simAjustarRespostas}: toque no número pra digitar, ou arraste.</p>
         </div>
       </div>
     </div>

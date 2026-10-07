@@ -1,5 +1,7 @@
 "use client";
 
+import { Explica } from "@/components/ui/Explica";
+
 import { useState, useTransition } from "react";
 import { Card } from "@/components/ui/Card";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
@@ -27,14 +29,22 @@ export function RaioX({ itens, decididos }: { itens: RaioXItem[]; decididos: Rec
 
   return (
     <div className="flex flex-col gap-4">
-      <Card className="p-5">
-        <p className="text-caption text-ink-muted">{t.raioxJuntosAno}</p>
-        <p className="text-[2.25rem] font-bold leading-none tracking-tight tabular-nums text-ink">{m(totalMensal * 12)}</p>
-        <p className="mt-1.5 text-caption text-ink-muted">
-          {t.raioxCincoAnos} <b className="text-ink">{m(valorFuturo(totalMensal, 60))}</b>
-        </p>
-      </Card>
-      <p className="px-1 text-sm text-ink-muted">{t.raioxIntro}</p>
+      {/* O total por ano e o que ele vira em 5 anos, em dois quadradinhos (07/10/2026, "mesma cara,
+          menos texto"). Saíram a frase "Investidos por 5 anos, virariam cerca de", a citação e o
+          "como achei" do rodapé, que agora mora no "?". */}
+      <div className="grid grid-cols-2 gap-2.5">
+        <Card className="flex min-w-0 flex-col p-4">
+          <p className="flex items-center gap-1.5 text-caption text-ink-muted">
+            {t.raioxJuntosAno}
+            <Explica>{t.raioxComoAchei}</Explica>
+          </p>
+          <p className="mt-1 truncate text-[22px] font-bold tabular-nums tracking-tight text-ink">{m(totalMensal * 12)}</p>
+        </Card>
+        <Card className="flex min-w-0 flex-col p-4">
+          <p className="text-caption text-ink-muted">{t.raioxEmCincoAnos}</p>
+          <p className="mt-1 truncate text-[22px] font-bold tabular-nums tracking-tight text-success">{m(valorFuturo(totalMensal, 60))}</p>
+        </Card>
+      </div>
       <Card className="flex flex-col divide-y divide-border px-5 py-1">
         {itens.map((item) => {
           const e = escolhas[item.chave];
@@ -71,9 +81,6 @@ export function RaioX({ itens, decididos }: { itens: RaioXItem[]; decididos: Rec
         })}
       </Card>
       {economia > 0 && <p className="rounded-2xl bg-success/10 px-4 py-3 text-sm font-semibold text-ink">{t.raioxEconomia(m(economia), m(valorFuturo(economia / 12, 60)))}</p>}
-      <p className="px-1 text-caption text-ink-faint">
-        {t.raioxComoAchei}
-      </p>
     </div>
   );
 }

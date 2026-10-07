@@ -266,7 +266,7 @@ export const game: Voz = {
     modReserva: "Vida extra (reserva)",
     modMetas: "Missões",
     modAposentadoria: "Missão final",
-    modDividendos: "Bônus (30 dias)",
+    modDividendos: "Bônus",
     economiaNoMes: "Guardado na temporada",
     economiaAbaixo: "Missão cumprida ✓",
     economiaAcima: "Missão falhou. Próxima temporada.",

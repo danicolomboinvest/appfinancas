@@ -131,7 +131,7 @@ export default async function PerguntaPage(props: PageProps<"/decidir/pergunta/[
           )}
           {resposta.conta.length > 0 && (
             <details className="border-t border-border pt-3">
-              <summary className="cursor-pointer text-caption font-semibold text-accent-strong">{tx.focoComoCheguei}</summary>
+              <summary className="cursor-pointer text-caption font-medium text-ink-muted hover:text-ink">{tx.focoComoCheguei}</summary>
               <dl className="mt-2 grid grid-cols-[1fr_auto] gap-x-4 gap-y-1.5 text-caption">
                 {resposta.conta.map((c) => (
                   <div key={c.rotulo} className="contents">

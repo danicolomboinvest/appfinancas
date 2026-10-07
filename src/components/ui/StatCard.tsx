@@ -51,8 +51,12 @@ export function StatCard({
         trendIsGood ? "bg-success-soft text-success" : "bg-danger-soft text-danger"
       }`}
     >
-      {trendUp ? "↑" : "↓"} {trend.displayValue ?? `${Math.abs(Math.round(trend.percent * 100))}%`}
-      {trend.scopeLabel ? ` ${trend.scopeLabel}` : ""} vs. {trend.periodLabel}
+      {/* "↑ 154% em setembro" (07/10/2026): era "↑ 154% setembro vs. agosto". O mês de antes fica no
+          título do selo, para quem passar o dedo/mouse. */}
+      <span title={`Comparado com ${trend.periodLabel}`}>
+        {trendUp ? "↑" : "↓"} {trend.displayValue ?? `${Math.abs(Math.round(trend.percent * 100))}%`}
+        {trend.scopeLabel ? ` em ${trend.scopeLabel}` : ` vs. ${trend.periodLabel}`}
+      </span>
     </p>
   );
 

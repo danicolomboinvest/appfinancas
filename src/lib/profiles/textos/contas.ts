@@ -68,7 +68,7 @@ export const PADRAO_CONTAS: TextosContas = {
   contasTitulo: "Contas a pagar",
   contasSub: "Anote o que vence e o app avisa um dia antes e no dia.",
   contasVazio: "Nenhuma conta anotada",
-  contasVazioSub: "Luz, aluguel, escola, a fatura do cartão: anote quando vence e o app avisa um dia antes e no dia.",
+  contasVazioSub: "O app avisa um dia antes e no dia.",
   contasNova: "Nova conta",
   contasEditarTitulo: "Editar conta",
   contasNome: "O que é",

@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { ChevronRight } from "lucide-react";
 import { Card } from "@/components/ui/Card";
+import { Explica } from "@/components/ui/Explica";
 import { useToast } from "@/components/ui/toast-context";
 import { useCurrency, useMoney } from "@/components/money/MoneyProvider";
 import { formatMoney } from "@/lib/money";
@@ -26,12 +27,13 @@ export function GuardadosDoSonho({ itens }: { itens: GuardadoDoSonho[] }) {
 
   return (
     <Card id="guardado" className="flex flex-col gap-3 p-4">
-      <div>
-        <p className="text-sm font-semibold text-ink">O que você guardou</p>
-        <p className="text-caption text-ink-muted">Marcou um valor errado? Toque no registro para corrigir ou excluir.</p>
-      </div>
+      {/* Como corrigir: no "?" do título (07/10/2026), não numa frase fixa. */}
+      <p className="flex items-center gap-1.5 text-base font-semibold text-ink">
+        O que você guardou
+        <Explica>Marcou um valor errado? Toque no registro para corrigir ou excluir.</Explica>
+      </p>
       {itens.length === 0 ? (
-        <p className="text-sm text-ink-muted">Nada registrado ainda. Quando você marcar &quot;Guardei&quot; na lista de sonhos, aparece aqui.</p>
+        <p className="text-sm text-ink-muted">Nada guardado ainda.</p>
       ) : (
         <ul className="flex flex-col divide-y divide-border overflow-hidden rounded-xl border border-border">
           {itens.map((it) =>

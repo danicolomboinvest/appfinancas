@@ -176,6 +176,8 @@ export type TextosFoco = {
   raioxJuntosAno: string;
   /** "Investidos por 5 anos, virariam cerca de **R$ X**": o valor vem em negrito depois. */
   raioxCincoAnos: string;
+  /** O quadradinho do Raio-X com o que o total vira em 5 anos (07/10/2026). */
+  raioxEmCincoAnos: string;
   raioxComoAchei: string;
   raioxNosUltimos(meses: number): string;
   raioxVezesPorMes(vezes: number): string;
@@ -496,6 +498,7 @@ export const PADRAO_FOCO: TextosFoco = {
   maisSuaConta: "Sua conta",
   raioxJuntosAno: "Juntos, por ano",
   raioxCincoAnos: "Investidos por 5 anos, virariam cerca de",
+  raioxEmCincoAnos: "Investido, em 5 anos",
   raioxComoAchei: "Mesmo estabelecimento em 3 meses ou mais. Moradia, saúde, educação e impostos ficam fora.",
   raioxNosUltimos: (n) => `Nos últimos ${n} meses`,
   raioxVezesPorMes: (n) => (n <= 1 ? "Cerca de 1 vez por mês" : `Cerca de ${n} vezes por mês`),

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ShieldCheck, Target, Sparkles, Coins, ChevronLeft, ChevronRight, Briefcase } from "lucide-react";
+import { ShieldCheck, Target, Sunrise, Coins, ChevronLeft, ChevronRight, Briefcase } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
 import { vozDoTema } from "@/lib/profiles/voice";
 import { getYearlySummary } from "@/lib/consolidation/yearly";
@@ -424,11 +424,8 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
           label={voz.titulos.sobrouNoAno}
           value={money(sobrou(summary))}
           tone="accent"
-          hint={
-            summary.savingsRate === null
-              ? undefined
-              : voz.titulos.sobrouNoAnoDica(money(100, { round: true }), money(Math.round(summary.savingsRate * 100), { round: true }), Math.round(summary.savingsRate * 100))
-          }
+          // "43% da renda" (07/10/2026), como no Mensal: era "De cada R$ 100 que entraram, você manteve R$ 43".
+          hint={summary.savingsRate === null ? undefined : voz.titulos.doQueEntrou(`${Math.round(summary.savingsRate * 100)}%`)}
           trend={
             balanceDelta === null
               ? undefined
@@ -489,16 +486,11 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
           {!empresa && (
           <LinkedStatCard
             href="/planejamento/acumulo#liberdade-financeira"
-            icon={Sparkles}
+            icon={Sunrise}
             label={voz.titulos.modAposentadoria}
-            value={usufructSurplus === null ? "Não configurada" : money(usufructSurplus)}
-            hint={
-              usufructSurplus === null
-                ? "Configure seu planejamento"
-                : usufructSurplus >= 0
-                  ? voz.titulos.paiAposentadoriaSuperavit
-                  : voz.titulos.paiAposentadoriaDeficit
-            }
+            // O número e duas palavras (07/10/2026): era "Superávit: renda passiva cobre o padrão de vida desejado".
+            value={usufructSurplus === null ? "Não configurada" : `${usufructSurplus >= 0 ? "+" : "−"}${money(Math.abs(usufructSurplus), { round: true })}`}
+            hint={usufructSurplus === null ? "Configure seu planejamento" : usufructSurplus >= 0 ? voz.titulos.apSobraPorMes : voz.titulos.apFaltaPorMes}
             tone={usufructSurplus === null ? "neutral" : usufructSurplus >= 0 ? "success" : "danger"}
           />
           )}
@@ -507,7 +499,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
             icon={Coins}
             label={voz.titulos.modDividendos}
             value={upcomingDividends > 0 ? money(upcomingDividends) : "Nenhum previsto"}
-            hint={upcomingDividends > 0 ? "Estimativa dos ativos da sua carteira" : voz.titulos.paiDividendosVazio}
+            hint={upcomingDividends > 0 ? "Próximos 30 dias" : undefined}
             tone={upcomingDividends > 0 ? "success" : "neutral"}
           />
         </div>

@@ -889,7 +889,7 @@ function Resultado({
 
       {/* A explicação em texto e a regra de ouro ficam guardadas aqui, para quem quiser a conta. */}
       <details className="px-1">
-        <summary className="cursor-pointer text-caption font-semibold text-accent-strong">{t.focoComoCheguei}</summary>
+        <summary className="cursor-pointer text-caption font-medium text-ink-muted hover:text-ink">{t.focoComoCheguei}</summary>
         <p className="mt-2 text-caption text-ink">{r.explicacao}</p>
         {r.alertaJuros && <p className="mt-2 text-caption text-ink">{r.alertaJuros}</p>}
         {r.comparacao && cat.duravel && (

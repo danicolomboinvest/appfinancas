@@ -4,7 +4,7 @@ import { useActionState, useEffect, useId, useMemo, useRef, useState, useTransit
 import { createPortal } from "react-dom";
 import type { ParentCategory } from "@prisma/client";
 import type { LucideIcon } from "lucide-react";
-import { FileUp, Minus, Pencil, Plus, Sparkles, Tag, Trash2, Wand2 } from "lucide-react";
+import { FileUp, History, Minus, Pencil, Plus, Tag, Trash2, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { CurrencyField } from "@/components/ui/CurrencyField";
@@ -339,7 +339,7 @@ export function BudgetWizard({
               Sem meses suficientes, o "Usar o meu padrão" abre a importação dos extratos. */}
           <div className="grid gap-2 sm:grid-cols-2">
             <OpcaoDeDivisao
-              Icone={temPadrao ? Sparkles : FileUp}
+              Icone={temPadrao ? History : FileUp}
               titulo={t.formOrcPadrao}
               sub={temPadrao ? t.formOrcPadraoNota(hints.mesesComDado) : t.formOrcExtratosNota}
               onClick={temPadrao ? usarPadrao : () => window.dispatchEvent(new Event(EVENTO_IMPORTAR))}
