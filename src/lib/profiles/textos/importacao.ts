@@ -325,15 +325,14 @@ export const PADRAO_IMPORTACAO: TextosImportacao = {
   impRemover: "Remover",
   impConcluir: "Concluir",
   // Extrato/fatura: subir o arquivo
-  impArquivoGrande: "Arquivo muito grande (máx. 4 MB). Exporte um período menor do extrato, ou salve em Excel (.xlsx) ou CSV, que pesam bem menos que PDF.",
+  impArquivoGrande: "Arquivo grande demais (máx. 4 MB). Exporte um período menor, ou em Excel ou CSV.",
   impOQueSubindo: "O que você está subindo?",
   impTipoExtrato: "Extrato bancário",
   impTipoFatura: "Fatura de cartão",
   impExtratoDica: "Entradas viram renda e saídas viram gasto, pelo sinal do valor.",
   impFaturaDica: "Todas as linhas entram como gasto (compras do cartão).",
   impFaturaMes: "De qual mês é esta fatura?",
-  impFaturaMesDica: (mes) =>
-    `Todas as compras desta fatura vão entrar em ${mes}, mesmo as que aconteceram no mês anterior (o fechamento da fatura costuma cruzar dois meses).`,
+  impFaturaMesDica: (mes) => `Todas as compras desta fatura entram em ${mes}.`,
   impEscolherExtrato: "Escolher extrato",
   impFormatosBanco: "CSV, OFX, Excel ou PDF do seu banco",
   impSenhaDicaBanco:
@@ -359,8 +358,7 @@ export const PADRAO_IMPORTACAO: TextosImportacao = {
   impSemCategoriaSub: (n, soma) => `${n === 1 ? "Ele não entra" : "Eles não entram"} na importação. Some ${soma}.`,
   impCategorizar: (n) => `Categorizar ${n === 1 ? "esse gasto" : "esses gastos"} →`,
   impNumerosErrados: "Esses números parecem errados",
-  impNumerosErradosDica:
-    "Confira a lista abaixo antes de confirmar. Se estiver errado mesmo, fala com a gente — já guardamos uma cópia do arquivo e ensinamos o app a ler esse banco.",
+  impNumerosErradosDica: "Confira antes de confirmar. Se estiver errado, fale com a gente: já guardamos o arquivo.",
   impFalarComAGente: "Falar com a gente",
   impResumoLancamentos: (n, valor) => `${n} lançamento${s(n)} · ${valor}`,
   impNoSaldo: (positivo) => `${positivo ? "a mais" : "a menos"} no saldo`,
@@ -372,8 +370,7 @@ export const PADRAO_IMPORTACAO: TextosImportacao = {
   impSomaDiferente: (abaixo, diferenca) =>
     `A soma lida ${abaixo ? "está" : "passa"} ${diferenca} ${abaixo ? "abaixo" : "acima"} do total impresso na fatura. Pode faltar (ou sobrar) alguma linha.`,
   impRepetidos: "Repetidos no arquivo",
-  impRepetidosDica:
-    "Mesma data, valor e descrição mais de uma vez. Se foi compra de verdade, mantenha; se é o arquivo repetindo, deixe só uma.",
+  impRepetidosDica: "Mesmo dia, valor e descrição. Se for o arquivo repetindo, deixe só um.",
   impDeixarSo1: "Deixar só 1",
   impDuplicataTitulo: (n, soAMao) =>
     soAMao
@@ -399,8 +396,7 @@ export const PADRAO_IMPORTACAO: TextosImportacao = {
   impImportadosSucesso: (n) => `${n === 1 ? "1 lançamento importado" : `${n} lançamentos importados`} com sucesso.`,
   impToastImportados: (n) => `${n} lançamentos importados`,
   impToastJaExistiam: (n) => `${n} já existiam (ignorados)`,
-  impPagamentoFatura: (n) =>
-    `Encontrei ${n === 1 ? "este lançamento" : "estes lançamentos"} no seu extrato que ${n === 1 ? "pode ser" : "podem ser"} o pagamento desta fatura. Quer remover para não contar o gasto duas vezes?`,
+  impPagamentoFatura: (n) => `${n === 1 ? "Este parece" : "Estes parecem"} o pagamento desta fatura. Remover para não contar duas vezes?`,
   impSemData: "sem data",
   impRemovidoExtrato: "Removido do extrato.",
   impManter: "Manter",
@@ -439,14 +435,12 @@ export const PADRAO_IMPORTACAO: TextosImportacao = {
   impIrpfEscolher: "Escolher PDF da declaração",
   impIrpfFormato: "Recibo da Declaração de Ajuste Anual (PDF de texto)",
   impIrpfEncontrei: (n) => `Encontrei ${n} ativo${s(n)} com preço médio.`,
-  impIrpfConfira:
-    "Confira o ativo da sua carteira em cada linha (as que a declaração só traz o nome da empresa vêm sem casar — escolha à mão ou deixe de fora).",
+  impIrpfConfira: "Confira o ativo de cada linha. Sem par? Escolha à mão ou deixe de fora.",
   impIrpfPrecoMedio: "Preço médio",
   impIrpfNaDeclaracao: (quantidade) => `${quantidade} na declaração`,
   impIrpfInvestido: "investido",
   impIrpfNaoAplicar: "Não aplicar",
-  impIrpfComoFunciona:
-    "O preço médio vira o valor investido (preço médio × quantidade da carteira). A cotação atual não muda, só o investido, que é a base do lucro/prejuízo.",
+  impIrpfComoFunciona: "O preço médio vira o valor investido. A cotação não muda.",
   impIrpfAplicarEm: (n) => `Aplicar em ${n} ativo${s(n)}`,
   impIrpfConcluido: (n) => `Preço médio preenchido em ${n} ativo${s(n)}. Agora o lucro/prejuízo deles calcula certo.`,
   // Histórico de importações
@@ -460,8 +454,7 @@ export const PADRAO_IMPORTACAO: TextosImportacao = {
   impHistoricoFaturaAviso:
     "Se você removeu do extrato o pagamento desta fatura, ele não volta sozinho: lance de novo à mão depois de desfazer.",
   impHistoricoDesfeita: (n) => `Importação desfeita: ${n} lançamento${s(n)} removido${s(n)}.`,
-  impHistoricoNota:
-    "Desfazer uma importação apaga todos os lançamentos que aquele arquivo criou. Importações feitas antes deste histórico existir não aparecem aqui.",
+  impHistoricoNota: "Desfazer apaga tudo o que aquele arquivo lançou.",
   // "Parece que se repete"
   impRepeteTitulo: "Parece que se repete",
   impRepeteSub: "Estava nos meses anteriores e ainda não está neste. Um toque lança.",
@@ -520,8 +513,7 @@ export const PADRAO_IMPORTACAO: TextosImportacao = {
 
   // Revisão da importação (set/2026)
   impNaoSeiAgora: "Não sei agora",
-  impNaoSeiAgoraDica:
-    "Esses eu não reconheci. Escolha uma vez e da próxima eu já sei. Não sabe? Toque em \"Não sei agora\": o gasto entra sem categoria e você escolhe depois.",
+  impNaoSeiAgoraDica: "Escolha uma vez e da próxima eu já sei. Na dúvida, toque em “Não sei agora”.",
   impAplicadoAosIguais: (n) => `Pus a mesma categoria em mais ${n === 1 ? "1 lançamento igual" : `${n} lançamentos iguais`}.`,
   impImportarJa: (n) => `Importar agora e escolher ${n === 1 ? "a categoria" : `as ${n} categorias`} depois`,
   impProprioTodasMudei: (n) => `Todas as ${n}: só mudei de conta`,
@@ -564,9 +556,7 @@ export const PADRAO_IMPORTACAO: TextosImportacao = {
   impVerMeuMes: "Ver meu mês",
   impRevelaDesfazer: (historico) => `Errou alguma coisa? Dá para desfazer em "${historico}", no fim da tela do mês.`,
   impComoTirarTitulo: "Como tiro o extrato do meu banco?",
-  impComoTirarAviso:
-    "Print e foto não funcionam. Use o arquivo que o app do banco gera (PDF, Excel, CSV ou OFX), pela opção Exportar, Baixar ou Enviar por e-mail. \"Imprimir\" pelo celular também não serve.",
+  impComoTirarAviso: "Print e foto não funcionam: use o arquivo que o app do banco exporta (PDF, Excel, CSV ou OFX).",
   impComoTirarFatura: "A fatura do cartão costuma chegar todo mês no seu e-mail, em PDF: esse arquivo serve.",
-  impComoTirarOutro:
-    "Outro banco? Procure \"Extrato\" no app e a opção de exportar, baixar ou enviar por e-mail. Se o app só deixar compartilhar como imagem, entre pelo site do banco no computador e baixe em PDF.",
+  impComoTirarOutro: "Outro banco? No app dele, procure Extrato e a opção Exportar ou Baixar.",
 };

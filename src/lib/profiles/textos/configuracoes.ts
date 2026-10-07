@@ -242,35 +242,29 @@ export const PADRAO_CONFIGURACOES: TextosConfiguracoes = {
   cfgTema: "Tema",
   cfgTemaEscuro: "Escuro",
   cfgTemaClaro: "Claro",
-  cfgModoDecididoPeloTema: "Claro ou escuro é decidido pelo tema do perfil ativo. Para escolher, mude o tema em Perfis financeiros — só o Padrão tem os dois.",
+  cfgModoDecididoPeloTema: "O tema do perfil decide claro ou escuro. Só o Padrão tem os dois.",
   cfgMoedaAviso: ["Trocar a moeda ", "não converte seus valores", "."],
-  cfgMoedaAvisoTexto1: (exemploNovo, exemploAntigo) =>
-    `Os números continuam exatamente os mesmos — só o símbolo muda. Um lançamento de 3.000 passa a aparecer como "${exemploNovo}" em vez de "${exemploAntigo}". Use se a sua vida financeira é toda em outra moeda.`,
-  cfgMoedaAvisoTexto2:
-    "Se só uma parte é em outra moeda (um salário em euro, um aluguel em real), deixe a moeda principal aqui e escolha a moeda na hora de lançar: aí sim o app converte pela cotação do dia.",
+  cfgMoedaAvisoTexto1: (exemploNovo, exemploAntigo) => `Só o símbolo muda: "${exemploAntigo}" vira "${exemploNovo}". Os números ficam iguais.`,
+  cfgMoedaAvisoTexto2: "Só uma parte em outra moeda? Deixe a principal aqui e escolha a moeda ao lançar.",
   cfgAplicadoAoSalvar: "Moeda e tema são aplicados assim que você salva.",
   // Categorias
   cfgCategoriasTitulo: "Categorias",
-  cfgCategoriasSub:
-    "Mude o nome e o ícone das categorias, esconda a que você não usa e edite as que você criou. O que já foi lançado continua no lugar.",
+  cfgCategoriasSub: "Renomeie, troque o ícone ou esconda categorias.",
   // Notificações
   cfgNotificacoesTitulo: "Notificações",
   cfgNotificacoesSub: "Avisos no celular, o resumo por e-mail e o que aparece em Análises.",
   cfgResumoEmail: "Resumo do mês por e-mail",
   cfgResumoEmailDica: "Uma vez por mês, no começo do mês: quanto entrou, quanto saiu e o que mudou.",
   cfgAlertasOrcamento: "Alertas de orçamento",
-  cfgAlertasOrcamentoDica:
-    "Categoria com 80% do planejado gasto e ainda com metade do mês pela frente, ou já estourada. Chega no celular (se ligado) ou por e-mail.",
+  cfgAlertasOrcamentoDica: "Quando uma categoria passa de 80% antes da metade do mês, ou estoura.",
   cfgMetasAtrasadas: "Metas atrasadas",
   cfgMetasAtrasadasDica: "Quando uma meta fica para trás do ritmo. Um aviso por meta por mês.",
   // Notificações: avisos no celular
   cfgPushTitulo: "Avisos no celular",
-  cfgPushDica:
-    "Uma mensagem no celular, como as de um app: quando uma categoria está perto de estourar e ainda falta metade do mês, ou uma meta ficou para trás. Sem e-mail.",
+  cfgPushDica: "Avisos no celular quando uma categoria está perto de estourar ou uma meta atrasa.",
   cfgPushLigadoEm: (n) => `Ligado em ${n} aparelho${n === 1 ? "" : "s"}.`,
   cfgPushVerificando: "Verificando este aparelho…",
-  cfgPushIos:
-    "No iPhone, os avisos só funcionam com o app instalado na tela de início. Toque em Compartilhar › Adicionar à Tela de Início, abra por lá e volte aqui.",
+  cfgPushIos: "No iPhone, só com o app na tela de início (Compartilhar › Adicionar à Tela de Início).",
   cfgPushNaoSuportado: "Este navegador não recebe notificações. No celular, instale o app na tela de início.",
   cfgPushBloqueado: "Você bloqueou as notificações deste site. Libere nas configurações do navegador para ligar de novo.",
   cfgPushLigar: "Ligar avisos neste aparelho",
@@ -282,16 +276,14 @@ export const PADRAO_CONFIGURACOES: TextosConfiguracoes = {
   // Conexões
   cfgConexoesTitulo: "Conectar meu banco",
   cfgConexoesSub: "Open Finance: os lançamentos da conta e do cartão chegam sozinhos, toda noite.",
-  cfgConexoesDesligada:
-    "A conexão com bancos ainda não está ligada neste app. Enquanto isso, o caminho é Registrar › Importar extrato ou fatura.",
+  cfgConexoesDesligada: "A conexão com bancos ainda não está ligada. Por enquanto: Registrar › Importar extrato ou fatura.",
   cfgConexaoConectado: (banco) => `${banco} conectado`,
   cfgConexaoConectadoToast: (banco) => `${banco} conectado.`,
   cfgConexaoNadaNovo: "Nenhum lançamento novo por enquanto. O SPI busca de novo toda noite.",
   cfgConexaoChegaram: (novos, semCategoria) =>
     `Chegaram ${novos} lançamentos dos últimos 90 dias${semCategoria > 0 ? `, ${semCategoria} sem categoria` : ""}.`,
   cfgConexaoVerNoMes: "Ver no mês →",
-  cfgConexoesIntro:
-    "Pelo Open Finance oficial, através do Meu Pluggy, um site parceiro gratuito. Depois de conectado, o SPI busca seus lançamentos toda noite. Nada de arquivo.",
+  cfgConexoesIntro: "Pelo Open Finance oficial (Meu Pluggy). O app busca seus lançamentos toda noite.",
   cfgConexoesPasso1: "Crie sua conta no Meu Pluggy",
   cfgConexoesPasso1Dica: "É um site parceiro, gratuito. Abre em outra aba e volta aqui.",
   cfgConexoesPasso2: "Conecte seu banco lá",
@@ -301,8 +293,7 @@ export const PADRAO_CONFIGURACOES: TextosConfiguracoes = {
   cfgConexoesCriarConta: "Criar conta no Meu Pluggy ↗",
   cfgConexoesAutorizar: "Já conectei lá → autorizar o SPI",
   cfgConexoesAbrindo: "Abrindo…",
-  cfgConexoesRodape:
-    "Seus dados bancários passam pela Pluggy, empresa regulada pelo Banco Central, e chegam ao SPI só como lançamentos. Você desconecta quando quiser aqui. Se preferir, continue subindo o extrato.",
+  cfgConexoesRodape: "Via Pluggy, regulada pelo Banco Central. Desconecte quando quiser.",
   cfgBancosConectados: "Bancos conectados",
   cfgConexaoAtualizado: (data, novos) => `atualizado ${data} · ${novos} novo${novos === 1 ? "" : "s"}`,
   cfgConexaoAindaNaoBuscou: "ainda não buscou",
@@ -318,11 +309,9 @@ export const PADRAO_CONFIGURACOES: TextosConfiguracoes = {
   // Dados
   cfgDadosTitulo: "Dados",
   cfgDadosSub: "Exporte seus dados ou exclua a conta.",
-  cfgExportLancamentosDica:
-    "Gera um arquivo CSV com todos os seus lançamentos mensais (renda, gastos e aportes), incluindo categoria-mãe e subcategoria.",
+  cfgExportLancamentosDica: "Todos os lançamentos, em CSV.",
   cfgExportLancamentos: "Exportar lançamentos (CSV)",
-  cfgExportCarteiraDica:
-    "Gera um arquivo CSV com todos os ativos da sua carteira (nome, ticker, classe, quantidade, valor investido e valor atual).",
+  cfgExportCarteiraDica: "Todos os ativos da carteira, em CSV.",
   cfgExportCarteira: "Exportar carteira (CSV)",
   cfgExportando: "Exportando...",
   cfgExportFalhou: "Não foi possível exportar os dados. Tente novamente.",
@@ -403,8 +392,7 @@ export const PADRAO_CONFIGURACOES: TextosConfiguracoes = {
   viagemMesMaisBarato: ["Em ", " a mesma viagem sai ", " mais barata."],
   viagemTrocar: "Trocar",
   // Viagem: os blocos de custo e o resultado
-  viagemMediaDica:
-    "Estes valores são a média para uma viagem como a sua. Se o seu orçamento for diferente, é só tocar no número e ajustar — o total recalcula na hora.",
+  viagemMediaDica: "Média para uma viagem como a sua. Toque no número para ajustar.",
   viagemBlocos: { flights: "Passagens", lodging: "Hospedagem", food: "Alimentação", activities: "Passeios e transporte" },
   viagemExtra: "Extra",
   viagemExtraPlaceholder: "Ex.: compras, seguro...",
@@ -417,12 +405,10 @@ export const PADRAO_CONFIGURACOES: TextosConfiguracoes = {
     `${porPessoa} por pessoa · guardando ${porMes}/mês, você chega lá em ${meses} ${meses === 1 ? "mês" : "meses"}.`,
   viagemValoresVoltaram: "Os valores que você editou voltaram para a estimativa, porque o roteiro, as pessoas ou o estilo mudaram.",
   viagemUsarMeus: "Usar os meus",
-  viagemOutraMoeda: (simbolo) =>
-    `As estimativas do app são em reais, para quem sai do Brasil, e não valem em ${simbolo}. Digite em cada bloco quanto a sua viagem custa em ${simbolo}.`,
+  viagemOutraMoeda: (simbolo) => `As estimativas são em reais. Digite quanto custa cada bloco em ${simbolo}.`,
   viagemMetaCriadaToast: "Meta da viagem criada! Veja em Metas.",
   viagemVerMeta: "Ver minha meta em Metas",
   viagemCriarMeta: "Criar meta desta viagem",
   viagemCriandoMeta: "Criando meta...",
-  viagemRodape:
-    "Estimativas médias para planejamento (valores de 2026, saindo do Brasil) — não são cotação. A passagem considera uma ida e volta principal mais as conexões entre os destinos. Ajuste os valores ao seu orçamento; mudar o roteiro, as pessoas ou o estilo re-estima tudo.",
+  viagemRodape: "Estimativas médias de 2026, saindo do Brasil. Não são cotação.",
 };

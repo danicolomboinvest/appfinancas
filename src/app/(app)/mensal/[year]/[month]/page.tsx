@@ -17,7 +17,6 @@ import {
 import { getMonthlySummary } from "@/lib/consolidation/monthly";
 import { getDailyFlow, getCategorySpending } from "@/lib/consolidation/month-analysis";
 import { buildMonthInsights } from "@/lib/insights/month-insights";
-import { ritmoDoMes } from "@/lib/insights/ritmo-do-mes";
 import { getYearlySummary } from "@/lib/consolidation/yearly";
 import { getRecapDismissedMonth } from "@/lib/repositories/user.repo";
 import { getRecapEligibility } from "@/lib/recap/monthly";
@@ -27,7 +26,6 @@ import { ehEmpresa } from "@/lib/profiles/empresa";
 import { dadosDaEmpresa } from "@/lib/profiles/empresa-dados";
 import { DreEmpresa } from "./DreEmpresa";
 import { nowInBrazil } from "@/lib/date/brazil-now";
-import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Donut, type DonutSlice } from "@/components/charts/Donut";
 import { Section } from "@/components/ui/Section";
@@ -37,10 +35,8 @@ import { ImportHistory } from "./ImportHistory";
 import { listImportBatches } from "@/lib/repositories/import-batch.repo";
 import { MonthlyRecapCard } from "./MonthlyRecapCard";
 import { FlowIndicators, type FlowBundle } from "./FlowIndicators";
-import { BudgetSection } from "../BudgetSection";
 import { MonthHighlight } from "./MonthHighlight";
 import { MonthFlowCard } from "./MonthFlowCard";
-import { getContributionLinkState } from "@/lib/portfolio/contribution-link";
 import { TopCategories } from "./TopCategories";
 import { IncomeSplitCard } from "./IncomeSplitCard";
 import { serverMoney, valoresOcultos } from "@/lib/money-server";
@@ -123,7 +119,6 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
     dailyFlow,
     categorySpending,
     previousSummary,
-    aporteSemDestino,
   ] = await Promise.all([
     serverMoney(),
     listMonthlyEntries(ctx, year, month),
@@ -142,7 +137,6 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
     getCategorySpending(ctx, year, month, rotulosDeCategoria),
     // Mês anterior: base das comparações ("gastou X% menos que no mês passado").
     getMonthlySummary(ctx, month === 1 ? year - 1 : year, month === 1 ? 12 : month - 1),
-    getContributionLinkState(ctx, year, month),
   ]);
 
   // Conta nova: nenhum lançamento em NENHUM mês deste perfil. Aí a tela inteira seria cartão
@@ -179,30 +173,7 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
   const now = nowInBrazil();
   const isCurrentMonth = year === now.getFullYear() && month === now.getMonth() + 1;
   const isFutureMonth = year > now.getFullYear() || (year === now.getFullYear() && month > now.getMonth() + 1);
-  // A carteira só pergunta onde entrou o aporte deste mês e do anterior (é o que a action aceita):
-  // o aviso de "aporte sem destino" em outro mês levava a uma tela sem nada pra responder.
-  const mesAnterior = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const carteiraPerguntaEsteMes =
-    isCurrentMonth || (year === mesAnterior.getFullYear() && month === mesAnterior.getMonth() + 1);
   const daysInMonth = new Date(year, month, 0).getDate();
-  // Sem as contas já marcadas antes do mês (recorrente, parcela) e sem o que está datado pra
-  // frente — ver ritmoDoMes. É a mesma conta do Foco, pras duas telas não se contradizerem.
-  const pacing = isCurrentMonth
-    ? ritmoDoMes({
-        entries: entries.map((e) => ({
-          category: e.category,
-          amount: Number(e.amount),
-          entryDay: e.entryDate ? e.entryDate.toISOString().slice(0, 10) : null,
-          createdAt: e.createdAt,
-        })),
-        planejado: monthlyPlanned,
-        year,
-        month,
-        today: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`,
-        monthElapsed: now.getDate() / daysInMonth,
-      })
-    : null;
-
   // Resumo Mensal: só perto da virada do mês (fim ou início), e só se ainda não foi fechado
   // para aquele mês específico — não é um banner permanente.
   const recapEligibility = getRecapEligibility(now, recapDismissedMonth);
@@ -351,7 +322,6 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
         initialView={initialView}
         monthly={monthlyBundle}
         annual={annualBundle}
-        pacing={pacing}
         mesFechado={mesFechado}
       />
 
@@ -362,41 +332,21 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
           passado. Os números acima dizem "quanto"; este bloco diz "e daí". No computador fica
           ao lado da curva do mês: um terço de texto, dois terços de gráfico. */}
       <div className="contents lg:flex lg:flex-wrap lg:gap-5 [&>*]:lg:min-w-0 [&>*]:lg:grow">
-      <div className="contents lg:block lg:basis-[calc(33.333%-0.625rem)]">
-      {!isCurrentMonth && <MonthHighlight
+      {!isCurrentMonth && <div className="contents lg:block lg:basis-[calc(33.333%-0.625rem)]">
+      <MonthHighlight
         income={summary.totalIncome}
         expense={summary.totalExpense}
         investment={summary.totalInvestment}
         insights={insights}
         titulo={voz.titulos.oQueMudou}
-      />}
-      </div>
+      />
+      </div>}
 
-      {/* O aporte do mês que ainda não virou ativo nenhum. Sem esse aviso, a pessoa lançava o
-          aporte aqui, ia na carteira e não via nada mudar — e achava que o app tinha perdido o
-          dinheiro dela. O link leva pro lugar onde ela diz em quais ativos entrou. */}
-      {aporteSemDestino.pending > 0 && carteiraPerguntaEsteMes && (
-        <Link
-          href="/carteira"
-          className="flex items-center justify-between gap-3 rounded-2xl border border-accent/40 bg-accent-soft/30 px-4 py-3 transition-colors hover:border-accent"
-        >
-          <span className="min-w-0">
-            <span className="block text-sm font-medium text-ink">
-              {/* Na voz do tema: o Girly não diz "aportados". E o cartão também aparece no mês
-                  anterior, onde "neste mês" seria mentira — lá vai o nome do mês. */}
-              {voz.titulos.uiAporteSemDestino(
-                money(aporteSemDestino.pending, { round: true }),
-                isCurrentMonth ? null : MONTH_LABELS[month - 1].toLowerCase(),
-              )}
-            </span>
-            <span className="block text-caption text-ink-muted">{voz.titulos.uiAporteSemDestinoSub}</span>
-          </span>
-          <span className="shrink-0 text-sm font-medium text-accent-strong">{voz.titulos.uiAporteSemDestinoLink}</span>
-        </Link>
-      )}
+      {/* O aviso "R$ X guardados ainda não estão na carteira" saiu daqui em 06/10/2026: a Dani
+          pediu que virasse o botão "Atualizar aportes" na própria Carteira, onde a tarefa é feita. */}
 
       {/* Curva do mês dia a dia — o gráfico que faltava pra enxergar o ritmo, não só o total. */}
-      <div className="contents lg:block lg:basis-[calc(66.666%-0.625rem)]">
+      <div className={`contents lg:block ${isCurrentMonth ? "lg:basis-full" : "lg:basis-[calc(66.666%-0.625rem)]"}`}>
       <MonthFlowCard flow={dailyFlow} monthLabel={MONTH_LABELS[month - 1]} isCurrentMonth={isCurrentMonth} isFutureMonth={isFutureMonth} voz={voz} />
       </div>
       </div>
@@ -446,7 +396,8 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
         <YearlyBarChart months={yearlySummary.months} />
       </Section>
 
-      <BudgetSection ctx={ctx} year={year} month={month} totalIncome={summary.totalIncome} />
+      {/* O "Orçamento por categoria" saiu daqui (06/10/2026): eram as mesmas barras da aba
+          Orçamento, duas telas iguais. O "de X planejados ›" do painel leva até lá. */}
 
       {entries.length === 0 ? (
         <EmptyState icon={Receipt} message={voz.mesVazio} action={<BotoesDeLancar rotulo="Adicionar lançamento" />} />

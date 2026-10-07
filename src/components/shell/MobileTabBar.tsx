@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { vibrar } from "@/lib/celebrar";
 import { usePathname } from "next/navigation";
@@ -13,6 +14,48 @@ const TAB_TOUR: Record<string, string> = {
   "/planejamento": "metas",
   "/carteira": "carteira",
 };
+
+/**
+ * A barra some quando a pessoa rola para baixo e volta quando ela rola para cima (06/10/2026).
+ * A Dani: "é útil, mas não precisa ser toda hora". Volta também perto do topo, no fim da página
+ * (onde não há mais o que ler por trás dela) e sempre que a tela muda. Um passo pequeno de
+ * rolagem não conta (tremida do dedo); o movimento acumula até passar de 8px.
+ */
+function useSomeAoRolar(pathname: string | null) {
+  const [oculta, setOculta] = useState(false);
+  // Trocou de tela: a barra volta. No render, e não num efeito, pra não piscar escondida.
+  const [telaVista, setTelaVista] = useState(pathname);
+  if (pathname !== telaVista) {
+    setTelaVista(pathname);
+    setOculta(false);
+  }
+  useEffect(() => {
+    let ultimo = window.scrollY;
+    let quadro = 0;
+    const aoRolar = () => {
+      if (quadro) return;
+      quadro = requestAnimationFrame(() => {
+        quadro = 0;
+        const y = window.scrollY;
+        const delta = y - ultimo;
+        const noFim = window.innerHeight + y >= document.documentElement.scrollHeight - 32;
+        if (y < 80 || noFim) {
+          setOculta(false);
+          ultimo = y;
+        } else if (Math.abs(delta) > 8) {
+          setOculta(delta > 0);
+          ultimo = y;
+        }
+      });
+    };
+    window.addEventListener("scroll", aoRolar, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", aoRolar);
+      cancelAnimationFrame(quadro);
+    };
+  }, []);
+  return oculta;
+}
 
 /**
  * Rótulos em 12px (text-xs), não 10px: é a barra que ela usa o dia inteiro, e 10px era ilegível
@@ -42,6 +85,7 @@ export function MobileTabBar({
   const pathname = usePathname();
   const { voz } = useProfileTheme();
   const abas = abasDoCelular(isPremium);
+  const oculta = useSomeAoRolar(pathname);
 
   function tabLink(tab: MobileTab) {
     const isActive = sectionMatches(tab, pathname);
@@ -73,8 +117,11 @@ export function MobileTabBar({
   return (
     <nav
       aria-label="Navegação principal"
-      className="glass-pill fixed inset-x-3 z-40 flex items-stretch gap-1 rounded-full p-1.5 md:hidden"
-      style={{ bottom: "calc(0.75rem + var(--safe-bottom))" }}
+      className={`glass-pill fixed inset-x-3 z-40 flex items-stretch gap-1 rounded-full p-1.5 transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-opacity md:hidden ${
+        oculta ? "pointer-events-none opacity-0" : "opacity-100"
+      }`}
+      // Desce o bastante para sumir também o "+", que sobe 24px acima da barra.
+      style={{ bottom: "calc(0.75rem + var(--safe-bottom))", transform: oculta ? "translateY(calc(100% + 2.5rem + var(--safe-bottom)))" : "none" }}
     >
       {tabLink(abas[0])}
       {tabLink(abas[1])}

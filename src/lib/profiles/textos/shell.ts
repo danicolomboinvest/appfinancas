@@ -226,11 +226,11 @@ export const PADRAO_SHELL: TextosShell = {
   uiTourBoasVindasTitulo: "Boas-vindas ao SPI Finance 👋",
   uiTourBoasVindasTexto: "Um tour rápido mostrando ONDE fica cada coisa, vou destacar os botões um por um. Dá para pular quando quiser.",
   uiTourRegistrarTitulo: "Este + é o coração do app",
-  uiTourRegistrarTexto: "É por aqui que você registra tudo: digite um gasto, fale por áudio, ou importe o extrato do banco. Comece sempre por ele.",
+  uiTourRegistrarTexto: "Registre tudo por aqui: digitando, por áudio ou com o extrato.",
   uiTourFluxoTitulo: "Aqui é o seu mês",
   uiTourFluxoTexto: "Seu mês em um lugar: renda, gastos e o orçamento por categoria, com um alerta quando você gasta rápido demais.",
   uiTourMetasTitulo: "Aqui são as Metas",
-  uiTourMetasTexto: "Crie metas (viagem, casa), a reserva de emergência e a aposentadoria. O app calcula quanto guardar por mês para você chegar lá.",
+  uiTourMetasTexto: "Metas, reserva e aposentadoria: o app diz quanto guardar por mês.",
   uiTourCarteiraTitulo: "Aqui é a Carteira",
   uiTourCarteiraTexto: "Seus investimentos e o lucro de cada um. Dá até para puxar o preço médio direto da sua declaração de Imposto de Renda.",
   uiTourMaisTitulo: "E tem mais aqui",
@@ -317,7 +317,7 @@ export const PADRAO_SHELL: TextosShell = {
   uiAporteSemDestinoSub: "Diga em quais investimentos esse dinheiro entrou e suas metas andam junto.",
   uiAporteSemDestinoLink: "Dizer onde foi →",
   uiMesNovoTitulo: "Seu mês ainda está vazio",
-  uiMesNovoTexto: "Importe o extrato do banco ou a fatura do cartão. O app lê o arquivo e monta o mês para você: o que entrou, o que saiu e para onde foi. Leva uns 2 minutos.",
+  uiMesNovoTexto: "O app lê o extrato ou a fatura e monta o mês para você. Leva 2 minutos.",
   uiMesNovoImportar: "Importar meu extrato",
   uiMesNovoDigitar: "Prefiro anotar à mão",
   uiMesNovoAjuda: "Extrato ou fatura? Veja a diferença",
@@ -331,13 +331,11 @@ export const PADRAO_SHELL: TextosShell = {
 
   // InstallAppSheet
   uiInstalarTitulo: "Instalar na tela de início",
-  uiInstalarIntro:
-    "O SPI Finance funciona como aplicativo: ícone próprio na tela inicial e tela cheia, sem a barra do navegador. Não ocupa espaço como um app de loja e continua se atualizando sozinho.",
+  uiInstalarIntro: "Ícone na tela inicial e tela cheia, sem ocupar espaço.",
   uiInstalarAgora: "Instalar agora",
   uiInstalando: "Instalando...",
   uiInstalarNativoDica: "Seu navegador permite instalar direto: toque no botão e confirme na janelinha que aparecer.",
-  uiInstalarNoComputador:
-    "Você está no computador. Para ter o app no celular, abra o site pelo navegador do telefone e repita esses passos por lá.",
+  uiInstalarNoComputador: "Para ter no celular, abra o site no navegador do telefone.",
   uiInstalarPassosSafari: [
     "Toque no botão **Compartilhar** — o quadradinho com uma seta para cima, na barra de baixo.",
     "Role a lista para baixo e toque em **Adicionar à Tela de Início**.",

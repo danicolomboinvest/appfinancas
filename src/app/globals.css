@@ -37,6 +37,17 @@
   --color-brand-a: #F4C86F;
   --color-brand-b: #C77A22;
   --color-brand-bg: #1B1610;
+  /* O herói das telas (06/10/2026): o bloco do número principal. No Padrão é um cartão como os
+     outros, só com um toque morno do dourado: a primeira versão (âmbar escuro com brilho) a Dani
+     achou dourada e brilhante demais. Os temas de cor (Girly, Game…) pintam em themes.ts.
+     Como tudo aqui aponta para outras variáveis, o mesmo bloco serve no claro e no escuro. */
+  --color-heroi-de: color-mix(in srgb, var(--color-accent) 7%, var(--color-surface));
+  --color-heroi-para: var(--color-surface);
+  --color-heroi-tinta: var(--color-ink);
+  --color-heroi-suave: var(--color-ink-muted);
+  --color-heroi-borda: var(--color-border);
+  /* O tracinho de hoje e a barra do mês dentro do herói. */
+  --color-heroi-destaque: var(--color-accent);
   /* Cor de cada classe da Estratégia da Carteira (renda fixa, ações, FIIs…). Fixa nos dois
      modos e igual em todos os gráficos, pra comparação bater à vista. O Girly troca por rosa. */
   --color-strat-pos: #4FA3C7;
@@ -244,6 +255,8 @@ html.light {
 
 @theme inline {
   --color-canvas: var(--color-canvas);
+  --color-heroi-tinta: var(--color-heroi-tinta);
+  --color-heroi-suave: var(--color-heroi-suave);
   --color-surface: var(--color-surface);
   --color-surface-2: var(--color-surface-2);
   --color-surface-hover: var(--color-surface-hover);
@@ -622,5 +635,37 @@ html.light .glass-pill {
 @media (prefers-reduced-motion: reduce) {
   .numero-rolante-fita {
     transition: none;
+  }
+}
+
+/* Véus dentro do herói (06/10/2026): saem da cor do texto do herói, então funcionam no bloco
+   pintado (texto branco, véu branco) e no do Padrão (texto do tema, claro ou escuro). */
+.heroi-veu {
+  background-color: color-mix(in srgb, var(--color-heroi-tinta) 13%, transparent);
+}
+.heroi-veu-forte {
+  background-color: color-mix(in srgb, var(--color-heroi-tinta) 30%, transparent);
+}
+.heroi-fio {
+  border-color: color-mix(in srgb, var(--color-heroi-tinta) 15%, transparent);
+}
+
+/* Passo novo de um jogo de perguntas (estratégia, 06/10/2026): entra deslizando da direita. */
+@keyframes passo-entra {
+  from {
+    opacity: 0;
+    transform: translateX(18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.passo-entra {
+  animation: passo-entra 260ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .passo-entra {
+    animation: none;
   }
 }

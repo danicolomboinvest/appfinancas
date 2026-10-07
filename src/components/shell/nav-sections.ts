@@ -90,8 +90,9 @@ export const NAV_SECTIONS: NavSection[] = [
     alsoMatches: ROTAS_DO_FLUXO,
     children: [
       { href: "/mensal/foco", label: "Foco" },
-      { href: "/mensal", label: "Visão mensal" },
-      { href: "/mensal/gastos", label: "Só gastos" },
+      // Os mesmos nomes das abas do celular (06/10/2026).
+      { href: "/mensal", label: "Mensal" },
+      { href: "/mensal/gastos", label: "Gastos" },
       { href: "/orcamento", label: "Orçamento" },
     ],
   },
@@ -113,7 +114,7 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     basePath: "/carteira",
     href: "/carteira",
-    label: "Carteira de Investimentos",
+    label: "Carteira",
     icon: Briefcase,
     premium: true,
     children: [
@@ -130,17 +131,15 @@ export const NAV_SECTIONS: NavSection[] = [
     label: "Decidir",
     icon: Signpost,
     soPessoa: true,
-    alsoMatches: ["/simuladores"],
     children: [
       { href: "/decidir", label: "Perguntas" },
       { href: "/decidir/comprar", label: "Posso comprar?" },
-      { href: "/simuladores/financiar-vs-alugar", label: "Financiar vs. Alugar", premium: true },
-      { href: "/simuladores/amortizar-vs-investir", label: "Amortizar vs. Investir", premium: true },
-      { href: "/simuladores/consorcio", label: "Consórcio vs. Financiamento", premium: true },
-      { href: "/simuladores/marcacao-mercado", label: "Marcação a Mercado", premium: true },
-      { href: "/simuladores/carro", label: "Carro: Assinar vs. Comprar", premium: true },
     ],
   },
+  // Calculadoras com porta própria (06/10/2026). Moravam no fim do Decidir, como "Decisões
+  // grandes" + "Ver todas as calculadoras", e nem a Dani achava: "se eu que fiz o app não tô
+  // achando, imagina". Decidir são as perguntas sobre o dinheiro dela; aqui, as ferramentas.
+  { basePath: "/simuladores", href: "/simuladores", label: "Calculadoras", icon: Calculator, premium: true, soPessoa: true },
   {
     basePath: "/fichas",
     href: "/fichas",

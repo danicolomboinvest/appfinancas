@@ -26,7 +26,10 @@ export function DonutAllocationChart({
   onSelect,
   selectedName,
   legend = false,
+  animar = false,
 }: {
+  /** A rosca se desenha ao aparecer (a revelação do perfil na estratégia). */
+  animar?: boolean;
   title: string;
   data: DonutSlice[];
   /** Quando presente, o gráfico ganha legenda clicável, clicar numa fatia/linha seleciona. */
@@ -42,7 +45,7 @@ export function DonutAllocationChart({
 
   return (
     <div className="flex w-full flex-col items-center gap-2">
-      <p className="text-xs font-medium text-ink-muted">{title}</p>
+      {title && <p className="text-xs font-medium text-ink-muted">{title}</p>}
       {hasData ? (
         <>
           <ResponsiveContainer width="100%" height={220}>
@@ -64,7 +67,8 @@ export function DonutAllocationChart({
                 outerRadius={85}
                 paddingAngle={2}
                 cornerRadius={5}
-                isAnimationActive={false}
+                isAnimationActive={animar}
+                animationDuration={900}
                 onClick={interactive ? (entry) => onSelect?.(entry.payload as DonutSlice) : undefined}
                 style={interactive ? { cursor: "pointer" } : undefined}
               >

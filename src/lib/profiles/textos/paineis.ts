@@ -32,8 +32,7 @@ const plural = (n: number, um: string, varios: string) => (n === 1 ? um : varios
 export const PADRAO_PAINEIS: TextosPaineis = {
   paiReservaParcial: (pct, atual, alvo) =>
     `Sua reserva de emergência está ${pct} completa (${atual} de ${alvo}), continue aportando até cobrir o valor-alvo.`,
-  paiReservaNoComeco: (pct) =>
-    `Sua reserva de emergência cobre só ${pct} do valor-alvo, priorize esse aporte antes de outros objetivos, para não precisar recorrer a dívida em um imprevisto.`,
+  paiReservaNoComeco: (pct) => `Sua reserva cobre só ${pct} do alvo. Priorize ela antes de outros objetivos.`,
   paiMetasAtrasadas: (qtd, nomes) =>
     // "2 metas estão" (o texto antigo dizia "2 metas está").
     `${qtd} meta${plural(qtd, " está", "s estão")} atrasada${plural(qtd, "", "s")} (${nomes}), revise o prazo ou aumente o aporte mensal para voltar ao ritmo.`,

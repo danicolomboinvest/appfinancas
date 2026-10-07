@@ -20,6 +20,7 @@ import type { ParsedVoiceEntry } from "@/lib/entries/voice-expense-parser";
 import { trackEvent } from "@/lib/usage/track-event";
 import { ehEmpresa } from "@/lib/profiles/empresa";
 import type { ModoDoRegistrar } from "./registrar-eventos";
+import { useVoltarAoTopo } from "@/components/ui/useVoltarAoTopo";
 
 type Mode = ModoDoRegistrar;
 
@@ -46,6 +47,8 @@ export function RegistrarDrawer({
   const [goals, setGoals] = useState<{ id: string; name: string }[]>([]);
   const [otherProfiles, setOtherProfiles] = useState<{ id: string; name: string }[]>([]);
   const { year, month } = currentYearMonthFromPath(pathname);
+  // Trocou de caminho (escolha → importar, áudio → formulário): a folha volta para o começo.
+  const topoRef = useVoltarAoTopo(mode);
 
   // Ao abrir, começa no modo pedido; ao fechar, volta pro início. Feito no render (e não num
   // efeito) pra gaveta nunca aparecer um quadro na escolha antes de pular pra importação.
@@ -79,6 +82,7 @@ export function RegistrarDrawer({
 
   return (
     <Modal open={open} onClose={onClose} title={title}>
+      <div ref={topoRef}>
       {mode !== "choice" && (
         <button
           type="button"
@@ -94,94 +98,80 @@ export function RegistrarDrawer({
       )}
 
       {mode === "choice" && (
-        <div className="grid grid-cols-2 gap-3">
-          {/* Importar vem PRIMEIRO e maior: é a promessa do app ("solta o extrato, o mês se monta
-              sozinho") e quem só digita à mão é quem mais desiste nos 7 dias de garantia. Antes
-              ele era o último cartão, depois de "Posso comprar?", Digitar e Áudio. */}
-          <button
-            type="button"
-            onClick={() => {
-              trackEvent("registro_importacao", "/registrar");
-              setMode("import");
-            }}
-            data-guia="importar"
-            className="col-span-2 flex min-h-11 items-center gap-3 rounded-2xl border border-accent/40 bg-surface-2 px-4 py-4 text-left transition-all hover:border-accent hover:bg-surface-hover active:scale-[0.98]"
-          >
-            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-accent text-on-accent">
-              <FileUp size={22} strokeWidth={1.75} />
-            </span>
-            <span className="min-w-0">
-              <span className="block text-sm font-semibold text-ink">{voz.titulos.impImportarArquivo}</span>
-              <span className="block text-caption text-ink-muted">{voz.titulos.impImportarSub}</span>
-            </span>
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              trackEvent("registro_digitado", "/registrar");
-              setMode("type");
-            }}
-            className="flex flex-col items-center gap-3 rounded-2xl border border-border bg-surface-2 px-4 py-6 text-center transition-all hover:border-border-strong hover:bg-surface-hover active:scale-95"
-          >
-            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-pill text-on-pill">
-              <Keyboard size={22} strokeWidth={1.75} />
-            </span>
-            <span className="text-sm font-medium text-ink">{voz.titulos.impDigitar}</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              // Medido aqui, na escolha, e não no salvamento: quem tenta o áudio e desiste no
-              // meio também é resposta — é justamente o sinal de que a gravação está difícil.
-              trackEvent("registro_voz", "/registrar");
-              setMode("voice");
-            }}
-            data-guia="gravar-audio"
-            className="flex flex-col items-center gap-3 rounded-2xl border border-border bg-surface-2 px-4 py-6 text-center transition-all hover:border-border-strong hover:bg-surface-hover active:scale-95"
-          >
-            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-pill text-on-pill">
-              <Mic size={22} strokeWidth={1.75} />
-            </span>
-            <span className="text-sm font-medium text-ink">{voz.titulos.impGravarAudio}</span>
-          </button>
-          {/* "Posso comprar?" por ÚLTIMO e discreto: ele leva pra OUTRA tela e fecha a gaveta.
-              Quando era o primeiro cartão, quem abria o "+" só pra anotar o pão caía num
-              simulador. Continua aqui porque a hora de decidir é antes de passar o cartão. */}
-          {!ehEmpresa(kind) && (
-          <Link
-            href="/decidir/comprar"
-            data-guia="posso-comprar"
-            onClick={() => {
-              trackEvent("posso_comprar", "/registrar");
-              onClose();
-            }}
-            className="col-span-2 flex min-h-11 items-center gap-3 rounded-2xl px-4 py-2.5 text-left transition-colors hover:bg-surface-2"
-          >
-            <ShoppingBag size={18} strokeWidth={1.75} className="shrink-0 text-ink-muted" />
-            <span className="min-w-0 flex-1">
-              <span className="block text-sm font-medium text-ink">{voz.titulos.compraTitulo}</span>
-              <span className="block text-caption text-ink-muted">{voz.titulos.impCompraAntes}</span>
-            </span>
-            <ChevronRight size={16} className="shrink-0 text-ink-faint" />
-          </Link>
-          )}
-          {/* Conta a pagar (05/10/2026): o boleto que ainda vai vencer não é gasto ainda, mas é a
-              hora em que ela lembra dele. Abre a tela das contas já no formulário. */}
-          <Link
-            href="/orcamento/contas?nova=1"
-            onClick={() => {
-              trackEvent("conta_a_pagar", "/registrar");
-              onClose();
-            }}
-            className="col-span-2 -mt-2 flex min-h-11 items-center gap-3 rounded-2xl px-4 py-2.5 text-left transition-colors hover:bg-surface-2"
-          >
-            <CalendarClock size={18} strokeWidth={1.75} className="shrink-0 text-ink-muted" />
-            <span className="min-w-0 flex-1">
-              <span className="block text-sm font-medium text-ink">{voz.titulos.contasRegistrar}</span>
-              <span className="block text-caption text-ink-muted">{voz.titulos.contasRegistrarSub}</span>
-            </span>
-            <ChevronRight size={16} className="shrink-0 text-ink-faint" />
-          </Link>
+        <div className="flex flex-col gap-4">
+          {/* Três botões grandes lado a lado, sem frase de apoio (06/10/2026). Importar continua
+              primeiro e com a cor do tema: é a promessa do app ("solta o extrato, o mês se monta
+              sozinho") e quem só digita à mão é quem mais desiste nos 7 dias de garantia. O nome
+              é o mesmo dos guias, sem a lista de formatos. */}
+          <div className="grid grid-cols-3 gap-2.5">
+            {[
+              {
+                chave: "import" as const,
+                evento: "registro_importacao",
+                guia: "importar",
+                Icone: FileUp,
+                rotulo: voz.titulos.impImportarArquivo.replace(/\s*\([^)]*\)/, ""),
+                destaque: true,
+              },
+              { chave: "type" as const, evento: "registro_digitado", guia: undefined, Icone: Keyboard, rotulo: voz.titulos.impDigitar, destaque: false },
+              // Medido na escolha, e não no salvamento: quem tenta o áudio e desiste no meio também
+              // é resposta — é justamente o sinal de que a gravação está difícil.
+              { chave: "voice" as const, evento: "registro_voz", guia: "gravar-audio", Icone: Mic, rotulo: voz.titulos.impGravarAudio, destaque: false },
+            ].map(({ chave, evento, guia, Icone, rotulo, destaque }) => (
+              <button
+                key={chave}
+                type="button"
+                onClick={() => {
+                  trackEvent(evento, "/registrar");
+                  setMode(chave);
+                }}
+                data-guia={guia}
+                className={`flex min-h-32 flex-col items-center justify-start gap-2.5 rounded-2xl border px-2 pb-3 pt-4 text-center transition-all active:scale-95 ${
+                  destaque ? "border-accent/50 bg-accent-soft/40 hover:border-accent" : "border-border bg-surface-2 hover:border-border-strong hover:bg-surface-hover"
+                }`}
+              >
+                <span
+                  className={`flex size-12 shrink-0 items-center justify-center rounded-full ${destaque ? "bg-accent-gradient text-on-accent shadow-premium-sm" : "bg-pill text-on-pill"}`}
+                >
+                  <Icone size={22} strokeWidth={1.75} />
+                </span>
+                <span className={`text-[13px] leading-tight text-ink ${destaque ? "font-semibold" : "font-medium"}`}>{rotulo}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Duas linhas que levam para outra tela e fecham a gaveta. "Posso comprar?" fica aqui
+              porque a hora de decidir é antes de passar o cartão; a conta a pagar (05/10/2026)
+              porque é a hora em que ela lembra do boleto. */}
+          <div className="flex flex-col divide-y divide-border overflow-hidden rounded-2xl border border-border">
+            {!ehEmpresa(kind) && (
+              <Link
+                href="/decidir/comprar"
+                data-guia="posso-comprar"
+                onClick={() => {
+                  trackEvent("posso_comprar", "/registrar");
+                  onClose();
+                }}
+                className="flex min-h-12 items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-surface-2"
+              >
+                <ShoppingBag size={18} strokeWidth={1.75} className="shrink-0 text-accent-strong" />
+                <span className="min-w-0 flex-1 text-sm font-medium text-ink">{voz.titulos.compraTitulo}</span>
+                <ChevronRight size={16} className="shrink-0 text-ink-faint" />
+              </Link>
+            )}
+            <Link
+              href="/orcamento/contas?nova=1"
+              onClick={() => {
+                trackEvent("conta_a_pagar", "/registrar");
+                onClose();
+              }}
+              className="flex min-h-12 items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-surface-2"
+            >
+              <CalendarClock size={18} strokeWidth={1.75} className="shrink-0 text-accent-strong" />
+              <span className="min-w-0 flex-1 text-sm font-medium text-ink">{voz.titulos.contasRegistrar}</span>
+              <ChevronRight size={16} className="shrink-0 text-ink-faint" />
+            </Link>
+          </div>
         </div>
       )}
 
@@ -213,6 +203,7 @@ export function RegistrarDrawer({
           defaultParentCategory={parsed?.parentCategory ?? undefined}
         />
       )}
+      </div>
     </Modal>
   );
 }

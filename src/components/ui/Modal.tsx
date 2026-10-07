@@ -11,11 +11,14 @@ export function Modal({
   open,
   onClose,
   title,
+  acoes,
   children,
 }: {
   open: boolean;
   onClose: () => void;
   title: string;
+  /** Botões pequenos no cabeçalho, antes do X (ex.: ajuda e configurações no Mais). */
+  acoes?: React.ReactNode;
   children: React.ReactNode;
 }) {
   const [mounted, setMounted] = useState(false);
@@ -73,6 +76,7 @@ export function Modal({
           <h2 id={titleId} className="text-lg font-semibold text-ink">
             {title}
           </h2>
+          {acoes && <div className="ml-auto flex items-center gap-1">{acoes}</div>}
           {/* 44px de toque (size-11); o -mr-2 mantém o X alinhado à borda como antes. */}
           <button
             type="button"

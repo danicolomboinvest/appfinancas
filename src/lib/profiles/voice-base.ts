@@ -149,6 +149,10 @@ export type TitulosBase = {
   caiuNaContaSub: string;
   planejamento: string;
   poupanca: string;
+  /** Embaixo da barra do que entrou, no painel do Mensal (06/10/2026): Guardado + Sobrou. */
+  ficouComVoce(pct: string): string;
+  /** Embaixo do Gastou: leva ao Orçamento, que é a casa do plano. */
+  dePlanejados(valor: string): string;
   /** A linha "Aportou" do painel. */
   aportou: string;
   /** As linhas "Entrou" e "Gastou" do painel. Só a Empresa muda ("Faturou", "Custos e despesas"). */
@@ -179,6 +183,8 @@ export type TitulosBase = {
   metaAporteFeito(mes: string): string;
   metaAporteToast(mes: string): string;
   metaMarcar(mes: string): string;
+  /** Embaixo do título de Metas, só o dado: "3 metas · R$ 2.500 por mês" (06/10/2026). */
+  metasResumo(quantas: number, porMes: string | null): string;
   metaOutroValor: string;
   // Para onde vai o que guarda
   splitTitulo(mes: string): string;
@@ -249,18 +255,13 @@ export type TitulosBase = {
   carteiraAbrirContaPergunta: string;
   carteiraAbrirContaBotao: string;
   porObjetivo: string;
-  porObjetivoSub: string;
-  porObjetivoEditar: string;
   posicaoPorObjetivo: string;
   objReserva: string;
   objLiberdade: string;
   objSem: string;
-  objSemMetaHint: string;
   secaoMetas: string;
   estrategiaVsAlvo: string;
-  alocacaoPorClasse: string;
   estrategia: string;
-  estrategiaSub: string;
   // Miolo da carteira
   contribTitulo(mes: string): string;
   contribSub: string;
@@ -275,13 +276,9 @@ export type TitulosBase = {
   divLiquido: string;
   divBruto: string;
   divNota: string;
-  compHint: string;
-  compVoceTem: string;
-  compDeveriaTer: string;
   compAportar: string;
   compReduzir: string;
   objNenhumTitulo: string;
-  objNenhumTexto(valor: string): string;
   objNenhumLink: string;
   // O botão mais usado do app e o que ele diz quando salva
   registrar: string;
@@ -331,7 +328,7 @@ const TITULOS_BASE: TitulosBase = {
   economizouMaisEm: "Economizou mais em",
   economizouMaisEmDica: (pct) => `${pct} abaixo do planejado`,
   semLancamento: "Sem lançamento",
-  soGastos: "Só gastos",
+  soGastos: "Gastos",
   soGastosSub: "Para onde seu dinheiro foi, por categoria.",
   orcamento: "Orçamento",
   orcamentoSub: "Quanto você planejou gastar, e quanto já foi.",
@@ -344,7 +341,9 @@ const TITULOS_BASE: TitulosBase = {
   caiuNaContaSub: "Proventos dos seus ativos pagos nos últimos dias. Um toque lança como renda no dia do pagamento.",
   planejamento: "Planejamento",
   poupanca: "Poupança",
-  aportou: "Aportou",
+  ficouComVoce: (pct) => `Ficou com você: ${pct}`,
+  dePlanejados: (valor) => `de ${valor} planejados`,
+  aportou: "Guardado",
   entrou: "Entrou",
   gastou: "Gastou",
   metas: "Metas",
@@ -367,7 +366,8 @@ const TITULOS_BASE: TitulosBase = {
   metaMeses: (n) => `${n} ${n === 1 ? "mês restante" : "meses restantes"}`,
   metaAporteFeito: (mes) => `Aporte de ${mes} feito`,
   metaAporteToast: (mes) => `Aporte de ${mes} registrado na meta.`,
-  metaMarcar: (mes) => `Marcar aporte de ${mes}`,
+  metaMarcar: (mes) => `Guardei em ${mes}`,
+  metasResumo: (n, porMes) => `${n} ${Number(n) === 1 ? "meta" : "metas"}${porMes ? ` · ${porMes} por mês` : ""}`,
   metaOutroValor: "outro valor",
   splitTitulo: (mes) => `Para onde vai o que você guarda em ${mes}`,
   splitSub: (v) => `${v} por mês, do seu orçamento. Reserva primeiro, depois as metas por prazo.`,
@@ -419,45 +419,36 @@ const TITULOS_BASE: TitulosBase = {
   navInstalar: "Instalar na tela de início",
   navWhatsapp: "Falar com a gente",
   navSair: "Sair",
-  carteira: "Carteira de Investimentos",
+  carteira: "Carteira",
   carteiraSub: "Acompanhe seus ativos e o objetivo de cada um.",
   carteiraLink: "Ver consolidação por objetivo →",
   carteiraVazio: "Nenhum ativo cadastrado ainda. Adicione o primeiro para acompanhar sua carteira aqui.",
   carteiraAbrirContaPergunta: "Ainda não tem conta em uma corretora?",
   carteiraAbrirContaBotao: "Abrir minha conta →",
-  porObjetivo: "Carteira por Objetivo",
-  porObjetivoSub: "Posição atual por objetivo e alocação atual vs. ideal por classe.",
-  porObjetivoEditar: "← editar ativos",
-  posicaoPorObjetivo: "Posição por objetivo",
+  porObjetivo: "Por objetivo",
+  posicaoPorObjetivo: "Onde está seu dinheiro",
   objReserva: "Reserva de emergência",
   objLiberdade: "Liberdade financeira",
   objSem: "Sem objetivo definido",
-  objSemMetaHint: "Sem meta cadastrada em Reserva de Emergência",
   secaoMetas: "Metas",
-  estrategiaVsAlvo: "Carteira atual × estratégia-alvo",
-  alocacaoPorClasse: "Alocação atual por classe",
+  estrategiaVsAlvo: "Para chegar na sua estratégia",
   estrategia: "Estratégia da Carteira",
-  estrategiaSub: "Defina os percentuais-alvo por classe de estratégia (somando 100%), independente da alocação-ideal de cada ativo individual.",
   contribTitulo: (mes) => `Qual é o seu aporte de ${mes}?`,
   contribSub: "Sugestão de aporte para rebalanceamento da carteira.",
   contribLabel: "Vou aportar",
   contribSemAtivo: " · ainda sem ativo desse tipo",
   contribVazio: "Sua carteira ainda está vazia, então a divisão segue só a estratégia.",
   contribSemEstrategiaTitulo: "Onde colocar o aporte deste mês?",
-  contribSemEstrategiaSub: "Com uma estratégia definida, o app diz quanto vai para cada tipo de investimento para sua carteira chegar no alvo. São três perguntas.",
+  contribSemEstrategiaSub: "Com ela, o app diz quanto vai para cada tipo de investimento.",
   contribDefinir: "Definir minha estratégia →",
   divTitulo: (total) => `Próximos dividendos · ${total} previstos`,
   divDatas: (dataCom, pagamento) => `Data com ${dataCom} · Pagamento ${pagamento}`,
   divLiquido: "líquido de IR",
   divBruto: "bruto, s/ IR",
-  divNota: "Estimativa com a quantidade de hoje — se você comprar ou vender antes da data-com, o valor muda. JSCP mostra já líquido dos 15% de IR retido na fonte; Dividendos e Rendimentos de FII costumam ser isentos. Fonte: investidor10.",
-  compHint: "O tracinho é o alvo. Quem está atrás dele é o que comprar no próximo aporte.",
-  compVoceTem: "Você tem",
-  compDeveriaTer: "Deveria ter",
+  divNota: "Estimativa com a quantidade de hoje. JSCP já sem os 15% de IR. Fonte: investidor10.",
   compAportar: "Aportar",
   compReduzir: "Reduzir",
   objNenhumTitulo: "Nenhum ativo tem objetivo ainda.",
-  objNenhumTexto: (valor) => `Seus ${valor} estão todos em "sem objetivo". Dizer o que cada ativo é — reserva, liberdade financeira ou uma meta — é o que deixa esta tela responder "quanto falta" em vez de só somar.`,
   objNenhumLink: "Dar objetivo aos ativos →",
   registrar: "Registrar",
   registrarNovo: "Novo lançamento",

@@ -16,6 +16,7 @@ import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import type { Titulos } from "@/lib/profiles/voice";
 import { currencySymbol } from "@/lib/money";
 import type { MoneyFormatter } from "@/lib/money";
+import { useVoltarAoTopo } from "@/components/ui/useVoltarAoTopo";
 
 const HORIZONS = [1, 5, 10] as const;
 const TOTAL_STEPS = 3;
@@ -55,6 +56,8 @@ export function WorthItCalculator({
   const t = voz.titulos;
   const priceInputId = useId();
   const [step, setStep] = useState(1);
+  // Avançou um passo: a tela volta para o começo dele (06/10/2026).
+  const topoRef = useVoltarAoTopo<HTMLDivElement>(step);
   const [priceCents, setPriceCents] = useState<number | null>(null);
   const [mode, setMode] = useState<WorthItMode>("SINGLE");
   const [horizonYears, setHorizonYears] = useState<(typeof HORIZONS)[number]>(5);
@@ -85,7 +88,7 @@ export function WorthItCalculator({
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-md flex-col gap-6">
+    <div ref={topoRef} className="mx-auto flex w-full max-w-md flex-col gap-6">
       <div className="flex items-center gap-3">
         <button
           type="button"

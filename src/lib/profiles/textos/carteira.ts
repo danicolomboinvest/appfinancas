@@ -16,6 +16,15 @@
 export type TextosCarteira = {
   // Carteira · lista de ativos (AssetsSection)
   cartSuaCarteira(n: number): string;
+  /** Embaixo do título, só dado (06/10/2026): "21 ativos · 4 tipos". */
+  cartResumo(ativos: number, tipos: number): string;
+  /** O botão que trocou o aviso "R$ X guardados ainda não estão na carteira" do Mensal. */
+  cartAtualizarAportes: string;
+  cartAportesNada: string;
+  cartAportesComo: string;
+  /** Uma vez só, na primeira abertura com valor esperando destino. */
+  cartAportesDica: string;
+  cartMaisOpcoes: string;
   cartMostrarValores: string;
   cartOcultarValores: string;
   /** "+R$ 1.200 desde a compra" — o valor já chega com o sinal na frente. */
@@ -128,20 +137,13 @@ export type TextosCarteira = {
   // Carteira · por objetivo (page + StrategyComparisonSection)
   cartDaMeta(pct: string, valor: string): string;
   cartEditarEstrategia: string;
-  cartDefinirEstrategiaCurto: string;
-  cartSemAtivos: string;
-  cartColMeta: string;
-  cartColAlocado: string;
-  cartColAlvo: string;
-  cartColAtingimento: string;
   /**
    * A frase "Você ainda não definiu uma [estratégia da carteira]. Defina os…" tem um link no
    * meio, então vai em três pedaços: antes do link, o texto do link e o que vem depois.
    */
-  cartSemEstrategiaAntes: string;
-  cartSemEstrategiaLink: string;
-  cartSemEstrategiaDepois: string;
   cartReferenciaMatematica: string;
+  /** Por objetivo (06/10/2026): uma linha por tipo de investimento, "38% hoje · alvo 40%". */
+  compHojeAlvo(hoje: string, alvo: string): string;
   // Análises · Insights (page, layout, InsightList)
   fichasTitulo: string;
   fichasSub: string;
@@ -261,6 +263,12 @@ export type TextosCarteira = {
 export const PADRAO_CARTEIRA: TextosCarteira = {
   // Carteira · lista de ativos
   cartSuaCarteira: (n) => `Sua carteira · ${n} ativo${n === 1 ? "" : "s"}`,
+  cartResumo: (ativos, tipos) => `${ativos} ativo${ativos === 1 ? "" : "s"} · ${tipos} tipo${tipos === 1 ? "" : "s"}`,
+  cartAtualizarAportes: "Atualizar aportes",
+  cartAportesNada: "Tudo em dia: o que você guardou já está nos ativos.",
+  cartAportesComo: "Quando você marcar Guardei numa meta ou lançar um aporte, o valor espera aqui até você dizer em qual ativo entrou.",
+  cartAportesDica: "Assim a carteira e as metas andam juntas.",
+  cartMaisOpcoes: "Mais opções",
   cartMostrarValores: "Mostrar valores",
   cartOcultarValores: "Ocultar valores",
   cartDesdeACompra: (v) => `${v} desde a compra`,
@@ -357,21 +365,12 @@ export const PADRAO_CARTEIRA: TextosCarteira = {
   // Carteira · por objetivo
   cartDaMeta: (pct, valor) => `${pct} da meta (${valor})`,
   cartEditarEstrategia: "editar estratégia",
-  cartDefinirEstrategiaCurto: "definir estratégia",
-  cartSemAtivos: "Nenhum ativo cadastrado ainda.",
-  cartColMeta: "Meta",
-  cartColAlocado: "Alocado",
-  cartColAlvo: "Alvo",
-  cartColAtingimento: "Atingimento",
-  cartSemEstrategiaAntes: "Você ainda não definiu uma",
-  cartSemEstrategiaLink: "estratégia da carteira",
-  cartSemEstrategiaDepois: ". Defina os percentuais-alvo por classe para ver aqui o comparativo e o rebalanceamento.",
-  cartReferenciaMatematica: "Referência matemática com base na sua estratégia, não é recomendação de compra ou venda.",
+  cartReferenciaMatematica: "É a conta com a sua estratégia, não recomendação de compra ou venda.",
+  compHojeAlvo: (hoje, alvo) => `${hoje} hoje · alvo ${alvo}`,
   // Análises · Insights
   fichasTitulo: "Análises",
   fichasSub: "Sua saúde financeira e o que precisa de atenção agora.",
-  fichasInsightsVazio:
-    "Cadastre orçamento, metas, reserva de emergência e uma estratégia de carteira para começar a receber insights automáticos aqui.",
+  fichasInsightsVazio: "Monte orçamento, metas e reserva para ver os insights aqui.",
   fichasAtencaoTitulo: "O que precisa de atenção",
   fichasTabInsights: "Insights",
   fichasVerMais: "Ver mais",

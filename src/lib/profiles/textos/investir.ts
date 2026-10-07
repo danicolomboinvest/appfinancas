@@ -58,7 +58,7 @@ export type TextosInvestirEmpresa = {
 
 export const PADRAO_INVESTIR: TextosInvestirEmpresa = {
   invTitulo: "Vale a pena investir na empresa?",
-  invSub: "Uma máquina, uma reforma, um segundo ponto, uma contratação: em quanto tempo se paga, e se rende mais do que deixar o dinheiro aplicado.",
+  invSub: "Uma máquina, uma reforma, uma contratação: em quanto tempo se paga.",
   invCusto: "Quanto custa o investimento?",
   invCustoHint: "Máquina, reforma, novo ponto, contratação: o valor à vista.",
   invTipoLabel: "O que ele traz por mês?",
@@ -78,7 +78,7 @@ export const PADRAO_INVESTIR: TextosInvestirEmpresa = {
   invVeredictoValeTitulo: "Vale a pena",
   invVeredictoValeTexto: (meses) => `Se paga em ${meses} ${meses === 1 ? "mês" : "meses"} e rende mais que deixar o dinheiro aplicado.`,
   invVeredictoEmpataTitulo: "Empata com a aplicação",
-  invVeredictoEmpataTexto: (meses) => `Se paga em ${meses} meses, mas o ganho fica parecido com o da aplicação. Decide pelo que o dinheiro faz pela empresa, não pela conta.`,
+  invVeredictoEmpataTexto: (meses) => `Se paga em ${meses} meses, mas rende parecido com a aplicação.`,
   invVeredictoNaoValeTitulo: "Não vale, por enquanto",
   invVeredictoNaoValeTextoForaDoPrazo: (meses, horizonte) => `Só se paga em ${meses} meses, além dos ${horizonte} que você deu de prazo.`,
   invVeredictoNaoValeTextoRendeMais: "Deixar o dinheiro aplicado rende mais do que esse investimento devolve no prazo.",
@@ -102,5 +102,5 @@ export const PADRAO_INVESTIR: TextosInvestirEmpresa = {
   invReceitaNecessariaDepois: " de vendas a mais por mês.",
   invReceitaAbaixo: " Você estimou menos que isso.",
   invReceitaAcima: " Você estimou acima disso.",
-  invRodapeNota: "Conta simples, sem inflação nem imposto sobre a aplicação, para dar a ordem de grandeza. Se a decisão for apertada, converse com o contador antes de assinar.",
+  invRodapeNota: "Conta simples, sem inflação nem imposto. Se for apertado, fale com seu contador.",
 };

@@ -3,7 +3,9 @@ import { ehEmpresa } from "@/lib/profiles/empresa";
 import { vozDoTema } from "@/lib/profiles/voice";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { ChevronRight, ShoppingBag, CalendarDays, Gauge, MapPin, PiggyBank, Flag, ShieldCheck, Zap, TrendingUp, Home, Car, Landmark, Scale, Scissors, Clock, Bookmark } from "lucide-react";
+import { ShoppingBag, CalendarDays, Gauge, MapPin, PiggyBank, Flag, ShieldCheck, Zap, TrendingUp, Scissors, Bookmark } from "lucide-react";
+import { GradeDeCalculadoras } from "@/components/calculadoras/GradeDeCalculadoras";
+import { calculadoras } from "@/lib/calculadoras";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { prisma } from "@/lib/db/prisma";
@@ -40,20 +42,11 @@ export default async function DecidirPage() {
     // O Raio-X só abria por um cartão do Foco; aqui é o lugar de quem vem procurar.
     { href: "/decidir/raio-x", icon: Scissors, t: p.raiox },
   ];
-  // "Vale a pena comprar?" existia, mas nenhuma tela levava até ele (só a lista de /simuladores,
-  // que também não tinha porta de entrada).
-  const grandes: { href: string; icon: typeof Home; t: string; sub?: string }[] = [
-    { href: "/simuladores/vale-a-pena", icon: Clock, t: p.valeAPena, sub: tx.decValeAPenaSub },
-    { href: "/simuladores/financiar-vs-alugar", icon: Home, t: p.financiar },
-    { href: "/simuladores/amortizar-vs-investir", icon: Landmark, t: p.amortizar },
-    { href: "/simuladores/consorcio", icon: Scale, t: p.consorcio },
-    { href: "/simuladores/carro", icon: Car, t: p.carro },
-    { href: "/simuladores/marcacao-mercado", icon: TrendingUp, t: p.marcacao },
-  ];
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title={tx.decTitulo} subtitle={tx.decSub} />
+      {/* Sem subtítulo fixo (06/10/2026): as perguntas já dizem o que fazem. */}
+      <PageHeader title={tx.decTitulo} />
 
       <section className="flex flex-col gap-3">
         <h2 className="text-caption font-semibold uppercase tracking-[0.11em] text-ink-muted">{tx.decDiaADia}</h2>
@@ -71,31 +64,19 @@ export default async function DecidirPage() {
         </div>
       </section>
 
+      {/* As calculadoras, em cartões coloridos, como na tela delas (06/10/2026). Antes eram uma
+          lista cinza de "Decisões grandes" e um link no fim, que ninguém achava. */}
       <section className="flex flex-col gap-3">
-        <h2 className="text-caption font-semibold uppercase tracking-[0.11em] text-ink-muted">{tx.decGrandes}</h2>
-        <Card className="flex flex-col divide-y divide-border py-1">
-          {grandes.map((q) => (
-            <Link key={q.href} href={q.href} className="flex min-h-14 items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-hover">
-              <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-surface-2 text-ink-muted">
-                <q.icon size={18} strokeWidth={1.8} />
-              </span>
-              <span className="min-w-0">
-                <span className="block text-sm font-medium text-ink">{q.t}</span>
-                {q.sub && <span className="block text-caption text-ink-muted">{q.sub}</span>}
-              </span>
-              <ChevronRight size={16} className="ml-auto shrink-0 text-ink-faint" />
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-caption font-semibold uppercase tracking-[0.11em] text-ink-muted">{tx.calcTitulo}</h2>
+          {salvas > 0 && (
+            <Link href="/simuladores" className="inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-accent-strong hover:underline">
+              <Bookmark size={15} strokeWidth={1.9} aria-hidden />
+              {tx.decSimulacoesSalvas(salvas)}
             </Link>
-          ))}
-        </Card>
-        {/* As simulações que ela salvou moram em /simuladores, que nenhuma tela abria — e o
-            aviso ao salvar diz que "ela fica na lista de simuladores". */}
-        <Link
-          href="/simuladores"
-          className="flex min-h-11 w-fit items-center gap-2 px-1 text-sm font-semibold text-accent-strong hover:underline"
-        >
-          <Bookmark size={16} strokeWidth={1.9} aria-hidden />
-          {salvas > 0 ? tx.decSimulacoesSalvas(salvas) : tx.decVerCalculadoras}
-        </Link>
+          )}
+        </div>
+        <GradeDeCalculadoras itens={calculadoras(tx)} />
       </section>
     </div>
   );

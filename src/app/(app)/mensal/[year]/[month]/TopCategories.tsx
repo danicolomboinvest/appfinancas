@@ -1,4 +1,5 @@
 import type { CategoriasDoPerfil } from "@/lib/categories";
+import { DicaDaPrimeiraVez } from "@/components/ui/DicaDaPrimeiraVez";
 import { Receipt } from "lucide-react";
 import type { CategorySpending } from "@/lib/consolidation/month-analysis";
 import { Section } from "@/components/ui/Section";
@@ -92,7 +93,10 @@ export async function TopCategories({
         })}
       </ul>
 
-      <p className="text-caption text-ink-faint">{t.uiSetaCompara}</p>
+      {/* Como ler a seta: ensina uma vez e some (06/10/2026). */}
+      <DicaDaPrimeiraVez chave="mensal:seta" className="text-caption text-ink-faint">
+        {t.uiSetaCompara}
+      </DicaDaPrimeiraVez>
     </Section>
   );
 }

@@ -44,7 +44,7 @@ export type TextosCasal = {
 
 export const PADRAO_CASAL: TextosCasal = {
   casTitulo: "Quanto cada um contribui?",
-  casSub: "A prática mais recomendada quando as rendas são diferentes: dividir as contas do casal na mesma proporção da renda de cada um, não 50/50.",
+  casSub: "Cada um paga na proporção da sua renda, não 50/50.",
   casRendaA: "Quanto um dos dois recebe por mês",
   casRendaAHint: "A renda de uma pessoa do casal, líquida.",
   casRendaB: "Quanto o outro recebe por mês",
@@ -59,7 +59,7 @@ export const PADRAO_CASAL: TextosCasal = {
   casSemRenda: "Preencha a renda dos dois para ver quanto cada um contribui.",
   casHeaderAuto: "Divisão proporcional à renda",
   casHeaderManual: "Percentual combinado por vocês",
-  casTextoAuto: "A prática mais recomendada quando as rendas são diferentes: cada um contribui na mesma proporção que representa na renda do casal, não 50/50.",
+  casTextoAuto: "Cada um contribui na proporção da sua renda, não 50/50.",
   casTextoManual: "Vocês digitaram o próprio percentual, em vez de seguir a proporção da renda.",
   casContribA: "Um dos dois contribui",
   casContribB: "O outro contribui",

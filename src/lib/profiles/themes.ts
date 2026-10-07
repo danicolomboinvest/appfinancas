@@ -156,6 +156,8 @@ export const PROFILE_THEMES: ProfileTheme[] = [
     // ainda com 4,9:1 pro texto branco. O strong é fixo em vez de calculado, senão vira vinho.
     ink: "#2b2226", inkMuted: "#7a6670", accent: "#c53d74", onAccent: "#ffffff", accentStrong: "#b8336a",
     extras: {
+      // O herói das telas (06/10/2026): o bloco do número principal pintado na cor do tema.
+      "heroi-de": "#c53d74", "heroi-para": "#e2789f", "heroi-tinta": "#ffffff", "heroi-suave": "rgba(255, 255, 255, 0.82)", "heroi-borda": "transparent", "heroi-destaque": "var(--color-brand-a)",
       "tab-active": "#c53d74", "tab-active-soft": "rgba(197, 61, 116, 0.12)",
       // Uma escala do mesmo rosa por categoria, do framboesa ao blush. Varia em profundidade,
       // não em matiz, como nas referências: a rosca continua legível e continua rosa.
@@ -194,6 +196,8 @@ export const PROFILE_THEMES: ProfileTheme[] = [
     border: "rgba(25, 25, 25, 0.10)",
     ink: "#191919", inkMuted: "#75746f", accent: "#191919", onAccent: "#ffffff",
     extras: {
+      // O herói das telas (06/10/2026): o bloco do número principal pintado na cor do tema.
+      "heroi-de": "#191919", "heroi-para": "#2b2b2a", "heroi-tinta": "#ffffff", "heroi-suave": "rgba(255, 255, 255, 0.72)", "heroi-borda": "transparent", "heroi-destaque": "var(--color-brand-a)",
       // Ícone só de contorno, quadrado arredondado, tinta preta: linha, não mancha.
       "--icon-radius": "10px",
       "--icon-fill": "0%",
@@ -217,6 +221,8 @@ export const PROFILE_THEMES: ProfileTheme[] = [
     border: "rgba(255, 255, 255, 0.10)",
     ink: "#eef4f5", inkMuted: "#8a9aa0", accent: "#d17111", onAccent: "#1a0c00",
     extras: {
+      // O herói das telas (06/10/2026): o bloco do número principal pintado na cor do tema.
+      "heroi-de": "#262b2f", "heroi-para": "#13171a", "heroi-tinta": "#f7efe6", "heroi-suave": "rgba(247, 239, 230, 0.72)", "heroi-borda": "transparent", "heroi-destaque": "var(--color-brand-a)",
       "tab-active": "#f0954a", "tab-active-soft": "rgba(209, 113, 17, 0.18)",
       // Tudo em laranja-âmbar, do queimado ao claro. Ícone em quadrado arredondado: firme.
       "cat-moradia": "#d17111", "cat-alimentacao": "#f0954a", "cat-transporte": "#a85a0a", "cat-saude": "#ffb877",
@@ -238,6 +244,8 @@ export const PROFILE_THEMES: ProfileTheme[] = [
     border: "rgba(32, 28, 26, 0.11)",
     ink: "#201c1a", inkMuted: "#6b625e", accent: "#d63a3f", onAccent: "#ffffff",
     extras: {
+      // O herói das telas (06/10/2026): o bloco do número principal pintado na cor do tema.
+      "heroi-de": "#d63a3f", "heroi-para": "#e8686c", "heroi-tinta": "#ffffff", "heroi-suave": "rgba(255, 255, 255, 0.84)", "heroi-borda": "transparent", "heroi-destaque": "var(--color-brand-a)",
       "tab-active": "#d63a3f", "tab-active-soft": "rgba(214, 58, 63, 0.12)",
       // Coral e quentes. Categoria vira emoji (ver icones.ts), num círculo coral-claro.
       "cat-moradia": "#d63a3f", "cat-alimentacao": "#ff7a7e", "cat-transporte": "#a82a2e", "cat-saude": "#ffb3b6",
@@ -257,6 +265,8 @@ export const PROFILE_THEMES: ProfileTheme[] = [
     border: "rgba(180, 210, 255, 0.12)",
     ink: "#e8f1ff", inkMuted: "#8ba3cf", accent: "#16d3c2", onAccent: "#04211f",
     extras: {
+      // O herói das telas (06/10/2026): o bloco do número principal pintado na cor do tema.
+      "heroi-de": "#173564", "heroi-para": "#0b1730", "heroi-tinta": "#e9fbff", "heroi-suave": "rgba(233, 251, 255, 0.74)", "heroi-borda": "transparent", "heroi-destaque": "var(--color-brand-a)",
       "tab-active": "#16d3c2", "tab-active-soft": "rgba(22, 211, 194, 0.16)",
       // Ciano e azuis, com brilho: o ícone tem um halo da própria cor, como um botão de HUD.
       "cat-moradia": "#16d3c2", "cat-alimentacao": "#4fa8ff", "cat-transporte": "#0f9e93", "cat-saude": "#8ad6ff",
@@ -278,6 +288,8 @@ export const PROFILE_THEMES: ProfileTheme[] = [
     border: "rgba(90, 60, 110, 0.12)",
     ink: "#2b2130", inkMuted: "#6f6377", accent: "#7b5ea7", onAccent: "#ffffff",
     extras: {
+      // O herói das telas (06/10/2026): o bloco do número principal pintado na cor do tema.
+      "heroi-de": "#7b5ea7", "heroi-para": "#9c80c4", "heroi-tinta": "#ffffff", "heroi-suave": "rgba(255, 255, 255, 0.84)", "heroi-borda": "transparent", "heroi-destaque": "var(--color-brand-a)",
       "tab-active": "#7b5ea7", "tab-active-soft": "rgba(123, 94, 167, 0.12)",
       // Lilás do escuro ao claro, e o ícone ganha um brilho suave em cima, como vidro.
       "cat-moradia": "#7b5ea7", "cat-alimentacao": "#a98bd4", "cat-transporte": "#5a4383", "cat-saude": "#cdb6e4",

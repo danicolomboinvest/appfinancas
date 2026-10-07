@@ -65,7 +65,6 @@ const GAME_COMPRA: Partial<Titulos> = {
   compraCaberTitulo: "Dá pra fazer caber",
   compraCaberSub: "Escolha uma jogada. Cada uma mostra o que acontece com a sua temporada.",
   compraCaberNadaTitulo: "Esse item ainda não cabe",
-  compraCaberNada: (v) => `Para ${v}, não tem atalho que caiba na temporada de hoje. Vale um plano com calma: juntar uma entrada maior primeiro ou esperar a renda subir.`,
   compraCaminho: (c) => {
     switch (c?.chave) {
       case "parcelar":
@@ -119,7 +118,7 @@ export const game: Voz = {
   saudacao: () => null,
   subSaudacao: () => null,
   tituloPainel: null,
-  rotuloResultado: "Guardado",
+  rotuloResultado: "Sobrou",
   fraseResultado: (estadoBruto, d) => {
     const estado = estadoParaFrase(estadoBruto, d.resultado);
     const v = inteiro(d.money, d.resultado);
@@ -189,6 +188,7 @@ export const game: Voz = {
     ritTitulo: "Missão semanal",
     ritFechar: "Completar missão",
     raioxTitulo: "Raio-X: gastos em loop",
+    raioxAtalho: "Raio-X",
     raioxIntro: "Cada item consome crédito todo mês. Escolha a jogada:",
     raioxCancelar: "Remover",
     raioxMetade: "Reduzir pela metade",
@@ -342,27 +342,18 @@ export const game: Voz = {
     carteiraLink: "Ver por missão →",
     carteiraVazio: "Carteira vazia. Adicione o primeiro ativo pra acompanhar aqui.",
     porObjetivo: "Carteira por missão",
-    porObjetivoSub: "Posição por missão e alocação atual × alvo por classe.",
-    porObjetivoEditar: "← editar carteira",
     posicaoPorObjetivo: "Posição por missão",
     objReserva: "Reserva (vida extra)",
     objSem: "Sem missão definida",
-    objSemMetaHint: "Sem alvo cadastrado na reserva",
     secaoMetas: "Missões",
     estrategiaVsAlvo: "Carteira atual × estratégia-alvo",
-    alocacaoPorClasse: "Alocação atual por classe",
     estrategia: "Estratégia da carteira",
-    estrategiaSub: "Os percentuais-alvo por classe de estratégia (somando 100%), independente do alvo de cada ativo individual.",
     contribTitulo: (mes) => `Aporte de ${mes}: quanto?`,
     contribSub: "Onde o aporte entra pra fechar o alvo da carteira.",
     contribVazio: "Carteira vazia: a divisão segue só a estratégia.",
     contribSemEstrategiaTitulo: "Onde vai o aporte desta temporada?",
-    contribSemEstrategiaSub: "Com uma estratégia definida, o app diz quanto vai pra cada tipo de investimento pra fechar o alvo. São três perguntas.",
     divTitulo: (total) => `Bônus a caminho · ${total}`,
-    compHint: "O tracinho é o alvo. Quem está atrás dele é o próximo aporte.",
     objNenhumTitulo: "Nenhum ativo tem missão ainda.",
-    objNenhumTexto: (valor) =>
-      `Seus ${valor} estão todos em "sem missão". Dizer o que cada ativo é — reserva, liberdade financeira ou uma missão — é o que deixa esta tela responder "quanto falta" em vez de só somar.`,
     objNenhumLink: "Dar missão aos ativos →",
 
     // ── Simuladores: cada calculadora é um treino, cada resultado é uma jogada testada ──
@@ -412,22 +403,20 @@ export const game: Voz = {
     formAtivoMetaVinculada: "Missão vinculada",
     formOrcSalvo: "Limites salvos daqui até dezembro.",
     formOrcTitulo: "Vamos definir os limites da temporada",
-    formOrcSub: "Três perguntas. O app já sabe parte das respostas pelos seus registros.",
     formOrcQuantoGuardar: "Quanto você quer guardar por temporada?",
     formOrcSobraTitulo: "Limite pra gastar",
     formOrcDividaTitulo: (valor) => `Divida os ${valor} entre as missões`,
     formOrcVerPlano: "Ver meus limites →",
+    formOrcEditarCurto: (ano) => `Editar limites ${ano}`,
     formOrcSeuPlano: (ano) => `Seus limites de ${ano}`,
     formOrcProntoPlano: (ano) => `Pronto. Seus limites de ${ano}`,
     formOrcPraOnde: "Pra onde vai o aporte",
-    formOrcPraOndeNota: "Reserva primeiro, depois as missões por prazo. O resto fica livre.",
     formOrcEstourou: "As categorias somam mais do que o limite. Volte e ajuste, ou guarde menos.",
     formOrcSalvar: "Salvar meus limites",
     formOrcApagarDepois: "? Os registros que já usaram essa categoria continuam existindo, só perdem a categorização.",
     formApVerPlano: "Ver a missão final",
     formEstSalva: "Estratégia salva.",
     formEstComoFicaria: "Como sua carteira ficaria",
-    formEstReservaPergunta: "Sua vida extra (a reserva) já está completa?",
     formLancMetaVinculada: "Missão vinculada (opcional)",
     formLancLancar: "Registrar",
 
@@ -446,10 +435,6 @@ export const game: Voz = {
       [criados > 0 ? `${criados} novo${s(criados)} na carteira` : null, atualizados > 0 ? `${atualizados} atualizado${s(atualizados)}` : null]
         .filter(Boolean)
         .join(" · ") || "Nada pra mudar, carteira já estava em dia.",
-    impIrpfConfira:
-      "Confira o ativo da sua carteira em cada linha (as que a declaração só traz o nome da empresa vêm sem casar — escolha à mão ou deixe de fora).",
-    impIrpfComoFunciona:
-      "O preço médio vira o valor investido (preço médio × quantidade da carteira). A cotação atual não muda, só o investido, que é a base do lucro/prejuízo.",
     impRepeteSub: "Estava nas temporadas anteriores e ainda não está nesta. Um toque registra.",
     impRepeteLancar: "Registrar",
     impRepeteLancado: "Registrado. Conta pro combo do mês.",
@@ -487,11 +472,9 @@ export const game: Voz = {
     uiTourBoasVindasTitulo: "Boas-vindas ao SPI Finance",
     uiTourBoasVindasTexto: "Um tour rápido mostrando ONDE fica cada coisa, botão por botão. Dá pra pular quando quiser.",
     uiTourRegistrarTitulo: "Este + é o botão que pontua",
-    uiTourRegistrarTexto: "É por aqui que você registra tudo: digite um gasto, fale por áudio ou importe o extrato do banco. Lançar no mês e fazer o aporte fecha o combo da temporada: +100 pontos. Comece sempre por ele.",
     uiTourFluxoTitulo: "Aqui é a Temporada",
     uiTourFluxoTexto: "Seu mês em um lugar: renda, gastos e o limite de cada missão, com um alerta quando o ritmo passa do limite.",
     uiTourMetasTitulo: "Aqui são as Missões",
-    uiTourMetasTexto: "Crie missões (viagem, casa), a reserva — sua vida extra — e a missão final, a aposentadoria. O app calcula quanto guardar por mês pra fechar cada uma.",
     uiTourCarteiraTitulo: "Aqui é a Carteira",
     uiTourCarteiraTexto: "Seus investimentos e o lucro de cada um. Dá até pra puxar o preço médio direto da sua declaração de Imposto de Renda.",
     uiTourMaisTexto: "Placar do ano, Treino de decisão e Análises ficam neste menu.",
@@ -514,14 +497,8 @@ export const game: Voz = {
     cfgResumoEmail: "Placar do mês por e-mail",
     cfgResumoEmailDica: "Uma vez por mês, no começo da temporada: quanto entrou, quanto saiu e o que mudou.",
     cfgAlertasOrcamento: "Alertas de limite",
-    cfgAlertasOrcamentoDica:
-      "Categoria com 80% do limite gasto e ainda com metade da temporada pela frente, ou já estourada. Chega no celular (se ligado) ou por e-mail.",
     cfgMetasAtrasadas: "Missões atrasadas",
     cfgMetasAtrasadasDica: "Quando uma missão fica pra trás do ritmo. Um aviso por missão por mês.",
-    cfgPushDica:
-      "Uma mensagem no celular, como as de um app: quando uma categoria está perto de estourar o limite e ainda falta metade da temporada, ou uma missão ficou pra trás. Sem e-mail.",
-    cfgExportCarteiraDica:
-      "Gera um arquivo CSV com todos os ativos da sua carteira (nome, ticker, classe, quantidade, valor investido e valor atual).",
     cfgExportCarteira: "Exportar carteira (CSV)",
     cfgExcluirContaTexto: [
       "Apaga a conta e ",
@@ -563,12 +540,7 @@ export const game: Voz = {
     cartAporteAplicado: "Carteira e missões atualizadas com o aporte da temporada.",
     cartAtualizarCarteira: "É isso, atualizar carteira",
     cartDaMeta: (pct, valor) => `${pct} da missão (${valor})`,
-    cartSemAtivos: "Nenhum ativo na carteira ainda.",
-    cartColMeta: "Missão",
-    cartSemEstrategiaLink: "estratégia da carteira",
-    cartSemEstrategiaDepois: ". Defina os percentuais-alvo por classe pra ver aqui o comparativo e o rebalanceamento.",
     fichasSub: "Seu placar de saúde financeira e o que pede atenção agora.",
-    fichasInsightsVazio: "Cadastre limites, missões, reserva e uma estratégia de carteira pra começar a receber insights automáticos aqui.",
     fichasNaCarteira: "na sua carteira",
     fichasNaSuaCarteira: (ticker) => `${ticker} na sua carteira`,
     fichasNaoRecomendacao: "Não é recomendação: é a sua carteira lida junto com os números do ativo.",
@@ -581,7 +553,6 @@ export const game: Voz = {
 
     // Casal: modo co-op — dividir as despesas comuns proporcional à renda, não 50/50.
     casTitulo: "Quanto cada um paga?",
-    casSub: "Modo co-op: renda diferente, contribuição diferente. Cada um entra na mesma proporção que representa na renda do time, não 50/50.",
     casRendaA: "Renda de um dos dois por mês",
     casRendaAHint: "Líquida, o que entra de verdade.",
     casRendaB: "Renda do outro por mês",
@@ -596,7 +567,6 @@ export const game: Voz = {
     casSemRenda: "Preencha a renda dos dois pra liberar o cálculo.",
     casHeaderAuto: "Divisão proporcional à renda",
     casHeaderManual: "Percentual combinado pelo time",
-    casTextoAuto: "Quem ganha mais, contribui mais — na mesma proporção da renda. Não é 50/50.",
     casTextoManual: "Vocês definiram o percentual. O cálculo segue esse número, não o da renda.",
     casContribA: "Um dos dois entra com",
     casContribB: "O outro entra com",
@@ -612,7 +582,6 @@ export const game: Voz = {
 
     // Empresa: vale a pena investir? Payback contra a aplicação, como um confronto direto.
     invTitulo: "Vale a pena investir na empresa?",
-    invSub: "Máquina, reforma, ponto novo, contratação: em quanto tempo se paga, e se vence a aplicação no confronto direto.",
     invCusto: "Quanto custa o investimento?",
     invCustoHint: "Máquina, reforma, ponto novo, contratação: o valor à vista.",
     invTipoLabel: "O que ele traz por mês?",
@@ -632,7 +601,6 @@ export const game: Voz = {
     invVeredictoValeTitulo: "Vale a pena 🏆",
     invVeredictoValeTexto: (meses) => `Se paga em ${meses} ${meses === 1 ? "mês" : "meses"} e vence a aplicação. Ponto pra empresa.`,
     invVeredictoEmpataTitulo: "Empate com a aplicação",
-    invVeredictoEmpataTexto: (meses) => `Se paga em ${meses} meses, mas o ganho fica parecido com o da aplicação. Decide pelo que isso traz pra empresa, não só pelo placar.`,
     invVeredictoNaoValeTitulo: "Não vale, por enquanto",
     invVeredictoNaoValeTextoForaDoPrazo: (meses, horizonte) => `Só se paga em ${meses} meses, além dos ${horizonte} que você deu de prazo.`,
     invVeredictoNaoValeTextoRendeMais: "A aplicação vence esse confronto: rende mais do que o investimento devolve no prazo.",
@@ -656,7 +624,6 @@ export const game: Voz = {
     invReceitaNecessariaDepois: " de vendas a mais por mês.",
     invReceitaAbaixo: " Sua estimativa está abaixo disso.",
     invReceitaAcima: " Sua estimativa está acima disso.",
-    invRodapeNota: "Conta simples, sem inflação nem imposto sobre a aplicação, pra dar a ordem de grandeza. Decisão apertada, chama o contador antes de fechar.",
 
     // E-mail: o placar da temporada por e-mail e o convite pra abrir a próxima.
     emailSaudacao: (nome) => (nome ? `Oi, ${nome}!` : "Oi!"),

@@ -52,7 +52,6 @@ const MANIFESTACAO_COMPRA: Partial<Titulos> = {
   compraCaberTitulo: "Tem um caminho para caber",
   compraCaberSub: "Escolha um caminho. Cada um mostra o que muda no seu mês.",
   compraCaberNadaTitulo: "Esse ainda não cabe",
-  compraCaberNada: (v) => `Para ${v}, não tem atalho que caiba no seu mês de hoje. Vale um plano com calma: juntar uma entrada maior primeiro ou esperar a renda subir.`,
   compraCaminho: (c) => {
     switch (c?.chave) {
       case "parcelar":
@@ -131,7 +130,7 @@ export const manifestacao: Voz = {
     focoRitualT: "Seu momento de segunda",
     focoRitualP: "5 minutos pra alinhar o dinheiro com a vida que você quer.",
     focoFechEy: "Fim de mês ✨",
-    focoFechT: (m) => `Fechar ${m} · 15 minutos`,
+    focoFechT: (m) => `Fechar ${m}`,
     focoFechP: "Um mês fechado com consciência é um passo pro seu sonho.",
     focoAmanhaT: (d, v) => `Ontem você desejou: ${d} (${v})`,
     focoAmanhaP: "Com a cabeça tranquila, esse desejo ainda faz sentido?",
@@ -161,6 +160,7 @@ export const manifestacao: Voz = {
     fechFechar: "Fechar o mês com gratidão",
     ritTitulo: "Seu momento de segunda ✨",
     raioxTitulo: "Raio-X dos pequenos gastos ✨",
+    raioxAtalho: "Raio-X ✨",
     raioxIntro: "Cada um desses sai todo mês. Escolha com intenção:",
     erradoObrigada: "Obrigada por avisar ✨",
     conqTitulo: "O que você construiu ✨",
@@ -322,31 +322,21 @@ export const manifestacao: Voz = {
     carteiraLink: "Ver por sonho →",
     carteiraVazio: "Nada construído por aqui ainda. Adicione o primeiro investimento e ele começa a aparecer.",
     porObjetivo: "Carteira por sonho",
-    porObjetivoSub: "Quanto você já tem em cada sonho, e como está dividido em relação ao ideal.",
-    porObjetivoEditar: "← editar investimentos",
     posicaoPorObjetivo: "Quanto tem em cada sonho",
     objReserva: "Sua segurança",
     objLiberdade: "Sua liberdade",
     objSem: "Ainda sem sonho",
-    objSemMetaHint: "Sua segurança ainda não tem um valor definido",
     secaoMetas: "Seus sonhos",
     estrategiaVsAlvo: "Onde você está × onde quer chegar",
-    alocacaoPorClasse: "Como está hoje, por classe",
     estrategia: "Sua estratégia",
-    estrategiaSub: "Quanto você quer ter em cada classe (somando 100%), independente do ideal de cada ativo.",
     contribTitulo: (mes) => `Quanto vai pro futuro em ${mes}?`,
     contribSub: "Onde colocar pra sua carteira ficar do jeito que você desenhou.",
     contribLabel: "Vou guardar",
     contribVazio: "Você ainda não tem investimentos por aqui, então a divisão segue só a estratégia.",
     contribSemEstrategiaTitulo: "Onde colocar o que vai pro futuro este mês?",
-    contribSemEstrategiaSub: "Com uma estratégia, o app diz quanto vai pra cada tipo de investimento pra sua carteira chegar onde você quer. São três perguntas.",
     contribDefinir: "Desenhar minha estratégia →",
     divTitulo: (total) => `Renda que chega sozinha · ${total}`,
-    compHint: "O tracinho é onde você quer chegar. Quem está atrás dele é o que comprar no próximo aporte.",
-    compDeveriaTer: "Quer ter",
     objNenhumTitulo: "Seus investimentos ainda não têm um sonho.",
-    objNenhumTexto: (valor) =>
-      `Seus ${valor} estão todos "sem sonho". Dizer o que cada um é — segurança, liberdade ou um sonho — é o que deixa esta tela responder "quanto falta" em vez de só somar.`,
     objNenhumLink: "Dar um sonho a cada investimento →",
 
     // Simuladores: a matemática fica; muda só o que fala com ela.
@@ -377,18 +367,14 @@ export const manifestacao: Voz = {
     formAtivoMetaVinculada: "Sonho vinculado",
     formOrcSalvo: "Plano salvo daqui até dezembro ✨",
     formOrcTitulo: "Vamos desenhar o seu plano",
-    formOrcSub: "Três perguntas. O app já sabe parte das respostas pelos seus registros.",
     formOrcQuantoGuardar: "Quanto vai pro seu futuro?",
     formOrcGuardarPorMes: "Pro futuro, por mês",
-    formOrcCursoNota: (pct, liberdade) =>
-      `No curso, a conta é ${pct}%: ${liberdade}% pra sua liberdade e 8% pros sonhos. Quem está começando costuma conseguir 10% — se ficar apertado, dá pra mudar depois. Nada aqui é promessa.`,
     formOrcSobraTitulo: "Sobra pra viver",
     formOrcSobraSub: (valor) => `por mês, depois de guardar ${valor} pro futuro`,
     formOrcProntoPlano: (ano) => `Pronto. Seu plano de ${ano} ✨`,
     formOrcLegGuardados: (pct) => `${pct} pro futuro`,
     formOrcFimDoAno: "O que isso vira no fim do ano",
     formOrcFimDoAnoValor: (valor) => `${valor} pro futuro`,
-    formOrcPraOndeNota: "Sua segurança primeiro, depois os sonhos por prazo. O resto fica livre.",
     formOrcEstourou: "As categorias somam mais do que sobra. Volte e ajuste, ou guarde um pouco menos por enquanto.",
     formOrcRendaEAporte: "Renda e o que vai pro futuro",
     formOrcEditarPlano: (ano) => `Editar seu plano de ${ano}: renda, futuro e gastos`,
@@ -410,10 +396,7 @@ export const manifestacao: Voz = {
     formApVerPlano: "Ver minha liberdade",
     formApPararAos: "Quer ser livre aos",
     formApRendVivendo: "Rendimento já vivendo da renda (acima da inflação)",
-    formApRendVivendoHint: "Já descontada a inflação: 4% aqui é cerca de 8,7% ao ano com inflação de 4,5%. Mais conservador que o de construir, porque agora você depende dele pra viver.",
     formEstSalva: "Estratégia salva. Sua carteira tem um desenho agora.",
-    formEstReservaPergunta: "Sua segurança já está completa?",
-    formEstPelasMetasAntes: "Pelos seus sonhos, você vai precisar do dinheiro em",
     formLancMetaVinculada: "Sonho vinculado (opcional)",
     formLancLancar: "Registrar",
 
@@ -439,10 +422,8 @@ export const manifestacao: Voz = {
     uiTourBoasVindasTitulo: "Boas-vindas ao SPI Finance ✨",
     uiTourBoasVindasTexto: "Um tour rápido mostrando onde fica cada coisa — vou destacar os botões um por um. Dá pra pular quando quiser.",
     uiTourRegistrarTitulo: "Este + é onde tudo começa",
-    uiTourRegistrarTexto: "É por aqui que você registra tudo: digite um gasto, fale por áudio ou importe o extrato do banco. Todo plano começa por ele.",
     uiTourFluxoTexto: "Seu mês em um lugar: renda, gastos e o plano por categoria, com um aviso quando o ritmo acelera demais.",
     uiTourMetasTitulo: "Aqui são os Sonhos",
-    uiTourMetasTexto: "Crie seus sonhos (viagem, casa), a sua segurança e a sua liberdade. O app calcula quanto guardar por mês pra você chegar lá.",
     uiTourCarteiraTitulo: "Aqui é o que você construiu",
     uiTourFimTitulo: "Tudo pronto ✨",
     uiTourFimTexto: "Vamos começar? Toque no + e faça o primeiro registro — em segundos você já vê seu mês tomando forma.",
@@ -458,12 +439,8 @@ export const manifestacao: Voz = {
 
     // Configurações e viagem.
     cfgAlertasOrcamento: "Avisos do plano",
-    cfgAlertasOrcamentoDica:
-      "Categoria com 80% do plano gasto e ainda com metade do mês pela frente, ou já além do plano. Chega no celular (se ligado) ou por e-mail.",
     cfgMetasAtrasadas: "Sonhos atrasados",
     cfgMetasAtrasadasDica: "Quando um sonho fica pra trás do ritmo. Um aviso por sonho por mês.",
-    cfgPushDica:
-      "Uma mensagem no celular, como as de um app: quando uma categoria está perto de passar do plano e ainda falta metade do mês, ou um sonho ficou pra trás. Sem e-mail.",
     cfgExcluirContaTexto: [
       "Apaga a conta e ",
       "todos os seus dados",
@@ -504,12 +481,7 @@ export const manifestacao: Voz = {
     cartPassouDoAporte: (valor) => `Passou ${valor} do que você guardou`,
     cartAporteAplicado: "Carteira e sonhos atualizados com o que foi pro futuro este mês ✨",
     cartDaMeta: (pct, valor) => `${pct} do sonho (${valor})`,
-    cartSemAtivos: "Nenhum investimento por aqui ainda.",
-    cartColMeta: "Sonho",
-    cartSemEstrategiaAntes: "Você ainda não desenhou uma",
-    cartSemEstrategiaDepois: ". Diga os percentuais-alvo por classe pra ver aqui o comparativo e o rebalanceamento.",
     fichasSub: "Sua saúde financeira e o que pede atenção agora.",
-    fichasInsightsVazio: "Cadastre seu plano, seus sonhos, sua segurança e uma estratégia de carteira pra começar a receber insights automáticos aqui.",
     fichasAtencaoTitulo: "O que pede atenção",
     metaBreadcrumbPlanejamento: "Sonhos",
     metaRitmo: { NOT_STARTED: "Sem prazo hábil", ON_TRACK: "No caminho", BEHIND: "Atrasada", ACHIEVED: "Realizado ✨" },
@@ -521,7 +493,6 @@ export const manifestacao: Voz = {
 
     // Casal: construir junto, cada um na sua proporção.
     casTitulo: "Quanto cada um contribui? ✨",
-    casSub: "Quando a renda é diferente, o caminho mais justo é cada um entrar na mesma proporção que representa na renda do casal — não 50/50.",
     casRendaA: "Quanto um dos dois recebe por mês",
     casRendaAHint: "A renda líquida de uma pessoa do casal.",
     casRendaB: "Quanto o outro recebe por mês",
@@ -536,7 +507,6 @@ export const manifestacao: Voz = {
     casSemRenda: "Preencham a renda dos dois pra ver o caminho de cada um.",
     casHeaderAuto: "Divisão proporcional à renda",
     casHeaderManual: "O percentual que vocês combinaram",
-    casTextoAuto: "Quem ganha mais, contribui mais — na mesma proporção da renda do casal. Não é 50/50, é justo com a jornada de cada um.",
     casTextoManual: "Vocês já combinaram esse número entre vocês. Sigo o que foi decidido, não a proporção da renda.",
     casContribA: "Um dos dois contribui com",
     casContribB: "O outro contribui com",
@@ -552,7 +522,6 @@ export const manifestacao: Voz = {
 
     // Empresa: vale a pena investir no sonho que já virou negócio?
     invTitulo: "Vale a pena investir na empresa? ✨",
-    invSub: "Uma máquina, uma reforma, um segundo ponto, uma contratação: em quanto tempo esse passo se paga, e se rende mais do que deixar o dinheiro aplicado.",
     invCusto: "Quanto custa esse investimento?",
     invCustoHint: "Máquina, reforma, ponto novo, contratação: o valor à vista.",
     invTipoLabel: "O que ele traz pra sua empresa por mês?",
@@ -572,7 +541,6 @@ export const manifestacao: Voz = {
     invVeredictoValeTitulo: "Vale a pena ✨",
     invVeredictoValeTexto: (meses) => `Se paga em ${meses} ${meses === 1 ? "mês" : "meses"} e rende mais que deixar o dinheiro aplicado. Um passo a mais no seu caminho.`,
     invVeredictoEmpataTitulo: "Empata com a aplicação",
-    invVeredictoEmpataTexto: (meses) => `Se paga em ${meses} meses, mas o ganho fica parecido com o da aplicação. Decide pelo que esse passo traz pra sua empresa, não só pela conta.`,
     invVeredictoNaoValeTitulo: "Não vale, por enquanto",
     invVeredictoNaoValeTextoForaDoPrazo: (meses, horizonte) => `Só se paga em ${meses} meses, além dos ${horizonte} que você deu de prazo.`,
     invVeredictoNaoValeTextoRendeMais: "Deixar o dinheiro aplicado rende mais do que esse investimento devolve no prazo dado.",
@@ -596,7 +564,6 @@ export const manifestacao: Voz = {
     invReceitaNecessariaDepois: " de vendas a mais por mês.",
     invReceitaAbaixo: " Você estimou menos que isso.",
     invReceitaAcima: " Você estimou acima disso.",
-    invRodapeNota: "Conta simples, sem inflação nem imposto sobre a aplicação, pra dar a ordem de grandeza. Se a decisão for apertada, converse com o contador antes de assinar.",
 
     // E-mail: o resumo do mês e o convite pra voltar, no tom aspiracional de sempre.
     emailSaudacao: (nome) => (nome ? `Oi, ${nome} ✨` : "Oi ✨"),

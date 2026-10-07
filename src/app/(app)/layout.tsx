@@ -42,7 +42,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // Do token da sessão só como reserva: o nome ali é o do dia do login e nunca atualiza. Quem
   // corrigia o nome em Perfil via "Salvo" e a saudação continuava com o antigo até sair e entrar.
   let firstName = session?.user.name?.split(" ")[0] ?? session?.user.email?.split("@")[0];
-  const hoje = capitalize(now.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" }));
   const mesLabel = capitalize(now.toLocaleDateString("pt-BR", { month: "long" }));
   let theme = "dark";
   let profileTheme = "padrao";
@@ -114,7 +113,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // precisa ser feito?" no Disciplina, nenhuma no Game (ele abre no ranking).
   const voz = vozDoTema(profileTheme, profileKind);
   const greeting = voz.saudacao(periodoDoDia(now.getHours()), firstName);
-  const dateLabel = voz.subSaudacao(mesLabel) ?? hoje;
+  // Sem a data por extenso embaixo da saudação (06/10/2026): a régua dos dias do Foco já marca
+  // hoje. Fica só a frase do tema, quando ele tem uma.
+  const dateLabel = voz.subSaudacao(mesLabel);
   // O modo (claro/escuro) que vale: o do tema, quando ele tem um só; o da pessoa, no Padrão.
   const modo = modoEfetivo(profileTheme, theme);
   const podeEscolherModo = temaDeixaEscolherModo(profileTheme);

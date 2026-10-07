@@ -9,6 +9,7 @@ import { PillTabs } from "./PillTabs";
 import { NavProgressProvider } from "./nav-progress";
 import { FLOW_TABS, ehRotaDoFluxo } from "./flow-tabs";
 import { MobileTabBar } from "./MobileTabBar";
+import { useTopoAoTrocarDeTela } from "@/components/ui/useVoltarAoTopo";
 import { MoreSheet } from "./MoreSheet";
 import { GreetingStrip } from "./GreetingStrip";
 import { ThemeQuickToggle } from "./ThemeQuickToggle";
@@ -58,7 +59,7 @@ export function AppShell({
   /** Já na voz do tema. `null` quando o tema não cumprimenta (Game). */
   greeting: string | null;
   /** A linha abaixo da saudação: a data, ou o que o tema quiser dizer no lugar dela. */
-  dateLabel: string;
+  dateLabel: string | null;
   /** Chave do tema do perfil ativo — a voz das abas e da barra de baixo sai dele. */
   profileTheme: string;
   /** Tipo do perfil ativo. Empresa troca o vocabulário e esconde o que é de pessoa física. */
@@ -86,6 +87,8 @@ export function AppShell({
   }, []);
   const [, startTransition] = useTransition();
   const pathname = usePathname();
+  // Trocou de tela: a nova começa do topo (o voltar do navegador continua voltando ao lugar).
+  useTopoAoTrocarDeTela();
   const router = useRouter();
   // Um link de dentro da gaveta do Registrar (o "Ler o manual" da importação) muda de tela:
   // a gaveta fecha junto, senão a página nova abria escondida atrás dela.
@@ -151,7 +154,9 @@ export function AppShell({
   // "Posso comprar?" em tela cheia (05/10/2026): sem a barra de baixo e sem o seletor de perfil,
   // para cada pergunta caber na tela do celular sem rolar.
   const focado = pathname?.startsWith("/decidir/comprar") ?? false;
-  const showGreeting = isFlow;
+  // A saudação é da tela de abertura (06/10/2026): no Mensal, Gastos e Orçamento ela só empurrava
+  // o número para baixo.
+  const showGreeting = pathname?.startsWith("/mensal/foco") ?? false;
 
   // "Mais" fica em destaque na tab bar quando a rota atual é uma das seções que só
   // existem dentro da sheet (Visão Geral, Simuladores, Análises, Configurações). A lista muda

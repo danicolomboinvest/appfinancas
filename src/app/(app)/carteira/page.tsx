@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { getRequiredSession } from "@/lib/auth/session";
 import { vozDoTema } from "@/lib/profiles/voice";
 import { ehEmpresa } from "@/lib/profiles/empresa";
@@ -18,9 +17,7 @@ import { getContributionContext } from "@/lib/portfolio/contribution";
 import { assetIdsWithAllocationsIn, getContributionLinkState, getWithdrawalLinkState } from "@/lib/portfolio/contribution-link";
 import { AllocateContributionCard } from "./AllocateContributionCard";
 import { PARENT_CATEGORY_COLOR } from "@/lib/categories";
-import { getEmergencyFund } from "@/lib/repositories/emergency-fund.repo";
 import { serverMoney } from "@/lib/money-server";
-import { ReservaDivergente } from "@/components/decisoes/ReservaDivergente";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 
 export default async function CarteiraPage() {
@@ -30,14 +27,13 @@ export default async function CarteiraPage() {
   // Relógio de Brasília, igual ao /mensal e às actions: às 22h do dia 30 o mês ainda é este.
   const now = nowInBrazil();
   const mesPassado = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const [assets, goals, comparison, dividends, contribution, aporteDoMes, fund, money, aporteDoMesPassado, comAporteRecente, resgateDoMes, resgateDoMesPassado] = await Promise.all([
+  const [assets, goals, comparison, dividends, contribution, aporteDoMes, money, aporteDoMesPassado, comAporteRecente, resgateDoMes, resgateDoMesPassado] = await Promise.all([
     listAssets(ctx),
     listGoals(ctx),
     getPortfolioStrategyComparison(ctx),
     listUpcomingDividendsForUser(ctx),
     getContributionContext(ctx, now.getFullYear(), now.getMonth() + 1),
     getContributionLinkState(ctx, now.getFullYear(), now.getMonth() + 1),
-    getEmergencyFund(ctx),
     serverMoney(),
     getContributionLinkState(ctx, mesPassado.getFullYear(), mesPassado.getMonth() + 1),
     assetIdsWithAllocationsIn(ctx, [
@@ -77,40 +73,19 @@ export default async function CarteiraPage() {
       })),
   };
 
-  return (
-    <div className="flex flex-col gap-8 lg:gap-5">
-      <PageHeader
-        title={voz.titulos.carteira}
-        subtitle={
-          <>
-            {voz.titulos.carteiraSub}{" "}
-            {/* Sem nenhum ativo, "ver por objetivo" leva a uma tela vazia: some até o primeiro. */}
-            {!empresa && assets.length > 0 && (
-              <Link href="/carteira/por-objetivo" className="text-accent-strong hover:underline">
-                {voz.titulos.carteiraLink}
-              </Link>
-            )}
-          </>
-        }
-      />
-
-      {fund && (
-        <ReservaDivergente
-          naTelaDaReserva={Number(fund.currentAmount)}
-          naCarteira={assets.filter((a) => a.objective === "RESERVA_EMERGENCIA").reduce((s, a) => s + Number(a.currentValue), 0)}
-          temInvestimentos={assets.length > 0}
-          nomeDaReserva={voz.titulos.reserva}
-          onde="carteira"
-          money={(v) => money(v)}
-        />
-      )}
-
-      {/* O que a pessoa já lançou como aporte no mês e ainda não disse onde foi. Aparece ANTES
-          da sugestão de aporte: primeiro fecha o que já aconteceu, depois planeja o próximo. */}
+  // O que ela guardou (ou resgatou) e ainda não disse em qual ativo: era um cartão no topo daqui e
+  // um aviso no Mensal. Desde 06/10/2026 mora no botão "Atualizar aportes" (pedido da Dani), que
+  // mostra o valor esperando e abre estes mesmos cartões. Mês passado primeiro: fecha o que já foi.
+  // Um elemento só (e não um fragmento): fragmento passado a componente de cliente chega como
+  // lista e o React pedia chave.
+  const aportes = (
+    <div className="flex flex-col gap-3">
       {aporteDoMesPassado.pending > 0 && (
         <AllocateContributionCard
+          key="aporte-passado"
           month={mesPassado.getMonth() + 1}
           mesPassado
+          abertoDeInicio
           pending={aporteDoMesPassado.pending}
           goalOfMonth={aporteDoMesPassado.contributions.find((c) => c.goalName)?.goalName ?? null}
           assets={ativosPraDistribuir}
@@ -118,31 +93,32 @@ export default async function CarteiraPage() {
       )}
       {aporteDoMes.pending > 0 && (
         <AllocateContributionCard
+          key="aporte-mes"
           month={now.getMonth() + 1}
+          abertoDeInicio={aporteDoMesPassado.pending === 0}
           pending={aporteDoMes.pending}
           goalOfMonth={aporteDoMes.contributions.find((c) => c.goalName)?.goalName ?? null}
           assets={ativosPraDistribuir}
         />
       )}
-      {/* Resgate lançado no mês (à mão ou pelo extrato) que ainda não disse de onde saiu: sem
-          isso o dinheiro voltava pro mês e a carteira seguia mostrando como investido. */}
       {resgateDoMesPassado.pending > 0 && (
-        <AllocateContributionCard resgate mesPassado month={mesPassado.getMonth() + 1} pending={resgateDoMesPassado.pending} goalOfMonth={resgateDoMesPassado.goalName} assets={ativosPraDistribuir} />
+        <AllocateContributionCard key="resgate-passado" resgate mesPassado month={mesPassado.getMonth() + 1} pending={resgateDoMesPassado.pending} goalOfMonth={resgateDoMesPassado.goalName} assets={ativosPraDistribuir} />
       )}
       {resgateDoMes.pending > 0 && (
-        <AllocateContributionCard resgate month={now.getMonth() + 1} pending={resgateDoMes.pending} goalOfMonth={resgateDoMes.goalName} assets={ativosPraDistribuir} />
+        <AllocateContributionCard key="resgate-mes" resgate month={now.getMonth() + 1} pending={resgateDoMes.pending} goalOfMonth={resgateDoMes.goalName} assets={ativosPraDistribuir} />
       )}
+    </div>
+  );
+  const temAporteEsperando = aporteDoMes.pending + aporteDoMesPassado.pending + resgateDoMes.pending + resgateDoMesPassado.pending > 0;
 
-      {/* Componente de servidor (sem "use client"): recebe os Date do Prisma direto, sem cruzar
-          a fronteira servidor→cliente. No computador, o aporte do mês e os proventos a caminho
-          dividem a linha; sozinho, um deles ocupa a largura toda. */}
-      <div className="contents lg:flex lg:flex-wrap lg:items-start lg:gap-5 [&>*]:lg:min-w-0 [&>*]:lg:grow [&>*]:lg:basis-[calc(50%-0.625rem)]">
-        {/* Sem nenhum investimento cadastrado, o card de "quanto vai guardar / monte sua
-            estratégia" competia com o primeiro passo (cadastrar onde o dinheiro está). */}
-        {!empresa && assets.length > 0 && <ContributionCard context={contribution} month={now.getMonth() + 1} />}
-
-        <UpcomingDividendsSection dividends={dividends} voz={voz} />
-      </div>
+  return (
+    <div className="flex flex-col gap-8 lg:gap-5">
+      {/* Embaixo do título, só dado (06/10/2026). A frase "Acompanhe seus ativos..." e o link "Ver
+          consolidação" saíram: as abas logo acima já levam ao Por Objetivo. */}
+      <PageHeader
+        title={voz.titulos.carteira}
+        subtitle={assets.length > 0 ? voz.titulos.cartResumo(assets.length, new Set(assets.map((a) => a.assetClass)).size) : undefined}
+      />
 
       <AssetsSection
         assets={assets.map((asset) => ({
@@ -162,6 +138,13 @@ export default async function CarteiraPage() {
         strategy={strategy}
         empresa={empresa}
         comAporteRecente={comAporteRecente}
+        aportePendente={aporteDoMes.pending + aporteDoMesPassado.pending}
+        aportes={temAporteEsperando ? aportes : null}
+        // Logo abaixo dos botões: os proventos numa linha fechada e o próximo aporte. Dois props
+        // em vez de um bloco: componente de servidor dentro de lista passada a um de cliente
+        // chegava sem chave no navegador.
+        proventos={<UpcomingDividendsSection dividends={dividends} voz={voz} money={money} />}
+        proximoAporte={!empresa ? <ContributionCard context={contribution} month={now.getMonth() + 1} /> : null}
       />
     </div>
   );

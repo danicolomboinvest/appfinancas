@@ -12,6 +12,7 @@ import { ajustarOrcamentoAction, concluirRitualAction, mandarSobraPraReservaActi
 import { vibrar } from "@/lib/celebrar";
 import { NotificacaoDeConquista } from "@/components/conquista/NotificacaoDeConquista";
 import { Botao, Passo, Pontos } from "../Passos";
+import { useVoltarAoTopo } from "@/components/ui/useVoltarAoTopo";
 
 export type DadosFechamento = {
   chave: string;
@@ -42,6 +43,8 @@ export function Fechamento({ d }: { d: DadosFechamento }) {
   const m = (v: number) => money(v, { round: true });
   const router = useRouter();
   const [passo, setPasso] = useState(0);
+  // Avançou um passo: a tela volta para o começo dele (06/10/2026).
+  const topoRef = useVoltarAoTopo<HTMLDivElement>(passo);
   const [escolhas, setEscolhas] = useState<string[]>([]);
   const [salvando, start] = useTransition();
   const [lembrarCarteira, setLembrarCarteira] = useState(false);
@@ -74,7 +77,7 @@ export function Fechamento({ d }: { d: DadosFechamento }) {
   const praReserva = Math.min(d.sobra, d.faltaNaReserva);
 
   return (
-    <div className="flex flex-col gap-4">
+    <div ref={topoRef} className="flex flex-col gap-4">
       {primeiroMes && (
         <NotificacaoDeConquista
           conquistas={[{ chave: "primeiro-fechamento", icone: "🗓️", titulo: t.conqFechamentoTitulo, texto: t.conqFechamentoTexto }]}

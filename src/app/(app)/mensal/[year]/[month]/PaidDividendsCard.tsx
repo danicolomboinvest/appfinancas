@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { Coins } from "lucide-react";
 import { Card } from "@/components/ui/Card";
+import { DicaDaPrimeiraVez } from "@/components/ui/DicaDaPrimeiraVez";
 import { useMoney } from "@/components/money/MoneyProvider";
 import { useToast } from "@/components/ui/toast-context";
 import { registerDividendIncomeAction } from "./actions";
@@ -34,7 +35,8 @@ export function PaidDividendsCard({
         <Coins size={16} className="text-success" />
         <p className="text-[15px] font-semibold text-ink">{titulo}</p>
       </div>
-      <p className="text-caption text-ink-muted">{sub}</p>
+      {/* O que é "Caiu na conta": uma vez só (06/10/2026); depois os botões já dizem. */}
+      <DicaDaPrimeiraVez chave="mensal:caiu-na-conta">{sub}</DicaDaPrimeiraVez>
       <ul className="flex flex-col divide-y divide-border">
         {visible.map((d) => (
           <li key={d.id} className="flex items-center justify-between gap-3 py-2.5">

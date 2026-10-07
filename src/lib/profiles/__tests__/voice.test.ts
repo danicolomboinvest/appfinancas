@@ -125,7 +125,8 @@ describe("a voz dos sete temas", () => {
     expect(flow).not.toContain("Gastando rápido demais");
     expect(page).not.toContain("Nenhum lançamento neste mês ainda");
     expect(voz.ritmo).toEqual({ rapido: "Gastando rápido demais", limite: "No limite do ritmo", dentro: "Dentro do ritmo" });
-    expect(voz.rotuloResultado).toBe("Resultado");
+    // "Sobrou" desde 06/10/2026: "Guardado" passou a ser o nome do que foi guardado no mês.
+    expect(voz.rotuloResultado).toBe("Sobrou");
     expect(voz.saudacao("manha", "Dani")).toBe("Bom dia, Dani.");
     expect(voz.fraseResultado("bom", dados(9510))).toBeNull();
     expect(voz.fraseOrcamento({ situacao: "no-ritmo", restante: 1024, porDia: 93, diasRestantes: 11, ultimoDia: 30, money })).toBe(
@@ -184,7 +185,8 @@ describe("a voz dos sete temas", () => {
     expect(g.metaGuardar("R$ 300")).toBe("Me dá R$ 300 esse mês e a gente chega lá 💪✨");
     expect(g.metaAporteFeito("setembro")).toContain("Boaaaa");
     expect(g.apJuros).not.toMatch(/põem/);
-    expect(p.aportou).toBe("Aportou");
+    // O Padrão também diz "Guardado" desde 06/10/2026 (o redesenho trocou "Aportou" nos painéis).
+    expect(p.aportou).toBe("Guardado");
   });
 
   it("o Game não cumprimenta: abre no ranking", () => {

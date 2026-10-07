@@ -80,6 +80,7 @@ export async function BudgetSection({
   return (
     <Section
       title={titulo}
+      hintSempre
       hint={totalIncome > 0 ? `${formatPercentNumber(committed * 100, 1)} da renda do mês já gasto. O tracinho é onde o mês está.` : "O tracinho é onde o mês está."}
       action={
         <Link href={`/orcamento/${year}`} className="text-sm font-medium text-accent-strong hover:underline">

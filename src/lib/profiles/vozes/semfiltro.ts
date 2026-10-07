@@ -113,7 +113,6 @@ const SEMFILTRO_COMPRA: Partial<Titulos> = {
   compraCaberTitulo: "Dá pra fazer caber 😏",
   compraCaberSub: "Escolhe um caminho. Cada um mostra o que acontece com o seu mês.",
   compraCaberNadaTitulo: "Esse ainda não cabe 🫠",
-  compraCaberNada: (v) => `Pra ${v}, não tem atalho que caiba no mês de hoje. Nem o 12x salva. Melhor juntar uma entrada maior antes ou esperar a renda subir.`,
   compraCaminho: (c) => {
     switch (c?.chave) {
       case "parcelar":
@@ -201,7 +200,7 @@ export const semfiltro: Voz = {
     focoRitualT: "5 minutos de verdade nua e crua",
     focoRitualP: "4 cartões. Dói menos do que parece.",
     focoFechEy: "Fim de mês 🫣",
-    focoFechT: (m) => `Encarar ${m} · 15 min`,
+    focoFechT: (m) => `Encarar ${m}`,
     focoFechP: "O mês já foi. Agora é ver o estrago com calma.",
     focoComecar: "Bora encarar",
     focoAmanhaT: (d, v) => `Ontem você quase comprou: ${d} (${v}) 😏`,
@@ -234,6 +233,7 @@ export const semfiltro: Voz = {
     fechNumeroP: (s) => `Uns ${s} por semana. Grava esse número 😏`,
     ritTitulo: "5 minutos de verdade nua e crua",
     raioxTitulo: "Raio-X do automático 🫣",
+    raioxAtalho: "Raio-X 🫣",
     raioxIntro: "Tudo isso sai todo mês e você nem vê. Decide:",
     raioxManter: "Uso, fica",
     erradoLink: "Isso tá errado?",
@@ -432,33 +432,22 @@ export const semfiltro: Voz = {
     carteiraLink: "Ver pra que serve cada um →",
     carteiraVazio: "Carteira vazia. Nem um CDB? Nem Tesouro? Adiciona o primeiro e eu acompanho 👀",
     porObjetivo: "Pra que serve cada real",
-    porObjetivoSub: "Quanto tem em cada objetivo, e o quanto a carteira tá longe do ideal 👀",
-    porObjetivoEditar: "← mexer nos ativos",
     posicaoPorObjetivo: "Quanto tem em cada objetivo",
     objSem: "Sem objetivo (eu julgo 😏)",
-    objSemMetaHint: "Sem meta de reserva cadastrada. Ainda 👀",
     estrategiaVsAlvo: "O que você tem × o que prometeu",
-    alocacaoPorClasse: "Como tá dividido hoje",
-    estrategiaSub: "Quanto vai em cada tipo, somando 100% (cem, não 110). Vale pra carteira toda, não pra cada ativo.",
     contribTitulo: (mes) => `Quanto vai investir em ${mes}?`,
     contribSub: "Onde botar pra carteira parar de ficar torta.",
     contribLabel: "Vou investir",
     contribSemAtivo: " · ainda sem nada desse tipo 👀",
     contribVazio: "Carteira vazia, então a divisão segue só a estratégia. Por enquanto.",
     contribSemEstrategiaTitulo: "Onde botar a grana desse mês?",
-    contribSemEstrategiaSub: "Com uma estratégia, eu digo quanto vai pra cada tipo de investimento pra sua carteira bater com o alvo. Três perguntas. Aguenta?",
     divTitulo: (total) => `Grana que vem aí · ${total}`,
     divDatas: (dataCom, pagamento) => `Precisa ter até ${dataCom} · Cai em ${pagamento}`,
     divLiquido: "já sem o IR",
     divBruto: "bruto, o leão ainda passa 🦁",
-    divNota: "Estimativa com a quantidade de hoje — se comprar ou vender antes da data-com, o valor muda. JSCP já vem líquido dos 15% de IR retido na fonte; Dividendos e Rendimentos de FII costumam ser isentos (o leão dorme nesses 🦁). Fonte: investidor10.",
-    compHint: "O tracinho é o alvo. Quem tá atrás dele é o que comprar no próximo aporte. Não o que o primo indicou no churrasco 😏",
-    compDeveriaTer: "Devia ter",
     compAportar: "Botar mais",
     compReduzir: "Segurar",
     objNenhumTitulo: "Nenhum ativo sabe pra que serve 🙃",
-    objNenhumTexto: (valor) =>
-      `Seus ${valor} estão todos em "sem objetivo". Diz o que cada um é — reserva, liberdade financeira ou uma meta — e essa tela passa a responder "quanto falta" em vez de só somar. Somar eu já faço 😏`,
 
     // ── Simuladores ────────────────────────────────────────────────────────────────
     simVerResultado: "Ver o veredito 👀",
@@ -508,7 +497,6 @@ export const semfiltro: Voz = {
     simConsTaxaAdmHint: "Taxa total que a administradora cobra ao longo do consórcio (ex.: 18%). É o preço do \"não tem juros\" 😏",
     simConsEntradaHint: "Quanto você daria de entrada se fosse pelo financiamento.",
     simConsSistemaHint: "Price: parcelas fixas. SAC: parcelas que caem.",
-    simConsOportunidadeHint: "Quanto renderia por ano o dinheiro da entrada se ficasse investido (consórcio não pede entrada, mas pede paciência e sorte no sorteio 🙃).",
     simConsVenceConsorcio: "Consórcio sai mais barato 😎",
     simConsVenceFinanciamento: "Financiamento sai mais barato 😎",
     simConsBarraFinanciamentoHint: "Custo: os juros, mais o que a entrada renderia investida",
@@ -519,7 +507,6 @@ export const semfiltro: Voz = {
     simMarcTaxaContratadaHint: "A taxa que você travou quando comprou. Travou mesmo, não muda.",
     simMarcNovaTaxaHint: "A taxa que o mercado paga hoje pra esse título. É ela que mexe no preço na marcação a mercado.",
     simMarcAnosRestantesHint: "Quanto falta até o vencimento, contando de hoje.",
-    simMarcCuponsHint: "Alguns títulos pagam cupom a cada semestre em vez de tudo no fim. Nesses, usa a duration pra medir a sensibilidade.",
     simMarcDurationHint: "Prazo médio ponderado dos fluxos do título. Menor que o vencimento, por causa dos cupons.",
     simMarcInvestidoHint: "Quanto você tem nesse título, pra ver o resultado em dinheiro de verdade. Pode deixar zerado.",
     simMarcLucro: "Vender antes daria lucro 🤑",
@@ -581,23 +568,15 @@ export const semfiltro: Voz = {
     // Orçamento
     formOrcSalvo: "Combinado salvo daqui até dezembro. Agora é cumprir. Combinado não sai caro, descumprir sai 😏",
     formOrcTitulo: "Bora combinar o orçamento",
-    formOrcSub: "Três perguntas. Parte das respostas eu já sei pelos seus lançamentos 👀",
     formOrcRendaSugestao: (mes, valor) => `Em ${mes} entraram ${valor}. Eu vi o Pix 👀`,
     formOrcQuantoGuardar: "Quanto você vai guardar? (vai, né?)",
-    formOrcCursoNota: (pct, liberdade) =>
-      `No curso, a conta é ${pct}%: ${liberdade}% pra liberdade financeira e 8% pros sonhos. Quem tá começando costuma conseguir 10% — se apertar, muda depois. Nada aqui é promessa, é conta.`,
     formOrcSobraSub: (valor) => `por mês, depois de guardar ${valor}. Guardar primeiro, hein. O que sobra no fim do mês é lenda.`,
     formOrcDividaTitulo: (valor) => `Divide os ${valor}`,
     formOrcPassou: (valor) => `Passou ${valor} do que sobra. A conta não fecha nem com jeitinho 🫣`,
     formOrcSugerir: "Sugere pra mim",
-    formOrcSugestaoNota: (moradia, alimentacao, saude, pct) =>
-      `A sugestão segue a distribuição do orçamento do curso: moradia ${moradia}% da renda, alimentação ${alimentacao}%, saúde ${saude}%, e por aí vai. Guardando menos que ${pct}% sobra uma folga; guardando mais, tudo encolhe junto. É ponto de partida: mexe à vontade.`,
-    formOrcCustomNota: "Pet, academia, filhos: o que é grande na sua vida e não cabe nas de cima. O que vem uma vez por ano, divide por 12 (o IPVA não avisa, mas chega junto com o material escolar 🙃).",
     formOrcProntoPlano: (ano) => `Pronto. Seu combinado de ${ano} 😎`,
     formOrcFimDoAnoValor: (valor) => `${valor} guardados 🤑`,
     formOrcFimDoAnoSub: (valor, meses) => `${valor} por mês nos ${meses} meses que faltam, mais o que sobrar. Se sobrar 😏`,
-    formOrcPraOndeNota: "Reserva primeiro, depois as metas por prazo. O resto fica livre. Livre, não perdido 👀",
-    formOrcEstourou: "As categorias somam mais do que sobra. Volta e ajusta, ou guarda menos. Matemática é chata assim, não aceita parcelar 🙃",
     formOrcSemGasto: "zero mês passado",
     formOrcApagarAntes: "Certeza que quer apagar",
     formOrcApagarDepois: "? Os lançamentos que já usaram essa categoria continuam existindo, só ficam sem categoria. Órfãos, coitados 🙃",
@@ -611,18 +590,15 @@ export const semfiltro: Voz = {
     formApInvestidoHelp: "Tudo que já está aplicado hoje e vai fazer parte desse bolo.",
     formApAportePergunta: "Quanto consegue investir por mês?",
     formApAporteHelp: "O valor médio que você consegue investir todo mês enquanto acumula. Média real, não a do mês do 13º 👀",
-    formApIdadeHelp: "A idade objetivo é quando você quer parar de depender de salário. A expectativa de vida é opcional (e ninguém sabe mesmo 🙃).",
     formApIdadeAtual: "Idade hoje",
     formApIdadeObjetivo: "Quer parar aos",
     formApPremissasHelp: "Já pus valores comuns. Mexe se quiser. Taxas ao ano.",
     formApCalculando: "Fazendo a conta…",
-    formApGuardarHint: "Vale esse valor em dinheiro de hoje: o plano assume que você acompanha a inflação. Ela não espera, o preço do café que o diga 🙃",
     formApPremissas: "Premissas (a letra miúda)",
     formApPremissasSub: "Os números técnicos. Já vieram preenchidos — só abre se quiser mexer.",
     formApPremissasNota: "Nenhum desses números é promessa: é o cenário que você escolheu simular. Simular, não garantir 👀",
     formApRendemHint: "Antes de descontar a inflação. Se investe perto do CDI, usa a taxa do CDI.",
     formApInflacaoHint: "É ela que traz o dinheiro do futuro pro poder de compra de hoje. E ela sempre vem, junto com o aumento do ônibus 🙃",
-    formApRendVivendoHint: "Já descontada a inflação: 4% aqui é uns 8,7% ao ano com inflação de 4,5%. Mais conservador que na fase de acumular, porque agora você depende dele pra viver. Não é hora de aventura em cripto 😏",
     // Estratégia
     formEstSalva: "Estratégia salva. Agora segue ela, e não o primo do churrasco 😏",
     formEstPerfis: {
@@ -630,11 +606,7 @@ export const semfiltro: Voz = {
       moderado: { nome: "Moderado", descricao: "Equilibra renda fixa e renda variável. Nem 8 nem 80." },
       arrojado: { nome: "Arrojado", descricao: "Prioriza crescimento no longo prazo: a maior parte em renda variável. Aguenta o tranco 😎" },
     },
-    formEstQuizTitulo: "Não sabe por onde começar? Três perguntas e eu resolvo.",
     formEstQuedaOpcoes: ["Venderia tudo e não dormiria", "Ficaria tensa, mas seguraria", "Aproveitaria a promoção e compraria mais 😎"],
-    formEstReservaPergunta: "Sua reserva de emergência tá completa?",
-    formEstReservaOpcoes: ["Ainda não 🫣", "Quase lá", "Sim 😎"],
-    formEstNaoEIsso: "Não é isso, deixa eu responder",
     formEstPronto: "Ou começa de um perfil pronto (dá pra mexer depois)",
     formEstNaoFecha: "— precisa somar 100%. Cem, não dá pra parcelar 😏",
     // Lançamento
@@ -663,14 +635,10 @@ export const semfiltro: Voz = {
     impDesbloquear: "Destrancar e seguir",
     impConcluir: "Fechou 😎",
     // Extrato/fatura
-    impArquivoGrande: "Arquivo grande demais (máx. 4 MB). Exporta um período menor, ou salva em Excel (.xlsx) ou CSV — pesa muito menos que PDF.",
     impOQueSubindo: "O que você tá me mandando?",
     impExtratoDica: "Entrada vira renda, saída vira gasto, pelo sinal do valor. Simples assim.",
     impFaturaDica: "Todas as linhas entram como gasto (compras do cartão). Todas, até as parceladas 🫣",
     impFaturaMes: "De qual mês é essa fatura?",
-    impFaturaMesDica: (mes) =>
-      `Todas as compras dessa fatura entram em ${mes}, mesmo as do mês anterior (fatura fecha cruzando dois meses, só pra confundir 🙃).`,
-    impSenhaDicaBanco: "Quase sempre é o seu CPF, só os números. Se não for, a senha vem escrita no e-mail em que o banco mandou o arquivo. Vai lá olhar 👀",
     impPareceOutroTipo: (sugerido, atual, motivo) =>
       `Esse arquivo tá com cara de ${sugerido === "fatura" ? "fatura de cartão" : "extrato bancário"}${motivo ? ` (${motivo})` : ""}, não de ${atual === "fatura" ? "fatura" : "extrato"} 👀`,
     impPareceFaturaAviso: "Se importar como extrato, cada compra do cartão vira renda no seu mês. Rica de mentira 🙃",
@@ -684,25 +652,18 @@ export const semfiltro: Voz = {
     impSemCategoriaTitulo: (n) => `${n} gasto${s(n)} sem categoria ${n === 1 ? "ficou" : "ficaram"} de fora 👀`,
     impSemCategoriaSub: (n, soma) => `${n === 1 ? "Ele não entra" : "Eles não entram"} na importação. ${n === 1 ? "Vale" : "Somam"} ${soma}. Não finge que não viu.`,
     impNumerosErrados: "Esses números tão estranhos",
-    impNumerosErradosDica:
-      "Confere a lista abaixo antes de confirmar. Se tiver errado mesmo, fala com a gente: já guardamos uma cópia do arquivo e ensinamos o app a ler esse banco. Ele aprende, juro.",
     impEntendiComo: (resumo) => `Entendi como: ${resumo}. Tá certo? 👀`,
     impCoberturaBaixa: "Menos da metade das linhas com valor virou lançamento. Confere se faltou alguma coisa 🫣",
     impSomaDiferente: (abaixo, diferenca) =>
       `A soma que eu li ${abaixo ? "ficou" : "passou"} ${diferenca} ${abaixo ? "abaixo" : "acima"} do total impresso na fatura. Pode faltar (ou sobrar) alguma linha. Confere 👀`,
     impRepetidos: "Repetidos no arquivo 👀",
-    impRepetidosDica:
-      "Mesma data, valor e descrição mais de uma vez. Se comprou duas vezes mesmo, mantém (sem julgamento… quase 😏); se é o arquivo repetindo, deixa só uma.",
     impImportando: "Importando…",
     impImportarN: (n) => `Confessar ${n} lançamento${s(n)}`,
     impImportadosSucesso: (n) => `${n === 1 ? "1 lançamento importado" : `${n} lançamentos importados`}. Agora não tem mais como fingir 😏`,
     impToastImportados: (n) => `${n} lançamentos confessados`,
     impToastJaExistiam: (n) => `${n} já existiam (ignorei)`,
-    impPagamentoFatura: (n) =>
-      `Achei ${n === 1 ? "este lançamento" : "estes lançamentos"} no seu extrato que ${n === 1 ? "parece ser" : "parecem ser"} o pagamento dessa fatura. Remove, pra não contar o gasto duas vezes? Uma já dói 🙃`,
     // Posição da corretora
     impCarteiraArquivoGrande: "Arquivo grande demais (máx. 4 MB). Exporta um relatório menor e tenta de novo.",
-    impSenhaDicaCorretora: "Digita a senha do arquivo (a mesma que a corretora pede pra abrir). Ela só serve pra abrir e não fica salva. Nem eu guardo 😏",
     impCarteiraLiTudo: (resumo) => `Li o arquivo inteiro: ${resumo}. Tudinho 👀`,
     impCarteiraEmDia: (n) => `A carteira já batia com esse extrato: ${n} ativo${s(n)} conferido${s(n)}, nenhuma mudança. Em dia, olha ela 👏`,
     impCarteiraFeito: (criados, atualizados) =>
@@ -719,10 +680,6 @@ export const semfiltro: Voz = {
     ],
     impIrpfLendo: "Lendo a declaração… 🦁",
     impIrpfEncontrei: (n) => `Achei ${n} ativo${s(n)} com preço médio 👀`,
-    impIrpfConfira:
-      "Confere o ativo da sua carteira em cada linha (as que a declaração só traz o nome da empresa vêm sem casar — escolhe à mão ou deixa de fora).",
-    impIrpfComoFunciona:
-      "O preço médio vira o valor investido (preço médio × quantidade da carteira). A cotação atual não muda, só o investido, que é a base do lucro/prejuízo. Aí a conta sai certa.",
     impIrpfConcluido: (n) => `Preço médio preenchido em ${n} ativo${s(n)}. Agora o lucro/prejuízo deles sai certo. Pra bem ou pra mal 😏`,
     // Histórico
     impHistoricoConfirmar: "Certeza que apaga?",
@@ -765,14 +722,10 @@ export const semfiltro: Voz = {
     uiPassoCarteira: "Monta sua carteira de investimentos (ou o que tem dela 👀)",
     uiDispensarGuia: "Dispensar guia (já sei tudo 😎)",
     uiTourBoasVindasTitulo: "Chegou. Bem-vinda ao SPI Finance 😏",
-    uiTourBoasVindasTexto: "Um tour rápido mostrando ONDE fica cada coisa, vou destacar os botões um por um. Pode pular quando quiser. Mas não pula, vai.",
     uiTourRegistrarTitulo: "Esse + é o coração do app",
-    uiTourRegistrarTexto: "É aqui que você confessa tudo: digita um gasto, manda áudio ou sobe o extrato do banco. Começa sempre por ele. Sempre 👀",
     uiTourFluxoTitulo: "Aqui é o Fluxo (o estrago do mês)",
     uiTourFluxoTexto: "Seu mês num lugar só: renda, gastos e o combinado por categoria, com alerta quando o cartão acelera 🫣",
     uiTourMetasTitulo: "Aqui são as Metas (as sérias)",
-    uiTourMetasTexto: "Cria metas (viagem, casa), a reserva de emergência e a aposentadoria. Eu calculo quanto guardar por mês. Você guarda 😏",
-    uiTourCarteiraTexto: "Seus investimentos e o lucro de cada um. Dá até pra puxar o preço médio direto da declaração de Imposto de Renda. O leão serve pra algo 🦁",
     uiTourMaisTexto: "Visão Geral, Simuladores e Análises ficam nesse menu. Explora 👀",
     uiTourFimTitulo: "Pronto. Sem desculpa 😎",
     uiTourFimTexto: "Bora? Toca no + e confessa o primeiro lançamento. Em segundos seu mês já toma forma.",
@@ -805,12 +758,8 @@ export const semfiltro: Voz = {
     uiRestaurarFalhou: "Não consegui restaurar. Lança de novo à mão.",
     uiInstalarConviteTitulo: "Bota no celular",
     uiInstalarConviteSub: "Abre em tela cheia, com ícone próprio. Parece app de banco, sem o gerente 😎",
-    uiInstalarIntro:
-      "O SPI Finance funciona como app: ícone na tela inicial e tela cheia, sem a barra do navegador. Não ocupa espaço como app de loja e se atualiza sozinho. Menos desculpa pra não abrir 😏",
     uiInstalando: "Instalando…",
     uiInstalarNativoDica: "Seu navegador deixa instalar direto: toca no botão e confirma na janelinha que aparecer.",
-    uiInstalarNoComputador:
-      "Você tá no computador. Pra ter o app no celular, abre o site pelo navegador do telefone e repete esses passos por lá.",
     uiPaywallTexto:
       "Essa área faz parte do curso de investimentos. Já é aluna(o) e tá vendo isso por engano? Fala com o suporte — pode ser só o e-mail de cadastro diferente do e-mail da compra. Acontece 🙃",
     uiPaywallBotao: "Conhecer o curso 👀",
@@ -824,20 +773,9 @@ export const semfiltro: Voz = {
     cfgPerfilSub: "Quem é você por aqui.",
     cfgPerfilEmailDica: "É o seu e-mail de acesso. Pra trocar, fala com o suporte.",
     cfgPreferenciasSub: "Moeda e tema. O básico.",
-    cfgModoDecididoPeloTema: "Claro ou escuro quem decide é o tema do perfil ativo. Pra escolher, muda o tema em Perfis financeiros — só o Padrão tem os dois. Eu só tenho o claro, e tá ótimo 😎",
-    cfgMoedaAvisoTexto1: (exemploNovo, exemploAntigo) =>
-      `Os números continuam exatamente os mesmos — só o símbolo muda. Um lançamento de 3.000 passa a aparecer como "${exemploNovo}" em vez de "${exemploAntigo}". Usa se a sua vida financeira é toda em outra moeda. Toda, não só a viagem pra Orlando 👀`,
-    cfgCategoriasSub:
-      "Categorias-mãe e subcategorias já cadastradas, usadas pra categorizar gasto no Fluxo Financeiro. Em qualquer lançamento, o chip 'Outro' deixa você descrever uma subcategoria livre. Livre, não 'Outros' pra tudo 😏",
     cfgResumoEmailDica: "Uma vez por mês, no começo: quanto entrou, quanto saiu e o que mudou. O estrago por escrito 😏",
-    cfgAlertasOrcamentoDica:
-      "Categoria com 80% do combinado já gasto e ainda metade do mês pela frente, ou já estourada. Chega no celular (se ligado) ou por e-mail. Eu aviso antes, depois não reclama 👀",
     cfgMetasAtrasadasDica: "Quando uma meta fica pra trás do ritmo. Um aviso por meta por mês. Só um, prometo.",
-    cfgPushDica:
-      "Uma mensagem no celular, como as de app: quando uma categoria tá perto de estourar e ainda falta metade do mês, ou uma meta ficou pra trás. Sem e-mail.",
     cfgPushVerificando: "Verificando esse aparelho…",
-    cfgPushIos:
-      "No iPhone, os avisos só funcionam com o app instalado na tela de início. Toca em Compartilhar › Adicionar à Tela de Início, abre por lá e volta aqui. Regra da Apple, não minha 🙃",
     cfgPushNaoSuportado: "Esse navegador não recebe notificações. No celular, instala o app na tela de início.",
     cfgPushBloqueado: "Você bloqueou as notificações desse site. Libera nas configurações do navegador pra ligar de novo.",
     cfgPushLigar: "Ligar avisos nesse aparelho",
@@ -845,13 +783,9 @@ export const semfiltro: Voz = {
     cfgPushLigadoToast: "Avisos ligados nesse aparelho. Agora não tem como não saber 😏",
     cfgPushFalhouToast: "Não consegui ligar os avisos aqui. Tenta de novo.",
     cfgConexoesSub: "Open Finance: os lançamentos da conta e do cartão chegam sozinhos, toda noite. Sem desculpa 😏",
-    cfgConexoesDesligada:
-      "A conexão com bancos ainda não tá ligada nesse app. Enquanto isso, o caminho é Registrar › Importar extrato ou fatura.",
     cfgConexaoConectadoToast: (banco) => `${banco} conectado. Agora eu vejo tudo, até o Pix do bar 👀`,
     cfgConexaoChegaram: (novos, semCategoria) =>
       `Chegaram ${novos} lançamentos dos últimos 90 dias${semCategoria > 0 ? `, ${semCategoria} sem categoria (resolve isso 👀)` : ""}.`,
-    cfgConexoesIntro:
-      "Pelo Open Finance oficial, através do Meu Pluggy, um site parceiro gratuito. Depois de conectado, o SPI busca seus lançamentos toda noite. Nada de arquivo, nada de desculpa.",
     cfgConexoesPasso1: "Cria sua conta no Meu Pluggy",
     cfgConexoesPasso2: "Conecta seu banco lá",
     cfgConexoesPasso3: "Autoriza o SPI a ler",
@@ -877,8 +811,6 @@ export const semfiltro: Voz = {
     viagemBaixaTemporada: "Baixa temporada 😎",
     viagemBaixaTemporadaDica: (pct) => `— boa época: passagem e hospedagem saem uns ${pct}% mais baratas. Olha ela sendo esperta 👏`,
     viagemMesMaisBarato: ["Em ", " a mesma viagem sai ", " mais barata. Só falando 😏"],
-    viagemMediaDica:
-      "Esses valores são a média pra uma viagem como a sua. Se o seu orçamento é outro, toca no número e ajusta — o total recalcula na hora.",
     viagemExtraPlaceholder: "Ex.: compras, seguro… (compras, né 👀)",
     viagemMargem: "Margem pros imprevistos (10%)",
     viagemCustoEstimado: "Quanto custa essa viagem",
@@ -906,8 +838,6 @@ export const semfiltro: Voz = {
     cartCadastreAtivo: "Cadastra o ativo que recebeu essa grana e a carteira passa a bater com o que você lançou no mês.",
     cartDigaQuanto: "Diz quanto entrou em cada ativo.",
     cartToquePraDizer: "Toca pra dizer em quais ativos entrou. Entrou em algum, né? 👀",
-    cartEnquantoNaoDisser: (meta) =>
-      `Enquanto não disser, a carteira fica com um número e o mês com outro${meta ? `, e a meta ${meta} não anda` : ""}. Dois números pro mesmo dinheiro não rola 🙃`,
     cartFaltaDizer: (valor) => `Falta dizer onde foram ${valor} 👀`,
     cartPassouDoAporte: (valor) => `Passou ${valor} do que você investiu 🫣`,
     cartTudoDistribuido: "Tudo distribuído 👏",
@@ -915,12 +845,8 @@ export const semfiltro: Voz = {
     cartAplicandoAporte: "Aplicando…",
     cartAtualizarCarteira: "É isso, atualiza",
     cartAtivoNaoEstaAqui: "O ativo ainda não tá aqui? Cadastra primeiro",
-    cartSemAtivos: "Nenhum ativo ainda. Nem um 👀",
-    cartSemEstrategiaDepois: ". Define os percentuais-alvo por classe pra ver aqui o comparativo e o rebalanceamento. Sem alvo não tem como errar, mas também não tem como acertar 😏",
     cartReferenciaMatematica: "Referência matemática com base na sua estratégia. Não é recomendação de compra ou venda — é conta.",
     fichasSub: "Sua saúde financeira e o que precisa de atenção agora. Agora, não depois do carnaval 👀",
-    fichasInsightsVazio:
-      "Cadastra orçamento, metas, reserva de emergência e uma estratégia de carteira, e eu começo a te dar insights automáticos aqui. Sem dado, sem opinião 😏",
     fichasAtencaoTitulo: "O que precisa de atenção 👀",
     fichasAcoesSub: "Digita o nome ou o código e eu leio os números. Antes de você comprar porque o influencer mandou 😏",
     fichasFiisSub: "Digita o nome ou o código e eu leio o fundo.",
@@ -949,7 +875,6 @@ export const semfiltro: Voz = {
 
     // ── Casal: quem paga quanto, sem virar discussão de sábado à noite ─────────────
     casTitulo: "Quem paga quanto? 💸",
-    casSub: "Renda diferente, conta diferente: cada um entra com a mesma proporção da renda, não 50/50. É matemática, não é sobre quem ama mais 😏",
     casRendaA: "Quanto um dos dois ganha por mês",
     casRendaAHint: "Líquido, o que cai na conta mesmo.",
     casRendaB: "Quanto o outro ganha por mês",
@@ -964,7 +889,6 @@ export const semfiltro: Voz = {
     casSemRenda: "Bota a renda dos dois aí, senão não rola conta nenhuma.",
     casHeaderAuto: "Divisão proporcional à renda",
     casHeaderManual: "O número que vocês combinaram",
-    casTextoAuto: "Quem ganha mais, paga mais — na mesma proporção. Não é 50/50, é o que é justo com o contracheque de cada um.",
     casTextoManual: "Vocês já bateram o martelo nesse percentual. Sigo o combinado de vocês, não o da renda.",
     casContribA: "Um dos dois entra com",
     casContribB: "O outro entra com",
@@ -980,7 +904,6 @@ export const semfiltro: Voz = {
 
     // ── Empresa: vale a pena investir, sem achismo de bar ───────────────────────────
     invTitulo: "Vale a pena investir na empresa? 💸",
-    invSub: "Máquina nova, reforma, mais uma pessoa no time: em quanto tempo isso se paga, e se rende mais que deixar o dinheiro quietinho aplicado.",
     invCusto: "Quanto custa o investimento?",
     invCustoHint: "Máquina, reforma, ponto novo, contratação: o valor à vista, sem economizar na resposta.",
     invTipoLabel: "O que ele traz por mês?",
@@ -991,16 +914,13 @@ export const semfiltro: Voz = {
     invReceitaHintVenda: "O que você espera vender a mais por causa dele. Usa a média, não aquele mês que vendeu tudo por sorte.",
     invReceitaHintEconomia: "O que deixa de gastar por mês (energia, terceiro, retrabalho — o time todo sabe qual é).",
     invMargemLabel: "Quanto sobra de cada venda, depois dos custos dela",
-    invMargemHint: "A margem de contribuição, direto da DRE. Vender mais só vale o que sobra depois de mercadoria, taxa e frete — não o que entrou bruto.",
     invCustoMensal: "Custo fixo novo por mês",
-    invCustoMensalHint: "O que o investimento passa a custar todo mês: manutenção, salário, aluguel maior, software. Zero se não tiver — sem inventar custo.",
     invPrazoLabel: "Prazo pra avaliar",
     invTaxaLabel: "Aplicação rende ao ano",
     invVeredictoEyebrow: "Veredito",
     invVeredictoValeTitulo: "Vale a pena 🎉",
     invVeredictoValeTexto: (meses) => `Se paga em ${meses} ${meses === 1 ? "mês" : "meses"} e rende mais que deixar aplicado. Bate o martelo.`,
     invVeredictoEmpataTitulo: "Empata com a aplicação",
-    invVeredictoEmpataTexto: (meses) => `Se paga em ${meses} meses, mas o ganho fica parecido com o da aplicação. Decide pelo que isso muda na empresa, não só pela planilha.`,
     invVeredictoNaoValeTitulo: "Não vale, por enquanto",
     invVeredictoNaoValeTextoForaDoPrazo: (meses, horizonte) => `Só se paga em ${meses} meses, além dos ${horizonte} que você deu de prazo. Segura essa.`,
     invVeredictoNaoValeTextoRendeMais: "Deixar o dinheiro aplicado rende mais do que esse investimento devolve no prazo. Doeu, eu sei.",
@@ -1024,7 +944,6 @@ export const semfiltro: Voz = {
     invReceitaNecessariaDepois: " de vendas a mais por mês.",
     invReceitaAbaixo: " Você estimou menos que isso. Hora de rever a conta.",
     invReceitaAcima: " Você estimou acima disso. Tá andando bem.",
-    invRodapeNota: "Conta simples, sem inflação nem imposto sobre a aplicação — é só pra dar a ordem de grandeza. Se a decisão for apertada, chama o contador antes de assinar qualquer coisa.",
 
     // ── E-mail: o resumo do mês e o convite pra voltar, mesmo deboche de sempre ─────
     emailSaudacao: (nome) => (nome ? `Oi, ${nome} 👋` : "Oi 👋"),

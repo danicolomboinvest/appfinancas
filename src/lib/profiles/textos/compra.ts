@@ -201,7 +201,7 @@ export const PADRAO_COMPRA: TextosCompra = {
   compraCaberTitulo: "Dá para fazer caber",
   compraCaberSub: "Escolha um caminho. Cada um mostra o que acontece com o seu mês.",
   compraCaberNadaTitulo: "Esse ainda não cabe",
-  compraCaberNada: (v) => `Para ${v}, não tem atalho que caiba no seu mês de hoje. Vale um plano com calma: juntar uma entrada maior primeiro ou esperar a renda subir.`,
+  compraCaberNada: (v) => `Para ${v}, nada cabe no mês de hoje. Junte uma entrada maior ou espere a renda subir.`,
   compraCaminho: (c) => {
     switch (c?.chave) {
       case "parcelar":

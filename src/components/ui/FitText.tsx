@@ -46,7 +46,10 @@ export function FitText({ children, className = "" }: { children: React.ReactNod
   }, [children]);
 
   return (
-    <div ref={outerRef} className="w-full overflow-hidden" style={{ height }}>
+    // Corta só na horizontal (overflow-x: clip, que não transforma o vertical em rolagem): com
+    // `overflow-hidden`, número de linha justa ou com margem negativa perdia o topo do símbolo da moeda (06/10/2026,
+    // o total da Carteira aparecia com o começo cortado).
+    <div ref={outerRef} className="w-full overflow-x-clip" style={{ height }}>
       <span
         ref={innerRef}
         className={`inline-block origin-top-left whitespace-nowrap ${className}`}

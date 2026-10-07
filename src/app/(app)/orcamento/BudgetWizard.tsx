@@ -4,7 +4,7 @@ import { useActionState, useEffect, useId, useMemo, useState, useTransition } fr
 import { createPortal } from "react-dom";
 import type { ParentCategory } from "@prisma/client";
 import type { LucideIcon } from "lucide-react";
-import { Minus, Pencil, Plus, Sparkles, Tag, Trash2 } from "lucide-react";
+import { FileUp, Minus, Pencil, Plus, Sparkles, Tag, Trash2, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { CurrencyField } from "@/components/ui/CurrencyField";
@@ -24,6 +24,7 @@ import { idealBudgetSplit, COURSE_SAVINGS_PERCENT, EMPRESA_RETENTION_PERCENT, co
 import { EditarPadrao, EditarPropria } from "@/app/(app)/configuracoes/categorias/EditorDeCategorias";
 import { NewCustomCategoryCard } from "./NewCustomCategoryCard";
 import { applyAllBudgetsAction, deleteCustomCategoryAction, type AnnualBudgetState } from "./actions";
+import { useVoltarAoTopo } from "@/components/ui/useVoltarAoTopo";
 
 const initialState: AnnualBudgetState = {};
 const STEP = 50;
@@ -101,6 +102,8 @@ export function BudgetWizard({
   );
 
   const [step, setStep] = useState<1 | 2 | 3>(hasPlan ? 3 : 1);
+  // Avançou um passo: a tela volta para o começo dele (06/10/2026).
+  const topoRef = useVoltarAoTopo<HTMLFormElement>(step);
   const [income, setIncome] = useState(plan.plannedIncome);
   const [investment, setInvestment] = useState(plan.plannedInvestment);
   const [customPct, setCustomPct] = useState(false);
@@ -189,7 +192,7 @@ export function BudgetWizard({
   );
 
   return (
-    <form id={formId} action={formAction} className="flex flex-col gap-5">
+    <form ref={topoRef} id={formId} action={formAction} className="flex flex-col gap-5">
       {/* Os campos escondidos num bloco só, fora do layout: cada <span> de categoria era um item
           vazio do flex com gap-5, e as 8 somavam 160px em branco antes do "Passo 3 de 3". */}
       <div hidden>
@@ -221,10 +224,7 @@ export function BudgetWizard({
       {step === 1 && (
         <>
           {header}
-          <div>
-            <h2 className="text-2xl font-extrabold tracking-tight text-ink">{t.formOrcTitulo}</h2>
-            <p className="mt-1 text-sm text-ink-muted">{t.formOrcSub}</p>
-          </div>
+          <h2 className="text-2xl font-extrabold tracking-tight text-ink">{t.formOrcTitulo}</h2>
 
           <Card className="flex flex-col gap-3 p-4">
             <p className="text-[15px] font-semibold text-ink">{t.formOrcQuantoEntra}</p>
@@ -279,9 +279,7 @@ export function BudgetWizard({
             )}
             {/* Pessoa: "18%, sendo 10% de liberdade financeira" (os 8 restantes são os sonhos).
                 Empresa: a camada da voz ignora os números e explica o que é retenção. */}
-            <p className="text-caption leading-relaxed text-ink-faint">
-              {t.formOrcCursoNota(savingsPct, empresa ? savingsPct : savingsPct - 8)}
-            </p>
+            <p className="text-caption text-ink-faint">{t.formOrcCursoNota(savingsPct, empresa ? savingsPct : savingsPct - 8)}</p>
           </Card>
 
           <div className="rounded-2xl border border-success/30 bg-success-soft/40 px-4 py-4">
@@ -320,52 +318,31 @@ export function BudgetWizard({
             </p>
           </Card>
 
-          {/* Duas portas, na ordem que a Dani pediu (03/10/2026): primeiro o jeito dela de gastar
-              (subir os últimos 3 extratos, ou usar o padrão de quem já subiu), embaixo o "Sugerir
-              para mim" do curso, para quem está começando. O "Copiar mês" saiu: com um mês só não
-              há padrão, e o convite de subir os extratos resolve melhor. */}
-          <div className="flex flex-col gap-2">
-            {temPadrao ? (
-              <>
-                <button
-                  type="button"
-                  onClick={usarPadrao}
-                  className="flex min-h-11 items-center justify-center gap-1.5 rounded-full bg-pill px-4 text-sm font-semibold text-on-pill"
-                >
-                  <Sparkles size={14} /> {t.formOrcPadrao}
-                </button>
-                <p className="text-caption text-ink-faint">{t.formOrcPadraoNota(hints.mesesComDado)}</p>
-              </>
-            ) : (
-              <div className="flex flex-col gap-2 rounded-2xl border border-accent bg-accent-soft p-4">
-                <p className="text-sm font-semibold text-ink">{t.formOrcExtratosTitulo}</p>
-                <p className="text-caption text-ink-muted">{t.formOrcExtratosNota}</p>
-                <button
-                  type="button"
-                  onClick={() => window.dispatchEvent(new Event(EVENTO_IMPORTAR))}
-                  className="min-h-11 w-fit rounded-full bg-pill px-4 text-sm font-semibold text-on-pill"
-                >
-                  {t.formOrcSubirExtratos}
-                </button>
-              </div>
-            )}
-            <button
-              type="button"
-              onClick={suggest}
-              disabled={toSpend <= 0}
-              data-guia="orc-sugerir"
-              className="flex min-h-11 items-center justify-center gap-1.5 rounded-full border border-border-strong bg-surface-2 px-4 text-sm font-semibold text-ink disabled:opacity-40"
-            >
-              {t.formOrcSugerir}
-            </button>
-            <p className="text-caption text-ink-faint">
-              {t.formOrcSugestaoNota(
+          {/* Duas portas, na ordem que a Dani pediu (03/10/2026): primeiro o jeito dela de gastar,
+              embaixo o "Sugerir para mim" do curso. Cada uma é um botão com uma linha curta
+              embaixo (06/10/2026): as notas de um parágrafo cada viraram "aula", e a Dani cortou.
+              Sem meses suficientes, o "Usar o meu padrão" abre a importação dos extratos. */}
+          <div className="grid gap-2 sm:grid-cols-2">
+            <OpcaoDeDivisao
+              Icone={temPadrao ? Sparkles : FileUp}
+              titulo={t.formOrcPadrao}
+              sub={temPadrao ? t.formOrcPadraoNota(hints.mesesComDado) : t.formOrcExtratosNota}
+              onClick={temPadrao ? usarPadrao : () => window.dispatchEvent(new Event(EVENTO_IMPORTAR))}
+              destaque
+            />
+            <OpcaoDeDivisao
+              Icone={Wand2}
+              titulo={t.formOrcSugerir}
+              sub={t.formOrcSugestaoNota(
                 Math.round(courseShareOf("MORADIA", kind) * 100),
                 Math.round(courseShareOf("ALIMENTACAO", kind) * 100),
                 Math.round(courseShareOf("SAUDE", kind) * 100),
                 savingsPct,
               )}
-            </p>
+              onClick={suggest}
+              disabled={toSpend <= 0}
+              dataGuia="orc-sugerir"
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -381,7 +358,6 @@ export function BudgetWizard({
             ))}
             <NewCustomCategoryCard />
           </div>
-          <p className="text-caption leading-relaxed text-ink-faint">{t.formOrcCustomNota}</p>
 
           <div className="flex flex-col gap-2 sm:flex-row-reverse">
             <Button type="button" onClick={() => setStep(3)} className="w-full sm:w-auto">
@@ -440,7 +416,6 @@ export function BudgetWizard({
                   </li>
                 ))}
               </ul>
-              <p className="text-caption text-ink-faint">{t.formOrcPraOndeNota}</p>
             </Card>
           )}
 
@@ -488,6 +463,45 @@ export function BudgetWizard({
           document.body,
         )}
     </form>
+  );
+}
+
+/** Uma das duas portas do passo 2: ícone, o nome do botão e uma linha curta do que ele faz. */
+function OpcaoDeDivisao({
+  Icone,
+  titulo,
+  sub,
+  onClick,
+  disabled = false,
+  destaque = false,
+  dataGuia,
+}: {
+  Icone: LucideIcon;
+  titulo: string;
+  sub: string;
+  onClick: () => void;
+  disabled?: boolean;
+  destaque?: boolean;
+  dataGuia?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      data-guia={dataGuia}
+      className={`flex min-h-14 items-center gap-3 rounded-2xl border px-4 py-3 text-left transition-colors disabled:opacity-40 ${
+        destaque ? "border-accent/50 bg-accent-soft/50 hover:border-accent" : "border-border-strong bg-surface-2 hover:bg-surface-hover"
+      }`}
+    >
+      <span className={`flex size-9 shrink-0 items-center justify-center rounded-full ${destaque ? "bg-accent-gradient text-on-accent" : "bg-pill text-on-pill"}`}>
+        <Icone size={17} strokeWidth={2} />
+      </span>
+      <span className="min-w-0">
+        <span className="block text-sm font-semibold text-ink">{titulo}</span>
+        <span className="block text-caption text-ink-muted">{sub}</span>
+      </span>
+    </button>
   );
 }
 

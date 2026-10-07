@@ -39,7 +39,10 @@ export function AllocateContributionCard({
   goalOfMonth,
   mesPassado = false,
   resgate = false,
+  abertoDeInicio = false,
 }: {
+  /** Dentro da folha "Atualizar aportes" o primeiro cartão já vem aberto: ela tocou para isso. */
+  abertoDeInicio?: boolean;
   /** Resgate em vez de aporte: o valor SAI dos ativos escolhidos. */
   resgate?: boolean;
   month: number;
@@ -90,7 +93,7 @@ export function AllocateContributionCard({
       };
   // Fechado por padrão: a carteira já é uma tela cheia, e a pergunta importante é só "você
   // aportou tanto, confere?". A lista de ativos com um campo cada só aparece pra quem toca.
-  const [aberto, setAberto] = useState(false);
+  const [aberto, setAberto] = useState(abertoDeInicio);
 
   const distribuido = useMemo(() => Object.values(valores).reduce((s, v) => s + (v || 0), 0), [valores]);
   // Quem já recebeu valor nunca some da lista, mesmo que estivesse escondido atrás do "ver todos".

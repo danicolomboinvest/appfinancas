@@ -108,7 +108,6 @@ export type TextosFormularios = {
   formOrcPasso(passo: number, total: number): string;
   formOrcSalvo: string;
   formOrcTitulo: string;
-  formOrcSub: string;
   formOrcQuantoEntra: string;
   formOrcRenda: string;
   formOrcRendaSugestao(mes: string, valor: string): string;
@@ -130,12 +129,9 @@ export type TextosFormularios = {
   /** Preenche cada categoria com o padrão dos últimos meses (padrao-orcamento.ts). */
   formOrcPadrao: string;
   formOrcPadraoNota(meses: number): string;
-  /** Quem ainda não tem 2 meses de dado: o convite para subir os extratos vem antes do "Sugerir". */
-  formOrcExtratosTitulo: string;
   formOrcExtratosNota: string;
-  formOrcSubirExtratos: string;
+  /** A linha embaixo do "Sugerir para mim". */
   formOrcSugestaoNota(moradia: number, alimentacao: number, saude: number, pct: number): string;
-  formOrcCustomNota: string;
   formOrcVerPlano: string;
   formOrcSeuPlano(ano: number): string;
   formOrcProntoPlano(ano: number): string;
@@ -150,7 +146,6 @@ export type TextosFormularios = {
   formOrcFimDoAnoValor(valor: string): string;
   formOrcFimDoAnoSub(valor: string, meses: number): string;
   formOrcPraOnde: string;
-  formOrcPraOndeNota: string;
   formOrcEntra: string;
   formOrcGuarda: string;
   formOrcGasta(categorias: number): string;
@@ -161,6 +156,8 @@ export type TextosFormularios = {
   formOrcRendaEAporte: string;
   /** O link que abre o plano já salvo, no topo do /orcamento. */
   formOrcEditarPlano(ano: number): string;
+  /** O botão do Orçamento e o título da janela que ele abre: curto, na voz do tema. */
+  formOrcEditarCurto(ano: number): string;
   /** O título do "planejado × realizado" de renda e do que foi guardado no mês. */
   formOrcRendaEAporteNoMes(mes: string): string;
   /** Os nomes das duas barras desse bloco. */
@@ -227,23 +224,36 @@ export type TextosFormularios = {
   // Estratégia da carteira (StrategyForm)
   formEstSalva: string;
   formEstPerfis: Record<PerfilDeRisco, { nome: string; descricao: string }>;
-  formEstQuizTitulo: string;
-  formEstAbrir: string;
-  formEstFechar: string;
-  formEstPrazoPergunta: string;
-  formEstPrazoOpcoes: [string, string, string];
-  /** O prazo em palavras, na frase "você vai precisar do dinheiro em …". */
-  formEstPrazoNomes: [string, string, string];
+  /** O jogo da estratégia (06/10/2026): uma pergunta por tela, revelação do perfil no fim. */
+  formEstJogoTitulo: string;
+  formEstJogoSub: string;
+  formEstComecar: string;
+  formEstNaMao: string;
+  formEstPasso(n: number, total: number): string;
+  formEstSeuPerfil: string;
+  formEstRefazer: string;
+  formEstVoltar: string;
+  // Os sonhos antes do perfil (06/10/2026): cada prazo pede um jeito de investir.
+  formEstSonhosTitulo: string;
+  formEstSonhosSub: string;
+  formEstFaixa: { curto: string; medio: string; longo: string };
+  formEstFalta(valor: string): string;
+  formEstSemSonhos: string;
+  formEstCadastrarSonho: string;
+  formEstSeguirSemSonhos: string;
+  formEstDescobrirPerfil: string;
+  formEstExperienciaPergunta: string;
+  formEstExperienciaOpcoes: [string, string, string];
+  formEstVerEstrategia: string;
+  formEstPelosSonhosTitulo: string;
+  /** Uma linha por faixa no resultado: o que o dinheiro daquele prazo vira. */
+  formEstMisturaCurto: string;
+  formEstMisturaMedio: string;
+  formEstMisturaLongo(perfil: string): string;
+  formEstSoPerfil: string;
+  formEstPersonalizar: string;
   formEstQuedaPergunta: string;
   formEstQuedaOpcoes: [string, string, string];
-  formEstReservaPergunta: string;
-  formEstReservaOpcoes: [string, string, string];
-  /** "Pelas suas metas, você vai precisar do dinheiro em <b>2 a 5 anos</b>." — antes e depois. */
-  formEstPelasMetasAntes: string;
-  formEstPelasMetasDepois: string;
-  formEstNaoEIsso: string;
-  /** "Pelas respostas, seu perfil é <b>Moderado</b>." — só o antes; o ponto e a descrição vêm depois. */
-  formEstPerfilAntes: string;
   formEstUsarPerfil: string;
   formEstPronto: string;
   formEstComoFicaria: string;
@@ -308,7 +318,7 @@ export const PADRAO_FORMULARIOS: TextosFormularios = {
   formMetaIcones: { VIAGEM: "Viagem", CASA: "Casa", CARRO: "Carro", APOSENTADORIA: "Aposentadoria", GENERICO: "Genérico" },
   formMetaValorAlvo: "Valor-alvo",
   formMetaJaGuardado: "Já guardado",
-  formMetaJaGuardadoHint: "O que você já tinha guardado para essa meta. O que você marcar como guardado daqui para frente soma em cima. Se ligar a ela o investimento onde esse dinheiro está, ele não conta duas vezes.",
+  formMetaJaGuardadoHint: "O que você já tinha guardado para essa meta.",
   formMetaMesAno: "Mês/ano alvo",
   formMetaRende: "Quanto o dinheiro guardado rende por ano",
   formMetaRendeHint: "Poupança rende perto de 6%. CDB e Tesouro Selic, perto de 10%. Se não sabe, deixe 10%.",
@@ -356,17 +366,16 @@ export const PADRAO_FORMULARIOS: TextosFormularios = {
   formAtivoValorAtual: "Valor atual",
 
   formOrcPasso: (passo, total) => `Passo ${passo} de ${total}`,
-  formOrcSalvo: "Plano salvo daqui até dezembro. Os meses que já passaram ficam como estavam.",
+  formOrcSalvo: "Plano salvo daqui até dezembro.",
   formOrcTitulo: "Vamos montar seu orçamento",
-  formOrcSub: "Três perguntas. O app já sabe parte das respostas pelos seus lançamentos.",
   formOrcQuantoEntra: "Quanto entra por mês?",
   formOrcRenda: "Renda por mês",
   formOrcRendaSugestao: (mes, valor) => `Em ${mes} entraram ${valor}.`,
   formOrcQuantoGuardar: "Quanto você quer guardar?",
   formOrcOutro: "outro",
   formOrcGuardarPorMes: "Guardar por mês",
-  formOrcCursoNota: (pct, liberdade) =>
-    `No curso, a conta é ${pct}%: ${liberdade}% para a liberdade financeira e 8% para os sonhos. Quem está começando costuma conseguir 10% — se ficar apertado, dá para mudar depois. Nada aqui é promessa.`,
+  // Textos do orçamento curtos (06/10/2026). A Dani: "não é uma aula". Uma linha, no máximo.
+  formOrcCursoNota: (pct, liberdade) => `No curso: ${pct}% (${liberdade}% liberdade financeira, 8% sonhos).`,
   formOrcSobraTitulo: "Sobra para gastar",
   formOrcSobraSub: (valor) => `por mês, depois de guardar ${valor}`,
   formOrcDividir: (valor) => `Dividir os ${valor} →`,
@@ -377,14 +386,9 @@ export const PADRAO_FORMULARIOS: TextosFormularios = {
   formOrcSugerir: "Sugerir para mim",
   formOrcCopiar: (mes) => `Copiar ${mes}`,
   formOrcPadrao: "Usar o meu padrão",
-  formOrcExtratosTitulo: "Monte pelo seu jeito de gastar",
-  formOrcExtratosNota: "Suba os extratos e as faturas dos seus últimos 3 meses e eu sugiro cada categoria pelo que você gasta de verdade.",
-  formOrcSubirExtratos: "Subir extratos",
-  formOrcPadraoNota: (meses) =>
-    `"Usar o meu padrão" coloca em cada categoria o que você costuma gastar de verdade, olhando os seus últimos ${meses} meses. Um mês fora da curva, como uma viagem, não puxa o número.`,
-  formOrcSugestaoNota: (moradia, alimentacao, saude, pct) =>
-    `A sugestão segue a distribuição do orçamento do curso: moradia ${moradia}% da renda, alimentação ${alimentacao}%, saúde ${saude}%, e assim por diante. Guardando menos que ${pct}% sobra uma folga; guardando mais, tudo encolhe junto. É um ponto de partida: mexa à vontade.`,
-  formOrcCustomNota: "Pet, academia, filhos: o que é grande na sua vida e não cabe nas de cima. O que vem uma vez por ano, divida por 12.",
+  formOrcExtratosNota: "Suba os extratos dos últimos 3 meses",
+  formOrcPadraoNota: (meses) => `Seus últimos ${meses} meses de gasto`,
+  formOrcSugestaoNota: () => "Pela divisão do curso",
   formOrcVerPlano: "Ver meu plano →",
   formOrcSeuPlano: (ano) => `Seu plano de ${ano}`,
   formOrcProntoPlano: (ano) => `Pronto. Seu plano de ${ano}`,
@@ -395,9 +399,8 @@ export const PADRAO_FORMULARIOS: TextosFormularios = {
   formOrcLegLivres: (pct) => `${pct} livres`,
   formOrcFimDoAno: "O que isso dá no fim do ano",
   formOrcFimDoAnoValor: (valor) => `${valor} guardados`,
-  formOrcFimDoAnoSub: (valor, meses) => `${valor} por mês nos ${meses} meses que faltam, mais o que sobrar.`,
+  formOrcFimDoAnoSub: (valor, meses) => `${valor} por mês nos ${meses} meses que faltam.`,
   formOrcPraOnde: "Para onde vai o que você guarda",
-  formOrcPraOndeNota: "Reserva primeiro, depois as metas por prazo. O resto fica livre.",
   formOrcEntra: "Entra",
   formOrcGuarda: "Guarda",
   formOrcGasta: (categorias) => `Gasta (${categorias} categorias)`,
@@ -408,6 +411,7 @@ export const PADRAO_FORMULARIOS: TextosFormularios = {
   // "Aporte" saiu do orçamento do Padrão: é a tela que ela mais abre depois do mês.
   formOrcRendaEAporte: "Renda e o que guardar",
   formOrcEditarPlano: (ano) => `Editar seu plano de ${ano}: renda, quanto guardar e gastos`,
+  formOrcEditarCurto: (ano) => `Editar plano ${ano}`,
   formOrcRendaEAporteNoMes: (mes) => `Renda e dinheiro guardado em ${mes}`,
   formOrcBarraRenda: "Renda",
   formOrcBarraAporte: "Guardado",
@@ -461,7 +465,7 @@ export const PADRAO_FORMULARIOS: TextosFormularios = {
   formApInflacaoAssume: "Inflação que você assume",
   formApInflacaoHint: "É ela que traz o dinheiro do futuro para o poder de compra de hoje.",
   formApRendVivendo: "Rendimento já vivendo de renda (acima da inflação)",
-  formApRendVivendoHint: "Já descontada a inflação: 4% aqui é cerca de 8,7% ao ano com inflação de 4,5%. Mais conservador que o da fase de acumular, porque agora você depende dele para viver.",
+  formApRendVivendoHint: "Já sem a inflação. Mais conservador que na fase de acumular.",
   formApAteIdade: "Até que idade (opcional)",
   formApOutrasRendas: "Outras rendas por mês (opcional)",
 
@@ -471,22 +475,35 @@ export const PADRAO_FORMULARIOS: TextosFormularios = {
     moderado: { nome: "Moderado", descricao: "Equilibra renda fixa e renda variável." },
     arrojado: { nome: "Arrojado", descricao: "Prioriza crescimento de longo prazo, a maior parte em renda variável." },
   },
-  formEstQuizTitulo: "Não sabe por onde começar? Três perguntas.",
-  formEstAbrir: "abrir",
-  formEstFechar: "fechar",
-  formEstPrazoPergunta: "Quando você vai precisar desse dinheiro?",
-  formEstPrazoOpcoes: ["Em menos de 2 anos", "Entre 2 e 5 anos", "Daqui a mais de 5 anos"],
-  formEstPrazoNomes: ["menos de 2 anos", "2 a 5 anos", "mais de 5 anos"],
+  formEstJogoTitulo: "Vamos montar sua estratégia?",
+  formEstJogoSub: "Começando pelos seus sonhos.",
+  formEstComecar: "Começar",
+  formEstNaMao: "Prefiro montar na mão",
+  formEstPasso: (n, total) => `${n} de ${total}`,
+  formEstSeuPerfil: "Seu perfil",
+  formEstRefazer: "Refazer do começo",
+  formEstVoltar: "Voltar",
+  formEstSonhosTitulo: "Seus sonhos",
+  formEstSonhosSub: "Cada prazo pede um jeito de investir.",
+  formEstFaixa: { curto: "Até 2 anos", medio: "De 2 a 5 anos", longo: "Mais de 5 anos" },
+  formEstFalta: (valor) => `faltam ${valor}`,
+  formEstSemSonhos: "Você ainda não cadastrou sonhos.",
+  formEstCadastrarSonho: "Cadastrar um sonho",
+  formEstSeguirSemSonhos: "Seguir sem sonhos",
+  formEstDescobrirPerfil: "Descobrir meu perfil",
+  formEstExperienciaPergunta: "Você já investiu em ações ou fundos imobiliários?",
+  formEstExperienciaOpcoes: ["Nunca", "Um pouco", "Sim, sempre"],
+  formEstVerEstrategia: "Ver minha estratégia",
+  formEstPelosSonhosTitulo: "Uma estratégia para os seus sonhos",
+  formEstMisturaCurto: "Renda fixa pós-fixada: segura e à mão",
+  formEstMisturaMedio: "Mais renda fixa, um pouco de renda variável",
+  formEstMisturaLongo: (perfil) => `Segue o seu perfil ${perfil}`,
+  formEstSoPerfil: "Sem sonhos cadastrados, a estratégia segue só o seu perfil.",
+  formEstPersonalizar: "Personalizar",
   formEstQuedaPergunta: "Se a carteira caísse 15% em um mês, você…",
   formEstQuedaOpcoes: ["Venderia tudo, não dormiria", "Ficaria tensa, mas seguraria", "Aproveitaria para comprar mais"],
-  formEstReservaPergunta: "Sua reserva de emergência já está completa?",
-  formEstReservaOpcoes: ["Ainda não", "Quase lá", "Sim"],
-  formEstPelasMetasAntes: "Pelas suas metas, você vai precisar do dinheiro em",
-  formEstPelasMetasDepois: ".",
-  formEstNaoEIsso: "Não é isso, quero responder",
-  formEstPerfilAntes: "Pelas respostas, seu perfil é",
-  formEstUsarPerfil: "Usar esse perfil",
-  formEstPronto: "Ou comece de um perfil pronto (você pode ajustar depois)",
+  formEstUsarPerfil: "Usar essa estratégia",
+  formEstPronto: "Começar de um perfil pronto",
   formEstComoFicaria: "Como sua carteira ficaria",
   formEstSoma: (pct) => `Soma: ${pct}`,
   formEstFecha: "✓ fecha em 100%",

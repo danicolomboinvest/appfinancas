@@ -2,11 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, ChevronLeft, ChevronRight, PiggyBank } from "lucide-react";
 import { useMoney } from "@/components/money/MoneyProvider";
 import { FitText } from "@/components/ui/FitText";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
-import { estadoDoMes, type Ritmo } from "@/lib/profiles/voice";
+import { estadoDoMes } from "@/lib/profiles/voice";
 
 const MONTH_LABELS = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
@@ -23,16 +23,6 @@ export type FlowBundle = {
 };
 
 type View = "mensal" | "anual";
-type Tone = "success" | "danger" | "accent" | "ink";
-
-const TONE_TEXT: Record<Tone, string> = {
-  success: "text-success",
-  danger: "text-danger",
-  accent: "text-accent-strong",
-  ink: "text-ink",
-};
-
-
 /** (renda − gastos) / renda: quanto da renda não virou gasto (ficou de saldo + aportes). */
 function savingsRate(b: FlowBundle): number | null {
   if (b.income <= 0) return null;
@@ -46,72 +36,13 @@ function adjacentMonth(year: number, month: number, delta: number) {
 
 
 
-/**
- * Uma parcela da conta do mês. Muda de forma conforme a tela, com o MESMO conteúdo:
- *
- * - No celular é uma LINHA (rótulo à esquerda, valor à direita) e a conta se lê de cima
- *   pra baixo.
- * - No computador vira uma CÉLULA (rótulo pequeno em cima, número grande embaixo) e a
- *   conta se lê da esquerda pra direita, com os sinais entre as células.
- *
- * A linha esticada num monitor deixava meio palmo de vazio entre "Entrou" e o número —
- * o olho tinha que atravessar a tela para ligar as duas coisas. Já a grade solta de
- * números, que existia antes, escondia a conta. A equação resolve os dois: usa a largura
- * e continua mostrando que Entrou − Gastou − Aportou = Resultado.
- */
-function SummaryCell({
-  label,
-  value,
-  sign,
-  tone,
-  emphasis,
-}: {
-  label: string;
-  value: string;
-  sign?: "+" | "−";
-  tone: Tone;
-  /** O resultado: fundo levemente tingido e ponto colorido ao lado do rótulo, pra fechar a conta. */
-  emphasis?: boolean;
-}) {
-  const dot = emphasis && (
-    <span
-      className="size-2 rounded-full"
-      style={{ backgroundColor: tone === "success" ? "var(--color-success)" : "var(--color-danger)" }}
-    />
-  );
-  return (
-    <div
-      className={`flex items-center justify-between gap-3 px-4 py-3.5 lg:flex-col lg:items-start lg:justify-center lg:gap-1.5 lg:px-5 lg:py-5 ${
-        emphasis ? "bg-surface-2" : "border-b border-border lg:border-b-0"
-      }`}
-    >
-      <span className={`flex items-center gap-2 text-[16px] text-ink lg:text-[14px] lg:font-medium lg:text-ink-muted ${emphasis ? "font-semibold" : ""}`}>
-        {label}
-        {dot}
-      </span>
-      {/* Celular: sinal discreto colado no número, porque é ele que diz se a parcela soma ou
-          subtrai. Computador: sem sinal e sem operador entre as células — os rótulos já dizem
-          o que cada número é, e "− − =" no meio ficava feio. O número encolhe pra caber na
-          célula (FitText) em vez de quebrar o símbolo numa linha e o valor na outra. */}
-      <span className={`whitespace-nowrap text-[17px] font-semibold tabular-nums tracking-tight lg:hidden ${TONE_TEXT[tone]}`}>
-        {sign && <span className="mr-0.5 text-[14px] font-medium text-ink-faint">{sign}</span>}
-        {value}
-      </span>
-      <div className="hidden w-full lg:block">
-        <FitText className={`text-[20px] font-semibold tabular-nums tracking-tight xl:text-[24px] 2xl:text-[28px] ${TONE_TEXT[tone]}`}>{value}</FitText>
-      </div>
-    </div>
-  );
-}
-
-function SecondaryStat({ label, value, tone }: { label: string; value: string; tone: Tone }) {
-  return (
-    <div className="px-2 py-1 text-center first:pl-0 last:pr-0">
-      <p className="text-caption text-ink-muted lg:text-[13px]">{label}</p>
-      <p className={`mt-0.5 text-[16px] font-semibold tabular-nums lg:text-[20px] ${TONE_TEXT[tone]}`}>{value}</p>
-    </div>
-  );
-}
+/** As cores de cada parcela do mês, as mesmas da rosca "Como sua renda foi dividida". */
+const BOLHA = {
+  success: "bg-success-soft text-success",
+  danger: "bg-danger-soft text-danger",
+  accent: "bg-accent-soft text-accent-strong",
+} as const;
+const BARRA = { success: "bg-success", danger: "bg-danger", accent: "bg-accent" } as const;
 
 /**
  * Cabeçalho do Fluxo (item 2 da Rodada 2): 6 indicadores em cards (número grande, rótulo pequeno),
@@ -119,20 +50,12 @@ function SecondaryStat({ label, value, tone }: { label: string; value: string; t
  * dois conjuntos de dados já vêm calculados do servidor, então não há ida-e-volta ao trocar. As
  * setas ‹ › navegam por mês (ou ano, no modo anual) via Link, carregando ?view pra manter o modo.
  */
-export type Pacing = {
-  /** Fração do orçamento do mês já gasta (0–1+). */
-  budgetUsed: number;
-  /** Fração do mês já decorrida (0–1). */
-  monthElapsed: number;
-};
-
 export function FlowIndicators({
   year,
   month,
   initialView,
   monthly,
   annual,
-  pacing,
   mesFechado = false,
 }: {
   year: number;
@@ -140,8 +63,6 @@ export function FlowIndicators({
   initialView: View;
   monthly: FlowBundle;
   annual: FlowBundle;
-  /** Ritmo do mês (orçamento consumido vs. mês decorrido), só no mês corrente com orçamento. */
-  pacing?: Pacing | null;
   /** O mês já acabou? A voz muda "ainda dá" pra "acabou". */
   mesFechado?: boolean;
 }) {
@@ -155,7 +76,18 @@ export function FlowIndicators({
   const estado = estadoDoMes(bundle);
   const fraseDoResultado =
     view === "mensal" ? voz.fraseResultado(estado, { resultado: bundle.balance, income: bundle.income, expense: bundle.expense, money, mesFechado }) : null;
-  const ritmoAtual: Ritmo | null = !pacing ? null : pacing.budgetUsed > pacing.monthElapsed + 0.05 ? "rapido" : pacing.budgetUsed > pacing.monthElapsed ? "limite" : "dentro";
+  // Mês no vermelho: "Faltou", não "Sobrou −R$ 300".
+  const rotuloDoResultado = bundle.balance < 0 && voz.rotuloResultado.startsWith("Sobrou") ? "Faltou" : voz.rotuloResultado;
+  // A barra do que entrou, dividida em Gastou · Guardado · Sobrou. Só quando entrou dinheiro e
+  // nada passou do que entrou: com gasto maior que a renda, as fatias não fecham 100%.
+  const fatias =
+    bundle.income > 0 && bundle.expense >= 0 && bundle.investment >= 0 && bundle.balance >= 0
+      ? [
+          { chave: "gastou", rotulo: voz.titulos.gastou, valor: bundle.expense, cor: "danger" as const },
+          { chave: "guardado", rotulo: voz.titulos.aportou, valor: bundle.investment, cor: "accent" as const },
+          { chave: "sobrou", rotulo: rotuloDoResultado, valor: bundle.balance, cor: "success" as const },
+        ].filter((f) => f.valor > 0)
+      : [];
 
   const prev = adjacentMonth(year, month, -1);
   const next = adjacentMonth(year, month, 1);
@@ -212,91 +144,74 @@ export function FlowIndicators({
         </div>
       </div>
 
-      {/* Entrou / Saiu / Resultado num bloco só, em linhas — e não seis números soltos numa
-          grade. A grade obrigava a pessoa a descobrir sozinha que Renda menos Gastos dá o
-          Saldo; em linhas, com o resultado destacado no fim, a conta se lê de cima pra baixo.
-          As DUAS saídas (gastos e aportes) ficam aqui dentro, senão a soma da tela não fecha.
-          Planejamento e poupança são contexto e ficam abaixo, menores. */}
-      {/* O painel é o MESMO nos sete temas: Entrou, Gastou, Aportou e a linha de baixo. O que
-          o tema muda é o nome da linha de baixo ("Sobrou", "Guardado", "Você guardou 💖"), um
-          rótulo em cima quando ele quer ("Seu resultado") e a frase logo abaixo. */}
+      {/* O painel do mês (06/10/2026, segunda versão): o bloco pintado com os quatro números a Dani
+          não achou bonito. Agora são três cartõezinhos com o ícone redondo colorido (o mesmo jeito
+          dos botões da Carteira, que ela gostou) e, embaixo, o que sobrou com a barra do que
+          entrou dividida em gasto, guardado e sobra. Os nomes vêm do tema. */}
       {voz.tituloPainel && <p className="-mb-2 text-caption font-medium text-ink-muted">{voz.tituloPainel}</p>}
-      <div className="overflow-hidden rounded-2xl border border-border lg:grid lg:grid-cols-4 lg:items-stretch lg:divide-x lg:divide-border">
-        <SummaryCell label={voz.titulos.entrou} value={money(bundle.income)} sign="+" tone="success" />
-        <SummaryCell label={voz.titulos.gastou} value={money(bundle.expense)} sign="−" tone="danger" />
-        {/* Aportar também TIRA dinheiro do mês. Sem esta parcela a conta da tela não fechava:
-            "entrou 12, saiu 8" e um resultado de −7 que só se explicava por um número que
-            estava noutro lugar da página. Dinheiro que sai fica junto do dinheiro que sai. */}
-        <SummaryCell label={voz.titulos.aportou} value={money(bundle.investment)} sign="−" tone="accent" />
-        <SummaryCell
-          label={voz.rotuloResultado}
-          value={money(bundle.balance)}
-          tone={bundle.balance >= 0 ? "success" : "danger"}
-          emphasis
-        />
+      <div className="flex flex-col gap-2.5 lg:grid lg:grid-cols-[3fr_2fr] lg:gap-3">
+        <div className="grid grid-cols-3 gap-2 lg:gap-3">
+          {[
+            { chave: "entrou", rotulo: voz.titulos.entrou, valor: bundle.income, Icone: ArrowDownLeft, cor: "success" as const },
+            { chave: "gastou", rotulo: voz.titulos.gastou, valor: bundle.expense, Icone: ArrowUpRight, cor: "danger" as const },
+            // Guardar também TIRA dinheiro do mês: sem esta parcela a conta não fechava.
+            { chave: "guardado", rotulo: voz.titulos.aportou, valor: bundle.investment, Icone: PiggyBank, cor: "accent" as const },
+          ].map(({ chave, rotulo, valor, Icone, cor }) => (
+            <div key={chave} className="flex min-w-0 flex-col gap-2 rounded-2xl border border-border bg-surface p-3 lg:p-4">
+              <span className={`flex size-8 items-center justify-center rounded-full ${BOLHA[cor]}`}>
+                <Icone size={16} strokeWidth={2.1} aria-hidden />
+              </span>
+              <span className="text-caption leading-tight text-ink-muted">{rotulo}</span>
+              <FitText className="text-[16px] font-semibold tabular-nums tracking-tight text-ink lg:text-[20px]">{money(valor)}</FitText>
+            </div>
+          ))}
+        </div>
+
+        <div className="flex flex-col gap-3 rounded-2xl border border-border bg-surface p-4">
+          <div className="flex items-end justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-caption text-ink-muted">{rotuloDoResultado}</p>
+              <FitText className={`text-[28px] font-bold leading-tight tracking-tight tabular-nums ${bundle.balance < 0 ? "text-danger" : "text-ink"}`}>
+                {money(bundle.balance)}
+              </FitText>
+            </div>
+            {rate !== null && rate >= 0 && (
+              <span className="mb-1 shrink-0 rounded-full bg-success-soft px-2.5 py-1 text-caption font-semibold text-success">
+                {voz.titulos.ficouComVoce(`${Math.round(rate * 100)}%`)}
+              </span>
+            )}
+          </div>
+
+          {fatias.length > 0 && (
+            <div className="flex flex-col gap-2">
+              <div className="flex h-2 gap-0.5 overflow-hidden rounded-full bg-surface-2" role="img" aria-label={fatias.map((f) => `${f.rotulo} ${Math.round((f.valor / bundle.income) * 100)}%`).join(", ")}>
+                {fatias.map((f) => (
+                  <span key={f.chave} className={`h-full ${BARRA[f.cor]}`} style={{ width: `${(f.valor / bundle.income) * 100}%` }} />
+                ))}
+              </div>
+              <p className="flex flex-wrap gap-x-3 gap-y-1 text-caption text-ink-muted">
+                {fatias.map((f) => (
+                  <span key={f.chave} className="inline-flex items-center gap-1.5">
+                    <span className={`size-2 rounded-full ${BARRA[f.cor]}`} />
+                    {f.rotulo} {Math.round((f.valor / bundle.income) * 100)}%
+                  </span>
+                ))}
+              </p>
+            </div>
+          )}
+
+          {/* O plano do mês mora no Orçamento: daqui só a referência e o caminho. */}
+          {bundle.planned > 0 && (
+            <Link href={`/orcamento/${year}`} className="flex items-center justify-between gap-2 border-t border-border pt-3 text-caption text-ink-muted transition-colors hover:text-ink">
+              <span>
+                {voz.titulos.gastou} {money(bundle.expense, { round: true })} {voz.titulos.dePlanejados(money(bundle.planned, { round: true }))}
+              </span>
+              <ChevronRight size={14} className="shrink-0 text-ink-faint" aria-hidden />
+            </Link>
+          )}
+        </div>
       </div>
       {fraseDoResultado && <p className="-mt-1 text-sm text-ink lg:text-[15px]">{fraseDoResultado}</p>}
-
-      {/* No computador, os números de contexto e o ritmo do mês dividem a mesma faixa: sozinhos,
-          cada um esticava por um monitor inteiro pra dizer duas palavras. */}
-      <div
-        className={
-          view === "mensal" && pacing
-            ? "flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.7fr)] lg:items-center lg:gap-8"
-            : "flex flex-col gap-4"
-        }
-      >
-        <div className="grid grid-cols-2 divide-x divide-border">
-          <SecondaryStat label={voz.titulos.planejamento} value={money(bundle.planned)} tone="ink" />
-          <SecondaryStat
-            label={voz.titulos.poupanca}
-            value={rate === null ? "—" : `${Math.round(rate * 100)}%`}
-            tone={rate !== null && rate >= 0 ? "success" : "danger"}
-          />
-        </div>
-
-      {/* Ritmo do mês: gastou mais rápido que o mês passou? Duas barras comparáveis. */}
-      {view === "mensal" && pacing && (
-        <div className="flex flex-col gap-2.5 border-t border-border pt-5 lg:border-t-0 lg:pt-0">
-          <div className="flex items-center justify-between">
-            <p className="text-caption font-medium text-ink-muted lg:text-[13px]">{voz.titulos.ritmoDoMes}</p>
-            <p
-              className={`text-caption font-semibold ${
-                ritmoAtual === "rapido" ? "text-danger" : ritmoAtual === "limite" ? "text-accent-strong" : "text-success"
-              }`}
-            >
-              {voz.ritmo[ritmoAtual ?? "dentro"]}
-            </p>
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <div className="flex items-center gap-2">
-              <span className="w-20 shrink-0 text-caption text-ink-faint lg:text-[13px]">Orçamento</span>
-              <div className="h-2 flex-1 overflow-hidden rounded-full bg-surface-2">
-                <div
-                  className={`h-full rounded-full ${pacing.budgetUsed > pacing.monthElapsed ? "bg-danger" : "bg-success"}`}
-                  style={{ width: `${Math.min(100, pacing.budgetUsed * 100)}%` }}
-                />
-              </div>
-              <span className="min-w-10 shrink-0 whitespace-nowrap text-right text-caption tabular-nums text-ink lg:text-[13px]">
-                {Math.round(pacing.budgetUsed * 100)}%
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="w-20 shrink-0 text-caption text-ink-faint lg:text-[13px]">Mês</span>
-              <div className="h-2 flex-1 overflow-hidden rounded-full bg-surface-2">
-                <div
-                  className="h-full rounded-full bg-ink-faint"
-                  style={{ width: `${Math.min(100, pacing.monthElapsed * 100)}%` }}
-                />
-              </div>
-              <span className="min-w-10 shrink-0 whitespace-nowrap text-right text-caption tabular-nums text-ink lg:text-[13px]">
-                {Math.round(pacing.monthElapsed * 100)}%
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
-      </div>
     </div>
   );
 }

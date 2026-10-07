@@ -334,14 +334,6 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
     <div className="flex flex-col gap-8 lg:gap-5">
       <PageHeader
         title={voz.titulos.visaoGeral}
-        subtitle={
-          <>
-            {voz.titulos.visaoGeralSub.replace("{ano}", String(year))}{" "}
-            <Link href={`/mensal/${year}`} className="text-accent-strong hover:underline">
-              {voz.titulos.visaoGeralLink}
-            </Link>
-          </>
-        }
         action={
           <div className="flex items-center gap-1">
             <Link

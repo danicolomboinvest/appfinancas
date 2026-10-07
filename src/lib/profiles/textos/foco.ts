@@ -50,6 +50,8 @@ export type TextosFoco = {
   focoDadosVelhos(dias: number): string;
   focoImportar: string;
   focoAtencao: string;
+  /** O verbo do botão de cada aviso do Foco (06/10/2026), no lugar do "Ver o que fazer" igual em todos. */
+  focoVerbo: Record<string, string>;
   focoNadaTitulo: string;
   focoNadaSub: string;
   focoMaisEsperam(n: number): string;
@@ -158,6 +160,12 @@ export type TextosFoco = {
   decSimulacoesSalvas(quantas: number): string;
   decVerCalculadoras: string;
   decPergunteTambem: string;
+  // Calculadoras com porta própria (06/10/2026): a seção, a pergunta da aposentadoria (que vive
+  // em Metas › Aposentadoria) e os títulos do Mais em grade.
+  calcTitulo: string;
+  calcAposentadoria: string;
+  maisFerramentas: string;
+  maisSuaConta: string;
   // Raio-X: os rótulos fixos da tela
   raioxJuntosAno: string;
   /** "Investidos por 5 anos, virariam cerca de **R$ X**": o valor vem em negrito depois. */
@@ -296,6 +304,8 @@ export type TextosFoco = {
   ritFechar: string;
   // Raio-X
   raioxTitulo: string;
+  /** O nome curto no atalho redondo do Foco (06/10/2026): o título inteiro quebrava em três linhas. */
+  raioxAtalho: string;
   raioxIntro: string;
   raioxCancelar: string;
   raioxMetade: string;
@@ -357,15 +367,16 @@ export const PADRAO_FOCO: TextosFoco = {
   focoComoCheguei: "Como cheguei nisso",
   focoDadosVelhos: (d) => `Seus últimos gastos lançados são de ${d} dias atrás. Esse número pode estar alto demais.`,
   focoImportar: "Importar extrato",
-  focoAtencao: "Precisa da sua atenção",
-  focoNadaTitulo: "Nada pedindo atenção agora",
+  focoAtencao: "Para fazer",
+  focoVerbo: { estouro: "Ajustar", ritmo: "Ajustar", aporte: "Guardar", meta: "Ajustar", reserva: "Ver", raiox: "Ver", fora: "Ver" },
+  focoNadaTitulo: "Tudo em dia por hoje",
   focoNadaSub: "Aproveita.",
   focoMaisEsperam: (n) => `+ ${n} ${n > 1 ? "coisas podem" : "coisa pode"} esperar`,
   focoAcao: "Ver o que fazer",
   focoBem: "Você está indo bem",
   focoDuvida: "Tenho uma dúvida sobre meu dinheiro",
   focoFioTitulo: "Por que suas metas importam agora",
-  focoResumoMes: (m) => `${m} até agora`,
+  focoResumoMes: (m) => `Seu ${m.toLowerCase()}`,
   focoVerMes: "Ver mês completo",
   focoEstouroT: (c) => `${c} passou do orçamento`,
   focoEstouroP: (g, p, d) => `${g} de ${p}, com ${nDias(d)} pela frente.`,
@@ -458,26 +469,29 @@ export const PADRAO_FOCO: TextosFoco = {
     raiox: "Que pequenos gastos posso cortar?",
     valeAPena: "Vale a pena comprar?",
     financiar: "Financiar ou alugar?",
-    amortizar: "Adiantar parcelas da dívida ou investir?",
+    amortizar: "Quitar a dívida antes ou investir?",
     consorcio: "Consórcio ou financiamento?",
     carro: "Carro: assinar ou comprar?",
-    marcacao: "Vender um investimento antes do prazo?",
+    marcacao: "Vender renda fixa antes do prazo?",
   },
   decValeAPenaSub: "Quantas horas do seu trabalho isso custa",
   decSimulacoesSalvas: (n) => `Minhas simulações salvas (${n})`,
   decVerCalculadoras: "Ver todas as calculadoras",
   decPergunteTambem: "Pergunte também",
+  calcTitulo: "Calculadoras",
+  calcAposentadoria: "Quanto preciso para me aposentar?",
+  maisFerramentas: "Ferramentas",
+  maisSuaConta: "Sua conta",
   raioxJuntosAno: "Juntos, por ano",
   raioxCincoAnos: "Investidos por 5 anos, virariam cerca de",
-  raioxComoAchei:
-    "Como achei: o mesmo estabelecimento, em pelo menos 3 meses diferentes. Moradia, saúde, educação e impostos ficam de fora. A conta dos 5 anos usa o dinheiro rendendo 0,9% ao mês.",
+  raioxComoAchei: "Mesmo estabelecimento em 3 meses ou mais. Moradia, saúde, educação e impostos ficam fora.",
   raioxNosUltimos: (n) => `Nos últimos ${n} meses`,
   raioxVezesPorMes: (n) => (n <= 1 ? "Cerca de 1 vez por mês" : `Cerca de ${n} vezes por mês`),
   focoRitualEy: "Seu ritual da semana",
   focoRitualT: "Seus 5 minutos para o dinheiro",
   focoRitualP: "4 cartões e uma decisão. Bora?",
   focoFechEy: "Seu fechamento do mês",
-  focoFechT: (m) => `Fechar ${m} · 15 minutos`,
+  focoFechT: (m) => `Fechar ${m}`,
   focoFechP: "Sem pressa. Dá para fazer hoje, com calma.",
   focoComecar: "Começar",
   focoAmanhaT: (d, v) => `Ontem você pensou em comprar: ${d} (${v})`,
@@ -594,6 +608,7 @@ export const PADRAO_FOCO: TextosFoco = {
   ritSemana: "Sua semana",
   ritFechar: "Fechar meu ritual",
   raioxTitulo: "Raio-X dos pequenos gastos",
+  raioxAtalho: "Raio-X dos gastos",
   raioxIntro: '"Não importa quanto você ganha, e sim como você gasta." Decida um por um:',
   raioxCancelar: "Vou cancelar",
   raioxMetade: "Cortar pela metade",
@@ -621,7 +636,7 @@ export const PADRAO_FOCO: TextosFoco = {
   focoComeceManual: "Quer ler antes? Veja o manual Como usar o app",
   focoTourMaisTexto: (tipo) =>
     tipo === "empresa"
-      ? "Aqui ficam as outras telas, como Vale a pena investir?, Configurações e o manual Como usar o app."
-      : `Aqui ficam as outras telas, como Decidir (o "Posso comprar?" e outras perguntas), Planejar Viagem${tipo === "casal" ? ", Quanto cada um contribui?" : ""}, Configurações e o manual Como usar o app.`,
-  focoTourFimTexto: "O primeiro passo está no cartão \"Comece por aqui\": subir o extrato do banco ou a fatura do cartão. Em segundos você vê o seu mês montado.",
+      ? "Aqui ficam Vale a pena investir?, as Configurações e o manual."
+      : `Aqui ficam Decidir, Planejar Viagem${tipo === "casal" ? ", Quanto cada um contribui?" : ""}, as Configurações e o manual.`,
+  focoTourFimTexto: "Comece pelo cartão “Comece por aqui”: suba o extrato ou a fatura.",
 };

@@ -348,7 +348,7 @@ export const PADRAO_SIMULADORES: TextosSimuladores = {
   simMarcAnosRestantes: "Anos até o vencimento",
   simMarcAnosRestantesHint: "Quanto falta até o vencimento a partir de hoje.",
   simMarcCupons: "Paga juros semestrais?",
-  simMarcCuponsHint: "Alguns títulos pagam cupons a cada semestre em vez de tudo no vencimento. Nesses casos, use a duration para medir a sensibilidade.",
+  simMarcCuponsHint: "Título que paga cupom a cada semestre? Use a duration.",
   simMarcDuration: "Duration",
   simMarcDurationHint: "Prazo médio ponderado dos fluxos do título, mais curto que o vencimento por causa dos cupons.",
   simMarcInvestido: "Valor investido (opcional)",
@@ -430,8 +430,7 @@ export const PADRAO_SIMULADORES: TextosSimuladores = {
   simValeBarraGastarUnicoHint: "O preço de hoje",
   simValeBarraGastarMensalHint: "O que você pagaria no período",
   simValeVeredito: (valor) => `Investindo, você teria ${valor} a mais no fim.`,
-  simValeNota: (taxa) =>
-    `Estimativa educada, não garantia de rentabilidade. Considera 220h úteis/mês e retorno composto de ${taxa} ao ano, sem descontar inflação ou impostos.`,
+  simValeNota: (taxa) => `Estimativa, não garantia: 220 h por mês e ${taxa} ao ano, sem inflação nem imposto.`,
   simValeComprar: "Comprar",
   simValeNaoComprar: "Não comprar",
   simValeAindaNaoSei: "Ainda não sei",

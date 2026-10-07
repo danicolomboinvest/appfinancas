@@ -29,6 +29,7 @@ import type { CaminhoParaTexto } from "@/lib/profiles/textos/compra";
 import { registrarCompraAction } from "@/app/(app)/mensal/foco/actions";
 import { criarSonhoDaCompraAction } from "@/app/(app)/planejamento/metas/actions";
 import { ReportarErro } from "@/components/decisoes/ReportarErro";
+import { useVoltarAoTopo } from "@/components/ui/useVoltarAoTopo";
 
 const MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
 
@@ -62,6 +63,8 @@ export function PossoComprar({ base, hoje, parcelasNoMes }: { base: CompraBase; 
   const fmt = { money: m, mesDaqui };
 
   const [passo, setPasso] = useState<Passo>("cat");
+  // Avançou um passo: a tela volta para o começo dele (06/10/2026).
+  const topoRef = useVoltarAoTopo<HTMLDivElement>(passo);
   const [historico, setHistorico] = useState<Passo[]>([]);
   const [cat, setCat] = useState<CategoriaDaCompra | null>(null);
   const [nomeOutro, setNomeOutro] = useState("");
@@ -196,7 +199,7 @@ export function PossoComprar({ base, hoje, parcelasNoMes }: { base: CompraBase; 
   const titulo = "text-[30px] font-extrabold leading-[1.08] tracking-tight text-ink [text-wrap:balance]";
 
   return (
-    <div className="flex flex-col gap-4">
+    <div ref={topoRef} className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-3">
         {historico.length === 0 ? (
           <Link href="/decidir" aria-label="Fechar" className="flex size-11 items-center justify-center rounded-full bg-surface text-ink">

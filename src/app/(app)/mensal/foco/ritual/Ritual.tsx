@@ -7,6 +7,7 @@ import { useMoney } from "@/components/money/MoneyProvider";
 import { useToast } from "@/components/ui/toast-context";
 import { concluirRitualAction, definirTetoAction, dispensarAvisoAction, registrarAporteDoMesAction } from "../actions";
 import { Botao, Passo, Pontos } from "../Passos";
+import { useVoltarAoTopo } from "@/components/ui/useVoltarAoTopo";
 
 export type DadosRitual = {
   semana: string;
@@ -26,6 +27,8 @@ export function Ritual({ d }: { d: DadosRitual }) {
   const m = (v: number) => money(v, { round: true });
   const router = useRouter();
   const [passo, setPasso] = useState(0);
+  // Avançou um passo: a tela volta para o começo dele (06/10/2026).
+  const topoRef = useVoltarAoTopo<HTMLDivElement>(passo);
   const [escolhas, setEscolhas] = useState<string[]>([]);
   const [salvando, start] = useTransition();
   const seguir = (escolha?: string) => {
@@ -48,7 +51,7 @@ export function Ritual({ d }: { d: DadosRitual }) {
   const variacao = d.semanaPassada.media && d.semanaPassada.media > 0 ? (d.semanaPassada.total - d.semanaPassada.media) / d.semanaPassada.media : null;
 
   return (
-    <div className="flex flex-col gap-4" data-guia="ritual">
+    <div ref={topoRef} className="flex flex-col gap-4" data-guia="ritual">
       <Pontos total={4} atual={passo} />
 
       {passo === 0 && (

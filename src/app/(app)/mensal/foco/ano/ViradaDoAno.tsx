@@ -6,6 +6,7 @@ import { useMoney } from "@/components/money/MoneyProvider";
 import { comecarAnoAction } from "../actions";
 import { Botao, Passo, Pontos } from "../Passos";
 import type { ContaFixa, DadosVirada } from "./dados";
+import { useVoltarAoTopo } from "@/components/ui/useVoltarAoTopo";
 
 const pct = (v: number) => `${(v * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`;
 
@@ -14,6 +15,8 @@ export function ViradaDoAno({ v }: { v: DadosVirada }) {
   const m = (x: number) => money(x, { round: true });
   const router = useRouter();
   const [passo, setPasso] = useState(0);
+  // Avançou um passo: a tela volta para o começo dele (06/10/2026).
+  const topoRef = useVoltarAoTopo<HTMLDivElement>(passo);
   const [salvando, start] = useTransition();
   const [erro, setErro] = useState(false);
   // As contas fixas de sempre começam marcadas; as lançadas à mão em dezembro, desmarcadas (pode
@@ -38,7 +41,7 @@ export function ViradaDoAno({ v }: { v: DadosVirada }) {
     });
 
   return (
-    <div className="flex flex-col gap-4">
+    <div ref={topoRef} className="flex flex-col gap-4">
       <Pontos total={3} atual={passo} />
 
       {passo === 0 && (

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ondeMostrarFechamento } from "./fechamento/quando-mostrar";
-import { ChevronRight, Check, ShoppingBag, ScanSearch, Signpost } from "lucide-react";
+import { ChevronRight, Check, ShoppingBag, ScanSearch, Calculator } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
 import { Card } from "@/components/ui/Card";
 import { ReportarErro } from "@/components/decisoes/ReportarErro";
@@ -49,8 +49,46 @@ export default async function FocoPage() {
   const contaNova = !comece.temLancamento;
   const cartaoAcao = "flex w-full items-center justify-between gap-4 text-left";
 
+  // Atalhos redondos com nome (06/10/2026), como os serviços do Uber: decidir uma compra, achar os
+  // gastinhos e as calculadoras, que antes ninguém achava. Todas as perguntas continuam no Decidir,
+  // no Mais. A empresa não tem Decidir.
+  const atalhos = d.empresa ? null : (
+    <nav aria-label={t.decTitulo} className="grid grid-cols-3 gap-2 lg:flex lg:gap-3">
+      {[
+        { href: "/decidir/comprar", icone: ShoppingBag, rotulo: t.compraTitulo },
+        { href: "/decidir/raio-x", icone: ScanSearch, rotulo: t.raioxAtalho },
+        { href: "/simuladores", icone: Calculator, rotulo: t.calcTitulo },
+      ].map(({ href, icone: Icone, rotulo }) => (
+        <Link key={href} href={href} className="flex min-h-20 flex-col items-center justify-start gap-1.5 rounded-2xl px-1 py-1.5 text-center transition-colors hover:bg-surface-hover lg:w-24">
+          <span className="flex size-11 items-center justify-center rounded-full border border-border bg-surface text-accent-strong shadow-sm">
+            <Icone size={19} strokeWidth={1.8} aria-hidden />
+          </span>
+          <span className="text-xs font-medium leading-tight text-ink">{rotulo}</span>
+        </Link>
+      ))}
+    </nav>
+  );
+  // Seu outubro: Entrou · Gastou · Guardado, e um toque abre o Mensal.
+  const seuMes = (
+    <Link href={d.hrefMes} className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-surface px-5 py-4 transition-colors hover:bg-surface-hover">
+      <span className="min-w-0">
+        <span className="block text-caption font-semibold uppercase tracking-[0.11em] text-ink-muted">{t.focoResumoMes(d.mesLabel)}</span>
+        <span className="mt-0.5 block text-caption text-ink-muted">
+          Entrou {m(d.summary.totalIncome)} · Gastou {m(d.summary.totalExpense)}
+          {d.summary.totalInvestment > 0 && <> · {voz.titulos.aportou} {m(d.summary.totalInvestment)}</>}
+        </span>
+      </span>
+      <span className="shrink-0 text-caption font-semibold text-accent-strong">{t.focoVerMes} ›</span>
+    </Link>
+  );
+
   return (
-    <div className="flex flex-col gap-4">
+    // No computador (06/10/2026), duas colunas: à esquerda o número da semana e o que tem data
+    // (contas, fechamento, ritual); à direita o "Para fazer", os atalhos e o resumo do mês. Numa
+    // coluna só de 900px, cada linha tinha o texto num canto e o botão no outro. No celular a
+    // ordem é a mesma de sempre, uma coluna embaixo da outra.
+    <div className={`flex flex-col gap-4 ${contaNova ? "" : "lg:grid lg:grid-cols-2 lg:items-start lg:gap-5"}`}>
+      <div className="flex min-w-0 flex-col gap-4">
       {/* Meta que chegou no valor: a notificação com confete, uma vez só (conquista rara). */}
       <ConquistasDeMetas ctx={ctx} />
       {/* O topo da Foco é a pergunta da semana (01/10/2026): antes ficava abaixo do fechamento e
@@ -86,9 +124,10 @@ export default async function FocoPage() {
                   {livre.diasSemLancar !== null ? t.focoDadosVelhos(livre.diasSemLancar) : t.focoDadosNenhum}
                 </p>
               )}
-              <details className="border-t border-ink/10 pt-3">
-                <summary className="cursor-pointer text-caption font-semibold text-ink-muted">{t.focoComoCheguei}</summary>
-                <dl className="mt-2 grid grid-cols-[1fr_auto] gap-x-4 gap-y-1.5 text-caption">
+              <details className="heroi-fio border-t pt-3">
+                <summary className="cursor-pointer text-caption font-semibold text-heroi-suave">{t.focoComoCheguei}</summary>
+                <div className="mt-2 rounded-2xl bg-surface p-3 text-ink">
+                <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1.5 text-caption">
                   <dt className="text-ink-muted">Orçamento do mês</dt>
                   <dd className="text-right tabular-nums text-ink">{m(livre.planejado)}</dd>
                   {livre.tipo === "estimativa" ? (
@@ -126,6 +165,7 @@ export default async function FocoPage() {
                 </p>
                 <div className="mt-3">
                   <ReportarErro tela="Foco: livre pra gastar" regra="(orçamento do mês − tudo que já saiu no mês) ÷ dias restantes × 7" />
+                </div>
                 </div>
               </details>
             </SemanaFoco>
@@ -221,7 +261,6 @@ export default async function FocoPage() {
             <span>
               <span className="block text-caption font-semibold uppercase tracking-[0.11em] text-ink-muted">{t.focoFechEy}</span>
               <span className="mt-1 block text-sm font-semibold text-ink">{t.focoFechT(d.mesAnterior.label)}</span>
-              <span className="mt-0.5 block text-caption text-ink-muted">{t.focoFechP}</span>
             </span>
             <span className="shrink-0 rounded-xl bg-pill px-3 py-2 text-caption font-semibold text-on-pill">{t.focoComecar}</span>
           </Card>
@@ -246,7 +285,15 @@ export default async function FocoPage() {
         primeiroLancamentoEm={comece.primeiroLancamentoEm?.toISOString() ?? null}
         hrefMes={d.hrefMes}
       />
+      {!contaNova && (
+        <div className="hidden lg:flex lg:flex-col lg:gap-4">
+          {atalhos}
+          {seuMes}
+        </div>
+      )}
+      </div>
 
+      <div className="flex min-w-0 flex-col gap-4">
       {/* Conta nova (nenhum lançamento ainda): o Foco é só o "Comece por aqui". Livre pra gastar,
           avisos, Central de decisões e resumo do mês estariam zerados, e o "Nada pedindo
           atenção" fazia quem não fez nada achar que já estava tudo certo. */}
@@ -257,18 +304,13 @@ export default async function FocoPage() {
         </Link>
       ) : (
         <>
-          {(foco.atencao.length > 0 || livre.tipo !== "semOrcamento") && (
-            <h2 className="mt-2 text-caption font-semibold uppercase tracking-[0.11em] text-ink-muted">{t.focoAtencao}</h2>
-          )}
-          {foco.atencao.length === 0 ? (
-            livre.tipo !== "semOrcamento" && (
-              <Card className="p-5">
-                <p className="text-body font-semibold text-ink">{t.focoNadaTitulo}</p>
-                {t.focoNadaSub && <p className="mt-1 text-caption text-ink-muted">{t.focoNadaSub}</p>}
-              </Card>
-            )
-          ) : (
-            foco.atencao.map((item) => <AvisoFoco key={item.id} item={item} hrefMes={d.hrefMes} opcoes={d.opcoesDeCategoria} gastos={item.detalhe?.tipo === "fora" ? d.gastosFora : item.detalhe?.tipo === "estouro" || item.detalhe?.tipo === "ritmo" ? (d.gastosPorCategoria[item.detalhe.categoria] ?? []) : []} resumo={item.detalhe?.tipo === "fora" ? d.resumoFora : item.detalhe?.tipo === "estouro" || item.detalhe?.tipo === "ritmo" ? d.resumoPorCategoria[item.detalhe.categoria] : undefined} />)
+          {/* "Para fazer" só quando há o que fazer (06/10/2026). O cartão "Nada pedindo atenção"
+              virou o selo do fim da tela, junto do que vai bem. */}
+          {foco.atencao.length > 0 && (
+            <>
+              <h2 className="mt-2 text-caption font-semibold uppercase tracking-[0.11em] text-ink-muted">{t.focoAtencao}</h2>
+              {foco.atencao.map((item) => <AvisoFoco key={item.id} item={item} hrefMes={d.hrefMes} opcoes={d.opcoesDeCategoria} gastos={item.detalhe?.tipo === "fora" ? d.gastosFora : item.detalhe?.tipo === "estouro" || item.detalhe?.tipo === "ritmo" ? (d.gastosPorCategoria[item.detalhe.categoria] ?? []) : []} resumo={item.detalhe?.tipo === "fora" ? d.resumoFora : item.detalhe?.tipo === "estouro" || item.detalhe?.tipo === "ritmo" ? d.resumoPorCategoria[item.detalhe.categoria] : undefined} />)}
+            </>
           )}
           {/* O que ela já decidiu num aviso vira combinado, logo abaixo: dá pra ver se está sendo cumprido. */}
           {foco.combinados.map((c) => (
@@ -288,81 +330,65 @@ export default async function FocoPage() {
           {/* Semanal ou mensal? Só depois do primeiro lançamento: antes disso é uma decisão sem
               nada pra acompanhar (enquanto isso vale o semanal, em silêncio, como em dados.ts). */}
           {perguntarRitmo(ritmo !== null, comece.temLancamento) && (
-            <Card className="p-5">
-              <p className="text-body font-semibold text-ink">{t.focoRitmoPergunta}</p>
-              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            // Uma pergunta e dois botões (06/10/2026). As frases de apoio de cada opção saíram: o
+            // nome já diz, e dá para trocar depois no rodapé desta tela.
+            <div className="flex flex-col gap-3 rounded-2xl border border-border bg-surface p-4">
+              <p className="text-sm font-semibold text-ink">{t.focoRitmoPergunta}</p>
+              <div className="grid grid-cols-2 gap-2">
                 {(["semanal", "mensal"] as const).map((r) => (
                   <form key={r} action={escolherRitmoAction.bind(null, r)}>
-                    <button type="submit" className="w-full rounded-2xl border border-border bg-surface px-4 py-3 text-left transition-colors hover:bg-surface-hover">
-                      <span className="block text-sm font-semibold text-ink">{r === "semanal" ? t.focoRitmoSemanal : t.focoRitmoMensal}</span>
-                      <span className="mt-0.5 block text-caption text-ink-muted">{r === "semanal" ? t.focoRitmoSemanalSub : t.focoRitmoMensalSub}</span>
+                    <button type="submit" className="min-h-11 w-full rounded-full border border-border-strong px-3 text-sm font-semibold text-ink transition-colors hover:bg-surface-hover">
+                      {r === "semanal" ? t.focoRitmoSemanal : t.focoRitmoMensal}
                     </button>
                   </form>
                 ))}
               </div>
-            </Card>
+            </div>
           )}
 
-          {/* "Nada pedindo atenção" só quando dá pra saber: sem orçamento não há o que conferir, e a
-              frase soava como "tudo certo" pra quem ainda não montou nada. */}
-          {/* Central de decisões em pílulas (01/10/2026): antes era um cartão de três linhas com
-              explicação cada; as perguntas já dizem o que fazem. A empresa não tem Decidir. */}
-          {!d.empresa && (
-            <section className="flex flex-col gap-2">
-              <p className="px-1 text-caption font-medium text-ink-muted">Antes de decidir, pergunte</p>
-              <div className="flex flex-wrap gap-2">
-                {[
-                  { href: "/decidir/comprar", icone: ShoppingBag, rotulo: t.compraTitulo },
-                  { href: "/decidir/raio-x", icone: ScanSearch, rotulo: t.raioxTitulo },
-                  { href: "/decidir", icone: Signpost, rotulo: "Todas as perguntas" },
-                ].map(({ href, icone: Icone, rotulo }) => (
-                  <Link key={href} href={href} className="inline-flex min-h-11 items-center gap-2 rounded-full border border-border bg-surface px-4 text-sm font-semibold text-ink transition-colors hover:bg-surface-hover">
-                    <Icone size={16} className="text-accent-strong" aria-hidden />
-                    {rotulo}
-                  </Link>
-                ))}
-              </div>
-            </section>
-          )}
+          {/* Atalhos e "Seu mês": aqui no celular; no computador sobem para a coluna da esquerda. */}
+          {atalhos && <div className="lg:hidden">{atalhos}</div>}
 
           {ondeFechar === "discreto" && (
             <Link href="/mensal/foco/fechamento" className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-surface px-5 py-4 transition-colors hover:bg-surface-hover">
-              <span>
-                <span className="block text-sm font-semibold text-ink">{t.fechTitulo(d.mesAnterior.label)}</span>
-                <span className="mt-0.5 block text-caption text-ink-muted">{t.focoFechP}</span>
-              </span>
+              <span className="text-sm font-semibold text-ink">{t.fechTitulo(d.mesAnterior.label)}</span>
               <ChevronRight size={16} className="shrink-0 text-ink-faint" />
             </Link>
           )}
 
-          {/* O que vai bem cabe numa linha: aberta, a lista de sempre. */}
-          {foco.bem.length > 0 && (
-            <details className="rounded-2xl border border-border bg-surface px-4">
-              <summary className="flex min-h-11 cursor-pointer items-center gap-2 text-sm font-medium text-ink">
+          <div className="lg:hidden">{seuMes}</div>
+
+          {/* O selo do fim (06/10/2026): a tela termina dizendo que está tudo em dia, quando está, e
+              o que vai bem. Antes eram dois cartões soltos no meio ("Nada pedindo atenção" e "2
+              coisas indo bem"). Sem orçamento não há o que conferir: aí não diz "em dia". */}
+          {(() => {
+            const emDia = foco.atencao.length === 0 && livre.tipo !== "semOrcamento";
+            if (!emDia && foco.bem.length === 0) return null;
+            const indoBem = foco.bem.length === 0 ? null : foco.bem.length === 1 ? "1 coisa indo bem" : `${foco.bem.length} coisas indo bem`;
+            const rotulo = [emDia ? t.focoNadaTitulo : null, indoBem].filter(Boolean).join(" · ");
+            const selo = (
+              <span className="flex min-h-11 items-center gap-2 text-sm font-medium text-ink">
                 <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-success/15 text-success">
                   <Check size={14} strokeWidth={2.5} />
                 </span>
-                {foco.bem.length === 1 ? "1 coisa indo bem" : `${foco.bem.length} coisas indo bem`}
-              </summary>
-              <ul className="flex flex-col divide-y divide-border pb-2">
-                {foco.bem.map((b, i) => (
-                  <li key={i} className="py-2.5 text-sm text-ink-muted">
-                    {b.titulo}
-                  </li>
-                ))}
-              </ul>
-            </details>
-          )}
-
-          <Link href={d.hrefMes} className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-surface px-5 py-4 transition-colors hover:bg-surface-hover">
-            <span>
-              <span className="block text-caption font-semibold uppercase tracking-[0.11em] text-ink-muted">{t.focoResumoMes(d.mesLabel)}</span>
-              <span className="mt-0.5 block text-caption text-ink-muted">
-                Entrou {m(d.summary.totalIncome)} · Gastou {m(d.summary.totalExpense)}
+                {rotulo}
               </span>
-            </span>
-            <span className="shrink-0 text-caption font-semibold text-accent-strong">{t.focoVerMes} ›</span>
-          </Link>
+            );
+            return foco.bem.length === 0 ? (
+              <div className="flex justify-center px-4">{selo}</div>
+            ) : (
+              <details className="rounded-2xl border border-border bg-surface px-4">
+                <summary className="cursor-pointer list-none">{selo}</summary>
+                <ul className="flex flex-col divide-y divide-border pb-2">
+                  {foco.bem.map((b, i) => (
+                    <li key={i} className="py-2.5 text-sm text-ink-muted">
+                      {b.titulo}
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            );
+          })()}
 
           {ritmo && (
             <form action={escolherRitmoAction.bind(null, ritmo === "semanal" ? "mensal" : "semanal")} className="flex items-center justify-center gap-2 pb-2 text-caption text-ink-faint">
@@ -374,6 +400,7 @@ export default async function FocoPage() {
           )}
         </>
       )}
+      </div>
     </div>
   );
 }

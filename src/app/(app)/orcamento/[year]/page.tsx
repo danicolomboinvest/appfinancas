@@ -269,7 +269,6 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
           DELA, e no celular cada linha aqui empurra pra fora da tela o número que ela veio ver. */}
       <PageHeader
         title={voz.titulos.orcamento}
-        subtitle={voz.titulos.orcamentoSub}
         action={
           <div className="flex items-center gap-1">
             <Link
@@ -333,7 +332,7 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
       ) : hasPlan ? (
         // Com plano: um botão que abre o assistente por cima (ver EditarPlano). Sem plano, ele é
         // a própria página e continua aberto aqui.
-        <EditarPlano rotulo={`Editar plano ${year}`} titulo={`Editar plano ${year}`}>
+        <EditarPlano rotulo={voz.titulos.formOrcEditarCurto(year)} titulo={voz.titulos.formOrcEditarCurto(year)}>
           {assistente}
         </EditarPlano>
       ) : (

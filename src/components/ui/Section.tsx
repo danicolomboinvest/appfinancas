@@ -1,3 +1,5 @@
+import { DicaDaPrimeiraVez } from "@/components/ui/DicaDaPrimeiraVez";
+
 /**
  * Seção de tela. No celular, sem moldura: título na página, conteúdo logo abaixo, um fio
  * separando uma seção da outra — empilhar sete retângulos iguais numa tela estreita cobra
@@ -10,11 +12,15 @@
 export function Section({
   title,
   hint,
+  hintSempre = false,
   action,
   children,
 }: {
   title: string;
+  /** A frase-guia do gráfico. Aparece só na primeira vez que a pessoa vê a seção (06/10/2026). */
   hint?: string;
+  /** Quando a frase é um dado (e não uma explicação), ela fica sempre. */
+  hintSempre?: boolean;
   /** Link opcional no canto direito do título (ex.: "ver tudo →"). */
   action?: React.ReactNode;
   children: React.ReactNode;
@@ -25,7 +31,16 @@ export function Section({
         <h2 className="text-[17px] font-semibold tracking-tight text-ink">{title}</h2>
         {action}
       </div>
-      {hint && <p className="mt-0.5 text-caption text-ink-faint">{hint}</p>}
+      {/* Frase de explicação ensina uma vez e some (a Dani: "às vezes você tenta explicar tudo em
+          muito texto"). Dado fica sempre. */}
+      {hint &&
+        (hintSempre ? (
+          <p className="mt-0.5 text-caption text-ink-faint">{hint}</p>
+        ) : (
+          <DicaDaPrimeiraVez chave={`secao:${title}`} className="mt-0.5 text-caption text-ink-faint">
+            {hint}
+          </DicaDaPrimeiraVez>
+        ))}
       {/* `flex-col` com gap, e não um simples bloco: uma seção quase sempre tem mais de uma
           peça (gráfico + chips de veredito + nota de rodapé), e sem gap elas encostavam umas
           nas outras — o chip "1 categoria estourou" nascia colado na última barra. */}

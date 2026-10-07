@@ -120,7 +120,8 @@ export default async function SpendingByCategoryPage(props: PageProps<"/mensal/g
   return (
     <div className="flex flex-col gap-6">
 
-      <PageHeader title={voz.titulos.soGastos} subtitle={voz.titulos.soGastosSub} />
+      {/* Sem a frase fixa embaixo do título (06/10/2026): o nome da aba já diz o que é. */}
+      <PageHeader title={voz.titulos.soGastos} />
 
       <SpendingByCategory
         selectedYear={year}

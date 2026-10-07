@@ -4,13 +4,15 @@ import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
-import { ArrowUpRight, Briefcase, Eye, EyeOff, FileText, FileUp, Pencil, Plus, RefreshCw, TrendingUp } from "lucide-react";
+import { ArrowUpRight, Briefcase, ChevronRight, Eye, EyeOff, FileText, FileUp, MoreHorizontal, Pencil, PiggyBank, Plus, RefreshCw, TrendingUp } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { FitText } from "@/components/ui/FitText";
 import { CountUp } from "@/components/ui/CountUp";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
+import { HeroiDoTema } from "@/components/ui/HeroiDoTema";
+import { DicaDaPrimeiraVez } from "@/components/ui/DicaDaPrimeiraVez";
 import { useToast } from "@/components/ui/toast-context";
 import { Donut } from "@/components/charts/Donut";
 import { BulletBar, type BulletRow } from "@/components/charts/BulletBar";
@@ -108,7 +110,18 @@ export function AssetsSection({
   strategy,
   empresa = false,
   comAporteRecente = [],
+  aportePendente = 0,
+  aportes = null,
+  proventos = null,
+  proximoAporte = null,
 }: {
+  /** Quanto foi guardado (este mês e o passado) e ainda não tem ativo: aparece no botão. */
+  aportePendente?: number;
+  /** Os cartões de aporte e resgate esperando destino, abertos pelo "Atualizar aportes". */
+  aportes?: React.ReactNode;
+  /** Entre os botões e a rosca: os proventos a caminho (uma linha fechada) e o próximo aporte. */
+  proventos?: React.ReactNode;
+  proximoAporte?: React.ReactNode;
   assets: Asset[];
   goals: { id: string; name: string }[];
   goalNameById: Map<string, string>;
@@ -126,6 +139,8 @@ export function AssetsSection({
   const [atalho, setAtalho] = useState<AtalhoDeAtivo | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [irpfOpen, setIrpfOpen] = useState(false);
+  const [aportesOpen, setAportesOpen] = useState(false);
+  const [maisOpen, setMaisOpen] = useState(false);
   const [editingAsset, setEditingAssetBruto] = useState<Asset | null>(null);
   const [modoEdicao, setModoEdicao] = useState<"valores" | "resgate">("valores");
   // Abrir outro investimento sempre começa em "Atualizar valores".
@@ -145,6 +160,8 @@ export function AssetsSection({
   useEffect(() => {
     const abrir = () => {
       setAtalho(null);
+      // Vem de dentro da folha "Atualizar aportes": fecha ela para o formulário não abrir por cima.
+      setAportesOpen(false);
       setCreateOpen(true);
     };
     window.addEventListener(ABRIR_NOVO_ATIVO, abrir);
@@ -311,72 +328,82 @@ export function AssetsSection({
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Herói: o total da carteira. Já foi um número de 52px numa caixa com brilho, e a Dani
-          achou gritante e espaçoso. Agora é um cartão baixo: ícone redondo, rótulo, número de
-          32px e o chip do lucro na mesma linha. O olho oculta os valores. */}
-      <div className="rounded-2xl border border-border bg-surface p-4 sm:p-5">
+      {/* No computador (06/10/2026): o total, os botões e os proventos à esquerda; o próximo aporte
+          à direita. Um embaixo do outro, os proventos (uma linha) ficavam sozinhos numa metade da
+          tela com um vazio enorme embaixo. No celular continua tudo em coluna. */}
+      <div className={`flex flex-col gap-6 ${proximoAporte ? "lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:items-start lg:gap-5" : ""}`}>
+      <div className="flex min-w-0 flex-col gap-6 lg:gap-4">
+      {/* Herói pintado na cor do tema (06/10/2026): o total é a resposta da tela. Antes era um
+          cartão branco com quatro botões de texto embaixo; a variação fica num chip neutro, porque
+          vermelho como segunda coisa da tela assustava quem acabou de comprar. O olho oculta os valores. */}
+      <HeroiDoTema>
+        {/* Rótulo e número juntos (sem o espaço do herói entre eles). Sem margem negativa no número:
+            dentro do FitText ela cortava o topo do símbolo da moeda. */}
         <div>
-          <div className="flex flex-wrap items-center gap-3 sm:gap-4">
-            <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent-strong">
-              <Briefcase size={20} strokeWidth={1.8} />
+        <div className="-my-1 flex items-center gap-2">
+          <p className="text-caption font-semibold uppercase tracking-[0.1em] text-heroi-suave">{t.cartTotal}</p>
+          <button
+            type="button"
+            onClick={() => setHidden((h) => !h)}
+            aria-label={hidden ? t.cartMostrarValores : t.cartOcultarValores}
+            className="flex size-8 items-center justify-center rounded-full text-heroi-suave transition-colors hover:text-heroi-tinta"
+          >
+            {hidden ? <EyeOff size={16} strokeWidth={1.9} /> : <Eye size={16} strokeWidth={1.9} />}
+          </button>
+        </div>
+        <FitText className="text-[2.5rem] font-bold leading-tight tracking-tight tabular-nums">
+          {hidden ? `${currencySymbol(currency)} ••••` : <CountUp value={totalValue} format={formatValue} />}
+        </FitText>
+        </div>
+        {Math.abs(totalProfit) >= 0.005 && totalInvested > 0 && (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="heroi-veu inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold tabular-nums">
+              {totalProfit > 0 ? "▲ +" : "▼ −"}
+              {formatPercentNumber(Math.abs((totalProfit / totalInvested) * 100), 1)}
             </span>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <p className="text-caption font-semibold uppercase tracking-[0.08em] text-ink-muted">
-                  {t.cartSuaCarteira(assets.length)}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setHidden((h) => !h)}
-                  aria-label={hidden ? t.cartMostrarValores : t.cartOcultarValores}
-                  className="text-ink-muted transition-colors hover:text-ink"
-                >
-                  {hidden ? <EyeOff size={15} strokeWidth={1.9} /> : <Eye size={15} strokeWidth={1.9} />}
-                </button>
-              </div>
-              <div className="mt-0.5 flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
-                <FitText className="text-display font-semibold tracking-tight tabular-nums text-ink">
-                  {hidden ? `${currencySymbol(currency)} ••••` : <CountUp value={totalValue} format={formatValue} />}
-                </FitText>
-                {Math.abs(totalProfit) >= 0.005 && totalInvested > 0 && (
-                  <p className={`text-sm tabular-nums ${totalProfit > 0 ? "text-success" : "text-danger"}`}>
-                    {t.cartDesdeACompra(`${totalProfit > 0 ? "+" : "−"}${hidden ? `${currencySymbol(currency)} ••••` : money(Math.abs(totalProfit))}`)}
-                  </p>
-                )}
-              </div>
-            </div>
-            {Math.abs(totalProfit) >= 0.005 && totalInvested > 0 && (
-              <span
-                className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold tabular-nums ${
-                  totalProfit > 0 ? "bg-success-soft text-success" : "bg-danger-soft text-danger"
-                }`}
-              >
-                {totalProfit > 0 ? "▲" : "▼"} {totalProfit > 0 ? "+" : "−"}
-                {formatPercentNumber(Math.abs((totalProfit / totalInvested) * 100), 1)}
+            <span className="text-sm tabular-nums text-heroi-suave">
+              {t.cartDesdeACompra(`${totalProfit > 0 ? "+" : "−"}${money(Math.abs(totalProfit))}`)}
+            </span>
+          </div>
+        )}
+      </HeroiDoTema>
+
+      {/* Atalhos redondos, como no Foco: o verbo embaixo do ícone. "Atualizar aportes" é o botão que
+          a Dani pediu no lugar do aviso do Mensal; quando há valor guardado sem ativo, ele ganha a
+          cor do tema e mostra quanto. Preço médio e cotações foram para o "Mais". */}
+      <nav aria-label={t.carteira} className="-mt-2 grid grid-cols-4 gap-1 lg:flex lg:gap-3">
+        {[
+          { chave: "aportes", Icone: PiggyBank, rotulo: t.cartAtualizarAportes, acao: () => setAportesOpen(true), destaque: aportePendente > 0.005 },
+          { chave: "novo", Icone: Plus, rotulo: t.cartNovoAtivo, acao: () => abrirNovo(), destaque: false },
+          { chave: "importar", Icone: FileUp, rotulo: t.cartImportar, acao: () => setImportOpen(true), destaque: false },
+          { chave: "mais", Icone: MoreHorizontal, rotulo: t.cartMaisOpcoes, acao: () => setMaisOpen(true), destaque: false },
+        ].map(({ chave, Icone, rotulo, acao, destaque }) => (
+          <button
+            key={chave}
+            type="button"
+            onClick={acao}
+            className="flex min-h-20 flex-col items-center justify-start gap-1 rounded-2xl px-1 py-1.5 text-center transition-colors hover:bg-surface-hover lg:w-24"
+          >
+            <span
+              className={`relative flex size-11 items-center justify-center rounded-full ${
+                destaque ? "bg-accent-gradient text-on-accent shadow-premium-sm" : "border border-border bg-surface text-accent-strong shadow-sm"
+              }`}
+            >
+              <Icone size={19} strokeWidth={1.8} aria-hidden />
+            </span>
+            <span className="text-xs font-medium leading-tight text-ink">{rotulo}</span>
+            {chave === "aportes" && destaque && (
+              <span className="rounded-full bg-accent-soft px-2 py-0.5 text-caption font-semibold tabular-nums text-accent-strong">
+                {hidden ? `${currencySymbol(currency)} ••••` : formatValue(aportePendente, { round: true })}
               </span>
             )}
-          </div>
-          <div className="mt-4 flex flex-wrap items-center gap-2">
-            <Button type="button" size="sm" onClick={() => setCreateOpen(true)}>
-              <Plus size={16} strokeWidth={2} />
-              {t.cartNovoAtivo}
-            </Button>
-            <Button type="button" size="sm" variant="secondary" onClick={() => setImportOpen(true)}>
-              <FileUp size={16} strokeWidth={2} />
-              {t.cartImportar}
-            </Button>
-            <Button type="button" size="sm" variant="secondary" onClick={() => setIrpfOpen(true)}>
-              <FileText size={16} strokeWidth={2} />
-              {t.cartPrecoMedioIR}
-            </Button>
-            {hasTickers && (
-              <Button type="button" size="sm" variant="secondary" onClick={handleUpdateQuotes} disabled={isUpdatingQuotes}>
-                <RefreshCw size={16} strokeWidth={2} className={isUpdatingQuotes ? "animate-spin" : ""} />
-                {isUpdatingQuotes ? t.cartAtualizando : t.cartAtualizarCotacoes}
-              </Button>
-            )}
-          </div>
-        </div>
+          </button>
+        ))}
+      </nav>
+
+      {proventos}
+      </div>
+      {proximoAporte && <div className="min-w-0">{proximoAporte}</div>}
       </div>
 
       <>
@@ -607,6 +634,51 @@ export function AssetsSection({
 
       <Modal open={importOpen} onClose={() => setImportOpen(false)} title={t.cartImportarCarteira}>
         <PortfolioImport onDone={() => setImportOpen(false)} />
+      </Modal>
+
+      <Modal open={aportesOpen} onClose={() => setAportesOpen(false)} title={t.cartAtualizarAportes}>
+        {aportes ? (
+          <div className="flex flex-col gap-3">
+            <DicaDaPrimeiraVez chave="carteira-aportes">{t.cartAportesDica}</DicaDaPrimeiraVez>
+            {aportes}
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2">
+            <p className="text-[15px] font-semibold text-ink">{t.cartAportesNada}</p>
+            <p className="text-sm text-ink-muted">{t.cartAportesComo}</p>
+          </div>
+        )}
+      </Modal>
+
+      <Modal open={maisOpen} onClose={() => setMaisOpen(false)} title={t.cartMaisOpcoes}>
+        <div className="flex flex-col divide-y divide-border overflow-hidden rounded-2xl border border-border">
+          <button
+            type="button"
+            onClick={() => {
+              setMaisOpen(false);
+              setIrpfOpen(true);
+            }}
+            className="flex min-h-12 items-center gap-3 px-4 py-3 text-left text-sm font-medium text-ink hover:bg-surface-2"
+          >
+            <FileText size={18} strokeWidth={1.8} className="text-accent-strong" aria-hidden />
+            <span className="flex-1">{t.cartPrecoMedioIR}</span>
+            <ChevronRight size={16} className="text-ink-faint" aria-hidden />
+          </button>
+          {hasTickers && (
+            <button
+              type="button"
+              onClick={() => {
+                setMaisOpen(false);
+                handleUpdateQuotes();
+              }}
+              disabled={isUpdatingQuotes}
+              className="flex min-h-12 items-center gap-3 px-4 py-3 text-left text-sm font-medium text-ink hover:bg-surface-2 disabled:opacity-60"
+            >
+              <RefreshCw size={18} strokeWidth={1.8} className={`text-accent-strong ${isUpdatingQuotes ? "animate-spin" : ""}`} aria-hidden />
+              <span className="flex-1">{isUpdatingQuotes ? t.cartAtualizando : t.cartAtualizarCotacoes}</span>
+            </button>
+          )}
+        </div>
       </Modal>
 
       <Modal open={irpfOpen} onClose={() => setIrpfOpen(false)} title={t.cartPrecoMedioDeclaracao}>

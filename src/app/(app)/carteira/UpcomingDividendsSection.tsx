@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import type { UpcomingDividend } from "@/lib/repositories/dividend.repo";
-import { serverMoney } from "@/lib/money-server";
+import type { MoneyFormatter } from "@/lib/money";
 
 
 /** "21/08" — data curta, o ano quase nunca muda de uma linha pra outra nesta lista. */
@@ -22,9 +22,10 @@ const KIND_TONE: Record<string, "accent" | "success" | "neutral"> = {
  * "Próximos dividendos": calendário de proventos anunciados pros ativos da carteira, com valor
  * estimado (quantidade × valor por cota). Vem do investidor10, atualizado ao criar/importar um
  * ativo e todo dia via cron — a pessoa não pede nada, só aparece quando tem provento a caminho.
+ * Fechado por padrão desde 06/10/2026: a lista de 17 linhas aberta vinha antes do total da
+ * carteira. Fechado, é uma linha com o valor; um toque abre.
  */
-export async function UpcomingDividendsSection({ dividends, voz }: { dividends: UpcomingDividend[]; voz: Voz }) {
-  const money = await serverMoney();
+export function UpcomingDividendsSection({ dividends, voz, money }: { dividends: UpcomingDividend[]; voz: Voz; money: MoneyFormatter }) {
   if (dividends.length === 0) return null;
 
   const total = dividends.reduce((sum, d) => sum + d.estimatedTotal, 0);
@@ -33,7 +34,6 @@ export async function UpcomingDividendsSection({ dividends, voz }: { dividends: 
     <div id="dividendos">
       <CollapsibleSection
         label={voz.titulos.divTitulo(money(total))}
-        defaultOpen
       >
         <Card className="flex flex-col gap-1 p-2">
           {dividends.map((d, index) => (

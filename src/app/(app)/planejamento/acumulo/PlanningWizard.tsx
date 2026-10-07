@@ -11,6 +11,7 @@ import type { Titulos } from "@/lib/profiles/voice";
 import { savePlanningParamsAction, type PlanningParamsState } from "./actions";
 import { useCurrency } from "@/components/money/MoneyProvider";
 import { currencySymbol } from "@/lib/money";
+import { useVoltarAoTopo } from "@/components/ui/useVoltarAoTopo";
 
 const initialState: PlanningParamsState = {};
 
@@ -95,6 +96,8 @@ export function PlanningWizard() {
   const [state, formAction, isPending] = useActionState(savePlanningParamsAction, initialState);
   useSuccessToast(isPending, state.error);
   const [step, setStep] = useState(0);
+  // Avançou um passo: a tela volta para o começo dele (06/10/2026).
+  const topoRef = useVoltarAoTopo<HTMLFormElement>(step);
   const [values, setValues] = useState<Record<string, string>>(DEFAULT_VALUES);
 
   const current = steps[step];
@@ -140,7 +143,7 @@ export function PlanningWizard() {
   }
 
   return (
-    <form action={formAction} className="mx-auto flex w-full max-w-md flex-col gap-6">
+    <form ref={topoRef} action={formAction} className="mx-auto flex w-full max-w-md flex-col gap-6">
       {/* Progresso + voltar (igual aos simuladores). */}
       <div className="flex items-center gap-3">
         <button

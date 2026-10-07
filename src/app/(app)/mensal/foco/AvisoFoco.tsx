@@ -183,88 +183,59 @@ export function AvisoFoco({ item, hrefMes, gastos = [], resumo, opcoes = [] }: {
   // resolve. O parágrafo continua dentro da janela; na frente, ninguém lia.
   const Icone: LucideIcon = !d ? Target : d.tipo === "estouro" ? Ban : d.tipo === "ritmo" ? TrendingUp : d.tipo === "aporte" ? PiggyBank : d.tipo === "meta" ? Target : d.tipo === "reserva" ? ShieldCheck : d.tipo === "raiox" ? ScanSearch : Receipt;
   const tomIcone = item.nivel === 1 ? "bg-danger-soft text-danger" : item.nivel === 2 ? "bg-accent-soft text-accent-strong" : "bg-surface-2 text-ink-muted";
-  let desenho: React.ReactNode = <p className="text-caption text-ink-muted">{item.texto}</p>;
+  // A frente do aviso em uma linha (06/10/2026, como as linhas do YNAB e as sugestões do Nubank):
+  // ícone, o título, o número numa linha curta, uma barra fina quando há régua e um botão com o
+  // verbo do que dá para fazer. Antes eram cartões grandes, todos com o mesmo "Ver o que fazer".
+  // A janela atrás do verbo é a mesma, com o teto e o "já guardei" de um toque.
+  let curto: string | null = null;
+  let barra: React.ReactNode = null;
   if (d?.tipo === "estouro" || d?.tipo === "ritmo") {
-    desenho = (
-      <>
-        <Barra gasto={d.gasto} planejado={d.planejado} decorrido={d.decorrido} />
-        <Rodape esquerda={t.avisoRodapeGasto(m(d.gasto))} direita={t.avisoRodapePlano(m(d.planejado))} />
-      </>
-    );
+    curto = `${t.avisoRodapeGasto(m(d.gasto))} · ${t.avisoRodapePlano(m(d.planejado))}`;
+    barra = <Barra gasto={d.gasto} planejado={d.planejado} decorrido={d.decorrido} fina />;
   } else if (d?.tipo === "aporte") {
-    desenho = (
-      <>
-        <Barra gasto={d.guardado} planejado={d.planejado} boa />
-        <Rodape esquerda={t.avisoRodapeGuardado(m(d.guardado))} direita={t.avisoRodapePlano(m(d.planejado))} />
-      </>
-    );
+    curto = `${t.avisoRodapeGuardado(m(d.guardado))} · ${t.avisoRodapePlano(m(d.planejado))}`;
+    barra = <Barra gasto={d.guardado} planejado={d.planejado} boa fina />;
   } else if (d?.tipo === "reserva") {
-    desenho = (
-      <>
-        <Barra gasto={d.meses} planejado={d.minimo} boa />
-        <Rodape esquerda={`${d.meses.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} ${d.meses === 1 ? "mês" : "meses"} guardados`} direita={`mínimo ${d.minimo} meses`} />
-      </>
-    );
+    curto = `${d.meses.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} de ${d.minimo} meses`;
+    barra = <Barra gasto={d.meses} planejado={d.minimo} boa fina />;
   } else if (d?.tipo === "meta") {
-    desenho = (
-      <p className="flex flex-wrap items-baseline gap-x-2 text-sm">
-        <span className="text-lg font-bold tabular-nums text-ink">{d.vencida ? t.avisoMetaPrazoPassou : d.ultimoMes ? m(d.porMes) : `${m(d.porMes)}/mês`}</span>
-        <span className="text-caption text-ink-muted">{d.vencida ? t.avisoMetaNaoChegou(d.nome) : d.ultimoMes ? t.avisoMetaFaltamUltimoMes(d.nome) : t.avisoMetaChegaEm(d.nome, d.quando)}</span>
-      </p>
-    );
-  } else if (d?.tipo === "fora" || d?.tipo === "raiox") {
-    desenho = (
-      <p className="flex flex-wrap items-baseline gap-x-2 text-sm">
-        <span className="text-lg font-bold tabular-nums text-ink">{d.tipo === "fora" ? m(d.valor) : `${m(d.anual)} por ano`}</span>
-        <span className="text-caption text-ink-muted">{d.tipo === "fora" ? item.texto : "em cobranças que se repetem"}</span>
-      </p>
-    );
+    curto = d.vencida ? t.avisoMetaNaoChegou(d.nome) : d.ultimoMes ? `${m(d.porMes)} · ${t.avisoMetaFaltamUltimoMes(d.nome)}` : `${m(d.porMes)}/mês · ${t.avisoMetaChegaEm(d.nome, d.quando)}`;
+  } else if (d?.tipo === "fora") {
+    curto = m(d.valor);
+  } else if (d?.tipo === "raiox") {
+    curto = `${m(d.anual)} por ano`;
   }
-  // O que dá para resolver com um toque, sem abrir nada: o teto do ritmo e o "já guardei".
-  const resolveJa =
-    d?.tipo === "ritmo"
-      ? { titulo: t.avisoTetoT(m(d.sobra)), fazer: () => fazer(() => definirTetoAction({ categoria: d.categoria, valor: d.sobra }), t.avisoTetoFeito(m(d.sobra), d.label)) }
-      : d?.tipo === "aporte"
-        ? { titulo: t.fechAporteFeito, fazer: () => fazer(() => registrarAporteDoMesAction(), t.avisoGuardarFeito(m(d.falta))) }
-        : null;
-  const botaoForte = "inline-flex min-h-11 flex-1 items-center justify-center rounded-full bg-pill px-4 text-caption font-semibold text-on-pill disabled:opacity-50";
-  const botaoLeve = "inline-flex min-h-11 flex-1 items-center justify-center rounded-full border border-border px-4 text-caption font-semibold text-ink";
-  // Botão escuro só quando resolve com um toque; "Ver o que fazer" fica leve, senão a tela vira uma
-  // fila de botões pretos iguais.
-  const botaoAbrir = resolveJa ? botaoLeve : "inline-flex min-h-11 flex-1 items-center justify-center rounded-full bg-accent-soft px-4 text-caption font-semibold text-accent-strong";
+  const verbo = t.focoVerbo[d?.tipo ?? "outro"] ?? item.acao;
+  const botaoVerbo = "inline-flex min-h-10 shrink-0 items-center justify-center rounded-full bg-accent-soft px-4 text-caption font-semibold text-accent-strong";
 
   return (
-    <Card className="flex flex-col gap-3 p-4">
-      <div className="flex items-start gap-3">
-        <span className={`flex size-9 shrink-0 items-center justify-center rounded-full ${tomIcone}`} aria-hidden>
+    <div className="flex flex-col gap-2 rounded-2xl border border-border bg-surface p-3">
+      <div className="flex items-center gap-3">
+        <span className={`flex size-10 shrink-0 items-center justify-center rounded-full ${tomIcone}`} aria-hidden>
           <Icone size={18} strokeWidth={1.9} />
         </span>
-        <p className="min-w-0 pt-1.5 text-sm font-semibold text-ink">{item.titulo}</p>
-      </div>
-      <div className="flex flex-col gap-1.5">{desenho}</div>
-      <div className="flex flex-wrap gap-2">
-        {resolveJa && (
-          <button type="button" disabled={salvando} onClick={resolveJa.fazer} className={botaoForte}>
-            {resolveJa.titulo}
-          </button>
-        )}
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold leading-snug text-ink">{item.titulo}</p>
+          {curto && <p className="mt-0.5 text-caption tabular-nums text-ink-muted">{curto}</p>}
+        </div>
         {d && d.tipo !== "raiox" ? (
-          <button type="button" onClick={() => setAberto(true)} className={botaoAbrir}>
-            {item.acao}
+          <button type="button" onClick={() => setAberto(true)} className={botaoVerbo}>
+            {verbo}
           </button>
         ) : (
-          <Link href={item.href} className={botaoAbrir}>
-            {item.acao}
+          <Link href={item.href} className={botaoVerbo}>
+            {verbo}
           </Link>
         )}
       </div>
+      {barra && <div className="pl-[52px]">{barra}</div>}
       <Modal open={aberto} onClose={() => setAberto(false)} title={item.titulo}>
         <div className="flex flex-col gap-3">
           <p className="text-caption text-ink-muted">{item.texto}</p>
           {corpo}
         </div>
       </Modal>
-    </Card>
+    </div>
   );
 }
 
@@ -353,13 +324,13 @@ function Numero({ valor, legenda, cor }: { valor: string; legenda: string; cor: 
  * Gasto contra o plano. Até o plano, a barra é dourada (ou verde, se `boa`: guardar mais é bom);
  * o que passa do plano aparece em vermelho, depois de um corte. A marca fina é o "hoje" no mês.
  */
-function Barra({ gasto, planejado, decorrido, boa, className = "" }: { gasto: number; planejado: number; decorrido?: number; boa?: boolean; className?: string }) {
+function Barra({ gasto, planejado, decorrido, boa, fina, className = "" }: { gasto: number; planejado: number; decorrido?: number; boa?: boolean; fina?: boolean; className?: string }) {
   const teto = Math.max(gasto, planejado, 1);
   const dentro = (Math.min(gasto, planejado) / teto) * 100;
   const passou = gasto > planejado ? ((gasto - planejado) / teto) * 100 : 0;
   const hoje = decorrido !== undefined ? ((planejado * Math.min(1, Math.max(0, decorrido))) / teto) * 100 : null;
   return (
-    <div className={`relative h-3 w-full overflow-hidden rounded-full bg-surface-2 ${className}`} role="img" aria-label={`${Math.round((gasto / Math.max(planejado, 1)) * 100)}% do plano`}>
+    <div className={`relative ${fina ? "h-1.5" : "h-3"} w-full overflow-hidden rounded-full bg-surface-2 ${className}`} role="img" aria-label={`${Math.round((gasto / Math.max(planejado, 1)) * 100)}% do plano`}>
       <div className={`absolute inset-y-0 left-0 ${boa ? "bg-success" : "bg-accent"}`} style={{ width: `${dentro}%` }} />
       {passou > 0 && (
         <div

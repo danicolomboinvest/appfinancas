@@ -115,7 +115,9 @@ export default async function MetasPage() {
       <ConquistasDeMetas ctx={ctx} />
       <PageHeader
         title={voz.titulos.metas}
-        subtitle={voz.titulos.metasSub}
+        // Sem a explicação fixa (06/10/2026): com metas, só o dado dela; sem nenhuma, quem explica é
+        // a tela vazia logo abaixo.
+        subtitle={sorted.length > 0 ? voz.titulos.metasResumo(sorted.length, monthPlan?.plannedInvestment ? money(monthPlan.plannedInvestment, { round: true }) : null) : undefined}
         // Sem nenhum sonho, o botão fica só no meio da tela vazia: dois "Novo sonho" iguais, um
         // em cima do outro, fizeram cliente perguntar qual era a diferença (01/10/2026).
         action={sorted.length > 0 ? <NewGoalButton /> : undefined}

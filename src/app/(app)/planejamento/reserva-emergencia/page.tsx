@@ -62,7 +62,8 @@ export default async function ReservaEmergenciaPage() {
     <div className="flex flex-col gap-8">
       <PageHeader
         title={voz.titulos.reserva}
-        subtitle={voz.titulos.reservaSub}
+        // A explicação de como a meta é calculada fica só para quem ainda não montou a reserva.
+        subtitle={fund ? undefined : voz.titulos.reservaSub}
       />
 
       {fund && (

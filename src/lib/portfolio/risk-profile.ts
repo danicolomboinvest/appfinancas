@@ -50,14 +50,14 @@ export function riskProfileFromAnswers(answers: RiskAnswers): RiskProfileResult 
   if (ORDEM.indexOf(teto) <= ORDEM.indexOf(porContexto) && answers.queda < 2) {
     reason =
       answers.queda === 0
-        ? "Você disse que venderia tudo numa queda. Enquanto for assim, a carteira precisa balançar pouco, mesmo com prazo longo."
-        : "Você segura uma queda, mas com desconforto. O perfil respeita esse limite.";
+        ? "Numa queda você venderia tudo, então a carteira precisa balançar pouco."
+        : "Você segura uma queda, mas com aperto. O perfil respeita isso.";
   } else if (answers.prazo === 0) {
-    reason = "Você vai precisar desse dinheiro em menos de 2 anos, e dinheiro de curto prazo não pode balançar.";
+    reason = "O dinheiro é para menos de 2 anos e não pode balançar.";
   } else if (answers.reserva === 0) {
-    reason = "Sua reserva de emergência ainda não está pronta. Antes dela, a carteira segura a onda.";
+    reason = "Sua reserva ainda não está pronta: ela vem antes.";
   } else {
-    reason = "Prazo longo, reserva pronta e estômago pra oscilação: dá pra buscar crescimento.";
+    reason = "Prazo longo, reserva pronta e calma nas quedas: dá para buscar crescimento.";
   }
   return { profile, reason };
 }

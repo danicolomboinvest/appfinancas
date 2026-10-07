@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { HeroiDoTema } from "@/components/ui/HeroiDoTema";
+import { NumeroRolante } from "@/components/ui/NumeroRolante";
 import type { Voz } from "@/lib/profiles/voice";
 import { Card } from "@/components/ui/Card";
 import { splitSavings, type SavingsTarget } from "@/lib/planning/savings-split";
@@ -25,26 +27,29 @@ export function SavingsSplitCard({ amount, targets, money, monthLabel, voz }: { 
     );
   }
   const { slices } = splitSavings(amount, targets);
+  // O herói da aba Metas (06/10/2026): quanto guardar no mês, grande, e a barra de para onde vai
+  // cada parte. A regra da divisão ("reserva primeiro, depois as metas por prazo") fica no toque
+  // do título, não escrita na tela para sempre.
   return (
-    <Card className="flex flex-col gap-3 border-accent/30 bg-accent-soft/30 p-4">
-      <div>
-        <p className="text-[15px] font-semibold text-ink">{voz.titulos.splitTitulo(monthLabel)}</p>
-        <p className="text-caption text-ink-muted">{voz.titulos.splitSub(money(amount, { round: true }))}</p>
-      </div>
-      <div className="flex h-3 overflow-hidden rounded-full bg-surface-2">
+    <HeroiDoTema>
+      <p className="text-sm font-medium text-heroi-suave" title={voz.titulos.splitSub(money(amount, { round: true }))}>
+        {voz.titulos.splitTitulo(monthLabel)}
+      </p>
+      <NumeroRolante texto={money(amount, { round: true })} className="text-[2.5rem] font-bold leading-none tracking-tight tabular-nums" />
+      <div className="heroi-veu flex h-3 gap-0.5 overflow-hidden rounded-full">
         {slices.map((s) => (
-          <span key={s.id} className="h-full" style={{ width: `${(s.amount / amount) * 100}%`, backgroundColor: KIND_COLOR[s.kind] }} />
+          <span key={s.id} className="h-full first:rounded-l-full last:rounded-r-full" style={{ width: `${(s.amount / amount) * 100}%`, backgroundColor: KIND_COLOR[s.kind] }} />
         ))}
       </div>
       <ul className="flex flex-col gap-1.5 text-sm">
         {slices.map((s) => (
           <li key={s.id} className="flex items-baseline gap-2">
             <span className="mt-1 size-2.5 shrink-0 rounded-[3px]" style={{ backgroundColor: KIND_COLOR[s.kind] }} />
-            <b className="shrink-0 tabular-nums text-ink">{money(s.amount, { round: true })}</b>
-            <span className="min-w-0 text-ink-muted">→ {s.kind === "reserva" ? voz.titulos.modReserva : s.name}</span>
+            <b className="shrink-0 tabular-nums">{money(s.amount, { round: true })}</b>
+            <span className="min-w-0 truncate text-heroi-suave">{s.kind === "reserva" ? voz.titulos.modReserva : s.name}</span>
           </li>
         ))}
       </ul>
-    </Card>
+    </HeroiDoTema>
   );
 }

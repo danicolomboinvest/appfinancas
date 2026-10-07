@@ -4,7 +4,7 @@ export const padrao: Voz = {
   saudacao: (p, nome) => `${CUMPRIMENTO[p]}${nome ? `, ${nome}` : ""}.`,
   subSaudacao: () => null,
   tituloPainel: null,
-  rotuloResultado: "Resultado",
+  rotuloResultado: "Sobrou",
   // O Padrão não ganha frase embaixo do painel: o bloco "O que mudou" já faz essa leitura, e
   // repetir o número em duas frases na mesma tela foi o que se tirou de lá de propósito.
   fraseResultado: () => null,
