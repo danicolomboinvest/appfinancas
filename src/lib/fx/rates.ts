@@ -64,6 +64,55 @@ const VALIDADE_MS = 60 * 60 * 1000;
  */
 const memoria = new Map<string, { valor: ExchangeRate; buscadoEm: number }>();
 
+/** Yahoo (USDBRL=X): preço do mercado agora, em `to`. */
+export function parseYahooFxRate(payload: unknown, from: CurrencyCode, to: CurrencyCode): ExchangeRate | null {
+  const meta = (payload as { chart?: { result?: { meta?: { currency?: string; regularMarketPrice?: number; regularMarketTime?: number } }[] | null } })?.chart?.result?.[0]?.meta;
+  if (!meta || meta.currency !== to) return null;
+  const rate = Number(meta.regularMarketPrice);
+  if (!Number.isFinite(rate) || rate <= 0) return null;
+  const date = meta.regularMarketTime ? new Date(meta.regularMarketTime * 1000).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10);
+  return { from, to, rate: Number(rate.toFixed(4)), date };
+}
+
+/** Frankfurter e ExchangeRate-API respondem no mesmo formato: { rates: { BRL: 5.0061 } }. */
+export function parseRatesTable(payload: unknown, from: CurrencyCode, to: CurrencyCode): ExchangeRate | null {
+  const p = payload as { rates?: Record<string, number>; date?: string; time_last_update_unix?: number };
+  const rate = Number(p?.rates?.[to]);
+  if (!Number.isFinite(rate) || rate <= 0) return null;
+  const date = p.date ?? (p.time_last_update_unix ? new Date(p.time_last_update_unix * 1000).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10));
+  return { from, to, rate: Number(rate.toFixed(4)), date };
+}
+
+/** Uma fonte: busca com teto de tempo e lê; null (com o motivo no log) se não deu. */
+async function deUmaFonte(nome: string, url: string, ler: (json: unknown) => ExchangeRate | null): Promise<ExchangeRate | null> {
+  const controle = new AbortController();
+  const relogio = setTimeout(() => controle.abort(), TIMEOUT_MS);
+  try {
+    const res = await fetch(url, { signal: controle.signal, cache: "no-store", headers: { "User-Agent": "Mozilla/5.0 (compatible; SPIFinance/1.0)" } });
+    if (!res.ok) {
+      // Erro registrado, nunca engolido: o `catch {}` vazio que existia aqui é a razão de
+      // ninguém ter conseguido descobrir por que a cotação não vinha em produção.
+      console.error("[fx] fonte respondeu", res.status, nome);
+      return null;
+    }
+    const valor = ler(await res.json());
+    if (!valor) console.error("[fx] resposta sem o par esperado", nome);
+    return valor;
+  } catch (err) {
+    const motivo = err instanceof Error ? err.name : "erro";
+    console.error("[fx] falha ao buscar", nome, motivo === "AbortError" ? `sem resposta em ${TIMEOUT_MS}ms` : motivo);
+    return null;
+  } finally {
+    clearTimeout(relogio);
+  }
+}
+
+/**
+ * A cotação do par, tentando as fontes em ordem. A AwesomeAPI responde 429 (pedidos demais) aos
+ * servidores da Vercel, que dividem o mesmo endereço com muita gente (07/10/2026): a cotação do
+ * lançamento em euro e a do ativo em dólar ficavam vazias em produção. As reservas: o Yahoo
+ * (preço de agora), o Frankfurter (taxa do Banco Central Europeu do dia) e a ExchangeRate-API.
+ */
 export async function getExchangeRate(from: CurrencyCode, to: CurrencyCode): Promise<ExchangeRate | null> {
   if (from === to) return { from, to, rate: 1, date: new Date().toISOString().slice(0, 10) };
 
@@ -71,34 +120,16 @@ export async function getExchangeRate(from: CurrencyCode, to: CurrencyCode): Pro
   const guardada = memoria.get(chave);
   if (guardada && Date.now() - guardada.buscadoEm < VALIDADE_MS) return guardada.valor;
 
-  /** O que devolver quando a fonte falha: a última conhecida, marcada como velha. */
-  const ultimaConhecida = (): ExchangeRate | null =>
-    guardada ? { ...guardada.valor, stale: true } : null;
+  const valor =
+    (await deUmaFonte(`awesome ${chave}`, `${SOURCE}/${from}-${to}`, (j) => parseAwesomeRate(j, from, to))) ??
+    (await deUmaFonte(`yahoo ${chave}`, `https://query2.finance.yahoo.com/v8/finance/chart/${from}${to}=X?range=1d&interval=1d`, (j) => parseYahooFxRate(j, from, to))) ??
+    (await deUmaFonte(`frankfurter ${chave}`, `https://api.frankfurter.dev/v1/latest?base=${from}&symbols=${to}`, (j) => parseRatesTable(j, from, to))) ??
+    (await deUmaFonte(`er-api ${chave}`, `https://open.er-api.com/v6/latest/${from}`, (j) => parseRatesTable(j, from, to)));
 
-  const controle = new AbortController();
-  const relogio = setTimeout(() => controle.abort(), TIMEOUT_MS);
-  try {
-    const res = await fetch(`${SOURCE}/${from}-${to}`, { signal: controle.signal, cache: "no-store" });
-    if (!res.ok) {
-      // Erro registrado, nunca engolido: o `catch {}` vazio que existia aqui é a razão de
-      // ninguém ter conseguido descobrir por que a cotação não vinha em produção.
-      console.error("[fx] fonte respondeu", res.status, chave);
-      return ultimaConhecida();
-    }
-    const valor = parseAwesomeRate(await res.json(), from, to);
-    if (!valor) {
-      console.error("[fx] resposta sem o par esperado", chave);
-      return ultimaConhecida();
-    }
-    memoria.set(chave, { valor, buscadoEm: Date.now() });
-    return valor;
-  } catch (err) {
-    const motivo = err instanceof Error ? err.name : "erro";
-    console.error("[fx] falha ao buscar", chave, motivo === "AbortError" ? `sem resposta em ${TIMEOUT_MS}ms` : motivo);
-    return ultimaConhecida();
-  } finally {
-    clearTimeout(relogio);
-  }
+  // Nenhuma respondeu: a última conhecida, marcada como velha (cotação de ontem vale mais que nenhuma).
+  if (!valor) return guardada ? { ...guardada.valor, stale: true } : null;
+  memoria.set(chave, { valor, buscadoEm: Date.now() });
+  return valor;
 }
 
 export function toCurrencyOrNull(value: unknown): CurrencyCode | null {

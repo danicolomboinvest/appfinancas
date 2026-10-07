@@ -65,3 +65,30 @@ describe("getExchangeRate quando a fonte falha", () => {
     expect(doCache?.rate).toBe(1.11);
   });
 });
+
+describe("fontes de reserva do câmbio", () => {
+  it("lê o Yahoo (USDBRL=X)", async () => {
+    const { parseYahooFxRate } = await import("../rates");
+    expect(parseYahooFxRate({ chart: { result: [{ meta: { currency: "BRL", regularMarketPrice: 5.02164, regularMarketTime: 1791412319 } }] } }, "USD", "BRL")?.rate).toBe(5.0216);
+    expect(parseYahooFxRate({ chart: { result: [{ meta: { currency: "USD", regularMarketPrice: 1 } }] } }, "USD", "BRL")).toBeNull();
+  });
+
+  it("lê Frankfurter e ExchangeRate-API", async () => {
+    const { parseRatesTable } = await import("../rates");
+    expect(parseRatesTable({ base: "USD", date: "2026-10-07", rates: { BRL: 5.0061 } }, "USD", "BRL")).toEqual({ from: "USD", to: "BRL", rate: 5.0061, date: "2026-10-07" });
+    expect(parseRatesTable({ rates: { EUR: 0.88 } }, "USD", "BRL")).toBeNull();
+  });
+
+  /** O caso de 07/10/2026: a AwesomeAPI devolvia 429 pra Vercel e o dólar ficava vazio. */
+  it("quando a AwesomeAPI recusa, usa a próxima fonte", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) =>
+        url.includes("awesomeapi")
+          ? { ok: false, status: 429, json: async () => ({}) }
+          : { ok: true, json: async () => ({ chart: { result: [{ meta: { currency: "BRL", regularMarketPrice: 5.0216 } }] } }) },
+      ),
+    );
+    expect((await getExchangeRate("USD", "BRL"))?.rate).toBe(5.0216);
+  });
+});
