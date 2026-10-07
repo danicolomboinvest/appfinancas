@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { BookOpen, Check, ChevronDown } from "lucide-react";
 
@@ -15,18 +15,8 @@ const VISTO = "manual-importacao-visto";
 export function ComoImportar() {
   const [aberto, setAberto] = useState(false);
 
-  useEffect(() => {
-    try {
-      if (!localStorage.getItem(VISTO)) {
-        // Primeira importação neste aparelho: mostra aberto até ela fechar. Antes marcava como
-        // visto no mesmo instante em que abria, e quem saía sem ler nunca mais via aberto.
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setAberto(true);
-      }
-    } catch {
-      // Sem localStorage (aba anônima): fica recolhido, a um toque.
-    }
-  }, []);
+  // Sempre fechado (07/10/2026): a Dani pediu menos texto na tela; abrir de cara na primeira
+  // importação empurrava o botão de escolher o arquivo para baixo de quatro parágrafos.
 
   function alternar() {
     // Fechou: agora sim conta como visto.

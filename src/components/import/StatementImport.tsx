@@ -3,9 +3,10 @@
 import { FalarComSuporte } from "@/components/support/FalarComSuporte";
 import { useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { Upload, Check, ArrowRight, Lock, Plus } from "lucide-react";
+import { Upload, Check, ArrowRight, Lock, Plus, Tag, ChevronLeft, ChevronDown, CircleHelp } from "lucide-react";
 import type { ParentCategory } from "@prisma/client";
-import { PARENT_CATEGORIES, categoryLabel, categoriaOculta } from "@/lib/categories";
+import { PARENT_CATEGORIES, categoryLabel, categoriaOculta, categoryIcon, colorForCategorySlice, emojiEscolhido } from "@/lib/categories";
+import { emojiDaCategoria } from "@/lib/profiles/icones";
 import { Button } from "@/components/ui/Button";
 import { MonthPicker } from "@/components/ui/MonthPicker";
 import { useToast } from "@/components/ui/toast-context";
@@ -30,6 +31,10 @@ import { resumoDoMesImportadoAction } from "@/app/(app)/mensal/revelacao-actions
 import { ComoImportar } from "./ComoImportar";
 import { ComoTirarExtrato } from "./ComoTirarExtrato";
 import { ProtegerSaida } from "./ProtegerSaida";
+import { nomeNaTela } from "@/lib/import/nome-na-tela";
+import { FitText } from "@/components/ui/FitText";
+import { Explica } from "@/components/ui/Explica";
+import { CategoryIcon } from "@/components/ui/CategoryIcon";
 
 type Phase = "upload" | "password" | "review" | "confirm" | "done";
 
@@ -100,7 +105,7 @@ export function StatementImport({
   // Tudo que a pessoa lê aqui (instruções, botões, avisos) vem da voz do tema; a lógica de
   // leitura do arquivo não sabe de tema nenhum.
   // `kind` porque os chips de categoria têm o nome do perfil (Empresa: "Estrutura", não "Moradia").
-  const { voz, profileId, categorias, nomesDoCasal } = useProfileTheme();
+  const { voz, profileId, categorias, nomesDoCasal, key: tema } = useProfileTheme();
   const t = voz.titulos;
   // O perfil de quando a tela abriu: a revisão (categorias, "mandar pra outro perfil") é dele. Se
   // ela trocar de perfil noutro aparelho no meio, o servidor recusa em vez de importar no novo.
@@ -524,7 +529,11 @@ export function StatementImport({
 
         {/* Extrato bancário (sinal manda) vs Fatura de cartão (tudo é gasto). */}
         <div className="flex flex-col gap-1.5">
-          <span className="text-caption text-ink-muted">{t.impOQueSubindo}</span>
+          {/* O que cada tipo faz mora no "?" (07/10/2026), não numa frase embaixo dos botões. */}
+          <span className="flex items-center gap-1.5 text-caption text-ink-muted">
+            {t.impOQueSubindo}
+            <Explica>{docType === "fatura" ? t.impFaturaDica : t.impExtratoDica}</Explica>
+          </span>
           <div className="inline-flex rounded-full border border-border bg-surface-2 p-1">
             {(["extrato", "fatura"] as const).map((tipo) => (
               <button
@@ -541,9 +550,6 @@ export function StatementImport({
               </button>
             ))}
           </div>
-          <span className="text-caption text-ink-faint">
-            {docType === "fatura" ? t.impFaturaDica : t.impExtratoDica}
-          </span>
         </div>
 
         {/* Fatura: a pessoa escolhe o mês de destino — todas as compras entram nesse mês (o
@@ -665,6 +671,57 @@ export function StatementImport({
    * uma linha que o app já tinha classificado). `aoEscolher` recebe as linhas resolvidas (a
    * própria e as iguais).
    */
+  /** O ícone de cada categoria-mãe, na cor e no emoji do tema (o mesmo do resto do app). */
+  function iconeDe(pc: ParentCategory, tamanho: 36 | 40 = 36) {
+    const emoji = emojiEscolhido(categorias, pc) ?? emojiDaCategoria(tema, { kind: "parent", value: pc });
+    return <CategoryIcon icon={categoryIcon(categorias, pc)} color={colorForCategorySlice({ kind: "parent", value: pc }, categorias)} size={tamanho} variant="soft" emoji={emoji} />;
+  }
+
+  /**
+   * A revisão em quadrados (07/10/2026, "tudo que der para transformar texto em visual"): cada
+   * categoria é um quadradinho com o ícone dela, três por linha, como os atalhos do Foco. Antes
+   * eram pílulas só com o nome, e no celular a pessoa lia oito palavras para achar a dela.
+   */
+  function quadradosDeCategoria(it: ReviewItem, aoEscolher: (resolvidas: Set<number>) => void) {
+    const quadrado = "flex min-h-[4.75rem] flex-col items-center justify-center gap-1.5 rounded-2xl border px-1 py-2 text-center transition-colors";
+    const cor = (ativo: boolean) => (ativo ? "border-accent bg-accent-soft" : "border-border bg-surface hover:bg-surface-hover");
+    return (
+      <div className="grid grid-cols-3 gap-2">
+        {PARENT_CATEGORIES.filter((pc) => !categoriaOculta(categorias, pc) || it.parentCategory === pc).map((pc) => (
+          <button key={pc} type="button" aria-pressed={it.parentCategory === pc} onClick={() => aoEscolher(assignParent(it.key, pc))} className={`${quadrado} ${cor(it.parentCategory === pc)}`}>
+            {iconeDe(pc)}
+            <span className="text-xs font-medium leading-tight text-ink">{categoryLabel(categorias, pc)}</span>
+          </button>
+        ))}
+        {!it.profileId &&
+          customCategories.map((cc) => (
+            <button key={cc.id} type="button" aria-pressed={it.customCategoryId === cc.id} onClick={() => aoEscolher(assignCustom(it.key, cc.id))} className={`${quadrado} ${cor(it.customCategoryId === cc.id)}`}>
+              <span className="flex size-9 items-center justify-center rounded-full bg-surface-2 text-ink-muted" aria-hidden>
+                <Tag size={16} />
+              </span>
+              <span className="line-clamp-2 text-xs font-medium leading-tight text-ink">{cc.name}</span>
+            </button>
+          ))}
+        {!it.profileId && (
+          <button
+            type="button"
+            onClick={() => {
+              setCreatingCat((v) => !v);
+              setNewCatName("");
+              setError(null);
+            }}
+            className={`${quadrado} border-dashed border-border-strong bg-transparent text-ink-muted hover:text-ink`}
+          >
+            <span className="flex size-9 items-center justify-center rounded-full bg-surface-2" aria-hidden>
+              <Plus size={16} strokeWidth={2.2} />
+            </span>
+            <span className="text-xs font-medium leading-tight">{t.impOutra}</span>
+          </button>
+        )}
+      </div>
+    );
+  }
+
   function chipsDeCategoria(it: ReviewItem, aoEscolher: (resolvidas: Set<number>) => void, comCriar: boolean) {
     const classe = (ativo: boolean) =>
       `inline-flex min-h-11 items-center rounded-full border px-3 text-sm font-medium transition-colors active:scale-95 ${
@@ -722,26 +779,32 @@ export function StatementImport({
           areaRef={areaRef}
           textos={{ titulo: t.impSairTitulo, dica: t.impSairDica, ficar: t.impSairFicar, sair: t.impSairSim }}
         />
-        <div className="flex items-center justify-between gap-2 text-caption text-ink-muted">
+        {/* Onde ela está na fila: uma barra que enche, e "1 de 5" pequeno (07/10/2026). */}
+        <div className="flex items-center gap-3">
           {reviewIdx > 0 ? (
-            <button type="button" onClick={retreatReview} className="inline-flex min-h-11 items-center text-sm text-ink-faint hover:text-ink">
-              {t.impVoltarAnterior}
+            <button type="button" onClick={retreatReview} aria-label={t.impVoltarAnterior} className="-ml-2 flex size-10 shrink-0 items-center justify-center rounded-full text-ink-muted hover:bg-surface-2 hover:text-ink">
+              <ChevronLeft size={20} />
             </button>
-          ) : (
-            <span />
-          )}
-          <span>{t.impRevisar(reviewIdx + 1, reviewQueue.length)}</span>
+          ) : null}
+          <div className="h-2 flex-1 overflow-hidden rounded-full bg-surface-2" role="progressbar" aria-valuenow={reviewIdx + 1} aria-valuemin={1} aria-valuemax={reviewQueue.length}>
+            <div className="h-full rounded-full bg-accent transition-[width] duration-300" style={{ width: `${((reviewIdx + 1) / reviewQueue.length) * 100}%` }} />
+          </div>
+          <span className="shrink-0 text-caption tabular-nums text-ink-muted">
+            {reviewIdx + 1} de {reviewQueue.length}
+          </span>
         </div>
 
         {/* Falha ao criar categoria ("+ Outra") aparece aqui mesmo, e não só na confirmação. */}
         {error && <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p>}
 
-        <div className="rounded-xl border border-border bg-surface-2 p-4">
-          <p className="text-sm font-medium text-ink">{it.description}</p>
-          <div className="mt-1 flex items-center justify-between">
-            <span className="text-caption text-ink-faint">{formatDate(it.date)}</span>
-            <span className="text-indicator font-semibold tabular-nums text-danger">− {money(it.amount)}</span>
-          </div>
+        <div className="rounded-2xl border border-border bg-surface-2 p-4">
+          <p className="text-[1.75rem] font-bold leading-none tracking-tight tabular-nums text-ink">{money(it.amount)}</p>
+          {/* O nome da loja sem o "Compra no débito - " na frente; o meio vira etiqueta (07/10/2026). */}
+          <p className="mt-2 text-[15px] font-semibold leading-snug text-ink">{nomeNaTela(it.description).nome}</p>
+          <p className="mt-1 flex flex-wrap items-center gap-2 text-caption text-ink-muted">
+            {formatDate(it.date)}
+            {nomeNaTela(it.description).meio && <span className="rounded-full bg-surface px-2 py-0.5 font-medium">{nomeNaTela(it.description).meio}</span>}
+          </p>
           {/* Só a parcela com certeza: é a única que o servidor lança nos meses seguintes. "03/10"
               sem "parc" pode ser data ("POSTO SHELL 03/09"), e prometer que "as 7 seguintes
               entram sozinhas" fazia ela planejar os próximos meses com gasto que não existe. */}
@@ -752,11 +815,11 @@ export function StatementImport({
           )}
         </div>
 
-        <div className="flex flex-col gap-1">
-          <p className="text-sm font-medium text-ink">{t.impQualCategoria}</p>
-          <p className="text-caption text-ink-muted">{t.impNaoSeiAgoraDica}</p>
-        </div>
-        {chipsDeCategoria(it, (resolvidas) => advanceReview(resolvidas), true)}
+        <p className="flex items-center gap-1.5 text-base font-semibold text-ink">
+          {t.impQualCategoria}
+          <Explica>{t.impNaoSeiAgoraDica}</Explica>
+        </p>
+        {quadradosDeCategoria(it, (resolvidas) => advanceReview(resolvidas))}
         {/* Criar categoria na hora: fica disponível pra planejar depois no Orçamento. */}
         {creatingCat && !it.profileId && (
           <div className="flex flex-col gap-1.5">
@@ -795,7 +858,7 @@ export function StatementImport({
           <button
             type="button"
             onClick={() => setPhase("confirm")}
-            className="inline-flex min-h-11 items-center justify-center text-sm font-medium text-accent-strong hover:underline"
+            className="inline-flex min-h-11 items-center justify-center text-sm font-medium text-ink-muted hover:text-ink"
           >
             {t.impImportarJa(reviewQueue.length - reviewIdx)}
           </button>
@@ -818,7 +881,6 @@ export function StatementImport({
     // (dois Uber no mesmo dia) ou não; a pessoa decide com um toque, em vez de descobrir depois.
     const repeatGroups = new Map<string, ReviewItem[]>();
     for (const it of items) if (it.fileRepeat) repeatGroups.set(it.fileRepeat.key, [...(repeatGroups.get(it.fileRepeat.key) ?? []), it]);
-    const sumImportable = importable.reduce((s, it) => s + (it.category === "INCOME" || it.estorno || it.resgate ? it.amount : -it.amount), 0);
     const expenseSum = importable.filter((it) => it.category === "EXPENSE").reduce((s, it) => s + (it.estorno ? -it.amount : it.amount), 0);
     // Parece com algo que a pessoa já lançou à mão: precisa de resposta antes de importar.
     const duvidas = items.filter((it) => it.possivelDuplicata && !it.ignorar);
@@ -858,12 +920,20 @@ export function StatementImport({
         />
         {error && <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p>}
 
+        {/* Sem categoria numa linha (07/10/2026): quantos, quanto somam e um botão. A explicação de
+            que eles entram assim mesmo mora no "?". */}
         {semCategoria.length > 0 && (
-          <div className="rounded-xl border border-accent/40 bg-accent-soft/30 px-4 py-3 text-sm">
-            <p className="font-medium text-ink">{t.impSemCategoriaEntraTitulo(semCategoria.length)}</p>
-            <p className="text-caption text-ink-muted">
-              {t.impSemCategoriaEntraSub(semCategoria.length, money(semCategoria.reduce((sum, it) => sum + it.amount, 0)))}
-            </p>
+          <div className="flex items-center gap-3 rounded-2xl border border-border bg-surface px-3.5 py-2.5">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-accent-strong" aria-hidden>
+              <CircleHelp size={18} />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="flex items-center gap-1.5 text-[15px] font-semibold text-ink">
+                {semCategoria.length === 1 ? "1 sem categoria" : `${semCategoria.length} sem categoria`}
+                <Explica>{t.impSemCategoriaEntraSub(semCategoria.length, money(semCategoria.reduce((sum, it) => sum + it.amount, 0)))}</Explica>
+              </span>
+              <span className="block text-caption tabular-nums text-ink-muted">{money(semCategoria.reduce((sum, it) => sum + it.amount, 0))}</span>
+            </span>
             <button
               type="button"
               onClick={() => {
@@ -871,9 +941,9 @@ export function StatementImport({
                 setReviewIdx(0);
                 setPhase("review");
               }}
-              className="mt-1 inline-flex min-h-11 items-center text-sm font-medium text-accent-strong hover:underline"
+              className="min-h-10 shrink-0 rounded-full bg-accent-soft px-4 text-sm font-semibold text-accent-strong"
             >
-              {t.impCategorizar(semCategoria.length)}
+              Escolher
             </button>
           </div>
         )}
@@ -901,48 +971,74 @@ export function StatementImport({
           </div>
         )}
 
-        {/* Conferência: o que o app leu, em números, pra pessoa não precisar confiar às cegas. */}
-        <div className="rounded-xl border border-border bg-surface-2 px-4 py-3 text-sm">
-          <p className="font-semibold text-ink">
-            {t.impResumoLancamentos(importable.length, docType === "fatura" ? money(expenseSum) : money(Math.abs(sumImportable)))}
-            {docType !== "fatura" && ` ${t.impNoSaldo(sumImportable >= 0)}`}
-          </p>
-          {stats && <p className="text-caption text-ink-muted">{t.impEntendiComo(stats.summary)}</p>}
-          {/* Fatura: o mês de destino fica à vista (e dá pra trocar) até o último toque. Quem
-              chegou aqui pelo aviso "parece fatura" nunca tinha visto a pergunta do mês. */}
-          {docType === "fatura" && <div className="mt-2">{mesDaFatura("fatura-month-confirmar")}</div>}
-          {/* Bateu com o total impresso no documento: é isso que ela precisa ouvir. O "Li 40 de
-              52 linhas" assustava até na leitura perfeita (as outras linhas são saldo e totais). */}
-          {stats?.conferencia.status === "fechou" ? (
-            <p className="mt-1 flex items-center gap-1.5 text-caption font-medium text-success">
-              <Check size={14} strokeWidth={2.5} aria-hidden />
-              {t.impBateuComTotal(money(stats.conferencia.esperado))}
-            </p>
-          ) : (
-            stats && (
-              <p className="text-caption text-ink-muted">
-                {t.impLinhasLidas(stats.parsed, stats.moneyLines)}
-                {stats.invoiceTotal ? ` ${t.impTotalImpresso(money(stats.invoiceTotal))}` : ""}
-              </p>
-            )
-          )}
-          {lowCoverage && (
-            <div className="mt-1 flex flex-col gap-2">
-              <p className="text-caption text-danger">{t.impCoberturaBaixa}</p>
-              <FalarComSuporte arquivo={fileName} problema="o app leu só parte do arquivo" rotulo={t.impFaltouCoisa} />
+        {/* Conferência: o que o app leu, em números (07/10/2026, em quadradinhos). O quanto entrou,
+            saiu e foi guardado, um selo "Conferido" quando bateu com o total do documento, e o
+            "como entendi" no "?". */}
+        {(() => {
+          const entrou = importable.filter((it) => it.category === "INCOME").reduce((s2, it) => s2 + it.amount, 0);
+          const guardado = importable.filter((it) => it.category === "INVESTMENT_CONTRIBUTION").reduce((s2, it) => s2 + (it.resgate ? -it.amount : it.amount), 0);
+          const quadrados = [
+            ...(docType !== "fatura" && entrou > 0 ? [{ rotulo: t.entrou, valor: money(entrou, { round: true }), cor: "text-success" }] : []),
+            { rotulo: docType === "fatura" ? "Na fatura" : t.gastou, valor: money(expenseSum, { round: true }), cor: "text-ink" },
+            ...(guardado !== 0 ? [{ rotulo: t.aportou, valor: money(guardado, { round: true }), cor: "text-accent-strong" }] : []),
+          ];
+          return (
+            <div className="flex flex-col gap-3 rounded-2xl border border-border bg-surface-2 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="flex items-center gap-1.5 text-sm text-ink-muted">
+                    {docType === "fatura" ? "Na fatura" : "No extrato"}
+                    {stats && <Explica>{t.impEntendiComo(stats.summary)}</Explica>}
+                  </p>
+                  <p className="text-[2rem] font-bold leading-none tracking-tight tabular-nums text-ink">{importable.length}</p>
+                  <p className="mt-1 text-caption text-ink-muted">{importable.length === 1 ? "lançamento" : "lançamentos"}</p>
+                </div>
+                {stats?.conferencia.status === "fechou" ? (
+                  <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-success-soft px-2.5 py-1 text-xs font-semibold text-success" title={t.impBateuComTotal(money(stats.conferencia.esperado))}>
+                    <Check size={13} strokeWidth={2.5} aria-hidden /> Conferido
+                  </span>
+                ) : (
+                  stats && (
+                    <span className="shrink-0 rounded-full bg-surface px-2.5 py-1 text-xs font-semibold tabular-nums text-ink-muted">
+                      {stats.parsed} de {stats.moneyLines} linhas
+                    </span>
+                  )
+                )}
+              </div>
+              <div className={`grid gap-2 ${quadrados.length >= 3 ? "grid-cols-3" : quadrados.length === 2 ? "grid-cols-2" : "grid-cols-1"}`}>
+                {quadrados.map((q) => (
+                  <div key={q.rotulo} className="min-w-0 rounded-xl bg-surface px-2.5 py-2">
+                    <p className="line-clamp-2 text-caption leading-tight text-ink-muted">{q.rotulo}</p>
+                    {/* O número encolhe para caber (R$ 15.300 em três colunas no celular), nunca corta. */}
+                    <FitText className={`mt-0.5 text-[15px] font-bold tabular-nums ${q.cor}`}>{q.valor}</FitText>
+                  </div>
+                ))}
+              </div>
+              {/* Fatura: o mês de destino fica à vista (e dá pra trocar) até o último toque. Quem
+                  chegou aqui pelo aviso "parece fatura" nunca tinha visto a pergunta do mês. */}
+              {docType === "fatura" && mesDaFatura("fatura-month-confirmar")}
+              {stats?.conferencia.status !== "fechou" && stats?.invoiceTotal ? <p className="text-caption text-ink-muted">{t.impTotalImpresso(money(stats.invoiceTotal))}</p> : null}
+              {lowCoverage && (
+                <div className="flex flex-col gap-2">
+                  <p className="text-caption text-danger">{t.impCoberturaBaixa}</p>
+                  <FalarComSuporte arquivo={fileName} problema="o app leu só parte do arquivo" rotulo={t.impFaltouCoisa} />
+                </div>
+              )}
+              {/* Só quando a soma NÃO bateu com nenhum total do documento: a fatura do Ourocard traz
+                  "Total" = saldo anterior − pagamento + compras, que nunca é a soma das compras. */}
+              {stats?.invoiceTotal && stats.conferencia.status !== "fechou" && Math.abs(totalGap) >= 1 && (
+                <p className="text-caption text-danger">{t.impSomaDiferente(totalGap > 0, money(Math.abs(totalGap)))}</p>
+              )}
             </div>
-          )}
-          {/* Só quando a soma NÃO bateu com nenhum total do documento: a fatura do Ourocard traz
-              "Total" = saldo anterior − pagamento + compras, que nunca é a soma das compras. */}
-          {stats?.invoiceTotal && stats.conferencia.status !== "fechou" && Math.abs(totalGap) >= 1 && (
-            <p className="mt-1 text-caption text-danger">{t.impSomaDiferente(totalGap > 0, money(Math.abs(totalGap)))}</p>
-          )}
-        </div>
+          );
+        })()}
 
         {duvidasDinheiro.length > 0 && (
           <div className="flex flex-col gap-2 rounded-xl border border-accent/40 bg-accent-soft/40 px-4 py-3">
-            <p className="text-sm font-semibold text-ink">{t.impProprioTitulo}</p>
-            <p className="text-caption text-ink-muted">{t.impProprioDica}</p>
+            <p className="flex items-center gap-1.5 text-sm font-semibold text-ink">
+              {t.impProprioTitulo}
+              <Explica>{t.impProprioDica}</Explica>
+            </p>
             {duvidasDinheiro.length > 1 && (
               <button
                 type="button"
@@ -955,9 +1051,13 @@ export function StatementImport({
             <ul className="flex flex-col gap-2">
               {duvidasDinheiro.map((it) => (
                 <li key={it.key} className="flex flex-col gap-1.5 border-t border-border/60 pt-2 first:border-t-0 first:pt-0">
-                  <span className="text-sm text-ink">
-                    <b>{it.description}</b>, {it.category === "INCOME" ? "+" : "−"} {money(it.amount)}, {formatDate(it.date)}
+                  <span className="flex items-baseline justify-between gap-3">
+                    <span className="min-w-0 truncate text-sm font-medium text-ink">{nomeNaTela(it.description).nome}</span>
+                    <span className="shrink-0 text-sm font-semibold tabular-nums text-ink">
+                      {it.category === "INCOME" ? "+" : "−"} {money(it.amount)}
+                    </span>
                   </span>
+                  <span className="-mt-1 text-caption text-ink-muted">{formatDate(it.date)}</span>
                   {/* O destaque vai pra resposta certa quase sempre: dinheiro indo pra outra conta
                       dela é "só mudei de conta". Antes o botão forte era "Guardei (aplicação)", e
                       quem só passou o dinheiro do Nubank pro Itaú marcava investimento que não fez. */}
@@ -1016,46 +1116,53 @@ export function StatementImport({
 
         {duvidas.length > 0 && (
           <div className="flex flex-col gap-2 rounded-xl border border-accent/40 bg-accent-soft/40 px-4 py-3">
-            <p className="text-sm font-semibold text-ink">
+            <p className="flex items-center gap-1.5 text-sm font-semibold text-ink">
               {t.impDuplicataTitulo(duvidas.length, duvidas.every((it) => !it.possivelDuplicata!.importado))}
+              <Explica>{t.impDuplicataDica}</Explica>
             </p>
-            <p className="text-caption text-ink-muted">{t.impDuplicataDica}</p>
-            <ul className="flex flex-col gap-2">
-              {duvidas.map((it) => (
-                <li key={it.key} className="flex flex-col gap-1.5 border-t border-border/60 pt-2 first:border-t-0 first:pt-0">
-                  <span className="text-sm text-ink">
-                    <b>{it.description}</b>, {money(it.amount)}, {formatDate(it.date)}
-                  </span>
-                  {/* Veio de outro arquivo (outro banco, ou o mesmo extrato em outro formato) ou foi
-                      lançado à mão: a frase diz qual, e ela decide olhando as duas descrições. */}
-                  <span className="break-words text-caption text-ink-muted">
-                    {t.impDuplicataJaTem(
-                      it.possivelDuplicata!.descricao,
-                      it.possivelDuplicata!.data ? formatDate(it.possivelDuplicata!.data) : null,
-                      Boolean(it.possivelDuplicata!.importado),
-                    )}
-                  </span>
-                  {it.possivelDuplicata!.id && it.possivelDuplicata!.valor !== undefined && Math.abs(it.possivelDuplicata!.valor - it.amount) > 0.005 && (
-                    <span className="text-caption text-ink-muted">{t.impDuplicataAtualiza(money(it.possivelDuplicata!.valor), money(it.amount))}</span>
-                  )}
-                  <div className="flex flex-wrap gap-2">
-                    <button type="button" onClick={() => responderDuplicata(it.key, true)} className={respostaForte}>
-                      {t.impDuplicataEOMesmo}
-                    </button>
-                    <button type="button" onClick={() => responderDuplicata(it.key, false)} className={respostaFraca}>
-                      {t.impDuplicataSaoDiferentes}
-                    </button>
-                  </div>
-                </li>
-              ))}
+            <ul className="flex flex-col gap-3">
+              {duvidas.map((it) => {
+                const dup = it.possivelDuplicata!;
+                // Os dois lado a lado (07/10/2026): o que veio no arquivo e o que já está no app. Antes
+                // eram três frases ("Você lançou: … em …", "Você lançou R$ X. Se for o mesmo…").
+                return (
+                  <li key={it.key} className="flex flex-col gap-2 border-t border-border/60 pt-3 first:border-t-0 first:pt-0">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="min-w-0 rounded-xl bg-surface px-3 py-2">
+                        <p className="text-caption text-ink-muted">No arquivo</p>
+                        <p className="truncate text-[15px] font-bold tabular-nums text-ink">{money(it.amount)}</p>
+                        <p className="truncate text-caption text-ink-muted">{formatDate(it.date)}, {nomeNaTela(it.description).nome}</p>
+                      </div>
+                      <div className="min-w-0 rounded-xl bg-surface px-3 py-2">
+                        <p className="text-caption text-ink-muted">{dup.importado ? "Já importado" : "Você lançou"}</p>
+                        <p className="truncate text-[15px] font-bold tabular-nums text-ink">{money(dup.valor ?? it.amount)}</p>
+                        <p className="truncate text-caption text-ink-muted">
+                          {dup.data ? `${formatDate(dup.data)}, ` : ""}
+                          {dup.descricao}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <button type="button" onClick={() => responderDuplicata(it.key, true)} className={respostaForte}>
+                        {t.impDuplicataEOMesmo}
+                      </button>
+                      <button type="button" onClick={() => responderDuplicata(it.key, false)} className={respostaFraca}>
+                        {t.impDuplicataSaoDiferentes}
+                      </button>
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           </div>
         )}
 
         {repeatGroups.size > 0 && (
           <div className="flex flex-col gap-2 rounded-xl border border-accent/40 bg-accent-soft/40 px-4 py-3">
-            <p className="text-sm font-semibold text-ink">{t.impRepetidos}</p>
-            <p className="text-caption text-ink-muted">{t.impRepetidosDica}</p>
+            <p className="flex items-center gap-1.5 text-sm font-semibold text-ink">
+              {t.impRepetidos}
+              <Explica>{t.impRepetidosDica}</Explica>
+            </p>
             <ul className="flex flex-col gap-1.5">
               {[...repeatGroups.entries()].map(([key, group]) => (
                 <li key={key} className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
@@ -1088,37 +1195,50 @@ export function StatementImport({
             const aberta = editandoKey === it.key;
             return (
               <li key={it.key} className="flex flex-col gap-2 px-3 py-2">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm text-ink">{it.description}</p>
-                    {it.nota && <p className="text-caption text-accent-strong">{it.nota}</p>}
-                    <p className="text-caption text-ink-faint">
+                {/* A linha inteira abre a edição (07/10/2026): o ícone da categoria no lugar do nome
+                    dela escrito, e uma setinha no lugar dos vinte "Mudar" dourados. */}
+                <button type="button" onClick={() => setEditandoKey(aberta ? null : it.key)} aria-expanded={aberta} className="flex w-full items-center gap-3 text-left">
+                  {it.category === "EXPENSE" && it.parentCategory ? (
+                    iconeDe(it.parentCategory)
+                  ) : (
+                    <span
+                      className={`flex size-9 shrink-0 items-center justify-center rounded-full ${
+                        it.category === "INCOME" || it.estorno
+                          ? "bg-success-soft text-success"
+                          : it.category === "INVESTMENT_CONTRIBUTION"
+                            ? "bg-accent-soft text-accent-strong"
+                            : gastoSemCategoria(it) && !it.duvida
+                              ? "bg-accent-soft text-accent-strong"
+                              : "bg-surface-2 text-ink-muted"
+                      }`}
+                      aria-hidden
+                    >
+                      {it.category === "INCOME" ? <ArrowRight size={16} className="rotate-[135deg]" /> : it.category === "INVESTMENT_CONTRIBUTION" ? <Check size={16} /> : gastoSemCategoria(it) ? <CircleHelp size={16} /> : <Tag size={16} />}
+                    </span>
+                  )}
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium text-ink">{nomeNaTela(it.description).nome}</span>
+                    <span className="block truncate text-caption text-ink-muted">
                       {formatDate(it.date)}, {it.estorno && `${t.impTipoDevolucao}, `}
                       <span className={gastoSemCategoria(it) && !it.duvida ? "font-medium text-accent-strong" : undefined}>{rotuloDaLinha(it)}</span>
                       {it.profileId && `, ${t.impMoverPra(otherProfiles.find((p) => p.id === it.profileId)?.name ?? "")}`}
-                    </p>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-1">
-                    <span
-                      className={`text-sm font-medium tabular-nums ${
-                        it.category === "INCOME" || it.estorno ? "text-success" : it.category === "INVESTMENT_CONTRIBUTION" ? "text-accent-strong" : "text-danger"
-                      }`}
-                    >
-                      {it.category === "INCOME" || it.estorno || it.resgate ? "+" : "−"} {money(it.amount)}
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => setEditandoKey(aberta ? null : it.key)}
-                      aria-expanded={aberta}
-                      className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full px-2 text-sm font-medium text-accent-strong hover:bg-accent-soft"
-                    >
-                      {aberta ? t.impMudarPronto : t.impMudar}
-                    </button>
-                  </div>
-                </div>
+                  </span>
+                  <span
+                    className={`shrink-0 text-sm font-semibold tabular-nums ${
+                      it.category === "INCOME" || it.estorno ? "text-success" : it.category === "INVESTMENT_CONTRIBUTION" ? "text-accent-strong" : "text-ink"
+                    }`}
+                  >
+                    {it.category === "INCOME" || it.estorno || it.resgate ? "+" : "−"} {money(it.amount)}
+                  </span>
+                  <ChevronDown size={16} className={`shrink-0 text-ink-faint transition-transform ${aberta ? "rotate-180" : ""}`} aria-hidden />
+                </button>
 
                 {aberta && (
                   <div className="flex flex-col gap-3 rounded-xl bg-surface-2 p-3">
+                    {/* A descrição inteira, como veio do banco, e a nota do app ficam na linha aberta. */}
+                    <p className="break-words text-caption text-ink-muted">{it.description}</p>
+                    {it.nota && <p className="text-caption text-accent-strong">{it.nota}</p>}
                     {/* Categoria só existe em gasto. Trocar aqui também troca nos iguais que o app
                         tinha classificado sozinho, e vira regra pra próxima importação. */}
                     {it.category === "EXPENSE" && (
