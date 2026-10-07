@@ -193,8 +193,8 @@ export function EntryForm({
         {/* Quem mora fora e lança sempre em outra moeda não sabia que dava pra trocar a do app
             inteiro (cliente, 01/10/2026): o caminho fica aqui, na hora em que a moeda importa. */}
         {foreign && (
-          <Link href="/configuracoes/preferencias" className="text-caption font-medium text-accent-strong hover:underline">
-            Usa sempre {CURRENCIES[currency].label.toLowerCase()}? Troque a moeda do app em Preferências →
+          <Link href="/configuracoes" className="text-caption font-medium text-accent-strong hover:underline">
+            Usa sempre {CURRENCIES[currency].label.toLowerCase()}? Troque a moeda do app em Configurações →
           </Link>
         )}
       </div>

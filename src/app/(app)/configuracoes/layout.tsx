@@ -1,15 +1,10 @@
 import { SettingsTabs } from "./SettingsTabs";
-import { isPluggyConfigured } from "@/lib/pluggy/client";
 
-/**
- * No computador a sidebar lista as seções de Configurações. No celular não existia caminho
- * nenhum: "Mais › Configurações" caía no Perfil e Preferências (moeda, tema), Categorias e
- * Notificações ficavam inalcançáveis. As pílulas aparecem só no celular.
- */
+/** As telas de Configurações: a principal é a lista; as de dentro ganham a volta para ela. */
 export default function ConfiguracoesLayout({ children }: { children: React.ReactNode }) {
   return (
     <div>
-      <SettingsTabs openFinance={isPluggyConfigured()} />
+      <SettingsTabs />
       {children}
     </div>
   );

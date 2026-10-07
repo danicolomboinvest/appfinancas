@@ -1,5 +1,4 @@
 import { PageHeader } from "@/components/ui/PageHeader";
-import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { Card } from "@/components/ui/Card";
 import { categoryLabel } from "@/lib/categories";
 import { getRequiredSession } from "@/lib/auth/session";
@@ -18,9 +17,8 @@ export default async function CategoriasPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <Breadcrumb items={[{ label: t.cfgBreadcrumb, href: "/configuracoes/perfil" }, { label: t.cfgAbaCategorias }]} />
 
-      <PageHeader title={t.cfgCategoriasTitulo} subtitle={t.cfgCategoriasSub} />
+      <PageHeader title={t.cfgCategoriasTitulo} />
 
       <EditorDeCategorias proprias={proprias.map((c) => ({ id: c.id, name: c.name, icon: c.icon }))} />
 

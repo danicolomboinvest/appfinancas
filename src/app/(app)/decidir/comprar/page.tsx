@@ -61,7 +61,7 @@ export default async function PossoComprarPage() {
         <Link href="/decidir" className="flex w-fit items-center gap-1 text-sm text-ink-muted hover:text-ink">
           <ChevronLeft size={16} /> {t.decTitulo}
         </Link>
-        <PageHeader title={t.compraTitulo} subtitle="Uma pergunta antes da primeira conta." />
+        <PageHeader title={t.compraTitulo} />
         <PerguntaRendaDoCasal />
       </div>
     );

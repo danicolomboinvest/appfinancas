@@ -95,7 +95,7 @@ export function EscolhaInicial({ nome }: { nome: string | undefined }) {
             </button>
           ))}
         </div>
-        <p className="text-caption text-ink-faint">Dá para trocar depois em Configurações › Preferências.</p>
+        <p className="text-caption text-ink-faint">Dá para trocar depois em Configurações.</p>
       </section>
 
       <Button type="button" disabled={pendente} onClick={() => comecar(() => comecarAction({ kind: tipo, theme: tema, currency: moeda }))} className="w-full sm:w-fit">

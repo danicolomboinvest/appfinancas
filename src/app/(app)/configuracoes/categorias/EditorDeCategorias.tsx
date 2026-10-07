@@ -40,7 +40,6 @@ export function EditorDeCategorias({ proprias }: { proprias: Propria[] }) {
     <div className="flex flex-col gap-4">
       <Card className="flex flex-col gap-2 p-4">
         <p className="text-sm font-semibold text-ink">Categorias do app</p>
-        <p className="text-caption text-ink-muted">Toque para mudar o nome, o ícone ou esconder a que você não usa.</p>
         <ul className="mt-1 flex flex-col divide-y divide-border overflow-hidden rounded-xl border border-border">
           {PARENT_CATEGORIES.map((key) => {
             const Icone = categoryIcon(categorias, key);

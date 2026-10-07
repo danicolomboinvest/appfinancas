@@ -159,7 +159,7 @@ export const NAV_SECTIONS: NavSection[] = [
   { basePath: "/guia", href: "/guia", label: "Como usar o app", icon: BookOpen },
   {
     basePath: "/configuracoes",
-    href: "/configuracoes/perfil",
+    href: "/configuracoes",
     label: "Configurações",
     icon: Settings,
     alsoMatches: ["/perfis"],
@@ -168,10 +168,10 @@ export const NAV_SECTIONS: NavSection[] = [
       // é o cadastro de quem está logado. Nomes parecidos, coisas diferentes — daí o
       // adjetivo. Antes da entrada existir, a única porta pra /perfis no app inteiro era o
       // link dentro da gaveta do seletor, que no desktop ninguém achava.
+      // Cadastro, modo e moeda moram na tela principal desde 07/10/2026.
+      { href: "/configuracoes", label: "Geral" },
       { href: "/perfis", label: "Perfis financeiros" },
-      { href: "/configuracoes/perfil", label: "Perfil" },
       { href: "/configuracoes/categorias", label: "Categorias" },
-      { href: "/configuracoes/preferencias", label: "Preferências" },
       // Voltou pro menu: agora controla um envio de verdade (o resumo do mês por e-mail), não
       // só alertas de tela. Sem um lugar visível pra desligar, e-mail recorrente vira spam.
       { href: "/configuracoes/notificacoes", label: "Notificações" },

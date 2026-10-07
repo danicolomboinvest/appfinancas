@@ -2,7 +2,6 @@ import { getRequiredSession } from "@/lib/auth/session";
 import { listReferenceRates } from "@/lib/repositories/reference-rate.repo";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Badge } from "@/components/ui/Badge";
-import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { ResponsiveTable, type ResponsiveColumn } from "@/components/ui/ResponsiveTable";
 import { ReferenceRateForm } from "./ReferenceRateForm";
 import { DeleteRateButton } from "./DeleteRateButton";
@@ -42,9 +41,8 @@ export default async function TaxasDoSistemaPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <Breadcrumb items={[{ label: t.cfgBreadcrumb, href: "/configuracoes/perfil" }, { label: t.cfgTaxasTitulo }]} />
 
-      <PageHeader title={t.cfgTaxasTitulo} subtitle={t.cfgTaxasSub} />
+      <PageHeader title={t.cfgTaxasTitulo} />
 
       <ReferenceRateForm />
 

@@ -13,7 +13,7 @@ export default async function PerfisPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title={t.cfgPerfisTitulo} subtitle={t.cfgPerfisSub} />
+      <PageHeader title={t.cfgPerfisTitulo} />
       <ProfilesManager perfis={perfis} ativoId={ctx.profileId} />
     </div>
   );

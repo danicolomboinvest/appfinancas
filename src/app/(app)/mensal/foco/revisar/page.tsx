@@ -70,7 +70,7 @@ export default async function RevisarAntigosPage() {
       <Link href="/mensal/foco" className="flex w-fit items-center gap-1 text-sm text-ink-muted hover:text-ink">
         <ChevronLeft size={16} /> Foco
       </Link>
-      <PageHeader title="Revisar lançamentos antigos" subtitle="Aplicação, pagamento de fatura e estorno que entraram como gasto ou renda. Você decide um por um." />
+      <PageHeader title="Revisar lançamentos antigos" />
       {itens.length === 0 ? (
         <p className="text-sm text-ink-muted">Nada pra revisar. Tudo certo por aqui.</p>
       ) : (

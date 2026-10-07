@@ -26,6 +26,7 @@ const PATH_LABELS: Record<string, string> = {
   "/fichas": "Análises (insights)",
   "/resumo-mensal": "Resumo mensal",
   "/configuracoes/perfil": "Perfil",
+  "/configuracoes": "Configurações",
 };
 
 function labelFor(path: string): string {

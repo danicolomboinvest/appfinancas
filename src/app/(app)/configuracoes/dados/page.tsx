@@ -1,5 +1,4 @@
 import { PageHeader } from "@/components/ui/PageHeader";
-import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { Card } from "@/components/ui/Card";
 import { ExportCsvButton, ExportAssetsCsvButton } from "./ExportCsvButton";
 import { DeleteAccountSection } from "./DeleteAccountSection";
@@ -17,9 +16,8 @@ export default async function DadosPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <Breadcrumb items={[{ label: t.cfgBreadcrumb, href: "/configuracoes/perfil" }, { label: t.cfgAbaDados }]} />
 
-      <PageHeader title={t.cfgDadosTitulo} subtitle={t.cfgDadosSub} />
+      <PageHeader title={t.cfgDadosTitulo} />
 
       <Card className="p-5">
         <p className="mb-3 text-sm text-ink-muted">{t.cfgExportLancamentosDica}</p>

@@ -1,7 +1,6 @@
 import { getRequiredSession } from "@/lib/auth/session";
 import { getOwnUser } from "@/lib/repositories/user.repo";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { NotificationsForm } from "./NotificationsForm";
 import { PushSettings } from "./PushSettings";
 import { prisma } from "@/lib/db/prisma";
@@ -14,9 +13,8 @@ export default async function NotificacoesPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <Breadcrumb items={[{ label: t.cfgBreadcrumb, href: "/configuracoes/perfil" }, { label: t.cfgAbaNotificacoes }]} />
 
-      <PageHeader title={t.cfgNotificacoesTitulo} subtitle={t.cfgNotificacoesSub} />
+      <PageHeader title={t.cfgNotificacoesTitulo} />
 
       <PushSettings publicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? null} devices={devices} />
 

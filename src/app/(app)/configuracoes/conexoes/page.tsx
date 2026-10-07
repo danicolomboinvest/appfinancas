@@ -2,7 +2,6 @@ import { getRequiredSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
 import { isPluggyConfigured } from "@/lib/pluggy/client";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { Connections } from "./Connections";
 import { vozDoTema } from "@/lib/profiles/voice";
 
@@ -13,8 +12,7 @@ export default async function ConexoesPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <Breadcrumb items={[{ label: t.cfgBreadcrumb, href: "/configuracoes/perfil" }, { label: t.cfgAbaConexoes }]} />
-      <PageHeader title={t.cfgConexoesTitulo} subtitle={t.cfgConexoesSub} />
+      <PageHeader title={t.cfgConexoesTitulo} />
       <Connections
         configured={isPluggyConfigured()}
         connections={connections.map((c) => ({
