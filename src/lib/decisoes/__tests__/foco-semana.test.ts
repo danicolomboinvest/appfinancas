@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { diaDaSemana, previsaoDoMes, ritmoDoMes } from "../foco-semana";
+import { diaDaSemana, previsaoDoMes, ritmoDoMes, livreAteDomingo } from "../foco-semana";
 import { ritmoVariavel } from "../foco";
 
 describe("cartão da semana na Foco", () => {
@@ -51,5 +51,23 @@ describe("ritmo sem as contas fixas (05/10/2026)", () => {
     const v = ritmoVariavel([{ gasto: 2600, planejado: 2400, fixa: true }, { gasto: 100, planejado: 1000, fixa: false }], 50);
     expect(v.gastoVariavel).toBe(350);
     expect(v.planoVariavel).toBe(1000);
+  });
+});
+
+describe("livre até domingo, pelo orçamento (07/10/2026)", () => {
+  it("numa quarta, com 25 dias no mês: R$ 130 por dia, 5 dias até domingo = R$ 650", () => {
+    const semana = livreAteDomingo(3250, 25, 5);
+    expect(semana).toBe(650);
+    // O por dia do Foco (semana ÷ dias até domingo) é o mesmo do Orçamento (sobra ÷ dias do mês).
+    expect(semana / 5).toBe(3250 / 25);
+  });
+  it("na segunda, a semana inteira", () => {
+    expect(livreAteDomingo(3000, 30, 7)).toBe(700);
+  });
+  it("no fim do mês, com menos dias que até domingo, é o que sobra inteiro", () => {
+    expect(livreAteDomingo(400, 3, 6)).toBe(400);
+  });
+  it("sem o dia da semana, conta 7 dias", () => {
+    expect(livreAteDomingo(3000, 30)).toBe(700);
   });
 });

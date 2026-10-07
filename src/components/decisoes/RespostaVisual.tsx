@@ -8,11 +8,11 @@ const SELO: Record<Veredito, string> = {
 };
 const SELO_SUAVE: Record<Veredito, string> = {
   bom: "bg-success-soft text-success",
-  atencao: "bg-[#E8A33A]/15 text-[#9a5f00]",
+  atencao: "bg-[var(--color-atencao-fundo)] text-[var(--color-atencao)]",
   ruim: "bg-danger-soft text-danger",
 };
 const BARRA: Record<Veredito, string> = { bom: "bg-success", atencao: "bg-[#E8A33A]", ruim: "bg-danger" };
-const TEXTO: Record<Veredito, string> = { bom: "text-success", atencao: "text-[#9a5f00]", ruim: "text-danger" };
+const TEXTO: Record<Veredito, string> = { bom: "text-success", atencao: "text-[var(--color-atencao)]", ruim: "text-danger" };
 
 /**
  * A resposta do Decidir desenhada (07/10/2026): a palavra ou o número grande, o selo do veredito e

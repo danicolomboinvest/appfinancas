@@ -18,6 +18,7 @@ import { existeDecisao, listarAvisosDispensados, listarCancelamentosPraConfirmar
 import { computeGoalPlan } from "@/lib/planning/goal";
 import { ehEmpresa } from "@/lib/profiles/empresa";
 import { gastoDepoisDoCombinado, montarFoco } from "@/lib/decisoes/foco";
+import { diaDaSemana } from "@/lib/decisoes/foco-semana";
 import { acharRecorrentes } from "@/lib/decisoes/raio-x";
 import { chaveDaSemana, chaveDoMes, lerRitmo } from "./ritmo";
 
@@ -186,6 +187,7 @@ export async function carregarFoco(ctx: AuthContext) {
   const foco = montarFoco({
     ritmo: ritmo ?? "semanal",
     dia,
+    diasAteDomingo: diaDaSemana(now).diasAteDomingo,
     diasNoMes,
     categorias,
     gastoDoMes: summary.totalExpense,

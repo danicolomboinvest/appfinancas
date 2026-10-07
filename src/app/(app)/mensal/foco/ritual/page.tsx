@@ -7,6 +7,7 @@ import { sumExpensesBetweenDates } from "@/lib/repositories/monthly-entry.repo";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { carregarFoco } from "../dados";
 import { Ritual, type DadosRitual } from "./Ritual";
+import { diaDaSemana, livreAteDomingo } from "@/lib/decisoes/foco-semana";
 
 const DIA_MS = 86_400_000;
 
@@ -33,7 +34,8 @@ export default async function RitualPage() {
 
   const livre = d.foco.livre;
   const diasRestantes = livre.tipo === "semOrcamento" ? Math.max(1, d.diasNoMes - d.dia + 1) : livre.diasRestantes;
-  const porSemana = (v: number) => (diasRestantes < 7 ? v : (v / diasRestantes) * 7);
+  // A mesma semana do Foco: o por dia do orçamento vezes os dias até domingo (07/10/2026).
+  const porSemana = (v: number) => livreAteDomingo(v, diasRestantes, diaDaSemana(d.now).diasAteDomingo);
   // O mesmo alvo que a aba Foco põe em primeiro: o ritual nunca contradiz o Foco (ordem por
   // estouro em reais, "correndo rápido" só antes de 70% do mês, conta fixa fora).
   // Categoria que já tem teto está decidida: fica fora ANTES de escolher, senão o primeiro aviso

@@ -1,3 +1,4 @@
+import { livreAteDomingo } from "./foco-semana";
 import type { Titulos } from "@/lib/profiles/voice";
 
 /**
@@ -47,6 +48,8 @@ export type FocoEntrada = {
   ritmo: Ritmo;
   /** Dia de hoje (1–31) e quantos dias o mês tem. */
   dia: number;
+  /** Dias de hoje até domingo, contando hoje (segunda = 7, domingo = 1). Omitido = 7. */
+  diasAteDomingo?: number;
   diasNoMes: number;
   /** Só as categorias com valor planejado no mês. */
   categorias: FocoCategoria[];
@@ -264,7 +267,7 @@ export function montarFoco(e: FocoEntrada): FocoSaida {
   const { t, money } = e;
   const diasRestantes = Math.max(1, e.diasNoMes - e.dia + 1);
   const decorrido = (e.dia - 1) / e.diasNoMes;
-  const porSemanaDe = (valor: number) => (diasRestantes < 7 ? valor : (valor / diasRestantes) * 7);
+  const porSemanaDe = (valor: number) => livreAteDomingo(valor, diasRestantes, e.diasAteDomingo);
 
   // Mensal e nada lançado no mês ainda: é o caso normal de quem fecha uma vez por mês, não um
   // problema. O número sai do planejado e é chamado de estimativa; alerta de gasto não existe.

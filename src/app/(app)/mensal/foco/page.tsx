@@ -14,7 +14,7 @@ import { OnboardingChecklist } from "@/app/(app)/mensal/[year]/[month]/Onboardin
 import { perguntarRitmo } from "./comece";
 import { SemanaFoco } from "./SemanaFoco";
 import { ContaDoLivre } from "./ContaDoLivre";
-import { ritmoDoMes } from "@/lib/decisoes/foco-semana";
+import { diaDaSemana, ritmoDoMes } from "@/lib/decisoes/foco-semana";
 import { vozDoTema } from "@/lib/profiles/voice";
 import { listarContasAPagar } from "@/lib/repositories/conta-a-pagar.repo";
 import { contasDoFoco, hojeEmBrasilia } from "@/lib/contas/contas";
@@ -317,7 +317,9 @@ export default async function FocoPage() {
                           <dd className="text-right tabular-nums text-ink">{m(livre.restante)}</dd>
                           <dt className="text-ink-muted">Dias que faltam (com hoje)</dt>
                           <dd className="text-right tabular-nums text-ink">{livre.diasRestantes}</dd>
-                          <dt className="font-semibold text-ink">Por semana</dt>
+                          <dt className="text-ink-muted">Por dia</dt>
+                          <dd className="text-right tabular-nums text-ink">{m(livre.restante / Math.max(1, livre.diasRestantes))}</dd>
+                          <dt className="font-semibold text-ink">Até domingo ({Math.min(diaDaSemana(d.now).diasAteDomingo, livre.diasRestantes)} dias)</dt>
                           <dd className="text-right font-semibold tabular-nums text-ink">{m(livre.porSemana)}</dd>
                         </>
                       )}

@@ -35,6 +35,7 @@ import { ehCasal } from "@/lib/profiles/casal";
 import { lerDecisao, listarComprasDecididasDesde } from "@/lib/repositories/decisao.repo";
 import { categoryLabel } from "@/lib/categories";
 import { parcelasPorMes } from "@/lib/decisoes/compra-guiada";
+import { diaDaSemana } from "@/lib/decisoes/foco-semana";
 
 /** Rendimento de referência quando a pessoa não informou nenhum (≈ CDI líquido, ao mês). */
 const TAXA_PADRAO = 0.009;
@@ -207,6 +208,7 @@ export default async function PossoComprarPage() {
     gastoPlanejado,
     sobraDoMes,
     diasRestantes,
+    diasAteDomingo: diaDaSemana(now).diasAteDomingo,
     metas,
     taxaReferencia: fund && Number(fund.annualRate) > 0 ? mensal(Number(fund.annualRate)) : TAXA_PADRAO,
     reservaComSaldo: Boolean(fund && Number(fund.currentAmount) > 0),

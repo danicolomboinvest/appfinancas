@@ -1,3 +1,5 @@
+import { livreAteDomingo } from "./foco-semana";
+
 /**
  * "Posso comprar?": o que uma compra faz com o mês e com as metas, ANTES de passar o cartão.
  *
@@ -62,6 +64,8 @@ export type CompraBase = {
    */
   jaDecidido?: { vista: number; parcelaMensal: number };
   diasRestantes: number;
+  /** Dias de hoje até domingo, contando hoje: o "livre por semana" é o mesmo do Foco. Omitido = 7. */
+  diasAteDomingo?: number;
   metas: CompraMeta[];
   /** Taxa mensal de referência pro "dinheiro rendendo" na comparação à vista × parcelado. */
   taxaReferencia: number;
@@ -275,7 +279,7 @@ function avaliarSemAvisos(base: CompraBase, compraBruta: Compra, fmt: Formatos):
     // Parcelado em 1x é à vista, sem desconto.
     modo: compraBruta.modo === "parcelado" && parcelasPedidas <= 1 ? "vista" : compraBruta.modo,
   };
-  const porSemana = (v: number) => (base.diasRestantes < 7 ? v : (v / base.diasRestantes) * 7);
+  const porSemana = (v: number) => livreAteDomingo(v, base.diasRestantes, base.diasAteDomingo);
   // O que a renda JÁ tem de compromisso: o maior entre o que ela planejou gastar e o que ela
   // gastou de fato, na média dos últimos meses. Planejar R$ 7.000 e gastar R$ 8.800 (parcelas
   // antigas, mercado que sempre passa) não pode fazer uma compra nova parecer caber.

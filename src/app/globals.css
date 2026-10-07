@@ -585,6 +585,17 @@ html.light .glass-pill {
   box-shadow: 0 0 0 4px var(--color-accent-soft);
 }
 
+/* O âmbar de "atenção" (07/10/2026), legível nos dois modos: claro no escuro, queimado no claro.
+   Usado nas respostas do Decidir; o tema não muda (âmbar é estado, não marca). */
+:root {
+  --color-atencao: #f0b45c;
+  --color-atencao-fundo: rgba(232, 163, 58, 0.18);
+}
+html.light {
+  --color-atencao: #9a5f00;
+  --color-atencao-fundo: rgba(232, 163, 58, 0.15);
+}
+
 /* Toque com resposta: desde 07/10/2026 o aperto é desenhado em ToqueVivo.tsx (animação com mola,
    que aparece até num toque rápido no iPhone). Aqui fica só o que o CSS faz melhor: sem o flash
    cinza do toque no iPhone. */
