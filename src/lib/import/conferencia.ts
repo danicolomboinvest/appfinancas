@@ -22,6 +22,8 @@ export type Conferencia =
 
 const VALOR = String.raw`(?:R\$\s*)?(\d{1,3}(?:\.\d{3})*,\d{2})`;
 
+const TOTAL_EM_REAL = new RegExp(String.raw`total\s+da\s+fatura\s+em\s+real[\s.]*${VALOR}`, "i");
+
 const TOTAL_DE_COMPRAS_NUBANK = new RegExp(String.raw`total\s+de\s+compras[^\n]*?R\$\s*(\d{1,3}(?:\.\d{3})*,\d{2})`, "i");
 
 /** Totais de COMPRAS que as faturas imprimem, além do total a pagar (que mistura saldo anterior e pagamento). */
@@ -31,7 +33,7 @@ const TOTAIS_DE_COMPRAS: RegExp[] = [
   TOTAL_DE_COMPRAS_NUBANK,
   new RegExp(String.raw`total\s+despesas\/d[ée]bitos\s+no\s+brasil\s*${VALOR}`, "i"), // Santander
   new RegExp(String.raw`compras\/d[ée]bitos\.*\s*${VALOR}`, "i"), // Bradesco
-  new RegExp(String.raw`total\s+da\s+fatura\s+em\s+real[\s.]*${VALOR}`, "i"), // Bradesco (o app Bradesco Cartões põe ". . ." no meio)
+  TOTAL_EM_REAL, // Bradesco (o app Bradesco Cartões põe ". . ." no meio)
   new RegExp(String.raw`^despesas\/d[ée]bitos\s+no\s+brasil\s*\+\s*${VALOR}`, "im"), // Riachuelo (Midway)
   new RegExp(String.raw`^despesas\s+atuais\s*\|\s*d[ée]bitos\s+no\s+brasil\s*${VALOR}`, "im"), // Sicredi
   new RegExp(String.raw`^consumos\s+de\s+\d{2}\/\d{2}\s+a\s+\d{2}\/\d{2}\s*${VALOR}`, "im"), // Mercado Pago
@@ -52,6 +54,10 @@ const TOTAIS_DE_COMPRAS: RegExp[] = [
 /** Saldo da fatura anterior que não foi pago e veio somado no total a pagar (C6). Não é compra
  * deste mês, então o total a pagar menos ele é o que as linhas têm que somar. */
 const REMANESCENTE = new RegExp(String.raw`valor\s+remanescente\s+da\s+fatura\s+anterior\s*${VALOR}`, "i");
+
+/** App Bradesco Cartões com a fatura "EM ABERTO": o "Total da Fatura em Real" soma o saldo da
+ * anterior ("10/10 SALDO ANTERIOR BRL 0,00 0,00 R$ 0,00 1.097,14"), que não é compra deste mês. */
+const SALDO_ANTERIOR_BRADESCO_APP = /SALDO ANTERIOR BRL\s+[\d.,]+\s+[\d.,]+\s+R\$\s*[\d.,]+\s+(\d{1,3}(?:\.\d{3})*,\d{2})/i;
 
 const OUTROS_LANCAMENTOS = new RegExp(String.raw`^outros\s+lan[çc]amentos\s*${VALOR}`, "im");
 
@@ -121,6 +127,9 @@ export function conferirLeitura(texto: string, docType: string, txns: ParsedTran
     if (outros !== null && comprasNubank !== null) referencias.push(Math.round((comprasNubank + outros) * 100) / 100);
     const remanescente = numero(texto.match(REMANESCENTE));
     if (total !== null && remanescente !== null) referencias.push(Math.round((total - remanescente) * 100) / 100);
+    const saldoAnteriorBradesco = numero(texto.match(SALDO_ANTERIOR_BRADESCO_APP));
+    const totalEmReal = numero(texto.match(TOTAL_EM_REAL));
+    if (totalEmReal !== null && saldoAnteriorBradesco !== null) referencias.push(Math.round((totalEmReal - saldoAnteriorBradesco) * 100) / 100);
     // Itaú com espaço no meio das palavras e números ("L Tot al dos lançam ent os atuais 2.30 9,02").
     const totalItauJunto = numero(texto.replace(/[ \t]+/g, "").match(TOTAL_ITAU_JUNTO));
     if (totalItauJunto !== null) referencias.push(totalItauJunto);

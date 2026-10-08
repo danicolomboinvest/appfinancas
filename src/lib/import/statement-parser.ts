@@ -11,6 +11,9 @@ import { isBanrisulStatement, parseBanrisulStatement } from "./banrisul-pdf";
 import { isXpContaDigitalStatement, parseXpContaDigitalStatement } from "./xp-conta-pdf";
 import { isPicPayInvoice, parsePicPayInvoice } from "./picpay-fatura-pdf";
 import { isSicrediInvoice, parseSicrediInvoice } from "./sicredi-fatura-pdf";
+import { isCaixaInvoice, parseCaixaInvoice } from "./caixa-fatura-pdf";
+import { isPortoInvoice, parsePortoInvoice } from "./porto-fatura-pdf";
+import { isUnicredStatement, parseUnicredStatement } from "./unicred-pdf";
 import { isMercadoPagoInvoice, parseMercadoPagoInvoice } from "./mercado-pago-fatura-pdf";
 import { isBanrisulInvoice, parseBanrisulInvoice } from "./banrisul-fatura-pdf";
 import { isBradescoCartoesApp, parseBradescoCartoesApp } from "./bradesco-cartoes-app-pdf";
@@ -675,6 +678,36 @@ function sinalSoPeloMenos(escolhidos: ValorNaLinha[], content: string): boolean 
   return comMenos >= 2 && comMenos < escolhidos.length && comMenos >= escolhidos.length * 0.3 && !PALAVRAS_DE_FATURA_RE.test(content);
 }
 
+/**
+ * O mesmo jeito do Itaú (só a saída com "-"), mas com menos de 30% de saídas: a conta que recebe
+ * muito Pix pequeno (29 de 106 com "-" num extrato de 07/10/2026) caía no "sem sinal = gasto" e
+ * TODA entrada virava saída — R$ 25 mil de gasto num mês em que o saldo terminou em zero. Quem
+ * desempata é o saldo do próprio extrato ("SALDO DO DIA"): do primeiro ao último, a variação tem
+ * que ser a soma dos lançamentos entre eles. Só vale se essa conta fechar com "sem sinal =
+ * entrada" e NÃO fechar com "sem sinal = saída".
+ */
+function saldosDizemQueSemSinalEEntrada(registros: RegistroDeTexto[], content: string): boolean {
+  if (PALAVRAS_DE_FATURA_RE.test(content)) return false;
+  const movimentos = registros.filter((r) => !r.linhaDeSaldo && r.valores.length === 1 && r.valores[0].magnitude > 0);
+  const valores = movimentos.map((r) => r.valores[0]);
+  if (valores.some((v) => v.marca !== null || v.mais)) return false;
+  const comMenos = valores.filter((v) => v.menos).length;
+  if (comMenos < 2 || comMenos === valores.length) return false;
+  const saldos = registros.filter((r) => r.linhaDeSaldo && r.valores.length === 1 && /\bsaldo\b/i.test(r.text));
+  if (saldos.length < 2) return false;
+  const datas = saldos.map((r) => r.date).sort();
+  const [primeira, ultima] = [datas[0], datas[datas.length - 1]];
+  const doDia = (d: string) => saldos.filter((r) => r.date === d);
+  // Dois saldos no mesmo dia (anterior e do dia) deixam a conta ambígua: não decide nada.
+  if (primeira === ultima || doDia(primeira).length !== 1 || doDia(ultima).length !== 1) return false;
+  const variacao = comSinalProprio(doDia(ultima)[0].valores[0]) - comSinalProprio(doDia(primeira)[0].valores[0]);
+  const entre = movimentos.filter((r) => r.date > primeira && r.date <= ultima);
+  if (entre.length === 0) return false;
+  const soma = (semSinalEntrada: boolean) =>
+    entre.reduce((s, r) => s + sinalPelaLinha(r.valores[0], r.text, semSinalEntrada) * r.valores[0].magnitude, 0);
+  return Math.abs(soma(true) - variacao) < 0.01 && Math.abs(soma(false) - variacao) >= 0.01;
+}
+
 /** Sinal pelo próprio valor e pelas palavras da linha, quando o saldo não diz. */
 function sinalPelaLinha(v: ValorNaLinha, text: string, semSinalEEntrada: boolean): 1 | -1 {
   const entrada = temPalavraDeEntrada(text);
@@ -753,10 +786,9 @@ export function parseTextLines(content: string, refYear: number = new Date().get
   // Penúltimo zerado não é lançamento: aí vale o último, como sempre foi.
   const temDoisNumeros = (r: RegistroDeTexto) => saldoNaColuna && r.valores.length === 2 && r.valores[0].magnitude > 0;
   const valorDo = (r: RegistroDeTexto) => r.valores[r.valores.length - (temDoisNumeros(r) ? 2 : 1)];
-  const semSinalEEntrada = sinalSoPeloMenos(
-    registros.filter((r) => !r.linhaDeSaldo).map(valorDo),
-    texto,
-  );
+  const semSinalEEntrada =
+    sinalSoPeloMenos(registros.filter((r) => !r.linhaDeSaldo).map(valorDo), texto) ||
+    (!saldoNaColuna && saldosDizemQueSemSinalEEntrada(registros, texto));
 
   const transactions: ParsedTransaction[] = [];
   let saldoAnterior: number | null = null;
@@ -821,6 +853,9 @@ const LEITORES_PDF: { nome: string; reconhece: (t: string) => boolean; le: (t: s
   { nome: "mercado-pago-fatura", reconhece: isMercadoPagoInvoice, le: (t, ano) => parseMercadoPagoInvoice(t, ano) },
   { nome: "banrisul-fatura", reconhece: isBanrisulInvoice, le: (t, ano) => parseBanrisulInvoice(t, ano) },
   { nome: "bradesco-cartoes-app", reconhece: isBradescoCartoesApp, le: (t, ano) => parseBradescoCartoesApp(t, ano) },
+  { nome: "caixa-fatura", reconhece: isCaixaInvoice, le: (t, ano) => parseCaixaInvoice(t, ano) },
+  { nome: "porto-fatura", reconhece: isPortoInvoice, le: (t, ano) => parsePortoInvoice(t, ano) },
+  { nome: "unicred", reconhece: isUnicredStatement, le: (t) => parseUnicredStatement(t) },
 ];
 
 /** Igual a `parseStatement`, e diz QUEM leu: o nome do leitor próprio do banco, ou null quando

@@ -83,6 +83,14 @@ function lerItauEspacado(texto: string, refYear: number): ParsedTransaction[] {
   const out: ParsedTransaction[] = [];
   for (const bruta of texto.split(/\r?\n/)) {
     const linha = remendarNumeros(bruta.replace(/\t/g, " ").replace(/\s+/g, " ").trim());
+    // Com as colunas misturadas, o "Repasse de IOF em R$ 17,04" vem no meio da linha, colado no
+    // texto da outra coluna.
+    const iof = linha.match(IOF_NO_MEIO_RE);
+    const valorIof = iof ? parseBrazilianNumber(iof[1]) : 0;
+    if (valorIof > 0) {
+      const data = emissao ? `${emissao[3]}-${emissao[2]}-${emissao[1]}` : out.at(-1)?.date;
+      if (data) out.push({ date: data, description: "Repasse de IOF (compras no exterior)", amount: valorIof });
+    }
     for (const m of linha.matchAll(COMPRA_NA_LINHA_RE)) {
       const [, dd, mm, descricao, menos, valor] = m;
       const magnitude = parseBrazilianNumber(valor);
@@ -91,8 +99,14 @@ function lerItauEspacado(texto: string, refYear: number): ParsedTransaction[] {
       out.push({ date: `${ano}-${mm}-${dd}`, description: descricao.trim(), amount: menos ? -magnitude : magnitude });
     }
   }
-  return semParcelaSeguinte(out);
+  // Só compra pode ser parcela do quadro das próximas faturas. O cancelamento das parcelas
+  // ("CANC PARCELAS 01/02 -111,19" e "02/02 -111,18", mesmo dia) parecia parcela seguinte de si
+  // mesmo, e o crédito de R$ 111 sumia: a fatura não fechava por esse valor.
+  const compras = semParcelaSeguinte(out.filter((t) => t.amount > 0));
+  return out.filter((t) => t.amount <= 0 || compras.includes(t));
 }
+
+const IOF_NO_MEIO_RE = /Repasse de IOF em R\$\s*(\d{1,3}(?:\.\d{3})*,\d{2})(?!\d)/i;
 
 /** Data que não é parte de data maior ("29/08/2026" fica de fora), descrição, valor. */
 const COMPRA_NA_LINHA_RE = /(?<![\d/])(\d{2})\/(\d{2})(?![\d/])\s+(.+?)\s+(-)?\s?(\d{1,3}(?:\.\d{3})*,\d{2})(?=\s|$)/g;
