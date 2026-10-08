@@ -86,8 +86,10 @@ export default async function FocoPage() {
           { rotulo: voz.titulos.gastou, valor: d.summary.totalExpense },
           { rotulo: voz.titulos.aportou, valor: d.summary.totalInvestment },
         ].map((x) => (
-          <span key={x.rotulo} className="min-w-0">
-            <span className="block truncate text-caption text-ink-muted">{x.rotulo}</span>
+          <span key={x.rotulo} className="flex min-w-0 flex-col justify-end">
+            {/* Duas linhas no rótulo: no Girly o terceiro é "Guardou para investir 🐷", e cortado
+                virava "Guardou para i…" (08/10/2026). O número fica alinhado embaixo nos três. */}
+            <span className="line-clamp-2 text-caption leading-tight text-ink-muted">{x.rotulo}</span>
             <span className="block truncate text-[15px] font-semibold tabular-nums text-ink">{m(x.valor)}</span>
           </span>
         ))}

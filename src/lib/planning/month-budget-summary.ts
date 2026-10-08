@@ -102,7 +102,10 @@ export function resumoDoMes(input: {
   // `ultimoGasto` é @db.Date: lido no fuso local, qualquer processo fora de UTC (o next dev no
   // Mac, que lê o mesmo banco) via "último gasto dia 9" quando foi dia 10, e um dia a mais sem
   // lançar — o que escondia o "R$ X por dia" um dia antes da hora.
-  const ultimoDiaLancado = ultimoGasto ? ultimoGasto.getUTCDate() : null;
+  // Só o dia de um gasto DESTE mês (08/10/2026): quem chega em outubro sem nada lançado tem
+  // como último gasto o 29 de setembro, e a tela dizia "lançados até dia 29" em outubro.
+  const gastoDesteMes = Boolean(ultimoGasto && ultimoGasto.getUTCFullYear() === ano && ultimoGasto.getUTCMonth() + 1 === mes);
+  const ultimoDiaLancado = gastoDesteMes && ultimoGasto ? ultimoGasto.getUTCDate() : null;
   const diasSemLancar =
     ehMesCorrente && ultimoGasto
       ? Math.max(0, Math.round((diaDeHoje(hoje) - diaGravado(ultimoGasto)) / 86_400_000))

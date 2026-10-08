@@ -85,7 +85,7 @@ export function ResumoDoMesCard({
           <p className="text-sm text-ink">
             {ultimoDiaLancado === null
               ? `Você ainda não lançou nenhum gasto de ${mesLabel}.`
-              : `Seus gastos estão lançados até dia ${ultimoDiaLancado}. O que veio depois ainda não está nesta conta.`}
+              : `Gastos lançados até dia ${ultimoDiaLancado}.`}
           </p>
           {onAtualizar}
         </div>

@@ -26,7 +26,7 @@ describe("profileDocument lê o arquivo inteiro antes de decidir", () => {
     expect(p.period).toEqual({ from: "01/09/2026", to: "17/09/2026" });
     expect(p.positionRows).toBe(2);
     expect(p.movementRows).toBe(2);
-    expect(p.summary).toBe("Extrato de investimentos (posição + movimentações) · BTG Pactual · 01/09 a 17/09/2026");
+    expect(p.summary).toBe("Extrato de investimentos (posição + movimentações), BTG Pactual, 01/09 a 17/09/2026");
   });
 
   it("extrato bancário do Nubank (CSV) é extrato, com banco e período das datas", () => {
@@ -40,7 +40,7 @@ describe("profileDocument lê o arquivo inteiro antes de decidir", () => {
     expect(p.kind).toBe("statement");
     expect(p.institution).toBe("Nubank");
     expect(p.period).toEqual({ from: "01/09/2026", to: "10/09/2026" });
-    expect(p.summary).toBe("Extrato bancário · Nubank · 01/09 a 10/09/2026");
+    expect(p.summary).toBe("Extrato bancário, Nubank, 01/09 a 10/09/2026");
   });
 
   it("fatura de cartão (texto) é fatura mesmo sem cabeçalho na primeira linha", () => {
@@ -48,7 +48,7 @@ describe("profileDocument lê o arquivo inteiro antes de decidir", () => {
     const p = profileDocument(text, "arquivo.pdf");
     expect(p.kind).toBe("invoice");
     expect(p.institution).toBe("C6 Bank");
-    expect(p.summary).toContain("Fatura de cartão · C6 Bank");
+    expect(p.summary).toContain("Fatura de cartão, C6 Bank");
   });
 
   it("OFX de cartão é fatura pelo tipo declarado", () => {

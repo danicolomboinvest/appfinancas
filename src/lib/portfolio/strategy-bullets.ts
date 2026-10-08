@@ -42,8 +42,8 @@ export function buildStrategyBullets(positions: StrategyClassPosition[]): Strate
       targetPercent: p.targetPercent > 0 ? (p.targetPercent / axisMax) * 100 : null,
       rightLabel:
         p.targetPercent > 0
-          ? `${pct(p.currentPercent)}% · alvo ${pct(p.targetPercent)}%`
-          : `${pct(p.currentPercent)}% · sem alvo`,
+          ? `${pct(p.currentPercent)}%, alvo ${pct(p.targetPercent)}%`
+          : `${pct(p.currentPercent)}%, sem alvo`,
     }));
 }
 

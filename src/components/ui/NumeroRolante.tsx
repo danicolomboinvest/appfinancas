@@ -38,11 +38,17 @@ export function NumeroRolante({ texto, className = "" }: { texto: string; classN
               </span>
             );
           }
+          // A coluna tem a largura do PRÓPRIO dígito (o invisível), e a fita fica centrada nela
+          // (08/10/2026). Antes a coluna tinha a largura da fita inteira, a do dígito mais largo:
+          // a Albert Sans não tem algarismo de largura fixa, então o "1", estreito, sobrava num
+          // espaço de "0" e o R$ 4.100 aparecia "R$ 4.1 00". O recorte só corta em cima e
+          // embaixo, para os dígitos largos não serem cortados enquanto rolam.
           return (
-            <span key={`d${chave}`} className="inline-block h-[1.1em] overflow-hidden leading-[1.1em]">
+            <span key={`d${chave}`} className="relative inline-block h-[1.1em] leading-[1.1em]" style={{ clipPath: "inset(0 -0.6em)" }}>
+              <span className="invisible">{c}</span>
               <span
-                className="numero-rolante-fita block"
-                style={{ transform: `translateY(-${(montado ? d : 0) * 1.1}em)`, transitionDelay: `${Math.min(i, 8) * 25}ms` }}
+                className="numero-rolante-fita absolute left-1/2 top-0 block text-center"
+                style={{ transform: `translateX(-50%) translateY(-${(montado ? d : 0) * 1.1}em)`, transitionDelay: `${Math.min(i, 8) * 25}ms` }}
               >
                 {DIGITOS.map((x) => (
                   <span key={x} className="block h-[1.1em]">

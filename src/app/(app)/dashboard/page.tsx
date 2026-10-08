@@ -472,12 +472,14 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
             href="/planejamento/metas"
             icon={Target}
             label={voz.titulos.modMetas}
-            value={goals.length === 0 ? "Nenhuma meta" : `${goalsOnTrack} no ritmo`}
+            // Com meta atrasada, o número grande é a atrasada (08/10/2026): "2 no ritmo" em vermelho
+            // dizia "ruim" sobre a parte boa. A cor acompanha o que o número conta.
+            value={goals.length === 0 ? "Nenhuma meta" : goalsBehind > 0 ? `${goalsBehind} atrasada${goalsBehind === 1 ? "" : "s"}` : `${goalsOnTrack} no ritmo`}
             hint={
               goals.length === 0
                 ? "Cadastre sua primeira meta"
                 : goalsBehind > 0
-                  ? `${goalsBehind} atrasada${goalsBehind === 1 ? "" : "s"}, ${goals.length} no total`
+                  ? `${goalsOnTrack} no ritmo, ${goals.length} no total`
                   : `${goals.length} meta${goals.length === 1 ? "" : "s"} no total`
             }
             tone={goalsBehind > 0 ? "danger" : "success"}

@@ -44,7 +44,9 @@ export function ProfilesManager({ perfis, ativoId }: { perfis: ProfileRow[]; ati
         const tema = profileTheme(p.theme);
         const eAtivo = p.id === ativoId;
         return (
-          <div key={p.id} className="flex items-center gap-3 rounded-2xl border border-border bg-surface p-4">
+          // No celular os botões descem para uma linha própria (08/10/2026): ao lado, "Usar", "Mexer"
+          // e a lixeira espremiam o nome até virar "Empr…".
+          <div key={p.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border border-border bg-surface p-4">
             <span
               className="flex size-11 shrink-0 items-center justify-center rounded-full"
               style={{ backgroundColor: tema.paleta.accentSoft, color: tema.paleta.accent }}
@@ -58,7 +60,7 @@ export function ProfilesManager({ perfis, ativoId }: { perfis: ProfileRow[]; ati
                 {eAtivo && `, ${t.cfgPerfisEmUso}`}
               </p>
             </div>
-            <div className="flex shrink-0 items-center gap-1">
+            <div className="flex w-full shrink-0 items-center justify-end gap-1 sm:w-auto">
               {!eAtivo && (
                 <Button size="sm" variant="ghost" disabled={pendente} onClick={() => executar(() => trocarPerfilAction(p.id), t.cfgPerfisTrocouToast(p.name))}>
                   {t.cfgPerfisUsar}

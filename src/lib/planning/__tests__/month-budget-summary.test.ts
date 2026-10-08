@@ -119,3 +119,17 @@ describe("mês contado pela metade", () => {
     expect(r.desatualizado).toBe(false);
   });
 });
+
+describe("último gasto de outro mês (08/10/2026)", () => {
+  /** O print da Dani: outubro sem gasto, último gasto em 29/09, e a tela dizia "lançados até dia 29". */
+  it("não conta como dia lançado deste mês", () => {
+    const r = resumoDoMes({ ano: 2026, mes: 10, planejado: 4100, gasto: 0, hoje: new Date(2026, 9, 8, 10), ultimoGasto: new Date(Date.UTC(2026, 8, 29)) });
+    expect(r.ultimoDiaLancado).toBeNull();
+    expect(r.desatualizado).toBe(true);
+  });
+
+  it("gasto deste mês continua dando o dia", () => {
+    const r = resumoDoMes({ ano: 2026, mes: 10, planejado: 4100, gasto: 300, hoje: new Date(2026, 9, 8, 10), ultimoGasto: new Date(Date.UTC(2026, 9, 3)) });
+    expect(r.ultimoDiaLancado).toBe(3);
+  });
+});

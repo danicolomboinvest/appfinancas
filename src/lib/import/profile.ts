@@ -312,7 +312,7 @@ export function profileDocument(text: string, fileName?: string | null): DocProf
       : KIND_LABEL[kind];
   // Sem contagens aqui: a tela mostra os números do parser ("Li 115 de 120 linhas", "Novos (14)"),
   // e dois números diferentes pro mesmo arquivo só confundiriam.
-  const parts = [institution ? `${label} · ${institution}` : label];
+  const parts = [institution ? `${label}, ${institution}` : label];
   if (period) parts.push(formatPeriod(period));
 
   return {
@@ -323,7 +323,7 @@ export function profileDocument(text: string, fileName?: string | null): DocProf
     hints,
     contents,
     kind,
-    summary: parts.join(" · "),
+    summary: parts.join(", "),
     reason,
   };
 }
