@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ondeMostrarFechamento } from "../quando-mostrar";
 
-const base = { fechamentoFeito: false, mesAnteriorTemDados: true, dia: 3 };
+const base = { fechamentoFeito: false, mesAnteriorTinhaPlano: true, dia: 3 };
 
 describe("ondeMostrarFechamento (card do fechamento na aba Foco)", () => {
   it("quem nunca escolheu o ritmo também vê o fechamento, como quem escolheu mensal", () => {
@@ -15,10 +15,10 @@ describe("ondeMostrarFechamento (card do fechamento na aba Foco)", () => {
     expect(ondeMostrarFechamento({ ...base, ritmo: "semanal", dia: 16 })).toBeNull();
   });
 
-  it("já fechado, ou mês anterior vazio: não aparece pra ninguém", () => {
+  it("já fechado, ou mês anterior sem orçamento montado na época: não aparece pra ninguém", () => {
     for (const ritmo of [null, "mensal", "semanal"] as const) {
       expect(ondeMostrarFechamento({ ...base, ritmo, fechamentoFeito: true })).toBeNull();
-      expect(ondeMostrarFechamento({ ...base, ritmo, mesAnteriorTemDados: false })).toBeNull();
+      expect(ondeMostrarFechamento({ ...base, ritmo, mesAnteriorTinhaPlano: false })).toBeNull();
     }
   });
 });

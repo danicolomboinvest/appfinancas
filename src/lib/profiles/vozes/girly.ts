@@ -558,6 +558,7 @@ const GIRLY_IMP: Partial<Titulos> = {
   impRevelaLivre: "Livre para gastar no mês 💖",
   impRevelaLivreSub: (planejado) => `Do seu combinado de ${planejado} 🎀`,
   impVerMeuMes: "Ver meu mês ✨",
+  impMontarOrcamento: "Montar meu combinado com esses números 🎀",
   impRevelaDesfazer: (historico) => `Errou alguma coisa? Dá para desfazer em "${historico}", lá no fim da tela do mês 💕`,
   impComoTirarTitulo: "Como tiro o extrato do meu banco? 🤔",
   impComoTirarFatura: "A fatura do cartão costuma chegar todo mês no seu e-mail, em PDF: é esse arquivo mesmo 💌",

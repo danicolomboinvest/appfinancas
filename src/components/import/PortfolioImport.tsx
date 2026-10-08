@@ -12,6 +12,7 @@ import {
 } from "@/app/(app)/carteira/import-actions";
 import { useMoney } from "@/components/money/MoneyProvider";
 import { formatMoney } from "@/lib/money";
+import { importarArquivoNoMes } from "@/components/shell/registrar-eventos";
 import type { MoedaDaConta } from "@/lib/portfolio/conta-exterior";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { UPLOAD_MAX_BYTES } from "@/lib/import/limites";
@@ -70,10 +71,13 @@ export function PortfolioImport({ onDone }: { onDone: () => void }) {
   const [isPending, startTransition] = useTransition();
   // Excel da corretora pode vir protegido por senha: guardamos o arquivo e pedimos a senha.
   const [pendingFile, setPendingFile] = useState<File | null>(null);
+  /** Extrato ou fatura subido aqui por engano: vira o botão "Importar no mês" com ele. */
+  const [arquivoDoMes, setArquivoDoMes] = useState<File | null>(null);
   const [password, setPassword] = useState("");
 
   function handleFile(file: File) {
     setError(null);
+    setArquivoDoMes(null);
     // Barra aqui o que a Vercel recusaria com 413 lá fora, onde não sobra nem registro.
     if (file.size > UPLOAD_MAX_BYTES) {
       setError(t.impCarteiraArquivoGrande);
@@ -105,6 +109,7 @@ export function PortfolioImport({ onDone }: { onDone: () => void }) {
           return;
         }
         setError(result.error);
+        if (result.doMes) setArquivoDoMes(file);
         return;
       }
       // Sem mudança fica fora da revisão, só conta no aviso.
@@ -156,7 +161,20 @@ export function PortfolioImport({ onDone }: { onDone: () => void }) {
   if (phase === "upload") {
     return (
       <div className="flex flex-col gap-4">
-        {error && <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p>}
+        {/* Extrato na Carteira não é erro dela: é só o lugar. O aviso fica neutro, com o botão embaixo. */}
+        {error && <p className={`rounded-lg px-3 py-2 text-sm ${arquivoDoMes ? "bg-surface-2 text-ink" : "bg-danger-soft text-danger"}`}>{error}</p>}
+        {arquivoDoMes && (
+          <Button
+            type="button"
+            className="w-full"
+            onClick={() => {
+              importarArquivoNoMes(arquivoDoMes);
+              onDone();
+            }}
+          >
+            Importar no mês
+          </Button>
+        )}
         <button
           type="button"
           onClick={() => fileRef.current?.click()}

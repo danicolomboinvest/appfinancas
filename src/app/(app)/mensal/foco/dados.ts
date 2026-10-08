@@ -69,7 +69,7 @@ export async function carregarFoco(ctx: AuthContext) {
   const mesAnterior = { year: anterior.getFullYear(), month: anterior.getMonth() + 1, label: MESES[anterior.getMonth()] };
   const semana = chaveDaSemana(now);
 
-  const [user, budgets, spentByParent, spentByCustom, customCategories, summary, plan, goals, fund, lastExpense, tetos, pendentes, ritualFeito, fechamentoFeito, raiox, gastosReais, preCriados, cancelamentos, viradaFeita, lancamentosAnoPassado, paraRevisar, dispensados, gastosDoMes, lancamentosMesAnterior] =
+  const [user, budgets, spentByParent, spentByCustom, customCategories, summary, plan, goals, fund, lastExpense, tetos, pendentes, ritualFeito, fechamentoFeito, raiox, gastosReais, preCriados, cancelamentos, viradaFeita, lancamentosAnoPassado, paraRevisar, dispensados, gastosDoMes, orcamentoMesAnterior] =
     await Promise.all([
       getOwnUser(ctx),
       listBudgets(ctx, year, month),
@@ -103,7 +103,13 @@ export async function carregarFoco(ctx: AuthContext) {
         orderBy: { amount: "desc" },
         take: 400,
       }),
-      prisma.monthlyEntry.count({ where: { userId: ctx.userId, profileId: ctx.profileId, year: mesAnterior.year, month: mesAnterior.month }, take: 1 }),
+      // Orçamento do mês passado montado ANTES de ele acabar (07/10/2026): quem chegou agora e
+      // importou o extrato de setembro tem lançamento lá, mas nunca planejou setembro. O "Fechar
+      // setembro" no 1º dia comparava com um plano que não existia, e virava "o número está errado".
+      prisma.budget.count({
+        where: { userId: ctx.userId, profileId: ctx.profileId, year: mesAnterior.year, month: mesAnterior.month, plannedAmount: { gt: 0 }, createdAt: { lt: new Date(Date.UTC(year, month - 1, 1, 3)) } },
+        take: 1,
+      }),
     ]);
   const ritmo = lerRitmo(user.ritmoAcompanhamento);
 
@@ -274,8 +280,8 @@ export async function carregarFoco(ctx: AuthContext) {
     cancelamentos,
     viradaPendente: !viradaFeita && lancamentosAnoPassado > 0,
     // Fechar um mês em que ela nem usava o app (conta criada agora) só elogiava um plano que não
-    // existia. Como na virada do ano: só oferece com algum lançamento no mês anterior.
-    mesAnteriorTemDados: lancamentosMesAnterior > 0,
+    // existia: só oferece quando o mês passado teve orçamento montado enquanto ainda corria.
+    mesAnteriorTinhaPlano: orcamentoMesAnterior > 0,
     lancamentosParaRevisar: paraRevisar.length,
     pendentes: pendentes.filter((p) => Date.now() - p.createdAt.getTime() > 20 * 3_600_000),
     ritualFeito,

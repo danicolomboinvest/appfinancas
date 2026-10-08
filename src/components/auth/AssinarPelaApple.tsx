@@ -3,11 +3,12 @@
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Check } from "lucide-react";
+import Image from "next/image";
 import { BrandMark } from "@/components/brand/BrandMark";
 import { Button } from "@/components/ui/Button";
 import { logoutAction } from "@/lib/auth/actions";
 import { registrarCompraAppleAction } from "@/lib/apple/actions";
+import { trackEvent } from "@/lib/usage/track-event";
 
 /**
  * A tela de assinatura do app iOS (out/2026), no lugar do cadeado. A Apple exige (3.1.1) que o
@@ -28,7 +29,16 @@ function nativo(metodo: string, opcoes?: object): Promise<Record<string, unknown
   return cap.nativePromise("SpiCompras", metodo, opcoes);
 }
 
-const BENEFICIOS = ["Orçamento, fluxo do mês e metas", "Carteira de investimentos com proventos", "Simuladores e planejamento"];
+/**
+ * O app de verdade antes do preço (07/10/2026). Das 77 pessoas que chegaram a esta tela sem ter
+ * comprado antes, 64 pararam aqui: a tela tinha só três frases e os planos. Três telas reais,
+ * com a frase da loja embaixo, mostram o que ela leva.
+ */
+const TELAS = [
+  { src: "/icons/telas/foco.webp", legenda: "Quanto você pode gastar hoje" },
+  { src: "/icons/telas/decidir.webp", legenda: "Pergunte antes de gastar" },
+  { src: "/icons/telas/orcamento.webp", legenda: "Saiba como o mês vai fechar" },
+];
 
 export function AssinarPelaApple({ token, produtosIds }: { token: string; produtosIds: string[] }) {
   const router = useRouter();
@@ -37,6 +47,12 @@ export function AssinarPelaApple({ token, produtosIds }: { token: string; produt
   const [erro, setErro] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState<"comprando" | "restaurando" | null>(null);
   const [saindo, startSair] = useTransition();
+
+  // Esta tela vem antes do rastreio de telas do app (ver layout): sem isso ninguém sabia quantas
+  // pessoas chegavam aqui.
+  useEffect(() => {
+    trackEvent("assinar_apple_viu", "/assinar-apple");
+  }, []);
 
   useEffect(() => {
     nativo("produtos", { ids: produtosIds })
@@ -58,6 +74,7 @@ export function AssinarPelaApple({ token, produtosIds }: { token: string; produt
     if (!escolhido) return;
     setErro(null);
     setOcupado("comprando");
+    trackEvent("assinar_apple_tocou", "/assinar-apple");
     try {
       const r = await nativo("comprar", { id: escolhido, token });
       if (typeof r.transacao === "string") await registrar([r.transacao]);
@@ -91,21 +108,27 @@ export function AssinarPelaApple({ token, produtosIds }: { token: string; produt
       <div className="w-full max-w-sm animate-fade-in">
         <div className="mb-6 flex flex-col items-center gap-3 text-center">
           <BrandMark size={48} className="rounded-2xl" />
-          <div>
-            <h1 className="text-xl font-semibold tracking-tight text-ink">Assine o SPI Finance</h1>
-            <p className="mt-1 text-sm text-ink-muted">Sua vida financeira organizada em um lugar só.</p>
-          </div>
+          <h1 className="text-xl font-semibold tracking-tight text-ink">Assine o SPI Finance</h1>
+        </div>
+
+        {/* As telas deslizam para o lado; a primeira já aparece inteira e a próxima espia. */}
+        <div className="-mx-6 mb-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-6 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {TELAS.map((t, i) => (
+            <figure key={t.src} className="w-[64%] shrink-0 snap-center">
+              <Image
+                src={t.src}
+                alt={t.legenda}
+                width={480}
+                height={600}
+                priority={i === 0}
+                className="h-auto w-full rounded-2xl border border-border shadow-premium-sm"
+              />
+              <figcaption className="mt-2 text-center text-sm font-semibold text-ink">{t.legenda}</figcaption>
+            </figure>
+          ))}
         </div>
 
         <div className="flex flex-col gap-4 rounded-2xl border border-border bg-surface p-5 shadow-premium-sm">
-          <ul className="flex flex-col gap-2">
-            {BENEFICIOS.map((b) => (
-              <li key={b} className="flex items-center gap-2 text-sm text-ink">
-                <Check size={16} strokeWidth={2} className="shrink-0 text-accent-strong" />
-                {b}
-              </li>
-            ))}
-          </ul>
 
           {produtos === null ? (
             <p className="py-4 text-center text-sm text-ink-muted">Carregando os planos...</p>

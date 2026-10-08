@@ -50,3 +50,22 @@ export function modoPedidoNoEvento(event: Event): ModoDoRegistrar {
 export function pedirRegistro(modo: ModoDoRegistrar = "choice"): void {
   window.dispatchEvent(new CustomEvent(EVENTO_REGISTRAR, { detail: { modo } }));
 }
+
+/**
+ * Arquivo que chegou na tela errada e segue para a importação do mês (07/10/2026): o extrato
+ * subido na Carteira. A Carteira guarda o arquivo aqui e abre a gaveta; a importação do mês pega
+ * ao montar e já começa a ler, sem a pessoa escolher o arquivo de novo.
+ */
+let arquivoParaOMes: File | null = null;
+
+export function importarArquivoNoMes(arquivo: File): void {
+  arquivoParaOMes = arquivo;
+  window.dispatchEvent(new Event(EVENTO_IMPORTAR));
+}
+
+/** Entrega o arquivo guardado uma vez só (e esquece). */
+export function pegarArquivoParaOMes(): File | null {
+  const a = arquivoParaOMes;
+  arquivoParaOMes = null;
+  return a;
+}

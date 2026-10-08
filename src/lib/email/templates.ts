@@ -223,6 +223,24 @@ export function accessGrantedEmail(params: { email: string; registerUrl: string 
   };
 }
 
+/**
+ * O código para juntar a compra à conta (07/10/2026): quem comprou com um e-mail e criou a conta
+ * com outro digita o e-mail da compra na tela "sem acesso" e recebe este código nele. Vai para o
+ * e-mail da COMPRA: é ali que se prova que a compra é dela.
+ */
+export function codigoDaCompraEmail(params: { codigo: string; emailDaConta: string }): { subject: string; html: string } {
+  return {
+    subject: `${params.codigo} é o seu código · SPI Finance`,
+    html: shell(`
+      <p style="margin:0 0 12px;">Oi!</p>
+      <p style="margin:0 0 16px;">Este é o código para usar a sua compra do SPI Finance na conta <strong>${escaparHtml(params.emailDaConta)}</strong>:</p>
+      <p style="margin:0 0 20px;font-size:32px;font-weight:700;letter-spacing:6px;">${params.codigo}</p>
+      <p style="margin:0 0 8px;color:${MUTED};font-size:13px;">Vale por 20 minutos. Depois disso, você entra no app com este e-mail.</p>
+      <p style="margin:0;color:${MUTED};font-size:13px;">Se não foi você, ignore este e-mail: sem o código, nada muda.</p>
+    `),
+  };
+}
+
 /** E-mail de boas-vindas ao criar a conta. */
 export function welcomeEmail(params: { name: string | null; appUrl: string }): { subject: string; html: string } {
   const nomeCurto = primeiroNome(params.name);

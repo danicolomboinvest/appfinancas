@@ -6,9 +6,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  * lib/import/__tests__/revelacao.test.ts.
  */
 
-const { groupBy, budgetFindMany, customFindMany } = vi.hoisted(() => ({
+const { groupBy, budgetFindMany, budgetCount, customFindMany } = vi.hoisted(() => ({
   groupBy: vi.fn(),
   budgetFindMany: vi.fn(),
+  budgetCount: vi.fn(),
   customFindMany: vi.fn(),
 }));
 
@@ -18,7 +19,7 @@ vi.mock("@/lib/auth/session", () => ({
 vi.mock("@/lib/db/prisma", () => ({
   prisma: {
     monthlyEntry: { groupBy },
-    budget: { findMany: budgetFindMany },
+    budget: { findMany: budgetFindMany, count: budgetCount },
     customCategory: { findMany: customFindMany },
   },
 }));
@@ -34,6 +35,7 @@ beforeEach(() => {
   ]);
   budgetFindMany.mockReset().mockResolvedValue([{ parentCategory: "ALIMENTACAO", customCategoryId: null, plannedAmount: 1000 }]);
   customFindMany.mockReset().mockResolvedValue([{ id: "pet", name: "Pet" }]);
+  budgetCount.mockReset().mockResolvedValue(0);
 });
 
 describe("resumoDoMesImportadoAction", () => {
@@ -46,6 +48,22 @@ describe("resumoDoMesImportadoAction", () => {
     expect(r?.maiores.map((m) => m.rotulo)).toEqual(["Alimentação", "Pet"]);
     // Sobra de Alimentação: 400. O mês: 1000 − 900 = 100. Vale o menor.
     expect(r?.livre).toBe(100);
+    // Tem orçamento no mês importado: o fim da importação não oferece "Montar meu orçamento".
+    expect(r?.temOrcamento).toBe(true);
+  });
+
+  /** O botão "Montar meu orçamento com estes números" (07/10/2026) só aparece para quem não tem orçamento. */
+  it("sem orçamento no mês importado nem no de hoje: temOrcamento falso", async () => {
+    budgetFindMany.mockResolvedValue([]);
+    const r = await resumoDoMesImportadoAction(2026, 9, "pessoal");
+    expect(r?.temOrcamento).toBe(false);
+    expect(budgetCount).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ userId: "u1", profileId: "pessoal" }) }));
+  });
+
+  it("orçamento só no mês de hoje: temOrcamento verdadeiro", async () => {
+    budgetFindMany.mockResolvedValue([]);
+    budgetCount.mockResolvedValue(1);
+    expect((await resumoDoMesImportadoAction(2026, 9, "pessoal"))?.temOrcamento).toBe(true);
   });
 
   it("tela de outro perfil: não mostra nada", async () => {

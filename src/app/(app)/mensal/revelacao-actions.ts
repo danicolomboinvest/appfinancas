@@ -6,6 +6,10 @@ import { prisma } from "@/lib/db/prisma";
 import { categoryLabel } from "@/lib/categories";
 import { trocouDePerfil } from "@/lib/profiles/perfil-da-tela";
 import { montarRevelacao, type LinhaDoMes, type Revelacao } from "@/lib/import/revelacao";
+import { nowInBrazil } from "@/lib/date/brazil-now";
+
+/** O mês montado e se ela já tem orçamento no mês de hoje (decide o botão principal do fim). */
+export type RevelacaoDoImport = Revelacao & { temOrcamento: boolean };
 
 /**
  * O mês montado, pra tela que aparece logo depois de importar (ver lib/import/revelacao.ts).
@@ -15,12 +19,13 @@ import { montarRevelacao, type LinhaDoMes, type Revelacao } from "@/lib/import/r
  * `null` quando a tela é de outro perfil (trocou noutro aparelho no meio): melhor mostrar só o
  * "pronto" do que o mês do perfil errado.
  */
-export async function resumoDoMesImportadoAction(year: number, month: number, perfilDaTela?: string | null): Promise<Revelacao | null> {
+export async function resumoDoMesImportadoAction(year: number, month: number, perfilDaTela?: string | null): Promise<RevelacaoDoImport | null> {
   const ctx = await getRequiredSession();
   if (trocouDePerfil(perfilDaTela, ctx.profileId)) return null;
   if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) return null;
 
-  const [grupos, orcamentos, personalizadas] = await Promise.all([
+  const hoje = nowInBrazil();
+  const [grupos, orcamentos, personalizadas, orcamentoDeHoje] = await Promise.all([
     prisma.monthlyEntry.groupBy({
       by: ["category", "parentCategory", "customCategoryId"],
       where: { userId: ctx.userId, profileId: ctx.profileId, year, month },
@@ -33,6 +38,10 @@ export async function resumoDoMesImportadoAction(year: number, month: number, pe
     prisma.customCategory.findMany({
       where: { userId: ctx.userId, profileId: ctx.profileId },
       select: { id: true, name: true },
+    }),
+    prisma.budget.count({
+      where: { userId: ctx.userId, profileId: ctx.profileId, year: hoje.getFullYear(), month: hoje.getMonth() + 1, plannedAmount: { gt: 0 } },
+      take: 1,
     }),
   ]);
 
@@ -52,5 +61,5 @@ export async function resumoDoMesImportadoAction(year: number, month: number, pe
     const chave = chaveDe(o.parentCategory, o.customCategoryId);
     return chave ? [{ chave, planejado: Number(o.plannedAmount) }] : [];
   });
-  return montarRevelacao(linhas, planejados);
+  return { ...montarRevelacao(linhas, planejados), temOrcamento: orcamentoDeHoje > 0 || planejados.some((p) => p.planejado > 0) };
 }

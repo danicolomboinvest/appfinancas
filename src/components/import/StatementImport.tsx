@@ -1,7 +1,7 @@
 "use client";
 
 import { FalarComSuporte } from "@/components/support/FalarComSuporte";
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { Upload, Check, ArrowRight, Lock, Plus, Tag, ChevronLeft, ChevronDown, CircleHelp } from "lucide-react";
 import type { ParentCategory } from "@prisma/client";
@@ -26,8 +26,10 @@ import { useMoney } from "@/components/money/MoneyProvider";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { UPLOAD_MAX_BYTES } from "@/lib/import/limites";
 import { iguaisPraAplicar, proximaPendente, semCategoria as gastoSemCategoria } from "@/lib/import/revisao-em-grupo";
-import { mesDaRevelacao, type Revelacao } from "@/lib/import/revelacao";
-import { resumoDoMesImportadoAction } from "@/app/(app)/mensal/revelacao-actions";
+import { mesDaRevelacao } from "@/lib/import/revelacao";
+import { resumoDoMesImportadoAction, type RevelacaoDoImport } from "@/app/(app)/mensal/revelacao-actions";
+import { pegarArquivoParaOMes } from "@/components/shell/registrar-eventos";
+import { OfertaDeAvisos } from "@/components/push/OfertaDeAvisos";
 import { ComoImportar } from "./ComoImportar";
 import { ComoTirarExtrato } from "./ComoTirarExtrato";
 import { ProtegerSaida } from "./ProtegerSaida";
@@ -145,7 +147,7 @@ export function StatementImport({
   const [editandoKey, setEditandoKey] = useState<number | null>(null);
   const [mostrarTodos, setMostrarTodos] = useState(false);
   // Depois de importar: o mês montado. `mes` null = arquivo sem data, fica só o "pronto".
-  const [revelacao, setRevelacao] = useState<{ mes: { year: number; month: number } | null; dados: Revelacao | null; carregando: boolean }>({
+  const [revelacao, setRevelacao] = useState<{ mes: { year: number; month: number } | null; dados: RevelacaoDoImport | null; carregando: boolean }>({
     mes: null,
     dados: null,
     carregando: false,
@@ -172,6 +174,13 @@ export function StatementImport({
     return it ? [{ it, i: key }] : [];
   });
 
+  // Veio da Carteira com um extrato subido lá por engano: começa a ler esse arquivo na hora.
+  const handleFileRef = useRef<(file: File) => void>(() => {});
+  useEffect(() => {
+    const arquivo = pegarArquivoParaOMes();
+    if (arquivo) handleFileRef.current(arquivo);
+  }, []);
+
   function handleFile(file: File) {
     setError(null);
     // Arquivo novo: a pergunta de tipo (e a senha guardada nela) era do anterior.
@@ -185,6 +194,7 @@ export function StatementImport({
     }
     runParse(file);
   }
+  handleFileRef.current = handleFile;
 
   /** Lê o arquivo no servidor. Se o Excel estiver protegido, cai na tela de senha; com a senha,
    * reenvia o MESMO arquivo pra descriptografar e seguir. */
@@ -1426,7 +1436,28 @@ export function StatementImport({
         </div>
       )}
 
-      {revelacao.mes ? (
+      {revelacao.mes && dados && !dados.temOrcamento ? (
+        // Sem orçamento ainda (07/10/2026): metade de quem importava parava aqui e nunca montava o
+        // orçamento, que é o que mais separa quem fica de quem some. O assistente já sugere a renda
+        // e "o seu padrão" a partir dos meses que ela acabou de importar.
+        <>
+          <Link
+            href={`/orcamento/${revelacao.mes.year}`}
+            onClick={onDone}
+            className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-accent-gradient px-4 py-2.5 text-sm font-semibold text-on-accent shadow-premium-sm hover:opacity-95"
+          >
+            {t.impMontarOrcamento}
+            <ArrowRight size={16} aria-hidden />
+          </Link>
+          <Link
+            href={`/mensal/${revelacao.mes.year}/${revelacao.mes.month}`}
+            onClick={onDone}
+            className="inline-flex min-h-11 items-center justify-center px-4 text-sm font-medium text-ink-muted hover:text-ink"
+          >
+            {t.impVerMeuMes}
+          </Link>
+        </>
+      ) : revelacao.mes ? (
         <>
           <Link
             href={`/mensal/${revelacao.mes.year}/${revelacao.mes.month}`}
@@ -1445,6 +1476,7 @@ export function StatementImport({
           {t.impConcluir}
         </Button>
       )}
+      {createdCount > 0 && <OfertaDeAvisos />}
       {createdCount > 0 && <p className="text-caption text-ink-muted">{t.impRevelaDesfazer(t.impHistoricoTitulo)}</p>}
     </div>
   );

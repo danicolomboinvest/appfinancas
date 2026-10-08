@@ -277,6 +277,8 @@ export type TextosImportacao = {
   impRevelaLivre: string;
   impRevelaLivreSub(planejado: string): string;
   impVerMeuMes: string;
+  /** Fim da 1ª importação, sem orçamento ainda: o botão principal leva ao assistente (07/10/2026). */
+  impMontarOrcamento: string;
   /** Onde desfazer. Recebe o título do histórico do tema ("Histórico de importações"). */
   impRevelaDesfazer(historico: string): string;
   // "Como tiro o extrato do meu banco?"
@@ -554,6 +556,7 @@ export const PADRAO_IMPORTACAO: TextosImportacao = {
   impRevelaLivre: "Livre para gastar no mês",
   impRevelaLivreSub: (planejado) => `Do seu orçamento de ${planejado}.`,
   impVerMeuMes: "Ver meu mês",
+  impMontarOrcamento: "Montar meu orçamento com estes números",
   impRevelaDesfazer: (historico) => `Errou alguma coisa? Dá para desfazer em "${historico}", no fim da tela do mês.`,
   impComoTirarTitulo: "Como tiro o extrato do meu banco?",
   impComoTirarAviso: "Print e foto não funcionam: use o arquivo que o app do banco exporta (PDF, Excel, CSV ou OFX).",

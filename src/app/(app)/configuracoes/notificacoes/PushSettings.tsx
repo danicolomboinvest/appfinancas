@@ -6,16 +6,10 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useToast } from "@/components/ui/toast-context";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
-import { isMyPushSubscriptionAction, removePushSubscriptionAction, savePushSubscriptionAction } from "./push-actions";
+import { isMyPushSubscriptionAction, removePushSubscriptionAction } from "./push-actions";
+import { ligarAvisos } from "@/components/push/ligar-avisos";
 
 type Status = "checking" | "unsupported" | "ios-not-installed" | "blocked" | "off" | "on";
-
-function urlBase64ToUint8Array(base64: string): Uint8Array {
-  const padding = "=".repeat((4 - (base64.length % 4)) % 4);
-  const b64 = (base64 + padding).replace(/-/g, "+").replace(/_/g, "/");
-  const raw = window.atob(b64);
-  return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
-}
 
 /**
  * "Avisos no celular": liga a notificação do navegador neste aparelho. Sem app na loja, é o
@@ -54,19 +48,9 @@ export function PushSettings({ publicKey, devices }: { publicKey: string | null;
     if (!publicKey) return;
     setBusy(true);
     try {
-      const permission = await Notification.requestPermission();
-      if (permission !== "granted") {
-        setStatus(permission === "denied" ? "blocked" : "off");
-        return;
-      }
-      const reg = await navigator.serviceWorker.register("/sw.js");
-      await navigator.serviceWorker.ready;
-      const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(publicKey) as BufferSource });
-      const json = sub.toJSON();
-      const res = await savePushSubscriptionAction({ endpoint: sub.endpoint, keys: { p256dh: json.keys?.p256dh ?? "", auth: json.keys?.auth ?? "" } }, navigator.userAgent);
-      if (!res.ok) throw new Error("save failed");
-      setStatus("on");
-      showToast(t.cfgPushLigadoToast);
+      const r = await ligarAvisos(publicKey);
+      setStatus(r);
+      if (r === "on") showToast(t.cfgPushLigadoToast);
     } catch (err) {
       console.error(err);
       showError(t.cfgPushFalhouToast);

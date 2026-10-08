@@ -11,7 +11,19 @@ import { normalizeUsagePath } from "@/lib/usage/normalize-path";
  * ditado terminam idênticos na tabela — sem marcar na hora, não dá pra saber se o áudio serve
  * pra alguém.
  */
-const ALLOWED_EVENTS = new Set(["pageview", "registro_voz", "registro_digitado", "registro_importacao", "posso_comprar", "conta_a_pagar"]);
+const ALLOWED_EVENTS = new Set([
+  "pageview",
+  "registro_voz",
+  "registro_digitado",
+  "registro_importacao",
+  "posso_comprar",
+  "conta_a_pagar",
+  // 07/10/2026: a tela de assinar do iPhone e o tour de boas-vindas não deixavam rastro nenhum.
+  "assinar_apple_viu",
+  "assinar_apple_tocou",
+  "tour_terminou",
+  "tour_pulou",
+]);
 
 /**
  * Recebe os eventos de uso do próprio app (rastreio primeiro, sem script de terceiro).

@@ -1,12 +1,83 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { Lock, Mail } from "lucide-react";
 import { BrandMark } from "@/components/brand/BrandMark";
 import { Button } from "@/components/ui/Button";
 import { logoutAction } from "@/lib/auth/actions";
 import { EMAIL_DO_SUPORTE } from "@/lib/support/contato";
 import type { SituacaoDoAcesso } from "@/lib/repositories/allowedEmail.repo";
+import { confirmarCodigoDaCompraAction, pedirCodigoDaCompraAction } from "@/lib/auth/juntar-compra-actions";
+
+const CAMPO = "min-h-11 w-full rounded-xl border border-border-strong bg-surface px-3 text-base text-ink focus:border-accent focus:outline-none sm:text-sm";
+
+/**
+ * "Comprou com outro e-mail?" resolvido aqui mesmo (07/10/2026): o e-mail da compra, o código que
+ * chega nele, e a conta passa a usar esse e-mail. Antes era escrever para o suporte e esperar.
+ */
+function JuntarCompra() {
+  const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [codigo, setCodigo] = useState("");
+  const [enviadoPara, setEnviadoPara] = useState<string | null>(null);
+  const [pronto, setPronto] = useState<string | null>(null);
+  const [erro, setErro] = useState<string | null>(null);
+  const [ocupado, start] = useTransition();
+
+  if (pronto) {
+    return (
+      <p className="mt-3 rounded-lg bg-success-soft px-3 py-2 text-sm text-success">
+        Pronto! Agora você entra com <span className="break-all font-semibold">{pronto}</span>.
+      </p>
+    );
+  }
+
+  return (
+    <form
+      className="mt-3 flex flex-col gap-2"
+      onSubmit={(e) => {
+        e.preventDefault();
+        setErro(null);
+        start(async () => {
+          if (!enviadoPara) {
+            const r = await pedirCodigoDaCompraAction(email);
+            if (r.ok) setEnviadoPara(r.email);
+            else setErro(r.erro);
+            return;
+          }
+          const r = await confirmarCodigoDaCompraAction(enviadoPara, codigo);
+          if (!r.ok) return setErro(r.erro);
+          setPronto(r.email);
+          router.refresh();
+        });
+      }}
+    >
+      {enviadoPara ? (
+        <>
+          <label htmlFor="codigo-compra" className="text-sm text-ink-muted">
+            Código enviado para <span className="break-all font-medium text-ink">{enviadoPara}</span>
+          </label>
+          <input id="codigo-compra" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={codigo} onChange={(e) => setCodigo(e.target.value.replace(/\D/g, ""))} className={`${CAMPO} tracking-[0.3em]`} placeholder="000000" />
+        </>
+      ) : (
+        <>
+          <label htmlFor="email-compra" className="text-sm text-ink-muted">E-mail da compra</label>
+          <input id="email-compra" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} className={CAMPO} placeholder="voce@email.com" />
+        </>
+      )}
+      {erro && <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{erro}</p>}
+      <Button type="submit" disabled={ocupado || (enviadoPara ? codigo.length !== 6 : !email.includes("@"))} className="w-full">
+        {ocupado ? "Um instante..." : enviadoPara ? "Confirmar" : "Receber código"}
+      </Button>
+      {enviadoPara && (
+        <button type="button" onClick={() => { setEnviadoPara(null); setCodigo(""); setErro(null); }} className="text-sm font-medium text-ink-muted hover:text-ink">
+          Usar outro e-mail
+        </button>
+      )}
+    </form>
+  );
+}
 
 /**
  * O que a conta sem compra valendo vê no lugar do app (ver o layout de (app)).
@@ -55,11 +126,8 @@ export function TelaSemAcesso({
 
           <div className="w-full rounded-xl border border-border bg-surface-2 p-4 text-left">
             <p className="text-sm font-semibold text-ink">{semCompra ? "Comprou com outro e-mail?" : "Acha que é engano?"}</p>
-            <p className="mt-1 text-sm text-ink-muted">
-              {semCompra
-                ? "Mande pra gente o e-mail da compra: a gente junta na sua conta e você não perde nada."
-                : "Fale com a gente que a gente confere a sua compra."}
-            </p>
+            {!semCompra && <p className="mt-1 text-sm text-ink-muted">Fale com a gente que a gente confere a sua compra.</p>}
+            {semCompra && <JuntarCompra />}
             {compraDoCelular && (
               <p className="mt-2 rounded-lg bg-accent-soft px-3 py-2 text-sm text-ink">
                 Achamos uma compra com o seu celular no e-mail:

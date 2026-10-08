@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import type { Titulos } from "@/lib/profiles/voice";
 import { TOUR_DONE_EVENT } from "./InstallAppBanner";
+import { trackEvent } from "@/lib/usage/track-event";
 
 const SEEN_KEY = "welcome-tour-seen";
 
@@ -94,7 +95,10 @@ export function WelcomeTour() {
   const s = STEPS[step];
   const isLast = step === STEPS.length - 1;
 
-  function finish() {
+  /** `como`: terminou os passos ou pulou no meio. Medido desde 07/10/2026, para saber se o tour
+   * ajuda antes de mexer nele (antes não havia registro nenhum). */
+  function finish(como: "terminou" | "pulou" = "terminou") {
+    trackEvent(como === "pulou" ? "tour_pulou" : "tour_terminou", `/tour/${step + 1}`);
     window.localStorage.setItem(SEEN_KEY, "1");
     setOpen(false);
     // Libera o convite pra instalar o app, que espera o tour acabar pra não competirem.
@@ -159,12 +163,12 @@ export function WelcomeTour() {
           </div>
           <div className="flex items-center gap-3">
             {isLast && (
-              <a href="/guia" onClick={finish} className="inline-flex min-h-11 items-center text-caption font-semibold text-accent-strong hover:underline">
+              <a href="/guia" onClick={() => finish()} className="inline-flex min-h-11 items-center text-caption font-semibold text-accent-strong hover:underline">
                 Ler o manual
               </a>
             )}
             {!isLast && (
-              <button type="button" onClick={finish} className="inline-flex min-h-11 items-center px-1 text-caption font-medium text-ink-faint hover:text-ink">
+              <button type="button" onClick={() => finish("pulou")} className="inline-flex min-h-11 items-center px-1 text-caption font-medium text-ink-faint hover:text-ink">
                 {voz.titulos.uiTourPular}
               </button>
             )}

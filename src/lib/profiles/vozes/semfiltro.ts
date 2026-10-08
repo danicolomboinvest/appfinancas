@@ -283,6 +283,7 @@ export const semfiltro: Voz = {
       return `${valor} a ${tipo === "mais" ? "mais" : "menos"} que ${mes}. ${tirada}`;
     },
     campeaoTitulo: "O campeão do estrago 🏆",
+    impMontarOrcamento: "Montar o combinado com esses números",
     campeaoPergunta: (k, label) =>
       ({
         ALIMENTACAO: "Comida no topo. A geladeira cheia e o iFood também, né? 🍕",

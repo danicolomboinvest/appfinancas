@@ -29,7 +29,7 @@ export default async function ComecarPage() {
           <BrandMark size={48} className="rounded-2xl" />
           <div>
             <h1 className="text-xl font-semibold tracking-tight text-ink">Bem-vinda ao SPI Finance{user.name ? `, ${user.name.split(" ")[0]}` : ""}</h1>
-            <p className="mt-1 text-sm text-ink-muted">Duas escolhas rápidas e o app já fica com a sua cara. Dá pra mudar depois.</p>
+            <p className="mt-1 text-sm text-ink-muted">Três escolhas rápidas e o app já fica com a sua cara. Dá para mudar depois.</p>
           </div>
         </div>
         <div className="rounded-2xl border border-border bg-surface p-5 sm:p-6">

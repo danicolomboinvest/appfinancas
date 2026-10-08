@@ -363,6 +363,8 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
 
       {/* Histórico do que foi importado em massa, com "Desfazer" por lote (upload errado ou
           duplicado some inteiro, sem caçar lançamento por lançamento). */}
+      {/* A âncora é o destino do "Gasto do cartão" no "Isso está errado?". */}
+      <div id="importacoes" className="scroll-mt-24">
       <ImportHistory
         batches={importBatches.map((b) => ({
           id: b.id,
@@ -374,6 +376,7 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
           months: b.months,
         }))}
       />
+      </div>
 
       <ThemeFooter texto={voz.rodape(estado)} />
     </div>

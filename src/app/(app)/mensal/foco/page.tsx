@@ -40,7 +40,7 @@ export default async function FocoPage() {
   const mesTitulo = MESES[d.month - 1].charAt(0).toUpperCase() + MESES[d.month - 1].slice(1);
   const { t, m, foco, ritmo } = d;
   // Quem nunca escolheu o ritmo conta como mensal: sem isso a iniciante nunca via o fechamento.
-  const ondeFechar = ondeMostrarFechamento({ ritmo, fechamentoFeito: d.fechamentoFeito, mesAnteriorTemDados: d.mesAnteriorTemDados, dia: d.dia });
+  const ondeFechar = ondeMostrarFechamento({ ritmo, fechamentoFeito: d.fechamentoFeito, mesAnteriorTinhaPlano: d.mesAnteriorTinhaPlano, dia: d.dia });
   const livre = foco.livre;
   const voz = vozDoTema(ctx.profileTheme, ctx.profileKind);
   // O que já correu do orçamento contra o quanto do mês já passou, sem as contas fixas: com elas,

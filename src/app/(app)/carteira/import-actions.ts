@@ -99,7 +99,7 @@ export type ParsedHoldingItem = {
 
 export type ParsePortfolioResult =
   | { ok: true; holdings: ParsedHoldingItem[]; summary: string }
-  | { ok: false; error: string; needsPassword?: boolean };
+  | { ok: false; error: string; needsPassword?: boolean; doMes?: boolean };
 
 /** Lê o extrato/nota da corretora ou relatório da B3 (CSV/Excel/PDF), identifica os ativos e
  * COMPARA com a carteira atual, quem reimporta o extrato vê só o que mudou.
@@ -166,7 +166,9 @@ export async function parsePortfolioAction(formData: FormData): Promise<ParsePor
   if ((profile.kind === "statement" || profile.kind === "invoice") && !profile.contents.includes("position")) {
     const msg = `Li o arquivo inteiro: ${profile.summary}. Ele traz entradas e saídas, não a posição dos investimentos. Pra lançar no mês, use Registrar › Importar extrato. Pra carteira, suba a posição da corretora ou o relatório da B3 (Área do Investidor › Posição).`;
     await falha(msg, { kind: profile.kind, institution: profile.institution, header: safeHeader(text) });
-    return { ok: false, error: msg };
+    // A tela mostra o botão "Importar no mês" com o mesmo arquivo (07/10/2026): 80% das tentativas
+    // na Carteira eram extrato ou fatura, e a frase só dizia onde ir.
+    return { ok: false, error: `Li o arquivo inteiro: ${profile.summary}. Ele é do mês, não da carteira.`, doMes: true };
   }
 
   // PDF escaneado/foto não tem texto extraível; PDF "impresso" pelo celular tem só os números.
