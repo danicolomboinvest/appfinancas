@@ -428,12 +428,21 @@ export async function contarGastosReaisDoMes(ctx: AuthContext, year: number, mon
 
 
 /**
- * Quanto do gasto do mês, por categoria, veio de lançamento criado ANTES do mês começar: a
- * despesa fixa recorrente (plano de saúde, financiamento) e as parcelas da fatura. É conta que
- * já estava marcada, não "gasto correndo rápido".
+ * Quanto do gasto do mês, por categoria, veio de lançamento criado ANTES do mês começar (a
+ * despesa fixa recorrente, as parcelas da fatura) ou marcado pra "Repetir todo mês". É conta que
+ * já estava marcada, não "gasto correndo rápido". A repetição criada no próprio mês entrou em
+ * 09/10/2026: quem chega no dia 8 e lança as contas do mês com "repetir" (streaming, parcela,
+ * sobrancelha) via o Foco multiplicar tudo isso pelos dias que faltam (-R$ 15 mil no fim do mês).
  */
 export async function somarGastosPreCriados(ctx: AuthContext, year: number, month: number) {
-  const where = { userId: ctx.userId, profileId: ctx.profileId, year, month, category: "EXPENSE" as const, createdAt: { lt: new Date(Date.UTC(year, month - 1, 1, 3)) } };
+  const where = {
+    userId: ctx.userId,
+    profileId: ctx.profileId,
+    year,
+    month,
+    category: "EXPENSE" as const,
+    OR: [{ createdAt: { lt: new Date(Date.UTC(year, month - 1, 1, 3)) } }, { recurrenceId: { not: null } }],
+  };
   const [porMae, porPersonalizada] = await Promise.all([
     prisma.monthlyEntry.groupBy({ by: ["parentCategory"], where, _sum: { amount: true } }),
     prisma.monthlyEntry.groupBy({ by: ["customCategoryId"], where, _sum: { amount: true } }),

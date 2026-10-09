@@ -33,6 +33,7 @@ export function SemanaFoco({
   frase,
   planejado,
   gastoTotal,
+  gastoUnico = 0,
   decorrido,
   diasRestantes,
   money,
@@ -47,6 +48,8 @@ export function SemanaFoco({
   frase: string;
   planejado: number;
   gastoTotal: number;
+  /** Compra avulsa grande dentro do `gastoTotal`: a previsão conta uma vez só. */
+  gastoUnico?: number;
   decorrido: number;
   diasRestantes: number;
   money: (v: number) => string;
@@ -57,7 +60,7 @@ export function SemanaFoco({
   const { indice, diasAteDomingo } = diaDaSemana(hoje);
   const dias = tipo === "semana" ? Math.min(diasAteDomingo, Math.max(1, diasRestantes)) : Math.max(1, diasRestantes);
   const porDia = Math.max(0, valor) / dias;
-  const previsao = tipo === "estimativa" ? null : previsaoDoMes(planejado, gastoTotal, decorrido);
+  const previsao = tipo === "estimativa" ? null : previsaoDoMes(planejado, gastoTotal, decorrido, gastoUnico);
 
   return (
     <HeroiDoTema>

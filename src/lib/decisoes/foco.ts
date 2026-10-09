@@ -1,4 +1,4 @@
-import { livreAteDomingo } from "./foco-semana";
+import { limiarCompraGrande, livreAteDomingo } from "./foco-semana";
 import type { Titulos } from "@/lib/profiles/voice";
 
 /**
@@ -55,6 +55,11 @@ export type FocoEntrada = {
   categorias: FocoCategoria[];
   /** Todo gasto lançado no mês, com ou sem orçamento. */
   gastoDoMes: number;
+  /**
+   * Cada gasto avulso do mês (sem repetição, lançado no próprio mês, fora das contas fixas): é
+   * daqui que sai a compra grande que a previsão conta uma vez só. Omitido = nenhuma.
+   */
+  gastosAvulsos?: number[];
   /**
    * A pessoa lançou (ou importou) algum gasto neste mês? Despesa fixa recorrente criada lá atrás
    * não conta. Sem isso, o aluguel lançado em janeiro pra o ano todo tirava quem fecha por mês
@@ -122,6 +127,9 @@ export type FocoLivre =
        */
       planoVariavel: number;
       gastoVariavel: number;
+      /** A parte do `gastoVariavel` que não corre (compra avulsa grande, recorrente acima do
+       * plano): a previsão conta uma vez só. */
+      gastoUnico: number;
     };
 
 /**
@@ -139,9 +147,12 @@ export type FocoLivre =
 export function ritmoVariavel(
   categorias: Pick<FocoCategoria, "gasto" | "planejado" | "fixa" | "fixoAutomatico">[],
   foraDoOrcamento: number,
-): { planoVariavel: number; gastoVariavel: number } {
+): { planoVariavel: number; gastoVariavel: number; gastoMarcado: number } {
   let planoVariavel = 0;
   let gastoVariavel = Math.max(0, foraDoOrcamento);
+  // O que a recorrente passou do planejado: conta no gasto (é estouro), mas não "corre" — a
+  // previsão do fim do mês soma uma vez só (Presentes: R$ 375 marcados num plano de R$ 100).
+  let gastoMarcado = 0;
   for (const c of categorias) {
     if (c.fixa) {
       gastoVariavel += Math.max(0, c.gasto - c.planejado);
@@ -150,8 +161,9 @@ export function ritmoVariavel(
     const fixo = Math.min(c.fixoAutomatico ?? 0, c.planejado);
     planoVariavel += c.planejado - fixo;
     gastoVariavel += Math.max(0, c.gasto - Math.min(fixo, c.gasto));
+    gastoMarcado += Math.max(0, Math.min(c.fixoAutomatico ?? 0, c.gasto) - c.planejado);
   }
-  return { planoVariavel, gastoVariavel };
+  return { planoVariavel, gastoVariavel, gastoMarcado };
 }
 
 /**
@@ -297,9 +309,12 @@ export function montarFoco(e: FocoEntrada): FocoSaida {
     const velho = e.ritmo === "semanal" && e.diasDesdeUltimoGasto !== null && e.diasDesdeUltimoGasto > DIAS_DADO_VELHO ? e.diasDesdeUltimoGasto : null;
     const semGastoComData = e.ritmo === "semanal" && e.diasDesdeUltimoGasto === null && e.dia > DIAS_DADO_VELHO;
     const variavel = ritmoVariavel(e.categorias, Math.max(0, e.gastoDoMes - gastoNoOrcamento));
+    const limiar = limiarCompraGrande(variavel.planoVariavel);
+    const grandes = (e.gastosAvulsos ?? []).filter((v) => v >= limiar).reduce((s, v) => s + v, 0);
     livre = {
       tipo: semDadoDoMes ? "estimativa" : e.ritmo === "semanal" ? "semana" : "mes",
       ...variavel,
+      gastoUnico: Math.min(grandes + variavel.gastoMarcado, variavel.gastoVariavel),
       valor: e.ritmo === "semanal" && !semDadoDoMes ? porSemana : restante,
       porSemana,
       restante,

@@ -16,10 +16,23 @@ export function ritmoDoMes(usado: number, decorrido: number): Ritmo {
 /**
  * Como o mês fecha se ela seguir gastando no ritmo de até agora: o orçamento menos o gasto
  * projetado para o mês inteiro. Antes de 15% do mês (3, 4 dias) a média ainda mente: null.
+ *
+ * `gastoUnico` é a compra avulsa grande (o hotel da viagem, a TV): entra uma vez só. Só o resto
+ * corre pelos dias que faltam. Sem isso, o hotel de R$ 1.812 lançado no dia 8 virava R$ 7 mil
+ * de "ritmo" no fim do mês (09/10/2026).
  */
-export function previsaoDoMes(planejado: number, gastoTotal: number, decorrido: number): number | null {
+export function previsaoDoMes(planejado: number, gastoTotal: number, decorrido: number, gastoUnico = 0): number | null {
   if (!(planejado > 0) || decorrido < 0.15 || decorrido >= 1) return null;
-  return Math.round(planejado - gastoTotal / decorrido);
+  const unico = Math.min(Math.max(0, gastoUnico), gastoTotal);
+  return Math.round(planejado - unico - (gastoTotal - unico) / decorrido);
+}
+
+/**
+ * A partir de quanto uma compra avulsa é "grande" e não ritmo do dia a dia: R$ 500, ou 10% do
+ * que corre no mês, o que for maior. Café, mercado e Uber nunca chegam lá; a viagem chega.
+ */
+export function limiarCompraGrande(planoVariavel: number): number {
+  return Math.max(500, planoVariavel * 0.1);
 }
 
 /** Segunda = 0 … domingo = 6, e quantos dias faltam até domingo contando hoje. */

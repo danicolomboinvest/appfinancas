@@ -347,6 +347,7 @@ export default async function FocoPage() {
                 frase={voz.ritmo[ritmoAtual]}
                 planejado={livre.planoVariavel}
                 gastoTotal={livre.tipo === "estimativa" ? 0 : livre.gastoVariavel}
+                gastoUnico={livre.tipo === "estimativa" ? 0 : livre.gastoUnico}
                 decorrido={livre.tipo === "estimativa" ? 0 : livre.decorrido}
                 diasRestantes={livre.diasRestantes}
                 money={m}

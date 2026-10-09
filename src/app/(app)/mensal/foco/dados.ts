@@ -99,7 +99,7 @@ export async function carregarFoco(ctx: AuthContext) {
       // classificar ali mesmo.
       prisma.monthlyEntry.findMany({
         where: { userId: ctx.userId, profileId: ctx.profileId, year, month, category: "EXPENSE" },
-        select: { id: true, description: true, subcategory: true, amount: true, entryDate: true, parentCategory: true, customCategoryId: true },
+        select: { id: true, description: true, subcategory: true, amount: true, entryDate: true, parentCategory: true, customCategoryId: true, recurrenceId: true, createdAt: true },
         orderBy: { amount: "desc" },
         take: 400,
       }),
@@ -190,6 +190,8 @@ export async function carregarFoco(ctx: AuthContext) {
   // O Raio-X é dos "pequenos gastos" de uma pessoa; a empresa não tem Decidir.
   const naoDecididos = empresa ? [] : raiox.itens.filter((i) => !raiox.decididos.has(i.chave));
 
+  // Meia-noite do dia 1º em Brasília (03:00 UTC), a mesma fronteira de somarGastosPreCriados.
+  const inicioDoMes = new Date(Date.UTC(year, month - 1, 1, 3));
   const foco = montarFoco({
     ritmo: ritmo ?? "semanal",
     dia,
@@ -197,6 +199,10 @@ export async function carregarFoco(ctx: AuthContext) {
     diasNoMes,
     categorias,
     gastoDoMes: summary.totalExpense,
+    // Avulso: sem "repetir", lançado no próprio mês e fora das contas fixas (essas já não correm).
+    gastosAvulsos: gastosDoMes
+      .filter((g) => !g.recurrenceId && g.createdAt >= inicioDoMes && !CATEGORIAS_FIXAS.has(g.parentCategory ?? ""))
+      .map((g) => Number(g.amount)),
     lancouGastoNoMes: gastosReais > 0,
     aportadoNoMes: summary.totalInvestment,
     aportePlanejado,

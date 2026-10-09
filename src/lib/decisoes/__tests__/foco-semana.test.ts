@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { diaDaSemana, previsaoDoMes, ritmoDoMes, livreAteDomingo } from "../foco-semana";
+import { diaDaSemana, limiarCompraGrande, previsaoDoMes, ritmoDoMes, livreAteDomingo } from "../foco-semana";
 import { ritmoVariavel } from "../foco";
 
 describe("cartão da semana na Foco", () => {
@@ -69,5 +69,43 @@ describe("livre até domingo, pelo orçamento (07/10/2026)", () => {
   });
   it("sem o dia da semana, conta 7 dias", () => {
     expect(livreAteDomingo(3000, 30)).toBe(700);
+  });
+});
+
+describe("fim do mês sem multiplicar o que não se repete (09/10/2026)", () => {
+  // Fictício, no formato do caso real: conta criada no dia 8, as contas do mês lançadas de uma vez
+  // com "repetir todo mês", uma viagem avulsa de R$ 1.800 e o dia a dia (mercado, Uber, lanche).
+  const categorias = [
+    { gasto: 0, planejado: 500, fixa: true },
+    { gasto: 1200, planejado: 900, fixa: false, fixoAutomatico: 500 }, // assinatura + mercado do mês repetidos
+    { gasto: 2900, planejado: 2700, fixa: false, fixoAutomatico: 1100 }, // streaming, hotel parcelado + viagem avulsa
+    { gasto: 400, planejado: 100, fixa: false, fixoAutomatico: 400 }, // presente parcelado, plano de R$ 100
+  ];
+  const decorrido = 8 / 31;
+
+  it("a régua antiga multiplicava tudo pelos dias que faltam", () => {
+    const semRecorrente = ritmoVariavel(categorias.map((c) => ({ ...c, fixoAutomatico: 0 })), 0);
+    expect(previsaoDoMes(semRecorrente.planoVariavel, semRecorrente.gastoVariavel, decorrido)).toBeLessThan(-13000);
+  });
+
+  it("recorrente e compra grande entram uma vez; só o dia a dia corre", () => {
+    const v = ritmoVariavel(categorias, 0);
+    expect(v.gastoMarcado).toBe(300); // o presente: R$ 400 marcados num plano de R$ 100
+    const unico = 1800 + v.gastoMarcado;
+    const previsao = previsaoDoMes(v.planoVariavel, v.gastoVariavel, decorrido, unico)!;
+    // Plano que corre 2.000; já saiu 2.800 disso: 2.100 únicos + 700 de dia a dia em 8 dias.
+    expect(v.planoVariavel).toBe(2000);
+    expect(v.gastoVariavel).toBe(2800);
+    expect(previsao).toBe(Math.round(2000 - 2100 - 700 / decorrido));
+    expect(previsao).toBeGreaterThan(-4000);
+  });
+
+  it("compra grande: R$ 500 ou 10% do que corre no mês, o que for maior", () => {
+    expect(limiarCompraGrande(3000)).toBe(500);
+    expect(limiarCompraGrande(12000)).toBe(1200);
+  });
+
+  it("compra única nunca passa do próprio gasto", () => {
+    expect(previsaoDoMes(1000, 300, 0.5, 900)).toBe(700);
   });
 });
