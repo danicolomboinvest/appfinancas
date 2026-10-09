@@ -66,8 +66,31 @@ function cleanDescription(parts: string[]): string {
   return base.replace(/\s+(Agência|Conta):.*$/i, "").trim() || "Lançamento";
 }
 
+/** Linha do período no cabeçalho de toda página: "01 DE JANEIRO DE 2026 31 DE JANEIRO DE 2026". */
+const PERIODO_RE = /\d{2} DE [A-ZÇ]+ DE \d{4}\s+\d{2} DE [A-ZÇ]+ DE \d{4}/;
+
 export function parseNubankStatement(text: string): ParsedTransaction[] {
   const lines = text.split(/\r?\n/).map((l) => l.trim());
+  // Vários extratos mensais juntados num PDF só (ilovepdf & cia): cada mês tem o próprio
+  // cabeçalho com período e resumo ("Saldo inicial", "+6.865,33"...). Lido como um extrato só,
+  // o resumo do 2º mês em diante virava lançamento e o sinal se perdia (09/10/2026: 9 meses,
+  // R$ 24 mil de saídas sumidos). Lê mês a mês, cortando onde o período muda.
+  const cortes: number[] = [];
+  let periodo = "";
+  lines.forEach((l, i) => {
+    const m = l.match(PERIODO_RE);
+    if (m && m[0] !== periodo) {
+      cortes.push(i);
+      periodo = m[0];
+    }
+  });
+  if (cortes.length < 2) return parseUmMes(lines, new Set());
+  // O nome/CPF/conta que abrem cada página só aparecem antes do 1º período: vale pra todos.
+  const topo = new Set(lines.slice(0, cortes[0]).filter(Boolean));
+  return cortes.flatMap((ini, k) => parseUmMes(lines.slice(ini, cortes[k + 1] ?? lines.length), topo));
+}
+
+function parseUmMes(lines: string[], ruidoExtra: Set<string>): ParsedTransaction[] {
   const start = lines.findIndex((l) => l === "Movimentações");
   if (start === -1) return [];
 
@@ -75,7 +98,7 @@ export function parseNubankStatement(text: string): ParsedTransaction[] {
   // meio de uma descrição que atravessou a quebra. Tudo que vem antes de "Movimentações"
   // e não é a linha do período vira lixo conhecido.
   const header = new Set(lines.slice(0, start).filter((l) => l && !/^(R\$\s*)?[+-]?[\d.]+,\d{2}$/.test(l)));
-  const isNoise = (l: string) => header.has(l) || NOISE_RE.some((re) => re.test(l));
+  const isNoise = (l: string) => header.has(l) || ruidoExtra.has(l) || NOISE_RE.some((re) => re.test(l));
 
   const out: ParsedTransaction[] = [];
   let date = "";

@@ -36,9 +36,11 @@ function linhaEhEspacada(linha: string): boolean {
   return soltas / partes.length >= PROPORCAO_DE_LETRAS_SOLTAS;
 }
 
-/** O arquivo todo foi escrito letra por letra? */
+/** O arquivo todo foi escrito letra por letra? Só contam as linhas compridas: linha curta
+ * ("%", "17,99", "TAXA") não pode ser espaçada nem normal, e a tabela de encargos da fatura
+ * Unicred, um número por linha, diluía a conta abaixo da régua (09/10/2026: 0 de 5 compras). */
 export function isLetterSpacedText(texto: string): boolean {
-  const linhas = texto.split(/\r?\n/).filter((l) => l.trim() !== "");
+  const linhas = texto.split(/\r?\n/).filter((l) => pedacos(l).length >= MINIMO_DE_PEDACOS);
   if (linhas.length === 0) return false;
   const espacadas = linhas.filter(linhaEhEspacada).length;
   return espacadas / linhas.length >= PROPORCAO_DE_LINHAS_ESPACADAS;

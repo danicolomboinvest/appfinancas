@@ -139,3 +139,58 @@ describe("extrato do Nubank de conta pessoa física (sem 'Saldo do dia')", () =>
     expect(profileDocument(NUBANK_PF, "NU_000_01SET2026_19SET2026.pdf").institution).toBe("Nubank");
   });
 });
+
+/** Vários extratos mensais juntados num PDF só (ilovepdf & cia): cada mês traz o próprio
+ * cabeçalho com período e resumo, e o resumo do 2º mês virava lançamento. Fictício. */
+const MES = (mes: string, nome: string, ini: string, ent: string, sai: string, fim: string, corpo: string) => `JOANA EXEMPLO
+•••.123.456-•• 0001	CPF Agência Conta
+1234567-8
+a	01 DE ${nome} DE 2026 28 DE ${nome} DE 2026 VALORES EM R$
+Saldo final do período
+R$ ${fim}
+Saldo inicial
+Rendimento líquido
+Total de entradas
+Total de saídas
+Saldo final do período
+${ini}
++0,00
++${ent}
+-${sai}
+${fim}
+Movimentações
+${corpo}
+Extrato gerado dia 08 de outubro de 2026 às 09:08 1 de 1
+
+-- ${mes} of 2 --
+
+`;
+const JUNTADOS =
+  MES("1", "JANEIRO", "954,79", "1.000,00", "1.200,00", "754,79", `05 JAN 2026 Total de entradas + 1.000,00
+Transferência recebida pelo Pix EMPRESA S.A. - 11.222.333/0001-44 - BCO XPTO
+1.000,00
+10 JAN 2026 Total de saídas - 1.200,00
+Pagamento de boleto efetuado ALUGUEL 1.200,00`) +
+  MES("2", "FEVEREIRO", "754,79", "300,00", "500,00", "554,79", `03 FEV 2026 Total de saídas - 500,00
+Transferência enviada pelo Pix Fulano - •••.111.222-•• - NU
+500,00
+20 FEV 2026 Total de entradas + 300,00
+Transferência recebida pelo Pix Beltrano - •••.333.444-•• - CAIXA
+300,00`);
+
+describe("extratos do Nubank de vários meses juntados num PDF", () => {
+  it("lê cada mês com o seu cabeçalho, sem transformar o resumo do mês seguinte em lançamento", () => {
+    const txns = parseNubankStatement(JUNTADOS);
+    expect(txns.map((t) => [t.date, t.amount])).toEqual([
+      ["2026-01-05", 1000],
+      ["2026-01-10", -1200],
+      ["2026-02-03", -500],
+      ["2026-02-20", 300],
+    ]);
+  });
+
+  it("confere a soma de todos os meses, não só do primeiro", async () => {
+    const { conferirLeitura } = await import("../conferencia");
+    expect(conferirLeitura(JUNTADOS, "statement", parseNubankStatement(JUNTADOS)).status).toBe("fechou");
+  });
+});

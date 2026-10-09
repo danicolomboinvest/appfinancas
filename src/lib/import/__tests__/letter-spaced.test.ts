@@ -49,4 +49,12 @@ describe("PDF escrito letra por letra", () => {
     expect(transacoes[1]).toMatchObject({ date: "2026-08-04", amount: -105.33 });
     expect(transacoes[2]).toMatchObject({ date: "2026-08-13", amount: -33.38 });
   });
+
+  it("reconhece a fatura mesmo com a tabela de encargos, um número curto por linha, no meio", () => {
+    // Fictício: a fatura de verdade tem ~60 linhas assim ("%", "17,99", "TAXA") e só ~30 espaçadas.
+    const tabela = Array.from({ length: 40 }, (_, i) => (i % 2 === 0 ? "%" : `${i},99`)).join("\n");
+    const fatura = `OLÁ, MARIA!\nESTA É A FATURA DE OUTUBRO\nNO VALOR TOTAL DE R$ 1.230,50.\n${tabela}\n${FATURA_ESPACADA}`;
+    expect(isLetterSpacedText(fatura)).toBe(true);
+    expect(parseStatement(normalizeLetterSpacedText(fatura), "pdf", 2026)).toHaveLength(3);
+  });
 });

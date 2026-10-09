@@ -171,10 +171,12 @@ export function conferirLeitura(texto: string, docType: string, txns: ParsedTran
     const ok = (lido: number, esperado: number) => (esperado === 0 ? lido < 0.01 : bate(lido, esperado));
     return { status: ok(lidoE, entradasC6) && ok(lidoS, saidasC6) ? "fechou" : "nao-fechou", lido: lidoE + lidoS, esperado: entradasC6 + saidasC6 };
   }
-  const coluna = texto.match(RESUMO_EM_COLUNA);
+  // Nubank com vários meses juntados num PDF: um resumo por mês — soma todos.
+  const colunas = [...texto.matchAll(new RegExp(RESUMO_EM_COLUNA.source, "gi"))];
+  const somaColuna = (i: 1 | 2) => colunas.reduce((s, m) => s + (numero([m[0], m[i]]) ?? 0), 0) || null;
   // Mercado Pago: "Entradas: R$ 10.635,42" e "Saidas: R$ -10.625,71" no topo.
-  const entradas = coluna ? numero([coluna[0], coluna[1]]) : numero(texto.match(TOTAL_ENTRADAS) ?? texto.match(MERCADO_PAGO_ENTRADAS));
-  const saidas = coluna ? numero([coluna[0], coluna[2]]) : numero(texto.match(TOTAL_SAIDAS) ?? texto.match(MERCADO_PAGO_SAIDAS));
+  const entradas = colunas.length > 0 ? somaColuna(1) : numero(texto.match(TOTAL_ENTRADAS) ?? texto.match(MERCADO_PAGO_ENTRADAS));
+  const saidas = colunas.length > 0 ? somaColuna(2) : numero(texto.match(TOTAL_SAIDAS) ?? texto.match(MERCADO_PAGO_SAIDAS));
   if (entradas === null || saidas === null) return { status: "sem-referencia" };
   const lidoEntradas = txns.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0);
   const lidoSaidas = txns.filter((t) => t.amount < 0).reduce((s, t) => s - t.amount, 0);
