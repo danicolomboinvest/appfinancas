@@ -177,7 +177,7 @@ Quatro limitações mudam a leitura dos dados.
 1. **Fora da UE, a Meta só mostra o que está no ar.** Anúncios americanos e britânicos que já saíram somem da biblioteca, a menos que também tenham rodado na UE. Por isso "dias ativo" mede quanto tempo um anúncio *ainda vivo* está rodando, não a vida inteira dele.
 2. **Rocket Money e Monarch trocam o lote inteiro de uma vez.** Todos os 71 anúncios ativos da Rocket Money e os 69 da Monarch começaram entre 5 e 9/10/2026. No histórico visível da Rocket Money, os anúncios duraram de 2 a 16 dias, com máximo de 61. Essas duas marcas trabalham em **ondas de dezenas de criativos novos**, então nelas a longevidade não indica o vencedor. A ordenação da Meta por impressões (ranking dentro da marca) e o número de variações indicam melhor.
 3. **Fora da UE não aparecem impressões nem gasto.** O alcance exato só existe para anúncios veiculados na UE (DSA). Foi coletado para os anúncios principais da Finanzguru e da Bankin'.
-4. **O que não foi possível ver:** o TikTok Creative Center mostra só 4 anúncios por filtro sem login e pede login para o resto. Como não houve login, a parte de Top Ads ficou praticamente sem dados (no filtro Finanças dos EUA apareceram só uma corretora e a Western Union). A TikTok Ad Library cobre apenas países da UE. Empower e Snoop não têm página de anunciante identificável na Meta.
+4. **O que não foi possível ver nesta rodada:** o TikTok Creative Center exige login para ir além de 4 anúncios. Ele foi varrido depois, com login, e está na seção "TikTok Creative Center" abaixo. A TikTok Ad Library cobre apenas países da UE. Empower e Snoop não têm página de anunciante identificável na Meta.
 
 **Quem não compra Meta Ads:** YNAB e Copilot têm **zero** anúncios na Meta, nem ativos nem no histórico. No Google, os dois só compram busca da própria marca (YNAB: 32 anúncios, "34 day free trial"; Copilot: 18, "No ads, just a great app"). A PocketGuard não tem nada ativo; só fez testes de 0 a 9 dias entre novembro e dezembro de 2025. A Linxo também está sem anúncios ativos (a última onda foi de fevereiro a abril de 2026). Dos líderes de orçamento "puro", só Rocket Money, Monarch e EveryDollar compram Meta em volume.
 
@@ -253,9 +253,82 @@ Em vídeo, os formatos que mais aparecem são: UGC com texto grande na tela nos 
 4. **Volume e ondas.** Rocket Money e Monarch sobem 50 a 70 criativos de uma vez e trocam o lote; Finanzguru teve 1.062 anúncios no TikTok alemão em 30 dias. O plano de testes deve prever lotes de 20 a 30 variações por conceito, não 3 ou 4 (inferência).
 5. **O espanhol se paga.** O criativo em espanhol da Kikoff roda há 256 dias. É a evidência mais direta a favor do recorte hispânico nos EUA.
 
+## TikTok Creative Center: o que funciona no primeiro segundo
+
+Em 11/10/2026 o TikTok Creative Center foi varrido com login, só em modo leitura. A base é o painel **Top Ads**, nos últimos 180 dias, em 8 países (EUA, Reino Unido, Canadá, Austrália, Espanha, México, Alemanha e França). A coleta cobriu as indústrias "Apps/Finanças" e "Serviços financeiros" e 14 buscas por palavra-chave (budget, debt, paycheck, subscriptions, save money, cash advance etc.). Foram **1.289 anúncios**, dos quais **707 são de finanças** depois de tirar trading, cripto e entretenimento. Todos estão em [`catalogo_tiktok_topads.csv`](catalogo_tiktok_topads.csv), com legenda, curtidas, comentários, compartilhamentos, nota de CTR, nível de verba, landing page, países, duração e objetivo. Para **41 anúncios relevantes**, a planilha também traz a curva de retenção segundo a segundo e os segundos em que o CTR e a conversão têm pico. Esses 41 também foram acrescentados ao `catalogo_anuncios.csv`.
+
+### O que o Creative Center mostra e o que não mostra
+
+- **O Top Ads só exibe anúncios que o próprio anunciante autorizou.** Por isso **nenhuma** das marcas-alvo aparece: Rocket Money, Monarch, Cleo, EveryDollar, YNAB, Emma, Plum, Chip, Moneybox, Kikoff, Dave, Albert, Experian, Copilot, Finanzguru, Bankin', Fintonic, Revolut e Monzo têm zero anúncios lá. O Top Ads não substitui as bibliotecas da Meta e do TikTok (UE) usadas na seção anterior; ele mostra **o que funciona no formato TikTok** entre anunciantes que aceitam ser vistos.
+- **Ferramentas descontinuadas:** a Keyword Insights redireciona para a home, e a análise por hashtag agora mostra só uma lista curta de tendências gerais, sem categoria Finanças. Não foi possível medir hashtags como #moneytok ou #budgeting por ali.
+- **O que existe por anúncio:** curtidas, comentários, compartilhamentos, posição de CTR e de verba, e cinco curvas segundo a segundo (retenção, CTR, conversão, cliques e conversões), com os "segundos de destaque".
+
+### A categoria quase não tem apps de orçamento
+
+Entre os 707 anúncios de finanças, a maior parte é de seguros e indenizações (168), empréstimo e adiantamento (117), dívida (66), bancos e contas digitais (63) e impostos (55). **Apps de orçamento e controle de gastos são raríssimos**, e os poucos que aparecem são pequenos:
+
+- **TuDinero** (planilha do Google Sheets vendida em plantilleate.com): 84 mil curtidas, rodando em 7 a 15 países da América Latina.
+- **Gauss** (app de dívida de cartão com adiantamento de até US$ 500): 5 anúncios, um com 62 mil curtidas.
+- **Hiatus** (assinaturas e negociação de contas): 14 mil curtidas.
+- **Alba** (app equatoriano de gastos): "Si Excel ya te hizo llorar una vez, es hora de conocer a Alba".
+- **Savvy Sheets** (planilha "bucket budget").
+
+Para um app de orçamento, isso significa que **o TikTok pago da categoria está pouco disputado**. Quem aparece vende crédito, seguro ou planilha (inferência).
+
+### Benchmark de retenção: tudo se decide no primeiro segundo
+
+Nos 41 anúncios com curva, a retenção mediana fica assim (quartil superior entre parênteses):
+
+| Segundo | Ainda assistindo (mediana) | Quartil superior |
+|---|---|---|
+| 1 s | 32% | 43% |
+| 2 s | 16% | 25% |
+| 3 s | 10% | 14% |
+| 5 s | 5% | 8% |
+| 6 s | 4% | 6% |
+
+Em **23 dos 41**, o pico de CTR acontece no **segundo 1**. Ou seja: dois terços das pessoas saem antes do segundo 2, e quem clica decide logo de cara. O pico de **conversão** costuma vir depois, perto do CTA ou da demonstração (WISO aos 35–39 s; TuDinero aos 10–13 s; Gauss nos segundos 1–4, porque o vídeo inteiro dura 5–6 s).
+
+**Quem segura melhor** (retenção em 1 s / 3 s / 6 s):
+
+| Anúncio | Gancho do primeiro quadro | Retenção 1 s / 3 s / 6 s | Curtidas |
+|---|---|---|---|
+| UGC "Walmart" (sem marca identificada) | "if it's less than 2 hours of work I'll buy it": preço convertido em **horas de trabalho** | **58 / 39 / 31%** (19% até o fim) | 23 mil |
+| TuDinero (LatAm, ES) | Tela da planilha + "Hasta que decidí cambiar de excusa 🥰" | **65 / 38 / 8%** | 84 mil |
+| pubtrack (seguro de carro) | Texto longo na tela: "in your 20s there will be a way to pay $60 in car insurance..." | 64 / 32 / 10% | 148 mil |
+| Savvy Sheets | "setting up my budget for 2026..." (estética, cozinha rosa) | 55 / 22 / 9% | 205 |
+| Seguro/IUL latino (ES) | "¿Cuánto es lo mínimo que necesitas para empezar a invertir? Si solo tengo $5 dólares diarios" | 53 / 23 / 13% | 44 mil |
+| Chime | Família real na quadra com camisas "Your names" | 50 / 22 / 11% | 22 mil |
+| Gauss | "when someone tells me they are in a lot of credit card debt, but I know the feeling..." | 48 / 20 / 7% | 32 mil |
+
+**Quem perde quase todo mundo no 1º segundo:** o estático animado da Bright ("Loan offers of up to $3,000", 8% em 1 s, apesar de 48 mil curtidas compradas com verba alta), o logo "Women Talk Money" da Fidelity (6%) e o filme institucional do HMRC (10%). **No TikTok, motion de oferta e peça de marca não seguram ninguém**, o contrário da Meta, onde o estático de oferta é o formato mais longevo (inferência a partir dos dois conjuntos).
+
+### Ganchos que se repetem entre os vencedores do TikTok
+
+1. **Resultado concreto escrito na tela, em vídeo de 5–6 s.** "I JUST PAID OFF $6,000 WORTH OF CREDIT CARD DEBT IN MINUTES 😮‍💨 thank you Gauss" (62 mil curtidas) e "November of last year I was drowning in credit card debt. November this year I got rid of $10k...". Selfie, texto grande e nada mais. **É o "paguei US$ X de dívida" no formato nativo do TikTok.**
+2. **Dinheiro que já é seu e você não sabe.** "El SAT te debe dinero de los últimos 5 años y la mayoría ni se entera" (TaxDown México: 80 mil curtidas e **7.288 compartilhamentos**, entre os mais compartilhados da amostra; o outro do mesmo nível é "See If You Qualify to Reduce Your IRS Debt", com 14 mil compartilhamentos) e "POV: llevas años pagando más de lo que debes a Hacienda". É o ângulo "dinheiro escondido" da Rocket Money, aplicado a impostos e em espanhol.
+3. **Resposta a comentário.** "J'suis interdit bancaire, je peux rien faire ❌" (BLING, França, 24 mil curtidas) e "Why do they charge so much for international transfers?? 😩" (Wise). O comentário vira o gancho e a resposta vira a demonstração.
+4. **Planilha ou tela na primeira imagem.** TuDinero (planilha do Sheets), Savvy Sheets (laptop com planilha colorida), Hiatus (cards "Netflix $19.99" duplicados), SoFi (quadro branco "Paying Down Credit Card Debt" com a conta feita à mão).
+5. **Preço em horas de trabalho.** "if it's less than 2 hours of work I'll buy it" teve a melhor retenção da amostra. **Para o SPI, é uma tela pronta: mostrar quanto cada gasto custa em horas do seu salário** (inferência).
+6. **Lista "3 razões".** "3 razones para usar la App de Western Union" (criadora latina na rua), o anúncio de finanças com **mais curtidas** na varredura (261 mil).
+7. **Personagem e entrevista de rua.** Homem fantasiado de formulário de imposto entrevistado na rua (TaxDown Espanha) e celebridade (LaVar Ball para a Possible).
+
+### Espanhol e América Latina aparecem fortes
+
+Os anúncios em espanhol estão entre os maiores da amostra: Western Union (261 mil curtidas), TuDinero (84 mil, planilha vendida em 15 países), TaxDown México (80 mil) e um anúncio de IUL/aposentadoria para "latinos en USA" (44 mil curtidas, 53% de retenção em 1 s). Somado ao criativo em espanhol da Kikoff, há 256 dias na Meta, isso reforça o **recorte hispânico** do relatório. A TuDinero mostra ainda um caminho de entrada: **vender organização financeira como planilha antes de vender app** (inferência).
+
+### O que muda nas recomendações
+
+1. **Roteiro do primeiro segundo:** rosto + resultado com número escrito na tela ("paguei R$/US$ X", "o governo te deve", "isso custa 2 horas do seu salário"). Nada de logo, vinheta ou motion de oferta no início do TikTok.
+2. **Versões de 6 a 15 s para performance.** Os vídeos de 5–6 s da Gauss convertem nos segundos 1–4. Os vídeos longos (WISO, Western Union) só convertem no fim, para os poucos que ficam.
+3. **Formato de resposta a comentário como série.** Cada objeção ("não tenho tempo de anotar", "não confio em app com senha do banco") vira um vídeo.
+4. **Tela do produto como prova.** A planilha, os cards de assinaturas e o quadro branco provam o valor sem precisar de explicação.
+5. **Testar "dinheiro esquecido" em espanhol** (impostos, assinaturas, tarifas). Junto com o de dívida com o fisco, é o gancho mais compartilhado da amostra.
+6. **Na Meta, estático de oferta; no TikTok, UGC com texto.** Os dois canais premiam formatos opostos.
+
 ## Checklist para a varredura manual das bibliotecas de anúncios
 
-Status em 10/10/2026: executado (ver seção anterior). Pendências: o TikTok Creative Center exige login para ir além de 4 anúncios, e iSpot e App Store não fizeram parte desta rodada.
+Status em 10/10/2026: executado (ver seção anterior). O TikTok Creative Center foi varrido com login em 11/10/2026 (ver seção "TikTok Creative Center"). Pendências: iSpot e App Store não fizeram parte desta rodada, e a Keyword Insights e a análise de hashtags foram descontinuadas pelo TikTok.
 
 A tarefa é para alguém com navegador comum, em cerca de dois dias de trabalho. O critério de "vencedor" é o usado no mercado: **longevidade**. Anúncios ativos há 30+ dias já entram em bibliotecas de modelos ([Konvert](https://usekonvert.com/features/templates)), e a longevidade é tratada como "o melhor proxy do que é lucrativo" ([adlibrary.com](https://adlibrary.com/posts/best-dtc-meta-ads-examples-2026)). Marque como vencedor provável o que estiver ativo há **90+ dias** ou que tenha **muitas variações do mesmo conceito**.
 
