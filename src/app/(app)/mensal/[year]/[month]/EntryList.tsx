@@ -345,7 +345,8 @@ export function EntryList({
             <LogoDoLancamento descricao={entry.description} icon={visual.icon} emoji={visual.emoji} cor={visual.color} />
           )}
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-[16px] text-ink">{titulo}</span>
+            {/* O nome inteiro quebra a linha em vez de cortar ("Aplicação · Reserva de emergência" a 320 px). */}
+            <span className="block break-words text-[16px] leading-snug text-ink">{titulo}</span>
             <span className="block truncate text-[13px] text-ink-muted">
               {/* Perfil Casal: de quem é, e "Pessoal" quando o gasto fica fora do acerto. */}
               {nomesDoCasal && (entry.pessoa === "A" || entry.pessoa === "B") && (

@@ -38,7 +38,7 @@ function Linha({ icone, rotulo, valor, perigo = false, sub, onClick, href }: { i
       </span>
       <span className="min-w-0 flex-1">
         <span className={`block text-[17px] font-semibold ${perigo ? "text-danger" : "text-ink"}`}>{rotulo}</span>
-        {sub && <span className="block truncate text-[15px] text-ink-muted">{sub}</span>}
+        {sub && <span className="block break-words text-[15px] text-ink-muted">{sub}</span>}
       </span>
       {valor !== undefined && <span className="shrink-0 text-[16px] text-ink-muted">{valor}</span>}
       {(onClick || href) && !perigo && <ChevronRight size={18} strokeWidth={1.6} className="shrink-0 text-ink-muted" aria-hidden />}
