@@ -2,40 +2,63 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth/auth.config";
 import { getOwnUser } from "@/lib/repositories/user.repo";
 import { contaConfirmada, situacaoDoAcesso, usoDoApp } from "@/lib/repositories/allowedEmail.repo";
-import { BrandMark } from "@/components/brand/BrandMark";
-import { EscolhaInicial } from "./EscolhaInicial";
+import { getOrCreateActiveProfile } from "@/lib/repositories/profile.repo";
+import { lerComecoDaConta } from "@/lib/repositories/comeco.repo";
+import { MoneyProvider } from "@/components/money/MoneyProvider";
+import { ToastProvider } from "@/components/ui/toast-context";
+import { ProfileThemeProvider } from "@/components/profiles/ProfileThemeProvider";
+import { ThemeSync } from "@/components/shell/ThemeSync";
+import { valoresOcultos } from "@/lib/money-server";
+import { toCurrencyCode } from "@/lib/money";
+import { chaveDoTema, preferenciaDeModo, profileThemeCss, profileTheme as temaDoPerfil } from "@/lib/profiles/themes";
+import { lerPreferenciasDeCategoria } from "@/lib/categories";
+import { nowInBrazil } from "@/lib/date/brazil-now";
+import { nomeDoMes, passoDeVolta } from "@/lib/onboarding/comeco";
+import { Comeco } from "./Comeco";
 
 /**
- * A tela de boas-vindas. Fica fora do grupo (app) de propósito: o layout de lá manda pra cá
- * quem ainda não passou por aqui, e um layout que redireciona pra si mesmo é um laço.
- * Quem já passou e volta por link cai no mês.
+ * O começo (onboarding) da versão nova. Fica fora do grupo (app) de propósito: o layout de lá
+ * manda pra cá quem ainda não passou por aqui, e um layout que redireciona pra si mesmo é um laço.
+ *
+ * Quem já usava o app (onboardedAt preenchido e sem `comeco`) nunca cai aqui: volta para o mês.
+ * Quem passou pelo começo novo e pulou pode voltar pelos convites da Visão geral
+ * (`?passo=banco`, `?passo=digitar`...), e o resgate abre direto no banco dela (`?passo=volta`).
  */
-export default async function ComecarPage() {
+export default async function ComecarPage({ searchParams }: { searchParams: Promise<{ passo?: string }> }) {
   const session = await auth();
   if (!session?.user) redirect("/login");
   const user = await getOwnUser({ userId: session.user.id, role: session.user.role });
-  if (user.onboardedAt !== null) redirect("/mensal/foco");
-  // Sem e-mail confirmado, o layout do app mostra a tela "Confirme seu e-mail": escolher o tema
-  // antes disso seria abrir a porta por aqui. A MESMA regra do layout (quem assinou pela Apple
-  // passa): com regras diferentes, um mandava para o outro sem parar.
+  const comeco = await lerComecoDaConta(user.id);
+  const { passo: pedido } = await searchParams;
+  if (user.onboardedAt !== null && (!comeco || !pedido)) redirect("/mensal/foco");
+  // Sem e-mail confirmado, o layout do app mostra a tela "Confirme seu e-mail": o começo antes
+  // disso seria abrir a porta por aqui. A MESMA regra do layout (quem assinou pela Apple passa).
   if (session.user.role !== "ADMIN" && !(await contaConfirmada(user))) redirect("/mensal/foco");
   // Sem compra valendo, idem: o layout mostra "Seu acesso não está ativo".
   if (session.user.role !== "ADMIN" && usoDoApp(await situacaoDoAcesso(user.email), user.createdAt) === "bloqueado") redirect("/mensal/foco");
 
+  const perfil = await getOrCreateActiveProfile(user.id);
+  const tema = chaveDoTema(perfil.theme);
+  const modo = preferenciaDeModo(user.theme);
+  const primeiroNome = user.name?.trim().split(/\s+/)[0] || null;
+
   return (
-    <main className="flex min-h-screen items-start justify-center bg-canvas p-6 sm:items-center">
-      <div className="w-full max-w-2xl animate-fade-in">
-        <div className="mb-6 flex flex-col items-center gap-3 text-center">
-          <BrandMark size={48} className="rounded-2xl" />
-          <div>
-            <h1 className="text-xl font-semibold tracking-tight text-ink">Bem-vinda ao SPI Finance{user.name ? `, ${user.name.split(" ")[0]}` : ""}</h1>
-            <p className="mt-1 text-sm text-ink-muted">Três escolhas rápidas e o app já fica com a sua cara. Dá para mudar depois.</p>
-          </div>
-        </div>
-        <div className="rounded-2xl border border-border bg-surface p-5 sm:p-6">
-          <EscolhaInicial nome={user.name ?? undefined} />
-        </div>
-      </div>
-    </main>
+    <ToastProvider>
+      <ProfileThemeProvider theme={tema} kind={perfil.kind} profileId={perfil.id} prefsDeCategoria={lerPreferenciasDeCategoria(perfil.categorias)}>
+        <MoneyProvider currency={toCurrencyCode(user.currency)} ocultos={await valoresOcultos()}>
+          <ThemeSync theme={modo} />
+          <style dangerouslySetInnerHTML={{ __html: profileThemeCss(tema) }} />
+          <link rel="icon" type="image/svg+xml" href={`${temaDoPerfil(tema).logo}/favicon.svg`} />
+          <Comeco
+            inicial={comeco}
+            passoInicial={passoDeVolta(comeco, pedido)}
+            nomeDaConta={primeiroNome}
+            temaAtual={tema}
+            moedaAtual={toCurrencyCode(user.currency)}
+            mesAtual={nomeDoMes(nowInBrazil())}
+          />
+        </MoneyProvider>
+      </ProfileThemeProvider>
+    </ToastProvider>
   );
 }

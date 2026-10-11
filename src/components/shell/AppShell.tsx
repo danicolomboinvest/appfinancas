@@ -12,6 +12,7 @@ import { RegistrarDrawer } from "./RegistrarDrawer";
 import { modoPedidoNoEvento, EVENTO_IMPORTAR, EVENTO_REGISTRAR, type ModoDoRegistrar } from "./registrar-eventos";
 import type { PerfilResumo } from "@/components/profiles/perfil-resumo";
 import { WelcomeTour } from "./WelcomeTour";
+import { TourVistoPeloComeco } from "@/components/onboarding/TourVistoPeloComeco";
 import { TopBar } from "./TopBar";
 import { AbasDaVisaoGeral } from "./AbasDaVisaoGeral";
 import { BotaoRegistrar } from "./BotaoRegistrar";
@@ -48,7 +49,10 @@ export function AppShell({
   cartaoComLimite = false,
   nomeDaConta = null,
   fotoDaConta = null,
+  comecoNovo = false,
 }: {
+  /** Entrou pelo começo novo (versão nova): no lugar do tour de balões, nada (as dicas do começo bastam). */
+  comecoNovo?: boolean;
   /** Nome da conta (o avatar do topo mostra a inicial quando não há foto). */
   nomeDaConta?: string | null;
   /** Foto da conta (User.avatarUrl): vira o avatar do app todo. */
@@ -225,7 +229,7 @@ export function AppShell({
           onLogout={handleLogout}
           onOpenInstall={() => setInstallOpen(true)}
         />
-        {!focado && <AvisoMenuNovo />}
+        {!focado && !comecoNovo && <AvisoMenuNovo />}
 
         {/* Tutorial de "instalar na tela de início" (convite do topo ou menu "Mais"). */}
         <InstallAppSheet open={installOpen} onClose={() => setInstallOpen(false)} />
@@ -235,7 +239,7 @@ export function AppShell({
         <RegistrarDrawer open={registrarOpen} modoInicial={modoDoRegistrar} onClose={() => setRegistrarOpen(false)} />
 
         {/* Tour de boas-vindas, só na primeira entrada (lembrado no aparelho). */}
-        <WelcomeTour />
+        {comecoNovo ? <TourVistoPeloComeco /> : <WelcomeTour />}
         {/* O guia do Money Reset: só aparece quando uma missão liga (sessionStorage). */}
         <GuiaDoReset />
 

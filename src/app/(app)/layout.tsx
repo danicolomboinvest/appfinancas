@@ -27,6 +27,7 @@ import { linkDoSuporte } from "@/lib/support/whatsapp-link";
 import { ASSUNTO_ACESSO, mensagemDeContaSemAcesso } from "@/lib/support/contato";
 import { lerPreferenciasDeCategoria, type PreferenciasDeCategoria } from "@/lib/categories";
 import { lerConfigCasal } from "@/lib/casal/acerto";
+import { lerComeco } from "@/lib/onboarding/comeco";
 
 
 function capitalize(text: string) {
@@ -56,6 +57,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   let nomeDaConta: string | null = null;
   let fotoDaConta: string | null = null;
   let cssDoTema = "";
+  // Quem entrou pelo começo novo (versão nova): o tour antigo de balões não aparece para ela.
+  let comecoNovo = false;
   let perfilAtivoId = "";
   if (session?.user) {
     const ctx: AccountContext = { userId: session.user.id, role: session.user.role };
@@ -84,7 +87,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     // Primeira entrada: antes de ver qualquer tela, a pessoa escolhe o tipo e o tema do
     // perfil dela em /comecar. Uma vez só; quem já usava o app nasceu com a data preenchida.
     if (user.onboardedAt === null) redirect("/comecar");
-    firstName = user.name?.split(" ")[0] || user.email.split("@")[0];
+    // O apelido que ela deu no começo ("Como posso te chamar?") vale na saudação.
+    const comeco = lerComeco(user.comeco);
+    comecoNovo = comeco !== null;
+    firstName = comeco?.apelido || user.name?.split(" ")[0] || user.email.split("@")[0];
     nomeDaConta = user.name?.trim() || null;
     fotoDaConta = user.avatarUrl;
     currency = toCurrencyCode(user.currency);
@@ -148,6 +154,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         podeEscolherModo={podeEscolherModo}
         nomeDaConta={nomeDaConta}
         fotoDaConta={fotoDaConta}
+        comecoNovo={comecoNovo}
       >
         {/* Trocar de perfil só revalida a página, e o React guarda o estado dos formulários que
             re-renderizam: o orçamento continuava com os números do perfil anterior e o "Salvar"

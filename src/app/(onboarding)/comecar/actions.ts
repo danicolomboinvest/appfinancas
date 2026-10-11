@@ -1,42 +1,103 @@
 "use server";
 
-import type { ProfileKind } from "@prisma/client";
-import { redirect } from "next/navigation";
+import type { EntryCategory, ParentCategory } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { getRequiredSession } from "@/lib/auth/session";
-import { updateProfile, PROFILE_KINDS_ESCOLHIVEIS } from "@/lib/repositories/profile.repo";
-import { markOnboarded, updateOwnCurrency } from "@/lib/repositories/user.repo";
+import { updateProfile } from "@/lib/repositories/profile.repo";
+import { updateOwnCurrency } from "@/lib/repositories/user.repo";
+import { createMonthlyEntry } from "@/lib/repositories/monthly-entry.repo";
+import { gravarComeco, lerComecoDaConta, marcarRecebidaSeAinda } from "@/lib/repositories/comeco.repo";
 import { isCurrencyCode } from "@/lib/money";
-import { profileTheme } from "@/lib/profiles/themes";
-
-/** O ícone do primeiro perfil segue o tipo, igual ao que o cadastro de perfis faz. */
-const ICONE: Record<ProfileKind, string> = { PESSOAL: "wallet", EMPRESA: "briefcase", CASAL: "heart", CASA: "home", PROJETO: "target", OUTRO: "circle" };
-
-/** O nome do primeiro perfil quando a pessoa não digita um: segue o tipo escolhido. */
-const NOME_PADRAO: Record<ProfileKind, string> = {
-  PESSOAL: "Pessoal",
-  EMPRESA: "Minha empresa",
-  CASAL: "Casal",
-  CASA: "Casa",
-  PROJETO: "Projeto",
-  OUTRO: "Meu dinheiro",
-};
+import { isProfileThemeKey } from "@/lib/profiles/themes";
+import { PARENT_CATEGORIES } from "@/lib/categories";
+import { hojeEmBrasilia } from "@/lib/contas/contas";
+import {
+  ehPasso,
+  juntarComeco,
+  pularComeco,
+  terminarComLancamento,
+  type MudancaDoComeco,
+  type PassoDoComeco,
+} from "@/lib/onboarding/comeco";
 
 /**
- * A escolha da primeira entrada: tipo e tema do perfil que o app criou sozinho no cadastro.
- * Grava no perfil ativo, marca a pessoa como recebida e manda pro mês. Uma vez só: a partir
- * daqui o layout não redireciona mais pra cá.
+ * O começo da versão nova (ver lib/onboarding/comeco.ts). Cada resposta é gravada na hora: quem
+ * fecha o app no meio volta no mesmo ponto, e quem pula não perde nada do que já respondeu.
  */
-export async function comecarAction(input: { kind: string; theme: string; name?: string; currency?: string }): Promise<void> {
+export async function salvarComecoAction(mudanca: MudancaDoComeco & { tema?: string; moeda?: string }): Promise<{ ok: boolean }> {
   const ctx = await getRequiredSession();
-  const kind = (PROFILE_KINDS_ESCOLHIVEIS as string[]).includes(input.kind) ? (input.kind as ProfileKind) : "PESSOAL";
-  const theme = profileTheme(input.theme).key;
-  const name = input.name?.trim().slice(0, 40) || NOME_PADRAO[kind];
-  await updateProfile(ctx, ctx.profileId, { name, kind, theme, icon: ICONE[kind] });
-  // A moeda escolhida aqui: antes ela só existia em Configurações › Preferências, e quem mora fora
-  // só achava explorando todas as abas (cliente, 01/10/2026).
-  if (input.currency && isCurrencyCode(input.currency)) await updateOwnCurrency(ctx, input.currency);
-  await markOnboarded(ctx.userId);
+  const atual = await lerComecoDaConta(ctx.userId);
+  const { tema, moeda, ...resto } = mudanca;
+  await gravarComeco(ctx.userId, juntarComeco(atual, resto));
+  // O tema vale para o perfil ativo, o mesmo que a tela de perfis muda.
+  if (tema && isProfileThemeKey(tema)) await updateProfile(ctx, ctx.profileId, { theme: tema });
+  // A moeda escolhida aqui (quem mora fora): antes ela só existia em Configurações.
+  if (moeda && isCurrencyCode(moeda)) await updateOwnCurrency(ctx, moeda);
+  if (tema || moeda) revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+/** Pular, de qualquer tela, ou "Faço isso depois": o começo acaba e ela cai na Visão geral. */
+export async function pularComecoAction(ondeParou: string): Promise<{ ok: boolean }> {
+  const ctx = await getRequiredSession();
+  const atual = await lerComecoDaConta(ctx.userId);
+  const passo: PassoDoComeco = ehPasso(ondeParou) ? ondeParou : "b1";
+  await gravarComeco(ctx.userId, pularComeco(atual, passo));
+  await marcarRecebidaSeAinda(ctx.userId);
   revalidatePath("/", "layout");
-  redirect("/mensal/foco");
+  return { ok: true };
+}
+
+/** O extrato entrou (a importação já gravou tudo): o começo termina com o mês na tela. */
+export async function terminarComExtratoAction(input: { mes: string | null; revisou: boolean }): Promise<{ ok: boolean }> {
+  const ctx = await getRequiredSession();
+  const atual = await lerComecoDaConta(ctx.userId);
+  const mes = input.mes && /^\d{4}-\d{2}$/.test(input.mes) ? input.mes : null;
+  await gravarComeco(ctx.userId, terminarComLancamento(atual, "extrato", { mesDoExtrato: mes, revisou: input.revisou === true }));
+  await marcarRecebidaSeAinda(ctx.userId);
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+const CATEGORIAS: EntryCategory[] = ["EXPENSE", "INCOME", "INVESTMENT_CONTRIBUTION"];
+
+/**
+ * O primeiro gasto digitado ou falado, lançado hoje (data de Brasília) no perfil ativo. Valor
+ * acima de zero e categoria do app; o resto é texto livre curto.
+ */
+export async function primeiroGastoAction(input: {
+  valor: number;
+  descricao: string;
+  categoria?: string;
+  parentCategory?: string | null;
+  sub?: string | null;
+  como: "digitado" | "falado";
+}): Promise<{ ok: true } | { ok: false; erro: string }> {
+  const ctx = await getRequiredSession();
+  const valor = Math.round(Number(input.valor) * 100) / 100;
+  if (!Number.isFinite(valor) || valor <= 0 || valor > 10_000_000) return { ok: false, erro: "Digite um valor maior que zero." };
+  const category = CATEGORIAS.includes(input.categoria as EntryCategory) ? (input.categoria as EntryCategory) : "EXPENSE";
+  const parent = input.parentCategory && (PARENT_CATEGORIES as readonly string[]).includes(input.parentCategory) ? (input.parentCategory as ParentCategory) : undefined;
+  const hoje = hojeEmBrasilia();
+  const dia = new Date(Date.UTC(hoje.getUTCFullYear(), hoje.getUTCMonth(), hoje.getUTCDate(), 12));
+  try {
+    await createMonthlyEntry(ctx, {
+      year: dia.getUTCFullYear(),
+      month: dia.getUTCMonth() + 1,
+      category,
+      parentCategory: category === "EXPENSE" ? (parent ?? "OUTROS") : undefined,
+      subcategory: input.sub?.trim().slice(0, 60) || undefined,
+      description: input.descricao.trim().slice(0, 80) || undefined,
+      amount: valor,
+      entryDate: dia,
+    });
+  } catch (err) {
+    console.error("primeiroGastoAction falhou:", err);
+    return { ok: false, erro: "Não consegui salvar. Tente de novo." };
+  }
+  const atual = await lerComecoDaConta(ctx.userId);
+  await gravarComeco(ctx.userId, terminarComLancamento(atual, input.como));
+  await marcarRecebidaSeAinda(ctx.userId);
+  revalidatePath("/", "layout");
+  return { ok: true };
 }
