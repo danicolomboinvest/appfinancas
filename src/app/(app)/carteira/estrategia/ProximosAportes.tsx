@@ -35,6 +35,8 @@ export function ProximosAportes({ dados }: { dados: DadosDosProximosAportes }) {
     () => dividirProximoAporte({ valor, posicoes: dados.posicoes, mesesDeReserva: dados.mesesDeReserva, reservaCompleta: dados.reservaCompleta, semReserva: dados.semReserva, nomes: NOME_DA_LINHA }),
     [valor, dados],
   );
+  // Com uma casa quando o inteiro esconderia a mudança (15% → 15% vira 14,9% → 15,4%).
+  const pct = (f: number, outro: number) => (f * 100).toLocaleString("pt-BR", { maximumFractionDigits: Math.round(f * 100) === Math.round(outro * 100) ? 1 : 0 });
   const escala = (f: number) => `${Math.min(100, f * 200)}%`;
 
   return (
@@ -84,7 +86,7 @@ export function ProximosAportes({ dados }: { dados: DadosDosProximosAportes }) {
                 <span className="absolute -top-1 h-3.5 w-0.5 rounded-full bg-ink" style={{ left: escala(c.alvo) }} />
               </span>
               <span className="text-[12.5px] tabular-nums text-ink">
-                {Math.round(c.hoje * 100)}% → {Math.round(c.depois * 100)}% · alvo {Math.round(c.alvo * 100)}%
+                {pct(c.hoje, c.depois)}% → {pct(c.depois, c.hoje)}% · alvo {Math.round(c.alvo * 100)}%
               </span>
             </li>
           ))}

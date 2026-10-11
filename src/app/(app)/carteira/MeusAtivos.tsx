@@ -318,7 +318,7 @@ export function MeusAtivos({
                               <span className="min-w-0 flex-1">
                                 <span className="block truncate text-[14px] font-medium text-ink">{nomeCurto(a)}</span>
                                 {a.investedValue !== null && a.investedValue > 0 && (
-                                  <span className="block truncate text-[12px] text-ink-muted">investiu {money(a.investedValue, { round: true })}</span>
+                                  <span className="block text-[12px] leading-tight text-ink-muted">investiu <span className="whitespace-nowrap">{money(a.investedValue, { round: true })}</span></span>
                                 )}
                               </span>
                               <span className="shrink-0 text-right">
