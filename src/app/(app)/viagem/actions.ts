@@ -1,125 +1,102 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { z } from "zod";
-import { getRequiredSession } from "@/lib/auth/session";
+import { getRequiredSession, type AuthContext } from "@/lib/auth/session";
+import { prisma } from "@/lib/db/prisma";
 import { defaultGoalAnnualRate } from "@/lib/repositories/reference-rate.repo";
+import { createGoal, getOwnGoal, updateOwnGoal } from "@/lib/repositories/goal.repo";
 import { nowInBrazil } from "@/lib/date/brazil-now";
-import { createGoal } from "@/lib/repositories/goal.repo";
-import {
-  computeTripTotals,
-  clampCategoryValue,
-  findDestination,
-  MAX_CATEGORY_VALUE,
-  MAX_EXTRA_CATEGORIES,
-  TRIP_LIMITS,
-  tripGoalTargetDate,
-} from "@/lib/travel/estimates";
+import { toCurrencyCode } from "@/lib/money";
+import { resolveLegDestination, tripGoalTargetDate } from "@/lib/travel/estimates";
+import { goalNameFor, parseTripPlan, tripValues, type TripPlan } from "@/lib/travel/assistente";
 
-export type TravelGoalState = { error?: string; created?: boolean; goalName?: string };
+export type TravelGoalState = { error?: string; goalId?: string; goalName?: string };
 
-const legSchema = z.object({
-  destinationKey: z.string().min(1),
-  days: z.coerce.number().int().min(TRIP_LIMITS.minDays).max(TRIP_LIMITS.maxDaysPerLeg),
-});
-
-const extraSchema = z.object({
-  name: z.string().trim().min(1, "Dê um nome à categoria.").max(40, "Nome muito longo."),
-  value: z.coerce.number().min(0).max(MAX_CATEGORY_VALUE, "Valor alto demais."),
-});
-
-const tripSchema = z.object({
-  travelers: z.coerce
-    .number()
-    .int()
-    .min(TRIP_LIMITS.minTravelers, "Pelo menos 1 viajante.")
-    .max(TRIP_LIMITS.maxTravelers, "Máximo 10 viajantes."),
-  // input type="month" → "YYYY-MM"
-  tripMonth: z.string().regex(/^\d{4}-\d{2}$/, "Escolha o mês da viagem."),
-  // Valores por categoria como a pessoa deixou (editáveis na tela; o servidor saneia de novo).
-  flights: z.coerce.number().min(0).max(MAX_CATEGORY_VALUE, "Valor alto demais."),
-  lodging: z.coerce.number().min(0).max(MAX_CATEGORY_VALUE, "Valor alto demais."),
-  food: z.coerce.number().min(0).max(MAX_CATEGORY_VALUE, "Valor alto demais."),
-  activities: z.coerce.number().min(0).max(MAX_CATEGORY_VALUE, "Valor alto demais."),
-});
-
-/** Listas dinâmicas (destinos e categorias extras) viajam serializadas — FormData não tem forma
- * boa de mandar array de objetos. JSON inválido = payload adulterado, rejeita. */
-function parseJsonField<T>(raw: FormDataEntryValue | null, schema: z.ZodType<T>): T | "invalid" | null {
+/** O plano chega como JSON (FormData não tem jeito bom de mandar lista de objetos). */
+function lerPlano(formData: FormData): TripPlan | null {
+  const raw = formData.get("plano");
   if (typeof raw !== "string" || !raw.trim()) return null;
   try {
-    const parsed = schema.safeParse(JSON.parse(raw));
-    return parsed.success ? parsed.data : "invalid";
+    return parseTripPlan(JSON.parse(raw));
   } catch {
-    return "invalid";
+    return null;
   }
-}
-
-/** "Viagem: Paris" com um destino; "Viagem: Paris e Roma" com dois; "Viagem: Paris +2" acima. */
-function goalNameFor(labels: string[]): string {
-  if (labels.length === 1) return `Viagem: ${labels[0]}`;
-  if (labels.length === 2) return `Viagem: ${labels[0]} e ${labels[1]}`;
-  return `Viagem: ${labels[0]} +${labels.length - 1}`;
 }
 
 /**
- * Cria a meta da viagem: os valores por categoria (incluindo os editados pela pessoa e as
- * categorias extras criadas por ela) são saneados AQUI no servidor e o total (com a margem de
- * 10%) recalculado — nunca se confia num total pronto vindo do cliente. Data-alvo = último dia
- * do mês da viagem, a mesma convenção de toda meta (ver `tripGoalTargetDate`).
+ * Tudo que a meta precisa, recalculado AQUI a partir do plano: o total nunca vem pronto do
+ * navegador. É a mesma conta da tela (`tripValues`), então o alvo da meta é o total que ela viu.
  */
-export async function createTravelGoalAction(_prev: TravelGoalState, formData: FormData): Promise<TravelGoalState> {
-  const parsed = tripSchema.safeParse({
-    travelers: formData.get("travelers"),
-    tripMonth: formData.get("tripMonth"),
-    flights: formData.get("flights"),
-    lodging: formData.get("lodging"),
-    food: formData.get("food"),
-    activities: formData.get("activities"),
-  });
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
-  }
+async function montarMeta(ctx: AuthContext, plano: TripPlan) {
+  const destinos = plano.legs.map(resolveLegDestination).filter((d) => d !== null);
+  if (destinos.length === 0) return { error: "Escolha pelo menos um destino." } as const;
 
-  const legs = parseJsonField(formData.get("legs"), z.array(legSchema).min(1).max(TRIP_LIMITS.maxLegs));
-  if (legs === "invalid") return { error: "Destinos inválidos." };
-  if (!legs) return { error: "Escolha pelo menos um destino." };
+  const user = await prisma.user.findUnique({ where: { id: ctx.userId }, select: { currency: true } });
+  const { total } = tripValues(plano, { usaEstimativas: toCurrencyCode(user?.currency) === "BRL" });
+  if (total <= 0) return { error: "O custo da viagem precisa ser maior que zero." } as const;
 
-  const destinations = legs.map((leg) => findDestination(leg.destinationKey)).filter((dest) => dest !== null);
-  if (destinations.length === 0) return { error: "Escolha pelo menos um destino." };
-
-  const extras = parseJsonField(formData.get("extras"), z.array(extraSchema).max(MAX_EXTRA_CATEGORIES));
-  if (extras === "invalid") return { error: "Categorias extras inválidas." };
-
-  const { total } = computeTripTotals([
-    clampCategoryValue(parsed.data.flights),
-    clampCategoryValue(parsed.data.lodging),
-    clampCategoryValue(parsed.data.food),
-    clampCategoryValue(parsed.data.activities),
-    ...(extras ?? []).map((extra) => clampCategoryValue(extra.value)),
-  ]);
-  if (total <= 0) return { error: "O custo da viagem precisa ser maior que zero." };
-
-  const [year, month] = parsed.data.tripMonth.split("-").map(Number);
-  const targetDate = tripGoalTargetDate(parsed.data.tripMonth);
-  // A partir do mês que vem (no calendário do Brasil): viagem neste mês não dá mais tempo de
-  // juntar. Com a data no último dia, comparar só com "agora" deixaria passar o mês atual.
+  const [year, month] = plano.tripMonth.split("-").map(Number);
+  const targetDate = tripGoalTargetDate(plano.tripMonth);
+  // A partir do mês que vem (no calendário do Brasil): viagem neste mês não dá mais tempo de juntar.
   const hoje = nowInBrazil();
   if (!targetDate || year * 12 + month <= hoje.getFullYear() * 12 + hoje.getMonth() + 1) {
-    return { error: "Escolha um mês no futuro." };
+    return { error: "Escolha um mês no futuro." } as const;
   }
+  return { name: goalNameFor(destinos.map((d) => d.label)), total, targetDate } as const;
+}
 
+/** Cria a meta da viagem com o plano guardado junto (para o "Editar" voltar ao cartão de embarque). */
+export async function createTravelGoalAction(_prev: TravelGoalState, formData: FormData): Promise<TravelGoalState> {
+  const plano = lerPlano(formData);
+  if (!plano) return { error: "Não consegui ler a viagem. Tente de novo." };
   const ctx = await getRequiredSession();
-  const name = goalNameFor(destinations.map((dest) => dest.label));
-  await createGoal(ctx, {
-    name,
-    targetAmount: total,
-    targetDate,
+  const meta = await montarMeta(ctx, plano);
+  if ("error" in meta) return { error: meta.error };
+
+  const goal = await createGoal(ctx, {
+    name: meta.name,
+    targetAmount: meta.total,
+    targetDate: meta.targetDate,
     currentAmount: 0,
     annualRate: await defaultGoalAnnualRate(ctx.userId),
     icon: "VIAGEM",
   });
+  await prisma.goal.updateMany({ where: { id: goal.id, userId: ctx.userId, profileId: ctx.profileId }, data: { viagem: plano } });
 
   revalidatePath("/planejamento/metas");
-  return { created: true, goalName: name };
+  return { goalId: goal.id, goalName: meta.name };
+}
+
+/**
+ * A viagem de uma meta que já existe, ajustada pelo "Ajustar" do cartão de embarque: muda o
+ * nome, o alvo e a data. O que ela já guardou e a taxa da meta ficam como estão.
+ */
+export async function updateTravelGoalAction(_prev: TravelGoalState, formData: FormData): Promise<TravelGoalState> {
+  const plano = lerPlano(formData);
+  const goalId = formData.get("goalId");
+  if (!plano || typeof goalId !== "string") return { error: "Não consegui ler a viagem. Tente de novo." };
+  const ctx = await getRequiredSession();
+  const atual = await getOwnGoal(ctx, goalId);
+  if (!atual) return { error: "Não achei essa meta." };
+  const meta = await montarMeta(ctx, plano);
+  if ("error" in meta) return { error: meta.error };
+
+  await updateOwnGoal(ctx, goalId, {
+    name: meta.name,
+    targetAmount: meta.total,
+    targetDate: meta.targetDate,
+    currentAmount: Number(atual.currentAmount),
+    annualRate: atual.annualRate !== null ? Number(atual.annualRate) : await defaultGoalAnnualRate(ctx.userId),
+    icon: atual.icon,
+  });
+  await prisma.goal.updateMany({ where: { id: goalId, userId: ctx.userId, profileId: ctx.profileId }, data: { viagem: plano } });
+
+  revalidatePath("/planejamento/metas");
+  revalidatePath(`/planejamento/metas/${goalId}`);
+  return { goalId, goalName: meta.name };
+}
+
+/** O botão do cartão de embarque: cria a meta na primeira vez; depois, atualiza a mesma meta. */
+export async function salvarViagemAction(prev: TravelGoalState, formData: FormData): Promise<TravelGoalState> {
+  return formData.get("goalId") ? updateTravelGoalAction(prev, formData) : createTravelGoalAction(prev, formData);
 }
