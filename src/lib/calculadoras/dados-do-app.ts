@@ -11,7 +11,8 @@ import { listAssets } from "@/lib/repositories/asset.repo";
 import { listGoalsWithProgress } from "@/lib/repositories/goal.repo";
 import { listarContasAPagar } from "@/lib/repositories/conta-a-pagar.repo";
 import { getSimulation } from "@/lib/repositories/simulation.repo";
-import { acharAluguel, acharMetaDeCarro, titulosDaCarteira, type TituloDaCarteira, type ValorComOrigem } from "./fontes";
+import { listarDividas } from "@/lib/repositories/divida.repo";
+import { acharAluguel, acharMetaDeCarro, dividasParaQuitar, titulosDaCarteira, type DividaParaCalculadora, type TituloDaCarteira, type ValorComOrigem } from "./fontes";
 
 export type MetaParaCalculadora = { id: string; nome: string; alvo: number; guardado: number };
 
@@ -25,6 +26,8 @@ export type DadosDasCalculadoras = {
   aluguel: ValorComOrigem | null;
   metaCarro: MetaParaCalculadora | null;
   titulos: TituloDaCarteira[];
+  /** As dívidas em aberto da área Dívidas, para o "Quitar ou investir" escolher. */
+  dividas: DividaParaCalculadora[];
   anoAtual: number;
 };
 
@@ -34,7 +37,7 @@ export async function carregarDadosDasCalculadoras(ctx: AuthContext): Promise<Da
   const ano = agora.getFullYear();
   const mes = agora.getMonth() + 1;
   const anterior = new Date(ano, mes - 2, 1);
-  const [resumo, plano, rendaTipica, ativos, metas, contas, lancamentosDeAluguel] = await Promise.all([
+  const [resumo, plano, rendaTipica, ativos, metas, contas, lancamentosDeAluguel, dividas] = await Promise.all([
     getMonthlySummary(ctx, ano, mes),
     getMonthlyPlan(ctx, ano, mes),
     getRendaTipica(ctx),
@@ -53,6 +56,7 @@ export async function carregarDadosDasCalculadoras(ctx: AuthContext): Promise<Da
       },
       select: { description: true, subcategory: true, amount: true, year: true, month: true },
     }),
+    listarDividas(ctx),
   ]);
 
   const renda = rendaDeReferencia(plano?.plannedIncome, rendaTipica?.valor, resumo.totalIncome).valor;
@@ -80,6 +84,7 @@ export async function carregarDadosDasCalculadoras(ctx: AuthContext): Promise<Da
         taxaCompra: a.taxaCompra == null ? null : Number(a.taxaCompra),
       })),
     ),
+    dividas: dividasParaQuitar(dividas),
     anoAtual: ano,
   };
 }

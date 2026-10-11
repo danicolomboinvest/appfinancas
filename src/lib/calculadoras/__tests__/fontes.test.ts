@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { acharAluguel, acharMetaDeCarro, titulosDaCarteira, valoresDoTitulo } from "../fontes";
+import { acharAluguel, acharMetaDeCarro, dividasParaQuitar, titulosDaCarteira, valoresDoTitulo } from "../fontes";
 
 describe("de onde vêm os números das calculadoras", () => {
   it("aluguel: a conta cadastrada vem antes do lançamento, e diz de onde veio", () => {
@@ -35,6 +35,18 @@ describe("de onde vêm os números das calculadoras", () => {
   it("taxa fora da faixa de uma taxa ao ano fica no exemplo", () => {
     const [t] = titulosDaCarteira([{ id: "a", name: "Tesouro IPCA+ 2035", assetClass: "TESOURO_DIRETO", fixedIncomeIndex: "IPCA", investedValue: 1, currentValue: 1, taxaCompra: 1.05 }]);
     expect(t.taxaCompra).toBeNull();
+  });
+  it("Quitar ou investir: as dívidas da área Dívidas, com os juros dela ou a estimativa do tipo", () => {
+    const [emprestimo, cartao] = dividasParaQuitar([
+      { id: "d1", tipo: "emprestimo", nome: "Empréstimo do banco", saldo: 6000, porMes: 433, taxaMensal: 2.9, atrasada: false, parcelasAbertas: 18 },
+      { id: "d2", tipo: "rotativo", nome: "Nubank · Fatura", saldo: 1200, porMes: 300, taxaMensal: null, atrasada: false, parcelasAbertas: null },
+      { id: "d3", tipo: "pessoa", nome: "Léo", saldo: 0, porMes: 0, taxaMensal: null, atrasada: false },
+    ]);
+    expect(emprestimo).toEqual({ id: "d1", nome: "Empréstimo do banco", tipo: "emprestimo", saldo: 6000, jurosAoMes: 2.9, estimada: false, parcelasAbertas: 18 });
+    expect(cartao).toMatchObject({ id: "d2", estimada: true, parcelasAbertas: null });
+    expect(cartao.jurosAoMes).toBeGreaterThan(0);
+    // Dívida já zerada não entra.
+    expect(dividasParaQuitar([{ id: "d3", tipo: "pessoa", nome: "Léo", saldo: 0, porMes: 0, taxaMensal: null, atrasada: false }])).toEqual([]);
   });
   it("meta de carro pelo ícone ou pelo nome", () => {
     expect(acharMetaDeCarro([{ icon: "GENERICO", name: "Trocar de carro" }])?.name).toBe("Trocar de carro");

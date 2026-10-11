@@ -5,15 +5,16 @@
  * ocupa a linha; os outros andam em dupla; quem sobrar sozinho vira largo (nunca meio cartão
  * numa linha).
  *
- * "Mapear minhas dívidas" (filtro "Tenho dívida") entra quando a área Dívidas existir no app.
+ * "Mapear minhas dívidas" (filtro "Tenho dívida") leva para a área Dívidas, como no protótipo.
  */
-export type IdDaCalculadora = "financiar" | "carro" | "vale" | "amortizar" | "marcacao" | "consorcio" | "aposentadoria";
+export type IdDaCalculadora = "financiar" | "carro" | "vale" | "amortizar" | "marcacao" | "consorcio" | "aposentadoria" | "mapear";
 
 export type CartaoDeCalculadora = {
   id: IdDaCalculadora;
   titulo: string;
   /** Aparece só no cartão largo. */
   sub?: string;
+  /** O nome da foto em /calculadoras, ou um caminho inteiro começando por "/". */
   foto: string;
   href: string;
 };
@@ -26,6 +27,7 @@ export const CARTOES: Record<IdDaCalculadora, CartaoDeCalculadora> = {
   marcacao: { id: "marcacao", titulo: "Vender a renda fixa antes?", foto: "natureza", href: "/simuladores/marcacao-mercado" },
   consorcio: { id: "consorcio", titulo: "Consórcio ou financiamento?", sub: "O que custa menos no fim", foto: "apartamento", href: "/simuladores/consorcio" },
   aposentadoria: { id: "aposentadoria", titulo: "Quanto preciso para me aposentar?", sub: "Quanto juntar para viver de renda", foto: "liberdade", href: "/planejamento/acumulo" },
+  mapear: { id: "mapear", titulo: "Mapear minhas dívidas", sub: "Todas num lugar, com a ordem para quitar", foto: "/fotos/dividas-livre.jpg", href: "/dividas" },
 };
 
 export type IdDoMomento = "tudo" | "compra" | "divida" | "invest" | "futuro";
@@ -34,7 +36,7 @@ export type IdDoMomento = "tudo" | "compra" | "divida" | "invest" | "futuro";
 export const MOMENTOS: { id: IdDoMomento; rotulo: string; itens: [IdDaCalculadora, boolean?][] }[] = [
   { id: "tudo", rotulo: "Tudo", itens: [["financiar", true], ["carro"], ["vale"], ["amortizar"], ["marcacao"], ["consorcio", true], ["aposentadoria", true]] },
   { id: "compra", rotulo: "Vou comprar algo", itens: [["vale"], ["carro"], ["financiar", true], ["consorcio"]] },
-  { id: "divida", rotulo: "Tenho dívida", itens: [["amortizar"]] },
+  { id: "divida", rotulo: "Tenho dívida", itens: [["amortizar"], ["mapear"]] },
   { id: "invest", rotulo: "Tenho investimento", itens: [["marcacao"], ["amortizar"]] },
   { id: "futuro", rotulo: "Penso no futuro", itens: [["aposentadoria", true], ["financiar", true]] },
 ];

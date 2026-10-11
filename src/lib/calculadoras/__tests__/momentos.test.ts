@@ -21,7 +21,13 @@ describe("Qual é o seu momento?", () => {
   it("quem sobra sozinho vira largo", () => {
     // "Vou comprar algo": vale + carro em dupla, financiar largo, consórcio sobra e vira largo.
     expect(ids("compra")).toEqual([["vale", "carro"], ["financiar"], ["consorcio"]]);
-    expect(ids("divida")).toEqual([["amortizar"]]);
+    expect(ids("divida")).toEqual([["amortizar", "mapear"]]);
+  });
+
+  it("Mapear minhas dívidas leva para a área Dívidas, e só no filtro Tenho dívida", () => {
+    const mapear = fileirasDoMomento("divida").flatMap((f) => (f.largo ? [f.cartao] : f.cartoes)).find((c) => c.id === "mapear");
+    expect(mapear?.href).toBe("/dividas");
+    expect(ids("tudo").flat()).not.toContain("mapear");
   });
 
   it("todo filtro mostra ao menos uma calculadora", () => {

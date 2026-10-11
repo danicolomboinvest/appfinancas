@@ -6,6 +6,8 @@
  * Aqui só as escolhas puras (testáveis); a leitura do banco fica em `dados-do-app.ts`.
  */
 
+import { taxaDe, type Divida, type TipoDeDivida } from "@/lib/dividas/tipos";
+
 export type ValorComOrigem = { valor: number; origem: string };
 
 /** O aluguel de hoje: primeiro a conta "Aluguel" cadastrada; senão, o último lançamento de aluguel. */
@@ -78,6 +80,31 @@ export function valoresDoTitulo(t: TituloDaCarteira | null, anoAtual: number) {
     // O valor de hoje, na curva: a conta escala o preço de mercado a partir dele.
     investedAmount: Math.round(t.atual),
   };
+}
+
+/**
+ * Uma dívida da área Dívidas, pronta para o "Quitar ou investir" (protótipo aprovado: "Qual
+ * dívida? As suas aparecem aqui."). Os juros ao mês são os que ela disse; sem eles, a estimativa
+ * do tipo, marcada como estimada (a mesma regra da área Dívidas, `taxaDe`).
+ */
+export type DividaParaCalculadora = {
+  id: string;
+  nome: string;
+  tipo: TipoDeDivida;
+  saldo: number;
+  jurosAoMes: number;
+  estimada: boolean;
+  parcelasAbertas: number | null;
+};
+
+export function dividasParaQuitar(dividas: (Divida & { parcelasAbertas?: number | null })[]): DividaParaCalculadora[] {
+  return dividas
+    .filter((d) => d.saldo > 0)
+    .map((d) => {
+      const { taxa, estimada } = taxaDe(d);
+      const abertas = d.parcelasAbertas ?? null;
+      return { id: d.id, nome: d.nome, tipo: d.tipo, saldo: d.saldo, jurosAoMes: taxa, estimada, parcelasAbertas: abertas && abertas > 0 ? abertas : null };
+    });
 }
 
 /** A meta de carro (pelo ícone ou pelo nome), para o consórcio e o carro usarem. */

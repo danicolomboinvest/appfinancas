@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Minus, Plus } from "lucide-react";
+import { iconeDoTipo } from "@/app/(app)/dividas/partes";
 import { useMoney } from "@/components/money/MoneyProvider";
 import { monthlyToAnnual, annualToMonthly } from "@/lib/finance/rate-conversion";
 import { EXEMPLO_AMORTIZAR, type ValoresDaCalculadora } from "@/lib/calculadoras/entradas";
@@ -9,23 +10,40 @@ import { vereditoAmortizar } from "@/lib/calculadoras/vereditos";
 import { AoVivo } from "../AoVivo";
 import { CAMPOS_AMORTIZAR, COMO_LER } from "../campos";
 import { Fim, Passo, useIrParaCalculadoras, type DadosDaTela, type SimulacaoAberta } from "../Passo";
-import { AcoesDoResultado, AjustesFinos, Atalhos, BotaoGrande, CampoFino, CartaoValor, Colunas, HeroiDoResultado, Linha, Opcao, SegmentoFino, Selo, pc, useSalvar } from "../pecas";
+import type { DividaParaCalculadora } from "@/lib/calculadoras/fontes";
+import { AcoesDoResultado, AjustesFinos, Atalhos, BotaoGrande, CampoFino, CartaoValor, Colunas, HeroiDoResultado, IconeRedondo, Linha, Opcao, SegmentoFino, Selo, pc, useSalvar } from "../pecas";
 
 const NOME = "Quitar ou investir";
 
 /**
- * Quitar a dívida antes ou investir? Três perguntas: a dívida (saldo e juros ao mês), quantas
- * parcelas faltam e quanto dá para usar agora (a sobra do mês, quitar tudo ou outro valor).
+ * Quitar a dívida antes ou investir? Três perguntas: a dívida, quantas parcelas faltam e quanto
+ * dá para usar agora (a sobra do mês, quitar tudo ou outro valor).
  *
- * No protótipo a primeira tela escolhe entre as dívidas cadastradas; a área Dívidas ainda não
- * existe no app, então ela digita o saldo e os juros (o caminho "Outra dívida" do protótipo).
+ * Como no protótipo, a primeira tela escolhe entre as dívidas da área Dívidas: saldo e juros vêm
+ * do app e ela só toca. Se a dívida já diz quantas parcelas faltam, essa pergunta some. "Outra
+ * dívida" (ou nenhuma cadastrada) leva para digitar o saldo e os juros.
  */
+type Etapa = "qual" | "saldo" | "prazo" | "uso";
+
+function valoresDaDivida(d: DividaParaCalculadora): ValoresDaCalculadora {
+  return {
+    outstandingBalance: d.saldo,
+    cetAnnualRate: monthlyToAnnual(d.jurosAoMes / 100).toNumber(),
+    ...(d.parcelasAbertas ? { remainingMonths: d.parcelasAbertas } : {}),
+  };
+}
+
 export function AmortizarGuiado({ dados, salva }: { dados: DadosDaTela; salva: SimulacaoAberta }) {
   const money = useMoney();
   const sair = useIrParaCalculadoras();
   const r0 = (v: number) => money(v, { round: true });
   // Dívida é parcela igual (Price) na maioria dos casos: o assistente começa assim; dá para trocar nos ajustes.
-  const inicio: ValoresDaCalculadora = { ...EXEMPLO_AMORTIZAR, system: "PRICE" };
+  const dividas = dados.dividas;
+  const primeira = dividas[0] ?? null;
+  const inicio: ValoresDaCalculadora = { ...EXEMPLO_AMORTIZAR, system: "PRICE", ...(primeira ? valoresDaDivida(primeira) : {}) };
+  // A dívida escolhida (o id), "outra" (digitar) ou, sem nenhuma cadastrada, direto "outra".
+  const [escolha, setEscolha] = useState<string>(primeira?.id ?? "outra");
+  const divida = dividas.find((d) => d.id === escolha) ?? null;
   const [v, setV] = useState<ValoresDaCalculadora>(salva ? { ...EXEMPLO_AMORTIZAR, ...salva.valores } : inicio);
   const [modo, setModo] = useState<"guiado" | "fim" | "vivo">(salva ? "vivo" : "guiado");
   const [passo, setPasso] = useState(1);
@@ -113,21 +131,78 @@ export function AmortizarGuiado({ dados, salva }: { dados: DadosDaTela; salva: S
     );
   }
 
+  const etapas: Etapa[] = [...(dividas.length ? (["qual"] as const) : []), ...(divida ? [] : (["saldo"] as const)), ...(divida?.parcelasAbertas ? [] : (["prazo"] as const)), "uso"];
+  const total = etapas.length;
+  const etapa = etapas[Math.min(passo, total) - 1];
   const voltar = () => (passo > 1 ? setPasso(passo - 1) : sair());
   const seguir = () => {
-    if (passo === 2 && !uso && dados.sobra) {
+    if (etapas[passo] === "uso" && !uso && dados.sobra) {
       // Como no protótipo: a sobra do mês já vem escolhida.
       setUso("sobra");
       setV((a) => ({ ...a, extraAmount: Math.min(dados.sobra!, saldo) }));
     }
-    if (passo < 3) setPasso(passo + 1);
+    if (passo < total) setPasso(passo + 1);
     else setModo("fim");
   };
   const jurosAoMes = annualToMonthly(Number(v.cetAnnualRate)).toNumber() * 100;
+  const escolher = (d: DividaParaCalculadora | null) => {
+    setEscolha(d?.id ?? "outra");
+    setUso(null);
+    if (d) {
+      setV((a) => ({ ...a, ...valoresDaDivida(d) }));
+      setTocou((t) => ({ ...t, outstandingBalance: true, cetAnnualRate: true, remainingMonths: !!d.parcelasAbertas }));
+    } else {
+      setV((a) => ({ ...a, outstandingBalance: EXEMPLO_AMORTIZAR.outstandingBalance, cetAnnualRate: EXEMPLO_AMORTIZAR.cetAnnualRate, remainingMonths: EXEMPLO_AMORTIZAR.remainingMonths }));
+      setTocou({});
+    }
+  };
 
-  if (passo === 1) {
+  if (etapa === "qual") {
     return (
-      <Passo passo={1} total={3} nome={NOME} pergunta="Quanto você ainda deve?" onVoltar={voltar} pe={<BotaoGrande onClick={seguir} disabled={!(saldo > 0)}>Próximo</BotaoGrande>}>
+      <Passo passo={passo} total={total} nome={NOME} pergunta="Qual dívida?" onVoltar={voltar} pe={<BotaoGrande onClick={seguir}>Próximo</BotaoGrande>}>
+        <p className="-mt-2 px-1 text-sm text-ink-muted">As suas aparecem aqui.</p>
+        {dividas.map((d) => {
+          const Icone = iconeDoTipo(d.tipo);
+          return (
+            <Opcao key={d.id} on={escolha === d.id} onClick={() => escolher(d)} className="flex-col !items-stretch">
+              <span className="flex min-w-0 items-center gap-3">
+                <IconeRedondo>
+                  <Icone size={18} aria-hidden />
+                </IconeRedondo>
+                <span className="min-w-0">
+                  <b className="block break-words text-[15px] font-medium text-ink">{d.nome}</b>
+                  <small className="text-caption text-ink-muted">Das suas dívidas</small>
+                </span>
+              </span>
+              <span className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1">
+                <span className="flex flex-col">
+                  <small className="text-caption text-ink-muted">Saldo devedor</small>
+                  <b className="text-[1.375rem] font-light tabular-nums text-ink">{r0(d.saldo)}</b>
+                </span>
+                <span className="flex flex-col items-end">
+                  <small className="text-caption text-ink-muted">Juros{d.estimada ? " (estimados)" : ""}</small>
+                  <b className="text-[17px] font-medium text-[var(--color-atencao)]">{pc(d.jurosAoMes, 1)}% ao mês</b>
+                </span>
+              </span>
+            </Opcao>
+          );
+        })}
+        <Opcao on={escolha === "outra"} onClick={() => escolher(null)}>
+          <IconeRedondo>
+            <Plus size={18} aria-hidden />
+          </IconeRedondo>
+          <span className="min-w-0">
+            <b className="block text-[15px] font-medium text-ink">Outra dívida</b>
+            <small className="text-caption text-ink-muted">Financiamento, cartão, cheque especial</small>
+          </span>
+        </Opcao>
+      </Passo>
+    );
+  }
+
+  if (etapa === "saldo") {
+    return (
+      <Passo passo={passo} total={total} nome={NOME} pergunta="Quanto você ainda deve?" onVoltar={voltar} pe={<BotaoGrande onClick={seguir} disabled={!(saldo > 0)}>Próximo</BotaoGrande>}>
         <CartaoValor rotulo="Saldo devedor" selo={tocou.outstandingBalance ? undefined : "Exemplo"} valor={saldo} onChange={(x) => muda("outstandingBalance", x)} sub="O quanto falta pagar hoje, no app do banco ou no boleto." />
         <div className="glass rounded-2xl px-4">
           <CampoFino rotulo="Juros ao mês" valor={jurosAoMes} sufixo="% ao mês" onChange={(x) => muda("cetAnnualRate", monthlyToAnnual(x / 100).toNumber())} />
@@ -136,11 +211,11 @@ export function AmortizarGuiado({ dados, salva }: { dados: DadosDaTela; salva: S
     );
   }
 
-  if (passo === 2) {
+  if (etapa === "prazo") {
     const parcela = res.r.scheduleWithoutExtra[0]?.payment ?? 0;
     const ajusta = (d: number) => muda("remainingMonths", Math.max(1, prazo + d));
     return (
-      <Passo passo={2} total={3} nome={NOME} pergunta="Quantas parcelas faltam?" onVoltar={voltar} pe={<BotaoGrande onClick={seguir} disabled={!(prazo >= 1)}>Próximo</BotaoGrande>}>
+      <Passo passo={passo} total={total} nome={NOME} pergunta="Quantas parcelas faltam?" onVoltar={voltar} pe={<BotaoGrande onClick={seguir} disabled={!(prazo >= 1)}>Próximo</BotaoGrande>}>
         <div className="glass flex flex-col items-center gap-2 rounded-3xl px-4 py-6">
           <div className="flex items-center gap-6">
             <button type="button" aria-label="Menos uma" disabled={prazo <= 1} onClick={() => ajusta(-1)} className="flex size-12 items-center justify-center rounded-full bg-surface-2 text-ink disabled:opacity-40">
@@ -172,7 +247,7 @@ export function AmortizarGuiado({ dados, salva }: { dados: DadosDaTela; salva: S
     if (k === "tudo") setV((a) => ({ ...a, extraAmount: saldo }));
   };
   return (
-    <Passo passo={3} total={3} nome={NOME} pergunta="Quanto dá para usar agora?" onVoltar={voltar} pe={<BotaoGrande onClick={seguir} disabled={!escolhido || !(Number(v.extraAmount) > 0)}>Ver o resultado</BotaoGrande>}>
+    <Passo passo={passo} total={total} nome={NOME} pergunta="Quanto dá para usar agora?" onVoltar={voltar} pe={<BotaoGrande onClick={seguir} disabled={!escolhido || !(Number(v.extraAmount) > 0)}>Ver o resultado</BotaoGrande>}>
       {sobra && (
         <Opcao on={escolhido === "sobra"} onClick={() => usar("sobra")}>
           <span className="min-w-0 flex-1">

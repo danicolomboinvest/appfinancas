@@ -23,7 +23,7 @@ import { saveSimulationAction, virarMetaAction } from "@/app/(app)/simuladores/a
  * no claro e no escuro.
  */
 
-export const FOTO = (nome: string) => `/calculadoras/${nome}.jpg`;
+export const FOTO = (nome: string) => (nome.startsWith("/") ? nome : `/calculadoras/${nome}.jpg`);
 
 /** Inteiro com separador de milhar ("500.000"), como o campo mostra. */
 export const milhar = (v: number) => Math.round(v || 0).toLocaleString("pt-BR");
