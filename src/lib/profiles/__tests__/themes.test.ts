@@ -76,11 +76,12 @@ describe("os quatro temas da versão nova", () => {
     for (const f of ["Figtree", "Hanken_Grotesk", "Cormorant_Garamond", "Urbanist", "Archivo"]) expect(layout).toContain(f);
   });
 
-  it("o Titânio segue a especificação: titânio com laranja no claro, grafite C1 no escuro", () => {
+  it("o Titânio segue a especificação: titânio com champanhe no claro, grafite C1 no escuro", () => {
     const t = profileTheme("titanio");
     expect(t.paleta.extras?.["heroi-de"]).toBe("#c9ccd1");
-    expect(t.paleta.extras?.["heroi-destaque"]).toBe("#d9480f");
-    expect(t.paletaAlternativa.accent).toBe("#ff7a3d");
+    expect(t.paleta.extras?.["heroi-destaque"]).toBe("#7a5a2b");
+    expect(t.paleta.accent).toBe("#7a5a2b");
+    expect(t.paletaAlternativa.accent).toBe("#d8bc88");
     expect(t.paletaAlternativa.extras?.["--fundo-tema"]).toContain("#1b1d21");
     expect(t.paletaAlternativa.extras?.["--fundo-tema"]).toContain("#141518");
     expect(t.paletaAlternativa.extras?.["heroi-de"]).toBe("#3a3e46");
@@ -251,7 +252,7 @@ describe("o botão principal de metal do Titânio", () => {
     }
   });
 
-  it("o metal não é laranja: o laranja fica só nos detalhes", () => {
+  it("o metal não é a cor de destaque: o champanhe fica só nos detalhes", () => {
     for (const m of [titanio.paleta, titanio.paletaAlternativa]) {
       expect(m.extras?.["--botao-fundo"]).not.toContain(m.accent);
     }
@@ -262,6 +263,35 @@ describe("o botão principal de metal do Titânio", () => {
     for (const chave of ["padrao", "girly", "manifestacao"]) {
       expect(profileThemeCss(chave), chave).not.toContain("--botao-");
       expect(profileThemeCss(chave), chave).not.toContain(".bg-accent-gradient");
+    }
+  });
+});
+
+describe("o champanhe do Titânio (11/10/2026)", () => {
+  const t = profileTheme("titanio");
+  const modos = [["claro", t.paleta], ["escuro", t.paletaAlternativa]] as const;
+
+  it("destaque, alerta e atenção são os combinados", () => {
+    expect([t.paleta.accent, t.paleta.extras?.danger, t.paleta.extras?.atencao]).toEqual(["#7a5a2b", "#b42318", "#9a4415"]);
+    expect([t.paletaAlternativa.accent, t.paletaAlternativa.extras?.danger, t.paletaAlternativa.extras?.atencao]).toEqual(["#d8bc88", "#ff8a7a", "#f0a06e"]);
+  });
+
+  it("passam no AA como texto (4,5:1) no cartão e no fundo, nos dois modos", () => {
+    for (const [nome, m] of modos) {
+      for (const [rotulo, cor] of [["destaque", m.accent], ["alerta", m.extras!.danger], ["atenção", m.extras!.atencao], ["destaque do herói", m.extras!["heroi-destaque"]]] as const) {
+        expect(contraste(cor, m.surface), `${nome}: ${rotulo} no cartão`).toBeGreaterThanOrEqual(4.5);
+        expect(contraste(cor, m.canvas), `${nome}: ${rotulo} no fundo`).toBeGreaterThanOrEqual(4.5);
+      }
+      expect(contraste(m.extras!.atencao, m.extras!["atencao-fundo"]), `${nome}: atenção no selo`).toBeGreaterThanOrEqual(4.5);
+      expect(contraste(m.onAccent, m.accent), `${nome}: texto sobre o destaque`).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it("não sobrou laranja no Titânio, nem no logo", () => {
+    const laranja = /#(d9480f|c2410c|ff7a3d|ff9a66|e8894e|ffae80|b8400c|ffc6a3)/i;
+    expect(profileThemeCss("titanio")).not.toMatch(laranja);
+    for (const f of readdirSync("public/brand/aurora/titanio")) {
+      expect(readFileSync(`public/brand/aurora/titanio/${f}`, "utf8"), f).not.toMatch(laranja);
     }
   });
 });

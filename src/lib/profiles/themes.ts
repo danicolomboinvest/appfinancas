@@ -288,19 +288,21 @@ const MANIFESTACAO_ESCURO: ModoBase = {
 /* --------------------------------------------------------------------- Titânio (Archivo) */
 
 const TITANIO_CLARO: ModoBase = {
-  // Titânio escovado (#C9CCD1) com o laranja #D9480F só nos detalhes.
+  // Titânio escovado (#C9CCD1) com o champanhe #7A5A2B só nos detalhes (era laranja até 11/10/2026).
   canvas: "#efefee", surface: "#ffffff", surface2: "#e5e5e3",
   border: "rgba(17, 18, 20, 0.10)",
-  ink: "#111214", inkMuted: "#3c3e43", accent: "#c2410c", accentStrong: "#a3341c", onAccent: "#ffffff",
+  ink: "#111214", inkMuted: "#3c3e43", accent: "#7a5a2b", accentStrong: "#5f4520", onAccent: "#ffffff",
   extras: {
     // As cores do dinheiro (rodada 58): Entrou, Gastou, Guardou e Sobrou, iguais no app todo.
-    "dinheiro-entrou": "#2f4058", "dinheiro-gastou": "#d9763a", "dinheiro-guardou": "#8a3a0c", "dinheiro-sobrou": "#2f6b4a", "dinheiro-faltou": "#b7791f",
+    "dinheiro-entrou": "#2f4058", "dinheiro-gastou": "#a8844c", "dinheiro-guardou": "#5c4320", "dinheiro-sobrou": "#2f6b4a", "dinheiro-faltou": "#b7791f",
     ...FONTES.titanio,
-    ...daFamilia({ moradia: "#d9480f", alimentacao: "#4d5f7a", transporte: "#4f8a68", saude: "#6e7a88", lazer: "#e8894e", educacao: "#2a2c30", impostos: "#b5652e", outros: "#8c8f94" }),
-    ...sinais({ success: "#2f6b4a", danger: "#a3341c", info: "#4d5f7a", neutro: "#d9480f" }, false),
-    "heroi-de": "#c9ccd1", "heroi-para": "#f1f2f3", "heroi-tinta": "#111214", "heroi-suave": "#3c3e43", "heroi-borda": "rgba(0, 0, 0, 0.06)", "heroi-destaque": "#d9480f",
-    pill: "#ffffff", "on-pill": "#111214", "tab-active": "#c2410c", "tab-active-soft": "rgba(194, 65, 12, 0.10)",
-    "brand-a": "#e8894e", "brand-b": "#d9480f", "brand-bg": "#111214",
+    ...daFamilia({ moradia: "#7a5a2b", alimentacao: "#4d5f7a", transporte: "#4f8a68", saude: "#6e7a88", lazer: "#b8955a", educacao: "#2a2c30", impostos: "#9c7a45", outros: "#8c8f94" }),
+    ...sinais({ success: "#2f6b4a", danger: "#b42318", info: "#4d5f7a", neutro: "#7a5a2b" }, false),
+    "heroi-de": "#c9ccd1", "heroi-para": "#f1f2f3", "heroi-tinta": "#111214", "heroi-suave": "#3c3e43", "heroi-borda": "rgba(0, 0, 0, 0.06)", "heroi-destaque": "#7a5a2b",
+    pill: "#ffffff", "on-pill": "#111214", "tab-active": "#7a5a2b", "tab-active-soft": "rgba(122, 90, 43, 0.10)",
+    "brand-a": "#b8955a", "brand-b": "#7a5a2b", "brand-bg": "#111214",
+    // A atenção vira cobre: o âmbar sumia perto do champanhe.
+    atencao: "#9a4415", "atencao-fundo": "#f6e3d6",
     "--heroi-fundo": "linear-gradient(135deg, #e9eaec 0%, #c9ccd1 38%, #f1f2f3 55%, #b9bdc3 100%)",
     "--fundo-tema": "radial-gradient(120% 70% at 50% -10%, #f7f7f6 0%, #efefee 55%, #e6e7e8 100%)",
     // O botão principal com o mesmo brilho liso do cartão herói (11/10/2026: sem listras de
@@ -314,16 +316,17 @@ const TITANIO_ESCURO: ModoBase = {
   // Escuro C1: grafite (#1B1D21 a #141518) com brilho de metal, herói #2A2D33 a #3A3E46.
   canvas: "#16171a", surface: "#1f2125", surface2: "#2a2d32",
   border: "rgba(255, 255, 255, 0.10)",
-  ink: "#f3efe8", inkMuted: "#cfc8bd", accent: "#ff7a3d", onAccent: "#141518",
+  ink: "#f3efe8", inkMuted: "#cfc8bd", accent: "#d8bc88", onAccent: "#141518",
   extras: {
     // As cores do dinheiro (rodada 58): Entrou, Gastou, Guardou e Sobrou, iguais no app todo.
-    "dinheiro-entrou": "#a7b6cc", "dinheiro-gastou": "#e8854f", "dinheiro-guardou": "#ffc4a3", "dinheiro-sobrou": "#8ccba4", "dinheiro-faltou": "#b7791f",
+    "dinheiro-entrou": "#a7b6cc", "dinheiro-gastou": "#c9a46a", "dinheiro-guardou": "#ecdcbc", "dinheiro-sobrou": "#8ccba4", "dinheiro-faltou": "#b7791f",
     ...FONTES.titanio,
-    ...daFamilia({ moradia: "#ff7a3d", alimentacao: "#a7b6cc", transporte: "#8ccba4", saude: "#c4cbd6", lazer: "#ffae80", educacao: "#7e8188", impostos: "#e39a62", outros: "#b6b8bc" }),
-    ...sinais({ success: "#8ccba4", danger: "#ff9c7a", info: "#a7b6cc", neutro: "#ff7a3d" }, true),
-    "heroi-de": "#3a3e46", "heroi-para": "#2a2d33", "heroi-tinta": "#f6f2ec", "heroi-suave": "#d6cfc4", "heroi-borda": "rgba(255, 255, 255, 0.12)", "heroi-destaque": "#ff7a3d",
-    pill: "#30333a", "on-pill": "#f3efe8", "tab-active": "#ff7a3d", "tab-active-soft": "rgba(255, 122, 61, 0.14)",
-    "brand-a": "#ff9a66", "brand-b": "#ff7a3d", "brand-bg": "#2a2d33",
+    ...daFamilia({ moradia: "#d8bc88", alimentacao: "#a7b6cc", transporte: "#8ccba4", saude: "#c4cbd6", lazer: "#ecd9b2", educacao: "#7e8188", impostos: "#b89463", outros: "#b6b8bc" }),
+    ...sinais({ success: "#8ccba4", danger: "#ff8a7a", info: "#a7b6cc", neutro: "#d8bc88" }, true),
+    "heroi-de": "#3a3e46", "heroi-para": "#2a2d33", "heroi-tinta": "#f6f2ec", "heroi-suave": "#d6cfc4", "heroi-borda": "rgba(255, 255, 255, 0.12)", "heroi-destaque": "#d8bc88",
+    pill: "#30333a", "on-pill": "#f3efe8", "tab-active": "#d8bc88", "tab-active-soft": "rgba(216, 188, 136, 0.14)",
+    "brand-a": "#e6d3ac", "brand-b": "#d8bc88", "brand-bg": "#2a2d33",
+    atencao: "#f0a06e", "atencao-fundo": "#33231a",
     "--heroi-fundo": "linear-gradient(118deg, #23262b 0%, #2a2d33 22%, #3a3e46 40%, #5a5f68 47%, #3a3e46 54%, #2a2d33 72%, #23262b 100%)",
     "--fundo-tema": "radial-gradient(130% 80% at 50% -10%, #26282d 0%, #1b1d21 45%, #141518 100%)",
     // O brilho de metal dos cartões: uma faixa de reflexo diagonal e um fio de luz no topo.
@@ -339,7 +342,7 @@ const TITANIO_ESCURO: ModoBase = {
 /**
  * O botão principal do Titânio: o brilho do cartão herói no lugar do laranja (pedido da Dani, 11/10/2026). Vale para
  * todo botão primário (`bg-accent-gradient` com `text-on-accent`) e para o + da Visão geral
- * (`botao-metal`). O laranja fica só nos detalhes.
+ * (`botao-metal`). O champanhe fica só nos detalhes.
  */
 const TITANIO_BOTAO = `
 html .bg-accent-gradient, html .botao-metal {
@@ -361,7 +364,7 @@ export const PROFILE_THEMES: ProfileTheme[] = [
   tema("padrao", "Padrão", "Papel claro, tinta grafite e o dourado do SPI. Sóbrio e direto ao ponto.", PADRAO_CLARO, PADRAO_ESCURO),
   tema("girly", "Girly", "Blush e champanhe. Te chama de amiga e comemora junto.", GIRLY_CLARO, GIRLY_ESCURO),
   tema("manifestacao", "Manifestação", "Lavanda e céu de fim de tarde. Liga cada real à vida que você quer.", MANIFESTACAO_CLARO, MANIFESTACAO_ESCURO),
-  { ...tema("titanio", "Titânio", "Metal escovado com laranja nos detalhes. Calmo, adulto e com os pés no chão.", TITANIO_CLARO, TITANIO_ESCURO), nomeDaVoz: "Curto e firme", cssExtra: TITANIO_BOTAO },
+  { ...tema("titanio", "Titânio", "Metal escovado com champanhe nos detalhes. Calmo, adulto e com os pés no chão.", TITANIO_CLARO, TITANIO_ESCURO), nomeDaVoz: "Curto e firme", cssExtra: TITANIO_BOTAO },
 ];
 
 export const DEFAULT_PROFILE_THEME: ProfileThemeKey = "padrao";
