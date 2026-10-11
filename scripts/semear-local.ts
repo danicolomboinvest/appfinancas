@@ -90,7 +90,10 @@ async function main() {
     lanca(2026, mes, 1, "EXPENSE", "LAZER", "Streaming", "Netflix", 55.9);
     lanca(2026, mes, 1, "EXPENSE", "LAZER", "Streaming", "Spotify", 21.9);
     lanca(2026, mes, 2, "EXPENSE", "LAZER", "Assinatura", "iCloud", 4.9);
-    let resto = gastou - 55.9 - 21.9 - 4.9;
+    // A conta de luz (Enel) de julho a setembro: 112, 131 e 141, dentro do mesmo total do mês.
+    const luz = ({ 7: 112, 8: 131, 9: 141 } as Record<number, number>)[mes] ?? 0;
+    if (luz) lanca(2026, mes, 10, "EXPENSE", "MORADIA", "Luz", "Enel", luz);
+    let resto = gastou - 55.9 - 21.9 - 4.9 - luz;
     PESOS.forEach(([cat, sub, desc, peso], i) => {
       const valor = i === PESOS.length - 1 ? Math.round(resto * 100) / 100 : Math.round(gastou * peso);
       resto -= valor;
@@ -142,11 +145,16 @@ async function main() {
   await prisma.contaAPagar.createMany({
     data: [
       // Pagas no dia 1: a que repete já aponta para o próximo vencimento (1º de novembro).
-      { ...dono, nome: "Aluguel", valor: 2200, vencimento: new Date(Date.UTC(2026, 10, 1)), diaDoMes: 1, repete: true, pagaEm: dia(1) },
-      { ...dono, nome: "Condomínio", valor: 300, vencimento: new Date(Date.UTC(2026, 10, 1)), diaDoMes: 1, repete: true, pagaEm: dia(1) },
-      { ...dono, nome: "Enel", valor: null, vencimento: dia(14), diaDoMes: 14, repete: true },
+      { ...dono, nome: "Aluguel", valor: 2200, vencimento: new Date(Date.UTC(2026, 10, 1)), diaDoMes: 1, repete: true, pagaEm: new Date(Date.UTC(2026, 9, 1, 15)) },
+      { ...dono, nome: "Condomínio", valor: 300, vencimento: new Date(Date.UTC(2026, 10, 1)), diaDoMes: 1, repete: true, pagaEm: new Date(Date.UTC(2026, 9, 1, 15)) },
+      // A luz com valor aproximado (~R$ 130); o extrato de jul a set deu 112, 131 e 141 (média 128).
+      { ...dono, nome: "Luz", valor: 130, aproximado: true, vencimento: dia(14), diaDoMes: 14, repete: true },
       { ...dono, nome: "Vivo Fibra", valor: 99.9, vencimento: dia(13), diaDoMes: 13, repete: true },
       { ...dono, nome: "Curso de inglês", valor: 249, vencimento: dia(20), diaDoMes: 20, repete: true },
+      // Frequência livre e contas do ano (seção 3.17): diarista a cada 2 semanas, IPVA e seguro.
+      { ...dono, nome: "Diarista", valor: 180, vencimento: dia(15), diaDoMes: 15, repete: true, intervalo: 2, unidade: "semanas" },
+      { ...dono, nome: "IPVA", valor: 2400, vencimento: new Date(Date.UTC(2027, 2, 10)), diaDoMes: 10, repete: true, intervalo: 1, unidade: "anos" },
+      { ...dono, nome: "Seguro do carro", valor: 1560, vencimento: new Date(Date.UTC(2027, 5, 10)), diaDoMes: 10, repete: true, intervalo: 1, unidade: "anos" },
     ],
   });
   // As dívidas da Ana (rodada 9b): duas para resolver (a fatura e o empréstimo) e duas saudáveis

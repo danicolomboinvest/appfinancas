@@ -1,14 +1,22 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { useMoney } from "@/components/money/MoneyProvider";
 import { ValorDestaque } from "@/components/ui/ValorDestaque";
+import { Explica } from "@/components/ui/Explica";
+import { LogoDoLancamento } from "@/components/ui/LogoDoLancamento";
 import { semanaDasContas, type ContaDaSemana } from "@/lib/contas/semana-das-contas";
+import { useAbrirConta } from "./folha-contexto";
+import { iconeDaConta } from "./icone-da-conta";
 
-/** "Saem nesta semana": o total, a fita dos 7 dias com um ponto onde vence conta, e as setas. */
+/**
+ * "Saem nesta semana" (rodada 4): o total, a fita dos 7 dias com um ponto onde vence conta, as
+ * setas até 30 dias. Tocar no dia mostra as contas dele e "Adicionar conta neste dia".
+ */
 export function SemanaDasContas({ contas, hoje }: { contas: ContaDaSemana[]; hoje: string }) {
   const money = useMoney();
+  const abrir = useAbrirConta();
   const [semana, setSemana] = useState(0);
   const [diaAberto, setDiaAberto] = useState<string | null>(null);
   const s = semanaDasContas(contas, hoje, semana);
@@ -16,19 +24,19 @@ export function SemanaDasContas({ contas, hoje }: { contas: ContaDaSemana[]; hoj
   return (
     <section className="flex flex-col gap-3 rounded-3xl border border-border bg-surface p-4">
       <div className="flex items-center justify-between gap-2">
-        <h2 className="text-sm text-ink-muted">{semana === 0 ? "Saem nesta semana" : "Saem nessa semana"}</h2>
-        <div className="flex gap-1.5">
-          <button type="button" aria-label="Semana anterior" disabled={semana === 0} onClick={() => { setSemana(semana - 1); setDiaAberto(null); }} className="flex size-9 items-center justify-center rounded-full border border-border text-ink disabled:opacity-35">
+        <h2 className="min-w-0 text-sm text-ink-muted">{semana === 0 ? `Esta semana · ${s.intervalo}` : `Saem ${s.intervalo}`}</h2>
+        <div className="flex shrink-0 items-center gap-1.5">
+          <button type="button" aria-label="Semana anterior" disabled={semana === 0} onClick={() => { setSemana(semana - 1); setDiaAberto(null); }} className="flex size-10 items-center justify-center rounded-full border border-border text-ink disabled:opacity-35">
             <ChevronLeft size={16} aria-hidden />
           </button>
-          <button type="button" aria-label="Próxima semana" disabled={semana >= 4} onClick={() => { setSemana(semana + 1); setDiaAberto(null); }} className="flex size-9 items-center justify-center rounded-full border border-border text-ink disabled:opacity-35">
+          <button type="button" aria-label="Próxima semana" disabled={semana >= 3} onClick={() => { setSemana(semana + 1); setDiaAberto(null); }} className="flex size-10 items-center justify-center rounded-full border border-border text-ink disabled:opacity-35">
             <ChevronRight size={16} aria-hidden />
           </button>
+          <Explica>O que vence em cada dia, até 30 dias à frente. Toque num dia para ver as contas dele ou cadastrar uma ali.</Explica>
         </div>
       </div>
-      <p className="flex flex-wrap items-baseline gap-x-2 text-ink">
+      <p className="text-ink">
         <ValorDestaque texto={`${s.aproximado ? "~" : ""}${money(s.total)}`} className="text-[1.75rem] font-light tabular-nums" />
-        <span className="text-sm text-ink-muted">{s.intervalo}</span>
       </p>
       <div className="grid grid-cols-7 gap-1">
         {s.dias.map((d) => {
@@ -40,28 +48,37 @@ export function SemanaDasContas({ contas, hoje }: { contas: ContaDaSemana[]; hoj
               onClick={() => setDiaAberto(on ? null : d.iso)}
               aria-pressed={on}
               aria-label={`${d.sigla} ${d.dia}: ${d.contas.length === 0 ? "nada vence" : d.contas.map((c) => c.nome).join(", ")}`}
-              className={`flex min-w-0 flex-col items-center gap-0.5 rounded-2xl py-2 ${d.hoje ? "bg-ink text-canvas" : on ? "bg-surface-hover text-ink" : "bg-surface-2 text-ink"}`}
+              className={`flex min-w-0 flex-col items-center gap-0.5 rounded-2xl py-2 ${d.hoje ? "bg-ink text-canvas" : on ? "bg-surface text-ink ring-[1.5px] ring-accent" : "bg-surface-2 text-ink"}`}
             >
               <span className="text-xs opacity-80">{d.sigla}</span>
               <span className="text-[17px] tabular-nums">{d.dia}</span>
-              <span className={`size-1.5 rounded-full ${d.contas.length > 0 ? (d.hoje ? "bg-canvas" : "bg-[var(--color-dinheiro-gastou)]") : "bg-transparent"}`} aria-hidden />
+              <span className={`size-1.5 rounded-full ${d.contas.length > 0 ? (d.hoje ? "bg-canvas" : "bg-accent") : "bg-transparent"}`} aria-hidden />
             </button>
           );
         })}
       </div>
       {aberto && (
-        <ul className="flex flex-col divide-y divide-border rounded-2xl bg-surface-2 px-3">
+        <div className="flex flex-col rounded-2xl bg-surface-2 px-3">
           {aberto.contas.length === 0 ? (
-            <li className="py-2.5 text-sm text-ink-muted">Nada vence nesse dia.</li>
+            <p className="py-3 text-sm text-ink-muted">Nada vence neste dia.</p>
           ) : (
-            aberto.contas.map((c) => (
-              <li key={c.id} className="flex justify-between gap-3 py-2.5 text-sm">
-                <span className="text-ink">{c.nome}</span>
-                <span className="tabular-nums text-ink">{c.valor === null ? "varia" : money(c.valor)}</span>
-              </li>
-            ))
+            <ul className="divide-y divide-border">
+              {aberto.contas.map((c) => (
+                <li key={c.chave ?? c.id} className="flex items-center gap-3 py-2.5">
+                  <LogoDoLancamento descricao={c.nome} icon={iconeDaConta(c.nome)} cor="var(--color-ink-muted)" size={36} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[15px] text-ink">{c.nome}</span>
+                    {c.detalhe && <span className="block text-[13px] text-ink-muted">{c.detalhe}</span>}
+                  </span>
+                  <span className="shrink-0 text-[15px] tabular-nums text-ink">{c.valor === null ? "varia" : `${c.aproximado ? "~" : ""}${money(c.valor)}`}</span>
+                </li>
+              ))}
+            </ul>
           )}
-        </ul>
+          <button type="button" onClick={() => abrir({ dia: aberto.iso })} className="flex min-h-11 items-center gap-1.5 border-t border-border text-sm text-accent-strong">
+            <Plus size={16} aria-hidden /> Adicionar conta neste dia
+          </button>
+        </div>
       )}
     </section>
   );

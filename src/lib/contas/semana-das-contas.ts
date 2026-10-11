@@ -1,9 +1,9 @@
 /**
- * "Saem nesta semana" das Recorrentes (protótipo aprovado): os 7 dias a partir de hoje, com as
- * contas que vencem em cada um, e as setas para as próximas semanas até 30 dias. Conta com valor
- * que varia (luz) entra como aproximada: o total ganha o "~" na frente.
+ * "Saem nesta semana" das Recorrentes (protótipo aprovado, rodada 4): os 7 dias a partir de hoje,
+ * com os vencimentos de cada um (a conta que repete aparece em cada dia em que cai), e as setas
+ * para as próximas semanas até 30 dias. Conta aproximada (ou que varia) põe o "~" no total.
  */
-export type ContaDaSemana = { id: string; nome: string; valor: number | null; vencimento: string };
+export type ContaDaSemana = { chave?: string; id: string; nome: string; valor: number | null; vencimento: string; aproximado?: boolean; detalhe?: string };
 
 export type DiaDaSemana = { iso: string; dia: number; sigla: string; contas: ContaDaSemana[]; hoje: boolean };
 
@@ -27,5 +27,5 @@ export function semanaDasContas(contas: ContaDaSemana[], hoje: string, deslocame
   const [, mi, di] = inicio.split("-").map(Number);
   const [, mf, df] = fim.split("-").map(Number);
   const intervalo = mi === mf ? `${di} a ${df} ${MES[mf - 1]}` : `${di} ${MES[mi - 1]} a ${df} ${MES[mf - 1]}`;
-  return { dias, total: daSemana.reduce((s, c) => s + (c.valor ?? 0), 0), aproximado: daSemana.some((c) => c.valor === null), intervalo };
+  return { dias, total: Math.round(daSemana.reduce((s, c) => s + (c.valor ?? 0), 0) * 100) / 100, aproximado: daSemana.some((c) => c.valor === null || c.aproximado), intervalo };
 }

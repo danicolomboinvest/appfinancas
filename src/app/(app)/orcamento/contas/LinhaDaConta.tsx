@@ -20,6 +20,15 @@ export type ContaSerial = {
   lembrar: boolean;
   quitada: boolean;
   pagaEm: string | null;
+  diaDoMes: number | null;
+  /** Frequência livre (seção 3.17); nulos nas contas de antes. */
+  intervalo: number | null;
+  unidade: string | null;
+  mesesEscolhidos: number[];
+  parcelas: number | null;
+  parcelaAtual: number | null;
+  valorEhTotal: boolean;
+  aproximado: boolean;
 };
 
 const MES_CURTO = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
@@ -64,7 +73,7 @@ export function LinhaDaConta({ conta, hoje, onAbrir }: { conta: ContaSerial; hoj
       showToast(t.contasPagaToast(conta.nome, r.proxima ? diaMes(r.proxima) : null), {
         label: t.contasDesfazer,
         onClick: () => {
-          void desfazerPagamentoAction(conta.id, r.antes).then(() => router.refresh());
+          void desfazerPagamentoAction(conta.id, r.antes, r.antesParcela).then(() => router.refresh());
         },
       });
       router.refresh();

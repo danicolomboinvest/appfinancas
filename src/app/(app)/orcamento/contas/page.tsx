@@ -19,7 +19,9 @@ import { ValorDestaque } from "@/components/ui/ValorDestaque";
 import { Explica } from "@/components/ui/Explica";
 import { LogoDoLancamento } from "@/components/ui/LogoDoLancamento";
 import { CartaoDoLimite } from "@/components/cartao/CartaoDoLimite";
-import { ContasAPagar } from "./ContasAPagar";
+import { ContasAPagar, ContasDoAno } from "./ContasAPagar";
+import { FolhaDasContas } from "./folha-contexto";
+import { pesoPorMes, vencimentosDaJanela } from "@/lib/contas/recorrentes";
 import { SemanaDasContas } from "./SemanaDasContas";
 import { iso, serializarConta } from "./serializar";
 
@@ -30,8 +32,9 @@ import { iso, serializarConta } from "./serializar";
  *
  * "Dívidas por mês" (fase 2): o que sai por mês para cada dívida, só leitura, com "Ver plano".
  *
- * Ficam para a fase 3: contas com qualquer frequência e as "contas do ano" (guarde R$ X por mês),
- * parcelas e a conta reconhecida no extrato.
+ * Fase 3 (seção 3.17): a semana navegável com cada vencimento, a frequência livre, o valor
+ * aproximado e as contas do ano (guarde R$ X por mês). A conta reconhecida no extrato fica para
+ * a conciliação, que é outra entrega.
  */
 export default async function RecorrentesPage(props: PageProps<"/orcamento/contas">) {
   const sp = await props.searchParams;
@@ -52,40 +55,49 @@ export default async function RecorrentesPage(props: PageProps<"/orcamento/conta
     empresa ? Promise.resolve([]) : listarDividas(ctx),
     empresa ? Promise.resolve(null) : selicAnual(ctx.userId),
   ]);
-  const hoje = iso(hojeEmBrasilia());
+  const hojeD = hojeEmBrasilia();
+  const hoje = iso(hojeD);
   const contas = abertas.map(serializarConta);
   const renda = planoDoMes && planoDoMes.plannedIncome > 0 ? planoDoMes.plannedIncome : resumo.totalIncome;
-  const totalContas = abertas.filter((c) => c.repete || c.vencimento.getUTCMonth() + 1 === mes).reduce((s, c) => s + (c.valor ?? 0), 0);
+  // Renda com dono: contas pela média por mês (a diarista a cada 2 semanas pesa R$ 390), parcelas
+  // pelo valor da parcela, assinaturas achadas no extrato. As contas do ano têm o card delas.
+  const peso = pesoPorMes(contas, hojeD);
   const assinaturas = raiox.itens.filter((i) => i.tipo === "assinatura");
   const totalAssinaturas = assinaturas.reduce((s, i) => s + i.mensal, 0);
   const planejado = plano.reduce((s, b) => s + Number(b.plannedAmount), 0);
   const livre = planejado > 0 ? planejado - resumo.totalExpense : null;
-  const comDono = totalContas + totalAssinaturas;
+  const comDono = peso.contas + peso.parcelas + totalAssinaturas;
   const pct = renda > 0 ? Math.round((comDono / renda) * 100) : null;
+  const largura = (v: number) => `${Math.min(100, (v / renda) * 100)}%`;
+  const vencimentos = vencimentosDaJanela(contas, hojeD, 30).map((v) => ({ chave: v.chave, id: v.id, nome: v.nome, valor: v.valor, aproximado: v.aproximado, vencimento: v.dia }));
 
   return (
+    <FolhaDasContas hoje={hoje} abrirNova={sp.nova === "1"}>
     <div className="flex flex-col gap-5 lg:grid lg:grid-cols-2 lg:items-start">
       <div className="flex min-w-0 flex-col gap-5">
         {pct !== null && (
           <HeroiDoTema>
             <div className="flex items-center justify-between gap-2">
               <p className="text-[15px] text-heroi-suave">Renda com dono</p>
-              <Explica noHeroi>Quanto da renda do mês já está comprometido com contas e assinaturas, antes de qualquer gasto do dia a dia.</Explica>
+              <Explica noHeroi>Quanto da renda do mês já tem destino antes do dia a dia: contas (pela média por mês), parcelas e assinaturas.</Explica>
             </div>
             <ValorDestaque texto={`${pct}%`} />
-            <div className="flex h-2 overflow-hidden rounded-full bg-[color-mix(in_srgb,var(--color-surface)_75%,transparent)]">
-              <span className="h-full bg-[var(--color-heroi-tinta)]" style={{ width: `${Math.min(100, (totalContas / renda) * 100)}%` }} />
-              <span className="h-full bg-[color-mix(in_srgb,var(--color-heroi-tinta)_45%,transparent)]" style={{ width: `${Math.min(100, (totalAssinaturas / renda) * 100)}%` }} />
+            <div className="flex h-2 gap-px overflow-hidden rounded-full bg-[color-mix(in_srgb,var(--color-surface)_75%,transparent)]">
+              <span className="h-full bg-[var(--color-heroi-tinta)]" style={{ width: largura(peso.contas) }} />
+              {peso.parcelas > 0 && <span className="h-full bg-[color-mix(in_srgb,var(--color-heroi-tinta)_65%,transparent)]" style={{ width: largura(peso.parcelas) }} />}
+              <span className="h-full bg-[color-mix(in_srgb,var(--color-heroi-tinta)_40%,transparent)]" style={{ width: largura(totalAssinaturas) }} />
             </div>
             <dl className="grid grid-cols-2 gap-x-5 gap-y-1 text-sm">
-              <div className="flex justify-between gap-2"><dt className="text-heroi-suave">Contas</dt><dd className="tabular-nums">{m(totalContas)}</dd></div>
+              <div className="flex justify-between gap-2"><dt className="text-heroi-suave">Contas</dt><dd className="tabular-nums">{m(peso.contas)}</dd></div>
+              {peso.parcelas > 0 && <div className="flex justify-between gap-2"><dt className="text-heroi-suave">Parcelas</dt><dd className="tabular-nums">{m(peso.parcelas)}</dd></div>}
               <div className="flex justify-between gap-2"><dt className="text-heroi-suave">Assinaturas</dt><dd className="tabular-nums">{m(totalAssinaturas)}</dd></div>
               {livre !== null && <div className="flex justify-between gap-2"><dt className="text-heroi-suave">Livre</dt><dd className="tabular-nums">{m(livre)}</dd></div>}
             </dl>
+            {(dividas.length > 0 || peso.parcelas > 0) && <p className="text-[13px] text-heroi-suave">As parcelas já estão dentro do seu plano.</p>}
           </HeroiDoTema>
         )}
-        <SemanaDasContas contas={contas.map((c) => ({ id: c.id, nome: c.nome, valor: c.valor, vencimento: c.vencimento }))} hoje={hoje} />
-        <ContasAPagar contas={contas} pagas={pagas.map(serializarConta)} hoje={hoje} abrirNova={sp.nova === "1"} />
+        <SemanaDasContas contas={vencimentos} hoje={hoje} />
+        <ContasAPagar contas={contas} pagas={pagas.map(serializarConta)} hoje={hoje} />
       </div>
       <div className="flex min-w-0 flex-col gap-5">
         {assinaturas.length > 0 && (
@@ -134,8 +146,10 @@ export default async function RecorrentesPage(props: PageProps<"/orcamento/conta
             </ul>
           </section>
         )}
+        <ContasDoAno contas={contas} hoje={hoje} />
         <CartaoDoLimite ctx={ctx} compacto />
       </div>
     </div>
+    </FolhaDasContas>
   );
 }
