@@ -14,6 +14,7 @@ import { MESES, MESES_CURTOS, contasDoMes, diaCurto, diaDaSemanaDe, resumoDaEmpr
 import type { DadosDaEmpresa } from "@/lib/empresa/dados";
 import { Cartao, Iniciais, LinhaDoRecibo, LogoDaForma, Picote, BOTAO_PRINCIPAL } from "./partes";
 import { RegistrarNaEmpresa } from "./RegistrarNaEmpresa";
+import { CarrosselDeAbas, useArrastoEntreAbas } from "@/components/shell/Carrossel";
 
 type Aba = "resumo" | "vendas" | "despesas" | "contas";
 const ABAS: [Aba, string][] = [["resumo", "Resumo"], ["vendas", "Vendas"], ["despesas", "Despesas"], ["contas", "Contas"]];
@@ -52,6 +53,9 @@ export function VisaoDaEmpresa({ dados, clientes, abaInicial, mesInicial, abrirR
 
   const atual = ord(mes) === ord(dados.mesAtual);
   const recibo = useMemo(() => reciboDoMes(dados.lancamentos, mes), [dados, mes]);
+  const iAba = ABAS.findIndex(([k]) => k === aba);
+  // Arrastar o conteúdo para o lado troca de aba, como nas outras faixas do app.
+  const conteudo = useArrastoEntreAbas<HTMLDivElement>({ indice: iAba, total: ABAS.length, chave: aba, onLado: (p) => trocarAba(ABAS[iAba + p][0]) });
   const trocarAba = (a: Aba) => {
     setAba(a);
     if (a === "contas") setMes(dados.mesAtual);
@@ -62,13 +66,8 @@ export function VisaoDaEmpresa({ dados, clientes, abaInicial, mesInicial, abrirR
 
   return (
     <>
-      <div role="tablist" aria-label={dados.nome} className="grid grid-cols-4 gap-1 rounded-full bg-surface-2 p-1">
-        {ABAS.map(([k, t]) => (
-          <button key={k} type="button" role="tab" aria-selected={aba === k} onClick={() => trocarAba(k)} className={`min-h-10 truncate rounded-full px-0.5 text-[14px] max-[359px]:text-[13px] transition-colors ${aba === k ? "bg-pill font-medium text-on-pill shadow-[0_6px_14px_-8px_rgba(0,0,0,0.18)]" : "text-ink-muted"}`}>
-            {t}
-          </button>
-        ))}
-      </div>
+      {/* As abas em carrossel, como na Visão geral: a aberta no centro, arrastar gira. */}
+      <CarrosselDeAbas rotulo={dados.nome} ativa={aba} itens={ABAS.map(([k, t]) => ({ chave: k, rotulo: t }))} onEscolher={(k) => trocarAba(k as Aba)} />
 
       {aba !== "contas" && (
         <div className="grid grid-cols-[44px_minmax(0,1fr)_44px] items-center">
@@ -87,10 +86,12 @@ export function VisaoDaEmpresa({ dados, clientes, abaInicial, mesInicial, abrirR
         </div>
       )}
 
+      <div ref={conteudo}>
       {aba === "resumo" && <AbaResumo dados={dados} R={R} mes={mes} recibo={recibo} atual={atual} m0={m0} money={money} />}
       {aba === "vendas" && <AbaVendas dados={dados} R={R} mes={mes} recibo={recibo} m0={m0} />}
       {aba === "despesas" && <AbaDespesas dados={dados} mes={mes} recibo={recibo} m0={m0} />}
       {aba === "contas" && <AbaContas dados={dados} money={money} m0={m0} />}
+      </div>
 
       <BotaoRegistrar onClick={() => setRegistrar(true)} />
       <RegistrarNaEmpresa aberto={registrar} onFechar={() => setRegistrar(false)} dados={dados} R={R} clientes={clientes} />

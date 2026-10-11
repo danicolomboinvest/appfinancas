@@ -1,4 +1,4 @@
-import { AbasEmPilulas, type AbaEmPilula } from "@/components/shell/AbasEmPilulas";
+import { AbasEmPilulas, ConteudoDasAbas, type AbaEmPilula } from "@/components/shell/AbasEmPilulas";
 import { PaywallCard } from "@/components/shell/PaywallCard";
 import { getRequiredSession } from "@/lib/auth/session";
 import { hasPremiumAccess } from "@/lib/repositories/allowedEmail.repo";
@@ -25,7 +25,7 @@ export default async function CarteiraLayout({ children }: { children: React.Rea
   return (
     <>
       {!ehEmpresa(ctx.profileKind) && <AbasEmPilulas abas={ABAS} rotulo="Abas da Carteira" />}
-      {premium ? children : <PaywallCard feature="Carteira de Investimentos" />}
+      {premium ? ehEmpresa(ctx.profileKind) ? children : <ConteudoDasAbas abas={ABAS}>{children}</ConteudoDasAbas> : <PaywallCard feature="Carteira de Investimentos" />}
     </>
   );
 }
