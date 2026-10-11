@@ -140,8 +140,8 @@ export function ContaPorConta({
                   <button type="button" onClick={() => setAberta((a) => (a === c.chave ? null : c.chave))} aria-expanded={aberta === c.chave} className="flex w-full items-center gap-3 py-2.5 text-left">
                     <LogoDoLancamento descricao={c.nome} icon={PARENT_CATEGORY_ICON[pc]} size={40} />
                     <span className="min-w-0 flex-1">
-                      {/* Nome numa linha (só ele pode encurtar); valor e quem pagou embaixo, sem cortar de 320 a 430 px. */}
-                      <span className="block truncate text-[16px] font-semibold text-ink">{c.nome}</span>
+                      {/* Nome inteiro (quebra a linha, "Ração da Mel" cortava a 320 px); valor e quem pagou embaixo. */}
+                      <span className="block break-words text-[16px] font-semibold leading-snug text-ink">{c.nome}</span>
                       <span className="flex flex-wrap items-center gap-x-1.5 text-[13px] text-ink-muted">
                         <span className="font-medium tabular-nums text-ink">{m(c.valor)}</span>
                         <i className="size-2 shrink-0 rounded-full" style={{ background: quem ? corDaPessoa(cor(quem)) : "var(--color-ink-faint)" }} aria-hidden />

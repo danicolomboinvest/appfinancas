@@ -296,7 +296,7 @@ export function MeusAtivos({
                     </span>
                     <span className="min-w-0">
                       <span className="block truncate text-[15px] font-medium text-ink">{g.nome}</span>
-                      <span className="block truncate text-[12.5px] text-ink-muted">{sub}</span>
+                      <span className="block break-words text-[12.5px] text-ink-muted">{sub}</span>
                     </span>
                     <span className="text-right">
                       <span className="block whitespace-nowrap text-[15px] font-medium tabular-nums text-ink">
