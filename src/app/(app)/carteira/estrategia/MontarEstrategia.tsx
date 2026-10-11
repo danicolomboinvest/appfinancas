@@ -152,7 +152,7 @@ export function MontarEstrategia({
                   type="button"
                   aria-pressed={on}
                   onClick={() => setOnde(o.chave === "nunca" ? (on ? [] : ["nunca"]) : on ? onde.filter((k) => k !== o.chave) : [...onde.filter((k) => k !== "nunca"), o.chave])}
-                  className={`min-h-10 rounded-full px-3.5 text-[14px] ${on ? "bg-pill font-medium text-on-pill" : "heroi-veu"}`}
+                  className={`min-h-10 rounded-full px-3.5 text-[14px] ${on ? "bg-ink font-medium text-surface" : "heroi-veu"}`}
                 >
                   {o.nome}
                 </button>
@@ -403,7 +403,7 @@ function Barra({ v }: { v: Record<StrategyAssetClass, number> }) {
 
 function Cartao({ titulo, sub, on, onClick }: { titulo: string; sub?: string; on: boolean; onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} aria-pressed={on} className={`flex min-h-14 w-full flex-col justify-center rounded-2xl border px-4 py-3 text-left ${on ? "border-transparent bg-pill text-on-pill" : "glass border-transparent text-ink"}`}>
+    <button type="button" onClick={onClick} aria-pressed={on} className={`flex min-h-14 w-full flex-col justify-center rounded-2xl border px-4 py-3 text-left ${on ? "border-transparent bg-ink text-surface" : "glass border-transparent text-ink"}`}>
       <span className="text-[15px] font-medium">{titulo}</span>
       {sub && <span className={`text-[12.5px] ${on ? "opacity-80" : "text-ink-muted"}`}>{sub}</span>}
     </button>

@@ -395,7 +395,7 @@ export function NovoAtivo({
                 </button>
               ))}
             </div>
-            <button type="button" onClick={onImportar} className="flex min-h-14 items-center gap-3 rounded-3xl bg-pill px-4 py-3 text-left text-on-pill">
+            <button type="button" onClick={onImportar} className="flex min-h-14 items-center gap-3 rounded-3xl bg-ink px-4 py-3 text-left text-surface">
               <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[color-mix(in_srgb,currentColor_12%,transparent)]" aria-hidden>
                 <FileUp size={18} />
               </span>
@@ -443,7 +443,7 @@ export function NovoAtivo({
         <div className="flex flex-col gap-2.5">
           <p className="text-[18px] text-ink">Que tipo de fundo é?</p>
           {CLASSES_DE_FUNDO.map(([k, nome, tipo, onde]) => (
-            <button key={k} type="button" onClick={() => setFundo(k)} aria-pressed={fundo === k} className={`flex min-h-12 items-center justify-between rounded-2xl border px-4 text-left text-[15px] ${fundo === k ? "border-transparent bg-pill text-on-pill" : "border-border text-ink"}`}>
+            <button key={k} type="button" onClick={() => setFundo(k)} aria-pressed={fundo === k} className={`flex min-h-12 items-center justify-between rounded-2xl border px-4 text-left text-[15px] ${fundo === k ? "border-transparent bg-ink text-surface" : "border-border text-ink"}`}>
               {nome}
               <span className={`text-[12px] ${fundo === k ? "opacity-80" : "text-ink-muted"}`}>
                 {NOME_DO_TIPO[tipo]}
@@ -487,13 +487,13 @@ export function NovoAtivo({
               const futuro = ano === hojeData.getFullYear() && k > hojeData.getMonth();
               const on = quando?.ano === ano && quando.mes === k + 1;
               return (
-                <button key={m} type="button" disabled={futuro} onClick={() => { setQuando({ ano, mes: k + 1 }); setNaoLembro(false); }} className={`min-h-11 rounded-full text-[14px] ${on ? "bg-pill font-medium text-on-pill" : "bg-surface-2 text-ink"} disabled:opacity-30`}>
+                <button key={m} type="button" disabled={futuro} onClick={() => { setQuando({ ano, mes: k + 1 }); setNaoLembro(false); }} className={`min-h-11 rounded-full text-[14px] ${on ? "bg-ink font-medium text-surface" : "bg-surface-2 text-ink"} disabled:opacity-30`}>
                   {m}
                 </button>
               );
             })}
           </div>
-          <button type="button" onClick={() => { setNaoLembro(true); setQuando(null); }} aria-pressed={naoLembro} className={`min-h-11 w-fit rounded-full px-4 text-[14px] ${naoLembro ? "bg-pill text-on-pill" : "border border-border-strong text-ink"}`}>
+          <button type="button" onClick={() => { setNaoLembro(true); setQuando(null); }} aria-pressed={naoLembro} className={`min-h-11 w-fit rounded-full px-4 text-[14px] ${naoLembro ? "bg-ink text-surface" : "border border-border-strong text-ink"}`}>
             Não lembro
           </button>
           <p className="text-[12.5px] text-ink-muted">Se foram várias compras, use a primeira.</p>
@@ -507,12 +507,12 @@ export function NovoAtivo({
             {([{ indexador: "cdi", percentual: 100 }, { indexador: "cdi", percentual: 110 }, { indexador: "ipca", taxa: 6 }, { indexador: "pre", taxa: 12 }] as Rendimento[]).map((r) => {
               const on = !naoSei && rende && textoDoRendimento(rende) === textoDoRendimento(r);
               return (
-                <button key={textoDoRendimento(r)} type="button" onClick={() => { setRende(r); setNaoSei(false); }} className={`min-h-11 rounded-full px-4 text-[14px] ${on ? "bg-pill font-medium text-on-pill" : "border border-border-strong text-ink"}`}>
+                <button key={textoDoRendimento(r)} type="button" onClick={() => { setRende(r); setNaoSei(false); }} className={`min-h-11 rounded-full px-4 text-[14px] ${on ? "bg-ink font-medium text-surface" : "border border-border-strong text-ink"}`}>
                   {textoDoRendimento(r)}
                 </button>
               );
             })}
-            <button type="button" onClick={() => { setNaoSei(true); setRende(null); }} className={`min-h-11 rounded-full px-4 text-[14px] ${naoSei ? "bg-pill font-medium text-on-pill" : "border border-border-strong text-ink"}`}>
+            <button type="button" onClick={() => { setNaoSei(true); setRende(null); }} className={`min-h-11 rounded-full px-4 text-[14px] ${naoSei ? "bg-ink font-medium text-surface" : "border border-border-strong text-ink"}`}>
               Não sei
             </button>
           </div>
@@ -538,7 +538,7 @@ export function NovoAtivo({
                 A de hoje: {taxaDoTitulo(tit)}
               </button>
             )}
-            <button type="button" onClick={() => { setTaxaNaoSei(true); setTaxaTxt(""); }} aria-pressed={taxaNaoSei} className={`min-h-11 rounded-full px-4 text-[14px] ${taxaNaoSei ? "bg-pill font-medium text-on-pill" : "border border-border-strong text-ink"}`}>
+            <button type="button" onClick={() => { setTaxaNaoSei(true); setTaxaTxt(""); }} aria-pressed={taxaNaoSei} className={`min-h-11 rounded-full px-4 text-[14px] ${taxaNaoSei ? "bg-ink font-medium text-surface" : "border border-border-strong text-ink"}`}>
               Não sei
             </button>
           </div>
@@ -654,7 +654,7 @@ export function NovoAtivo({
           <p className="text-[18px] text-ink">É para alguma meta?</p>
           <div className="flex flex-wrap gap-2">
             {[...metas.map((m) => [`meta:${m.id}`, m.nome] as [string, string]), ["liberdade", "Liberdade financeira"] as [string, string], ["reserva", "Reserva de emergência"] as [string, string], ["nenhuma", "Nenhuma por enquanto"] as [string, string]].map(([k, nome]) => (
-              <button key={k} type="button" onClick={() => setMeta(k)} aria-pressed={meta === k} className={`min-h-11 rounded-full px-4 text-[14px] ${meta === k ? "bg-pill font-medium text-on-pill" : "border border-border-strong text-ink"}`}>
+              <button key={k} type="button" onClick={() => setMeta(k)} aria-pressed={meta === k} className={`min-h-11 rounded-full px-4 text-[14px] ${meta === k ? "bg-ink font-medium text-surface" : "border border-border-strong text-ink"}`}>
                 {nome}
               </button>
             ))}
@@ -714,7 +714,7 @@ function OutraTaxa({ onEscolher }: { onEscolher: (r: Rendimento) => void }) {
           type="button"
           disabled={!(n > 0)}
           onClick={() => onEscolher(tipo === "cdi" ? { indexador: "cdi", percentual: n } : { indexador: tipo, taxa: n })}
-          className="ml-auto min-h-10 rounded-full bg-pill px-4 text-[14px] text-on-pill disabled:opacity-40"
+          className="ml-auto min-h-10 rounded-full bg-ink px-4 text-[14px] text-surface disabled:opacity-40"
         >
           Usar
         </button>

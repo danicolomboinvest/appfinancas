@@ -235,7 +235,7 @@ function Pilulas<T extends string>({ opcoes, valor, onEscolher, rotulo }: { opco
           role="radio"
           aria-checked={valor === v}
           onClick={() => onEscolher(v)}
-          className={`min-h-11 rounded-full border px-4 text-[14px] transition-colors ${valor === v ? "border-transparent bg-pill font-medium text-on-pill" : "border-border-strong text-ink hover:bg-surface-2"}`}
+          className={`min-h-11 rounded-full border px-4 text-[14px] transition-colors ${valor === v ? "border-transparent bg-ink font-medium text-surface" : "border-border-strong text-ink hover:bg-surface-2"}`}
         >
           {nome}
         </button>
