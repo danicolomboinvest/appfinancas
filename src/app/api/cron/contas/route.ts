@@ -79,6 +79,11 @@ export async function GET(request: Request) {
           nome: c.nome,
           titulo: t.contasLembreteTitulo(c.nome, l.quando),
           corpo: t.contasLembreteCorpo(c.valor == null ? null : money(Number(c.valor))),
+          // Para o e-mail: o valor grande, o quadradinho do calendário e o tema do perfil da conta.
+          valor: c.valor == null ? null : Number(c.valor),
+          vencimento: c.vencimento,
+          quando: l.quando,
+          tema: c.profile?.theme,
           t,
         };
       });
@@ -96,7 +101,7 @@ export async function GET(request: Request) {
     }
     if (entregues.length > 0) pushed += 1;
     else if (isEmailConfigured()) {
-      const { subject, html } = contasEmail({ name: user.name, t: novos[0].t, contas: novos, url: `${baseUrl}/orcamento/contas` });
+      const { subject, html } = contasEmail({ name: user.name, t: novos[0].t, contas: novos, url: `${baseUrl}/orcamento/contas`, tema: novos[0].tema, moeda: toCurrencyCode(user.currency) });
       const res = await sendEmail({ to: user.email, subject, html });
       if (res.ok) {
         mailed += 1;

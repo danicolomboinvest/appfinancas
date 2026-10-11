@@ -27,11 +27,11 @@ export function emailSemConta(etapa: EtapaSemConta, email: string, baseUrl: stri
   return etapa === "conta-dia1" ? lembreteContaDia1Email({ email, registerUrl }) : lembreteContaDia4Email({ email, registerUrl });
 }
 
-export function emailComConta(etapa: EtapaComConta, name: string | null, baseUrl: string): EmailPronto {
+export function emailComConta(etapa: EtapaComConta, name: string | null, baseUrl: string, tema?: string | null): EmailPronto {
   const appUrl = `${baseUrl}/mensal`;
-  if (etapa === CHAVE_BOAS_VINDAS) return boasVindasEmail({ name, appUrl, guiaUrl: `${baseUrl}/guia` });
-  if (etapa === CHAVE_VAZIO_DIA2) return vazioDia2Email({ name, appUrl });
-  return vazioDia5Email({ name, appUrl });
+  if (etapa === CHAVE_BOAS_VINDAS) return boasVindasEmail({ name, appUrl, guiaUrl: `${baseUrl}/guia`, tema });
+  if (etapa === CHAVE_VAZIO_DIA2) return vazioDia2Email({ name, appUrl, tema });
+  return vazioDia5Email({ name, appUrl, tema });
 }
 
 /**
@@ -51,7 +51,9 @@ export async function enviarEtapaComConta(
   } catch {
     return "ja-enviado";
   }
-  const { subject, html } = emailComConta(etapa, user.name, baseUrl);
+  // O logo e as cores do tema do perfil ativo, se ela já escolheu um (só leitura: o cron não cria perfil).
+  const perfil = await prisma.financialProfile.findFirst({ where: { userId: user.id, isDefault: true }, select: { theme: true } });
+  const { subject, html } = emailComConta(etapa, user.name, baseUrl, perfil?.theme);
   const r = await enviar({ to: user.email, subject, html, replyTo: RESPONDER_PARA });
   if (r.ok) return "enviado";
   await prisma.notificationLog.deleteMany({ where: { userId: user.id, key: etapa } });

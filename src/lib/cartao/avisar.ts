@@ -49,7 +49,13 @@ export async function avisarLimiteDoCartao(ctx: AuthContext, ano: number, mes: n
 
     let chegou = isPushConfigured() ? (await sendPushToUser(ctx.userId, { title: titulo, body: corpo, url, tag: chave })) > 0 : false;
     if (!chegou && isEmailConfigured()) {
-      const { subject, html } = alertEmail({ name: user.name, alerts: [{ title: titulo, body: corpo, url: `${baseUrl}${url}` }], preferencesUrl: `${baseUrl}/configuracoes/notificacoes` });
+      const { subject, html } = alertEmail({
+        name: user.name,
+        alerts: [{ title: titulo, body: corpo, url: `${baseUrl}${url}`, dados: { tipo: "cartao", gasto, limite, mesNome: nomeDoMes } }],
+        preferencesUrl: `${baseUrl}/configuracoes/notificacoes`,
+        tema: ctx.profileTheme,
+        moeda: toCurrencyCode(user.currency),
+      });
       chegou = (await sendEmail({ to: user.email, subject, html })).ok;
     }
     if (!chegou) {
