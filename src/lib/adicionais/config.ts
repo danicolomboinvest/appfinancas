@@ -34,14 +34,16 @@ export const ADICIONAIS: Record<Adicional, DadosDoAdicional> = {
     frase: "O dinheiro da empresa separado do seu, com DRE, caixa e ponto de equilíbrio.",
     precoAno: 37,
     apple: "com.danicolombo.spifinance.empresa.anual",
-    hubla: null,
+    // Produto "SPI Finance Perfil Empresa" na Hubla (criado em 11/10/2026, em rascunho até o lançamento).
+    hubla: "https://pay.hub.la/N7FPjwnnNhgaPZyqmQDF",
   },
   conta_parceiro: {
     nome: "Conta do parceiro",
     frase: "Vocês dois no mesmo perfil Casal, cada um com o seu login.",
     precoAno: 27,
     apple: "com.danicolombo.spifinance.casal.anual",
-    hubla: null,
+    // Produto "SPI Finance Conta do parceiro" na Hubla (criado em 11/10/2026, em rascunho até o lançamento).
+    hubla: "https://pay.hub.la/nFN5de8EstNY7v6r1gma",
   },
 };
 
