@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { Landmark } from "lucide-react";
+import { LogoDoAtivo } from "@/components/ui/LogoDoAtivo";
+import { arquivoDoAtivo } from "@/lib/marcas/ativos";
 import type { Forca } from "@/lib/analysis/quatro-perguntas";
 import type { Logo } from "@/lib/analysis/analises-dados";
 
@@ -83,29 +84,22 @@ export function AnelDePerguntas({
 }
 
 /**
- * Marcas cujo arquivo de logo é o nome escrito por extenso (ilegível num quadrado de 40 px): viram
- * a sigla na cor oficial, como o símbolo que a marca usa no app dela.
+ * O quadradinho do ativo dentro do anel: o ícone oficial do ticker (lib/marcas/ativos.ts); sem
+ * ele, a marca achada pelo nome; sem nada, as letras do código na cor da marca ou do tema.
  */
-const MONOGRAMA: Record<string, { texto: string; fundo: string; tinta: string }> = {
-  bancodobrasil: { texto: "BB", fundo: "#FCF800", tinta: "#465EFF" },
-};
-
-/** O quadradinho do ativo dentro do anel: o logo real da marca; sem logo, o código em letra de tinta. */
 export function TileDoAtivo({ ticker, logo, tamanho = 40 }: { ticker: string; logo: Logo; tamanho?: number }) {
-  const mono = logo ? MONOGRAMA[logo.slug] : undefined;
-  if (mono) {
-    return (
-      <span
-        className="inline-flex items-center justify-center font-bold tracking-[-0.02em]"
-        style={{ width: tamanho, height: tamanho, borderRadius: Math.round(tamanho * 0.28), background: mono.fundo, color: mono.tinta, fontSize: Math.round(tamanho * 0.4) }}
-        aria-hidden
-      >
-        {mono.texto}
-      </span>
-    );
-  }
+  const rendaFixa = /\s/.test(ticker);
+  if (!rendaFixa && arquivoDoAtivo(ticker)) return <LogoDoAtivo ticker={ticker} tamanho={tamanho} />;
   if (logo) {
     const caixa = { width: tamanho, height: tamanho, borderRadius: Math.round(tamanho * 0.28) };
+    if (logo.cheio) {
+      return (
+        <span className="inline-flex overflow-hidden" style={caixa} aria-hidden>
+          {/* eslint-disable-next-line @next/next/no-img-element -- ícone pequeno e estático em /public */}
+          <img src={logo.src} alt="" loading="lazy" decoding="async" className="size-full object-cover" />
+        </span>
+      );
+    }
     if (logo.mono) {
       const mascara = `url(${logo.src}) center / 58% no-repeat`;
       return (
@@ -121,15 +115,7 @@ export function TileDoAtivo({ ticker, logo, tamanho = 40 }: { ticker: string; lo
       </span>
     );
   }
-  // Renda fixa vem pelo nome ("Tesouro IPCA+ 2035"): o prédio de traço no quadrado cinza.
-  if (/\s/.test(ticker)) {
-    return (
-      <span className="inline-flex items-center justify-center text-accent-strong" style={{ width: tamanho, height: tamanho, borderRadius: Math.round(tamanho * 0.28), background: "color-mix(in srgb, var(--color-accent) 12%, transparent)" }} aria-hidden>
-        <Landmark size={Math.round(tamanho * 0.48)} strokeWidth={1.6} />
-      </span>
-    );
-  }
-  return <span className="text-[13px] font-semibold tracking-[0.04em] text-accent-strong">{ticker.replace(/\d+$/, "")}</span>;
+  return <LogoDoAtivo ticker={rendaFixa ? null : ticker} nome={ticker} rendaFixa={rendaFixa} tamanho={tamanho} />;
 }
 
 /** "13%" com o número e o % na mesma linha, o % menor (rodadas 48 e 52). */

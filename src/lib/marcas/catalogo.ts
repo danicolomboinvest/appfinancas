@@ -6,7 +6,11 @@
  * `baixa`: marca genérica (Pix, bandeira do cartão, Google) que só vale se nenhuma outra casar.
  * As marcas são das empresas; os arquivos vieram do Simple Icons (CC0) e do Wikimedia Commons.
  */
-export type MarcaDoCatalogo = { slug: string; nome: string; cor: string; arquivo: string; mono: boolean; apelidos: string[]; baixa?: boolean };
+/**
+ * `cheio`: o arquivo já é o ícone inteiro, quadrado e com o fundo da marca (ícone de app ou da B3,
+ * via brapi). Vai ocupando o quadradinho todo, sem moldura branca por fora.
+ */
+export type MarcaDoCatalogo = { slug: string; nome: string; cor: string; arquivo: string; mono: boolean; apelidos: string[]; baixa?: boolean; cheio?: boolean };
 
 export const MARCAS: MarcaDoCatalogo[] = [
   { slug: "nubank", nome: "Nubank", cor: "#820AD1", arquivo: "nubank.svg", mono: true, apelidos: ["nubank"] },
@@ -34,7 +38,7 @@ export const MARCAS: MarcaDoCatalogo[] = [
   { slug: "itau", nome: "Itaú", cor: "#FF6200", arquivo: "itau.svg", mono: false, apelidos: ["itau"] },
   { slug: "bradesco", nome: "Bradesco", cor: "#E5173F", arquivo: "bradesco.svg", mono: false, apelidos: ["bradesco"] },
   { slug: "santander", nome: "Santander", cor: "#EA1D25", arquivo: "santander.svg", mono: false, apelidos: ["santander"] },
-  { slug: "bancodobrasil", nome: "Banco do Brasil", cor: "#465EFF", arquivo: "bancodobrasil.svg", mono: false, apelidos: ["banco do brasil", "bb s a", "bco do brasil"] },
+  { slug: "bancodobrasil", nome: "Banco do Brasil", cor: "#465EFF", arquivo: "bancodobrasil-simbolo.svg", mono: false, cheio: true, apelidos: ["banco do brasil", "bb s a", "bco do brasil"] },
   { slug: "caixa", nome: "Caixa", cor: "#0066B3", arquivo: "caixa.svg", mono: false, apelidos: ["caixa economica", "caixa federal", "cef"] },
   { slug: "inter", nome: "Inter", cor: "#EA7100", arquivo: "inter.svg", mono: false, apelidos: ["banco inter", "bancointer", "inter dtvm", "inter pag"] },
   { slug: "c6bank", nome: "C6 Bank", cor: "#000000", arquivo: "c6bank.svg", mono: false, apelidos: ["banco c6", "c6 bank", "c6bank"] },
@@ -126,4 +130,16 @@ export const MARCAS: MarcaDoCatalogo[] = [
   { slug: "amil", nome: "Amil", cor: "#4820FC", arquivo: "amil.svg", mono: false, apelidos: ["amil"] },
   { slug: "sulamerica", nome: "SulAmérica", cor: "#001E64", arquivo: "sulamerica.svg", mono: false, apelidos: ["sulamerica"] },
   { slug: "hapvida", nome: "Hapvida", cor: "#EF402F", arquivo: "hapvida.svg", mono: false, apelidos: ["hapvida"] },
+  // Corretoras e bancos que faltavam (11/10/2026): ícone oficial do app de cada um, 64 px.
+  { slug: "rico", nome: "Rico", cor: "#FF5A00", arquivo: "rico.webp", mono: false, cheio: true, apelidos: ["rico investimentos", "rico corretora", "rico com vc"] },
+  { slug: "clear", nome: "Clear", cor: "#0015FF", arquivo: "clear.webp", mono: false, cheio: true, apelidos: ["clear corretora", "clear ctvm"] },
+  { slug: "avenue", nome: "Avenue", cor: "#0B3B2E", arquivo: "avenue.webp", mono: false, cheio: true, apelidos: ["avenue securities", "avenue"] },
+  { slug: "nomad", nome: "Nomad", cor: "#FFD400", arquivo: "nomad.webp", mono: false, cheio: true, apelidos: ["nomad"] },
+  { slug: "toro", nome: "Toro", cor: "#4A2DE8", arquivo: "toro.webp", mono: false, cheio: true, apelidos: ["toro investimentos", "toro corretora", "toro dtvm"] },
+  { slug: "neon", nome: "Neon", cor: "#00A5F5", arquivo: "neon.webp", mono: false, cheio: true, apelidos: ["banco neon", "neon pagamentos", "neon"] },
+  { slug: "genial", nome: "Genial Investimentos", cor: "#2E3A87", arquivo: "genial.webp", mono: false, cheio: true, apelidos: ["genial investimentos", "genial"] },
+  { slug: "modal", nome: "Modal", cor: "#0F6E4C", arquivo: "modal.webp", mono: false, cheio: true, apelidos: ["modalmais", "modal mais", "banco modal"] },
+  { slug: "safra", nome: "Safra", cor: "#1B2A4A", arquivo: "safra.webp", mono: false, cheio: true, apelidos: ["banco safra", "safra"] },
+  { slug: "warren", nome: "Warren", cor: "#E2685A", arquivo: "warren.webp", mono: false, cheio: true, apelidos: ["warren investimentos", "warren"] },
+  { slug: "agibank", nome: "Agibank", cor: "#1E64FF", arquivo: "agibank.webp", mono: false, cheio: true, apelidos: ["agibank", "agi bank"] },
 ];

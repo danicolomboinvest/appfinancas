@@ -39,7 +39,7 @@ export function marcaDaDescricao(descricao: string | null | undefined): Marca | 
  * `_faltaram`). Lançamento delas ganha o quadrado cinza com o ícone da categoria; lançamento que
  * não é de marca (Aluguel, Salário) ganha o círculo no tom da categoria.
  */
-const MARCAS_SEM_LOGO = ["pao de acucar", "rico", "tesouro direto", "droga raia", "clear", "avenue", "nomad", "neon", "toro", "outback", "coco bambu", "veloe", "decolar", "totalpass", "alura"];
+const MARCAS_SEM_LOGO = ["pao de acucar", "tesouro direto", "droga raia", "outback", "coco bambu", "veloe", "decolar", "totalpass", "alura"];
 
 export function ehMarcaSemLogo(descricao: string | null | undefined): boolean {
   if (!descricao) return false;

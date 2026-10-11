@@ -52,6 +52,15 @@ export function LogoDoLancamento({
     );
   }
 
+  if (marca.cheio) {
+    return (
+      <div className="flex shrink-0 overflow-hidden" style={caixa}>
+        {/* eslint-disable-next-line @next/next/no-img-element -- ícone pequeno e estático em /public */}
+        <img src={marca.src} alt={marca.nome} loading="lazy" decoding="async" className="size-full object-cover" />
+      </div>
+    );
+  }
+
   if (marca.mono) {
     const mascara = `url(${marca.src}) center / 58% no-repeat`;
     return (
