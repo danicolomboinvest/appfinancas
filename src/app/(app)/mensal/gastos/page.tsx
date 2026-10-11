@@ -11,7 +11,7 @@ import {
   sumExpensesByCustomCategorySince,
 } from "@/lib/repositories/budget.repo";
 import { categoryLabel, type CategoriasDoPerfil } from "@/lib/categories";
-import type { ParentCategory, ProfileKind } from "@prisma/client";
+import type { ParentCategory } from "@prisma/client";
 import { PageHeader } from "@/components/ui/PageHeader";
 import type { SpendingSlice } from "@/components/charts/SpendingPieChart";
 import { SpendingByCategory } from "./SpendingByCategory";

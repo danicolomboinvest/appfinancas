@@ -84,7 +84,6 @@ export function CountUp({
       if (timeoutRef.current !== null) clearTimeout(timeoutRef.current);
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- só reinicia a animação quando o valor-alvo muda
   }, [value, durationMs, delayMs]);
 
   return <span className={className}>{fmt(display)}</span>;
