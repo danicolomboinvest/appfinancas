@@ -172,7 +172,7 @@ const FONTES = {
   padrao: { "--font-tema": "var(--font-figtree)" },
   girly: { "--font-tema": "var(--font-hanken)", "--font-titulo": "var(--font-cormorant)", "--estilo-titulo": "italic", "--peso-titulo": "500", "--titulo-topo": "25px" },
   manifestacao: { "--font-tema": "var(--font-urbanist)" },
-  titanio: { "--font-tema": "var(--font-archivo)" },
+  titanio: { "--font-tema": "var(--font-geist)" },
 } as const;
 
 /* ------------------------------------------------------------------ Padrão (Figtree) */
@@ -285,7 +285,7 @@ const MANIFESTACAO_ESCURO: ModoBase = {
   },
 };
 
-/* --------------------------------------------------------------------- Titânio (Archivo) */
+/* --------------------------------------------------------------------- Titânio (Geist) */
 
 const TITANIO_CLARO: ModoBase = {
   // Titânio escovado (#C9CCD1) com o champanhe #7A5A2B só nos detalhes (era laranja até 11/10/2026).
@@ -357,6 +357,9 @@ html .bg-accent-gradient {
 }
 html .bg-accent-gradient.text-on-accent, html .bg-accent-gradient .text-on-accent {
   color: var(--botao-tinta);
+}
+html body {
+  font-variant-numeric: tabular-nums;
 }
 html .botao-flutuante {
   background: var(--fab-fundo);

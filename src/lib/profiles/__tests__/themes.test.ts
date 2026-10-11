@@ -67,13 +67,13 @@ describe("os quatro temas da versão nova", () => {
     expect(fonte("padrao")).toBe("var(--font-figtree)");
     expect(fonte("girly")).toBe("var(--font-hanken)");
     expect(fonte("manifestacao")).toBe("var(--font-urbanist)");
-    expect(fonte("titanio")).toBe("var(--font-archivo)");
+    expect(fonte("titanio")).toBe("var(--font-geist)");
     expect(profileTheme("girly").paleta.extras?.["--font-titulo"]).toBe("var(--font-cormorant)");
     expect(profileTheme("girly").paleta.extras?.["--estilo-titulo"]).toBe("italic");
     for (const k of ["padrao", "manifestacao", "titanio"]) expect(profileTheme(k).paleta.extras?.["--font-titulo"]).toBeUndefined();
     // As quatro letras são carregadas no layout raiz.
     const layout = readFileSync("src/app/layout.tsx", "utf8");
-    for (const f of ["Figtree", "Hanken_Grotesk", "Cormorant_Garamond", "Urbanist", "Archivo"]) expect(layout).toContain(f);
+    for (const f of ["Figtree", "Hanken_Grotesk", "Cormorant_Garamond", "Urbanist", "Geist"]) expect(layout).toContain(f);
   });
 
   it("o Titânio segue a especificação: titânio com champanhe no claro, grafite C1 no escuro", () => {
@@ -295,6 +295,11 @@ describe("o champanhe do Titânio (11/10/2026)", () => {
       for (const tom of tons) expect(contraste(m.onAccent, tom), `${nome}: + no ${tom}`).toBeGreaterThanOrEqual(4.5);
     }
     expect(profileThemeCss("titanio")).toContain(".botao-flutuante");
+  });
+
+  it("a Geist com dígitos tabulares vale só no Titânio", () => {
+    expect(profileThemeCss("titanio")).toContain("tabular-nums");
+    for (const chave of ["padrao", "girly", "manifestacao"]) expect(profileThemeCss(chave)).not.toContain("font-geist)");
   });
 
   it("não sobrou laranja no Titânio, nem no logo", () => {

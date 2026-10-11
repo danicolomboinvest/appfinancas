@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Archivo, Cormorant_Garamond, Figtree, Geist_Mono, Hanken_Grotesk, Urbanist } from "next/font/google";
+import { Cormorant_Garamond, Figtree, Geist, Geist_Mono, Hanken_Grotesk, Urbanist } from "next/font/google";
 import { BarraDoIphone } from "@/components/shell/BarraDoIphone";
 import { PonteDoWidget } from "@/components/shell/PonteDoWidget";
 import { BootSplash } from "@/components/brand/BootSplash";
@@ -9,13 +9,14 @@ import "./globals.css";
 
 // Cada tema tem a sua letra (versão nova, 11/10/2026): Padrão em Figtree, Girly em Hanken
 // Grotesk com títulos em Cormorant Garamond itálica, Manifestação em Urbanist e Titânio em
-// Archivo. As quatro carregam juntas; o tema escolhe qual vale pela variável --font-tema
+// Geist. As quatro carregam juntas; o tema escolhe qual vale pela variável --font-tema
 // (ver themes.ts). Geist Mono fica só pro font-mono.
 const figtree = Figtree({ variable: "--font-figtree", subsets: ["latin"], weight: ["300", "400", "500", "600"] });
 const hanken = Hanken_Grotesk({ variable: "--font-hanken", subsets: ["latin"], weight: ["300", "400", "500", "600"] });
 const cormorant = Cormorant_Garamond({ variable: "--font-cormorant", subsets: ["latin"], weight: ["500", "600"], style: ["italic"] });
 const urbanist = Urbanist({ variable: "--font-urbanist", subsets: ["latin"], weight: ["300", "400", "500", "600"] });
-const archivo = Archivo({ variable: "--font-archivo", subsets: ["latin"], weight: ["300", "400", "500", "600"] });
+// Titânio: Geist desde 11/10/2026 (era Archivo), com fallback de sistema.
+const geist = Geist({ variable: "--font-geist", subsets: ["latin"], weight: ["300", "400", "500", "600"], fallback: ["system-ui", "-apple-system", "Segoe UI", "Roboto", "sans-serif"] });
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
@@ -66,7 +67,7 @@ export default function RootLayout({
   return (
     <html
       lang="pt-BR"
-      className={`${figtree.variable} ${hanken.variable} ${cormorant.variable} ${urbanist.variable} ${archivo.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${figtree.variable} ${hanken.variable} ${cormorant.variable} ${urbanist.variable} ${geist.variable} ${geistMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <head>

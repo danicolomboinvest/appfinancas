@@ -109,9 +109,9 @@ export function ResumoDoAno({ ano, meses }: { ano: number; meses: MesDoResumo[] 
 function Numero({ rotulo, valor, sub, cor }: { rotulo: string; valor: string; sub: string; cor: string }) {
   return (
     <div className="flex flex-col gap-0.5 rounded-xl bg-surface-2 px-2 py-2.5">
-      <span className="truncate text-caption text-ink-muted">{rotulo}</span>
-      <span className="truncate text-sm font-semibold text-ink">{valor}</span>
-      <span className={`truncate text-xs tabular-nums ${cor}`}>{sub}</span>
+      <span className="text-caption leading-tight text-ink-muted">{rotulo}</span>
+      <span className="text-sm font-semibold leading-tight text-ink [overflow-wrap:anywhere]">{valor}</span>
+      <span className={`text-xs leading-tight tabular-nums ${cor}`}>{sub}</span>
     </div>
   );
 }

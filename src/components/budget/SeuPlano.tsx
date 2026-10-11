@@ -38,7 +38,7 @@ export function SeuPlano({ itens }: { itens: { key: string; label: string; cor: 
           <span key={i.key} className="h-full" style={{ width: `${(valor(i) / Math.max(1, total)) * 100}%`, background: i.cor }} />
         ))}
       </div>
-      <ul className="grid grid-cols-2 gap-x-5 gap-y-1.5 text-sm">
+      <ul className="grid grid-cols-2 gap-x-5 gap-y-1.5 text-sm max-[359px]:grid-cols-1">
         {visiveis.map((i) => (
           <li key={i.key} className="flex min-w-0 items-center gap-2">
             <span className="size-2 shrink-0 rounded-full" style={{ background: i.cor }} aria-hidden />
