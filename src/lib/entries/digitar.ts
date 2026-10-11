@@ -3,7 +3,7 @@
  * centavos, como numa maquininha ("4", "5", "9", "0" → 45,90). Sem teclado do celular, nada sobe
  * por cima da folha. Puro, para testar.
  */
-export const MAX_CENTAVOS = 99_999_999_99; // R$ 99.999.999,99
+export const MAX_CENTAVOS = 99_999_999_99; // 99.999.999,99 na moeda dela
 
 export function teclar(centavos: number, tecla: string): number {
   if (tecla === "del") return Math.floor(centavos / 10);
