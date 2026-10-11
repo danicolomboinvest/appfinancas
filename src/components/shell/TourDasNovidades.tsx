@@ -78,7 +78,7 @@ export function TourDasNovidades({ estado, onMenu }: { estado: EstadoDasNovidade
   const router = useRouter();
   const { key: tema } = useProfileTheme();
   const { showToast } = useToast();
-  const tx = textosDasNovidades(tema);
+  const tx = textosDasNovidades(tema, estado === "boas-vindas" ? "novo" : "ja-usava");
   const [fase, setFase] = useState<Fase>("fechado");
   const [caixa, setCaixa] = useState<Caixa | null>(null);
   const [tela, setTela] = useState({ w: 390, h: 800 });
@@ -194,7 +194,7 @@ export function TourDasNovidades({ estado, onMenu }: { estado: EstadoDasNovidade
       <BrandMark size={64} />
     ) : (
       <span className="flex size-14 items-center justify-center rounded-full bg-accent-gradient text-on-accent shadow-premium-sm" aria-hidden>
-        {tema === "padrao" ? <Sparkles size={22} strokeWidth={1.8} /> : <Repeat size={20} strokeWidth={1.8} />}
+        {tema === "padrao" || estado === "boas-vindas" ? <Sparkles size={22} strokeWidth={1.8} /> : <Repeat size={20} strokeWidth={1.8} />}
       </span>
     );
     return (

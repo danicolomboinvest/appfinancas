@@ -27,8 +27,10 @@ describe("estado da conta", () => {
     expect(await lerEstadoDasNovidades("u1")).toBe("mostrar");
   });
 
-  it("usuário novo não vê", async () => {
+  it("usuária nova vê o Boas-vindas uma vez; depois de ver, não vê mais", async () => {
     findUnique.mockResolvedValue({ novidadesVersaoNova: "novo" });
+    expect(await lerEstadoDasNovidades("u1")).toBe("boas-vindas");
+    findUnique.mockResolvedValue({ novidadesVersaoNova: "novo-visto" });
     expect(await lerEstadoDasNovidades("u1")).toBe("novo");
   });
 
@@ -44,6 +46,10 @@ describe("gravar", () => {
     const arg = updateMany.mock.calls[0][0] as { where: unknown; data: { novidadesVersaoNova: string } };
     expect(arg.where).toEqual({ id: "u1", novidadesVersaoNova: null });
     expect(arg.data.novidadesVersaoNova).toBe("pulou");
+    // A nova que viu o Boas-vindas vira "novo-visto" (e quem já usava não é tocado por essa linha).
+    const nova = updateMany.mock.calls[1][0] as { where: unknown; data: { novidadesVersaoNova: string } };
+    expect(nova.where).toEqual({ id: "u1", novidadesVersaoNova: "novo" });
+    expect(nova.data.novidadesVersaoNova).toBe("novo-visto");
   });
 
   it("quem termina o /comecar vira 'novo'", async () => {

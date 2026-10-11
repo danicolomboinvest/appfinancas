@@ -2,7 +2,7 @@ import Link from "next/link";
 import {
   Archive, BadgeCheck, BookOpen, Briefcase, CircleUser, Download, EyeOff, FileText, Globe, Heart, KeyRound, Landmark, MessageCircle, Palette, Pencil, Percent, Bell, Repeat, Tags, TriangleAlert, Users, Info, Wallet,
 } from "lucide-react";
-import { LINK_VER_DE_NOVO, estadoDasNovidades } from "@/lib/novidades/passos";
+import { LINK_VER_DE_NOVO, estadoDasNovidades, jaUsava } from "@/lib/novidades/passos";
 import { getRequiredSession } from "@/lib/auth/session";
 import { getOwnUser } from "@/lib/repositories/user.repo";
 import { listProfiles } from "@/lib/repositories/profile.repo";
@@ -105,7 +105,7 @@ export default async function ConfiguracoesPage() {
       <Grupo titulo="Ajuda">
         <Linha href="/configuracoes/ajuda" icone={i(BookOpen)} cor={COR.ajuda} rotulo="Central de ajuda" sub="Perguntas frequentes" />
         {/* "Tivemos uma mudança" de novo (tutorial da versão nova): só para quem já usava o app. */}
-        {estadoDasNovidades(user.novidadesVersaoNova) !== "novo" && <Linha href={LINK_VER_DE_NOVO} icone={i(Repeat)} cor={COR.ajuda} rotulo="Ver de novo o que mudou" />}
+        {jaUsava(estadoDasNovidades(user.novidadesVersaoNova)) && <Linha href={LINK_VER_DE_NOVO} icone={i(Repeat)} cor={COR.ajuda} rotulo="Ver de novo o que mudou" />}
         <Linha href="/configuracoes/suporte" icone={i(MessageCircle)} cor={COR.ajuda} rotulo="Falar com o suporte" sub={SUPORTE_EMAIL} />
         <Linha href="/termos" icone={i(FileText)} cor={COR.ajuda} rotulo="Termos e privacidade" />
         <Linha href="/configuracoes/sobre" icone={i(Info)} cor={COR.ajuda} rotulo="Sobre" sub="Versão 0.1.0" />

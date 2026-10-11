@@ -10,6 +10,7 @@ import {
   abreAsNovidades,
   contadorDoPasso,
   estadoDasNovidades,
+  jaUsava,
   textosDasNovidades,
 } from "../passos";
 
@@ -19,7 +20,8 @@ describe("Tivemos uma mudança: quem vê", () => {
     expect(estadoDasNovidades(undefined)).toBe("mostrar");
     expect(estadoDasNovidades("terminou")).toBe("visto");
     expect(estadoDasNovidades("pulou")).toBe("visto");
-    expect(estadoDasNovidades("novo")).toBe("novo");
+    expect(estadoDasNovidades("novo")).toBe("boas-vindas");
+    expect(estadoDasNovidades("novo-visto")).toBe("novo");
   });
 
   it("abre sozinho uma vez para quem já usava, e de novo só pelo link da Ajuda", () => {
@@ -29,9 +31,28 @@ describe("Tivemos uma mudança: quem vê", () => {
     expect(abreAsNovidades("visto", true, true)).toBe(true);
   });
 
-  it("quem é novo não vê nada disso, nem pelo link", () => {
+  it("a nova vê o Boas-vindas uma vez depois do começo, e nunca pelo link da Ajuda", () => {
+    expect(abreAsNovidades("boas-vindas", false, false)).toBe(true);
+    expect(abreAsNovidades("boas-vindas", false, true)).toBe(false);
+    expect(abreAsNovidades("boas-vindas", true, false)).toBe(false);
     expect(abreAsNovidades("novo", false, false)).toBe(false);
     expect(abreAsNovidades("novo", true, false)).toBe(false);
+    expect(jaUsava("boas-vindas")).toBe(false);
+    expect(jaUsava("novo")).toBe(false);
+    expect(jaUsava("mostrar")).toBe(true);
+    expect(jaUsava("visto")).toBe(true);
+  });
+
+  it("a abertura da nova é sem gênero nos 4 temas, com os mesmos 5 passos", () => {
+    for (const tema of ["padrao", "girly", "manifestacao", "titanio"] as const) {
+      const novo = textosDasNovidades(tema, "novo");
+      expect(novo.abertura.titulo).toBe("Boas-vindas ao SPI");
+      expect(novo.abertura.texto).toBe("Em 5 passos você conhece tudo.");
+      expect(novo.abertura.pular).toBe("Pular");
+      expect(novo.fim.comoFunciona).toBe("Ver como funciona");
+      expect(novo.passos).toEqual(textosDasNovidades(tema).passos);
+      expect(textosDasNovidades(tema).abertura.titulo).toBe("Tivemos uma mudança");
+    }
   });
 
   it("o link de rever reabre na Visão geral", () => {

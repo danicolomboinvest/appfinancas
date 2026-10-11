@@ -10,7 +10,12 @@ export async function lerEstadoDasNovidades(userId: string): Promise<EstadoDasNo
   return estadoDasNovidades(user?.novidadesVersaoNova);
 }
 
-/** Viu até o fim ou pulou. Só grava na primeira vez: rever pela Ajuda não muda a marca. */
+/**
+ * Viu até o fim ou pulou. Só grava na primeira vez: rever pela Ajuda não muda a marca. A nova
+ * ("novo", que viu o "Boas-vindas ao SPI") vira "novo-visto" e não vê mais.
+ */
 export async function marcarNovidadesVistas(userId: string, como: "terminou" | "pulou"): Promise<void> {
-  await prisma.user.updateMany({ where: { id: userId, novidadesVersaoNova: null }, data: { novidadesVersaoNova: como, novidadesVistasEm: new Date() } });
+  const agora = new Date();
+  await prisma.user.updateMany({ where: { id: userId, novidadesVersaoNova: null }, data: { novidadesVersaoNova: como, novidadesVistasEm: agora } });
+  await prisma.user.updateMany({ where: { id: userId, novidadesVersaoNova: "novo" }, data: { novidadesVersaoNova: "novo-visto", novidadesVistasEm: agora } });
 }

@@ -1,6 +1,7 @@
 /**
  * "Tivemos uma mudança" (versão nova, rodada 72, 11/10/2026): o tutorial curto para QUEM JÁ USAVA
- * o app. Quem chega agora faz o onboarding normal e nunca vê isto.
+ * o app. Quem chega agora passa pelo começo (/comecar) e depois vê os MESMOS 5 passos com outra
+ * abertura, "Boas-vindas ao SPI" (pedido da dona na junção, 11/10/2026). Cada uma, uma vez só.
  *
  * Texto puro, sem React e sem banco, para dar para testar. As frases são as do protótipo
  * aprovado de cada tema (tema-padrao.html, tema-girly.html, tema-manifestacao.html e
@@ -19,22 +20,37 @@ export const LINK_COMO_FUNCIONA = "/guia#videos";
  * A marca da conta (User.novidadesVersaoNova):
  * - nulo: já usava o app e ainda não viu. Vê uma vez, sozinho.
  * - "terminou" ou "pulou": já passou por ele.
- * - "novo": chegou depois da versão nova (gravado ao sair do /comecar). Nunca vê.
+ * - "novo": chegou depois da versão nova (gravado ao sair do /comecar). Vê o "Boas-vindas ao SPI"
+ *   uma vez.
+ * - "novo-visto": a nova que já viu ou pulou o "Boas-vindas". Não vê mais.
  */
-export type MarcaDasNovidades = null | "terminou" | "pulou" | "novo";
-export type EstadoDasNovidades = "mostrar" | "visto" | "novo";
+export type MarcaDasNovidades = null | "terminou" | "pulou" | "novo" | "novo-visto";
+/**
+ * - "mostrar": já usava e não viu o "Tivemos uma mudança". "visto": já usava e viu.
+ * - "boas-vindas": nova, ainda não viu o "Boas-vindas ao SPI". "novo": nova que já viu.
+ */
+export type EstadoDasNovidades = "mostrar" | "visto" | "boas-vindas" | "novo";
 
 export function estadoDasNovidades(marca: string | null | undefined): EstadoDasNovidades {
-  if (marca === "novo") return "novo";
+  if (marca === "novo") return "boas-vindas";
+  if (marca === "novo-visto") return "novo";
   if (marca === "terminou" || marca === "pulou") return "visto";
   return "mostrar";
 }
 
-/** Abre sozinho só para quem já usava e ainda não viu; pelo link da Ajuda, para quem já usava. */
+/** Quem já usava o app (só para essa pessoa existe o "Ver de novo o que mudou"). */
+export function jaUsava(estado: EstadoDasNovidades): boolean {
+  return estado === "mostrar" || estado === "visto";
+}
+
+/**
+ * Abre sozinho uma vez: para quem já usava e não viu, e para a nova que acabou de passar pelo
+ * começo. Pelo link da Ajuda, só para quem já usava.
+ */
 export function abreAsNovidades(estado: EstadoDasNovidades, pedidoPeloLink: boolean, vistoNesteAparelho: boolean): boolean {
   if (estado === "novo") return false;
-  if (pedidoPeloLink) return true;
-  return estado === "mostrar" && !vistoNesteAparelho;
+  if (pedidoPeloLink) return jaUsava(estado);
+  return (estado === "mostrar" || estado === "boas-vindas") && !vistoNesteAparelho;
 }
 
 /**
@@ -116,8 +132,14 @@ const CURTO: TextosDasNovidades = {
 
 const TEXTOS: Record<ProfileThemeKey, TextosDasNovidades> = { padrao: PADRAO, girly: GIRLY, manifestacao: CURTO, titanio: CURTO };
 
-export function textosDasNovidades(tema: ProfileThemeKey): TextosDasNovidades {
-  return TEXTOS[tema] ?? PADRAO;
+/** A abertura de quem chega agora: sem gênero nos 4 temas, como a dona preferiu. */
+const ABERTURA_BOAS_VINDAS = { titulo: "Boas-vindas ao SPI", texto: "Em 5 passos você conhece tudo.", ver: "Mostrar os 5 passos", pular: "Pular" };
+
+export function textosDasNovidades(tema: ProfileThemeKey, publico: "ja-usava" | "novo" = "ja-usava"): TextosDasNovidades {
+  const tx = TEXTOS[tema] ?? PADRAO;
+  if (publico === "ja-usava") return tx;
+  // A nova não tem o "Ver de novo o que mudou" na Ajuda: sem o aviso do Pular que manda para lá.
+  return { ...tx, abertura: ABERTURA_BOAS_VINDAS, fim: { ...tx.fim, comoFunciona: "Ver como funciona" }, aoPular: null };
 }
 
 export const TOTAL_DE_PASSOS = ONDE_DOS_PASSOS.length;

@@ -11,7 +11,6 @@ import { useTopoAoTrocarDeTela } from "@/components/ui/useVoltarAoTopo";
 import { RegistrarDrawer } from "./RegistrarDrawer";
 import { modoPedidoNoEvento, EVENTO_IMPORTAR, EVENTO_REGISTRAR, type ModoDoRegistrar } from "./registrar-eventos";
 import type { PerfilResumo } from "@/components/profiles/perfil-resumo";
-import { WelcomeTour } from "./WelcomeTour";
 import { TopBar } from "./TopBar";
 import { AbasDaVisaoGeral } from "./AbasDaVisaoGeral";
 import { BotaoRegistrar } from "./BotaoRegistrar";
@@ -250,7 +249,7 @@ export function AppShell({
         {/* Quem já usava o app: o "Tivemos uma mudança" (uma vez por conta, e pela Ajuda). Quem é
             novo: o tour de boas-vindas, só na primeira entrada (lembrado no aparelho). O par, no
             Nós dois da titular, não vê nenhum dos dois. */}
-        {!modoPar && (novidades === "novo" ? <WelcomeTour /> : <TourDasNovidades estado={novidades} onMenu={setMenuOpen} />)}
+        {!modoPar && novidades !== "novo" && <TourDasNovidades estado={novidades} onMenu={setMenuOpen} />}
         {/* O guia do Money Reset: só aparece quando uma missão liga (sessionStorage). */}
         <GuiaDoReset />
 

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { CircleHelp, Repeat } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
 import { getOwnUser } from "@/lib/repositories/user.repo";
-import { LINK_COMO_FUNCIONA, LINK_VER_DE_NOVO, estadoDasNovidades } from "@/lib/novidades/passos";
+import { LINK_COMO_FUNCIONA, LINK_VER_DE_NOVO, estadoDasNovidades, jaUsava } from "@/lib/novidades/passos";
 import { Cabecalho } from "../_ajustes/Lista";
 import { SUPORTE_EMAIL } from "../_ajustes/suporte";
 
@@ -35,7 +35,7 @@ export default async function AjudaPage() {
       <Link href={LINK_COMO_FUNCIONA} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-surface-2 text-[15px] text-ink">
         <CircleHelp size={16} aria-hidden /> Como funciona: os vídeos
       </Link>
-      {estadoDasNovidades(user.novidadesVersaoNova) !== "novo" && (
+      {jaUsava(estadoDasNovidades(user.novidadesVersaoNova)) && (
         <Link href={LINK_VER_DE_NOVO} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-surface-2 text-[15px] text-ink">
           <Repeat size={16} aria-hidden /> Ver de novo o que mudou
         </Link>

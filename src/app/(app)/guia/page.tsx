@@ -1,6 +1,6 @@
 import { getRequiredSession } from "@/lib/auth/session";
 import { getOwnUser } from "@/lib/repositories/user.repo";
-import { estadoDasNovidades } from "@/lib/novidades/passos";
+import { estadoDasNovidades, jaUsava } from "@/lib/novidades/passos";
 import { VideosDoComoFunciona } from "@/components/ajuda/VideosDoComoFunciona";
 import { ManualDoApp } from "./ManualDoApp";
 
@@ -12,5 +12,5 @@ import { ManualDoApp } from "./ManualDoApp";
 export default async function GuiaPage() {
   const ctx = await getRequiredSession();
   const user = await getOwnUser(ctx);
-  return <ManualDoApp videos={<VideosDoComoFunciona verDeNovo={estadoDasNovidades(user.novidadesVersaoNova) !== "novo"} />} />;
+  return <ManualDoApp videos={<VideosDoComoFunciona verDeNovo={jaUsava(estadoDasNovidades(user.novidadesVersaoNova))} />} />;
 }
