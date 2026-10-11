@@ -5,7 +5,7 @@ import { z } from "zod";
 import { getRequiredSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
 
-const themeSchema = z.enum(["dark", "light"]);
+const themeSchema = z.enum(["dark", "light", "auto"]);
 
 /**
  * Troca só o tema, sem passar pela tela de Preferências.

@@ -16,6 +16,6 @@ describe("preferências", () => {
   it("valor fora da lista dá erro em português", () => {
     const r = preferencesSchema.safeParse({ currency: "JPY", theme: "roxo" });
     expect(r.success).toBe(false);
-    expect(r.error?.issues.map((i) => i.message)).toEqual(["Escolha uma moeda da lista.", "Escolha claro ou escuro."]);
+    expect(r.error?.issues.map((i) => i.message)).toEqual(["Escolha uma moeda da lista.", "Escolha claro, escuro ou automático."]);
   });
 });

@@ -7,6 +7,8 @@
 export const THEME_INIT_SCRIPT = `
 try {
   var t = localStorage.getItem("theme");
+  // Automático: o modo do celular decide, antes da primeira pintura.
+  if (t === "auto") t = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
   if (t === "dark") document.documentElement.classList.add("dark");
   if (t === "light") document.documentElement.classList.add("light");
 } catch (e) {}

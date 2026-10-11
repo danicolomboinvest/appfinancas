@@ -15,7 +15,7 @@ import { MoneyProvider } from "@/components/money/MoneyProvider";
 import { valoresOcultos } from "@/lib/money-server";
 import { toCurrencyCode, type CurrencyCode } from "@/lib/money";
 import { listProfiles, getOrCreateActiveProfile } from "@/lib/repositories/profile.repo";
-import { modoEfetivo, profileThemeCss, temaDeixaEscolherModo } from "@/lib/profiles/themes";
+import { chaveDoTema, modoEfetivo, preferenciaDeModo, profileTheme as temaDoPerfil, profileThemeCss, temaDeixaEscolherModo } from "@/lib/profiles/themes";
 import { periodoDoDia, vozDoTema } from "@/lib/profiles/voice";
 import { TelaConfirmeEmail } from "@/components/auth/TelaConfirmeEmail";
 import { TelaSemAcesso } from "@/components/auth/TelaSemAcesso";
@@ -88,9 +88,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     // Compra valendo e e-mail confirmado: a área de investimentos abre toda. Quem sobrou do
     // grátis vê o cadeado nela, como antes.
     isPremium = uso === "completo";
-    perfis = todos.map((p) => ({ id: p.id, name: p.name, icon: p.icon, theme: p.theme, isDefault: p.id === ativo.id }));
+    perfis = todos.map((p) => ({ id: p.id, name: p.name, icon: p.icon, theme: chaveDoTema(p.theme), isDefault: p.id === ativo.id }));
     perfilAtivoId = ativo.id;
-    profileTheme = ativo.theme;
+    profileTheme = chaveDoTema(ativo.theme);
     profileKind = ativo.kind;
     prefsDeCategoria = lerPreferenciasDeCategoria(ativo.categorias);
     cartaoComLimite = await perfilTemLimiteDoCartao(ctx.userId, ativo.id);
@@ -122,9 +122,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <>
-      <ThemeSync theme={modo === "claro" ? "light" : "dark"} />
+      <ThemeSync theme={preferenciaDeModo(theme) === "auto" ? "auto" : modo === "claro" ? "light" : "dark"} />
       <MoneyProvider currency={currency} ocultos={await valoresOcultos()}>
       {cssDoTema && <style dangerouslySetInnerHTML={{ __html: cssDoTema }} />}
+      {/* O favicon na variante Aurora do tema (o React leva o <link> para o <head>). */}
+      {cssDoTema && <link rel="icon" type="image/svg+xml" href={`${temaDoPerfil(profileTheme).logo}/favicon.svg`} />}
       <AppShell
         perfis={perfis}
         isAdmin={session?.user.role === "ADMIN"}

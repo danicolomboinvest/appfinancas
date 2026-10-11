@@ -69,7 +69,7 @@ export function OnboardingChecklist({
   primeiroLancamentoEm: string | null;
   hrefMes: string;
 }) {
-  // O que o guia diz vem da voz do tema; o que ele checa (os passos) é igual nos sete.
+  // O que o guia diz vem da voz do tema; o que ele checa (os passos) é igual nos quatro.
   const { voz, profileId } = useProfileTheme();
   const t = voz.titulos;
   // "Já vi o mês" é de cada perfil: o mês do Casal ou da Empresa é outro mês.
@@ -168,6 +168,11 @@ export function OnboardingChecklist({
           );
         })}
       </ol>
+      {/* O prêmio de terminar (versão nova, 11/10/2026): não é mais um tema exclusivo, porque os
+          temas agora são quatro e todos abertos. É o primeiro mês fechado, montado pelo app. */}
+      <p className="mt-4 border-t border-border pt-3 text-caption text-ink-muted">
+        <span className="font-semibold text-ink">Ao terminar:</span> o SPI monta o seu primeiro mês fechado.
+      </p>
     </Card>
   );
 }

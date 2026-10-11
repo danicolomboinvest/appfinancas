@@ -1,40 +1,41 @@
 /**
- * Os sete temas de personalidade.
+ * Os quatro temas de personalidade: Padrão, Girly, Manifestação e Titânio (versão nova, 11/10/2026).
  *
- * Um tema é a paleta INTEIRA do app — fundo, cartão, tinta e destaque — e não só a cor de
- * realce. Isso é de propósito: quando o tema era só a cor, a Dani apontou que dava na mesma,
- * porque a pessoa já escolhia a cor do perfil. O que separa Girly de Minimalista é o fundo
- * branco contra o quase-preto, a tinta vinho contra a cinza, não um botão rosa.
+ * Um tema é a paleta INTEIRA do app (fundo, cartão, tinta, destaque, cores das categorias) e a
+ * fonte. Cada tema tem claro e escuro; quem escolhe é a pessoa, no sol/lua do topo. O escuro
+ * aprovado é o "Equilibrado" (estudo-apps-financas/escuro-css/*-equilibrado.css): grafite
+ * quente, tinta um pouco mais baixa e um brilho só por tela. No Titânio, o escuro é o C1:
+ * grafite com brilho de metal.
  *
- * O que um tema NÃO muda: a fonte (Albert Sans), os cantos arredondados, a disposição da tela.
- * Entrou/Gastou/Guardado está no mesmo lugar nos sete. Foi condição dela, e é o que impede o
- * recurso de virar sete apps diferentes pra manter.
+ * Saíram Minimalista, Disciplina, Sem filtro e Game. Quem tinha um deles cai num dos quatro
+ * (ver CHAVES_QUE_SAIRAM): a migração do banco troca a chave, e o código troca de novo na
+ * leitura, para nenhum perfil abrir quebrado mesmo antes da migração rodar.
  *
- * Cada tema tem UM modo, o dele. Girly é branco; Disciplina é preto. Foi assim que a Dani
- * aprovou no canvas, e a primeira versão daqui — que inventou um Girly escuro e um Game claro
- * e ainda ligava o escuro por padrão — foi o que ela rejeitou ("a versão escura ficou ruim").
- * Só o Padrão tem claro e escuro, porque já tinha antes dos temas e gente usa os dois. O
- * sol/lua continua existindo pra ele; pros outros seis, o tema decide.
- *
- * As cores vieram dos desenhos aprovados (canvas "Temas SPI Finance"). Aqui só as essenciais
- * são digitadas; strong, 2, soft, hover e faint saem de conta, porque foi digitando derivada
- * à mão que já nasceu um hexadecimal corrompido neste projeto.
+ * As cores vêm dos protótipos aprovados (tema-padrao.html, tema-girly.html,
+ * tema-manifestacao.html e tema-titanio.html). Aqui só as essenciais são digitadas; strong, 2,
+ * soft, hover e faint saem de conta, porque foi digitando derivada à mão que já nasceu um
+ * hexadecimal corrompido neste projeto.
  */
 
-export type ProfileThemeKey =
-  | "padrao"
-  | "girly"
-  | "minimalista"
-  | "disciplina"
-  | "semfiltro"
-  | "game"
-  | "manifestacao";
+export type ProfileThemeKey = "padrao" | "girly" | "manifestacao" | "titanio";
+
+/**
+ * Os temas que saíram e para onde cada perfil vai. Minimalista e Sem filtro eram claros e
+ * sóbrios ou debochados: viram Padrão. Disciplina e Game eram escuros e de cobrança: viram
+ * Titânio, o tema escuro e firme dos quatro.
+ */
+export const CHAVES_QUE_SAIRAM: Readonly<Record<string, ProfileThemeKey>> = {
+  minimalista: "padrao",
+  semfiltro: "padrao",
+  disciplina: "titanio",
+  game: "titanio",
+};
 
 /** O que cada tema declara. O resto da paleta é calculado. */
 type ModoBase = {
   canvas: string;
   surface: string;
-  /** Trilho de barra, chip, campo — o degrau entre o cartão e o fundo. */
+  /** Trilho de barra, chip, campo: o degrau entre o cartão e o fundo. */
   surface2: string;
   /** Sempre rgba(), porque precisa deixar o fundo passar por baixo. */
   border: string;
@@ -43,17 +44,12 @@ type ModoBase = {
   accent: string;
   /** Tinta que fica POR CIMA do destaque (botão preenchido). */
   onAccent: string;
-  /**
-   * O "strong" (número do Aportou, links) sai por conta escurecendo o destaque. Um tema pode
-   * fixar o seu: no Girly, escurecer 20% virava vinho — e vinho foi o que a Dani não gostou.
-   */
+  /** O "strong" (links, número em destaque). Um tema pode fixar o seu; senão sai por conta. */
   accentStrong?: string;
   /**
-   * Variáveis além da paleta base: cor de cada categoria, dos gráficos, do verde/vermelho.
-   * Só quem precisa declara. O Girly precisa: a Dani pediu os gráficos em tons de rosa, e as
-   * oito cores de categoria do globals.css (roxo, laranja, azul...) são justamente o que
-   * quebrava a essência. Chaves sem o prefixo `--color-`. Chave que já começa com `--` sai
-   * como está — é assim que entram as variáveis de forma dos ícones (`--icon-radius` etc.).
+   * Variáveis além da paleta base: cor de cada categoria, dos gráficos, do verde/vermelho, do
+   * herói. Chaves sem o prefixo `--color-`. Chave que já começa com `--` sai como está (fonte,
+   * fundo e forma dos ícones).
    */
   extras?: Record<string, string>;
 };
@@ -72,18 +68,20 @@ export type Modo = "escuro" | "claro";
 export type ProfileTheme = {
   key: ProfileThemeKey;
   label: string;
-  /** Uma linha, em português claro, pra pessoa escolher sem precisar abrir cada um. */
+  /** Uma linha, em português claro, para a pessoa escolher sem precisar abrir cada um. */
   descricao: string;
-  /** O modo nativo: a cara que o tema tem. */
+  /** O modo com que o tema se apresenta na escolha (todos nascem claros). */
   modo: Modo;
-  /** A paleta do modo nativo. */
+  /** A paleta clara. */
   paleta: ModoTokens;
-  /** Só o Padrão: a paleta do OUTRO modo, pra quem usa o sol/lua. Nos demais é undefined. */
-  paletaAlternativa?: ModoTokens;
+  /** A paleta escura (todos os temas têm as duas desde a versão nova). */
+  paletaAlternativa: ModoTokens;
+  /** Pasta do logo Aurora do tema, em /public. O mesmo ícone no claro e no escuro. */
+  logo: string;
 };
 
 /* ---------------------------------------------------------------------------------------
-   Conta de cor. Tudo em sRGB simples — o olho não precisa de mais que isso pra um realce.
+   Conta de cor. Tudo em sRGB simples: o olho não precisa de mais que isso para um realce.
    --------------------------------------------------------------------------------------- */
 
 function canais(hex: string): [number, number, number] {
@@ -103,243 +101,264 @@ function misturar(cor: string, alvo: string, quanto: number): string {
   return paraHex([0, 1, 2].map((i) => a[i] + (b[i] - a[i]) * quanto) as [number, number, number]);
 }
 
-/** Sobe a opacidade de um rgba() já escrito — a borda forte é a mesma cor, mais presente. */
+/** Sobe a opacidade de um rgba() já escrito: a borda forte é a mesma cor, mais presente. */
 function maisOpaco(rgba: string, fator: number): string {
   return rgba.replace(/([\d.]+)\s*\)$/, (_, a: string) => `${Math.min(1, Number(a) * fator).toFixed(2)})`);
 }
 
+function suave(hex: string, alfa: number): string {
+  return `rgba(${canais(hex).join(", ")}, ${alfa})`;
+}
+
 function montar(base: ModoBase, escuro: boolean): ModoTokens {
-  // No escuro o realce claro clareia pra virar "2" e escurece pra virar "strong"; no claro é
-  // a mesma lógica, só que o strong é o que aprofunda o contraste contra o papel branco.
   const puxarParaOFundo = (cor: string, quanto: number) => misturar(cor, base.canvas, quanto);
   const puxarParaATinta = (cor: string, quanto: number) => misturar(cor, base.ink, quanto);
   return {
     ...base,
     surfaceHover: escuro ? puxarParaATinta(base.surface2, 0.08) : puxarParaATinta(base.surface2, 0.06),
     borderStrong: maisOpaco(base.border, 1.85),
-    // Tinta fraca é a apagada puxada pro fundo: some no escuro, clareia no claro, sozinha.
+    // Tinta fraca é a apagada puxada para o fundo: some no escuro, clareia no claro, sozinha.
     inkFaint: puxarParaOFundo(base.inkMuted, 0.2),
     accentStrong: base.accentStrong ?? (escuro ? puxarParaOFundo(base.accent, 0.14) : misturar(base.accent, "#000000", 0.2)),
     accent2: escuro ? misturar(base.accent, "#ffffff", 0.24) : misturar(base.accent, "#ffffff", 0.18),
-    accentSoft: `rgba(${canais(base.accent).join(", ")}, ${escuro ? "0.16" : "0.13"})`,
+    accentSoft: suave(base.accent, escuro ? 0.16 : 0.13),
   };
 }
 
-function tema(key: ProfileThemeKey, label: string, descricao: string, modo: Modo, base: ModoBase): ProfileTheme {
-  return { key, label, descricao, modo, paleta: montar(base, modo === "escuro") };
+/**
+ * A família de cores das categorias de um tema (rodada 13: "uma família só"), espalhada por
+ * todo lugar que pinta categoria: as oito categorias-mãe, as fatias extras dos gráficos, as
+ * categorias criadas pela pessoa e as classes da Estratégia da carteira.
+ */
+type Familia = {
+  moradia: string; alimentacao: string; transporte: string; saude: string;
+  lazer: string; educacao: string; impostos: string; outros: string;
+};
+
+function daFamilia(f: Familia): Record<string, string> {
+  const lista = [f.moradia, f.alimentacao, f.transporte, f.saude, f.lazer, f.educacao, f.impostos, f.outros];
+  return {
+    "cat-moradia": f.moradia, "cat-alimentacao": f.alimentacao, "cat-transporte": f.transporte, "cat-saude": f.saude,
+    "cat-lazer": f.lazer, "cat-educacao": f.educacao, "cat-impostos": f.impostos, "cat-outros": f.outros,
+    "chart-5": f.lazer, "chart-6": f.educacao, "chart-7": f.outros,
+    ...Object.fromEntries(Array.from({ length: 10 }, (_, i) => [`custom-${i + 1}`, lista[(i + 1) % lista.length]])),
+    "strat-pos": f.moradia, "strat-ipca": f.saude, "strat-pre": f.educacao, "strat-acoes": f.alimentacao,
+    "strat-fiis": f.transporte, "strat-exterior": f.lazer, "strat-outros": f.outros,
+  };
 }
 
-const PADRAO_ESCURO: ModoBase = {
-  canvas: "#0a0908", surface: "#141210", surface2: "#1e1b17",
-  border: "rgba(240, 228, 200, 0.10)",
-  ink: "#f3efe6", inkMuted: "#9b968b", accent: "#e0b24e", onAccent: "#1a1405",
-};
+/** As cores do dinheiro e de estado, com a versão suave (fundo de selo) já calculada. */
+function sinais(s: { success: string; danger: string; info: string; neutro: string }, escuro: boolean): Record<string, string> {
+  const a = escuro ? 0.16 : 0.12;
+  return {
+    success: s.success, "success-soft": suave(s.success, a),
+    danger: s.danger, "danger-soft": suave(s.danger, a),
+    info: s.info, "info-soft": suave(s.info, a),
+    "accent-neutral": s.neutro, "accent-neutral-2": s.info, "accent-neutral-soft": suave(s.neutro, a),
+  };
+}
+
+const FONTES = {
+  padrao: { "--font-tema": "var(--font-figtree)" },
+  girly: { "--font-tema": "var(--font-hanken)", "--font-titulo": "var(--font-cormorant)", "--estilo-titulo": "italic", "--peso-titulo": "500" },
+  manifestacao: { "--font-tema": "var(--font-urbanist)" },
+  titanio: { "--font-tema": "var(--font-archivo)" },
+} as const;
+
+/* ------------------------------------------------------------------ Padrão (Figtree) */
+
 const PADRAO_CLARO: ModoBase = {
-  canvas: "#ffffff", surface: "#ffffff", surface2: "#f4f1ea",
-  border: "rgba(26, 24, 21, 0.13)",
-  ink: "#121212", inkMuted: "#555555", accent: "#a9781f", onAccent: "#ffffff",
+  // Papel claro, tinta grafite e o dourado do SPI virando luz.
+  canvas: "#f6f5f2", surface: "#ffffff", surface2: "#efede8",
+  border: "rgba(20, 20, 20, 0.10)",
+  ink: "#141414", inkMuted: "#46433e", accent: "#8a500c", accentStrong: "#6e3f08", onAccent: "#ffffff",
+  extras: {
+    ...FONTES.padrao,
+    ...daFamilia({ moradia: "#466296", alimentacao: "#ba5434", transporte: "#267680", saude: "#408060", lazer: "#b07814", educacao: "#7056a8", impostos: "#78746c", outros: "#b24870" }),
+    ...sinais({ success: "#3d7a4f", danger: "#a9503b", info: "#56637f", neutro: "#8a500c" }, false),
+    // O herói: um brilho dourado só, atrás do número principal.
+    "heroi-de": "#f8dca2", "heroi-para": "#f3eadb", "heroi-tinta": "#141414", "heroi-suave": "rgba(20, 20, 20, 0.74)", "heroi-borda": "rgba(20, 20, 20, 0.05)", "heroi-destaque": "#141414",
+    pill: "#ffffff", "on-pill": "#141414", "tab-active": "#141414", "tab-active-soft": "rgba(20, 20, 20, 0.06)",
+    "brand-a": "#f2b544", "brand-b": "#8a500c", "brand-bg": "#141414",
+    "--heroi-fundo": "radial-gradient(85% 90% at 88% 0%, #f6cd7e 0%, rgba(246, 205, 126, 0.55) 38%, rgba(246, 205, 126, 0) 72%), linear-gradient(165deg, #f8e3bd 0%, #f3eadb 60%, #ecebe8 100%)",
+  },
+};
+const PADRAO_ESCURO: ModoBase = {
+  // Escuro Equilibrado: grafite quente, tinta um degrau abaixo, o âmbar queimado como luz.
+  canvas: "#100e0c", surface: "#191714", surface2: "#22201d",
+  border: "rgba(212, 207, 201, 0.10)",
+  ink: "#d4cfc9", inkMuted: "#99958f", accent: "#d1aa73", onAccent: "#100e0c",
+  extras: {
+    ...FONTES.padrao,
+    ...daFamilia({ moradia: "#a18863", alimentacao: "#967466", transporte: "#858669", saude: "#a49781", lazer: "#747e8d", educacao: "#837d76", impostos: "#7d7974", outros: "#8c867b" }),
+    ...sinais({ success: "#8fb79c", danger: "#ca9186", info: "#7f8695", neutro: "#a88b5e" }, true),
+    "heroi-de": "#2a2219", "heroi-para": "#1c1916", "heroi-tinta": "#d4cfc9", "heroi-suave": "#99958f", "heroi-borda": "rgba(212, 207, 201, 0.06)", "heroi-destaque": "#d1aa73",
+    pill: "#2d2b28", "on-pill": "#d4cfc9", "tab-active": "#d1aa73", "tab-active-soft": "rgba(209, 170, 115, 0.12)",
+    "brand-a": "#f2b544", "brand-b": "#a88b5e", "brand-bg": "#22201d",
+    "--heroi-fundo": "radial-gradient(70% 70% at 100% 0%, rgba(209, 170, 115, 0.10), rgba(209, 170, 115, 0) 70%), #1c1916",
+  },
 };
 
-export const PROFILE_THEMES: ProfileTheme[] = [
-  {
-    ...tema("padrao", "Padrão", "O app como ele é hoje: dourado, sóbrio, direto ao ponto.", "escuro", PADRAO_ESCURO),
-    paletaAlternativa: montar(PADRAO_CLARO, false),
+/* -------------------------------------------- Girly (Hanken Grotesk + Cormorant itálica) */
+
+const GIRLY_CLARO: ModoBase = {
+  // Blush e champanhe, como cosmético caro. Um ponto de luz por tela, o resto neutro e quente.
+  canvas: "#faf5f3", surface: "#ffffff", surface2: "#f3e9e6",
+  border: "rgba(30, 21, 23, 0.10)",
+  ink: "#1e1517", inkMuted: "#4d3e42", accent: "#9c3d5c", accentStrong: "#7a2b47", onAccent: "#ffffff",
+  extras: {
+    ...FONTES.girly,
+    ...daFamilia({ moradia: "#8c6355", alimentacao: "#b0605a", transporte: "#5f8475", saude: "#b25a7d", lazer: "#9a6a9e", educacao: "#6f5486", impostos: "#7b5f9e", outros: "#9c7f4e" }),
+    ...sinais({ success: "#3e7a5e", danger: "#8c2632", info: "#6e68a8", neutro: "#9c3d5c" }, false),
+    "heroi-de": "#f2c4d0", "heroi-para": "#ece0f0", "heroi-tinta": "#150e10", "heroi-suave": "#3d2e32", "heroi-borda": "rgba(156, 61, 92, 0.10)", "heroi-destaque": "#150e10",
+    pill: "#ffffff", "on-pill": "#7a2b47", "tab-active": "#9c3d5c", "tab-active-soft": "rgba(156, 61, 92, 0.10)",
+    "brand-a": "#f2c4d0", "brand-b": "#9c3d5c", "brand-bg": "#faf5f3",
+    "--heroi-fundo": "radial-gradient(38% 40% at 34% 34%, rgba(255, 251, 248, 0.9), rgba(255, 251, 248, 0) 100%), radial-gradient(48% 52% at 82% 24%, #e3d2ee, rgba(227, 210, 238, 0) 100%), radial-gradient(52% 56% at 76% 86%, #edd3be, rgba(237, 211, 190, 0) 100%), radial-gradient(56% 60% at 14% 84%, #f2c4d0, rgba(242, 196, 208, 0) 100%), #f5dce1",
   },
-  tema("girly", "Girly", "Branco e rosa. Te chama de amiga, comemora junto e os gráficos são em tons de rosa.", "claro", {
-    // Calibrado nas referências que a Dani mandou (planilha rosa e o painel de hábitos):
-    // NÃO é rosa-choque. É framboesa empoeirada de destaque, blush pastel de preenchimento e
-    // texto cinza-escuro — duas ou três profundidades do MESMO rosa, nada neon. O #d81b73 da
-    // versão anterior era magenta de néon, e foi o que ela não amou.
-    canvas: "#fbf5f7", surface: "#ffffff", surface2: "#fde3ec",
-    border: "rgba(197, 61, 116, 0.14)",
-    // #c53d74: rosa de verdade, mais claro que o framboesa anterior (que ela achou vinho),
-    // ainda com 4,9:1 pro texto branco. O strong é fixo em vez de calculado, senão vira vinho.
-    ink: "#2b2226", inkMuted: "#7a6670", accent: "#c53d74", onAccent: "#ffffff", accentStrong: "#b8336a",
-    extras: {
-      // O herói das telas (06/10/2026): o bloco do número principal pintado na cor do tema.
-      // Rosa clarinho com texto framboesa escuro desde 07/10/2026: o framboesa cheio com texto
-      // branco era forte demais ("dói os olhos até", a Dani). Contraste do texto: 10:1.
-      "heroi-de": "#f9cfe0", "heroi-para": "#fde9f1", "heroi-tinta": "#4a1d33", "heroi-suave": "rgba(74, 29, 51, 0.72)", "heroi-borda": "rgba(197, 61, 116, 0.16)", "heroi-destaque": "#d4568a",
-      "tab-active": "#c53d74", "tab-active-soft": "rgba(197, 61, 116, 0.12)",
-      // Uma escala do mesmo rosa por categoria, do framboesa ao blush. Varia em profundidade,
-      // não em matiz, como nas referências: a rosca continua legível e continua rosa.
-      "cat-moradia": "#a8335a",
-      "cat-alimentacao": "#d15b8c",
-      "cat-transporte": "#c2456f",
-      "cat-saude": "#e693b5",
-      "cat-lazer": "#e07fa8",
-      "cat-educacao": "#b56a86",
-      "cat-impostos": "#8c2a4c",
-      "cat-outros": "#f0c1d4",
-      "chart-5": "#c9789a",
-      "chart-6": "#a8335a",
-      "chart-7": "#e6b3c6",
-      "custom-1": "#b83a63", "custom-2": "#e07fa8", "custom-3": "#b56a86", "custom-4": "#e693b5", "custom-5": "#8c2a4c",
-      "custom-6": "#c2456f", "custom-7": "#c9789a", "custom-8": "#d15b8c", "custom-9": "#e6b3c6", "custom-10": "#a8335a",
-      // Entrou/Gastou continuam verde e vermelho (é significado), mas jade e rosa-vermelho,
-      // que convivem com o blush sem gritar.
-      "success": "#2a8a6a", "success-soft": "rgba(42, 138, 106, 0.12)",
-      // O vermelho do Gastou era quase o rosa do Aportou, um do lado do outro. Este é mais
-      // vermelho e menos rosa, de propósito, pra Gastou e Aportou não parecerem a mesma cor.
-      "danger": "#d94452", "danger-soft": "rgba(217, 68, 82, 0.12)",
-      "info": "#c9789a", "info-soft": "rgba(201, 120, 154, 0.13)",
-      "accent-neutral": "#c9789a", "accent-neutral-2": "#e6b3c6", "accent-neutral-soft": "rgba(201, 120, 154, 0.14)",
-      // A pílula ativa das abas em rosa, não em preto.
-      // A aba e o botão escolhidos em rosa claro com texto escuro (07/10/2026), pelo mesmo motivo.
-      "pill": "#f6c3d7", "on-pill": "#4a1d33",
-      // A marca: o sol âmbar sobre quadrado escuro vira sol rosa sobre blush.
-      "brand-a": "#f7b8d0", "brand-b": "#c53d74", "brand-bg": "#fde3ec",
-      // As classes da carteira (renda fixa, ações, FIIs…) na mesma escala de rosa.
-      "strat-pos": "#c53d74", "strat-ipca": "#e07fa8", "strat-pre": "#b56a86", "strat-acoes": "#a8335a",
-      "strat-fiis": "#e693b5", "strat-exterior": "#d15b8c", "strat-outros": "#f0c1d4",
-    },
-  }),
-  tema("minimalista", "Minimalista", "Branco, preto e cinza. Só o número, sem enfeite nenhum.", "claro", {
-    canvas: "#f7f7f5", surface: "#ffffff", surface2: "#efefed",
-    border: "rgba(25, 25, 25, 0.10)",
-    ink: "#191919", inkMuted: "#75746f", accent: "#191919", onAccent: "#ffffff",
-    extras: {
-      // O herói das telas (06/10/2026): o bloco do número principal pintado na cor do tema.
-      // Cinza clarinho com texto preto (07/10/2026), como os outros temas claros: o bloco preto
-      // cheio era o contraste mais forte da tela, e o Minimalista é o tema de "sem enfeite".
-      "heroi-de": "#ececea", "heroi-para": "#f6f6f4", "heroi-tinta": "#191919", "heroi-suave": "rgba(25, 25, 25, 0.66)", "heroi-borda": "rgba(25, 25, 25, 0.08)", "heroi-destaque": "#191919",
-      // Ícone só de contorno, quadrado arredondado, tinta preta: linha, não mancha.
-      "--icon-radius": "10px",
-      "--icon-fill": "0%",
-      "--icon-border-width": "1.5px",
-      "--icon-ink": "var(--color-ink)",
-      // Preto, branco e cinza até nos gráficos: a rosca vira uma escala de cinzas.
-      "brand-a": "#f5f5f3", "brand-b": "#9a9a94", "brand-bg": "#191919",
-      "cat-moradia": "#191919", "cat-alimentacao": "#4a4a47", "cat-transporte": "#6b6b67", "cat-saude": "#8a8a85",
-      "cat-lazer": "#a6a6a1", "cat-educacao": "#c2c2bd", "cat-impostos": "#333331", "cat-outros": "#d9d9d5",
-      "chart-5": "#7a7a75", "chart-6": "#5a5a56", "chart-7": "#bdbdb8",
-      "custom-1": "#191919", "custom-2": "#6b6b67", "custom-3": "#a6a6a1", "custom-4": "#4a4a47", "custom-5": "#c2c2bd",
-      "custom-6": "#333331", "custom-7": "#8a8a85", "custom-8": "#d9d9d5", "custom-9": "#5a5a56", "custom-10": "#7a7a75",
-      "strat-pos": "#191919", "strat-ipca": "#6b6b67", "strat-pre": "#a6a6a1", "strat-acoes": "#4a4a47",
-      "strat-fiis": "#8a8a85", "strat-exterior": "#333331", "strat-outros": "#d9d9d5",
-      "info": "#5a5a56", "info-soft": "rgba(90, 90, 86, 0.12)",
-      "accent-neutral": "#4a4a47", "accent-neutral-2": "#8a8a85", "accent-neutral-soft": "rgba(74, 74, 71, 0.12)",
-    },
-  }),
-  tema("disciplina", "Disciplina", "Laranja sobre preto. Te cobra pelo número, nunca por quem você é.", "escuro", {
-    canvas: "#0b0d0e", surface: "#13171a", surface2: "#1b2125",
-    border: "rgba(255, 255, 255, 0.10)",
-    ink: "#eef4f5", inkMuted: "#8a9aa0", accent: "#d17111", onAccent: "#1a0c00",
-    extras: {
-      // O herói das telas (06/10/2026): o bloco do número principal pintado na cor do tema.
-      "heroi-de": "#262b2f", "heroi-para": "#13171a", "heroi-tinta": "#f7efe6", "heroi-suave": "rgba(247, 239, 230, 0.72)", "heroi-borda": "transparent", "heroi-destaque": "var(--color-brand-a)",
-      "tab-active": "#f0954a", "tab-active-soft": "rgba(209, 113, 17, 0.18)",
-      // Tudo em laranja-âmbar, do queimado ao claro. Ícone em quadrado arredondado: firme.
-      "cat-moradia": "#d17111", "cat-alimentacao": "#f0954a", "cat-transporte": "#a85a0a", "cat-saude": "#ffb877",
-      "cat-lazer": "#e8a15c", "cat-educacao": "#c2410c", "cat-impostos": "#8a4a10", "cat-outros": "#f5cba0",
-      "chart-5": "#e07a2e", "chart-6": "#b46418", "chart-7": "#f3c08a",
-      "custom-1": "#d17111", "custom-2": "#f0954a", "custom-3": "#a85a0a", "custom-4": "#ffb877", "custom-5": "#c2410c",
-      "custom-6": "#e8a15c", "custom-7": "#8a4a10", "custom-8": "#f5cba0", "custom-9": "#e07a2e", "custom-10": "#b46418",
-      "strat-pos": "#d17111", "strat-ipca": "#f0954a", "strat-pre": "#a85a0a", "strat-acoes": "#c2410c",
-      "strat-fiis": "#ffb877", "strat-exterior": "#e8a15c", "strat-outros": "#f5cba0",
-      "info": "#f0954a", "info-soft": "rgba(240, 149, 74, 0.14)",
-      "accent-neutral": "#e07a2e", "accent-neutral-2": "#ffb877", "accent-neutral-soft": "rgba(224, 122, 46, 0.14)",
-      "--icon-radius": "10px",
-      // A marca: sol laranja sobre preto frio.
-      "brand-a": "#f0954a", "brand-b": "#d17111", "brand-bg": "#13171a",
-    },
-  }),
-  tema("semfiltro", "Sem filtro", "Claro e coral, debochado. Fala a verdade sem passar a mão na cabeça.", "claro", {
-    canvas: "#fdfbfa", surface: "#ffffff", surface2: "#ffe3e3",
-    border: "rgba(32, 28, 26, 0.11)",
-    ink: "#201c1a", inkMuted: "#6b625e", accent: "#d63a3f", onAccent: "#ffffff",
-    extras: {
-      // O herói das telas (06/10/2026): o bloco do número principal pintado na cor do tema.
-      // Coral clarinho com texto escuro (07/10/2026), como o Girly: o coral cheio cansava a vista.
-      "heroi-de": "#ffd9d9", "heroi-para": "#ffeded", "heroi-tinta": "#5c1d1f", "heroi-suave": "rgba(92, 29, 31, 0.72)", "heroi-borda": "rgba(214, 58, 63, 0.16)", "heroi-destaque": "#d63a3f",
-      "tab-active": "#d63a3f", "tab-active-soft": "rgba(214, 58, 63, 0.12)",
-      // Coral e quentes. Categoria vira emoji (ver icones.ts), num círculo coral-claro.
-      "cat-moradia": "#d63a3f", "cat-alimentacao": "#ff7a7e", "cat-transporte": "#a82a2e", "cat-saude": "#ffb3b6",
-      "cat-lazer": "#ff9a6b", "cat-educacao": "#e8555a", "cat-impostos": "#8e1f22", "cat-outros": "#ffd0c2",
-      "chart-5": "#f06a5e", "chart-6": "#c43a3f", "chart-7": "#ffc2b8",
-      "custom-1": "#d63a3f", "custom-2": "#ff7a7e", "custom-3": "#a82a2e", "custom-4": "#ffb3b6", "custom-5": "#e8555a",
-      "custom-6": "#ff9a6b", "custom-7": "#8e1f22", "custom-8": "#ffd0c2", "custom-9": "#f06a5e", "custom-10": "#c43a3f",
-      "strat-pos": "#d63a3f", "strat-ipca": "#ff7a7e", "strat-pre": "#a82a2e", "strat-acoes": "#e8555a",
-      "strat-fiis": "#ffb3b6", "strat-exterior": "#ff9a6b", "strat-outros": "#ffd0c2",
-      "info": "#f06a5e", "info-soft": "rgba(240, 106, 94, 0.13)",
-      "accent-neutral": "#e8555a", "accent-neutral-2": "#ffb3b6", "accent-neutral-soft": "rgba(232, 85, 90, 0.13)",
-      "brand-a": "#ffb3b6", "brand-b": "#d63a3f", "brand-bg": "#201c1a",
-    },
-  }),
-  tema("game", "Game", "Azul-marinho e ciano, ranqueada de e-sport: divisão, temporada e conquista.", "escuro", {
-    canvas: "#0a1428", surface: "#101f3a", surface2: "#17294a",
-    border: "rgba(180, 210, 255, 0.12)",
-    ink: "#e8f1ff", inkMuted: "#8ba3cf", accent: "#16d3c2", onAccent: "#04211f",
-    extras: {
-      // O herói das telas (06/10/2026): o bloco do número principal pintado na cor do tema.
-      "heroi-de": "#173564", "heroi-para": "#0b1730", "heroi-tinta": "#e9fbff", "heroi-suave": "rgba(233, 251, 255, 0.74)", "heroi-borda": "transparent", "heroi-destaque": "var(--color-brand-a)",
-      "tab-active": "#16d3c2", "tab-active-soft": "rgba(22, 211, 194, 0.16)",
-      // Ciano e azuis, com brilho: o ícone tem um halo da própria cor, como um botão de HUD.
-      "cat-moradia": "#16d3c2", "cat-alimentacao": "#4fa8ff", "cat-transporte": "#0f9e93", "cat-saude": "#8ad6ff",
-      "cat-lazer": "#2f6bff", "cat-educacao": "#7fe9de", "cat-impostos": "#1b6fa8", "cat-outros": "#b9f0ea",
-      "chart-5": "#3aa0d8", "chart-6": "#1489a3", "chart-7": "#a3d9ff",
-      "custom-1": "#16d3c2", "custom-2": "#4fa8ff", "custom-3": "#0f9e93", "custom-4": "#8ad6ff", "custom-5": "#2f6bff",
-      "custom-6": "#7fe9de", "custom-7": "#1b6fa8", "custom-8": "#b9f0ea", "custom-9": "#3aa0d8", "custom-10": "#1489a3",
-      "strat-pos": "#16d3c2", "strat-ipca": "#4fa8ff", "strat-pre": "#0f9e93", "strat-acoes": "#2f6bff",
-      "strat-fiis": "#8ad6ff", "strat-exterior": "#7fe9de", "strat-outros": "#b9f0ea",
-      "info": "#4fa8ff", "info-soft": "rgba(79, 168, 255, 0.14)",
-      "accent-neutral": "#3aa0d8", "accent-neutral-2": "#8ad6ff", "accent-neutral-soft": "rgba(58, 160, 216, 0.14)",
-      "--icon-radius": "12px",
-      "--icon-glow": "0 0 14px color-mix(in srgb, var(--cat) 55%, transparent)",
-      "brand-a": "#7fe9de", "brand-b": "#16d3c2", "brand-bg": "#101f3a",
-    },
-  }),
-  tema("manifestacao", "Manifestação", "Claro e lilás, aspiracional. Liga cada real à vida que você quer.", "claro", {
-    canvas: "#faf7fb", surface: "#ffffff", surface2: "#ece3f1",
-    border: "rgba(90, 60, 110, 0.12)",
-    ink: "#2b2130", inkMuted: "#6f6377", accent: "#7b5ea7", onAccent: "#ffffff",
-    extras: {
-      // O herói das telas (06/10/2026): o bloco do número principal pintado na cor do tema.
-      // Lilás clarinho com texto escuro (07/10/2026), como o Girly: o roxo cheio pesava na tela.
-      "heroi-de": "#e6daf3", "heroi-para": "#f4eefa", "heroi-tinta": "#3b2a52", "heroi-suave": "rgba(59, 42, 82, 0.72)", "heroi-borda": "rgba(123, 94, 167, 0.18)", "heroi-destaque": "#7b5ea7",
-      "tab-active": "#7b5ea7", "tab-active-soft": "rgba(123, 94, 167, 0.12)",
-      // Lilás do escuro ao claro, e o ícone ganha um brilho suave em cima, como vidro.
-      "cat-moradia": "#7b5ea7", "cat-alimentacao": "#a98bd4", "cat-transporte": "#5a4383", "cat-saude": "#cdb6e4",
-      "cat-lazer": "#8f6fb8", "cat-educacao": "#b79ae0", "cat-impostos": "#4b3a6e", "cat-outros": "#e2d4f0",
-      "chart-5": "#9c7fc4", "chart-6": "#6a4f95", "chart-7": "#d8c8ea",
-      "custom-1": "#7b5ea7", "custom-2": "#a98bd4", "custom-3": "#5a4383", "custom-4": "#cdb6e4", "custom-5": "#8f6fb8",
-      "custom-6": "#b79ae0", "custom-7": "#4b3a6e", "custom-8": "#e2d4f0", "custom-9": "#9c7fc4", "custom-10": "#6a4f95",
-      "strat-pos": "#7b5ea7", "strat-ipca": "#a98bd4", "strat-pre": "#5a4383", "strat-acoes": "#8f6fb8",
-      "strat-fiis": "#cdb6e4", "strat-exterior": "#b79ae0", "strat-outros": "#e2d4f0",
-      "info": "#9c7fc4", "info-soft": "rgba(156, 127, 196, 0.13)",
-      "accent-neutral": "#8f6fb8", "accent-neutral-2": "#cdb6e4", "accent-neutral-soft": "rgba(143, 111, 184, 0.13)",
-      "--icon-overlay": "linear-gradient(160deg, rgba(255,255,255,0.38), rgba(255,255,255,0) 60%)",
-      "brand-a": "#cdb6e4", "brand-b": "#7b5ea7", "brand-bg": "#2b2130",
-    },
-  }),
+};
+const GIRLY_ESCURO: ModoBase = {
+  canvas: "#130c0f", surface: "#1c1518", surface2: "#261e21",
+  border: "rgba(219, 203, 209, 0.10)",
+  ink: "#dbcbd1", inkMuted: "#a29198", accent: "#c89dac", onAccent: "#130c0f",
+  extras: {
+    ...FONTES.girly,
+    ...daFamilia({ moradia: "#978078", alimentacao: "#9e7a73", transporte: "#7e9289", saude: "#a27e8c", lazer: "#97829a", educacao: "#897f9c", impostos: "#8d87a5", outros: "#9f9079" }),
+    ...sinais({ success: "#92b4a0", danger: "#ce949c", info: "#8d87a5", neutro: "#a98792" }, true),
+    "heroi-de": "#2b1c22", "heroi-para": "#21171b", "heroi-tinta": "#dbcbd1", "heroi-suave": "#a29198", "heroi-borda": "rgba(219, 203, 209, 0.06)", "heroi-destaque": "#c89dac",
+    pill: "#31292c", "on-pill": "#dbcbd1", "tab-active": "#c89dac", "tab-active-soft": "rgba(200, 157, 172, 0.12)",
+    "brand-a": "#f2c4d0", "brand-b": "#c89dac", "brand-bg": "#261e21",
+    "--heroi-fundo": "radial-gradient(70% 70% at 100% 0%, rgba(200, 157, 172, 0.08), rgba(200, 157, 172, 0) 70%), #21171b",
+  },
+};
+
+/* ---------------------------------------------------------------- Manifestação (Urbanist) */
+
+const MANIFESTACAO_CLARO: ModoBase = {
+  // Névoa no topo, como um céu de fim de tarde: lavanda, pêssego e azul bem diluídos.
+  canvas: "#f5f4f8", surface: "#ffffff", surface2: "#eceaf3",
+  border: "rgba(25, 24, 38, 0.10)",
+  ink: "#191826", inkMuted: "#3a3757", accent: "#5b4fa8", accentStrong: "#463a94", onAccent: "#ffffff",
+  extras: {
+    ...FONTES.manifestacao,
+    ...daFamilia({ moradia: "#6e5fc7", alimentacao: "#a8618f", transporte: "#55779f", saude: "#b8708f", lazer: "#7d7999", educacao: "#3f4a9e", impostos: "#4b7c9c", outros: "#8a73c2" }),
+    ...sinais({ success: "#1e5f57", danger: "#8a2d47", info: "#5a7db0", neutro: "#8780c2" }, false),
+    "heroi-de": "#e2dcf6", "heroi-para": "#f7e5dc", "heroi-tinta": "#191826", "heroi-suave": "#3a3757", "heroi-borda": "rgba(25, 24, 38, 0.06)", "heroi-destaque": "#191826",
+    pill: "#ffffff", "on-pill": "#191826", "tab-active": "#463a94", "tab-active-soft": "rgba(70, 58, 148, 0.10)",
+    "brand-a": "#c4bbff", "brand-b": "#5b4fa8", "brand-bg": "#f5f4f8",
+    "--heroi-fundo": "radial-gradient(60% 65% at 12% 8%, #ded9f7, rgba(222, 217, 247, 0) 72%), radial-gradient(60% 60% at 92% 18%, #f8dfd1, rgba(248, 223, 209, 0) 72%), radial-gradient(75% 70% at 55% 105%, #d9e6f4, rgba(217, 230, 244, 0) 72%), #f2eff7",
+  },
+};
+const MANIFESTACAO_ESCURO: ModoBase = {
+  canvas: "#0c0d1a", surface: "#151624", surface2: "#1e1f2e",
+  border: "rgba(205, 207, 221, 0.10)",
+  ink: "#cdcfdd", inkMuted: "#9395a5", accent: "#aaa3da", onAccent: "#0c0d1a",
+  extras: {
+    ...FONTES.manifestacao,
+    ...daFamilia({ moradia: "#827ca7", alimentacao: "#9c7e93", transporte: "#7887a1", saude: "#a78895", lazer: "#858397", educacao: "#73789e", impostos: "#788e9d", outros: "#9088ab" }),
+    ...sinais({ success: "#8bbaaf", danger: "#d09aaa", info: "#7f8ea8", neutro: "#958fba" }, true),
+    "heroi-de": "#1f1d38", "heroi-para": "#17182a", "heroi-tinta": "#cdcfdd", "heroi-suave": "#9395a5", "heroi-borda": "rgba(205, 207, 221, 0.06)", "heroi-destaque": "#aaa3da",
+    pill: "#262838", "on-pill": "#cdcfdd", "tab-active": "#aaa3da", "tab-active-soft": "rgba(170, 163, 218, 0.12)",
+    "brand-a": "#c4bbff", "brand-b": "#aaa3da", "brand-bg": "#1e1f2e",
+    "--heroi-fundo": "radial-gradient(60% 60% at 100% 0%, rgba(170, 163, 218, 0.08), rgba(170, 163, 218, 0) 70%), #17182a",
+  },
+};
+
+/* --------------------------------------------------------------------- Titânio (Archivo) */
+
+const TITANIO_CLARO: ModoBase = {
+  // Titânio escovado (#C9CCD1) com o laranja #D9480F só nos detalhes.
+  canvas: "#efefee", surface: "#ffffff", surface2: "#e5e5e3",
+  border: "rgba(17, 18, 20, 0.10)",
+  ink: "#111214", inkMuted: "#3c3e43", accent: "#c2410c", accentStrong: "#a3341c", onAccent: "#ffffff",
+  extras: {
+    ...FONTES.titanio,
+    ...daFamilia({ moradia: "#d9480f", alimentacao: "#4d5f7a", transporte: "#4f8a68", saude: "#6e7a88", lazer: "#e8894e", educacao: "#2a2c30", impostos: "#b5652e", outros: "#8c8f94" }),
+    ...sinais({ success: "#2f6b4a", danger: "#a3341c", info: "#4d5f7a", neutro: "#d9480f" }, false),
+    "heroi-de": "#c9ccd1", "heroi-para": "#f1f2f3", "heroi-tinta": "#111214", "heroi-suave": "#3c3e43", "heroi-borda": "rgba(0, 0, 0, 0.06)", "heroi-destaque": "#d9480f",
+    pill: "#ffffff", "on-pill": "#111214", "tab-active": "#c2410c", "tab-active-soft": "rgba(194, 65, 12, 0.10)",
+    "brand-a": "#e8894e", "brand-b": "#d9480f", "brand-bg": "#111214",
+    "--heroi-fundo": "linear-gradient(135deg, #e9eaec 0%, #c9ccd1 38%, #f1f2f3 55%, #b9bdc3 100%)",
+    "--fundo-tema": "radial-gradient(120% 70% at 50% -10%, #f7f7f6 0%, #efefee 55%, #e6e7e8 100%)",
+  },
+};
+const TITANIO_ESCURO: ModoBase = {
+  // Escuro C1: grafite (#1B1D21 a #141518) com brilho de metal, herói #2A2D33 a #3A3E46.
+  canvas: "#16171a", surface: "#1f2125", surface2: "#2a2d32",
+  border: "rgba(255, 255, 255, 0.10)",
+  ink: "#f3efe8", inkMuted: "#cfc8bd", accent: "#ff7a3d", onAccent: "#141518",
+  extras: {
+    ...FONTES.titanio,
+    ...daFamilia({ moradia: "#ff7a3d", alimentacao: "#a7b6cc", transporte: "#8ccba4", saude: "#c4cbd6", lazer: "#ffae80", educacao: "#7e8188", impostos: "#e39a62", outros: "#b6b8bc" }),
+    ...sinais({ success: "#8ccba4", danger: "#ff9c7a", info: "#a7b6cc", neutro: "#ff7a3d" }, true),
+    "heroi-de": "#3a3e46", "heroi-para": "#2a2d33", "heroi-tinta": "#f6f2ec", "heroi-suave": "#d6cfc4", "heroi-borda": "rgba(255, 255, 255, 0.12)", "heroi-destaque": "#ff7a3d",
+    pill: "#30333a", "on-pill": "#f3efe8", "tab-active": "#ff7a3d", "tab-active-soft": "rgba(255, 122, 61, 0.14)",
+    "brand-a": "#ff9a66", "brand-b": "#ff7a3d", "brand-bg": "#2a2d33",
+    "--heroi-fundo": "linear-gradient(118deg, #23262b 0%, #2a2d33 22%, #3a3e46 40%, #5a5f68 47%, #3a3e46 54%, #2a2d33 72%, #23262b 100%)",
+    "--fundo-tema": "radial-gradient(130% 80% at 50% -10%, #26282d 0%, #1b1d21 45%, #141518 100%)",
+    // O brilho de metal dos cartões: uma faixa de reflexo diagonal e um fio de luz no topo.
+    "--cartao-brilho": "linear-gradient(115deg, #1e2024 0%, #25282e 36%, #2e3238 46%, #25282d 56%, #1c1e22 100%)",
+    "--cartao-fio": "inset 0 1px 0 rgba(255, 255, 255, 0.11)",
+  },
+};
+
+function tema(key: ProfileThemeKey, label: string, descricao: string, claro: ModoBase, escuro: ModoBase): ProfileTheme {
+  const logo = `/brand/aurora/${key}`;
+  // O mesmo logo nos dois modos (decisão da versão nova): a variável vai igual nos dois blocos.
+  const comLogo = (b: ModoBase): ModoBase => ({ ...b, extras: { ...b.extras, "--logo-tema": `url(${logo}/icone.svg)` } });
+  return { key, label, descricao, modo: "claro", paleta: montar(comLogo(claro), false), paletaAlternativa: montar(comLogo(escuro), true), logo };
+}
+
+export const PROFILE_THEMES: ProfileTheme[] = [
+  tema("padrao", "Padrão", "Papel claro, tinta grafite e o dourado do SPI. Sóbrio e direto ao ponto.", PADRAO_CLARO, PADRAO_ESCURO),
+  tema("girly", "Girly", "Blush e champanhe. Te chama de amiga e comemora junto.", GIRLY_CLARO, GIRLY_ESCURO),
+  tema("manifestacao", "Manifestação", "Lavanda e céu de fim de tarde. Liga cada real à vida que você quer.", MANIFESTACAO_CLARO, MANIFESTACAO_ESCURO),
+  tema("titanio", "Titânio", "Metal escovado com laranja nos detalhes. Calmo, adulto e com os pés no chão.", TITANIO_CLARO, TITANIO_ESCURO),
 ];
 
 export const DEFAULT_PROFILE_THEME: ProfileThemeKey = "padrao";
 
 const PELA_CHAVE = new Map(PROFILE_THEMES.map((t) => [t.key, t]));
 
-/** Tema guardado no banco pode ter vindo de outra versão: cai no Padrão em vez de quebrar. */
+/**
+ * A chave de tema que vale para uma chave guardada no banco. Tema que saiu vai para o
+ * substituto dele; chave desconhecida (ou vazia) cai no Padrão. Nunca devolve chave inválida.
+ */
+export function chaveDoTema(key: string | null | undefined): ProfileThemeKey {
+  if (key && PELA_CHAVE.has(key as ProfileThemeKey)) return key as ProfileThemeKey;
+  if (key && Object.hasOwn(CHAVES_QUE_SAIRAM, key)) return CHAVES_QUE_SAIRAM[key];
+  return DEFAULT_PROFILE_THEME;
+}
+
+/** Tema guardado no banco pode ter vindo de outra versão: cai no substituto ou no Padrão. */
 export function profileTheme(key: string | null | undefined): ProfileTheme {
-  return PELA_CHAVE.get(key as ProfileThemeKey) ?? PELA_CHAVE.get(DEFAULT_PROFILE_THEME)!;
+  return PELA_CHAVE.get(chaveDoTema(key))!;
 }
 
 export function isProfileThemeKey(value: unknown): value is ProfileThemeKey {
   return typeof value === "string" && PELA_CHAVE.has(value as ProfileThemeKey);
 }
 
-/**
- * O modo (claro/escuro) que vale de verdade: o do tema, quando o tema tem um só; o que a pessoa
- * escolheu no sol/lua, quando o tema deixa (hoje, só o Padrão).
- */
-export function modoEfetivo(themeKey: string | null | undefined, preferenciaDaPessoa: string): Modo {
-  const t = profileTheme(themeKey);
-  if (!t.paletaAlternativa) return t.modo;
-  return preferenciaDaPessoa === "light" ? "claro" : "escuro";
+/** A preferência de modo guardada na conta: claro, escuro ou o do celular. */
+export type PreferenciaDeModo = "light" | "dark" | "auto";
+
+export function preferenciaDeModo(valor: string | null | undefined): PreferenciaDeModo {
+  return valor === "dark" || valor === "auto" ? valor : "light";
 }
 
-/** O tema deixa a pessoa escolher claro/escuro? Decide se o sol/lua aparece. */
-export function temaDeixaEscolherModo(themeKey: string | null | undefined): boolean {
-  return Boolean(profileTheme(themeKey).paletaAlternativa);
+/**
+ * O modo que vale quando o servidor precisa decidir: o que a pessoa escolheu. No Automático o
+ * servidor não sabe o modo do celular; o claro é o palpite, e o script de antes da primeira
+ * pintura corrige no aparelho.
+ */
+export function modoEfetivo(themeKey: string | null | undefined, preferenciaDaPessoa: string | null | undefined): Modo {
+  void themeKey;
+  return preferenciaDeModo(preferenciaDaPessoa) === "dark" ? "escuro" : "claro";
+}
+
+/** Todos os temas têm claro e escuro desde a versão nova: o sol/lua aparece sempre. */
+export function temaDeixaEscolherModo(themeKey?: string | null): boolean {
+  void themeKey;
+  return true;
 }
 
 /**
@@ -351,13 +370,7 @@ export function temaDeixaEscolherModo(themeKey: string | null | undefined): bool
  *
  * Os seletores são estranhos de propósito, e é por causa de peso:
  * - `html:not(.light)` (0,1,1) ganha do `:root` (0,1,0) do globals.css, que é o modo escuro.
- * - `html.light:root` (0,2,1) ganha do `html.light` (0,1,1) do globals.css. Só `html.light`
- *   empataria, e aí passaria a depender de qual folha o navegador leu por último — o tipo de
- *   coisa que funciona no teste e quebra no ar.
- *
- * Tema de modo único põe a MESMA paleta nos dois blocos. Assim, mesmo que o script anti-flash
- * ponha a classe errada por um instante (ele lê a preferência antiga do localStorage), a tela
- * nasce na cor certa e não pisca.
+ * - `html.light:root` (0,2,1) ganha do `html.light` (0,1,1) do globals.css.
  */
 export function profileThemeCss(key: string | null | undefined): string {
   const t = profileTheme(key);
@@ -376,10 +389,8 @@ export function profileThemeCss(key: string | null | undefined): string {
   --color-accent-2: ${m.accent2};
   --color-accent-soft: ${m.accentSoft};
   --color-on-accent: ${m.onAccent};${Object.entries(m.extras ?? {}).map(([k, v]) => `\n  ${k.startsWith("--") ? k : `--color-${k}`}: ${v};`).join("")}`;
-  const escura = t.modo === "escuro" ? t.paleta : (t.paletaAlternativa ?? t.paleta);
-  const clara = t.modo === "claro" ? t.paleta : (t.paletaAlternativa ?? t.paleta);
-  return `html:not(.light) {${bloco(escura)}
+  return `html:not(.light) {${bloco(t.paletaAlternativa)}
 }
-html.light:root {${bloco(clara)}
+html.light:root {${bloco(t.paleta)}
 }`;
 }

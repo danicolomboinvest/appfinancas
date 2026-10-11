@@ -305,9 +305,9 @@ html.light {
   --color-custom-9: var(--color-custom-9);
   --color-custom-10: var(--color-custom-10);
 
-  --font-sans: var(--font-albert-sans);
+  --font-sans: var(--font-tema, var(--font-figtree)), system-ui, sans-serif;
   --font-mono: var(--font-geist-mono);
-  --font-serif: var(--font-albert-sans);
+  --font-serif: var(--font-titulo, var(--font-tema, var(--font-figtree))), serif;
 
   --text-display: 1.5rem;
   --text-display--line-height: 1.15;
@@ -411,8 +411,28 @@ body {
   color: var(--color-ink);
   font-feature-settings: "cv11", "ss01";
   letter-spacing: -0.011em;
-  background-image: radial-gradient(var(--texture-dot, transparent) 1px, transparent 1.6px);
-  background-size: 28px 28px;
+  /* Fundo com profundidade só no Titânio (névoa fria no claro, grafite com vinheta no escuro). */
+  background-image: var(--fundo-tema, none);
+  background-repeat: no-repeat;
+  background-size: 100% 100vh;
+}
+
+/* Títulos de página na letra de título do tema: Cormorant Garamond itálica no Girly; nos outros
+   três a variável não existe e o título fica na letra do texto. */
+@layer base {
+  h1,
+  .titulo-tema {
+    font-family: var(--font-titulo, inherit);
+    font-style: var(--estilo-titulo, normal);
+    letter-spacing: -0.01em;
+  }
+}
+
+/* Titânio escuro (C1): cartões em grafite com faixa de reflexo e um fio de luz no topo. Nos
+   outros temas as duas variáveis não existem e o cartão fica liso. */
+html:not(.light) .glass {
+  background: var(--cartao-brilho, var(--color-surface));
+  box-shadow: var(--cartao-fio, none);
 }
 
 ::selection {

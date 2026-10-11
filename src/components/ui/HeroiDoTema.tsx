@@ -10,7 +10,8 @@ export function HeroiDoTema({ children, className = "", as: Tag = "section" }: {
     <Tag
       className={`rounded-3xl border p-5 ${className}`}
       style={{
-        background: "linear-gradient(145deg, var(--color-heroi-de), var(--color-heroi-para))",
+        background: "var(--heroi-fundo, linear-gradient(145deg, var(--color-heroi-de), var(--color-heroi-para)))",
+        boxShadow: "var(--cartao-fio, none)",
         color: "var(--color-heroi-tinta)",
         borderColor: "var(--color-heroi-borda, transparent)",
       }}

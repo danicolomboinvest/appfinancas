@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { Explica } from "@/components/ui/Explica";
 import { useToast } from "@/components/ui/toast-context";
 import { setThemeAction } from "@/components/shell/theme-actions";
+import { aplicarModo } from "@/components/shell/ThemeSync";
 import { trocarMoedaAction } from "./actions";
 import { currencySymbol } from "@/lib/money";
 
@@ -21,7 +22,7 @@ function Pilulas<T extends string>({ opcoes, valor, aoEscolher, desabilitado }: 
           disabled={desabilitado}
           aria-pressed={valor === o.valor}
           onClick={() => valor !== o.valor && aoEscolher(o.valor)}
-          className={`min-h-9 min-w-11 rounded-full px-3 text-sm font-semibold transition-colors ${valor === o.valor ? "bg-pill text-on-pill" : "text-ink-muted hover:text-ink disabled:opacity-60"}`}
+          className={`min-h-9 min-w-11 whitespace-nowrap rounded-full px-2.5 text-sm font-medium transition-colors ${valor === o.valor ? "bg-pill text-on-pill" : "text-ink-muted hover:text-ink disabled:opacity-60"}`}
         >
           {o.rotulo}
         </button>
@@ -47,7 +48,7 @@ export function AjustesRapidos({
   rotulos: { modo: string; claro: string; escuro: string; moeda: string; moedaAviso: string };
 }) {
   const [moedaAtual, setMoedaAtual] = useState(moeda);
-  const [modoAtual, setModoAtual] = useState(modo === "light" ? "light" : "dark");
+  const [modoAtual, setModoAtual] = useState<"light" | "dark" | "auto">(modo === "dark" || modo === "auto" ? modo : "light");
   const [pendente, iniciar] = useTransition();
   const { showToast, showError } = useToast();
 
@@ -60,13 +61,21 @@ export function AjustesRapidos({
             opcoes={[
               { valor: "light", rotulo: rotulos.claro },
               { valor: "dark", rotulo: rotulos.escuro },
+              // Automático: segue o modo do celular (claro de dia, escuro à noite, se ele estiver assim).
+              { valor: "auto", rotulo: "Automático" },
             ]}
             valor={modoAtual}
             desabilitado={pendente}
             aoEscolher={(v) => {
               setModoAtual(v);
               // O tema vive no <html>: troca na hora, e o servidor guarda.
-              document.documentElement.classList.toggle("light", v === "light");
+              const escuro = v === "dark" || (v === "auto" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+              aplicarModo(escuro ? "dark" : "light");
+              try {
+                localStorage.setItem("theme", v);
+              } catch {
+                // Modo privado: vale para esta sessão.
+              }
               iniciar(async () => {
                 const r = await setThemeAction(v);
                 if (!r.ok) showError("Não consegui salvar. Tente de novo.");

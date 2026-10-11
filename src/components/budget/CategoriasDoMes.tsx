@@ -7,9 +7,7 @@ import { CurrencyInputControlled } from "@/components/ui/CurrencyInputControlled
 import { useToast } from "@/components/ui/toast-context";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { useMoney } from "@/components/money/MoneyProvider";
-import { emojiDaCategoria } from "@/lib/profiles/icones";
-import { emojiEscolhido, isParentCategoryKey } from "@/lib/categories";
-import { ehEmpresa } from "@/lib/profiles/empresa";
+import { emojiEscolhido } from "@/lib/categories";
 import type { CategoriaDoMes, EstadoDaCategoria } from "@/lib/planning/orcamento-categorias";
 import { cobrirCategoriaAction, definirPlanoDaCategoriaAction } from "@/app/(app)/orcamento/actions";
 
@@ -28,13 +26,10 @@ export type LinhaDaCategoria = CategoriaDoMes & {
 const AMBAR = "#E8A33A";
 
 /**
- * Emoji pequeno ao lado do nome (01/10/2026: a Dani preferiu "🏠 Moradia" compacto ao círculo
- * grande com ícone). Girly e Sem filtro têm os deles; os outros temas usam estes; o Minimalista,
- * que é "sem enfeite nenhum", fica só com o nome.
+ * Ao lado do nome: o emoji que a própria pessoa escolheu para a categoria, quando escolheu
+ * (emoji fica só no que a pessoa escreve). Sem escolha, um ponto na cor da categoria no tema
+ * (versão nova, 11/10/2026: sem emoji na interface).
  */
-const EMOJI_PESSOA: Record<string, string> = { MORADIA: "🏠", ALIMENTACAO: "🍽️", TRANSPORTE: "🚗", SAUDE: "💊", LAZER: "🎉", EDUCACAO: "📚", IMPOSTOS: "🧾", OUTROS: "📦" };
-const EMOJI_EMPRESA: Record<string, string> = { MORADIA: "🏢", ALIMENTACAO: "📦", TRANSPORTE: "🚚", SAUDE: "👥", LAZER: "🤝", EDUCACAO: "📣", IMPOSTOS: "🧾", OUTROS: "🗂️" };
-
 const COR: Record<EstadoDaCategoria, string> = {
   dentro: "var(--color-success)",
   "vai-passar": AMBAR,
@@ -59,7 +54,7 @@ export function CategoriasDoMes({
 }) {
   const money = useMoney();
   const m = (v: number) => money(v, { round: true });
-  const { key: tema, kind, categorias } = useProfileTheme();
+  const { categorias } = useProfileTheme();
   const router = useRouter();
   const { showToast, showError } = useToast();
   // Todas fechadas (07/10/2026): a lista responde "qual categoria está apertada?" pelo anel e pelo
@@ -67,16 +62,8 @@ export function CategoriasDoMes({
   const [aberta, setAberta] = useState<string | null>(null);
   const [pendente, iniciar] = useTransition();
 
-  const emoji = (l: LinhaDaCategoria): string | null => {
-    // O emoji que ela escolheu (04/10/2026) vale em qualquer tema, até no Minimalista.
-    const escolhido = emojiEscolhido(categorias, l.key);
-    if (escolhido) return escolhido;
-    if (tema === "minimalista") return null;
-    const doTema = isParentCategoryKey(l.key) ? emojiDaCategoria(tema, { kind: "parent", value: l.key }) : emojiDaCategoria(tema, { kind: "custom", iconKey: l.iconeProprio });
-    if (doTema) return doTema;
-    if (!isParentCategoryKey(l.key)) return "🏷️";
-    return (ehEmpresa(kind) ? EMOJI_EMPRESA : EMOJI_PESSOA)[l.key] ?? null;
-  };
+  // O emoji que ela escolheu (04/10/2026) vale em qualquer tema.
+  const emoji = (l: LinhaDaCategoria): string | null => emojiEscolhido(categorias, l.key) ?? null;
 
   function fazerCobrir() {
     if (!cobrir) return;
@@ -101,10 +88,12 @@ export function CategoriasDoMes({
             <li key={l.key} className="py-2.5 first:pt-0">
               <button type="button" onClick={() => setAberta(estaAberta ? null : l.key)} aria-expanded={estaAberta} className="flex w-full flex-col gap-1.5 text-left">
                 <span className="flex items-center gap-2">
-                  {e && (
+                  {e ? (
                     <span className="w-5 shrink-0 text-center text-base leading-none" aria-hidden>
                       {e}
                     </span>
+                  ) : (
+                    <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: l.cor }} aria-hidden />
                   )}
                   <span className="min-w-0 flex-1 truncate text-[15px] font-medium text-ink">{l.label}</span>
                   {/* O número na frente, a palavra pequena atrás (07/10/2026): "R$ 1.140 livre". */}

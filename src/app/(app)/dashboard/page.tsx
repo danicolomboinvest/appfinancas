@@ -43,6 +43,7 @@ import { sumIncomeBySubcategory } from "@/lib/repositories/monthly-entry.repo";
 import { listCustomCategories } from "@/lib/repositories/custom-category.repo";
 import { montarDadosDoTema } from "@/app/(app)/mensal/[year]/[month]/theme-hero-data";
 import { ThemeHero } from "@/app/(app)/mensal/[year]/[month]/ThemeHero";
+import { profileTheme } from "@/lib/profiles/themes";
 import { listarDecisoesDesde } from "@/lib/repositories/decisao.repo";
 import { somarConquistas } from "@/lib/decisoes/conquistas";
 
@@ -293,10 +294,9 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
       })()
     : null;
 
-  // O bloco próprio do tema (ranking, recado, mural, campeão) também abre a Visão geral —
-  // senão o tema só existia no Fluxo. Só no ano corrente, e só os temas que têm bloco pagam
-  // as duas consultas a mais (categorias e lançamentos do mês).
-  const temBloco = ["game", "disciplina", "manifestacao", "semfiltro"].includes(ctx.profileTheme);
+  // O bloco próprio do tema (hoje só o mural do Manifestação) também abre a Visão geral.
+  // Só no ano corrente, e só o tema que tem bloco paga as duas consultas a mais.
+  const temBloco = profileTheme(ctx.profileTheme).key === "manifestacao";
   const [categorySpending, entriesDoMes] = isCurrentYear && temBloco
     ? await Promise.all([getCategorySpending(ctx, year, currentMonth, rotulosDeCategoria), listMonthlyEntries(ctx, year, currentMonth)])
     : [[], []];

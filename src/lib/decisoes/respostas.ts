@@ -47,18 +47,15 @@ export type Resposta = {
   visual?: Visual;
 };
 
-export type Tom = "padrao" | "girly" | "minimalista" | "disciplina" | "semfiltro" | "game" | "manifestacao";
+export type Tom = "padrao" | "girly" | "manifestacao" | "titanio";
 
 /** A abertura de cada resposta, no jeito de cada tema (o resto é igual pra todos). */
 export function abertura(tom: Tom, v: Veredito): string {
   const t: Record<Tom, Record<Veredito, string>> = {
     padrao: { bom: "", atencao: "", ruim: "" },
-    minimalista: { bom: "", atencao: "", ruim: "" },
     girly: { bom: "Amiga, ", atencao: "Amiga, olha só: ", ruim: "Amiga, vamos juntas nessa: " },
-    disciplina: { bom: "No plano. ", atencao: "Atenção: ", ruim: "Fora do plano. " },
-    semfiltro: { bom: "Na real? ", atencao: "Na real: ", ruim: "Sem filtro: " },
-    game: { bom: "Status: ", atencao: "Alerta: ", ruim: "Game over à vista: " },
     manifestacao: { bom: "Com carinho: ", atencao: "Com carinho: ", ruim: "Com carinho, e com verdade: " },
+    titanio: { bom: "", atencao: "", ruim: "" },
   };
   return t[tom]?.[v] ?? "";
 }

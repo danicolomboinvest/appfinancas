@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { Bell, Building2, ChevronRight, Download, FileText, KeyRound, LifeBuoy, Palette, Percent, Tags, Wallet } from "lucide-react";
+import { Bell, Building2, ChevronRight, Download, FileText, KeyRound, LifeBuoy, Percent, Tags, Wallet } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
 import { getOwnUser } from "@/lib/repositories/user.repo";
 import { listProfiles } from "@/lib/repositories/profile.repo";
@@ -14,6 +14,7 @@ import { EditarNoCanto } from "@/components/ui/EditarNoCanto";
 import { ProfileForm } from "./perfil/ProfileForm";
 import { AjustesRapidos } from "./_ajustes/AjustesRapidos";
 import { SairDaConta } from "./_ajustes/SairDaConta";
+import { EscolherEstilo } from "./_ajustes/EscolherEstilo";
 
 export const metadata = { title: "Configurações · SPI Finance" };
 
@@ -35,9 +36,9 @@ function Linha({ href, icone, cor, rotulo, valor, externo }: { href: string; ico
   );
 }
 
-function Grupo({ titulo, children }: { titulo: string; children: ReactNode }) {
+function Grupo({ titulo, children, id }: { titulo: string; children: ReactNode; id?: string }) {
   return (
-    <section className="flex flex-col gap-2">
+    <section id={id} className="flex scroll-mt-20 flex-col gap-2">
       <h2 className="px-1 text-sm font-semibold text-ink-muted">{titulo}</h2>
       <div className="overflow-hidden rounded-2xl border border-border bg-surface">{children}</div>
     </section>
@@ -77,14 +78,17 @@ export default async function ConfiguracoesPage() {
         </div>
       </HeroiDoTema>
 
-      <Grupo titulo="Aparência">
+      <Grupo titulo="Aparência" id="aparencia">
         <AjustesRapidos
           moeda={user.currency}
           modo={user.theme}
           podeEscolherModo={temaDeixaEscolherModo(ctx.profileTheme)}
           rotulos={{ modo: "Modo", claro: t.cfgTemaClaro, escuro: t.cfgTemaEscuro, moeda: t.cfgMoeda, moedaAviso: `${t.cfgMoedaAvisoTexto1(`${currencySymbol("EUR")} 3.000`, `${currencySymbol("BRL")} 3.000`)} ${t.cfgMoedaAvisoTexto2}` }}
         />
-        <Linha href="/perfis" icone={<Palette size={16} />} cor="var(--color-accent)" rotulo="Estilo do app" valor={profileTheme(ctx.profileTheme).label} />
+        <div className="border-t border-border">
+          <p className="px-4 pb-1 pt-3 text-[15px] font-medium text-ink">Estilo do app</p>
+          <EscolherEstilo perfilId={ctx.profileId} atual={profileTheme(ctx.profileTheme).key} />
+        </div>
       </Grupo>
 
       <Grupo titulo="Seu dinheiro">

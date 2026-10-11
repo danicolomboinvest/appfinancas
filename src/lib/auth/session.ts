@@ -2,6 +2,7 @@ import type { ProfileKind } from "@prisma/client";
 import { auth } from "@/lib/auth/auth.config";
 import { getOrCreateActiveProfile } from "@/lib/repositories/profile.repo";
 import { lerPreferenciasDeCategoria, type PreferenciasDeCategoria } from "@/lib/categories";
+import { chaveDoTema } from "@/lib/profiles/themes";
 
 /**
  * Quem é a pessoa, sem dizer em qual perfil ela está.
@@ -53,7 +54,8 @@ export async function getRequiredSession(): Promise<AuthContext> {
     userId: session.user.id,
     role: session.user.role,
     profileId: perfil.id,
-    profileTheme: perfil.theme,
+    // Já na chave que vale: um tema que saiu (Game, Minimalista...) chega como o substituto dele.
+    profileTheme: chaveDoTema(perfil.theme),
     profileKind: perfil.kind,
     categorias: { kind: perfil.kind, prefs: lerPreferenciasDeCategoria(perfil.categorias) },
   };

@@ -61,7 +61,7 @@ describe("estadoParaFrase: nunca comemora um Resultado negativo", () => {
   });
 });
 
-describe("a voz dos sete temas", () => {
+describe("a voz dos quatro temas", () => {
   const dados = (resultado: number) => ({ resultado, income: 21514, expense: 6276, money });
 
   it("todo tema responde em todo estado e em toda situação de orçamento, sem estourar", () => {
@@ -87,8 +87,8 @@ describe("a voz dos sete temas", () => {
   });
 
   /**
-   * A regra dela, e vale pros sete: a cobrança fala do número, nunca da pessoa. Na coluna
-   * ruim nenhum tema pode usar adjetivo sobre quem está lendo — nem o Sem filtro.
+   * A regra dela, e vale pros quatro: a cobrança fala do número, nunca da pessoa. Na coluna
+   * ruim nenhum tema pode usar adjetivo sobre quem está lendo.
    */
   it("na coluna ruim ninguém xinga a pessoa", () => {
     const proibidas = [/você é/i, /péssim/i, /irrespons/i, /burr/i, /pregui/i, /fracass/i, /incompet/i, /vergonh/i, /desastr/i];
@@ -104,15 +104,6 @@ describe("a voz dos sete temas", () => {
       ];
       for (const f of frases) for (const re of proibidas) expect(f, `${t.label}: "${f}"`).not.toMatch(re);
     }
-  });
-
-  /** "É pouco? Sim" só pode aparecer quando é pouco de verdade — foi o furo que ela apontou. */
-  it("o Disciplina só diz 'é pouco' quando está apertado", () => {
-    const voz = vozDoTema("disciplina");
-    const base = { restante: 1024, porDia: 93, diasRestantes: 11, ultimoDia: 30, money };
-    expect(voz.fraseOrcamento({ ...base, situacao: "adiantado" })).toContain("É pouco? Sim");
-    expect(voz.fraseOrcamento({ ...base, situacao: "folgado", porDia: 290 })).not.toContain("É pouco");
-    expect(voz.fraseOrcamento({ ...base, situacao: "no-ritmo" })).not.toContain("É pouco");
   });
 
   /** O Padrão continua como é hoje: as frases são as MESMAS que os componentes já mostravam. */
@@ -135,11 +126,9 @@ describe("a voz dos sete temas", () => {
   });
 
   it("os nomes de navegação são os do desenho", () => {
-    expect(vozDoTema("disciplina").nav.metas).toBe("Metas");
-    expect(vozDoTema("game").nav.metas).toBe("Missões");
+    expect(vozDoTema("titanio").nav.metas).toBe("Metas");
     expect(vozDoTema("manifestacao").nav.metas).toBe("Sonhos");
     expect(vozDoTema("girly").nav.metas).toBe("Sonhos");
-    expect(vozDoTema("disciplina").nav.flowTabs).toEqual(["Resultado", "Gastos", "Plano"]);
     // A aba do orçamento e a das metas aparecem juntas no celular: nome igual, destinos diferentes.
     for (const t of PROFILE_THEMES) {
       const voz = vozDoTema(t.key);
@@ -189,33 +178,12 @@ describe("a voz dos sete temas", () => {
     expect(p.aportou).toBe("Guardado");
   });
 
-  it("o Game não cumprimenta: abre no ranking", () => {
-    expect(vozDoTema("game").saudacao("manha", "Dani")).toBeNull();
-    expect(vozDoTema("girly").saudacao("manha", "Dani")).toBe("Oii, Dani 💕");
-    expect(vozDoTema("semfiltro").subSaudacao("Setembro")).toBe("Bora ver o estrago de setembro.");
-  });
-});
-
-describe("Sem filtro: a tirada de cada categoria varia com o mês", () => {
-  const sf = vozDoTema("semfiltro");
-  const meses = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
-
-  it("é a mesma frase pra mesma entrada (não pula a cada abertura)", () => {
-    expect(sf.titulos.comparacao("mais", "R$ 92", "agosto", "ALIMENTACAO")).toBe(sf.titulos.comparacao("mais", "R$ 92", "agosto", "ALIMENTACAO"));
-  });
-
-  it("ao longo do ano, cada categoria mostra as três variações", () => {
-    for (const cat of ["ALIMENTACAO", "MORADIA", "TRANSPORTE", "LAZER", "SAUDE", "EDUCACAO", "IMPOSTOS", "OUTROS"]) {
-      for (const tipo of ["mais", "menos"] as const) {
-        const frases = new Set(meses.map((m) => sf.titulos.comparacao(tipo, "R$ 10", m, cat).split(". ").slice(1).join(". ")));
-        expect(frases.size, `${cat}/${tipo}`).toBe(3);
-      }
-    }
-  });
-
-  it("categoria personalizada cai na frase neutra", () => {
-    expect(sf.titulos.comparacao("mais", "R$ 10", "agosto")).toBe("R$ 10 a mais que agosto. Foi mal, foi? 🫣");
-    expect(sf.titulos.comparacao("menos", "R$ 10", "agosto", undefined)).toContain("Olha ela economizando");
+  it("o Titânio fala como o Padrão; tema que saiu fala como o substituto", () => {
+    expect(vozDoTema("titanio").saudacao("manha", "Dani")).toBe("Bom dia, Dani.");
+    expect(vozDoTema("game")).toBe(vozDoTema("titanio"));
+    expect(vozDoTema("disciplina")).toBe(vozDoTema("titanio"));
+    expect(vozDoTema("semfiltro")).toBe(vozDoTema("padrao"));
+    expect(vozDoTema("minimalista")).toBe(vozDoTema("padrao"));
   });
 });
 

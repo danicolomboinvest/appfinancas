@@ -1,17 +1,20 @@
 import type { Metadata, Viewport } from "next";
-import { Albert_Sans, Geist_Mono } from "next/font/google";
+import { Archivo, Cormorant_Garamond, Figtree, Geist_Mono, Hanken_Grotesk, Urbanist } from "next/font/google";
 import { BarraDoIphone } from "@/components/shell/BarraDoIphone";
 import { BootSplash } from "@/components/brand/BootSplash";
 import { ToqueVivo } from "@/components/shell/ToqueVivo";
 import { THEME_INIT_SCRIPT } from "./theme-init-script";
 import "./globals.css";
 
-// Identidade First Light: Albert Sans (variável) é a única família de texto, títulos em
-// bold tracking-tight, números tabulares como herói. Geist Mono fica só pro font-mono.
-const albertSans = Albert_Sans({
-  variable: "--font-albert-sans",
-  subsets: ["latin"],
-});
+// Cada tema tem a sua letra (versão nova, 11/10/2026): Padrão em Figtree, Girly em Hanken
+// Grotesk com títulos em Cormorant Garamond itálica, Manifestação em Urbanist e Titânio em
+// Archivo. As quatro carregam juntas; o tema escolhe qual vale pela variável --font-tema
+// (ver themes.ts). Geist Mono fica só pro font-mono.
+const figtree = Figtree({ variable: "--font-figtree", subsets: ["latin"], weight: ["300", "400", "500", "600"] });
+const hanken = Hanken_Grotesk({ variable: "--font-hanken", subsets: ["latin"], weight: ["300", "400", "500", "600"] });
+const cormorant = Cormorant_Garamond({ variable: "--font-cormorant", subsets: ["latin"], weight: ["500", "600"], style: ["italic"] });
+const urbanist = Urbanist({ variable: "--font-urbanist", subsets: ["latin"], weight: ["300", "400", "500", "600"] });
+const archivo = Archivo({ variable: "--font-archivo", subsets: ["latin"], weight: ["300", "400", "500", "600"] });
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
@@ -62,7 +65,7 @@ export default function RootLayout({
   return (
     <html
       lang="pt-BR"
-      className={`${albertSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${figtree.variable} ${hanken.variable} ${cormorant.variable} ${urbanist.variable} ${archivo.variable} ${geistMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <head>

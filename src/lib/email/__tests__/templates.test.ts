@@ -4,7 +4,7 @@ import { vozDoTema } from "@/lib/profiles/voice";
 
 const padrao = vozDoTema("padrao").titulos;
 const girly = vozDoTema("girly").titulos;
-const disciplina = vozDoTema("disciplina").titulos;
+const manifestacao = vozDoTema("manifestacao").titulos;
 
 const baseRecap = {
   name: "Dani",
@@ -37,10 +37,10 @@ describe("monthlyRecapEmail: cada tema fala diferente sobre o mesmo mês", () =>
     expect(html).toContain("Ver o mês completo");
   });
 
-  it("o Girly e a Disciplina escrevem coisas diferentes pro mesmo mês", () => {
+  it("o Girly e o Manifestação escrevem coisas diferentes pro mesmo mês", () => {
     const p = monthlyRecapEmail({ ...baseRecap, t: padrao });
     const g = monthlyRecapEmail({ ...baseRecap, t: girly });
-    const d = monthlyRecapEmail({ ...baseRecap, t: disciplina });
+    const d = monthlyRecapEmail({ ...baseRecap, t: manifestacao });
     expect(new Set([p.subject, g.subject, d.subject]).size).toBe(3);
     expect(g.html).toContain("💕");
     expect(d.html).not.toContain("💕");
@@ -79,9 +79,9 @@ describe("monthlyNudgeEmail: o convite pra quem não usou também muda de tom", 
     expect(html).toContain("Anotar meu primeiro gasto");
   });
 
-  it("Disciplina convida diferente do Padrão", () => {
-    const { subject, html } = monthlyNudgeEmail({ ...baseNudge, t: disciplina });
-    expect(subject).toBe("Bora começar outubro?");
-    expect(html).toContain("Registra um gasto agora");
+  it("Manifestação convida diferente do Padrão", () => {
+    const { subject, html } = monthlyNudgeEmail({ ...baseNudge, t: manifestacao });
+    expect(subject).not.toBe(monthlyNudgeEmail({ ...baseNudge, t: padrao }).subject);
+    expect(html).toContain("Registrar meu primeiro passo");
   });
 });

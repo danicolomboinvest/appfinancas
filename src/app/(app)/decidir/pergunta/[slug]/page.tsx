@@ -24,7 +24,7 @@ import {
 } from "@/lib/decisoes/respostas";
 import { carregarRespostas, PERGUNTAS } from "./dados";
 
-const TONS: Tom[] = ["padrao", "girly", "minimalista", "disciplina", "semfiltro", "game", "manifestacao"];
+const TONS: Tom[] = ["padrao", "girly", "manifestacao", "titanio"];
 
 /**
  * Uma pergunta, uma resposta: a Central conversa com a pessoa. Primeiro a resposta em uma frase,
