@@ -11,7 +11,7 @@ export default function PrivacidadePage() {
     <main className="mx-auto flex min-h-screen w-full max-w-2xl flex-col gap-6 px-6 py-12">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-ink">Política de Privacidade</h1>
-        <p className="mt-1 text-sm text-ink-muted">Última atualização: 4 de outubro de 2026</p>
+        <p className="mt-1 text-sm text-ink-muted">Última atualização: 11 de outubro de 2026</p>
       </div>
 
       <section className="flex flex-col gap-4 text-sm leading-relaxed text-ink-muted">
@@ -61,6 +61,35 @@ export default function PrivacidadePage() {
           Conexões; os lançamentos já importados permanecem até que você os apague.
         </p>
         )}
+
+        {/* Login do par (11/10/2026), texto aprovado pela Dani: a gente, sem travessão, sem gênero. */}
+        <h3 id="nos-dois" className="mt-1 scroll-mt-20 text-sm font-semibold text-ink">No Nós dois, com o seu par</h3>
+        <p>
+          Quando você convida o seu par para o Nós dois, cada pessoa entra com o próprio login, e a gente mostra para as
+          duas só o que é do casal: os lançamentos marcados como <strong className="text-ink">nosso</strong> e{" "}
+          <strong className="text-ink">de cada um</strong>, as metas a dois e a proporção da renda de cada pessoa (por
+          exemplo, 55% e 45%). O valor da renda de quem paga o Casal só aparece se essa pessoa escolher mostrar.
+        </p>
+        <p>
+          O que a gente nunca compartilha com o par: os perfis <strong className="text-ink">Pessoal</strong> e{" "}
+          <strong className="text-ink">Empresa</strong>, e os lançamentos marcados como{" "}
+          <strong className="text-ink">só meu</strong>, que só quem lançou vê, nem o total aparece para a outra pessoa.
+        </p>
+        <p>
+          Qualquer uma das duas pessoas pode encerrar esse compartilhamento quando quiser, em Configurações › Nós dois:
+          quem paga o Casal pode remover o par, e o par pode sair. O acesso termina na hora. O histórico do casal fica com
+          quem paga, e quem saiu pode baixar uma cópia do que lançou por 90 dias.
+        </p>
+        <p>
+          Se a assinatura do Casal não for renovada, a gente corta o acesso do par na hora e guarda tudo por 90 dias:
+          nesse tempo, o par ainda baixa a cópia do que lançou, e com a renovação tudo volta como estava. Depois dos 90
+          dias, o que era só do par é apagado.
+        </p>
+        <p>
+          Para pedir a exclusão dos seus dados do Nós dois antes disso, saia do Nós dois e exclua a sua conta em
+          Configurações › Dados (o par também tem esse caminho), ou escreva para a gente no contato da seção 9 que a
+          gente apaga.
+        </p>
 
         <h2 className="mt-2 text-base font-semibold text-ink">4. Onde ficam armazenados</h2>
         <p>

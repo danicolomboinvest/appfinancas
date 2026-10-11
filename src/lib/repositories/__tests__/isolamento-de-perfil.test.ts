@@ -235,10 +235,10 @@ describe("isolamento com o segundo usuário (login do par)", () => {
   });
 
   it("as telas da titular respondem 404 para o par; só o Nós dois abre", () => {
-    for (const rota of ["/carteira", "/carteira/estrategia", "/decidir", "/decidir/comprar", "/fichas/acoes", "/mensal/2026/10", "/orcamento/2026", "/perfis", "/planejamento/metas", "/configuracoes/dados", "/admin/acessos", "/parametros", "/viagem"]) {
+    for (const rota of ["/carteira", "/carteira/estrategia", "/decidir", "/decidir/comprar", "/fichas/acoes", "/mensal/2026/10", "/orcamento/2026", "/perfis", "/planejamento/metas", "/configuracoes/categorias", "/admin/acessos", "/parametros", "/viagem"]) {
       expect(decidirRotaDoPar(rota), rota).toBe("nao-existe");
     }
-    for (const rota of ["/divisao", "/divisao/fechar", "/configuracoes/nos-dois", "/par/abc"]) expect(decidirRotaDoPar(rota), rota).toBe("segue");
+    for (const rota of ["/divisao", "/divisao/fechar", "/configuracoes/nos-dois", "/configuracoes/dados", "/par/abc"]) expect(decidirRotaDoPar(rota), rota).toBe("segue");
     expect(decidirRotaDoPar("/")).toBe("casa");
     expect(decidirRotaDoPar("/mensal/foco")).toBe("casa");
     expect(SECOES_DO_PAR.map((s) => s.href)).toEqual(["/divisao", "/configuracoes/nos-dois"]);

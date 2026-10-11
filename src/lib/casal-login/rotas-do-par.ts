@@ -9,7 +9,8 @@
  */
 
 /** Telas do par. Prefixos: "/divisao" vale para "/divisao" e "/divisao/qualquer-coisa". */
-export const ROTAS_DO_PAR = ["/divisao", "/configuracoes/nos-dois", "/par"] as const;
+// Dados: o par exporta e exclui a PRÓPRIA conta (LGPD). Tudo ali filtra pelo userId dele.
+export const ROTAS_DO_PAR = ["/divisao", "/configuracoes/nos-dois", "/configuracoes/dados", "/par"] as const;
 
 /** Onde o par cai quando entra (o destino padrão de todo mundo é a Visão geral, que não é dele). */
 export const CASA_DO_PAR = "/divisao";

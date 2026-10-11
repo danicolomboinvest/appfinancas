@@ -196,6 +196,9 @@ export function ConfigDoPar({ nomeTitular, entrouEmIso }: { nomeTitular: string;
       <button type="button" onClick={() => start(() => logoutAction())} className="mx-auto mt-4 min-h-11 text-[16px] text-ink-muted underline underline-offset-4">
         Sair da conta
       </button>
+      <Link href="/configuracoes/dados" className="mx-auto min-h-11 text-[15px] text-ink-muted underline underline-offset-4">
+        Baixar ou excluir a minha conta
+      </Link>
 
       <Modal open={sair} onClose={() => setSair(false)} title="Sair do Nós dois?">
         <div className="flex flex-col gap-5">
