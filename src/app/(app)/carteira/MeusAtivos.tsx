@@ -18,7 +18,7 @@ import type { EstadoDaAssessoria } from "@/lib/assessoria/estado";
 import { AssetForm } from "./AssetForm";
 import { ABRIR_NOVO_ATIVO } from "./novo-ativo";
 import { updatePortfolioQuotesAction } from "./quotes-actions";
-import { AvatarDoAtivo } from "./AvatarDoAtivo";
+import { LogoDoAtivo } from "@/components/ui/LogoDoAtivo";
 import { COR_DO_GRUPO } from "./cores-dos-grupos";
 import { ConviteDaAssessoria } from "./ConviteDaAssessoria";
 import { DetalheDoAtivo } from "./DetalheDoAtivo";
@@ -314,7 +314,7 @@ export function MeusAtivos({
                         return (
                           <li key={id} className="border-t border-border">
                             <button type="button" onClick={() => setDetalhe(id)} className="flex w-full items-center gap-2.5 py-2 text-left">
-                              <AvatarDoAtivo nome={a.name} ticker={a.ticker} tesouro={a.assetClass === "TESOURO_DIRETO"} cor={COR_DO_GRUPO[g.grupo]} />
+                              <LogoDoAtivo nome={a.name} ticker={a.ticker} rendaFixa={a.assetClass === "TESOURO_DIRETO" || a.assetClass === "RENDA_FIXA"} cor={COR_DO_GRUPO[g.grupo]} tamanho={28} />
                               <span className="min-w-0 flex-1">
                                 <span className="block truncate text-[14px] font-medium text-ink">{nomeCurto(a)}</span>
                                 {a.investedValue !== null && a.investedValue > 0 && (

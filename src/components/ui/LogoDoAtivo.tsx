@@ -4,11 +4,12 @@ import { logoDoAtivo } from "@/lib/marcas/ativos";
 /**
  * O quadradinho de um ativo (Análises, Carteira, qualquer lista de ativos): o ícone oficial do
  * ticker; sem ele, a marca do nome ("CDB Banco Inter"); sem nada, as letras do código na cor da
- * marca ou do tema. Renda fixa sem marca ganha o prédio de traço. Nunca a inicial numa bolinha.
+ * marca, na `cor` pedida (a Carteira passa a cor do grupo) ou na do tema. Renda fixa sem marca
+ * ganha o prédio de traço. Nunca a inicial numa bolinha.
  *
  * Sem "use client": serve em lista de servidor e de cliente.
  */
-export function LogoDoAtivo({ ticker, nome, tamanho = 40, rendaFixa = false }: { ticker?: string | null; nome?: string | null; tamanho?: number; rendaFixa?: boolean }) {
+export function LogoDoAtivo({ ticker, nome, tamanho = 40, rendaFixa = false, cor: corPedida }: { ticker?: string | null; nome?: string | null; tamanho?: number; rendaFixa?: boolean; cor?: string }) {
   const caixa = { width: tamanho, height: tamanho, borderRadius: Math.round(tamanho * 0.28) };
   const logo = logoDoAtivo(rendaFixa ? null : ticker, nome ?? ticker);
 
@@ -52,7 +53,7 @@ export function LogoDoAtivo({ ticker, nome, tamanho = 40, rendaFixa = false }: {
       </span>
     );
   }
-  const cor = logo.cor ?? "var(--color-accent-strong)";
+  const cor = logo.cor ?? corPedida ?? "var(--color-accent-strong)";
   return (
     <span
       className="inline-flex shrink-0 items-center justify-center font-semibold tracking-[0.02em]"

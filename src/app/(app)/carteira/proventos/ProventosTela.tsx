@@ -9,7 +9,7 @@ import { NUMERO_DESTAQUE } from "@/components/ui/ValorDestaque";
 import { useMoney } from "@/components/money/MoneyProvider";
 import { Receipt } from "lucide-react";
 import type { MesDeProventos } from "@/lib/portfolio/proventos";
-import { AvatarDoAtivo } from "../AvatarDoAtivo";
+import { LogoDoAtivo } from "@/components/ui/LogoDoAtivo";
 
 const MES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
 const MES_LONGO = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
@@ -134,7 +134,7 @@ export function ProventosTela({
               const d = new Date(p.data);
               return (
                 <li key={`${p.ticker}-${k}`} className="flex items-center gap-3 border-t border-border py-3 first:border-t-0">
-                  <AvatarDoAtivo nome={p.nome} ticker={p.ticker} tesouro={false} cor={p.cor} size={44} />
+                  <LogoDoAtivo nome={p.nome} ticker={p.ticker} cor={p.cor} tamanho={44} />
                   <span className="min-w-0 flex-1">
                     <span className="block text-[15px] font-medium text-ink">{p.ticker}</span>
                     <span className="block text-[13px] text-ink-muted">
@@ -155,7 +155,7 @@ export function ProventosTela({
           <ul className="glass flex flex-col rounded-3xl px-4">
             {ranking.map((r) => (
               <li key={r.ticker} className="grid grid-cols-[44px_minmax(0,1fr)_auto] items-center gap-3 border-t border-border py-3 first:border-t-0">
-                <AvatarDoAtivo nome={r.nome} ticker={r.ticker} tesouro={false} cor={r.cor} size={44} />
+                <LogoDoAtivo nome={r.nome} ticker={r.ticker} cor={r.cor} tamanho={44} />
                 <span className="min-w-0">
                   <span className="block text-[15px] font-medium text-ink">{r.ticker}</span>
                   {r.sobreOQuePagou !== null && (

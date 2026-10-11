@@ -12,7 +12,7 @@ import { AssetForm } from "./AssetForm";
 import { textoDaTaxaCompra } from "@/lib/portfolio/taxa-compra";
 import { ResgatarDoAtivo } from "./ResgatarDoAtivo";
 import { DeleteAssetButton } from "./DeleteAssetButton";
-import { AvatarDoAtivo } from "./AvatarDoAtivo";
+import { LogoDoAtivo } from "@/components/ui/LogoDoAtivo";
 import { COR_DO_GRUPO } from "./cores-dos-grupos";
 import { trocarClassificacaoAction, trocarObjetivoAction } from "./carteira-nova-actions";
 import type { AtivoDaTela } from "./MeusAtivos";
@@ -100,7 +100,7 @@ export function DetalheDoAtivo({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center gap-3">
-        <AvatarDoAtivo nome={a.name} ticker={a.ticker} tesouro={a.assetClass === "TESOURO_DIRETO"} cor={cor} size={44} />
+        <LogoDoAtivo nome={a.name} ticker={a.ticker} rendaFixa={a.assetClass === "TESOURO_DIRETO" || a.assetClass === "RENDA_FIXA"} cor={cor} tamanho={44} />
         <div className="min-w-0">
           <p className="truncate text-[17px] font-medium text-ink">{a.ticker && a.ticker !== a.name ? a.name : a.name}</p>
           <p className="text-[13px] text-ink-muted">{NOME_DA_CLASSE[a.assetClass]}</p>
