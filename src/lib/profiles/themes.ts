@@ -16,6 +16,7 @@
  * soft, hover e faint saem de conta, porque foi digitando derivada à mão que já nasceu um
  * hexadecimal corrompido neste projeto.
  */
+import { variaveisDaEsfera } from "./esfera";
 
 export type ProfileThemeKey = "padrao" | "girly" | "manifestacao" | "titanio";
 
@@ -369,8 +370,9 @@ html .botao-flutuante {
 function tema(key: ProfileThemeKey, label: string, descricao: string, claro: ModoBase, escuro: ModoBase): ProfileTheme {
   const logo = `/brand/aurora/${key}`;
   // O mesmo logo nos dois modos (decisão da versão nova): a variável vai igual nos dois blocos.
-  const comLogo = (b: ModoBase): ModoBase => ({ ...b, extras: { ...b.extras, "--logo-tema": `url(${logo}/icone.svg)` } });
-  return { key, label, descricao, modo: "claro", paleta: montar(comLogo(claro), false), paletaAlternativa: montar(comLogo(escuro), true), logo };
+  // As esferas do Decidir (rodada 57) também mudam de cor com o tema e o modo.
+  const comLogo = (b: ModoBase, escuroModo: boolean): ModoBase => ({ ...b, extras: { ...b.extras, "--logo-tema": `url(${logo}/icone.svg)`, ...variaveisDaEsfera(key, escuroModo) } });
+  return { key, label, descricao, modo: "claro", paleta: montar(comLogo(claro, false), false), paletaAlternativa: montar(comLogo(escuro, true), true), logo };
 }
 
 export const PROFILE_THEMES: ProfileTheme[] = [
