@@ -44,6 +44,7 @@ import { listCustomCategories } from "@/lib/repositories/custom-category.repo";
 import { montarDadosDoTema } from "@/app/(app)/mensal/[year]/[month]/theme-hero-data";
 import { ThemeHero } from "@/app/(app)/mensal/[year]/[month]/ThemeHero";
 import { profileTheme } from "@/lib/profiles/themes";
+import { sobrouDoResumo } from "@/lib/consolidation/sobrou";
 import { listarDecisoesDesde } from "@/lib/repositories/decisao.repo";
 import { somarConquistas } from "@/lib/decisoes/conquistas";
 
@@ -158,10 +159,8 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
   const rotuloComparado = comparacao ? MONTH_LABELS_FULL[comparacao.atual.month - 1].toLowerCase() : "";
   const incomeTrend = resumoComparado && resumoDeAntes ? changePercent(resumoComparado.totalIncome, resumoDeAntes.totalIncome) : null;
   const expenseTrend = resumoComparado && resumoDeAntes ? changePercent(resumoComparado.totalExpense, resumoDeAntes.totalExpense) : null;
-  // "Sobrou" é o que ficou com ela: renda − gastos, com o aporte dentro (guardar não é gastar).
-  // É a mesma conta da dica "de cada R$ 100, você manteve R$ 30"; com o saldo depois do aporte,
-  // quem investiu tudo que sobrou via "Na reserva: R$ 0" do lado de "R$ 30 pra reserva".
-  const sobrou = (m: { totalIncome: number; totalExpense: number }) => m.totalIncome - m.totalExpense;
+  // "Sobrou" é a conta única do app: entrou − gastou − guardou (versão nova, 11/10/2026).
+  const sobrou = sobrouDoResumo;
   const balanceDelta = resumoComparado && resumoDeAntes ? changeAmount(sobrou(resumoComparado), sobrou(resumoDeAntes)) : null;
 
   const monthsSoFar = summary.months.filter((m) => m.isRealized);

@@ -13,6 +13,8 @@ export type TextosEmail = {
   emailRecapAssunto(mes: string): string;
   emailRecapIntro(mes: string): string;
   emailRecapSobrou: string;
+  /** Sobrou exatamente zero (entrou = gastou + guardou). */
+  emailRecapEmpatou: string;
   emailRecapFaltou: string;
   emailRecapPrimeiroMes: string;
   emailRecapGastosIguais: string;
@@ -24,12 +26,10 @@ export type TextosEmail = {
   emailRecapBotao: string;
   emailRecapRodape: string;
   /**
-   * Rótulo do valor grande quando ela guardou dinheiro no mês. O e-mail mostra o que sobrou
-   * DEPOIS DOS GASTOS e o guardado ao lado, como conquista (ver ajustarResumoPorEmail): antes o
-   * guardado era descontado, e quem guardou muito recebia "Faltou no mês" em vermelho.
+   * Rótulo da linha do quanto ela guardou no mês, no lugar do "Aportou". O valor grande é o
+   * sobrou da regra única (entrou − gastou − guardou, ver lib/consolidation/sobrou.ts), e as
+   * três linhas embaixo dele fecham a conta.
    */
-  emailRecapSobrouDepoisDosGastos: string;
-  /** Rótulo da linha do quanto ela guardou no mês, no lugar do "Aportou". */
   emailRecapGuardou: string;
   /** Botão do resumo, que leva para o fechamento do mês: "Fechar setembro". */
   emailRecapBotaoFechar(mes: string): string;
@@ -45,6 +45,7 @@ export const PADRAO_EMAIL: TextosEmail = {
   emailRecapAssunto: (mes) => `Seu resumo de ${mes} está pronto`,
   emailRecapIntro: (mes) => `Fechamos ${mes}. Veja como foi:`,
   emailRecapSobrou: "Sobrou no mês",
+  emailRecapEmpatou: "Empatou no mês",
   emailRecapFaltou: "Faltou no mês",
   emailRecapPrimeiroMes: "Esse foi seu primeiro mês com registros. No próximo dá para comparar.",
   emailRecapGastosIguais: "Seus gastos ficaram praticamente no mesmo nível do mês anterior.",
@@ -53,8 +54,7 @@ export const PADRAO_EMAIL: TextosEmail = {
   emailMaiorGasto: "Maior gasto",
   emailRecapBotao: "Ver o mês completo",
   emailRecapRodape: "Você recebe este resumo uma vez por mês.",
-  emailRecapSobrouDepoisDosGastos: "Sobrou depois dos gastos",
-  emailRecapGuardou: "E você ainda guardou",
+  emailRecapGuardou: "Guardou",
   emailRecapBotaoFechar: (mes) => `Fechar ${mes}`,
   emailConviteAssunto: (mes) => `Bora organizar ${mes}?`,
   emailConviteIntro1: (mes) =>

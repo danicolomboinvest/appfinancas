@@ -1,5 +1,6 @@
 "use client";
 
+import { sobrouDoMes } from "@/lib/consolidation/sobrou";
 import { Area, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { DailyFlowPoint } from "@/lib/consolidation/month-analysis";
 import { CHART_COLORS, CHART_TOOLTIP_STYLE } from "./chart-theme";
@@ -45,7 +46,8 @@ export function MonthFlowChart({
   }));
 
   const last = points[points.length - 1];
-  const leftover = last ? last.income - last.expense : 0;
+  // O chip é o sobrou da regra única: entrou − gastou − guardou até aqui.
+  const leftover = last ? sobrouDoMes({ entrou: last.income, gastou: last.expense, guardou: last.investment ?? 0 }) : 0;
   const positive = leftover >= 0;
   const bandColor = positive ? CHART_COLORS.success : CHART_COLORS.danger;
 

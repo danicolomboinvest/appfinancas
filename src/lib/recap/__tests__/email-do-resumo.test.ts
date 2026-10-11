@@ -30,30 +30,37 @@ function valorGrande(html: string): string {
   return html.slice(i - 20, i + 200);
 }
 
-describe("resumo por e-mail: guardar não vira 'faltou'", () => {
-  it("quem guardou mais do que sobrou não recebe 'Faltou no mês' em vermelho", () => {
-    // Ganhou 5.000, gastou 3.000, guardou 2.500. Antes: 5.000 − 3.000 − 2.500 = "Faltou R$ 500".
-    const { html, balance } = emailDe("girly", { income: 5000, expense: 3000, investment: 2500 });
-    expect(balance).toBe(2000);
-    expect(html).not.toContain("Faltou");
-    expect(valorGrande(html)).not.toContain(VERMELHO);
-    expect(html).toContain("Sobrou depois dos gastos 💖");
-    // O guardado aparece como conquista, com o valor.
-    expect(html).toContain("E ainda guardou 🐷✨");
-    expect(html).toMatch(/2\.500/);
+describe("resumo por e-mail: sobrou = entrou − gastou − guardou, igual à tela", () => {
+  it("os números de setembro da Ana: sobrou R$ 200, com as três linhas que fecham a conta", () => {
+    const { html, balance } = emailDe("padrao", { income: 7700, expense: 6600, investment: 900 });
+    expect(balance).toBe(200);
+    expect(valorGrande(html)).toMatch(/200/);
+    expect(html).toContain("Sobrou no mês");
+    expect(html).toMatch(/7\.700/);
+    expect(html).toMatch(/6\.600/);
+    expect(html).toContain("Guardou");
+    expect(html).toMatch(/900/);
   });
 
-  it("gastou mais do que entrou: aí sim é 'faltou', e o guardado continua aparecendo", () => {
-    const { html, balance } = emailDe("padrao", { income: 3000, expense: 3500, investment: 200 });
+  it("guardou mais do que sobrou dos gastos: é 'faltou', sem sinal de menos", () => {
+    const { html, balance } = emailDe("girly", { income: 5000, expense: 3000, investment: 2500 });
     expect(balance).toBe(-500);
     expect(html).toContain("Faltou no mês");
-    expect(html).toContain("E você ainda guardou");
+    expect(valorGrande(html)).toContain(VERMELHO);
+    expect(valorGrande(html)).not.toMatch(/[−-]\s*R\$/);
   });
 
-  it("sem nada guardado, o rótulo do tema continua o de sempre", () => {
-    const { html, t, base } = emailDe("girly", { income: 4000, expense: 3000, investment: 0 });
-    expect(html).toContain(base.emailRecapSobrou);
-    expect(t.aportou).toBe(base.aportou);
+  it("zero é 'empatou'", () => {
+    const { html, balance } = emailDe("padrao", { income: 4000, expense: 3000, investment: 1000 });
+    expect(balance).toBe(0);
+    expect(html).toContain("Empatou no mês");
+    expect(html).not.toContain("Faltou");
+  });
+
+  it("a linha do guardado aparece mesmo com zero: a conta fecha", () => {
+    const { html, t } = emailDe("padrao", { income: 4000, expense: 3000, investment: 0 });
+    expect(html).toContain(t.aportou);
+    expect(html).toContain("Sobrou no mês");
   });
 
   it("o botão fala do fechamento do mês, no tom do tema", () => {

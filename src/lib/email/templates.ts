@@ -96,7 +96,9 @@ export function monthlyRecapEmail(params: {
   const { t } = params;
   const firstName = primeiroNome(params.name);
   const hi = t.emailSaudacao(firstName);
+  // Sobrou, empatou ou faltou: a palavra muda, o valor vai sempre sem sinal (nunca "−R$").
   const positive = params.balance >= 0;
+  const rotuloDoSaldo = params.balance > 0 ? t.emailRecapSobrou : params.balance === 0 ? t.emailRecapEmpatou : t.emailRecapFaltou;
   const perfil = params.perfil?.trim();
 
   // A manchete do e-mail é a comparação, não o valor solto: "sobrou R$ 2.378" não diz se foi
@@ -118,7 +120,7 @@ export function monthlyRecapEmail(params: {
       <p style="margin:0 0 20px;color:${MUTED};">${t.emailRecapIntro(params.monthLabel)}</p>
 
       <div style="background:#faf8f3;border:1px solid #f0ece2;border-radius:12px;padding:18px 20px;margin:0 0 20px;">
-        <p style="margin:0 0 2px;color:${MUTED};font-size:13px;">${positive ? t.emailRecapSobrou : t.emailRecapFaltou}</p>
+        <p style="margin:0 0 2px;color:${MUTED};font-size:13px;">${rotuloDoSaldo}</p>
         <p style="margin:0;font-size:30px;font-weight:700;color:${positive ? INK : "#c0523c"};letter-spacing:-0.5px;">
           ${money(Math.abs(params.balance), params.currency)}
         </p>
@@ -126,13 +128,12 @@ export function monthlyRecapEmail(params: {
 
       <p style="margin:0 0 18px;">${deltaLine}</p>
 
-      <!-- As DUAS saídas aparecem. Sem a linha de aportes, quem lia "entrou 12, saiu 8" e via
-           um saldo de -7 não tinha como fechar a conta — o número que faltava estava fora do
-           e-mail. -->
+      <!-- Entrou, Gastou e Guardou sempre aparecem: são as três parcelas da conta do valor
+           grande (sobrou = entrou − gastou − guardou), e quem lê precisa conseguir fechá-la. -->
       <table style="width:100%;border-collapse:collapse;margin:0 0 8px;">
         ${statRow(t.entrou, money(params.income, params.currency), "#2e7d5b")}
         ${statRow(t.gastou, money(params.expense, params.currency), "#c0523c")}
-        ${params.investment > 0 ? statRow(t.aportou, money(params.investment, params.currency), "#8a6414") : ""}
+        ${statRow(t.aportou, money(params.investment, params.currency), "#8a6414")}
         ${params.topCategory ? statRow(`${t.emailMaiorGasto}: ${escaparHtml(params.topCategory.label)}`, money(params.topCategory.value, params.currency)) : ""}
       </table>
 

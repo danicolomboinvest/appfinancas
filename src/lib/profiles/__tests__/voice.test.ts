@@ -106,7 +106,10 @@ describe("a voz dos quatro temas", () => {
     }
   });
 
-  /** O Padrão continua como é hoje: as frases são as MESMAS que os componentes já mostravam. */
+  /**
+   * O Padrão usa as frases dos componentes. O que resta do plano se chama "livre" desde a
+   * versão nova: "sobrou" é só entrou − gastou − guardou.
+   */
   it("o Padrão usa as frases exatas que o app já tinha", () => {
     const voz = vozDoTema("padrao");
     const flow = readFileSync("src/app/(app)/mensal/[year]/[month]/FlowIndicators.tsx", "utf8");
@@ -121,7 +124,7 @@ describe("a voz dos quatro temas", () => {
     expect(voz.saudacao("manha", "Dani")).toBe("Bom dia, Dani.");
     expect(voz.fraseResultado("bom", dados(9510))).toBeNull();
     expect(voz.fraseOrcamento({ situacao: "no-ritmo", restante: 1024, porDia: 93, diasRestantes: 11, ultimoDia: 30, money })).toBe(
-      "Sobram R$ 1.024 para 11 dias: R$ 93 por dia até dia 30.",
+      "Livre: R$ 1.024 para 11 dias, R$ 93 por dia até dia 30.",
     );
   });
 

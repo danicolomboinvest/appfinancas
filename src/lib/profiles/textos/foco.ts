@@ -393,7 +393,7 @@ export const PADRAO_FOCO: TextosFoco = {
   focoAporteT: (v) => `Guardar ${v} este mês`,
   focoAporteP: 'É o seu compromisso do mês. Como na aula: "Mês: transferir para o investimento".',
   focoRitmoT: (c, p) => `${c}: ${p} do orçamento já usado`,
-  focoRitmoP: (d, s) => `E ainda ${faltamDias(d)}. Sobram ${s} até o fim do mês.`,
+  focoRitmoP: (d, s) => `E ainda ${faltamDias(d)}. Livre: ${s} até o fim do mês.`,
   focoMetaT: (m) => `${m} saiu do ritmo`,
   focoMetaP: (f) => `Para voltar ao prazo, precisa guardar ${f} por mês.`,
   focoMetaVencidaP: "A data que você escolheu para ela já passou. Vale escolher uma data nova.",

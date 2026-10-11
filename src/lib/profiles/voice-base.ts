@@ -571,15 +571,18 @@ export function pctDaRenda(d: DadosResultado): string {
   return `${Math.round(((d.income - d.expense) / d.income) * 100)}%`;
 }
 
-/** As frases de orçamento que o app já tinha, palavra por palavra. */
+/**
+ * As frases de orçamento do Padrão. O que resta do plano é o LIVRE (plano − gastou), e se
+ * chama assim: "sobrou" é só a conta do mês, entrou − gastou − guardou (regra 3.7).
+ */
 export function fraseOrcamentoPadrao(d: DadosOrcamento): string {
   const { situacao, restante, porDia, diasRestantes, ultimoDia, money } = d;
   if (situacao === "sem-plano") {
     return "Você ainda não disse quanto quer gastar este mês. Defina ali embaixo e o app passa a te avisar antes de estourar.";
   }
   if (situacao === "estourou") return `Você passou ${inteiro(money, restante)} do que tinha planejado.`;
-  if (porDia === null || diasRestantes === 0) return `Sobrou ${inteiro(money, restante)} do planejado.`;
-  const sobra = `Sobram ${inteiro(money, restante)} para ${diasRestantes} ${diasRestantes === 1 ? "dia" : "dias"}: ${inteiro(money, porDia)} por dia até dia ${ultimoDia}.`;
+  if (porDia === null || diasRestantes === 0) return `Ficou ${inteiro(money, restante)} livre do planejado.`;
+  const sobra = `Livre: ${inteiro(money, restante)} para ${diasRestantes} ${diasRestantes === 1 ? "dia" : "dias"}, ${inteiro(money, porDia)} por dia até dia ${ultimoDia}.`;
   if (situacao === "adiantado") return `${sobra} Você está gastando adiantado para a altura do mês.`;
   if (situacao === "folgado") return `${sobra} Está sobrando mais do que o esperado, dá para guardar a diferença.`;
   return sobra;

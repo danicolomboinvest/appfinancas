@@ -8,7 +8,7 @@ import type { AuthContext } from "@/lib/auth/session";
  *
  * `it.fails` = bug encontrado e não corrigido aqui.
  */
-type Linha = { category: "INCOME" | "EXPENSE"; amount: number; entryDate: Date | null };
+type Linha = { category: "INCOME" | "EXPENSE" | "INVESTMENT_CONTRIBUTION"; amount: number; entryDate: Date | null };
 type Grupo = { parentCategory: string | null; customCategoryId: string | null; _sum: { amount: number | null }; _count?: number };
 
 const banco = vi.hoisted(() => ({
@@ -74,7 +74,21 @@ describe("getDailyFlow", () => {
   it("a data é lida em UTC: o lançamento do dia 1 não escorrega pro último dia do mês anterior", async () => {
     banco.lancamentos = [{ category: "EXPENSE", amount: 50, entryDate: dia(2026, 8, 1) }];
     const r = await getDailyFlow(ctx, 2026, 8);
-    expect(r.points[0]).toEqual({ day: 1, income: 0, expense: 50, expenseOfDay: 50 });
+    expect(r.points[0]).toEqual({ day: 1, income: 0, expense: 50, expenseOfDay: 50, investment: 0 });
+  });
+
+  it("o guardado acumula dia a dia (entra no sobrou até aqui); aporte sem data vai pro último dia", async () => {
+    banco.lancamentos = [
+      { category: "INCOME", amount: 7700, entryDate: dia(2026, 9, 2) },
+      { category: "INVESTMENT_CONTRIBUTION", amount: 600, entryDate: dia(2026, 9, 5) },
+      { category: "INVESTMENT_CONTRIBUTION", amount: 300, entryDate: null },
+    ];
+    const r = await getDailyFlow(ctx, 2026, 9);
+    expect(r.points[3].investment).toBe(0);
+    expect(r.points[4].investment).toBe(600);
+    expect(r.points.at(-1)!.investment).toBe(900);
+    // O aporte não conta como gasto sem data.
+    expect(r.undatedCount).toBe(0);
   });
 
   it("estorno (valor negativo) desce a curva de gastos em vez de ser ignorado", async () => {

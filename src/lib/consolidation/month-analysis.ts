@@ -16,6 +16,8 @@ export type DailyFlowPoint = {
   expense: number;
   /** Gasto DO dia (não acumulado) — é o que o mapa de calor pinta. */
   expenseOfDay: number;
+  /** Acumulado do que foi guardado (aportes) até esse dia: entra no "sobrou até aqui". */
+  investment: number;
 };
 
 export type DailyFlow = {
@@ -42,7 +44,7 @@ export type DailyFlow = {
  */
 export async function getDailyFlow(ctx: AuthContext, year: number, month: number): Promise<DailyFlow> {
   const entries = await prisma.monthlyEntry.findMany({
-    where: { userId: ctx.userId, profileId: ctx.profileId, year, month, category: { in: ["INCOME", "EXPENSE"] } },
+    where: { userId: ctx.userId, profileId: ctx.profileId, year, month, category: { in: ["INCOME", "EXPENSE", "INVESTMENT_CONTRIBUTION"] } },
     select: { category: true, amount: true, entryDate: true },
   });
 
@@ -53,6 +55,9 @@ export async function getDailyFlow(ctx: AuthContext, year: number, month: number
 
   const incomeByDay = new Array<number>(lastDay + 1).fill(0);
   const expenseByDay = new Array<number>(lastDay + 1).fill(0);
+  const investmentByDay = new Array<number>(lastDay + 1).fill(0);
+  // Aporte sem data entra no total do mês (no último ponto): o sobrou não pode esquecer dele.
+  let undatedInvestment = 0;
   let undatedCount = 0;
   let undatedAmount = 0;
   let undatedIncomeCount = 0;
@@ -60,6 +65,12 @@ export async function getDailyFlow(ctx: AuthContext, year: number, month: number
 
   for (const entry of entries) {
     const amount = Number(entry.amount);
+    if (entry.category === "INVESTMENT_CONTRIBUTION") {
+      const dia = entry.entryDate?.getUTCDate();
+      if (dia && dia >= 1 && dia <= lastDay) investmentByDay[dia] += amount;
+      else if (!entry.entryDate) undatedInvestment += amount;
+      continue;
+    }
     if (!entry.entryDate) {
       if (entry.category === "INCOME") {
         undatedIncomeCount += 1;
@@ -81,10 +92,12 @@ export async function getDailyFlow(ctx: AuthContext, year: number, month: number
   const points: DailyFlowPoint[] = [];
   let income = 0;
   let expense = 0;
+  let investment = 0;
   for (let day = 1; day <= lastDay; day++) {
     income += incomeByDay[day];
     expense += expenseByDay[day];
-    points.push({ day, income, expense, expenseOfDay: expenseByDay[day] });
+    investment += investmentByDay[day] + (day === lastDay ? undatedInvestment : 0);
+    points.push({ day, income, expense, expenseOfDay: expenseByDay[day], investment });
   }
 
   return { points, daysInMonth, undatedCount, undatedAmount, undatedIncomeCount, undatedIncomeAmount };
