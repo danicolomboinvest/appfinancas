@@ -55,6 +55,13 @@ export type TravelDestination = {
   band: FlightBand;
   /** Outros nomes pelos quais a pessoa pode procurar (ex.: "NY" para Nova York). */
   aliases?: string[];
+  /**
+   * Lugar que não está na lista: a pessoa digitou o nome e disse o tipo e onde fica ("Usar
+   * mesmo assim"). O custo sai da faixa típica da região e a tela marca como estimativa.
+   */
+  custom?: true;
+  /** Só nos lugares fora da lista: o tipo que a pessoa escolheu (decide a foto). */
+  placeType?: PlaceType;
 };
 
 export const TRAVEL_STYLE_LABEL: Record<TravelStyle, string> = {
@@ -209,6 +216,16 @@ season(
   "jalapao", "lencois-maranhenses", "capitolio", "brotas", "presidente-figueiredo", "foz-do-iguacu",
   "pirenopolis", "caldas-novas", "olimpia", "manaus", "alter-do-chao", "belem",
 );
+season(
+  "serra_brasil",
+  "penedo", "visconde-de-maua", "aguas-de-lindoia", "domingos-martins", "nova-petropolis",
+);
+season(
+  "natureza_brasil",
+  "itatiaia", "sao-thome-das-letras", "carrancas", "inhotim", "morretes", "xingo", "atins",
+  "delta-do-parnaiba", "serra-da-capivara", "chapada-das-mesas", "nobres", "ilha-de-marajo",
+);
+season("cidade_brasil", "aparecida", "diamantina", "campina-grande");
 season("ski_sul", "bariloche");
 season("andes", "cusco", "arequipa", "la-paz", "uyuni", "quito");
 season("caribe", "cartagena", "san-andres", "seychelles", "mauricio", "cabo-verde");
@@ -361,6 +378,41 @@ export const TRAVEL_DESTINATIONS: TravelDestination[] = [
   d("rio-branco", "Rio Branco", "Brasil", "Brasil", "economico", "nacional_remoto"),
   d("boa-vista", "Boa Vista", "Brasil", "Brasil", "economico", "nacional_remoto"),
   d("macapa", "Macapá", "Brasil", "Brasil", "economico", "nacional_remoto"),
+
+  // ---------- Brasil: mais lugares (11/10/2026, "Viagem em assistente") ----------
+  // Pedido da Dani (rodada 21): quem digita o lugar da praia ou da serra que vai de verdade tem
+  // que achar. Mesma régua de sempre (faixa de custo + faixa de passagem), marcada como estimativa.
+  d("maresias", "Maresias e São Sebastião", "Brasil", "Brasil", "medio", "nacional_curto", ["sao sebastiao", "juquehy", "camburi"]),
+  d("penedo", "Penedo", "Brasil", "Brasil", "barato", "nacional_curto"),
+  d("visconde-de-maua", "Visconde de Mauá", "Brasil", "Brasil", "medio", "nacional_curto", ["maua"]),
+  d("itatiaia", "Itatiaia", "Brasil", "Brasil", "barato", "nacional_curto", ["agulhas negras"]),
+  d("aguas-de-lindoia", "Águas de Lindóia e Serra Negra", "Brasil", "Brasil", "barato", "nacional_curto", ["serra negra", "socorro", "circuito das aguas"]),
+  d("aparecida", "Aparecida", "Brasil", "Brasil", "economico", "nacional_curto"),
+  d("sao-thome-das-letras", "São Thomé das Letras", "Brasil", "Brasil", "barato", "nacional_perto", ["sao tome das letras"]),
+  d("carrancas", "Carrancas", "Brasil", "Brasil", "barato", "nacional_perto"),
+  d("diamantina", "Diamantina", "Brasil", "Brasil", "barato", "nacional_perto"),
+  d("inhotim", "Brumadinho e Inhotim", "Brasil", "Brasil", "medio", "nacional_perto", ["brumadinho"]),
+  d("guarapari", "Guarapari", "Brasil", "Brasil", "barato", "nacional"),
+  d("itaunas", "Itaúnas", "Brasil", "Brasil", "barato", "nacional"),
+  d("domingos-martins", "Domingos Martins e Pedra Azul", "Brasil", "Brasil", "barato", "nacional", ["pedra azul"]),
+  d("nova-petropolis", "Nova Petrópolis", "Brasil", "Brasil", "medio", "nacional"),
+  d("penha", "Penha e Beto Carrero", "Brasil", "Brasil", "medio", "nacional", ["beto carrero"]),
+  d("itapema", "Itapema", "Brasil", "Brasil", "medio", "nacional"),
+  d("morretes", "Morretes e Serra do Mar", "Brasil", "Brasil", "barato", "nacional", ["trem da serra"]),
+  d("boipeba", "Boipeba", "Brasil", "Brasil", "medio", "nacional"),
+  d("barra-grande-ba", "Península de Maraú", "Brasil", "Brasil", "medio", "nacional", ["barra grande bahia", "marau"]),
+  d("ilheus", "Ilhéus", "Brasil", "Brasil", "barato", "nacional"),
+  d("praia-do-frances", "Praia do Francês", "Brasil", "Brasil", "barato", "nacional"),
+  d("sao-miguel-do-gostoso", "São Miguel do Gostoso", "Brasil", "Brasil", "medio", "nacional", ["gostoso"]),
+  d("galinhos", "Galinhos", "Brasil", "Brasil", "barato", "nacional"),
+  d("campina-grande", "Campina Grande", "Brasil", "Brasil", "barato", "nacional", ["sao joao"]),
+  d("xingo", "Cânion do Xingó", "Brasil", "Brasil", "barato", "nacional", ["canion", "caninde", "piranhas"]),
+  d("atins", "Atins", "Brasil", "Brasil", "medio", "nacional_remoto"),
+  d("delta-do-parnaiba", "Delta do Parnaíba", "Brasil", "Brasil", "barato", "nacional_longe", ["parnaiba"]),
+  d("serra-da-capivara", "Serra da Capivara", "Brasil", "Brasil", "economico", "nacional_longe"),
+  d("chapada-das-mesas", "Chapada das Mesas", "Brasil", "Brasil", "barato", "nacional_longe", ["carolina"]),
+  d("nobres", "Nobres e Bom Jardim", "Brasil", "Brasil", "barato", "nacional_longe", ["bom jardim"]),
+  d("ilha-de-marajo", "Ilha de Marajó", "Brasil", "Brasil", "barato", "nacional_longe", ["marajo", "soure"]),
 
   // ---------- América do Sul ----------
   d("buenos-aires", "Buenos Aires", "Argentina", "América do Sul", "barato", "sul_perto"),
@@ -606,7 +658,230 @@ export function searchDestinations(query: string, limit = 30): TravelDestination
   return scored.slice(0, limit).map((s) => s.dest);
 }
 
-export type TripLeg = { destinationKey: string; days: number };
+// ===== Tipo de lugar (decide a foto) e lugares fora da lista =====
+
+/**
+ * O TIPO de cada lugar (rodada 21): a foto da viagem vem dele, nunca de uma escolha aleatória.
+ * Ela digitou "Búzios" e a foto veio de outro lugar; com o tipo, praia mostra praia e serra
+ * mostra serra.
+ */
+export type PlaceType = "praia" | "serra" | "neve" | "historica" | "grande" | "natureza" | "parque";
+
+export const PLACE_TYPE_LABEL: Record<PlaceType, string> = {
+  praia: "Praia",
+  serra: "Serra",
+  neve: "Neve",
+  historica: "Cidade histórica",
+  grande: "Cidade grande",
+  natureza: "Natureza",
+  parque: "Parque",
+};
+
+/** Os tipos que a pessoa escolhe para um lugar fora da lista (os do protótipo, nessa ordem). */
+export const PLACE_TYPES_TO_PICK: PlaceType[] = ["praia", "serra", "historica", "grande", "natureza"];
+
+/** Foto do banco do app (public/fotos) para cada tipo. */
+export const PLACE_PHOTO: Record<PlaceType, string> = {
+  praia: "viagem-praia",
+  serra: "montanha",
+  neve: "montanha",
+  historica: "intercambio",
+  grande: "europa",
+  natureza: "natureza",
+  parque: "parque",
+};
+
+/** As fotos que dá para escolher para um destino (a do tipo vem primeiro na tela). */
+export const TRIP_PHOTOS = ["viagem-praia", "montanha", "natureza", "intercambio", "europa", "parque", "cruzeiro"] as const;
+export type TripPhoto = (typeof TRIP_PHOTOS)[number];
+
+const PLACE_BY_KEY: Record<string, PlaceType> = {};
+function place(type: PlaceType, ...keys: string[]) {
+  for (const key of keys) PLACE_BY_KEY[key] = type;
+}
+
+place(
+  "praia",
+  // Brasil
+  "rio-de-janeiro", "buzios", "arraial-do-cabo", "cabo-frio", "angra-dos-reis", "ilhabela", "ubatuba",
+  "guaruja", "santos", "maresias", "guarapari", "itaunas", "florianopolis", "balneario-camboriu",
+  "bombinhas", "garopaba", "ilha-do-mel", "torres", "itapema", "salvador", "morro-de-sao-paulo",
+  "praia-do-forte", "itacare", "porto-seguro", "trancoso", "arraial-dajuda", "caraiva", "boipeba",
+  "barra-grande-ba", "ilheus", "porto-de-galinhas", "fernando-de-noronha", "maceio", "maragogi",
+  "sao-miguel-dos-milagres", "japaratinga", "praia-do-frances", "aracaju", "joao-pessoa", "natal",
+  "pipa", "sao-miguel-do-gostoso", "galinhos", "fortaleza", "jericoacoara", "canoa-quebrada",
+  "cumbuco", "icarai-de-amontada", "barra-grande", "alter-do-chao",
+  // fora
+  "punta-del-este", "san-andres", "miami", "havai", "cancun", "playa-del-carmen", "tulum", "los-cabos",
+  "puerto-vallarta", "punta-cana", "aruba", "curacao", "bahamas", "jamaica", "porto-rico", "barbados",
+  "belize", "algarve", "ibiza", "maiorca", "tenerife", "nice", "costa-amalfitana", "sicilia", "sardenha",
+  "cinque-terre", "santorini", "mykonos", "creta", "split", "malta", "zanzibar", "seychelles", "mauricio",
+  "cabo-verde", "phuket", "krabi", "bali", "palawan", "goa", "sri-lanka", "maldivas", "brisbane",
+  "cairns", "fiji", "bora-bora",
+);
+place(
+  "serra",
+  "campos-do-jordao", "petropolis", "monte-verde", "pocos-de-caldas", "penedo", "visconde-de-maua",
+  "aguas-de-lindoia", "domingos-martins", "gramado", "bento-goncalves", "nova-petropolis", "urubici",
+  "sao-joaquim", "mendoza", "interlaken", "katmandu", "queenstown",
+);
+place("neve", "bariloche", "ushuaia", "laponia");
+place(
+  "historica",
+  "ouro-preto", "tiradentes", "paraty", "diamantina", "aparecida", "recife", "sao-luis", "pirenopolis",
+  "belem", "colonia-do-sacramento", "valparaiso", "cusco", "arequipa", "la-paz", "cartagena", "quito",
+  "havana", "guatemala", "lisboa", "porto-pt", "sevilha", "granada", "roma", "veneza", "florenca",
+  "provenca", "bordeaux", "edimburgo", "bruxelas", "rota-romantica", "viena", "salzburgo", "praga",
+  "budapeste", "cracovia", "atenas", "istambul", "dubrovnik", "liubliana", "marrakech", "fez", "cairo",
+  "jerusalem", "petra", "kyoto", "chiang-mai", "hanoi", "siem-reap", "nova-delhi", "jaipur",
+);
+place(
+  "grande",
+  "sao-paulo", "belo-horizonte", "vitoria", "curitiba", "porto-alegre", "blumenau", "brasilia", "goiania",
+  "campo-grande", "cuiaba", "teresina", "palmas", "porto-velho", "rio-branco", "boa-vista", "macapa",
+  "campina-grande", "buenos-aires", "cordoba-ar", "santiago", "montevideu", "assuncao", "lima", "bogota",
+  "medellin", "nova-york", "los-angeles", "las-vegas", "sao-francisco", "chicago", "washington", "boston",
+  "seattle", "nova-orleans", "toronto", "vancouver", "montreal", "cidade-do-mexico", "cidade-do-panama",
+  "madri", "barcelona", "valencia", "paris", "lyon", "milao", "londres", "dublin", "amsterda", "berlim",
+  "munique", "frankfurt", "zurique", "genebra", "varsovia", "copenhague", "estocolmo", "helsinque",
+  "bucareste", "cidade-do-cabo", "joanesburgo", "dubai", "abu-dhabi", "doha", "tel-aviv", "toquio",
+  "osaka", "seul", "pequim", "xangai", "hong-kong", "taipe", "bangkok", "singapura", "kuala-lumpur",
+  "ho-chi-minh", "manila", "mumbai", "sydney", "melbourne", "auckland",
+);
+place(
+  "natureza",
+  "capitolio", "serra-do-cipo", "brotas", "holambra", "itatiaia", "sao-thome-das-letras", "carrancas",
+  "inhotim", "morretes", "cambara-do-sul", "foz-do-iguacu", "chapada-diamantina", "xingo",
+  "lencois-maranhenses", "atins", "delta-do-parnaiba", "serra-da-capivara", "chapada-das-mesas",
+  "chapada-dos-veadeiros", "bonito", "pantanal", "chapada-dos-guimaraes", "nobres", "manaus",
+  "presidente-figueiredo", "jalapao", "ilha-de-marajo", "el-calafate", "atacama", "puerto-varas",
+  "torres-del-paine", "uyuni", "galapagos", "banff", "costa-rica", "madeira", "acores", "oslo",
+  "reykjavik", "capadocia", "kruger", "serengeti", "masai-mara", "namibia",
+);
+place("parque", "orlando", "olimpia", "caldas-novas", "penha");
+
+/** O tipo do lugar. Fora da lista, o que ela escolheu; na lista, sempre um dos grupos acima. */
+export function placeTypeFor(destination: TravelDestination): PlaceType {
+  return destination.placeType ?? PLACE_BY_KEY[destination.key] ?? "grande";
+}
+
+/** As chaves do catálogo que ficaram sem tipo (o teste exige zero). */
+export function destinationsWithoutPlaceType(): string[] {
+  return TRAVEL_DESTINATIONS.filter((dest) => !PLACE_BY_KEY[dest.key]).map((dest) => dest.key);
+}
+
+/** A foto de um destino: a que ela escolheu, ou a do tipo do lugar. */
+export function photoFor(destination: TravelDestination, chosen?: string | null): string {
+  if (chosen && (TRIP_PHOTOS as readonly string[]).includes(chosen)) return chosen;
+  return PLACE_PHOTO[placeTypeFor(destination)];
+}
+
+/** Um lugar fora da lista, como ela descreveu. */
+export type CustomPlace = { label: string; region: TravelRegion; placeType: PlaceType };
+
+/**
+ * Lugar fora da lista: custo pela faixa TÍPICA da região (a mais comum entre os destinos de lá
+ * no catálogo), marcado como estimativa. "Pirenópolis" no Brasil fica com as diárias e a
+ * passagem de um destino brasileiro comum; "Cidade X" na Europa, com as de uma cidade europeia.
+ */
+const CUSTOM_BY_REGION: Record<TravelRegion, { tier: CostTier; band: FlightBand }> = {
+  Brasil: { tier: "barato", band: "nacional" },
+  "América do Sul": { tier: "barato", band: "sul" },
+  "América do Norte": { tier: "caro", band: "norte" },
+  "Caribe e América Central": { tier: "medio", band: "central" },
+  Europa: { tier: "caro", band: "europa" },
+  "África e Oriente Médio": { tier: "medio", band: "africa" },
+  Ásia: { tier: "barato", band: "asia" },
+  Oceania: { tier: "caro", band: "oceania" },
+};
+
+export function customRegionDefaults(region: TravelRegion) {
+  return CUSTOM_BY_REGION[region];
+}
+
+/** Nome limpo do lugar digitado: sem sinais de HTML, espaços simples, até 40 letras. */
+export function cleanPlaceLabel(raw: string): string {
+  return raw.replace(/[<>&"]/g, "").replace(/\s+/g, " ").trim().slice(0, 40);
+}
+
+/** Chave estável de um lugar fora da lista (a mesma para o mesmo nome e região). */
+export function customKey(place: CustomPlace): string {
+  const slug = normalize(place.label).replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "lugar";
+  return `custom-${slug}-${TRAVEL_REGIONS.indexOf(place.region)}`;
+}
+
+export function customDestination(place: CustomPlace): TravelDestination | null {
+  const label = cleanPlaceLabel(place.label);
+  if (!label || !TRAVEL_REGIONS.includes(place.region) || !(place.placeType in PLACE_TYPE_LABEL)) return null;
+  const { tier, band } = CUSTOM_BY_REGION[place.region];
+  return {
+    key: customKey({ ...place, label }),
+    label,
+    country: place.region,
+    region: place.region,
+    tier,
+    band,
+    custom: true,
+    placeType: place.placeType,
+  };
+}
+
+/** O destino de um trecho: o do catálogo pela chave, ou o lugar fora da lista que ela descreveu. */
+export function resolveLegDestination(leg: { destinationKey: string; custom?: CustomPlace }): TravelDestination | null {
+  if (leg.custom) return customDestination(leg.custom);
+  return findDestination(leg.destinationKey);
+}
+
+/**
+ * Código de aeroporto para o cartão de embarque (GRU → LIS → CDG). Só o principal de cada
+ * lugar; sem código conhecido, as três primeiras letras do nome (como no protótipo).
+ */
+const AIRPORT_BY_KEY: Record<string, string> = {
+  "sao-paulo": "GRU", "rio-de-janeiro": "GIG", "belo-horizonte": "CNF", vitoria: "VIX", "campos-do-jordao": "SJK",
+  paraty: "GIG", buzios: "CFB", "arraial-do-cabo": "CFB", "cabo-frio": "CFB", "angra-dos-reis": "GIG",
+  "ouro-preto": "CNF", tiradentes: "CNF", florianopolis: "FLN", "balneario-camboriu": "NVT", bombinhas: "NVT",
+  curitiba: "CWB", "porto-alegre": "POA", gramado: "POA", "bento-goncalves": "POA", "foz-do-iguacu": "IGU",
+  salvador: "SSA", "morro-de-sao-paulo": "SSA", "praia-do-forte": "SSA", itacare: "IOS", ilheus: "IOS",
+  "porto-seguro": "BPS", trancoso: "BPS", "arraial-dajuda": "BPS", caraiva: "BPS", "chapada-diamantina": "LEC",
+  recife: "REC", "porto-de-galinhas": "REC", "fernando-de-noronha": "FEN", maceio: "MCZ", maragogi: "MCZ",
+  "sao-miguel-dos-milagres": "MCZ", aracaju: "AJU", "joao-pessoa": "JPA", natal: "NAT", pipa: "NAT",
+  fortaleza: "FOR", jericoacoara: "JJD", "sao-luis": "SLZ", "lencois-maranhenses": "SLZ", brasilia: "BSB",
+  "chapada-dos-veadeiros": "BSB", pirenopolis: "BSB", goiania: "GYN", bonito: "BYO", "campo-grande": "CGR",
+  cuiaba: "CGB", pantanal: "CGB", manaus: "MAO", belem: "BEL", "alter-do-chao": "STM", palmas: "PMW",
+  jalapao: "PMW", teresina: "THE", "ilha-do-mel": "CWB", guarapari: "VIX",
+  "buenos-aires": "EZE", bariloche: "BRC", mendoza: "MDZ", "el-calafate": "FTE", ushuaia: "USH", santiago: "SCL",
+  atacama: "CJC", montevideu: "MVD", "punta-del-este": "PDP", lima: "LIM", cusco: "CUZ", bogota: "BOG",
+  cartagena: "CTG", medellin: "MDE", "san-andres": "ADZ", quito: "UIO", "la-paz": "LPB", assuncao: "ASU",
+  "nova-york": "JFK", miami: "MIA", orlando: "MCO", "los-angeles": "LAX", "las-vegas": "LAS",
+  "sao-francisco": "SFO", chicago: "ORD", washington: "IAD", boston: "BOS", seattle: "SEA",
+  "nova-orleans": "MSY", havai: "HNL", toronto: "YYZ", vancouver: "YVR", montreal: "YUL",
+  cancun: "CUN", "playa-del-carmen": "CUN", tulum: "CUN", "cidade-do-mexico": "MEX", "los-cabos": "SJD",
+  "punta-cana": "PUJ", havana: "HAV", aruba: "AUA", curacao: "CUR", bahamas: "NAS", "cidade-do-panama": "PTY",
+  "costa-rica": "SJO",
+  lisboa: "LIS", "porto-pt": "OPO", algarve: "FAO", madeira: "FNC", madri: "MAD", barcelona: "BCN",
+  sevilha: "SVQ", ibiza: "IBZ", paris: "CDG", nice: "NCE", roma: "FCO", veneza: "VCE", florenca: "FLR",
+  milao: "MXP", londres: "LHR", edimburgo: "EDI", dublin: "DUB", amsterda: "AMS", bruxelas: "BRU",
+  berlim: "BER", munique: "MUC", frankfurt: "FRA", zurique: "ZRH", genebra: "GVA", viena: "VIE",
+  praga: "PRG", budapeste: "BUD", copenhague: "CPH", estocolmo: "ARN", oslo: "OSL", helsinque: "HEL",
+  reykjavik: "KEF", atenas: "ATH", santorini: "JTR", mykonos: "JMK", istambul: "IST", dubrovnik: "DBV",
+  marrakech: "RAK", cairo: "CAI", "cidade-do-cabo": "CPT", joanesburgo: "JNB", dubai: "DXB",
+  "abu-dhabi": "AUH", doha: "DOH", "tel-aviv": "TLV", toquio: "NRT", kyoto: "KIX", osaka: "KIX",
+  seul: "ICN", pequim: "PEK", xangai: "PVG", "hong-kong": "HKG", bangkok: "BKK", phuket: "HKT", bali: "DPS",
+  singapura: "SIN", maldivas: "MLE", sydney: "SYD", melbourne: "MEL", auckland: "AKL",
+};
+
+export function airportCodeFor(destination: TravelDestination): string {
+  const code = AIRPORT_BY_KEY[destination.key];
+  if (code) return code;
+  const letters = normalize(destination.label).replace(/[^a-z]/g, "");
+  return (letters.slice(0, 3) || "???").toUpperCase();
+}
+
+/**
+ * Um trecho da viagem. `custom` vem quando o lugar não está na lista: o nome que ela digitou,
+ * a região e o tipo de lugar. Sem ele, a chave tem que ser do catálogo.
+ */
+export type TripLeg = { destinationKey: string; days: number; custom?: CustomPlace };
 
 export type TripInput = {
   legs: TripLeg[];
@@ -713,7 +988,7 @@ function estimateFlights(destinations: TravelDestination[], month?: number): num
 
 export function estimateTrip(input: TripInput): TripEstimate | null {
   const resolved = input.legs
-    .map((leg) => ({ destination: findDestination(leg.destinationKey), days: leg.days }))
+    .map((leg) => ({ destination: resolveLegDestination(leg), days: leg.days }))
     .filter((leg): leg is { destination: TravelDestination; days: number } => leg.destination !== null)
     .slice(0, TRIP_LIMITS.maxLegs);
   if (resolved.length === 0) return null;
