@@ -1,6 +1,8 @@
 "use client";
 
 import { Explica } from "@/components/ui/Explica";
+import { Repeat } from "lucide-react";
+import { LogoDoLancamento } from "@/components/ui/LogoDoLancamento";
 
 import { useState, useTransition } from "react";
 import { Card } from "@/components/ui/Card";
@@ -61,7 +63,8 @@ export function RaioX({ itens, decididos }: { itens: RaioXItem[]; decididos: Rec
           return (
             <div key={item.chave} className="py-4" data-guia="raiox-item">
               <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
+                <LogoDoLancamento descricao={item.nome} icon={Repeat} size={36} />
+                <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold text-ink">{item.nome}</p>
                   <p className="text-caption text-ink-faint">
                     {item.tipo === "assinatura" ? t.raioxNosUltimos(item.meses) : t.raioxVezesPorMes(Math.round(item.vezesPorMes))}

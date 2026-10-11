@@ -6,7 +6,7 @@ import type { ParentCategory, ProfileKind } from "@prisma/client";
 import type { CurrencyCode } from "@/lib/money";
 import { Card } from "@/components/ui/Card";
 import { Modal } from "@/components/ui/Modal";
-import { CategoryIcon } from "@/components/ui/CategoryIcon";
+import { LogoDoLancamento } from "@/components/ui/LogoDoLancamento";
 import { emojiDaCategoria } from "@/lib/profiles/icones";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import type { Voz } from "@/lib/profiles/voice";
@@ -313,7 +313,7 @@ export function EntryList({
               {marcado ? <CheckSquare size={22} strokeWidth={1.75} /> : <Square size={22} strokeWidth={1.75} />}
             </span>
           ) : (
-            <CategoryIcon icon={visual.icon} color={visual.color} emoji={visual.emoji} />
+            <LogoDoLancamento descricao={entry.description} icon={visual.icon} emoji={visual.emoji} />
           )}
           <span className="min-w-0 flex-1">
             <span className="block truncate text-[15px] font-medium text-ink">
@@ -505,7 +505,7 @@ export function EntryList({
         {open && (
           <div className="flex flex-col gap-5">
             <div className="flex items-start gap-3">
-              <CategoryIcon icon={categoryVisual(open, customCategories, tema, kind).icon} color={categoryVisual(open, customCategories, tema, kind).color} emoji={categoryVisual(open, customCategories, tema, kind).emoji} size={44} />
+              <LogoDoLancamento descricao={open.description} icon={categoryVisual(open, customCategories, tema, kind).icon} emoji={categoryVisual(open, customCategories, tema, kind).emoji} size={44} />
               <div className="min-w-0 flex-1">
                 <p className="text-lg font-semibold leading-tight text-ink">
                   {open.subcategory ?? categoryName(open, customCategories, voz, kind)}
