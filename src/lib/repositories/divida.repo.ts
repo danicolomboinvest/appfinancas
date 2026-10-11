@@ -105,12 +105,17 @@ export async function desfazerToque(ctx: AuthContext, id: string, antes: AntesDo
  * (a tela usa o valor de reserva e diz que é de exemplo).
  */
 export async function selicAnual(userId: string): Promise<number | null> {
-  for (const nome of ["Selic", "CDI"]) {
-    const r = await prisma.referenceRate.findFirst({
-      where: { OR: [{ userId }, { userId: null }], name: { contains: nome, mode: "insensitive" }, basis: { in: ["ANNUAL_252", "ANNUAL_365"] } },
-      orderBy: [{ userId: { sort: "desc", nulls: "last" } }, { effectiveDate: "desc" }],
-      select: { rateValue: true },
-    });
+  // Selic e CDI ao mesmo tempo (antes, o CDI esperava a Selic voltar vazia).
+  const achados = await Promise.all(
+    ["Selic", "CDI"].map((nome) =>
+      prisma.referenceRate.findFirst({
+        where: { OR: [{ userId }, { userId: null }], name: { contains: nome, mode: "insensitive" }, basis: { in: ["ANNUAL_252", "ANNUAL_365"] } },
+        orderBy: [{ userId: { sort: "desc", nulls: "last" } }, { effectiveDate: "desc" }],
+        select: { rateValue: true },
+      }),
+    ),
+  );
+  for (const r of achados) {
     const v = r ? Number(r.rateValue) : NaN;
     // A unidade do sistema é fração (0.1425 = 14,25%).
     if (Number.isFinite(v) && v > 0 && v <= 3) return v * 100;

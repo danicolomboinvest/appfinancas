@@ -1,7 +1,7 @@
 import { cache } from "react";
 import { cookies } from "next/headers";
 import { COOKIE_VALORES_OCULTOS } from "@/lib/valores-ocultos";
-import { auth } from "@/lib/auth/auth.config";
+import { sessaoDaRequisicao } from "@/lib/auth/session";
 import { getOwnUser } from "@/lib/repositories/user.repo";
 import {
   toCurrencyCode,
@@ -21,7 +21,7 @@ import {
  * Assim nenhum componente precisa receber a moeda por prop: cada Server Component pergunta.
  */
 export const getUserCurrency = cache(async (): Promise<CurrencyCode> => {
-  const session = await auth();
+  const session = await sessaoDaRequisicao();
   if (!session?.user) return toCurrencyCode(null);
   // Mesma leitura cacheada que o layout usa pro tema: uma consulta por requisição, não duas.
   const user = await getOwnUser({ userId: session.user.id, role: session.user.role });

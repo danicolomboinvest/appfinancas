@@ -3,18 +3,17 @@ import { perfilTemLimiteDoCartao } from "@/lib/repositories/limite-cartao.repo";
 import { after } from "next/server";
 import { redirect } from "next/navigation";
 import { isPluggyConfigured } from "@/lib/pluggy/client";
-import { auth } from "@/lib/auth/auth.config";
 import { AppShell } from "@/components/shell/AppShell";
 import { ThemeSync } from "@/components/shell/ThemeSync";
 import { getOwnUser, touchLastSeen } from "@/lib/repositories/user.repo";
 import { compraComOCelular, contaConfirmada, situacaoDoAcesso, usoDoApp, type UsoDoApp } from "@/lib/repositories/allowedEmail.repo";
 import { nowInBrazil } from "@/lib/date/brazil-now";
-import type { AccountContext } from "@/lib/auth/session";
+import { perfilAtivoDaRequisicao, sessaoDaRequisicao, type AccountContext } from "@/lib/auth/session";
 import type { ProfileKind } from "@prisma/client";
 import { MoneyProvider } from "@/components/money/MoneyProvider";
 import { valoresOcultos } from "@/lib/money-server";
 import { toCurrencyCode, type CurrencyCode } from "@/lib/money";
-import { listProfiles, getOrCreateActiveProfile } from "@/lib/repositories/profile.repo";
+import { listProfiles } from "@/lib/repositories/profile.repo";
 import { chaveDoTema, modoEfetivo, preferenciaDeModo, profileTheme as temaDoPerfil, profileThemeCss, temaDeixaEscolherModo } from "@/lib/profiles/themes";
 import { periodoDoDia, vozDoTema } from "@/lib/profiles/voice";
 import { TelaConfirmeEmail } from "@/components/auth/TelaConfirmeEmail";
@@ -39,7 +38,7 @@ function capitalize(text: string) {
 }
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const session = await auth();
+  const session = await sessaoDaRequisicao();
   // Ancorado no fuso do Brasil, não no do servidor, sem isso a saudação ("Bom dia"/"Boa noite")
   // e o mês do resumo trocariam umas horas antes da hora certa pra quem está no Brasil.
   const now = nowInBrazil();
@@ -75,11 +74,19 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     modoPar = doPar ? { nomeTitular: doPar.par.nomeTitular } : null;
     const [user, ativo, proprios, casalDoPar] = await Promise.all([
       getOwnUser(ctx),
-      doPar ? doPar.perfil : getOrCreateActiveProfile(ctx.userId),
+      doPar ? doPar.perfil : perfilAtivoDaRequisicao(ctx.userId),
       listProfiles(ctx.userId),
       doPar ? doPar.perfil : session.user.par === "fora" ? perfilDoParNaLista(ctx.userId) : null,
     ]);
     const todos = casalDoPar ? [...proprios, casalDoPar] : proprios;
+    // O que vem depois não depende uma coisa da outra: sai tudo de uma vez (antes eram quatro
+    // idas ao banco em fila, em TODA tela).
+    const [acessoDaConta, confirmada, comLimite, comParNoCasal] = await Promise.all([
+      doPar || ctx.role === "ADMIN" ? Promise.resolve("ativo" as const) : situacaoDoAcesso(user.email),
+      doPar || ctx.role === "ADMIN" ? Promise.resolve(true) : contaConfirmada(user),
+      perfilTemLimiteDoCartao(ctx.userId, ativo.id),
+      !doPar && ativo.kind === "CASAL" ? prisma.membroCasal.count({ where: { profileId: ativo.id, saiuEm: null } }).then((n) => n > 0) : Promise.resolve(Boolean(doPar)),
+    ]);
     // O par não tem a área de investimentos (nem sabe que existe): fica no "gratis".
     let uso: UsoDoApp = "gratis";
     if (doPar) {
@@ -92,7 +99,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       // grátis continua com a parte grátis (ver usoDoApp). Vem antes da confirmação do e-mail:
       // quem não tem compra não precisa confirmar nada, precisa saber o que fazer. O e-mail é o da
       // conta no banco, não o do token, que é o do dia do login.
-      const acesso = ctx.role === "ADMIN" ? "ativo" : await situacaoDoAcesso(user.email);
+      const acesso = acessoDaConta;
       uso = usoDoApp(acesso, user.createdAt);
       if (uso === "bloqueado" && acesso !== "ativo") {
         // No app da Apple, quem não tem acesso assina ali mesmo (guideline 3.1.1); a tela do
@@ -106,7 +113,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       // também manda de volta pra cá quem não confirmou. Admin sempre passa.
       // Exceção: quem assinou pela Apple a partir desta conta. A compra já prova que a conta é
       // dela, e o revisor da Apple, que assina no Sandbox, não abre e-mail de confirmação.
-      if (ctx.role !== "ADMIN" && !(await contaConfirmada(user))) return <TelaConfirmeEmail email={user.email} />;
+      if (ctx.role !== "ADMIN" && !confirmada) return <TelaConfirmeEmail email={user.email} />;
       // Primeira entrada: antes de ver qualquer tela, a pessoa escolhe o tipo e o tema do
       // perfil dela em /comecar. Uma vez só; quem já usava o app nasceu com a data preenchida.
       if (user.onboardedAt === null) redirect("/comecar");
@@ -126,11 +133,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     profileTheme = chaveDoTema(ativo.theme);
     profileKind = ativo.kind;
     prefsDeCategoria = lerPreferenciasDeCategoria(ativo.categorias);
-    cartaoComLimite = await perfilTemLimiteDoCartao(ctx.userId, ativo.id);
+    cartaoComLimite = comLimite;
     if (ativo.kind === "CASAL") {
       const casal = lerConfigCasal(ativo.casal);
       // Com o par dentro (login do par), o lançamento ganha o "Só meu" que esconde de verdade.
-      const comPar = doPar ? true : (await prisma.membroCasal.count({ where: { profileId: ativo.id, saiuEm: null } })) > 0;
+      const comPar = comParNoCasal;
       nomesDoCasal = { A: casal.nomeA, B: casal.nomeB, comPar };
     }
     // O TEMA do perfil ativo redefine a paleta do app inteiro — fundo, cartão, tinta e

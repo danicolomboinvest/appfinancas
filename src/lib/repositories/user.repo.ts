@@ -92,9 +92,10 @@ export async function createUserInvite(input: { email: string; name: string; pas
  * do tema, o formatador precisa da moeda — e sem isso cada um pagava uma ida ao banco para
  * ler a mesma linha. O escopo é a requisição, então o dado de uma pessoa nunca vaza pra outra.
  */
-export const getOwnUser = cache(async (ctx: AccountContext) => {
-  return prisma.user.findUniqueOrThrow({ where: { id: ctx.userId } });
-});
+// O React guarda o resultado pela IDENTIDADE do argumento: cada tela monta o seu `ctx`, então a
+// leitura antiga (por ctx) rodava duas, três vezes na mesma requisição. Pelo id, uma só.
+const usuarioPorId = cache(async (userId: string) => prisma.user.findUniqueOrThrow({ where: { id: userId } }));
+export const getOwnUser = (ctx: AccountContext) => usuarioPorId(ctx.userId);
 
 /**
  * Grava a confirmação do e-mail a partir do link. Só vale se o e-mail do link ainda é o da conta
