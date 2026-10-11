@@ -9,9 +9,9 @@ import { MarcarFeito } from "./MarcarFeito";
 export const metadata = { title: "Antes de cancelar · SPI Finance" };
 
 const TIPO: Record<string, string> = {
-  meses_gratis: `${MESES_GRATIS} meses grátis: somar na Hubla e em Acessos`,
-  duvida: "Dúvida: responder pelo app@",
-  contestacao: "Número errado: conferir e corrigir em até 48 horas",
+  meses_gratis: `${MESES_GRATIS} meses grátis (entraram sozinhos no prazo do acesso)`,
+  duvida: "Dúvida (respondida na hora pelo passo a passo)",
+  contestacao: "Algo não está certo: responder em até 48 horas",
   aviso_renovacao: "Aviso 7 dias antes da renovação (sai sozinho)",
   aviso_reembolso: "Lembrete do prazo de reembolso (sai sozinho)",
   conversa: "Quer falar com a equipe",
@@ -19,8 +19,9 @@ const TIPO: Record<string, string> = {
 const ESCOLHA: Record<string, string> = { aceitou_oferta: "ficou com a ajuda", foi_cancelar: "foi cancelar", abriu_hubla: "abriu a Hubla", abriu_apple: "abriu a Apple" };
 
 /**
- * O que as pessoas pediram no "antes de cancelar" e o que a equipe faz à mão, com o "Feito". Em
- * cima, os motivos dos últimos 60 dias, para a Dani medir qual ajuda segura e qual é enfeite.
+ * O registro do "antes de cancelar" (tudo automático, decisão da Dani em 11/10): os meses grátis,
+ * as dúvidas respondidas, os avisos e a fila do "algo não está certo", com os dados para o
+ * diagnóstico. Em cima, os motivos dos últimos 60 dias, para medir qual ajuda segura.
  */
 export default async function AdminPedidosPage() {
   await requireAdmin();
@@ -68,14 +69,19 @@ export default async function AdminPedidosPage() {
                 {p.user.name ?? ""} {p.user.email}
               </p>
               {p.area && <p className="text-sm text-ink-muted">Onde: {p.area}</p>}
+              {p.assunto && <p className="text-sm text-ink-muted">Assunto achado: {p.assunto}</p>}
+              {p.tipo === "contestacao" && p.dados && <p className="break-all text-caption text-ink-faint">Diagnóstico: {JSON.stringify(p.dados)}</p>}
               {p.texto && <p className="whitespace-pre-wrap text-sm text-ink-muted">&ldquo;{p.texto}&rdquo;</p>}
               {p.avisarEm && <p className="text-caption text-ink-faint">E-mail em {p.avisarEm.toLocaleDateString("pt-BR", { timeZone: "UTC" })}</p>}
+              {p.emailEnviadoEm && <p className="text-caption text-ink-faint">E-mail enviado {quando.format(p.emailEnviadoEm)}</p>}
               {p.estado === "feito" ? (
                 <p className="text-caption text-success">
-                  Feito {p.feitoEm ? quando.format(p.feitoEm) : ""} {p.feitoPor ? `por ${p.feitoPor}` : ""}
+                  Feito {p.feitoEm ? quando.format(p.feitoEm) : ""} {p.feitoPor ? `(${p.feitoPor})` : ""}
                 </p>
-              ) : (
+              ) : p.tipo === "contestacao" ? (
                 <MarcarFeito id={p.id} />
+              ) : (
+                <p className="text-caption text-ink-faint">Automático</p>
               )}
             </Card>
           ))}

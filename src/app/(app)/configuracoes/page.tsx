@@ -44,7 +44,7 @@ export default async function ConfiguracoesPage() {
   // Renovação: sempre 1 ano depois da compra. Sem data de compra (liberação manual), sem linha.
   const compra = await compraDoApp(ctx.userId, user.email);
   const renova = compra ? dataLonga(renovacaoEm(compra.em, nowInBrazil())) : null;
-  const cancelar = compra ? await dadosDoCancelar(ctx.userId, compra) : null;
+  const cancelar = compra ? await dadosDoCancelar(ctx, compra) : null;
   const nome = user.name?.trim() || user.email;
   const tema = profileTheme(ctx.profileTheme);
   const modo = MODO[preferenciaDeModo(user.theme)];

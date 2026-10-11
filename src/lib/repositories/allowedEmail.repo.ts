@@ -321,8 +321,10 @@ const JANELA_DA_FATURA_PENDENTE_DIAS = 30;
 
 /** Uma fatura nova só é renovação se o acesso vence em até tantos dias (ou já venceu). O Hubla
  * manda uma fatura por item do pedido (curso + app, order bump), todas no mesmo minuto: antes,
- * cada uma somava um ano, e 129 compras de set/2026 saíram com 2 a 5 anos (02/10/2026). */
-export const JANELA_DE_RENOVACAO_DIAS = 60;
+ * cada uma somava um ano, e 129 compras de set/2026 saíram com 2 a 5 anos (02/10/2026).
+ * 120 e não 60 (11/10/2026): quem ganhou os 2 meses grátis do "antes de cancelar" tem o acesso
+ * 60 dias depois da cobrança da Hubla; com 60, a renovação dela não somava e o ano se perdia. */
+export const JANELA_DE_RENOVACAO_DIAS = 120;
 
 /**
  * O que um evento de liberação do Hubla faz com o prazo. Sem banco, pra dar pra testar cada
@@ -391,7 +393,8 @@ export async function grantFromHubla(
     update: {
       active: true,
       ...(phone ? { phone } : {}),
-      ...(decisao.extended ? { expiresAt: decisao.expiresAt } : {}),
+      // Renovou: a saída que a Hubla avisou antes deixa de valer.
+      ...(decisao.extended ? { expiresAt: decisao.expiresAt, canceladoEm: null } : {}),
       ...(decisao.lastHublaInvoiceId !== undefined ? { lastHublaInvoiceId: decisao.lastHublaInvoiceId } : {}),
     },
     create: {

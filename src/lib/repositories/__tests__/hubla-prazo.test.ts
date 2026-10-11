@@ -97,3 +97,19 @@ describe("decidirPrazoHubla: a primeira compra dá UM ano, em qualquer ordem dos
     expect(iso(d.expiresAt)).toBe(iso(addAccessPeriod(depois)));
   });
 });
+
+describe("decidirPrazoHubla: os 2 meses grátis do 'antes de cancelar' não se perdem na renovação", () => {
+  it("renovação que chega 3 dias antes da cobrança soma o ano por cima do prazo com o presente", () => {
+    const cobranca = new Date("2027-10-01T12:00:00Z");
+    const comPresente = new Date(cobranca.getTime() + 60 * 86_400_000); // 30/11/2027
+    const chegada = new Date(cobranca.getTime() - 3 * 86_400_000);
+    const r = aplicar({ active: true, expiresAt: comPresente, lastHublaInvoiceId: "inv_1" }, "inv_2", chegada);
+    expect(r.decisao.extended).toBe(true);
+    expect(iso(r.linha.expiresAt)).toBe(iso(addAccessPeriod(comPresente)));
+  });
+
+  it("fatura irmã da mesma compra (order bump, prazo a 1 ano) continua sem somar", () => {
+    const r = aplicar({ active: true, expiresAt: umAno, lastHublaInvoiceId: "inv_1" }, "inv_2");
+    expect(r.decisao.extended).toBe(false);
+  });
+});

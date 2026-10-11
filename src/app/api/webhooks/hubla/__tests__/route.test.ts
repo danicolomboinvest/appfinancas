@@ -51,6 +51,8 @@ vi.mock("@/lib/repositories/allowedEmail.repo", () => ({
   grantFromHubla: (...a: unknown[]) => grantFromHubla(...a),
   revokeFromHubla: (...a: unknown[]) => revokeFromHubla(...a),
 }));
+const encerrarNoVencimento = vi.fn();
+vi.mock("@/lib/assinatura/cancelamento", () => ({ encerrarNoVencimento: (...a: unknown[]) => encerrarNoVencimento(...a) }));
 
 const liberarProdutoDaHubla = vi.fn();
 const revogarProdutoDaHubla = vi.fn();
@@ -91,6 +93,7 @@ beforeEach(() => {
   produtos.push({ id: "p0", hublaProductId: null, name: "Do Zero à Liberdade Financeira", active: true, source: "MANUAL" });
   grantFromHubla.mockReset().mockResolvedValue({ isNew: true, expiresAt: new Date("2027-09-30T12:00:00Z"), extended: true });
   revokeFromHubla.mockReset().mockResolvedValue({ count: 1 });
+  encerrarNoVencimento.mockReset().mockResolvedValue("manter");
   liberarProdutoDaHubla.mockReset().mockResolvedValue({});
   revogarProdutoDaHubla.mockReset().mockResolvedValue({ count: 1 });
   findUserByEmail.mockReset().mockResolvedValue(null);
@@ -249,9 +252,16 @@ describe("webhook Hubla: reembolso e cancelamento", () => {
     expect(revokeFromHubla).toHaveBeenCalledWith("i@x.com");
   });
 
-  it("member_removed do curso revoga", async () => {
+  it("member_removed sem reembolso NÃO corta na hora: fica até o vencimento", async () => {
     await chamar(compra("customer.member_removed", { user: { email: "j@x.com" }, product: CURSO }));
-    expect(revokeFromHubla).toHaveBeenCalledWith("j@x.com");
+    expect(encerrarNoVencimento).toHaveBeenCalledWith("j@x.com");
+    expect(revokeFromHubla).not.toHaveBeenCalled();
+  });
+
+  it("reembolso continua cortando na hora, sem passar pelo vencimento", async () => {
+    await chamar(compra("invoice.refunded", { user: { email: "r@x.com" }, product: CURSO }));
+    expect(revokeFromHubla).toHaveBeenCalledWith("r@x.com");
+    expect(encerrarNoVencimento).not.toHaveBeenCalled();
   });
 
   it("reembolso com e-mail da conta diferente do pagador revoga os dois", async () => {

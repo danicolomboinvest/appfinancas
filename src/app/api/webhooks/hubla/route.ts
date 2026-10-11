@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { normalizePhone } from "@/lib/phone";
 import { grantFromHubla, revokeFromHubla } from "@/lib/repositories/allowedEmail.repo";
+import { encerrarNoVencimento } from "@/lib/assinatura/cancelamento";
 import { oQueACompraLibera, recordSeenProduct, type HublaProduct } from "@/lib/repositories/allowedProduct.repo";
 import { liberarProdutoDaHubla, MONEY_RESET, revogarProdutoDaHubla } from "@/lib/repositories/produtoLiberado.repo";
 import { findUserByEmail } from "@/lib/repositories/user.repo";
@@ -31,7 +32,7 @@ import { caminhoDoCadastro } from "@/lib/auth/convite-cadastro";
  * Assinatura ANUAL: cada pagamento dá (ou estende) 1 ano de acesso, contado a partir do
  * vencimento atual quando a renovação chega antes de vencer — quem renova adiantado não perde
  * os dias já pagos. A trava de fatura evita que reenvio do mesmo evento vire ano de brinde.
- *  - customer.member_removed   → revoga (perdeu acesso: cancelou, expirou)
+ *  - customer.member_removed   → saída sem reembolso: o acesso fica até o vencimento (cron desliga)
  *  - invoice.refunded          → revoga (reembolso)
  * Qualquer outro tipo é ignorado com 200, pra o Hubla não ficar reenviando.
  */
@@ -206,6 +207,7 @@ export async function POST(request: Request) {
   // Só desativa liberação que veio do Hubla: a MANUAL da Dani fica (ver revokeFromHubla).
   if (moneyReset) for (const email of emails) await revogarProdutoDaHubla(email, MONEY_RESET);
   if (!app) return NextResponse.json({ ok: true, action: "revoked_money_reset" });
-  for (const email of emails) await revokeFromHubla(email);
+  // Reembolso corta na hora; a saída sem reembolso fica até o vencimento (o cron desliga depois).
+  for (const email of emails) await (type === "invoice.refunded" ? revokeFromHubla(email) : encerrarNoVencimento(email));
   return NextResponse.json({ ok: true, action: "revoked", moneyReset: Boolean(moneyReset) });
 }

@@ -14,7 +14,7 @@ export function MarcarFeito({ id }: { id: string }) {
       onClick={() => iniciar(async () => { await marcarPedidoFeitoAction(id); router.refresh(); })}
       className="mt-1 min-h-11 self-start rounded-full bg-accent-gradient px-5 text-sm font-medium text-on-accent disabled:opacity-60"
     >
-      Feito
+      Respondido
     </button>
   );
 }

@@ -50,9 +50,19 @@ export function diaDoAviso(renovacao: Date): Date {
   return new Date(Date.UTC(renovacao.getUTCFullYear(), renovacao.getUTCMonth(), renovacao.getUTCDate() - DIAS_DO_AVISO));
 }
 
-/** Os avisos que saem hoje: abertos, do tipo aviso, com o dia já chegado. */
-export function avisosDeHoje<T extends { tipo: string; estado: string; avisarEm: Date | null }>(pedidos: T[], hoje: Date): T[] {
-  return pedidos.filter((p) => (p.tipo === "aviso_renovacao" || p.tipo === "aviso_reembolso") && p.estado === "aberto" && !!p.avisarEm && p.avisarEm.getTime() <= hoje.getTime());
+/**
+ * Os avisos que saem hoje (o "Me avisa" do reembolso e o de antes da renovação): abertos, ainda
+ * sem e-mail, com o dia chegado e no máximo 1 dia de atraso (se o cron falhar um dia, sai no
+ * seguinte; depois disso o aviso já não serve e não sai). Só para quem ainda pode receber.
+ */
+export function avisosDeHoje<T extends { tipo: string; estado: string; avisarEm: Date | null; emailEnviadoEm?: Date | null; podeReceber?: boolean }>(pedidos: T[], hoje: Date): T[] {
+  const dia = Date.UTC(hoje.getUTCFullYear(), hoje.getUTCMonth(), hoje.getUTCDate());
+  return pedidos.filter((p) => {
+    if (p.tipo !== "aviso_renovacao" && p.tipo !== "aviso_reembolso") return false;
+    if (p.estado !== "aberto" || p.emailEnviadoEm || p.podeReceber === false || !p.avisarEm) return false;
+    const d = p.avisarEm.getTime();
+    return d <= dia && dia - d <= 86_400_000;
+  });
 }
 
 export const DIAS_DO_REEMBOLSO = 7;

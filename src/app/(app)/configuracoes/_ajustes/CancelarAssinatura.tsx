@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { AlertTriangle, Bell, Check, ChevronRight, CircleHelp, Clock, ExternalLink, Gift, Menu, Mic, Tag, type LucideIcon } from "lucide-react";
+import { AlertTriangle, Bell, Check, ChevronRight, CircleHelp, Clock, ExternalLink, Gift, Menu, Mic, PlayCircle, Tag, type LucideIcon } from "lucide-react";
+import { useMoney } from "@/components/money/MoneyProvider";
+import type { Resposta } from "@/lib/cancelar/assuntos";
 import { Modal } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/toast-context";
 import { getSpeechRecognitionConstructor, joinFinalTranscript } from "@/app/(app)/mensal/VoiceRecorder";
@@ -16,6 +18,11 @@ export type DadosDoCancelar = {
   reembolsoAte: string | null;
   /** O que ainda pode ser oferecido (cada tipo, uma vez a cada 12 meses). */
   disponivel: Record<TipoDePedido, boolean>;
+  /** Até quando o acesso vale agora, e até quando valeria com os 2 meses grátis. */
+  acessoAte: string;
+  presenteAte: string;
+  /** Este mês e o passado, com os maiores lançamentos, para marcar no "Algo não está certo". */
+  meses: { chave: string; rotulo: string; lancamentos: { id: string; nome: string; valor: number; dia: number | null }[] }[];
 };
 
 /** Os links de cada caminho: a área de compras da Hubla e as assinaturas da Apple. */
@@ -106,8 +113,12 @@ export function CancelarAssinatura({ dados }: { dados: DadosDoCancelar }) {
   const [texto, setTexto] = useState("");
   const [area, setArea] = useState<(typeof AREAS)[number] | null>(null);
   const [feito, setFeito] = useState<[string, string] | null>(null);
+  const [resposta, setResposta] = useState<Resposta | null>(null);
+  const [mes, setMes] = useState(dados.meses[0]?.chave ?? "");
+  const [lancamento, setLancamento] = useState<string | null>(null);
   const [salvando, iniciar] = useTransition();
   const { showError } = useToast();
+  const money = useMoney();
 
   const abrir = () => {
     setTela(inicio);
@@ -115,6 +126,8 @@ export function CancelarAssinatura({ dados }: { dados: DadosDoCancelar }) {
     setTexto("");
     setArea(null);
     setFeito(null);
+    setResposta(null);
+    setLancamento(null);
     setAberto(true);
   };
   const ir = (acao: Parameters<typeof proximaTela>[1]) => setTela((t) => proximaTela(t, acao));
@@ -127,11 +140,17 @@ export function CancelarAssinatura({ dados }: { dados: DadosDoCancelar }) {
       Quero cancelar mesmo
     </button>
   );
-  const pedir = (m: Motivo, ok: [string, string]) =>
+  const pedir = (m: Motivo, ok: [string, string] | ((r: { acessoAte?: string }) => [string, string])) =>
     iniciar(async () => {
-      const r = await pedirAntesDeCancelarAction({ motivo: m, texto: texto.trim() || undefined, area: area ?? undefined });
+      const r = await pedirAntesDeCancelarAction({
+        motivo: m,
+        texto: texto.trim() || undefined,
+        area: area ?? undefined,
+        diagnostico: m === "errado" ? { mes, lancamentoId: lancamento ?? undefined } : undefined,
+      });
       if (!r.ok) return showError(r.erro);
-      setFeito(ok);
+      if (r.resposta) setResposta(r.resposta);
+      setFeito(typeof ok === "function" ? ok(r) : ok);
       ir("aceitar");
     });
 
@@ -229,12 +248,12 @@ export function CancelarAssinatura({ dados }: { dados: DadosDoCancelar }) {
             <p className="titulo-tema text-[30px] leading-tight text-accent-strong">{MESES_GRATIS} meses</p>
             <p className="text-sm text-ink">grátis, somados ao seu plano</p>
           </div>
-          <Prazo>A gente acrescenta {MESES_GRATIS} meses na sua assinatura em até {PRAZO_HORAS} horas.</Prazo>
+          <Prazo>Entra na hora: seu plano passa a valer até {dados.presenteAte}. A cobrança não muda.</Prazo>
         </>
       );
       pe = (
         <>
-          <button type="button" disabled={salvando} className={PRINCIPAL} onClick={() => pedir("caro", ["Guardado", `A gente acrescenta ${MESES_GRATIS} meses na sua assinatura em até ${PRAZO_HORAS} horas. A confirmação chega no seu e-mail.`])}>
+          <button type="button" disabled={salvando} className={PRINCIPAL} onClick={() => pedir("caro", (r) => ["Pronto", `Seu plano ganhou ${MESES_GRATIS} meses: agora vale até ${r.acessoAte ?? dados.presenteAte}. A confirmação chegou no seu e-mail.`])}>
             Quero os meses
           </button>
           {botaoCancelar}
@@ -247,12 +266,12 @@ export function CancelarAssinatura({ dados }: { dados: DadosDoCancelar }) {
           <p className="text-sm text-ink-muted">Quem responde é a equipe do SPI.</p>
           <textarea value={texto} onChange={(e) => setTexto(e.target.value)} aria-label="Sua dúvida" placeholder="Escreva aqui o que travou" rows={4} maxLength={4000} className="w-full rounded-2xl border border-border-strong bg-surface px-4 py-3 text-[15px] text-ink outline-none focus:border-accent" />
           <Ditado aoTexto={(t) => setTexto((x) => (x ? `${x} ${t}` : t))} />
-          <Prazo>A resposta chega no seu e-mail, vinda de app@danicolombo.com.br.</Prazo>
+          <Prazo>A resposta sai na hora, aqui e no seu e-mail.</Prazo>
         </>
       );
       pe = (
         <>
-          <button type="button" disabled={salvando || !texto.trim()} className={PRINCIPAL} onClick={() => pedir("dificil", ["Dúvida enviada", "A resposta chega no seu e-mail. Sua assinatura segue igual."])}>
+          <button type="button" disabled={salvando || !texto.trim()} className={PRINCIPAL} onClick={() => pedir("dificil", ["", ""])}>
             Enviar dúvida
           </button>
           {botaoCancelar}
@@ -270,14 +289,39 @@ export function CancelarAssinatura({ dados }: { dados: DadosDoCancelar }) {
               </button>
             ))}
           </div>
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Qual mês">
+            {dados.meses.map((m) => (
+              <button key={m.chave} type="button" aria-pressed={mes === m.chave} onClick={() => { setMes(m.chave); setLancamento(null); }} className={`min-h-10 rounded-full border px-4 text-sm ${mes === m.chave ? "border-accent bg-accent-soft text-accent-strong" : "border-border bg-surface text-ink"}`}>
+                {m.rotulo}
+              </button>
+            ))}
+          </div>
+          {(dados.meses.find((m) => m.chave === mes)?.lancamentos.length ?? 0) > 0 && (
+            <div className="flex flex-col gap-1.5">
+              <p className="text-[13px] text-ink-muted">É algum destes? Opcional.</p>
+              <ul className={`overflow-hidden rounded-2xl ${TINTA}`}>
+                {dados.meses.find((m) => m.chave === mes)!.lancamentos.map((l) => (
+                  <li key={l.id} className="border-t border-[color-mix(in_srgb,var(--color-accent)_14%,transparent)] first:border-t-0">
+                    <button type="button" aria-pressed={lancamento === l.id} onClick={() => setLancamento(lancamento === l.id ? null : l.id)} className="flex min-h-11 w-full items-center gap-3 px-3 text-left text-sm text-ink">
+                      <span className={`flex size-5 shrink-0 items-center justify-center rounded-full border ${lancamento === l.id ? "border-accent bg-accent text-on-accent" : "border-border-strong"}`} aria-hidden>
+                        {lancamento === l.id && <Check size={12} />}
+                      </span>
+                      <span className="min-w-0 flex-1 break-words">{l.nome}{l.dia ? <span className="text-ink-muted">, dia {l.dia}</span> : null}</span>
+                      <span className="shrink-0 tabular-nums">{money(l.valor)}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           <textarea value={texto} onChange={(e) => setTexto(e.target.value)} aria-label="O que você esperava ver" placeholder="Qual valor você esperava ver?" rows={3} maxLength={4000} className="w-full rounded-2xl border border-border-strong bg-surface px-4 py-3 text-[15px] text-ink outline-none focus:border-accent" />
-          <Prazo>A equipe confere e corrige em até {PRAZO_HORAS} horas.</Prazo>
+          <Prazo>A gente te responde em até {PRAZO_HORAS} horas, no seu e-mail.</Prazo>
         </>
       );
       pe = (
         <>
-          <button type="button" disabled={salvando || !texto.trim()} className={PRINCIPAL} onClick={() => pedir("errado", ["Contestação recebida", `A equipe confere e corrige em até ${PRAZO_HORAS} horas. Você recebe um aviso no seu e-mail quando o número estiver certo.`])}>
-            Contestar
+          <button type="button" disabled={salvando || !texto.trim()} className={PRINCIPAL} onClick={() => pedir("errado", ["Recebemos", `A gente te responde em até ${PRAZO_HORAS} horas, no seu e-mail.`])}>
+            Enviar
           </button>
           {botaoCancelar}
         </>
@@ -323,6 +367,33 @@ export function CancelarAssinatura({ dados }: { dados: DadosDoCancelar }) {
         </>
       );
     }
+  } else if (tela === "feito" && resposta) {
+    corpo = (
+      <>
+        <Titulo>{resposta.titulo}</Titulo>
+        <ol className={`rounded-3xl px-4 py-1 ${TINTA}`}>
+          {resposta.passos.map((p, i) => (
+            <li key={p} className="flex gap-3 border-t border-[color-mix(in_srgb,var(--color-accent)_14%,transparent)] py-3 text-[15px] text-ink first:border-t-0">
+              <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-surface text-[13px] text-accent-strong">{i + 1}</span> <span>{p}</span>
+            </li>
+          ))}
+        </ol>
+        {resposta.video && (
+          <a href={resposta.video} target="_blank" rel="noopener" className={`flex min-h-12 items-center gap-3 rounded-2xl px-4 text-[15px] text-ink ${TINTA}`}>
+            <PlayCircle size={20} className="shrink-0 text-accent-strong" aria-hidden /> Ver o vídeo: {resposta.rotuloDoVideo}
+          </a>
+        )}
+        <p className="text-sm text-ink-muted">A resposta também foi para o seu e-mail. Se não resolveu, é só responder.</p>
+      </>
+    );
+    pe = (
+      <>
+        <a href={resposta.guia} className={PRINCIPAL}>
+          Abrir o guia do app
+        </a>
+        {botaoCancelar}
+      </>
+    );
   } else if (tela === "feito" && feito) {
     corpo = (
       <div className="flex flex-col items-center gap-3 py-4 text-center">
@@ -342,7 +413,7 @@ export function CancelarAssinatura({ dados }: { dados: DadosDoCancelar }) {
       </>
     );
   } else if (tela === "caminho") {
-    const fica = [`Acesso a tudo até ${dados.renovaEm}`, "Nenhuma nova cobrança", "Dá para voltar quando quiser"];
+    const fica = [`Acesso a tudo até ${dados.acessoAte}`, "Nenhuma nova cobrança", "Dá para voltar quando quiser"];
     const site = dados.via === "site";
     corpo = (
       <>
