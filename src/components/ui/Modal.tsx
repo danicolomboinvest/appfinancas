@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
+import { useTecladoNaFolha } from "./useTecladoNaFolha";
 
 /** Modal centralizado no desktop, vira um drawer que sobe da base no mobile. Renderiza via
  * portal em document.body, evita ficar preso dentro de um <form> ou de qualquer ancestral com
@@ -24,6 +25,8 @@ export function Modal({
   const [mounted, setMounted] = useState(false);
   const titleId = useId();
   const painelRef = useRef<HTMLDivElement>(null);
+  // O teclado do iPhone sobe por cima da folha: ele entra no padding de baixo e a folha rola até o campo.
+  const { teclado, alturaVisivel } = useTecladoNaFolha(painelRef, open && mounted);
 
   useEffect(() => {
     // document.body só existe no cliente, este efeito detecta a montagem pra evitar
@@ -70,6 +73,7 @@ export function Modal({
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
+        style={teclado > 0 ? { paddingBottom: `calc(1.5rem + ${teclado}px)`, maxHeight: alturaVisivel ? `${Math.round(alturaVisivel * 0.94) + teclado}px` : undefined } : undefined}
         className="relative z-10 max-h-[90dvh] w-full max-w-lg animate-fade-in overflow-y-auto overscroll-contain rounded-t-2xl border border-border bg-surface px-6 pt-6 pb-[calc(1.5rem+var(--safe-bottom))] shadow-premium outline-none sm:rounded-2xl sm:pb-6"
       >
         <div className="mb-4 flex items-center justify-between gap-2">

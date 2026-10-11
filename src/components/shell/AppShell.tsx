@@ -175,7 +175,7 @@ export function AppShell({
     <ToastProvider>
       <ProfileThemeProvider theme={profileTheme} kind={profileKind} prefsDeCategoria={prefsDeCategoria} nomesDoCasal={nomesDoCasal} cartaoComLimite={cartaoComLimite} profileId={perfis.find((p) => p.isDefault)?.id ?? null}>
       <NavProgressProvider>
-      <div className="flex min-h-screen">
+      <div className="flex min-h-dvh">
         {/* Sidebar: navegação primária no desktop; no mobile fica sempre fora da tela
             (a gaveta hambúrguer foi substituída pela tab bar + MoreSheet abaixo). */}
         <RegistrarOpener onOpen={abrirRegistrar} />

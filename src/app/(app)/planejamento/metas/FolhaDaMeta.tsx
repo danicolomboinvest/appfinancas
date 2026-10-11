@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { useTecladoNaFolha } from "@/components/ui/useTecladoNaFolha";
 import { useRouter } from "next/navigation";
 import { Calendar, Check, ChevronDown, ChevronLeft, ChevronRight, Minus, Plus, X } from "lucide-react";
 import type { GoalIcon } from "@prisma/client";
@@ -112,6 +113,9 @@ function FolhaDaMeta({ hoje, meta, onFechar }: { hoje: { ano: number; mes: numbe
     return { passo: 1, nome: "", tipo: null, alvo: 0, prazo: { ano: hoje.ano + 1, mes: hoje.mes - 1 }, semPrazo: false, calendario: false, anos: false, foto: null, minha: null, porMes: 500 };
   });
   const corpo = useRef<HTMLDivElement>(null);
+  // A folha sobe junto com o teclado do iPhone (o botão Continuar e o campo ficam à vista).
+  const painel = useRef<HTMLDivElement>(null);
+  const { teclado, alturaVisivel } = useTecladoNaFolha(painel, true);
   const muda = (p: Partial<Estado>) => setE((x) => ({ ...x, ...p }));
   const tipo = e.tipo ?? tipoDoNome(e.nome);
   const prazoData = new Date(e.prazo.ano, e.prazo.mes, 1, 12);
@@ -444,7 +448,10 @@ function FolhaDaMeta({ hoje, meta, onFechar }: { hoje: { ano: number; mes: numbe
   return createPortal(
     <div className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center sm:p-4">
       <button aria-hidden tabIndex={-1} onClick={onFechar} className="fixed inset-0 bg-black/40" />
-      <div role="dialog" aria-modal="true" aria-label={meta ? "Editar meta" : "Nova meta"} className="relative z-10 flex h-[92dvh] w-full max-w-lg animate-fade-in flex-col rounded-t-[28px] border border-border bg-canvas shadow-premium sm:h-auto sm:max-h-[90dvh] sm:rounded-[28px]">
+      <div
+        ref={painel}
+        style={teclado > 0 && alturaVisivel ? { height: `${Math.round(alturaVisivel * 0.94)}px`, marginBottom: `${teclado}px` } : undefined}
+        role="dialog" aria-modal="true" aria-label={meta ? "Editar meta" : "Nova meta"} className="relative z-10 flex h-[92dvh] w-full max-w-lg animate-fade-in flex-col rounded-t-[28px] border border-border bg-canvas shadow-premium sm:h-auto sm:max-h-[90dvh] sm:rounded-[28px]">
         <span className="mx-auto mt-2 h-1 w-9 shrink-0 rounded-full bg-border-strong sm:hidden" aria-hidden />
         <div className="grid grid-cols-[1fr_auto_1fr] items-center px-4 pt-2">
           <span>

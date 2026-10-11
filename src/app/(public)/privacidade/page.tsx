@@ -8,7 +8,7 @@ export const metadata = { title: "Política de Privacidade · SPI Finance" };
 /** Política de Privacidade (LGPD), conteúdo base para o lançamento; revisar com apoio jurídico. */
 export default function PrivacidadePage() {
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-2xl flex-col gap-6 px-6 py-12">
+    <main className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col gap-6 px-6 py-12">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-ink">Política de Privacidade</h1>
         <p className="mt-1 text-sm text-ink-muted">Última atualização: 11 de outubro de 2026</p>

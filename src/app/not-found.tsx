@@ -21,7 +21,7 @@ async function temaDeQuemEstaLogado(): Promise<string> {
 export default async function NotFound() {
   const t = vozDoTema(await temaDeQuemEstaLogado()).titulos;
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-canvas px-4 text-center">
+    <div className="flex min-h-dvh flex-col items-center justify-center gap-3 bg-canvas px-4 text-center">
       <p className="text-label text-ink-faint">{t.uiNaoEncontradoRotulo}</p>
       <h1 className="text-h1 font-semibold tracking-tight text-ink">{t.uiNaoEncontradoTitulo}</h1>
       <p className="max-w-sm text-body text-ink-muted">{t.uiNaoEncontradoTexto}</p>

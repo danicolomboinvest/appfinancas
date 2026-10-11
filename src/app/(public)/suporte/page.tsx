@@ -8,7 +8,7 @@ export default async function SuportePage() {
   // Dentro do app iOS esta página também abre, e lá não se fala de compra feita fora (3.1.1).
   const appDaApple = await naAppDaApple();
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-2xl flex-col gap-6 px-6 py-12">
+    <main className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col gap-6 px-6 py-12">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-ink">Suporte</h1>
         <p className="mt-1 text-sm text-ink-muted">

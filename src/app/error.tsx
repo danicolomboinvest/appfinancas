@@ -16,7 +16,7 @@ import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 export default function ErrorPage({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
   const { voz } = useProfileTheme();
   return (
-    <div className="flex min-h-[70vh] flex-col items-center justify-center gap-4 px-6 text-center">
+    <div className="flex min-h-[70dvh] flex-col items-center justify-center gap-4 px-6 text-center">
       <span className="text-5xl" aria-hidden>
         😵‍💫
       </span>

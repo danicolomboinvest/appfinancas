@@ -16,7 +16,7 @@ export default function RedefinirSenhaPage({ searchParams }: PageProps<"/redefin
   const [state, formAction, isPending] = useActionState(resetPasswordAction, initialState);
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-canvas p-6">
+    <main className="flex min-h-dvh items-center justify-center bg-canvas p-6">
       <div className="w-full max-w-sm animate-fade-in">
         <div className="mb-8 flex flex-col items-center gap-3 text-center">
           <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-accent-soft text-accent-strong">
