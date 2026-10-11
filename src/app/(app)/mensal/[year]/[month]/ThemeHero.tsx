@@ -44,17 +44,18 @@ function HeroManifestacao({ dados, money }: { dados: DadosDoTema; money: Money }
             <Link
               key={s.nome}
               href="/planejamento/metas"
-              className="flex h-24 min-w-0 flex-col justify-end rounded-xl p-2.5 text-white"
+              className="flex min-h-24 min-w-0 flex-col justify-end rounded-xl p-2.5 text-white"
               style={{ background: GRADIENTES[i % GRADIENTES.length] }}
             >
-              <span className="truncate text-[11px] font-semibold drop-shadow">{s.nome}</span>
+              {/* O nome inteiro, quebrando a linha (cortava "Reserva de em..." de 320 a 430 px). */}
+              <span className="break-words text-[11px] font-semibold leading-tight drop-shadow [hyphens:auto]" lang="pt-BR">{s.nome}</span>
               <span className="text-[11px] opacity-90">{s.pct}%</span>
             </Link>
           ))}
           {sonhos.length < 3 && (
             <Link
               href="/planejamento/metas"
-              className="flex h-24 flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-border-strong text-caption text-ink-faint transition-colors hover:border-accent hover:text-ink"
+              className="flex min-h-24 flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-border-strong text-caption text-ink-faint transition-colors hover:border-accent hover:text-ink"
             >
               <span className="text-lg leading-none">+</span>
               <span>sonho</span>
