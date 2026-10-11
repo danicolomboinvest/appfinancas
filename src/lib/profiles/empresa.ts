@@ -163,6 +163,22 @@ export type DRE = {
   pontoDeEquilibrio: number | null;
 };
 
+/**
+ * Arredonda para cima até o real inteiro. A folga de 1e-9 evita que uma conta exata em ponto
+ * flutuante (7000,0000000001) suba um real à toa.
+ */
+function paraCima(valor: number): number {
+  return Math.ceil(valor - 1e-9);
+}
+
+/**
+ * Quanto falta vender no mês para chegar ao ponto de equilíbrio: também para cima, e nunca
+ * negativo (passou do equilíbrio, falta zero). Ana: 8.113 − 2.900 vendidos = R$ 5.213.
+ */
+export function faltaParaOEquilibrio(pontoDeEquilibrio: number, vendido: number): number {
+  return Math.max(0, paraCima(pontoDeEquilibrio - vendido));
+}
+
 export function calcularDRE(e: EntradaDRE): DRE {
   const receitaBruta = Math.max(0, e.receita);
   let impostos = 0;
@@ -182,7 +198,8 @@ export function calcularDRE(e: EntradaDRE): DRE {
   const lucroOperacional = margemContribuicao - despesasFixas;
   const margemLiquidaPct = receitaBruta > 0 ? lucroOperacional / receitaBruta : null;
   const retido = e.retido ?? 0;
-  const pontoDeEquilibrio = margemContribuicaoPct !== null && margemContribuicaoPct > 0 ? despesasFixas / margemContribuicaoPct : null;
+  // Arredonda PARA CIMA (regra 3.6): faturar o valor de baixo deixaria alguns centavos de prejuízo.
+  const pontoDeEquilibrio = margemContribuicaoPct !== null && margemContribuicaoPct > 0 ? paraCima(despesasFixas / margemContribuicaoPct) : null;
   return {
     receitaBruta,
     impostos,

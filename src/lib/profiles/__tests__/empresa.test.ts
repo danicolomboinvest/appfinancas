@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CATEGORIAS_EMPRESA, caixaDaEmpresa, calcularDRE, despesasFixasTipicas, ehEmpresa, gastoSemCategoriaDoPeriodo, saudeDoCaixa, soMesesJaVividos } from "../empresa";
+import { CATEGORIAS_EMPRESA, caixaDaEmpresa, calcularDRE, faltaParaOEquilibrio, despesasFixasTipicas, ehEmpresa, gastoSemCategoriaDoPeriodo, saudeDoCaixa, soMesesJaVividos } from "../empresa";
 import { PARENT_CATEGORIES } from "@/lib/categories";
 
 describe("perfil Empresa: DRE", () => {
@@ -22,7 +22,22 @@ describe("perfil Empresa: DRE", () => {
     expect(dre.margemLiquidaPct).toBeCloseTo(0.18);
     expect(dre.sobraNoCaixa).toBe(1300);
     // Ponto de equilíbrio: despesas fixas / margem de contribuição = 4200 / 0,6 = 7.000.
-    expect(dre.pontoDeEquilibrio).toBeCloseTo(7000);
+    expect(dre.pontoDeEquilibrio).toBe(7000);
+  });
+
+  it("ponto de equilíbrio arredonda PARA CIMA, e o 'faltam' também (Ateliê da Ana)", () => {
+    // Contas 400 + salário 4.500 = 4.900 de fixas; margem de contribuição 60,4%.
+    const dre = calcularDRE({ receita: 10000, gastoPorCategoria: { ALIMENTACAO: 3960, MORADIA: 4900 } });
+    expect(dre.margemContribuicaoPct).toBeCloseTo(0.604);
+    // 4.900 ÷ 0,604 = 8.112,58: arredondar pro mais perto daria 8.113 por sorte; a regra é subir.
+    expect(dre.pontoDeEquilibrio).toBe(8113);
+    expect(faltaParaOEquilibrio(dre.pontoDeEquilibrio!, 2900)).toBe(5213);
+    // Centavo vendido não desce o "faltam" para baixo do que realmente falta.
+    expect(faltaParaOEquilibrio(8112.58, 2900.4)).toBe(5213);
+    // Passou do equilíbrio: falta zero, nunca negativo.
+    expect(faltaParaOEquilibrio(8113, 9000)).toBe(0);
+    // Uma fração mínima acima do inteiro sobe: 7.000,01 vira 7.001.
+    expect(calcularDRE({ receita: 10000, gastoPorCategoria: { ALIMENTACAO: 4000, MORADIA: 4200.006 } }).pontoDeEquilibrio).toBe(7001);
   });
 
   it("gasto sem categoria entra como despesa fixa: o lucro da DRE bate com entrou − saiu", () => {

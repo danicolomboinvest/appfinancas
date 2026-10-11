@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Money } from "@/lib/profiles/voice";
 import type { DadosDaEmpresa } from "@/lib/profiles/empresa-dados";
-import { MESES_DE_CAIXA_RECOMENDADOS } from "@/lib/profiles/empresa";
+import { MESES_DE_CAIXA_RECOMENDADOS, faltaParaOEquilibrio } from "@/lib/profiles/empresa";
 
 /**
  * A DRE simplificada do perfil Empresa, mais três indicadores que o Sebrae põe no básico de
@@ -106,15 +106,15 @@ export function DreEmpresa({
         <div className={`mt-4 grid gap-2 sm:grid-cols-3 ${compacto ? "" : "lg:mt-0 lg:grid-cols-1 lg:content-start"}`}>
           <div className="rounded-xl bg-surface-2 px-3.5 py-3">
             <p className="text-caption font-medium text-ink-muted">Ponto de equilíbrio</p>
-            <p className="mt-0.5 text-[17px] font-semibold tabular-nums text-ink">{dre.pontoDeEquilibrio === null ? "—" : money(dre.pontoDeEquilibrio, { round: true })}</p>
+            <p className="mt-0.5 text-[17px] font-semibold tabular-nums text-ink">{dre.pontoDeEquilibrio === null ? "Sem conta ainda" : money(dre.pontoDeEquilibrio, { round: true })}</p>
             <p className="mt-0.5 text-caption text-ink-faint">
               {dre.pontoDeEquilibrio === null
                 ? dre.receitaBruta === 0
                   ? "Registre a receita pra calcular."
                   : "Cada venda perde dinheiro: os custos variáveis passam da receita."
                 : dre.receitaBruta >= dre.pontoDeEquilibrio
-                  ? "Faturamento mínimo pra pagar as contas. Já passou ✓"
-                  : `Faturamento mínimo pra pagar as contas. Faltam ${money(dre.pontoDeEquilibrio - dre.receitaBruta, { round: true })}.`}
+                  ? "Faturamento mínimo pra pagar as contas. Já passou."
+                  : `Faturamento mínimo pra pagar as contas. Faltam ${money(faltaParaOEquilibrio(dre.pontoDeEquilibrio, dre.receitaBruta), { round: true })}.`}
             </p>
           </div>
           <div className="rounded-xl bg-surface-2 px-3.5 py-3">
