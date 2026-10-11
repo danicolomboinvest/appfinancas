@@ -292,6 +292,10 @@ model FinancialProfile {
   categorias       Json?
   /// Perfil Casal: { nomeA, nomeB, divisao: "renda" | "meio", acertos: ["2026-10", ...] }.
   casal            Json?
+  /// Perfil Empresa (11/10/2026), o que o assistente perguntou: { tipo: "MEI" | "AUTONOMA" | "ME",
+  /// faz, formas, prazoCredito, salario, diaDoSalario, lembreteDas, taxas, abertoEm }. Lido por
+  /// lerConfigEmpresa (src/lib/empresa/config.ts). Nulo = o assistente ainda não rodou.
+  empresa          Json?
   /// Quanto este perfil combinou gastar no cartão de crédito por mês (06/10/2026). Nulo = sem
   /// limite. Vale para todo mês até ela mudar; o aviso sai em 70%, 90% e 100%.
   limiteCartao     Decimal?    @db.Decimal(18, 2)
@@ -602,64 +606,71 @@ model ImportBatch {
 }
 
 model MonthlyEntry {
-  id               String                   @id @default(cuid())
-  userId           String
-  user             User                     @relation(fields: [userId], references: [id])
+  id                 String                   @id @default(cuid())
+  userId             String
+  user               User                     @relation(fields: [userId], references: [id])
   /// Perfil financeiro dono deste registro. Nulo só no histórico anterior aos perfis.
-  profileId        String?
-  profile          FinancialProfile?        @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  year             Int
-  month            Int
-  category         EntryCategory
-  parentCategory   ParentCategory?
-  customCategoryId String?
-  customCategory   CustomCategory?          @relation(fields: [customCategoryId], references: [id])
-  subcategory      String?
-  description      String?
-  amount           Decimal                  @db.Decimal(18, 2)
+  profileId          String?
+  profile            FinancialProfile?        @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  year               Int
+  month              Int
+  category           EntryCategory
+  parentCategory     ParentCategory?
+  customCategoryId   String?
+  customCategory     CustomCategory?          @relation(fields: [customCategoryId], references: [id])
+  subcategory        String?
+  description        String?
+  amount             Decimal                  @db.Decimal(18, 2)
   /// Lançamento feito em outra moeda (salário em euro pra quem mora fora): o valor digitado, a
   /// moeda dele e a cotação usada. `amount` continua sempre na moeda do usuário — todo o resto do
   /// app soma `amount` e não precisa saber que houve conversão.
   /// Id da transação no banco (Open Finance): "pluggy:<id>". É o que garante que uma
   /// transação nunca entra duas vezes, por definição, sem depender de descrição ou data.
-  externalId       String?
-  originalAmount   Decimal?                 @db.Decimal(18, 2)
-  originalCurrency String?                  @db.VarChar(3)
-  exchangeRate     Decimal?                 @db.Decimal(14, 6)
+  externalId         String?
+  originalAmount     Decimal?                 @db.Decimal(18, 2)
+  originalCurrency   String?                  @db.VarChar(3)
+  exchangeRate       Decimal?                 @db.Decimal(14, 6)
   /// Data em que a despesa/renda de fato aconteceu (opcional — lançamentos antigos não têm).
   /// year/month continuam sendo a verdade para a consolidação mensal; entryDate refina o dia.
-  entryDate        DateTime?                @db.Date
-  goalId           String?
-  goal             Goal?                    @relation(fields: [goalId], references: [id])
+  entryDate          DateTime?                @db.Date
+  goalId             String?
+  goal               Goal?                    @relation(fields: [goalId], references: [id])
   /// Pedaços deste aporte que já foram para ativos da carteira.
-  allocations      ContributionAllocation[]
+  allocations        ContributionAllocation[]
   /// Lote de importação que criou este lançamento (nulo = lançado à mão). SetNull: apagar o
   /// registro do lote nunca apaga lançamentos por efeito colateral — a exclusão em massa é
   /// sempre explícita na action, dentro de uma transação.
-  importBatchId    String?
-  importBatch      ImportBatch?             @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
+  importBatchId      String?
+  importBatch        ImportBatch?             @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
   /// Série de uma despesa fixa ("Repetir todo mês"): todas as cópias levam o mesmo id. É o que
   /// deixa editar ou apagar "este e os próximos" de uma vez. Nulo = lançamento avulso.
-  recurrenceId     String?
+  recurrenceId       String?
   /// Perfil Casal: quem pagou (gasto) ou recebeu (entrada) — "A" ou "B", os nomes ficam em
   /// FinancialProfile.casal. Nulo = não informado (e nos outros perfis, sempre nulo).
-  pessoa           String?                  @db.VarChar(1)
+  pessoa             String?                  @db.VarChar(1)
   /// Perfil Casal: gasto da casa (entra no acerto do mês) ou pessoal (false, fica de fora).
   /// Nulo = da casa, o padrão.
-  doCasal          Boolean?
+  doCasal            Boolean?
   /// Gasto feito no cartão de crédito (06/10/2026, limite do cartão). true = cartão, false = não
   /// (Pix, débito, dinheiro), null = não informado. Linha de fatura importada antes disso fica null
   /// e conta como cartão pelo lote (ImportBatch.docType "fatura"); ver lib/cartao/limite.ts.
-  noCartao         Boolean?
+  noCartao           Boolean?
   /// Login do par (11/10/2026): a conta que lançou. Nulo = a dona do perfil (tudo que existia
   /// antes do par). Sem chave estrangeira de propósito: o par pode excluir a conta dele e o
   /// histórico do casal continua com quem paga, como a proposta aprovada diz.
-  autorUserId      String?
+  autorUserId        String?
   /// "Só meu" no perfil Casal: só quem lançou vê, nem o total aparece para o outro. Fica fora do
   /// acerto (é gravado com doCasal = false). O do par é gravado com o userId DELE, o da titular
   /// com o dela, então as consultas de sempre (userId + profileId) já não cruzam os dois.
-  soMeu            Boolean                  @default(false)
-  createdAt        DateTime                 @default(now())
+  soMeu              Boolean                  @default(false)
+  /// Perfil Empresa (11/10/2026), tudo opcional: de quem foi a venda ("Café Lume"), como pagou
+  /// (pix, credito, debito, boleto, dinheiro), o dia em que o dinheiro cai e o dia em que ela
+  /// marcou "Recebi". Nos outros perfis, sempre nulos.
+  cliente            String?                  @db.VarChar(80)
+  formaDeRecebimento String?                  @db.VarChar(10)
+  recebeEm           DateTime?                @db.Date
+  recebidoEm         DateTime?                @db.Date
+  createdAt          DateTime                 @default(now())
 
   @@unique([userId, profileId, externalId])
   @@index([userId, year, month])
@@ -1527,4 +1538,21 @@ model PedidoAntesDeCancelar {
 
   @@index([estado, createdAt])
   @@index([userId, tipo])
+}
+
+/// Números legais que mudam com a lei (11/10/2026): teto do MEI, faixa de tolerância, valor e dia
+/// da guia (DAS). Cada linha guarda a fonte e a data da fonte, porque mudam todo janeiro. A tela só
+/// mostra o que estiver aqui; sem a linha, o número não aparece. Não é dado de perfil.
+model ParametroLegal {
+  id           String   @id @default(cuid())
+  /// "mei_teto_anual", "mei_teto_tolerancia", "mei_das_servico", "mei_das_dia_vencimento".
+  chave        String   @db.VarChar(48)
+  valor        Decimal  @db.Decimal(18, 2)
+  /// Ano em que passa a valer (o teto de 2026 vale de 1º de janeiro de 2026 em diante).
+  vigenteDesde DateTime @db.Date
+  fonte        String   @db.VarChar(160)
+  fonteData    DateTime @db.Date
+  createdAt    DateTime @default(now())
+
+  @@unique([chave, vigenteDesde])
 }
