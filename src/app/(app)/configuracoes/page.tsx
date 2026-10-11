@@ -1,6 +1,6 @@
 import Link from "next/link";
 import {
-  Archive, BookOpen, Briefcase, CircleUser, Download, EyeOff, FileText, Globe, Heart, KeyRound, Landmark, MessageCircle, Palette, Pencil, Percent, Bell, Tags, TriangleAlert, Users, Info, Wallet,
+  Archive, BadgeCheck, BookOpen, Briefcase, CircleUser, Download, EyeOff, FileText, Globe, Heart, KeyRound, Landmark, MessageCircle, Palette, Pencil, Percent, Bell, Tags, TriangleAlert, Users, Info, Wallet,
 } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
 import { getOwnUser } from "@/lib/repositories/user.repo";
@@ -11,7 +11,11 @@ import { formatPhone } from "@/lib/phone";
 import { currencySymbol, toCurrencyCode } from "@/lib/money";
 import { valoresOcultos } from "@/lib/money-server";
 import { SUPORTE_EMAIL } from "./_ajustes/suporte";
-import { Grupo, Linha } from "./_ajustes/Lista";
+import { Grupo, Icone, Linha } from "./_ajustes/Lista";
+import { CancelarAssinatura } from "./_ajustes/CancelarAssinatura";
+import { compraDoApp } from "@/lib/assinatura/compra";
+import { dataLonga, renovacaoEm } from "@/lib/assinatura/renovacao";
+import { nowInBrazil } from "@/lib/date/brazil-now";
 import { FotoDoPerfil } from "./_ajustes/FotoDoPerfil";
 import { SairDaConta } from "./_ajustes/SairDaConta";
 
@@ -36,6 +40,9 @@ const MODO = { light: "claro", dark: "escuro", auto: "automático" } as const;
 export default async function ConfiguracoesPage() {
   const ctx = await getRequiredSession();
   const [user, perfis, ocultos] = await Promise.all([getOwnUser(ctx), listProfiles(ctx.userId), valoresOcultos()]);
+  // Renovação: sempre 1 ano depois da compra. Sem data de compra (liberação manual), sem linha.
+  const compra = await compraDoApp(ctx.userId, user.email);
+  const renova = compra ? dataLonga(renovacaoEm(compra.em, nowInBrazil())) : null;
   const nome = user.name?.trim() || user.email;
   const tema = profileTheme(ctx.profileTheme);
   const modo = MODO[preferenciaDeModo(user.theme)];
@@ -57,6 +64,15 @@ export default async function ConfiguracoesPage() {
 
       <Grupo titulo="Conta">
         <Linha href="/configuracoes/perfil" icone={i(CircleUser)} cor={COR.conta} rotulo="Meus dados" sub={[user.name, user.phone ? formatPhone(user.phone) : null].filter(Boolean).join(" · ") || "Nome, e-mail e celular"} />
+        {renova && (
+          <div className="flex min-h-[60px] items-center gap-3 border-t border-border px-4 py-2.5 first:border-t-0">
+            <Icone cor={COR.conta}>{i(BadgeCheck)}</Icone>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[16px] leading-snug text-ink">Assinatura</span>
+              <span className="block text-[13px] text-ink-muted">Anual · renova em {renova}</span>
+            </span>
+          </div>
+        )}
         <Linha href="/configuracoes/perfis" icone={i(Users)} cor={COR.conta} rotulo="Perfis financeiros" sub={perfis.map((p) => p.name).join(", ")} />
         <Linha href="/esqueci-senha" icone={i(KeyRound)} cor={COR.conta} rotulo="Trocar senha" sub="Por e-mail" />
       </Grupo>
@@ -93,6 +109,7 @@ export default async function ConfiguracoesPage() {
       <Grupo>
         <SairDaConta />
       </Grupo>
+      <CancelarAssinatura via={compra?.via ?? null} />
     </div>
   );
 }

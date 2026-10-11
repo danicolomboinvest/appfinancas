@@ -1,6 +1,6 @@
 /**
  * Os três lugares de perfil (decisão da dona, 11/10, rodada 74): Pessoal (incluso), Nós dois
- * (+ R$ 27 por ano) e Empresa (+ R$ 37 por ano). Sem "criar perfil" livre. Quem já tem mais
+ * (+ R$ 27 por ano, 100% pago: o perfil, com o login do par junto) e Empresa (+ R$ 37 por ano). Sem "criar perfil" livre. Quem já tem mais
  * perfis (um segundo Pessoal, Casa, Projeto) mantém todos: eles aparecem à parte, "Você mantém os
  * perfis que já tinha". O par do casal entra por convite e não ocupa lugar.
  *
@@ -8,7 +8,7 @@
  */
 export type TipoDoLugar = "PESSOAL" | "CASAL" | "EMPRESA";
 /** A rota de compra de cada extra (/adicionais/<qual>, do branch de cobrança). */
-export type Adicional = "conta_parceiro" | "perfil_empresa";
+export type Adicional = "perfil_casal" | "perfil_empresa";
 
 export type PerfilDoLugar = { id: string; name: string; kind: string; isDefault?: boolean; theme?: string };
 
@@ -38,7 +38,7 @@ export function lugaresDosPerfis<P extends PerfilDoLugar>(perfis: P[], liberados
   const empresa = pega("EMPRESA");
   const lugares: Lugar<P>[] = [
     { tipo: "PESSOAL", rotulo: "Pessoal", perfil: pessoal, liberado: true, preco: null, adicional: null },
-    { tipo: "CASAL", rotulo: "Nós dois", perfil: casal, liberado: !!casal || liberados.casal, preco: PRECO_DOS_EXTRAS.CASAL, adicional: "conta_parceiro" },
+    { tipo: "CASAL", rotulo: "Nós dois", perfil: casal, liberado: !!casal || liberados.casal, preco: PRECO_DOS_EXTRAS.CASAL, adicional: "perfil_casal" },
     { tipo: "EMPRESA", rotulo: "Empresa", perfil: empresa, liberado: !!empresa || liberados.empresa, preco: PRECO_DOS_EXTRAS.EMPRESA, adicional: "perfil_empresa" },
   ];
   return { lugares, mantidos: perfis.filter((p) => !usados.has(p.id)) };

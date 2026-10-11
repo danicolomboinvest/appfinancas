@@ -9,7 +9,7 @@ describe("três lugares de perfil (rodada 74)", () => {
     const { lugares, mantidos } = lugaresDosPerfis([p("Pessoal", "PESSOAL", true)], nada);
     expect(lugares.map((l) => [l.rotulo, l.liberado, l.preco, l.adicional])).toEqual([
       ["Pessoal", true, null, null],
-      ["Nós dois", false, 27, "conta_parceiro"],
+      ["Nós dois", false, 27, "perfil_casal"],
       ["Empresa", false, 37, "perfil_empresa"],
     ]);
     expect(mantidos).toEqual([]);

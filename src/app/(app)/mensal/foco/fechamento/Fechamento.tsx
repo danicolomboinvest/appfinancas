@@ -11,7 +11,7 @@ import { ValorDestaque } from "@/components/ui/ValorDestaque";
 import { NotificacaoDeConquista } from "@/components/conquista/NotificacaoDeConquista";
 import { vibrar } from "@/lib/celebrar";
 import { lerSobrou } from "@/lib/consolidation/sobrou";
-import { concluirRitualAction, reabrirMesAction } from "../actions";
+import { ajustarOrcamentoAction, concluirRitualAction, mandarSobraPraReservaAction, reabrirMesAction } from "../actions";
 import type { EstadoDoFechamento } from "./estado";
 
 export type MetaDoFechamento = { id: string; nome: string; guardado: number };
@@ -31,7 +31,41 @@ export type DadosFechamento = {
   metas: MetaDoFechamento[];
   /** Onde estão as transações do mês ("Rever as transações"). */
   hrefTransacoes: string;
+  ano: number;
+  mesNumero: number;
+  /** "outubro": o mês de agora, onde o orçamento sobe. */
+  mesAtual: string;
+  /** A categoria que mais passou e o valor para subir o orçamento deste mês; null = nenhuma. */
+  passou: { key: string; label: string; planejado: number; gasto: number; novo: number } | null;
+  /** Quanto da sobra pode ir para a reserva (o que falta para ela completar); 0 = não oferece. */
+  praReserva: number;
 };
+
+/** Um atalho dentro de um passo: a frase, a ação principal e "deixar como está". */
+function Atalho({ titulo, texto, botao, feito, aoFazer, salvando }: { titulo: string; texto: string; botao: string; feito: string | null; aoFazer: () => void; salvando: boolean }) {
+  const [dispensado, setDispensado] = useState(false);
+  if (dispensado) return null;
+  return (
+    <div className="flex flex-col gap-2.5 rounded-3xl border border-border bg-surface p-4">
+      <b className="text-[15px] font-medium text-ink">{titulo}</b>
+      <p className="text-sm text-ink-muted">{texto}</p>
+      {feito ? (
+        <p className="flex items-center gap-1.5 text-sm text-success">
+          <Check size={15} aria-hidden /> {feito}
+        </p>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          <button type="button" disabled={salvando} onClick={aoFazer} className="min-h-11 rounded-full bg-accent-soft px-4 text-sm font-medium text-accent-strong disabled:opacity-60">
+            {botao}
+          </button>
+          <button type="button" onClick={() => setDispensado(true)} className="min-h-11 px-3 text-sm text-ink-muted">
+            Deixar como está
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 const maiuscula = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 const BOTAO = "flex min-h-12 w-full items-center justify-center rounded-full bg-accent-gradient px-5 text-[15px] font-medium text-on-accent transition-opacity disabled:opacity-60";
@@ -88,6 +122,16 @@ export function Fechamento({ d, detalheReaberto }: { d: DadosFechamento; detalhe
   const [fechadoEm, setFechadoEm] = useState<string | null>(null);
   const [primeiroMes, setPrimeiroMes] = useState(false);
   const [salvando, iniciar] = useTransition();
+  const [subiu, setSubiu] = useState(false);
+  const [mandou, setMandou] = useState<number | null>(null);
+  const gravar = (acao: () => Promise<void>) =>
+    iniciar(async () => {
+      try {
+        await acao();
+      } catch {
+        showError(t.acaoFalhou);
+      }
+    });
 
   const fechar = () =>
     iniciar(async () => {
@@ -120,6 +164,16 @@ export function Fechamento({ d, detalheReaberto }: { d: DadosFechamento; detalhe
           <Titulo>{maiuscula(d.mes)} em números</Titulo>
           <QuatroNumeros d={d} />
           <p className="text-sm text-ink-muted">Confira se bate com o que você lembra.</p>
+          {d.passou && (
+            <Atalho
+              titulo={`${d.passou.label} passou do plano`}
+              texto={`${money(d.passou.gasto, { round: true })} de ${money(d.passou.planejado, { round: true })} em ${d.mes}.`}
+              botao={`Subir ${d.passou.label} para ${money(d.passou.novo, { round: true })} em ${d.mesAtual}`}
+              feito={subiu ? `${d.passou.label} de ${d.mesAtual}: ${money(d.passou.novo, { round: true })}` : null}
+              salvando={salvando}
+              aoFazer={() => gravar(async () => { await ajustarOrcamentoAction(d.passou!.key, d.passou!.novo); setSubiu(true); })}
+            />
+          )}
           <div className="flex flex-col items-center gap-3">
             <button type="button" className={BOTAO} onClick={() => setPasso(2)}>
               Está certo
@@ -156,6 +210,16 @@ export function Fechamento({ d, detalheReaberto }: { d: DadosFechamento; detalhe
             </ul>
           ) : (
             <p className="rounded-3xl border border-border bg-surface px-4 py-4 text-sm text-ink-muted">Nenhuma meta neste perfil.</p>
+          )}
+          {d.praReserva >= 1 && (
+            <Atalho
+              titulo={`Sobrou ${money(lerSobrou(d.sobrou).valor, { round: true })} em ${d.mes}`}
+              texto="Quer guardar na reserva de emergência?"
+              botao={`Mandar ${money(d.praReserva, { round: true })} para a reserva`}
+              feito={mandou !== null ? `${money(mandou, { round: true })} anotados na reserva. Quando aplicar, marque o investimento como reserva na Carteira.` : null}
+              salvando={salvando}
+              aoFazer={() => gravar(async () => { const ok = await mandarSobraPraReservaAction(d.ano, d.mesNumero); if (ok) setMandou(d.praReserva); else showError(t.acaoFalhou); })}
+            />
           )}
           <button type="button" className={BOTAO} onClick={() => setPasso(3)}>
             Continuar
