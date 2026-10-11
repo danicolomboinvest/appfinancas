@@ -12,8 +12,8 @@ import { simulateWorthIt } from "../worth-it";
 
 /**
  * Bordas dos simuladores. O campo de texto do simulador aceita qualquer número digitado (o
- * controle deslizante tem faixa, o texto não: SimulatorWizard.tsx grava o que parseWizardNumber
- * devolve), então "0" num prazo chega nas contas de verdade.
+ * controle deslizante tem faixa, o texto não: a tela ao vivo grava o número digitado
+ * como veio), então "0" num prazo chega nas contas de verdade.
  *
  * `it.fails` = bug encontrado e não corrigido aqui.
  */

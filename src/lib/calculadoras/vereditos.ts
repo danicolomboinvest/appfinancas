@@ -45,7 +45,7 @@ export function vereditoFinanciar(v: ValoresDaCalculadora) {
         numero: Math.abs(r.finalFinancingPatrimony - r.finalInvestedPatrimony),
         barras: [
           { chave: "fin", rotulo: "Financiar", valor: r.finalFinancingPatrimony, vence: financia },
-          { chave: "alu", rotulo: "Alugar e investir", valor: r.finalInvestedPatrimony, vence: !financia },
+          { chave: "alu", rotulo: "Alugar", valor: r.finalInvestedPatrimony, vence: !financia },
         ],
         menorVence: false,
       };

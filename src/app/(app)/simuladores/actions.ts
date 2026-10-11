@@ -5,6 +5,8 @@ import { z } from "zod";
 import { getRequiredSession } from "@/lib/auth/session";
 import { vozDoTema } from "@/lib/profiles/voice";
 import { createSimulation, deleteSimulation, getSimulation } from "@/lib/repositories/simulation.repo";
+import { createGoal } from "@/lib/repositories/goal.repo";
+import { nowInBrazil } from "@/lib/date/brazil-now";
 
 const salvarSchema = z.object({
   type: z.enum(["FINANCIAR_VS_ALUGAR", "AMORTIZAR_VS_INVESTIR", "CONSORCIO_VS_FINANCIAMENTO", "MARCACAO_MERCADO", "CARRO"]),
@@ -52,4 +54,27 @@ export async function loadSimulationInputsAction(id: string): Promise<Record<str
     if (typeof v === "number" || typeof v === "string") saida[k] = v;
   }
   return saida;
+}
+
+const metaSchema = z.object({
+  nome: z.string().trim().min(1).max(60),
+  alvo: z.number().positive().max(1e9),
+  icone: z.enum(["CASA", "CARRO", "GENERICO"]),
+});
+
+/**
+ * "Virar meta" no fim de uma calculadora (versão nova, 11/10/2026): a entrada do imóvel, o carro
+ * ou a compra viram uma meta com o valor da conta e 24 meses de prazo (como no protótipo). Ela
+ * ajusta o prazo depois, em Metas.
+ */
+export async function virarMetaAction(input: unknown): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+  const ctx = await getRequiredSession();
+  const parsed = metaSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "Não deu para criar a meta com esse valor." };
+  const hoje = nowInBrazil();
+  const targetDate = new Date(hoje.getFullYear(), hoje.getMonth() + 24, 1, 12);
+  const meta = await createGoal(ctx, { name: parsed.data.nome, targetAmount: Math.round(parsed.data.alvo * 100) / 100, targetDate, currentAmount: 0, annualRate: 0, icon: parsed.data.icone });
+  revalidatePath("/planejamento/metas");
+  revalidatePath("/mensal/foco");
+  return { ok: true, id: meta.id };
 }

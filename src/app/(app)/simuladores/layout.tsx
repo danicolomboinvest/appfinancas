@@ -14,14 +14,15 @@ export default async function SimuladoresLayout({ children }: { children: React.
   if (ehEmpresa(ctx.profileKind)) redirect("/dashboard");
   const premium = await hasPremiumAccess(ctx.userId);
 
-  // O "‹ Decidir" mora aqui, no layout, pra valer em todo simulador, na lista e no cadeado de
-  // uma vez — sem depender de cada tela lembrar de pôr. Alinhado com a largura do simulador.
+  // Versão nova (11/10/2026): cada calculadora tem o próprio topo ("‹ Calculadoras", "1 de 3"),
+  // como no protótipo. O "‹ Calculadoras" daqui fica só para o cadeado de quem não tem acesso.
+  if (premium) return <>{children}</>;
   return (
     <div className="flex flex-col gap-3">
       <div className="mx-auto w-full max-w-5xl">
         <VoltarProDecidir />
       </div>
-      {premium ? children : <PaywallCard feature={vozDoTema(ctx.profileTheme, ctx.profileKind).titulos.simPaywallNome} />}
+      <PaywallCard feature={vozDoTema(ctx.profileTheme, ctx.profileKind).titulos.simPaywallNome} />
     </div>
   );
 }
