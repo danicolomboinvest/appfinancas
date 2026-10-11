@@ -21,8 +21,8 @@ const PONTOS = [-3, -2, -1, 0, 1, 2, 3];
  * de hoje e vê o lucro ou o prejuízo de vender agora. A conta é a de sempre
  * (lib/simulators/mark-to-market.ts).
  *
- * A taxa da compra não está guardada no app: começa num exemplo, dito na tela, e ela troca nos
- * ajustes finos.
+ * A taxa da compra vem do ativo (Asset.taxaCompra) quando ela disse na Carteira; sem ela, começa
+ * num exemplo, dito na tela. A de hoje começa sempre num exemplo. As duas ela troca nos ajustes.
  */
 export function MarcacaoAoVivo({ dados, salva }: { dados: DadosDaTela; salva: SimulacaoAberta }) {
   const money = useMoney();
@@ -52,7 +52,10 @@ export function MarcacaoAoVivo({ dados, salva }: { dados: DadosDaTela; salva: Si
               </IconeRedondo>
               <span className="min-w-0">
                 <b className="block text-[15px] font-medium text-ink">{t.nome}</b>
-                <small className="text-caption text-ink-muted">Da sua carteira · {money(t.investido, { round: true })} investidos</small>
+                <small className="text-caption text-ink-muted">
+                  Da sua carteira · {money(t.investido, { round: true })} investidos
+                  {t.taxaCompra != null ? ` · comprou a ${t.ipca ? `IPCA + ${pc(t.taxaCompra * 100)}%` : `${pc(t.taxaCompra * 100)}% ao ano`}` : ""}
+                </small>
               </span>
             </Opcao>
           ))}
@@ -67,7 +70,9 @@ export function MarcacaoAoVivo({ dados, salva }: { dados: DadosDaTela; salva: Si
           </Opcao>
           <p className="px-1 text-sm text-ink-muted">
             {titulo
-              ? "A taxa da compra e a de hoje começam num exemplo: troque pelas suas nos ajustes."
+              ? titulo.taxaCompra != null
+                ? "A taxa da compra é a que você disse na Carteira; a de hoje começa num exemplo: arraste ou troque nos ajustes."
+                : "A taxa da compra e a de hoje começam num exemplo: troque pelas suas nos ajustes."
               : "Os números começam num exemplo: troque pelos do seu título nos ajustes."}
           </p>
         </div>

@@ -22,7 +22,12 @@ export function acharAluguel(
   return null;
 }
 
-export type TituloDaCarteira = { id: string; nome: string; investido: number; atual: number; ipca: boolean; vencimento: number | null };
+/**
+ * `taxaCompra` é a taxa em que ela comprou (Asset.taxaCompra, em fração, lida pelo indexador:
+ * no IPCA+ é só o juro real, 0.075 = IPCA + 7,5%; no prefixado, 0.12 = 12% ao ano). Nulo = ela
+ * não disse, e a calculadora começa no exemplo.
+ */
+export type TituloDaCarteira = { id: string; nome: string; investido: number; atual: number; ipca: boolean; vencimento: number | null; taxaCompra: number | null };
 
 /**
  * Os títulos que mudam de preço com a taxa: IPCA+ e prefixado (o pós-fixado, como o Tesouro
@@ -30,7 +35,7 @@ export type TituloDaCarteira = { id: string; nome: string; investido: number; at
  * quando ele está lá.
  */
 export function titulosDaCarteira(
-  ativos: { id: string; name: string; assetClass: string; fixedIncomeIndex: string | null; investedValue: number | null; currentValue: number }[],
+  ativos: { id: string; name: string; assetClass: string; fixedIncomeIndex: string | null; investedValue: number | null; currentValue: number; taxaCompra?: number | null }[],
 ): TituloDaCarteira[] {
   return ativos
     .filter((a) => (a.assetClass === "TESOURO_DIRETO" || a.assetClass === "RENDA_FIXA") && (a.fixedIncomeIndex === "IPCA" || a.fixedIncomeIndex === "PREFIXADO"))
@@ -43,18 +48,25 @@ export function titulosDaCarteira(
         atual: a.currentValue,
         ipca: a.fixedIncomeIndex === "IPCA",
         vencimento: ano ? Number(ano[1]) : null,
+        // A taxa do IPCA+ e a do prefixado entram do mesmo jeito na conta (a do IPCA+ já é o juro
+        // real); fora da faixa de uma taxa ao ano (0 a 100%) é dado estranho e fica o exemplo.
+        taxaCompra: a.taxaCompra != null && a.taxaCompra > 0 && a.taxaCompra < 1 ? a.taxaCompra : null,
       };
     });
 }
 
 /**
  * Os números de partida do "Vender antes do prazo" para um título da carteira. A taxa da compra
- * não está guardada no app: entra um exemplo (marcado na tela) que ela troca nos ajustes.
+ * vem do ativo (Asset.taxaCompra) quando ela disse; sem ela, entra um exemplo (marcado na tela)
+ * que ela troca nos ajustes. A taxa de hoje começa sempre num exemplo, um ponto (IPCA+) ou dois
+ * (prefixado) acima da compra, e ela arrasta.
  */
 export function valoresDoTitulo(t: TituloDaCarteira | null, anoAtual: number) {
   if (!t) return null;
   const faltam = t.vencimento ? Math.max(1, t.vencimento - anoAtual) : 6;
-  const [taxa, hoje] = t.ipca ? [0.06, 0.07] : [0.1, 0.12];
+  const passo = t.ipca ? 0.01 : 0.02;
+  const taxa = t.taxaCompra ?? (t.ipca ? 0.06 : 0.1);
+  const hoje = Math.round((taxa + passo) * 10000) / 10000;
   return {
     faceValue: 1000,
     originalRate: taxa,

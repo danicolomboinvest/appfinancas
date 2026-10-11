@@ -77,6 +77,7 @@ export async function carregarDadosDasCalculadoras(ctx: AuthContext): Promise<Da
         fixedIncomeIndex: a.fixedIncomeIndex,
         investedValue: a.investedValue == null ? null : Number(a.investedValue),
         currentValue: Number(a.currentValue),
+        taxaCompra: a.taxaCompra == null ? null : Number(a.taxaCompra),
       })),
     ),
     anoAtual: ano,
