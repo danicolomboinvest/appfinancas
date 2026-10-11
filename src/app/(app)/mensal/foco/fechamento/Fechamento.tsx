@@ -79,7 +79,7 @@ function Titulo({ children }: { children: React.ReactNode }) {
  * 1. O mês em números (confere se bate). 2. As metas do mês (registrar o que faltou).
  * 3. "Pronto para fechar?". Fim: "Setembro fechado" com a data. Nenhum passo diz "aberto".
  */
-export function Fechamento({ d }: { d: DadosFechamento }) {
+export function Fechamento({ d, detalheReaberto }: { d: DadosFechamento; detalheReaberto?: string }) {
   const { voz } = useProfileTheme();
   const t = voz.titulos;
   const money = useMoney();
@@ -103,8 +103,13 @@ export function Fechamento({ d }: { d: DadosFechamento }) {
       }
     });
 
+  // Um componente só para os dois estados: quando ela fecha, o servidor já devolve "fechado", e
+  // a tela continua aqui no fim (com a data) em vez de pular direto para o resumo.
+  if (d.estado === "fechado" && passo !== "fim") return <MesFechado d={d} />;
+
   return (
     <div className="flex flex-col gap-5">
+      {d.estado === "reaberto" && passo !== "fim" && detalheReaberto && <p className="-mt-3 text-sm text-ink-muted">{detalheReaberto}</p>}
       {primeiroMes && (
         <NotificacaoDeConquista conquistas={[{ chave: "primeiro-fechamento", icone: "🗓️", titulo: t.conqFechamentoTitulo, texto: t.conqFechamentoTexto }]} onFim={() => setPrimeiroMes(false)} />
       )}

@@ -61,11 +61,11 @@ function LinhaDoMes({ c, hoje }: { c: ContaSerial; hoje: string }) {
   }
 
   return (
-    <li className="flex items-center gap-3 py-3">
-      <button type="button" onClick={() => abrir({ conta: c })} className="flex min-w-0 flex-1 items-center gap-3 text-left">
+    <li className="flex items-center gap-2.5 py-3">
+      <button type="button" onClick={() => abrir({ conta: c })} className="flex min-w-0 flex-1 items-center gap-2.5 text-left">
         <LogoDoLancamento descricao={c.nome} icon={iconeDaConta(c.nome)} cor="var(--color-ink-muted)" />
         <span className="min-w-0 flex-1">
-          <span className={`block truncate text-[16px] ${paga ? "text-ink-muted line-through" : "text-ink"}`}>{c.nome}</span>
+          <span className={`block break-words hyphens-auto text-[16px] leading-snug max-[359px]:text-[15px] ${paga ? "text-ink-muted line-through" : "text-ink"}`}>{c.nome}</span>
           <span className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5">
             <span className={`text-[13px] leading-snug ${atrasada ? "text-danger" : "text-ink-muted"}`}>{parcela ? `${parcela} · ${quando}` : quando}</span>
             {!paga && (c.aproximado || c.valor === null) && <Selo>varia</Selo>}
@@ -192,8 +192,8 @@ export function ContasDoAno({ contas, hoje }: { contas: ContaSerial[]; hoje: str
                 <button type="button" onClick={() => abrir({ conta: c })} className="flex w-full items-center gap-3 py-3 text-left">
                   <LogoDoLancamento descricao={c.nome} icon={iconeDaConta(c.nome)} cor="var(--color-ink-muted)" />
                   <span className="min-w-0 flex-1">
-                    <span className="flex min-w-0 items-center gap-1.5">
-                      <span className="truncate text-[16px] text-ink">{c.nome}</span>
+                    <span className="flex min-w-0 flex-wrap items-center gap-1.5">
+                      <span className="min-w-0 break-words text-[16px] leading-snug text-ink">{c.nome}</span>
                       <Selo>{regra.tipo === "a_cada" && regra.unidade === "anos" && regra.n === 1 ? "anual" : textoDaRegra(regra)}</Selo>
                     </span>
                     <span className="block text-[13px] text-ink-muted">

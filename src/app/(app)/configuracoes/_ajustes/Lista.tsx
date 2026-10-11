@@ -32,7 +32,7 @@ export function Linha({ href, icone, cor, rotulo, sub, externo, perigo }: { href
       <Icone cor={cor}>{icone}</Icone>
       <span className="min-w-0 flex-1">
         <span className={`block text-[16px] leading-snug ${perigo ? "text-danger" : "text-ink"}`}>{rotulo}</span>
-        {sub && <span className="block truncate text-[13px] text-ink-muted">{sub}</span>}
+        {sub && <span className="block break-words text-[13px] leading-snug text-ink-muted">{sub}</span>}
       </span>
       <ChevronRight size={16} className="shrink-0 text-ink-faint" aria-hidden />
     </Link>

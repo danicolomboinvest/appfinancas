@@ -42,7 +42,7 @@ export default async function PerfisPage() {
                   <Icone size={19} strokeWidth={1.7} />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[16px] text-ink">{l.perfil?.name ?? l.rotulo}</span>
+                  <span className="block break-words text-[16px] leading-snug text-ink">{l.perfil?.name ?? l.rotulo}</span>
                   <span className="block text-[13px] text-ink-muted">
                     {TIPO[l.tipo]}
                     {l.preco ? ` · + ${preco(l.preco)} por ano` : ""}
@@ -81,7 +81,7 @@ export default async function PerfisPage() {
                   <Users size={19} strokeWidth={1.7} />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[16px] text-ink">{p.name}</span>
+                  <span className="block break-words text-[16px] leading-snug text-ink">{p.name}</span>
                   <span className="block text-[13px] text-ink-muted">
                     {NOME_DO_TIPO[p.kind] ?? "Perfil"}
                     {emUso(p.id) ? " · em uso agora" : ""}

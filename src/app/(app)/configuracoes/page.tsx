@@ -46,9 +46,9 @@ export default async function ConfiguracoesPage() {
       <section className="flex items-center gap-4 rounded-3xl border border-border bg-surface p-4">
         <FotoDoPerfil nome={nome} foto={user.avatarUrl} />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[19px] font-medium text-ink">{user.name || "Sem nome"}</p>
-          <p className="truncate text-sm text-ink-muted">{user.email}</p>
-          <span className="mt-1.5 inline-block rounded-full bg-accent-soft px-2.5 py-0.5 text-[12px] font-medium text-accent-strong">SPI Finance · anual</span>
+          <p className="break-words text-[19px] font-medium leading-snug text-ink">{user.name || "Sem nome"}</p>
+          <p className="break-all text-sm text-ink-muted">{user.email}</p>
+          <span className="mt-1.5 inline-block whitespace-nowrap rounded-full bg-accent-soft px-2.5 py-0.5 text-[12px] font-medium text-accent-strong">SPI Finance · anual</span>
         </div>
         <Link href="/configuracoes/perfil" aria-label="Editar meus dados" className="flex size-11 shrink-0 items-center justify-center rounded-full border border-border text-ink">
           <Pencil size={17} aria-hidden />

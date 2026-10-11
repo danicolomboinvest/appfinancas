@@ -219,7 +219,7 @@ export function FolhaDaConta({ inicio, hoje, onFeito }: { inicio: InicioDaFolha;
         </div>
       )}
 
-      <div className="grid grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-2">
+      <div className="grid grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] gap-2 max-[359px]:grid-cols-1">
         <CurrencyInputControlled label={aproximado ? "Mais ou menos" : parcelado && peloTotal ? "Valor total" : parcelado ? "Valor da parcela" : "Valor"} value={valor} onChange={setValor} />
         <label className="flex min-w-0 flex-col gap-1.5">
           <Rotulo>1° vencimento</Rotulo>

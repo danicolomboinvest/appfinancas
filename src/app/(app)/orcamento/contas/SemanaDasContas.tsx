@@ -67,7 +67,7 @@ export function SemanaDasContas({ contas, hoje }: { contas: ContaDaSemana[]; hoj
                 <li key={c.chave ?? c.id} className="flex items-center gap-3 py-2.5">
                   <LogoDoLancamento descricao={c.nome} icon={iconeDaConta(c.nome)} cor="var(--color-ink-muted)" size={36} />
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[15px] text-ink">{c.nome}</span>
+                    <span className="block break-words text-[15px] leading-snug text-ink">{c.nome}</span>
                     {c.detalhe && <span className="block text-[13px] text-ink-muted">{c.detalhe}</span>}
                   </span>
                   <span className="shrink-0 text-[15px] tabular-nums text-ink">{c.valor === null ? "varia" : `${c.aproximado ? "~" : ""}${money(c.valor)}`}</span>

@@ -8,7 +8,7 @@ import { lerFechamento } from "@/lib/repositories/fechamento.repo";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { carregarFoco } from "../dados";
 import { chaveDoMes } from "../ritmo";
-import { Fechamento, MesFechado, type DadosFechamento } from "./Fechamento";
+import { Fechamento, type DadosFechamento } from "./Fechamento";
 import { dataPorExtenso, textosDoFechamento } from "./estado";
 
 /**
@@ -52,14 +52,7 @@ export default async function FechamentoPage() {
         <ChevronLeft size={16} aria-hidden /> {d.t.focoTitulo}
       </Link>
       <PageHeader title={textos.titulo} />
-      {estado.estado === "fechado" ? (
-        <MesFechado d={dados} />
-      ) : (
-        <>
-          {estado.estado === "reaberto" && <p className="-mt-3 text-sm text-ink-muted">{textos.detalhe}</p>}
-          <Fechamento d={dados} />
-        </>
-      )}
+      <Fechamento d={dados} detalheReaberto={estado.estado === "reaberto" ? textos.detalhe : undefined} />
     </div>
   );
 }
