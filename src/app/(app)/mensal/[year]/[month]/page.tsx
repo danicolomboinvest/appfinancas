@@ -2,42 +2,20 @@ import { notFound } from "next/navigation";
 import { Receipt } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
 import { listMonthlyEntries, listRecentSubcategories } from "@/lib/repositories/monthly-entry.repo";
-import { ehDoCartao } from "@/lib/cartao/limite";
 import { listCustomCategories } from "@/lib/repositories/custom-category.repo";
 import { listGoals } from "@/lib/repositories/goal.repo";
 import { getMonthlySummary } from "@/lib/consolidation/monthly";
-import { nowInBrazil } from "@/lib/date/brazil-now";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { EntryList } from "./EntryList";
+import { linhasDaLista } from "./linhas";
 import { ImportHistory } from "./ImportHistory";
 import { listImportBatches } from "@/lib/repositories/import-batch.repo";
 import { valoresOcultos } from "@/lib/money-server";
-import { formatMoney, isCurrencyCode } from "@/lib/money";
 import { estadoDoMes, vozDoTema } from "@/lib/profiles/voice";
 import { ThemeFooter } from "./ThemeFooter";
 import { PrimeiroPassoDoMes } from "./PrimeiroPassoDoMes";
 import { prisma } from "@/lib/db/prisma";
 import { BotoesDeLancar } from "@/components/ui/BotoesDeLancar";
-
-
-/** Cor do valor por tipo de lançamento, mesma convenção do resto do app (verde entrada,
- * vermelho saída, dourado aporte). */
-function formatRelativeDay(date: Date | null): string | null {
-  if (!date) return null;
-  const iso = date.toISOString().slice(0, 10);
-  const today = nowInBrazil();
-  const todayIso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-  const yesterday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
-  const yesterdayIso = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, "0")}-${String(yesterday.getDate()).padStart(2, "0")}`;
-  if (iso === todayIso) return "Hoje";
-  if (iso === yesterdayIso) return "Ontem";
-  return `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
-}
-
-function toDateInput(date: Date | null): string | null {
-  if (!date) return null;
-  return date.toISOString().slice(0, 10);
-}
 
 
 export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]">) {
@@ -103,31 +81,7 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
           recentSubcategories={recentSubcategories}
           customCategories={customCategories}
           goals={goalOptions}
-          entries={entries.map((entry) => ({
-            id: entry.id,
-            category: entry.category,
-            parentCategory: entry.parentCategory,
-            customCategoryId: entry.customCategoryId,
-            subcategory: entry.subcategory,
-            description: entry.description,
-            amount: Number(entry.amount),
-            entryDate: toDateInput(entry.entryDate),
-            dayLabel: formatRelativeDay(entry.entryDate),
-            goalId: entry.goalId,
-            recurrenceId: entry.recurrenceId,
-            pessoa: entry.pessoa,
-            doCasal: entry.doCasal,
-            noCartao: ehDoCartao(entry),
-            ...(entry.originalCurrency && entry.originalAmount !== null && isCurrencyCode(entry.originalCurrency)
-              ? {
-                  // O olho do topo fechado esconde também o valor na moeda de origem.
-                  originalLabel: ocultos ? "••••" : formatMoney(Number(entry.originalAmount), entry.originalCurrency),
-                  originalAmount: Number(entry.originalAmount),
-                  originalCurrency: entry.originalCurrency,
-                  exchangeRate: entry.exchangeRate === null ? null : Number(entry.exchangeRate),
-                }
-              : {}),
-          }))}
+          entries={linhasDaLista(entries, ocultos)}
         />
       )}
 

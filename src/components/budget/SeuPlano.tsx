@@ -8,7 +8,7 @@ import { Explica } from "@/components/ui/Explica";
  * "Seu plano" (protótipo aprovado): o plano do mês numa barra só, dividida por categoria, com a
  * porcentagem de cada uma. "Feito" mostra a mesma barra com o que já foi gasto.
  */
-export function SeuPlano({ itens }: { itens: { key: string; label: string; cor: string; planejado: number; gasto: number }[] }) {
+export function SeuPlano({ itens, meses = 1 }: { itens: { key: string; label: string; cor: string; planejado: number; gasto: number }[]; /** Período de vários meses: "em 3 meses" (protótipo). */ meses?: number }) {
   const money = useMoney();
   const [modo, setModo] = useState<"plano" | "feito">("plano");
   const valor = (i: (typeof itens)[number]) => (modo === "plano" ? i.planejado : i.gasto);
@@ -31,7 +31,7 @@ export function SeuPlano({ itens }: { itens: { key: string; label: string; cor: 
         </div>
       </div>
       <p className="text-sm text-ink-muted">
-        <span className="text-ink">{money(total, { round: true })}</span> {modo === "plano" ? "por mês" : "até agora"}
+        <span className="text-ink">{money(total, { round: true })}</span> {modo === "plano" ? (meses > 1 ? `em ${meses} meses` : "por mês") : meses > 1 ? "no período" : "até agora"}
       </p>
       <div className="flex h-2.5 gap-0.5 overflow-hidden rounded-full">
         {visiveis.map((i) => (

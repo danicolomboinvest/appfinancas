@@ -4,6 +4,8 @@ import type { AuthContext } from "@/lib/auth/session";
 import { PARENT_CATEGORIES, subcategoriesFor } from "@/lib/categories";
 import { randomUUID } from "node:crypto";
 import { sameDayInMonth } from "@/lib/date/recurrence";
+import type { Intervalo } from "@/lib/visao-geral/periodo";
+import { dentroDoIntervalo, mesesDoIntervalo } from "@/lib/visao-geral/intervalo-dados";
 
 export async function listMonthlyEntries(ctx: AuthContext, year: number, month: number) {
   return prisma.monthlyEntry.findMany({
@@ -453,4 +455,18 @@ export async function somarGastosPreCriados(ctx: AuthContext, year: number, mont
     porMae: new Map(porMae.filter((g) => g.parentCategory).map((g) => [g.parentCategory as string, Number(g._sum.amount ?? 0)])),
     porPersonalizada: new Map(porPersonalizada.filter((g) => g.customCategoryId).map((g) => [g.customCategoryId as string, Number(g._sum.amount ?? 0)])),
   };
+}
+
+/**
+ * Lançamentos de um período que não é um mês (Últimos 7 dias, trimestre, personalizado): busca os
+ * meses que ele toca e fica com o que cai dentro (ver lib/visao-geral/intervalo-dados.ts).
+ */
+export async function listEntriesInInterval(ctx: AuthContext, intervalo: Intervalo) {
+  const meses = mesesDoIntervalo(intervalo);
+  const linhas = await prisma.monthlyEntry.findMany({
+    where: { userId: ctx.userId, profileId: ctx.profileId, OR: meses },
+    orderBy: [{ entryDate: { sort: "desc", nulls: "last" } }, { createdAt: "desc" }],
+    include: { importBatch: { select: { docType: true } } },
+  });
+  return linhas.filter((e) => dentroDoIntervalo(e, intervalo));
 }

@@ -1,0 +1,52 @@
+import { redirect } from "next/navigation";
+import { Receipt } from "lucide-react";
+import { getRequiredSession } from "@/lib/auth/session";
+import { listEntriesInInterval, listRecentSubcategories } from "@/lib/repositories/monthly-entry.repo";
+import { listCustomCategories } from "@/lib/repositories/custom-category.repo";
+import { listGoals } from "@/lib/repositories/goal.repo";
+import { nowInBrazil } from "@/lib/date/brazil-now";
+import { valoresOcultos } from "@/lib/money-server";
+import { lerIntervalo } from "@/lib/visao-geral/periodo";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { BotoesDeLancar } from "@/components/ui/BotoesDeLancar";
+import { EntryList } from "../[year]/[month]/EntryList";
+import { linhasDaLista } from "../[year]/[month]/linhas";
+
+const um = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? null;
+
+/**
+ * Transações de um período que não é um mês ("Ver o período": Últimos 7 dias, trimestre, ano ou
+ * personalizado). A mesma lista do mês, só com o que cai dentro do período.
+ */
+export default async function TransacoesDoPeriodo(props: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const busca = await props.searchParams;
+  const agora = nowInBrazil();
+  const intervalo = lerIntervalo({ periodo: um(busca.periodo), de: um(busca.de), ate: um(busca.ate) }, agora);
+  if (!intervalo) redirect(`/mensal/${agora.getFullYear()}/${agora.getMonth() + 1}`);
+
+  const ctx = await getRequiredSession();
+  const [ocultos, entries, recentSubcategories, customCategories, goals] = await Promise.all([
+    valoresOcultos(),
+    listEntriesInInterval(ctx, intervalo),
+    listRecentSubcategories(ctx),
+    listCustomCategories(ctx),
+    listGoals(ctx),
+  ]);
+
+  return (
+    <div className="flex flex-col gap-6 lg:gap-5">
+      {entries.length === 0 ? (
+        <EmptyState icon={Receipt} message="Nenhum lançamento nesse período." action={<BotoesDeLancar rotulo="Adicionar lançamento" />} />
+      ) : (
+        <EntryList
+          year={intervalo.ate.ano}
+          month={intervalo.ate.mes}
+          recentSubcategories={recentSubcategories}
+          customCategories={customCategories}
+          goals={goals.map((g) => ({ id: g.id, name: g.name }))}
+          entries={linhasDaLista(entries, ocultos)}
+        />
+      )}
+    </div>
+  );
+}

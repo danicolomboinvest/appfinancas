@@ -84,3 +84,97 @@ export function periodoDaRota(caminho: string, parametroMes: string | null, agor
   }
   return null;
 }
+
+// ---------------------------------------------------------------------------------------------
+// Períodos que não são um mês inteiro (protótipo: "Ver o período", 11/10/2026): Últimos 7 dias,
+// Esse trimestre, Trimestre passado, Esse ano e o Período personalizado (calendário). Viajam na
+// URL como ?periodo=7d|tri|tri-ant|ano ou ?de=AAAA-MM-DD&ate=AAAA-MM-DD.
+// ---------------------------------------------------------------------------------------------
+
+export type TipoDeIntervalo = "7d" | "tri" | "tri-ant" | "ano" | "custom";
+export type Dia = { ano: number; mes: number; dia: number };
+export type Intervalo = { tipo: TipoDeIntervalo; de: Dia; ate: Dia };
+
+const diaDe = (d: Date): Dia => ({ ano: d.getFullYear(), mes: d.getMonth() + 1, dia: d.getDate() });
+const paraData = (d: Dia) => new Date(d.ano, d.mes - 1, d.dia);
+export const diaParaTexto = (d: Dia) => `${d.ano}-${String(d.mes).padStart(2, "0")}-${String(d.dia).padStart(2, "0")}`;
+const ordemDoDia = (d: Dia) => d.ano * 10000 + d.mes * 100 + d.dia;
+export const ultimoDia = (ano: number, mes: number) => new Date(ano, mes, 0).getDate();
+
+function lerDia(texto: string | null | undefined): Dia | null {
+  const m = typeof texto === "string" ? /^(\d{4})-(\d{2})-(\d{2})$/.exec(texto) : null;
+  if (!m) return null;
+  const d = { ano: Number(m[1]), mes: Number(m[2]), dia: Number(m[3]) };
+  if (d.mes < 1 || d.mes > 12 || d.dia < 1 || d.dia > ultimoDia(d.ano, d.mes) || d.ano < 2000) return null;
+  return d;
+}
+
+/** O intervalo de cada atalho da folha, contado a partir de hoje (nunca passa de hoje). */
+export function intervaloDoTipo(tipo: Exclude<TipoDeIntervalo, "custom">, agora: Date): Intervalo {
+  const hoje = diaDe(agora);
+  if (tipo === "7d") {
+    const ini = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate() - 6);
+    return { tipo, de: diaDe(ini), ate: hoje };
+  }
+  if (tipo === "ano") return { tipo, de: { ano: hoje.ano, mes: 1, dia: 1 }, ate: hoje };
+  const triIni = Math.floor((hoje.mes - 1) / 3) * 3 + 1;
+  if (tipo === "tri") return { tipo, de: { ano: hoje.ano, mes: triIni, dia: 1 }, ate: hoje };
+  const ini = new Date(hoje.ano, triIni - 1 - 3, 1);
+  const fimMes = new Date(hoje.ano, triIni - 1, 0);
+  return { tipo, de: diaDe(ini), ate: diaDe(fimMes) };
+}
+
+/** Lê ?periodo= ou ?de=&ate= (o personalizado). Nada válido: null (vale o mês). */
+export function lerIntervalo(params: { periodo?: string | null; de?: string | null; ate?: string | null }, agora: Date): Intervalo | null {
+  const p = params.periodo;
+  if (p === "7d" || p === "tri" || p === "tri-ant" || p === "ano") return intervaloDoTipo(p, agora);
+  let de = lerDia(params.de);
+  let ate = lerDia(params.ate ?? params.de);
+  if (!de || !ate) return null;
+  const hoje = diaDe(agora);
+  if (ordemDoDia(ate) < ordemDoDia(de)) [de, ate] = [ate, de];
+  if (ordemDoDia(de) > ordemDoDia(hoje)) return null;
+  if (ordemDoDia(ate) > ordemDoDia(hoje)) ate = hoje;
+  return { tipo: "custom", de, ate };
+}
+
+/** O que vai na URL de cada aba para este intervalo. */
+export function parametrosDoIntervalo(i: Intervalo): string {
+  return i.tipo === "custom" ? `de=${diaParaTexto(i.de)}&ate=${diaParaTexto(i.ate)}` : `periodo=${i.tipo}`;
+}
+
+export function hrefDoIntervalo(aba: AbaComMes, i: Intervalo): string {
+  const q = parametrosDoIntervalo(i);
+  if (aba === "transacoes") return `/mensal/periodo?${q}`;
+  if (aba === "orcamento") return `/orcamento/${i.ate.ano}?${q}`;
+  return `/mensal/foco?${q}`;
+}
+
+/** Os nomes do protótipo: "Últimos 7 dias · 5 a 11 out", "Esse trimestre · out a dez", "3 a 9 out · 7 dias". */
+export function rotuloDoIntervalo(i: Intervalo): { nome: string; sub: string } {
+  const curto = (d: Dia) => CURTO[d.mes - 1];
+  const mesmoMesDoIntervalo = i.de.ano === i.ate.ano && i.de.mes === i.ate.mes;
+  const dias = Math.round((paraData(i.ate).getTime() - paraData(i.de).getTime()) / 86_400_000) + 1;
+  const faixa = mesmoMesDoIntervalo ? `${i.de.dia} a ${i.ate.dia} ${curto(i.ate)}` : `${i.de.dia} ${curto(i.de)} a ${i.ate.dia} ${curto(i.ate)}`;
+  if (i.tipo === "7d") return { nome: "Últimos 7 dias", sub: faixa };
+  if (i.tipo === "ano") return { nome: "Esse ano", sub: `jan a ${curto(i.ate)}` };
+  if (i.tipo === "tri") return { nome: "Esse trimestre", sub: `${curto(i.de)} a ${CURTO[Math.min(11, i.de.mes + 1)]}` };
+  if (i.tipo === "tri-ant") return { nome: "Trimestre passado", sub: `${curto(i.de)} a ${curto(i.ate)}` };
+  if (ordemDoDia(i.de) === ordemDoDia(i.ate)) return { nome: `${i.de.dia} ${curto(i.de)}`, sub: "um dia" };
+  return { nome: faixa, sub: `${dias} dias` };
+}
+
+/** O intervalo cobre só meses inteiros (o orçamento é por mês)? */
+export function soMesesInteiros(i: Intervalo): boolean {
+  return i.de.dia === 1 && i.ate.dia === ultimoDia(i.ate.ano, i.ate.mes);
+}
+
+/** A aba e o período da rota, contando com os intervalos. */
+export function periodoCompletoDaRota(caminho: string, busca: { get(nome: string): string | null }, agora: Date): { aba: AbaComMes; mes: MesDoPeriodo | null; intervalo: Intervalo | null } | null {
+  const intervalo = lerIntervalo({ periodo: busca.get("periodo"), de: busca.get("de"), ate: busca.get("ate") }, agora);
+  if (caminho === "/mensal/periodo") return intervalo ? { aba: "transacoes", mes: null, intervalo } : { aba: "transacoes", mes: mesDeAgora(agora), intervalo: null };
+  const base = periodoDaRota(caminho, busca.get("mes"), agora);
+  if (!base) return null;
+  if (intervalo && base.aba !== "transacoes") return { aba: base.aba, mes: null, intervalo };
+  return { aba: base.aba, mes: base.mes, intervalo: null };
+}

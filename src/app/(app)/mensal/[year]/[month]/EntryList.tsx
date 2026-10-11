@@ -26,6 +26,9 @@ import {
 
 export type ListEntry = {
   id: string;
+  /** O mês do lançamento. Na lista de um período (trimestre, 7 dias) cada um tem o seu. */
+  year?: number;
+  month?: number;
   category: "INCOME" | "EXPENSE" | "INVESTMENT_CONTRIBUTION";
   parentCategory: string | null;
   customCategoryId: string | null;
@@ -138,8 +141,8 @@ function categoryName(entry: ListEntry, customCategories: { id: string; name: st
 
 function toSnapshot(entry: ListEntry, year: number, month: number): DeletedEntrySnapshot {
   return {
-    year,
-    month,
+    year: entry.year ?? year,
+    month: entry.month ?? month,
     category: entry.category,
     parentCategory: entry.parentCategory,
     customCategoryId: entry.customCategoryId,
@@ -361,7 +364,7 @@ export function EntryList({
                 <span className="mr-1 rounded-full border border-border-strong px-1.5 py-px font-medium">a vencer</span>
               )}
               {/* Entrada que ela marcou como "para o mês seguinte": caiu em outro mês. */}
-              {entry.category === "INCOME" && entry.entryDate && Number(entry.entryDate.slice(5, 7)) !== month && (
+              {entry.category === "INCOME" && entry.entryDate && Number(entry.entryDate.slice(5, 7)) !== (entry.month ?? month) && (
                 <span className="mr-1 rounded-full bg-accent-soft px-1.5 py-px font-medium text-accent-strong">
                   recebido {entry.entryDate.slice(8, 10)}/{entry.entryDate.slice(5, 7)}
                 </span>
@@ -669,8 +672,8 @@ export function EntryList({
       <Modal open={editing !== null} onClose={() => setEditingId(null)} title={t.uiEditarLancamento}>
         {editing && (
           <EntryForm
-            year={year}
-            month={month}
+            year={editing.year ?? year}
+            month={editing.month ?? month}
             entryId={editing.id}
             recentSubcategories={recentSubcategories}
             customCategories={customCategories}

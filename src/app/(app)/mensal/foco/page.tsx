@@ -20,7 +20,8 @@ import { categoriasEssenciais } from "@/lib/categories";
 import { ContaDoLivre } from "./ContaDoLivre";
 import { QuadroDoMes } from "./QuadroDoMes";
 import { ResumoDeOutroMes } from "./ResumoDeOutroMes";
-import { lerMesEscolhido, mesDeAgora, mesmoMes } from "@/lib/visao-geral/periodo";
+import { lerIntervalo, lerMesEscolhido, mesDeAgora, mesmoMes } from "@/lib/visao-geral/periodo";
+import { ResumoDoPeriodo } from "./ResumoDoPeriodo";
 import { diaDaSemana, fimDoMesPeloPlano, livreAteDomingo, ritmoDoMes } from "@/lib/decisoes/foco-semana";
 import { vozDoTema } from "@/lib/profiles/voice";
 import { ConquistasDeMetas } from "@/components/conquista/ConquistasDeMetas";
@@ -30,7 +31,7 @@ import { ConquistasDeMetas } from "@/components/conquista/ConquistasDeMetas";
  * está livre, no máximo três coisas que pedem atenção e o que está indo bem. O resto do mês
  * (gráficos, lançamentos) continua na Visão mensal, a abinha do lado.
  */
-export default async function FocoPage(props: { searchParams: Promise<{ mes?: string | string[] }> }) {
+export default async function FocoPage(props: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const ctx = await getRequiredSession();
   // A Empresa tem a Visão geral dela (versão nova, 11/10/2026): recibo do mês, Vendas, Despesas e Contas.
   if (ehEmpresa(ctx.profileKind)) redirect("/empresa");
@@ -38,7 +39,11 @@ export default async function FocoPage(props: { searchParams: Promise<{ mes?: st
   const agora = nowInBrazil();
   // Outro mês no seletor da Visão geral: o quadro daquele mês e os 6 meses (o "livre até domingo"
   // e as decisões só existem para o mês de agora).
-  const escolhido = lerMesEscolhido((await props.searchParams).mes, agora);
+  const busca = await props.searchParams;
+  const um = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? null;
+  const intervalo = lerIntervalo({ periodo: um(busca.periodo), de: um(busca.de), ate: um(busca.ate) }, agora);
+  if (intervalo) return <ResumoDoPeriodo ctx={ctx} intervalo={intervalo} agora={agora} />;
+  const escolhido = lerMesEscolhido(busca.mes, agora);
   if (!mesmoMes(escolhido, mesDeAgora(agora))) return <ResumoDeOutroMes ctx={ctx} mes={escolhido} agora={agora} />;
   const [d, blocos, valoresMeses] = await Promise.all([carregarFoco(ctx), carregarBlocosDoMes(ctx, agora), valoresDosMeses(ctx, mesesAte(agora.getFullYear(), agora.getMonth() + 1, 12))]);
   const meses12 = montarMeses(valoresMeses, { ano: d.year, mes: d.month }, 12);

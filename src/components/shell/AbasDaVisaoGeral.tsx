@@ -3,7 +3,7 @@
 import { Suspense, type ReactNode } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { nowInBrazil } from "@/lib/date/brazil-now";
-import { hrefDoMes, periodoDaRota, type AbaComMes } from "@/lib/visao-geral/periodo";
+import { hrefDoIntervalo, hrefDoMes, periodoCompletoDaRota, type AbaComMes } from "@/lib/visao-geral/periodo";
 import { ABAS_DA_VISAO_GERAL, abaAtiva } from "./flow-tabs";
 import { CarrosselDeAbas, ConteudoQueDesliza } from "./Carrossel";
 import { SeletorDeMes } from "./SeletorDeMes";
@@ -15,10 +15,11 @@ function useHrefsDasAbas(): string[] {
   const caminho = usePathname();
   const busca = useSearchParams();
   const agora = nowInBrazil();
-  const periodo = periodoDaRota(caminho, busca.get("mes"), agora);
+  const periodo = periodoCompletoDaRota(caminho, busca, agora);
   return ABAS_DA_VISAO_GERAL.map((aba) => {
     const comMes = ABA_COM_MES[aba.href];
-    return periodo && comMes ? hrefDoMes(comMes, periodo.mes, agora) : aba.href;
+    if (!periodo || !comMes) return aba.href;
+    return periodo.intervalo ? hrefDoIntervalo(comMes, periodo.intervalo) : hrefDoMes(comMes, periodo.mes!, agora);
   });
 }
 

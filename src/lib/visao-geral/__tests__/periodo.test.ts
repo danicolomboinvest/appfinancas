@@ -42,3 +42,36 @@ describe("seletor de mês da Visão geral", () => {
     expect(periodoDaRota("/orcamento/contas", null, agora)).toBeNull();
   });
 });
+
+import { hrefDoIntervalo, intervaloDoTipo, lerIntervalo, rotuloDoIntervalo, soMesesInteiros } from "../periodo";
+
+describe("Ver o período: além do mês", () => {
+  const agora = new Date(2026, 9, 11, 10);
+  it("os atalhos da folha", () => {
+    expect(intervaloDoTipo("7d", agora)).toEqual({ tipo: "7d", de: { ano: 2026, mes: 10, dia: 5 }, ate: { ano: 2026, mes: 10, dia: 11 } });
+    expect(intervaloDoTipo("tri", agora).de).toEqual({ ano: 2026, mes: 10, dia: 1 });
+    expect(intervaloDoTipo("tri-ant", agora)).toEqual({ tipo: "tri-ant", de: { ano: 2026, mes: 7, dia: 1 }, ate: { ano: 2026, mes: 9, dia: 30 } });
+    expect(intervaloDoTipo("ano", agora).de).toEqual({ ano: 2026, mes: 1, dia: 1 });
+  });
+  it("os nomes, como no protótipo", () => {
+    expect(rotuloDoIntervalo(intervaloDoTipo("7d", agora))).toEqual({ nome: "Últimos 7 dias", sub: "5 a 11 out" });
+    expect(rotuloDoIntervalo(intervaloDoTipo("tri", agora))).toEqual({ nome: "Esse trimestre", sub: "out a dez" });
+    expect(rotuloDoIntervalo(intervaloDoTipo("tri-ant", agora))).toEqual({ nome: "Trimestre passado", sub: "jul a set" });
+    expect(rotuloDoIntervalo(intervaloDoTipo("ano", agora))).toEqual({ nome: "Esse ano", sub: "jan a out" });
+    expect(rotuloDoIntervalo({ tipo: "custom", de: { ano: 2026, mes: 10, dia: 3 }, ate: { ano: 2026, mes: 10, dia: 9 } })).toEqual({ nome: "3 a 9 out", sub: "7 dias" });
+  });
+  it("personalizado: troca a ordem, para em hoje, recusa o futuro", () => {
+    expect(lerIntervalo({ de: "2026-10-09", ate: "2026-10-03" }, agora)).toEqual({ tipo: "custom", de: { ano: 2026, mes: 10, dia: 3 }, ate: { ano: 2026, mes: 10, dia: 9 } });
+    expect(lerIntervalo({ de: "2026-10-09", ate: "2026-12-01" }, agora)?.ate).toEqual({ ano: 2026, mes: 10, dia: 11 });
+    expect(lerIntervalo({ de: "2026-11-01", ate: "2026-11-05" }, agora)).toBeNull();
+    expect(lerIntervalo({ de: "lixo" }, agora)).toBeNull();
+  });
+  it("cada aba leva o período do seu jeito; o orçamento sabe se são meses inteiros", () => {
+    const tri = intervaloDoTipo("tri-ant", agora);
+    expect(hrefDoIntervalo("transacoes", tri)).toBe("/mensal/periodo?periodo=tri-ant");
+    expect(hrefDoIntervalo("orcamento", tri)).toBe("/orcamento/2026?periodo=tri-ant");
+    expect(hrefDoIntervalo("resumo", tri)).toBe("/mensal/foco?periodo=tri-ant");
+    expect(soMesesInteiros(tri)).toBe(true);
+    expect(soMesesInteiros(intervaloDoTipo("7d", agora))).toBe(false);
+  });
+});

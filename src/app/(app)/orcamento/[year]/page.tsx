@@ -2,7 +2,8 @@ import { nowInBrazil } from "@/lib/date/brazil-now";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getRequiredSession } from "@/lib/auth/session";
-import { periodoDaRota } from "@/lib/visao-geral/periodo";
+import { lerIntervalo, periodoDaRota } from "@/lib/visao-geral/periodo";
+import { OrcamentoDoPeriodo } from "./OrcamentoDoPeriodo";
 import { getAnnualPlannedVsActual } from "@/lib/planning/budget-comparison";
 import { getAnnualBudgetPlan, getAnnualBudgetPlanForCustomCategories } from "@/lib/repositories/budget.repo";
 import { getAnnualMonthlyPlan } from "@/lib/repositories/monthly-plan.repo";
@@ -68,6 +69,10 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
   const ctx = await getRequiredSession();
   const voz = vozDoTema(ctx.profileTheme, ctx.profileKind);
   const agora = nowInBrazil();
+  // "Ver o período" com um período que não é um mês (trimestre, 7 dias, personalizado).
+  const um = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? null;
+  const intervalo = lerIntervalo({ periodo: um(busca.periodo), de: um(busca.de), ate: um(busca.ate) }, agora);
+  if (intervalo) return <OrcamentoDoPeriodo ctx={ctx} intervalo={intervalo} agora={agora} />;
   // Uma consulta a mais na página já custou caro antes: vai junto das outras, não em fila.
   const [comparison, customCategories, plan, annualPlan, hints, savingsTargets] = await Promise.all([
     getAnnualPlannedVsActual(ctx, year),
