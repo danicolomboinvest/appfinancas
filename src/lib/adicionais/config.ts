@@ -44,7 +44,7 @@ export const ADICIONAIS: Record<Adicional, DadosDoAdicional> = {
   },
   conta_parceiro: {
     nome: "Conta do parceiro",
-    frase: "Vocês dois no mesmo perfil Casal, cada um com o seu login.",
+    frase: "O perfil Casal para vocês dois, cada um com o seu login.",
     precoAno: 27,
     apple: "com.danicolombo.spifinance.casal.anual",
     // Produto "SPI Finance Conta do parceiro" na Hubla (criado em 11/10/2026, em rascunho até o lançamento).
