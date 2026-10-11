@@ -65,7 +65,7 @@ export function GuardadosDoSonho({ itens }: { itens: GuardadoDoSonho[] }) {
   );
 }
 
-function EditarGuardado({ item, onFechar }: { item: GuardadoDoSonho; onFechar: () => void }) {
+export function EditarGuardado({ item, onFechar }: { item: GuardadoDoSonho; onFechar: () => void }) {
   const currency = useCurrency();
   const { showToast, showError } = useToast();
   const [cents, setCents] = useState<number | null>(Math.round(Math.abs(item.amount) * 100));

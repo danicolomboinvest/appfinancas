@@ -11,8 +11,11 @@ import type { GoalIcon } from "@prisma/client";
  * Ler o nome resolve sem pedir nada a mais de quem cadastra.
  */
 
+/** Os quatro tipos que o nome sabe reconhecer (os 18 da nova meta guiada vêm dos chips). */
+type TipoPeloNome = Extract<GoalIcon, "VIAGEM" | "CASA" | "CARRO" | "APOSENTADORIA">;
+
 /** Termos de uma palavra: casam por palavra INTEIRA. É o que impede "casamento" de virar casa. */
-const UMA_PALAVRA: Record<Exclude<GoalIcon, "GENERICO">, string[]> = {
+const UMA_PALAVRA: Record<TipoPeloNome, string[]> = {
   VIAGEM: [
     "viagem","viagens","viajar","viaje","ferias","trip","passeio","mochilao","intercambio",
     "eurotrip","cruzeiro","turismo","europa","disney","praia",
@@ -26,7 +29,7 @@ const UMA_PALAVRA: Record<Exclude<GoalIcon, "GENERICO">, string[]> = {
 };
 
 /** Termos com espaço: casam como expressão, com fronteira antes e depois. */
-const EXPRESSAO: Record<Exclude<GoalIcon, "GENERICO">, string[]> = {
+const EXPRESSAO: Record<TipoPeloNome, string[]> = {
   VIAGEM: ["lua de mel"],
   CASA: ["casa propria", "entrada do ape", "entrada da casa"],
   CARRO: ["zero km", "0 km"],
@@ -47,11 +50,11 @@ function normalizar(texto: string): string {
  * Com mais de um termo no nome, vence o que aparece PRIMEIRO: "Viagem de carro" é uma viagem,
  * "Carro pra viajar" é um carro. A ordem em que a pessoa escreveu revela o assunto principal.
  */
-export function detectGoalKind(name: string): Exclude<GoalIcon, "GENERICO"> | null {
+export function detectGoalKind(name: string): TipoPeloNome | null {
   const texto = normalizar(name);
   if (!texto.trim()) return null;
 
-  type Achado = { tipo: Exclude<GoalIcon, "GENERICO">; posicao: number };
+  type Achado = { tipo: TipoPeloNome; posicao: number };
   // Acumula todos os achados e escolhe no fim, em vez de comparar dentro de um closure: o TS
   // estreita a variável capturada para `never` e o código não compila.
   const achados: Achado[] = [];
@@ -60,7 +63,7 @@ export function detectGoalKind(name: string): Exclude<GoalIcon, "GENERICO"> | nu
     for (const [tipo, termos] of Object.entries(tabela)) {
       for (const termo of termos) {
         const m = new RegExp(`(?:^|[^a-z0-9])${termo}(?:[^a-z0-9]|$)`).exec(texto);
-        if (m) achados.push({ tipo: tipo as Exclude<GoalIcon, "GENERICO">, posicao: m.index });
+        if (m) achados.push({ tipo: tipo as TipoPeloNome, posicao: m.index });
       }
     }
   };

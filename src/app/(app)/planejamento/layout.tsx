@@ -1,4 +1,4 @@
-import { PillTabs } from "@/components/shell/PillTabs";
+import { AbasDoPlanejamento } from "./AbasDoPlanejamento";
 import { getRequiredSession } from "@/lib/auth/session";
 import { vozDoTema } from "@/lib/profiles/voice";
 import { ehEmpresa } from "@/lib/profiles/empresa";
@@ -17,7 +17,7 @@ export default async function PlanejamentoLayout({ children }: { children: React
   const tabs = hrefs.map((href, i) => ({ href, label: voz.titulos.planTabs[i] }));
   return (
     <>
-      <PillTabs tabs={tabs} fit />
+      <AbasDoPlanejamento tabs={tabs} />
       {children}
     </>
   );

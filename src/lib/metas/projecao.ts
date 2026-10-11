@@ -216,7 +216,7 @@ export function situacaoDoMes(valor: number, combinado: number, ehAtual: boolean
 }
 
 /** O "guardar R$ X por mês" da nova meta: o PMT com rendimento, arredondado para cima de 10 em 10. */
-export function porMesDaNovaMeta(alvo: number, prazo: Date, hoje: Date, taxaAnual = TAXA_PADRAO_DAS_METAS): number {
-  const motor = computeGoalPlan({ targetAmount: alvo, currentAmount: 0, targetDate: prazo, annualRate: taxaAnual, now: hoje });
-  return Math.ceil(motor.requiredMonthlyContribution / 10) * 10;
+export function porMesDaNovaMeta(alvo: number, prazo: Date, hoje: Date, taxaAnual = TAXA_PADRAO_DAS_METAS, guardado = 0): number {
+  const motor = computeGoalPlan({ targetAmount: alvo, currentAmount: guardado, targetDate: prazo, annualRate: taxaAnual, now: hoje });
+  return Math.ceil(Math.max(0, motor.requiredMonthlyContribution) / 10) * 10;
 }

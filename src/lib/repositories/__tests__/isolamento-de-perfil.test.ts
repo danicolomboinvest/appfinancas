@@ -19,7 +19,7 @@ const COM_ESCOPO = [
   "monthlyEntry", "budget", "monthlyPlan", "customCategory", "goal", "asset", "emergencyFund",
   "planningParams", "portfolioStrategy", "patrimonySnapshot", "importBatch",
   "contributionAllocation", "transactionCategoryRule", "simulation", "analysisSheet",
-  "yearlyConsolidationCache", "accumulationProjectionCache", "decisao", "contaAPagar", "divida",
+  "yearlyConsolidationCache", "accumulationProjectionCache", "decisao", "contaAPagar", "divida", "fotoDaMeta",
 ];
 
 /**
@@ -35,6 +35,7 @@ const EXCECOES: { arquivo: string; motivo: string }[] = [
   { arquivo: "community-results.repo.ts", motivo: "resultados agregados somam todos os perfis" },
   { arquivo: "adoption-funnel.repo.ts", motivo: "funil mede contas, não perfis" },
   { arquivo: "configuracoes/dados/actions.ts", motivo: "a exportação leva a conta inteira, com a coluna Perfil: a tela promete todos os lançamentos, e é o que se exporta antes de excluir a conta" },
+  { arquivo: "api/metas/foto/[id]/route.ts", motivo: "a foto da meta é servida à dona em qualquer perfil dela; o perfil já foi conferido quando a meta guardou o link" },
   { arquivo: "pluggy/sync.ts", motivo: "a mesma transação do banco não pode existir em dois perfis, e o perfil de destino da conexão é deduzido do que ela já importou" },
 ];
 

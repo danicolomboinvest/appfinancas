@@ -1,161 +1,108 @@
-import { Target } from "lucide-react";
+import Link from "next/link";
+import { Plus, ChevronRight } from "lucide-react";
+import { Suspense } from "react";
 import { getRequiredSession } from "@/lib/auth/session";
-import { vozDoTema } from "@/lib/profiles/voice";
-import { ehEmpresa } from "@/lib/profiles/empresa";
-import { listGoalsWithProgress } from "@/lib/repositories/goal.repo";
-import { ConquistasDeMetas } from "@/components/conquista/ConquistasDeMetas";
-import { computeGoalPlan, type GoalCalcResult } from "@/lib/planning/goal";
-import { aporteDoMesFeito, monthKeyLabel, proximoAporte } from "@/lib/planning/goal-checkin";
 import { nowInBrazil } from "@/lib/date/brazil-now";
-import { PageHeader } from "@/components/ui/PageHeader";
-import { EmptyState } from "@/components/ui/EmptyState";
-import { NewGoalButton } from "./NewGoalButton";
-import { GoalCard, type GoalVariant } from "./GoalCard";
-import { SavingsSplitCard } from "./SavingsSplitCard";
-import { getSavingsTargets } from "@/lib/planning/savings-targets";
-import { getMonthlyPlan } from "@/lib/repositories/monthly-plan.repo";
 import { serverMoney } from "@/lib/money-server";
+import { ehEmpresa } from "@/lib/profiles/empresa";
+import { vozDoTema } from "@/lib/profiles/voice";
+import { listarMetasDaTela } from "@/lib/repositories/metas.repo";
+import { mesDaqui, proximaAChegar } from "@/lib/metas/projecao";
+import { nomeCurto } from "@/lib/metas/tipos";
+import { ConquistasDeMetas } from "@/components/conquista/ConquistasDeMetas";
+import { ResumoDasMetas } from "./ResumoDasMetas";
+import { DestacarMetaNova, FileiraDeFotos } from "./FileiraDeFotos";
+import { CartaoDaMeta } from "./CartaoDaMeta";
+import { AbrirFolhaDaMeta, ProvedorDaFolhaDaMeta } from "./FolhaDaMeta";
+import { jeitoDasMetas } from "./visual";
+import "./metas.css";
 
 /**
- * Cor de ritmo (adiantada / no ritmo / atrasada) para exibição, lendo o status que
- * `computeGoalPlan` já decidiu.
- *
- * "Adiantada" passou a comparar com o TEMPO, não com um corte fixo de 66% do valor: guardar
- * 70% de uma meta que vence em dez anos não é estar adiantada, e guardar 40% de uma que vence
- * em dois meses não é estar no ritmo. Sem data de início (metas antigas), cai no corte de
- * antes, que ao menos não inventa um ritmo que ninguém mediu.
+ * Metas da versão nova (protótipo aprovado, rota #metas): o resumo com o anel de todas juntas e a
+ * próxima a chegar, a fileira de fotos para ir direto a uma meta, os cartões com foto e a Nova
+ * meta guiada. A ordem é a de sempre do app: prazo mais perto primeiro.
  */
-function resolveVariant(plan: GoalCalcResult, currentAmount: number, targetAmount: number): GoalVariant {
-  if (plan.status === "ACHIEVED") return "achieved";
-  if (plan.status === "BEHIND" || plan.status === "NOT_STARTED") return "behind";
-  if (plan.timeElapsed !== null) return plan.progress >= plan.timeElapsed * 1.15 ? "ahead" : "onTrack";
-  const progress = targetAmount > 0 ? currentAmount / targetAmount : 0;
-  return progress >= 0.66 ? "ahead" : "onTrack";
-}
-
-const VARIANT_RANK: Record<GoalVariant, number> = { behind: 0, onTrack: 1, ahead: 1, achieved: 2 };
-
 export default async function MetasPage() {
   const ctx = await getRequiredSession();
-  const voz = vozDoTema(ctx.profileTheme, ctx.profileKind);
+  const hoje = nowInBrazil();
+  const [metas, money] = await Promise.all([listarMetasDaTela(ctx, hoje), serverMoney()]);
+  const m = (v: number) => money(v, { round: true });
+  const jeito = jeitoDasMetas(ctx.profileTheme);
   const empresa = ehEmpresa(ctx.profileKind);
-  const now = nowInBrazil();
-  const [goals, savingsTargets, monthPlan, money] = await Promise.all([
-    listGoalsWithProgress(ctx),
-    getSavingsTargets(ctx, now),
-    getMonthlyPlan(ctx, now.getFullYear(), now.getMonth() + 1),
-    serverMoney(),
-  ]);
-  const monthLabel = now.toLocaleDateString("pt-BR", { month: "long" });
+  const abas = vozDoTema(ctx.profileTheme, ctx.profileKind).titulos.planTabs;
 
-  const withPlans = goals.map((goal) => {
-    const targetAmount = Number(goal.targetAmount);
-    // Progresso REAL: "Já guardado" digitado + aportes marcados depois, ou ativos vinculados +
-    // aportes quando passam disso (item 6; regra em goalCurrentAmount).
-    const currentAmount = goal.computedCurrentAmount;
-    const targetDate = goal.targetDate ?? new Date();
-    const goalInput = {
-      targetAmount,
-      currentAmount,
-      targetDate,
-      annualRate: Number(goal.annualRate ?? 0),
-      startedAt: goal.createdAt,
-    };
-    const plan = computeGoalPlan(goalInput);
-    const variant = resolveVariant(plan, currentAmount, targetAmount);
+  const abertas = metas.filter((x) => x.plano.status !== "ACHIEVED");
+  const guardado = metas.reduce((t, x) => t + x.guardado, 0);
+  const alvo = metas.reduce((t, x) => t + x.alvo, 0);
+  const porMes = abertas.reduce((t, x) => t + x.combinado, 0);
+  const prox = proximaAChegar(metas);
 
-    // Marcar o aporte do mês fica SEMPRE disponível numa meta ativa com aporte sugerido — não
-    // só na janela do dia 25 ao 7. Aquela janela servia para uma pergunta ("fez o aporte?"),
-    // que não cabe no meio do mês; aqui é um botão, e o dinheiro sai da conta no dia 10.
-    const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-    const done = aporteDoMesFeito({
-      checkinDismissedMonth: goal.checkinDismissedMonth,
-      monthKey,
-      temAporteNoMes: goal.temAporteNoMes,
-    });
-    const checkin =
-      variant !== "achieved" && plan.requiredMonthlyContribution > 0
-        ? {
-            monthKey,
-            monthLabel: monthKeyLabel(monthKey),
-            suggestedAmount: plan.requiredMonthlyContribution,
-            done,
-          }
-        : null;
-    // Aporte do mês feito: o card passa a falar do mês que vem, não de "guardar X este mês".
-    const proximo = done ? proximoAporte({ ...goalInput, now }) : null;
-    const nextContribution = proximo ? { monthLabel: monthKeyLabel(proximo.monthKey), amount: proximo.amount } : null;
-
-    return {
-      goal,
-      plan,
-      targetAmount,
-      currentAmount,
-      targetDate,
-      variant,
-      checkin,
-      done,
-      nextContribution,
-    };
-  });
-
-  // Pior status primeiro (atrasada > no ritmo/adiantada), concluídas sempre por último;
-  // dentro do mesmo grupo, prazo mais próximo primeiro.
-  const sorted = [...withPlans].sort((a, b) => {
-    const rankDiff = VARIANT_RANK[a.variant] - VARIANT_RANK[b.variant];
-    if (rankDiff !== 0) return rankDiff;
-    const dateA = a.goal.targetDate?.getTime() ?? Infinity;
-    const dateB = b.goal.targetDate?.getTime() ?? Infinity;
-    return dateA - dateB;
-  });
+  const novaMeta = (
+    <AbrirFolhaDaMeta className="flex w-full items-center gap-3 rounded-[28px] border border-border bg-surface p-5 text-left shadow-premium-sm">
+      {jeito.novaMetaMaisNaFrente && (
+        <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-surface-2 text-ink" aria-hidden>
+          <Plus size={20} />
+        </span>
+      )}
+      <span className="flex min-w-0 flex-1 flex-col">
+        {jeito.novaMetaMaisNaFrente ? (
+          <>
+            <b className="text-[17px] font-semibold text-ink">Nova meta</b>
+            <small className="text-[13px] font-medium text-ink-muted">{jeito.novaMetaSub}</small>
+          </>
+        ) : (
+          <>
+            <small className="text-[13px] font-medium text-ink-muted">{jeito.novaMetaSub}</small>
+            <b className="text-xl font-semibold text-ink">Nova meta</b>
+          </>
+        )}
+      </span>
+      {jeito.novaMetaMaisNaFrente ? (
+        <ChevronRight size={18} className="shrink-0 text-ink-muted" aria-hidden />
+      ) : (
+        <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-surface-2 text-ink" aria-hidden>
+          <Plus size={20} />
+        </span>
+      )}
+    </AbrirFolhaDaMeta>
+  );
 
   return (
-    <div className="flex flex-col gap-8">
-      {/* Meta que chegou no valor (um aporte feito aqui mesmo): a notificação com confete. */}
+    <ProvedorDaFolhaDaMeta hoje={{ ano: hoje.getFullYear(), mes: hoje.getMonth() + 1, dia: hoje.getDate() }}>
       <ConquistasDeMetas ctx={ctx} />
-      <PageHeader
-        title={voz.titulos.metas}
-        // Sem a explicação fixa (06/10/2026): com metas, só o dado dela; sem nenhuma, quem explica é
-        // a tela vazia logo abaixo.
-        subtitle={sorted.length > 0 ? voz.titulos.metasResumo(sorted.length, monthPlan?.plannedInvestment ? money(monthPlan.plannedInvestment, { round: true }) : null) : undefined}
-        // Sem nenhum sonho, o botão fica só no meio da tela vazia: dois "Novo sonho" iguais, um
-        // em cima do outro, fizeram cliente perguntar qual era a diferença (01/10/2026).
-        action={sorted.length > 0 ? <NewGoalButton /> : undefined}
-      />
-
-      <SavingsSplitCard amount={monthPlan?.plannedInvestment ?? 0} targets={savingsTargets} money={money} monthLabel={monthLabel} voz={voz} />
-
-      {sorted.length === 0 ? (
-        // Vazio com saída: o botão de criar fica aqui também, não só no canto do cabeçalho.
-        <EmptyState
-          icon={Target}
-          message={voz.titulos.metasVazio}
-          action={<NewGoalButton />}
-        />
-      ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {sorted.map(({ goal, plan, targetAmount, currentAmount, targetDate, variant, checkin, done, nextContribution }) => (
-            <GoalCard
-              key={goal.id}
-              id={goal.id}
-              name={goal.name}
-              icon={goal.icon}
-              targetAmount={targetAmount}
-              currentAmount={currentAmount}
-              openingBalance={Number(goal.currentAmount)}
-              targetDate={targetDate}
-              annualRate={Number(goal.annualRate ?? 0)}
-              plan={plan}
-              variant={variant}
-              checkin={checkin}
-              monthDone={done}
-              nextContribution={nextContribution}
-              voz={voz}
-              empresa={empresa}
+      <Suspense fallback={null}>
+        <DestacarMetaNova />
+      </Suspense>
+      <div className="mx-auto flex w-full max-w-xl flex-col gap-3.5">
+        {metas.length > 0 && (
+          <>
+            <ResumoDasMetas
+              guardado={guardado}
+              alvo={alvo}
+              porMes={porMes}
+              proxima={prox ? { id: prox.id, nome: jeito.proximaNomeInteiro ? prox.nome : nomeCurto(prox.nome), foto: prox.foto, quando: mesDaqui(hoje, prox.plano.chega ?? 0).texto } : null}
+              jeito={jeito}
+              money={m}
             />
-          ))}
-        </div>
-      )}
-    </div>
+            <FileiraDeFotos metas={metas.map((x) => ({ id: x.id, curto: nomeCurto(x.nome), nome: x.nome, foto: x.foto, pct: x.plano.pct }))} novaEmDuasLinhas={!jeito.novaMetaMaisNaFrente} />
+            {metas.map((x) => (
+              <CartaoDaMeta key={x.id} meta={x} jeito={jeito} hoje={hoje} money={m} />
+            ))}
+          </>
+        )}
+        {novaMeta}
+        {/* A Reserva e a Liberdade (calculadoras de antes) continuam com porta de entrada. */}
+        <nav aria-label="Mais do planejamento" className="mt-2 flex flex-wrap justify-center gap-x-5 gap-y-1 text-[13px] font-medium text-ink-muted">
+          <Link href="/planejamento/reserva-emergencia" className="min-h-11 content-center underline-offset-4 hover:underline">
+            {abas[1]}
+          </Link>
+          {!empresa && (
+            <Link href="/planejamento/acumulo" className="min-h-11 content-center underline-offset-4 hover:underline">
+              {abas[2]}
+            </Link>
+          )}
+        </nav>
+      </div>
+    </ProvedorDaFolhaDaMeta>
   );
 }
