@@ -9,6 +9,7 @@ import { situacao, vaiBem, type Forca } from "@/lib/analysis/quatro-perguntas";
 import type { AtivoAnalisado, DadosDasAnalises } from "@/lib/analysis/analises-dados";
 import { AnelDePerguntas, Pct, Ponto, TRILHO, TileDoAtivo, corDaForca, opacidadeDaForca } from "./aneis";
 import { LeitorDaCarteira } from "./LeitorDaCarteira";
+import { TICKERS_COM_LOGO } from "@/lib/marcas/ativos-lista";
 
 const CARTAO = "rounded-3xl border border-border bg-surface";
 
@@ -53,11 +54,25 @@ export function AnalisesTela({ dados }: { dados: DadosDasAnalises }) {
       <LeitorDaCarteira pendentes={pendentes} onFalhou={(tk) => setFalhos((f) => [...f, tk])} />
 
       {vazio ? (
-        <div className={`${CARTAO} flex flex-col items-center gap-2 px-6 py-10 text-center`}>
-          <p className="text-lg font-medium text-ink">Nada para analisar ainda</p>
-          <p className="max-w-xs text-sm text-ink-muted">Quando você tiver investimentos na Carteira, cada um ganha a sua análise aqui.</p>
-          <Link href="/carteira" className="mt-2 min-h-11 px-3 py-2 text-sm font-medium text-accent-strong">Ir para a Carteira</Link>
-        </div>
+        // Sem carteira (11/10/2026): a busca é o destaque. Qualquer código abre a análise completa,
+        // sem depender de ter o ativo. Os atalhos são só os códigos mais negociados, sem recomendar.
+        <section className="flex flex-col gap-3">
+          <h1 className="titulo-tema px-1 text-[1.625rem] font-medium leading-tight text-ink">Pesquise qualquer ação, FII ou ETF</h1>
+          <Busca ativos={[]} grande />
+          <div className="flex flex-col gap-2 px-1">
+            <span className="text-[13px] text-ink-muted">Os mais negociados</span>
+            <div className="flex flex-wrap gap-2">
+              {MAIS_NEGOCIADOS.map((tk) => (
+                <Link key={tk} href={`/fichas/ativo/${tk}`} className="inline-flex min-h-10 items-center rounded-full border border-border bg-surface px-3.5 text-sm font-medium tabular-nums text-ink">
+                  {tk}
+                </Link>
+              ))}
+            </div>
+          </div>
+          <Link href="/carteira" className="mx-auto min-h-11 px-3 py-2 text-sm text-ink-muted underline-offset-4 hover:underline">
+            Quando tiver investimentos na Carteira, cada um ganha a sua análise aqui
+          </Link>
+        </section>
       ) : (
         ativos.length > 0 && <AnelDaCarteira ativos={ativos} bem={bem} destaque={destaque} onToque={destacar} />
       )}
@@ -161,6 +176,7 @@ export function AnalisesTela({ dados }: { dados: DadosDasAnalises }) {
       <Link href="/fichas/acoes" className="mx-auto min-h-11 px-3 py-2 text-[13px] text-ink-muted underline-offset-4 hover:underline">
         Suas fichas e a nota detalhada
       </Link>
+      <p className="px-1 pb-2 text-center text-[12px] text-ink-muted">Não é recomendação de investimento.</p>
     </div>
   );
 }
@@ -318,21 +334,29 @@ function CartaDoAtivo({ ativos, ticker, onTroca }: { ativos: AtivoAnalisado[]; t
   );
 }
 
-/** A lupa: acha entre os seus pelo código ou nome; um código novo vira "Analisar". */
-function Busca({ ativos }: { ativos: AtivoAnalisado[] }) {
+/** Só códigos, sem recomendação: os mais negociados da B3 (ações, FIIs e ETFs). */
+const MAIS_NEGOCIADOS = ["PETR4", "VALE3", "ITUB4", "BBAS3", "BBDC4", "MXRF11", "HGLG11", "KNRI11", "BOVA11", "IVVB11"];
+
+/**
+ * A lupa: acha entre os seus pelo código ou nome e, fora deles, qualquer código conhecido (os
+ * mesmos da lista de logos da B3); um código novo vira "Analisar". Abre a análise completa.
+ */
+function Busca({ ativos, grande = false }: { ativos: AtivoAnalisado[]; grande?: boolean }) {
   const [q, setQ] = useState("");
   const router = useRouter();
   const sem = (t: string) => t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
   const termo = sem(q.trim());
   const achados = termo ? ativos.filter((a) => sem(`${a.ticker} ${a.nome}`).includes(termo)).slice(0, 6) : [];
   const codigo = q.trim().toUpperCase();
-  const codigoNovo = /^([A-Z]{4}\d{1,2}|[A-Z]{1,5})$/.test(codigo) && !ativos.some((a) => a.ticker === codigo);
+  const codigoValido = /^([A-Z]{4}\d{1,2}|[A-Z]{1,5})$/.test(codigo);
+  const doCatalogo = codigo.length >= 2 ? TICKERS_COM_LOGO.filter((tk) => tk.startsWith(codigo) && !ativos.some((a) => a.ticker === tk)).slice(0, 6) : [];
+  const codigoNovo = codigoValido && !ativos.some((a) => a.ticker === codigo) && !doCatalogo.includes(codigo);
   return (
     <div className="flex flex-col gap-2">
-      <label className="flex min-h-12 items-center gap-2 rounded-2xl border border-border bg-surface px-3">
+      <label className={`flex items-center gap-2 rounded-2xl border border-border bg-surface px-3 ${grande ? "min-h-14 shadow-premium-sm" : "min-h-12"}`}>
         <Search size={18} strokeWidth={1.8} className="text-ink-muted" aria-hidden />
         <input
-          autoFocus
+          autoFocus={!grande}
           value={q}
           onChange={(e) => setQ(e.target.value)}
           onKeyDown={(e) => {
@@ -345,7 +369,7 @@ function Busca({ ativos }: { ativos: AtivoAnalisado[] }) {
           className="min-w-0 flex-1 bg-transparent text-base text-ink outline-none placeholder:text-ink-faint"
         />
       </label>
-      {(achados.length > 0 || codigoNovo) && (
+      {(achados.length > 0 || doCatalogo.length > 0 || codigoNovo) && (
         <ul className={`${CARTAO} flex flex-col px-3 py-1`}>
           {achados.map((a) => (
             <li key={a.ticker}>
@@ -359,8 +383,16 @@ function Busca({ ativos }: { ativos: AtivoAnalisado[] }) {
               </Link>
             </li>
           ))}
+          {doCatalogo.map((tk, i) => (
+            <li key={tk} className={i === 0 && achados.length ? "border-t border-border" : ""}>
+              <Link href={`/fichas/ativo/${tk}`} className="flex min-h-12 items-center gap-3 py-1.5">
+                <TileDoAtivo ticker={tk} logo={null} tamanho={32} />
+                <b className="text-[15px] font-medium text-ink">{tk}</b>
+              </Link>
+            </li>
+          ))}
           {codigoNovo && (
-            <li className={achados.length ? "border-t border-border" : ""}>
+            <li className={achados.length || doCatalogo.length ? "border-t border-border" : ""}>
               <Link href={`/fichas/ativo/${codigo}`} className="flex min-h-12 items-center gap-3 py-1.5 text-[15px] font-medium text-accent-strong">
                 Analisar {codigo}
               </Link>
