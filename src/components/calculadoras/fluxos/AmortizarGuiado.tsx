@@ -181,7 +181,7 @@ export function AmortizarGuiado({ dados, salva }: { dados: DadosDaTela; salva: S
                 </span>
                 <span className="flex flex-col items-end">
                   <small className="text-caption text-ink-muted">Juros{d.estimada ? " (estimados)" : ""}</small>
-                  <b className="text-[17px] font-medium text-[var(--color-atencao)]">{pc(d.jurosAoMes, 1)}% ao mês</b>
+                  <b className="text-[17px] font-medium text-ink">{pc(d.jurosAoMes, 1)}% ao mês</b>
                 </span>
               </span>
             </Opcao>
