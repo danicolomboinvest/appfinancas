@@ -456,7 +456,7 @@ export function minhaReservaBasta(e: {
       frase: "Ainda não tem reserva montada no app.",
       detalhes: ["A reserva segura um imprevisto sem virar dívida. A referência é de 6 a 12 meses do seu custo de vida.", ...(e.gastoReal ? [`Seu custo de vida hoje é de uns ${money(e.gastoReal)} por mês.`] : [])],
       conta: [],
-      acoes: [{ rotulo: "Montar minha reserva", href: "/planejamento/reserva-emergencia" }],
+      acoes: [{ rotulo: "Montar minha reserva", href: "/planejamento/metas" }],
     };
   }
   const r = e.reserva;
@@ -483,7 +483,7 @@ export function minhaReservaBasta(e: {
       { rotulo: "Custo de vida por mês", valor: money(custo) },
       { rotulo: `Meta (${r.mesesMeta} meses)`, valor: money(custo * r.mesesMeta) },
     ],
-    acoes: [{ rotulo: "Ver minha reserva", href: "/planejamento/reserva-emergencia" }],
+    acoes: [{ rotulo: "Ver minha reserva", href: "/planejamento/metas" }],
     visual: {
       destaque: cobre,
       rotulo: `do seu custo de vida, de ${r.mesesMeta} meses`,

@@ -122,7 +122,7 @@ export function DreEmpresa({
             <p className={`mt-0.5 text-[17px] font-semibold tabular-nums ${dre.margemLiquidaPct !== null && dre.margemLiquidaPct < 0 ? "text-danger" : "text-ink"}`}>{pct(dre.margemLiquidaPct)}</p>
             <p className="mt-0.5 text-caption text-ink-faint">De cada {money(100, { round: true })} faturados, quanto vira lucro.</p>
           </div>
-          <Link href="/planejamento/reserva-emergencia" className="rounded-xl bg-surface-2 px-3.5 py-3 transition-colors hover:bg-surface-hover">
+          <div className="rounded-xl bg-surface-2 px-3.5 py-3">
             <p className="text-caption font-medium text-ink-muted">Caixa de segurança</p>
             <p className={`mt-0.5 text-[17px] font-semibold tabular-nums ${corDoCaixa}`}>{mesesTexto}</p>
             <p className="mt-0.5 text-caption text-ink-faint">
@@ -133,7 +133,7 @@ export function DreEmpresa({
                   ? `${money(caixa.caixa, { round: true })} guardados. Lance as despesas fixas pra ver quantos meses isso cobre.`
                   : `${money(caixa.caixa, { round: true })} cobre as despesas fixas por esse tempo. Sebrae: ${MESES_DE_CAIXA_RECOMENDADOS.minimo} a ${MESES_DE_CAIXA_RECOMENDADOS.confortavel} meses.`}
             </p>
-          </Link>
+          </div>
         </div>
       </div>
     </section>

@@ -191,7 +191,6 @@ export function AvisoFoco({ item, hrefMes, gastos = [], resumo, opcoes = [], rem
         <Barra gasto={d.meses} planejado={d.minimo} boa />
         <Selo icone={ShieldCheck}>{t.avisoReservaSelo}</Selo>
         <Botoes>
-          <Botao icone={ShieldCheck} destaque href="/planejamento/reserva-emergencia" titulo={t.avisoReservaVerT} sub={t.avisoReservaVerSub} />
           <Botao icone={Check} disabled={salvando} titulo={t.avisoEntendiT} sub={t.avisoEntendiSub} onClick={pontual()} />
         </Botoes>
       </>

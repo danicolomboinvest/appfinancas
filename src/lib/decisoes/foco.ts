@@ -435,7 +435,7 @@ export function montarFoco(e: FocoEntrada): FocoSaida {
         nivel: 3,
         titulo: t.focoReservaT(texto),
         texto: t.focoReservaP,
-        href: "/planejamento/reserva-emergencia",
+        href: "/planejamento/metas",
         acao: t.focoAcao,
         detalhe: { tipo: "reserva", meses: cortado, minimo: e.reservaMinimaMeses ?? MESES_RESERVA_MINIMO },
       });

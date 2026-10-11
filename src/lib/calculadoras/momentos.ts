@@ -26,7 +26,7 @@ export const CARTOES: Record<IdDaCalculadora, CartaoDeCalculadora> = {
   amortizar: { id: "amortizar", titulo: "Quitar a dívida ou investir?", foto: "reserva", href: "/simuladores/amortizar-vs-investir" },
   marcacao: { id: "marcacao", titulo: "Vender a renda fixa antes?", foto: "natureza", href: "/simuladores/marcacao-mercado" },
   consorcio: { id: "consorcio", titulo: "Consórcio ou financiamento?", sub: "O que custa menos no fim", foto: "apartamento", href: "/simuladores/consorcio" },
-  aposentadoria: { id: "aposentadoria", titulo: "Quanto preciso para me aposentar?", sub: "Quanto juntar para viver de renda", foto: "liberdade", href: "/planejamento/acumulo" },
+  aposentadoria: { id: "aposentadoria", titulo: "Quanto preciso para me aposentar?", sub: "Quanto juntar para viver de renda", foto: "liberdade", href: "/simuladores/liberdade" },
   mapear: { id: "mapear", titulo: "Mapear minhas dívidas", sub: "Todas num lugar, com a ordem para quitar", foto: "/fotos/dividas-livre.jpg", href: "/dividas" },
 };
 

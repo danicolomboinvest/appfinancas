@@ -73,21 +73,21 @@ export function buildWeeklyTasks(input: WeeklyTasksInput): WeeklyTask[] {
       key: "reserva-configurar",
       label: "Definir sua reserva de emergência",
       done: false,
-      href: "/planejamento/reserva-emergencia",
+      href: "/planejamento/metas",
     });
   } else if (input.emergencyProgress < 1) {
     tasks.push({
       key: "reserva-completar",
       label: `Avançar na reserva de emergência (${Math.round(input.emergencyProgress * 100)}%)`,
       done: false,
-      href: "/planejamento/reserva-emergencia",
+      href: "/planejamento/metas",
     });
   } else {
     tasks.push({
       key: "reserva-ok",
       label: "Reserva de emergência completa",
       done: true,
-      href: "/planejamento/reserva-emergencia",
+      href: "/planejamento/metas",
     });
   }
 
