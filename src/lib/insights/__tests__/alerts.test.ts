@@ -23,7 +23,7 @@ describe("buildBudgetAlerts", () => {
     });
     expect(alerts.map((a) => a.key)).toEqual(["2026-09:ALIMENTACAO:80", "2026-09:MORADIA:100"]);
     expect(alerts[0].title).toBe("Alimentação já usou 85%");
-    expect(alerts[0].body).toBe("Faltam 13 dias e sobram R$ 120 do planejado.");
+    expect(alerts[0].body).toBe("Faltam 14 dias e sobram R$ 120 do planejado.");
     // "Passou", nunca "estourou" (11/10/2026), com o valor arredondado para cima.
     expect(alerts[1].title).toBe("Moradia passou R$ 102");
     expect(alerts[1].url).toBe("/orcamento/2026?resolver=MORADIA");

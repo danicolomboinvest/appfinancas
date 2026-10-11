@@ -11,6 +11,22 @@ const NOMES_DOS_MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "jun
 type Money = (v: number) => string;
 
 /**
+ * Dias que faltam no mês, CONTANDO HOJE (a régua do Orçamento: 25 dias no dia 7 de outubro; 1 no
+ * último dia). É a única conta de dias dos avisos: o texto do aviso (que vira a prévia do e-mail)
+ * e o corpo do e-mail leem daqui. Antes o texto contava sem hoje e o corpo com hoje, e o mesmo
+ * e-mail dizia "faltam 24 dias" na prévia e "faltam 25 dias" lá dentro.
+ */
+export function diasQueFaltam(ano: number, mes: number, hoje: Date): number {
+  const diasNoMes = new Date(ano, mes, 0).getDate();
+  return Math.max(1, diasNoMes - hoje.getDate() + 1);
+}
+
+/** "1 dia" / "25 dias". */
+function dias(n: number): string {
+  return n === 1 ? "1 dia" : `${n} dias`;
+}
+
+/**
  * Avisos de orçamento no meio do mês. Dois tipos, um aviso por categoria por mês em cada:
  * - 80% do planejado gasto com pelo menos 5 dias pela frente ("vai passar se seguir assim");
  * - passou do planejado ("Saúde passou R$ 67"; desde 11/10/2026 o app diz passou, nunca estourou).
@@ -47,10 +63,8 @@ export function buildBudgetAlerts(input: {
   livre?: number | null;
 }): Alert[] {
   const ym = `${input.year}-${String(input.month).padStart(2, "0")}`;
-  const daysInMonth = new Date(input.year, input.month, 0).getDate();
-  const daysLeft = daysInMonth - input.today.getDate();
-  // Para o "por dia" o dia de hoje ainda conta (a mesma régua do Orçamento: 25 dias no dia 7).
-  const diasComHoje = Math.max(1, daysLeft + 1);
+  // Uma conta só, contando hoje: o texto do aviso e o e-mail dizem o mesmo número.
+  const diasComHoje = diasQueFaltam(input.year, input.month, input.today);
   const mesNome = NOMES_DOS_MESES[input.month - 1];
   const spentBy = new Map(input.spent.map((s) => [s.parentCategory, s.spent]));
   const preCriadoBy = new Map((input.preCriado ?? []).map((s) => [s.parentCategory, s.spent]));
@@ -69,18 +83,19 @@ export function buildBudgetAlerts(input: {
       out.push({
         key: `${ym}:${p.parentCategory}:100`,
         title: `${label} passou ${input.money(passou)}`,
-        body: `${input.money(spent)} de ${input.money(p.planned)} planejados${daysLeft > 0 ? `, e ainda faltam ${daysLeft} dias` : ""}.`,
+        body: `${input.money(spent)} de ${input.money(p.planned)} planejados, e ${diasComHoje === 1 ? "ainda falta" : "ainda faltam"} ${dias(diasComHoje)}.`,
         // Abre a folha "O que fazer?" da categoria no Orçamento: o app sugere e ela confirma lá.
         url: `/orcamento/${input.year}?resolver=${p.parentCategory}`,
         dados: dadosDoPassou(p.parentCategory, label, p.planned, spent, passou),
       });
-    } else if (ritmo >= 0.8 && daysLeft >= 5) {
+    } else if (ritmo >= 0.8 && diasComHoje - 1 >= 5) {
+      // O corte continua o de antes: 5 dias pela frente depois de hoje.
       out.push({
         key: `${ym}:${p.parentCategory}:80`,
         // A porcentagem do título é a do plano inteiro (a que aparece nas outras telas); o
         // desconto das contas marcadas só decide SE avisa.
         title: `${label} já usou ${Math.round((spent / p.planned) * 100)}%`,
-        body: `Faltam ${daysLeft} dias e sobram ${input.money(p.planned - spent)} do planejado.`,
+        body: `${diasComHoje === 1 ? "Falta" : "Faltam"} ${dias(diasComHoje)} e sobram ${input.money(p.planned - spent)} do planejado.`,
         url: `/orcamento/${input.year}`,
         dados: { tipo: "perto", categoriaKey: p.parentCategory, categoria: label, gasto: spent, plano: p.planned, mesNome, diasRestantes: diasComHoje },
       });

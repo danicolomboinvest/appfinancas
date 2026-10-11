@@ -33,7 +33,8 @@ describe("buildBudgetAlerts: fim de mês e virada do ano", () => {
   it("31 de dezembro: estouro sem 'ainda faltam 0 dias', e a chave é do mês 12", () => {
     const [a] = buildBudgetAlerts({ year: 2026, month: 12, today: new Date(2026, 11, 31), planned, spent: [{ parentCategory: "ALIMENTACAO", spent: 1200 }], money });
     expect(a.key).toBe("2026-12:ALIMENTACAO:100");
-    expect(a.body).toBe("R$ 1200.00 de R$ 1000.00 planejados.");
+    // Contando hoje, o último dia é "falta 1 dia", igual ao corpo do e-mail ("Falta 1 dia de dezembro").
+    expect(a.body).toBe("R$ 1200.00 de R$ 1000.00 planejados, e ainda falta 1 dia.");
   });
 
   it("plano zero não avisa nada (sem dividir por zero no percentual)", () => {

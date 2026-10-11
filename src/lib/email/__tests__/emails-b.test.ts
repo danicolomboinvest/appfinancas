@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { PROFILE_THEMES } from "@/lib/profiles/themes";
 import { coresDoEmail, URL_DAS_IMAGENS } from "../blocos";
 import { ANA, SOBROU_DA_ANA, avisosDaAna, exemplosDeEmail } from "../exemplos";
-import { metasQueChegaramLa } from "@/lib/insights/alerts";
+import { buildBudgetAlerts, metasQueChegaramLa } from "@/lib/insights/alerts";
+import { alertEmail } from "../templates";
 import { categoriasDoResumo, mesesDoGrafico, serieDoGrafico } from "@/lib/recap/email-do-resumo";
 
 /**
@@ -168,5 +169,56 @@ describe("dados novos do resumo", () => {
       { chave: null, nome: "Pet", gasto: 500, plano: 0 },
       { chave: "SAUDE", nome: "SAUDE", gasto: 417, plano: 350 },
     ]);
+  });
+});
+
+/**
+ * Prévia e corpo do aviso dizem o mesmo número de dias (11/10/2026). A prévia é o texto do aviso
+ * (buildBudgetAlerts) e contava sem hoje; o corpo conta com hoje. O "passou" da Ana dizia
+ * "faltam 24 dias" na prévia e "Ainda faltam 25 dias de outubro" lá dentro.
+ */
+describe("prévia e corpo do aviso: os mesmos dias", () => {
+  const previa = (html: string) => html.match(/<div style="display:none;[^"]*">([^<]*?)&#847;/)?.[1] ?? "";
+  const diasEm = (texto: string) => [...texto.matchAll(/(\d+) dias?\b/g)].map((m) => Number(m[1]));
+  const reais = (v: number) => `R$ ${v}`;
+
+  it.each(TEMAS)("exemplos da Ana no tema %s: passou, passou-e-mais, perto e cartao", (tema) => {
+    for (const { nome, email } of exemplosDeEmail(tema).filter((x) => ["passou", "passou-e-mais", "perto", "cartao"].includes(x.nome))) {
+      const p = previa(email.html);
+      expect(p, nome).not.toBe("");
+      const corpo = textoVisivel(email.html).slice(textoVisivel(email.html).indexOf(p) + p.length);
+      const naPrevia = diasEm(p);
+      // Todo número de dias que a prévia diz aparece igual no corpo.
+      for (const n of naPrevia) expect(diasEm(corpo), `${nome}: prévia diz ${n}`).toContain(n);
+    }
+  });
+
+  it("todo dia de outubro e o último de dezembro: passou e perto com o mesmo número nos dois lugares", () => {
+    const casos: { ano: number; mes: number; dia: number }[] = [...Array.from({ length: 31 }, (_, i) => ({ ano: 2026, mes: 10, dia: i + 1 })), { ano: 2026, mes: 12, dia: 31 }, { ano: 2028, mes: 2, dia: 29 }];
+    for (const { ano, mes, dia } of casos) {
+      const alertas = buildBudgetAlerts({
+        year: ano,
+        month: mes,
+        today: new Date(ano, mes - 1, dia),
+        planned: [
+          { parentCategory: "SAUDE", planned: 350 },
+          { parentCategory: "ALIMENTACAO", planned: 1000 },
+        ],
+        spent: [
+          { parentCategory: "SAUDE", spent: 417 },
+          { parentCategory: "ALIMENTACAO", spent: 850 },
+        ],
+        money: reais,
+      });
+      for (const a of alertas) {
+        const email = alertEmail({ name: "Ana", alerts: [a], preferencesUrl: "https://x/p", tema: "padrao" });
+        const p = previa(email.html);
+        const corpo = textoVisivel(email.html).slice(textoVisivel(email.html).indexOf(p) + p.length);
+        const esperado = a.dados && "diasRestantes" in a.dados ? a.dados.diasRestantes : null;
+        expect(esperado, `${a.key} ${dia}/${mes}`).not.toBeNull();
+        expect(diasEm(p), `prévia ${a.key} ${dia}/${mes}`).toEqual([esperado]);
+        expect(diasEm(corpo), `corpo ${a.key} ${dia}/${mes}`).toContain(esperado);
+      }
+    }
   });
 });
