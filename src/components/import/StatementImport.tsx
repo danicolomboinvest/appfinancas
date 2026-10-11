@@ -39,6 +39,22 @@ import { Explica } from "@/components/ui/Explica";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
 
 type Phase = "upload" | "password" | "review" | "confirm" | "done";
+export type FaseDaImportacao = Phase;
+
+/** O que o começo (onboarding) vê da importação enquanto ela acontece. */
+export type EstadoParaOComeco = {
+  fase: Phase;
+  lendo: boolean;
+  /** Linhas que entram (sem as que ficam de fora). */
+  linhas: number;
+  /** Quantas precisam dela na revisão. */
+  pendentes: number;
+  erro: boolean;
+  /** Até 4 gastos que o app já separou sozinho, do arquivo dela. */
+  amostra: { descricao: string; original: string; categoria: ParentCategory | null; valor: number }[];
+  /** A primeira linha que vai precisar dela. */
+  primeiraPendente: { descricao: string; original: string; data: string; valor: number } | null;
+};
 
 /** "YYYY-MM" do mês corrente, usado como valor inicial do seletor de mês da fatura. */
 function currentMonthValue(): string {
@@ -95,8 +111,20 @@ function buildUploadForm(file: File, docType: "extrato" | "fatura", faturaMonth?
 export function StatementImport({
   onDone,
   otherProfiles = [],
+  comeco,
 }: {
   onDone: () => void;
+  /**
+   * Dentro do começo (onboarding, versão nova): a tela de fora mostra os quadros "Eu leio e separo"
+   * enquanto o arquivo é lido e, quando a importação grava, segue para a Visão geral em vez de
+   * mostrar o "pronto" daqui. Fora do começo, nada muda.
+   */
+  comeco?: {
+    aoMudar?: (estado: EstadoParaOComeco) => void;
+    aoImportar?: (resultado: { mes: { year: number; month: number } | null; revisou: boolean }) => void;
+    /** A importação está na tela? Escondida atrás dos quadros, ela não pergunta "Sair da importação?". */
+    visivel?: boolean;
+  };
   /** Os OUTROS perfis do usuário (não o ativo) — deixa mandar uma linha da fatura pra lá em vez
    * do perfil ativo (ex.: compra da Empresa que caiu no cartão Pessoal). Vazio pra quem só tem
    * um perfil: nenhum botão extra aparece. */
@@ -173,6 +201,27 @@ export function StatementImport({
     const it = items.find((x) => x.key === key);
     return it ? [{ it, i: key }] : [];
   });
+
+  // Escondida atrás dos quadros do começo, tocar fora dela não é sair.
+  const protegerSaida = !comeco || comeco.visivel === true;
+
+  // O começo acompanha a leitura (para os quadros) sem saber de nada daqui de dentro. As linhas de
+  // amostra são as DELA (as primeiras que o app já separou), nunca um exemplo.
+  const aoMudarDoComeco = comeco?.aoMudar;
+  useEffect(() => {
+    if (!aoMudarDoComeco) return;
+    const separadas = items.filter((it) => !it.ignorar && it.category === "EXPENSE" && (it.parentCategory || it.customCategoryId));
+    const pendente = reviewKeys.length > 0 ? items.find((it) => it.key === reviewKeys[0]) : undefined;
+    aoMudarDoComeco({
+      fase: phase,
+      lendo: isPending,
+      linhas: items.filter((it) => !it.ignorar).length,
+      pendentes: reviewKeys.length,
+      erro: error !== null || kindMismatch !== null,
+      amostra: separadas.slice(0, 4).map((it) => ({ descricao: nomeNaTela(it.description).nome, original: it.description, categoria: it.parentCategory, valor: it.amount })),
+      primeiraPendente: pendente ? { descricao: nomeNaTela(pendente.description).nome, original: pendente.description, data: pendente.date, valor: pendente.amount } : null,
+    });
+  }, [aoMudarDoComeco, phase, isPending, items, reviewKeys, error, kindMismatch]);
 
   // Veio da Carteira com um extrato subido lá por engano: começa a ler esse arquivo na hora.
   const handleFileRef = useRef<(file: File) => void>(() => {});
@@ -443,6 +492,12 @@ export function StatementImport({
         targetYear && targetMonth ? { year: targetYear, month: targetMonth } : null,
       );
       setRevelacao({ mes, dados: null, carregando: mes !== null });
+      if (comeco?.aoImportar) {
+        // No começo, o mês montado aparece na Visão geral (o "aha"), não aqui.
+        comeco.aoImportar({ mes, revisou: reviewKeys.length > 0 });
+        setPhase("done");
+        return;
+      }
       if (mes) {
         resumoDoMesImportadoAction(mes.year, mes.month, perfilDaTela)
           .then((dados) => setRevelacao({ mes, dados, carregando: false }))
@@ -785,7 +840,7 @@ export function StatementImport({
     return (
       <div ref={areaRef} className="flex flex-col gap-4">
         <ProtegerSaida
-          ativo
+          ativo={protegerSaida}
           areaRef={areaRef}
           textos={{ titulo: t.impSairTitulo, dica: t.impSairDica, ficar: t.impSairFicar, sair: t.impSairSim }}
         />
@@ -924,7 +979,7 @@ export function StatementImport({
     return (
       <div ref={areaRef} className="flex flex-col gap-4">
         <ProtegerSaida
-          ativo={importable.length > 0}
+          ativo={protegerSaida && importable.length > 0}
           areaRef={areaRef}
           textos={{ titulo: t.impSairTitulo, dica: t.impSairDica, ficar: t.impSairFicar, sair: t.impSairSim }}
         />
