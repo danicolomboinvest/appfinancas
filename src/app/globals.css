@@ -879,3 +879,11 @@ html:not(.light) .vidro-heroi {
     transition: none;
   }
 }
+
+/* O botão grande das calculadoras: tinta do tema (como no protótipo). No Titânio, que define o
+   botão principal em metal liso (--botao-fundo), ele usa o mesmo metal. */
+.botao-principal {
+  background: var(--botao-fundo, var(--color-ink));
+  color: var(--botao-tinta, var(--color-canvas));
+  box-shadow: var(--botao-fio, none);
+}

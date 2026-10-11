@@ -100,7 +100,7 @@ export function BotaoGrande({ children, secundario = false, className = "", ...p
       type="button"
       {...props}
       className={`flex min-h-[3.25rem] flex-1 items-center justify-center rounded-full px-3 text-base font-medium max-[389px]:text-[15px] transition-[opacity,transform] active:scale-[0.99] disabled:opacity-40 ${
-        secundario ? "bg-surface-2 text-ink" : "bg-ink text-canvas"
+        secundario ? "bg-surface-2 text-ink" : "botao-principal"
       } ${className}`}
     >
       {children}
@@ -520,7 +520,7 @@ export function CampoDoNome({ s }: { s: ReturnType<typeof useSalvar> }) {
         onChange={(e) => s.setNome(e.target.value)}
         className="glass min-h-12 min-w-0 flex-1 rounded-full px-4 text-[15px] text-ink outline-none placeholder:text-ink-faint focus:ring-2 focus:ring-accent"
       />
-      <button type="button" disabled={s.pendente} onClick={s.salvar} className="min-h-12 shrink-0 rounded-full bg-ink px-5 text-[15px] font-medium text-canvas disabled:opacity-50">
+      <button type="button" disabled={s.pendente} onClick={s.salvar} className="min-h-12 shrink-0 botao-principal rounded-full px-5 text-[15px] font-medium disabled:opacity-50">
         Salvar
       </button>
     </div>
