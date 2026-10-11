@@ -152,7 +152,7 @@ export function ContadorComFoto({
             aria-label={`Menos ${simbolo} ${milhar(passo)}`}
             disabled={valor - passo < min}
             onClick={() => onChange(Math.max(min, valor - passo))}
-            className="flex size-12 shrink-0 items-center justify-center rounded-full bg-white/25 text-white backdrop-blur disabled:opacity-40"
+            className="flex size-12 shrink-0 items-center justify-center rounded-full bg-white/25 max-[359px]:size-10 text-white backdrop-blur disabled:opacity-40"
           >
             <Minus size={20} aria-hidden />
           </button>
@@ -164,14 +164,14 @@ export function ContadorComFoto({
               value={texto}
               onChange={(e) => onChange(soDigitos(e.target.value))}
               style={{ width: `${Math.max(1, texto.length) * 0.6 + 0.2}em` }}
-              className="min-w-0 max-w-[9em] bg-transparent text-[2.5rem] font-light leading-none tracking-[-0.03em] tabular-nums text-white outline-none max-[359px]:text-[2.1rem]"
+              className="min-w-0 max-w-[9em] bg-transparent text-[2.5rem] font-light leading-none tracking-[-0.03em] tabular-nums text-white outline-none max-[359px]:text-[1.8rem]"
             />
           </label>
           <button
             type="button"
             aria-label={`Mais ${simbolo} ${milhar(passo)}`}
             onClick={() => onChange(valor + passo)}
-            className="flex size-12 shrink-0 items-center justify-center rounded-full bg-white/25 text-white backdrop-blur"
+            className="flex size-12 shrink-0 items-center justify-center rounded-full bg-white/25 max-[359px]:size-10 text-white backdrop-blur"
           >
             <Plus size={20} aria-hidden />
           </button>
