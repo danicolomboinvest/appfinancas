@@ -233,6 +233,9 @@ model User {
   contasAPagar      ContaAPagar[]
   tokensDoWidget    TokenDoWidget[]
   dividas           Divida[]
+  /// Login do par (11/10/2026): convites que esta conta mandou e os perfis Casal em que ela é o par.
+  convitesCasal     ConviteCasal[]
+  membrosCasal      MembroCasal[]
 }
 
 /// Ambiente financeiro independente dentro da MESMA conta: Pessoal, Empresa, Casal, Casa…
@@ -300,6 +303,9 @@ model FinancialProfile {
   decisoes                Decisao[]
   contasAPagar            ContaAPagar[]
   dividas                 Divida[]
+  convitesCasal           ConviteCasal[]
+  membrosCasal            MembroCasal[]
+  fechamentosCasal        FechamentoCasal[]
 
   @@index([userId, position])
 }
@@ -622,6 +628,14 @@ model MonthlyEntry {
   /// (Pix, débito, dinheiro), null = não informado. Linha de fatura importada antes disso fica null
   /// e conta como cartão pelo lote (ImportBatch.docType "fatura"); ver lib/cartao/limite.ts.
   noCartao         Boolean?
+  /// Login do par (11/10/2026): a conta que lançou. Nulo = a dona do perfil (tudo que existia
+  /// antes do par). Sem chave estrangeira de propósito: o par pode excluir a conta dele e o
+  /// histórico do casal continua com quem paga, como a proposta aprovada diz.
+  autorUserId      String?
+  /// "Só meu" no perfil Casal: só quem lançou vê, nem o total aparece para o outro. Fica fora do
+  /// acerto (é gravado com doCasal = false). O do par é gravado com o userId DELE, o da titular
+  /// com o dela, então as consultas de sempre (userId + profileId) já não cruzam os dois.
+  soMeu            Boolean                  @default(false)
   createdAt        DateTime                 @default(now())
 
   @@unique([userId, profileId, externalId])
@@ -1247,4 +1261,94 @@ model TokenDoWidget {
   revogadoEm DateTime?
 
   @@index([userId, aparelho])
+}
+
+/// Login do par (11/10/2026, casal-login-proposta.html): o convite que a titular do perfil Casal
+/// manda por link. Só o hash do código fica aqui (como a senha): quem lê o banco não monta o link.
+/// Um convite aberto por perfil (índice parcial na migration); "Mandar de novo" fecha o anterior
+/// como "substituido" e cria outro.
+model ConviteCasal {
+  id          String           @id @default(cuid())
+  profileId   String
+  profile     FinancialProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  /// Quem convidou (a titular, dona do perfil).
+  userId      String
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  nomePar     String           @db.VarChar(30)
+  /// A letra do par no casal ("A" ou "B", a mesma de MonthlyEntry.pessoa).
+  letra       String           @db.VarChar(1)
+  /// SHA-256 do código do link, em hex.
+  tokenHash   String           @unique
+  /// Por onde ela mandou: whatsapp, email ou copiar. Nulo = ainda não mandou.
+  canal       String?          @db.VarChar(12)
+  /// aberto, aceito, cancelado (a titular cancelou) ou substituido ("Mandar de novo").
+  /// Vencido não é gravado: é aberto com expiraEm no passado.
+  status      String           @default("aberto") @db.VarChar(12)
+  expiraEm    DateTime
+  enviadoEm   DateTime?
+  aceitoEm    DateTime?
+  /// A conta que aceitou. Sem chave estrangeira: se ela for excluída, o registro do convite fica.
+  aceitoPorId String?
+  encerradoEm DateTime?
+  createdAt   DateTime         @default(now())
+
+  @@index([profileId, status])
+}
+
+/// O par dentro de um perfil Casal: a entrada dele vale pelo vínculo, não por compra. A titular
+/// é a dona do perfil (FinancialProfile.userId) e não precisa de linha aqui.
+/// Índices parciais na migration: um par ativo por perfil e um casal ativo por pessoa.
+model MembroCasal {
+  id              String           @id @default(cuid())
+  profileId       String
+  profile         FinancialProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  userId          String
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// "A" ou "B": liga o par aos lançamentos (MonthlyEntry.pessoa).
+  letra           String           @db.VarChar(1)
+  entrouEm        DateTime         @default(now())
+  /// Saiu (ele saiu, a titular removeu, ou o Casal ficou 90 dias sem renovar). Nulo = ativo.
+  saiuEm          DateTime?
+  motivoSaida     String?          @db.VarChar(20)
+  /// Quando o app viu pela primeira vez o Casal da titular sem valer (não renovou). O acesso do
+  /// par para na hora; a saída de vez é 90 dias depois disso. Volta a nulo se ela renovar.
+  bloqueadoEm     DateTime?
+  /// O par que também tem perfis próprios (comprou o SPI) escolhe onde está: true = no Nós dois.
+  emUso           Boolean          @default(true)
+  termosVersao    String           @db.VarChar(20)
+  termosAceitosEm DateTime
+  conviteId       String?
+
+  @@index([userId])
+  @@index([profileId])
+}
+
+/// Fechar o mês a dois: o mês do perfil Casal fecha quando os dois dizem "Confere". Cada confere
+/// guarda a assinatura dos lançamentos do acerto naquele instante; se alguém lança ou muda algo
+/// do mês depois, a assinatura muda e o confere cai sozinho.
+model FechamentoCasal {
+  id          String           @id @default(cuid())
+  profileId   String
+  profile     FinancialProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  ano         Int
+  mes         Int
+  confereA    DateTime?
+  confereB    DateTime?
+  assinaturaA String?          @db.VarChar(64)
+  assinaturaB String?          @db.VarChar(64)
+  fechadoEm   DateTime?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@unique([profileId, ano, mes])
+}
+
+/// Limite de tentativas na página pública do convite (/par/...), por aparelho de origem. Guarda
+/// só um resumo do IP (SHA-256 com o segredo do app), nunca o IP.
+model TentativaDoConvite {
+  id    String   @id @default(cuid())
+  chave String   @db.VarChar(64)
+  em    DateTime @default(now())
+
+  @@index([chave, em])
 }
