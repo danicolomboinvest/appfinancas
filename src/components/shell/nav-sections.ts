@@ -108,11 +108,8 @@ export const NAV_SECTIONS: NavSection[] = [
     href: "/planejamento/metas",
     label: "Metas",
     icon: Target,
-    children: [
-      { href: "/planejamento/metas", label: "Metas" },
-      { href: "/planejamento/reserva-emergencia", label: "Reserva de Emergência" },
-      { href: "/planejamento/acumulo", label: "Aposentadoria", premium: true, soPessoa: true },
-    ],
+    // Sem submenu (aprovado no branch de Metas): a Reserva e a Aposentadoria abrem pelo link
+    // discreto no fim da lista de Metas ("Reserva · Liberdade"); as rotas continuam acesas aqui.
   },
   // Dívidas (fase 2, 11/10/2026): logo depois de Metas. A Empresa tem o menu dela, sem esta área.
   { basePath: "/dividas", href: "/dividas", label: "Dívidas", icon: CreditCard, soPessoa: true },
