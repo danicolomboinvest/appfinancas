@@ -45,9 +45,17 @@ export function CountUp({
     // financeira 0 de 100" assim. Sem ninguém olhando, a animação não vale o risco.
     const escondida = document.visibilityState === "hidden";
     if (reduceMotion || escondida) {
-      setDisplay(value);
+      // Num microtask, e não direto no efeito: setState síncrono dentro do efeito é o que a
+      // regra react-hooks/set-state-in-effect proíbe. Não usa requestAnimationFrame porque é
+      // justamente ele que o navegador estrangula com a aba em segundo plano.
+      let cancelado = false;
+      queueMicrotask(() => {
+        if (!cancelado) setDisplay(value);
+      });
       startValueRef.current = value;
-      return;
+      return () => {
+        cancelado = true;
+      };
     }
 
     const from = startValueRef.current;
