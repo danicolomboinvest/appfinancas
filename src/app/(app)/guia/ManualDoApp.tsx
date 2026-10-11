@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { AlertTriangle, Check, Copy, Download, FileText, Layers, ListChecks, PiggyBank, Plus, Rocket, ShoppingBag, Target, Undo2, Users, Wallet, type LucideIcon } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -30,7 +31,7 @@ export const PDF_DO_MANUAL = "/manual-spi-finance.pdf";
  * "Orçamento", porque é isso que a aba dela diz. Os botões também ("Tirar", "Mexer ✏️"):
  * a voz aqui já vem com o tipo do perfil, então a Empresa lê "Caixa de segurança".
  */
-export function ManualDoApp() {
+export function ManualDoApp({ videos }: { videos?: ReactNode }) {
   const { voz, empresa } = useProfileTheme();
   const nomes = nomesDoTema(voz);
   const n = (t: string) => comNomes(t, nomes);
@@ -39,6 +40,9 @@ export function ManualDoApp() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader title="Como usar o SPI Finance" subtitle="As regras que fazem os seus números baterem. Leitura de 5 minutos." />
+
+      {/* Os vídeos do Como funciona vêm antes do texto: é o que a pessoa procura primeiro. */}
+      {videos}
 
       <a
         href={PDF_DO_MANUAL}
