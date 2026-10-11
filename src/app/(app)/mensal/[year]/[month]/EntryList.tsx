@@ -1,20 +1,18 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { CheckSquare, ChevronRight, Pencil, PiggyBank, Receipt, Square, Trash2, TrendingUp, X, type LucideIcon } from "lucide-react";
-import type { ParentCategory, ProfileKind } from "@prisma/client";
+import { CheckSquare, Pencil, PiggyBank, Receipt, Search, Square, Trash2, TrendingUp, X, type LucideIcon } from "lucide-react";
+import type { ParentCategory } from "@prisma/client";
 import type { CurrencyCode } from "@/lib/money";
-import { Card } from "@/components/ui/Card";
 import { Modal } from "@/components/ui/Modal";
 import { LogoDoLancamento } from "@/components/ui/LogoDoLancamento";
 import { emojiDaCategoria } from "@/lib/profiles/icones";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import type { Voz } from "@/lib/profiles/voice";
 import { partesDoTexto } from "@/lib/profiles/textos/shell";
-import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import { useToast } from "@/components/ui/toast-context";
 import { useMoney } from "@/components/money/MoneyProvider";
-import { PARENT_CATEGORIES, CUSTOM_CATEGORY_ICON_MAP, categoryIcon, categoryLabel, colorForCategorySlice, emojiEscolhido, isParentCategoryKey, categoriasParaEscolher, type CategoriasDoPerfil } from "@/lib/categories";
+import { CUSTOM_CATEGORY_ICON_MAP, categoryIcon, categoryLabel, colorForCategorySlice, emojiEscolhido, isParentCategoryKey, categoriasParaEscolher, type CategoriasDoPerfil } from "@/lib/categories";
 import { EntryForm } from "./EntryForm";
 import { RESGATE } from "@/components/forms/CategoryFields";
 import { ehResgate } from "@/lib/entries/resgate";
@@ -75,8 +73,36 @@ function valorDaLinha(entry: Pick<ListEntry, "category" | "amount">, voz: Voz, m
   return money(entry.amount);
 }
 
-/** Meses movimentados podem ter dezenas de lançamentos: os mais recentes direto, o resto atrás de "Ver mais". */
-const VISIBLE_COUNT = 8;
+const DIAS_DA_SEMANA = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"];
+
+/** "Hoje, quarta 7", "Ontem, terça 6", "Segunda 5" (o dia em "YYYY-MM-DD", hoje idem). */
+export function rotuloDoDia(dia: string, hoje: string): string {
+  if (dia === "sem-data") return "Sem data";
+  const d = new Date(`${dia}T12:00:00Z`);
+  const semana = DIAS_DA_SEMANA[d.getUTCDay()];
+  const ontem = new Date(new Date(`${hoje}T12:00:00Z`).getTime() - 864e5).toISOString().slice(0, 10);
+  if (dia === hoje) return `Hoje, ${semana} ${d.getUTCDate()}`;
+  if (dia === ontem) return `Ontem, ${semana} ${d.getUTCDate()}`;
+  if (dia > hoje) return `${semana.charAt(0).toUpperCase() + semana.slice(1)} ${d.getUTCDate()}, a vencer`;
+  return `${semana.charAt(0).toUpperCase() + semana.slice(1)} ${d.getUTCDate()}`;
+}
+
+/** O valor da linha como no protótipo: "− R$ 54,90" com os centavos pequenos. */
+function ValorDaLinha({ entry, voz, money }: { entry: ListEntry; voz: Voz; money: (v: number) => string }) {
+  const especial = (entry.amount < 0 && entry.category === "EXPENSE") || ehResgate(entry);
+  if (especial) return <span className="text-[15px] tabular-nums text-success">{valorDaLinha(entry, voz, money)}</span>;
+  const texto = money(Math.abs(entry.amount));
+  const virgula = texto.lastIndexOf(",");
+  const [inteiro, centavos] = virgula > 0 ? [texto.slice(0, virgula), texto.slice(virgula)] : [texto, ""];
+  const sinal = entry.category === "INCOME" ? "+" : entry.category === "EXPENSE" ? "−" : "";
+  return (
+    <span className={`whitespace-nowrap text-[16px] tabular-nums ${entry.category === "INCOME" ? "text-success" : "text-ink"}`}>
+      {sinal && <span className="mr-1">{sinal}</span>}
+      {inteiro}
+      <span className="text-[0.72em]">{centavos}</span>
+    </span>
+  );
+}
 
 function categoryVisual(
   entry: ListEntry,
@@ -177,6 +203,10 @@ export function EntryList({
   // Despesa fixa: antes de apagar, pergunta se é só este mês ou este e os próximos.
   const [apagandoFixa, setApagandoFixa] = useState<ListEntry | null>(null);
 
+  // Transações (versão nova): busca, Saídas/Entradas/Cartão e uma categoria, como no protótipo.
+  const [busca, setBusca] = useState("");
+  const [filtro, setFiltro] = useState<"todas" | "saidas" | "entradas" | "cartao">("todas");
+  const [categoriaFiltro, setCategoriaFiltro] = useState("");
   const open = entries.find((e) => e.id === openId) ?? null;
   const editing = entries.find((e) => e.id === editingId) ?? null;
 
@@ -295,17 +325,16 @@ export function EntryList({
   function renderRow(entry: ListEntry) {
     const visual = categoryVisual(entry, customCategories, tema, kind);
     const marcado = selected.has(entry.id);
+    const nomeDaCategoria = categoryName(entry, customCategories, voz, kind);
+    // Como no protótipo: o nome (a loja, a conta) em cima; a categoria e "cartão" embaixo.
+    const titulo = entry.description || entry.subcategory || nomeDaCategoria;
     return (
-      <Card
-        key={entry.id}
-        as="div"
-        className={`flex items-center gap-3 p-3 transition-colors ${marcado ? "border-accent/50 bg-accent-soft/40" : ""}`}
-      >
+      <div key={entry.id} className={`flex items-center gap-3 px-3 py-3 transition-colors ${marcado ? "bg-accent-soft/40" : ""}`}>
         <button
           type="button"
           onClick={() => (selecting ? toggle(entry.id) : setOpenId(entry.id))}
           aria-pressed={selecting ? marcado : undefined}
-          aria-label={selecting ? `${marcado ? "Desmarcar" : "Marcar"} ${entry.subcategory ?? categoryName(entry, customCategories, voz, kind)}` : `Abrir ${entry.subcategory ?? categoryName(entry, customCategories, voz, kind)}`}
+          aria-label={selecting ? `${marcado ? "Desmarcar" : "Marcar"} ${titulo}` : `Abrir ${titulo}`}
           className="flex min-w-0 flex-1 items-center gap-3 text-left"
         >
           {selecting ? (
@@ -313,24 +342,22 @@ export function EntryList({
               {marcado ? <CheckSquare size={22} strokeWidth={1.75} /> : <Square size={22} strokeWidth={1.75} />}
             </span>
           ) : (
-            <LogoDoLancamento descricao={entry.description} icon={visual.icon} emoji={visual.emoji} />
+            <LogoDoLancamento descricao={entry.description} icon={visual.icon} emoji={visual.emoji} cor={visual.color} />
           )}
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-[15px] font-medium text-ink">
-              {entry.subcategory ?? categoryName(entry, customCategories, voz, kind)}
-            </span>
-            <span className="block truncate text-xs text-ink-faint">
+            <span className="block truncate text-[16px] text-ink">{titulo}</span>
+            <span className="block truncate text-[13px] text-ink-muted">
               {/* Perfil Casal: de quem é, e "Pessoal" quando o gasto fica fora do acerto. */}
               {nomesDoCasal && (entry.pessoa === "A" || entry.pessoa === "B") && (
-                <span className="font-medium text-ink-muted">
+                <span className="font-medium">
                   {nomesDoCasal[entry.pessoa]}
                   {entry.category === "EXPENSE" && entry.doCasal === false ? ", Pessoal" : ""}
-                  {(entry.dayLabel || entry.description) && ", "}
+                  {" · "}
                 </span>
               )}
               {/* Conta lançada antes de pagar (03/10/2026): mostra que ainda vai vencer. */}
               {entry.category === "EXPENSE" && entry.entryDate && entry.entryDate > hoje && (
-                <span className="mr-1 rounded-full border border-border-strong px-1.5 py-px font-medium text-ink-muted">a vencer</span>
+                <span className="mr-1 rounded-full border border-border-strong px-1.5 py-px font-medium">a vencer</span>
               )}
               {/* Entrada que ela marcou como "para o mês seguinte": caiu em outro mês. */}
               {entry.category === "INCOME" && entry.entryDate && Number(entry.entryDate.slice(5, 7)) !== month && (
@@ -338,19 +365,14 @@ export function EntryList({
                   recebido {entry.entryDate.slice(8, 10)}/{entry.entryDate.slice(5, 7)}
                 </span>
               )}
-              {entry.dayLabel && <span className="tabular-nums">{entry.dayLabel}</span>}
-              {entry.dayLabel && entry.description && ", "}
-              {entry.description}
+              {entry.category === "INCOME" ? "Entrada" : entry.category === "INVESTMENT_CONTRIBUTION" ? categoryKindLabel(entry.category, voz, entry.amount) : nomeDaCategoria}
+              {entry.noCartao ? " · cartão" : ""}
             </span>
           </span>
           <span className="flex shrink-0 flex-col items-end">
-            {/* Estorno: gasto negativo, dinheiro de uma compra que voltou. */}
-            <span className={`text-[15px] font-semibold tabular-nums ${entry.category === "EXPENSE" && entry.amount < 0 ? "text-success" : CATEGORY_AMOUNT_CLASS[entry.category]}`}>
-              {valorDaLinha(entry, voz, money)}
-            </span>
+            <ValorDaLinha entry={entry} voz={voz} money={money} />
             {entry.originalLabel && <span className="text-xs tabular-nums text-ink-faint">{entry.originalLabel}</span>}
           </span>
-          {!selecting && <ChevronRight size={16} className="shrink-0 text-ink-faint md:hidden" />}
         </button>
 
         {/* No computador cabe: ícones sem texto, com o rótulo no aria-label. */}
@@ -376,12 +398,29 @@ export function EntryList({
             </button>
           </span>
         )}
-      </Card>
+      </div>
     );
   }
 
-  const primeiros = entries.slice(0, VISIBLE_COUNT);
-  const resto = entries.slice(VISIBLE_COUNT);
+  const termo = busca.trim().toLocaleLowerCase("pt-BR");
+  const filtradas = entries.filter((e) => {
+    if (filtro === "saidas" && e.category !== "EXPENSE") return false;
+    if (filtro === "entradas" && e.category !== "INCOME") return false;
+    if (filtro === "cartao" && !e.noCartao) return false;
+    if (categoriaFiltro && (e.customCategoryId ?? e.parentCategory) !== categoriaFiltro) return false;
+    if (termo) {
+      const texto = `${e.description ?? ""} ${e.subcategory ?? ""} ${categoryName(e, customCategories, voz, kind)}`.toLocaleLowerCase("pt-BR");
+      if (!texto.includes(termo)) return false;
+    }
+    return true;
+  });
+  // Por dia, do mais recente: "Hoje, quarta 7", "Ontem, terça 6", "Segunda 5". Sem data, no fim.
+  const grupos = new Map<string, ListEntry[]>();
+  for (const e of [...filtradas].sort((a, b) => (b.entryDate ?? "").localeCompare(a.entryDate ?? ""))) {
+    const k = e.entryDate ?? "sem-data";
+    grupos.set(k, [...(grupos.get(k) ?? []), e]);
+  }
+  const categoriasDoMes = [...new Set(entries.filter((e) => e.category === "EXPENSE").map((e) => e.customCategoryId ?? e.parentCategory).filter((k): k is string => Boolean(k)))];
 
   // Categoria só existe em Gasto (Renda e Aporte não têm categoria-mãe): o botão de mudar em
   // lote só aparece quando TUDO que está marcado é gasto, pra não prometer uma troca que não
@@ -404,14 +443,47 @@ export function EntryList({
         )}
       </div>
 
-      {/* No computador, dois lançamentos por linha: um por linha na largura toda era um
-          corredor vazio entre a descrição e o valor. */}
-      <div className="flex flex-col gap-2 lg:grid lg:grid-cols-2 lg:items-start lg:gap-x-4">{primeiros.map(renderRow)}</div>
-      {resto.length > 0 && (
-        <CollapsibleSection label={t.uiVerMaisLancamentos(resto.length)}>
-          <div className="flex flex-col gap-2 lg:grid lg:grid-cols-2 lg:items-start lg:gap-x-4">{resto.map(renderRow)}</div>
-        </CollapsibleSection>
-      )}
+      <div className="flex flex-col gap-2.5">
+        <label className="flex min-h-12 items-center gap-2.5 rounded-full border border-border bg-surface px-4">
+          <Search size={18} strokeWidth={1.6} className="shrink-0 text-ink-muted" aria-hidden />
+          <input type="search" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar" aria-label="Buscar nos lançamentos" className="min-w-0 flex-1 bg-transparent text-[16px] text-ink outline-none placeholder:text-ink-muted" />
+        </label>
+        <div className="-mx-5 flex gap-2 overflow-x-auto px-5 md:mx-0 md:px-0" role="group" aria-label="Filtrar">
+          {(
+            [
+              ["todas", "Todas"],
+              ["saidas", "Saídas"],
+              ["entradas", "Entradas"],
+              ["cartao", "Cartão"],
+            ] as const
+          ).map(([k, rotulo]) => (
+            <button key={k} type="button" aria-pressed={filtro === k} onClick={() => setFiltro(k)} className={`min-h-10 shrink-0 rounded-full px-4 text-[15px] ${filtro === k ? "bg-ink text-canvas" : "bg-surface-2 text-ink"}`}>
+              {rotulo}
+            </button>
+          ))}
+          <select
+            value={categoriaFiltro}
+            onChange={(e) => setCategoriaFiltro(e.target.value)}
+            aria-label="Filtrar por categoria"
+            className="min-h-10 shrink-0 rounded-full border border-border bg-surface px-3 text-[15px] text-ink"
+          >
+            <option value="">Categoria</option>
+            {categoriasDoMes.map((k) => (
+              <option key={k} value={k}>
+                {isParentCategoryKey(k) ? categoryLabel(kind, k) : (customCategories.find((c) => c.id === k)?.name ?? "Categoria")}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {filtradas.length === 0 && <p className="px-1 py-6 text-center text-sm text-ink-muted">Nada com esse filtro neste mês.</p>}
+      {[...grupos.entries()].map(([dia, lista]) => (
+        <section key={dia} className="flex flex-col gap-2">
+          <h3 className="px-1 pt-2 text-sm text-ink-muted">{rotuloDoDia(dia, hoje)}</h3>
+          <div className="divide-y divide-border overflow-hidden rounded-3xl border border-border bg-surface">{lista.map(renderRow)}</div>
+        </section>
+      ))}
 
       {/* Barra do modo seleção: acima da tab bar do celular, com o que dá pra fazer.
           No celular os botões são só ícone (o nome vai no aria-label): com "Categoria" e

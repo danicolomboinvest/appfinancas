@@ -33,3 +33,16 @@ export function marcaDaDescricao(descricao: string | null | undefined): Marca | 
   }
   return null;
 }
+
+/**
+ * Marcas conhecidas que NÃO têm logo limpo disponível (levantamento de 10/10/2026, cores.json
+ * `_faltaram`). Lançamento delas ganha o quadrado cinza com o ícone da categoria; lançamento que
+ * não é de marca (Aluguel, Salário) ganha o círculo no tom da categoria.
+ */
+const MARCAS_SEM_LOGO = ["pao de acucar", "rico", "tesouro direto", "droga raia", "clear", "avenue", "nomad", "neon", "toro", "outback", "coco bambu", "veloe", "decolar", "totalpass", "alura"];
+
+export function ehMarcaSemLogo(descricao: string | null | undefined): boolean {
+  if (!descricao) return false;
+  const texto = ` ${normalizarDescricao(descricao)} `;
+  return MARCAS_SEM_LOGO.some((m) => texto.includes(` ${m} `));
+}

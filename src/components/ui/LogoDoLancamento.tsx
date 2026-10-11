@@ -1,13 +1,15 @@
 import type { CSSProperties } from "react";
 import type { LucideIcon } from "lucide-react";
-import { marcaDaDescricao } from "@/lib/marcas/marca";
+import { ehMarcaSemLogo, marcaDaDescricao } from "@/lib/marcas/marca";
 
 /**
  * O quadradinho à esquerda de um lançamento (versão nova, 11/10/2026, regra dos logos):
  *
  * - Marca de uma cor só (Netflix, iFood, Uber...): quadrado na cor oficial com o logo branco.
  * - Marca multicolorida (Itaú, Magalu...): quadrado branco com o logo como ele é.
- * - Sem logo conhecido: quadrado cinza com o ícone da categoria, no tom do texto.
+ * - Marca sem logo limpo (Pão de Açúcar): quadrado cinza com o ícone da categoria.
+ * - Lançamento que não é de marca (Aluguel, Salário): círculo no tom da categoria, como no
+ *   protótipo aprovado, quando quem chama passa a cor; sem cor, o quadrado cinza.
  * - Nunca a inicial colorida: letra solta numa bolinha parece placeholder.
  *
  * A cor da marca vive só dentro do logo, para a lista não virar árvore de Natal.
@@ -18,6 +20,7 @@ export function LogoDoLancamento({
   descricao,
   icon: Icon,
   emoji,
+  cor,
   size = 40,
 }: {
   descricao: string | null | undefined;
@@ -25,11 +28,21 @@ export function LogoDoLancamento({
   icon: LucideIcon;
   /** O emoji que a pessoa escolheu para a categoria: vale no lugar do ícone quando não há marca. */
   emoji?: string;
+  /** Cor da categoria: lançamento que não é de marca vira círculo nesse tom. */
+  cor?: string;
   size?: 36 | 40 | 44 | 48;
 }) {
   const marca = marcaDaDescricao(descricao);
   const raio = Math.round(size * 0.3);
   const caixa: CSSProperties = { width: size, height: size, borderRadius: raio };
+
+  if (!marca && cor && !emoji && !ehMarcaSemLogo(descricao)) {
+    return (
+      <div className="flex shrink-0 items-center justify-center rounded-full" style={{ width: size, height: size, backgroundColor: `color-mix(in srgb, ${cor} 14%, transparent)`, color: cor }} aria-hidden>
+        <Icon size={Math.round(size * 0.45)} strokeWidth={1.6} />
+      </div>
+    );
+  }
 
   if (!marca) {
     return (

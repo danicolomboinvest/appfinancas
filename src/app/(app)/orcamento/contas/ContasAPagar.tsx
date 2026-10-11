@@ -50,17 +50,18 @@ export function ContasAPagar({ contas, pagas, hoje, abrirNova }: { contas: Conta
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex items-center justify-between gap-3">
         {/* Sem a frase embaixo do título (07/10/2026): quem não tem conta vê o convite no meio da tela. */}
-        <h1 className="min-w-0 text-h1 font-bold tracking-tight text-ink">{t.contasTitulo}</h1>
+        {/* Dentro da aba Recorrentes (versão nova): "Contas" e o "+ Adicionar" em pílula. */}
+        <h2 className="titulo-tema min-w-0 text-lg font-medium text-ink">Contas</h2>
         {contas.length > 0 && (
           <button
             type="button"
             onClick={() => setEditando({})}
             aria-label={t.contasNova}
-            className="flex size-11 shrink-0 items-center justify-center rounded-full bg-accent-gradient text-on-accent shadow-premium-sm active:scale-95"
+            className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border border-border bg-surface px-4 text-sm text-ink active:scale-95"
           >
-            <Plus size={20} strokeWidth={2.4} />
+            <Plus size={16} strokeWidth={1.8} aria-hidden /> Adicionar
           </button>
         )}
       </div>

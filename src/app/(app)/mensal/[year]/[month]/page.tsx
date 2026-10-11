@@ -1,7 +1,8 @@
 import { PaidDividendsCard } from "./PaidDividendsCard";
 import { listRecentlyPaidDividends } from "@/lib/repositories/dividend.repo";
 import { notFound } from "next/navigation";
-import { Receipt } from "lucide-react";
+import Link from "next/link";
+import { ChevronDown, ChevronLeft, ChevronRight, Receipt } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
 import { listMonthlyEntries, listRecentSubcategories } from "@/lib/repositories/monthly-entry.repo";
 import { ehDoCartao } from "@/lib/cartao/limite";
@@ -288,6 +289,9 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
     },
   ];
 
+  const mesAnterior = month === 1 ? { year: year - 1, month: 12 } : { year, month: month - 1 };
+  const mesSeguinte = month === 12 ? { year: year + 1, month: 1 } : { year, month: month + 1 };
+
   return (
     <div className="flex flex-col gap-6 lg:gap-5">
 
@@ -295,34 +299,19 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
           Foco, junto com o "o que mudou" e o checklist de primeiros passos. */}
       {!isCurrentMonth && <ThemeHero dados={dadosDoTema} money={money} mesLabel={MONTH_LABELS[month - 1]} />}
 
-      <FlowIndicators year={year} month={month} initialView={initialView} monthly={monthlyBundle} annual={annualBundle} />
-
-      {/* Os avisos depois dos números: cada um numa linha, dois por linha no computador. */}
-      {(paidDividends.length > 0 || (isCurrentMonth && recapEligibility.eligible)) && (
-        <div className="flex flex-col gap-2.5 lg:grid lg:grid-cols-2 lg:gap-3">
-          {paidDividends.length > 0 && <PaidDividendsCard items={paidDividends} titulo={voz.titulos.caiuNaConta} sub={voz.titulos.caiuNaContaSub} />}
-          {isCurrentMonth && recapEligibility.eligible && <MonthlyRecapCard monthKey={recapEligibility.monthKey} />}
-        </div>
-      )}
-
-      {/* Empresa: a DRE logo abaixo do painel. É a conta que a pessoa física não tem. */}
-      {empresa && <DreEmpresa dados={empresa} money={money} periodo={MONTH_LABELS[month - 1].toLowerCase()} />}
-
-      {/* Mês que já fechou: o que mudou desde o anterior. */}
-      {!isCurrentMonth && (
-        <MonthHighlight income={summary.totalIncome} expense={summary.totalExpense} investment={summary.totalInvestment} insights={insights} titulo={voz.titulos.oQueMudou} />
-      )}
-
-      {/* O aviso "R$ X guardados ainda não estão na carteira" saiu daqui em 06/10/2026: a Dani
-          pediu que virasse o botão "Atualizar aportes" na própria Carteira, onde a tarefa é feita. */}
-
-      <div className="flex flex-col gap-6 lg:grid lg:grid-cols-2 lg:items-start lg:gap-5">
-        <TopCategories categories={categorySpending} tema={ctx.profileTheme} kind={ctx.categorias ?? ctx.profileKind} voz={voz} />
-        <MaisGraficos opcoes={graficos} />
-      </div>
-
-      {/* O "Orçamento por categoria" saiu daqui (06/10/2026): eram as mesmas barras da aba
-          Orçamento, duas telas iguais. O "de X planejados ›" do painel leva até lá. */}
+      {/* Transações (versão nova): o seletor do mês e a lista primeiro, como no protótipo. Os
+          números e gráficos do mês continuam aqui, recolhidos (o Resumo já mostra o principal). */}
+      <nav aria-label="Mês" className="flex items-center justify-between gap-2">
+        <Link href={`/mensal/${mesAnterior.year}/${mesAnterior.month}`} aria-label="Mês anterior" className="flex size-11 items-center justify-center rounded-full border border-border bg-surface text-ink">
+          <ChevronLeft size={18} aria-hidden />
+        </Link>
+        <span className="text-[16px] text-ink">
+          {MONTH_LABELS[month - 1]} {year}
+        </span>
+        <Link href={`/mensal/${mesSeguinte.year}/${mesSeguinte.month}`} aria-label="Próximo mês" className="flex size-11 items-center justify-center rounded-full border border-border bg-surface text-ink">
+          <ChevronRight size={18} aria-hidden />
+        </Link>
+      </nav>
 
       {entries.length === 0 ? (
         <EmptyState icon={Receipt} message={voz.mesVazio} action={<BotoesDeLancar rotulo="Adicionar lançamento" />} />
@@ -360,6 +349,45 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
           }))}
         />
       )}
+
+
+      <details className="group rounded-3xl border border-border bg-surface">
+        <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 px-5 text-[16px] text-ink [&::-webkit-details-marker]:hidden">
+          Números e gráficos do mês
+          <ChevronDown size={18} className="shrink-0 text-ink-faint transition-transform group-open:rotate-180" aria-hidden />
+        </summary>
+        <div className="flex flex-col gap-6 border-t border-border px-4 pb-5 pt-4 sm:px-5">
+      <FlowIndicators year={year} month={month} initialView={initialView} monthly={monthlyBundle} annual={annualBundle} />
+
+      {/* Os avisos depois dos números: cada um numa linha, dois por linha no computador. */}
+      {(paidDividends.length > 0 || (isCurrentMonth && recapEligibility.eligible)) && (
+        <div className="flex flex-col gap-2.5 lg:grid lg:grid-cols-2 lg:gap-3">
+          {paidDividends.length > 0 && <PaidDividendsCard items={paidDividends} titulo={voz.titulos.caiuNaConta} sub={voz.titulos.caiuNaContaSub} />}
+          {isCurrentMonth && recapEligibility.eligible && <MonthlyRecapCard monthKey={recapEligibility.monthKey} />}
+        </div>
+      )}
+
+      {/* Empresa: a DRE logo abaixo do painel. É a conta que a pessoa física não tem. */}
+      {empresa && <DreEmpresa dados={empresa} money={money} periodo={MONTH_LABELS[month - 1].toLowerCase()} />}
+
+      {/* Mês que já fechou: o que mudou desde o anterior. */}
+      {!isCurrentMonth && (
+        <MonthHighlight income={summary.totalIncome} expense={summary.totalExpense} investment={summary.totalInvestment} insights={insights} titulo={voz.titulos.oQueMudou} />
+      )}
+
+      {/* O aviso "R$ X guardados ainda não estão na carteira" saiu daqui em 06/10/2026: a Dani
+          pediu que virasse o botão "Atualizar aportes" na própria Carteira, onde a tarefa é feita. */}
+
+      <div className="flex flex-col gap-6 lg:grid lg:grid-cols-2 lg:items-start lg:gap-5">
+        <TopCategories categories={categorySpending} tema={ctx.profileTheme} kind={ctx.categorias ?? ctx.profileKind} voz={voz} />
+        <MaisGraficos opcoes={graficos} />
+      </div>
+
+      {/* O "Orçamento por categoria" saiu daqui (06/10/2026): eram as mesmas barras da aba
+          Orçamento, duas telas iguais. O "de X planejados ›" do painel leva até lá. */}
+
+        </div>
+      </details>
 
       {/* Histórico do que foi importado em massa, com "Desfazer" por lote (upload errado ou
           duplicado some inteiro, sem caçar lançamento por lançamento). */}

@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { MARCAS } from "../catalogo";
-import { marcaDaDescricao, normalizarDescricao } from "../marca";
+import { ehMarcaSemLogo, marcaDaDescricao, normalizarDescricao } from "../marca";
 
 const slug = (d: string | null) => marcaDaDescricao(d)?.slug ?? null;
 
@@ -57,5 +57,12 @@ describe("logo real da marca pela descrição do extrato", () => {
     }
     // O "Max (errado)" do estudo não entra.
     expect(MARCAS.some((m) => m.slug === "max")).toBe(false);
+  });
+
+  it("marca sem logo limpo é reconhecida (quadrado cinza), lançamento comum não", () => {
+    expect(ehMarcaSemLogo("Pão de Açúcar")).toBe(true);
+    expect(ehMarcaSemLogo("PAO DE ACUCAR LJ 12")).toBe(true);
+    expect(ehMarcaSemLogo("Aluguel")).toBe(false);
+    expect(ehMarcaSemLogo(null)).toBe(false);
   });
 });
