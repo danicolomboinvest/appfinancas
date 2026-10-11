@@ -1,6 +1,7 @@
 import type { JWSTransactionDecodedPayload } from "@apple/app-store-server-library";
 import { prisma } from "@/lib/db/prisma";
 import { IDS_DOS_PRODUTOS, tokenDaConta } from "@/lib/apple/config";
+import { IDS_APPLE_ADICIONAIS, adicionalDoProdutoApple, type Adicional } from "@/lib/adicionais/config";
 import { isExpired, normalizeEmail } from "./allowedEmail.repo";
 
 /**
@@ -11,9 +12,14 @@ import { isExpired, normalizeEmail } from "./allowedEmail.repo";
 
 export type LiberacaoAtual = { source: string; active: boolean; expiresAt: Date | null; lastHublaInvoiceId: string | null } | null;
 
+/** Os nossos produtos na Apple: as assinaturas do app e as dos adicionais (11/10/2026). */
+function ehNosso(productId: string | undefined): productId is string {
+  return Boolean(productId) && (IDS_DOS_PRODUTOS.includes(productId!) || IDS_APPLE_ADICIONAIS.includes(productId!));
+}
+
 /** Transação que dá acesso agora: um dos nossos produtos, sem reembolso e dentro do prazo. */
 export function transacaoValendo(tx: JWSTransactionDecodedPayload, agora: Date = new Date()): boolean {
-  if (!tx.productId || !IDS_DOS_PRODUTOS.includes(tx.productId)) return false;
+  if (!ehNosso(tx.productId)) return false;
   if (tx.revocationDate) return false;
   return typeof tx.expiresDate === "number" && tx.expiresDate > agora.getTime();
 }
@@ -114,7 +120,8 @@ async function guardarPagamento(tx: JWSTransactionDecodedPayload, tipoDoAviso?: 
   }
 }
 
-export type ResultadoDaCompra = { ok: true; expiresAt: Date } | { ok: false; motivo: "outra-conta" | "sem-validade" };
+/** `adicional` vem quando a compra foi de um adicional: ela fica registrada, mas não abre o app. */
+export type ResultadoDaCompra = { ok: true; expiresAt: Date; adicional: Adicional | null } | { ok: false; motivo: "outra-conta" | "sem-validade" };
 
 /**
  * Registra a compra (ou a restauração) que o app mandou depois do StoreKit. A transação já vem
@@ -146,9 +153,12 @@ export async function registrarCompraApple(
       ambiente: String(tx.environment ?? "Production"),
     },
   });
-  await liberar(conta.email, expiresAt);
+  // O adicional vale pela própria linha da AssinaturaApple (ver lib/adicionais/acesso.ts): ele
+  // não abre o app, então não mexe na liberação do e-mail.
+  const adicional = adicionalDoProdutoApple(tx.productId);
+  if (!adicional) await liberar(conta.email, expiresAt);
   await guardarPagamento(tx);
-  return { ok: true, expiresAt };
+  return { ok: true, expiresAt, adicional };
 }
 
 /** Os avisos que a Apple manda sozinha (App Store Server Notifications V2). */
@@ -166,7 +176,7 @@ export async function aplicarAvisoApple(tipo: string, tx: JWSTransactionDecodedP
   // Compra que o app ainda não registrou: compra aprovada depois ("Pedir para comprar"), app
   // fechado no meio, ou reembolso que chegou antes. A conta é achada pelo token da compra.
   if (!assinatura) {
-    if (!tx.appAccountToken || !tx.productId || !IDS_DOS_PRODUTOS.includes(tx.productId)) return "ignorado";
+    if (!tx.appAccountToken || !ehNosso(tx.productId)) return "ignorado";
     const user = await prisma.user.findUnique({ where: { tokenApple: tx.appAccountToken.toLowerCase() }, select: { id: true, email: true } });
     if (!user) return "ignorado";
     await prisma.assinaturaApple.create({
@@ -182,9 +192,11 @@ export async function aplicarAvisoApple(tipo: string, tx: JWSTransactionDecodedP
     assinatura = { revogadaEm: REVOGOU.has(tipo) ? new Date() : null, user };
   }
 
+  // Adicional: a linha da AssinaturaApple É o acesso dele; a liberação do app não é tocada.
+  const doApp = !adicionalDoProdutoApple(tx.productId);
   if (REVOGOU.has(tipo)) {
     await prisma.assinaturaApple.update({ where: { originalTransactionId: id }, data: { revogadaEm: new Date() } });
-    await revogar(assinatura.user.email);
+    if (doApp) await revogar(assinatura.user.email);
     await guardarPagamento(tx, tipo, new Date());
     return "revogou";
   }
@@ -195,7 +207,7 @@ export async function aplicarAvisoApple(tipo: string, tx: JWSTransactionDecodedP
       where: { originalTransactionId: id },
       data: { expiresAt, productId: tx.productId!, revogadaEm: null },
     });
-    await liberar(assinatura.user.email, expiresAt);
+    if (doApp) await liberar(assinatura.user.email, expiresAt);
     await guardarPagamento(tx, tipo);
     return "renovou";
   }
