@@ -97,7 +97,7 @@ export function AnalisesTela({ dados }: { dados: DadosDasAnalises }) {
               ))}
               {lendo.map((o) => (
                 <div key={o.id} className="flex min-w-0 flex-col items-center gap-1 px-1 py-1.5" aria-label={`${o.nome}: ${falhos.includes(o.nome) ? "sem leitura agora" : "lendo os números"}`}>
-                  <AnelDePerguntas forcas={[null, null, null, null]} tamanho={76} espessura={4.5} meio={<span className={`text-[11px] text-ink-faint ${falhos.includes(o.nome) ? "" : "an-lendo"}`}>{falhos.includes(o.nome) ? "sem leitura" : "lendo"}</span>} />
+                  <AnelDePerguntas forcas={[null, null, null, null]} tamanho={76} espessura={4.5} meio={<span className={`text-xs text-ink-faint ${falhos.includes(o.nome) ? "" : "an-lendo"}`}>{falhos.includes(o.nome) ? "sem leitura" : "lendo"}</span>} />
                   <b className="mt-1 max-w-full truncate text-[13px] font-semibold text-ink-muted">{o.nome}</b>
                   <Pct valor={o.peso} className="text-xs text-ink-faint" />
                 </div>
@@ -233,7 +233,7 @@ function AnelDaCarteira({ ativos, bem, destaque, onToque }: { ativos: AtivoAnali
           </span>
         </span>
         {estados.size > 1 && (
-          <p className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[11px] text-heroi-suave">
+          <p className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs text-heroi-suave">
             {(["forte", "ok", "atencao"] as Forca[])
               .filter((f) => estados.has(f))
               .map((f) => (
@@ -296,7 +296,7 @@ function CartaDoAtivo({ ativos, ticker, onTroca }: { ativos: AtivoAnalisado[]; t
         {a.perguntas.map((p) => (
           <div key={p.k} className="flex min-w-0 flex-col gap-1 rounded-2xl bg-surface-2 p-3">
             <small className="flex items-start gap-1.5 text-xs leading-snug text-ink-muted">
-              <span className="mt-[5px]"><Ponto f={p.f} tamanho={6} /></span>
+              <span className="flex h-[1.375em] shrink-0 items-center"><Ponto f={p.f} tamanho={6} /></span>
               {p.q}
             </small>
             <b className="text-[15px] font-medium leading-snug text-ink">{p.r}</b>

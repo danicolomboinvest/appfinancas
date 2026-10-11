@@ -11,12 +11,10 @@ export type LadoDoComparar = { ticker: string; logo: Logo; perguntas: Pergunta[]
 
 const CARTAO = "rounded-3xl border border-border bg-surface";
 
-function fmt(l: LinhaComparar, v: number): string {
+function fmt(l: LinhaComparar, v: number, lado: 0 | 1): string {
   if (l.formato === "pct") return `${numBR(v)}%`;
   if (l.formato === "x") return `${numBR(v)}x`;
-  if (v >= 1e9) return `R$ ${numBR(v / 1e9)} bi`;
-  if (v >= 1e6) return `R$ ${numBR(v / 1e6, 0)} mi`;
-  return `R$ ${numBR(v / 1e3, 0)} mil`;
+  return l.textos?.[lado] ?? numBR(v);
 }
 
 /**
@@ -93,16 +91,16 @@ function LinhaEspelhada({ l }: { l: LinhaComparar }) {
       />
     </span>
   );
-  const falta = <span className="flex-1 text-center"><small className="rounded-full bg-surface-2 px-2 py-0.5 text-[11px] text-ink-muted">sem esse número</small></span>;
+  const falta = <span className="flex-1 text-center"><small className="whitespace-nowrap rounded-full bg-surface-2 px-2 py-0.5 text-xs text-ink-muted">sem número</small></span>;
   return (
     <div className="flex flex-col gap-1.5">
       <small className="text-center text-xs text-ink-muted">{l.rotulo}</small>
       <div className="flex items-center gap-2">
-        <span className="w-14 shrink-0 text-left text-[13px] text-ink tabular-nums">{l.a !== null ? fmt(l, l.a) : ""}</span>
+        <span className="w-14 shrink-0 text-left text-[13px] text-ink tabular-nums">{l.a !== null ? fmt(l, l.a, 0) : ""}</span>
         {l.a !== null ? barra(l.a, melhor === "a", "e") : falta}
         <i className="block h-4 w-px shrink-0 bg-border" aria-hidden />
         {l.b !== null ? barra(l.b, melhor === "b", "d") : falta}
-        <span className="w-14 shrink-0 text-right text-[13px] text-ink tabular-nums">{l.b !== null ? fmt(l, l.b) : ""}</span>
+        <span className="w-14 shrink-0 text-right text-[13px] text-ink tabular-nums">{l.b !== null ? fmt(l, l.b, 1) : ""}</span>
       </div>
     </div>
   );

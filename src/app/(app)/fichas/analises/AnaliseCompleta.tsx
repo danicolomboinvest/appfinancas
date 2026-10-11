@@ -206,7 +206,7 @@ function CartaoDaPergunta({ x, destaque }: { x: Pergunta; destaque: boolean }) {
     <div id={`anq-${x.k}`} className={`${CARTAO} flex flex-col gap-3 p-4 transition-shadow ${destaque ? "ring-2 ring-[color-mix(in_srgb,var(--color-ink)_22%,transparent)]" : ""}`}>
       <div className="flex flex-col gap-1">
         <span className="flex items-start gap-2 text-[13px] leading-snug text-ink-muted">
-          <span className="mt-[5px]"><Ponto f={x.f} tamanho={7} /></span>
+          <span className="flex h-[1.375em] shrink-0 items-center"><Ponto f={x.f} tamanho={7} /></span>
           {x.q}
         </span>
         <b className="text-xl font-medium leading-snug text-ink">{x.r}</b>

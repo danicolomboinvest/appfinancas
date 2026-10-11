@@ -35,7 +35,8 @@ export function GraficoDaPergunta({ g }: { g: Grafico }) {
         </div>
         <div className="mt-1 flex gap-1">
           {g.rotulos.map((r, i) => (
-            <small key={i} className="min-w-0 flex-1 truncate text-center text-[10px] text-ink-muted">{r}</small>
+            // 12 meses num celular estreito: um rótulo sim, outro não, para nenhum sair cortado.
+            <small key={i} className={`min-w-0 flex-1 overflow-visible whitespace-nowrap text-center text-xs text-ink-muted ${g.rotulos.length > 8 && i % 2 === 0 ? "max-[399px]:invisible" : ""}`}>{r}</small>
           ))}
         </div>
       </div>
@@ -56,7 +57,7 @@ export function GraficoDaPergunta({ g }: { g: Grafico }) {
           <em className="absolute top-1/2 block size-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-surface" style={{ left: `${p.toFixed(1)}%`, background: "var(--color-ink)" }} aria-hidden />
         </span>
         {g.extremos && (
-          <span className="flex justify-between text-[11px] text-ink-muted">
+          <span className="flex justify-between text-xs text-ink-muted">
             <small>{g.extremos[0]}</small>
             <small>{g.extremos[1]}</small>
           </span>

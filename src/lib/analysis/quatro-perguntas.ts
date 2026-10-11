@@ -545,7 +545,15 @@ export function nomeCurtoRendaFixa(nome: string): string {
 
 /* ----------------------------------------------------------------- comparar */
 
-export type LinhaComparar = { rotulo: string; a: number | null; b: number | null; menorMelhor: boolean; formato: "pct" | "x" | "mi" };
+export type LinhaComparar = {
+  rotulo: string;
+  a: number | null;
+  b: number | null;
+  menorMelhor: boolean;
+  formato: "pct" | "x" | "mi";
+  /** Para magnitudes ("R$ 6,34 bi"): o texto como a fonte deu, encurtado. */
+  textos?: [string | null, string | null];
+};
 export type GrupoComparar = { q: string; linhas: LinhaComparar[] };
 
 /**
@@ -559,7 +567,18 @@ export function gruposComparar(tipo: SheetType, a: Record<string, string>, b: Re
   // Magnitude só se compara na mesma moeda (VOO em dólar x IVVB11 em reais não se comparam assim).
   const moedaDe = (v: string | undefined) => (v && /US\$/.test(v) ? "USD" : "BRL");
   const m = (ind: Record<string, string>, k: string) => (ind[k] && moedaDe(a[k]) === moedaDe(b[k]) ? parseMagnitudeBRL(ind[k]) : null);
-  const lin = (rotulo: string, k: string, menorMelhor: boolean, formato: LinhaComparar["formato"], get = n): LinhaComparar => ({ rotulo, a: get(a, k), b: get(b, k), menorMelhor, formato });
+  const lin = (rotulo: string, k: string, menorMelhor: boolean, formato: LinhaComparar["formato"], get = n): LinhaComparar => {
+    const va = get(a, k);
+    const vb = get(b, k);
+    return {
+      rotulo,
+      a: va,
+      b: vb,
+      menorMelhor,
+      formato,
+      ...(formato === "mi" ? { textos: [va !== null ? compactValue(a[k]) : null, vb !== null ? compactValue(b[k]) : null] as [string | null, string | null] } : {}),
+    };
+  };
   let grupos: GrupoComparar[];
   if (tipo === "FII") {
     grupos = [
