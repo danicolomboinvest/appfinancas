@@ -211,6 +211,7 @@ function FormularioPerfil({
                   <span className="min-w-0 flex-1">
                     <span className="block text-sm text-ink">{opcao.label}</span>
                     <span className="block text-caption text-ink-muted">{opcao.descricao}</span>
+                    {opcao.nomeDaVoz && <span className="block text-caption font-medium text-ink">Voz: {opcao.nomeDaVoz}</span>}
                   </span>
                   {escolhido && <Check size={16} className="shrink-0 text-accent" />}
                 </button>

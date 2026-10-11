@@ -144,6 +144,18 @@ describe("os quatro temas da versão nova", () => {
   });
 });
 
+describe("nome da voz", () => {
+  it("a voz do Titânio se chama Curto e firme; o tema continua Titânio", () => {
+    const t = profileTheme("titanio");
+    expect(t.label).toBe("Titânio");
+    expect(t.nomeDaVoz).toBe("Curto e firme");
+    // Aparece na Aparência, no gerenciador de perfis e no começo do app.
+    for (const arquivo of ["src/app/(app)/configuracoes/_ajustes/EscolherEstilo.tsx", "src/components/profiles/ProfilesManager.tsx", "src/app/(onboarding)/comecar/EscolhaInicial.tsx"]) {
+      expect(readFileSync(arquivo, "utf8"), arquivo).toContain(".nomeDaVoz");
+    }
+  });
+});
+
 describe("logo Aurora por tema", () => {
   it("cada tema aponta para a sua variante, e o arquivo existe", () => {
     for (const t of PROFILE_THEMES) {

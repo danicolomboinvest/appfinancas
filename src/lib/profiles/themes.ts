@@ -78,6 +78,11 @@ export type ProfileTheme = {
   paletaAlternativa: ModoTokens;
   /** Pasta do logo Aurora do tema, em /public. O mesmo ícone no claro e no escuro. */
   logo: string;
+  /**
+   * O nome do jeito de falar, quando a voz tem nome próprio para a usuária (Aparência e listas
+   * de estilo). O tema continua com o nome dele: no Titânio, a voz se chama "Curto e firme".
+   */
+  nomeDaVoz?: string;
 };
 
 /* ---------------------------------------------------------------------------------------
@@ -312,7 +317,7 @@ export const PROFILE_THEMES: ProfileTheme[] = [
   tema("padrao", "Padrão", "Papel claro, tinta grafite e o dourado do SPI. Sóbrio e direto ao ponto.", PADRAO_CLARO, PADRAO_ESCURO),
   tema("girly", "Girly", "Blush e champanhe. Te chama de amiga e comemora junto.", GIRLY_CLARO, GIRLY_ESCURO),
   tema("manifestacao", "Manifestação", "Lavanda e céu de fim de tarde. Liga cada real à vida que você quer.", MANIFESTACAO_CLARO, MANIFESTACAO_ESCURO),
-  tema("titanio", "Titânio", "Metal escovado com laranja nos detalhes. Calmo, adulto e com os pés no chão.", TITANIO_CLARO, TITANIO_ESCURO),
+  { ...tema("titanio", "Titânio", "Metal escovado com laranja nos detalhes. Calmo, adulto e com os pés no chão.", TITANIO_CLARO, TITANIO_ESCURO), nomeDaVoz: "Curto e firme" },
 ];
 
 export const DEFAULT_PROFILE_THEME: ProfileThemeKey = "padrao";
