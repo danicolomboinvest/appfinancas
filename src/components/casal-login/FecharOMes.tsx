@@ -45,7 +45,7 @@ export function CartaoFecharOMes({ fechamento, pessoas, mes, acertado }: { fecha
       </span>
       <span className="min-w-0 flex-1">
         <span className="block text-[16px] font-semibold text-ink">{fechado ? `${nome.charAt(0).toUpperCase()}${nome.slice(1)} fechado` : `Fechar ${nome}`}</span>
-        <span className="block truncate text-[14px] text-ink-muted">{fechado ? "Falta registrar o acerto" : frase(fechamento, pessoas)}</span>
+        <span className="block text-[14px] leading-snug text-ink-muted">{fechado ? "Falta registrar o acerto" : frase(fechamento, pessoas)}</span>
       </span>
       <ChevronRight size={18} strokeWidth={1.6} className="shrink-0 text-ink-muted" aria-hidden />
     </Link>

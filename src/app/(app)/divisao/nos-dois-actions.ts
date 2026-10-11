@@ -37,10 +37,10 @@ async function contextoDoCasal(): Promise<AuthContext> {
   return ctx;
 }
 
-async function responder<T extends object>(fn: () => Promise<T>): Promise<Resposta<T>> {
+async function responder<T extends object>(fn: () => Promise<T>, revalidar = true): Promise<Resposta<T>> {
   try {
     const r = await fn();
-    revalidatePath("/divisao");
+    if (revalidar) revalidatePath("/divisao");
     return { ok: true, ...r };
   } catch (e) {
     if (e instanceof ErroDoConvite) return { ok: false, mensagem: e.message };
@@ -58,7 +58,8 @@ export async function criarConviteAction(nome: string): Promise<Resposta<{ link:
     const nomePar = limparNomeDoPar(nome) || "seu par";
     const { token, expiraEm } = await criarConvite(ctx, nomePar);
     return { link: `${await urlDoApp()}/par/${token}`, expiraEm: expiraEm.toISOString(), nomePar };
-  });
+    // Sem recarregar a tela agora: a folha está aberta mostrando o link. Ela recarrega ao fechar.
+  }, false);
 }
 
 export async function registrarEnvioAction(canal: string, nome: string): Promise<Resposta> {
@@ -67,7 +68,7 @@ export async function registrarEnvioAction(canal: string, nome: string): Promise
     const ctx = await contextoDoCasal();
     await registrarEnvio(ctx, canal, limparNomeDoPar(nome) || null);
     return {};
-  });
+  }, false);
 }
 
 export async function cancelarConviteAction(): Promise<Resposta> {

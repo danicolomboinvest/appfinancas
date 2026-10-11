@@ -64,7 +64,7 @@ export function LancamentosDoCasal({
                     <span className="truncate">{l.descricao || (l.parentCategory ? PARENT_CATEGORY_LABEL[l.parentCategory] : l.categoria === "INCOME" ? "Entrada" : "Gasto")}</span>
                   </span>
                   <span className="block truncate text-[13px] text-ink-muted">
-                    {l.destino === "nosso" ? "Nosso" : l.destino === "so-meu" ? "Só meu" : `De ${nomes[quem]}`}
+                    {l.categoria === "INCOME" ? `Entrada de ${nomes[quem]}` : l.destino === "nosso" ? "Nosso" : l.destino === "so-meu" ? "Só meu" : `De ${nomes[quem]}`}
                     {l.dia ? ` · ${l.dia.slice(8, 10)}/${l.dia.slice(5, 7)}` : ""}
                   </span>
                 </span>
@@ -153,7 +153,7 @@ function FolhaDeLancar({ aberto, item, onClose, meuNome }: { aberto: boolean; it
     });
   }
 
-  const pilula = (ativo: boolean) => `flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-full px-3 text-[15px] font-semibold ${ativo ? "bg-pill text-on-pill" : "text-ink"}`;
+  const pilula = (ativo: boolean) => `flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-full px-3 text-[15px] font-semibold ${ativo ? "bg-ink text-canvas" : "text-ink"}`;
 
   return (
     <Modal open={aberto} onClose={onClose} title={item ? "Editar lançamento" : "Lançar no Nós dois"}>
@@ -183,7 +183,7 @@ function FolhaDeLancar({ aberto, item, onClose, meuNome }: { aberto: boolean; it
               <span className="text-[15px] text-ink-muted">Categoria</span>
               <div className="flex flex-wrap gap-2">
                 {PARENT_CATEGORIES.filter((c) => c !== "IMPOSTOS").map((c) => (
-                  <button key={c} type="button" aria-pressed={categoria === c} onClick={() => setCategoria(c)} className={`min-h-10 rounded-full px-3.5 text-[14px] font-medium ${categoria === c ? "bg-pill text-on-pill" : "bg-surface-2 text-ink"}`}>
+                  <button key={c} type="button" aria-pressed={categoria === c} onClick={() => setCategoria(c)} className={`min-h-10 rounded-full px-3.5 text-[14px] font-medium ${categoria === c ? "bg-ink text-canvas" : "bg-surface-2 text-ink"}`}>
                     {PARENT_CATEGORY_LABEL[c]}
                   </button>
                 ))}

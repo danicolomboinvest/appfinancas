@@ -220,7 +220,7 @@ function CaixaDosTermos({ titular, par }: { titular: string; par: string }) {
         <input type="checkbox" name="termos" required className="peer sr-only" />
         <span
           aria-hidden
-          className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg border border-border-strong text-transparent transition-colors peer-checked:border-transparent peer-checked:bg-pill peer-checked:text-on-pill peer-focus-visible:ring-2 peer-focus-visible:ring-ink"
+          className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg border border-border-strong text-transparent transition-colors peer-checked:border-transparent peer-checked:bg-ink peer-checked:text-canvas peer-focus-visible:ring-2 peer-focus-visible:ring-ink"
         >
           <ShieldCheck size={16} strokeWidth={2} />
         </span>

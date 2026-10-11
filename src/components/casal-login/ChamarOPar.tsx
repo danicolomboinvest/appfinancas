@@ -138,6 +138,16 @@ export function ChamarOPar({
     />
   );
 
+  // A folha fica sempre no mesmo lugar da árvore: criar o convite muda o cartão de baixo, e a
+  // folha não pode remontar (remontar pedia outro link e matava o que acabou de nascer).
+  return (
+    <>
+      {corpo()}
+      {folhaDoConvite}
+    </>
+  );
+
+  function corpo() {
   if (aberto) {
     const vencido = aberto.estado === "vencido";
     const total = new Date(aberto.expiraEmIso).getTime() - new Date(aberto.criadoEmIso).getTime();
@@ -154,9 +164,9 @@ export function ChamarOPar({
             <Bolinha nome={aberto.nomePar} cor="par" size={40} />
             <div className="min-w-0 flex-1">
               <p className="truncate text-[17px] font-semibold text-ink">{aberto.nomePar}</p>
-              <p className="truncate text-[15px] text-ink-muted">{aberto.canal ? `${CANAL[aberto.canal]}, ${quando(aberto.enviadoEmIso, agora)}` : "Link pronto, falta mandar"}</p>
+              <p className="text-[15px] leading-snug text-ink-muted">{aberto.canal ? `${CANAL[aberto.canal]}, ${quando(aberto.enviadoEmIso, agora)}` : "Link pronto, falta mandar"}</p>
             </div>
-            <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-accent-soft px-3 py-1.5 text-[14px] font-semibold text-accent-strong">
+            <span className="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-accent-soft px-3 py-1.5 text-[14px] font-semibold text-accent-strong">
               <Clock size={15} strokeWidth={1.8} aria-hidden />
               {vencido ? "Venceu" : "Aguardando"}
             </span>
@@ -190,7 +200,6 @@ export function ChamarOPar({
           {erro && <p className="mt-3 text-[14px] text-danger">{erro}</p>}
         </div>
         <p className="mt-5 text-[15px] text-ink-muted">Enquanto isso, você lança pelos dois.</p>
-        {folhaDoConvite}
       </section>
     );
   }
@@ -204,7 +213,6 @@ export function ChamarOPar({
           <span className="block text-[14px] text-ink-muted">Cada um com o próprio login</span>
         </span>
         <UserPlus size={20} strokeWidth={1.6} className="shrink-0 text-ink-muted" aria-hidden />
-        {folhaDoConvite}
       </button>
     );
   }
@@ -234,9 +242,9 @@ export function ChamarOPar({
       >
         Lançar sozinha por enquanto
       </button>
-      {folhaDoConvite}
     </section>
   );
+  }
 }
 
 function Item({ icone, titulo, texto }: { icone: React.ReactNode; titulo: string; texto: string }) {
@@ -357,7 +365,7 @@ function Canal({ rotulo, icone, onClick, escuro = false, disabled }: { rotulo: s
   return (
     <button type="button" onClick={onClick} disabled={disabled} className="flex flex-col items-center gap-2 disabled:opacity-40">
       <span
-        className={`flex size-[58px] items-center justify-center rounded-full ${escuro ? "bg-pill text-on-pill" : "bg-surface text-ink shadow-[inset_0_0_0_1px_var(--color-border),0_6px_18px_-12px_rgba(0,0,0,0.2)]"}`}
+        className={`flex size-[58px] items-center justify-center rounded-full ${escuro ? "bg-ink text-canvas" : "bg-surface text-ink shadow-[inset_0_0_0_1px_var(--color-border),0_6px_18px_-12px_rgba(0,0,0,0.2)]"}`}
         aria-hidden
       >
         {icone}

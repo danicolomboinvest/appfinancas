@@ -122,7 +122,7 @@ export function ConfigDaTitular({
             <span className="block text-[17px] font-semibold text-ink">Mostrar minha renda</span>
             <span className="block text-[15px] text-ink-muted">{renda ? "Seu par vê o valor" : "Seu par vê só a proporção"}</span>
           </span>
-          <span aria-hidden className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${renda ? "bg-pill" : "bg-surface-2 shadow-[inset_0_0_0_1px_var(--color-border-strong)]"}`}>
+          <span aria-hidden className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${renda ? "bg-ink" : "bg-surface-2 shadow-[inset_0_0_0_1px_var(--color-border-strong)]"}`}>
             <span className={`absolute top-1 size-5 rounded-full bg-surface shadow transition-all ${renda ? "left-6" : "left-1"}`} />
           </span>
         </button>
