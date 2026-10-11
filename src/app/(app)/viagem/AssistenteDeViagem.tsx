@@ -5,6 +5,13 @@ import Link from "next/link";
 import {
   Backpack,
   BedDouble,
+  Building2,
+  FerrisWheel,
+  Landmark,
+  Mountain,
+  MountainSnow,
+  Palmtree,
+  Trees,
   Check,
   ChevronLeft,
   ChevronRight,
@@ -35,7 +42,7 @@ import {
   customKey,
   MAX_EXTRA_CATEGORIES,
   photoFor,
-  PLACE_PHOTO,
+  bankPhotoSrc,
   PLACE_TYPE_LABEL,
   PLACE_TYPES_TO_PICK,
   placeTypeFor,
@@ -104,12 +111,35 @@ const VAZIO = (hoje: Date): TripPlan => ({
   photos: {},
 });
 
-function Foto({ nome, className = "" }: { nome: string; className?: string }) {
-  return (
-    // As fotos vão como arquivo, com fundo sólido de espera (seção 7 do plano: sem brilho passando).
-    // eslint-disable-next-line @next/next/no-img-element
-    <img src={`/fotos/${nome}.jpg`} alt="" loading="lazy" decoding="async" className={`bg-surface-2 object-cover ${className}`} />
-  );
+const ICONE_DO_TIPO: Record<PlaceType, typeof Plane> = {
+  praia: Palmtree,
+  serra: Mountain,
+  neve: MountainSnow,
+  historica: Landmark,
+  grande: Building2,
+  natureza: Trees,
+  parque: FerrisWheel,
+};
+
+/**
+ * Foto do destino. Sem foto (cidade sem foto própria), um quadro neutro com o ícone do tipo de
+ * lugar, nunca a foto de outra cidade. As fotos vão como arquivo, com fundo sólido de espera.
+ */
+function Foto({ src, tipo, className = "" }: { src: string | null; tipo: PlaceType; className?: string }) {
+  if (!src) {
+    const Icone = ICONE_DO_TIPO[tipo];
+    return (
+      <span
+        aria-hidden
+        className={`flex items-center justify-center text-ink-muted ${className}`}
+        style={{ background: "linear-gradient(135deg, var(--color-surface-2), color-mix(in srgb, var(--color-accent) 22%, var(--color-surface-2)))" }}
+      >
+        <Icone className="size-[38%] max-h-12 max-w-12 opacity-70" strokeWidth={1.5} />
+      </span>
+    );
+  }
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src={src} alt="" loading="lazy" decoding="async" className={`bg-surface-2 object-cover ${className}`} />;
 }
 
 function Contador({
@@ -370,7 +400,7 @@ export function AssistenteDeViagem({
                 onClick={() => adicionar({ destinationKey: d.key, days: 3 })}
                 className="flex items-center gap-3 rounded-xl px-1 py-2 text-left hover:bg-surface-2"
               >
-                <Foto nome={photoFor(d)} className="size-10 shrink-0 rounded-full" />
+                <Foto src={photoFor(d)} tipo={placeTypeFor(d)} className="size-10 shrink-0 rounded-full" />
                 <span className="min-w-0 flex-1">
                   <b className="block truncate text-sm font-medium text-ink">{d.label}</b>
                   <small className="block truncate text-caption text-ink-muted">{d.country}</small>
@@ -458,26 +488,28 @@ export function AssistenteDeViagem({
             <div className="grid grid-cols-4 gap-2">
               {(() => {
                 const d = destinos[fotoDe];
-                const doTipo = PLACE_PHOTO[placeTypeFor(d)];
-                const ordem = [doTipo, ...TRIP_PHOTOS.filter((f) => f !== doTipo)];
-                return ordem.map((f) => {
-                  const ativa = fotoDoDestino(d) === f;
+                const opcoes: { id: string; src: string | null }[] = [
+                  { id: "auto", src: photoFor(d) },
+                  ...TRIP_PHOTOS.filter((f) => bankPhotoSrc(f) !== photoFor(d)).map((f) => ({ id: f as string, src: bankPhotoSrc(f) })),
+                ];
+                return opcoes.map(({ id, src }) => {
+                  const ativa = (plano.photos[d.key] ?? "auto") === id;
                   return (
                     <button
-                      key={f}
+                      key={id}
                       type="button"
                       aria-pressed={ativa}
-                      aria-label={`Foto ${f.replace("-", " ")}`}
+                      aria-label={id === "auto" ? `Foto de ${d.label}` : `Foto ${id.replace("-", " ")}`}
                       onClick={() => {
                         const fotos = { ...plano.photos };
-                        if (f === doTipo) delete fotos[d.key];
-                        else fotos[d.key] = f;
+                        if (id === "auto") delete fotos[d.key];
+                        else fotos[d.key] = id;
                         setPlano({ ...plano, photos: fotos });
                         setFotoDe(null);
                       }}
                       className={`relative aspect-square overflow-hidden rounded-2xl ${ativa ? "ring-2 ring-accent ring-offset-2 ring-offset-surface" : ""}`}
                     >
-                      <Foto nome={f} className="size-full" />
+                      <Foto src={src} tipo={placeTypeFor(d)} className="size-full" />
                       {ativa && (
                         <span className="absolute right-1 top-1 flex size-5 items-center justify-center rounded-full bg-accent text-on-accent">
                           <Check className="size-3" aria-hidden />
@@ -495,7 +527,7 @@ export function AssistenteDeViagem({
           <div className="flex flex-col gap-2">
             {destinos.map((d, i) => (
               <div key={d.key} className="relative flex h-[84px] items-center gap-3 overflow-hidden rounded-3xl px-3.5">
-                <Foto nome={fotoDoDestino(d)} className="absolute inset-0 size-full" />
+                <Foto src={fotoDoDestino(d)} tipo={placeTypeFor(d)} className="absolute inset-0 size-full" />
                 <span className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/35 to-black/15" aria-hidden />
                 <span className="relative flex size-6 shrink-0 items-center justify-center rounded-full bg-white/25 text-xs font-medium text-white">{i + 1}</span>
                 <span className="relative min-w-0 flex-1">
@@ -542,7 +574,7 @@ export function AssistenteDeViagem({
       return (
         <>
           <div className="relative aspect-[4/3.7] overflow-hidden rounded-3xl">
-            <Foto nome={fotoDoDestino(d)} className="absolute inset-0 size-full" />
+            <Foto src={fotoDoDestino(d)} tipo={placeTypeFor(d)} className="absolute inset-0 size-full" />
             <span className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-black/10" aria-hidden />
             <span className="absolute left-3 top-3 rounded-full bg-black/45 px-2.5 py-1 text-caption text-white">{d.label}</span>
             <div className="absolute inset-x-0 bottom-4 flex justify-center">
@@ -559,7 +591,7 @@ export function AssistenteDeViagem({
                   onClick={() => setDiaDe(k)}
                   className={`flex shrink-0 items-center gap-2 rounded-full border py-1 pl-1 pr-3 text-sm ${k === i ? "border-ink text-ink" : "border-border bg-surface text-ink-muted"}`}
                 >
-                  <Foto nome={fotoDoDestino(x)} className="size-7 rounded-full" />
+                  <Foto src={fotoDoDestino(x)} tipo={placeTypeFor(x)} className="size-7 rounded-full" />
                   {x.label} · {plano.legs[k].days}
                 </button>
               ))}
@@ -577,7 +609,7 @@ export function AssistenteDeViagem({
         <div className="flex flex-col gap-3">
           {destinos.map((d, i) => (
             <div key={d.key} className="relative flex h-[150px] items-end justify-between gap-3 overflow-hidden rounded-3xl p-3.5">
-              <Foto nome={fotoDoDestino(d)} className="absolute inset-0 size-full" />
+              <Foto src={fotoDoDestino(d)} tipo={placeTypeFor(d)} className="absolute inset-0 size-full" />
               <span className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-black/10" aria-hidden />
               <span className="relative min-w-0 flex-1 self-end">
                 <b className="line-clamp-2 break-words text-[1.125rem] font-semibold leading-tight text-white">{d.label}</b>
@@ -688,63 +720,31 @@ export function AssistenteDeViagem({
   function passo5() {
     const totais = STYLES.map((s) => tripValues({ ...plano, style: s }, { usaEstimativas }).total);
     const ix = STYLES.indexOf(plano.style);
-    if (tema === "girly") {
-      const icones = [Backpack, Luggage, Luggage];
-      return (
-        <div role="radiogroup" aria-label="Estilo da viagem" className="flex flex-col gap-3">
-          {STYLES.map((s, i) => {
-            const Icone = icones[i];
-            const ativo = i === ix;
-            return (
-              <button
-                key={s}
-                type="button"
-                role="radio"
-                aria-checked={ativo}
-                onClick={() => mudar({ style: s })}
-                className={`flex items-center gap-4 rounded-3xl border-2 bg-surface p-4 text-left transition-colors ${ativo ? "border-accent bg-accent-soft" : "border-border"}`}
-              >
-                <span className="relative flex size-14 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent-strong">
-                  <Icone className="size-6" aria-hidden />
-                  {i === 2 && <Star className="absolute right-3 top-3 size-3 fill-current" aria-hidden />}
-                </span>
-                <b className="min-w-0 flex-1 text-body font-medium text-ink">{STYLE_LABEL[s]}</b>
-                {usaEstimativas && <ValorDestaque texto={m(totais[i])} className="shrink-0 text-[1.25rem] font-normal tabular-nums text-ink" />}
-              </button>
-            );
-          })}
-        </div>
-      );
-    }
+    const icones = [Backpack, Luggage, Luggage];
     return (
-      <>
-        <div className="flex flex-col gap-3 rounded-3xl border border-border bg-surface px-4 py-5">
-          <b className="text-center text-[1.25rem] font-medium text-ink">{STYLE_LABEL[plano.style]}</b>
-          <input
-            type="range"
-            min={0}
-            max={2}
-            step={1}
-            value={ix}
-            onChange={(e) => mudar({ style: STYLES[Number(e.target.value)] })}
-            aria-label="Estilo da viagem, de mais simples a mais conforto"
-            aria-valuetext={STYLE_LABEL[plano.style]}
-            className="slider-app w-full"
-            style={{ ["--pct" as string]: `${ix * 50}%` }}
-          />
-          <div className="flex justify-between text-caption text-ink-muted">
-            <span>Mais simples</span>
-            <span>Mais conforto</span>
-          </div>
-        </div>
-        {usaEstimativas && (
-          <div className="flex flex-col items-center gap-1">
-            <small className="text-sm text-ink-muted">A viagem fica em</small>
-            <ValorDestaque texto={m(totais[ix])} />
-            <small className="text-caption text-ink-muted">Passagem, hotel e comida mudam juntos.</small>
-          </div>
-        )}
-      </>
+      <div role="radiogroup" aria-label="Estilo da viagem" className="flex flex-col gap-3">
+        {STYLES.map((s, i) => {
+          const Icone = icones[i];
+          const ativo = i === ix;
+          return (
+            <button
+              key={s}
+              type="button"
+              role="radio"
+              aria-checked={ativo}
+              onClick={() => mudar({ style: s })}
+              className={`flex items-center gap-4 rounded-3xl border-2 bg-surface p-4 text-left transition-colors ${ativo ? "border-accent bg-accent-soft" : "border-border"}`}
+            >
+              <span className="relative flex size-14 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent-strong">
+                <Icone className="size-6" aria-hidden />
+                {i === 2 && <Star className="absolute right-3 top-3 size-3 fill-current" aria-hidden />}
+              </span>
+              <b className="min-w-0 flex-1 text-body font-medium text-ink">{STYLE_LABEL[s]}</b>
+              {usaEstimativas && <ValorDestaque texto={m(totais[i])} className="shrink-0 text-[1.25rem] font-normal tabular-nums text-ink" />}
+            </button>
+          );
+        })}
+      </div>
     );
   }
 
@@ -846,7 +846,7 @@ export function AssistenteDeViagem({
       <>
         <div className="overflow-hidden rounded-3xl border border-border bg-surface shadow-premium-sm">
           <div className="relative h-[150px]">
-            {d0 && <Foto nome={fotoDoDestino(d0)} className="absolute inset-0 size-full" />}
+            {d0 && <Foto src={fotoDoDestino(d0)} tipo={placeTypeFor(d0)} className="absolute inset-0 size-full" />}
             <span className="absolute inset-0 bg-gradient-to-t from-black/55 to-transparent" aria-hidden />
             <span className="absolute bottom-3 left-3.5 text-body font-medium text-white">{nomeDoMes(plano.tripMonth, true)}</span>
           </div>
