@@ -887,3 +887,38 @@ html:not(.light) .vidro-heroi {
   color: var(--botao-tinta, var(--color-canvas));
   box-shadow: var(--botao-fio, none);
 }
+
+/* Análises (versão nova, rodadas 48, 52 e 56): os anéis se desenham ao abrir, pedaço por pedaço;
+   colunas e barras crescem. Nada de brilho. Sem movimento para quem pediu menos movimento. */
+@keyframes an-desenha {
+  from { stroke-dasharray: 0 1000; }
+}
+@keyframes an-cresce-y {
+  from { transform: scaleY(0); }
+}
+@keyframes an-cresce-x {
+  from { transform: scaleX(0); }
+}
+@keyframes an-respira {
+  50% { opacity: 0.45; }
+}
+.an-seg {
+  animation: an-desenha 600ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--d, 0ms);
+  transition: stroke-width 200ms ease;
+}
+.an-col {
+  transform-origin: bottom;
+  animation: an-cresce-y 500ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--d, 0ms);
+}
+.an-barra {
+  transform-origin: left;
+  animation: an-cresce-x 500ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.an-lendo {
+  animation: an-respira 1.6s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .an-seg, .an-col, .an-barra, .an-lendo { animation: none; }
+}

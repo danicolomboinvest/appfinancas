@@ -130,13 +130,8 @@ export const NAV_SECTIONS: NavSection[] = [
     icon: ChartLine,
     premium: true,
     soPessoa: true,
-    children: [
-      { href: "/fichas", label: "Insights" },
-      { href: "/fichas/acoes", label: "Ações" },
-      { href: "/fichas/fiis", label: "FIIs" },
-      { href: "/fichas/stocks", label: "Stocks" },
-      { href: "/fichas/etfs", label: "ETFs" },
-    ],
+    // Versão nova (11/10/2026): Análises é uma tela só, em anéis. As fichas antigas e os Insights
+    // ficam a um toque dentro dela (/fichas/acoes, /fichas/insights), sem andar no menu.
   },
   {
     basePath: "/decidir",

@@ -1,34 +1,15 @@
-import { Lightbulb } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
-import { vozDoTema } from "@/lib/profiles/voice";
-import { computeInsights } from "@/lib/insights";
-import { serverMoney } from "@/lib/money-server";
-import { computeFinancialHealthScore } from "@/lib/health-score";
-import { PageHeader } from "@/components/ui/PageHeader";
-import { EmptyState } from "@/components/ui/EmptyState";
-import { HealthScoreCard } from "@/components/ui/HealthScoreCard";
-import { InsightList } from "./InsightList";
-import { Section } from "@/components/ui/Section";
+import { carregarAnalises } from "@/lib/analysis/analises-dados";
+import { AnalisesTela } from "./analises/AnalisesTela";
 
-export default async function AnalisesInsightsPage() {
+/**
+ * Análises (versão nova, 11/10/2026): a entrada em anéis das rodadas 48 e 52. O anel grande é a
+ * carteira ("5 de 6 vão bem"), a grade tem um anel de 4 pedaços por ativo, e a renda fixa fica numa
+ * faixa própria. Os números vêm da última leitura de cada ticker; o que falta ler, a tela lê sozinha.
+ * Os Insights e as fichas antigas continuam em /fichas/insights e /fichas/acoes.
+ */
+export default async function AnalisesPage() {
   const ctx = await getRequiredSession();
-  const voz = vozDoTema(ctx.profileTheme, ctx.profileKind);
-  const money = await serverMoney();
-  const [insights, healthScore] = await Promise.all([computeInsights(ctx, money), computeFinancialHealthScore(ctx)]);
-
-  return (
-    <div className="flex flex-col gap-6">
-      <PageHeader title={voz.titulos.fichasTitulo} subtitle={voz.titulos.fichasSub} />
-
-      <HealthScoreCard score={healthScore} />
-
-      {insights.length === 0 ? (
-        <EmptyState icon={Lightbulb} message={voz.titulos.fichasInsightsVazio} />
-      ) : (
-        <Section title={voz.titulos.fichasAtencaoTitulo}>
-          <InsightList insights={insights} />
-        </Section>
-      )}
-    </div>
-  );
+  const dados = await carregarAnalises(ctx);
+  return <AnalisesTela dados={dados} />;
 }

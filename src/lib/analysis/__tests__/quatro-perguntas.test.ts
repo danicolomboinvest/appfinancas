@@ -202,3 +202,26 @@ describe("comparar (barras espelhadas)", () => {
     expect(quemVaiMelhor(roe)).toBe("b"); // 19% > 17%
   });
 });
+
+describe("dados que a fonte entrega pela metade", () => {
+  it("banco: zero em dívida, EBITDA e ROIC é 'sem dado', e a liquidez sozinha não responde a dívida", () => {
+    const bb = perguntasDoAtivo(base({ tipo: "STOCK", ticker: "BBAS3", indicadores: { p_l: "7,45", p_vp: "0,62", ev_ebitda: "0", roe: "10%", roic: "0%", divida_liquida_ebitda: "0", divida_liquida_patrimonio: "0", liquidez_corrente: "11,58", dividend_yield: "8%" } }));
+    const divida = bb.find((x) => x.k === "divida")!;
+    expect(divida.f).toBeNull();
+    expect(divida.graficos).toEqual([]);
+    const preco = bb.find((x) => x.k === "preco")!;
+    expect(preco.graficos.map((g) => (g.tipo === "regua" ? g.rotulo : ""))).toEqual(["Preço ÷ lucro", "Preço ÷ patrimônio"]);
+  });
+
+  it("ETF americano em trilhões é muito grande, não pequeno", () => {
+    const voo = perguntasDoAtivo(base({ tipo: "ETF", ticker: "VOO", moeda: "USD", indicadores: { patrimonio_liquido_etf: "US$ 1,05 T" } }));
+    expect(voo.find((x) => x.k === "grande")?.f).toBe("forte");
+    expect(voo.find((x) => x.k === "grande")?.num).toBe("Patrimônio de US$ 1,05 tri.");
+  });
+
+  it("comparar patrimônio só na mesma moeda", () => {
+    const g = gruposComparar("ETF", { patrimonio_liquido_etf: "US$ 1,05 T", rentabilidade_12m: "20%" }, { patrimonio_liquido_etf: "R$ 6,34 B", rentabilidade_12m: "8%" });
+    expect(g.map((x) => x.q)).toEqual(["Rendeu?"]);
+  });
+});
+

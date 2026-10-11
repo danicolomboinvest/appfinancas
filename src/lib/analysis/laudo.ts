@@ -306,8 +306,10 @@ const RAW_ONLY = new Set(["patrimonio_liquido", "liquidez_fii"]);
 export function compactValue(raw: string): string {
   return raw
     .trim()
+    .replace(/\s*trilh[õo]es?\b/i, " tri")
     .replace(/\s*bilh[õo]es?\b/i, " bi")
     .replace(/\s*milh[õo]es?\b/i, " mi")
+    .replace(/\s+T\b/, " tri")
     .replace(/\s+B\b/, " bi")
     .replace(/\s+M\b/, " mi")
     .replace(/\s+/g, " ");

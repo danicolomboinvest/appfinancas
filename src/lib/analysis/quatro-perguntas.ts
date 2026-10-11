@@ -93,14 +93,29 @@ export function numBR(v: number, casas = 1): string {
 export function num2(v: number): string {
   return v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
-function reais0(v: number): string {
-  return `R$ ${Math.round(v).toLocaleString("pt-BR")}`;
-}
 function sinalMais(v: number, casas = 0): string {
   return `${v >= 0 ? "+" : ""}${numBR(v, casas)}%`;
 }
 
-function sinaisPorChave(tipo: SheetType, ind: Record<string, string>): Map<string, { forca: Forca; valor: number | null; bruto: string }> {
+/**
+ * A fonte de ações devolve "0" quando o número não existe para a empresa (banco não tem EBITDA nem
+ * dívida líquida no sentido de empresa comum). Zero exato nesses indicadores é "sem dado", não uma
+ * empresa sem dívida: tratar como número seria inventar um "deve pouco".
+ */
+const ZERO_E_SEM_DADO = new Set(["ev_ebitda", "roic", "divida_liquida_ebitda", "divida_liquida_patrimonio", "margem_ebit"]);
+
+function semZerosFalsos(tipo: SheetType, ind: Record<string, string>): Record<string, string> {
+  if (tipo !== "STOCK" && tipo !== "STOCK_INTL") return ind;
+  const limpo: Record<string, string> = {};
+  for (const [k, v] of Object.entries(ind)) {
+    if (ZERO_E_SEM_DADO.has(k) && parseIndicatorNumber(v) === 0) continue;
+    limpo[k] = v;
+  }
+  return limpo;
+}
+
+function sinaisPorChave(tipo: SheetType, bruto: Record<string, string>): Map<string, { forca: Forca; valor: number | null; bruto: string }> {
+  const ind = semZerosFalsos(tipo, bruto);
   const ov = tipo === "FII" ? buildFiiOverview(ind) : tipo === "ETF" ? buildEtfOverview(ind) : buildStockOverview(ind);
   return new Map(ov.items.map((i) => [i.key, { forca: SINAL[i.signal], valor: parseIndicatorNumber(i.value), bruto: i.value }]));
 }
@@ -202,7 +217,9 @@ function perguntasDeAcao(e: EntradaDoAtivo): Pergunta[] {
   };
 
   // 2. Ela deve muito?
-  const divida = termometro(["divida_liquida_ebitda", "divida_liquida_patrimonio", "liquidez_corrente"].map(f));
+  // Sem nenhum número de dívida (banco), a liquidez corrente sozinha não responde "deve muito?".
+  const temDivida = s.has("divida_liquida_ebitda") || s.has("divida_liquida_patrimonio");
+  const divida = temDivida ? termometro(["divida_liquida_ebitda", "divida_liquida_patrimonio", "liquidez_corrente"].map(f)) : null;
   const dle = v("divida_liquida_ebitda");
   const pDivida: Pergunta = {
     k: "divida",
@@ -536,8 +553,12 @@ export type GrupoComparar = { q: string; linhas: LinhaComparar[] };
  * Linha com um lado sem dado fica com o "não tem" daquele lado; grupo sem nenhum número sai.
  */
 export function gruposComparar(tipo: SheetType, a: Record<string, string>, b: Record<string, string>, extras?: { dyA: number | null; dyB: number | null }): GrupoComparar[] {
+  a = semZerosFalsos(tipo, a);
+  b = semZerosFalsos(tipo, b);
   const n = (ind: Record<string, string>, k: string) => (ind[k] ? parseIndicatorNumber(ind[k]) : null);
-  const m = (ind: Record<string, string>, k: string) => (ind[k] ? parseMagnitudeBRL(ind[k]) : null);
+  // Magnitude só se compara na mesma moeda (VOO em dólar x IVVB11 em reais não se comparam assim).
+  const moedaDe = (v: string | undefined) => (v && /US\$/.test(v) ? "USD" : "BRL");
+  const m = (ind: Record<string, string>, k: string) => (ind[k] && moedaDe(a[k]) === moedaDe(b[k]) ? parseMagnitudeBRL(ind[k]) : null);
   const lin = (rotulo: string, k: string, menorMelhor: boolean, formato: LinhaComparar["formato"], get = n): LinhaComparar => ({ rotulo, a: get(a, k), b: get(b, k), menorMelhor, formato });
   let grupos: GrupoComparar[];
   if (tipo === "FII") {

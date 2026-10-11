@@ -12,11 +12,13 @@ export { OVERVIEW_DISCLAIMER };
  * não der. Ordem das alternativas importa: "bilh[oõ]es"/"milh[oõ]es" precisam vir ANTES de "mil"
  * na regex, senão "milhões" batia só o prefixo "mil" e virava 1000x menor do que o valor real. */
 export function parseMagnitudeBRL(raw: string): number | null {
-  const m = raw.match(/([\d.,]+)\s*(bilh[oõ]es|milh[oõ]es|mil|bi|b|m)?/i);
+  const m = raw.match(/([\d.,]+)\s*(trilh[oõ]es|tri|bilh[oõ]es|milh[oõ]es|mil|bi|b|m|t)?/i);
   if (!m) return null;
   const base = parseIndicatorNumber(m[1]);
   if (base === null) return null;
   const unit = (m[2] ?? "").toLowerCase();
+  // "US$ 1,05 T" (ETF americano): trilhão.
+  if (unit === "t" || unit.startsWith("tri")) return base * 1_000_000_000_000;
   if (unit === "bi" || unit === "b" || unit.startsWith("bilh")) return base * 1_000_000_000;
   if (unit === "m" || unit.startsWith("milh")) return base * 1_000_000;
   if (unit.startsWith("mil")) return base * 1_000;
