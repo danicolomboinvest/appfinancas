@@ -379,8 +379,13 @@ export function montarFoco(e: FocoEntrada): FocoSaida {
     });
   }
 
+  // A reserva curta tem o aviso dela (com a régua de meses): a meta chamada "Reserva" atrasada
+  // seria o mesmo assunto duas vezes na pilha do Decidir ("Reserva de emergência atrasada" e
+  // "Reserva curta"). Como no protótipo aprovado, fica só o aviso da reserva.
+  const reservaCurta = Boolean(e.reserva && e.reserva.custoMensal > 0 && e.reserva.atual / e.reserva.custoMensal < (e.reservaMinimaMeses ?? MESES_RESERVA_MINIMO));
   for (const m of e.metas) {
     if (m.status !== "BEHIND") continue;
+    if (reservaCurta && /\breserva\b/i.test(m.nome)) continue;
     // Juros sozinhos já chegam lá: não existe "precisa de −R$ 31 por mês".
     if (!m.vencida && m.porMes < FOLGA_ESTOURO) continue;
     itens.push({
@@ -492,5 +497,10 @@ export function montarFoco(e: FocoEntrada): FocoSaida {
     ? { meta: metaDoFio.nome, quando: metaDoFio.quando, guardarNoMes: e.aportePlanejado, guardadoNoMes: e.aportadoNoMes }
     : null;
 
-  return { livre, atencao: ordenados.slice(0, MAX_ATENCAO), depois: ordenados.slice(MAX_ATENCAO), bem: bem.slice(0, 3), combinados, fio };
+  // O Raio-X ("o que se repete") nunca pede atenção: ele sempre pode esperar (protótipo aprovado,
+  // "Mais 1 pode esperar: assinaturas"). Assim, resolver um aviso faz o contador cair de verdade
+  // (3 → 2), em vez de o Raio-X subir para o lugar dele.
+  const urgentes = ordenados.filter((i) => i.detalhe?.tipo !== "raiox");
+  const podeEsperar = ordenados.filter((i) => i.detalhe?.tipo === "raiox");
+  return { livre, atencao: urgentes.slice(0, MAX_ATENCAO), depois: [...urgentes.slice(MAX_ATENCAO), ...podeEsperar], bem: bem.slice(0, 3), combinados, fio };
 }

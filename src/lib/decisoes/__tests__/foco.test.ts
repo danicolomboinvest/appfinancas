@@ -360,3 +360,41 @@ describe("combinado: o que entrou DEPOIS dele (gastoDepoisDoCombinado)", () => {
     expect(f.combinados[0]).toMatchObject({ depois: 0, quebrou: false });
   });
 });
+
+describe("montarFoco: a pilha do Decidir (versão nova)", () => {
+  it("Ana: Saúde, Europa atrasada e Reserva curta pedem atenção; a meta 'Reserva' não aparece duas vezes", () => {
+    const f = montarFoco(
+      base({
+        categorias: [
+          { key: "SAUDE", label: "Saúde", planejado: 350, gasto: 417 },
+          { key: "OUTROS", label: "Outros", planejado: 950, gasto: 0 },
+        ],
+        gastoDoMes: 417,
+        aportadoNoMes: 900,
+        aportePlanejado: 400,
+        metas: [
+          { id: "europa", nome: "Viagem Europa 2027", status: "BEHIND", quando: "novembro de 2027", porMes: 1340 },
+          { id: "res", nome: "Reserva de emergência", status: "BEHIND", quando: "março de 2029", porMes: 579 },
+        ],
+        reserva: { atual: 4200, custoMensal: 7000 },
+        reservaMinimaMeses: 3,
+        raiox: { n: 3, anual: 992 },
+      }),
+    );
+    expect(f.atencao.map((i) => i.id)).toEqual(["estouro-SAUDE", "meta-europa", "reserva"]);
+    expect(f.depois.map((i) => i.id)).toEqual(["raiox"]);
+  });
+
+  it("com a reserva em dia, a meta 'Reserva' atrasada continua avisando", () => {
+    const f = montarFoco(base({ metas: [{ id: "res", nome: "Reserva de emergência", status: "BEHIND", quando: "março de 2029", porMes: 579 }], reserva: { atual: 30000, custoMensal: 7000 }, reservaMinimaMeses: 3 }));
+    expect([...f.atencao, ...f.depois].map((i) => i.id)).toContain("meta-res");
+  });
+});
+
+describe("montarFoco: o Raio-X sempre pode esperar", () => {
+  it("mesmo sozinho, o Raio-X não entra em 'pede atenção' (o contador cai de verdade ao resolver)", () => {
+    const f = montarFoco(base({ categorias: [{ key: "LAZER", label: "Lazer", planejado: 700, gasto: 100 }], gastoDoMes: 100, aportePlanejado: null, raiox: { n: 3, anual: 992 } }));
+    expect(f.atencao).toEqual([]);
+    expect(f.depois.map((i) => i.id)).toEqual(["raiox"]);
+  });
+});

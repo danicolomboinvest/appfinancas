@@ -41,8 +41,11 @@ export type Resposta = {
   detalhes: string[];
   /** A conta, pra quem quer conferir. */
   conta: { rotulo: string; valor: string }[];
-  /** Próximos passos. */
-  acoes: { rotulo: string; href: string }[];
+  /**
+   * Próximos passos. Com `resolver` (a chave da categoria que passou do plano), o botão não navega:
+   * abre a folha "Resolver agora" ali mesmo, sem sair do Decidir (rodada 38 A).
+   */
+  acoes: { rotulo: string; href: string; resolver?: string }[];
   /** A versão desenhada, mostrada no lugar das frases quando existe. */
   visual?: Visual;
 };
@@ -158,7 +161,7 @@ export function estouGastandoDemais(e: {
       { rotulo: `No ritmo (${pct(e.decorrido)} do mês)`, valor: money(esperado) },
       ...(limiteDaRenda !== null ? [{ rotulo: semRegra90 ? "O que entra na conta conjunta" : "90% da renda", valor: money(limiteDaRenda) }] : []),
     ],
-    acoes: veredito === "bom" ? [{ rotulo: "Onde estou exagerando?", href: "/decidir/pergunta/exagerando" }] : [{ rotulo: "Ver onde estou exagerando", href: "/decidir/pergunta/exagerando" }, { rotulo: "Voltar pro Foco", href: "/mensal/foco" }],
+    acoes: veredito === "bom" ? [{ rotulo: "Onde estou exagerando?", href: "/decidir/pergunta/exagerando" }] : [{ rotulo: "Ver onde estou exagerando", href: "/decidir/pergunta/exagerando" }, { rotulo: "Ver no orçamento", href: "/orcamento" }],
     visual: {
       destaque: veredito === "bom" ? "Não" : veredito === "atencao" ? "Um pouco" : "Sim",
       rotulo:
@@ -202,6 +205,8 @@ export function ondeEstouExagerando(e: {
     .map((c) => ({ ...c, excesso: c.fixa ? c.gasto - c.planejado : c.gasto - c.planejado * Math.max(e.decorrido, 0.03) }))
     .filter((c) => c.excesso >= 1)
     .sort((a, b) => b.excesso - a.excesso);
+  // A que mais passou do PLANO (não só do ritmo): é ela que o "Resolver agora" cobre.
+  const passouDoPlano = acima.filter((c) => c.gasto - c.planejado >= 1).sort((a, b) => b.gasto - b.planejado - (a.gasto - a.planejado))[0];
   const veredito: Veredito = acima.length === 0 && e.fora < 1 ? "bom" : acima.some((c) => c.gasto > c.planejado) || e.fora >= 1 ? "ruim" : "atencao";
   const frase =
     acima.length === 0 && e.fora < 1
@@ -231,14 +236,19 @@ export function ondeEstouExagerando(e: {
         ...(e.recorrentesAno && e.recorrentesAno > 0 ? [{ tipo: "numeros" as const, itens: [{ rotulo: "O que se repete todo mês", valor: `${money(e.recorrentesAno)}/ano` }] }] : []),
       ],
     },
+    // Rodada 38 A: "Resolver no Foco" levava ao Resumo. Quando uma categoria passou do plano, o
+    // botão resolve ali mesmo; senão, o Raio-X e o Orçamento.
     acoes: [
-      { rotulo: "Resolver no Foco", href: "/mensal/foco" },
+      ...(passouDoPlano ? [{ rotulo: "Resolver agora", href: "/decidir", resolver: passouDoPlano.key }] : []),
       ...(e.recorrentesAno ? [{ rotulo: "Ver o Raio-X do que se repete", href: "/decidir/raio-x" }] : []),
+      { rotulo: "Ver no orçamento", href: "/orcamento" },
     ],
   };
 }
 
 export type MetaResposta = {
+  /** O id da meta (a pilha do Decidir muda a data ou o quanto guardar dela). */
+  id?: string;
   nome: string;
   alvo: number;
   atual: number;
@@ -249,6 +259,8 @@ export type MetaResposta = {
   ritmoPorMes: number;
   /** Quando chega no ritmo atual ("março de 2027"), ou null se não chega. */
   chegaEm: string | null;
+  /** O mesmo "chega em", em meses a partir deste (0 = este mês). */
+  chegaEmMeses?: number | null;
   noPrazo: boolean;
   /**
    * O mês do prazo já acabou e ela não chegou. Aí não existe "por mês pra chegar a tempo": o

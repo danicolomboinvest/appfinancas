@@ -222,3 +222,27 @@ export function economiaAnual(item: Pick<RaioXItem, "anual">, decisao: "raiox_ca
   if (decisao === "raiox_metade") return item.anual / 2;
   return 0;
 }
+
+export type EscolhaDoRaioX = "raiox_cancelar" | "raiox_metade" | "raiox_manter";
+
+/**
+ * O Raio-X com as escolhas dela (rodada 38 C): o que ainda está aberto, o que ela vai cancelar
+ * (ou cortar pela metade) e o que decidiu manter, a economia por ano somando só os cancelados, e
+ * "pronto" quando não sobra nenhum aberto ("Pronto. R$ X por ano a menos").
+ */
+export function resumoDasEscolhas(itens: RaioXItem[], escolhas: Record<string, EscolhaDoRaioX | undefined>) {
+  const abertos = itens.filter((i) => !escolhas[i.chave]);
+  const cortados = itens.filter((i) => escolhas[i.chave] === "raiox_cancelar" || escolhas[i.chave] === "raiox_metade");
+  const mantidos = itens.filter((i) => escolhas[i.chave] === "raiox_manter");
+  const economia = cortados.reduce((s, i) => s + economiaAnual(i, escolhas[i.chave] as EscolhaDoRaioX), 0);
+  return {
+    abertos,
+    cortados,
+    mantidos,
+    totalAnual: itens.reduce((s, i) => s + i.anual, 0),
+    economiaAnual: economia,
+    /** A economia guardada todo mês por 5 anos, rendendo (a mesma conta do "Em 5 anos"). */
+    economiaEmCincoAnos: valorFuturo(economia / 12, 60),
+    pronto: itens.length > 0 && abertos.length === 0,
+  };
+}

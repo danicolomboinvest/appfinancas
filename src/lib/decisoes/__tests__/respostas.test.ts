@@ -120,3 +120,24 @@ describe("respostas da Central: o que a revisão achou", () => {
     expect(ritmoMensalDaMeta({ soma: 600, mesesComGuardado: 1, criadaEm: { ano: 2026, mes: 10 }, hoje: { ano: 2026, mes: 10 } })).toBe(600);
   });
 });
+
+describe("Decidir: nenhum botão de resposta cai no Resumo (rodada 38)", () => {
+  const money = (v: number) => `R$ ${Math.round(v)}`;
+  it("'Onde estou exagerando?' com Saúde acima do plano resolve ali mesmo", async () => {
+    const { ondeEstouExagerando, estouGastandoDemais } = await import("../respostas");
+    const r = ondeEstouExagerando({
+      money,
+      decorrido: 0.2,
+      categorias: [
+        { key: "LAZER", label: "Lazer", planejado: 600, gasto: 300 },
+        { key: "SAUDE", label: "Saúde", planejado: 350, gasto: 417 },
+      ],
+      fora: 0,
+      maiores: [],
+      recorrentesAno: 992,
+    });
+    expect(r.acoes[0]).toMatchObject({ rotulo: "Resolver agora", resolver: "SAUDE" });
+    const d = estouGastandoDemais({ money, gastoDoMes: 5000, planejado: 5000, decorrido: 0.3, renda: 7700, categorias: [] });
+    for (const a of [...r.acoes, ...d.acoes]) expect(a.href).not.toBe("/mensal/foco");
+  });
+});

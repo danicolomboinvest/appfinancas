@@ -101,6 +101,7 @@ export async function carregarRespostas(ctx: AuthContext) {
     // devolve o que falta inteiro como "por mês"; o certo é o que ela combinou guardar.
     const vencida = atual < alvo && mesesAtePrazo !== null && mesesAtePrazo < 0;
     return {
+      id: g.id,
       nome: g.name,
       alvo,
       atual,
@@ -108,6 +109,7 @@ export async function carregarRespostas(ctx: AuthContext) {
       necessarioPorMes: plan && !vencida ? plan.requiredMonthlyContribution : Number(g.monthlyContribution ?? 0),
       ritmoPorMes: ritmo,
       chegaEm: mesLabel(k),
+      chegaEmMeses: k,
       noPrazo: vencida ? false : mesesAtePrazo === null ? k !== null : k !== null && k <= mesesAtePrazo,
       vencida,
     };
