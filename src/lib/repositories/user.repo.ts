@@ -110,9 +110,13 @@ export async function marcarEmailConfirmado(userId: string, email: string): Prom
   return true;
 }
 
-/** A pessoa passou pela tela de boas-vindas: não volta mais lá. */
+/**
+ * A pessoa passou pela tela de boas-vindas: não volta mais lá. Quem passa por ela chegou com a
+ * versão nova, então nunca vê o "Tivemos uma mudança" (que é para quem já usava o app).
+ */
 export async function markOnboarded(userId: string): Promise<void> {
-  await prisma.user.update({ where: { id: userId }, data: { onboardedAt: new Date() } });
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { novidadesVersaoNova: true } });
+  await prisma.user.update({ where: { id: userId }, data: { onboardedAt: new Date(), ...(user?.novidadesVersaoNova ? {} : { novidadesVersaoNova: "novo" }) } });
 }
 
 /** Intervalo mínimo entre atualizações de lastSeenAt, pra não escrever no banco a cada request. */

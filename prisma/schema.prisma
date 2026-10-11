@@ -185,6 +185,11 @@ model User {
   /// Nulo = ainda não passou: o app manda pra /comecar na primeira entrada. Quem já usava o app
   /// antes de set/2026 nasceu preenchido pela migração, pra não ver a tela.
   onboardedAt             DateTime?
+  /// "Tivemos uma mudança" (versão nova, 11/10/2026): nulo = quem já usava o app e ainda não viu,
+  /// então vê uma vez. "terminou" ou "pulou" = já passou por ele. "novo" = chegou depois da versão
+  /// nova (gravado ao sair do /comecar) e nunca vê. Dá para rever pela Ajuda.
+  novidadesVersaoNova     String?
+  novidadesVistasEm       DateTime?
   /// Mês do Resumo Mensal já visto/fechado, formato "YYYY-MM". Enquanto for o mesmo mês do
   /// resumo atual, o card na Visão Mensal não aparece de novo (fecha uma vez por mês).
   recapDismissedMonth     String?
@@ -1078,33 +1083,33 @@ model AnalysisResponse {
 /// Existe independente de User porque a checagem acontece no cadastro, antes da conta existir.
 /// O e-mail é sempre guardado normalizado (minúsculo, sem espaços) para casar com o login.
 model AllowedEmail {
-  id                 String       @id @default(cuid())
-  email              String       @unique
-  source             AccessSource @default(MANUAL)
-  active             Boolean      @default(true)
+  id                  String       @id @default(cuid())
+  email               String       @unique
+  source              AccessSource @default(MANUAL)
+  active              Boolean      @default(true)
   /// Anotação livre: turma, nome do produto no Hubla, motivo da liberação manual etc.
-  note               String?
+  note                String?
   /// Celular que veio da compra no Hubla — copiado pro User quando a conta é criada.
-  phone              String?
+  phone               String?
   /// Data-limite do acesso (a assinatura é anual). Nulo = acesso sem prazo. Vencido não
   /// desativa sozinho (não apaga `active`) — só bloqueia login/cadastro e aparece como
   /// "Expirado" no painel, pra Dani decidir se renova ou desativa de vez.
-  expiresAt          DateTime?
+  expiresAt           DateTime?
   /// Última fatura do Hubla já processada. O Hubla manda o mesmo evento mais de uma vez
   /// (member_added + payment_succeeded, além de reenvios); sem essa trava, cada reenvio
   /// esticaria o acesso em mais um ano de graça.
-  lastHublaInvoiceId String?
+  lastHublaInvoiceId  String?
   /// Quando a Hubla avisou que a pessoa saiu (customer.member_removed sem reembolso). O acesso
   /// continua até `expiresAt` e o cron desliga depois. Nulo = não cancelou (ou renovou depois).
-  canceladoEm        DateTime?
+  canceladoEm         DateTime?
   /// Id da assinatura na Hubla (vem nos eventos de pagamento), para o link direto do painel.
   hublaSubscriptionId String?
   /// Lembretes de "crie sua conta" (boas-vindas, 30/09/2026): quando saiu o do 1º e o do 4º dia.
   /// Servem de trava: gravados ANTES do envio, uma rodada repetida não manda duas vezes.
-  lembreteConta1Em   DateTime?
-  lembreteConta2Em   DateTime?
-  createdAt          DateTime     @default(now())
-  updatedAt          DateTime     @updatedAt
+  lembreteConta1Em    DateTime?
+  lembreteConta2Em    DateTime?
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
 }
 
 /// Produtos do Hubla que dão acesso ao app. O webhook só libera uma compra se o produto
@@ -1495,30 +1500,30 @@ model MotivoDeCancelamento {
 /// Admin › Acessos), dúvida, número errado, aviso antes da renovação, conversa. Aparece em
 /// /admin/pedidos com o "Feito". Cada tipo, uma vez a cada 12 meses por pessoa.
 model PedidoAntesDeCancelar {
-  id        String    @id @default(cuid())
-  userId    String
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id             String    @id @default(cuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   /// meses_gratis | duvida | contestacao | aviso_renovacao | conversa
-  tipo      String    @db.VarChar(16)
+  tipo           String    @db.VarChar(16)
   /// O que ela escreveu (a dúvida, ditada ou digitada: o áudio nunca é guardado).
-  texto     String?   @db.VarChar(4000)
+  texto          String?   @db.VarChar(4000)
   /// Onde está o número errado (Saldo, Orçamento, Cartão, Metas, Outro).
-  area      String?   @db.VarChar(20)
+  area           String?   @db.VarChar(20)
   /// Aviso antes da renovação: o dia em que o e-mail sai (renovação menos 7 dias).
-  avisarEm  DateTime? @db.Date
+  avisarEm       DateTime? @db.Date
   /// Para a equipe diagnosticar (algo errado): a tela, o mês e o lançamento marcado.
-  dados     Json?
+  dados          Json?
   /// O assunto que a resposta automática achou na dúvida (importar, acesso, categoria, metas, cartao).
-  assunto   String?   @db.VarChar(12)
+  assunto        String?   @db.VarChar(12)
   /// Quando o e-mail desse pedido saiu: a trava para sair uma vez só.
   emailEnviadoEm DateTime?
   /// 2 meses grátis: quando saiu o lembrete para a Dani (24 horas sem "Feito na Hubla"), uma vez só.
-  lembreteEm DateTime?
+  lembreteEm     DateTime?
   /// aberto | feito
-  estado    String    @default("aberto") @db.VarChar(8)
-  feitoEm   DateTime?
-  feitoPor  String?
-  createdAt DateTime  @default(now())
+  estado         String    @default("aberto") @db.VarChar(8)
+  feitoEm        DateTime?
+  feitoPor       String?
+  createdAt      DateTime  @default(now())
 
   @@index([estado, createdAt])
   @@index([userId, tipo])

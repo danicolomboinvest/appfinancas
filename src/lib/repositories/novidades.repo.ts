@@ -1,17 +1,16 @@
 import { prisma } from "@/lib/db/prisma";
-import { EVENTO_NOVIDADES_VISTAS } from "@/lib/novidades/passos";
+import { estadoDasNovidades, type EstadoDasNovidades } from "@/lib/novidades/passos";
 
 /**
- * A marca de "já vi o que mudou" é da CONTA, não do aparelho nem do perfil: quem viu no celular
- * não vê de novo no computador. Mora na tabela de eventos de uso (UsageEvent), que já é por
- * usuário, para não precisar de migração.
+ * A marca do "Tivemos uma mudança" é da CONTA (User.novidadesVersaoNova), não do aparelho nem do
+ * perfil: quem viu no celular não vê de novo no computador.
  */
-export async function jaViuAsNovidades(userId: string): Promise<boolean> {
-  const evento = await prisma.usageEvent.findFirst({ where: { userId, name: EVENTO_NOVIDADES_VISTAS }, select: { id: true } });
-  return Boolean(evento);
+export async function lerEstadoDasNovidades(userId: string): Promise<EstadoDasNovidades> {
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { novidadesVersaoNova: true } });
+  return estadoDasNovidades(user?.novidadesVersaoNova);
 }
 
+/** Viu até o fim ou pulou. Só grava na primeira vez: rever pela Ajuda não muda a marca. */
 export async function marcarNovidadesVistas(userId: string, como: "terminou" | "pulou"): Promise<void> {
-  if (await jaViuAsNovidades(userId)) return;
-  await prisma.usageEvent.create({ data: { userId, name: EVENTO_NOVIDADES_VISTAS, path: `/novidades/${como}` } });
+  await prisma.user.updateMany({ where: { id: userId, novidadesVersaoNova: null }, data: { novidadesVersaoNova: como, novidadesVistasEm: new Date() } });
 }
