@@ -166,6 +166,11 @@ export type ResultadoCompra =
       conta: { rotulo: string; valor: string }[];
       quadro?: QuadroDaCompra;
       /**
+       * Plano apertado (regra 3.8): o plano de gastos já usa 90% ou mais da renda. A tela mostra
+       * a linha âmbar além da resposta, porque explica por que até compra pequena não cabe.
+       */
+      planoApertado?: PlanoApertado | null;
+      /**
        * Dá pra pagar sem mexer no básico do mês (sai do livre, da sobra do dia a dia ou do que
        * ela guarda)? É o que separa "precisa, então vamos achar o jeito" de "não fecha".
        */
@@ -173,6 +178,44 @@ export type ResultadoCompra =
     };
 
 export const LIMITE_GASTO = 0.9;
+
+/** A partir de quanto da renda com destino o plano conta como apertado (regra 3.8). */
+export const LIMIAR_PLANO_APERTADO = 0.9;
+
+export type PlanoApertado = {
+  /** Plano de gastos do mês ÷ renda do mês (0,948 = 94,8%). */
+  fracao: number;
+  /** O percentual como a tela mostra: "95%" (perto dos 90, com uma casa e longe do limite). */
+  pct: string;
+  texto: string;
+  atalho: { rotulo: string; href: string };
+};
+
+/**
+ * "Seu plano está apertado": Σ plano de gastos do mês ÷ renda do mês ≥ 90%. Ana: 7.300 ÷ 7.700
+ * = 94,8%, que aparece como 95%. Com 85% o aviso some. Não vale no Casal com conta conjunta
+ * (regra90 = false), pelo mesmo motivo da regra dos 90% da compra.
+ *
+ * O atalho leva ao Orçamento; quando as assinaturas são o que mais pesa, ao Raio-X.
+ */
+export function planoApertado(
+  base: Pick<CompraBase, "renda" | "gastoPlanejado" | "regra90">,
+  opcoes: { assinaturasPesamMais?: boolean } = {},
+): PlanoApertado | null {
+  if (base.regra90 === false) return null;
+  if (!(base.renda > 0) || !(base.gastoPlanejado > 0)) return null;
+  const fracao = base.gastoPlanejado / base.renda;
+  if (fracao < LIMIAR_PLANO_APERTADO) return null;
+  const mostrado = pct(fracao);
+  return {
+    fracao,
+    pct: mostrado,
+    texto: `Seu plano está apertado: ${mostrado} da renda já tem destino.`,
+    atalho: opcoes.assinaturasPesamMais
+      ? { rotulo: "Ver onde abrir espaço", href: "/decidir/raio-x" }
+      : { rotulo: "Ver onde abrir espaço", href: "/orcamento" },
+  };
+}
 const MAX_MESES = 900;
 
 /** Meses até a meta chegar no alvo, com o aporte de cada mês dado por `aporteNoMes(k)`. */
@@ -259,7 +302,12 @@ export function avisosDaBase(base: CompraBase, money: (v: number) => string): st
 export function avaliarCompra(base: CompraBase, compraBruta: Compra, fmt: Formatos): ResultadoCompra {
   const r = avaliarSemAvisos(base, compraBruta, fmt);
   if ("erro" in r) return r;
-  return { ...r, avisos: avisosDaBase(base, fmt.money), saidas: r.precisa ? saidasDaCompra(base, compraBruta, r.precisa) : null };
+  return {
+    ...r,
+    avisos: avisosDaBase(base, fmt.money),
+    saidas: r.precisa ? saidasDaCompra(base, compraBruta, r.precisa) : null,
+    planoApertado: planoApertado(base),
+  };
 }
 
 function avaliarSemAvisos(base: CompraBase, compraBruta: Compra, fmt: Formatos): ResultadoCompra {

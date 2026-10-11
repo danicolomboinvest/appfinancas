@@ -752,6 +752,16 @@ function Resultado({
         </details>
       )}
 
+      {/* Plano apertado (regra 3.8): âmbar, além da resposta, com o atalho para abrir espaço. */}
+      {r.planoApertado && (
+        <div className="flex flex-col gap-1.5 rounded-2xl border px-4 py-3" style={{ borderColor: "color-mix(in srgb, #b7791f 40%, transparent)", backgroundColor: "color-mix(in srgb, #e8a33a 12%, transparent)" }}>
+          <p className="text-sm font-medium text-ink">{r.planoApertado.texto}</p>
+          <Link href={r.planoApertado.atalho.href} className="inline-flex min-h-11 items-center text-sm font-semibold text-accent-strong underline-offset-2 hover:underline">
+            {r.planoApertado.atalho.rotulo}
+          </Link>
+        </div>
+      )}
+
       <div className={`flex flex-col gap-2 rounded-[28px] px-5 py-5 ${fundo[v]}`}>
         {/* Só a cor: o selo em texto repetia o título ("Não recomendo agora" + "Eu não compraria agora"). */}
         <span className={`size-4 rounded-full ${corSelo[v]}`} role="img" aria-label={selo[v]} />
