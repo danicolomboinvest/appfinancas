@@ -22,7 +22,11 @@ export type DadosDoAdicional = {
   frase: string;
   /** Preço anual em reais, o mesmo na Hubla. Na Apple a tela mostra o preço que a loja mandar. */
   precoAno: number;
-  /** Id da assinatura em App Store Connect (grupo próprio, para valer junto com a do app). */
+  /**
+   * Id da assinatura em App Store Connect, num grupo próprio para valer junto com a do app.
+   * Na Apple o preço é maior, para cobrir a comissão dela (como o app: R$ 87,90 lá e R$ 67 na
+   * Hubla): Empresa R$ 47,90 e Conta do parceiro R$ 39,90, decisão da Dani em 11/10/2026.
+   */
   apple: string;
   /** Checkout da oferta avulsa na Hubla (quem já é cliente compra só o adicional). */
   hubla: string | null;
