@@ -160,7 +160,8 @@ export default async function CarteiraPage() {
       titulos={titulos}
       cdi={taxas.cdi}
       novoAtivo={{ titulos: titulosDoTesouro, cdi: taxas.cdi, cdiFracao: taxas.cdiFracao, ipca: taxas.ipca, ipcaFracao: taxas.ipcaFracao }}
-      assessoria={empresa || user.assessoriaConviteOculto ? null : estadoDaAssessoria(user.assessoriaEstado)}
+      // "Não quero ver ofertas da assessoria" (Configurações) também esconde o convite.
+      assessoria={empresa || user.assessoriaConviteOculto || user.ofertasDesligadas ? null : estadoDaAssessoria(user.assessoriaEstado)}
     />
   );
 }

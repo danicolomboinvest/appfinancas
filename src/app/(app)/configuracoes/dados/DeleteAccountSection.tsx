@@ -18,7 +18,7 @@ export function DeleteAccountSection({ avisoDaApple = false }: { avisoDaApple?: 
   const [textoAntes, textoForte, textoDepois] = t.cfgExcluirContaTexto;
 
   return (
-    <div className="rounded-2xl border border-danger/40 bg-surface p-5">
+    <div id="excluir" className="scroll-mt-20 rounded-2xl border border-danger/40 bg-surface p-5">
       <div className="flex items-start gap-3">
         <span className="mt-0.5 text-danger">
           <TriangleAlert size={18} strokeWidth={1.75} />

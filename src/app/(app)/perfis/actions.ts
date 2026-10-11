@@ -3,8 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { getRequiredSession } from "@/lib/auth/session";
 import {
-  createProfile, updateProfile, switchProfile, deleteProfile, type NovoPerfil,
+  createProfile, updateProfile, switchProfile, deleteProfile, listProfiles, type NovoPerfil,
 } from "@/lib/repositories/profile.repo";
+import { podeCriar } from "@/lib/perfis/lugares";
+import { extrasLiberados } from "@/lib/perfis/extras-liberados";
 
 export type ResultadoPerfil = { ok: true } | { ok: false; error: string };
 
@@ -30,6 +32,12 @@ async function tentar(fn: () => Promise<void>): Promise<ResultadoPerfil> {
 
 export async function criarPerfilAction(input: NovoPerfil): Promise<ResultadoPerfil> {
   const ctx = await getRequiredSession();
+  // No máximo 3 perfis, um de cada (decisão da dona, 11/10, rodada 74): Pessoal, Nós dois e
+  // Empresa. Quem já tem mais mantém; só não cria outro além do lugar vazio e liberado.
+  const [perfis, liberados] = await Promise.all([listProfiles(ctx.userId), extrasLiberados(ctx.userId)]);
+  if (!podeCriar(input.kind ?? "PESSOAL", perfis, liberados)) {
+    return { ok: false, error: "Cada conta tem até 3 perfis: Pessoal, Nós dois e Empresa. Veja em Configurações › Perfis." };
+  }
   return tentar(async () => {
     const novo = await createProfile(ctx.userId, input);
     // Quem acabou de criar um perfil quer entrar nele: seria estranho criar "Empresa" e

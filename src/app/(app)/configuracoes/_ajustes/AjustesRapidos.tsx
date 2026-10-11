@@ -41,7 +41,10 @@ export function AjustesRapidos({
   modo,
   podeEscolherModo,
   rotulos,
+  so,
 }: {
+  /** Só um dos dois (versão nova: Aparência tem o modo; Moeda e dólar, a moeda). */
+  so?: "modo" | "moeda";
   moeda: string;
   modo: string;
   podeEscolherModo: boolean;
@@ -54,7 +57,7 @@ export function AjustesRapidos({
 
   return (
     <>
-      {podeEscolherModo && (
+      {podeEscolherModo && so !== "moeda" && (
         <div className="flex min-h-14 items-center justify-between gap-3 px-4 py-2">
           <span className="text-[15px] font-medium text-ink">{rotulos.modo}</span>
           <Pilulas
@@ -84,7 +87,8 @@ export function AjustesRapidos({
           />
         </div>
       )}
-      <div className="flex min-h-14 items-center justify-between gap-3 border-t border-border px-4 py-2">
+      {so !== "modo" && (
+      <div className={`flex min-h-14 items-center justify-between gap-3 px-4 py-2 ${so === "moeda" ? "" : "border-t border-border"}`}>
         <span className="flex items-center gap-1.5 text-[15px] font-medium text-ink">
           {rotulos.moeda}
           <Explica>{rotulos.moedaAviso}</Explica>
@@ -107,6 +111,7 @@ export function AjustesRapidos({
           }}
         />
       </div>
+      )}
     </>
   );
 }

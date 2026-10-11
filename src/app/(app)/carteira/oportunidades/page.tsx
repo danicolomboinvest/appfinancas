@@ -58,7 +58,7 @@ export default async function OportunidadesPage() {
         <p className="mt-1 text-[14px] text-ink-muted">Elas aparecem aqui, na sua Carteira.</p>
       </div>
 
-      {estado !== "cliente" && <ConviteDaAssessoria estado={estado} podeOcultar={false} />}
+      {estado !== "cliente" && !user.ofertasDesligadas && <ConviteDaAssessoria estado={estado} podeOcultar={false} />}
     </div>
   );
 }

@@ -1,112 +1,97 @@
 import Link from "next/link";
-import type { ReactNode } from "react";
-import { Bell, Building2, ChevronRight, Download, FileText, KeyRound, LifeBuoy, Percent, Tags, Wallet } from "lucide-react";
+import {
+  Archive, BookOpen, Briefcase, CircleUser, Download, EyeOff, FileText, Globe, Heart, KeyRound, Landmark, MessageCircle, Palette, Pencil, Percent, Bell, Tags, TriangleAlert, Users, Info, Wallet,
+} from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
 import { getOwnUser } from "@/lib/repositories/user.repo";
 import { listProfiles } from "@/lib/repositories/profile.repo";
-import { vozDoTema } from "@/lib/profiles/voice";
-import { profileTheme, temaDeixaEscolherModo } from "@/lib/profiles/themes";
-import { isPluggyConfigured } from "@/lib/pluggy/client";
+import { preferenciaDeModo, profileTheme } from "@/lib/profiles/themes";
+import type { LucideIcon } from "lucide-react";
 import { formatPhone } from "@/lib/phone";
-import { currencySymbol } from "@/lib/money";
-import { HeroiDoTema } from "@/components/ui/HeroiDoTema";
-import { EditarNoCanto } from "@/components/ui/EditarNoCanto";
-import { ProfileForm } from "./perfil/ProfileForm";
-import { AjustesRapidos } from "./_ajustes/AjustesRapidos";
+import { currencySymbol, toCurrencyCode } from "@/lib/money";
+import { valoresOcultos } from "@/lib/money-server";
+import { SUPORTE_EMAIL } from "./_ajustes/suporte";
+import { Grupo, Linha } from "./_ajustes/Lista";
+import { FotoDoPerfil } from "./_ajustes/FotoDoPerfil";
 import { SairDaConta } from "./_ajustes/SairDaConta";
-import { EscolherEstilo } from "./_ajustes/EscolherEstilo";
 
 export const metadata = { title: "Configurações · SPI Finance" };
 
-/** Uma linha da lista: ícone num quadradinho colorido, o nome, o valor de agora e a setinha. */
-function Linha({ href, icone, cor, rotulo, valor, externo }: { href: string; icone: ReactNode; cor: string; rotulo: string; valor?: string; externo?: boolean }) {
-  return (
-    <Link
-      href={href}
-      {...(externo ? { target: "_blank", rel: "noreferrer" } : {})}
-      className="flex min-h-14 items-center gap-3 border-t border-border px-4 py-2 transition-colors first:border-t-0 hover:bg-surface-hover"
-    >
-      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg" style={{ backgroundColor: `color-mix(in srgb, ${cor} 16%, transparent)`, color: cor }} aria-hidden>
-        {icone}
-      </span>
-      <span className="shrink-0 whitespace-nowrap text-[15px] font-medium text-ink">{rotulo}</span>
-      <span className="min-w-0 flex-1 truncate text-right text-sm text-ink-muted">{valor}</span>
-      <ChevronRight size={18} className="shrink-0 text-ink-faint" aria-hidden />
-    </Link>
-  );
-}
+// A cor de cada grupo (rodada 35: ícones com fundo tingido por grupo, como os Ajustes do iPhone).
+// Vem da paleta de categorias do tema, então cada um dos 4 temas pinta do seu jeito.
+const COR = {
+  conta: "var(--color-cat-saude)",
+  dinheiro: "var(--color-cat-moradia)",
+  app: "var(--color-cat-lazer)",
+  dados: "var(--color-cat-transporte)",
+  ajuda: "var(--color-cat-educacao)",
+};
 
-function Grupo({ titulo, children, id }: { titulo: string; children: ReactNode; id?: string }) {
-  return (
-    <section id={id} className="flex scroll-mt-20 flex-col gap-2">
-      <h2 className="px-1 text-sm font-semibold text-ink-muted">{titulo}</h2>
-      <div className="overflow-hidden rounded-2xl border border-border bg-surface">{children}</div>
-    </section>
-  );
-}
+const MODO = { light: "claro", dark: "escuro", auto: "automático" } as const;
 
 /**
- * Configurações numa tela só (07/10/2026), no jeito das configurações do celular: quem está logada
- * no topo, o modo e a moeda trocando num toque, e o resto em listas com ícone. A Dani achou a tela
- * antiga feia e a moeda "muito longe": eram sete abas (Perfil, Preferências, Categorias…), cada uma
- * com um formulário e um Salvar.
+ * Configurações completas (versão nova, rodadas 25, 35, 62, 65, 71 e 74): o cartão da conta com a
+ * foto, e as listas Conta, Seu dinheiro, App, Dados e Ajuda, cada linha com o estado de agora.
  */
 export default async function ConfiguracoesPage() {
   const ctx = await getRequiredSession();
-  const [user, perfis] = await Promise.all([getOwnUser(ctx), listProfiles(ctx.userId)]);
-  const { titulos: t } = vozDoTema(ctx.profileTheme, ctx.profileKind);
+  const [user, perfis, ocultos] = await Promise.all([getOwnUser(ctx), listProfiles(ctx.userId), valoresOcultos()]);
   const nome = user.name?.trim() || user.email;
-  const inicial = nome.charAt(0).toUpperCase();
+  const tema = profileTheme(ctx.profileTheme);
+  const modo = MODO[preferenciaDeModo(user.theme)];
+  const i = (C: LucideIcon) => <C size={17} strokeWidth={1.8} />;
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
-      <h1 className="text-h1 font-bold tracking-tight text-ink">Configurações</h1>
-
-      <HeroiDoTema>
-        <div className="flex items-center gap-4">
-          <span className="heroi-veu-forte flex size-14 shrink-0 items-center justify-center rounded-full text-2xl font-bold" aria-hidden>
-            {inicial}
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-xl font-bold tracking-tight">{user.name || "Sem nome"}</p>
-            <p className="truncate text-sm text-heroi-suave">{user.email}</p>
-            {user.phone && <p className="truncate text-sm text-heroi-suave">{formatPhone(user.phone)}</p>}
-          </div>
-          <EditarNoCanto titulo={t.cfgPerfilTitulo}>
-            <ProfileForm defaults={{ name: user.name, email: user.email, phone: formatPhone(user.phone) }} semMoldura />
-          </EditarNoCanto>
+      <section className="flex items-center gap-4 rounded-3xl border border-border bg-surface p-4">
+        <FotoDoPerfil nome={nome} foto={user.avatarUrl} />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[19px] font-medium text-ink">{user.name || "Sem nome"}</p>
+          <p className="truncate text-sm text-ink-muted">{user.email}</p>
+          <span className="mt-1.5 inline-block rounded-full bg-accent-soft px-2.5 py-0.5 text-[12px] font-medium text-accent-strong">SPI Finance · anual</span>
         </div>
-      </HeroiDoTema>
+        <Link href="/configuracoes/perfil" aria-label="Editar meus dados" className="flex size-11 shrink-0 items-center justify-center rounded-full border border-border text-ink">
+          <Pencil size={17} aria-hidden />
+        </Link>
+      </section>
 
-      <Grupo titulo="Aparência" id="aparencia">
-        <AjustesRapidos
-          moeda={user.currency}
-          modo={user.theme}
-          podeEscolherModo={temaDeixaEscolherModo(ctx.profileTheme)}
-          rotulos={{ modo: "Modo", claro: t.cfgTemaClaro, escuro: t.cfgTemaEscuro, moeda: t.cfgMoeda, moedaAviso: `${t.cfgMoedaAvisoTexto1(`${currencySymbol("EUR")} 3.000`, `${currencySymbol("BRL")} 3.000`)} ${t.cfgMoedaAvisoTexto2}` }}
-        />
-        <div className="border-t border-border">
-          <p className="px-4 pb-1 pt-3 text-[15px] font-medium text-ink">Estilo do app</p>
-          <EscolherEstilo perfilId={ctx.profileId} atual={profileTheme(ctx.profileTheme).key} />
-        </div>
+      <Grupo titulo="Conta">
+        <Linha href="/configuracoes/perfil" icone={i(CircleUser)} cor={COR.conta} rotulo="Meus dados" sub={[user.name, user.phone ? formatPhone(user.phone) : null].filter(Boolean).join(" · ") || "Nome, e-mail e celular"} />
+        <Linha href="/configuracoes/perfis" icone={i(Users)} cor={COR.conta} rotulo="Perfis financeiros" sub={perfis.map((p) => p.name).join(", ")} />
+        <Linha href="/esqueci-senha" icone={i(KeyRound)} cor={COR.conta} rotulo="Trocar senha" sub="Por e-mail" />
       </Grupo>
 
       <Grupo titulo="Seu dinheiro">
-        <Linha href="/perfis" icone={<Wallet size={16} />} cor="var(--color-cat-moradia)" rotulo="Perfis financeiros" valor={perfis.map((p) => p.name).join(", ")} />
-        <Linha href="/configuracoes/categorias" icone={<Tags size={16} />} cor="var(--color-cat-alimentacao)" rotulo={t.cfgAbaCategorias} />
-        <Linha href="/configuracoes/notificacoes" icone={<Bell size={16} />} cor="var(--color-cat-saude)" rotulo={t.cfgAbaNotificacoes} />
-        {isPluggyConfigured() && <Linha href="/configuracoes/conexoes" icone={<Building2 size={16} />} cor="var(--color-cat-transporte)" rotulo="Conectar meu banco" />}
-        <Linha href="/configuracoes/taxas" icone={<Percent size={16} />} cor="var(--color-cat-educacao)" rotulo={t.cfgAbaTaxas} />
+        <Linha href="/configuracoes/categorias" icone={i(Tags)} cor={COR.dinheiro} rotulo="Categorias" sub="Criar, esconder e o que o app aprendeu" />
+        <Linha href="/configuracoes/contas-e-cartoes" icone={i(Landmark)} cor={COR.dinheiro} rotulo="Contas e cartões" sub="Importar extrato e limite do cartão" />
+        <Linha href="/configuracoes/taxas" icone={i(Percent)} cor={COR.dinheiro} rotulo="Taxas de referência" sub="CDI, Selic e IPCA" />
+        <Linha href="/configuracoes/moeda" icone={i(Wallet)} cor={COR.dinheiro} rotulo="Moeda e dólar" sub={currencySymbol(toCurrencyCode(user.currency))} />
       </Grupo>
 
-      <Grupo titulo="Conta">
-        <Linha href="/esqueci-senha" icone={<KeyRound size={16} />} cor="var(--color-ink-muted)" rotulo="Trocar senha" />
-        <Linha href="/configuracoes/dados" icone={<Download size={16} />} cor="var(--color-ink-muted)" rotulo="Exportar ou excluir dados" />
-        <Linha href="/suporte" icone={<LifeBuoy size={16} />} cor="var(--color-ink-muted)" rotulo="Suporte" />
-        <Linha href="/termos" icone={<FileText size={16} />} cor="var(--color-ink-muted)" rotulo="Termos e privacidade" />
-        <div className="border-t border-border">
-          <SairDaConta />
-        </div>
+      <Grupo titulo="App">
+        <Linha href="/configuracoes/aparencia" icone={i(Palette)} cor={COR.app} rotulo="Aparência" sub={`${tema.label} · ${modo}`} />
+        <Linha href="/configuracoes/voz" icone={i(Heart)} cor={COR.app} rotulo="Voz do app" sub={tema.nomeDaVoz ?? tema.label} />
+        <Linha href="/configuracoes/notificacoes" icone={i(Bell)} cor={COR.app} rotulo="Notificações" sub="O que o app te avisa" />
+        <Linha href="/configuracoes/assessoria" icone={i(Briefcase)} cor={COR.app} rotulo="Assessoria" sub={user.ofertasDesligadas ? "Ofertas desligadas" : "Abrir conta pela Fatos Capital"} />
+        <Linha href="/configuracoes/privacidade" icone={i(EyeOff)} cor={COR.app} rotulo="Privacidade" sub={ocultos ? "Valores escondidos" : "Valores à mostra"} />
+        <Linha href="/configuracoes/idioma" icone={i(Globe)} cor={COR.app} rotulo="Idioma" sub="Português (Brasil)" />
+      </Grupo>
+
+      <Grupo titulo="Dados">
+        <Linha href="/configuracoes/dados" icone={i(Download)} cor={COR.dados} rotulo="Exportar" sub="Lançamentos e carteira em CSV" />
+        <Linha href="/configuracoes/backup" icone={i(Archive)} cor={COR.dados} rotulo="Backup" sub="Automático, todo dia" />
+        <Linha href="/configuracoes/dados#excluir" icone={i(TriangleAlert)} cor="var(--color-danger)" rotulo="Apagar minha conta" sub="Não tem volta" />
+      </Grupo>
+
+      <Grupo titulo="Ajuda">
+        <Linha href="/configuracoes/ajuda" icone={i(BookOpen)} cor={COR.ajuda} rotulo="Central de ajuda" sub="Perguntas frequentes" />
+        <Linha href="/configuracoes/suporte" icone={i(MessageCircle)} cor={COR.ajuda} rotulo="Falar com o suporte" sub={SUPORTE_EMAIL} />
+        <Linha href="/termos" icone={i(FileText)} cor={COR.ajuda} rotulo="Termos e privacidade" />
+        <Linha href="/configuracoes/sobre" icone={i(Info)} cor={COR.ajuda} rotulo="Sobre" sub="Versão 0.1.0" />
+      </Grupo>
+
+      <Grupo>
+        <SairDaConta />
       </Grupo>
     </div>
   );
