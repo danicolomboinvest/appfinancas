@@ -1,0 +1,112 @@
+import type { AuthContext } from "@/lib/auth/session";
+import { serverMoney } from "@/lib/money-server";
+import { categoriasEssenciais } from "@/lib/categories";
+import { previsaoDoMes } from "@/lib/decisoes/foco-semana";
+import { cartaoDaPilha, type CartaoDaPilha, type DadosDaPilha, type MetaDaPilha } from "@/lib/decisoes/pilha";
+import type { DadosDasPilulas } from "@/lib/decisoes/esferas";
+import { estouGastandoDemais, melhoreiDoMesPassado, porqueAcabouMaisRapido } from "@/lib/decisoes/respostas";
+import { quantoPassou } from "@/lib/planning/remanejo";
+import { carregarRespostas } from "./pergunta/[slug]/dados";
+
+const MESES_CURTOS = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+const MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+
+/** "novembro de 2027" vira "nov/2027". */
+function curto(longo: string | null): string | null {
+  if (!longo) return null;
+  const [mes, , ano] = longo.split(" ");
+  const i = MESES.indexOf(mes);
+  return i >= 0 && ano ? `${MESES_CURTOS[i]}/${ano}` : longo;
+}
+
+/**
+ * Tudo que a tela do Decidir precisa numa carga: a pilha (os mesmos avisos que o Resumo conta
+ * em "Decisões importantes"), o que pode esperar e os números das pílulas das esferas. A base é a
+ * mesma do Foco e das respostas, para nenhum número sair diferente entre as telas.
+ */
+export async function carregarDecidir(ctx: AuthContext) {
+  const money = await serverMoney();
+  const m = (v: number) => money(v, { round: true });
+  const r = await carregarRespostas(ctx);
+  const { d, livre } = r;
+  const hoje = { ano: d.year, mes: d.month };
+  const temLivre = livre.tipo !== "semOrcamento";
+
+  const metas: MetaDaPilha[] = r.metas
+    .filter((x) => x.id)
+    .map((x) => {
+      const k = x.chegaEmMeses ?? null;
+      const quando = k !== null ? new Date(hoje.ano, hoje.mes - 1 + k, 1) : null;
+      return {
+        id: x.id as string,
+        nome: x.nome,
+        atual: x.atual,
+        alvo: x.alvo,
+        prazoCurto: curto(x.prazo),
+        porMes: x.necessarioPorMes,
+        ritmo: x.ritmoPorMes,
+        chega: quando ? { curto: `${MESES_CURTOS[quando.getMonth()]}/${quando.getFullYear()}`, ano: quando.getFullYear(), mes: quando.getMonth() + 1 } : null,
+        vencida: Boolean(x.vencida),
+      };
+    });
+
+  const fimDoMes = temLivre ? previsaoDoMes(livre.planejado, livre.gastoTotal, livre.decorrido, livre.gastoUnico) : null;
+  const fund = d.fund;
+  const dados: DadosDaPilha = {
+    money: m,
+    remanejo: {
+      categorias: d.categorias.map((c) => ({ key: c.key, label: c.label, planejado: c.planejado, gasto: c.gasto })),
+      essenciais: [...categoriasEssenciais(ctx.categorias?.prefs)],
+      livre: temLivre ? livre.restante : null,
+      diasRestantes: temLivre ? livre.diasRestantes : 1,
+    },
+    metas,
+    reserva: fund ? { atual: Number(fund.currentAmount), alvo: Number(fund.targetAmount), fimDoMes } : null,
+    hrefMes: d.hrefMes,
+  };
+  const cartoes = (itens: typeof d.foco.atencao) => itens.map((i) => cartaoDaPilha(i, dados)).filter((c): c is CartaoDaPilha => c !== null);
+
+  // As pílulas das esferas: os mesmos números que a resposta de cada pergunta vai mostrar.
+  const planejado = d.categorias.reduce((s, c) => s + c.planejado, 0);
+  const abertas = r.metas.filter((x) => x.atual < x.alvo && x.necessarioPorMes > 0);
+  const guardarAlvo = Math.max(abertas.reduce((s, x) => s + x.necessarioPorMes, 0) + (r.reserva && r.reserva.atual < r.reserva.alvo ? r.reserva.porMes : 0), r.regra90 && r.renda ? r.renda * 0.1 : 0);
+  const atrasada = r.metas.find((x) => x.prazo && !x.noPrazo && x.atual < x.alvo);
+  const kAtrasada = atrasada?.chegaEmMeses ?? null;
+  const passou = d.categorias
+    .filter((c) => c.planejado > 0 && c.gasto - c.planejado >= 1)
+    .sort((a, b) => b.gasto - b.planejado - (a.gasto - a.planejado))[0];
+  const pilulas: Omit<DadosDasPilulas, "money" | "tema"> = {
+    livreMes: temLivre ? livre.restante : null,
+    porDia: temLivre ? livre.restante / Math.max(1, livre.diasRestantes) : null,
+    ateDomingo: temLivre ? livre.porSemana : null,
+    guardar: guardarAlvo >= 1 ? { porMes: guardarAlvo, cobre: (d.aportePlanejado ?? 0) >= guardarAlvo - 1 } : null,
+    metaAtrasada: atrasada
+      ? {
+          chegaCurto:
+            kAtrasada !== null
+              ? (() => {
+                  const q = new Date(hoje.ano, hoje.mes - 1 + kAtrasada, 1);
+                  return `${MESES_CURTOS[q.getMonth()]}/${q.getFullYear()}`;
+                })()
+              : null,
+        }
+      : null,
+    metasNoRitmo: r.metas.some((x) => x.prazo && x.noPrazo),
+    reserva: r.reserva && r.reserva.custoMensal > 0 ? { meses: r.reserva.atual / r.reserva.custoMensal, minimo: r.reserva.mesesMeta } : null,
+    passou: passou ? { label: passou.label, valor: quantoPassou(passou) } : null,
+    raioxAnual: d.raioxAnual > 0 ? d.raioxAnual : null,
+    respostas: {
+      demais: estouGastandoDemais({ money: m, gastoDoMes: d.summary.totalExpense, planejado, decorrido: (d.dia - 1) / d.diasNoMes, renda: r.renda, categorias: d.categorias, regra90: r.regra90 }),
+      acabou: porqueAcabouMaisRapido({ money: m, atual: r.mesPassado, anterior: r.mesRetrasado, maiores: r.maioresPassado }),
+      melhorei: melhoreiDoMesPassado({ money: m, atual: r.mesPassado, anterior: r.mesRetrasado }),
+    },
+  };
+
+  return {
+    pilha: cartoes(d.foco.atencao),
+    depois: cartoes(d.foco.depois),
+    pilulas,
+    // Para a folha "Resolver agora" das respostas (Onde estou exagerando?).
+    remanejo: dados.remanejo,
+  };
+}

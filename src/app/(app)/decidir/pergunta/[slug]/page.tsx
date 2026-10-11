@@ -23,6 +23,9 @@ import {
   type Tom,
 } from "@/lib/decisoes/respostas";
 import { carregarRespostas, PERGUNTAS } from "./dados";
+import { ResolverAgora } from "@/components/decisoes/ResolverAgora";
+import { categoriasEssenciais } from "@/lib/categories";
+import { MESES } from "@/app/(app)/mensal/foco/dados";
 
 const TONS: Tom[] = ["padrao", "girly", "manifestacao", "titanio"];
 
@@ -127,15 +130,30 @@ export default async function PerguntaPage(props: PageProps<"/decidir/pergunta/[
           )}
           {resposta.acoes.length > 0 && (
             <div className="mt-1 flex flex-col gap-2">
-              {resposta.acoes.map((a, i) => (
-                <Link
-                  key={a.href + a.rotulo}
-                  href={a.href}
-                  className={i === 0 ? "rounded-2xl bg-pill px-4 py-3 text-sm font-semibold text-on-pill" : "rounded-2xl border border-border px-4 py-3 text-sm font-semibold text-ink-muted"}
-                >
-                  {a.rotulo}
-                </Link>
-              ))}
+              {resposta.acoes.map((a, i) => {
+                const classe = i === 0 ? "rounded-2xl bg-pill px-4 py-3 text-left text-sm font-semibold text-on-pill" : "rounded-2xl border border-border px-4 py-3 text-left text-sm font-semibold text-ink-muted";
+                // "Resolver agora" abre a folha ali mesmo (rodada 38 A), sem sair do Decidir.
+                if (a.resolver) {
+                  return (
+                    <ResolverAgora
+                      key={a.rotulo}
+                      rotulo={a.rotulo}
+                      categoria={a.resolver}
+                      categorias={d.categorias.map((c) => ({ key: c.key, label: c.label, planejado: c.planejado, gasto: c.gasto }))}
+                      essenciais={[...categoriasEssenciais(ctx.categorias?.prefs)]}
+                      livre={r.livre.tipo === "semOrcamento" ? null : r.livre.restante}
+                      diasRestantes={r.livre.tipo === "semOrcamento" ? 1 : r.livre.diasRestantes}
+                      proximoMes={MESES[d.month % 12]}
+                      className={classe}
+                    />
+                  );
+                }
+                return (
+                  <Link key={a.href + a.rotulo} href={a.href} className={classe}>
+                    {a.rotulo}
+                  </Link>
+                );
+              })}
             </div>
           )}
           {(resposta.conta.length > 0 || resposta.visual) && (

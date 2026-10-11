@@ -40,7 +40,12 @@ export type TipoDecisao =
    * "primeiro-fechamento", "reset". Uma vez cada, nunca de novo. */
   | "conquista"
   /** O mês fechado que ela reabriu (chave "2026-09"). Fechar de novo apaga esta marca. */
-  | "fechamento_reaberto";
+  | "fechamento_reaberto"
+  /**
+   * Pilha do Decidir: "Mandar a sobra do mês" para a reserva (chave "2026-10"). É o combinado; o
+   * dinheiro vai no "Fechar o mês", que já oferece mandar a sobra para a reserva.
+   */
+  | "reserva_sobra_combinada";
 
 export type NovaDecisao = {
   tipo: TipoDecisao;

@@ -375,7 +375,13 @@ export default async function FocoPage() {
 
         {!contaNova && (
           <>
-            <DecisoesImportantes quantas={decisoes.length}>{decisoes.map((item) => avisoNo(item))}</DecisoesImportantes>
+            {/* O mesmo número da pilha do Decidir (rodadas 38 e 49): tocar abre a pilha. A empresa,
+                que não tem Decidir, continua vendo a lista aqui mesmo. */}
+            {d.empresa ? (
+              <DecisoesImportantes quantas={decisoes.length}>{decisoes.map((item) => avisoNo(item))}</DecisoesImportantes>
+            ) : (
+              <DecisoesImportantes quantas={foco.atencao.length} href="/decidir" />
+            )}
             {/* Plano apertado (regra 3.8): o plano de gastos já usa 90% ou mais da renda. */}
             {apertado && (
               <p className="rounded-2xl px-4 py-3 text-sm text-ink" style={{ background: "color-mix(in srgb, var(--color-dinheiro-faltou) 12%, var(--color-surface))" }}>

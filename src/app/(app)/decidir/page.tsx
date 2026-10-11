@@ -1,83 +1,31 @@
+import { redirect } from "next/navigation";
 import { getRequiredSession } from "@/lib/auth/session";
 import { ehEmpresa } from "@/lib/profiles/empresa";
-import { vozDoTema } from "@/lib/profiles/voice";
-import { redirect } from "next/navigation";
-import Link from "next/link";
-import { ShoppingBag, CalendarDays, Gauge, MapPin, PiggyBank, Flag, ShieldCheck, Zap, TrendingUp, Scissors, Bookmark } from "lucide-react";
-import { GradeDeCalculadoras } from "@/components/calculadoras/GradeDeCalculadoras";
-import { calculadoras } from "@/lib/calculadoras";
-import { PageHeader } from "@/components/ui/PageHeader";
-import { Card } from "@/components/ui/Card";
-import { prisma } from "@/lib/db/prisma";
+import { chaveDoTema } from "@/lib/profiles/themes";
+import { serverMoney } from "@/lib/money-server";
+import { PilhaDeDecisoes } from "@/components/decisoes/PilhaDeDecisoes";
+import { EsferasDoDecidir } from "@/components/decisoes/Esferas";
+import { carregarDecidir } from "./dados";
 
 /**
- * Decidir: o catálogo das perguntas que o app sabe responder com os números da pessoa.
+ * Decidir da versão nova (rodadas 38, 49 e 57): em cima, a pilha "Pra decidir hoje", uma decisão
+ * por vez, com os mesmos avisos que o Resumo conta em "Decisões importantes"; embaixo, "Qual é a
+ * sua pergunta?" em esferas, cada uma com o dado vivo do motor e a tela que já responde.
  *
- * Mora no "Mais" de propósito. O principal chega sozinho na aba Foco; aqui é pra quem quer
- * consultar. Cada pergunta leva pra tela que já calcula aquilo — nenhuma resposta é texto
- * solto: é sempre a conta do app, com o "como cheguei nisso" do lado.
- *
- * As perguntas vêm da voz do tema (`decPerguntas`): no Girly é "Quando chego no meu sonho?",
- * e as decisões grandes perderam o nome de mercado ("Marcação a mercado", "Amortizar").
+ * As calculadoras saíram daqui: têm a tela delas no menu (Calculadoras).
  */
 export default async function DecidirPage() {
-  // Decidir é da pessoa (regra dos 90% da renda, pequenos gastos): a empresa não vê no menu.
+  // Decidir é da pessoa (regra dos 90% da renda, pequenos gastos): a empresa não tem.
   const ctx = await getRequiredSession();
   if (ehEmpresa(ctx.profileKind)) redirect("/mensal/foco");
-  const tx = vozDoTema(ctx.profileTheme, ctx.profileKind).titulos;
-  const p = tx.decPerguntas;
-  // Só a contagem: o link das simulações salvas aparece quando existe alguma pra abrir.
-  const salvas = await prisma.simulation.count({ where: { userId: ctx.userId, profileId: ctx.profileId } });
-  const dia = [
-    { href: "/decidir/comprar", icon: ShoppingBag, t: p.comprar, destaque: true },
-    // Cada pergunta abre a RESPOSTA, com os números dela, e não a tela que ela mesma preencheu.
-    { href: "/decidir/pergunta/semana", icon: CalendarDays, t: p.semana },
-    { href: "/decidir/pergunta/gastando", icon: Gauge, t: p.gastando },
-    { href: "/decidir/pergunta/exagerando", icon: MapPin, t: p.exagerando },
-    { href: "/decidir/pergunta/guardar", icon: PiggyBank, t: p.guardar },
-    { href: "/decidir/pergunta/meta", icon: Flag, t: p.meta },
-    { href: "/decidir/pergunta/reserva", icon: ShieldCheck, t: p.reserva },
-    { href: "/decidir/pergunta/acabou", icon: Zap, t: p.acabou },
-    { href: "/decidir/pergunta/melhorei", icon: TrendingUp, t: p.melhorei },
-    // O Raio-X só abria por um cartão do Foco; aqui é o lugar de quem vem procurar.
-    { href: "/decidir/raio-x", icon: Scissors, t: p.raiox },
-  ];
+  const tema = chaveDoTema(ctx.profileTheme);
+  const money = await serverMoney();
+  const { pilha, depois, pilulas } = await carregarDecidir(ctx);
 
   return (
-    <div className="flex flex-col gap-6">
-      {/* Sem subtítulo fixo (06/10/2026): as perguntas já dizem o que fazem. */}
-      <PageHeader title={tx.decTitulo} />
-
-      <section className="flex flex-col gap-3">
-        <h2 className="px-1 text-base font-semibold text-ink">{tx.decDiaADia}</h2>
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
-          {dia.map((q) => (
-            <Link key={q.t} href={q.href} className={q.destaque ? "col-span-2 lg:col-span-1" : ""}>
-              <Card className="flex h-full min-h-24 flex-col justify-between gap-3 p-4 transition-colors hover:bg-surface-hover">
-                <span className={`flex size-9 items-center justify-center rounded-xl ${q.destaque ? "bg-pill text-on-pill" : "bg-accent-soft text-accent-strong"}`}>
-                  <q.icon size={18} strokeWidth={1.8} />
-                </span>
-                <span className="text-sm font-semibold leading-snug text-ink">{q.t}</span>
-              </Card>
-            </Link>
-          ))}
-        </div>
-      </section>
-
-      {/* As calculadoras, em cartões coloridos, como na tela delas (06/10/2026). Antes eram uma
-          lista cinza de "Decisões grandes" e um link no fim, que ninguém achava. */}
-      <section className="flex flex-col gap-3">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="px-1 text-base font-semibold text-ink">{tx.calcTitulo}</h2>
-          {salvas > 0 && (
-            <Link href="/simuladores" className="inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-accent-strong hover:underline">
-              <Bookmark size={15} strokeWidth={1.9} aria-hidden />
-              {tx.decSimulacoesSalvas(salvas)}
-            </Link>
-          )}
-        </div>
-        <GradeDeCalculadoras itens={calculadoras(tx)} />
-      </section>
+    <div className="flex flex-col gap-7 pt-1">
+      <PilhaDeDecisoes pilha={pilha} depois={depois} />
+      <EsferasDoDecidir dados={{ ...pilulas, money: (v) => money(v, { round: true }), tema }} />
     </div>
   );
 }
