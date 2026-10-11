@@ -1,7 +1,7 @@
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CalendarClock, ChevronDown, ChevronLeft, ChevronRight, CreditCard } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
 import { getAnnualPlannedVsActual } from "@/lib/planning/budget-comparison";
 import { getAnnualBudgetPlan, getAnnualBudgetPlanForCustomCategories } from "@/lib/repositories/budget.repo";
@@ -24,19 +24,19 @@ import { elapsedRatioOfMonth } from "@/lib/planning/budget-bullets";
 import { serverMoney } from "@/lib/money-server";
 import { Section } from "@/components/ui/Section";
 import { resumoDoMes } from "@/lib/planning/month-budget-summary";
-import { ResumoDoMesCard } from "@/components/budget/ResumoDoMesCard";
 import { EditarPlano } from "@/components/budget/EditarPlano";
 import { CategoriasDoMes, type LinhaDaCategoria } from "@/components/budget/CategoriasDoMes";
-import { CurvaDoMes } from "@/components/budget/CurvaDoMes";
 import { ResumoDoAno, type MesDoResumo } from "@/components/budget/ResumoDoAno";
 import { carregarDetalheDoOrcamento } from "@/lib/repositories/orcamento-detalhe.repo";
-import { categoriaDoMes, ordenarCategorias, planoMaisRealista, sugestaoDeCobrir } from "@/lib/planning/orcamento-categorias";
+import { categoriaDoMes, ordenarCategorias } from "@/lib/planning/orcamento-categorias";
+import { revisaoDoPlano } from "@/lib/planning/remanejo";
+import { categoriasEssenciais } from "@/lib/categories";
+import { HeroiDoTema } from "@/components/ui/HeroiDoTema";
+import { ValorDestaque } from "@/components/ui/ValorDestaque";
+import { AlertaDoOrcamento } from "@/components/budget/AlertaDoOrcamento";
+import { SeuPlano } from "@/components/budget/SeuPlano";
 import { MapaDoAno, type LinhaDoMapa } from "@/components/budget/MapaDoAno";
 import { vozDoTema } from "@/lib/profiles/voice";
-import { listarContasAPagar } from "@/lib/repositories/conta-a-pagar.repo";
-import { contasDoFoco, hojeEmBrasilia } from "@/lib/contas/contas";
-import { situacaoDoCartao } from "@/lib/repositories/limite-cartao.repo";
-import { AtualizarMesButton } from "@/components/budget/AtualizarMesButton";
 import { getUltimoGastoAte } from "@/lib/repositories/monthly-entry.repo";
 import { ajustesDoPadrao } from "@/lib/planning/padrao-orcamento";
 import { categoriaOculta } from "@/lib/categories";
@@ -71,20 +71,15 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
   const voz = vozDoTema(ctx.profileTheme, ctx.profileKind);
   const agora = nowInBrazil();
   // Uma consulta a mais na página já custou caro antes: vai junto das outras, não em fila.
-  const [comparison, customCategories, plan, annualPlan, hints, savingsTargets, contas, cartao] = await Promise.all([
+  const [comparison, customCategories, plan, annualPlan, hints, savingsTargets] = await Promise.all([
     getAnnualPlannedVsActual(ctx, year),
     listCustomCategories(ctx),
     getAnnualBudgetPlan(ctx, year),
     getAnnualMonthlyPlan(ctx, year),
     getBudgetHints(ctx, year, agora),
     getSavingsTargets(ctx, agora),
-    listarContasAPagar(ctx),
-    year === agora.getFullYear() ? situacaoDoCartao(ctx, year, agora.getMonth() + 1) : null,
   ]);
-  // Contas a pagar moram aqui (05/10/2026, pedido da Dani): o atalho diz o que vence na semana.
-  const contasDaSemana = contasDoFoco(contas, hojeEmBrasilia());
-  const contasAtrasadas = contasDaSemana.filter((c) => c.situacao === "atrasada").length;
-  const totalDasContas = contasDaSemana.reduce((s, c) => s + (c.valor ?? 0), 0);
+  // Contas a pagar e o limite do cartão moram na aba Recorrentes desde a versão nova.
   // O mês de referência, o mesmo das categorias (o mês corrente no ano corrente): o salvar grava
   // dele em diante, então é ele que responde "o que eu tenho planejado?". Janeiro já não serve:
   // depois de salvar em setembro, janeiro continua com o valor antigo e a tela "desfazia" a
@@ -137,7 +132,6 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
           ultimoGasto,
         })
       : null;
-  const ultimoDiaDoMes = currentMonthData ? new Date(year, currentMonthData.month, 0).getDate() : 0;
 
   // As categorias do mês no jeito do Copilot (ver CategoriasDoMes): previsão, a vencer, Cobrir.
   const detalhe = currentMonthData && isCurrentYear ? await carregarDetalheDoOrcamento(ctx, year, currentMonthData.month, now) : null;
@@ -170,7 +164,11 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
       maiores: detalhe?.porCategoria[c.key]?.maiores ?? [],
       historico,
       media: fechados.length > 0 ? fechados.reduce((s, h) => s + h.gasto, 0) / fechados.length : c.gasto + c.aVencer,
-      sugestao: planoMaisRealista(historico.slice(0, -1), c.planejado),
+      // "Rever o plano" só depois de 3 meses seguidos acima de 110% (regra 18), com a mediana.
+      sugestao: (() => {
+        const r = revisaoDoPlano(historico.slice(0, -1));
+        return r && r.mediana > c.planejado ? { passou: 3, meses: 3, sugerido: r.mediana } : null;
+      })(),
     };
   });
   /*
@@ -185,11 +183,9 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
   const ajustesPadrao: AjusteComRotulo[] = isCurrentYear
     ? ajustesDoPadrao({ meses: hints.porMes, plano: { ...plan, ...customPlan }, ignorar: ignorarNoPadrao }).map((a) => ({ ...a, label: categoryLabel(a.chave) }))
     : [];
-  const sugestaoCobrir = sugestaoDeCobrir(categoriasDoMes);
-  const cobrir = sugestaoCobrir ? { de: sugestaoCobrir.de.key, deLabel: sugestaoCobrir.de.label, para: sugestaoCobrir.para.key, paraLabel: sugestaoCobrir.para.label, valor: sugestaoCobrir.valor } : null;
-  // A previsão do mês é a soma das previsões das categorias (as fixas não são projetadas pelo
-  // ritmo), e só depois de 15% do mês, como no Foco.
-  const previsaoDoMesTotal = categoriasDoMes.length > 0 && decorrido >= 0.15 && decorrido < 1 ? Math.round(categoriasDoMes.reduce((s, c) => s + c.previsto, 0)) : null;
+  const essenciais = [...categoriasEssenciais(ctx.categorias?.prefs)];
+  const livreDoMes = resumoMes ? resumoMes.restante : null;
+  const diasRestantes = resumoMes ? Math.max(1, resumoMes.diasRestantes) : 1;
 
   // "Seu ano até agora" (ver ResumoDoAno), no lugar da tabela de 12 cartões.
   const mesesDoResumo: MesDoResumo[] = comparison.months.map((mm) => ({
@@ -279,33 +275,29 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
       {/* No computador o número fica à esquerda e o alerta, o plano e os dois quadrados à direita
           (07/10/2026): com a curva dentro do cartão, na largura toda ela ficava do tamanho da tela. */}
       <div className="flex flex-col gap-6 lg:grid lg:grid-cols-2 lg:items-start lg:gap-5">
-        {resumoMes && (
-          <ResumoDoMesCard
-            resumo={resumoMes}
-            mesLabel={MONTH_LABELS[currentMonthData!.month - 1]}
-            ultimoDia={ultimoDiaDoMes}
-            money={money}
-            onAtualizar={<AtualizarMesButton />}
-            voz={voz}
-            grafico={
-              detalhe && currentMonthData ? (
-                <CurvaDoMes
-                  compacta
-                  acumulado={detalhe.acumulado}
-                  acumuladoAnterior={detalhe.acumuladoAnterior}
-                  planejado={currentMonthData.totalPlanned}
-                  diasNoMes={ultimoDiaDoMes}
-                  previsao={previsaoDoMesTotal}
-                  marco={null}
-                  cor={resumoMes.situacao === "estourou" ? "var(--color-danger)" : "var(--color-heroi-destaque)"}
-                  money={(v) => money(v, { round: true })}
-                />
-              ) : undefined
-            }
-            previsao={previsaoDoMesTotal}
-          />
+        {resumoMes && currentMonthData && (
+          // O herói do Orçamento (protótipo aprovado): o plano do mês, o livre grande e uma barra.
+          <HeroiDoTema>
+            <div className="flex items-baseline justify-between gap-3">
+              <p className="text-[15px] text-heroi-suave">Plano de {MONTH_LABELS[currentMonthData.month - 1].toLowerCase()}</p>
+              <p className="text-[15px] tabular-nums text-heroi-tinta">{money(resumoMes.planejado, { round: true })}</p>
+            </div>
+            <p className="flex flex-wrap items-baseline gap-x-2">
+              <ValorDestaque texto={money(Math.abs(resumoMes.restante), { round: true })} />
+              <span className="text-[17px] text-heroi-suave">{resumoMes.restante >= 0 ? "livres" : "acima do plano"}</span>
+            </p>
+            <div className="h-1.5 overflow-hidden rounded-full bg-[color-mix(in_srgb,var(--color-surface)_75%,transparent)]">
+              <div className={`h-full rounded-full ${resumoMes.restante >= 0 ? "bg-[var(--color-heroi-tinta)]" : "bg-danger"}`} style={{ width: `${Math.min(100, (resumoMes.gasto / Math.max(1, resumoMes.planejado)) * 100)}%` }} />
+            </div>
+            <div className="flex items-baseline justify-between gap-3 text-sm text-heroi-suave">
+              <span className="tabular-nums">Gastou {money(resumoMes.gasto, { round: true })}</span>
+              <span className="tabular-nums">{Math.round((resumoMes.gasto / Math.max(1, resumoMes.planejado)) * 100)}%</span>
+            </div>
+          </HeroiDoTema>
         )}
         <div className="flex min-w-0 flex-col gap-6 lg:gap-4">
+          {linhasDoMes.length > 0 && <AlertaDoOrcamento linhas={linhasDoMes} essenciais={essenciais} livre={livreDoMes} diasRestantes={diasRestantes} />}
+          {linhasDoMes.length > 0 && <SeuPlano itens={linhasDoMes.map((l) => ({ key: l.key, label: l.label, cor: l.cor, planejado: l.planejado, gasto: l.gasto + l.aVencer }))} />}
           {/* O alerta do mês, um só e numa linha (07/10/2026): logo abaixo da resposta, antes das ações. */}
           {ajustesPadrao.length > 0 && (
             <SugestoesDoPadrao ajustes={ajustesPadrao} mes={MONTH_LABELS[agora.getMonth()].toLowerCase()} meses={hints.mesesComDado} />
@@ -328,63 +320,12 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
             <Section title={`Vamos montar seu orçamento de ${year}`}>{assistente}</Section>
           )}
 
-          {/* Contas a pagar e Limite do cartão em dois quadrados lado a lado (07/10/2026, "mesma cara,
-              menos texto"): eram um cartão comprido com frase e um link solto. O limite é opcional (a
-              Dani: "não é todo mundo que vai usar dessa forma"), então sem ele o quadrado só convida. */}
-          {isCurrentYear && (
-            <div className="grid grid-cols-2 gap-2.5 lg:gap-3">
-              <Link
-                href={contas.length > 0 ? "/orcamento/contas" : "/orcamento/contas?nova=1"}
-                className="flex min-w-0 flex-col rounded-2xl border border-border bg-surface p-3.5 transition-colors hover:bg-surface-hover"
-              >
-                <span className="flex items-center justify-between">
-                  <CalendarClock size={20} className={contasAtrasadas > 0 ? "text-danger" : "text-accent-strong"} aria-hidden />
-                  <ChevronRight size={16} className="text-ink-faint" aria-hidden />
-                </span>
-                <span className="mt-2.5 text-caption text-ink-muted">{voz.titulos.contasTitulo}</span>
-                <span className={`truncate text-[17px] font-semibold tabular-nums ${contasAtrasadas > 0 ? "text-danger" : contas.length === 0 ? "text-accent-strong" : "text-ink"}`}>
-                  {contas.length === 0
-                    ? "Anotar"
-                    : contasDaSemana.length === 0
-                      ? "Em dia"
-                      : totalDasContas > 0
-                        ? money(totalDasContas, { round: true })
-                        : `${contasDaSemana.length} na semana`}
-                </span>
-                {contasDaSemana.length > 0 && (
-                  <span className={`mt-0.5 text-caption ${contasAtrasadas > 0 ? "font-semibold text-danger" : "text-ink-muted"}`}>
-                    {voz.titulos.contasFocoTitulo(contasAtrasadas, contasDaSemana.length - contasAtrasadas)}
-                  </span>
-                )}
-              </Link>
-              <Link href="/orcamento/cartao" className="flex min-w-0 flex-col rounded-2xl border border-border bg-surface p-3.5 transition-colors hover:bg-surface-hover">
-                <span className="flex items-center justify-between">
-                  <CreditCard size={20} className={cartao && (cartao.nivel === "passou" || cartao.nivel === "perto") ? "text-danger" : "text-accent-strong"} aria-hidden />
-                  <ChevronRight size={16} className="text-ink-faint" aria-hidden />
-                </span>
-                <span className="mt-2.5 text-caption text-ink-muted">{voz.titulos.limTitulo}</span>
-                {cartao ? (
-                  <>
-                    <span className={`text-[17px] font-semibold tabular-nums ${cartao.nivel === "passou" ? "text-danger" : "text-ink"}`}>{Math.round(cartao.pct)}%</span>
-                    <span className={`mt-0.5 text-caption ${cartao.nivel === "passou" ? "font-semibold text-danger" : "text-ink-muted"}`}>
-                      {cartao.falta >= 0 ? voz.titulos.limAtalhoFalta(money(cartao.falta, { round: true })) : voz.titulos.limAtalhoPassou(money(-cartao.falta, { round: true }))}
-                    </span>
-                  </>
-                ) : (
-                  <span className="text-[17px] font-semibold text-accent-strong">Montar</span>
-                )}
-              </Link>
-            </div>
-          )}
         </div>
       </div>
 
       {linhasDoMes.length > 0 && (
-        <Section
-          title={`Categorias de ${MONTH_LABELS[(currentMonthData?.month ?? 1) - 1].toLowerCase()}`}
-          hint="Verde vai fechar dentro do plano, amarelo vai passar, vermelho já passou. O tracejado é o que ainda vai vencer."
-        >
-          <CategoriasDoMes mes={MONTH_LABELS[(currentMonthData?.month ?? 1) - 1].toLowerCase()} linhas={linhasDoMes} cobrir={cobrir} />
+        <Section title="Categorias" hint="A barra vai do verde ao vermelho conforme a categoria se aproxima do plano. Toque numa categoria para ver o histórico; na que passou, para ver o que fazer.">
+          <CategoriasDoMes mes={MONTH_LABELS[(currentMonthData?.month ?? 1) - 1].toLowerCase()} linhas={linhasDoMes} essenciais={essenciais} livre={livreDoMes} diasRestantes={diasRestantes} />
         </Section>
       )}
 

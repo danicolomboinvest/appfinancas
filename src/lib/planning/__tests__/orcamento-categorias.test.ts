@@ -23,11 +23,14 @@ describe("categorias do mês com previsão", () => {
 });
 
 describe("Cobrir", () => {
-  it("cobre a que passou com a que tem mais folga prevista", () => {
-    const s = sugestaoDeCobrir([c("LAZER", 500, 560), c("TRANSPORTE", 1000, 410, 0, 0.58), c("SAUDE", 600, 180)]);
-    expect(s?.para.key).toBe("LAZER");
-    expect(s?.valor).toBe(60);
-    expect(s?.de.key).toBe("SAUDE"); // Saúde é fixa: folga 420; Transporte projeta 707 → folga 293
+  it("pela prioridade: desejo primeiro, nunca Saúde nem o dia a dia enquanto o desejo cobre", () => {
+    const s = sugestaoDeCobrir([c("SAUDE", 350, 417), c("TRANSPORTE", 1000, 410, 0, 0.58), c("OUTROS", 950, 0), c("LAZER", 600, 186)]);
+    expect(s?.para.key).toBe("SAUDE");
+    expect(s?.valor).toBe(67);
+    expect(s?.de.key).toBe("OUTROS");
+  });
+  it("Saúde nunca é origem, mesmo com a maior folga", () => {
+    expect(sugestaoDeCobrir([c("LAZER", 500, 560), c("SAUDE", 600, 180)])).toBeNull();
   });
   it("sem ninguém com folga suficiente, não sugere", () => {
     expect(sugestaoDeCobrir([c("LAZER", 500, 900), c("TRANSPORTE", 300, 280)])).toBeNull();

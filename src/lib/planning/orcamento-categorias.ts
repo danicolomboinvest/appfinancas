@@ -4,6 +4,8 @@
  * Puro: a página busca os números, aqui só a conta.
  */
 
+import { planoDeCobrir } from "./remanejo";
+
 /** Conta fixa sai de uma vez (o aluguel do dia 10): projetar pelo ritmo explodiria a previsão. */
 const FIXAS = new Set(["MORADIA", "SAUDE", "EDUCACAO", "IMPOSTOS"]);
 
@@ -39,19 +41,21 @@ export function ordenarCategorias(cs: CategoriaDoMes[]): CategoriaDoMes[] {
 }
 
 /**
- * "Lazer passou R$ 60. Cobrir com a sobra de Transporte?": a que mais passou, coberta pela que
- * tem mais folga PREVISTA (o que sobra depois do ritmo do resto do mês), se a folga cobrir tudo.
+ * "Saúde passou R$ 67. Tirar de Compras?": a que mais passou, coberta pela regra de prioridade
+ * (ver remanejo.ts: desejo primeiro, dia a dia só se precisar, essencial nunca). Aqui só a
+ * sugestão de UMA origem do nível do desejo, que vira o botão de um toque; o resto (duas
+ * origens, dia a dia, usar o livre) mora na folha "O que fazer?".
  */
-export function sugestaoDeCobrir(cs: CategoriaDoMes[]): { de: CategoriaDoMes; para: CategoriaDoMes; valor: number } | null {
+export function sugestaoDeCobrir(cs: CategoriaDoMes[], essenciais: ReadonlySet<string> = new Set()): { de: CategoriaDoMes; para: CategoriaDoMes; valor: number } | null {
   const passou = cs.filter((c) => c.estado === "passou").sort((a, b) => a.sobra - b.sobra)[0];
   if (!passou) return null;
-  const valor = Math.ceil(-passou.sobra);
-  const doadora = cs
-    .filter((c) => c.key !== passou.key && c.planejado > 0 && c.estado === "dentro")
-    .map((c) => ({ c, folga: Math.floor(c.planejado - c.previsto) }))
-    .filter((x) => x.folga >= valor)
-    .sort((a, b) => b.folga - a.folga)[0];
-  return doadora ? { de: doadora.c, para: passou, valor } : null;
+  const plano = planoDeCobrir(
+    { key: passou.key, label: passou.label, planejado: passou.planejado, gasto: passou.gasto + passou.aVencer },
+    cs.map((c) => ({ key: c.key, label: c.label, planejado: c.planejado, gasto: c.gasto + c.aVencer, essencial: essenciais.has(c.key) })),
+  );
+  if (plano.nivel !== 1 || plano.origens.length !== 1) return null;
+  const de = cs.find((c) => c.key === plano.origens[0].key);
+  return de ? { de, para: passou, valor: plano.valor } : null;
 }
 
 /** O plano sugerido no detalhe: a média dos meses com plano, se passou em metade ou mais. */

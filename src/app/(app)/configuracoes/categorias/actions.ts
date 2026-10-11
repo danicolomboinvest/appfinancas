@@ -58,7 +58,7 @@ export async function salvarCategoriaPadraoAction(input: { key: string; nome: st
 }
 
 /** Nome e ícone de uma categoria criada por ela, sem precisar apagar e criar de novo. */
-export async function editarCategoriaPropriaAction(input: { id: string; nome: string; icone: string; cor?: string | null; emoji?: string | null }): Promise<{ error?: string }> {
+export async function editarCategoriaPropriaAction(input: { id: string; nome: string; icone: string; cor?: string | null; emoji?: string | null; essencial?: boolean }): Promise<{ error?: string }> {
   const ctx = await getRequiredSession();
   const id = z.string().min(1).max(60).safeParse(input.id);
   const nome = input.nome.trim().slice(0, 40);
@@ -70,14 +70,17 @@ export async function editarCategoriaPropriaAction(input: { id: string; nome: st
   if (input.emoji && !emojiValido(input.emoji)) return { error: "Escolha um emoji só." };
   await updateOwnCustomCategory(ctx, id.data, { name: nome, icon: input.icone });
   // Cor e emoji da categoria dela moram nas preferências do perfil (ver PreferenciasDeCategoria.proprias).
-  if (input.cor !== undefined || input.emoji !== undefined) {
+  if (input.cor !== undefined || input.emoji !== undefined || input.essencial !== undefined) {
     const perfil = await prisma.financialProfile.findFirst({ where: { id: ctx.profileId, userId: ctx.userId }, select: { categorias: true } });
     if (perfil) {
       const prefs = lerPreferenciasDeCategoria(perfil.categorias);
       const proprias = { ...(prefs.proprias ?? {}) };
+      const antes = proprias[id.data] ?? {};
+      const essencial = input.essencial !== undefined ? input.essencial === true : antes.essencial === true;
       const pref = {
         ...(input.cor ? { cor: input.cor } : {}),
         ...(input.emoji ? { emoji: input.emoji } : {}),
+        ...(essencial ? { essencial: true } : {}),
       };
       if (Object.keys(pref).length > 0) proprias[id.data] = pref;
       else delete proprias[id.data];

@@ -14,6 +14,8 @@ import { isParentCategoryKey } from "@/lib/categories";
 import type { FocoCombinado, FocoItem } from "@/lib/decisoes/foco";
 import { faltamDias } from "@/lib/profiles/textos/foco";
 import { ajustarOrcamentoAction, classificarGastoAction, definirTetoAction, desfazerTetoAction, dispensarAvisoAction, registrarAporteDoMesAction, renomearGastoAction } from "./actions";
+import { OQueFazer } from "@/components/budget/OQueFazer";
+import type { CategoriaParaRemanejo } from "@/lib/planning/remanejo";
 
 export type GastoDaLista = {
   id: string;
@@ -36,7 +38,10 @@ const arredonda10 = (v: number) => Math.ceil(v / 10) * 10;
  * Todo texto vem da voz do tema (`aviso*` em textos/foco.ts): escrito aqui, o Girly abria a
  * janela de um aviso que dizia "combinado" e lia "Plano" e "aplicação" logo embaixo.
  */
-export function AvisoFoco({ item, hrefMes, gastos = [], resumo, opcoes = [] }: { item: FocoItem; hrefMes?: string; gastos?: GastoDaLista[]; resumo?: ResumoDaLista; opcoes?: Opcao[] }) {
+/** O que a folha "O que fazer?" precisa para sugerir de onde tirar (ver OQueFazer e remanejo.ts). */
+export type DadosDoRemanejo = { categorias: CategoriaParaRemanejo[]; essenciais: string[]; livre: number | null; diasRestantes: number };
+
+export function AvisoFoco({ item, hrefMes, gastos = [], resumo, opcoes = [], remanejo }: { item: FocoItem; hrefMes?: string; gastos?: GastoDaLista[]; resumo?: ResumoDaLista; opcoes?: Opcao[]; remanejo?: DadosDoRemanejo }) {
   const money = useMoney();
   const m = (v: number) => money(v, { round: true });
   const router = useRouter();
@@ -64,7 +69,21 @@ export function AvisoFoco({ item, hrefMes, gastos = [], resumo, opcoes = [] }: {
       fazer(() => dispensarAvisoAction(item.id, quando), mensagem);
 
   let corpo: React.ReactNode = null;
-  if (d?.tipo === "estouro") {
+  if (d?.tipo === "estouro" && remanejo) {
+    // Versão nova (rodadas 18 e 53): "O que fazer?" com o remanejo por prioridade. Nada aqui
+    // aumenta o plano sozinho; o "plano mais alto" de antes saiu.
+    corpo = (
+      <OQueFazer
+        categoria={remanejo.categorias.find((c) => c.key === d.categoria) ?? { key: d.categoria, label: d.label, planejado: d.planejado, gasto: d.gasto }}
+        categorias={remanejo.categorias}
+        essenciais={remanejo.essenciais}
+        livre={remanejo.livre}
+        diasRestantes={remanejo.diasRestantes}
+        onFeito={() => setAberto(false)}
+        oQuePesou={<ListaDeGastos titulo={t.avisoOndeFoi(d.label)} gastos={gastos} resumo={resumo} hrefMes={hrefMes} opcoes={opcoes.filter((o) => o.key !== d.categoria)} jaAberta />}
+      />
+    );
+  } else if (d?.tipo === "estouro") {
     // O plano novo cabe no resto do mês (ver planoQueCabe); aviso de antes desta versão não traz.
     const planoNovo = d.planoNovo ?? arredonda10(d.gasto);
     corpo = (

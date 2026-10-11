@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ondeMostrarFechamento } from "./fechamento/quando-mostrar";
 import type { ReactNode } from "react";
-import { CalendarCheck, ChevronRight, Check, ShoppingBag, ScanSearch, Calculator, Signpost } from "lucide-react";
+import { CalendarCheck, ChevronRight, Check } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
 import { Card } from "@/components/ui/Card";
 import { ReportarErro } from "@/components/decisoes/ReportarErro";
@@ -13,6 +13,15 @@ import { ThemeHero } from "@/app/(app)/mensal/[year]/[month]/ThemeHero";
 import { OnboardingChecklist } from "@/app/(app)/mensal/[year]/[month]/OnboardingChecklist";
 import { perguntarRitmo } from "./comece";
 import { SemanaFoco } from "./SemanaFoco";
+import { DecisoesImportantes } from "./DecisoesImportantes";
+import { textosDoFechamento } from "./fechamento/estado";
+import { GraficoSeisMeses } from "@/components/charts/GraficoSeisMeses";
+import { mesesAte, montarMeses, valoresDosMeses } from "@/lib/consolidation/seis-meses";
+import { lerSobrou, sobrouDoResumo } from "@/lib/consolidation/sobrou";
+import { planoApertado } from "@/lib/decisoes/posso-comprar";
+import { categoriasEssenciais } from "@/lib/categories";
+import { ValorDestaque } from "@/components/ui/ValorDestaque";
+import { Explica } from "@/components/ui/Explica";
 import { ContaDoLivre } from "./ContaDoLivre";
 import { diaDaSemana, ritmoDoMes } from "@/lib/decisoes/foco-semana";
 import { vozDoTema } from "@/lib/profiles/voice";
@@ -21,7 +30,6 @@ import { contasDoFoco, hojeEmBrasilia } from "@/lib/contas/contas";
 import { iso, serializarConta } from "@/app/(app)/orcamento/contas/serializar";
 import { ContasDoFoco } from "./ContasDoFoco";
 import { CartaoMoneyReset } from "./CartaoMoneyReset";
-import { CartaoDoLimite } from "@/components/cartao/CartaoDoLimite";
 import { ConquistasDeMetas } from "@/components/conquista/ConquistasDeMetas";
 import { temMoneyReset } from "@/lib/repositories/produtoLiberado.repo";
 import { lerReset } from "@/lib/repositories/money-reset.repo";
@@ -34,7 +42,8 @@ import { lerReset } from "@/lib/repositories/money-reset.repo";
 export default async function FocoPage() {
   const ctx = await getRequiredSession();
   const [d, contas] = await Promise.all([carregarFoco(ctx), listarContasAPagar(ctx)]);
-  const blocos = await carregarBlocosDoMes(ctx, d.now);
+  const [blocos, valoresMeses] = await Promise.all([carregarBlocosDoMes(ctx, d.now), valoresDosMeses(ctx, mesesAte(d.year, d.month, 12))]);
+  const meses12 = montarMeses(valoresMeses, { ano: d.year, mes: d.month }, 12);
   const hoje = hojeEmBrasilia();
   const contasDaSemana = contasDoFoco(contas, hoje);
   const mesTitulo = MESES[d.month - 1].charAt(0).toUpperCase() + MESES[d.month - 1].slice(1);
@@ -53,50 +62,6 @@ export default async function FocoPage() {
   const contaNova = !comece.temLancamento;
   const cartaoAcao = "flex w-full items-center justify-between gap-4 text-left";
 
-  // Atalhos com nome (06/10/2026): decidir uma compra, achar os gastinhos e as calculadoras, que
-  // antes ninguém achava. Desde 07/10/2026 em quadrados, como os botões do Nubank e do Mercado Pago.
-  // Todas as perguntas continuam no Decidir, no Mais. A empresa não tem Decidir.
-  const atalhos = d.empresa ? null : (
-    <nav aria-label={t.decTitulo} className="grid grid-cols-4 gap-2 lg:flex lg:gap-3">
-      {[
-        { href: "/decidir/comprar", icone: ShoppingBag, rotulo: t.compraTitulo },
-        { href: "/decidir/raio-x", icone: ScanSearch, rotulo: t.raioxAtalho },
-        { href: "/simuladores", icone: Calculator, rotulo: t.calcTitulo },
-        // Decidir ganha lugar no Foco (07/10/2026): é o app ajudando a decidir, não só mostrando.
-        { href: "/decidir", icone: Signpost, rotulo: t.decTitulo },
-      ].map(({ href, icone: Icone, rotulo }) => (
-        <Link key={href} href={href} className="flex min-h-[5.25rem] flex-col items-center justify-center gap-1.5 rounded-2xl bg-surface-2 px-1 py-2 text-center transition-colors hover:bg-surface-hover lg:flex-1">
-          <Icone size={21} strokeWidth={1.8} className="text-accent-strong" aria-hidden />
-          <span className="text-xs font-medium leading-tight text-ink">{rotulo}</span>
-        </Link>
-      ))}
-    </nav>
-  );
-  // Seu outubro: Entrou, Gastou e Guardado lado a lado, e um toque abre o Mensal (07/10/2026: eram
-  // uma linha com "·" entre os números e um rótulo em caixa alta).
-  const seuMes = (
-    <Link href={d.hrefMes} className="flex flex-col gap-3 rounded-2xl border border-border bg-surface p-4 transition-colors hover:bg-surface-hover">
-      <span className="flex items-center justify-between gap-3">
-        <span className="text-base font-semibold text-ink">{t.focoResumoMes(d.mesLabel)}</span>
-        <ChevronRight size={18} className="shrink-0 text-ink-faint" aria-hidden />
-      </span>
-      <span className="grid grid-cols-3 gap-2">
-        {[
-          { rotulo: voz.titulos.entrou, valor: d.summary.totalIncome },
-          { rotulo: voz.titulos.gastou, valor: d.summary.totalExpense },
-          { rotulo: voz.titulos.aportou, valor: d.summary.totalInvestment },
-        ].map((x) => (
-          <span key={x.rotulo} className="flex min-w-0 flex-col justify-end">
-            {/* Duas linhas no rótulo: no Girly o terceiro é "Guardou para investir 🐷", e cortado
-                virava "Guardou para i…" (08/10/2026). O número fica alinhado embaixo nos três. */}
-            <span className="line-clamp-2 text-caption leading-tight text-ink-muted">{x.rotulo}</span>
-            <span className="block truncate text-[15px] font-semibold tabular-nums text-ink">{m(x.valor)}</span>
-          </span>
-        ))}
-      </span>
-    </Link>
-  );
-
   // O Foco em níveis (07/10/2026). A análise que a Dani trouxe: "tudo quer a atenção ao mesmo tempo;
   // onde eu olho?". Antes eram até dez cartões do mesmo peso (24 horas, Money Reset, contas, ano novo,
   // revisar, cancelamentos, fechamento, ritual, avisos, pergunta do ritmo). Agora:
@@ -104,10 +69,18 @@ export default async function FocoPage() {
   //   2. "Atenção hoje": UM problema (conta vencendo, categoria estourando, compra esperando as 24h);
   //   3. "Próxima ação": UMA tarefa (Money Reset, fechamento, ritual, ano novo, revisar…);
   //   4. o resto num "Mais N coisas", fechado. Nada sumiu: só não grita junto.
+  // O que a folha "O que fazer?" usa para sugerir de onde tirar (remanejo por prioridade).
+  const remanejo = {
+    categorias: d.categorias.map((c) => ({ key: c.key, label: c.label, planejado: c.planejado, gasto: c.gasto })),
+    essenciais: [...categoriasEssenciais(ctx.categorias?.prefs)],
+    livre: livre.tipo === "semOrcamento" ? null : livre.restante,
+    diasRestantes: livre.tipo === "semOrcamento" ? 1 : livre.diasRestantes,
+  };
   const avisoNo = (item: (typeof foco.atencao)[number]) => (
     <AvisoFoco
       key={item.id}
       item={item}
+      remanejo={remanejo}
       hrefMes={d.hrefMes}
       opcoes={d.opcoesDeCategoria}
       gastos={item.detalhe?.tipo === "fora" ? d.gastosFora : item.detalhe?.tipo === "estouro" || item.detalhe?.tipo === "ritmo" ? (d.gastosPorCategoria[item.detalhe.categoria] ?? []) : []}
@@ -123,7 +96,8 @@ export default async function FocoPage() {
       no: <ContasDoFoco contas={contasDaSemana.map(serializarConta)} atrasadas={contasDaSemana.filter((c) => c.situacao === "atrasada").length} hoje={iso(hoje)} />,
     });
   }
-  for (const item of [...foco.atencao, ...foco.depois]) problemas.push({ chave: item.id, no: avisoNo(item) });
+  // Os avisos (categoria que passou, meta atrasada, reserva curta) moram em "Decisões importantes".
+  const decisoes = [...foco.atencao, ...foco.depois];
   for (const p of d.pendentes) {
     problemas.push({
       chave: `24h-${p.id}`,
@@ -236,6 +210,35 @@ export default async function FocoPage() {
     });
   }
   const resto = [...problemas.slice(1), ...tarefas.slice(1)];
+  // O mês passado fechado: uma linha discreta para o resumão (rodada 42).
+  const textosFechamento = textosDoFechamento(d.fechamento.estado, d.mesAnterior.month, d.fechamento.em);
+  const apertado = d.empresa ? null : planoApertado({ renda: d.rendaDoMes, gastoPlanejado: livre.tipo === "semOrcamento" ? 0 : livre.planejado, regra90: ctx.profileKind !== "CASAL" });
+  const sobrouAgora = lerSobrou(sobrouDoResumo(d.summary));
+  const quadro = [
+    { rotulo: voz.titulos.entrou, valor: d.summary.totalIncome, cor: "var(--color-dinheiro-entrou)", fundo: "" },
+    { rotulo: voz.titulos.gastou, valor: d.summary.totalExpense, cor: "var(--color-dinheiro-gastou)", fundo: "" },
+    { rotulo: "Guardou", valor: d.summary.totalInvestment, cor: "var(--color-dinheiro-guardou)", fundo: "" },
+    { rotulo: sobrouAgora.rotulo, valor: sobrouAgora.valor, cor: sobrouAgora.situacao === "faltou" ? "var(--color-dinheiro-faltou)" : "var(--color-dinheiro-sobrou)", fundo: sobrouAgora.situacao === "faltou" ? "bg-[color-mix(in_srgb,var(--color-dinheiro-faltou)_12%,var(--color-surface))]" : "bg-[color-mix(in_srgb,var(--color-dinheiro-sobrou)_12%,var(--color-surface))]" },
+  ];
+  const mesAteAgora = (
+    <section className="flex flex-col gap-3">
+      <div className="flex items-center justify-between px-1">
+        <h2 className="titulo-tema text-lg font-medium text-ink">{mesTitulo} até agora</h2>
+        <Explica>Sobrou é o que entrou menos o que você gastou e o que guardou. Uma conta só, a mesma do gráfico.</Explica>
+      </div>
+      <div className="grid grid-cols-2 gap-2.5">
+        {quadro.map((q) => (
+          <Link key={q.rotulo} href={d.hrefMes} className={`flex min-w-0 flex-col gap-2 rounded-3xl border border-border p-4 ${q.fundo || "bg-surface"}`}>
+            <span className="flex items-center gap-2 text-sm text-ink-muted">
+              <span className="size-2 shrink-0 rounded-full" style={{ background: q.cor }} aria-hidden />
+              {q.rotulo}
+            </span>
+            <ValorDestaque texto={m(q.valor)} className="text-[1.5rem] font-light leading-none tracking-[-0.02em] tabular-nums text-ink" />
+          </Link>
+        ))}
+      </div>
+    </section>
+  );
 
   // O que vai bem e o "tudo em dia": a última linha da tela.
   const emDia = problemas.length === 0 && livre.tipo !== "semOrcamento";
@@ -371,11 +374,18 @@ export default async function FocoPage() {
         />
 
         {!contaNova && (
-          <div className="hidden lg:flex lg:flex-col lg:gap-5">
-            {atalhos}
-            <CartaoDoLimite ctx={ctx} compacto />
-            {seuMes}
-          </div>
+          <>
+            <DecisoesImportantes quantas={decisoes.length}>{decisoes.map((item) => avisoNo(item))}</DecisoesImportantes>
+            {/* Plano apertado (regra 3.8): o plano de gastos já usa 90% ou mais da renda. */}
+            {apertado && (
+              <p className="rounded-2xl px-4 py-3 text-sm text-ink" style={{ background: "color-mix(in srgb, var(--color-dinheiro-faltou) 12%, var(--color-surface))" }}>
+                {apertado.texto}{" "}
+                <Link href={apertado.atalho.href} className="font-medium text-accent-strong underline-offset-2 hover:underline">
+                  {apertado.atalho.rotulo}
+                </Link>
+              </p>
+            )}
+          </>
         )}
       </div>
 
@@ -388,6 +398,14 @@ export default async function FocoPage() {
           </Link>
         ) : (
           <>
+            {mesAteAgora}
+            <GraficoSeisMeses meses12={meses12} />
+            {d.fechamento.estado === "fechado" && (
+              <Link href="/mensal/foco/fechamento" className="flex min-h-11 items-center justify-between gap-3 px-1 text-sm text-ink-muted hover:text-ink">
+                {textosFechamento.linha}
+                <ChevronRight size={16} className="shrink-0" aria-hidden />
+              </Link>
+            )}
             {/* "Para hoje" (07/10/2026): o alerta e a próxima ação num bloco só, com um título em
                 letra normal. Eram dois rótulos em caixa alta, "Atenção hoje" e "Próxima ação". */}
             {(problemas.length > 0 || tarefas.length > 0) && (
@@ -398,8 +416,6 @@ export default async function FocoPage() {
               </section>
             )}
 
-            {/* Os atalhos logo depois do "Para hoje", ainda na primeira tela do celular. */}
-            {atalhos && <div className="lg:hidden">{atalhos}</div>}
 
             {resto.length > 0 && (
               <details className="group">
@@ -420,11 +436,6 @@ export default async function FocoPage() {
               <CombinadoFoco key={c.categoria} c={c} hrefMes={d.hrefMes} opcoes={d.opcoesDeCategoria} gastos={d.gastosPorCategoria[c.categoria] ?? []} resumo={d.resumoPorCategoria[c.categoria]} />
             ))}
 
-            {/* Limite do cartão e o mês: aqui no celular; no computador ficam à esquerda. */}
-            <div className="lg:hidden">
-              <CartaoDoLimite ctx={ctx} compacto />
-            </div>
-            <div className="lg:hidden">{seuMes}</div>
 
             {selo}
 

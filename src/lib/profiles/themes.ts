@@ -178,6 +178,8 @@ const PADRAO_CLARO: ModoBase = {
   border: "rgba(20, 20, 20, 0.10)",
   ink: "#141414", inkMuted: "#46433e", accent: "#8a500c", accentStrong: "#6e3f08", onAccent: "#ffffff",
   extras: {
+    // As cores do dinheiro (rodada 58): Entrou, Gastou, Guardou e Sobrou, iguais no app todo.
+    "dinheiro-entrou": "#3d4a6b", "dinheiro-gastou": "#c97f52", "dinheiro-guardou": "#8a500c", "dinheiro-sobrou": "#3d7a4f", "dinheiro-faltou": "#b7791f",
     ...FONTES.padrao,
     ...daFamilia({ moradia: "#466296", alimentacao: "#ba5434", transporte: "#267680", saude: "#408060", lazer: "#b07814", educacao: "#7056a8", impostos: "#78746c", outros: "#b24870" }),
     ...sinais({ success: "#3d7a4f", danger: "#a9503b", info: "#56637f", neutro: "#8a500c" }, false),
@@ -194,6 +196,8 @@ const PADRAO_ESCURO: ModoBase = {
   border: "rgba(212, 207, 201, 0.10)",
   ink: "#d4cfc9", inkMuted: "#99958f", accent: "#d1aa73", onAccent: "#100e0c",
   extras: {
+    // As cores do dinheiro (rodada 58): Entrou, Gastou, Guardou e Sobrou, iguais no app todo.
+    "dinheiro-entrou": "#8e9ab5", "dinheiro-gastou": "#c98a63", "dinheiro-guardou": "#d1aa73", "dinheiro-sobrou": "#8fb79c", "dinheiro-faltou": "#b7791f",
     ...FONTES.padrao,
     ...daFamilia({ moradia: "#a18863", alimentacao: "#967466", transporte: "#858669", saude: "#a49781", lazer: "#747e8d", educacao: "#837d76", impostos: "#7d7974", outros: "#8c867b" }),
     ...sinais({ success: "#8fb79c", danger: "#ca9186", info: "#7f8695", neutro: "#a88b5e" }, true),
@@ -212,6 +216,8 @@ const GIRLY_CLARO: ModoBase = {
   border: "rgba(30, 21, 23, 0.10)",
   ink: "#1e1517", inkMuted: "#4d3e42", accent: "#9c3d5c", accentStrong: "#7a2b47", onAccent: "#ffffff",
   extras: {
+    // As cores do dinheiro (rodada 58): Entrou, Gastou, Guardou e Sobrou, iguais no app todo.
+    "dinheiro-entrou": "#3e7a5e", "dinheiro-gastou": "#c08a6a", "dinheiro-guardou": "#9c3d5c", "dinheiro-sobrou": "#6e68a8", "dinheiro-faltou": "#b7791f",
     ...FONTES.girly,
     ...daFamilia({ moradia: "#8c6355", alimentacao: "#b0605a", transporte: "#5f8475", saude: "#b25a7d", lazer: "#9a6a9e", educacao: "#6f5486", impostos: "#7b5f9e", outros: "#9c7f4e" }),
     ...sinais({ success: "#3e7a5e", danger: "#8c2632", info: "#6e68a8", neutro: "#9c3d5c" }, false),
@@ -226,6 +232,8 @@ const GIRLY_ESCURO: ModoBase = {
   border: "rgba(219, 203, 209, 0.10)",
   ink: "#dbcbd1", inkMuted: "#a29198", accent: "#c89dac", onAccent: "#130c0f",
   extras: {
+    // As cores do dinheiro (rodada 58): Entrou, Gastou, Guardou e Sobrou, iguais no app todo.
+    "dinheiro-entrou": "#8cc7a8", "dinheiro-gastou": "#d9a88e", "dinheiro-guardou": "#e0a2b8", "dinheiro-sobrou": "#a29bc0", "dinheiro-faltou": "#b7791f",
     ...FONTES.girly,
     ...daFamilia({ moradia: "#978078", alimentacao: "#9e7a73", transporte: "#7e9289", saude: "#a27e8c", lazer: "#97829a", educacao: "#897f9c", impostos: "#8d87a5", outros: "#9f9079" }),
     ...sinais({ success: "#92b4a0", danger: "#ce949c", info: "#8d87a5", neutro: "#a98792" }, true),
@@ -244,6 +252,8 @@ const MANIFESTACAO_CLARO: ModoBase = {
   border: "rgba(25, 24, 38, 0.10)",
   ink: "#191826", inkMuted: "#3a3757", accent: "#5b4fa8", accentStrong: "#463a94", onAccent: "#ffffff",
   extras: {
+    // As cores do dinheiro (rodada 58): Entrou, Gastou, Guardou e Sobrou, iguais no app todo.
+    "dinheiro-entrou": "#4a6fa6", "dinheiro-gastou": "#b86e98", "dinheiro-guardou": "#463a94", "dinheiro-sobrou": "#2f7a6e", "dinheiro-faltou": "#b7791f",
     ...FONTES.manifestacao,
     ...daFamilia({ moradia: "#6e5fc7", alimentacao: "#a8618f", transporte: "#55779f", saude: "#b8708f", lazer: "#7d7999", educacao: "#3f4a9e", impostos: "#4b7c9c", outros: "#8a73c2" }),
     ...sinais({ success: "#1e5f57", danger: "#8a2d47", info: "#5a7db0", neutro: "#8780c2" }, false),
@@ -258,6 +268,8 @@ const MANIFESTACAO_ESCURO: ModoBase = {
   border: "rgba(205, 207, 221, 0.10)",
   ink: "#cdcfdd", inkMuted: "#9395a5", accent: "#aaa3da", onAccent: "#0c0d1a",
   extras: {
+    // As cores do dinheiro (rodada 58): Entrou, Gastou, Guardou e Sobrou, iguais no app todo.
+    "dinheiro-entrou": "#9fb9e3", "dinheiro-gastou": "#e2a6c6", "dinheiro-guardou": "#c4bbff", "dinheiro-sobrou": "#8bbaaf", "dinheiro-faltou": "#b7791f",
     ...FONTES.manifestacao,
     ...daFamilia({ moradia: "#827ca7", alimentacao: "#9c7e93", transporte: "#7887a1", saude: "#a78895", lazer: "#858397", educacao: "#73789e", impostos: "#788e9d", outros: "#9088ab" }),
     ...sinais({ success: "#8bbaaf", danger: "#d09aaa", info: "#7f8ea8", neutro: "#958fba" }, true),
@@ -276,6 +288,8 @@ const TITANIO_CLARO: ModoBase = {
   border: "rgba(17, 18, 20, 0.10)",
   ink: "#111214", inkMuted: "#3c3e43", accent: "#c2410c", accentStrong: "#a3341c", onAccent: "#ffffff",
   extras: {
+    // As cores do dinheiro (rodada 58): Entrou, Gastou, Guardou e Sobrou, iguais no app todo.
+    "dinheiro-entrou": "#2f4058", "dinheiro-gastou": "#d9763a", "dinheiro-guardou": "#8a3a0c", "dinheiro-sobrou": "#2f6b4a", "dinheiro-faltou": "#b7791f",
     ...FONTES.titanio,
     ...daFamilia({ moradia: "#d9480f", alimentacao: "#4d5f7a", transporte: "#4f8a68", saude: "#6e7a88", lazer: "#e8894e", educacao: "#2a2c30", impostos: "#b5652e", outros: "#8c8f94" }),
     ...sinais({ success: "#2f6b4a", danger: "#a3341c", info: "#4d5f7a", neutro: "#d9480f" }, false),
@@ -292,6 +306,8 @@ const TITANIO_ESCURO: ModoBase = {
   border: "rgba(255, 255, 255, 0.10)",
   ink: "#f3efe8", inkMuted: "#cfc8bd", accent: "#ff7a3d", onAccent: "#141518",
   extras: {
+    // As cores do dinheiro (rodada 58): Entrou, Gastou, Guardou e Sobrou, iguais no app todo.
+    "dinheiro-entrou": "#a7b6cc", "dinheiro-gastou": "#e8854f", "dinheiro-guardou": "#ffc4a3", "dinheiro-sobrou": "#8ccba4", "dinheiro-faltou": "#b7791f",
     ...FONTES.titanio,
     ...daFamilia({ moradia: "#ff7a3d", alimentacao: "#a7b6cc", transporte: "#8ccba4", saude: "#c4cbd6", lazer: "#ffae80", educacao: "#7e8188", impostos: "#e39a62", outros: "#b6b8bc" }),
     ...sinais({ success: "#8ccba4", danger: "#ff9c7a", info: "#a7b6cc", neutro: "#ff7a3d" }, true),

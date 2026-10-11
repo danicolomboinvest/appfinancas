@@ -364,7 +364,7 @@ export const faltamDias = (n: number) => (n === 1 ? "falta 1 dia" : `faltam ${n}
 
 export const PADRAO_FOCO: TextosFoco = {
   focoTitulo: "Foco",
-  focoLivreSemana: "Livre na semana",
+  focoLivreSemana: "Livre para gastar até domingo",
   focoLivreMes: "Livre no mês",
   focoLivreSub: "o que ainda sobra no seu orçamento do mês",
   focoLivreEstimativa: "Livre no mês (estimativa)",
@@ -378,7 +378,7 @@ export const PADRAO_FOCO: TextosFoco = {
   focoDadosVelhos: (d) => `Seus últimos gastos lançados são de ${d} dias atrás. Esse número pode estar alto demais.`,
   focoImportar: "Importar extrato",
   focoAtencao: "Para fazer",
-  focoVerbo: { estouro: "Ajustar", ritmo: "Ajustar", aporte: "Guardar", meta: "Ajustar", reserva: "Ver", raiox: "Ver", fora: "Ver" },
+  focoVerbo: { estouro: "O que fazer?", ritmo: "Ajustar", aporte: "Guardar", meta: "Ajustar", reserva: "Ver", raiox: "Ver", fora: "Ver" },
   focoNadaTitulo: "Tudo em dia por hoje",
   focoNadaSub: "Aproveita.",
   focoMaisEsperam: (n) => `+ ${n} ${n > 1 ? "coisas podem" : "coisa pode"} esperar`,

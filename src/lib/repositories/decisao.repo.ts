@@ -38,7 +38,9 @@ export type TipoDecisao =
   | "reset_resposta"
   /** Conquista já comemorada (a notificação com confete apareceu): "meta|<id>",
    * "primeiro-fechamento", "reset". Uma vez cada, nunca de novo. */
-  | "conquista";
+  | "conquista"
+  /** O mês fechado que ela reabriu (chave "2026-09"). Fechar de novo apaga esta marca. */
+  | "fechamento_reaberto";
 
 export type NovaDecisao = {
   tipo: TipoDecisao;
@@ -87,6 +89,14 @@ export async function registrarDecisaoUnica(ctx: AuthContext, d: NovaDecisao & {
 export async function lerDecisao(ctx: AuthContext, tipo: TipoDecisao, chave: string): Promise<string | null> {
   const d = await prisma.decisao.findFirst({ where: { userId: ctx.userId, profileId: ctx.profileId, tipo, chave }, orderBy: { createdAt: "desc" }, select: { descricao: true } });
   return d ? (d.descricao ?? "") : null;
+}
+
+/** As marcas de fechamento de um mês ("fechamento" e "fechamento_reaberto"), para o estado dele. */
+export async function marcasDoFechamento(ctx: AuthContext, chave: string): Promise<{ tipo: string; createdAt: Date }[]> {
+  return prisma.decisao.findMany({
+    where: { userId: ctx.userId, profileId: ctx.profileId, chave, tipo: { in: ["fechamento", "fechamento_reaberto"] } },
+    select: { tipo: true, createdAt: true },
+  });
 }
 
 export async function existeDecisao(ctx: AuthContext, tipo: TipoDecisao, chave: string): Promise<boolean> {

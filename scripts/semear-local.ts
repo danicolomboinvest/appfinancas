@@ -31,7 +31,12 @@ const SENHA = "senha-de-teste-local";
 type Linha = [ParentCategory, string, number, number];
 
 async function main() {
-  await prisma.user.deleteMany({ where: { email: EMAIL } });
+  // Apaga a Ana anterior: os perfis levam junto tudo que é deles (lançamentos, plano, metas).
+  const antiga = await prisma.user.findUnique({ where: { email: EMAIL }, select: { id: true } });
+  if (antiga) {
+    await prisma.financialProfile.deleteMany({ where: { userId: antiga.id } });
+    await prisma.user.delete({ where: { id: antiga.id } });
+  }
   await prisma.allowedEmail.upsert({ where: { email: EMAIL }, update: { active: true }, create: { email: EMAIL, note: "conta de teste local" } });
 
   const user = await prisma.user.create({
@@ -81,9 +86,13 @@ async function main() {
   ];
   for (const [mes, entrou, gastou, guardou] of meses) {
     lanca(2026, mes, 2, "INCOME", null, "Salário", "Salário", entrou);
-    let resto = gastou;
+    // As assinaturas todo mês (o Raio-X e as Recorrentes reconhecem pelo extrato).
+    lanca(2026, mes, 1, "EXPENSE", "LAZER", "Streaming", "Netflix", 55.9);
+    lanca(2026, mes, 1, "EXPENSE", "LAZER", "Streaming", "Spotify", 21.9);
+    lanca(2026, mes, 2, "EXPENSE", "LAZER", "Assinatura", "iCloud", 4.9);
+    let resto = gastou - 55.9 - 21.9 - 4.9;
     PESOS.forEach(([cat, sub, desc, peso], i) => {
-      const valor = i === PESOS.length - 1 ? resto : Math.round(gastou * peso);
+      const valor = i === PESOS.length - 1 ? Math.round(resto * 100) / 100 : Math.round(gastou * peso);
       resto -= valor;
       lanca(2026, mes, 5 + i, "EXPENSE", cat, sub, desc, valor);
     });
@@ -115,6 +124,20 @@ async function main() {
     { ...dono, name: "VOO", ticker: "VOO", assetClass: "INTERNACIONAL", objective: "OUTRO", currency: "USD", nativeCurrentValue: 251.47, exchangeRate: 5.45, currentValue: 1371, investedValue: 1360 },
   ];
   await prisma.asset.createMany({ data: ativos });
+
+  // As contas do mês (Recorrentes): duas já pagas, duas a vencer.
+  const dia = (d: number) => new Date(Date.UTC(2026, 9, d));
+  await prisma.contaAPagar.createMany({
+    data: [
+      // Pagas no dia 1: a que repete já aponta para o próximo vencimento (1º de novembro).
+      { ...dono, nome: "Aluguel", valor: 2200, vencimento: new Date(Date.UTC(2026, 10, 1)), diaDoMes: 1, repete: true, pagaEm: dia(1) },
+      { ...dono, nome: "Condomínio", valor: 300, vencimento: new Date(Date.UTC(2026, 10, 1)), diaDoMes: 1, repete: true, pagaEm: dia(1) },
+      { ...dono, nome: "Enel", valor: null, vencimento: dia(14), diaDoMes: 14, repete: true },
+      { ...dono, nome: "Vivo Fibra", valor: 99.9, vencimento: dia(13), diaDoMes: 13, repete: true },
+      { ...dono, nome: "Curso de inglês", valor: 249, vencimento: dia(20), diaDoMes: 20, repete: true },
+    ],
+  });
+  await prisma.emergencyFund.create({ data: { ...dono, targetMonths: 3, monthlyExpenseBase: 7000, targetAmount: 21000, currentAmount: 4200, monthlyContribution: 600, annualRate: 0.1 } });
 
   console.log(`Pronto: ${EMAIL} com ${entradas.length} lançamentos, 3 metas e ${ativos.length} ativos (banco local).`);
 }

@@ -2,14 +2,18 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeftRight, ChevronDown, Pencil } from "lucide-react";
+import { Pencil, Tag } from "lucide-react";
+import { Modal } from "@/components/ui/Modal";
+import { CategoryIcon } from "@/components/ui/CategoryIcon";
+import { LogoDoLancamento } from "@/components/ui/LogoDoLancamento";
+import { OQueFazer } from "./OQueFazer";
 import { CurrencyInputControlled } from "@/components/ui/CurrencyInputControlled";
 import { useToast } from "@/components/ui/toast-context";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { useMoney } from "@/components/money/MoneyProvider";
-import { emojiEscolhido } from "@/lib/categories";
-import type { CategoriaDoMes, EstadoDaCategoria } from "@/lib/planning/orcamento-categorias";
-import { cobrirCategoriaAction, definirPlanoDaCategoriaAction } from "@/app/(app)/orcamento/actions";
+import { CUSTOM_CATEGORY_ICON_MAP, categoryIcon, emojiEscolhido, isParentCategoryKey } from "@/lib/categories";
+import type { CategoriaDoMes } from "@/lib/planning/orcamento-categorias";
+import { definirPlanoDaCategoriaAction } from "@/app/(app)/orcamento/actions";
 
 export type LinhaDaCategoria = CategoriaDoMes & {
   cor: string;
@@ -21,21 +25,12 @@ export type LinhaDaCategoria = CategoriaDoMes & {
   sugestao: { passou: number; meses: number; sugerido: number } | null;
 };
 
-/** Âmbar fixo, não a cor de destaque do tema: no Girly ela é rosa e no Game ciano, e "vai passar"
- * pintado de ciano parecia coisa boa. Atenção é âmbar em qualquer tema. */
-const AMBAR = "#E8A33A";
 
 /**
  * Ao lado do nome: o emoji que a própria pessoa escolheu para a categoria, quando escolheu
  * (emoji fica só no que a pessoa escreve). Sem escolha, um ponto na cor da categoria no tema
  * (versão nova, 11/10/2026: sem emoji na interface).
  */
-const COR: Record<EstadoDaCategoria, string> = {
-  dentro: "var(--color-success)",
-  "vai-passar": AMBAR,
-  passou: "var(--color-danger)",
-  "sem-plano": "var(--color-ink-faint)",
-};
 
 /**
  * As categorias do mês no jeito do Copilot (01/10/2026), aprovado pela Dani: a barra pinta pela
@@ -46,66 +41,76 @@ const COR: Record<EstadoDaCategoria, string> = {
 export function CategoriasDoMes({
   mes,
   linhas,
-  cobrir,
+  essenciais = [],
+  livre = null,
+  diasRestantes = 1,
 }: {
   mes: string;
   linhas: LinhaDaCategoria[];
-  cobrir: { de: string; deLabel: string; para: string; paraLabel: string; valor: number } | null;
+  /** Categorias criadas pela pessoa e marcadas "É essencial": nunca viram origem do remanejo. */
+  essenciais?: string[];
+  livre?: number | null;
+  diasRestantes?: number;
+  /** Compatibilidade: a sugestão de um toque saiu para a folha "O que fazer?". */
+  cobrir?: unknown;
 }) {
   const money = useMoney();
   const m = (v: number) => money(v, { round: true });
   const { categorias } = useProfileTheme();
-  const router = useRouter();
-  const { showToast, showError } = useToast();
-  // Todas fechadas (07/10/2026): a lista responde "qual categoria está apertada?" pelo anel e pelo
-  // valor; o detalhe de cada uma (previsão, a vencer, lápis) abre no toque.
+  // Todas fechadas: o detalhe de cada uma (histórico, lápis, maiores gastos) abre no toque.
   const [aberta, setAberta] = useState<string | null>(null);
-  const [pendente, iniciar] = useTransition();
-
-  // O emoji que ela escolheu (04/10/2026) vale em qualquer tema.
-  const emoji = (l: LinhaDaCategoria): string | null => emojiEscolhido(categorias, l.key) ?? null;
-
-  function fazerCobrir() {
-    if (!cobrir) return;
-    iniciar(async () => {
-      const r = await cobrirCategoriaAction({ de: cobrir.de, para: cobrir.para, valor: cobrir.valor });
-      if (r.error) return showError(r.error);
-      showToast(`Pronto: ${m(cobrir.valor)} de ${cobrir.deLabel} foram para ${cobrir.paraLabel} neste mês.`);
-      router.refresh();
-    });
-  }
+  const [resolvendo, setResolvendo] = useState<LinhaDaCategoria | null>(null);
+  const paraRemanejo = linhas.map((l) => ({ key: l.key, label: l.label, planejado: l.planejado, gasto: l.gasto + l.aVencer }));
 
   return (
     <div className="flex flex-col gap-3">
       <ul className="flex flex-col divide-y divide-border">
         {linhas.map((l) => {
-          const base = Math.max(l.planejado, l.gasto + l.aVencer, 1);
-          const cheio = Math.min(100, (l.gasto / base) * 100);
-          const reservado = Math.min(100 - cheio, (l.aVencer / base) * 100);
-          const e = emoji(l);
+          const gasto = l.gasto + l.aVencer;
+          const pct = l.planejado > 0 ? Math.round((gasto / l.planejado) * 100) : null;
+          const largura = l.planejado > 0 ? Math.min(100, (gasto / l.planejado) * 100) : 0;
+          const passou = l.estado === "passou";
           const estaAberta = aberta === l.key;
+          const escolhido = emojiEscolhido(categorias, l.key);
+          const Icone = isParentCategoryKey(l.key) ? categoryIcon(categorias, l.key) : (CUSTOM_CATEGORY_ICON_MAP[l.iconeProprio ?? ""] ?? Tag);
           return (
-            <li key={l.key} className="py-2.5 first:pt-0">
-              <button type="button" onClick={() => setAberta(estaAberta ? null : l.key)} aria-expanded={estaAberta} className="flex w-full flex-col gap-1.5 text-left">
-                <span className="flex items-center gap-2">
-                  {e ? (
-                    <span className="w-5 shrink-0 text-center text-base leading-none" aria-hidden>
-                      {e}
-                    </span>
-                  ) : (
-                    <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: l.cor }} aria-hidden />
-                  )}
-                  <span className="min-w-0 flex-1 truncate text-[15px] font-medium text-ink">{l.label}</span>
-                  {/* O número na frente, a palavra pequena atrás (07/10/2026): "R$ 1.140 livre". */}
-                  <span className={`shrink-0 text-[15px] font-semibold tabular-nums ${l.estado === "passou" ? "text-danger" : "text-ink"}`}>
-                    {m(l.estado === "sem-plano" ? l.gasto : Math.abs(l.sobra))}
-                    <span className="ml-1 text-caption font-normal text-ink-muted">{l.estado === "sem-plano" ? "sem plano" : l.sobra >= 0 ? "livre" : "acima"}</span>
+            <li key={l.key} className="py-3.5 first:pt-1">
+              <button
+                type="button"
+                onClick={() => (passou ? setResolvendo(l) : setAberta(estaAberta ? null : l.key))}
+                aria-expanded={passou ? undefined : estaAberta}
+                className="flex w-full items-start gap-3 text-left"
+              >
+                {escolhido ? (
+                  <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-surface-2 text-xl" aria-hidden>
+                    {escolhido}
                   </span>
-                  <ChevronDown size={14} className={`shrink-0 text-ink-faint transition-transform ${estaAberta ? "rotate-180" : ""}`} aria-hidden />
-                </span>
-                <span className="flex h-2 overflow-hidden rounded-full bg-surface-2">
-                  <span className="h-full" style={{ width: `${cheio}%`, backgroundColor: COR[l.estado] }} />
-                  {reservado > 0 && <span className="h-full rounded-r-full border-[1.5px] border-l-0 border-dashed border-ink-faint" style={{ width: `${reservado}%` }} />}
+                ) : (
+                  <CategoryIcon icon={Icone} color={l.cor} size={44} variant="soft" />
+                )}
+                <span className="flex min-w-0 flex-1 flex-col gap-1.5">
+                  <span className="flex items-baseline justify-between gap-3">
+                    <span className="min-w-0 truncate text-[16px] text-ink">{l.label}</span>
+                    {pct !== null && (
+                      <span className={`shrink-0 text-[16px] tabular-nums ${passou ? "text-danger" : "text-ink"}`}>
+                        {pct}
+                        <span className="text-[0.75em]">%</span>
+                      </span>
+                    )}
+                  </span>
+                  {/* A barra em degradê do verde ao vermelho: o pedaço já gasto mostra até onde chegou. */}
+                  <span className="relative h-1 overflow-hidden rounded-full bg-surface-2">
+                    <span
+                      className="absolute inset-y-0 left-0 rounded-full"
+                      style={{ width: `${largura}%`, backgroundImage: "linear-gradient(90deg, var(--color-success), #cfaa4e 55%, #c9834a 80%, var(--color-danger))", backgroundSize: `${largura > 0 ? (100 / largura) * 100 : 100}% 100%` }}
+                    />
+                  </span>
+                  <span className="flex flex-wrap items-baseline justify-between gap-x-3 text-sm">
+                    <span className="tabular-nums text-ink-muted">{l.planejado > 0 ? `${m(gasto)} de ${m(l.planejado)}` : `${m(gasto)} sem plano`}</span>
+                    {l.planejado > 0 && (
+                      <span className={`tabular-nums ${passou ? "text-danger" : "text-success"}`}>{passou ? `passou ${m(Math.abs(l.sobra))}` : `sobram ${m(Math.max(0, l.sobra))}`}</span>
+                    )}
+                  </span>
                 </span>
               </button>
               {estaAberta && (
@@ -118,20 +123,35 @@ export function CategoriasDoMes({
         })}
       </ul>
 
-      {/* O que cada cor quer dizer mora no "?" do título da seção, na página (07/10/2026). */}
-
-      {cobrir && (
-        <div className="flex items-center gap-3 rounded-2xl bg-surface-2 p-3">
-          <ArrowLeftRight size={18} className="shrink-0 text-accent-strong" aria-hidden />
-          <span className="min-w-0 flex-1 text-sm text-ink">
-            {cobrir.paraLabel} passou {m(cobrir.valor)}. Cobrir com a sobra de {cobrir.deLabel}?
-          </span>
-          <button type="button" disabled={pendente} onClick={fazerCobrir} className="min-h-11 shrink-0 rounded-full bg-pill px-4 text-sm font-semibold text-on-pill disabled:opacity-50">
-            {pendente ? "…" : "Cobrir"}
-          </button>
-        </div>
-      )}
-
+      <Modal open={resolvendo !== null} onClose={() => setResolvendo(null)} title={resolvendo ? `${resolvendo.label} passou do plano` : ""}>
+        {resolvendo && (
+          <OQueFazer
+            categoria={{ key: resolvendo.key, label: resolvendo.label, planejado: resolvendo.planejado, gasto: resolvendo.gasto + resolvendo.aVencer }}
+            categorias={paraRemanejo}
+            essenciais={essenciais}
+            livre={livre}
+            diasRestantes={diasRestantes}
+            revisao={resolvendo.sugestao ? { mediana: resolvendo.sugestao.sugerido } : null}
+            onFeito={() => setResolvendo(null)}
+            oQuePesou={
+              resolvendo.maiores.length > 0 ? (
+                <ul className="flex flex-col divide-y divide-border">
+                  {resolvendo.maiores.map((g) => (
+                    <li key={g.descricao} className="flex items-center gap-3 py-2">
+                      <LogoDoLancamento descricao={g.descricao} icon={Tag} size={36} />
+                      <span className="min-w-0 flex-1 truncate text-sm text-ink">
+                        {g.descricao}
+                        {g.vezes > 1 && <span className="text-ink-muted"> ({g.vezes}x)</span>}
+                      </span>
+                      <span className="shrink-0 text-sm tabular-nums text-ink">{m(g.valor)}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : undefined
+            }
+          />
+        )}
+      </Modal>
     </div>
   );
 }

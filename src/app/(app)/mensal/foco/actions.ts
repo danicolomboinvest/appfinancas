@@ -214,9 +214,20 @@ export async function concluirRitualAction(tipo: "ritual" | "fechamento", chave:
   const texto = z.string().catch("").parse(resumo).slice(0, 200);
   const ctx = await getRequiredSession();
   const primeiro = tipo === "fechamento" && (await ehPrimeiroFechamento(ctx, k));
-  await registrarDecisaoUnica(ctx, { tipo, chave: k, descricao: texto });
+  // Fechar de novo um mês reaberto apaga a marca de reaberto: os dois estados nunca convivem.
+  await registrarDecisaoUnica(ctx, { tipo, chave: k, descricao: texto }, tipo === "fechamento" ? ["fechamento", "fechamento_reaberto"] : [tipo]);
   revalidatePath("/mensal/foco");
   return { primeiro };
+}
+
+/** "Reabrir setembro" (rodada 42): o mês volta a aparecer para fechar. Os números não mudam. */
+export async function reabrirMesAction(chave: string): Promise<{ ok: boolean }> {
+  const k = z.string().regex(/^\d{4}-\d{2}$/).safeParse(chave);
+  if (!k.success) return { ok: false };
+  const ctx = await getRequiredSession();
+  await registrarDecisaoUnica(ctx, { tipo: "fechamento_reaberto", chave: k.data }, ["fechamento", "fechamento_reaberto"]);
+  revalidatePath("/mensal/foco", "layout");
+  return { ok: true };
 }
 
 const erradoSchema = z.object({

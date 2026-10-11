@@ -264,12 +264,13 @@ export function EditarPropria({ categoria, onFechar }: { categoria: Propria; onF
   const [icone, setIcone] = useState<string | null>(categoria.icon);
   const [cor, setCor] = useState<string | null>(corEscolhida(categorias, categoria.id));
   const [emoji, setEmoji] = useState(emojiEscolhido(categorias, categoria.id) ?? "");
+  const [essencial, setEssencial] = useState(categorias.prefs.proprias?.[categoria.id]?.essencial === true);
   const [confirmar, setConfirmar] = useState(false);
   const [pendente, iniciar] = useTransition();
 
   function salvar() {
     iniciar(async () => {
-      const r = await editarCategoriaPropriaAction({ id: categoria.id, nome, icone: icone ?? "tag", cor, emoji: emoji || null });
+      const r = await editarCategoriaPropriaAction({ id: categoria.id, nome, icone: icone ?? "tag", cor, emoji: emoji || null, essencial });
       if (r.error) return showError(r.error);
       showToast("Categoria salva.");
       onFechar();
@@ -304,6 +305,14 @@ export function EditarPropria({ categoria, onFechar }: { categoria: Propria; onF
         <span className="text-xs font-medium text-ink-muted">Cor</span>
         <EscolherCor valor={cor} onEscolher={setCor} padrao={colorForCategorySlice({ kind: "custom", value: categoria.id })} />
       </div>
+      {/* Versão nova: categoria essencial nunca é sugerida para cobrir outra que passou do plano. */}
+      <label className="flex min-h-11 items-center justify-between gap-3 rounded-xl bg-surface-2 px-3 py-2">
+        <span className="min-w-0">
+          <span className="block text-sm font-medium text-ink">É essencial</span>
+          <span className="block text-caption text-ink-muted">O app nunca sugere tirar dinheiro dela para cobrir outra.</span>
+        </span>
+        <input type="checkbox" checked={essencial} onChange={(e) => setEssencial(e.target.checked)} className="h-5 w-5 shrink-0 accent-accent" />
+      </label>
       <div className="flex flex-wrap items-center gap-2">
         <button type="button" disabled={pendente || !nome.trim() || (emoji !== "" && !emojiValido(emoji))} onClick={salvar} className="min-h-11 rounded-full bg-accent px-5 text-sm font-semibold text-on-accent disabled:opacity-50">
           {pendente ? "Salvando…" : "Salvar"}

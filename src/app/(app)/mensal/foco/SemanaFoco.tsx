@@ -1,20 +1,14 @@
 import type { ReactNode } from "react";
 import { NumeroRolante } from "@/components/ui/NumeroRolante";
-import { NUMERO_DESTAQUE } from "@/components/ui/ValorDestaque";
+import { NUMERO_DESTAQUE, ValorDestaque } from "@/components/ui/ValorDestaque";
 import { HeroiDoTema } from "@/components/ui/HeroiDoTema";
 import type { Ritmo } from "@/lib/profiles/voice-base";
 import { diaDaSemana, previsaoDoMes } from "@/lib/decisoes/foco-semana";
 
 const DIAS = ["S", "T", "Q", "Q", "S", "S", "D"];
 
-/** A pílula do ritmo, por cima do herói pintado: o estado com palavra, nunca só a cor. */
-const PILULA: Record<Ritmo, string> = {
-  dentro: "bg-success text-white",
-  limite: "heroi-veu-forte text-heroi-tinta",
-  rapido: "bg-danger text-white",
-};
 /** A régua dos dias: hoje na cor do ritmo; no ritmo, a cor da marca do tema. */
-const HOJE: Record<Ritmo, string> = { dentro: "bg-[var(--color-heroi-destaque)]", limite: "bg-[var(--color-heroi-destaque)]", rapido: "bg-danger" };
+const HOJE: Record<Ritmo, string> = { dentro: "bg-[var(--color-heroi-tinta)]", limite: "bg-[var(--color-heroi-destaque)]", rapido: "bg-danger" };
 
 /**
  * O topo da Foco (01/10/2026): uma pergunta só, "quanto posso gastar?", respondida grande.
@@ -65,45 +59,48 @@ export function SemanaFoco({
 
   return (
     <HeroiDoTema>
-      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
-        <p className="min-w-[8rem] flex-1 text-sm font-medium text-heroi-suave">{rotulo}</p>
-        <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${PILULA[ritmo]}`}>{frase}</span>
-      </div>
+      {/* Versão nova (protótipo aprovado): o rótulo, o número leve e grande, a régua da semana e
+          dois quadrinhos de vidro (por dia e fim do mês). O ritmo fala pela cor do tracinho de
+          hoje e pelo nome no leitor de tela; a pílula com texto saiu do herói. */}
+      <p className="text-[15px] text-heroi-suave">
+        {rotulo}
+        <span className="sr-only">. {frase}</span>
+      </p>
       <NumeroRolante texto={money(valor)} className={NUMERO_DESTAQUE} />
 
       {tipo === "semana" ? (
-        <div className="flex flex-col gap-1" aria-label={`Hoje é o dia ${indice + 1} de 7 da semana`}>
+        <div className="flex flex-col gap-1.5" aria-label={`Hoje é o dia ${indice + 1} de 7 da semana`}>
           <div className="flex gap-1.5">
             {DIAS.map((_, i) => (
-              <span key={i} className={`h-2 flex-1 rounded-full ${i < indice ? "heroi-veu-forte" : i === indice ? `${HOJE[ritmo]} animate-pulse` : "heroi-veu"}`} />
+              <span
+                key={i}
+                className={`h-1 flex-1 rounded-full ${i < indice ? "bg-[color-mix(in_srgb,var(--color-heroi-tinta)_32%,transparent)]" : i === indice ? HOJE[ritmo] : "bg-[color-mix(in_srgb,var(--color-surface)_75%,transparent)]"}`}
+              />
             ))}
           </div>
           <div className="flex gap-1.5 text-xs text-heroi-suave">
             {DIAS.map((l, i) => (
-              <span key={i} className={`flex-1 text-center ${i === indice ? "font-bold text-heroi-tinta" : ""}`}>
+              <span key={i} className={`flex-1 text-center ${i === indice ? "font-semibold text-heroi-tinta" : ""}`}>
                 {l}
               </span>
             ))}
           </div>
         </div>
       ) : (
-        <div className="heroi-veu h-2 overflow-hidden rounded-full" aria-label={`${Math.round(decorrido * 100)}% do mês já passou`}>
-          <div className={`h-2 rounded-full ${HOJE[ritmo]}`} style={{ width: `${Math.min(100, Math.round(decorrido * 100))}%` }} />
+        <div className="h-1 overflow-hidden rounded-full bg-[color-mix(in_srgb,var(--color-surface)_75%,transparent)]" aria-label={`${Math.round(decorrido * 100)}% do mês já passou`}>
+          <div className={`h-1 rounded-full ${HOJE[ritmo]}`} style={{ width: `${Math.min(100, Math.round(decorrido * 100))}%` }} />
         </div>
       )}
 
-      <div className="heroi-fio grid grid-cols-2 border-t pt-3">
-        <div className="min-w-0">
+      <div className="grid grid-cols-2 gap-2.5">
+        <div className="vidro-heroi min-w-0 rounded-2xl px-3.5 py-3">
           <p className="text-caption text-heroi-suave">{rotulos.porDia}</p>
-          <p className="text-lg font-bold tabular-nums">{money(porDia)}</p>
+          <ValorDestaque texto={money(porDia)} className="mt-0.5 text-[1.25rem] font-normal tabular-nums" />
         </div>
         {previsao !== null && (
-          <div className="heroi-fio min-w-0 border-l pl-4">
+          <div className="vidro-heroi min-w-0 rounded-2xl px-3.5 py-3">
             <p className="text-caption text-heroi-suave">{rotulos.fimDoMes}</p>
-            <p className="text-lg font-bold tabular-nums">
-              {previsao >= 0 ? "+" : "−"}
-              {money(Math.abs(previsao))}
-            </p>
+            <ValorDestaque texto={`${previsao >= 0 ? "+" : "−"}${money(Math.abs(previsao))}`} className="mt-0.5 text-[1.25rem] font-normal tabular-nums" />
           </div>
         )}
       </div>

@@ -659,6 +659,16 @@ html.light {
 
 /* Véus dentro do herói (06/10/2026): saem da cor do texto do herói, então funcionam no bloco
    pintado (texto branco, véu branco) e no do Padrão (texto do tema, claro ou escuro). */
+/* Os quadrinhos de vidro dentro do herói (por dia, fim do mês): deixam a luz do herói passar. */
+.vidro-heroi {
+  background-color: color-mix(in srgb, var(--color-surface) 55%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-surface) 70%, transparent);
+}
+html:not(.light) .vidro-heroi {
+  background-color: color-mix(in srgb, var(--color-heroi-tinta) 6%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-heroi-tinta) 10%, transparent);
+}
+
 .heroi-veu {
   background-color: color-mix(in srgb, var(--color-heroi-tinta) 13%, transparent);
 }

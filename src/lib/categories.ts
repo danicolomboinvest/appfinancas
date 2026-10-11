@@ -190,7 +190,8 @@ export type PreferenciaDeCategoria = { nome?: string; icone?: string; oculta?: b
  * moram na própria CustomCategory; cor e emoji moram aqui, junto das outras preferências, sem mexer
  * no banco.
  */
-export type PreferenciaDePropria = { cor?: string; emoji?: string };
+/** `essencial`: marcada "É essencial" (versão nova): nunca é sugerida para cobrir outra (remanejo.ts). */
+export type PreferenciaDePropria = { cor?: string; emoji?: string; essencial?: boolean };
 export type PreferenciasDeCategoria = Partial<Record<ParentCategory, PreferenciaDeCategoria>> & { proprias?: Record<string, PreferenciaDePropria> };
 
 /**
@@ -257,6 +258,11 @@ function prefDe(c: CategoriasDoPerfil, key: ParentCategory): PreferenciaDeCatego
 }
 
 /** Lê o JSON do banco sem confiar nele: só as 8 chaves, nome curto, ícone conhecido. */
+/** As categorias criadas pela pessoa que ela marcou "É essencial" (nunca viram origem de remanejo). */
+export function categoriasEssenciais(prefs: PreferenciasDeCategoria | undefined): Set<string> {
+  return new Set(Object.entries(prefs?.proprias ?? {}).filter(([, p]) => p.essencial).map(([id]) => id));
+}
+
 export function lerPreferenciasDeCategoria(json: unknown): PreferenciasDeCategoria {
   if (!json || typeof json !== "object") return {};
   const saida: PreferenciasDeCategoria = {};
@@ -277,10 +283,11 @@ export function lerPreferenciasDeCategoria(json: unknown): PreferenciasDeCategor
     const lidas: Record<string, PreferenciaDePropria> = {};
     for (const [id, v] of Object.entries(proprias as Record<string, unknown>)) {
       if (id.length > 60 || !v || typeof v !== "object") continue;
-      const { cor, emoji } = v as Record<string, unknown>;
+      const { cor, emoji, essencial } = v as Record<string, unknown>;
       const pref: PreferenciaDePropria = {};
       if (corValida(cor)) pref.cor = cor;
       if (emojiValido(emoji)) pref.emoji = emoji;
+      if (essencial === true) pref.essencial = true;
       if (Object.keys(pref).length > 0) lidas[id] = pref;
     }
     if (Object.keys(lidas).length > 0) saida.proprias = lidas;
