@@ -141,7 +141,7 @@ export function AoVivo({
                   <div key={b.chave} className="grid grid-cols-[4.75rem_minmax(0,1fr)_auto] items-center gap-3 text-sm">
                     <span className={b.vence ? "font-medium" : "text-heroi-suave"}>{b.rotulo}</span>
                     <span className="heroi-veu h-2 overflow-hidden rounded-full">
-                      <i className={`block h-full rounded-full ${b.vence ? "bg-[var(--color-heroi-tinta)]" : "bg-[color-mix(in_srgb,var(--color-heroi-tinta)_40%,transparent)]"}`} style={{ width: `${Math.max(2, (Math.abs(b.valor) / mx) * 100)}%` }} />
+                      <i className={`block h-full rounded-full ${b.vence ? "bg-[var(--color-heroi-tinta)]" : "bg-[var(--color-dinheiro-gastou)]"}`} style={{ width: `${Math.max(2, (Math.abs(b.valor) / mx) * 100)}%` }} />
                     </span>
                     <b className="font-medium tabular-nums">{money(b.valor, { round: true })}</b>
                   </div>

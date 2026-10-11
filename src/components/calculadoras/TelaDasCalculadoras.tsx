@@ -53,7 +53,11 @@ export function TelaDasCalculadoras({ salvas }: { salvas: SalvaNaLista[] }) {
     const el = refs.current[momento];
     const caixa = trilho.current;
     if (!el || !caixa) return;
-    caixa.scrollTo({ left: Math.max(0, el.offsetLeft + el.offsetWidth / 2 - caixa.clientWidth / 2), behavior: primeira.current ? "auto" : "smooth" });
+    // O trilho começa na margem da página; só rola quando a escolhida sairia da tela.
+    const fim = el.offsetLeft + el.offsetWidth + 20 - caixa.clientWidth;
+    const inicio = el.offsetLeft - 20;
+    const alvo = caixa.scrollLeft > inicio ? Math.max(0, inicio) : caixa.scrollLeft < fim ? fim : caixa.scrollLeft;
+    caixa.scrollTo({ left: alvo, behavior: primeira.current ? "auto" : "smooth" });
     primeira.current = false;
   }, [momento]);
 
@@ -82,14 +86,14 @@ export function TelaDasCalculadoras({ salvas }: { salvas: SalvaNaLista[] }) {
 
   return (
     <div className="mx-auto flex w-full max-w-xl flex-col gap-5">
-      <h1 className="titulo-tema text-[2rem] font-medium leading-tight tracking-tight text-ink">Qual é o seu momento?</h1>
+      <h1 className="titulo-tema pt-5 text-[2rem] font-medium leading-tight tracking-tight text-ink">Qual é o seu momento?</h1>
 
       <nav aria-label="Filtrar pelo momento" className="-mx-5 md:mx-0">
         <div
           ref={trilho}
           role="tablist"
           aria-label="Momento"
-          className="flex snap-x snap-mandatory gap-1.5 overflow-x-auto px-[calc(50%-3rem)] py-1 [mask-image:linear-gradient(90deg,transparent_0,#000_14%,#000_86%,transparent_100%)] [scrollbar-width:none]"
+          className="flex gap-1.5 overflow-x-auto px-5 py-1 [mask-image:linear-gradient(90deg,#000_86%,transparent_100%)] [scrollbar-width:none] md:px-0"
           onKeyDown={(e) => {
             const d = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
             if (!d) return;
@@ -113,7 +117,7 @@ export function TelaDasCalculadoras({ salvas }: { salvas: SalvaNaLista[] }) {
                 aria-selected={on}
                 tabIndex={on ? 0 : -1}
                 onClick={() => setMomento(m.id)}
-                className={`flex h-10 shrink-0 snap-center items-center whitespace-nowrap rounded-full px-4 text-[15px] transition-colors ${
+                className={`flex h-10 shrink-0 items-center whitespace-nowrap rounded-full px-4 text-[15px] transition-colors ${
                   on ? "bg-surface font-medium text-ink shadow-[inset_0_0_0_1px_var(--color-border-strong),0_6px_14px_-8px_rgba(0,0,0,0.18)]" : "text-ink-muted hover:text-ink"
                 }`}
               >

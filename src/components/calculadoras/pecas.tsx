@@ -414,7 +414,7 @@ export function Colunas({ itens }: { itens: { rotulo: string; valor: number; ven
         <div key={i.rotulo} className="flex flex-col items-center gap-2">
           <b className="text-[15px] font-medium tabular-nums text-ink">{curto(i.valor)}</b>
           <span className="flex h-28 w-full max-w-[5.5rem] items-end">
-            <i className={`block w-full rounded-xl ${i.vence ? "bg-ink" : "bg-border-strong"}`} style={{ height: `${Math.max(4, (Math.abs(i.valor) / mx) * 100).toFixed(1)}%` }} />
+            <i className={`block w-full rounded-xl ${i.vence ? "bg-ink" : "bg-[var(--color-dinheiro-gastou)]"}`} style={{ height: `${Math.max(4, (Math.abs(i.valor) / mx) * 100).toFixed(1)}%` }} />
           </span>
           <small className={`text-center text-sm ${i.vence ? "font-medium text-ink" : "text-ink-muted"}`}>{i.rotulo}</small>
         </div>
