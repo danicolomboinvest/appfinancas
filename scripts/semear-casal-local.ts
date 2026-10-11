@@ -111,6 +111,20 @@ async function main() {
     })),
   });
 
+  // Plano da casa de outubro: R$ 7.000 (moradia e contas 3.600, mercado 1.500, saídas 1.000,
+  // farmácia e casa 500, pet 400), o "plano da casa" do passo a passo.
+  await prisma.budget.createMany({
+    data: (
+      [
+        ["MORADIA", 3600],
+        ["ALIMENTACAO", 1500],
+        ["LAZER", 1000],
+        ["SAUDE", 500],
+        ["OUTROS", 400],
+      ] as [ParentCategory, number][]
+    ).map(([parentCategory, plannedAmount]) => ({ userId: ana.id, profileId: casal.id, year: 2026, month: 10, parentCategory, plannedAmount })),
+  });
+
   await prisma.goal.createMany({
     data: [
       { userId: ana.id, profileId: casal.id, name: "Apartamento", targetAmount: 60000, currentAmount: 18400, targetDate: new Date("2029-02-01T12:00:00Z"), icon: "CASA" },

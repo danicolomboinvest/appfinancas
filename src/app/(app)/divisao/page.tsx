@@ -2,15 +2,12 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { CheckCircle2, Users, X } from "lucide-react";
 import { getRequiredSession, type AuthContext } from "@/lib/auth/session";
-import { PageHeader } from "@/components/ui/PageHeader";
 import { ehCasal } from "@/lib/profiles/casal";
-import { vozDoTema } from "@/lib/profiles/voice";
-import { getMonthlySummary } from "@/lib/consolidation/monthly";
 import { nowInBrazil } from "@/lib/date/brazil-now";
-import { DivisaoCalculadora } from "./DivisaoCalculadora";
-import { carregarAcertoDoMes } from "@/lib/repositories/casal.repo";
-import { AcertoDoMesCard } from "@/components/casal/AcertoDoMesCard";
-import { ConfigCasalForm } from "@/components/casal/ConfigCasalForm";
+import { carregarAcertoDoMes, planoDaCasa } from "@/lib/repositories/casal.repo";
+import { ReciboDoAcerto } from "@/components/casal-login/ReciboDoAcerto";
+import { CombinarDivisao } from "@/components/casal-login/CombinarDivisao";
+import { dadosDaDivisao, dadosDoRecibo } from "./dados-da-tela";
 import { nosDoisDaTitular } from "@/lib/repositories/casal-login.repo";
 import { estadoDoFechamentoDoMes, lancamentosDoMesNoCasal, metasDoCasalLista, meuNoCasal } from "@/lib/repositories/nos-dois.repo";
 import { mesParaFechar } from "@/lib/casal-login/fechamento";
@@ -20,10 +17,9 @@ import { MeuNoCasal } from "@/components/casal-login/MeuNoCasal";
 import { LancamentosDoCasal } from "@/components/casal-login/LancamentosDoCasal";
 import { MetasDoCasal } from "@/components/casal-login/MetasDoCasal";
 import { CartaoFecharOMes } from "@/components/casal-login/FecharOMes";
-import { serverMoney } from "@/lib/money-server";
 
 /**
- * Divisão do casal — só existe no perfil Casal. Em cima, o acerto do mês, calculado pelos
+ * Nós dois (só existe no perfil Casal). Em cima, o acerto do mês em recibo, calculado pelos
  * lançamentos (quem pagou cada gasto da casa; out/2026). Depois os nomes e a forma de dividir, e
  * por último a calculadora "Quanto cada um contribui?", pra simular com rendas digitadas.
  *
@@ -40,12 +36,7 @@ export default async function DivisaoPage({ searchParams }: { searchParams: Prom
 
   if (ctx.par) return <NosDoisDoPar ctx={ctx} ano={ano} mes={mes} entrou={(await searchParams).entrou === "1"} />;
 
-  const t = vozDoTema(ctx.profileTheme, ctx.profileKind).titulos;
-  const [summary, acerto, nosDois] = await Promise.all([
-    getMonthlySummary(ctx, ano, mes),
-    carregarAcertoDoMes(ctx, ano, mes),
-    nosDoisDaTitular(ctx),
-  ]);
+  const [acerto, nosDois, plano] = await Promise.all([carregarAcertoDoMes(ctx, ano, mes), nosDoisDaTitular(ctx), planoDaCasa(ctx, ano, mes)]);
   const { convite } = nosDois;
   const nomeTitular = nosDois.par && outraLetra(nosDois.par.letra) === "B" ? acerto.config.nomeB : acerto.config.nomeA;
 
@@ -62,11 +53,8 @@ export default async function DivisaoPage({ searchParams }: { searchParams: Prom
               : null
           }
         />
-        <PageHeader title={t.casTitulo} subtitle={t.casSub} />
-        <AcertoDoMesCard acerto={acerto} />
-        <ConfigCasalForm config={acerto.config} />
-        <h2 className="mt-2 text-base font-semibold tracking-tight text-ink">Simular a divisão</h2>
-        <DivisaoCalculadora despesasComunsInicial={summary.totalExpense} />
+        <ReciboDoAcerto d={dadosDoRecibo(acerto, "A")} />
+        <CombinarDivisao d={dadosDaDivisao(acerto, { letraTitular: "A", souPar: false, plano, mostrarRenda: acerto.config.mostrarRenda === true })} />
       </div>
     );
   }
@@ -75,10 +63,7 @@ export default async function DivisaoPage({ searchParams }: { searchParams: Prom
   const minhaLetra = outraLetra(letraPar);
   return (
     <div className="flex flex-col gap-5">
-      <NosDoisADois ctx={ctx} ano={ano} mes={mes} acerto={acerto} minhaLetra={minhaLetra} letraTitular={minhaLetra} souPar={false} />
-      <ConfigCasalForm config={acerto.config} />
-      <h2 className="mt-2 text-base font-semibold tracking-tight text-ink">Simular a divisão</h2>
-      <DivisaoCalculadora despesasComunsInicial={summary.totalExpense} />
+      <NosDoisADois ctx={ctx} ano={ano} mes={mes} acerto={acerto} minhaLetra={minhaLetra} letraTitular={minhaLetra} souPar={false} plano={plano} />
     </div>
   );
 }
@@ -88,7 +73,6 @@ async function NosDoisDoPar({ ctx, ano, mes, entrou }: { ctx: AuthContext; ano: 
   const par = ctx.par!;
   const acerto = await carregarAcertoDoMes(ctx, ano, mes);
   const letraTitular = outraLetra(par.letra);
-  const money = await serverMoney();
   return (
     <div className="flex flex-col gap-5">
       {entrou && (
@@ -104,12 +88,7 @@ async function NosDoisDoPar({ ctx, ano, mes, entrou }: { ctx: AuthContext; ano: 
         <Users size={16} strokeWidth={1.6} className="shrink-0" aria-hidden />
         Você vê o que é do casal. O pessoal de {par.nomeTitular} não aparece aqui.
       </p>
-      <NosDoisADois ctx={ctx} ano={ano} mes={mes} acerto={acerto} minhaLetra={par.letra} letraTitular={letraTitular} souPar />
-      {par.mostrarRenda && acerto.rendas.A + acerto.rendas.B > 0 && (
-        <p className="px-1 text-[13px] text-ink-faint">
-          Rendas do mês: {letraTitular === "A" ? acerto.config.nomeA : acerto.config.nomeB} {money(acerto.rendas[letraTitular], { round: true })} e você {money(acerto.rendas[par.letra], { round: true })}.
-        </p>
-      )}
+      <NosDoisADois ctx={ctx} ano={ano} mes={mes} acerto={acerto} minhaLetra={par.letra} letraTitular={letraTitular} souPar plano={await planoDaCasa(ctx, ano, mes)} />
     </div>
   );
 }
@@ -123,7 +102,9 @@ async function NosDoisADois({
   minhaLetra,
   letraTitular,
   souPar,
+  plano,
 }: {
+  plano: number | null;
   ctx: AuthContext;
   ano: number;
   mes: number;
@@ -145,13 +126,14 @@ async function NosDoisADois({
   const temMesAnterior = acertoAnterior.totalDaCasa > 0;
   return (
     <>
-      <AcertoDoMesCard acerto={acerto} />
+      <ReciboDoAcerto d={dadosDoRecibo(acerto, letraTitular)} />
       <MeuNoCasal dados={meu} meuNome={nomes[minhaLetra]} souPar={souPar} mes={mes} />
       {temMesAnterior && <CartaoFecharOMes fechamento={fechamento} pessoas={pessoas} mes={anterior.mes} acertado={acertoAnterior.acertado} />}
       <MetasDoCasal metas={metas} podeCriar />
       <div id="lancamentos">
         <LancamentosDoCasal itens={lancamentos} nomes={nomes} letraTitular={letraTitular} minhaLetra={minhaLetra} mes={mes} podeLancar />
       </div>
+      <CombinarDivisao d={dadosDaDivisao(acerto, { letraTitular, souPar, plano, mostrarRenda: acerto.config.mostrarRenda === true })} />
     </>
   );
 }

@@ -13,8 +13,12 @@ export const COR_DO_PAR = "#4E7396";
 export const CARTAO =
   "rounded-[22px] bg-surface shadow-[inset_0_0_0_1px_var(--color-border),0_1px_2px_rgba(0,0,0,0.03),0_10px_30px_-18px_rgba(0,0,0,0.18)]";
 
+/**
+ * O botão principal: tinta escura nos temas, e no Titânio o metal escovado (as variáveis
+ * --botao-* só existem no Titânio, commit 8878c5c; nos outros temas vale o que vem depois da vírgula).
+ */
 export const BOTAO_ESCURO =
-  "flex min-h-14 w-full items-center justify-center gap-2.5 rounded-full bg-ink px-5 text-[17px] font-semibold text-canvas transition-transform active:scale-[0.98] disabled:opacity-50";
+  "flex min-h-14 w-full items-center justify-center gap-2.5 rounded-full px-5 text-[17px] font-semibold [background:var(--botao-fundo,var(--color-ink))] [color:var(--botao-tinta,var(--color-canvas))] [box-shadow:var(--botao-fio,none)] transition-transform active:scale-[0.98] disabled:opacity-50";
 
 export const BOTAO_CLARO =
   "flex min-h-14 w-full items-center justify-center gap-2.5 rounded-full bg-surface px-5 text-[17px] font-semibold text-ink shadow-[inset_0_0_0_1px_var(--color-border),0_6px_18px_-12px_rgba(0,0,0,0.2)] transition-transform active:scale-[0.98] disabled:opacity-50";
