@@ -11,6 +11,7 @@ import { useToast } from "@/components/ui/toast-context";
 import { STRATEGY_ASSET_CLASS_COLOR } from "@/lib/portfolio/strategy";
 import { salvarEstrategiaAction } from "./actions";
 import { NOME_DA_LINHA, NOME_DO_PERFIL, ORDEM_DAS_LINHAS } from "./nomes";
+import { ProximosAportes, type DadosDosProximosAportes } from "./ProximosAportes";
 
 type Linha = { classe: StrategyAssetClass; hoje: number; meta: number };
 
@@ -26,7 +27,7 @@ export function fraseDaEstrategia(linhas: Linha[]): string {
   return `${nome} ${fora[0].hoje < fora[0].meta ? "abaixo" : "acima"} da meta`;
 }
 
-export function EstrategiaResumo({ perfil, linhas }: { perfil: string | null; linhas: Linha[] }) {
+export function EstrategiaResumo({ perfil, linhas, proximos }: { perfil: string | null; linhas: Linha[]; proximos: DadosDosProximosAportes }) {
   const [editando, setEditando] = useState(false);
   const visiveis = ORDEM_DAS_LINHAS.map((c) => linhas.find((l) => l.classe === c)!).filter((l) => l && (l.classe !== "OUTROS" || l.hoje > 0 || l.meta > 0));
   return (
@@ -69,6 +70,8 @@ export function EstrategiaResumo({ perfil, linhas }: { perfil: string | null; li
         </ul>
         <p className="mt-3 text-[12.5px] text-ink-muted">A escala vai até 50% da carteira.</p>
       </section>
+
+      <ProximosAportes dados={proximos} />
 
       {editando ? (
         <Personalizar inicial={Object.fromEntries(linhas.map((l) => [l.classe, Math.round(l.meta * 100)])) as Record<StrategyAssetClass, number>} onFechar={() => setEditando(false)} />

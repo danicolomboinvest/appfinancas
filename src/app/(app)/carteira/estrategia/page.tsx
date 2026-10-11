@@ -10,6 +10,8 @@ import { listAssets } from "@/lib/repositories/asset.repo";
 import { computeAccumulation } from "@/lib/planning/accumulation";
 import { liberdadeEmValorDeHoje, type Sonho } from "@/lib/portfolio/estrategia-pelos-sonhos";
 import { nowInBrazil } from "@/lib/date/brazil-now";
+import { getMonthlyPlan } from "@/lib/repositories/monthly-plan.repo";
+import { mesesDeReserva } from "@/lib/planning/savings-split";
 import { EstrategiaResumo } from "./EstrategiaResumo";
 import { MontarEstrategia } from "./MontarEstrategia";
 
@@ -37,10 +39,34 @@ export default async function EstrategiaCarteiraPage({ searchParams }: { searchP
   const temEstrategia = comparacao.positions.some((p) => p.targetPercent > 0);
 
   if (temEstrategia && montar !== "1") {
+    // "Seus próximos aportes": o guardar do plano do mês; sem plano, a média dos aportes dos 3
+    // últimos meses; sem nenhum dos dois, a tela pergunta o valor.
+    const hoje = nowInBrazil();
+    const plano = await getMonthlyPlan(ctx, hoje.getFullYear(), hoje.getMonth() + 1);
+    let valor: number | null = plano && plano.plannedInvestment > 0 ? plano.plannedInvestment : null;
+    if (valor === null) {
+      const meses = [1, 2, 3].map((k) => new Date(hoje.getFullYear(), hoje.getMonth() - k, 1));
+      const r = await prisma.monthlyEntry.aggregate({
+        where: { userId: ctx.userId, profileId: ctx.profileId, category: "INVESTMENT_CONTRIBUTION", amount: { gt: 0 }, OR: meses.map((d) => ({ year: d.getFullYear(), month: d.getMonth() + 1 })) },
+        _sum: { amount: true },
+      });
+      const media = Number(r._sum.amount ?? 0) / 3;
+      valor = media > 0 ? Math.round(media * 100) / 100 : null;
+    }
+    const naReserva = assets.filter((a) => a.objective === "RESERVA_EMERGENCIA").reduce((s, a) => s + Number(a.currentValue), 0);
+    const atual = fund ? Math.max(Number(fund.currentAmount), naReserva) : 0;
     return (
       <EstrategiaResumo
         perfil={perfil?.perfilInvestidor ?? null}
         linhas={comparacao.positions.map((p) => ({ classe: p.assetClass, hoje: p.currentPercent, meta: p.targetPercent }))}
+        proximos={{
+          valor,
+          origem: plano && plano.plannedInvestment > 0 ? "plano" : valor !== null ? "media" : null,
+          posicoes: comparacao.positions.map((p) => ({ assetClass: p.assetClass, currentValue: p.currentValue, targetPercent: p.targetPercent })),
+          mesesDeReserva: fund ? mesesDeReserva(atual, Number(fund.monthlyExpenseBase)) : null,
+          reservaCompleta: fund ? atual >= Number(fund.targetAmount) && Number(fund.targetAmount) > 0 : false,
+          semReserva: !fund,
+        }}
       />
     );
   }

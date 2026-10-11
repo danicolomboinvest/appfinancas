@@ -141,6 +141,18 @@ export function MeusAtivos({
   const vazia = ativos.length === 0;
 
   // O cartão do aporte ("o ativo ainda não está aqui? Cadastre primeiro") pede o Novo ativo.
+  // "Já aportei" (Estratégia › Seus próximos aportes) chega com ?aportes=1: abre a folha Aportes.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("aportes") !== "1") return;
+    const id = setTimeout(() => {
+      setFolha("aportes");
+      setRegistrando(Boolean(aportes.registrar));
+    }, 0);
+    window.history.replaceState(null, "", "/carteira");
+    return () => clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só na chegada
+  }, []);
+
   useEffect(() => {
     const abrir = () => setFolha("novo");
     window.addEventListener(ABRIR_NOVO_ATIVO, abrir);
@@ -407,7 +419,7 @@ export function nomeCurto(a: { name: string; ticker: string | null }): string {
 }
 
 /** "R$ 10.380" com o R$ pequeno e cinza (rodada 43). */
-function ValorSemCentavos({ texto, pequeno = false }: { texto: string; pequeno?: boolean }) {
+function ValorSemCentavos({ texto }: { texto: string; pequeno?: boolean }) {
   const [prefixo, numero] = separarPrefixo(texto);
   return (
     <>
