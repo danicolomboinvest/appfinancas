@@ -38,7 +38,9 @@ export const config = {
   // convenção do Next (usado no <link rel="icon">, cai fora de /icons/ que já tava liberado) —
   // sem essa exceção, a aba do navegador pedia o ícone deslogada, o middleware respondia com um
   // redirect pro /login em vez da imagem, e o navegador caía pro favicon.ico como último recurso.
+  // api/widget (11/10/2026): a extensão do widget do iPhone não tem sessão; entra com a chave
+  // própria dela, e a rota confere (e a de gerar a chave confere a sessão sozinha).
   matcher: [
-    "/((?!api/auth|api/cron|api/webhooks|_next/static|_next/image|favicon.ico|manifest.webmanifest|icon.png|icons).*)",
+    "/((?!api/auth|api/cron|api/webhooks|api/widget|_next/static|_next/image|favicon.ico|manifest.webmanifest|icon.png|icons).*)",
   ],
 };

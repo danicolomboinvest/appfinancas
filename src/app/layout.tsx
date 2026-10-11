@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Archivo, Cormorant_Garamond, Figtree, Geist_Mono, Hanken_Grotesk, Urbanist } from "next/font/google";
 import { BarraDoIphone } from "@/components/shell/BarraDoIphone";
+import { PonteDoWidget } from "@/components/shell/PonteDoWidget";
 import { BootSplash } from "@/components/brand/BootSplash";
 import { ToqueVivo } from "@/components/shell/ToqueVivo";
 import { THEME_INIT_SCRIPT } from "./theme-init-script";
@@ -94,6 +95,7 @@ export default function RootLayout({
       <body className="flex min-h-full flex-col bg-canvas text-ink">
         <BootSplash />
         <BarraDoIphone />
+        <PonteDoWidget />
         {/* O toque que responde: botão encolhe, volta com mola e o principal vibra (07/10/2026). */}
         <ToqueVivo />
         {/* Atrás do relógio e da bateria: o que rola por baixo some num vidro da cor do fundo, como

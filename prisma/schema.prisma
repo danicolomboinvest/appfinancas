@@ -215,6 +215,7 @@ model User {
   financialProfiles FinancialProfile[]
   decisoes          Decisao[]
   contasAPagar      ContaAPagar[]
+  tokensDoWidget    TokenDoWidget[]
 }
 
 /// Ambiente financeiro independente dentro da MESMA conta: Pessoal, Empresa, Casal, Casa…
@@ -1140,4 +1141,25 @@ model ContaAPagar {
   updatedAt  DateTime          @updatedAt
 
   @@index([userId, profileId, vencimento])
+}
+
+/// A chave do widget da tela inicial do iPhone (11/10/2026). O app gera uma quando a pessoa está
+/// logada e guarda no App Group, que a extensão do widget lê. Ela só serve para ler os números do
+/// widget (GET /api/widget): não abre sessão, não muda nada e não vale em nenhuma outra rota.
+/// Guardamos só o hash (SHA-256); a chave em si aparece uma vez, na resposta que a gera.
+model TokenDoWidget {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// SHA-256 da chave, em hex.
+  hash       String    @unique
+  /// Um id do aparelho, sorteado pelo app (não é o identificador da Apple): gerar de novo no mesmo
+  /// aparelho revoga a chave anterior dele.
+  aparelho   String    @db.VarChar(64)
+  criadoEm   DateTime  @default(now())
+  usadoEm    DateTime?
+  /// Revogada (saiu da conta, gerou outra, ou desligou o widget). Nunca volta a valer.
+  revogadoEm DateTime?
+
+  @@index([userId, aparelho])
 }
