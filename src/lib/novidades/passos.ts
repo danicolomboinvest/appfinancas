@@ -53,7 +53,8 @@ export const ONDE_DOS_PASSOS: OndeDoPasso[] = [
   { rota: "/mensal/foco", alvos: ["fluxo"] },
   { rota: "/decidir", alvos: ["esferas"] },
   { rota: "/mensal/foco", alvos: ["metas", "carteira"], abreMenu: true },
-  { rota: "/configuracoes", alvos: ["temas"] },
+  // Os estilos moram em Configurações › Aparência desde a versão nova das Configurações.
+  { rota: "/configuracoes/aparencia", alvos: ["temas"] },
 ];
 
 export type TextoDoPasso = { titulo: string; texto: string };
@@ -133,4 +134,4 @@ export const VIDEOS_COMO_FUNCIONA = [
   { arquivo: "como-funciona-3-decidir", titulo: "Decidir", sub: 'A pilha e o "Posso comprar algo?"' },
   { arquivo: "como-funciona-4-metas", titulo: "Suas metas", sub: "Criar com foto, ver o ritmo, guardar" },
   { arquivo: "como-funciona-5-carteira", titulo: "Carteira", sub: "Por tipo, os anéis das análises, a estratégia" },
-].map((v) => ({ ...v, src: `/videos/${v.arquivo}-leve.mp4`, poster: `/videos/${v.arquivo}-poster.jpg` }));
+].map((v) => ({ ...v, src: `/videos/${v.arquivo}.mp4`, poster: `/videos/${v.arquivo}-poster.jpg` }));

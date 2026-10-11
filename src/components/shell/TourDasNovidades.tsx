@@ -1,15 +1,31 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { Check, Film, Repeat, Sparkles } from "lucide-react";
 import { BrandMark } from "@/components/brand/BrandMark";
-import { ABERTURA_DAS_NOVIDADES, CHAVE_LOCAL_NOVIDADES, PASSOS_DAS_NOVIDADES, contadorDoPasso } from "@/lib/novidades/passos";
+import { Button } from "@/components/ui/Button";
+import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
+import { useToast } from "@/components/ui/toast-context";
+import {
+  CHAVE_LOCAL_NOVIDADES,
+  LINK_COMO_FUNCIONA,
+  ONDE_DOS_PASSOS,
+  TOTAL_DE_PASSOS,
+  abreAsNovidades,
+  contadorDoPasso,
+  textosDasNovidades,
+  type EstadoDasNovidades,
+} from "@/lib/novidades/passos";
 import { marcarNovidadesVistasAction } from "./novidades-actions";
 import { TOUR_DONE_EVENT } from "./InstallAppBanner";
 import { trackEvent } from "@/lib/usage/track-event";
 
 const RESUMO = "/mensal/foco";
+const FOLGA = 6;
+
+type Fase = "fechado" | "abertura" | "fim" | number;
+type Caixa = { top: number; left: number; right: number; bottom: number };
 
 function lerLocal(): boolean {
   try {
@@ -19,163 +35,243 @@ function lerLocal(): boolean {
   }
 }
 
-/** O elemento de verdade que o passo ilumina, entre os que estão visíveis na tela agora. */
-function alvoVisivel(nome: string): DOMRect | null {
-  for (const el of Array.from(document.querySelectorAll<HTMLElement>(`[data-tour="${nome}"]`))) {
-    const r = el.getBoundingClientRect();
-    const opaco = Number(getComputedStyle(el).opacity) > 0.2;
-    if (opaco && r.width > 4 && r.height > 4 && r.right > 0 && r.left < window.innerWidth && r.bottom > 0 && r.top < window.innerHeight) return r;
+function visivel(el: HTMLElement): boolean {
+  const r = el.getBoundingClientRect();
+  if (r.width < 4 || r.height < 4) return false;
+  if (r.right <= 0 || r.left >= window.innerWidth) return false;
+  const estilo = getComputedStyle(el);
+  return estilo.visibility !== "hidden" && Number(estilo.opacity) > 0.2;
+}
+
+/** Os elementos de verdade que o passo ilumina, entre os que existem na tela agora. */
+function alvosNaTela(nomes: string[]): HTMLElement[] {
+  const achados: HTMLElement[] = [];
+  for (const nome of nomes) {
+    const el = Array.from(document.querySelectorAll<HTMLElement>(`[data-tour="${nome}"]`)).find(visivel);
+    if (el) achados.push(el);
   }
-  return null;
+  return achados;
+}
+
+function caixaDe(els: HTMLElement[]): Caixa | null {
+  if (!els.length) return null;
+  const rs = els.map((e) => e.getBoundingClientRect());
+  return {
+    top: Math.min(...rs.map((r) => r.top)) - FOLGA,
+    left: Math.min(...rs.map((r) => r.left)) - FOLGA,
+    right: Math.max(...rs.map((r) => r.right)) + FOLGA,
+    bottom: Math.max(...rs.map((r) => r.bottom)) + FOLGA,
+  };
 }
 
 /**
- * "Tivemos uma mudança" (versão nova, 11/10/2026). Todo mundo vê uma vez, quem chegou agora e
- * quem já usava: primeiro a abertura com "Ver o que mudou" e "Pular", depois cinco passos que
- * iluminam o elemento de verdade da tela, com "2 de 5", "Próximo" e "Pular" sempre à vista.
+ * "Tivemos uma mudança" (versão nova, rodada 72). Só para quem já usava o app, uma vez por conta:
+ * a abertura com "Ver o que mudou" e "Pular", cinco passos que iluminam o elemento de verdade de
+ * cada tela (com "1 de 5", "Próximo" e "Pular" sempre à vista) e o fim "Pronto. Tudo no lugar."
+ * com o atalho para os vídeos do Como funciona. Quem é novo não vê (estado "novo").
  *
- * A marca de visto é da conta (servidor) e também do aparelho (para não piscar enquanto o
- * servidor responde). Configurações › Ajuda › "Ver de novo o que mudou" reabre pelo endereço
- * /mensal/foco?novidades=1.
+ * A marca de visto é da conta (servidor) e também do aparelho, para não piscar enquanto o servidor
+ * responde. Configurações › Ajuda › "Ver de novo o que mudou" reabre por /mensal/foco?novidades=1.
  */
-export function TourDasNovidades({ jaViu }: { jaViu: boolean }) {
+export function TourDasNovidades({ estado, onMenu }: { estado: EstadoDasNovidades; onMenu: (aberto: boolean) => void }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [fase, setFase] = useState<"fechado" | "abertura" | number>("fechado");
-  const [rect, setRect] = useState<DOMRect | null>(null);
+  const { key: tema } = useProfileTheme();
+  const { showToast } = useToast();
+  const tx = textosDasNovidades(tema);
+  const [fase, setFase] = useState<Fase>("fechado");
+  const [caixa, setCaixa] = useState<Caixa | null>(null);
+  const [tela, setTela] = useState({ w: 390, h: 800 });
+  const balao = useRef<HTMLDivElement>(null);
+  const [alturaDoBalao, setAlturaDoBalao] = useState(200);
 
   useEffect(() => {
     const pedido = new URLSearchParams(window.location.search).get("novidades") === "1";
     // eslint-disable-next-line react-hooks/set-state-in-effect -- lê o endereço e o aparelho, que só existem no cliente
-    if (pedido || (!jaViu && !lerLocal())) setFase("abertura");
-  }, [jaViu, pathname]);
+    if (abreAsNovidades(estado, pedido, lerLocal())) setFase((f) => (f === "fechado" ? "abertura" : f));
+  }, [estado, pathname]);
 
-  const passo = typeof fase === "number" ? PASSOS_DAS_NOVIDADES[fase] : null;
+  const indice = typeof fase === "number" ? fase : -1;
+  const onde = indice >= 0 ? ONDE_DOS_PASSOS[indice] : null;
+
+  // Cada passo vai até a tela dele (e abre o menu, no passo de Metas e Carteira).
+  useEffect(() => {
+    if (fase === "fechado") return;
+    onMenu(Boolean(onde?.abreMenu));
+    const destino = onde ? onde.rota : fase === "fim" ? RESUMO : null;
+    if (destino && pathname !== destino) router.push(destino);
+  }, [fase, onde, pathname, router, onMenu]);
 
   const medir = useCallback(() => {
-    setRect(passo ? alvoVisivel(passo.alvo) : null);
-  }, [passo]);
+    setTela({ w: window.innerWidth, h: window.innerHeight });
+    if (!onde) return setCaixa(null);
+    const els = alvosNaTela(onde.alvos);
+    const c = caixaDe(els);
+    const vh = window.innerHeight;
+    // Alvo alto (a grade de perguntas do Decidir): o balão fica em cima e o destaque começa logo
+    // abaixo dele, cortado no fim da tela, para os dois caberem sem se cobrir.
+    if (c && c.bottom - c.top > vh * 0.5) {
+      const topoDesejado = 12 + (balao.current?.offsetHeight ?? 200) + 20;
+      if (Math.abs(c.top - topoDesejado) > 4) window.scrollBy({ top: c.top - topoDesejado });
+      const d = caixaDe(els);
+      setCaixa(d && { ...d, bottom: Math.min(d.bottom, vh - 12) });
+      return;
+    }
+    // Alvo fora da tela (as esferas no meio do Decidir, os temas em Configurações): rola até ele.
+    if (c && els[0] && (c.top < 64 || c.bottom > window.innerHeight - 240)) {
+      els[0].scrollIntoView({ block: "center" });
+      setCaixa(caixaDe(els));
+      return;
+    }
+    setCaixa(c);
+  }, [onde]);
 
   useEffect(() => {
-    if (!passo) return;
-    // O alvo pode entrar depois (troca de tela, o + que volta): mede agora e de novo logo depois.
-    window.scrollTo({ top: 0 });
-    const ids = [requestAnimationFrame(medir), window.setTimeout(medir, 250), window.setTimeout(medir, 700)];
-    window.addEventListener("resize", medir);
+    if (!onde) return;
+    // O alvo pode entrar depois (troca de tela, o menu que desliza): mede agora e de novo até ~2 s.
+    const ids = [0, 120, 300, 600, 1000, 1600, 2400].map((ms) => window.setTimeout(medir, ms));
+    const aoMudar = () => medir();
+    window.addEventListener("resize", aoMudar);
+    window.addEventListener("scroll", aoMudar, { passive: true, capture: true });
     return () => {
-      cancelAnimationFrame(ids[0]);
-      window.clearTimeout(ids[1]);
-      window.clearTimeout(ids[2]);
-      window.removeEventListener("resize", medir);
+      ids.forEach((id) => window.clearTimeout(id));
+      window.removeEventListener("resize", aoMudar);
+      window.removeEventListener("scroll", aoMudar, { capture: true });
     };
-  }, [passo, medir, pathname]);
+  }, [onde, medir, pathname]);
+
+  useEffect(() => {
+    if (balao.current) setAlturaDoBalao(balao.current.offsetHeight);
+  }, [fase, caixa, tela]);
 
   const encerrar = useCallback(
-    (como: "terminou" | "pulou") => {
+    (como: "terminou" | "pulou", depois?: string) => {
       try {
         window.localStorage.setItem(CHAVE_LOCAL_NOVIDADES, "1");
-        // O tour antigo de boas-vindas não volta: este substitui ele.
+        // O tour de boas-vindas antigo não aparece para quem já usava: este fala com ela.
         window.localStorage.setItem("welcome-tour-seen", "1");
       } catch {
         // Sem armazenamento: a marca da conta (servidor) segura.
       }
-      trackEvent(como === "pulou" ? "novidades_pulou" : "novidades_terminou", typeof fase === "number" ? `/novidades/${fase + 1}` : "/novidades/abertura");
+      trackEvent(como === "pulou" ? "novidades_pulou" : "novidades_terminou", typeof fase === "number" ? `/novidades/${fase + 1}` : `/novidades/${fase}`);
       void marcarNovidadesVistasAction(como);
       setFase("fechado");
+      setCaixa(null);
+      onMenu(false);
       window.dispatchEvent(new Event(TOUR_DONE_EVENT));
-      if (new URLSearchParams(window.location.search).get("novidades") === "1") router.replace(pathname);
+      if (como === "pulou" && tx.aoPular) showToast(tx.aoPular);
+      const alvo = depois ?? (typeof fase === "number" && pathname !== RESUMO ? RESUMO : null);
+      if (alvo) router.push(alvo);
+      else if (new URLSearchParams(window.location.search).get("novidades") === "1") router.replace(pathname);
     },
-    [fase, pathname, router],
+    [fase, pathname, router, onMenu, showToast, tx.aoPular],
   );
+
+  useEffect(() => {
+    if (fase === "fechado") return;
+    const tecla = (e: KeyboardEvent) => {
+      if (e.key === "Escape") encerrar("pulou");
+    };
+    window.addEventListener("keydown", tecla);
+    return () => window.removeEventListener("keydown", tecla);
+  }, [fase, encerrar]);
 
   if (fase === "fechado") return null;
 
   const pular = (
     <button type="button" onClick={() => encerrar("pulou")} className="inline-flex min-h-11 items-center px-2 text-[15px] font-medium text-ink-muted hover:text-ink">
-      {ABERTURA_DAS_NOVIDADES.pular}
+      {tx.abertura.pular}
     </button>
   );
 
-  if (fase === "abertura") {
+  if (fase === "abertura" || fase === "fim") {
+    const abertura = fase === "abertura";
+    const icone = !abertura ? (
+      <span className="flex size-14 items-center justify-center rounded-full bg-surface-2 text-success" aria-hidden>
+        <Check size={24} strokeWidth={2} />
+      </span>
+    ) : tema === "girly" ? (
+      <BrandMark size={64} />
+    ) : (
+      <span className="flex size-14 items-center justify-center rounded-full bg-accent-gradient text-on-accent shadow-premium-sm" aria-hidden>
+        {tema === "padrao" ? <Sparkles size={22} strokeWidth={1.8} /> : <Repeat size={20} strokeWidth={1.8} />}
+      </span>
+    );
     return (
-      <div className="fixed inset-0 z-[150] flex items-end justify-center bg-black/55 p-4 sm:items-center" role="dialog" aria-modal="true" aria-labelledby="novidades-titulo">
-        <div className="w-full max-w-sm rounded-[28px] bg-surface p-6 shadow-[0_24px_48px_-20px_rgba(0,0,0,0.45)]">
-          <BrandMark size={52} />
-          <h2 id="novidades-titulo" className="titulo-tema mt-4 text-2xl font-medium tracking-tight text-ink">
-            {ABERTURA_DAS_NOVIDADES.titulo}
+      <div className="fixed inset-0 z-[150] flex items-center justify-center bg-canvas/80 px-4 backdrop-blur-md" role="dialog" aria-modal="true" aria-labelledby="novidades-titulo">
+        <div className="flex w-full max-w-[380px] flex-col items-center gap-3 rounded-[24px] bg-surface px-5 pb-4 pt-6 text-center shadow-[0_20px_50px_-20px_rgba(0,0,0,0.45),inset_0_0_0_1px_var(--color-border)]">
+          {icone}
+          <h2 id="novidades-titulo" className="titulo-tema mt-1 text-[26px] font-medium leading-tight tracking-tight text-ink">
+            {abertura ? tx.abertura.titulo : tx.fim.titulo}
           </h2>
-          <p className="mt-2 text-[16px] leading-relaxed text-ink-muted">{ABERTURA_DAS_NOVIDADES.texto}</p>
-          <div className="mt-6 flex items-center justify-between gap-3">
-            {pular}
-            <button
-              type="button"
-              onClick={() => {
-                if (pathname !== RESUMO) router.push(RESUMO);
-                setFase(0);
-              }}
-              className="min-h-12 rounded-full bg-ink px-6 text-[15px] font-medium text-canvas"
-            >
-              {ABERTURA_DAS_NOVIDADES.ver}
+          {(abertura ? tx.abertura.texto : tx.fim.texto) && <p className="text-[15px] leading-relaxed text-ink-muted">{abertura ? tx.abertura.texto : tx.fim.texto}</p>}
+          <Button autoFocus className="mt-2 min-h-12 w-full text-[15px]" onClick={() => (abertura ? setFase(0) : encerrar("terminou"))}>
+            {abertura ? tx.abertura.ver : tx.fim.comecar}
+          </Button>
+          {abertura ? (
+            pular
+          ) : (
+            <button type="button" onClick={() => encerrar("terminou", LINK_COMO_FUNCIONA)} className="inline-flex min-h-11 items-center gap-2 px-2 text-[15px] font-medium text-accent-strong hover:underline">
+              {tema === "manifestacao" || tema === "titanio" ? <Film size={16} aria-hidden /> : null}
+              {tx.fim.comoFunciona}
             </button>
-          </div>
+          )}
         </div>
       </div>
     );
   }
 
-  const indice = fase;
-  const ultimo = indice === PASSOS_DAS_NOVIDADES.length - 1;
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
-  const largura = Math.min(360, vw - 32);
-  const folga = 8;
+  const passo = tx.passos[indice];
+  const ultimo = indice === TOTAL_DE_PASSOS - 1;
+  const largura = Math.min(400, tela.w - 32);
   let posicao: React.CSSProperties;
-  if (rect) {
-    const left = Math.max(16, Math.min(rect.left + rect.width / 2 - largura / 2, vw - 16 - largura));
-    posicao = rect.top > vh / 2 ? { left, width: largura, bottom: vh - rect.top + folga + 14 } : { left, width: largura, top: rect.bottom + folga + 14 };
+  if (caixa) {
+    const centro = (caixa.left + caixa.right) / 2;
+    const left = Math.max(16, Math.min(centro - largura / 2, tela.w - 16 - largura));
+    const embaixo = caixa.bottom < tela.h * 0.55 && caixa.bottom - caixa.top <= tela.h * 0.5;
+    const top = embaixo ? Math.max(12, Math.min(caixa.bottom + 12, tela.h - alturaDoBalao - 12)) : Math.max(12, caixa.top - 12 - alturaDoBalao);
+    posicao = { left, width: largura, top };
   } else {
-    posicao = { left: (vw - largura) / 2, width: largura, top: Math.max(24, vh / 2 - 120) };
+    posicao = { left: (tela.w - largura) / 2, width: largura, top: Math.max(24, tela.h / 2 - alturaDoBalao / 2) };
   }
 
   return (
     <div className="fixed inset-0 z-[150]" role="dialog" aria-modal="true" aria-labelledby="novidades-passo">
-      {rect ? (
+      {caixa ? (
         <div
           aria-hidden
+          className="pointer-events-none fixed rounded-[18px] motion-safe:transition-all motion-safe:duration-300"
           style={{
-            position: "fixed",
-            top: rect.top - folga,
-            left: rect.left - folga,
-            width: rect.width + folga * 2,
-            height: rect.height + folga * 2,
-            borderRadius: passo?.redondo ? 999 : 22,
-            boxShadow: "0 0 0 9999px rgba(0,0,0,0.62), 0 0 0 3px var(--color-accent)",
-            transition: "all 0.25s ease",
+            top: caixa.top,
+            left: caixa.left,
+            width: caixa.right - caixa.left,
+            height: caixa.bottom - caixa.top,
+            boxShadow: "0 0 0 9999px rgba(12,8,14,0.66), 0 0 0 2px var(--color-accent)",
           }}
         />
       ) : (
-        <div aria-hidden className="fixed inset-0 bg-black/60" />
+        <div aria-hidden className="fixed inset-0 bg-[rgba(12,8,14,0.66)]" />
       )}
-      <div style={{ position: "fixed", ...posicao }} className="rounded-3xl bg-surface p-5 shadow-[0_24px_48px_-20px_rgba(0,0,0,0.45)]">
-        <p className="text-caption font-medium text-ink-muted">{contadorDoPasso(indice)}</p>
-        <h2 id="novidades-passo" className="titulo-tema mt-1 text-lg font-medium tracking-tight text-ink">
-          {passo?.titulo}
+      <div ref={balao} style={{ position: "fixed", ...posicao }} className="rounded-[24px] bg-surface px-5 pb-3 pt-4 shadow-[0_20px_50px_-20px_rgba(0,0,0,0.45),inset_0_0_0_1px_var(--color-border)]">
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-[12.5px] font-semibold text-ink-muted">{contadorDoPasso(indice)}</span>
+          {tx.pontinhos && (
+            <span className="flex items-center gap-1" aria-hidden>
+              {ONDE_DOS_PASSOS.map((_, i) => (
+                <i key={i} className={`h-1.5 rounded-full transition-all ${i <= indice ? "w-4 bg-accent" : "w-1.5 bg-border-strong"}`} />
+              ))}
+            </span>
+          )}
+        </div>
+        <h2 id="novidades-passo" className="titulo-tema mt-1.5 text-[17px] font-semibold tracking-tight text-ink">
+          {passo.titulo}
         </h2>
-        <p className="mt-1.5 text-[15px] leading-relaxed text-ink-muted">{passo?.texto}</p>
-        {passo?.acao && (
-          <Link href={passo.acao.href} onClick={() => encerrar("terminou")} className="mt-2 inline-flex min-h-11 items-center text-[15px] font-medium text-accent-strong underline-offset-2 hover:underline">
-            {passo.acao.rotulo}
-          </Link>
-        )}
-        <div className="mt-3 flex items-center justify-between gap-3">
+        <p className="mt-1 text-[14.5px] leading-relaxed text-ink-muted">{passo.texto}</p>
+        <div className="mt-2 flex items-center justify-between gap-3">
           {pular}
-          <button
-            type="button"
-            onClick={() => (ultimo ? encerrar("terminou") : setFase(indice + 1))}
-            className="min-h-11 rounded-full bg-ink px-5 text-[15px] font-medium text-canvas"
-          >
+          <Button autoFocus className="min-h-11 px-6 text-[15px]" onClick={() => setFase(ultimo ? "fim" : indice + 1)}>
             {ultimo ? "Concluir" : "Próximo"}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

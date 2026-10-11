@@ -62,7 +62,7 @@ export function Esfera({ p, dados }: { p: PerguntaDoDecidir; dados: DadosDasPilu
 /** "Qual é a sua pergunta?": as 4 primeiras em 2 × 2 e o "Ver todas as perguntas · 10". */
 export function EsferasDoDecidir({ dados }: { dados: DadosDasPilulas }) {
   return (
-    <section className="flex flex-col gap-3.5" aria-labelledby="dc-perguntas">
+    <section className="flex flex-col gap-3.5" aria-labelledby="dc-perguntas" data-tour="esferas">
       <GradientesDasEsferas />
       <h2 id="dc-perguntas" className="px-1 text-[17px] font-semibold text-ink">
         Qual é a sua pergunta?

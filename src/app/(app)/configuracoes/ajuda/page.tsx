@@ -1,6 +1,8 @@
 import Link from "next/link";
-import { CircleHelp } from "lucide-react";
+import { CircleHelp, Repeat } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
+import { getOwnUser } from "@/lib/repositories/user.repo";
+import { LINK_COMO_FUNCIONA, LINK_VER_DE_NOVO, estadoDasNovidades } from "@/lib/novidades/passos";
 import { Cabecalho } from "../_ajustes/Lista";
 import { SUPORTE_EMAIL } from "../_ajustes/suporte";
 
@@ -13,9 +15,12 @@ const PERGUNTAS: [string, string][] = [
   ["Como cancelo a assinatura?", `Escreva para ${SUPORTE_EMAIL} com o e-mail da sua conta.`],
 ];
 
-/** Central de ajuda (rodadas 25 e 33): as perguntas mais comuns e os vídeos do Como funciona. */
+/**
+ * Central de ajuda (rodadas 25 e 33): as perguntas mais comuns, os vídeos do Como funciona e,
+ * para quem já usava o app, o "Tivemos uma mudança" de novo (tutorial da versão nova).
+ */
 export default async function AjudaPage() {
-  await getRequiredSession();
+  const user = await getOwnUser(await getRequiredSession());
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-5">
       <Cabecalho titulo="Central de ajuda" sub="Perguntas frequentes." />
@@ -27,9 +32,14 @@ export default async function AjudaPage() {
           </details>
         ))}
       </div>
-      <Link href="/guia" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-surface-2 text-[15px] text-ink">
+      <Link href={LINK_COMO_FUNCIONA} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-surface-2 text-[15px] text-ink">
         <CircleHelp size={16} aria-hidden /> Como funciona: os vídeos
       </Link>
+      {estadoDasNovidades(user.novidadesVersaoNova) !== "novo" && (
+        <Link href={LINK_VER_DE_NOVO} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-surface-2 text-[15px] text-ink">
+          <Repeat size={16} aria-hidden /> Ver de novo o que mudou
+        </Link>
+      )}
     </div>
   );
 }

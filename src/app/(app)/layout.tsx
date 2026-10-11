@@ -31,6 +31,7 @@ import { perfilDoPar, perfilDoParNaLista, situacaoDoParAgora } from "@/lib/repos
 import { prisma } from "@/lib/db/prisma";
 import { coresDoCasalCss } from "@/lib/casal-login/cores";
 import { TelaDoParPausado } from "@/components/casal-login/TelaDoParPausado";
+import { estadoDasNovidades, type EstadoDasNovidades } from "@/lib/novidades/passos";
 
 
 function capitalize(text: string) {
@@ -59,6 +60,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   let perfis: { id: string; name: string; icon: string; theme: string; isDefault: boolean; kind?: string }[] = [];
   let nomeDaConta: string | null = null;
   let fotoDaConta: string | null = null;
+  let novidades: EstadoDasNovidades = "novo";
   let cssDoTema = "";
   let perfilAtivoId = "";
   // Login do par: o menu dele mostra só o Nós dois (e as Configurações dele).
@@ -112,6 +114,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     firstName = user.name?.split(" ")[0] || user.email.split("@")[0];
     nomeDaConta = user.name?.trim() || null;
     fotoDaConta = user.avatarUrl;
+    // "Tivemos uma mudança": quem já usava vê uma vez; quem chegou com a versão nova, nunca.
+    novidades = estadoDasNovidades(user.novidadesVersaoNova);
     currency = toCurrencyCode(user.currency);
     theme = user.theme;
     // Compra valendo e e-mail confirmado: a área de investimentos abre toda. Quem sobrou do
@@ -176,6 +180,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         cartaoComLimite={cartaoComLimite}
         podeEscolherModo={podeEscolherModo}
         nomeDaConta={nomeDaConta}
+        novidades={novidades}
         fotoDaConta={fotoDaConta}
         modoPar={modoPar}
       >

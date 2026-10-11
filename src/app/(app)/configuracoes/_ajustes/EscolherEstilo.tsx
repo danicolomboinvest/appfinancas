@@ -19,7 +19,7 @@ export function EscolherEstilo({ perfilId, atual }: { perfilId: string; atual: P
   const { showError } = useToast();
 
   return (
-    <div className="grid grid-cols-2 gap-2 px-3 pb-3 pt-1">
+    <div className="grid grid-cols-2 gap-2 px-3 pb-3 pt-1" data-tour="temas">
       {PROFILE_THEMES.map((t) => {
         const ativo = escolhido === t.key;
         const p = t.paleta;

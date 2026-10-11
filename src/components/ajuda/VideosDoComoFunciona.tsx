@@ -4,7 +4,7 @@ import { LINK_VER_DE_NOVO, VIDEOS_COMO_FUNCIONA } from "@/lib/novidades/passos";
 
 /**
  * Os 5 vídeos narrados do Como funciona (aprovados em 11/10/2026), cada um com a capa e o título
- * do index dos vídeos. Os arquivos moram em public/videos (versão leve, ~2 MB cada) e só baixam
+ * do index dos vídeos. Os arquivos moram em public/videos (versão leve, ~2 MB cada; os mesmos arquivos que os e-mails do Antes de cancelar usam) e só baixam
  * quando a pessoa toca no play (preload="none").
  *
  * `verDeNovo`: quem já usava o app ganha aqui o "Ver de novo o que mudou". Quem é novo, não.

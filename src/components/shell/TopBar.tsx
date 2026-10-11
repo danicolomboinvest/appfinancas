@@ -35,7 +35,7 @@ export function TopBar({
       <p className="titulo-tema min-w-0 truncate text-center font-medium text-ink md:text-left" style={{ fontSize: "var(--titulo-topo, 17px)" }}>{titulo}</p>
       <div className="flex items-center gap-1">
         <ThemeQuickToggle initial={modo} />
-        <button type="button" onClick={onAbrirPerfil} aria-label="Abrir perfil e conta" aria-haspopup="dialog" className="rounded-full transition-transform active:scale-95">
+        <button type="button" onClick={onAbrirPerfil} aria-label="Abrir perfil e conta" aria-haspopup="dialog" data-tour="perfil" className="rounded-full transition-transform active:scale-95">
           <AvatarDaConta nome={nome} foto={foto} size={44} />
         </button>
       </div>
