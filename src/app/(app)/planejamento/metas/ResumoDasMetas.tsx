@@ -58,7 +58,7 @@ export function ResumoDasMetas({
           <img src={proxima.foto} alt="" decoding="async" className="size-10 shrink-0 rounded-xl object-cover" />
           <span className="flex min-w-0 flex-1 flex-col">
             <small className="text-xs font-medium text-heroi-suave">Próxima a chegar</small>
-            <b className="truncate text-[15px] font-semibold">
+            <b className="text-[15px] font-semibold leading-snug">
               {proxima.nome} · {proxima.quando}
             </b>
           </span>
