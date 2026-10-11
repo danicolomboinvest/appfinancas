@@ -5,6 +5,7 @@ import { aportesJaOcorridosWhere } from "@/lib/planning/goal-progress";
 import { listGoalsWithProgress, getGoalWithProgress } from "@/lib/repositories/goal.repo";
 import { chaveDoMes, mesDoAporte, planoDaMeta, type PlanoDaMeta } from "@/lib/metas/projecao";
 import { fotoDaMeta } from "@/lib/metas/tipos";
+import { parseTripPlan } from "@/lib/travel/assistente";
 
 /**
  * O que a área Metas da versão nova lê do banco (lista, detalhe e o cartão do aporte do mês).
@@ -30,6 +31,8 @@ export type MetaDaTela = {
   checkinDismissedMonth: string | null;
   aporteAdiadoMes: string | null;
   aportesRecusados: string[];
+  /** A meta nasceu no assistente de Viagem (Goal.viagem): o "Editar" volta para lá. */
+  daViagem: boolean;
 };
 
 type GoalComProgresso = Awaited<ReturnType<typeof listGoalsWithProgress>>[number];
@@ -61,6 +64,7 @@ function montar(g: GoalComProgresso | NonNullable<Awaited<ReturnType<typeof getG
     checkinDismissedMonth: g.checkinDismissedMonth,
     aporteAdiadoMes: g.aporteAdiadoMes,
     aportesRecusados: g.aportesRecusados,
+    daViagem: parseTripPlan(g.viagem) !== null,
   };
 }
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Calendar, Minus, Pencil, Plus, Repeat } from "lucide-react";
 import { ValorDestaque } from "@/components/ui/ValorDestaque";
@@ -45,8 +46,12 @@ export function VoltarAoRitmo({ metaId, porMes, novoPrazo }: { metaId: string; p
   );
 }
 
-/** A barra de baixo do detalhe: Adicionar, retirar (−) e editar (lápis). */
-export function BarraDaMeta({ metaId, meta }: { metaId: string; meta: MetaParaEditar }) {
+/**
+ * A barra de baixo do detalhe: Adicionar, retirar (−) e editar (lápis). A meta que nasceu no
+ * assistente de Viagem edita lá (`editarEm` = /viagem?meta=<id>), com a viagem inteira; as
+ * outras, na folha da meta.
+ */
+export function BarraDaMeta({ metaId, meta, editarEm }: { metaId: string; meta: MetaParaEditar; editarEm?: string }) {
   const router = useRouter();
   const { showToast, showError } = useToast();
   const [pendente, iniciar] = useTransition();
@@ -103,9 +108,15 @@ export function BarraDaMeta({ metaId, meta }: { metaId: string; meta: MetaParaEd
         <button type="button" aria-label="Retirar" onClick={() => setTipo("retirar")} className={redondo}>
           <Minus size={20} aria-hidden />
         </button>
-        <AbrirFolhaDaMeta meta={meta} rotulo="Editar" className={redondo}>
-          <Pencil size={18} aria-hidden />
-        </AbrirFolhaDaMeta>
+        {editarEm ? (
+          <Link href={editarEm} aria-label="Editar" className={redondo}>
+            <Pencil size={18} aria-hidden />
+          </Link>
+        ) : (
+          <AbrirFolhaDaMeta meta={meta} rotulo="Editar" className={redondo}>
+            <Pencil size={18} aria-hidden />
+          </AbrirFolhaDaMeta>
+        )}
       </div>
     </>
   );

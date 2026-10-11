@@ -216,7 +216,7 @@ export default async function DetalheDaMetaPage(props: PageProps<"/planejamento/
           </div>
         )}
 
-        <BarraDaMeta metaId={meta.id} meta={paraEditar} />
+        <BarraDaMeta metaId={meta.id} meta={paraEditar} editarEm={meta.daViagem ? `/viagem?meta=${meta.id}` : undefined} />
       </div>
     </ProvedorDaFolhaDaMeta>
   );
