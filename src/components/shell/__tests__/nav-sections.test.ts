@@ -17,9 +17,15 @@ describe("o menu ☰ da versão nova", () => {
     expect(rotuloDoMenu(empresa[2], true)).toBe("Caixa");
   });
 
-  it("o Casal ganha o 'Quanto cada um contribui?' sem perder nada", () => {
+  it("o Casal ganha o 'Nós dois' sem perder nada", () => {
     const casal = secoesVisiveis(NAV_SECTIONS, { empresa: false, casal: true });
     expect(bases(casal)).toContain("/divisao");
+    // O título do topo do perfil Casal é "Nós dois", como no protótipo (não a calculadora cortada).
+    expect(tituloDaTela("/divisao", casal)).toBe("Nós dois");
+    expect(tituloDaTela("/divisao/fechar", casal)).toBe("Nós dois");
+    // As outras telas continuam com o título delas.
+    expect(tituloDaTela("/planejamento/metas", casal)).toBe("Metas");
+    expect(tituloDaTela("/mensal/foco", casal)).toBe("Visão geral");
     expect(casal).toHaveLength(11);
   });
 

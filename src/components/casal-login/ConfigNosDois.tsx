@@ -148,8 +148,8 @@ export function ConfigDaTitular({
             <ParDeAvatares titular={nomeTitular} par={par.nome} esperando />
             <ul className={`${CARTAO} divide-y divide-border px-5`}>
               <Linha icone={<House size={20} strokeWidth={1.6} />} rotulo="O histórico fica com você" sub="lançamentos, contas e metas" />
-              <Linha icone={<Download size={20} strokeWidth={1.6} />} rotulo="Recebe uma cópia" sub="do que lançou, por 90 dias" />
-              <Linha icone={<Lock size={20} strokeWidth={1.6} />} rotulo="O acesso para na hora" />
+              <Linha icone={<Download size={20} strokeWidth={1.6} />} rotulo={`${par.nome} recebe uma cópia`} sub="do que lançou, por 90 dias" />
+              <Linha icone={<Lock size={20} strokeWidth={1.6} />} rotulo={`O acesso de ${par.nome} para na hora`} />
             </ul>
             <button
               type="button"
@@ -183,7 +183,7 @@ export function ConfigDoPar({ nomeTitular, entrouEmIso }: { nomeTitular: string;
   return (
     <div className="flex flex-col gap-3 pt-1">
       <Voltar href="/divisao" rotulo="Nós dois" />
-      <h1 className="titulo-tema text-[34px] font-medium leading-tight tracking-tight text-ink">Nós dois da {nomeTitular}</h1>
+      <h1 className="titulo-tema text-[34px] font-medium leading-tight tracking-tight text-ink">Nós dois de {nomeTitular}</h1>
       <div className={`${CARTAO} mt-3 divide-y divide-border px-5`}>
         <Linha icone={<Bolinha nome={nomeTitular} cor="titular" size={34} />} rotulo={nomeTitular} sub="paga o Casal" />
         <Linha icone={<Clock size={20} strokeWidth={1.6} />} rotulo="Entrei em" valor={diaMes(entrouEmIso)} />
@@ -192,7 +192,7 @@ export function ConfigDoPar({ nomeTitular, entrouEmIso }: { nomeTitular: string;
         <Linha icone={<Download size={20} strokeWidth={1.6} />} rotulo="Baixar o que eu lancei" sub="uma cópia, em planilha" href="/api/casal/lancamentos" />
         <Linha icone={<LogOut size={20} strokeWidth={1.6} />} rotulo="Sair do Nós dois" perigo onClick={() => setSair(true)} />
       </div>
-      <Aviso>Se você sair, o histórico fica com a {nomeTitular}. Você leva uma cópia do que lançou.</Aviso>
+      <Aviso>Se você sair, o histórico fica com {nomeTitular}. Você leva uma cópia do que lançou.</Aviso>
       <button type="button" onClick={() => start(() => logoutAction())} className="mx-auto mt-4 min-h-11 text-[16px] text-ink-muted underline underline-offset-4">
         Sair da conta
       </button>
@@ -200,7 +200,7 @@ export function ConfigDoPar({ nomeTitular, entrouEmIso }: { nomeTitular: string;
       <Modal open={sair} onClose={() => setSair(false)} title="Sair do Nós dois?">
         <div className="flex flex-col gap-5">
           <p className="text-[16px] leading-relaxed text-ink-muted">
-            Você perde o acesso ao Nós dois da {nomeTitular} agora. Antes, se quiser, baixe a cópia do que você lançou: ela fica disponível por 90 dias.
+            Você perde o acesso ao Nós dois de {nomeTitular} agora. Antes, se quiser, baixe a cópia do que você lançou: a cópia fica disponível por 90 dias.
           </p>
           {erro && <p className="rounded-2xl bg-danger-soft px-4 py-3 text-[15px] text-danger">{erro}</p>}
           <a href="/api/casal/lancamentos" className={BOTAO_ESCURO}>

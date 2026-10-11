@@ -66,7 +66,7 @@ export async function perfilDoPar(userId: string): Promise<{ perfil: ProfileRow;
   const { user: _u, userId: donoId, ...perfil } = m.profile;
   void _u;
   return {
-    perfil: { ...perfil, name: `Nós dois da ${nomeTitular}`, isDefault: true },
+    perfil: { ...perfil, name: `Nós dois de ${nomeTitular}`, isDefault: true },
     par: { membroId: m.id, letra, donoId, nomeTitular, mostrarRenda: config.mostrarRenda === true, bloqueadoEm: m.bloqueadoEm },
   };
 }
@@ -83,7 +83,7 @@ export async function perfilDoParNaLista(userId: string): Promise<ProfileRow | n
   if (!m || m.profile.kind !== "CASAL") return null;
   const config = lerConfigCasal(m.profile.casal);
   const { user, ...perfil } = m.profile;
-  return { ...perfil, name: `Nós dois da ${nomeDaTitular(config, m.letra === "A" ? "A" : "B", user.name, user.email)}`, isDefault: false };
+  return { ...perfil, name: `Nós dois de ${nomeDaTitular(config, m.letra === "A" ? "A" : "B", user.name, user.email)}`, isDefault: false };
 }
 
 /** O Casal da titular vale agora: o app dela ativo e a conta do parceiro (adicional) liberada. */

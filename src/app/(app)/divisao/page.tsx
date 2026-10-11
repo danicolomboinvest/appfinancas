@@ -94,7 +94,7 @@ async function NosDoisDoPar({ ctx, ano, mes, entrou }: { ctx: AuthContext; ano: 
       {entrou && (
         <div className="flex items-center gap-3 rounded-2xl bg-success-soft px-4 py-3 text-[15px] text-success">
           <CheckCircle2 size={18} strokeWidth={1.8} className="shrink-0" aria-hidden />
-          <span className="min-w-0 flex-1">Você entrou no Nós dois da {par.nomeTitular}</span>
+          <span className="min-w-0 flex-1">Você entrou no Nós dois de {par.nomeTitular}</span>
           <Link href="/divisao" aria-label="Fechar aviso" className="-mr-1 flex size-9 items-center justify-center rounded-full">
             <X size={16} strokeWidth={1.8} aria-hidden />
           </Link>
@@ -102,7 +102,7 @@ async function NosDoisDoPar({ ctx, ano, mes, entrou }: { ctx: AuthContext; ano: 
       )}
       <p className="flex items-center gap-2 px-1 text-[14px] text-ink-muted">
         <Users size={16} strokeWidth={1.6} className="shrink-0" aria-hidden />
-        Você vê o que é do casal. O pessoal da {par.nomeTitular} fica com ela.
+        Você vê o que é do casal. O pessoal de {par.nomeTitular} não aparece aqui.
       </p>
       <NosDoisADois ctx={ctx} ano={ano} mes={mes} acerto={acerto} minhaLetra={par.letra} letraTitular={letraTitular} souPar />
       {par.mostrarRenda && acerto.rendas.A + acerto.rendas.B > 0 && (

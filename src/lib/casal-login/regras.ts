@@ -23,7 +23,7 @@ export const TERMOS_DO_PAR_VERSAO = "par-2026-10-11";
 
 /** As três frases dos termos, na tela de entrada (protótipo c2). `{titular}` e `{par}` são nomes. */
 export function frasesDosTermos(titular: string, par: string): string[] {
-  return [`${titular} vê o que for nosso e o que for do ${par}`, "O que for só meu, só eu vejo", "Se eu sair, levo uma cópia do que lancei"];
+  return [`${titular} vê o que for nosso e o que for de ${par}`, "O que for só meu, só eu vejo", "Se eu sair, levo uma cópia do que lancei"];
 }
 
 export type StatusGravado = "aberto" | "aceito" | "cancelado" | "substituido";

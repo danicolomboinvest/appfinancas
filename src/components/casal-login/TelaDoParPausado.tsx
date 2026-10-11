@@ -23,7 +23,7 @@ export function TelaDoParPausado({ nomeTitular, ate }: { nomeTitular: string; at
         </span>
         <h1 className="titulo-tema mt-6 text-[32px] font-medium leading-tight text-ink">O Nós dois está pausado</h1>
         <p className="mt-3 text-balance text-[17px] leading-relaxed text-ink-muted">
-          O Casal da {nomeTitular} não foi renovado. Tudo fica guardado{ateTxt ? ` até ${ateTxt}` : " por 90 dias"} e volta como estava se ela renovar.
+          O Casal de {nomeTitular} não foi renovado. Tudo fica guardado{ateTxt ? ` até ${ateTxt}` : " por 90 dias"} e volta como estava com a renovação.
         </p>
         <div className="mt-8 flex flex-col gap-3">
           {ateTxt && (

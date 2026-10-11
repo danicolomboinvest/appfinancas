@@ -653,6 +653,6 @@ export const PADRAO_FOCO: TextosFoco = {
   focoTourMaisTexto: (tipo) =>
     tipo === "empresa"
       ? "Metas, Vale a pena investir? e o resto ficam neste menu. Sua conta e as preferências ficam na sua foto, à direita."
-      : `Metas, Decidir, Viagem${tipo === "casal" ? ", Quanto cada um contribui?" : ""} e o resto ficam neste menu. Sua conta e as preferências ficam na sua foto, à direita.`,
+      : `Metas, Decidir, Viagem${tipo === "casal" ? ", Nós dois" : ""} e o resto ficam neste menu. Sua conta e as preferências ficam na sua foto, à direita.`,
   focoTourFimTexto: "Comece pelo cartão “Comece por aqui”: suba o extrato ou a fatura.",
 };

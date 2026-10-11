@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
 import {
   VALIDADE_DO_CONVITE_MS,
   decidirTela,
@@ -122,5 +123,24 @@ describe("nomes e textos", () => {
       expect(t).not.toMatch(/\p{Extended_Pictographic}/u);
     }
     expect(mensagemDoConvite("Lucas", "L")).toContain("7 dias");
+  });
+});
+
+describe("gênero neutro: o app não sabe quem é cada pessoa do casal", () => {
+  it("as telas do link e os termos não usam ele, ela, sozinha nem artigo antes do nome", async () => {
+    const { motivo } = await import("../textos-do-link");
+    const telas = ["invalido", "vencido", "usado", "cancelado", "substituido", "casal-inativo", "ja-tem-par", "e-a-titular", "em-outro-casal", "ja-esta-aqui", "limite"] as const;
+    const textos = [...telas.flatMap((t) => { const m = motivo(t, "Ana", "Lucas", "18/10"); return [m.titulo, m.texto]; }), ...frasesDosTermos("Ana", "Lucas")];
+    for (const t of textos) {
+      expect(t, t).not.toMatch(/\b(ele|ela|dele|dela|sozinh[ao])\b/i);
+      expect(t, t).not.toMatch(/\b(a|o|da|do|na|no) (Ana|Lucas)\b/i);
+    }
+  });
+
+  it("as telas da titular e do par também", () => {
+    for (const f of ["src/components/casal-login/ChamarOPar.tsx", "src/components/casal-login/ConfigNosDois.tsx", "src/components/casal-login/TelaDoParPausado.tsx"]) {
+      const texto = readFileSync(f, "utf-8").split("\n").filter((l) => !/^\s*(\/\/|\*|\/\*\*)/.test(l)).join("\n");
+      expect(texto, f).not.toMatch(/"Ele |"Ele não|sozinha|Nós dois da \{|com a \{/);
+    }
   });
 });

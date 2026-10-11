@@ -22,7 +22,7 @@ export type ConviteNaTelaDaTitular = {
 
 const CANAL: Record<CanalDoConvite, string> = { whatsapp: "Pelo WhatsApp", email: "Por e-mail", copiar: "Link copiado" };
 const DIA_MS = 24 * 60 * 60 * 1000;
-const ESCONDER_KEY = "nos-dois-lancar-sozinha";
+const ESCONDER_KEY = "nos-dois-lancar-so-no-meu-nome";
 
 function diaMes(iso: string): string {
   return new Date(new Date(iso).getTime() - 1).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" });
@@ -81,7 +81,7 @@ export function ChamarOPar({
   casalValendo: boolean;
   convite: ConviteNaTelaDaTitular | null;
   precoDoCasal?: number;
-  /** Abre a chamada mesmo se ela tocou "Lançar sozinha por enquanto" (vem de Configurações). */
+  /** Abre a chamada mesmo se ela tocou "Lançar só no meu nome por enquanto" (vem de Configurações). */
   mostrarSempre?: boolean;
 }) {
   const router = useRouter();
@@ -223,8 +223,8 @@ export function ChamarOPar({
       <TituloDoTema className="mt-6">Agora, chame o seu par</TituloDoTema>
       <p className="mt-2 text-[17px] text-ink-muted">Cada um com o próprio login. A casa num lugar só.</p>
       <ul className={`${CARTAO} mt-6 w-full divide-y divide-border px-5 text-left`}>
-        <Item icone={<Eye size={20} strokeWidth={1.6} />} titulo="Ele vê" texto="o que é nosso: contas, metas, acerto" />
-        <Item icone={<Lock size={20} strokeWidth={1.6} />} titulo="Ele não vê" texto="o seu pessoal e o que for só seu" />
+        <Item icone={<Eye size={20} strokeWidth={1.6} />} titulo="O par vê" texto="o que é nosso: contas, metas, acerto" />
+        <Item icone={<Lock size={20} strokeWidth={1.6} />} titulo="O par não vê" texto="o seu pessoal e o que for só seu" />
       </ul>
       <button type="button" onClick={() => setFolha(true)} className={`${BOTAO_ESCURO} mt-6`}>
         <UserPlus size={20} strokeWidth={1.7} aria-hidden />
@@ -240,7 +240,7 @@ export function ChamarOPar({
         }}
         className="mt-4 min-h-11 text-[16px] text-ink underline underline-offset-4"
       >
-        Lançar sozinha por enquanto
+        Lançar só no meu nome por enquanto
       </button>
     </section>
   );

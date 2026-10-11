@@ -120,8 +120,8 @@ describe("textos do Comece por aqui e do tour", () => {
   it("o menu Mais cita o que existe em cada perfil", () => {
     const p = vozDoTema("padrao").titulos;
     expect(p.focoTourMaisTexto("pessoa")).toContain("Decidir");
-    expect(p.focoTourMaisTexto("pessoa")).not.toContain("Quanto cada um contribui");
-    expect(p.focoTourMaisTexto("casal")).toContain("Quanto cada um contribui");
+    expect(p.focoTourMaisTexto("pessoa")).not.toContain("Nós dois");
+    expect(p.focoTourMaisTexto("casal")).toContain("Nós dois");
     // A Empresa não tem Decidir nem viagem.
     expect(p.focoTourMaisTexto("empresa")).not.toMatch(/Decidir|Viagem/);
     expect(p.focoTourMaisTexto("empresa")).toContain("Vale a pena investir?");

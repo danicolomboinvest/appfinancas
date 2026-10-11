@@ -267,7 +267,7 @@ describe("a sessão do par", () => {
     vi.doMock("@/lib/auth/auth.config", () => ({ auth: async () => ({ user: { id: LUCAS, role: "CLIENT", par: "em-uso" } }) }));
     vi.doMock("@/lib/repositories/casal-login.repo", () => ({
       perfilDoPar: async () => ({
-        perfil: { id: CASAL, name: "Nós dois da Ana", kind: "CASAL", icon: "heart", theme: "girly", position: 0, isDefault: true, categorias: null, casal: null },
+        perfil: { id: CASAL, name: "Nós dois de Ana", kind: "CASAL", icon: "heart", theme: "girly", position: 0, isDefault: true, categorias: null, casal: null },
         par: { membroId: "m1", letra: "B", donoId: ANA, nomeTitular: "Ana", mostrarRenda: false, bloqueadoEm: null },
       }),
     }));

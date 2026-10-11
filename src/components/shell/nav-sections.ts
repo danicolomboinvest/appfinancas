@@ -82,7 +82,7 @@ export function sectionMatches(section: Pick<NavSection, "basePath" | "alsoMatch
  * O menu ☰ (versão nova, 11/10/2026): uma lista só, na ordem do protótipo aprovado. Visão
  * geral, Metas, Dívidas, Carteira, Viagem, Calculadoras, Análises, Decidir, Configurações e
  * Como funciona. A Empresa troca o que é de pessoa
- * física pelo "Vale a pena investir?"; o Casal ganha o "Quanto cada um contribui?".
+ * física pelo "Vale a pena investir?"; o Casal ganha o "Nós dois".
  *
  * A mesma lista serve à gaveta do celular e à barra lateral do computador.
  */
@@ -150,7 +150,9 @@ export const NAV_SECTIONS: NavSection[] = [
     ],
   },
   { basePath: "/investir", href: "/investir", label: "Vale a pena investir?", icon: Store, soEmpresa: true },
-  { basePath: "/divisao", href: "/divisao", label: "Quanto cada um contribui?", icon: Scale, soCasal: true },
+  // "Nós dois" (11/10/2026, login do par): o nome do protótipo no menu e no título do topo. A
+  // calculadora "Quanto cada um contribui?" continua dentro da tela, com o título dela.
+  { basePath: "/divisao", href: "/divisao", label: "Nós dois", icon: Scale, soCasal: true },
   {
     basePath: "/configuracoes",
     href: "/configuracoes",
