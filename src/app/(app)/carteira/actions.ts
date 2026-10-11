@@ -10,6 +10,7 @@ import { assetSchema } from "@/lib/validations/asset.schema";
 import { fetchTickerPrice } from "@/lib/analysis/price-scraper";
 import { resolveQuotedCurrentValue } from "@/lib/portfolio/asset-current-value";
 import { parseQuantityInput } from "@/lib/portfolio/asset-form-values";
+import { taxaDoFormulario } from "@/lib/portfolio/taxa-compra";
 import { precoNaMoeda, reaisPorUnidadeDa } from "@/lib/portfolio/cotacao-na-moeda";
 import { getOwnUser } from "@/lib/repositories/user.repo";
 import { isCurrencyCode, toCurrencyCode } from "@/lib/money";
@@ -108,6 +109,12 @@ async function parseAssetForm(formData: FormData) {
     currentUnitPrice,
     fixedIncomeIndex: formData.get("fixedIncomeIndex") || undefined,
     idealAllocationPercent: formData.get("idealAllocationPercent") || undefined,
+    // Novo ativo pela busca (versão nova): a data da compra e a classificação que ela corrigiu.
+    acquisitionDate: formData.get("acquisitionDate") || undefined,
+    tipoEscolhido: formData.get("tipoEscolhido") || undefined,
+    ondeEscolhido: formData.get("ondeEscolhido") || undefined,
+    // A taxa da compra (renda fixa): só mexe quando o campo veio no formulário; vazio apaga.
+    taxaCompra: formData.has("taxaCompra") ? taxaDoFormulario(String(formData.get("taxaCompra") ?? "")) : undefined,
     ...valores,
   });
 }

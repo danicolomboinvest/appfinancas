@@ -116,9 +116,10 @@ export const NAV_SECTIONS: NavSection[] = [
     icon: Wallet,
     premium: true,
     children: [
-      { href: "/carteira", label: "Meus Ativos" },
-      { href: "/carteira/por-objetivo", label: "Por Objetivo", soPessoa: true },
+      { href: "/carteira", label: "Meus ativos" },
+      { href: "/carteira/proventos", label: "Proventos", soPessoa: true },
       { href: "/carteira/estrategia", label: "Estratégia", soPessoa: true },
+      { href: "/carteira/oportunidades", label: "Oportunidades", soPessoa: true },
     ],
   },
   { basePath: "/viagem", href: "/viagem", label: "Viagem", icon: Plane, soPessoa: true },

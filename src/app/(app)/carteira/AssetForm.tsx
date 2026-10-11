@@ -6,6 +6,8 @@ import { CurrencyField } from "@/components/ui/CurrencyField";
 import { TickerPicker } from "@/components/forms/TickerPicker";
 import type { TickerKind } from "@/lib/market/ticker-search";
 import { Button } from "@/components/ui/Button";
+import { Explica } from "@/components/ui/Explica";
+import { taxaParaOCampo } from "@/lib/portfolio/taxa-compra";
 import { useSuccessToast } from "@/components/ui/useSuccessToast";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import type { ClasseDeAtivo, IndexadorRendaFixa, ObjetivoDeAtivo } from "@/lib/profiles/textos/formularios";
@@ -41,6 +43,8 @@ type Defaults = {
   investedValue?: number;
   currentValue?: number;
   fixedIncomeIndex?: string;
+  /** Taxa da compra em fração (0.075 = IPCA + 7,5%), ver lib/portfolio/taxa-compra.ts. */
+  taxaCompra?: number | null;
   /** "USD" na conta no exterior: aí investido, valor atual e preço médio vêm em dólar. */
   currency?: string;
 };
@@ -202,6 +206,28 @@ export function AssetForm({
             </option>
           ))}
         </SelectField>
+      )}
+      {isFixedIncome && (
+        // A taxa em que ela comprou (11/10/2026): opcional, em %, lida com o indexador acima.
+        <div className="flex flex-col gap-1.5">
+          <span className="flex items-center gap-1.5 text-sm font-medium text-ink">
+            <label htmlFor="taxaCompra">Qual taxa você comprou?</label>
+            <Explica>
+              Está no app do banco ou da corretora, ao lado do nome do título. No IPCA+, digite só o número depois do IPCA (7,5 para IPCA + 7,5%). No pós-fixado, o percentual do CDI (105 para 105% do CDI). No prefixado, a taxa ao ano. Se não souber, deixe em branco.
+            </Explica>
+          </span>
+          <span className="flex items-center gap-2">
+            <input
+              id="taxaCompra"
+              name="taxaCompra"
+              inputMode="decimal"
+              defaultValue={taxaParaOCampo(defaults.taxaCompra)}
+              placeholder="Ex.: 7,5"
+              className="min-h-11 w-28 rounded-xl border border-border-strong bg-surface px-3 text-base tabular-nums text-ink outline-none focus:border-accent"
+            />
+            <span className="text-sm text-ink-muted">%</span>
+          </span>
+        </div>
       )}
       <SelectField
         label={t.formAtivoObjetivo}

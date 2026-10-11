@@ -1,49 +1,61 @@
-import { ehEmpresa } from "@/lib/profiles/empresa";
 import { redirect } from "next/navigation";
-import type { StrategyAssetClass } from "@prisma/client";
 import { getRequiredSession } from "@/lib/auth/session";
-import { vozDoTema } from "@/lib/profiles/voice";
-import { listPortfolioStrategy } from "@/lib/repositories/portfolio-strategy.repo";
-import { STRATEGY_ASSET_CLASSES } from "@/lib/portfolio/strategy";
-import { PageHeader } from "@/components/ui/PageHeader";
-import { StrategyForm } from "./StrategyForm";
+import { prisma } from "@/lib/db/prisma";
+import { ehEmpresa } from "@/lib/profiles/empresa";
+import { getPortfolioStrategyComparison } from "@/lib/portfolio/strategy";
 import { listGoalsWithProgress } from "@/lib/repositories/goal.repo";
 import { getEmergencyFund } from "@/lib/repositories/emergency-fund.repo";
 import { getPlanningParams } from "@/lib/repositories/planning-params.repo";
+import { listAssets } from "@/lib/repositories/asset.repo";
 import { computeAccumulation } from "@/lib/planning/accumulation";
-import type { Sonho } from "@/lib/portfolio/estrategia-pelos-sonhos";
+import { liberdadeEmValorDeHoje, type Sonho } from "@/lib/portfolio/estrategia-pelos-sonhos";
 import { nowInBrazil } from "@/lib/date/brazil-now";
+import { EstrategiaResumo } from "./EstrategiaResumo";
+import { MontarEstrategia } from "./MontarEstrategia";
 
 const MES_MS = 30.4375 * 24 * 60 * 60 * 1000;
 
-export default async function EstrategiaCarteiraPage() {
+/**
+ * Carteira › Estratégia (rodadas 16, 22 e 32). Informativa, não manda fazer: o perfil, cada
+ * classe com "hoje" e "meta" lado a lado, uma frase curta, Personalizar e Refazer. Sem estratégia
+ * (ou no Refazer), o "Montar minha estratégia" em 7 passos, com as regras novas (3.13): exterior
+ * pelo plano em outra moeda, proventos, a Liberdade no valor de hoje, teto pela queda e a regra
+ * dos aportes da reserva (3.11).
+ */
+export default async function EstrategiaCarteiraPage({ searchParams }: { searchParams: Promise<{ montar?: string }> }) {
   const ctx = await getRequiredSession();
-  // Empresa não monta estratégia de carteira: só o caixa e os ativos.
   if (ehEmpresa(ctx.profileKind)) redirect("/carteira");
-  const voz = vozDoTema(ctx.profileTheme, ctx.profileKind);
-  const [rows, goals, fund, params] = await Promise.all([
-    listPortfolioStrategy(ctx),
+  const { montar } = await searchParams;
+  const [comparacao, goals, fund, params, assets, perfil] = await Promise.all([
+    getPortfolioStrategyComparison(ctx),
     listGoalsWithProgress(ctx),
     getEmergencyFund(ctx),
     getPlanningParams(ctx),
+    listAssets(ctx),
+    prisma.financialProfile.findFirst({ where: { id: ctx.profileId, userId: ctx.userId }, select: { perfilInvestidor: true } }),
   ]);
+  const temEstrategia = comparacao.positions.some((p) => p.targetPercent > 0);
 
-  const defaults = Object.fromEntries(
-    STRATEGY_ASSET_CLASSES.map((assetClass) => [
-      assetClass,
-      Number(rows.find((r) => r.assetClass === assetClass)?.targetPercent ?? 0) * 100,
-    ]),
-  ) as Record<StrategyAssetClass, number>;
-
-  // Os sonhos dela, com quanto falta e em quantos meses (06/10/2026): a estratégia nasce deles, e
-  // não de uma pergunta de prazo único. A reserva é o dinheiro do imprevisto; a liberdade
-  // financeira vem do plano de aposentadoria (o que o plano projeta juntar até lá).
-  const agora = nowInBrazil();
-  const sonhos: Sonho[] = [];
-  if (fund) {
-    sonhos.push({ id: "reserva", nome: voz.titulos.objReserva, falta: Math.max(0, Number(fund.targetAmount) - Number(fund.currentAmount)), meses: 0, tipo: "reserva" });
+  if (temEstrategia && montar !== "1") {
+    return (
+      <EstrategiaResumo
+        perfil={perfil?.perfilInvestidor ?? null}
+        linhas={comparacao.positions.map((p) => ({ classe: p.assetClass, hoje: p.currentPercent, meta: p.targetPercent }))}
+      />
+    );
   }
+
+  // Os sonhos dela, com quanto falta e em quantos meses: a estratégia nasce deles.
+  const agora = nowInBrazil();
+  const naReserva = assets.filter((a) => a.objective === "RESERVA_EMERGENCIA").reduce((s, a) => s + Number(a.currentValue), 0);
+  const reservaAtual = fund ? Math.max(Number(fund.currentAmount), naReserva) : naReserva;
+  const reservaMeta = fund ? Number(fund.targetAmount) : 0;
+  const custoDeVida = fund ? Number(fund.monthlyExpenseBase) : 0;
+  const sonhos: Sonho[] = [];
+  if (fund) sonhos.push({ id: "reserva", nome: "Reserva", falta: Math.max(0, reservaMeta - reservaAtual), meses: 0, tipo: "reserva" });
   for (const g of goals) {
+    // A meta "Reserva de emergência" é a mesma reserva: não conta duas vezes.
+    if (fund && /reserva/i.test(g.name)) continue;
     sonhos.push({
       id: g.id,
       nome: g.name,
@@ -53,6 +65,7 @@ export default async function EstrategiaCarteiraPage() {
     });
   }
   if (params && params.retirementAge > params.currentAge) {
+    const anos = params.retirementAge - params.currentAge;
     const acumulo = computeAccumulation({
       currentAge: params.currentAge,
       retirementAge: params.retirementAge,
@@ -61,21 +74,17 @@ export default async function EstrategiaCarteiraPage() {
       accumulationAnnualRate: Number(params.accumulationAnnualRate),
       inflationAnnualRate: Number(params.inflationAnnualRate),
     });
-    sonhos.push({
-      id: "liberdade",
-      nome: voz.titulos.objLiberdade,
-      falta: Math.max(0, Math.round(acumulo.finalValueReal - Number(params.currentPatrimony))),
-      meses: (params.retirementAge - params.currentAge) * 12,
-      tipo: "liberdade",
-    });
+    // O que falta, trazido para o valor de hoje antes de pesar (decisão da rodada 22).
+    const faltaNoFuturo = Math.max(0, acumulo.finalValueNominal - Number(params.currentPatrimony));
+    sonhos.push({ id: "liberdade", nome: "Liberdade", falta: liberdadeEmValorDeHoje(faltaNoFuturo, anos, Number(params.inflationAnnualRate)), meses: anos * 12, tipo: "liberdade" });
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      {/* Sem a frase fixa embaixo do título (06/10/2026): o convite do jogo já diz o que é. */}
-      <PageHeader title={voz.titulos.estrategia} />
-
-      <StrategyForm defaults={defaults} sonhos={sonhos.filter((s) => s.falta > 0)} />
-    </div>
+    <MontarEstrategia
+      sonhos={sonhos}
+      totalDaCarteira={comparacao.totalPortfolio}
+      reserva={fund ? { atual: reservaAtual, meta: reservaMeta, custoDeVida } : null}
+      podeCancelar={temEstrategia}
+    />
   );
 }
