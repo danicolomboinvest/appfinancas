@@ -28,6 +28,16 @@ export function previsaoDoMes(planejado: number, gastoTotal: number, decorrido: 
 }
 
 /**
+ * O "Fim do mês" de um mês ainda sem lançamento (11/10/2026, conta real da dona): sem dado, o app
+ * não projeta ritmo nenhum, mostra o PLANO. É a sobra que o plano prevê: a renda planejada menos o
+ * que ela planejou gastar e guardar. Sem renda planejada não há número: null (o quadrinho some).
+ */
+export function fimDoMesPeloPlano(rendaPlanejada: number | null, gastoPlanejado: number, aportePlanejado: number | null): number | null {
+  if (rendaPlanejada === null || !(rendaPlanejada > 0)) return null;
+  return Math.round(rendaPlanejada - Math.max(0, gastoPlanejado) - Math.max(0, aportePlanejado ?? 0));
+}
+
+/**
  * A partir de quanto uma compra avulsa é "grande" e não ritmo do dia a dia: R$ 500, ou 10% do
  * que corre no mês, o que for maior. Café, mercado e Uber nunca chegam lá; a viagem chega.
  */

@@ -59,10 +59,11 @@ export function GraficoSeisMeses({ meses12 }: { meses12: MesDoGrafico[] }) {
 
       <div className="mt-4 grid grid-cols-6 gap-1" role="group" aria-label="Meses">
         {meses.map((x, i) => {
-          const s = lerSobrou(x.sobrou);
+          const s = lerSobrou(x.sobrou, x.situacao === "vazio");
           const on = i === selecionado;
-          const palavra = x.atual ? "até agora" : s.situacao === "empatou" ? "empatou" : s.situacao;
-          const cor = x.atual || s.situacao === "empatou" ? "var(--color-ink-muted)" : s.situacao === "sobrou" ? COR.sobrou : COR.faltou;
+          // Mês sem lançamento (antes de ela usar o app): sem palavra em cima, nada de "empatou".
+          const palavra = x.atual ? "até agora" : s.situacao === "vazio" ? "" : s.situacao === "empatou" ? "empatou" : s.situacao;
+          const cor = x.atual || s.situacao === "empatou" || s.situacao === "vazio" ? "var(--color-ink-muted)" : s.situacao === "sobrou" ? COR.sobrou : COR.faltou;
           return (
             <button
               key={`${x.ano}-${x.mes}`}
@@ -75,7 +76,7 @@ export function GraficoSeisMeses({ meses12 }: { meses12: MesDoGrafico[] }) {
               <span className="flex h-8 flex-col items-center justify-end text-center text-xs leading-tight" style={{ color: cor }}>
                 <span>{palavra}</span>
                 {/* Só o número, sem o R$: em 320 px cada coluna tem uns 40 px. */}
-                {!x.atual && s.situacao !== "empatou" && <span className="tabular-nums">{separarPrefixo(m(s.valor))[1]}</span>}
+                {!x.atual && s.situacao !== "empatou" && s.situacao !== "vazio" && <span className="tabular-nums">{separarPrefixo(m(s.valor))[1]}</span>}
               </span>
               <span className="mt-1 flex items-end justify-center gap-[3px]" style={{ height: ALTURA, opacity: x.atual ? 0.5 : 1 }}>
                 <span className="w-[clamp(9px,3.2vw,15px)] rounded-t-[3px]" style={{ height: altura(x.entrou), background: x.atual ? `${LISTRA}, ${COR.entrou}` : COR.entrou }} />

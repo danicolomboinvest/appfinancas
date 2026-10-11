@@ -20,14 +20,24 @@ export function sobrouDoMes({ entrou, gastou, guardou }: ValoresDoMes): number {
   return centavos(entrou - gastou - guardou);
 }
 
-export type SituacaoDoSobrou = "sobrou" | "empatou" | "faltou";
+/** "vazio": o mês não tem lançamento nenhum (não é um empate, é um mês que ainda não começou). */
+export type SituacaoDoSobrou = "sobrou" | "empatou" | "faltou" | "vazio";
 
-/** A palavra e o valor sem sinal, prontos para a tela: nunca "−R$". */
-export function lerSobrou(valor: number): { situacao: SituacaoDoSobrou; rotulo: "Sobrou" | "Empatou" | "Faltou"; valor: number } {
+/**
+ * A palavra e o valor sem sinal, prontos para a tela: nunca "−R$". Mês sem nenhum lançamento
+ * continua "Sobrou R$ 0" (11/10/2026: "Empatou R$ 0" num mês vazio confundia a dona).
+ */
+export function lerSobrou(valor: number, semLancamento = false): { situacao: SituacaoDoSobrou; rotulo: "Sobrou" | "Empatou" | "Faltou"; valor: number } {
   const v = centavos(valor);
+  if (semLancamento && v === 0) return { situacao: "vazio", rotulo: "Sobrou", valor: 0 };
   if (v > 0) return { situacao: "sobrou", rotulo: "Sobrou", valor: v };
   if (v < 0) return { situacao: "faltou", rotulo: "Faltou", valor: -v };
   return { situacao: "empatou", rotulo: "Empatou", valor: 0 };
+}
+
+/** O mês não tem nada: nem entrada, nem gasto, nem aporte. */
+export function mesSemLancamento(m: { totalIncome: number; totalExpense: number; totalInvestment: number }): boolean {
+  return m.totalIncome === 0 && m.totalExpense === 0 && m.totalInvestment === 0;
 }
 
 /** Atalho para quem já tem o resumo do mês (totalIncome/totalExpense/totalInvestment). */

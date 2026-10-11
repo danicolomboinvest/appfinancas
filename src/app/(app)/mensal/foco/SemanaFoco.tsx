@@ -23,6 +23,7 @@ export function SemanaFoco({
   rotulo,
   valor,
   tipo,
+  fimDoMesDoPlano = null,
   hoje,
   ritmo,
   frase,
@@ -38,6 +39,11 @@ export function SemanaFoco({
   rotulo: string;
   valor: number;
   tipo: "semana" | "mes" | "estimativa";
+  /**
+   * Mês ainda sem lançamento ("estimativa"): o mesmo desenho da semana, e o "Fim do mês" vem do
+   * plano (ver fimDoMesPeloPlano), nunca de um ritmo inventado. Null: o quadrinho some.
+   */
+  fimDoMesDoPlano?: number | null;
   hoje: Date;
   ritmo: Ritmo;
   frase: string;
@@ -53,9 +59,11 @@ export function SemanaFoco({
   children?: ReactNode;
 }) {
   const { indice, diasAteDomingo } = diaDaSemana(hoje);
-  const dias = tipo === "semana" ? Math.min(diasAteDomingo, Math.max(1, diasRestantes)) : Math.max(1, diasRestantes);
+  // A semana (S T Q Q S S D) vale também para o mês sem lançamento: é o desenho aprovado.
+  const daSemana = tipo === "semana" || tipo === "estimativa";
+  const dias = daSemana ? Math.min(diasAteDomingo, Math.max(1, diasRestantes)) : Math.max(1, diasRestantes);
   const porDia = Math.max(0, valor) / dias;
-  const previsao = tipo === "estimativa" ? null : previsaoDoMes(planejado, gastoTotal, decorrido, gastoUnico);
+  const previsao = tipo === "estimativa" ? fimDoMesDoPlano : previsaoDoMes(planejado, gastoTotal, decorrido, gastoUnico);
 
   return (
     <HeroiDoTema>
@@ -68,7 +76,7 @@ export function SemanaFoco({
       </p>
       <NumeroRolante texto={money(valor)} className={NUMERO_DESTAQUE} />
 
-      {tipo === "semana" ? (
+      {daSemana ? (
         <div className="flex flex-col gap-1.5" aria-label={`Hoje é o dia ${indice + 1} de 7 da semana`}>
           <div className="flex gap-1.5">
             {DIAS.map((_, i) => (

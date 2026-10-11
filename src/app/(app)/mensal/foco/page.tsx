@@ -19,13 +19,13 @@ import { DecisoesImportantes } from "./DecisoesImportantes";
 import { textosDoFechamento } from "./fechamento/estado";
 import { GraficoSeisMeses } from "@/components/charts/GraficoSeisMeses";
 import { mesesAte, montarMeses, valoresDosMeses } from "@/lib/consolidation/seis-meses";
-import { lerSobrou, sobrouDoResumo } from "@/lib/consolidation/sobrou";
+import { lerSobrou, mesSemLancamento, sobrouDoResumo } from "@/lib/consolidation/sobrou";
 import { planoApertado } from "@/lib/decisoes/posso-comprar";
 import { categoriasEssenciais } from "@/lib/categories";
 import { ValorDestaque } from "@/components/ui/ValorDestaque";
 import { Explica } from "@/components/ui/Explica";
 import { ContaDoLivre } from "./ContaDoLivre";
-import { diaDaSemana, ritmoDoMes } from "@/lib/decisoes/foco-semana";
+import { diaDaSemana, fimDoMesPeloPlano, livreAteDomingo, ritmoDoMes } from "@/lib/decisoes/foco-semana";
 import { vozDoTema } from "@/lib/profiles/voice";
 import { listarContasAPagar } from "@/lib/repositories/conta-a-pagar.repo";
 import { contasDoFoco, hojeEmBrasilia } from "@/lib/contas/contas";
@@ -217,7 +217,7 @@ export default async function FocoPage() {
   // O mês passado fechado: uma linha discreta para o resumão (rodada 42).
   const textosFechamento = textosDoFechamento(d.fechamento.estado, d.mesAnterior.month, d.fechamento.em);
   const apertado = d.empresa ? null : planoApertado({ renda: d.rendaDoMes, gastoPlanejado: livre.tipo === "semOrcamento" ? 0 : livre.planejado, regra90: ctx.profileKind !== "CASAL" });
-  const sobrouAgora = lerSobrou(sobrouDoResumo(d.summary));
+  const sobrouAgora = lerSobrou(sobrouDoResumo(d.summary), mesSemLancamento(d.summary));
   const quadro = [
     { rotulo: voz.titulos.entrou, valor: d.summary.totalIncome, cor: "var(--color-dinheiro-entrou)", fundo: "" },
     { rotulo: voz.titulos.gastou, valor: d.summary.totalExpense, cor: "var(--color-dinheiro-gastou)", fundo: "" },
@@ -346,8 +346,12 @@ export default async function FocoPage() {
               >
               <SemanaFoco
                 rotulos={{ porDia: t.focoPorDia, fimDoMes: t.focoFimDoMes }}
-                rotulo={livre.tipo === "estimativa" ? t.focoLivreEstimativa : livre.tipo === "semana" ? t.focoLivreSemana : t.focoLivreMes}
-                valor={livre.valor}
+                // Mês ainda sem lançamento (quem acompanha uma vez por mês, no começo do mês): o mesmo
+                // desenho aprovado, "Livre até domingo", com o número do PLANO para esta semana e o
+                // "Fim do mês" pelo plano. Antes caía num "Livre no mês (estimativa)" com barra vazia.
+                rotulo={livre.tipo === "estimativa" || livre.tipo === "semana" ? t.focoLivreSemana : t.focoLivreMes}
+                valor={livre.tipo === "estimativa" ? livreAteDomingo(livre.restante, livre.diasRestantes, diaDaSemana(d.now).diasAteDomingo) : livre.valor}
+                fimDoMesDoPlano={livre.tipo === "estimativa" ? fimDoMesPeloPlano(d.rendaPlanejada, livre.planejado, d.aportePlanejado) : null}
                 tipo={livre.tipo}
                 hoje={d.now}
                 ritmo={ritmoAtual}
@@ -359,9 +363,9 @@ export default async function FocoPage() {
                 diasRestantes={livre.diasRestantes}
                 money={m}
               >
-                {(livre.diasSemLancar !== null || livre.semGastoComData) && (
+                {(livre.tipo === "estimativa" || livre.diasSemLancar !== null || livre.semGastoComData) && (
                   <p className="rounded-xl bg-surface/70 px-3 py-2 text-caption text-ink">
-                    {livre.diasSemLancar !== null ? t.focoDadosVelhos(livre.diasSemLancar) : t.focoDadosNenhum}
+                    {livre.tipo !== "estimativa" && livre.diasSemLancar !== null ? t.focoDadosVelhos(livre.diasSemLancar) : t.focoDadosNenhum}
                   </p>
                 )}
               </SemanaFoco>

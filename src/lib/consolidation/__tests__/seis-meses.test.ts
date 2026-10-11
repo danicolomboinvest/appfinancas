@@ -42,7 +42,9 @@ describe("Últimos 6 meses (rodada 58)", () => {
   it("vira o ano certo e preenche mês sem movimento com zero", () => {
     expect(mesesAte(2026, 2, 4)).toEqual([{ ano: 2025, mes: 11 }, { ano: 2025, mes: 12 }, { ano: 2026, mes: 1 }, { ano: 2026, mes: 2 }]);
     const vazio = montarMeses([], { ano: 2026, mes: 2 }, 3);
-    expect(vazio.every((m) => m.entrou === 0 && m.situacao === "empatou")).toBe(true);
+    expect(vazio.every((m) => m.entrou === 0 && m.situacao === "vazio")).toBe(true);
+    // Mês sem lançamento não "empata": não tem palavra no gráfico e a linha diz que está vazio.
+    expect(linhaDoMes(vazio[0], money)).toBe("Dezembro: sem lançamento.");
     expect(fraseDoGuardado(vazio, money)).toBeNull();
   });
 });

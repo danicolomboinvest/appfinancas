@@ -283,6 +283,8 @@ export async function carregarFoco(ctx: AuthContext) {
     tetos,
     summary,
     aportePlanejado,
+    // Só a renda PLANEJADA (sem cair no que entrou): é o que o "Fim do mês" pelo plano usa.
+    rendaPlanejada: plan && plan.plannedIncome > 0 ? plan.plannedIncome : null,
     // A renda do mês para o "plano apertado": a planejada, ou o que já entrou.
     rendaDoMes: plan && plan.plannedIncome > 0 ? plan.plannedIncome : summary.totalIncome,
     fund,
