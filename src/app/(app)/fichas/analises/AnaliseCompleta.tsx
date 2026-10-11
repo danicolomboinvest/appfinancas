@@ -130,7 +130,7 @@ export function AnaliseCompleta(p: PropsDaCompleta) {
             </button>
             <span className="flex gap-1.5" aria-hidden>
               {P.map((_, i) => (
-                <i key={i} className="block size-1.5 rounded-full" style={{ background: "var(--color-ink)", opacity: i === um ? 0.8 : 0.18 }} />
+                <i key={i} className="block size-1.5 rounded-full" style={{ background: "var(--color-accent)", opacity: i === um ? 0.9 : 0.25 }} />
               ))}
             </span>
             <button type="button" onClick={() => anda(1)} disabled={um === P.length - 1} aria-label="Próxima pergunta" className="flex size-11 items-center justify-center rounded-full text-ink disabled:opacity-30">

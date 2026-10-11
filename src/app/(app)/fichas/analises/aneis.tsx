@@ -4,14 +4,18 @@ import type { Forca } from "@/lib/analysis/quatro-perguntas";
 import type { Logo } from "@/lib/analysis/analises-dados";
 
 /**
- * Os anéis das Análises (rodadas 48, 52 e 56). Cores contidas: verde do tema no "vai bem", tinta
- * clara no "na média", âmbar suave na atenção, e o trilho no que não tem dado. Nada de vermelho.
+ * Os anéis das Análises (rodadas 48, 52 e 56). Sem cinza (regra da Dani): tudo na cor do tema.
+ * "Vai bem" no verde do tema, "na média" num tom do destaque do tema (rosé no Girly, champanhe no
+ * Titânio, dourado no Padrão), "atenção" no tom de alerta do tema, e o que não tem dado como trilho
+ * suave do próprio destaque. Nada de vermelho gritante.
  */
+export const TRILHO = "color-mix(in srgb, var(--color-accent) 16%, transparent)";
+
 export function corDaForca(f: Forca | null): string {
-  return f === "forte" ? "var(--color-success)" : f === "atencao" ? "var(--color-atencao)" : f === "ok" ? "var(--color-ink)" : "var(--color-border-strong)";
+  return f === "forte" ? "var(--color-success)" : f === "atencao" ? "var(--color-atencao)" : f === "ok" ? "var(--color-accent)" : TRILHO;
 }
 export function opacidadeDaForca(f: Forca | null): number {
-  return f === "forte" ? 1 : f === "atencao" ? 0.75 : f === "ok" ? 0.32 : 1;
+  return f === "forte" ? 1 : f === "atencao" ? 0.9 : f === "ok" ? 0.5 : 1;
 }
 
 /** O pontinho da legenda e das respostas, na cor do estado. */
@@ -78,8 +82,28 @@ export function AnelDePerguntas({
   );
 }
 
+/**
+ * Marcas cujo arquivo de logo é o nome escrito por extenso (ilegível num quadrado de 40 px): viram
+ * a sigla na cor oficial, como o símbolo que a marca usa no app dela.
+ */
+const MONOGRAMA: Record<string, { texto: string; fundo: string; tinta: string }> = {
+  bancodobrasil: { texto: "BB", fundo: "#FCF800", tinta: "#465EFF" },
+};
+
 /** O quadradinho do ativo dentro do anel: o logo real da marca; sem logo, o código em letra de tinta. */
 export function TileDoAtivo({ ticker, logo, tamanho = 40 }: { ticker: string; logo: Logo; tamanho?: number }) {
+  const mono = logo ? MONOGRAMA[logo.slug] : undefined;
+  if (mono) {
+    return (
+      <span
+        className="inline-flex items-center justify-center font-bold tracking-[-0.02em]"
+        style={{ width: tamanho, height: tamanho, borderRadius: Math.round(tamanho * 0.28), background: mono.fundo, color: mono.tinta, fontSize: Math.round(tamanho * 0.4) }}
+        aria-hidden
+      >
+        {mono.texto}
+      </span>
+    );
+  }
   if (logo) {
     const caixa = { width: tamanho, height: tamanho, borderRadius: Math.round(tamanho * 0.28) };
     if (logo.mono) {
@@ -100,12 +124,12 @@ export function TileDoAtivo({ ticker, logo, tamanho = 40 }: { ticker: string; lo
   // Renda fixa vem pelo nome ("Tesouro IPCA+ 2035"): o prédio de traço no quadrado cinza.
   if (/\s/.test(ticker)) {
     return (
-      <span className="inline-flex items-center justify-center bg-surface-2 text-ink-muted" style={{ width: tamanho, height: tamanho, borderRadius: Math.round(tamanho * 0.28) }} aria-hidden>
+      <span className="inline-flex items-center justify-center text-accent-strong" style={{ width: tamanho, height: tamanho, borderRadius: Math.round(tamanho * 0.28), background: "color-mix(in srgb, var(--color-accent) 12%, transparent)" }} aria-hidden>
         <Landmark size={Math.round(tamanho * 0.48)} strokeWidth={1.6} />
       </span>
     );
   }
-  return <span className="text-[13px] font-semibold tracking-[0.04em] text-ink-muted">{ticker.replace(/\d+$/, "")}</span>;
+  return <span className="text-[13px] font-semibold tracking-[0.04em] text-accent-strong">{ticker.replace(/\d+$/, "")}</span>;
 }
 
 /** "13%" com o número e o % na mesma linha, o % menor (rodadas 48 e 52). */

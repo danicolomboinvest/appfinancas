@@ -8,7 +8,7 @@ import type { Grafico, Zona } from "@/lib/analysis/quatro-perguntas";
 const ZONA: Record<Zona, string> = {
   bom: "color-mix(in srgb, var(--color-success) 38%, transparent)",
   bom2: "color-mix(in srgb, var(--color-success) 20%, transparent)",
-  neu: "color-mix(in srgb, var(--color-ink) 10%, transparent)",
+  neu: "color-mix(in srgb, var(--color-accent) 22%, transparent)",
   amb: "color-mix(in srgb, var(--color-atencao) 30%, transparent)",
 };
 
@@ -54,7 +54,7 @@ export function GraficoDaPergunta({ g }: { g: Grafico }) {
           {g.zonas.map(([w, z], i) => (
             <i key={i} className="block h-full rounded-full" style={{ flex: w, background: ZONA[z] }} />
           ))}
-          <em className="absolute top-1/2 block size-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-surface" style={{ left: `${p.toFixed(1)}%`, background: "var(--color-ink)" }} aria-hidden />
+          <em className="absolute top-1/2 block size-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-surface" style={{ left: `${p.toFixed(1)}%`, background: "var(--color-accent-strong)" }} aria-hidden />
         </span>
         {g.extremos && (
           <span className="flex justify-between text-xs text-ink-muted">
@@ -90,10 +90,10 @@ export function GraficoDaPergunta({ g }: { g: Grafico }) {
               <span>{it.rotulo}</span>
               <b className="font-semibold text-ink tabular-nums">{it.texto}</b>
             </span>
-            <span className="block h-2 w-full overflow-hidden rounded-full" style={{ background: "color-mix(in srgb, var(--color-ink) 7%, transparent)" }}>
+            <span className="block h-2 w-full overflow-hidden rounded-full" style={{ background: "color-mix(in srgb, var(--color-accent) 12%, transparent)" }}>
               <i
                 className="an-barra block h-full rounded-full"
-                style={{ width: `${Math.max(3, it.fracao * 100).toFixed(1)}%`, background: it.tom === "bom" ? "color-mix(in srgb, var(--color-success) 60%, transparent)" : "color-mix(in srgb, var(--color-ink) 62%, transparent)" }}
+                style={{ width: `${Math.max(3, it.fracao * 100).toFixed(1)}%`, background: it.tom === "bom" ? "color-mix(in srgb, var(--color-success) 60%, transparent)" : "color-mix(in srgb, var(--color-accent) 70%, transparent)" }}
               />
             </span>
           </div>

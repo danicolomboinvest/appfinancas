@@ -7,7 +7,7 @@ import { ChevronLeft, ChevronRight, Repeat, Search } from "lucide-react";
 import { HeroiDoTema } from "@/components/ui/HeroiDoTema";
 import { situacao, vaiBem, type Forca } from "@/lib/analysis/quatro-perguntas";
 import type { AtivoAnalisado, DadosDasAnalises } from "@/lib/analysis/analises-dados";
-import { AnelDePerguntas, Pct, Ponto, TileDoAtivo, corDaForca, opacidadeDaForca } from "./aneis";
+import { AnelDePerguntas, Pct, Ponto, TRILHO, TileDoAtivo, corDaForca, opacidadeDaForca } from "./aneis";
 import { LeitorDaCarteira } from "./LeitorDaCarteira";
 
 const CARTAO = "rounded-3xl border border-border bg-surface";
@@ -186,7 +186,7 @@ function AnelDaCarteira({ ativos, bem, destaque, onToque }: { ativos: AtivoAnali
       <div className="flex flex-col items-center gap-3 py-1">
         <span className="relative inline-flex items-center justify-center" style={{ width: T, height: T }}>
           <svg viewBox={`0 0 ${T} ${T}`} width={T} height={T} className="absolute inset-0" role="img" aria-label={`${bem} de ${ativos.length} vão bem`}>
-            <circle cx={T / 2} cy={T / 2} r={r} fill="none" stroke="var(--color-heroi-tinta)" strokeOpacity={0.08} strokeWidth={esp} />
+            <circle cx={T / 2} cy={T / 2} r={r} fill="none" stroke={TRILHO} strokeWidth={esp} />
             {ativos.map((a, i) => {
               const L = (a.peso / soma) * c;
               const s = Math.max(0.5, L - vao);
@@ -257,7 +257,7 @@ function AnelMini({ peso }: { peso: number }) {
   const s = Math.max(1.5, (Math.min(100, peso) / 100) * c);
   return (
     <svg viewBox={`0 0 ${T} ${T}`} width={T} height={T} className="shrink-0" aria-hidden>
-      <circle cx={T / 2} cy={T / 2} r={r} fill="none" stroke="var(--color-border)" strokeWidth={3.5} />
+      <circle cx={T / 2} cy={T / 2} r={r} fill="none" stroke={TRILHO} strokeWidth={3.5} />
       <circle cx={T / 2} cy={T / 2} r={r} fill="none" stroke="var(--color-success)" strokeWidth={3.5} strokeLinecap="round" strokeDasharray={`${s.toFixed(2)} ${c.toFixed(2)}`} transform={`rotate(-90 ${T / 2} ${T / 2})`} />
     </svg>
   );

@@ -85,7 +85,7 @@ function LinhaEspelhada({ l }: { l: LinhaComparar }) {
         className="an-barra block h-full rounded-full"
         style={{
           width: `${Math.max(6, (Math.abs(v) / mx) * 100).toFixed(1)}%`,
-          background: ganha ? "var(--color-accent)" : "color-mix(in srgb, var(--color-ink) 16%, transparent)",
+          background: ganha ? "var(--color-accent)" : "color-mix(in srgb, var(--color-accent) 20%, transparent)",
           transformOrigin: lado === "e" ? "right" : "left",
         }}
       />
@@ -98,7 +98,7 @@ function LinhaEspelhada({ l }: { l: LinhaComparar }) {
       <div className="flex items-center gap-2">
         <span className="w-14 shrink-0 text-left text-[13px] text-ink tabular-nums">{l.a !== null ? fmt(l, l.a, 0) : ""}</span>
         {l.a !== null ? barra(l.a, melhor === "a", "e") : falta}
-        <i className="block h-4 w-px shrink-0 bg-border" aria-hidden />
+        <i className="block h-4 w-px shrink-0" style={{ background: "color-mix(in srgb, var(--color-accent) 30%, transparent)" }} aria-hidden />
         {l.b !== null ? barra(l.b, melhor === "b", "d") : falta}
         <span className="w-14 shrink-0 text-right text-[13px] text-ink tabular-nums">{l.b !== null ? fmt(l, l.b, 1) : ""}</span>
       </div>

@@ -16,7 +16,7 @@ import { geralDoAtivo, nomeCurtoRendaFixa, perguntasDoAtivo, perguntasRendaFixa,
 /** Leitura mais velha que isso é lida de novo ao abrir as Análises (os números mudam todo dia). */
 export const LEITURA_VALE_MS = 7 * 24 * 3_600_000;
 
-export type Logo = { src: string; cor: string; mono: boolean } | null;
+export type Logo = { slug: string; src: string; cor: string; mono: boolean } | null;
 
 export type AtivoAnalisado = {
   ticker: string;
@@ -75,7 +75,7 @@ export function indicadoresDoLaudo(laudo: Laudo): Record<string, string> {
 export function logoDe(...nomes: (string | null | undefined)[]): Logo {
   for (const n of nomes) {
     const m = marcaDaDescricao(n);
-    if (m) return { src: m.src, cor: m.cor, mono: m.mono };
+    if (m) return { slug: m.slug, src: m.src, cor: m.cor, mono: m.mono };
   }
   return null;
 }
