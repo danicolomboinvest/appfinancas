@@ -282,7 +282,7 @@ export function ComoVai({ dados }: { dados: DadosDaEmpresa }) {
               <i key={p.chave} style={{ flexGrow: Math.max(p.cem, 0.5), background: COR_DO_PEDACO[p.chave] }} />
             ))}
           </div>
-          <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
+          <div className="grid grid-cols-1 gap-x-3 gap-y-1.5 min-[360px]:grid-cols-2">
             {cem.map((p) => (
               <span key={p.chave} className="flex items-center gap-2 text-sm text-ink">
                 <i className="size-2.5 shrink-0 rounded-full" style={{ background: COR_DO_PEDACO[p.chave] }} />

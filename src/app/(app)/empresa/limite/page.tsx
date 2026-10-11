@@ -61,7 +61,7 @@ export default async function LimitePage() {
             <Explica noHeroi rotulo="As faixas do teto">{ajuda}</Explica>
           </span>
         )}
-        <svg viewBox="-8 -14 276 170" role="img" aria-label={`Faturou ${m0(L.faturado)} de ${m0(L.teto)}. A faixa até ${m0(L.tolerancia)} está marcada.`} className="mx-auto w-full max-w-[300px]">
+        <svg viewBox="-8 -14 296 170" role="img" aria-label={`Faturou ${m0(L.faturado)} de ${m0(L.teto)}. A faixa até ${m0(L.tolerancia)} está marcada.`} className="mx-auto w-full max-w-[300px]">
           <path d={arco} fill="none" stroke="color-mix(in srgb, var(--color-heroi-tinta) 13%, transparent)" strokeWidth={16} strokeLinecap="round" />
           <path d={arco} fill="none" stroke="var(--color-atencao)" strokeOpacity={0.55} strokeWidth={16} strokeDasharray={`${(C * (1 - L.teto / L.tolerancia)).toFixed(1)} ${C.toFixed(1)}`} strokeDashoffset={(-C * (L.teto / L.tolerancia)).toFixed(1)} />
           <path d={arco} fill="none" stroke="var(--color-heroi-tinta)" strokeWidth={16} strokeLinecap="round" strokeDasharray={`${(C * fr(L.faturado)).toFixed(1)} ${C.toFixed(1)}`} />

@@ -64,7 +64,7 @@ export function VisaoDaEmpresa({ dados, clientes, abaInicial, mesInicial, abrirR
     <>
       <div role="tablist" aria-label={dados.nome} className="grid grid-cols-4 gap-1 rounded-full bg-surface-2 p-1">
         {ABAS.map(([k, t]) => (
-          <button key={k} type="button" role="tab" aria-selected={aba === k} onClick={() => trocarAba(k)} className={`min-h-10 truncate rounded-full px-1 text-[14px] transition-colors ${aba === k ? "bg-pill font-medium text-on-pill shadow-[0_6px_14px_-8px_rgba(0,0,0,0.18)]" : "text-ink-muted"}`}>
+          <button key={k} type="button" role="tab" aria-selected={aba === k} onClick={() => trocarAba(k)} className={`min-h-10 truncate rounded-full px-0.5 text-[14px] max-[359px]:text-[13px] transition-colors ${aba === k ? "bg-pill font-medium text-on-pill shadow-[0_6px_14px_-8px_rgba(0,0,0,0.18)]" : "text-ink-muted"}`}>
             {t}
           </button>
         ))}

@@ -144,7 +144,7 @@ export function QuantoCobrar(p: { nome: string; produto: string; materiais: stri
               </div>
               <Explica>{`${taxa > 0 ? `Taxa do crédito ${taxa.toLocaleString("pt-BR")}% e lucro ${margem}%.` : `Lucro ${margem}%. Sem a taxa da maquininha: digite a sua em Configurações da empresa.`}${p.ehMei ? " Para o MEI, o imposto já está na guia fixa." : ""}`}</Explica>
             </div>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+            <div className="grid grid-cols-1 gap-x-4 gap-y-1.5 min-[360px]:grid-cols-2">
               {itens.map(([t, v, c]) => (
                 <span key={t} className="flex items-center gap-2 text-sm text-ink">
                   <i className="size-2.5 shrink-0 rounded-full" style={{ background: c }} />
