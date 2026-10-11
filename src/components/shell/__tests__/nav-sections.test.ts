@@ -1,41 +1,38 @@
 import { describe, expect, it } from "vitest";
-import { MORE_NAV_SECTIONS, NAV_SECTIONS, abasDoCelular, secoesDoMais } from "../nav-sections";
-
-/**
- * A barra de baixo e o "Mais" de quem tem e de quem não tem a área paga. A regra que importa:
- * toda seção aparece em EXATAMENTE um dos dois lugares no celular. Se a Carteira sumisse dos
- * dois, ou a Visão Geral ficasse nos dois, alguém ia ficar sem achar a tela (ou com o "Mais"
- * aceso junto com uma aba).
- */
+import { NAV_SECTIONS, rotuloDoMenu, secoesVisiveis, sectionMatches, tituloDaTela } from "../nav-sections";
 
 const bases = (lista: { basePath: string }[]) => lista.map((x) => x.basePath);
 
-describe("barra de baixo e Mais conforme o acesso", () => {
-  it("com a área paga: a barra de sempre, com a Carteira", () => {
-    expect(bases(abasDoCelular(true))).toEqual(["/mensal", "/planejamento", "/carteira"]);
-    expect(bases(secoesDoMais(true))).not.toContain("/carteira");
-    expect(secoesDoMais(true)).toEqual(MORE_NAV_SECTIONS);
+describe("o menu ☰ da versão nova", () => {
+  it("tem a ordem do protótipo (Dívidas entra quando a área existir)", () => {
+    const pessoa = secoesVisiveis(NAV_SECTIONS, { empresa: false, casal: false });
+    expect(pessoa.map((s) => s.label)).toEqual([
+      "Visão geral", "Metas", "Carteira", "Viagem", "Calculadoras", "Análises", "Decidir", "Configurações", "Como funciona",
+    ]);
   });
 
-  it("sem a área paga: a Carteira sai da barra e vai pro Mais; a Visão Geral faz o caminho inverso", () => {
-    const abas = bases(abasDoCelular(false));
-    expect(abas).toEqual(["/mensal", "/planejamento", "/dashboard"]);
-    expect(abas).toHaveLength(3); // o "+" continua no meio da barra
-    const mais = bases(secoesDoMais(false));
-    expect(mais).toContain("/carteira");
-    expect(mais).not.toContain("/dashboard");
-    // A Carteira do Mais é a seção premium de verdade: é ela que ganha o cadeado.
-    expect(secoesDoMais(false).find((s) => s.basePath === "/carteira")?.premium).toBe(true);
+  it("a Empresa troca o que é de pessoa física pelo 'Vale a pena investir?' e chama a Carteira de Caixa", () => {
+    const empresa = secoesVisiveis(NAV_SECTIONS, { empresa: true, casal: false });
+    expect(bases(empresa)).toEqual(["/mensal", "/planejamento", "/carteira", "/investir", "/configuracoes", "/guia"]);
+    expect(rotuloDoMenu(empresa[2], true)).toBe("Caixa");
   });
 
-  it("em qualquer caso, cada seção fica em um lugar só (barra OU Mais)", () => {
-    for (const premium of [true, false]) {
-      const abas = bases(abasDoCelular(premium));
-      const mais = bases(secoesDoMais(premium));
-      for (const secao of bases(NAV_SECTIONS)) {
-        const lugares = Number(abas.includes(secao)) + Number(mais.includes(secao));
-        expect({ secao, premium, lugares }).toEqual({ secao, premium, lugares: 1 });
-      }
+  it("o Casal ganha o 'Quanto cada um contribui?' sem perder nada", () => {
+    const casal = secoesVisiveis(NAV_SECTIONS, { empresa: false, casal: true });
+    expect(bases(casal)).toContain("/divisao");
+    expect(casal).toHaveLength(10);
+  });
+
+  it("toda tela da Visão geral acende a Visão geral, e só ela", () => {
+    for (const rota of ["/mensal/foco", "/mensal/2026/10", "/mensal/gastos", "/orcamento", "/orcamento/contas", "/dashboard"]) {
+      expect(NAV_SECTIONS.filter((s) => sectionMatches(s, rota)).map((s) => s.basePath), rota).toEqual(["/mensal"]);
     }
+  });
+
+  it("o título do topo é o nome da seção", () => {
+    expect(tituloDaTela("/orcamento", NAV_SECTIONS)).toBe("Visão geral");
+    expect(tituloDaTela("/planejamento/reserva-emergencia", NAV_SECTIONS)).toBe("Metas");
+    expect(tituloDaTela("/perfis", NAV_SECTIONS)).toBe("Configurações");
+    expect(tituloDaTela("/money-reset", NAV_SECTIONS)).toBe("SPI Finance");
   });
 });

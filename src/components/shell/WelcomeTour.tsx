@@ -26,7 +26,9 @@ type Step = {
 };
 
 /**
- * Os passos, na ordem: o que cada um aponta é igual nos sete temas; o que diz vem da voz.
+ * Os passos, na ordem: o que cada um aponta é igual nos quatro temas; o que diz vem da voz.
+ * Na versão nova (11/10/2026): o + da Visão geral, as abas, e o menu ☰ (que no computador é a
+ * barra lateral).
  *
  * Sem o passo da Carteira: ele falava de "preço médio" e "declaração de Imposto de Renda" pra
  * quem nunca investiu (e, sem o plano pago, apontava pra uma tela trancada). O "Mais" diz o que
@@ -37,7 +39,6 @@ const STEPS: Step[] = [
   { title: "uiTourBoasVindasTitulo", text: "uiTourBoasVindasTexto" },
   { target: "registrar", round: true, title: "uiTourRegistrarTitulo", text: "uiTourRegistrarTexto" },
   { target: "fluxo", title: "uiTourFluxoTitulo", text: "uiTourFluxoTexto" },
-  { target: "metas", title: "uiTourMetasTitulo", text: "uiTourMetasTexto" },
   { target: "mais", title: "uiTourMaisTitulo", text: (t, tipo) => t.focoTourMaisTexto(tipo) },
   { title: "uiTourFimTitulo", text: "focoTourFimTexto" },
 ];

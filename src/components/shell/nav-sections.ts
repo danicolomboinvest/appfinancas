@@ -1,20 +1,19 @@
 import {
-  LayoutDashboard,
-  ArrowLeftRight,
-  Compass,
-  Briefcase,
-  Calculator,
-  FileSearch,
-  Settings,
-  ShieldCheck,
+  House,
   Target,
+  Wallet,
   Plane,
+  Calculator,
+  ChartLine,
+  MessageCircle,
+  SlidersHorizontal,
+  CircleHelp,
+  ShieldCheck,
   Scale,
-  Signpost,
-  BookOpen,
+  Store,
   type LucideIcon,
 } from "lucide-react";
-import { ROTAS_DO_FLUXO } from "./flow-tabs";
+import { ROTAS_DA_VISAO_GERAL } from "./flow-tabs";
 
 export type NavChild = {
   href: string;
@@ -78,44 +77,40 @@ export function sectionMatches(section: Pick<NavSection, "basePath" | "alsoMatch
   return bate(section.basePath) || (section.alsoMatches?.some(bate) ?? false);
 }
 
+/**
+ * O menu ☰ (versão nova, 11/10/2026): uma lista só, na ordem do protótipo aprovado. Visão
+ * geral, Metas, Carteira, Viagem, Calculadoras, Análises, Decidir, Configurações e Como
+ * funciona; Dívidas entra quando a área existir (fase 5). A Empresa troca o que é de pessoa
+ * física pelo "Vale a pena investir?"; o Casal ganha o "Quanto cada um contribui?".
+ *
+ * A mesma lista serve à gaveta do celular e à barra lateral do computador.
+ */
 export const NAV_SECTIONS: NavSection[] = [
-  { basePath: "/dashboard", href: "/dashboard", label: "Visão Geral", icon: LayoutDashboard },
   {
     basePath: "/mensal",
     href: "/mensal/foco",
-    label: "Fluxo Financeiro",
-    icon: ArrowLeftRight,
-    // O Orçamento é a quarta aba do Fluxo, mas mora em /orcamento: sem isso o menu lateral
-    // apagava o Fluxo justo quando a pessoa estava numa aba dele.
-    alsoMatches: ROTAS_DO_FLUXO,
-    children: [
-      { href: "/mensal/foco", label: "Foco" },
-      // Os mesmos nomes das abas do celular (06/10/2026).
-      { href: "/mensal", label: "Mensal" },
-      { href: "/mensal/gastos", label: "Gastos" },
-      { href: "/orcamento", label: "Orçamento" },
-    ],
+    label: "Visão geral",
+    icon: House,
+    // As quatro abas (Resumo, Orçamento, Transações, Recorrentes) moram em duas pastas, e a
+    // Visão geral antiga (/dashboard) continua sendo parte dela.
+    alsoMatches: [...ROTAS_DA_VISAO_GERAL.filter((r) => r !== "/mensal"), "/dashboard"],
   },
   {
     basePath: "/planejamento",
     href: "/planejamento/metas",
-    label: "Planejamento Financeiro",
-    icon: Compass,
+    label: "Metas",
+    icon: Target,
     children: [
       { href: "/planejamento/metas", label: "Metas" },
       { href: "/planejamento/reserva-emergencia", label: "Reserva de Emergência" },
       { href: "/planejamento/acumulo", label: "Aposentadoria", premium: true, soPessoa: true },
     ],
   },
-  // Sem tab própria na barra inferior: no celular entra pelo "Mais" (pedido da Dani).
-  { basePath: "/viagem", href: "/viagem", label: "Planejar Viagem", icon: Plane, soPessoa: true },
-  { basePath: "/investir", href: "/investir", label: "Vale a pena investir?", icon: Calculator, soEmpresa: true },
-  { basePath: "/divisao", href: "/divisao", label: "Quanto cada um contribui?", icon: Scale, soCasal: true },
   {
     basePath: "/carteira",
     href: "/carteira",
     label: "Carteira",
-    icon: Briefcase,
+    icon: Wallet,
     premium: true,
     children: [
       { href: "/carteira", label: "Meus Ativos" },
@@ -123,28 +118,13 @@ export const NAV_SECTIONS: NavSection[] = [
       { href: "/carteira/estrategia", label: "Estratégia", soPessoa: true },
     ],
   },
-  // Decidir junta o que antes eram Simuladores com o "Posso comprar?": o catálogo de perguntas
-  // que o app responde com os números da pessoa. O principal já chega sozinho na aba Foco.
-  {
-    basePath: "/decidir",
-    href: "/decidir",
-    label: "Decidir",
-    icon: Signpost,
-    soPessoa: true,
-    children: [
-      { href: "/decidir", label: "Perguntas" },
-      { href: "/decidir/comprar", label: "Posso comprar?" },
-    ],
-  },
-  // Calculadoras com porta própria (06/10/2026). Moravam no fim do Decidir, como "Decisões
-  // grandes" + "Ver todas as calculadoras", e nem a Dani achava: "se eu que fiz o app não tô
-  // achando, imagina". Decidir são as perguntas sobre o dinheiro dela; aqui, as ferramentas.
+  { basePath: "/viagem", href: "/viagem", label: "Viagem", icon: Plane, soPessoa: true },
   { basePath: "/simuladores", href: "/simuladores", label: "Calculadoras", icon: Calculator, premium: true, soPessoa: true },
   {
     basePath: "/fichas",
     href: "/fichas",
     label: "Análises",
-    icon: FileSearch,
+    icon: ChartLine,
     premium: true,
     soPessoa: true,
     children: [
@@ -155,31 +135,36 @@ export const NAV_SECTIONS: NavSection[] = [
       { href: "/fichas/etfs", label: "ETFs" },
     ],
   },
-  // O manual: as regras de importação, orçamento e Foco que ninguém descobre sozinha.
-  { basePath: "/guia", href: "/guia", label: "Como usar o app", icon: BookOpen },
+  {
+    basePath: "/decidir",
+    href: "/decidir",
+    label: "Decidir",
+    icon: MessageCircle,
+    soPessoa: true,
+    children: [
+      { href: "/decidir", label: "Perguntas" },
+      { href: "/decidir/comprar", label: "Posso comprar?" },
+    ],
+  },
+  { basePath: "/investir", href: "/investir", label: "Vale a pena investir?", icon: Store, soEmpresa: true },
+  { basePath: "/divisao", href: "/divisao", label: "Quanto cada um contribui?", icon: Scale, soCasal: true },
   {
     basePath: "/configuracoes",
     href: "/configuracoes",
     label: "Configurações",
-    icon: Settings,
+    icon: SlidersHorizontal,
     alsoMatches: ["/perfis"],
     children: [
-      // "Perfis financeiros" é o dinheiro separado (Pessoal, Empresa); "Perfil" logo abaixo
-      // é o cadastro de quem está logado. Nomes parecidos, coisas diferentes — daí o
-      // adjetivo. Antes da entrada existir, a única porta pra /perfis no app inteiro era o
-      // link dentro da gaveta do seletor, que no desktop ninguém achava.
-      // Cadastro, modo e moeda moram na tela principal desde 07/10/2026.
       { href: "/configuracoes", label: "Geral" },
       { href: "/perfis", label: "Perfis financeiros" },
       { href: "/configuracoes/categorias", label: "Categorias" },
-      // Voltou pro menu: agora controla um envio de verdade (o resumo do mês por e-mail), não
-      // só alertas de tela. Sem um lugar visível pra desligar, e-mail recorrente vira spam.
       { href: "/configuracoes/notificacoes", label: "Notificações" },
       { href: "/configuracoes/conexoes", label: "Conexões", flag: "openFinance" },
       { href: "/configuracoes/dados", label: "Dados" },
       { href: "/configuracoes/taxas", label: "Taxas do Sistema" },
     ],
   },
+  { basePath: "/guia", href: "/guia", label: "Como funciona", icon: CircleHelp },
 ];
 
 export const ADMIN_NAV_SECTION: NavSection = {
@@ -198,50 +183,18 @@ export const ADMIN_NAV_SECTION: NavSection = {
   ],
 };
 
-export type MobileTab = {
-  basePath: string;
-  href: string;
-  label: string;
-  icon: LucideIcon;
-  /** Rotas fora do basePath em que a aba também acende (mesma ideia da `NavSection`). */
-  alsoMatches?: string[];
-};
-
-/** Destinos de navegação da tab bar inferior. A barra final tem 5 posições:
- * Fluxo | Metas | [ + Registrar ] | Carteira | Mais, o "+" central (registro) e o "Mais"
- * (MoreSheet) são renderizados à parte pelo MobileTabBar, entre e depois destes 3 links. */
-export const MOBILE_TABS: MobileTab[] = [
-  // Acende também no Orçamento, a quarta aba do Fluxo (ver ROTAS_DO_FLUXO).
-  { basePath: "/mensal", href: "/mensal/foco", label: "Fluxo", icon: ArrowLeftRight, alsoMatches: ROTAS_DO_FLUXO },
-  { basePath: "/planejamento", href: "/planejamento/metas", label: "Metas", icon: Target },
-  { basePath: "/carteira", href: "/carteira", label: "Carteira", icon: Briefcase },
-];
-
 /**
- * A aba que entra no lugar da Carteira pra quem não tem a área de investimentos liberada, pra
- * barra não ficar com o "+" fora do meio. Visão Geral porque existe em todo tipo de perfil e
- * não é aba do Fluxo (o Orçamento já acende o "Fluxo"; duas abas acesas juntas confundem).
- * Rótulo curto e fixo: nos temas o nome da seção pode ser longo demais pros 5 espaços da barra.
+ * O título no centro do topo: o nome da seção do menu em que a tela está. As telas de fora do
+ * menu (perfis, assinatura, Money Reset) caem no nome da marca.
  */
-export const ABA_VISAO_GERAL: MobileTab = { basePath: "/dashboard", href: "/dashboard", label: "Visão geral", icon: LayoutDashboard };
-
-/**
- * As 3 abas da barra de baixo de quem está logado. Sem acesso à área paga, a Carteira sai da
- * barra: era uma das 3 portas principais do celular e abria direto num cadeado, e quem comprou
- * com outro e-mail achava que o app inteiro era pago à parte. Ela continua no "Mais", com o
- * cadeado (ver secoesDoMais).
- */
-export function abasDoCelular(isPremium: boolean): MobileTab[] {
-  return isPremium ? MOBILE_TABS : MOBILE_TABS.map((tab) => (tab.basePath === "/carteira" ? ABA_VISAO_GERAL : tab));
+export function tituloDaTela(pathname: string, sections: NavSection[], rotulo: (s: NavSection) => string = (s) => s.label): string {
+  const secao = sections.find((s) => sectionMatches(s, pathname));
+  return secao ? rotulo(secao) : "SPI Finance";
 }
 
-/** Seções que não têm tab própria na barra inferior, acessadas via "Mais". Muda com o acesso:
- * sem a área paga, a Carteira sai da barra e entra aqui, e a Visão Geral faz o caminho inverso.
- * O destaque do "Mais" (AppShell) precisa usar esta mesma lista, senão acende junto com a aba. */
-export function secoesDoMais(isPremium: boolean): NavSection[] {
-  const abas = abasDoCelular(isPremium);
-  return NAV_SECTIONS.filter((section) => !abas.some((tab) => tab.basePath === section.basePath));
+/** O nome no menu e no título do topo: o mesmo nos quatro temas (protótipo aprovado). A
+ * Empresa chama a Carteira de Caixa. */
+export function rotuloDoMenu(section: Pick<NavSection, "basePath" | "label">, empresa = false): string {
+  if (empresa && section.basePath === "/carteira") return "Caixa";
+  return section.label;
 }
-
-/** As seções do "Mais" de quem tem a área paga (Carteira na barra de baixo). */
-export const MORE_NAV_SECTIONS: NavSection[] = secoesDoMais(true);

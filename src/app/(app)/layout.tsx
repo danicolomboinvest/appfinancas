@@ -52,7 +52,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   let cartaoComLimite = false;
   let currency: CurrencyCode = toCurrencyCode(null);
   let isPremium = false;
-  let perfis: { id: string; name: string; icon: string; theme: string; isDefault: boolean }[] = [];
+  let perfis: { id: string; name: string; icon: string; theme: string; isDefault: boolean; kind?: string }[] = [];
+  let nomeDaConta: string | null = null;
+  let fotoDaConta: string | null = null;
   let cssDoTema = "";
   let perfilAtivoId = "";
   if (session?.user) {
@@ -83,12 +85,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     // perfil dela em /comecar. Uma vez só; quem já usava o app nasceu com a data preenchida.
     if (user.onboardedAt === null) redirect("/comecar");
     firstName = user.name?.split(" ")[0] || user.email.split("@")[0];
+    nomeDaConta = user.name?.trim() || null;
+    fotoDaConta = user.avatarUrl;
     currency = toCurrencyCode(user.currency);
     theme = user.theme;
     // Compra valendo e e-mail confirmado: a área de investimentos abre toda. Quem sobrou do
     // grátis vê o cadeado nela, como antes.
     isPremium = uso === "completo";
-    perfis = todos.map((p) => ({ id: p.id, name: p.name, icon: p.icon, theme: chaveDoTema(p.theme), isDefault: p.id === ativo.id }));
+    perfis = todos.map((p) => ({ id: p.id, name: p.name, icon: p.icon, theme: chaveDoTema(p.theme), isDefault: p.id === ativo.id, kind: p.kind }));
     perfilAtivoId = ativo.id;
     profileTheme = chaveDoTema(ativo.theme);
     profileKind = ativo.kind;
@@ -142,6 +146,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         nomesDoCasal={nomesDoCasal}
         cartaoComLimite={cartaoComLimite}
         podeEscolherModo={podeEscolherModo}
+        nomeDaConta={nomeDaConta}
+        fotoDaConta={fotoDaConta}
       >
         {/* Trocar de perfil só revalida a página, e o React guarda o estado dos formulários que
             re-renderizam: o orçamento continuava com os números do perfil anterior e o "Salvar"

@@ -79,7 +79,7 @@ export default function RootLayout({
             esta tag existe pra evitar, ao contrário. */}
         <style
           dangerouslySetInnerHTML={{
-            __html: "html,body{background:#0c0c0e}html.light,html.light body{background:#ffffff}",
+            __html: "html,body{background-color:var(--color-canvas,#0c0c0e)}html.light,html.light body{background-color:var(--color-canvas,#ffffff)}",
           }}
         />
         {/* Roda antes da hidratação pra aplicar o tema salvo sem flash. Alterna `type` entre

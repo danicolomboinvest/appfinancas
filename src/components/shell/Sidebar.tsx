@@ -3,9 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronsLeft, ChevronsRight, Lock, LogOut, Plus } from "lucide-react";
+import { ChevronsLeft, ChevronsRight, Lock, LogOut, MessageCircleQuestion, Plus } from "lucide-react";
+import { linkDoSuporte } from "@/lib/support/whatsapp-link";
 import { BrandMark } from "@/components/brand/BrandMark";
-import { ADMIN_NAV_SECTION, NAV_SECTIONS, withNavFlags, sectionMatches, filhosVisiveis, secoesVisiveis } from "./nav-sections";
+import { ADMIN_NAV_SECTION, NAV_SECTIONS, withNavFlags, sectionMatches, filhosVisiveis, secoesVisiveis, rotuloDoMenu } from "./nav-sections";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 
 /** Liga cada seção ao passo do tour de boas-vindas (WelcomeTour destaca por data-tour). */
@@ -69,14 +70,15 @@ export function Sidebar({
 
   return (
     <aside
-      className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r border-border bg-surface transition-all duration-200 ease-out md:static ${
+      aria-label="Menu"
+      className={`fixed inset-y-0 left-0 z-[70] flex w-[min(19rem,82vw)] flex-col rounded-r-[28px] border-r border-border bg-canvas pt-[var(--safe-top)] transition-all duration-200 ease-out md:static md:z-auto md:rounded-none md:bg-surface md:pt-0 ${
         collapsed ? "md:w-[76px]" : "md:w-64"
       } ${mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}
     >
       <div className={`flex items-center gap-2.5 px-4 pb-2 pt-5 ${collapsedDesktopOnly}`}>
-        <Link href="/mensal" onClick={onCloseMobile} className="flex items-center gap-2.5 overflow-hidden">
-          <BrandMark size={32} className="shrink-0 rounded-lg" />
-          <span className={`truncate text-sm font-semibold tracking-tight text-ink ${hideLabelDesktopOnly}`}>
+        <Link href="/mensal/foco" onClick={onCloseMobile} className="flex items-center gap-3 overflow-hidden">
+          <BrandMark size={32} className="shrink-0" />
+          <span className={`truncate text-[17px] font-medium tracking-tight text-ink md:text-sm ${hideLabelDesktopOnly}`}>
             SPI Finance
           </span>
         </Link>
@@ -84,7 +86,7 @@ export function Sidebar({
 
       {/* Registro no desktop: substitui o antigo FAB flutuante. Abre o mesmo RegistrarDrawer
           usado pelo "+" central do mobile. */}
-      <div className="px-3 pt-1 pb-1">
+      <div className="hidden px-3 pb-1 pt-1 md:block">
         <button
           type="button"
           onClick={onOpenRegistrar}
@@ -114,14 +116,14 @@ export function Sidebar({
                   }}
                   title={collapsed ? section.label : undefined}
                   data-tour={SIDEBAR_TOUR[section.basePath]}
-                  className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${collapsedDesktopOnly} ${
+                  className={`flex min-h-12 items-center gap-3.5 rounded-2xl px-3.5 py-2 text-[16px] transition-colors md:min-h-0 md:rounded-lg md:px-3 md:text-sm ${collapsedDesktopOnly} ${
                     isActive
-                      ? "bg-surface-2 text-ink font-medium"
-                      : "text-ink-muted hover:bg-surface-2 hover:text-ink"
+                      ? "bg-surface font-medium text-ink shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_20px_-12px_rgba(0,0,0,0.14)] md:bg-surface-2 md:shadow-none"
+                      : "text-ink hover:bg-surface-2 md:text-ink-muted md:hover:text-ink"
                   }`}
                 >
-                  <Icon size={18} strokeWidth={1.75} className="shrink-0" />
-                  <span className={`truncate ${hideLabelDesktopOnly}`}>{voz.titulos.navSecao(section.basePath, section.label)}</span>
+                  <Icon size={20} strokeWidth={1.5} className="shrink-0" />
+                  <span className={`truncate ${hideLabelDesktopOnly}`}>{rotuloDoMenu(section, empresa)}</span>
                   {section.premium && !isPremium && (
                     <>
                       <Lock size={13} strokeWidth={2} aria-hidden className={`ml-auto shrink-0 text-ink-faint ${hideLabelDesktopOnly}`} />
@@ -145,7 +147,7 @@ export function Sidebar({
                               childActive ? "text-ink font-medium" : "text-ink-faint hover:text-ink"
                             }`}
                           >
-                            <span className="truncate">{voz.titulos.navFilho(child.href, child.label)}</span>
+                            <span className="truncate">{child.label}</span>
                             {locked && (
                               <>
                                 <Lock size={11} strokeWidth={2} aria-hidden className="shrink-0" />
@@ -164,7 +166,15 @@ export function Sidebar({
         </ul>
       </nav>
 
-      <div className="border-t border-border p-3">
+      {/* No celular, o fim da gaveta: falar com a gente (a conta e o Sair moram na foto). */}
+      <div className="px-3 pb-[calc(1rem+var(--safe-bottom))] md:hidden">
+        <a href={linkDoSuporte("Oi! Preciso de ajuda com o SPI Finance.")} className="flex min-h-12 items-center gap-3.5 rounded-2xl px-3.5 py-2 text-[16px] text-ink hover:bg-surface-2">
+          <MessageCircleQuestion size={20} strokeWidth={1.5} className="shrink-0" />
+          Fale com a gente
+        </a>
+      </div>
+
+      <div className="hidden border-t border-border p-3 md:block">
         <button
           onClick={onToggleCollapsed}
           className={`mb-2 hidden w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-ink-faint transition-colors hover:bg-surface-2 hover:text-ink md:flex ${collapsedDesktopOnly}`}

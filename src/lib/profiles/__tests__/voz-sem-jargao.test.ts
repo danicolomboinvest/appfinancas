@@ -127,10 +127,7 @@ describe("os componentes leem da voz, não escrevem o texto", () => {
     expect(ler("src/app/(app)/decidir/raio-x/RaioX.tsx")).not.toContain("Rendimento de referência");
   });
 
-  it("a barra de baixo e o formulário do +", () => {
-    const barra = ler("src/components/shell/MobileTabBar.tsx");
-    expect(barra).toContain("voz.titulos.navAbaMes");
-    expect(barra).toContain("voz.titulos.navMais");
+  it("o formulário do +", () => {
     const campos = ler("src/components/forms/CategoryFields.tsx");
     for (const fixo of ["O que é\n", '"Nome da nova categoria"', "Usadas recentemente:", '"Que tipo de gasto é?"']) {
       expect(campos, fixo).not.toContain(fixo);

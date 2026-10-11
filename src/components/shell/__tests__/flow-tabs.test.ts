@@ -1,32 +1,27 @@
 import { describe, expect, it } from "vitest";
-import { ehRotaDoFluxo } from "../flow-tabs";
-import { MOBILE_TABS, NAV_SECTIONS, sectionMatches } from "../nav-sections";
+import { ABAS_DA_VISAO_GERAL, abaAtiva, ehRotaDoFluxo } from "../flow-tabs";
 
-describe("a aba Fluxo acende em todas as abas do Fluxo, inclusive o Orçamento", () => {
-  it("ehRotaDoFluxo reconhece /mensal e /orcamento e o que vem dentro deles", () => {
-    for (const rota of ["/mensal", "/mensal/foco", "/mensal/2026/9", "/mensal/gastos", "/orcamento", "/orcamento/2026"]) {
-      expect(ehRotaDoFluxo(rota), rota).toBe(true);
-    }
+describe("as abas da Visão geral", () => {
+  it("são Resumo, Orçamento, Transações e Recorrentes", () => {
+    expect(ABAS_DA_VISAO_GERAL.map((a) => a.label)).toEqual(["Resumo", "Orçamento", "Transações", "Recorrentes"]);
   });
 
-  it("não confunde rota com nome parecido nem outras seções", () => {
-    for (const rota of ["/mensalidade", "/orcamentos", "/planejamento/metas", "/carteira", "/"]) {
-      expect(ehRotaDoFluxo(rota), rota).toBe(false);
-    }
+  it("acende a aba de rota mais específica", () => {
+    const aba = (r: string) => abaAtiva(r)?.label ?? null;
+    expect(aba("/mensal/foco")).toBe("Resumo");
+    expect(aba("/mensal/foco/fechamento")).toBe("Resumo");
+    expect(aba("/dashboard")).toBe("Resumo");
+    expect(aba("/orcamento")).toBe("Orçamento");
+    expect(aba("/orcamento/2026")).toBe("Orçamento");
+    expect(aba("/orcamento/contas")).toBe("Recorrentes");
+    expect(aba("/mensal")).toBe("Transações");
+    expect(aba("/mensal/2026/10")).toBe("Transações");
+    expect(aba("/mensal/gastos")).toBe("Transações");
+    expect(aba("/carteira")).toBeNull();
   });
 
-  it("o Fluxo da barra de baixo acende no Orçamento", () => {
-    const fluxo = MOBILE_TABS.find((t) => t.basePath === "/mensal")!;
-    expect(sectionMatches(fluxo, "/orcamento")).toBe(true);
-    expect(sectionMatches(fluxo, "/orcamento/2026")).toBe(true);
-    expect(sectionMatches(fluxo, "/mensal/foco")).toBe(true);
-    // E só ele: Metas e Carteira continuam apagadas no Orçamento.
-    const acesas = MOBILE_TABS.filter((t) => sectionMatches(t, "/orcamento")).map((t) => t.basePath);
-    expect(acesas).toEqual(["/mensal"]);
-  });
-
-  it("o Fluxo do menu lateral acende no Orçamento (e abre o submenu com a aba Orçamento)", () => {
-    const acesas = NAV_SECTIONS.filter((s) => sectionMatches(s, "/orcamento/2026")).map((s) => s.basePath);
-    expect(acesas).toEqual(["/mensal"]);
+  it("ehRotaDoFluxo reconhece só as pastas da Visão geral", () => {
+    for (const rota of ["/mensal", "/mensal/foco", "/mensal/2026/9", "/orcamento", "/orcamento/contas", "/dashboard"]) expect(ehRotaDoFluxo(rota), rota).toBe(true);
+    for (const rota of ["/mensalidade", "/orcamentos", "/planejamento/metas", "/carteira", "/"]) expect(ehRotaDoFluxo(rota), rota).toBe(false);
   });
 });

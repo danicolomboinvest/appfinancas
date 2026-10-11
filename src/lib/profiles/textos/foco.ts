@@ -652,7 +652,7 @@ export const PADRAO_FOCO: TextosFoco = {
   focoComeceManual: "Quer ler antes? Veja o manual Como usar o app",
   focoTourMaisTexto: (tipo) =>
     tipo === "empresa"
-      ? "Aqui ficam Vale a pena investir?, as Configurações e o manual."
-      : `Aqui ficam Decidir, Planejar Viagem${tipo === "casal" ? ", Quanto cada um contribui?" : ""}, as Configurações e o manual.`,
+      ? "Metas, Vale a pena investir? e o resto ficam neste menu. Sua conta e as preferências ficam na sua foto, à direita."
+      : `Metas, Decidir, Viagem${tipo === "casal" ? ", Quanto cada um contribui?" : ""} e o resto ficam neste menu. Sua conta e as preferências ficam na sua foto, à direita.`,
   focoTourFimTexto: "Comece pelo cartão “Comece por aqui”: suba o extrato ou a fatura.",
 };
