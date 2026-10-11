@@ -16,11 +16,11 @@ import { SemanaFoco } from "./SemanaFoco";
 import { DecisoesImportantes } from "./DecisoesImportantes";
 import { GraficoSeisMeses } from "@/components/charts/GraficoSeisMeses";
 import { mesesAte, montarMeses, valoresDosMeses } from "@/lib/consolidation/seis-meses";
-import { lerSobrou, mesSemLancamento, sobrouDoResumo } from "@/lib/consolidation/sobrou";
 import { categoriasEssenciais } from "@/lib/categories";
-import { ValorDestaque } from "@/components/ui/ValorDestaque";
-import { Explica } from "@/components/ui/Explica";
 import { ContaDoLivre } from "./ContaDoLivre";
+import { QuadroDoMes } from "./QuadroDoMes";
+import { ResumoDeOutroMes } from "./ResumoDeOutroMes";
+import { lerMesEscolhido, mesDeAgora, mesmoMes } from "@/lib/visao-geral/periodo";
 import { diaDaSemana, fimDoMesPeloPlano, livreAteDomingo, ritmoDoMes } from "@/lib/decisoes/foco-semana";
 import { vozDoTema } from "@/lib/profiles/voice";
 import { ConquistasDeMetas } from "@/components/conquista/ConquistasDeMetas";
@@ -30,12 +30,16 @@ import { ConquistasDeMetas } from "@/components/conquista/ConquistasDeMetas";
  * está livre, no máximo três coisas que pedem atenção e o que está indo bem. O resto do mês
  * (gráficos, lançamentos) continua na Visão mensal, a abinha do lado.
  */
-export default async function FocoPage() {
+export default async function FocoPage(props: { searchParams: Promise<{ mes?: string | string[] }> }) {
   const ctx = await getRequiredSession();
   // A Empresa tem a Visão geral dela (versão nova, 11/10/2026): recibo do mês, Vendas, Despesas e Contas.
   if (ehEmpresa(ctx.profileKind)) redirect("/empresa");
   // Tudo de uma vez (o Resumo esperava o Foco para só depois buscar o mês e os 6 meses).
   const agora = nowInBrazil();
+  // Outro mês no seletor da Visão geral: o quadro daquele mês e os 6 meses (o "livre até domingo"
+  // e as decisões só existem para o mês de agora).
+  const escolhido = lerMesEscolhido((await props.searchParams).mes, agora);
+  if (!mesmoMes(escolhido, mesDeAgora(agora))) return <ResumoDeOutroMes ctx={ctx} mes={escolhido} agora={agora} />;
   const [d, blocos, valoresMeses] = await Promise.all([carregarFoco(ctx), carregarBlocosDoMes(ctx, agora), valoresDosMeses(ctx, mesesAte(agora.getFullYear(), agora.getMonth() + 1, 12))]);
   const meses12 = montarMeses(valoresMeses, { ano: d.year, mes: d.month }, 12);
   const mesTitulo = MESES[d.month - 1].charAt(0).toUpperCase() + MESES[d.month - 1].slice(1);
@@ -103,32 +107,7 @@ export default async function FocoPage() {
         </Card>
       </Link>
     ) : null;
-  const sobrouAgora = lerSobrou(sobrouDoResumo(d.summary), mesSemLancamento(d.summary));
-  const quadro = [
-    { rotulo: voz.titulos.entrou, valor: d.summary.totalIncome, cor: "var(--color-dinheiro-entrou)", fundo: "" },
-    { rotulo: voz.titulos.gastou, valor: d.summary.totalExpense, cor: "var(--color-dinheiro-gastou)", fundo: "" },
-    { rotulo: "Guardou", valor: d.summary.totalInvestment, cor: "var(--color-dinheiro-guardou)", fundo: "" },
-    { rotulo: sobrouAgora.rotulo, valor: sobrouAgora.valor, cor: sobrouAgora.situacao === "faltou" ? "var(--color-dinheiro-faltou)" : "var(--color-dinheiro-sobrou)", fundo: sobrouAgora.situacao === "faltou" ? "bg-[color-mix(in_srgb,var(--color-dinheiro-faltou)_12%,var(--color-surface))]" : "bg-[color-mix(in_srgb,var(--color-dinheiro-sobrou)_12%,var(--color-surface))]" },
-  ];
-  const mesAteAgora = (
-    <section className="flex flex-col gap-3">
-      <div className="flex items-center justify-between px-1">
-        <h2 className="titulo-tema text-lg font-medium text-ink">{mesTitulo} até agora</h2>
-        <Explica>Sobrou é o que entrou menos o que você gastou e o que guardou. Uma conta só, a mesma do gráfico.</Explica>
-      </div>
-      <div className="grid grid-cols-2 gap-2.5">
-        {quadro.map((q) => (
-          <Link key={q.rotulo} href={d.hrefMes} className={`flex min-w-0 flex-col gap-2 rounded-3xl border border-border p-4 ${q.fundo || "bg-surface"}`}>
-            <span className="flex items-center gap-2 text-sm text-ink-muted">
-              <span className="size-2 shrink-0 rounded-full" style={{ background: q.cor }} aria-hidden />
-              {q.rotulo}
-            </span>
-            <ValorDestaque texto={m(q.valor)} className="text-[1.5rem] font-light leading-none tracking-[-0.02em] tabular-nums text-ink" />
-          </Link>
-        ))}
-      </div>
-    </section>
-  );
+  const mesAteAgora = <QuadroDoMes titulo={`${mesTitulo} até agora`} resumo={d.summary} href={d.hrefMes} rotulos={{ entrou: voz.titulos.entrou, gastou: voz.titulos.gastou }} money={m} />;
 
   return (
     // Celular: uma coluna, na ordem dos níveis. Computador: à esquerda o número, os atalhos e o mês;

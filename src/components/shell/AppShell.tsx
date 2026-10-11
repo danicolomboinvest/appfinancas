@@ -12,7 +12,7 @@ import { RegistrarDrawer } from "./RegistrarDrawer";
 import { modoPedidoNoEvento, EVENTO_IMPORTAR, EVENTO_REGISTRAR, type ModoDoRegistrar } from "./registrar-eventos";
 import type { PerfilResumo } from "@/components/profiles/perfil-resumo";
 import { TopBar } from "./TopBar";
-import { AbasDaVisaoGeral } from "./AbasDaVisaoGeral";
+import { AbasDaVisaoGeral, DeslizarEntreAbas } from "./AbasDaVisaoGeral";
 import { BotaoRegistrar } from "./BotaoRegistrar";
 import { PerfilSheet } from "./PerfilSheet";
 import { TourDasNovidades } from "./TourDasNovidades";
@@ -219,7 +219,7 @@ export function AppShell({
               <ConviteTesteAndroid userEmail={userEmail} />
               <InstallAppBanner onOpenTutorial={() => setInstallOpen(true)} />
               {visaoGeral && !focado && <AbasDaVisaoGeral />}
-              {children}
+              {visaoGeral && !focado ? <DeslizarEntreAbas>{children}</DeslizarEntreAbas> : children}
             </div>
           </main>
         </div>

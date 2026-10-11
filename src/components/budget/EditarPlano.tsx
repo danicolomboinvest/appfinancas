@@ -11,7 +11,7 @@ import { Modal } from "@/components/ui/Modal";
 /** O assistente avisa por este evento quando o plano foi salvo: a janela fecha sozinha. */
 export const PLANO_SALVO = "spi:plano-salvo";
 
-export function EditarPlano({ rotulo, titulo, children }: { rotulo: string; titulo: string; children: ReactNode }) {
+export function EditarPlano({ rotulo, titulo, largo = false, children }: { rotulo: string; titulo: string; largo?: boolean; children: ReactNode }) {
   const [aberto, setAberto] = useState(false);
   // Salvou: fecha a janela (07/10/2026). Antes ela ficava aberta no passo 3 depois do "Salvar", e o
   // único sinal era um aviso pequeno no rodapé; a Dani achava que não tinha salvo. Fechando, ela
@@ -27,9 +27,13 @@ export function EditarPlano({ rotulo, titulo, children }: { rotulo: string; titu
         type="button"
         onClick={() => setAberto(true)}
         data-guia="orc-editar"
-        className="inline-flex min-h-11 w-fit items-center gap-2 rounded-full border border-border-strong bg-surface px-4 text-sm font-semibold text-ink transition-colors hover:bg-surface-hover"
+        className={
+          largo
+            ? "flex min-h-12 w-full items-center justify-center rounded-full border border-border-strong bg-surface px-5 text-[15px] font-medium text-ink transition-colors hover:bg-surface-hover"
+            : "inline-flex min-h-11 w-fit items-center gap-2 rounded-full border border-border-strong bg-surface px-4 text-sm font-semibold text-ink transition-colors hover:bg-surface-hover"
+        }
       >
-        <Pencil size={15} aria-hidden /> {rotulo}
+        {!largo && <Pencil size={15} aria-hidden />} {rotulo}
       </button>
       <Modal open={aberto} onClose={() => setAberto(false)} title={titulo}>
         {children}
