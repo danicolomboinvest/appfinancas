@@ -1,3 +1,5 @@
+import { DESTINATION_PHOTOS } from "./fotos-destinos";
+
 /**
  * Planejador de viagem: estimativas de custo CURADAS, mantidas aqui no código — de propósito,
  * sem raspar site externo (sites de custo de viagem proíbem raspagem nos termos ou mudam sem
@@ -680,20 +682,35 @@ export const PLACE_TYPE_LABEL: Record<PlaceType, string> = {
 /** Os tipos que a pessoa escolhe para um lugar fora da lista (os do protótipo, nessa ordem). */
 export const PLACE_TYPES_TO_PICK: PlaceType[] = ["praia", "serra", "historica", "grande", "natureza"];
 
-/** Foto do banco do app (public/fotos) para cada tipo. */
-export const PLACE_PHOTO: Record<PlaceType, string> = {
+/**
+ * Foto do banco do app (public/fotos) para cada tipo, quando o destino não tem foto própria.
+ * A foto do tipo nunca pode ser de uma cidade reconhecível (pedido da Dani, 11/10: Londres
+ * vinha com a foto de Lisboa). Por isso cidade histórica e cidade grande ficam SEM foto de
+ * tipo: a tela mostra um quadro neutro com o ícone do tipo de lugar.
+ */
+export const PLACE_PHOTO: Record<PlaceType, TripPhoto | null> = {
   praia: "viagem-praia",
   serra: "montanha",
   neve: "montanha",
-  historica: "intercambio",
-  grande: "europa",
+  historica: null,
+  grande: null,
   natureza: "natureza",
   parque: "parque",
 };
 
-/** As fotos que dá para escolher para um destino (a do tipo vem primeiro na tela). */
-export const TRIP_PHOTOS = ["viagem-praia", "montanha", "natureza", "intercambio", "europa", "parque", "cruzeiro"] as const;
+/** As fotos genéricas que dá para escolher para qualquer destino (nenhuma é de cidade conhecida). */
+export const TRIP_PHOTOS = ["viagem-praia", "montanha", "natureza", "parque", "cruzeiro"] as const;
 export type TripPhoto = (typeof TRIP_PHOTOS)[number];
+
+/** Endereço de uma foto do banco. */
+export function bankPhotoSrc(photo: TripPhoto): string {
+  return `/fotos/${photo}.jpg`;
+}
+
+/** Endereço da foto própria do destino (a do lugar de verdade), quando existe. */
+export function ownPhotoSrc(destination: TravelDestination): string | null {
+  return !destination.custom && DESTINATION_PHOTOS.has(destination.key) ? `/fotos/destinos/${destination.key}.webp` : null;
+}
 
 const PLACE_BY_KEY: Record<string, PlaceType> = {};
 function place(type: PlaceType, ...keys: string[]) {
@@ -770,10 +787,17 @@ export function destinationsWithoutPlaceType(): string[] {
   return TRAVEL_DESTINATIONS.filter((dest) => !PLACE_BY_KEY[dest.key]).map((dest) => dest.key);
 }
 
-/** A foto de um destino: a que ela escolheu, ou a do tipo do lugar. */
-export function photoFor(destination: TravelDestination, chosen?: string | null): string {
-  if (chosen && (TRIP_PHOTOS as readonly string[]).includes(chosen)) return chosen;
-  return PLACE_PHOTO[placeTypeFor(destination)];
+/**
+ * A foto de um destino: a que ela escolheu do banco; senão a foto do próprio lugar; senão a do
+ * tipo de lugar. Null quando não há nenhuma (cidade sem foto própria): a tela mostra o quadro
+ * neutro com o ícone do tipo.
+ */
+export function photoFor(destination: TravelDestination, chosen?: string | null): string | null {
+  if (chosen && (TRIP_PHOTOS as readonly string[]).includes(chosen)) return bankPhotoSrc(chosen as TripPhoto);
+  const own = ownPhotoSrc(destination);
+  if (own) return own;
+  const byType = PLACE_PHOTO[placeTypeFor(destination)];
+  return byType ? bankPhotoSrc(byType) : null;
 }
 
 /** Um lugar fora da lista, como ela descreveu. */

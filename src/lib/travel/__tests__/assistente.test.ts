@@ -26,6 +26,9 @@ import {
   tripGoalTargetDate,
 } from "@/lib/travel/estimates";
 import { computeGoalPlan } from "@/lib/planning/goal";
+import { DESTINATION_PHOTOS } from "@/lib/travel/fotos-destinos";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 
 // Quarta, 7 de outubro de 2026 (o "hoje" da Ana canônica).
 const HOJE = new Date(2026, 9, 7, 12);
@@ -137,17 +140,28 @@ describe("destinos: mais brasileiros, tipo de lugar e fora da lista", () => {
     expect(destinationsWithoutPlaceType()).toEqual([]);
   });
 
-  it("a foto vem do tipo: Búzios é praia, Gramado é serra, Ouro Preto é cidade histórica", () => {
-    expect(photoFor(findDestination("buzios")!)).toBe("viagem-praia");
-    expect(photoFor(findDestination("gramado")!)).toBe("montanha");
-    expect(photoFor(findDestination("ouro-preto")!)).toBe("intercambio");
+  it("sem foto própria, a foto vem do tipo; cidade histórica ou grande nunca usa a foto de outra cidade", () => {
+    const semFoto = (key: string) => ({ ...findDestination(key)!, key: `${key}-sem-foto`, placeType: placeTypeFor(findDestination(key)!) });
+    expect(photoFor(semFoto("buzios"))).toBe("/fotos/viagem-praia.jpg");
+    expect(photoFor(semFoto("gramado"))).toBe("/fotos/montanha.jpg");
+    expect(photoFor(semFoto("ouro-preto"))).toBeNull();
+    expect(photoFor(semFoto("londres"))).toBeNull();
     expect(placeTypeFor(findDestination("orlando")!)).toBe("parque");
   });
 
-  it("a foto escolhida por ela manda; foto que não é do banco é ignorada", () => {
-    const d = findDestination("buzios")!;
-    expect(photoFor(d, "cruzeiro")).toBe("cruzeiro");
-    expect(photoFor(d, "https://outro-site/x.jpg")).toBe("viagem-praia");
+  it("destino com foto própria usa a dele, e cada chave da lista tem o arquivo", () => {
+    for (const key of DESTINATION_PHOTOS) {
+      const d = findDestination(key);
+      expect(d, key).not.toBeNull();
+      expect(photoFor(d!)).toBe(`/fotos/destinos/${key}.webp`);
+      expect(existsSync(join(process.cwd(), "public/fotos/destinos", `${key}.webp`)), key).toBe(true);
+    }
+  });
+
+  it("a foto escolhida do banco manda; foto que não é do banco é ignorada", () => {
+    const d = { ...findDestination("buzios")!, key: "buzios-sem-foto", placeType: "praia" as const };
+    expect(photoFor(d, "cruzeiro")).toBe("/fotos/cruzeiro.jpg");
+    expect(photoFor(d, "https://outro-site/x.jpg")).toBe("/fotos/viagem-praia.jpg");
   });
 
   it("acha sem acento e pelos lugares novos", () => {
@@ -162,7 +176,7 @@ describe("destinos: mais brasileiros, tipo de lugar e fora da lista", () => {
     const d = resolveLegDestination(leg)!;
     expect(d.custom).toBe(true);
     expect(d.label).toBe("Serra do Japi");
-    expect(photoFor(d)).toBe("montanha");
+    expect(photoFor(d)).toBe("/fotos/montanha.jpg");
     const e = estimateTrip({ legs: [leg], travelers: 2, style: "medio", month: 5 })!;
     expect(e.total).toBeGreaterThan(0);
     expect(e.legs[0].destination.custom).toBe(true);
@@ -183,8 +197,8 @@ describe("destinos: mais brasileiros, tipo de lugar e fora da lista", () => {
 
 describe("a viagem guardada na meta", () => {
   it("lê de volta o que foi gravado", () => {
-    const lido = parseTripPlan(JSON.parse(JSON.stringify({ ...EXEMPLO, photos: { lisboa: "europa" } })));
-    expect(lido).toEqual({ ...EXEMPLO, photos: { lisboa: "europa" } });
+    const lido = parseTripPlan(JSON.parse(JSON.stringify({ ...EXEMPLO, photos: { lisboa: "cruzeiro" } })));
+    expect(lido).toEqual({ ...EXEMPLO, photos: { lisboa: "cruzeiro" } });
   });
 
   it("recusa viagem inválida em vez de quebrar a tela", () => {
