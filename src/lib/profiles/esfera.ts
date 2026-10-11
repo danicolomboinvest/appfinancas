@@ -26,9 +26,9 @@ const ESFERAS: Record<ProfileThemeKey, { claro: Esfera; escuro: Esfera }> = {
     claro: { ...CLARO, g: ["#FFFFFF", "#F6F4FE", "#E1DBF8", "#BDB3EE"], m: ["#F6F3FF", "#D2CAFB", "#A194E8", "#5E50B8", "#34297A"], ponto: "#6E5FC7", atencao: "#A87418", sombra: "70, 58, 148" },
     escuro: { ...ESCURO, g: ["#7068B0", "#3E3874", "#26244C", "#181733"], m: ["#F3F0FF", "#DAD3FF", "#B9AEFA", "#8277D8", "#4B3FA0"], ponto: "#C4BBFF", atencao: "#EDCF94", sombra: "0, 0, 0" },
   },
-  // Titânio: metal escovado; o laranja fica só no ponto da pílula.
+  // Titânio: metal escovado; o champanhe do tema fica só no ponto da pílula (era laranja até 11/10/2026).
   titanio: {
-    claro: { ...CLARO, g: ["#FFFFFF", "#F2F3F4", "#C9CCD0", "#8E9298"], m: ["#FFFFFF", "#E6E8EB", "#AEB2B8", "#6B7078", "#33363B"], ponto: "#D9480F", atencao: "#B0761A", sombra: "40, 42, 48" },
+    claro: { ...CLARO, g: ["#FFFFFF", "#F2F3F4", "#C9CCD0", "#8E9298"], m: ["#FFFFFF", "#E6E8EB", "#AEB2B8", "#6B7078", "#33363B"], ponto: "#7A5A2B", atencao: "#B0761A", sombra: "40, 42, 48" },
     escuro: {
       ...ESCURO,
       pilula: "rgba(20, 21, 24, 0.78)",
@@ -36,7 +36,7 @@ const ESFERAS: Record<ProfileThemeKey, { claro: Esfera; escuro: Esfera }> = {
       aro: "rgba(255, 255, 255, 0.18)",
       g: ["#9DA2AA", "#4A4E56", "#24262B", "#121316"],
       m: ["#F4F5F6", "#C9CCD1", "#8E9298", "#4E5258", "#2A2D31"],
-      ponto: "#FF7A3D",
+      ponto: "#D8BC88",
       atencao: "#E9C27A",
       sombra: "0, 0, 0",
     },
