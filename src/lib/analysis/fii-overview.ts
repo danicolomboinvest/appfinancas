@@ -12,7 +12,7 @@ export { OVERVIEW_DISCLAIMER };
 /** "R$ 14,58 M" / "R$ 6,34 B" / "R$ 7,60 Bilhões" / "R$ 900 mil" → valor cheio em reais. null se
  * não der. Ordem das alternativas importa: "bilh[oõ]es"/"milh[oõ]es" precisam vir ANTES de "mil"
  * na regex, senão "milhões" batia só o prefixo "mil" e virava 1000x menor do que o valor real. */
-function parseMagnitudeBRL(raw: string): number | null {
+export function parseMagnitudeBRL(raw: string): number | null {
   const m = raw.match(/([\d.,]+)\s*(bilh[oõ]es|milh[oõ]es|mil|bi|b|m)?/i);
   if (!m) return null;
   const base = parseIndicatorNumber(m[1]);
@@ -117,4 +117,21 @@ export function buildFiiOverview(indicators: Record<string, string>): {
   const counts: Record<OverviewSignal, number> = { favoravel: 0, neutro: 0, atencao: 0 };
   for (const it of items) counts[it.signal] += 1;
   return { items, counts };
+}
+
+/**
+ * Régua nova do FII (aprovada, plano da versão nova 3.10): "A renda é constante?". Recebe os
+ * rendimentos dos 12 últimos meses, do mais antigo ao mais novo (R$ por cota em cada mês; mês sem
+ * pagamento entra como 0). É favorável quando nenhum mês caiu mais de 20% em relação ao anterior
+ * (p[i] >= 0,8 x p[i-1] para todo i); uma queda maior é ponto de atenção. Com menos de 12 meses
+ * não há régua: devolve null, e a tela não inventa a resposta.
+ */
+export function rendaConstante(mensal: number[]): OverviewSignal | null {
+  if (mensal.length < 12) return null;
+  const ultimos = mensal.slice(-12);
+  if (ultimos.every((v) => v <= 0)) return "atencao";
+  for (let i = 1; i < ultimos.length; i++) {
+    if (ultimos[i] < ultimos[i - 1] * 0.8) return "atencao";
+  }
+  return "favoravel";
 }

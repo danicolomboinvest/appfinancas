@@ -11,7 +11,7 @@ export { OVERVIEW_DISCLAIMER };
 /** "R$ 14,58 M" / "R$ 6,34 B" / "R$ 7,60 Bilhões" / "R$ 900 mil" → valor cheio em reais. null se
  * não der. Ordem das alternativas importa: "bilh[oõ]es"/"milh[oõ]es" precisam vir ANTES de "mil"
  * na regex, senão "milhões" batia só o prefixo "mil" e virava 1000x menor do que o valor real. */
-function parseMagnitudeBRL(raw: string): number | null {
+export function parseMagnitudeBRL(raw: string): number | null {
   const m = raw.match(/([\d.,]+)\s*(bilh[oõ]es|milh[oõ]es|mil|bi|b|m)?/i);
   if (!m) return null;
   const base = parseIndicatorNumber(m[1]);
@@ -41,6 +41,15 @@ const RULES: Record<string, Rule> = {
       reference: "só indica se rendeu ou perdeu no período, compare sempre com o índice de referência, não é um veredito isolado",
     }),
   },
+  taxa_administracao_etf: {
+    label: "Taxa de Administração",
+    // Régua aprovada na versão nova (plano 3.10): até 1% ao ano é forte. Acima de 1,5%, atenção, como
+    // no protótipo aprovado (a faixa de 1% a 1,5% fica "na média"; a Dani ainda pode mudar o resto).
+    evaluate: (n) => ({
+      signal: n <= 1 ? "favoravel" : n > 1.5 ? "atencao" : "neutro",
+      reference: "até 1% ao ano é uma taxa baixa; acima de 1,5% ao ano, ponto de atenção",
+    }),
+  },
   rentabilidade_5anos: {
     label: "Rentabilidade 5 Anos",
     evaluate: (n) => ({
@@ -60,7 +69,7 @@ function evaluatePatrimonio(raw: string): { signal: OverviewSignal; reference: s
   };
 }
 
-const ORDER = ["patrimonio_liquido_etf", "dividend_yield_etf", "rentabilidade_12m", "rentabilidade_5anos"];
+const ORDER = ["patrimonio_liquido_etf", "dividend_yield_etf", "rentabilidade_12m", "rentabilidade_5anos", "taxa_administracao_etf"];
 
 /** Monta o overview do ETF a partir do mapa { key → valor } raspado (mesmo formato do de ações). */
 export function buildEtfOverview(indicators: Record<string, string>): {

@@ -58,16 +58,20 @@ const SIGNAL_SCORE: Record<OverviewSignal, number> = { favoravel: 10, neutro: 6,
 /** Ordem e agrupamento por tipo: cada bloco é uma pergunta que uma pessoa faria, não um capítulo de manual. */
 const SECTIONS: Record<SheetType, { id: string; question: string; keys: string[] }[]> = {
   STOCK: [
-    { id: "preco", question: "Está cara ou barata?", keys: ["p_l", "p_vp", "ev_ebitda", "dividend_yield"] },
+    { id: "preco", question: "Está cara ou barata?", keys: ["p_l", "p_vp", "ev_ebitda"] },
     { id: "lucro", question: "Dá lucro?", keys: ["roe", "roic", "margem_liquida", "margem_ebit"] },
     { id: "divida", question: "Deve muito?", keys: ["divida_liquida_ebitda", "divida_liquida_patrimonio", "liquidez_corrente"] },
     { id: "crescimento", question: "Está crescendo?", keys: ["evolucao_receita", "evolucao_lucro"] },
+    // O dividendo numa pergunta própria (versão nova, plano 3.10): "Paga bem quem investe?".
+    { id: "dividendos", question: "Paga bem quem investe?", keys: ["dividend_yield"] },
   ],
   STOCK_INTL: [
-    { id: "preco", question: "Está cara ou barata?", keys: ["p_l", "p_vp", "ev_ebitda", "dividend_yield"] },
+    { id: "preco", question: "Está cara ou barata?", keys: ["p_l", "p_vp", "ev_ebitda"] },
     { id: "lucro", question: "Dá lucro?", keys: ["roe", "roic", "margem_liquida", "margem_ebit"] },
     { id: "divida", question: "Deve muito?", keys: ["divida_liquida_ebitda", "divida_liquida_patrimonio", "liquidez_corrente"] },
     { id: "crescimento", question: "Está crescendo?", keys: ["evolucao_receita", "evolucao_lucro"] },
+    // O dividendo numa pergunta própria (versão nova, plano 3.10): "Paga bem quem investe?".
+    { id: "dividendos", question: "Paga bem quem investe?", keys: ["dividend_yield"] },
   ],
   FII: [
     { id: "preco", question: "Está cara ou barata?", keys: ["p_vp"] },
@@ -80,6 +84,7 @@ const SECTIONS: Record<SheetType, { id: string; question: string; keys: string[]
     { id: "tamanho", question: "É grande?", keys: ["patrimonio_liquido_etf"] },
     { id: "renda", question: "Paga dividendo?", keys: ["dividend_yield_etf"] },
     { id: "retorno", question: "Rendeu?", keys: ["rentabilidade_12m", "rentabilidade_5anos"] },
+    { id: "taxa", question: "Cobra quanto?", keys: ["taxa_administracao_etf"] },
   ],
 };
 
@@ -151,6 +156,7 @@ const PLAIN: Record<string, (v: number, raw: string) => string> = {
   dividend_yield_etf: (v) => `Pagou ${v.toFixed(1).replace(".", ",")}% em dividendos nos últimos 12 meses`,
   rentabilidade_12m: (v) => (v >= 0 ? `Rendeu ${pct(v)} nos últimos 12 meses` : `Perdeu ${pct(-v)} nos últimos 12 meses`),
   rentabilidade_5anos: (v) => (v >= 0 ? `Rendeu ${pct(v)} em 5 anos` : `Perdeu ${pct(-v)} em 5 anos`),
+  taxa_administracao_etf: (v) => `Cobra ${v.toFixed(2).replace(".", ",")}% ao ano`,
 };
 
 /**
@@ -181,6 +187,7 @@ export const FRIENDLY_LABEL: Record<string, string> = {
   dividend_yield_etf: "Dividendos",
   rentabilidade_12m: "Rendeu em 12 meses",
   rentabilidade_5anos: "Rendeu em 5 anos",
+  taxa_administracao_etf: "Taxa de administração",
 };
 
 /**
@@ -198,6 +205,8 @@ export const SECTION_SCALE: Record<string, { low: string; high: string; mid: str
   liquidez: { low: "difícil", high: "fácil", mid: "na média" },
   renda: { low: "pouco", high: "bem", mid: "na média" },
   retorno: { low: "perdeu", high: "rendeu", mid: "empatou" },
+  dividendos: { low: "pouco", high: "bem", mid: "pouco" },
+  taxa: { low: "cara", high: "barata", mid: "na média" },
 };
 
 const SIGNAL_POSITION: Record<OverviewSignal, number> = { atencao: 0.12, neutro: 0.5, favoravel: 0.88 };
@@ -250,11 +259,13 @@ export const GLOSSARY: Record<string, string> = {
   dividend_yield_etf: "Dividend yield: quanto o ETF distribuiu nos últimos 12 meses, em porcentagem do preço. Muitos ETFs reinvestem em vez de pagar, DY baixo não é defeito.",
   rentabilidade_12m: "Rentabilidade em 12 meses: quanto o ETF rendeu (ou perdeu) no último ano. Compare sempre com o índice que ele copia.",
   rentabilidade_5anos: "Rentabilidade em 5 anos: quanto o ETF rendeu (ou perdeu) nos últimos cinco anos, acumulado.",
+  taxa_administracao_etf: "Taxa de administração: o que o ETF cobra por ano, em porcentagem do que você tem nele. Sai do próprio fundo.",
 };
 
 /** O "?" de cada pergunta: o que ela olha e por quê. */
 export const QUESTION_HELP: Record<string, string> = {
-  preco: "Compara o preço da ação com o lucro, o patrimônio e o caixa que a empresa gera, e com o dividendo que ela paga. Responde se você está pagando caro pelo que leva.",
+  preco: "Compara o preço da ação com o lucro, o patrimônio e o caixa que a empresa gera. Responde se você está pagando caro pelo que leva.",
+  dividendos: "Olha quanto a empresa pagou de dividendo nos últimos 12 meses, em porcentagem do preço. 5% ou mais é alto; abaixo disso não é defeito.",
   lucro: "Olha quanto a empresa lucra sobre o dinheiro dos sócios, sobre o que investe e sobre o que vende. Responde se o negócio é bom em transformar dinheiro em mais dinheiro.",
   divida: "Olha o tamanho da dívida comparado ao caixa que a empresa gera e ao patrimônio, e se o caixa de curto prazo cobre as contas de curto prazo.",
   crescimento: "Compara as vendas e o lucro de hoje com os de cinco anos atrás. Responde se a empresa está andando pra frente ou pra trás.",
@@ -264,6 +275,7 @@ export const QUESTION_HELP: Record<string, string> = {
   liquidez: "Olha quanto o fundo negocia por dia na bolsa. Responde se você consegue comprar e vender sem dificuldade e sem mexer no preço.",
   renda: "Olha quanto o ETF distribuiu em dividendos nos últimos 12 meses.",
   retorno: "Olha quanto o ETF rendeu em 12 meses e em 5 anos. Passado não garante futuro, e o que importa é seguir bem o índice dele.",
+  taxa: "Olha a taxa de administração do ETF, o que sai do fundo todo ano. Até 1% ao ano é barata.",
 };
 
 /** A sigla/nome técnico, sem o parêntese explicativo: "P/L", "ROE", "Dívida Líquida / EBITDA". */

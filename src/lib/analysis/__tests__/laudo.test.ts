@@ -26,8 +26,11 @@ describe("buildLaudo", () => {
       "Dá lucro?",
       "Deve muito?",
       "Está crescendo?",
+      "Paga bem quem investe?",
     ]);
-    expect(l.sections[0].items.map((i) => i.key)).toEqual(["p_l", "p_vp", "ev_ebitda", "dividend_yield"]);
+    // O dividendo saiu de "Está cara ou barata?" e virou pergunta própria (versão nova, plano 3.10).
+    expect(l.sections[0].items.map((i) => i.key)).toEqual(["p_l", "p_vp", "ev_ebitda"]);
+    expect(l.sections[4].items.map((i) => i.key)).toEqual(["dividend_yield"]);
   });
 
   it("scores from the badges: favorável 10, na média 6, atenção 2", () => {
