@@ -181,7 +181,31 @@ describe("a voz dos quatro temas", () => {
     expect(p.aportou).toBe("Guardado");
   });
 
-  it("o Titânio fala como o Padrão; tema que saiu fala como o substituto", () => {
+  it("o Titânio fala curto e firme, número primeiro (decisão da dona, 11/10/2026)", () => {
+    const v = vozDoTema("titanio");
+    const base = { restante: 3241, porDia: 130, diasRestantes: 25, ultimoDia: 31, money };
+    // O exemplo dela: "R$ 648 até domingo. Dá para o mês."
+    expect(v.fraseOrcamento({ ...base, situacao: "no-ritmo" })).toBe("R$ 130 por dia até dia 31. Dá para o mês.");
+    expect(v.fraseOrcamento({ ...base, situacao: "estourou", restante: -67 })).toBe("R$ 67 acima do plano. Segure o resto do mês.");
+    expect(v.fraseResultado("bom", dados(2741))).toBe("R$ 2.741 de sobra. Mês no lugar.");
+    expect(v.ritmo).toEqual({ rapido: "Rápido demais", limite: "No limite", dentro: "No ritmo" });
+    expect(v.titulos.focoLivreSemana).toBe("Livre até domingo");
+    // Curta, firme, sem gíria nem exclamação: nenhuma frase passa de 12 palavras, e a do
+    // resultado e a do orçamento começam pelo número.
+    const frases = [
+      ...(["bom", "normal", "ruim"] as const).flatMap((e) => [v.fraseResultado(e, dados(e === "ruim" ? -840 : 2741)), v.fraseResultado(e, { ...dados(e === "ruim" ? -840 : 2741), mesFechado: true })]),
+      ...SITUACOES.map((situacao) => v.fraseOrcamento({ ...base, situacao })),
+      ...Object.values(v.ritmo), v.mesVazio, v.metaBatida("Europa"), v.titulos.focoRitmoP(25, "R$ 3.241"),
+    ].filter((f): f is string => Boolean(f));
+    for (const f of frases) {
+      expect(f.split(/\s+/).length, f).toBeLessThanOrEqual(12);
+      expect(f, f).not.toMatch(/!|amiga|bora|arras|\p{Extended_Pictographic}/iu);
+    }
+    for (const e of ["bom", "normal", "ruim"] as const) expect(v.fraseResultado(e, dados(e === "ruim" ? -840 : 2741)), e).toMatch(/^R\$/);
+    for (const situacao of ["no-ritmo", "adiantado", "folgado", "estourou"] as const) expect(v.fraseOrcamento({ ...base, situacao }), situacao).toMatch(/^R\$/);
+  });
+
+  it("tema que saiu fala como o substituto", () => {
     expect(vozDoTema("titanio").saudacao("manha", "Dani")).toBe("Bom dia, Dani.");
     expect(vozDoTema("game")).toBe(vozDoTema("titanio"));
     expect(vozDoTema("disciplina")).toBe(vozDoTema("titanio"));
