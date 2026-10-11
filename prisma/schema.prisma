@@ -216,6 +216,7 @@ model User {
   decisoes          Decisao[]
   contasAPagar      ContaAPagar[]
   tokensDoWidget    TokenDoWidget[]
+  dividas           Divida[]
 }
 
 /// Ambiente financeiro independente dentro da MESMA conta: Pessoal, Empresa, Casal, Casa…
@@ -281,6 +282,7 @@ model FinancialProfile {
   accumulationCache       AccumulationProjectionCache[]
   decisoes                Decisao[]
   contasAPagar            ContaAPagar[]
+  dividas                 Divida[]
 
   @@index([userId, position])
 }
@@ -1141,6 +1143,43 @@ model ContaAPagar {
   updatedAt  DateTime          @updatedAt
 
   @@index([userId, profileId, vencimento])
+}
+
+/// Uma dívida da área Dívidas (versão nova, 11/10/2026), digitada pela pessoa no cadastro de 8 passos.
+/// O motor é o do app Rota (lib/dividas): a mais cara primeiro, e a parcela da que acaba passa
+/// para a próxima. Saudável, Atenção ou Cara é calculado na hora (depende da Selic do dia), nunca
+/// guardado.
+model Divida {
+  id              String            @id @default(cuid())
+  userId          String
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  profileId       String?
+  profile         FinancialProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  /// Um dos 11 tipos do motor (rotativo, cheque_especial, ..., outra).
+  tipo            String            @db.VarChar(32)
+  credor          String            @db.VarChar(40)
+  /// O nome que ela reconhece ("Apê", "Fatura"). Na tela: "Caixa · Apê".
+  apelido         String            @default("") @db.VarChar(40)
+  /// Para que foi (Casa, Carro, Emergência...).
+  paraQue         String?           @db.VarChar(40)
+  planejada       Boolean           @default(false)
+  /// Quanto falta pagar hoje.
+  saldo           Decimal           @db.Decimal(18, 2)
+  /// Quanto sai por mês (a parcela, ou o que ela paga quando não tem parcela fixa).
+  porMes          Decimal           @db.Decimal(18, 2)
+  parcelasAbertas Int?
+  parcelasTotal   Int?
+  semParcela      Boolean           @default(false)
+  /// Taxa ao mês em %. Nulo = "Não sei": vale a estimativa do tipo, marcada "estimada".
+  taxaMensal      Decimal?          @db.Decimal(8, 4)
+  diaVencimento   Int?
+  atrasada        Boolean           @default(false)
+  /// "Quitei": sai da lista; o Desfazer volta.
+  quitadaEm       DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([userId, profileId])
 }
 
 /// A chave do widget da tela inicial do iPhone (11/10/2026). O app gera uma quando a pessoa está

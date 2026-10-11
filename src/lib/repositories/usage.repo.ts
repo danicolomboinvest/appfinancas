@@ -19,6 +19,7 @@ const PATH_LABELS: Record<string, string> = {
   "/planejamento/reserva-emergencia": "Reserva de emergência",
   "/planejamento/acumulo": "Aposentadoria",
   "/viagem": "Planejar viagem",
+  "/dividas": "Dívidas",
   "/carteira": "Carteira",
   "/carteira/por-objetivo": "Carteira por objetivo",
   "/carteira/estrategia": "Estratégia da carteira",

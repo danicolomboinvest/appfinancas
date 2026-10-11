@@ -12,7 +12,20 @@ import { createPortal } from "react-dom";
  * overflow hidden) ele seria cortado.
  */
 /** `noHeroi`: dentro do bloco pintado do número, o "?" usa a cor de texto do bloco. */
-export function Explica({ children, rotulo = "O que é isso?", noHeroi = false }: { children: ReactNode; rotulo?: string; noHeroi?: boolean }) {
+/** `gatilho`: em vez do "?", o próprio elemento abre o balão (o carimbo dos 30% nas Dívidas). */
+export function Explica({
+  children,
+  rotulo = "O que é isso?",
+  noHeroi = false,
+  gatilho,
+  classeDoGatilho = "",
+}: {
+  children: ReactNode;
+  rotulo?: string;
+  noHeroi?: boolean;
+  gatilho?: ReactNode;
+  classeDoGatilho?: string;
+}) {
   const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null);
   const botao = useRef<HTMLButtonElement>(null);
   const balao = useRef<HTMLSpanElement>(null);
@@ -57,9 +70,13 @@ export function Explica({ children, rotulo = "O que é isso?", noHeroi = false }
           setPos({ top: r.bottom + 6, left: esquerda, width: largura });
         }}
         // A área de toque é maior que o desenho: o círculo tem 18px, o botão 28px.
-        className={`-m-1.5 inline-flex size-7 shrink-0 items-center justify-center rounded-full align-middle transition-colors ${noHeroi ? "text-heroi-suave hover:text-heroi-tinta" : "text-ink-faint hover:text-ink"}`}
+        className={
+          gatilho
+            ? classeDoGatilho
+            : `-m-1.5 inline-flex size-7 shrink-0 items-center justify-center rounded-full align-middle transition-colors ${noHeroi ? "text-heroi-suave hover:text-heroi-tinta" : "text-ink-faint hover:text-ink"}`
+        }
       >
-        <span className="flex size-[18px] items-center justify-center rounded-full border border-current text-xs font-bold leading-none">?</span>
+        {gatilho ?? <span className="flex size-[18px] items-center justify-center rounded-full border border-current text-xs font-bold leading-none">?</span>}
       </button>
       {pos &&
         createPortal(

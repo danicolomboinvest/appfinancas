@@ -1,6 +1,7 @@
 import {
   House,
   Target,
+  CreditCard,
   Wallet,
   Plane,
   Calculator,
@@ -79,8 +80,8 @@ export function sectionMatches(section: Pick<NavSection, "basePath" | "alsoMatch
 
 /**
  * O menu ☰ (versão nova, 11/10/2026): uma lista só, na ordem do protótipo aprovado. Visão
- * geral, Metas, Carteira, Viagem, Calculadoras, Análises, Decidir, Configurações e Como
- * funciona; Dívidas entra quando a área existir (fase 5). A Empresa troca o que é de pessoa
+ * geral, Metas, Dívidas, Carteira, Viagem, Calculadoras, Análises, Decidir, Configurações e
+ * Como funciona. A Empresa troca o que é de pessoa
  * física pelo "Vale a pena investir?"; o Casal ganha o "Quanto cada um contribui?".
  *
  * A mesma lista serve à gaveta do celular e à barra lateral do computador.
@@ -106,6 +107,8 @@ export const NAV_SECTIONS: NavSection[] = [
       { href: "/planejamento/acumulo", label: "Aposentadoria", premium: true, soPessoa: true },
     ],
   },
+  // Dívidas (fase 2, 11/10/2026): logo depois de Metas. A Empresa tem o menu dela, sem esta área.
+  { basePath: "/dividas", href: "/dividas", label: "Dívidas", icon: CreditCard, soPessoa: true },
   {
     basePath: "/carteira",
     href: "/carteira",

@@ -137,6 +137,16 @@ async function main() {
       { ...dono, nome: "Curso de inglês", valor: 249, vencimento: dia(20), diaDoMes: 20, repete: true },
     ],
   });
+  // As dívidas da Ana (rodada 9b): duas para resolver (a fatura e o empréstimo) e duas saudáveis
+  // (a mãe e o apê). Com R$ 200 a mais: livre em 11 meses, R$ 1.571 de juros; parcelas = 33% da renda.
+  await prisma.divida.createMany({
+    data: [
+      { ...dono, tipo: "cartao_parcelado", credor: "Nubank", apelido: "Fatura", paraQue: "Compras do dia a dia", planejada: false, saldo: 1800, porMes: 300, parcelasAbertas: 6, parcelasTotal: 10, taxaMensal: null, diaVencimento: 10 },
+      { ...dono, tipo: "emprestimo", credor: "Itaú", apelido: "Empréstimo", paraQue: "Emergência", planejada: false, saldo: 6000, porMes: 420, parcelasAbertas: 19, parcelasTotal: 24, taxaMensal: 2.9, diaVencimento: 5 },
+      { ...dono, tipo: "pessoa", credor: "Mãe", apelido: "", paraQue: "Outro", planejada: true, saldo: 2000, porMes: 200, parcelasAbertas: 10, parcelasTotal: 15, taxaMensal: 0, diaVencimento: 15 },
+      { ...dono, tipo: "financiamento_imovel", credor: "Caixa", apelido: "Apê", paraQue: "Casa", planejada: true, saldo: 180000, porMes: 1650, parcelasAbertas: 312, parcelasTotal: 360, taxaMensal: 0.8, diaVencimento: 20 },
+    ],
+  });
   await prisma.emergencyFund.create({ data: { ...dono, targetMonths: 3, monthlyExpenseBase: 7000, targetAmount: 21000, currentAmount: 4200, monthlyContribution: 600, annualRate: 0.1 } });
 
   console.log(`Pronto: ${EMAIL} com ${entradas.length} lançamentos, 3 metas e ${ativos.length} ativos (banco local).`);

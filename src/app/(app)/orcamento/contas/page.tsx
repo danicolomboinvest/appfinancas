@@ -1,8 +1,13 @@
-import { Repeat } from "lucide-react";
+import Link from "next/link";
+import { ChevronRight, Repeat } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
 import { hojeEmBrasilia } from "@/lib/contas/contas";
 import { listarContasAPagar, listarQuitadasRecentes } from "@/lib/repositories/conta-a-pagar.repo";
 import { listBudgets } from "@/lib/repositories/budget.repo";
+import { listarDividas, selicAnual } from "@/lib/repositories/divida.repo";
+import { saudeDe, SELIC_DE_RESERVA } from "@/lib/dividas/saude";
+import { perfilDoTipo } from "@/lib/dividas/tipos";
+import { LogoDoCredor } from "@/app/(app)/dividas/partes";
 import { getMonthlySummary } from "@/lib/consolidation/monthly";
 import { getMonthlyPlan } from "@/lib/repositories/monthly-plan.repo";
 import { carregarRaioX } from "@/app/(app)/mensal/foco/dados";
@@ -23,8 +28,10 @@ import { iso, serializarConta } from "./serializar";
  * tem dono (contas e assinaturas), o que sai nesta semana, as contas com o "paguei", as
  * assinaturas achadas no extrato e o limite do cartão. `?nova=1` abre o formulário de conta.
  *
+ * "Dívidas por mês" (fase 2): o que sai por mês para cada dívida, só leitura, com "Ver plano".
+ *
  * Ficam para a fase 3: contas com qualquer frequência e as "contas do ano" (guarde R$ X por mês),
- * parcelas, dívidas (área nova) e a conta reconhecida no extrato.
+ * parcelas e a conta reconhecida no extrato.
  */
 export default async function RecorrentesPage(props: PageProps<"/orcamento/contas">) {
   const sp = await props.searchParams;
@@ -34,13 +41,16 @@ export default async function RecorrentesPage(props: PageProps<"/orcamento/conta
   const agora = nowInBrazil();
   const ano = agora.getFullYear();
   const mes = agora.getMonth() + 1;
-  const [abertas, pagas, plano, resumo, planoDoMes, raiox] = await Promise.all([
+  const empresa = ehEmpresa(ctx.profileKind);
+  const [abertas, pagas, plano, resumo, planoDoMes, raiox, dividas, selic] = await Promise.all([
     listarContasAPagar(ctx),
     listarQuitadasRecentes(ctx),
     listBudgets(ctx, ano, mes),
     getMonthlySummary(ctx, ano, mes),
     getMonthlyPlan(ctx, ano, mes),
-    ehEmpresa(ctx.profileKind) ? Promise.resolve({ itens: [], decididos: new Set<string>() }) : carregarRaioX(ctx, ano, mes),
+    empresa ? Promise.resolve({ itens: [], decididos: new Set<string>() }) : carregarRaioX(ctx, ano, mes),
+    empresa ? Promise.resolve([]) : listarDividas(ctx),
+    empresa ? Promise.resolve(null) : selicAnual(ctx.userId),
   ]);
   const hoje = iso(hojeEmBrasilia());
   const contas = abertas.map(serializarConta);
@@ -95,6 +105,30 @@ export default async function RecorrentesPage(props: PageProps<"/orcamento/conta
                     </span>
                   </span>
                   <span className="shrink-0 text-[16px] tabular-nums text-ink">{money(a.mensal)}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+        {dividas.length > 0 && (
+          <section className="flex flex-col gap-2">
+            <div className="flex items-center justify-between gap-3 px-1">
+              <h2 className="titulo-tema text-lg font-medium text-ink">
+                Dívidas <span className="text-sm font-normal text-ink-muted">por mês</span>
+              </h2>
+              <Link href="/dividas?plano=1" className="inline-flex min-h-10 shrink-0 items-center gap-1 rounded-full border border-border bg-surface px-4 text-sm text-ink">
+                Ver plano <ChevronRight size={16} strokeWidth={1.8} aria-hidden />
+              </Link>
+            </div>
+            <ul className="divide-y divide-border overflow-hidden rounded-3xl border border-border bg-surface">
+              {dividas.map((d) => (
+                <li key={d.id} className="flex items-center gap-3 px-3 py-3">
+                  <LogoDoCredor credor={d.credor} tipo={d.tipo} saude={saudeDe(d, selic ?? SELIC_DE_RESERVA)} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[16px] text-ink">{d.nome}</span>
+                    <span className="block text-[13px] text-ink-muted">{d.diaVencimento ? `todo dia ${d.diaVencimento}` : perfilDoTipo(d.tipo).nome}</span>
+                  </span>
+                  <span className="shrink-0 text-[16px] tabular-nums text-ink">{m(d.porMes)}</span>
                 </li>
               ))}
             </ul>

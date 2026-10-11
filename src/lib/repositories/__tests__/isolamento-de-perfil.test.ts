@@ -19,7 +19,7 @@ const COM_ESCOPO = [
   "monthlyEntry", "budget", "monthlyPlan", "customCategory", "goal", "asset", "emergencyFund",
   "planningParams", "portfolioStrategy", "patrimonySnapshot", "importBatch",
   "contributionAllocation", "transactionCategoryRule", "simulation", "analysisSheet",
-  "yearlyConsolidationCache", "accumulationProjectionCache", "decisao", "contaAPagar",
+  "yearlyConsolidationCache", "accumulationProjectionCache", "decisao", "contaAPagar", "divida",
 ];
 
 /**

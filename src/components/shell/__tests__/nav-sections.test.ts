@@ -4,10 +4,10 @@ import { NAV_SECTIONS, rotuloDoMenu, secoesVisiveis, sectionMatches, tituloDaTel
 const bases = (lista: { basePath: string }[]) => lista.map((x) => x.basePath);
 
 describe("o menu ☰ da versão nova", () => {
-  it("tem a ordem do protótipo (Dívidas entra quando a área existir)", () => {
+  it("tem a ordem do protótipo, com Dívidas logo depois de Metas", () => {
     const pessoa = secoesVisiveis(NAV_SECTIONS, { empresa: false, casal: false });
     expect(pessoa.map((s) => s.label)).toEqual([
-      "Visão geral", "Metas", "Carteira", "Viagem", "Calculadoras", "Análises", "Decidir", "Configurações", "Como funciona",
+      "Visão geral", "Metas", "Dívidas", "Carteira", "Viagem", "Calculadoras", "Análises", "Decidir", "Configurações", "Como funciona",
     ]);
   });
 
@@ -20,7 +20,7 @@ describe("o menu ☰ da versão nova", () => {
   it("o Casal ganha o 'Quanto cada um contribui?' sem perder nada", () => {
     const casal = secoesVisiveis(NAV_SECTIONS, { empresa: false, casal: true });
     expect(bases(casal)).toContain("/divisao");
-    expect(casal).toHaveLength(10);
+    expect(casal).toHaveLength(11);
   });
 
   it("toda tela da Visão geral acende a Visão geral, e só ela", () => {
