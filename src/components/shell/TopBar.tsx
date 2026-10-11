@@ -32,7 +32,7 @@ export function TopBar({
       <button type="button" onClick={onAbrirMenu} aria-label="Abrir menu" aria-expanded={menuAberto} data-tour="mais" className={`${botao} md:hidden`}>
         <Menu size={20} strokeWidth={1.6} aria-hidden />
       </button>
-      <p className="titulo-tema min-w-0 truncate text-center text-[17px] font-medium text-ink md:text-left md:text-xl">{titulo}</p>
+      <p className="titulo-tema min-w-0 truncate text-center font-medium text-ink md:text-left" style={{ fontSize: "var(--titulo-topo, 17px)" }}>{titulo}</p>
       <div className="flex items-center gap-1">
         <ThemeQuickToggle initial={modo} />
         <button type="button" onClick={onAbrirPerfil} aria-label="Abrir perfil e conta" aria-haspopup="dialog" className="rounded-full transition-transform active:scale-95">

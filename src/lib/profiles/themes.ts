@@ -165,7 +165,7 @@ function sinais(s: { success: string; danger: string; info: string; neutro: stri
 
 const FONTES = {
   padrao: { "--font-tema": "var(--font-figtree)" },
-  girly: { "--font-tema": "var(--font-hanken)", "--font-titulo": "var(--font-cormorant)", "--estilo-titulo": "italic", "--peso-titulo": "500" },
+  girly: { "--font-tema": "var(--font-hanken)", "--font-titulo": "var(--font-cormorant)", "--estilo-titulo": "italic", "--peso-titulo": "500", "--titulo-topo": "25px" },
   manifestacao: { "--font-tema": "var(--font-urbanist)" },
   titanio: { "--font-tema": "var(--font-archivo)" },
 } as const;
