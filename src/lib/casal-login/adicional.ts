@@ -29,6 +29,14 @@ export function inicioDaCobranca(valor: string | undefined = process.env.ADICION
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
+/**
+ * A tela de compra (/adicionais/<qual>) só existe com o branch de cobrança. Enquanto a variável
+ * estiver vazia, nenhum botão "Liberar" pode levar para lá.
+ */
+export function cobrancaDosAdicionaisLigada(valor: string | undefined = process.env.ADICIONAIS_COBRAR_DESDE): boolean {
+  return inicioDaCobranca(valor) !== null;
+}
+
 export async function temAdicional(userId: string, adicional: Adicional, agora: Date = new Date()): Promise<boolean> {
   void userId;
   void adicional;

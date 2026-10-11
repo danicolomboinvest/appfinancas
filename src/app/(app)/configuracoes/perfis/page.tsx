@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { cobrancaDosAdicionaisLigada } from "@/lib/casal-login/adicional";
 import { Briefcase, Check, Heart, User, Users } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
 import { listProfiles } from "@/lib/repositories/profile.repo";
@@ -27,6 +28,8 @@ export default async function PerfisPage() {
   const [perfis, liberados] = await Promise.all([listProfiles(ctx.userId), extrasLiberados(ctx.userId)]);
   const { lugares, mantidos } = lugaresDosPerfis(perfis, liberados);
   const emUso = (id: string) => id === ctx.profileId;
+  // A compra (/adicionais/<qual>) só existe com a cobrança ligada: sem ela, nada de "Liberar".
+  const cobrancaLigada = cobrancaDosAdicionaisLigada();
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-5">
@@ -61,7 +64,7 @@ export default async function PerfisPage() {
                   <Check size={13} aria-hidden /> Já liberado
                 </span>
               )}
-              {!l.liberado && l.adicional && (
+              {!l.liberado && l.adicional && cobrancaLigada && (
                 <Link href={`/adicionais/${l.adicional}`} className="ml-14 inline-flex min-h-11 items-center justify-center rounded-full bg-accent-gradient px-4 text-sm font-medium text-on-accent">
                   Liberar por {preco(l.preco ?? 0)} por ano
                 </Link>

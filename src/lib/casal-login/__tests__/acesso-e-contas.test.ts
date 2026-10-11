@@ -155,3 +155,13 @@ describe("o link é público só em /par/", () => {
     expect(proxy).not.toMatch(/"\/par"[,\]]/);
   });
 });
+
+describe("o botão Liberar só existe com a cobrança ligada", () => {
+  it("variável vazia ou inválida: desligada (ninguém vai para /adicionais/...)", async () => {
+    const { cobrancaDosAdicionaisLigada } = await import("../adicional");
+    expect(cobrancaDosAdicionaisLigada(undefined)).toBe(false);
+    expect(cobrancaDosAdicionaisLigada("")).toBe(false);
+    expect(cobrancaDosAdicionaisLigada("amanhã")).toBe(false);
+    expect(cobrancaDosAdicionaisLigada("2026-11-03")).toBe(true);
+  });
+});

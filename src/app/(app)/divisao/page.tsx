@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { cobrancaDosAdicionaisLigada } from "@/lib/casal-login/adicional";
 import { redirect } from "next/navigation";
 import { CheckCircle2, Users, X } from "lucide-react";
 import { getRequiredSession, type AuthContext } from "@/lib/auth/session";
@@ -47,6 +48,7 @@ export default async function DivisaoPage({ searchParams }: { searchParams: Prom
           agoraIso={new Date().toISOString()}
           nomeTitular={nomeTitular}
           casalValendo={nosDois.casalValendo}
+          podeLiberar={cobrancaDosAdicionaisLigada()}
           convite={
             convite
               ? { nomePar: convite.nomePar, estado: convite.estado, canal: convite.canal, enviadoEmIso: convite.enviadoEm?.toISOString() ?? null, criadoEmIso: convite.criadoEm.toISOString(), expiraEmIso: convite.expiraEm.toISOString() }

@@ -74,7 +74,10 @@ export function ChamarOPar({
   precoDoCasal = 27,
   mostrarSempre = false,
   agoraIso,
+  podeLiberar = false,
 }: {
+  /** A compra do adicional existe (ADICIONAIS_COBRAR_DESDE ligada). Sem ela, não há "Liberar". */
+  podeLiberar?: boolean;
   /** O instante da página (vem do servidor: o render não pode ler o relógio). */
   agoraIso: string;
   nomeTitular: string;
@@ -105,24 +108,31 @@ export function ChamarOPar({
       <section className="flex flex-col items-center pt-4 text-center">
         <ParDeAvatares titular={nomeTitular} par={null} />
         <TituloDoTema className="mt-6">O dinheiro da casa, a dois</TituloDoTema>
-        <p className="mt-2 text-[17px] text-ink-muted">Libere o Casal e convide o seu par.</p>
+        <p className="mt-2 text-[17px] text-ink-muted">{podeLiberar ? "Libere o Casal e convide o seu par." : "Convide o seu par para o Nós dois."}</p>
         <ul className={`${CARTAO} mt-6 w-full divide-y divide-border px-5 text-left`}>
           <Item icone={<House size={20} strokeWidth={1.6} />} titulo="Contas da casa" texto="quem cuida e quem pagou" />
           <Item icone={<ArrowLeftRight size={20} strokeWidth={1.6} />} titulo="Acerto sozinho" texto="quem manda quanto pra quem" />
           <Item icone={<Target size={20} strokeWidth={1.6} />} titulo="Metas a dois" texto="cada um coloca a sua parte" />
         </ul>
-        <div className={`${CARTAO} mt-4 flex w-full flex-col items-center gap-1 px-5 py-6`}>
-          <span className="flex items-baseline gap-2 text-ink">
-            <span className="text-[2.5rem] font-light leading-none">+</span>
-            <ValorDestaque texto={formatMoney(precoDoCasal, DEFAULT_CURRENCY, { round: true })} className="text-[3.25rem] font-light leading-none tracking-[-0.03em] tabular-nums" />
-          </span>
-          <span className="text-[15px] text-ink-muted">por ano · o seu par entra grátis</span>
-        </div>
-        {/* A tela de compra (Hubla no site, Apple no iPhone) mora no branch de cobrança. */}
-        <Link href="/adicionais/conta_parceiro" className={`${BOTAO_ESCURO} mt-6`}>
-          Liberar o Casal
-        </Link>
-        <p className="mt-4 text-[15px] text-ink-muted">Somado ao seu SPI. Empresa é à parte.</p>
+        {podeLiberar ? (
+          <>
+            <div className={`${CARTAO} mt-4 flex w-full flex-col items-center gap-1 px-5 py-6`}>
+              <span className="flex items-baseline gap-2 text-ink">
+                <span className="text-[2.5rem] font-light leading-none">+</span>
+                <ValorDestaque texto={formatMoney(precoDoCasal, DEFAULT_CURRENCY, { round: true })} className="text-[3.25rem] font-light leading-none tracking-[-0.03em] tabular-nums" />
+              </span>
+              <span className="text-[15px] text-ink-muted">por ano · o seu par entra grátis</span>
+            </div>
+            {/* A tela de compra (Hubla no site, Apple no iPhone) mora no branch de cobrança. */}
+            <Link href="/adicionais/conta_parceiro" className={`${BOTAO_ESCURO} mt-6`}>
+              Liberar o Casal
+            </Link>
+            <p className="mt-4 text-[15px] text-ink-muted">Somado ao seu SPI. Empresa é à parte.</p>
+          </>
+        ) : (
+          // Sem a cobrança dos adicionais ligada, a tela de compra não existe: nada de botão para ela.
+          <p className="mt-6 text-[15px] text-ink-muted">O convite do par abre quando o SPI está ativo na sua conta.</p>
+        )}
       </section>
     );
   }
