@@ -160,7 +160,7 @@ export function RecapStories({ recap, monthKey }: { recap: MonthlyRecap; monthKe
           <div className="text-center">
             <p className="text-lg text-white/80">{t.impStoryComparado}</p>
             <BigNumber color={delta === null ? GOLD : spentLess ? SAGE : TERRA}>
-              {delta === null ? "—" : t.impStoryDelta(Math.abs(Math.round(delta * 100)), spentLess)}
+              {delta === null ? "-" : t.impStoryDelta(Math.abs(Math.round(delta * 100)), spentLess)}
             </BigNumber>
           </div>
           <div className="flex flex-col gap-5">

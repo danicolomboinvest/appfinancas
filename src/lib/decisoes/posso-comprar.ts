@@ -477,7 +477,7 @@ function avaliarSemAvisos(base: CompraBase, compraBruta: Compra, fmt: Formatos):
   // Pagável: a parcela cabe no livre + no que ela guarda. Passar disso é tirar do básico.
   const pagavel = parcela <= semDestino + guardadoHoje + 1e-9;
   const linhas: LinhaAntesDepois[] = [
-    { rotulo: "Parcela", hoje: "—", depois: `${money(parcela)} × ${n}` },
+    { rotulo: "Parcela", hoje: "-", depois: `${money(parcela)} × ${n}` },
     linhaComprometida(comprometido + parcela),
   ];
   if (guardadoHoje > 0) linhas.push({ rotulo: "Guardado por mês", hoje: money(guardadoHoje), depois: money(Math.max(0, guardadoHoje - doGuardado)) });

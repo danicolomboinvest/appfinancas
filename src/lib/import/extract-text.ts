@@ -202,7 +202,7 @@ export async function extractUploadFromForm(
   // ler PDF neste servidor, mande em Excel" — culpando o app e mandando atrás de outro formato.
   if (buffer.length === 0) {
     throw new UploadReadError(
-      "O arquivo chegou vazio (0 KB) — o download provavelmente não terminou. Baixe de novo no app do banco e envie outra vez.",
+      "O arquivo chegou vazio (0 KB), o download provavelmente não terminou. Baixe de novo no app do banco e envie outra vez.",
       "arquivo com 0 bytes",
     );
   }

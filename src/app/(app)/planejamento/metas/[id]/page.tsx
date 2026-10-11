@@ -14,6 +14,7 @@ import { serverMoney } from "@/lib/money-server";
 import { prisma } from "@/lib/db/prisma";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import { GuardadosDoSonho } from "./GuardadosDoSonho";
+import { ValorDestaque } from "@/components/ui/ValorDestaque";
 
 const STATUS_CHART_TONE: Record<string, "success" | "accent" | "danger"> = {
   NOT_STARTED: "danger",
@@ -100,7 +101,7 @@ export default async function GoalDetailPage(props: PageProps<"/planejamento/met
           </span>
         </div>
         <div>
-          <p className="text-[2.5rem] font-bold leading-none tracking-tight tabular-nums">{money(guardado, { round: true })}</p>
+          <p><ValorDestaque texto={money(guardado, { round: true })} /></p>
           <p className="mt-1.5 text-sm tabular-nums text-heroi-suave">de {money(alvo, { round: true })}, {pct}%</p>
         </div>
         <div className="heroi-veu h-2 overflow-hidden rounded-full" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>

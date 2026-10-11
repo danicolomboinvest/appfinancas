@@ -290,7 +290,7 @@ export const PADRAO_CONFIGURACOES: TextosConfiguracoes = {
   cfgConexoesPasso2Dica: "Nubank, Itaú, Inter, C6… O banco pede sua autorização pelo app dele. Cartão entra junto.",
   cfgConexoesPasso3: "Autorize o SPI a ler",
   cfgConexoesPasso3Dica: "Volte para cá e toque em autorizar. Só leitura: o SPI não move dinheiro.",
-  cfgConexoesCriarConta: "Criar conta no Meu Pluggy ↗",
+  cfgConexoesCriarConta: "Criar conta no Meu Pluggy",
   cfgConexoesAutorizar: "Já conectei lá → autorizar o SPI",
   cfgConexoesAbrindo: "Abrindo…",
   cfgConexoesRodape: "Via Pluggy, regulada pelo Banco Central. Desconecte quando quiser.",

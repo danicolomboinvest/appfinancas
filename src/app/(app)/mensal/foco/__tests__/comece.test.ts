@@ -109,12 +109,12 @@ describe("textos do Comece por aqui e do tour", () => {
     }
   });
 
-  it("o Girly tem a versão dela, com emoji", () => {
+  it("o Girly tem a versão dela, sem emoji (versão nova)", () => {
     const g = vozDoTema("girly").titulos;
     const p = vozDoTema("padrao").titulos;
     expect(g.focoComeceImportarT).not.toBe(p.focoComeceImportarT);
-    expect(g.focoComeceTitulo).toMatch(/\p{Extended_Pictographic}/u);
-    expect(g.focoTourFimTexto).toMatch(/\p{Extended_Pictographic}/u);
+    expect(g.focoComeceTitulo).not.toMatch(/\p{Extended_Pictographic}/u);
+    expect(g.focoTourFimTexto).not.toMatch(/\p{Extended_Pictographic}/u);
   });
 
   it("o menu Mais cita o que existe em cada perfil", () => {

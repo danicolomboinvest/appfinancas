@@ -129,7 +129,7 @@ export async function checkinGoalAction(
         year,
         month,
         category: "INVESTMENT_CONTRIBUTION",
-        description: `Aporte confirmado — ${goal.name}`,
+        description: `Aporte confirmado: ${goal.name}`,
         amount: plan.requiredMonthlyContribution,
         goalId: goal.id,
       });
@@ -139,7 +139,7 @@ export async function checkinGoalAction(
       year,
       month,
       category: "INVESTMENT_CONTRIBUTION",
-      description: `Aporte parcial — ${goal.name}`,
+      description: `Aporte parcial: ${goal.name}`,
       amount: parsed.data.amount,
       goalId: goal.id,
     });

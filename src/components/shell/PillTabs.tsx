@@ -17,11 +17,11 @@ export function PillTabs({ tabs, fit = false }: { tabs: PillTab[]; fit?: boolean
     .filter((tab) => pathname === tab.href || pathname.startsWith(`${tab.href}/`))
     .sort((a, b) => b.href.length - a.href.length)[0]?.href;
 
-  // `fit`: abas dividem a largura em partes iguais e SEM rolagem horizontal (cabem todas na
-  // tela). Sem `fit`, mantém o comportamento antigo (rolável em telas estreitas).
+  // `fit`: abas ocupam a largura toda; quando os nomes não cabem (celular de 320px), o trilho
+  // rola de lado em vez de cortar o nome com reticências (versão nova: nada cortado).
   return (
-    <div className={fit ? "mb-6" : "-mx-5 mb-6 overflow-x-auto px-5 md:mx-0 md:px-0"}>
-      <div className={`gap-1 rounded-full border border-border bg-surface-2 p-1 ${fit ? "flex w-full" : "inline-flex"}`}>
+    <div className="-mx-5 mb-6 overflow-x-auto px-5 md:mx-0 md:px-0">
+      <div className={`gap-1 rounded-full border border-border bg-surface-2 p-1 ${fit ? "flex w-max min-w-full" : "inline-flex"}`}>
         {tabs.map((tab) => {
           const isActive = tab.href === activeHref;
           return (
@@ -38,7 +38,7 @@ export function PillTabs({ tabs, fit = false }: { tabs: PillTab[]; fit?: boolean
                 // então "Foco" cede espaço pra "Visão mensal" em vez de todas terem o mesmo tamanho.
                 // Celular bem estreito (320–359px): letra e respiro um tico menores, pra quatro
                 // nomes caberem inteiros em vez de virarem "Foco ...".
-                fit ? "min-w-0 flex-auto truncate px-2 text-center max-[359px]:px-1.5 max-[359px]:text-[13px] sm:px-4" : "px-4"
+                fit ? "shrink-0 flex-auto px-3 text-center sm:px-4" : "px-4"
               } ${isActive ? "bg-pill text-on-pill shadow-premium-sm" : "text-ink-muted hover:text-ink"}`}
             >
               {tab.label}

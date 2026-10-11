@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { HeroiDoTema } from "@/components/ui/HeroiDoTema";
 import { NumeroRolante } from "@/components/ui/NumeroRolante";
+import { NUMERO_DESTAQUE } from "@/components/ui/ValorDestaque";
 import type { Voz } from "@/lib/profiles/voice";
 import { Card } from "@/components/ui/Card";
 import { splitSavings, type SavingsTarget } from "@/lib/planning/savings-split";
@@ -35,7 +36,7 @@ export function SavingsSplitCard({ amount, targets, money, monthLabel, voz }: { 
       <p className="text-sm font-medium text-heroi-suave" title={voz.titulos.splitSub(money(amount, { round: true }))}>
         {voz.titulos.splitTitulo(monthLabel)}
       </p>
-      <NumeroRolante texto={money(amount, { round: true })} className="text-[2.5rem] font-bold leading-none tracking-tight tabular-nums" />
+      <NumeroRolante texto={money(amount, { round: true })} className={NUMERO_DESTAQUE} />
       <div className="heroi-veu flex h-3 gap-0.5 overflow-hidden rounded-full">
         {slices.map((s) => (
           <span key={s.id} className="h-full first:rounded-l-full last:rounded-r-full" style={{ width: `${(s.amount / amount) * 100}%`, backgroundColor: KIND_COLOR[s.kind] }} />

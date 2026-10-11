@@ -59,7 +59,7 @@ export function EscolherEstilo({ perfilId, atual }: { perfilId: string; atual: P
             </span>
             <span className="min-w-0">
               <span className="block truncate text-[15px] font-medium text-ink">{t.label}</span>
-              <span className="line-clamp-2 text-caption text-ink-muted">{t.descricao}</span>
+              <span className="block text-caption text-ink-muted">{t.descricao}</span>
             </span>
           </button>
         );

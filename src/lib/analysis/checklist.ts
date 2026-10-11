@@ -71,7 +71,7 @@ export const QUESTION_BY_KEY: Record<string, { question: string; where: string }
   // FIIs
   mandato: { question: "Você entendeu o que o fundo faz com o dinheiro?", where: "Regulamento ou relatório gerencial, 1ª página" },
   segmento: { question: "O segmento dele faz sentido pra você?", where: "Lajes, galpões, shoppings, recebíveis…" },
-  tipo_gestao: { question: "Gestão ativa ou passiva — e você sabe a diferença?", where: "Relatório gerencial" },
+  tipo_gestao: { question: "Gestão ativa ou passiva, e você sabe a diferença?", where: "Relatório gerencial" },
   administrador_gestor: { question: "Quem administra tem histórico limpo?", where: "Busque o nome da gestora + 'CVM'" },
   historico_proventos: { question: "Os rendimentos são constantes ou dão sustos?", where: "Funds Explorer, últimos 12 meses" },
   qualidade_imoveis: { question: "Os imóveis são bons e bem localizados?", where: "Relatório gerencial, fotos e endereços" },

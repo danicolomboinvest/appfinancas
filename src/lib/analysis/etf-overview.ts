@@ -38,14 +38,14 @@ const RULES: Record<string, Rule> = {
     label: "Rentabilidade 12 Meses",
     evaluate: (n) => ({
       signal: n > 0 ? "favoravel" : "atencao",
-      reference: "só indica se rendeu ou perdeu no período — compare sempre com o índice de referência, não é um veredito isolado",
+      reference: "só indica se rendeu ou perdeu no período, compare sempre com o índice de referência, não é um veredito isolado",
     }),
   },
   rentabilidade_5anos: {
     label: "Rentabilidade 5 Anos",
     evaluate: (n) => ({
       signal: n > 0 ? "favoravel" : "atencao",
-      reference: "só indica se rendeu ou perdeu no período — compare sempre com o índice de referência, não é um veredito isolado",
+      reference: "só indica se rendeu ou perdeu no período, compare sempre com o índice de referência, não é um veredito isolado",
     }),
   },
 };

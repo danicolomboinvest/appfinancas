@@ -83,7 +83,7 @@ export default async function SuportePage() {
 
         <div>
           <h3 className="font-medium text-ink">Encontrei um erro ou tenho uma sugestão</h3>
-          <p>Conta pra gente pelo e-mail de suporte acima — leitura de extratos, cotações e cálculos são revisados manualmente quando reportados.</p>
+          <p>Conta pra gente pelo e-mail de suporte acima, leitura de extratos, cotações e cálculos são revisados manualmente quando reportados.</p>
         </div>
       </section>
 

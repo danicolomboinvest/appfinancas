@@ -8,6 +8,7 @@ import { useToast } from "@/components/ui/toast-context";
 import { concluirRitualAction, definirTetoAction, dispensarAvisoAction, registrarAporteDoMesAction } from "../actions";
 import { Botao, Passo, Pontos } from "../Passos";
 import { useVoltarAoTopo } from "@/components/ui/useVoltarAoTopo";
+import { ValorDestaque } from "@/components/ui/ValorDestaque";
 
 export type DadosRitual = {
   semana: string;
@@ -58,7 +59,7 @@ export function Ritual({ d }: { d: DadosRitual }) {
         <Passo rotulo={`1 de 4, ${t.ritSemanaPassada}`}>
           {d.semanaPassada.total > 0 ? (
             <>
-              <p className="text-[2rem] font-bold leading-none tracking-tight tabular-nums text-ink">{m(d.semanaPassada.total)}</p>
+              <p className="text-ink"><ValorDestaque texto={m(d.semanaPassada.total)} /></p>
               {variacao !== null && (
                 <p className="text-sm text-ink-muted">
                   Sua média é {m(d.semanaPassada.media ?? 0)} por semana:{" "}
@@ -145,7 +146,7 @@ export function Ritual({ d }: { d: DadosRitual }) {
             </>
           ) : (
             <>
-              <p className="text-sm text-ink-muted">Em dia neste mês. ✓</p>
+              <p className="text-sm text-ink-muted">Em dia neste mês.</p>
               <Botao onClick={() => seguir()}>Próximo</Botao>
             </>
           )}
@@ -157,7 +158,7 @@ export function Ritual({ d }: { d: DadosRitual }) {
           {d.livreSemana !== null ? (
             <>
               <p className="text-caption text-ink-muted">{t.focoLivreSemana}</p>
-              <p className="text-[2.25rem] font-bold leading-none tracking-tight tabular-nums text-ink">{m(d.livreSemana)}</p>
+              <p className="text-ink"><ValorDestaque texto={m(d.livreSemana)} /></p>
             </>
           ) : (
             <p className="text-sm text-ink-muted">{t.focoSemOrcamentoSub}</p>

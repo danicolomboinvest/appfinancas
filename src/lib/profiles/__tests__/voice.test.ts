@@ -172,9 +172,9 @@ describe("a voz dos quatro temas", () => {
       const texto = typeof v === "function" ? (v as (...a: never[]) => unknown)(...(["10%", "R$ 10", 10] as never[])) : v;
       expect(String(texto), chave).not.toMatch(jargao);
     }
-    expect(g.aportou).toBe("Guardou para investir 🐷");
+    expect(g.aportou).toBe("Guardou para investir");
     // O tom que ela pediu: "me dá R$ 300 pra eu chegar lá", como uma amiga escreveria.
-    expect(g.metaGuardar("R$ 300")).toBe("Me dá R$ 300 esse mês e a gente chega lá 💪✨");
+    expect(g.metaGuardar("R$ 300")).toBe("Me dá R$ 300 esse mês e a gente chega lá");
     expect(g.metaAporteFeito("setembro")).toContain("Boaaaa");
     expect(g.apJuros).not.toMatch(/põem/);
     // O Padrão também diz "Guardado" desde 06/10/2026 (o redesenho trocou "Aportou" nos painéis).

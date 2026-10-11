@@ -60,7 +60,7 @@ export function DivisaoCalculadora({ despesasComunsInicial }: { despesasComunsIn
             <input
               type="text"
               inputMode="decimal"
-              placeholder={!semRenda ? String(Math.round(r.pctBSugeridoPelaRenda * 100)) : "—"}
+              placeholder={!semRenda ? String(Math.round(r.pctBSugeridoPelaRenda * 100)) : "-"}
               value={pctBTexto}
               onChange={(ev) => setPctBTexto(ev.target.value)}
               className={`${CONTROL_CLASSES} w-full pr-32`}

@@ -410,7 +410,7 @@ export const PADRAO_IMPORTACAO: TextosImportacao = {
     "Digite a senha do arquivo (a mesma que a corretora pede para abrir). Ela é usada só para abrir e não fica salva.",
   impCarteiraLiTudo: (resumo) => `Li o arquivo inteiro: ${resumo}.`,
   impCarteiraEmDia: (n) =>
-    `Sua carteira já está em dia com esse extrato, ${n} ativo${s(n)} conferido${s(n)}, nenhuma mudança encontrada. 🎉`,
+    `Sua carteira já está em dia com esse extrato, ${n} ativo${s(n)} conferido${s(n)}, nenhuma mudança encontrada.`,
   impCarteiraNovos: "Novos na carteira",
   impCarteiraSemValor: "sem valor",
   impCarteiraMudancas: "Mudanças",
@@ -530,7 +530,7 @@ export const PADRAO_IMPORTACAO: TextosImportacao = {
   impTipoDevolucao: "Devolução",
   impNaoImportar: "Não importar",
   impMostrarTodos: (n) => `Mostrar todos os ${n}`,
-  impBateuComTotal: (valor) => `Conferi: bateu com o total do documento (${valor}). ✓`,
+  impBateuComTotal: (valor) => `Conferi: bateu com o total do documento (${valor}).`,
   impFaturaVence: "Em que mês essa fatura vence?",
   impFaturaVenceDica: (mes) =>
     `Olhe a data de vencimento. Todas as compras desta fatura entram em ${mes}, mesmo as que aconteceram no mês anterior.`,

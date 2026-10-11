@@ -99,7 +99,7 @@ export default async function YearPage(props: PageProps<"/mensal/[year]">) {
         <StatCard label="Saldo" value={money(summary.balance)} tone="accent" sparkline={balanceSparkline} />
         <StatCard
           label="Taxa de poupança"
-          value={summary.savingsRate === null ? "—" : formatPercentNumber(summary.savingsRate * 100, 1)}
+          value={summary.savingsRate === null ? "-" : formatPercentNumber(summary.savingsRate * 100, 1)}
         />
       </div>
 

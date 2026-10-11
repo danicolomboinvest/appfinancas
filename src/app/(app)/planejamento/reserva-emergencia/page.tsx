@@ -19,6 +19,7 @@ import { existeDecisao } from "@/lib/repositories/decisao.repo";
 import { chaveDoMesDaReserva, mesesAteCompletar, mostraGuardei } from "@/lib/planning/reserva-guardei";
 import { monthKeyLabel } from "@/lib/planning/goal-checkin";
 import { GuardeiNaReservaButton } from "./GuardeiNaReservaButton";
+import { ValorDestaque } from "@/components/ui/ValorDestaque";
 
 
 export default async function ReservaEmergenciaPage() {
@@ -118,7 +119,7 @@ export default async function ReservaEmergenciaPage() {
               </span>
             </div>
             <div>
-              <p className="text-[2.5rem] font-bold leading-none tracking-tight tabular-nums">{money(atual, { round: true })}</p>
+              <p><ValorDestaque texto={money(atual, { round: true })} /></p>
               <p className="mt-1.5 text-sm text-heroi-suave tabular-nums">de {money(meta, { round: true })}</p>
             </div>
             <div className="heroi-veu h-2 overflow-hidden rounded-full" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>

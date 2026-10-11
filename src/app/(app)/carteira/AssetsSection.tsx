@@ -30,6 +30,7 @@ import { useMoney, useCurrency } from "@/components/money/MoneyProvider";
 import { currencySymbol, formatMoney, toCurrencyCode } from "@/lib/money";
 import { ehDoExterior, totaisPorConta } from "@/lib/portfolio/conta-exterior";
 import { EQI_SIGNUP_URL } from "@/lib/eqi";
+import { NUMERO_DESTAQUE, PrefixoPequeno, separarPrefixo } from "@/components/ui/ValorDestaque";
 
 
 const CLASS_LABEL: Record<string, string> = {
@@ -361,8 +362,9 @@ export function AssetsSection({
             {hidden ? <EyeOff size={16} strokeWidth={1.9} /> : <Eye size={16} strokeWidth={1.9} />}
           </button>
         </div>
-        <FitText className="text-[2.5rem] font-bold leading-tight tracking-tight tabular-nums">
-          {hidden ? `${currencySymbol(currency)} ••••` : <CountUp value={totalValue} format={formatValue} />}
+        <FitText className={NUMERO_DESTAQUE}>
+          <PrefixoPequeno>{currencySymbol(currency)}</PrefixoPequeno>
+          {hidden ? "••••" : <CountUp value={totalValue} format={(n) => separarPrefixo(formatValue(n))[1]} />}
         </FitText>
         </div>
         {Math.abs(totalProfit) >= 0.005 && totalInvested > 0 && (
@@ -392,7 +394,7 @@ export function AssetsSection({
                   className={`min-w-0 rounded-xl px-3 py-2.5 text-left transition-colors ${ativo ? "heroi-veu-forte" : "heroi-veu"}`}
                 >
                   <p className="text-caption text-heroi-suave">{c === "brasil" ? "Brasil" : "Exterior"}</p>
-                  <p className="truncate text-[17px] font-bold tabular-nums">
+                  <p className="break-words text-[17px] font-semibold tabular-nums max-[359px]:text-[15px]">
                     {nativo
                       ? hidden
                         ? `${currencySymbol(toCurrencyCode(nativo.moeda))} ••••`

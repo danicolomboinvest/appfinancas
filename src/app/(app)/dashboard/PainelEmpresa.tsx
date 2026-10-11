@@ -77,14 +77,14 @@ export function PainelEmpresa({
   /** Faturamento planejado pro mês, do plano anual. `null` sem plano. */
   receitaPlanejadaDoMes: number | null;
 }) {
-  const pct = (v: number | null) => (v === null ? "—" : `${Math.round(v * 100)}%`);
+  const pct = (v: number | null) => (v === null ? "-" : `${Math.round(v * 100)}%`);
   const variacao = (i: IndicadorMensal) => (compararComAnterior && i.anterior > 0 ? (i.atual - i.anterior) / i.anterior : null);
   const receitaDoMes = mes.dre.receitaBruta;
   const gastoDoMes = gastoPorFrenteMes.reduce((s, g) => s + g.spent, 0) + gastoPersonalizadoMes.reduce((s, g) => s + g.spent, 0);
   const anteriorPorFrente = new Map(gastoPorFrenteMesAnterior.map((g) => [g.parentCategory, g.spent]));
   const gastoPorFrente = new Map(gastoPorFrenteMes.map((g) => [g.parentCategory, g.spent]));
   const meses = mes.caixa.mesesDeCaixa;
-  const caixaTexto = meses === null ? "—" : meses >= 12 ? "12+ meses" : `${meses.toFixed(1).replace(".", ",")} ${meses >= 1.95 ? "meses" : "mês"}`;
+  const caixaTexto = meses === null ? "-" : meses >= 12 ? "12+ meses" : `${meses.toFixed(1).replace(".", ",")} ${meses >= 1.95 ? "meses" : "mês"}`;
   const caixaTom = mes.caixa.situacao === "curto" ? "danger" : mes.caixa.situacao === "folgado" ? "success" : "neutral";
 
   const fatiasFrentes: DonutSlice[] = [
@@ -174,11 +174,11 @@ export function PainelEmpresa({
                       <span className="ml-1 text-caption text-ink-faint">{CATEGORIAS_EMPRESA[k].natureza === "variavel" ? "variável" : CATEGORIAS_EMPRESA[k].natureza === "imposto" ? "imposto" : "fixa"}</span>
                     </td>
                     <td className={`py-2 text-right tabular-nums ${estourou ? "text-danger" : "text-ink"}`}>{money(gasto, { round: true })}</td>
-                    <td className="hidden py-2 text-right tabular-nums text-ink-muted sm:table-cell">{teto > 0 ? money(teto, { round: true }) : "—"}</td>
-                    <td className="py-2 text-right tabular-nums text-ink-muted">{receitaDoMes > 0 ? `${Math.round((gasto / receitaDoMes) * 100)}%` : "—"}</td>
+                    <td className="hidden py-2 text-right tabular-nums text-ink-muted sm:table-cell">{teto > 0 ? money(teto, { round: true }) : "-"}</td>
+                    <td className="py-2 text-right tabular-nums text-ink-muted">{receitaDoMes > 0 ? `${Math.round((gasto / receitaDoMes) * 100)}%` : "-"}</td>
                     {compararComAnterior && (
                       <td className={`hidden py-2 text-right tabular-nums sm:table-cell ${delta === null ? "text-ink-faint" : delta > 0 ? "text-danger" : "text-success"}`}>
-                        {delta === null ? "—" : `${delta > 0 ? "↑" : "↓"} ${Math.abs(Math.round(delta * 100))}%`}
+                        {delta === null ? "-" : `${delta > 0 ? "↑" : "↓"} ${Math.abs(Math.round(delta * 100))}%`}
                       </td>
                     )}
                   </tr>

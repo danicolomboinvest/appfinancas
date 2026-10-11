@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { NumeroRolante } from "@/components/ui/NumeroRolante";
+import { NUMERO_DESTAQUE } from "@/components/ui/ValorDestaque";
 import { HeroiDoTema } from "@/components/ui/HeroiDoTema";
 import type { Ritmo } from "@/lib/profiles/voice-base";
 import { diaDaSemana, previsaoDoMes } from "@/lib/decisoes/foco-semana";
@@ -64,11 +65,11 @@ export function SemanaFoco({
 
   return (
     <HeroiDoTema>
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-sm font-medium text-heroi-suave">{rotulo}</p>
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
+        <p className="min-w-[8rem] flex-1 text-sm font-medium text-heroi-suave">{rotulo}</p>
         <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${PILULA[ritmo]}`}>{frase}</span>
       </div>
-      <NumeroRolante texto={money(valor)} className="text-[2.75rem] font-bold leading-none tracking-tight tabular-nums" />
+      <NumeroRolante texto={money(valor)} className={NUMERO_DESTAQUE} />
 
       {tipo === "semana" ? (
         <div className="flex flex-col gap-1" aria-label={`Hoje é o dia ${indice + 1} de 7 da semana`}>

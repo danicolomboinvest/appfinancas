@@ -27,7 +27,7 @@ export function DreEmpresa({
   hrefClassificar?: string;
 }) {
   const { dre, caixa } = dados;
-  const pct = (v: number | null) => (v === null ? "—" : `${Math.round(v * 100)}%`);
+  const pct = (v: number | null) => (v === null ? "-" : `${Math.round(v * 100)}%`);
   const vazio = dre.receitaBruta === 0 && dre.despesasFixas === 0 && dre.custosVariaveis === 0 && dre.impostos === 0;
   if (vazio) return null;
 
@@ -47,7 +47,7 @@ export function DreEmpresa({
 
   const corDoCaixa = caixa.situacao === "curto" ? "text-danger" : caixa.situacao === "ok" ? "text-accent-strong" : caixa.situacao === "folgado" ? "text-success" : "text-ink-muted";
   const mesesTexto =
-    caixa.mesesDeCaixa === null ? "—" : caixa.mesesDeCaixa >= 12 ? "12+ meses" : `${caixa.mesesDeCaixa.toFixed(1).replace(".", ",")} ${caixa.mesesDeCaixa >= 1.95 ? "meses" : "mês"}`;
+    caixa.mesesDeCaixa === null ? "-" : caixa.mesesDeCaixa >= 12 ? "12+ meses" : `${caixa.mesesDeCaixa.toFixed(1).replace(".", ",")} ${caixa.mesesDeCaixa >= 1.95 ? "meses" : "mês"}`;
 
   return (
     <section className="rounded-2xl border border-border bg-surface p-4 sm:p-5">

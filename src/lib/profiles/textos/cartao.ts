@@ -90,17 +90,17 @@ export const PADRAO_LIMITE_CARTAO: TextosLimiteCartao = {
 
 /** Girly: o mesmo, com um tempero. Sem "pra", "tá" e sem emoji em toda linha. */
 export const GIRLY_LIMITE_CARTAO: Partial<TextosLimiteCartao> = {
-  limTitulo: "Limite do cartão 💳",
-  limSub: "Quanto você combinou gastar no cartão por mês. Eu aviso quando chegar perto 💕",
-  limPergunta: "Quanto você pode gastar no cartão por mês? 💳",
+  limTitulo: "Limite do cartão",
+  limSub: "Quanto você combinou gastar no cartão por mês. Eu aviso quando chegar perto",
+  limPergunta: "Quanto você pode gastar no cartão por mês?",
   limNivel: {
-    ok: "Dentro do combinado 💕",
+    ok: "Dentro do combinado",
     atencao: "Já foi boa parte do limite.",
-    perto: "Quase no limite, segura um pouquinho 🫣",
-    passou: "Passou do limite deste mês 🫣",
+    perto: "Quase no limite, segura um pouquinho",
+    passou: "Passou do limite deste mês",
   },
-  limVazio: "Nenhum gasto no cartão neste mês ainda 🌸",
-  limToastFalta: (valor) => `Anotado! Faltam ${valor} no limite do cartão 💕`,
-  limToastPassou: (valor) => `Anotado. Você passou ${valor} do limite do cartão 🫣`,
-  limAvisoTitulo: (marco, falta) => (Number(marco) >= 100 ? "Você passou do limite do cartão 🫣" : `Faltam ${falta} no limite do cartão 💳`),
+  limVazio: "Nenhum gasto no cartão neste mês ainda",
+  limToastFalta: (valor) => `Anotado! Faltam ${valor} no limite do cartão`,
+  limToastPassou: (valor) => `Anotado. Você passou ${valor} do limite do cartão`,
+  limAvisoTitulo: (marco, falta) => (Number(marco) >= 100 ? "Você passou do limite do cartão" : `Faltam ${falta} no limite do cartão`),
 };

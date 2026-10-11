@@ -13,6 +13,7 @@ import { vibrar } from "@/lib/celebrar";
 import { NotificacaoDeConquista } from "@/components/conquista/NotificacaoDeConquista";
 import { Botao, Passo, Pontos } from "../Passos";
 import { useVoltarAoTopo } from "@/components/ui/useVoltarAoTopo";
+import { ValorDestaque } from "@/components/ui/ValorDestaque";
 
 export type DadosFechamento = {
   chave: string;
@@ -251,7 +252,7 @@ export function Fechamento({ d }: { d: DadosFechamento }) {
             </>
           ) : (
             <>
-              <p className="text-sm text-ink-muted">Em dia neste mês. ✓</p>
+              <p className="text-sm text-ink-muted">Em dia neste mês.</p>
               <Botao onClick={() => seguir()}>Próximo</Botao>
             </>
           )}
@@ -263,7 +264,7 @@ export function Fechamento({ d }: { d: DadosFechamento }) {
           <p className="text-caption text-ink-muted">{t.fechNumeroSub}</p>
           {d.livreMes !== null && d.livreSemana !== null ? (
             <>
-              <p className="text-[2.25rem] font-bold leading-none tracking-tight tabular-nums text-ink">{m(d.livreMes)}</p>
+              <p className="text-ink"><ValorDestaque texto={m(d.livreMes)} /></p>
               <p className="text-sm text-ink-muted">{t.fechNumeroP(m(d.livreSemana))}</p>
             </>
           ) : (

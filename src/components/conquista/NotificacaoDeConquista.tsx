@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { celebrar } from "@/lib/celebrar";
 import { marcarConquistaVistaAction } from "./actions";
+import { IconeDeEmoji } from "@/components/ui/IconeDeEmoji";
 
 export type ConquistaParaMostrar = { chave: string; icone: string; titulo: string; texto: string };
 
@@ -48,9 +49,7 @@ export function NotificacaoDeConquista({ conquistas, onFim }: { conquistas: Conq
   return createPortal(
     <div className="fixed inset-0 z-[240] flex items-center justify-center bg-black/70 px-6 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="conquista-titulo">
       <div className="glass animate-fade-in w-full max-w-sm rounded-3xl p-6 text-center">
-        <span className="mx-auto flex size-20 items-center justify-center rounded-full bg-accent-soft text-4xl" aria-hidden>
-          {atual.icone}
-        </span>
+        <IconeDeEmoji emoji={atual.icone} size={80} className="mx-auto" />
         <h2 id="conquista-titulo" className="mt-4 text-h2 font-bold tracking-tight text-ink">
           {atual.titulo}
         </h2>

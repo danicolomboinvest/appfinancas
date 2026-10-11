@@ -64,7 +64,7 @@ describe("resumo por e-mail: sobrou = entrou − gastou − guardou, igual à te
   });
 
   it("o botão fala do fechamento do mês, no tom do tema", () => {
-    expect(emailDe("girly", { income: 1, expense: 0, investment: 0 }).t.emailRecapBotao).toBe("Fechar setembro comigo 💕");
+    expect(emailDe("girly", { income: 1, expense: 0, investment: 0 }).t.emailRecapBotao).toBe("Fechar setembro comigo");
     expect(emailDe("padrao", { income: 1, expense: 0, investment: 0 }).t.emailRecapBotao).toBe("Fechar setembro");
   });
 

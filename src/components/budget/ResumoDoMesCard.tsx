@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { NumeroRolante } from "@/components/ui/NumeroRolante";
+import { NUMERO_DESTAQUE } from "@/components/ui/ValorDestaque";
 import { HeroiDoTema } from "@/components/ui/HeroiDoTema";
 import type { ResumoDoMes } from "@/lib/planning/month-budget-summary";
 import type { Voz } from "@/lib/profiles/voice";
@@ -65,7 +66,7 @@ export function ResumoDoMesCard({
         {situacao === "sem-plano" ? (
           <p className="text-lg font-semibold leading-snug">{voz.fraseOrcamento({ situacao, restante, porDia, diasRestantes, ultimoDia, money })}</p>
         ) : (
-          <NumeroRolante texto={r(Math.abs(restante))} className="text-[2.75rem] font-bold leading-none tracking-tight tabular-nums" />
+          <NumeroRolante texto={r(Math.abs(restante))} className={NUMERO_DESTAQUE} />
         )}
 
         {grafico}

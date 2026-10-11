@@ -25,6 +25,7 @@ import { formatPercentNumber } from "@/lib/format";
 import { serverMoney } from "@/lib/money-server";
 import type { MoneyFormatter } from "@/lib/money";
 import type { Voz } from "@/lib/profiles/voice";
+import { ValorDestaque } from "@/components/ui/ValorDestaque";
 
 
 function formatPercent(value: number) {
@@ -148,7 +149,7 @@ export default async function IndependenciaFinanceiraPage() {
             </EditarNoCanto>
           </div>
           <div>
-            <p className="text-[2.5rem] font-bold leading-none tracking-tight tabular-nums">{money(accumulation.finalValueReal, { round: true })}</p>
+            <p><ValorDestaque texto={money(accumulation.finalValueReal, { round: true })} /></p>
             <p className="mt-1.5 text-sm text-heroi-suave">{voz.titulos.apHoje}</p>
           </div>
           <div className="heroi-fio flex flex-col gap-1.5 border-t pt-3">

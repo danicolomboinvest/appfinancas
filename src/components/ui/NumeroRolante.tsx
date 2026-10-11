@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { PrefixoPequeno, separarPrefixo } from "./ValorDestaque";
 
 const DIGITOS = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"];
 
@@ -22,10 +23,17 @@ export function NumeroRolante({ texto, className = "" }: { texto: string; classN
     return () => cancelAnimationFrame(id);
   }, []);
 
-  const chars = [...texto];
+  // O R$ (e o sinal) vão pequenos na frente, como em todo número de destaque (ValorDestaque).
+  const [prefixo, numero] = separarPrefixo(texto);
+  const chars = [...numero];
   return (
     <span className={`relative inline-flex items-baseline ${className}`}>
       <span className="sr-only">{texto}</span>
+      {prefixo && (
+        <span aria-hidden className="select-none">
+          <PrefixoPequeno>{prefixo}</PrefixoPequeno>
+        </span>
+      )}
       <span aria-hidden className="inline-flex select-none">
         {chars.map((c, i) => {
           // A chave conta da direita: "R$ 99" para "R$ 100" mantém as unidades no mesmo lugar.

@@ -14,7 +14,7 @@ export function ScoreHistoryChart({ data }: { data: ScoreHistoryPoint[] }) {
         <YAxis domain={[0, 10]} fontSize={12} stroke={CHART_COLORS.axis} tickLine={false} axisLine={false} />
         <Tooltip
           {...CHART_TOOLTIP_STYLE}
-          formatter={(value) => (value === null ? "—" : Number(value).toFixed(1))}
+          formatter={(value) => (value === null ? "-" : Number(value).toFixed(1))}
         />
         <Line dataKey="score" stroke={CHART_COLORS.accent} strokeWidth={2} connectNulls dot={{ r: 4 }} />
       </LineChart>

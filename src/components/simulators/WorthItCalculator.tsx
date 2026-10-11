@@ -258,7 +258,7 @@ export function WorthItCalculator({
               {mode === "SINGLE" ? t.simValeTempoUnico : t.simValeTempoMensal}
             </p>
             <p className="mt-1.5 text-4xl font-semibold tracking-tight text-ink">
-              {result.hoursEquivalent === null ? "—" : <CountUp value={result.hoursEquivalent} format={formatHours} />}
+              {result.hoursEquivalent === null ? "-" : <CountUp value={result.hoursEquivalent} format={formatHours} />}
             </p>
           </div>
 

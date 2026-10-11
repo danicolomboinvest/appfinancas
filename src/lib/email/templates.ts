@@ -214,12 +214,12 @@ export function passwordResetEmail(params: { name: string | null; resetUrl: stri
  */
 export function accessGrantedEmail(params: { email: string; registerUrl: string }): { subject: string; html: string } {
   return {
-    subject: "Seu acesso ao SPI Finance está liberado 🎉",
+    subject: "Seu acesso ao SPI Finance está liberado",
     html: shell(`
       <p style="margin:0 0 12px;">Oi!</p>
       <p style="margin:0 0 20px;">Seu acesso ao <strong>SPI Finance</strong> foi liberado. Falta só criar sua conta para começar a organizar suas finanças:</p>
       <p style="margin:0 0 24px;">${button(params.registerUrl, "Criar minha conta")}</p>
-      <p style="margin:0;color:${MUTED};font-size:13px;">Importante: cadastre-se usando exatamente este e-mail (<strong>${escaparHtml(params.email)}</strong>) — é ele que está autorizado.</p>
+      <p style="margin:0;color:${MUTED};font-size:13px;">Importante: cadastre-se usando exatamente este e-mail (<strong>${escaparHtml(params.email)}</strong>), é ele que está autorizado.</p>
     `),
   };
 }
@@ -247,7 +247,7 @@ export function welcomeEmail(params: { name: string | null; appUrl: string }): {
   const nomeCurto = primeiroNome(params.name);
   const hi = nomeCurto ? `Bem-vinda, ${nomeCurto}!` : "Bem-vinda!";
   return {
-    subject: "Sua conta no SPI Finance está pronta 🎉",
+    subject: "Sua conta no SPI Finance está pronta",
     html: shell(`
       <p style="margin:0 0 12px;">${hi}</p>
       <p style="margin:0 0 20px;">Que bom ter você aqui. O SPI Finance junta seus gastos, orçamento, metas e investimentos num lugar só, pra você decidir com clareza.</p>

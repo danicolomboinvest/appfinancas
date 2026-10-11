@@ -11,13 +11,7 @@ import type { LucideIcon } from "lucide-react";
  *
  * `soft` mantém o tratamento antigo pra onde o ícone é acessório e não deve competir.
  *
- * O TEMA muda a forma sem este componente saber qual tema é, por variáveis CSS que cada
- * tema declara (ver themes.ts): `--icon-radius` (círculo ou quadrado arredondado),
- * `--icon-fill` (cheio ou só contorno, no Minimalista), `--icon-glow` (o brilho do Game),
- * `--icon-overlay` (o degradê do Manifestação). A cor da categoria entra como `--cat` pra
- * essas variáveis poderem usá-la. Padrão: círculo cheio, como sempre foi.
- *
- * Com `emoji`, o emoji ganha do ícone (Girly e Sem filtro; quem decide é icones.ts).
+ * Com `emoji` (o que a própria pessoa escolheu para a categoria), o emoji ganha do ícone.
  *
  * Este componente NÃO pode virar "use client": ele recebe o ícone (uma função) de listas que
  * são de servidor, e o React não deixa função atravessar essa fronteira. Foi exatamente o
@@ -49,21 +43,20 @@ export function CategoryIcon({
       </div>
     );
   }
+  // Versão nova (11/10/2026): ícone de traço fino dentro de um círculo no tom da categoria, todos
+  // do mesmo jeito nos quatro temas. O "solid" ficou com o mesmo desenho, um pouco mais marcado.
   const solid = variant === "solid";
   const style: CSSProperties & Record<"--cat", string> = {
     "--cat": color,
     width: size,
     height: size,
-    borderRadius: "var(--icon-radius, 999px)",
-    backgroundColor: solid ? `color-mix(in srgb, ${color} var(--icon-fill, 100%), transparent)` : `color-mix(in srgb, ${color} 18%, transparent)`,
-    backgroundImage: solid ? "var(--icon-overlay, none)" : "none",
-    color: solid ? "var(--icon-ink, #ffffff)" : color,
-    border: `var(--icon-border-width, 0px) solid ${color}`,
-    boxShadow: solid ? "var(--icon-glow, none)" : "none",
+    borderRadius: "999px",
+    backgroundColor: `color-mix(in srgb, ${color} ${solid ? 16 : 12}%, transparent)`,
+    color,
   };
   return (
     <div className="flex shrink-0 items-center justify-center" style={style}>
-      <Icon size={Math.round(size * 0.46)} strokeWidth={2.1} />
+      <Icon size={Math.round(size * 0.46)} strokeWidth={1.6} />
     </div>
   );
 }

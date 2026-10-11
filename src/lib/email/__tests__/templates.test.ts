@@ -42,8 +42,9 @@ describe("monthlyRecapEmail: cada tema fala diferente sobre o mesmo mês", () =>
     const g = monthlyRecapEmail({ ...baseRecap, t: girly });
     const d = monthlyRecapEmail({ ...baseRecap, t: manifestacao });
     expect(new Set([p.subject, g.subject, d.subject]).size).toBe(3);
-    expect(g.html).toContain("💕");
-    expect(d.html).not.toContain("💕");
+    // Sem emoji em tema nenhum desde a versão nova (11/10/2026).
+    expect(g.html).not.toMatch(/\p{Extended_Pictographic}/u);
+    expect(d.html).not.toMatch(/\p{Extended_Pictographic}/u);
   });
 
   it("sem base de comparação (primeiro mês), cada tema ainda avisa isso, não quebra", () => {

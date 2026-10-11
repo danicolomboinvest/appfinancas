@@ -97,11 +97,11 @@ const FACT_KEYS: Record<SheetType, { key: string; label: string }[]> = {
 
 const CAVEAT: Record<SheetType, string> = {
   STOCK:
-    "Réguas gerais de mercado. Bancos, petroleiras e varejo têm números normais bem diferentes entre si — compare com outras do mesmo setor antes de concluir. Não é recomendação de compra ou venda.",
+    "Réguas gerais de mercado. Bancos, petroleiras e varejo têm números normais bem diferentes entre si, compare com outras do mesmo setor antes de concluir. Não é recomendação de compra ou venda.",
   STOCK_INTL:
-    "Réguas gerais de mercado, as mesmas das ações brasileiras. Setor e país mudam o que é normal — compare com pares. O retorno em reais depende também do dólar. Não é recomendação de compra ou venda.",
+    "Réguas gerais de mercado, as mesmas das ações brasileiras. Setor e país mudam o que é normal, compare com pares. O retorno em reais depende também do dólar. Não é recomendação de compra ou venda.",
   FII:
-    "Réguas gerais. Fundo de papel e fundo de tijolo têm P/VP e vacância que não se comparam — leia junto com o segmento. Não é recomendação de compra ou venda.",
+    "Réguas gerais. Fundo de papel e fundo de tijolo têm P/VP e vacância que não se comparam, leia junto com o segmento. Não é recomendação de compra ou venda.",
   ETF:
     "Rentabilidade passada não garante a futura, e o que importa num ETF é seguir bem o índice dele. Não é recomendação de compra ou venda.",
 };
@@ -138,7 +138,7 @@ const PLAIN: Record<string, (v: number, raw: string) => string> = {
     v < 0 ? "Tem mais dinheiro em caixa do que dívida" : `A dívida é ${pct(v * 100)} do patrimônio`,
   liquidez_corrente: (v) =>
     v < 1
-      ? `Pra cada R$ 1 de conta que vence em 12 meses, tem R$ ${v.toFixed(2).replace(".", ",")} de caixa e a receber no mesmo prazo — não é sobre quanto a ação negocia na bolsa`
+      ? `Pra cada R$ 1 de conta que vence em 12 meses, tem R$ ${v.toFixed(2).replace(".", ",")} de caixa e a receber no mesmo prazo, não é sobre quanto a ação negocia na bolsa`
       : `Pra cada R$ 1 de conta que vence em 12 meses, tem R$ ${v.toFixed(2).replace(".", ",")} de caixa e a receber no mesmo prazo`,
   evolucao_receita: (v) => (v >= 0 ? `Vendeu ${pct(v)} mais que há 5 anos` : `Vendeu ${pct(-v)} menos que há 5 anos`),
   evolucao_lucro: (v) => (v >= 0 ? `Lucra ${pct(v)} mais que há 5 anos` : `Lucra ${pct(-v)} menos que há 5 anos`),
@@ -247,20 +247,20 @@ export const GLOSSARY: Record<string, string> = {
   numero_imoveis: "Número de imóveis: em quantos endereços o fundo tem imóveis. Mais imóveis = a renda depende menos de um inquilino ou de um prédio só.",
   patrimonio_liquido: "Patrimônio do fundo: o valor de tudo que o fundo tem. Fundos grandes costumam negociar melhor e correm menos risco de fechar.",
   patrimonio_liquido_etf: "Patrimônio do fundo: o valor de tudo que o ETF tem. Fundos grandes costumam negociar melhor e correm menos risco de fechar.",
-  dividend_yield_etf: "Dividend yield: quanto o ETF distribuiu nos últimos 12 meses, em porcentagem do preço. Muitos ETFs reinvestem em vez de pagar — DY baixo não é defeito.",
+  dividend_yield_etf: "Dividend yield: quanto o ETF distribuiu nos últimos 12 meses, em porcentagem do preço. Muitos ETFs reinvestem em vez de pagar, DY baixo não é defeito.",
   rentabilidade_12m: "Rentabilidade em 12 meses: quanto o ETF rendeu (ou perdeu) no último ano. Compare sempre com o índice que ele copia.",
   rentabilidade_5anos: "Rentabilidade em 5 anos: quanto o ETF rendeu (ou perdeu) nos últimos cinco anos, acumulado.",
 };
 
 /** O "?" de cada pergunta: o que ela olha e por quê. */
 export const QUESTION_HELP: Record<string, string> = {
-  preco: "Compara o preço da ação com o lucro, o patrimônio e o caixa que a empresa gera — e com o dividendo que ela paga. Responde se você está pagando caro pelo que leva.",
+  preco: "Compara o preço da ação com o lucro, o patrimônio e o caixa que a empresa gera, e com o dividendo que ela paga. Responde se você está pagando caro pelo que leva.",
   lucro: "Olha quanto a empresa lucra sobre o dinheiro dos sócios, sobre o que investe e sobre o que vende. Responde se o negócio é bom em transformar dinheiro em mais dinheiro.",
   divida: "Olha o tamanho da dívida comparado ao caixa que a empresa gera e ao patrimônio, e se o caixa de curto prazo cobre as contas de curto prazo.",
   crescimento: "Compara as vendas e o lucro de hoje com os de cinco anos atrás. Responde se a empresa está andando pra frente ou pra trás.",
   tamanho: "Olha quantos imóveis o fundo tem e o tamanho do patrimônio. Responde se a renda depende de poucos endereços e se o fundo é grande o bastante pra negociar bem.",
   ocupacao: "Olha a vacância: quanto da área dos imóveis está sem inquilino. Área vazia é aluguel que não entra.",
-  custo: "Olha a taxa de administração — o que sai do seu rendimento todo ano pra pagar quem cuida do fundo.",
+  custo: "Olha a taxa de administração, o que sai do seu rendimento todo ano pra pagar quem cuida do fundo.",
   liquidez: "Olha quanto o fundo negocia por dia na bolsa. Responde se você consegue comprar e vender sem dificuldade e sem mexer no preço.",
   renda: "Olha quanto o ETF distribuiu em dividendos nos últimos 12 meses.",
   retorno: "Olha quanto o ETF rendeu em 12 meses e em 5 anos. Passado não garante futuro, e o que importa é seguir bem o índice dele.",

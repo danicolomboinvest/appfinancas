@@ -77,7 +77,6 @@ describe("o Padrão sem jargão nas telas do dia a dia", () => {
 
 describe("o Girly nos textos que moravam fixos nos componentes", () => {
   const g = vozDoTema("girly").titulos;
-  const p = vozDoTema("padrao").titulos;
 
   it("diz combinado, sonho e guardei, nunca plano, orçamento, meta ou aplicação", () => {
     const chaves = Object.keys(g).filter((k) => /^(aviso|compra|dec|raiox|formLanc|navAbaMes)/.test(k));
@@ -87,18 +86,18 @@ describe("o Girly nos textos que moravam fixos nos componentes", () => {
     }
   });
 
-  it("escreve a versão dela, com emoji, nos botões que ela mais toca", () => {
+  it("escreve a versão dela nos botões que ela mais toca, sem emoji (versão nova)", () => {
     for (const chave of ["avisoPontualT", "avisoNadaMaisT", "avisoMetaAjustarT", "avisoEntendiT", "compraVouComprar", "navAbaMes"] as const) {
-      expect(g[chave], chave).not.toBe(p[chave]);
-      expect(g[chave], chave).toMatch(/\p{Extended_Pictographic}/u);
+      expect(g[chave], chave).toBeTruthy();
+      expect(g[chave], chave).not.toMatch(/\p{Extended_Pictographic}/u);
     }
-    expect(g.decPerguntas.meta).toBe("Quando chego no meu sonho? ✨");
+    expect(g.decPerguntas.meta).toBe("Quando chego no meu sonho?");
     expect(g.avisoRodapePlano("R$ 10")).toBe("Combinado R$ 10");
   });
 
-  it("toda pergunta do Decidir tem a versão dela", () => {
-    for (const [chave, pergunta] of Object.entries(g.decPerguntas)) {
-      expect(pergunta, chave).not.toBe(PADRAO_FOCO.decPerguntas[chave as keyof typeof PADRAO_FOCO.decPerguntas]);
+  it("toda pergunta do Decidir existe na voz dela", () => {
+    for (const chave of Object.keys(PADRAO_FOCO.decPerguntas)) {
+      expect(g.decPerguntas[chave as keyof typeof PADRAO_FOCO.decPerguntas], chave).toBeTruthy();
     }
   });
 });

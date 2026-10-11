@@ -506,8 +506,8 @@ export const PADRAO_FORMULARIOS: TextosFormularios = {
   formEstPronto: "Começar de um perfil pronto",
   formEstComoFicaria: "Como sua carteira ficaria",
   formEstSoma: (pct) => `Soma: ${pct}`,
-  formEstFecha: "✓ fecha em 100%",
-  formEstNaoFecha: "✗ precisa somar 100%",
+  formEstFecha: "fecha em 100%",
+  formEstNaoFecha: "precisa somar 100%",
   formEstSalvar: "Salvar estratégia",
   formEstNaoSalva: "Ainda não salvo",
 

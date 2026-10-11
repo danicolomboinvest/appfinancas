@@ -284,7 +284,7 @@ export function TelaDoDia({ dia, dados, respostas, feita, amanha, hoje, onVoltar
           {titulo("Guardar primeiro")}
           <Card className="flex flex-col gap-1 p-4">
             <span className="text-caption text-ink-muted">Todo mês, no dia do salário</span>
-            <span className="text-h1 font-bold tabular-nums text-ink">{d.guardar ? m(d.guardar) : "—"}</span>
+            <span className="text-h1 font-bold tabular-nums text-ink">{d.guardar ? m(d.guardar) : "-"}</span>
             <span className="text-caption text-ink-muted">{d.guardar ? "10% liberdade + 8% sonhos, do seu {orcamento}".replace("{orcamento}", v.orcamento) : `Monte o ${v.orcamento} (dia 10) para eu calcular.`}</span>
           </Card>
           <div className="rounded-2xl bg-accent-soft px-4 py-3 text-sm text-ink">
@@ -353,7 +353,7 @@ export function TelaDoDia({ dia, dados, respostas, feita, amanha, hoje, onVoltar
           {titulo("Seu plano da semana")}
           <Card className="flex flex-col gap-1 p-4">
             <span className="text-caption text-ink-muted">Livre para gastar por semana</span>
-            <span className="text-h1 font-bold tabular-nums text-ink">{d.livreSemana !== null ? m(d.livreSemana) : "—"}</span>
+            <span className="text-h1 font-bold tabular-nums text-ink">{d.livreSemana !== null ? m(d.livreSemana) : "-"}</span>
             <span className="text-caption text-ink-muted">{d.livreSemana !== null ? "Já descontadas as contas fixas e o guardar" : `Monte o ${v.orcamento} para o app calcular.`}</span>
           </Card>
           <p className="px-1 text-caption font-semibold uppercase tracking-[0.11em] text-ink-muted">Como você quer acompanhar?</p>

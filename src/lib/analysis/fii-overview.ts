@@ -31,7 +31,7 @@ const RULES: Record<string, Rule> = {
     label: "P/VP (Preço/Valor Patrimonial)",
     evaluate: (n) => ({
       signal: n <= 0.95 ? "favoravel" : n > 1.15 ? "atencao" : "neutro",
-      reference: "abaixo de 0,95 sugere desconto sobre o patrimônio; acima de 1,15, ágio alto — ponto de atenção",
+      reference: "abaixo de 0,95 sugere desconto sobre o patrimônio; acima de 1,15, ágio alto, ponto de atenção",
     }),
   },
   vacancia_atual: {
@@ -77,7 +77,7 @@ function evaluateImoveis(raw: string): { signal: OverviewSignal; reference: stri
   if (n === null) return null;
   return {
     signal: n >= 10 ? "favoravel" : n < 5 ? "atencao" : "neutro",
-    reference: "10 imóveis ou mais diversifica bem; menos de 5, a renda depende de poucos endereços — ponto de atenção",
+    reference: "10 imóveis ou mais diversifica bem; menos de 5, a renda depende de poucos endereços, ponto de atenção",
   };
 }
 

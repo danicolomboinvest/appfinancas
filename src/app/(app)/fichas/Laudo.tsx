@@ -208,7 +208,7 @@ export function LaudoView({
           {changes.map((c) => (
             <p key={c.key} className="text-caption text-ink-muted">
               {FRIENDLY_LABEL[c.key] ?? c.label}: {c.fromValue} → {c.toValue}{" "}
-              <span className={SIGNAL_TEXT[c.to ?? "neutro"]}>({c.to ? signalLabel[c.to] : "—"})</span>
+              <span className={SIGNAL_TEXT[c.to ?? "neutro"]}>({c.to ? signalLabel[c.to] : "-"})</span>
             </p>
           ))}
         </Card>

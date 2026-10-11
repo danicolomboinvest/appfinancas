@@ -223,7 +223,7 @@ export const PADRAO_SHELL: TextosShell = {
   uiDispensarGuia: "Dispensar guia",
 
   // WelcomeTour
-  uiTourBoasVindasTitulo: "Boas-vindas ao SPI Finance 👋",
+  uiTourBoasVindasTitulo: "Boas-vindas ao SPI Finance",
   uiTourBoasVindasTexto: "Um tour rápido mostrando ONDE fica cada coisa, vou destacar os botões um por um. Dá para pular quando quiser.",
   uiTourRegistrarTitulo: "Este + é o coração do app",
   uiTourRegistrarTexto: "Registre tudo por aqui: digitando, por áudio ou com o extrato.",
@@ -235,7 +235,7 @@ export const PADRAO_SHELL: TextosShell = {
   uiTourCarteiraTexto: "Seus investimentos e o lucro de cada um. Dá até para puxar o preço médio direto da sua declaração de Imposto de Renda.",
   uiTourMaisTitulo: "O resto mora no menu",
   uiTourMaisTexto: "Visão Geral, Simuladores e Análises ficam neste menu.",
-  uiTourFimTitulo: "Tudo pronto! 🎉",
+  uiTourFimTitulo: "Tudo pronto!",
   uiTourFimTexto: "Bora começar? Toque no + e registre seu primeiro lançamento, em segundos você já vê seu mês tomando forma.",
   uiTourPular: "Pular",
   uiTourAvancar: "Avançar",

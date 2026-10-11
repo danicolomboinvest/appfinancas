@@ -48,8 +48,8 @@ export function checarPlausibilidade(
   const gigantes = txns.filter((t) => Math.abs(t.amount) > VALOR_FORA_DE_ESCALA);
   if (gigantes.length > 0) {
     suspeitas.push({
-      texto: `${gigantes.length === 1 ? "Um lançamento tem" : `${gigantes.length} lançamentos têm`} valor fora de escala. Quase sempre é o app lendo o arquivo errado — coluna trocada ou vírgula perdida.`,
-      exemplos: gigantes.slice(0, 3).map((t) => `${(t.description ?? "").slice(0, 34)} — ${money(t.amount)}`),
+      texto: `${gigantes.length === 1 ? "Um lançamento tem" : `${gigantes.length} lançamentos têm`} valor fora de escala. Quase sempre é o app lendo o arquivo errado, coluna trocada ou vírgula perdida.`,
+      exemplos: gigantes.slice(0, 3).map((t) => `${(t.description ?? "").slice(0, 34)}: ${money(t.amount)}`),
     });
   }
 
@@ -59,11 +59,11 @@ export function checarPlausibilidade(
     const entradas = txns.filter((t) => t.amount > 0).length;
     if (entradas / txns.length >= 0.9) {
       suspeitas.push({
-        texto: `${entradas} de ${txns.length} lançamentos entraram como ENTRADA de dinheiro. Num extrato normal também tem saída — o sinal pode ter se perdido na leitura.`,
+        texto: `${entradas} de ${txns.length} lançamentos entraram como ENTRADA de dinheiro. Num extrato normal também tem saída, o sinal pode ter se perdido na leitura.`,
         exemplos: txns
           .filter((t) => t.amount > 0 && /pix enviado|pagamento|compra|d[ée]bito|tarifa|boleto/i.test(t.description ?? ""))
           .slice(0, 3)
-          .map((t) => `${(t.description ?? "").slice(0, 34)} — entrou como +${money(t.amount)}`),
+          .map((t) => `${(t.description ?? "").slice(0, 34)}, entrou como +${money(t.amount)}`),
       });
     }
   }
@@ -78,7 +78,7 @@ export function checarPlausibilidade(
     const exemplos = [...txns.filter((t) => pareceEntrada.test(t.description ?? "")), ...txns.filter((t) => !pareceEntrada.test(t.description ?? ""))];
     suspeitas.push({
       texto: `Não achei nenhuma entrada de dinheiro nesses ${txns.length} lançamentos. Se caiu salário ou Pix nessa conta no período, pode ser que eu tenha lido o sinal errado: confira antes de importar.`,
-      exemplos: exemplos.slice(0, 3).map((t) => `${(t.description ?? "").slice(0, 34)} — entrou como saída de ${money(t.amount)}`),
+      exemplos: exemplos.slice(0, 3).map((t) => `${(t.description ?? "").slice(0, 34)}, entrou como saída de ${money(t.amount)}`),
     });
   }
 
@@ -90,7 +90,7 @@ export function checarPlausibilidade(
     if (redondos / txns.length >= 0.9) {
       suspeitas.push({
         texto: `Nenhum dos ${txns.length} valores tem centavos. Isso costuma indicar que o app pegou a coluna errada do arquivo, ou perdeu a vírgula dos centavos.`,
-        exemplos: txns.slice(0, 3).map((t) => `${(t.description ?? "").slice(0, 34)} — ${money(t.amount)}`),
+        exemplos: txns.slice(0, 3).map((t) => `${(t.description ?? "").slice(0, 34)}: ${money(t.amount)}`),
       });
     }
   }
@@ -103,7 +103,7 @@ export function checarPlausibilidade(
     if (semData.length > 0) {
       suspeitas.push({
         texto: `${semData.length === 1 ? "Um lançamento veio" : `${semData.length} lançamentos vieram`} com uma data que não entendi. ${semData.length === 1 ? "Ele vai" : "Eles vão"} pro mês atual, não pro mês em que aconteceram.`,
-        exemplos: semData.slice(0, 3).map((t) => `${(t.description ?? "").slice(0, 34)} — data "${t.date.slice(0, 20)}"`),
+        exemplos: semData.slice(0, 3).map((t) => `${(t.description ?? "").slice(0, 34)}, data "${t.date.slice(0, 20)}"`),
       });
     }
   }

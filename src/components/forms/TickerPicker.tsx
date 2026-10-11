@@ -203,7 +203,7 @@ export function TickerPicker({
               className={`flex w-full items-baseline gap-2 px-3 py-2 text-left ${i === active ? "bg-accent-soft" : ""}`}
             >
               <span className="w-[4.5rem] shrink-0 text-sm font-semibold tabular-nums text-ink">{hit.ticker}</span>
-              <span className="min-w-0 flex-1 truncate text-sm text-ink-muted">{hit.name || "—"}</span>
+              <span className="min-w-0 flex-1 truncate text-sm text-ink-muted">{hit.name || "-"}</span>
               {showKind && <span className="shrink-0 text-xs uppercase text-ink-faint">{KIND_LABEL[hit.kind]}</span>}
             </button>
           ))}

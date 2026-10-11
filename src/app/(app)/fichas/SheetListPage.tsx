@@ -92,7 +92,7 @@ export async function SheetListPage({ sheetType, createForm }: { sheetType: Shee
                       <span className="text-danger">{laudo.counts.atencao}</span>
                     </span>
                   ) : (
-                    <span className="shrink-0 text-caption text-ink-faint">—</span>
+                    <span className="shrink-0 text-caption text-ink-faint">-</span>
                   )}
                   <ChevronRight size={16} className="shrink-0 text-ink-faint" />
                 </Card>

@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { ChevronLeft, X } from "lucide-react";
+import { Check, ChevronLeft, X } from "lucide-react";
+import { IconeDeEmoji } from "@/components/ui/IconeDeEmoji";
 import { Card } from "@/components/ui/Card";
 import { Roleta } from "@/components/ui/Roleta";
 import { useMoney } from "@/components/money/MoneyProvider";
@@ -242,9 +243,7 @@ export function PossoComprar({ base, hoje, parcelasNoMes }: { base: CompraBase; 
                 }}
                 className="flex min-h-24 flex-col items-start justify-between gap-2 rounded-3xl border border-border bg-surface p-4 text-left text-base font-bold text-ink transition-transform hover:border-accent/50 active:scale-[0.97]"
               >
-                <span className="text-[28px] leading-none" aria-hidden>
-                  {c.emoji}
-                </span>
+                <IconeDeEmoji emoji={c.emoji} />
                 {c.nome}
               </button>
             ))}
@@ -253,9 +252,7 @@ export function PossoComprar({ base, hoje, parcelasNoMes }: { base: CompraBase; 
               onClick={() => ir("outro")}
               className="col-span-2 flex min-h-20 items-center gap-3.5 rounded-3xl border-2 border-dashed border-border-strong bg-surface p-4 text-left text-base font-bold text-ink hover:border-accent/50"
             >
-              <span className="text-[28px] leading-none" aria-hidden>
-                ✏️
-              </span>
+              <IconeDeEmoji emoji="✏️" />
               {t.compraOutraCoisa}
             </button>
           </div>
@@ -289,7 +286,7 @@ export function PossoComprar({ base, hoje, parcelasNoMes }: { base: CompraBase; 
       {passo === "valor" && cat && (
         <>
           <p className={eyebrow}>
-            {cat.emoji} {cat.nome}
+            {cat.nome}
           </p>
           <h2 className={titulo}>{t.compraQuantoCusta}</h2>
           {digitando ? (
@@ -364,9 +361,7 @@ export function PossoComprar({ base, hoje, parcelasNoMes }: { base: CompraBase; 
               ] as const
             ).map(([em, tt, sub, acao]) => (
               <button key={tt} type="button" onClick={acao} className={opcao()}>
-                <span className="text-[28px] leading-none" aria-hidden>
-                  {em}
-                </span>
+                <IconeDeEmoji emoji={em} />
                 <span className="flex flex-col">
                   <span className="text-base font-bold text-ink">{tt}</span>
                   <span className="text-sm text-ink-muted">{sub}</span>
@@ -462,9 +457,7 @@ export function PossoComprar({ base, hoje, parcelasNoMes }: { base: CompraBase; 
                 }}
                 className={opcao()}
               >
-                <span className="text-[28px] leading-none" aria-hidden>
-                  {em}
-                </span>
+                <IconeDeEmoji emoji={em} />
                 <span className="flex flex-col">
                   <span className="text-base font-bold text-ink">{t.compraSinceridade[k].titulo}</span>
                   <span className="text-sm text-ink-muted">{t.compraSinceridade[k].sub}</span>
@@ -512,9 +505,7 @@ export function PossoComprar({ base, hoje, parcelasNoMes }: { base: CompraBase; 
                   const bom = c.tipo === "juntar" || c.resultado === "ok";
                   return (
                     <button key={c.chave} type="button" aria-pressed={sel} onClick={() => setCaminho(c)} className={opcao(sel)}>
-                      <span className="text-[28px] leading-none" aria-hidden>
-                        {ICONE_DO_CAMINHO[c.chave]}
-                      </span>
+                      <IconeDeEmoji emoji={ICONE_DO_CAMINHO[c.chave]} />
                       <span className="flex flex-col items-start gap-0.5">
                         <span className="text-base font-bold text-ink">{txt.titulo}</span>
                         <span className="text-sm text-ink-muted">{txt.detalhe}</span>
@@ -572,9 +563,7 @@ export function PossoComprar({ base, hoje, parcelasNoMes }: { base: CompraBase; 
                   }}
                   className={`${opcao(i === 0)} disabled:opacity-60`}
                 >
-                  <span className="text-[28px] leading-none" aria-hidden>
-                    {em}
-                  </span>
+                  <IconeDeEmoji emoji={em} />
                   <span className="flex flex-col items-start gap-0.5">
                     <span className="text-base font-bold text-ink">{tt}</span>
                     <span className="text-sm text-ink-muted">{sub}</span>
@@ -590,9 +579,7 @@ export function PossoComprar({ base, hoje, parcelasNoMes }: { base: CompraBase; 
       {passo === "fim" && fim && (
         <>
           <div className="flex flex-col items-center gap-3 px-2 pt-4 text-center">
-            <span className="text-[56px] leading-none" aria-hidden>
-              {fim.emoji}
-            </span>
+            <IconeDeEmoji emoji={fim.emoji} size={72} />
             <h2 className={titulo}>{fim.titulo}</h2>
             <p className="text-base leading-relaxed text-ink">{fim.texto}</p>
           </div>
@@ -651,7 +638,9 @@ function Analisando({ titulo, itens, classeTitulo }: { titulo: string; itens: st
       <ul className="flex flex-col gap-3">
         {itens.map((x, i) => (
           <li key={x} className={`flex items-center gap-3 text-base font-semibold transition-opacity ${i < feitos ? "text-ink opacity-100" : "text-ink-faint opacity-50"}`}>
-            <span className={`flex size-7 items-center justify-center rounded-full text-sm ${i < feitos ? "bg-success/15 text-success" : "bg-surface-2 text-ink-faint"}`}>✓</span>
+            <span className={`flex size-7 items-center justify-center rounded-full text-sm ${i < feitos ? "bg-success/15 text-success" : "bg-surface-2 text-ink-faint"}`}>
+              <Check size={14} strokeWidth={2.2} aria-hidden />
+            </span>
             {x}
           </li>
         ))}
@@ -743,7 +732,7 @@ function Resultado({
     <>
       {r.avisos && r.avisos.length > 0 && (
         <details className="rounded-2xl border border-accent/40 bg-accent-soft px-4 py-3 text-sm text-ink">
-          <summary className="cursor-pointer font-semibold">⚠️ {t.compraAvisoDados}</summary>
+          <summary className="cursor-pointer font-semibold">{t.compraAvisoDados}</summary>
           {r.avisos.map((a, i) => (
             <p key={i} className="mt-2">
               {a}
@@ -819,9 +808,7 @@ function Resultado({
 
           {datas.map((d) => (
             <div key={d.nome} className="flex items-center gap-3 rounded-2xl bg-surface-2 px-4 py-3">
-              <span className="text-2xl" aria-hidden>
-                🎯
-              </span>
+              <IconeDeEmoji emoji="🎯" size={36} />
               <span className="flex min-w-0 flex-1 flex-col">
                 <span className="truncate text-sm font-bold text-ink">{d.nome}</span>
                 <span className="text-sm tabular-nums text-ink-muted">
@@ -861,18 +848,14 @@ function Resultado({
           <p className={`${classes.eyebrow} mt-1 text-ink-muted`}>{t.compraOQueValeMais}</p>
           <div className="flex flex-col gap-2.5">
             <button type="button" onClick={() => aoPriorizar("compra")} className={classes.opcao}>
-              <span className="text-[28px] leading-none" aria-hidden>
-                {cat.emoji}
-              </span>
+              <IconeDeEmoji emoji={cat.emoji} />
               <span className="flex flex-col">
                 <span className="text-base font-bold text-ink">{t.compraPrioridadeCompra}</span>
                 <span className="text-sm text-ink-muted">{t.compraPrioridadeCompraSub(atrasada.nome, mesCurto(atrasada.depois))}</span>
               </span>
             </button>
             <button type="button" onClick={() => aoPriorizar("sonho")} className={classes.opcao}>
-              <span className="text-[28px] leading-none" aria-hidden>
-                🎯
-              </span>
+              <IconeDeEmoji emoji="🎯" />
               <span className="flex flex-col">
                 <span className="text-base font-bold text-ink">{t.compraPrioridadeSonho(atrasada.nome, mesCurto(atrasada.antes))}</span>
                 <span className="text-sm text-ink-muted">{t.compraPrioridadeSonhoSub}</span>

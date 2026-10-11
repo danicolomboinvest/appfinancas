@@ -39,7 +39,7 @@ export function ReceitaDespesaLucroChart({ months }: { months: MonthlyBreakdown[
           <Tooltip
             {...CHART_TOOLTIP_STYLE}
             cursor={{ fill: "var(--color-surface-2)" }}
-            formatter={(v, nome) => [v === null || v === undefined ? "—" : money(Number(v)), nome as string]}
+            formatter={(v, nome) => [v === null || v === undefined ? "-" : money(Number(v)), nome as string]}
           />
           <Bar dataKey="Receita" radius={[4, 4, 0, 0]} maxBarSize={22}>
             {dados.map((d) => (

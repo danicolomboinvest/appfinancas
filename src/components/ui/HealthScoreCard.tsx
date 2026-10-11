@@ -72,7 +72,7 @@ function ScoreArc({ score, status }: { score: number | null; status: HealthStatu
       </svg>
       <div className="absolute inset-x-0 bottom-0 flex flex-col items-center">
         <p className={`text-5xl font-bold leading-none tracking-tight ${STATUS_TEXT_CLASS[status]}`}>
-          {score === null ? "—" : <CountUp value={score} />}
+          {score === null ? "-" : <CountUp value={score} />}
         </p>
         <p className="mt-1 text-caption text-ink-faint">de 100</p>
       </div>
@@ -114,7 +114,7 @@ function DimensionBar({ label, score, status, detail }: { label: string; score: 
           />
         </span>
         <span className={`w-7 shrink-0 text-right text-sm font-bold tabular-nums ${STATUS_TEXT_CLASS[status]}`}>
-          {score === null ? "—" : <CountUp value={score} />}
+          {score === null ? "-" : <CountUp value={score} />}
         </span>
       </div>
       {detail && <p className="mt-1 text-xs leading-snug text-ink-faint">{detail}</p>}
