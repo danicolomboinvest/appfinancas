@@ -918,6 +918,27 @@ model DividendEvent {
   @@index([paymentDate])
 }
 
+/// Preço de fechamento do dia de um TICKER da B3 (não de um usuário), gravado pelo cron de
+/// cotações que já roda (api/cron/quotes): uma linha por ticker por dia. É o começo do histórico de
+/// preço que a Análise completa vai usar (linha de 12 meses, P/L no tempo). Enquanto não houver
+/// meses suficientes, a tela não mostra a linha: nunca um exemplo no lugar.
+model PrecoDiario {
+  id        String   @id @default(cuid())
+  /// Normalizado maiúsculo ("MXRF11"), pra casar com Asset.ticker e DividendEvent.ticker.
+  ticker    String
+  /// O dia (horário de Brasília) em que o preço foi lido.
+  data      DateTime @db.Date
+  preco     Decimal  @db.Decimal(18, 6)
+  moeda     String   @default("BRL") @db.VarChar(3)
+  /// De onde veio ("investidor10").
+  fonte     String   @db.VarChar(40)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([ticker, data])
+  @@index([data])
+}
+
 /// Percentuais-alvo por classe de estratégia definidos pelo próprio usuário (soma = 100%),
 /// independente da alocação-ideal por ativo individual em Asset.idealAllocationPercent.
 model PortfolioStrategy {

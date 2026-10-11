@@ -7,6 +7,7 @@ import { toCurrencyCode, type CurrencyCode } from "@/lib/money";
 import { precoNaMoeda, reaisPorUnidadeDa } from "@/lib/portfolio/cotacao-na-moeda";
 import { atualizarAtivosDoExterior } from "@/lib/portfolio/atualizar-exterior";
 import { CONTA_BRASIL } from "@/lib/portfolio/conta-exterior";
+import { gravarPrecosDoDia } from "@/lib/repositories/preco-diario.repo";
 
 // Cotações de dezenas de tickers via scraping podem passar dos 10s padrão. A busca para com
 // folga antes do teto (PRAZO_MS) pra sobrar tempo de gravar o que já veio.
@@ -46,6 +47,9 @@ export async function GET(request: Request) {
     priceByTicker.set(ticker, await fetchTickerPrice(ticker));
   });
 
+  // O preço do dia, em reais, vira histórico (PrecoDiario) para as Análises. Melhor esforço.
+  const precosGravados = await gravarPrecosDoDia(priceByTicker).catch(() => 0);
+
   // A cotação vem em reais; quem usa o app em outra moeda digitou a carteira nela. Uma busca
   // de câmbio por moeda, não por ativo.
   const moedas = [...new Set(assets.map((a) => toCurrencyCode(a.user.currency)))];
@@ -79,5 +83,5 @@ export async function GET(request: Request) {
 
   // Depois da B3, com o tempo que sobrou: o dólar muda todo dia, então todo ativo de fora passa aqui.
   const exterior = await atualizarAtivosDoExterior({}, { prazo: inicio + PRAZO_MS + 10_000 });
-  return NextResponse.json({ updated, tickers: uniqueTickers.length, failed, exterior });
+  return NextResponse.json({ updated, tickers: uniqueTickers.length, failed, precosGravados, exterior });
 }
