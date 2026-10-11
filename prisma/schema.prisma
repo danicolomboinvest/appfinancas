@@ -51,12 +51,27 @@ enum GoalStatus {
 }
 
 /// Ícone temático escolhido pelo usuário para o card da meta.
+/// O tipo da meta (versão nova, 11/10/2026: os 18 tipos da nova meta guiada). Os cinco primeiros
+/// são os de antes e continuam valendo: APOSENTADORIA é "Liberdade financeira" e GENERICO é "Outro".
 enum GoalIcon {
   VIAGEM
   CASA
   CARRO
   APOSENTADORIA
   GENERICO
+  RESERVA
+  MOTO
+  CASAMENTO
+  FILHO
+  ESTUDOS
+  INTERCAMBIO
+  REFORMA
+  FESTA
+  NEGOCIO
+  PET
+  TECNOLOGIA
+  SAUDE
+  SHOW
 }
 
 enum AssetClass {
@@ -187,6 +202,7 @@ model User {
   portfolioStrategy       PortfolioStrategy[]
   patrimonySnapshots      PatrimonySnapshot[]
   assets                  Asset[]
+  fotosDeMeta             FotoDaMeta[]
   goals                   Goal[]
   emergencyFunds          EmergencyFund[]
   planningParams          PlanningParams[]
@@ -267,6 +283,7 @@ model FinancialProfile {
   budgets                 Budget[]
   monthlyPlans            MonthlyPlan[]
   customCategories        CustomCategory[]
+  fotosDeMeta             FotoDaMeta[]
   goals                   Goal[]
   assets                  Asset[]
   emergencyFund           EmergencyFund?
@@ -702,10 +719,36 @@ model Goal {
   /// User.recapDismissedMonth. Enquanto for o mesmo mês da janela atual, o check-in não
   /// aparece de novo (já foi respondido, seja "fiz", "fiz parcial" ou "não fiz").
   checkinDismissedMonth String?
+  /// A foto da meta: uma do banco do app ("/fotos/metas/europa.jpg") ou a da pessoa
+  /// ("/api/metas/foto/<id>", guardada em FotoDaMeta e servida só para a dona). Nula nas metas
+  /// antigas: a tela usa a foto do tipo.
+  fotoUrl               String?
+  /// Mês (YYYY-MM) em que ela respondeu "Ainda não" ao aporte: o cartão para de perguntar até o
+  /// fim do mês. Separado do checkinDismissedMonth, que quer dizer "aporte feito".
+  aporteAdiadoMes       String?
+  /// Lançamentos do extrato que ela disse que NÃO foram para esta meta ("Foi para esta meta?" >
+  /// Não). Só ids de MonthlyEntry; a meta não pergunta de novo sobre eles.
+  aportesRecusados      String[]          @default([])
   entries               MonthlyEntry[]
   assets                Asset[]
   createdAt             DateTime          @default(now())
   updatedAt             DateTime          @updatedAt
+}
+
+/// A foto que a pessoa escolheu para uma meta ("Usar uma minha"). Fica no banco, já reduzida no
+/// aparelho (lado maior até 1280 px), e só sai pela rota autenticada /api/metas/foto/[id], que
+/// confere a dona: nunca um link público e previsível.
+model FotoDaMeta {
+  id        String            @id @default(cuid())
+  userId    String
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  profileId String?
+  profile   FinancialProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  tipo      String
+  dados     Bytes
+  createdAt DateTime          @default(now())
+
+  @@index([userId, profileId])
 }
 
 /// Para onde foi o dinheiro de um aporte: liga o lançamento do fluxo aos ativos da carteira.
