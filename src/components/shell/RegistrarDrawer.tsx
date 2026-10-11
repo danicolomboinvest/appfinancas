@@ -6,13 +6,12 @@ import type { ProfileKind } from "@prisma/client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarClock, ChevronLeft, ChevronRight, FileUp, Keyboard, Mic, ShoppingBag } from "lucide-react";
-import type { ParentCategory } from "@prisma/client";
+import { CalendarClock, ChevronDown, ChevronLeft, ChevronRight, FileUp, Mic, Pencil, ShoppingBag } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
-import { EntryForm } from "@/app/(app)/mensal/[year]/[month]/EntryForm";
+import { Digitar } from "@/components/entries/Digitar";
 import { subcategoriesFor, incomeTypesFor } from "@/lib/categories";
-import { getRecentSubcategoriesAction, getCustomCategoriesAction, getGoalsAction, getOtherProfilesAction } from "@/app/(app)/mensal/actions";
+import { getCustomCategoriesAction, getGoalsAction, getOtherProfilesAction } from "@/app/(app)/mensal/actions";
 import { currentYearMonthFromPath } from "@/app/(app)/mensal/current-month";
 import { VoiceRecorder } from "@/app/(app)/mensal/VoiceRecorder";
 import { StatementImport } from "@/components/import/StatementImport";
@@ -42,7 +41,6 @@ export function RegistrarDrawer({
   const pathname = usePathname();
   const [mode, setMode] = useState<Mode>(open ? modoInicial : "choice");
   const [parsed, setParsed] = useState<ParsedVoiceEntry | null>(null);
-  const [recentSubcategories, setRecentSubcategories] = useState<Partial<Record<ParentCategory, string[]>>>({});
   const [customCategories, setCustomCategories] = useState<{ id: string; name: string }[]>([]);
   const [goals, setGoals] = useState<{ id: string; name: string }[]>([]);
   const [otherProfiles, setOtherProfiles] = useState<{ id: string; name: string }[]>([]);
@@ -62,7 +60,6 @@ export function RegistrarDrawer({
   // Carrega chips de categoria uma vez ao abrir (o reset ao fechar mora no render, acima).
   useEffect(() => {
     if (!open) return;
-    getRecentSubcategoriesAction().then(setRecentSubcategories);
     getCustomCategoriesAction().then(setCustomCategories);
     getGoalsAction().then(setGoals);
     getOtherProfilesAction().then(setOtherProfiles);
@@ -71,14 +68,10 @@ export function RegistrarDrawer({
   // Título, cartões e "Voltar" vêm da voz do tema: é aqui que um tema pode chamar "Digitar" de
   // outro jeito sem tocar no componente.
   const { voz, kind } = useProfileTheme();
-  const title =
-    mode === "choice"
-      ? voz.titulos.registrar
-      : mode === "voice"
-        ? voz.titulos.registrarFalar
-        : mode === "import"
-          ? voz.titulos.registrarImportar
-          : voz.titulos.registrarNovo;
+  // Como no protótipo: "Registrar" na escolha; dentro, o nome do que ela escolheu.
+  const { key: tema } = useProfileTheme();
+  const rotuloImportar = tema === "girly" ? "Extrato" : "Importar extrato";
+  const title = mode === "choice" ? "Registrar" : mode === "voice" ? "Gravar áudio" : mode === "import" ? rotuloImportar : "Digitar";
 
   return (
     <Modal open={open} onClose={onClose} title={title}>
@@ -110,13 +103,13 @@ export function RegistrarDrawer({
                 evento: "registro_importacao",
                 guia: "importar",
                 Icone: FileUp,
-                rotulo: voz.titulos.impImportarArquivo.replace(/\s*\([^)]*\)/, ""),
+                rotulo: rotuloImportar,
                 destaque: true,
               },
-              { chave: "type" as const, evento: "registro_digitado", guia: undefined, Icone: Keyboard, rotulo: voz.titulos.impDigitar, destaque: false },
+              { chave: "type" as const, evento: "registro_digitado", guia: undefined, Icone: Pencil, rotulo: "Digitar", destaque: false },
               // Medido na escolha, e não no salvamento: quem tenta o áudio e desiste no meio também
               // é resposta — é justamente o sinal de que a gravação está difícil.
-              { chave: "voice" as const, evento: "registro_voz", guia: "gravar-audio", Icone: Mic, rotulo: voz.titulos.impGravarAudio, destaque: false },
+              { chave: "voice" as const, evento: "registro_voz", guia: "gravar-audio", Icone: Mic, rotulo: "Gravar áudio", destaque: false },
             ].map(({ chave, evento, guia, Icone, rotulo, destaque }) => (
               <button
                 key={chave}
@@ -143,7 +136,13 @@ export function RegistrarDrawer({
           {/* Duas linhas que levam para outra tela e fecham a gaveta. "Posso comprar?" fica aqui
               porque a hora de decidir é antes de passar o cartão; a conta a pagar (05/10/2026)
               porque é a hora em que ela lembra do boleto. */}
-          <div className="flex flex-col divide-y divide-border overflow-hidden rounded-2xl border border-border">
+          {/* O protótipo tem só os três: o "Posso comprar?" e a conta a pagar ficam em Mais opções. */}
+          <details className="group">
+            <summary className="flex min-h-11 cursor-pointer list-none items-center justify-center gap-1.5 text-sm text-ink-muted [&::-webkit-details-marker]:hidden">
+              Mais opções
+              <ChevronDown size={16} className="transition-transform group-open:rotate-180" aria-hidden />
+            </summary>
+          <div className="mt-2 flex flex-col divide-y divide-border overflow-hidden rounded-2xl border border-border">
             {!ehEmpresa(kind) && (
               <Link
                 href="/decidir/comprar"
@@ -172,6 +171,7 @@ export function RegistrarDrawer({
               <ChevronRight size={16} className="shrink-0 text-ink-faint" />
             </Link>
           </div>
+          </details>
         </div>
       )}
 
@@ -187,20 +187,24 @@ export function RegistrarDrawer({
       )}
 
       {mode === "type" && (
-        <EntryForm
+        <Digitar
           year={year}
           month={month}
-          recentSubcategories={recentSubcategories}
           customCategories={customCategories}
           goals={goals}
-          layout="stacked"
           onSuccess={onClose}
-          defaultDescription={parsed && voiceSubcategory(parsed, kind) ? undefined : parsed?.description}
-          defaultSubcategory={parsed ? voiceSubcategory(parsed, kind) : undefined}
-          defaultAmount={parsed?.amount ?? undefined}
-          defaultCurrency={parsed?.currency ?? undefined}
-          defaultCategory={parsed?.category}
-          defaultParentCategory={parsed?.parentCategory ?? undefined}
+          inicial={
+            parsed
+              ? {
+                  valor: parsed.amount ?? undefined,
+                  tipo: parsed.category,
+                  categoria: parsed.parentCategory ?? undefined,
+                  subcategoria: voiceSubcategory(parsed, kind),
+                  descricao: voiceSubcategory(parsed, kind) ? undefined : parsed.description,
+                  moeda: parsed.currency ?? undefined,
+                }
+              : undefined
+          }
         />
       )}
       </div>
