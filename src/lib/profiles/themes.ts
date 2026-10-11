@@ -310,6 +310,9 @@ const TITANIO_CLARO: ModoBase = {
     "--botao-fundo": "linear-gradient(135deg, #e9eaec 0%, #c9ccd1 38%, #f1f2f3 55%, #b9bdc3 100%)",
     "--botao-tinta": "#111214",
     "--botao-fio": "inset 0 1px 0 rgba(255, 255, 255, 0.9), inset 0 0 0 1px rgba(17, 18, 20, 0.16), 0 6px 16px -6px rgba(17, 18, 20, 0.28)",
+    // O + flutuante em champanhe com o reflexo do herói no alto (o ícone branco fica no tom #7a5a2b: 6,4:1).
+    "--fab-fundo": "radial-gradient(70% 55% at 30% 12%, rgba(255, 255, 255, 0.32), rgba(255, 255, 255, 0) 70%), linear-gradient(135deg, #8c6a37 0%, #7a5a2b 45%, #6a4e24 100%)",
+    "--fab-fio": "inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 2px 6px rgba(0, 0, 0, 0.08), 0 14px 28px -10px rgba(122, 90, 43, 0.55)",
   },
 };
 const TITANIO_ESCURO: ModoBase = {
@@ -336,21 +339,28 @@ const TITANIO_ESCURO: ModoBase = {
     "--botao-fundo": "linear-gradient(118deg, #23262b 0%, #2a2d33 22%, #3a3e46 40%, #5a5f68 47%, #3a3e46 54%, #2a2d33 72%, #23262b 100%)",
     "--botao-tinta": "#f3efe8",
     "--botao-fio": "inset 0 1px 0 rgba(255, 255, 255, 0.24), inset 0 0 0 1px rgba(255, 255, 255, 0.12), 0 8px 18px -8px rgba(0, 0, 0, 0.6)",
+    // O + flutuante em champanhe com reflexo no alto; o ícone #141518 passa de 7:1 em todo o degradê.
+    "--fab-fundo": "radial-gradient(70% 55% at 30% 12%, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0) 70%), linear-gradient(135deg, #e6d3ac 0%, #d8bc88 45%, #b89a64 100%)",
+    "--fab-fio": "inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 2px 6px rgba(0, 0, 0, 0.2), 0 14px 28px -10px rgba(216, 188, 136, 0.35)",
   },
 };
 
 /**
  * O botão principal do Titânio: o brilho do cartão herói no lugar do laranja (pedido da Dani, 11/10/2026). Vale para
- * todo botão primário (`bg-accent-gradient` com `text-on-accent`) e para o + da Visão geral
- * (`botao-metal`). O champanhe fica só nos detalhes.
+ * todo botão primário (`bg-accent-gradient` com `text-on-accent`). O + da Visão geral
+ * (`botao-flutuante`) é champanhe com um reflexo liso no alto, longe do ícone.
  */
 const TITANIO_BOTAO = `
-html .bg-accent-gradient, html .botao-metal {
+html .bg-accent-gradient {
   background: var(--botao-fundo);
   box-shadow: var(--botao-fio);
 }
-html .bg-accent-gradient.text-on-accent, html .bg-accent-gradient .text-on-accent, html .botao-metal.text-on-accent {
+html .bg-accent-gradient.text-on-accent, html .bg-accent-gradient .text-on-accent {
   color: var(--botao-tinta);
+}
+html .botao-flutuante {
+  background: var(--fab-fundo);
+  box-shadow: var(--fab-fio);
 }`;
 
 function tema(key: ProfileThemeKey, label: string, descricao: string, claro: ModoBase, escuro: ModoBase): ProfileTheme {

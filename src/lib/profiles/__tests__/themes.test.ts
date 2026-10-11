@@ -287,6 +287,16 @@ describe("o champanhe do Titânio (11/10/2026)", () => {
     }
   });
 
+  it("o + flutuante é champanhe e o ícone passa no AA em todos os tons", () => {
+    for (const [nome, m] of modos) {
+      const fundo = m.extras!["--fab-fundo"];
+      const tons = fundo.match(/#[0-9a-f]{6}/gi) ?? [];
+      expect(tons, nome).toContain(m.accent);
+      for (const tom of tons) expect(contraste(m.onAccent, tom), `${nome}: + no ${tom}`).toBeGreaterThanOrEqual(4.5);
+    }
+    expect(profileThemeCss("titanio")).toContain(".botao-flutuante");
+  });
+
   it("não sobrou laranja no Titânio, nem no logo", () => {
     const laranja = /#(d9480f|c2410c|ff7a3d|ff9a66|e8894e|ffae80|b8400c|ffc6a3)/i;
     expect(profileThemeCss("titanio")).not.toMatch(laranja);
