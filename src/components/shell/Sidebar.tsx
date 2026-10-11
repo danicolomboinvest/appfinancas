@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useTransition } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { ChevronsLeft, ChevronsRight, Lock, LogOut, MessageCircleQuestion, Plus, Repeat } from "lucide-react";
 import { linkDoSuporte } from "@/lib/support/whatsapp-link";
 import { BrandMark } from "@/components/brand/BrandMark";
-import { ADMIN_NAV_SECTION, NAV_SECTIONS, MAIS_DA_EMPRESA, MENU_DA_EMPRESA, itemDaEmpresaAtivo, withNavFlags, sectionMatches, filhosVisiveis, secoesVisiveis, rotuloDoMenu, type ItemDaEmpresa, type NavSection } from "./nav-sections";
+import { ADMIN_NAV_SECTION, NAV_SECTIONS, MAIS_DA_EMPRESA, MENU_DA_EMPRESA, itemDaEmpresaAtivo, withNavFlags, sectionMatches, secoesVisiveis, rotuloDoMenu, type ItemDaEmpresa, type NavSection } from "./nav-sections";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import type { PerfilResumo } from "@/components/profiles/perfil-resumo";
 import { trocarPerfilAction } from "@/app/(app)/perfis/actions";
@@ -57,28 +57,12 @@ export function Sidebar({
   const { voz, empresa, casal } = useProfileTheme();
   const sections = secoesFixas ?? secoesVisiveis(withNavFlags(isAdmin ? [...NAV_SECTIONS, ADMIN_NAV_SECTION] : NAV_SECTIONS, { openFinance }), { empresa, casal });
 
-  const activeSection = sections.find(
-    (section) => sectionMatches(section, pathname),
-  );
-
-  // Expande o submenu na hora do clique (sem esperar a navegação terminar) para o
-  // primeiro clique já navegar E revelar as subpáginas, evita a sensação de precisar
-  // clicar duas vezes em conexões mais lentas. Sincroniza com a rota real durante a
-  // renderização (em vez de um efeito), cobrindo navegação direta por URL ou pelo
-  // botão voltar/avançar do navegador.
-  const [prevActiveBasePath, setPrevActiveBasePath] = useState(activeSection?.basePath ?? null);
-  const [expandedBasePath, setExpandedBasePath] = useState<string | null>(activeSection?.basePath ?? null);
   const router = useRouter();
   const { showError } = useToast();
   const [trocando, iniciarTroca] = useTransition();
   const ativo = perfis.find((p) => p.isDefault) ?? null;
   const pessoal = perfis.find((p) => p.kind === "PESSOAL") ?? null;
   const itemAtivo = empresa ? itemDaEmpresaAtivo(pathname) : null;
-
-  if ((activeSection?.basePath ?? null) !== prevActiveBasePath) {
-    setPrevActiveBasePath(activeSection?.basePath ?? null);
-    setExpandedBasePath(activeSection?.basePath ?? null);
-  }
 
   // "collapsed" (ícones apenas) é uma preferência só de desktop, no mobile a gaveta
   // sempre mostra os rótulos completos, então as classes abaixo usam o prefixo md:.
@@ -167,17 +151,13 @@ export function Sidebar({
         <ul className="flex flex-col gap-0.5">
           {sections.map((section) => {
             const isActive = sectionMatches(section, pathname);
-            const isExpanded = expandedBasePath === section.basePath;
             const Icon = section.icon;
-            const filhos = filhosVisiveis(section, empresa);
+            // Nenhuma área abre subitens no menu (regra de 11/10/2026): as abas ficam dentro da tela.
             return (
               <li key={section.basePath}>
                 <Link
                   href={section.href}
-                  onClick={() => {
-                    setExpandedBasePath(section.basePath);
-                    onCloseMobile();
-                  }}
+                  onClick={onCloseMobile}
                   title={collapsed ? section.label : undefined}
                   data-tour={SIDEBAR_TOUR[section.basePath]}
                   className={`flex min-h-12 items-center gap-3.5 rounded-2xl px-3.5 py-2 text-[16px] transition-colors md:min-h-0 md:rounded-lg md:px-3 md:text-sm ${collapsedDesktopOnly} ${
@@ -197,33 +177,6 @@ export function Sidebar({
                   )}
                 </Link>
 
-                {isExpanded && filhos.length > 0 && (
-                  <ul className={`mt-0.5 flex flex-col gap-0.5 border-l border-border-strong pl-4 ${hideLabelDesktopOnly}`}>
-                    {filhos.map((child) => {
-                      const childActive = pathname === child.href;
-                      const locked = child.premium && !isPremium;
-                      return (
-                        <li key={child.href}>
-                          <Link
-                            href={child.href}
-                            onClick={onCloseMobile}
-                            className={`flex items-center gap-1.5 truncate rounded-md px-3 py-1.5 text-[13px] transition-colors ${
-                              childActive ? "text-ink font-medium" : "text-ink-faint hover:text-ink"
-                            }`}
-                          >
-                            <span className="truncate">{child.label}</span>
-                            {locked && (
-                              <>
-                                <Lock size={11} strokeWidth={2} aria-hidden className="shrink-0" />
-                                <span className="sr-only">(área do curso de investimentos)</span>
-                              </>
-                            )}
-                          </Link>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
               </li>
             );
           })}
