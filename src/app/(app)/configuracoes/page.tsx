@@ -13,6 +13,7 @@ import { valoresOcultos } from "@/lib/money-server";
 import { SUPORTE_EMAIL } from "./_ajustes/suporte";
 import { Grupo, Icone, Linha } from "./_ajustes/Lista";
 import { CancelarAssinatura } from "./_ajustes/CancelarAssinatura";
+import { dadosDoCancelar } from "@/lib/cancelar/dados";
 import { compraDoApp } from "@/lib/assinatura/compra";
 import { dataLonga, renovacaoEm } from "@/lib/assinatura/renovacao";
 import { nowInBrazil } from "@/lib/date/brazil-now";
@@ -43,6 +44,7 @@ export default async function ConfiguracoesPage() {
   // Renovação: sempre 1 ano depois da compra. Sem data de compra (liberação manual), sem linha.
   const compra = await compraDoApp(ctx.userId, user.email);
   const renova = compra ? dataLonga(renovacaoEm(compra.em, nowInBrazil())) : null;
+  const cancelar = compra ? await dadosDoCancelar(ctx.userId, compra) : null;
   const nome = user.name?.trim() || user.email;
   const tema = profileTheme(ctx.profileTheme);
   const modo = MODO[preferenciaDeModo(user.theme)];
@@ -109,7 +111,7 @@ export default async function ConfiguracoesPage() {
       <Grupo>
         <SairDaConta />
       </Grupo>
-      <CancelarAssinatura via={compra?.via ?? null} />
+      {cancelar && <CancelarAssinatura dados={cancelar} />}
     </div>
   );
 }

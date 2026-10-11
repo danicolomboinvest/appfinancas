@@ -233,21 +233,23 @@ model User {
   contributionAllocations ContributionAllocation[]
   usageEvents             UsageEvent[]
 
-  asAdvisorLinks    AdvisorClientLink[] @relation("advisor")
-  asClientLinks     AdvisorClientLink[] @relation("client")
-  pushSubscriptions PushSubscription[]
-  notificationLogs  NotificationLog[]
-  bankConnections   BankConnection[]
-  financialProfiles FinancialProfile[]
-  decisoes          Decisao[]
-  contasAPagar      ContaAPagar[]
-  tokensDoWidget    TokenDoWidget[]
-  dividas           Divida[]
+  asAdvisorLinks         AdvisorClientLink[]     @relation("advisor")
+  asClientLinks          AdvisorClientLink[]     @relation("client")
+  pushSubscriptions      PushSubscription[]
+  notificationLogs       NotificationLog[]
+  bankConnections        BankConnection[]
+  financialProfiles      FinancialProfile[]
+  decisoes               Decisao[]
+  contasAPagar           ContaAPagar[]
+  tokensDoWidget         TokenDoWidget[]
+  dividas                Divida[]
   /// Login do par (11/10/2026): convites que esta conta mandou e os perfis Casal em que ela é o par.
-  convitesCasal     ConviteCasal[]
-  membrosCasal      MembroCasal[]
-  fechamentos       FechamentoDoMes[]
-  fotoDaConta       FotoDaConta?
+  convitesCasal          ConviteCasal[]
+  membrosCasal           MembroCasal[]
+  fechamentos            FechamentoDoMes[]
+  fotoDaConta            FotoDaConta?
+  motivosDeCancelamento  MotivoDeCancelamento[]
+  pedidosAntesDeCancelar PedidoAntesDeCancelar[]
 }
 
 /// Ambiente financeiro independente dentro da MESMA conta: Pessoal, Empresa, Casal, Casa…
@@ -1462,4 +1464,49 @@ model IndicadorExterno {
   /// Quando o app buscou e gravou.
   buscadoEm  DateTime
   fonte      String   @db.VarChar(80)
+}
+
+/// "Antes de cancelar" (direção B, 11/10/2026): cada passo de quem abriu o cancelar, para medir
+/// qual motivo aparece e o que a pessoa escolheu. Uma linha por escolha, nada é apagado.
+model MotivoDeCancelamento {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// caro | dificil | errado | naouso | outro | reembolso (o "Me avisa" dos 7 dias) | sem_motivo (foi direto ao "Quero cancelar mesmo")
+  motivo    String   @db.VarChar(12)
+  /// aceitou_oferta | foi_cancelar | abriu_hubla | abriu_apple
+  escolha   String   @db.VarChar(16)
+  /// site (Hubla) ou apple (iPhone)
+  via       String   @db.VarChar(8)
+  /// O "Outro motivo" escrito pela pessoa (opcional).
+  texto     String?  @db.VarChar(2000)
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([userId])
+}
+
+/// O que a pessoa aceitou antes de cancelar e que a equipe faz à mão: 2 meses grátis (Hubla e
+/// Admin › Acessos), dúvida, número errado, aviso antes da renovação, conversa. Aparece em
+/// /admin/pedidos com o "Feito". Cada tipo, uma vez a cada 12 meses por pessoa.
+model PedidoAntesDeCancelar {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// meses_gratis | duvida | contestacao | aviso_renovacao | conversa
+  tipo      String    @db.VarChar(16)
+  /// O que ela escreveu (a dúvida, ditada ou digitada: o áudio nunca é guardado).
+  texto     String?   @db.VarChar(4000)
+  /// Onde está o número errado (Saldo, Orçamento, Cartão, Metas, Outro).
+  area      String?   @db.VarChar(20)
+  /// Aviso antes da renovação: o dia em que o e-mail sai (renovação menos 7 dias).
+  avisarEm  DateTime? @db.Date
+  /// aberto | feito
+  estado    String    @default("aberto") @db.VarChar(8)
+  feitoEm   DateTime?
+  feitoPor  String?
+  createdAt DateTime  @default(now())
+
+  @@index([estado, createdAt])
+  @@index([userId, tipo])
 }

@@ -13,6 +13,7 @@ import { alertEmail, metaAtingidaEmail } from "@/lib/email/templates";
 import { makeMoneyFormatter, toCurrencyCode } from "@/lib/money";
 import { PARENT_CATEGORIES, categoriasEssenciais, lerPreferenciasDeCategoria } from "@/lib/categories";
 import { contasQueUsamOApp, normalizeEmail } from "@/lib/repositories/allowedEmail.repo";
+import { enviarAvisosAntesDeCancelar } from "@/lib/cancelar/avisos";
 
 export const maxDuration = 60;
 
@@ -168,5 +169,9 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.json({ ok: true, dryRun, users: users.length, pushed, mailed, preview: dryRun ? preview : preview.length });
+  // Os e-mails combinados no "antes de cancelar" (prazo do reembolso e antes da renovação).
+  const hojeDia = new Date(Date.UTC(year, month - 1, now.getDate()));
+  const avisosDeCancelar = onlyEmail ? 0 : await enviarAvisosAntesDeCancelar(hojeDia, dryRun);
+
+  return NextResponse.json({ ok: true, dryRun, users: users.length, pushed, mailed, avisosDeCancelar, preview: dryRun ? preview : preview.length });
 }

@@ -33,7 +33,7 @@ interface MinimalSpeechRecognition {
 }
 type SpeechRecognitionConstructor = new () => MinimalSpeechRecognition;
 
-function getSpeechRecognitionConstructor(): SpeechRecognitionConstructor | null {
+export function getSpeechRecognitionConstructor(): SpeechRecognitionConstructor | null {
   const w = window as unknown as {
     SpeechRecognition?: SpeechRecognitionConstructor;
     webkitSpeechRecognition?: SpeechRecognitionConstructor;
@@ -46,7 +46,7 @@ function getAudioContextConstructor(): typeof AudioContext | null {
   return w.AudioContext ?? w.webkitAudioContext ?? null;
 }
 
-function joinFinalTranscript(results: ArrayLike<SpeechRecognitionResultLike>): string {
+export function joinFinalTranscript(results: ArrayLike<SpeechRecognitionResultLike>): string {
   let transcript = "";
   for (let i = 0; i < results.length; i++) {
     transcript += results[i][0].transcript;
