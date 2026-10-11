@@ -233,3 +233,35 @@ describe("migração dos temas que saíram", () => {
     }
   });
 });
+
+describe("o botão principal de metal do Titânio", () => {
+  const titanio = profileTheme("titanio");
+  const cores = (m: ModoTokens) => {
+    const ex = m.extras ?? {};
+    const tons = (ex["--botao-fundo"] ?? "").match(/#[0-9a-f]{6}/gi) ?? [];
+    return { tinta: ex["--botao-tinta"], tons };
+  };
+
+  it("o texto passa de 4,5:1 em todos os tons do metal, no claro e no escuro", () => {
+    for (const [nome, m] of [["claro", titanio.paleta], ["escuro", titanio.paletaAlternativa]] as const) {
+      const { tinta, tons } = cores(m);
+      expect(tinta, nome).toMatch(HEX);
+      expect(tons.length, nome).toBeGreaterThanOrEqual(3);
+      for (const tom of tons) expect(contraste(tinta!, tom), `${nome}: texto no ${tom}`).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it("o metal não é laranja: o laranja fica só nos detalhes", () => {
+    for (const m of [titanio.paleta, titanio.paletaAlternativa]) {
+      expect(m.extras?.["--botao-fundo"]).not.toContain(m.accent);
+    }
+  });
+
+  it("só o Titânio troca o botão; os outros três seguem com a cor do tema", () => {
+    expect(profileThemeCss("titanio")).toContain(".bg-accent-gradient");
+    for (const chave of ["padrao", "girly", "manifestacao"]) {
+      expect(profileThemeCss(chave), chave).not.toContain("--botao-");
+      expect(profileThemeCss(chave), chave).not.toContain(".bg-accent-gradient");
+    }
+  });
+});
