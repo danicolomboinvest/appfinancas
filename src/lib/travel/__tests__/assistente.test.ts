@@ -143,7 +143,8 @@ describe("destinos: mais brasileiros, tipo de lugar e fora da lista", () => {
   it("sem foto própria, a foto vem do tipo; cidade histórica ou grande nunca usa a foto de outra cidade", () => {
     const semFoto = (key: string) => ({ ...findDestination(key)!, key: `${key}-sem-foto`, placeType: placeTypeFor(findDestination(key)!) });
     expect(photoFor(semFoto("buzios"))).toBe("/fotos/viagem-praia.jpg");
-    expect(photoFor(semFoto("gramado"))).toBe("/fotos/montanha.jpg");
+    expect(photoFor(semFoto("gramado"))).toBeNull(); // serra brasileira nunca com montanha nevada
+    expect(photoFor(semFoto("interlaken"))).toBe("/fotos/montanha.jpg");
     expect(photoFor(semFoto("ouro-preto"))).toBeNull();
     expect(photoFor(semFoto("londres"))).toBeNull();
     expect(placeTypeFor(findDestination("orlando")!)).toBe("parque");
@@ -176,7 +177,7 @@ describe("destinos: mais brasileiros, tipo de lugar e fora da lista", () => {
     const d = resolveLegDestination(leg)!;
     expect(d.custom).toBe(true);
     expect(d.label).toBe("Serra do Japi");
-    expect(photoFor(d)).toBe("/fotos/montanha.jpg");
+    expect(photoFor(d)).toBeNull();
     const e = estimateTrip({ legs: [leg], travelers: 2, style: "medio", month: 5 })!;
     expect(e.total).toBeGreaterThan(0);
     expect(e.legs[0].destination.custom).toBe(true);

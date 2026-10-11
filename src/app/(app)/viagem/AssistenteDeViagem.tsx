@@ -125,16 +125,17 @@ const ICONE_DO_TIPO: Record<PlaceType, typeof Plane> = {
  * Foto do destino. Sem foto (cidade sem foto própria), um quadro neutro com o ícone do tipo de
  * lugar, nunca a foto de outra cidade. As fotos vão como arquivo, com fundo sólido de espera.
  */
-function Foto({ src, tipo, className = "" }: { src: string | null; tipo: PlaceType; className?: string }) {
+function Foto({ src, tipo, className = "", larga = false }: { src: string | null; tipo: PlaceType; className?: string; larga?: boolean }) {
   if (!src) {
     const Icone = ICONE_DO_TIPO[tipo];
     return (
       <span
         aria-hidden
-        className={`flex items-center justify-center text-ink-muted ${className}`}
+        // Nas fotos largas (cartões com o nome por cima), o ícone fica no alto, longe do nome.
+        className={`flex justify-center text-ink-muted ${larga ? "items-start pt-[4%]" : "items-center"} ${className}`}
         style={{ background: "linear-gradient(135deg, var(--color-surface-2), color-mix(in srgb, var(--color-accent) 22%, var(--color-surface-2)))" }}
       >
-        <Icone className="size-[38%] max-h-12 max-w-12 opacity-70" strokeWidth={1.5} />
+        <Icone className={larga ? "size-8 opacity-45" : "size-[38%] max-h-12 max-w-12 opacity-70"} strokeWidth={1.5} />
       </span>
     );
   }
@@ -527,7 +528,7 @@ export function AssistenteDeViagem({
           <div className="flex flex-col gap-2">
             {destinos.map((d, i) => (
               <div key={d.key} className="relative flex h-[84px] items-center gap-3 overflow-hidden rounded-3xl px-3.5">
-                <Foto src={fotoDoDestino(d)} tipo={placeTypeFor(d)} className="absolute inset-0 size-full" />
+                <Foto src={fotoDoDestino(d)} tipo={placeTypeFor(d)} className="absolute inset-0 size-full" larga />
                 <span className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/35 to-black/15" aria-hidden />
                 <span className="relative flex size-6 shrink-0 items-center justify-center rounded-full bg-white/25 text-xs font-medium text-white">{i + 1}</span>
                 <span className="relative min-w-0 flex-1">
@@ -574,7 +575,7 @@ export function AssistenteDeViagem({
       return (
         <>
           <div className="relative aspect-[4/3.7] overflow-hidden rounded-3xl">
-            <Foto src={fotoDoDestino(d)} tipo={placeTypeFor(d)} className="absolute inset-0 size-full" />
+            <Foto src={fotoDoDestino(d)} tipo={placeTypeFor(d)} className="absolute inset-0 size-full" larga />
             <span className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-black/10" aria-hidden />
             <span className="absolute left-3 top-3 rounded-full bg-black/45 px-2.5 py-1 text-caption text-white">{d.label}</span>
             <div className="absolute inset-x-0 bottom-4 flex justify-center">
@@ -609,7 +610,7 @@ export function AssistenteDeViagem({
         <div className="flex flex-col gap-3">
           {destinos.map((d, i) => (
             <div key={d.key} className="relative flex h-[150px] items-end justify-between gap-3 overflow-hidden rounded-3xl p-3.5">
-              <Foto src={fotoDoDestino(d)} tipo={placeTypeFor(d)} className="absolute inset-0 size-full" />
+              <Foto src={fotoDoDestino(d)} tipo={placeTypeFor(d)} className="absolute inset-0 size-full" larga />
               <span className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-black/10" aria-hidden />
               <span className="relative min-w-0 flex-1 self-end">
                 <b className="line-clamp-2 break-words text-[1.125rem] font-semibold leading-tight text-white">{d.label}</b>
@@ -733,7 +734,7 @@ export function AssistenteDeViagem({
               role="radio"
               aria-checked={ativo}
               onClick={() => mudar({ style: s })}
-              className={`flex items-center gap-4 rounded-3xl border-2 bg-surface p-4 text-left transition-colors ${ativo ? "border-accent bg-accent-soft" : "border-border"}`}
+              className={`flex items-center gap-4 rounded-3xl border-2 bg-surface p-4 text-left transition-colors ${ativo ? "border-accent bg-accent-soft shadow-[0_0_0_1px_var(--color-accent)]" : "border-border"}`}
             >
               <span className="relative flex size-14 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent-strong">
                 <Icone className="size-6" aria-hidden />
@@ -846,7 +847,7 @@ export function AssistenteDeViagem({
       <>
         <div className="overflow-hidden rounded-3xl border border-border bg-surface shadow-premium-sm">
           <div className="relative h-[150px]">
-            {d0 && <Foto src={fotoDoDestino(d0)} tipo={placeTypeFor(d0)} className="absolute inset-0 size-full" />}
+            {d0 && <Foto src={fotoDoDestino(d0)} tipo={placeTypeFor(d0)} className="absolute inset-0 size-full" larga />}
             <span className="absolute inset-0 bg-gradient-to-t from-black/55 to-transparent" aria-hidden />
             <span className="absolute bottom-3 left-3.5 text-body font-medium text-white">{nomeDoMes(plano.tripMonth, true)}</span>
           </div>

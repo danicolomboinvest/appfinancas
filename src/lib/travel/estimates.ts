@@ -796,7 +796,11 @@ export function photoFor(destination: TravelDestination, chosen?: string | null)
   if (chosen && (TRIP_PHOTOS as readonly string[]).includes(chosen)) return bankPhotoSrc(chosen as TripPhoto);
   const own = ownPhotoSrc(destination);
   if (own) return own;
-  const byType = PLACE_PHOTO[placeTypeFor(destination)];
+  const type = placeTypeFor(destination);
+  // A foto de serra do banco é montanha com neve: na serra brasileira (Gramado, Campos do
+  // Jordão...) ela engana. Até haver uma foto de serra brasileira sem neve, quadro neutro.
+  if (type === "serra" && destination.region === "Brasil") return null;
+  const byType = PLACE_PHOTO[type];
   return byType ? bankPhotoSrc(byType) : null;
 }
 
