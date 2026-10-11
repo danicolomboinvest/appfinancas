@@ -162,6 +162,29 @@ describe("logo Aurora por tema", () => {
   });
 });
 
+describe("logo Aurora por tema", () => {
+  it("cada tema aponta para a sua variante, e o arquivo existe", () => {
+    for (const t of PROFILE_THEMES) {
+      expect(t.logo).toBe(`/brand/aurora/${t.key}`);
+      for (const f of ["icone.svg", "simbolo.svg", "favicon.svg"]) expect(existsSync(`public${t.logo}/${f}`), `${t.key}/${f}`).toBe(true);
+    }
+    expect(readdirSync("public/brand/aurora").sort()).toEqual(["girly", "manifestacao", "padrao", "titanio"]);
+  });
+
+  it("o mesmo ícone no claro e no escuro", () => {
+    for (const t of PROFILE_THEMES) {
+      const url = `url(${t.logo}/icone.svg)`;
+      expect(t.paleta.extras?.["--logo-tema"]).toBe(url);
+      expect(t.paletaAlternativa.extras?.["--logo-tema"]).toBe(url);
+    }
+  });
+
+  it("a marca do app lê a variante pela variável do tema", () => {
+    const marca = readFileSync("src/components/brand/BrandMark.tsx", "utf8");
+    expect(marca).toContain("var(--logo-tema, url(/brand/aurora/padrao/icone.svg))");
+  });
+});
+
 describe("migração dos temas que saíram", () => {
   it("Minimalista e Sem filtro viram Padrão; Disciplina e Game viram Titânio", () => {
     expect(CHAVES_QUE_SAIRAM).toEqual({ minimalista: "padrao", semfiltro: "padrao", disciplina: "titanio", game: "titanio" });

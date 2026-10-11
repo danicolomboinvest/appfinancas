@@ -1,36 +1,27 @@
 /**
- * Marca do SPI Finance — direção "Âmbar moderno" (a que a Dani escolheu): um sol nascendo em
- * ondas concêntricas, com preenchimento em degradê âmbar, sobre um quadrado escuro. É o ícone
- * completo (fundo + símbolo), então serve igual no login, no menu e como ícone do app/favicon.
- * Fiel ao conceito apresentado — mesmas curvas, mesma composição.
+ * Marca do SPI Finance: o logo Aurora (um sol nascendo sobre ondas), na variante do tema
+ * escolhido (versão nova, 11/10/2026). O mesmo ícone no claro e no escuro; só o texto "SPI
+ * Finance" ao lado, quando existe, segue a cor do texto.
  *
- * As cores vêm de variáveis (globals.css) pra um tema poder pintar a marca: o Girly troca o
- * âmbar por rosa e o quadrado escuro por blush. Fora do app (login), valem os padrões.
+ * O arquivo do tema chega por variável CSS (`--logo-tema`, ver themes.ts), e não por prop: assim
+ * a marca do menu, da primeira tela e do login acertam a variante sem saber qual é o tema. Fora
+ * do app (login, cadastro), sem tema carregado, vale a variante do Padrão.
+ *
+ * Os desenhos de cada variante moram em public/brand/aurora/<tema>/ (icone.svg, simbolo.svg e
+ * favicon.svg), copiados de estudo-apps-financas/logo-aurora.
  */
-export function BrandMark({ size = 44, className }: { size?: number; className?: string }) {
+export function BrandMark({ size = 44, className = "" }: { size?: number; className?: string }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 64 64" className={className} role="img" aria-label="SPI Finance">
-      <defs>
-        <linearGradient id="spiMarkGrad" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" style={{ stopColor: "var(--color-brand-a, #F4C86F)" }} />
-          <stop offset="1" style={{ stopColor: "var(--color-brand-b, #C77A22)" }} />
-        </linearGradient>
-      </defs>
-      <rect x="0" y="0" width="64" height="64" rx="15" style={{ fill: "var(--color-brand-bg, #1B1610)" }} />
-      {/* ondas (raios do sol nascendo) */}
-      <path d="M16 45 A16 16 0 0 1 48 45" fill="none" stroke="url(#spiMarkGrad)" strokeWidth="5.4" strokeLinecap="round" />
-      <path
-        d="M23.5 45 A8.5 8.5 0 0 1 40.5 45"
-        fill="none"
-        stroke="url(#spiMarkGrad)"
-        strokeWidth="5.4"
-        strokeLinecap="round"
-        opacity="0.72"
-      />
-      {/* núcleo na base das ondas */}
-      <circle cx="32" cy="45" r="3.1" fill="url(#spiMarkGrad)" />
-      {/* sol */}
-      <circle cx="45" cy="22" r="6" fill="url(#spiMarkGrad)" />
-    </svg>
+    <span
+      role="img"
+      aria-label="SPI Finance"
+      className={`inline-block shrink-0 overflow-hidden bg-cover bg-center ${className}`}
+      style={{
+        width: size,
+        height: size,
+        borderRadius: Math.round(size * 0.24),
+        backgroundImage: "var(--logo-tema, url(/brand/aurora/padrao/icone.svg))",
+      }}
+    />
   );
 }
