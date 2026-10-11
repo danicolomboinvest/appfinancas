@@ -303,9 +303,9 @@ const TITANIO_CLARO: ModoBase = {
     "brand-a": "#e8894e", "brand-b": "#d9480f", "brand-bg": "#111214",
     "--heroi-fundo": "linear-gradient(135deg, #e9eaec 0%, #c9ccd1 38%, #f1f2f3 55%, #b9bdc3 100%)",
     "--fundo-tema": "radial-gradient(120% 70% at 50% -10%, #f7f7f6 0%, #efefee 55%, #e6e7e8 100%)",
-    // O botão principal em titânio escovado (11/10/2026): o metal do cartão do widget, com um fio
-    // de luz no alto e o traço da escova. Texto #111214: 8,2:1 no tom mais escuro do metal.
-    "--botao-fundo": "repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.07) 0 1px, rgba(255, 255, 255, 0) 1px 3px), linear-gradient(135deg, #eff0f2 0%, #c2c6cc 38%, #e6e8eb 62%, #a8adb5 100%)",
+    // O botão principal com o mesmo brilho liso do cartão herói (11/10/2026: sem listras de
+    // escova, pedido da Dani), e um fio de luz no alto. Texto #111214: 9,9:1 no tom mais escuro.
+    "--botao-fundo": "linear-gradient(135deg, #e9eaec 0%, #c9ccd1 38%, #f1f2f3 55%, #b9bdc3 100%)",
     "--botao-tinta": "#111214",
     "--botao-fio": "inset 0 1px 0 rgba(255, 255, 255, 0.9), inset 0 0 0 1px rgba(17, 18, 20, 0.16), 0 6px 16px -6px rgba(17, 18, 20, 0.28)",
   },
@@ -329,15 +329,15 @@ const TITANIO_ESCURO: ModoBase = {
     // O brilho de metal dos cartões: uma faixa de reflexo diagonal e um fio de luz no topo.
     "--cartao-brilho": "linear-gradient(115deg, #1e2024 0%, #25282e 36%, #2e3238 46%, #25282d 56%, #1c1e22 100%)",
     "--cartao-fio": "inset 0 1px 0 rgba(255, 255, 255, 0.11)",
-    // O botão principal no grafite escovado do widget escuro. Texto #f3efe8: 7,3:1 no tom mais claro.
-    "--botao-fundo": "repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.035) 0 1px, rgba(255, 255, 255, 0) 1px 3px), linear-gradient(135deg, #4a4e57 0%, #34373d 40%, #3f434b 62%, #26282d 100%)",
+    // O botão principal com o reflexo do cartão herói escuro, liso. Texto #f3efe8: 5,6:1 no reflexo.
+    "--botao-fundo": "linear-gradient(118deg, #23262b 0%, #2a2d33 22%, #3a3e46 40%, #5a5f68 47%, #3a3e46 54%, #2a2d33 72%, #23262b 100%)",
     "--botao-tinta": "#f3efe8",
     "--botao-fio": "inset 0 1px 0 rgba(255, 255, 255, 0.24), inset 0 0 0 1px rgba(255, 255, 255, 0.12), 0 8px 18px -8px rgba(0, 0, 0, 0.6)",
   },
 };
 
 /**
- * O botão principal do Titânio: metal no lugar do laranja (pedido da Dani, 11/10/2026). Vale para
+ * O botão principal do Titânio: o brilho do cartão herói no lugar do laranja (pedido da Dani, 11/10/2026). Vale para
  * todo botão primário (`bg-accent-gradient` com `text-on-accent`) e para o + da Visão geral
  * (`botao-metal`). O laranja fica só nos detalhes.
  */
