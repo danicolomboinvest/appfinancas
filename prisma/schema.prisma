@@ -176,6 +176,11 @@ model User {
   /// Como a pessoa quer acompanhar o dinheiro: "semanal" (ritual de 5 min toda semana) ou
   /// "mensal" (fechamento de 15 min por mês). Nulo = ainda não escolheu; a aba Foco pergunta.
   ritmoAcompanhamento String?
+  /// O começo da versão nova (11/10/2026): respostas e progresso de quem entrou pelo onboarding
+  /// novo (apelido, renda aproximada, o que quer agora, porta, banco, Primeiros passos). Nulo =
+  /// nunca passou por ele; quem já usava o app continua nulo e não vê o começo. Ver
+  /// src/lib/onboarding/comeco.ts (lerComeco) para o formato.
+  comeco              Json?
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
