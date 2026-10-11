@@ -13,7 +13,7 @@ import { toCurrencyCode } from "@/lib/money";
 import { chaveDoTema, preferenciaDeModo, profileThemeCss, profileTheme as temaDoPerfil } from "@/lib/profiles/themes";
 import { lerPreferenciasDeCategoria } from "@/lib/categories";
 import { nowInBrazil } from "@/lib/date/brazil-now";
-import { nomeDoMes, passoDeVolta } from "@/lib/onboarding/comeco";
+import { bancoDoComeco, nomeDoMes, passoDeVolta } from "@/lib/onboarding/comeco";
 import { Comeco } from "./Comeco";
 
 /**
@@ -24,12 +24,12 @@ import { Comeco } from "./Comeco";
  * Quem passou pelo começo novo e pulou pode voltar pelos convites da Visão geral
  * (`?passo=banco`, `?passo=digitar`...), e o resgate abre direto no banco dela (`?passo=volta`).
  */
-export default async function ComecarPage({ searchParams }: { searchParams: Promise<{ passo?: string }> }) {
+export default async function ComecarPage({ searchParams }: { searchParams: Promise<{ passo?: string; banco?: string }> }) {
   const session = await auth();
   if (!session?.user) redirect("/login");
   const user = await getOwnUser({ userId: session.user.id, role: session.user.role });
   const comeco = await lerComecoDaConta(user.id);
-  const { passo: pedido } = await searchParams;
+  const { passo: pedido, banco: bancoPedido } = await searchParams;
   if (user.onboardedAt !== null && (!comeco || !pedido)) redirect("/mensal/foco");
   // Sem e-mail confirmado, o layout do app mostra a tela "Confirme seu e-mail": o começo antes
   // disso seria abrir a porta por aqui. A MESMA regra do layout (quem assinou pela Apple passa).
@@ -52,6 +52,7 @@ export default async function ComecarPage({ searchParams }: { searchParams: Prom
           <Comeco
             inicial={comeco}
             passoInicial={passoDeVolta(comeco, pedido)}
+            bancoInicial={bancoDoComeco(bancoPedido) ? bancoPedido : null}
             nomeDaConta={primeiroNome}
             temaAtual={tema}
             moedaAtual={toCurrencyCode(user.currency)}

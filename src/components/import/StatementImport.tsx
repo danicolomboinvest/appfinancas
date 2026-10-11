@@ -121,7 +121,7 @@ export function StatementImport({
    */
   comeco?: {
     aoMudar?: (estado: EstadoParaOComeco) => void;
-    aoImportar?: (resultado: { mes: { year: number; month: number } | null; revisou: boolean }) => void;
+    aoImportar?: (resultado: { mes: { year: number; month: number } | null; revisou: boolean; criados: number }) => void;
     /** A importação está na tela? Escondida atrás dos quadros, ela não pergunta "Sair da importação?". */
     visivel?: boolean;
   };
@@ -494,7 +494,7 @@ export function StatementImport({
       setRevelacao({ mes, dados: null, carregando: mes !== null });
       if (comeco?.aoImportar) {
         // No começo, o mês montado aparece na Visão geral (o "aha"), não aqui.
-        comeco.aoImportar({ mes, revisou: reviewKeys.length > 0 });
+        comeco.aoImportar({ mes, revisou: reviewKeys.length > 0, criados: result.created });
         setPhase("done");
         return;
       }

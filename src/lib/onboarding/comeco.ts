@@ -62,7 +62,7 @@ export function passoAnterior(p: PassoDoComeco): PassoDoComeco | null {
     tutorial: "banco",
     lendo: "tutorial",
     digitar: "porta",
-    falar: "porta",
+    falar: "digitar",
   };
   return mapa[p] ?? null;
 }
@@ -96,8 +96,12 @@ export type Comeco = {
   semRenda: boolean;
   quer: Quer | null;
   porta: PortaDoComeco | null;
-  /** Chave do banco escolhido (ver BANCOS_DO_COMECO). */
+  /** Chave do banco da vez (ver BANCOS_DO_COMECO). */
   banco: string | null;
+  /** Os bancos que ela marcou (pode ser mais de um), na ordem do passo a passo. */
+  bancos: string[];
+  /** Os bancos cujo extrato já entrou. Os que faltam viram Primeiros passos. */
+  bancosFeitos: string[];
   /** Como entrou o primeiro lançamento dentro do começo. Nulo = pulou sem lançar. */
   lancou: ComoLancou | null;
   /** O mês que o extrato montou ("2026-09"), para o "Esse é o seu setembro". */
@@ -124,6 +128,8 @@ export const COMECO_NOVO: Comeco = {
   quer: null,
   porta: null,
   banco: null,
+  bancos: [],
+  bancosFeitos: [],
   lancou: null,
   mesDoExtrato: null,
   revisou: false,
@@ -165,6 +171,7 @@ export function lerComeco(json: unknown): Comeco | null {
   const quer = typeof j.quer === "string" && (QUERES as readonly string[]).includes(j.quer) ? (j.quer as Quer) : null;
   const porta = j.porta === "extrato" || j.porta === "digitar" || j.porta === "falar" ? j.porta : null;
   const lancou = j.lancou === "extrato" || j.lancou === "digitado" || j.lancou === "falado" ? j.lancou : null;
+  const listaDeBancos = (v: unknown) => (Array.isArray(v) ? [...new Set(v.filter((x): x is string => typeof x === "string" && !!bancoDoComeco(x)))] : []);
   const manual = Array.isArray(j.manual) ? (j.manual.filter((x) => (PASSOS_PRIMEIROS as readonly unknown[]).includes(x)) as PrimeiroPasso[]) : [];
   return {
     passo: ehPasso(j.passo) ? j.passo : "b1",
@@ -174,6 +181,8 @@ export function lerComeco(json: unknown): Comeco | null {
     quer,
     porta,
     banco: typeof j.banco === "string" && bancoDoComeco(j.banco) ? j.banco : null,
+    bancos: listaDeBancos(j.bancos),
+    bancosFeitos: listaDeBancos(j.bancosFeitos),
     lancou,
     mesDoExtrato: typeof j.mesDoExtrato === "string" && /^\d{4}-\d{2}$/.test(j.mesDoExtrato) ? j.mesDoExtrato : null,
     revisou: j.revisou === true,
@@ -186,7 +195,7 @@ export function lerComeco(json: unknown): Comeco | null {
 }
 
 /** O que a tela pode mudar de uma vez (nunca o que é calculado no servidor). */
-export type MudancaDoComeco = Partial<Pick<Comeco, "passo" | "apelido" | "renda" | "semRenda" | "quer" | "porta" | "banco">>;
+export type MudancaDoComeco = Partial<Pick<Comeco, "passo" | "apelido" | "renda" | "semRenda" | "quer" | "porta" | "banco" | "bancos">>;
 
 /** Junta uma mudança vinda da tela, passando cada campo pela mesma limpeza da leitura. */
 export function juntarComeco(atual: Comeco | null, mudanca: MudancaDoComeco): Comeco {
@@ -195,10 +204,12 @@ export function juntarComeco(atual: Comeco | null, mudanca: MudancaDoComeco): Co
 }
 
 /** Como o primeiro lançamento terminou: o começo acaba e a Visão geral mostra o "aha". */
-export function terminarComLancamento(atual: Comeco | null, como: ComoLancou, extra: { mesDoExtrato?: string | null; revisou?: boolean } = {}, agora = new Date()): Comeco {
+export function terminarComLancamento(atual: Comeco | null, como: ComoLancou, extra: { mesDoExtrato?: string | null; revisou?: boolean; banco?: string | null } = {}, agora = new Date()): Comeco {
   const base = atual ?? COMECO_NOVO;
+  const banco = extra.banco && bancoDoComeco(extra.banco) ? extra.banco : null;
   return {
     ...base,
+    bancosFeitos: banco && !base.bancosFeitos.includes(banco) ? [...base.bancosFeitos, banco] : base.bancosFeitos,
     lancou: base.lancou === "extrato" ? "extrato" : como,
     mesDoExtrato: extra.mesDoExtrato ?? base.mesDoExtrato,
     revisou: base.revisou || extra.revisou === true,
@@ -254,13 +265,86 @@ export function atalhoDoQuer(quer: Quer | null, empresaOuCasal = false): { rotul
 // Os temas na pergunta "Qual cara combina com você?"
 // ---------------------------------------------------------------------------------------------
 
-/** A ordem e as frases dos protótipos; a amostra é a cor do tema no claro. */
-export const TEMAS_DO_COMECO: { chave: "girly" | "manifestacao" | "padrao" | "titanio"; nome: string; frase: string; amostra: string }[] = [
-  { chave: "girly", nome: "Girly", frase: "Rosado, fala com carinho", amostra: "linear-gradient(135deg,#F7D9E1,#E7C6D8 55%,#F3E3D6)" },
-  { chave: "manifestacao", nome: "Manifestação", frase: "Calmo, céu de fim de tarde", amostra: "linear-gradient(135deg,#E3DCF2,#F5D9C8)" },
-  { chave: "padrao", nome: "Padrão", frase: "Direto, sem enfeite", amostra: "linear-gradient(135deg,#ECEAE6,#F6F3EE)" },
-  { chave: "titanio", nome: "Titânio", frase: "metal e champanhe", amostra: "linear-gradient(135deg,#C9CCD1 0%,#C9CCD1 62%,#7A5A2B 62%,#7A5A2B 100%)" },
+/**
+ * A ordem e as frases da pergunta do tema. Quem entra começa no Padrão (pedido da dona, 11/10),
+ * por isso ele vem primeiro e já marcado.
+ */
+export const TEMAS_DO_COMECO: { chave: "padrao" | "girly" | "manifestacao" | "titanio"; nome: string; frase: string }[] = [
+  { chave: "padrao", nome: "Padrão", frase: "Direto, sem enfeite" },
+  { chave: "girly", nome: "Girly", frase: "Rosado, fala com carinho" },
+  { chave: "manifestacao", nome: "Manifestação", frase: "Calmo, céu de fim de tarde" },
+  { chave: "titanio", nome: "Titânio", frase: "metal e champanhe" },
 ];
+
+export type CaraDoCartao = {
+  fundo: string;
+  /** As cores sólidas do fundo, para conferir o contraste do texto (AA) em teste. */
+  paradas: string[];
+  tinta: string;
+  suave: string;
+  /** O detalhe do tema: contorno e check do escolhido. */
+  destaque: string;
+  /** O check em cima do destaque. */
+  check: string;
+  /** Fio de luz por dentro (o metal do Titânio). */
+  fio?: string;
+};
+
+/**
+ * Cada cartão da pergunta do tema é inteiro da cara do tema (pedido da dona, 11/10): o fundo do
+ * herói dele, a tinta com contraste AA e o destaque no contorno e no check. Claro e escuro.
+ */
+export const CARTOES_DOS_TEMAS: Record<(typeof TEMAS_DO_COMECO)[number]["chave"], { fonte: string; estilo?: "italic"; claro: CaraDoCartao; escuro: CaraDoCartao }> = {
+  padrao: {
+    fonte: "var(--font-figtree)",
+    claro: { fundo: "linear-gradient(165deg, #ffffff 0%, #f6f5f2 70%, #f3eadb 100%)", paradas: ["#ffffff", "#f6f5f2", "#f3eadb"], tinta: "#141414", suave: "#46433e", destaque: "#8a500c", check: "#ffffff" },
+    escuro: { fundo: "radial-gradient(70% 90% at 100% 0%, rgba(209, 170, 115, 0.16), rgba(209, 170, 115, 0) 70%), linear-gradient(165deg, #22201d 0%, #191714 100%)", paradas: ["#22201d", "#191714", "#2e2820"], tinta: "#e6e1da", suave: "#a9a49d", destaque: "#d1aa73", check: "#141414" },
+  },
+  girly: {
+    fonte: "var(--font-cormorant)",
+    estilo: "italic",
+    claro: {
+      fundo: "radial-gradient(48% 52% at 82% 24%, #e3d2ee, rgba(227, 210, 238, 0) 100%), radial-gradient(56% 60% at 14% 84%, #f2c4d0, rgba(242, 196, 208, 0) 100%), radial-gradient(52% 56% at 76% 86%, #edd3be, rgba(237, 211, 190, 0) 100%), #f5dce1",
+      paradas: ["#f5dce1", "#f2c4d0", "#e3d2ee", "#edd3be"],
+      tinta: "#150e10",
+      suave: "#3d2e32",
+      destaque: "#9c3d5c", check: "#ffffff",
+    },
+    escuro: { fundo: "linear-gradient(135deg, #4a2433 0%, #3a1d2a 55%, #2b1c22 100%)", paradas: ["#4a2433", "#3a1d2a", "#2b1c22"], tinta: "#f6e4ea", suave: "#dcc0ca", destaque: "#e7a9bd", check: "#2b1c22" },
+  },
+  manifestacao: {
+    fonte: "var(--font-urbanist)",
+    claro: { fundo: "linear-gradient(135deg, #c9b8f2 0%, #b7a3ea 45%, #e2bfdc 75%, #f4cdb8 100%)", paradas: ["#c9b8f2", "#b7a3ea", "#e2bfdc", "#f4cdb8"], tinta: "#191826", suave: "#2f2b4f", destaque: "#463a94", check: "#ffffff" },
+    escuro: { fundo: "linear-gradient(135deg, #3b2f72 0%, #4a3584 45%, #5e3b78 75%, #6b3f63 100%)", paradas: ["#3b2f72", "#4a3584", "#5e3b78", "#6b3f63"], tinta: "#f1edff", suave: "#d6cff2", destaque: "#c9bff5", check: "#191826" },
+  },
+  titanio: {
+    fonte: "var(--font-geist)",
+    claro: {
+      fundo: "linear-gradient(135deg, #e9eaec 0%, #c9ccd1 38%, #f1f2f3 55%, #b9bdc3 100%)",
+      paradas: ["#e9eaec", "#c9ccd1", "#f1f2f3", "#b9bdc3"],
+      tinta: "#111214",
+      suave: "#3c3e43",
+      destaque: "#7a5a2b", check: "#ffffff",
+      fio: "inset 0 1px 0 rgba(255, 255, 255, 0.9), inset 0 0 0 1px rgba(17, 18, 20, 0.16)",
+    },
+    escuro: {
+      fundo: "linear-gradient(118deg, #23262b 0%, #2a2d33 22%, #3a3e46 40%, #5a5f68 47%, #3a3e46 54%, #2a2d33 72%, #23262b 100%)",
+      paradas: ["#23262b", "#2a2d33", "#3a3e46", "#5a5f68"],
+      tinta: "#f6f2ec",
+      suave: "#e2dcd2",
+      destaque: "#d8bc88", check: "#141518",
+      fio: "inset 0 1px 0 rgba(255, 255, 255, 0.24), inset 0 0 0 1px rgba(255, 255, 255, 0.12)",
+    },
+  },
+};
+
+/** O CSS dos quatro cartões, com o claro e o escuro (a classe `light` do <html> decide). */
+export function cssDosCartoesDosTemas(): string {
+  const bloco = (c: CaraDoCartao) => `--ct-fundo:${c.fundo};--ct-tinta:${c.tinta};--ct-suave:${c.suave};--ct-destaque:${c.destaque};--ct-fio:${c.fio ?? "none"};--ct-check:${c.check};`;
+  return Object.entries(CARTOES_DOS_TEMAS)
+    .map(([k, v]) => `html.light .cartao-tema-${k}{${bloco(v.claro)}}html:not(.light) .cartao-tema-${k}{${bloco(v.escuro)}}.cartao-tema-${k} .cartao-tema-nome{font-family:${v.fonte};font-style:${v.estilo ?? "normal"}}`)
+    .join("");
+}
 
 // ---------------------------------------------------------------------------------------------
 // Os bancos: "Qual é o seu banco?" e o passo a passo de baixar o extrato
@@ -313,6 +397,8 @@ export const BANCOS_DO_COMECO: BancoDoComeco[] = [
   naoConferido("wise", "Wise", "do"),
   naoConferido("binance", "Binance", "da"),
   naoConferido("mercadobitcoin", "Mercado Bitcoin", "do"),
+  naoConferido("xp", "XP", "da", "XP Investimentos"),
+  naoConferido("btg", "BTG Pactual", "do"),
 ];
 
 export const BANCO_OUTRO: BancoDoComeco = {
@@ -359,6 +445,27 @@ export const PREMIO_DOS_PRIMEIROS_PASSOS = {
   depois: "Seu SPI está montado. No fim do mês, eu monto o seu primeiro mês fechado.",
 };
 
+/** Os bancos marcados cujo extrato ainda não entrou, na ordem em que ela marcou. */
+export function bancosPendentes(c: Comeco): string[] {
+  return c.bancos.filter((b) => !c.bancosFeitos.includes(b));
+}
+
+/** O próximo banco do passo a passo ("2 de 3: Itaú"), ou nulo quando acabou. */
+export function proximoBanco(c: Comeco): { chave: string; posicao: number; total: number } | null {
+  const pend = bancosPendentes(c);
+  if (pend.length === 0) return null;
+  return { chave: pend[0], posicao: c.bancos.indexOf(pend[0]) + 1, total: c.bancos.length };
+}
+
+/** O título do passo do extrato: com banco faltando, diz qual ("Trazer o extrato do Itaú"). */
+export function tituloDoPassoDoExtrato(c: Comeco): string {
+  const pend = bancosPendentes(c);
+  const b = bancoDoComeco(pend[0]);
+  if (!b || pend.length === 0) return TITULOS_PRIMEIROS.extrato.titulo;
+  const mais = pend.length > 1 ? ` e mais ${pend.length - 1}` : "";
+  return `Trazer o extrato ${b.artigo} ${b.nome}${mais}`;
+}
+
 export type SinaisDosPassos = {
   /** Algum lançamento veio de arquivo (extrato ou fatura) neste perfil. */
   temImportacao: boolean;
@@ -376,7 +483,7 @@ export type SinaisDosPassos = {
  */
 export function primeirosPassos(c: Comeco, s: SinaisDosPassos): { passos: { chave: PrimeiroPasso; feito: boolean }[]; feitos: number; completo: boolean } {
   const feitoPelosDados: Record<PrimeiroPasso, boolean> = {
-    extrato: s.temImportacao || c.lancou === "extrato",
+    extrato: (s.temImportacao || c.lancou === "extrato") && bancosPendentes(c).length === 0,
     revisar: c.revisou,
     plano: s.temOrcamento,
     meta: s.temMeta,

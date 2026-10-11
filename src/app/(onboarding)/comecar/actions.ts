@@ -49,13 +49,14 @@ export async function pularComecoAction(ondeParou: string): Promise<{ ok: boolea
 }
 
 /** O extrato entrou (a importação já gravou tudo): o começo termina com o mês na tela. */
-export async function terminarComExtratoAction(input: { mes: string | null; revisou: boolean }): Promise<{ ok: boolean }> {
+export async function terminarComExtratoAction(input: { mes: string | null; revisou: boolean; banco?: string | null }): Promise<{ ok: boolean }> {
   const ctx = await getRequiredSession();
   const atual = await lerComecoDaConta(ctx.userId);
   const mes = input.mes && /^\d{4}-\d{2}$/.test(input.mes) ? input.mes : null;
-  await gravarComeco(ctx.userId, terminarComLancamento(atual, "extrato", { mesDoExtrato: mes, revisou: input.revisou === true }));
+  await gravarComeco(ctx.userId, terminarComLancamento(atual, "extrato", { mesDoExtrato: mes, revisou: input.revisou === true, banco: input.banco ?? null }));
+  // Sem revalidar aqui: a tela de "Pronto." ainda é do começo, e recarregar o /comecar com a
+  // conta já recebida mandaria ela embora antes de ver a confirmação. A Visão geral é dinâmica.
   await marcarRecebidaSeAinda(ctx.userId);
-  revalidatePath("/", "layout");
   return { ok: true };
 }
 
@@ -97,7 +98,7 @@ export async function primeiroGastoAction(input: {
   }
   const atual = await lerComecoDaConta(ctx.userId);
   await gravarComeco(ctx.userId, terminarComLancamento(atual, input.como));
+  // Sem revalidar: a confirmação "Lançado." aparece antes de ir para a Visão geral (ver acima).
   await marcarRecebidaSeAinda(ctx.userId);
-  revalidatePath("/", "layout");
   return { ok: true };
 }

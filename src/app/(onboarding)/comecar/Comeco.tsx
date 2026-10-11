@@ -8,7 +8,6 @@ import {
   Building2,
   Check,
   ChevronLeft,
-  ChevronRight,
   Clock,
   Compass,
   Delete,
@@ -54,6 +53,8 @@ import {
   TEMAS_DO_COMECO,
   apelidoLimpo,
   bancoDoComeco,
+  mesDoTexto,
+  cssDosCartoesDosTemas,
   barraDoPasso,
   caminhoDoEvento,
   centavosParaReais,
@@ -92,6 +93,7 @@ function registrar(evento: EventoDoComeco, detalhe?: string | null) {
 export function Comeco({
   inicial,
   passoInicial,
+  bancoInicial,
   nomeDaConta,
   temaAtual,
   moedaAtual,
@@ -99,6 +101,8 @@ export function Comeco({
 }: {
   inicial: DadosDoComeco | null;
   passoInicial: PassoDoComeco;
+  /** Vindo dos Primeiros passos: o banco que ficou para depois. */
+  bancoInicial?: string | null;
   nomeDaConta: string | null;
   temaAtual: TemaDoComeco;
   moedaAtual: CurrencyCode;
@@ -115,7 +119,13 @@ export function Comeco({
   const [tema, setTema] = useState<TemaDoComeco>(temaAtual);
   const [moeda, setMoeda] = useState<CurrencyCode>(moedaAtual);
   const [verMoedas, setVerMoedas] = useState(moedaAtual !== "BRL");
-  const [banco, setBanco] = useState<string | null>(inicial?.banco ?? null);
+  const [banco, setBanco] = useState<string | null>(bancoInicial ?? inicial?.banco ?? null);
+  // Vários bancos (pedido da dona): o passo a passo segue um por vez, na ordem em que ela marcou.
+  const [bancos, setBancos] = useState<string[]>(inicial?.bancos ?? []);
+  const [feitos, setFeitos] = useState<string[]>(inicial?.bancosFeitos ?? []);
+  const [soEste, setSoEste] = useState(false);
+  // A confirmação inequívoca de que lançou ("Lançado." / "Pronto."), antes da Visão geral.
+  const [pronto, setPronto] = useState<{ titulo: string; linha: string; proximo: string | null } | null>(null);
   const [saindo, startSaida] = useTransition();
   const corpoRef = useRef<HTMLDivElement>(null);
 
@@ -234,32 +244,48 @@ export function Comeco({
           />
         )}
 
-        {passo === "porta" && (
+        {pronto && (
+          <Confirmacao
+            {...pronto}
+            onSeguir={() => {
+              if (pronto.proximo) {
+                setBanco(pronto.proximo);
+                setPronto(null);
+                ir("tutorial", 1, { banco: pronto.proximo });
+              } else router.replace("/mensal/foco");
+            }}
+            onParar={() => router.replace("/mensal/foco")}
+          />
+        )}
+        {!pronto && passo === "porta" && (
           <Porta
             nome={nome}
             mes={mesAtual}
             onEscolher={(p) => {
               registrar(EVENTOS_DO_COMECO.porta, p);
-              if (p === "depois") return pular();
-              ir(p === "extrato" ? "banco" : p, 1, { porta: p });
+              ir(p === "extrato" ? "banco" : "digitar", 1, { porta: p });
             }}
           />
         )}
-        {passo === "banco" && (
+        {!pronto && passo === "banco" && (
           <EscolhaDoBanco
-            banco={banco}
-            onEscolher={(b) => {
-              setBanco(b);
-              registrar(EVENTOS_DO_COMECO.banco, b);
-              ir("tutorial", 1, { banco: b });
+            marcados={bancos}
+            onSeguir={(lista) => {
+              lista.forEach((b) => registrar(EVENTOS_DO_COMECO.banco, b));
+              setBancos(lista);
+              setBanco(lista[0]);
+              ir("tutorial", 1, { bancos: lista, banco: lista[0] });
             }}
           />
         )}
-        {(passo === "tutorial" || passo === "volta") && (
+        {!pronto && (passo === "tutorial" || passo === "volta") && (
           <Tutorial
             banco={bancoDoComeco(banco) ?? BANCO_OUTRO}
             volta={passo === "volta"}
             nome={nome}
+            posicao={bancos.length > 1 && banco ? { atual: bancos.indexOf(banco) + 1, total: bancos.length } : null}
+            soEste={soEste}
+            onSoEste={() => setSoEste((v) => !v)}
             onArquivo={(arquivo) => {
               registrar(EVENTOS_DO_COMECO.enviou, banco ?? "outro");
               importarArquivoNoMes(arquivo);
@@ -268,26 +294,30 @@ export function Comeco({
             onDigitar={() => ir("digitar")}
           />
         )}
-        {passo === "lendo" && (
+        {!pronto && passo === "lendo" && (
           <Lendo
+            key={banco ?? "outro"}
             money={money}
-            onTerminar={(mes, revisou) => {
+            onTerminar={(mes, revisou, criados) => {
               registrar(EVENTOS_DO_COMECO.revisou, revisou ? "com-revisao" : "sem-revisao");
+              const agora = banco && !feitos.includes(banco) ? [...feitos, banco] : feitos;
+              setFeitos(agora);
+              const falta = bancos.filter((b) => !agora.includes(b));
+              const nomeDoMes = mesDoTexto(mes)?.nome;
               startSaida(async () => {
-                await terminarComExtratoAction({ mes, revisou }).catch(() => {});
-                router.replace("/mensal/foco");
+                await terminarComExtratoAction({ mes, revisou, banco }).catch(() => {});
+                setPronto({
+                  titulo: "Pronto.",
+                  linha: `${criados} ${criados === 1 ? "lançamento" : "lançamentos"}${nomeDoMes ? ` de ${nomeDoMes}` : ""}`,
+                  proximo: soEste ? null : (falta[0] ?? null),
+                });
               });
             }}
             onOutroArquivo={() => ir("tutorial", -1)}
           />
         )}
-        {passo === "digitar" && (
-          <Digitar
-            money={money}
-            onLancado={() => router.replace("/mensal/foco")}
-          />
-        )}
-        {passo === "falar" && <Falar money={money} onLancado={() => router.replace("/mensal/foco")} onDigitar={() => ir("digitar")} />}
+        {!pronto && passo === "digitar" && <Digitar money={money} onLancado={(linha) => setPronto({ titulo: "Lançado.", linha, proximo: null })} onFalar={() => ir("falar")} />}
+        {!pronto && passo === "falar" && <Falar money={money} onLancado={(linha) => setPronto({ titulo: "Lançado.", linha, proximo: null })} onDigitar={() => ir("digitar", -1)} />}
       </main>
     </div>
   );
@@ -352,13 +382,14 @@ function BoasVindas2({ onSeguir }: { onSeguir: () => void }) {
     [Wallet, "Digo quanto está livre", "Pra semana e pro mês"],
     [BarChart3, "Monto o seu plano", "Com a sua renda de verdade"],
     [Target, "Cuido das suas metas", "E aviso se atrasar"],
+    [TrendingUp, "Acompanho seus investimentos", "E mostro o próximo aporte"],
   ];
   return (
     <>
       <Titulo sub="por você">O que eu faço</Titulo>
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-1.5">
         {itens.map(([Icone, t, s]) => (
-          <div key={t} className="glass flex items-center gap-3 rounded-[20px] px-3.5 py-3">
+          <div key={t} className="glass flex items-center gap-3 rounded-[20px] px-3.5 py-2.5">
             <Bolinha>
               <Icone size={19} strokeWidth={1.8} />
             </Bolinha>
@@ -571,9 +602,12 @@ function PerguntaQuer({ quer, setQuer, onSeguir }: { quer: Quer | null; setQuer:
   );
 }
 
+const CSS_DOS_CARTOES = cssDosCartoesDosTemas();
+
 function PerguntaTema({ tema, setTema, onSeguir }: { tema: TemaDoComeco; setTema: (t: TemaDoComeco) => void; onSeguir: () => void }) {
   return (
     <>
+      <style dangerouslySetInnerHTML={{ __html: CSS_DOS_CARTOES }} />
       <Titulo sub="combina com você?">Qual cara</Titulo>
       <div className="flex flex-col gap-2.5" role="radiogroup" aria-label="Tema">
         {TEMAS_DO_COMECO.map((t) => {
@@ -585,14 +619,26 @@ function PerguntaTema({ tema, setTema, onSeguir }: { tema: TemaDoComeco; setTema
               role="radio"
               aria-checked={on}
               onClick={() => setTema(t.chave)}
-              className={`glass grid grid-cols-[64px_minmax(0,1fr)_24px] items-center gap-3 rounded-[22px] py-2.5 pl-2.5 pr-3.5 text-left ${on ? "!border-accent shadow-[inset_0_0_0_1px_var(--color-accent)]" : ""}`}
+              className={`cartao-tema-${t.chave} grid min-h-[76px] grid-cols-[minmax(0,1fr)_28px] items-center gap-3 rounded-[22px] px-[18px] py-3.5 text-left transition-shadow`}
+              style={{
+                background: "var(--ct-fundo)",
+                color: "var(--ct-tinta)",
+                boxShadow: on ? "0 0 0 2.5px var(--ct-destaque), 0 0 0 5px var(--color-canvas), 0 0 0 6.5px var(--ct-destaque)" : "var(--ct-fio), 0 1px 2px rgba(0, 0, 0, 0.06)",
+              }}
             >
-              <span className="h-[52px] rounded-[14px]" style={{ background: t.amostra }} aria-hidden />
               <span className="flex min-w-0 flex-col">
-                <b className="text-[15.5px] font-semibold">{t.nome}</b>
-                <small className="text-[13px] font-medium text-ink-muted">{[profileTheme(t.chave).nomeDaVoz, t.frase].filter(Boolean).join(", ")}</small>
+                <b className="cartao-tema-nome text-[19px] font-semibold leading-tight">{t.nome}</b>
+                <small className="text-[13.5px] font-medium" style={{ color: "var(--ct-suave)" }}>
+                  {[profileTheme(t.chave).nomeDaVoz, t.frase].filter(Boolean).join(", ")}
+                </small>
               </span>
-              <span className={`size-[22px] rounded-full ${on ? "shadow-[inset_0_0_0_7px_var(--color-accent)]" : "shadow-[inset_0_0_0_1.5px_var(--color-border-strong)]"}`} aria-hidden />
+              <span
+                className="flex size-7 items-center justify-center rounded-full"
+                style={on ? { background: "var(--ct-destaque)", color: "var(--ct-check)" } : { boxShadow: "inset 0 0 0 1.5px var(--ct-suave)" }}
+                aria-hidden
+              >
+                {on && <Check size={16} strokeWidth={3} />}
+              </span>
             </button>
           );
         })}
@@ -609,41 +655,32 @@ function PerguntaTema({ tema, setTema, onSeguir }: { tema: TemaDoComeco; setTema
 // O primeiro lançamento
 // ---------------------------------------------------------------------------------------------
 
-function Porta({ nome, mes, onEscolher }: { nome: string; mes: string; onEscolher: (p: "extrato" | "digitar" | "falar" | "depois") => void }) {
+function Porta({ nome, mes, onEscolher }: { nome: string; mes: string; onEscolher: (p: "extrato" | "digitar") => void }) {
   return (
     <>
       <Titulo sub={`o seu ${mes}.`}>Agora, {nome},</Titulo>
       <button type="button" onClick={() => onEscolher("extrato")} className="relative text-left">
-        <HeroiDoTema className="min-h-[150px] !p-[18px]">
+        <HeroiDoTema className="min-h-[168px] !p-[18px]">
           <span className="heroi-veu absolute right-3.5 top-3.5 rounded-full px-2.5 py-1 text-[12.5px] font-semibold">1 minuto</span>
-          <span className="heroi-veu flex size-10 items-center justify-center rounded-full" aria-hidden>
-            <FileText size={20} strokeWidth={1.8} />
+          <span className="heroi-veu flex size-11 items-center justify-center rounded-full" aria-hidden>
+            <FileText size={21} strokeWidth={1.8} />
           </span>
           <span className="mt-auto flex flex-col">
-            <b className="text-xl font-semibold">Trazer meu extrato</b>
-            <small className="text-sm font-medium text-heroi-suave">Eu leio e separo o mês inteiro</small>
+            <b className="text-xl font-semibold">Enviar o extrato</b>
+            <small className="text-sm font-medium text-heroi-suave">O app lê e separa sozinho</small>
           </span>
         </HeroiDoTema>
       </button>
-      <LinhaDeEscolha icone={<Keyboard size={19} strokeWidth={1.8} />} titulo="Prefiro digitar" sub="Começa com um gasto de hoje" onClick={() => onEscolher("digitar")} />
-      <LinhaDeEscolha icone={<Mic size={19} strokeWidth={1.8} />} titulo="Falar" sub={'"Gastei 45 no mercado"'} onClick={() => onEscolher("falar")} />
-      <Pe>
-        <LinkDiscreto onClick={() => onEscolher("depois")}>Faço isso depois</LinkDiscreto>
-      </Pe>
+      <button type="button" onClick={() => onEscolher("digitar")} className="glass flex min-h-[168px] flex-col items-start gap-3 rounded-3xl p-[18px] text-left">
+        <Bolinha tamanho={44}>
+          <Keyboard size={21} strokeWidth={1.8} />
+        </Bolinha>
+        <span className="mt-auto flex flex-col">
+          <b className="text-xl font-semibold">Digitar um gasto</b>
+          <small className="text-sm font-medium text-ink-muted">Um gasto agora, rápido</small>
+        </span>
+      </button>
     </>
-  );
-}
-
-function LinhaDeEscolha({ icone, titulo, sub, onClick }: { icone: React.ReactNode; titulo: string; sub: string; onClick: () => void }) {
-  return (
-    <button type="button" onClick={onClick} className="glass grid min-h-16 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-[20px] px-3.5 py-3 text-left">
-      <Bolinha>{icone}</Bolinha>
-      <span className="flex min-w-0 flex-col">
-        <b className="text-[15.5px] font-semibold">{titulo}</b>
-        <small className="text-[13px] font-medium text-ink-muted">{sub}</small>
-      </span>
-      <ChevronRight size={18} className="text-ink-muted" aria-hidden />
-    </button>
   );
 }
 
@@ -657,37 +694,67 @@ function LogoDoBanco({ banco, tamanho = 44 }: { banco: BancoDoComeco; tamanho?: 
   return <LogoDoLancamento descricao={banco.marca} icon={Building2} size={tamanho} />;
 }
 
-function EscolhaDoBanco({ banco, onEscolher }: { banco: string | null; onEscolher: (b: string) => void }) {
+function EscolhaDoBanco({ marcados, onSeguir }: { marcados: string[]; onSeguir: (lista: string[]) => void }) {
+  const [lista, setLista] = useState<string[]>(marcados);
+  const alternar = (b: string) => setLista((l) => (l.includes(b) ? l.filter((x) => x !== b) : [...l, b]));
+  const cartao = (chave: string, on: boolean) =>
+    `glass relative flex min-h-[92px] flex-col items-center justify-center gap-1.5 rounded-[18px] px-1.5 pb-2.5 pt-3 ${on ? "!border-accent shadow-[inset_0_0_0_1.5px_var(--color-accent)]" : ""}`;
   return (
     <>
       <Titulo sub="seu banco?">Qual é o</Titulo>
+      <Nota>Pode marcar mais de um. Eu te mostro um de cada vez.</Nota>
       <div className="grid grid-cols-3 gap-2">
-        {BANCOS_DO_COMECO.map((b) => (
-          <button
-            key={b.chave}
-            type="button"
-            onClick={() => onEscolher(b.chave)}
-            aria-label={b.nome}
-            aria-pressed={banco === b.chave}
-            className={`glass flex min-h-[92px] flex-col items-center justify-center gap-1.5 rounded-[18px] px-1.5 pb-2.5 pt-3 ${banco === b.chave ? "!border-accent shadow-[inset_0_0_0_1px_var(--color-accent)]" : ""}`}
-          >
-            <LogoDoBanco banco={b} />
-            <small className="text-center text-[12px] font-semibold leading-tight">{b.nome}</small>
-          </button>
-        ))}
-        <button type="button" onClick={() => onEscolher("outro")} className="glass flex min-h-[92px] flex-col items-center justify-center gap-1.5 rounded-[18px] px-1.5 pb-2.5 pt-3 text-ink-muted">
-          <span className="flex size-11 items-center justify-center rounded-[13px] bg-surface-2" aria-hidden>
-            <Plus size={20} />
-          </span>
-          <small className="text-center text-[12px] font-semibold leading-tight">Outro banco</small>
-        </button>
+        {[...BANCOS_DO_COMECO, BANCO_OUTRO].map((b) => {
+          const on = lista.includes(b.chave);
+          return (
+            <button key={b.chave} type="button" onClick={() => alternar(b.chave)} aria-pressed={on} aria-label={b.chave === "outro" ? "Outro banco" : b.nome} className={cartao(b.chave, on)}>
+              {on && (
+                <span className="absolute right-1.5 top-1.5 flex size-5 items-center justify-center rounded-full bg-accent text-on-accent" aria-hidden>
+                  <Check size={12} strokeWidth={3} />
+                </span>
+              )}
+              {b.chave === "outro" ? (
+                <span className="flex size-11 items-center justify-center rounded-[13px] bg-surface-2 text-ink-muted" aria-hidden>
+                  <Plus size={20} />
+                </span>
+              ) : (
+                <LogoDoBanco banco={b} />
+              )}
+              <small className="text-center text-[12px] font-semibold leading-tight">{b.chave === "outro" ? "Outro banco" : b.nome}</small>
+            </button>
+          );
+        })}
       </div>
       <Nota>Tem cartão em outro banco? Dá para trazer a fatura também, depois.</Nota>
+      <div className="sticky bottom-0 -mx-4 mt-auto bg-canvas/95 px-4 pb-[calc(var(--safe-bottom,0px)+12px)] pt-3 backdrop-blur-sm">
+        <BotaoPrincipal onClick={() => onSeguir(lista)} disabled={lista.length === 0}>
+          {lista.length > 1 ? `Continuar com ${lista.length} bancos` : "Continuar"}
+        </BotaoPrincipal>
+      </div>
     </>
   );
 }
 
-function Tutorial({ banco, volta, nome, onArquivo, onDigitar }: { banco: BancoDoComeco; volta: boolean; nome: string; onArquivo: (f: File) => void; onDigitar: () => void }) {
+function Tutorial({
+  banco,
+  volta,
+  nome,
+  posicao,
+  soEste,
+  onSoEste,
+  onArquivo,
+  onDigitar,
+}: {
+  banco: BancoDoComeco;
+  volta: boolean;
+  nome: string;
+  /** "1 de 3", quando ela marcou mais de um banco. */
+  posicao: { atual: number; total: number } | null;
+  soEste: boolean;
+  onSoEste: () => void;
+  onArquivo: (f: File) => void;
+  onDigitar: () => void;
+}) {
   const [pc, setPc] = useState(false);
   const cor = (banco.marca && marcaDaDescricao(banco.marca)?.cor) || "var(--color-accent)";
   return (
@@ -696,6 +763,11 @@ function Tutorial({ banco, volta, nome, onArquivo, onDigitar }: { banco: BancoDo
         <Titulo sub={`${banco.chave !== "outro" ? `Você escolheu o ${banco.nome}. ` : ""}Falta só isso.`}>
           Oi de novo, {nome}.
         </Titulo>
+      )}
+      {posicao && (
+        <p className="text-[13px] font-semibold text-accent-strong">
+          {posicao.atual} de {posicao.total}: {banco.nome}
+        </p>
       )}
       <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3">
         <LogoDoBanco banco={banco} />
@@ -747,6 +819,12 @@ function Tutorial({ banco, volta, nome, onArquivo, onDigitar }: { banco: BancoDo
       </LinkDiscreto>
       {pc && <Nota>Abra o SPI no navegador do computador, entre com o mesmo e-mail e envie o arquivo por lá. Aqui no celular ele aparece sozinho.</Nota>}
       <Pe>
+        {posicao && posicao.atual < posicao.total && (
+          <label className="mx-auto inline-flex min-h-11 cursor-pointer items-center gap-2.5 text-sm font-medium text-ink">
+            <input type="checkbox" checked={soEste} onChange={onSoEste} className="size-5 accent-[var(--color-accent)]" />
+            Fazer só este agora (os outros ficam nos Primeiros passos)
+          </label>
+        )}
         {volta && <LinkDiscreto onClick={onDigitar}>Prefiro digitar um gasto</LinkDiscreto>}
         <a href={`mailto:${EMAIL_FALE_COM_A_GENTE}?subject=${encodeURIComponent("Ajuda com o extrato")}`} className="mx-auto inline-flex min-h-11 items-center gap-1.5 px-2 text-sm font-medium text-ink-muted hover:text-ink">
           <Mail size={15} aria-hidden />
@@ -758,16 +836,16 @@ function Tutorial({ banco, volta, nome, onArquivo, onDigitar }: { banco: BancoDo
 }
 
 /** "Lendo": os três quadros da lógica do extrato enquanto o arquivo é lido, e depois a revisão. */
-function Lendo({ money, onTerminar, onOutroArquivo }: { money: Money; onTerminar: (mes: string | null, revisou: boolean) => void; onOutroArquivo: () => void }) {
+function Lendo({ money, onTerminar, onOutroArquivo }: { money: Money; onTerminar: (mes: string | null, revisou: boolean, criados: number) => void; onOutroArquivo: () => void }) {
   const [estado, setEstado] = useState<EstadoParaOComeco | null>(null);
   const [quadro, setQuadro] = useState(0);
   const [revisando, setRevisando] = useState(false);
   const [terminou, setTerminou] = useState(false);
   const aoMudar = useCallback((e: EstadoParaOComeco) => setEstado(e), []);
   const aoImportar = useCallback(
-    (r: { mes: { year: number; month: number } | null; revisou: boolean }) => {
+    (r: { mes: { year: number; month: number } | null; revisou: boolean; criados: number }) => {
       setTerminou(true);
-      onTerminar(r.mes ? `${r.mes.year}-${String(r.mes.month).padStart(2, "0")}` : null, r.revisou);
+      onTerminar(r.mes ? `${r.mes.year}-${String(r.mes.month).padStart(2, "0")}` : null, r.revisou, r.criados);
     },
     [onTerminar],
   );
@@ -924,7 +1002,12 @@ function LinhaDoExtrato({ descricao, logo, categoria, valor, sub }: { descricao:
   );
 }
 
-function Digitar({ money, onLancado }: { money: Money; onLancado: () => void }) {
+/** "R$ 45" quando o valor é redondo, "R$ 12,50" quando tem centavo. */
+function valorCurto(money: Money, v: number): string {
+  return money(v, { round: Number.isInteger(v) });
+}
+
+function Digitar({ money, onLancado, onFalar }: { money: Money; onLancado: (linha: string) => void; onFalar: () => void }) {
   const { categorias } = useProfileTheme();
   const [digitos, setDigitos] = useState("");
   const [atalho, setAtalho] = useState(0);
@@ -938,16 +1021,17 @@ function Digitar({ money, onLancado }: { money: Money; onLancado: () => void }) 
       const r = await primeiroGastoAction({ valor, descricao: a.nome, parentCategory: a.categoria, sub: a.sub, como: "digitado" });
       if (!r.ok) return setErro(r.erro);
       trackEvent("registro_digitado", "/comecar/digitar");
-      onLancado();
+      onLancado(`${valorCurto(money, valor)} em ${categoryLabel(categorias, a.categoria)}, hoje`);
     });
   const teclas = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "00", "0", "apagar"];
   return (
     <>
       <Titulo centro>Um gasto de hoje</Titulo>
-      {/* Começa vazio: o 12,50 do protótipo aparece só como sugestão apagada, nunca lançado sozinho. */}
+      {/* Começa no zero, sem exemplo: nada aqui pode parecer um gasto já lançado. */}
       <div className="flex justify-center" aria-live="polite">
-        <ValorDestaque texto={money(digitos ? valor : 12.5)} className={`text-[clamp(2.4rem,12vw,2.75rem)] font-light leading-none tracking-[-0.02em] tabular-nums ${digitos ? "" : "opacity-30"}`} />
+        <ValorDestaque texto={money(valor)} className={`text-[clamp(2.4rem,12vw,2.75rem)] font-light leading-none tracking-[-0.02em] tabular-nums ${digitos ? "" : "text-ink-muted"}`} />
       </div>
+      <Nota centro>{digitos ? "O que foi?" : "Digite quanto foi e escolha o que foi."}</Nota>
       <div className="flex flex-wrap justify-center gap-2">
         {ATALHOS_DO_GASTO.map((x, i) => (
           <Pilula key={x.nome} ativa={atalho === i} onClick={() => setAtalho(i)}>
@@ -956,7 +1040,6 @@ function Digitar({ money, onLancado }: { money: Money; onLancado: () => void }) 
           </Pilula>
         ))}
       </div>
-      <Nota centro>Um exemplo para começar. Troque pelo seu.</Nota>
       <div className="grid grid-cols-3 gap-2">
         {teclas.map((k) => (
           <button
@@ -975,12 +1058,16 @@ function Digitar({ money, onLancado }: { money: Money; onLancado: () => void }) 
         <BotaoPrincipal onClick={lancar} disabled={valor <= 0 || salvando}>
           {salvando ? "Lançando..." : "Lançar"}
         </BotaoPrincipal>
+        <LinkDiscreto onClick={onFalar}>
+          <Mic size={16} className="mr-1.5" aria-hidden />
+          Prefiro falar
+        </LinkDiscreto>
       </Pe>
     </>
   );
 }
 
-function Falar({ money, onLancado, onDigitar }: { money: Money; onLancado: () => void; onDigitar: () => void }) {
+function Falar({ money, onLancado, onDigitar }: { money: Money; onLancado: (linha: string) => void; onDigitar: () => void }) {
   const { categorias } = useProfileTheme();
   const [entendi, setEntendi] = useState<ParsedVoiceEntry | null>(null);
   const [erro, setErro] = useState<string | null>(null);
@@ -998,7 +1085,8 @@ function Falar({ money, onLancado, onDigitar }: { money: Money; onLancado: () =>
       });
       if (!r.ok) return setErro(r.erro);
       trackEvent("registro_voz", "/comecar/falar");
-      onLancado();
+      const onde = entendi.parentCategory ? categoryLabel(categorias, entendi.parentCategory) : entendi.description || "Outros";
+      onLancado(`${valorCurto(money, entendi.amount)} em ${onde}, hoje`);
     });
   const iconeDaFala = entendi?.parentCategory ? categoryIcon(categorias, entendi.parentCategory) : Wallet;
   return (
@@ -1021,7 +1109,7 @@ function Falar({ money, onLancado, onDigitar }: { money: Money; onLancado: () =>
           {erro && <p className="text-center text-sm text-danger">{erro}</p>}
           <Pe>
             <BotaoPrincipal onClick={confirmar} disabled={!entendi.amount || salvando}>
-              {salvando ? "Lançando..." : "Está certo"}
+              {salvando ? "Lançando..." : "Lançar"}
             </BotaoPrincipal>
             <LinkDiscreto onClick={() => setEntendi(null)}>Falar de novo</LinkDiscreto>
           </Pe>
@@ -1035,6 +1123,26 @@ function Falar({ money, onLancado, onDigitar }: { money: Money; onLancado: () =>
           </Pe>
         </>
       )}
+    </>
+  );
+}
+
+/** A confirmação que não deixa dúvida: o check, "Lançado." ou "Pronto.", e o que entrou. */
+function Confirmacao({ titulo, linha, proximo, onSeguir, onParar }: { titulo: string; linha: string; proximo: string | null; onSeguir: () => void; onParar: () => void }) {
+  const prox = bancoDoComeco(proximo);
+  return (
+    <>
+      <div className="mt-[12vh] flex flex-col items-center gap-4 text-center" role="status" aria-live="polite">
+        <span className="flex size-[84px] items-center justify-center rounded-full bg-success text-canvas shadow-premium-sm" aria-hidden>
+          <Check size={42} strokeWidth={2.6} />
+        </span>
+        <Titulo centro>{titulo}</Titulo>
+        <p className="text-lg font-medium text-ink">{linha}</p>
+      </div>
+      <Pe>
+        <BotaoPrincipal onClick={onSeguir}>{prox ? `Próximo: ${prox.nome}` : "Ver a Visão geral"}</BotaoPrincipal>
+        {prox && <LinkDiscreto onClick={onParar}>Deixar o resto para depois</LinkDiscreto>}
+      </Pe>
     </>
   );
 }

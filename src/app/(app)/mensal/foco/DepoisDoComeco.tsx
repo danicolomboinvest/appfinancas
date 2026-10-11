@@ -15,6 +15,8 @@ import { resumoDoMesImportadoAction } from "@/app/(app)/mensal/revelacao-actions
 import {
   ahaDoMes,
   atalhoDoQuer,
+  bancosPendentes,
+  tituloDoPassoDoExtrato,
   mesDoTexto,
   nomeDoMes,
   oQueMostrarDepois,
@@ -160,8 +162,12 @@ export async function TopoDoComeco({ ctx, comeco, nome, temLancamento }: { ctx: 
 }
 
 /** Para onde cada um dos Primeiros passos leva. */
-function hrefDoPasso(chave: PrimeiroPasso, hrefMes: string, banco: string | null): string {
-  if (chave === "extrato") return `/comecar?passo=${banco ? "volta" : "banco"}`;
+function hrefDoPasso(chave: PrimeiroPasso, hrefMes: string, comeco: Comeco): string {
+  if (chave === "extrato") {
+    const falta = bancosPendentes(comeco)[0];
+    if (falta) return `/comecar?passo=tutorial&banco=${falta}`;
+    return `/comecar?passo=${comeco.banco ? "volta" : "banco"}`;
+  }
   if (chave === "revisar") return hrefMes;
   if (chave === "plano") return "/orcamento";
   if (chave === "meta") return "/planejamento/metas";
@@ -171,6 +177,11 @@ function hrefDoPasso(chave: PrimeiroPasso, hrefMes: string, banco: string | null
 /** O cartão dos Primeiros passos, com o que os dados já provam marcado. */
 export async function PrimeirosPassos({ ctx, comeco, hrefMes }: { ctx: AuthContext; comeco: Comeco; hrefMes: string }) {
   const p = primeirosPassos(comeco, await sinaisDosPrimeirosPassos(ctx));
-  const passos: PassoNaTela[] = p.passos.map((x) => ({ ...x, ...TITULOS_PRIMEIROS[x.chave], href: hrefDoPasso(x.chave, hrefMes, comeco.banco) }));
+  const passos: PassoNaTela[] = p.passos.map((x) => ({
+    ...x,
+    ...TITULOS_PRIMEIROS[x.chave],
+    ...(x.chave === "extrato" ? { titulo: tituloDoPassoDoExtrato(comeco) } : {}),
+    href: hrefDoPasso(x.chave, hrefMes, comeco),
+  }));
   return <CartaoPrimeirosPassos passos={passos} feitos={p.feitos} />;
 }

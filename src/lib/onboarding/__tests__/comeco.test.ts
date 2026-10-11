@@ -7,6 +7,11 @@ import {
   bancoDoComeco,
   barraDoPasso,
   caminhoDoEvento,
+  bancosPendentes,
+  proximoBanco,
+  tituloDoPassoDoExtrato,
+  CARTOES_DOS_TEMAS,
+  TEMAS_DO_COMECO,
   centavosParaReais,
   COMECO_NOVO,
   EVENTOS_DO_COMECO,
@@ -265,5 +270,54 @@ describe("textos sem travessão nem emoji", () => {
     const tudo = JSON.stringify({ BANCOS_DO_COMECO, PREMIO_DOS_PRIMEIROS_PASSOS, COMECO_NOVO });
     expect(tudo).not.toMatch(/[—–]/);
     expect(tudo).not.toMatch(/\p{Extended_Pictographic}/u);
+  });
+});
+
+describe("cartões da pergunta do tema", () => {
+  const lum = (hex: string) => {
+    const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  const contraste = (a: string, b: string) => {
+    const [x, y] = [lum(a), lum(b)].sort((m, n) => n - m);
+    return (x + 0.05) / (y + 0.05);
+  };
+  it("o Padrão vem primeiro (quem entra começa nele)", () => {
+    expect(TEMAS_DO_COMECO.map((t) => t.chave)).toEqual(["padrao", "girly", "manifestacao", "titanio"]);
+  });
+  it("nome e frase com contraste AA sobre todas as cores do fundo, no claro e no escuro", () => {
+    for (const [k, v] of Object.entries(CARTOES_DOS_TEMAS)) {
+      for (const modo of [v.claro, v.escuro]) {
+        for (const p of modo.paradas) {
+          expect(contraste(modo.tinta, p), `${k} tinta ${p}`).toBeGreaterThanOrEqual(4.5);
+          expect(contraste(modo.suave, p), `${k} frase ${p}`).toBeGreaterThanOrEqual(4.5);
+        }
+      }
+    }
+  });
+});
+
+describe("mais de um banco", () => {
+  const escolheu = juntarComeco(null, { bancos: ["nubank", "itau", "inter"], banco: "nubank" });
+  it("segue um por vez, na ordem em que ela marcou", () => {
+    expect(proximoBanco(escolheu)).toEqual({ chave: "nubank", posicao: 1, total: 3 });
+    const depois = terminarComLancamento(escolheu, "extrato", { banco: "nubank" }, agora);
+    expect(proximoBanco(depois)).toEqual({ chave: "itau", posicao: 2, total: 3 });
+    expect(bancosPendentes(depois)).toEqual(["itau", "inter"]);
+  });
+  it("os que ficaram para depois aparecem nos Primeiros passos, e o extrato só fica feito quando todos entram", () => {
+    const um = terminarComLancamento(escolheu, "extrato", { banco: "nubank" }, agora);
+    expect(tituloDoPassoDoExtrato(um)).toBe("Trazer o extrato do Itaú e mais 1");
+    expect(primeirosPassos(um, { ...sinaisVazios, temImportacao: true }).passos[0].feito).toBe(false);
+    const todos = terminarComLancamento(terminarComLancamento(um, "extrato", { banco: "itau" }, agora), "extrato", { banco: "inter" }, agora);
+    expect(bancosPendentes(todos)).toEqual([]);
+    expect(tituloDoPassoDoExtrato(todos)).toBe("Trazer o extrato");
+    expect(primeirosPassos(todos, { ...sinaisVazios, temImportacao: true }).passos[0].feito).toBe(true);
+  });
+  it("banco que não existe não entra na lista", () => {
+    expect(juntarComeco(null, { bancos: ["nubank", "banco-falso", "nubank"] }).bancos).toEqual(["nubank"]);
+  });
+  it("XP e BTG Pactual estão na lista, e a EQI continua", () => {
+    for (const k of ["xp", "btg", "eqi"]) expect(bancoDoComeco(k), k).not.toBeNull();
   });
 });
