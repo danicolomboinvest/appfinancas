@@ -74,3 +74,48 @@ describe("extrato consolidado do Santander (PDF)", () => {
     expect(parseSantanderConsolidatedStatement(virada)[0].date).toBe("2025-12-31");
   });
 });
+
+/** Modelo "Básico" (FICTÍCIO): título só "Extrato Consolidado", rodapé Extrato_PF_A4_Basico,
+ * saldo inicial e final na própria movimentação. */
+const SANTANDER_BASICO = [
+  "EXT R ATO CO N S O LID AD O",
+  "sete m b r o / 2026",
+  "E xtrato_P F _A4_B asico - 26 / 11 / 2024",
+  "P agina: 1 / 3",
+  "Prezada Fulana,",
+  "",
+  "-- 1 of 3 --",
+  "",
+  "E xtrato_P F _A4_B asico - 26 / 11 / 2024",
+  "P agina: 2 / 3",
+  "(=) \tS aldo de Conta Co rr ente e m 31 / 08 \t100,00",
+  "Movi m entação",
+  "SAL D O EM 31 / 08 \t100,00",
+  "01 / 09 \tIOF IMPO S TO OPE R ACOE S FIN AN CEIR AS",
+  "- \t0,04-",
+  "17 / 09 \tD EBITO AU T. CO N TA D E TE L EFO N E",
+  "OPERADORA EXEMPLO",
+  "- \t150,00-",
+  "R EM UN E R ACAO APLICACAO AU TOMATICA \t- \t0,01 \t50,03-",
+  "21 / 09 \tPIX R ECEBID O",
+  "Fulana de Exe m plo",
+  "- \t200,00 \t149,97",
+  "SAL D O EM 30 / 09 \t149,97",
+  "S aldos por Pe r íodo",
+  "01 \t99,96 \t0,00",
+].join("\n");
+
+describe("extrato consolidado do Santander, modelo Básico", () => {
+  it("reconhece e fecha com o saldo inicial e final", () => {
+    expect(isSantanderConsolidatedStatement(SANTANDER_BASICO)).toBe(true);
+    const txns = parseStatement(SANTANDER_BASICO, "pdf");
+    expect(txns.map((t) => [t.date, t.amount])).toEqual([
+      ["2026-09-01", -0.04],
+      ["2026-09-17", -150],
+      ["2026-09-17", 0.01],
+      ["2026-09-21", 200],
+    ]);
+    const soma = txns.reduce((s, t) => s + t.amount, 0);
+    expect(Math.round(soma * 100) / 100).toBe(49.97);
+  });
+});

@@ -26,6 +26,7 @@ import { fechaComoFatura, lerFaturaTestando } from "./leitor-inteligente";
 import { isMercadoPagoStatement, parseMercadoPagoStatement } from "./mercado-pago-pdf";
 import { isPicPayStatement, parsePicPayStatement } from "./picpay-pdf";
 import { isIsraelCardStatement, parseIsraelCardStatement } from "./israel-cartao-pdf";
+import { isIsraelBankStatement, parseIsraelBankStatement } from "./israel-extrato-pdf";
 import { isSafraJsonPdf, parseSafraJsonPdf } from "./safra-json-pdf";
 import { isCaixaAppStatement, parseCaixaAppStatement } from "./caixa-pdf";
 import { isCoraStatement, parseCoraStatement } from "./cora-pdf";
@@ -33,6 +34,7 @@ import { isInfinitePayStatement, parseInfinitePayStatement } from "./infinitepay
 import { isInterInvoice, isInterStatement, parseInterInvoice, parseInterStatement } from "./inter-pdf";
 import { isNubankStatement, parseNubankStatement } from "./nubank-pdf";
 import { isOurocardInvoice, parseOurocardInvoice } from "./ourocard-pdf";
+import { isItauOpenInvoice, parseItauOpenInvoice } from "./itau-fatura-aberta-pdf";
 import { isItauInvoice, parseItauInvoice } from "./itau-fatura-pdf";
 import { isMidwayInvoice, parseMidwayInvoice } from "./midway-fatura-pdf";
 import { isCarrefourInvoice, parseCarrefourInvoice } from "./carrefour-fatura-pdf";
@@ -835,11 +837,13 @@ const LEITORES_PDF: { nome: string; reconhece: (t: string) => boolean; le: (t: s
   { nome: "cora", reconhece: isCoraStatement, le: (t) => parseCoraStatement(t) },
   { nome: "infinitepay", reconhece: isInfinitePayStatement, le: (t) => parseInfinitePayStatement(t) },
   { nome: "safra-json", reconhece: isSafraJsonPdf, le: (t) => parseSafraJsonPdf(t) },
+  { nome: "israel-extrato", reconhece: isIsraelBankStatement, le: (t) => parseIsraelBankStatement(t) },
   { nome: "israel-cartao", reconhece: isIsraelCardStatement, le: (t) => parseIsraelCardStatement(t) },
   { nome: "picpay", reconhece: isPicPayStatement, le: (t) => parsePicPayStatement(t) },
   { nome: "mercado-pago", reconhece: isMercadoPagoStatement, le: (t) => parseMercadoPagoStatement(t) },
   { nome: "inter-fatura", reconhece: isInterInvoice, le: (t) => parseInterInvoice(t) },
   { nome: "ourocard", reconhece: isOurocardInvoice, le: (t, ano) => parseOurocardInvoice(t, ano) },
+  { nome: "itau-fatura-aberta", reconhece: isItauOpenInvoice, le: (t) => parseItauOpenInvoice(t) },
   { nome: "itau-fatura", reconhece: isItauInvoice, le: (t, ano) => parseItauInvoice(t, ano) },
   { nome: "riachuelo-midway", reconhece: isMidwayInvoice, le: (t) => parseMidwayInvoice(t) },
   { nome: "carrefour-fatura", reconhece: isCarrefourInvoice, le: (t, ano) => parseCarrefourInvoice(t, ano) },

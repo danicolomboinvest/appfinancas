@@ -1,7 +1,8 @@
 import { parseBrazilianNumber, type ParsedTransaction } from "./statement-parser";
 
 /**
- * Extrato mensal da conta do Santander em PDF ("Extrato Consolidado Inteligente").
+ * Extrato mensal da conta do Santander em PDF ("Extrato Consolidado Inteligente", e o "Extrato
+ * Consolidado" do modelo Básico, igual por dentro).
  *
  * O PDF sai com a fonte desencontrada: o texto vem quebrado no meio das palavras e até das datas
  * ("EXT R ATO CO N S O LID AD O", "02 / 01"). Não é o arquivo inteiro letra por letra — por isso o
@@ -30,7 +31,9 @@ function colado(linha: string): string {
 
 export function isSantanderConsolidatedStatement(texto: string): boolean {
   const cabeca = colado(texto.slice(0, 3000));
-  return cabeca.includes("extratoconsolidadointeligente") || cabeca.includes("extrato_pf_a4_inteligente");
+  // O modelo "Básico" (conta sem pacote) tem o mesmo miolo, mas o título é só "Extrato
+  // Consolidado" e o rodapé "Extrato_PF_A4_Basico": ficava de fora e dava zero lançamentos.
+  return cabeca.includes("extratoconsolidadointeligente") || cabeca.includes("extrato_pf_a4_");
 }
 
 /** "janei r o / 2026" no topo de cada página: o ano (e o mês) do extrato. */
@@ -54,7 +57,7 @@ function ehRuidoDePagina(linha: string): boolean {
   const c = colado(linha);
   return (
     /^--\d+of\d+--$/.test(c) ||
-    c.startsWith("extratoconsolidadointeligente") ||
+    c.startsWith("extratoconsolidado") ||
     c.startsWith("extrato_pf_a4") ||
     c.startsWith("balp_") ||
     /^pagina:\d+\/\d+$/.test(c) ||
