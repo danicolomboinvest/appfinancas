@@ -24,9 +24,14 @@ export function normalizeProductName(name: string): string {
 /**
  * O que um produto da lista libera (05/10/2026): "app" é o acesso de sempre; "money_reset" é só o
  * programa de 21 dias, vendido no order bump. O Money Reset sozinho NÃO abre o app.
+ * Desde 11/10/2026, "perfil_empresa" e "conta_parceiro" são os adicionais (ver lib/adicionais):
+ * também não abrem o app sozinhos.
  */
-export type Concede = "app" | "money_reset";
-export const CONCESSOES: Concede[] = ["app", "money_reset"];
+export type Concede = "app" | "money_reset" | "perfil_empresa" | "conta_parceiro";
+export const CONCESSOES: Concede[] = ["app", "money_reset", "perfil_empresa", "conta_parceiro"];
+
+/** O que cada produto da lista libera, fora o app: vira uma linha em ProdutoLiberado. */
+export type ProdutoAvulso = Exclude<Concede, "app">;
 
 function casaCom(p: { hublaProductId: string | null; name: string }, product: HublaProduct): boolean {
   const nName = product.name ? normalizeProductName(product.name) : null;
@@ -38,18 +43,23 @@ function casaCom(p: { hublaProductId: string | null; name: string }, product: Hu
  * o Money Reset e os que não estão ligados na lista. Uma compra com order bump traz os dois (o
  * SPI Finance e o Money Reset) e precisa liberar os dois.
  */
-export async function oQueACompraLibera(products: HublaProduct[]): Promise<{ app: HublaProduct | null; moneyReset: HublaProduct | null; foraDaLista: HublaProduct[] }> {
+export async function oQueACompraLibera(
+  products: HublaProduct[],
+): Promise<{ app: HublaProduct | null; moneyReset: HublaProduct | null; adicionais: Exclude<ProdutoAvulso, "money_reset">[]; foraDaLista: HublaProduct[] }> {
   const ativos = await prisma.allowedProduct.findMany({ where: { active: true } });
   let app: HublaProduct | null = null;
   let moneyReset: HublaProduct | null = null;
+  const adicionais: Exclude<ProdutoAvulso, "money_reset">[] = [];
   const foraDaLista: HublaProduct[] = [];
   for (const product of products) {
     const achado = ativos.find((p) => casaCom(p, product));
     if (!achado) foraDaLista.push(product);
     else if (achado.concede === "money_reset") moneyReset ??= product;
-    else app ??= product;
+    else if (achado.concede === "perfil_empresa" || achado.concede === "conta_parceiro") {
+      if (!adicionais.includes(achado.concede)) adicionais.push(achado.concede);
+    } else app ??= product;
   }
-  return { app, moneyReset, foraDaLista };
+  return { app, moneyReset, adicionais, foraDaLista };
 }
 
 /**

@@ -105,3 +105,30 @@ describe("fluxo da assinatura pela Apple", () => {
     expect(db.liberacoes.get(ana.email)?.active).toBe(false);
   });
 });
+
+describe("adicionais pela Apple (11/10/2026)", () => {
+  const EMPRESA = "com.danicolombo.spifinance.empresa.anual";
+
+  it("comprar o Perfil Empresa registra a assinatura dele e não abre o app sozinho", async () => {
+    const r = await registrarCompraApple(ana, compra({ originalTransactionId: "E1", productId: EMPRESA }));
+    expect(r).toMatchObject({ ok: true, adicional: "perfil_empresa" });
+    expect(db.assinaturas.get("E1")?.productId).toBe(EMPRESA);
+    expect(db.liberacoes.size).toBe(0);
+  });
+
+  it("reembolso do adicional não corta o app", async () => {
+    await registrarCompraApple(ana, compra());
+    await registrarCompraApple(ana, compra({ originalTransactionId: "E1", productId: EMPRESA }));
+    expect(await aplicarAvisoApple("REFUND", compra({ originalTransactionId: "E1", productId: EMPRESA }))).toBe("revogou");
+    expect(db.assinaturas.get("E1")?.revogadaEm).toBeInstanceOf(Date);
+    expect([...db.liberacoes.values()][0]?.active).toBe(true);
+  });
+
+  it("renovação do adicional estende só ele", async () => {
+    await registrarCompraApple(ana, compra({ originalTransactionId: "E1", productId: EMPRESA }));
+    const novo = Date.now() + 730 * 864e5;
+    expect(await aplicarAvisoApple("DID_RENEW", compra({ originalTransactionId: "E1", productId: EMPRESA, expiresDate: novo }))).toBe("renovou");
+    expect(db.assinaturas.get("E1")?.expiresAt.getTime()).toBe(novo);
+    expect(db.liberacoes.size).toBe(0);
+  });
+});

@@ -24,6 +24,10 @@ import { caminhoDoCadastro } from "@/lib/auth/convite-cadastro";
  * dias (ProdutoLiberado), nunca o app. No order bump a compra traz os dois produtos e libera
  * os dois; o reembolso tira os dois.
  *
+ * Adicionais (11/10/2026): "perfil_empresa" e "conta_parceiro" seguem o mesmo caminho do Money
+ * Reset. São assinatura anual: o member_removed (cancelou, não renovou) tira só o adicional, e o
+ * app continua com quem tem.
+ *
  * Eventos tratados (event.type):
  *  - customer.member_added     → libera (ganhou acesso ao produto), se o produto liberar
  *  - invoice.payment_succeeded → libera (pagamento aprovado), se o produto liberar
@@ -136,14 +140,17 @@ export async function POST(request: Request) {
   if (GRANT_EVENTS.has(type)) {
     // Só libera se ALGUM produto da compra dá acesso (combo/order bump conta). Produto não
     // listado fica registrado (inativo) pra a Dani decidir depois, e não libera ninguém.
-    const { app: allowed, moneyReset, foraDaLista } = await oQueACompraLibera(products);
+    const { app: allowed, moneyReset, adicionais, foraDaLista } = await oQueACompraLibera(products);
     for (const product of foraDaLista) await recordSeenProduct(product);
     if (moneyReset) for (const email of emails) await liberarProdutoDaHubla(email, MONEY_RESET);
+    for (const adicional of adicionais) for (const email of emails) await liberarProdutoDaHubla(email, adicional);
     if (!allowed) {
+      const soAvulso = moneyReset ? "granted_money_reset" : adicionais.length > 0 ? "granted_adicionais" : "ignored";
       return NextResponse.json({
         ok: true,
-        action: moneyReset ? "granted_money_reset" : "ignored",
-        ...(moneyReset ? {} : { reason: "product not allowed" }),
+        action: soAvulso,
+        ...(soAvulso === "ignored" ? { reason: "product not allowed" } : {}),
+        ...(adicionais.length > 0 ? { adicionais } : {}),
         products: products.map((p) => p.name ?? p.id),
       });
     }
@@ -177,6 +184,7 @@ export async function POST(request: Request) {
       ok: true,
       action: "granted",
       moneyReset: Boolean(moneyReset),
+      ...(adicionais.length > 0 ? { adicionais } : {}),
       emailed,
       // `extended: false` = evento irmão/reenvio da mesma fatura, acesso seguiu com o prazo
       // que já tinha (é o comportamento certo, não uma falha).
@@ -194,8 +202,8 @@ export async function POST(request: Request) {
   if (products.length === 0) {
     return NextResponse.json({ ok: true, action: "ignored", reason: "no product" });
   }
-  const { app, moneyReset } = await oQueACompraLibera(products);
-  if (!app && !moneyReset) {
+  const { app, moneyReset, adicionais } = await oQueACompraLibera(products);
+  if (!app && !moneyReset && adicionais.length === 0) {
     return NextResponse.json({
       ok: true,
       action: "ignored",
@@ -205,7 +213,14 @@ export async function POST(request: Request) {
   }
   // Só desativa liberação que veio do Hubla: a MANUAL da Dani fica (ver revokeFromHubla).
   if (moneyReset) for (const email of emails) await revogarProdutoDaHubla(email, MONEY_RESET);
-  if (!app) return NextResponse.json({ ok: true, action: "revoked_money_reset" });
+  for (const adicional of adicionais) for (const email of emails) await revogarProdutoDaHubla(email, adicional);
+  if (!app) {
+    return NextResponse.json({
+      ok: true,
+      action: moneyReset ? "revoked_money_reset" : "revoked_adicionais",
+      ...(adicionais.length > 0 ? { adicionais } : {}),
+    });
+  }
   for (const email of emails) await revokeFromHubla(email);
-  return NextResponse.json({ ok: true, action: "revoked", moneyReset: Boolean(moneyReset) });
+  return NextResponse.json({ ok: true, action: "revoked", moneyReset: Boolean(moneyReset), ...(adicionais.length > 0 ? { adicionais } : {}) });
 }

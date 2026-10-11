@@ -19,17 +19,22 @@ export async function registrarCompraAppleAction(transacoes: string[]): Promise<
   if (!conta) return { ok: false, mensagem: "Entre na sua conta de novo e tente outra vez." };
 
   let outraConta = false;
+  let registrou = false;
   for (const jws of transacoes.slice(0, 20)) {
     if (typeof jws !== "string" || jws.length > 20_000) continue;
     const tx = await verificarTransacao(jws).catch(() => null);
     if (!tx) continue;
     const r = await registrarCompraApple(conta, tx);
-    if (r.ok) {
+    // O "Restaurar compras" traz também os adicionais (11/10/2026): eles ficam registrados, mas
+    // só a assinatura do app responde "ok" aqui, que é o que esta tela vende.
+    if (r.ok && !r.adicional) {
       revalidatePath("/", "layout");
       return { ok: true };
     }
-    if (r.motivo === "outra-conta") outraConta = true;
+    if (r.ok) registrou = true;
+    if (!r.ok && r.motivo === "outra-conta") outraConta = true;
   }
+  if (registrou) revalidatePath("/", "layout");
   return {
     ok: false,
     mensagem: outraConta

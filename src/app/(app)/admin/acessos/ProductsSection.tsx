@@ -14,9 +14,12 @@ type Product = {
   hublaProductId: string | null;
   source: "MANUAL" | "HUBLA" | "APPLE";
   active: boolean;
-  /** "app" libera o app; "money_reset" libera só o Money Reset (order bump). */
+  /** "app" libera o app; "money_reset" libera só o Money Reset (order bump); "perfil_empresa" e
+   * "conta_parceiro" liberam só o adicional (11/10/2026). */
   concede: string;
 };
+
+const ROTULO_DA_CONCESSAO = { app: "App", money_reset: "Money Reset", perfil_empresa: "Empresa", conta_parceiro: "Parceiro" } as const;
 
 const initialState: ProductFormState = {};
 
@@ -78,9 +81,9 @@ function ProductRow({ product }: { product: Product }) {
           <div className="text-xs text-ink-faint">Visto numa compra. Ligue se este produto deve dar acesso.</div>
         )}
       </div>
-      {/* O que este produto abre: o app inteiro ou só o Money Reset (o order bump). */}
-      <div className="flex overflow-hidden rounded-full border border-border text-xs" role="group" aria-label="O que este produto libera">
-        {(["app", "money_reset"] as const).map((c) => (
+      {/* O que este produto abre: o app inteiro, só o Money Reset ou só um adicional. */}
+      <div className="flex flex-wrap overflow-hidden rounded-full border border-border text-xs" role="group" aria-label="O que este produto libera">
+        {(Object.keys(ROTULO_DA_CONCESSAO) as (keyof typeof ROTULO_DA_CONCESSAO)[]).map((c) => (
           <button
             key={c}
             type="button"
@@ -89,7 +92,7 @@ function ProductRow({ product }: { product: Product }) {
             onClick={() => startTransition(() => setProductConcedeAction(product.id, c))}
             className={`px-2.5 py-1 ${product.concede === c ? "bg-accent-soft font-semibold text-accent-strong" : "text-ink-muted hover:bg-surface-2"}`}
           >
-            {c === "app" ? "App" : "Money Reset"}
+            {ROTULO_DA_CONCESSAO[c]}
           </button>
         ))}
       </div>
