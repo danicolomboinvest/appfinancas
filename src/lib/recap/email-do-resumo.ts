@@ -32,3 +32,55 @@ export function ajustarResumoPorEmail(
     },
   };
 }
+
+const ROTULOS_CURTOS = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+
+/** Os `n` meses que terminam no do resumo, do mais antigo ao dele: o gráfico Entrou x Gastou. */
+export function mesesDoGrafico(year: number, month: number, n = 6): { year: number; month: number; rotulo: string }[] {
+  return Array.from({ length: n }, (_, i) => {
+    const d = new Date(year, month - 1 - (n - 1 - i), 1);
+    return { year: d.getFullYear(), month: d.getMonth() + 1, rotulo: ROTULOS_CURTOS[d.getMonth()] };
+  });
+}
+
+/**
+ * A série do gráfico a partir da soma por mês e tipo. Os meses antes do primeiro movimento ficam
+ * de fora (conta nova não ganha cinco colunas vazias); o mês do resumo fica sempre.
+ */
+export function serieDoGrafico(
+  meses: { year: number; month: number; rotulo: string }[],
+  somas: { year: number; month: number; category: string; total: number }[],
+): { rotulo: string; entrou: number; gastou: number }[] {
+  const de = (m: { year: number; month: number }, cat: string) => somas.filter((s) => s.year === m.year && s.month === m.month && s.category === cat).reduce((t, s) => t + s.total, 0);
+  const serie = meses.map((m) => ({ rotulo: m.rotulo, entrou: de(m, "INCOME"), gastou: de(m, "EXPENSE") }));
+  const primeiro = serie.findIndex((m) => m.entrou > 0 || m.gastou > 0);
+  return primeiro < 0 ? serie.slice(-1) : serie.slice(Math.min(primeiro, serie.length - 1));
+}
+
+/**
+ * As categorias que mais pesaram no mês, com o plano de cada (0 = sem plano). Mesma chave da
+ * maior categoria (maiorCategoriaDoMes): mãe pelo rótulo do perfil, personalizada pelo nome.
+ */
+export function categoriasDoResumo(
+  gastos: { amount: number; parentCategory: string | null; customCategoryId: string | null }[],
+  planos: { parentCategory: string | null; customCategoryId: string | null; planned: number }[],
+  rotulo: (g: { parentCategory: string | null; customCategoryId: string | null }) => string,
+  limite = 3,
+): { chave: string | null; nome: string; gasto: number; plano: number }[] {
+  const chaveDe = (g: { parentCategory: string | null; customCategoryId: string | null }) =>
+    g.customCategoryId ? `custom:${g.customCategoryId}` : g.parentCategory ? `parent:${g.parentCategory}` : null;
+  const planoPor = new Map<string, number>();
+  for (const p of planos) {
+    const k = chaveDe(p);
+    if (k) planoPor.set(k, (planoPor.get(k) ?? 0) + p.planned);
+  }
+  const porChave = new Map<string, { chave: string | null; nome: string; gasto: number; plano: number }>();
+  for (const g of gastos) {
+    const k = chaveDe(g);
+    if (!k) continue;
+    const atual = porChave.get(k) ?? { chave: g.customCategoryId ? null : g.parentCategory, nome: rotulo(g), gasto: 0, plano: planoPor.get(k) ?? 0 };
+    atual.gasto += g.amount;
+    porChave.set(k, atual);
+  }
+  return [...porChave.values()].filter((c) => c.gasto > 0).sort((a, b) => b.gasto - a.gasto).slice(0, limite);
+}

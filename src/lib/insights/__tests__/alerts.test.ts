@@ -24,7 +24,9 @@ describe("buildBudgetAlerts", () => {
     expect(alerts.map((a) => a.key)).toEqual(["2026-09:ALIMENTACAO:80", "2026-09:MORADIA:100"]);
     expect(alerts[0].title).toBe("Alimentação já usou 85%");
     expect(alerts[0].body).toBe("Faltam 13 dias e sobram R$ 120 do planejado.");
-    expect(alerts[1].title).toBe("Moradia estourou");
+    // "Passou", nunca "estourou" (11/10/2026), com o valor arredondado para cima.
+    expect(alerts[1].title).toBe("Moradia passou R$ 102");
+    expect(alerts[1].url).toBe("/orcamento/2026?resolver=MORADIA");
   });
 
   it("does not nag about 80% when the month is almost over", () => {
@@ -41,7 +43,7 @@ describe("buildBudgetAlerts", () => {
 });
 
 describe("buildBudgetAlerts: igualdade e conta fixa pré-lançada", () => {
-  it("gasto IGUAL ao planejado não é 'estourou' (o painel marca DENTRO)", () => {
+  it("gasto IGUAL ao planejado não é 'passou' (o painel marca DENTRO)", () => {
     const alerts = buildBudgetAlerts({
       year: 2026,
       month: 10,
@@ -82,7 +84,7 @@ describe("buildBudgetAlerts: igualdade e conta fixa pré-lançada", () => {
     expect(alerts[0].title).toBe("Moradia já usou 99%");
   });
 
-  it("passar do plano ainda é 'estourou', mesmo sendo conta marcada", () => {
+  it("passar do plano ainda avisa, mesmo sendo conta marcada", () => {
     const alerts = buildBudgetAlerts({
       year: 2026,
       month: 10,
