@@ -31,7 +31,7 @@ async function recortar(src: string, zoom: number, x: number, y: number): Promis
  * (quando o aparelho tem câmera) e "Remover". Escolhida, ela centraliza arrastando e ajusta o zoom.
  * Depois de salva, vira o avatar do app todo.
  */
-export function FotoDoPerfil({ nome, foto }: { nome: string; foto: string | null }) {
+export function FotoDoPerfil({ nome, foto, comBotao = false, tamanho = 76 }: { nome: string; foto: string | null; comBotao?: boolean; tamanho?: number }) {
   const [aberto, setAberto] = useState(false);
   const [cortando, setCortando] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
@@ -57,12 +57,24 @@ export function FotoDoPerfil({ nome, foto }: { nome: string; foto: string | null
 
   return (
     <>
-      <button type="button" onClick={() => setAberto(true)} aria-label="Trocar a foto do perfil" className="relative shrink-0 rounded-full">
-        <AvatarDaConta nome={nome} foto={foto} size={76} />
-        <span className="absolute -bottom-0.5 -right-0.5 flex size-7 items-center justify-center rounded-full bg-ink text-canvas ring-2 ring-surface" aria-hidden>
-          <Pencil size={13} />
-        </span>
-      </button>
+      {comBotao ? (
+        // Na folha da foto e em Configurações: a foto e, logo embaixo, "Trocar foto" em evidência.
+        <div className="flex flex-col items-center gap-2.5">
+          <button type="button" onClick={() => setAberto(true)} aria-label="Trocar a foto do perfil" className="shrink-0 rounded-full">
+            <AvatarDaConta nome={nome} foto={foto} size={tamanho} />
+          </button>
+          <button type="button" onClick={() => setAberto(true)} className="inline-flex min-h-10 items-center gap-1.5 rounded-full bg-surface-2 px-4 text-sm font-medium text-ink">
+            <Pencil size={14} aria-hidden /> {foto ? "Trocar foto" : "Pôr uma foto"}
+          </button>
+        </div>
+      ) : (
+        <button type="button" onClick={() => setAberto(true)} aria-label="Trocar a foto do perfil" className="relative shrink-0 rounded-full">
+          <AvatarDaConta nome={nome} foto={foto} size={tamanho} />
+          <span className="absolute -bottom-0.5 -right-0.5 flex size-7 items-center justify-center rounded-full bg-ink text-canvas ring-2 ring-surface" aria-hidden>
+            <Pencil size={13} />
+          </span>
+        </button>
+      )}
       <Modal open={aberto} onClose={fechar} title="Foto do perfil">
         {cortando ? (
           <div className="flex flex-col items-center gap-4">

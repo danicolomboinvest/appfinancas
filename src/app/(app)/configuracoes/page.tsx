@@ -54,7 +54,7 @@ export default async function ConfiguracoesPage() {
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
       <section className="flex items-center gap-4 rounded-3xl border border-border bg-surface p-4">
-        <FotoDoPerfil nome={nome} foto={user.avatarUrl} />
+        <FotoDoPerfil nome={nome} foto={user.avatarUrl} comBotao tamanho={72} />
         <div className="min-w-0 flex-1">
           <p className="break-words text-[19px] font-medium leading-snug text-ink">{user.name || "Sem nome"}</p>
           <p className="break-all text-sm text-ink-muted">{user.email}</p>
@@ -76,7 +76,7 @@ export default async function ConfiguracoesPage() {
             </span>
           </div>
         )}
-        <Linha href="/configuracoes/perfis" icone={i(Users)} cor={COR.conta} rotulo="Perfis financeiros" sub={perfis.map((p) => p.name).join(", ")} />
+        <Linha href="/configuracoes/perfis" icone={i(Users)} cor={COR.conta} rotulo="Perfis" sub={perfis.length === 1 ? "1 perfil" : `${perfis.length} perfis`} />
         <Linha href="/esqueci-senha" icone={i(KeyRound)} cor={COR.conta} rotulo="Trocar senha" sub="Por e-mail" />
       </Grupo>
 
