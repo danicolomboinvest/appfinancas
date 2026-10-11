@@ -23,6 +23,9 @@ const ALLOWED_EVENTS = new Set([
   "assinar_apple_tocou",
   "tour_terminou",
   "tour_pulou",
+  // 11/10/2026: o "Tivemos uma mudança" da versão nova.
+  "novidades_terminou",
+  "novidades_pulou",
 ]);
 
 /**
