@@ -61,6 +61,9 @@ const MONTH_LABELS = [
 export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]">) {
   const money = await serverMoney();
   const { year: yearParam } = await props.params;
+  // O link do e-mail do "passou" (?resolver=SAUDE) abre a folha "O que fazer?" da categoria.
+  const resolverParam = (await props.searchParams).resolver;
+  const resolver = typeof resolverParam === "string" ? resolverParam : undefined;
   const year = Number(yearParam);
   // URL editada à mão ("/orcamento/abc") viraria NaN direto no Prisma → erro 500. Fora da
   // faixa válida é simplesmente uma página que não existe (mesmo guard do fluxo mensal).
@@ -325,7 +328,7 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
 
       {linhasDoMes.length > 0 && (
         <Section title="Categorias" hint="A barra vai do verde ao vermelho conforme a categoria se aproxima do plano. Toque numa categoria para ver o histórico; na que passou, para ver o que fazer.">
-          <CategoriasDoMes mes={MONTH_LABELS[(currentMonthData?.month ?? 1) - 1].toLowerCase()} linhas={linhasDoMes} essenciais={essenciais} livre={livreDoMes} diasRestantes={diasRestantes} />
+          <CategoriasDoMes mes={MONTH_LABELS[(currentMonthData?.month ?? 1) - 1].toLowerCase()} linhas={linhasDoMes} essenciais={essenciais} livre={livreDoMes} diasRestantes={diasRestantes} abrirResolvendo={resolver} />
         </Section>
       )}
 

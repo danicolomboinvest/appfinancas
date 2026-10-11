@@ -44,6 +44,7 @@ export function CategoriasDoMes({
   essenciais = [],
   livre = null,
   diasRestantes = 1,
+  abrirResolvendo,
 }: {
   mes: string;
   linhas: LinhaDaCategoria[];
@@ -53,13 +54,18 @@ export function CategoriasDoMes({
   diasRestantes?: number;
   /** Compatibilidade: a sugestão de um toque saiu para a folha "O que fazer?". */
   cobrir?: unknown;
+  /**
+   * Categoria que chega pelo link do e-mail "Saúde passou R$ 67" (?resolver=SAUDE): a folha
+   * "O que fazer?" dela já abre. Só abre: cobrir ou usar o livre continua pedindo o toque dela.
+   */
+  abrirResolvendo?: string;
 }) {
   const money = useMoney();
   const m = (v: number) => money(v, { round: true });
   const { categorias } = useProfileTheme();
   // Todas fechadas: o detalhe de cada uma (histórico, lápis, maiores gastos) abre no toque.
   const [aberta, setAberta] = useState<string | null>(null);
-  const [resolvendo, setResolvendo] = useState<LinhaDaCategoria | null>(null);
+  const [resolvendo, setResolvendo] = useState<LinhaDaCategoria | null>(() => linhas.find((l) => l.key === abrirResolvendo && l.estado === "passou") ?? null);
   const paraRemanejo = linhas.map((l) => ({ key: l.key, label: l.label, planejado: l.planejado, gasto: l.gasto + l.aVencer }));
 
   return (
