@@ -152,8 +152,9 @@
   stroke: var(--color-dinheiro-guardou);
   stroke-width: 3;
 }
+/* O plano na cor do tema, não em cinza (regra da versão nova: gráfico sem cinza). */
 .md-gb .p {
-  stroke: var(--color-ink-muted);
+  stroke: var(--color-accent);
   stroke-dasharray: 5 4;
   stroke-width: 1.6;
 }
@@ -205,7 +206,7 @@
   border-top: 3px solid var(--color-dinheiro-guardou);
 }
 .md-leg-p {
-  border-top: 2px dashed var(--color-ink-muted);
+  border-top: 2px dashed var(--color-accent);
 }
 .md-leg-j {
   border-top: 2.6px dotted var(--color-success);
