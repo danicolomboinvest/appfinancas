@@ -16,7 +16,8 @@ import { categoryLabel, isParentCategoryKey } from "@/lib/categories";
 import { getOrCreateActiveProfile } from "@/lib/repositories/profile.repo";
 import { vozDoTema } from "@/lib/profiles/voice";
 import { maiorCategoriaDoMes, nomeDoMes } from "@/lib/recap/monthly";
-import { ajustarResumoPorEmail } from "@/lib/recap/email-do-resumo";
+import { ajustarResumoPorEmail, categoriasDoResumo, mesesDoGrafico, serieDoGrafico } from "@/lib/recap/email-do-resumo";
+import { listGoalsWithProgress } from "@/lib/repositories/goal.repo";
 import { ehEmpresa } from "@/lib/profiles/empresa";
 import { contasQueUsamOApp, normalizeEmail } from "@/lib/repositories/allowedEmail.repo";
 
@@ -107,6 +108,7 @@ export async function GET(request: Request) {
       id: true,
       email: true,
       name: true,
+      role: true,
       currency: true,
       createdAt: true,
       recapNudgeCount: true,
@@ -191,6 +193,8 @@ export async function GET(request: Request) {
           appUrl: `${baseUrl}/mensal`,
           preferencesUrl: `${baseUrl}/configuracoes/notificacoes`,
           t,
+          tema: perfilDoEmail.theme,
+          moeda: toCurrencyCode(user.currency),
         });
         if (dryRun) {
           nudges += 1;
@@ -213,7 +217,9 @@ export async function GET(request: Request) {
         continue;
       }
 
-      const [grouped, byCategory, personalizadas] = await Promise.all([
+      // Os 6 meses do gráfico Entrou x Gastou (terminando no do resumo), numa consulta só.
+      const mesesDoResumo = mesesDoGrafico(year, month);
+      const [grouped, byCategory, personalizadas, porMes, planos, metas] = await Promise.all([
         prisma.monthlyEntry.groupBy({
           by: ["category"],
           // Um perfil só (o do resumo): o e-mail leva pra /mensal, que mostra um perfil só. Somar
@@ -230,6 +236,15 @@ export async function GET(request: Request) {
           _sum: { amount: true },
         }),
         prisma.customCategory.findMany({ where: { userId: user.id, profileId: perfilDoEmail.id }, select: { id: true, name: true } }),
+        prisma.monthlyEntry.groupBy({
+          by: ["year", "month", "category"],
+          where: { userId: user.id, profileId: perfilDoEmail.id, category: { in: ["INCOME", "EXPENSE"] }, OR: mesesDoResumo.map((m) => ({ year: m.year, month: m.month })) },
+          _sum: { amount: true },
+        }),
+        // O plano de cada categoria no mês do resumo, para "passou" ou "sobrou" em cada linha.
+        prisma.budget.findMany({ where: { userId: user.id, profileId: perfilDoEmail.id, year, month }, select: { parentCategory: true, customCategoryId: true, plannedAmount: true } }),
+        // As metas, com o progresso da mesma conta da tela de Metas.
+        listGoalsWithProgress({ userId: user.id, role: user.role, profileId: perfilDoEmail.id, profileTheme: perfilDoEmail.theme, profileKind: perfilDoEmail.kind }),
       ]);
 
       const totalOf = (category: string) =>
@@ -237,8 +252,7 @@ export async function GET(request: Request) {
       const income = totalOf("INCOME");
       const expense = totalOf("EXPENSE");
       const investment = totalOf("INVESTMENT_CONTRIBUTION");
-      // O valor grande é renda − gastos, e o guardado vai ao lado como conquista: descontar o
-      // guardado fazia quem guardou muito receber "Faltou no mês" em vermelho. O botão leva pro
+      // O valor grande é o sobrou da regra única (entrou − gastou − guardou), e o botão leva pro
       // fechamento do mês e diz isso. Ver ajustarResumoPorEmail.
       const ajuste = ajustarResumoPorEmail(t, { income, expense, investment }, nomeDoMes(year, month), ehEmpresa(perfilDoEmail.kind));
 
@@ -256,17 +270,31 @@ export async function GET(request: Request) {
       // O nome da maior categoria é o do perfil do resumo (numa Empresa, "Estrutura", não "Moradia");
       // a personalizada vai pelo nome que ela deu. Gasto sem categoria não entra no ranking.
       const nomeDaPersonalizada = new Map(personalizadas.map((c) => [c.id, c.name]));
-      const top = maiorCategoriaDoMes(
-        byCategory.map((c) => ({ amount: Number(c._sum.amount ?? 0), parentCategory: c.parentCategory, customCategoryId: c.customCategoryId })),
-        (g) =>
-          g.parentCategory && isParentCategoryKey(g.parentCategory)
-            ? categoryLabel(perfilDoEmail.kind, g.parentCategory)
-            : (nomeDaPersonalizada.get(g.customCategoryId ?? "") ?? "Personalizada"),
+      const gastosPorCategoria = byCategory.map((c) => ({ amount: Number(c._sum.amount ?? 0), parentCategory: c.parentCategory, customCategoryId: c.customCategoryId }));
+      const rotuloDaCategoria = (g: { parentCategory: string | null; customCategoryId: string | null }) =>
+        g.parentCategory && isParentCategoryKey(g.parentCategory)
+          ? categoryLabel(perfilDoEmail.kind, g.parentCategory)
+          : (nomeDaPersonalizada.get(g.customCategoryId ?? "") ?? "Personalizada");
+      const top = maiorCategoriaDoMes(gastosPorCategoria, rotuloDaCategoria);
+      const categorias = categoriasDoResumo(
+        gastosPorCategoria,
+        planos.map((p) => ({ parentCategory: p.parentCategory, customCategoryId: p.customCategoryId, planned: Number(p.plannedAmount) })),
+        rotuloDaCategoria,
       );
+      const meses = serieDoGrafico(
+        mesesDoResumo,
+        porMes.map((g) => ({ year: g.year, month: g.month, category: g.category, total: Number(g._sum.amount ?? 0) })),
+      );
+      // Até duas metas ainda a caminho (a concluída tem o e-mail dela), na ordem da tela.
+      const metasDoEmail = metas
+        .filter((g) => Number(g.targetAmount) > 0 && g.computedCurrentAmount < Number(g.targetAmount))
+        .slice(0, 2)
+        .map((g) => ({ nome: g.name, guardado: g.computedCurrentAmount, alvo: Number(g.targetAmount) }));
 
       const { subject, html } = monthlyRecapEmail({
         name: user.name,
         monthLabel,
+        mesNome: nomeDoMes(year, month),
         currency: toCurrencyCode(user.currency),
         income,
         expense,
@@ -276,6 +304,10 @@ export async function GET(request: Request) {
         // agosto, com 2 gastos anotados, levava "seus gastos ficaram 400% acima" em setembro.
         expenseDelta: previousExpense > 0 && user.createdAt < new Date(Date.UTC(previous.year, previous.month - 1, 1, 3)) ? expense / previousExpense - 1 : null,
         topCategory: top,
+        meses,
+        categorias,
+        metas: metasDoEmail,
+        tema: perfilDoEmail.theme,
         // O fechamento do mês (o ritual de passos), e não a tela crua do mês: é lá que ela vê
         // se fechou no azul, decide o que fazer com a sobra e ajusta o plano do mês novo. Ele
         // fecha sempre o mês anterior, o mesmo deste e-mail.
