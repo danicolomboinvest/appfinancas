@@ -34,6 +34,8 @@ export function CasalFields({
     defaultPessoa === "A" || defaultPessoa === "B" ? defaultPessoa : typeof window === "undefined" ? "A" : ultimaPessoa(),
   );
   const [doCasal, setDoCasal] = useState(defaultDoCasal !== false);
+  // "Só meu" (login do par): só aparece com os dois logins, quando esconder tem efeito de verdade.
+  const [soMeu, setSoMeu] = useState(false);
   if (!nomesDoCasal) return null;
 
   const pergunta = tipo === "INCOME" ? "Quem recebeu?" : tipo === "EXPENSE" ? "Quem pagou?" : "De quem é?";
@@ -52,7 +54,7 @@ export function CasalFields({
   return (
     <div className="flex w-full flex-col gap-3">
       <input type="hidden" name="pessoa" value={pessoa} />
-      <input type="hidden" name="tipoCasal" value={tipo === "EXPENSE" ? (doCasal ? "casa" : "pessoal") : ""} />
+      <input type="hidden" name="tipoCasal" value={tipo === "EXPENSE" ? (soMeu ? "so_meu" : doCasal ? "casa" : "pessoal") : ""} />
       <div className="flex flex-col gap-1.5">
         <span className="text-sm text-ink-muted">{pergunta}</span>
         <div role="group" aria-label={pergunta} className="flex gap-1 rounded-full border border-border bg-surface-2 p-1">
@@ -73,15 +75,26 @@ export function CasalFields({
         <div className="flex flex-col gap-1.5">
           <span className="text-sm text-ink-muted">Esse gasto é</span>
           <div role="group" aria-label="Esse gasto é" className="flex gap-1 rounded-full border border-border bg-surface-2 p-1">
-            <button type="button" aria-pressed={doCasal} onClick={() => setDoCasal(true)} className={opcao(doCasal)}>
+            <button type="button" aria-pressed={doCasal && !soMeu} onClick={() => { setDoCasal(true); setSoMeu(false); }} className={opcao(doCasal && !soMeu)}>
               Da casa
             </button>
-            <button type="button" aria-pressed={!doCasal} onClick={() => setDoCasal(false)} className={opcao(!doCasal)}>
+            <button type="button" aria-pressed={!doCasal && !soMeu} onClick={() => { setDoCasal(false); setSoMeu(false); }} className={opcao(!doCasal && !soMeu)}>
               Pessoal
             </button>
+            {nomesDoCasal.comPar && (
+              <button type="button" aria-pressed={soMeu} onClick={() => { setSoMeu(true); setDoCasal(false); }} className={opcao(soMeu)}>
+                Só meu
+              </button>
+            )}
           </div>
           <p className="text-xs text-ink-faint">
-            {doCasal ? "Entra no acerto do mês entre vocês dois." : `Fica só na conta de ${nomesDoCasal[pessoa]}, fora do acerto.`}
+            {soMeu
+              ? "Só você vê. Nem o total aparece para o outro."
+              : doCasal
+                ? "Entra no acerto do mês entre vocês dois."
+                : nomesDoCasal.comPar
+                  ? `Os dois veem, fora do acerto.`
+                  : `Fica só na conta de ${nomesDoCasal[pessoa]}, fora do acerto.`}
           </p>
         </div>
       )}

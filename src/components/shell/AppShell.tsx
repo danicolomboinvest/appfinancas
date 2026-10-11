@@ -29,6 +29,7 @@ import { ToastProvider } from "@/components/ui/toast-context";
 import { ProfileThemeProvider } from "@/components/profiles/ProfileThemeProvider";
 import { ehEmpresa } from "@/lib/profiles/empresa";
 import { ehCasal } from "@/lib/profiles/casal";
+import { SECOES_DO_PAR } from "@/lib/casal-login/menu-do-par";
 import type { PreferenciasDeCategoria } from "@/lib/categories";
 
 export function AppShell({
@@ -48,14 +49,17 @@ export function AppShell({
   cartaoComLimite = false,
   nomeDaConta = null,
   fotoDaConta = null,
+  modoPar = null,
 }: {
+  /** Login do par: quem está logado é o par, no Nós dois da titular. O menu mostra só o dele. */
+  modoPar?: { nomeTitular: string } | null;
   /** Nome da conta (o avatar do topo mostra a inicial quando não há foto). */
   nomeDaConta?: string | null;
   /** Foto da conta (User.avatarUrl): vira o avatar do app todo. */
   fotoDaConta?: string | null;
   /** Nome, ícone e categorias escondidas do perfil ativo (ver lib/categories.ts). */
   prefsDeCategoria?: PreferenciasDeCategoria;
-  nomesDoCasal?: { A: string; B: string } | null;
+  nomesDoCasal?: { A: string; B: string; comPar?: boolean } | null;
   /** O perfil montou um limite do cartão: o + mostra o "No cartão de crédito". */
   cartaoComLimite?: boolean;
   children: React.ReactNode;
@@ -156,7 +160,7 @@ export function AppShell({
   const focado = pathname?.startsWith("/decidir/comprar") ?? false;
   const empresa = ehEmpresa(profileKind);
   const casal = ehCasal(profileKind);
-  const secoes = secoesVisiveis(isAdmin ? [...NAV_SECTIONS, ADMIN_NAV_SECTION] : NAV_SECTIONS, { empresa, casal });
+  const secoes = modoPar ? SECOES_DO_PAR : secoesVisiveis(isAdmin ? [...NAV_SECTIONS, ADMIN_NAV_SECTION] : NAV_SECTIONS, { empresa, casal });
   const titulo = tituloDaTela(pathname, secoes, (s) => rotuloDoMenu(s, empresa));
   const nome = nomeDaConta || userEmail?.split("@")[0] || "Você";
   void greeting;
@@ -183,6 +187,7 @@ export function AppShell({
           onLogout={handleLogout}
           onOpenRegistrar={() => abrirRegistrar()}
           openFinance={openFinance}
+          secoesFixas={modoPar ? SECOES_DO_PAR : undefined}
         />
 
         <div className="flex min-w-0 flex-1 flex-col">
@@ -225,7 +230,7 @@ export function AppShell({
           onLogout={handleLogout}
           onOpenInstall={() => setInstallOpen(true)}
         />
-        {!focado && <AvisoMenuNovo />}
+        {!focado && !modoPar && <AvisoMenuNovo />}
 
         {/* Tutorial de "instalar na tela de início" (convite do topo ou menu "Mais"). */}
         <InstallAppSheet open={installOpen} onClose={() => setInstallOpen(false)} />
@@ -235,7 +240,7 @@ export function AppShell({
         <RegistrarDrawer open={registrarOpen} modoInicial={modoDoRegistrar} onClose={() => setRegistrarOpen(false)} />
 
         {/* Tour de boas-vindas, só na primeira entrada (lembrado no aparelho). */}
-        <WelcomeTour />
+        {!modoPar && <WelcomeTour />}
         {/* O guia do Money Reset: só aparece quando uma missão liga (sessionStorage). */}
         <GuiaDoReset />
 

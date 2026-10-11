@@ -11,7 +11,8 @@ import { ChevronLeft } from "lucide-react";
  */
 export function SettingsTabs() {
   const pathname = usePathname();
-  if (pathname === "/configuracoes") return null;
+  // Nós dois tem a volta própria: o par não tem a lista de Configurações (login do par).
+  if (pathname === "/configuracoes" || pathname === "/configuracoes/nos-dois") return null;
   return (
     <Link href="/configuracoes" className="mb-4 inline-flex min-h-11 items-center gap-1 text-sm font-medium text-ink-muted hover:text-ink">
       <ChevronLeft size={18} aria-hidden /> Configurações

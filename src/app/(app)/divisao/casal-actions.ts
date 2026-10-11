@@ -12,6 +12,8 @@ export type RespostaCasal = { ok: true } | { ok: false; mensagem: string };
 export async function salvarConfigCasalAction(dados: { nomeA: string; nomeB: string; divisao: "renda" | "meio" }): Promise<RespostaCasal> {
   const ctx = await getRequiredSession();
   if (!ehCasal(ctx.profileKind)) return { ok: false, mensagem: "Isso é só do perfil Casal." };
+  // Login do par: nomes e forma de dividir são da titular (quem paga o Casal).
+  if (ctx.par) return { ok: false, mensagem: "Quem muda os nomes e a divisão é quem paga o Casal." };
   const nomeA = String(dados.nomeA ?? "").trim().slice(0, 30);
   const nomeB = String(dados.nomeB ?? "").trim().slice(0, 30);
   if (!nomeA || !nomeB) return { ok: false, mensagem: "Escreva o nome das duas pessoas." };

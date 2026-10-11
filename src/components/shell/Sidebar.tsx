@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { ChevronsLeft, ChevronsRight, Lock, LogOut, MessageCircleQuestion, Plus } from "lucide-react";
 import { linkDoSuporte } from "@/lib/support/whatsapp-link";
 import { BrandMark } from "@/components/brand/BrandMark";
-import { ADMIN_NAV_SECTION, NAV_SECTIONS, withNavFlags, sectionMatches, filhosVisiveis, secoesVisiveis, rotuloDoMenu } from "./nav-sections";
+import { ADMIN_NAV_SECTION, NAV_SECTIONS, withNavFlags, sectionMatches, filhosVisiveis, secoesVisiveis, rotuloDoMenu, type NavSection } from "./nav-sections";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 
 /** Liga cada seção ao passo do tour de boas-vindas (WelcomeTour destaca por data-tour). */
@@ -27,6 +27,7 @@ export function Sidebar({
   onLogout,
   onOpenRegistrar,
   openFinance,
+  secoesFixas,
 }: {
   collapsed: boolean;
   onToggleCollapsed: () => void;
@@ -41,10 +42,12 @@ export function Sidebar({
   onOpenRegistrar: () => void;
   /** Open Finance ligado no servidor (chaves da Pluggy); sem isso, "Conexões" some do menu. */
   openFinance: boolean;
+  /** Menu fechado de fora (login do par: só o Nós dois). Sem o botão de registrar. */
+  secoesFixas?: NavSection[];
 }) {
   const pathname = usePathname();
   const { voz, empresa, casal } = useProfileTheme();
-  const sections = secoesVisiveis(withNavFlags(isAdmin ? [...NAV_SECTIONS, ADMIN_NAV_SECTION] : NAV_SECTIONS, { openFinance }), { empresa, casal });
+  const sections = secoesFixas ?? secoesVisiveis(withNavFlags(isAdmin ? [...NAV_SECTIONS, ADMIN_NAV_SECTION] : NAV_SECTIONS, { openFinance }), { empresa, casal });
 
   const activeSection = sections.find(
     (section) => sectionMatches(section, pathname),
@@ -76,7 +79,7 @@ export function Sidebar({
       } ${mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}
     >
       <div className={`flex items-center gap-2.5 px-4 pb-2 pt-5 ${collapsedDesktopOnly}`}>
-        <Link href="/mensal/foco" onClick={onCloseMobile} className="flex items-center gap-3 overflow-hidden">
+        <Link href={secoesFixas?.[0]?.href ?? "/mensal/foco"} onClick={onCloseMobile} className="flex items-center gap-3 overflow-hidden">
           <BrandMark size={32} className="shrink-0" />
           <span className={`truncate text-[17px] font-medium tracking-tight text-ink md:text-sm ${hideLabelDesktopOnly}`}>
             SPI Finance
@@ -86,7 +89,7 @@ export function Sidebar({
 
       {/* Registro no desktop: substitui o antigo FAB flutuante. Abre o mesmo RegistrarDrawer
           usado pelo "+" central do mobile. */}
-      <div className="hidden px-3 pb-1 pt-1 md:block">
+      <div className={`hidden px-3 pb-1 pt-1 ${secoesFixas ? "" : "md:block"}`}>
         <button
           type="button"
           onClick={onOpenRegistrar}

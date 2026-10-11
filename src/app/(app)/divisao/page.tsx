@@ -1,5 +1,7 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getRequiredSession } from "@/lib/auth/session";
+import { CheckCircle2, Users, X } from "lucide-react";
+import { getRequiredSession, type AuthContext } from "@/lib/auth/session";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { ehCasal } from "@/lib/profiles/casal";
 import { vozDoTema } from "@/lib/profiles/voice";
@@ -9,30 +11,147 @@ import { DivisaoCalculadora } from "./DivisaoCalculadora";
 import { carregarAcertoDoMes } from "@/lib/repositories/casal.repo";
 import { AcertoDoMesCard } from "@/components/casal/AcertoDoMesCard";
 import { ConfigCasalForm } from "@/components/casal/ConfigCasalForm";
+import { nosDoisDaTitular } from "@/lib/repositories/casal-login.repo";
+import { estadoDoFechamentoDoMes, lancamentosDoMesNoCasal, metasDoCasalLista, meuNoCasal } from "@/lib/repositories/nos-dois.repo";
+import { mesParaFechar } from "@/lib/casal-login/fechamento";
+import { outraLetra } from "@/lib/casal-login/regras";
+import { ChamarOPar } from "@/components/casal-login/ChamarOPar";
+import { MeuNoCasal } from "@/components/casal-login/MeuNoCasal";
+import { LancamentosDoCasal } from "@/components/casal-login/LancamentosDoCasal";
+import { MetasDoCasal } from "@/components/casal-login/MetasDoCasal";
+import { CartaoFecharOMes } from "@/components/casal-login/FecharOMes";
+import { serverMoney } from "@/lib/money-server";
 
 /**
  * Divisão do casal — só existe no perfil Casal. Em cima, o acerto do mês, calculado pelos
  * lançamentos (quem pagou cada gasto da casa; out/2026). Depois os nomes e a forma de dividir, e
  * por último a calculadora "Quanto cada um contribui?", pra simular com rendas digitadas.
+ *
+ * Login do par (11/10/2026): a titular sem par vê o convite ("Agora, chame o seu par"); com o
+ * convite mandado, o cartão "Aguardando". Com o par dentro, os dois veem o mesmo Nós dois: o
+ * acerto, "O meu no casal", fechar o mês a dois, metas a dois e os lançamentos.
  */
-export default async function DivisaoPage() {
+export default async function DivisaoPage({ searchParams }: { searchParams: Promise<{ entrou?: string }> }) {
   const ctx = await getRequiredSession();
   if (!ehCasal(ctx.profileKind)) redirect("/dashboard");
-  const t = vozDoTema(ctx.profileTheme, ctx.profileKind).titulos;
-
   const now = nowInBrazil();
-  const [summary, acerto] = await Promise.all([
-    getMonthlySummary(ctx, now.getFullYear(), now.getMonth() + 1),
-    carregarAcertoDoMes(ctx, now.getFullYear(), now.getMonth() + 1),
-  ]);
+  const ano = now.getFullYear();
+  const mes = now.getMonth() + 1;
 
+  if (ctx.par) return <NosDoisDoPar ctx={ctx} ano={ano} mes={mes} entrou={(await searchParams).entrou === "1"} />;
+
+  const t = vozDoTema(ctx.profileTheme, ctx.profileKind).titulos;
+  const [summary, acerto, nosDois] = await Promise.all([
+    getMonthlySummary(ctx, ano, mes),
+    carregarAcertoDoMes(ctx, ano, mes),
+    nosDoisDaTitular(ctx),
+  ]);
+  const { convite } = nosDois;
+  const nomeTitular = nosDois.par && outraLetra(nosDois.par.letra) === "B" ? acerto.config.nomeB : acerto.config.nomeA;
+
+  if (!nosDois.par) {
+    return (
+      <div className="flex flex-col gap-6">
+        <ChamarOPar
+          agoraIso={new Date().toISOString()}
+          nomeTitular={nomeTitular}
+          casalValendo={nosDois.casalValendo}
+          convite={
+            convite
+              ? { nomePar: convite.nomePar, estado: convite.estado, canal: convite.canal, enviadoEmIso: convite.enviadoEm?.toISOString() ?? null, criadoEmIso: convite.criadoEm.toISOString(), expiraEmIso: convite.expiraEm.toISOString() }
+              : null
+          }
+        />
+        <PageHeader title={t.casTitulo} subtitle={t.casSub} />
+        <AcertoDoMesCard acerto={acerto} />
+        <ConfigCasalForm config={acerto.config} />
+        <h2 className="mt-2 text-base font-semibold tracking-tight text-ink">Simular a divisão</h2>
+        <DivisaoCalculadora despesasComunsInicial={summary.totalExpense} />
+      </div>
+    );
+  }
+
+  const letraPar = nosDois.par.letra;
+  const minhaLetra = outraLetra(letraPar);
   return (
-    <div className="flex flex-col gap-6">
-      <PageHeader title={t.casTitulo} subtitle={t.casSub} />
-      <AcertoDoMesCard acerto={acerto} />
+    <div className="flex flex-col gap-5">
+      <NosDoisADois ctx={ctx} ano={ano} mes={mes} acerto={acerto} minhaLetra={minhaLetra} letraTitular={minhaLetra} souPar={false} />
       <ConfigCasalForm config={acerto.config} />
       <h2 className="mt-2 text-base font-semibold tracking-tight text-ink">Simular a divisão</h2>
       <DivisaoCalculadora despesasComunsInicial={summary.totalExpense} />
     </div>
+  );
+}
+
+/** O Nós dois visto pelo par: só o que é do casal, com o "O meu no casal" e o + dele. */
+async function NosDoisDoPar({ ctx, ano, mes, entrou }: { ctx: AuthContext; ano: number; mes: number; entrou: boolean }) {
+  const par = ctx.par!;
+  const acerto = await carregarAcertoDoMes(ctx, ano, mes);
+  const letraTitular = outraLetra(par.letra);
+  const money = await serverMoney();
+  return (
+    <div className="flex flex-col gap-5">
+      {entrou && (
+        <div className="flex items-center gap-3 rounded-2xl bg-success-soft px-4 py-3 text-[15px] text-success">
+          <CheckCircle2 size={18} strokeWidth={1.8} className="shrink-0" aria-hidden />
+          <span className="min-w-0 flex-1">Você entrou no Nós dois da {par.nomeTitular}</span>
+          <Link href="/divisao" aria-label="Fechar aviso" className="-mr-1 flex size-9 items-center justify-center rounded-full">
+            <X size={16} strokeWidth={1.8} aria-hidden />
+          </Link>
+        </div>
+      )}
+      <p className="flex items-center gap-2 px-1 text-[14px] text-ink-muted">
+        <Users size={16} strokeWidth={1.6} className="shrink-0" aria-hidden />
+        Você vê o que é do casal. O pessoal da {par.nomeTitular} fica com ela.
+      </p>
+      <NosDoisADois ctx={ctx} ano={ano} mes={mes} acerto={acerto} minhaLetra={par.letra} letraTitular={letraTitular} souPar />
+      {par.mostrarRenda && acerto.rendas.A + acerto.rendas.B > 0 && (
+        <p className="px-1 text-[13px] text-ink-faint">
+          Rendas do mês: {letraTitular === "A" ? acerto.config.nomeA : acerto.config.nomeB} {money(acerto.rendas[letraTitular], { round: true })} e você {money(acerto.rendas[par.letra], { round: true })}.
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** O miolo que os dois veem quando o casal tem os dois logins. */
+async function NosDoisADois({
+  ctx,
+  ano,
+  mes,
+  acerto,
+  minhaLetra,
+  letraTitular,
+  souPar,
+}: {
+  ctx: AuthContext;
+  ano: number;
+  mes: number;
+  acerto: Awaited<ReturnType<typeof carregarAcertoDoMes>>;
+  minhaLetra: "A" | "B";
+  letraTitular: "A" | "B";
+  souPar: boolean;
+}) {
+  const anterior = mesParaFechar({ ano, mes });
+  const [meu, lancamentos, metas, fechamento, acertoAnterior] = await Promise.all([
+    meuNoCasal(ctx, acerto, minhaLetra),
+    lancamentosDoMesNoCasal(ctx, ano, mes),
+    metasDoCasalLista(ctx),
+    estadoDoFechamentoDoMes(ctx, anterior.ano, anterior.mes),
+    carregarAcertoDoMes(ctx, anterior.ano, anterior.mes),
+  ]);
+  const nomes = { A: acerto.config.nomeA, B: acerto.config.nomeB };
+  const pessoas = { minha: minhaLetra, titular: letraTitular, nomes };
+  const temMesAnterior = acertoAnterior.totalDaCasa > 0;
+  return (
+    <>
+      <AcertoDoMesCard acerto={acerto} />
+      <MeuNoCasal dados={meu} meuNome={nomes[minhaLetra]} souPar={souPar} mes={mes} />
+      {temMesAnterior && <CartaoFecharOMes fechamento={fechamento} pessoas={pessoas} mes={anterior.mes} acertado={acertoAnterior.acertado} />}
+      <MetasDoCasal metas={metas} podeCriar />
+      <div id="lancamentos">
+        <LancamentosDoCasal itens={lancamentos} nomes={nomes} letraTitular={letraTitular} minhaLetra={minhaLetra} mes={mes} podeLancar />
+      </div>
+    </>
   );
 }

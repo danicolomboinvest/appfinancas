@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth/auth.config";
 import { getOrCreateActiveProfile } from "@/lib/repositories/profile.repo";
 import { lerPreferenciasDeCategoria, type PreferenciasDeCategoria } from "@/lib/categories";
 import { chaveDoTema } from "@/lib/profiles/themes";
+import { perfilDoPar, type ParNaSessao } from "@/lib/repositories/casal-login.repo";
 
 /**
  * Quem é a pessoa, sem dizer em qual perfil ela está.
@@ -38,6 +39,15 @@ export type AuthContext = AccountContext & {
    * sem ele, os nomes de fábrica.
    */
   categorias?: { kind: ProfileKind; prefs: PreferenciasDeCategoria };
+  /**
+   * Login do par (11/10/2026). Presente quando quem está logado é o par, dentro do Nós dois da
+   * titular: o `userId` continua sendo o DELE (então toda consulta antiga devolve vazio para ele,
+   * nunca o dinheiro dela) e o `profileId` é o do Casal. Só as leituras de
+   * src/lib/casal-login/privacidade.ts usam a dona do perfil (`par.donoId`).
+   */
+  par?: ParNaSessao | null;
+  /** A dona do perfil quando quem olha é o par (o mesmo que `par.donoId`). */
+  donoId?: string;
 };
 
 /**
@@ -48,6 +58,20 @@ export async function getRequiredSession(): Promise<AuthContext> {
   const session = await auth();
   if (!session?.user) {
     throw new Error("Não autenticado.");
+  }
+  // O par entra direto no Nós dois da titular, sem perfil próprio (a não ser que tenha comprado).
+  const doPar = session.user.par === "em-uso" ? await perfilDoPar(session.user.id) : null;
+  if (doPar) {
+    return {
+      userId: session.user.id,
+      role: session.user.role,
+      profileId: doPar.perfil.id,
+      profileTheme: chaveDoTema(doPar.perfil.theme),
+      profileKind: doPar.perfil.kind,
+      categorias: { kind: doPar.perfil.kind, prefs: lerPreferenciasDeCategoria(doPar.perfil.categorias) },
+      par: doPar.par,
+      donoId: doPar.par.donoId,
+    };
   }
   const perfil = await getOrCreateActiveProfile(session.user.id);
   return {

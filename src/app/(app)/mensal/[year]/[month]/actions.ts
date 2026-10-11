@@ -124,7 +124,11 @@ async function toEntryInput(data: z.output<typeof monthlyEntrySchema>): Promise<
     // Perfil Casal. Fora dele o formulário nem manda os campos, e undefined não mexe no que
     // estava gravado.
     pessoa: data.pessoa || undefined,
-    doCasal: data.tipoCasal === "pessoal" ? false : data.tipoCasal === "casa" ? true : undefined,
+    doCasal: data.tipoCasal === "pessoal" || data.tipoCasal === "so_meu" ? false : data.tipoCasal === "casa" ? true : undefined,
+    // Login do par: "Só meu" fica fora do acerto e o outro não vê nem o total. Só vale no Casal.
+    // "Pessoal" não mexe no só meu (undefined): este formulário ainda não sabe mostrar um só meu
+    // salvo, e editar um deles não pode destampar o que estava escondido.
+    soMeu: data.tipoCasal === "so_meu" ? true : data.tipoCasal === "casa" ? false : undefined,
     // Limite do cartão: só gasto é "no cartão". Virou renda ou guardado na edição: limpa.
     noCartao: data.category === "EXPENSE" ? (data.noCartao ? data.noCartao === "sim" : undefined) : null,
   };

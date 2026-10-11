@@ -14,7 +14,7 @@ import { prisma } from "@/lib/db/prisma";
  * então as duas coisas não se misturam.
  */
 
-export type TipoDeEnvio = "senha" | "confirmar-email";
+export type TipoDeEnvio = "senha" | "confirmar-email" | "convite-casal";
 
 export type Limites = { intervaloMs: number; porDia: number };
 

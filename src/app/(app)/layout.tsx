@@ -7,7 +7,7 @@ import { auth } from "@/lib/auth/auth.config";
 import { AppShell } from "@/components/shell/AppShell";
 import { ThemeSync } from "@/components/shell/ThemeSync";
 import { getOwnUser, touchLastSeen } from "@/lib/repositories/user.repo";
-import { compraComOCelular, contaConfirmada, situacaoDoAcesso, usoDoApp } from "@/lib/repositories/allowedEmail.repo";
+import { compraComOCelular, contaConfirmada, situacaoDoAcesso, usoDoApp, type UsoDoApp } from "@/lib/repositories/allowedEmail.repo";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import type { AccountContext } from "@/lib/auth/session";
 import type { ProfileKind } from "@prisma/client";
@@ -27,6 +27,9 @@ import { linkDoSuporte } from "@/lib/support/whatsapp-link";
 import { ASSUNTO_ACESSO, mensagemDeContaSemAcesso } from "@/lib/support/contato";
 import { lerPreferenciasDeCategoria, type PreferenciasDeCategoria } from "@/lib/categories";
 import { lerConfigCasal } from "@/lib/casal/acerto";
+import { perfilDoPar, perfilDoParNaLista, situacaoDoParAgora } from "@/lib/repositories/casal-login.repo";
+import { prisma } from "@/lib/db/prisma";
+import { TelaDoParPausado } from "@/components/casal-login/TelaDoParPausado";
 
 
 function capitalize(text: string) {
@@ -47,7 +50,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   let profileTheme = "padrao";
   let profileKind: ProfileKind = "PESSOAL";
   let prefsDeCategoria: PreferenciasDeCategoria = {};
-  let nomesDoCasal: { A: string; B: string } | null = null;
+  let nomesDoCasal: { A: string; B: string; comPar?: boolean } | null = null;
   // Limite do cartão é opcional (06/10/2026): o "No cartão" do + só aparece para quem montou um.
   let cartaoComLimite = false;
   let currency: CurrencyCode = toCurrencyCode(null);
@@ -57,33 +60,54 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   let fotoDaConta: string | null = null;
   let cssDoTema = "";
   let perfilAtivoId = "";
+  // Login do par: o menu dele mostra só o Nós dois (e as Configurações dele).
+  let modoPar: { nomeTitular: string } | null = null;
   if (session?.user) {
     const ctx: AccountContext = { userId: session.user.id, role: session.user.role };
     // Uma consulta a menos em TODA navegação: o resumo do mês só existia pra alimentar a
     // faixa de saudação, que não mostra mais números.
-    const [user, ativo, todos] = await Promise.all([getOwnUser(ctx), getOrCreateActiveProfile(ctx.userId), listProfiles(ctx.userId)]);
-    // Só quem comprou usa o app (fim do freemium, 30/09/2026); quem criou conta no tempo do
-    // grátis continua com a parte grátis (ver usoDoApp). Vem antes da confirmação do e-mail:
-    // quem não tem compra não precisa confirmar nada, precisa saber o que fazer. O e-mail é o da
-    // conta no banco, não o do token, que é o do dia do login.
-    const acesso = ctx.role === "ADMIN" ? "ativo" : await situacaoDoAcesso(user.email);
-    const uso = usoDoApp(acesso, user.createdAt);
-    if (uso === "bloqueado" && acesso !== "ativo") {
-      // No app da Apple, quem não tem acesso assina ali mesmo (guideline 3.1.1); a tela do
-      // cadeado, que fala de compra feita fora, não pode aparecer lá.
-      if (await naAppDaApple()) return <AssinarPelaApple token={await guardarTokenApple(user)} produtosIds={[...IDS_DOS_PRODUTOS]} />;
-      const compraDoCelular = acesso === "sem-compra" ? await compraComOCelular(user.phone) : null;
-      return <TelaSemAcesso email={user.email} situacao={acesso} compraDoCelular={compraDoCelular} whatsapp={linkDoSuporte(mensagemDeContaSemAcesso(user.email), ASSUNTO_ACESSO)} />;
+    // Login do par (11/10/2026): quem é par e está no Nós dois abre direto no Casal da titular,
+    // sem perfil próprio. Se ele também comprou o SPI, os perfis dele aparecem junto na troca.
+    const doPar = session.user.par === "em-uso" ? await perfilDoPar(ctx.userId) : null;
+    modoPar = doPar ? { nomeTitular: doPar.par.nomeTitular } : null;
+    const [user, ativo, proprios, casalDoPar] = await Promise.all([
+      getOwnUser(ctx),
+      doPar ? doPar.perfil : getOrCreateActiveProfile(ctx.userId),
+      listProfiles(ctx.userId),
+      doPar ? doPar.perfil : session.user.par === "fora" ? perfilDoParNaLista(ctx.userId) : null,
+    ]);
+    const todos = casalDoPar ? [...proprios, casalDoPar] : proprios;
+    // O par não tem a área de investimentos (nem sabe que existe): fica no "gratis".
+    let uso: UsoDoApp = "gratis";
+    if (doPar) {
+      // O par entra grátis: vale enquanto o Casal da titular valer. Não passa pela compra, pela
+      // confirmação do e-mail nem pelo começo (o convite já provou que foi chamado).
+      const situacao = await situacaoDoParAgora(doPar.par);
+      if (situacao.tipo !== "liberado") return <TelaDoParPausado nomeTitular={doPar.par.nomeTitular} ate={situacao.tipo === "pausado" ? situacao.ate : null} />;
+    } else {
+      // Só quem comprou usa o app (fim do freemium, 30/09/2026); quem criou conta no tempo do
+      // grátis continua com a parte grátis (ver usoDoApp). Vem antes da confirmação do e-mail:
+      // quem não tem compra não precisa confirmar nada, precisa saber o que fazer. O e-mail é o da
+      // conta no banco, não o do token, que é o do dia do login.
+      const acesso = ctx.role === "ADMIN" ? "ativo" : await situacaoDoAcesso(user.email);
+      uso = usoDoApp(acesso, user.createdAt);
+      if (uso === "bloqueado" && acesso !== "ativo") {
+        // No app da Apple, quem não tem acesso assina ali mesmo (guideline 3.1.1); a tela do
+        // cadeado, que fala de compra feita fora, não pode aparecer lá.
+        if (await naAppDaApple()) return <AssinarPelaApple token={await guardarTokenApple(user)} produtosIds={[...IDS_DOS_PRODUTOS]} />;
+        const compraDoCelular = acesso === "sem-compra" ? await compraComOCelular(user.phone) : null;
+        return <TelaSemAcesso email={user.email} situacao={acesso} compraDoCelular={compraDoCelular} whatsapp={linkDoSuporte(mensagemDeContaSemAcesso(user.email), ASSUNTO_ACESSO)} />;
+      }
+      // Conta nova só abre depois de confirmar o e-mail: sem isso qualquer um criava a conta com
+      // o e-mail de outra pessoa (de uma compradora, inclusive). Vem antes do /comecar, que
+      // também manda de volta pra cá quem não confirmou. Admin sempre passa.
+      // Exceção: quem assinou pela Apple a partir desta conta. A compra já prova que a conta é
+      // dela, e o revisor da Apple, que assina no Sandbox, não abre e-mail de confirmação.
+      if (ctx.role !== "ADMIN" && !(await contaConfirmada(user))) return <TelaConfirmeEmail email={user.email} />;
+      // Primeira entrada: antes de ver qualquer tela, a pessoa escolhe o tipo e o tema do
+      // perfil dela em /comecar. Uma vez só; quem já usava o app nasceu com a data preenchida.
+      if (user.onboardedAt === null) redirect("/comecar");
     }
-    // Conta nova só abre depois de confirmar o e-mail: sem isso qualquer um criava a conta com
-    // o e-mail de outra pessoa (de uma compradora, inclusive). Vem antes do /comecar, que
-    // também manda de volta pra cá quem não confirmou. Admin sempre passa.
-    // Exceção: quem assinou pela Apple a partir desta conta. A compra já prova que a conta é
-    // dela, e o revisor da Apple, que assina no Sandbox, não abre e-mail de confirmação.
-    if (ctx.role !== "ADMIN" && !(await contaConfirmada(user))) return <TelaConfirmeEmail email={user.email} />;
-    // Primeira entrada: antes de ver qualquer tela, a pessoa escolhe o tipo e o tema do
-    // perfil dela em /comecar. Uma vez só; quem já usava o app nasceu com a data preenchida.
-    if (user.onboardedAt === null) redirect("/comecar");
     firstName = user.name?.split(" ")[0] || user.email.split("@")[0];
     nomeDaConta = user.name?.trim() || null;
     fotoDaConta = user.avatarUrl;
@@ -100,7 +124,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     cartaoComLimite = await perfilTemLimiteDoCartao(ctx.userId, ativo.id);
     if (ativo.kind === "CASAL") {
       const casal = lerConfigCasal(ativo.casal);
-      nomesDoCasal = { A: casal.nomeA, B: casal.nomeB };
+      // Com o par dentro (login do par), o lançamento ganha o "Só meu" que esconde de verdade.
+      const comPar = doPar ? true : (await prisma.membroCasal.count({ where: { profileId: ativo.id, saiuEm: null } })) > 0;
+      nomesDoCasal = { A: casal.nomeA, B: casal.nomeB, comPar };
     }
     // O TEMA do perfil ativo redefine a paleta do app inteiro — fundo, cartão, tinta e
     // destaque. Como tudo já pinta com var(--color-*), a tela toda muda junto sem nenhum
@@ -148,6 +174,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         podeEscolherModo={podeEscolherModo}
         nomeDaConta={nomeDaConta}
         fotoDaConta={fotoDaConta}
+        modoPar={modoPar}
       >
         {/* Trocar de perfil só revalida a página, e o React guarda o estado dos formulários que
             re-renderizam: o orçamento continuava com os números do perfil anterior e o "Salvar"

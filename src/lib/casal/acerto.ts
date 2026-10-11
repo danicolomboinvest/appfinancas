@@ -14,6 +14,9 @@ export type ConfigCasal = {
   divisao: ModoDeDivisao;
   /** Meses já acertados, "2026-10". */
   acertos: string[];
+  /** Login do par (11/10/2026): a titular deixa o par ver a renda dela. Desligado, ele vê só a
+   * proporção ("pela renda: 55% e 45%"). Ausente = desligado. */
+  mostrarRenda?: boolean;
 };
 
 export const CONFIG_PADRAO: ConfigCasal = { nomeA: "Pessoa 1", nomeB: "Pessoa 2", divisao: "renda", acertos: [] };
@@ -27,6 +30,7 @@ export function lerConfigCasal(json: unknown): ConfigCasal {
     nomeB: nome(o.nomeB, CONFIG_PADRAO.nomeB),
     divisao: o.divisao === "meio" ? "meio" : "renda",
     acertos: Array.isArray(o.acertos) ? o.acertos.filter((x): x is string => typeof x === "string" && /^\d{4}-\d{2}$/.test(x)) : [],
+    ...(o.mostrarRenda === true ? { mostrarRenda: true } : {}),
   };
 }
 

@@ -44,6 +44,8 @@ export type MonthlyEntryInput = {
   /** Perfil Casal: quem pagou/recebeu ("A"/"B") e se o gasto é da casa (false = pessoal). */
   pessoa?: string;
   doCasal?: boolean;
+  /** Login do par: "só meu" no Casal (fora do acerto, invisível para o outro). */
+  soMeu?: boolean;
   /** Limite do cartão: true = no cartão de crédito, false = não, null = limpa (deixou de ser
    * gasto), undefined = não mexe. Ver lib/cartao/limite.ts. */
   noCartao?: boolean | null;

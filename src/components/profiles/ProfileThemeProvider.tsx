@@ -10,7 +10,8 @@ import type { ProfileKind } from "@prisma/client";
 import type { PreferenciasDeCategoria } from "@/lib/categories";
 
 /** Perfil Casal: os nomes das duas pessoas (quem pagou / recebeu). Nulo nos outros perfis. */
-export type NomesDoCasal = { A: string; B: string } | null;
+/** `comPar`: o casal tem os dois logins (login do par). Só assim o "Só meu" esconde de verdade. */
+export type NomesDoCasal = { A: string; B: string; comPar?: boolean } | null;
 
 type Contexto = {
   key: ProfileThemeKey;

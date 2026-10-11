@@ -87,21 +87,27 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // - papel é relido do banco: admin rebaixado perde o /admin na requisição seguinte, em vez
       //   de carregar o ADMIN congelado no token enquanto continuar usando o app.
       if (token.id) {
+        // Login do par (11/10/2026): na mesma consulta, se a conta é par num Nós dois. É o que
+        // deixa o proxy barrar as telas que não são dele antes de qualquer página rodar, sem
+        // uma ida a mais ao banco. Removido ou saiu: some na requisição seguinte.
         const atual = await prisma.user.findUnique({
           where: { id: token.id },
-          select: { role: true, passwordHash: true },
+          select: { role: true, passwordHash: true, membrosCasal: { where: { saiuEm: null }, select: { emUso: true }, take: 1 } },
         });
         if (!atual) return null;
         const marca = versaoDaSenha(atual.passwordHash);
         if (!sessaoValeParaSenha(token.senhaVersao, marca)) return null;
         token.senhaVersao = marca;
         token.role = atual.role;
+        const membro = atual.membrosCasal?.[0];
+        token.par = membro ? (membro.emUso ? "em-uso" : "fora") : undefined;
       }
       return token;
     },
     session({ session, token }) {
       session.user.id = token.id;
       session.user.role = token.role;
+      session.user.par = token.par;
       return session;
     },
   },

@@ -40,6 +40,8 @@ vi.mock("@/lib/db/prisma", () => {
     const travou = new Promise<void>((r) => (soltar = r));
     const tx = {
       financialProfile,
+      // Login do par: conta sem perfil que é par de alguém não ganha um Pessoal. Aqui ninguém é.
+      membroCasal: { findFirst: async () => null },
       $executeRaw: async () => {
         const anterior = fila;
         fila = anterior.then(() => travou);

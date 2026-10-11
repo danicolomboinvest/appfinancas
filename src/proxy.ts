@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth/auth.config";
 import { destinoDepoisDoLogin } from "@/lib/auth/sessao";
+import { CASA_DO_PAR, CONFIGURACOES_DO_PAR, decidirRotaDoPar } from "@/lib/casal-login/rotas-do-par";
 
 // /confirmar-email é o destino do link do cadastro: abre no navegador do celular, quase sempre
 // sem sessão, e quem vale ali é o código assinado do link.
-const PUBLIC_PATHS = ["/login", "/register", "/termos", "/privacidade", "/esqueci-senha", "/redefinir-senha", "/suporte", "/confirmar-email"];
+// /par/ é o link do convite do par (login do par, 11/10/2026): abre sem sessão (ele cria o login
+// ali) e com sessão (a página diz se é a titular, outra conta ou quem já entrou). Com a barra no
+// fim de propósito: "/par" sozinho casaria com "/parametros".
+const PUBLIC_PATHS = ["/login", "/register", "/termos", "/privacidade", "/esqueci-senha", "/redefinir-senha", "/suporte", "/confirmar-email", "/par/"];
 
 // Só estas mandam quem já está logada pra dentro do app. As outras públicas abrem com ou sem
 // sessão: o link "Criar nova senha" do e-mail costuma abrir no navegador onde ela está logada
@@ -21,6 +25,15 @@ export default auth((req) => {
     // Com a query junto: "/mensal/2026/9?aba=x" do e-mail volta inteiro depois do login.
     loginUrl.searchParams.set("callbackUrl", `${pathname}${search}`);
     return NextResponse.redirect(loginUrl);
+  }
+
+  // O par só abre o Nós dois (login do par, 11/10/2026). O resto do app da titular responde 404,
+  // não 403: ele nem sabe que existe. A raiz e o destino padrão do login levam ele pra casa.
+  if (req.auth?.user?.par === "em-uso") {
+    const rota = decidirRotaDoPar(pathname);
+    if (rota === "casa") return NextResponse.redirect(new URL(CASA_DO_PAR, req.nextUrl.origin));
+    if (rota === "configuracoes") return NextResponse.redirect(new URL(CONFIGURACOES_DO_PAR, req.nextUrl.origin));
+    if (rota === "nao-existe") return NextResponse.rewrite(new URL("/_nao-existe", req.nextUrl.origin), { status: 404 });
   }
 
   if (req.auth && AUTH_ONLY_PATHS.some((path) => pathname.startsWith(path))) {

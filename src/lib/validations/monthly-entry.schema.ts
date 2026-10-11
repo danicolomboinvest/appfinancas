@@ -52,7 +52,7 @@ export const monthlyEntrySchema = z
   /** Perfil Casal: quem pagou ou recebeu ("A"/"B"); vazio = não informado. */
   pessoa: z.union([z.literal("A"), z.literal("B"), z.literal("")]).optional(),
   /** Perfil Casal: gasto da casa (entra no acerto) ou pessoal. */
-  tipoCasal: z.union([z.literal("casa"), z.literal("pessoal"), z.literal("")]).optional(),
+  tipoCasal: z.union([z.literal("casa"), z.literal("pessoal"), z.literal("so_meu"), z.literal("")]).optional(),
   /** Gasto no cartão de crédito (limite do cartão): "sim"/"nao". Só o gasto manda; ausente não mexe. */
   noCartao: z.union([z.literal("sim"), z.literal("nao"), z.literal("")]).optional(),
 })

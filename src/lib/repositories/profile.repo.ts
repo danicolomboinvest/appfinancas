@@ -111,6 +111,13 @@ export async function getOrCreateActiveProfile(userId: string): Promise<ProfileR
       return { ...qualquer, isDefault: true };
     }
 
+    // Login do par (11/10/2026): quem entrou só pelo convite não ganha um Pessoal (a entrada dele
+    // vale pelo vínculo, não pela compra). Sem esta trava, qualquer rotina que passasse por aqui
+    // (alertas, resumo do mês, widget) criava um Pessoal grátis pra ele. O que volta é o Casal em
+    // que ele é par; as consultas com o userId dele continuam vazias ali.
+    const comoPar = await tx.membroCasal.findFirst({ where: { userId, saiuEm: null }, select: { profile: { select: CAMPOS } } });
+    if (comoPar) return { ...comoPar.profile, isDefault: true };
+
     return tx.financialProfile.create({ data: { userId, ...PERFIL_INICIAL }, select: CAMPOS });
   });
 }
@@ -158,10 +165,18 @@ export async function updateProfile(ctx: AuthContext, id: string, input: Partial
 /** Troca o perfil ativo. Numa transação, porque duas marcas simultâneas deixariam a conta instável. */
 export async function switchProfile(ctx: AuthContext, id: string): Promise<void> {
   const alvo = await prisma.financialProfile.findFirst({ where: { id, userId: ctx.userId }, select: { id: true } });
-  if (!alvo) throw new Error("Perfil não encontrado.");
+  if (!alvo) {
+    // O Nós dois em que a conta é o par (login do par): não é dela, então não leva a marca de
+    // perfil ativo; quem diz que ela está lá é o vínculo.
+    const comoPar = await prisma.membroCasal.updateMany({ where: { userId: ctx.userId, profileId: id, saiuEm: null }, data: { emUso: true } });
+    if (comoPar.count === 0) throw new Error("Perfil não encontrado.");
+    return;
+  }
   await prisma.$transaction([
     prisma.financialProfile.updateMany({ where: { userId: ctx.userId, isDefault: true }, data: { isDefault: false } }),
     prisma.financialProfile.update({ where: { id }, data: { isDefault: true } }),
+    // Voltou para um perfil próprio: sai do Nós dois em que é par (o vínculo continua).
+    prisma.membroCasal.updateMany({ where: { userId: ctx.userId, saiuEm: null, emUso: true }, data: { emUso: false } }),
   ]);
 }
 

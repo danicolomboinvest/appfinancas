@@ -6,6 +6,9 @@ declare module "next-auth" {
     user: {
       id: string;
       role: Role;
+      /** Login do par: "em-uso" = está no Nós dois de alguém agora; "fora" = é par, mas está nos
+       * perfis próprios; ausente = não é par de ninguém. Relido do banco a cada requisição. */
+      par?: "em-uso" | "fora";
     } & DefaultSession["user"];
   }
 
@@ -21,6 +24,7 @@ declare module "next-auth/jwt" {
     id: string;
     role: Role;
     senhaVersao?: string;
+    par?: "em-uso" | "fora";
   }
 }
 
@@ -29,5 +33,6 @@ declare module "@auth/core/jwt" {
     id: string;
     role: Role;
     senhaVersao?: string;
+    par?: "em-uso" | "fora";
   }
 }
