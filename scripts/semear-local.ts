@@ -39,7 +39,7 @@ async function main() {
   }
   // Comprou pelo site em 15/03/2026: Configurações mostra "renova em 15 de março de 2027".
   const compra = { source: "HUBLA" as const, createdAt: new Date(Date.UTC(2026, 2, 15, 15)) };
-  await prisma.allowedEmail.upsert({ where: { email: EMAIL }, update: { active: true, ...compra }, create: { email: EMAIL, note: "conta de teste local", ...compra } });
+  await prisma.allowedEmail.upsert({ where: { email: EMAIL }, update: { active: true, expiresAt: null, canceladoEm: null, ...compra }, create: { email: EMAIL, note: "conta de teste local", ...compra } });
 
   const user = await prisma.user.create({
     data: {

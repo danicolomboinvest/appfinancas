@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { podeReceberEmail, prazoComPresente } from "../presente";
 import { assuntoDaDuvida, respostaDaDuvida } from "../assuntos";
-import { avisosDeHoje } from "../regras";
-import { emailDaDuvida, emailDaRenovacao, emailDoErrado, emailDoReembolso, emailDosMeses } from "../emails";
+import { avisosDeHoje, lembretesDeEstender } from "../regras";
+import { emailDaDuvida, emailDaRenovacao, emailDoErrado, emailDoReembolso, emailDosMeses, emailEstenderNaHubla } from "../emails";
 
 const d = (a: number, m: number, dia: number) => new Date(Date.UTC(a, m - 1, dia, 3));
 const agora = d(2026, 10, 11);
@@ -25,13 +25,13 @@ describe("e-mails só para quem pode receber", () => {
   });
 
   it("o aviso sai uma vez só, no dia certo (ou no seguinte, se o cron falhar), e não para quem cancelou", () => {
-    const base = { tipo: "aviso_renovacao", estado: "aberto", avisarEm: new Date(Date.UTC(2027, 2, 8)), emailEnviadoEm: null, podeReceber: true };
+    const base = { tipo: "aviso_renovacao", estado: "aberto", avisarEm: new Date(Date.UTC(2027, 2, 8)), emailEnviadoEm: null as Date | null, podeReceber: true };
     const no = (dia: number, p = base) => avisosDeHoje([p], new Date(Date.UTC(2027, 2, dia))).length;
     expect(no(7)).toBe(0);
     expect(no(8)).toBe(1);
     expect(no(9)).toBe(1);
     expect(no(10)).toBe(0);
-    expect(no(8, { ...base, emailEnviadoEm: new Date() } as typeof base)).toBe(0);
+    expect(no(8, { ...base, emailEnviadoEm: new Date() })).toBe(0);
     expect(no(8, { ...base, podeReceber: false })).toBe(0);
     expect(no(8, { ...base, tipo: "duvida" })).toBe(0);
   });
@@ -79,5 +79,22 @@ describe("os e-mails do fluxo, no estilo B com o tema", () => {
   });
   it("Titânio leva o logo dele", () => {
     expect(emailDoErrado({ ...base, tema: "titanio" }).html).toContain("logo-titanio.png");
+  });
+});
+
+describe("estender 60 dias na Hubla (a Dani, com um toque)", () => {
+  it("o aviso para ela tem o assunto, a linha e o link", () => {
+    const e = emailEstenderNaHubla({ nome: "Ana Souza", email: "ana@x.com", link: "https://app.hub.la/dashboard/subscriptions/sub_1" });
+    expect(e.subject).toBe("Estender 60 dias: Ana Souza");
+    expect(e.html).toContain("Abra, digite 60 e toque em Estender vencimento.");
+    expect(e.html).toContain("https://app.hub.la/dashboard/subscriptions/sub_1");
+  });
+  it("o lembrete sai uma vez só, depois de 24 horas sem 'Feito na Hubla'", () => {
+    const criado = new Date("2026-10-11T12:00:00Z");
+    const p = { tipo: "meses_gratis", estado: "aberto", createdAt: criado, lembreteEm: null as Date | null };
+    expect(lembretesDeEstender([p], new Date("2026-10-12T11:00:00Z"))).toHaveLength(0);
+    expect(lembretesDeEstender([p], new Date("2026-10-12T12:00:00Z"))).toHaveLength(1);
+    expect(lembretesDeEstender([{ ...p, lembreteEm: new Date() }], new Date("2026-10-13T12:00:00Z"))).toHaveLength(0);
+    expect(lembretesDeEstender([{ ...p, estado: "feito" }], new Date("2026-10-13T12:00:00Z"))).toHaveLength(0);
   });
 });

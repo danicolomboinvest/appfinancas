@@ -13,7 +13,7 @@ import { alertEmail, metaAtingidaEmail } from "@/lib/email/templates";
 import { makeMoneyFormatter, toCurrencyCode } from "@/lib/money";
 import { PARENT_CATEGORIES, categoriasEssenciais, lerPreferenciasDeCategoria } from "@/lib/categories";
 import { contasQueUsamOApp, normalizeEmail } from "@/lib/repositories/allowedEmail.repo";
-import { enviarAvisosAntesDeCancelar } from "@/lib/cancelar/avisos";
+import { enviarAvisosAntesDeCancelar, lembrarEstenderNaHubla } from "@/lib/cancelar/avisos";
 import { desligarCanceladosVencidos } from "@/lib/assinatura/cancelamento";
 
 export const maxDuration = 60;
@@ -173,8 +173,9 @@ export async function GET(request: Request) {
   // Os e-mails combinados no "antes de cancelar" (prazo do reembolso e antes da renovação).
   const hojeDia = new Date(Date.UTC(year, month - 1, now.getDate()));
   const avisosDeCancelar = onlyEmail ? 0 : await enviarAvisosAntesDeCancelar(hojeDia, dryRun);
+  const lembretesDaHubla = onlyEmail ? 0 : await lembrarEstenderNaHubla(new Date(), dryRun);
   // Quem saiu sem reembolso fica até o vencimento; passado ele, desliga (o login já barrava).
   const canceladosDesligados = onlyEmail || dryRun ? 0 : await desligarCanceladosVencidos();
 
-  return NextResponse.json({ ok: true, dryRun, users: users.length, pushed, mailed, avisosDeCancelar, canceladosDesligados, preview: dryRun ? preview : preview.length });
+  return NextResponse.json({ ok: true, dryRun, users: users.length, pushed, mailed, avisosDeCancelar, lembretesDaHubla, canceladosDesligados, preview: dryRun ? preview : preview.length });
 }

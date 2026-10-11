@@ -103,3 +103,11 @@ export function telaInicial(via: "site" | "apple", noReembolso = false): Tela {
   if (via === "apple") return "caminho";
   return noReembolso ? "reembolso" : "motivos";
 }
+
+/**
+ * Os 2 meses grátis que ainda esperam a Dani andar a cobrança na Hubla há mais de 24 horas e ainda
+ * não ganharam lembrete. O cron diário manda um só.
+ */
+export function lembretesDeEstender<T extends { tipo: string; estado: string; createdAt: Date; lembreteEm: Date | null }>(pedidos: T[], agora: Date): T[] {
+  return pedidos.filter((p) => p.tipo === "meses_gratis" && p.estado === "aberto" && !p.lembreteEm && agora.getTime() - p.createdAt.getTime() >= 86_400_000);
+}

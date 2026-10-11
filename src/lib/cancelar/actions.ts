@@ -14,7 +14,8 @@ import { SUPORTE_EMAIL } from "@/app/(app)/configuracoes/_ajustes/suporte";
 import { AREAS, dentroDoReembolso, diaDoAviso, diaDoLembreteDoReembolso, ofertaDisponivel, PEDIDO_DO_MOTIVO, type TipoDePedido } from "./regras";
 import { prazoComPresente } from "./presente";
 import { respostaDaDuvida, type Resposta } from "./assuntos";
-import { emailDaDuvida, emailDoErrado, emailDosMeses } from "./emails";
+import { emailDaDuvida, emailDoErrado, emailDosMeses, emailEstenderNaHubla } from "./emails";
+import { linkDaAssinaturaNaHubla } from "@/lib/assinatura/hubla-assinatura";
 import { destinatario, enviarDoPedido, URL_DO_APP } from "./envio";
 
 const motivoSchema = z.enum(["caro", "dificil", "errado", "naouso", "outro", "sem_motivo"]);
@@ -66,12 +67,17 @@ export async function pedirAntesDeCancelarAction(input: { motivo: string; texto?
   await prisma.motivoDeCancelamento.create({ data: { userId: ctx.userId, motivo, escolha: "aceitou_oferta", via: "site", texto: motivo === "outro" ? texto || null : null } });
 
   if (tipo === "meses_gratis") {
-    // Soma 60 dias ao prazo do acesso, na hora. A Hubla não muda: cobra na data dela.
+    // Soma 60 dias ao prazo do acesso, na hora. A cobrança na Hubla anda 60 dias por um toque
+    // da Dani: o e-mail para ela sai agora, com o link direto da assinatura.
+    const acesso = await prisma.allowedEmail.findUnique({ where: { email: normalizeEmail(para.email) }, select: { hublaSubscriptionId: true } });
     const novo = prazoComPresente(compra.acessoAte, renova);
     await prisma.allowedEmail.update({ where: { email: normalizeEmail(para.email) }, data: { expiresAt: novo } });
-    const pedido = await prisma.pedidoAntesDeCancelar.create({ data: { userId: ctx.userId, tipo, estado: "feito", feitoEm: new Date(), feitoPor: "automático", dados: { antes: compra.acessoAte?.toISOString() ?? null, depois: novo.toISOString() } } });
+    const link = linkDaAssinaturaNaHubla(acesso?.hublaSubscriptionId ?? null, para.email);
+    const pedido = await prisma.pedidoAntesDeCancelar.create({ data: { userId: ctx.userId, tipo, dados: { antes: compra.acessoAte?.toISOString() ?? null, depois: novo.toISOString(), link } } });
     const ate = dataLonga(novo);
     await enviarDoPedido(pedido.id, para, emailDosMeses({ ...base, ate }));
+    const aviso = emailEstenderNaHubla({ nome: para.nome, email: para.email, link });
+    await sendEmail({ to: SUPORTE_EMAIL, subject: aviso.subject, html: aviso.html });
     revalidarTudo();
     return { ok: true, acessoAte: ate };
   }
@@ -140,7 +146,7 @@ export async function lembrarReembolsoAction(): Promise<ResultadoDoPedido> {
   return { ok: true, avisarEm: dataLonga(avisarEm) };
 }
 
-/** /admin/pedidos: marcar que a equipe já respondeu o "algo errado" (opcional, não trava nada). */
+/** /admin/pedidos: "Feito na Hubla" (os 2 meses) ou "Respondido" (algo errado). */
 export async function marcarPedidoFeitoAction(id: string): Promise<{ ok: boolean }> {
   const ctx = await requireAdmin();
   const v = z.string().min(1).safeParse(id);

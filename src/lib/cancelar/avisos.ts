@@ -2,8 +2,10 @@ import "server-only";
 import { prisma } from "@/lib/db/prisma";
 import { compraDoApp } from "@/lib/assinatura/compra";
 import { dataLonga, renovacaoEm } from "@/lib/assinatura/renovacao";
-import { avisosDeHoje, fimDoReembolso } from "./regras";
-import { emailDaRenovacao, emailDoReembolso } from "./emails";
+import { avisosDeHoje, fimDoReembolso, lembretesDeEstender } from "./regras";
+import { emailDaRenovacao, emailDoReembolso, emailEstenderNaHubla } from "./emails";
+import { sendEmail } from "@/lib/email/send";
+import { SUPORTE_EMAIL } from "@/app/(app)/configuracoes/_ajustes/suporte";
 import { destinatario, enviarDoPedido, URL_DO_APP } from "./envio";
 
 /**
@@ -34,4 +36,27 @@ export async function enviarAvisosAntesDeCancelar(hoje: Date, dryRun = false): P
     }
   }
   return enviados;
+}
+
+/** Os 2 meses grátis sem "Feito na Hubla" há 24 horas: um lembrete para a Dani, uma vez só. */
+export async function lembrarEstenderNaHubla(agora: Date = new Date(), dryRun = false): Promise<number> {
+  const abertos = await prisma.pedidoAntesDeCancelar.findMany({
+    where: { tipo: "meses_gratis", estado: "aberto", lembreteEm: null },
+    select: { id: true, tipo: true, estado: true, createdAt: true, lembreteEm: true, dados: true, user: { select: { name: true, email: true } } },
+    take: 200,
+  });
+  let n = 0;
+  for (const p of lembretesDeEstender(abertos, agora)) {
+    if (dryRun) {
+      n++;
+      continue;
+    }
+    const marcado = await prisma.pedidoAntesDeCancelar.updateMany({ where: { id: p.id, lembreteEm: null }, data: { lembreteEm: agora } });
+    if (marcado.count === 0) continue;
+    const link = (p.dados as { link?: string } | null)?.link ?? "";
+    const e = emailEstenderNaHubla({ nome: p.user.name, email: p.user.email, link, lembrete: true });
+    await sendEmail({ to: SUPORTE_EMAIL, subject: e.subject, html: e.html });
+    n++;
+  }
+  return n;
 }

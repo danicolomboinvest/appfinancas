@@ -9,7 +9,7 @@ import { MarcarFeito } from "./MarcarFeito";
 export const metadata = { title: "Antes de cancelar · SPI Finance" };
 
 const TIPO: Record<string, string> = {
-  meses_gratis: `${MESES_GRATIS} meses grátis (entraram sozinhos no prazo do acesso)`,
+  meses_gratis: `${MESES_GRATIS} meses grátis: o acesso já ganhou; falta estender 60 dias na Hubla`,
   duvida: "Dúvida (respondida na hora pelo passo a passo)",
   contestacao: "Algo não está certo: responder em até 48 horas",
   aviso_renovacao: "Aviso 7 dias antes da renovação (sai sozinho)",
@@ -78,8 +78,17 @@ export default async function AdminPedidosPage() {
                 <p className="text-caption text-success">
                   Feito {p.feitoEm ? quando.format(p.feitoEm) : ""} {p.feitoPor ? `(${p.feitoPor})` : ""}
                 </p>
+              ) : p.tipo === "meses_gratis" ? (
+                <>
+                  {(p.dados as { link?: string } | null)?.link && (
+                    <a href={(p.dados as { link: string }).link} target="_blank" rel="noopener" className="text-sm text-accent-strong underline underline-offset-2">
+                      Abrir a assinatura na Hubla
+                    </a>
+                  )}
+                  <MarcarFeito id={p.id} rotulo="Feito na Hubla" />
+                </>
               ) : p.tipo === "contestacao" ? (
-                <MarcarFeito id={p.id} />
+                <MarcarFeito id={p.id} rotulo="Respondido" />
               ) : (
                 <p className="text-caption text-ink-faint">Automático</p>
               )}

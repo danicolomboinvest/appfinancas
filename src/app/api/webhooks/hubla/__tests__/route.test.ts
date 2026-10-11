@@ -53,6 +53,8 @@ vi.mock("@/lib/repositories/allowedEmail.repo", () => ({
 }));
 const encerrarNoVencimento = vi.fn();
 vi.mock("@/lib/assinatura/cancelamento", () => ({ encerrarNoVencimento: (...a: unknown[]) => encerrarNoVencimento(...a) }));
+const guardarIdDaAssinatura = vi.fn();
+vi.mock("@/lib/assinatura/hubla-assinatura", () => ({ guardarIdDaAssinatura: (...a: unknown[]) => guardarIdDaAssinatura(...a) }));
 
 const liberarProdutoDaHubla = vi.fn();
 const revogarProdutoDaHubla = vi.fn();
@@ -94,6 +96,7 @@ beforeEach(() => {
   grantFromHubla.mockReset().mockResolvedValue({ isNew: true, expiresAt: new Date("2027-09-30T12:00:00Z"), extended: true });
   revokeFromHubla.mockReset().mockResolvedValue({ count: 1 });
   encerrarNoVencimento.mockReset().mockResolvedValue("manter");
+  guardarIdDaAssinatura.mockReset().mockResolvedValue(undefined);
   liberarProdutoDaHubla.mockReset().mockResolvedValue({});
   revogarProdutoDaHubla.mockReset().mockResolvedValue({ count: 1 });
   findUserByEmail.mockReset().mockResolvedValue(null);
@@ -256,6 +259,12 @@ describe("webhook Hubla: reembolso e cancelamento", () => {
     await chamar(compra("customer.member_removed", { user: { email: "j@x.com" }, product: CURSO }));
     expect(encerrarNoVencimento).toHaveBeenCalledWith("j@x.com");
     expect(revokeFromHubla).not.toHaveBeenCalled();
+  });
+
+  it("pagamento guarda o id da assinatura da Hubla (link direto no painel)", async () => {
+    await chamar(compra("invoice.payment_succeeded", { user: { email: "s@x.com" }, subscription: { id: "sub_123" }, product: CURSO }));
+    expect(guardarIdDaAssinatura).toHaveBeenCalledTimes(1);
+    expect(guardarIdDaAssinatura.mock.calls[0][0]).toEqual(["s@x.com"]);
   });
 
   it("reembolso continua cortando na hora, sem passar pelo vencimento", async () => {

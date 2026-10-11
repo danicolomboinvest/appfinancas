@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { normalizePhone } from "@/lib/phone";
 import { grantFromHubla, revokeFromHubla } from "@/lib/repositories/allowedEmail.repo";
 import { encerrarNoVencimento } from "@/lib/assinatura/cancelamento";
+import { guardarIdDaAssinatura } from "@/lib/assinatura/hubla-assinatura";
 import { oQueACompraLibera, recordSeenProduct, type HublaProduct } from "@/lib/repositories/allowedProduct.repo";
 import { liberarProdutoDaHubla, MONEY_RESET, revogarProdutoDaHubla } from "@/lib/repositories/produtoLiberado.repo";
 import { findUserByEmail } from "@/lib/repositories/user.repo";
@@ -153,6 +154,7 @@ export async function POST(request: Request) {
     const invoiceId = extractInvoiceId(payload.event);
     const liberacoes = [];
     for (const email of emails) liberacoes.push({ email, ...(await grantFromHubla(email, note, phone, invoiceId)) });
+    await guardarIdDaAssinatura(emails, payload.event);
     const { expiresAt, extended } = liberacoes[0];
 
     // Convite por e-mail ("crie sua conta") só na 1ª liberação — o Hubla manda mais de um

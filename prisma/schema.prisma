@@ -1097,6 +1097,8 @@ model AllowedEmail {
   /// Quando a Hubla avisou que a pessoa saiu (customer.member_removed sem reembolso). O acesso
   /// continua até `expiresAt` e o cron desliga depois. Nulo = não cancelou (ou renovou depois).
   canceladoEm        DateTime?
+  /// Id da assinatura na Hubla (vem nos eventos de pagamento), para o link direto do painel.
+  hublaSubscriptionId String?
   /// Lembretes de "crie sua conta" (boas-vindas, 30/09/2026): quando saiu o do 1º e o do 4º dia.
   /// Servem de trava: gravados ANTES do envio, uma rodada repetida não manda duas vezes.
   lembreteConta1Em   DateTime?
@@ -1510,6 +1512,8 @@ model PedidoAntesDeCancelar {
   assunto   String?   @db.VarChar(12)
   /// Quando o e-mail desse pedido saiu: a trava para sair uma vez só.
   emailEnviadoEm DateTime?
+  /// 2 meses grátis: quando saiu o lembrete para a Dani (24 horas sem "Feito na Hubla"), uma vez só.
+  lembreteEm DateTime?
   /// aberto | feito
   estado    String    @default("aberto") @db.VarChar(8)
   feitoEm   DateTime?

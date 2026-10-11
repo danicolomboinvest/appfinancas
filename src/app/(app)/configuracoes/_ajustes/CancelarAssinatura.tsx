@@ -248,7 +248,7 @@ export function CancelarAssinatura({ dados }: { dados: DadosDoCancelar }) {
             <p className="titulo-tema text-[30px] leading-tight text-accent-strong">{MESES_GRATIS} meses</p>
             <p className="text-sm text-ink">grátis, somados ao seu plano</p>
           </div>
-          <Prazo>Entra na hora: seu plano passa a valer até {dados.presenteAte}. A cobrança não muda.</Prazo>
+          <Prazo>Entra na hora: seu plano passa a valer até {dados.presenteAte}, e a próxima cobrança anda 2 meses.</Prazo>
         </>
       );
       pe = (

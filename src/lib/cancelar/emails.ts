@@ -31,7 +31,7 @@ function montar(p: Base & { subject: string; preheader: string; titulo: string; 
 
 /** "Pronto. Seu plano ganhou 2 meses". */
 export function emailDosMeses(p: Base & { ate: string }): EmailPronto {
-  return montar({ ...p, subject: "Seu plano ganhou 2 meses", preheader: `Agora vale até ${p.ate}.`, titulo: "Seu plano ganhou 2 meses", paragrafos: [`Pronto. Seu SPI Finance agora vale até <b>${p.ate}</b>.`, "Nada muda na sua cobrança: os 2 meses são acesso a mais, por nossa conta."], botao: { href: p.urlDoApp, rotulo: "Abrir o SPI Finance" } });
+  return montar({ ...p, subject: "Seu plano ganhou 2 meses", preheader: `Agora vale até ${p.ate}.`, titulo: "Seu plano ganhou 2 meses", paragrafos: [`Pronto. Seu SPI Finance agora vale até <b>${p.ate}</b>.`, "A próxima cobrança também anda 2 meses. É por nossa conta."], botao: { href: p.urlDoApp, rotulo: "Abrir o SPI Finance" } });
 }
 
 /** A resposta da dúvida, na hora, com o passo a passo e o vídeo. */
@@ -62,4 +62,16 @@ export function emailDoReembolso(p: Base & { ate: string }): EmailPronto {
 /** O aviso de quem escolheu "Não uso mais": 7 dias antes da renovação. */
 export function emailDaRenovacao(p: Base & { renova: string }): EmailPronto {
   return montar({ ...p, subject: "Sua assinatura renova em 7 dias", preheader: `Renova em ${p.renova}.`, titulo: "Renova em 7 dias", paragrafos: [`Como combinado, o SPI Finance renova em <b>${p.renova}</b>.`, "Se não quiser renovar, dá para cancelar pela Hubla até lá, e o acesso continua até a data."], botao: { href: p.urlDoApp, rotulo: "Abrir o SPI Finance" } });
+}
+
+/**
+ * Para a Dani (o app@), na hora em que alguém aceita os 2 meses: o acesso já ganhou os 60 dias, e
+ * falta andar a cobrança na Hubla com um toque. A automação do clique não é feita pelo app.
+ */
+export function emailEstenderNaHubla(p: { nome: string | null; email: string; link: string; lembrete?: boolean }): EmailPronto {
+  const quem = p.nome?.trim() || p.email;
+  return {
+    subject: assunto(`${p.lembrete ? "Lembrete: " : ""}Estender 60 dias: ${quem}`),
+    html: `<p>Abra, digite 60 e toque em Estender vencimento.</p><p><a href="${p.link}">${p.link}</a></p><p>${escaparHtml(quem)} (${escaparHtml(p.email)}). O acesso no app já ganhou os 60 dias. Depois, marque Feito na Hubla em /admin/pedidos.</p>`,
+  };
 }
