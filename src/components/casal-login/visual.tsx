@@ -8,7 +8,19 @@ import { Plus } from "lucide-react";
  * aparece com a cor e a inicial dele, nunca só o nome.
  */
 
-export const COR_DO_PAR = "#4E7396";
+/**
+ * As cores das duas pessoas vêm do tema (lib/casal-login/cores.ts, variáveis --casal-*): quem paga
+ * o Casal no destaque do tema, o par num azul acinzentado, cada uma com a letra em contraste AA.
+ * O que vem depois da vírgula é a reserva de quando o tema não carregou.
+ */
+export const COR = {
+  titular: "var(--casal-titular, var(--color-accent-strong))",
+  titularTinta: "var(--casal-titular-tinta, #ffffff)",
+  par: "var(--casal-par, #4a6382)",
+  parTinta: "var(--casal-par-tinta, #ffffff)",
+} as const;
+export const COR_DO_PAR = COR.par;
+export const corDaPessoa = (papel: "titular" | "par") => (papel === "titular" ? COR.titular : COR.par);
 
 export const CARTAO =
   "rounded-[22px] bg-surface shadow-[inset_0_0_0_1px_var(--color-border),0_1px_2px_rgba(0,0,0,0.03),0_10px_30px_-18px_rgba(0,0,0,0.18)]";
@@ -34,8 +46,8 @@ export function Bolinha({ nome, cor, size = 40, className = "" }: { nome: string
   return (
     <span
       aria-hidden
-      className={`flex shrink-0 items-center justify-center rounded-full font-medium text-white ${className}`}
-      style={{ width: size, height: size, fontSize: Math.round(size * 0.42), background: cor === "titular" ? "var(--color-accent-strong)" : COR_DO_PAR }}
+      className={`flex shrink-0 items-center justify-center rounded-full font-medium ${className}`}
+      style={{ width: size, height: size, fontSize: Math.round(size * 0.42), background: corDaPessoa(cor), color: cor === "titular" ? COR.titularTinta : COR.parTinta }}
     >
       {inicial(nome)}
     </span>

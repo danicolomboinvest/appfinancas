@@ -3,7 +3,7 @@
 import { Lock } from "lucide-react";
 import { useMoney } from "@/components/money/MoneyProvider";
 import { ValorDestaque } from "@/components/ui/ValorDestaque";
-import { Bolinha, CARTAO, COR_DO_PAR } from "./visual";
+import { Bolinha, CARTAO, corDaPessoa } from "./visual";
 import type { MeuNoCasal as Dados } from "@/lib/casal-login/meu-no-casal";
 
 const MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
@@ -19,7 +19,7 @@ export function MeuNoCasal({ dados, meuNome, souPar, mes }: { dados: Dados; meuN
   const m = (v: number) => money(v, { round: true });
   const total = dados.gasteiNoMes || 1;
   const pctCasa = Math.round((dados.minhaParteDaCasa / total) * 100);
-  const cor = souPar ? COR_DO_PAR : "var(--color-accent-strong)";
+  const cor = corDaPessoa(souPar ? "par" : "titular");
   // Arredonda o valor sem o sinal, como o cartão do acerto (457,50 vira 458 para os dois lados).
   const recebo = dados.noAcerto < 0;
   const valorDoAcerto = Math.round(Math.abs(dados.noAcerto));

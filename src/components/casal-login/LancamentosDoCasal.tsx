@@ -94,7 +94,7 @@ export function LancamentosDoCasal({
           type="button"
           onClick={() => setEditando("novo")}
           aria-label="Lançar no Nós dois"
-          className="fixed bottom-[calc(1.25rem+var(--safe-bottom))] right-5 z-50 flex size-[60px] items-center justify-center rounded-full bg-accent-strong text-white shadow-[0_14px_30px_-12px_rgba(0,0,0,0.45)] transition-transform active:scale-95"
+          className="fixed bottom-[calc(1.25rem+var(--safe-bottom))] right-5 z-50 flex size-[60px] items-center justify-center rounded-full bg-accent text-on-accent botao-flutuante shadow-[0_2px_6px_rgba(0,0,0,0.08),0_14px_28px_-10px_color-mix(in_srgb,var(--color-accent)_60%,transparent)] transition-transform active:scale-95"
         >
           <Plus size={28} strokeWidth={1.8} aria-hidden />
         </button>

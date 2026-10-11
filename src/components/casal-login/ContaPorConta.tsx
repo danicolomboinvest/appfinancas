@@ -12,7 +12,7 @@ import { PARENT_CATEGORY_ICON } from "@/lib/categories";
 import { definirRegrasDasContasAction } from "@/app/(app)/divisao/casal-actions";
 import { direcao, quemPagouTudo, saldoDasContas } from "@/lib/casal-login/conta-por-conta";
 import type { ModoDaConta, ModoDeDivisao } from "@/lib/casal/acerto";
-import { Bolinha, COR_DO_PAR } from "./visual";
+import { Bolinha, corDaPessoa } from "./visual";
 
 type Letra = "A" | "B";
 
@@ -144,7 +144,7 @@ export function ContaPorConta({
                       <span className="block truncate text-[16px] font-semibold text-ink">{c.nome}</span>
                       <span className="flex flex-wrap items-center gap-x-1.5 text-[13px] text-ink-muted">
                         <span className="font-medium tabular-nums text-ink">{m(c.valor)}</span>
-                        <i className="size-2 shrink-0 rounded-full" style={{ background: quem ? (cor(quem) === "titular" ? "var(--color-accent-strong)" : COR_DO_PAR) : "var(--color-ink-faint)" }} aria-hidden />
+                        <i className="size-2 shrink-0 rounded-full" style={{ background: quem ? corDaPessoa(cor(quem)) : "var(--color-ink-faint)" }} aria-hidden />
                         <span>{quem ? `${nomes[quem]} pagou` : "os dois pagaram"}</span>
                       </span>
                     </span>

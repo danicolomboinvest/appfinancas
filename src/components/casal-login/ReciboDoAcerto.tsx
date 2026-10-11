@@ -7,7 +7,7 @@ import { useMoney } from "@/components/money/MoneyProvider";
 import { ValorDestaque } from "@/components/ui/ValorDestaque";
 import { marcarAcertoAction } from "@/app/(app)/divisao/casal-actions";
 import { direcao } from "@/lib/casal-login/conta-por-conta";
-import { BOTAO_ESCURO, Bolinha } from "./visual";
+import { BOTAO_ESCURO, Bolinha, corDaPessoa } from "./visual";
 
 const MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
 
@@ -72,7 +72,7 @@ export function ReciboDoAcerto({ d }: { d: DadosDoRecibo }) {
             <Bolinha nome={d.nomes[de]} cor={cor(de)} size={48} />
             <span className="flex flex-1 items-center justify-between px-1 text-ink-faint">
               <span className="h-px flex-1 border-t border-dashed border-border-strong" />
-              <i className="mx-2 size-1.5 rounded-full" style={{ background: cor(de) === "titular" ? "var(--color-accent-strong)" : "#4E7396" }} />
+              <i className="mx-2 size-1.5 rounded-full" style={{ background: corDaPessoa(cor(de)) }} />
               <span className="h-px flex-1 border-t border-dashed border-border-strong" />
               <i className="mx-2 size-1.5 rounded-full bg-ink-muted" />
               <span className="h-px flex-1 border-t border-dashed border-border-strong" />
@@ -112,7 +112,7 @@ export function ReciboDoAcerto({ d }: { d: DadosDoRecibo }) {
                 key={l}
                 rotulo={
                   <span className="flex items-center gap-2">
-                    <i className="size-2 rounded-full" style={{ background: cor(l) === "titular" ? "var(--color-accent-strong)" : "#4E7396" }} aria-hidden />
+                    <i className="size-2 rounded-full" style={{ background: corDaPessoa(cor(l)) }} aria-hidden />
                     {d.nomes[l]} pagou
                   </span>
                 }

@@ -9,7 +9,7 @@ import { ValorDestaque } from "@/components/ui/ValorDestaque";
 import { salvarConfigCasalAction } from "@/app/(app)/divisao/casal-actions";
 import { mostrarRendaAction } from "@/app/(app)/divisao/nos-dois-actions";
 import type { ModoDeDivisao } from "@/lib/casal/acerto";
-import { BOTAO_ESCURO, Bolinha, COR_DO_PAR } from "./visual";
+import { BOTAO_ESCURO, Bolinha, corDaPessoa } from "./visual";
 
 type Letra = "A" | "B";
 
@@ -51,7 +51,7 @@ export function CombinarDivisao({ d }: { d: DadosDaDivisao }) {
 
   const outra: Letra = d.letraTitular === "A" ? "B" : "A";
   const ordem: Letra[] = ["A", "B"];
-  const cor = (l: Letra) => (l === d.letraTitular ? "var(--color-accent-strong)" : COR_DO_PAR);
+  const cor = (l: Letra) => corDaPessoa(l === d.letraTitular ? "titular" : "par");
   const comValores = d.rendas !== null;
   const total = rendas.A + rendas.B;
   const fRenda = comValores ? (total > 0 ? rendas.A / total : 0.5) : d.fracaoRenda;

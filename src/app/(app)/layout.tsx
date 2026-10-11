@@ -29,6 +29,7 @@ import { lerPreferenciasDeCategoria, type PreferenciasDeCategoria } from "@/lib/
 import { lerConfigCasal } from "@/lib/casal/acerto";
 import { perfilDoPar, perfilDoParNaLista, situacaoDoParAgora } from "@/lib/repositories/casal-login.repo";
 import { prisma } from "@/lib/db/prisma";
+import { coresDoCasalCss } from "@/lib/casal-login/cores";
 import { TelaDoParPausado } from "@/components/casal-login/TelaDoParPausado";
 
 
@@ -155,6 +156,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <ThemeSync theme={preferenciaDeModo(theme) === "auto" ? "auto" : modo === "claro" ? "light" : "dark"} />
       <MoneyProvider currency={currency} ocultos={await valoresOcultos()}>
       {cssDoTema && <style dangerouslySetInnerHTML={{ __html: cssDoTema }} />}
+      {/* As cores das duas pessoas do Nós dois, por tema, com a letra em AA (login do par). */}
+      {cssDoTema && <style dangerouslySetInnerHTML={{ __html: coresDoCasalCss(profileTheme) }} />}
       {/* O favicon na variante Aurora do tema (o React leva o <link> para o <head>). */}
       {cssDoTema && <link rel="icon" type="image/svg+xml" href={`${temaDoPerfil(profileTheme).logo}/favicon.svg`} />}
       <AppShell

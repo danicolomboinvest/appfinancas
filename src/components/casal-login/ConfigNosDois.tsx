@@ -162,7 +162,7 @@ export function ConfigDaTitular({
                   router.refresh();
                 })
               }
-              className="flex min-h-14 w-full items-center justify-center rounded-full bg-danger px-5 text-[17px] font-semibold text-white disabled:opacity-50"
+              className="flex min-h-14 w-full items-center justify-center rounded-full bg-danger px-5 text-[17px] font-semibold text-canvas disabled:opacity-50"
             >
               {ocupado ? "Removendo..." : `Remover ${par.nome}`}
             </button>
@@ -220,7 +220,7 @@ export function ConfigDoPar({ nomeTitular, entrouEmIso }: { nomeTitular: string;
                 await logoutAction();
               })
             }
-            className="flex min-h-14 w-full items-center justify-center rounded-full bg-danger px-5 text-[17px] font-semibold text-white disabled:opacity-50"
+            className="flex min-h-14 w-full items-center justify-center rounded-full bg-danger px-5 text-[17px] font-semibold text-canvas disabled:opacity-50"
           >
             {ocupado ? "Saindo..." : "Sair do Nós dois"}
           </button>

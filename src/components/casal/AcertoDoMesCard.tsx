@@ -70,7 +70,7 @@ export function AcertoDoMesCard({ acerto, comLinkParaDivisao = false }: { acerto
       <div className="flex flex-col gap-1.5">
         <div className="flex h-2.5 overflow-hidden rounded-full bg-surface-2" aria-hidden>
           <span className="h-full bg-accent-strong" style={{ width: `${pctA}%` }} />
-          <span className="h-full bg-[#3F6E8C]" style={{ width: `${100 - pctA}%` }} />
+          <span className="h-full" style={{ width: `${100 - pctA}%`, background: "var(--casal-par, #4a6382)" }} />
         </div>
         <p className="text-xs text-ink-faint">
           {config.divisao === "meio" || acerto.caiuParaMeio ? "Meio a meio" : `Pela renda: ${pctA}% e ${100 - pctA}%`}

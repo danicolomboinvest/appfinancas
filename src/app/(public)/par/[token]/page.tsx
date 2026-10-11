@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth/auth.config";
 import { profileThemeCss } from "@/lib/profiles/themes";
+import { coresDoCasalCss } from "@/lib/casal-login/cores";
 import { limparToken, tokenTemFormato } from "@/lib/casal-login/token";
 import { chaveDaOrigem } from "@/lib/casal-login/limite";
 import { CASA_DO_PAR } from "@/lib/casal-login/rotas-do-par";
@@ -53,7 +54,7 @@ export default async function ConviteDoParPage({ params }: { params: Promise<{ t
     <>
       <script dangerouslySetInnerHTML={{ __html: MODO_DO_APARELHO }} />
       {/* O convite abre no tema do Nós dois de quem convidou. */}
-      <style dangerouslySetInnerHTML={{ __html: profileThemeCss(dados.tema) }} />
+      <style dangerouslySetInnerHTML={{ __html: profileThemeCss(dados.tema) + coresDoCasalCss(dados.tema) }} />
       <TelaDoConvite
         tela={tela}
         token={token}

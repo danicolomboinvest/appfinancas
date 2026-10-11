@@ -62,7 +62,9 @@ export function CasalFields({
             <button key={p} type="button" aria-pressed={pessoa === p} onClick={() => escolher(p)} className={opcao(pessoa === p)}>
               <span
                 aria-hidden
-                className={`flex size-6 items-center justify-center rounded-full text-xs font-bold text-white ${p === "A" ? "bg-accent-strong" : "bg-[#3F6E8C]"}`}
+                className="flex size-6 items-center justify-center rounded-full text-xs font-bold"
+                // As cores das duas pessoas do tema (lib/casal-login/cores.ts), com a letra em AA.
+                style={{ background: p === "A" ? "var(--casal-titular, var(--color-accent-strong))" : "var(--casal-par, #4a6382)", color: p === "A" ? "var(--casal-titular-tinta, #fff)" : "var(--casal-par-tinta, #fff)" }}
               >
                 {nomesDoCasal[p].charAt(0).toUpperCase()}
               </span>
