@@ -13,6 +13,10 @@ import { salvarEstrategiaAction } from "./actions";
 import { NOME_DA_LINHA, NOME_DO_PERFIL, ORDEM_DAS_LINHAS } from "./nomes";
 import { ProximosAportes, type DadosDosProximosAportes } from "./ProximosAportes";
 
+/** O trilho vazio e a meta, na cor da classe (nada de cinza neutro nos gráficos). */
+export const trilho = (c: StrategyAssetClass) => `color-mix(in srgb, ${STRATEGY_ASSET_CLASS_COLOR[c]} 12%, var(--color-surface))`;
+export const metaClara = (c: StrategyAssetClass) => `color-mix(in srgb, ${STRATEGY_ASSET_CLASS_COLOR[c]} 40%, var(--color-surface))`;
+
 type Linha = { classe: StrategyAssetClass; hoje: number; meta: number };
 
 /**
@@ -47,7 +51,7 @@ export function EstrategiaResumo({ perfil, linhas, proximos }: { perfil: string 
             <i className="h-1 w-4 rounded-full bg-ink" /> hoje
           </span>
           <span className="flex items-center gap-1.5">
-            <i className="h-1 w-4 rounded-full bg-ink-faint opacity-50" /> meta
+            <i className="h-1.5 w-4 rounded-full border border-ink" /> meta, mais clara
           </span>
         </div>
         <ul className="mt-3 flex flex-col gap-3.5">
@@ -59,11 +63,13 @@ export function EstrategiaResumo({ perfil, linhas, proximos }: { perfil: string 
                   {Math.round(l.hoje * 100)}% hoje · meta {Math.round(l.meta * 100)}%
                 </span>
               </div>
-              <span className="h-1.5 overflow-hidden rounded-full bg-surface-2">
+              {/* Sem cinza nos gráficos (regra da Dani): o trilho é um tom suave da cor da classe e a
+                  meta é a mesma cor, mais clara. */}
+              <span className="h-1.5 overflow-hidden rounded-full" style={{ background: trilho(l.classe) }}>
                 <span className="block h-full rounded-full transition-[width] duration-700" style={{ width: `${Math.min(100, l.hoje * 200)}%`, background: STRATEGY_ASSET_CLASS_COLOR[l.classe] }} />
               </span>
-              <span className="h-1.5 overflow-hidden rounded-full bg-surface-2">
-                <span className="block h-full rounded-full bg-ink-faint opacity-50" style={{ width: `${Math.min(100, l.meta * 200)}%` }} />
+              <span className="h-1.5 overflow-hidden rounded-full" style={{ background: trilho(l.classe) }}>
+                <span className="block h-full rounded-full" style={{ width: `${Math.min(100, l.meta * 200)}%`, background: metaClara(l.classe) }} />
               </span>
             </li>
           ))}

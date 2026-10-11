@@ -10,6 +10,7 @@ import { STRATEGY_ASSET_CLASS_COLOR } from "@/lib/portfolio/strategy";
 import { dividirProximoAporte } from "@/lib/portfolio/proximos-aportes";
 import type { ClassGap } from "@/lib/portfolio/contribution-plan";
 import { NOME_DA_LINHA } from "./nomes";
+import { metaClara, trilho } from "./EstrategiaResumo";
 
 export type DadosDosProximosAportes = {
   valor: number | null;
@@ -80,8 +81,8 @@ export function ProximosAportes({ dados }: { dados: DadosDosProximosAportes }) {
                 </span>
                 <span className="shrink-0 text-[15px] font-medium tabular-nums text-ink">{money(c.valor, { round: true })}</span>
               </span>
-              <span className="relative h-1.5 rounded-full bg-surface-2" aria-label={`Hoje ${Math.round(c.hoje * 100)}%, depois ${Math.round(c.depois * 100)}%, alvo ${Math.round(c.alvo * 100)}%`} role="img">
-                <span className="absolute inset-y-0 left-0 rounded-full" style={{ width: escala(Math.max(c.hoje, c.depois)), background: STRATEGY_ASSET_CLASS_COLOR[c.classe], opacity: 0.35 }} />
+              <span className="relative h-1.5 rounded-full" style={{ background: trilho(c.classe) }} aria-label={`Hoje ${Math.round(c.hoje * 100)}%, depois ${Math.round(c.depois * 100)}%, alvo ${Math.round(c.alvo * 100)}%`} role="img">
+                <span className="absolute inset-y-0 left-0 rounded-full" style={{ width: escala(Math.max(c.hoje, c.depois)), background: metaClara(c.classe) }} />
                 <span className="absolute inset-y-0 left-0 rounded-full" style={{ width: escala(c.hoje), background: STRATEGY_ASSET_CLASS_COLOR[c.classe] }} />
                 <span className="absolute -top-1 h-3.5 w-0.5 rounded-full bg-ink" style={{ left: escala(c.alvo) }} />
               </span>
