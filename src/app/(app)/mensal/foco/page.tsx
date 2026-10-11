@@ -407,10 +407,14 @@ export default async function FocoPage() {
             {mesAteAgora}
             <GraficoSeisMeses meses12={meses12} />
             {d.fechamento.estado === "fechado" && (
-              <Link href="/mensal/foco/fechamento" className="flex min-h-11 items-center justify-between gap-3 px-1 text-sm text-ink-muted hover:text-ink">
-                {textosFechamento.linha}
-                <ChevronRight size={16} className="shrink-0" aria-hidden />
-              </Link>
+              // "Setembro fechado. Ver resumo" (rodada 42): a linha discreta no lugar do cartão.
+              <p className="flex min-h-11 items-center gap-2 px-1 text-sm text-ink-muted">
+                <CalendarCheck size={16} className="shrink-0" aria-hidden />
+                <span className="min-w-0 flex-1">{textosFechamento.titulo}.</span>
+                <Link href="/mensal/foco/fechamento" className="shrink-0 text-ink underline underline-offset-2">
+                  Ver resumo
+                </Link>
+              </p>
             )}
             {/* "Para hoje" (07/10/2026): o alerta e a próxima ação num bloco só, com um título em
                 letra normal. Eram dois rótulos em caixa alta, "Atenção hoje" e "Próxima ação". */}

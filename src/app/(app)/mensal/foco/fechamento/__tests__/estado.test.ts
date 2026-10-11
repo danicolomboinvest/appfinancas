@@ -1,24 +1,32 @@
 import { describe, expect, it } from "vitest";
-import { estadoDoFechamento, textosDoFechamento } from "../estado";
+import { estadoDoFechamento, proximoEstado, textosDoFechamento } from "../estado";
 
-const d = (tipo: string, dia: number) => ({ tipo, createdAt: new Date(Date.UTC(2026, 9, dia, 15)) });
+const em = (dia: number) => new Date(Date.UTC(2026, 9, dia, 15));
 
-describe("estados do fechamento do mês (rodada 42)", () => {
-  it("não fechado, fechado, reaberto e fechado de novo", () => {
-    expect(estadoDoFechamento([]).estado).toBe("nao_fechado");
-    expect(estadoDoFechamento([d("fechamento", 8)])).toEqual({ estado: "fechado", em: new Date(Date.UTC(2026, 9, 8, 15)) });
-    expect(estadoDoFechamento([d("fechamento", 8), d("fechamento_reaberto", 9)]).estado).toBe("reaberto");
-    expect(estadoDoFechamento([d("fechamento_reaberto", 9), d("fechamento", 10)]).estado).toBe("fechado");
-    expect(estadoDoFechamento([d("ritual", 9)]).estado).toBe("nao_fechado");
+describe("estados do fechamento do mês (seção 3.12, tabela FechamentoDoMes)", () => {
+  it("sem linha é não fechado; a linha diz fechado ou reaberto com a data certa", () => {
+    expect(estadoDoFechamento(null)).toEqual({ estado: "nao_fechado", em: null });
+    expect(estadoDoFechamento({ estado: "fechado", fechadoEm: em(7), reabertoEm: null })).toEqual({ estado: "fechado", em: em(7) });
+    expect(estadoDoFechamento({ estado: "reaberto", fechadoEm: em(7), reabertoEm: em(9) })).toEqual({ estado: "reaberto", em: em(9) });
+    expect(estadoDoFechamento({ estado: "qualquer", fechadoEm: null, reabertoEm: null }).estado).toBe("nao_fechado");
+  });
+
+  it("não fechado → fechado → reaberto → fechado; nada de reabrir o que nunca fechou", () => {
+    expect(proximoEstado("nao_fechado", "fechar")).toBe("fechado");
+    expect(proximoEstado("fechado", "reabrir")).toBe("reaberto");
+    expect(proximoEstado("reaberto", "fechar")).toBe("fechado");
+    expect(proximoEstado("nao_fechado", "reabrir")).toBeNull();
+    expect(proximoEstado("reaberto", "reabrir")).toBeNull();
+    expect(proximoEstado("fechado", "fechar")).toBeNull();
   });
 
   it("'aberto' só aparece no reaberto; o fluxo de fechar nunca diz aberto", () => {
     for (const estado of ["nao_fechado", "fechado"] as const) {
-      const t = textosDoFechamento(estado, 9, new Date(Date.UTC(2026, 9, 8, 15)));
+      const t = textosDoFechamento(estado, 9, em(8));
       expect(Object.values(t).join(" ")).not.toMatch(/aberto/i);
     }
     expect(textosDoFechamento("reaberto", 9, null).titulo).toBe("Setembro aberto");
-    expect(textosDoFechamento("fechado", 9, new Date(Date.UTC(2026, 9, 8, 15)))).toMatchObject({ titulo: "Setembro fechado", linha: "Setembro fechado. Ver resumo", detalhe: "Fechado em 08/10.", botao: "Reabrir setembro" });
+    expect(textosDoFechamento("fechado", 9, em(7))).toMatchObject({ titulo: "Setembro fechado", linha: "Setembro fechado. Ver resumo", detalhe: "Fechado em 7 de outubro.", botao: "Reabrir setembro" });
     expect(textosDoFechamento("nao_fechado", 9, null)).toMatchObject({ titulo: "Fechar setembro", botao: "Começar" });
   });
 });

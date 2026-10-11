@@ -24,6 +24,7 @@ import { PARENT_CATEGORIES } from "@/lib/categories";
 import type { ParentCategory } from "@prisma/client";
 import { chaveDaSemana, type Ritmo } from "./ritmo";
 import { ehPrimeiroFechamento } from "@/lib/repositories/conquista.repo";
+import { mudarFechamento } from "@/lib/repositories/fechamento.repo";
 
 /** Semanal ou mensal. Vale pra conta toda (é o jeito da PESSOA, não do perfil). */
 export async function escolherRitmoAction(ritmo: Ritmo) {
@@ -216,6 +217,8 @@ export async function concluirRitualAction(tipo: "ritual" | "fechamento", chave:
   const primeiro = tipo === "fechamento" && (await ehPrimeiroFechamento(ctx, k));
   // Fechar de novo um mês reaberto apaga a marca de reaberto: os dois estados nunca convivem.
   await registrarDecisaoUnica(ctx, { tipo, chave: k, descricao: texto }, tipo === "fechamento" ? ["fechamento", "fechamento_reaberto"] : [tipo]);
+  // O estado do mês mora na tabela própria (seção 3.12); a Decisao fica como histórico (conquistas).
+  if (tipo === "fechamento") await mudarFechamento(ctx, Number(k.slice(0, 4)), Number(k.slice(5, 7)), "fechar");
   revalidatePath("/mensal/foco");
   return { primeiro };
 }
@@ -225,6 +228,8 @@ export async function reabrirMesAction(chave: string): Promise<{ ok: boolean }> 
   const k = z.string().regex(/^\d{4}-\d{2}$/).safeParse(chave);
   if (!k.success) return { ok: false };
   const ctx = await getRequiredSession();
+  const ok = await mudarFechamento(ctx, Number(k.data.slice(0, 4)), Number(k.data.slice(5, 7)), "reabrir");
+  if (!ok) return { ok: false };
   await registrarDecisaoUnica(ctx, { tipo: "fechamento_reaberto", chave: k.data }, ["fechamento", "fechamento_reaberto"]);
   revalidatePath("/mensal/foco", "layout");
   return { ok: true };

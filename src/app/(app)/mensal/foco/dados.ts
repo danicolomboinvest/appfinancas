@@ -14,8 +14,8 @@ import { contarGastosReaisDoMes, getUltimoGastoAte, listEntriesForMonths, somarG
 import { getOwnUser } from "@/lib/repositories/user.repo";
 import { prisma } from "@/lib/db/prisma";
 import { carregarRevisaoAntigos } from "./revisar/dados";
-import { estadoDoFechamento } from "./fechamento/estado";
-import { existeDecisao, marcasDoFechamento, listarAvisosDispensados, listarCancelamentosPraConfirmar, listarCompraAmanhaPendentes, listarDecisoesRaioX, listarTetosDoMes } from "@/lib/repositories/decisao.repo";
+import { lerFechamento } from "@/lib/repositories/fechamento.repo";
+import { existeDecisao, listarAvisosDispensados, listarCancelamentosPraConfirmar, listarCompraAmanhaPendentes, listarDecisoesRaioX, listarTetosDoMes } from "@/lib/repositories/decisao.repo";
 import { computeGoalPlan } from "@/lib/planning/goal";
 import { ehEmpresa } from "@/lib/profiles/empresa";
 import { gastoDepoisDoCombinado, montarFoco } from "@/lib/decisoes/foco";
@@ -70,7 +70,7 @@ export async function carregarFoco(ctx: AuthContext) {
   const mesAnterior = { year: anterior.getFullYear(), month: anterior.getMonth() + 1, label: MESES[anterior.getMonth()] };
   const semana = chaveDaSemana(now);
 
-  const [user, budgets, spentByParent, spentByCustom, customCategories, summary, plan, goals, fund, lastExpense, tetos, pendentes, ritualFeito, marcasFechamento, raiox, gastosReais, preCriados, cancelamentos, viradaFeita, lancamentosAnoPassado, paraRevisar, dispensados, gastosDoMes, orcamentoMesAnterior] =
+  const [user, budgets, spentByParent, spentByCustom, customCategories, summary, plan, goals, fund, lastExpense, tetos, pendentes, ritualFeito, fechamentoDoMesAnterior, raiox, gastosReais, preCriados, cancelamentos, viradaFeita, lancamentosAnoPassado, paraRevisar, dispensados, gastosDoMes, orcamentoMesAnterior] =
     await Promise.all([
       getOwnUser(ctx),
       listBudgets(ctx, year, month),
@@ -85,7 +85,7 @@ export async function carregarFoco(ctx: AuthContext) {
       listarTetosDoMes(ctx, chaveDoMes(year, month)),
       listarCompraAmanhaPendentes(ctx),
       existeDecisao(ctx, "ritual", semana),
-      marcasDoFechamento(ctx, chaveDoMes(mesAnterior.year, mesAnterior.month)),
+      lerFechamento(ctx, mesAnterior.year, mesAnterior.month),
       // O Raio-X é da pessoa: a empresa nem busca os 5 meses de extrato.
       ehEmpresa(ctx.profileKind) ? { itens: [], decididos: new Set<string>() } : carregarRaioX(ctx, year, month),
       contarGastosReaisDoMes(ctx, year, month),
@@ -112,7 +112,7 @@ export async function carregarFoco(ctx: AuthContext) {
         take: 1,
       }),
     ]);
-  const fechamento = estadoDoFechamento(marcasFechamento);
+  const fechamento = fechamentoDoMesAnterior;
   const ritmo = lerRitmo(user.ritmoAcompanhamento);
 
   // Os combinados contam só o que aconteceu DEPOIS deles (ver gastoDepoisDoCombinado): basta o

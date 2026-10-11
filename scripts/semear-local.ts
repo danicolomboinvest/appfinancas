@@ -111,6 +111,16 @@ async function main() {
   const europa = await prisma.goal.create({ data: { ...dono, name: "Viagem Europa 2027", targetAmount: 20000, currentAmount: 1429, monthlyContribution: 1327, targetDate: new Date(Date.UTC(2027, 10, 1)), icon: "VIAGEM", status: "BEHIND", createdAt: new Date(Date.UTC(2026, 3, 1)) } });
   const carro = await prisma.goal.create({ data: { ...dono, name: "Trocar de carro", targetAmount: 30000, currentAmount: 8300, monthlyContribution: 600, targetDate: new Date(Date.UTC(2029, 9, 1)), icon: "CARRO", status: "ON_TRACK", createdAt: new Date(Date.UTC(2025, 9, 1)) } });
 
+  // O aporte de setembro foi para duas metas (o "Fechar setembro" mostra quem ficou em dia):
+  // Reserva R$ 600 e Carro R$ 300, os mesmos R$ 900 guardados no mês.
+  await prisma.monthlyEntry.deleteMany({ where: { ...dono, year: 2026, month: 9, category: "INVESTMENT_CONTRIBUTION" } });
+  await prisma.monthlyEntry.createMany({
+    data: [
+      { ...dono, year: 2026, month: 9, category: "INVESTMENT_CONTRIBUTION", subcategory: "Aporte", description: "Aporte Reserva", amount: 600, goalId: reserva.id, externalId: "local:set-reserva", entryDate: new Date(Date.UTC(2026, 8, 6)) },
+      { ...dono, year: 2026, month: 9, category: "INVESTMENT_CONTRIBUTION", subcategory: "Aporte", description: "Aporte Carro", amount: 300, goalId: carro.id, externalId: "local:set-carro", entryDate: new Date(Date.UTC(2026, 8, 6)) },
+    ],
+  });
+
   const ativos: Prisma.AssetCreateManyInput[] = [
     { ...dono, name: "Tesouro Selic 2029", assetClass: "TESOURO_DIRETO", fixedIncomeIndex: "POS_FIXADO", objective: "RESERVA_EMERGENCIA", goalId: reserva.id, currentValue: 4200, investedValue: 4100 },
     { ...dono, name: "Tesouro IPCA+ 2035", assetClass: "TESOURO_DIRETO", fixedIncomeIndex: "IPCA", objective: "LIBERDADE_FINANCEIRA", currentValue: 6180, investedValue: 6000, taxaCompra: 0.075 },

@@ -96,14 +96,6 @@ export async function lerDecisao(ctx: AuthContext, tipo: TipoDecisao, chave: str
   return d ? (d.descricao ?? "") : null;
 }
 
-/** As marcas de fechamento de um mês ("fechamento" e "fechamento_reaberto"), para o estado dele. */
-export async function marcasDoFechamento(ctx: AuthContext, chave: string): Promise<{ tipo: string; createdAt: Date }[]> {
-  return prisma.decisao.findMany({
-    where: { userId: ctx.userId, profileId: ctx.profileId, chave, tipo: { in: ["fechamento", "fechamento_reaberto"] } },
-    select: { tipo: true, createdAt: true },
-  });
-}
-
 export async function existeDecisao(ctx: AuthContext, tipo: TipoDecisao, chave: string): Promise<boolean> {
   const n = await prisma.decisao.count({ where: { userId: ctx.userId, profileId: ctx.profileId, tipo, chave } });
   return n > 0;
