@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useTecladoNaFolha } from "@/components/ui/useTecladoNaFolha";
+import { useAppNativo } from "@/components/ui/useAppNativo";
 import { useRouter } from "next/navigation";
 import { Calendar, Check, ChevronDown, ChevronLeft, ChevronRight, Minus, Plus, X } from "lucide-react";
 import type { GoalIcon } from "@prisma/client";
@@ -116,6 +117,8 @@ function FolhaDaMeta({ hoje, meta, onFechar }: { hoje: { ano: number; mes: numbe
   // A folha sobe junto com o teclado do iPhone (o botão Continuar e o campo ficam à vista).
   const painel = useRef<HTMLDivElement>(null);
   const { teclado, alturaVisivel } = useTecladoNaFolha(painel, true);
+  // No app da loja, o "Usar uma minha" (campo de imagem) derruba o app no iPhone: só no navegador.
+  const nativo = useAppNativo();
   const muda = (p: Partial<Estado>) => setE((x) => ({ ...x, ...p }));
   const tipo = e.tipo ?? tipoDoNome(e.nome);
   const prazoData = new Date(e.prazo.ano, e.prazo.mes, 1, 12);
@@ -348,7 +351,9 @@ function FolhaDaMeta({ hoje, meta, onFechar }: { hoje: { ano: number; mes: numbe
     conteudo = (
       <>
         <h3 className="text-[28px] font-semibold leading-tight tracking-[-0.01em] text-ink">Escolha uma foto</h3>
+        {nativo && <p className="text-[13px] text-ink-muted">Para usar uma foto sua, abra o SPI pelo navegador.</p>}
         <div className="grid grid-cols-3 gap-2">
+          {!nativo && (
           <label className={`relative flex aspect-square cursor-pointer items-center justify-center overflow-hidden rounded-2xl border-[1.5px] bg-surface text-accent-strong ${e.minha ? "border-solid border-accent" : "border-dashed border-border-strong"}`}>
             {e.minha ? (
               // eslint-disable-next-line @next/next/no-img-element -- a foto dela
@@ -366,6 +371,7 @@ function FolhaDaMeta({ hoje, meta, onFechar }: { hoje: { ano: number; mes: numbe
             )}
             <input type="file" accept="image/*" className="sr-only" onChange={(ev) => escolherMinha(ev.target.files?.[0])} />
           </label>
+          )}
           {grade.map((f) => {
             const on = !e.minha && e.foto === f;
             return (

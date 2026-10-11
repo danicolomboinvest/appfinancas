@@ -6,6 +6,8 @@ import { Pencil } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/toast-context";
 import { AvatarDaConta } from "@/components/shell/PerfilSheet";
+import { useAppNativo } from "@/components/ui/useAppNativo";
+import { FOTO_SO_NO_NAVEGADOR } from "@/lib/apple/app-nativo";
 import { removerFotoAction, salvarFotoAction } from "./conta-actions";
 
 const LADO = 512;
@@ -54,6 +56,18 @@ export function FotoDoPerfil({ nome, foto, comBotao = false, tamanho = 76 }: { n
     setPos({ x: 0, y: 0 });
   };
   const limite = 50 * ((zoom - 1) / zoom) + 10;
+  const nativo = useAppNativo();
+
+  // No app da loja, sem as permissões de câmera e fotos, escolher imagem derruba o app (iOS):
+  // só a foto e o aviso, até a versão nova do app chegar.
+  if (nativo) {
+    return (
+      <div className="flex flex-col items-center gap-2">
+        <AvatarDaConta nome={nome} foto={foto} size={tamanho} />
+        {comBotao && <p className="max-w-[16rem] text-center text-[13px] text-ink-muted">{FOTO_SO_NO_NAVEGADOR}</p>}
+      </div>
+    );
+  }
 
   return (
     <>
