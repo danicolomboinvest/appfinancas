@@ -60,7 +60,6 @@ import {
   centavosParaReais,
   EVENTOS_DO_COMECO,
   faseDoPasso,
-  notaDoBanco,
   passoAnterior,
   teclarValor,
   type BancoDoComeco,
@@ -69,6 +68,7 @@ import {
   type PassoDoComeco,
   type Quer,
 } from "@/lib/onboarding/comeco";
+import { CAMINHO_GENERICO, caminhoDaFatura, caminhoDoExtrato, leMelhor } from "@/lib/onboarding/bancos";
 import { primeiroGastoAction, pularComecoAction, salvarComecoAction, terminarComExtratoAction } from "./actions";
 import { BotaoPrincipal, Bolinha, LinkDiscreto, Nota, Pe, Pilula, Recado, Selo, Titulo } from "./pecas";
 
@@ -280,6 +280,7 @@ export function Comeco({
         )}
         {!pronto && (passo === "tutorial" || passo === "volta") && (
           <Tutorial
+            key={banco ?? "outro"}
             banco={bancoDoComeco(banco) ?? BANCO_OUTRO}
             volta={passo === "volta"}
             nome={nome}
@@ -757,6 +758,10 @@ function Tutorial({
 }) {
   const [pc, setPc] = useState(false);
   const cor = (banco.marca && marcaDaDescricao(banco.marca)?.cor) || "var(--color-accent)";
+  // O caminho certo de cada banco (lib/onboarding/bancos.ts): o oficial, ou o genérico sem fonte.
+  const fatura = banco.chave === "outro" ? null : caminhoDaFatura(banco.chave);
+  const [qual, setQual] = useState<"extrato" | "fatura">("extrato");
+  const caminho = qual === "fatura" && fatura ? fatura : banco.chave === "outro" ? CAMINHO_GENERICO : caminhoDoExtrato(banco.chave);
   return (
     <>
       {volta && (
@@ -778,8 +783,24 @@ function Tutorial({
           <small className="text-[13px] font-medium text-ink-muted">3 toques, e volta aqui</small>
         </span>
       </div>
+      {fatura && (
+        <div className="grid grid-cols-2 gap-1 rounded-full bg-surface-2 p-1" role="tablist" aria-label="O que baixar">
+          {(["extrato", "fatura"] as const).map((q) => (
+            <button
+              key={q}
+              type="button"
+              role="tab"
+              aria-selected={qual === q}
+              onClick={() => setQual(q)}
+              className={`min-h-10 rounded-full text-sm font-semibold ${qual === q ? "bg-surface text-ink shadow-premium-sm" : "text-ink-muted"}`}
+            >
+              {q === "extrato" ? "Extrato da conta" : "Fatura do cartão"}
+            </button>
+          ))}
+        </div>
+      )}
       <ol className="grid grid-cols-3 gap-2">
-        {banco.passos.map(([t, s], i) => (
+        {caminho.passos.map(([t, s], i) => (
           <li key={t + i} className="flex flex-col items-center gap-1 text-center">
             {/* A telinha: um desenho do app do banco com o toque marcado (nunca um print). */}
             <span className="glass relative flex aspect-[3/4] w-full max-w-[92px] flex-col gap-[7px] overflow-hidden rounded-[14px] pb-2.5" aria-hidden>
@@ -796,7 +817,14 @@ function Tutorial({
           </li>
         ))}
       </ol>
-      <Nota>{notaDoBanco(banco)}</Nota>
+      <div className="flex flex-wrap items-center gap-2">
+        {caminho.formatos && <Selo>Sai em {caminho.formatos}</Selo>}
+        <Selo forte>
+          <Check size={13} aria-hidden />
+          Leio melhor em {leMelhor(banco.chave)}
+        </Selo>
+      </div>
+      <Nota>{caminho.nota ?? "Salve o arquivo no celular e volte aqui."}</Nota>
       <label className="flex min-h-16 cursor-pointer items-center gap-3 rounded-[20px] border-[1.5px] border-dashed border-border-strong bg-surface px-4 py-3.5">
         <FileText size={22} className="shrink-0 text-accent-strong" aria-hidden />
         <span className="flex flex-col">

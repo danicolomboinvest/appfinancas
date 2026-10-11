@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { CAMINHO_GENERICO, caminhoDoExtrato, leMelhor, PASSO_A_PASSO, semFonteOficial } from "../bancos";
 import {
   alternarPasso,
   apelidoLimpo,
@@ -21,7 +22,6 @@ import {
   mesDoTexto,
   montarFunilDoComeco,
   mostrarPrimeirosPassos,
-  notaDoBanco,
   oQueMostrarDepois,
   passoAnterior,
   passoDeVolta,
@@ -180,21 +180,27 @@ describe("Primeiros passos", () => {
 
 describe("bancos", () => {
   it("o selo 'a conferir' não existe em lugar nenhum (decisão de 11/10)", () => {
+    const tudo = JSON.stringify({ BANCOS_DO_COMECO, PASSO_A_PASSO, CAMINHO_GENERICO }).toLowerCase();
+    expect(tudo).not.toContain("conferir");
+  });
+  it("todo banco da tela tem logo e um caminho (oficial ou genérico)", () => {
     for (const b of BANCOS_DO_COMECO) {
-      expect(JSON.stringify(b).toLowerCase()).not.toContain("conferir");
-      expect(notaDoBanco(b).toLowerCase()).not.toContain("conferir");
+      expect(caminhoDoExtrato(b.chave).passos, b.chave).toHaveLength(3);
+      expect(leMelhor(b.chave), b.chave).toMatch(/^(PDF|OFX|CSV|Excel)$/);
     }
-  });
-  it("banco não conferido usa o caminho e a nota genéricos", () => {
-    const c6 = bancoDoComeco("c6")!;
-    expect(c6.conferido).toBe(false);
-    expect(notaDoBanco(c6)).toBe("Salve o arquivo no celular e volte aqui.");
-    expect(notaDoBanco(bancoDoComeco("caixa")!)).toContain("site da Caixa");
-  });
-  it("os oito conferidos vêm primeiro", () => {
-    expect(BANCOS_DO_COMECO.slice(0, 8).every((b) => b.conferido)).toBe(true);
     expect(bancoDoComeco("outro")?.nome).toBe("seu banco");
     expect(bancoDoComeco("nada")).toBeNull();
+  });
+  it("caminho oficial sempre com fonte no domínio do banco e data; sem fonte, o genérico", () => {
+    for (const [k, v] of Object.entries(PASSO_A_PASSO)) {
+      if (v.extrato || v.fatura) expect(v.fontes.length, k).toBeGreaterThan(0);
+      for (const f of v.fontes) {
+        expect(f.url, k).toMatch(/^https:\/\//);
+        expect(f.lidaEm, k).toMatch(/^\d{2}\/\d{2}\/\d{4}$/);
+      }
+    }
+    expect(caminhoDoExtrato("eqi")).toBe(CAMINHO_GENERICO);
+    expect(semFonteOficial(["nubank", "eqi"])).toEqual(["eqi"]);
   });
 });
 

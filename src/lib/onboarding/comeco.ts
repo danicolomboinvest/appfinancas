@@ -357,59 +357,38 @@ export type BancoDoComeco = {
   artigo: "do" | "da";
   /** O nome que o catálogo de marcas reconhece (logo real). */
   marca: string;
-  /** Os três toques, desenhados como telinhas. */
-  passos: [string, string][];
-  /** Dica que só vale para bancos com caminho conferido. */
-  nota: string;
-  /**
-   * Caminho conferido nas páginas de ajuda do banco (set/2026, components/import/bancos-extrato.ts).
-   * Os outros mostram o caminho genérico e a nota genérica, SEM o selo "a conferir" (decisão da
-   * dona, 11/10/2026): o selo assustava e não ajudava.
-   */
-  conferido: boolean;
 };
 
-const GENERICO: [string, string][] = [
-  ["Extrato", "Abra o extrato"],
-  ["Período", "Escolha o mês"],
-  ["Exportar", "Ou compartilhar"],
-];
-
-const naoConferido = (chave: string, nome: string, artigo: "do" | "da", marca = nome): BancoDoComeco => ({ chave, nome, artigo, marca, passos: GENERICO, nota: "", conferido: false });
-
+/**
+ * Os bancos de "Qual é o seu banco?", na ordem da tela. O passo a passo de cada um (extrato,
+ * fatura, formato e a fonte oficial) mora em lib/onboarding/bancos.ts. Sem selo "a conferir"
+ * em nenhum (decisão da dona, 11/10/2026).
+ */
 export const BANCOS_DO_COMECO: BancoDoComeco[] = [
-  { chave: "nubank", nome: "Nubank", artigo: "do", marca: "Nubank", conferido: true, nota: "Pode ser PDF, OFX ou CSV.", passos: [["Conta", "Na tela inicial"], ["Pedir extrato", "Escolha o período"], ["Exportar extrato", "Chega no seu e-mail"]] },
-  { chave: "itau", nome: "Itaú", artigo: "do", marca: "Itau", conferido: true, nota: "Não achou? No computador: Extrato por período, Salvar em PDF.", passos: [["Extrato", "Abra o extrato"], ["Compartilhar", "Ou salvar"], ["PDF", "Salve no celular"]] },
-  { chave: "inter", nome: "Inter", artigo: "do", marca: "Banco Inter", conferido: true, nota: "", passos: [["Extrato", "Abra o extrato"], ["Período", "Escolha o mês"], ["Exportar", "PDF, OFX ou CSV"]] },
-  { chave: "bb", nome: "Banco do Brasil", artigo: "do", marca: "Banco do Brasil", conferido: true, nota: "", passos: [["Extrato", "Da conta"], ["Mês", "Escolha o mês"], ["Três pontinhos", "Salvar ou compartilhar"]] },
-  { chave: "caixa", nome: "Caixa", artigo: "da", marca: "Caixa Economica", conferido: true, nota: "Se aparecer só imagem, baixe pelo site da Caixa.", passos: [["Minha conta", "Extrato por período"], ["Continuar", "Escolha as datas"], ["Compartilhar", "No alto, salve o PDF"]] },
-  { chave: "bradesco", nome: "Bradesco", artigo: "do", marca: "Bradesco", conferido: true, nota: "", passos: [["Ver extrato", "Ao lado do saldo"], ["Período", "Escolha o mês"], ["Compartilhar", "Salve o PDF"]] },
-  { chave: "santander", nome: "Santander", artigo: "do", marca: "Santander", conferido: true, nota: "", passos: [["Extrato", "Da conta"], ["Período", "Escolha o mês"], ["PDF", "Baixar ou compartilhar"]] },
-  { chave: "mp", nome: "Mercado Pago", artigo: "do", marca: "Mercado Pago", conferido: true, nota: "O PDF do Mercado Pago eu ainda não leio bem.", passos: [["Ir ao extrato", "Na tela inicial"], ["Transações", "Três pontinhos"], ["Gerar extrato", "Excel ou CSV"]] },
-  naoConferido("c6", "C6 Bank", "do"),
-  naoConferido("picpay", "PicPay", "do"),
-  naoConferido("pagbank", "PagBank", "do"),
-  naoConferido("sicredi", "Sicredi", "do"),
-  naoConferido("sicoob", "Sicoob", "do"),
-  naoConferido("original", "Banco Original", "do"),
-  naoConferido("eqi", "EQI Investimentos", "da"),
-  naoConferido("agora", "Ágora", "da", "Agora Investimentos"),
-  naoConferido("wise", "Wise", "do"),
-  naoConferido("binance", "Binance", "da"),
-  naoConferido("mercadobitcoin", "Mercado Bitcoin", "do"),
-  naoConferido("xp", "XP", "da", "XP Investimentos"),
-  naoConferido("btg", "BTG Pactual", "do"),
+  { chave: "nubank", nome: "Nubank", artigo: "do", marca: "Nubank" },
+  { chave: "itau", nome: "Itaú", artigo: "do", marca: "Itau" },
+  { chave: "inter", nome: "Inter", artigo: "do", marca: "Banco Inter" },
+  { chave: "bb", nome: "Banco do Brasil", artigo: "do", marca: "Banco do Brasil" },
+  { chave: "caixa", nome: "Caixa", artigo: "da", marca: "Caixa Economica" },
+  { chave: "bradesco", nome: "Bradesco", artigo: "do", marca: "Bradesco" },
+  { chave: "santander", nome: "Santander", artigo: "do", marca: "Santander" },
+  { chave: "mp", nome: "Mercado Pago", artigo: "do", marca: "Mercado Pago" },
+  { chave: "c6", nome: "C6 Bank", artigo: "do", marca: "C6 Bank" },
+  { chave: "picpay", nome: "PicPay", artigo: "do", marca: "PicPay" },
+  { chave: "pagbank", nome: "PagBank", artigo: "do", marca: "PagBank" },
+  { chave: "sicredi", nome: "Sicredi", artigo: "do", marca: "Sicredi" },
+  { chave: "sicoob", nome: "Sicoob", artigo: "do", marca: "Sicoob" },
+  { chave: "original", nome: "Banco Original", artigo: "do", marca: "Banco Original" },
+  { chave: "xp", nome: "XP", artigo: "da", marca: "XP Investimentos" },
+  { chave: "btg", nome: "BTG Pactual", artigo: "do", marca: "BTG Pactual" },
+  { chave: "eqi", nome: "EQI Investimentos", artigo: "da", marca: "EQI Investimentos" },
+  { chave: "agora", nome: "Ágora", artigo: "da", marca: "Agora Investimentos" },
+  { chave: "wise", nome: "Wise", artigo: "do", marca: "Wise" },
+  { chave: "binance", nome: "Binance", artigo: "da", marca: "Binance" },
+  { chave: "mercadobitcoin", nome: "Mercado Bitcoin", artigo: "do", marca: "Mercado Bitcoin" },
 ];
 
-export const BANCO_OUTRO: BancoDoComeco = {
-  chave: "outro",
-  nome: "seu banco",
-  artigo: "do",
-  marca: "",
-  conferido: true,
-  nota: 'Procure "Exportar" ou "Compartilhar". O nome muda de banco para banco.',
-  passos: [["Extrato", "Abra o extrato"], ["Período", "Escolha o mês"], ["Exportar", "Ou compartilhar, em PDF"]],
-};
+export const BANCO_OUTRO: BancoDoComeco = { chave: "outro", nome: "seu banco", artigo: "do", marca: "" };
 
 export function bancoDoComeco(chave: string | null | undefined): BancoDoComeco | null {
   if (!chave) return null;
@@ -417,10 +396,6 @@ export function bancoDoComeco(chave: string | null | undefined): BancoDoComeco |
   return BANCOS_DO_COMECO.find((b) => b.chave === chave) ?? null;
 }
 
-/** A nota embaixo das telinhas: a do banco quando o caminho foi conferido, senão a genérica. */
-export function notaDoBanco(b: BancoDoComeco): string {
-  return b.conferido && b.nota ? b.nota : "Salve o arquivo no celular e volte aqui.";
-}
 
 // ---------------------------------------------------------------------------------------------
 // Primeiros passos
