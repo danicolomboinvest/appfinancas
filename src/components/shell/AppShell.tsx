@@ -23,7 +23,7 @@ import { InstallAppBanner } from "./InstallAppBanner";
 import { ConviteTesteAndroid } from "./ConviteTesteAndroid";
 import { InstallAppSheet } from "./InstallAppSheet";
 import { UsageTracker } from "./UsageTracker";
-import { ADMIN_NAV_SECTION, NAV_SECTIONS, rotuloDoMenu, secoesVisiveis, tituloDaTela } from "./nav-sections";
+import { ADMIN_NAV_SECTION, NAV_SECTIONS, rotuloDoMenu, secoesVisiveis, tituloDaEmpresa, tituloDaTela } from "./nav-sections";
 import { logoutAction } from "@/lib/auth/actions";
 import { desinscreverAvisosDesteAparelho } from "@/lib/push/aparelho";
 import { ToastProvider } from "@/components/ui/toast-context";
@@ -165,7 +165,9 @@ export function AppShell({
   const empresa = ehEmpresa(profileKind);
   const casal = ehCasal(profileKind);
   const secoes = modoPar ? SECOES_DO_PAR : secoesVisiveis(isAdmin ? [...NAV_SECTIONS, ADMIN_NAV_SECTION] : NAV_SECTIONS, { empresa, casal });
-  const titulo = tituloDaTela(pathname, secoes, (s) => rotuloDoMenu(s, empresa));
+  const perfilAtivo = perfis.find((p) => p.isDefault);
+  // Na Empresa, o topo diz o nome do negócio na Visão geral e o nome da ferramenta nas outras telas.
+  const titulo = (empresa && !modoPar && tituloDaEmpresa(pathname, perfilAtivo?.name ?? "Empresa")) || tituloDaTela(pathname, secoes, (s) => rotuloDoMenu(s, empresa));
   const nome = nomeDaConta || userEmail?.split("@")[0] || "Você";
   void greeting;
   void dateLabel;
@@ -189,9 +191,12 @@ export function AppShell({
           isPremium={isPremium}
           userEmail={userEmail}
           onLogout={handleLogout}
-          onOpenRegistrar={() => abrirRegistrar()}
+          // Na Empresa, o Registrar do computador abre o + dela (Vendi, Paguei, Recebi).
+          onOpenRegistrar={() => (empresa ? router.push("/empresa?registrar=1") : abrirRegistrar())}
           openFinance={openFinance}
           secoesFixas={modoPar ? SECOES_DO_PAR : undefined}
+          perfis={perfis}
+          nomeDaConta={nomeDaConta}
         />
 
         <div className="flex min-w-0 flex-1 flex-col">

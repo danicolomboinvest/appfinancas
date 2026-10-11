@@ -12,6 +12,13 @@ import {
   ShieldCheck,
   Scale,
   Store,
+  LayoutGrid,
+  TrendingUp,
+  Users,
+  Tag,
+  Shield,
+  FileText,
+  List,
   type LucideIcon,
 } from "lucide-react";
 import { ROTAS_DA_VISAO_GERAL } from "./flow-tabs";
@@ -199,4 +206,47 @@ export function tituloDaTela(pathname: string, sections: NavSection[], rotulo: (
 export function rotuloDoMenu(section: Pick<NavSection, "basePath" | "label">, empresa = false): string {
   if (empresa && section.basePath === "/carteira") return "Caixa";
   return section.label;
+}
+
+/**
+ * O menu ☰ do perfil Empresa (versão nova, 11/10/2026, protótipo "Ateliê da Ana"): no lugar das
+ * seções de pessoa física, as ferramentas do negócio. `titulo` é o nome no topo da tela; a Visão
+ * geral leva o nome do perfil ("Ateliê da Ana").
+ */
+export type ItemDaEmpresa = { href: string; label: string; icon: LucideIcon; titulo: string; novo?: boolean };
+
+export const MENU_DA_EMPRESA: ItemDaEmpresa[] = [
+  { href: "/empresa", label: "Visão geral", icon: LayoutGrid, titulo: "" },
+  { href: "/empresa/como-vai", label: "Como vai a empresa", icon: TrendingUp, titulo: "Como vai", novo: true },
+  { href: "/empresa/clientes", label: "Clientes", icon: Users, titulo: "Clientes", novo: true },
+  { href: "/empresa/preco", label: "Preço certo", icon: Tag, titulo: "Quanto cobrar", novo: true },
+  { href: "/empresa/limite", label: "Limite do MEI", icon: Shield, titulo: "Limite do MEI", novo: true },
+  { href: "/empresa/impostos", label: "Impostos", icon: FileText, titulo: "Impostos" },
+  { href: "/empresa/relatorios", label: "Relatórios", icon: List, titulo: "Relatórios" },
+  { href: "/empresa/configuracoes", label: "Configurações da empresa", icon: SlidersHorizontal, titulo: "Configurações" },
+];
+
+/** O que a Empresa já tinha e continua a um toque, depois das ferramentas: o caixa, investir no negócio, a conta e a ajuda. */
+export const MAIS_DA_EMPRESA: ItemDaEmpresa[] = [
+  { href: "/carteira", label: "Caixa", icon: Wallet, titulo: "Caixa" },
+  { href: "/investir", label: "Vale a pena investir?", icon: Store, titulo: "Vale a pena investir?" },
+  { href: "/configuracoes", label: "Configurações", icon: SlidersHorizontal, titulo: "Configurações" },
+  { href: "/guia", label: "Como funciona", icon: CircleHelp, titulo: "Como funciona" },
+];
+
+const TITULOS_EXTRAS_DA_EMPRESA: Record<string, string> = { "/empresa/salario": "Seu salário", "/empresa/recebimentos": "Recebimentos" };
+
+/** O item do menu da Empresa que acende nesta tela (o mais específico). */
+export function itemDaEmpresaAtivo(pathname: string): ItemDaEmpresa | null {
+  const todos = [...MENU_DA_EMPRESA, ...MAIS_DA_EMPRESA];
+  const bate = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+  return todos.filter((i) => bate(i.href)).sort((a, b) => b.href.length - a.href.length)[0] ?? null;
+}
+
+/** O título do topo nas telas da Empresa: o nome do negócio na Visão geral; nulo fora da área. */
+export function tituloDaEmpresa(pathname: string, nomeDoPerfil: string): string | null {
+  if (TITULOS_EXTRAS_DA_EMPRESA[pathname]) return TITULOS_EXTRAS_DA_EMPRESA[pathname];
+  const item = itemDaEmpresaAtivo(pathname);
+  if (!item) return null;
+  return item.href === "/empresa" ? nomeDoPerfil : item.titulo;
 }

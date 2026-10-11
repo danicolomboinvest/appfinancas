@@ -1,13 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { ChevronsLeft, ChevronsRight, Lock, LogOut, MessageCircleQuestion, Plus } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { ChevronsLeft, ChevronsRight, Lock, LogOut, MessageCircleQuestion, Plus, Repeat } from "lucide-react";
 import { linkDoSuporte } from "@/lib/support/whatsapp-link";
 import { BrandMark } from "@/components/brand/BrandMark";
-import { ADMIN_NAV_SECTION, NAV_SECTIONS, withNavFlags, sectionMatches, filhosVisiveis, secoesVisiveis, rotuloDoMenu, type NavSection } from "./nav-sections";
+import { ADMIN_NAV_SECTION, NAV_SECTIONS, MAIS_DA_EMPRESA, MENU_DA_EMPRESA, itemDaEmpresaAtivo, withNavFlags, sectionMatches, filhosVisiveis, secoesVisiveis, rotuloDoMenu, type ItemDaEmpresa, type NavSection } from "./nav-sections";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
+import type { PerfilResumo } from "@/components/profiles/perfil-resumo";
+import { trocarPerfilAction } from "@/app/(app)/perfis/actions";
+import { useToast } from "@/components/ui/toast-context";
 
 /** Liga cada seção ao passo do tour de boas-vindas (WelcomeTour destaca por data-tour). */
 const SIDEBAR_TOUR: Record<string, string> = {
@@ -28,7 +31,12 @@ export function Sidebar({
   onOpenRegistrar,
   openFinance,
   secoesFixas,
+  perfis = [],
+  nomeDaConta = null,
 }: {
+  /** Os perfis da conta: na Empresa, o "Ir para Ana, pessoal" do topo do menu. */
+  perfis?: PerfilResumo[];
+  nomeDaConta?: string | null;
   collapsed: boolean;
   onToggleCollapsed: () => void;
   mobileOpen: boolean;
@@ -60,6 +68,12 @@ export function Sidebar({
   // botão voltar/avançar do navegador.
   const [prevActiveBasePath, setPrevActiveBasePath] = useState(activeSection?.basePath ?? null);
   const [expandedBasePath, setExpandedBasePath] = useState<string | null>(activeSection?.basePath ?? null);
+  const router = useRouter();
+  const { showError } = useToast();
+  const [trocando, iniciarTroca] = useTransition();
+  const ativo = perfis.find((p) => p.isDefault) ?? null;
+  const pessoal = perfis.find((p) => p.kind === "PESSOAL") ?? null;
+  const itemAtivo = empresa ? itemDaEmpresaAtivo(pathname) : null;
 
   if ((activeSection?.basePath ?? null) !== prevActiveBasePath) {
     setPrevActiveBasePath(activeSection?.basePath ?? null);
@@ -102,6 +116,53 @@ export function Sidebar({
         </button>
       </div>
 
+      {empresa ? (
+        <nav className="flex-1 overflow-y-auto px-3 py-3" aria-label={ativo?.name ?? "Empresa"}>
+          {/* O topo do menu da Empresa (protótipo aprovado): o negócio e a volta para o Pessoal. */}
+          <div className={`mb-3 flex flex-col gap-2 ${hideLabelDesktopOnly}`}>
+            <div className="flex items-center gap-3 px-2">
+              <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-surface-2 text-[17px] font-medium text-ink shadow-[inset_0_0_0_1px_var(--color-border)]" aria-hidden>
+                {(ativo?.name ?? "E").trim().charAt(0).toUpperCase()}
+              </span>
+              <span className="min-w-0">
+                <b className="block truncate text-[16px] font-medium text-ink">{ativo?.name ?? "Empresa"}</b>
+                <small className="text-xs text-ink-muted">Empresa</small>
+              </span>
+            </div>
+            {pessoal && (
+              <button
+                type="button"
+                disabled={trocando}
+                onClick={() =>
+                  iniciarTroca(async () => {
+                    const r = await trocarPerfilAction(pessoal.id);
+                    if (!r.ok) return showError(r.error);
+                    onCloseMobile();
+                    router.push("/mensal/foco");
+                  })
+                }
+                className="flex min-h-11 items-center gap-2 rounded-2xl bg-surface-2 px-3 text-left text-sm text-ink-muted disabled:opacity-60"
+              >
+                <Repeat size={16} strokeWidth={1.7} aria-hidden />
+                <span className="truncate">
+                  Ir para <b className="font-medium text-ink">{(nomeDaConta ?? "você").split(" ")[0]}, {pessoal.name.toLowerCase()}</b>
+                </span>
+              </button>
+            )}
+          </div>
+          <ul className="flex flex-col gap-0.5">
+            {MENU_DA_EMPRESA.map((item) => (
+              <ItemDoMenuDaEmpresa key={item.href} item={item} on={itemAtivo?.href === item.href} collapsed={collapsedDesktopOnly} esconder={hideLabelDesktopOnly} onClick={onCloseMobile} />
+            ))}
+          </ul>
+          <p className={`mb-1 mt-4 px-3.5 text-xs text-ink-faint ${hideLabelDesktopOnly}`}>Mais</p>
+          <ul className="flex flex-col gap-0.5">
+            {MAIS_DA_EMPRESA.map((item) => (
+              <ItemDoMenuDaEmpresa key={item.href} item={item} on={itemAtivo?.href === item.href} collapsed={collapsedDesktopOnly} esconder={hideLabelDesktopOnly} onClick={onCloseMobile} />
+            ))}
+          </ul>
+        </nav>
+      ) : (
       <nav className="flex-1 overflow-y-auto px-3 py-3">
         <ul className="flex flex-col gap-0.5">
           {sections.map((section) => {
@@ -168,6 +229,7 @@ export function Sidebar({
           })}
         </ul>
       </nav>
+      )}
 
       {/* No celular, o fim da gaveta: falar com a gente (a conta e o Sair moram na foto). */}
       <div className="px-3 pb-[calc(1rem+var(--safe-bottom))] md:hidden">
@@ -198,5 +260,25 @@ export function Sidebar({
         </button>
       </div>
     </aside>
+  );
+}
+
+function ItemDoMenuDaEmpresa({ item, on, collapsed, esconder, onClick }: { item: ItemDaEmpresa; on: boolean; collapsed: string; esconder: string; onClick: () => void }) {
+  const Icon = item.icon;
+  return (
+    <li>
+      <Link
+        href={item.href}
+        onClick={onClick}
+        aria-current={on ? "page" : undefined}
+        className={`flex min-h-12 items-center gap-3.5 rounded-2xl px-3.5 py-2 text-[16px] transition-colors md:min-h-0 md:rounded-lg md:px-3 md:text-sm ${collapsed} ${
+          on ? "bg-surface font-medium text-ink shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_20px_-12px_rgba(0,0,0,0.14)] md:bg-surface-2 md:shadow-none" : "text-ink hover:bg-surface-2 md:text-ink-muted md:hover:text-ink"
+        }`}
+      >
+        <Icon size={20} strokeWidth={1.5} className="shrink-0" />
+        <span className={`truncate ${esconder}`}>{item.label}</span>
+        {item.novo && <em className={`ml-auto shrink-0 rounded-full bg-accent-soft px-2 py-0.5 text-xs font-semibold not-italic uppercase tracking-wider text-accent-strong ${esconder}`}>novo</em>}
+      </Link>
+    </li>
   );
 }

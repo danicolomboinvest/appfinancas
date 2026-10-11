@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { ehEmpresa } from "@/lib/profiles/empresa";
 import { ondeMostrarFechamento } from "./fechamento/quando-mostrar";
 import type { ReactNode } from "react";
 import { CalendarCheck, ChevronRight, Check } from "lucide-react";
@@ -41,6 +43,8 @@ import { lerReset } from "@/lib/repositories/money-reset.repo";
  */
 export default async function FocoPage() {
   const ctx = await getRequiredSession();
+  // A Empresa tem a Visão geral dela (versão nova, 11/10/2026): recibo do mês, Vendas, Despesas e Contas.
+  if (ehEmpresa(ctx.profileKind)) redirect("/empresa");
   const [d, contas] = await Promise.all([carregarFoco(ctx), listarContasAPagar(ctx)]);
   const [blocos, valoresMeses] = await Promise.all([carregarBlocosDoMes(ctx, d.now), valoresDosMeses(ctx, mesesAte(d.year, d.month, 12))]);
   const meses12 = montarMeses(valoresMeses, { ano: d.year, mes: d.month }, 12);
