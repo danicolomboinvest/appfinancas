@@ -23,6 +23,11 @@ export type AssetInput = {
   idealAllocationPercent?: number;
   acquisitionDate?: Date;
   notes?: string;
+  /** Classificação escolhida por ela (Novo ativo: "Não é isso?"). Ausente = automático. */
+  tipoEscolhido?: string;
+  ondeEscolhido?: string;
+  /** Taxa da compra em fração, com o indexador (ver lib/portfolio/taxa-compra.ts). null apaga. */
+  taxaCompra?: number | null;
 };
 
 export async function listAssets(ctx: AuthContext) {
@@ -48,4 +53,27 @@ export async function updateOwnAsset(ctx: AuthContext, id: string, input: AssetI
 
 export async function deleteOwnAsset(ctx: AuthContext, id: string) {
   return prisma.asset.deleteMany({ where: { id, userId: ctx.userId, profileId: ctx.profileId } });
+}
+
+/**
+ * "Trocar" a classificação no detalhe do ativo (rodada 23). Nulo nos dois = "Voltar ao automático".
+ * Os valores já chegam validados (lib/portfolio/classificacao.ts).
+ */
+export async function trocarClassificacaoDoAtivo(ctx: AuthContext, id: string, escolha: { tipo: string | null; onde: string | null }) {
+  return prisma.asset.updateMany({
+    where: { id, userId: ctx.userId, profileId: ctx.profileId },
+    data: { tipoEscolhido: escolha.tipo, ondeEscolhido: escolha.onde },
+  });
+}
+
+/** "Para: ..." no detalhe do ativo: reserva, liberdade, uma meta (dela) ou nenhum objetivo. */
+export async function trocarObjetivoDoAtivo(ctx: AuthContext, id: string, objetivo: AssetObjective, goalId: string | null) {
+  let meta: string | null = null;
+  if (objetivo === "META") {
+    if (!goalId) return { count: 0 };
+    const goal = await prisma.goal.findFirst({ where: { id: goalId, userId: ctx.userId, profileId: ctx.profileId }, select: { id: true } });
+    if (!goal) return { count: 0 };
+    meta = goal.id;
+  }
+  return prisma.asset.updateMany({ where: { id, userId: ctx.userId, profileId: ctx.profileId }, data: { objective: objetivo, goalId: meta } });
 }

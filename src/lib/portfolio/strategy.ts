@@ -1,7 +1,8 @@
-import type { AssetClass, FixedIncomeIndex, StrategyAssetClass } from "@prisma/client";
+import type { AssetClass, StrategyAssetClass } from "@prisma/client";
 import { Decimal } from "@/lib/finance/decimal";
 import { prisma } from "@/lib/db/prisma";
 import type { AuthContext } from "@/lib/auth/session";
+import { classeDaEstrategia, type AtivoParaClassificar } from "./classificacao";
 
 export const STRATEGY_ASSET_CLASSES: StrategyAssetClass[] = [
   "RENDA_FIXA_POS_FIXADA",
@@ -60,20 +61,12 @@ export function mapAssetClassToStrategyClass(assetClass: AssetClass): StrategyAs
 }
 
 /**
- * Mapeamento refinado por ATIVO: para renda fixa/Tesouro, usa o indexador do título
- * (pós-fixado, IPCA+ ou prefixado) quando conhecido, assim o comparativo com a Estratégia
- * fica correto (antes assumia tudo pós-fixado). Para o resto, cai no mapa por classe.
+ * Mapeamento por ATIVO: renda fixa/Tesouro pelo indexador (pós, IPCA+ ou prefixado), o que está
+ * fora do Brasil no Exterior, e a classificação que ELA escolheu no detalhe do ativo mandando
+ * sobre tudo (ver lib/portfolio/classificacao.ts).
  */
-export function mapAssetToStrategyClass(asset: {
-  assetClass: AssetClass;
-  fixedIncomeIndex: FixedIncomeIndex | null;
-}): StrategyAssetClass {
-  if (asset.assetClass === "RENDA_FIXA" || asset.assetClass === "TESOURO_DIRETO") {
-    if (asset.fixedIncomeIndex === "IPCA") return "RENDA_FIXA_IPCA";
-    if (asset.fixedIncomeIndex === "PREFIXADO") return "PREFIXADO";
-    return "RENDA_FIXA_POS_FIXADA"; // POS_FIXADO ou desconhecido → pós-fixado (default seguro)
-  }
-  return DEFAULT_MAPPING[asset.assetClass];
+export function mapAssetToStrategyClass(asset: AtivoParaClassificar): StrategyAssetClass {
+  return classeDaEstrategia(asset);
 }
 
 export type StrategyClassPosition = {
@@ -88,7 +81,9 @@ export type StrategyClassPosition = {
   status: "ACIMA" | "DENTRO" | "ABAIXO";
 };
 
-const TOLERANCE_PP = 0.02; // 2 pontos percentuais de tolerância antes de considerar "fora do alvo"
+const TOLERANCE_PP = 0.02;
+/** Desvio que, no futuro, abre o convite do assessor (3.9). Só para quem está na faixa: hoje não aparece. */
+export const LIMIAR_ASSESSOR_PP = 0.05; // 2 pontos percentuais de tolerância antes de considerar "fora do alvo"
 
 /**
  * A ÚNICA régua de "fora do alvo" do app. Carteira (selo e sugestões) e Por objetivo (cards de

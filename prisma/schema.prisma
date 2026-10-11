@@ -147,52 +147,59 @@ enum StrategyAssetClass {
 }
 
 model User {
-  id                  String    @id @default(cuid())
-  email               String    @unique
+  id                      String    @id @default(cuid())
+  email                   String    @unique
   /// Quando ela clicou no link de confirmação do e-mail. Contas novas só entram no app depois
   /// disso (senão qualquer um cria a conta com o e-mail de uma compradora). Nulo nas contas
   /// criadas antes da regra, que continuam valendo (ver emailConfirmado em src/lib/auth).
-  emailVerifiedAt     DateTime?
-  passwordHash        String
+  emailVerifiedAt         DateTime?
+  passwordHash            String
   /// Celular (WhatsApp) — pedido no cadastro e/ou puxado da compra no Hubla.
-  phone               String?
-  name                String?
-  avatarUrl           String?
-  role                Role      @default(CLIENT)
-  currency            String    @default("BRL")
-  theme               String    @default("light")
-  notifyBudgetAlerts  Boolean   @default(true)
-  notifyLateGoals     Boolean   @default(true)
+  phone                   String?
+  name                    String?
+  avatarUrl               String?
+  role                    Role      @default(CLIENT)
+  currency                String    @default("BRL")
+  theme                   String    @default("light")
+  notifyBudgetAlerts      Boolean   @default(true)
+  notifyLateGoals         Boolean   @default(true)
   /// Resumo do mês por e-mail (o único e-mail recorrente do app). Ligado por padrão; quem não
   /// quiser desliga em Configurações › Preferências.
-  notifyMonthlyRecap  Boolean   @default(true)
+  notifyMonthlyRecap      Boolean   @default(true)
   /// Último mês cujo resumo JÁ foi enviado por e-mail, formato "YYYY-MM". Trava de idempotência:
   /// o cron pode rodar de novo (retry da Vercel, execução manual) sem reenviar o mesmo resumo.
   /// Vale para os DOIS e-mails do dia 1º (resumo de quem usou, convite de quem não usou) — o
   /// mês é tratado uma vez só, não importa qual dos dois saiu.
-  recapEmailSentMonth String?
+  recapEmailSentMonth     String?
   /// Quantos convites "vamos começar?" já foram enviados. Quem não usa o app não pode receber
   /// esse lembrete todo mês pra sempre — depois de algumas tentativas sem resposta, o app para
   /// de insistir. Zera sozinho quando a pessoa passa a usar (aí ela recebe o resumo, não o convite).
-  recapNudgeCount     Int       @default(0)
+  recapNudgeCount         Int       @default(0)
   /// Proteção contra força bruta: erros de senha consecutivos e trava temporária.
-  failedLoginCount    Int       @default(0)
-  lockedUntil         DateTime?
+  failedLoginCount        Int       @default(0)
+  lockedUntil             DateTime?
   /// Última vez que o usuário abriu o app (atualizado no layout, no máx. 1x a cada ~15min).
   /// Base das métricas de engajamento (ativos em 24h/7d/30d) no relatório de admin.
-  lastSeenAt          DateTime?
+  lastSeenAt              DateTime?
   /// Quando a pessoa passou pela tela de boas-vindas (escolheu tipo e tema do primeiro perfil).
   /// Nulo = ainda não passou: o app manda pra /comecar na primeira entrada. Quem já usava o app
   /// antes de set/2026 nasceu preenchido pela migração, pra não ver a tela.
-  onboardedAt         DateTime?
+  onboardedAt             DateTime?
   /// Mês do Resumo Mensal já visto/fechado, formato "YYYY-MM". Enquanto for o mesmo mês do
   /// resumo atual, o card na Visão Mensal não aparece de novo (fecha uma vez por mês).
-  recapDismissedMonth String?
+  recapDismissedMonth     String?
+  /// Assessoria (Carteira, rodada 76): "confirmando" depois que ela toca em "Já abri minha conta";
+  /// nulo = ainda não disse que abriu. "Ainda não abri" volta a nulo. Quem confirma de verdade
+  /// (cliente) é a equipe da Fatos Capital, num passo futuro: o app só guarda o que ela disse.
+  assessoriaEstado        String?   @db.VarChar(16)
+  assessoriaEstadoEm      DateTime?
+  /// Ela tocou no x do convite do fim da Carteira: a linha some só para ela.
+  assessoriaConviteOculto Boolean   @default(false)
   /// Como a pessoa quer acompanhar o dinheiro: "semanal" (ritual de 5 min toda semana) ou
   /// "mensal" (fechamento de 15 min por mês). Nulo = ainda não escolheu; a aba Foco pergunta.
-  ritmoAcompanhamento String?
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
+  ritmoAcompanhamento     String?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
 
   monthlyEntries          MonthlyEntry[]
   importFiles             ImportFile[]
@@ -249,38 +256,41 @@ model User {
 /// isto entrou. A coluna entra vazia, o backfill preenche, e só então as leituras passam a
 /// filtrar. Em nenhum instante o dado de alguém deixa de ser encontrado.
 model FinancialProfile {
-  id         String      @id @default(cuid())
-  userId     String
-  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name       String
+  id               String      @id @default(cuid())
+  userId           String
+  user             User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name             String
   /// Adapta textos e sugestões; a estrutura é a mesma pra todos.
-  kind       ProfileKind @default(PESSOAL)
+  kind             ProfileKind @default(PESSOAL)
   /// Nome do ícone na biblioteca do app (lucide), não emoji: o produto não depende de emoji.
-  icon       String      @default("wallet")
+  icon             String      @default("wallet")
   /// Chave do TEMA do perfil (ver src/lib/profiles/themes.ts), nunca cor crua vinda da tela.
   /// O tema traz a paleta inteira — fundo, cartão, tinta e destaque —, não só o realce.
-  theme      String      @default("padrao")
+  theme            String      @default("padrao")
+  /// Perfil de investidora da estratégia da Carteira: conservador, moderado, arrojado ou
+  /// personalizado (quando ela mexe nos números). Nulo = estratégia montada antes de 11/10/2026.
+  perfilInvestidor String?     @db.VarChar(16)
   /// Chave da paleta antiga, de quando o perfil escolhia só a cor de destaque. Substituída
   /// pelo tema em set/2026 e não lida mais por tela nenhuma. Fica na tabela porque derrubar
   /// coluna em banco de produção é risco sem ganho — sai numa limpeza própria, depois.
-  color      String      @default("ambar")
+  color            String      @default("ambar")
   /// O que a pessoa mudou nas categorias padrão deste perfil: nome, ícone, escondida
   /// ({ "IMPOSTOS": { "oculta": true }, "LAZER": { "nome": "Rolês", "icone": "coffee" } }).
   /// Lido por lerPreferenciasDeCategoria (src/lib/categories.ts). Nulo = tudo de fábrica.
-  categorias Json?
+  categorias       Json?
   /// Perfil Casal: { nomeA, nomeB, divisao: "renda" | "meio", acertos: ["2026-10", ...] }.
-  casal      Json?
+  casal            Json?
   /// Quanto este perfil combinou gastar no cartão de crédito por mês (06/10/2026). Nulo = sem
   /// limite. Vale para todo mês até ela mudar; o aviso sai em 70%, 90% e 100%.
-  limiteCartao Decimal?    @db.Decimal(18, 2)
+  limiteCartao     Decimal?    @db.Decimal(18, 2)
   /// Ordem na troca rápida de perfil.
-  position   Int         @default(0)
+  position         Int         @default(0)
   /// O perfil que abre quando a pessoa entra. Exatamente um por conta.
-  isDefault  Boolean     @default(false)
+  isDefault        Boolean     @default(false)
   /// Perfil criado pelo backfill pra abrigar o histórico de quem já usava o app.
-  isLegacy   Boolean     @default(false)
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
+  isLegacy         Boolean     @default(false)
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
 
   monthlyEntries          MonthlyEntry[]
   budgets                 Budget[]
@@ -889,6 +899,16 @@ model Asset {
   /// Câmbio da última conversão: 1 unidade da moeda do ativo = X na moeda do app (US$ 1 = R$ 5,02).
   exchangeRate           Decimal?                 @db.Decimal(14, 6)
   idealAllocationPercent Decimal?                 @db.Decimal(6, 3)
+  /// A classificação que ELA escolheu ("Trocar" no detalhe do ativo). Nulo = automático (pela
+  /// classe e pelo indexador). Valores: pos, ipca, pre, acoes, fiis, multimercado, outros.
+  tipoEscolhido          String?                  @db.VarChar(16)
+  /// Onde ELA disse que o ativo está: "brasil" ou "exterior". Nulo = automático (moeda e classe).
+  ondeEscolhido          String?                  @db.VarChar(16)
+  /// A taxa em que ela COMPROU o título de renda fixa (11/10/2026), em FRAÇÃO como toda taxa do app,
+  /// lida junto com o fixedIncomeIndex: PREFIXADO 0.12 = 12% ao ano; IPCA 0.075 = IPCA + 7,5% ao
+  /// ano; POS_FIXADO 1.05 = 105% do CDI. Nulo = ela não disse. A calculadora "Vender a renda fixa
+  /// antes do prazo" lê este campo.
+  taxaCompra             Decimal?                 @db.Decimal(10, 6)
   acquisitionDate        DateTime?
   notes                  String?
   createdAt              DateTime                 @default(now())
@@ -1372,4 +1392,21 @@ model TentativaDoConvite {
   em    DateTime @default(now())
 
   @@index([chave, em])
+}
+
+/// Número que vem de fora (Banco Central, Tesouro Transparente), guardado com a fonte e a hora.
+/// A tela mostra sempre o último valor que deu certo; se a busca do dia falhar, ele continua
+/// valendo e a tela diz "de ontem". Uma linha por série: "bcb:12" (CDI ao dia), "bcb:433" (IPCA
+/// do mês), "bcb:432" (meta Selic), "tesouro:Tesouro IPCA+:2035-05-15" (preço e taxa do título).
+model IndicadorExterno {
+  chave      String   @id @db.VarChar(80)
+  /// O número principal (CDI ao ano, IPCA em 12 meses, Selic ao ano, preço unitário do título).
+  valor      Decimal  @db.Decimal(18, 8)
+  /// Segundo número quando a série tem (a taxa do título do Tesouro, em % ao ano).
+  taxa       Decimal? @db.Decimal(12, 6)
+  /// A data a que o número se refere (o dia do CDI, o mês do IPCA, a data base do Tesouro).
+  referenteA DateTime @db.Date
+  /// Quando o app buscou e gravou.
+  buscadoEm  DateTime
+  fonte      String   @db.VarChar(80)
 }

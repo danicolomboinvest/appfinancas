@@ -38,6 +38,11 @@ export const assetSchema = z.object({
   idealAllocationPercent: z.coerce.number().min(0).max(1).optional(),
   acquisitionDate: z.coerce.date().optional(),
   notes: z.string().trim().optional(),
+  /** "Não é isso?" no Novo ativo: a classificação escolhida por ela. Vazio = automático. */
+  tipoEscolhido: z.enum(["pos", "ipca", "pre", "acoes", "fiis", "multimercado", "outros"]).optional(),
+  ondeEscolhido: z.enum(["brasil", "exterior"]).optional(),
+  /** Taxa em que comprou a renda fixa, em fração (0.075 = IPCA + 7,5%). null apaga. */
+  taxaCompra: z.number().positive().max(10).nullable().optional(),
 })
   // Objetivo "Meta" sem a meta escolhida deixava o ativo fora de todos os cards do "Por
   // objetivo" (não é reserva, nem liberdade, nem "sem objetivo", nem de meta nenhuma).

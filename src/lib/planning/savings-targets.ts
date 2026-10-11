@@ -3,7 +3,7 @@ import { getEmergencyFund } from "@/lib/repositories/emergency-fund.repo";
 import { listGoalsWithProgress } from "@/lib/repositories/goal.repo";
 import { listAssets } from "@/lib/repositories/asset.repo";
 import { computeGoalPlan } from "./goal";
-import type { SavingsTarget } from "./savings-split";
+import { mesesDeReserva, type SavingsTarget } from "./savings-split";
 
 /**
  * A fila de "pra onde vai o que você guarda": a reserva (o que falta pra fechar, contando o
@@ -23,6 +23,8 @@ export async function getSavingsTargets(ctx: AuthContext, today: Date = new Date
       kind: "reserva",
       remaining: Math.max(0, target - current),
       monthlyNeeded: Number(fund.monthlyContribution),
+      // A regra dos aportes (3.11) olha quantos meses do custo de vida a reserva já cobre.
+      monthsCovered: mesesDeReserva(current, Number(fund.monthlyExpenseBase)) ?? undefined,
     });
   }
 

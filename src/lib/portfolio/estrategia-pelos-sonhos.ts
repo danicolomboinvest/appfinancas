@@ -129,3 +129,108 @@ export function perfilPeloComportamento({ queda, experiencia }: Comportamento): 
           : "Calma nas quedas e experiência: dá para buscar crescimento.";
   return { profile, reason };
 }
+
+/* ---------------------------------------------------------------------------------------------
+ * Decisões da Dani nas rodadas 22 e 32 (10/10/2026), regra 3.13 do plano da versão nova.
+ * ------------------------------------------------------------------------------------------- */
+
+/** "Você tem planos em outra moeda?" (só pesa no longo prazo, a Liberdade). */
+export type PlanoForaDoBrasil = "nao" | "viajar" | "morar";
+/** "Quer que parte do dinheiro pague você todo mês?" */
+export type GostoPorProventos = "sim" | "tanto";
+
+/** Exterior no longo prazo por plano em outra moeda: Não 10%, Viajar 20%, Morar ou estudar fora 30%. */
+export const EXTERIOR_PELO_PLANO: Record<PlanoForaDoBrasil, number> = { nao: 10, viajar: 20, morar: 30 };
+/** A conservadora leva METADE do extra (rodada 32); no "Não", fica com o que o perfil já tiver. */
+export const EXTERIOR_PELO_PLANO_CONSERVADOR: Record<PlanoForaDoBrasil, number> = { nao: 5, viajar: 10, morar: 15 };
+
+export function exteriorNoLongoPrazo(perfil: RiskProfileKey, plano: PlanoForaDoBrasil): number {
+  return perfil === "conservador"
+    ? Math.max(EXTERIOR_PELO_PLANO_CONSERVADOR[plano], PERFIS_PRONTOS.conservador.EXTERIOR)
+    : EXTERIOR_PELO_PLANO[plano];
+}
+
+/**
+ * A mistura do longo prazo com as duas perguntas novas:
+ * - o exterior pelo plano em outra moeda sai metade de Ações e metade de FIIs; na conservadora,
+ *   sai da renda fixa pós-fixada;
+ * - proventos "Sim": 5 pontos de Ações vão para FIIs.
+ * Nunca sugere guardar a viagem em moeda estrangeira: isto é só a parte de longo prazo.
+ */
+export function misturaDoLongo(perfil: RiskProfileKey, plano: PlanoForaDoBrasil = "nao", proventos: GostoPorProventos = "tanto"): Mistura {
+  const mix = { ...PERFIS_PRONTOS[perfil] };
+  const alvo = exteriorNoLongoPrazo(perfil, plano);
+  const d = alvo - mix.EXTERIOR;
+  if (perfil === "conservador") {
+    const t = Math.min(Math.max(d, 0), mix.RENDA_FIXA_POS_FIXADA);
+    mix.RENDA_FIXA_POS_FIXADA -= t;
+    mix.EXTERIOR += t;
+  } else if (d > 0) {
+    const deAcoes = Math.min(mix.ACOES_BRASIL, d / 2);
+    const deFiis = Math.min(mix.FIIS, d - deAcoes);
+    mix.ACOES_BRASIL -= deAcoes;
+    mix.FIIS -= deFiis;
+    mix.EXTERIOR += deAcoes + deFiis;
+  } else if (d < 0) {
+    mix.ACOES_BRASIL += -d / 2;
+    mix.FIIS += -d / 2;
+    mix.EXTERIOR = alvo;
+  }
+  if (proventos === "sim") {
+    const t = Math.min(5, mix.ACOES_BRASIL);
+    mix.ACOES_BRASIL -= t;
+    mix.FIIS += t;
+  }
+  return mix;
+}
+
+/**
+ * A Liberdade pesa pelo que falta trazido para o VALOR DE HOJE (decisão da rodada 22): sem isso,
+ * um alvo de 28 anos à frente engolia a conta e a estratégia virava só a do longo prazo.
+ */
+export function liberdadeEmValorDeHoje(faltaNoFuturo: number, anos: number, inflacaoAoAno: number): number {
+  if (!(faltaNoFuturo > 0)) return 0;
+  const i = inflacaoAoAno > -1 && Number.isFinite(inflacaoAoAno) ? inflacaoAoAno : 0;
+  return Math.round(faltaNoFuturo / Math.pow(1 + i, Math.max(0, anos)));
+}
+
+/** Onde ela já investiu (pode marcar mais de um). Fundo de renda fixa NÃO é renda variável. */
+export const ONDE_JA_INVESTIU = [
+  { chave: "poupanca", nome: "Poupança", rendaVariavel: false },
+  { chave: "cdb", nome: "CDB", rendaVariavel: false },
+  { chave: "tesouro", nome: "Tesouro", rendaVariavel: false },
+  { chave: "fundorf", nome: "Fundo de renda fixa", rendaVariavel: false },
+  { chave: "fundorv", nome: "Fundo de ações ou multimercado", rendaVariavel: true },
+  { chave: "acoes", nome: "Ações", rendaVariavel: true },
+  { chave: "fiis", nome: "FIIs", rendaVariavel: true },
+  { chave: "exterior", nome: "Exterior", rendaVariavel: true },
+  { chave: "nunca", nome: "Nunca investi", rendaVariavel: false },
+] as const;
+
+/** A experiência da pergunta do perfil: marcou alguma renda variável? (2 = sim, 0 = não). */
+export function experienciaPelasEscolhas(escolhas: readonly string[]): Comportamento["experiencia"] {
+  return ONDE_JA_INVESTIU.some((o) => o.rendaVariavel && escolhas.includes(o.chave)) ? 2 : 0;
+}
+
+/** A estratégia completa da versão nova: os sonhos por faixa, com o longo prazo das perguntas novas. */
+export function estrategiaDaVersaoNova(
+  perfil: RiskProfileKey,
+  sonhos: Sonho[],
+  plano: PlanoForaDoBrasil = "nao",
+  proventos: GostoPorProventos = "tanto",
+): EstrategiaPelosSonhos {
+  const comFalta = sonhos.filter((s) => s.falta > 0);
+  const faixas = FAIXAS.map((faixa) => {
+    const daFaixa = comFalta.filter((s) => faixaDoSonho(s) === faixa);
+    return { faixa, total: daFaixa.reduce((a, s) => a + s.falta, 0), sonhos: daFaixa };
+  }).filter((f) => f.total > 0);
+  const total = faixas.reduce((a, f) => a + f.total, 0);
+  const longo = misturaDoLongo(perfil, plano, proventos);
+  if (total <= 0) return { valores: arredondarPara100(longo), faixas: [] };
+  const bruto = { ...ZERO };
+  for (const f of faixas) {
+    const mistura = f.faixa === "longo" ? longo : misturaDaFaixa(f.faixa, perfil);
+    for (const k of Object.keys(bruto) as StrategyAssetClass[]) bruto[k] += (mistura[k] * f.total) / total;
+  }
+  return { valores: arredondarPara100(bruto), faixas };
+}
