@@ -1,6 +1,5 @@
-import Link from "next/link";
 import {
-  Archive, BadgeCheck, BookOpen, Briefcase, CircleUser, Download, EyeOff, FileText, Globe, Heart, KeyRound, Landmark, MessageCircle, Palette, Pencil, Percent, Bell, Repeat, Tags, TriangleAlert, Users, Info, Wallet,
+  Archive, BadgeCheck, BookOpen, Briefcase, CircleUser, Download, EyeOff, FileText, Globe, Heart, KeyRound, Landmark, MessageCircle, Palette, Percent, Bell, Repeat, Tags, TriangleAlert, Users, Info, Wallet,
 } from "lucide-react";
 import { LINK_VER_DE_NOVO, estadoDasNovidades, jaUsava } from "@/lib/novidades/passos";
 import { getRequiredSession } from "@/lib/auth/session";
@@ -53,16 +52,14 @@ export default async function ConfiguracoesPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
-      <section className="flex items-center gap-4 rounded-3xl border border-border bg-surface p-4">
-        <FotoDoPerfil nome={nome} foto={user.avatarUrl} comBotao tamanho={72} />
-        <div className="min-w-0 flex-1">
+      {/* A foto em cima com "Trocar foto" em evidência, e o nome embaixo (o "Meus dados" logo abaixo edita o resto). */}
+      <section className="flex flex-col items-center gap-3 rounded-3xl border border-border bg-surface px-4 pb-5 pt-5 text-center">
+        <FotoDoPerfil nome={nome} foto={user.avatarUrl} comBotao tamanho={80} />
+        <div className="flex min-w-0 max-w-full flex-col items-center">
           <p className="break-words text-[19px] font-medium leading-snug text-ink">{user.name || "Sem nome"}</p>
-          <p className="break-all text-sm text-ink-muted">{user.email}</p>
+          <p className="max-w-full break-words text-sm text-ink-muted">{user.email}</p>
           <span className="mt-1.5 inline-block whitespace-nowrap rounded-full bg-accent-soft px-2.5 py-0.5 text-[12px] font-medium text-accent-strong">SPI Finance · anual</span>
         </div>
-        <Link href="/configuracoes/perfil" aria-label="Editar meus dados" className="flex size-11 shrink-0 items-center justify-center rounded-full border border-border text-ink">
-          <Pencil size={17} aria-hidden />
-        </Link>
       </section>
 
       <Grupo titulo="Conta">
