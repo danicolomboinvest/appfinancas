@@ -12,7 +12,7 @@ import { ValorDestaque } from "@/components/ui/ValorDestaque";
 import { useCurrency, useMoney } from "@/components/money/MoneyProvider";
 import { currencySymbol } from "@/lib/money";
 import { MESES_CURTOS, MESES_LONGOS, duracao, mesesAteChegar, porMesDaNovaMeta, TAXA_PADRAO_DAS_METAS } from "@/lib/metas/projecao";
-import { TIPOS_DE_META, fotoDoTipo, fotosEmOrdem, tipoDoNome } from "@/lib/metas/tipos";
+import { ESFERAS_DA_META, fotoDoTipo, fotosEmOrdem, tipoDoNome } from "@/lib/metas/tipos";
 import { apagarMetaAction, criarMetaAction, editarMetaAction, enviarFotoDaMetaAction, type MetaGuiada } from "./acoes";
 
 /**
@@ -222,33 +222,36 @@ function FolhaDaMeta({ hoje, meta, onFechar }: { hoje: { ano: number; mes: numbe
     conteudo = (
       <>
         <h3 className="text-[28px] font-semibold leading-tight tracking-[-0.01em] text-ink">Para que é?</h3>
+        {/* As fotos do banco em esferas (protótipo r67): um toque escolhe o tipo, o nome e a foto. */}
+        <div className="grid grid-cols-4 gap-x-2 gap-y-3 max-[359px]:grid-cols-3" role="group" aria-label="Tipo de meta" data-esferas-meta>
+          {ESFERAS_DA_META.map((f) => {
+            const on = e.foto === f.foto && e.tipo === f.tipo;
+            return (
+              <button
+                key={f.foto}
+                type="button"
+                aria-pressed={on}
+                onClick={() => muda({ tipo: f.tipo, nome: f.nome, foto: f.foto, minha: null })}
+                className="flex min-w-0 flex-col items-center gap-1.5 text-[13px] text-ink"
+              >
+                <span className={`aspect-square w-full max-w-[72px] overflow-hidden rounded-full bg-surface-2 ${on ? "shadow-[0_0_0_3px_var(--color-canvas),0_0_0_5px_var(--color-accent)]" : ""}`}>
+                  {/* eslint-disable-next-line @next/next/no-img-element -- banco de fotos do app */}
+                  <img src={f.foto} alt="" loading="lazy" decoding="async" className="size-full object-cover" />
+                </span>
+                <span className="w-full truncate text-center">{f.rotulo}</span>
+              </button>
+            );
+          })}
+        </div>
         <input
-          autoFocus={!meta}
           value={e.nome}
           maxLength={40}
           autoComplete="off"
-          aria-label="Para que é a meta"
-          placeholder="Ex.: Viagem para a praia"
-          onChange={(ev) => muda({ nome: ev.target.value, tipo: null })}
+          aria-label="Nome da meta"
+          placeholder="Ou escreva o nome"
+          onChange={(ev) => muda({ nome: ev.target.value, tipo: null, foto: null })}
           className="min-h-[52px] rounded-2xl border border-border-strong bg-surface px-4 text-base text-ink outline-none placeholder:text-ink-faint focus:border-accent"
         />
-        <div className="flex flex-wrap gap-2">
-          {TIPOS_DE_META.map((t) => (
-            <button
-              key={t.chave}
-              type="button"
-              aria-pressed={e.tipo === t.chave}
-              className={chip(e.tipo === t.chave)}
-              onClick={() => {
-                const anterior = TIPOS_DE_META.find((x) => x.chave === e.tipo)?.nome;
-                const nome = !e.nome.trim() || e.nome === anterior ? t.nome : e.nome;
-                muda({ tipo: t.chave, nome, foto: null });
-              }}
-            >
-              {t.nome}
-            </button>
-          ))}
-        </div>
       </>
     );
   } else if (e.passo === 2) {
