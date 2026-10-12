@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronRight } from "lucide-react";
+import { Briefcase, Heart, User } from "lucide-react";
 import { cobrancaDosAdicionaisLigada } from "@/lib/casal-login/adicional";
 import { getRequiredSession } from "@/lib/auth/session";
 import { listProfiles } from "@/lib/repositories/profile.repo";
@@ -15,7 +15,7 @@ const preco = (v: number) => formatMoney(v, DEFAULT_CURRENCY, { round: true });
 
 export const metadata = { title: "Perfis · SPI Finance" };
 
-const NOME_DO_TIPO: Record<string, string> = { PESSOAL: "Pessoal", CASAL: "Nós dois", EMPRESA: "Empresa", CASA: "Casa", PROJETO: "Projeto", OUTRO: "Outro" };
+const NOME_DO_TIPO: Record<string, string> = { PESSOAL: "Pessoal", CASAL: "Casal", EMPRESA: "Empresa", CASA: "Casa", PROJETO: "Projeto", OUTRO: "Outro" };
 
 /**
  * Perfis (11/10/2026, uma tela só): a lista dos perfis dela, cada um abrindo o detalhe (nome,
@@ -32,13 +32,13 @@ export default async function PerfisPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-5">
-      <Cabecalho titulo="Perfis" sub="Cada perfil é um dinheiro separado." />
+      <Cabecalho titulo="Perfis" sub="Até 3 perfis: Pessoal, Nós dois e Empresa. Cada um é um dinheiro separado." />
       <ul className="divide-y divide-border overflow-hidden rounded-3xl border border-border bg-surface">
         {perfis.map((p) => (
           <li key={p.id}>
             <Link href={`/configuracoes/perfis/${p.id}`} className="flex min-h-14 items-center gap-3 px-4 py-2.5 hover:bg-surface-hover">
               <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-surface-2 text-ink-muted" aria-hidden>
-                <ProfileIcon name={p.icon} size={18} />
+                {p.kind === "CASAL" ? <Heart size={18} strokeWidth={1.75} /> : p.kind === "EMPRESA" ? <Briefcase size={18} strokeWidth={1.75} /> : p.kind === "PESSOAL" ? <User size={18} strokeWidth={1.75} /> : <ProfileIcon name={p.icon} size={18} />}
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block break-words text-[16px] leading-snug text-ink">{p.name}</span>
@@ -47,7 +47,8 @@ export default async function PerfisPage() {
                   {p.id === ctx.profileId ? " · em uso" : ""}
                 </span>
               </span>
-              <ChevronRight size={18} className="shrink-0 text-ink-faint" aria-hidden />
+              {/* Nós dois: o convite do par à direita (protótipo); as outras linhas sem seta. */}
+              {p.kind === "CASAL" && <span className="shrink-0 rounded-full bg-surface-2 px-3 py-1 text-sm text-ink">Convidar</span>}
             </Link>
           </li>
         ))}

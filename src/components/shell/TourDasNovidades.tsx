@@ -83,7 +83,7 @@ export function TourDasNovidades({ estado, onMenu }: { estado: EstadoDasNovidade
   const [caixa, setCaixa] = useState<Caixa | null>(null);
   const [tela, setTela] = useState({ w: 390, h: 800 });
   const balao = useRef<HTMLDivElement>(null);
-  const [alturaDoBalao, setAlturaDoBalao] = useState(200);
+  const [, setAlturaDoBalao] = useState(200);
 
   useEffect(() => {
     const pedido = new URLSearchParams(window.location.search).get("novidades") === "1";
@@ -178,8 +178,9 @@ export function TourDasNovidades({ estado, onMenu }: { estado: EstadoDasNovidade
 
   if (fase === "fechado") return null;
 
+  // "Pular" numa pílula com borda (protótipo), ao lado do botão preto.
   const pular = (
-    <button type="button" onClick={() => encerrar("pulou")} className="inline-flex min-h-11 items-center px-2 text-[15px] font-medium text-ink-muted hover:text-ink">
+    <button type="button" onClick={() => encerrar("pulou")} className="inline-flex min-h-11 items-center justify-center rounded-full bg-surface-2 px-5 text-[15px] font-medium text-ink shadow-[inset_0_0_0_1px_var(--color-border-strong)]">
       {tx.abertura.pular}
     </button>
   );
@@ -193,13 +194,14 @@ export function TourDasNovidades({ estado, onMenu }: { estado: EstadoDasNovidade
     ) : tema === "girly" ? (
       <BrandMark size={64} />
     ) : (
-      <span className="flex size-14 items-center justify-center rounded-full bg-accent-gradient text-on-accent shadow-premium-sm" aria-hidden>
+      <span className="flex size-16 items-center justify-center rounded-full text-on-accent [background:radial-gradient(circle_at_35%_30%,#fff8,transparent_45%),var(--color-accent)] shadow-[0_8px_28px_-6px_color-mix(in_srgb,var(--color-accent)_70%,transparent)]" aria-hidden>
         {tema === "padrao" || estado === "boas-vindas" ? <Sparkles size={22} strokeWidth={1.8} /> : <Repeat size={20} strokeWidth={1.8} />}
       </span>
     );
     return (
-      <div className="fixed inset-0 z-[150] flex items-center justify-center bg-canvas/80 px-4 backdrop-blur-md" role="dialog" aria-modal="true" aria-labelledby="novidades-titulo">
-        <div className="flex w-full max-w-[380px] flex-col items-center gap-3 rounded-[24px] bg-surface px-5 pb-4 pt-6 text-center shadow-[0_20px_50px_-20px_rgba(0,0,0,0.45),inset_0_0_0_1px_var(--color-border)]">
+      // Protótipo: o cartão preso embaixo, por cima da tela escurecida.
+      <div className="fixed inset-0 z-[150] flex items-end justify-center bg-[rgba(12,8,14,0.55)] px-3 pb-[calc(0.75rem+var(--safe-bottom))]" role="dialog" aria-modal="true" aria-labelledby="novidades-titulo" data-tour-cartao="embaixo">
+        <div className="flex w-full max-w-[420px] flex-col items-center gap-3 rounded-[28px] bg-surface px-5 pb-4 pt-6 text-center shadow-[0_20px_50px_-20px_rgba(0,0,0,0.45),inset_0_0_0_1px_var(--color-border)]">
           {icone}
           <h2 id="novidades-titulo" className="titulo-tema mt-1 text-[26px] font-medium leading-tight tracking-tight text-ink">
             {abertura ? tx.abertura.titulo : tx.fim.titulo}
@@ -224,16 +226,8 @@ export function TourDasNovidades({ estado, onMenu }: { estado: EstadoDasNovidade
   const passo = tx.passos[indice];
   const ultimo = indice === TOTAL_DE_PASSOS - 1;
   const largura = Math.min(400, tela.w - 32);
-  let posicao: React.CSSProperties;
-  if (caixa) {
-    const centro = (caixa.left + caixa.right) / 2;
-    const left = Math.max(16, Math.min(centro - largura / 2, tela.w - 16 - largura));
-    const embaixo = caixa.bottom < tela.h * 0.55 && caixa.bottom - caixa.top <= tela.h * 0.5;
-    const top = embaixo ? Math.max(12, Math.min(caixa.bottom + 12, tela.h - alturaDoBalao - 12)) : Math.max(12, caixa.top - 12 - alturaDoBalao);
-    posicao = { left, width: largura, top };
-  } else {
-    posicao = { left: (tela.w - largura) / 2, width: largura, top: Math.max(24, tela.h / 2 - alturaDoBalao / 2) };
-  }
+  // O cartão dos passos fica sempre embaixo (protótipo); o destaque é que muda de lugar.
+  const posicao: React.CSSProperties = { left: (tela.w - largura) / 2, width: largura, bottom: "calc(0.75rem + var(--safe-bottom))" };
 
   return (
     <div className="fixed inset-0 z-[150]" role="dialog" aria-modal="true" aria-labelledby="novidades-passo">
@@ -267,7 +261,7 @@ export function TourDasNovidades({ estado, onMenu }: { estado: EstadoDasNovidade
           {passo.titulo}
         </h2>
         <p className="mt-1 text-[14.5px] leading-relaxed text-ink-muted">{passo.texto}</p>
-        <div className="mt-2 flex items-center justify-between gap-3">
+        <div className="mt-3 grid grid-cols-2 gap-2">
           {pular}
           <Button autoFocus className="min-h-11 px-6 text-[15px]" onClick={() => setFase(ultimo ? "fim" : indice + 1)}>
             {ultimo ? "Concluir" : "Próximo"}

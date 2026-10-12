@@ -9,7 +9,9 @@ import { preferenciaDeModo, profileTheme } from "@/lib/profiles/themes";
 import type { LucideIcon } from "lucide-react";
 import { formatPhone } from "@/lib/phone";
 import { currencySymbol, toCurrencyCode } from "@/lib/money";
-import { valoresOcultos } from "@/lib/money-server";
+import { serverMoney, valoresOcultos } from "@/lib/money-server";
+import { getMonthlyPlan } from "@/lib/repositories/monthly-plan.repo";
+import { HeroiDoTema } from "@/components/ui/HeroiDoTema";
 import { SUPORTE_EMAIL } from "./_ajustes/suporte";
 import { Grupo, Icone, Linha } from "./_ajustes/Lista";
 import { CancelarAssinatura } from "./_ajustes/CancelarAssinatura";
@@ -40,7 +42,9 @@ const MODO = { light: "claro", dark: "escuro", auto: "automático" } as const;
  */
 export default async function ConfiguracoesPage() {
   const ctx = await getRequiredSession();
-  const [user, perfis, ocultos] = await Promise.all([getOwnUser(ctx), listProfiles(ctx.userId), valoresOcultos()]);
+  const agoraCfg = nowInBrazil();
+  const [user, perfis, ocultos, plano, money] = await Promise.all([getOwnUser(ctx), listProfiles(ctx.userId), valoresOcultos(), getMonthlyPlan(ctx, agoraCfg.getFullYear(), agoraCfg.getMonth() + 1), serverMoney()]);
+  const rendaDoPlano = plano && plano.plannedIncome > 0 ? plano.plannedIncome : null;
   // Renovação: sempre 1 ano depois da compra. Sem data de compra (liberação manual), sem linha.
   const compra = await compraDoApp(ctx.userId, user.email);
   const renova = compra ? dataLonga(renovacaoEm(compra.em, nowInBrazil())) : null;
@@ -52,15 +56,19 @@ export default async function ConfiguracoesPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
-      {/* A foto em cima com "Trocar foto" em evidência, e o nome embaixo (o "Meus dados" logo abaixo edita o resto). */}
-      <section className="flex flex-col items-center gap-3 rounded-3xl border border-border bg-surface px-4 pb-5 pt-5 text-center">
-        <FotoDoPerfil nome={nome} foto={user.avatarUrl} comBotao tamanho={80} />
-        <div className="flex min-w-0 max-w-full flex-col items-center">
-          <p className="break-words text-[19px] font-medium leading-snug text-ink">{user.name || "Sem nome"}</p>
-          <p className="max-w-full break-words text-sm text-ink-muted">{user.email}</p>
-          <span className="mt-1.5 inline-block whitespace-nowrap rounded-full bg-accent-soft px-2.5 py-0.5 text-[12px] font-medium text-accent-strong">SPI Finance · anual</span>
+      {/* Protótipo: o título grande e o cartão dourado com a foto (lápis no canto), o nome, o
+          e-mail e a pílula do plano lado a lado. */}
+      <h1 className="titulo-tema px-1 text-[28px] font-medium leading-tight text-ink">Configurações</h1>
+      <HeroiDoTema>
+        <div className="flex items-center gap-4">
+          <FotoDoPerfil nome={nome} foto={user.avatarUrl} tamanho={64} />
+          <div className="flex min-w-0 flex-col">
+            <p className="break-words text-[19px] font-medium leading-snug">{user.name || "Sem nome"}</p>
+            <p className="max-w-full break-words text-sm text-heroi-suave">{user.email}</p>
+            <span className="heroi-veu mt-1.5 w-fit whitespace-nowrap rounded-full px-2.5 py-0.5 text-[12px] font-medium">SPI Finance · anual</span>
+          </div>
         </div>
-      </section>
+      </HeroiDoTema>
 
       <Grupo titulo="Conta">
         <Linha href="/configuracoes/perfil" icone={i(CircleUser)} cor={COR.conta} rotulo="Meus dados" sub={[user.name, user.phone ? formatPhone(user.phone) : null].filter(Boolean).join(" · ") || "Nome, e-mail e celular"} />
@@ -78,6 +86,7 @@ export default async function ConfiguracoesPage() {
       </Grupo>
 
       <Grupo titulo="Seu dinheiro">
+        <Linha href="/configuracoes/renda" icone={i(Wallet)} cor={COR.dinheiro} rotulo="Renda e dia do pagamento" sub={[rendaDoPlano ? money(rendaDoPlano, { round: true }) : null, user.diaDoPagamento ? `dia ${user.diaDoPagamento}` : null].filter(Boolean).join(" · ") || "Quanto entra e quando"} />
         <Linha href="/configuracoes/categorias" icone={i(Tags)} cor={COR.dinheiro} rotulo="Categorias" sub="Criar, esconder e o que o app aprendeu" />
         <Linha href="/configuracoes/contas-e-cartoes" icone={i(Landmark)} cor={COR.dinheiro} rotulo="Contas e cartões" sub="Importar extrato e limite do cartão" />
         <Linha href="/configuracoes/taxas" icone={i(Percent)} cor={COR.dinheiro} rotulo="Taxas de referência" sub="CDI, Selic e IPCA" />
@@ -96,13 +105,13 @@ export default async function ConfiguracoesPage() {
       <Grupo titulo="Dados">
         <Linha href="/configuracoes/dados" icone={i(Download)} cor={COR.dados} rotulo="Exportar" sub="Lançamentos e carteira em CSV" />
         <Linha href="/configuracoes/backup" icone={i(Archive)} cor={COR.dados} rotulo="Backup" sub="Automático, todo dia" />
-        <Linha href="/configuracoes/apagar" icone={i(TriangleAlert)} cor="var(--color-danger)" rotulo="Apagar minha conta" sub="Não tem volta" />
+        <Linha href="/configuracoes/apagar" icone={i(TriangleAlert)} cor="var(--color-danger)" rotulo="Apagar dados ou conta" sub="Com confirmação" />
       </Grupo>
 
       <Grupo titulo="Ajuda">
         <Linha href="/configuracoes/ajuda" icone={i(BookOpen)} cor={COR.ajuda} rotulo="Central de ajuda" sub="Perguntas frequentes" />
-        {/* "Tivemos uma mudança" de novo (tutorial da versão nova): só para quem já usava o app. */}
-        {jaUsava(estadoDasNovidades(user.novidadesVersaoNova)) && <Linha href={LINK_VER_DE_NOVO} icone={i(Repeat)} cor={COR.ajuda} rotulo="Ver de novo o que mudou" />}
+        {/* O começo de novo (protótipo): as boas-vindas para quem é nova, o "o que mudou" para quem já usava. */}
+        <Linha href={LINK_VER_DE_NOVO} icone={i(Repeat)} cor={COR.ajuda} rotulo={jaUsava(estadoDasNovidades(user.novidadesVersaoNova)) ? "Ver de novo o que mudou" : "Ver o começo de novo"} sub="Boas-vindas" />
         <Linha href="/configuracoes/suporte" icone={i(MessageCircle)} cor={COR.ajuda} rotulo="Falar com o suporte" sub={SUPORTE_EMAIL} />
         <Linha href="/termos" icone={i(FileText)} cor={COR.ajuda} rotulo="Termos e privacidade" />
         <Linha href="/configuracoes/sobre" icone={i(Info)} cor={COR.ajuda} rotulo="Sobre" sub="Versão 0.1.0" />

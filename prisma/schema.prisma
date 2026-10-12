@@ -206,6 +206,9 @@ model User {
   /// "Não quero ver ofertas da assessoria" (Configurações › Assessoria): some todo cartão de
   /// oferta da Fatos Capital. Os ajustes de quem já é cliente não são oferta e continuam.
   ofertasDesligadas       Boolean   @default(false)
+  /// Meus dados (versão nova, 12/10/2026): a data de nascimento e o dia em que a renda cai.
+  nascimento              DateTime? @db.Date
+  diaDoPagamento          Int?
   createdAt               DateTime  @default(now())
   updatedAt               DateTime  @updatedAt
 

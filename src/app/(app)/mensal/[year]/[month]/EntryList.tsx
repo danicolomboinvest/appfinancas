@@ -544,7 +544,23 @@ export function EntryList({
         </div>
       </Modal>
 
-      {filtradas.length === 0 && <p className="px-1 py-6 text-center text-sm text-ink-muted">Nada com esse filtro neste mês.</p>}
+      {filtradas.length === 0 && (
+        <div className="flex flex-col items-center gap-2 py-8 text-center" data-vazio-filtro>
+          <Receipt size={36} strokeWidth={1.4} className="text-ink-faint" aria-hidden />
+          <b className="text-[15px] font-medium text-ink">Nada com esse filtro</b>
+          <button
+            type="button"
+            onClick={() => {
+              setBusca("");
+              setFiltro("todas");
+              setCategoriasFiltro([]);
+            }}
+            className="min-h-10 rounded-full bg-surface-2 px-4 text-sm text-ink"
+          >
+            Limpar filtros
+          </button>
+        </div>
+      )}
       {[...grupos.entries()].map(([dia, lista]) => (
         <section key={dia} className="flex flex-col gap-2">
           <h3 className="px-1 pt-2 text-sm text-ink-muted">{rotuloDoDia(dia, hoje)}</h3>

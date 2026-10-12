@@ -6,7 +6,8 @@ type Size = "sm" | "md";
 const VARIANT_CLASSES: Record<Variant, string> = {
   // First Light: o primário carrega a cor da marca, gradiente âmbar com texto
   // quase-preto quente (definidos em globals.css).
-  primary: "bg-accent-gradient text-on-accent font-semibold hover:opacity-95 shadow-premium-sm disabled:hover:opacity-100",
+  // O botão principal é escuro (protótipo: "um botão escuro por vez"); no Titânio, o metal escovado.
+  primary: "[background:var(--botao-fundo,var(--color-ink))] [color:var(--botao-tinta,var(--color-canvas))] [box-shadow:var(--botao-fio,none)] font-semibold hover:opacity-95 disabled:hover:opacity-100",
   secondary:
     "bg-surface-2 text-ink border border-border-strong hover:bg-surface-hover",
   ghost: "bg-transparent text-ink-muted hover:bg-surface-2 hover:text-ink",

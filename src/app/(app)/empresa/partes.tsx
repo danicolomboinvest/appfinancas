@@ -113,7 +113,7 @@ export function Chip({ on, onClick, children, disabled }: { on: boolean; onClick
   );
 }
 
-export const BOTAO_PRINCIPAL = "flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-accent-gradient px-5 text-[15px] font-medium text-on-accent disabled:opacity-50";
+export const BOTAO_PRINCIPAL = "flex min-h-12 w-full items-center justify-center gap-2 rounded-full [background:var(--botao-fundo,var(--color-ink))] [color:var(--botao-tinta,var(--color-canvas))] [box-shadow:var(--botao-fio,none)] px-5 text-[15px] font-medium disabled:opacity-50";
 export const BOTAO_SECUNDARIO = "flex min-h-12 w-full items-center justify-center gap-2 rounded-full border border-border bg-surface-2 px-5 text-[15px] text-ink disabled:opacity-50";
 
 /** "novo" pequenininho no menu. */

@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition, type ReactNode } from "react";
-import { ChevronDown, ChevronRight, FileText, FileUp, MoreHorizontal, PencilLine, PiggyBank, Plus, RefreshCw } from "lucide-react";
+import Link from "next/link";
+import { ChevronDown, ChevronRight, FileText, FileUp, MoreHorizontal, PencilLine, PiggyBank, Plus, RefreshCw, Target } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { Explica } from "@/components/ui/Explica";
 import { HeroiDoTema } from "@/components/ui/HeroiDoTema";
@@ -185,19 +186,45 @@ export function MeusAtivos({
   return (
     <div className="flex flex-col gap-5">
       {vazia ? (
-        <HeroiDoTema>
-          <p className="text-[15px] text-heroi-suave">Sua carteira</p>
-          <p className="titulo-tema text-[26px] font-light leading-tight">Comece pelo que você já tem</p>
-          <p className="text-[14px] text-heroi-suave">Tesouro, CDB, caixinha, ações ou fundos. Você procura pelo nome e o app separa sozinho.</p>
-          <div className="flex flex-wrap gap-2 pt-1">
-            <button type="button" onClick={() => setFolha("novo")} className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-accent-gradient px-5 text-[15px] font-medium text-on-accent">
-              <Plus size={16} /> Adicionar investimento
+        // Protótipo (Carteira sem ativos): "Seus investimentos · R$ 0" com a esfera, e as linhas
+        // Adicionar investimento e Montar minha estratégia (Importar da B3 continua, embaixo).
+        <>
+          <HeroiDoTema>
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[15px] text-heroi-suave">Seus investimentos</p>
+                <ValorComCentavos texto={money(0, { round: true })} />
+                <p className="mt-1 text-[14px] text-heroi-suave">Você ainda não registrou nenhum investimento.</p>
+              </div>
+              <span className="size-16 shrink-0 rounded-full [background:radial-gradient(circle_at_35%_30%,#fff9,transparent_45%),var(--color-accent)] shadow-[0_8px_28px_-8px_color-mix(in_srgb,var(--color-accent)_70%,transparent)]" aria-hidden />
+            </div>
+          </HeroiDoTema>
+          <div className="divide-y divide-border overflow-hidden rounded-3xl bg-surface shadow-[inset_0_0_0_1px_var(--color-border)]" data-carteira-vazia>
+            <button type="button" onClick={() => setFolha("novo")} className="flex min-h-16 w-full items-center gap-3 px-4 py-3 text-left">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-surface-2 text-ink" aria-hidden>
+                <Plus size={18} />
+              </span>
+              <span className="min-w-0 flex-1">
+                <b className="block text-[15px] font-medium text-ink">Adicionar investimento</b>
+                <small className="text-[13px] text-ink-muted">Tesouro, CDB, ações, fundos</small>
+              </span>
+              <ChevronRight size={16} className="shrink-0 text-ink-faint" aria-hidden />
             </button>
-            <button type="button" onClick={() => setFolha("importar")} className="inline-flex min-h-11 items-center gap-1.5 rounded-full px-4 text-[15px] font-medium heroi-veu">
+            <Link href="/carteira/estrategia" className="flex min-h-16 w-full items-center gap-3 px-4 py-3 text-left">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-surface-2 text-ink" aria-hidden>
+                <Target size={18} />
+              </span>
+              <span className="min-w-0 flex-1">
+                <b className="block text-[15px] font-medium text-ink">Montar minha estratégia</b>
+                <small className="text-[13px] text-ink-muted">Quanto em cada tipo de investimento</small>
+              </span>
+              <ChevronRight size={16} className="shrink-0 text-ink-faint" aria-hidden />
+            </Link>
+            <button type="button" onClick={() => setFolha("importar")} className="flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left text-[15px] text-ink-muted">
               Importar da B3
             </button>
           </div>
-        </HeroiDoTema>
+        </>
       ) : (
         <HeroiDoTema>
           <div className="flex items-start justify-between gap-3">

@@ -17,6 +17,12 @@ export default async function AssessoriaPage() {
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-5">
       <Cabecalho titulo="Assessoria" sub="Abrir conta pela Fatos Capital." />
       <DesligarOfertas desligadas={user.ofertasDesligadas} />
+      {/* Protótipo: "Meus pedidos" (os ajustes que a assessoria manda para aprovar) e a nota. */}
+      <div className="flex min-h-14 items-center justify-between gap-3 rounded-3xl bg-surface px-4 py-3 shadow-[inset_0_0_0_1px_var(--color-border)]">
+        <b className="text-[15px] font-medium text-ink">Meus pedidos</b>
+        <span className="text-sm text-ink-muted">Nenhum pedido</span>
+      </div>
+      <p className="px-1 text-[13px] text-ink-muted">Quem já é cliente continua recebendo os ajustes para aprovar. Isso não é oferta.</p>
       <div className="mt-2 border-y border-border py-3">
         {/* eslint-disable-next-line @next/next/no-img-element -- assinatura fixa, pequena */}
         <img src="/logos/fatos-eqi.png" alt="Fatos Capital, AI contratado EQI" width={1212} height={394} className="h-7 w-auto [.dark_&]:hidden" />

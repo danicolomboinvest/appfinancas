@@ -27,7 +27,7 @@ export function AbasEmPilulas({ abas, rotulo }: { abas: AbaEmPilula[]; rotulo: s
   const pathname = usePathname();
   const ativa = abaAcesa(pathname, abas);
   return (
-    <div className="mb-3">
+    <div className="mb-3" data-tour="abas-carteira">
       <CarrosselDeAbas rotulo={rotulo} ativa={ativa?.href ?? null} itens={abas.map((a) => ({ chave: a.href, rotulo: a.label, href: a.href }))} />
     </div>
   );

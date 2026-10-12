@@ -140,7 +140,7 @@ export async function touchLastSeen(userId: string, previous: Date | null): Prom
 /** E-mail fica de fora de propósito: é a chave do acesso (allowlist), só muda via suporte. */
 export async function updateOwnProfile(
   ctx: AuthContext,
-  input: { name?: string; phone?: string | null },
+  input: { name?: string; phone?: string | null; nascimento?: Date | null; diaDoPagamento?: number | null },
 ) {
   return prisma.user.update({ where: { id: ctx.userId }, data: input });
 }

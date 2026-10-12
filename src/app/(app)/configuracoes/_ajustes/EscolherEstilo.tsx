@@ -2,7 +2,6 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Check } from "lucide-react";
 import { PROFILE_THEMES, type ProfileThemeKey } from "@/lib/profiles/themes";
 import { editarPerfilAction } from "@/app/(app)/perfis/actions";
 import { useToast } from "@/components/ui/toast-context";
@@ -43,23 +42,15 @@ export function EscolherEstilo({ perfilId, atual }: { perfilId: string; atual: P
                 router.refresh();
               });
             }}
-            className={`flex min-w-0 flex-col gap-2 rounded-2xl border p-2.5 text-left transition-colors ${ativo ? "border-accent" : "border-border hover:border-border-strong"}`}
+            className={`flex min-w-0 flex-col gap-2 rounded-2xl p-2 text-left transition-shadow ${ativo ? "shadow-[inset_0_0_0_2px_var(--color-ink)]" : "shadow-[inset_0_0_0_1px_var(--color-border)]"}`}
           >
-            <span className="relative flex h-16 items-end gap-1.5 overflow-hidden rounded-xl p-2" style={{ backgroundColor: p.canvas }} aria-hidden>
-              <span className="size-7 shrink-0 rounded-lg bg-cover" style={{ backgroundImage: `url(${t.logo}/icone.svg)` }} />
-              <span className="flex min-w-0 flex-1 flex-col gap-1 rounded-md p-1.5" style={{ backgroundColor: p.surface }}>
-                <span className="h-1.5 w-3/4 rounded-full" style={{ backgroundColor: p.ink, opacity: 0.8 }} />
-                <span className="h-1.5 w-1/2 rounded-full" style={{ backgroundColor: p.accent }} />
-              </span>
-              {ativo && (
-                <span className="absolute right-1.5 top-1.5 flex size-5 items-center justify-center rounded-full bg-accent text-on-accent">
-                  <Check size={12} strokeWidth={2.5} />
-                </span>
-              )}
+            {/* Protótipo: a prévia em degradê do tema (o herói dele), o nome e uma frase curta. */}
+            <span className="flex h-16 items-end overflow-hidden rounded-xl p-2" style={{ background: `linear-gradient(145deg, ${p.extras?.["heroi-de"] ?? p.accentSoft}, ${p.extras?.["heroi-para"] ?? p.surface2})` }} aria-hidden>
+              <span className="h-2 w-10 rounded-full" style={{ backgroundColor: p.accent }} />
             </span>
-            <span className="min-w-0">
-              <span className="block truncate text-[15px] font-medium text-ink">{t.label}</span>
-              <span className="block text-caption text-ink-muted">{t.descricao}</span>
+            <span className="min-w-0 px-0.5">
+              <span className="block text-[15px] font-medium text-ink">{t.label}</span>
+              <span className="block text-caption text-ink-muted">{t.descricao.split(".")[0]}.</span>
               {t.nomeDaVoz && <span className="block text-caption font-medium text-ink">Voz: {t.nomeDaVoz}</span>}
             </span>
           </button>

@@ -14,20 +14,20 @@ export function SairDaConta() {
   const [pendente, iniciar] = useTransition();
   if (confirmando) {
     return (
-      <div className="flex flex-col gap-3 p-4">
+      <div className="flex flex-col gap-3 bg-danger-soft p-4">
         <b className="text-[15px] font-medium text-ink">Sair da conta?</b>
-        <p className="text-sm text-ink-muted">Os avisos deste aparelho são desligados antes de sair.</p>
+        <p className="text-sm text-ink-muted">Seus dados ficam guardados. Para voltar, é só entrar de novo.</p>
         <div className="grid grid-cols-2 gap-2">
+          <button type="button" onClick={() => setConfirmando(false)} className="min-h-11 rounded-full bg-surface text-sm text-ink">
+            Cancelar
+          </button>
           <button
             type="button"
             disabled={pendente}
             onClick={() => iniciar(async () => logoutAction(await desinscreverAvisosDesteAparelho()))}
-            className="min-h-11 rounded-full bg-danger-soft text-sm font-medium text-danger disabled:opacity-60"
+            className="min-h-11 rounded-full bg-danger text-sm font-medium text-canvas disabled:opacity-60"
           >
             {pendente ? "Saindo…" : "Sair"}
-          </button>
-          <button type="button" onClick={() => setConfirmando(false)} className="min-h-11 rounded-full bg-surface-2 text-sm text-ink">
-            Cancelar
           </button>
         </div>
       </div>

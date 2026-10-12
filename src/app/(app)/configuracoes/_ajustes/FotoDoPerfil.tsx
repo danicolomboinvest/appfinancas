@@ -136,7 +136,7 @@ export function FotoDoPerfil({ nome, foto, comBotao = false, tamanho = 76, anel 
                     }
                   })
                 }
-                className="min-h-12 rounded-full bg-accent-gradient text-[15px] font-medium text-on-accent disabled:opacity-60"
+                className="min-h-12 rounded-full [background:var(--botao-fundo,var(--color-ink))] [color:var(--botao-tinta,var(--color-canvas))] text-[15px] font-medium disabled:opacity-60"
               >
                 Usar esta foto
               </button>
@@ -148,7 +148,7 @@ export function FotoDoPerfil({ nome, foto, comBotao = false, tamanho = 76, anel 
         ) : (
           <div className="flex flex-col items-center gap-3">
             <AvatarDaConta nome={nome} foto={foto} size={112} />
-            <label className="flex min-h-12 w-full cursor-pointer items-center justify-center rounded-full bg-accent-gradient text-[15px] font-medium text-on-accent">
+            <label className="flex min-h-12 w-full cursor-pointer items-center justify-center rounded-full [background:var(--botao-fundo,var(--color-ink))] [color:var(--botao-tinta,var(--color-canvas))] text-[15px] font-medium">
               Escolher foto
               <input type="file" accept="image/jpeg,image/png,image/webp" onChange={escolher} className="sr-only" />
             </label>

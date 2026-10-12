@@ -79,26 +79,32 @@ export function Modal({
         style={teclado > 0 ? { paddingBottom: `calc(1.5rem + ${teclado}px)`, maxHeight: alturaVisivel ? `${Math.round(alturaVisivel * 0.94) + teclado}px` : undefined } : undefined}
         className="relative z-10 max-h-[90dvh] w-full max-w-lg animate-fade-in overflow-y-auto overscroll-contain rounded-t-2xl border border-border bg-surface px-6 pt-6 pb-[calc(1.5rem+var(--safe-bottom))] shadow-premium outline-none sm:rounded-2xl sm:pb-6"
       >
-        <div className="mb-4 flex items-center justify-between gap-2">
-          {voltar && (
-            <button type="button" onClick={voltar} className="-ml-2 flex min-h-11 shrink-0 items-center gap-0.5 rounded-full pl-1 pr-2 text-sm text-ink-muted hover:text-ink">
-              <ChevronLeft size={18} aria-hidden />
-              Voltar
-            </button>
-          )}
-          <h2 id={titleId} className={`text-lg font-semibold text-ink ${voltar ? "mr-auto" : ""}`}>
+        {/* Protótipo: o puxador no topo e, na mesma linha, "‹ Voltar" à esquerda, o título no meio e o X. */}
+        <span className="mx-auto -mt-3 mb-3 block h-1 w-10 rounded-full bg-border-strong sm:hidden" aria-hidden />
+        <div className="mb-4 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
+          <div className="flex min-w-0 items-center">
+            {voltar && (
+              <button type="button" onClick={voltar} className="-ml-2 flex min-h-11 shrink-0 items-center gap-0.5 rounded-full pl-1 pr-2 text-sm text-ink-muted hover:text-ink">
+                <ChevronLeft size={18} aria-hidden />
+                Voltar
+              </button>
+            )}
+          </div>
+          <h2 id={titleId} className="break-words text-center text-lg font-semibold text-ink sm:max-w-none">
             {title}
           </h2>
-          {acoes && <div className="ml-auto flex items-center gap-1">{acoes}</div>}
-          {/* 44px de toque (size-11); o -mr-2 mantém o X alinhado à borda como antes. */}
-          <button
-            type="button"
-            onClick={onClose}
-            className="-mr-2 flex size-11 shrink-0 items-center justify-center rounded-full text-ink-muted hover:bg-surface-2 hover:text-ink"
-            aria-label="Fechar"
-          >
-            <X size={20} aria-hidden />
-          </button>
+          <div className="flex min-w-0 items-center justify-end gap-1">
+            {acoes}
+            {/* 44px de toque (size-11); o -mr-2 mantém o X alinhado à borda como antes. */}
+            <button
+              type="button"
+              onClick={onClose}
+              className="-mr-2 flex size-11 shrink-0 items-center justify-center rounded-full text-ink-muted hover:bg-surface-2 hover:text-ink"
+              aria-label="Fechar"
+            >
+              <X size={20} aria-hidden />
+            </button>
+          </div>
         </div>
         {children}
       </div>

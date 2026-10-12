@@ -63,9 +63,10 @@ describe("Tivemos uma mudança: quem vê", () => {
 
 describe("Tivemos uma mudança: os passos", () => {
   it("5 passos, cada um apontando o elemento de verdade, na ordem aprovada", () => {
-    expect(ONDE_DOS_PASSOS.map((p) => p.alvos)).toEqual([["mais", "perfil"], ["fluxo"], ["esferas"], ["metas", "carteira"], ["temas"]]);
-    expect(ONDE_DOS_PASSOS.map((p) => p.rota)).toEqual(["/mensal/foco", "/mensal/foco", "/decidir", "/mensal/foco", "/configuracoes/aparencia"]);
-    expect(ONDE_DOS_PASSOS.filter((p) => p.abreMenu)).toHaveLength(1);
+    // Auditoria de 11/10/2026: o passo 3 destaca o cartão da decisão e o 4 vai para a Carteira (sem abrir o menu).
+    expect(ONDE_DOS_PASSOS.map((p) => p.alvos)).toEqual([["mais", "perfil"], ["fluxo"], ["pilha"], ["abas-carteira"], ["temas"]]);
+    expect(ONDE_DOS_PASSOS.map((p) => p.rota)).toEqual(["/mensal/foco", "/mensal/foco", "/decidir", "/carteira", "/configuracoes/aparencia"]);
+    expect(ONDE_DOS_PASSOS.filter((p) => p.abreMenu)).toHaveLength(0);
     expect(contadorDoPasso(0)).toBe("1 de 5");
     expect(contadorDoPasso(4)).toBe("5 de 5");
   });

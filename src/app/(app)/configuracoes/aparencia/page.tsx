@@ -13,14 +13,15 @@ export default async function AparenciaPage() {
   const user = await getOwnUser(ctx);
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-5">
-      <Cabecalho titulo="Aparência" sub="Tema e modo escuro." />
-      <Grupo>
-        <AjustesRapidos so="modo" moeda={user.currency} modo={user.theme} podeEscolherModo rotulos={{ modo: "Modo", claro: "Claro", escuro: "Escuro", moeda: "", moedaAviso: "" }} />
-      </Grupo>
+      {/* Protótipo: o Estilo do app primeiro, com a prévia de cada tema; o Modo embaixo. */}
+      <Cabecalho titulo="Aparência" />
       <Grupo titulo="Estilo do app">
         <div className="pt-2">
           <EscolherEstilo perfilId={ctx.profileId} atual={profileTheme(ctx.profileTheme).key} />
         </div>
+      </Grupo>
+      <Grupo titulo="Modo">
+        <AjustesRapidos so="modo" moeda={user.currency} modo={user.theme} podeEscolherModo rotulos={{ modo: "Modo", claro: "Claro", escuro: "Escuro", moeda: "", moedaAviso: "" }} />
       </Grupo>
       <p className="px-1 text-[13px] text-ink-muted">O estilo vale para o perfil aberto. Cada perfil pode ter o seu.</p>
     </div>

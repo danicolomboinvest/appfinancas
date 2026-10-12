@@ -67,8 +67,10 @@ export type OndeDoPasso = {
 export const ONDE_DOS_PASSOS: OndeDoPasso[] = [
   { rota: "/mensal/foco", alvos: ["mais", "perfil"] },
   { rota: "/mensal/foco", alvos: ["fluxo"] },
-  { rota: "/decidir", alvos: ["esferas"] },
-  { rota: "/mensal/foco", alvos: ["metas", "carteira"], abreMenu: true },
+  // O cartão da decisão (protótipo), com as esferas de reserva quando a pilha está vazia.
+  { rota: "/decidir", alvos: ["pilha"] },
+  // A Carteira com as abas (protótipo), não o menu.
+  { rota: "/carteira", alvos: ["abas-carteira"] },
   // Os estilos moram em Configurações › Aparência desde a versão nova das Configurações.
   { rota: "/configuracoes/aparencia", alvos: ["temas"] },
 ];

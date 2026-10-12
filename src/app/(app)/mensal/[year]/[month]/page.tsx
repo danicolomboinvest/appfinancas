@@ -1,11 +1,10 @@
 import { notFound } from "next/navigation";
-import { Receipt } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
 import { dadosDaDivisao, listMonthlyEntries, listRecentSubcategories } from "@/lib/repositories/monthly-entry.repo";
 import { listCustomCategories } from "@/lib/repositories/custom-category.repo";
 import { listGoals } from "@/lib/repositories/goal.repo";
 import { getMonthlySummary } from "@/lib/consolidation/monthly";
-import { EmptyState } from "@/components/ui/EmptyState";
+import { VazioDeTransacoes } from "@/components/ui/VazioDeTransacoes";
 import { EntryList } from "./EntryList";
 import { linhasDaLista } from "./linhas";
 import { CartaoAReceber } from "./CartaoAReceber";
@@ -16,7 +15,6 @@ import { estadoDoMes, vozDoTema } from "@/lib/profiles/voice";
 import { ThemeFooter } from "./ThemeFooter";
 import { PrimeiroPassoDoMes } from "./PrimeiroPassoDoMes";
 import { prisma } from "@/lib/db/prisma";
-import { BotoesDeLancar } from "@/components/ui/BotoesDeLancar";
 
 
 export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]">) {
@@ -76,7 +74,7 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
 
       <CartaoAReceber aReceber={divisao.aReceber} />
       {entries.length === 0 ? (
-        <EmptyState icon={Receipt} message={voz.mesVazio} action={<BotoesDeLancar rotulo="Adicionar lançamento" />} />
+        <VazioDeTransacoes />
       ) : (
         <EntryList
           year={year}

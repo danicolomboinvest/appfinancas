@@ -1,8 +1,7 @@
 import { getRequiredSession } from "@/lib/auth/session";
-import { getOwnUser } from "@/lib/repositories/user.repo";
 import { PROFILE_THEMES, profileTheme } from "@/lib/profiles/themes";
-import { periodoDoDia, vozDoTema } from "@/lib/profiles/voice";
-import { nowInBrazil } from "@/lib/date/brazil-now";
+import { abertura, type Tom } from "@/lib/decisoes/respostas";
+import { serverMoney } from "@/lib/money-server";
 import { Cabecalho } from "../_ajustes/Lista";
 import { EscolherVoz } from "./EscolherVoz";
 
@@ -14,14 +13,16 @@ export const metadata = { title: "Voz do app · SPI Finance" };
  */
 export default async function VozPage() {
   const ctx = await getRequiredSession();
-  const user = await getOwnUser(ctx);
-  const nome = user.name?.split(" ")[0] || user.email.split("@")[0];
-  const periodo = periodoDoDia(nowInBrazil().getHours());
-  const vozes = PROFILE_THEMES.map((t) => ({ key: t.key, nome: t.nomeDaVoz ?? t.label, frase: vozDoTema(t.key, ctx.profileKind).saudacao(periodo, nome) }));
+  // Protótipo: o mesmo aviso dito por cada voz (a abertura do tema + "saúde passou R$ 67 do plano").
+  const money = await serverMoney();
+  const vozes = PROFILE_THEMES.map((t) => {
+    const abre = abertura(t.key as Tom, "atencao");
+    const aviso = `saúde passou ${money(67, { round: true })} do plano.`;
+    return { key: t.key, nome: t.nomeDaVoz ?? t.label, frase: abre ? `${abre}${aviso}` : `${aviso.charAt(0).toUpperCase()}${aviso.slice(1)}` };
+  });
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-5">
-      <Cabecalho titulo="Voz do app" sub="O jeito que o app fala com você." />
-      <p className="text-sm text-ink">A voz vem junto com o estilo do app. Os números são os mesmos; muda o jeito de falar.</p>
+      <Cabecalho titulo="Voz do app" sub="A voz vem com o estilo do app. É o mesmo aviso dito de cada jeito:" />
       <EscolherVoz perfilId={ctx.profileId} atual={profileTheme(ctx.profileTheme).key} vozes={vozes} />
     </div>
   );

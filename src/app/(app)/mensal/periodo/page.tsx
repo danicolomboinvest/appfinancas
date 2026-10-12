@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import { Receipt } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
 import { dadosDaDivisao, listEntriesInInterval, listRecentSubcategories } from "@/lib/repositories/monthly-entry.repo";
 import { listCustomCategories } from "@/lib/repositories/custom-category.repo";
@@ -7,8 +6,7 @@ import { listGoals } from "@/lib/repositories/goal.repo";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import { valoresOcultos } from "@/lib/money-server";
 import { lerIntervalo } from "@/lib/visao-geral/periodo";
-import { EmptyState } from "@/components/ui/EmptyState";
-import { BotoesDeLancar } from "@/components/ui/BotoesDeLancar";
+import { VazioDeTransacoes } from "@/components/ui/VazioDeTransacoes";
 import { EntryList } from "../[year]/[month]/EntryList";
 import { linhasDaLista } from "../[year]/[month]/linhas";
 import { CartaoAReceber } from "../[year]/[month]/CartaoAReceber";
@@ -39,7 +37,7 @@ export default async function TransacoesDoPeriodo(props: { searchParams: Promise
     <div className="flex flex-col gap-6 lg:gap-5">
       <CartaoAReceber aReceber={divisao.aReceber} />
       {entries.length === 0 ? (
-        <EmptyState icon={Receipt} message="Nenhum lançamento nesse período." action={<BotoesDeLancar rotulo="Adicionar lançamento" />} />
+        <VazioDeTransacoes />
       ) : (
         <EntryList
           year={intervalo.ate.ano}
