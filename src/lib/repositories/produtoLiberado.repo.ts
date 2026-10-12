@@ -2,15 +2,16 @@ import { prisma } from "@/lib/db/prisma";
 import { normalizeEmail } from "@/lib/repositories/allowedEmail.repo";
 
 /**
- * O que a pessoa comprou além do app (05/10/2026): hoje só o Money Reset, vendido no order bump
- * do SPI Finance. Fica no e-mail da compra, como a lista de acesso do app, porque a compra chega
+ * O que a pessoa comprou além do app (05/10/2026): o Money Reset, vendido no order bump do SPI
+ * Finance, e desde 11/10/2026 os adicionais (perfil Empresa e conta do parceiro, ver
+ * lib/adicionais). Fica no e-mail da compra, como a lista de acesso do app, porque a compra chega
  * pela Hubla antes de a conta existir.
  *
  * A liberação da Hubla e a manual da Dani moram na mesma linha (um e-mail, um produto): o
  * reembolso só desliga o que veio da Hubla, igual ao acesso do app (ver revokeFromHubla).
  */
 
-export type Produto = "money_reset";
+export type Produto = "money_reset" | "perfil_empresa" | "conta_parceiro";
 export const MONEY_RESET: Produto = "money_reset";
 
 export async function liberarProdutoDaHubla(email: string, produto: Produto) {

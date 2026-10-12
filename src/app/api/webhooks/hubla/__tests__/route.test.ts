@@ -362,3 +362,57 @@ describe("webhook Hubla: Money Reset no order bump (05/10/2026)", () => {
     expect(revokeFromHubla).not.toHaveBeenCalled();
   });
 });
+
+describe("webhook Hubla: adicionais Empresa e conta do parceiro (11/10/2026)", () => {
+  const SPI = { id: "GOXMpHHLZgsvZTE1fjTm", name: "SPI Finance" };
+  const EMPRESA = { id: "empresa1", name: "SPI Finance Perfil Empresa" };
+  const CASAL = { id: "casal1", name: "SPI Finance Conta do parceiro" };
+  beforeEach(() => {
+    produtos.push({ id: "p1", hublaProductId: SPI.id, name: "SPI Finance", active: true, source: "HUBLA", concede: "app" });
+    produtos.push({ id: "p3", hublaProductId: EMPRESA.id, name: EMPRESA.name, active: true, source: "HUBLA", concede: "perfil_empresa" });
+    produtos.push({ id: "p4", hublaProductId: CASAL.id, name: CASAL.name, active: true, source: "HUBLA", concede: "conta_parceiro" });
+  });
+
+  it("app com os dois bumps: libera o app e os dois adicionais", async () => {
+    const r = await chamar(compra("invoice.payment_succeeded", { user: { email: "ana@x.com" }, product: SPI, products: [SPI, EMPRESA, CASAL] }));
+    expect(await r.json()).toMatchObject({ ok: true, action: "granted", adicionais: ["perfil_empresa", "conta_parceiro"] });
+    expect(grantFromHubla).toHaveBeenCalledTimes(1);
+    expect(liberarProdutoDaHubla.mock.calls).toEqual([["ana@x.com", "perfil_empresa"], ["ana@x.com", "conta_parceiro"]]);
+  });
+
+  it("o adicional comprado sozinho (cliente antiga) libera só ele, sem convite de cadastro", async () => {
+    const r = await chamar(compra("invoice.payment_succeeded", { user: { email: "bia@x.com" }, product: EMPRESA }));
+    expect(await r.json()).toMatchObject({ ok: true, action: "granted_adicionais", adicionais: ["perfil_empresa"] });
+    expect(grantFromHubla).not.toHaveBeenCalled();
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  it("cancelou o adicional: tira só ele, o app continua", async () => {
+    const r = await chamar(compra("customer.member_removed", { user: { email: "cris@x.com" }, product: EMPRESA }));
+    expect(await r.json()).toMatchObject({ ok: true, action: "revoked_adicionais", adicionais: ["perfil_empresa"] });
+    expect(revogarProdutoDaHubla).toHaveBeenCalledWith("cris@x.com", "perfil_empresa");
+    expect(revokeFromHubla).not.toHaveBeenCalled();
+  });
+
+  it("reembolso da compra inteira tira o app e os adicionais", async () => {
+    const r = await chamar(compra("invoice.refunded", { user: { email: "duda@x.com" }, product: SPI, products: [SPI, CASAL] }));
+    expect(await r.json()).toMatchObject({ action: "revoked", adicionais: ["conta_parceiro"] });
+    expect(revokeFromHubla).toHaveBeenCalledWith("duda@x.com");
+    expect(revogarProdutoDaHubla).toHaveBeenCalledWith("duda@x.com", "conta_parceiro");
+  });
+
+  it("saída sem reembolso da compra com bump: o adicional sai, o app fica até o vencimento", async () => {
+    const r = await chamar(compra("customer.member_removed", { user: { email: "fe@x.com" }, product: SPI, products: [SPI, EMPRESA] }));
+    expect(await r.json()).toMatchObject({ ok: true, action: "revoked", adicionais: ["perfil_empresa"] });
+    expect(revogarProdutoDaHubla).toHaveBeenCalledWith("fe@x.com", "perfil_empresa");
+    expect(encerrarNoVencimento).toHaveBeenCalledWith("fe@x.com");
+    expect(revokeFromHubla).not.toHaveBeenCalled();
+  });
+
+  it("adicional desligado no painel não libera nada", async () => {
+    produtos.find((p) => p.id === "p3")!.active = false;
+    const r = await chamar(compra("invoice.payment_succeeded", { user: { email: "eva@x.com" }, product: EMPRESA }));
+    expect(await r.json()).toMatchObject({ action: "ignored" });
+    expect(liberarProdutoDaHubla).not.toHaveBeenCalled();
+  });
+});

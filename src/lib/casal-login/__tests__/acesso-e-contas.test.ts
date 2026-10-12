@@ -124,13 +124,15 @@ describe("limite na página do convite", () => {
   });
 });
 
-describe("a ponte da cobrança (trocar pela de lá na junção)", () => {
+describe("a ponte da cobrança (juntada com lib/adicionais)", () => {
   afterEach(() => vi.unstubAllEnvs());
 
-  it("tem a mesma assinatura da regra do branch cobranca-adicionais", () => {
+  it("é a mesma regra de lib/adicionais/acesso.ts, não uma cópia", async () => {
     const fonte = readFileSync("src/lib/casal-login/adicional.ts", "utf-8");
-    expect(fonte).toContain("export async function temAdicional(userId: string, adicional: Adicional, agora: Date = new Date()): Promise<boolean>");
-    expect(fonte).toContain('export type Adicional = "perfil_empresa" | "conta_parceiro"');
+    expect(fonte).toContain('export { temAdicional } from "@/lib/adicionais/acesso";');
+    expect(fonte).toContain('from "@/lib/adicionais/config"');
+    const daCobranca = await import("@/lib/adicionais/acesso");
+    expect(temAdicional).toBe(daCobranca.temAdicional);
   });
 
   it("sem ADICIONAIS_COBRAR_DESDE (como hoje), todo mundo tem a conta do parceiro", async () => {
@@ -139,12 +141,9 @@ describe("a ponte da cobrança (trocar pela de lá na junção)", () => {
     expect(await temAdicional("ana", "conta_parceiro")).toBe(true);
   });
 
-  it("antes da data, todo mundo tem; ligada sem a junção, falha fechada", async () => {
+  it("antes da data, todo mundo tem (sem ir ao banco)", async () => {
     vi.stubEnv("ADICIONAIS_COBRAR_DESDE", "2026-11-03");
     expect(await temAdicional("ana", "conta_parceiro", new Date("2026-11-02T12:00:00Z"))).toBe(true);
-    const aviso = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    expect(await temAdicional("ana", "conta_parceiro", new Date("2026-11-04T12:00:00Z"))).toBe(false);
-    expect(aviso).toHaveBeenCalled();
   });
 });
 
