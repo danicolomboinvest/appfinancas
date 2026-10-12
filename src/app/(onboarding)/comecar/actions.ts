@@ -1,5 +1,10 @@
 "use server";
 
+import { nowInBrazil } from "@/lib/date/brazil-now";
+
+import { definirRendaPlanejada } from "@/lib/repositories/monthly-plan.repo";
+import { mesesQueOSalvarGrava } from "@/lib/planning/plano-anual";
+
 import type { EntryCategory, ParentCategory } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { getRequiredSession } from "@/lib/auth/session";
@@ -28,7 +33,14 @@ export async function salvarComecoAction(mudanca: MudancaDoComeco & { tema?: str
   const ctx = await getRequiredSession();
   const atual = await lerComecoDaConta(ctx.userId);
   const { tema, moeda, ...resto } = mudanca;
-  await gravarComeco(ctx.userId, juntarComeco(atual, resto));
+  const novo = juntarComeco(atual, resto);
+  await gravarComeco(ctx.userId, novo);
+  // A renda do começo vai para o mesmo campo que o "Montar o plano" lê (12/10/2026): o Orçamento
+  // não pergunta de novo, só mostra preenchido para ela confirmar. Do mês de agora até dezembro.
+  if (resto.renda !== undefined && !novo.semRenda && novo.renda) {
+    const agora = nowInBrazil();
+    await definirRendaPlanejada(ctx, agora.getFullYear(), novo.renda, mesesQueOSalvarGrava(agora.getFullYear(), agora));
+  }
   // O tema vale para o perfil ativo, o mesmo que a tela de perfis muda.
   if (tema && isProfileThemeKey(tema)) await updateProfile(ctx, ctx.profileId, { theme: tema });
   // A moeda escolhida aqui (quem mora fora): antes ela só existia em Configurações.

@@ -47,9 +47,10 @@ import {
   BANCO_OUTRO,
   OPCOES_QUER,
   RENDA_INICIAL,
-  RENDA_MAX,
-  RENDA_MIN,
-  RENDA_PASSO,
+  POSICOES_DA_REGUA,
+  posicaoDaRenda,
+  rendaDaPosicao,
+  rendaDaRegua,
   TEMAS_DO_COMECO,
   apelidoLimpo,
   bancoDoComeco,
@@ -526,30 +527,44 @@ function PerguntaRenda({
 }) {
   const simbolo = CURRENCIES[moeda].symbol;
   const texto = moeda === "BRL" ? money(renda, { round: true }) : `${simbolo} ${renda.toLocaleString("pt-BR")}`;
-  const pct = ((renda - RENDA_MIN) / (RENDA_MAX - RENDA_MIN)) * 100;
+  const posicao = posicaoDaRenda(renda);
+  const pct = (posicao / POSICOES_DA_REGUA) * 100;
   return (
     <>
       <Titulo sub="mais ou menos?">Quanto entra por mês,</Titulo>
-      <div className="mt-2 flex flex-col items-center">
-        <ValorDestaque texto={texto} className="text-[clamp(2.25rem,11vw,2.75rem)] font-light leading-none tracking-[-0.02em] tabular-nums" />
-        {renda >= RENDA_MAX && <small className="mt-1 text-[13px] font-medium text-ink-muted">ou mais</small>}
-      </div>
+      {/* O número é um campo (12/10/2026): um toque abre o teclado, sem teto. A régua continua,
+          com passos maiores acima de 20 mil. */}
+      <label className="mt-2 flex items-baseline justify-center gap-2" data-renda-digitavel>
+        <span className="text-xl font-light text-ink-muted">{simbolo}</span>
+        <input
+          inputMode="numeric"
+          aria-label="Quanto entra por mês"
+          value={renda ? renda.toLocaleString("pt-BR") : ""}
+          onChange={(e) => {
+            const n = Number(e.target.value.replace(/\D/g, ""));
+            setRenda(Number.isFinite(n) ? Math.min(n, 100_000_000) : 0);
+          }}
+          onBlur={() => setRenda(rendaDaRegua(renda) ?? RENDA_INICIAL)}
+          className="w-[8ch] min-w-0 border-b-2 border-transparent bg-transparent pb-0.5 text-center text-[clamp(2.25rem,11vw,2.75rem)] font-light leading-none tracking-[-0.02em] tabular-nums text-ink outline-none focus:border-accent"
+        />
+      </label>
       <input
         type="range"
         className="slider-app w-full"
-        min={RENDA_MIN}
-        max={RENDA_MAX}
-        step={RENDA_PASSO}
-        value={renda}
-        onChange={(e) => setRenda(Number(e.target.value))}
-        aria-label="Quanto entra por mês"
+        min={0}
+        max={POSICOES_DA_REGUA}
+        step={1}
+        value={posicao}
+        onChange={(e) => setRenda(rendaDaPosicao(Number(e.target.value)))}
+        aria-label="Quanto entra por mês, na régua"
         aria-valuetext={texto}
         style={{ "--pct": `${pct}%` } as React.CSSProperties}
       />
       <div className="-mt-2 flex justify-between text-[12.5px] font-medium text-ink-muted">
         <span>{simbolo} 1 mil</span>
-        <span>{simbolo} 20 mil ou mais</span>
+        <span>{simbolo} 200 mil</span>
       </div>
+      <p className="-mt-1 text-center text-[13px] text-ink-muted">Mais que isso? Toque no valor e digite.</p>
       <Recado icone={<KeyRound size={16} />}>Serve só para eu calcular o seu livre. Ninguém vê, e dá para mudar depois.</Recado>
       {verMoedas ? (
         <div className="flex flex-wrap gap-2" role="group" aria-label="Moeda">

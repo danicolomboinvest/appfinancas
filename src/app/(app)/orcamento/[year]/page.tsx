@@ -94,12 +94,14 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
   const monthPlan = annualPlan.get(mesDeReferenciaDoPlano(year, agora)) ?? annualPlan.get(1) ?? [...annualPlan.values()][0] ?? null;
   // Ano que já acabou: o plano dele é história. O salvar não grava nada nele, então nem oferece.
   const planoFechado = anoFechado(year, agora);
-  const hasPlan = Object.values(plan).some((v) => v > 0) || (monthPlan?.plannedIncome ?? 0) > 0;
+  // Plano = categorias com valor (12/10/2026). Só a renda (a do começo, ou a de Meus dados) não é
+  // plano: o Orçamento continua no "Montar para mim", com a renda já preenchida para confirmar.
   const customPlan = await getAnnualBudgetPlanForCustomCategories(
     ctx,
     year,
     customCategories.map((c) => c.id),
   );
+  const hasPlan = Object.values(plan).some((v) => v > 0) || Object.values(customPlan).some((v) => v > 0);
   const customCategoryLabels = new Map(customCategories.map((c) => [c.id, c.name]));
   // O nome de cada categoria-mãe vem do tipo do perfil (Empresa fala "Estrutura", não "Moradia").
   function categoryLabel(categoryKey: string): string {

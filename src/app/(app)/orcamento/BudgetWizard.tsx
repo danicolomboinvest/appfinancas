@@ -19,6 +19,7 @@ import { EVENTO_IMPORTAR } from "@/components/shell/registrar-eventos";
 import type { SavingsTarget } from "@/lib/planning/savings-split";
 import { courseShareOf, savingsPercentFor } from "@/lib/planning/ideal-budget";
 import { divisaoDoGuardar, fecharExato, porcentagensQueSomam100 } from "@/lib/planning/fechar-plano";
+import { fatiasDoPlano } from "@/lib/planning/cores-do-plano";
 import { NewCustomCategoryCard } from "./NewCustomCategoryCard";
 import { applyAllBudgetsAction, type AnnualBudgetState } from "./actions";
 import { useVoltarAoTopo } from "@/components/ui/useVoltarAoTopo";
@@ -348,9 +349,10 @@ export function BudgetWizard({
       </div>
     );
   } else {
-    const fatias = cats.map((c) => ({ k: c.key, n: c.label, v: values[c.key] ?? 0 })).filter((f) => f.v > 0).sort((a, b) => b.v - a.v);
+    // Cor própria por categoria, sem 0% e com as lascas (< 2%) juntas em "Outras" (12/10/2026).
+    const fatias = fatiasDoPlano(cats.map((c) => ({ k: c.key, n: c.label, v: values[c.key] ?? 0 })));
     const pc = porcentagensQueSomam100(fatias.map((f) => f.v));
-    const cor = (k: number) => `var(--color-plano-${Math.min(7, k + 1)})`;
+    const cor = (k: number) => fatias[k].cor;
     conteudo = (
       <>
         <div className="flex flex-col items-center gap-1 pt-2 text-center">
@@ -390,7 +392,7 @@ export function BudgetWizard({
             <h4 className="mt-1 text-[15px] font-medium text-ink">Quando vale?</h4>
             <div className="grid grid-cols-2 rounded-full bg-surface-2 p-0.5" role="group" aria-label="Quando o plano vale">
               {(["sempre", "so"] as const).map((q) => (
-                <button key={q} type="button" aria-pressed={quando === q} onClick={() => setQuando(q)} className="min-h-10 rounded-full px-2 text-sm text-ink-muted aria-pressed:bg-surface aria-pressed:font-medium aria-pressed:text-ink aria-pressed:shadow-premium-sm">
+                <button key={q} type="button" aria-pressed={quando === q} onClick={() => setQuando(q)} className="min-h-10 whitespace-nowrap rounded-full px-1.5 text-sm text-ink-muted max-[359px]:text-[13px] aria-pressed:bg-surface aria-pressed:font-medium aria-pressed:text-ink aria-pressed:shadow-premium-sm">
                   {q === "sempre" ? `A partir de ${mesNome}` : `Só ${mesNome}`}
                 </button>
               ))}
@@ -481,7 +483,8 @@ export function BudgetWizard({
         {conteudo}
       </div>
 
-      {rodape && <div className="sticky bottom-0 -mx-1 bg-canvas/95 px-1 pb-1 pt-2">{rodape}</div>}
+      {/* Rodapé sem caixa (12/10/2026): o fundo é o da folha, e o fim respeita a área segura. */}
+      {rodape && <div className="pb-[var(--safe-bottom)] pt-1">{rodape}</div>}
 
       {/* Mudança não salva e a janela fechada: a barra continua à vista para salvar. */}
       {alterado &&

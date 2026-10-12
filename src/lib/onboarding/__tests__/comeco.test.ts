@@ -29,6 +29,8 @@ import {
   primeirosPassos,
   pularComeco,
   rendaDaRegua,
+  rendaDaPosicao,
+  posicaoDaRenda,
   ahaDoMes,
   teclarValor,
   terminarComLancamento,
@@ -62,10 +64,12 @@ describe("lerComeco: não confia no que está gravado", () => {
 });
 
 describe("as respostas", () => {
-  it("renda da régua: arredonda no passo e fica entre R$ 1 mil e R$ 20 mil", () => {
+  it("renda da régua: arredonda no passo, mínimo R$ 1 mil e sem teto", () => {
     expect(rendaDaRegua(4380)).toBe(4500);
     expect(rendaDaRegua(200)).toBe(1000);
-    expect(rendaDaRegua(90000)).toBe(20000);
+    expect(rendaDaRegua(90000)).toBe(90000);
+    expect(rendaDaRegua(35000)).toBe(35000);
+    expect(rendaDaRegua(250000)).toBe(250000);
     expect(rendaDaRegua(0)).toBeNull();
     expect(rendaDaRegua("x")).toBeNull();
   });
@@ -325,5 +329,13 @@ describe("mais de um banco", () => {
   });
   it("XP e BTG Pactual estão na lista, e a EQI continua", () => {
     for (const k of ["xp", "btg", "eqi"]) expect(bancoDoComeco(k), k).not.toBeNull();
+  });
+  it("a régua vai longe: passos maiores acima de R$ 20 mil, e volta para a mesma posição", () => {
+    expect(rendaDaPosicao(0)).toBe(1000);
+    expect(rendaDaPosicao(700)).toBe(20000);
+    expect(rendaDaPosicao(1000)).toBe(200000);
+    expect(rendaDaPosicao(posicaoDaRenda(35000))).toBe(35000);
+    expect(rendaDaPosicao(posicaoDaRenda(4500))).toBe(4500);
+    expect(posicaoDaRenda(900000)).toBe(1000);
   });
 });

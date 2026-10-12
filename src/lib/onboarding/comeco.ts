@@ -141,17 +141,42 @@ export const COMECO_NOVO: Comeco = {
 };
 
 export const RENDA_MIN = 1000;
+/** Até aqui a régua anda de R$ 250 em R$ 250; depois, de R$ 5 mil em R$ 5 mil até RENDA_TOPO_DA_REGUA. */
 export const RENDA_MAX = 20000;
 export const RENDA_PASSO = 250;
+export const RENDA_PASSO_ALTO = 5000;
+/** O fim da régua (12/10/2026). Acima disso, só digitando: a renda não tem teto. */
+export const RENDA_TOPO_DA_REGUA = 200000;
 /** Onde a régua começa: um valor do meio da faixa da maioria (a proposta usa R$ 4.500). */
 export const RENDA_INICIAL = 4500;
+/** A régua tem 1000 posições: as 700 primeiras vão de R$ 1 mil a R$ 20 mil, as 300 últimas até R$ 200 mil. */
+export const POSICOES_DA_REGUA = 1000;
+const POSICAO_DOS_20_MIL = 700;
 
-/** Renda da régua: arredonda no passo e fica entre o mínimo e o máximo ("R$ 20 mil ou mais"). */
+/**
+ * Renda da régua ou digitada: arredonda no passo e fica acima do mínimo. Sem teto desde 12/10/2026
+ * (quem ganha mais de R$ 20 mil não conseguia informar).
+ */
 export function rendaDaRegua(valor: unknown): number | null {
   const n = typeof valor === "number" ? valor : typeof valor === "string" ? Number(valor) : NaN;
   if (!Number.isFinite(n) || n <= 0) return null;
-  const arredondado = Math.round(n / RENDA_PASSO) * RENDA_PASSO;
-  return Math.min(RENDA_MAX, Math.max(RENDA_MIN, arredondado));
+  const passo = n > RENDA_MAX ? RENDA_PASSO_ALTO / 5 : RENDA_PASSO;
+  const arredondado = Math.round(n / passo) * passo;
+  return Math.min(100_000_000, Math.max(RENDA_MIN, arredondado));
+}
+
+/** Da posição da régua (0 a 1000) para a renda, com passos maiores acima de R$ 20 mil. */
+export function rendaDaPosicao(posicao: number): number {
+  const p = Math.max(0, Math.min(POSICOES_DA_REGUA, posicao));
+  if (p <= POSICAO_DOS_20_MIL) return Math.round((RENDA_MIN + (p / POSICAO_DOS_20_MIL) * (RENDA_MAX - RENDA_MIN)) / RENDA_PASSO) * RENDA_PASSO;
+  const f = (p - POSICAO_DOS_20_MIL) / (POSICOES_DA_REGUA - POSICAO_DOS_20_MIL);
+  return Math.round((RENDA_MAX + f * (RENDA_TOPO_DA_REGUA - RENDA_MAX)) / RENDA_PASSO_ALTO) * RENDA_PASSO_ALTO;
+}
+
+/** O contrário: onde a renda fica na régua (acima do topo, no fim). */
+export function posicaoDaRenda(renda: number): number {
+  if (renda <= RENDA_MAX) return Math.round((Math.max(0, renda - RENDA_MIN) / (RENDA_MAX - RENDA_MIN)) * POSICAO_DOS_20_MIL);
+  return Math.min(POSICOES_DA_REGUA, Math.round(POSICAO_DOS_20_MIL + ((renda - RENDA_MAX) / (RENDA_TOPO_DA_REGUA - RENDA_MAX)) * (POSICOES_DA_REGUA - POSICAO_DOS_20_MIL)));
 }
 
 /** O apelido: sem espaço sobrando, até 24 letras, sem nada que pareça tag. */

@@ -232,8 +232,6 @@ const GIRLY_FORM: Partial<Titulos> = {
 
   formOrcPasso: (passo, total) => `Passo ${passo} de ${total}`,
   formOrcMontar: "Montar o combinado",
-  formOrcPronto: "Seu combinado está pronto!",
-  formOrcUsar: "Usar este combinado",
   formOrcSalvo: "Combinado salvo daqui até dezembro!",
   formOrcTitulo: "Bora combinar seu mês?",
   formOrcQuantoEntra: "Quanto entra por mês?",

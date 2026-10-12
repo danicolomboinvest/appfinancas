@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useMoney } from "@/components/money/MoneyProvider";
 import { Explica } from "@/components/ui/Explica";
+import { corDoPlano } from "@/lib/planning/cores-do-plano";
 
 type Item = { key: string; label: string; cor: string; planejado: number; gasto: number };
 
@@ -30,7 +31,7 @@ export function SeuPlano({ itens, meses = 1 }: { itens: Item[]; /** Período de 
   const [modo, setModo] = useState<"plano" | "feito">("plano");
   if (itens.every((i) => i.planejado <= 0)) return null;
   const ordem = itens.filter((i) => i.planejado > 0).sort((a, b) => b.planejado - a.planejado);
-  const cor = (k: number) => `var(--color-plano-${Math.min(7, k + 1)})`;
+  const cor = (k: number) => corDoPlano(k);
   const plano = ordem.reduce((s, i) => s + i.planejado, 0);
   const gasto = ordem.reduce((s, i) => s + Math.max(0, i.gasto), 0);
   const escala = modo === "plano" ? plano : Math.max(plano, gasto);
