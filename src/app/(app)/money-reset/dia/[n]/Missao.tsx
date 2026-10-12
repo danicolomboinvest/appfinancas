@@ -2,138 +2,180 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Lock, PartyPopper } from "lucide-react";
+import { ArrowLeft, Check, Lock } from "lucide-react";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
-import { Card } from "@/components/ui/Card";
-import { ComoTirarExtrato } from "@/components/import/ComoTirarExtrato";
-import { missao, naVoz, vocabularioDaVoz } from "@/lib/money-reset/missoes";
-import type { StatusDoDia } from "@/lib/money-reset/progresso";
-import { iniciarGuia } from "@/components/money-reset/guia-estado";
-import type { DadosDaMissao } from "../../dados";
-import { TelaDoDia } from "./TelaDoDia";
+import { useMoney } from "@/components/money/MoneyProvider";
+import { HeroiDoTema } from "@/components/ui/HeroiDoTema";
+import { MapaDoReset } from "@/components/money-reset/MapaDoReset";
+import { IconeDoMarco } from "@/components/money-reset/IconeDoMarco";
+import { Placar } from "@/components/money-reset/Placar";
+import { SEMANAS, marco, naVoz, vocabularioDaVoz } from "@/lib/money-reset/missoes";
+import type { StatusDoMarco } from "@/lib/money-reset/progresso";
+import type { DadosDoMarco } from "../../dados";
+import { TelaDoMarco } from "./TelaDoMarco";
+import { CartaoFinal } from "./CartaoFinal";
 
 export type Respostas = Record<string, { texto: string; dados: unknown }>;
 
+/** Os marcos que mexem no placar desenham o placar deles (ele muda ao vivo enquanto ela decide). */
+const PLACAR_PROPRIO = new Set([3, 4]);
+
 /**
- * A missão do dia, como no protótipo: primeiro a abertura curta (ícone, por quê, o que ter em
- * mãos, o caminho de toques) e o botão "Começar, eu te guio". Nos dias de tela própria (o
- * retrato, o motivo, a regra do cartão...) o botão abre a tela; nos outros, liga o guia que
- * ilumina os botões de verdade do app, tela por tela.
+ * A missão, como na proposta A+B: o topo "Missão N de 21 · Semana", o título, o placar e a
+ * missão em si (TelaDoMarco). Feita, vira "o app reage": quanto ela achou, o que já mudou no SPI,
+ * o mapa pequeno e "a próxima já abriu; o ideal é amanhã, mas se quiser, a gente segue agora".
  */
-export function Missao({ dia, status, proxima, dados, respostas, amanha, hoje }: { dia: number; status: StatusDoDia; proxima: string | null; dados: DadosDaMissao; respostas: Respostas; amanha: string; hoje: string }) {
+export function Missao({
+  n,
+  status,
+  admin,
+  dados,
+  respostas,
+  achei,
+  atual,
+  historiaAntes,
+  feitaHoje,
+  mapa,
+  hoje,
+  amanha,
+}: {
+  n: number;
+  status: StatusDoMarco;
+  admin: boolean;
+  dados: DadosDoMarco;
+  respostas: Respostas;
+  achei: number;
+  atual: number | null;
+  historiaAntes: number | null;
+  feitaHoje: boolean;
+  mapa: { status: Record<number, StatusDoMarco>; semana: 1 | 2 | 3; titulos: string[] };
+  hoje: string;
+  amanha: string;
+}) {
   const { voz } = useProfileTheme();
   const t = voz.titulos;
   const v = vocabularioDaVoz(voz);
-  const m = missao(dia)!;
-  const [aberta, setAberta] = useState(false);
-  const feita = status === "feita";
-  const fechada = status === "bloqueada" || status === "amanha";
+  const money = useMoney();
+  const m = marco(n)!;
+  const semana = SEMANAS[m.semana - 1];
+  const feita = status === "feito";
+  const [vendo, setVendo] = useState<"missao" | "reagiu">(feita ? "reagiu" : "missao");
 
-  const topo = (
+  const topo = (rotulo: string) => (
     <div className="flex items-center gap-2">
-      <Link href="/money-reset" aria-label={t.mrVerTrilha} className="flex size-11 items-center justify-center rounded-full border border-border bg-surface text-ink-muted">
+      <Link href="/money-reset" aria-label={t.mrVerMapa} className="flex size-11 shrink-0 items-center justify-center rounded-full border border-border bg-surface text-ink-muted">
         <ArrowLeft size={18} />
       </Link>
-      <span className="text-caption font-semibold uppercase tracking-[0.11em] text-accent-strong">
-        {t.mrDia(dia)} · {t.mrSemana(m.semana)}
-      </span>
+      <span className="min-w-0 text-caption font-semibold uppercase tracking-[0.11em] text-accent-strong">{rotulo}</span>
     </div>
   );
 
-  if (fechada) {
+  if (status === "fechado" && !admin) {
     return (
       <div className="flex flex-col gap-5">
-        {topo}
-        <Card className="flex flex-col items-center gap-3 p-6 text-center">
-          <Lock size={22} className="text-ink-faint" />
+        {topo(t.mrMissaoDe(n, semana.nome))}
+        <div className="glass flex flex-col items-center gap-3 rounded-2xl p-6 text-center">
+          <span className="flex size-14 items-center justify-center rounded-2xl bg-surface-2 text-ink-muted">
+            <Lock size={22} aria-hidden />
+          </span>
           <p className="text-body font-semibold text-ink">{naVoz(m.t, v)}</p>
-          <p className="text-caption text-ink-muted">{status === "amanha" ? t.mrFocoAmanha : t.mrBloqueada}</p>
-        </Card>
+          <p className="text-caption text-ink-muted">Abre quando você chegar lá</p>
+        </div>
       </div>
     );
   }
 
-  if (aberta && m.destino.tipo === "tela") {
+  // O fim do mapa: o cartão "Organizei meu dinheiro em 21 dias".
+  if (n === 21 && vendo === "reagiu" && dados.n === 21) {
     return (
       <div className="flex flex-col gap-4">
-        {topo}
-        <TelaDoDia dia={dia} dados={dados} respostas={respostas} feita={feita} amanha={amanha} hoje={hoje} onVoltar={() => setAberta(false)} />
+        {topo("21 de 21")}
+        <MapaDoReset status={mapa.status} semana={3} titulos={mapa.titulos} mini />
+        <CartaoFinal dados={dados as Extract<DadosDoMarco, { n: 21 }>} achei={achei} />
+        <button type="button" onClick={() => setVendo("missao")} className="min-h-11 text-sm font-semibold text-ink-muted">
+          {t.mrVerDeNovo}
+        </button>
       </div>
     );
   }
 
-  // A abertura enxuta (revisão da Dani: "não quero que a pessoa se sinta perdida"): o porquê numa
-  // frase, o que ter em mãos, o caminho de toques e o botão. O resto fica em "Precisa de ajuda?".
+  if (vendo === "reagiu") {
+    const proxima = atual !== null && atual !== n ? marco(atual)! : null;
+    const destino = historiaAntes ? `/money-reset/semana/${historiaAntes}` : proxima ? `/money-reset/dia/${proxima.n}` : "/money-reset";
+    const achou = PLACAR_PROPRIO.has(n) && achei > 0;
+    return (
+      <div className="flex flex-col gap-4">
+        {topo(t.mrFeita(n))}
+        <HeroiDoTema className="mr-entra">
+          {achou ? (
+            <>
+              <small className="text-[13px] font-semibold text-heroi-suave">{t.mrAchou}</small>
+              <span className="text-[40px] font-bold leading-none tracking-tight tabular-nums">{money(achei, { round: true })}</span>
+              <small className="text-[13px] font-semibold text-heroi-suave">{t.mrNoAno(money(achei * 12, { round: true }))}</small>
+            </>
+          ) : (
+            <div className="flex items-center gap-3">
+              <span className="heroi-veu flex size-14 shrink-0 items-center justify-center rounded-2xl">
+                <IconeDoMarco icone={m.icone} size={26} />
+              </span>
+              <div className="min-w-0">
+                <small className="block text-[13px] font-semibold text-heroi-suave">{t.mrFeita(n)}</small>
+                <b className="block text-[19px] font-bold leading-tight">{naVoz(m.t, v)}</b>
+              </div>
+            </div>
+          )}
+        </HeroiDoTema>
+
+        <div className="glass flex flex-col gap-2.5 rounded-2xl p-4">
+          <p className="text-[15px] font-semibold text-ink">{t.mrMudou}</p>
+          {m.mudou.map((x, i) => (
+            <p key={x} className="mr-entra flex items-center gap-2.5 text-[14px] text-ink" style={{ animationDelay: `${150 + i * 120}ms` }}>
+              <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-success-soft text-success">
+                <Check size={13} strokeWidth={3} aria-hidden />
+              </span>
+              {naVoz(x, v)}
+            </p>
+          ))}
+        </div>
+
+        <MapaDoReset status={mapa.status} semana={mapa.semana} titulos={mapa.titulos} mini />
+
+        {proxima ? (
+          <>
+            <div className="flex items-start gap-2.5">
+              <span className="mr-dani" aria-hidden />
+              <p className="rounded-2xl rounded-tl-md bg-surface-2 px-3 py-2 text-[14px] text-ink">{feitaHoje ? t.mrProximaAbriu(proxima.n) : t.mrProximaEspera(proxima.n)}</p>
+            </div>
+            <Link href={destino} className="inline-flex min-h-12 items-center justify-center rounded-full bg-accent-gradient px-5 text-[15px] font-semibold text-on-accent shadow-premium-sm">
+              {t.mrContinuar}
+            </Link>
+            <Link href="/money-reset" className="inline-flex min-h-11 items-center justify-center rounded-full border border-border-strong px-5 text-sm font-semibold text-ink">
+              {t.mrDeixarAmanha}
+            </Link>
+          </>
+        ) : (
+          <Link href="/money-reset" className="inline-flex min-h-12 items-center justify-center rounded-full bg-accent-gradient px-5 text-[15px] font-semibold text-on-accent shadow-premium-sm">
+            {t.mrVerMapa}
+          </Link>
+        )}
+        <button type="button" onClick={() => setVendo("missao")} className="min-h-11 text-sm font-semibold text-ink-muted">
+          {t.mrVerDeNovo}
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-4">
-      {topo}
-
-      <div className="flex flex-col items-center gap-2 pt-2 text-center">
-        <span className="flex size-20 items-center justify-center rounded-3xl bg-accent-soft text-4xl" aria-hidden>
-          {m.ic}
+      {topo(t.mrMissaoDe(n, semana.nome))}
+      <div className="flex items-center gap-3">
+        <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-accent-soft text-accent-strong">
+          <IconeDoMarco icone={m.icone} size={22} />
         </span>
-        <h1 className="text-h2 font-bold tracking-tight text-ink">{naVoz(m.t, v)}</h1>
-        <p className="max-w-xs text-sm text-ink-muted">{naVoz(m.por, v)}</p>
-        <p className="text-caption text-ink-faint">{t.mrMinutos(m.min)}</p>
+        <h1 className="min-w-0 text-h2 font-bold leading-tight tracking-tight text-ink">{naVoz(m.t, v)}</h1>
       </div>
-
-      {feita && (
-        <Card className="flex items-start gap-3 border-success/40 p-4">
-          <PartyPopper size={20} className="mt-0.5 shrink-0 text-success" />
-          <div>
-            <p className="text-sm font-semibold text-ink">{t.mrFeita}</p>
-            <p className="text-caption text-ink-muted">{proxima ? t.mrAmanha(naVoz(proxima, v)) : t.mrConcluidoSub}</p>
-          </div>
-        </Card>
-      )}
-
-      {m.precisa && (
-        <div className="rounded-2xl bg-accent-soft px-4 py-3">
-          <p className="text-caption font-semibold uppercase tracking-[0.11em] text-accent-strong">{t.mrPrecisa}</p>
-          <p className="mt-0.5 text-sm text-ink">{m.precisa}</p>
-        </div>
-      )}
-
-      {/* O caminho de toques, visual: o que ela vai apertar, na ordem. */}
-      <div className="flex flex-wrap items-center justify-center gap-1.5 px-2">
-        {m.toques.map((toque, i) => (
-          <span key={i} className="flex items-center gap-1.5">
-            {i > 0 && <span className="text-ink-faint">›</span>}
-            <span className="rounded-full border border-border-strong bg-surface px-2.5 py-1 text-caption font-semibold text-ink">{naVoz(toque, v)}</span>
-          </span>
-        ))}
-      </div>
-
-      <button
-        type="button"
-        onClick={() => (m.destino.tipo === "guia" ? iniciarGuia(dia) : setAberta(true))}
-        className="inline-flex min-h-12 items-center justify-center rounded-full bg-accent-gradient px-5 text-sm font-semibold text-on-accent shadow-premium-sm"
-      >
-        {feita ? naVoz(m.btn, v) : m.destino.tipo === "guia" ? t.mrGuiar : naVoz(m.btn, v)}
-      </button>
-
-      <details className="rounded-2xl border border-border bg-surface px-4">
-        <summary className="flex min-h-11 cursor-pointer items-center text-sm font-semibold text-ink-muted">{t.mrAjuda}</summary>
-        <div className="flex flex-col gap-3 pb-4">
-          <ol className="flex flex-col gap-1.5">
-            {m.passos.map((p, i) => (
-              <li key={i} className="flex gap-2 text-sm text-ink">
-                <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-surface-2 text-caption font-bold text-ink-muted">{i + 1}</span>
-                {naVoz(p, v)}
-              </li>
-            ))}
-          </ol>
-          <p className="text-sm text-ink-muted">
-            <b className="text-ink">{t.mrSozinho}:</b> {naVoz(m.sozinho, v)}
-          </p>
-          {m.travou && (
-            <p className="text-sm text-ink-muted">
-              <b className="text-ink">{t.mrTravou}</b> {naVoz(m.travou, v)}
-            </p>
-          )}
-          {(dia === 1 || dia === 2 || dia === 20) && <ComoTirarExtrato />}
-        </div>
-      </details>
+      {!PLACAR_PROPRIO.has(n) && <Placar porMes={achei} />}
+      <TelaDoMarco n={n} dados={dados} respostas={respostas} feita={feita} admin={admin} achei={achei} hoje={hoje} amanha={amanha} onFeita={() => setVendo("reagiu")} />
     </div>
   );
 }

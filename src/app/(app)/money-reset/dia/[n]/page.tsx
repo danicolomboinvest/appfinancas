@@ -1,37 +1,52 @@
 import { notFound } from "next/navigation";
 import { getRequiredSession } from "@/lib/auth/session";
 import { temMoneyReset } from "@/lib/repositories/produtoLiberado.repo";
-import { conferirMissaoDoDia, lerReset } from "@/lib/repositories/money-reset.repo";
-import { missao } from "@/lib/money-reset/missoes";
-import { carregarDadosDaMissao } from "../../dados";
+import { lerResetConferido } from "@/lib/repositories/money-reset.repo";
+import { MARCOS, marco, naVoz, vocabularioDaVoz } from "@/lib/money-reset/missoes";
+import { feitoHoje } from "@/lib/money-reset/progresso";
+import { vozDoTema } from "@/lib/profiles/voice";
+import { carregarDadosDoMarco } from "../../dados";
 import { Missao } from "./Missao";
 
-/** Uma missão do Money Reset: a abertura (por quê, o que ter em mãos, o caminho) e a tela do dia. */
+/**
+ * Uma missão do mapa (o endereço continua /money-reset/dia/N, para os atalhos antigos não
+ * quebrarem; N agora é o marco). A missão acontece ali mesmo, com os números e as marcas dela;
+ * feita, a tela mostra o que mudou no app e abre a próxima.
+ */
 export default async function MissaoPage(props: PageProps<"/money-reset/dia/[n]">) {
-  const { n } = await props.params;
-  const dia = Number(n);
-  const m = missao(dia);
+  const { n: param } = await props.params;
+  const n = Number(param);
+  const m = marco(n);
   if (!m) notFound();
   const ctx = await getRequiredSession();
   if (!(await temMoneyReset(ctx.userId))) notFound();
-  let reset = await lerReset(ctx);
-  if (await conferirMissaoDoDia(ctx, reset)) reset = await lerReset(ctx);
+  const reset = await lerResetConferido(ctx);
+  const v = vocabularioDaVoz(vozDoTema(ctx.profileTheme, ctx.profileKind));
 
-  const status = reset.estado.status[dia];
   const admin = ctx.role === "ADMIN";
+  const status = reset.estado.status[n];
   const fixasTotal = (reset.respostas.fixas?.dados as { total?: number } | undefined)?.total;
-  const dados = status === "feita" || status === "hoje" || admin ? await carregarDadosDaMissao(ctx, dia, { fixasTotal }) : { dia };
-  const respostas = Object.fromEntries(Object.entries(reset.respostas).map(([k, v]) => [k, { texto: v?.texto ?? "", dados: v?.dados ?? null }]));
+  const dados = status !== "fechado" || admin ? await carregarDadosDoMarco(ctx, n, { fixasTotal }) : { n };
+  const respostas = Object.fromEntries(Object.entries(reset.respostas).map(([k, r]) => [k, { texto: r?.texto ?? "", dados: r?.dados ?? null }]));
+  const atual = reset.estado.atual;
+  // A semana do próximo marco tem história ainda não vista: "Continuar" passa por ela.
+  const proxima = atual !== null ? marco(atual)! : null;
+  const historiaAntes = proxima && proxima.semana > 1 && !reset.respostas[`historia${proxima.semana}` as const] ? proxima.semana : null;
 
   return (
     <Missao
-      dia={dia}
-      status={admin && status !== "feita" ? "hoje" : status}
-      proxima={missao(dia + 1)?.t ?? null}
+      n={n}
+      status={status}
+      admin={admin}
       dados={dados}
       respostas={respostas}
-      amanha={new Date(reset.hoje.getTime() + 86_400_000).toISOString().slice(0, 10)}
+      achei={reset.achei}
+      atual={atual}
+      historiaAntes={historiaAntes}
+      feitaHoje={feitoHoje(reset.feitos.get(n), new Date())}
+      mapa={{ status: reset.estado.status, semana: reset.estado.semana, titulos: MARCOS.map((x) => naVoz(x.t, v)) }}
       hoje={reset.hoje.toISOString().slice(0, 10)}
+      amanha={new Date(reset.hoje.getTime() + 86_400_000).toISOString().slice(0, 10)}
     />
   );
 }

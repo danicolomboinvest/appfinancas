@@ -1,137 +1,70 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Check, ChevronRight, Lock } from "lucide-react";
+import { BookOpen, ChevronRight } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
 import { temMoneyReset } from "@/lib/repositories/produtoLiberado.repo";
-import { conferirMissaoDoDia, lerReset } from "@/lib/repositories/money-reset.repo";
-import { MISSOES, SEMANAS, missao, naVoz, vocabularioDaVoz } from "@/lib/money-reset/missoes";
+import { lerResetConferido } from "@/lib/repositories/money-reset.repo";
+import { MARCOS, SEMANAS, marco, naVoz, vocabularioDaVoz } from "@/lib/money-reset/missoes";
 import { vozDoTema } from "@/lib/profiles/voice";
-import { Card } from "@/components/ui/Card";
-import { AnelDoReset } from "./AnelDoReset";
-import { Dia0 } from "./Dia0";
+import { MapaDoReset } from "@/components/money-reset/MapaDoReset";
+import { IconeDoMarco } from "@/components/money-reset/IconeDoMarco";
+import { Placar } from "@/components/money-reset/Placar";
 
 /**
- * Money Reset (05/10/2026): a trilha dos 21 dias. Só quem comprou (ou a Dani) entra; para os
- * outros a página nem existe, de propósito (ninguém se sente cobrado dentro do app).
+ * Money Reset, versão A+B (12/10/2026): o mapa de 21 marcos em 3 semanas, com o placar "Achei
+ * R$ X por mês" no alto e o cartão da missão de agora embaixo. Só quem comprou (ou a Dani) entra;
+ * para os outros a página nem existe, de propósito (ninguém se sente cobrado dentro do app).
  */
 export default async function MoneyResetPage() {
   const ctx = await getRequiredSession();
   if (!(await temMoneyReset(ctx.userId))) notFound();
-  let reset = await lerReset(ctx);
-  if (await conferirMissaoDoDia(ctx, reset)) reset = await lerReset(ctx);
-  const t = vozDoTema(ctx.profileTheme, ctx.profileKind).titulos;
-  const v = vocabularioDaVoz(vozDoTema(ctx.profileTheme, ctx.profileKind));
+  const reset = await lerResetConferido(ctx);
+  const voz = vozDoTema(ctx.profileTheme, ctx.profileKind);
+  const t = voz.titulos;
+  const v = vocabularioDaVoz(voz);
   const { estado } = reset;
-  const admin = ctx.role === "ADMIN";
-  const atual = estado.atual ? missao(estado.atual) : null;
-
-  // Dia 0: só a tarefa de hoje. A trilha inteira, com cadeados, assustava (revisão da Dani).
-  if (estado.fase === "dia0") return <Dia0 />;
-  // A semana em que ela está fica aberta; as outras, num toque ("Ver os 21 dias").
-  const semanaAtual = atual?.semana ?? 3;
-
-  const semana = (s: (typeof SEMANAS)[number]) => (
-        <section key={s.n} className="flex flex-col gap-2">
-          <div className="px-1">
-            <h2 className="text-caption font-semibold uppercase tracking-[0.11em] text-ink-muted">
-              {t.mrSemana(s.n)} · {s.nome}
-            </h2>
-            <p className="text-caption text-ink-faint">{s.sub}</p>
-          </div>
-          <ul className="divide-y divide-border rounded-2xl border border-border bg-surface">
-            {MISSOES.filter((m) => m.semana === s.n).map((m) => {
-              const st = estado.status[m.d];
-              const abre = st === "feita" || st === "hoje" || admin;
-              const conteudo = (
-                <>
-                  <span className={`flex size-10 shrink-0 items-center justify-center rounded-xl text-lg ${st === "feita" ? "bg-success/15" : st === "hoje" ? "bg-accent-soft" : "bg-surface-2"}`} aria-hidden>
-                    {st === "feita" ? <Check size={18} className="text-success" strokeWidth={2.5} /> : st === "bloqueada" || st === "amanha" ? <span className="opacity-60">{m.ic}</span> : m.ic}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-caption text-ink-faint">{t.mrDia(m.d)}</span>
-                    <span className={`block truncate text-sm font-semibold ${st === "bloqueada" ? "text-ink-muted" : "text-ink"}`}>{naVoz(m.t, v)}</span>
-                  </span>
-                  {st === "hoje" ? (
-                    <span className="shrink-0 rounded-full bg-accent-soft px-2.5 py-1 text-caption font-semibold text-accent-strong">{t.mrHoje}</span>
-                  ) : st === "amanha" ? (
-                    <span className="shrink-0 text-caption text-ink-faint">{t.mrAbreAmanha}</span>
-                  ) : st === "bloqueada" && !admin ? (
-                    <Lock size={14} className="shrink-0 text-ink-faint" aria-label={t.mrBloqueada} />
-                  ) : (
-                    <ChevronRight size={16} className="shrink-0 text-ink-faint" />
-                  )}
-                </>
-              );
-              return (
-                <li key={m.d}>
-                  {abre ? (
-                    <Link href={`/money-reset/dia/${m.d}`} className="flex min-h-14 items-center gap-3 px-3 py-2.5">
-                      {conteudo}
-                    </Link>
-                  ) : (
-                    <div className="flex min-h-14 items-center gap-3 px-3 py-2.5">{conteudo}</div>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-  );
+  const atual = estado.atual ? marco(estado.atual) : null;
+  const titulos = MARCOS.map((m) => naVoz(m.t, v));
+  // Semana 2 e 3 abrem com a história da Lu (uma vez, mesmo que o primeiro marco tenha contado
+  // sozinho); a da semana 1 fica no atalho, porque ali o extrato vem primeiro.
+  const historiaPendente = !!atual && atual.semana > 1 && !reset.respostas[`historia${atual.semana}` as const];
+  const semana = SEMANAS[(atual?.semana ?? 3) - 1];
 
   return (
-    <div className="flex flex-col gap-5">
-      <div className="flex items-center gap-4">
-        <AnelDoReset feitas={estado.feitas} tamanho={64} />
-        <div className="min-w-0">
-          <p className="text-caption font-semibold uppercase tracking-[0.11em] text-accent-strong">{t.mrTitulo}</p>
-          <h1 className="text-h2 font-bold tracking-tight text-ink">{t.mrSub}</h1>
-          <p className="mt-0.5 text-caption text-ink-muted">{t.mrFeitas(estado.feitas)}</p>
-        </div>
-      </div>
+    <div className="flex flex-col gap-4">
+      <p className="text-caption font-semibold uppercase tracking-[0.11em] text-accent-strong">{t.mrTopo}</p>
+      <Placar porMes={reset.achei} />
+      <MapaDoReset status={estado.status} semana={estado.semana} titulos={titulos} admin={ctx.role === "ADMIN"} historias />
 
       {atual && (
-        <Card className="flex flex-col gap-3 p-5">
-          <p className="text-caption font-semibold uppercase tracking-[0.11em] text-ink-muted">
-            {estado.disponivel ? t.mrMissaoDeHoje : t.mrProxima} · {t.mrDia(atual.d)}
-          </p>
-          <div className="flex items-center gap-3">
-            <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-accent-soft text-2xl" aria-hidden>
-              {atual.ic}
+        <div className="flex flex-col gap-3">
+          <Link href={historiaPendente ? `/money-reset/semana/${atual.semana}` : `/money-reset/dia/${atual.n}`} className="glass flex items-center gap-3 rounded-2xl px-3 py-3">
+            <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-accent-soft text-accent-strong">
+              {historiaPendente ? <BookOpen size={22} strokeWidth={1.9} aria-hidden /> : <IconeDoMarco icone={atual.icone} size={22} />}
             </span>
-            <div className="min-w-0">
-              <p className="text-body font-semibold text-ink">{naVoz(atual.t, v)}</p>
-              <p className="text-caption text-ink-muted">{t.mrMinutos(atual.min)}</p>
-            </div>
-          </div>
-          {estado.disponivel ? (
-            <Link href={`/money-reset/dia/${atual.d}`} className="inline-flex min-h-11 items-center justify-center rounded-full bg-accent-gradient px-5 text-sm font-semibold text-on-accent shadow-premium-sm">
-              {t.mrComecar}
-            </Link>
-          ) : (
-            <p className="rounded-xl bg-surface-2 px-3 py-2 text-center text-caption text-ink-muted">{estado.atual === 1 ? t.mrDia1Amanha : t.mrFocoAmanha}</p>
-          )}
-        </Card>
+            <span className="min-w-0 flex-1">
+              <b className="block text-[15px] font-semibold text-ink">{historiaPendente ? semana.historia : `${atual.n}. ${titulos[atual.n - 1]}`}</b>
+              <small className="block text-[13px] text-ink-muted">{historiaPendente ? `${t.mrHistoriaDe(atual.semana, semana.nome)} · 1 min` : `${t.mrAgora} · ${t.mrMinutos(atual.min)} · ${naVoz(atual.sub, v)}`}</small>
+            </span>
+            <ChevronRight size={18} className="shrink-0 text-ink-faint" aria-hidden />
+          </Link>
+          <Link
+            href={historiaPendente ? `/money-reset/semana/${atual.semana}` : `/money-reset/dia/${atual.n}`}
+            className="inline-flex min-h-12 items-center justify-center rounded-full bg-accent-gradient px-5 text-[15px] font-semibold text-on-accent shadow-premium-sm"
+          >
+            {historiaPendente ? t.mrAbrirHistoria : t.mrComecarMissao(atual.n)}
+          </Link>
+          <p className="text-center text-caption text-ink-muted">{t.mrRitmo}</p>
+        </div>
       )}
 
       {estado.fase === "concluido" && (
-        <Card className="flex flex-col items-center gap-2 p-6 text-center">
-          <span className="text-4xl" aria-hidden>
-            🏁
-          </span>
-          <p className="text-body font-semibold text-ink">{t.mrConcluido}</p>
-          <p className="text-caption text-ink-muted">{t.mrConcluidoSub}</p>
-          <Link href="/money-reset/dia/21" className="mt-1 inline-flex min-h-11 items-center rounded-full bg-accent-gradient px-5 text-sm font-semibold text-on-accent">
-            {naVoz(missao(21)!.btn, v)}
+        <div className="flex flex-col gap-3">
+          <p className="text-center text-body font-semibold text-ink">{t.mrConcluido}</p>
+          <Link href="/money-reset/dia/21" className="inline-flex min-h-12 items-center justify-center rounded-full bg-accent-gradient px-5 text-[15px] font-semibold text-on-accent shadow-premium-sm">
+            {t.mrCartaoFrase}
           </Link>
-        </Card>
-      )}
-
-      {SEMANAS.filter((s) => s.n === semanaAtual).map(semana)}
-      {estado.fase !== "concluido" && (
-        <details className="rounded-2xl border border-border bg-surface px-4">
-          <summary className="flex min-h-11 cursor-pointer items-center text-sm font-semibold text-ink">{t.mrVerTrilha}</summary>
-          <div className="flex flex-col gap-5 pb-4 pt-1">{SEMANAS.filter((s) => s.n !== semanaAtual).map(semana)}</div>
-        </details>
+        </div>
       )}
     </div>
   );

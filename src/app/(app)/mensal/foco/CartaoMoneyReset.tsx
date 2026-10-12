@@ -1,33 +1,33 @@
 import Link from "next/link";
-import { ChevronRight, Sprout } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import type { AuthContext } from "@/lib/auth/session";
 import { temMoneyReset } from "@/lib/repositories/produtoLiberado.repo";
-import { conferirMissaoDoDia, lerReset } from "@/lib/repositories/money-reset.repo";
-import { TOTAL_DE_DIAS } from "@/lib/money-reset/progresso";
+import { lerResetConferido } from "@/lib/repositories/money-reset.repo";
+import { TOTAL_DE_MARCOS } from "@/lib/money-reset/progresso";
+import { marco } from "@/lib/money-reset/missoes";
+import { IconeDoMarco } from "@/components/money-reset/IconeDoMarco";
 
 /**
- * Money Reset no Resumo (12/10/2026, versão nova): um cartão pequeno, só para quem comprou (ou é
- * admin), logo abaixo do "Outubro até agora". "Seu Money Reset · Dia X de 21" e "Continuar"; para
- * quem ainda não começou, "Começar". Quem não comprou não vê nada (nada de oferta dentro do app),
- * e ele some quando os 21 dias acabam.
+ * Money Reset no Resumo (versão A+B, 12/10/2026): um cartão pequeno, só para quem comprou (ou é
+ * admin), logo abaixo do "Outubro até agora". "Missão X de 21" com o desenho da missão e
+ * "Continuar"; quem ainda não começou vê "Começar". Leva direto à missão de agora (ela abre sem
+ * esperar o dia virar). Quem não comprou não vê nada, e ele some quando o mapa termina.
  */
 export async function CartaoMoneyReset({ ctx }: { ctx: AuthContext }) {
   if (!(await temMoneyReset(ctx.userId))) return null;
-  let reset = await lerReset(ctx);
-  if (await conferirMissaoDoDia(ctx, reset)) reset = await lerReset(ctx);
-  const { estado } = reset;
-  if (estado.fase === "concluido") return null;
-  const comecou = estado.fase === "andamento" && estado.atual !== null;
-  const href = comecou && estado.disponivel ? `/money-reset/dia/${estado.atual}` : "/money-reset";
-  const progresso = Math.round((estado.feitas / TOTAL_DE_DIAS) * 100);
+  const { estado } = await lerResetConferido(ctx);
+  if (estado.fase === "concluido" || estado.atual === null) return null;
+  const atual = marco(estado.atual)!;
+  const comecou = estado.feitos > 0;
+  const progresso = Math.round((estado.feitos / TOTAL_DE_MARCOS) * 100);
   return (
-    <Link href={href} className="flex items-center gap-3 rounded-3xl border border-border bg-surface px-4 py-3.5" data-cartao-money-reset>
+    <Link href={comecou ? `/money-reset/dia/${atual.n}` : "/money-reset"} className="flex items-center gap-3 rounded-3xl border border-border bg-surface px-4 py-3.5" data-cartao-money-reset>
       <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent-strong" aria-hidden>
-        <Sprout size={19} strokeWidth={1.8} />
+        <IconeDoMarco icone={atual.icone} size={19} strokeWidth={1.8} />
       </span>
       <span className="min-w-0 flex-1">
         <b className="block whitespace-nowrap text-[15px] font-medium text-ink">Seu Money Reset</b>
-        <span className="block text-[13px] text-ink-muted">{comecou ? `Dia ${estado.atual} de ${TOTAL_DE_DIAS}` : `${TOTAL_DE_DIAS} dias`}</span>
+        <span className="block text-[13px] text-ink-muted">{`Missão ${atual.n} de ${TOTAL_DE_MARCOS}`}</span>
         {comecou && (
           <span className="mt-1.5 block h-1 overflow-hidden rounded-full bg-surface-2" aria-hidden>
             <span className="block h-full rounded-full bg-accent" style={{ width: `${progresso}%` }} />
