@@ -97,6 +97,7 @@ describe("parseCsv", () => {
       date: "2026-04-17",
       description: "Pagamento de fatura · Fatura do cartão",
       amount: -14097.44, // formato americano lido corretamente
+      categoriaDoBanco: "Contas", // a coluna Categoria do BTG agora chega no motor
     });
     expect(txns[1].amount).toBe(5000);
   });

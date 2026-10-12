@@ -37,6 +37,22 @@ const CATEGORIAS_DO_BANCO = [
   "impostos", "assinaturas", "beleza", "bares e restaurantes", "supermercado",
 ].sort((a, b) => b.length - a.length);
 const HORARIO_E_CATEGORIA = new RegExp(`^\\d{1,2}h\\d{2}\\s+(?:(?:${CATEGORIAS_DO_BANCO.join("|")})\\s+)?`);
+const SO_A_CATEGORIA = new RegExp(`^\\d{1,2}h\\d{2}\\s+(${CATEGORIAS_DO_BANCO.join("|")})\\s+`);
+
+/**
+ * A categoria que o banco escreveu NA PRÓPRIA descrição, logo depois do horário (extrato do BTG:
+ * "22h21 Alimentação Compra no débito autorizada Mazu Restaurante" → "alimentacao"). Antes ela
+ * só era cortada fora da chave e jogada no lixo; agora vira sinal do motor (motivo "ramo_do_banco").
+ * Pix, TED e boleto ficam de fora (ver abaixo).
+ */
+export function categoriaNaFrenteDaDescricao(descricao: string | null | undefined): string | null {
+  if (!descricao) return null;
+  const t = semAcentoNemPontuacao(descricao);
+  // Só compra no cartão: aí o ramo vem do cadastro da maquininha. No Pix e na transferência o BTG
+  // chuta (o Pix pra uma empresa de passagem de ônibus vinha como "Lazer e Entretenimento").
+  if (/\b(pix|ted|doc|transferencia|boleto)\b/.test(t)) return null;
+  return t.match(SO_A_CATEGORIA)?.[1] ?? null;
+}
 
 /**
  * O jeito que o dinheiro saiu, escrito pelo banco antes do nome. Ordem importa: o mais comprido

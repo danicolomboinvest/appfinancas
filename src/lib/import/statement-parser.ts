@@ -263,6 +263,12 @@ const DC_HEADERS = ["d/c", "c/d", "natureza", "tipo"];
  * entravam como renda, porque ali o valor sai sempre positivo.
  */
 const SINAL_SAIDA_RE = /^(?:d\b|d[eé]b|sa[ií]da|debit|-$|gasto$|aporte$)/i;
+/**
+ * Coluna com o RAMO da loja que o banco manda junto (12/10/2026): "Categoria" do C6 e do Inter
+ * ("Restaurante / Lanchonete / Bar", "RESTAURANTES"), "category" do CSV antigo do Nubank, "Ramo",
+ * "Segmento", "MCC". Antes era jogada fora e o app perguntava o que o banco já tinha dito.
+ */
+const CATEGORY_HEADERS = ["categoria", "category", "ramo", "segmento", "mcc"];
 /** Célula que é SÓ o sinal (nada de "Pix enviado"): essa não enriquece a descrição. */
 const CELULA_SO_SINAL_RE = /^(?:d|c|d[eé]b(?:ito)?|cr[eé]d(?:ito)?|sa[ií]da|entrada|debit|credit|[+-]|gasto|renda|aporte|resgate)$/i;
 /** Coluna separada de "Transação"/"Tipo" (ex.: extrato BTG), enriquece a descrição. */
@@ -307,6 +313,8 @@ type CsvLayout = {
   creditCol: number;
   debitCol: number;
   dcCol: number;
+  /** Coluna do ramo da loja (ver CATEGORY_HEADERS); -1 quando não tem. */
+  catCol?: number;
 };
 
 /** Tem valor em dinheiro na linha? Cabeçalho não tem; linha de lançamento tem. */
@@ -339,6 +347,7 @@ function readHeaderLayout(line: string): CsvLayout | null {
   if (amountCol === -1 && !(creditCol !== -1 && debitCol !== -1)) return null;
   if (dateCol === -1 && descCol === -1) return null;
   const transCol = findColumn(cells, TRANSACTION_HEADERS);
+  const catCol = cells.findIndex((h, idx) => idx !== descCol && idx !== dateCol && idx !== amountCol && CATEGORY_HEADERS.some((n) => h.includes(n)));
   const ehColunaDeSinal = (h: string, idx: number) => idx !== descCol && DC_HEADERS.some((n) => h === n || h.startsWith(n));
   // Uma coluna só pra sinal ("D/C", "Natureza") vence. Sem ela, a coluna "Tipo" faz os dois
   // papéis: quando a célula é D/C/Saída/Entrada ela dá o sinal, quando é "Pix enviado" ela
@@ -350,9 +359,9 @@ function readHeaderLayout(line: string): CsvLayout | null {
   // colunas de crédito e débito (as duas apontavam pra ela, a conta dava zero e o sinal sumia).
   if (creditCol !== -1 && creditCol === debitCol && amountCol !== -1) {
     if (dcCol === -1) dcCol = creditCol;
-    return { delimiter, dateCol, descCol, amountCol, transCol, creditCol: -1, debitCol: -1, dcCol };
+    return { delimiter, dateCol, descCol, amountCol, transCol, creditCol: -1, debitCol: -1, dcCol, catCol };
   }
-  return { delimiter, dateCol, descCol, amountCol, transCol, creditCol, debitCol, dcCol };
+  return { delimiter, dateCol, descCol, amountCol, transCol, creditCol, debitCol, dcCol, catCol };
 }
 
 /**
@@ -399,7 +408,9 @@ function readTransactionLine(line: string, layout: CsvLayout, refYear: number): 
     [trans, desc].filter((s) => s && s !== "-").filter((s, i, arr) => arr.indexOf(s) === i).join(" · ") ||
     "Lançamento";
 
-  return { date: juntas ? juntas.date : csvDate(cols[dateCol] ?? "", refYear), description, amount };
+  const date = juntas ? juntas.date : csvDate(cols[dateCol] ?? "", refYear);
+  const ramo = layout.catCol !== undefined && layout.catCol !== -1 ? (cols[layout.catCol] ?? "").trim() : "";
+  return ramo && ramo !== "-" ? { date, description, amount, categoriaDoBanco: ramo } : { date, description, amount };
 }
 
 /**
