@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { headers } from "next/headers";
 import { after } from "next/server";
-import { CheckCircle2, MailWarning } from "lucide-react";
-import { BrandMark } from "@/components/brand/BrandMark";
+import { Check, CircleAlert } from "lucide-react";
+import { BOTAO, Mola, Selo, Sub, TelaDeEntrada, Titulo } from "@/components/entrada/pecas";
 import { lerTokenDeConfirmacao } from "@/lib/auth/confirmacao-email";
 import { marcarEmailConfirmado } from "@/lib/repositories/user.repo";
 import { sendEmail } from "@/lib/email/send";
@@ -33,51 +33,35 @@ export default async function ConfirmarEmailPage({
     after(() => enviarBoasVindasSeDevido(userId, `${proto}://${host}`, sendEmail));
   }
 
-  return (
-    <main className="flex min-h-dvh items-center justify-center bg-canvas p-6">
-      <div className="w-full max-w-sm animate-fade-in">
-        <div className="mb-8 flex flex-col items-center gap-3 text-center">
-          <BrandMark size={48} className="rounded-2xl" />
-        </div>
+  // Mockup A: o selo, uma frase e um botão. O link vencido diz o que fazer em seguida.
+  if (confirmado) {
+    return (
+      <TelaDeEntrada centro>
+        <Mola />
+        <Selo icone={Check} tipo="ok" />
+        <Titulo>E-mail confirmado</Titulo>
+        <Sub>Sua conta está liberada.</Sub>
+        <Mola />
+        {/* /login manda quem já está logada direto pro app. */}
+        <Link href="/login" className={BOTAO}>
+          Entrar no SPI Finance
+        </Link>
+      </TelaDeEntrada>
+    );
+  }
 
-        {confirmado ? (
-          <div className="flex flex-col items-center gap-4 rounded-2xl border border-border bg-surface p-6 text-center shadow-premium-sm">
-            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-success-soft text-success">
-              <CheckCircle2 size={28} strokeWidth={2} />
-            </span>
-            <div>
-              <h1 className="text-lg font-semibold tracking-tight text-ink">E-mail confirmado!</h1>
-              <p className="mt-1 text-sm text-ink-muted">Sua conta está liberada. Pode entrar.</p>
-            </div>
-            {/* /login manda quem já está logada direto pro app. */}
-            <Link
-              href="/login"
-              className="w-full rounded-lg bg-ink px-4 py-2.5 text-sm font-medium text-canvas hover:opacity-90"
-            >
-              Entrar no SPI Finance
-            </Link>
-          </div>
-        ) : (
-          <div className="flex flex-col items-center gap-4 rounded-2xl border border-border bg-surface p-6 text-center shadow-premium-sm">
-            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-danger-soft text-danger">
-              <MailWarning size={26} strokeWidth={2} />
-            </span>
-            <div>
-              <h1 className="text-lg font-semibold tracking-tight text-ink">Este link não vale mais</h1>
-              <p className="mt-1 text-sm text-ink-muted">
-                Ele pode ter vencido (vale 7 dias) ou ter chegado cortado. Entre na sua conta e toque em
-                &ldquo;Reenviar e-mail&rdquo; para receber um link novo.
-              </p>
-            </div>
-            <Link
-              href="/login"
-              className="w-full rounded-lg bg-ink px-4 py-2.5 text-sm font-medium text-canvas hover:opacity-90"
-            >
-              Entrar e pedir outro link
-            </Link>
-          </div>
-        )}
-      </div>
-    </main>
+  return (
+    <TelaDeEntrada centro>
+      <Mola />
+      <Selo icone={CircleAlert} tipo="ruim" />
+      <Titulo>Este link não vale mais</Titulo>
+      <Sub>
+        Ele pode ter vencido (vale 7 dias) ou chegado cortado. Entre e toque em Reenviar e-mail para receber um novo.
+      </Sub>
+      <Mola />
+      <Link href="/login" className={BOTAO}>
+        Entrar e pedir outro link
+      </Link>
+    </TelaDeEntrada>
   );
 }
