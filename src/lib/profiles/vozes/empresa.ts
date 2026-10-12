@@ -101,6 +101,11 @@ const TITULOS_EMPRESA: Partial<Titulos> = {
 
   // Orçamento
   formOrcTitulo: "Vamos montar o orçamento da empresa",
+  formOrcMontar: "Montar o orçamento",
+  formOrcComoDividir: "Como dividir entre as frentes?",
+  formOrcPronto: "O orçamento está pronto",
+  formOrcUsar: "Usar este orçamento",
+  formOrcVazioSub: "Com base nos gastos da empresa",
   formOrcRenda: "Faturamento por mês",
   formOrcRendaSugestao: (mes, valor) => `Em ${mes} a empresa faturou ${valor}.`,
   formOrcGuardarPorMes: "Reter por mês",
@@ -120,7 +125,7 @@ const TITULOS_EMPRESA: Partial<Titulos> = {
   formOrcProntoPlano: (ano) => `Pronto. O orçamento da empresa em ${ano}`,
   formOrcFimDoAnoSub: (valor, meses) => `${valor} por mês nos ${meses} meses que faltam, mais o que sobrar de lucro.`,
   formOrcSeuPlano: (ano) => `Orçamento da empresa em ${ano}`,
-  formOrcVerPlano: "Ver o orçamento da empresa →",
+  formOrcVerPlano: "Ver o orçamento",
 
   // Metas: os tipos de meta de uma empresa, nos mesmos cinco ícones do banco.
   formMetaIcones: { VIAGEM: "Viagem a trabalho", CASA: "Ponto ou reforma", CARRO: "Veículo ou frota", APOSENTADORIA: "Caixa maior", GENERICO: "Equipamento ou outro" },

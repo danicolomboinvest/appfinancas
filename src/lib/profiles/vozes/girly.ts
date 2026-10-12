@@ -231,6 +231,9 @@ const GIRLY_FORM: Partial<Titulos> = {
   formAtivoValorAtual: "Quanto vale hoje",
 
   formOrcPasso: (passo, total) => `Passo ${passo} de ${total}`,
+  formOrcMontar: "Montar o combinado",
+  formOrcPronto: "Seu combinado está pronto!",
+  formOrcUsar: "Usar este combinado",
   formOrcSalvo: "Combinado salvo daqui até dezembro!",
   formOrcTitulo: "Bora combinar seu mês?",
   formOrcQuantoEntra: "Quanto entra por mês?",
@@ -247,7 +250,7 @@ const GIRLY_FORM: Partial<Titulos> = {
   formOrcPassou: (valor) => `Passou ${valor} do que sobra`,
   formOrcSugerir: "Sugere para mim",
   formOrcCopiar: (mes) => `Copiar de ${mes}`,
-  formOrcVerPlano: "Ver meu combinado →",
+  formOrcVerPlano: "Ver meu combinado",
   formOrcSeuPlano: (ano) => `Seu combinado de ${ano}`,
   formOrcProntoPlano: (ano) => `Prontinho! Seu combinado de ${ano}`,
   formOrcLegGuardados: (pct) => `${pct} guardados`,

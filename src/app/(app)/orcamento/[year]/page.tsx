@@ -22,10 +22,10 @@ import { listCustomCategories } from "@/lib/repositories/custom-category.repo";
 
 import { elapsedRatioOfMonth } from "@/lib/planning/budget-bullets";
 import { serverMoney } from "@/lib/money-server";
-import { Section } from "@/components/ui/Section";
 import { Explica } from "@/components/ui/Explica";
 import { resumoDoMes } from "@/lib/planning/month-budget-summary";
 import { EditarPlano } from "@/components/budget/EditarPlano";
+import { ComecarOrcamento } from "@/components/budget/ComecarOrcamento";
 import { ajustesDoPadrao } from "@/lib/planning/padrao-orcamento";
 import { CategoriasDoMes, type LinhaDaCategoria } from "@/components/budget/CategoriasDoMes";
 import { carregarDetalheDoOrcamento } from "@/lib/repositories/orcamento-detalhe.repo";
@@ -206,6 +206,7 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
       hasPlan={hasPlan}
       hints={hints}
       savingsTargets={savingsTargets}
+      mesDeAgora={year === agora.getFullYear() ? agora.getMonth() + 1 : undefined}
       plan={{
         plannedIncome: monthPlan?.plannedIncome ?? 0,
         plannedInvestment: monthPlan?.plannedInvestment ?? 0,
@@ -237,7 +238,7 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
       {/* No computador o número fica à esquerda e o alerta, o plano e os dois quadrados à direita
           (07/10/2026): com a curva dentro do cartão, na largura toda ela ficava do tamanho da tela. */}
       <div className="flex flex-col gap-6 lg:grid lg:grid-cols-2 lg:items-start lg:gap-5">
-        {resumoMes && currentMonthData && (
+        {hasPlan && resumoMes && currentMonthData && (
           // O herói do Orçamento (protótipo aprovado): o plano do mês, o livre grande e uma barra.
           <HeroiDoTema>
             <div className="flex items-baseline justify-between gap-3">
@@ -286,11 +287,13 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
       ) : hasPlan ? (
         // Com plano: um botão que abre o assistente por cima (ver EditarPlano). Sem plano, ele é
         // a própria página e continua aberto aqui.
-        <EditarPlano rotulo="Editar meu plano" titulo={voz.titulos.formOrcEditarCurto(year)} largo resumo={resumoDoPlano}>
+        <EditarPlano rotulo="Editar meu plano" titulo={voz.titulos.formOrcMontar} largo resumo={resumoDoPlano}>
           {assistente}
         </EditarPlano>
       ) : (
-        <Section title={`Vamos montar seu orçamento de ${year}`}>{assistente}</Section>
+        <ComecarOrcamento titulo={voz.titulos.formOrcVazioTitulo} sub={voz.titulos.formOrcVazioSub} botao={voz.titulos.formOrcVazioBotao} tituloDaFolha={voz.titulos.formOrcMontar}>
+          {assistente}
+        </ComecarOrcamento>
       )}
     </div>
   );

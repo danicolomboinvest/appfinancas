@@ -317,7 +317,7 @@ export const PADRAO_SHELL: TextosShell = {
   uiAporteSemDestinoSub: "Diga em quais investimentos esse dinheiro entrou e suas metas andam junto.",
   uiAporteSemDestinoLink: "Dizer onde foi →",
   uiMesNovoTitulo: "Seu mês ainda está vazio",
-  uiMesNovoTexto: "O app lê o extrato ou a fatura e monta o mês para você. Leva 2 minutos.",
+  uiMesNovoTexto: "Mande o extrato e o mês se monta sozinho.",
   uiMesNovoImportar: "Importar meu extrato",
   uiMesNovoDigitar: "Prefiro anotar à mão",
   uiMesNovoAjuda: "Extrato ou fatura? Veja a diferença",

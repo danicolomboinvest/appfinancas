@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
-import { ChevronLeft, Pencil } from "lucide-react";
+import { cloneElement, isValidElement, useEffect, useState, type ReactElement, type ReactNode } from "react";
+import { Pencil } from "lucide-react";
 import { ResumoDoPlano, type ItemDoResumo } from "./ResumoDoPlano";
 import type { AjusteComRotulo } from "./SugestoesDoPadrao";
 import { Modal } from "@/components/ui/Modal";
@@ -58,14 +58,10 @@ export function EditarPlano({
         {resumo && !ajustando ? (
           <ResumoDoPlano itens={resumo.itens} ajustes={resumo.ajustes} mes={resumo.mes} onAjustar={() => setAjustando(true)} />
         ) : (
-          <>
-            {resumo && (
-              <button type="button" onClick={() => setAjustando(false)} className="-mt-2 mb-2 flex min-h-11 items-center gap-1 text-sm text-ink-muted">
-                <ChevronLeft size={16} aria-hidden /> Voltar
-              </button>
-            )}
-            {children}
-          </>
+          // O "Voltar" do primeiro passo do montador volta para o "Seu plano" (protótipo).
+          resumo && isValidElement(children)
+            ? cloneElement(children as ReactElement<{ aoVoltarDoInicio?: () => void }>, { aoVoltarDoInicio: () => setAjustando(false) })
+            : children
         )}
       </Modal>
     </>

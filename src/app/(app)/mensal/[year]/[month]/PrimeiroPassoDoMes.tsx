@@ -1,81 +1,49 @@
 "use client";
 
-import Link from "next/link";
-import { FileUp, Lock } from "lucide-react";
-import { Button } from "@/components/ui/Button";
+import { FileUp, Pencil } from "lucide-react";
 import { pedirRegistro } from "@/components/shell/registrar-eventos";
 import { trackEvent } from "@/lib/usage/track-event";
 
 /**
- * A Visão mensal de quem acabou de chegar: um passo só, "importe seu extrato".
- *
- * Antes, a conta nova abria nesta tela com uma pilha de cartões zerados (Entrou R$ 0, Gastou
- * R$ 0, roscas vazias, calendário em branco) e, lá embaixo, "toque no + e registre". Nada ali
- * dizia o que fazer, e a promessa da venda ("solta o extrato, o mês se monta sozinho") não
- * aparecia em lugar nenhum. Quem desiste nos 7 dias de garantia é justamente quem não passa
- * desse primeiro momento — então aqui fica UM botão grande, e o digitar à mão como plano B.
- *
- * Os textos chegam prontos na voz do tema (a página é do servidor e já tem a voz).
+ * Transações de quem ainda não tem nenhum lançamento (estilo novo, 12/10/2026): o desenho do
+ * recibo, uma frase curta e os mesmos dois botões da folha Registrar, "Importar extrato" em
+ * destaque e "Digitar". Importar continua o primeiro: quem só digita é quem mais desiste.
+ * Os textos chegam prontos na voz do tema.
  */
-export function PrimeiroPassoDoMes({
-  titulo,
-  texto,
-  importar,
-  digitar,
-  ajuda,
-  confianca,
-}: {
-  titulo: string;
-  texto: string;
-  importar: string;
-  digitar: string;
-  ajuda: string;
-  confianca: string;
-}) {
+export function PrimeiroPassoDoMes({ titulo, texto, importar }: { titulo: string; texto: string; /** O rótulo do Registrar no tema ("Extrato" no Girly). */ importar: string }) {
+  const botoes = [
+    { chave: "import" as const, evento: "registro_importacao", Icone: FileUp, rotulo: importar, destaque: true },
+    { chave: "type" as const, evento: "registro_digitado", Icone: Pencil, rotulo: "Digitar", destaque: false },
+  ];
   return (
-    <section className="flex flex-col items-center gap-4 rounded-2xl border border-border bg-surface px-5 py-8 text-center shadow-premium-sm">
-      <span className="flex h-14 w-14 items-center justify-center rounded-full bg-accent text-on-accent">
-        <FileUp size={26} strokeWidth={1.75} />
-      </span>
-      <div className="flex max-w-md flex-col gap-2">
-        <h2 className="text-lg font-semibold text-ink">{titulo}</h2>
-        <p className="text-sm text-ink-muted">{texto}</p>
+    <section className="flex flex-col items-center gap-2 px-1 pb-4 pt-8 text-center" data-mes-vazio>
+      <svg viewBox="0 0 64 72" className="mb-1 h-16 w-14 text-ink-faint" aria-hidden>
+        <path d="M10 4h44v62l-7-5-7 5-8-5-8 5-7-5-7 5z" fill="var(--color-surface)" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+        <path d="M20 20h24M20 30h24M20 40h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      </svg>
+      <h2 className="text-[20px] font-semibold leading-tight text-ink">{titulo}</h2>
+      <p className="max-w-xs text-[15px] text-ink-muted">{texto}</p>
+      <div className="mt-4 grid w-full max-w-xs grid-cols-2 gap-2.5">
+        {botoes.map(({ chave, evento, Icone, rotulo, destaque }) => (
+          <button
+            key={chave}
+            type="button"
+            onClick={() => {
+              // Mesmos nomes da escolha no "+"; o caminho separa quem veio por aqui.
+              trackEvent(evento, "/mensal/conta-nova");
+              pedirRegistro(chave);
+            }}
+            className={`flex min-h-32 flex-col items-center justify-start gap-2.5 rounded-2xl border px-2 pb-3 pt-4 text-center transition-all active:scale-95 ${
+              destaque ? "border-accent/50 bg-accent-soft/40 hover:border-accent" : "border-border bg-surface-2 hover:border-border-strong hover:bg-surface-hover"
+            }`}
+          >
+            <span className={`flex size-12 shrink-0 items-center justify-center rounded-full ${destaque ? "bg-accent-gradient text-on-accent shadow-premium-sm" : "bg-pill text-on-pill"}`}>
+              <Icone size={22} strokeWidth={1.75} />
+            </span>
+            <span className={`text-[13px] leading-tight text-ink ${destaque ? "font-semibold" : "font-medium"}`}>{rotulo}</span>
+          </button>
+        ))}
       </div>
-      <div className="flex w-full max-w-xs flex-col gap-2">
-        <Button
-          type="button"
-          className="w-full"
-          onClick={() => {
-            // Mesmos nomes da escolha no "+" (a API só aceita os conhecidos); o caminho separa
-            // quem veio por aqui. A gaveta abre direto no modo e não conta de novo.
-            trackEvent("registro_importacao", "/mensal/conta-nova");
-            pedirRegistro("import");
-          }}
-        >
-          {importar}
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          className="w-full"
-          onClick={() => {
-            trackEvent("registro_digitado", "/mensal/conta-nova");
-            pedirRegistro("type");
-          }}
-        >
-          {digitar}
-        </Button>
-      </div>
-      <Link
-        href="/guia#extrato-ou-fatura"
-        className="inline-flex min-h-11 items-center text-sm font-medium text-accent-strong hover:underline"
-      >
-        {ajuda}
-      </Link>
-      <p className="flex max-w-sm items-start gap-1.5 text-left text-caption text-ink-muted">
-        <Lock size={14} strokeWidth={2} className="mt-0.5 shrink-0" />
-        <span>{confianca}</span>
-      </p>
     </section>
   );
 }

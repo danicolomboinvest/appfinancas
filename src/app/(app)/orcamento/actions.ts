@@ -86,7 +86,10 @@ export async function applyAllBudgetsAction(
 
   try {
     // Mesmos meses para categorias, renda e aporte: mês já vivido não é reescrito.
-    await salvarPlanoDoAno(ctx, year, { pais, proprias: personalizadas, planoMensal: planoValido && planoMudou ? planejado : null }, mesesQueOSalvarGrava(year, hoje));
+    // "Quando vale?" do Montar o plano: "Só outubro" grava só o mês de agora; o padrão é daqui até dezembro.
+    const soEsteMes = formData.get("quando") === "so" && year === hoje.getFullYear();
+    const meses = soEsteMes ? [hoje.getMonth() + 1] : mesesQueOSalvarGrava(year, hoje);
+    await salvarPlanoDoAno(ctx, year, { pais, proprias: personalizadas, planoMensal: planoValido && planoMudou ? planejado : null }, meses);
   } catch {
     return { error: "Algum valor não pôde ser salvo, confira os campos e tente de novo." };
   }

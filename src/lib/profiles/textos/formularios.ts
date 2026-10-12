@@ -106,6 +106,14 @@ export type TextosFormularios = {
 
   // Orçamento (BudgetWizard)
   formOrcPasso(passo: number, total: number): string;
+  /** Montar o plano (protótipo aprovado, 12/10/2026): título da folha, passo 3, pronto, salvar e o estado vazio. */
+  formOrcMontar: string;
+  formOrcComoDividir: string;
+  formOrcPronto: string;
+  formOrcUsar: string;
+  formOrcVazioTitulo: string;
+  formOrcVazioSub: string;
+  formOrcVazioBotao: string;
   formOrcSalvo: string;
   formOrcTitulo: string;
   formOrcQuantoEntra: string;
@@ -366,6 +374,13 @@ export const PADRAO_FORMULARIOS: TextosFormularios = {
   formAtivoValorAtual: "Valor atual",
 
   formOrcPasso: (passo, total) => `Passo ${passo} de ${total}`,
+  formOrcMontar: "Montar o plano",
+  formOrcComoDividir: "Como dividir o resto?",
+  formOrcPronto: "Seu plano está pronto",
+  formOrcUsar: "Usar este plano",
+  formOrcVazioTitulo: "O SPI monta o seu orçamento",
+  formOrcVazioSub: "Com base nos seus gastos",
+  formOrcVazioBotao: "Montar para mim",
   formOrcSalvo: "Plano salvo daqui até dezembro.",
   formOrcTitulo: "Vamos montar seu orçamento",
   formOrcQuantoEntra: "Quanto entra por mês?",
@@ -389,7 +404,7 @@ export const PADRAO_FORMULARIOS: TextosFormularios = {
   formOrcExtratosNota: "Suba os extratos dos últimos 3 meses",
   formOrcPadraoNota: (meses) => `Seus últimos ${meses} meses de gasto`,
   formOrcSugestaoNota: () => "Pela divisão do curso",
-  formOrcVerPlano: "Ver meu plano →",
+  formOrcVerPlano: "Ver meu plano",
   formOrcSeuPlano: (ano) => `Seu plano de ${ano}`,
   formOrcProntoPlano: (ano) => `Pronto. Seu plano de ${ano}`,
   formOrcDeCadaAntes: "De cada",

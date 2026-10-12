@@ -49,14 +49,7 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
   if (contaNova) {
     const t = vozDoTema(ctx.profileTheme, ctx.profileKind).titulos;
     return (
-      <PrimeiroPassoDoMes
-        titulo={t.uiMesNovoTitulo}
-        texto={t.uiMesNovoTexto}
-        importar={t.uiMesNovoImportar}
-        digitar={t.uiMesNovoDigitar}
-        ajuda={t.uiMesNovoAjuda}
-        confianca={t.uiMesNovoConfianca}
-      />
+      <PrimeiroPassoDoMes titulo={t.uiMesNovoTitulo} texto={t.uiMesNovoTexto} importar={ctx.profileTheme === "girly" ? "Extrato" : "Importar extrato"} />
     );
   }
 
