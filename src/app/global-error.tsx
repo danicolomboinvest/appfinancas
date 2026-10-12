@@ -17,18 +17,15 @@ export default function GlobalError({ reset }: { error: Error & { digest?: strin
           alignItems: "center",
           justifyContent: "center",
           gap: 16,
-          background: "#0c0c0e",
-          color: "#f3efe6",
+          background: "#f6f5f2",
+          color: "#141414",
           fontFamily: "system-ui, sans-serif",
           textAlign: "center",
           padding: 24,
         }}
       >
-        <div style={{ fontSize: 48 }} aria-hidden>
-          😵‍💫
-        </div>
         <h1 style={{ fontSize: 20, margin: 0 }}>Ops, algo deu errado por aqui</h1>
-        <p style={{ maxWidth: 380, fontSize: 14, lineHeight: 1.6, color: "#9b968b", margin: 0 }}>
+        <p style={{ maxWidth: 380, fontSize: 14, lineHeight: 1.6, color: "#46433e", margin: 0 }}>
           Foi um erro nosso, não seu, seus dados estão seguros. Tente recarregar a página.
         </p>
         <button
@@ -39,8 +36,8 @@ export default function GlobalError({ reset }: { error: Error & { digest?: strin
             padding: "10px 22px",
             borderRadius: 999,
             border: "none",
-            background: "linear-gradient(135deg, #f0cd7d, #e0b24e)",
-            color: "#1a1405",
+            background: "#141414",
+            color: "#ffffff",
             fontWeight: 600,
             fontSize: 14,
             cursor: "pointer",

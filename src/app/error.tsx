@@ -1,6 +1,6 @@
 "use client";
 
-import { RefreshCw } from "lucide-react";
+import { CloudOff, RefreshCw } from "lucide-react";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 
 /**
@@ -17,8 +17,8 @@ export default function ErrorPage({ reset }: { error: Error & { digest?: string 
   const { voz } = useProfileTheme();
   return (
     <div className="flex min-h-[70dvh] flex-col items-center justify-center gap-4 px-6 text-center">
-      <span className="text-5xl" aria-hidden>
-        😵‍💫
+      <span className="flex size-16 items-center justify-center rounded-full bg-surface-2 text-ink-muted" aria-hidden>
+        <CloudOff size={28} strokeWidth={1.6} />
       </span>
       <h1 className="text-xl font-semibold tracking-tight text-ink">{voz.titulos.uiErroTitulo}</h1>
       <p className="max-w-sm text-sm leading-relaxed text-ink-muted">{voz.titulos.uiErroTexto}</p>
