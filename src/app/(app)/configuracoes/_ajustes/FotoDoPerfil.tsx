@@ -33,7 +33,7 @@ async function recortar(src: string, zoom: number, x: number, y: number): Promis
  * (quando o aparelho tem câmera) e "Remover". Escolhida, ela centraliza arrastando e ajusta o zoom.
  * Depois de salva, vira o avatar do app todo.
  */
-export function FotoDoPerfil({ nome, foto, comBotao = false, tamanho = 76 }: { nome: string; foto: string | null; comBotao?: boolean; tamanho?: number }) {
+export function FotoDoPerfil({ nome, foto, comBotao = false, tamanho = 76, anel = false }: { nome: string; foto: string | null; comBotao?: boolean; tamanho?: number; /** O anel do perfil em volta da foto (tela Perfil). */ anel?: boolean }) {
   const [aberto, setAberto] = useState(false);
   const [cortando, setCortando] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
@@ -63,7 +63,9 @@ export function FotoDoPerfil({ nome, foto, comBotao = false, tamanho = 76 }: { n
   if (nativo) {
     return (
       <div className="flex flex-col items-center gap-2">
-        <AvatarDaConta nome={nome} foto={foto} size={tamanho} />
+        <span className={`rounded-full ${anel ? "p-[3px] shadow-[0_0_0_2px_var(--color-accent)]" : ""}`}>
+          <AvatarDaConta nome={nome} foto={foto} size={tamanho} />
+        </span>
         {comBotao && <p className="max-w-[16rem] text-center text-[13px] text-ink-muted">{FOTO_SO_NO_NAVEGADOR}</p>}
       </div>
     );
@@ -74,7 +76,7 @@ export function FotoDoPerfil({ nome, foto, comBotao = false, tamanho = 76 }: { n
       {comBotao ? (
         // Na folha da foto e em Configurações: a foto e, logo embaixo, "Trocar foto" em evidência.
         <div className="flex flex-col items-center gap-2.5">
-          <button type="button" onClick={() => setAberto(true)} aria-label="Trocar a foto do perfil" className="shrink-0 rounded-full">
+          <button type="button" onClick={() => setAberto(true)} aria-label="Trocar a foto do perfil" className={`shrink-0 rounded-full ${anel ? "p-[3px] shadow-[0_0_0_2px_var(--color-accent)]" : ""}`}>
             <AvatarDaConta nome={nome} foto={foto} size={tamanho} />
           </button>
           <button type="button" onClick={() => setAberto(true)} className="inline-flex min-h-10 items-center gap-1.5 rounded-full bg-surface-2 px-4 text-sm font-medium text-ink">
