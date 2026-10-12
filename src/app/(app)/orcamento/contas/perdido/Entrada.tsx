@@ -38,7 +38,7 @@ export function EntradaDoDinheiroPerdido({ abertas, novos }: { abertas: CartaDaT
       <span className="min-w-0">
         <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <b className="text-[17px] font-semibold leading-tight">Dinheiro perdido</b>
-          {novos > 0 && <span className="rounded-full bg-accent px-2 py-px text-[11px] font-bold uppercase tracking-[0.06em] text-on-accent">{novos === 1 ? "1 nova" : `${novos} novas`}</span>}
+          {novos > 0 && <span className="rounded-full bg-accent px-2 py-px text-[12px] font-bold uppercase tracking-[0.04em] text-on-accent">{novos === 1 ? "1 nova" : `${novos} novas`}</span>}
         </span>
         <span className="block text-[14px] leading-snug text-heroi-suave">{n === 0 ? "Nada para conferir agora" : n === 1 ? "1 achado para conferir" : `${n} achados para conferir`}</span>
         {n > 0 && <span className="block text-[14px] font-semibold leading-snug">Vamos lá?</span>}

@@ -302,7 +302,7 @@ function Carta({ c, atras = false, saindo = null, onEscolher }: { c: CartaDaTela
     >
       <span className="flex flex-wrap items-center justify-center gap-1.5 text-[12px] font-bold uppercase tracking-[0.08em] text-accent-strong">
         <IconeDoAchado c={c} size={14} /> {rotuloDaCarta(c)}
-        {c.novo && <span className="rounded-full bg-accent px-2 py-px text-[10px] tracking-[0.06em] text-on-accent">nova</span>}
+        {c.novo && <span className="rounded-full bg-accent px-2 py-px text-[12px] tracking-[0.04em] text-on-accent">nova</span>}
       </span>
       <LogoDoLancamento descricao={c.descricaoDoLogo} icon={iconeDa(c)} size={72} />
       <h3 className="max-w-full break-words text-[18px] font-bold leading-snug text-ink">{c.nome}</h3>
