@@ -625,7 +625,7 @@ export function StatementImport({
           data-guia="tipo-fatura"
           className="mx-auto min-h-11 text-sm text-ink-muted underline underline-offset-4"
         >
-          {docType === "fatura" ? "Não é fatura: é extrato do banco" : "É fatura do cartão? Escolha o mês"}
+          {docType === "fatura" ? "Não é fatura: é extrato do banco" : "É fatura do cartão?"}
         </button>
         <input
           ref={fileRef}

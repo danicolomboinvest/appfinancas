@@ -345,7 +345,7 @@ export async function parseStatementAction(formData: FormData): Promise<ParseSta
     leituraIncompleta: false,
     // Também quando ela escolheu "extrato" e o arquivo parece fatura: a pergunta "é fatura?"
     // mostra o mês, e o mês certo é o do vencimento.
-    vencimento: docType === "fatura" || detectedKind === "fatura" ? detectarVencimento(text) : null,
+    vencimento: docType === "fatura" || detectedKind === "fatura" ? vencimentoPlausivel(detectarVencimento(text, fileName)) : null,
   };
   stats.leituraIncompleta = leituraIncompleta(stats.conferencia, leitor !== null, isPartialRead(moneyLines, items.length));
   if (docType !== "fatura") await separarDinheiroProprio(ctx, items);
@@ -1073,4 +1073,12 @@ export async function deleteImportBatchAction(id: string): Promise<{ ok: boolean
   const removed = await deleteImportBatchWithEntries(ctx, id);
   revalidatePath("/mensal", "layout");
   return { ok: removed >= 0, removed };
+}
+
+/** Vencimento a mais de 2 meses no futuro não é de fatura (é o "Data Vencimento: 2027" de um CDB
+ * num relatório subido como fatura): sem ele, a fatura cai no mês das compras, não em 2027. */
+function vencimentoPlausivel(venc: string | null): string | null {
+  if (!venc) return null;
+  const limite = new Date(Date.now() + 62 * 86_400_000).toISOString().slice(0, 10);
+  return venc <= limite ? venc : null;
 }
