@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Cormorant_Garamond, Figtree, Geist, Geist_Mono, Hanken_Grotesk, Urbanist } from "next/font/google";
+import localFont from "next/font/local";
 import { BarraDoIphone } from "@/components/shell/BarraDoIphone";
 import { PonteDoWidget } from "@/components/shell/PonteDoWidget";
 import { BootSplash } from "@/components/brand/BootSplash";
@@ -11,17 +11,19 @@ import "./globals.css";
 // Grotesk com títulos em Cormorant Garamond itálica, Manifestação em Urbanist e Titânio em
 // Geist. As quatro carregam juntas; o tema escolhe qual vale pela variável --font-tema
 // (ver themes.ts). Geist Mono fica só pro font-mono.
-const figtree = Figtree({ variable: "--font-figtree", subsets: ["latin"], weight: ["300", "400", "500", "600"] });
-const hanken = Hanken_Grotesk({ variable: "--font-hanken", subsets: ["latin"], weight: ["300", "400", "500", "600"] });
-const cormorant = Cormorant_Garamond({ variable: "--font-cormorant", subsets: ["latin"], weight: ["500", "600"], style: ["italic"] });
-const urbanist = Urbanist({ variable: "--font-urbanist", subsets: ["latin"], weight: ["300", "400", "500", "600"] });
+//
+// Fontes no repositório (12/10/2026): com next/font/google o build da Vercel falhava de vez em
+// quando ("Can't resolve '@vercel/turbopack-next/internal/font/google/font'") ao baixar as fontes.
+// Os arquivos em ./fontes vieram do Google Fonts (subset latin, que cobre o português) e são as
+// versões variáveis: um arquivo por família serve todos os pesos usados.
+const figtree = localFont({ src: "./fontes/figtree.woff2", variable: "--font-figtree", weight: "300 600", display: "swap" });
+const hanken = localFont({ src: "./fontes/hanken-grotesk.woff2", variable: "--font-hanken", weight: "300 600", display: "swap" });
+const cormorant = localFont({ src: "./fontes/cormorant-garamond-italic.woff2", variable: "--font-cormorant", weight: "500 600", style: "italic", display: "swap" });
+const urbanist = localFont({ src: "./fontes/urbanist.woff2", variable: "--font-urbanist", weight: "300 600", display: "swap" });
 // Titânio: Geist desde 11/10/2026 (era Archivo), com fallback de sistema.
-const geist = Geist({ variable: "--font-geist", subsets: ["latin"], weight: ["300", "400", "500", "600"], fallback: ["system-ui", "-apple-system", "Segoe UI", "Roboto", "sans-serif"] });
+const geist = localFont({ src: "./fontes/geist.woff2", variable: "--font-geist", weight: "300 600", display: "swap", fallback: ["system-ui", "-apple-system", "Segoe UI", "Roboto", "sans-serif"] });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+const geistMono = localFont({ src: "./fontes/geist-mono.woff2", variable: "--font-geist-mono", weight: "100 900", display: "swap" });
 
 export const metadata: Metadata = {
   title: "SPI Finance",
