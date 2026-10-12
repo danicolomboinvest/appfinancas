@@ -323,24 +323,6 @@ export function subcategoriaAposTroca(
   return null;
 }
 
-/**
- * Quantos lançamentos COM DATA caíram nos últimos `days` dias — alimenta o "já registrei os
- * gastos da semana?" do checklist. Conta só quem tem entryDate: sem data não dá pra afirmar
- * que aconteceu nesta semana (o mês/ano do lançamento não diz o dia).
- */
-export async function countRecentDatedEntries(ctx: AuthContext, days: number): Promise<number> {
-  const DIA = 24 * 60 * 60 * 1000;
-  const since = new Date(Date.now() - days * DIA);
-  // Limite de cima: as cópias do aluguel recorrente (out–dez) e as parcelas futuras já existem
-  // com data no futuro e marcavam a semana como registrada sem nada lançado. Folga de um dia
-  // porque o lançamento de hoje é gravado ao meio-dia e pode estar "depois de agora".
-  // E só conta o que foi lançado NESTA semana (createdAt): a cópia criada em janeiro com data
-  // de hoje não é hábito de registrar.
-  return prisma.monthlyEntry.count({
-    where: { userId: ctx.userId, profileId: ctx.profileId, entryDate: { gte: since, lt: new Date(Date.now() + DIA) }, createdAt: { gte: since } },
-  });
-}
-
 /** Lançamentos de uma lista de meses (ex.: os três anteriores), pra detectar o que se repete. */
 export async function listEntriesForMonths(ctx: AuthContext, months: { year: number; month: number }[]) {
   if (months.length === 0) return [];
@@ -351,23 +333,6 @@ export async function listEntriesForMonths(ctx: AuthContext, months: { year: num
       subcategory: true, description: true, amount: true, entryDate: true, createdAt: true,
     },
   });
-}
-
-/**
- * Receita por TIPO (a subcategoria dos lançamentos de entrada: "Vendas", "Serviços",
- * "Assinaturas"…). É o "receita por linha de produto" do painel da empresa. Sem mês, soma o
- * ano inteiro. Entrada sem tipo cai em "Sem tipo", pra soma bater com o total do período.
- */
-export async function sumIncomeBySubcategory(ctx: AuthContext, year: number, month?: number) {
-  const grouped = await prisma.monthlyEntry.groupBy({
-    by: ["subcategory"],
-    where: { userId: ctx.userId, profileId: ctx.profileId, year, ...(month ? { month } : {}), category: "INCOME" },
-    _sum: { amount: true },
-  });
-  return grouped
-    .map((g) => ({ subcategory: g.subcategory?.trim() || "Sem tipo", amount: Number(g._sum.amount ?? 0) }))
-    .filter((g) => g.amount > 0)
-    .sort((a, b) => b.amount - a.amount);
 }
 
 /**

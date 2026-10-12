@@ -22,7 +22,6 @@ export async function allocateContributionAction(allocations: AllocationInput[],
     revalidatePath("/carteira");
     revalidatePath("/carteira/por-objetivo");
     revalidatePath("/planejamento/metas");
-    revalidatePath("/dashboard");
     revalidatePath(`/mensal/${hoje.getFullYear()}/${hoje.getMonth() + 1}`);
   }
   return res;
@@ -38,7 +37,6 @@ export async function allocateWithdrawalAction(allocations: AllocationInput[], d
     revalidatePath("/carteira");
     revalidatePath("/carteira/por-objetivo");
     revalidatePath("/planejamento/metas");
-    revalidatePath("/dashboard");
     revalidatePath(`/mensal/${hoje.getFullYear()}/${hoje.getMonth() + 1}`);
   }
   return res;
@@ -57,7 +55,6 @@ export async function resgatarDoAtivoAction(input: { assetId: string; amount: nu
     revalidatePath("/carteira");
     revalidatePath("/carteira/por-objetivo");
     revalidatePath("/planejamento/metas");
-    revalidatePath("/dashboard");
     revalidatePath("/mensal/foco");
     revalidatePath(`/mensal/${date.getFullYear()}/${date.getMonth() + 1}`);
   }

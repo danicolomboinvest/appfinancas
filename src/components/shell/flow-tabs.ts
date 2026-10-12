@@ -11,7 +11,7 @@ import type { PillTab } from "./PillTabs";
 export type AbaDaVisaoGeral = PillTab & { rotas: string[] };
 
 export const ABAS_DA_VISAO_GERAL: AbaDaVisaoGeral[] = [
-  { href: "/mensal/foco", label: "Resumo", rotas: ["/mensal/foco", "/dashboard"] },
+  { href: "/mensal/foco", label: "Resumo", rotas: ["/mensal/foco"] },
   { href: "/orcamento", label: "Orçamento", rotas: ["/orcamento"] },
   { href: "/mensal", label: "Transações", rotas: ["/mensal"] },
   { href: "/orcamento/contas", label: "Recorrentes", rotas: ["/orcamento/contas"] },
@@ -21,7 +21,7 @@ export const ABAS_DA_VISAO_GERAL: AbaDaVisaoGeral[] = [
 export const FLOW_TABS: PillTab[] = ABAS_DA_VISAO_GERAL.map(({ href, label }) => ({ href, label }));
 
 /** As pastas de rota que formam a Visão geral. */
-export const ROTAS_DA_VISAO_GERAL = ["/mensal", "/orcamento", "/dashboard"];
+export const ROTAS_DA_VISAO_GERAL = ["/mensal", "/orcamento"];
 /** Nome antigo, mantido para quem ainda importa. */
 export const ROTAS_DO_FLUXO = ROTAS_DA_VISAO_GERAL;
 

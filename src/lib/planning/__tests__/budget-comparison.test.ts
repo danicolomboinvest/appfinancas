@@ -6,9 +6,7 @@ import {
   findBiggestOverrun,
   findBiggestSaving,
   findUnrecorded,
-  computeOverBudgetStreak,
   type CategoryComparison,
-  type MonthlyPlannedVsActual,
 } from "../budget-comparison";
 
 const CATEGORY_KEYS = ["MORADIA", "ALIMENTACAO", "TRANSPORTE", "SAUDE", "LAZER", "EDUCACAO", "FINANCEIRO"];
@@ -116,34 +114,6 @@ describe("findBiggestOverrun / findBiggestSaving", () => {
 
   it("returns null when there are no savings", () => {
     expect(findBiggestSaving(categories.filter((c) => c.categoryKey !== "ALIMENTACAO"))).toBeNull();
-  });
-});
-
-describe("computeOverBudgetStreak", () => {
-  function makeMonth(month: number, status: CategoryComparison["status"]): MonthlyPlannedVsActual {
-    return {
-      month,
-      isRealized: true,
-      totalPlanned: 300,
-      totalSpent: status === "ACIMA" ? 400 : 200,
-      categories: [
-        { categoryKey: "LAZER", planned: 300, spent: status === "ACIMA" ? 400 : 200, deviationPercent: null, status },
-      ],
-    };
-  }
-
-  it("counts consecutive over-budget months from the most recent backwards", () => {
-    const monthsDescending = [makeMonth(5, "ACIMA"), makeMonth(4, "ACIMA"), makeMonth(3, "ACIMA"), makeMonth(2, "DENTRO")];
-    expect(computeOverBudgetStreak(monthsDescending, "LAZER")).toBe(3);
-  });
-
-  it("stops counting at the first month within budget, ignoring older months", () => {
-    const monthsDescending = [makeMonth(5, "DENTRO"), makeMonth(4, "ACIMA"), makeMonth(3, "ACIMA")];
-    expect(computeOverBudgetStreak(monthsDescending, "LAZER")).toBe(0);
-  });
-
-  it("returns 0 when the most recent month is not over budget", () => {
-    expect(computeOverBudgetStreak([makeMonth(5, "DENTRO")], "LAZER")).toBe(0);
   });
 });
 

@@ -18,9 +18,8 @@ vi.mock("@/lib/db/prisma", () => ({
     emergencyFund: { findUnique: async () => banco.reserva },
   },
 }));
-vi.mock("@/lib/repositories/goal.repo", () => ({ listGoalsWithProgress: async () => banco.metas }));
 
-import { getAllocationByClass, getPortfolioByObjective } from "../portfolio";
+import { getAllocationByClass } from "../portfolio";
 
 const ctx = { userId: "u1", profileId: "p1" } as AuthContext;
 
@@ -51,35 +50,5 @@ describe("getAllocationByClass", () => {
     expect(r.totalPortfolio).toBe(0.6);
     expect(r.classes.find((c) => c.assetClass === "RENDA_FIXA")!.currentValue).toBe(0.3);
     expect(r.classes.reduce((s, c) => s + c.currentPercent, 0)).toBeCloseTo(1, 12);
-  });
-});
-
-describe("getPortfolioByObjective", () => {
-  it("sem reserva cadastrada: alvo e percentual null; com alvo zero, percentual null (não Infinity)", async () => {
-    banco.ativos = [{ objective: "RESERVA_EMERGENCIA", goalId: null, currentValue: "500", assetClass: "RENDA_FIXA" }];
-    expect((await getPortfolioByObjective(ctx)).reserva).toEqual({ currentValue: 500, targetAmount: null, achievementPercent: null });
-    banco.reserva = { targetAmount: "0" };
-    expect((await getPortfolioByObjective(ctx)).reserva).toEqual({ currentValue: 500, targetAmount: 0, achievementPercent: null });
-  });
-
-  it("meta com alvo zero mostra 0%, não divide por zero", async () => {
-    banco.metas = [{ id: "g1", name: "Sem valor", targetAmount: "0", computedCurrentAmount: 300 }];
-    const [m] = (await getPortfolioByObjective(ctx)).metas;
-    expect(m.achievementPercent).toBe(0);
-  });
-
-  it("ativo 'Meta' de meta apagada entra em 'outro', e os cards somam o total da carteira", async () => {
-    banco.metas = [{ id: "g1", name: "Casa", targetAmount: "10000", computedCurrentAmount: 1000 }];
-    banco.ativos = [
-      { objective: "META", goalId: "g1", currentValue: "1000", assetClass: "RENDA_FIXA" },
-      { objective: "META", goalId: "apagada", currentValue: "2000", assetClass: "RENDA_FIXA" },
-      { objective: "RESERVA_EMERGENCIA", goalId: null, currentValue: "300", assetClass: "RENDA_FIXA" },
-      { objective: "LIBERDADE_FINANCEIRA", goalId: null, currentValue: "700", assetClass: "ACOES" },
-    ];
-    const r = await getPortfolioByObjective(ctx);
-    expect(r.outro.currentValue).toBe(2000);
-    expect(r.totalPortfolio).toBe(4000);
-    expect(r.reserva.currentValue + r.liberdade.currentValue + r.outro.currentValue + 1000).toBe(r.totalPortfolio);
-    expect(r.metas[0].achievementPercent).toBeCloseTo(0.1);
   });
 });

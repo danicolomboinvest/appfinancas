@@ -54,6 +54,20 @@ const nextConfig: NextConfig = {
     ],
   },
 
+  // Telas antigas que saíram (12/10/2026, pedido da dona): quem tem o link salvo cai na tela nova,
+  // não num 404. O Resumo manda a Empresa para a Visão geral dela; as Análises, também.
+  async redirects() {
+    return [
+      { source: "/dashboard", destination: "/mensal/foco", permanent: false },
+      { source: "/seu-ano", destination: "/mensal/foco", permanent: false },
+      // "Como está seu dinheiro em 2026" (o ano inteiro, /mensal/2026). O mês (/mensal/2026/10) fica.
+      { source: "/mensal/:ano(\\d{4})", destination: "/mensal/foco", permanent: false },
+      // Análises: a aba Insights e as fichas antigas por abas (Ações, FIIs, Stocks, ETFs).
+      { source: "/fichas/insights", destination: "/fichas", permanent: false },
+      { source: "/fichas/:tipo(acoes|fiis|stocks|etfs)/:resto*", destination: "/fichas", permanent: false },
+    ];
+  },
+
   experimental: {
     // Resposta mais rápida (12/10/2026): a tela que ela acabou de ver fica guardada no aparelho por
     // 30 s (e a que veio por prefetch completo, 3 min). Voltar para a aba anterior, ou trocar de aba,

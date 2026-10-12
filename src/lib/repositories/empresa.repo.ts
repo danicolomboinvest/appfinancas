@@ -2,6 +2,8 @@ import type { ParentCategory, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { doDono, type AuthContext } from "@/lib/auth/session";
 import { ehForma, lerConfigEmpresa, type ConfigEmpresa, type Forma } from "@/lib/empresa/config";
+import { ferramentasDoMei, type FerramentasDoMei } from "@/lib/empresa/legal";
+import { parametrosDoMei } from "@/lib/repositories/parametro-legal.repo";
 import { SUBCATEGORIA_DO_SALARIO, chaveDoMes, type LancamentoDaEmpresa, type Mes } from "@/lib/empresa/regras";
 
 /**
@@ -149,4 +151,15 @@ export async function garantirContaDaGuia(ctx: AuthContext, p: { valor: number; 
   // O próximo dia 20: este mês, se ainda não passou; senão, o mês que vem.
   const proximo = diaHoje <= p.dia ? new Date(Date.UTC(ano, mes - 1, p.dia)) : new Date(Date.UTC(ano, mes, p.dia));
   return prisma.contaAPagar.create({ data: { ...doDono(ctx), nome: "Guia do MEI", valor: p.valor, vencimento: proximo, diaDoMes: p.dia, repete: true, lembrar: p.lembrar } });
+}
+
+/**
+ * O menu da Empresa só mostra Limite do MEI e Impostos quando há o que mostrar (ver
+ * ferramentasDoMei). Uma consulta pequena, feita só quando o perfil ativo é Empresa.
+ */
+export async function ferramentasDoMeiDoPerfil(userId: string, profileId: string, hoje: string): Promise<FerramentasDoMei> {
+  const p = await prisma.financialProfile.findFirst({ where: { id: profileId, userId, kind: "EMPRESA" }, select: { empresa: true } });
+  const tipo = lerConfigEmpresa(p?.empresa)?.tipo;
+  if (tipo !== "MEI") return { limite: false, impostos: false };
+  return ferramentasDoMei(tipo, await parametrosDoMei(hoje));
 }

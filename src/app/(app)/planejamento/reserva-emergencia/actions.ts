@@ -42,7 +42,6 @@ export async function usarReservaDaCarteiraAction(): Promise<void> {
   revalidatePath("/planejamento/reserva-emergencia");
   revalidatePath("/carteira", "layout");
   revalidatePath("/mensal/foco");
-  revalidatePath("/dashboard");
 }
 
 export type GuardeiNaReservaState = { ok?: boolean; error?: string; valor?: number; jaFeito?: boolean };
@@ -112,7 +111,6 @@ export async function guardeiNaReservaAction(input: { valor?: number } = {}): Pr
     revalidatePath("/planejamento/reserva-emergencia");
     revalidatePath("/mensal", "layout");
     revalidatePath("/carteira", "layout");
-    revalidatePath("/dashboard");
   }
   return resultado;
 }

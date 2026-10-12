@@ -23,6 +23,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { ROTAS_DA_VISAO_GERAL } from "./flow-tabs";
+import type { FerramentasDoMei } from "@/lib/empresa/legal";
 
 export type NavChild = {
   href: string;
@@ -105,9 +106,9 @@ export const NAV_SECTIONS: NavSection[] = [
     href: "/mensal/foco",
     label: "Visão geral",
     icon: House,
-    // As quatro abas (Resumo, Orçamento, Transações, Recorrentes) moram em duas pastas, e a
-    // Visão geral antiga (/dashboard) continua sendo parte dela.
-    alsoMatches: [...ROTAS_DA_VISAO_GERAL.filter((r) => r !== "/mensal"), "/dashboard"],
+    // As quatro abas (Resumo, Orçamento, Transações, Recorrentes) moram em duas pastas. A Visão
+    // geral antiga por ano (/dashboard) saiu em 12/10/2026 e o link velho cai no Resumo.
+    alsoMatches: ROTAS_DA_VISAO_GERAL.filter((r) => r !== "/mensal"),
   },
   {
     basePath: "/planejamento",
@@ -136,7 +137,7 @@ export const NAV_SECTIONS: NavSection[] = [
     premium: true,
     soPessoa: true,
     // Versão nova (11/10/2026): Análises é uma tela só, em anéis. As fichas antigas e os Insights
-    // ficam a um toque dentro dela (/fichas/acoes, /fichas/insights), sem andar no menu.
+    // saíram em 12/10/2026 (pedido da dona); os links velhos caem nas Análises.
   },
   {
     basePath: "/decidir",
@@ -200,18 +201,34 @@ export function rotuloDoMenu(section: Pick<NavSection, "basePath" | "label">, em
  * seções de pessoa física, as ferramentas do negócio. `titulo` é o nome no topo da tela; a Visão
  * geral leva o nome do perfil ("Ateliê da Ana").
  */
-export type ItemDaEmpresa = { href: string; label: string; icon: LucideIcon; titulo: string; novo?: boolean };
+export type ItemDaEmpresa = {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+  titulo: string;
+  novo?: boolean;
+  /** Só aparece quando a tela tem o que mostrar (MEI com os números legais na tabela). */
+  soComMei?: keyof FerramentasDoMei;
+};
 
 export const MENU_DA_EMPRESA: ItemDaEmpresa[] = [
   { href: "/empresa", label: "Visão geral", icon: LayoutGrid, titulo: "" },
   { href: "/empresa/como-vai", label: "Como vai a empresa", icon: TrendingUp, titulo: "Como vai", novo: true },
   { href: "/empresa/clientes", label: "Clientes", icon: Users, titulo: "Clientes", novo: true },
   { href: "/empresa/preco", label: "Preço certo", icon: Tag, titulo: "Quanto cobrar", novo: true },
-  { href: "/empresa/limite", label: "Limite do MEI", icon: Shield, titulo: "Limite do MEI", novo: true },
-  { href: "/empresa/impostos", label: "Impostos", icon: FileText, titulo: "Impostos" },
+  { href: "/empresa/limite", label: "Limite do MEI", icon: Shield, titulo: "Limite do MEI", novo: true, soComMei: "limite" },
+  { href: "/empresa/impostos", label: "Impostos", icon: FileText, titulo: "Impostos", soComMei: "impostos" },
   { href: "/empresa/relatorios", label: "Relatórios", icon: List, titulo: "Relatórios" },
   { href: "/empresa/configuracoes", label: "Configurações da empresa", icon: SlidersHorizontal, titulo: "Configurações" },
 ];
+
+/**
+ * O menu da Empresa que esta conta vê: sem "em breve" (12/10/2026, pedido da dona). Autônoma e ME
+ * não veem Limite do MEI nem Impostos; o MEI vê quando o app tem os números legais para mostrar.
+ */
+export function menuDaEmpresa(ferramentas: FerramentasDoMei): ItemDaEmpresa[] {
+  return MENU_DA_EMPRESA.filter((i) => !i.soComMei || ferramentas[i.soComMei]);
+}
 
 /** O que a Empresa já tinha e continua a um toque, depois das ferramentas: o caixa, investir no negócio, a conta e a ajuda. */
 export const MAIS_DA_EMPRESA: ItemDaEmpresa[] = [

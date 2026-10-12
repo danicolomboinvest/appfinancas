@@ -33,6 +33,7 @@ import { ehEmpresa } from "@/lib/profiles/empresa";
 import { ehCasal } from "@/lib/profiles/casal";
 import { SECOES_DO_PAR } from "@/lib/casal-login/menu-do-par";
 import type { PreferenciasDeCategoria } from "@/lib/categories";
+import type { FerramentasDoMei } from "@/lib/empresa/legal";
 
 export function AppShell({
   children,
@@ -54,7 +55,10 @@ export function AppShell({
   fotoDaConta = null,
   modoPar = null,
   novidades = "novo",
+  ferramentasDoMei,
 }: {
+  /** Empresa: Limite do MEI e Impostos só entram no menu quando têm o que mostrar. */
+  ferramentasDoMei?: FerramentasDoMei;
   /** Login do par: quem está logado é o par, no Nós dois da titular. O menu mostra só o dele. */
   modoPar?: { nomeTitular: string } | null;
   /** "Tivemos uma mudança": "mostrar" (já usava e não viu), "visto" ou "novo" (nunca vê). */
@@ -203,6 +207,7 @@ export function AppShell({
           secoesFixas={modoPar ? SECOES_DO_PAR : undefined}
           perfis={perfis}
           nomeDaConta={nomeDaConta}
+          ferramentasDoMei={ferramentasDoMei}
         />
 
         <div className="flex min-w-0 flex-1 flex-col">

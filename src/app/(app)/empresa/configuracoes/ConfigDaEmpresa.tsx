@@ -57,7 +57,7 @@ export function ConfigDaEmpresa({ nome, config, seguro, temGuia }: { nome: strin
         </div>
         <div className={linha}>
           <b className="text-[15px] font-medium text-ink">Tipo</b>
-          <span className="text-[15px] text-ink">{config.tipo === "MEI" ? "MEI" : config.tipo === "ME" ? "ME, em breve" : "Autônoma, em breve"}</span>
+          <span className="text-[15px] text-ink">{config.tipo === "MEI" ? "MEI" : config.tipo === "ME" ? "ME" : "Autônoma"}</span>
         </div>
         <div className={linha}>
           <b className="text-[15px] font-medium text-ink">Faz</b>

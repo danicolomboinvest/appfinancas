@@ -215,11 +215,9 @@ export function Assistente({ dados }: { dados: DadosDaEmpresa }) {
                   <b className="block text-[15px] font-medium text-ink">{nome}</b>
                   <small className="text-xs text-ink-muted">{sub}</small>
                 </span>
-                <em className="rounded-full bg-surface-2 px-2.5 py-1 text-xs font-medium not-italic text-ink-muted">em breve</em>
               </button>
             ))}
           </div>
-          <p className="px-1 text-sm text-ink-muted">Imposto e limite chegam em breve. O dia a dia já funciona.</p>
         </>
       )}
 

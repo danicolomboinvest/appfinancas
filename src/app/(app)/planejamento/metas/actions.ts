@@ -22,7 +22,6 @@ function revalidarSonho(goalId: string, year: number, month: number) {
   revalidatePath(`/planejamento/metas/${goalId}`);
   revalidatePath(`/mensal/${year}/${month}`);
   revalidatePath("/mensal/foco");
-  revalidatePath("/dashboard");
 }
 
 /**
