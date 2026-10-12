@@ -136,7 +136,7 @@ export const NAV_SECTIONS: NavSection[] = [
     premium: true,
     soPessoa: true,
     // Versão nova (11/10/2026): Análises é uma tela só, em anéis. As fichas antigas e os Insights
-    // ficam a um toque dentro dela (/fichas/acoes, /fichas/insights), sem andar no menu.
+    // saíram em 12/10/2026 (pedido da dona); os links velhos caem nas Análises.
   },
   {
     basePath: "/decidir",

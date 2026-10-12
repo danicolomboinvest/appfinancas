@@ -173,9 +173,6 @@ export function AnalisesTela({ dados }: { dados: DadosDasAnalises }) {
         </Link>
       )}
 
-      <Link href="/fichas/acoes" className="mx-auto min-h-11 px-3 py-2 text-[13px] text-ink-muted underline-offset-4 hover:underline">
-        Suas fichas e a nota detalhada
-      </Link>
       <p className="px-1 pb-2 text-center text-[12px] text-ink-muted">Não é recomendação de investimento.</p>
     </div>
   );

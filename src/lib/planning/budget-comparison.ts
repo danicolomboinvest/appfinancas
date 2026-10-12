@@ -108,24 +108,6 @@ export function findBiggestSaving(categories: CategoryComparison[]): CategoryCom
   return savings.reduce((min, c) => (c.deviationPercent < min.deviationPercent ? c : min));
 }
 
-/**
- * Meses consecutivos (a partir do mês mais recente, andando para trás) em que uma categoria
- * específica excedeu o orçamento. Limitado aos meses do array recebido, não cruza virada de
- * ano no v1 (cruzar dez/jan é um passo futuro, se necessário).
- */
-export function computeOverBudgetStreak(monthsDescending: MonthlyPlannedVsActual[], categoryKey: string): number {
-  let streak = 0;
-  for (const month of monthsDescending) {
-    const category = month.categories.find((c) => c.categoryKey === categoryKey);
-    if (category?.status === "ACIMA") {
-      streak += 1;
-    } else {
-      break;
-    }
-  }
-  return streak;
-}
-
 /** Orquestra os repositórios e monta o comparativo do ano inteiro (categorias padrão + personalizadas). */
 export async function getAnnualPlannedVsActual(ctx: AuthContext, year: number): Promise<AnnualPlannedVsActual> {
   const [budgets, spent, customCategories, customSpent, startMonth] = await Promise.all([

@@ -62,6 +62,9 @@ const nextConfig: NextConfig = {
       { source: "/seu-ano", destination: "/mensal/foco", permanent: false },
       // "Como está seu dinheiro em 2026" (o ano inteiro, /mensal/2026). O mês (/mensal/2026/10) fica.
       { source: "/mensal/:ano(\\d{4})", destination: "/mensal/foco", permanent: false },
+      // Análises: a aba Insights e as fichas antigas por abas (Ações, FIIs, Stocks, ETFs).
+      { source: "/fichas/insights", destination: "/fichas", permanent: false },
+      { source: "/fichas/:tipo(acoes|fiis|stocks|etfs)/:resto*", destination: "/fichas", permanent: false },
     ];
   },
 
