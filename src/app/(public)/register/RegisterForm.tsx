@@ -5,7 +5,7 @@ import { useActionState, useState } from "react";
 import { Check, LockKeyhole, Mail, Smartphone, UserRound } from "lucide-react";
 import { Campo } from "@/components/entrada/Campo";
 import { LoginSocial } from "@/components/entrada/LoginSocial";
-import { Aviso, BOTAO, BOTAO_PEQUENO, BOTAO_PEQUENO_SEC, LINK, Pequeno, Regra, TelaDeEntrada, Titulo, Voltar } from "@/components/entrada/pecas";
+import { Aviso, BOTAO, BOTAO_PEQUENO, BOTAO_PEQUENO_SEC, LINK, Pequeno, TelaDeEntrada, Titulo, Voltar } from "@/components/entrada/pecas";
 import { registerAction, type RegisterState } from "./actions";
 
 const initialState: RegisterState = {};
@@ -37,25 +37,6 @@ export function RegisterForm({ emailDaCompra, appDaApple = false }: { emailDaCom
       <Voltar href="/login" />
       <Titulo>Criar conta</Titulo>
 
-      {/* O aviso vem ANTES dos campos, e não como letra miúda embaixo do e-mail: quem se
-          cadastrava com outro e-mail criava uma conta sem a compra, via cadeado em tudo e
-          achava que tinha pago por nada (teve pedido de reembolso 12 minutos depois). */}
-      {/* No app da Apple não se fala de compra feita fora (guideline 3.1.1): lá quem não tem
-          acesso assina pela própria Apple depois de criar a conta. */}
-      {!appDaApple && (
-        <Aviso tipo="dica">
-          {emailDaCompra ? (
-            <>
-              <b>Já deixamos o e-mail da sua compra preenchido.</b> É por ele que o app libera o seu acesso.
-            </>
-          ) : (
-            <>
-              <b>Use o e-mail da sua compra.</b> É por ele que o app libera o seu acesso.
-            </>
-          )}
-        </Aviso>
-      )}
-
       <form action={formAction} className="flex flex-col gap-4">
         {erroGeral && (
           <Aviso tipo="ruim" id="erro-cadastro">
@@ -77,8 +58,11 @@ export function RegisterForm({ emailDaCompra, appDaApple = false }: { emailDaCom
         />
         {/* Com o convite, o e-mail vem travado: trocar aqui é exatamente o erro que o link existe
             para evitar. Quem quiser mesmo outro e-mail abre o cadastro sem o link. */}
+        {/* "E-mail da compra" no próprio rótulo (12/10/2026: a caixa de aviso em cima era texto
+            demais). Quem se cadastrava com outro e-mail criava conta sem a compra e achava que
+            tinha pago por nada. No app da Apple não se fala de compra feita fora (3.1.1). */}
         <Campo
-          rotulo="E-mail"
+          rotulo={appDaApple ? "E-mail" : "E-mail da compra"}
           icone={Mail}
           id="email"
           name="email"
@@ -116,17 +100,13 @@ export function RegisterForm({ emailDaCompra, appDaApple = false }: { emailDaCom
           type="password"
           required
           minLength={8}
+          placeholder="8 caracteres ou mais"
           autoComplete="new-password"
           value={senha}
           onChange={(e) => setSenha(e.target.value)}
           invalido={state.campo === "password"}
-          descritoPor={state.campo === "password" ? "erro-cadastro regra-senha" : "regra-senha"}
+          descritoPor={state.campo === "password" ? "erro-cadastro" : undefined}
         />
-        <div className="-mt-1 flex flex-wrap gap-2">
-          <Regra ok={senha.length >= 8} id="regra-senha">
-            8 caracteres ou mais
-          </Regra>
-        </div>
         <Aceite marcadoAntes={state.values?.acceptTerms} comErro={state.campo === "acceptTerms"} />
         <button type="submit" disabled={isPending} className={BOTAO}>
           {isPending ? "Criando..." : "Criar conta"}
@@ -162,31 +142,30 @@ function ErroDoEmail({ state }: { state: RegisterState }) {
           </>
         }
       >
-        <b>Este e-mail já tem uma conta.</b> Se ela é sua, é só entrar.
+        <b>Este e-mail já tem conta.</b>
       </Aviso>
     );
   }
   if (state.motivo === "sem-compra") {
-    return (
-      <>
-        <Aviso tipo="ruim" id="erro-email" acoes={<Link href="/suporte" className={BOTAO_PEQUENO_SEC}>Falar com o suporte</Link>}>
-          <b>Não achamos compra com este e-mail.</b> Use o mesmo e-mail da compra. Acabou de comprar? Espere uns minutos e
-          tente de novo.
+    // Uma caixa só (12/10/2026, "muito texto"): achou pelo celular, mostra onde está a compra;
+    // senão, o curto "não achei" com o suporte do lado.
+    if (state.dicaDoCelular) {
+      return (
+        <Aviso tipo="dica" id="erro-email">
+          Sua compra está no e-mail <b className="[overflow-wrap:anywhere]">{state.dicaDoCelular}</b>
         </Aviso>
-        {state.dicaDoCelular && (
-          <Aviso tipo="dica">
-            Achamos uma compra com o seu celular no e-mail <b className="[overflow-wrap:anywhere]">{state.dicaDoCelular}</b>. Crie a conta
-            com ele.
-          </Aviso>
-        )}
-      </>
+      );
+    }
+    return (
+      <Aviso tipo="ruim" id="erro-email" acoes={<Link href="/suporte" className={BOTAO_PEQUENO_SEC}>Suporte</Link>}>
+        <b>Não achei compra com este e-mail.</b> Comprou agora? Espere uns minutos.
+      </Aviso>
     );
   }
   if (state.motivo === "compra-encerrada") {
     return (
-      <Aviso tipo="ruim" id="erro-email" acoes={<Link href="/suporte" className={BOTAO_PEQUENO_SEC}>Falar com o suporte</Link>}>
-        <b>A compra deste e-mail não está mais ativa.</b> Reembolso, cancelamento ou prazo vencido. Se acha que é engano,
-        fale com o suporte.
+      <Aviso tipo="ruim" id="erro-email" acoes={<Link href="/suporte" className={BOTAO_PEQUENO_SEC}>Suporte</Link>}>
+        <b>A compra deste e-mail não está mais ativa.</b>
       </Aviso>
     );
   }
