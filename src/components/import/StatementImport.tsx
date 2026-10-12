@@ -15,6 +15,7 @@ import { createCategoryAction } from "@/lib/actions/category";
 import {
   parseStatementAction,
   importTransactionsAction,
+  mesesNoAppAction,
   removeCardPaymentCandidateAction,
   conciliarComExtratoAction,
   type ReviewItem,
@@ -28,7 +29,7 @@ import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { ACEITA_ARQUIVO_DE_EXTRATO, UPLOAD_MAX_BYTES } from "@/lib/import/limites";
 import { chaveDeIguais, filaPorComerciante, iguaisPraAplicar, proximaPendente, semCategoria as gastoSemCategoria } from "@/lib/import/revisao-em-grupo";
 import { foiSeparada, porqueDaLinha } from "@/lib/import/porque";
-import { levarRespostas, resumoDoArquivo } from "@/lib/import/varios-arquivos";
+import { faixaDosMeses, levarRespostas, resumoDoArquivo } from "@/lib/import/varios-arquivos";
 import { mesDaRevelacao } from "@/lib/import/revelacao";
 import { listaDeMeses } from "@/lib/import/mes-da-compra";
 import { resumoDoMesImportadoAction, type RevelacaoDoImport } from "@/app/(app)/mensal/revelacao-actions";
@@ -175,7 +176,17 @@ export function StatementImport({
   // Vários arquivos de uma vez (caminho B): a fila, qual está aberto na revisão e os meses já no app (C).
   const [fila, setFila] = useState<ArquivoNaFila[] | null>(null);
   const [filaAtual, setFilaAtual] = useState<number | null>(null);
+  const [mesesNoApp, setMesesNoApp] = useState<string[]>([]);
   const [lendoFila, setLendoFila] = useState(false);
+  useEffect(() => {
+    let vivo = true;
+    mesesNoAppAction()
+      .then((m) => vivo && setMesesNoApp(m))
+      .catch(() => {});
+    return () => {
+      vivo = false;
+    };
+  }, []);
   // O último arquivo lido (e a senha, se tinha): o "Mudar" relê como o outro tipo.
   const [ultimoArquivo, setUltimoArquivo] = useState<{ file: File; pwd?: string } | null>(null);
   // Perfil Casal: de quem é o extrato/fatura. Todas as linhas entram com esse nome em "quem pagou".
@@ -773,6 +784,8 @@ export function StatementImport({
           </div>
         )}
 
+        {/* C: os meses que já estão no app, para quem já importou alguma vez. */}
+        {mesesNoApp.length > 0 && <FaixaDosMeses noApp={mesesNoApp} lidos={[]} />}
 
         {/* Uma porta só (proposta da entrada, 12/10/2026): "Extrato ou fatura", os formatos que o app
             lê, e um botão. O app descobre o tipo sozinho e segue; o "Mudar" aparece depois da leitura. */}
@@ -836,9 +849,11 @@ export function StatementImport({
   // --- VÁRIOS ARQUIVOS (caminho B; com mais de dois, a faixa dos meses do C) ---
   if (phase === "arquivos" && fila) {
     const prontos = fila.filter((a) => a.status === "ok");
+    const lidosAgora = fila.flatMap((a) => (a.status === "ok" || a.status === "anotado" ? (a.items ?? []).map((l) => l.date.slice(0, 7)) : []));
     return (
       <div className="flex flex-col gap-3" data-varios-arquivos>
         <p className="titulo-tema px-1 text-[1.6rem] font-normal leading-tight text-ink">{fila.length} arquivos</p>
+        {fila.length > 2 && <FaixaDosMeses noApp={mesesNoApp} lidos={lidosAgora} />}
         {fila.map((a) => {
           const resumo = a.status === "ok" && a.stats && a.items ? resumoDoArquivo(a.docType, a.stats, a.items) : null;
           return (
@@ -1881,3 +1896,27 @@ export function StatementImport({
   );
 }
 
+/**
+ * A faixa dos últimos 12 meses (C, 12/10/2026): os que já estão no app, os que os arquivos acabaram
+ * de trazer (preenchem enquanto cada um é lido) e, embaixo, "Faltam: março e abril".
+ */
+function FaixaDosMeses({ noApp, lidos }: { noApp: string[]; lidos: string[] }) {
+  const { meses, faltam } = faixaDosMeses(noApp, lidos, new Date());
+  return (
+    <div className="flex flex-col gap-1.5 rounded-2xl bg-surface-2 px-3 py-3" data-faixa-dos-meses>
+      <span className="text-caption text-ink-muted">Seus meses no app</span>
+      <div className="grid grid-cols-12 gap-1" aria-label="Meses no app">
+        {meses.map((m) => (
+          <span key={m.ym} className="flex flex-col items-center gap-1" title={m.ym}>
+            <span
+              className={`h-6 w-full rounded-md transition-colors duration-300 ${m.estado === "tem" ? "bg-ink/70" : m.estado === "novo" ? "bg-accent" : "bg-surface shadow-[inset_0_0_0_1px_var(--color-border-strong)]"}`}
+              aria-label={`${m.rotulo}: ${m.estado === "falta" ? "falta" : "tem"}`}
+            />
+            <span className="text-[12px] leading-none text-ink-muted max-[359px]:hidden">{m.rotulo.charAt(0).toUpperCase()}</span>
+          </span>
+        ))}
+      </div>
+      {faltam.length > 0 && <span className="text-sm text-ink">Faltam: {faltam.length <= 3 ? faltam.join(faltam.length === 2 ? " e " : ", ") : `${faltam.slice(0, 2).join(", ")} e mais ${faltam.length - 2}`}</span>}
+    </div>
+  );
+}

@@ -1295,3 +1295,17 @@ function vencimentoPlausivel(venc: string | null): string | null {
   return venc <= limite ? venc : null;
 }
 
+/**
+ * Os meses que já têm lançamento neste perfil, nos últimos 12 (a faixa do C na entrada da
+ * importação, 12/10/2026). "YYYY-MM".
+ */
+export async function mesesNoAppAction(): Promise<string[]> {
+  const ctx = await getRequiredSession();
+  const agora = new Date();
+  const desde = new Date(agora.getFullYear(), agora.getMonth() - 11, 1);
+  const grupos = await prisma.monthlyEntry.groupBy({
+    by: ["year", "month"],
+    where: { userId: ctx.userId, profileId: ctx.profileId, OR: [{ year: { gt: desde.getFullYear() } }, { year: desde.getFullYear(), month: { gte: desde.getMonth() + 1 } }] },
+  });
+  return grupos.map((g) => `${g.year}-${String(g.month).padStart(2, "0")}`).sort();
+}
