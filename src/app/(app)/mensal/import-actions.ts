@@ -1294,3 +1294,4 @@ function vencimentoPlausivel(venc: string | null): string | null {
   const limite = new Date(Date.now() + 62 * 86_400_000).toISOString().slice(0, 10);
   return venc <= limite ? venc : null;
 }
+

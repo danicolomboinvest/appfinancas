@@ -5,7 +5,7 @@ import { LapisDaCategoria } from "@/components/categorias/LapisDaCategoria";
 import { FalarComSuporte } from "@/components/support/FalarComSuporte";
 import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { Check, ArrowRight, Lock, Plus, Tag, ChevronLeft, ChevronDown, CircleHelp } from "lucide-react";
+import { Check, ArrowRight, Lock, Plus, Tag, ChevronLeft, ChevronDown, CircleHelp, Paperclip } from "lucide-react";
 import type { ParentCategory } from "@prisma/client";
 import { PARENT_CATEGORIES, categoryLabel, categoriaOculta, categoryIcon, colorForCategorySlice, emojiEscolhido } from "@/lib/categories";
 import { emojiDaCategoria } from "@/lib/profiles/icones";
@@ -28,6 +28,7 @@ import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { ACEITA_ARQUIVO_DE_EXTRATO, UPLOAD_MAX_BYTES } from "@/lib/import/limites";
 import { chaveDeIguais, filaPorComerciante, iguaisPraAplicar, proximaPendente, semCategoria as gastoSemCategoria } from "@/lib/import/revisao-em-grupo";
 import { foiSeparada, porqueDaLinha } from "@/lib/import/porque";
+import { levarRespostas, resumoDoArquivo } from "@/lib/import/varios-arquivos";
 import { mesDaRevelacao } from "@/lib/import/revelacao";
 import { listaDeMeses } from "@/lib/import/mes-da-compra";
 import { resumoDoMesImportadoAction, type RevelacaoDoImport } from "@/app/(app)/mensal/revelacao-actions";
@@ -41,7 +42,22 @@ import { MonthPicker } from "@/components/ui/MonthPicker";
 import { Explica } from "@/components/ui/Explica";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
 
-type Phase = "upload" | "password" | "review" | "confirm" | "done";
+type Phase = "upload" | "password" | "arquivos" | "review" | "confirm" | "done";
+
+/** Um arquivo do envio com vários (caminho B, 12/10/2026). */
+type ArquivoNaFila = {
+  id: number;
+  file: File;
+  status: "esperando" | "lendo" | "ok" | "erro" | "anotado";
+  docType: "extrato" | "fatura";
+  stats?: ParseStats;
+  items?: ReviewItem[];
+  customCategories?: { id: string; name: string; icon?: string }[];
+  erro?: string;
+  criados?: number;
+  /** "Extrato Itaú · agosto": o nome da aba na revisão. */
+  rotulo?: string;
+};
 export type FaseDaImportacao = Phase;
 
 /** O que o começo (onboarding) vê da importação enquanto ela acontece. */
@@ -156,6 +172,10 @@ export function StatementImport({
   const [createdCount, setCreatedCount] = useState(0);
   const [skippedCount, setSkippedCount] = useState(0);
   const [docType, setDocType] = useState<"extrato" | "fatura">("extrato");
+  // Vários arquivos de uma vez (caminho B): a fila, qual está aberto na revisão e os meses já no app (C).
+  const [fila, setFila] = useState<ArquivoNaFila[] | null>(null);
+  const [filaAtual, setFilaAtual] = useState<number | null>(null);
+  const [lendoFila, setLendoFila] = useState(false);
   // O último arquivo lido (e a senha, se tinha): o "Mudar" relê como o outro tipo.
   const [ultimoArquivo, setUltimoArquivo] = useState<{ file: File; pwd?: string } | null>(null);
   // Perfil Casal: de quem é o extrato/fatura. Todas as linhas entram com esse nome em "quem pagou".
@@ -250,7 +270,8 @@ export function StatementImport({
   const handleFileRef = useRef<(file: File) => void>(() => {});
   useEffect(() => {
     const arquivo = pegarArquivoParaOMes();
-    if (arquivo) handleFileRef.current(arquivo);
+    // Depois do primeiro desenho: a referência para o handleFile de agora é ligada num efeito abaixo.
+    if (arquivo) setTimeout(() => handleFileRef.current(arquivo), 0);
   }, []);
 
   function handleFile(file: File) {
@@ -269,7 +290,6 @@ export function StatementImport({
     }
     runParse(file);
   }
-  handleFileRef.current = handleFile;
 
   /** Lê o arquivo no servidor. Se o Excel estiver protegido, cai na tela de senha; com a senha,
    * reenvia o MESMO arquivo pra descriptografar e seguir. */
@@ -313,21 +333,95 @@ export function StatementImport({
       // já fica escolhido (o seletor começa no mês de hoje, e era aí que a fatura caía errada).
       if (type === "fatura" && result.stats.vencimento && !faturaMesTocado) setFaturaMonth(result.stats.vencimento.slice(0, 7));
       setKindMismatch(null);
-      setStats(result.stats);
-      setItems(result.items);
-      setCustomCategories(result.customCategories);
-      setReviewIdx(0);
-      // Se nada precisa de revisão, pula direto pra confirmação.
-      // O que é dúvida (dinheiro dela mesma) ou fica de fora não pede categoria agora.
-      const pendentes = result.items.filter((it) => gastoSemCategoria(it) && !it.ignorar && !it.duvida);
-      // Uma pergunta por comerciante, não por linha (12/10/2026): a resposta vale pro grupo.
-      const fila = filaPorComerciante(pendentes);
-      setReviewKeys(fila.keys);
-      setSeparadosEmRevisao(null);
-      // Caminho B (12/10/2026): primeiro a confirmação calma e o "Separei N de M"; as perguntas
-      // que sobram vêm depois, em cartões grandes, quando ela tocar em Responder.
-      setPhase("confirm");
+      carregarLeitura(result.stats, result.items, result.customCategories);
     });
+  }
+
+  /** Põe uma leitura na revisão B (um arquivo só, ou o arquivo aberto da fila). */
+  function carregarLeitura(novos: ParseStats, linhas: ReviewItem[], categorias: { id: string; name: string; icon?: string }[]) {
+    setStats(novos);
+    setItems(linhas);
+    setCustomCategories(categorias);
+    setReviewIdx(0);
+    setNaoSei(new Set());
+    // O que é dúvida (dinheiro dela mesma) ou fica de fora não pede categoria agora.
+    const pendentes = linhas.filter((it) => gastoSemCategoria(it) && !it.ignorar && !it.duvida);
+    // Uma pergunta por comerciante, não por linha (12/10/2026): a resposta vale pro grupo.
+    const filaDeRevisao = filaPorComerciante(pendentes);
+    setReviewKeys(filaDeRevisao.keys);
+    setSeparadosEmRevisao(null);
+    // Caminho B (12/10/2026): primeiro a confirmação calma e o "Separei N de M"; as perguntas
+    // que sobram vêm depois, em cartões grandes, quando ela tocar em Responder.
+    setPhase("confirm");
+  }
+
+  /** Lê um arquivo da fila no servidor, seguindo o tipo que o app detectar (ou o forçado no "Mudar"). */
+  async function lerDaFila(arq: ArquivoNaFila, forcado?: "extrato" | "fatura"): Promise<ArquivoNaFila> {
+    if (arq.file.size > UPLOAD_MAX_BYTES) return { ...arq, status: "erro", erro: t.impArquivoGrande };
+    const tentar = async (tipo: "extrato" | "fatura") => parseStatementAction(buildUploadForm(arq.file, tipo));
+    try {
+      let tipo = forcado ?? arq.docType;
+      let r = await tentar(tipo);
+      if (r.ok && !forcado && r.stats.detectedKind !== "unknown" && r.stats.detectedKind !== tipo) {
+        tipo = r.stats.detectedKind;
+        r = await tentar(tipo);
+      }
+      if (!r.ok) return { ...arq, status: "erro", erro: r.needsPassword ? "Este arquivo tem senha: envie ele sozinho para eu pedir a senha." : r.error };
+      const resumo = resumoDoArquivo(tipo, r.stats, r.items);
+      const meses = resumo.chips[resumo.chips.length - 1];
+      return { ...arq, status: "ok", docType: tipo, stats: r.stats, items: r.items, customCategories: r.customCategories, erro: undefined, rotulo: meses && !/compra|lançamento|vence/.test(meses) ? `${resumo.titulo} · ${meses}` : resumo.titulo };
+    } catch (err) {
+      registrarErroNoCliente("importar-ler", err);
+      return { ...arq, status: "erro", erro: ehFalhaDeRede(err) ? t.impErroEnvio : MSG_FALHA_NOSSA };
+    }
+  }
+
+  /**
+   * Vários arquivos: o servidor lê um por vez, em sequência (cada um no seu envio, cada um dentro do
+   * limite de tamanho), e cada linha da lista mostra o que o app achou assim que termina.
+   */
+  async function lerFila(novos: File[], juntarCom: ArquivoNaFila[] = []) {
+    const base = juntarCom.length ? Math.max(...juntarCom.map((a) => a.id)) + 1 : 0;
+    let lista: ArquivoNaFila[] = [...juntarCom, ...novos.map((file, i) => ({ id: base + i, file, status: "esperando" as const, docType: "extrato" as const }))];
+    setFila(lista);
+    setFilaAtual(null);
+    setError(null);
+    setPhase("arquivos");
+    setLendoFila(true);
+    for (const arq of lista.filter((a) => a.status === "esperando")) {
+      lista = lista.map((a) => (a.id === arq.id ? { ...a, status: "lendo" } : a));
+      setFila(lista);
+      const lido = await lerDaFila(arq);
+      lista = lista.map((a) => (a.id === arq.id ? lido : a));
+      setFila(lista);
+    }
+    setLendoFila(false);
+  }
+
+  /** "Mudar" num arquivo da lista: relê como o outro tipo. */
+  async function mudarTipoNaFila(id: number) {
+    if (!fila) return;
+    const arq = fila.find((a) => a.id === id);
+    if (!arq) return;
+    const outro = arq.docType === "fatura" ? "extrato" : "fatura";
+    setFila((l) => l?.map((a) => (a.id === id ? { ...a, status: "lendo" } : a)) ?? null);
+    const lido = await lerDaFila(arq, outro);
+    setFila((l) => l?.map((a) => (a.id === id ? lido : a)) ?? null);
+  }
+
+  /** Abre um arquivo da fila na revisão B; o que estava aberto guarda as respostas dadas até ali. */
+  function abrirDaFila(id: number, listaAtual: ArquivoNaFila[] | null = fila) {
+    if (!listaAtual) return;
+    let lista = listaAtual;
+    if (filaAtual !== null && filaAtual !== id) lista = lista.map((a) => (a.id === filaAtual && a.status === "ok" ? { ...a, items } : a));
+    const arq = lista.find((a) => a.id === id);
+    if (!arq || arq.status !== "ok" || !arq.stats || !arq.items) return;
+    setFila(lista);
+    setFilaAtual(id);
+    setDocType(arq.docType);
+    setFileName(arq.file.name);
+    setUltimoArquivo({ file: arq.file });
+    carregarLeitura(arq.stats, arq.items, arq.customCategories ?? []);
   }
 
   /**
@@ -521,6 +615,34 @@ export function StatementImport({
         setError(result.error);
         return;
       }
+      // Vários arquivos: este fica anotado, as respostas dadas nele valem nos próximos, e a revisão
+      // segue para o próximo arquivo. As repetidas entre eles o servidor já pula ao gravar.
+      if (fila && filaAtual !== null) {
+        let lista = fila.map((a) => (a.id === filaAtual ? { ...a, status: "anotado" as const, criados: result.created, items: undefined } : a));
+        let levadas = 0;
+        lista = lista.map((a) => {
+          if (a.status !== "ok" || !a.items) return a;
+          const r = levarRespostas(items, a.items);
+          levadas += r.levadas;
+          return { ...a, items: r.linhas };
+        });
+        const proximo = lista.find((a) => a.status === "ok");
+        const total = lista.reduce((soma, a) => soma + (a.criados ?? 0), 0);
+        if (proximo) {
+          showToast(levadas > 0 ? `${t.impToastImportados(result.created)}. Levei ${levadas} ${levadas === 1 ? "resposta" : "respostas"} para o próximo arquivo.` : `${t.impToastImportados(result.created)}.`);
+          setFilaAtual(null);
+          abrirDaFila(proximo.id, lista);
+          return;
+        }
+        setFila(lista);
+        setCreatedCount(total);
+        setSkippedCount(result.skipped);
+        setCardPaymentCandidates(result.cardPaymentCandidates);
+        setRevelacao({ mes: null, dados: null, carregando: false });
+        setPhase("done");
+        showToast(`${t.impToastImportados(total)}.`);
+        return;
+      }
       setCreatedCount(result.created);
       setSkippedCount(result.skipped);
       setCardPaymentCandidates(result.cardPaymentCandidates);
@@ -609,6 +731,11 @@ export function StatementImport({
     );
   }
 
+  // O começo entrega o arquivo por fora (handleFileRef): fica apontando para a função de agora.
+  useEffect(() => {
+    handleFileRef.current = handleFile;
+  });
+
   // --- UPLOAD ---
   if (phase === "upload") {
     return (
@@ -645,6 +772,7 @@ export function StatementImport({
             <span className="text-caption text-ink-faint">Todos os lançamentos entram como pagos (ou recebidos) por {nomesDoCasal[pessoaDoExtrato]}.</span>
           </div>
         )}
+
 
         {/* Uma porta só (proposta da entrada, 12/10/2026): "Extrato ou fatura", os formatos que o app
             lê, e um botão. O app descobre o tipo sozinho e segue; o "Mudar" aparece depois da leitura. */}
@@ -688,16 +816,91 @@ export function StatementImport({
           ref={fileRef}
           type="file"
           accept={ACEITA_ARQUIVO_DE_EXTRATO}
+          multiple
           className="hidden"
           onChange={(e) => {
-            const file = e.target.files?.[0];
+            const arquivos = Array.from(e.target.files ?? []);
             // Zera o campo: depois de um erro, escolher o MESMO arquivo de novo não dispara
             // change (o valor não mudou) e o toque não fazia nada, justo quando o aviso mandou tentar de novo.
             e.target.value = "";
-            if (file) handleFile(file);
+            // Vários de uma vez (caminho B): um por vez no servidor, cada um numa linha.
+            if (arquivos.length > 1) void lerFila(arquivos);
+            else if (arquivos[0]) handleFile(arquivos[0]);
           }}
         />
 
+      </div>
+    );
+  }
+
+  // --- VÁRIOS ARQUIVOS (caminho B; com mais de dois, a faixa dos meses do C) ---
+  if (phase === "arquivos" && fila) {
+    const prontos = fila.filter((a) => a.status === "ok");
+    return (
+      <div className="flex flex-col gap-3" data-varios-arquivos>
+        <p className="titulo-tema px-1 text-[1.6rem] font-normal leading-tight text-ink">{fila.length} arquivos</p>
+        {fila.map((a) => {
+          const resumo = a.status === "ok" && a.stats && a.items ? resumoDoArquivo(a.docType, a.stats, a.items) : null;
+          return (
+            <div key={a.id} className="flex flex-col gap-2 rounded-3xl bg-surface p-4 shadow-premium-sm" data-arquivo-da-fila={a.status}>
+              <span className="flex min-w-0 items-center gap-1.5 text-sm text-ink-muted">
+                <Paperclip size={15} className="shrink-0" aria-hidden />
+                <span className="truncate">{a.file.name}</span>
+              </span>
+              {resumo ? (
+                <>
+                  <b className="titulo-tema text-[1.4rem] font-normal leading-tight text-ink">{resumo.titulo}</b>
+                  <span className="flex flex-wrap gap-1.5">
+                    {resumo.chips.map((c) => (
+                      <span key={c} className="rounded-full bg-surface-2 px-3 py-1 text-sm font-medium text-ink">
+                        {c}
+                      </span>
+                    ))}
+                  </span>
+                  <span className="flex items-center justify-between gap-2">
+                    <span className="inline-flex items-center gap-1 text-sm font-medium text-success">
+                      <Check size={15} aria-hidden /> Pronto para revisar
+                    </span>
+                    <button type="button" disabled={lendoFila} onClick={() => void mudarTipoNaFila(a.id)} className="min-h-11 px-1 text-sm text-ink-muted underline underline-offset-4 disabled:opacity-50">
+                      Mudar
+                    </button>
+                  </span>
+                </>
+              ) : a.status === "erro" ? (
+                <span className="text-sm text-ink-muted">{a.erro}</span>
+              ) : (
+                <span className="inline-flex items-center gap-2 text-sm text-ink-muted">
+                  <span className="esqueleto h-3 w-24 rounded-full" aria-hidden />
+                  {a.status === "lendo" ? t.impLendoArquivo : "Na fila"}
+                </span>
+              )}
+            </div>
+          );
+        })}
+        <button type="button" disabled={lendoFila} onClick={() => fileRef.current?.click()} className="mx-auto inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-accent-strong disabled:opacity-50">
+          <Plus size={16} aria-hidden /> Mais um arquivo
+        </button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept={ACEITA_ARQUIVO_DE_EXTRATO}
+          multiple
+          className="hidden"
+          onChange={(e) => {
+            const arquivos = Array.from(e.target.files ?? []);
+            e.target.value = "";
+            if (arquivos.length) void lerFila(arquivos, fila);
+          }}
+        />
+        <button
+          type="button"
+          disabled={lendoFila || prontos.length === 0}
+          onClick={() => abrirDaFila(prontos[0].id)}
+          className="flex min-h-[52px] items-center justify-center gap-1.5 rounded-full [background:var(--botao-fundo,var(--color-ink))] text-base font-semibold [color:var(--botao-tinta,var(--color-canvas))] disabled:opacity-50"
+        >
+          {lendoFila ? t.impLendoArquivo : `Revisar ${prontos.length === 1 ? "o arquivo" : `os ${prontos.length}`}`}
+          {!lendoFila && <ArrowRight size={18} aria-hidden />}
+        </button>
       </div>
     );
   }
@@ -1066,6 +1269,32 @@ export function StatementImport({
             ))}
             <p className="text-caption text-ink-muted">{t.impNumerosErradosDica}</p>
             <FalarComSuporte arquivo={fileName} problema={stats.suspeitas[0]?.texto} rotulo={t.impFalarComAGente} />
+          </div>
+        )}
+
+        {/* Vários arquivos: uma aba por arquivo. O anotado fica marcado; os outros guardam o que ela já respondeu. */}
+        {fila && filaAtual !== null && fila.filter((a) => a.status === "ok" || a.status === "anotado").length > 1 && (
+          <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 [scrollbar-width:none]" role="tablist" aria-label="Arquivos" data-abas-dos-arquivos>
+            {fila
+              .filter((a) => a.status === "ok" || a.status === "anotado")
+              .map((a) => {
+                const on = a.id === filaAtual;
+                const titulo = a.rotulo ?? a.file.name;
+                return (
+                  <button
+                    key={a.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={on}
+                    disabled={a.status === "anotado" || isPending}
+                    onClick={() => abrirDaFila(a.id)}
+                    className="inline-flex min-h-10 shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-surface-2 px-3.5 text-sm text-ink-muted aria-selected:bg-ink aria-selected:font-medium aria-selected:text-canvas disabled:opacity-60"
+                  >
+                    {a.status === "anotado" && <Check size={14} aria-hidden />}
+                    {titulo}
+                  </button>
+                );
+              })}
           </div>
         )}
 
@@ -1651,3 +1880,4 @@ export function StatementImport({
     </div>
   );
 }
+
