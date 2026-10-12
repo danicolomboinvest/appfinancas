@@ -423,7 +423,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
           // Nunca "−R$" (regra 3.7): ano no vermelho vira "Faltou no ano" com o valor sem sinal.
           label={lerSobrou(sobrou(summary)).situacao === "faltou" ? (empresa ? "Prejuízo no ano" : "Faltou no ano") : voz.titulos.sobrouNoAno}
           value={money(lerSobrou(sobrou(summary)).valor)}
-          tone="accent"
+          tone={lerSobrou(sobrou(summary)).situacao === "faltou" ? "danger" : "accent"}
           // "43% da renda" (07/10/2026), como no Mensal: era "De cada R$ 100 que entraram, você manteve R$ 43".
           hint={summary.savingsRate === null ? undefined : voz.titulos.doQueEntrou(`${Math.round(summary.savingsRate * 100)}%`)}
           trend={
