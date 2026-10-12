@@ -66,7 +66,7 @@ export function SeletorDeMes() {
 
   return (
     <>
-      <div className="-mt-2 mb-4 grid grid-cols-[44px_minmax(0,1fr)_44px] items-center gap-2" aria-label="Período">
+      <div className="-mt-2 mb-2 grid grid-cols-[44px_minmax(0,1fr)_44px] items-center gap-2 pb-1" aria-label="Período">
         {antes ? (
           <Link href={hrefDoMes(aba, antes, agora)} aria-label="Mês anterior" className={seta} scroll={false}>
             <ChevronLeft size={18} aria-hidden />

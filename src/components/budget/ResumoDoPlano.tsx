@@ -56,8 +56,8 @@ export function ResumoDoPlano({ itens, ajustes, mes, onAjustar }: { itens: ItemD
           <span className="text-[1.5rem] font-light tabular-nums tracking-[-0.02em] text-ink">{m(total)}</span> divididos assim
         </p>
         <div className="flex h-2.5 gap-0.5 overflow-hidden rounded-full">
-          {visiveis.map((i) => (
-            <span key={i.key} className="h-full" style={{ width: `${(i.planejado / Math.max(1, total)) * 100}%`, background: i.cor }} />
+          {visiveis.map((i, k) => (
+            <span key={i.key} className="h-full" style={{ width: `${(i.planejado / Math.max(1, total)) * 100}%`, background: `var(--color-plano-${Math.min(7, k + 1)})` }} />
           ))}
         </div>
       </section>

@@ -19,7 +19,8 @@ import { mesesAte, montarMeses, valoresDosMeses } from "@/lib/consolidation/seis
 import { categoriasEssenciais } from "@/lib/categories";
 import { ContaDoLivre } from "./ContaDoLivre";
 import { QuadroDoMes } from "./QuadroDoMes";
-import { ResumoDeOutroMes } from "./ResumoDeOutroMes";
+import { getMonthlySummary } from "@/lib/consolidation/monthly";
+import { serverMoney } from "@/lib/money-server";
 import { lerIntervalo, lerMesEscolhido, mesDeAgora, mesmoMes } from "@/lib/visao-geral/periodo";
 import { ResumoDoPeriodo } from "./ResumoDoPeriodo";
 import { diaDaSemana, fimDoMesPeloPlano, livreAteDomingo, ritmoDoMes } from "@/lib/decisoes/foco-semana";
@@ -44,8 +45,16 @@ export default async function FocoPage(props: { searchParams: Promise<Record<str
   const intervalo = lerIntervalo({ periodo: um(busca.periodo), de: um(busca.de), ate: um(busca.ate) }, agora);
   if (intervalo) return <ResumoDoPeriodo ctx={ctx} intervalo={intervalo} agora={agora} />;
   const escolhido = lerMesEscolhido(busca.mes, agora);
-  if (!mesmoMes(escolhido, mesDeAgora(agora))) return <ResumoDeOutroMes ctx={ctx} mes={escolhido} agora={agora} />;
-  const [d, blocos, valoresMeses] = await Promise.all([carregarFoco(ctx), carregarBlocosDoMes(ctx, agora), valoresDosMeses(ctx, mesesAte(agora.getFullYear(), agora.getMonth() + 1, 12))]);
+  // Outro mês (protótipo): o herói da semana e as Decisões importantes continuam em cima; muda o
+  // quadro do mês e, no mês passado ainda aberto, aparece "Setembro ainda não foi fechado".
+  const outroMes = mesmoMes(escolhido, mesDeAgora(agora)) ? null : escolhido;
+  const [d, blocos, valoresMeses, resumoOutro, moneyR] = await Promise.all([
+    carregarFoco(ctx),
+    carregarBlocosDoMes(ctx, agora),
+    valoresDosMeses(ctx, mesesAte(agora.getFullYear(), agora.getMonth() + 1, 12)),
+    outroMes ? getMonthlySummary(ctx, outroMes.ano, outroMes.mes) : Promise.resolve(null),
+    serverMoney(),
+  ]);
   const meses12 = montarMeses(valoresMeses, { ano: d.year, mes: d.month }, 12);
   const mesTitulo = MESES[d.month - 1].charAt(0).toUpperCase() + MESES[d.month - 1].slice(1);
   const { t, m, foco, ritmo } = d;
@@ -112,13 +121,35 @@ export default async function FocoPage(props: { searchParams: Promise<Record<str
         </Card>
       </Link>
     ) : null;
-  const mesAteAgora = <QuadroDoMes titulo={`${mesTitulo} até agora`} resumo={d.summary} href={d.hrefMes} rotulos={{ entrou: voz.titulos.entrou, gastou: voz.titulos.gastou }} money={m} />;
+  const redondo = (v: number) => moneyR(v, { round: true });
+  const nomeOutro = outroMes ? MESES[outroMes.mes - 1].charAt(0).toUpperCase() + MESES[outroMes.mes - 1].slice(1) + (outroMes.ano === agora.getFullYear() ? "" : ` de ${outroMes.ano}`) : "";
+  const mesAteAgora =
+    outroMes && resumoOutro ? (
+      <QuadroDoMes titulo={nomeOutro} resumo={resumoOutro} href={`/mensal/${outroMes.ano}/${outroMes.mes}`} rotulos={{ entrou: voz.titulos.entrou, gastou: voz.titulos.gastou }} money={redondo} />
+    ) : (
+      <QuadroDoMes titulo={`${mesTitulo} até agora`} resumo={d.summary} href={d.hrefMes} rotulos={{ entrou: voz.titulos.entrou, gastou: voz.titulos.gastou }} money={redondo} />
+    );
+  const ehMesPassado = outroMes !== null && outroMes.ano === d.mesAnterior.year && outroMes.mes === d.mesAnterior.month;
+  const avisoNaoFechado =
+    ehMesPassado && !d.fechamentoFeito ? (
+      <Link href="/mensal/foco/fechamento" className="flex items-center gap-3 rounded-3xl bg-accent-soft px-4 py-3" data-mes-nao-fechado>
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-surface text-accent-strong" aria-hidden>
+          <CalendarCheck size={18} />
+        </span>
+        <span className="min-w-0 flex-1">
+          <b className="block text-[15px] font-medium text-ink">{d.mesAnterior.label.charAt(0).toUpperCase() + d.mesAnterior.label.slice(1)} ainda não foi fechado</b>
+          <small className="text-[13px] text-ink-muted">3 min</small>
+        </span>
+        <span className="shrink-0 rounded-full bg-ink px-4 py-2 text-sm font-medium text-surface">Fechar</span>
+      </Link>
+    ) : null;
 
   return (
     // Celular: uma coluna, na ordem dos níveis. Computador: à esquerda o número, os atalhos e o mês;
     // à direita o que pede atenção, a próxima ação e o selo.
     <div className={`flex flex-col gap-5 ${contaNova ? "" : "lg:grid lg:grid-cols-2 lg:items-start lg:gap-6"}`}>
       <div className="flex min-w-0 flex-col gap-5">
+        {avisoNaoFechado}
         {/* Meta que chegou no valor: a notificação com confete, uma vez só (conquista rara). */}
         <ConquistasDeMetas ctx={ctx} />
         {!contaNova && (
@@ -245,7 +276,7 @@ export default async function FocoPage(props: { searchParams: Promise<Record<str
           <>
             {mesAteAgora}
             <GraficoSeisMeses meses12={meses12} />
-            {fecharMes && (
+            {fecharMes && !outroMes && (
               <section className="flex flex-col gap-2.5">
                 <h2 className="px-1 text-base font-semibold text-ink">{t.focoParaHoje}</h2>
                 {fecharMes}

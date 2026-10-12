@@ -2,7 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { useSearchParams } from "next/navigation";
-import { CheckSquare, Pencil, PiggyBank, Receipt, Search, Square, Trash2, TrendingUp, X, type LucideIcon } from "lucide-react";
+import { Check, CheckSquare, ChevronDown, Pencil, PiggyBank, Receipt, Search, Square, Trash2, TrendingUp, X, type LucideIcon } from "lucide-react";
+import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import type { ParentCategory } from "@prisma/client";
 import type { CurrencyCode } from "@/lib/money";
 import { Modal } from "@/components/ui/Modal";
@@ -217,7 +218,10 @@ export function EntryList({
   const [filtro, setFiltro] = useState<"todas" | "saidas" | "entradas" | "cartao">("todas");
   // O painel da categoria no Orçamento abre aqui já filtrado (?categoria=SAUDE).
   const buscaDaUrl = useSearchParams();
-  const [categoriaFiltro, setCategoriaFiltro] = useState(() => buscaDaUrl.get("categoria") ?? "");
+  // Várias categorias de uma vez (protótipo: folha "Categorias" com Limpar e Aplicar).
+  const [categoriasFiltro, setCategoriasFiltro] = useState<string[]>(() => (buscaDaUrl.get("categoria") ? [buscaDaUrl.get("categoria")!] : []));
+  const [folhaDeCategorias, setFolhaDeCategorias] = useState(false);
+  const [rascunhoCategorias, setRascunhoCategorias] = useState<string[]>([]);
   const open = entries.find((e) => e.id === openId) ?? null;
   const editing = entries.find((e) => e.id === editingId) ?? null;
 
@@ -423,7 +427,7 @@ export function EntryList({
     if (filtro === "saidas" && e.category !== "EXPENSE") return false;
     if (filtro === "entradas" && e.category !== "INCOME") return false;
     if (filtro === "cartao" && !e.noCartao) return false;
-    if (categoriaFiltro && (e.customCategoryId ?? e.parentCategory) !== categoriaFiltro) return false;
+    if (categoriasFiltro.length > 0 && !categoriasFiltro.includes((e.customCategoryId ?? e.parentCategory) as string)) return false;
     if (termo) {
       const texto = `${e.description ?? ""} ${e.subcategory ?? ""} ${categoryName(e, customCategories, voz, kind)}`.toLocaleLowerCase("pt-BR");
       if (!texto.includes(termo)) return false;
@@ -436,6 +440,7 @@ export function EntryList({
     const k = e.entryDate ?? "sem-data";
     grupos.set(k, [...(grupos.get(k) ?? []), e]);
   }
+  const nomeDaChave = (k: string) => (isParentCategoryKey(k) ? categoryLabel(kind, k) : (customCategories.find((c) => c.id === k)?.name ?? "Categoria"));
   const categoriasDoMes = [...new Set(entries.filter((e) => e.category === "EXPENSE").map((e) => e.customCategoryId ?? e.parentCategory).filter((k): k is string => Boolean(k)))];
 
   // Categoria só existe em Gasto (Renda e Aporte não têm categoria-mãe): o botão de mudar em
@@ -477,21 +482,67 @@ export function EntryList({
               {rotulo}
             </button>
           ))}
-          <select
-            value={categoriaFiltro}
-            onChange={(e) => setCategoriaFiltro(e.target.value)}
-            aria-label="Filtrar por categoria"
-            className="min-h-10 shrink-0 rounded-full border border-border bg-surface px-3 text-[15px] text-ink"
+          <button
+            type="button"
+            aria-haspopup="dialog"
+            onClick={() => {
+              setRascunhoCategorias(categoriasFiltro);
+              setFolhaDeCategorias(true);
+            }}
+            className="flex min-h-10 shrink-0 items-center gap-1 rounded-full bg-surface-2 px-4 text-[15px] text-ink"
           >
-            <option value="">Categoria</option>
-            {categoriasDoMes.map((k) => (
-              <option key={k} value={k}>
-                {isParentCategoryKey(k) ? categoryLabel(kind, k) : (customCategories.find((c) => c.id === k)?.name ?? "Categoria")}
-              </option>
-            ))}
-          </select>
+            Categoria <ChevronDown size={15} aria-hidden />
+          </button>
+        </div>
+        <div className={`flex flex-wrap items-center gap-2 ${categoriasFiltro.length ? "" : "hidden"}`} data-filtro-categoria>
+          {categoriasFiltro.map((k) => (
+            <button key={k} type="button" onClick={() => setCategoriasFiltro((l) => l.filter((x) => x !== k))} aria-label={`Tirar o filtro ${nomeDaChave(k)}`} className="flex min-h-10 items-center gap-1 rounded-full bg-ink px-3.5 text-[15px] text-canvas">
+              {nomeDaChave(k)} <X size={14} aria-hidden />
+            </button>
+          ))}
         </div>
       </div>
+
+      <Modal open={folhaDeCategorias} onClose={() => setFolhaDeCategorias(false)} title="Categorias">
+        <div className="flex flex-col gap-4">
+          <div className="grid grid-cols-2 gap-2">
+            {categoriasDoMes.map((k) => {
+              const on = rascunhoCategorias.includes(k);
+              const v = categoryVisual({ category: "EXPENSE", parentCategory: isParentCategoryKey(k) ? k : null, customCategoryId: isParentCategoryKey(k) ? null : k } as ListEntry, customCategories, tema, kind);
+              return (
+                <button
+                  key={k}
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() => setRascunhoCategorias((l) => (on ? l.filter((x) => x !== k) : [...l, k]))}
+                  className="relative flex min-w-0 flex-col items-start gap-2 rounded-2xl bg-surface p-3 text-left text-[15px] text-ink shadow-[inset_0_0_0_1px_var(--color-border)] aria-pressed:shadow-[inset_0_0_0_1.5px_var(--color-ink)]"
+                >
+                  <CategoryIcon icon={v.icon} color={v.color} size={36} variant="soft" />
+                  <span className="w-full truncate">{nomeDaChave(k)}</span>
+                  <span className={`absolute right-3 top-3 flex size-[22px] items-center justify-center rounded-full ${on ? "bg-ink text-canvas" : "shadow-[inset_0_0_0_1.5px_var(--color-border-strong)]"}`} aria-hidden>
+                    {on && <Check size={13} strokeWidth={2.2} />}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <button type="button" onClick={() => setRascunhoCategorias([])} className="min-h-12 rounded-full bg-surface text-[15px] font-medium text-ink shadow-[inset_0_0_0_1px_var(--color-border-strong)]">
+              Limpar
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setCategoriasFiltro(rascunhoCategorias);
+                setFolhaDeCategorias(false);
+              }}
+              className="min-h-12 rounded-full bg-ink text-[15px] font-medium text-canvas"
+            >
+              Aplicar
+            </button>
+          </div>
+        </div>
+      </Modal>
 
       {filtradas.length === 0 && <p className="px-1 py-6 text-center text-sm text-ink-muted">Nada com esse filtro neste mês.</p>}
       {[...grupos.entries()].map(([dia, lista]) => (

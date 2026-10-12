@@ -28,23 +28,24 @@ export function QuadroDoMes({
   const s = lerSobrou(sobrouDoResumo(resumo), mesSemLancamento(resumo));
   const faltou = s.situacao === "faltou";
   const ultimo = parcial
-    ? { rotulo: "Saldo do período", texto: `${faltou ? "− " : "+ "}${money(s.valor)}`, cor: "var(--color-ink-muted)", fundo: "" }
+    ? { rotulo: "Saldo do período", texto: `${faltou ? "− " : "+ "}${money(s.valor)}`, cor: "var(--color-ink-muted)", fundo: "", corDoValor: "var(--color-ink)" }
     : {
         rotulo: s.rotulo,
         texto: money(s.valor),
         cor: faltou ? "var(--color-dinheiro-faltou)" : "var(--color-dinheiro-sobrou)",
         fundo: faltou ? "bg-[color-mix(in_srgb,var(--color-dinheiro-faltou)_12%,var(--color-surface))]" : "bg-[color-mix(in_srgb,var(--color-dinheiro-sobrou)_12%,var(--color-surface))]",
+        corDoValor: faltou ? "var(--color-ink)" : "var(--quadro-cor-sobrou, var(--color-ink))",
       };
   const quadro = [
-    { rotulo: rotulos.entrou, texto: money(resumo.totalIncome), cor: "var(--color-dinheiro-entrou)", fundo: "" },
-    { rotulo: rotulos.gastou, texto: money(resumo.totalExpense), cor: "var(--color-dinheiro-gastou)", fundo: "" },
-    { rotulo: "Guardou", texto: money(resumo.totalInvestment), cor: "var(--color-dinheiro-guardou)", fundo: "" },
+    { rotulo: rotulos.entrou, texto: money(resumo.totalIncome), cor: "var(--color-dinheiro-entrou)", fundo: "", corDoValor: "var(--quadro-cor-entrou, var(--color-ink))" },
+    { rotulo: rotulos.gastou, texto: money(resumo.totalExpense), cor: "var(--color-dinheiro-gastou)", fundo: "", corDoValor: "var(--color-ink)" },
+    { rotulo: "Guardou", texto: money(resumo.totalInvestment), cor: "var(--color-dinheiro-guardou)", fundo: "", corDoValor: "var(--quadro-cor-guardou, var(--color-ink))" },
     ultimo,
   ];
   return (
     <section className="flex flex-col gap-3">
       <div className="flex items-center justify-between px-1">
-        <h2 className="titulo-tema text-lg font-medium text-ink">{titulo}</h2>
+        <h2 className="text-lg font-medium text-ink">{titulo}</h2>
         <Explica>Sobrou é o que entrou menos o que você gastou e o que guardou. Uma conta só, a mesma do gráfico.</Explica>
       </div>
       <div className="grid grid-cols-2 gap-2.5">
@@ -54,7 +55,9 @@ export function QuadroDoMes({
               <span className="size-2 shrink-0 rounded-full" style={{ background: q.cor }} aria-hidden />
               {q.rotulo}
             </span>
-            <ValorDestaque texto={q.texto} className="text-[1.5rem] font-light leading-none tracking-[-0.02em] tabular-nums text-ink" />
+            <span style={{ color: q.corDoValor }} className="text-ink">
+              <ValorDestaque texto={q.texto} className="text-[1.5rem] font-light leading-none tracking-[-0.02em] tabular-nums" />
+            </span>
           </Link>
         ))}
       </div>

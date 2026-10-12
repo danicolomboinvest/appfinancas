@@ -29,6 +29,13 @@ export function GraficoSeisMeses({ meses12 }: { meses12: MesDoGrafico[] }) {
   const money = useMoney();
   const m = (v: number) => money(v, { round: true });
   const [janela, setJanela] = useState<0 | 1>(1);
+  // Trocar a janela não pode mexer na rolagem: o botão que fica desabilitado perde o foco e o
+  // navegador levava a página ao topo (auditoria de 11/10/2026). Guarda e devolve a posição.
+  const ficaNoLugar = (troca: () => void) => {
+    const y = window.scrollY;
+    troca();
+    requestAnimationFrame(() => window.scrollTo({ top: y }));
+  };
   const meses = janela === 1 ? meses12.slice(-6) : meses12.slice(0, 6);
   const [selecionado, setSelecionado] = useState<number>(() => mesSelecionadoDeInicio(meses12.slice(-6)));
   const sel = meses[Math.min(selecionado, meses.length - 1)];
@@ -43,14 +50,14 @@ export function GraficoSeisMeses({ meses12 }: { meses12: MesDoGrafico[] }) {
     <section className="rounded-3xl border border-border bg-surface p-4 sm:p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="titulo-tema text-[17px] font-medium text-ink">Últimos 6 meses</h2>
+          <h2 className="text-[17px] font-medium text-ink">Últimos 6 meses</h2>
           <p className="text-caption text-ink-muted">{titulo}</p>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
-          <button type="button" aria-label="Seis meses antes" disabled={janela === 0 || meses12.length <= 6} onClick={() => { setJanela(0); setSelecionado(5); }} className="flex size-9 items-center justify-center rounded-full border border-border text-ink disabled:opacity-35">
+          <button type="button" aria-label="Seis meses antes" disabled={janela === 0 || meses12.length <= 6} onClick={() => ficaNoLugar(() => { setJanela(0); setSelecionado(5); })} className="flex size-9 items-center justify-center rounded-full border border-border text-ink disabled:opacity-35">
             <ChevronLeft size={16} aria-hidden />
           </button>
-          <button type="button" aria-label="Seis meses depois" disabled={janela === 1} onClick={() => { setJanela(1); setSelecionado(mesSelecionadoDeInicio(meses12.slice(-6))); }} className="flex size-9 items-center justify-center rounded-full border border-border text-ink disabled:opacity-35">
+          <button type="button" aria-label="Seis meses depois" disabled={janela === 1} onClick={() => ficaNoLugar(() => { setJanela(1); setSelecionado(mesSelecionadoDeInicio(meses12.slice(-6))); })} className="flex size-9 items-center justify-center rounded-full border border-border text-ink disabled:opacity-35">
             <ChevronRight size={16} aria-hidden />
           </button>
           <Explica>Entrou é tudo que caiu na conta. Gastou é tudo que saiu, e o pedaço de cima é o que você guardou. Sobrou é entrou menos gastou menos guardou.</Explica>

@@ -20,15 +20,15 @@ export function AlertaDoOrcamento({ linhas, essenciais, livre, diasRestantes, me
   if (!passou) return null;
   const outras = linhas.filter((l) => l.estado === "passou").length - 1;
   return (
-    <section className="flex flex-col gap-3 rounded-3xl p-4" style={{ background: "color-mix(in srgb, var(--color-danger) 10%, var(--color-surface))" }}>
-      <p className="flex items-center gap-3 text-[16px] text-danger">
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-surface" aria-hidden>
-          <TriangleAlert size={18} strokeWidth={1.6} />
-        </span>
+    <section className="flex items-center gap-3 rounded-3xl py-3 pl-3 pr-3" style={{ background: "color-mix(in srgb, var(--color-danger) 10%, var(--color-surface))" }} data-alerta-orcamento>
+      <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-surface text-danger" aria-hidden>
+        <TriangleAlert size={18} strokeWidth={1.6} />
+      </span>
+      <p className="min-w-0 flex-1 text-[15px] leading-snug text-danger">
         {passou.label} passou {m(Math.abs(passou.sobra))}
-        {outras > 0 && <span className="text-sm text-ink-muted">e mais {outras}</span>}
+        {outras > 0 && <span className="block text-xs text-ink-muted">e mais {outras}</span>}
       </p>
-      <button type="button" onClick={() => setAberto(true)} className="min-h-11 rounded-full bg-ink px-5 text-[15px] font-medium text-canvas">
+      <button type="button" onClick={() => setAberto(true)} className="min-h-10 shrink-0 rounded-full bg-ink px-4 text-sm font-medium text-canvas">
         O que fazer?
       </button>
       <Modal open={aberto} onClose={() => setAberto(false)} title="O que fazer?">

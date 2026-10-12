@@ -75,7 +75,7 @@ export function CategoriasDoMes({
 
   return (
     <div className="flex flex-col gap-3">
-      <ul className="flex flex-col divide-y divide-border">
+      <ul className="flex flex-col divide-y divide-border rounded-3xl border border-border bg-surface px-4">
         {linhas.map((l) => {
           const gasto = l.gasto + l.aVencer;
           const pct = l.planejado > 0 ? Math.round((gasto / l.planejado) * 100) : null;
@@ -84,7 +84,7 @@ export function CategoriasDoMes({
           const escolhido = emojiEscolhido(categorias, l.key);
           const Icone = isParentCategoryKey(l.key) ? categoryIcon(categorias, l.key) : (CUSTOM_CATEGORY_ICON_MAP[l.iconeProprio ?? ""] ?? Tag);
           return (
-            <li key={l.key} className="py-3.5 first:pt-1">
+            <li key={l.key} className="py-3.5">
               <button
                 type="button"
                 onClick={() => setAberta(l.key)}

@@ -30,10 +30,13 @@ function useHrefsDasAbas(): string[] {
  * mais cortado sem jeito de chegar nele).
  */
 export function AbasDaVisaoGeral() {
+  // Presas embaixo do cabeçalho ao rolar, com o mesmo véu dele (protótipo, #rolado-resumo).
   return (
-    <Suspense fallback={<AbasSemMes />}>
-      <AbasComMes />
-    </Suspense>
+    <div className="sticky top-[calc(3.6rem+var(--safe-top))] z-30 -mx-5 bg-canvas/85 px-5 pt-1 backdrop-blur-md md:static md:mx-0 md:bg-transparent md:px-0 md:backdrop-blur-none" data-abas-presas>
+      <Suspense fallback={<AbasSemMes />}>
+        <AbasComMes />
+      </Suspense>
+    </div>
   );
 }
 

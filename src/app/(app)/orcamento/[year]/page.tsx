@@ -23,12 +23,15 @@ import { listCustomCategories } from "@/lib/repositories/custom-category.repo";
 import { elapsedRatioOfMonth } from "@/lib/planning/budget-bullets";
 import { serverMoney } from "@/lib/money-server";
 import { Section } from "@/components/ui/Section";
+import { Explica } from "@/components/ui/Explica";
 import { resumoDoMes } from "@/lib/planning/month-budget-summary";
 import { EditarPlano } from "@/components/budget/EditarPlano";
 import { ajustesDoPadrao } from "@/lib/planning/padrao-orcamento";
 import { CategoriasDoMes, type LinhaDaCategoria } from "@/components/budget/CategoriasDoMes";
 import { carregarDetalheDoOrcamento } from "@/lib/repositories/orcamento-detalhe.repo";
-import { categoriaDoMes, ordenarCategorias } from "@/lib/planning/orcamento-categorias";
+import { categoriaDoMes } from "@/lib/planning/orcamento-categorias";
+
+const porPlano = <T extends { planejado: number; gasto: number; aVencer: number }>(l: T[]): T[] => [...l].sort((a, b) => b.planejado - a.planejado || b.gasto + b.aVencer - (a.gasto + a.aVencer));
 import { revisaoDoPlano } from "@/lib/planning/remanejo";
 import { categoriasEssenciais } from "@/lib/categories";
 import { HeroiDoTema } from "@/components/ui/HeroiDoTema";
@@ -145,8 +148,9 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
   const detalhe = currentMonthData ? await carregarDetalheDoOrcamento(ctx, year, currentMonthData.month, now) : null;
   const decorrido = currentMonthData ? elapsedRatioOfMonth(now, year, currentMonthData.month) : 0;
   const ROTULO_MES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+  // Na ordem do plano, do maior para o menor (protótipo); a que passou é marcada, não sobe.
   const categoriasDoMes = currentMonthData && detalhe
-    ? ordenarCategorias(
+    ? porPlano(
         currentMonthData.categories
           .filter((c) => c.planned > 0 || (detalhe.porCategoria[c.categoryKey]?.gasto ?? 0) + (detalhe.porCategoria[c.categoryKey]?.aVencer ?? 0) > 0)
           .map((c) =>
@@ -262,9 +266,13 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
       </div>
 
       {linhasDoMes.length > 0 && (
-        <Section title="Categorias" hint="A barra vai do verde ao vermelho conforme a categoria se aproxima do plano. Toque numa categoria para ver o histórico; na que passou, para ver o que fazer.">
+        <section className="flex flex-col gap-3">
+          <div className="flex items-center justify-between px-1">
+            <h2 className="text-[17px] font-medium text-ink">Categorias</h2>
+            <Explica>A barra vai do verde ao vermelho conforme a categoria se aproxima do plano. Toque numa categoria para ver o histórico; na que passou, para ver o que fazer.</Explica>
+          </div>
           <CategoriasDoMes hrefTransacoes={`/mensal/${year}/${currentMonthData?.month ?? 1}`} mes={MONTH_LABELS[(currentMonthData?.month ?? 1) - 1].toLowerCase()} linhas={linhasDoMes} essenciais={essenciais} livre={livreDoMes} diasRestantes={diasRestantes} abrirResolvendo={resolver} />
-        </Section>
+        </section>
       )}
 
       {/* "Editar meu plano" no fim, largo, como no protótipo. O ano inteiro saiu daqui. */}
