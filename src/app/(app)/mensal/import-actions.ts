@@ -4,6 +4,7 @@ import { ehCasal } from "@/lib/profiles/casal";
 import { ehPessoa } from "@/lib/casal/acerto";
 import { revalidatePath } from "next/cache";
 import { agendarCacaDoDinheiroPerdido } from "@/lib/dinheiro-perdido/agendar";
+import { agendarContasDoHistorico } from "@/lib/contas/agendar-contas";
 import { agendarAvisoDoCartao } from "@/lib/cartao/agendar";
 import { installmentCanonical, installmentDescription, parseInstallment } from "@/lib/entries/recurrence";
 import { countMoneyLines, detectInvoiceTotal, looksLikeCardInvoice, MOTIVO_SINAIS_FATURA, periodoSemMovimento, sinaisDesmentemExtrato, type DocKind } from "@/lib/import/detect";
@@ -1288,6 +1289,9 @@ export async function importTransactionsAction(
   // Dinheiro perdido: o extrato novo pode trazer carta nova ("2 cartas novas"), e um estorno pedido
   // pode ter caído. Depois da resposta; a Empresa não tem essa tela.
   if (created > 0 && ctx.profileKind !== "EMPRESA") await agendarCacaDoDinheiroPerdido(ctx);
+  // Contas do histórico: a Vivo, a luz, o aluguel achados no extrato entram em Recorrentes › Contas
+  // sozinhos (a Empresa também tem contas).
+  if (created > 0) await agendarContasDoHistorico(ctx);
 
   await recordImportDiagnostic({
     userId: ctx.userId,
