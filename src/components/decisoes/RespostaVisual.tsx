@@ -3,7 +3,8 @@ import type { Bloco, Veredito, Visual } from "@/lib/decisoes/respostas";
 /** As cores de cada veredito: verde bom, âmbar atenção, vermelho ruim. */
 const SELO: Record<Veredito, string> = {
   bom: "bg-success text-white",
-  atencao: "bg-[#E8A33A] text-[#3a2600]",
+  // A cor de atenção vem do tema (âmbar no Padrão, cobre no Titânio): o âmbar fixo ignorava o tema.
+  atencao: "bg-[var(--color-atencao-fundo)] text-[var(--color-atencao)]",
   ruim: "bg-danger text-white",
 };
 const SELO_SUAVE: Record<Veredito, string> = {
@@ -11,7 +12,7 @@ const SELO_SUAVE: Record<Veredito, string> = {
   atencao: "bg-[var(--color-atencao-fundo)] text-[var(--color-atencao)]",
   ruim: "bg-danger-soft text-danger",
 };
-const BARRA: Record<Veredito, string> = { bom: "bg-success", atencao: "bg-[#E8A33A]", ruim: "bg-danger" };
+const BARRA: Record<Veredito, string> = { bom: "bg-success", atencao: "bg-[var(--color-atencao)]", ruim: "bg-danger" };
 const TEXTO: Record<Veredito, string> = { bom: "text-success", atencao: "text-[var(--color-atencao)]", ruim: "text-danger" };
 
 /**
