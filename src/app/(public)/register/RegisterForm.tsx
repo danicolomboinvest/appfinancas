@@ -1,12 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
-import { Mail } from "lucide-react";
-import { BrandMark } from "@/components/brand/BrandMark";
-import { Field } from "@/components/ui/Field";
-import { PasswordField } from "@/components/ui/PasswordField";
-import { Button } from "@/components/ui/Button";
+import { useActionState, useState } from "react";
+import { Check, LockKeyhole, Mail, Smartphone, UserRound } from "lucide-react";
+import { Campo } from "@/components/entrada/Campo";
+import { LoginSocial } from "@/components/entrada/LoginSocial";
+import { Aviso, BOTAO, BOTAO_PEQUENO, BOTAO_PEQUENO_SEC, LINK, Pequeno, Regra, TelaDeEntrada, Titulo, Voltar } from "@/components/entrada/pecas";
 import { registerAction, type RegisterState } from "./actions";
 
 const initialState: RegisterState = {};
@@ -15,107 +14,232 @@ const initialState: RegisterState = {};
  * O formulário do cadastro. Mora separado da página porque a página agora é de servidor: é ela
  * que lê o código do convite (assinado com o AUTH_SECRET, que não pode ir pro navegador) e passa
  * só o e-mail da compra pra cá.
+ *
+ * Desenho do Mockup A (12/10/2026): uma tela só, curta, com o aviso do e-mail da compra no topo
+ * e o erro sempre com a saída do lado (entrar, criar senha nova, falar com o suporte).
  */
 export function RegisterForm({ emailDaCompra, appDaApple = false }: { emailDaCompra: string | null; appDaApple?: boolean }) {
   const [state, formAction, isPending] = useActionState(registerAction, initialState);
+  // A regra da senha acende enquanto ela digita. O React limpa o formulário a cada envio (a senha
+  // nunca volta do servidor), então a contagem zera junto.
+  const [senha, setSenha] = useState("");
+  const [enviadoUltimo, setEnviadoUltimo] = useState(state);
+  if (enviadoUltimo !== state) {
+    setEnviadoUltimo(state);
+    setSenha("");
+  }
+
+  const erroNoEmail = state.campo === "email";
+  const erroGeral = state.error && !erroNoEmail ? state.error : null;
 
   return (
-    <main className="flex min-h-dvh items-center justify-center bg-canvas p-6">
-      <div className="w-full max-w-sm animate-fade-in">
-        <div className="mb-8 flex flex-col items-center gap-3 text-center">
-          <BrandMark size={48} className="rounded-2xl" />
-          <div>
-            <h1 className="text-xl font-semibold tracking-tight text-ink">Criar conta</h1>
-            <p className="mt-1 text-sm text-ink-muted">Comece a organizar sua vida financeira hoje.</p>
-          </div>
+    <TelaDeEntrada>
+      <Voltar href="/login" />
+      <Titulo>Criar conta</Titulo>
+
+      {/* O aviso vem ANTES dos campos, e não como letra miúda embaixo do e-mail: quem se
+          cadastrava com outro e-mail criava uma conta sem a compra, via cadeado em tudo e
+          achava que tinha pago por nada (teve pedido de reembolso 12 minutos depois). */}
+      {/* No app da Apple não se fala de compra feita fora (guideline 3.1.1): lá quem não tem
+          acesso assina pela própria Apple depois de criar a conta. */}
+      {!appDaApple && (
+        <Aviso tipo="dica">
+          {emailDaCompra ? (
+            <>
+              <b>Já deixamos o e-mail da sua compra preenchido.</b> É por ele que o app libera o seu acesso.
+            </>
+          ) : (
+            <>
+              <b>Use o e-mail da sua compra.</b> É por ele que o app libera o seu acesso.
+            </>
+          )}
+        </Aviso>
+      )}
+
+      <form action={formAction} className="flex flex-col gap-4">
+        {erroGeral && (
+          <Aviso tipo="ruim" id="erro-cadastro">
+            {erroGeral}
+          </Aviso>
+        )}
+        <Campo
+          rotulo="Nome"
+          icone={UserRound}
+          id="name"
+          name="name"
+          type="text"
+          required
+          maxLength={80}
+          autoComplete="name"
+          defaultValue={state.values?.name}
+          invalido={state.campo === "name"}
+          descritoPor={state.campo === "name" ? "erro-cadastro" : undefined}
+        />
+        {/* Com o convite, o e-mail vem travado: trocar aqui é exatamente o erro que o link existe
+            para evitar. Quem quiser mesmo outro e-mail abre o cadastro sem o link. */}
+        <Campo
+          rotulo="E-mail"
+          icone={Mail}
+          id="email"
+          name="email"
+          type="email"
+          inputMode="email"
+          required
+          autoComplete="email"
+          autoCapitalize="none"
+          spellCheck={false}
+          readOnly={emailDaCompra != null}
+          defaultValue={emailDaCompra ?? state.values?.email}
+          invalido={erroNoEmail}
+          descritoPor={erroNoEmail ? "erro-email" : undefined}
+        />
+        {erroNoEmail && <ErroDoEmail state={state} />}
+        <Campo
+          rotulo="Celular"
+          extraDoRotulo={<span className="font-normal text-ink-muted"> (opcional)</span>}
+          icone={Smartphone}
+          id="phone"
+          name="phone"
+          type="tel"
+          placeholder="(11) 98765-4321"
+          autoComplete="tel"
+          inputMode="tel"
+          defaultValue={state.values?.phone}
+          invalido={state.campo === "phone"}
+          descritoPor={state.campo === "phone" ? "erro-cadastro" : undefined}
+        />
+        <Campo
+          rotulo="Senha"
+          icone={LockKeyhole}
+          id="password"
+          name="password"
+          type="password"
+          required
+          minLength={8}
+          autoComplete="new-password"
+          value={senha}
+          onChange={(e) => setSenha(e.target.value)}
+          invalido={state.campo === "password"}
+          descritoPor={state.campo === "password" ? "erro-cadastro regra-senha" : "regra-senha"}
+        />
+        <div className="-mt-1 flex flex-wrap gap-2">
+          <Regra ok={senha.length >= 8} id="regra-senha">
+            8 caracteres ou mais
+          </Regra>
         </div>
+        <Aceite marcadoAntes={state.values?.acceptTerms} comErro={state.campo === "acceptTerms"} />
+        <button type="submit" disabled={isPending} className={BOTAO}>
+          {isPending ? "Criando..." : "Criar conta"}
+        </button>
+      </form>
 
-        <form
-          action={formAction}
-          className="flex flex-col gap-4 rounded-2xl border border-border bg-surface p-6 shadow-premium-sm"
-        >
-          {/* O aviso vem ANTES dos campos, e não como letra miúda embaixo do e-mail: quem se
-              cadastrava com outro e-mail criava uma conta sem a compra, via cadeado em tudo e
-              achava que tinha pago por nada (teve pedido de reembolso 12 minutos depois). */}
-          {/* No app da Apple não se fala de compra feita fora (guideline 3.1.1): lá quem não tem
-              acesso assina pela própria Apple depois de criar a conta. */}
-          {!appDaApple && (
-          <div className="flex gap-2.5 rounded-xl bg-accent-soft px-3 py-2.5 text-sm text-ink">
-            <Mail size={18} strokeWidth={1.75} className="mt-0.5 shrink-0 text-accent-strong" />
-            {emailDaCompra ? (
-              <p>
-                <strong className="font-semibold">Já deixamos o e-mail da sua compra preenchido.</strong> É por ele que o
-                app reconhece o que você comprou.
-              </p>
-            ) : (
-              <p>
-                <strong className="font-semibold">Use o mesmo e-mail da sua compra.</strong> É por ele que o app
-                reconhece o que você comprou e libera tudo para você.
-              </p>
-            )}
-          </div>
-          )}
+      <LoginSocial modo="cadastro" />
+      <Pequeno className="text-center">
+        Já tem conta?{" "}
+        <Link href="/login" className={LINK}>
+          Entrar
+        </Link>
+      </Pequeno>
+    </TelaDeEntrada>
+  );
+}
 
-          {state.error && (
-            <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{state.error}</p>
-          )}
-          <Field label="Nome" id="name" name="name" type="text" required maxLength={80} defaultValue={state.values?.name} />
-          {/* Com o convite, o e-mail vem travado: trocar aqui é exatamente o erro que o link existe
-              para evitar. Quem quiser mesmo outro e-mail abre o cadastro sem o link. */}
-          <Field
-            label="E-mail"
-            id="email"
-            name="email"
-            type="email"
-            required
-            autoComplete="email"
-            readOnly={emailDaCompra != null}
-            className={emailDaCompra != null ? "cursor-default text-ink-muted" : ""}
-            defaultValue={emailDaCompra ?? state.values?.email}
-          />
-          <Field
-            label="Celular (WhatsApp, opcional)"
-            id="phone"
-            name="phone"
-            type="tel"
-            placeholder="(11) 98765-4321"
-            autoComplete="tel"
-            inputMode="tel"
-            defaultValue={state.values?.phone}
-          />
-          <PasswordField label="Senha" id="password" name="password" required minLength={8} autoComplete="new-password" />
-          <p className="-mt-3 text-xs text-ink-faint">Mínimo de 8 caracteres.</p>
-          <label className="flex items-start gap-2 text-xs text-ink-muted">
-            <input
-              type="checkbox"
-              name="acceptTerms"
-              required
-              defaultChecked={state.values?.acceptTerms}
-              className="mt-0.5 accent-current"
-            />
-            <span>
-              Li e aceito os{" "}
-              <Link href="/termos" target="_blank" className="font-medium text-accent-strong hover:underline">
-                Termos de Uso
-              </Link>{" "}
-              e a{" "}
-              <Link href="/privacidade" target="_blank" className="font-medium text-accent-strong hover:underline">
-                Política de Privacidade
-              </Link>
-              .
-            </span>
-          </label>
-          <Button type="submit" disabled={isPending} className="w-full">
-            {isPending ? "Criando..." : "Criar conta"}
-          </Button>
-          <p className="text-center text-sm text-ink-muted">
-            Já tem conta?{" "}
-            <Link href="/login" className="font-medium text-accent-strong hover:underline">
+/** O que deu errado com o e-mail, logo abaixo dele, e o caminho de cada caso. */
+function ErroDoEmail({ state }: { state: RegisterState }) {
+  if (state.motivo === "email-em-uso") {
+    return (
+      <Aviso
+        tipo="ruim"
+        id="erro-email"
+        acoes={
+          <>
+            <Link href="/login" className={BOTAO_PEQUENO}>
               Entrar
             </Link>
-          </p>
-        </form>
+            <Link href="/esqueci-senha" className={BOTAO_PEQUENO_SEC}>
+              Esqueci a senha
+            </Link>
+          </>
+        }
+      >
+        <b>Este e-mail já tem uma conta.</b> Se ela é sua, é só entrar.
+      </Aviso>
+    );
+  }
+  if (state.motivo === "sem-compra") {
+    return (
+      <>
+        <Aviso tipo="ruim" id="erro-email" acoes={<Link href="/suporte" className={BOTAO_PEQUENO_SEC}>Falar com o suporte</Link>}>
+          <b>Não achamos compra com este e-mail.</b> Use o mesmo e-mail da compra. Acabou de comprar? Espere uns minutos e
+          tente de novo.
+        </Aviso>
+        {state.dicaDoCelular && (
+          <Aviso tipo="dica">
+            Achamos uma compra com o seu celular no e-mail <b className="break-all">{state.dicaDoCelular}</b>. Crie a conta
+            com ele.
+          </Aviso>
+        )}
+      </>
+    );
+  }
+  if (state.motivo === "compra-encerrada") {
+    return (
+      <Aviso tipo="ruim" id="erro-email" acoes={<Link href="/suporte" className={BOTAO_PEQUENO_SEC}>Falar com o suporte</Link>}>
+        <b>A compra deste e-mail não está mais ativa.</b> Reembolso, cancelamento ou prazo vencido. Se acha que é engano,
+        fale com o suporte.
+      </Aviso>
+    );
+  }
+  // E-mail inválido e afins: a frase do servidor, como veio.
+  return (
+    <Aviso tipo="ruim" id="erro-email">
+      {state.error}
+    </Aviso>
+  );
+}
+
+/**
+ * O "Li e aceito": a caixinha nativa continua lá (é ela que vai no formulário e que o leitor de
+ * tela anuncia), só que desenhada como a caixinha preta de cantos redondos do protótipo.
+ */
+function Aceite({ marcadoAntes, comErro }: { marcadoAntes?: boolean; comErro: boolean }) {
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="grid grid-cols-[24px_minmax(0,1fr)] items-start gap-2.5 text-sm text-ink-muted">
+        <span className="relative mt-px flex h-6 w-6">
+          <input
+            id="acceptTerms"
+            type="checkbox"
+            name="acceptTerms"
+            required
+            defaultChecked={marcadoAntes}
+            aria-labelledby="aceite-texto"
+            aria-invalid={comErro || undefined}
+            aria-describedby={comErro ? "erro-cadastro" : undefined}
+            className={`peer h-6 w-6 cursor-pointer appearance-none rounded-lg bg-surface checked:bg-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink ${
+              comErro ? "shadow-[inset_0_0_0_2px_var(--color-danger)]" : "shadow-[inset_0_0_0_1.5px_var(--color-border-strong)]"
+            }`}
+          />
+          <Check
+            size={16}
+            strokeWidth={2.4}
+            aria-hidden
+            className="pointer-events-none absolute left-1 top-1 hidden text-canvas peer-checked:block"
+          />
+        </span>
+        <span id="aceite-texto">
+          <label htmlFor="acceptTerms" className="cursor-pointer">
+            Li e aceito os
+          </label>{" "}
+          <Link href="/termos" target="_blank" className="font-semibold text-accent-strong underline-offset-4 hover:underline">
+            Termos
+          </Link>{" "}
+          e a{" "}
+          <Link href="/privacidade" target="_blank" className="font-semibold text-accent-strong underline-offset-4 hover:underline">
+            Privacidade
+          </Link>
+        </span>
       </div>
-    </main>
+    </div>
   );
 }

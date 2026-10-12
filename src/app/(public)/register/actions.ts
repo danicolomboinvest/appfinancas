@@ -15,7 +15,21 @@ import { naAppDaApple } from "@/lib/apple/app-da-apple";
 // `values` volta junto com o erro: o React 19 limpa o formulário a cada envio, e sem isso
 // "Celular inválido" aparecia com os quatro campos em branco. A senha nunca volta.
 export type RegisterValues = { name: string; email: string; phone: string; acceptTerms: boolean };
-export type RegisterState = { error?: string; values?: RegisterValues };
+/**
+ * `motivo` e `campo` só existem para a tela desenhar o aviso certo do lado do campo certo (o
+ * e-mail já usado oferece Entrar; a falta de compra mostra a dica do celular). O texto de
+ * `error` continua o mesmo.
+ */
+export type MotivoDoCadastro = "email-em-uso" | "sem-compra" | "compra-encerrada";
+export type CampoDoCadastro = "name" | "email" | "phone" | "password" | "acceptTerms";
+export type RegisterState = {
+  error?: string;
+  values?: RegisterValues;
+  motivo?: MotivoDoCadastro;
+  campo?: CampoDoCadastro;
+  /** O e-mail da compra achada pelo celular, mascarado (ver compraComOCelular). */
+  dicaDoCelular?: string;
+};
 
 function texto(formData: FormData, campo: string): string {
   const v = formData.get(campo);
@@ -37,23 +51,30 @@ export async function registerAction(_prevState: RegisterState, formData: FormDa
   });
 
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Dados inválidos.", values };
+    const caminho = parsed.error.issues[0]?.path[0];
+    const campo = caminho === "name" || caminho === "email" || caminho === "phone" || caminho === "password" ? caminho : undefined;
+    return { error: parsed.error.issues[0]?.message ?? "Dados inválidos.", values, campo };
   }
 
   // Opcional. Se veio, aceita qualquer formato digitado: "(11) 98765-4321", "+55 11...", só dígitos.
   const phone = parsed.data.phone ? normalizePhone(parsed.data.phone) : null;
   if (parsed.data.phone && !phone) {
-    return { error: "Celular inválido. Use DDD + número, ex.: (11) 98765-4321.", values };
+    return { error: "Celular inválido. Use DDD + número, ex.: (11) 98765-4321.", values, campo: "phone" };
   }
 
   // Aceite dos Termos/Privacidade é obrigatório (LGPD), valida também no servidor.
   if (!values.acceptTerms) {
-    return { error: "É preciso aceitar os Termos de Uso e a Política de Privacidade.", values };
+    return { error: "É preciso aceitar os Termos de Uso e a Política de Privacidade.", values, campo: "acceptTerms" };
   }
 
   const existing = await findUserByEmail(parsed.data.email);
   if (existing) {
-    return { error: "Já existe uma conta com este email. Se ela é sua, use \"Esqueci minha senha\" no login para entrar.", values };
+    return {
+      error: "Já existe uma conta com este email. Se ela é sua, use \"Esqueci minha senha\" no login para entrar.",
+      values,
+      motivo: "email-em-uso",
+      campo: "email",
+    };
   }
 
   // Só quem comprou cria conta (fim do freemium, 30/09/2026): no grátis, quem comprava com um
@@ -64,7 +85,13 @@ export async function registerAction(_prevState: RegisterState, formData: FormDa
   const situacao = await situacaoDoAcesso(parsed.data.email);
   if (situacao !== "ativo" && !(await naAppDaApple())) {
     const compraDoCelular = situacao === "sem-compra" && phone ? await compraComOCelular(phone) : null;
-    return { error: erroDeCadastroSemCompra(situacao, compraDoCelular), values };
+    return {
+      error: erroDeCadastroSemCompra(situacao, compraDoCelular),
+      values,
+      motivo: situacao === "sem-compra" ? "sem-compra" : "compra-encerrada",
+      campo: "email",
+      ...(compraDoCelular ? { dicaDoCelular: compraDoCelular } : {}),
+    };
   }
 
   // Se a compra no Hubla trouxe celular, ele vale como reserva (mas o digitado agora manda).
