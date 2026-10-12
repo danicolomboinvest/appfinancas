@@ -443,9 +443,8 @@ export function temaDeixaEscolherModo(themeKey?: string | null): boolean {
  * - `html:not(.light)` (0,1,1) ganha do `:root` (0,1,0) do globals.css, que é o modo escuro.
  * - `html.light:root` (0,2,1) ganha do `html.light` (0,1,1) do globals.css.
  */
-export function profileThemeCss(key: string | null | undefined): string {
-  const t = profileTheme(key);
-  const bloco = (m: ModoTokens) => `
+function blocoDoModo(m: ModoTokens): string {
+  return `
   --color-canvas: ${m.canvas};
   --color-surface: ${m.surface};
   --color-surface-2: ${m.surface2};
@@ -460,8 +459,33 @@ export function profileThemeCss(key: string | null | undefined): string {
   --color-accent-2: ${m.accent2};
   --color-accent-soft: ${m.accentSoft};
   --color-on-accent: ${m.onAccent};${Object.entries(m.extras ?? {}).map(([k, v]) => `\n  ${k.startsWith("--") ? k : `--color-${k}`}: ${v};`).join("")}`;
-  return `html:not(.light) {${bloco(t.paletaAlternativa)}
 }
-html.light:root {${bloco(t.paleta)}
+
+export function profileThemeCss(key: string | null | undefined): string {
+  const t = profileTheme(key);
+  return `html:not(.light) {${blocoDoModo(t.paletaAlternativa)}
+}
+html.light:root {${blocoDoModo(t.paleta)}
 }${t.cssExtra ?? ""}`;
+}
+
+/**
+ * O Padrão das telas de entrada (login, cadastro, senha, suporte, termos), que abrem sem conta e
+ * sem tema escolhido. Diferente do app, aqui o modo segue o celular: claro por padrão, escuro
+ * quando o aparelho está no escuro, e a escolha salva no sol/lua (classe light/dark no <html>)
+ * ganha dos dois. Peso (0,2,1) para passar o :root e o html.dark do globals.css.
+ */
+export function cssDaEntrada(): string {
+  const t = profileTheme(DEFAULT_PROFILE_THEME);
+  // A névoa âmbar atrás do logo (protótipo telas-publicas-proposta.html), uma por modo.
+  const nevoaClara = "\n  --entrada-nevoa-1: #f8dca2;\n  --entrada-nevoa-2: #f6cd7e;\n  --entrada-nevoa-3: #e9e2d3;\n  --entrada-nevoa-forca: 0.9;\n  color-scheme: light;";
+  const nevoaEscura = "\n  --entrada-nevoa-1: #563a16;\n  --entrada-nevoa-2: #4a3214;\n  --entrada-nevoa-3: #352d24;\n  --entrada-nevoa-forca: 0.7;\n  color-scheme: dark;";
+  return `html:root:not(.dark) {${blocoDoModo(t.paleta)}${nevoaClara}
+}
+@media (prefers-color-scheme: dark) {
+  html:root:not(.light) {${blocoDoModo(t.paletaAlternativa)}${nevoaEscura}
+  }
+}
+html.dark:root {${blocoDoModo(t.paletaAlternativa)}${nevoaEscura}
+}`;
 }
