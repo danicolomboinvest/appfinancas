@@ -38,10 +38,9 @@ export default async function SuportePage() {
             </p>
           ) : (
             <p>
-              O acesso é liberado automaticamente para quem compra o curso Seu Primeiro Investimento. Use o mesmo
-              e-mail da compra para se cadastrar em{" "}
+              O acesso é liberado sozinho para quem compra o SPI Finance. Use o mesmo e-mail da compra para{" "}
               <Link href="/register" className="text-accent-strong hover:underline">
-                /register
+                criar sua conta
               </Link>
               . No app para iPhone, também dá para assinar pela App Store.
             </p>
@@ -61,7 +60,7 @@ export default async function SuportePage() {
 
         {!appDaApple && (
         <div>
-          <h3 className="font-medium text-ink">Comprei o curso mas ainda não recebi acesso</h3>
+          <h3 className="font-medium text-ink">Comprei, mas ainda não recebi acesso</h3>
           <p>
             Pode levar alguns minutos para o pagamento ser confirmado. Se depois disso ainda não conseguir se
             cadastrar, escreva para o e-mail de suporte acima com o e-mail usado na compra.
@@ -72,7 +71,7 @@ export default async function SuportePage() {
         <div>
           <h3 className="font-medium text-ink">Como excluo minha conta e meus dados?</h3>
           <p>
-            Dentro do app, vá em Configurações → Dados → Excluir conta. A exclusão é imediata e definitiva. Mais
+            Dentro do app, vá em Configurações › Apagar dados ou conta. A exclusão é imediata e definitiva. Mais
             detalhes na{" "}
             <Link href="/privacidade" className="text-accent-strong hover:underline">
               Política de Privacidade
@@ -83,12 +82,12 @@ export default async function SuportePage() {
 
         <div>
           <h3 className="font-medium text-ink">Encontrei um erro ou tenho uma sugestão</h3>
-          <p>Conta para gente pelo e-mail de suporte acima, leitura de extratos, cotações e cálculos são revisados manualmente quando reportados.</p>
+          <p>Conte para a gente pelo e-mail de suporte acima. Cada aviso sobre extrato, cotação ou cálculo é revisado por uma pessoa.</p>
         </div>
       </section>
 
       <Link href="/login" className="text-sm font-medium text-accent-strong hover:underline">
-        ← Voltar ao login
+        Voltar ao login
       </Link>
     </main>
   );
