@@ -12,6 +12,7 @@ import { isXpContaDigitalStatement, parseXpContaDigitalStatement } from "./xp-co
 import { isPicPayInvoice, parsePicPayInvoice } from "./picpay-fatura-pdf";
 import { isSicrediInvoice, parseSicrediInvoice } from "./sicredi-fatura-pdf";
 import { isSicoobInvoice, parseSicoobInvoice } from "./sicoob-fatura-pdf";
+import { isBtgInvoice, parseBtgInvoice } from "./btg-fatura-pdf";
 import { isCaixaInvoice, parseCaixaInvoice } from "./caixa-fatura-pdf";
 import { isPortoInvoice, parsePortoInvoice } from "./porto-fatura-pdf";
 import { isUnicredStatement, parseUnicredStatement } from "./unicred-pdf";
@@ -856,6 +857,7 @@ const LEITORES_PDF: { nome: string; reconhece: (t: string) => boolean; le: (t: s
   { nome: "picpay-fatura", reconhece: isPicPayInvoice, le: (t, ano) => parsePicPayInvoice(t, ano) },
   { nome: "sicredi-fatura", reconhece: isSicrediInvoice, le: (t, ano) => parseSicrediInvoice(t, ano) },
   { nome: "sicoob-fatura", reconhece: isSicoobInvoice, le: (t, ano) => parseSicoobInvoice(t, ano) },
+  { nome: "btg-fatura", reconhece: isBtgInvoice, le: (t, ano) => parseBtgInvoice(t, ano) },
   { nome: "mercado-pago-fatura", reconhece: isMercadoPagoInvoice, le: (t, ano) => parseMercadoPagoInvoice(t, ano) },
   { nome: "banrisul-fatura", reconhece: isBanrisulInvoice, le: (t, ano) => parseBanrisulInvoice(t, ano) },
   { nome: "bradesco-cartoes-app", reconhece: isBradescoCartoesApp, le: (t, ano) => parseBradescoCartoesApp(t, ano) },
