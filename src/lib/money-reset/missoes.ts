@@ -1,205 +1,211 @@
 /**
- * Money Reset (05/10/2026): 21 dias, 21 missões, tiradas da aula "Organização financeira" da
- * Dani. O conteúdo é o do protótipo aprovado por ela (v6): cada dia é uma ação ou decisão NOVA,
- * nada que o mesmo fluxo do app já faz sozinho.
+ * Money Reset, versão A+B (12/10/2026, aprovada pela Dani em money-reset-proposta.html): um mapa
+ * de 21 marcos em 3 semanas (Enxergar, Organizar, Manter). Cada marco é uma missão feita numa tela
+ * que o SPI já tem; a única nova é a 13, "Suas dívidas na mesa". O conteúdo continua sendo o da aula
+ * "Organização financeira" da Dani.
+ *
+ * `antigos`: de que dia da versão de 05/10 cada marco veio. É por ele que quem já estava no meio
+ * continua de onde parou (ver progresso.ts, `marcosFeitos`).
  *
  * O texto é o do Padrão. Os nomes de tela que mudam de tema (Metas/Sonhos, Orçamento/Combinado)
- * vêm como marcas ({Metas}, {orcamento}...) e são trocados por `naVoz`. Puro, sem banco.
+ * vêm como marcas ({Metas}, {orcamento}...) e são trocados por `naVoz`. Sem emoji: cada marco tem
+ * um ícone próprio (`icone`, desenhado em components/money-reset/IconeDoMarco.tsx). Puro.
  */
 
 export type Confere = "auto" | "manual";
 
 /**
  * Para onde o botão da missão leva. "guia" liga o passo a passo com foco iluminado nas telas de
- * verdade; "tela" abre a tela da própria missão (o retrato, o motivo, a regra do cartão...).
+ * verdade; "tela" faz a missão ali mesmo (o retrato, o Raio-X, o motivo, a regra do cartão...).
  */
-export type Destino = { tipo: "guia" } | { tipo: "tela" };
+export type Destino = "guia" | "tela";
 
-export type Missao = {
-  d: number;
+export type IconeDoMarco =
+  | "extrato"
+  | "cartao"
+  | "raiox"
+  | "fixas"
+  | "escapa"
+  | "voz"
+  | "motivo"
+  | "orcamento"
+  | "guardar"
+  | "reserva"
+  | "sonho"
+  | "divisao"
+  | "dividas"
+  | "regra"
+  | "semana"
+  | "espera"
+  | "semgasto"
+  | "ritual"
+  | "alvo"
+  | "comparar"
+  | "fim";
+
+export type Marco = {
+  n: number;
   semana: 1 | 2 | 3;
-  ic: string;
+  icone: IconeDoMarco;
   min: number;
   t: string;
-  por: string;
-  precisa: string | null;
-  sozinho: string;
-  passos: string[];
-  toques: string[];
-  travou: string | null;
+  /** Uma linha, embaixo do título no cartão "agora" do mapa. */
+  sub: string;
+  /** Os dias da versão de 05/10 que viraram este marco (vazio = missão nova). */
+  antigos: number[];
+  destino: Destino;
   btn: string;
   confere: Confere;
+  /** "Precisa de ajuda?": o caminho de toques, fechado por padrão. */
+  passos: string[];
+  travou: string | null;
+  /** O que o app passa a fazer, no "O que já mudou no seu SPI" depois do marco. Sempre verdade. */
+  mudou: string[];
   aula: string;
-  destino: Destino;
 };
 
+export const TOTAL_DE_MARCOS = 21;
+
 export const SEMANAS = [
-  { n: 1 as const, nome: "Enxergar", sub: "Para onde vai o seu dinheiro" },
-  { n: 2 as const, nome: "Organizar", sub: "Um destino para cada real" },
-  { n: 3 as const, nome: "Manter", sub: "Método simples e hábito" },
+  {
+    n: 1 as const,
+    nome: "Enxergar",
+    historia: "O mês que sumiu",
+    resumo: "Para onde vai o seu dinheiro",
+  },
+  {
+    n: 2 as const,
+    nome: "Organizar",
+    historia: "Um destino pra cada real",
+    resumo: "Um destino para cada real",
+  },
+  {
+    n: 3 as const,
+    nome: "Manter",
+    historia: "O mês que fechou",
+    resumo: "Um jeito simples de repetir",
+  },
 ];
 
-const guia: Destino = { tipo: "guia" };
-const tela: Destino = { tipo: "tela" };
-
-export const MISSOES: Missao[] = [
-  { d: 1, semana: 1, ic: "📄", min: 10, t: "Traga seus gastos", por: "Não importa quanto você ganha, e sim como você gasta. Primeiro a gente olha.",
-    precisa: "O extrato da conta dos últimos 3 meses (PDF, Excel, CSV ou OFX).",
-    sozinho: "Lê o arquivo, separa renda de gasto, põe categoria no que reconhece e guarda cada escolha sua para a próxima vez.",
-    passos: ["Toque em + {Registrar} › {Importar}", "Escolha {Extrato} e o arquivo", "Revise só o que o app não reconheceu", "Toque em Importar"],
-    toques: ["+ {Registrar}", "{Importar}", "{Extrato}", "{EscolherArquivo}", "Importar"],
-    travou: "Não sabe baixar? Toque em \"Como tiro o extrato do meu banco?\". Muitos gastos para revisar? Dá para importar agora e escolher as categorias depois.",
-    btn: "Importar extrato", confere: "auto", aula: "Custo de vida", destino: guia },
-  { d: 2, semana: 1, ic: "💳", min: 5, t: "A fatura do cartão", por: "No débito a gente sente a perda. No crédito, a dor fica para depois, e por isso se gasta mais.",
-    precisa: "A última fatura fechada de cada cartão (o PDF do e-mail).",
-    sozinho: "Lança as parcelas dos próximos meses e tira o pagamento da fatura do extrato, para não contar duas vezes.",
+export const MARCOS: Marco[] = [
+  // ===== Semana 1 · Enxergar =====
+  { n: 1, semana: 1, icone: "extrato", min: 10, t: "Traga seus gastos", sub: "eu te mostro seu retrato na hora", antigos: [1, 3], destino: "tela",
+    btn: "Trazer meu extrato", confere: "manual", aula: "Custo de vida",
+    passos: ["Toque em + {Registrar} › {Importar}", "Escolha {Extrato} e o arquivo dos últimos 3 meses", "Revise só o que o app não reconheceu", "Volte aqui e veja o seu retrato"],
+    travou: "Muitos gastos para revisar? Dá para importar agora e escolher as categorias depois.",
+    mudou: ["Seu extrato está no app", "O seu retrato ficou pronto"] },
+  { n: 2, semana: 1, icone: "cartao", min: 5, t: "A fatura do cartão", sub: "as parcelas entram sozinhas", antigos: [2], destino: "tela",
+    btn: "Trazer minha fatura", confere: "auto", aula: "Débito ou crédito?",
     passos: ["Toque em + {Registrar} › {Importar}", "Escolha {Fatura}, o arquivo e o mês", "Revise o que o app não reconheceu", "Toque em Importar"],
-    toques: ["+ {Registrar}", "{Importar}", "{Fatura}", "Arquivo", "Importar"],
     travou: "Escolheu Extrato sem querer? O app avisa antes, porque fatura lida como extrato vira renda.",
-    btn: "Importar fatura", confere: "auto", aula: "Débito ou crédito?", destino: guia },
-  { d: 3, semana: 1, ic: "🪞", min: 3, t: "Seu retrato", por: "O ideal é gastar no máximo 90% do que entra. O resto é o seu futuro.",
-    precisa: null,
-    sozinho: "Calcula a média dos 3 meses, a renda que veio no extrato e quanto da renda já sai.",
-    passos: ["O retrato já vem pronto", "Entrou algo fora da conta (VR, VA, dinheiro)? Toque em Adicionar", "Veja onde você está na régua dos 90%"],
-    toques: ["Missão do dia", "Conferir a renda", "Régua dos 90%"],
-    travou: null, btn: "Ver meu retrato", confere: "auto", aula: "Controle de gastos", destino: tela },
-  { d: 4, semana: 1, ic: "🔍", min: 5, t: "Os pequenos que viram grandes", por: "Um streaming de 59,90 por mês vira 718,80 no ano. Quase ninguém faz essa conta.",
-    precisa: null,
-    sozinho: "Acha o que se repete nos 3 meses e soma quanto custa no ano.",
-    passos: ["{Foco} › {RaioX}", "Para cada item, escolha: manter, cancelar ou cortar pela metade", "Cancele hoje, de verdade, o que marcou para cancelar"],
-    toques: ["{Foco}", "{RaioX}", "Uma escolha por item"],
+    mudou: ["As parcelas dos próximos meses já estão no app", "O pagamento da fatura não conta duas vezes"] },
+  { n: 3, semana: 1, icone: "raiox", min: 5, t: "Os pequenos que viram grandes", sub: "o que se repete no seu extrato", antigos: [4], destino: "tela",
+    btn: "Ver o que eu achei", confere: "manual", aula: "Diagnosticar os gastos",
+    passos: ["Para cada cobrança, escolha: manter, metade ou cortar", "Cancele de verdade o que marcou para cortar"],
     travou: "No mês seguinte o app pergunta se cancelou mesmo.",
-    btn: "Abrir o Raio-X", confere: "auto", aula: "Diagnosticar os gastos", destino: guia },
-  { d: 5, semana: 1, ic: "📌", min: 5, t: "O que já tem dono no mês", por: "Reduzir custos não é abrir mão de conforto. Comece pelo que chega todo mês sem você decidir.",
-    precisa: null,
-    sozinho: "Monta a lista do que sai todo mês: contas fixas, assinaturas e parcelas.",
-    passos: ["Confira a lista: o que não é fixo, toque em Não é fixa", "Escolha 1 conta para negociar (internet, celular, tarifa do banco)", "Ligue ou abra o chat da empresa"],
-    toques: ["Missão do dia", "Não é fixa", "Negociar 1 conta"],
+    mudou: ["O Raio-X guardou o que você decidiu", "No mês que vem eu pergunto se cancelou mesmo"] },
+  { n: 4, semana: 1, icone: "fixas", min: 5, t: "O que já tem dono", sub: "as contas fixas e 1 para negociar", antigos: [5], destino: "tela",
+    btn: "Confirmar", confere: "manual", aula: "Reduzir despesas fixas",
+    passos: ["Confira a lista: o que não é fixo, toque em Não é fixa", "Escolha 1 conta para negociar", "Ligue ou abra o chat da empresa"],
     travou: "Conta paga em dinheiro ou por outra pessoa? Anote em Contas a pagar.",
-    btn: "Ver o que sai todo mês", confere: "auto", aula: "Reduzir despesas fixas", destino: tela },
-  { d: 6, semana: 1, ic: "🍔", min: 3, t: "Onde o dinheiro escapa", por: "Delivery e fast food são o gasto supérfluo da dieta financeira. Cardápio da semana e lista no mercado resolvem boa parte.",
-    precisa: null,
-    sozinho: "Compara cada categoria sua com a distribuição da aula e mostra a que mais passa.",
-    passos: ["Veja a categoria que mais passa da régua", "Ponha um teto nela até o fim do mês", "Escolha 1 dica da aula para esta semana"],
-    toques: ["Missão do dia", "A que mais passa", "Teto até o fim do mês"],
-    travou: null, btn: "Ver onde escapa", confere: "auto", aula: "Alimentação inteligente", destino: tela },
-  { d: 7, semana: 1, ic: "💭", min: 3, t: "Seu motivo", por: "Disciplina começa com um motivo claro. É ele que segura nos dias difíceis.",
-    precisa: null,
-    sozinho: "Junta tudo o que você descobriu na semana numa tela só.",
-    passos: ["Veja o resumo da semana", "Escreva o seu motivo: por que você quer colocar o dinheiro no lugar?", "Ele volta para você nos dias em que der vontade de desistir"],
-    toques: ["Resumo da semana", "Escrever o motivo"],
-    travou: "Sem ideia? \"Quero dormir tranquila\" já é um ótimo motivo.",
-    btn: "Escrever meu motivo", confere: "auto", aula: "Disciplina: motivo claro", destino: tela },
-  { d: 8, semana: 2, ic: "✈️", min: 5, t: "Seus sonhos com preço", por: "{Metas} são a ponte entre onde você está e onde quer chegar.",
-    precisa: "O sonho que você separou no Dia 0.",
-    sozinho: "Calcula quanto guardar por mês e diz se é de curto, médio ou longo prazo.",
-    passos: ["{Metas} › {NovaMeta}", "O que é, quanto custa e para quando", "Pesou? Mude a data, não desista do sonho"],
-    toques: ["{Metas}", "{NovaMeta}", "Preço e data", "Salvar"],
-    travou: "Não sabe quanto custa? Ponha um valor aproximado e ajuste depois.",
-    btn: "Criar meu sonho", confere: "auto", aula: "Planejamento de vida", destino: guia },
-  { d: 9, semana: 2, ic: "🛟", min: 3, t: "Sua reserva", por: "A reserva é o colchão para os meses ruins: 6 meses do seu custo de vida.",
-    precisa: null,
-    sozinho: "Sugere o alvo pela média dos seus 3 meses.",
-    passos: ["{Metas} › Reserva", "Confira o alvo que o app sugere (autônoma: de 6 a 12 meses)", "Diga quanto já tem e salve"],
-    toques: ["{Metas}", "Reserva", "Confere o alvo", "Salvar"],
-    travou: "Não tem nada guardado? Ponha zero. A reserva começa no dia 11.",
-    btn: "Definir a reserva", confere: "auto", aula: "Fundo de segurança", destino: guia },
-  { d: 10, semana: 2, ic: "🧮", min: 10, t: "A distribuição do {orcamento}", por: "O {orcamento} não é uma prisão. Ele é um plano de liberdade.",
-    precisa: null,
-    sozinho: "Sugere a divisão da aula em reais, na sua renda, com o que você gastou de verdade do lado.",
-    passos: ["{Orcamento}", "Toque em {Sugerir}", "Ajuste o que não combina com a sua vida", "Salvar"],
-    toques: ["{Orcamento}", "{Sugerir}", "Ajustar", "Salvar"],
-    travou: "A moradia passa dos 30%? Normal em cidade grande. Tire de outra categoria, nunca da liberdade.",
-    btn: "Montar o {orcamento}", confere: "auto", aula: "Distribuição do orçamento", destino: guia },
-  { d: 11, semana: 2, ic: "🐷", min: 5, t: "Guardar primeiro", por: "Se precisar cortar, corte o desnecessário, mas nunca deixe de investir no seu futuro.",
-    precisa: "O app do seu banco.",
-    sozinho: "Já traz o valor do {orcamento}: 10% liberdade + 8% sonhos.",
-    passos: ["Confira quanto guardar por mês", "No app do banco, programe a transferência automática para o dia do salário", "Volte e toque em Fiz"],
-    toques: ["Quanto guardar", "App do banco", "Transferência automática", "Fiz"],
-    travou: "18% não cabe agora? Comece com 5%. O hábito vale mais que o valor.",
-    btn: "Programar o guardar", confere: "manual", aula: "Distribuição do orçamento", destino: tela },
-  { d: 12, semana: 2, ic: "🧭", min: 2, t: "Para onde vai o guardado", por: "Reserva primeiro, depois os sonhos pela ordem do prazo.",
-    precisa: null,
-    sozinho: "Divide o que você guarda: reserva primeiro, depois os sonhos.",
-    passos: ["Veja a divisão que o app sugere", "Ajuste a data de um sonho se não couber", "Confirme"],
-    toques: ["Missão do dia", "Divisão do guardado", "Confirmar"],
-    travou: null, btn: "Ver a divisão", confere: "auto", aula: "Distribuição do orçamento", destino: tela },
-  { d: 13, semana: 2, ic: "⚖️", min: 3, t: "Débito ou crédito?", por: "Juros do cartão passam de 400% ao ano. Parcelado sem juros só vale se o dinheiro ficar rendendo.",
-    precisa: null,
-    sozinho: "Mostra quanto da sua próxima fatura já está comprometido com parcelas.",
-    passos: ["Veja a próxima fatura: ela cabe inteira?", "Escolha a sua regra do cartão", "Ela volta no seu plano, no dia 21"],
-    toques: ["Próxima fatura", "Sua regra do cartão"],
-    travou: "A fatura não cabe? Não pague o mínimo: fale com o banco antes do vencimento.",
-    btn: "Escolher minha regra", confere: "auto", aula: "Débito ou crédito?", destino: tela },
-  { d: 14, semana: 2, ic: "🗺️", min: 3, t: "Seu plano da semana", por: "Agora o dinheiro tem destino antes de chegar.",
-    precisa: null,
-    sozinho: "Calcula o livre para gastar por semana com o seu {orcamento}.",
-    passos: ["Veja o livre para gastar por semana", "Escolha acompanhar toda semana", "O Foco passa a mostrar o livre da semana"],
-    toques: ["Resumo da semana", "Acompanhar toda semana"],
-    travou: null, btn: "Ver meu plano", confere: "auto", aula: "Como fazer o planejamento", destino: tela },
-  { d: 15, semana: 3, ic: "⏳", min: 3, t: "A regra das 24 horas", por: "Antes de comprar, espere um dia e veja se ainda quer ou precisa.",
-    precisa: "Uma compra que você está pensando em fazer.",
-    sozinho: "Faz a conta com o seu mês e os seus sonhos.",
-    passos: ["Toque em + {Registrar} › {PossoComprar}", "O que é, quanto custa e como paga", "Seja sincera", "Se for impulso: {DecidirAmanha}"],
-    toques: ["+ {Registrar}", "{PossoComprar}", "Seja sincera", "Decidir"],
-    travou: "Nenhuma compra em vista? Use uma que quase fez no último mês.",
-    btn: "Abrir {PossoComprar}", confere: "auto", aula: "Consumo consciente", destino: guia },
-  { d: 16, semana: 3, ic: "🎙️", min: 2, t: "O que não passa pelo extrato", por: "Método simples é o que você consegue repetir.",
-    precisa: null,
-    sozinho: "Entende a frase e já põe valor e categoria.",
+    mudou: ["Suas contas fixas ficaram somadas", "A conta para negociar ficou anotada"] },
+  { n: 5, semana: 1, icone: "escapa", min: 3, t: "Onde o dinheiro escapa", sub: "um teto na categoria que mais passa", antigos: [6], destino: "tela",
+    btn: "Pôr o teto", confere: "manual", aula: "Alimentação inteligente",
+    passos: ["Veja a categoria que mais passa da régua", "Ponha um teto nela até o fim do mês", "Escolha 1 dica para esta semana"],
+    travou: null,
+    mudou: ["O teto vale até o fim do mês", "O {Foco} avisa quando chegar perto"] },
+  { n: 6, semana: 1, icone: "voz", min: 2, t: "O que não passa pelo extrato", sub: "lançar falando, em 10 segundos", antigos: [16], destino: "guia",
+    btn: "{GravarAudio}", confere: "auto", aula: "Disciplina: método simples",
     passos: ["Toque em + {Registrar} › {GravarAudio}", "Fale: \"pão, 12 reais, dinheiro\"", "Confira e salve"],
-    toques: ["+ {Registrar}", "{GravarAudio}", "Falar", "Salvar"],
     travou: "O app pediu o microfone? Toque em Permitir. É uma vez só.",
-    btn: "{GravarAudio}", confere: "auto", aula: "Disciplina: método simples", destino: guia },
-  { d: 17, semana: 3, ic: "🚫", min: 1, t: "Um dia sem gasto à toa", por: "Só compre em promoção se já precisava antes do desconto.",
-    precisa: null,
-    sozinho: "No dia seguinte, confere se teve gasto de lazer ou compras.",
+    mudou: ["O gasto em dinheiro entrou no seu mês"] },
+  { n: 7, semana: 1, icone: "motivo", min: 3, t: "Seu motivo", sub: "o resumo da semana e o porquê", antigos: [7], destino: "tela",
+    btn: "Salvar meu motivo", confere: "manual", aula: "Disciplina: motivo claro",
+    passos: ["Veja o resumo da semana", "Escreva o seu motivo", "Ele volta no fim do mapa"],
+    travou: "Sem ideia? \"Quero dormir em paz\" já é um ótimo motivo.",
+    mudou: ["Seu motivo está guardado", "Ele aparece de novo no fim do mapa"] },
+
+  // ===== Semana 2 · Organizar =====
+  { n: 8, semana: 2, icone: "orcamento", min: 10, t: "Monte o seu {orcamento}", sub: "a divisão da aula, na sua renda", antigos: [10], destino: "guia",
+    btn: "Montar o {orcamento}", confere: "auto", aula: "Distribuição do orçamento",
+    passos: ["{Orcamento}", "Toque em {Sugerir}", "Ajuste o que não combina com a sua vida", "Salvar"],
+    travou: "A moradia passa dos 30%? Normal em cidade grande. Tire de outra categoria, nunca da liberdade.",
+    mudou: ["Cada categoria ganhou um valor", "O {Foco} compara o mês com o plano"] },
+  { n: 9, semana: 2, icone: "guardar", min: 5, t: "Guardar primeiro", sub: "a transferência automática no banco", antigos: [11], destino: "tela",
+    btn: "Fiz a transferência automática", confere: "manual", aula: "Distribuição do orçamento",
+    passos: ["Confira quanto guardar por mês", "No app do banco, programe a transferência para o dia do salário", "Volte e toque em Fiz"],
+    travou: "18% não cabe agora? Comece com 5%. O hábito vale mais que o valor.",
+    mudou: ["O guardar sai antes de qualquer gasto"] },
+  { n: 10, semana: 2, icone: "reserva", min: 3, t: "Sua reserva", sub: "o alvo pelos seus 3 meses", antigos: [9], destino: "guia",
+    btn: "Definir a reserva", confere: "auto", aula: "Fundo de segurança",
+    passos: ["{Metas} › Reserva", "Confira o alvo que o app sugere", "Diga quanto já tem e salve"],
+    travou: "Não tem nada guardado? Ponha zero. A reserva começa com o guardar primeiro.",
+    mudou: ["A reserva tem um alvo", "O que você guardar entra nela primeiro"] },
+  { n: 11, semana: 2, icone: "sonho", min: 5, t: "Seu sonho com preço", sub: "o que é, quanto custa e para quando", antigos: [8], destino: "guia",
+    btn: "Criar meu sonho", confere: "auto", aula: "Planejamento de vida",
+    passos: ["{Metas} › {NovaMeta}", "O que é, quanto custa e para quando", "Pesou? Mude a data, não desista do sonho"],
+    travou: "Não sabe quanto custa? Ponha um valor aproximado e ajuste depois.",
+    mudou: ["O sonho tem preço e data", "O app calcula quanto guardar por mês"] },
+  { n: 12, semana: 2, icone: "divisao", min: 2, t: "Pra onde vai o guardado", sub: "reserva primeiro, depois o sonho", antigos: [12], destino: "tela",
+    btn: "Confirmar", confere: "manual", aula: "Distribuição do orçamento",
+    passos: ["Veja a divisão que o app sugere", "Ajuste a data de um sonho se não couber", "Confirme"],
+    travou: null,
+    mudou: ["O guardado de cada mês tem destino"] },
+  { n: 13, semana: 2, icone: "dividas", min: 5, t: "Suas dívidas na mesa", sub: "tudo num lugar só, sem susto", antigos: [], destino: "tela",
+    btn: "Tudo na mesa", confere: "manual", aula: "Dívidas",
+    passos: ["Cadastre cada dívida em Dívidas", "Veja o selo de cada uma", "O app mostra quando você fica livre"],
+    travou: "Não sabe a taxa? Toque em Não sei: o app usa a do tipo de dívida.",
+    mudou: ["As dívidas ficam num lugar só", "O app mostra a data em que você fica livre"] },
+  { n: 14, semana: 2, icone: "regra", min: 3, t: "A regra do cartão", sub: "a próxima fatura e a sua regra", antigos: [13], destino: "tela",
+    btn: "Salvar minha regra", confere: "manual", aula: "Débito ou crédito?",
+    passos: ["Veja a próxima fatura: ela cabe inteira?", "Escolha a sua regra do cartão"],
+    travou: "A fatura não cabe? Não pague o mínimo: fale com o banco antes do vencimento.",
+    mudou: ["Sua regra do cartão está guardada", "Ela volta no fim do mapa"] },
+
+  // ===== Semana 3 · Manter =====
+  { n: 15, semana: 3, icone: "semana", min: 3, t: "Seu livre da semana", sub: "quanto dá para gastar até domingo", antigos: [14], destino: "tela",
+    btn: "Acompanhar toda semana", confere: "manual", aula: "Como fazer o planejamento",
+    passos: ["Veja o livre para gastar por semana", "Escolha acompanhar toda semana"],
+    travou: null,
+    mudou: ["O {Foco} mostra o livre da semana"] },
+  { n: 16, semana: 3, icone: "espera", min: 3, t: "A regra das 24 horas", sub: "uma compra, decidida com calma", antigos: [15], destino: "guia",
+    btn: "Abrir {PossoComprar}", confere: "auto", aula: "Consumo consciente",
+    passos: ["Toque em + {Registrar} › {PossoComprar}", "O que é, quanto custa e como paga", "Sem mentir pra mim", "Se for impulso: {DecidirAmanha}"],
+    travou: "Nenhuma compra em vista? Use uma que quase fez no último mês.",
+    mudou: ["A compra ficou decidida, sem impulso"] },
+  { n: 17, semana: 3, icone: "semgasto", min: 1, t: "Um dia sem gasto à toa", sub: "o app confere no dia seguinte", antigos: [17], destino: "tela",
+    btn: "Topo o desafio", confere: "auto", aula: "Consumo consciente",
     passos: ["Amanhã, só o essencial: mercado, transporte, contas", "Lance o que gastar ou suba o extrato depois"],
-    toques: ["Amanhã só o essencial", "O app confere"],
     travou: "Escorregou? A missão espera e você tenta de novo no outro dia.",
-    btn: "Topo o desafio", confere: "auto", aula: "Consumo consciente", destino: tela },
-  { d: 18, semana: 3, ic: "☕", min: 5, t: "O ritual de 5 minutos", por: "Segunda, revisar os gastos. Sábado, revisar os limites. É o hábito que segura o plano.",
-    precisa: null,
-    sozinho: "Monta os cartões da semana com os seus números.",
+    mudou: ["Um dia inteiro só com o essencial"] },
+  { n: 18, semana: 3, icone: "ritual", min: 5, t: "O ritual de 5 minutos", sub: "uma vez por semana, no {Foco}", antigos: [18], destino: "guia",
+    btn: "Fazer o ritual", confere: "auto", aula: "Disciplina: hábito",
     passos: ["{Foco} › Seus 5 minutos para o dinheiro", "Passe pelos cartões", "Tome a decisão que o ritual pede"],
-    toques: ["{Foco}", "Seus 5 minutos", "Cartões", "1 decisão"],
-    travou: null, btn: "Fazer o ritual", confere: "auto", aula: "Disciplina: hábito", destino: guia },
-  { d: 19, semana: 3, ic: "🎯", min: 10, t: "Um sonho que funciona", por: "Comece pequeno. Foque em quem você quer se tornar, não só no resultado.",
-    precisa: "O sonho do dia 8.",
-    sozinho: "Guarda as respostas no Money Reset, para você reler quando precisar.",
-    passos: ["Responda os 9 passos da aula, um por tela", "Uma frase curta basta", "Salve"],
-    toques: ["Seu sonho", "9 passos", "Salvar"],
+    travou: null,
+    mudou: ["O ritual da semana está feito"] },
+  { n: 19, semana: 3, icone: "alvo", min: 10, t: "Um sonho que funciona", sub: "os 9 passos da aula", antigos: [19], destino: "tela",
+    btn: "Salvar", confere: "manual", aula: "Definindo metas que funcionam",
+    passos: ["Responda os 9 passos, um por tela", "Uma frase curta basta", "Salve"],
     travou: "Travou num passo? Uma frase curta basta. Melhor feito que perfeito.",
-    btn: "Responder os 9 passos", confere: "auto", aula: "Definindo metas que funcionam", destino: tela },
-  { d: 20, semana: 3, ic: "📊", min: 5, t: "A primeira semana do plano", por: "É a hora do raio-x: o que aconteceu de verdade contra o que você planejou.",
-    precisa: "O extrato e a fatura mais recentes.",
-    sozinho: "Compara a semana com a sua média e com o livre da semana.",
+    mudou: ["Os 9 passos do seu sonho estão guardados"] },
+  { n: 20, semana: 3, icone: "comparar", min: 5, t: "A semana contra o plano", sub: "o que aconteceu de verdade", antigos: [20], destino: "tela",
+    btn: "Entendi", confere: "manual", aula: "Realizado × planejado",
     passos: ["Suba o extrato mais recente (se você não lança tudo na mão)", "Veja a semana contra a sua média"],
-    toques: ["+ {Registrar}", "Importar", "A semana × a média"],
     travou: "Lançou tudo à mão ou por voz? Nem precisa subir: o app já tem a semana.",
-    btn: "Ver a minha semana", confere: "auto", aula: "Realizado × planejado", destino: tela },
-  { d: 21, semana: 3, ic: "🏁", min: 5, t: "Seu plano", por: "Recompense-se pelo progresso. Você chegou até aqui.",
-    precisa: null,
-    sozinho: "Junta tudo num plano só, com os seus números.",
-    passos: ["Abra o seu plano", "Escolha uma recompensa pequena, que caiba nele", "Se quiser, compartilhe"],
-    toques: ["Seu plano", "Recompensa", "Compartilhar"],
-    travou: null, btn: "Ver meu plano", confere: "manual", aula: "Disciplina: recompensa", destino: tela },
+    mudou: ["A semana ficou comparada com a sua média"] },
+  { n: 21, semana: 3, icone: "fim", min: 5, t: "Feche o mês", sub: "o seu plano e o seu cartão", antigos: [21], destino: "tela",
+    btn: "Concluir o Money Reset", confere: "manual", aula: "Disciplina: recompensa",
+    passos: ["Veja o seu plano", "Escolha uma recompensa pequena, que caiba nele", "Se quiser, compartilhe o cartão"],
+    travou: null,
+    mudou: ["O seu plano está pronto e mora no app"] },
 ];
 
-export function missao(d: number): Missao | undefined {
-  return MISSOES.find((m) => m.d === d);
+export function marco(n: number): Marco | undefined {
+  return MARCOS.find((m) => m.n === n);
 }
 
-/**
- * Dia 0: só o que ela precisa ter em mãos nos primeiros dias (revisão da Dani, 05/10: a primeira
- * tela não pode dar sensação de "perdida"). VR, VA e contas pagas fora da conta aparecem na hora
- * certa, nos dias 3 e 5, e não aqui.
- */
-export const DIA_ZERO_ITENS = [
-  { ic: "📄", t: "O extrato da conta dos últimos 3 meses", sub: "Para o dia 1" },
-  { ic: "💳", t: "A última fatura do cartão", sub: "Para o dia 2" },
-  { ic: "✈️", t: "Um sonho, com preço", sub: "Para o dia 8" },
-];
+/** Dia da versão de 05/10 → marco novo (o dia 3, o retrato, entra no marco 1). */
+export const MARCO_DO_DIA_ANTIGO: Readonly<Record<number, number>> = Object.fromEntries(MARCOS.flatMap((m) => m.antigos.map((d) => [d, m.n])));
 
 /** Os 9 passos para estruturar a meta, da aula "Definindo metas que funcionam". */
 export const PASSOS_DO_SONHO = [
@@ -210,27 +216,30 @@ export const PASSOS_DO_SONHO = [
   { t: "Ecologia", q: "Isso é bom para você e para quem está perto?", ex: "Sim, é a viagem da família" },
   { t: "Recompensa emocional", q: "O que te move?", ex: "Orgulho de fazer do jeito certo" },
   { t: "Controle", q: "Depende de você?", ex: "Sim, depende do meu guardar" },
-  { t: "Identidade", q: "Você quer de verdade? Quem você vai ser?", ex: "Uma pessoa organizada com dinheiro" },
+  { t: "Identidade", q: "Você quer de verdade? Quem você vai ser?", ex: "Alguém que cuida bem do próprio dinheiro" },
   { t: "Plano de ação", q: "Qual é a rotina?", ex: "Segunda revisar os gastos, sábado os limites" },
 ];
 
 export const REGRAS_DO_CARTAO = [
-  { chave: "orcamento", ic: "✅", t: "Cartão só para o que está no {orcamento}", sub: "Fatura sempre inteira, nunca o mínimo" },
-  { chave: "debito", ic: "💵", t: "Débito no dia a dia", sub: "Cartão só para as contas fixas" },
-  { chave: "sem_juros", ic: "🧾", t: "Parcelar só sem juros", sub: "E só o que dura mais que as parcelas" },
+  { chave: "orcamento", t: "Cartão só para o que está no {orcamento}", sub: "Fatura sempre inteira, nunca o mínimo" },
+  { chave: "debito", t: "Débito no dia a dia", sub: "Cartão só para as contas fixas" },
+  { chave: "sem_juros", t: "Parcelar só sem juros", sub: "E só o que dura mais que as parcelas" },
 ] as const;
 
 export const DICAS_DA_SEMANA = [
-  { chave: "cardapio", ic: "📅", t: "Cardápio da semana", sub: "No domingo, e mercado só com o necessário" },
-  { chave: "lista", ic: "📝", t: "Lista no mercado", sub: "Só compra o que está na lista" },
-  { chave: "marmita", ic: "🍱", t: "Marmita 3 vezes", sub: "Leva de casa 3 dias da semana" },
+  { chave: "cardapio", t: "Cardápio da semana", sub: "No domingo, e mercado só com o necessário" },
+  { chave: "lista", t: "Lista no mercado", sub: "Só compra o que está na lista" },
+  { chave: "marmita", t: "Marmita 3 vezes", sub: "Leva de casa 3 dias da semana" },
 ] as const;
+
+/** Motivos de um toque (missão 7): a pessoa pode escrever o dela. Sem gênero. */
+export const MOTIVOS_PRONTOS = ["Quero dormir em paz", "Quero sair das dívidas", "Quero viajar sem culpa", "Quero ter uma reserva"] as const;
 
 /**
  * Os nomes de tela e de botão NO TEMA DA PESSOA (revisão da Dani, 05/10: "faça coisas que façam
- * sentido"). O "+" é "Registrar" no Padrão, "Anotar" no Girly, "Confessar" no Sem filtro; "Gravar
- * áudio" é "Me contar por voz" no Girly. O guia e o passo a passo dizem o nome que está NA TELA,
- * lido da própria voz do tema, sem os emojis e sem o "(PDF, Excel...)".
+ * sentido"). O "+" é "Registrar" no Padrão; "Gravar áudio" muda de nome no Girly. O guia e o passo
+ * a passo dizem o nome que está NA TELA, lido da própria voz do tema, sem os emojis e sem o
+ * "(PDF, Excel...)".
  */
 export type Vocabulario = {
   Foco: string;

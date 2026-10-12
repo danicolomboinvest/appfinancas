@@ -969,6 +969,108 @@ select,
   user-select: text;
 }
 
+/* Money Reset A+B (12/10/2026): o marco de agora pulsa, o placar dá um pulo quando cresce, cada
+   coisa nova entra deslizando e as semanas que ainda não abriram ficam na névoa. A Lu é desenhada
+   em CSS (cabeça, cabelo e blusa), como no protótipo aprovado. */
+@keyframes mr-pulsa {
+  50% {
+    box-shadow: 0 0 0 9px transparent;
+  }
+}
+@keyframes mr-pula {
+  40% {
+    transform: scale(1.05);
+  }
+}
+@keyframes mr-entra {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.mr-agora {
+  box-shadow: 0 0 0 4px var(--color-accent-soft);
+  animation: mr-pulsa 1.8s ease-in-out infinite;
+}
+.mr-pula {
+  animation: mr-pula 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.mr-entra {
+  animation: mr-entra 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.mr-nevoa {
+  filter: blur(3px);
+  opacity: 0.5;
+  pointer-events: none;
+}
+.mr-trilha path {
+  fill: none;
+  stroke: var(--color-ink-muted);
+  stroke-opacity: 0.45;
+  stroke-width: 2;
+  stroke-dasharray: 4 5;
+  vector-effect: non-scaling-stroke;
+}
+.mr-lu {
+  position: relative;
+  width: 52px;
+  height: 64px;
+  flex: none;
+}
+.mr-lu::before {
+  content: "";
+  position: absolute;
+  left: 12px;
+  top: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #c98f6e;
+  box-shadow: inset 0 9px 0 #3b2620;
+}
+.mr-lu::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  bottom: 0;
+  width: 44px;
+  height: 34px;
+  border-radius: 22px 22px 8px 8px;
+  background: #6e68a8;
+}
+@media (prefers-reduced-motion: reduce) {
+  .mr-agora,
+  .mr-pula,
+  .mr-entra {
+    animation: none;
+  }
+}
+/* O rostinho da Dani no balão do "o app reage" (protótipo A+B), sem foto. */
+.mr-dani {
+  position: relative;
+  width: 38px;
+  height: 38px;
+  flex: none;
+  overflow: hidden;
+  border-radius: 50%;
+  border: 2px solid var(--color-surface-2);
+  background: linear-gradient(135deg, #e9c3a6, #b07a5e);
+}
+.mr-dani::after {
+  content: "";
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  top: -6px;
+  height: 22px;
+  border-radius: 0 0 50% 50%;
+  background: #4a2f24;
+}
+
 /* Dinheiro perdido (12/10/2026): o "Até agora" dá um pulinho quando cresce. */
 @keyframes dp-pula {
   0% { transform: scale(1); }

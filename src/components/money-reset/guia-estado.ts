@@ -3,9 +3,11 @@
  * gaveta, o Raio-X é outra página) e some quando a aba fecha. O evento acorda o componente.
  */
 
-export const CHAVE_DO_GUIA = "mr-guia";
+/** "-2": a versão A+B renumerou as missões; um guia aberto na versão de 05/10 não acende o botão errado. */
+export const CHAVE_DO_GUIA = "mr-guia-2";
 export const EVENTO_DO_GUIA = "mr:guia";
 
+/** `dia` é o número do marco (1 a 21). */
 export type EstadoDoGuia = { dia: number; passo: number };
 
 export function lerGuia(): EstadoDoGuia | null {

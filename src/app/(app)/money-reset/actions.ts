@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getRequiredSession, type AuthContext } from "@/lib/auth/session";
 import { temMoneyReset } from "@/lib/repositories/produtoLiberado.repo";
-import { comecarReset, lerReset, marcarDiaFeito, salvarResposta, type CampoDeResposta } from "@/lib/repositories/money-reset.repo";
+import { CAMPOS_DE_RESPOSTA, lerReset, marcarMarcoFeito, salvarResposta, type CampoDeResposta } from "@/lib/repositories/money-reset.repo";
 
 async function comAcesso(): Promise<AuthContext> {
   const ctx = await getRequiredSession();
@@ -12,41 +12,32 @@ async function comAcesso(): Promise<AuthContext> {
   return ctx;
 }
 
-function revalidar(dia?: number) {
+function revalidar(n?: number) {
   revalidatePath("/money-reset");
-  if (dia) revalidatePath(`/money-reset/dia/${dia}`);
+  if (n) revalidatePath(`/money-reset/dia/${n}`);
   revalidatePath("/mensal/foco");
 }
 
-export async function comecarResetAction(separado: boolean[]) {
-  const ctx = await comAcesso();
-  await comecarReset(ctx, z.array(z.boolean()).max(10).parse(separado));
-  revalidar();
-}
-
 /**
- * Marca a missão feita. Só a missão aberta hoje (a de amanhã espera o dia dela); a Dani (ADMIN)
- * pode marcar qualquer uma, pra conferir o programa sem esperar 21 dias.
+ * Marca o marco feito. Só o marco aberto agora (a próxima abre assim que a anterior termina);
+ * a Dani (ADMIN) pode marcar qualquer um, para conferir o programa sem fazer os 21.
  */
-export async function concluirMissaoAction(dia: number): Promise<boolean> {
+export async function concluirMarcoAction(n: number): Promise<boolean> {
   const ctx = await comAcesso();
-  const d = z.number().int().min(1).max(21).parse(dia);
+  const m = z.number().int().min(1).max(21).parse(n);
   const reset = await lerReset(ctx);
-  const liberada = reset.estado.atual === d && reset.estado.disponivel;
-  if (!liberada && ctx.role !== "ADMIN") return false;
-  await marcarDiaFeito(ctx, d);
-  revalidar(d);
+  if (reset.estado.atual !== m && ctx.role !== "ADMIN") return false;
+  await marcarMarcoFeito(ctx, m);
+  revalidar(m);
   return true;
 }
 
-const CAMPOS = ["motivo", "regra", "passos", "desafio", "recompensa", "dica", "negociar", "divisao", "fixas"] as const;
-
-/** Guarda a resposta da missão e, se `concluir`, já marca o dia (o motivo salvo é a missão feita). */
+/** Guarda a resposta da missão e, se `concluir`, já marca o marco (o motivo salvo é a missão feita). */
 export async function salvarRespostaAction(campo: CampoDeResposta, texto: string, dados?: unknown, concluir?: number): Promise<boolean> {
   const ctx = await comAcesso();
-  const c = z.enum(CAMPOS).parse(campo);
+  const c = z.enum(CAMPOS_DE_RESPOSTA as [CampoDeResposta, ...CampoDeResposta[]]).parse(campo);
   await salvarResposta(ctx, c, z.string().max(2000).parse(texto), dados);
-  if (concluir) return concluirMissaoAction(concluir);
+  if (concluir) return concluirMarcoAction(concluir);
   revalidar();
   return true;
 }
