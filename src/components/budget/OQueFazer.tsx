@@ -3,30 +3,40 @@
 import { useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeftRight, Check, ChevronDown, PencilLine, Wallet } from "lucide-react";
+import { ArrowLeftRight, ChevronDown, ChevronRight, CircleCheck, List, TriangleAlert, type LucideIcon } from "lucide-react";
 import { useMoney } from "@/components/money/MoneyProvider";
 import { useToast } from "@/components/ui/toast-context";
 import { cobrirCategoriaAction } from "@/app/(app)/orcamento/actions";
 import { dispensarAvisoAction } from "@/app/(app)/mensal/foco/actions";
-import { planoDeCobrir, porDiaComOLivre, quantoPassou, type CategoriaParaRemanejo } from "@/lib/planning/remanejo";
+import { fontesParaCobrir, planoDeCobrir, quantoPassou, type CategoriaParaRemanejo } from "@/lib/planning/remanejo";
 
 /**
- * "Passou do plano: o que fazer?" (rodadas 18, 38 e 53). Uma folha curta, na ordem combinada:
- * 1. Ver o que pesou (só leitura); 2. Foi pontual (o plano não muda, o aviso some no mês);
- * 3. Cobrir com outra categoria, pela prioridade (desejo, dia a dia, essencial nunca), com
- * Desfazer; ou usar o livre do mês; 4. Rever o plano, só depois de 3 meses seguidos acima.
- * Nada aqui aumenta o plano sozinho.
+ * A folha "O que fazer?" (protótipo aprovado, #passou): o ícone, "Saúde passou R$ 67 do plano /
+ * R$ 417 de R$ 350 em outubro" e quatro cartões: 1. Ver o que pesou; 2. Foi pontual (o plano não
+ * muda, o aviso some no mês); 3. Cobrir com outra categoria (abre as opções, por prioridade:
+ * desejo, dia a dia, essencial nunca; com Desfazer); 4. o aviso "Passou 3 meses seguidos", que leva
+ * a rever o plano. Nada aqui aumenta o plano sozinho.
  */
 export function OQueFazer({
   categoria,
   categorias,
   essenciais = [],
-  livre,
-  diasRestantes,
   oQuePesou,
   revisao,
   onFeito,
+  mes,
+  icone,
+  quantos,
+  hrefDoPlano,
 }: {
+  /** "outubro": "R$ 417 de R$ 350 em outubro". */
+  mes?: string;
+  /** O ícone da categoria, no topo. */
+  icone?: ReactNode;
+  /** Quantos lançamentos pesaram ("3 lançamentos em Saúde"). */
+  quantos?: number;
+  /** Para onde vai o "Passou 3 meses seguidos" (o plano). */
+  hrefDoPlano?: string;
   categoria: CategoriaParaRemanejo;
   categorias: CategoriaParaRemanejo[];
   essenciais?: string[];
@@ -47,25 +57,11 @@ export function OQueFazer({
   const comEssencial = categorias.map((c) => ({ ...c, essencial: c.essencial || essenciais.includes(c.key) }));
   const plano = planoDeCobrir(categoria, comEssencial);
   const valor = quantoPassou(categoria);
-  const porDia = livre !== null ? porDiaComOLivre(livre, valor, diasRestantes) : null;
 
   function feito(mensagem: string, desfazer?: () => Promise<unknown>) {
     showToast(mensagem, desfazer ? { label: "Desfazer", onClick: () => iniciar(async () => { await desfazer(); router.refresh(); }) } : undefined);
     onFeito?.();
     router.refresh();
-  }
-
-  function tirar() {
-    iniciar(async () => {
-      for (const o of plano.origens) {
-        const r = await cobrirCategoriaAction({ de: o.key, para: categoria.key, valor: o.valor });
-        if (r.error) return showError(r.error);
-      }
-      const nomes = plano.origens.map((o) => o.label).join(" e ");
-      feito(`${categoria.label} coberta com ${nomes}.`, async () => {
-        for (const o of plano.origens) await cobrirCategoriaAction({ de: categoria.key, para: o.key, valor: o.valor });
-      });
-    });
   }
 
   function dispensar(mensagem: string) {
@@ -79,59 +75,92 @@ export function OQueFazer({
     });
   }
 
-  const rotuloTirar =
-    plano.origens.length === 1
-      ? `Tirar de ${plano.origens[0].label} · sobra ${m(plano.origens[0].sobraDepois)}`
-      : plano.origens.map((o) => `${m(o.valor)} de ${o.label}`).join(" + ");
-  const botaoTirar = plano.origens.length > 0 && (
-    <Opcao key="tirar" icone={ArrowLeftRight} destaque={plano.principal === "tirar"} disabled={pendente} titulo={rotuloTirar} sub="Só neste mês. O total do plano não muda." etiqueta={plano.nivel === 2 ? "é do dia a dia" : undefined} onClick={tirar} />
-  );
-  const botaoLivre = (
-    <Opcao
-      key="livre"
-      icone={Wallet}
-      destaque={plano.principal === "livre"}
-      disabled={pendente}
-      titulo="Usar o livre do mês"
-      sub={porDia !== null ? `Fica ${m(porDia)} por dia até o fim do mês.` : "O que passou sai do que ainda está livre."}
-      onClick={() => dispensar(`${categoria.label}: coberta pelo livre do mês.`)}
-    />
-  );
+  const fontes = fontesParaCobrir(categoria, comEssencial);
+  const [cobrindo, setCobrindo] = useState(false);
+  const [de, setDe] = useState<string | null>(fontes[0]?.key ?? null);
+  const escolhida = fontes.find((f) => f.key === de) ?? null;
+
+  function cobrirCom(origens: { key: string; label: string; valor: number }[]) {
+    iniciar(async () => {
+      for (const o of origens) {
+        const r = await cobrirCategoriaAction({ de: o.key, para: categoria.key, valor: o.valor });
+        if (r.error) return showError(r.error);
+      }
+      feito(`${m(valor)} de ${origens.map((o) => o.label).join(" e ")} cobriram ${categoria.label} neste mês`, async () => {
+        for (const o of origens) await cobrirCategoriaAction({ de: categoria.key, para: o.key, valor: o.valor });
+      });
+    });
+  }
+  const temCobrir = fontes.length > 0 || plano.origens.length > 0;
+  const planejadoDe = (key: string) => comEssencial.find((c) => c.key === key)?.planejado ?? 0;
 
   return (
-    <div className="flex flex-col gap-3">
-      <div>
-        <p className="text-caption text-ink-muted">Passou do plano</p>
-        <p className="text-[1.75rem] font-light tabular-nums text-danger">{m(valor)}</p>
-        <p className="text-sm tabular-nums text-ink-muted">
+    <div className="flex flex-col gap-3" data-o-que-fazer>
+      <div className="flex flex-col items-center gap-1 pb-1 text-center">
+        {icone && <span className="mb-1">{icone}</span>}
+        <b className="text-[17px] font-medium text-ink">
+          {categoria.label} passou {m(valor)} do plano
+        </b>
+        <span className="text-sm tabular-nums text-ink-muted">
           {m(categoria.gasto)} de {m(categoria.planejado)}
-        </p>
+          {mes ? ` em ${mes}` : ""}
+        </span>
       </div>
 
       {oQuePesou && (
-        <div className="rounded-2xl border border-border">
-          <button type="button" onClick={() => setVendo((v) => !v)} aria-expanded={vendo} className="flex min-h-12 w-full items-center justify-between gap-3 px-4 text-left text-[15px] font-medium text-ink">
-            Ver o que pesou
-            <ChevronDown size={18} className={`text-ink-faint transition-transform ${vendo ? "rotate-180" : ""}`} aria-hidden />
+        <>
+          <Opcao icone={List} titulo="Ver o que pesou" sub={quantos ? `${quantos} ${quantos > 1 ? "lançamentos" : "lançamento"} em ${categoria.label}` : `Os gastos de ${categoria.label}`} aberta={vendo} onClick={() => setVendo((v) => !v)} />
+          {vendo && <div className="rounded-2xl bg-surface px-3 pb-2 pt-1 shadow-[inset_0_0_0_1px_var(--color-border)]">{oQuePesou}</div>}
+        </>
+      )}
+
+      <Opcao icone={CircleCheck} seta disabled={pendente} titulo="Foi pontual" sub="Uma consulta, um exame. O plano não muda." onClick={() => dispensar(`Marcado como pontual. O plano de ${categoria.label} não muda.`)} />
+
+      {temCobrir && (
+        <Opcao icone={ArrowLeftRight} titulo="Cobrir com outra categoria" sub="Só deste mês. O total do plano não muda." aberta={cobrindo} onClick={() => setCobrindo((v) => !v)} />
+      )}
+      {cobrindo && fontes.length > 0 && escolhida && (
+        <div className="flex flex-col gap-3 rounded-2xl bg-surface p-3.5 shadow-[inset_0_0_0_1px_var(--color-border)]" data-cobrir>
+          <h3 className="text-[15px] font-medium text-ink">Tirar {m(valor)} de</h3>
+          <div className="flex flex-wrap gap-2">
+            {fontes.map((f) => (
+              <button key={f.key} type="button" aria-pressed={f.key === de} onClick={() => setDe(f.key)} className="min-h-10 rounded-full bg-surface-2 px-3.5 text-sm text-ink aria-pressed:bg-ink aria-pressed:text-surface">
+                {f.label} · {m(f.folga)} livres{f.nivel === 2 ? " · dia a dia" : ""}
+              </button>
+            ))}
+          </div>
+          <div className="flex flex-col gap-1 text-sm tabular-nums text-ink-muted">
+            <span>
+              {categoria.label} <s>{m(categoria.planejado)}</s> → <b className="font-medium text-ink">{m(categoria.planejado + valor)}</b>
+            </span>
+            <span>
+              {escolhida.label} <s>{m(planejadoDe(escolhida.key))}</s> → <b className="font-medium text-ink">{m(planejadoDe(escolhida.key) - valor)}</b>
+            </span>
+          </div>
+          <button type="button" disabled={pendente} onClick={() => cobrirCom([escolhida])} className="min-h-12 rounded-full bg-ink text-base font-medium text-surface disabled:opacity-50">
+            Cobrir {m(valor)} com {escolhida.label}
           </button>
-          {vendo && <div className="border-t border-border px-3 pb-3 pt-2">{oQuePesou}</div>}
+        </div>
+      )}
+      {cobrindo && fontes.length === 0 && plano.origens.length > 0 && (
+        <div className="flex flex-col gap-3 rounded-2xl bg-surface p-3.5 shadow-[inset_0_0_0_1px_var(--color-border)]" data-cobrir>
+          <p className="text-sm text-ink-muted">Nenhuma categoria cobre sozinha. Juntando duas:</p>
+          <button type="button" disabled={pendente} onClick={() => cobrirCom(plano.origens)} className="min-h-12 rounded-full bg-ink px-4 text-[15px] font-medium text-surface disabled:opacity-50">
+            {plano.origens.map((o) => `${m(o.valor)} de ${o.label}`).join(" + ")}
+          </button>
         </div>
       )}
 
-      <Opcao icone={Check} disabled={pendente} titulo="Foi pontual" sub="O plano não muda. O aviso some até o mês que vem." onClick={() => dispensar(`${categoria.label}: marcado como pontual.`)} />
-
-      {plano.principal === "tirar" ? [botaoTirar, botaoLivre] : [botaoLivre, botaoTirar]}
-      {plano.origens.length === 0 && (
-        <Opcao icone={Check} disabled={pendente} titulo="Deixar assim por agora" sub="Nada muda. Você volta nisso quando quiser." onClick={() => dispensar("Combinado. Fica assim por agora.")} />
-      )}
-
       {revisao && (
-        <Link href="/orcamento" className="flex items-start gap-3 rounded-2xl border border-border px-4 py-3 hover:bg-surface-hover">
-          <PencilLine size={20} strokeWidth={1.6} className="mt-0.5 shrink-0 text-ink-muted" aria-hidden />
-          <span>
-            <span className="block text-[15px] font-medium text-ink">Rever o plano de {categoria.label}</span>
-            <span className="block text-caption text-ink-muted">Passou nos últimos 3 meses. Sugestão: {m(revisao.mediana)}. Nada muda sem você confirmar.</span>
+        <Link href={hrefDoPlano ?? "/orcamento"} className="flex items-start gap-3 rounded-2xl bg-accent-soft px-4 py-3.5" data-rever-plano>
+          <TriangleAlert size={20} strokeWidth={1.6} className="mt-0.5 shrink-0 text-accent-strong" aria-hidden />
+          <span className="min-w-0 flex-1">
+            <span className="block text-[15px] font-medium text-ink">Passou 3 meses seguidos</span>
+            <span className="block text-caption text-ink-muted">
+              Quer rever o plano de {categoria.label}? Sugestão: {m(revisao.mediana)}. Nada muda sem você confirmar.
+            </span>
           </span>
+          <ChevronRight size={16} className="mt-1 shrink-0 text-ink-muted" aria-hidden />
         </Link>
       )}
     </div>
@@ -142,16 +171,17 @@ function Opcao({
   icone: Icone,
   titulo,
   sub,
-  etiqueta,
-  destaque,
+  aberta,
+  seta,
   disabled,
   onClick,
 }: {
-  icone: typeof Check;
+  icone: LucideIcon;
   titulo: string;
   sub: string;
-  etiqueta?: string;
-  destaque?: boolean;
+  /** Abre um pedaço logo abaixo (Ver o que pesou, Cobrir). */
+  aberta?: boolean;
+  seta?: boolean;
   disabled?: boolean;
   onClick: () => void;
 }) {
@@ -160,14 +190,17 @@ function Opcao({
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className={`flex items-start gap-3 rounded-2xl px-4 py-3 text-left transition-opacity disabled:opacity-60 ${destaque ? "bg-ink text-canvas" : "border border-border text-ink hover:bg-surface-hover"}`}
+      aria-expanded={aberta}
+      className="flex items-center gap-3 rounded-2xl bg-surface px-3.5 py-3 text-left text-ink shadow-[inset_0_0_0_1px_var(--color-border)] transition-opacity disabled:opacity-60 aria-expanded:shadow-[inset_0_0_0_1.5px_var(--color-ink)]"
     >
-      <Icone size={20} strokeWidth={1.6} className="mt-0.5 shrink-0" aria-hidden />
-      <span className="min-w-0">
-        <span className="block text-[15px] font-medium">{titulo}</span>
-        <span className={`block text-caption ${destaque ? "opacity-80" : "text-ink-muted"}`}>{sub}</span>
-        {etiqueta && <span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-xs ${destaque ? "bg-canvas/15" : "bg-surface-2 text-ink-muted"}`}>{etiqueta}</span>}
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-surface-2">
+        <Icone size={19} strokeWidth={1.6} aria-hidden />
       </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[15px] font-medium">{titulo}</span>
+        <span className="block text-caption text-ink-muted">{sub}</span>
+      </span>
+      {aberta !== undefined ? <ChevronDown size={16} className={`shrink-0 text-ink-muted transition-transform ${aberta ? "rotate-180" : ""}`} aria-hidden /> : seta ? <ChevronRight size={16} className="shrink-0 text-ink-muted" aria-hidden /> : null}
     </button>
   );
 }

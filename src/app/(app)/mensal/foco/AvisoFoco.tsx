@@ -74,6 +74,7 @@ export function AvisoFoco({ item, hrefMes, gastos = [], resumo, opcoes = [], rem
     // aumenta o plano sozinho; o "plano mais alto" de antes saiu.
     corpo = (
       <OQueFazer
+        mes={new Date().toLocaleDateString("pt-BR", { month: "long", timeZone: "America/Sao_Paulo" })}
         categoria={remanejo.categorias.find((c) => c.key === d.categoria) ?? { key: d.categoria, label: d.label, planejado: d.planejado, gasto: d.gasto }}
         categorias={remanejo.categorias}
         essenciais={remanejo.essenciais}
@@ -247,7 +248,7 @@ export function AvisoFoco({ item, hrefMes, gastos = [], resumo, opcoes = [], rem
         )}
       </div>
       {barra && <div className="pl-[52px]">{barra}</div>}
-      <Modal open={aberto} onClose={() => setAberto(false)} title={item.titulo}>
+      <Modal open={aberto} onClose={() => setAberto(false)} title={d?.tipo === "estouro" && remanejo ? "O que fazer?" : item.titulo}>
         <div className="flex flex-col gap-3">
           <p className="text-caption text-ink-muted">{item.texto}</p>
           {corpo}

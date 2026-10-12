@@ -12,7 +12,7 @@ import type { LinhaDaCategoria } from "./CategoriasDoMes";
  * O aviso do Orçamento quando uma categoria passou (protótipo aprovado): "Saúde passou R$ 67" e
  * um botão "O que fazer?" que abre a folha com os caminhos. A que mais passou vem primeiro.
  */
-export function AlertaDoOrcamento({ linhas, essenciais, livre, diasRestantes }: { linhas: LinhaDaCategoria[]; essenciais: string[]; livre: number | null; diasRestantes: number }) {
+export function AlertaDoOrcamento({ linhas, essenciais, livre, diasRestantes, mes }: { linhas: LinhaDaCategoria[]; essenciais: string[]; livre: number | null; diasRestantes: number; mes?: string }) {
   const money = useMoney();
   const m = (v: number) => money(v, { round: true });
   const [aberto, setAberto] = useState(false);
@@ -31,8 +31,10 @@ export function AlertaDoOrcamento({ linhas, essenciais, livre, diasRestantes }: 
       <button type="button" onClick={() => setAberto(true)} className="min-h-11 rounded-full bg-ink px-5 text-[15px] font-medium text-canvas">
         O que fazer?
       </button>
-      <Modal open={aberto} onClose={() => setAberto(false)} title={`${passou.label} passou do plano`}>
+      <Modal open={aberto} onClose={() => setAberto(false)} title="O que fazer?">
         <OQueFazer
+          mes={mes}
+          quantos={passou.maiores.reduce((s, g) => s + g.vezes, 0) || undefined}
           categoria={{ key: passou.key, label: passou.label, planejado: passou.planejado, gasto: passou.gasto + passou.aVencer }}
           categorias={linhas.map((l) => ({ key: l.key, label: l.label, planejado: l.planejado, gasto: l.gasto + l.aVencer }))}
           essenciais={essenciais}

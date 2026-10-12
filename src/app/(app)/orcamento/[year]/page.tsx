@@ -25,6 +25,7 @@ import { serverMoney } from "@/lib/money-server";
 import { Section } from "@/components/ui/Section";
 import { resumoDoMes } from "@/lib/planning/month-budget-summary";
 import { EditarPlano } from "@/components/budget/EditarPlano";
+import { ajustesDoPadrao } from "@/lib/planning/padrao-orcamento";
 import { CategoriasDoMes, type LinhaDaCategoria } from "@/components/budget/CategoriasDoMes";
 import { carregarDetalheDoOrcamento } from "@/lib/repositories/orcamento-detalhe.repo";
 import { categoriaDoMes, ordenarCategorias } from "@/lib/planning/orcamento-categorias";
@@ -182,6 +183,18 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
   const livreDoMes = resumoMes ? resumoMes.restante : null;
   const diasRestantes = resumoMes ? Math.max(1, resumoMes.diasRestantes) : 1;
 
+  // "Seu plano" (o resumo que o Editar meu plano abre primeiro): as categorias com plano e as que
+  // fogem do padrão dos últimos 3 meses (ver lib/planning/padrao-orcamento.ts).
+  const planoTodo: Record<string, number> = { ...plan, ...customPlan };
+  const ignorarNoPadrao = new Set<string>(Object.keys(hints.padraoByCategory).filter((k) => !isParentCategoryKey(k) && !customCategoryLabels.has(k)));
+  const resumoDoPlano = {
+    mes: MONTH_LABELS[agora.getMonth()].toLowerCase(),
+    itens: (currentMonthData ? currentMonthData.categories.map((c) => [c.categoryKey, c.planned] as const) : Object.entries(planoTodo))
+      .filter(([, v]) => v > 0)
+      .map(([key, planejado]) => ({ key, label: categoryLabel(key), cor: categoryColor(key), planejado, iconeProprio: customCategories.find((c) => c.id === key)?.icon })),
+    ajustes: isCurrentYear ? ajustesDoPadrao({ meses: hints.porMes, plano: planoTodo, ignorar: ignorarNoPadrao }).map((a) => ({ ...a, label: categoryLabel(a.chave) })) : [],
+  };
+
   const assistente = (
     <BudgetWizard
       year={year}
@@ -241,7 +254,7 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
           </HeroiDoTema>
         )}
         <div className="flex min-w-0 flex-col gap-6 lg:gap-4">
-          {linhasDoMes.length > 0 && <AlertaDoOrcamento linhas={linhasDoMes} essenciais={essenciais} livre={livreDoMes} diasRestantes={diasRestantes} />}
+          {linhasDoMes.length > 0 && <AlertaDoOrcamento mes={MONTH_LABELS[(currentMonthData?.month ?? 1) - 1].toLowerCase()} linhas={linhasDoMes} essenciais={essenciais} livre={livreDoMes} diasRestantes={diasRestantes} />}
           {linhasDoMes.length > 0 && <SeuPlano itens={linhasDoMes.map((l) => ({ key: l.key, label: l.label, cor: l.cor, planejado: l.planejado, gasto: l.gasto + l.aVencer }))} />}
 
 
@@ -250,7 +263,7 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
 
       {linhasDoMes.length > 0 && (
         <Section title="Categorias" hint="A barra vai do verde ao vermelho conforme a categoria se aproxima do plano. Toque numa categoria para ver o histórico; na que passou, para ver o que fazer.">
-          <CategoriasDoMes mes={MONTH_LABELS[(currentMonthData?.month ?? 1) - 1].toLowerCase()} linhas={linhasDoMes} essenciais={essenciais} livre={livreDoMes} diasRestantes={diasRestantes} abrirResolvendo={resolver} />
+          <CategoriasDoMes hrefTransacoes={`/mensal/${year}/${currentMonthData?.month ?? 1}`} mes={MONTH_LABELS[(currentMonthData?.month ?? 1) - 1].toLowerCase()} linhas={linhasDoMes} essenciais={essenciais} livre={livreDoMes} diasRestantes={diasRestantes} abrirResolvendo={resolver} />
         </Section>
       )}
 
@@ -265,7 +278,7 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
       ) : hasPlan ? (
         // Com plano: um botão que abre o assistente por cima (ver EditarPlano). Sem plano, ele é
         // a própria página e continua aberto aqui.
-        <EditarPlano rotulo="Editar meu plano" titulo={voz.titulos.formOrcEditarCurto(year)} largo>
+        <EditarPlano rotulo="Editar meu plano" titulo={voz.titulos.formOrcEditarCurto(year)} largo resumo={resumoDoPlano}>
           {assistente}
         </EditarPlano>
       ) : (

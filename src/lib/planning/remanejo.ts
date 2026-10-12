@@ -107,3 +107,20 @@ export function revisaoDoPlano(fechados: { gasto: number; planejado: number }[])
   const ordenados = ultimos.map((m) => m.gasto).sort((a, b) => a - b);
   return { mediana: Math.ceil(ordenados[1] / 10) * 10 };
 }
+
+/**
+ * "Cobrir com outra categoria" (protótipo, folha "O que fazer?"): até 4 categorias que cobrem
+ * sozinhas o que passou, desejo antes do dia a dia e, dentro do nível, a de mais folga. Essencial
+ * nunca entra. Vazio quando nenhuma cobre sozinha (aí vale o plano de duas origens, planoDeCobrir).
+ */
+export function fontesParaCobrir(passou: CategoriaParaRemanejo, categorias: CategoriaParaRemanejo[]): (Origem & { nivel: Nivel })[] {
+  const valor = quantoPassou(passou);
+  if (valor <= 0) return [];
+  return categorias
+    .filter((c) => c.key !== passou.key && c.planejado > 0)
+    .map((c) => ({ c, nivel: nivelDaCategoria(c), folga: folgaDe(c) }))
+    .filter((x): x is { c: CategoriaParaRemanejo; nivel: Nivel; folga: number } => x.nivel !== null && x.folga >= valor)
+    .sort((a, b) => a.nivel - b.nivel || b.folga - a.folga || a.c.label.localeCompare(b.c.label))
+    .slice(0, 4)
+    .map((x) => ({ key: x.c.key, label: x.c.label, valor, folga: x.folga, sobraDepois: x.folga - valor, nivel: x.nivel }));
+}

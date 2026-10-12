@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useSearchParams } from "next/navigation";
 import { CheckSquare, Pencil, PiggyBank, Receipt, Search, Square, Trash2, TrendingUp, X, type LucideIcon } from "lucide-react";
 import type { ParentCategory } from "@prisma/client";
 import type { CurrencyCode } from "@/lib/money";
@@ -214,7 +215,9 @@ export function EntryList({
   // Transações (versão nova): busca, Saídas/Entradas/Cartão e uma categoria, como no protótipo.
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState<"todas" | "saidas" | "entradas" | "cartao">("todas");
-  const [categoriaFiltro, setCategoriaFiltro] = useState("");
+  // O painel da categoria no Orçamento abre aqui já filtrado (?categoria=SAUDE).
+  const buscaDaUrl = useSearchParams();
+  const [categoriaFiltro, setCategoriaFiltro] = useState(() => buscaDaUrl.get("categoria") ?? "");
   const open = entries.find((e) => e.id === openId) ?? null;
   const editing = entries.find((e) => e.id === editingId) ?? null;
 
