@@ -11,6 +11,8 @@ CREATE TABLE "ContaRecusada" (
     "userId" TEXT NOT NULL,
     "profileId" TEXT,
     "chave" VARCHAR(160) NOT NULL,
+    "nome" VARCHAR(80),
+    "valor" DECIMAL(18,2),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "ContaRecusada_pkey" PRIMARY KEY ("id")

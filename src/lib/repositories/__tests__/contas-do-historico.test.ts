@@ -11,7 +11,7 @@ type Conta = {
   id: string; userId: string; profileId: string; nome: string; valor: number | null; vencimento: Date; diaDoMes: number | null;
   chaveDoHistorico: string | null; editadaPelaPessoa: boolean; quitada: boolean; aproximado: boolean; origem: string | null; avisadaEm: Date | null;
 };
-const banco = vi.hoisted(() => ({ contas: [] as Conta[], recusas: [] as { userId: string; profileId: string; chave: string }[], lancamentos: [] as LancamentoParaCacar[] }));
+const banco = vi.hoisted(() => ({ contas: [] as Conta[], recusas: [] as { userId: string; profileId: string; chave: string; nome?: string; valor?: number | null }[], lancamentos: [] as LancamentoParaCacar[] }));
 const doDono = (w: { userId: string; profileId: string }) => (c: { userId: string; profileId: string }) => c.userId === w.userId && c.profileId === w.profileId;
 
 vi.mock("@/lib/auth/session", () => ({ doDono: (c: { userId: string; profileId: string }) => ({ userId: c.userId, profileId: c.profileId }) }));
@@ -39,7 +39,7 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     contaRecusada: {
       findMany: vi.fn(async ({ where }: { where: Conta }) => banco.recusas.filter(doDono(where))),
-      createMany: vi.fn(async ({ data }: { data: { userId: string; profileId: string; chave: string }[] }) => {
+      createMany: vi.fn(async ({ data }: { data: { userId: string; profileId: string; chave: string; nome?: string; valor?: number | null }[] }) => {
         banco.recusas.push(...data);
         return { count: data.length };
       }),
@@ -88,9 +88,20 @@ describe("contas do histórico no banco", () => {
     await sincronizarContasDoHistorico(ctx, hoje);
     await apagarContaAPagar({ ...ctx } as never, banco.contas[0].id);
     expect(banco.contas).toHaveLength(0);
-    expect(banco.recusas).toEqual([{ userId: "u1", profileId: "pessoal", chave: "m:vivo" }]);
+    expect(banco.recusas).toEqual([{ userId: "u1", profileId: "pessoal", chave: "m:vivo", nome: "Vivo", valor: 89.99 }]);
     const r = await sincronizarContasDoHistorico(ctx, hoje);
     expect(r.criadas).toBe(0);
+    expect(banco.contas).toHaveLength(0);
+  });
+
+  it("apagada segura a parecida achada por outro caminho", async () => {
+    const aluguel = (descricao: string, extra: object) =>
+      [5, 6, 7, 8, 9].map((m) => ({ id: `a${++seq}`, descricao, valor: 2200, data: `2026-0${m}-05`, ano: 2026, mes: m, tipo: "EXPENSE" as const, categoria: "MORADIA", subcategoria: "Aluguel", ...extra }));
+    banco.lancamentos = [...aluguel("Aluguel", {}), ...aluguel("Pix enviado - Carlos Mendes - •••.321.654-••", { valor: 2190 })];
+    await sincronizarContasDoHistorico(ctx, hoje);
+    expect(banco.contas.map((c) => c.nome)).toEqual(["Aluguel"]);
+    await apagarContaAPagar({ ...ctx } as never, banco.contas[0].id);
+    await sincronizarContasDoHistorico(ctx, hoje);
     expect(banco.contas).toHaveLength(0);
   });
 

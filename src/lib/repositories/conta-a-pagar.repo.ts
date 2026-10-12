@@ -75,9 +75,9 @@ export async function editarContaAPagar(ctx: AuthContext, id: string, d: ContaAP
 
 /** Apagar uma conta achada no histórico guarda a recusa: o app nunca cria de novo. */
 export async function apagarContaAPagar(ctx: AuthContext, id: string) {
-  const c = await prisma.contaAPagar.findFirst({ where: { id, ...doDono(ctx) }, select: { chaveDoHistorico: true } });
+  const c = await prisma.contaAPagar.findFirst({ where: { id, ...doDono(ctx) }, select: { chaveDoHistorico: true, nome: true, valor: true } });
   if (c?.chaveDoHistorico) {
-    await prisma.contaRecusada.createMany({ data: [{ ...doDono(ctx), chave: c.chaveDoHistorico }], skipDuplicates: true });
+    await prisma.contaRecusada.createMany({ data: [{ ...doDono(ctx), chave: c.chaveDoHistorico, nome: c.nome, valor: c.valor }], skipDuplicates: true });
   }
   return prisma.contaAPagar.deleteMany({ where: { id, ...doDono(ctx) } });
 }

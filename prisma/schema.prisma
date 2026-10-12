@@ -1335,6 +1335,10 @@ model ContaRecusada {
   profile   FinancialProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
   /// A mesma `chaveDoHistorico` da conta apagada.
   chave     String            @db.VarChar(160)
+  /// O nome e o valor da apagada: seguram também a parecida achada por outro caminho (ela apagou
+  /// o "Aluguel" do boleto; o Pix do aluguel não pode aparecer no lugar).
+  nome      String?           @db.VarChar(80)
+  valor     Decimal?          @db.Decimal(18, 2)
   createdAt DateTime          @default(now())
 
   @@unique([userId, profileId, chave])
