@@ -9,8 +9,11 @@
 /**
  * `cheio`: o arquivo já é o ícone inteiro, quadrado e com o fundo da marca (ícone de app ou da B3,
  * via brapi). Vai ocupando o quadradinho todo, sem moldura branca por fora.
+ * `-simbolo.svg` (12/10/2026): o símbolo recortado do logo de palavra (o logo inteiro, num quadrado
+ * pequeno, virava uma palavra minúscula). `soCor`: sem símbolo separável (Caixa): quadrado na cor da
+ * marca com o ícone branco.
  */
-export type MarcaDoCatalogo = { slug: string; nome: string; cor: string; arquivo: string; mono: boolean; apelidos: string[]; baixa?: boolean; cheio?: boolean };
+export type MarcaDoCatalogo = { slug: string; nome: string; cor: string; arquivo: string; mono: boolean; apelidos: string[]; baixa?: boolean; cheio?: boolean; soCor?: boolean };
 
 export const MARCAS: MarcaDoCatalogo[] = [
   { slug: "nubank", nome: "Nubank", cor: "#820AD1", arquivo: "nubank.svg", mono: true, apelidos: ["nubank"] },
@@ -36,14 +39,14 @@ export const MARCAS: MarcaDoCatalogo[] = [
   { slug: "applemusic", nome: "Apple Music", cor: "#FA243C", arquivo: "applemusic.svg", mono: true, apelidos: ["apple music", "applemusic"] },
   { slug: "paramountplus", nome: "Paramount+", cor: "#0064FF", arquivo: "paramountplus.svg", mono: true, apelidos: ["paramount", "paramountplus"] },
   { slug: "itau", nome: "Itaú", cor: "#FF6200", arquivo: "itau.svg", mono: false, apelidos: ["itau"] },
-  { slug: "bradesco", nome: "Bradesco", cor: "#E5173F", arquivo: "bradesco.svg", mono: false, apelidos: ["bradesco"] },
-  { slug: "santander", nome: "Santander", cor: "#EA1D25", arquivo: "santander.svg", mono: false, apelidos: ["santander"] },
+  { slug: "bradesco", nome: "Bradesco", cor: "#E5173F", arquivo: "bradesco-simbolo.svg", mono: false, apelidos: ["bradesco"] },
+  { slug: "santander", nome: "Santander", cor: "#EA1D25", arquivo: "santander-simbolo.svg", mono: false, apelidos: ["santander"] },
   { slug: "bancodobrasil", nome: "Banco do Brasil", cor: "#465EFF", arquivo: "bancodobrasil-simbolo.svg", mono: false, cheio: true, apelidos: ["banco do brasil", "bb s a", "bco do brasil"] },
-  { slug: "caixa", nome: "Caixa", cor: "#0066B3", arquivo: "caixa.svg", mono: false, apelidos: ["caixa economica", "caixa federal", "cef"] },
-  { slug: "inter", nome: "Inter", cor: "#EA7100", arquivo: "inter.svg", mono: false, apelidos: ["banco inter", "bancointer", "inter dtvm", "inter pag"] },
-  { slug: "c6bank", nome: "C6 Bank", cor: "#000000", arquivo: "c6bank.svg", mono: false, apelidos: ["banco c6", "c6 bank", "c6bank"] },
-  { slug: "btgpactual", nome: "BTG Pactual", cor: "#001E61", arquivo: "btgpactual.svg", mono: false, apelidos: ["btg", "btg pactual"] },
-  { slug: "xp", nome: "XP Investimentos", cor: "#121212", arquivo: "xp.svg", mono: false, apelidos: ["xp inc", "xp investimentos", "xpi"] },
+  { slug: "caixa", nome: "Caixa", cor: "#0066B3", arquivo: "caixa.svg", mono: false, soCor: true, apelidos: ["caixa economica", "caixa federal", "cef"] },
+  { slug: "inter", nome: "Inter", cor: "#EA7100", arquivo: "inter-simbolo.svg", mono: false, apelidos: ["banco inter", "bancointer", "inter dtvm", "inter pag"] },
+  { slug: "c6bank", nome: "C6 Bank", cor: "#000000", arquivo: "c6bank-simbolo.svg", mono: false, apelidos: ["banco c6", "c6 bank", "c6bank"] },
+  { slug: "btgpactual", nome: "BTG Pactual", cor: "#001E61", arquivo: "btgpactual-simbolo.svg", mono: false, apelidos: ["btg", "btg pactual"] },
+  { slug: "xp", nome: "XP Investimentos", cor: "#121212", arquivo: "xp.svg", mono: false, cheio: true, apelidos: ["xp inc", "xp investimentos", "xpi"] },
   { slug: "bancopan", nome: "Banco Pan", cor: "#00C5FF", arquivo: "bancopan.svg", mono: false, apelidos: ["banco pan", "bancopan"] },
   { slug: "b3", nome: "B3", cor: "#003475", arquivo: "b3.svg", mono: false, apelidos: ["b3 s a", "b3 sa"] },
   { slug: "vivo", nome: "Vivo", cor: "#660099", arquivo: "vivo.svg", mono: false, apelidos: ["vivo"] },
@@ -94,12 +97,12 @@ export const MARCAS: MarcaDoCatalogo[] = [
   { slug: "udemy", nome: "Udemy", cor: "#A435F0", arquivo: "udemy.svg", mono: true, apelidos: ["udemy"] },
   { slug: "coursera", nome: "Coursera", cor: "#0056D2", arquivo: "coursera.svg", mono: true, apelidos: ["coursera"] },
   { slug: "sky", nome: "Sky", cor: "#0072C9", arquivo: "sky.svg", mono: true, apelidos: ["sky brasil", "sky servicos", "sky tv"] },
-  { slug: "agora", nome: "Ágora", cor: "#175459", arquivo: "agora.svg", mono: false, apelidos: ["agora corretora", "agora investimentos"] },
-  { slug: "pagbank", nome: "PagBank", cor: "#FFE72D", arquivo: "pagbank.svg", mono: false, apelidos: ["pagbank"] },
+  { slug: "agora", nome: "Ágora", cor: "#175459", arquivo: "agora-simbolo.svg", mono: false, apelidos: ["agora corretora", "agora investimentos"] },
+  { slug: "pagbank", nome: "PagBank", cor: "#FFE72D", arquivo: "pagbank-simbolo.svg", mono: false, apelidos: ["pagbank"] },
   { slug: "willbank", nome: "Will Bank", cor: "#FFD900", arquivo: "willbank.svg", mono: false, apelidos: ["will bank", "willbank"] },
-  { slug: "bancooriginal", nome: "Banco Original", cor: "#00A857", arquivo: "bancooriginal.svg", mono: false, apelidos: ["banco original", "bancooriginal"] },
-  { slug: "sicredi", nome: "Sicredi", cor: "#64C832", arquivo: "sicredi.svg", mono: false, apelidos: ["sicredi"] },
-  { slug: "sicoob", nome: "Sicoob", cor: "#003641", arquivo: "sicoob.svg", mono: false, apelidos: ["sicoob"] },
+  { slug: "bancooriginal", nome: "Banco Original", cor: "#00A857", arquivo: "bancooriginal-simbolo.svg", mono: false, apelidos: ["banco original", "bancooriginal"] },
+  { slug: "sicredi", nome: "Sicredi", cor: "#64C832", arquivo: "sicredi-simbolo.svg", mono: false, apelidos: ["sicredi"] },
+  { slug: "sicoob", nome: "Sicoob", cor: "#003641", arquivo: "sicoob-simbolo.svg", mono: false, apelidos: ["sicoob"] },
   { slug: "mercadobitcoin", nome: "Mercado Bitcoin", cor: "#E8550C", arquivo: "mercadobitcoin.svg", mono: false, apelidos: ["mercado bitcoin", "mercadobitcoin"] },
   { slug: "extra", nome: "Extra", cor: "#E3131A", arquivo: "extra.svg", mono: false, apelidos: ["extra hiper", "extra supermercado", "hiper extra", "mercado extra", "supermercado extra"] },
   { slug: "atacadao", nome: "Atacadão", cor: "#1A9859", arquivo: "atacadao.svg", mono: false, apelidos: ["atacadao"] },

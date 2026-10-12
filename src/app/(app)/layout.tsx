@@ -31,6 +31,7 @@ import { prisma } from "@/lib/db/prisma";
 import { coresDoCasalCss } from "@/lib/casal-login/cores";
 import { TelaDoParPausado } from "@/components/casal-login/TelaDoParPausado";
 import { estadoDasNovidades, type EstadoDasNovidades } from "@/lib/novidades/passos";
+import { lerComeco } from "@/lib/onboarding/comeco";
 
 
 function capitalize(text: string) {
@@ -61,6 +62,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   let fotoDaConta: string | null = null;
   let novidades: EstadoDasNovidades = "novo";
   let cssDoTema = "";
+  // Quem entrou pelo começo novo (versão nova): o tour antigo de balões não aparece para ela.
   let perfilAtivoId = "";
   // Login do par: o menu dele mostra só o Nós dois (e as Configurações dele).
   let modoPar: { nomeTitular: string } | null = null;
@@ -118,7 +120,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       // perfil dela em /comecar. Uma vez só; quem já usava o app nasceu com a data preenchida.
       if (user.onboardedAt === null) redirect("/comecar");
     }
-    firstName = user.name?.split(" ")[0] || user.email.split("@")[0];
+    // O apelido que ela deu no começo ("Como posso te chamar?") vale na saudação.
+    firstName = lerComeco(user.comeco)?.apelido || user.name?.split(" ")[0] || user.email.split("@")[0];
     nomeDaConta = user.name?.trim() || null;
     fotoDaConta = user.avatarUrl;
     // "Tivemos uma mudança": quem já usava vê uma vez; quem chegou com a versão nova, nunca.

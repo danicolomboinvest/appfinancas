@@ -2,6 +2,7 @@ import { requireAdmin } from "@/lib/auth/rbac";
 import { getPlatformReport } from "@/lib/repositories/admin-analytics.repo";
 import { getUsageReport } from "@/lib/repositories/usage.repo";
 import { getFunilDeAdocao } from "@/lib/repositories/adoption-funnel.repo";
+import { getFunilDoComeco } from "@/lib/repositories/comeco.repo";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { StatCard } from "@/components/ui/StatCard";
@@ -13,7 +14,7 @@ export const metadata = { title: "Relatório da plataforma · SPI Finance" };
 export default async function AdminRelatorioPage() {
   const money = await serverMoney();
   await requireAdmin();
-  const [report, usage, funil] = await Promise.all([getPlatformReport(), getUsageReport(30), getFunilDeAdocao()]);
+  const [report, usage, funil, funilDoComeco] = await Promise.all([getPlatformReport(), getUsageReport(30), getFunilDeAdocao(), getFunilDoComeco()]);
   const { engagement: e, featureAdoption, simulators, sheets, financial: f } = report;
 
   const maxSignup = Math.max(1, ...e.signupsByWeek.map((w) => w.count));
@@ -83,6 +84,23 @@ export default async function AdminRelatorioPage() {
               )}
             </div>
           ))}
+        </Card>
+
+        {/* O começo novo (onboarding, 11/10/2026): uma marca por tela, para achar a que perde mais. */}
+        <Card className="flex flex-col gap-2 p-4">
+          <p className="text-sm font-medium text-ink">O começo, tela por tela</p>
+          {funilDoComeco[0].pessoas === 0 ? (
+            <p className="text-sm text-ink-muted">Ainda sem dados: conta só quem entrar pelo começo novo.</p>
+          ) : (
+            funilDoComeco.map((p) => (
+              <div key={p.rotulo} className="grid grid-cols-[1fr_auto] items-baseline gap-x-3">
+                <span className="text-sm text-ink">{p.rotulo}</span>
+                <span className="text-sm tabular-nums text-ink-muted">
+                  {p.pessoas} <span className="text-ink-faint">({Math.round((p.pessoas / funilDoComeco[0].pessoas) * 100)}%)</span>
+                </span>
+              </div>
+            ))
+          )}
         </Card>
 
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">

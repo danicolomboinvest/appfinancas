@@ -26,6 +26,10 @@ import { ResumoDoPeriodo } from "./ResumoDoPeriodo";
 import { diaDaSemana, fimDoMesPeloPlano, livreAteDomingo, ritmoDoMes } from "@/lib/decisoes/foco-semana";
 import { vozDoTema } from "@/lib/profiles/voice";
 import { ConquistasDeMetas } from "@/components/conquista/ConquistasDeMetas";
+import { lerComecoDaConta } from "@/lib/repositories/comeco.repo";
+import { getOwnUser } from "@/lib/repositories/user.repo";
+import { mostrarPrimeirosPassos, oQueMostrarDepois } from "@/lib/onboarding/comeco";
+import { PrimeirosPassos, TopoDoComeco } from "./DepoisDoComeco";
 
 /**
  * A aba Foco: a primeira coisa que a pessoa vê ao abrir o app. Só o que importa agora — quanto
@@ -70,6 +74,14 @@ export default async function FocoPage(props: { searchParams: Promise<Record<str
       : "dentro";
   const comece = blocos.onboarding;
   const contaNova = !comece.temLancamento;
+  // O começo da versão nova (onboarding): quem entrou por ele vê o "aha" ou o convite no topo e os
+  // Primeiros passos no lugar do "Comece por aqui". Quem já usava o app (sem começo) segue igual.
+  const [comecoNovo, conta] = await Promise.all([lerComecoDaConta(ctx.userId), getOwnUser(ctx)]);
+  const nomeDoComeco = comecoNovo?.apelido || conta.name?.trim().split(/\s+/)[0] || "você";
+  const topoDoComeco = comecoNovo ? oQueMostrarDepois(comecoNovo, comece.temLancamento) : "nada";
+  const passosDoComeco = comecoNovo && mostrarPrimeirosPassos(comecoNovo);
+  // Com o "aha" ou o convite, os passos vêm depois do livre; sem eles, no topo.
+  const passosNoTopo = passosDoComeco && topoDoComeco === "nada" && !contaNova;
   const cartaoAcao = "flex w-full items-center justify-between gap-4 text-left";
 
   // O Foco em níveis (07/10/2026). A análise que a Dani trouxe: "tudo quer a atenção ao mesmo tempo;
@@ -152,6 +164,8 @@ export default async function FocoPage(props: { searchParams: Promise<Record<str
         {avisoNaoFechado}
         {/* Meta que chegou no valor: a notificação com confete, uma vez só (conquista rara). */}
         <ConquistasDeMetas ctx={ctx} />
+        {comecoNovo && topoDoComeco !== "nada" && <TopoDoComeco ctx={ctx} comeco={comecoNovo} nome={nomeDoComeco} temLancamento={comece.temLancamento} />}
+        {comecoNovo && passosNoTopo && <PrimeirosPassos ctx={ctx} comeco={comecoNovo} hrefMes={d.hrefMes} />}
         {!contaNova && (
           <>
             <ThemeHero dados={blocos.dadosDoTema} money={blocos.money} mesLabel={mesTitulo} />
@@ -245,12 +259,16 @@ export default async function FocoPage(props: { searchParams: Promise<Record<str
           </>
         )}
 
-        <OnboardingChecklist
-          temLancamento={comece.temLancamento}
-          temOrcamento={comece.temOrcamento}
-          primeiroLancamentoEm={comece.primeiroLancamentoEm?.toISOString() ?? null}
-          hrefMes={d.hrefMes}
-        />
+        {comecoNovo ? (
+          passosDoComeco && !passosNoTopo && <PrimeirosPassos ctx={ctx} comeco={comecoNovo} hrefMes={d.hrefMes} />
+        ) : (
+          <OnboardingChecklist
+            temLancamento={comece.temLancamento}
+            temOrcamento={comece.temOrcamento}
+            primeiroLancamentoEm={comece.primeiroLancamentoEm?.toISOString() ?? null}
+            hrefMes={d.hrefMes}
+          />
+        )}
 
         {!contaNova && (
           <>

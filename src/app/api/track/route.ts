@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth/auth.config";
 import { prisma } from "@/lib/db/prisma";
 import { normalizeUsagePath } from "@/lib/usage/normalize-path";
+import { NOMES_DOS_EVENTOS_DO_COMECO } from "@/lib/onboarding/comeco";
 
 /**
  * Eventos aceitos. Lista fechada de propósito: o cliente não inventa nome de evento, senão o
@@ -26,6 +27,9 @@ const ALLOWED_EVENTS = new Set([
   // 11/10/2026: o "Tivemos uma mudança" da versão nova.
   "novidades_terminou",
   "novidades_pulou",
+  // 11/10/2026: o funil do começo (onboarding) da versão nova. O path diz qual pergunta, porta ou
+  // banco (ver caminhoDoEvento em lib/onboarding/comeco.ts); nunca o nome nem a renda.
+  ...NOMES_DOS_EVENTOS_DO_COMECO,
 ]);
 
 /**

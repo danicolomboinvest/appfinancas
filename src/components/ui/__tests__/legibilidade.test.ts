@@ -30,7 +30,7 @@ function arquivosTsx(pasta: string): string[] {
  * (a prévia em miniatura dos temas e o herói do Game/Manifestação), que vão ser revistas junto
  * com o redesenho dos temas. Todo o resto (barra de baixo, listas, chips) é 12px no mínimo.
  */
-const PODE_11PX = [/\/admin\//, /ThemeHero\.tsx$/, /EscolhaInicial\.tsx$/, /ProfilesManager\.tsx$/];
+const PODE_11PX = [/\/admin\//, /ThemeHero\.tsx$/, /ProfilesManager\.tsx$/];
 
 const arquivos = PASTAS.flatMap((p) => arquivosTsx(join(RAIZ, p))).map((a) => relative(RAIZ, a));
 

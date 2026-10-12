@@ -151,7 +151,7 @@ describe("nome da voz", () => {
     expect(t.label).toBe("Titânio");
     expect(t.nomeDaVoz).toBe("Curto e firme");
     // Aparece na Aparência, no gerenciador de perfis e no começo do app.
-    for (const arquivo of ["src/app/(app)/configuracoes/_ajustes/EscolherEstilo.tsx", "src/components/profiles/ProfilesManager.tsx", "src/app/(onboarding)/comecar/EscolhaInicial.tsx"]) {
+    for (const arquivo of ["src/app/(app)/configuracoes/_ajustes/EscolherEstilo.tsx", "src/components/profiles/ProfilesManager.tsx", "src/app/(onboarding)/comecar/Comeco.tsx"]) {
       expect(readFileSync(arquivo, "utf8"), arquivo).toContain(".nomeDaVoz");
     }
   });

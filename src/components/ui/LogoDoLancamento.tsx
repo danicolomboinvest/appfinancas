@@ -52,6 +52,14 @@ export function LogoDoLancamento({
     );
   }
 
+  if (marca.soCor) {
+    return (
+      <div className="flex shrink-0 items-center justify-center text-[color:#ffffff]" style={{ ...caixa, backgroundColor: marca.cor }} role="img" aria-label={marca.nome}>
+        <Icon size={Math.round(size * 0.48)} strokeWidth={1.8} />
+      </div>
+    );
+  }
+
   if (marca.cheio) {
     return (
       <div className="flex shrink-0 overflow-hidden" style={caixa}>

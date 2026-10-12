@@ -209,6 +209,11 @@ model User {
   /// Meus dados (versão nova, 12/10/2026): a data de nascimento e o dia em que a renda cai.
   nascimento              DateTime? @db.Date
   diaDoPagamento          Int?
+  /// O começo da versão nova (11/10/2026): respostas e progresso de quem entrou pelo onboarding
+  /// novo (apelido, renda aproximada, o que quer agora, porta, banco, Primeiros passos). Nulo =
+  /// nunca passou por ele; quem já usava o app continua nulo e não vê o começo. Ver
+  /// src/lib/onboarding/comeco.ts (lerComeco) para o formato.
+  comeco                  Json?
   createdAt               DateTime  @default(now())
   updatedAt               DateTime  @updatedAt
 
