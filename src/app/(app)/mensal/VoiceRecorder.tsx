@@ -1,5 +1,6 @@
 "use client";
 
+import { registrarErroNoCliente } from "@/lib/erros/erro-do-cliente";
 import { useEffect, useRef, useState } from "react";
 import { useInstallPlatform, useIsStandalone } from "@/lib/pwa/install";
 import { Mic } from "lucide-react";
@@ -197,6 +198,7 @@ export function VoiceRecorder({ onParsed }: { onParsed: (parsed: ParsedVoiceEntr
     if (isHeldRef.current && tentativa === 1) return;
     const SpeechRecognitionCtor = getSpeechRecognitionConstructor();
     if (!SpeechRecognitionCtor) {
+      registrarErroNoCliente("voz", "sem SpeechRecognition neste aparelho");
       setUnsupported(true);
       return;
     }
@@ -238,6 +240,7 @@ export function VoiceRecorder({ onParsed }: { onParsed: (parsed: ParsedVoiceEntr
       }
       isHeldRef.current = false;
       setRecording(false);
+      if (event.error !== "no-speech") registrarErroNoCliente("voz", `SpeechRecognition: ${event.error}`);
       setErrorMessage(errorMessageFor(event.error, voz.titulos));
       stopVisualizer();
     };
@@ -260,7 +263,8 @@ export function VoiceRecorder({ onParsed }: { onParsed: (parsed: ParsedVoiceEntr
     recognitionRef.current = recognition;
     try {
       recognition.start();
-    } catch {
+    } catch (err) {
+      registrarErroNoCliente("voz", err);
       // start() lança se o navegador ainda não soltou o reconhecimento anterior (toque duplo
       // rápido). Antes isso subia como erro da tela; agora vira o aviso de sempre.
       isHeldRef.current = false;

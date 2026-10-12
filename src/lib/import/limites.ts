@@ -15,3 +15,27 @@
  * A folga evita que um arquivo de 4,4 MB encoste no teto por causa do embrulho.
  */
 export const UPLOAD_MAX_BYTES = 4 * 1024 * 1024;
+
+/**
+ * O que o campo de arquivo do extrato aceita (12/10/2026). O iPhone filtra o seletor de arquivos
+ * pelo tipo: com só "text/csv", um CSV salvo pelo WhatsApp, pelo Mail ou baixado do banco (que o
+ * iOS marca como "text/comma-separated-values" ou "application/vnd.ms-excel") aparecia apagado
+ * e não dava para tocar. Vão as extensões E todos os tipos que esses arquivos costumam ter.
+ */
+export const ACEITA_ARQUIVO_DE_EXTRATO = [
+  ".csv",
+  ".ofx",
+  ".txt",
+  ".xlsx",
+  ".xls",
+  ".pdf",
+  "text/csv",
+  "text/comma-separated-values",
+  "text/plain",
+  "application/csv",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/pdf",
+  "application/x-ofx",
+  "application/ofx",
+].join(",");

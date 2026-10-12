@@ -1,5 +1,6 @@
 "use client";
 
+import { registrarErroNoCliente } from "@/lib/erros/erro-do-cliente";
 import { LapisDaCategoria } from "@/components/categorias/LapisDaCategoria";
 import { FalarComSuporte } from "@/components/support/FalarComSuporte";
 import { useEffect, useRef, useState, useTransition } from "react";
@@ -24,7 +25,7 @@ import {
 } from "@/app/(app)/mensal/import-actions";
 import { useMoney } from "@/components/money/MoneyProvider";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
-import { UPLOAD_MAX_BYTES } from "@/lib/import/limites";
+import { ACEITA_ARQUIVO_DE_EXTRATO, UPLOAD_MAX_BYTES } from "@/lib/import/limites";
 import { chaveDeIguais, filaPorComerciante, iguaisPraAplicar, proximaPendente, semCategoria as gastoSemCategoria } from "@/lib/import/revisao-em-grupo";
 import { foiSeparada, porqueDaLinha } from "@/lib/import/porque";
 import { mesDaRevelacao } from "@/lib/import/revelacao";
@@ -283,6 +284,7 @@ export function StatementImport({
         result = await parseStatementAction(formData);
       } catch (err) {
         console.error("parseStatementAction falhou no envio", err);
+        registrarErroNoCliente("importar-ler", err);
         setError(t.impErroEnvio);
         return;
       }
@@ -514,6 +516,7 @@ export function StatementImport({
         result = await importTransactionsAction(confirmed, docType, targetYear, targetMonth, fileName ?? undefined, perfilDaTela, nomesDoCasal ? pessoaDoExtrato : null, datasDaFatura);
       } catch (err) {
         console.error("importTransactionsAction falhou no envio", err);
+        registrarErroNoCliente("importar-gravar", err);
         setError(t.impErroSalvar);
         return;
       }
@@ -722,7 +725,7 @@ export function StatementImport({
         <input
           ref={fileRef}
           type="file"
-          accept=".csv,.ofx,.txt,.xlsx,.xls,.pdf,text/csv,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+          accept={ACEITA_ARQUIVO_DE_EXTRATO}
           className="hidden"
           onChange={(e) => {
             const file = e.target.files?.[0];

@@ -13,6 +13,7 @@ import { modoPedidoNoEvento, EVENTO_IMPORTAR, EVENTO_REGISTRAR, type ModoDoRegis
 import type { PerfilResumo } from "@/components/profiles/perfil-resumo";
 import { TopBar } from "./TopBar";
 import { AbasDaVisaoGeral, DeslizarEntreAbas } from "./AbasDaVisaoGeral";
+import { OuvinteDeErros } from "./OuvinteDeErros";
 import { BotaoRegistrar } from "./BotaoRegistrar";
 import { ComoFuncionaSheet } from "./ComoFuncionaSheet";
 import { PerfilSheet } from "./PerfilSheet";
@@ -241,6 +242,7 @@ export function AppShell({
           onOpenInstall={() => setInstallOpen(true)}
         />
 
+        <OuvinteDeErros />
         <ComoFuncionaSheet />
 
         {/* Tutorial de "instalar na tela de início" (convite do topo ou menu "Mais"). */}

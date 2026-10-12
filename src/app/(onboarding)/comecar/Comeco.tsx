@@ -1,5 +1,6 @@
 "use client";
 
+import { ACEITA_ARQUIVO_DE_EXTRATO } from "@/lib/import/limites";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -849,7 +850,7 @@ function Tutorial({
         <input
           type="file"
           className="sr-only"
-          accept=".pdf,.csv,.ofx,.xls,.xlsx,.txt"
+          accept={ACEITA_ARQUIVO_DE_EXTRATO}
           onChange={(e) => {
             const f = e.target.files?.[0];
             if (f) onArquivo(f);

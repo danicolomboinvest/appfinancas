@@ -1,5 +1,6 @@
 "use client";
 
+import { registrarErroNoCliente } from "@/lib/erros/erro-do-cliente";
 import { LapisDaCategoria } from "@/components/categorias/LapisDaCategoria";
 import { useState, useTransition } from "react";
 import { ChevronDown, Delete, Plus, Shapes, Wallet } from "lucide-react";
@@ -55,7 +56,7 @@ export function Digitar({
   // A ação de sempre, chamada direto: deu certo, avisa e fecha a folha; deu erro, mostra aqui.
   const [isPending, iniciarEnvio] = useTransition();
   const [state, setState] = useState<MonthlyEntryState>({});
-  const { showToast } = useToast();
+  const { showToast, showError } = useToast();
 
   const [perfilDaTela] = useState(profileId);
   const [tipo, setTipo] = useState<Tipo>(inicial?.tipo === "INCOME" ? "INCOME" : inicial?.tipo === "INVESTMENT_CONTRIBUTION" ? "INVESTMENT_CONTRIBUTION" : "EXPENSE");
@@ -92,7 +93,24 @@ export function Digitar({
   const valorTexto = money(centavos / 100);
 
   const salvar = () => {
-    if (!centavos) return;
+    // Sem valor, o toque não pode morrer calado (o botão some de cinza no sol e parece ativo).
+    if (!centavos) {
+      showError("Digite o valor no teclado antes de salvar.");
+      return;
+    }
+    try {
+      salvarDeVerdade();
+    } catch (err) {
+      // Qualquer falha ANTES de chegar ao servidor (aparelho antigo, campo que não existe) vira
+      // aviso e registro, em vez de um toque que não faz nada.
+      registrarErroNoCliente("lancar", err);
+      const msg = "Não consegui salvar neste aparelho. Toque em Salvar de novo; se continuar, fale com a gente.";
+      setState({ error: msg });
+      showError(msg);
+    }
+  };
+
+  const salvarDeVerdade = () => {
     const fd = new FormData();
     fd.set("year", String(year));
     fd.set("month", String(month));
@@ -121,9 +139,25 @@ export function Digitar({
     const form = document.getElementById("digitar-mais") as HTMLFormElement | null;
     if (form) for (const [k, v] of new FormData(form).entries()) fd.set(k, v);
     iniciarEnvio(async () => {
-      const res = await createMonthlyEntryAction({}, fd);
+      // Nada falha em silêncio (12/10/2026, caso da Hadas no iPhone): a ação que nem chega ao
+      // servidor (rede caiu, módulo que não carregou) vira aviso na tela e registro no AppError, e o
+      // erro de validação também aparece em aviso, porque a mensagem do topo fica fora da vista
+      // de quem está com o dedo no Salvar, lá embaixo.
+      let res: Awaited<ReturnType<typeof createMonthlyEntryAction>>;
+      try {
+        res = await createMonthlyEntryAction({}, fd);
+      } catch (err) {
+        registrarErroNoCliente("lancar", err);
+        const msg = "Não consegui salvar. Confira a internet e toque em Salvar de novo.";
+        setState({ error: msg });
+        showError(msg);
+        return;
+      }
       setState(res);
-      if (res.error) return;
+      if (res.error) {
+        showError(res.error);
+        return;
+      }
       showToast(res.aviso ?? t.lancamentoSalvo);
       onSuccess?.();
     });
@@ -293,7 +327,9 @@ export function Digitar({
         </form>
       </details>
 
-      <button type="button" onClick={salvar} disabled={!centavos || isPending} className="min-h-12 w-full rounded-full bg-ink text-[16px] font-medium text-canvas disabled:opacity-40">
+      {/* O erro também aqui, colado no botão: o do topo fica fora da vista de quem tocou em Salvar. */}
+      {state.error && <p className="rounded-xl bg-danger-soft px-3 py-2 text-sm text-danger" role="alert">{state.error}</p>}
+      <button type="button" onClick={salvar} disabled={isPending} aria-disabled={!centavos} className="min-h-12 w-full rounded-full bg-ink text-[16px] font-medium text-canvas disabled:opacity-40 aria-disabled:opacity-40">
         {isPending ? t.formSalvando : "Salvar"}
       </button>
     </div>

@@ -1,5 +1,6 @@
 "use server";
 
+import { registrarFalhaDaAcao } from "@/lib/erros/registrar-falha";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { getRequiredSession } from "@/lib/auth/session";
@@ -140,16 +141,24 @@ export async function createMonthlyEntryAction(
 ): Promise<MonthlyEntryState> {
   const parsed = parseEntryForm(formData);
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
+    const msg = parsed.error.issues[0]?.message ?? "Dados inválidos.";
+    await registrarFalhaDaAcao("lancar", `${msg} [${parsed.error.issues[0]?.path.join(".") ?? "?"}]`);
+    return { error: msg };
   }
 
   aplicarMesSeguinte(formData, parsed.data);
   const ctx = await getRequiredSession();
   // Lançamento novo vai pro perfil ATIVO: se a tela foi aberta em outro (ela trocou em outra aba
   // ou aparelho), gravar aqui punha o gasto da Empresa no Pessoal. Ver perfil-da-tela.ts.
-  if (trocouDePerfil(formData.get("profileId"), ctx.profileId)) return { error: MSG_TROCOU_DE_PERFIL };
+  if (trocouDePerfil(formData.get("profileId"), ctx.profileId)) {
+    await registrarFalhaDaAcao("lancar", MSG_TROCOU_DE_PERFIL);
+    return { error: MSG_TROCOU_DE_PERFIL };
+  }
   const entry = await toEntryInput(parsed.data);
-  if ("error" in entry) return entry;
+  if ("error" in entry) {
+    await registrarFalhaDaAcao("lancar", entry.error);
+    return entry;
+  }
   try {
     if (parsed.data.repeatMonthly) {
       await createRecurringMonthlyEntries(ctx, entry);
@@ -158,6 +167,7 @@ export async function createMonthlyEntryAction(
     }
   } catch (err) {
     console.error("createMonthlyEntryAction falhou:", err);
+    await registrarFalhaDaAcao("lancar", err instanceof Error ? err.message : String(err));
     return { error: "Não consegui salvar o lançamento. Tente novamente." };
   }
   revalidatePath(`/mensal/${parsed.data.year}`);
