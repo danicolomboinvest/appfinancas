@@ -1,6 +1,7 @@
 "use server";
 
 import { registrarFalhaDaAcao } from "@/lib/erros/registrar-falha";
+import { mensagemDeValidacao } from "@/lib/validations/mensagem";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { getRequiredSession } from "@/lib/auth/session";
@@ -141,7 +142,7 @@ export async function createMonthlyEntryAction(
 ): Promise<MonthlyEntryState> {
   const parsed = parseEntryForm(formData);
   if (!parsed.success) {
-    const msg = parsed.error.issues[0]?.message ?? "Dados inválidos.";
+    const msg = mensagemDeValidacao(parsed.error.issues[0]);
     await registrarFalhaDaAcao("lancar", `${msg} [${parsed.error.issues[0]?.path.join(".") ?? "?"}]`);
     return { error: msg };
   }
@@ -186,7 +187,7 @@ export async function updateMonthlyEntryAction(
 
   const parsed = parseEntryForm(formData);
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
+    return { error: mensagemDeValidacao(parsed.error.issues[0]) };
   }
 
   // O mês de onde ele sai (a página aberta): revalidado também, senão continua aparecendo lá.

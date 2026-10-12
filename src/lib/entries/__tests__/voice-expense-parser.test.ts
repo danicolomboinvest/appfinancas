@@ -150,3 +150,19 @@ describe("parseVoiceEntry", () => {
     });
   });
 });
+
+describe("voz com shekel (cliente em Israel, 12/10/2026)", () => {
+  it("entende shekels, ₪ e número sem moeda", () => {
+    const a = parseVoiceEntry("recebi 15 mil shekels de salário");
+    expect(a.amount).toBe(15000);
+    expect(a.currency).toBe("ILS");
+    expect(a.category).toBe("INCOME");
+    expect(parseVoiceEntry("₪ 50 no mercado")).toMatchObject({ amount: 50, currency: "ILS" });
+    expect(parseVoiceEntry("gastei 80 sheqel no uber")).toMatchObject({ amount: 80, currency: "ILS" });
+    expect(parseVoiceEntry("mercado 120")).toMatchObject({ amount: 120, currency: null });
+  });
+  it("continua entendendo dólar e euro", () => {
+    expect(parseVoiceEntry("gastei 30 dólares no uber")).toMatchObject({ amount: 30, currency: "USD" });
+    expect(parseVoiceEntry("paguei 2 mil euros de aluguel")).toMatchObject({ amount: 2000, currency: "EUR" });
+  });
+});

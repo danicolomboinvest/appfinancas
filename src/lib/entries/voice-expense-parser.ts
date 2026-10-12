@@ -23,11 +23,13 @@ const SPOKEN_CURRENCY: { code: CurrencyCode; pattern: RegExp }[] = [
   // "us$" antes do real: não contém "r$", mas o "$" solto não pode decidir nada sozinho.
   { code: "USD", pattern: /us\$|\bdolar(?:es)?\b/ },
   { code: "GBP", pattern: /£|\blibras?\b/ },
+  // Quem mora em Israel (12/10/2026): "50 shekels", "₪ 50", "50 sheqel", "50 nis".
+  { code: "ILS", pattern: /₪|\b(?:shekels?|sheqels?|shequels?|chekels?|siclos?|nis|ils)\b/ },
   { code: "BRL", pattern: /\breais?\b|r\$/ },
 ];
 
 /** Palavras de dinheiro que ancoram um número ("45 reais", "2 mil euros"). */
-const MONEY_WORDS = "reais?|contos?|euros?|dolar(?:es)?|libras?";
+const MONEY_WORDS = "reais?|contos?|euros?|dolar(?:es)?|libras?|shekels?|sheqels?|shequels?|chekels?|siclos?|nis";
 
 function extractCurrency(normalized: string): CurrencyCode | null {
   return SPOKEN_CURRENCY.find((c) => c.pattern.test(normalized))?.code ?? null;
@@ -118,7 +120,7 @@ const SCALE: Record<string, number> = { mil: 1000, milhao: 1_000_000, milhoes: 1
  * quinhentos") entra junto.
  */
 function amountCandidates(normalized: string): { value: number; index: number; hasCurrency: boolean }[] {
-  const re = /(r\$|us\$|\$|€|£)?\s*(\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)\s*(milhoes|milhao|mil|k)?/g;
+  const re = /(r\$|us\$|\$|€|£|₪)?\s*(\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)\s*(milhoes|milhao|mil|k)?/g;
   const out: { value: number; index: number; hasCurrency: boolean }[] = [];
   // Até onde a frase já foi lida por um número composto ("4 mil e 500"): o "500" não pode
   // virar um candidato sozinho.
@@ -148,7 +150,7 @@ function amountCandidates(normalized: string): { value: number; index: number; h
       value,
       index: m.index ?? 0,
       hasCurrency:
-        Boolean(m[1]) || new RegExp(`^\\s*(milhoes|milhao|mil)?\\s*(?:(?:${MONEY_WORDS})\\b|€|£)`).test(resto),
+        Boolean(m[1]) || new RegExp(`^\\s*(milhoes|milhao|mil)?\\s*(?:(?:${MONEY_WORDS})\\b|€|£|₪)`).test(resto),
     });
   }
   return out;

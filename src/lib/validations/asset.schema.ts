@@ -1,3 +1,4 @@
+import { CURRENCY_ENUM } from "@/lib/money";
 import { z } from "zod";
 
 /** Limites das colunas do banco (Decimal 18,2 e 18,6): passar disso estourava com "numeric field
@@ -29,7 +30,7 @@ export const assetSchema = z.object({
     z.coerce.number({ message: "Informe o valor atual ou a quantidade e o preço médio." }).min(0).max(MAX_VALOR_ATIVO, FORA),
   ),
   /** Moeda em que o ativo está: "BRL" é a conta Brasil, "USD" a conta no exterior. */
-  currency: z.enum(["BRL", "USD", "EUR", "GBP"]).default("BRL"),
+  currency: z.enum(CURRENCY_ENUM).default("BRL"),
   /** Valores na moeda do ativo (US$), só na conta no exterior; null limpa ao voltar pra Brasil. */
   nativeCurrentValue: z.number().min(0).max(MAX_VALOR_ATIVO, FORA).nullable().optional(),
   nativeInvestedValue: z.number().min(0).max(MAX_VALOR_ATIVO, FORA).nullable().optional(),

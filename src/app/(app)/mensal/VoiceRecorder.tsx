@@ -47,12 +47,20 @@ function getAudioContextConstructor(): typeof AudioContext | null {
   return w.AudioContext ?? w.webkitAudioContext ?? null;
 }
 
+/**
+ * O que foi dito. Os resultados finais primeiro; sem nenhum final, o último parcial (12/10/2026):
+ * no Android, soltar o botão para o reconhecimento antes de ele fechar a frase, e o que chegava era
+ * só o parcial. Sem esse plano B, a cliente falava e ouvia "Não entendemos o que foi dito".
+ */
 export function joinFinalTranscript(results: ArrayLike<SpeechRecognitionResultLike>): string {
-  let transcript = "";
+  let finais = "";
+  let parcial = "";
   for (let i = 0; i < results.length; i++) {
-    transcript += results[i][0].transcript;
+    const texto = results[i]?.[0]?.transcript ?? "";
+    if (results[i]?.isFinal === false) parcial = texto;
+    else finais += (finais && texto && !finais.endsWith(" ") && !texto.startsWith(" ") ? " " : "") + texto;
   }
-  return transcript;
+  return (finais.trim() ? finais : parcial).trim();
 }
 
 function formatElapsed(ms: number): string {
@@ -214,7 +222,8 @@ export function VoiceRecorder({ onParsed }: { onParsed: (parsed: ParsedVoiceEntr
 
     const recognition = new SpeechRecognitionCtor();
     recognition.lang = "pt-BR";
-    recognition.interimResults = false;
+    // Parciais ligados: no Android o final pode não chegar quando ela solta o botão (ver joinFinalTranscript).
+    recognition.interimResults = true;
     recognition.continuous = true;
     recognition.onresult = (event) => {
       latestResultsRef.current = event.results;

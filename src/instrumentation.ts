@@ -11,6 +11,15 @@ import type { Instrumentation } from "next";
  * O que NÃO entra: corpo da requisição, cookie, cabeçalho, query string e qualquer dado de
  * cliente. A rota guardada é o caminho do ARQUIVO ("/mensal/[year]/[month]"), não a URL real.
  */
+/**
+ * Mensagens do zod em português no servidor inteiro (12/10/2026): onde uma ação devolve a mensagem
+ * padrão de um schema, a pessoa lê "Entrada inválida", não "Invalid input".
+ */
+export async function register() {
+  const { z } = await import("zod");
+  z.config(z.locales.pt());
+}
+
 export const onRequestError: Instrumentation.onRequestError = async (err, request, context) => {
   try {
     // O Prisma é carregado aqui dentro de propósito: no runtime edge ele não existe, e um

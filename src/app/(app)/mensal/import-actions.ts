@@ -173,7 +173,37 @@ function mensagemDaConferencia(conf: Conferencia, incompleta: boolean): string |
 /** Lê o extrato (CSV/OFX/Excel/PDF), classifica cada transação e devolve a fila pra revisão.
  * O arquivo vem CRU num FormData ({ file, encoding }), string grande como argumento de
  * action estoura o limite de serialização do React (~1M chars). */
+/**
+ * Toda exceção inesperada da leitura vira resposta com mensagem e diagnóstico (12/10/2026). Antes
+ * ela subia para a tela, que mostrava "Confira a internet" (a cliente em Israel ouvia que estava sem
+ * internet), e nada ficava registrado no ImportDiagnostic.
+ */
 export async function parseStatementAction(formData: FormData): Promise<ParseStatementResult> {
+  try {
+    return await lerExtrato(formData);
+  } catch (err) {
+    const detalhe = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+    console.error("parseStatementAction: exceção", err);
+    try {
+      const ctx = await getRequiredSession();
+      const uploaded = formData.get("file");
+      await recordImportDiagnostic({
+        userId: ctx.userId,
+        target: String(formData.get("docType") ?? "extrato"),
+        stage: "parse",
+        ok: false,
+        fileName: uploaded instanceof File ? uploaded.name : null,
+        encoding: String(formData.get("encoding") ?? "text"),
+        message: `exceção: ${detalhe}`.slice(0, 500),
+      });
+    } catch {
+      // o diagnóstico nunca vira o erro seguinte
+    }
+    return { ok: false, error: "Não consegui ler esse arquivo agora, e o problema foi do nosso lado. Já ficou registrado; tente de novo em alguns minutos ou mande o arquivo para o suporte." };
+  }
+}
+
+async function lerExtrato(formData: FormData): Promise<ParseStatementResult> {
   const ctx = await getRequiredSession();
   const encoding = String(formData.get("encoding") ?? "text");
   // "fatura" = fatura de cartão (tudo é gasto); "extrato" = extrato bancário (sinal manda).

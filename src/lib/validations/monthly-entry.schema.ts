@@ -1,3 +1,4 @@
+import { CURRENCY_ENUM } from "@/lib/money";
 import { z } from "zod";
 
 const PARENT_CATEGORY_VALUES = [
@@ -22,10 +23,11 @@ export const monthlyEntrySchema = z
   description: z.string().trim().optional(),
   amount: z.coerce.number().positive("O valor deve ser maior que zero."),
   /** Moeda em que o valor foi digitado. Vazia = a moeda do usuário, sem conversão. */
-  currency: z.enum(["BRL", "USD", "EUR", "GBP"]).optional().or(z.literal("")),
+  currency: z.enum(CURRENCY_ENUM, { message: "Essa moeda não está na lista do app." }).optional().or(z.literal("")),
   /** Cotação usada quando a moeda é outra (1 unidade da moeda digitada = X na moeda do usuário). */
   exchangeRate: z
     .union([z.coerce.number(), z.literal(""), z.undefined()])
+    .optional()
     .transform((v) => (typeof v === "number" && Number.isFinite(v) && v > 0 ? v : undefined)),
   /** Data em que a despesa/renda aconteceu (input type="date" → "YYYY-MM-DD"). Meio-dia local
    * evita a data "voltar um dia" na conversão pra UTC. */
@@ -42,6 +44,7 @@ export const monthlyEntrySchema = z
   /** "on" quando o checkbox de recorrência é marcado no formulário. */
   repeatMonthly: z
     .union([z.literal("on"), z.literal("true"), z.literal(""), z.undefined()])
+    .optional()
     .transform((v) => v === "on" || v === "true"),
   /** "Resgatei": dinheiro voltando do que ela guardou. Grava como guardado NEGATIVO (ver
    * lib/entries/resgate.ts); o valor do formulário continua positivo. */

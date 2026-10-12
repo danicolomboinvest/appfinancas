@@ -1,6 +1,6 @@
 "use client";
 
-import { registrarErroNoCliente } from "@/lib/erros/erro-do-cliente";
+import { ehFalhaDeRede, MSG_FALHA_NOSSA, registrarErroNoCliente } from "@/lib/erros/erro-do-cliente";
 import { LapisDaCategoria } from "@/components/categorias/LapisDaCategoria";
 import { useState, useTransition } from "react";
 import { ChevronDown, Delete, Plus, Shapes, Wallet } from "lucide-react";
@@ -148,7 +148,7 @@ export function Digitar({
         res = await createMonthlyEntryAction({}, fd);
       } catch (err) {
         registrarErroNoCliente("lancar", err);
-        const msg = "Não consegui salvar. Confira a internet e toque em Salvar de novo.";
+        const msg = ehFalhaDeRede(err) ? "Não consegui salvar: parece que a internet caiu. Toque em Salvar de novo." : MSG_FALHA_NOSSA;
         setState({ error: msg });
         showError(msg);
         return;

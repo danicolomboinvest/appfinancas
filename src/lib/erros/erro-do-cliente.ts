@@ -29,3 +29,16 @@ export function registrarErroNoCliente(onde: string, erro: unknown): void {
     // telemetria nunca derruba a tela
   }
 }
+
+/**
+ * Foi a internet mesmo? (12/10/2026) Só quando o aparelho diz que está sem rede ou o envio nem
+ * saiu ("Failed to fetch", "Load failed", "NetworkError"). Qualquer outra falha é nossa, e dizer
+ * "confira a internet" mandava a cliente procurar o problema no lugar errado.
+ */
+export function ehFalhaDeRede(erro: unknown, online: boolean | undefined = typeof navigator !== "undefined" ? navigator.onLine : undefined): boolean {
+  if (online === false) return true;
+  const texto = erro instanceof Error ? `${erro.name} ${erro.message}` : String(erro ?? "");
+  return /failed to fetch|load failed|networkerror|network request failed|internet connection appears to be offline|err_internet_disconnected/i.test(texto);
+}
+
+export const MSG_FALHA_NOSSA = "Algo deu errado do nosso lado. Já ficou registrado: tente de novo em alguns minutos, e se continuar, fale com a gente.";

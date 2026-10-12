@@ -1,6 +1,6 @@
 "use client";
 
-import { registrarErroNoCliente } from "@/lib/erros/erro-do-cliente";
+import { ehFalhaDeRede, MSG_FALHA_NOSSA, registrarErroNoCliente } from "@/lib/erros/erro-do-cliente";
 import { LapisDaCategoria } from "@/components/categorias/LapisDaCategoria";
 import { FalarComSuporte } from "@/components/support/FalarComSuporte";
 import { useEffect, useRef, useState, useTransition } from "react";
@@ -285,7 +285,8 @@ export function StatementImport({
       } catch (err) {
         console.error("parseStatementAction falhou no envio", err);
         registrarErroNoCliente("importar-ler", err);
-        setError(t.impErroEnvio);
+        // "Confira a internet" só quando foi a internet mesmo (12/10/2026).
+        setError(ehFalhaDeRede(err) ? t.impErroEnvio : MSG_FALHA_NOSSA);
         return;
       }
       if (!result.ok) {
@@ -517,7 +518,7 @@ export function StatementImport({
       } catch (err) {
         console.error("importTransactionsAction falhou no envio", err);
         registrarErroNoCliente("importar-gravar", err);
-        setError(t.impErroSalvar);
+        setError(ehFalhaDeRede(err) ? t.impErroSalvar : MSG_FALHA_NOSSA);
         return;
       }
       if (!result.ok) {

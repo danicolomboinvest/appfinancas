@@ -25,6 +25,13 @@ export const CURRENCY_CODES = Object.keys(CURRENCIES) as CurrencyCode[];
 
 export type CurrencyCode = keyof typeof CURRENCIES;
 
+/**
+ * As moedas para os z.enum dos formulários (12/10/2026). Eram listas escritas à mão
+ * (["BRL","USD","EUR","GBP"]) e o Shekel ficou de fora: a cliente em Israel, com o perfil em ₪,
+ * recebia "Invalid input" em todo lançamento. Agora sai daqui, e moeda nova entra em todo lugar.
+ */
+export const CURRENCY_ENUM = Object.keys(CURRENCIES) as [CurrencyCode, ...CurrencyCode[]];
+
 export const DEFAULT_CURRENCY: CurrencyCode = "BRL";
 
 export function isCurrencyCode(value: string): value is CurrencyCode {

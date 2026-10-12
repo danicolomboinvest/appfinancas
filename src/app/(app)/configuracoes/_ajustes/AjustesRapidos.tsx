@@ -6,10 +6,10 @@ import { useToast } from "@/components/ui/toast-context";
 import { setThemeAction } from "@/components/shell/theme-actions";
 import { aplicarModo } from "@/components/shell/ThemeSync";
 import { trocarMoedaAction } from "./actions";
-import { currencySymbol } from "@/lib/money";
+import { currencySymbol, CURRENCY_CODES } from "@/lib/money";
 
 // O símbolo de cada moeda vem de money.ts, o único lugar que sabe escrever moeda.
-const MOEDAS = (["BRL", "USD", "EUR", "GBP"] as const).map((valor) => ({ valor, rotulo: currencySymbol(valor) }));
+const MOEDAS = CURRENCY_CODES.map((valor) => ({ valor, rotulo: currencySymbol(valor) }));
 
 /** Um seletor de pílulas: o escolhido em escuro, os outros neutros. Salva no toque. */
 function Pilulas<T extends string>({ opcoes, valor, aoEscolher, desabilitado }: { opcoes: readonly { valor: T; rotulo: string }[]; valor: T; aoEscolher: (v: T) => void; desabilitado?: boolean }) {
