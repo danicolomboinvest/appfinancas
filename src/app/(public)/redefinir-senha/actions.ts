@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
 import { verifyPasswordResetToken, consumePasswordResetToken } from "@/lib/auth/password-reset";
+import { ERRO_DE_LINK_DE_SENHA } from "@/lib/auth/mensagens-de-entrada";
 
 export type ResetState = { error?: string; success?: boolean };
 
@@ -25,7 +26,7 @@ export async function resetPasswordAction(_prev: ResetState, formData: FormData)
   if (password !== confirm) return { error: "As senhas não coincidem." };
 
   const userId = await verifyPasswordResetToken(token);
-  if (!userId) return { error: "Este link é inválido ou expirou. Peça um novo em 'Esqueci minha senha'." };
+  if (!userId) return { error: ERRO_DE_LINK_DE_SENHA };
 
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
   await prisma.user.update({

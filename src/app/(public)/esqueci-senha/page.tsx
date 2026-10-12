@@ -1,59 +1,120 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
-import { KeyRound } from "lucide-react";
-import { Field } from "@/components/ui/Field";
-import { Button } from "@/components/ui/Button";
+import { useActionState, useEffect, useState } from "react";
+import { KeyRound, Mail } from "lucide-react";
+import { Campo } from "@/components/entrada/Campo";
+import { Aviso, BOTAO, BOTAO_SEC, Mola, Pequeno, Selo, Sub, TelaDeEntrada, Titulo, Voltar } from "@/components/entrada/pecas";
 import { requestPasswordResetAction, type ForgotState } from "./actions";
 
 const initialState: ForgotState = {};
 
+/** O intervalo entre dois pedidos (LIMITES_SENHA, 2 minutos). Antes disso o servidor não manda outro. */
+const ESPERA_PARA_REENVIAR_S = 120;
+
 export default function EsqueciSenhaPage() {
   const [state, formAction, isPending] = useActionState(requestPasswordResetAction, initialState);
+  // O endereço digitado, só para mostrar na tela de "olhe o seu e-mail" e reenviar para ele.
+  const [email, setEmail] = useState("");
+
+  if (state.sent) return <EmailEnviado email={email} formAction={formAction} isPending={isPending} state={state} />;
 
   return (
-    <main className="flex min-h-dvh items-center justify-center bg-canvas p-6">
-      <div className="w-full max-w-sm animate-fade-in">
-        <div className="mb-8 flex flex-col items-center gap-3 text-center">
-          <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-accent-soft text-accent-strong">
-            <KeyRound size={22} strokeWidth={1.75} />
-          </span>
-          <div>
-            <h1 className="text-xl font-semibold tracking-tight text-ink">Esqueceu a senha?</h1>
-            <p className="mt-1 text-sm text-ink-muted">Sem problema. A gente te manda um link para criar uma nova.</p>
-          </div>
-        </div>
-
-        {state.sent ? (
-          <div className="flex flex-col gap-4 rounded-2xl border border-border bg-surface p-6 shadow-premium-sm text-center">
-            <p className="text-sm text-ink">
-              Se existir uma conta com esse e-mail, enviamos um link para redefinir a senha. Dê uma olhada na sua caixa
-              de entrada (e no spam, por via das dúvidas).
-            </p>
-            <Link href="/login" className="text-sm font-medium text-accent-strong hover:underline">
-              Voltar para o login
-            </Link>
-          </div>
-        ) : (
-          <form
-            action={formAction}
-            className="flex flex-col gap-4 rounded-2xl border border-border bg-surface p-6 shadow-premium-sm"
-          >
-            {state.error && <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{state.error}</p>}
-            <Field label="Email" id="email" name="email" type="email" required autoComplete="email" />
-            <Button type="submit" disabled={isPending} className="w-full">
-              {isPending ? "Enviando..." : "Enviar link de recuperação"}
-            </Button>
-            <p className="text-center text-sm text-ink-muted">
-              Lembrou a senha?{" "}
-              <Link href="/login" className="font-medium text-accent-strong hover:underline">
-                Entrar
-              </Link>
-            </p>
-          </form>
+    <TelaDeEntrada>
+      <Voltar href="/login" />
+      <Selo icone={KeyRound} />
+      <Titulo>Esqueceu a senha?</Titulo>
+      <Sub>Sem problema. Mandamos um link para criar uma nova.</Sub>
+      <form action={formAction} onSubmit={(e) => setEmail(String(new FormData(e.currentTarget).get("email") ?? ""))} className="flex flex-1 flex-col gap-4">
+        {state.error && (
+          <Aviso tipo="ruim" id="erro-esqueci">
+            {state.error}
+          </Aviso>
         )}
+        <Campo
+          rotulo="E-mail da conta"
+          icone={Mail}
+          id="email"
+          name="email"
+          type="email"
+          inputMode="email"
+          required
+          autoComplete="email"
+          autoCapitalize="none"
+          spellCheck={false}
+          defaultValue={email}
+          invalido={!!state.error}
+          descritoPor={state.error ? "erro-esqueci" : undefined}
+        />
+        <Mola />
+        <button type="submit" disabled={isPending} className={BOTAO}>
+          {isPending ? "Enviando..." : "Enviar link"}
+        </button>
+      </form>
+    </TelaDeEntrada>
+  );
+}
+
+/**
+ * "Olhe o seu e-mail". A resposta é sempre a mesma, exista a conta ou não (ver actions.ts), por
+ * isso o "Se existir uma conta". O reenviar só acende depois do intervalo do servidor: antes
+ * disso o pedido não mandaria nada e ela ficaria esperando um e-mail que não vem.
+ */
+function EmailEnviado({
+  email,
+  formAction,
+  isPending,
+  state,
+}: {
+  email: string;
+  formAction: (fd: FormData) => void;
+  isPending: boolean;
+  state: ForgotState;
+}) {
+  const [falta, setFalta] = useState(ESPERA_PARA_REENVIAR_S);
+  const [visto, setVisto] = useState(state);
+  // Cada envio novo (o reenviar) começa a contagem de novo.
+  if (visto !== state) {
+    setVisto(state);
+    setFalta(ESPERA_PARA_REENVIAR_S);
+  }
+  useEffect(() => {
+    if (falta <= 0) return;
+    const t = setTimeout(() => setFalta((f) => f - 1), 1000);
+    return () => clearTimeout(t);
+  }, [falta]);
+
+  return (
+    <TelaDeEntrada centro>
+      <Voltar href="/login" rotulo="Voltar para entrar" />
+      <Mola />
+      <Selo icone={Mail} />
+      <Titulo>Olhe o seu e-mail</Titulo>
+      <div role="status">
+        <Sub>
+          {email ? (
+            <>
+              Se existir uma conta com <span className="break-all font-semibold text-ink">{email}</span>, o link chega em
+              instantes.
+            </>
+          ) : (
+            "Se existir uma conta com esse e-mail, o link chega em instantes."
+          )}
+        </Sub>
       </div>
-    </main>
+      <Pequeno>Não chegou? Olhe também o spam.</Pequeno>
+      <Mola />
+      <form action={formAction} className="flex w-full flex-col gap-2.5">
+        <input type="hidden" name="email" value={email} />
+        <Link href="/login" className={BOTAO}>
+          Voltar para entrar
+        </Link>
+        {email && (
+          <button type="submit" disabled={falta > 0 || isPending} className={BOTAO_SEC}>
+            {isPending ? "Enviando..." : falta > 0 ? `Reenviar em ${falta} s` : "Reenviar o link"}
+          </button>
+        )}
+      </form>
+    </TelaDeEntrada>
   );
 }
