@@ -1,9 +1,10 @@
 /**
- * O preço do SPI que a barra do "Até agora" usa para dizer "O SPI já se pagou".
+ * O preço do SPI que o cancelar usa para dizer "O SPI já se pagou" (12/10/2026: ela tirou a
+ * comparação da tela do Dinheiro perdido; o argumento só aparece para quem quer cancelar, e sem
+ * mostrar o preço).
  *
  * O app não guarda quanto cada pessoa pagou (a Hubla e a Apple cobram preços diferentes, e quem
- * comprou antes pagou menos). Por isso a tela compara com o preço de venda de hoje e diz isso com
- * todas as letras ("O SPI custa R$ 97 por ano"), sem fingir que é o valor que a pessoa pagou.
+ * comprou antes pagou menos). Por isso compara com o preço de venda de hoje e nunca escreve o preço.
  *
  * Trocar o preço: só aqui. A comparação só aparece para quem usa o app em real.
  */

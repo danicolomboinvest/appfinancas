@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition, type PointerEvent as PointerEventReact } from "react";
 import Link from "next/link";
-import { Check, ChevronDown, PiggyBank, Copy, Receipt, Repeat, ShieldQuestion, Sun, TrendingUp, type LucideIcon } from "lucide-react";
+import { ChevronDown, Copy, Receipt, Repeat, ShieldQuestion, Sun, TrendingUp, type LucideIcon } from "lucide-react";
 import { useMoney } from "@/components/money/MoneyProvider";
 import { useToast } from "@/components/ui/toast-context";
 import { Modal } from "@/components/ui/Modal";
@@ -11,7 +11,6 @@ import { LogoDoLancamento } from "@/components/ui/LogoDoLancamento";
 import { vibrar } from "@/lib/celebrar";
 import {
   ateAgora,
-  contraOPreco,
   escolhasDaCarta,
   mensagemDeEstorno,
   porqueDaCarta,
@@ -25,7 +24,7 @@ import type { TipoDeAchado } from "@/lib/dinheiro-perdido/detectar";
 import { decidirAchadoAction, marcarVistosAction } from "./actions";
 import type { CartaDaTela, DinheiroPerdido } from "./dados";
 
-type Props = Omit<DinheiroPerdido, "vivos"> & { precoDoSpi: number | null };
+type Props = Omit<DinheiroPerdido, "vivos">;
 
 const MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
 const ARRASTE_DECIDE = 80;
@@ -54,7 +53,7 @@ function semMovimento(): boolean {
  * A tela inteira do Dinheiro perdido: "Até agora" em cima, as cartas embaixo, a folha do estorno e
  * o "Ver tudo". As escolhas valem na hora na tela (o Até agora cresce) e vão para o servidor atrás.
  */
-export function TelaDoDinheiroPerdido({ abertas, todas, conferidos, precoDoSpi, novos }: Props) {
+export function TelaDoDinheiroPerdido({ abertas, todas, conferidos, novos }: Props) {
   const money = useMoney();
   const { showError } = useToast();
   const [, iniciar] = useTransition();
@@ -129,7 +128,7 @@ export function TelaDoDinheiroPerdido({ abertas, todas, conferidos, precoDoSpi, 
 
   return (
     <div className="flex flex-col gap-5">
-      <AteAgora porAno={placar.porAno} porMes={placar.porMes} deUmaVez={placar.deUmaVez} precoDoSpi={precoDoSpi} pula={pula} />
+      <AteAgora porAno={placar.porAno} porMes={placar.porMes} deUmaVez={placar.deUmaVez} pula={pula} />
 
       <section className="flex flex-col gap-3" aria-labelledby="achei-titulo">
         <div className="flex items-baseline justify-between gap-3 px-1">
@@ -199,12 +198,9 @@ export function TelaDoDinheiroPerdido({ abertas, todas, conferidos, precoDoSpi, 
 
 /* ------------------------------------------------------------------ Até agora */
 
-function AteAgora({ porAno, porMes, deUmaVez, precoDoSpi, pula }: { porAno: number; porMes: number; deUmaVez: number; precoDoSpi: number | null; pula: number }) {
+function AteAgora({ porAno, porMes, deUmaVez, pula }: { porAno: number; porMes: number; deUmaVez: number; pula: number }) {
   const money = useMoney();
   const m0 = (v: number) => money(v, { round: true });
-  const contra = precoDoSpi ? contraOPreco(porAno, precoDoSpi) : null;
-  const escala = precoDoSpi ? Math.max(porAno, precoDoSpi) : 1;
-  const pct = (v: number) => `${Math.max(0, Math.min(100, (v / escala) * 100)).toFixed(1)}%`;
   return (
     <section aria-labelledby="ate-agora" className="flex flex-col gap-3 rounded-3xl border border-border bg-surface p-4" style={{ boxShadow: "var(--cartao-fio, none)" }}>
       <div key={pula} className={pula > 0 ? "motion-safe:animate-[dp-pula_.5s_cubic-bezier(.2,.8,.2,1)]" : ""}>
@@ -218,35 +214,10 @@ function AteAgora({ porAno, porMes, deUmaVez, precoDoSpi, pula }: { porAno: numb
           {porAno === 0 ? "Cada “não uso” soma aqui." : `${money(porMes)} por mês${deUmaVez > 0 ? ` e ${money(deUmaVez)} de estorno` : ""}`}
         </p>
       </div>
-      {precoDoSpi && contra && (
-        <>
-          <div className="flex flex-col gap-2">
-            <Barra rotulo="Recuperado" valor={m0(porAno)} largura={pct(porAno)} cor="var(--color-success)" />
-            <Barra rotulo="O SPI custa por ano" valor={m0(precoDoSpi)} largura={pct(precoDoSpi)} cor="var(--color-accent)" />
-          </div>
-          <div className={`flex items-center gap-2.5 rounded-2xl px-3 py-2.5 text-[14px] font-semibold ${contra.pagou ? "bg-success-soft text-success" : "bg-accent-soft text-ink"}`}>
-            <span className={`flex size-7 shrink-0 items-center justify-center rounded-full text-[color:var(--color-surface)] ${contra.pagou ? "bg-success" : "bg-accent-strong"}`} aria-hidden>
-              {contra.pagou ? <Check size={15} strokeWidth={3} /> : <PiggyBank size={15} strokeWidth={2.2} />}
-            </span>
-            <span className="min-w-0">{contra.pagou ? `O SPI já se pagou${contra.vezes > 1 ? ` ${contra.vezes} vezes` : ""}` : `Faltam ${m0(contra.falta)} para o SPI se pagar`}</span>
-          </div>
-        </>
-      )}
     </section>
   );
 }
 
-function Barra({ rotulo, valor, largura, cor }: { rotulo: string; valor: string; largura: string; cor: string }) {
-  return (
-    <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1 text-[13px]">
-      <span className="text-ink-muted">{rotulo}</span>
-      <b className="font-semibold tabular-nums text-ink">{valor}</b>
-      <i className="col-span-2 block h-3 overflow-hidden rounded-full bg-accent-soft">
-        <span className="block h-full rounded-full transition-[width] duration-700" style={{ width: largura, background: cor }} />
-      </i>
-    </div>
-  );
-}
 
 /* ------------------------------------------------------------------ a carta */
 

@@ -12,6 +12,8 @@ import { AREAS, MESES_GRATIS, MOTIVOS, PEDIDO_DO_MOTIVO, PRAZO_HORAS, proximaTel
 
 export type DadosDoCancelar = {
   via: "site" | "apple";
+  /** O que o Dinheiro perdido já devolveu (por ano). Só aqui aparece o "O SPI já se pagou", sem preço. */
+  recuperado: { porAno: number; jaSePagou: boolean } | null;
   /** "15 de março de 2027" */
   renovaEm: string;
   /** Até 7 dias da compra: "12 de outubro", o último dia para pedir o dinheiro de volta. */
@@ -199,6 +201,17 @@ export function CancelarAssinatura({ dados }: { dados: DadosDoCancelar }) {
   } else if (tela === "motivos") {
     corpo = (
       <>
+        {dados.recuperado && (
+          <div className="flex items-center gap-3 rounded-3xl bg-success-soft px-4 py-3.5">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-success text-[color:var(--color-surface)]" aria-hidden>
+              <Check size={18} strokeWidth={3} />
+            </span>
+            <span className="flex min-w-0 flex-col">
+              <b className="text-[15px] font-semibold text-success">{dados.recuperado.jaSePagou ? "O SPI já se pagou" : "Já voltou para o seu bolso"}</b>
+              <span className="text-sm text-ink">{money(dados.recuperado.porAno, { round: true })} por ano com o Dinheiro perdido</span>
+            </span>
+          </div>
+        )}
         <Titulo>O que aconteceu?</Titulo>
         <ul className={`overflow-hidden rounded-3xl ${TINTA}`}>
           {MOTIVOS.map(({ chave, rotulo }) => {

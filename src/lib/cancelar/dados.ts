@@ -7,6 +7,9 @@ import { nowInBrazil } from "@/lib/date/brazil-now";
 import type { DadosDoCancelar } from "@/app/(app)/configuracoes/_ajustes/CancelarAssinatura";
 import { dentroDoReembolso, fimDoReembolso, ofertaDisponivel, type TipoDePedido } from "./regras";
 import { prazoComPresente } from "./presente";
+import { ateAgora, contraOPreco, type EstadoDoAchado } from "@/lib/dinheiro-perdido/placar";
+import { MOEDA_DO_PRECO_DO_SPI, PRECO_DO_SPI_POR_ANO } from "@/lib/dinheiro-perdido/config";
+import { getUserCurrency } from "@/lib/money-server";
 
 const MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
 
@@ -23,7 +26,7 @@ export async function dadosDoCancelar(ctx: AuthContext, compra: Compra): Promise
     const d = new Date(hoje.getFullYear(), hoje.getMonth() - k, 1);
     return { year: d.getFullYear(), month: d.getMonth() + 1 };
   });
-  const [pedidos, lancs] = await Promise.all([
+  const [pedidos, lancs, achados, moeda] = await Promise.all([
     prisma.pedidoAntesDeCancelar.findMany({ where: { userId: ctx.userId }, select: { tipo: true, createdAt: true }, orderBy: { createdAt: "desc" } }),
     prisma.monthlyEntry.findMany({
       where: { userId: ctx.userId, profileId: ctx.profileId, category: "EXPENSE", OR: meses },
@@ -31,12 +34,17 @@ export async function dadosDoCancelar(ctx: AuthContext, compra: Compra): Promise
       orderBy: { amount: "desc" },
       take: 200,
     }),
+    // O que o Dinheiro perdido já devolveu neste perfil (dado de dinheiro sempre filtra pelo perfil).
+    prisma.achadoDinheiroPerdido.findMany({ where: { userId: ctx.userId, profileId: ctx.profileId, estado: { in: ["nao_uso", "estornado"] } }, select: { mensal: true, unico: true, estado: true } }),
+    getUserCurrency(),
   ]);
+  const recuperado = ateAgora(achados.map((a) => ({ mensal: a.mensal === null ? null : Number(a.mensal), unico: a.unico === null ? null : Number(a.unico), estado: a.estado as EstadoDoAchado })));
   const ultimo = (t: TipoDePedido) => pedidos.find((p) => p.tipo === t)?.createdAt ?? null;
   const tipos: TipoDePedido[] = ["meses_gratis", "duvida", "contestacao", "aviso_renovacao", "conversa", "aviso_reembolso"];
   const fim = fimDoReembolso(compra.em);
   return {
     via: compra.via,
+    recuperado: recuperado.porAno > 0 ? { porAno: recuperado.porAno, jaSePagou: moeda === MOEDA_DO_PRECO_DO_SPI && contraOPreco(recuperado.porAno, PRECO_DO_SPI_POR_ANO).pagou } : null,
     renovaEm: dataLonga(renova),
     acessoAte: dataLonga(ate),
     presenteAte: dataLonga(prazoComPresente(compra.acessoAte, renova)),
