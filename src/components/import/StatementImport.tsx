@@ -25,7 +25,8 @@ import {
 import { useMoney } from "@/components/money/MoneyProvider";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { UPLOAD_MAX_BYTES } from "@/lib/import/limites";
-import { filaPorComerciante, iguaisPraAplicar, proximaPendente, semCategoria as gastoSemCategoria } from "@/lib/import/revisao-em-grupo";
+import { chaveDeIguais, filaPorComerciante, iguaisPraAplicar, proximaPendente, semCategoria as gastoSemCategoria } from "@/lib/import/revisao-em-grupo";
+import { foiSeparada, porqueDaLinha } from "@/lib/import/porque";
 import { mesDaRevelacao } from "@/lib/import/revelacao";
 import { listaDeMeses } from "@/lib/import/mes-da-compra";
 import { resumoDoMesImportadoAction, type RevelacaoDoImport } from "@/app/(app)/mensal/revelacao-actions";
@@ -190,6 +191,10 @@ export function StatementImport({
   // "Eu já separei 64. Revisar": as linhas que o app separou sozinho, congeladas no toque (trocar a
   // categoria de uma não a tira da lista no meio da revisão). null = lista normal.
   const [separadosEmRevisao, setSeparadosEmRevisao] = useState<Set<number> | null>(null);
+  // "Responder igual nas parecidas" vale por padrão.
+  const [igualNasParecidas, setIgualNasParecidas] = useState(true);
+  // As que ela respondeu "Não sei": entram como "A conferir" e saem da conta das perguntas.
+  const [naoSei, setNaoSei] = useState<Set<number>>(new Set());
   // Depois de importar: o mês montado. `mes` null = arquivo sem data, fica só o "pronto".
   const [revelacao, setRevelacao] = useState<{ mes: { year: number; month: number } | null; dados: RevelacaoDoImport | null; carregando: boolean }>({
     mes: null,
@@ -320,7 +325,9 @@ export function StatementImport({
       const fila = filaPorComerciante(pendentes);
       setReviewKeys(fila.keys);
       setSeparadosEmRevisao(null);
-      setPhase(pendentes.length > 0 ? "review" : "confirm");
+      // Caminho B (12/10/2026): primeiro a confirmação calma e o "Separei N de M"; as perguntas
+      // que sobram vêm depois, em cartões grandes, quando ela tocar em Responder.
+      setPhase("confirm");
     });
   }
 
@@ -330,7 +337,7 @@ export function StatementImport({
    * fila pular as que já foram resolvidas junto.
    */
   function aplicarCategoria(itemKey: number, escolha: { parentCategory: ParentCategory | null; customCategoryId: string | null }): Set<number> {
-    const iguais = iguaisPraAplicar(items, itemKey);
+    const iguais = igualNasParecidas ? iguaisPraAplicar(items, itemKey) : [];
     const resolvidas = new Set([itemKey, ...iguais]);
     setItems((prev) =>
       prev.map((it) =>
@@ -479,7 +486,7 @@ export function StatementImport({
     // (ele aparece como "Sem categoria" na tela do mês) e só não aprende regra dele.
     // Sem resposta (12/10/2026): a dúvida de dinheiro próprio entra sem categoria, marcada "A conferir";
     // o "é o mesmo?" sem resposta entra como lançamento novo, também "A conferir".
-    const aConferir = (it: ReviewItem) => !!it.duvida || !!it.possivelDuplicata;
+    const aConferir = (it: ReviewItem) => !!it.duvida || !!it.possivelDuplicata || (gastoSemCategoria(it) && !it.estorno);
     const confirmed: ConfirmedItem[] = items
       .filter(entraNaImportacao)
       .map((it) => (aConferir(it) ? { ...it, parentCategory: null, customCategoryId: null, subcategory: A_CONFERIR, autoClassified: true } : it))
@@ -990,8 +997,19 @@ export function StatementImport({
 
         {/* "Pular" tirava o gasto da importação sem ela saber. "Não sei agora" deixa o gasto
             entrar sem categoria: ele aparece no mês e dá pra classificar depois. */}
-        <Button type="button" variant="secondary" className="min-h-11" onClick={() => advanceReview()}>
-          {t.impNaoSeiAgora}
+        {/* "Responder igual nas parecidas" (caminho B): ligado, a resposta vale para a loja inteira. */}
+        {iguaisPraAplicar(items, it.key).length > 0 && (
+          <label className="flex min-h-11 items-center justify-between gap-3 rounded-2xl bg-surface-2 px-4 py-2 text-[15px] text-ink">
+            <span>Responder igual nas {iguaisPraAplicar(items, it.key).length + 1} parecidas</span>
+            <input type="checkbox" checked={igualNasParecidas} onChange={(e) => setIgualNasParecidas(e.target.checked)} className="size-5 shrink-0 accent-[var(--color-ink)]" />
+          </label>
+        )}
+        <Button type="button" variant="secondary" className="min-h-12" onClick={() => {
+            const estas = new Set([it.key, ...(igualNasParecidas ? iguaisPraAplicar(items, it.key) : [])]);
+            setNaoSei((prev) => new Set([...prev, ...estas]));
+            advanceReview(estas);
+          }}>
+          Não sei · fica “A conferir”
         </Button>
         {/* Sair da fila a qualquer momento: com 23 cartões pela frente (a mediana do 1º arquivo),
             muita gente fechava a tela antes de ver o botão de importar e ficava sem nada. O que
@@ -1035,7 +1053,6 @@ export function StatementImport({
     const totalGap = stats?.invoiceTotal ? Math.round((stats.invoiceTotal - expenseSum) * 100) / 100 : 0;
     // O que o app separou sozinho (regra dela, comunidade, banco ou dicionário): entra classificado,
     // e o "Revisar" mostra só essas linhas, todas, pra ela conferir e trocar o que quiser.
-    const separados = importable.filter((it) => it.category === "EXPENSE" && it.autoClassified && !it.estorno && (it.parentCategory || it.customCategoryId));
     const listaBase = separadosEmRevisao ? importable.filter((it) => separadosEmRevisao.has(it.key)) : importable;
     const visiveis = mostrarTodos || separadosEmRevisao ? listaBase : listaBase.slice(0, LINHAS_VISIVEIS);
     const rotuloDaLinha = (it: ReviewItem) =>
@@ -1066,51 +1083,6 @@ export function StatementImport({
         />
         {error && <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p>}
 
-        {/* Sem categoria numa linha (07/10/2026): quantos, quanto somam e um botão. A explicação de
-            que eles entram assim mesmo mora no "?". */}
-        {semCategoria.length > 0 && (
-          <div className="flex items-center gap-3 rounded-2xl border border-border bg-surface px-3.5 py-2.5">
-            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-accent-strong" aria-hidden>
-              <CircleHelp size={18} />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="flex items-center gap-1.5 text-[15px] font-semibold text-ink">
-                {semCategoria.length === 1 ? "1 sem categoria" : `${semCategoria.length} sem categoria`}
-                <Explica>{t.impSemCategoriaEntraSub(semCategoria.length, money(semCategoria.reduce((sum, it) => sum + it.amount, 0)))}</Explica>
-              </span>
-              <span className="block text-caption tabular-nums text-ink-muted">{money(semCategoria.reduce((sum, it) => sum + it.amount, 0))}</span>
-            </span>
-            <button
-              type="button"
-              onClick={() => {
-                const fila = filaPorComerciante(semCategoria);
-                setReviewKeys(fila.keys);
-                          setReviewIdx(0);
-                setPhase("review");
-              }}
-              className="min-h-10 shrink-0 rounded-full bg-accent-soft px-4 text-sm font-semibold text-accent-strong"
-            >
-              Escolher
-            </button>
-          </div>
-        )}
-
-        {(separados.length > 0 || separadosEmRevisao) && (
-          <div className="flex items-center gap-3 rounded-2xl border border-border bg-surface px-3.5 py-2.5">
-            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-success-soft text-success" aria-hidden>
-              <Check size={18} />
-            </span>
-            <span className="min-w-0 flex-1 text-[15px] font-semibold text-ink">{t.impJaSeparei(separadosEmRevisao ? separadosEmRevisao.size : separados.length)}</span>
-            <button
-              type="button"
-              onClick={() => setSeparadosEmRevisao((atual) => (atual ? null : new Set(separados.map((it) => it.key))))}
-              className="min-h-10 shrink-0 rounded-full border border-border-strong px-4 text-sm font-semibold text-ink-muted hover:text-ink"
-            >
-              {separadosEmRevisao ? t.impFecharRevisao : t.impRevisarSeparados}
-            </button>
-          </div>
-        )}
-
         {/* Leitura que não parece dinheiro de gente. Fica ACIMA da conferência e em tom de alerta
             porque é o único aviso que diz "não confirme ainda": quando isso aparece, o mês inteiro
             da pessoa vai entrar errado — orçamento, saúde financeira e gráfico junto. */}
@@ -1134,48 +1106,86 @@ export function StatementImport({
           </div>
         )}
 
-        {/* Conferência: o que o app leu, em números (07/10/2026, em quadradinhos). O quanto entrou,
-            saiu e foi guardado, um selo "Conferido" quando bateu com o total do documento, e o
-            "como entendi" no "?". */}
+        {/* Caminho B (12/10/2026): no topo, uma confirmação grande e calma (o arquivo, quantas
+            compras, os meses e o total); embaixo, o que o app já separou sozinho, com o porquê
+            em "Revisar"; e as perguntas que sobraram, em cartões grandes, uma por vez. */}
         {(() => {
           const entrou = importable.filter((it) => it.category === "INCOME").reduce((s2, it) => s2 + it.amount, 0);
-          const guardado = importable.filter((it) => it.category === "INVESTMENT_CONTRIBUTION").reduce((s2, it) => s2 + (it.resgate ? -it.amount : it.amount), 0);
-          const quadrados = [
-            ...(docType !== "fatura" && entrou > 0 ? [{ rotulo: t.entrou, valor: money(entrou, { round: true }), cor: "text-success" }] : []),
-            { rotulo: docType === "fatura" ? "Na fatura" : t.gastou, valor: money(expenseSum, { round: true }), cor: "text-ink" },
-            ...(guardado !== 0 ? [{ rotulo: t.aportou, valor: money(guardado, { round: true }), cor: "text-accent-strong" }] : []),
-          ];
+          const meses = [...new Set(importable.map((it) => it.date.slice(0, 7)))].sort();
+          const nomeMes = (ym: string) => new Date(Number(ym.slice(0, 4)), Number(ym.slice(5, 7)) - 1, 1).toLocaleDateString("pt-BR", { month: "long" });
+          const textoMeses = meses.length === 0 ? "" : meses.length === 1 ? `${nomeMes(meses[0])} de ${meses[0].slice(0, 4)}` : meses.length <= 3 ? `${meses.slice(0, -1).map(nomeMes).join(", ")} e ${nomeMes(meses[meses.length - 1])}` : `${nomeMes(meses[0])} a ${nomeMes(meses[meses.length - 1])}`;
+          const deOnde = stats?.summary ?? (docType === "fatura" ? "Fatura" : "Extrato");
+          const compras = docType === "fatura" ? importable.filter((it) => it.category === "EXPENSE").length : importable.length;
           return (
-            <div className="flex flex-col gap-3 rounded-2xl border border-border bg-surface-2 p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="flex items-center gap-1.5 text-sm text-ink-muted">
-                    {docType === "fatura" ? "Na fatura" : "No extrato"}
-                    {stats && <Explica>{t.impEntendiComo(stats.summary)}</Explica>}
-                  </p>
-                  <p className="text-[2rem] font-bold leading-none tracking-tight tabular-nums text-ink">{importable.length}</p>
-                  <p className="mt-1 text-caption text-ink-muted">{importable.length === 1 ? "lançamento" : "lançamentos"}</p>
-                </div>
-                {stats?.conferencia.status === "fechou" ? (
-                  <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-success-soft px-2.5 py-1 text-xs font-semibold text-success" title={t.impBateuComTotal(money(stats.conferencia.esperado))}>
-                    <Check size={13} strokeWidth={2.5} aria-hidden /> Conferido
-                  </span>
-                ) : null}
-              </div>
-              <div className={`grid gap-2 ${quadrados.length >= 3 ? "grid-cols-3" : quadrados.length === 2 ? "grid-cols-2" : "grid-cols-1"}`}>
-                {quadrados.map((q) => (
-                  <div key={q.rotulo} className="min-w-0 rounded-xl bg-surface px-2.5 py-2">
-                    <p className="line-clamp-2 text-caption leading-tight text-ink-muted">{q.rotulo}</p>
-                    {/* O número encolhe para caber (R$ 15.300 em três colunas no celular), nunca corta. */}
-                    <FitText className={`mt-0.5 text-[15px] font-bold tabular-nums ${q.cor}`}>{q.valor}</FitText>
-                  </div>
-                ))}
-              </div>
-              {/* Fatura: a frase de quando as compras contam fica à vista (e o "Mudar") até o último toque. */}
-              {docType === "fatura" && mesDaFatura("fatura-month-confirmar")}
+            <section className="flex flex-col items-center gap-1 rounded-3xl bg-surface-2 px-4 py-6 text-center" data-confirmacao-do-arquivo>
+              <span className="text-sm text-ink-muted">{deOnde}</span>
+              <b className="mt-1 text-[2.75rem] font-light leading-none tracking-tight tabular-nums text-ink">{compras}</b>
+              <span className="text-[15px] text-ink">{docType === "fatura" ? (compras === 1 ? "compra" : "compras") : compras === 1 ? "lançamento" : "lançamentos"}{textoMeses ? ` em ${textoMeses}` : ""}</span>
+              <span className="mt-1 text-[15px] tabular-nums text-ink-muted">
+                {docType === "fatura" ? `Total ${money(expenseSum)}` : `Entrou ${money(entrou, { round: true })} · Saiu ${money(expenseSum, { round: true })}`}
+              </span>
+              {/* Fatura: a frase do motor (banco, fechamento, vencimento, meses das compras) e o "Mudar". */}
+              {docType === "fatura" && <div className="mt-2 w-full text-left">{mesDaFatura("fatura-month-confirmar")}</div>}
+              {stats?.conferencia.status === "fechou" && (
+                <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-success-soft px-2.5 py-1 text-xs font-semibold text-success" title={t.impBateuComTotal(money(stats.conferencia.esperado))}>
+                  <Check size={13} strokeWidth={2.5} aria-hidden /> Conferido
+                </span>
+              )}
+            </section>
+          );
+        })()}
+
+        {/* "Separei N de M": o que o app resolveu sozinho, com o porquê de cada um em "Revisar". */}
+        {(() => {
+          const separadasLinhas = importable.filter((it) => foiSeparada(it));
+          const separadas = separadosEmRevisao ? separadosEmRevisao.size : separadasLinhas.length;
+          return (
+            <div className="flex items-center gap-3 rounded-2xl border border-border bg-surface px-4 py-3" data-separei>
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-success-soft text-success" aria-hidden>
+                <Check size={18} strokeWidth={2.4} />
+              </span>
+              <span className="min-w-0 flex-1">
+                <b className="block whitespace-nowrap text-[16px] font-semibold tabular-nums text-ink">
+                  Separei {separadas} de {importable.length}
+                </b>
+                <span className="block text-caption text-ink-muted">O porquê de cada um está em Revisar</span>
+              </span>
+              {/* A lista congela no toque: trocar a categoria de uma não a tira da revisão no meio. */}
+              <button type="button" onClick={() => setSeparadosEmRevisao((atual) => (atual ? null : new Set(separadasLinhas.map((it) => it.key))))} aria-expanded={!!separadosEmRevisao} className="min-h-10 shrink-0 rounded-full bg-surface-2 px-4 text-sm font-medium text-ink">
+                {separadosEmRevisao ? "Fechar" : "Revisar"}
+              </button>
             </div>
           );
         })()}
+
+        {/* As perguntas que sobraram (cartões grandes, uma por vez). "Não sei" manda para "A conferir". */}
+        {semCategoria.some((x) => !naoSei.has(x.key)) && (
+          <div className="flex flex-col gap-3 rounded-3xl border border-border bg-surface p-4" data-perguntas>
+            <p className="text-[17px] font-semibold text-ink">
+              {(() => {
+                const grupos = new Set(semCategoria.filter((x) => !naoSei.has(x.key)).map((it) => chaveDeIguais(it.description) ?? `k${it.key}`)).size;
+                return grupos === 1 ? "Falta 1 pergunta" : `Faltam ${grupos} perguntas`;
+              })()}
+            </p>
+            <p className="-mt-2 text-caption tabular-nums text-ink-muted">
+              {(() => {
+                const faltam = semCategoria.filter((x) => !naoSei.has(x.key));
+                return `${faltam.length === 1 ? "1 lançamento" : `${faltam.length} lançamentos`} · ${money(faltam.reduce((sum, it) => sum + it.amount, 0))}. O que ficar sem resposta entra como “A conferir”.`;
+              })()}
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setReviewKeys(semCategoria.filter((x) => !naoSei.has(x.key)).map((it) => it.key));
+                setReviewIdx(0);
+                setPhase("review");
+              }}
+              className="flex min-h-[52px] w-full items-center justify-center rounded-full [background:var(--botao-fundo,var(--color-ink))] text-[16px] font-semibold [color:var(--botao-tinta,var(--color-canvas))]"
+            >
+              Responder
+            </button>
+          </div>
+        )}
 
         {duvidasDinheiro.length > 0 && (
           <div className="flex flex-col gap-2 rounded-xl border border-accent/40 bg-accent-soft/40 px-4 py-3">
@@ -1332,6 +1342,8 @@ export function StatementImport({
             importar, um por um. Fechada, a linha é curta; os botões de 44px só aparecem na aberta.
             No celular a lista NÃO tem rolagem própria (brigava com a da janela); do sm pra cima,
             caixa com altura fixa. */}
+        {separadosEmRevisao && (
+        <>
         <ul className="flex flex-col divide-y divide-border rounded-xl border border-border sm:max-h-96 sm:overflow-y-auto">
           {visiveis.map((it) => {
             const aberta = editandoKey === it.key;
@@ -1363,6 +1375,8 @@ export function StatementImport({
                     <span className="block truncate text-caption text-ink-muted">
                       {formatDate(it.date)}, {it.estorno && `${t.impTipoDevolucao}, `}
                       <span className={gastoSemCategoria(it) && !it.duvida ? "font-medium text-accent-strong" : undefined}>{rotuloDaLinha(it)}</span>
+                      {/* O porquê (Revisar, caminho B): "investimento", "devolução", "você já disse antes". */}
+                      {porqueDaLinha(it) && <span className="ml-1 rounded-full bg-surface-2 px-1.5 py-px">{porqueDaLinha(it)!.motivo}</span>}
                       {it.profileId && `, ${t.impMoverPra(otherProfiles.find((p) => p.id === it.profileId)?.name ?? "")}`}
                     </span>
                   </span>
@@ -1438,6 +1452,8 @@ export function StatementImport({
             {t.impMostrarTodos(importable.length)}
           </button>
         )}
+        </>
+        )}
 
         {/* A soma lida contra o total da fatura (12/10/2026): sem caixa nem vermelho. Bateu, nada;
             não bateu, um link pequeno no fim que abre os dois totais e as linhas. */}
@@ -1487,7 +1503,7 @@ export function StatementImport({
           {/* Nunca desligado (12/10/2026): o que ficar sem resposta entra como "A conferir". */}
           {duvidas.length + duvidasDinheiro.length > 0 && <p className="text-center text-caption text-ink-muted">O que ficar sem resposta entra como “A conferir”.</p>}
           <Button type="button" className="min-h-11" onClick={handleImport} disabled={isPending || importable.length === 0}>
-            {isPending ? t.impImportando : t.impImportarN(importable.length)}
+            {isPending ? t.impImportando : `Pronto, anotar ${importable.length}`}
             <ArrowRight size={16} className="ml-1.5" />
           </Button>
         </div>
