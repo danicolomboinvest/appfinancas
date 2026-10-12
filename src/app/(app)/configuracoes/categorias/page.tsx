@@ -28,7 +28,8 @@ export default async function CategoriasPage() {
           regras={regras.map((r) => ({
             id: r.id,
             pattern: r.pattern,
-            categoria: categoryLabel(ctx.categorias ?? ctx.profileKind, r.parentCategory),
+            // A personalizada que ela escolheu ("Dani Invest") é a que vale; a mãe é só reserva.
+            categoria: r.customCategory?.name ?? categoryLabel(ctx.categorias ?? ctx.profileKind, r.parentCategory),
             subcategory: r.subcategory,
           }))}
         />
