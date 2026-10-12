@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { ChevronsLeft, ChevronsRight, Lock, LogOut, MessageCircleQuestion, Plus, Repeat } from "lucide-react";
 import { linkDoSuporte } from "@/lib/support/whatsapp-link";
 import { BrandMark } from "@/components/brand/BrandMark";
+import { abrirComoFunciona } from "./ComoFuncionaSheet";
 import { ADMIN_NAV_SECTION, NAV_SECTIONS, MAIS_DA_EMPRESA, MENU_DA_EMPRESA, itemDaEmpresaAtivo, withNavFlags, sectionMatches, secoesVisiveis, rotuloDoMenu, type ItemDaEmpresa, type NavSection } from "./nav-sections";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import type { PerfilResumo } from "@/components/profiles/perfil-resumo";
@@ -157,7 +158,11 @@ export function Sidebar({
               <li key={section.basePath}>
                 <Link
                   href={section.href}
-                  onClick={onCloseMobile}
+                  onClick={(e) => {
+                    onCloseMobile?.();
+                    // "Como funciona" abre a folha dos vídeos por cima da tela (protótipo).
+                    if (section.href === "/guia") abrirComoFunciona(e);
+                  }}
                   title={collapsed ? section.label : undefined}
                   data-tour={SIDEBAR_TOUR[section.basePath]}
                   className={`flex min-h-12 items-center gap-3.5 rounded-2xl px-3.5 py-2 text-[16px] transition-colors md:min-h-0 md:rounded-lg md:px-3 md:text-sm ${collapsedDesktopOnly} ${
@@ -222,7 +227,10 @@ function ItemDoMenuDaEmpresa({ item, on, collapsed, esconder, onClick }: { item:
     <li>
       <Link
         href={item.href}
-        onClick={onClick}
+        onClick={(e) => {
+          onClick();
+          if (item.href === "/guia") abrirComoFunciona(e);
+        }}
         aria-current={on ? "page" : undefined}
         className={`flex min-h-12 items-center gap-3.5 rounded-2xl px-3.5 py-2 text-[16px] transition-colors md:min-h-0 md:rounded-lg md:px-3 md:text-sm ${collapsed} ${
           on ? "bg-surface font-medium text-ink shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_20px_-12px_rgba(0,0,0,0.14)] md:bg-surface-2 md:shadow-none" : "text-ink hover:bg-surface-2 md:text-ink-muted md:hover:text-ink"

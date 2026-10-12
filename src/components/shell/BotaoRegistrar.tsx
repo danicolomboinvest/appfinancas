@@ -33,7 +33,7 @@ export function BotaoRegistrar({ onClick }: { onClick: () => void }) {
       onClick={onClick}
       aria-label={voz.titulos.registrar}
       data-tour="registrar"
-      className={`fixed bottom-[calc(1.5rem+var(--safe-bottom))] right-5 z-40 flex size-14 items-center justify-center rounded-full bg-accent text-on-accent botao-flutuante shadow-[0_2px_6px_rgba(0,0,0,0.08),0_14px_28px_-10px_color-mix(in_srgb,var(--color-accent)_60%,transparent)] transition-[transform,opacity] duration-300 active:scale-95 md:hidden ${
+      className={`fixed bottom-[calc(1.5rem+var(--safe-bottom))] right-5 z-40 flex size-14 items-center max-[359px]:bottom-[calc(1rem+var(--safe-bottom))] max-[359px]:right-3 max-[359px]:size-12 justify-center rounded-full bg-accent text-on-accent botao-flutuante shadow-[0_2px_6px_rgba(0,0,0,0.08),0_14px_28px_-10px_color-mix(in_srgb,var(--color-accent)_60%,transparent)] transition-[transform,opacity] duration-300 active:scale-95 md:hidden ${
         escondido ? "pointer-events-none translate-y-6 opacity-0" : "opacity-100"
       }`}
     >

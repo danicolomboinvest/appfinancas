@@ -14,6 +14,7 @@ import type { PerfilResumo } from "@/components/profiles/perfil-resumo";
 import { TopBar } from "./TopBar";
 import { AbasDaVisaoGeral, DeslizarEntreAbas } from "./AbasDaVisaoGeral";
 import { BotaoRegistrar } from "./BotaoRegistrar";
+import { ComoFuncionaSheet } from "./ComoFuncionaSheet";
 import { PerfilSheet } from "./PerfilSheet";
 import { TourDasNovidades } from "./TourDasNovidades";
 import type { EstadoDasNovidades } from "@/lib/novidades/passos";
@@ -239,6 +240,8 @@ export function AppShell({
           onLogout={handleLogout}
           onOpenInstall={() => setInstallOpen(true)}
         />
+
+        <ComoFuncionaSheet />
 
         {/* Tutorial de "instalar na tela de início" (convite do topo ou menu "Mais"). */}
         <InstallAppSheet open={installOpen} onClose={() => setInstallOpen(false)} />
