@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Pencil, Tag } from "lucide-react";
+import Link from "next/link";
 import { Modal } from "@/components/ui/Modal";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import { LogoDoLancamento } from "@/components/ui/LogoDoLancamento";
@@ -45,7 +46,10 @@ export function CategoriasDoMes({
   livre = null,
   diasRestantes = 1,
   abrirResolvendo,
+  hrefTransacoes,
 }: {
+  /** As Transações do mês ("/mensal/2026/10"); o painel abre já filtrado na categoria. */
+  hrefTransacoes?: string;
   mes: string;
   linhas: LinhaDaCategoria[];
   /** Categorias criadas pela pessoa e marcadas "É essencial": nunca viram origem do remanejo. */
@@ -66,25 +70,25 @@ export function CategoriasDoMes({
   // Todas fechadas: o detalhe de cada uma (histórico, lápis, maiores gastos) abre no toque.
   const [aberta, setAberta] = useState<string | null>(null);
   const [resolvendo, setResolvendo] = useState<LinhaDaCategoria | null>(() => linhas.find((l) => l.key === abrirResolvendo && l.estado === "passou") ?? null);
+  const abertaLinha = linhas.find((l) => l.key === aberta) ?? null;
   const paraRemanejo = linhas.map((l) => ({ key: l.key, label: l.label, planejado: l.planejado, gasto: l.gasto + l.aVencer }));
 
   return (
     <div className="flex flex-col gap-3">
-      <ul className="flex flex-col divide-y divide-border">
+      <ul className="flex flex-col divide-y divide-border rounded-3xl border border-border bg-surface px-4">
         {linhas.map((l) => {
           const gasto = l.gasto + l.aVencer;
           const pct = l.planejado > 0 ? Math.round((gasto / l.planejado) * 100) : null;
           const largura = l.planejado > 0 ? Math.min(100, (gasto / l.planejado) * 100) : 0;
           const passou = l.estado === "passou";
-          const estaAberta = aberta === l.key;
           const escolhido = emojiEscolhido(categorias, l.key);
           const Icone = isParentCategoryKey(l.key) ? categoryIcon(categorias, l.key) : (CUSTOM_CATEGORY_ICON_MAP[l.iconeProprio ?? ""] ?? Tag);
           return (
-            <li key={l.key} className="py-3.5 first:pt-1">
+            <li key={l.key} className="py-3.5">
               <button
                 type="button"
-                onClick={() => (passou ? setResolvendo(l) : setAberta(estaAberta ? null : l.key))}
-                aria-expanded={passou ? undefined : estaAberta}
+                onClick={() => setAberta(l.key)}
+                aria-haspopup="dialog"
                 className="flex w-full items-start gap-3 text-left"
               >
                 {escolhido ? (
@@ -119,19 +123,31 @@ export function CategoriasDoMes({
                   </span>
                 </span>
               </button>
-              {estaAberta && (
-                <div className="mt-3 rounded-2xl bg-surface-2 p-3">
-                  <DetalheDaCategoria l={l} mes={mes} />
-                </div>
-              )}
             </li>
           );
         })}
       </ul>
 
-      <Modal open={resolvendo !== null} onClose={() => setResolvendo(null)} title={resolvendo ? `${resolvendo.label} passou do plano` : ""}>
+      <Modal open={abertaLinha !== null} onClose={() => setAberta(null)} title={abertaLinha?.label ?? ""}>
+        {abertaLinha && (
+          <DetalheDaCategoria
+            l={abertaLinha}
+            mes={mes}
+            hrefTransacoes={hrefTransacoes ? `${hrefTransacoes}?categoria=${encodeURIComponent(abertaLinha.key)}` : undefined}
+            onOQueFazer={() => {
+              setAberta(null);
+              setResolvendo(abertaLinha);
+            }}
+          />
+        )}
+      </Modal>
+
+      <Modal open={resolvendo !== null} onClose={() => setResolvendo(null)} title="O que fazer?">
         {resolvendo && (
           <OQueFazer
+            mes={mes}
+            quantos={resolvendo.maiores.reduce((s, g) => s + g.vezes, 0) || undefined}
+            icone={<IconeDaLinha l={resolvendo} />}
             categoria={{ key: resolvendo.key, label: resolvendo.label, planejado: resolvendo.planejado, gasto: resolvendo.gasto + resolvendo.aVencer }}
             categorias={paraRemanejo}
             essenciais={essenciais}
@@ -162,7 +178,25 @@ export function CategoriasDoMes({
   );
 }
 
-function DetalheDaCategoria({ l, mes }: { l: LinhaDaCategoria; mes: string }) {
+function IconeDaLinha({ l }: { l: LinhaDaCategoria }) {
+  const { categorias } = useProfileTheme();
+  const escolhido = emojiEscolhido(categorias, l.key);
+  const Icone = isParentCategoryKey(l.key) ? categoryIcon(categorias, l.key) : (CUSTOM_CATEGORY_ICON_MAP[l.iconeProprio ?? ""] ?? Tag);
+  if (escolhido)
+    return (
+      <span className="flex size-12 items-center justify-center rounded-full bg-surface-2 text-2xl" aria-hidden>
+        {escolhido}
+      </span>
+    );
+  return <CategoryIcon icon={Icone} color={l.cor} size={48} variant="soft" />;
+}
+
+/**
+ * O painel da categoria (protótipo, #categoria): o mês x plano com a barra, as colunas dos últimos
+ * meses com a média tracejada, uma frase, "Onde mais foi" e "Ver todas as transações". Na que
+ * passou, "O que fazer?" abre a folha dos caminhos. O planejado continua editável no lápis.
+ */
+function DetalheDaCategoria({ l, mes, hrefTransacoes, onOQueFazer }: { l: LinhaDaCategoria; mes: string; hrefTransacoes?: string; onOQueFazer: () => void }) {
   const money = useMoney();
   const m = (v: number) => money(v, { round: true });
   const router = useRouter();
@@ -170,7 +204,23 @@ function DetalheDaCategoria({ l, mes }: { l: LinhaDaCategoria; mes: string }) {
   const [editando, setEditando] = useState(false);
   const [valor, setValor] = useState<number | undefined>(l.planejado || undefined);
   const [pendente, iniciar] = useTransition();
-  const topo = Math.max(...l.historico.map((h) => Math.max(h.gasto, h.planejado)), 1) * 1.1;
+  const gasto = l.gasto + l.aVencer;
+  const passou = l.estado === "passou";
+  // A média dos 3 meses fechados mais recentes (protótipo r65), sem o mês aberto.
+  const fechados = l.historico.filter((h) => !h.atual);
+  const ultimos3 = fechados.slice(-3);
+  const media = ultimos3.length ? ultimos3.reduce((s2, h) => s2 + h.gasto, 0) / ultimos3.length : 0;
+  const topo = Math.max(media, gasto, ...l.historico.map((h) => h.gasto), 1) * 1.1;
+  const mesCap = mes.charAt(0).toUpperCase() + mes.slice(1);
+  const frase = passou
+    ? `Passou ${m(gasto - l.planejado)} do plano`
+    : gasto === 0
+      ? `Nada em ${mes} · média ${m(media)}`
+      : gasto > media && media > 0
+        ? `${m(gasto - media)} acima da média`
+        : media > 0
+          ? `${m(media - gasto)} abaixo da média`
+          : "";
 
   function salvar(v: number) {
     iniciar(async () => {
@@ -183,55 +233,77 @@ function DetalheDaCategoria({ l, mes }: { l: LinhaDaCategoria; mes: string }) {
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="grid grid-cols-3 gap-2">
-        <Numero rotulo={`Em ${mes}`} valor={m(l.gasto + l.aVencer)} />
-        <Numero rotulo="Média" valor={m(l.media)} />
-        <button type="button" onClick={() => setEditando((v) => !v)} className="flex flex-col gap-0.5 rounded-xl bg-surface px-2 py-2.5 text-center">
-          <span className="text-caption text-ink-muted">Planejado</span>
-          <span className="flex items-center justify-center gap-1 text-sm font-semibold tabular-nums text-ink underline decoration-dotted underline-offset-4">
-            {l.planejado > 0 ? m(l.planejado) : "definir"} <Pencil size={12} aria-hidden />
+    <div className="flex flex-col gap-4" data-painel-categoria>
+      <div className="flex flex-col gap-2 rounded-3xl bg-surface p-4 shadow-[inset_0_0_0_1px_var(--color-border)]">
+        <small className="text-sm text-ink-muted">{mesCap} até agora</small>
+        <b className="flex flex-wrap items-baseline gap-x-2 font-light">
+          <span className="text-[1.75rem] tabular-nums tracking-[-0.02em] text-ink">{m(gasto)}</span>
+          {l.planejado > 0 && <em className="not-italic text-[15px] text-ink-muted">de {m(l.planejado)}</em>}
+        </b>
+        {l.planejado > 0 && (
+          <span className="relative h-1.5 overflow-hidden rounded-full bg-surface-2">
+            <span className={`absolute inset-y-0 left-0 rounded-full ${passou ? "bg-danger" : "bg-ink"}`} style={{ width: `${Math.min(100, (gasto / l.planejado) * 100)}%` }} />
           </span>
-        </button>
+        )}
       </div>
-
-      {editando && (
-        <div className="flex flex-wrap items-end gap-2 rounded-xl bg-surface p-3">
-          <div className="min-w-0 flex-1">
-            <CurrencyInputControlled label={`Planejado por mês, de ${mes} em diante`} value={valor} onChange={setValor} />
-          </div>
-          <button type="button" disabled={pendente || valor === undefined} onClick={() => valor !== undefined && salvar(valor)} className="min-h-11 rounded-full bg-pill px-5 text-sm font-semibold text-on-pill disabled:opacity-50">
-            {pendente ? "Salvando…" : "Salvar"}
-          </button>
-        </div>
-      )}
 
       {l.historico.length > 0 && (
         <div className="flex flex-col gap-1">
-          <div className="flex h-24 items-end gap-2">
-            {l.historico.map((h) => {
-              const cor = h.atual ? "bg-accent" : h.planejado > 0 && h.gasto > h.planejado ? "bg-danger/70" : "bg-success/60";
-              return (
-                <div key={h.rotulo} className="relative flex h-full flex-1 flex-col justify-end">
-                  {h.planejado > 0 && <span className="absolute inset-x-0 border-t-2 border-dashed border-ink-faint" style={{ bottom: `${(h.planejado / topo) * 100}%` }} />}
-                  <span className={`w-full rounded-t-lg ${cor}`} style={{ height: `${Math.max(2, (h.gasto / topo) * 100)}%` }} />
-                </div>
-              );
-            })}
+          <div className="relative flex h-32 items-end gap-2">
+            {l.historico.map((h) => (
+              <div key={h.rotulo} className="flex h-full flex-1 flex-col items-center justify-end gap-1">
+                <span className="text-xs tabular-nums text-ink-muted">{Math.round(h.gasto).toLocaleString("pt-BR")}</span>
+                <span className={`w-full max-w-9 rounded-t-lg ${h.atual ? (passou ? "bg-danger" : "bg-accent") : "bg-surface-2 shadow-[inset_0_0_0_1px_var(--color-border)]"}`} style={{ height: `${Math.max(2, (h.gasto / topo) * 78)}%` }} />
+              </div>
+            ))}
+            {media > 0 && (
+              <div className="pointer-events-none absolute inset-x-0 border-t border-dashed border-ink-muted" style={{ bottom: `${(media / topo) * 78}%` }} />
+            )}
           </div>
           <div className="flex gap-2 text-center text-xs text-ink-faint">
             {l.historico.map((h) => (
               <span key={h.rotulo} className={`flex-1 ${h.atual ? "font-semibold text-ink" : ""}`}>
-                {h.rotulo}
+                {h.rotulo.charAt(0).toUpperCase() + h.rotulo.slice(1)}
               </span>
             ))}
           </div>
-          <p className="text-xs text-ink-muted">O tracejado é o planejado de cada mês.</p>
+          {media > 0 && (
+            <p className="mt-1 flex items-center justify-center gap-2 text-xs text-ink-muted">
+              <span className="w-5 border-t border-dashed border-ink-muted" aria-hidden /> média dos últimos 3 meses {m(media)}
+            </p>
+          )}
         </div>
       )}
 
+      {frase && <p className={`text-center text-[15px] ${passou ? "text-danger" : "text-ink"}`}>{frase}</p>}
+
+      {passou && (
+        <button type="button" onClick={onOQueFazer} className="min-h-12 rounded-full bg-ink text-base font-medium text-surface">
+          O que fazer?
+        </button>
+      )}
+
+      {l.maiores.length > 0 && (
+        <div className="flex flex-col gap-1.5">
+          <h3 className="text-[15px] font-medium text-ink">Onde mais foi em {mes}</h3>
+          <ul className="flex flex-col divide-y divide-border">
+            {l.maiores.map((g) => (
+              <li key={g.descricao} className="flex items-center gap-3 py-2.5 text-[15px]">
+                <LogoDoLancamento descricao={g.descricao} icon={Tag} size={36} />
+                <span className="min-w-0 flex-1 truncate text-ink">
+                  {g.descricao}
+                  {g.vezes > 1 && <span className="text-ink-muted"> ({g.vezes}x)</span>}
+                </span>
+                <span className="shrink-0 tabular-nums text-ink">− {money(g.valor)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {l.aVencer > 0 && <p className="text-caption text-ink-muted">Ainda vai vencer em {mes}: {m(l.aVencer)}.</p>}
+
       {l.sugestao && (
-        <div className="flex flex-col gap-2 rounded-xl bg-accent-soft p-3 text-sm text-ink">
+        <div className="flex flex-col gap-2 rounded-2xl bg-accent-soft p-3 text-sm text-ink">
           <span>
             Passou do plano em {l.sugestao.passou} dos últimos {l.sugestao.meses} meses. Um plano de <b>{m(l.sugestao.sugerido)}</b> é mais realista.
           </span>
@@ -241,32 +313,26 @@ function DetalheDaCategoria({ l, mes }: { l: LinhaDaCategoria; mes: string }) {
         </div>
       )}
 
-      {l.maiores.length > 0 && (
-        <div className="flex flex-col gap-1.5">
-          <p className="text-caption font-semibold text-ink-muted">Maiores gastos de {mes}</p>
-          <ul className="flex flex-col divide-y divide-border">
-            {l.maiores.map((g) => (
-              <li key={g.descricao} className="flex justify-between gap-3 py-2 text-sm">
-                <span className="min-w-0 truncate text-ink">
-                  {g.descricao}
-                  {g.vezes > 1 && <span className="text-ink-muted"> ({g.vezes}x)</span>}
-                </span>
-                <span className="shrink-0 tabular-nums text-ink">{m(g.valor)}</span>
-              </li>
-            ))}
-          </ul>
+      {editando ? (
+        <div className="flex flex-wrap items-end gap-2 rounded-2xl bg-surface-2 p-3">
+          <div className="min-w-0 flex-1">
+            <CurrencyInputControlled label={`Planejado por mês, de ${mes} em diante`} value={valor} onChange={setValor} />
+          </div>
+          <button type="button" disabled={pendente || valor === undefined} onClick={() => valor !== undefined && salvar(valor)} className="min-h-11 rounded-full bg-pill px-5 text-sm font-semibold text-on-pill disabled:opacity-50">
+            {pendente ? "Salvando…" : "Salvar"}
+          </button>
         </div>
+      ) : (
+        <button type="button" onClick={() => setEditando(true)} className="inline-flex min-h-11 items-center justify-center gap-1.5 self-center text-sm text-ink-muted">
+          <Pencil size={14} aria-hidden /> {l.planejado > 0 ? `Plano de ${m(l.planejado)} por mês` : "Definir um plano"}
+        </button>
       )}
-      {l.aVencer > 0 && <p className="text-caption text-ink-muted">Ainda vai vencer em {mes}: {m(l.aVencer)}.</p>}
-    </div>
-  );
-}
 
-function Numero({ rotulo, valor }: { rotulo: string; valor: string }) {
-  return (
-    <div className="flex flex-col gap-0.5 rounded-xl bg-surface px-2 py-2.5 text-center">
-      <span className="truncate text-caption text-ink-muted">{rotulo}</span>
-      <span className="truncate text-sm font-semibold tabular-nums text-ink">{valor}</span>
+      {hrefTransacoes && (
+        <Link href={hrefTransacoes} className="flex min-h-12 items-center justify-center rounded-full text-[15px] font-medium text-ink shadow-[inset_0_0_0_1px_var(--color-border-strong)]">
+          Ver todas as transações
+        </Link>
+      )}
     </div>
   );
 }

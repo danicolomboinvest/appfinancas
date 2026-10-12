@@ -1,20 +1,6 @@
-import { getRequiredSession } from "@/lib/auth/session";
-import { listProfiles } from "@/lib/repositories/profile.repo";
-import { PageHeader } from "@/components/ui/PageHeader";
-import { ProfilesManager } from "@/components/profiles/ProfilesManager";
-import { vozDoTema } from "@/lib/profiles/voice";
+import { redirect } from "next/navigation";
 
-export const metadata = { title: "Perfis · SPI Finance" };
-
-export default async function PerfisPage() {
-  const ctx = await getRequiredSession();
-  const perfis = await listProfiles(ctx.userId);
-  const { titulos: t } = vozDoTema(ctx.profileTheme, ctx.profileKind);
-
-  return (
-    <div className="flex flex-col gap-6">
-      <PageHeader title={t.cfgPerfisTitulo} />
-      <ProfilesManager perfis={perfis} ativoId={ctx.profileId} />
-    </div>
-  );
+/** A tela antiga "Seus perfis" (Usar, Mexer e lixeira) virou Configurações › Perfis: uma tela só. */
+export default function PerfisPage() {
+  redirect("/configuracoes/perfis");
 }

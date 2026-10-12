@@ -3,11 +3,11 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronRight, Minus, Plus } from "lucide-react";
+import { Minus, Plus } from "lucide-react";
 import { useCurrency, useMoney } from "@/components/money/MoneyProvider";
 import { currencySymbol } from "@/lib/money";
 import { useToast } from "@/components/ui/toast-context";
-import type { ConfigEmpresa } from "@/lib/empresa/config";
+import { ramoDe, type ConfigEmpresa } from "@/lib/empresa/config";
 import { ajustarEmpresaAction } from "../actions";
 import { Interruptor } from "../Assistente";
 import { Cartao, Chip, Titulo, Voltar } from "../partes";
@@ -43,7 +43,31 @@ export function ConfigDaEmpresa({ nome, config, seguro, temGuia }: { nome: strin
   return (
     <>
       <Voltar>{nome}</Voltar>
-      <Titulo>Configurações da empresa</Titulo>
+      <Titulo>Sua empresa</Titulo>
+
+      {/* Protótipo: o cartão da empresa com a foto do que ela faz, o tipo, o ramo e o prazo do crédito. */}
+      <Cartao className="px-4" data-sua-empresa>
+        <div className={`${linha} justify-start`}>
+          {/* eslint-disable-next-line @next/next/no-img-element -- foto do ramo */}
+          <img src={ramoDe(config.faz)?.foto ?? "/fotos/empresa/negocio.jpg"} alt="" className="size-14 shrink-0 rounded-2xl object-cover" />
+          <span className="min-w-0">
+            <b className="block truncate text-[17px] font-medium text-ink">{nome}</b>
+            <small className="text-xs text-ink-muted">Logo ou foto: a do seu ramo</small>
+          </span>
+        </div>
+        <div className={linha}>
+          <b className="text-[15px] font-medium text-ink">Tipo</b>
+          <span className="text-[15px] text-ink">{config.tipo === "MEI" ? "MEI" : config.tipo === "ME" ? "ME, em breve" : "Autônoma, em breve"}</span>
+        </div>
+        <div className={linha}>
+          <b className="text-[15px] font-medium text-ink">Faz</b>
+          <span className="text-[15px] text-ink">{ramoDe(config.faz)?.nome ?? "Outro"}</span>
+        </div>
+        <div className={linha}>
+          <b className="text-[15px] font-medium text-ink">Crédito cai em</b>
+          <span className="text-[15px] tabular-nums text-ink">{config.prazoCredito} dias</span>
+        </div>
+      </Cartao>
 
       <Cartao className="px-4">
         <div className={`${linha} flex-wrap`}>
@@ -128,15 +152,10 @@ export function ConfigDaEmpresa({ nome, config, seguro, temGuia }: { nome: strin
             </button>
           </span>
         </div>
-        <div className={linha}>
-          <b className="text-[15px] font-medium text-ink">Tipo</b>
-          <span className="text-[15px] text-ink">{config.tipo === "MEI" ? "MEI" : config.tipo === "ME" ? "ME, em breve" : "Autônoma, em breve"}</span>
-        </div>
-        <Link href="/empresa?assistente=1" className={`${linha} text-[15px] text-ink`}>
-          Refazer as perguntas do começo
-          <ChevronRight size={18} className="text-ink-muted" aria-hidden />
-        </Link>
       </Cartao>
+      <Link href="/empresa?assistente=1" className="flex min-h-12 items-center justify-center rounded-full bg-surface text-[15px] font-medium text-ink shadow-[inset_0_0_0_1px_var(--color-border-strong)]">
+        Refazer o começo
+      </Link>
     </>
   );
 }

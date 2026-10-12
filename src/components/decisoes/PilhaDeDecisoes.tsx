@@ -156,7 +156,7 @@ export function PilhaDeDecisoes({ pilha, depois }: { pilha: CartaoDaPilha[]; dep
   const esperam = depois.filter((c) => !feitos.has(c.id) && !visiveis.some((v) => v.id === c.id));
 
   return (
-    <section className="flex flex-col gap-3" aria-labelledby="dc-hoje">
+    <section className="flex flex-col gap-3" aria-labelledby="dc-hoje" data-tour="pilha">
       <div className="dc-cab">
         <b id="dc-hoje">Pra decidir hoje</b>
         {frente && (

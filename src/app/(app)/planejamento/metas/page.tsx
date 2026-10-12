@@ -1,11 +1,8 @@
-import Link from "next/link";
 import { Plus, ChevronRight } from "lucide-react";
 import { Suspense } from "react";
 import { getRequiredSession } from "@/lib/auth/session";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import { serverMoney } from "@/lib/money-server";
-import { ehEmpresa } from "@/lib/profiles/empresa";
-import { vozDoTema } from "@/lib/profiles/voice";
 import { listarMetasDaTela } from "@/lib/repositories/metas.repo";
 import { mesDaqui, proximaAChegar } from "@/lib/metas/projecao";
 import { nomeCurto } from "@/lib/metas/tipos";
@@ -20,16 +17,16 @@ import "./metas.css";
 /**
  * Metas da versão nova (protótipo aprovado, rota #metas): o resumo com o anel de todas juntas e a
  * próxima a chegar, a fileira de fotos para ir direto a uma meta, os cartões com foto e a Nova
- * meta guiada. A ordem é a de sempre do app: prazo mais perto primeiro.
+ * meta guiada. A ordem: a reserva primeiro, depois o prazo mais perto.
  */
 export default async function MetasPage() {
   const ctx = await getRequiredSession();
   const hoje = nowInBrazil();
-  const [metas, money] = await Promise.all([listarMetasDaTela(ctx, hoje), serverMoney()]);
+  const [todas, money] = await Promise.all([listarMetasDaTela(ctx, hoje), serverMoney()]);
+  // A reserva primeiro (é a base de tudo), depois o prazo mais perto (protótipo: Reserva, Viagem, Carro).
+  const metas = [...todas].sort((a, b) => Number(b.icon === "RESERVA") - Number(a.icon === "RESERVA"));
   const m = (v: number) => money(v, { round: true });
   const jeito = jeitoDasMetas(ctx.profileTheme);
-  const empresa = ehEmpresa(ctx.profileKind);
-  const abas = vozDoTema(ctx.profileTheme, ctx.profileKind).titulos.planTabs;
 
   const abertas = metas.filter((x) => x.plano.status !== "ACHIEVED");
   const guardado = metas.reduce((t, x) => t + x.guardado, 0);
@@ -91,17 +88,6 @@ export default async function MetasPage() {
           </>
         )}
         {novaMeta}
-        {/* A Reserva e a Liberdade (calculadoras de antes) continuam com porta de entrada. */}
-        <nav aria-label="Mais do planejamento" className="mt-2 flex flex-wrap justify-center gap-x-5 gap-y-1 text-[13px] font-medium text-ink-muted">
-          <Link href="/planejamento/reserva-emergencia" className="min-h-11 content-center underline-offset-4 hover:underline">
-            {abas[1]}
-          </Link>
-          {!empresa && (
-            <Link href="/planejamento/acumulo" className="min-h-11 content-center underline-offset-4 hover:underline">
-              {abas[2]}
-            </Link>
-          )}
-        </nav>
       </div>
     </ProvedorDaFolhaDaMeta>
   );

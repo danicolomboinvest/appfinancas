@@ -55,3 +55,17 @@ export async function applyMonthlyPlanToWholeYear(
     ),
   );
 }
+
+/** Só a renda planejada (Meus dados / Renda e dia do pagamento): o aporte de cada mês fica como está. */
+export async function definirRendaPlanejada(ctx: AuthContext, year: number, renda: number, meses: number[]) {
+  if (meses.length === 0) return;
+  await prisma.$transaction(
+    meses.map((month) =>
+      prisma.monthlyPlan.upsert({
+        where: { userId_profileId_year_month: { userId: ctx.userId, profileId: ctx.profileId, year, month } },
+        create: { userId: ctx.userId, profileId: ctx.profileId, year, month, plannedIncome: renda, plannedInvestment: 0 },
+        update: { plannedIncome: renda },
+      }),
+    ),
+  );
+}

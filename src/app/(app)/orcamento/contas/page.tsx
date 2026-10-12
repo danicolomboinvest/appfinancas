@@ -18,7 +18,6 @@ import { HeroiDoTema } from "@/components/ui/HeroiDoTema";
 import { ValorDestaque } from "@/components/ui/ValorDestaque";
 import { Explica } from "@/components/ui/Explica";
 import { LogoDoLancamento } from "@/components/ui/LogoDoLancamento";
-import { CartaoDoLimite } from "@/components/cartao/CartaoDoLimite";
 import { ContasAPagar, ContasDoAno } from "./ContasAPagar";
 import { FolhaDasContas } from "./folha-contexto";
 import { pesoPorMes, vencimentosDaJanela } from "@/lib/contas/recorrentes";
@@ -84,14 +83,14 @@ export default async function RecorrentesPage(props: PageProps<"/orcamento/conta
             <ValorDestaque texto={`${pct}%`} />
             <div className="flex h-2 gap-px overflow-hidden rounded-full bg-[color-mix(in_srgb,var(--color-surface)_75%,transparent)]">
               <span className="h-full bg-[var(--color-heroi-tinta)]" style={{ width: largura(peso.contas) }} />
-              {peso.parcelas > 0 && <span className="h-full bg-[color-mix(in_srgb,var(--color-heroi-tinta)_65%,transparent)]" style={{ width: largura(peso.parcelas) }} />}
+              <span className="h-full bg-[color-mix(in_srgb,var(--color-heroi-tinta)_65%,transparent)]" style={{ width: largura(peso.parcelas) }} />
               <span className="h-full bg-[color-mix(in_srgb,var(--color-heroi-tinta)_40%,transparent)]" style={{ width: largura(totalAssinaturas) }} />
             </div>
             <dl className="grid grid-cols-2 gap-x-5 gap-y-1 text-sm">
-              <div className="flex justify-between gap-2"><dt className="text-heroi-suave">Contas</dt><dd className="tabular-nums">{m(peso.contas)}</dd></div>
-              {peso.parcelas > 0 && <div className="flex justify-between gap-2"><dt className="text-heroi-suave">Parcelas</dt><dd className="tabular-nums">{m(peso.parcelas)}</dd></div>}
-              <div className="flex justify-between gap-2"><dt className="text-heroi-suave">Assinaturas</dt><dd className="tabular-nums">{m(totalAssinaturas)}</dd></div>
-              {livre !== null && <div className="flex justify-between gap-2"><dt className="text-heroi-suave">Livre</dt><dd className="tabular-nums">{m(livre)}</dd></div>}
+              <div className="flex justify-between gap-2"><dt className="flex items-center gap-1.5 text-heroi-suave"><i className="size-2 rounded-full bg-[var(--color-heroi-tinta)]" aria-hidden />Contas</dt><dd className="tabular-nums">{m(peso.contas)}</dd></div>
+              <div className="flex justify-between gap-2"><dt className="flex items-center gap-1.5 text-heroi-suave"><i className="size-2 rounded-full bg-[color-mix(in_srgb,var(--color-heroi-tinta)_65%,transparent)]" aria-hidden />Parcelas</dt><dd className="tabular-nums">{m(peso.parcelas)}</dd></div>
+              <div className="flex justify-between gap-2"><dt className="flex items-center gap-1.5 text-heroi-suave"><i className="size-2 rounded-full bg-[color-mix(in_srgb,var(--color-heroi-tinta)_40%,transparent)]" aria-hidden />Assinaturas</dt><dd className="tabular-nums">{m(totalAssinaturas)}</dd></div>
+              {livre !== null && <div className="flex justify-between gap-2"><dt className="flex items-center gap-1.5 text-heroi-suave"><i className="size-2 rounded-full bg-[color-mix(in_srgb,var(--color-surface)_75%,transparent)] shadow-[inset_0_0_0_1px_var(--color-heroi-tinta)]" aria-hidden />Livre</dt><dd className="tabular-nums">{m(livre)}</dd></div>}
             </dl>
             {(dividas.length > 0 || peso.parcelas > 0) && <p className="text-[13px] text-heroi-suave">As parcelas já estão dentro do seu plano.</p>}
           </HeroiDoTema>
@@ -146,8 +145,8 @@ export default async function RecorrentesPage(props: PageProps<"/orcamento/conta
             </ul>
           </section>
         )}
+        {/* O protótipo termina em Contas do ano; o limite do cartão mora em Configurações › Contas e cartões. */}
         <ContasDoAno contas={contas} hoje={hoje} />
-        <CartaoDoLimite ctx={ctx} compacto />
       </div>
     </div>
     </FolhaDasContas>

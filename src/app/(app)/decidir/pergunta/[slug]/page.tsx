@@ -6,9 +6,10 @@ import { ehEmpresa } from "@/lib/profiles/empresa";
 import { vozDoTema } from "@/lib/profiles/voice";
 import type { PerguntaDoDecidir } from "@/lib/profiles/textos/foco";
 import { serverMoney } from "@/lib/money-server";
-import { Card } from "@/components/ui/Card";
 import { ReportarErro } from "@/components/decisoes/ReportarErro";
-import { RespostaVisual } from "@/components/decisoes/RespostaVisual";
+import { RespostaDesenhada } from "@/components/decisoes/RespostaDesenhada";
+import { FluxoGuardarMais, FluxoMinhaMeta } from "@/components/decisoes/Fluxos";
+import { nowInBrazil } from "@/lib/date/brazil-now";
 import {
   comAbertura,
   estouGastandoDemais,
@@ -50,6 +51,31 @@ export default async function PerguntaPage(props: PageProps<"/decidir/pergunta/[
   const { d } = r;
   const planejado = d.categorias.reduce((s, c) => s + c.planejado, 0);
   const decorrido = (d.dia - 1) / d.diasNoMes;
+
+  // Os dois caminhos guiados do protótipo (passo a passo, não uma resposta só).
+  const hojeDoMes = { ano: d.year, mes: d.month };
+  if (slug === "guardar" || slug === "meta") {
+    const essenciais = categoriasEssenciais(ctx.categorias?.prefs);
+    return (
+      <div className="flex flex-col gap-5">
+        {slug === "guardar" ? (
+          <FluxoGuardarMais
+            guarda={d.aportePlanejado ?? 0}
+            renda={r.renda}
+            categorias={d.categorias.map((c) => ({ key: c.key, label: c.label, planejado: c.planejado, essencial: essenciais.has(c.key) }))}
+            repeteNoMes={d.raioxAnual > 0 ? d.raioxAnual / 12 : 0}
+            metas={r.metasDoFluxo}
+            hoje={hojeDoMes}
+          />
+        ) : (
+          <FluxoMinhaMeta metas={r.metasDoFluxo} hoje={hojeDoMes} />
+        )}
+        <div className="border-t border-border pt-3">
+          <ReportarErro tela={`Decidir: ${PERGUNTAS[slug]}`} regra={`caminho guiado: ${slug}`} />
+        </div>
+      </div>
+    );
+  }
 
   let resposta: Resposta;
   switch (slug) {
@@ -99,8 +125,48 @@ export default async function PerguntaPage(props: PageProps<"/decidir/pergunta/[
   }
   const tom = (TONS as string[]).includes(ctx.profileTheme) ? (ctx.profileTheme as Tom) : "padrao";
   resposta = comAbertura(tom, resposta);
-  const cor = resposta.veredito === "bom" ? "bg-success" : resposta.veredito === "atencao" ? "bg-accent" : "bg-danger";
-  const outras = Object.entries(PERGUNTAS).filter(([k]) => k !== slug);
+
+  const primeira = resposta.acoes[0];
+  const classeDoBotao = "flex min-h-12 w-full items-center justify-center rounded-full bg-ink px-5 text-base font-medium text-surface";
+  const botao = primeira ? (
+    primeira.resolver ? (
+      <ResolverAgora
+        rotulo={primeira.rotulo}
+        categoria={primeira.resolver}
+        categorias={d.categorias.map((c) => ({ key: c.key, label: c.label, planejado: c.planejado, gasto: c.gasto }))}
+        essenciais={[...categoriasEssenciais(ctx.categorias?.prefs)]}
+        livre={r.livre.tipo === "semOrcamento" ? null : r.livre.restante}
+        diasRestantes={r.livre.tipo === "semOrcamento" ? 1 : r.livre.diasRestantes}
+        proximoMes={MESES[d.month % 12]}
+        className={classeDoBotao}
+      />
+    ) : (
+      <Link href={primeira.href} className={classeDoBotao}>
+        {primeira.rotulo}
+      </Link>
+    )
+  ) : null;
+
+  // "Quanto posso gastar na semana?": a régua dos 7 dias do Resumo (protótipo r67), com os dias que
+  // faltam até domingo em dourado e o valor por dia.
+  const hojeNaSemana = (nowInBrazil().getDay() + 6) % 7;
+  const ateDomingo = 7 - hojeNaSemana;
+  const livreSemana = r.livre.tipo === "semOrcamento" ? null : r.livre.porSemana;
+  const regua =
+    slug === "semana" && livreSemana !== null ? (
+      <div className="flex flex-col items-center gap-2.5 rounded-3xl bg-surface p-4 shadow-[inset_0_0_0_1px_var(--color-border)]" data-regua-semana>
+        <b className="text-xl font-normal tabular-nums text-ink">{m(Math.max(0, livreSemana) / ateDomingo)} por dia</b>
+        <div className="grid w-full grid-cols-7 gap-1.5" role="img" aria-label={`Faltam ${ateDomingo} dias até domingo`}>
+          {["S", "T", "Q", "Q", "S", "S", "D"].map((l, i) => (
+            <span key={i} className={`flex flex-col items-center gap-1.5 text-xs ${i >= hojeNaSemana ? "text-ink" : "text-ink-muted"} ${i === hojeNaSemana ? "font-medium" : ""}`}>
+              <i className={`h-1.5 w-full rounded ${i >= hojeNaSemana ? "bg-[var(--color-dinheiro-guardou)]" : "bg-border-strong"}`} />
+              {l}
+            </span>
+          ))}
+        </div>
+        <small className="text-xs text-ink-muted">{ateDomingo === 1 ? "Hoje é domingo" : `${ateDomingo} dias até domingo`}</small>
+      </div>
+    ) : null;
 
   return (
     <div className="flex flex-col gap-5">
@@ -108,89 +174,33 @@ export default async function PerguntaPage(props: PageProps<"/decidir/pergunta/[
         <ChevronLeft size={16} /> {tx.decTitulo}
       </Link>
 
-      {/* A pergunta dela, como numa conversa. */}
-      <p className="ml-auto max-w-[85%] rounded-2xl rounded-br-md bg-pill px-4 py-3 text-sm font-semibold text-on-pill">{pergunta}</p>
+      {/* Versão nova (protótipo, #decidir-semana e as outras): rótulo da pergunta, o herói, os
+          blocos e um botão preto. O "Como cheguei nisso" e o "Isso está errado?" ficam embaixo,
+          pequenos. */}
+      <RespostaDesenhada pergunta={pergunta} resposta={resposta} depoisDoHeroi={regua} botao={botao} />
 
-      <Card className={resposta.visual ? "flex flex-col gap-4 p-5" : "flex gap-4 p-5"}>
-        {!resposta.visual && <span className={`w-1 shrink-0 rounded-full ${cor}`} aria-hidden />}
-        <div className="flex min-w-0 flex-1 flex-col gap-3">
-          {/* A resposta desenhada (07/10/2026): número ou palavra grande, selo e blocos. As frases
-              ficam no "Como cheguei nisso". Sem visual (casos sem dado), a frase de sempre. */}
-          {resposta.visual ? (
-            <RespostaVisual visual={resposta.visual} veredito={resposta.veredito} />
-          ) : (
-            <>
-              <p className="text-lg font-semibold leading-snug text-ink">{resposta.frase}</p>
+      <div className="flex flex-col gap-2 border-t border-border pt-3">
+        {(resposta.conta.length > 0 || resposta.visual) && (
+          <details>
+            <summary className="cursor-pointer text-caption font-medium text-ink-muted hover:text-ink">{tx.focoComoCheguei}</summary>
+            <div className="mt-2 flex flex-col gap-1.5 text-caption text-ink-muted">
+              <p className="text-ink">{resposta.frase}</p>
               {resposta.detalhes.map((t) => (
-                <p key={t} className="text-sm text-ink-muted">
-                  {t}
-                </p>
+                <p key={t}>{t}</p>
               ))}
-            </>
-          )}
-          {resposta.acoes.length > 0 && (
-            <div className="mt-1 flex flex-col gap-2">
-              {resposta.acoes.map((a, i) => {
-                const classe = i === 0 ? "rounded-2xl bg-pill px-4 py-3 text-left text-sm font-semibold text-on-pill" : "rounded-2xl border border-border px-4 py-3 text-left text-sm font-semibold text-ink-muted";
-                // "Resolver agora" abre a folha ali mesmo (rodada 38 A), sem sair do Decidir.
-                if (a.resolver) {
-                  return (
-                    <ResolverAgora
-                      key={a.rotulo}
-                      rotulo={a.rotulo}
-                      categoria={a.resolver}
-                      categorias={d.categorias.map((c) => ({ key: c.key, label: c.label, planejado: c.planejado, gasto: c.gasto }))}
-                      essenciais={[...categoriasEssenciais(ctx.categorias?.prefs)]}
-                      livre={r.livre.tipo === "semOrcamento" ? null : r.livre.restante}
-                      diasRestantes={r.livre.tipo === "semOrcamento" ? 1 : r.livre.diasRestantes}
-                      proximoMes={MESES[d.month % 12]}
-                      className={classe}
-                    />
-                  );
-                }
-                return (
-                  <Link key={a.href + a.rotulo} href={a.href} className={classe}>
-                    {a.rotulo}
-                  </Link>
-                );
-              })}
             </div>
-          )}
-          {(resposta.conta.length > 0 || resposta.visual) && (
-            <details className="border-t border-border pt-3">
-              <summary className="cursor-pointer text-caption font-medium text-ink-muted hover:text-ink">{tx.focoComoCheguei}</summary>
-              {resposta.visual && (
-                <div className="mt-2 flex flex-col gap-1.5 text-caption text-ink-muted">
-                  <p className="text-ink">{resposta.frase}</p>
-                  {resposta.detalhes.map((t) => (
-                    <p key={t}>{t}</p>
-                  ))}
+            <dl className="mt-2 grid grid-cols-[1fr_auto] gap-x-4 gap-y-1.5 text-caption">
+              {resposta.conta.map((c) => (
+                <div key={c.rotulo} className="contents">
+                  <dt className="text-ink-muted">{c.rotulo}</dt>
+                  <dd className="text-right tabular-nums text-ink">{c.valor}</dd>
                 </div>
-              )}
-              <dl className="mt-2 grid grid-cols-[1fr_auto] gap-x-4 gap-y-1.5 text-caption">
-                {resposta.conta.map((c) => (
-                  <div key={c.rotulo} className="contents">
-                    <dt className="text-ink-muted">{c.rotulo}</dt>
-                    <dd className="text-right tabular-nums text-ink">{c.valor}</dd>
-                  </div>
-                ))}
-              </dl>
-            </details>
-          )}
-          <ReportarErro tela={`Decidir: ${PERGUNTAS[slug]}`} regra={`resposta calculada: ${slug}`} />
-        </div>
-      </Card>
-
-      <section className="flex flex-col gap-2">
-        <h2 className="text-caption font-semibold text-ink-muted">{tx.decPergunteTambem}</h2>
-        <div className="flex flex-wrap gap-2">
-          {outras.map(([k]) => (
-            <Link key={k} href={`/decidir/pergunta/${k}`} className="inline-flex min-h-11 items-center rounded-full border border-border bg-surface px-4 py-2 text-caption font-medium text-ink hover:bg-surface-hover">
-              {naVoz(k)}
-            </Link>
-          ))}
-        </div>
-      </section>
+              ))}
+            </dl>
+          </details>
+        )}
+        <ReportarErro tela={`Decidir: ${PERGUNTAS[slug]}`} regra={`resposta calculada: ${slug}`} />
+      </div>
     </div>
   );
 }

@@ -311,6 +311,9 @@ export type DeletedEntrySnapshot = {
   externalId?: string | null;
   /** Série de despesa fixa: o "Desfazer" devolve a cópia pra mesma série. */
   recurrenceId?: string | null;
+  /** Dividido com alguém: o "Desfazer" do Ignorar devolve a divisão junto. */
+  divididoCom?: string | null;
+  parteDeOutro?: number | null;
 };
 
 /**
@@ -395,6 +398,13 @@ export async function undoDeleteEntryAction(snapshot: DeletedEntrySnapshot): Pro
       externalId: snapshot.externalId ?? undefined,
       recurrenceId: typeof snapshot.recurrenceId === "string" && snapshot.recurrenceId.length <= 60 ? snapshot.recurrenceId : undefined,
     });
+    if (typeof snapshot.divididoCom === "string" && snapshot.divididoCom.trim()) {
+      const parte = Number(snapshot.parteDeOutro ?? 0);
+      await prisma.monthlyEntry.update({
+        where: { id: entry.id },
+        data: { divididoCom: snapshot.divididoCom.trim().slice(0, 40), parteDeOutro: Number.isFinite(parte) && parte > 0 ? parte : null },
+      });
+    }
     // O aporte volta com o destino que tinha. Sem isso a carteira perguntava de novo onde ele
     // entrou (e responder somava outra vez no ativo) e a meta contava aporte + ativo, o dobro.
     if (snapshot.category === "INVESTMENT_CONTRIBUTION" && snapshot.allocations?.length) {

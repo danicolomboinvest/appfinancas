@@ -3,7 +3,7 @@
 import { FalarComSuporte } from "@/components/support/FalarComSuporte";
 import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { Upload, Check, ArrowRight, Lock, Plus, Tag, ChevronLeft, ChevronDown, CircleHelp } from "lucide-react";
+import { Check, ArrowRight, Lock, Plus, Tag, ChevronLeft, ChevronDown, CircleHelp } from "lucide-react";
 import type { ParentCategory } from "@prisma/client";
 import { PARENT_CATEGORIES, categoryLabel, categoriaOculta, categoryIcon, colorForCategorySlice, emojiEscolhido } from "@/lib/categories";
 import { emojiDaCategoria } from "@/lib/profiles/icones";
@@ -30,7 +30,6 @@ import { mesDaRevelacao } from "@/lib/import/revelacao";
 import { resumoDoMesImportadoAction, type RevelacaoDoImport } from "@/app/(app)/mensal/revelacao-actions";
 import { pegarArquivoParaOMes } from "@/components/shell/registrar-eventos";
 import { OfertaDeAvisos } from "@/components/push/OfertaDeAvisos";
-import { ComoImportar } from "./ComoImportar";
 import { ComoTirarExtrato } from "./ComoTirarExtrato";
 import { ProtegerSaida } from "./ProtegerSaida";
 import { nomeNaTela } from "@/lib/import/nome-na-tela";
@@ -535,33 +534,6 @@ export function StatementImport({
           </div>
         )}
 
-        <ComoImportar />
-
-        {/* Extrato bancário (sinal manda) vs Fatura de cartão (tudo é gasto). */}
-        <div className="flex flex-col gap-1.5">
-          {/* O que cada tipo faz mora no "?" (07/10/2026), não numa frase embaixo dos botões. */}
-          <span className="flex items-center gap-1.5 text-caption text-ink-muted">
-            {t.impOQueSubindo}
-            <Explica>{docType === "fatura" ? t.impFaturaDica : t.impExtratoDica}</Explica>
-          </span>
-          <div className="inline-flex rounded-full border border-border bg-surface-2 p-1">
-            {(["extrato", "fatura"] as const).map((tipo) => (
-              <button
-                key={tipo}
-                type="button"
-                onClick={() => setDocType(tipo)}
-                aria-pressed={docType === tipo}
-                data-guia={`tipo-${tipo}`}
-                className={`min-h-11 flex-1 rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
-                  docType === tipo ? "bg-pill text-on-pill" : "text-ink-muted hover:text-ink"
-                }`}
-              >
-                {tipo === "extrato" ? t.impTipoExtrato : t.impTipoFatura}
-              </button>
-            ))}
-          </div>
-        </div>
-
         {/* Fatura: a pessoa escolhe o mês de destino — todas as compras entram nesse mês (o
             período de fechamento da fatura costuma cruzar dois meses do calendário, e a data
             de cada compra não é o que importa aqui, é quando a fatura foi paga). */}
@@ -590,18 +562,48 @@ export function StatementImport({
           </div>
         )}
 
+        {/* Versão nova (protótipo, #importar): o desenho do PDF com três lançamentos de exemplo,
+            "Escolher PDF · Extrato do banco ou fatura do cartão" e um botão só. O SPI descobre se
+            é extrato ou fatura (e pergunta quando parece o outro); quem já sabe que é fatura
+            escolhe no link de baixo, que mostra o mês da fatura. */}
         <button
           type="button"
           onClick={() => fileRef.current?.click()}
           disabled={isPending}
           data-guia="escolher-arquivo"
-          className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border-strong bg-surface-2 px-4 py-10 text-center transition-colors hover:border-accent hover:bg-surface-hover disabled:opacity-60"
+          className="flex flex-col items-center gap-2 rounded-3xl bg-surface-2 px-4 pb-5 pt-6 text-center transition-colors hover:bg-surface-hover disabled:opacity-60"
         >
-          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-pill text-on-pill">
-            <Upload size={22} strokeWidth={1.75} />
+          <span className="mb-2 flex w-[132px] flex-col gap-1.5 rounded-xl bg-surface p-3 text-left shadow-[0_6px_18px_rgba(0,0,0,0.08),inset_0_0_0_1px_var(--color-border)]" aria-hidden>
+            <span className="mb-1 flex items-center justify-between">
+              <span className="h-1.5 w-10 rounded-full bg-ink/70" />
+              <span className="h-3.5 w-6 rounded bg-danger/80" />
+            </span>
+            {[
+              ["w-14", "w-6"],
+              ["w-10", "w-8"],
+              ["w-12", "w-5"],
+            ].map(([a1, a2], i) => (
+              <span key={i} className="flex items-center justify-between gap-2">
+                <span className={`h-1.5 ${a1} rounded-full bg-ink-faint/50`} />
+                <span className={`h-1.5 ${a2} rounded-full ${i === 1 ? "bg-success/70" : "bg-ink-faint/70"}`} />
+              </span>
+            ))}
           </span>
-          <span className="text-sm font-medium text-ink">{isPending ? t.impLendoArquivo : t.impEscolherExtrato}</span>
-          <span className="text-caption text-ink-faint">{t.impFormatosBanco}</span>
+          <b className="text-[17px] font-medium text-ink">{isPending ? t.impLendoArquivo : "Escolher PDF"}</b>
+          <span className="text-sm text-ink-muted">{docType === "fatura" ? "Fatura do cartão" : "Extrato do banco ou fatura do cartão"}</span>
+        </button>
+        <p className="text-center text-sm text-ink-muted">O SPI lê e separa tudo sozinho.</p>
+        <button type="button" onClick={() => fileRef.current?.click()} disabled={isPending} className="min-h-12 rounded-full bg-ink text-base font-medium text-surface disabled:opacity-60">
+          {isPending ? t.impLendoArquivo : "Escolher arquivo"}
+        </button>
+        <button
+          type="button"
+          onClick={() => setDocType(docType === "fatura" ? "extrato" : "fatura")}
+          aria-pressed={docType === "fatura"}
+          data-guia="tipo-fatura"
+          className="mx-auto min-h-11 text-sm text-ink-muted underline underline-offset-4"
+        >
+          {docType === "fatura" ? "Não é fatura: é extrato do banco" : "É fatura do cartão? Escolha o mês"}
         </button>
         <input
           ref={fileRef}

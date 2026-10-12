@@ -93,6 +93,9 @@ export function sectionMatches(section: Pick<NavSection, "basePath" | "alsoMatch
  *
  * A mesma lista serve à gaveta do celular e à barra lateral do computador.
  */
+// Regra do menu (11/10/2026, pedido da dona): nenhuma área abre subitens no ☰. Cada área é um
+// item só e as abas dela ficam dentro da tela (Carteira, Visão geral, Decidir, Configurações...).
+// Só o Admin, que é da dona, guarda a lista de telas, e ela vira abas dentro do /admin.
 export const NAV_SECTIONS: NavSection[] = [
   {
     basePath: "/mensal",
@@ -108,11 +111,8 @@ export const NAV_SECTIONS: NavSection[] = [
     href: "/planejamento/metas",
     label: "Metas",
     icon: Target,
-    children: [
-      { href: "/planejamento/metas", label: "Metas" },
-      { href: "/planejamento/reserva-emergencia", label: "Reserva de Emergência" },
-      { href: "/planejamento/acumulo", label: "Aposentadoria", premium: true, soPessoa: true },
-    ],
+    // Sem submenu (aprovado no branch de Metas): a Reserva e a Aposentadoria abrem pelo link
+    // discreto no fim da lista de Metas ("Reserva · Liberdade"); as rotas continuam acesas aqui.
   },
   // Dívidas (fase 2, 11/10/2026): logo depois de Metas. A Empresa tem o menu dela, sem esta área.
   { basePath: "/dividas", href: "/dividas", label: "Dívidas", icon: CreditCard, soPessoa: true },
@@ -122,12 +122,6 @@ export const NAV_SECTIONS: NavSection[] = [
     label: "Carteira",
     icon: Wallet,
     premium: true,
-    children: [
-      { href: "/carteira", label: "Meus ativos" },
-      { href: "/carteira/proventos", label: "Proventos", soPessoa: true },
-      { href: "/carteira/estrategia", label: "Estratégia", soPessoa: true },
-      { href: "/carteira/oportunidades", label: "Oportunidades", soPessoa: true },
-    ],
   },
   { basePath: "/viagem", href: "/viagem", label: "Viagem", icon: Plane, soPessoa: true },
   { basePath: "/simuladores", href: "/simuladores", label: "Calculadoras", icon: Calculator, premium: true, soPessoa: true },
@@ -147,10 +141,6 @@ export const NAV_SECTIONS: NavSection[] = [
     label: "Decidir",
     icon: MessageCircle,
     soPessoa: true,
-    children: [
-      { href: "/decidir", label: "Perguntas" },
-      { href: "/decidir/comprar", label: "Posso comprar?" },
-    ],
   },
   { basePath: "/investir", href: "/investir", label: "Vale a pena investir?", icon: Store, soEmpresa: true },
   // "Nós dois" (11/10/2026, login do par): o nome do protótipo no menu e no título do topo. A
@@ -162,15 +152,6 @@ export const NAV_SECTIONS: NavSection[] = [
     label: "Configurações",
     icon: SlidersHorizontal,
     alsoMatches: ["/perfis"],
-    children: [
-      { href: "/configuracoes", label: "Geral" },
-      { href: "/perfis", label: "Perfis financeiros" },
-      { href: "/configuracoes/categorias", label: "Categorias" },
-      { href: "/configuracoes/notificacoes", label: "Notificações" },
-      { href: "/configuracoes/conexoes", label: "Conexões", flag: "openFinance" },
-      { href: "/configuracoes/dados", label: "Dados" },
-      { href: "/configuracoes/taxas", label: "Taxas do Sistema" },
-    ],
   },
   { basePath: "/guia", href: "/guia", label: "Como funciona", icon: CircleHelp },
 ];

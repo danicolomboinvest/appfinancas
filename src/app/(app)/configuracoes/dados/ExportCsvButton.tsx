@@ -1,18 +1,19 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Download } from "lucide-react";
-import { Button } from "@/components/ui/Button";
+import { ChevronRight, FileText } from "lucide-react";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { exportEntriesCsvAction, exportAssetsCsvAction } from "./actions";
 
-/** Botão genérico de exportação: chama a action, baixa o CSV com o prefixo do arquivo. */
+/** Uma linha de exportação (protótipo): ícone, título, o que vem no arquivo e a seta. Toca e baixa o CSV. */
 function CsvDownloadButton({
   label,
+  sub,
   filePrefix,
   fetchCsv,
 }: {
   label: string;
+  sub: string;
   filePrefix: string;
   fetchCsv: () => Promise<string>;
 }) {
@@ -39,22 +40,26 @@ function CsvDownloadButton({
   }
 
   return (
-    <div className="flex flex-col gap-2">
-      <Button type="button" onClick={handleExport} disabled={isPending} className="w-fit">
-        <Download size={16} />
-        {isPending ? t.cfgExportando : label}
-      </Button>
-      {error && <p className="text-xs text-danger">{error}</p>}
+    <div>
+      <button type="button" onClick={handleExport} disabled={isPending} className="flex min-h-16 w-full items-center gap-3 px-4 py-3 text-left disabled:opacity-60">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-surface-2 text-ink">
+          <FileText size={18} strokeWidth={1.7} aria-hidden />
+        </span>
+        <span className="min-w-0 flex-1">
+          <b className="block text-[15px] font-medium text-ink">{label}</b>
+          <small className="text-[13px] text-ink-muted">{isPending ? t.cfgExportando : sub}</small>
+        </span>
+        <ChevronRight size={18} className="shrink-0 text-ink-faint" aria-hidden />
+      </button>
+      {error && <p className="px-4 pb-3 text-xs text-danger">{error}</p>}
     </div>
   );
 }
 
 export function ExportCsvButton() {
-  const { titulos: t } = useProfileTheme().voz;
-  return <CsvDownloadButton label={t.cfgExportLancamentos} filePrefix="lancamentos" fetchCsv={exportEntriesCsvAction} />;
+  return <CsvDownloadButton label="Exportar lançamentos (CSV)" sub="Todos os lançamentos, em CSV." filePrefix="lancamentos" fetchCsv={exportEntriesCsvAction} />;
 }
 
 export function ExportAssetsCsvButton() {
-  const { titulos: t } = useProfileTheme().voz;
-  return <CsvDownloadButton label={t.cfgExportCarteira} filePrefix="carteira" fetchCsv={exportAssetsCsvAction} />;
+  return <CsvDownloadButton label="Exportar carteira (CSV)" sub="Todos os ativos da carteira, em CSV." filePrefix="carteira" fetchCsv={exportAssetsCsvAction} />;
 }

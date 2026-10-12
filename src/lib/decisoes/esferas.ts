@@ -98,7 +98,7 @@ export function pilulaDaPergunta(k: ChaveDaPergunta, d: DadosDasPilulas): Pilula
       return { texto, atencao: r.meses < r.minimo };
     }
     case "exagero":
-      return d.passou ? { texto: `${d.passou.label} passou ${m(d.passou.valor)}`, atencao: true } : { texto: "nada passou", atencao: false };
+      return d.passou ? { texto: `${d.passou.label} ${m(d.passou.valor)} acima`, atencao: true } : { texto: "nada passou", atencao: false };
     case "raiox":
       return d.raioxAnual && d.raioxAnual >= 1 ? { texto: `${m(d.raioxAnual)} por ano`, atencao: false } : null;
     case "demais": {

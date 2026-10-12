@@ -43,7 +43,7 @@ export default async function SeuAnoPage() {
         <ChevronLeft size={16} /> {t.visaoGeral}
       </Link>
       <div
-        className="flex min-h-[70vh] flex-col gap-4 rounded-3xl p-7 text-on-accent shadow-premium"
+        className="flex min-h-[70dvh] flex-col gap-4 rounded-3xl p-7 text-on-accent shadow-premium"
         style={{ background: "linear-gradient(160deg, var(--color-accent), color-mix(in srgb, var(--color-accent) 72%, #000))" }}
       >
         <p className="text-caption font-bold opacity-80">Seu ano com o SPI, {now.getFullYear()}</p>

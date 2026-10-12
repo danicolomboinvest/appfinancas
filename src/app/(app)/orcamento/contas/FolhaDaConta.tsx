@@ -7,7 +7,6 @@ import { useMoney } from "@/components/money/MoneyProvider";
 import { useToast } from "@/components/ui/toast-context";
 import { CurrencyInputControlled } from "@/components/ui/CurrencyInputControlled";
 import { DeleteButton } from "@/components/ui/DeleteButton";
-import { Explica } from "@/components/ui/Explica";
 import { Interruptor, Segmentado } from "@/components/ui/Interruptor";
 import { lerData } from "@/lib/contas/contas";
 import { camposDaRegra, ehMenosQueMensal, estimativaAproximada, guardePorMes, mediaPorMes, previaDoze, regraDaConta, textoDaRegra, type Regra, type Unidade } from "@/lib/contas/frequencia";
@@ -16,7 +15,6 @@ import type { ContaSerial } from "./LinhaDaConta";
 
 type Modo = "nao" | "cada" | "meses";
 const MES_CURTO = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
-const SUGESTOES = ["Água", "Gás", "IPVA", "Seguro"];
 const UNIDADE_ROTULO: Record<Unidade, [string, string]> = { dias: ["dia", "dias"], semanas: ["semana", "semanas"], meses: ["mês", "meses"], anos: ["ano", "anos"] };
 
 function Rotulo({ children }: { children: React.ReactNode }) {
@@ -209,48 +207,27 @@ export function FolhaDaConta({ inicio, hoje, onFeito }: { inicio: InicioDaFolha;
         autoFocus={!conta}
         className="min-h-12 w-full rounded-2xl border border-border-strong bg-surface px-4 text-[17px] text-ink outline-none focus:border-accent"
       />
-      {!conta && (
-        <div className="flex flex-wrap gap-2">
-          {SUGESTOES.map((s) => (
-            <button key={s} type="button" onClick={() => setNome(s)} className="min-h-10 rounded-full border border-border bg-surface px-4 text-sm text-ink">
-              {s}
-            </button>
-          ))}
+
+      {/* Protótipo (folha "Nova conta"): Nome, Valor, a chave "Valor muda todo mês", a linha do
+          primeiro vencimento, Repete, Parcelado e a prévia dos 12 meses. */}
+      <CurrencyInputControlled label={aproximado ? "Mais ou menos" : parcelado && peloTotal ? "Valor total" : parcelado ? "Valor da parcela" : "Valor"} value={valor} onChange={setValor} />
+      <div className="overflow-hidden rounded-2xl border border-border bg-surface">
+        <Interruptor ligado={aproximado} aoMudar={setAproximado} titulo="Valor muda todo mês" sub={aproximado ? "Usamos esse valor para planejar. Quando a conta chegar no extrato, vale o valor de verdade." : undefined} />
+      </div>
+      {aproximado && media !== null && (
+        <div className="flex flex-col items-start gap-2 rounded-2xl border border-border bg-surface p-3">
+          <p className="text-sm text-ink">
+            Nos últimos {historico.length} meses deu em média {money(media, { round: true })} ({money(Math.min(...historico.map((h) => h.valor)), { round: true })} a {money(Math.max(...historico.map((h) => h.valor)), { round: true })})
+          </p>
+          <button type="button" onClick={() => setValor(media)} className="min-h-10 rounded-full bg-accent-soft px-4 text-sm font-medium text-accent-strong">
+            Usar {money(media, { round: true })}
+          </button>
         </div>
       )}
-
-      <div className="grid grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] gap-2 max-[359px]:grid-cols-1">
-        <CurrencyInputControlled label={aproximado ? "Mais ou menos" : parcelado && peloTotal ? "Valor total" : parcelado ? "Valor da parcela" : "Valor"} value={valor} onChange={setValor} />
-        <label className="flex min-w-0 flex-col gap-1.5">
-          <Rotulo>1° vencimento</Rotulo>
-          <input type="date" value={vencimento} onChange={(e) => setVencimento(e.target.value)} required className="min-h-12 w-full min-w-0 rounded-xl border border-border bg-surface px-2 text-[15px] text-ink" />
-        </label>
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            aria-pressed={aproximado}
-            onClick={() => setAproximado(!aproximado)}
-            className={`min-h-10 rounded-full border px-4 text-sm ${aproximado ? "border-accent bg-accent-soft text-accent-strong" : "border-border bg-surface text-ink"}`}
-          >
-            Valor muda todo mês
-          </button>
-          <Explica>Para contas como a luz. Quando a conta chega no extrato, vale o valor de verdade; a estimativa dos próximos meses vira a média dos 3 últimos.</Explica>
-        </div>
-        {aproximado && <p className="text-[13px] text-ink-muted">Usamos esse valor para planejar. Quando a conta chegar no extrato, vale o valor de verdade.</p>}
-        {aproximado && media !== null && (
-          <div className="flex flex-col items-start gap-2 rounded-2xl border border-border bg-surface p-3">
-            <p className="text-sm text-ink">
-              Nos últimos {historico.length} meses deu em média {money(media, { round: true })} ({money(Math.min(...historico.map((h) => h.valor)), { round: true })} a {money(Math.max(...historico.map((h) => h.valor)), { round: true })})
-            </p>
-            <button type="button" onClick={() => setValor(media)} className="min-h-10 rounded-full bg-accent-soft px-4 text-sm font-medium text-accent-strong">
-              Usar {money(media, { round: true })}
-            </button>
-          </div>
-        )}
-      </div>
+      <label className="flex min-h-14 items-center justify-between gap-3 rounded-2xl border border-border bg-surface px-4 py-2">
+        <span className="text-[15px] text-ink">Primeiro vencimento</span>
+        <input type="date" value={vencimento} onChange={(e) => setVencimento(e.target.value)} required aria-label="Primeiro vencimento" className="min-h-10 min-w-0 rounded-xl bg-surface-2 px-2 text-right text-[15px] text-ink" />
+      </label>
 
       <div className="flex flex-col gap-2">
         <Rotulo>Repete</Rotulo>
@@ -260,8 +237,8 @@ export function FolhaDaConta({ inicio, hoje, onFeito }: { inicio: InicioDaFolha;
           aoEscolher={setModo}
           opcoes={[
             { valor: "nao", rotulo: "Não repete" },
-            { valor: "cada", rotulo: "A cada..." },
-            { valor: "meses", rotulo: "Meses que escolho" },
+            { valor: "cada", rotulo: "A cada" },
+            { valor: "meses", rotulo: "Meses" },
           ]}
         />
         {modo === "cada" && (
@@ -281,7 +258,7 @@ export function FolhaDaConta({ inicio, hoje, onFeito }: { inicio: InicioDaFolha;
               {([[1, "meses", "1 mês"], [2, "semanas", "2 semanas"], [1, "anos", "1 ano"]] as const).map(([k, u, t]) => {
                 const on = n === k && unidade === u;
                 return (
-                  <button key={t} type="button" onClick={() => { setN(k); setUnidade(u); }} className={`min-h-9 rounded-full px-2.5 text-[13px] ${on ? "bg-accent-soft text-accent-strong" : "text-ink underline underline-offset-2"}`}>
+                  <button key={t} type="button" aria-pressed={on} onClick={() => { setN(k); setUnidade(u); }} className="min-h-10 rounded-full bg-surface-2 px-3.5 text-sm text-ink aria-pressed:bg-ink aria-pressed:text-canvas">
                     {t}
                   </button>
                 );
@@ -304,7 +281,7 @@ export function FolhaDaConta({ inicio, hoje, onFeito }: { inicio: InicioDaFolha;
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-border bg-surface">
-        <Interruptor ligado={parcelado} aoMudar={setParcelado} titulo="Parcelado?" icone={<CreditCard size={18} aria-hidden />} />
+        <Interruptor ligado={parcelado} aoMudar={setParcelado} titulo="Parcelado" icone={<CreditCard size={18} aria-hidden />} />
         {parcelado && (
           <div className="flex flex-col gap-3 border-t border-border px-4 py-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -316,9 +293,12 @@ export function FolhaDaConta({ inicio, hoje, onFeito }: { inicio: InicioDaFolha;
         )}
       </div>
 
-      {frase && previa.length > 0 && (
-        <div className="flex flex-col gap-3 rounded-2xl bg-surface-2 p-4">
-          <p className="text-[15px] text-ink">{frase}</p>
+      {previa.length > 0 && (
+        <div className="flex flex-col gap-3 rounded-2xl bg-surface-2 p-4" data-previa-conta>
+          <p className="text-[13px] text-ink-muted">
+            Prévia · {MES_CURTO[previa[0].mes - 1]} {previa[0].ano} a {MES_CURTO[previa[previa.length - 1].mes - 1]} {previa[previa.length - 1].ano}
+          </p>
+          {frase && <p className="text-[15px] text-ink">{frase}</p>}
           <Previa meses={previa} aproximado={aproximado} valor={parcela} aoTocar={setTocado} tocado={tocado} />
           {guarde !== null && (
             <p className="flex items-center justify-center gap-1.5 text-sm text-ink">
@@ -334,7 +314,7 @@ export function FolhaDaConta({ inicio, hoje, onFeito }: { inicio: InicioDaFolha;
 
       {erro && <p className="text-sm text-danger">{erro}</p>}
 
-      <button type="submit" disabled={salvando} className="min-h-12 w-full rounded-full bg-accent-gradient text-[15px] font-medium text-on-accent disabled:opacity-60">
+      <button type="submit" disabled={salvando} className="min-h-12 w-full rounded-full bg-ink text-[15px] font-medium text-canvas disabled:opacity-60">
         Salvar
       </button>
       {conta && (

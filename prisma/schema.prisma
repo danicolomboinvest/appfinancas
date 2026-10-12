@@ -206,6 +206,9 @@ model User {
   /// "Não quero ver ofertas da assessoria" (Configurações › Assessoria): some todo cartão de
   /// oferta da Fatos Capital. Os ajustes de quem já é cliente não são oferta e continuam.
   ofertasDesligadas       Boolean   @default(false)
+  /// Meus dados (versão nova, 12/10/2026): a data de nascimento e o dia em que a renda cai.
+  nascimento              DateTime? @db.Date
+  diaDoPagamento          Int?
   createdAt               DateTime  @default(now())
   updatedAt               DateTime  @updatedAt
 
@@ -670,6 +673,14 @@ model MonthlyEntry {
   formaDeRecebimento String?                  @db.VarChar(10)
   recebeEm           DateTime?                @db.Date
   recebidoEm         DateTime?                @db.Date
+  /// "Dividir com alguém" (versão nova, 12/10/2026): com quem ela dividiu ("Marina"). `amount`
+  /// passa a ser só a parte dela (o que fica no orçamento) e `parteDeOutro` guarda o que a outra
+  /// pessoa deve; o total da compra é a soma dos dois. `devolvidoEm`: o dia do "Recebi" (o Pix
+  /// abate o que ela tinha a receber, não conta como renda). Presente ("Não, eu dei"): divididoCom
+  /// preenchido e parteDeOutro nulo.
+  divididoCom        String?                  @db.VarChar(40)
+  parteDeOutro       Decimal?                 @db.Decimal(18, 2)
+  devolvidoEm        DateTime?                @db.Date
   createdAt          DateTime                 @default(now())
 
   @@unique([userId, profileId, externalId])

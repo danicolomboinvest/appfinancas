@@ -41,7 +41,7 @@ export function montarMeses(
   return mesesAte(ate.ano, ate.mes, n).map(({ ano, mes }, i, todos) => {
     const v = porChave.get(`${ano}-${mes}`) ?? { entrou: 0, gastou: 0, guardou: 0 };
     const sobrou = sobrouDoMes(v);
-    return { ano, mes, rotulo: CURTO[mes - 1], nome: NOME[mes - 1], entrou: v.entrou, gastou: v.gastou, guardou: v.guardou, sobrou, situacao: lerSobrou(sobrou).situacao, atual: i === todos.length - 1 };
+    return { ano, mes, rotulo: CURTO[mes - 1], nome: NOME[mes - 1], entrou: v.entrou, gastou: v.gastou, guardou: v.guardou, sobrou, situacao: lerSobrou(sobrou, v.entrou === 0 && v.gastou === 0 && v.guardou === 0).situacao, atual: i === todos.length - 1 };
   });
 }
 
@@ -62,9 +62,10 @@ export function fraseDoGuardado(meses: MesDoGrafico[], money: (v: number) => str
 
 /** "Setembro: entrou R$ 7.700, gastou R$ 6.600, guardou R$ 900, sobrou R$ 200." */
 export function linhaDoMes(m: MesDoGrafico, money: (v: number) => string): string {
+  const Nome = m.nome.charAt(0).toUpperCase() + m.nome.slice(1);
+  if (m.situacao === "vazio") return `${Nome}${m.atual ? " até agora" : ""}: sem lançamento.`;
   const s = lerSobrou(m.sobrou);
   const fim = s.situacao === "empatou" ? "empatou" : `${s.rotulo.toLowerCase()} ${money(s.valor)}`;
-  const Nome = m.nome.charAt(0).toUpperCase() + m.nome.slice(1);
   return `${Nome}${m.atual ? " até agora" : ""}: entrou ${money(m.entrou)}, gastou ${money(m.gastou)}, guardou ${money(m.guardou)}, ${fim}.`;
 }
 

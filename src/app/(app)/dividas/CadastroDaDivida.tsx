@@ -6,7 +6,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Explica } from "@/components/ui/Explica";
 import { useCurrency, useMoney } from "@/components/money/MoneyProvider";
 import { currencySymbol } from "@/lib/money";
-import { perfilDoTipo, taxaDe, taxaEstimadaDoTipo, TIPOS, type TipoDeDivida } from "@/lib/dividas/tipos";
+import { escolherTipo, perfilDoTipo, taxaDe, taxaEstimadaDoTipo, TIPOS, type TipoDeDivida } from "@/lib/dividas/tipos";
 import { ehImpossivel, simularQuitacao } from "@/lib/dividas/plano";
 import { FRASE_DA_SAUDE, PARA_QUE_FOI, nomeDaDivida, paraResolver, saudeDe, taxaAnual, type DividaDoSpi } from "@/lib/dividas/saude";
 import { salvarDividaAction } from "./actions";
@@ -102,10 +102,14 @@ export function CadastroDaDivida({
     setR((x) => ({ ...x, ...p }));
     setErro(null);
   };
+  const raiz = useRef<HTMLDivElement>(null);
   const vai = (p: number, d: 1 | -1 = 1) => {
     setDir(d);
     setPasso(p);
     setErro(null);
+    // Cada passo começa do alto da folha: no iPhone, com a folha rolada (a grade dos tipos é
+    // longa), o passo seguinte nascia fora da vista e o toque parecia não ter feito nada.
+    requestAnimationFrame(() => raiz.current?.closest('[role="dialog"]')?.scrollTo({ top: 0 }));
   };
   const perfil = r.tipo ? perfilDoTipo(r.tipo) : null;
 
@@ -182,9 +186,7 @@ export function CadastroDaDivida({
                 type="button"
                 aria-pressed={on}
                 onClick={() => {
-                  const novo = t.id !== r.tipo;
-                  // Devo para alguém: em geral sem juros. Trocar de tipo zera a taxa de um cadastro novo.
-                  muda({ tipo: t.id, ...(novo && !editar ? { taxa: t.id === "pessoa" ? 0 : null, naoSei: false } : {}) });
+                  muda(escolherTipo(r.tipo, t.id, !!editar));
                   vai(2);
                 }}
                 className={`flex min-h-[92px] flex-col items-start gap-2 rounded-2xl bg-surface p-3 text-left ${opcao(on)}`}
@@ -370,7 +372,7 @@ export function CadastroDaDivida({
 
   return (
     <Modal open={aberto} onClose={onFechar} title={editar ? "Editar dívida" : "Nova dívida"}>
-      <div className="flex flex-col gap-4">
+      <div ref={raiz} className="flex flex-col gap-4">
         {passo <= PASSOS && (
           <div className="flex items-center gap-3">
             {passo > 1 && (

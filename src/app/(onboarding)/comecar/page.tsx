@@ -23,7 +23,7 @@ export default async function ComecarPage() {
   if (session.user.role !== "ADMIN" && usoDoApp(await situacaoDoAcesso(user.email), user.createdAt) === "bloqueado") redirect("/mensal/foco");
 
   return (
-    <main className="flex min-h-screen items-start justify-center bg-canvas p-6 sm:items-center">
+    <main className="flex min-h-dvh items-start justify-center bg-canvas p-6 sm:items-center">
       <div className="w-full max-w-2xl animate-fade-in">
         <div className="mb-6 flex flex-col items-center gap-3 text-center">
           <BrandMark size={48} className="rounded-2xl" />

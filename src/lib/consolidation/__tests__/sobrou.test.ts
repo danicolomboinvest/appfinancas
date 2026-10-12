@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { lerSobrou, sobrouDoMes, sobrouDoResumo } from "../sobrou";
+import { lerSobrou, mesSemLancamento, sobrouDoMes, sobrouDoResumo } from "../sobrou";
 
 describe("sobrou = entrou − gastou − guardou (regra 3.7)", () => {
   it("os números da Ana", () => {
@@ -28,5 +28,14 @@ describe("sobrou = entrou − gastou − guardou (regra 3.7)", () => {
     expect(lerSobrou(0)).toEqual({ situacao: "empatou", rotulo: "Empatou", valor: 0 });
     expect(lerSobrou(-0.004)).toEqual({ situacao: "empatou", rotulo: "Empatou", valor: 0 });
     expect(lerSobrou(-500)).toEqual({ situacao: "faltou", rotulo: "Faltou", valor: 500 });
+  });
+});
+
+describe("mês sem nenhum lançamento", () => {
+  it("é Sobrou R$ 0, não Empatou (o empate é só de quem lançou e zerou)", () => {
+    expect(lerSobrou(0, true)).toEqual({ situacao: "vazio", rotulo: "Sobrou", valor: 0 });
+    expect(lerSobrou(0, false).rotulo).toBe("Empatou");
+    expect(mesSemLancamento({ totalIncome: 0, totalExpense: 0, totalInvestment: 0 })).toBe(true);
+    expect(mesSemLancamento({ totalIncome: 100, totalExpense: 100, totalInvestment: 0 })).toBe(false);
   });
 });

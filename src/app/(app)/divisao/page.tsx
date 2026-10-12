@@ -18,6 +18,7 @@ import { MeuNoCasal } from "@/components/casal-login/MeuNoCasal";
 import { LancamentosDoCasal } from "@/components/casal-login/LancamentosDoCasal";
 import { MetasDoCasal } from "@/components/casal-login/MetasDoCasal";
 import { CartaoFecharOMes } from "@/components/casal-login/FecharOMes";
+import { TelaNosDois } from "@/components/casal-login/TelaNosDois";
 
 /**
  * Nós dois (só existe no perfil Casal). Em cima, o acerto do mês em recibo, calculado pelos
@@ -28,14 +29,16 @@ import { CartaoFecharOMes } from "@/components/casal-login/FecharOMes";
  * convite mandado, o cartão "Aguardando". Com o par dentro, os dois veem o mesmo Nós dois: o
  * acerto, "O meu no casal", fechar o mês a dois, metas a dois e os lançamentos.
  */
-export default async function DivisaoPage({ searchParams }: { searchParams: Promise<{ entrou?: string }> }) {
+export default async function DivisaoPage({ searchParams }: { searchParams: Promise<{ entrou?: string; aba?: string }> }) {
   const ctx = await getRequiredSession();
   if (!ehCasal(ctx.profileKind)) redirect("/dashboard");
   const now = nowInBrazil();
   const ano = now.getFullYear();
   const mes = now.getMonth() + 1;
 
-  if (ctx.par) return <NosDoisDoPar ctx={ctx} ano={ano} mes={mes} entrou={(await searchParams).entrou === "1"} />;
+  const sp = await searchParams;
+  const abaInicial = sp.aba === "orcamento" ? "orc" : sp.aba === "metas" ? "metas" : "mes";
+  if (ctx.par) return <NosDoisDoPar ctx={ctx} ano={ano} mes={mes} entrou={sp.entrou === "1"} abaInicial={abaInicial} />;
 
   const [acerto, nosDois, plano] = await Promise.all([carregarAcertoDoMes(ctx, ano, mes), nosDoisDaTitular(ctx), planoDaCasa(ctx, ano, mes)]);
   const { convite } = nosDois;
@@ -65,13 +68,13 @@ export default async function DivisaoPage({ searchParams }: { searchParams: Prom
   const minhaLetra = outraLetra(letraPar);
   return (
     <div className="flex flex-col gap-5">
-      <NosDoisADois ctx={ctx} ano={ano} mes={mes} acerto={acerto} minhaLetra={minhaLetra} letraTitular={minhaLetra} souPar={false} plano={plano} />
+      <NosDoisADois ctx={ctx} ano={ano} mes={mes} acerto={acerto} minhaLetra={minhaLetra} letraTitular={minhaLetra} souPar={false} plano={plano} abaInicial={abaInicial} />
     </div>
   );
 }
 
 /** O Nós dois visto pelo par: só o que é do casal, com o "O meu no casal" e o + dele. */
-async function NosDoisDoPar({ ctx, ano, mes, entrou }: { ctx: AuthContext; ano: number; mes: number; entrou: boolean }) {
+async function NosDoisDoPar({ ctx, ano, mes, entrou, abaInicial }: { ctx: AuthContext; ano: number; mes: number; entrou: boolean; abaInicial: "mes" | "orc" | "metas" }) {
   const par = ctx.par!;
   const acerto = await carregarAcertoDoMes(ctx, ano, mes);
   const letraTitular = outraLetra(par.letra);
@@ -90,7 +93,7 @@ async function NosDoisDoPar({ ctx, ano, mes, entrou }: { ctx: AuthContext; ano: 
         <Users size={16} strokeWidth={1.6} className="shrink-0" aria-hidden />
         Você vê o que é do casal. O pessoal de {par.nomeTitular} não aparece aqui.
       </p>
-      <NosDoisADois ctx={ctx} ano={ano} mes={mes} acerto={acerto} minhaLetra={par.letra} letraTitular={letraTitular} souPar plano={await planoDaCasa(ctx, ano, mes)} />
+      <NosDoisADois ctx={ctx} ano={ano} mes={mes} acerto={acerto} minhaLetra={par.letra} letraTitular={letraTitular} souPar plano={await planoDaCasa(ctx, ano, mes)} abaInicial={abaInicial} />
     </div>
   );
 }
@@ -105,7 +108,9 @@ async function NosDoisADois({
   letraTitular,
   souPar,
   plano,
+  abaInicial,
 }: {
+  abaInicial: "mes" | "orc" | "metas";
   plano: number | null;
   ctx: AuthContext;
   ano: number;
@@ -126,16 +131,33 @@ async function NosDoisADois({
   const nomes = { A: acerto.config.nomeA, B: acerto.config.nomeB };
   const pessoas = { minha: minhaLetra, titular: letraTitular, nomes };
   const temMesAnterior = acertoAnterior.totalDaCasa > 0;
+  const hoje = nowInBrazil();
   return (
-    <>
-      <ReciboDoAcerto d={dadosDoRecibo(acerto, letraTitular)} />
-      <MeuNoCasal dados={meu} meuNome={nomes[minhaLetra]} souPar={souPar} mes={mes} />
-      {temMesAnterior && <CartaoFecharOMes fechamento={fechamento} pessoas={pessoas} mes={anterior.mes} acertado={acertoAnterior.acertado} />}
-      <MetasDoCasal metas={metas} podeCriar />
-      <div id="lancamentos">
-        <LancamentosDoCasal itens={lancamentos} nomes={nomes} letraTitular={letraTitular} minhaLetra={minhaLetra} mes={mes} podeLancar />
-      </div>
-      <CombinarDivisao d={dadosDaDivisao(acerto, { letraTitular, souPar, plano, mostrarRenda: acerto.config.mostrarRenda === true })} />
-    </>
+    <TelaNosDois
+      abaInicial={abaInicial}
+      mes={{
+        nomes,
+        letraTitular,
+        mes,
+        dia: hoje.getFullYear() === ano && hoje.getMonth() + 1 === mes ? hoje.getDate() : new Date(ano, mes, 0).getDate(),
+        diasNoMes: new Date(ano, mes, 0).getDate(),
+        plano,
+        totalDaCasa: acerto.totalDaCasa,
+        pagou: acerto.pagou,
+        parte: acerto.parte,
+        contas: acerto.contas.map((c) => ({ chave: c.chave, nome: c.nome, parentCategory: c.parentCategory, valor: c.valor, pagou: c.pagou })),
+        lancamentos,
+      }}
+      acerto={<ReciboDoAcerto d={dadosDoRecibo(acerto, letraTitular)} />}
+      fechamento={temMesAnterior ? <CartaoFecharOMes fechamento={fechamento} pessoas={pessoas} mes={anterior.mes} acertado={acertoAnterior.acertado} /> : null}
+      orcamento={
+        <div className="flex flex-col gap-5">
+          <MeuNoCasal dados={meu} meuNome={nomes[minhaLetra]} souPar={souPar} mes={mes} />
+          <CombinarDivisao d={dadosDaDivisao(acerto, { letraTitular, souPar, plano, mostrarRenda: acerto.config.mostrarRenda === true })} />
+        </div>
+      }
+      metas={<MetasDoCasal metas={metas} podeCriar />}
+      botaoLancar={<LancamentosDoCasal itens={[]} nomes={nomes} letraTitular={letraTitular} minhaLetra={minhaLetra} mes={mes} podeLancar soBotao />}
+    />
   );
 }

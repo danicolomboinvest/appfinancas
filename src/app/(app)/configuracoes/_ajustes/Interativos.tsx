@@ -52,7 +52,7 @@ export function EsconderValores() {
   const { ocultos, alternar } = useValoresOcultos();
   return (
     <div className="overflow-hidden rounded-3xl border border-border bg-surface">
-      <Interruptor ligado={ocultos} aoMudar={() => alternar()} titulo="Esconder valores" sub="Os valores ficam escondidos até você tocar no olho." />
+      <Interruptor ligado={ocultos} aoMudar={() => alternar()} titulo="Esconder valores" sub="Os valores ficam borrados até você tocar." />
     </div>
   );
 }
@@ -74,14 +74,15 @@ export function CopiarEmail() {
   );
 }
 
-export function ImportarExtrato() {
+/** Importar extrato (preto) ou, com `fatura`, Importar fatura do cartão (claro): os dois abrem a importação, que reconhece a fatura. */
+export function ImportarExtrato({ fatura = false }: { fatura?: boolean }) {
   return (
     <button
       type="button"
       onClick={() => window.dispatchEvent(new Event(EVENTO_IMPORTAR))}
-      className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-accent-gradient text-[15px] font-medium text-on-accent"
+      className={`inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full text-[15px] font-medium ${fatura ? "bg-surface text-ink shadow-[inset_0_0_0_1px_var(--color-border-strong)]" : "[background:var(--botao-fundo,var(--color-ink))] [color:var(--botao-tinta,var(--color-canvas))]"}`}
     >
-      <Upload size={16} aria-hidden /> Importar extrato
+      <Upload size={16} aria-hidden /> {fatura ? "Importar fatura do cartão" : "Importar extrato"}
     </button>
   );
 }

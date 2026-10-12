@@ -68,10 +68,11 @@ function montar(g: GoalComProgresso | NonNullable<Awaited<ReturnType<typeof getG
   };
 }
 
-async function aportesDasMetas(ctx: AuthContext, hoje: Date, goalIds: string[]) {
-  if (goalIds.length === 0) return new Map<string, AporteDaMeta[]>();
+/** Os aportes das metas pedidas, ou de todas as metas do perfil (`null`), numa consulta só. */
+async function aportesDasMetas(ctx: AuthContext, hoje: Date, goalIds: string[] | null) {
+  if (goalIds !== null && goalIds.length === 0) return new Map<string, AporteDaMeta[]>();
   const linhas = await prisma.monthlyEntry.findMany({
-    where: { ...doDono(ctx), goalId: { in: goalIds }, category: "INVESTMENT_CONTRIBUTION", ...aportesJaOcorridosWhere(hoje) },
+    where: { ...doDono(ctx), goalId: goalIds === null ? { not: null } : { in: goalIds }, category: "INVESTMENT_CONTRIBUTION", ...aportesJaOcorridosWhere(hoje) },
     select: { id: true, goalId: true, amount: true, year: true, month: true, entryDate: true, description: true },
     orderBy: [{ year: "asc" }, { month: "asc" }, { entryDate: "asc" }, { createdAt: "asc" }],
   });
@@ -87,16 +88,15 @@ async function aportesDasMetas(ctx: AuthContext, hoje: Date, goalIds: string[]) 
 
 /** Todas as metas do perfil, já com o plano de cada uma. */
 export async function listarMetasDaTela(ctx: AuthContext, hoje: Date): Promise<MetaDaTela[]> {
-  const goals = await listGoalsWithProgress(ctx);
-  const aportes = await aportesDasMetas(ctx, hoje, goals.map((g) => g.id));
+  // As metas e os aportes de todas elas ao mesmo tempo (antes, os aportes esperavam a lista).
+  const [goals, aportes] = await Promise.all([listGoalsWithProgress(ctx), aportesDasMetas(ctx, hoje, null)]);
   return goals.map((g) => montar(g, aportes.get(g.id) ?? [], hoje));
 }
 
 /** Uma meta, com o plano. Nula se não for do perfil. */
 export async function lerMetaDaTela(ctx: AuthContext, id: string, hoje: Date): Promise<MetaDaTela | null> {
-  const g = await getGoalWithProgress(ctx, id);
+  const [g, aportes] = await Promise.all([getGoalWithProgress(ctx, id), aportesDasMetas(ctx, hoje, [id])]);
   if (!g) return null;
-  const aportes = await aportesDasMetas(ctx, hoje, [g.id]);
   return montar(g, aportes.get(g.id) ?? [], hoje);
 }
 

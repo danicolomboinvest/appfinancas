@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { diaDaSemana, limiarCompraGrande, previsaoDoMes, ritmoDoMes, livreAteDomingo } from "../foco-semana";
+import { diaDaSemana, limiarCompraGrande, previsaoDoMes, ritmoDoMes, livreAteDomingo, fimDoMesPeloPlano } from "../foco-semana";
 import { ritmoVariavel } from "../foco";
 
 describe("cartão da semana na Foco", () => {
@@ -107,5 +107,19 @@ describe("fim do mês sem multiplicar o que não se repete (09/10/2026)", () => 
 
   it("compra única nunca passa do próprio gasto", () => {
     expect(previsaoDoMes(1000, 300, 0.5, 900)).toBe(700);
+  });
+});
+
+describe("mês ainda sem lançamento: o herói mostra o plano", () => {
+  it("Livre até domingo é o pedaço do plano desta semana; Fim do mês é a sobra do plano", () => {
+    // Plano de R$ 6.550 em 31 dias, hoje dia 11 (21 dias pela frente), 5 dias até domingo.
+    const restante = (6550 * 21) / 31;
+    expect(Math.round(livreAteDomingo(restante, 21, 5))).toBe(Math.round((6550 / 31) * 5));
+    expect(fimDoMesPeloPlano(7700, 6550, 400)).toBe(750);
+    expect(fimDoMesPeloPlano(7700, 6550, null)).toBe(1150);
+  });
+  it("sem renda planejada, nada de número inventado", () => {
+    expect(fimDoMesPeloPlano(null, 6550, 400)).toBeNull();
+    expect(fimDoMesPeloPlano(0, 6550, 400)).toBeNull();
   });
 });

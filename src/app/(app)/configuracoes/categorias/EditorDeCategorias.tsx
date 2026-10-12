@@ -1,14 +1,15 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { ChevronRight, EyeOff, Tag } from "lucide-react";
+import { Plus } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Modal } from "@/components/ui/Modal";
+import { NovaCategoria } from "@/components/entries/NovaCategoria";
 import type { ParentCategory } from "@prisma/client";
-import { Card } from "@/components/ui/Card";
 import { useToast } from "@/components/ui/toast-context";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import {
   CORES_DE_CATEGORIA,
-  CUSTOM_CATEGORY_ICON_MAP,
   CUSTOM_CATEGORY_ICON_OPTIONS,
   PARENT_CATEGORIES,
   PARENT_CATEGORY_COLOR,
@@ -18,9 +19,7 @@ import {
   emojiEscolhido,
   emojiValido,
   categoryDefaultLabel,
-  categoryIcon,
   categoryLabel,
-  subcategoriesFor,
 } from "@/lib/categories";
 import { apagarCategoriaPropriaAction, editarCategoriaPropriaAction, salvarCategoriaPadraoAction } from "./actions";
 
@@ -33,69 +32,124 @@ type Propria = { id: string; name: string; icon: string };
  * continuam com ela). As dela: nome, ícone e apagar.
  */
 export function EditorDeCategorias({ proprias }: { proprias: Propria[] }) {
-  const { categorias, kind } = useProfileTheme();
+  const { categorias } = useProfileTheme();
+  const router = useRouter();
+  const { showToast, showError } = useToast();
   const [aberta, setAberta] = useState<string | null>(null);
+  const [corDe, setCorDe] = useState<string | null>(null);
+  const [nova, setNova] = useState(false);
+  const [, iniciar] = useTransition();
+
+  // Versão nova (protótipo, #configuracoes-categorias): cada categoria numa linha com a bolinha da
+  // cor, o nome (toque para editar nome, ícone e emoji), "Cor" e a chave Visível.
+  function salvarPadrao(chave: ParentCategory, muda: { oculta?: boolean; cor?: string | null }) {
+    const pref = categorias.prefs[chave] ?? {};
+    iniciar(async () => {
+      const r = await salvarCategoriaPadraoAction({
+        key: chave,
+        nome: pref.nome ?? "",
+        icone: pref.icone ?? null,
+        emoji: pref.emoji ?? null,
+        oculta: muda.oculta ?? pref.oculta === true,
+        cor: muda.cor !== undefined ? muda.cor : (pref.cor ?? null),
+      });
+      if (r.error) return showError(r.error);
+      router.refresh();
+    });
+  }
+  function salvarCorPropria(c: Propria, cor: string | null) {
+    iniciar(async () => {
+      const r = await editarCategoriaPropriaAction({ id: c.id, nome: c.name, icone: c.icon, cor });
+      if (r.error) return showError(r.error);
+      router.refresh();
+    });
+  }
+
+  const grupo = "overflow-hidden rounded-3xl bg-surface shadow-[inset_0_0_0_1px_var(--color-border)]";
+  const linha = (chave: string, nome: string, cor: string, oculta: boolean | null, aoCor: (c: string | null) => void, padrao: string, editor: React.ReactNode) => (
+    <li key={chave} className="border-t border-border first:border-t-0">
+      {aberta === chave ? (
+        <div className="bg-surface-2 p-3">{editor}</div>
+      ) : (
+        <div className="flex min-h-14 items-center gap-3 px-4 py-2" data-categoria={chave}>
+          <span className={`size-3.5 shrink-0 rounded-full ${oculta ? "opacity-40" : ""}`} style={{ background: cor }} aria-hidden />
+          <button type="button" onClick={() => setAberta(chave)} className={`min-w-0 flex-1 truncate text-left text-[15px] ${oculta ? "text-ink-faint" : "text-ink"}`}>
+            {nome}
+          </button>
+          <button type="button" onClick={() => setCorDe(corDe === chave ? null : chave)} aria-expanded={corDe === chave} className="min-h-11 shrink-0 px-1.5 text-sm text-accent-strong underline-offset-4 hover:underline">
+            Cor
+          </button>
+          {oculta !== null && (
+            <button
+              type="button"
+              role="switch"
+              aria-checked={!oculta}
+              aria-label={`${nome}: ${oculta ? "escondida" : "visível"}`}
+              onClick={() => salvarPadrao(chave as ParentCategory, { oculta: !oculta })}
+              className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${!oculta ? "bg-accent" : "bg-[color-mix(in_srgb,var(--color-ink)_16%,transparent)]"}`}
+            >
+              <span className={`absolute top-0.5 size-6 rounded-full bg-white shadow transition-[left] ${!oculta ? "left-[22px]" : "left-0.5"}`} />
+            </button>
+          )}
+        </div>
+      )}
+      {corDe === chave && aberta !== chave && (
+        <div className="px-4 pb-3">
+          <EscolherCor
+            valor={cor === padrao ? null : cor}
+            padrao={padrao}
+            onEscolher={(c) => {
+              setCorDe(null);
+              aoCor(c);
+            }}
+          />
+        </div>
+      )}
+    </li>
+  );
 
   return (
-    <div className="flex flex-col gap-4">
-      <Card className="flex flex-col gap-2 p-4">
-        <p className="text-sm font-semibold text-ink">Categorias do app</p>
-        <ul className="mt-1 flex flex-col divide-y divide-border overflow-hidden rounded-xl border border-border">
-          {PARENT_CATEGORIES.map((key) => {
-            const Icone = categoryIcon(categorias, key);
-            const oculta = categoriaOculta(categorias, key);
-            return aberta === key ? (
-              <li key={key} className="bg-surface-2 p-3">
-                <EditarPadrao chave={key} onFechar={() => setAberta(null)} />
-              </li>
-            ) : (
-              <li key={key}>
-                <button type="button" onClick={() => setAberta(key)} className="flex min-h-11 w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-surface-2">
-                  <span className={`flex size-9 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent-strong ${oculta ? "opacity-40" : ""}`}>
-                    {emojiEscolhido(categorias, key) ? <span className="text-lg leading-none">{emojiEscolhido(categorias, key)}</span> : <Icone size={18} strokeWidth={1.75} />}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className={`block text-sm font-medium ${oculta ? "text-ink-faint" : "text-ink"}`}>{categoryLabel(categorias, key)}</span>
-                    <span className="block truncate text-caption text-ink-faint">
-                      {oculta ? "Escondida" : subcategoriesFor(kind, key).slice(0, 4).join(", ")}
-                    </span>
-                  </span>
-                  {oculta && <EyeOff size={16} className="shrink-0 text-ink-faint" aria-hidden />}
-                  <ChevronRight size={16} className="shrink-0 text-ink-faint" aria-hidden />
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      </Card>
-
-      <Card className="flex flex-col gap-2 p-4">
-        <p className="text-sm font-semibold text-ink">Criadas por você</p>
-        {proprias.length === 0 ? (
-          <p className="text-caption text-ink-muted">Você ainda não criou nenhuma. Dá para criar no Orçamento ou na hora de lançar um gasto (+ Nova).</p>
-        ) : (
-          <ul className="mt-1 flex flex-col divide-y divide-border overflow-hidden rounded-xl border border-border">
-            {proprias.map((c) => {
-              const Icone = CUSTOM_CATEGORY_ICON_MAP[c.icon] ?? Tag;
-              return aberta === c.id ? (
-                <li key={c.id} className="bg-surface-2 p-3">
-                  <EditarPropria categoria={c} onFechar={() => setAberta(null)} />
-                </li>
-              ) : (
-                <li key={c.id}>
-                  <button type="button" onClick={() => setAberta(c.id)} className="flex min-h-11 w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-surface-2">
-                    <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent-strong">
-                      {emojiEscolhido(categorias, c.id) ? <span className="text-lg leading-none">{emojiEscolhido(categorias, c.id)}</span> : <Icone size={18} strokeWidth={1.75} />}
-                    </span>
-                    <span className="min-w-0 flex-1 truncate text-sm font-medium text-ink">{c.name}</span>
-                    <ChevronRight size={16} className="shrink-0 text-ink-faint" aria-hidden />
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
+    <div className="flex flex-col gap-3">
+      <p className="text-sm text-ink-muted">Renomeie, troque a cor ou esconda categorias. As escondidas saem das escolhas; os lançamentos antigos continuam com elas.</p>
+      <ul className={grupo} data-lista-categorias>
+        {PARENT_CATEGORIES.map((key) =>
+          linha(
+            key,
+            categoryLabel(categorias, key),
+            corEscolhida(categorias, key) ?? PARENT_CATEGORY_COLOR[key],
+            categoriaOculta(categorias, key),
+            (c) => salvarPadrao(key, { cor: c }),
+            PARENT_CATEGORY_COLOR[key],
+            <EditarPadrao chave={key} onFechar={() => setAberta(null)} />,
+          ),
         )}
-      </Card>
+        {proprias.map((c) =>
+          linha(
+            c.id,
+            c.name,
+            colorForCategorySlice({ kind: "custom", value: c.id }, categorias),
+            null,
+            (cor) => salvarCorPropria(c, cor),
+            colorForCategorySlice({ kind: "custom", value: c.id }, null),
+            <EditarPropria categoria={c} onFechar={() => setAberta(null)} />,
+          ),
+        )}
+      </ul>
+      <button type="button" onClick={() => setNova(true)} className="flex min-h-12 items-center justify-center gap-2 rounded-full bg-surface text-[15px] font-medium text-ink shadow-[inset_0_0_0_1px_var(--color-border-strong)]">
+        <Plus size={18} aria-hidden /> Nova categoria
+      </button>
+      <Modal open={nova} onClose={() => setNova(false)} title="Nova categoria">
+        {nova && (
+          <NovaCategoria
+            existentes={[...proprias.map((c) => c.name), ...PARENT_CATEGORIES.map((k) => categoryLabel(categorias, k))]}
+            onCriada={(c) => {
+              setNova(false);
+              showToast(`${c.name} criada`);
+              router.refresh();
+            }}
+          />
+        )}
+      </Modal>
     </div>
   );
 }

@@ -1,55 +1,61 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { nowInBrazil } from "@/lib/date/brazil-now";
 import { ehEmpresa } from "@/lib/profiles/empresa";
 import { ondeMostrarFechamento } from "./fechamento/quando-mostrar";
-import type { ReactNode } from "react";
-import { CalendarCheck, ChevronRight, Check } from "lucide-react";
+import { CalendarCheck, ChevronRight } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
 import { Card } from "@/components/ui/Card";
 import { ReportarErro } from "@/components/decisoes/ReportarErro";
-import { confirmarCancelamentoRaioXAction, escolherRitmoAction, responderCompraAmanhaAction } from "./actions";
 import { carregarFoco, MESES } from "./dados";
-import { AvisoFoco, CombinadoFoco } from "./AvisoFoco";
+import { AvisoFoco } from "./AvisoFoco";
 import { carregarBlocosDoMes } from "./blocos";
 import { ThemeHero } from "@/app/(app)/mensal/[year]/[month]/ThemeHero";
 import { OnboardingChecklist } from "@/app/(app)/mensal/[year]/[month]/OnboardingChecklist";
-import { perguntarRitmo } from "./comece";
 import { SemanaFoco } from "./SemanaFoco";
 import { DecisoesImportantes } from "./DecisoesImportantes";
-import { textosDoFechamento } from "./fechamento/estado";
 import { GraficoSeisMeses } from "@/components/charts/GraficoSeisMeses";
 import { mesesAte, montarMeses, valoresDosMeses } from "@/lib/consolidation/seis-meses";
-import { lerSobrou, sobrouDoResumo } from "@/lib/consolidation/sobrou";
-import { planoApertado } from "@/lib/decisoes/posso-comprar";
 import { categoriasEssenciais } from "@/lib/categories";
-import { ValorDestaque } from "@/components/ui/ValorDestaque";
-import { Explica } from "@/components/ui/Explica";
 import { ContaDoLivre } from "./ContaDoLivre";
-import { diaDaSemana, ritmoDoMes } from "@/lib/decisoes/foco-semana";
+import { QuadroDoMes } from "./QuadroDoMes";
+import { getMonthlySummary } from "@/lib/consolidation/monthly";
+import { serverMoney } from "@/lib/money-server";
+import { lerIntervalo, lerMesEscolhido, mesDeAgora, mesmoMes } from "@/lib/visao-geral/periodo";
+import { ResumoDoPeriodo } from "./ResumoDoPeriodo";
+import { diaDaSemana, fimDoMesPeloPlano, livreAteDomingo, ritmoDoMes } from "@/lib/decisoes/foco-semana";
 import { vozDoTema } from "@/lib/profiles/voice";
-import { listarContasAPagar } from "@/lib/repositories/conta-a-pagar.repo";
-import { contasDoFoco, hojeEmBrasilia } from "@/lib/contas/contas";
-import { iso, serializarConta } from "@/app/(app)/orcamento/contas/serializar";
-import { ContasDoFoco } from "./ContasDoFoco";
-import { CartaoMoneyReset } from "./CartaoMoneyReset";
 import { ConquistasDeMetas } from "@/components/conquista/ConquistasDeMetas";
-import { temMoneyReset } from "@/lib/repositories/produtoLiberado.repo";
-import { lerReset } from "@/lib/repositories/money-reset.repo";
 
 /**
  * A aba Foco: a primeira coisa que a pessoa vê ao abrir o app. Só o que importa agora — quanto
  * está livre, no máximo três coisas que pedem atenção e o que está indo bem. O resto do mês
  * (gráficos, lançamentos) continua na Visão mensal, a abinha do lado.
  */
-export default async function FocoPage() {
+export default async function FocoPage(props: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const ctx = await getRequiredSession();
   // A Empresa tem a Visão geral dela (versão nova, 11/10/2026): recibo do mês, Vendas, Despesas e Contas.
   if (ehEmpresa(ctx.profileKind)) redirect("/empresa");
-  const [d, contas] = await Promise.all([carregarFoco(ctx), listarContasAPagar(ctx)]);
-  const [blocos, valoresMeses] = await Promise.all([carregarBlocosDoMes(ctx, d.now), valoresDosMeses(ctx, mesesAte(d.year, d.month, 12))]);
+  // Tudo de uma vez (o Resumo esperava o Foco para só depois buscar o mês e os 6 meses).
+  const agora = nowInBrazil();
+  // Outro mês no seletor da Visão geral: o quadro daquele mês e os 6 meses (o "livre até domingo"
+  // e as decisões só existem para o mês de agora).
+  const busca = await props.searchParams;
+  const um = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? null;
+  const intervalo = lerIntervalo({ periodo: um(busca.periodo), de: um(busca.de), ate: um(busca.ate) }, agora);
+  if (intervalo) return <ResumoDoPeriodo ctx={ctx} intervalo={intervalo} agora={agora} />;
+  const escolhido = lerMesEscolhido(busca.mes, agora);
+  // Outro mês (protótipo): o herói da semana e as Decisões importantes continuam em cima; muda o
+  // quadro do mês e, no mês passado ainda aberto, aparece "Setembro ainda não foi fechado".
+  const outroMes = mesmoMes(escolhido, mesDeAgora(agora)) ? null : escolhido;
+  const [d, blocos, valoresMeses, resumoOutro, moneyR] = await Promise.all([
+    carregarFoco(ctx),
+    carregarBlocosDoMes(ctx, agora),
+    valoresDosMeses(ctx, mesesAte(agora.getFullYear(), agora.getMonth() + 1, 12)),
+    outroMes ? getMonthlySummary(ctx, outroMes.ano, outroMes.mes) : Promise.resolve(null),
+    serverMoney(),
+  ]);
   const meses12 = montarMeses(valoresMeses, { ano: d.year, mes: d.month }, 12);
-  const hoje = hojeEmBrasilia();
-  const contasDaSemana = contasDoFoco(contas, hoje);
   const mesTitulo = MESES[d.month - 1].charAt(0).toUpperCase() + MESES[d.month - 1].slice(1);
   const { t, m, foco, ritmo } = d;
   // Quem nunca escolheu o ritmo conta como mensal: sem isso a iniciante nunca via o fechamento.
@@ -92,195 +98,58 @@ export default async function FocoPage() {
     />
   );
 
-  const problemas: { chave: string; no: ReactNode }[] = [];
-  // Conta vencendo é o que mais custa esquecer (juros, multa): sempre a primeira.
-  if (contasDaSemana.length > 0) {
-    problemas.push({
-      chave: "contas",
-      no: <ContasDoFoco contas={contasDaSemana.map(serializarConta)} atrasadas={contasDaSemana.filter((c) => c.situacao === "atrasada").length} hoje={iso(hoje)} />,
-    });
-  }
   // Os avisos (categoria que passou, meta atrasada, reserva curta) moram em "Decisões importantes".
   const decisoes = [...foco.atencao, ...foco.depois];
-  for (const p of d.pendentes) {
-    problemas.push({
-      chave: `24h-${p.id}`,
-      no: (
-        <Card className="flex gap-4 p-5">
-          <span className="w-1 shrink-0 rounded-full bg-accent" aria-hidden />
-          <div className="min-w-0">
-            <p className="text-caption font-semibold text-ink-muted">Regra das 24 horas</p>
-            <p className="mt-1 text-sm font-semibold text-ink">{t.focoAmanhaT(p.descricao ?? "Compra", m(Number(p.valor ?? 0)))}</p>
-            <p className="mt-1 text-caption text-ink-muted">{t.focoAmanhaP}</p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <form action={responderCompraAmanhaAction.bind(null, p.id, false)}>
-                <button type="submit" className="rounded-xl bg-accent-soft px-3 py-1.5 text-caption font-semibold text-accent-strong">{t.focoAindaQuero}</button>
-              </form>
-              <form action={responderCompraAmanhaAction.bind(null, p.id, true)}>
-                <button type="submit" className="rounded-xl border border-border px-3 py-1.5 text-caption font-semibold text-ink-muted">{t.compraDesisti}</button>
-              </form>
-            </div>
-          </div>
-        </Card>
-      ),
-    });
-  }
-
-  const tarefas: { chave: string; no: ReactNode }[] = [];
-  // Money Reset: a missão de hoje, só para quem comprou e ainda não terminou os 21 dias.
-  if (!contaNova && (await temMoneyReset(ctx.userId)) && (await lerReset(ctx)).estado.fase !== "concluido") {
-    tarefas.push({ chave: "money-reset", no: <CartaoMoneyReset ctx={ctx} t={t} /> });
-  }
-  const tarefa = (chave: string, href: string, ey: string, titulo: string, botao: string) =>
-    tarefas.push({
-      chave,
-      no: (
-        <Link href={href}>
-          <Card className={`${cartaoAcao} p-3.5`}>
-            <span className="flex min-w-0 items-center gap-3">
-              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-surface-2 text-accent-strong" aria-hidden>
-                <CalendarCheck size={18} />
-              </span>
-              <span className="min-w-0">
-                <span className="block text-[15px] font-semibold leading-snug text-ink">{titulo}</span>
-                <span className="mt-0.5 block text-caption text-ink-muted">{ey}</span>
-              </span>
+  // O Resumo é o do protótipo (11/10/2026, pedido da dona): herói, Decisões importantes, o mês até
+  // agora, os 6 meses e, em "Para hoje", só o "Fechar <mês>" quando é hora. Saíram daqui as contas
+  // da semana (moram em Recorrentes), o Money Reset (fica fora até a dona reformular), o "Mais N
+  // coisinhas", o selo "indo bem", o plano apertado e a linha do ritmo.
+  const fecharMes =
+    ondeFechar === "destaque" || ondeFechar === "discreto" ? (
+      <Link href="/mensal/foco/fechamento">
+        <Card className={`${cartaoAcao} p-3.5`}>
+          <span className="flex min-w-0 items-center gap-3">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-surface-2 text-accent-strong" aria-hidden>
+              <CalendarCheck size={18} />
             </span>
-            <span className="inline-flex min-h-10 shrink-0 items-center rounded-full bg-pill px-4 text-sm font-semibold text-on-pill">{botao}</span>
-          </Card>
-        </Link>
-      ),
-    });
-  if (ondeFechar === "destaque") tarefa("fechamento", "/mensal/foco/fechamento", t.focoFechEy, t.focoFechT(d.mesAnterior.label), t.focoComecar);
-  if (ritmo === "semanal" && !d.ritualFeito) tarefa("ritual", "/mensal/foco/ritual", t.focoRitualEy, t.focoRitualT, t.focoComecar);
-  if (d.viradaPendente) tarefa("ano", "/mensal/foco/ano", "Ano novo", `Fechar ${d.year - 1} e começar ${d.year}`, t.focoComecar);
-  if (d.lancamentosParaRevisar > 0) {
-    tarefa(
-      "revisar",
-      "/mensal/foco/revisar",
-      "Números mais certos",
-      d.lancamentosParaRevisar === 1 ? "1 lançamento antigo parece aplicação, fatura ou estorno" : `${d.lancamentosParaRevisar} lançamentos antigos parecem aplicação, fatura ou estorno`,
-      "Revisar",
+            <span className="min-w-0">
+              <span className="block text-[15px] font-semibold leading-snug text-ink">{t.focoFechT(d.mesAnterior.label)}</span>
+              <span className="mt-0.5 block text-caption text-ink-muted">{t.focoFechEy}</span>
+            </span>
+          </span>
+          <span className="inline-flex min-h-10 shrink-0 items-center rounded-full bg-pill px-4 text-sm font-semibold text-on-pill">{t.focoComecar}</span>
+        </Card>
+      </Link>
+    ) : null;
+  const redondo = (v: number) => moneyR(v, { round: true });
+  const nomeOutro = outroMes ? MESES[outroMes.mes - 1].charAt(0).toUpperCase() + MESES[outroMes.mes - 1].slice(1) + (outroMes.ano === agora.getFullYear() ? "" : ` de ${outroMes.ano}`) : "";
+  const mesAteAgora =
+    outroMes && resumoOutro ? (
+      <QuadroDoMes titulo={nomeOutro} resumo={resumoOutro} href={`/mensal/${outroMes.ano}/${outroMes.mes}`} rotulos={{ entrou: voz.titulos.entrou, gastou: voz.titulos.gastou }} money={redondo} />
+    ) : (
+      <QuadroDoMes titulo={`${mesTitulo} até agora`} resumo={d.summary} href={d.hrefMes} rotulos={{ entrou: voz.titulos.entrou, gastou: voz.titulos.gastou }} money={redondo} />
     );
-  }
-  for (const c of d.cancelamentos) {
-    tarefas.push({
-      chave: `cancelou-${c.chave}`,
-      no: (
-        <Card className="p-5">
-          <p className="text-caption font-semibold text-ink-muted">{t.raioxTitulo}</p>
-          <p className="mt-1 text-sm font-semibold text-ink">No mês passado você disse que ia cancelar {c.nome}. Cancelou?</p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <form action={confirmarCancelamentoRaioXAction.bind(null, c.chave, true)}>
-              <button type="submit" className="rounded-xl bg-pill px-3 py-1.5 text-caption font-semibold text-on-pill">Cancelei</button>
-            </form>
-            <form action={confirmarCancelamentoRaioXAction.bind(null, c.chave, false)}>
-              <button type="submit" className="rounded-xl border border-border px-3 py-1.5 text-caption font-semibold text-ink-muted">Ainda não</button>
-            </form>
-          </div>
-        </Card>
-      ),
-    });
-  }
-  // Semanal ou mensal? Só depois do primeiro lançamento (antes disso vale o semanal, em silêncio).
-  if (perguntarRitmo(ritmo !== null, comece.temLancamento)) {
-    tarefas.push({
-      chave: "ritmo",
-      no: (
-        <div className="flex flex-col gap-3 rounded-2xl border border-border bg-surface p-4">
-          <p className="text-sm font-semibold text-ink">{t.focoRitmoPergunta}</p>
-          <div className="grid grid-cols-2 gap-2">
-            {(["semanal", "mensal"] as const).map((r) => (
-              <form key={r} action={escolherRitmoAction.bind(null, r)}>
-                <button type="submit" className="min-h-11 w-full rounded-full border border-border-strong px-3 text-sm font-semibold text-ink transition-colors hover:bg-surface-hover">
-                  {r === "semanal" ? t.focoRitmoSemanal : t.focoRitmoMensal}
-                </button>
-              </form>
-            ))}
-          </div>
-        </div>
-      ),
-    });
-  }
-  if (ondeFechar === "discreto") {
-    tarefas.push({
-      chave: "fechamento-discreto",
-      no: (
-        <Link href="/mensal/foco/fechamento" className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-surface px-5 py-4 transition-colors hover:bg-surface-hover">
-          <span className="text-sm font-semibold text-ink">{t.fechTitulo(d.mesAnterior.label)}</span>
-          <ChevronRight size={16} className="shrink-0 text-ink-faint" />
-        </Link>
-      ),
-    });
-  }
-  const resto = [...problemas.slice(1), ...tarefas.slice(1)];
-  // O mês passado fechado: uma linha discreta para o resumão (rodada 42).
-  const textosFechamento = textosDoFechamento(d.fechamento.estado, d.mesAnterior.month, d.fechamento.em);
-  const apertado = d.empresa ? null : planoApertado({ renda: d.rendaDoMes, gastoPlanejado: livre.tipo === "semOrcamento" ? 0 : livre.planejado, regra90: ctx.profileKind !== "CASAL" });
-  const sobrouAgora = lerSobrou(sobrouDoResumo(d.summary));
-  const quadro = [
-    { rotulo: voz.titulos.entrou, valor: d.summary.totalIncome, cor: "var(--color-dinheiro-entrou)", fundo: "" },
-    { rotulo: voz.titulos.gastou, valor: d.summary.totalExpense, cor: "var(--color-dinheiro-gastou)", fundo: "" },
-    { rotulo: "Guardou", valor: d.summary.totalInvestment, cor: "var(--color-dinheiro-guardou)", fundo: "" },
-    { rotulo: sobrouAgora.rotulo, valor: sobrouAgora.valor, cor: sobrouAgora.situacao === "faltou" ? "var(--color-dinheiro-faltou)" : "var(--color-dinheiro-sobrou)", fundo: sobrouAgora.situacao === "faltou" ? "bg-[color-mix(in_srgb,var(--color-dinheiro-faltou)_12%,var(--color-surface))]" : "bg-[color-mix(in_srgb,var(--color-dinheiro-sobrou)_12%,var(--color-surface))]" },
-  ];
-  const mesAteAgora = (
-    <section className="flex flex-col gap-3">
-      <div className="flex items-center justify-between px-1">
-        <h2 className="titulo-tema text-lg font-medium text-ink">{mesTitulo} até agora</h2>
-        <Explica>Sobrou é o que entrou menos o que você gastou e o que guardou. Uma conta só, a mesma do gráfico.</Explica>
-      </div>
-      <div className="grid grid-cols-2 gap-2.5">
-        {quadro.map((q) => (
-          <Link key={q.rotulo} href={d.hrefMes} className={`flex min-w-0 flex-col gap-2 rounded-3xl border border-border p-4 ${q.fundo || "bg-surface"}`}>
-            <span className="flex items-center gap-2 text-sm text-ink-muted">
-              <span className="size-2 shrink-0 rounded-full" style={{ background: q.cor }} aria-hidden />
-              {q.rotulo}
-            </span>
-            <ValorDestaque texto={m(q.valor)} className="text-[1.5rem] font-light leading-none tracking-[-0.02em] tabular-nums text-ink" />
-          </Link>
-        ))}
-      </div>
-    </section>
-  );
-
-  // O que vai bem e o "tudo em dia": a última linha da tela.
-  const emDia = problemas.length === 0 && livre.tipo !== "semOrcamento";
-  const selo =
-    !emDia && foco.bem.length === 0
-      ? null
-      : (() => {
-          const indoBem = foco.bem.length === 0 ? null : foco.bem.length === 1 ? "1 coisa indo bem" : `${foco.bem.length} coisas indo bem`;
-          const rotulo = [emDia ? t.focoNadaTitulo : null, indoBem].filter(Boolean).join(", ");
-          const linha = (
-            <span className="flex min-h-11 items-center gap-2 text-sm font-medium text-ink">
-              <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-success/15 text-success">
-                <Check size={14} strokeWidth={2.5} />
-              </span>
-              {rotulo}
-            </span>
-          );
-          return foco.bem.length === 0 ? (
-            <div className="flex justify-center px-4">{linha}</div>
-          ) : (
-            <details className="px-1">
-              <summary className="cursor-pointer list-none">{linha}</summary>
-              <ul className="flex flex-col divide-y divide-border pb-2 pl-8">
-                {foco.bem.map((b, i) => (
-                  <li key={i} className="py-2.5 text-sm text-ink-muted">
-                    {b.titulo}
-                  </li>
-                ))}
-              </ul>
-            </details>
-          );
-        })();
+  const ehMesPassado = outroMes !== null && outroMes.ano === d.mesAnterior.year && outroMes.mes === d.mesAnterior.month;
+  const avisoNaoFechado =
+    ehMesPassado && !d.fechamentoFeito ? (
+      <Link href="/mensal/foco/fechamento" className="flex items-center gap-3 rounded-3xl bg-accent-soft px-4 py-3" data-mes-nao-fechado>
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-surface text-accent-strong" aria-hidden>
+          <CalendarCheck size={18} />
+        </span>
+        <span className="min-w-0 flex-1">
+          <b className="block text-[15px] font-medium text-ink">{d.mesAnterior.label.charAt(0).toUpperCase() + d.mesAnterior.label.slice(1)} ainda não foi fechado</b>
+          <small className="text-[13px] text-ink-muted">3 min</small>
+        </span>
+        <span className="shrink-0 rounded-full bg-ink px-4 py-2 text-sm font-medium text-surface">Fechar</span>
+      </Link>
+    ) : null;
 
   return (
     // Celular: uma coluna, na ordem dos níveis. Computador: à esquerda o número, os atalhos e o mês;
     // à direita o que pede atenção, a próxima ação e o selo.
     <div className={`flex flex-col gap-5 ${contaNova ? "" : "lg:grid lg:grid-cols-2 lg:items-start lg:gap-6"}`}>
       <div className="flex min-w-0 flex-col gap-5">
+        {avisoNaoFechado}
         {/* Meta que chegou no valor: a notificação com confete, uma vez só (conquista rara). */}
         <ConquistasDeMetas ctx={ctx} />
         {!contaNova && (
@@ -346,9 +215,15 @@ export default async function FocoPage() {
               >
               <SemanaFoco
                 rotulos={{ porDia: t.focoPorDia, fimDoMes: t.focoFimDoMes }}
-                rotulo={livre.tipo === "estimativa" ? t.focoLivreEstimativa : livre.tipo === "semana" ? t.focoLivreSemana : t.focoLivreMes}
-                valor={livre.valor}
-                tipo={livre.tipo}
+                // Mês ainda sem lançamento (quem acompanha uma vez por mês, no começo do mês): o mesmo
+                // desenho aprovado, "Livre até domingo", com o número do PLANO para esta semana e o
+                // "Fim do mês" pelo plano. Antes caía num "Livre no mês (estimativa)" com barra vazia.
+                // O herói é sempre o da semana, como no protótipo: quem acompanha uma vez por mês vê o
+                // mesmo "Livre até domingo" (o livre do mês dividido pelos dias, vezes os dias até domingo).
+                rotulo={t.focoLivreSemana}
+                valor={livre.tipo === "semana" ? livre.valor : livreAteDomingo(livre.restante, livre.diasRestantes, diaDaSemana(d.now).diasAteDomingo)}
+                fimDoMesDoPlano={livre.tipo === "estimativa" ? fimDoMesPeloPlano(d.rendaPlanejada, livre.planejado, d.aportePlanejado) : null}
+                tipo={livre.tipo === "mes" ? "semana" : livre.tipo}
                 hoje={d.now}
                 ritmo={ritmoAtual}
                 frase={voz.ritmo[ritmoAtual]}
@@ -359,9 +234,9 @@ export default async function FocoPage() {
                 diasRestantes={livre.diasRestantes}
                 money={m}
               >
-                {(livre.diasSemLancar !== null || livre.semGastoComData) && (
+                {(livre.tipo === "estimativa" || livre.diasSemLancar !== null || livre.semGastoComData) && (
                   <p className="rounded-xl bg-surface/70 px-3 py-2 text-caption text-ink">
-                    {livre.diasSemLancar !== null ? t.focoDadosVelhos(livre.diasSemLancar) : t.focoDadosNenhum}
+                    {livre.tipo !== "estimativa" && livre.diasSemLancar !== null ? t.focoDadosVelhos(livre.diasSemLancar) : t.focoDadosNenhum}
                   </p>
                 )}
               </SemanaFoco>
@@ -386,15 +261,6 @@ export default async function FocoPage() {
             ) : (
               <DecisoesImportantes quantas={foco.atencao.length} href="/decidir" />
             )}
-            {/* Plano apertado (regra 3.8): o plano de gastos já usa 90% ou mais da renda. */}
-            {apertado && (
-              <p className="rounded-2xl px-4 py-3 text-sm text-ink" style={{ background: "color-mix(in srgb, var(--color-dinheiro-faltou) 12%, var(--color-surface))" }}>
-                {apertado.texto}{" "}
-                <Link href={apertado.atalho.href} className="font-medium text-accent-strong underline-offset-2 hover:underline">
-                  {apertado.atalho.rotulo}
-                </Link>
-              </p>
-            )}
           </>
         )}
       </div>
@@ -410,56 +276,11 @@ export default async function FocoPage() {
           <>
             {mesAteAgora}
             <GraficoSeisMeses meses12={meses12} />
-            {d.fechamento.estado === "fechado" && (
-              // "Setembro fechado. Ver resumo" (rodada 42): a linha discreta no lugar do cartão.
-              <p className="flex min-h-11 items-center gap-2 px-1 text-sm text-ink-muted">
-                <CalendarCheck size={16} className="shrink-0" aria-hidden />
-                <span className="min-w-0 flex-1">{textosFechamento.titulo}.</span>
-                <Link href="/mensal/foco/fechamento" className="shrink-0 text-ink underline underline-offset-2">
-                  Ver resumo
-                </Link>
-              </p>
-            )}
-            {/* "Para hoje" (07/10/2026): o alerta e a próxima ação num bloco só, com um título em
-                letra normal. Eram dois rótulos em caixa alta, "Atenção hoje" e "Próxima ação". */}
-            {(problemas.length > 0 || tarefas.length > 0) && (
+            {fecharMes && !outroMes && (
               <section className="flex flex-col gap-2.5">
                 <h2 className="px-1 text-base font-semibold text-ink">{t.focoParaHoje}</h2>
-                {problemas[0]?.no}
-                {tarefas[0]?.no}
+                {fecharMes}
               </section>
-            )}
-
-
-            {resto.length > 0 && (
-              <details className="group">
-                <summary className="flex min-h-11 cursor-pointer list-none items-center gap-1.5 px-1 text-sm font-medium text-ink-muted hover:text-ink">
-                  <ChevronRight size={16} className="transition-transform group-open:rotate-90" aria-hidden />
-                  {t.focoMaisCoisas(resto.length)}
-                </summary>
-                <div className="mt-2 flex flex-col gap-3">
-                  {resto.map((r) => (
-                    <div key={r.chave}>{r.no}</div>
-                  ))}
-                </div>
-              </details>
-            )}
-
-            {/* Acompanhando: o que ela combinou consigo mesma, logo depois do que pede ação. */}
-            {foco.combinados.map((c) => (
-              <CombinadoFoco key={c.categoria} c={c} hrefMes={d.hrefMes} opcoes={d.opcoesDeCategoria} gastos={d.gastosPorCategoria[c.categoria] ?? []} resumo={d.resumoPorCategoria[c.categoria]} />
-            ))}
-
-
-            {selo}
-
-            {ritmo && (
-              <form action={escolherRitmoAction.bind(null, ritmo === "semanal" ? "mensal" : "semanal")} className="flex items-center justify-center gap-2 pb-2 text-caption text-ink-faint">
-                <span>{t.focoRitmoAtual(ritmo === "semanal")}</span>
-                <button type="submit" className="font-semibold text-accent-strong underline-offset-2 hover:underline">
-                  {t.focoRitmoTrocar}
-                </button>
-              </form>
             )}
           </>
         )}

@@ -25,7 +25,7 @@ export default function AppErrorPage({
     console.error("Erro numa tela do app", error);
   }, [error]);
   return (
-    <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-4 text-center">
+    <div className="flex min-h-[60dvh] flex-col items-center justify-center gap-4 px-4 text-center">
       <span className="text-5xl" aria-hidden>
         😵‍💫
       </span>

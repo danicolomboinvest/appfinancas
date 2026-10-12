@@ -459,7 +459,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
       <Section title={voz.titulos.statusModulos}>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-2">
           <LinkedStatCard
-            href="/planejamento/reserva-emergencia"
+            href="/planejamento/metas"
             icon={ShieldCheck}
             label={voz.titulos.modReserva}
             value={emergencyProgress === null ? "Não configurada" : `${Math.round(emergencyProgress * 100)}% concluída`}
@@ -486,7 +486,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
           {/* Empresa não se aposenta: o card some no perfil Empresa. */}
           {!empresa && (
           <LinkedStatCard
-            href="/planejamento/acumulo#liberdade-financeira"
+            href="/simuladores/liberdade"
             icon={Sunrise}
             label={voz.titulos.modAposentadoria}
             // O número e duas palavras (07/10/2026): era "Superávit: renda passiva cobre o padrão de vida desejado".

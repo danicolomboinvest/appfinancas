@@ -269,7 +269,7 @@ export async function computeInsights(ctx: AuthContext, money: MoneyFormatter): 
     const target = Number(emergencyFund.targetAmount);
     const current = Number(emergencyFund.currentAmount);
     const percent = target > 0 ? current / target : 0;
-    const reserveHref = "/planejamento/reserva-emergencia";
+    const reserveHref = "/planejamento/metas";
     if (percent >= 1) {
       insights.push({
         id: "emergency-fund",

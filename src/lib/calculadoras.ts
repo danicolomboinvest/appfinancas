@@ -28,6 +28,6 @@ export function calculadoras(t: Pick<Titulos, "decPerguntas" | "calcAposentadori
     { id: "amortizar", href: "/simuladores/amortizar-vs-investir", Icone: Landmark, cor: "var(--color-cat-saude)", titulo: p.amortizar, apelido: "Amortizar ou investir" },
     { id: "marcacao", href: "/simuladores/marcacao-mercado", Icone: TrendingUp, cor: "var(--color-cat-lazer)", titulo: p.marcacao, apelido: "Marcação a mercado" },
     // A cor do destaque do tema (dourado no Padrão, rosa no Girly): o verde fixo destoava no Girly.
-    { id: "aposentadoria", href: "/planejamento/acumulo", Icone: Sunrise, cor: "var(--color-accent)", titulo: t.calcAposentadoria },
+    { id: "aposentadoria", href: "/simuladores/liberdade", Icone: Sunrise, cor: "var(--color-accent)", titulo: t.calcAposentadoria },
   ];
 }

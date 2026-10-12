@@ -4,7 +4,6 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Calendar, Check } from "lucide-react";
 import { Explica } from "@/components/ui/Explica";
-import { HeroiDoTema } from "@/components/ui/HeroiDoTema";
 import { ValorDestaque } from "@/components/ui/ValorDestaque";
 import { LogoDoLancamento } from "@/components/ui/LogoDoLancamento";
 import { useToast } from "@/components/ui/toast-context";
@@ -14,7 +13,7 @@ import { adiarAporteAction, marcarAporteAction, responderAporteAction } from "..
 
 export type EstadoDoAporte =
   | { tipo: "feito"; mes: string; valor: number; origem: string; data: string | null; proximo: { mes: string; valor: number } | null }
-  | { tipo: "pendente"; entradaId: string; valor: number; origem: "pix" | "aplicacao"; quando: string | null }
+  | { tipo: "pendente"; entradaId: string; valor: number; origem: "pix" | "aplicacao"; quando: string | null; mes?: string }
   | { tipo: "adiado"; mesDeHoje: string }
   | { tipo: "perguntar"; mes: string; combinado: number; diaMin: string; diaMax: string };
 
@@ -83,39 +82,37 @@ export function CartaoDoAporte({ metaId, estado }: { metaId: string; estado: Est
 
   if (estado.tipo === "pendente") {
     return (
-      <HeroiDoTema className="!gap-3 !rounded-3xl !p-4">
+      <section className="flex flex-col gap-3 rounded-3xl border border-border bg-surface p-4" data-aporte-pendente>
         <div className="flex items-center gap-3">
           {estado.origem === "pix" ? (
             <LogoDoLancamento descricao="Pix" icon={Check} size={48} />
           ) : (
-            <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-surface text-success" aria-hidden>
+            <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-surface-2 text-success" aria-hidden>
               <Check size={20} />
             </span>
           )}
           <div className="flex min-w-0 flex-col gap-px">
-            <small className="text-[12.5px] font-medium text-heroi-suave">
-              {estado.origem === "pix" ? "Pix" : "Aplicação"}
-              {estado.quando ? ` de ${estado.quando}` : ""}
+            <small className="text-[12.5px] font-medium text-ink-muted">Aporte{estado.mes ? ` de ${estado.mes}` : ""}</small>
+            <ValorDestaque texto={m(estado.valor)} className="text-[26px] font-normal leading-tight tracking-[-0.02em] tabular-nums text-ink" />
+            <small className="text-[12.5px] font-medium text-ink-muted">
+              {estado.origem === "pix" ? "Pix para você" : "Aplicação"}
+              {estado.quando ? ` · ${estado.quando}` : ""}
             </small>
-            <ValorDestaque texto={m(estado.valor)} className="text-[26px] font-normal leading-tight tracking-[-0.02em] tabular-nums" />
-            <small className="text-[12.5px] font-medium text-heroi-suave">{estado.origem === "pix" ? "Pix para você" : "Aplicação"}</small>
           </div>
           <span className="ml-auto self-start">
-            <Explica noHeroi rotulo="Como sabemos">
-              {AJUDA}
-            </Explica>
+            <Explica rotulo="Como sabemos">{AJUDA}</Explica>
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <p className="mr-auto text-[15.5px] font-semibold">Foi para esta meta?</p>
-          <button type="button" disabled={pendente} onClick={() => rodar(() => responderAporteAction(metaId, estado.entradaId, false))} className={`${botao} bg-surface text-ink`}>
+          <p className="mr-auto text-[15.5px] font-semibold text-ink">Foi para esta meta?</p>
+          <button type="button" disabled={pendente} onClick={() => rodar(() => responderAporteAction(metaId, estado.entradaId, false))} className={`${botao} bg-surface-2 text-ink`}>
             Não
           </button>
           <button type="button" disabled={pendente} onClick={() => rodar(() => responderAporteAction(metaId, estado.entradaId, true), "Aporte ligado à meta")} className={`${botao} bg-ink text-canvas`}>
             Sim
           </button>
         </div>
-      </HeroiDoTema>
+      </section>
     );
   }
 

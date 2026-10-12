@@ -206,11 +206,11 @@ function perguntasDeAcao(e: EntradaDoAtivo): Pergunta[] {
   const evo = v("evolucao_lucro");
   const pLucro: Pergunta = {
     k: "lucro",
-    q: "É uma empresa que ganha dinheiro?",
+    q: "Ganha dinheiro?",
     f: lucro,
     r: lucro ? RESP.lucro[lucro] : SEM_DADO,
     curto: lucro ? CURTO.lucro[lucro] : "Lucro",
-    num: roe !== null ? `De cada ${moeda} 100 que os sócios puseram, ${moeda} ${numBR(roe, 0)} viram lucro por ano.` : null,
+    num: roe !== null ? `${moeda} ${numBR(roe, 0)} a cada ${moeda} 100 dos sócios, por ano.` : null,
     ajuda: "É o ROE (retorno sobre o patrimônio). Acima de 15% costuma ser favorável; abaixo de 10%, ponto de atenção. A pergunta também olha as margens e o crescimento de vendas e lucro.",
     graficos: lucroGraf,
     notas: evo !== null ? [`Lucro em 5 anos: ${sinalMais(evo)}`] : [],
@@ -252,7 +252,7 @@ function perguntasDeAcao(e: EntradaDoAtivo): Pergunta[] {
   if (porAno) pagaGraf.push({ tipo: "colunas", valores: porAno.valores, rotulos: porAno.rotulos });
   const pPaga: Pergunta = {
     k: "paga",
-    q: "Paga bem quem investe?",
+    q: "Paga bem?",
     f: paga,
     r: paga === "forte" ? "Bem" : paga === "ok" ? "Pouco" : SEM_DADO,
     curto: paga ? CURTO.paga[paga] : "Dividendos",

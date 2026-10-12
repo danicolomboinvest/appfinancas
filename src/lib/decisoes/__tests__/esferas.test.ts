@@ -46,7 +46,7 @@ describe("esferas do Decidir (rodada 57)", () => {
 
   it("as outras seis: reserva, exagero, raio-x e as do mês, com o ponto âmbar quando pede atenção", () => {
     expect(pilulaDaPergunta("reserva", ana)).toEqual({ texto: "menos de 1 mês", atencao: true });
-    expect(pilulaDaPergunta("exagero", ana)).toEqual({ texto: "Saúde passou R$ 67", atencao: true });
+    expect(pilulaDaPergunta("exagero", ana)).toEqual({ texto: "Saúde R$ 67 acima", atencao: true });
     expect(pilulaDaPergunta("exagero", { ...ana, passou: null })).toEqual({ texto: "nada passou", atencao: false });
     expect(pilulaDaPergunta("raiox", ana)).toEqual({ texto: "R$ 992 por ano", atencao: false });
     expect(pilulaDaPergunta("acabou", ana)).toEqual({ texto: "R$ 400 a menos", atencao: false });

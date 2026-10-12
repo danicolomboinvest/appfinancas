@@ -1,3 +1,4 @@
+import { cache } from "react";
 import type { ProfileKind } from "@prisma/client";
 import { auth } from "@/lib/auth/auth.config";
 import { getOrCreateActiveProfile } from "@/lib/repositories/profile.repo";
@@ -51,16 +52,25 @@ export type AuthContext = AccountContext & {
 };
 
 /**
+ * A sessão e o perfil ativo, uma vez por requisição (11/10/2026). O `auth()` lê o banco a cada
+ * chamada (confere se a conta ainda existe), e o layout e a página chamavam cada um o seu: em
+ * produção, cada ida à Neon é uma viagem de rede, e a tela esperava todas em fila.
+ */
+export const sessaoDaRequisicao = cache(() => auth());
+export const perfilAtivoDaRequisicao = cache((userId: string) => getOrCreateActiveProfile(userId));
+const perfilDoParDaRequisicao = cache((userId: string) => perfilDoPar(userId));
+
+/**
  * Contexto de sessão autenticado, para ser passado explicitamente à camada de
  * repositories. Nunca aceitar userId vindo do client/body da requisição.
  */
 export async function getRequiredSession(): Promise<AuthContext> {
-  const session = await auth();
+  const session = await sessaoDaRequisicao();
   if (!session?.user) {
     throw new Error("Não autenticado.");
   }
   // O par entra direto no Nós dois da titular, sem perfil próprio (a não ser que tenha comprado).
-  const doPar = session.user.par === "em-uso" ? await perfilDoPar(session.user.id) : null;
+  const doPar = session.user.par === "em-uso" ? await perfilDoParDaRequisicao(session.user.id) : null;
   if (doPar) {
     return {
       userId: session.user.id,
@@ -73,7 +83,7 @@ export async function getRequiredSession(): Promise<AuthContext> {
       donoId: doPar.par.donoId,
     };
   }
-  const perfil = await getOrCreateActiveProfile(session.user.id);
+  const perfil = await perfilAtivoDaRequisicao(session.user.id);
   return {
     userId: session.user.id,
     role: session.user.role,

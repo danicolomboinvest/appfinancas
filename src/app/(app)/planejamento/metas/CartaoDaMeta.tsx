@@ -56,7 +56,7 @@ export function CartaoDaMeta({ meta, jeito, hoje, money }: { meta: MetaDaTela; j
           </div>
           {jeito.barraEChegada && (
             <div className="h-1.5 overflow-hidden rounded-full bg-surface-2" aria-hidden>
-              <div className={`h-full rounded-full ${atras ? "bg-danger" : "bg-accent"}`} style={{ width: `${Math.min(100, Math.max(plano.pct, 2))}%` }} />
+              <div className={`h-full rounded-full ${atras ? "bg-danger" : "bg-success"}`} style={{ width: `${Math.min(100, Math.max(plano.pct, 2))}%` }} />
             </div>
           )}
           <div className="flex items-baseline justify-between gap-3 text-[13px] font-medium text-ink-muted">

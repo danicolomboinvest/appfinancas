@@ -23,7 +23,7 @@ export default function LoginPage({
   const [etapa, setEtapa] = useState<"escolha" | "entrar">(created === "1" || typeof callbackUrl === "string" ? "entrar" : "escolha");
 
   return (
-    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-canvas px-6 py-10">
+    <main className="relative flex min-h-dvh items-center justify-center overflow-hidden bg-canvas px-6 py-10">
       {/*
         A luz dourada atrás da marca (05/10/2026, "visual sem graça"): a referência de design do app
         pede um brilho difuso atrás do elemento principal de cada tela, nunca o fundo chapado. É a

@@ -1,71 +1,40 @@
 "use client";
 
-import { useActionState } from "react";
-import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
-import { useSuccessToast } from "@/components/ui/useSuccessToast";
+import { useState, useTransition } from "react";
+import { Interruptor } from "@/components/ui/Interruptor";
+import { useToast } from "@/components/ui/toast-context";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
-import { updateNotificationsAction, type NotificationsState } from "./actions";
+import { updateNotificationsAction } from "./actions";
 
-const initialState: NotificationsState = {};
+type Prefs = { notifyBudgetAlerts: boolean; notifyLateGoals: boolean; notifyMonthlyRecap: boolean };
 
-export function NotificationsForm({
-  defaults,
-}: {
-  defaults: { notifyBudgetAlerts: boolean; notifyLateGoals: boolean; notifyMonthlyRecap: boolean };
-}) {
-  const [state, formAction, isPending] = useActionState(updateNotificationsAction, initialState);
-  useSuccessToast(isPending, state.error);
+/** "Por e-mail e no app" (protótipo): três chaves que salvam no toque, sem botão Salvar. */
+export function NotificationsForm({ defaults }: { defaults: Prefs }) {
+  const [prefs, setPrefs] = useState(defaults);
+  const [, iniciar] = useTransition();
+  const { showError } = useToast();
   const { titulos: t } = useProfileTheme().voz;
 
+  function trocar(chave: keyof Prefs, v: boolean) {
+    const antes = prefs;
+    const novo = { ...prefs, [chave]: v };
+    setPrefs(novo);
+    iniciar(async () => {
+      const fd = new FormData();
+      for (const [k, on] of Object.entries(novo)) if (on) fd.set(k, "on");
+      const r = await updateNotificationsAction({}, fd).catch(() => ({ error: t.acaoFalhou }));
+      if (r.error) {
+        setPrefs(antes);
+        showError(r.error);
+      }
+    });
+  }
+
   return (
-    <Card as="form" action={formAction} className="flex flex-col gap-4 p-5">
-      {state.error && <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{state.error}</p>}
-
-      {/* Único item da lista que sai da tela e vai pro e-mail da pessoa — por isso vem
-          primeiro e diz explicitamente a frequência. */}
-      <label className="flex items-center justify-between gap-4 rounded-lg border border-border p-3">
-        <div>
-          <p className="text-sm font-medium text-ink">{t.cfgResumoEmail}</p>
-          <p className="text-xs text-ink-muted">{t.cfgResumoEmailDica}</p>
-        </div>
-        <input
-          type="checkbox"
-          name="notifyMonthlyRecap"
-          defaultChecked={defaults.notifyMonthlyRecap}
-          className="h-4 w-4 accent-accent"
-        />
-      </label>
-
-      <label className="flex items-center justify-between gap-4 rounded-lg border border-border p-3">
-        <div>
-          <p className="text-sm font-medium text-ink">{t.cfgAlertasOrcamento}</p>
-          <p className="text-xs text-ink-muted">{t.cfgAlertasOrcamentoDica}</p>
-        </div>
-        <input
-          type="checkbox"
-          name="notifyBudgetAlerts"
-          defaultChecked={defaults.notifyBudgetAlerts}
-          className="h-4 w-4 accent-accent"
-        />
-      </label>
-
-      <label className="flex items-center justify-between gap-4 rounded-lg border border-border p-3">
-        <div>
-          <p className="text-sm font-medium text-ink">{t.cfgMetasAtrasadas}</p>
-          <p className="text-xs text-ink-muted">{t.cfgMetasAtrasadasDica}</p>
-        </div>
-        <input
-          type="checkbox"
-          name="notifyLateGoals"
-          defaultChecked={defaults.notifyLateGoals}
-          className="h-4 w-4 accent-accent"
-        />
-      </label>
-
-      <Button type="submit" disabled={isPending} className="w-fit">
-        {isPending ? t.cfgSalvando : t.cfgSalvar}
-      </Button>
-    </Card>
+    <div className="overflow-hidden rounded-3xl bg-surface shadow-[inset_0_0_0_1px_var(--color-border)] [&>*+*]:border-t [&>*+*]:border-border">
+      <Interruptor ligado={prefs.notifyMonthlyRecap} aoMudar={(v) => trocar("notifyMonthlyRecap", v)} titulo={t.cfgResumoEmail} sub={t.cfgResumoEmailDica} />
+      <Interruptor ligado={prefs.notifyBudgetAlerts} aoMudar={(v) => trocar("notifyBudgetAlerts", v)} titulo={t.cfgAlertasOrcamento} sub={t.cfgAlertasOrcamentoDica} />
+      <Interruptor ligado={prefs.notifyLateGoals} aoMudar={(v) => trocar("notifyLateGoals", v)} titulo={t.cfgMetasAtrasadas} sub={t.cfgMetasAtrasadasDica} />
+    </div>
   );
 }

@@ -301,7 +301,7 @@ export const PADRAO_IMPORTACAO: TextosImportacao = {
   impImportarSub: "O jeito mais rápido: o mês se monta sozinho",
   impCompraAntes: "Antes de passar o cartão",
   // Fluxo de voz
-  impVozSegure: "Segure para falar",
+  impVozSegure: "Segure e fale",
   impVozSolte: "Solte para transcrever",
   impVozNaoSuportado: "Seu navegador não suporta reconhecimento de voz. Use a opção de digitar.",
   impVozNaoEntendi: "Não entendemos o que foi dito. Tente falar de novo.",

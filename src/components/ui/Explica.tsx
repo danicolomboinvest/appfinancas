@@ -69,14 +69,14 @@ export function Explica({
           const esquerda = Math.min(Math.max(12, r.left - 8), window.innerWidth - largura - 12);
           setPos({ top: r.bottom + 6, left: esquerda, width: largura });
         }}
-        // A área de toque é maior que o desenho: o círculo tem 18px, o botão 28px.
+        // A área de toque é maior que o desenho: o círculo tem 22px (protótipo), o botão 28px.
         className={
           gatilho
             ? classeDoGatilho
-            : `-m-1.5 inline-flex size-7 shrink-0 items-center justify-center rounded-full align-middle transition-colors ${noHeroi ? "text-heroi-suave hover:text-heroi-tinta" : "text-ink-faint hover:text-ink"}`
+            : `-m-1.5 inline-flex size-7 shrink-0 items-center justify-center rounded-full align-middle transition-colors ${noHeroi ? "text-heroi-suave hover:text-heroi-tinta" : "text-ink-muted hover:text-ink"}`
         }
       >
-        {gatilho ?? <span className="flex size-[18px] items-center justify-center rounded-full border border-current text-xs font-bold leading-none">?</span>}
+        {gatilho ?? <span className="flex size-[22px] items-center justify-center rounded-full border border-current text-[13px] font-normal leading-none">?</span>}
       </button>
       {pos &&
         createPortal(

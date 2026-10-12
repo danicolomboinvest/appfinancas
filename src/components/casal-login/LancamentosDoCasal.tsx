@@ -28,7 +28,13 @@ export function LancamentosDoCasal({
   minhaLetra,
   mes,
   podeLancar,
+  porDia = false,
+  soBotao = false,
 }: {
+  /** Lista separada por dia, com "quem pagou" e a etiqueta Nosso / De fulano (página Lançamentos). */
+  porDia?: boolean;
+  /** Só o + e a folha de lançar (o Nosso mês tem o + mas não a lista). */
+  soBotao?: boolean;
   itens: LancamentoDoCasal[];
   nomes: Nomes;
   letraTitular: "A" | "B";
@@ -39,6 +45,80 @@ export function LancamentosDoCasal({
   const money = useMoney();
   const [editando, setEditando] = useState<LancamentoDoCasal | "novo" | null>(null);
   const total = itens.filter((i) => i.categoria === "EXPENSE").reduce((s, i) => s + i.valor, 0);
+
+  const botaoEFolha = (
+    <>
+      {podeLancar && (
+        <button
+          type="button"
+          onClick={() => setEditando("novo")}
+          aria-label="Lançar no Nós dois"
+          className="fixed bottom-[calc(1.25rem+var(--safe-bottom))] right-5 z-50 flex size-[60px] items-center justify-center rounded-full bg-accent text-on-accent botao-flutuante shadow-[0_2px_6px_rgba(0,0,0,0.08),0_14px_28px_-10px_color-mix(in_srgb,var(--color-accent)_60%,transparent)] transition-transform active:scale-95 max-[359px]:size-12"
+        >
+          <Plus size={28} strokeWidth={1.8} aria-hidden />
+        </button>
+      )}
+      <FolhaDeLancar aberto={editando !== null} item={editando === "novo" ? null : editando} onClose={() => setEditando(null)} meuNome={nomes[minhaLetra]} />
+    </>
+  );
+  if (soBotao) return botaoEFolha;
+
+  if (porDia) {
+    const dias = [...new Set(itens.map((i) => i.dia ?? "sem-dia"))];
+    const rotuloDia = (d: string) => (d === "sem-dia" ? "Sem dia" : `${Number(d.slice(8, 10))} ${MESES[Number(d.slice(5, 7)) - 1].slice(0, 3)}`);
+    return (
+      <section aria-label="Lançamentos por dia" className="flex flex-col gap-2">
+        {itens.length === 0 && <p className={`${CARTAO} p-5 text-[15px] text-ink-muted`}>Nada por aqui.</p>}
+        {dias.map((d) => (
+          <div key={d} className="flex flex-col gap-1.5">
+            <p className="px-1 pt-2 text-[13px] font-medium text-ink-muted">{rotuloDia(d)}</p>
+            <ul className={`${CARTAO} divide-y divide-border px-4`}>
+              {itens
+                .filter((i) => (i.dia ?? "sem-dia") === d)
+                .map((l) => {
+                  const quem = l.pessoa ?? letraTitular;
+                  const conteudo = (
+                    <>
+                      <Bolinha nome={nomes[quem]} cor={quem === letraTitular ? "titular" : "par"} size={32} />
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-center gap-1.5 truncate text-[15px] text-ink">
+                          {l.destino === "so-meu" && <Lock size={14} strokeWidth={1.8} className="shrink-0 text-ink-muted" aria-label="Só meu" />}
+                          <span className="truncate">{l.descricao || (l.parentCategory ? PARENT_CATEGORY_LABEL[l.parentCategory] : l.categoria === "INCOME" ? "Entrada" : "Gasto")}</span>
+                        </span>
+                        <span className="block truncate text-[13px] text-ink-muted">{l.categoria === "INCOME" ? `Entrada de ${nomes[quem]}` : `${nomes[quem]} pagou`}</span>
+                      </span>
+                      <span className="flex shrink-0 flex-col items-end gap-0.5">
+                        <span className={`text-[15px] tabular-nums ${l.categoria === "INCOME" ? "text-success" : "text-ink"}`}>
+                          {l.categoria === "INCOME" ? "+" : ""}
+                          {money(l.valor, { round: true })}
+                        </span>
+                        {l.categoria !== "INCOME" && (
+                          <span className={`rounded-full px-2 py-px text-xs ${l.destino === "nosso" ? "bg-accent-soft text-accent-strong" : "bg-surface-2 text-ink-muted"}`}>
+                            {l.destino === "nosso" ? "Nosso" : l.destino === "so-meu" ? "Só meu" : `De ${nomes[quem]}`}
+                          </span>
+                        )}
+                      </span>
+                    </>
+                  );
+                  return (
+                    <li key={l.id}>
+                      {l.podeMexer && podeLancar ? (
+                        <button type="button" onClick={() => setEditando(l)} className="flex w-full items-center gap-3 py-3 text-left">
+                          {conteudo}
+                        </button>
+                      ) : (
+                        <div className="flex items-center gap-3 py-3">{conteudo}</div>
+                      )}
+                    </li>
+                  );
+                })}
+            </ul>
+          </div>
+        ))}
+        {botaoEFolha}
+      </section>
+    );
+  }
 
   return (
     <section aria-label="Lançamentos do mês">

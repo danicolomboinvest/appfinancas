@@ -31,7 +31,7 @@ const APPLE = "https://apps.apple.com/account/subscriptions";
 
 const ICONE: Record<Motivo, LucideIcon> = { caro: Tag, dificil: CircleHelp, errado: AlertTriangle, naouso: Clock, outro: Menu };
 const TINTA = "bg-[color-mix(in_srgb,var(--color-accent)_9%,var(--color-surface))]";
-const PRINCIPAL = "flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-accent-gradient px-5 text-[15px] font-medium text-on-accent disabled:opacity-60";
+const PRINCIPAL = "flex min-h-12 w-full items-center justify-center gap-2 rounded-full [background:var(--botao-fundo,var(--color-ink))] [color:var(--botao-tinta,var(--color-canvas))] px-5 text-[15px] font-medium disabled:opacity-60";
 const SEGUNDO = "flex min-h-12 w-full items-center justify-center rounded-full border border-border-strong bg-surface px-5 text-[15px] font-medium text-ink";
 
 function Titulo({ children }: { children: React.ReactNode }) {

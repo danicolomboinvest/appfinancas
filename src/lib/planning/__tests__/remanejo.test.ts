@@ -76,3 +76,26 @@ describe("remanejo por prioridade (regra 3.1)", () => {
     expect(revisaoDoPlano([{ gasto: 400, planejado: 350 }, { gasto: 417, planejado: 350 }])).toBeNull();
   });
 });
+
+import { fontesParaCobrir } from "../remanejo";
+
+describe("Cobrir com outra categoria: as opções", () => {
+  const saude = { key: "SAUDE", label: "Saúde", planejado: 350, gasto: 416.4 };
+  it("desejo antes do dia a dia, só quem cobre sozinha, nunca essencial", () => {
+    const r = fontesParaCobrir(saude, [
+      saude,
+      { key: "LAZER", label: "Lazer", planejado: 600, gasto: 186 },
+      { key: "ALIMENTACAO", label: "Alimentação", planejado: 1500, gasto: 360 },
+      { key: "MORADIA", label: "Moradia", planejado: 2700, gasto: 100 },
+      { key: "OUTROS", label: "Outros", planejado: 950, gasto: 900 },
+      { key: "pet", label: "Pet", planejado: 300, gasto: 0, essencial: true },
+    ]);
+    expect(r.map((o) => [o.label, o.valor, o.sobraDepois])).toEqual([
+      ["Lazer", 67, 347],
+      ["Alimentação", 67, 1073],
+    ]);
+  });
+  it("nada passou: sem opções", () => {
+    expect(fontesParaCobrir({ key: "LAZER", label: "Lazer", planejado: 600, gasto: 10 }, [])).toEqual([]);
+  });
+});

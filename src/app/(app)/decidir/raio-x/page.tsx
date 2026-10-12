@@ -30,8 +30,11 @@ export default async function RaioXPage() {
         <Link href="/decidir" className="flex min-h-11 w-fit shrink-0 items-center gap-1 text-sm text-ink-muted hover:text-ink">
           <ChevronLeft size={18} aria-hidden /> {t.decTitulo}
         </Link>
-        <span className="min-w-0 truncate text-caption text-ink-muted">{tituloDaEsfera(pergunta, chaveDoTema(ctx.profileTheme)).replace("?", "")}</span>
       </div>
+      {/* A pergunta no topo (protótipo, #decidir-raiox). */}
+      <span className="-mt-1 text-[13px] font-medium text-ink-muted" data-pergunta-raiox>
+        {tituloDaEsfera(pergunta, chaveDoTema(ctx.profileTheme))}
+      </span>
       {itens.length === 0 ? (
         <Card className="p-5">
           <p className="text-sm text-ink-muted">{t.raioxVazio}</p>

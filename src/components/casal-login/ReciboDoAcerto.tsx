@@ -124,6 +124,17 @@ export function ReciboDoAcerto({ d }: { d: DadosDoRecibo }) {
                 }
               />
             ))}
+            <div className="flex flex-col gap-2 py-3">
+              <p className="text-[13px] text-ink-muted">Até o dia {new Date(d.ano, d.mes, 0).getDate()}, o que entrar na casa ainda muda a conta.</p>
+              <div className="flex flex-wrap gap-2">
+                <a href="/divisao/contas" className="inline-flex min-h-10 items-center rounded-full bg-surface-2 px-4 text-sm text-ink">
+                  Ajustar conta por conta
+                </a>
+                <a href="/divisao?aba=orcamento" className="inline-flex min-h-10 items-center rounded-full bg-surface-2 px-4 text-sm text-ink">
+                  Combinar a divisão
+                </a>
+              </div>
+            </div>
           </dl>
         )}
         <p className="px-5 pb-4 pt-3 text-center text-[12px] font-medium uppercase tracking-[0.1em] text-ink-muted">

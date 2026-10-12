@@ -38,6 +38,14 @@ describe("o menu ☰ da versão nova", () => {
   it("o título do topo é o nome da seção", () => {
     expect(tituloDaTela("/orcamento", NAV_SECTIONS)).toBe("Visão geral");
     expect(tituloDaTela("/planejamento/reserva-emergencia", NAV_SECTIONS)).toBe("Metas");
+    // Metas não tem submenu: Reserva e Aposentadoria saem pelo link no fim da lista.
+    expect(NAV_SECTIONS.find((x) => x.basePath === "/planejamento")?.children ?? []).toHaveLength(0);
+  });
+
+  it("nenhuma área abre subitens no ☰: cada uma é um item só, com as abas dentro da tela", () => {
+    for (const secao of NAV_SECTIONS) expect(secao.children ?? [], secao.label).toHaveLength(0);
+    for (const casal of [false, true])
+      for (const empresa of [false, true]) for (const s of secoesVisiveis(NAV_SECTIONS, { empresa, casal })) expect(s.children ?? []).toHaveLength(0);
     expect(tituloDaTela("/perfis", NAV_SECTIONS)).toBe("Configurações");
     expect(tituloDaTela("/money-reset", NAV_SECTIONS)).toBe("SPI Finance");
   });

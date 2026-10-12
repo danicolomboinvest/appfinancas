@@ -16,6 +16,7 @@ import { estadoDaAssessoria } from "@/lib/assessoria/estado";
 import { atualizarTaxasSeVelhas } from "@/lib/indicadores/indicadores";
 import { PARENT_CATEGORY_COLOR } from "@/lib/categories";
 import { nowInBrazil } from "@/lib/date/brazil-now";
+import { getMonthlySummary } from "@/lib/consolidation/monthly";
 import { AllocateContributionCard } from "./AllocateContributionCard";
 import { evolucaoDoPatrimonio, precosDosTitulos, proventosDaCarteira, taxasDeReferencia, titulosParaABusca } from "./dados";
 import { MeusAtivos, type AtivoDaTela, type SugestaoDeAporte } from "./MeusAtivos";
@@ -37,7 +38,7 @@ export default async function CarteiraPage() {
   const mes = now.getMonth() + 1;
   const mesPassado = new Date(ano, mes - 2, 1);
 
-  const [assets, goals, user, contexto, aporteDoMes, aporteDoMesPassado, resgateDoMes, resgateDoMesPassado, comAporteRecente, alvos, serie, proventos, taxas] = await Promise.all([
+  const [assets, goals, user, contexto, aporteDoMes, aporteDoMesPassado, resgateDoMes, resgateDoMesPassado, comAporteRecente, alvos, serie, proventos, taxas, resumoDoMes] = await Promise.all([
     listAssets(ctx),
     listGoals(ctx),
     getOwnUser(ctx),
@@ -54,6 +55,8 @@ export default async function CarteiraPage() {
     evolucaoDoPatrimonio(ctx),
     proventosDaCarteira(ctx),
     taxasDeReferencia(agora),
+    // O mesmo "Guardou" do Resumo (auditoria: a folha dizia R$ 600 e o Resumo R$ 900).
+    getMonthlySummary(ctx, ano, mes),
   ]);
   const [titulos, titulosDoTesouro] = await Promise.all([precosDosTitulos(assets, agora), titulosParaABusca(agora)]);
   // Números de fora: o Banco Central de novo se o gravado tem mais de 12 horas (depois de responder).
@@ -92,7 +95,7 @@ export default async function CarteiraPage() {
 
   // Aportes (rodada 16): o que ela guardou no mês pelo orçamento e, só como sugestão, onde pôr.
   // A reserva segue a regra dos aportes (3.11): menos de 3 meses, 100% para ela.
-  const guardouNoMes = aporteDoMes.contributions.reduce((s, c) => s + c.amount, 0);
+  const guardouNoMes = Math.max(resumoDoMes.totalInvestment, aporteDoMes.contributions.reduce((s, c) => s + c.amount, 0));
   const baseDoAporte = guardouNoMes > 0 ? guardouNoMes : contexto.plannedAmount;
   const reserva = alvos.find((t) => t.kind === "reserva");
   const regra = reserva ? regraDosAportes(reserva.monthsCovered ?? null, reserva.remaining <= 0) : null;
@@ -153,6 +156,7 @@ export default async function CarteiraPage() {
         pendente: aporteDoMes.pending + aporteDoMesPassado.pending,
         sugestao,
         regra: regra?.faixa ?? null,
+        faltaReserva: reserva && reserva.remaining > 0 ? reserva.remaining : null,
         registrar,
       }}
       proventosDoAtivo={proventos.porTicker}

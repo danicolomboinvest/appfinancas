@@ -64,7 +64,7 @@ describe("as quatro perguntas", () => {
     const p = perguntasDoAtivo(ANA.ITSA4);
     expect(p.map((x) => x.k)).toEqual(["lucro", "divida", "paga", "preco"]);
     expect(p.map((x) => x.f)).toEqual(["forte", "forte", "forte", "ok"]);
-    expect(p[2].q).toBe("Paga bem quem investe?");
+    expect(p[2].q).toBe("Paga bem?");
   });
 
   it("dividendo de 5% ou mais é forte; abaixo é ok, nunca atenção", () => {

@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { CheckSquare, Pencil, PiggyBank, Receipt, Search, Square, Trash2, TrendingUp, X, type LucideIcon } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { Check, CheckSquare, ChevronDown, Pencil, PiggyBank, Receipt, Search, Square, Trash2, TrendingUp, X, type LucideIcon } from "lucide-react";
+import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import type { ParentCategory } from "@prisma/client";
 import type { CurrencyCode } from "@/lib/money";
 import { Modal } from "@/components/ui/Modal";
@@ -14,6 +16,7 @@ import { useToast } from "@/components/ui/toast-context";
 import { useMoney } from "@/components/money/MoneyProvider";
 import { CUSTOM_CATEGORY_ICON_MAP, categoryIcon, categoryLabel, colorForCategorySlice, emojiEscolhido, isParentCategoryKey, categoriasParaEscolher, type CategoriasDoPerfil } from "@/lib/categories";
 import { EntryForm } from "./EntryForm";
+import { FolhaDaTransacao } from "./FolhaDaTransacao";
 import { RESGATE } from "@/components/forms/CategoryFields";
 import { ehResgate } from "@/lib/entries/resgate";
 import {
@@ -26,6 +29,13 @@ import {
 
 export type ListEntry = {
   id: string;
+  /** O mês do lançamento. Na lista de um período (trimestre, 7 dias) cada um tem o seu. */
+  year?: number;
+  month?: number;
+  /** Dividir com alguém: com quem e quanto a pessoa deve (ver lib/entries/divisao.ts). */
+  divididoCom?: string | null;
+  parteDeOutro?: number | null;
+  devolvido?: boolean;
   category: "INCOME" | "EXPENSE" | "INVESTMENT_CONTRIBUTION";
   parentCategory: string | null;
   customCategoryId: string | null;
@@ -51,11 +61,6 @@ export type ListEntry = {
   noCartao?: boolean;
 };
 
-const CATEGORY_AMOUNT_CLASS: Record<ListEntry["category"], string> = {
-  INCOME: "text-success",
-  EXPENSE: "text-danger",
-  INVESTMENT_CONTRIBUTION: "text-accent-strong",
-};
 
 /** "Renda", "Gasto", "Aporte" — na voz do tema, porque o Girly não diz "aporte". */
 function categoryKindLabel(category: ListEntry["category"], voz: Voz, amount = 0): string {
@@ -138,8 +143,10 @@ function categoryName(entry: ListEntry, customCategories: { id: string; name: st
 
 function toSnapshot(entry: ListEntry, year: number, month: number): DeletedEntrySnapshot {
   return {
-    year,
-    month,
+    year: entry.year ?? year,
+    month: entry.month ?? month,
+    divididoCom: entry.divididoCom ?? null,
+    parteDeOutro: entry.parteDeOutro ?? null,
     category: entry.category,
     parentCategory: entry.parentCategory,
     customCategoryId: entry.customCategoryId,
@@ -175,7 +182,10 @@ export function EntryList({
   recentSubcategories,
   customCategories,
   goals,
+  pessoasDaDivisao = [],
 }: {
+  /** Com quem ela já dividiu alguma conta (para o "Com quem?" do Dividir). */
+  pessoasDaDivisao?: string[];
   entries: ListEntry[];
   year: number;
   month: number;
@@ -206,11 +216,16 @@ export function EntryList({
   // Transações (versão nova): busca, Saídas/Entradas/Cartão e uma categoria, como no protótipo.
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState<"todas" | "saidas" | "entradas" | "cartao">("todas");
-  const [categoriaFiltro, setCategoriaFiltro] = useState("");
+  // O painel da categoria no Orçamento abre aqui já filtrado (?categoria=SAUDE).
+  const buscaDaUrl = useSearchParams();
+  // Várias categorias de uma vez (protótipo: folha "Categorias" com Limpar e Aplicar).
+  const [categoriasFiltro, setCategoriasFiltro] = useState<string[]>(() => (buscaDaUrl.get("categoria") ? [buscaDaUrl.get("categoria")!] : []));
+  const [folhaDeCategorias, setFolhaDeCategorias] = useState(false);
+  const [rascunhoCategorias, setRascunhoCategorias] = useState<string[]>([]);
   const open = entries.find((e) => e.id === openId) ?? null;
   const editing = entries.find((e) => e.id === editingId) ?? null;
 
-  function removeEntries(targets: ListEntry[]) {
+  function removeEntries(targets: ListEntry[], mensagem?: string) {
     if (targets.length === 0) return;
     const snapshots = targets.map((t) => toSnapshot(t, year, month));
     const quantos = targets.length;
@@ -241,7 +256,7 @@ export function EntryList({
       // Aporte que já tinha sido distribuído: o dinheiro fica no ativo de propósito (é a posição
       // real da pessoa). Dizer isso na hora é o que impede o mês e a carteira de divergirem
       // sem ninguém perceber.
-      const base = t.uiExcluido(quantos);
+      const base = mensagem ?? t.uiExcluido(quantos);
       showToast(jaNaCarteira > 0 ? `${base} ${t.uiExcluidoContinuaNaCarteira}` : base, {
         label: t.uiDesfazer,
         onClick: () => {
@@ -333,6 +348,7 @@ export function EntryList({
         <button
           type="button"
           onClick={() => (selecting ? toggle(entry.id) : setOpenId(entry.id))}
+          data-linha-transacao
           aria-pressed={selecting ? marcado : undefined}
           aria-label={selecting ? `${marcado ? "Desmarcar" : "Marcar"} ${titulo}` : `Abrir ${titulo}`}
           className="flex min-w-0 flex-1 items-center gap-3 text-left"
@@ -357,11 +373,14 @@ export function EntryList({
                 </span>
               )}
               {/* Conta lançada antes de pagar (03/10/2026): mostra que ainda vai vencer. */}
+              {entry.divididoCom && (
+                <span className="mr-1 rounded-full bg-accent-soft px-1.5 py-px font-medium text-accent-strong">{entry.parteDeOutro ? `dividido com ${entry.divididoCom}` : `presente`}</span>
+              )}
               {entry.category === "EXPENSE" && entry.entryDate && entry.entryDate > hoje && (
                 <span className="mr-1 rounded-full border border-border-strong px-1.5 py-px font-medium">a vencer</span>
               )}
               {/* Entrada que ela marcou como "para o mês seguinte": caiu em outro mês. */}
-              {entry.category === "INCOME" && entry.entryDate && Number(entry.entryDate.slice(5, 7)) !== month && (
+              {entry.category === "INCOME" && entry.entryDate && Number(entry.entryDate.slice(5, 7)) !== (entry.month ?? month) && (
                 <span className="mr-1 rounded-full bg-accent-soft px-1.5 py-px font-medium text-accent-strong">
                   recebido {entry.entryDate.slice(8, 10)}/{entry.entryDate.slice(5, 7)}
                 </span>
@@ -408,7 +427,7 @@ export function EntryList({
     if (filtro === "saidas" && e.category !== "EXPENSE") return false;
     if (filtro === "entradas" && e.category !== "INCOME") return false;
     if (filtro === "cartao" && !e.noCartao) return false;
-    if (categoriaFiltro && (e.customCategoryId ?? e.parentCategory) !== categoriaFiltro) return false;
+    if (categoriasFiltro.length > 0 && !categoriasFiltro.includes((e.customCategoryId ?? e.parentCategory) as string)) return false;
     if (termo) {
       const texto = `${e.description ?? ""} ${e.subcategory ?? ""} ${categoryName(e, customCategories, voz, kind)}`.toLocaleLowerCase("pt-BR");
       if (!texto.includes(termo)) return false;
@@ -421,6 +440,7 @@ export function EntryList({
     const k = e.entryDate ?? "sem-data";
     grupos.set(k, [...(grupos.get(k) ?? []), e]);
   }
+  const nomeDaChave = (k: string) => (isParentCategoryKey(k) ? categoryLabel(kind, k) : (customCategories.find((c) => c.id === k)?.name ?? "Categoria"));
   const categoriasDoMes = [...new Set(entries.filter((e) => e.category === "EXPENSE").map((e) => e.customCategoryId ?? e.parentCategory).filter((k): k is string => Boolean(k)))];
 
   // Categoria só existe em Gasto (Renda e Aporte não têm categoria-mãe): o botão de mudar em
@@ -462,23 +482,85 @@ export function EntryList({
               {rotulo}
             </button>
           ))}
-          <select
-            value={categoriaFiltro}
-            onChange={(e) => setCategoriaFiltro(e.target.value)}
-            aria-label="Filtrar por categoria"
-            className="min-h-10 shrink-0 rounded-full border border-border bg-surface px-3 text-[15px] text-ink"
+          <button
+            type="button"
+            aria-haspopup="dialog"
+            onClick={() => {
+              setRascunhoCategorias(categoriasFiltro);
+              setFolhaDeCategorias(true);
+            }}
+            className="flex min-h-10 shrink-0 items-center gap-1 rounded-full bg-surface-2 px-4 text-[15px] text-ink"
           >
-            <option value="">Categoria</option>
-            {categoriasDoMes.map((k) => (
-              <option key={k} value={k}>
-                {isParentCategoryKey(k) ? categoryLabel(kind, k) : (customCategories.find((c) => c.id === k)?.name ?? "Categoria")}
-              </option>
-            ))}
-          </select>
+            Categoria <ChevronDown size={15} aria-hidden />
+          </button>
+        </div>
+        <div className={`flex flex-wrap items-center gap-2 ${categoriasFiltro.length ? "" : "hidden"}`} data-filtro-categoria>
+          {categoriasFiltro.map((k) => (
+            <button key={k} type="button" onClick={() => setCategoriasFiltro((l) => l.filter((x) => x !== k))} aria-label={`Tirar o filtro ${nomeDaChave(k)}`} className="flex min-h-10 items-center gap-1 rounded-full bg-ink px-3.5 text-[15px] text-canvas">
+              {nomeDaChave(k)} <X size={14} aria-hidden />
+            </button>
+          ))}
         </div>
       </div>
 
-      {filtradas.length === 0 && <p className="px-1 py-6 text-center text-sm text-ink-muted">Nada com esse filtro neste mês.</p>}
+      <Modal open={folhaDeCategorias} onClose={() => setFolhaDeCategorias(false)} title="Categorias">
+        <div className="flex flex-col gap-4">
+          <div className="grid grid-cols-2 gap-2">
+            {categoriasDoMes.map((k) => {
+              const on = rascunhoCategorias.includes(k);
+              const v = categoryVisual({ category: "EXPENSE", parentCategory: isParentCategoryKey(k) ? k : null, customCategoryId: isParentCategoryKey(k) ? null : k } as ListEntry, customCategories, tema, kind);
+              return (
+                <button
+                  key={k}
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() => setRascunhoCategorias((l) => (on ? l.filter((x) => x !== k) : [...l, k]))}
+                  className="relative flex min-w-0 flex-col items-start gap-2 rounded-2xl bg-surface p-3 text-left text-[15px] text-ink shadow-[inset_0_0_0_1px_var(--color-border)] aria-pressed:shadow-[inset_0_0_0_1.5px_var(--color-ink)]"
+                >
+                  <CategoryIcon icon={v.icon} color={v.color} size={36} variant="soft" />
+                  <span className="w-full truncate">{nomeDaChave(k)}</span>
+                  <span className={`absolute right-3 top-3 flex size-[22px] items-center justify-center rounded-full ${on ? "bg-ink text-canvas" : "shadow-[inset_0_0_0_1.5px_var(--color-border-strong)]"}`} aria-hidden>
+                    {on && <Check size={13} strokeWidth={2.2} />}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <button type="button" onClick={() => setRascunhoCategorias([])} className="min-h-12 rounded-full bg-surface text-[15px] font-medium text-ink shadow-[inset_0_0_0_1px_var(--color-border-strong)]">
+              Limpar
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setCategoriasFiltro(rascunhoCategorias);
+                setFolhaDeCategorias(false);
+              }}
+              className="min-h-12 rounded-full bg-ink text-[15px] font-medium text-canvas"
+            >
+              Aplicar
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {filtradas.length === 0 && (
+        <div className="flex flex-col items-center gap-2 py-8 text-center" data-vazio-filtro>
+          <Receipt size={36} strokeWidth={1.4} className="text-ink-faint" aria-hidden />
+          <b className="text-[15px] font-medium text-ink">Nada com esse filtro</b>
+          <button
+            type="button"
+            onClick={() => {
+              setBusca("");
+              setFiltro("todas");
+              setCategoriasFiltro([]);
+            }}
+            className="min-h-10 rounded-full bg-surface-2 px-4 text-sm text-ink"
+          >
+            Limpar filtros
+          </button>
+        </div>
+      )}
       {[...grupos.entries()].map(([dia, lista]) => (
         <section key={dia} className="flex flex-col gap-2">
           <h3 className="px-1 pt-2 text-sm text-ink-muted">{rotuloDoDia(dia, hoje)}</h3>
@@ -573,60 +655,53 @@ export function EntryList({
         </div>
       </Modal>
 
-      {/* Folha do lançamento: tudo por extenso e os dois botões com espaço de sobra. */}
-      <Modal open={open !== null} onClose={() => setOpenId(null)} title={t.uiLancamento}>
+      {/* Folha "Transação" (protótipo aprovado): nome igual ao da lista, valor grande e as quatro
+          ações redondas (Dividir, Separar, Trocar categoria, Ignorar); Editar e Remover embaixo. */}
+      <Modal open={open !== null} onClose={() => setOpenId(null)} title="Transação">
         {open && (
-          <div className="flex flex-col gap-5">
-            <div className="flex items-start gap-3">
-              <LogoDoLancamento descricao={open.description} icon={categoryVisual(open, customCategories, tema, kind).icon} emoji={categoryVisual(open, customCategories, tema, kind).emoji} size={44} />
-              <div className="min-w-0 flex-1">
-                <p className="text-lg font-semibold leading-tight text-ink">
-                  {open.subcategory ?? categoryName(open, customCategories, voz, kind)}
-                </p>
-                <p className="mt-0.5 text-sm text-ink-muted">
-                  {categoryKindLabel(open.category, voz, open.amount)}
-                  {open.subcategory && `, ${categoryName(open, customCategories, voz, kind)}`}
-                  {open.dayLabel && `, ${open.dayLabel}`}
-                </p>
-              </div>
-              <div className="shrink-0 text-right">
-                <p className={`text-xl font-semibold tabular-nums ${open.category === "EXPENSE" && open.amount < 0 ? "text-success" : CATEGORY_AMOUNT_CLASS[open.category]}`}>
-                  {valorDaLinha(open, voz, money)}
-                </p>
-                {open.originalLabel && open.exchangeRate && (
-                  <p className="text-xs tabular-nums text-ink-faint">
-                    {open.originalLabel}, {t.uiCotacao(open.exchangeRate.toLocaleString("pt-BR", { maximumFractionDigits: 4 }))}
-                  </p>
-                )}
-              </div>
-            </div>
-            {open.description && <p className="text-sm leading-relaxed text-ink">{open.description}</p>}
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  setOpenId(null);
-                  setEditingId(open.id);
-                }}
-                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-border-strong bg-surface-2 text-sm font-semibold text-ink transition-colors hover:bg-surface-hover"
-              >
-                <Pencil size={16} strokeWidth={1.75} />
-                {t.uiEditar}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  const alvo = open;
-                  setOpenId(null);
-                  pedirRemocao(alvo);
-                }}
-                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-danger-soft text-sm font-semibold text-danger transition-colors hover:bg-danger hover:text-canvas"
-              >
-                <Trash2 size={16} strokeWidth={1.75} />
-                {t.uiRemover}
-              </button>
-            </div>
-          </div>
+          <FolhaDaTransacao
+            key={open.id}
+            entry={open}
+            titulo={open.description || open.subcategory || categoryName(open, customCategories, voz, kind)}
+            nomeDaCategoria={categoryName(open, customCategories, voz, kind)}
+            tipo={categoryKindLabel(open.category, voz, open.amount)}
+            visual={categoryVisual(open, customCategories, tema, kind)}
+            valor={valorDaLinha(open, voz, money)}
+            money={money}
+            kind={kind}
+            customCategories={customCategories}
+            pessoas={pessoasDaDivisao}
+            onFechar={() => setOpenId(null)}
+            onEditar={() => {
+              setOpenId(null);
+              setEditingId(open.id);
+            }}
+            onRemover={() => {
+              const alvo = open;
+              setOpenId(null);
+              pedirRemocao(alvo);
+            }}
+            onIgnorar={() => {
+              const alvo = open;
+              setOpenId(null);
+              removeEntries([alvo], `${open.description || categoryName(open, customCategories, voz, kind)} ignorado: não conta nos totais`);
+            }}
+            onTrocar={(c) => {
+              const alvo = open;
+              const de = categoryName(alvo, customCategories, voz, kind);
+              setOpenId(null);
+              startTransition(async () => {
+                try {
+                  await updateMonthlyEntriesCategoryAction([alvo.id], c, alvo.year ?? year, alvo.month ?? month);
+                  const para = c.customCategoryId ? (customCategories.find((x) => x.id === c.customCategoryId)?.name ?? "") : categoryLabel(kind, c.parentCategory as ParentCategory);
+                  showToast(`${alvo.description || de}: ${de} → ${para}`);
+                } catch (err) {
+                  console.error("updateMonthlyEntriesCategoryAction falhou", err);
+                  showError(t.acaoFalhou);
+                }
+              });
+            }}
+          />
         )}
       </Modal>
 
@@ -669,8 +744,8 @@ export function EntryList({
       <Modal open={editing !== null} onClose={() => setEditingId(null)} title={t.uiEditarLancamento}>
         {editing && (
           <EntryForm
-            year={year}
-            month={month}
+            year={editing.year ?? year}
+            month={editing.month ?? month}
             entryId={editing.id}
             recentSubcategories={recentSubcategories}
             customCategories={customCategories}

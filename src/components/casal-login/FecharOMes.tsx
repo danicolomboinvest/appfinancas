@@ -164,7 +164,7 @@ export function FecharOMes({
           </button>
         )}
         {!fechado && (
-          <Link href="/divisao#lancamentos" className={`${BOTAO_SUAVE} min-h-14 w-full flex-none text-[17px]`}>
+          <Link href="/divisao/lancamentos" className={`${BOTAO_SUAVE} min-h-14 w-full flex-none text-[17px]`}>
             Tem algo errado
           </Link>
         )}

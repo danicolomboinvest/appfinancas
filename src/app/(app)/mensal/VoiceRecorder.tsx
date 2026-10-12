@@ -321,17 +321,15 @@ export function VoiceRecorder({ onParsed }: { onParsed: (parsed: ParsedVoiceEntr
         onContextMenu={(e) => e.preventDefault()}
         aria-label="Segure para falar o lançamento"
         style={{ touchAction: "none" }}
-        className={`flex h-20 w-20 select-none items-center justify-center rounded-full border shadow-premium transition-transform ${
-          recording
-            ? "scale-110 border-danger bg-danger text-canvas"
-            : "border-border-strong bg-surface text-ink hover:scale-105 active:scale-95"
+        className={`flex h-24 w-24 select-none items-center justify-center rounded-full shadow-premium transition-transform ${
+          recording ? "scale-110 bg-danger text-canvas" : "bg-ink text-canvas hover:scale-105 active:scale-95"
         }`}
       >
-        <Mic size={28} strokeWidth={2} />
+        <Mic size={32} strokeWidth={1.8} />
       </button>
 
       <div className="flex flex-col items-center gap-1">
-        <span ref={timerElRef} className="text-sm font-medium tabular-nums text-ink-muted">
+        <span ref={timerElRef} className={`text-sm font-medium tabular-nums text-ink-muted ${recording ? "" : "invisible"}`}>
           0:00
         </span>
         <span className={`text-xs ${errorMessage ? "text-danger" : dica ? "font-medium text-ink-muted" : "text-ink-faint"}`}>

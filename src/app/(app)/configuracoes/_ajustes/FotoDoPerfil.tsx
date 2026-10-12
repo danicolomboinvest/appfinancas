@@ -6,6 +6,8 @@ import { Pencil } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/toast-context";
 import { AvatarDaConta } from "@/components/shell/PerfilSheet";
+import { useAppNativo } from "@/components/ui/useAppNativo";
+import { FOTO_SO_NO_NAVEGADOR } from "@/lib/apple/app-nativo";
 import { removerFotoAction, salvarFotoAction } from "./conta-actions";
 
 const LADO = 512;
@@ -31,7 +33,7 @@ async function recortar(src: string, zoom: number, x: number, y: number): Promis
  * (quando o aparelho tem câmera) e "Remover". Escolhida, ela centraliza arrastando e ajusta o zoom.
  * Depois de salva, vira o avatar do app todo.
  */
-export function FotoDoPerfil({ nome, foto }: { nome: string; foto: string | null }) {
+export function FotoDoPerfil({ nome, foto, comBotao = false, tamanho = 76, anel = false }: { nome: string; foto: string | null; comBotao?: boolean; tamanho?: number; /** O anel do perfil em volta da foto (tela Perfil). */ anel?: boolean }) {
   const [aberto, setAberto] = useState(false);
   const [cortando, setCortando] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
@@ -54,15 +56,41 @@ export function FotoDoPerfil({ nome, foto }: { nome: string; foto: string | null
     setPos({ x: 0, y: 0 });
   };
   const limite = 50 * ((zoom - 1) / zoom) + 10;
+  const nativo = useAppNativo();
+
+  // No app da loja, sem as permissões de câmera e fotos, escolher imagem derruba o app (iOS):
+  // só a foto e o aviso, até a versão nova do app chegar.
+  if (nativo) {
+    return (
+      <div className="flex flex-col items-center gap-2">
+        <span className={`rounded-full ${anel ? "p-[3px] shadow-[0_0_0_2px_var(--color-accent)]" : ""}`}>
+          <AvatarDaConta nome={nome} foto={foto} size={tamanho} />
+        </span>
+        {comBotao && <p className="max-w-[16rem] text-center text-[13px] text-ink-muted">{FOTO_SO_NO_NAVEGADOR}</p>}
+      </div>
+    );
+  }
 
   return (
     <>
-      <button type="button" onClick={() => setAberto(true)} aria-label="Trocar a foto do perfil" className="relative shrink-0 rounded-full">
-        <AvatarDaConta nome={nome} foto={foto} size={76} />
-        <span className="absolute -bottom-0.5 -right-0.5 flex size-7 items-center justify-center rounded-full bg-ink text-canvas ring-2 ring-surface" aria-hidden>
-          <Pencil size={13} />
-        </span>
-      </button>
+      {comBotao ? (
+        // Na folha da foto e em Configurações: a foto e, logo embaixo, "Trocar foto" em evidência.
+        <div className="flex flex-col items-center gap-2.5">
+          <button type="button" onClick={() => setAberto(true)} aria-label="Trocar a foto do perfil" className={`shrink-0 rounded-full ${anel ? "p-[3px] shadow-[0_0_0_2px_var(--color-accent)]" : ""}`}>
+            <AvatarDaConta nome={nome} foto={foto} size={tamanho} />
+          </button>
+          <button type="button" onClick={() => setAberto(true)} className="inline-flex min-h-10 items-center gap-1.5 rounded-full bg-surface-2 px-4 text-sm font-medium text-ink">
+            <Pencil size={14} aria-hidden /> {foto ? "Trocar foto" : "Pôr uma foto"}
+          </button>
+        </div>
+      ) : (
+        <button type="button" onClick={() => setAberto(true)} aria-label="Trocar a foto do perfil" className="relative shrink-0 rounded-full">
+          <AvatarDaConta nome={nome} foto={foto} size={tamanho} />
+          <span className="absolute -bottom-0.5 -right-0.5 flex size-7 items-center justify-center rounded-full bg-ink text-canvas ring-2 ring-surface" aria-hidden>
+            <Pencil size={13} />
+          </span>
+        </button>
+      )}
       <Modal open={aberto} onClose={fechar} title="Foto do perfil">
         {cortando ? (
           <div className="flex flex-col items-center gap-4">
@@ -108,7 +136,7 @@ export function FotoDoPerfil({ nome, foto }: { nome: string; foto: string | null
                     }
                   })
                 }
-                className="min-h-12 rounded-full bg-accent-gradient text-[15px] font-medium text-on-accent disabled:opacity-60"
+                className="min-h-12 rounded-full [background:var(--botao-fundo,var(--color-ink))] [color:var(--botao-tinta,var(--color-canvas))] text-[15px] font-medium disabled:opacity-60"
               >
                 Usar esta foto
               </button>
@@ -120,7 +148,7 @@ export function FotoDoPerfil({ nome, foto }: { nome: string; foto: string | null
         ) : (
           <div className="flex flex-col items-center gap-3">
             <AvatarDaConta nome={nome} foto={foto} size={112} />
-            <label className="flex min-h-12 w-full cursor-pointer items-center justify-center rounded-full bg-accent-gradient text-[15px] font-medium text-on-accent">
+            <label className="flex min-h-12 w-full cursor-pointer items-center justify-center rounded-full [background:var(--botao-fundo,var(--color-ink))] [color:var(--botao-tinta,var(--color-canvas))] text-[15px] font-medium">
               Escolher foto
               <input type="file" accept="image/jpeg,image/png,image/webp" onChange={escolher} className="sr-only" />
             </label>

@@ -1,65 +1,89 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { Suspense, type ReactNode } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
+import { nowInBrazil } from "@/lib/date/brazil-now";
+import { hrefDoIntervalo, hrefDoMes, periodoCompletoDaRota, type AbaComMes } from "@/lib/visao-geral/periodo";
 import { ABAS_DA_VISAO_GERAL, abaAtiva } from "./flow-tabs";
-import { NavPending } from "./nav-progress";
+import { CarrosselDeAbas, ConteudoQueDesliza } from "./Carrossel";
+import { SeletorDeMes } from "./SeletorDeMes";
+
+const ABA_COM_MES: Record<string, AbaComMes | undefined> = { "/mensal/foco": "resumo", "/orcamento": "orcamento", "/mensal": "transacoes" };
+
+/** O endereço de cada aba, levando o mês escolhido (Recorrentes não tem mês). */
+function useHrefsDasAbas(): string[] {
+  const caminho = usePathname();
+  const busca = useSearchParams();
+  const agora = nowInBrazil();
+  const periodo = periodoCompletoDaRota(caminho, busca, agora);
+  return ABAS_DA_VISAO_GERAL.map((aba) => {
+    const comMes = ABA_COM_MES[aba.href];
+    if (!periodo || !comMes) return aba.href;
+    return periodo.intervalo ? hrefDoIntervalo(comMes, periodo.intervalo) : hrefDoMes(comMes, periodo.mes!, agora);
+  });
+}
 
 /**
  * As quatro abas da Visão geral (Resumo, Orçamento, Transações, Recorrentes) em pílulas que
- * deslizam de lado: começam na margem esquerda, a aberta fica numa pílula clara e o trilho só rola
- * quando a aberta sairia da tela (11/10/2026: antes começavam no meio, com um vazio à esquerda e a
- * última cortada). Em tela larga cabem todas e nada rola.
+ * deslizam de lado, e embaixo delas o seletor de mês (protótipo aprovado). A pílula aberta rola
+ * para o meio quando troca; tocar perto da borda mostra a próxima inteira ("Recorrentes" não fica
+ * mais cortado sem jeito de chegar nele).
  */
 export function AbasDaVisaoGeral() {
+  // Presas embaixo do cabeçalho ao rolar, com o mesmo véu dele (protótipo, #rolado-resumo).
+  return (
+    <div className="sticky top-[calc(3.6rem+var(--safe-top))] z-30 -mx-5 bg-canvas/85 px-5 pt-1 backdrop-blur-md md:static md:mx-0 md:bg-transparent md:px-0 md:backdrop-blur-none" data-abas-presas>
+      <Suspense fallback={<AbasSemMes />}>
+        <AbasComMes />
+      </Suspense>
+    </div>
+  );
+}
+
+function AbasSemMes() {
+  return <Pilulas hrefs={ABAS_DA_VISAO_GERAL.map((a) => a.href)} />;
+}
+
+function AbasComMes() {
+  const hrefs = useHrefsDasAbas();
+  return (
+    <>
+      <Pilulas hrefs={hrefs} />
+      <SeletorDeMes />
+    </>
+  );
+}
+
+function Pilulas({ hrefs }: { hrefs: string[] }) {
   const pathname = usePathname();
   const ativa = abaAtiva(pathname);
-  const trilho = useRef<HTMLDivElement>(null);
-  const refs = useRef<Record<string, HTMLAnchorElement | null>>({});
-
-  // Rola só o necessário para a aba aberta aparecer inteira (sem animar na primeira vez).
-  const primeira = useRef(true);
-  useEffect(() => {
-    const el = ativa ? refs.current[ativa.href] : null;
-    const caixa = trilho.current;
-    if (!el || !caixa) return;
-    const fim = el.offsetLeft + el.offsetWidth + 20 - caixa.clientWidth;
-    const inicio = el.offsetLeft - 20;
-    const alvo = caixa.scrollLeft > inicio ? Math.max(0, inicio) : caixa.scrollLeft < fim ? fim : caixa.scrollLeft;
-    caixa.scrollTo({ left: alvo, behavior: primeira.current ? "auto" : "smooth" });
-    primeira.current = false;
-  }, [ativa]);
-
   return (
-    <nav aria-label="Abas da Visão geral" className="-mx-5 mb-4 md:mx-0" data-tour="fluxo">
-      <div
-        ref={trilho}
-        role="tablist"
-        aria-label="Visão geral"
-        className="flex gap-1.5 overflow-x-auto px-5 py-1 [mask-image:linear-gradient(90deg,#000_86%,transparent_100%)] [scrollbar-width:none] sm:justify-center sm:[mask-image:none] md:px-0"
-      >
-        {ABAS_DA_VISAO_GERAL.map((aba) => {
-          const on = aba.href === ativa?.href;
-          return (
-            <Link
-              key={aba.href}
-              href={aba.href}
-              ref={(el) => {
-                refs.current[aba.href] = el;
-              }}
-              role="tab"
-              aria-selected={on}
-              className={`flex h-10 shrink-0 items-center whitespace-nowrap rounded-full px-4 text-[15px] transition-colors ${
-                on ? "bg-pill font-medium text-on-pill shadow-[inset_0_0_0_1px_var(--color-border-strong),0_6px_14px_-8px_rgba(0,0,0,0.18)]" : "text-ink-muted hover:text-ink"
-              }`}
-            >
-              {aba.label}
-              <NavPending />
-            </Link>
-          );
-        })}
-      </div>
-    </nav>
+    <div className="mb-3" data-tour="fluxo">
+      <CarrosselDeAbas rotulo="Abas da Visão geral" ativa={ativa?.href ?? null} itens={ABAS_DA_VISAO_GERAL.map((aba, i) => ({ chave: aba.href, rotulo: aba.label, href: hrefs[i] }))} />
+    </div>
+  );
+}
+
+/**
+ * Arrastar o conteúdo para o lado troca de aba (protótipo: o painel acompanha o dedo). Uns 70 px
+ * de dedo levam para a aba do lado, com o mesmo mês; menos que isso, volta ao lugar.
+ */
+export function DeslizarEntreAbas({ children }: { children: ReactNode }) {
+  return (
+    <Suspense fallback={children}>
+      <Deslizar>{children}</Deslizar>
+    </Suspense>
+  );
+}
+
+function Deslizar({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+  const hrefs = useHrefsDasAbas();
+  const ativa = abaAtiva(pathname);
+  const i = ativa ? ABAS_DA_VISAO_GERAL.findIndex((a) => a.href === ativa.href) : -1;
+  return (
+    <ConteudoQueDesliza hrefs={hrefs} indice={i}>
+      {children}
+    </ConteudoQueDesliza>
   );
 }

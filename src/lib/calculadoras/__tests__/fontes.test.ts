@@ -42,9 +42,11 @@ describe("de onde vêm os números das calculadoras", () => {
       { id: "d2", tipo: "rotativo", nome: "Nubank · Fatura", saldo: 1200, porMes: 300, taxaMensal: null, atrasada: false, parcelasAbertas: null },
       { id: "d3", tipo: "pessoa", nome: "Léo", saldo: 0, porMes: 0, taxaMensal: null, atrasada: false },
     ]);
-    expect(emprestimo).toEqual({ id: "d1", nome: "Empréstimo do banco", tipo: "emprestimo", saldo: 6000, jurosAoMes: 2.9, estimada: false, parcelasAbertas: 18 });
+    expect(emprestimo).toEqual({ id: "d1", nome: "Empréstimo do banco", tipo: "emprestimo", saldo: 6000, jurosAoMes: 2.9, estimada: false, parcelasAbertas: 18, credor: undefined, saude: "atencao" });
     expect(cartao).toMatchObject({ id: "d2", estimada: true, parcelasAbertas: null });
     expect(cartao.jurosAoMes).toBeGreaterThan(0);
+    // Dívida sem juros (a da mãe) não entra na escolha do Quitar ou investir.
+    expect(dividasParaQuitar([{ id: "d4", tipo: "pessoa", nome: "Mãe", saldo: 2000, porMes: 200, taxaMensal: 0, atrasada: false }])).toEqual([]);
     // Dívida já zerada não entra.
     expect(dividasParaQuitar([{ id: "d3", tipo: "pessoa", nome: "Léo", saldo: 0, porMes: 0, taxaMensal: null, atrasada: false }])).toEqual([]);
   });

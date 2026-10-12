@@ -29,6 +29,13 @@ export function GraficoSeisMeses({ meses12 }: { meses12: MesDoGrafico[] }) {
   const money = useMoney();
   const m = (v: number) => money(v, { round: true });
   const [janela, setJanela] = useState<0 | 1>(1);
+  // Trocar a janela não pode mexer na rolagem: o botão que fica desabilitado perde o foco e o
+  // navegador levava a página ao topo (auditoria de 11/10/2026). Guarda e devolve a posição.
+  const ficaNoLugar = (troca: () => void) => {
+    const y = window.scrollY;
+    troca();
+    requestAnimationFrame(() => window.scrollTo({ top: y }));
+  };
   const meses = janela === 1 ? meses12.slice(-6) : meses12.slice(0, 6);
   const [selecionado, setSelecionado] = useState<number>(() => mesSelecionadoDeInicio(meses12.slice(-6)));
   const sel = meses[Math.min(selecionado, meses.length - 1)];
@@ -43,14 +50,14 @@ export function GraficoSeisMeses({ meses12 }: { meses12: MesDoGrafico[] }) {
     <section className="rounded-3xl border border-border bg-surface p-4 sm:p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="titulo-tema text-[17px] font-medium text-ink">Últimos 6 meses</h2>
+          <h2 className="text-[17px] font-medium text-ink">Últimos 6 meses</h2>
           <p className="text-caption text-ink-muted">{titulo}</p>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
-          <button type="button" aria-label="Seis meses antes" disabled={janela === 0 || meses12.length <= 6} onClick={() => { setJanela(0); setSelecionado(5); }} className="flex size-9 items-center justify-center rounded-full border border-border text-ink disabled:opacity-35">
+          <button type="button" aria-label="Seis meses antes" disabled={janela === 0 || meses12.length <= 6} onClick={() => ficaNoLugar(() => { setJanela(0); setSelecionado(5); })} className="flex size-9 items-center justify-center rounded-full border border-border text-ink disabled:opacity-35">
             <ChevronLeft size={16} aria-hidden />
           </button>
-          <button type="button" aria-label="Seis meses depois" disabled={janela === 1} onClick={() => { setJanela(1); setSelecionado(mesSelecionadoDeInicio(meses12.slice(-6))); }} className="flex size-9 items-center justify-center rounded-full border border-border text-ink disabled:opacity-35">
+          <button type="button" aria-label="Seis meses depois" disabled={janela === 1} onClick={() => ficaNoLugar(() => { setJanela(1); setSelecionado(mesSelecionadoDeInicio(meses12.slice(-6))); })} className="flex size-9 items-center justify-center rounded-full border border-border text-ink disabled:opacity-35">
             <ChevronRight size={16} aria-hidden />
           </button>
           <Explica>Entrou é tudo que caiu na conta. Gastou é tudo que saiu, e o pedaço de cima é o que você guardou. Sobrou é entrou menos gastou menos guardou.</Explica>
@@ -59,10 +66,11 @@ export function GraficoSeisMeses({ meses12 }: { meses12: MesDoGrafico[] }) {
 
       <div className="mt-4 grid grid-cols-6 gap-1" role="group" aria-label="Meses">
         {meses.map((x, i) => {
-          const s = lerSobrou(x.sobrou);
+          const s = lerSobrou(x.sobrou, x.situacao === "vazio");
           const on = i === selecionado;
-          const palavra = x.atual ? "até agora" : s.situacao === "empatou" ? "empatou" : s.situacao;
-          const cor = x.atual || s.situacao === "empatou" ? "var(--color-ink-muted)" : s.situacao === "sobrou" ? COR.sobrou : COR.faltou;
+          // Mês sem lançamento (antes de ela usar o app): sem palavra em cima, nada de "empatou".
+          const palavra = x.atual ? "até agora" : s.situacao === "vazio" ? "" : s.situacao === "empatou" ? "empatou" : s.situacao;
+          const cor = x.atual || s.situacao === "empatou" || s.situacao === "vazio" ? "var(--color-ink-muted)" : s.situacao === "sobrou" ? COR.sobrou : COR.faltou;
           return (
             <button
               key={`${x.ano}-${x.mes}`}
@@ -75,7 +83,7 @@ export function GraficoSeisMeses({ meses12 }: { meses12: MesDoGrafico[] }) {
               <span className="flex h-8 flex-col items-center justify-end text-center text-xs leading-tight" style={{ color: cor }}>
                 <span>{palavra}</span>
                 {/* Só o número, sem o R$: em 320 px cada coluna tem uns 40 px. */}
-                {!x.atual && s.situacao !== "empatou" && <span className="tabular-nums">{separarPrefixo(m(s.valor))[1]}</span>}
+                {!x.atual && s.situacao !== "empatou" && s.situacao !== "vazio" && <span className="tabular-nums">{separarPrefixo(m(s.valor))[1]}</span>}
               </span>
               <span className="mt-1 flex items-end justify-center gap-[3px]" style={{ height: ALTURA, opacity: x.atual ? 0.5 : 1 }}>
                 <span className="w-[clamp(9px,3.2vw,15px)] rounded-t-[3px]" style={{ height: altura(x.entrou), background: x.atual ? `${LISTRA}, ${COR.entrou}` : COR.entrou }} />

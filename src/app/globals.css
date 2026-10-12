@@ -339,6 +339,16 @@ html {
   color-scheme: dark;
 }
 
+/* As fatias do "Seu plano" (protótipo, --p1..--p7): a família do tema, do maior para o menor plano. */
+:root {
+  --color-plano-1: #56709a; --color-plano-2: #b4664e; --color-plano-3: #8f8a80; --color-plano-4: #7c804c;
+  --color-plano-5: #4f8a62; --color-plano-6: #5c544c; --color-plano-7: #aa8658;
+}
+html.dark {
+  --color-plano-1: #7f8faa; --color-plano-2: #a2776b; --color-plano-3: #8c867b; --color-plano-4: #858669;
+  --color-plano-5: #839275; --color-plano-6: #6f6a64; --color-plano-7: #a49781;
+}
+
 /* As margens do celular (relógio em cima, barrinha de casa embaixo). Tudo no app usa estas duas
    variáveis em vez de env() direto. O app de iPhone da primeira versão (build 2, out/2026) já
    empurra a página para dentro dessas margens sozinho; lá elas viram zero, senão a margem

@@ -286,7 +286,7 @@ export function ComoVai({ dados }: { dados: DadosDaEmpresa }) {
             {cem.map((p) => (
               <span key={p.chave} className="flex items-center gap-2 text-sm text-ink">
                 <i className="size-2.5 shrink-0 rounded-full" style={{ background: COR_DO_PEDACO[p.chave] }} />
-                <span className="truncate">{p.nome}</span>
+                <span className="min-w-0 break-words">{p.nome}</span>
                 <b className="ml-auto whitespace-nowrap font-medium tabular-nums">{m0(p.cem)}</b>
               </span>
             ))}

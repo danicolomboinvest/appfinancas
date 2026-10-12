@@ -2,6 +2,8 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { useTecladoNaFolha } from "@/components/ui/useTecladoNaFolha";
+import { useAppNativo } from "@/components/ui/useAppNativo";
 import { useRouter } from "next/navigation";
 import { Calendar, Check, ChevronDown, ChevronLeft, ChevronRight, Minus, Plus, X } from "lucide-react";
 import type { GoalIcon } from "@prisma/client";
@@ -10,7 +12,7 @@ import { ValorDestaque } from "@/components/ui/ValorDestaque";
 import { useCurrency, useMoney } from "@/components/money/MoneyProvider";
 import { currencySymbol } from "@/lib/money";
 import { MESES_CURTOS, MESES_LONGOS, duracao, mesesAteChegar, porMesDaNovaMeta, TAXA_PADRAO_DAS_METAS } from "@/lib/metas/projecao";
-import { TIPOS_DE_META, fotoDoTipo, fotosEmOrdem, tipoDoNome } from "@/lib/metas/tipos";
+import { ESFERAS_DA_META, fotoDoTipo, fotosEmOrdem, tipoDoNome } from "@/lib/metas/tipos";
 import { apagarMetaAction, criarMetaAction, editarMetaAction, enviarFotoDaMetaAction, type MetaGuiada } from "./acoes";
 
 /**
@@ -112,6 +114,11 @@ function FolhaDaMeta({ hoje, meta, onFechar }: { hoje: { ano: number; mes: numbe
     return { passo: 1, nome: "", tipo: null, alvo: 0, prazo: { ano: hoje.ano + 1, mes: hoje.mes - 1 }, semPrazo: false, calendario: false, anos: false, foto: null, minha: null, porMes: 500 };
   });
   const corpo = useRef<HTMLDivElement>(null);
+  // A folha sobe junto com o teclado do iPhone (o botão Continuar e o campo ficam à vista).
+  const painel = useRef<HTMLDivElement>(null);
+  const { teclado, alturaVisivel } = useTecladoNaFolha(painel, true);
+  // No app da loja, o "Usar uma minha" (campo de imagem) derruba o app no iPhone: só no navegador.
+  const nativo = useAppNativo();
   const muda = (p: Partial<Estado>) => setE((x) => ({ ...x, ...p }));
   const tipo = e.tipo ?? tipoDoNome(e.nome);
   const prazoData = new Date(e.prazo.ano, e.prazo.mes, 1, 12);
@@ -215,33 +222,36 @@ function FolhaDaMeta({ hoje, meta, onFechar }: { hoje: { ano: number; mes: numbe
     conteudo = (
       <>
         <h3 className="text-[28px] font-semibold leading-tight tracking-[-0.01em] text-ink">Para que é?</h3>
+        {/* As fotos do banco em esferas (protótipo r67): um toque escolhe o tipo, o nome e a foto. */}
+        <div className="grid grid-cols-4 gap-x-2 gap-y-3 max-[359px]:grid-cols-3" role="group" aria-label="Tipo de meta" data-esferas-meta>
+          {ESFERAS_DA_META.map((f) => {
+            const on = e.foto === f.foto && e.tipo === f.tipo;
+            return (
+              <button
+                key={f.foto}
+                type="button"
+                aria-pressed={on}
+                onClick={() => muda({ tipo: f.tipo, nome: f.nome, foto: f.foto, minha: null })}
+                className="flex min-w-0 flex-col items-center gap-1.5 text-[13px] text-ink"
+              >
+                <span className={`aspect-square w-full max-w-[72px] overflow-hidden rounded-full bg-surface-2 ${on ? "shadow-[0_0_0_3px_var(--color-canvas),0_0_0_5px_var(--color-accent)]" : ""}`}>
+                  {/* eslint-disable-next-line @next/next/no-img-element -- banco de fotos do app */}
+                  <img src={f.foto} alt="" loading="lazy" decoding="async" className="size-full object-cover" />
+                </span>
+                <span className="w-full truncate text-center">{f.rotulo}</span>
+              </button>
+            );
+          })}
+        </div>
         <input
-          autoFocus={!meta}
           value={e.nome}
           maxLength={40}
           autoComplete="off"
-          aria-label="Para que é a meta"
-          placeholder="Ex.: Viagem para a praia"
-          onChange={(ev) => muda({ nome: ev.target.value, tipo: null })}
+          aria-label="Nome da meta"
+          placeholder="Ou escreva o nome"
+          onChange={(ev) => muda({ nome: ev.target.value, tipo: null, foto: null })}
           className="min-h-[52px] rounded-2xl border border-border-strong bg-surface px-4 text-base text-ink outline-none placeholder:text-ink-faint focus:border-accent"
         />
-        <div className="flex flex-wrap gap-2">
-          {TIPOS_DE_META.map((t) => (
-            <button
-              key={t.chave}
-              type="button"
-              aria-pressed={e.tipo === t.chave}
-              className={chip(e.tipo === t.chave)}
-              onClick={() => {
-                const anterior = TIPOS_DE_META.find((x) => x.chave === e.tipo)?.nome;
-                const nome = !e.nome.trim() || e.nome === anterior ? t.nome : e.nome;
-                muda({ tipo: t.chave, nome, foto: null });
-              }}
-            >
-              {t.nome}
-            </button>
-          ))}
-        </div>
       </>
     );
   } else if (e.passo === 2) {
@@ -344,7 +354,9 @@ function FolhaDaMeta({ hoje, meta, onFechar }: { hoje: { ano: number; mes: numbe
     conteudo = (
       <>
         <h3 className="text-[28px] font-semibold leading-tight tracking-[-0.01em] text-ink">Escolha uma foto</h3>
+        {nativo && <p className="text-[13px] text-ink-muted">Para usar uma foto sua, abra o SPI pelo navegador.</p>}
         <div className="grid grid-cols-3 gap-2">
+          {!nativo && (
           <label className={`relative flex aspect-square cursor-pointer items-center justify-center overflow-hidden rounded-2xl border-[1.5px] bg-surface text-accent-strong ${e.minha ? "border-solid border-accent" : "border-dashed border-border-strong"}`}>
             {e.minha ? (
               // eslint-disable-next-line @next/next/no-img-element -- a foto dela
@@ -362,6 +374,7 @@ function FolhaDaMeta({ hoje, meta, onFechar }: { hoje: { ano: number; mes: numbe
             )}
             <input type="file" accept="image/*" className="sr-only" onChange={(ev) => escolherMinha(ev.target.files?.[0])} />
           </label>
+          )}
           {grade.map((f) => {
             const on = !e.minha && e.foto === f;
             return (
@@ -444,7 +457,10 @@ function FolhaDaMeta({ hoje, meta, onFechar }: { hoje: { ano: number; mes: numbe
   return createPortal(
     <div className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center sm:p-4">
       <button aria-hidden tabIndex={-1} onClick={onFechar} className="fixed inset-0 bg-black/40" />
-      <div role="dialog" aria-modal="true" aria-label={meta ? "Editar meta" : "Nova meta"} className="relative z-10 flex h-[92dvh] w-full max-w-lg animate-fade-in flex-col rounded-t-[28px] border border-border bg-canvas shadow-premium sm:h-auto sm:max-h-[90dvh] sm:rounded-[28px]">
+      <div
+        ref={painel}
+        style={teclado > 0 && alturaVisivel ? { height: `${Math.round(alturaVisivel * 0.94)}px`, marginBottom: `${teclado}px` } : undefined}
+        role="dialog" aria-modal="true" aria-label={meta ? "Editar meta" : "Nova meta"} className="relative z-10 flex h-[92dvh] w-full max-w-lg animate-fade-in flex-col rounded-t-[28px] border border-border bg-canvas shadow-premium sm:h-auto sm:max-h-[90dvh] sm:rounded-[28px]">
         <span className="mx-auto mt-2 h-1 w-9 shrink-0 rounded-full bg-border-strong sm:hidden" aria-hidden />
         <div className="grid grid-cols-[1fr_auto_1fr] items-center px-4 pt-2">
           <span>

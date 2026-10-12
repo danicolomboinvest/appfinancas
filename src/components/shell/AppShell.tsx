@@ -12,8 +12,9 @@ import { RegistrarDrawer } from "./RegistrarDrawer";
 import { modoPedidoNoEvento, EVENTO_IMPORTAR, EVENTO_REGISTRAR, type ModoDoRegistrar } from "./registrar-eventos";
 import type { PerfilResumo } from "@/components/profiles/perfil-resumo";
 import { TopBar } from "./TopBar";
-import { AbasDaVisaoGeral } from "./AbasDaVisaoGeral";
+import { AbasDaVisaoGeral, DeslizarEntreAbas } from "./AbasDaVisaoGeral";
 import { BotaoRegistrar } from "./BotaoRegistrar";
+import { ComoFuncionaSheet } from "./ComoFuncionaSheet";
 import { PerfilSheet } from "./PerfilSheet";
 import { TourDasNovidades } from "./TourDasNovidades";
 import type { EstadoDasNovidades } from "@/lib/novidades/passos";
@@ -159,8 +160,9 @@ export function AppShell({
 
   // A Visão geral (Resumo, Orçamento, Transações, Recorrentes) tem as abas e o + (versão nova).
   const visaoGeral = ehVisaoGeral(pathname);
-  // "Posso comprar?" em tela cheia (05/10/2026): sem o topo, para cada pergunta caber na tela.
-  const focado = pathname?.startsWith("/decidir/comprar") ?? false;
+  // "Posso comprar?" com o topo do app (protótipo, #comprar): menu, Decidir, lua e o avatar. A
+  // tela cheia de 05/10/2026 saiu; o nome fica para as telas que um dia precisarem dela.
+  const focado = false;
   const empresa = ehEmpresa(profileKind);
   const casal = ehCasal(profileKind);
   const secoes = modoPar ? SECOES_DO_PAR : secoesVisiveis(isAdmin ? [...NAV_SECTIONS, ADMIN_NAV_SECTION] : NAV_SECTIONS, { empresa, casal });
@@ -175,7 +177,7 @@ export function AppShell({
     <ToastProvider>
       <ProfileThemeProvider theme={profileTheme} kind={profileKind} prefsDeCategoria={prefsDeCategoria} nomesDoCasal={nomesDoCasal} cartaoComLimite={cartaoComLimite} profileId={perfis.find((p) => p.isDefault)?.id ?? null}>
       <NavProgressProvider>
-      <div className="flex min-h-screen">
+      <div className="flex min-h-dvh">
         {/* Sidebar: navegação primária no desktop; no mobile fica sempre fora da tela
             (a gaveta hambúrguer foi substituída pela tab bar + MoreSheet abaixo). */}
         <RegistrarOpener onOpen={abrirRegistrar} />
@@ -219,13 +221,13 @@ export function AppShell({
               <ConviteTesteAndroid userEmail={userEmail} />
               <InstallAppBanner onOpenTutorial={() => setInstallOpen(true)} />
               {visaoGeral && !focado && <AbasDaVisaoGeral />}
-              {children}
+              {visaoGeral && !focado ? <DeslizarEntreAbas>{children}</DeslizarEntreAbas> : children}
             </div>
           </main>
         </div>
 
         {/* O + só na Visão geral (no computador o Registrar mora na barra lateral). */}
-        {visaoGeral && !focado && <BotaoRegistrar onClick={() => abrirRegistrar()} />}
+        {visaoGeral && !focado && !menuOpen && <BotaoRegistrar onClick={() => abrirRegistrar()} />}
 
         <PerfilSheet
           open={perfilOpen}
@@ -238,6 +240,8 @@ export function AppShell({
           onLogout={handleLogout}
           onOpenInstall={() => setInstallOpen(true)}
         />
+
+        <ComoFuncionaSheet />
 
         {/* Tutorial de "instalar na tela de início" (convite do topo ou menu "Mais"). */}
         <InstallAppSheet open={installOpen} onClose={() => setInstallOpen(false)} />

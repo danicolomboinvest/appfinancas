@@ -138,3 +138,41 @@ export function nomeCurto(nome: string): string {
   const curta = escolhida.charAt(0).toUpperCase() + escolhida.slice(1);
   return curta.length > 10 ? curta.slice(0, 10) : curta;
 }
+
+/**
+ * "Para que é?" em fotos (protótipo r67, #nova-meta): uma esfera por foto do banco, com o rótulo
+ * curto, o nome que entra no campo e o tipo (a primeira etiqueta da foto). Tocar escolhe as três
+ * coisas de uma vez: tipo, nome e foto.
+ */
+const ROTULOS: Record<string, [string, string]> = {
+  "viagem-praia": ["Praia", "Viagem para a praia"],
+  europa: ["Europa", "Viagem para a Europa"],
+  casa: ["Casa", "Casa própria"],
+  carro: ["Carro", "Carro"],
+  reserva: ["Reserva", "Reserva de emergência"],
+  casamento: ["Casamento", "Casamento"],
+  estudos: ["Estudos", "Estudos"],
+  natureza: ["Natureza", "Viagem"],
+  liberdade: ["Liberdade", "Liberdade financeira"],
+  apartamento: ["Apê", "Apartamento"],
+  intercambio: ["Intercâmbio", "Intercâmbio"],
+  filho: ["Filho", "Filho"],
+  pet: ["Pet", "Pet"],
+  moto: ["Moto", "Moto"],
+  reforma: ["Reforma", "Reforma"],
+  festa: ["Festa", "Festa"],
+  negocio: ["Negócio", "Negócio próprio"],
+  tecnologia: ["Tecnologia", "Tecnologia"],
+  saude: ["Saúde", "Saúde e bem-estar"],
+  montanha: ["Montanha", "Viagem para a montanha"],
+  cruzeiro: ["Cruzeiro", "Cruzeiro"],
+  show: ["Show", "Show ou evento"],
+  parque: ["Passeio", "Passeio"],
+  presente: ["Presente", "Presente"],
+};
+
+export const ESFERAS_DA_META: readonly { foto: string; rotulo: string; nome: string; tipo: GoalIcon }[] = FOTOS_DE_META.map((f) => {
+  const chave = f.arquivo.replace(/\.jpg$/, "");
+  const [rotulo, nome] = ROTULOS[chave] ?? [chave, chave];
+  return { foto: urlDaFoto(f.arquivo), rotulo, nome, tipo: f.tipos[0] };
+});

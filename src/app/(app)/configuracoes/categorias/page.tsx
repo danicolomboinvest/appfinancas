@@ -1,4 +1,3 @@
-import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { categoryLabel } from "@/lib/categories";
 import { getRequiredSession } from "@/lib/auth/session";
@@ -16,17 +15,15 @@ export default async function CategoriasPage() {
   const [regras, proprias] = await Promise.all([listTransactionRulesForSettings(ctx), listCustomCategories(ctx)]);
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="mx-auto flex w-full max-w-2xl flex-col gap-5">
 
-      <PageHeader title={t.cfgCategoriasTitulo} />
+      <h1 className="titulo-tema text-2xl font-medium text-ink">{t.cfgCategoriasTitulo}</h1>
 
       <EditorDeCategorias proprias={proprias.map((c) => ({ id: c.id, name: c.name, icon: c.icon }))} />
 
       <Card className="p-4">
-        <p className="text-sm font-medium text-ink">O que o app já aprendeu</p>
-        <p className="mb-3 mt-0.5 text-caption text-ink-faint">
-          Nomes de loja que ele já sabe em que categoria pôr. Apague o que ficou errado.
-        </p>
+        <p className="text-[15px] font-medium text-ink">Regras aprendidas</p>
+        <p className="mb-3 mt-0.5 text-caption text-ink-muted">O que o app aprendeu com as suas correções.</p>
         <RegrasAprendidas
           regras={regras.map((r) => ({
             id: r.id,

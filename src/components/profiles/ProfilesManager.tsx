@@ -124,22 +124,25 @@ export function ProfilesManager({ perfis, ativoId }: { perfis: ProfileRow[]; ati
   );
 }
 
-type Dados = { name: string; kind: ProfileKind; icon: string; theme: string };
+export type Dados = { name: string; kind: ProfileKind; icon: string; theme: string };
 
-function FormularioPerfil({
+export function FormularioPerfil({
   perfil,
   pendente,
   onFechar,
   onSalvar,
+  inicial,
 }: {
   perfil: ProfileRow | null;
   pendente: boolean;
   onFechar: () => void;
   onSalvar: (d: Dados) => void;
+  /** Novo perfil num lugar fixo (Nós dois, Empresa): o tipo e o nome já vêm escolhidos. */
+  inicial?: { kind: ProfileKind; name: string };
 }) {
   const { titulos: t } = useProfileTheme().voz;
-  const [nome, setNome] = useState(perfil?.name ?? "");
-  const [tipo, setTipo] = useState<ProfileKind>(perfil?.kind ?? "PESSOAL");
+  const [nome, setNome] = useState(perfil?.name ?? inicial?.name ?? "");
+  const [tipo, setTipo] = useState<ProfileKind>(perfil?.kind ?? inicial?.kind ?? "PESSOAL");
   const [icone, setIcone] = useState(perfil?.icon ?? "wallet");
   const [tema, setTema] = useState(perfil?.theme ?? "padrao");
 
@@ -253,7 +256,7 @@ function FormularioPerfil({
   );
 }
 
-function ConfirmarExclusao({
+export function ConfirmarExclusao({
   perfil,
   pendente,
   onFechar,

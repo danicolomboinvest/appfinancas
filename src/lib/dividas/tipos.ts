@@ -197,3 +197,13 @@ export function comprometimentoDaRenda(
   const proporcao = retratoDe(dividas).porMes / rendaMensal
   return { proporcao, superendividada: proporcao > LIMIAR_DE_SUPERENDIVIDAMENTO }
 }
+
+/**
+ * O toque num tipo do cadastro ("Que tipo?"): grava o tipo e, num cadastro novo em que o tipo
+ * mudou, zera a taxa ("Devo para alguém" começa em 0%, que em geral é sem juros). Todo tipo vale
+ * e leva ao passo seguinte; o teste toca nos 11.
+ */
+export function escolherTipo(atual: TipoDeDivida | null, novo: TipoDeDivida, editando: boolean): { tipo: TipoDeDivida; taxa?: number | null; naoSei?: boolean } {
+  if (novo === atual || editando) return { tipo: novo }
+  return { tipo: novo, taxa: novo === 'pessoa' ? 0 : null, naoSei: false }
+}
