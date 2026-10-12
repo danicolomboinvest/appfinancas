@@ -24,7 +24,12 @@ export function RespostaDesenhada({ pergunta, resposta, depoisDoHeroi, botao }: 
   const destaque = v.destaque.replace(/^[−+-]\s?(?=R\$)/, "");
   const palavra = destaque.length > 14;
   const frase = resposta.detalhes[0] ?? "";
-  const repete = /^Passou do plano/.test(frase) || /^Do que entrou, você guardou/.test(frase);
+  // A frase solta não repete o que um bloco já desenhou (ex.: "Os maiores gastos do mês: ..."
+  // embaixo da lista "Maiores gastos do mês", no Onde estou exagerando?).
+  const repete =
+    /^Passou do plano/.test(frase) ||
+    /^Do que entrou, você guardou/.test(frase) ||
+    (/^Os maiores gastos do mês/.test(frase) && blocos.some((b) => b.tipo === "lista" && b.titulo === "Maiores gastos do mês"));
   return (
     <div className="flex flex-col gap-3" data-resposta-decidir>
       <span className="text-[13px] font-medium text-ink-muted">{pergunta}</span>
