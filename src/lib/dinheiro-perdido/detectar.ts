@@ -102,6 +102,14 @@ const PALAVRA_DIA_A_DIA =
   /\b(mercado|supermercado|supermercados|atacadao|assai|hortifruti|sacolao|padaria|panificadora|panificacao|cafe|cafeteria|lanchonete|acougue|feira|posto|combustivel|estacionamento|estapar|onibus|metro|bilhete unico|sptrans|uber|99|cabify|pedagio|sem parar|conectcar|veloe|farmacia|drogaria|drogasil|raia)\b/;
 const MARCAS_DIA_A_DIA = new Set(["uber", "99", "carrefour", "assai", "atacadao", "extra", "dia", "shell", "ipiranga", "drogasil", "paguemenos", "semparar"]);
 
+/**
+ * Viagem e imposto: passagem parcelada sem "parcela" na descrição (a Iberia cobrando o mesmo valor
+ * todo mês) e a guia do Simples paga duas vezes no mês são outra conversa, não dinheiro perdido.
+ */
+const VIAGEM_OU_IMPOSTO =
+  /\b(lineas aereas|linhas aereas|airlines|airways|air france|iberia|tap air|latam|gol linhas|azul linhas|voegol|voeazul|decolar|booking|airbnb|hotel|hoteis|simples nacional|das mei|darf|gps inss|imposto|ipva|iptu|detran|licenciamento)\b/;
+const MARCAS_VIAGEM = new Set(["latam", "gol", "azul", "booking", "airbnb"]);
+
 /** Dinheiro que não é gasto: aplicação, resgate, fatura paga, conta própria. */
 const NAO_E_GASTO =
   /\b(aplicacao|resgate|caixinha|rdb|cdb|tesouro|pagamento de fatura|pagamento fatura|pgto fatura|pag fatura|fatura do cartao|fatura cartao|mesma titularidade|entre contas|conta propria|transferencia entre contas|investimento)\b/;
@@ -153,6 +161,9 @@ function naoEGasto(l: LancamentoParaCacar): boolean {
   if (l.tipo !== "EXPENSE") return true;
   if (!(l.valor > 0) || !l.descricao) return true;
   const t = textoDe(l);
+  if (l.categoria === "IMPOSTOS" || VIAGEM_OU_IMPOSTO.test(t)) return true;
+  const marca = marcaDaDescricao(l.descricao);
+  if (marca && MARCAS_VIAGEM.has(marca.slug)) return true;
   if (l.subcategoria === "Investimento" || NAO_E_GASTO.test(t)) return true;
   // Transferência para pessoa: CPF mascarado, ou Pix/TED sem marca nenhuma de serviço.
   if (CPF.test(l.descricao)) return true;

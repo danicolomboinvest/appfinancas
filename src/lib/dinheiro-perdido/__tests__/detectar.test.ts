@@ -195,6 +195,20 @@ describe("aumentou", () => {
   });
 });
 
+describe("viagem e imposto (visto nos dados de verdade)", () => {
+  it("passagem parcelada sem a palavra parcela não vira assinatura", () => {
+    expect(cacarDinheiroPerdido(todoMes("IBERIA LINEAS AEREAS MADRID", [488.36, 488.36, 488.36])).achados).toEqual([]);
+  });
+
+  it("a guia do Simples paga duas vezes não é cobrança repetida para estorno", () => {
+    const r = cacarDinheiroPerdido([
+      l("PAGAMENTO SIMPLES NACIONAL", 772.22, "2026-09-18", { categoria: "IMPOSTOS" }),
+      l("PAGAMENTO SIMPLES NACIONAL", 772.22, "2026-09-20", { categoria: "IMPOSTOS" }),
+    ]);
+    expect(r.achados).toEqual([]);
+  });
+});
+
 describe("conjunto", () => {
   it("nada achado: diz quantos lançamentos olhou no último mês", () => {
     const r = cacarDinheiroPerdido([l("Padaria", 12, "2026-09-02"), l("Mercado", 200, "2026-09-03"), l("Salário", 5000, "2026-09-05", { tipo: "INCOME" })]);
