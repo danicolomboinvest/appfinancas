@@ -15,7 +15,8 @@ const mil = (v: number) => `${(v / 1000).toLocaleString("pt-BR", { maximumFracti
 /**
  * O medidor do MEI (protótipo aprovado): o faturado no ano contra o teto, a faixa da guia extra até a
  * tolerância e, no ritmo dos últimos meses, quando passa. Teto e faixa vêm da tabela legal, com a
- * fonte e a data no "?". Fora do MEI, "em breve" (sem número).
+ * fonte e a data no "?". Fora do MEI, ou sem o teto na tabela, a tela não existe: volta para a
+ * Visão geral da Empresa (12/10/2026, nada de "em breve").
  */
 export default async function LimitePage() {
   const ctx = await getRequiredSession();
@@ -26,17 +27,7 @@ export default async function LimitePage() {
   const L = R.limite;
   const ajuda = textoDoTeto(dados.legal);
 
-  if (!L) {
-    return (
-      <>
-        <Voltar>{dados.nome}</Voltar>
-        <Titulo>Limite do MEI</Titulo>
-        <Cartao className="px-5 py-6 text-sm text-ink-muted">
-          {R.ehMei ? "O teto do MEI ainda não está no app." : "Autônoma e ME: em breve. O limite é só do MEI."}
-        </Cartao>
-      </>
-    );
-  }
+  if (!L) redirect("/empresa");
 
   // O arco vai de 0 até a tolerância; a marca fica no teto.
   const R0 = 110;

@@ -7,7 +7,8 @@ import { ChevronsLeft, ChevronsRight, Lock, LogOut, MessageCircle, Plus, Repeat 
 import { linkDoSuporte } from "@/lib/support/whatsapp-link";
 import { BrandMark } from "@/components/brand/BrandMark";
 import { abrirComoFunciona } from "./ComoFuncionaSheet";
-import { ADMIN_NAV_SECTION, NAV_SECTIONS, MAIS_DA_EMPRESA, MENU_DA_EMPRESA, itemDaEmpresaAtivo, withNavFlags, sectionMatches, secoesVisiveis, rotuloDoMenu, type ItemDaEmpresa, type NavSection } from "./nav-sections";
+import { ADMIN_NAV_SECTION, NAV_SECTIONS, MAIS_DA_EMPRESA, menuDaEmpresa, itemDaEmpresaAtivo, withNavFlags, sectionMatches, secoesVisiveis, rotuloDoMenu, type ItemDaEmpresa, type NavSection } from "./nav-sections";
+import type { FerramentasDoMei } from "@/lib/empresa/legal";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import type { PerfilResumo } from "@/components/profiles/perfil-resumo";
 import { trocarPerfilAction } from "@/app/(app)/perfis/actions";
@@ -35,7 +36,10 @@ export function Sidebar({
   secoesFixas,
   perfis = [],
   nomeDaConta = null,
+  ferramentasDoMei = { limite: false, impostos: false },
 }: {
+  /** Empresa: Limite do MEI e Impostos só entram no menu quando têm o que mostrar. */
+  ferramentasDoMei?: FerramentasDoMei;
   /** Os perfis da conta: na Empresa, o "Ir para Ana, pessoal" do topo do menu. */
   perfis?: PerfilResumo[];
   nomeDaConta?: string | null;
@@ -138,7 +142,7 @@ export function Sidebar({
             )}
           </div>
           <ul className="flex flex-col gap-0.5">
-            {MENU_DA_EMPRESA.map((item) => (
+            {menuDaEmpresa(ferramentasDoMei).map((item) => (
               <ItemDoMenuDaEmpresa key={item.href} item={item} on={itemAtivo?.href === item.href} collapsed={collapsedDesktopOnly} esconder={hideLabelDesktopOnly} onClick={onCloseMobile} />
             ))}
           </ul>

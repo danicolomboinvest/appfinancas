@@ -3,7 +3,7 @@
  * FinancialProfile.empresa (JSON), no mesmo jeito do `casal`.
  *
  * Só MEI primeiro (recomendação do plano, pendência 5.1.12): Autônoma e ME podem ser escolhidas,
- * mas aparecem como "em breve" e o app não mostra número legal nenhum para elas até haver fonte.
+ * mas o app não mostra número legal nenhum para elas até haver fonte (nem Limite, nem Impostos).
  */
 
 export const TIPOS_DE_EMPRESA = ["MEI", "AUTONOMA", "ME"] as const;

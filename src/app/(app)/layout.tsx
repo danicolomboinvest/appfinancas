@@ -33,6 +33,8 @@ import { coresDoCasalCss } from "@/lib/casal-login/cores";
 import { TelaDoParPausado } from "@/components/casal-login/TelaDoParPausado";
 import { estadoDasNovidades, type EstadoDasNovidades } from "@/lib/novidades/passos";
 import { lerComeco } from "@/lib/onboarding/comeco";
+import { ferramentasDoMeiDoPerfil } from "@/lib/repositories/empresa.repo";
+import type { FerramentasDoMei } from "@/lib/empresa/legal";
 
 
 function capitalize(text: string) {
@@ -69,6 +71,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   let perfilAtivoId = "";
   // Login do par: o menu dele mostra só o Nós dois (e as Configurações dele).
   let modoPar: { nomeTitular: string } | null = null;
+  // Empresa: Limite do MEI e Impostos só no menu de quem tem o que ver ali (12/10/2026).
+  let ferramentasDoMei: FerramentasDoMei = { limite: false, impostos: false };
   if (session?.user) {
     const ctx: AccountContext = { userId: session.user.id, role: session.user.role };
     // Uma consulta a menos em TODA navegação: o resumo do mês só existia pra alimentar a
@@ -142,6 +146,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     profileKind = ativo.kind;
     prefsDeCategoria = lerPreferenciasDeCategoria(ativo.categorias);
     cartaoComLimite = comLimite;
+    if (ativo.kind === "EMPRESA" && !doPar) {
+      const hoje = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+      ferramentasDoMei = await ferramentasDoMeiDoPerfil(ctx.userId, ativo.id, hoje);
+    }
     if (ativo.kind === "CASAL") {
       const casal = lerConfigCasal(ativo.casal);
       // Com o par dentro (login do par), o lançamento ganha o "Só meu" que esconde de verdade.
@@ -199,6 +207,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         novidades={novidades}
         fotoDaConta={fotoDaConta}
         modoPar={modoPar}
+        ferramentasDoMei={ferramentasDoMei}
       >
         {/* Trocar de perfil só revalida a página, e o React guarda o estado dos formulários que
             re-renderizam: o orçamento continuava com os números do perfil anterior e o "Salvar"
