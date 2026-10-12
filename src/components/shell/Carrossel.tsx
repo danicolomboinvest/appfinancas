@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, type ReactNode, type RefObject } from "react";
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import { useRouter } from "next/navigation";
 import { NavPending } from "./nav-progress";
 
@@ -12,6 +12,11 @@ function semMovimento(): boolean {
 }
 
 /**
+ * Roleta de verdade (pedido da dona, 12/10/2026): a pílula NUNCA sai do centro. Ela é uma lente
+ * parada no meio da faixa, e os nomes das abas passam por baixo dela ao arrastar. A que para no
+ * centro abre, com encaixe e uma vibração leve onde o navegador deixa. As abas de rota vêm com
+ * prefetch completo: a troca usa o que já está no aparelho, sem esperar o servidor.
+ *
  * Faixa de abas em carrossel, "uma roleta deitada" (pedido da dona, 11/10/2026): a aba aberta fica
  * sempre no centro, em pílula; as vizinhas, menores e mais claras, aparecem pela metade nas bordas.
  * Arrastar a faixa gira a roleta e a aba que para no centro (encaixe) abre; tocar numa vizinha a
@@ -24,6 +29,38 @@ export function CarrosselDeAbas({ itens, ativa, rotulo, onEscolher, className = 
   const refs = useRef<Record<string, HTMLElement | null>>({});
   const primeira = useRef(true);
   const programatico = useRef(false);
+  // A lente: a aba que está passando pelo centro agora e a largura dela.
+  const [noCentro, setNoCentro] = useState<string | null>(ativa);
+  const [lente, setLente] = useState(0);
+  const centroAnterior = useRef<string | null>(ativa);
+  const medir = () => {
+    const caixa = trilho.current;
+    if (!caixa) return;
+    const meio = caixa.scrollLeft + caixa.clientWidth / 2;
+    let perto: { chave: string; d: number; w: number } | null = null;
+    for (const it of itens) {
+      const el = refs.current[it.chave];
+      if (!el) continue;
+      const d = Math.abs(el.offsetLeft + el.offsetWidth / 2 - meio);
+      if (!perto || d < perto.d) perto = { chave: it.chave, d, w: el.offsetWidth };
+    }
+    if (!perto) return;
+    setLente(perto.w);
+    if (perto.chave !== centroAnterior.current) {
+      centroAnterior.current = perto.chave;
+      setNoCentro(perto.chave);
+      // Um "clique" leve a cada nome que passa pela lente, só quando é o dedo que gira.
+      if (!programatico.current) {
+        try {
+          navigator.vibrate?.(6);
+        } catch {}
+      }
+    }
+  };
+  const medirRef = useRef(medir);
+  useEffect(() => {
+    medirRef.current = medir;
+  });
   const escolher = (chave: string) => {
     if (chave === ativa) return;
     const item = itens.find((i) => i.chave === chave);
@@ -40,57 +77,78 @@ export function CarrosselDeAbas({ itens, ativa, rotulo, onEscolher, className = 
     programatico.current = true;
     caixa.scrollTo({ left: alvo, behavior: primeira.current || semMovimento() ? "auto" : "smooth" });
     primeira.current = false;
+    requestAnimationFrame(() => medirRef.current());
     const t = setTimeout(() => (programatico.current = false), 450);
     return () => clearTimeout(t);
   }, [ativa]);
 
-  // Ela girou a faixa com o dedo: quando parar, a aba do centro abre.
+  // Ela girou a faixa com o dedo: quando parar, a aba do centro abre. O ouvinte é um só (sem
+  // reinscrever a cada render: a lente muda o estado durante o giro, e a reinscrição apagava o
+  // "parou" e a aba nunca abria). O que muda entre renders vem por referência.
+  const atual = useRef({ itens, ativa, escolher });
+  useEffect(() => {
+    atual.current = { itens, ativa, escolher };
+  });
   useEffect(() => {
     const caixa = trilho.current;
     if (!caixa) return;
     let parou: ReturnType<typeof setTimeout> | null = null;
+    let quadro = 0;
     const noScroll = () => {
+      cancelAnimationFrame(quadro);
+      quadro = requestAnimationFrame(() => medirRef.current());
       if (parou) clearTimeout(parou);
       parou = setTimeout(() => {
         if (programatico.current) return;
+        const { itens: lista, ativa: aberta, escolher: abrir } = atual.current;
         const meio = caixa.scrollLeft + caixa.clientWidth / 2;
         let perto: { chave: string; d: number } | null = null;
-        for (const it of itens) {
+        for (const it of lista) {
           const el = refs.current[it.chave];
           if (!el) continue;
           const d = Math.abs(el.offsetLeft + el.offsetWidth / 2 - meio);
           if (!perto || d < perto.d) perto = { chave: it.chave, d };
         }
-        if (perto && perto.chave !== ativa) escolher(perto.chave);
+        if (perto && perto.chave !== aberta) abrir(perto.chave);
       }, 140);
     };
     caixa.addEventListener("scroll", noScroll, { passive: true });
     return () => {
       caixa.removeEventListener("scroll", noScroll);
+      cancelAnimationFrame(quadro);
       if (parou) clearTimeout(parou);
     };
-  });
+  }, []);
 
+  const centro = noCentro ?? ativa;
   return (
-    <nav aria-label={rotulo} className={`-mx-5 md:mx-0 ${className}`}>
+    <nav aria-label={rotulo} className={`relative -mx-5 md:mx-0 ${className}`} data-roleta>
+      {/* A lente parada no centro: a pílula. Os nomes passam por baixo dela. */}
+      <span
+        aria-hidden
+        data-lente
+        className="pointer-events-none absolute left-1/2 top-1/2 h-10 -translate-x-1/2 -translate-y-1/2 rounded-full bg-pill shadow-[inset_0_0_0_1px_var(--color-border-strong),0_6px_14px_-8px_rgba(0,0,0,0.18)] transition-[width] duration-150 motion-reduce:transition-none"
+        style={{ width: lente || undefined, opacity: lente ? 1 : 0 }}
+      />
       <div
         ref={trilho}
         role="tablist"
         aria-label={rotulo}
-        className="flex snap-x snap-mandatory items-center gap-1 overflow-x-auto py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="relative flex snap-x snap-mandatory items-center gap-1 overflow-x-auto py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         // Metade da faixa de cada lado: a primeira e a última aba também chegam ao centro.
         style={{ paddingInline: "50%" }}
       >
         {itens.map((it) => {
           const on = it.chave === ativa;
-          const classe = `flex h-10 shrink-0 snap-center items-center whitespace-nowrap rounded-full px-4 text-[15px] transition-[transform,opacity,background-color] duration-300 motion-reduce:transition-none ${
-            on ? "scale-100 bg-pill font-medium text-on-pill opacity-100 shadow-[inset_0_0_0_1px_var(--color-border-strong),0_6px_14px_-8px_rgba(0,0,0,0.18)]" : "scale-[0.88] text-ink-muted opacity-60 hover:opacity-90"
+          const naLente = it.chave === centro;
+          const classe = `flex h-10 shrink-0 snap-center items-center whitespace-nowrap rounded-full px-4 text-[15px] transition-[color,opacity] duration-150 motion-reduce:transition-none ${
+            naLente ? "font-medium text-on-pill opacity-100" : "text-ink-muted opacity-60 hover:opacity-90"
           }`;
           const ref = (el: HTMLElement | null) => {
             refs.current[it.chave] = el;
           };
           return it.href && !onEscolher ? (
-            <Link key={it.chave} href={it.href} ref={ref} role="tab" aria-selected={on} scroll={false} className={classe}>
+            <Link key={it.chave} href={it.href} ref={ref} role="tab" aria-selected={on} scroll={false} prefetch className={classe}>
               {it.rotulo}
               <NavPending />
             </Link>

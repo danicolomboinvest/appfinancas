@@ -55,6 +55,10 @@ const nextConfig: NextConfig = {
   },
 
   experimental: {
+    // Resposta mais rápida (12/10/2026): a tela que ela acabou de ver fica guardada no aparelho por
+    // 30 s (e a que veio por prefetch completo, 3 min). Voltar para a aba anterior, ou trocar de aba,
+    // não espera o servidor. Salvar algo (revalidatePath) continua limpando essa cópia na hora.
+    staleTimes: { dynamic: 30, static: 180 },
     serverActions: {
       // Importação de extrato/carteira manda o arquivo pela Server Action — o limite padrão de
       // 1 MB derruba PDFs/Excels normais de banco.

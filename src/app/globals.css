@@ -932,3 +932,15 @@ html:not(.light) .vidro-heroi {
 @media (prefers-reduced-motion: reduce) {
   .an-seg, .an-col, .an-barra, .an-lendo { animation: none; }
 }
+
+/* Resposta no toque (12/10/2026): todo botão e link afunda um pouco enquanto o dedo está nele,
+   antes de qualquer resposta do servidor. :where() não pesa na especificidade: quem já tem um
+   estado pressionado próprio continua com o dele. */
+:where(button, a[href], [role="tab"], [role="button"]):not(:disabled):active {
+  opacity: 0.72;
+  transition: opacity 0s;
+}
+:where(button, a[href], [role="tab"], [role="button"]) {
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity 120ms ease-out;
+}
