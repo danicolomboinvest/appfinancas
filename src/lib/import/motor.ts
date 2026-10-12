@@ -43,16 +43,19 @@ export function categorizarLinha(entrada: {
   if (daComunidade) {
     // A subcategoria do dicionário entra junto quando ele concorda com a comunidade.
     const doDicionario = classifyDictionaryOnly(descricao, profileKind);
-    const sub = doDicionario?.parentCategory === daComunidade ? doDicionario.subcategory : undefined;
-    return { classificacao: { parentCategory: daComunidade, ...(sub ? { subcategory: sub } : {}) }, origem: "comunidade" };
+    // Concordando, o dicionário afina: a subcategoria e, na Natura (a comunidade diz Outros), o
+    // "Cuidado pessoal" dela.
+    if (doDicionario?.parentCategory === daComunidade) return { classificacao: doDicionario, origem: "comunidade" };
+    return { classificacao: { parentCategory: daComunidade }, origem: "comunidade" };
   }
   const pessoal = profileKind !== "EMPRESA";
   const doDicionario = classifyDictionaryOnly(descricao, profileKind);
   const ramo = entrada.categoriaDoBanco || categoriaNaFrenteDaDescricao(descricao);
   const doBanco = pessoal ? categoriaDoBancoParaOApp(ramo) : null;
   if (doBanco) {
-    const sub = doDicionario?.parentCategory === doBanco ? doDicionario.subcategory : undefined;
-    return { classificacao: { parentCategory: doBanco, ...(sub ? { subcategory: sub } : {}) }, origem: "banco" };
+    // Concordando, o dicionário afina (subcategoria), como na comunidade.
+    if (doDicionario?.parentCategory === doBanco) return { classificacao: doDicionario, origem: "banco" };
+    return { classificacao: { parentCategory: doBanco }, origem: "banco" };
   }
   if (doDicionario) return { classificacao: doDicionario, origem: "dicionario" };
   // Na Empresa, Alimentação é "Mercadorias e insumos": o palpite pelo nome não vale lá.

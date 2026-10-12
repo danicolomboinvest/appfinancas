@@ -100,8 +100,9 @@ export const DESCRICOES_DE_EXTRATO: Caso[] = [
   c("itau", "NOTION LABS", "OUTROS"),
   c("itau", "CAPCUT", "OUTROS"),
   c("itau", "PAYPAL *GOOGLE GSUITE", "OUTROS"),
-  c("itau", "LOJAS RENNER", null),
-  c("itau", "ZARA BRASIL", null),
+  // Roupa vai pra "Cuidado pessoal" dela (12/10/2026); a reserva, sem categoria dela, é Outros.
+  c("itau", "LOJAS RENNER", "OUTROS"),
+  c("itau", "ZARA BRASIL", "OUTROS"),
   c("itau", "MAGAZINE LUIZA", null),
 
   // Inter

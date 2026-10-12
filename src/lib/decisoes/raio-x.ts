@@ -1,3 +1,5 @@
+import { marcaDaDescricao } from "@/lib/marcas/marca";
+import { chaveDoComerciante, chaveUtil } from "@/lib/import/comerciante";
 import { classify, normalizeMerchant } from "@/lib/import/classify";
 
 /**
@@ -116,8 +118,26 @@ export function chaveRaioX(description: string): string {
     .slice(0, 100);
 }
 
-/** Nome pra mostrar: o pedaço da descrição que diz QUEM recebeu, não "Transferência enviada pelo Pix - ". */
+/** "tem assessoria contabil" → "Tem Assessoria Contabil"; "de", "da", "do" ficam minúsculos no meio. */
+function comoTitulo(chave: string): string {
+  return chave
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 4)
+    .map((p, i) => (i > 0 && /^(de|da|do|das|dos|e)$/.test(p) ? p : p.length <= 3 && /\d/.test(p) ? p : p[0].toUpperCase() + p.slice(1)))
+    .join(" ");
+}
+
+/**
+ * Nome pra mostrar: QUEM cobrou. A marca do catálogo quando tem ("Netflix"); senão o comerciante
+ * limpo, sem "Pagamento de boleto efetuado", "Compra no débito", LTDA (12/10/2026: a Dani via
+ * "Pagamento de boleto efet..." no lugar da contabilidade).
+ */
 function nomeLegivel(description: string): string {
+  const marca = marcaDaDescricao(description);
+  if (marca && !marca.baixa) return marca.nome;
+  const c = chaveDoComerciante(description);
+  if (c && chaveUtil(c) && !soPalavrasGenericas(c)) return comoTitulo(c).slice(0, 40);
   const partes = description.trim().replace(/\s+/g, " ").split(/\s+-\s+/);
   const boa = partes.find((p) => {
     const k = chaveRaioX(p);

@@ -58,6 +58,16 @@ describe("assinatura", () => {
     expect(r.achados).toEqual([]);
   });
 
+  it("parcela no formato da importação, \"(1/3)\", não é assinatura (Cia Marítima, 12/10/2026)", () => {
+    const r = cacarDinheiroPerdido([l("Cia Marítima (1/3)", 454.4, "2026-07-26"), l("Cia Marítima (2/3)", 454.4, "2026-08-26"), l("Cia Marítima (3/3)", 454.4, "2026-09-26")]);
+    expect(r.achados).toEqual([]);
+  });
+
+  it("parcela de 10 da Amazon também não", () => {
+    const r = cacarDinheiroPerdido([l("Amazon Marketplace Cc (3/10)", 89.09, "2026-07-05"), l("Amazon Marketplace Cc (4/10)", 89.09, "2026-08-05"), l("Amazon Marketplace Cc (5/10)", 89.09, "2026-09-05")]);
+    expect(r.achados).toEqual([]);
+  });
+
   it("salário (entrada) nunca entra", () => {
     const r = cacarDinheiroPerdido(todoMes("SALARIO EMPRESA X", [5000, 5000, 5000], 5, 4, { tipo: "INCOME" }));
     expect(r.achados).toEqual([]);

@@ -23,7 +23,12 @@ import { completarPalavraCortada, descolarPalavraDeComida } from "./parece-comid
  * customCategoryId): antes ela escolhia "Dani Invest" pro ManyChat e o app esquecia, porque a
  * regra só sabia guardar as oito categorias fixas.
  */
-export type Classification = { parentCategory: ParentCategory; subcategory?: string; customCategoryId?: string };
+/**
+ * `cuidadoPessoal`: o dicionário reconheceu roupa, calçado ou beleza (Zara, Levi's, salão). Quem
+ * grava troca pela categoria "Cuidado pessoal" dela, criando se faltar (cuidado-pessoal.ts); sem
+ * isso, fica a reserva Outros › Cuidado pessoal.
+ */
+export type Classification = { parentCategory: ParentCategory; subcategory?: string; customCategoryId?: string; cuidadoPessoal?: true };
 export type LearnedRule = { pattern: string; parentCategory: ParentCategory; subcategory?: string; customCategoryId?: string };
 
 type BuiltinRule = RegraDoDicionario;
@@ -56,7 +61,8 @@ function textoParaRegras(description: string): string {
     .replace(/\s+Ag[eê]ncia:.*$/i, "");
   // Instituição de pagamento não é loja: "mercado pago"/"mercado livre" viram uma palavra só
   // (senão "mercado" casa), e o "internet" da razão social do PagSeguro some.
-  const texto = paraPalavras(base)
+  // "C&A" viraria "c a", que casa com iniciais de nome: vira "cea", como a fatura também escreve.
+  const texto = paraPalavras(base.replace(/\bc\s*&\s*a\b/gi, "cea"))
     .replace(/\bmercado (pago|livre)\b/g, "mercado$1")
     .replace(/\bpag ?seguro internet\b/g, "pagseguro");
   // Nome grudado ("Jesrestaurante") e cortado pela fatura ("Oguru Itaim Restauran"): ver parece-comida.ts.
@@ -180,12 +186,19 @@ function matchLearned(normalized: string, userRules: LearnedRule[], chave = ""):
   return achada;
 }
 
+/** Pix ou transferência: o nome que vem depois é de quem recebeu, muitas vezes uma pessoa. */
+const PIX_OU_TRANSFERENCIA = /(?:^| )(?:pix|transferencia|transf|ted)(?= |$)/;
+
 function matchBuiltin(description: string, empresa: boolean): Classification | null {
   const texto = textoParaRegras(description);
+  const ehPix = PIX_OU_TRANSFERENCIA.test(paraPalavras(description));
   for (const { res, rule } of empresa ? EMPRESA : PESSOAL) {
+    if ("naoEmPix" in rule && rule.naoEmPix && ehPix) continue;
     if (res.some((re) => re.test(texto))) {
       if ("revisar" in rule) return null;
-      return { parentCategory: rule.parentCategory, subcategory: rule.subcategory };
+      const achada: Classification = { parentCategory: rule.parentCategory, subcategory: rule.subcategory };
+      if (rule.cuidadoPessoal) achada.cuidadoPessoal = true;
+      return achada;
     }
   }
   return null;

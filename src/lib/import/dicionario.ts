@@ -17,7 +17,15 @@ import type { ParentCategory } from "@prisma/client";
  * são subcategoria livre em Outros (a lista aceita "Outro" com texto livre).
  */
 export type RegraDoDicionario =
-  | { keywords: string[]; parentCategory: ParentCategory; subcategory?: string }
+  | {
+      keywords: string[];
+      parentCategory: ParentCategory;
+      subcategory?: string;
+      /** A linha vai pra categoria "Cuidado pessoal" dela (criada na hora se faltar; ver cuidado-pessoal.ts). */
+      cuidadoPessoal?: true;
+      /** Nome de loja que também é nome de gente ("Renner", "Zara"): não vale em Pix nem transferência. */
+      naoEmPix?: true;
+    }
   | { keywords: string[]; revisar: true };
 
 const KW_IMPOSTO = ["imposto", "tributo", "darf", "iptu", "ipva", "dae", "receita federal", "irpf"];
@@ -61,6 +69,41 @@ const KW_FERRAMENTAS = [
 const KW_ANUNCIOS = ["facebook", "facebk", "fb ads", "meta ads", "meta platforms", "facebook ads", "instagram ads", "google ads", "tiktok ads", "linkedin ads"];
 /** Plataforma de curso online (Hubla, Hotmart...): 13 clientes com "HUBLA*DANICOLOMBO" escolheram Educação em 76 de 89 vezes (out/2026). */
 const KW_PLATAFORMA_CURSO = ["hubla", "hotmart", "kiwify", "eduzz", "monetizze", "braip", "perfectpay", "ticto", "greenn", "cakto"];
+
+/**
+ * Roupa, calçado, beleza e cuidado pessoal (12/10/2026, pedido da Dani: "Zara, Leves... você
+ * poderia criar uma categoria de cuidado pessoal e sempre colocar lá"). "Leves" é a Levi's: na
+ * fatura dela vem "Levi's", que vira "levi s". A lista saiu do que as clientes já põem à mão em
+ * categorias como "Cuidado pessoal", "Beleza" e "Roupas" (3+ pessoas por loja, out/2026).
+ *
+ * De fora, de propósito: "levi" sozinho e "marisa", "melissa", "kiko" soltos (nome de gente); "farm"
+ * (abreviação de farmácia), "reserva" e "hope" (palavra comum), "mac"; os marketplaces de tudo
+ * (Amazon, Shopee, Mercado Livre, Americanas, TikTok Shop), que continuam pergunta. "C&A" chega
+ * como "cea" (textoParaRegras troca o "c&a"), porque "c a" solto casava com iniciais de nome.
+ */
+const KW_CUIDADO_PESSOAL = [
+  // Roupa
+  "zara brasil", "inditex", "lojas renner", "riachuelo", "lojas riachuelo", "cea", "cea modas", "shein", "sheincom", "shein com",
+  "lojas marisa", "marisa lojas", "pernambucanas", "youcom", "levis", "levi s", "levi strauss", "farm rio", "animale",
+  "cia maritima", "brooksfield", "dafiti", "malwee", "puket", "track field", "intimissimi", "calzedonia",
+  "colcci", "osklen", "dzarm", "le lis", "lojas avenida", "torra torra", "forever 21",
+  "moda", "modas", "confeccoes", "confecções", "confeccao", "confecção", "vestuario", "vestuário", "boutique", "lingerie", "roupas",
+  // Calçado
+  "arezzo", "schutz", "anacapri", "usaflex", "piccadilly", "vizzano", "centauro", "netshoes", "havaianas",
+  "nike", "adidas", "olympikus", "calcados", "calçados", "sapataria", "sapatos",
+  // Beleza
+  "sephora", "boticario", "o boticario", "oboticario", "natura", "natura cosmeticos", "avon", "quem disse berenice",
+  "loccitane", "l occitane", "beleza na web", "belezanaweb", "epoca cosmeticos", "kiko cosmetics", "kiko milano",
+  "mac cosmetics", "jequiti", "sallve", "principia", "wepink", "vult", "ruby rose", "payot", "the body shop",
+  "body shop", "mahogany", "dermage", "soneda perfumaria", "cosmeticos", "cosméticos", "perfumaria", "perfumes", "maquiagem", "makeup",
+  // Cuidado pessoal (serviço)
+  "salao", "salão", "salao de beleza", "cabeleireiro", "cabeleireira", "cabelereiro", "cabelereira", "barbearia", "barber",
+  "barbershop", "barber shop", "manicure", "pedicure", "esmalteria", "nail", "nails", "unha", "unhas", "sobrancelha",
+  "sobrancelhas", "design de sobrancelha", "depilacao", "depilação", "espacolaser", "espaco laser", "estetica", "estética",
+  "beleza", "beauty", "hair",
+];
+/** Nome de loja que também é nome ou sobrenome de gente: só fora de Pix e transferência. */
+const KW_CUIDADO_PESSOAL_SEM_PIX = ["zara", "renner", "hering", "granado", "constance", "lupo", "moleca", "mizuno", "eudora", "oceane", "soneda"];
 
 export const DICIONARIO_PESSOAL: RegraDoDicionario[] = [
   // Impostos primeiro: "PAGAMENTO IMPOSTO DE RENDA" não pode ser pego por nenhuma regra de consumo.
@@ -249,6 +292,14 @@ export const DICIONARIO_PESSOAL: RegraDoDicionario[] = [
   { keywords: ["tarifa", "tarifas", "tar pacote", "tar", "anuidade", "iof", "juros", "cesta de servicos", "pacote de servicos", "manutencao de conta"], parentCategory: "OUTROS", subcategory: "Tarifas bancárias" },
   { keywords: ["seguro", "seguros", "emprestimo", "empréstimo"], parentCategory: "OUTROS", subcategory: "Tarifas bancárias" },
   { keywords: ["igreja", "dizimo", "dízimo", "doacao", "doação", "vakinha", "unicef", "medicos sem fronteiras"], parentCategory: "OUTROS", subcategory: "Doações" },
+  // Por último: "SEGURO RENNER", "ANUIDADE RENNER" e o IOF da compra na Shein são tarifa, não
+  // roupa; "DROGARIA E PERFUMARIA" é farmácia; "CURSO DE MAQUIAGEM" é educação. Antes dela, a
+  // CEA de luz do Amapá ("CEA EQUATORIAL") já caiu em Moradia. Sem categoria dela, fica em
+  // Outros › Cuidado pessoal.
+  // "Salão de festas" do condomínio ou do buffet não é salão de beleza: vira pergunta.
+  { keywords: ["salao de festas", "salão de festas", "salao de eventos", "salão de eventos"], revisar: true },
+  { keywords: KW_CUIDADO_PESSOAL, parentCategory: "OUTROS", subcategory: "Cuidado pessoal", cuidadoPessoal: true },
+  { keywords: KW_CUIDADO_PESSOAL_SEM_PIX, parentCategory: "OUTROS", subcategory: "Cuidado pessoal", cuidadoPessoal: true, naoEmPix: true },
   // Extrato do Nubank: "Aplicação RDB" é dinheiro indo pra caixinha/investimento, não gasto do dia a dia.
   { keywords: ["aplicação rdb", "aplicacao rdb", "aplicação cdb", "aplicacao cdb", "tesouro direto", "aplicação em"], parentCategory: "OUTROS", subcategory: "Investimento" },
 ];

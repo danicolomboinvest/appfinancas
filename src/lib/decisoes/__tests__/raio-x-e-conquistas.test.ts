@@ -13,9 +13,14 @@ describe("acharRecorrentes", () => {
       mes(7, "Show do Coldplay", 400),
       mes(8, "Show do Coldplay", 400),
     ]);
-    expect(itens.map((i) => i.nome)).toEqual(["NETFLIX.COM"]);
+    expect(itens.map((i) => i.nome)).toEqual(["Netflix"]);
     expect(itens[0].tipo).toBe("assinatura");
     expect(itens[0].anual).toBeCloseTo(718.8, 2);
+  });
+
+  it("o nome é quem cobrou, sem \"Pagamento de boleto efetuado\" nem LTDA (12/10/2026)", () => {
+    const itens = acharRecorrentes([6, 7, 8].map((m) => mes(m, "Pagamento de boleto efetuado TEM ASSESSORIA CONTABIL LTDA", 372, "OUTROS")));
+    expect(itens.map((i) => i.nome)).toEqual(["Tem Assessoria Contabil"]);
   });
 
   it("hábito com várias compras no mês vira 'hábito', com a média mensal", () => {

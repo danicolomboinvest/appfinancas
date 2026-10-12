@@ -94,7 +94,7 @@ vi.mock("@/lib/repositories/import-batch.repo", () => ({
 }));
 vi.mock("@/lib/repositories/profile.repo", () => ({ listProfiles: vi.fn(async () => [{ id: "pessoal" }, { id: "empresa" }]) }));
 vi.mock("@/lib/repositories/decisao.repo", () => ({ descricoesOriginais: vi.fn(async () => new Map()) }));
-vi.mock("@/lib/repositories/custom-category.repo", () => ({ listCustomCategories: vi.fn(async () => []) }));
+vi.mock("@/lib/repositories/custom-category.repo", () => ({ listCustomCategories: vi.fn(async () => []), garantirCuidadoPessoal: vi.fn(async () => null) }));
 vi.mock("@/lib/repositories/transaction-rule.repo", () => ({
   listTransactionRules: vi.fn(async () => []),
   upsertTransactionRule: vi.fn(async () => {}),
@@ -110,6 +110,7 @@ vi.mock("@/lib/repositories/import-diagnostic.repo", () => ({
 vi.mock("@/lib/repositories/import-file.repo", () => ({ storeFailedImportFile: vi.fn(async () => {}) }));
 
 const { importTransactionsAction, parseStatementAction, removeCardPaymentCandidateAction } = await import("../import-actions");
+const customCategoryRepo = await import("@/lib/repositories/custom-category.repo");
 type ReviewItem = Extract<Awaited<ReturnType<typeof parseStatementAction>>, { ok: true }>["items"][number];
 
 // ---------------------------------------------------------------- ajudantes
@@ -447,5 +448,21 @@ describe("parcelas e estornos na fatura", () => {
       10,
     );
     expect(doMes(2026, 11).filter((e) => e.description?.startsWith("LOJA Y"))).toHaveLength(0);
+  });
+});
+
+describe("roupa e beleza na importação (Cuidado pessoal)", () => {
+  it("a loja reconhecida entra na categoria dela, separada e sem pergunta; o resto não muda", async () => {
+    vi.mocked(customCategoryRepo.garantirCuidadoPessoal).mockResolvedValueOnce({ id: "cat-cuidado", name: "Cuidado pessoal", icon: "shopping-bag" });
+    const items = await ler("fatura", ["10/09/2026;LEVI'S (3/3);199,90", "11/09/2026;PADARIA ESTRELA;12,00"], "2026-09");
+    const levis = items.find((i) => i.description.startsWith("LEVI"))!;
+    expect(levis).toMatchObject({ customCategoryId: "cat-cuidado", parentCategory: null, motivo: "dicionario", confianca: "alta" });
+    expect(items.find((i) => i.description.startsWith("PADARIA"))?.customCategoryId).toBeNull();
+  });
+
+  it("sem categoria (perfil Empresa ou falha), fica na reserva Outros › Cuidado pessoal", async () => {
+    vi.mocked(customCategoryRepo.garantirCuidadoPessoal).mockResolvedValueOnce(null);
+    const items = await ler("fatura", ["10/09/2026;ZARA BRASIL;300,00"], "2026-09");
+    expect(items[0]).toMatchObject({ customCategoryId: null, parentCategory: "OUTROS", subcategory: "Cuidado pessoal" });
   });
 });

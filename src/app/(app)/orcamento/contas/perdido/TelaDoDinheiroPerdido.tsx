@@ -2,14 +2,14 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition, type PointerEvent as PointerEventReact } from "react";
 import Link from "next/link";
-import { ChevronDown, Copy, Receipt, Repeat, ShieldQuestion, Sun, TrendingUp, type LucideIcon } from "lucide-react";
+import { Check, ChevronDown, Copy, Receipt, Repeat, ShieldQuestion, Sun, TrendingUp, type LucideIcon } from "lucide-react";
 import { useMoney } from "@/components/money/MoneyProvider";
 import { useToast } from "@/components/ui/toast-context";
 import { Modal } from "@/components/ui/Modal";
 import { FitText } from "@/components/ui/FitText";
 import { LogoDoLancamento } from "@/components/ui/LogoDoLancamento";
 import { vibrar } from "@/lib/celebrar";
-import {
+import { contraOPreco,
   ateAgora,
   escolhasDaCarta,
   mensagemDeEstorno,
@@ -24,7 +24,7 @@ import type { TipoDeAchado } from "@/lib/dinheiro-perdido/detectar";
 import { decidirAchadoAction, marcarVistosAction } from "./actions";
 import type { CartaDaTela, DinheiroPerdido } from "./dados";
 
-type Props = Omit<DinheiroPerdido, "vivos">;
+type Props = Omit<DinheiroPerdido, "vivos"> & { precoDoSpi: number | null };
 
 const MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
 const ARRASTE_DECIDE = 80;
@@ -53,7 +53,7 @@ function semMovimento(): boolean {
  * A tela inteira do Dinheiro perdido: "Até agora" em cima, as cartas embaixo, a folha do estorno e
  * o "Ver tudo". As escolhas valem na hora na tela (o Até agora cresce) e vão para o servidor atrás.
  */
-export function TelaDoDinheiroPerdido({ abertas, todas, conferidos, novos }: Props) {
+export function TelaDoDinheiroPerdido({ abertas, todas, conferidos, precoDoSpi, novos }: Props) {
   const money = useMoney();
   const { showError } = useToast();
   const [, iniciar] = useTransition();
@@ -128,7 +128,7 @@ export function TelaDoDinheiroPerdido({ abertas, todas, conferidos, novos }: Pro
 
   return (
     <div className="flex flex-col gap-5">
-      <AteAgora porAno={placar.porAno} porMes={placar.porMes} deUmaVez={placar.deUmaVez} pula={pula} />
+      <AteAgora porAno={placar.porAno} porMes={placar.porMes} deUmaVez={placar.deUmaVez} precoDoSpi={precoDoSpi} pula={pula} />
 
       <section className="flex flex-col gap-3" aria-labelledby="achei-titulo">
         <div className="flex items-baseline justify-between gap-3 px-1">
@@ -198,7 +198,9 @@ export function TelaDoDinheiroPerdido({ abertas, todas, conferidos, novos }: Pro
 
 /* ------------------------------------------------------------------ Até agora */
 
-function AteAgora({ porAno, porMes, deUmaVez, pula }: { porAno: number; porMes: number; deUmaVez: number; pula: number }) {
+function AteAgora({ porAno, porMes, deUmaVez, precoDoSpi, pula }: { porAno: number; porMes: number; deUmaVez: number; precoDoSpi: number | null; pula: number }) {
+  // "O SPI já se pagou" quando passa do preço, sem nunca escrever o preço (12/10/2026, pedido dela).
+  const pagou = precoDoSpi ? contraOPreco(porAno, precoDoSpi).pagou : false;
   const money = useMoney();
   const m0 = (v: number) => money(v, { round: true });
   return (
@@ -214,6 +216,14 @@ function AteAgora({ porAno, porMes, deUmaVez, pula }: { porAno: number; porMes: 
           {porAno === 0 ? "Cada “não uso” soma aqui." : `${money(porMes)} por mês${deUmaVez > 0 ? ` e ${money(deUmaVez)} de estorno` : ""}`}
         </p>
       </div>
+      {pagou && (
+        <div className="flex items-center gap-2.5 rounded-2xl bg-success-soft px-3 py-2.5 text-[14px] font-semibold text-success">
+          <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-success text-[color:var(--color-surface)]" aria-hidden>
+            <Check size={15} strokeWidth={3} />
+          </span>
+          <span className="min-w-0">O SPI já se pagou</span>
+        </div>
+      )}
     </section>
   );
 }
