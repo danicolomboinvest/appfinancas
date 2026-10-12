@@ -3,6 +3,7 @@
 import { ehCasal } from "@/lib/profiles/casal";
 import { ehPessoa } from "@/lib/casal/acerto";
 import { revalidatePath } from "next/cache";
+import { agendarCacaDoDinheiroPerdido } from "@/lib/dinheiro-perdido/agendar";
 import { agendarAvisoDoCartao } from "@/lib/cartao/agendar";
 import { installmentCanonical, installmentDescription, parseInstallment } from "@/lib/entries/recurrence";
 import { countMoneyLines, detectInvoiceTotal, looksLikeCardInvoice, MOTIVO_SINAIS_FATURA, periodoSemMovimento, sinaisDesmentemExtrato, type DocKind } from "@/lib/import/detect";
@@ -1262,6 +1263,10 @@ export async function importTransactionsAction(
   // Limite do cartão: a fatura que entrou pode ter passado de 70/90/100% de cada mês em que
   // ela pôs compra (o aviso guarda o que já mandou por mês, não repete).
   if (ehFatura && created > 0) for (const m of mesesDasComprasCriadas.values()) await agendarAvisoDoCartao(ctx, m.year, m.month);
+
+  // Dinheiro perdido: o extrato novo pode trazer carta nova ("2 cartas novas"), e um estorno pedido
+  // pode ter caído. Depois da resposta; a Empresa não tem essa tela.
+  if (created > 0 && ctx.profileKind !== "EMPRESA") await agendarCacaDoDinheiroPerdido(ctx);
 
   await recordImportDiagnostic({
     userId: ctx.userId,

@@ -256,6 +256,7 @@ model User {
   contasAPagar           ContaAPagar[]
   tokensDoWidget         TokenDoWidget[]
   dividas                Divida[]
+  achadosDinheiroPerdido AchadoDinheiroPerdido[]
   /// Login do par (11/10/2026): convites que esta conta mandou e os perfis Casal em que ela é o par.
   convitesCasal          ConviteCasal[]
   membrosCasal           MembroCasal[]
@@ -337,6 +338,7 @@ model FinancialProfile {
   decisoes                Decisao[]
   contasAPagar            ContaAPagar[]
   dividas                 Divida[]
+  achadosDinheiroPerdido  AchadoDinheiroPerdido[]
   convitesCasal           ConviteCasal[]
   membrosCasal            MembroCasal[]
   fechamentosCasal        FechamentoCasal[]
@@ -1576,4 +1578,38 @@ model ParametroLegal {
   createdAt    DateTime @default(now())
 
   @@unique([chave, vigenteDesde])
+}
+
+/// Dinheiro perdido (12/10/2026, versão B): cada achado que o app mostrou (assinatura, cobrança
+/// repetida, tarifa e seguro, aumento) e o que a pessoa decidiu, para não perguntar de novo. O
+/// achado em si é recalculado dos lançamentos; aqui fica a decisão e uma fotografia dos valores na
+/// hora dela, que é o que soma no "Até agora" (o valor não muda se o extrato mudar depois).
+model AchadoDinheiroPerdido {
+  id         String            @id @default(cuid())
+  userId     String
+  user       User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  profileId  String?
+  profile    FinancialProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  /// A chave estável do achado ("assinatura:m:netflix", "repetida:m:ifood:5840:2026-09-13").
+  chave      String            @db.VarChar(160)
+  /// assinatura | repetida | tarifa | aumento
+  tipo       String            @db.VarChar(12)
+  nome       String            @db.VarChar(80)
+  /// Por mês (assinatura, tarifa, aumento = a diferença) e de uma vez (cobrança repetida, tarifa avulsa).
+  mensal     Decimal?          @db.Decimal(18, 2)
+  unico      Decimal?          @db.Decimal(18, 2)
+  /// Detalhes para mostrar de novo (datas, antes x agora, quem cobrou).
+  dados      Json?
+  /// aberto | uso | nao_uso | pedi_estorno | estornado | descartado
+  estado     String            @default("aberto") @db.VarChar(16)
+  decididoEm DateTime?
+  /// Quando o estorno caiu (sozinho, pelo crédito no extrato, ou porque ela disse "Já voltou").
+  estornoEm  DateTime?
+  /// Achado que entrou com um extrato novo: nulo até ela abrir as cartas (o "2 cartas novas").
+  vistoEm    DateTime?
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+
+  @@unique([userId, profileId, chave])
+  @@index([userId, profileId, estado])
 }
