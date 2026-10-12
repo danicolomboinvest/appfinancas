@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChevronLeft, ChevronRight, PiggyBank } from "lucide-react";
+import { ChevronRight, PiggyBank, X } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import { serverMoney } from "@/lib/money-server";
@@ -40,7 +40,16 @@ async function estadoDoAporte(ctx: Awaited<ReturnType<typeof getRequiredSession>
     return { tipo: "feito", mes: ref.nome, valor: doMes.reduce((t, a) => t + a.valor, 0), origem: origemDoTexto(ultimo.descricao), data: ultimo.dia ? `${dd(ultimo.dia)}/${dd(ultimo.mes)}` : null, proximo };
   }
   const achado = (await aportesSemMeta(ctx, meta.id, meta.aportesRecusados, hoje))[0];
-  if (achado) return { tipo: "pendente", entradaId: achado.id, valor: achado.valor, origem: achado.origem, quando: achado.dia ? `${achado.dia} de ${MESES_LONGOS[achado.mes - 1]}` : null };
+  // Pix do começo do mês (até o dia 7) é o aporte do mês que passou (protótipo: "Aporte de setembro · 05/10").
+  if (achado)
+    return {
+      tipo: "pendente",
+      entradaId: achado.id,
+      valor: achado.valor,
+      origem: achado.origem,
+      quando: achado.dia ? `${String(achado.dia).padStart(2, "0")}/${String(achado.mes).padStart(2, "0")}` : null,
+      mes: MESES_LONGOS[(achado.dia && achado.dia <= 7 ? achado.mes - 2 + 12 : achado.mes - 1) % 12],
+    };
   if (meta.aporteAdiadoMes === ref.chave) return { tipo: "adiado", mesDeHoje: MESES_LONGOS[hoje.getMonth()] };
   return { tipo: "perguntar", mes: ref.nome, combinado: meta.plano.porMesNecessario || meta.combinado, diaMin: isoDia(new Date(ref.ano, ref.mes - 1, 1)), diaMax: isoDia(hoje) };
 }
@@ -113,8 +122,10 @@ export default async function DetalheDaMetaPage(props: PageProps<"/planejamento/
         <div className="md-foto -mx-5 -mt-2 md:mx-0 md:overflow-hidden md:rounded-[28px]">
           {/* eslint-disable-next-line @next/next/no-img-element -- foto da meta */}
           <img src={meta.foto} alt="" decoding="async" fetchPriority="high" />
-          <Link href="/planejamento/metas" aria-label="Voltar para Metas" className="md-vidro absolute left-5 top-2.5 flex size-11 items-center justify-center rounded-full">
-            <ChevronLeft size={20} aria-hidden />
+          {/* Protótipo: o detalhe sobe como folha por cima de Metas, com o puxador e o X redondo. */}
+          <span className="absolute left-1/2 top-2 h-1 w-10 -translate-x-1/2 rounded-full bg-white/70" aria-hidden />
+          <Link href="/planejamento/metas" aria-label="Fechar e voltar para Metas" className="md-vidro absolute right-5 top-3.5 flex size-11 items-center justify-center rounded-full">
+            <X size={20} aria-hidden />
           </Link>
         </div>
 

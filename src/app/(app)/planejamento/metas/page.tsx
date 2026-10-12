@@ -17,12 +17,14 @@ import "./metas.css";
 /**
  * Metas da versão nova (protótipo aprovado, rota #metas): o resumo com o anel de todas juntas e a
  * próxima a chegar, a fileira de fotos para ir direto a uma meta, os cartões com foto e a Nova
- * meta guiada. A ordem é a de sempre do app: prazo mais perto primeiro.
+ * meta guiada. A ordem: a reserva primeiro, depois o prazo mais perto.
  */
 export default async function MetasPage() {
   const ctx = await getRequiredSession();
   const hoje = nowInBrazil();
-  const [metas, money] = await Promise.all([listarMetasDaTela(ctx, hoje), serverMoney()]);
+  const [todas, money] = await Promise.all([listarMetasDaTela(ctx, hoje), serverMoney()]);
+  // A reserva primeiro (é a base de tudo), depois o prazo mais perto (protótipo: Reserva, Viagem, Carro).
+  const metas = [...todas].sort((a, b) => Number(b.icon === "RESERVA") - Number(a.icon === "RESERVA"));
   const m = (v: number) => money(v, { round: true });
   const jeito = jeitoDasMetas(ctx.profileTheme);
 

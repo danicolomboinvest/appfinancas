@@ -8,10 +8,10 @@ import { nivelDaCategoria } from "@/lib/planning/remanejo";
 
 /**
  * Quanto dá para apertar em cada categoria (protótipo, "Onde dá para apertar?"): desejos primeiro
- * (Lazer 40%, Compras e as criadas não essenciais 25%), depois o dia a dia (Transporte 10%,
+ * (Lazer 40%, Compras 23,7% como no protótipo, as criadas não essenciais 25%), depois o dia a dia (Transporte 10%,
  * Alimentação 15%, que começa desligada). Moradia, saúde, educação e impostos nunca entram.
  */
-const CORTE: Record<string, number> = { LAZER: 0.4, OUTROS: 0.25, TRANSPORTE: 0.1, ALIMENTACAO: 0.15 };
+const CORTE: Record<string, number> = { LAZER: 0.4, OUTROS: 0.237, TRANSPORTE: 0.1, ALIMENTACAO: 0.15 };
 const CORTE_DESEJO_CRIADA = 0.25;
 
 export type Aperto = { key: string; label: string; planejado: number; corte: number; depois: number; ligadoDeInicio: boolean; nivel: 1 | 2 };
@@ -47,4 +47,9 @@ export function mesDaqui(k: number, hoje: { ano: number; mes: number }, curto = 
   if (curto) return `${CURTOS[d.getMonth()]}/${d.getFullYear()}`;
   const n = MESES[d.getMonth()];
   return `${n.charAt(0).toUpperCase()}${n.slice(1)} de ${d.getFullYear()}`;
+}
+
+/** O "a mais por mês" com as chaves como começam (Alimentação desligada) e as assinaturas: o número da esfera "Como guardar mais?". */
+export function extraDeInicio(categorias: Parameters<typeof apertos>[0], assinaturasNoMes: number): number {
+  return apertos(categorias).reduce((s, a) => s + (a.ligadoDeInicio ? a.corte : 0), 0) + Math.round(assinaturasNoMes);
 }

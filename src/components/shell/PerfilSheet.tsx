@@ -4,16 +4,16 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { FotoDoPerfil } from "@/app/(app)/configuracoes/_ajustes/FotoDoPerfil";
-import { Check, ChevronLeft, ChevronRight, LogOut } from "lucide-react";
+import { Briefcase, Check, ChevronLeft, ChevronRight, Heart, LogOut, User } from "lucide-react";
 import { Interruptor } from "@/components/ui/Interruptor";
 import { useValoresOcultos } from "@/components/money/MoneyProvider";
 import { setThemeAction } from "./theme-actions";
-import { ProfileIcon } from "@/components/profiles/ProfileIcon";
 import type { PerfilResumo } from "@/components/profiles/perfil-resumo";
 import { trocarPerfilAction } from "@/app/(app)/perfis/actions";
 import { useToast } from "@/components/ui/toast-context";
 
 const TIPO: Record<string, string> = { PESSOAL: "Pessoal", CASAL: "Casal", EMPRESA: "Empresa" };
+const NOME_DO_TEMA: Record<string, string> = { padrao: "Padrão", girly: "Girly", manifestacao: "Manifestação", titanio: "Titânio" };
 
 /** A foto da conta, ou a primeira letra do nome num círculo (o avatar do app todo). */
 export function AvatarDaConta({ nome, foto, size = 44 }: { nome: string; foto: string | null; size?: number }) {
@@ -139,11 +139,17 @@ export function PerfilSheet({
               return (
                 <button key={p.id} type="button" onClick={() => trocar(p.id)} disabled={trocando} aria-current={eAtivo ? "true" : undefined} className={`${linha} disabled:opacity-60`}>
                   <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-surface-2 text-ink-muted">
-                    <ProfileIcon name={p.icon} size={18} />
+                    {/* Pessoa, coração e maleta (protótipo): o ícone diz o tipo do perfil. */}
+                    {p.kind === "CASAL" ? <Heart size={18} strokeWidth={1.75} /> : p.kind === "EMPRESA" ? <Briefcase size={18} strokeWidth={1.75} /> : <User size={18} strokeWidth={1.75} />}
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block break-words">{p.name}</span>
-                    <span className={`block text-caption ${eAtivo ? "text-accent-strong" : "text-ink-muted"}`}>{eAtivo ? "Em uso" : (TIPO[p.kind ?? ""] ?? "Perfil")}</span>
+                    <span className="flex flex-wrap items-center gap-1.5 break-words">
+                      {p.name}
+                      {eAtivo && <span className="rounded-full bg-accent-soft px-2 py-px text-xs text-accent-strong">abre ao entrar</span>}
+                    </span>
+                    <span className="block text-caption text-ink-muted">
+                      {TIPO[p.kind ?? ""] ?? "Perfil"} · tema {NOME_DO_TEMA[p.theme] ?? "Padrão"}
+                    </span>
                   </span>
                   <span className={`flex size-6 shrink-0 items-center justify-center rounded-full ${eAtivo ? "bg-ink text-canvas" : "border border-border-strong"}`} aria-hidden>
                     {eAtivo && <Check size={14} strokeWidth={2.5} />}

@@ -63,9 +63,10 @@ describe("as 21 missões", () => {
 
   it("o guia diz o nome do botão que está na tela, no tema da pessoa", () => {
     const g = vocabularioDaVoz(vozDoTema("girly"));
-    expect(g.Registrar).toBe("Anotar");
-    expect(g.GravarAudio).toBe("Me contar por voz");
-    expect(g.Importar).toBe("Mandar o extrato ou a fatura");
+    // Os quadrados do Registrar no Girly (protótipo): Registrar, Extrato, Digitar e Gravar áudio.
+    expect(g.Registrar).toBe("Registrar");
+    expect(g.GravarAudio).toBe("Gravar áudio");
+    expect(g.Importar).toBe("Extrato");
     expect(vocabularioDaVoz(vozDoTema("padrao")).Importar).toBe("Importar extrato ou fatura");
     for (const tema of PROFILE_THEMES) {
       const v = vocabularioDaVoz(vozDoTema(tema.key));

@@ -4,6 +4,7 @@ import { categoriasEssenciais } from "@/lib/categories";
 import { previsaoDoMes } from "@/lib/decisoes/foco-semana";
 import { cartaoDaPilha, type CartaoDaPilha, type DadosDaPilha, type MetaDaPilha } from "@/lib/decisoes/pilha";
 import type { DadosDasPilulas } from "@/lib/decisoes/esferas";
+import { extraDeInicio } from "@/lib/decisoes/fluxos";
 import { estouGastandoDemais, melhoreiDoMesPassado, porqueAcabouMaisRapido } from "@/lib/decisoes/respostas";
 import { quantoPassou } from "@/lib/planning/remanejo";
 import { carregarRespostas } from "./pergunta/[slug]/dados";
@@ -79,7 +80,16 @@ export async function carregarDecidir(ctx: AuthContext) {
     livreMes: temLivre ? livre.restante : null,
     porDia: temLivre ? livre.restante / Math.max(1, livre.diasRestantes) : null,
     ateDomingo: temLivre ? livre.porSemana : null,
-    guardar: guardarAlvo >= 1 ? { porMes: guardarAlvo, cobre: (d.aportePlanejado ?? 0) >= guardarAlvo - 1 } : null,
+    // "Como guardar mais?" (protótipo): quanto dá para guardar a mais apertando pela regra de
+    // prioridade, o mesmo número do 2 de 3 do caminho guiado.
+    guardar: (() => {
+      const essenciais = categoriasEssenciais(ctx.categorias?.prefs);
+      const extra = extraDeInicio(
+        d.categorias.map((c) => ({ key: c.key, label: c.label, planejado: c.planejado, essencial: essenciais.has(c.key) })),
+        d.raioxAnual > 0 ? d.raioxAnual / 12 : 0,
+      );
+      return extra >= 1 ? { porMes: extra, cobre: true } : guardarAlvo >= 1 ? { porMes: guardarAlvo, cobre: (d.aportePlanejado ?? 0) >= guardarAlvo - 1 } : null;
+    })(),
     metaAtrasada: atrasada
       ? {
           chegaCurto:

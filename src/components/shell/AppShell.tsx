@@ -227,7 +227,7 @@ export function AppShell({
         </div>
 
         {/* O + só na Visão geral (no computador o Registrar mora na barra lateral). */}
-        {visaoGeral && !focado && <BotaoRegistrar onClick={() => abrirRegistrar()} />}
+        {visaoGeral && !focado && !menuOpen && <BotaoRegistrar onClick={() => abrirRegistrar()} />}
 
         <PerfilSheet
           open={perfilOpen}
