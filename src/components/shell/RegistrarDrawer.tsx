@@ -72,8 +72,9 @@ export function RegistrarDrawer({
   // outro jeito sem tocar no componente.
   const { voz, kind } = useProfileTheme();
   // Como no protótipo: "Registrar" na escolha; dentro, o nome do que ela escolheu.
-  const { key: tema } = useProfileTheme();
-  const rotuloImportar = tema === "girly" ? "Extrato" : "Importar extrato";
+
+  // Uma porta só, o mesmo nome em todo lugar (12/10/2026).
+  const rotuloImportar = "Extrato ou fatura";
   const title = mode === "choice" ? "Registrar" : mode === "voice" ? "Gravar áudio" : mode === "import" ? rotuloImportar : novaCategoria ? "Nova categoria" : "Digitar";
 
   return (

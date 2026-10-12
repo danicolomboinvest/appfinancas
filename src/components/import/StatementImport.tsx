@@ -33,7 +33,6 @@ import { listaDeMeses } from "@/lib/import/mes-da-compra";
 import { resumoDoMesImportadoAction, type RevelacaoDoImport } from "@/app/(app)/mensal/revelacao-actions";
 import { pegarArquivoParaOMes } from "@/components/shell/registrar-eventos";
 import { OfertaDeAvisos } from "@/components/push/OfertaDeAvisos";
-import { ComoTirarExtrato } from "./ComoTirarExtrato";
 import { ProtegerSaida } from "./ProtegerSaida";
 import { nomeNaTela } from "@/lib/import/nome-na-tela";
 import { FitText } from "@/components/ui/FitText";
@@ -157,6 +156,8 @@ export function StatementImport({
   const [createdCount, setCreatedCount] = useState(0);
   const [skippedCount, setSkippedCount] = useState(0);
   const [docType, setDocType] = useState<"extrato" | "fatura">("extrato");
+  // O último arquivo lido (e a senha, se tinha): o "Mudar" relê como o outro tipo.
+  const [ultimoArquivo, setUltimoArquivo] = useState<{ file: File; pwd?: string } | null>(null);
   // Perfil Casal: de quem é o extrato/fatura. Todas as linhas entram com esse nome em "quem pagou".
   const [pessoaDoExtrato, setPessoaDoExtrato] = useState<"A" | "B">("A");
   // Mês/ano de destino da FATURA (todas as compras entram nesse mês, escolhido por quem importa
@@ -275,6 +276,7 @@ export function StatementImport({
   function runParse(file: File, pwd?: string, forcedType?: "extrato" | "fatura", acceptKind = false) {
     setError(null);
     setFileName(file.name);
+    setUltimoArquivo({ file, pwd });
     const type = forcedType ?? docType;
     const formData = buildUploadForm(file, type, type === "fatura" && contarNoMes ? faturaMonth : undefined);
     if (pwd) formData.set("password", pwd);
@@ -300,17 +302,11 @@ export function StatementImport({
         setError(result.error);
         return;
       }
-      // Fatura subida como extrato vira renda; extrato subido como fatura vira gasto. Se o
-      // conteúdo diz que é o outro tipo, pergunta antes de mostrar qualquer lançamento.
+      // Uma porta só (12/10/2026): o app segue com o tipo que ele detectou, sem perguntar. Quem
+      // discordar toca no "Mudar" discreto depois da leitura.
       if (!acceptKind && result.stats.detectedKind !== "unknown" && result.stats.detectedKind !== type) {
-        // A pergunta só aparece na tela de upload. Vindo da tela de senha, sem voltar pra ela o
-        // "Desbloquear" parava de carregar e nada acontecia; e sem guardar a senha, responder
-        // "é extrato mesmo" reenviava o arquivo trancado e caía na senha de novo, em loop.
-        setKindMismatch({ file, suggested: result.stats.detectedKind, reason: result.stats.detectedReason, pwd });
-        // Só pro "achei no arquivo: vence em…" da pergunta; a leitura de verdade vem na resposta.
-        setStats(result.stats);
-        if (result.stats.detectedKind === "fatura" && result.stats.vencimento && !faturaMesTocado) setFaturaMonth(result.stats.vencimento.slice(0, 7));
-        setPhase("upload");
+        setDocType(result.stats.detectedKind);
+        runParse(file, pwd, result.stats.detectedKind, true);
         return;
       }
       // Fatura: o mês certo é o do vencimento. Se o arquivo diz e ela não escolheu outro à mão,
@@ -627,36 +623,6 @@ export function StatementImport({
           </div>
         )}
 
-        {kindMismatch && (
-          <div className="flex flex-col gap-3 rounded-xl border border-danger/40 bg-danger-soft px-4 py-3">
-            <p className="text-sm font-semibold text-ink">{t.impPareceOutroTipo(kindMismatch.suggested, docType, kindMismatch.reason)}</p>
-            <p className="text-caption text-ink-muted">
-              {kindMismatch.suggested === "fatura" ? t.impPareceFaturaAviso : t.impPareceExtratoAviso}
-            </p>
-            {/* Virar fatura por aqui segue direto pra revisão: a frase já diz de quando são as
-                compras (cada uma no mês dela), e o "Mudar" fica à mão. */}
-            {kindMismatch.suggested === "fatura" && mesDaFatura("fatura-month-aviso")}
-            <div className="flex flex-wrap gap-2">
-              <Button
-                type="button"
-                className="min-h-11"
-                onClick={() => {
-                  setDocType(kindMismatch.suggested);
-                  runParse(kindMismatch.file, kindMismatch.pwd, kindMismatch.suggested, true);
-                }}
-              >
-                {t.impImportarComo(kindMismatch.suggested)}
-              </Button>
-              <Button type="button" variant="ghost" className="min-h-11" onClick={() => runParse(kindMismatch.file, kindMismatch.pwd, docType, true)}>
-                {t.impEMesmo(docType)}
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* Fatura: sem pergunta de mês. Antes do arquivo, só a promessa; depois, a frase. */}
-        {docType === "fatura" && mesDaFatura("fatura-month")}
-
         {/* Perfil Casal: uma pergunta por arquivo, e cada linha já entra com "quem pagou". */}
         {nomesDoCasal && (
           <div className="flex flex-col gap-1.5">
@@ -680,48 +646,43 @@ export function StatementImport({
           </div>
         )}
 
-        {/* Versão nova (protótipo, #importar): o desenho do PDF com três lançamentos de exemplo,
-            "Escolher PDF · Extrato do banco ou fatura do cartão" e um botão só. O SPI descobre se
-            é extrato ou fatura (e pergunta quando parece o outro); quem já sabe que é fatura
-            escolhe no link de baixo, que mostra o mês da fatura. */}
+        {/* Uma porta só (proposta da entrada, 12/10/2026): "Extrato ou fatura", os formatos que o app
+            lê, e um botão. O app descobre o tipo sozinho e segue; o "Mudar" aparece depois da leitura. */}
         <button
           type="button"
           onClick={() => fileRef.current?.click()}
           disabled={isPending}
           data-guia="escolher-arquivo"
-          className="flex flex-col items-center gap-2 rounded-3xl bg-surface-2 px-4 pb-5 pt-6 text-center transition-colors hover:bg-surface-hover disabled:opacity-60"
+          data-porta-unica
+          className="flex flex-col items-center gap-2 rounded-3xl bg-surface px-4 pb-6 pt-7 text-center shadow-premium-sm transition-colors hover:bg-surface-hover disabled:opacity-60"
         >
-          <span className="mb-2 flex w-[132px] flex-col gap-1.5 rounded-xl bg-surface p-3 text-left shadow-[0_6px_18px_rgba(0,0,0,0.08),inset_0_0_0_1px_var(--color-border)]" aria-hidden>
-            <span className="mb-1 flex items-center justify-between">
-              <span className="h-1.5 w-10 rounded-full bg-ink/70" />
-              <span className="h-3.5 w-6 rounded bg-danger/80" />
+          <span className="relative mb-3 h-[84px] w-[120px]" aria-hidden>
+            <span className="absolute left-0 top-2 flex h-[76px] w-[62px] -rotate-6 flex-col gap-1.5 rounded-lg bg-surface p-2 shadow-[0_6px_16px_rgba(0,0,0,0.08),inset_0_0_0_1px_var(--color-border)]">
+              <span className="h-1.5 w-7 rounded-full bg-accent" />
+              {["w-11", "w-9", "w-10"].map((w, i) => <span key={i} className={`h-1.5 ${w} rounded-full bg-surface-2`} />)}
             </span>
-            {[
-              ["w-14", "w-6"],
-              ["w-10", "w-8"],
-              ["w-12", "w-5"],
-            ].map(([a1, a2], i) => (
-              <span key={i} className="flex items-center justify-between gap-2">
-                <span className={`h-1.5 ${a1} rounded-full bg-ink-faint/50`} />
-                <span className={`h-1.5 ${a2} rounded-full ${i === 1 ? "bg-success/70" : "bg-ink-faint/70"}`} />
+            <span className="absolute right-0 top-0 flex h-[80px] w-[66px] rotate-3 flex-col gap-1.5 rounded-lg bg-surface p-2 shadow-[0_6px_16px_rgba(0,0,0,0.1),inset_0_0_0_1px_var(--color-border)]">
+              <span className="h-5 w-full rounded bg-accent-gradient" />
+              {["w-12", "w-8", "w-11"].map((w, i) => <span key={i} className={`h-1.5 ${w} rounded-full bg-surface-2`} />)}
+            </span>
+          </span>
+          <b className="titulo-tema text-[1.75rem] font-normal leading-tight text-ink">{isPending ? t.impLendoArquivo : "Extrato ou fatura"}</b>
+          <span className="text-[15px] text-ink-muted">Pode ser qualquer um dos dois. Eu descubro qual é.</span>
+          <span className="mt-1 flex flex-wrap justify-center gap-1.5">
+            {["PDF", "Excel", "CSV", "OFX"].map((f) => (
+              <span key={f} className="rounded-full bg-surface-2 px-3 py-1 text-[13px] font-medium text-ink-muted">
+                {f}
               </span>
             ))}
           </span>
-          <b className="text-[17px] font-medium text-ink">{isPending ? t.impLendoArquivo : "Escolher PDF"}</b>
-          <span className="text-sm text-ink-muted">{docType === "fatura" ? "Fatura do cartão" : "Extrato do banco ou fatura do cartão"}</span>
         </button>
-        <p className="text-center text-sm text-ink-muted">O SPI lê e separa tudo sozinho.</p>
-        <button type="button" onClick={() => fileRef.current?.click()} disabled={isPending} className="min-h-12 rounded-full bg-ink text-base font-medium text-surface disabled:opacity-60">
+        <Link href="/comecar?passo=banco" className="mx-auto inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-accent-strong hover:underline" data-como-tiro>
+          <CircleHelp size={16} aria-hidden />
+          Como tiro o extrato do meu banco?
+        </Link>
+        <button type="button" onClick={() => fileRef.current?.click()} disabled={isPending} className="flex min-h-[52px] items-center justify-center gap-1.5 rounded-full [background:var(--botao-fundo,var(--color-ink))] text-base font-semibold [color:var(--botao-tinta,var(--color-canvas))] disabled:opacity-60">
           {isPending ? t.impLendoArquivo : "Escolher arquivo"}
-        </button>
-        <button
-          type="button"
-          onClick={() => setDocType(docType === "fatura" ? "extrato" : "fatura")}
-          aria-pressed={docType === "fatura"}
-          data-guia="tipo-fatura"
-          className="mx-auto min-h-11 text-sm text-ink-muted underline underline-offset-4"
-        >
-          {docType === "fatura" ? "Não é fatura: é extrato do banco" : "É fatura do cartão?"}
+          {!isPending && <ArrowRight size={18} aria-hidden />}
         </button>
         <input
           ref={fileRef}
@@ -737,8 +698,6 @@ export function StatementImport({
           }}
         />
 
-        {/* Onde pegar o arquivo, banco por banco: a dúvida nº 1 de quem nunca importou. */}
-        <ComoTirarExtrato />
       </div>
     );
   }
@@ -1128,6 +1087,22 @@ export function StatementImport({
               <span className="mt-1 text-[15px] tabular-nums text-ink-muted">
                 {docType === "fatura" ? `Total ${money(expenseSum)}` : `Entrou ${money(entrou, { round: true })} · Saiu ${money(expenseSum, { round: true })}`}
               </span>
+              {/* O tipo que o app detectou, com o "Mudar" discreto (uma porta só, 12/10/2026). */}
+              {ultimoArquivo && (
+                <button
+                  type="button"
+                  disabled={isPending}
+                  onClick={() => {
+                    const outro = docType === "fatura" ? "extrato" : "fatura";
+                    setDocType(outro);
+                    runParse(ultimoArquivo.file, ultimoArquivo.pwd, outro, true);
+                  }}
+                  className="inline-flex min-h-11 items-center text-caption text-ink-muted underline underline-offset-4"
+                  data-mudar-tipo
+                >
+                  {docType === "fatura" ? "Não é fatura? Ler como extrato" : "É fatura do cartão? Ler como fatura"}
+                </button>
+              )}
               {/* Fatura: a frase do motor (banco, fechamento, vencimento, meses das compras) e o "Mudar". */}
               {docType === "fatura" && <div className="mt-2 w-full text-left">{mesDaFatura("fatura-month-confirmar")}</div>}
               {stats?.conferencia.status === "fechou" && (

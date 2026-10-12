@@ -210,7 +210,7 @@ export async function ComecoDoMes({ ctx, comeco, mes, hrefMes }: { ctx: AuthCont
             <FileText size={21} strokeWidth={1.8} />
           </span>
           <span className="mt-auto flex flex-col">
-            <b className="text-xl font-semibold">Enviar o extrato</b>
+            <b className="text-xl font-semibold">Extrato ou fatura</b>
             <small className="text-sm font-medium text-heroi-suave">O app lê e separa sozinho</small>
           </span>
         </HeroiDoTema>

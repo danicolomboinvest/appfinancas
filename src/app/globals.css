@@ -944,3 +944,27 @@ html:not(.light) .vidro-heroi {
   -webkit-tap-highlight-color: transparent;
   transition: opacity 120ms ease-out;
 }
+
+/* App, não site (12/10/2026): segurar o dedo num link ou cartão não abre a prévia do iOS nem o menu
+   de copiar/compartilhar, nem seleciona o texto do botão. Vale no Safari e na WebView do app.
+   Campos de texto ficam de fora: neles é preciso selecionar e colar. */
+a[href],
+button,
+[role="button"],
+[role="tab"],
+[role="link"],
+summary,
+label {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+input,
+textarea,
+select,
+[contenteditable="true"],
+[contenteditable=""] {
+  -webkit-touch-callout: default;
+  -webkit-user-select: text;
+  user-select: text;
+}

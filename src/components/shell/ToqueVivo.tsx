@@ -19,6 +19,19 @@ const MOLA = "cubic-bezier(0.34, 1.56, 0.64, 1)";
  * os botões principais ainda vibram de leve. Um componente só, no layout, vale para o app inteiro.
  */
 export function ToqueVivo() {
+  // App, não site (12/10/2026): o toque longo num link ou cartão não abre o menu de contexto (no
+  // Android, "Abrir em nova guia"; no iPhone a prévia, junto com o -webkit-touch-callout do CSS).
+  // Campos de texto ficam de fora: neles o menu é o de colar.
+  useEffect(() => {
+    const semMenu = (e: MouseEvent) => {
+      const alvo = e.target as Element | null;
+      if (!alvo?.closest || alvo.closest('input, textarea, select, [contenteditable="true"]')) return;
+      if (alvo.closest(ALVO)) e.preventDefault();
+    };
+    document.addEventListener("contextmenu", semMenu);
+    return () => document.removeEventListener("contextmenu", semMenu);
+  }, []);
+
   useEffect(() => {
     if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
     let atual: { el: HTMLElement; desde: number; aperto: Animation; escala: number } | null = null;
