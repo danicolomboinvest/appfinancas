@@ -378,7 +378,7 @@ export function AssistenteDeViagem({
               }
             }}
             disabled={cheio}
-            placeholder={cheio ? "Até 8 destinos" : "Ex.: Paris, NY, Noronha"}
+            placeholder={cheio ? "Até 8 destinos" : "Cidade, ex.: Paris, NY"}
             aria-label="Buscar destino"
             autoComplete="off"
             className="min-w-0 flex-1 bg-transparent text-body text-ink outline-none placeholder:text-ink-faint"
@@ -633,7 +633,7 @@ export function AssistenteDeViagem({
           <Contador valor={plano.travelers} unidade={plano.travelers > 1 ? "pessoas" : "pessoa"} rotulo="uma pessoa" min={TRIP_LIMITS.minTravelers} max={TRIP_LIMITS.maxTravelers} onMudar={(v) => mudar({ travelers: v })} grande />
         </div>
         <p className="text-center text-sm text-ink-muted">
-          {quartos} {quartos > 1 ? "quartos" : "quarto"} de hotel
+          Conto um quarto para cada duas pessoas ({quartos} {quartos > 1 ? "quartos" : "quarto"}).
         </p>
       </>
     );
@@ -963,7 +963,7 @@ export function AssistenteDeViagem({
         ) : (
           <span />
         )}
-        <span className="text-caption text-ink-muted">{passo < 7 ? `Passo ${passo} de 6` : "Sua viagem"}</span>
+        <span className="text-caption text-ink-muted">{passo < 7 ? `${passo} de 6` : "Sua viagem"}</span>
       </div>
       {passo < 7 && (
         <div className="grid grid-cols-6 gap-1.5" aria-hidden>

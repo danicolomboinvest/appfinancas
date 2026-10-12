@@ -74,7 +74,7 @@ function LinhaDoMes({ c, hoje }: { c: ContaSerial; hoje: string }) {
         <Valor c={c} riscado={paga} />
       </button>
       {paga ? (
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-success text-canvas" role="img" aria-label="Paga">
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-success-soft text-success" role="img" aria-label="Paga">
           <Check size={16} strokeWidth={2.2} aria-hidden />
         </span>
       ) : (

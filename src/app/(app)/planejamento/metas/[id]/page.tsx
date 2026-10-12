@@ -210,6 +210,8 @@ export default async function DetalheDaMetaPage(props: PageProps<"/planejamento/
         {!plano.nova && mesesDaTela.length > 0 && <MesAMes meses={mesesDaTela} />}
 
         {ativos.length > 0 && (
+          <div className="flex flex-col gap-1.5">
+          <p className="px-1 text-[13px] font-medium text-ink-muted">Onde está o dinheiro</p>
           <div role="group" aria-label="Onde está o dinheiro" className="flex flex-wrap gap-2">
             {ativos.map((a) => (
               <Link
@@ -224,6 +226,7 @@ export default async function DetalheDaMetaPage(props: PageProps<"/planejamento/
                 <ChevronRight size={16} className="shrink-0 text-ink-muted" aria-hidden />
               </Link>
             ))}
+          </div>
           </div>
         )}
 

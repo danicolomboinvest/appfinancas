@@ -3,7 +3,7 @@
 import { useTransition } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ChevronsLeft, ChevronsRight, Lock, LogOut, MessageCircleQuestion, Plus, Repeat } from "lucide-react";
+import { ChevronsLeft, ChevronsRight, Lock, LogOut, MessageCircle, Plus, Repeat } from "lucide-react";
 import { linkDoSuporte } from "@/lib/support/whatsapp-link";
 import { BrandMark } from "@/components/brand/BrandMark";
 import { abrirComoFunciona } from "./ComoFuncionaSheet";
@@ -146,6 +146,10 @@ export function Sidebar({
               <ItemDoMenuDaEmpresa key={item.href} item={item} on={itemAtivo?.href === item.href} collapsed={collapsedDesktopOnly} esconder={hideLabelDesktopOnly} onClick={onCloseMobile} />
             ))}
           </ul>
+          <a href={linkDoSuporte("Oi! Preciso de ajuda com o SPI Finance.")} className="mt-0.5 flex min-h-12 items-center gap-3.5 rounded-2xl px-3.5 py-2 text-[16px] text-ink hover:bg-surface-2 md:hidden">
+            <MessageCircle size={20} strokeWidth={1.5} className="shrink-0" />
+            Fale com a gente
+          </a>
         </nav>
       ) : (
       <nav className="flex-1 overflow-y-auto px-3 py-3">
@@ -167,7 +171,7 @@ export function Sidebar({
                   data-tour={SIDEBAR_TOUR[section.basePath]}
                   className={`flex min-h-12 items-center gap-3.5 rounded-2xl px-3.5 py-2 text-[16px] transition-colors md:min-h-0 md:rounded-lg md:px-3 md:text-sm ${collapsedDesktopOnly} ${
                     isActive
-                      ? "bg-surface font-medium text-ink shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_20px_-12px_rgba(0,0,0,0.14)] md:bg-surface-2 md:shadow-none"
+                      ? "bg-surface font-medium text-ink shadow-[inset_0_0_0_1px_var(--color-border-strong),0_8px_20px_-12px_rgba(0,0,0,0.14)] md:bg-surface-2 md:shadow-none"
                       : "text-ink hover:bg-surface-2 md:text-ink-muted md:hover:text-ink"
                   }`}
                 >
@@ -186,16 +190,14 @@ export function Sidebar({
             );
           })}
         </ul>
+        {/* "Fale com a gente" logo depois de Como funciona (protótipo), com o balão. */}
+        <a href={linkDoSuporte("Oi! Preciso de ajuda com o SPI Finance.")} className="mt-0.5 flex min-h-12 items-center gap-3.5 rounded-2xl px-3.5 py-2 text-[16px] text-ink hover:bg-surface-2 md:hidden">
+          <MessageCircle size={20} strokeWidth={1.5} className="shrink-0" />
+          Fale com a gente
+        </a>
       </nav>
       )}
 
-      {/* No celular, o fim da gaveta: falar com a gente (a conta e o Sair moram na foto). */}
-      <div className="px-3 pb-[calc(1rem+var(--safe-bottom))] md:hidden">
-        <a href={linkDoSuporte("Oi! Preciso de ajuda com o SPI Finance.")} className="flex min-h-12 items-center gap-3.5 rounded-2xl px-3.5 py-2 text-[16px] text-ink hover:bg-surface-2">
-          <MessageCircleQuestion size={20} strokeWidth={1.5} className="shrink-0" />
-          Fale com a gente
-        </a>
-      </div>
 
       <div className="hidden border-t border-border p-3 md:block">
         <button

@@ -499,15 +499,15 @@ html:not(.light) .ob-esf svg {
   border-radius: 999px;
   font-size: 14px;
   font-weight: 600;
-  color: var(--color-ink-muted);
-  background: color-mix(in srgb, var(--color-ink) 5%, transparent);
-}
-.ob-fil a[aria-current="true"] {
-  background: var(--color-surface);
   color: var(--color-ink);
-  box-shadow:
-    0 1px 2px rgba(0, 0, 0, 0.08),
-    inset 0 0 0 1px var(--color-border-strong);
+  background: var(--color-surface);
+  box-shadow: inset 0 0 0 1px var(--color-border);
+}
+/* Protótipo: o filtro ativo em preto, os outros brancos. */
+.ob-fil a[aria-current="true"] {
+  background: var(--color-ink);
+  color: var(--color-canvas);
+  box-shadow: none;
 }
 .ob-sub {
   font-size: 13.5px;

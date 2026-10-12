@@ -58,7 +58,14 @@ export function SemanaDasContas({ contas, hoje }: { contas: ContaDaSemana[]; hoj
         })}
       </div>
       {aberto && (
-        <div className="flex flex-col rounded-2xl bg-surface-2 px-3">
+        <div className="flex flex-col gap-1 px-1" data-dia-aberto>
+          {/* Protótipo: o dia por extenso em cima, as contas e a pílula de adicionar. */}
+          <b className="pt-1 text-[15px] font-medium text-ink">
+            {(() => {
+              const t = new Date(`${aberto.iso}T12:00:00Z`).toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "short", timeZone: "UTC" }).replace(".", "");
+              return t.charAt(0).toUpperCase() + t.slice(1);
+            })()}
+          </b>
           {aberto.contas.length === 0 ? (
             <p className="py-3 text-sm text-ink-muted">Nada vence neste dia.</p>
           ) : (
@@ -75,7 +82,7 @@ export function SemanaDasContas({ contas, hoje }: { contas: ContaDaSemana[]; hoj
               ))}
             </ul>
           )}
-          <button type="button" onClick={() => abrir({ dia: aberto.iso })} className="flex min-h-11 items-center gap-1.5 border-t border-border text-sm text-accent-strong">
+          <button type="button" onClick={() => abrir({ dia: aberto.iso })} className="mt-1 flex min-h-10 w-fit items-center gap-1.5 rounded-full bg-surface-2 px-4 text-sm text-ink">
             <Plus size={16} aria-hidden /> Adicionar conta neste dia
           </button>
         </div>

@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useSearchParams } from "next/navigation";
-import { Check, CheckSquare, ChevronDown, Pencil, PiggyBank, Receipt, Search, Square, Trash2, TrendingUp, X, type LucideIcon } from "lucide-react";
+import { Check, CheckSquare, ChevronDown, Pencil, PiggyBank, Receipt, Search, Square, Trash2, Wallet, X, type LucideIcon } from "lucide-react";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import type { ParentCategory } from "@prisma/client";
 import type { CurrencyCode } from "@/lib/money";
@@ -101,7 +101,7 @@ function ValorDaLinha({ entry, voz, money }: { entry: ListEntry; voz: Voz; money
   const [inteiro, centavos] = virgula > 0 ? [texto.slice(0, virgula), texto.slice(virgula)] : [texto, ""];
   const sinal = entry.category === "INCOME" ? "+" : entry.category === "EXPENSE" ? "−" : "";
   return (
-    <span className={`whitespace-nowrap text-[16px] tabular-nums ${entry.category === "INCOME" ? "text-success" : "text-ink"}`}>
+    <span className="whitespace-nowrap text-[16px] tabular-nums text-ink">
       {sinal && <span className="mr-1">{sinal}</span>}
       {inteiro}
       <span className="text-[0.72em]">{centavos}</span>
@@ -115,7 +115,8 @@ function categoryVisual(
   tema: string,
   kind: CategoriasDoPerfil,
 ): { icon: LucideIcon; color: string; emoji: string | undefined } {
-  if (entry.category === "INCOME") return { icon: TrendingUp, color: "var(--color-success)", emoji: emojiDaCategoria(tema, { kind: "income" }) };
+  // Entrada com a carteira verde (protótipo); o valor fica em tinta, com o "+".
+  if (entry.category === "INCOME") return { icon: Wallet, color: "var(--color-success)", emoji: emojiDaCategoria(tema, { kind: "income" }) };
   if (entry.category === "INVESTMENT_CONTRIBUTION") return { icon: PiggyBank, color: "var(--color-accent)", emoji: emojiDaCategoria(tema, { kind: "investment" }) };
   if (entry.parentCategory && isParentCategoryKey(entry.parentCategory)) {
     return {

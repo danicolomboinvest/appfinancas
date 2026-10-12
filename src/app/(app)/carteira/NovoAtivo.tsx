@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, FileUp, Globe, Landmark, PiggyBank, Search, TrendingUp } from "lucide-react";
+import { ChevronLeft, ChevronRight, Compass, FileUp, Landmark, LineChart, Search, Wallet } from "lucide-react";
 import { useCurrency, useMoney } from "@/components/money/MoneyProvider";
 import { currencySymbol } from "@/lib/money";
 import { useToast } from "@/components/ui/toast-context";
@@ -356,7 +356,7 @@ export function NovoAtivo({
             {achados.map((a, k) => (
               <button key={`${a.k}-${a.nome}-${k}`} type="button" onClick={() => escolher(a)} className="flex min-h-14 items-center gap-3 border-t border-border py-2.5 text-left first:border-t-0">
                 <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-surface-2 text-ink-muted" aria-hidden>
-                  {a.k === "tesouro" ? <Landmark size={17} /> : a.k === "rf" ? <PiggyBank size={17} /> : a.k === "ext" ? <Globe size={17} /> : <TrendingUp size={17} />}
+                  {a.k === "tesouro" ? <Landmark size={17} /> : a.k === "rf" ? <Wallet size={17} /> : a.k === "ext" ? <Compass size={17} /> : <LineChart size={17} />}
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[15px] font-medium text-ink">{a.nome}</span>
@@ -379,9 +379,9 @@ export function NovoAtivo({
               {(
                 [
                   ["ipca", "Tesouro Direto", "Selic, IPCA+", Landmark],
-                  ["cdb", "CDB ou caixinha", "LCI, LCA também", PiggyBank],
-                  ["itsa", "Ações e FIIs", "ETF da bolsa", TrendingUp],
-                  ["voo", "Exterior", "Em dólar", Globe],
+                  ["cdb", "CDB ou caixinha", "LCI, LCA também", Wallet],
+                  ["itsa", "Ações e FIIs", "ETF da bolsa", LineChart],
+                  ["voo", "Exterior", "Em dólar", Compass],
                 ] as const
               ).map(([termo, t, s, Icone]) => (
                 <button key={termo} type="button" onClick={() => setQ(termo)} className="glass flex min-h-[104px] flex-col items-start justify-between gap-2 rounded-3xl p-3.5 text-left">

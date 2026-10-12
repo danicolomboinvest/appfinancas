@@ -51,7 +51,7 @@ export function GraficoSeisMeses({ meses12 }: { meses12: MesDoGrafico[] }) {
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h2 className="text-[17px] font-medium text-ink">Últimos 6 meses</h2>
-          <p className="text-caption text-ink-muted">{titulo}</p>
+          <p className="text-caption text-ink-muted">{titulo.toLowerCase()}</p>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
           <button type="button" aria-label="Seis meses antes" disabled={janela === 0 || meses12.length <= 6} onClick={() => ficaNoLugar(() => { setJanela(0); setSelecionado(5); })} className="flex size-9 items-center justify-center rounded-full border border-border text-ink disabled:opacity-35">
@@ -112,7 +112,22 @@ export function GraficoSeisMeses({ meses12 }: { meses12: MesDoGrafico[] }) {
         </span>
       </div>
 
-      {sel && <p className="mt-3 rounded-2xl bg-surface-2 px-4 py-3 text-sm text-ink">{linhaDoMes(sel, m)}</p>}
+      {sel && (
+        <p className="mt-3 rounded-2xl bg-surface-2 px-4 py-3 text-sm text-ink">
+          {(() => {
+            const t = linhaDoMes(sel, m);
+            const i = t.indexOf(":");
+            return i > 0 ? (
+              <>
+                <b className="font-semibold">{t.slice(0, i + 1)}</b>
+                {t.slice(i + 1)}
+              </>
+            ) : (
+              t
+            );
+          })()}
+        </p>
+      )}
       {frase && <p className="mt-3 text-sm text-ink-muted">{frase}</p>}
     </section>
   );

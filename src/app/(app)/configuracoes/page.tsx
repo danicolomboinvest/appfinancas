@@ -90,6 +90,7 @@ export default async function ConfiguracoesPage() {
         <Linha href="/configuracoes/categorias" icone={i(Tags)} cor={COR.dinheiro} rotulo="Categorias" sub="Criar, esconder e o que o app aprendeu" />
         <Linha href="/configuracoes/contas-e-cartoes" icone={i(Landmark)} cor={COR.dinheiro} rotulo="Contas e cartões" sub="Importar extrato e limite do cartão" />
         <Linha href="/configuracoes/taxas" icone={i(Percent)} cor={COR.dinheiro} rotulo="Taxas de referência" sub="CDI, Selic e IPCA" />
+        <Linha href="/configuracoes/assessoria" icone={i(Briefcase)} cor={COR.dinheiro} rotulo="Assessoria" sub={user.ofertasDesligadas ? "Ofertas desligadas" : "Abrir conta pela Fatos Capital"} />
         <Linha href="/configuracoes/moeda" icone={i(Wallet)} cor={COR.dinheiro} rotulo="Moeda e dólar" sub={currencySymbol(toCurrencyCode(user.currency))} />
       </Grupo>
 
@@ -97,7 +98,6 @@ export default async function ConfiguracoesPage() {
         <Linha href="/configuracoes/aparencia" icone={i(Palette)} cor={COR.app} rotulo="Aparência" sub={`${tema.label} · ${modo}`} />
         <Linha href="/configuracoes/voz" icone={i(Heart)} cor={COR.app} rotulo="Voz do app" sub={tema.nomeDaVoz ?? tema.label} />
         <Linha href="/configuracoes/notificacoes" icone={i(Bell)} cor={COR.app} rotulo="Notificações" sub="O que o app te avisa" />
-        <Linha href="/configuracoes/assessoria" icone={i(Briefcase)} cor={COR.app} rotulo="Assessoria" sub={user.ofertasDesligadas ? "Ofertas desligadas" : "Abrir conta pela Fatos Capital"} />
         <Linha href="/configuracoes/privacidade" icone={i(EyeOff)} cor={COR.app} rotulo="Privacidade" sub={ocultos ? "Valores escondidos" : "Valores à mostra"} />
         <Linha href="/configuracoes/idioma" icone={i(Globe)} cor={COR.app} rotulo="Idioma" sub="Português (Brasil)" />
       </Grupo>

@@ -263,7 +263,7 @@ export function MeusAtivos({
                       : "Seus investimentos fora do Brasil, já somados no total em reais."}
                   </Explica>
                 </span>
-                <span className="text-[19px] font-medium tabular-nums leading-tight">{resumo.exteriorEmDolar !== null ? dolar(resumo.exteriorEmDolar) : money(resumo.exterior, { round: true })}</span>
+                <span className="whitespace-nowrap text-[19px] font-medium tabular-nums leading-tight max-[359px]:text-[17px]">{resumo.exteriorEmDolar !== null ? dolar(resumo.exteriorEmDolar) : money(resumo.exterior, { round: true })}</span>
                 {resumo.exteriorEmDolar !== null && <span className="text-[12.5px] tabular-nums text-heroi-suave">≈ {money(resumo.exterior, { round: true })}</span>}
               </div>
             </div>

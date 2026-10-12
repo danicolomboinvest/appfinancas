@@ -71,7 +71,7 @@ export function MarcacaoAoVivo({ dados, salva }: { dados: DadosDaTela; salva: Si
           <p className="px-1 text-sm text-ink-muted">
             {titulo
               ? titulo.taxaCompra != null
-                ? "A taxa da compra é a que você disse na Carteira; a de hoje começa num exemplo: arraste ou troque nos ajustes."
+                ? "O que o mercado paga hoje é um exemplo: dá para trocar nos ajustes."
                 : "A taxa da compra e a de hoje começam num exemplo: troque pelas suas nos ajustes."
               : "Os números começam num exemplo: troque pelos do seu título nos ajustes."}
           </p>

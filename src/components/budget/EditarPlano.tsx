@@ -48,7 +48,7 @@ export function EditarPlano({
         data-guia="orc-editar"
         className={
           largo
-            ? "flex min-h-12 w-full items-center justify-center rounded-full border border-border-strong bg-surface px-5 text-[15px] font-medium text-ink transition-colors hover:bg-surface-hover"
+            ? "flex min-h-12 w-full items-center justify-center rounded-full bg-surface-2 px-5 text-[15px] font-medium text-ink transition-colors hover:bg-surface-hover"
             : "inline-flex min-h-11 w-fit items-center gap-2 rounded-full border border-border-strong bg-surface px-4 text-sm font-semibold text-ink transition-colors hover:bg-surface-hover"
         }
       >

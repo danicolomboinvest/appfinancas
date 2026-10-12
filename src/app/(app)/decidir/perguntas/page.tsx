@@ -28,9 +28,8 @@ export default async function TodasAsPerguntasPage(props: PageProps<"/decidir/pe
       <GradientesDasEsferas />
       <div className="flex items-center justify-between gap-3">
         <Link href="/decidir" className="flex min-h-11 w-fit items-center gap-1 text-sm text-ink-muted hover:text-ink">
-          <ChevronLeft size={18} aria-hidden /> Decidir
+          <ChevronLeft size={18} aria-hidden /> Voltar
         </Link>
-        <span className="text-caption text-ink-muted">Todas as perguntas</span>
       </div>
       <h1 className="ob-h">Todas as perguntas</h1>
       <nav className="ob-fil" aria-label="Filtrar">
@@ -40,7 +39,6 @@ export default async function TodasAsPerguntasPage(props: PageProps<"/decidir/pe
           </Link>
         ))}
       </nav>
-      <p className="ob-sub">Cada uma já abre com os seus números.</p>
       <div className="ob-grade">
         {perguntasDoFiltro(filtro).map((p) => (
           <Esfera key={p.chave} p={p} dados={dados} />

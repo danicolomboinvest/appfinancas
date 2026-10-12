@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, Repeat, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, ArrowLeftRight, Search } from "lucide-react";
 import { HeroiDoTema } from "@/components/ui/HeroiDoTema";
 import { situacao, vaiBem, type Forca } from "@/lib/analysis/quatro-perguntas";
 import type { AtivoAnalisado, DadosDasAnalises } from "@/lib/analysis/analises-dados";
@@ -166,9 +166,9 @@ export function AnalisesTela({ dados }: { dados: DadosDasAnalises }) {
       {comparaveis && (
         <Link
           href={`/fichas/comparar?a=${comparaveis[0]}&b=${comparaveis[1]}`}
-          className="flex min-h-12 items-center justify-center gap-2 rounded-full border border-border bg-surface-2 px-5 text-[15px] font-medium text-ink"
+          className="mx-auto flex min-h-11 items-center justify-center gap-2 px-3 text-[15px] font-medium text-accent-strong"
         >
-          <Repeat size={16} strokeWidth={1.8} aria-hidden />
+          <ArrowLeftRight size={16} strokeWidth={1.8} aria-hidden />
           Comparar dois
         </Link>
       )}

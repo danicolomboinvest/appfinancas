@@ -197,11 +197,11 @@ export function DividasTela({ dividas, renda, sobrou, selic, selicDeExemplo, hoj
                     showToast(r.jaExistia ? "Você já tem essa meta" : "Meta criada", { label: "Ver", onClick: () => router.push("/planejamento/metas") });
                   })
                 }
-                className="min-h-12 rounded-full border border-border bg-surface px-3 text-[15px] text-ink disabled:opacity-50"
+                className="min-h-12 rounded-full bg-surface-2 px-3 text-[15px] text-ink disabled:opacity-50"
               >
                 Virar meta
               </button>
-              <Link href="/simuladores/amortizar-vs-investir" className="flex min-h-12 items-center justify-center rounded-full border border-border bg-surface px-3 text-center text-[15px] leading-tight text-ink">
+              <Link href="/simuladores/amortizar-vs-investir" className="flex min-h-12 items-center justify-center rounded-full bg-surface-2 px-3 text-center text-[15px] leading-tight text-ink">
                 Quitar ou investir?
               </Link>
             </div>
@@ -350,11 +350,11 @@ export function DividasTela({ dividas, renda, sobrou, selic, selicDeExemplo, hoj
       )}
 
       {res.length > 0 && (
-        <button type="button" onClick={() => setVista("plano")} className="inline-flex min-h-11 items-center gap-1 self-center px-3 text-[15px] font-medium text-ink">
+        <button type="button" onClick={() => setVista("plano")} className="inline-flex min-h-11 items-center gap-1 self-center px-3 text-[15px] font-medium text-accent-strong">
           Ver o plano <ChevronRight size={18} strokeWidth={1.8} aria-hidden />
         </button>
       )}
-      <button type="button" onClick={() => setCadastro({})} className="flex min-h-12 items-center justify-center gap-1.5 rounded-full border border-dashed border-border-strong bg-transparent px-4 text-[15px] text-ink">
+      <button type="button" onClick={() => setCadastro({})} className="flex min-h-11 w-fit items-center justify-center gap-1.5 rounded-full bg-surface-2 px-4 text-[15px] text-ink">
         <Plus size={18} strokeWidth={1.8} aria-hidden /> Adicionar dívida
       </button>
       {modais}

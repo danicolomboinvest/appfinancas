@@ -12,7 +12,7 @@ import type { PerfilResumo } from "@/components/profiles/perfil-resumo";
 import { trocarPerfilAction } from "@/app/(app)/perfis/actions";
 import { useToast } from "@/components/ui/toast-context";
 
-const TIPO: Record<string, string> = { PESSOAL: "Pessoal", CASAL: "Casal", EMPRESA: "Empresa" };
+const TIPO: Record<string, string> = { PESSOAL: "Pessoal", CASAL: "Casal", EMPRESA: "Empresa", CASA: "Casa", PROJETO: "Projeto", OUTRO: "Outro" };
 const NOME_DO_TEMA: Record<string, string> = { padrao: "Padrão", girly: "Girly", manifestacao: "Manifestação", titanio: "Titânio" };
 
 /** A foto da conta, ou a primeira letra do nome num círculo (o avatar do app todo). */

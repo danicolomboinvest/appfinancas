@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { X } from "lucide-react";
 
 /**
  * O "?" pequenininho ao lado de um número ou título (07/10/2026). A Dani: "não precisa se
@@ -65,7 +66,7 @@ export function Explica({
           if (pos) return setPos(null);
           const r = e.currentTarget.getBoundingClientRect();
           // O balão começa perto do "?" mas nunca passa da borda da tela (12px de folga dos dois lados).
-          const largura = Math.min(256, window.innerWidth - 24);
+          const largura = Math.min(300, window.innerWidth - 24);
           const esquerda = Math.min(Math.max(12, r.left - 8), window.innerWidth - largura - 12);
           setPos({ top: r.bottom + 6, left: esquerda, width: largura });
         }}
@@ -84,8 +85,12 @@ export function Explica({
             ref={balao}
             role="tooltip"
             style={{ position: "fixed", top: pos.top, left: pos.left, width: pos.width }}
-            className="z-[110] block rounded-xl border border-border bg-surface p-3 text-left text-caption font-normal normal-case leading-snug tracking-normal text-ink shadow-premium"
+            className="z-[110] block rounded-2xl border border-border bg-surface py-3 pl-3.5 pr-10 text-left text-sm font-normal normal-case leading-snug tracking-normal text-ink shadow-premium"
           >
+            {/* O X do balão (protótipo): fechar sem precisar tocar fora. */}
+            <button type="button" onClick={() => setPos(null)} aria-label="Fechar explicação" className="absolute right-1 top-1 flex size-9 items-center justify-center rounded-full text-ink-muted hover:text-ink">
+              <X size={16} aria-hidden />
+            </button>
             {children}
           </span>,
           document.body,
