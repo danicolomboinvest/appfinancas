@@ -1,7 +1,9 @@
 import type { ParentCategory } from "@prisma/client";
 import { categoriaDoBancoParaOApp } from "./categoria-do-banco";
-import { classifyDictionaryOnly, classifyLearnedOnly, type Classification, type LearnedRule } from "./classify";
+import { classifyDictionaryOnly, classifyLearnedOnly, textoDoDicionario, type Classification, type LearnedRule } from "./classify";
+import { categoriaNaFrenteDaDescricao } from "./comerciante";
 import { classificarPelaComunidade, perfilDaBase } from "./comunidade";
+import { pareceComida } from "./parece-comida";
 import { chaveDeIguais } from "./revisao-em-grupo";
 
 /**
@@ -9,14 +11,18 @@ import { chaveDeIguais } from "./revisao-em-grupo";
  *
  * 1. A regra que ELA ensinou (inclusive a categoria que ela criou, como "Dani Invest").
  * 2. A base comunitária, só com alta confiança (70%+ dos votos e 3+ pessoas, ver comunidade.ts).
- * 3. A categoria que o banco escreveu na fatura (Itaú: "alimentação SAO PAULO"), na pessoa física.
+ * 3. O ramo que o banco escreveu no arquivo, na pessoa física: a linha "alimentação SAO PAULO" da
+ *    fatura do Itaú, a coluna "Categoria"/"MCC" do CSV (C6, Inter, Nubank) e o "22h21 Alimentação"
+ *    do extrato do BTG. Quando o dicionário concorda, a subcategoria dele vem junto.
  * 4. O dicionário do app (dicionario.ts).
- * 5. Nada: vira pergunta, agrupada por comerciante na tela.
+ * 5. O nome com cara de comida ("Sabor da Terra", "Cozinha da Vó"), na pessoa física: confiança
+ *    média, entra separado com o porquê (parece-comida.ts).
+ * 6. Nada: vira pergunta, agrupada por comerciante na tela.
  *
  * A personalizada da regra só vale se ainda existe no perfil (`personalizadas`): apagada, a regra
  * cai para a categoria-mãe de reserva.
  */
-export type OrigemDaCategoria = "dela" | "comunidade" | "banco" | "dicionario";
+export type OrigemDaCategoria = "dela" | "comunidade" | "banco" | "dicionario" | "parece_comida";
 
 export function categorizarLinha(entrada: {
   descricao: string;
@@ -40,10 +46,18 @@ export function categorizarLinha(entrada: {
     const sub = doDicionario?.parentCategory === daComunidade ? doDicionario.subcategory : undefined;
     return { classificacao: { parentCategory: daComunidade, ...(sub ? { subcategory: sub } : {}) }, origem: "comunidade" };
   }
-  const doBanco = profileKind !== "EMPRESA" ? categoriaDoBancoParaOApp(entrada.categoriaDoBanco) : null;
-  if (doBanco) return { classificacao: { parentCategory: doBanco }, origem: "banco" };
+  const pessoal = profileKind !== "EMPRESA";
   const doDicionario = classifyDictionaryOnly(descricao, profileKind);
-  return doDicionario ? { classificacao: doDicionario, origem: "dicionario" } : null;
+  const ramo = entrada.categoriaDoBanco || categoriaNaFrenteDaDescricao(descricao);
+  const doBanco = pessoal ? categoriaDoBancoParaOApp(ramo) : null;
+  if (doBanco) {
+    const sub = doDicionario?.parentCategory === doBanco ? doDicionario.subcategory : undefined;
+    return { classificacao: { parentCategory: doBanco, ...(sub ? { subcategory: sub } : {}) }, origem: "banco" };
+  }
+  if (doDicionario) return { classificacao: doDicionario, origem: "dicionario" };
+  // Na Empresa, Alimentação é "Mercadorias e insumos": o palpite pelo nome não vale lá.
+  const comida = pessoal && gasto ? pareceComida(textoDoDicionario(descricao)) : null;
+  return comida ? { classificacao: comida, origem: "parece_comida" } : null;
 }
 
 /**
@@ -54,17 +68,36 @@ export function categorizarLinha(entrada: {
  * Motivos:
  * - "regra_sua": ela já respondeu esse comerciante antes (regra aprendida, inclusive personalizada).
  * - "comunidade": a base comunitária (3+ pessoas, 70%+ de acordo).
- * - "dicionario": o dicionário do app ou a categoria que o banco escreveu na fatura.
+ * - "ramo_do_banco": o ramo da loja que o banco escreveu no arquivo (coluna Categoria/MCC, linha de
+ *   categoria do Itaú, "22h21 Alimentação" do BTG).
+ * - "dicionario": o dicionário do app (nome de loja, rede ou tipo de lugar).
+ * - "parece_comida": o nome tem cara de comida e nada diz o contrário. Confiança MÉDIA: entra
+ *   separado, com o porquê à vista para ela trocar se não for.
  * - "mesmo_nome": ela respondeu outra linha do MESMO comerciante nesta importação (ver respostaParaOGrupo).
  * - "investimento": dinheiro indo pra aplicação/caixinha (vira guardado, não gasto).
  * - "devolucao": estorno; desconta da categoria da compra (sem categoria reconhecida, Outros).
  * - "pergunta": o motor não sabe; a tela pergunta.
  */
-export type MotivoDaCategoria = "regra_sua" | "comunidade" | "dicionario" | "mesmo_nome" | "investimento" | "devolucao" | "pergunta";
-export type ConfiancaDaCategoria = "alta" | "baixa";
+export type MotivoDaCategoria =
+  | "regra_sua"
+  | "comunidade"
+  | "ramo_do_banco"
+  | "dicionario"
+  | "parece_comida"
+  | "mesmo_nome"
+  | "investimento"
+  | "devolucao"
+  | "pergunta";
+export type ConfiancaDaCategoria = "alta" | "media" | "baixa";
 export type CategoriaDaLinha = { categoria: Classification | null; motivo: MotivoDaCategoria; confianca: ConfiancaDaCategoria };
 
-const MOTIVO_DA_ORIGEM: Record<OrigemDaCategoria, MotivoDaCategoria> = { dela: "regra_sua", comunidade: "comunidade", banco: "dicionario", dicionario: "dicionario" };
+const MOTIVO_DA_ORIGEM: Record<OrigemDaCategoria, MotivoDaCategoria> = {
+  dela: "regra_sua",
+  comunidade: "comunidade",
+  banco: "ramo_do_banco",
+  dicionario: "dicionario",
+  parece_comida: "parece_comida",
+};
 
 export function categoriaDaLinha(entrada: {
   descricao: string;
@@ -83,7 +116,7 @@ export function categoriaDaLinha(entrada: {
   const achada = entrada.gasto || entrada.estorno ? categorizarLinha({ ...entrada, gasto: entrada.gasto }) : null;
   if (entrada.estorno) return { categoria: achada?.classificacao ?? { parentCategory: "OUTROS" }, motivo: "devolucao", confianca: "alta" };
   if (!achada) return { categoria: null, motivo: "pergunta", confianca: "baixa" };
-  return { categoria: achada.classificacao, motivo: MOTIVO_DA_ORIGEM[achada.origem], confianca: "alta" };
+  return { categoria: achada.classificacao, motivo: MOTIVO_DA_ORIGEM[achada.origem], confianca: achada.origem === "parece_comida" ? "media" : "alta" };
 }
 
 /**

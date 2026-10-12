@@ -18,7 +18,9 @@ export type PorqueDaLinha = {
 const TEXTO_DO_MOTIVO: Record<string, string | null> = {
   regra_sua: "você já disse antes",
   comunidade: "outras pessoas classificam assim",
+  ramo_do_banco: "o banco diz o ramo da loja",
   dicionario: "pelo nome do lugar",
+  parece_comida: "o nome parece de comida",
   mesmo_nome: "igual à que você respondeu",
   investimento: "investimento",
   devolucao: "devolução",
@@ -28,7 +30,7 @@ const TEXTO_DO_MOTIVO: Record<string, string | null> = {
 type Linha = {
   porque?: PorqueDaLinha | null;
   motivo?: string;
-  confianca?: "alta" | "baixa";
+  confianca?: "alta" | "media" | "baixa";
   category: string;
   parentCategory: string | null;
   customCategoryId: string | null;
@@ -47,7 +49,8 @@ export function porqueDaLinha(it: Linha): PorqueDaLinha | null {
   if (it.motivo && it.motivo in TEXTO_DO_MOTIVO) {
     const texto = TEXTO_DO_MOTIVO[it.motivo];
     if (texto === null) return null;
-    return { categoria: null, motivo: texto, confianca: it.confianca === "baixa" ? 0.4 : 0.9 };
+    // Média (o nome parece de comida): passa da linha de corte (0,6), entra separada, com o porquê.
+    return { categoria: null, motivo: texto, confianca: it.confianca === "baixa" ? 0.4 : it.confianca === "media" ? 0.7 : 0.9 };
   }
   if (it.resgate) return { categoria: null, motivo: "resgate do que você guardou", confianca: 0.9 };
   if (it.category === "INVESTMENT_CONTRIBUTION") return { categoria: null, motivo: "investimento", confianca: 0.9 };
