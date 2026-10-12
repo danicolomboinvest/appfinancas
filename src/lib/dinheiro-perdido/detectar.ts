@@ -170,7 +170,7 @@ function naoEGasto(l: LancamentoParaCacar): boolean {
   return false;
 }
 
-function ehParcela(l: LancamentoParaCacar): boolean {
+export function ehParcela(l: LancamentoParaCacar): boolean {
   if (!l.descricao) return false;
   if (PARCELA.test(textoDe(l))) return true;
   // Aqui vale qualquer "N/T" que seja parcela possível, não só o "confiante": "Cia Marítima (1/3)"
@@ -193,7 +193,7 @@ function tarifaDe(l: LancamentoParaCacar): (typeof TARIFAS)[number] | null {
 }
 
 /** Quem cobrou, numa chave: a marca do catálogo quando tem (o Netflix muda a descrição todo mês). */
-function comercianteDe(l: LancamentoParaCacar): { chave: string; nome: string; marca: ReturnType<typeof marcaDaDescricao> } {
+export function comercianteDe(l: LancamentoParaCacar): { chave: string; nome: string; marca: ReturnType<typeof marcaDaDescricao> } {
   const marca = marcaDaDescricao(l.descricao);
   if (marca && !marca.baixa) return { chave: `m:${marca.slug}`, nome: marca.nome, marca };
   const c = chaveDoComerciante(l.descricao);
