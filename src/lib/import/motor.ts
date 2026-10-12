@@ -37,8 +37,10 @@ export function categorizarLinha(entrada: {
   if (daComunidade) {
     // A subcategoria do dicionário entra junto quando ele concorda com a comunidade.
     const doDicionario = classifyDictionaryOnly(descricao, profileKind);
-    const sub = doDicionario?.parentCategory === daComunidade ? doDicionario.subcategory : undefined;
-    return { classificacao: { parentCategory: daComunidade, ...(sub ? { subcategory: sub } : {}) }, origem: "comunidade" };
+    // Concordando, o dicionário afina: a subcategoria e, na Natura (a comunidade diz Outros), o
+    // "Cuidado pessoal" dela.
+    if (doDicionario?.parentCategory === daComunidade) return { classificacao: doDicionario, origem: "comunidade" };
+    return { classificacao: { parentCategory: daComunidade }, origem: "comunidade" };
   }
   const doBanco = profileKind !== "EMPRESA" ? categoriaDoBancoParaOApp(entrada.categoriaDoBanco) : null;
   if (doBanco) return { classificacao: { parentCategory: doBanco }, origem: "banco" };

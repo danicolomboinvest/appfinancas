@@ -21,7 +21,9 @@ describe("classify: palavra inteira, não pedaço de texto", () => {
     expect(classify(pix("FAMILIA HAMILTON", "NU PAGAMENTOS - IP"))).toBeNull();
     expect(classify(pix("JOAO PACHECO", "BCO DA AMAZONIA S.A."))).toBeNull();
     expect(classify("HOTEL PRAIA GRANDE")).toEqual({ parentCategory: "LAZER", subcategory: "Viagens" });
-    expect(classify("LOJAS RENNER UBERLANDIA")).toBeNull();
+    // Roupa e beleza viram Cuidado pessoal (12/10/2026); o nome de gente igual a loja, em Pix, não.
+    expect(classify("LOJAS RENNER UBERLANDIA")).toEqual({ parentCategory: "OUTROS", subcategory: "Cuidado pessoal", cuidadoPessoal: true });
+    expect(classify(pix("ZARA SOUZA", "NU PAGAMENTOS - IP"))).toBeNull();
     // Churrascaria é comida (dicionário de 12/10/2026); o "oi" de "BOI" continua sem virar internet.
     expect(classify("CHURRASCARIA BOI GORDO")).toEqual({ parentCategory: "ALIMENTACAO", subcategory: "Restaurante" });
     expect(classify("CARTAO 1299 LOJA")).toBeNull();
@@ -46,7 +48,8 @@ describe("classify: palavra inteira, não pedaço de texto", () => {
     expect(classify("UBER *UBER *TRIP")?.subcategory).toBe("Aplicativo");
     expect(classify("UBER *EATS")).toEqual({ parentCategory: "ALIMENTACAO", subcategory: "Delivery" });
     expect(classify("BAR DO ZE")?.subcategory).toBe("Bar");
-    expect(classify("BARBEARIA DO ZE")).toBeNull();
+    // "bar" não pega BARBEARIA: ela é Cuidado pessoal (12/10/2026), não Bar.
+    expect(classify("BARBEARIA DO ZE")?.subcategory).toBe("Cuidado pessoal");
     expect(classify("OI FIBRA")?.subcategory).toBe("Internet");
     expect(classify("Pagamento de fatura CLARO")?.subcategory).toBe("Internet");
   });
@@ -114,7 +117,7 @@ describe("regras aprendidas: palavra inteira e nada genérico", () => {
     const rules = [regra("Compra no débito"), regra("PIX ENVIADO"), regra("BAR")];
     expect(classify("Compra no débito - PADARIA PAO DOURADO", rules)).toEqual({ parentCategory: "ALIMENTACAO", subcategory: "Padaria" });
     expect(classify("PIX ENVIADO IFOOD", rules)).toEqual({ parentCategory: "ALIMENTACAO", subcategory: "Delivery" });
-    expect(classify("BARBEARIA DO ZE", rules)).toBeNull();
+    expect(classify("BARBEARIA DO ZE", rules)?.subcategory).toBe("Cuidado pessoal");
   });
 
   it("casa por palavra inteira: MARIA não pega MARIANA", () => {
