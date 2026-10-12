@@ -254,7 +254,10 @@ export async function parseStatementAction(formData: FormData): Promise<ParseSta
 
   // Vencimento e fechamento impressos: o ano das compras (a fatura só traz dia/mês) e o mês de
   // cada uma saem daqui, sem perguntar. O mês escolhido à mão ("Mudar") ainda manda no ano.
-  const datasDaFatura = lerDatasDaFatura(text);
+  // O vencimento também sai do nome do arquivo ("Nubank_2026-10-17.csv") e, a mais de 2 meses
+  // no futuro, não é de fatura (vencimentoPlausivel).
+  const datasLidas = lerDatasDaFatura(text, fileName);
+  const datasDaFatura = { ...datasLidas, vencimento: vencimentoPlausivel(datasLidas.vencimento) };
   const faturaYear =
     Number(String(formData.get("faturaMonth") ?? "").slice(0, 4)) ||
     (datasDaFatura.vencimento ? Number(datasDaFatura.vencimento.slice(0, 4)) : undefined);
@@ -1252,4 +1255,12 @@ export async function deleteImportBatchAction(id: string): Promise<{ ok: boolean
   const removed = await deleteImportBatchWithEntries(ctx, id);
   revalidatePath("/mensal", "layout");
   return { ok: removed >= 0, removed };
+}
+
+/** Vencimento a mais de 2 meses no futuro não é de fatura (é o "Data Vencimento: 2027" de um CDB
+ * num relatório subido como fatura): sem ele, a fatura cai no mês das compras, não em 2027. */
+function vencimentoPlausivel(venc: string | null): string | null {
+  if (!venc) return null;
+  const limite = new Date(Date.now() + 62 * 86_400_000).toISOString().slice(0, 10);
+  return venc <= limite ? venc : null;
 }

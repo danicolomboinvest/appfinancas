@@ -43,7 +43,73 @@ function dataValida(dia: number, mes: number, ano: number): string | null {
  * PRIMEIRO no arquivo: o vencimento da fatura fica no topo, e datas de vencimento mais pra baixo
  * são de outra coisa (parcelamento da fatura, boleto de outra via).
  */
-export function detectarVencimento(texto: string): string | null {
+export function detectarVencimento(texto: string, nomeDoArquivo?: string | null): string | null {
+  return (
+    vencimentoComAno(texto) ??
+    vencimentoNaLinhaDeBaixo(texto) ??
+    vencimentoSemAno(texto) ??
+    (nomeDoArquivo ? vencimentoNoNomeDoArquivo(nomeDoArquivo) : null)
+  );
+}
+
+/**
+ * Tabela: "Vencimento" é o título de uma coluna e a data vem na linha de baixo.
+ *   ;Cartão;;;;;Valor;;Vencimento;                      ← planilha da fatura do Itaú
+ *   ;Itau Uniclass Visa - final 0000;;;;;R$ 5,302.55;;06/10/2026;
+ *   Valor (parcial) Vencimento                            ← fatura aberta do Itaú (PDF)
+ *   6.287,65 03/11/2026
+ * Só quando a linha dos títulos fala em valor: a posição de investimentos do C6 tem uma coluna
+ * "Vencimento" que é do CDB, não de fatura.
+ */
+function vencimentoNaLinhaDeBaixo(texto: string): string | null {
+  const linhas = texto.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  for (let i = 0; i < linhas.length - 1; i++) {
+    const titulos = linhas[i].split(/[;\t]/).map((c) => semAcento(c).trim().toLowerCase());
+    const coluna = titulos.findIndex((c) => /(^|\s)vencimento$/.test(c));
+    if (coluna < 0 || !/valor/i.test(linhas[i]) || /indexador|emissor/i.test(linhas[i])) continue;
+    const celulas = linhas[i + 1].split(/[;\t]/);
+    const celula = celulas.length === titulos.length ? celulas[coluna] : linhas[i + 1];
+    const datas = [...(celula ?? "").matchAll(/(?<![\d/])(\d{2})\/(\d{2})\/(\d{4})(?![\d/])/g)];
+    if (datas.length === 1) return dataValida(Number(datas[0][1]), Number(datas[0][2]), Number(datas[0][3]));
+  }
+  return null;
+}
+
+/**
+ * "Vencimento: 15/09", sem o ano (BTG/EQI). O ano vem do que a fatura diz de si mesma ("fatura de
+ * Junho de 2026") ou, sem isso, do ano que mais aparece nas datas completas do arquivo.
+ */
+function vencimentoSemAno(texto: string): string | null {
+  const t = semAcento(texto);
+  const m = t.match(new RegExp(String.raw`${ROTULO}(\d{1,2})\/(\d{1,2})(?![\d/])`, "i"));
+  if (!m) return null;
+  const mes = Number(m[2]);
+  const daFatura = t.match(/\bfatura\s+de\s+([a-z]+)\s+de\s+(\d{4})\b/i);
+  if (daFatura && MESES_LONGOS[daFatura[1].toLowerCase()]) {
+    // A fatura de dezembro vence em janeiro do ano seguinte.
+    const ano = Number(daFatura[2]) + (mes < MESES_LONGOS[daFatura[1].toLowerCase()] - 1 ? 1 : 0);
+    return dataValida(Number(m[1]), mes, ano);
+  }
+  const contagem = new Map<number, number>();
+  for (const d of t.matchAll(/(?<![\d/])\d{1,2}\/\d{1,2}\/(\d{4})(?!\d)/g)) contagem.set(Number(d[1]), (contagem.get(Number(d[1])) ?? 0) + 1);
+  const ano = [...contagem.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+  return ano ? dataValida(Number(m[1]), mes, ano) : null;
+}
+
+/**
+ * Arquivo sem a palavra "vencimento" (o CSV da fatura do Nubank só tem data, nome e valor), mas
+ * que o banco batiza com a data do vencimento: "Nubank_2026-10-17.csv", "Fatura2026-11-05.pdf",
+ * "2026-06-17_Fatura_Fulana.pdf" (BTG), "Fatura_05-10-2026.pdf" (C6). Só esses formatos: o
+ * "Fatura_Itau_20261011-132518.pdf" é a hora do download, não o vencimento.
+ */
+function vencimentoNoNomeDoArquivo(nome: string): string | null {
+  const iso = nome.match(/^(?:Nubank_|Fatura[_ -]?)(\d{4})-(\d{2})-(\d{2})\b/i) ?? nome.match(/^(\d{4})-(\d{2})-(\d{2})_Fatura(?![a-z])/i);
+  if (iso) return dataValida(Number(iso[3]), Number(iso[2]), Number(iso[1]));
+  const br = nome.match(/^Fatura[_ -](\d{2})-(\d{2})-(\d{4})\b/i);
+  return br ? dataValida(Number(br[1]), Number(br[2]), Number(br[3])) : null;
+}
+
+function vencimentoComAno(texto: string): string | null {
   const t = semAcento(texto);
   const achados: { indice: number; data: string }[] = [];
   const guardar = (indice: number, data: string | null) => {

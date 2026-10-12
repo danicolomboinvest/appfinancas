@@ -96,7 +96,7 @@ export const SECOES_DO_MANUAL: SecaoDoManual[] = [
               "Todas as compras do cartão",
               "Toda compra vira gasto",
               "Crédito na fatura vira estorno e abate o gasto",
-              "Tudo cai no mês que você escolher em \"{faturaMes}\"",
+              "Tudo cai no mês do vencimento, que o app lê na própria fatura",
               "\"Parcela 3 de 10\" já cria as próximas nos meses seguintes",
             ],
           },
@@ -149,7 +149,7 @@ export const SECOES_DO_MANUAL: SecaoDoManual[] = [
       {
         tipo: "passos",
         itens: [
-          { titulo: "Confira o perfil e o mês", texto: "O perfil aparece no topo do app. Na fatura, confira \"{faturaMes}\"." },
+          { titulo: "Confira o perfil e o mês", texto: "O perfil aparece no topo do app. Na fatura, confira o mês em que ela entra: o app lê o vencimento sozinho." },
           { titulo: "Dê categoria aos gastos novos", texto: "O app pergunta só o que não reconheceu. Não sabe agora? Toque em \"Não sei agora\": o gasto entra sem categoria e você decide depois." },
           { titulo: "Responda as dúvidas", texto: "Transferência pra você mesma e resgate: o botão Importar só libera depois." },
           { titulo: "Importe", texto: "O que você categorizou hoje, o app acerta sozinho na próxima vez." },

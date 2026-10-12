@@ -33,7 +33,6 @@ describe("manual: os nomes que ele cita são os que a tela do tema mostra", () =
     expect(texto).toContain(`"${g.impRemover}"`);
     expect(texto).toContain(`"${g.uiEditar}"`);
     expect(texto).toContain(`"${g.focoAcao}"`);
-    expect(texto).toContain(`"${g.impFaturaMes}"`);
     expect(texto).not.toContain("Histórico de importações");
     expect(texto).not.toContain("Ver o que fazer");
     // Sem jargão e sem cor: o "aviso amarelo" é rosa no Girly.

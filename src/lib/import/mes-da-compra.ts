@@ -86,11 +86,11 @@ function comAnoDoVencimento(dia: number, mes: number, vencimento: string | null)
  * dia em que ela fecha), e quando cai até 45 dias antes do vencimento: data solta não vira
  * fechamento.
  */
-export function lerDatasDaFatura(texto: string): DatasDaFatura {
+export function lerDatasDaFatura(texto: string, nomeDoArquivo?: string | null): DatasDaFatura {
   const t = semAcento(texto);
   const picpay = t.match(/(\d{2})\/(\d{2})\/(\d{4})\s*\|\s*(\d{2})\/(\d{2})\/(\d{4})\s+Vencimento:\s*Fechamento:/i);
   const vencimento =
-    detectarVencimento(texto) ?? (picpay ? dataValida(Number(picpay[1]), Number(picpay[2]), Number(picpay[3])) : null);
+    detectarVencimento(texto, nomeDoArquivo) ?? (picpay ? dataValida(Number(picpay[1]), Number(picpay[2]), Number(picpay[3])) : null);
 
   const candidatos: (string | null)[] = [];
   if (picpay) candidatos.push(dataValida(Number(picpay[4]), Number(picpay[5]), Number(picpay[6])));
