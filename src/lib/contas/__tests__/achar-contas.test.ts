@@ -121,3 +121,20 @@ describe("folha, imposto e taxa não viram conta", () => {
     expect(r[0].nome).toBe("Condomínio Residencial");
   });
 });
+
+describe("a mesma marca com duas contas", () => {
+  it("Vivo celular e Vivo Fibra viram duas contas", () => {
+    const r = acharContas([...todoMes("VIVO SP 11 9", [89.99, 89.99, 89.99, 89.99]), ...todoMes("Vivo Fibra", [120, 120, 120, 120], 5)]);
+    expect(nomes(r).sort()).toEqual(["Vivo", "Vivo Internet"]);
+    expect(r.find((c) => c.nome === "Vivo")).toMatchObject({ valor: 89.99, dia: 10, chave: "m:vivo" });
+    expect(r.find((c) => c.nome === "Vivo Internet")).toMatchObject({ valor: 120, dia: 5, chave: "m:vivo:internet" });
+  });
+});
+
+describe("a mesma marca não segura o tipo errado", () => {
+  it("Vivo Fibra cadastrada não segura a Vivo do celular, mas segura a Vivo Internet", () => {
+    const cadastradas = [{ nome: "Vivo Fibra", valor: 120 }];
+    expect(jaCadastrada({ chave: "m:vivo", nome: "Vivo", tipo: "telefone", valor: 89.99 }, cadastradas)).toBe(false);
+    expect(jaCadastrada({ chave: "m:vivo:internet", nome: "Vivo Internet", tipo: "internet", valor: 120 }, cadastradas)).toBe(true);
+  });
+});

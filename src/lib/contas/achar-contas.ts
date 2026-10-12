@@ -185,10 +185,16 @@ export function tipoDoLancamento(l: Pick<LancamentoParaCacar, "descricao" | "cat
   return primeiroQueCasa(PELA_SUBCATEGORIA, l.subcategoria ?? "");
 }
 
+/** O tipo pelas palavras do nome, sem olhar a marca ("Vivo Fibra" → internet; "Vivo" → nenhum). */
+function tipoDoNomeSemMarca(nome: string): TipoDeConta | null {
+  const t = normalizarDescricao(nome).replace(/\b(vivo|claro|tim|oi)\b/g, " ");
+  return primeiroQueCasa(PELO_NOME, t);
+}
+
 /** O tipo pelo nome que a pessoa deu à conta ("Luz", "Celular da Ana"), ou pelo nome da marca. */
 export function tipoDoNome(nome: string): TipoDeConta | null {
   const marca = marcaDaDescricao(nome);
-  if (marca && PELA_MARCA[marca.slug]) return PELA_MARCA[marca.slug];
+  if (marca && PELA_MARCA[marca.slug]) return tipoDoNomeSemMarca(nome) ?? PELA_MARCA[marca.slug];
   const t = normalizarDescricao(nome);
   return primeiroQueCasa(PELO_EXTRATO, t) ?? primeiroQueCasa(PELO_NOME, t);
 }
@@ -238,9 +244,12 @@ export function acharContas(lancamentos: LancamentoParaCacar[]): ContaAchada[] {
     if (!c) continue;
     const quem = comercianteDe(l);
     if (!quem.chave || (!quem.chave.startsWith("m:") && !chaveUtil(quem.chave))) continue;
-    const g = grupos.get(quem.chave) ?? { itens: [], nome: quem.nome };
+    // A mesma marca com duas contas diferentes (Vivo celular e Vivo Fibra): uma conta para cada.
+    const slug = quem.marca?.slug ?? "";
+    const chave = quem.chave.startsWith("m:") && c.tipoDaConta && PELA_MARCA[slug] && PELA_MARCA[slug] !== c.tipoDaConta ? `${quem.chave}:${c.tipoDaConta}` : quem.chave;
+    const g = grupos.get(chave) ?? { itens: [], nome: quem.nome };
     g.itens.push(c);
-    grupos.set(quem.chave, g);
+    grupos.set(chave, g);
   }
 
   const out: ContaAchada[] = [];
@@ -306,7 +315,9 @@ export function acharContas(lancamentos: LancamentoParaCacar[]): ContaAchada[] {
     const nome = cobrancas.some((l) => l.pessoa)
       ? NOME_DO_TIPO[tipo]
       : marca && !marca.baixa
-        ? marca.nome
+        ? PELA_MARCA[marca.slug] && PELA_MARCA[marca.slug] !== tipo
+          ? `${marca.nome} ${NOME_DO_TIPO[tipo]}`
+          : marca.nome
         : comAcento(nomeLegivel(exemplo.descricao ?? g.nome)) || NOME_DO_TIPO[tipo];
     const categorias = cobrancas.map((l) => l.categoria).filter((c): c is string => Boolean(c));
     const categoria = (categorias.length ? modaDe(categorias) : null) as ParentCategory | null;
@@ -330,12 +341,14 @@ export type ContaExistente = { nome: string; valor: number | null; chaveDoHistor
  * R$ 150 casa com a Enel de R$ 162).
  */
 export function jaCadastrada(achada: Pick<ContaAchada, "chave" | "nome" | "tipo" | "valor">, contas: ContaExistente[]): boolean {
-  const marcaDaAchada = achada.chave.startsWith("m:") ? achada.chave.slice(2) : (marcaDaDescricao(achada.nome)?.slug ?? null);
+  const marcaDaAchada = achada.chave.startsWith("m:") ? achada.chave.slice(2).split(":")[0] : (marcaDaDescricao(achada.nome)?.slug ?? null);
   const comerciante = achada.chave.startsWith("m:") ? "" : achada.chave;
   for (const c of contas) {
     if (c.chaveDoHistorico && c.chaveDoHistorico === achada.chave) return true;
     const marca = marcaDaDescricao(c.nome);
-    if (marcaDaAchada && marca && marca.slug === marcaDaAchada) return true;
+    // Mesma marca e mesmo tipo: "Vivo Fibra" cadastrada não segura a Vivo do celular.
+    const tipoDaCadastrada = tipoDoNomeSemMarca(c.nome);
+    if (marcaDaAchada && marca && marca.slug === marcaDaAchada && (!tipoDaCadastrada || tipoDaCadastrada === achada.tipo || PELA_MARCA[marca.slug] === tipoDaCadastrada && PELA_MARCA[marca.slug] === achada.tipo)) return true;
     const k = chaveDoComerciante(c.nome);
     if (comerciante && k && chaveUtil(k) && (chaveCobre(k, comerciante) || chaveCobre(comerciante, k))) return true;
     if (normalizarDescricao(c.nome) === normalizarDescricao(achada.nome)) return true;
