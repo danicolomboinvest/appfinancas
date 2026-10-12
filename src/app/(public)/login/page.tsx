@@ -22,7 +22,10 @@ export default function LoginPage({
   const [state, formAction, isPending] = useActionState(loginAction, initialState);
   // Primeiro a escolha: criar conta ou já tenho conta (05/10/2026). Quem chega vindo do cadastro
   // (?created=1) ou de um link que pedia login (?callbackUrl=) vai direto pro formulário.
-  const [etapa, setEtapa] = useState<"escolha" | "entrar">(created === "1" || typeof callbackUrl === "string" ? "entrar" : "escolha");
+  // O "/" não conta como link: é o que o proxy manda quando o app abre do zero (o app da Apple
+  // abre na raiz). Antes, quem baixava o app caía direto no "Bem-vinda de volta" (12/10/2026).
+  const veioDeUmLink = typeof callbackUrl === "string" && callbackUrl !== "" && callbackUrl !== "/" && !/^\/(mensal\/foco|dashboard)\/?$/.test(callbackUrl);
+  const [etapa, setEtapa] = useState<"escolha" | "entrar">(created === "1" || veioDeUmLink ? "entrar" : "escolha");
 
   if (etapa === "escolha") {
     // Mockup A, tela de início: o logo Aurora na névoa âmbar, uma frase e os dois caminhos.
