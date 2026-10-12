@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getRequiredSession } from "@/lib/auth/session";
 import { hojeEmBrasilia, lerData } from "@/lib/contas/contas";
+import { fecharAvisoDasContas } from "@/lib/repositories/contas-do-historico.repo";
 import { apagarContaAPagar, criarContaAPagar, desfazerContaPaga, editarContaAPagar, historicoDaConta, marcarContaPaga } from "@/lib/repositories/conta-a-pagar.repo";
 
 const dataSchema = z.string().transform((s, c) => {
@@ -82,5 +83,19 @@ export async function historicoDaContaAction(nome: string): Promise<{ mes: strin
 export async function apagarContaAction(id: string) {
   const ctx = await getRequiredSession();
   await apagarContaAPagar(ctx, z.string().min(1).parse(id));
+  revalidar();
+}
+
+/** "Desfazer" no aviso das contas achadas: apaga e guarda a recusa (nunca volta). */
+export async function desfazerContaDoHistoricoAction(id: string) {
+  const ctx = await getRequiredSession();
+  await apagarContaAPagar(ctx, z.string().min(1).parse(id));
+  revalidar();
+}
+
+/** O X do aviso: as contas achadas até aqui não aparecem mais nele. */
+export async function fecharAvisoDasContasAction() {
+  const ctx = await getRequiredSession();
+  await fecharAvisoDasContas(ctx);
   revalidar();
 }

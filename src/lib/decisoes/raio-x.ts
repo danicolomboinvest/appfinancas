@@ -133,7 +133,7 @@ function comoTitulo(chave: string): string {
  * limpo, sem "Pagamento de boleto efetuado", "Compra no débito", LTDA (12/10/2026: a Dani via
  * "Pagamento de boleto efet..." no lugar da contabilidade).
  */
-function nomeLegivel(description: string): string {
+export function nomeLegivel(description: string): string {
   const marca = marcaDaDescricao(description);
   if (marca && !marca.baixa) return marca.nome;
   const c = chaveDoComerciante(description);

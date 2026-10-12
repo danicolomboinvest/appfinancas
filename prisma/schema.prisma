@@ -257,6 +257,7 @@ model User {
   tokensDoWidget         TokenDoWidget[]
   dividas                Divida[]
   achadosDinheiroPerdido AchadoDinheiroPerdido[]
+  contasRecusadas        ContaRecusada[]
   /// Login do par (11/10/2026): convites que esta conta mandou e os perfis Casal em que ela é o par.
   convitesCasal          ConviteCasal[]
   membrosCasal           MembroCasal[]
@@ -339,6 +340,7 @@ model FinancialProfile {
   contasAPagar            ContaAPagar[]
   dividas                 Divida[]
   achadosDinheiroPerdido  AchadoDinheiroPerdido[]
+  contasRecusadas         ContaRecusada[]
   convitesCasal           ConviteCasal[]
   membrosCasal            MembroCasal[]
   fechamentosCasal        FechamentoCasal[]
@@ -1273,43 +1275,73 @@ model ProdutoLiberado {
 /// Conta a pagar com lembrete (05/10/2026): a Dani pediu "colocar contas a pagar, e o app lembrar
 /// você", inclusive as de valor que muda. Aparece no Foco e avisa na véspera e no dia.
 model ContaAPagar {
-  id              String            @id @default(cuid())
-  userId          String
-  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  profileId       String?
-  profile         FinancialProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  nome            String            @db.VarChar(80)
+  id                String            @id @default(cuid())
+  userId            String
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  profileId         String?
+  profile           FinancialProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  nome              String            @db.VarChar(80)
   /// Nulo = o valor muda todo mês (luz, cartão). O lembrete vale do mesmo jeito.
-  valor           Decimal?          @db.Decimal(18, 2)
+  valor             Decimal?          @db.Decimal(18, 2)
   /// O próximo vencimento (só a data). Conta que repete anda um mês quando ela marca "paguei".
-  vencimento      DateTime          @db.Date
+  vencimento        DateTime          @db.Date
   /// O dia de sempre (1–31). A do dia 31 passa por fevereiro no 28 e volta pro 31 em março.
-  diaDoMes        Int?
-  repete          Boolean           @default(false)
+  diaDoMes          Int?
+  repete            Boolean           @default(false)
   /// Avisar na véspera e no dia (Foco, notificação ou e-mail).
-  lembrar         Boolean           @default(true)
+  lembrar           Boolean           @default(true)
   /// Quando foi paga pela última vez.
-  pagaEm          DateTime?
+  pagaEm            DateTime?
   /// Conta que não repete e já foi paga: sai da lista.
-  quitada         Boolean           @default(false)
+  quitada           Boolean           @default(false)
   /// Frequência livre (versão nova, 11/10/2026, seção 3.17). Nulo nas contas de antes: elas
   /// continuam como eram, `repete` = todo mês e sem `repete` = não repete.
   /// "A cada N": N de 1 a 36, na `unidade` ("dias" | "semanas" | "meses" | "anos").
-  intervalo       Int?
-  unidade         String?           @db.VarChar(10)
+  intervalo         Int?
+  unidade           String?           @db.VarChar(10)
   /// "Em meses que eu escolho": os meses (1 a 12). Vazio = não é desse jeito.
-  mesesEscolhidos Int[]             @default([])
+  mesesEscolhidos   Int[]             @default([])
   /// Parcelada (2 a 48 vezes): quantas parcelas no total e em qual ela está. `valor` é sempre a
   /// parcela; `valorEhTotal` só lembra que ela digitou o total (a tela mostra do mesmo jeito).
-  parcelas        Int?
-  parcelaAtual    Int?
-  valorEhTotal    Boolean           @default(false)
+  parcelas          Int?
+  parcelaAtual      Int?
+  valorEhTotal      Boolean           @default(false)
   /// Valor aproximado ("~R$ 130, varia"): `valor` é a estimativa, o extrato manda no de verdade.
-  aproximado      Boolean           @default(false)
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
+  aproximado        Boolean           @default(false)
+  /// Contas do histórico (12/10/2026): nulo = ela cadastrou; "historico" = o app achou no extrato
+  /// e cadastrou sozinho (selo "do extrato").
+  origem            String?           @db.VarChar(12)
+  /// Quem cobra, na chave estável do motor ("m:vivo", "enel distribuicao"): é o que casa a conta
+  /// achada com o extrato seguinte e com a recusa dela.
+  chaveDoHistorico  String?           @db.VarChar(160)
+  /// A categoria do lançamento de onde a conta veio.
+  categoria         ParentCategory?
+  /// Ela mexeu na conta achada: o app não sobrescreve mais valor nem dia.
+  editadaPelaPessoa Boolean           @default(false)
+  /// Quando o aviso "Achei N contas no seu histórico" foi fechado. Nulo = ainda não viu.
+  avisadaEm         DateTime?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
 
   @@index([userId, profileId, vencimento])
+}
+
+/// Conta achada no histórico que a pessoa apagou (ou desfez no aviso): o app nunca recria.
+model ContaRecusada {
+  id        String            @id @default(cuid())
+  userId    String
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  profileId String?
+  profile   FinancialProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  /// A mesma `chaveDoHistorico` da conta apagada.
+  chave     String            @db.VarChar(160)
+  /// O nome e o valor da apagada: seguram também a parecida achada por outro caminho (ela apagou
+  /// o "Aluguel" do boleto; o Pix do aluguel não pode aparecer no lugar).
+  nome      String?           @db.VarChar(80)
+  valor     Decimal?          @db.Decimal(18, 2)
+  createdAt DateTime          @default(now())
+
+  @@unique([userId, profileId, chave])
 }
 
 /// O estado do fechamento de um mês (versão nova, seção 3.12): um por perfil e mês. Antes era

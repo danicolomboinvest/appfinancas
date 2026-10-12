@@ -1,4 +1,5 @@
 import { agendarCacaDoDinheiroPerdido } from "@/lib/dinheiro-perdido/agendar";
+import { agendarContasDoHistorico } from "@/lib/contas/agendar-contas";
 import { prisma } from "@/lib/db/prisma";
 import type { AuthContext } from "@/lib/auth/session";
 import { classify, type LearnedRule } from "@/lib/import/classify";
@@ -129,5 +130,7 @@ export async function syncConnection(ctx: AuthContext, connectionId: string): Pr
   await prisma.bankConnection.update({ where: { id: conn.id }, data: { lastSyncAt: to, lastSyncCount: created, lastError: null } });
   // Dinheiro perdido: transação nova do banco pode virar carta nova (ou trazer o estorno pedido).
   if (created > 0 && destino.profileKind !== "EMPRESA") await agendarCacaDoDinheiroPerdido({ userId: destino.userId, profileId: destino.profileId });
+  // Contas do histórico: a conta nova do banco pode revelar a Vivo, a luz, o aluguel.
+  if (created > 0) await agendarContasDoHistorico({ userId: destino.userId, profileId: destino.profileId });
   return { created, skipped, uncategorized, accounts: accounts.length };
 }

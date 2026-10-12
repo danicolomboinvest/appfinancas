@@ -30,7 +30,7 @@ const COM_ESCOPO = [
   "monthlyEntry", "budget", "monthlyPlan", "customCategory", "goal", "asset", "emergencyFund",
   "planningParams", "portfolioStrategy", "patrimonySnapshot", "importBatch",
   "contributionAllocation", "transactionCategoryRule", "simulation", "analysisSheet",
-  "yearlyConsolidationCache", "accumulationProjectionCache", "decisao", "contaAPagar", "divida", "fotoDaMeta", "fechamentoDoMes", "achadoDinheiroPerdido",
+  "yearlyConsolidationCache", "accumulationProjectionCache", "decisao", "contaAPagar", "divida", "fotoDaMeta", "fechamentoDoMes", "achadoDinheiroPerdido", "contaRecusada",
   // Login do par (11/10/2026): o convite, o vínculo e o fechamento a dois vivem no perfil Casal.
   "conviteCasal", "membroCasal", "fechamentoCasal",
 ];

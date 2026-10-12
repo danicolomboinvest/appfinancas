@@ -33,17 +33,19 @@ export type ContaDaTela = ContaParaRegra & {
   parcelaAtual: number | null;
   valorEhTotal: boolean;
   aproximado: boolean;
+  /** "historico" = o app achou no extrato e cadastrou sozinho (selo "do extrato"); nulo = ela cadastrou. */
+  origem: string | null;
 };
 
 type Linha = {
   id: string; nome: string; valor: unknown; vencimento: Date; repete: boolean; lembrar: boolean; quitada: boolean; pagaEm: Date | null; diaDoMes: number | null;
-  intervalo: number | null; unidade: string | null; mesesEscolhidos: number[] | null; parcelas: number | null; parcelaAtual: number | null; valorEhTotal: boolean; aproximado: boolean;
+  intervalo: number | null; unidade: string | null; mesesEscolhidos: number[] | null; parcelas: number | null; parcelaAtual: number | null; valorEhTotal: boolean; aproximado: boolean; origem: string | null;
 };
 
 function paraTela(c: Linha): ContaDaTela {
   return {
     id: c.id, nome: c.nome, valor: c.valor == null ? null : Number(c.valor), vencimento: c.vencimento, repete: c.repete, lembrar: c.lembrar, quitada: c.quitada, pagaEm: c.pagaEm,
-    diaDoMes: c.diaDoMes, intervalo: c.intervalo, unidade: c.unidade, mesesEscolhidos: c.mesesEscolhidos ?? [], parcelas: c.parcelas, parcelaAtual: c.parcelaAtual, valorEhTotal: c.valorEhTotal, aproximado: c.aproximado,
+    diaDoMes: c.diaDoMes, intervalo: c.intervalo, unidade: c.unidade, mesesEscolhidos: c.mesesEscolhidos ?? [], parcelas: c.parcelas, parcelaAtual: c.parcelaAtual, valorEhTotal: c.valorEhTotal, aproximado: c.aproximado, origem: c.origem,
   };
 }
 
@@ -63,12 +65,20 @@ export async function criarContaAPagar(ctx: AuthContext, d: ContaAPagarInput) {
   return prisma.contaAPagar.create({ data: { ...doDono(ctx), ...d, diaDoMes: d.vencimento.getUTCDate() } });
 }
 
-/** Mudar a data muda o dia de sempre também: ela escolheu outro dia. */
+/**
+ * Mudar a data muda o dia de sempre também: ela escolheu outro dia. Conta achada no histórico que
+ * ela editou fica dela: o extrato seguinte não sobrescreve mais.
+ */
 export async function editarContaAPagar(ctx: AuthContext, id: string, d: ContaAPagarInput) {
-  return prisma.contaAPagar.updateMany({ where: { id, ...doDono(ctx) }, data: { ...d, diaDoMes: d.vencimento.getUTCDate() } });
+  return prisma.contaAPagar.updateMany({ where: { id, ...doDono(ctx) }, data: { ...d, diaDoMes: d.vencimento.getUTCDate(), editadaPelaPessoa: true } });
 }
 
+/** Apagar uma conta achada no histórico guarda a recusa: o app nunca cria de novo. */
 export async function apagarContaAPagar(ctx: AuthContext, id: string) {
+  const c = await prisma.contaAPagar.findFirst({ where: { id, ...doDono(ctx) }, select: { chaveDoHistorico: true, nome: true, valor: true } });
+  if (c?.chaveDoHistorico) {
+    await prisma.contaRecusada.createMany({ data: [{ ...doDono(ctx), chave: c.chaveDoHistorico, nome: c.nome, valor: c.valor }], skipDuplicates: true });
+  }
   return prisma.contaAPagar.deleteMany({ where: { id, ...doDono(ctx) } });
 }
 
