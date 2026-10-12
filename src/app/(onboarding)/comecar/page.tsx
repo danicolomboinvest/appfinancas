@@ -13,7 +13,7 @@ import { toCurrencyCode } from "@/lib/money";
 import { chaveDoTema, preferenciaDeModo, profileThemeCss, profileTheme as temaDoPerfil } from "@/lib/profiles/themes";
 import { lerPreferenciasDeCategoria } from "@/lib/categories";
 import { nowInBrazil } from "@/lib/date/brazil-now";
-import { bancoDoComeco, nomeDoMes, passoDeVolta } from "@/lib/onboarding/comeco";
+import { bancoDoComeco, nomeDoMes, passoDeVolta, PASSOS_LANCAMENTO } from "@/lib/onboarding/comeco";
 import { Comeco } from "./Comeco";
 
 /**
@@ -30,7 +30,10 @@ export default async function ComecarPage({ searchParams }: { searchParams: Prom
   const user = await getOwnUser({ userId: session.user.id, role: session.user.role });
   const comeco = await lerComecoDaConta(user.id);
   const { passo: pedido, banco: bancoPedido } = await searchParams;
-  if (user.onboardedAt !== null && (!comeco || !pedido)) redirect("/mensal/foco");
+  // Quem já usava e ainda não trouxe dados entra direto nos passos do lançamento pelos cartões da
+  // Visão geral ("Enviar o extrato", "Digitar um gasto"); o resto do começo continua fechado para ela.
+  const pedidoDeLancamento = !!pedido && (PASSOS_LANCAMENTO as readonly string[]).includes(pedido);
+  if (user.onboardedAt !== null && (!pedido || (!comeco && !pedidoDeLancamento))) redirect("/mensal/foco");
   // Sem e-mail confirmado, o layout do app mostra a tela "Confirme seu e-mail": o começo antes
   // disso seria abrir a porta por aqui. A MESMA regra do layout (quem assinou pela Apple passa).
   if (session.user.role !== "ADMIN" && !(await contaConfirmada(user))) redirect("/mensal/foco");
