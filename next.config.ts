@@ -41,6 +41,16 @@ const nextConfig: NextConfig = {
       "node_modules/tesseract.js/src/**",
       "node_modules/tesseract.js-core/*lstm*",
       "node_modules/@tesseract.js-data/por/4.0.0_best_int/*",
+      // Dependências que o tesseract.js carrega por require em tempo de execução: como ele é
+      // externo, o rastreador não as copiava e qualquer ação no mesmo pacote quebrava com
+      // "Cannot find module 'bmp-js'" (12/10/2026: começo, dívidas, gravar e lançar).
+      "node_modules/bmp-js/**",
+      "node_modules/idb-keyval/**",
+      "node_modules/is-url/**",
+      "node_modules/node-fetch/**",
+      "node_modules/regenerator-runtime/**",
+      "node_modules/wasm-feature-detect/**",
+      "node_modules/zlibjs/**",
     ],
   },
 
