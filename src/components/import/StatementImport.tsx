@@ -1,5 +1,6 @@
 "use client";
 
+import { LapisDaCategoria } from "@/components/categorias/LapisDaCategoria";
 import { FalarComSuporte } from "@/components/support/FalarComSuporte";
 import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
@@ -164,7 +165,7 @@ export function StatementImport({
    * abriu o arquivo, se ele era trancado — a resposta reenvia o arquivo e precisa dela de novo. */
   const [kindMismatch, setKindMismatch] = useState<{ file: File; suggested: "extrato" | "fatura"; reason: string; pwd?: string } | null>(null);
   // Categorias personalizadas do usuário + a criação na hora ("+ Outra") durante a revisão.
-  const [customCategories, setCustomCategories] = useState<{ id: string; name: string }[]>([]);
+  const [customCategories, setCustomCategories] = useState<{ id: string; name: string; icon?: string }[]>([]);
   const [creatingCat, setCreatingCat] = useState(false);
   const [newCatName, setNewCatName] = useState("");
   // Conferência: a linha aberta pra trocar categoria/tipo, e se a lista longa está inteira.
@@ -729,12 +730,15 @@ export function StatementImport({
         ))}
         {!it.profileId &&
           customCategories.map((cc) => (
-            <button key={cc.id} type="button" aria-pressed={it.customCategoryId === cc.id} onClick={() => aoEscolher(assignCustom(it.key, cc.id))} className={`${quadrado} ${cor(it.customCategoryId === cc.id)}`}>
-              <span className="flex size-9 items-center justify-center rounded-full bg-surface-2 text-ink-muted" aria-hidden>
-                <Tag size={16} />
-              </span>
-              <span className="line-clamp-2 text-xs font-medium leading-tight text-ink">{cc.name}</span>
-            </button>
+            // A que ela criou: lápis ou toque longo para editar e apagar (12/10/2026).
+            <LapisDaCategoria key={cc.id} categoria={{ id: cc.id, name: cc.name, icon: cc.icon ?? "tag" }} outras={customCategories.map((o) => ({ id: o.id, name: o.name, icon: o.icon ?? "tag" }))} className="flex">
+              <button type="button" aria-pressed={it.customCategoryId === cc.id} onClick={() => aoEscolher(assignCustom(it.key, cc.id))} className={`${quadrado} w-full ${cor(it.customCategoryId === cc.id)}`}>
+                <span className="flex size-9 items-center justify-center rounded-full bg-surface-2 text-ink-muted" aria-hidden>
+                  <Tag size={16} />
+                </span>
+                <span className="line-clamp-2 text-xs font-medium leading-tight text-ink">{cc.name}</span>
+              </button>
+            </LapisDaCategoria>
           ))}
         {!it.profileId && (
           <button

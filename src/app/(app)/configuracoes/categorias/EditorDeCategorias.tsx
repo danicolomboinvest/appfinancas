@@ -21,7 +21,7 @@ import {
   categoryDefaultLabel,
   categoryLabel,
 } from "@/lib/categories";
-import { apagarCategoriaPropriaAction, editarCategoriaPropriaAction, salvarCategoriaPadraoAction } from "./actions";
+import { apagarCategoriaPropriaAction, editarCategoriaPropriaAction, lancamentosDaCategoriaAction, salvarCategoriaPadraoAction } from "./actions";
 
 type Propria = { id: string; name: string; icon: string };
 
@@ -131,7 +131,7 @@ export function EditorDeCategorias({ proprias }: { proprias: Propria[] }) {
             null,
             (cor) => salvarCorPropria(c, cor),
             colorForCategorySlice({ kind: "custom", value: c.id }, null),
-            <EditarPropria categoria={c} onFechar={() => setAberta(null)} />,
+            <EditarPropria categoria={c} outras={proprias} onFechar={() => setAberta(null)} />,
           ),
         )}
       </ul>
@@ -311,7 +311,7 @@ export function EditarPadrao({ chave, onFechar }: { chave: ParentCategory; onFec
   );
 }
 
-export function EditarPropria({ categoria, onFechar }: { categoria: Propria; onFechar: () => void }) {
+export function EditarPropria({ categoria, onFechar, outras = [] }: { categoria: Propria; onFechar: () => void; /** As outras categorias dela, para onde os lançamentos podem ir ao apagar. */ outras?: Propria[] }) {
   const { showToast, showError } = useToast();
   const { categorias } = useProfileTheme();
   const [nome, setNome] = useState(categoria.name);
@@ -320,6 +320,9 @@ export function EditarPropria({ categoria, onFechar }: { categoria: Propria; onF
   const [emoji, setEmoji] = useState(emojiEscolhido(categorias, categoria.id) ?? "");
   const [essencial, setEssencial] = useState(categorias.prefs.proprias?.[categoria.id]?.essencial === true);
   const [confirmar, setConfirmar] = useState(false);
+  // Apagar com lançamentos (12/10/2026): quantos são e para qual categoria vão.
+  const [quantos, setQuantos] = useState<number | null>(null);
+  const [destino, setDestino] = useState<string | null>(null);
   const [pendente, iniciar] = useTransition();
 
   function salvar() {
@@ -332,14 +335,23 @@ export function EditarPropria({ categoria, onFechar }: { categoria: Propria; onF
   }
 
   function apagar() {
-    if (!confirmar) return setConfirmar(true);
+    if (!confirmar) {
+      setConfirmar(true);
+      iniciar(async () => setQuantos(await lancamentosDaCategoriaAction(categoria.id)));
+      return;
+    }
+    if (quantos && !destino) return showError("Escolha para qual categoria vão os lançamentos.");
     iniciar(async () => {
-      const r = await apagarCategoriaPropriaAction(categoria.id);
+      const r = await apagarCategoriaPropriaAction(categoria.id, destino);
       if (r.error) return showError(r.error);
-      showToast("Categoria apagada. O que você lançou nela ficou sem categoria.");
+      showToast(quantos ? "Categoria apagada. Os lançamentos foram para a outra categoria." : "Categoria apagada.");
       onFechar();
     });
   }
+  const destinos = [
+    ...PARENT_CATEGORIES.filter((k) => !categoriaOculta(categorias, k)).map((k) => ({ id: k as string, nome: categoryLabel(categorias, k) })),
+    ...outras.filter((o) => o.id !== categoria.id).map((o) => ({ id: o.id, nome: o.name })),
+  ];
 
   return (
     <div className="flex flex-col gap-3">
@@ -367,22 +379,26 @@ export function EditarPropria({ categoria, onFechar }: { categoria: Propria; onF
         </span>
         <input type="checkbox" checked={essencial} onChange={(e) => setEssencial(e.target.checked)} className="h-5 w-5 shrink-0 accent-accent" />
       </label>
-      <div className="flex flex-wrap items-center gap-2">
-        <button type="button" disabled={pendente || !nome.trim() || (emoji !== "" && !emojiValido(emoji))} onClick={salvar} className="min-h-11 rounded-full bg-accent px-5 text-sm font-semibold text-on-accent disabled:opacity-50">
-          {pendente ? "Salvando…" : "Salvar"}
-        </button>
-        <button type="button" onClick={onFechar} className="min-h-11 px-3 text-sm text-ink-muted hover:text-ink">
-          Cancelar
-        </button>
-        <button
-          type="button"
-          disabled={pendente}
-          onClick={apagar}
-          className={`ml-auto min-h-11 rounded-full px-4 text-sm font-semibold ${confirmar ? "bg-danger text-on-accent" : "text-danger hover:bg-danger-soft"}`}
-        >
-          {confirmar ? "Toque de novo para apagar" : "Apagar"}
-        </button>
-      </div>
+      <button type="button" disabled={pendente || !nome.trim() || (emoji !== "" && !emojiValido(emoji))} onClick={salvar} className="mt-1 min-h-[52px] w-full rounded-full [background:var(--botao-fundo,var(--color-ink))] text-[16px] font-semibold [color:var(--botao-tinta,var(--color-canvas))] disabled:opacity-50">
+        {pendente && !confirmar ? "Salvando…" : "Salvar"}
+      </button>
+      {confirmar && quantos !== null && quantos > 0 && (
+        <div className="flex flex-col gap-2 rounded-2xl bg-surface-2 p-3" data-destino-ao-apagar>
+          <p className="text-sm font-medium text-ink">
+            {quantos === 1 ? "1 lançamento está nela." : `${quantos} lançamentos estão nela.`} Para qual categoria eles vão?
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {destinos.map((d) => (
+              <button key={d.id} type="button" aria-pressed={destino === d.id} onClick={() => setDestino(d.id)} className="min-h-10 rounded-full bg-surface px-3 text-sm text-ink shadow-[inset_0_0_0_1px_var(--color-border-strong)] aria-pressed:bg-ink aria-pressed:text-canvas aria-pressed:shadow-none">
+                {d.nome}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      <button type="button" disabled={pendente || (confirmar && quantos === null)} onClick={apagar} className="mx-auto inline-flex min-h-11 items-center px-3 text-sm text-ink-muted underline-offset-4 hover:text-ink hover:underline" data-apagar-categoria>
+        {!confirmar ? "Apagar categoria" : quantos ? "Apagar e mover os lançamentos" : "Toque de novo para apagar"}
+      </button>
     </div>
   );
 }

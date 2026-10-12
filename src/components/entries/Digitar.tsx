@@ -1,5 +1,6 @@
 "use client";
 
+import { LapisDaCategoria } from "@/components/categorias/LapisDaCategoria";
 import { useState, useTransition } from "react";
 import { ChevronDown, Delete, Plus, Shapes, Wallet } from "lucide-react";
 import type { ParentCategory } from "@prisma/client";
@@ -206,7 +207,12 @@ export function Digitar({
         {ehGasto
           ? [
               ...pais.map((pc) => bloco(pc, categoryLabel(categorias, pc), PARENT_CATEGORY_ICON[pc], PARENT_CATEGORY_COLOR[pc])),
-              ...personalizadas.map((c) => bloco(c.id, c.name, CUSTOM_CATEGORY_ICON_MAP[c.icon ?? ""] ?? Shapes, corEscolhida(categorias, c.id) ?? "var(--color-accent)")),
+              // As que ela criou: lápis no canto ou toque longo para editar e apagar (12/10/2026).
+              ...personalizadas.map((c) => (
+                <LapisDaCategoria key={c.id} categoria={{ id: c.id, name: c.name, icon: c.icon ?? "tag" }} outras={personalizadas.map((o) => ({ id: o.id, name: o.name, icon: o.icon ?? "tag" }))} className="min-w-0">
+                  {bloco(c.id, c.name, CUSTOM_CATEGORY_ICON_MAP[c.icon ?? ""] ?? Shapes, corEscolhida(categorias, c.id) ?? "var(--color-accent)")}
+                </LapisDaCategoria>
+              )),
             ]
           : tiposLivres.map((tp) => bloco(tp, tp, Wallet, "var(--color-dinheiro-entrou)"))}
         {ehGasto && (

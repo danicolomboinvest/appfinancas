@@ -131,7 +131,7 @@ export type ParseStats = {
 };
 
 export type ParseStatementResult =
-  | { ok: true; items: ReviewItem[]; customCategories: { id: string; name: string }[]; stats: ParseStats }
+  | { ok: true; items: ReviewItem[]; customCategories: { id: string; name: string; icon?: string }[]; stats: ParseStats }
   | { ok: false; error: string; needsPassword?: boolean };
 
 /** A conferência vai na mensagem do diagnóstico: é o que o relatório diário e o aviso de suporte
@@ -384,7 +384,7 @@ export async function parseStatementAction(formData: FormData): Promise<ParseSta
   else if (stats.suspeitas.length > 0) {
     await storeFailedImportFile({ userId: ctx.userId, diagnosticId, file: uploaded, encoding, reason: "implausivel" });
   }
-  return { ok: true, items, customCategories: customCategories.map((c) => ({ id: c.id, name: c.name })), stats };
+  return { ok: true, items, customCategories: customCategories.map((c) => ({ id: c.id, name: c.name, icon: c.icon })), stats };
 }
 
 export type ConfirmedItem = {

@@ -1,5 +1,6 @@
 "use client";
 
+import { LapisDaCategoria } from "@/components/categorias/LapisDaCategoria";
 import { useActionState, useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { ParentCategory } from "@prisma/client";
@@ -35,7 +36,7 @@ const PCTS_EMPRESA = [5, 10, 15, 20, 25];
 const FIXAS: string[] = ["MORADIA", "EDUCACAO"];
 const MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
 
-type Cat = { key: string; label: string; color: string; icon: LucideIcon; custom: boolean };
+type Cat = { key: string; label: string; color: string; icon: LucideIcon; custom: boolean; iconName?: string };
 type Passo = 1 | 2 | 3 | "monta" | "pronto";
 
 const botao = "flex min-h-[54px] w-full items-center justify-center rounded-full bg-ink px-5 text-[17px] font-semibold text-canvas disabled:opacity-40";
@@ -112,6 +113,7 @@ export function BudgetWizard({
         label: c.name,
         color: colorForCategorySlice({ kind: "custom", value: c.id }, categorias),
         icon: CUSTOM_CATEGORY_ICON_MAP[c.icon] ?? Tag,
+        iconName: c.icon,
         custom: true,
       })),
     ],
@@ -305,7 +307,14 @@ export function BudgetWizard({
             const v = values[c.key] ?? 0;
             return (
               <div key={c.key} data-cat={c.key} className={`grid grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-2.5 py-2.5 ${i > 0 ? "border-t border-border" : ""}`}>
-                <CategoryIcon icon={c.icon} color={c.color} size={36} emoji={emojiEscolhido(categorias, c.key) ?? (c.custom ? emojiDaCategoria(tema, { kind: "custom" }) : emojiDaCategoria(tema, { kind: "parent", value: c.key as ParentCategory }))} />
+                {c.custom ? (
+                  // A que ela criou: lápis ou toque longo para editar e apagar (12/10/2026).
+                  <LapisDaCategoria categoria={{ id: c.key, name: c.label, icon: c.iconName ?? "tag" }} outras={customCategories.map((o) => ({ id: o.id, name: o.name, icon: o.icon }))}>
+                    <CategoryIcon icon={c.icon} color={c.color} size={36} emoji={emojiEscolhido(categorias, c.key) ?? emojiDaCategoria(tema, { kind: "custom" })} />
+                  </LapisDaCategoria>
+                ) : (
+                  <CategoryIcon icon={c.icon} color={c.color} size={36} emoji={emojiEscolhido(categorias, c.key) ?? emojiDaCategoria(tema, { kind: "parent", value: c.key as ParentCategory })} />
+                )}
                 <div className="min-w-0">
                   <b className="block truncate text-[15px] font-normal leading-tight text-ink">{c.label}</b>
                   <small className="block text-xs text-ink-muted">{income > 0 ? Math.round((v / income) * 100) : 0}% da renda</small>

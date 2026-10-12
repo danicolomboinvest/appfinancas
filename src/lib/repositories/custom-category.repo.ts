@@ -1,3 +1,4 @@
+import type { ParentCategory } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import type { AuthContext } from "@/lib/auth/session";
 
@@ -26,4 +27,27 @@ export async function deleteOwnCustomCategory(ctx: AuthContext, id: string) {
 /** Troca nome e ícone de uma categoria dela (01/10/2026): antes só dava para apagar e criar de novo. */
 export async function updateOwnCustomCategory(ctx: AuthContext, id: string, input: { name: string; icon: string }) {
   return prisma.customCategory.updateMany({ where: { id, userId: ctx.userId, profileId: ctx.profileId }, data: input });
+}
+
+/** Quantos lançamentos deste perfil estão nesta categoria dela (o "para onde vão?" do apagar). */
+export async function contarLancamentosDaCategoria(ctx: AuthContext, id: string): Promise<number> {
+  return prisma.monthlyEntry.count({ where: { userId: ctx.userId, profileId: ctx.profileId, customCategoryId: id } });
+}
+
+/**
+ * Apaga a categoria dela levando os lançamentos para outra (12/10/2026): uma categoria-mãe
+ * (ParentCategory) ou outra categoria dela. Sem destino, ficam sem categoria, como antes.
+ */
+export async function apagarCategoriaMovendo(ctx: AuthContext, id: string, destino: { parentCategory: ParentCategory } | { customCategoryId: string } | null) {
+  const dono = { userId: ctx.userId, profileId: ctx.profileId };
+  if (destino && "customCategoryId" in destino) {
+    const existe = await prisma.customCategory.findFirst({ where: { ...dono, id: destino.customCategoryId }, select: { id: true } });
+    if (!existe || destino.customCategoryId === id) throw new Error("Categoria de destino inválida.");
+  }
+  const dados = !destino ? { customCategoryId: null } : "parentCategory" in destino ? { customCategoryId: null, parentCategory: destino.parentCategory } : { customCategoryId: destino.customCategoryId, parentCategory: null };
+  await prisma.$transaction([
+    prisma.monthlyEntry.updateMany({ where: { ...dono, customCategoryId: id }, data: dados }),
+    prisma.budget.deleteMany({ where: { ...dono, customCategoryId: id } }),
+    prisma.customCategory.deleteMany({ where: { ...dono, id } }),
+  ]);
 }

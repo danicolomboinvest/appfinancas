@@ -6,7 +6,7 @@ import { getRequiredSession } from "@/lib/auth/session";
 import { deleteOwnTransactionRule } from "@/lib/repositories/transaction-rule.repo";
 import { prisma } from "@/lib/db/prisma";
 import { CUSTOM_CATEGORY_ICON_KEYS, PARENT_CATEGORIES, corValida, emojiValido, isParentCategoryKey, lerPreferenciasDeCategoria } from "@/lib/categories";
-import { deleteOwnCustomCategory, updateOwnCustomCategory } from "@/lib/repositories/custom-category.repo";
+import { apagarCategoriaMovendo, contarLancamentosDaCategoria, updateOwnCustomCategory } from "@/lib/repositories/custom-category.repo";
 
 /**
  * Apaga uma regra aprendida. Antes não havia tela pra isso: uma regra ruim (uma loja ensinada
@@ -92,10 +92,22 @@ export async function editarCategoriaPropriaAction(input: { id: string; nome: st
   return {};
 }
 
-export async function apagarCategoriaPropriaAction(categoriaId: string): Promise<{ error?: string }> {
+export async function apagarCategoriaPropriaAction(categoriaId: string, destino?: string | null): Promise<{ error?: string }> {
   const ctx = await getRequiredSession();
   const id = z.string().min(1).max(60).parse(categoriaId);
-  await deleteOwnCustomCategory(ctx, id);
+  // Destino (12/10/2026): para onde vão os lançamentos que já estão nela.
+  const para = !destino ? null : isParentCategoryKey(destino) ? { parentCategory: destino } : { customCategoryId: z.string().min(1).max(60).parse(destino) };
+  try {
+    await apagarCategoriaMovendo(ctx, id, para);
+  } catch {
+    return { error: "Não deu para mover os lançamentos. Escolha outra categoria." };
+  }
   revalidarCategorias();
   return {};
+}
+
+/** Quantos lançamentos a categoria tem: a folha pergunta para onde eles vão antes de apagar. */
+export async function lancamentosDaCategoriaAction(categoriaId: string): Promise<number> {
+  const ctx = await getRequiredSession();
+  return contarLancamentosDaCategoria(ctx, z.string().min(1).max(60).parse(categoriaId));
 }

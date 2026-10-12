@@ -1,5 +1,6 @@
 "use client";
 
+import { LapisDaCategoria } from "@/components/categorias/LapisDaCategoria";
 import { useState, useTransition } from "react";
 import { Check, EyeOff, Pencil, PieChart, Scissors, SplitSquareHorizontal, Tag, Trash2, User, Users } from "lucide-react";
 import type { ParentCategory } from "@prisma/client";
@@ -68,7 +69,7 @@ export function FolhaDaTransacao({
   const ehGasto = entry.category === "EXPENSE" && entry.amount >= 0;
   const opcoes: (Categoria & { key: string; nome: string; icon: LucideIcon; cor: string })[] = [
     ...categoriasParaEscolher(kind).map((pc) => ({ key: pc, parentCategory: pc, customCategoryId: null, nome: categoryLabel(kind, pc), icon: categoryIcon(kind, pc), cor: colorForCategorySlice({ kind: "parent", value: pc }, kind) })),
-    ...customCategories.map((c) => ({ key: c.id, parentCategory: null, customCategoryId: c.id, nome: c.name, icon: CUSTOM_CATEGORY_ICON_MAP[c.icon] ?? Tag, cor: colorForCategorySlice({ kind: "custom", value: c.id }, kind) })),
+    ...customCategories.map((c) => ({ key: c.id, parentCategory: null, customCategoryId: c.id, iconeChave: c.icon, nome: c.name, icon: CUSTOM_CATEGORY_ICON_MAP[c.icon] ?? Tag, cor: colorForCategorySlice({ kind: "custom", value: c.id }, kind) })),
   ];
   const atual = entry.customCategoryId ?? entry.parentCategory;
 
@@ -133,10 +134,12 @@ function Acao({ icon: Icone, rotulo, onClick }: { icon: LucideIcon; rotulo: stri
   );
 }
 
-function GradeDeCategorias<T extends { key: string; nome: string; icon: LucideIcon; cor: string }>({ opcoes, marcada, onEscolher }: { opcoes: T[]; marcada: string | null; onEscolher: (c: T) => void }) {
+function GradeDeCategorias<T extends { key: string; nome: string; icon: LucideIcon; cor: string; customCategoryId?: string | null; iconeChave?: string }>({ opcoes, marcada, onEscolher }: { opcoes: T[]; marcada: string | null; onEscolher: (c: T) => void }) {
+  const proprias = opcoes.filter((o) => o.customCategoryId).map((o) => ({ id: o.key, name: o.nome, icon: o.iconeChave ?? "tag" }));
   return (
     <div className="grid grid-cols-2 gap-2">
-      {opcoes.map((o) => (
+      {opcoes.map((o) => {
+        const bloco = (
         <button
           key={o.key}
           type="button"
@@ -152,7 +155,16 @@ function GradeDeCategorias<T extends { key: string; nome: string; icon: LucideIc
             </span>
           )}
         </button>
-      ))}
+        );
+        // A que ela criou: lápis ou toque longo para editar e apagar (12/10/2026).
+        return o.customCategoryId ? (
+          <LapisDaCategoria key={o.key} categoria={{ id: o.key, name: o.nome, icon: o.iconeChave ?? "tag" }} outras={proprias}>
+            {bloco}
+          </LapisDaCategoria>
+        ) : (
+          bloco
+        );
+      })}
     </div>
   );
 }
