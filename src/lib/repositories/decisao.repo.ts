@@ -35,6 +35,9 @@ export type TipoDecisao =
    * e as respostas das missões ("reset|motivo", "reset|regra", "reset|passos"...). */
   | "reset_inicio"
   | "reset_dia"
+  /** Money Reset A+B (12/10/2026): o marco N do mapa feito ("reset|marco|13"). Os "reset_dia" antigos
+   * ficam como estão e são traduzidos na leitura (lib/money-reset/progresso.ts). */
+  | "reset_marco"
   | "reset_resposta"
   /** Conquista já comemorada (a notificação com confete apareceu): "meta|<id>",
    * "primeiro-fechamento", "reset". Uma vez cada, nunca de novo. */
