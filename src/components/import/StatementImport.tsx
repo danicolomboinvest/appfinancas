@@ -8,7 +8,6 @@ import type { ParentCategory } from "@prisma/client";
 import { PARENT_CATEGORIES, categoryLabel, categoriaOculta, categoryIcon, colorForCategorySlice, emojiEscolhido } from "@/lib/categories";
 import { emojiDaCategoria } from "@/lib/profiles/icones";
 import { Button } from "@/components/ui/Button";
-import { MonthPicker } from "@/components/ui/MonthPicker";
 import { useToast } from "@/components/ui/toast-context";
 import { createCategoryAction } from "@/lib/actions/category";
 import {
@@ -34,6 +33,7 @@ import { ComoTirarExtrato } from "./ComoTirarExtrato";
 import { ProtegerSaida } from "./ProtegerSaida";
 import { nomeNaTela } from "@/lib/import/nome-na-tela";
 import { FitText } from "@/components/ui/FitText";
+import { Modal } from "@/components/ui/Modal";
 import { Explica } from "@/components/ui/Explica";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
 
@@ -62,15 +62,21 @@ function currentMonthValue(): string {
 }
 
 
+/** A pergunta da transferência com o NOME de quem (12/10/2026): "Pix para Daniela Colombo (você mesma)", "Pix de Marina Souza". */
+/** O rótulo do que entrou sem resposta na revisão: aparece no lugar da subcategoria. */
+const A_CONFERIR = "A conferir";
+
+function tituloDaTransferencia(it: { description: string; category: string; duvida?: string | null }): string {
+  const n = nomeNaTela(it.description);
+  const pix = /pix/i.test(n.meio ?? it.description);
+  const entrada = it.category === "INCOME";
+  const como = it.duvida === "resgate" ? (entrada ? "Resgate de" : "Aplicação em") : pix ? (entrada ? "Pix de" : "Pix para") : entrada ? "Transferência de" : "Transferência para";
+  return `${como} ${n.nome}${it.duvida === "conta_propria" ? " (você mesma)" : ""}`;
+}
+
 function formatDate(iso: string) {
   const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   return m ? `${m[3]}/${m[2]}` : iso;
-}
-
-/** "2026-10-10" → "10/10/2026", pro "achei no arquivo: vence em…". */
-function formatFullDate(iso: string) {
-  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  return m ? `${m[3]}/${m[2]}/${m[1]}` : iso;
 }
 
 /** Linha que já pode ir pro banco. Gasto SEM categoria também vai (ver `handleImport`). */
@@ -81,13 +87,6 @@ function entraNaImportacao(it: ReviewItem): boolean {
 /** Quantas linhas a conferência mostra antes do "Mostrar todos": no celular, 200 linhas de
  * extrato empurravam o botão de importar pra muito longe. */
 const LINHAS_VISIVEIS = 30;
-
-/** "2027-06" → "junho de 2027", pro texto de confirmação do mês da fatura. */
-function formatMonthYear(monthValue: string): string {
-  const [y, m] = monthValue.split("-").map(Number);
-  if (!y || !m) return monthValue;
-  return new Date(y, m - 1, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
-}
 
 /** O arquivo vai CRU num FormData (string grande de base64 estoura o limite de serialização
  * das actions). O encoding diz ao servidor como interpretar os bytes. */
@@ -151,6 +150,7 @@ export function StatementImport({
   // Mês/ano de destino da FATURA (todas as compras entram nesse mês, escolhido por quem importa
   // — não no mês de cada compra, que fica espalhado pelo período de fechamento da fatura).
   const [faturaMonth, setFaturaMonth] = useState(currentMonthValue());
+  const [conferirAberto, setConferirAberto] = useState(false);
   const [cardPaymentCandidates, setCardPaymentCandidates] = useState<CardPaymentCandidate[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -167,9 +167,6 @@ export function StatementImport({
   const [customCategories, setCustomCategories] = useState<{ id: string; name: string }[]>([]);
   const [creatingCat, setCreatingCat] = useState(false);
   const [newCatName, setNewCatName] = useState("");
-  // Ela mexeu no mês da fatura à mão: o vencimento lido do arquivo vira só uma sugestão, não
-  // troca a escolha dela.
-  const [faturaMesTocado, setFaturaMesTocado] = useState(false);
   // Conferência: a linha aberta pra trocar categoria/tipo, e se a lista longa está inteira.
   const [editandoKey, setEditandoKey] = useState<number | null>(null);
   const [mostrarTodos, setMostrarTodos] = useState(false);
@@ -181,11 +178,6 @@ export function StatementImport({
   });
   // A área da revisão/conferência: toque fora dela (Voltar, X, fundo escuro) pergunta antes de fechar.
   const areaRef = useRef<HTMLDivElement>(null);
-
-  function escolherMesFatura(valor: string) {
-    setFaturaMonth(valor);
-    setFaturaMesTocado(true);
-  }
 
   /**
    * Fila de revisão CONGELADA na entrada: as chaves dos gastos que chegaram sem categoria.
@@ -281,13 +273,13 @@ export function StatementImport({
         setKindMismatch({ file, suggested: result.stats.detectedKind, reason: result.stats.detectedReason, pwd });
         // Só pro "achei no arquivo: vence em…" da pergunta; a leitura de verdade vem na resposta.
         setStats(result.stats);
-        if (result.stats.detectedKind === "fatura" && result.stats.vencimento && !faturaMesTocado) setFaturaMonth(result.stats.vencimento.slice(0, 7));
+        if (result.stats.detectedKind === "fatura" && result.stats.vencimento) setFaturaMonth(result.stats.vencimento.slice(0, 7));
         setPhase("upload");
         return;
       }
       // Fatura: o mês certo é o do vencimento. Se o arquivo diz e ela não escolheu outro à mão,
       // já fica escolhido (o seletor começa no mês de hoje, e era aí que a fatura caía errada).
-      if (type === "fatura" && result.stats.vencimento && !faturaMesTocado) setFaturaMonth(result.stats.vencimento.slice(0, 7));
+      if (type === "fatura" && result.stats.vencimento) setFaturaMonth(result.stats.vencimento.slice(0, 7));
       setKindMismatch(null);
       setStats(result.stats);
       setItems(result.items);
@@ -450,8 +442,12 @@ export function StatementImport({
     // Gasto sem categoria ("Não sei agora") ENTRA, sem categoria: antes ele sumia calado da
     // importação, e o mês ficava com o saldo inflado. O servidor já grava gasto sem categoria
     // (ele aparece como "Sem categoria" na tela do mês) e só não aprende regra dele.
+    // Sem resposta (12/10/2026): a dúvida de dinheiro próprio entra sem categoria, marcada "A conferir";
+    // o "é o mesmo?" sem resposta entra como lançamento novo, também "A conferir".
+    const aConferir = (it: ReviewItem) => !!it.duvida || !!it.possivelDuplicata;
     const confirmed: ConfirmedItem[] = items
       .filter(entraNaImportacao)
+      .map((it) => (aConferir(it) ? { ...it, parentCategory: null, customCategoryId: null, subcategory: A_CONFERIR, autoClassified: true } : it))
       .map((it) => ({
         date: it.date,
         description: it.description,
@@ -467,7 +463,10 @@ export function StatementImport({
         estorno: it.estorno ?? false,
         resgate: it.resgate ?? false,
       }));
-    const [targetYear, targetMonth] = docType === "fatura" ? faturaMonth.split("-").map(Number) : [undefined, undefined];
+    // Sem perguntar o mês (12/10/2026): o motor da fatura usa o vencimento lido do arquivo; sem ele,
+    // o mês da compra mais recente da fatura.
+    const mesDaFaturaLido = stats?.vencimento?.slice(0, 7) ?? items.map((it) => it.date.slice(0, 7)).sort().at(-1) ?? faturaMonth;
+    const [targetYear, targetMonth] = docType === "fatura" ? mesDaFaturaLido.split("-").map(Number) : [undefined, undefined];
     startTransition(async () => {
       let result: Awaited<ReturnType<typeof importTransactionsAction>>;
       try {
@@ -518,36 +517,6 @@ export function StatementImport({
     setCardPaymentCandidates((prev) => prev.filter((c) => c.id !== id));
   }
 
-  /**
-   * "Em que mês essa fatura vence?" — o mesmo bloco nos três lugares em que o mês aparece
-   * (envio, aviso de "parece fatura" e conferência). Se o arquivo trouxe o vencimento, diz o que
-   * achou; se ela escolheu outro mês, oferece o do arquivo com um toque, sem trocar sozinho.
-   */
-  function mesDaFatura(id: string) {
-    const venc = stats?.vencimento ?? null;
-    const mesDoVencimento = venc ? venc.slice(0, 7) : null;
-    return (
-      <div className="flex flex-col gap-1.5">
-        <MonthPicker label={t.impFaturaVence} id={id} value={faturaMonth} onChange={escolherMesFatura} />
-        <span className="text-caption text-ink-faint">{t.impFaturaVenceDica(formatMonthYear(faturaMonth))}</span>
-        {venc && mesDoVencimento && (
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-caption text-accent-strong">{t.impFaturaVencimentoLido(formatFullDate(venc))}</span>
-            {mesDoVencimento !== faturaMonth && (
-              <button
-                type="button"
-                onClick={() => setFaturaMonth(mesDoVencimento)}
-                className="inline-flex min-h-11 items-center rounded-full border border-accent px-3 text-sm font-medium text-accent-strong hover:bg-accent-soft"
-              >
-                {t.impFaturaUsarMes(formatMonthYear(mesDoVencimento))}
-              </button>
-            )}
-          </div>
-        )}
-      </div>
-    );
-  }
-
   // --- UPLOAD ---
   if (phase === "upload") {
     return (
@@ -570,7 +539,6 @@ export function StatementImport({
             </p>
             {/* Virar fatura por aqui segue direto pra revisão: sem a pergunta do mês neste ponto,
                 a fatura de maio subida em setembro caía inteira em setembro sem ela ver. */}
-            {kindMismatch.suggested === "fatura" && mesDaFatura("fatura-month-aviso")}
             <div className="flex flex-wrap gap-2">
               <Button
                 type="button"
@@ -592,7 +560,6 @@ export function StatementImport({
         {/* Fatura: a pessoa escolhe o mês de destino — todas as compras entram nesse mês (o
             período de fechamento da fatura costuma cruzar dois meses do calendário, e a data
             de cada compra não é o que importa aqui, é quando a fatura foi paga). */}
-        {docType === "fatura" && mesDaFatura("fatura-month")}
 
         {/* Perfil Casal: uma pergunta por arquivo, e cada linha já entra com "quem pagou". */}
         {nomesDoCasal && (
@@ -865,13 +832,33 @@ export function StatementImport({
         {error && <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p>}
 
         <div className="rounded-2xl border border-border bg-surface-2 p-4">
-          <p className="text-[1.75rem] font-bold leading-none tracking-tight tabular-nums text-ink">{money(it.amount)}</p>
-          {/* O nome da loja sem o "Compra no débito - " na frente; o meio vira etiqueta (07/10/2026). */}
-          <p className="mt-2 text-[15px] font-semibold leading-snug text-ink">{nomeNaTela(it.description).nome}</p>
-          <p className="mt-1 flex flex-wrap items-center gap-2 text-caption text-ink-muted">
-            {formatDate(it.date)}
-            {nomeNaTela(it.description).meio && <span className="rounded-full bg-surface px-2 py-0.5 font-medium">{nomeNaTela(it.description).meio}</span>}
-          </p>
+          {/* O NOME do lugar em destaque (regra da dona, 12/10/2026): "ESPACOBELLA · 3 compras ·
+              total. O que é?", nunca algo genérico. Embaixo, as datas e os valores. */}
+          {(() => {
+            const grupo = [it, ...iguaisPraAplicar(items, it.key).map((k) => items.find((x) => x.key === k)).filter((x): x is ReviewItem => !!x && x.key !== it.key)];
+            const total = grupo.reduce((s2, x) => s2 + x.amount, 0);
+            const nm = nomeNaTela(it.description);
+            return (
+              <>
+                <p className="break-words text-[1.5rem] font-semibold leading-tight tracking-tight text-ink" data-nome-do-lugar>{nm.nome}</p>
+                <p className="mt-1 text-[15px] font-medium text-ink">
+                  {grupo.length > 1 ? `${grupo.length} ${it.category === "INCOME" ? "entradas" : "compras"} · ` : ""}
+                  <span className="tabular-nums">{money(grupo.length > 1 ? total : it.amount)}</span>. O que é?
+                </p>
+                <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-caption text-ink-muted">
+                  {nm.meio && <span className="rounded-full bg-surface px-2 py-0.5 font-medium">{nm.meio}</span>}
+                  {grupo.length > 1
+                    ? grupo.slice(0, 6).map((x) => (
+                        <span key={x.key} className="whitespace-nowrap tabular-nums">
+                          {formatDate(x.date)}, {money(x.amount)}
+                        </span>
+                      ))
+                    : formatDate(it.date)}
+                  {grupo.length > 6 && <span>e mais {grupo.length - 6}</span>}
+                </p>
+              </>
+            );
+          })()}
           {/* Só a parcela com certeza: é a única que o servidor lança nos meses seguintes. "03/10"
               sem "parc" pode ser data ("POSTO SHELL 03/09"), e prometer que "as 7 seguintes
               entram sozinhas" fazia ela planejar os próximos meses com gasto que não existe. */}
@@ -1019,8 +1006,8 @@ export function StatementImport({
             porque é o único aviso que diz "não confirme ainda": quando isso aparece, o mês inteiro
             da pessoa vai entrar errado — orçamento, saúde financeira e gráfico junto. */}
         {stats && stats.suspeitas.length > 0 && (
-          <div className="flex flex-col gap-2 rounded-xl border border-danger/50 bg-danger/5 px-4 py-3">
-            <p className="text-sm font-semibold text-danger">{t.impNumerosErrados}</p>
+          <div className="flex flex-col gap-2 rounded-xl border border-border bg-surface-2 px-4 py-3">
+            <p className="text-sm font-semibold text-ink">{t.impNumerosErrados}</p>
             {stats.suspeitas.map((s) => (
               <div key={s.texto} className="flex flex-col gap-1">
                 <p className="text-caption text-ink">{s.texto}</p>
@@ -1064,13 +1051,7 @@ export function StatementImport({
                   <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-success-soft px-2.5 py-1 text-xs font-semibold text-success" title={t.impBateuComTotal(money(stats.conferencia.esperado))}>
                     <Check size={13} strokeWidth={2.5} aria-hidden /> Conferido
                   </span>
-                ) : (
-                  stats && (
-                    <span className="shrink-0 rounded-full bg-surface px-2.5 py-1 text-xs font-semibold tabular-nums text-ink-muted">
-                      {stats.parsed} de {stats.moneyLines} linhas
-                    </span>
-                  )
-                )}
+                ) : null}
               </div>
               <div className={`grid gap-2 ${quadrados.length >= 3 ? "grid-cols-3" : quadrados.length === 2 ? "grid-cols-2" : "grid-cols-1"}`}>
                 {quadrados.map((q) => (
@@ -1081,21 +1062,6 @@ export function StatementImport({
                   </div>
                 ))}
               </div>
-              {/* Fatura: o mês de destino fica à vista (e dá pra trocar) até o último toque. Quem
-                  chegou aqui pelo aviso "parece fatura" nunca tinha visto a pergunta do mês. */}
-              {docType === "fatura" && mesDaFatura("fatura-month-confirmar")}
-              {stats?.conferencia.status !== "fechou" && stats?.invoiceTotal ? <p className="text-caption text-ink-muted">{t.impTotalImpresso(money(stats.invoiceTotal))}</p> : null}
-              {lowCoverage && (
-                <div className="flex flex-col gap-2">
-                  <p className="text-caption text-danger">{t.impCoberturaBaixa}</p>
-                  <FalarComSuporte arquivo={fileName} problema="o app leu só parte do arquivo" rotulo={t.impFaltouCoisa} />
-                </div>
-              )}
-              {/* Só quando a soma NÃO bateu com nenhum total do documento: a fatura do Ourocard traz
-                  "Total" = saldo anterior − pagamento + compras, que nunca é a soma das compras. */}
-              {stats?.invoiceTotal && stats.conferencia.status !== "fechou" && Math.abs(totalGap) >= 1 && (
-                <p className="text-caption text-danger">{t.impSomaDiferente(totalGap > 0, money(Math.abs(totalGap)))}</p>
-              )}
             </div>
           );
         })()}
@@ -1118,13 +1084,11 @@ export function StatementImport({
             <ul className="flex flex-col gap-2">
               {duvidasDinheiro.map((it) => (
                 <li key={it.key} className="flex flex-col gap-1.5 border-t border-border/60 pt-2 first:border-t-0 first:pt-0">
-                  <span className="flex items-baseline justify-between gap-3">
-                    <span className="min-w-0 truncate text-sm font-medium text-ink">{nomeNaTela(it.description).nome}</span>
-                    <span className="shrink-0 text-sm font-semibold tabular-nums text-ink">
-                      {it.category === "INCOME" ? "+" : "−"} {money(it.amount)}
-                    </span>
+                  {/* O nome em destaque (12/10/2026): "Pix para Daniela Colombo (você mesma)", "Pix de Marina Souza". */}
+                  <span className="break-words text-[17px] font-semibold leading-snug text-ink" data-nome-do-lugar>{tituloDaTransferencia(it)}</span>
+                  <span className="-mt-1 text-caption tabular-nums text-ink-muted">
+                    {formatDate(it.date)} · {it.category === "INCOME" ? "+" : "−"} {money(it.amount)}
                   </span>
-                  <span className="-mt-1 text-caption text-ink-muted">{formatDate(it.date)}</span>
                   {/* O destaque vai pra resposta certa quase sempre: dinheiro indo pra outra conta
                       dela é "só mudei de conta". Antes o botão forte era "Guardei (aplicação)", e
                       quem só passou o dinheiro do Nubank pro Itaú marcava investimento que não fez. */}
@@ -1164,8 +1128,8 @@ export function StatementImport({
             <ul className="flex flex-col gap-2">
               {deFora.map((it) => (
                 <li key={it.key} className="flex flex-col gap-1">
-                  <span className="text-sm text-ink">
-                    {it.description}, {money(it.amount)}, {formatDate(it.date)}
+                  <span className="break-words text-sm text-ink">
+                    {nomeNaTela(it.description).nome}, {money(it.amount)}, {formatDate(it.date)}
                   </span>
                   {it.nota && <span className="text-caption text-ink-muted">{it.nota}</span>}
                   <button
@@ -1198,14 +1162,14 @@ export function StatementImport({
                       <div className="min-w-0 rounded-xl bg-surface px-3 py-2">
                         <p className="text-caption text-ink-muted">No arquivo</p>
                         <p className="truncate text-[15px] font-bold tabular-nums text-ink">{money(it.amount)}</p>
-                        <p className="truncate text-caption text-ink-muted">{formatDate(it.date)}, {nomeNaTela(it.description).nome}</p>
+                        <p className="break-words text-caption text-ink-muted">{formatDate(it.date)}, {nomeNaTela(it.description).nome}</p>
                       </div>
                       <div className="min-w-0 rounded-xl bg-surface px-3 py-2">
                         <p className="text-caption text-ink-muted">{dup.importado ? "Já importado" : "Você lançou"}</p>
                         <p className="truncate text-[15px] font-bold tabular-nums text-ink">{money(dup.valor ?? it.amount)}</p>
-                        <p className="truncate text-caption text-ink-muted">
+                        <p className="break-words text-caption text-ink-muted">
                           {dup.data ? `${formatDate(dup.data)}, ` : ""}
-                          {dup.descricao}
+                          {dup.descricao ? nomeNaTela(dup.descricao).nome : ""}
                         </p>
                       </div>
                     </div>
@@ -1233,8 +1197,8 @@ export function StatementImport({
             <ul className="flex flex-col gap-1.5">
               {[...repeatGroups.entries()].map(([key, group]) => (
                 <li key={key} className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                  <span className="min-w-0 truncate text-sm text-ink">
-                    {group[0].description}, {money(group[0].amount)}, {group.length}× em {formatDate(group[0].date)}
+                  <span className="min-w-0 break-words text-sm text-ink">
+                    {nomeNaTela(group[0].description).nome}, {money(group[0].amount)}, {group.length}× em {formatDate(group[0].date)}
                   </span>
                   {group.length > 1 && (
                     <button
@@ -1284,7 +1248,7 @@ export function StatementImport({
                     </span>
                   )}
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium text-ink">{nomeNaTela(it.description).nome}</span>
+                    <span className="block break-words text-sm font-medium text-ink">{nomeNaTela(it.description).nome}</span>
                     <span className="block truncate text-caption text-ink-muted">
                       {formatDate(it.date)}, {it.estorno && `${t.impTipoDevolucao}, `}
                       <span className={gastoSemCategoria(it) && !it.duvida ? "font-medium text-accent-strong" : undefined}>{rotuloDaLinha(it)}</span>
@@ -1364,11 +1328,54 @@ export function StatementImport({
           </button>
         )}
 
+        {/* A soma lida contra o total da fatura (12/10/2026): sem caixa nem vermelho. Bateu, nada;
+            não bateu, um link pequeno no fim que abre os dois totais e as linhas. */}
+        {stats?.invoiceTotal && stats.conferencia.status !== "fechou" && Math.abs(totalGap) >= 1 ? (
+          <button type="button" onClick={() => setConferirAberto(true)} className="inline-flex min-h-11 items-center justify-center text-sm text-ink-muted underline underline-offset-4 hover:text-ink" data-conferir-total>
+            Conferir com o total da fatura
+          </button>
+        ) : lowCoverage ? (
+          <div className="flex justify-center">
+            <FalarComSuporte arquivo={fileName} problema="o app leu só parte do arquivo" rotulo="Faltou alguma? Me mande o arquivo" discreto />
+          </div>
+        ) : null}
+        <Modal open={conferirAberto} onClose={() => setConferirAberto(false)} title="Conferir com o total">
+          <div className="flex flex-col gap-4">
+            <div className="grid grid-cols-2 gap-2">
+              <div className="min-w-0 rounded-2xl bg-surface-2 px-3 py-3">
+                <p className="text-caption text-ink-muted">Total da fatura</p>
+                <FitText className="text-[1.25rem] font-semibold tabular-nums text-ink">{money(stats?.invoiceTotal ?? 0)}</FitText>
+              </div>
+              <div className="min-w-0 rounded-2xl bg-surface-2 px-3 py-3">
+                <p className="text-caption text-ink-muted">O que eu li</p>
+                <FitText className="text-[1.25rem] font-semibold tabular-nums text-ink">{money(expenseSum)}</FitText>
+              </div>
+            </div>
+            <ul className="flex flex-col divide-y divide-border rounded-2xl border border-border">
+              {importable
+                .filter((x) => x.category === "EXPENSE")
+                .map((x) => (
+                  <li key={x.key} className="flex items-baseline justify-between gap-3 px-3 py-2.5 text-sm">
+                    <span className="min-w-0 break-words text-ink">
+                      {nomeNaTela(x.description).nome}
+                      <span className="block text-caption text-ink-muted">{formatDate(x.date)}</span>
+                    </span>
+                    <span className="shrink-0 tabular-nums text-ink">{x.estorno ? "+ " : ""}{money(x.amount)}</span>
+                  </li>
+                ))}
+            </ul>
+            <div className="flex justify-center">
+              <FalarComSuporte arquivo={fileName} problema={`a soma ficou ${money(Math.abs(totalGap))} diferente do total`} rotulo="Faltou alguma? Me mande o arquivo" discreto />
+            </div>
+          </div>
+        </Modal>
+
         {/* O botão fica grudado no pé da gaveta: com a lista longa, ele sumia lá embaixo. A faixa
             depois dele cobre o respiro da gaveta, pra lista não aparecer por baixo. */}
         <div className="sticky bottom-0 z-10 flex flex-col gap-2 border-t border-border bg-surface pt-3 after:absolute after:inset-x-0 after:top-full after:h-6 after:bg-surface">
-          {duvidas.length + duvidasDinheiro.length > 0 && <p className="text-center text-caption text-ink-muted">Responda as dúvidas acima pra importar.</p>}
-          <Button type="button" className="min-h-11" onClick={handleImport} disabled={isPending || importable.length === 0 || duvidas.length + duvidasDinheiro.length > 0}>
+          {/* Nunca desligado (12/10/2026): o que ficar sem resposta entra como "A conferir". */}
+          {duvidas.length + duvidasDinheiro.length > 0 && <p className="text-center text-caption text-ink-muted">O que ficar sem resposta entra como “A conferir”.</p>}
+          <Button type="button" className="min-h-11" onClick={handleImport} disabled={isPending || importable.length === 0}>
             {isPending ? t.impImportando : t.impImportarN(importable.length)}
             <ArrowRight size={16} className="ml-1.5" />
           </Button>

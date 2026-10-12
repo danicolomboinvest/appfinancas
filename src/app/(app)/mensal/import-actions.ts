@@ -505,8 +505,8 @@ const DIA_MS = 86_400_000;
 
 /**
  * Extrato: separa o dinheiro dela indo pra ela mesma (ver lib/import/dinheiro-proprio). Aplicação
- * vira aporte sozinha; pagamento de fatura fica de fora pra quem importa a fatura; transferência
- * pra conta própria e resgate viram pergunta na revisão.
+ * vira aporte sozinha e o resgate entra sozinho como resgate; pagamento de fatura fica de fora pra
+ * quem importa a fatura; transferência pra conta própria vira pergunta na revisão.
  */
 async function separarDinheiroProprio(ctx: AuthContext, items: ReviewItem[]) {
   const [usuario, faturasRecentes] = await Promise.all([
@@ -526,7 +526,8 @@ async function separarDinheiroProprio(ctx: AuthContext, items: ReviewItem[]) {
         item.duvida = "conta_propria";
       }
     } else if (item.category === "INCOME") {
-      if (pareceResgate(item.description)) item.duvida = "resgate";
+      // Resgate (12/10/2026): entra sozinho como "só mudei de conta" (o guardado diminui), sem perguntar.
+      if (pareceResgate(item.description)) Object.assign(item, { category: "INVESTMENT_CONTRIBUTION", resgate: true, parentCategory: null, customCategoryId: null, subcategory: null, nota: "Resgate: desconta do que você guardou. Depois, na Carteira, diga de qual investimento saiu." });
       else if (pareceContaPropria(item.description, usuario?.name)) item.duvida = "conta_propria";
     }
   }

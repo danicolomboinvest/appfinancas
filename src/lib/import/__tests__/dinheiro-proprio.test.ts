@@ -22,4 +22,11 @@ describe("dinheiro indo pra ela mesma", () => {
     expect(pareceContaPropria("Transferência enviada pelo Pix - DANIELA SOUZA", "Daniela Colombo")).toBe(false);
     expect(pareceContaPropria("Padaria Colombo Daniela", "Daniela Colombo")).toBe(false);
   });
+  it("investimento no plural e as outras palavras do guardar (12/10/2026)", () => {
+    for (const d of ["Pix enviado - XP INVESTIMENTOS", "Transferência para investimentos", "Aplicações automáticas", "Aplicação CDB", "TED TESOURO DIRETO", "Depósito poupança", "Previdência privada mensal"]) {
+      expect(pareceAplicacao(d), d).toBe(true);
+    }
+    for (const d of ["Resgate CDB", "Resgate investimentos", "Resgate poupança"]) expect(pareceResgate(d), d).toBe(true);
+    expect(pareceAplicacao("Aplicação de cílios")).toBe(false);
+  });
 });
