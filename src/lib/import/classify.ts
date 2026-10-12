@@ -1,4 +1,6 @@
 import type { ParentCategory, ProfileKind } from "@prisma/client";
+import { chaveCobre, chaveDoComerciante, chaveUtil } from "./comerciante";
+import { DICIONARIO_EMPRESA, DICIONARIO_PESSOAL, type RegraDoDicionario } from "./dicionario";
 
 /**
  * Classificação automática de transações do extrato (item 3). Duas camadas:
@@ -16,123 +18,16 @@ import type { ParentCategory, ProfileKind } from "@prisma/client";
 /**
  * `customCategoryId`: a categoria que ELA criou ("Pet", "Beleza"). Só vem de regra aprendida, e
  * quando vem ela manda: o `parentCategory` fica como reserva (quem grava usa um ou outro, nunca
- * os dois). Hoje a regra gravada no banco ainda não guarda a personalizada — falta o campo em
- * TransactionCategoryRule —, então nenhuma regra chega com ele; o classificador já está pronto
- * pra quando chegar.
+ * os dois). Desde 12/10/2026 a regra gravada guarda a personalizada (TransactionCategoryRule.
+ * customCategoryId): antes ela escolhia "Dani Invest" pro ManyChat e o app esquecia, porque a
+ * regra só sabia guardar as oito categorias fixas.
  */
 export type Classification = { parentCategory: ParentCategory; subcategory?: string; customCategoryId?: string };
 export type LearnedRule = { pattern: string; parentCategory: ParentCategory; subcategory?: string; customCategoryId?: string };
 
-/** `revisar`: a palavra é ambígua demais nesse perfil; para aqui e manda pra revisão. */
-type BuiltinRule = { keywords: string[]; parentCategory: ParentCategory; subcategory?: string } | { keywords: string[]; revisar: true };
-
-// Palavras que as duas listas usam do mesmo jeito (conta de casa e conta da empresa são as mesmas).
-const KW_IMPOSTO = ["imposto", "tributo", "darf", "iptu", "ipva", "dae", "receita federal", "irpf"];
-const KW_APLICATIVO = ["uber", "ubertrip", "uberrides", "99app", "99pop", "99 taxi", "99 tecnologia", "cabify", "taxi", "táxi"];
-const KW_COMBUSTIVEL = ["posto", "shell", "ipiranga", "petrobras", "combustivel", "combustível", "gasolina", "etanol"];
-const KW_ESTACIONAMENTO = ["estacionamento", "estapar", "zona azul"];
-const KW_ALUGUEL = ["aluguel", "imobiliaria", "imobiliária"];
-const KW_CONDOMINIO = ["condominio", "condomínio"];
-// "energia" sozinha não: "BEBIDA ENERGIA", "ENERGIA FITNESS" e loja de energia solar viravam conta
-// de luz sem passar pela revisão. No lugar, o nome das distribuidoras e o "conta de luz" do boleto.
-const KW_LUZ = [
-  "enel", "cpfl", "light", "eletropaulo", "cemig", "copel", "energisa", "neoenergia", "equatorial", "coelba", "celpe",
-  "cosern", "celesc", "edp", "conta de luz", "energia eletrica", "energia elétrica",
-];
-const KW_AGUA = ["sabesp", "sanepar", "copasa", "aegea", "conta de agua", "conta de água"];
-// "oi", "tim" e "net" só como palavra solta: como pedaço, "BOI GORDO" virava conta de internet.
-const KW_TELEFONIA = ["vivo", "claro", "tim", "oi", "net", "internet", "telefonia"];
-const KW_DELIVERY = ["ifood", "rappi", "uber eats", "ubereats", "delivery"];
-
-const BUILTIN_RULES: BuiltinRule[] = [
-  // Impostos primeiro: "PAGAMENTO IMPOSTO DE RENDA" não pode ser pego por nenhuma regra de consumo.
-  // Cada imposto na sua subcategoria (a lista de Impostos tem IPVA, IPTU, DARF separados): antes
-  // tudo virava "Imposto de renda" e o IPVA do carro aparecia como imposto de renda no mês.
-  { keywords: ["ipva"], parentCategory: "IMPOSTOS", subcategory: "IPVA" },
-  { keywords: ["iptu"], parentCategory: "IMPOSTOS", subcategory: "IPTU" },
-  { keywords: ["imposto de renda", "irpf", "receita federal"], parentCategory: "IMPOSTOS", subcategory: "Imposto de renda" },
-  { keywords: ["darf"], parentCategory: "IMPOSTOS", subcategory: "DARF" },
-  // "IMPOSTO", "TRIBUTO", "DAE" soltos: é imposto, mas qual só ela sabe. Fica sem subcategoria.
-  // DAS do MEI: 5 clientes escolheram Impostos pra "Simples Nacional" (out/2026).
-  { keywords: ["simples nacional"], parentCategory: "IMPOSTOS", subcategory: "Taxas públicas" },
-  { keywords: KW_IMPOSTO, parentCategory: "IMPOSTOS" },
-  // Alimentação
-  { keywords: KW_DELIVERY, parentCategory: "ALIMENTACAO", subcategory: "Delivery" },
-  // "lanche" aqui, antes do Lazer: "SHOW DE BOLA LANCHES" é lanchonete, não Cinema/Shows.
-  { keywords: ["restaurante", "lanchonete", "lanche", "bar", "pizzaria", "pizza", "almoco", "almoço", "hamburgueria", "mcdonald", "mc donald", "burger king", "bk", "subway", "outback", "cafe", "café", "cafeteria", "padaria", "confeitaria"], parentCategory: "ALIMENTACAO", subcategory: "Restaurante" },
-  // "mercado" sozinho; Mercado Pago e Mercado Livre viram uma palavra só antes (ver textoParaRegras).
-  { keywords: ["supermercado", "mercado", "atacadao", "atacadão", "carrefour", "pao de acucar", "pão de açúcar", "assai", "assaí", "hortifruti", "sacolao"], parentCategory: "ALIMENTACAO", subcategory: "Supermercado" },
-  // Transporte
-  { keywords: KW_APLICATIVO, parentCategory: "TRANSPORTE", subcategory: "Aplicativo" },
-  { keywords: KW_COMBUSTIVEL, parentCategory: "TRANSPORTE", subcategory: "Combustível" },
-  { keywords: KW_ESTACIONAMENTO, parentCategory: "TRANSPORTE", subcategory: "Estacionamento" },
-  // Tag de pedágio: 4 clientes escolheram Transporte pra "Sem Parar" (out/2026).
-  { keywords: ["sem parar", "semparar", "conectcar", "veloe", "pedagio", "pedágio"], parentCategory: "TRANSPORTE", subcategory: "Pedágio" },
-  { keywords: ["metro", "metrô", "cptm", "bilhete unico", "bilhete único", "sptrans", "onibus", "ônibus", "brt"], parentCategory: "TRANSPORTE", subcategory: "Transporte público" },
-  // Saúde. "raia" e "pacheco" sozinhos pegavam PRAIA e qualquer JOAO PACHECO de Pix.
-  { keywords: ["farmacia", "farmácia", "drogaria", "drogasil", "droga raia", "drogaraia", "raiadrogasil", "drogariasaopaulo", "drogasaopaulo", "pague menos", "paguemenos"], parentCategory: "SAUDE", subcategory: "Farmácia" },
-  { keywords: ["unimed", "amil", "bradesco saude", "sulamerica saude", "plano de saude", "hapvida"], parentCategory: "SAUDE", subcategory: "Plano de saúde" },
-  { keywords: ["hospital", "clinica", "clínica", "laboratorio", "laboratório", "consultorio", "consultório", "dentista", "exame"], parentCategory: "SAUDE", subcategory: "Consultas" },
-  // Psicóloga e terapia: clientes escolhiam Saúde à mão toda vez (out/2026).
-  { keywords: ["psicologa", "psicóloga", "psicologo", "psicólogo", "psicologia", "terapia", "terapeuta"], parentCategory: "SAUDE", subcategory: "Terapia" },
-  { keywords: ["academia", "smartfit", "smart fit", "gympass", "wellhub"], parentCategory: "SAUDE", subcategory: "Academia" },
-  // Lazer
-  { keywords: ["netflix", "spotify", "disney", "disneyplus", "hbo", "hbomax", "max com", "amazon prime", "amazonprime", "prime video", "primevideo", "youtube premium", "youtubepremium", "deezer", "globoplay", "paramount", "apple tv"], parentCategory: "LAZER", subcategory: "Streaming" },
-  { keywords: ["cinema", "cinemark", "ingresso", "teatro", "show", "sympla", "ticket"], parentCategory: "LAZER", subcategory: "Cinema/Shows" },
-  // "azul" e "gol" sozinhos não: são sobrenome e palavra comum, e o Pix pra "ANA AZUL" virava
-  // Viagens sem passar pela revisão. Só o nome da companhia como aparece na fatura.
-  { keywords: ["hotel", "airbnb", "booking", "hospedagem", "passagem", "latam", "gol linhas", "gol transportes", "voegol", "azul linhas", "azul viagens", "voeazul", "cvc"], parentCategory: "LAZER", subcategory: "Viagens" },
-  // Moradia
-  { keywords: KW_ALUGUEL, parentCategory: "MORADIA", subcategory: "Aluguel" },
-  { keywords: KW_CONDOMINIO, parentCategory: "MORADIA", subcategory: "Condomínio" },
-  { keywords: KW_LUZ, parentCategory: "MORADIA", subcategory: "Luz" },
-  { keywords: KW_AGUA, parentCategory: "MORADIA", subcategory: "Água" },
-  { keywords: KW_TELEFONIA, parentCategory: "MORADIA", subcategory: "Internet" },
-  // Educação
-  { keywords: ["escola", "faculdade", "universidade", "curso", "udemy", "alura", "mensalidade", "colegio", "colégio"], parentCategory: "EDUCACAO", subcategory: "Mensalidade" },
-  // Hubla é a plataforma onde se vende curso online (inclusive o da Dani): 13 clientes tinham
-  // "HUBLA*DANICOLOMBO" na fatura e escolheram Educação em 76 de 89 vezes (out/2026).
-  { keywords: ["hubla", "hotmart", "kiwify", "eduzz"], parentCategory: "EDUCACAO", subcategory: "Cursos" },
-  // "amazon" sozinho não: é marketplace de tudo (eletrônico, casa, mercado). Vai pra revisão.
-  { keywords: ["livraria", "kindle", "livro"], parentCategory: "EDUCACAO", subcategory: "Livros/Material" },
-  // Outros: tarifa de banco, seguro, juros — o que sobra
-  { keywords: ["tarifa", "anuidade", "iof", "juros", "seguro", "emprestimo", "empréstimo"], parentCategory: "OUTROS", subcategory: "Tarifas bancárias" },
-  // Extrato do Nubank: "Aplicação RDB" é dinheiro indo pra caixinha/investimento, não gasto do dia a dia.
-  { keywords: ["aplicação rdb", "aplicacao rdb", "aplicação cdb", "aplicacao cdb", "tesouro direto", "aplicação em"], parentCategory: "OUTROS", subcategory: "Investimento" },
-];
-
-/**
- * Perfil Empresa: as mesmas oito chaves significam outra coisa (ALIMENTACAO é "Mercadorias e
- * insumos", SAUDE é "Equipe e pró-labore", LAZER é "Serviços e terceiros", EDUCACAO é
- * "Marketing e vendas" — ver profiles/empresa.ts). Com as regras da pessoa física, o almoço no
- * iFood virava custo de mercadoria e a farmácia virava folha de pagamento, e a DRE, a margem e
- * o ponto de equilíbrio saíam errados sem passar pela revisão. Aqui só fica o que quer dizer a
- * mesma coisa nos dois mundos; o resto vai pra revisão. As subcategorias são as de
- * CATEGORIAS_EMPRESA (o teste confere), senão aparece um "Delivery" que não existe na lista.
- */
-const EMPRESA_RULES: BuiltinRule[] = [
-  { keywords: ["das simples", "das mei", "pgdas", "simples nacional"], parentCategory: "IMPOSTOS", subcategory: "DAS (Simples Nacional)" },
-  { keywords: ["iss", "issqn"], parentCategory: "IMPOSTOS", subcategory: "ISS" },
-  { keywords: ["icms"], parentCategory: "IMPOSTOS", subcategory: "ICMS" },
-  { keywords: ["alvara", "alvará"], parentCategory: "IMPOSTOS", subcategory: "Alvará e licenças" },
-  { keywords: [...KW_IMPOSTO, "irpj", "csll", "cofins"], parentCategory: "IMPOSTOS" },
-  // Na empresa, tarifa de banco mora em Impostos e taxas (é assim no plano de contas dela).
-  { keywords: ["tarifa", "anuidade", "iof"], parentCategory: "IMPOSTOS", subcategory: "Taxas bancárias" },
-  { keywords: ["juros", "multa"], parentCategory: "IMPOSTOS", subcategory: "Multas e juros" },
-  { keywords: ["seguro"], parentCategory: "OUTROS", subcategory: "Seguros" },
-  { keywords: ["emprestimo", "empréstimo"], parentCategory: "OUTROS", subcategory: "Empréstimos" },
-  { keywords: KW_ALUGUEL, parentCategory: "MORADIA", subcategory: "Aluguel" },
-  { keywords: KW_CONDOMINIO, parentCategory: "MORADIA", subcategory: "Condomínio" },
-  { keywords: KW_LUZ, parentCategory: "MORADIA", subcategory: "Luz" },
-  { keywords: KW_AGUA, parentCategory: "MORADIA", subcategory: "Água" },
-  { keywords: KW_TELEFONIA, parentCategory: "MORADIA", subcategory: "Internet/Telefone" },
-  // Delivery antes do Uber: "UBER EATS" é comida (almoço ou insumo, só ela sabe), não frete.
-  { keywords: KW_DELIVERY, revisar: true },
-  { keywords: KW_APLICATIVO, parentCategory: "TRANSPORTE", subcategory: "Motoboy/Aplicativo" },
-  { keywords: KW_COMBUSTIVEL, parentCategory: "TRANSPORTE", subcategory: "Combustível" },
-  { keywords: KW_ESTACIONAMENTO, parentCategory: "TRANSPORTE", subcategory: "Estacionamento" },
-  { keywords: ["correios", "sedex"], parentCategory: "TRANSPORTE", subcategory: "Correios" },
-];
+type BuiltinRule = RegraDoDicionario;
+const BUILTIN_RULES: BuiltinRule[] = DICIONARIO_PESSOAL;
+const EMPRESA_RULES: BuiltinRule[] = DICIONARIO_EMPRESA;
 
 /** Minúsculo, sem acento, letra e número separados, só letras/números/espaço simples. */
 function paraPalavras(texto: string): string {
@@ -243,8 +138,9 @@ export function padroesDaCorrecao(linhas: LinhaCorrigida[], nova: ParentCategory
   for (const l of linhas) {
     if (!l.importada || l.category !== "EXPENSE" || !l.description) continue;
     if (l.parentCategory === nova && !l.customCategoryId) continue;
-    const padrao = normalizeMerchant(l.description);
-    if (padrao && padraoAprendivel(padrao)) padroes.add(padrao);
+    // A chave do comerciante (ver comerciante.ts): vale para o mesmo lugar em qualquer extrato.
+    const padrao = chaveDoComerciante(l.description);
+    if (chaveUtil(padrao)) padroes.add(padrao);
     if (padroes.size >= MAX_PADROES_POR_CORRECAO) break;
   }
   return [...padroes];
@@ -258,12 +154,18 @@ export function padroesDaCorrecao(linhas: LinhaCorrigida[], nova: ParentCategory
  * importação. Empate de tamanho fica com a primeira da lista (o repositório manda a mais
  * recente primeiro, ou seja, a última correção dela).
  */
-function matchLearned(normalized: string, userRules: LearnedRule[]): Classification | null {
+function matchLearned(normalized: string, userRules: LearnedRule[], chave = ""): Classification | null {
   // Palavra inteira: a regra "maria" não pega "MARIANA", "bar" não pega "BARBEARIA".
+  // Duas formas de regra convivem: a nova, gravada pela chave do comerciante ("manychat"), que
+  // vale quando é o começo da chave da linha; e a antiga (normalizeMerchant, a descrição quase
+  // inteira), que vale quando aparece dentro da descrição normalizada.
   const texto = ` ${normalized} `;
   let melhor: LearnedRule | null = null;
   for (const rule of userRules) {
-    if (!rule.pattern || !padraoAprendivel(rule.pattern) || !texto.includes(` ${rule.pattern} `)) continue;
+    if (!rule.pattern) continue;
+    const pelaChave = chaveUtil(rule.pattern) && chaveCobre(rule.pattern, chave);
+    const peloTexto = padraoAprendivel(rule.pattern) && texto.includes(` ${rule.pattern} `);
+    if (!pelaChave && !peloTexto) continue;
     if (!melhor || rule.pattern.length > melhor.pattern.length) melhor = rule;
   }
   if (!melhor) return null;
@@ -289,7 +191,12 @@ function matchBuiltin(description: string, empresa: boolean): Classification | n
  * embutido do app (ver categoria-do-banco.ts).
  */
 export function classifyLearnedOnly(description: string, userRules: LearnedRule[] = []): Classification | null {
-  return matchLearned(normalizeMerchant(description), userRules);
+  return matchLearned(normalizeMerchant(description), userRules, chaveDoComerciante(description));
+}
+
+/** Só o dicionário do app (sem regra dela nem da comunidade). `null` = o dicionário não sabe. */
+export function classifyDictionaryOnly(description: string, profileKind?: ProfileKind | string | null): Classification | null {
+  return matchBuiltin(description, profileKind === "EMPRESA");
 }
 
 /**
@@ -301,6 +208,5 @@ export function classify(
   userRules: LearnedRule[] = [],
   profileKind?: ProfileKind | string | null,
 ): Classification | null {
-  const normalized = normalizeMerchant(description);
-  return matchLearned(normalized, userRules) ?? matchBuiltin(description, profileKind === "EMPRESA");
+  return classifyLearnedOnly(description, userRules) ?? matchBuiltin(description, profileKind === "EMPRESA");
 }

@@ -11,7 +11,7 @@ export default function PrivacidadePage() {
     <main className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col gap-6 px-6 py-12">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-ink">Política de Privacidade</h1>
-        <p className="mt-1 text-sm text-ink-muted">Última atualização: 11 de outubro de 2026</p>
+        <p className="mt-1 text-sm text-ink-muted">Última atualização: 12 de outubro de 2026</p>
       </div>
 
       <section className="flex flex-col gap-4 text-sm leading-relaxed text-ink-muted">
@@ -37,8 +37,10 @@ export default function PrivacidadePage() {
           para publicidade.
         </p>
         <p>
-          Quando você muda a categoria de uma loja, essa escolha (só o nome da loja e a categoria, sem valor, sem data
-          e sem nada que identifique você) ajuda o app a sugerir a categoria certa para outras pessoas.
+          Usamos nomes de lojas, sem identificar ninguém, para o app separar seus gastos sozinho. Quando várias
+          pessoas colocam a mesma loja na mesma categoria, guardamos só o nome da loja, a categoria e quantas pessoas
+          concordaram. Uma loja só entra depois que pelo menos 3 pessoas diferentes a usaram, e nunca entram valor,
+          data, e-mail, quem você é, nem Pix ou transferência para pessoas.
         </p>
 
         <h2 className="mt-2 text-base font-semibold text-ink">3. Quem, além de você, pode ver seus dados</h2>

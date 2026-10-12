@@ -406,17 +406,21 @@ model PasswordResetToken {
 /// uma transação na fila de revisão, guardamos merchant → categoria para classificar sozinho
 /// as próximas transações parecidas. `pattern` é a chave normalizada (ver normalizeMerchant).
 model TransactionCategoryRule {
-  id             String            @id @default(cuid())
-  userId         String
-  user           User              @relation(fields: [userId], references: [id])
+  id               String            @id @default(cuid())
+  userId           String
+  user             User              @relation(fields: [userId], references: [id])
   /// Perfil financeiro dono deste registro. Nulo só no histórico anterior aos perfis.
-  profileId      String?
-  profile        FinancialProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  pattern        String
-  parentCategory ParentCategory
-  subcategory    String?
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
+  profileId        String?
+  profile          FinancialProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  pattern          String
+  parentCategory   ParentCategory
+  subcategory      String?
+  /// A categoria que ELA criou ("Dani Invest"), quando foi essa a escolha. Manda sobre a
+  /// parentCategory (que fica como reserva, OUTROS). Apagar a categoria apaga a regra.
+  customCategoryId String?
+  customCategory   CustomCategory?   @relation(fields: [customCategoryId], references: [id], onDelete: Cascade)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
 
   @@unique([userId, profileId, pattern])
   @@index([userId])
@@ -456,17 +460,18 @@ model ReferenceRate {
 /// categoria: ou uma ParentCategory fixa, ou uma CustomCategory — nunca as duas (invariante
 /// de aplicação, no mesmo espírito pragmático da subcategoria "Outro", que também não é enum).
 model CustomCategory {
-  id             String            @id @default(cuid())
+  id             String                    @id @default(cuid())
   userId         String
-  user           User              @relation(fields: [userId], references: [id])
+  user           User                      @relation(fields: [userId], references: [id])
   /// Perfil financeiro dono deste registro. Nulo só no histórico anterior aos perfis.
   profileId      String?
-  profile        FinancialProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  profile        FinancialProfile?         @relation(fields: [profileId], references: [id], onDelete: Cascade)
   name           String
   icon           String
-  createdAt      DateTime          @default(now())
+  createdAt      DateTime                  @default(now())
   monthlyEntries MonthlyEntry[]
   budgets        Budget[]
+  regras         TransactionCategoryRule[]
 
   @@unique([userId, profileId, name])
 }

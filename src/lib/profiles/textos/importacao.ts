@@ -229,6 +229,12 @@ export type TextosImportacao = {
   impNaoSeiAgoraDica: string;
   /** Aviso depois do toque que resolveu também os iguais (5 Pix para a mesma pessoa = 1 toque). */
   impAplicadoAosIguais(n: number): string;
+  /** Pergunta agrupada (12/10/2026): "ManyChat aparece 3 vezes. É o quê?" (uma resposta vale pro grupo). */
+  impApareceVezes(nome: string, vezes: number): string;
+  /** Conferência: quantos gastos o app já separou sozinho, com o botão de revisar. */
+  impJaSeparei(n: number): string;
+  impRevisarSeparados: string;
+  impFecharRevisao: string;
   /** Na fila "Revisar 1 de N": sai da fila e vai pra conferência; o que falta entra sem categoria.
    * (out/2026: a cliente típica tinha 23 cartões pela frente antes de ver o botão de importar.) */
   impImportarJa(restantes: number): string;
@@ -253,6 +259,18 @@ export type TextosImportacao = {
   impFaturaVenceDica(mes: string): string;
   impFaturaVencimentoLido(data: string): string;
   impFaturaUsarMes(mes: string): string;
+  // Fatura sem pergunta (out/2026): o app lê fechamento, vencimento e a data de cada compra
+  /** A frase de confirmação no lugar da pergunta do mês: "Fatura Nubank · fechou 05/09 · 42
+   * compras de agosto e setembro, separadas por mês". `fechou`/`vence` já vêm como "05/09". */
+  impFaturaResumo(banco: string | null, fechou: string | null, vence: string | null, compras: number, meses: string, variosMeses: boolean): string;
+  /** O link discreto ao lado da frase. */
+  impFaturaMudar: string;
+  impFaturaPorCompra: string;
+  impFaturaTudoNoMes: string;
+  /** Com "tudo num mês" escolhido, no lugar da frase. */
+  impFaturaTudoNoMesDica(mes: string): string;
+  /** Antes do arquivo, quando ela marcou que é fatura. */
+  impFaturaAntesDoArquivo: string;
   /** Embaixo do campo de senha do PDF: é a senha do arquivo, não a do banco. */
   impSenhaConfianca: string;
   // "Isso é gasto ou dinheiro seu mudando de lugar?" (antes escrito direto no componente)
@@ -517,6 +535,10 @@ export const PADRAO_IMPORTACAO: TextosImportacao = {
   impNaoSeiAgora: "Não sei agora",
   impNaoSeiAgoraDica: "Escolha uma vez e da próxima eu já sei. Na dúvida, toque em “Não sei agora”.",
   impAplicadoAosIguais: (n) => `Pus a mesma categoria em mais ${n === 1 ? "1 lançamento igual" : `${n} lançamentos iguais`}.`,
+  impApareceVezes: (nome, vezes) => `${nome} aparece ${vezes} vezes. É o quê?`,
+  impJaSeparei: (n) => (n === 1 ? "Eu já separei 1 gasto." : `Eu já separei ${n} gastos.`),
+  impRevisarSeparados: "Revisar",
+  impFecharRevisao: "Fechar",
   impImportarJa: (n) => `Importar agora e escolher ${n === 1 ? "a categoria" : `as ${n} categorias`} depois`,
   impProprioTodasMudei: (n) => `Todas as ${n}: só mudei de conta`,
   impSemCategoriaEntraTitulo: (n) => `${n} gasto${s(n)} ${n === 1 ? "vai" : "vão"} entrar sem categoria`,
@@ -536,6 +558,21 @@ export const PADRAO_IMPORTACAO: TextosImportacao = {
     `Olhe a data de vencimento. Todas as compras desta fatura entram em ${mes}, mesmo as que aconteceram no mês anterior.`,
   impFaturaVencimentoLido: (data) => `Achei no arquivo: vence em ${data}.`,
   impFaturaUsarMes: (mes) => `Usar ${mes}`,
+  impFaturaResumo: (banco, fechou, vence, compras, meses, variosMeses) =>
+    [
+      banco ? `Fatura ${banco}` : "Fatura do cartão",
+      fechou ? `fechou ${fechou}` : vence ? `vence ${vence}` : null,
+      compras > 0 && meses
+        ? `${compras} compra${compras === 1 ? "" : "s"} de ${meses}${variosMeses ? ", separadas por mês" : ""}`
+        : "cada compra no mês em que foi feita",
+    ]
+      .filter(Boolean)
+      .join(" · "),
+  impFaturaMudar: "Mudar",
+  impFaturaPorCompra: "Cada compra no mês dela",
+  impFaturaTudoNoMes: "Tudo em um mês só",
+  impFaturaTudoNoMesDica: (mes) => `Tudo dessa fatura entra em ${mes}, sem o dia de cada compra.`,
+  impFaturaAntesDoArquivo: "Eu leio as datas do arquivo e separo cada compra no mês em que foi feita.",
   impSenhaConfianca: "É a senha do arquivo, não a do seu banco. A gente não guarda a senha e não entra na sua conta.",
   impProprioTitulo: "Isso é gasto ou dinheiro seu mudando de lugar?",
   impProprioDica: "Transferência para você mesma e dinheiro voltando do que você guardou não são gasto nem renda.",

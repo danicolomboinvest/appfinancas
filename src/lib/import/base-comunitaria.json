@@ -1,0 +1,2190 @@
+{
+ "geradaEm": "2026-10-12",
+ "pessoal": [
+  {
+   "comerciante": "99",
+   "categoria": "TRANSPORTE",
+   "confianca": 0.85,
+   "pessoas": 39
+  },
+  {
+   "comerciante": "99 l2l 99 ride",
+   "categoria": "TRANSPORTE",
+   "confianca": 1,
+   "pessoas": 6
+  },
+  {
+   "comerciante": "99 ride",
+   "categoria": "TRANSPORTE",
+   "confianca": 0.96,
+   "pessoas": 27
+  },
+  {
+   "comerciante": "99app",
+   "categoria": "TRANSPORTE",
+   "confianca": 0.94,
+   "pessoas": 17
+  },
+  {
+   "comerciante": "99food",
+   "categoria": "ALIMENTACAO",
+   "confianca": 0.95,
+   "pessoas": 19
+  },
+  {
+   "comerciante": "academia",
+   "categoria": "SAUDE",
+   "confianca": 1,
+   "pessoas": 10
+  },
+  {
+   "comerciante": "acai",
+   "categoria": "ALIMENTACAO",
+   "confianca": 1,
+   "pessoas": 6
+  },
+  {
+   "comerciante": "adega",
+   "categoria": "ALIMENTACAO",
+   "confianca": 0.67,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "adiant depositante",
+   "categoria": "IMPOSTOS",
+   "confianca": 0.75,
+   "pessoas": 4
+  },
+  {
+   "comerciante": "agua",
+   "categoria": "ALIMENTACAO",
+   "confianca": 0.53,
+   "pessoas": 15
+  },
+  {
+   "comerciante": "alimentacao",
+   "categoria": "ALIMENTACAO",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "allianz segu",
+   "categoria": "TRANSPORTE",
+   "confianca": 1,
+   "pessoas": 4
+  },
+  {
+   "comerciante": "allianz segu 06",
+   "categoria": "TRANSPORTE",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "allpark empreendimento",
+   "categoria": "TRANSPORTE",
+   "confianca": 1,
+   "pessoas": 7
+  },
+  {
+   "comerciante": "almoco",
+   "categoria": "ALIMENTACAO",
+   "confianca": 1,
+   "pessoas": 14
+  },
+  {
+   "comerciante": "almoco trabalho",
+   "categoria": "ALIMENTACAO",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "aluguel",
+   "categoria": "MORADIA",
+   "confianca": 1,
+   "pessoas": 28
+  },
+  {
+   "comerciante": "aluguel condominio",
+   "categoria": "MORADIA",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "amazon",
+   "categoria": "LAZER",
+   "confianca": 0.34,
+   "pessoas": 32
+  },
+  {
+   "comerciante": "amazon ad free for",
+   "categoria": "LAZER",
+   "confianca": 0.75,
+   "pessoas": 4
+  },
+  {
+   "comerciante": "amazon br amazon",
+   "categoria": "OUTROS",
+   "confianca": 0.33,
+   "pessoas": 12
+  },
+  {
+   "comerciante": "amazon br iii",
+   "categoria": "LAZER",
+   "confianca": 0.33,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "amazon br vi",
+   "categoria": "OUTROS",
+   "confianca": 0.75,
+   "pessoas": 4
+  },
+  {
+   "comerciante": "amazon digital",
+   "categoria": "EDUCACAO",
+   "confianca": 0.5,
+   "pessoas": 6
+  },
+  {
+   "comerciante": "amazon kindle unltd",
+   "categoria": "EDUCACAO",
+   "confianca": 1,
+   "pessoas": 8
+  },
+  {
+   "comerciante": "amazon kindle unltdsao",
+   "categoria": "EDUCACAO",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "amazon marketplace",
+   "categoria": "MORADIA",
+   "confianca": 0.24,
+   "pessoas": 17
+  },
+  {
+   "comerciante": "amazon prime",
+   "categoria": "LAZER",
+   "confianca": 0.93,
+   "pessoas": 15
+  },
+  {
+   "comerciante": "amazon prime aluguel",
+   "categoria": "LAZER",
+   "confianca": 1,
+   "pessoas": 6
+  },
+  {
+   "comerciante": "amazon prime canais",
+   "categoria": "LAZER",
+   "confianca": 1,
+   "pessoas": 9
+  },
+  {
+   "comerciante": "amazonprimebr",
+   "categoria": "LAZER",
+   "confianca": 0.91,
+   "pessoas": 23
+  },
+  {
+   "comerciante": "americanas",
+   "categoria": "ALIMENTACAO",
+   "confianca": 0.83,
+   "pessoas": 6
+  },
+  {
+   "comerciante": "anota ai",
+   "categoria": "ALIMENTACAO",
+   "confianca": 0.75,
+   "pessoas": 4
+  },
+  {
+   "comerciante": "anthropic claude",
+   "categoria": "EDUCACAO",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "anuidade diferenc",
+   "categoria": "OUTROS",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "anuidade diferenciada",
+   "categoria": "OUTROS",
+   "confianca": 0.94,
+   "pessoas": 16
+  },
+  {
+   "comerciante": "anuidade diferenciada tit",
+   "categoria": "OUTROS",
+   "confianca": 1,
+   "pessoas": 9
+  },
+  {
+   "comerciante": "aplicacao rdb",
+   "categoria": "OUTROS",
+   "confianca": 0.88,
+   "pessoas": 8
+  },
+  {
+   "comerciante": "app",
+   "categoria": "OUTROS",
+   "confianca": 0.33,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "apple",
+   "categoria": "LAZER",
+   "confianca": 0.5,
+   "pessoas": 4
+  },
+  {
+   "comerciante": "apple bill",
+   "categoria": "OUTROS",
+   "confianca": 0.57,
+   "pessoas": 58
+  },
+  {
+   "comerciante": "applecombill",
+   "categoria": "LAZER",
+   "confianca": 0.5,
+   "pessoas": 4
+  },
+  {
+   "comerciante": "araujo loja",
+   "categoria": "SAUDE",
+   "confianca": 0.83,
+   "pessoas": 6
+  },
+  {
+   "comerciante": "arcos dourados",
+   "categoria": "ALIMENTACAO",
+   "confianca": 0.75,
+   "pessoas": 4
+  },
+  {
+   "comerciante": "arcos dourados comercio alimentos",
+   "categoria": "ALIMENTACAO",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "assai",
+   "categoria": "ALIMENTACAO",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "assb comercio varejist",
+   "categoria": "ALIMENTACAO",
+   "confianca": 0.67,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "atraso",
+   "categoria": "OUTROS",
+   "confianca": 1,
+   "pessoas": 6
+  },
+  {
+   "comerciante": "autop",
+   "categoria": "TRANSPORTE",
+   "confianca": 0.67,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "autopass atm tmob",
+   "categoria": "TRANSPORTE",
+   "confianca": 1,
+   "pessoas": 5
+  },
+  {
+   "comerciante": "autoposto",
+   "categoria": "TRANSPORTE",
+   "confianca": 0.75,
+   "pessoas": 4
+  },
+  {
+   "comerciante": "bacio",
+   "categoria": "ALIMENTACAO",
+   "confianca": 0.67,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "baciodilatte",
+   "categoria": "ALIMENTACAO",
+   "confianca": 1,
+   "pessoas": 5
+  },
+  {
+   "comerciante": "bahamas",
+   "categoria": "ALIMENTACAO",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "bancario",
+   "categoria": "OUTROS",
+   "confianca": 1,
+   "pessoas": 6
+  },
+  {
+   "comerciante": "banco xp",
+   "categoria": "OUTROS",
+   "confianca": 1,
+   "pessoas": 4
+  },
+  {
+   "comerciante": "bebida",
+   "categoria": "ALIMENTACAO",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "boleto simples nacional",
+   "categoria": "IMPOSTOS",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "burger king",
+   "categoria": "ALIMENTACAO",
+   "confianca": 1,
+   "pessoas": 12
+  },
+  {
+   "comerciante": "cacau show",
+   "categoria": "LAZER",
+   "confianca": 0.79,
+   "pessoas": 14
+  },
+  {
+   "comerciante": "cafe manha",
+   "categoria": "ALIMENTACAO",
+   "confianca": 1,
+   "pessoas": 8
+  },
+  {
+   "comerciante": "canti",
+   "categoria": "ALIMENTACAO",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "canva",
+   "categoria": "EDUCACAO",
+   "confianca": 0.38,
+   "pessoas": 8
+  },
+  {
+   "comerciante": "carrefour",
+   "categoria": "ALIMENTACAO",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "carro",
+   "categoria": "TRANSPORTE",
+   "confianca": 1,
+   "pessoas": 7
+  },
+  {
+   "comerciante": "celular",
+   "categoria": "OUTROS",
+   "confianca": 0.57,
+   "pessoas": 7
+  },
+  {
+   "comerciante": "centauro",
+   "categoria": "LAZER",
+   "confianca": 0.67,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "cerveja",
+   "categoria": "LAZER",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "cinema",
+   "categoria": "LAZER",
+   "confianca": 1,
+   "pessoas": 8
+  },
+  {
+   "comerciante": "cinemark",
+   "categoria": "LAZER",
+   "confianca": 1,
+   "pessoas": 4
+  },
+  {
+   "comerciante": "cinemark brasil ec",
+   "categoria": "LAZER",
+   "confianca": 1,
+   "pessoas": 6
+  },
+  {
+   "comerciante": "claro",
+   "categoria": "MORADIA",
+   "confianca": 0.89,
+   "pessoas": 18
+  },
+  {
+   "comerciante": "claro bl it",
+   "categoria": "MORADIA",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "claro flex",
+   "categoria": "MORADIA",
+   "confianca": 0.83,
+   "pessoas": 6
+  },
+  {
+   "comerciante": "cobranca iof saldo devedor",
+   "categoria": "OUTROS",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "combustivel",
+   "categoria": "TRANSPORTE",
+   "confianca": 1,
+   "pessoas": 5
+  },
+  {
+   "comerciante": "comercio",
+   "categoria": "ALIMENTACAO",
+   "confianca": 0.67,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "comida",
+   "categoria": "ALIMENTACAO",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "compr car tao eb",
+   "categoria": "ALIMENTACAO",
+   "confianca": 1,
+   "pessoas": 6
+  },
+  {
+   "comerciante": "concedido",
+   "categoria": "OUTROS",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "condominio",
+   "categoria": "MORADIA",
+   "confianca": 1,
+   "pessoas": 19
+  },
+  {
+   "comerciante": "consorcio",
+   "categoria": "TRANSPORTE",
+   "confianca": 0.33,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "constance",
+   "categoria": "OUTROS",
+   "confianca": 0.67,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "contador",
+   "categoria": "IMPOSTOS",
+   "confianca": 0.8,
+   "pessoas": 5
+  },
+  {
+   "comerciante": "costureira",
+   "categoria": "OUTROS",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "cp food",
+   "categoria": "ALIMENTACAO",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "cp marketplace",
+   "categoria": "OUTROS",
+   "confianca": 0.8,
+   "pessoas": 5
+  },
+  {
+   "comerciante": "cp shpp brasil instituicao",
+   "categoria": "OUTROS",
+   "confianca": 0.75,
+   "pessoas": 4
+  },
+  {
+   "comerciante": "credito",
+   "categoria": "OUTROS",
+   "confianca": 0.63,
+   "pessoas": 8
+  },
+  {
+   "comerciante": "curso",
+   "categoria": "EDUCACAO",
+   "confianca": 1,
+   "pessoas": 4
+  },
+  {
+   "comerciante": "custo trans exterior iof",
+   "categoria": "OUTROS",
+   "confianca": 1,
+   "pessoas": 6
+  },
+  {
+   "comerciante": "daiso",
+   "categoria": "OUTROS",
+   "confianca": 0.67,
+   "pessoas": 6
+  },
+  {
+   "comerciante": "decolar",
+   "categoria": "LAZER",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "dentista",
+   "categoria": "SAUDE",
+   "confianca": 1,
+   "pessoas": 4
+  },
+  {
+   "comerciante": "desc automatico anud tit",
+   "categoria": "OUTROS",
+   "confianca": 0.6,
+   "pessoas": 5
+  },
+  {
+   "comerciante": "disney",
+   "categoria": "LAZER",
+   "confianca": 1,
+   "pessoas": 10
+  },
+  {
+   "comerciante": "distribuidora",
+   "categoria": "ALIMENTACAO",
+   "confianca": 0.67,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "dizimo",
+   "categoria": "OUTROS",
+   "confianca": 0.8,
+   "pessoas": 5
+  },
+  {
+   "comerciante": "droga",
+   "categoria": "SAUDE",
+   "confianca": 1,
+   "pessoas": 6
+  },
+  {
+   "comerciante": "drogaria",
+   "categoria": "SAUDE",
+   "confianca": 1,
+   "pessoas": 13
+  },
+  {
+   "comerciante": "drogaria araujo",
+   "categoria": "SAUDE",
+   "confianca": 1,
+   "pessoas": 4
+  },
+  {
+   "comerciante": "drogaria sp drogariasp",
+   "categoria": "SAUDE",
+   "confianca": 1,
+   "pessoas": 5
+  },
+  {
+   "comerciante": "drogaria venancio",
+   "categoria": "SAUDE",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "drogarias pacheco",
+   "categoria": "SAUDE",
+   "confianca": 1,
+   "pessoas": 8
+  },
+  {
+   "comerciante": "drogasil",
+   "categoria": "SAUDE",
+   "confianca": 1,
+   "pessoas": 19
+  },
+  {
+   "comerciante": "drogasmil",
+   "categoria": "SAUDE",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "duo gourmet",
+   "categoria": "LAZER",
+   "confianca": 0.33,
+   "pessoas": 6
+  },
+  {
+   "comerciante": "ebito visa ect br",
+   "categoria": "ALIMENTACAO",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "ebw spotify",
+   "categoria": "LAZER",
+   "confianca": 1,
+   "pessoas": 8
+  },
+  {
+   "comerciante": "eletropaulo",
+   "categoria": "MORADIA",
+   "confianca": 1,
+   "pessoas": 4
+  },
+  {
+   "comerciante": "emit outra if",
+   "categoria": "ALIMENTACAO",
+   "confianca": 0.5,
+   "pessoas": 4
+  },
+  {
+   "comerciante": "empor",
+   "categoria": "ALIMENTACAO",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "emprestimo",
+   "categoria": "OUTROS",
+   "confianca": 0.8,
+   "pessoas": 5
+  },
+  {
+   "comerciante": "encargos",
+   "categoria": "IMPOSTOS",
+   "confianca": 0.5,
+   "pessoas": 4
+  },
+  {
+   "comerciante": "encargos sobre",
+   "categoria": "IMPOSTOS",
+   "confianca": 0.6,
+   "pessoas": 5
+  },
+  {
+   "comerciante": "encerramento divida",
+   "categoria": "OUTROS",
+   "confianca": 0.8,
+   "pessoas": 10
+  },
+  {
+   "comerciante": "enel distribuicao",
+   "categoria": "MORADIA",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "energia",
+   "categoria": "MORADIA",
+   "confianca": 1,
+   "pessoas": 9
+  },
+  {
+   "comerciante": "estac",
+   "categoria": "TRANSPORTE",
+   "confianca": 0.67,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "estacionamento",
+   "categoria": "TRANSPORTE",
+   "confianca": 1,
+   "pessoas": 8
+  },
+  {
+   "comerciante": "estrategiacon",
+   "categoria": "EDUCACAO",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "extra farma",
+   "categoria": "SAUDE",
+   "confianca": 0.67,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "facil",
+   "categoria": "OUTROS",
+   "confianca": 0.67,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "faculdade",
+   "categoria": "EDUCACAO",
+   "confianca": 1,
+   "pessoas": 6
+  },
+  {
+   "comerciante": "farmacia drogaria ni",
+   "categoria": "SAUDE",
+   "confianca": 0.83,
+   "pessoas": 6
+  },
+  {
+   "comerciante": "farmacia sao joao",
+   "categoria": "SAUDE",
+   "confianca": 1,
+   "pessoas": 5
+  },
+  {
+   "comerciante": "fat",
+   "categoria": "OUTROS",
+   "confianca": 0.67,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "faxina",
+   "categoria": "MORADIA",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "feira",
+   "categoria": "ALIMENTACAO",
+   "confianca": 0.8,
+   "pessoas": 5
+  },
+  {
+   "comerciante": "fies",
+   "categoria": "EDUCACAO",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "financiamento",
+   "categoria": "MORADIA",
+   "confianca": 0.75,
+   "pessoas": 4
+  },
+  {
+   "comerciante": "financiamento carro",
+   "categoria": "TRANSPORTE",
+   "confianca": 1,
+   "pessoas": 4
+  },
+  {
+   "comerciante": "food",
+   "categoria": "ALIMENTACAO",
+   "confianca": 0.94,
+   "pessoas": 16
+  },
+  {
+   "comerciante": "gas",
+   "categoria": "MORADIA",
+   "confianca": 1,
+   "pessoas": 6
+  },
+  {
+   "comerciante": "gasolina",
+   "categoria": "TRANSPORTE",
+   "confianca": 1,
+   "pessoas": 23
+  },
+  {
+   "comerciante": "gelato borelli",
+   "categoria": "ALIMENTACAO",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "gocase",
+   "categoria": "OUTROS",
+   "confianca": 0.75,
+   "pessoas": 4
+  },
+  {
+   "comerciante": "google",
+   "categoria": "OUTROS",
+   "confianca": 0.64,
+   "pessoas": 11
+  },
+  {
+   "comerciante": "google ai",
+   "categoria": "OUTROS",
+   "confianca": 0.67,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "google one",
+   "categoria": "OUTROS",
+   "confianca": 0.94,
+   "pessoas": 32
+  },
+  {
+   "comerciante": "google sk",
+   "categoria": "OUTROS",
+   "confianca": 0.67,
+   "pessoas": 6
+  },
+  {
+   "comerciante": "google youtubepremium",
+   "categoria": "LAZER",
+   "confianca": 1,
+   "pessoas": 5
+  },
+  {
+   "comerciante": "gran educacao",
+   "categoria": "EDUCACAO",
+   "confianca": 1,
+   "pessoas": 4
+  },
+  {
+   "comerciante": "growthsupplements",
+   "categoria": "ALIMENTACAO",
+   "confianca": 0.75,
+   "pessoas": 4
+  },
+  {
+   "comerciante": "havan",
+   "categoria": "MORADIA",
+   "confianca": 0.67,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "hortifruti",
+   "categoria": "ALIMENTACAO",
+   "confianca": 1,
+   "pessoas": 4
+  },
+  {
+   "comerciante": "hostinger",
+   "categoria": "OUTROS",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "hotmart",
+   "categoria": "EDUCACAO",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "hubla",
+   "categoria": "OUTROS",
+   "confianca": 0.67,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "hubla danicolombo",
+   "categoria": "EDUCACAO",
+   "confianca": 0.89,
+   "pessoas": 38
+  },
+  {
+   "comerciante": "hubla porquim",
+   "categoria": "EDUCACAO",
+   "confianca": 0.67,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "icloud",
+   "categoria": "OUTROS",
+   "confianca": 0.75,
+   "pessoas": 4
+  },
+  {
+   "comerciante": "ifd",
+   "categoria": "ALIMENTACAO",
+   "confianca": 0.67,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "ifood",
+   "categoria": "ALIMENTACAO",
+   "confianca": 1,
+   "pessoas": 51
+  },
+  {
+   "comerciante": "ifood club",
+   "categoria": "ALIMENTACAO",
+   "confianca": 0.95,
+   "pessoas": 44
+  },
+  {
+   "comerciante": "ifoodcom",
+   "categoria": "ALIMENTACAO",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "indigo",
+   "categoria": "TRANSPORTE",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "ingles",
+   "categoria": "EDUCACAO",
+   "confianca": 1,
+   "pessoas": 5
+  },
+  {
+   "comerciante": "ingresse",
+   "categoria": "LAZER",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "ingresso",
+   "categoria": "LAZER",
+   "confianca": 1,
+   "pessoas": 10
+  },
+  {
+   "comerciante": "inter",
+   "categoria": "LAZER",
+   "confianca": 0.67,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "internet",
+   "categoria": "MORADIA",
+   "confianca": 0.91,
+   "pessoas": 22
+  },
+  {
+   "comerciante": "internet casa",
+   "categoria": "MORADIA",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "iof",
+   "categoria": "OUTROS",
+   "confianca": 0.82,
+   "pessoas": 34
+  },
+  {
+   "comerciante": "iof ad icio al",
+   "categoria": "OUTROS",
+   "confianca": 0.86,
+   "pessoas": 7
+  },
+  {
+   "comerciante": "iof adicional sobre",
+   "categoria": "OUTROS",
+   "confianca": 1,
+   "pessoas": 6
+  },
+  {
+   "comerciante": "iof atraso",
+   "categoria": "OUTROS",
+   "confianca": 1,
+   "pessoas": 7
+  },
+  {
+   "comerciante": "iof complementar por renegociacao",
+   "categoria": "OUTROS",
+   "confianca": 0.75,
+   "pessoas": 4
+  },
+  {
+   "comerciante": "iof compra exterior",
+   "categoria": "OUTROS",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "iof compra internacional",
+   "categoria": "OUTROS",
+   "confianca": 0.92,
+   "pessoas": 12
+  },
+  {
+   "comerciante": "iof diario sobre",
+   "categoria": "OUTROS",
+   "confianca": 1,
+   "pessoas": 6
+  },
+  {
+   "comerciante": "iof global account",
+   "categoria": "OUTROS",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "iof impo to ope",
+   "categoria": "OUTROS",
+   "confianca": 0.83,
+   "pessoas": 6
+  },
+  {
+   "comerciante": "iof por atrasada",
+   "categoria": "OUTROS",
+   "confianca": 1,
+   "pessoas": 7
+  },
+  {
+   "comerciante": "iof rotativo",
+   "categoria": "OUTROS",
+   "confianca": 0.9,
+   "pessoas": 10
+  },
+  {
+   "comerciante": "iof trans inter reais",
+   "categoria": "OUTROS",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "iptu",
+   "categoria": "IMPOSTOS",
+   "confianca": 0.67,
+   "pessoas": 6
+  },
+  {
+   "comerciante": "ipva",
+   "categoria": "IMPOSTOS",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "itau unibanco holding",
+   "categoria": "OUTROS",
+   "confianca": 0.75,
+   "pessoas": 4
+  },
+  {
+   "comerciante": "jae",
+   "categoria": "TRANSPORTE",
+   "confianca": 1,
+   "pessoas": 4
+  },
+  {
+   "comerciante": "janta",
+   "categoria": "ALIMENTACAO",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "jim",
+   "categoria": "LAZER",
+   "confianca": 0.33,
+   "pessoas": 6
+  },
+  {
+   "comerciante": "juros atraso",
+   "categoria": "OUTROS",
+   "confianca": 1,
+   "pessoas": 4
+  },
+  {
+   "comerciante": "juros divida encerrada",
+   "categoria": "OUTROS",
+   "confianca": 1,
+   "pessoas": 9
+  },
+  {
+   "comerciante": "juros excesso lim",
+   "categoria": "OUTROS",
+   "confianca": 0.8,
+   "pessoas": 5
+  },
+  {
+   "comerciante": "juros mora",
+   "categoria": "OUTROS",
+   "confianca": 1,
+   "pessoas": 11
+  },
+  {
+   "comerciante": "juros por atrasada",
+   "categoria": "OUTROS",
+   "confianca": 0.8,
+   "pessoas": 5
+  },
+  {
+   "comerciante": "juros rotativo",
+   "categoria": "OUTROS",
+   "confianca": 1,
+   "pessoas": 5
+  },
+  {
+   "comerciante": "keetabr",
+   "categoria": "ALIMENTACAO",
+   "confianca": 0.5,
+   "pessoas": 4
+  },
+  {
+   "comerciante": "lavagem carro",
+   "categoria": "TRANSPORTE",
+   "confianca": 0.67,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "lavanderia",
+   "categoria": "MORADIA",
+   "confianca": 0.5,
+   "pessoas": 4
+  },
+  {
+   "comerciante": "leroy merlin",
+   "categoria": "MORADIA",
+   "confianca": 0.75,
+   "pessoas": 4
+  },
+  {
+   "comerciante": "light",
+   "categoria": "MORADIA",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "limite convertido saldo sua",
+   "categoria": "OUTROS",
+   "confianca": 0.86,
+   "pessoas": 7
+  },
+  {
+   "comerciante": "lojas americanas",
+   "categoria": "ALIMENTACAO",
+   "confianca": 0.68,
+   "pessoas": 25
+  },
+  {
+   "comerciante": "lojas renner fl",
+   "categoria": "OUTROS",
+   "confianca": 0.67,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "luz",
+   "categoria": "MORADIA",
+   "confianca": 0.92,
+   "pessoas": 12
+  },
+  {
+   "comerciante": "maree insti",
+   "categoria": "MORADIA",
+   "confianca": 0.33,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "marketp",
+   "categoria": "LAZER",
+   "confianca": 0.5,
+   "pessoas": 6
+  },
+  {
+   "comerciante": "marketplace",
+   "categoria": "OUTROS",
+   "confianca": 0.75,
+   "pessoas": 4
+  },
+  {
+   "comerciante": "mc donalds",
+   "categoria": "ALIMENTACAO",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "mei",
+   "categoria": "IMPOSTOS",
+   "confianca": 0.6,
+   "pessoas": 5
+  },
+  {
+   "comerciante": "melimais",
+   "categoria": "OUTROS",
+   "confianca": 0.5,
+   "pessoas": 12
+  },
+  {
+   "comerciante": "mensalidade plano",
+   "categoria": "EDUCACAO",
+   "confianca": 0.67,
+   "pessoas": 6
+  },
+  {
+   "comerciante": "mercadinho",
+   "categoria": "ALIMENTACAO",
+   "confianca": 1,
+   "pessoas": 5
+  },
+  {
+   "comerciante": "mercado extra",
+   "categoria": "ALIMENTACAO",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "mercado mercad",
+   "categoria": "ALIMENTACAO",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "mercado mercadolivre",
+   "categoria": "ALIMENTACAO",
+   "confianca": 0.95,
+   "pessoas": 22
+  },
+  {
+   "comerciante": "mercado pago",
+   "categoria": "OUTROS",
+   "confianca": 0.5,
+   "pessoas": 6
+  },
+  {
+   "comerciante": "mercadocar barra funda",
+   "categoria": "OUTROS",
+   "confianca": 0.33,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "mercadolivre",
+   "categoria": "OUTROS",
+   "confianca": 0.45,
+   "pessoas": 20
+  },
+  {
+   "comerciante": "mercadolivre mercadol",
+   "categoria": "OUTROS",
+   "confianca": 0.45,
+   "pessoas": 31
+  },
+  {
+   "comerciante": "mercadolivre mercadol mercado livre",
+   "categoria": "OUTROS",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "mercadolivre mercadoli",
+   "categoria": "OUTROS",
+   "confianca": 0.56,
+   "pessoas": 9
+  },
+  {
+   "comerciante": "metro",
+   "categoria": "TRANSPORTE",
+   "confianca": 1,
+   "pessoas": 9
+  },
+  {
+   "comerciante": "microsoft",
+   "categoria": "OUTROS",
+   "confianca": 0.4,
+   "pessoas": 5
+  },
+  {
+   "comerciante": "mini kalzone",
+   "categoria": "ALIMENTACAO",
+   "confianca": 1,
+   "pessoas": 4
+  },
+  {
+   "comerciante": "minuto pa",
+   "categoria": "ALIMENTACAO",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "moda mundial",
+   "categoria": "OUTROS",
+   "confianca": 0.67,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "moto",
+   "categoria": "TRANSPORTE",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "multa atraso",
+   "categoria": "OUTROS",
+   "confianca": 0.6,
+   "pessoas": 5
+  },
+  {
+   "comerciante": "multa contratual",
+   "categoria": "IMPOSTOS",
+   "confianca": 0.6,
+   "pessoas": 5
+  },
+  {
+   "comerciante": "multa por atrasada",
+   "categoria": "IMPOSTOS",
+   "confianca": 0.67,
+   "pessoas": 9
+  },
+  {
+   "comerciante": "multa por atrasada boleto",
+   "categoria": "IMPOSTOS",
+   "confianca": 0.67,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "multa por atraso",
+   "categoria": "IMPOSTOS",
+   "confianca": 0.6,
+   "pessoas": 5
+  },
+  {
+   "comerciante": "nat natura",
+   "categoria": "OUTROS",
+   "confianca": 1,
+   "pessoas": 7
+  },
+  {
+   "comerciante": "negocia set",
+   "categoria": "TRANSPORTE",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "netflix",
+   "categoria": "LAZER",
+   "confianca": 0.93,
+   "pessoas": 42
+  },
+  {
+   "comerciante": "netflix entretenimento",
+   "categoria": "LAZER",
+   "confianca": 1,
+   "pessoas": 19
+  },
+  {
+   "comerciante": "nubank",
+   "categoria": "OUTROS",
+   "confianca": 1,
+   "pessoas": 5
+  },
+  {
+   "comerciante": "oboticario",
+   "categoria": "OUTROS",
+   "confianca": 0.57,
+   "pessoas": 7
+  },
+  {
+   "comerciante": "oculos",
+   "categoria": "SAUDE",
+   "confianca": 1,
+   "pessoas": 4
+  },
+  {
+   "comerciante": "openai chatgpt subscr",
+   "categoria": "EDUCACAO",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "outback",
+   "categoria": "ALIMENTACAO",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "padar",
+   "categoria": "ALIMENTACAO",
+   "confianca": 0.67,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "padaria confeitaria",
+   "categoria": "ALIMENTACAO",
+   "confianca": 1,
+   "pessoas": 5
+  },
+  {
+   "comerciante": "pag tit int",
+   "categoria": "OUTROS",
+   "confianca": 0.33,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "paga itau uniclas",
+   "categoria": "OUTROS",
+   "confianca": 1,
+   "pessoas": 5
+  },
+  {
+   "comerciante": "pagame to bo eto",
+   "categoria": "MORADIA",
+   "confianca": 0.6,
+   "pessoas": 5
+  },
+  {
+   "comerciante": "pagament",
+   "categoria": "OUTROS",
+   "confianca": 0.67,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "pagar",
+   "categoria": "ALIMENTACAO",
+   "confianca": 0.33,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "pagar me pa",
+   "categoria": "OUTROS",
+   "confianca": 0.5,
+   "pessoas": 6
+  },
+  {
+   "comerciante": "pague menos",
+   "categoria": "SAUDE",
+   "confianca": 1,
+   "pessoas": 9
+  },
+  {
+   "comerciante": "pague menosa",
+   "categoria": "LAZER",
+   "confianca": 0.67,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "panificadora",
+   "categoria": "ALIMENTACAO",
+   "confianca": 1,
+   "pessoas": 4
+  },
+  {
+   "comerciante": "panvel digital",
+   "categoria": "SAUDE",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "panvel farmacias",
+   "categoria": "SAUDE",
+   "confianca": 1,
+   "pessoas": 5
+  },
+  {
+   "comerciante": "panvel filial",
+   "categoria": "SAUDE",
+   "confianca": 1,
+   "pessoas": 6
+  },
+  {
+   "comerciante": "pao",
+   "categoria": "ALIMENTACAO",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "pao acucar",
+   "categoria": "ALIMENTACAO",
+   "confianca": 1,
+   "pessoas": 6
+  },
+  {
+   "comerciante": "parcelamento",
+   "categoria": "OUTROS",
+   "confianca": 0.67,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "parcial",
+   "categoria": "OUTROS",
+   "confianca": 0.75,
+   "pessoas": 4
+  },
+  {
+   "comerciante": "pastel",
+   "categoria": "ALIMENTACAO",
+   "confianca": 0.8,
+   "pessoas": 5
+  },
+  {
+   "comerciante": "pay",
+   "categoria": "ALIMENTACAO",
+   "confianca": 0.43,
+   "pessoas": 7
+  },
+  {
+   "comerciante": "pedagio",
+   "categoria": "TRANSPORTE",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "personal",
+   "categoria": "SAUDE",
+   "confianca": 1,
+   "pessoas": 7
+  },
+  {
+   "comerciante": "pilates",
+   "categoria": "SAUDE",
+   "confianca": 1,
+   "pessoas": 4
+  },
+  {
+   "comerciante": "pizza",
+   "categoria": "ALIMENTACAO",
+   "confianca": 0.89,
+   "pessoas": 9
+  },
+  {
+   "comerciante": "pjbank",
+   "categoria": "MORADIA",
+   "confianca": 1,
+   "pessoas": 4
+  },
+  {
+   "comerciante": "plano celular",
+   "categoria": "MORADIA",
+   "confianca": 0.67,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "plano saude",
+   "categoria": "SAUDE",
+   "confianca": 1,
+   "pessoas": 9
+  },
+  {
+   "comerciante": "playstation",
+   "categoria": "LAZER",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "pop set min",
+   "categoria": "TRANSPORTE",
+   "confianca": 0.8,
+   "pessoas": 5
+  },
+  {
+   "comerciante": "porto seguro",
+   "categoria": "OUTROS",
+   "confianca": 0.75,
+   "pessoas": 4
+  },
+  {
+   "comerciante": "pos",
+   "categoria": "EDUCACAO",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "pos graduacao",
+   "categoria": "EDUCACAO",
+   "confianca": 1,
+   "pessoas": 5
+  },
+  {
+   "comerciante": "produtos",
+   "categoria": "LAZER",
+   "confianca": 0.33,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "protegido seguro cartao protegido",
+   "categoria": "OUTROS",
+   "confianca": 1,
+   "pessoas": 4
+  },
+  {
+   "comerciante": "psicologa",
+   "categoria": "SAUDE",
+   "confianca": 1,
+   "pessoas": 7
+  },
+  {
+   "comerciante": "qr code dinamico des",
+   "categoria": "ALIMENTACAO",
+   "confianca": 0.33,
+   "pessoas": 6
+  },
+  {
+   "comerciante": "qr code estatico des",
+   "categoria": "ALIMENTACAO",
+   "confianca": 0.67,
+   "pessoas": 6
+  },
+  {
+   "comerciante": "qrs",
+   "categoria": "OUTROS",
+   "confianca": 0.4,
+   "pessoas": 5
+  },
+  {
+   "comerciante": "raia",
+   "categoria": "SAUDE",
+   "confianca": 1,
+   "pessoas": 10
+  },
+  {
+   "comerciante": "raia drogasil",
+   "categoria": "SAUDE",
+   "confianca": 0.96,
+   "pessoas": 27
+  },
+  {
+   "comerciante": "rd saude",
+   "categoria": "SAUDE",
+   "confianca": 0.75,
+   "pessoas": 4
+  },
+  {
+   "comerciante": "rd saude online",
+   "categoria": "SAUDE",
+   "confianca": 1,
+   "pessoas": 12
+  },
+  {
+   "comerciante": "rec fed",
+   "categoria": "IMPOSTOS",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "remedio",
+   "categoria": "SAUDE",
+   "confianca": 1,
+   "pessoas": 6
+  },
+  {
+   "comerciante": "renner",
+   "categoria": "OUTROS",
+   "confianca": 0.5,
+   "pessoas": 6
+  },
+  {
+   "comerciante": "repasse iof compras exterior",
+   "categoria": "OUTROS",
+   "confianca": 0.83,
+   "pessoas": 6
+  },
+  {
+   "comerciante": "resgate emprestimo",
+   "categoria": "OUTROS",
+   "confianca": 1,
+   "pessoas": 9
+  },
+  {
+   "comerciante": "resta",
+   "categoria": "ALIMENTACAO",
+   "confianca": 1,
+   "pessoas": 5
+  },
+  {
+   "comerciante": "ride",
+   "categoria": "TRANSPORTE",
+   "confianca": 0.8,
+   "pessoas": 5
+  },
+  {
+   "comerciante": "rotativo",
+   "categoria": "OUTROS",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "roupa",
+   "categoria": "OUTROS",
+   "confianca": 0.67,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "sacolao",
+   "categoria": "ALIMENTACAO",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "saldo atraso",
+   "categoria": "OUTROS",
+   "confianca": 0.67,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "santander",
+   "categoria": "OUTROS",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "sao paulo",
+   "categoria": "OUTROS",
+   "confianca": 0.56,
+   "pessoas": 9
+  },
+  {
+   "comerciante": "scp essencial ago",
+   "categoria": "IMPOSTOS",
+   "confianca": 0.67,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "scp essencial ago 26",
+   "categoria": "IMPOSTOS",
+   "confianca": 0.67,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "scp essencial set",
+   "categoria": "OUTROS",
+   "confianca": 0.67,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "seguro",
+   "categoria": "TRANSPORTE",
+   "confianca": 0.8,
+   "pessoas": 5
+  },
+  {
+   "comerciante": "seguro carro",
+   "categoria": "TRANSPORTE",
+   "confianca": 1,
+   "pessoas": 4
+  },
+  {
+   "comerciante": "seguro cartao",
+   "categoria": "OUTROS",
+   "confianca": 1,
+   "pessoas": 10
+  },
+  {
+   "comerciante": "seguro celular",
+   "categoria": "OUTROS",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "seguro lis itau",
+   "categoria": "OUTROS",
+   "confianca": 1,
+   "pessoas": 6
+  },
+  {
+   "comerciante": "seguro superprotegido",
+   "categoria": "OUTROS",
+   "confianca": 1,
+   "pessoas": 7
+  },
+  {
+   "comerciante": "seguro vida",
+   "categoria": "OUTROS",
+   "confianca": 0.67,
+   "pessoas": 6
+  },
+  {
+   "comerciante": "sem parar",
+   "categoria": "TRANSPORTE",
+   "confianca": 1,
+   "pessoas": 9
+  },
+  {
+   "comerciante": "sephora store",
+   "categoria": "LAZER",
+   "confianca": 0.67,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "shopee",
+   "categoria": "OUTROS",
+   "confianca": 0.5,
+   "pessoas": 6
+  },
+  {
+   "comerciante": "shopee shpstecnologia",
+   "categoria": "OUTROS",
+   "confianca": 1,
+   "pessoas": 7
+  },
+  {
+   "comerciante": "shopping",
+   "categoria": "LAZER",
+   "confianca": 0.6,
+   "pessoas": 5
+  },
+  {
+   "comerciante": "shpp",
+   "categoria": "OUTROS",
+   "confianca": 0.4,
+   "pessoas": 5
+  },
+  {
+   "comerciante": "simples nacional",
+   "categoria": "IMPOSTOS",
+   "confianca": 1,
+   "pessoas": 10
+  },
+  {
+   "comerciante": "smiles clube smiles",
+   "categoria": "LAZER",
+   "confianca": 0.67,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "sonda",
+   "categoria": "ALIMENTACAO",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "sorvete",
+   "categoria": "ALIMENTACAO",
+   "confianca": 1,
+   "pessoas": 6
+  },
+  {
+   "comerciante": "spi finance",
+   "categoria": "EDUCACAO",
+   "confianca": 0.8,
+   "pessoas": 5
+  },
+  {
+   "comerciante": "spoleto",
+   "categoria": "ALIMENTACAO",
+   "confianca": 1,
+   "pessoas": 5
+  },
+  {
+   "comerciante": "spotify",
+   "categoria": "LAZER",
+   "confianca": 0.94,
+   "pessoas": 47
+  },
+  {
+   "comerciante": "sua academia",
+   "categoria": "SAUDE",
+   "confianca": 1,
+   "pessoas": 6
+  },
+  {
+   "comerciante": "subway",
+   "categoria": "ALIMENTACAO",
+   "confianca": 0.86,
+   "pessoas": 7
+  },
+  {
+   "comerciante": "suco",
+   "categoria": "ALIMENTACAO",
+   "confianca": 1,
+   "pessoas": 4
+  },
+  {
+   "comerciante": "super",
+   "categoria": "ALIMENTACAO",
+   "confianca": 1,
+   "pessoas": 6
+  },
+  {
+   "comerciante": "super coelho diniz",
+   "categoria": "ALIMENTACAO",
+   "confianca": 0.67,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "supermercado",
+   "categoria": "ALIMENTACAO",
+   "confianca": 1,
+   "pessoas": 8
+  },
+  {
+   "comerciante": "supermercados bh",
+   "categoria": "ALIMENTACAO",
+   "confianca": 1,
+   "pessoas": 10
+  },
+  {
+   "comerciante": "sushi",
+   "categoria": "ALIMENTACAO",
+   "confianca": 0.75,
+   "pessoas": 4
+  },
+  {
+   "comerciante": "sympla",
+   "categoria": "LAZER",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "tarifa",
+   "categoria": "OUTROS",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "tarifa estorno",
+   "categoria": "OUTROS",
+   "confianca": 0.75,
+   "pessoas": 4
+  },
+  {
+   "comerciante": "tecnolog",
+   "categoria": "TRANSPORTE",
+   "confianca": 0.75,
+   "pessoas": 4
+  },
+  {
+   "comerciante": "telefone",
+   "categoria": "MORADIA",
+   "confianca": 1,
+   "pessoas": 4
+  },
+  {
+   "comerciante": "telefonica",
+   "categoria": "MORADIA",
+   "confianca": 0.6,
+   "pessoas": 5
+  },
+  {
+   "comerciante": "temu",
+   "categoria": "MORADIA",
+   "confianca": 0.67,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "terapia",
+   "categoria": "SAUDE",
+   "confianca": 1,
+   "pessoas": 8
+  },
+  {
+   "comerciante": "the best acai",
+   "categoria": "ALIMENTACAO",
+   "confianca": 0.67,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "the walt disney compan",
+   "categoria": "LAZER",
+   "confianca": 1,
+   "pessoas": 4
+  },
+  {
+   "comerciante": "ticketmaster",
+   "categoria": "LAZER",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "ticketsports",
+   "categoria": "LAZER",
+   "confianca": 0.75,
+   "pessoas": 4
+  },
+  {
+   "comerciante": "tiktok sh",
+   "categoria": "OUTROS",
+   "confianca": 0.5,
+   "pessoas": 4
+  },
+  {
+   "comerciante": "tiktok shop",
+   "categoria": "OUTROS",
+   "confianca": 0.73,
+   "pessoas": 11
+  },
+  {
+   "comerciante": "tim",
+   "categoria": "OUTROS",
+   "confianca": 0.44,
+   "pessoas": 9
+  },
+  {
+   "comerciante": "tokio marine auto",
+   "categoria": "TRANSPORTE",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "total pass participacoes",
+   "categoria": "SAUDE",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "totalpass",
+   "categoria": "SAUDE",
+   "confianca": 0.94,
+   "pessoas": 17
+  },
+  {
+   "comerciante": "transacao nutag",
+   "categoria": "TRANSPORTE",
+   "confianca": 1,
+   "pessoas": 6
+  },
+  {
+   "comerciante": "triamicci",
+   "categoria": "ALIMENTACAO",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "tuna",
+   "categoria": "ALIMENTACAO",
+   "confianca": 0.75,
+   "pessoas": 4
+  },
+  {
+   "comerciante": "uber",
+   "categoria": "TRANSPORTE",
+   "confianca": 0.98,
+   "pessoas": 59
+  },
+  {
+   "comerciante": "uber one membership",
+   "categoria": "TRANSPORTE",
+   "confianca": 1,
+   "pessoas": 9
+  },
+  {
+   "comerciante": "uber one membership uber",
+   "categoria": "TRANSPORTE",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "uber pending",
+   "categoria": "TRANSPORTE",
+   "confianca": 1,
+   "pessoas": 27
+  },
+  {
+   "comerciante": "uber trip",
+   "categoria": "TRANSPORTE",
+   "confianca": 1,
+   "pessoas": 4
+  },
+  {
+   "comerciante": "uber trip help",
+   "categoria": "TRANSPORTE",
+   "confianca": 1,
+   "pessoas": 45
+  },
+  {
+   "comerciante": "uber trip help uber",
+   "categoria": "TRANSPORTE",
+   "confianca": 1,
+   "pessoas": 19
+  },
+  {
+   "comerciante": "uberrides",
+   "categoria": "TRANSPORTE",
+   "confianca": 1,
+   "pessoas": 66
+  },
+  {
+   "comerciante": "uberridess",
+   "categoria": "TRANSPORTE",
+   "confianca": 1,
+   "pessoas": 4
+  },
+  {
+   "comerciante": "unha",
+   "categoria": "LAZER",
+   "confianca": 0.6,
+   "pessoas": 5
+  },
+  {
+   "comerciante": "unimed",
+   "categoria": "SAUDE",
+   "confianca": 1,
+   "pessoas": 4
+  },
+  {
+   "comerciante": "uninter",
+   "categoria": "EDUCACAO",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "valor pendente mes anterior",
+   "categoria": "IMPOSTOS",
+   "confianca": 0.75,
+   "pessoas": 4
+  },
+  {
+   "comerciante": "viad ifoo age",
+   "categoria": "ALIMENTACAO",
+   "confianca": 1,
+   "pessoas": 4
+  },
+  {
+   "comerciante": "vivenda camarao",
+   "categoria": "ALIMENTACAO",
+   "confianca": 0.67,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "vivo",
+   "categoria": "MORADIA",
+   "confianca": 0.94,
+   "pessoas": 18
+  },
+  {
+   "comerciante": "yelumseg",
+   "categoria": "TRANSPORTE",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "zamp",
+   "categoria": "ALIMENTACAO",
+   "confianca": 1,
+   "pessoas": 8
+  },
+  {
+   "comerciante": "ze delivery",
+   "categoria": "ALIMENTACAO",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "zig the global funtech",
+   "categoria": "ALIMENTACAO",
+   "confianca": 1,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "zigpa",
+   "categoria": "ALIMENTACAO",
+   "confianca": 0.67,
+   "pessoas": 3
+  },
+  {
+   "comerciante": "zigpay",
+   "categoria": "ALIMENTACAO",
+   "confianca": 0.43,
+   "pessoas": 7
+  },
+  {
+   "comerciante": "zona azul",
+   "categoria": "TRANSPORTE",
+   "confianca": 1,
+   "pessoas": 4
+  }
+ ],
+ "empresa": []
+}

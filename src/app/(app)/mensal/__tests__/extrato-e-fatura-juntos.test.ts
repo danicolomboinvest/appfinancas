@@ -243,7 +243,8 @@ describe("extrato e fatura do mesmo mês: o pagamento da fatura não conta duas 
   // (dinheiro-proprio.ts:37) nem `looksLikeCardPayment` (import-actions.ts:380) reconhecem:
   // quem importa a fatura fica com o cartão contado DUAS vezes e o app nem pergunta.
   it("extrato do BB ('Pagto cartão crédito') com fatura importada: o pagamento fica de fora", async () => {
-    faturasRecentes = 1;
+    // Out/2026: vale a fatura DAQUELE pagamento estar no app, não "alguma fatura nos últimos 120 dias".
+    await importar("fatura", faturaSetembro, "2026-09");
     const items = await ler("extrato", ["05/09/2026;Salário;5000,00", "08/09/2026;Pagto cartão crédito VISA;-2800,00", "09/09/2026;Padaria;-18,50"]);
     expect(items.find((i) => i.description.startsWith("Pagto cart"))?.ignorar).toBe(true);
   });

@@ -1,0 +1,307 @@
+import { installmentCanonical, parseInstallment } from "@/lib/entries/recurrence";
+import { detectarVencimento } from "./vencimento";
+
+/**
+ * Em que mês cada compra da fatura conta (out/2026).
+ *
+ * Antes a importação perguntava "Em que mês essa fatura vence?" e jogava a fatura inteira nesse
+ * mês, sem dia. A dona achava a pergunta confusa ("fechou em agosto, vence em setembro, é de qual
+ * mês?"). Agora o app decide sozinho, pelo que o próprio arquivo diz:
+ *
+ * - compra à vista: conta no mês em que foi feita, com o dia;
+ * - parcela k/n: os leitores devolvem a data da compra ORIGINAL (a 09/10 de uma compra de 31/12
+ *   vem com 31/12), então a parcela k conta no mês da compra + (k - 1). Uma parcela por mês, e
+ *   a mesma conta que a projeção das parcelas seguintes faz, então as faturas se encaixam;
+ * - sem data legível: o mês do vencimento lido; sem vencimento, o mês de hoje.
+ *
+ * Não existe opção por pessoa de "conto a fatura no mês em que pago". Quem quiser isso para uma
+ * fatura toca em "Mudar" na conferência, e aí vale o modo antigo (tudo num mês, sem dia).
+ */
+
+export type Mes = { year: number; month: number };
+
+const pad = (n: number) => String(n).padStart(2, "0");
+export const chaveDoMes = (m: Mes) => `${m.year}-${pad(m.month)}`;
+
+export function mesDaData(iso: string | null | undefined): Mes | null {
+  const m = iso?.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return null;
+  const month = Number(m[2]);
+  if (month < 1 || month > 12) return null;
+  return { year: Number(m[1]), month };
+}
+
+export function somarMeses(m: Mes, n: number): Mes {
+  const total = m.year * 12 + (m.month - 1) + n;
+  return { year: Math.floor(total / 12), month: (total % 12) + 1 };
+}
+
+const indiceDoMes = (m: Mes) => m.year * 12 + m.month;
+const DIA_MS = 86_400_000;
+const instante = (iso: string) => Date.parse(`${iso}T12:00:00Z`);
+
+/**
+ * Ano da compra: a fatura só traz dia/mês, e o leitor completa o ano. Compra DEPOIS do
+ * vencimento não existe (a fatura fecha antes de vencer); quando aparece, é a compra de dezembro
+ * numa fatura que vence em janeiro com o ano do vencimento. Volta um ano.
+ */
+export function ajustarAnoDaCompra(date: string, vencimento: string | null): string {
+  if (!vencimento || !mesDaData(date) || !mesDaData(vencimento)) return date;
+  if (instante(date) <= instante(vencimento) + 31 * DIA_MS) return date;
+  const anterior = `${Number(date.slice(0, 4)) - 1}${date.slice(4)}`;
+  // 29/02 sem ano bissexto: fica como estava (raríssimo, e não inventa um dia).
+  return Number.isFinite(instante(anterior)) && new Date(instante(anterior)).toISOString().slice(0, 10) === anterior ? anterior : date;
+}
+
+export type DatasDaFatura = { vencimento: string | null; fechamento: string | null };
+
+const MESES_CURTOS: Record<string, number> = { jan: 1, fev: 2, mar: 3, abr: 4, mai: 5, jun: 6, jul: 7, ago: 8, set: 9, out: 10, nov: 11, dez: 12 };
+
+function semAcento(texto: string): string {
+  return texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
+function dataValida(dia: number, mes: number, ano: number): string | null {
+  if (!(mes >= 1 && mes <= 12 && dia >= 1 && ano >= 2000 && ano <= 2100)) return null;
+  const d = new Date(Date.UTC(ano, mes - 1, dia));
+  if (d.getUTCMonth() !== mes - 1) return null;
+  return `${ano}-${pad(mes)}-${pad(dia)}`;
+}
+
+/** dd/mm sem ano: o ano que deixa o fechamento até 45 dias antes do vencimento. */
+function comAnoDoVencimento(dia: number, mes: number, vencimento: string | null): string | null {
+  if (!vencimento) return null;
+  const ano = Number(vencimento.slice(0, 4));
+  for (const a of [ano, ano - 1]) {
+    const d = dataValida(dia, mes, a);
+    if (d && instante(d) <= instante(vencimento) && instante(vencimento) - instante(d) <= 45 * DIA_MS) return d;
+  }
+  return null;
+}
+
+/**
+ * Vencimento e fechamento impressos na fatura. O vencimento é o de `detectarVencimento` (com o
+ * layout do PicPay, que põe as duas datas antes dos rótulos). O fechamento só vale quando o
+ * arquivo escreve a palavra (ou o "realizados até" do Santander, a emissão do Nubank, que é o
+ * dia em que ela fecha), e quando cai até 45 dias antes do vencimento: data solta não vira
+ * fechamento.
+ */
+export function lerDatasDaFatura(texto: string): DatasDaFatura {
+  const t = semAcento(texto);
+  const picpay = t.match(/(\d{2})\/(\d{2})\/(\d{4})\s*\|\s*(\d{2})\/(\d{2})\/(\d{4})\s+Vencimento:\s*Fechamento:/i);
+  const vencimento =
+    detectarVencimento(texto) ?? (picpay ? dataValida(Number(picpay[1]), Number(picpay[2]), Number(picpay[3])) : null);
+
+  const candidatos: (string | null)[] = [];
+  if (picpay) candidatos.push(dataValida(Number(picpay[4]), Number(picpay[5]), Number(picpay[6])));
+  for (const m of t.matchAll(/(?<!proxima\s)(?<!preco\s)\bfechamento(?:\s+(?:desta|da)\s+fatura)?(?:\s+em)?\s*[:\-]?\s*(\d{1,2})\/(\d{1,2})(?:\/(\d{4}|\d{2}))?(?!\d)/gi)) {
+    const ano = m[3] ? (m[3].length === 2 ? 2000 + Number(m[3]) : Number(m[3])) : null;
+    candidatos.push(ano ? dataValida(Number(m[1]), Number(m[2]), ano) : comAnoDoVencimento(Number(m[1]), Number(m[2]), vencimento));
+  }
+  const ate = t.match(/realizad[oa]s\s+at[e]\s+(\d{2})\/(\d{2})(?:\/(\d{4}))?/i);
+  if (ate) candidatos.push(ate[3] ? dataValida(Number(ate[1]), Number(ate[2]), Number(ate[3])) : comAnoDoVencimento(Number(ate[1]), Number(ate[2]), vencimento));
+  const nubank = t.match(/EMISSAO E ENVIO (\d{2}) (JAN|FEV|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ) (\d{4})/i);
+  if (nubank) candidatos.push(dataValida(Number(nubank[1]), MESES_CURTOS[nubank[2].toLowerCase()], Number(nubank[3])));
+
+  const fechamento =
+    candidatos.find(
+      (d): d is string =>
+        d !== null && (!vencimento || (instante(d) <= instante(vencimento) && instante(vencimento) - instante(d) <= 45 * DIA_MS)),
+    ) ?? null;
+  return { vencimento, fechamento };
+}
+
+export type Destino = {
+  mes: Mes;
+  /** O dia gravado no lançamento: só na compra que conta no próprio mês. Parcela vai sem dia
+   * (como as parcelas projetadas): é o que deixa a próxima fatura reconhecer a que já está lá. */
+  dia: string | null;
+  /** compra: o mês da data; parcela: mês da compra + (k - 1); ciclo: data antiga sem parcela
+   * (vai pro começo do ciclo da fatura); vencimento/hoje: linha sem data. */
+  origem: "compra" | "parcela" | "ciclo" | "vencimento" | "hoje";
+};
+
+type ItemDaFatura = { date: string; installment?: { current: number; total: number; confident: boolean } | null; description?: string };
+
+/** O que a fatura inteira diz sobre o ciclo dela, calculado uma vez por arquivo. */
+export type ContextoDaFatura = {
+  vencimento: string | null;
+  fechamento: string | null;
+  /** Primeiro dia do ciclo de compras desta fatura (aproximado quando o arquivo não diz). */
+  inicioDoCiclo: string | null;
+  /** Último mês em que uma compra desta fatura pode contar (o do fechamento, ou do vencimento). */
+  limite: Mes | null;
+};
+
+const isoDe = (t: number) => new Date(t).toISOString().slice(0, 10);
+
+export function contextoDaFatura(datas: DatasDaFatura, datasDasLinhas: string[], hoje: Date = new Date()): ContextoDaFatura {
+  const { vencimento, fechamento } = datas;
+  // Data no futuro é ano errado do leitor, não a compra mais recente: não puxa o ciclo pra frente.
+  const amanha = hoje.getTime() + DIA_MS;
+  const validas = datasDasLinhas
+    .filter((d) => mesDaData(d))
+    .map((d) => ajustarAnoDaCompra(d, vencimento))
+    .filter((d) => vencimento || instante(d) <= amanha);
+  const maisRecente = validas.length > 0 ? validas.reduce((a, b) => (a > b ? a : b)) : null;
+  // Ciclo de ~um mês até o fechamento. Sem ele, o fechamento costuma vir uma semana antes do
+  // vencimento; sem nenhum dos dois, a compra mais recente do arquivo faz o papel.
+  const inicioDoCiclo = fechamento
+    ? isoDe(instante(fechamento) - 31 * DIA_MS)
+    : vencimento
+      ? isoDe(instante(vencimento) - 38 * DIA_MS)
+      : maisRecente
+        ? isoDe(instante(maisRecente) - 31 * DIA_MS)
+        : null;
+  return { vencimento, fechamento, inicioDoCiclo, limite: mesDaData(fechamento) ?? mesDaData(vencimento) ?? mesDaData(maisRecente) };
+}
+
+/**
+ * O mês em que uma linha da fatura conta (ver o comentário do arquivo).
+ *
+ * Data DENTRO do ciclo: é a compra (ou a cobrança da parcela, como o Nubank escreve), conta no
+ * mês dela. Data ANTES do ciclo: só está nesta fatura porque é parcela, e os bancos escrevem a
+ * data da compra original; a parcela k conta no mês da compra + (k - 1). Vale também para o
+ * "LOJA 11/12" sem a palavra parcela, desde que o mês calculado caia no ciclo. Data antiga que
+ * não fecha como parcela vai pro começo do ciclo, nunca para um mês lá atrás.
+ */
+export function mesDaCompra(item: ItemDaFatura, ctx: ContextoDaFatura, hoje: Date = new Date()): Destino {
+  const data = mesDaData(item.date) ? ajustarAnoDaCompra(item.date, ctx.vencimento) : null;
+  if (!data) {
+    const venc = mesDaData(ctx.vencimento);
+    return venc ? { mes: venc, dia: null, origem: "vencimento" } : { mes: { year: hoje.getFullYear(), month: hoje.getMonth() + 1 }, dia: null, origem: "hoje" };
+  }
+  const compra = mesDaData(data)!;
+  const parcela = item.installment ?? (item.description !== undefined ? parseInstallment(item.description) : null);
+  const antes = (dias: number) => ctx.inicioDoCiclo !== null && instante(data) < instante(ctx.inicioDoCiclo) - dias * DIA_MS;
+  // Parcela: régua exata do ciclo (a data da compra original fica sempre antes dele). Compra à
+  // vista: 20 dias de folga, pra compra lançada atrasada (exterior, posto) manter o dia dela.
+  if (parcela?.confident ? !antes(0) : !(parcela ? antes(0) : antes(20))) {
+    return parcela?.confident ? { mes: compra, dia: null, origem: "parcela" } : { mes: compra, dia: data, origem: "compra" };
+  }
+  const inicio = mesDaData(ctx.inicioDoCiclo)!;
+  if (parcela) {
+    let mes = somarMeses(compra, parcela.current - 1);
+    if (ctx.limite && indiceDoMes(mes) > indiceDoMes(ctx.limite)) mes = ctx.limite;
+    if (indiceDoMes(mes) >= indiceDoMes(inicio)) return { mes, dia: null, origem: "parcela" };
+  }
+  return { mes: inicio, dia: null, origem: "ciclo" };
+}
+
+/** Os meses em que as compras da fatura caem ("YYYY-MM", em ordem). */
+export function mesesDasCompras(itens: ItemDaFatura[], ctx: ContextoDaFatura, hoje: Date = new Date()): string[] {
+  return [...new Set(itens.map((i) => chaveDoMes(mesDaCompra(i, ctx, hoje).mes)))].sort();
+}
+
+const NOMES_DOS_MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+
+/** "agosto e setembro"; "dezembro de 2025 e janeiro de 2026" quando cruza o ano; "julho, agosto e setembro". */
+export function listaDeMeses(chaves: string[]): string {
+  const meses = chaves.flatMap((c) => {
+    const m = mesDaData(`${c}-01`);
+    return m ? [m] : [];
+  });
+  if (meses.length === 0) return "";
+  const cruzaAno = new Set(meses.map((m) => m.year)).size > 1;
+  const nomes = meses.map((m) => (cruzaAno ? `${NOMES_DOS_MESES[m.month - 1]} de ${m.year}` : NOMES_DOS_MESES[m.month - 1]));
+  return nomes.length === 1 ? nomes[0] : `${nomes.slice(0, -1).join(", ")} e ${nomes[nomes.length - 1]}`;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Fatura já gravada no modelo antigo (tudo no mês escolhido, sem dia)
+
+const comparavel = (d: string | null) => installmentCanonical(d ?? "").trim().toLowerCase();
+
+export type LancamentoAntigo = { loteId: string; year: number; month: number; valor: number; descricao: string | null };
+
+/**
+ * Esta fatura já entrou antes, no modelo antigo? Lá ela foi gravada inteira num mês, sem dia, e
+ * com a data da compra a chave nova nunca bate: subir a mesma fatura de novo duplicava tudo.
+ *
+ * Procura um lote de fatura que tenha, num mesmo mês, a maioria das compras À VISTA desta fatura
+ * (mesma descrição e valor). Parcela não conta: a parcela projetada de outra fatura também tem a
+ * mesma descrição, e uma assinatura (Netflix) sozinha não faz maioria. Devolve os meses em que
+ * esses lotes gravaram, pra comparar a chave antiga (mês, sem dia) só ali.
+ */
+export function mesesDaMesmaFaturaAntiga(itens: { valor: number; descricao: string }[], existentes: LancamentoAntigo[]): Mes[] {
+  const avista = itens.filter((i) => !parseInstallment(i.descricao)?.confident && i.valor > 0);
+  if (avista.length < 2) return [];
+  const grupos = new Map<string, { mes: Mes; restantes: Map<string, number> }>();
+  for (const e of existentes) {
+    if (parseInstallment(e.descricao)?.confident) continue;
+    const g = `${e.loteId}|${e.year}-${e.month}`;
+    if (!grupos.has(g)) grupos.set(g, { mes: { year: e.year, month: e.month }, restantes: new Map() });
+    const k = `${e.valor.toFixed(2)}|${comparavel(e.descricao)}`;
+    const r = grupos.get(g)!.restantes;
+    r.set(k, (r.get(k) ?? 0) + 1);
+  }
+  const achados = new Map<string, Mes>();
+  for (const { mes, restantes } of grupos.values()) {
+    const sobra = new Map(restantes);
+    let batem = 0;
+    for (const i of avista) {
+      const k = `${i.valor.toFixed(2)}|${comparavel(i.descricao)}`;
+      const n = sobra.get(k) ?? 0;
+      if (n > 0) {
+        batem += 1;
+        sobra.set(k, n - 1);
+      }
+    }
+    if (batem >= 2 && batem * 2 >= avista.length) achados.set(chaveDoMes(mes), mes);
+  }
+  return [...achados.values()];
+}
+
+// ---------------------------------------------------------------------------------------------
+// Pagamento da fatura no extrato
+
+export type LancamentoDeFatura = { year: number; month: number; entryDate: string | null; descricao: string | null };
+
+/**
+ * A fatura que este pagamento paga já está no app? Só compra à vista conta (a parcela projetada
+ * por uma fatura antiga cai em todos os meses seguintes e não diz nada). Compra com dia (modelo
+ * novo): alguma nos 30 dias antes do pagamento, que é o ciclo da fatura paga ali (a anterior
+ * fechou mais de um mês antes). Sem dia (modelo antigo, tudo no mês do vencimento): o mês do
+ * pagamento, ou o vizinho quando ele foi pago na virada (até 7 dias da troca de mês).
+ */
+export function pagamentoTemFatura(dataPagamento: string, lancamentos: LancamentoDeFatura[]): boolean {
+  const pago = mesDaData(dataPagamento);
+  if (!pago) return false;
+  const t = instante(dataPagamento);
+  const dia = Number(dataPagamento.slice(8, 10));
+  const meses = new Set([chaveDoMes(pago)]);
+  if (dia <= 7) meses.add(chaveDoMes(somarMeses(pago, -1)));
+  if (dia >= 24) meses.add(chaveDoMes(somarMeses(pago, 1)));
+  return lancamentos.some((l) => {
+    if (parseInstallment(l.descricao)?.confident) return false;
+    if (l.entryDate) {
+      const e = instante(l.entryDate);
+      return e <= t && t - e <= 30 * DIA_MS;
+    }
+    return meses.has(chaveDoMes({ year: l.year, month: l.month }));
+  });
+}
+
+/** Pagamento do cartão no extrato, com a fatura dele já no app: só mudou de conta. */
+export const NOTA_PAGAMENTO_COM_FATURA =
+  "Pagamento do cartão: só mudou de conta. A fatura já está no app com as compras uma a uma, então ele fica de fora pra não contar duas vezes.";
+/** …e sem a fatura: entra como gasto do cartão, e a fatura pode vir depois. */
+export const NOTA_PAGAMENTO_SEM_FATURA =
+  "Pagamento do cartão: entra como gasto em Outros. Se você trouxer a fatura depois, eu separo compra por compra e pergunto se tiro este pagamento.";
+
+/**
+ * O que fazer com a linha de pagamento da fatura do extrato. Nunca vira pergunta: com a fatura
+ * no app ela fica de fora ("só mudei de conta"); sem, entra como gasto em Outros › Cartão de
+ * crédito, já classificada. Quando a fatura chega depois, a importação dela oferece tirar este
+ * pagamento (findCardPaymentCandidates, pela mesma regra de descrição).
+ */
+export function pagamentoDoCartao(
+  dataPagamento: string,
+  lancamentosDeFatura: LancamentoDeFatura[],
+):
+  | { ignorar: true; nota: string }
+  | { parentCategory: "OUTROS"; customCategoryId: null; subcategory: string; autoClassified: true; nota: string } {
+  return pagamentoTemFatura(dataPagamento, lancamentosDeFatura)
+    ? { ignorar: true, nota: NOTA_PAGAMENTO_COM_FATURA }
+    : { parentCategory: "OUTROS", customCategoryId: null, subcategory: "Cartão de crédito", autoClassified: true, nota: NOTA_PAGAMENTO_SEM_FATURA };
+}

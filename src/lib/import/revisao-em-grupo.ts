@@ -1,4 +1,4 @@
-import { normalizeMerchant, padraoAprendivel } from "./classify";
+import { chaveDoComerciante, chaveUtil } from "./comerciante";
 
 /**
  * A revisão da importação decidindo os IGUAIS de uma vez.
@@ -25,13 +25,13 @@ export type LinhaDaRevisao = {
 };
 
 /**
- * A chave que diz "é o mesmo lugar": a mesma do aprendizado (normalizeMerchant). Chave genérica
+ * A chave que diz "é o mesmo lugar": a mesma do aprendizado (chaveDoComerciante). Chave genérica
  * demais ("no", "enviado", de "Compra no débito" e "PIX ENVIADO") não junta nada — juntaria todo
  * Pix e toda compra no débito numa categoria só, que é justamente o que o aprendizado evita.
  */
 export function chaveDeIguais(description: string): string | null {
-  const chave = normalizeMerchant(description);
-  return chave && padraoAprendivel(chave) ? chave : null;
+  const chave = chaveDoComerciante(description);
+  return chaveUtil(chave) ? chave : null;
 }
 
 /** Gasto que ainda não tem categoria nenhuma (nem a fixa, nem a que ela criou). */
@@ -74,4 +74,30 @@ export function proximaPendente(fila: number[], atual: number, pendente: (key: n
     if (pendente(fila[i])) return i;
   }
   return null;
+}
+
+/**
+ * A fila de perguntas AGRUPADA por comerciante (12/10/2026): "ManyChat aparece 3 vezes. É o
+ * quê?", uma resposta para o grupo. Antes a fila tinha uma posição por linha e as iguais só
+ * eram puladas depois da resposta: o "1 de 23" prometia 23 perguntas quando eram 9 lugares.
+ * Devolve a chave da primeira linha de cada grupo, na ordem em que aparecem, e quantas linhas
+ * cada pergunta resolve. Linha sem chave útil (Pix sem nome) é um grupo sozinha.
+ */
+export function filaPorComerciante<T extends LinhaDaRevisao>(pendentes: T[]): { keys: number[]; vezes: Map<number, number> } {
+  const primeiraDoGrupo = new Map<string, number>();
+  const keys: number[] = [];
+  const vezes = new Map<number, number>();
+  for (const it of pendentes) {
+    const chave = chaveDeIguais(it.description);
+    const grupo = chave === null ? null : `${it.profileId ?? ""}|${chave}`;
+    const dono = grupo === null ? undefined : primeiraDoGrupo.get(grupo);
+    if (dono !== undefined) {
+      vezes.set(dono, (vezes.get(dono) ?? 1) + 1);
+      continue;
+    }
+    if (grupo !== null) primeiraDoGrupo.set(grupo, it.key);
+    keys.push(it.key);
+    vezes.set(it.key, 1);
+  }
+  return { keys, vezes };
 }

@@ -25,8 +25,9 @@ import {
 import { useMoney } from "@/components/money/MoneyProvider";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { UPLOAD_MAX_BYTES } from "@/lib/import/limites";
-import { iguaisPraAplicar, proximaPendente, semCategoria as gastoSemCategoria } from "@/lib/import/revisao-em-grupo";
+import { filaPorComerciante, iguaisPraAplicar, proximaPendente, semCategoria as gastoSemCategoria } from "@/lib/import/revisao-em-grupo";
 import { mesDaRevelacao } from "@/lib/import/revelacao";
+import { listaDeMeses } from "@/lib/import/mes-da-compra";
 import { resumoDoMesImportadoAction, type RevelacaoDoImport } from "@/app/(app)/mensal/revelacao-actions";
 import { pegarArquivoParaOMes } from "@/components/shell/registrar-eventos";
 import { OfertaDeAvisos } from "@/components/push/OfertaDeAvisos";
@@ -65,12 +66,6 @@ function currentMonthValue(): string {
 function formatDate(iso: string) {
   const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   return m ? `${m[3]}/${m[2]}` : iso;
-}
-
-/** "2026-10-10" → "10/10/2026", pro "achei no arquivo: vence em…". */
-function formatFullDate(iso: string) {
-  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  return m ? `${m[3]}/${m[2]}/${m[1]}` : iso;
 }
 
 /** Linha que já pode ir pro banco. Gasto SEM categoria também vai (ver `handleImport`). */
@@ -170,9 +165,18 @@ export function StatementImport({
   // Ela mexeu no mês da fatura à mão: o vencimento lido do arquivo vira só uma sugestão, não
   // troca a escolha dela.
   const [faturaMesTocado, setFaturaMesTocado] = useState(false);
+  // Fatura: o app separa cada compra no mês em que foi feita, sem perguntar. "Mudar" abre a
+  // escolha de contar tudo num mês só (o modo antigo), só pra ESTA fatura.
+  const [contarNoMes, setContarNoMes] = useState(false);
+  const [mudandoFatura, setMudandoFatura] = useState(false);
   // Conferência: a linha aberta pra trocar categoria/tipo, e se a lista longa está inteira.
   const [editandoKey, setEditandoKey] = useState<number | null>(null);
   const [mostrarTodos, setMostrarTodos] = useState(false);
+  // "Eu já separei 64. Revisar": as linhas que o app separou sozinho, congeladas no toque (trocar a
+  // categoria de uma não a tira da lista no meio da revisão). null = lista normal.
+  const [separadosEmRevisao, setSeparadosEmRevisao] = useState<Set<number> | null>(null);
+  // Quantas linhas cada pergunta da fila resolve ("ManyChat aparece 3 vezes").
+  const [vezesNaFila, setVezesNaFila] = useState<Map<number, number>>(new Map());
   // Depois de importar: o mês montado. `mes` null = arquivo sem data, fica só o "pronto".
   const [revelacao, setRevelacao] = useState<{ mes: { year: number; month: number } | null; dados: RevelacaoDoImport | null; carregando: boolean }>({
     mes: null,
@@ -235,6 +239,9 @@ export function StatementImport({
     setKindMismatch(null);
     // …e o vencimento lido também: sem isso o "achei no arquivo" do anterior aparecia no novo.
     setStats(null);
+    // "Tudo num mês só" era escolha da fatura anterior.
+    setContarNoMes(false);
+    setMudandoFatura(false);
     // Barra aqui o que a Vercel recusaria com 413 lá fora, onde não sobra nem registro.
     if (file.size > UPLOAD_MAX_BYTES) {
       setError(t.impArquivoGrande);
@@ -250,7 +257,7 @@ export function StatementImport({
     setError(null);
     setFileName(file.name);
     const type = forcedType ?? docType;
-    const formData = buildUploadForm(file, type, type === "fatura" ? faturaMonth : undefined);
+    const formData = buildUploadForm(file, type, type === "fatura" && contarNoMes ? faturaMonth : undefined);
     if (pwd) formData.set("password", pwd);
     startTransition(async () => {
       let result: Awaited<ReturnType<typeof parseStatementAction>>;
@@ -296,7 +303,11 @@ export function StatementImport({
       // Se nada precisa de revisão, pula direto pra confirmação.
       // O que é dúvida (dinheiro dela mesma) ou fica de fora não pede categoria agora.
       const pendentes = result.items.filter((it) => gastoSemCategoria(it) && !it.ignorar && !it.duvida);
-      setReviewKeys(pendentes.map((it) => it.key));
+      // Uma pergunta por comerciante, não por linha (12/10/2026): a resposta vale pro grupo.
+      const fila = filaPorComerciante(pendentes);
+      setReviewKeys(fila.keys);
+      setVezesNaFila(fila.vezes);
+      setSeparadosEmRevisao(null);
       setPhase(pendentes.length > 0 ? "review" : "confirm");
     });
   }
@@ -310,7 +321,11 @@ export function StatementImport({
     const iguais = iguaisPraAplicar(items, itemKey);
     const resolvidas = new Set([itemKey, ...iguais]);
     setItems((prev) =>
-      prev.map((it) => (resolvidas.has(it.key) ? { ...it, ...escolha, subcategory: null, autoClassified: false } : it)),
+      prev.map((it) =>
+        resolvidas.has(it.key)
+          ? { ...it, ...escolha, subcategory: null, autoClassified: false, motivo: it.key === itemKey ? ("regra_sua" as const) : ("mesmo_nome" as const), confianca: "alta" as const }
+          : it,
+      ),
     );
     if (iguais.length > 0) showToast(t.impAplicadoAosIguais(iguais.length));
     return resolvidas;
@@ -467,11 +482,13 @@ export function StatementImport({
         estorno: it.estorno ?? false,
         resgate: it.resgate ?? false,
       }));
-    const [targetYear, targetMonth] = docType === "fatura" ? faturaMonth.split("-").map(Number) : [undefined, undefined];
+    // Sem mês escolhido, o servidor põe cada compra no mês dela (com o vencimento e o fechamento lidos).
+    const [targetYear, targetMonth] = docType === "fatura" && contarNoMes ? faturaMonth.split("-").map(Number) : [undefined, undefined];
+    const datasDaFatura = docType === "fatura" ? { vencimento: stats?.vencimento ?? null, fechamento: stats?.fechamento ?? null } : null;
     startTransition(async () => {
       let result: Awaited<ReturnType<typeof importTransactionsAction>>;
       try {
-        result = await importTransactionsAction(confirmed, docType, targetYear, targetMonth, fileName ?? undefined, perfilDaTela, nomesDoCasal ? pessoaDoExtrato : null);
+        result = await importTransactionsAction(confirmed, docType, targetYear, targetMonth, fileName ?? undefined, perfilDaTela, nomesDoCasal ? pessoaDoExtrato : null, datasDaFatura);
       } catch (err) {
         console.error("importTransactionsAction falhou no envio", err);
         setError(t.impErroSalvar);
@@ -519,29 +536,50 @@ export function StatementImport({
   }
 
   /**
-   * "Em que mês essa fatura vence?" — o mesmo bloco nos três lugares em que o mês aparece
-   * (envio, aviso de "parece fatura" e conferência). Se o arquivo trouxe o vencimento, diz o que
-   * achou; se ela escolheu outro mês, oferece o do arquivo com um toque, sem trocar sozinho.
+   * A fatura nos três lugares em que ela aparece (envio, aviso de "parece fatura" e conferência).
+   * Nada de "de que mês é essa fatura?": o app lê o fechamento, o vencimento e a data de cada
+   * compra, e só confirma numa frase. "Mudar" (discreto) deixa contar tudo num mês só.
    */
   function mesDaFatura(id: string) {
-    const venc = stats?.vencimento ?? null;
-    const mesDoVencimento = venc ? venc.slice(0, 7) : null;
+    if (!stats) return <p className="text-caption text-ink-faint">{t.impFaturaAntesDoArquivo}</p>;
+    const diaMes = (iso: string | null) => (iso ? formatDate(iso) : null);
+    const frase = contarNoMes
+      ? t.impFaturaTudoNoMesDica(formatMonthYear(faturaMonth))
+      : t.impFaturaResumo(stats.banco, diaMes(stats.fechamento), diaMes(stats.vencimento), stats.compras, listaDeMeses(stats.mesesDasCompras), stats.mesesDasCompras.length > 1);
+    const opcao = (ativo: boolean, rotulo: string, aoTocar: () => void) => (
+      <button
+        type="button"
+        onClick={aoTocar}
+        aria-pressed={ativo}
+        className={`min-h-11 flex-1 rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${ativo ? "bg-pill text-on-pill" : "text-ink-muted hover:text-ink"}`}
+      >
+        {rotulo}
+      </button>
+    );
     return (
-      <div className="flex flex-col gap-1.5">
-        <MonthPicker label={t.impFaturaVence} id={id} value={faturaMonth} onChange={escolherMesFatura} />
-        <span className="text-caption text-ink-faint">{t.impFaturaVenceDica(formatMonthYear(faturaMonth))}</span>
-        {venc && mesDoVencimento && (
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-caption text-accent-strong">{t.impFaturaVencimentoLido(formatFullDate(venc))}</span>
-            {mesDoVencimento !== faturaMonth && (
-              <button
-                type="button"
-                onClick={() => setFaturaMonth(mesDoVencimento)}
-                className="inline-flex min-h-11 items-center rounded-full border border-accent px-3 text-sm font-medium text-accent-strong hover:bg-accent-soft"
-              >
-                {t.impFaturaUsarMes(formatMonthYear(mesDoVencimento))}
-              </button>
-            )}
+      <div className="flex flex-col gap-1.5" id={id}>
+        <div className="flex flex-wrap items-center gap-x-2">
+          <span className="text-sm text-ink">{frase}</span>
+          <button
+            type="button"
+            onClick={() => setMudandoFatura((v) => !v)}
+            aria-expanded={mudandoFatura}
+            className="inline-flex min-h-11 items-center text-caption text-ink-muted underline underline-offset-4"
+          >
+            {mudandoFatura ? t.impMudarPronto : t.impFaturaMudar}
+          </button>
+        </div>
+        {mudandoFatura && (
+          <div className="flex flex-col gap-2">
+            <div className="inline-flex rounded-full border border-border bg-surface-2 p-1">
+              {opcao(!contarNoMes, t.impFaturaPorCompra, () => setContarNoMes(false))}
+              {opcao(contarNoMes, t.impFaturaTudoNoMes, () => {
+                // Começa no mês do vencimento lido, se ela não escolheu outro antes.
+                if (stats.vencimento && !faturaMesTocado) setFaturaMonth(stats.vencimento.slice(0, 7));
+                setContarNoMes(true);
+              })}
+            </div>
+            {contarNoMes && <MonthPicker label={t.impFaturaTudoNoMes} id={`${id}-mes`} value={faturaMonth} onChange={escolherMesFatura} />}
           </div>
         )}
       </div>
@@ -568,8 +606,8 @@ export function StatementImport({
             <p className="text-caption text-ink-muted">
               {kindMismatch.suggested === "fatura" ? t.impPareceFaturaAviso : t.impPareceExtratoAviso}
             </p>
-            {/* Virar fatura por aqui segue direto pra revisão: sem a pergunta do mês neste ponto,
-                a fatura de maio subida em setembro caía inteira em setembro sem ela ver. */}
+            {/* Virar fatura por aqui segue direto pra revisão: a frase já diz de quando são as
+                compras (cada uma no mês dela), e o "Mudar" fica à mão. */}
             {kindMismatch.suggested === "fatura" && mesDaFatura("fatura-month-aviso")}
             <div className="flex flex-wrap gap-2">
               <Button
@@ -589,9 +627,7 @@ export function StatementImport({
           </div>
         )}
 
-        {/* Fatura: a pessoa escolhe o mês de destino — todas as compras entram nesse mês (o
-            período de fechamento da fatura costuma cruzar dois meses do calendário, e a data
-            de cada compra não é o que importa aqui, é quando a fatura foi paga). */}
+        {/* Fatura: sem pergunta de mês. Antes do arquivo, só a promessa; depois, a frase. */}
         {docType === "fatura" && mesDaFatura("fatura-month")}
 
         {/* Perfil Casal: uma pergunta por arquivo, e cada linha já entra com "quem pagou". */}
@@ -658,7 +694,7 @@ export function StatementImport({
           data-guia="tipo-fatura"
           className="mx-auto min-h-11 text-sm text-ink-muted underline underline-offset-4"
         >
-          {docType === "fatura" ? "Não é fatura: é extrato do banco" : "É fatura do cartão? Escolha o mês"}
+          {docType === "fatura" ? "Não é fatura: é extrato do banco" : "É fatura do cartão?"}
         </button>
         <input
           ref={fileRef}
@@ -883,7 +919,7 @@ export function StatementImport({
         </div>
 
         <p className="flex items-center gap-1.5 text-base font-semibold text-ink">
-          {t.impQualCategoria}
+          {(vezesNaFila.get(it.key) ?? 1) > 1 ? t.impApareceVezes(nomeNaTela(it.description).nome, vezesNaFila.get(it.key)!) : t.impQualCategoria}
           <Explica>{t.impNaoSeiAgoraDica}</Explica>
         </p>
         {quadradosDeCategoria(it, (resolvidas) => advanceReview(resolvidas))}
@@ -958,7 +994,11 @@ export function StatementImport({
     // acusava fatura lida perfeita — simulação de parcela e tabela de juros também têm número.
     const lowCoverage = stats?.leituraIncompleta ?? false;
     const totalGap = stats?.invoiceTotal ? Math.round((stats.invoiceTotal - expenseSum) * 100) / 100 : 0;
-    const visiveis = mostrarTodos ? importable : importable.slice(0, LINHAS_VISIVEIS);
+    // O que o app separou sozinho (regra dela, comunidade, banco ou dicionário): entra classificado,
+    // e o "Revisar" mostra só essas linhas, todas, pra ela conferir e trocar o que quiser.
+    const separados = importable.filter((it) => it.category === "EXPENSE" && it.autoClassified && !it.estorno && (it.parentCategory || it.customCategoryId));
+    const listaBase = separadosEmRevisao ? importable.filter((it) => separadosEmRevisao.has(it.key)) : importable;
+    const visiveis = mostrarTodos || separadosEmRevisao ? listaBase : listaBase.slice(0, LINHAS_VISIVEIS);
     const rotuloDaLinha = (it: ReviewItem) =>
       it.category === "INCOME"
         ? t.impRotuloRenda
@@ -1004,13 +1044,31 @@ export function StatementImport({
             <button
               type="button"
               onClick={() => {
-                setReviewKeys(semCategoria.map((it) => it.key));
+                const fila = filaPorComerciante(semCategoria);
+                setReviewKeys(fila.keys);
+                setVezesNaFila(fila.vezes);
                 setReviewIdx(0);
                 setPhase("review");
               }}
               className="min-h-10 shrink-0 rounded-full bg-accent-soft px-4 text-sm font-semibold text-accent-strong"
             >
               Escolher
+            </button>
+          </div>
+        )}
+
+        {(separados.length > 0 || separadosEmRevisao) && (
+          <div className="flex items-center gap-3 rounded-2xl border border-border bg-surface px-3.5 py-2.5">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-success-soft text-success" aria-hidden>
+              <Check size={18} />
+            </span>
+            <span className="min-w-0 flex-1 text-[15px] font-semibold text-ink">{t.impJaSeparei(separadosEmRevisao ? separadosEmRevisao.size : separados.length)}</span>
+            <button
+              type="button"
+              onClick={() => setSeparadosEmRevisao((atual) => (atual ? null : new Set(separados.map((it) => it.key))))}
+              className="min-h-10 shrink-0 rounded-full border border-border-strong px-4 text-sm font-semibold text-ink-muted hover:text-ink"
+            >
+              {separadosEmRevisao ? t.impFecharRevisao : t.impRevisarSeparados}
             </button>
           </div>
         )}
@@ -1081,8 +1139,7 @@ export function StatementImport({
                   </div>
                 ))}
               </div>
-              {/* Fatura: o mês de destino fica à vista (e dá pra trocar) até o último toque. Quem
-                  chegou aqui pelo aviso "parece fatura" nunca tinha visto a pergunta do mês. */}
+              {/* Fatura: a frase de quando as compras contam fica à vista (e o "Mudar") até o último toque. */}
               {docType === "fatura" && mesDaFatura("fatura-month-confirmar")}
               {stats?.conferencia.status !== "fechou" && stats?.invoiceTotal ? <p className="text-caption text-ink-muted">{t.impTotalImpresso(money(stats.invoiceTotal))}</p> : null}
               {lowCoverage && (
@@ -1358,7 +1415,7 @@ export function StatementImport({
             );
           })}
         </ul>
-        {!mostrarTodos && importable.length > LINHAS_VISIVEIS && (
+        {!mostrarTodos && !separadosEmRevisao && importable.length > LINHAS_VISIVEIS && (
           <button type="button" onClick={() => setMostrarTodos(true)} className="inline-flex min-h-11 items-center justify-center text-sm font-medium text-accent-strong hover:underline">
             {t.impMostrarTodos(importable.length)}
           </button>

@@ -26,19 +26,31 @@ import {
 import { listCustomCategories } from "@/lib/repositories/custom-category.repo";
 import { listProfiles } from "@/lib/repositories/profile.repo";
 import { descricoesOriginais } from "@/lib/repositories/decisao.repo";
-import { listTransactionRules, upsertTransactionRule } from "@/lib/repositories/transaction-rule.repo";
+import { aplicarNosOutrosMeses, listTransactionRules, upsertTransactionRule } from "@/lib/repositories/transaction-rule.repo";
 import { parseStatementComLeitor } from "@/lib/import/statement-parser";
 import { isFaturaSummaryLine, comprasDaFaturaSaoPositivas, pareceCreditoDePagamento } from "@/lib/import/fatura-lines";
 import { extractUploadFromForm, UploadReadError, PasswordRequiredError } from "@/lib/import/extract-text";
 import { pdfTextQuality } from "@/lib/import/pdf-quality";
-import { classify, classifyLearnedOnly, normalizeMerchant, type LearnedRule } from "@/lib/import/classify";
-import { categoriaDoBancoParaOApp } from "@/lib/import/categoria-do-banco";
-import { classificarPelaComunidade } from "@/lib/import/comunidade";
-import { regrasDaComunidade } from "@/lib/repositories/comunidade.repo";
+import { type LearnedRule } from "@/lib/import/classify";
+import { chaveDoComerciante, chaveUtil } from "@/lib/import/comerciante";
+import { categoriaDaLinha, type ConfiancaDaCategoria, type MotivoDaCategoria } from "@/lib/import/motor";
 import { pareceEstorno } from "@/lib/import/estorno";
 import { pareceAplicacao, pareceContaPropria, parecePagamentoDeFatura, pareceResgate } from "@/lib/import/dinheiro-proprio";
 import { casarPorDataEValor, type ExistenteSolto } from "@/lib/import/duplicata-solta";
-import { detectarVencimento } from "@/lib/import/vencimento";
+import {
+  ajustarAnoDaCompra,
+  chaveDoMes,
+  contextoDaFatura,
+  lerDatasDaFatura,
+  mesDaCompra,
+  mesDaData,
+  mesesDaMesmaFaturaAntiga,
+  mesesDasCompras,
+  pagamentoDoCartao,
+  somarMeses,
+  type ContextoDaFatura,
+  type Destino,
+} from "@/lib/import/mes-da-compra";
 
 const PARENT_CATEGORY_VALUES: ParentCategory[] = [
   "MORADIA",
@@ -59,6 +71,9 @@ export type EntryType = "INCOME" | "EXPENSE" | "INVESTMENT_CONTRIBUTION";
 export type ReviewItem = {
   /** Chave estável no cliente (índice na lista original). */
   key: number;
+  /** Por que o motor pôs (ou não) a categoria, e se ela entra sozinha ("alta") ou vira pergunta (lib/import/motor.ts). */
+  motivo?: MotivoDaCategoria;
+  confianca?: ConfiancaDaCategoria;
   date: string;
   description: string;
   /** Sempre positivo aqui; o sinal virou `category`. */
@@ -128,6 +143,14 @@ export type ParseStats = {
   /** Fatura: o vencimento impresso no arquivo ("YYYY-MM-DD"), pra tela já sugerir o mês em que
    * ela entra. null quando não é fatura ou o arquivo não diz (ver lib/import/vencimento.ts). */
   vencimento: string | null;
+  /** Fatura: o fechamento impresso ("YYYY-MM-DD"), quando o arquivo escreve. */
+  fechamento: string | null;
+  /** O banco, quando o perfil do arquivo reconhece ("Nubank"). */
+  banco: string | null;
+  /** Fatura: os meses em que as compras caem ("YYYY-MM"), cada uma no mês em que foi feita. */
+  mesesDasCompras: string[];
+  /** Fatura: quantas compras (gastos que entram, sem estorno e sem o que fica de fora). */
+  compras: number;
 };
 
 export type ParseStatementResult =
@@ -229,7 +252,12 @@ export async function parseStatementAction(formData: FormData): Promise<ParseSta
     return { ok: false, error: msg };
   }
 
-  const faturaYear = Number(String(formData.get("faturaMonth") ?? "").slice(0, 4)) || undefined;
+  // Vencimento e fechamento impressos: o ano das compras (a fatura só traz dia/mês) e o mês de
+  // cada uma saem daqui, sem perguntar. O mês escolhido à mão ("Mudar") ainda manda no ano.
+  const datasDaFatura = lerDatasDaFatura(text);
+  const faturaYear =
+    Number(String(formData.get("faturaMonth") ?? "").slice(0, 4)) ||
+    (datasDaFatura.vencimento ? Number(datasDaFatura.vencimento.slice(0, 4)) : undefined);
   const { txns: parsedRaw, leitor } = parseStatementComLeitor(text, source, faturaYear);
   // Fatura: linhas de RESUMO ("pagamento efetuado", "total de compras", "total de crédito
   // recebido") são agregados que a própria fatura já detalha em outras linhas — não são uma
@@ -280,27 +308,31 @@ export async function parseStatementAction(formData: FormData): Promise<ParseSta
     pattern: r.pattern,
     parentCategory: r.parentCategory,
     subcategory: r.subcategory ?? undefined,
+    customCategoryId: r.customCategoryId ?? undefined,
   }));
+  const personalizadas = new Set(customCategories.map((c) => c.id));
 
-  const comunidade = ctx.profileKind === "EMPRESA" ? new Map() : await regrasDaComunidade();
   const comprasSaoPositivas = docType !== "fatura" || comprasDaFaturaSaoPositivas(parsed);
   const items: ReviewItem[] = parsed.map((txn, index) => {
     const isExpense = docType === "fatura" ? (comprasSaoPositivas ? txn.amount > 0 : txn.amount < 0) : txn.amount < 0;
     // Estorno: na fatura, todo crédito que não é linha de resumo é dinheiro de compra voltando
     // (antes virava RENDA e inflava o mês); no extrato, a entrada que diz que é estorno.
     const estorno = !isExpense && (docType === "fatura" || pareceEstorno(txn.description));
-    // Categoriza saídas e estornos (o estorno desconta da categoria da compra). O tipo do
-    // perfil escolhe as regras: na Empresa, "iFood" não é Mercadorias e insumos.
-    // Sem regra dela nem do app, o que as outras clientes escolheram pra mesma loja (Pessoal só).
-    // Ordem (03/10/2026): a correção DELA > a categoria que o BANCO escreveu na fatura > o palpite
-    // embutido do app > o que as outras clientes escolheram. O banco sabe o ramo da loja pelo
-    // cadastro na maquininha; o app só adivinha pelo nome. Na Empresa, as categorias são outras.
+    // Categoriza saídas e estornos (o estorno desconta da categoria da compra). A ordem do motor
+    // (12/10/2026) mora em lib/import/motor.ts: a regra DELA > a base comunitária (alta
+    // confiança) > a categoria que o banco escreveu > o dicionário > a pergunta.
     const categorizar = isExpense || estorno;
-    const dela = categorizar ? classifyLearnedOnly(txn.description, learned) : null;
-    const doBanco = categorizar && !dela && ctx.profileKind !== "EMPRESA" ? categoriaDoBancoParaOApp(txn.categoriaDoBanco) : null;
-    const doApp = dela ?? (doBanco ? { parentCategory: doBanco } : categorizar ? classify(txn.description, learned, ctx.profileKind) : null);
-    const daComunidade = !doApp && isExpense ? classificarPelaComunidade(txn.description, comunidade) : null;
-    const classification = doApp ?? (daComunidade ? { parentCategory: daComunidade } : null);
+    const resultado = categoriaDaLinha({
+      descricao: txn.description,
+      regras: learned,
+      profileKind: ctx.profileKind,
+      categoriaDoBanco: txn.categoriaDoBanco,
+      gasto: isExpense,
+      estorno,
+      personalizadas,
+    });
+    // Estorno sem categoria reconhecida vai pra Outros (o motor já devolve assim).
+    const classification = categorizar ? resultado.categoria : null;
     return {
       key: index,
       date: txn.date,
@@ -309,10 +341,13 @@ export async function parseStatementAction(formData: FormData): Promise<ParseSta
       category: isExpense || estorno ? "EXPENSE" : "INCOME",
       // Estorno sem categoria reconhecida vai pra Outros: sem categoria ele seria pulado e a
       // compra ficaria contando sozinha.
-      parentCategory: classification?.parentCategory ?? (estorno ? "OUTROS" : null),
-      customCategoryId: null,
+      // A personalizada que ela ensinou ("Dani Invest") manda; a mãe fica de fora.
+      parentCategory: classification?.customCategoryId ? null : (classification?.parentCategory ?? (estorno ? "OUTROS" : null)),
+      customCategoryId: classification?.customCategoryId ?? null,
       subcategory: classification?.subcategory ?? null,
       autoClassified: classification !== null || estorno,
+      motivo: categorizar ? resultado.motivo : undefined,
+      confianca: categorizar ? resultado.confianca : undefined,
       estorno,
       installment: docType === "fatura" ? parseInstallment(txn.description) : null,
       fileRepeat: (() => {
@@ -343,15 +378,33 @@ export async function parseStatementAction(formData: FormData): Promise<ParseSta
     suspeitas: checarPlausibilidade(parsed, detectedKind === "fatura" ? "fatura" : docType, conferencia.status === "fechou"),
     conferencia,
     leituraIncompleta: false,
-    // Também quando ela escolheu "extrato" e o arquivo parece fatura: a pergunta "é fatura?"
-    // mostra o mês, e o mês certo é o do vencimento.
-    vencimento: docType === "fatura" || detectedKind === "fatura" ? detectarVencimento(text) : null,
+    // Também quando ela escolheu "extrato" e o arquivo parece fatura: a frase "é fatura?" já
+    // diz de quando são as compras.
+    vencimento: null,
+    fechamento: null,
+    banco: profile.institution ?? null,
+    mesesDasCompras: [],
+    compras: 0,
   };
+  if (docType === "fatura" || detectedKind === "fatura") {
+    // A fatura só traz dia/mês: a compra de dezembro na fatura que vence em janeiro volta um ano.
+    if (docType === "fatura") for (const item of items) item.date = ajustarAnoDaCompra(item.date, datasDaFatura.vencimento);
+    const linhas = docType === "fatura" ? items.filter((i) => i.category === "EXPENSE" && !i.estorno && !i.ignorar) : parsed.filter((t) => !isFaturaSummaryLine(t));
+    const contexto = contextoDaFatura(datasDaFatura, parsed.map((t) => t.date));
+    Object.assign(stats, {
+      vencimento: datasDaFatura.vencimento,
+      fechamento: datasDaFatura.fechamento,
+      mesesDasCompras: mesesDasCompras(linhas.map((l) => ({ date: l.date, description: l.description })), contexto),
+      compras: linhas.length,
+    });
+  }
   stats.leituraIncompleta = leituraIncompleta(stats.conferencia, leitor !== null, isPartialRead(moneyLines, items.length));
   if (docType !== "fatura") await separarDinheiroProprio(ctx, items);
   await marcarPossiveisDuplicatas(ctx, items);
-  // Fatura não tem a chave solta (entra sem dia): só o extrato compara com outras importações.
-  if (docType !== "fatura") await marcarParecidosDeOutraImportacao(ctx, items);
+  // Fatura com a data da compra também tem a chave solta (dia + valor): a mesma compra que já
+  // veio de outro arquivo pergunta "é o mesmo?". Parcela fica de fora: a data dela é a da compra
+  // original, não a do mês em que conta.
+  await marcarParecidosDeOutraImportacao(ctx, items);
   const diagnosticId = await recordImportDiagnostic({
     userId: ctx.userId,
     target: docType,
@@ -503,25 +556,54 @@ function mesmaParcela(a: number, b: number, total: number): boolean {
 
 const DIA_MS = 86_400_000;
 
+
 /**
  * Extrato: separa o dinheiro dela indo pra ela mesma (ver lib/import/dinheiro-proprio). Aplicação
  * vira aporte sozinha; pagamento de fatura fica de fora pra quem importa a fatura; transferência
  * pra conta própria e resgate viram pergunta na revisão.
  */
 async function separarDinheiroProprio(ctx: AuthContext, items: ReviewItem[]) {
-  const [usuario, faturasRecentes] = await Promise.all([
+  // A fatura que cada pagamento paga já está no app? Busca as compras de fatura dos meses em
+  // volta dos pagamentos (ver pagamentoTemFatura): antes era "importou alguma fatura nos últimos
+  // 120 dias", e o pagamento de um cartão que ela nunca importou sumia do mês.
+  const mesesDosPagamentos = new Map<string, { year: number; month: number }>();
+  for (const item of items) {
+    const m = mesDaData(item.date);
+    if (!m || item.estorno || item.category !== "EXPENSE" || !parecePagamentoDeFatura(item.description)) continue;
+    for (const d of [-1, 0, 1]) {
+      const v = somarMeses(m, d);
+      mesesDosPagamentos.set(chaveDoMes(v), v);
+    }
+  }
+  const [usuario, comprasDeFatura] = await Promise.all([
     prisma.user.findUnique({ where: { id: ctx.userId }, select: { name: true } }),
-    prisma.importBatch.count({ where: { userId: ctx.userId, profileId: ctx.profileId, docType: "fatura", createdAt: { gte: new Date(Date.now() - 120 * DIA_MS) } } }),
+    mesesDosPagamentos.size === 0
+      ? Promise.resolve([])
+      : prisma.monthlyEntry.findMany({
+          where: {
+            userId: ctx.userId, profileId: ctx.profileId,
+            category: "EXPENSE",
+            importBatch: { is: { docType: "fatura" } },
+            OR: [...mesesDosPagamentos.values()],
+          },
+          select: { year: true, month: true, entryDate: true, description: true },
+        }),
   ]);
+  const lancamentosDeFatura = comprasDeFatura.map((e) => ({
+    year: e.year,
+    month: e.month,
+    entryDate: e.entryDate ? e.entryDate.toISOString().slice(0, 10) : null,
+    descricao: e.description,
+  }));
   for (const item of items) {
     if (item.estorno) continue;
     if (item.category === "EXPENSE") {
       if (pareceAplicacao(item.description)) {
-        Object.assign(item, { category: "INVESTMENT_CONTRIBUTION", parentCategory: null, customCategoryId: null, subcategory: null, nota: "Aplicação: entra como guardado, não como gasto." });
+        Object.assign(item, { category: "INVESTMENT_CONTRIBUTION", parentCategory: null, customCategoryId: null, subcategory: null, motivo: "investimento", confianca: "alta", nota: "Aplicação: entra como guardado, não como gasto." });
       } else if (parecePagamentoDeFatura(item.description)) {
-        if (faturasRecentes > 0) {
-          Object.assign(item, { ignorar: true, nota: "Pagamento da fatura: fica de fora porque você importa a fatura, e as compras dela já estão lançadas uma a uma." });
-        }
+        // Com a fatura no app, o pagamento é dinheiro mudando de conta: as compras já contam uma
+        // a uma. Sem ela, é o gasto do cartão inteiro numa linha, já separado (não vira pergunta).
+        Object.assign(item, pagamentoDoCartao(item.date, lancamentosDeFatura));
       } else if (pareceContaPropria(item.description, usuario?.name)) {
         item.duvida = "conta_propria";
       }
@@ -642,7 +724,7 @@ async function marcarParecidosDeOutraImportacao(ctx: AuthContext, items: ReviewI
     existentes.set(k, [...(existentes.get(k) ?? []), { descricao: nomesDoBanco.get(e.id) ?? e.description, mostrar: e.description }]);
   }
   const chaves = items.map((it) =>
-    it.amount > 0 && yearMonthFromISO(it.date) ? chaveSoltaDe(it.date, it.estorno && it.category === "EXPENSE" ? -it.amount : it.amount, it.category) : null,
+    it.amount > 0 && !it.installment && yearMonthFromISO(it.date) ? chaveSoltaDe(it.date, it.estorno && it.category === "EXPENSE" ? -it.amount : it.amount, it.category) : null,
   );
   const casados = casarPorDataEValor(chaves, items.map((it) => it.description), existentes, { perguntar: true });
   for (const [i, c] of casados) {
@@ -657,12 +739,11 @@ async function marcarParecidosDeOutraImportacao(ctx: AuthContext, items: ReviewI
  * Transações idênticas já lançadas (mesma data+valor+descrição) são puladas, importar o
  * mesmo extrato duas vezes não duplica nada.
  *
- * Fatura: `targetYear`/`targetMonth` mandam — TODAS as compras entram nesse mês escolhido pela
- * pessoa (não no mês de cada compra individual, que pode espalhar pelo período de fechamento,
- * nem no mês corrente do servidor). Sem data específica no lançamento (entryDate fica vazio):
- * "lançar tudo junto no dia que paguei a fatura", não no dia de cada compra. A checagem de
- * duplicata continua usando a data ORIGINAL de cada compra (não a escolhida), senão uma
- * assinatura recorrente (mesma descrição+valor todo mês) seria ignorada como se já existisse.
+ * Fatura (out/2026): sem `targetYear`/`targetMonth`, cada compra entra no mês em que foi feita,
+ * com o dia, e a parcela k no mês da compra + (k - 1), sem dia (ver lib/import/mes-da-compra; o
+ * vencimento e o fechamento lidos do arquivo vêm em `fatura`). Com o mês escolhido no "Mudar",
+ * vale o modo antigo: TODAS as compras nesse mês, sem dia. Nos dois modos a mesma fatura já
+ * gravada no outro modelo é reconhecida (ver `chavesDoOutroModelo`).
  */
 export async function importTransactionsAction(
   items: ConfirmedItem[],
@@ -674,6 +755,8 @@ export async function importTransactionsAction(
   perfilDaTela?: string | null,
   /** Perfil Casal: de quem é o extrato ("A"/"B"). Todas as linhas que ficam no perfil levam o nome. */
   pessoaDoExtrato?: string | null,
+  /** Fatura: vencimento e fechamento lidos do arquivo (ParseStats), que decidem o mês de cada compra. */
+  fatura?: { vencimento: string | null; fechamento: string | null } | null,
 ): Promise<ImportResult> {
   const ctx = await getRequiredSession();
   // Só no Casal, e só nas linhas que ficam nele (a que foi mandada pra outro perfil não leva).
@@ -685,6 +768,8 @@ export async function importTransactionsAction(
   if (trocouDePerfil(perfilDaTela, ctx.profileId)) return { ok: false, error: MSG_TROCOU_DE_PERFIL };
   const now = new Date();
   const touchedMonths = new Set<string>();
+  // Fatura: os meses em que esta importação gravou compra (não as parcelas projetadas).
+  const mesesDasComprasCriadas = new Map<string, { year: number; month: number }>();
   let created = 0;
   let skipped = 0;
 
@@ -692,8 +777,23 @@ export async function importTransactionsAction(
   // arquivo inteiro depois (upload errado/duplicado). Se nada for criado, o lote é removido.
   const batch = await createImportBatch(ctx, { docType, fileName });
 
+  // Fatura com mês escolhido ("Mudar › contar tudo num mês"): o modo antigo, tudo nesse mês e
+  // sem dia. Sem mês escolhido (o padrão desde out/2026): cada compra no mês em que foi feita,
+  // parcela k no mês da compra + (k - 1) (ver lib/import/mes-da-compra).
   const faturaTarget =
     docType === "fatura" && targetYear && targetMonth ? { year: targetYear, month: targetMonth } : null;
+  const ehFatura = docType === "fatura";
+  const modoCompra = ehFatura && !faturaTarget;
+  const datasDaFatura = { vencimento: fatura?.vencimento ?? null, fechamento: fatura?.fechamento ?? null };
+  // O contexto vale nos dois modos: no do mês escolhido ele dá a chave "pela data da compra", pra
+  // a mesma fatura já gravada no modo novo não entrar de novo.
+  const contextoFatura: ContextoDaFatura | null = ehFatura ? contextoDaFatura(datasDaFatura, items.map((i) => i.date), now) : null;
+  const destinos = new Map<ConfirmedItem, Destino>();
+  const destinoPelaCompra = (item: ConfirmedItem): Destino | null => {
+    if (!contextoFatura) return null;
+    if (!destinos.has(item)) destinos.set(item, mesDaCompra(item, contextoFatura, now));
+    return destinos.get(item)!;
+  };
 
   // Cada linha pode ir pro perfil ativo ou pra OUTRO perfil do usuário (fatura Pessoal com
   // compra da Empresa, por exemplo — ver `profileId` em ReviewItem). Um id que não é REALMENTE
@@ -718,13 +818,20 @@ export async function importTransactionsAction(
   // A chave leva o PERFIL de destino junto: mesma data/valor/descrição em perfis diferentes
   // (Pessoal e Empresa) não é duplicata uma da outra, é o mesmo gasto do cartão dividido em duas contas.
   const monthOf = (item: ConfirmedItem) =>
-    faturaTarget ?? yearMonthFromISO(item.date) ?? { year: now.getFullYear(), month: now.getMonth() + 1 };
+    faturaTarget ?? destinoPelaCompra(item)?.mes ?? yearMonthFromISO(item.date) ?? { year: now.getFullYear(), month: now.getMonth() + 1 };
+  /** O dia que vai no lançamento (e na chave): fatura pelo mês escolhido não tem dia; pela data
+   * da compra, só a compra à vista tem (parcela vai sem dia, como as projetadas). */
+  const diaDe = (item: ConfirmedItem): string | null =>
+    faturaTarget ? null : modoCompra ? destinoPelaCompra(item)!.dia : yearMonthFromISO(item.date) ? item.date : null;
   const monthsInBatch = new Set<string>();
   for (const item of items) {
     const ym = monthOf(item);
     const profileId = profileIdOf(item);
     monthsInBatch.add(`${profileId}|${ym.year}/${ym.month}`);
-    if (faturaTarget && item.installment?.confident) {
+    // Mês escolhido: o mês "pela data da compra" também, pra achar a mesma fatura gravada no modo novo.
+    const pelaCompra = faturaTarget ? destinoPelaCompra(item)?.mes : null;
+    if (pelaCompra) monthsInBatch.add(`${profileId}|${pelaCompra.year}/${pelaCompra.month}`);
+    if (ehFatura && item.installment?.confident) {
       // Um mês antes e um depois das parcelas também: é onde a parcela projetada por outra fatura
       // está quando o mês escolhido ficou um mês fora (ver `parcelaJaLancada`).
       for (let n = item.installment.current; n <= item.installment.total + 1; n += 1) {
@@ -753,6 +860,30 @@ export async function importTransactionsAction(
   // banco deu: com o nome novo, a mesma fatura subida de novo entrava em dobro.
   // Todos os perfis dela: a linha que este perfil mandou pra outro também é comparada (ver abaixo).
   const nomesDoBanco = await descricoesOriginais(ctx, [...new Set([...[...monthsInBatch].map((k) => k.split("|")[0]), ...ownProfileIds])]);
+  // Pela data da compra: esta mesma fatura já entrou antes no modelo ANTIGO (inteira num mês, sem
+  // dia)? A chave nova (mês da compra, com dia) nunca bate com aquela; sem isto, subir de novo uma
+  // fatura antiga duplicava tudo. Só os meses em que um lote antigo tem a maioria das compras.
+  let mesesDaFaturaAntiga: { year: number; month: number }[] = [];
+  if (modoCompra && contextoFatura) {
+    const centro = mesDaData(contextoFatura.vencimento) ?? contextoFatura.limite ?? { year: now.getFullYear(), month: now.getMonth() + 1 };
+    const janela = [-1, 0, 1].map((d) => somarMeses(centro, d));
+    const perfisDosItens = [...new Set(items.map(profileIdOf))];
+    const antigos = await prisma.monthlyEntry.findMany({
+      where: {
+        userId: ctx.userId, profileId: { in: perfisDosItens },
+        entryDate: null,
+        importBatchId: { not: null },
+        importBatch: { is: { docType: "fatura" } },
+        OR: janela,
+      },
+      select: { id: true, importBatchId: true, year: true, month: true, amount: true, description: true },
+    });
+    mesesDaFaturaAntiga = mesesDaMesmaFaturaAntiga(
+      items.filter((i) => !i.estorno && i.category === "EXPENSE").map((i) => ({ valor: i.amount, descricao: i.description })),
+      antigos.map((e) => ({ loteId: e.importBatchId!, year: e.year, month: e.month, valor: Number(e.amount), descricao: nomesDoBanco.get(e.id) ?? e.description })),
+    );
+    for (const m of mesesDaFaturaAntiga) for (const p of perfisDosItens) monthsInBatch.add(`${p}|${m.year}/${m.month}`);
+  }
   for (const key of monthsInBatch) {
     const [profileId, ym] = key.split("|");
     const [y, m] = ym.split("/").map(Number);
@@ -806,7 +937,7 @@ export async function importTransactionsAction(
   // DEPOIS desse foi projetada ("as seguintes entram sozinhas"), não veio na fatura daquele lote.
   const lotesComParcela = [...new Set([...parcelasExistentes.values()].flat().flatMap((p) => (p.loteId ? [p.loteId] : [])))];
   const mesDaFaturaDoLote = new Map<string, number>();
-  if (faturaTarget && lotesComParcela.length > 0) {
+  if (ehFatura && lotesComParcela.length > 0) {
     const mesesDosLotes = await prisma.monthlyEntry.findMany({
       // Todos os perfis dela: o lote é de um perfil, mas a revisão pode ter mandado linhas pra outro.
       where: { userId: ctx.userId, profileId: { in: [...ownProfileIds] }, importBatchId: { in: lotesComParcela } },
@@ -847,9 +978,25 @@ export async function importTransactionsAction(
   const valorGravado = (item: ConfirmedItem) =>
     (item.estorno && item.category === "EXPENSE") || (item.resgate && item.category === "INVESTMENT_CONTRIBUTION") ? -item.amount : item.amount;
   const chaveExata = (item: ConfirmedItem, valor = valorGravado(item)) => {
-    const originalYm = yearMonthFromISO(item.date);
-    const ym = faturaTarget ?? originalYm ?? { year: now.getFullYear(), month: now.getMonth() + 1 };
-    return `${profileIdOf(item)}|${ym.year}/${ym.month}|${dedupeKey(!faturaTarget && originalYm ? item.date : null, valor, item.description)}`;
+    const ym = monthOf(item);
+    return `${profileIdOf(item)}|${ym.year}/${ym.month}|${dedupeKey(diaDe(item), valor, item.description)}`;
+  };
+  /**
+   * A mesma fatura gravada no OUTRO modelo: pela data da compra, a chave antiga (mês em que o lote
+   * antigo pôs a fatura, sem dia); pelo mês escolhido, a chave nova (mês e dia da compra). A
+   * antiga só nos meses de um lote com a maioria das compras desta fatura: a assinatura que se
+   * repete todo mês não é confundida com a do mês passado.
+   */
+  const chavesDoOutroModelo = (item: ConfirmedItem, parcela: boolean): string[] => {
+    if (!ehFatura) return [];
+    const resto = parcela ? descricaoComparavel(item.description) : null;
+    if (modoCompra) {
+      return mesesDaFaturaAntiga.map(
+        (m) => `${profileIdOf(item)}|${m.year}/${m.month}|${resto ?? dedupeKey(null, valorGravado(item), item.description)}`,
+      );
+    }
+    const d = destinoPelaCompra(item);
+    return d ? [`${profileIdOf(item)}|${d.mes.year}/${d.mes.month}|${resto ?? dedupeKey(d.dia, valorGravado(item), item.description)}`] : [];
   };
   /**
    * Crédito do extrato que ela já tinha marcado como ESTORNO numa importação anterior (gravado
@@ -885,13 +1032,15 @@ export async function importTransactionsAction(
    * a chave exata. Como os dois lados decidem pela mesma descrição, um lançamento do banco nunca
    * é "gasto" duas vezes, uma por cada caminho. */
   const chaveParcela = (item: ConfirmedItem) => {
-    const parcela = faturaTarget && !item.estorno ? parcelaCerta(item.description) : null;
-    return parcela
-      ? { key: `${profileIdOf(item)}|${faturaTarget!.year}/${faturaTarget!.month}|${descricaoComparavel(item.description)}`, total: parcela.total }
-      : null;
+    const parcela = ehFatura && !item.estorno ? parcelaCerta(item.description) : null;
+    if (!parcela) return null;
+    const ym = monthOf(item);
+    return { key: `${profileIdOf(item)}|${ym.year}/${ym.month}|${descricaoComparavel(item.description)}`, total: parcela.total };
   };
-  const chaveSolta = (item: ConfirmedItem) =>
-    item.amount > 0 && !faturaTarget && yearMonthFromISO(item.date) ? `${profileIdOf(item)}|${chaveSoltaDe(item.date, valorGravado(item), item.category)}` : null;
+  const chaveSolta = (item: ConfirmedItem) => {
+    const dia = diaDe(item);
+    return item.amount > 0 && dia ? `${profileIdOf(item)}|${chaveSoltaDe(dia, valorGravado(item), item.category)}` : null;
+  };
   // Duas etapas: primeiro o que bate EXATO (mesma descrição), depois, só entre os que sobraram,
   // o que bate por data + valor com a descrição do mesmo jeito (ver casarPorDataEValor).
   const pular = new Set<number>();
@@ -900,9 +1049,16 @@ export async function importTransactionsAction(
   items.forEach((item, i) => {
     if (item.amount <= 0) return;
     const parcela = chaveParcela(item);
-    const achada = parcela ? parcelaJaLancada(parcela.key, valorGravado(item), parcela.total) : null;
+    let achada = parcela ? parcelaJaLancada(parcela.key, valorGravado(item), parcela.total) : null;
+    for (const k of parcela && !achada ? chavesDoOutroModelo(item, true) : []) {
+      achada = parcelaJaLancada(k, valorGravado(item), parcela!.total);
+      if (achada) break;
+    }
     if (achada && ehProjecao(achada)) confirmadas.set(i, achada);
-    if (parcela ? achada !== null : alreadyThere(chaveExata(item)) || jaLancadoComoEstorno(item)) pular.add(i);
+    const jaExiste = parcela
+      ? achada !== null
+      : alreadyThere(chaveExata(item)) || jaLancadoComoEstorno(item) || chavesDoOutroModelo(item, false).some(alreadyThere);
+    if (jaExiste) pular.add(i);
   });
   const soltas = casarPorDataEValor(items.map(chaveSolta), items.map((item) => item.description), looseDescricoes, { perguntar: false, jaCasados: pular });
   for (const [i, casamento] of soltas) if (casamento.tipo === "mesmo") pular.add(i);
@@ -923,7 +1079,7 @@ export async function importTransactionsAction(
     customCategoryId: string | undefined,
     adotarDe: string | null,
   ) => {
-    if (!faturaTarget || item.estorno || !item.installment?.confident || item.installment.current >= item.installment.total) return;
+    if (!ehFatura || item.estorno || !item.installment?.confident || item.installment.current >= item.installment.total) return;
     const { current, total } = item.installment;
     for (let n = current + 1; n <= total; n += 1) {
       const offset = n - current;
@@ -958,6 +1114,8 @@ export async function importTransactionsAction(
     }
   };
 
+  // O que ela ensinou nesta importação, por perfil + comerciante (pra aplicar nos outros meses).
+  const aprendidas = new Map<string, { profileId: string; regra: { pattern: string; parentCategory: ParentCategory; subcategory?: string; customCategoryId: string | null } }>();
   for (const [indice, item] of items.entries()) {
     if (item.amount <= 0) continue;
     const profileId = profileIdOf(item);
@@ -978,15 +1136,11 @@ export async function importTransactionsAction(
           ? "OUTROS"
           : undefined;
 
-    // Fatura com mês escolhido: todas as compras vão pro MESMO mês, não no de cada compra.
-    // Sem isso, uma fatura com período de fechamento cruzando dois meses (ex.: 13/06 a 13/07)
-    // espalhava os lançamentos em dois meses diferentes, ou caía no mês corrente do servidor.
-    const originalYm = yearMonthFromISO(item.date);
-    const ym = faturaTarget ?? originalYm ?? { year: now.getFullYear(), month: now.getMonth() + 1 };
-    // A chave tem que ser a MESMA dos dois lados. Em fatura o lançamento é gravado sem dia
-    // (entryDate nulo), então a chave também vai sem data — com a data da compra, nenhuma
-    // chave batia e subir a mesma fatura duas vezes duplicava a fatura inteira. A confusão com
-    // assinatura recorrente não acontece porque a busca é feita mês a mês.
+    // Fatura com mês escolhido: todas as compras vão pro MESMO mês, sem dia. Pela data da
+    // compra (o padrão): o mês de cada compra, com o dia; parcela no mês dela, sem dia. A chave
+    // de duplicata usa o MESMO mês e o MESMO dia que vão pro banco (ver `chaveExata`/`diaDe`).
+    const ym = monthOf(item);
+    const dia = diaDe(item);
     if (pular.has(indice)) {
       skipped += 1;
       const confirmada = confirmadas.get(indice);
@@ -1007,30 +1161,51 @@ export async function importTransactionsAction(
       subcategory: item.subcategory ?? undefined,
       description: item.description,
       amount: valorGravado(item),
-      // Fatura: sem dia específico (lança "no mês", não "no dia da compra"). Extrato: mantém a
-      // data exata de cada transação, como sempre foi.
-      entryDate: !faturaTarget && originalYm ? new Date(`${item.date}T12:00:00`) : undefined,
+      // Extrato e compra à vista da fatura: o dia da transação. Parcela e fatura pelo mês
+      // escolhido: sem dia.
+      entryDate: dia ? new Date(`${dia}T12:00:00`) : undefined,
       importBatchId: batch.id,
       profileId,
       pessoa: pessoaPara(profileId),
     });
     created += 1;
     touchedMonths.add(`${ym.year}/${ym.month}`);
+    if (ehFatura) mesesDasComprasCriadas.set(`${ym.year}/${ym.month}`, ym);
 
     await lancarParcelasFuturas(item, ym, profileId, parentCategory, customCategoryId, null);
 
-    // Aprende a classificação só para gastos com categoria definida pelo usuário.
-    // O Outros de reserva (personalizada de outro perfil) não foi escolha dela: não vira regra.
-    if (item.learn && item.category === "EXPENSE" && parentCategory && !personalizadaDeOutroPerfil) {
-      const pattern = normalizeMerchant(item.description);
-      if (pattern) {
+    // Aprende a classificação só para gastos com categoria definida pelo usuário, inclusive a
+    // personalizada que ela criou (antes só as oito fixas: "Dani Invest" pro ManyChat era
+    // esquecida e perguntada de novo todo mês). O Outros de reserva (personalizada de outro
+    // perfil) não foi escolha dela: não vira regra. A regra é guardada pela chave do comerciante
+    // (comerciante.ts), que é a mesma em todo extrato e todo mês.
+    if (item.learn && item.category === "EXPENSE" && (parentCategory || customCategoryId) && !personalizadaDeOutroPerfil) {
+      const pattern = chaveDoComerciante(item.description);
+      if (chaveUtil(pattern)) {
         // A regra mora no perfil pra onde a linha FOI, não no aberto: a compra da Kalunga
         // mandada pra Empresa como "Mercadorias e insumos" (chave ALIMENTACAO) virava
         // "Alimentação" na próxima importação da Pessoal, e a Empresa não aprendia nada.
-        await upsertTransactionRule({ ...ctx, profileId }, { pattern, parentCategory, subcategory: item.subcategory ?? undefined });
+        const regra = { pattern, parentCategory: parentCategory ?? "OUTROS", subcategory: item.subcategory ?? undefined, customCategoryId: customCategoryId ?? null };
+        await upsertTransactionRule({ ...ctx, profileId }, regra);
+        aprendidas.set(`${profileId}|${pattern}`, { profileId, regra });
       }
     }
   }
+
+  // O que ela ensinou agora vale também nos meses que já estavam no app: os gastos do mesmo
+  // comerciante que ainda estão SEM categoria recebem a mesma (nunca troca o que já tem).
+  let aplicadosEmOutrosMeses = 0;
+  for (const profileId of new Set([...aprendidas.values()].map((a) => a.profileId))) {
+    try {
+      aplicadosEmOutrosMeses += await aplicarNosOutrosMeses(
+        { ...ctx, profileId },
+        [...aprendidas.values()].filter((a) => a.profileId === profileId).map((a) => a.regra),
+      );
+    } catch (err) {
+      console.error("aplicarNosOutrosMeses falhou (a importação segue)", err);
+    }
+  }
+  if (aplicadosEmOutrosMeses > 0) revalidatePath("/mensal", "layout");
 
   // Upload que só tinha duplicata não criou nada: não polui o histórico com lote vazio. (O que
   // só confirmou parcelas projetadas por outro lote não está vazio: agora elas são dele.)
@@ -1038,8 +1213,11 @@ export async function importTransactionsAction(
 
   // Fatura: lista candidatos a "pagamento de fatura" no extrato pra pessoa decidir se remove
   // (evita contar em dobro), sem apagar nada sozinho.
+  // O pagamento sai perto do vencimento: é em volta dele que o extrato tem a linha. Sem o
+  // vencimento lido, o último mês das compras.
+  const mesDoPagamento = faturaTarget ?? mesDaData(datasDaFatura.vencimento) ?? contextoFatura?.limite ?? null;
   const cardPaymentCandidates =
-    faturaTarget && created > 0 ? await findCardPaymentCandidates(ctx, faturaTarget.year, faturaTarget.month) : [];
+    ehFatura && mesDoPagamento && created > 0 ? await findCardPaymentCandidates(ctx, mesDoPagamento.year, mesDoPagamento.month) : [];
 
   for (const key of touchedMonths) {
     const [year, month] = key.split("/");
@@ -1047,8 +1225,9 @@ export async function importTransactionsAction(
     revalidatePath(`/mensal/${year}/${month}`);
   }
 
-  // Limite do cartão: a fatura que entrou pode ter passado de 70/90/100% do mês dela.
-  if (faturaTarget && created > 0) await agendarAvisoDoCartao(ctx, faturaTarget.year, faturaTarget.month);
+  // Limite do cartão: a fatura que entrou pode ter passado de 70/90/100% de cada mês em que
+  // ela pôs compra (o aviso guarda o que já mandou por mês, não repete).
+  if (ehFatura && created > 0) for (const m of mesesDasComprasCriadas.values()) await agendarAvisoDoCartao(ctx, m.year, m.month);
 
   await recordImportDiagnostic({
     userId: ctx.userId,

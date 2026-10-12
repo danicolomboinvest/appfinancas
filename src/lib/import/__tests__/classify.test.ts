@@ -22,7 +22,8 @@ describe("classify: palavra inteira, não pedaço de texto", () => {
     expect(classify(pix("JOAO PACHECO", "BCO DA AMAZONIA S.A."))).toBeNull();
     expect(classify("HOTEL PRAIA GRANDE")).toEqual({ parentCategory: "LAZER", subcategory: "Viagens" });
     expect(classify("LOJAS RENNER UBERLANDIA")).toBeNull();
-    expect(classify("CHURRASCARIA BOI GORDO")).toBeNull();
+    // Churrascaria é comida (dicionário de 12/10/2026); o "oi" de "BOI" continua sem virar internet.
+    expect(classify("CHURRASCARIA BOI GORDO")).toEqual({ parentCategory: "ALIMENTACAO", subcategory: "Restaurante" });
     expect(classify("CARTAO 1299 LOJA")).toBeNull();
   });
 
@@ -44,7 +45,7 @@ describe("classify: palavra inteira, não pedaço de texto", () => {
     expect(classify("99APP *CORRIDA")?.subcategory).toBe("Aplicativo");
     expect(classify("UBER *UBER *TRIP")?.subcategory).toBe("Aplicativo");
     expect(classify("UBER *EATS")).toEqual({ parentCategory: "ALIMENTACAO", subcategory: "Delivery" });
-    expect(classify("BAR DO ZE")?.subcategory).toBe("Restaurante");
+    expect(classify("BAR DO ZE")?.subcategory).toBe("Bar");
     expect(classify("BARBEARIA DO ZE")).toBeNull();
     expect(classify("OI FIBRA")?.subcategory).toBe("Internet");
     expect(classify("Pagamento de fatura CLARO")?.subcategory).toBe("Internet");
@@ -111,7 +112,7 @@ describe("regras aprendidas: palavra inteira e nada genérico", () => {
 
   it("regra genérica que já está no banco não contamina mais nada", () => {
     const rules = [regra("Compra no débito"), regra("PIX ENVIADO"), regra("BAR")];
-    expect(classify("Compra no débito - PADARIA PAO DOURADO", rules)).toEqual({ parentCategory: "ALIMENTACAO", subcategory: "Restaurante" });
+    expect(classify("Compra no débito - PADARIA PAO DOURADO", rules)).toEqual({ parentCategory: "ALIMENTACAO", subcategory: "Padaria" });
     expect(classify("PIX ENVIADO IFOOD", rules)).toEqual({ parentCategory: "ALIMENTACAO", subcategory: "Delivery" });
     expect(classify("BARBEARIA DO ZE", rules)).toBeNull();
   });
