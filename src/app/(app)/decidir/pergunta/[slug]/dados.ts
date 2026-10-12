@@ -13,6 +13,7 @@ import { ritmoMensalDaMeta, type MetaResposta, type ResumoMes } from "@/lib/deci
 import { ehCasal } from "@/lib/profiles/casal";
 import { lerDecisao } from "@/lib/repositories/decisao.repo";
 import { carregarFoco, MESES } from "@/app/(app)/mensal/foco/dados";
+import { fotoDaMeta } from "@/lib/metas/tipos";
 
 /** As perguntas do dia a dia da Central, pelo endereço. A regra de cada uma está em lib/decisoes/respostas. */
 export const PERGUNTAS: Record<string, string> = {
@@ -115,6 +116,35 @@ export async function carregarRespostas(ctx: AuthContext) {
     };
   });
 
+  // Para os caminhos guiados (Guardar mais e Minha meta): a foto, a taxa ao mês, o prazo em meses
+  // e quanto foi para a meta em cada um dos 3 últimos meses fechados.
+  const tres = [3, 2, 1].map((k) => {
+    const dt = new Date(year, month - 1 - k, 1);
+    return { ano: dt.getFullYear(), mes: dt.getMonth() + 1, rotulo: MESES[dt.getMonth()].slice(0, 3) };
+  });
+  const metasDoFluxo = metas
+    .filter((g) => g.computedCurrentAmount < Number(g.targetAmount))
+    .map((g) => {
+      const resp = metasResposta.find((x) => x.id === g.id)!;
+      return {
+        id: g.id,
+        nome: g.name,
+        foto: fotoDaMeta({ fotoUrl: (g as { fotoUrl?: string | null }).fotoUrl ?? null, icon: g.icon, name: g.name }),
+        atual: g.computedCurrentAmount,
+        alvo: Number(g.targetAmount),
+        taxaMensal: mensal(Number(g.annualRate ?? 0)),
+        prazoMeses: g.targetDate ? (g.targetDate.getUTCFullYear() - year) * 12 + (g.targetDate.getUTCMonth() + 1 - month) : null,
+        prazoTexto: g.targetDate ? `${MESES[g.targetDate.getUTCMonth()].slice(0, 3)}/${g.targetDate.getUTCFullYear()}` : null,
+        ritmo: resp.ritmoPorMes,
+        necessario: resp.necessarioPorMes,
+        noPrazo: resp.noPrazo,
+        ultimos3: tres.map((t) => ({
+          rotulo: t.rotulo,
+          valor: aportesPorMeta.filter((a) => a.goalId === g.id && a.year === t.ano && a.month === t.mes).reduce((s2, a) => s2 + Number(a._sum.amount ?? 0), 0),
+        })),
+      };
+    });
+
   const renda = plano && plano.plannedIncome > 0 ? plano.plannedIncome : (rendaTipica?.valor ?? null);
   const fund = d.fund;
   const livre = d.foco.livre;
@@ -125,6 +155,7 @@ export async function carregarRespostas(ctx: AuthContext) {
     regra90: rendaDoCasal !== "conjunta",
     gastoReal: gastoTipico?.monthlyAverage ?? null,
     metas: metasResposta,
+    metasDoFluxo,
     reserva: fund
       ? { atual: Number(fund.currentAmount), custoMensal: Number(fund.monthlyExpenseBase), mesesMeta: fund.targetMonths, porMes: Number(fund.monthlyContribution), alvo: Number(fund.targetAmount) }
       : null,

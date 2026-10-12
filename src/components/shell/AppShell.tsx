@@ -159,8 +159,9 @@ export function AppShell({
 
   // A Visão geral (Resumo, Orçamento, Transações, Recorrentes) tem as abas e o + (versão nova).
   const visaoGeral = ehVisaoGeral(pathname);
-  // "Posso comprar?" em tela cheia (05/10/2026): sem o topo, para cada pergunta caber na tela.
-  const focado = pathname?.startsWith("/decidir/comprar") ?? false;
+  // "Posso comprar?" com o topo do app (protótipo, #comprar): menu, Decidir, lua e o avatar. A
+  // tela cheia de 05/10/2026 saiu; o nome fica para as telas que um dia precisarem dela.
+  const focado = false;
   const empresa = ehEmpresa(profileKind);
   const casal = ehCasal(profileKind);
   const secoes = modoPar ? SECOES_DO_PAR : secoesVisiveis(isAdmin ? [...NAV_SECTIONS, ADMIN_NAV_SECTION] : NAV_SECTIONS, { empresa, casal });

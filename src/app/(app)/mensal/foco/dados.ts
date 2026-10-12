@@ -50,7 +50,10 @@ export async function carregarRaioX(ctx: AuthContext, ano: number, mes: number) 
       .filter((e) => e.category === "EXPENSE")
       .map((e) => ({ description: e.description, amount: Number(e.amount), year: e.year, month: e.month, parentCategory: e.parentCategory, subcategory: e.subcategory })),
   );
-  return { itens, decididos };
+  // Só as assinaturas (protótipo, "Que pequenos gastos posso cortar?": Netflix, Spotify, iCloud).
+  // Uber e iFood são hábitos de vários valores, não uma cobrança fixa para cancelar, e somados
+  // inflavam o "por ano" do Decidir (auditoria de 11/10/2026).
+  return { itens: itens.filter((i) => i.tipo === "assinatura"), decididos };
 }
 
 /**

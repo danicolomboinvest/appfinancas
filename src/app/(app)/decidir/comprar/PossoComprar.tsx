@@ -3,8 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { BookOpen, ChevronLeft, Home, Laptop, Minus, Plane, Plus, Scissors, Shirt, ShoppingBag, Smartphone, Target } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import { ChevronLeft, Minus, Plus, Target } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { HeroiDoTema } from "@/components/ui/HeroiDoTema";
 import { ValorDestaque } from "@/components/ui/ValorDestaque";
@@ -23,15 +22,11 @@ import { criarSonhoDaCompraAction } from "@/app/(app)/planejamento/metas/actions
 const MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
 
 /** A ordem e os ícones do protótipo aprovado (rodada 24): oito toques, "Outra coisa" no fim. */
-const ORDEM: { id: string; icone: LucideIcon }[] = [
-  { id: "celular", icone: Smartphone },
-  { id: "viagem", icone: Plane },
-  { id: "casa", icone: Home },
-  { id: "educacao", icone: BookOpen },
-  { id: "vestuario", icone: Shirt },
-  { id: "eletronico", icone: Laptop },
-  { id: "beleza", icone: Scissors },
-  { id: "outro", icone: ShoppingBag },
+const FOTOS_DA_COMPRA: { id: string; foto: string }[] = [
+  { id: "celular", foto: "/fotos/metas/tecnologia.jpg" },
+  { id: "viagem", foto: "/fotos/metas/viagem-praia.jpg" },
+  { id: "casa", foto: "/fotos/metas/casa.jpg" },
+  { id: "educacao", foto: "/fotos/metas/estudos.jpg" },
 ];
 
 const SINCERIDADE: { k: Sinceridade; titulo: string; sub: string }[] = [
@@ -122,7 +117,7 @@ export function PossoComprar({ base, hoje, parcelasNoMes }: { base: CompraBase; 
     if (passo === "meta") return setPasso("resposta");
     setPasso((passo - 1) as Passo);
   };
-  const rotuloTopo = passo === "resposta" ? "A resposta" : passo === "meta" ? "Virar meta" : `Posso comprar? · ${passo} de ${PASSOS}`;
+  const rotuloTopo = passo === "resposta" ? "A resposta" : passo === "meta" ? "Virar meta" : `${passo} de ${PASSOS}`;
 
   const definirVezes = (n: number) => {
     const x = Math.max(2, Math.min(48, Math.round(n)));
@@ -191,6 +186,13 @@ export function PossoComprar({ base, hoje, parcelasNoMes }: { base: CompraBase; 
     </div>
   );
 
+  function escolher(c: CategoriaDaCompra) {
+    setCat(c);
+    // Um valor comum da categoria já vem marcado (o terceiro atalho), como no protótipo.
+    if (!(valor > 0) || cat?.id !== c.id) setValor(c.atalhos[2]);
+    setPasso(2);
+  }
+
   const fonteDaRenda = base.fonteRenda === "plano" ? "do seu plano" : base.fonteRenda === "media" ? "a média dos últimos meses" : "o que entrou no mês";
 
   return (
@@ -198,9 +200,9 @@ export function PossoComprar({ base, hoje, parcelasNoMes }: { base: CompraBase; 
       <div className="flex items-center justify-between gap-3">
         <button type="button" onClick={voltar} className="flex min-h-11 items-center gap-1 text-sm text-ink-muted hover:text-ink">
           <ChevronLeft size={18} aria-hidden />
-          {passo === 1 || passo === "resposta" || passo === "meta" ? "Decidir" : "Voltar"}
+          Voltar
         </button>
-        <span className="min-w-0 truncate text-caption text-ink-muted">{rotuloTopo}</span>
+        <span className="min-w-0 truncate text-sm tabular-nums text-ink-muted">{rotuloTopo}</span>
       </div>
       {typeof passo === "number" && (
         <div className="flex gap-1.5" aria-hidden>
@@ -210,29 +212,30 @@ export function PossoComprar({ base, hoje, parcelasNoMes }: { base: CompraBase; 
         </div>
       )}
 
+      {typeof passo === "number" && <span className="-mb-2 text-[13px] font-medium text-ink-muted">Posso comprar?</span>}
       {passo === 1 && (
         <>
           <h2 className={titulo}>O que você quer comprar?</h2>
-          <div className="grid grid-cols-4 gap-2 max-[359px]:grid-cols-2">
-            {ORDEM.map(({ id, icone: Icone }) => {
+          {/* Protótipo (#comprar): quatro quadros com foto e, embaixo, as outras em pílulas. */}
+          <div className="grid grid-cols-2 gap-2" data-compra-fotos>
+            {FOTOS_DA_COMPRA.map(({ id, foto }) => {
+              const c = CATEGORIAS_DA_COMPRA.find((x) => x.id === id)!;
+              return (
+                <button key={id} type="button" aria-pressed={cat?.id === id} onClick={() => escolher(c)} className="relative h-24 overflow-hidden rounded-2xl bg-surface-2 aria-pressed:shadow-[inset_0_0_0_3px_var(--color-ink)]">
+                  {/* eslint-disable-next-line @next/next/no-img-element -- banco de fotos do app */}
+                  <img src={foto} alt="" loading="lazy" decoding="async" className="absolute inset-0 size-full object-cover" />
+                  <span className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent to-65%" aria-hidden />
+                  <b className="absolute bottom-2.5 left-3 z-10 font-medium text-white">{c.nome}</b>
+                </button>
+              );
+            })}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {["vestuario", "eletronico", "beleza", "outro"].map((id) => {
               const c = id === "outro" ? categoriaOutra("") : CATEGORIAS_DA_COMPRA.find((x) => x.id === id)!;
               return (
-                <button
-                  key={id}
-                  type="button"
-                  aria-pressed={cat?.id === id}
-                  onClick={() => {
-                    setCat(c);
-                    // Um valor comum da categoria já vem marcado (o terceiro atalho), como no protótipo.
-                    if (!(valor > 0) || cat?.id !== id) setValor(c.atalhos[2]);
-                    setPasso(2);
-                  }}
-                  className={`flex min-h-[92px] min-w-0 flex-col items-center justify-center gap-2 rounded-2xl px-1 py-3 text-center ${cat?.id === id ? "bg-accent-soft ring-1 ring-accent" : "bg-surface shadow-[inset_0_0_0_1px_var(--color-border)]"}`}
-                >
-                  <span className="flex size-10 items-center justify-center rounded-full bg-surface-2 text-accent-strong" aria-hidden>
-                    <Icone size={19} strokeWidth={1.6} />
-                  </span>
-                  <b className="text-[12.5px] font-medium leading-tight text-ink">{c.nome}</b>
+                <button key={id} type="button" aria-pressed={cat?.id === id} onClick={() => escolher(c)} className="min-h-10 rounded-full bg-surface-2 px-4 text-[15px] text-ink aria-pressed:bg-ink aria-pressed:text-surface">
+                  {c.nome}
                 </button>
               );
             })}
