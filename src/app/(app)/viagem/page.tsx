@@ -22,7 +22,7 @@ function diaDeHoje(): string {
 export default async function ViagemPage({ searchParams }: { searchParams: Promise<{ meta?: string | string[] }> }) {
   const ctx = await getRequiredSession();
   // Coisa de pessoa física: a Empresa não vê no menu e, por link, cai na Visão geral.
-  if (ehEmpresa(ctx.profileKind)) redirect("/dashboard");
+  if (ehEmpresa(ctx.profileKind)) redirect("/empresa");
   const { titulos: t } = vozDoTema(ctx.profileTheme, ctx.profileKind);
   const { meta } = await searchParams;
   const metaId = typeof meta === "string" ? meta : null;

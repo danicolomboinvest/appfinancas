@@ -9,7 +9,7 @@ import { hasPremiumAccess } from "@/lib/repositories/allowedEmail.repo";
 export default async function FichasLayout({ children }: { children: React.ReactNode }) {
   const ctx = await getRequiredSession();
   // Coisa de pessoa física: a Empresa não vê no menu e, por link, cai na Visão geral.
-  if (ehEmpresa(ctx.profileKind)) redirect("/dashboard");
+  if (ehEmpresa(ctx.profileKind)) redirect("/empresa");
   const voz = vozDoTema(ctx.profileTheme, ctx.profileKind);
   const premium = await hasPremiumAccess(ctx.userId);
 

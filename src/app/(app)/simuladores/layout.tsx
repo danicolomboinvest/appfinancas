@@ -11,7 +11,7 @@ import { VoltarProDecidir } from "./VoltarProDecidir";
 export default async function SimuladoresLayout({ children }: { children: React.ReactNode }) {
   const ctx = await getRequiredSession();
   // Coisa de pessoa física: a Empresa não vê no menu e, por link, cai na Visão geral.
-  if (ehEmpresa(ctx.profileKind)) redirect("/dashboard");
+  if (ehEmpresa(ctx.profileKind)) redirect("/empresa");
   const premium = await hasPremiumAccess(ctx.userId);
 
   // Versão nova (11/10/2026): cada calculadora tem o próprio topo ("‹ Calculadoras", "1 de 3"),

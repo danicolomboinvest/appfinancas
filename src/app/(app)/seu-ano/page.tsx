@@ -19,7 +19,7 @@ const MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julh
 export default async function SeuAnoPage() {
   const ctx = await getRequiredSession();
   // "Compras que você desistiu", "pequenos gastos cortados": é o ano da pessoa, não da empresa.
-  if (ehEmpresa(ctx.profileKind)) redirect("/dashboard");
+  if (ehEmpresa(ctx.profileKind)) redirect("/empresa");
   const t = vozDoTema(ctx.profileTheme, ctx.profileKind).titulos;
   const money = await serverMoney();
   const m = (v: number) => money(v, { round: true });
@@ -39,7 +39,7 @@ export default async function SeuAnoPage() {
 
   return (
     <div className="flex flex-col gap-5">
-      <Link href="/dashboard" className="flex w-fit items-center gap-1 text-sm text-ink-muted hover:text-ink">
+      <Link href="/mensal/foco" className="flex w-fit items-center gap-1 text-sm text-ink-muted hover:text-ink">
         <ChevronLeft size={16} /> {t.visaoGeral}
       </Link>
       <div

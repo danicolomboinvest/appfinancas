@@ -20,7 +20,7 @@ export default async function AdicionalPage(props: PageProps<"/adicionais/[qual]
   const { qual } = await props.params;
   if (!ehAdicional(qual)) notFound();
   const ctx = await getRequiredSession();
-  if (await temAdicional(ctx.userId, qual)) redirect("/perfis");
+  if (await temAdicional(ctx.userId, qual)) redirect("/configuracoes/perfis");
 
   const dados = ADICIONAIS[qual];
   let comoPagar: ComoPagar;

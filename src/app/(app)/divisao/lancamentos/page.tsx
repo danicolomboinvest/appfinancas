@@ -12,7 +12,7 @@ export const metadata = { title: "Lançamentos · Nós dois" };
 /** "‹ Nosso mês · Lançamentos" (protótipo, #casal-lancamentos): busca, filtros, total e a lista por dia. */
 export default async function LancamentosDoCasalPage(props: { searchParams: Promise<{ quem?: string; busca?: string }> }) {
   const ctx = await getRequiredSession();
-  if (!ehCasal(ctx.profileKind)) redirect("/dashboard");
+  if (!ehCasal(ctx.profileKind)) redirect("/mensal/foco");
   const busca = await props.searchParams;
   const hoje = nowInBrazil();
   const ano = hoje.getFullYear();

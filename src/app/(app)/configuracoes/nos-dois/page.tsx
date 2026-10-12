@@ -19,7 +19,7 @@ export default async function ConfigNosDoisPage() {
     const m = await prisma.membroCasal.findUnique({ where: { id: ctx.par.membroId }, select: { entrouEm: true } });
     return <ConfigDoPar nomeTitular={ctx.par.nomeTitular} entrouEmIso={(m?.entrouEm ?? new Date()).toISOString()} />;
   }
-  if (!ehCasal(ctx.profileKind)) redirect("/perfis");
+  if (!ehCasal(ctx.profileKind)) redirect("/configuracoes/perfis");
 
   const [nosDois, conta] = await Promise.all([
     nosDoisDaTitular(ctx),

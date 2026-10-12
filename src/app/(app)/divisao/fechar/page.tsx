@@ -14,7 +14,7 @@ export const metadata = { title: "Fechar o mês · Nós dois" };
 /** Fechar o mês a dois: o mês anterior, com o "Confere" de cada um (protótipo aprovado, tela f). */
 export default async function FecharOMesPage() {
   const ctx = await getRequiredSession();
-  if (!ehCasal(ctx.profileKind)) redirect("/dashboard");
+  if (!ehCasal(ctx.profileKind)) redirect("/mensal/foco");
   const hoje = nowInBrazil();
   const { ano, mes } = mesParaFechar({ ano: hoje.getFullYear(), mes: hoje.getMonth() + 1 });
   const [acerto, fechamento, minha] = await Promise.all([carregarAcertoDoMes(ctx, ano, mes), estadoDoFechamentoDoMes(ctx, ano, mes), letraDeQuemOlha(ctx)]);

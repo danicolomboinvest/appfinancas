@@ -66,7 +66,7 @@ export function CompraDoAdicional({
 
   async function registrar(transacoes: string[]) {
     const r = await registrarAdicionalAppleAction(adicional, transacoes);
-    if (r.ok) router.push("/perfis");
+    if (r.ok) router.push("/configuracoes/perfis");
     else setAviso(r.mensagem);
   }
 
@@ -148,7 +148,7 @@ export function CompraDoAdicional({
       </Card>
 
       <div className="flex items-center justify-center gap-2">
-        <Link href="/perfis" className="rounded-full px-4 py-2 text-sm font-medium text-ink-muted hover:text-ink">
+        <Link href="/configuracoes/perfis" className="rounded-full px-4 py-2 text-sm font-medium text-ink-muted hover:text-ink">
           Agora não
         </Link>
         {comoPagar.via === "hubla" && comoPagar.link && (

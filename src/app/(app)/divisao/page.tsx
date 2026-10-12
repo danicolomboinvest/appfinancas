@@ -31,7 +31,7 @@ import { TelaNosDois } from "@/components/casal-login/TelaNosDois";
  */
 export default async function DivisaoPage({ searchParams }: { searchParams: Promise<{ entrou?: string; aba?: string }> }) {
   const ctx = await getRequiredSession();
-  if (!ehCasal(ctx.profileKind)) redirect("/dashboard");
+  if (!ehCasal(ctx.profileKind)) redirect("/mensal/foco");
   const now = nowInBrazil();
   const ano = now.getFullYear();
   const mes = now.getMonth() + 1;

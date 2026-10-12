@@ -13,7 +13,7 @@ export const metadata = { title: "Conta por conta · Nós dois" };
 /** Conta por conta: o jeito de dividir cada conta da casa (aberto pelo passo a passo). */
 export default async function ContaPorContaPage() {
   const ctx = await getRequiredSession();
-  if (!ehCasal(ctx.profileKind)) redirect("/dashboard");
+  if (!ehCasal(ctx.profileKind)) redirect("/mensal/foco");
   const hoje = nowInBrazil();
   const ano = hoje.getFullYear();
   const mes = hoje.getMonth() + 1;
