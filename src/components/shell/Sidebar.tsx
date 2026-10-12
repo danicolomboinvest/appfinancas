@@ -27,6 +27,7 @@ export function Sidebar({
   onCloseMobile,
   isAdmin,
   isPremium,
+  comMoneyReset = false,
   userEmail,
   onLogout,
   onOpenRegistrar,
@@ -46,6 +47,7 @@ export function Sidebar({
   /** Acesso à área de investimentos (curso) — sem isso, seções premium ganham um cadeado
    * no menu (o conteúdo abre igual, mas mostra o convite pra assinar em vez da tela real). */
   isPremium: boolean;
+  comMoneyReset?: boolean;
   userEmail?: string;
   onLogout: () => void;
   onOpenRegistrar: () => void;
@@ -56,7 +58,7 @@ export function Sidebar({
 }) {
   const pathname = usePathname();
   const { voz, empresa, casal } = useProfileTheme();
-  const sections = secoesFixas ?? secoesVisiveis(withNavFlags(isAdmin ? [...NAV_SECTIONS, ADMIN_NAV_SECTION] : NAV_SECTIONS, { openFinance }), { empresa, casal });
+  const sections = secoesFixas ?? secoesVisiveis(withNavFlags(isAdmin ? [...NAV_SECTIONS, ADMIN_NAV_SECTION] : NAV_SECTIONS, { openFinance }), { empresa, casal, moneyReset: comMoneyReset });
 
   const router = useRouter();
   const { showError } = useToast();

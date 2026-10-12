@@ -1,4 +1,5 @@
 import { Fragment } from "react";
+import { temMoneyReset } from "@/lib/repositories/produtoLiberado.repo";
 import { perfilTemLimiteDoCartao } from "@/lib/repositories/limite-cartao.repo";
 import { after } from "next/server";
 import { redirect } from "next/navigation";
@@ -57,6 +58,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   let cartaoComLimite = false;
   let currency: CurrencyCode = toCurrencyCode(null);
   let isPremium = false;
+  // Money Reset comprado (ou admin): o item no menu ☰ (12/10/2026).
+  let comMoneyReset = false;
   let perfis: { id: string; name: string; icon: string; theme: string; isDefault: boolean; kind?: string }[] = [];
   let nomeDaConta: string | null = null;
   let fotoDaConta: string | null = null;
@@ -83,12 +86,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     const todos = casalDoPar ? [...proprios, casalDoPar] : proprios;
     // O que vem depois não depende uma coisa da outra: sai tudo de uma vez (antes eram quatro
     // idas ao banco em fila, em TODA tela).
-    const [acessoDaConta, confirmada, comLimite, comParNoCasal] = await Promise.all([
+    const [acessoDaConta, confirmada, comLimite, comParNoCasal, moneyReset] = await Promise.all([
       doPar || ctx.role === "ADMIN" ? Promise.resolve("ativo" as const) : situacaoDoAcesso(user.email),
       doPar || ctx.role === "ADMIN" ? Promise.resolve(true) : contaConfirmada(user),
       perfilTemLimiteDoCartao(ctx.userId, ativo.id),
       !doPar && ativo.kind === "CASAL" ? prisma.membroCasal.count({ where: { profileId: ativo.id, saiuEm: null } }).then((n) => n > 0) : Promise.resolve(Boolean(doPar)),
+      doPar ? Promise.resolve(false) : temMoneyReset(ctx.userId),
     ]);
+    comMoneyReset = moneyReset;
     // O par não tem a área de investimentos (nem sabe que existe): fica no "gratis".
     let uso: UsoDoApp = "gratis";
     if (doPar) {
@@ -178,6 +183,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         perfis={perfis}
         isAdmin={session?.user.role === "ADMIN"}
         isPremium={isPremium}
+        comMoneyReset={comMoneyReset}
         userEmail={session?.user.email ?? undefined}
         greeting={greeting}
         dateLabel={dateLabel}

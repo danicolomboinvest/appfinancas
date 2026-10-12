@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CartaoMoneyReset } from "./CartaoMoneyReset";
 import { redirect } from "next/navigation";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import { ehEmpresa } from "@/lib/profiles/empresa";
@@ -280,6 +281,8 @@ export default async function FocoPage(props: { searchParams: Promise<Record<str
         {contaNova ? null : (
           <>
             {mesAteAgora}
+            {/* Money Reset, só para quem comprou: logo abaixo do "Outubro até agora" (12/10/2026). */}
+            <CartaoMoneyReset ctx={ctx} />
             <GraficoSeisMeses meses12={meses12} />
             {fecharMes && !outroMes && (
               <section className="flex flex-col gap-2.5">

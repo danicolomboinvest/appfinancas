@@ -47,6 +47,14 @@ describe("o menu ☰ da versão nova", () => {
     for (const casal of [false, true])
       for (const empresa of [false, true]) for (const s of secoesVisiveis(NAV_SECTIONS, { empresa, casal })) expect(s.children ?? []).toHaveLength(0);
     expect(tituloDaTela("/perfis", NAV_SECTIONS)).toBe("Configurações");
-    expect(tituloDaTela("/money-reset", NAV_SECTIONS)).toBe("SPI Finance");
+    // Desde 12/10/2026 o Money Reset tem item próprio no ☰ (só para quem comprou): o título é dele.
+    expect(tituloDaTela("/money-reset", NAV_SECTIONS)).toBe("Money Reset");
+  });
+
+  it("Money Reset no ☰ só para quem tem o produto (ou é admin)", () => {
+    const tem = (flags: { empresa: boolean; casal: boolean; moneyReset?: boolean }) => secoesVisiveis(NAV_SECTIONS, flags).some((s) => s.basePath === "/money-reset");
+    expect(tem({ empresa: false, casal: false })).toBe(false);
+    expect(tem({ empresa: false, casal: false, moneyReset: true })).toBe(true);
+    expect(tem({ empresa: false, casal: true, moneyReset: true })).toBe(true);
   });
 });

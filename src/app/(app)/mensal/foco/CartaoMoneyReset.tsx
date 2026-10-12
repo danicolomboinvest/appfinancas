@@ -1,67 +1,43 @@
 import Link from "next/link";
+import { ChevronRight, Sprout } from "lucide-react";
 import type { AuthContext } from "@/lib/auth/session";
-import { Card } from "@/components/ui/Card";
 import { temMoneyReset } from "@/lib/repositories/produtoLiberado.repo";
 import { conferirMissaoDoDia, lerReset } from "@/lib/repositories/money-reset.repo";
-import { missao, naVoz, vocabularioDaVoz } from "@/lib/money-reset/missoes";
-import { vozDoTema, type Titulos } from "@/lib/profiles/voice";
-import { AnelDoReset } from "@/app/(app)/money-reset/AnelDoReset";
+import { TOTAL_DE_DIAS } from "@/lib/money-reset/progresso";
 
 /**
- * Money Reset no Foco (05/10/2026): a missão de hoje, para quem comprou. Quem não comprou não vê
- * nada (decisão da Dani: nada de oferta nem cobrança dentro do app). Some quando os 21 dias acabam.
+ * Money Reset no Resumo (12/10/2026, versão nova): um cartão pequeno, só para quem comprou (ou é
+ * admin), logo abaixo do "Outubro até agora". "Seu Money Reset · Dia X de 21" e "Continuar"; para
+ * quem ainda não começou, "Começar". Quem não comprou não vê nada (nada de oferta dentro do app),
+ * e ele some quando os 21 dias acabam.
  */
-export async function CartaoMoneyReset({ ctx, t }: { ctx: AuthContext; t: Titulos }) {
+export async function CartaoMoneyReset({ ctx }: { ctx: AuthContext }) {
   if (!(await temMoneyReset(ctx.userId))) return null;
   let reset = await lerReset(ctx);
   if (await conferirMissaoDoDia(ctx, reset)) reset = await lerReset(ctx);
   const { estado } = reset;
   if (estado.fase === "concluido") return null;
-  const v = vocabularioDaVoz(vozDoTema(ctx.profileTheme, ctx.profileKind));
-  const m = estado.atual ? missao(estado.atual) : null;
-
-  if (estado.fase === "dia0") {
-    return (
-      <Link href="/money-reset">
-        <Card className="flex items-center gap-4 p-5">
-          <AnelDoReset feitas={0} />
-          <span className="min-w-0 flex-1">
-            <span className="block text-caption font-semibold text-accent-strong">{t.mrFocoEy}</span>
-            <span className="mt-0.5 block text-body font-semibold text-ink">{t.mrBoas}</span>
-            <span className="mt-0.5 block text-caption text-ink-muted">{t.mrBoasSub}</span>
-          </span>
-        </Card>
-      </Link>
-    );
-  }
-
-  if (!m) return null;
+  const comecou = estado.fase === "andamento" && estado.atual !== null;
+  const href = comecou && estado.disponivel ? `/money-reset/dia/${estado.atual}` : "/money-reset";
+  const progresso = Math.round((estado.feitas / TOTAL_DE_DIAS) * 100);
   return (
-    <Card className="flex flex-col gap-3 p-5">
-      <div className="flex items-center gap-4">
-        <AnelDoReset feitas={estado.feitas} />
-        <div className="min-w-0 flex-1">
-          <p className="text-caption font-semibold text-accent-strong">
-            {t.mrFocoEy}, {estado.disponivel ? t.mrMissaoDeHoje : t.mrProxima}
-          </p>
-          <p className="mt-0.5 flex items-center gap-1.5 text-body font-semibold text-ink">
-            <span aria-hidden>{m.ic}</span>
-            <span className="truncate">{naVoz(m.t, v)}</span>
-          </p>
-          <p className="text-caption text-ink-muted">
-            {t.mrDia(m.d)}, {t.mrMinutos(m.min)}
-          </p>
-        </div>
-      </div>
-      {estado.disponivel ? (
-        <Link href={`/money-reset/dia/${m.d}`} className="inline-flex min-h-11 items-center justify-center rounded-full bg-accent-gradient px-5 text-sm font-semibold text-on-accent shadow-premium-sm">
-          {t.mrComecar}
-        </Link>
-      ) : (
-        <Link href="/money-reset" className="inline-flex min-h-11 items-center justify-center text-caption font-semibold text-accent-strong">
-          {t.mrVerTrilha}
-        </Link>
-      )}
-    </Card>
+    <Link href={href} className="flex items-center gap-3 rounded-3xl border border-border bg-surface px-4 py-3.5" data-cartao-money-reset>
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent-strong" aria-hidden>
+        <Sprout size={19} strokeWidth={1.8} />
+      </span>
+      <span className="min-w-0 flex-1">
+        <b className="block whitespace-nowrap text-[15px] font-medium text-ink">Seu Money Reset</b>
+        <span className="block text-[13px] text-ink-muted">{comecou ? `Dia ${estado.atual} de ${TOTAL_DE_DIAS}` : `${TOTAL_DE_DIAS} dias`}</span>
+        {comecou && (
+          <span className="mt-1.5 block h-1 overflow-hidden rounded-full bg-surface-2" aria-hidden>
+            <span className="block h-full rounded-full bg-accent" style={{ width: `${progresso}%` }} />
+          </span>
+        )}
+      </span>
+      <span className="inline-flex min-h-10 shrink-0 items-center gap-0.5 rounded-full bg-surface-2 px-3 text-sm font-medium text-ink">
+        {comecou ? "Continuar" : "Começar"}
+        <ChevronRight size={15} aria-hidden />
+      </span>
+    </Link>
   );
 }

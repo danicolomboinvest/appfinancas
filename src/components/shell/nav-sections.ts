@@ -19,6 +19,7 @@ import {
   Shield,
   FileText,
   List,
+  Sprout,
   type LucideIcon,
 } from "lucide-react";
 import { ROTAS_DA_VISAO_GERAL } from "./flow-tabs";
@@ -66,6 +67,8 @@ export type NavSection = {
   soEmpresa?: boolean;
   /** Seção que só faz sentido pro casal ("Quanto cada um contribui?"): some nos outros perfis. */
   soCasal?: boolean;
+  /** Só para quem comprou o Money Reset (ou é admin), 12/10/2026. */
+  soMoneyReset?: boolean;
 };
 
 /**
@@ -74,8 +77,8 @@ export type NavSection = {
  * O Casal continua vendo tudo que é `soPessoa` — a diferença dele pro Pessoal é só ganhar
  * a calculadora de divisão a mais, não perder nada.
  */
-export function secoesVisiveis<T extends NavSection>(sections: T[], flags: { empresa: boolean; casal: boolean }): T[] {
-  return sections.filter((s) => (flags.empresa ? !s.soPessoa : !s.soEmpresa) && (flags.casal || !s.soCasal));
+export function secoesVisiveis<T extends NavSection>(sections: T[], flags: { empresa: boolean; casal: boolean; moneyReset?: boolean }): T[] {
+  return sections.filter((s) => (flags.empresa ? !s.soPessoa : !s.soEmpresa) && (flags.casal || !s.soCasal) && (flags.moneyReset || !s.soMoneyReset));
 }
 
 /** Uma rota pertence à seção se está sob o basePath ou sob alguma rota extra declarada.
@@ -143,6 +146,9 @@ export const NAV_SECTIONS: NavSection[] = [
     soPessoa: true,
   },
   { basePath: "/investir", href: "/investir", label: "Vale a pena investir?", icon: Store, soEmpresa: true },
+  // Quem comprou o Money Reset não achava onde ele estava (12/10/2026): item próprio, logo depois
+  // das áreas principais, só para quem tem o produto.
+  { basePath: "/money-reset", href: "/money-reset", label: "Money Reset", icon: Sprout, soMoneyReset: true, soPessoa: true },
   // "Nós dois" (11/10/2026, login do par): o nome do protótipo no menu e no título do topo. A
   // calculadora "Quanto cada um contribui?" continua dentro da tela, com o título dela.
   { basePath: "/divisao", href: "/divisao", label: "Nós dois", icon: Scale, soCasal: true },

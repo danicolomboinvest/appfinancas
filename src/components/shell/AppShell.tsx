@@ -38,6 +38,7 @@ export function AppShell({
   children,
   isAdmin,
   isPremium,
+  comMoneyReset = false,
   userEmail,
   greeting,
   dateLabel,
@@ -70,6 +71,8 @@ export function AppShell({
   children: React.ReactNode;
   isAdmin: boolean;
   isPremium: boolean;
+  /** Comprou o Money Reset (ou é admin): o item aparece no menu ☰. */
+  comMoneyReset?: boolean;
   userEmail?: string;
   /** Já na voz do tema. `null` quando o tema não cumprimenta (Game). */
   greeting: string | null;
@@ -166,7 +169,7 @@ export function AppShell({
   const focado = false;
   const empresa = ehEmpresa(profileKind);
   const casal = ehCasal(profileKind);
-  const secoes = modoPar ? SECOES_DO_PAR : secoesVisiveis(isAdmin ? [...NAV_SECTIONS, ADMIN_NAV_SECTION] : NAV_SECTIONS, { empresa, casal });
+  const secoes = modoPar ? SECOES_DO_PAR : secoesVisiveis(isAdmin ? [...NAV_SECTIONS, ADMIN_NAV_SECTION] : NAV_SECTIONS, { empresa, casal, moneyReset: comMoneyReset });
   const perfilAtivo = perfis.find((p) => p.isDefault);
   // Na Empresa, o topo diz o nome do negócio na Visão geral e o nome da ferramenta nas outras telas.
   const titulo = (empresa && !modoPar && tituloDaEmpresa(pathname, perfilAtivo?.name ?? "Empresa")) || tituloDaTela(pathname, secoes, (s) => rotuloDoMenu(s, empresa));
@@ -191,6 +194,7 @@ export function AppShell({
           onCloseMobile={() => setMenuOpen(false)}
           isAdmin={isAdmin}
           isPremium={isPremium}
+          comMoneyReset={comMoneyReset}
           userEmail={userEmail}
           onLogout={handleLogout}
           // Na Empresa, o Registrar do computador abre o + dela (Vendi, Paguei, Recebi).
