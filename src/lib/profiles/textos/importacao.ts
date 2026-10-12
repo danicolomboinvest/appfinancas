@@ -229,8 +229,6 @@ export type TextosImportacao = {
   impNaoSeiAgoraDica: string;
   /** Aviso depois do toque que resolveu também os iguais (5 Pix para a mesma pessoa = 1 toque). */
   impAplicadoAosIguais(n: number): string;
-  /** Pergunta agrupada (12/10/2026): "ManyChat aparece 3 vezes. É o quê?" (uma resposta vale pro grupo). */
-  impApareceVezes(nome: string, vezes: number): string;
   /** Conferência: quantos gastos o app já separou sozinho, com o botão de revisar. */
   impJaSeparei(n: number): string;
   impRevisarSeparados: string;
@@ -535,7 +533,6 @@ export const PADRAO_IMPORTACAO: TextosImportacao = {
   impNaoSeiAgora: "Não sei agora",
   impNaoSeiAgoraDica: "Escolha uma vez e da próxima eu já sei. Na dúvida, toque em “Não sei agora”.",
   impAplicadoAosIguais: (n) => `Pus a mesma categoria em mais ${n === 1 ? "1 lançamento igual" : `${n} lançamentos iguais`}.`,
-  impApareceVezes: (nome, vezes) => `${nome} aparece ${vezes} vezes. É o quê?`,
   impJaSeparei: (n) => (n === 1 ? "Eu já separei 1 gasto." : `Eu já separei ${n} gastos.`),
   impRevisarSeparados: "Revisar",
   impFecharRevisao: "Fechar",

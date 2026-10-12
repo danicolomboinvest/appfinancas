@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { FileText, Wallet } from "lucide-react";
+import { ChevronRight, FileText, Keyboard, PlayCircle, Wallet } from "lucide-react";
+import { LINK_COMO_FUNCIONA } from "@/lib/novidades/passos";
 import type { AuthContext } from "@/lib/auth/session";
 import { Card } from "@/components/ui/Card";
 import { HeroiDoTema } from "@/components/ui/HeroiDoTema";
@@ -15,6 +16,7 @@ import { resumoDoMesImportadoAction } from "@/app/(app)/mensal/revelacao-actions
 import {
   ahaDoMes,
   atalhoDoQuer,
+  lerComeco,
   bancosPendentes,
   tituloDoPassoDoExtrato,
   mesDoTexto,
@@ -184,4 +186,50 @@ export async function PrimeirosPassos({ ctx, comeco, hrefMes }: { ctx: AuthConte
     href: hrefDoPasso(x.chave, hrefMes, comeco),
   }));
   return <CartaoPrimeirosPassos passos={passos} feitos={p.feitos} />;
+}
+
+/**
+ * A Visão geral de quem ainda não trouxe dados (pedido da dona, 12/10/2026), no lugar do antigo
+ * "Comece por aqui": os dois cartões grandes do começo ("Enviar o extrato" e "Digitar um gasto"),
+ * que abrem os mesmos fluxos do /comecar (banco, passo a passo, teclado), os Primeiros passos,
+ * que se marcam sozinhos pelos dados, e o atalho para os vídeos do "Como funciona".
+ * Quem já usava o app e nunca passou pelo começo novo vê o mesmo, com um começo vazio.
+ */
+export async function ComecoDoMes({ ctx, comeco, mes, hrefMes }: { ctx: AuthContext; comeco: Comeco | null; mes: string; hrefMes: string }) {
+  const base = comeco ?? lerComeco({ passo: "porta", terminouEm: "sem-comeco" })!;
+  const extrato = `/comecar?passo=${base.banco ? "volta" : "banco"}`;
+  return (
+    <section className="flex flex-col gap-3" data-comeco-do-mes>
+      <h2 className="titulo-tema px-1 text-[1.6rem] font-normal leading-tight text-ink">
+        Seu {mes} <b className="font-semibold">começa aqui</b>
+      </h2>
+      <Link href={extrato} className="relative block text-left">
+        <HeroiDoTema className="min-h-[150px] !p-[18px]">
+          <span className="heroi-veu absolute right-3.5 top-3.5 rounded-full px-2.5 py-1 text-[12.5px] font-semibold">1 minuto</span>
+          <span className="heroi-veu flex size-11 items-center justify-center rounded-full" aria-hidden>
+            <FileText size={21} strokeWidth={1.8} />
+          </span>
+          <span className="mt-auto flex flex-col">
+            <b className="text-xl font-semibold">Enviar o extrato</b>
+            <small className="text-sm font-medium text-heroi-suave">O app lê e separa sozinho</small>
+          </span>
+        </HeroiDoTema>
+      </Link>
+      <Link href="/comecar?passo=digitar" className="glass flex min-h-[150px] flex-col items-start gap-3 rounded-3xl p-[18px] text-left">
+        <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent-strong" aria-hidden>
+          <Keyboard size={21} strokeWidth={1.8} />
+        </span>
+        <span className="mt-auto flex flex-col">
+          <b className="text-xl font-semibold text-ink">Digitar um gasto</b>
+          <small className="text-sm font-medium text-ink-muted">Um gasto agora, rápido</small>
+        </span>
+      </Link>
+      {!base.passosFechados && <PrimeirosPassos ctx={ctx} comeco={base} hrefMes={hrefMes} />}
+      <Link href={LINK_COMO_FUNCIONA} className="flex min-h-11 items-center justify-center gap-1.5 px-2 text-center text-sm font-medium text-ink-muted underline-offset-2 hover:text-ink hover:underline">
+        <PlayCircle size={16} className="shrink-0" aria-hidden />
+        Veja em vídeo como funciona
+        <ChevronRight size={14} className="shrink-0" aria-hidden />
+      </Link>
+    </section>
+  );
 }

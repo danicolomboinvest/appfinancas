@@ -7,6 +7,7 @@ import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import type { ParentCategory } from "@prisma/client";
 import type { CurrencyCode } from "@/lib/money";
 import { Modal } from "@/components/ui/Modal";
+import { nomeNaTela } from "@/lib/import/nome-na-tela";
 import { LogoDoLancamento } from "@/components/ui/LogoDoLancamento";
 import { emojiDaCategoria } from "@/lib/profiles/icones";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
@@ -343,7 +344,8 @@ export function EntryList({
     const marcado = selected.has(entry.id);
     const nomeDaCategoria = categoryName(entry, customCategories, voz, kind);
     // Como no protótipo: o nome (a loja, a conta) em cima; a categoria e "cartão" embaixo.
-    const titulo = entry.description || entry.subcategory || nomeDaCategoria;
+    // O nome limpo (12/10/2026): sem "Transferência recebida pelo Pix", CNPJ e banco, que ficam no detalhe.
+    const titulo = (entry.description ? nomeNaTela(entry.description).nome : "") || entry.subcategory || nomeDaCategoria;
     return (
       <div key={entry.id} className={`flex items-center gap-3 px-3 py-3 transition-colors ${marcado ? "bg-accent-soft/40" : ""}`}>
         <button
@@ -442,7 +444,10 @@ export function EntryList({
     grupos.set(k, [...(grupos.get(k) ?? []), e]);
   }
   const nomeDaChave = (k: string) => (isParentCategoryKey(k) ? categoryLabel(kind, k) : (customCategories.find((c) => c.id === k)?.name ?? "Categoria"));
-  const categoriasDoMes = [...new Set(entries.filter((e) => e.category === "EXPENSE").map((e) => e.customCategoryId ?? e.parentCategory).filter((k): k is string => Boolean(k)))];
+  // A folha "Categorias" lista TODAS as do perfil (12/10/2026): só as do mês deixava a folha vazia
+  // num mês só com entradas. As que aparecem no mês vêm primeiro; depois as padrão e as criadas.
+  const doMes = [...new Set(entries.filter((e) => e.category === "EXPENSE").map((e) => e.customCategoryId ?? e.parentCategory).filter((k): k is string => Boolean(k)))];
+  const categoriasDoMes = [...new Set([...doMes, ...categoriasParaEscolher(kind).map(String), ...customCategories.map((c) => c.id)])];
 
   // Categoria só existe em Gasto (Renda e Aporte não têm categoria-mãe): o botão de mudar em
   // lote só aparece quando TUDO que está marcado é gasto, pra não prometer uma troca que não
@@ -470,7 +475,7 @@ export function EntryList({
           <Search size={18} strokeWidth={1.6} className="shrink-0 text-ink-muted" aria-hidden />
           <input type="search" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar" aria-label="Buscar nos lançamentos" className="min-w-0 flex-1 bg-transparent text-[16px] text-ink outline-none placeholder:text-ink-muted" />
         </label>
-        <div className="-mx-5 flex gap-2 overflow-x-auto px-5 md:mx-0 md:px-0" role="group" aria-label="Filtrar">
+        <div className="flex gap-2 overflow-x-auto" role="group" aria-label="Filtrar">
           {(
             [
               ["todas", "Todas"],

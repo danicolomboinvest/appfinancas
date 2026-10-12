@@ -13,18 +13,25 @@ export function FalarComSuporte({
   arquivo,
   problema,
   rotulo = "Me ajuda com isso",
+  discreto = false,
 }: {
   arquivo?: string | null;
   problema?: string | null;
   rotulo?: string;
+  /** Link pequeno e neutro, sem cara de botão (a revisão da importação, 12/10/2026). */
+  discreto?: boolean;
 }) {
   const href = linkDoSuporte(mensagemDeErroDeImportacao({ arquivo, problema }), ASSUNTO_IMPORTACAO);
   return (
     <a
       href={href}
-      className="inline-flex w-fit items-center gap-2 rounded-full bg-accent-gradient px-4 py-2 text-sm font-semibold text-on-accent shadow-premium-sm transition-opacity hover:opacity-95"
+      className={
+        discreto
+          ? "inline-flex min-h-11 w-fit items-center gap-1.5 text-sm text-ink-muted underline underline-offset-4 hover:text-ink"
+          : "inline-flex w-fit items-center gap-2 rounded-full bg-accent-gradient px-4 py-2 text-sm font-semibold text-on-accent shadow-premium-sm transition-opacity hover:opacity-95"
+      }
     >
-      <Mail size={16} strokeWidth={2} />
+      {!discreto && <Mail size={16} strokeWidth={2} />}
       {rotulo}
     </a>
   );

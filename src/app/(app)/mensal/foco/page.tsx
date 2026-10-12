@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import { ehEmpresa } from "@/lib/profiles/empresa";
 import { ondeMostrarFechamento } from "./fechamento/quando-mostrar";
-import { CalendarCheck, ChevronRight } from "lucide-react";
+import { CalendarCheck } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
 import { Card } from "@/components/ui/Card";
 import { ReportarErro } from "@/components/decisoes/ReportarErro";
@@ -11,7 +11,6 @@ import { carregarFoco, MESES } from "./dados";
 import { AvisoFoco } from "./AvisoFoco";
 import { carregarBlocosDoMes } from "./blocos";
 import { ThemeHero } from "@/app/(app)/mensal/[year]/[month]/ThemeHero";
-import { OnboardingChecklist } from "@/app/(app)/mensal/[year]/[month]/OnboardingChecklist";
 import { SemanaFoco } from "./SemanaFoco";
 import { DecisoesImportantes } from "./DecisoesImportantes";
 import { GraficoSeisMeses } from "@/components/charts/GraficoSeisMeses";
@@ -29,7 +28,7 @@ import { ConquistasDeMetas } from "@/components/conquista/ConquistasDeMetas";
 import { lerComecoDaConta } from "@/lib/repositories/comeco.repo";
 import { getOwnUser } from "@/lib/repositories/user.repo";
 import { mostrarPrimeirosPassos, oQueMostrarDepois } from "@/lib/onboarding/comeco";
-import { PrimeirosPassos, TopoDoComeco } from "./DepoisDoComeco";
+import { ComecoDoMes, PrimeirosPassos, TopoDoComeco } from "./DepoisDoComeco";
 
 /**
  * A aba Foco: a primeira coisa que a pessoa vê ao abrir o app. Só o que importa agora — quanto
@@ -164,7 +163,9 @@ export default async function FocoPage(props: { searchParams: Promise<Record<str
         {avisoNaoFechado}
         {/* Meta que chegou no valor: a notificação com confete, uma vez só (conquista rara). */}
         <ConquistasDeMetas ctx={ctx} />
-        {comecoNovo && topoDoComeco !== "nada" && <TopoDoComeco ctx={ctx} comeco={comecoNovo} nome={nomeDoComeco} temLancamento={comece.temLancamento} />}
+        {/* Sem nenhum lançamento: os dois cartões do começo, os Primeiros passos e o Como funciona. */}
+        {contaNova && <ComecoDoMes ctx={ctx} comeco={comecoNovo} mes={MESES[d.month - 1]} hrefMes={d.hrefMes} />}
+        {comecoNovo && !contaNova && topoDoComeco !== "nada" && <TopoDoComeco ctx={ctx} comeco={comecoNovo} nome={nomeDoComeco} temLancamento={comece.temLancamento} />}
         {comecoNovo && passosNoTopo && <PrimeirosPassos ctx={ctx} comeco={comecoNovo} hrefMes={d.hrefMes} />}
         {!contaNova && (
           <>
@@ -259,16 +260,7 @@ export default async function FocoPage(props: { searchParams: Promise<Record<str
           </>
         )}
 
-        {comecoNovo ? (
-          passosDoComeco && !passosNoTopo && <PrimeirosPassos ctx={ctx} comeco={comecoNovo} hrefMes={d.hrefMes} />
-        ) : (
-          <OnboardingChecklist
-            temLancamento={comece.temLancamento}
-            temOrcamento={comece.temOrcamento}
-            primeiroLancamentoEm={comece.primeiroLancamentoEm?.toISOString() ?? null}
-            hrefMes={d.hrefMes}
-          />
-        )}
+        {comecoNovo && !contaNova && passosDoComeco && !passosNoTopo && <PrimeirosPassos ctx={ctx} comeco={comecoNovo} hrefMes={d.hrefMes} />}
 
         {!contaNova && (
           <>
@@ -284,13 +276,8 @@ export default async function FocoPage(props: { searchParams: Promise<Record<str
       </div>
 
       <div className="flex min-w-0 flex-col gap-5">
-        {/* Conta nova (nenhum lançamento ainda): o Foco é só o "Comece por aqui". */}
-        {contaNova ? (
-          <Link href="/guia" className="flex min-h-11 items-center justify-center gap-1 px-2 text-center text-caption text-ink-muted underline-offset-2 hover:text-ink hover:underline">
-            {t.focoComeceManual}
-            <ChevronRight size={14} className="shrink-0" />
-          </Link>
-        ) : (
+        {/* Conta nova (nenhum lançamento ainda): o Foco é só o ComecoDoMes, na coluna da esquerda. */}
+        {contaNova ? null : (
           <>
             {mesAteAgora}
             <GraficoSeisMeses meses12={meses12} />

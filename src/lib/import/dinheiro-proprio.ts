@@ -16,7 +16,8 @@
 const semAcento = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 
 /** "Dinheiro reservado <nome da reserva>": é como o Mercado Pago chama guardar na caixinha. */
-const APLICACAO = /\b(aplicacao|aplic|caixinha|rdb|cdb|lci|lca|tesouro|poupanca|investimento|guardar dinheiro|cofrinho|dinheiro reservado)\b/;
+/** "investimentos", "aplicações", "previdência privada" (12/10/2026): antes só "investimento" no singular. */
+const APLICACAO = /\b(aplicacao|aplicacoes|aplic|caixinhas?|rdb|cdb|lci|lca|tesouro|poupanca|investimentos?|invest|previdencia privada|fundos? de investimento|guardar dinheiro|cofrinho|dinheiro reservado)\b/;
 /** As palavras que só dizem "guardei" (o verbo ou o lugar), sem ser nome de produto. */
 const APLICACAO_VERBO = /\b(aplicacao|aplic|caixinha|guardar dinheiro|cofrinho|dinheiro reservado)\b/;
 /** "Dinheiro retirado <nome da reserva>": a volta da caixinha no Mercado Pago (21 linhas num extrato
