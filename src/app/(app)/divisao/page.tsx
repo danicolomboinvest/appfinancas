@@ -18,6 +18,7 @@ import { MeuNoCasal } from "@/components/casal-login/MeuNoCasal";
 import { LancamentosDoCasal } from "@/components/casal-login/LancamentosDoCasal";
 import { MetasDoCasal } from "@/components/casal-login/MetasDoCasal";
 import { CartaoFecharOMes } from "@/components/casal-login/FecharOMes";
+import { TelaNosDois } from "@/components/casal-login/TelaNosDois";
 
 /**
  * Nós dois (só existe no perfil Casal). Em cima, o acerto do mês em recibo, calculado pelos
@@ -126,16 +127,32 @@ async function NosDoisADois({
   const nomes = { A: acerto.config.nomeA, B: acerto.config.nomeB };
   const pessoas = { minha: minhaLetra, titular: letraTitular, nomes };
   const temMesAnterior = acertoAnterior.totalDaCasa > 0;
+  const hoje = nowInBrazil();
   return (
-    <>
-      <ReciboDoAcerto d={dadosDoRecibo(acerto, letraTitular)} />
-      <MeuNoCasal dados={meu} meuNome={nomes[minhaLetra]} souPar={souPar} mes={mes} />
-      {temMesAnterior && <CartaoFecharOMes fechamento={fechamento} pessoas={pessoas} mes={anterior.mes} acertado={acertoAnterior.acertado} />}
-      <MetasDoCasal metas={metas} podeCriar />
-      <div id="lancamentos">
-        <LancamentosDoCasal itens={lancamentos} nomes={nomes} letraTitular={letraTitular} minhaLetra={minhaLetra} mes={mes} podeLancar />
-      </div>
-      <CombinarDivisao d={dadosDaDivisao(acerto, { letraTitular, souPar, plano, mostrarRenda: acerto.config.mostrarRenda === true })} />
-    </>
+    <TelaNosDois
+      mes={{
+        nomes,
+        letraTitular,
+        mes,
+        dia: hoje.getFullYear() === ano && hoje.getMonth() + 1 === mes ? hoje.getDate() : new Date(ano, mes, 0).getDate(),
+        diasNoMes: new Date(ano, mes, 0).getDate(),
+        plano,
+        totalDaCasa: acerto.totalDaCasa,
+        pagou: acerto.pagou,
+        parte: acerto.parte,
+        contas: acerto.contas.map((c) => ({ chave: c.chave, nome: c.nome, parentCategory: c.parentCategory, valor: c.valor, pagou: c.pagou })),
+        lancamentos,
+      }}
+      acerto={<ReciboDoAcerto d={dadosDoRecibo(acerto, letraTitular)} />}
+      fechamento={temMesAnterior ? <CartaoFecharOMes fechamento={fechamento} pessoas={pessoas} mes={anterior.mes} acertado={acertoAnterior.acertado} /> : null}
+      orcamento={
+        <div className="flex flex-col gap-5">
+          <MeuNoCasal dados={meu} meuNome={nomes[minhaLetra]} souPar={souPar} mes={mes} />
+          <CombinarDivisao d={dadosDaDivisao(acerto, { letraTitular, souPar, plano, mostrarRenda: acerto.config.mostrarRenda === true })} />
+        </div>
+      }
+      metas={<MetasDoCasal metas={metas} podeCriar />}
+      botaoLancar={<LancamentosDoCasal itens={[]} nomes={nomes} letraTitular={letraTitular} minhaLetra={minhaLetra} mes={mes} podeLancar soBotao />}
+    />
   );
 }
