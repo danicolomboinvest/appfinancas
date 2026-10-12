@@ -74,7 +74,7 @@ describe("ninguém cravou a moeda de novo", () => {
   function grep(pattern: string): string[] {
     let out = "";
     try {
-      out = execSync(`grep -rn '${pattern}' src || true`, { encoding: "utf8" });
+      out = execSync(`grep -rnI '${pattern}' src || true`, { encoding: "utf8" });
     } catch {
       return [];
     }

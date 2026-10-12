@@ -71,9 +71,9 @@ describe("os quatro temas da versão nova", () => {
     expect(profileTheme("girly").paleta.extras?.["--font-titulo"]).toBe("var(--font-cormorant)");
     expect(profileTheme("girly").paleta.extras?.["--estilo-titulo"]).toBe("italic");
     for (const k of ["padrao", "manifestacao", "titanio"]) expect(profileTheme(k).paleta.extras?.["--font-titulo"]).toBeUndefined();
-    // As quatro letras são carregadas no layout raiz.
+    // As quatro letras são carregadas no layout raiz, dos arquivos do repositório (next/font/local).
     const layout = readFileSync("src/app/layout.tsx", "utf8");
-    for (const f of ["Figtree", "Hanken_Grotesk", "Cormorant_Garamond", "Urbanist", "Geist"]) expect(layout).toContain(f);
+    for (const f of ["figtree.woff2", "hanken-grotesk.woff2", "cormorant-garamond-italic.woff2", "urbanist.woff2", "geist.woff2"]) expect(layout).toContain(f);
   });
 
   it("o Titânio segue a especificação: titânio com champanhe no claro, grafite C1 no escuro", () => {
