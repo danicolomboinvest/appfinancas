@@ -147,14 +147,6 @@ export async function listUpcomingDividendsForUser(ctx: AuthContext, limit = 20)
     .slice(0, limit);
 }
 
-/** Soma estimada de proventos a pagar nos próximos N dias — para o card do Dashboard. */
-export async function sumUpcomingDividends(ctx: AuthContext, days = 30): Promise<number> {
-  const list = await listUpcomingDividendsForUser(ctx, 500);
-  // paymentDate é @db.Date (meia-noite UTC): `<=` na data de corte inclui o dia inteiro.
-  const cutoff = addUtcDays(brazilTodayUtc(), days);
-  return list.filter((event) => event.paymentDate <= cutoff).reduce((sum, event) => sum + event.estimatedTotal, 0);
-}
-
 export type PaidDividend = {
   /** DividendEvent.id: identifica o provento (JSCP e Dividendos do mesmo ativo no mesmo dia são dois). */
   id: string;

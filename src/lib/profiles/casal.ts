@@ -10,7 +10,7 @@ import type { ProfileKind } from "@prisma/client";
  * "Metas" continuam fazendo sentido do jeito que já são pra um casal. A voz de cada tema
  * (Girly, Disciplina…) já foi calibrada com cuidado — sobrescrever esses textos por um
  * genérico "vocês" quebraria esse trabalho tema por tema, então a adaptação do Casal fica só
- * em pontos aditivos: uma tarefa a mais na semana (ver weekly-tasks) e uma calculadora própria
+ * em pontos aditivos: uma calculadora própria
  * de como dividir as contas do casal (ver src/lib/simulators/divisao-casal.ts).
  */
 export function ehCasal(kind: ProfileKind | string | null | undefined): boolean {

@@ -30,7 +30,7 @@ describe("o menu ☰ da versão nova", () => {
   });
 
   it("toda tela da Visão geral acende a Visão geral, e só ela", () => {
-    for (const rota of ["/mensal/foco", "/mensal/2026/10", "/mensal/gastos", "/orcamento", "/orcamento/contas", "/dashboard"]) {
+    for (const rota of ["/mensal/foco", "/mensal/2026/10", "/mensal/gastos", "/orcamento", "/orcamento/contas"]) {
       expect(NAV_SECTIONS.filter((s) => sectionMatches(s, rota)).map((s) => s.basePath), rota).toEqual(["/mensal"]);
     }
   });

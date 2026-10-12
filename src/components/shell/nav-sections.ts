@@ -105,9 +105,9 @@ export const NAV_SECTIONS: NavSection[] = [
     href: "/mensal/foco",
     label: "Visão geral",
     icon: House,
-    // As quatro abas (Resumo, Orçamento, Transações, Recorrentes) moram em duas pastas, e a
-    // Visão geral antiga (/dashboard) continua sendo parte dela.
-    alsoMatches: [...ROTAS_DA_VISAO_GERAL.filter((r) => r !== "/mensal"), "/dashboard"],
+    // As quatro abas (Resumo, Orçamento, Transações, Recorrentes) moram em duas pastas. A Visão
+    // geral antiga por ano (/dashboard) saiu em 12/10/2026 e o link velho cai no Resumo.
+    alsoMatches: ROTAS_DA_VISAO_GERAL.filter((r) => r !== "/mensal"),
   },
   {
     basePath: "/planejamento",

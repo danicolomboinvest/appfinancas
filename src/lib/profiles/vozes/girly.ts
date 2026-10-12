@@ -1095,7 +1095,6 @@ const GIRLY_FIXOS: Partial<Titulos> = {
 
 /** O menu na voz do Girly, por rota. */
 const GIRLY_SECOES: Record<string, string> = {
-  "/dashboard": "Visão geral",
   "/mensal": "Meu mês",
   "/planejamento": "Meus planos",
   "/viagem": "Minha viagem",

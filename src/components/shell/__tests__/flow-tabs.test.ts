@@ -10,7 +10,6 @@ describe("as abas da Visão geral", () => {
     const aba = (r: string) => abaAtiva(r)?.label ?? null;
     expect(aba("/mensal/foco")).toBe("Resumo");
     expect(aba("/mensal/foco/fechamento")).toBe("Resumo");
-    expect(aba("/dashboard")).toBe("Resumo");
     expect(aba("/orcamento")).toBe("Orçamento");
     expect(aba("/orcamento/2026")).toBe("Orçamento");
     expect(aba("/orcamento/contas")).toBe("Recorrentes");
@@ -21,7 +20,7 @@ describe("as abas da Visão geral", () => {
   });
 
   it("ehRotaDoFluxo reconhece só as pastas da Visão geral", () => {
-    for (const rota of ["/mensal", "/mensal/foco", "/mensal/2026/9", "/orcamento", "/orcamento/contas", "/dashboard"]) expect(ehRotaDoFluxo(rota), rota).toBe(true);
-    for (const rota of ["/mensalidade", "/orcamentos", "/planejamento/metas", "/carteira", "/"]) expect(ehRotaDoFluxo(rota), rota).toBe(false);
+    for (const rota of ["/mensal", "/mensal/foco", "/mensal/2026/9", "/orcamento", "/orcamento/contas"]) expect(ehRotaDoFluxo(rota), rota).toBe(true);
+    for (const rota of ["/mensalidade", "/orcamentos", "/planejamento/metas", "/carteira", "/", "/dashboard"]) expect(ehRotaDoFluxo(rota), rota).toBe(false);
   });
 });

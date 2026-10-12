@@ -202,14 +202,6 @@ export async function listarDecisoesRaioX(ctx: AuthContext) {
   return new Map(rows.map((r) => [r.chave ?? "", { tipo: r.tipo as TipoDecisao, valor: Number(r.valor ?? 0) }]));
 }
 
-/** Tudo que a pessoa decidiu num período (pra "O que você conquistou" e "Seu ano"). */
-export async function listarDecisoesDesde(ctx: AuthContext, desde: Date) {
-  return prisma.decisao.findMany({
-    where: { userId: ctx.userId, profileId: ctx.profileId, createdAt: { gte: desde } },
-    orderBy: { createdAt: "asc" },
-  });
-}
-
 /** Fila do "Isso está errado?", de todo mundo — só o admin lê. */
 export async function listarRespostasErradas(limite = 100) {
   return prisma.decisao.findMany({

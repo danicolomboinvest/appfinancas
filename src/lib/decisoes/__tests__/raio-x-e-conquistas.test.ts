@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { acharRecorrentes, economiaAnual, valorFuturo, type RaioXLancamento } from "../raio-x";
-import { somarConquistas } from "../conquistas";
 
 const mes = (month: number, description: string, amount: number, parentCategory: string | null = "LAZER"): RaioXLancamento => ({ description, amount, year: 2026, month, parentCategory });
 
@@ -49,28 +48,6 @@ describe("acharRecorrentes", () => {
     expect(economiaAnual({ anual: 1200 }, "raiox_metade")).toBe(600);
     expect(economiaAnual({ anual: 1200 }, "raiox_manter")).toBe(0);
     expect(valorFuturo(100, 12, 0)).toBe(1200);
-  });
-});
-
-describe("somarConquistas", () => {
-  it("soma só o que a pessoa decidiu e ignora avisos de erro e compras ainda pendentes", () => {
-    const d = (tipo: string, valor: number | null, dia: number) => ({ tipo, valor, createdAt: new Date(2026, 8, dia) });
-    const c = somarConquistas([
-      d("compra_desisti", 6000, 10),
-      d("compra_comprei", 300, 11),
-      d("compra_amanha", 900, 12),
-      d("raiox_cancelar", 718.8, 5),
-      d("raiox_metade", 720, 6),
-      d("ritual", null, 7),
-      d("fechamento", null, 2),
-      d("resposta_errada", null, 3),
-    ]);
-    expect(c.desistidas).toBe(6000);
-    expect(c.raioxAnual).toBeCloseTo(1438.8, 5);
-    expect(c.rituais).toBe(1);
-    expect(c.fechamentos).toBe(1);
-    expect(c.decisoes).toBe(6);
-    expect(c.desde?.getDate()).toBe(2);
   });
 });
 

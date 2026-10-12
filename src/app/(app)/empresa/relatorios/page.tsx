@@ -11,7 +11,8 @@ import { Cartao, Titulo, Voltar } from "../partes";
 
 /**
  * Relatórios: a DRE do último mês fechado em palavras de dona (a conta é a mesma do recibo e do
- * ponto de equilíbrio). O painel do ano, que já existia, continua a um toque.
+ * ponto de equilíbrio). O ano em gráfico fica em "Como vai a empresa", a um toque (o painel antigo
+ * do ano saiu em 12/10/2026).
  */
 export default async function RelatoriosPage() {
   const ctx = await getRequiredSession();
@@ -48,8 +49,8 @@ export default async function RelatoriosPage() {
           </p>
         ))}
       </Cartao>
-      <Link href="/dashboard" className="flex min-h-14 items-center justify-between gap-3 rounded-3xl border border-border bg-surface px-4">
-        <span className="text-[15px] text-ink">Painel completo do ano</span>
+      <Link href="/empresa/como-vai" className="flex min-h-14 items-center justify-between gap-3 rounded-3xl border border-border bg-surface px-4">
+        <span className="text-[15px] text-ink">Como vai a empresa</span>
         <ChevronRight size={18} className="text-ink-muted" aria-hidden />
       </Link>
     </>

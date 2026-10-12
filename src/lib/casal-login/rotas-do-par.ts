@@ -16,7 +16,7 @@ export const ROTAS_DO_PAR = ["/divisao", "/configuracoes/nos-dois", "/configurac
 export const CASA_DO_PAR = "/divisao";
 
 /** Caminhos que mandam o par pra casa dele em vez do 404: a raiz e o destino padrão do login. */
-const VAI_PRA_CASA = new Set(["/", "/mensal/foco", "/dashboard", "/inicio", "/comecar"]);
+const VAI_PRA_CASA = new Set(["/", "/mensal/foco", "/inicio", "/comecar"]);
 
 /** As Configurações dele são só as do Nós dois. */
 export const CONFIGURACOES_DO_PAR = "/configuracoes/nos-dois";

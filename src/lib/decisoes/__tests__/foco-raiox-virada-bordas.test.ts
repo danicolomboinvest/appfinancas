@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { somarConquistas } from "../conquistas";
 import { gastoDepoisDoCombinado, planoQueCabe } from "../foco";
 import { acharRecorrentes, economiaAnual, valorFuturo, type RaioXLancamento } from "../raio-x";
 import { sugerirAno } from "../virada-ano";
@@ -90,14 +89,5 @@ describe("sugerirAno: zeros", () => {
     );
     expect(r.categorias.map((c) => c.key)).toEqual(["ALIMENTACAO"]);
     expect(r.categorias[0]).toMatchObject({ sugerido: 1000, motivo: "plano" });
-  });
-});
-
-describe("somarConquistas: valores ausentes", () => {
-  it("lista vazia é tudo zero e 'desde' null; valor null conta como zero", () => {
-    expect(somarConquistas([])).toEqual({ decisoes: 0, desistidas: 0, comprasPensadas: 0, raioxAnual: 0, rituais: 0, fechamentos: 0, desde: null });
-    const r = somarConquistas([{ tipo: "compra_desisti", valor: null, createdAt: new Date(2026, 0, 1) }]);
-    expect(r.desistidas).toBe(0);
-    expect(r.comprasPensadas).toBe(1);
   });
 });

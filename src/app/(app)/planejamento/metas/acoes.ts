@@ -24,7 +24,6 @@ function revalidarMetas(id?: string) {
   revalidatePath("/planejamento/metas");
   if (id) revalidatePath(`/planejamento/metas/${id}`);
   revalidatePath("/mensal/foco");
-  revalidatePath("/dashboard");
   revalidatePath("/decidir");
 }
 
