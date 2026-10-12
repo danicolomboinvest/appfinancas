@@ -69,6 +69,7 @@ function LinhaDoMes({ c, hoje }: { c: ContaSerial; hoje: string }) {
           <span className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5">
             <span className={`text-[13px] leading-snug ${atrasada ? "text-danger" : "text-ink-muted"}`}>{parcela ? `${parcela} · ${quando}` : quando}</span>
             {!paga && (c.aproximado || c.valor === null) && <Selo>varia</Selo>}
+            {c.origem === "historico" && <span className="shrink-0 rounded-full bg-surface-2 px-2 py-px text-xs text-ink-muted">do extrato</span>}
           </span>
         </span>
         <Valor c={c} riscado={paga} />

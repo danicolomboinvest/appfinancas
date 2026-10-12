@@ -25,6 +25,9 @@ import { SemanaDasContas } from "./SemanaDasContas";
 import { iso, serializarConta } from "./serializar";
 import { carregarDinheiroPerdido } from "./perdido/dados";
 import { EntradaDoDinheiroPerdido } from "./perdido/Entrada";
+import { AvisoDasContas } from "./AvisoDasContas";
+import { listarContasNovasDoHistorico, sincronizarContasDoHistorico } from "@/lib/repositories/contas-do-historico.repo";
+import { mesmaCobranca } from "@/lib/contas/achar-contas";
 
 /**
  * Recorrentes, a quarta aba da Visão geral (versão nova, protótipo aprovado): quanto da renda já
@@ -38,6 +41,9 @@ import { EntradaDoDinheiroPerdido } from "./perdido/Entrada";
  * Fase 3 (seção 3.17): a semana navegável com cada vencimento, a frequência livre, o valor
  * aproximado e as contas do ano (guarde R$ X por mês). A conta reconhecida no extrato fica para
  * a conciliação, que é outra entrega.
+ *
+ * Contas do histórico (12/10/2026): antes de listar, o app acha no extrato as contas que se
+ * repetem (Vivo, luz, aluguel) e cadastra sozinho; na primeira vez, o aviso com o "Desfazer".
  */
 export default async function RecorrentesPage(props: PageProps<"/orcamento/contas">) {
   const sp = await props.searchParams;
@@ -48,7 +54,13 @@ export default async function RecorrentesPage(props: PageProps<"/orcamento/conta
   const ano = agora.getFullYear();
   const mes = agora.getMonth() + 1;
   const empresa = ehEmpresa(ctx.profileKind);
-  const [abertas, pagas, plano, resumo, planoDoMes, raiox, dividas, selic, perdido] = await Promise.all([
+  // Quem já tinha extrato antes desta versão não precisa importar de novo para ver as contas.
+  try {
+    await sincronizarContasDoHistorico(ctx);
+  } catch (err) {
+    console.error("Contas do histórico: falhou (a tela segue)", err);
+  }
+  const [abertas, pagas, plano, resumo, planoDoMes, raiox, dividas, selic, perdido, novasDoHistorico] = await Promise.all([
     listarContasAPagar(ctx),
     listarQuitadasRecentes(ctx),
     listBudgets(ctx, ano, mes),
@@ -59,6 +71,7 @@ export default async function RecorrentesPage(props: PageProps<"/orcamento/conta
     empresa ? Promise.resolve(null) : selicAnual(ctx.userId),
     // Dinheiro perdido: só a abinha (quantas cartas e os logos). A Empresa não tem.
     empresa ? Promise.resolve(null) : carregarDinheiroPerdido(ctx),
+    listarContasNovasDoHistorico(ctx),
   ]);
   const hojeD = hojeEmBrasilia();
   const hoje = iso(hojeD);
@@ -67,7 +80,8 @@ export default async function RecorrentesPage(props: PageProps<"/orcamento/conta
   // Renda com dono: contas pela média por mês (a diarista a cada 2 semanas pesa R$ 390), parcelas
   // pelo valor da parcela, assinaturas achadas no extrato. As contas do ano têm o card delas.
   const peso = pesoPorMes(contas, hojeD);
-  const assinaturas = raiox.itens.filter((i) => i.tipo === "assinatura");
+  // A academia ou a internet que virou conta não aparece de novo em Assinaturas.
+  const assinaturas = raiox.itens.filter((i) => i.tipo === "assinatura" && !mesmaCobranca(i.nome, abertas));
   const totalAssinaturas = assinaturas.reduce((s, i) => s + i.mensal, 0);
   const planejado = plano.reduce((s, b) => s + Number(b.plannedAmount), 0);
   const livre = planejado > 0 ? planejado - resumo.totalExpense : null;
@@ -102,6 +116,7 @@ export default async function RecorrentesPage(props: PageProps<"/orcamento/conta
             {(dividas.length > 0 || peso.parcelas > 0) && <p className="text-[13px] text-heroi-suave">As parcelas já estão dentro do seu plano.</p>}
           </HeroiDoTema>
         )}
+        {novasDoHistorico.length > 0 && <AvisoDasContas contas={novasDoHistorico} />}
         <SemanaDasContas contas={vencimentos} hoje={hoje} />
         <ContasAPagar contas={contas} pagas={pagas.map(serializarConta)} hoje={hoje} />
       </div>

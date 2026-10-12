@@ -29,6 +29,8 @@ export type ContaSerial = {
   parcelaAtual: number | null;
   valorEhTotal: boolean;
   aproximado: boolean;
+  /** "historico" = o app achou no extrato e cadastrou sozinho (selo "do extrato"). */
+  origem?: string | null;
 };
 
 const MES_CURTO = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
