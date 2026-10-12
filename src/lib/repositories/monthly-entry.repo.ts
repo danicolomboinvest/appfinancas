@@ -6,6 +6,7 @@ import { randomUUID } from "node:crypto";
 import { sameDayInMonth } from "@/lib/date/recurrence";
 import type { Intervalo } from "@/lib/visao-geral/periodo";
 import { dentroDoIntervalo, mesesDoIntervalo } from "@/lib/visao-geral/intervalo-dados";
+import { aReceberPorPessoa } from "@/lib/entries/divisao";
 
 export async function listMonthlyEntries(ctx: AuthContext, year: number, month: number) {
   return prisma.monthlyEntry.findMany({
@@ -469,4 +470,16 @@ export async function listEntriesInInterval(ctx: AuthContext, intervalo: Interva
     include: { importBatch: { select: { docType: true } } },
   });
   return linhas.filter((e) => dentroDoIntervalo(e, intervalo));
+}
+
+/** "Dividir com alguém": com quem ela já dividiu (as mais recentes primeiro) e o que ainda falta receber. */
+export async function dadosDaDivisao(ctx: AuthContext) {
+  const linhas = await prisma.monthlyEntry.findMany({
+    where: { userId: ctx.userId, profileId: ctx.profileId, divididoCom: { not: null } },
+    select: { divididoCom: true, parteDeOutro: true, devolvidoEm: true },
+    orderBy: { createdAt: "desc" },
+    take: 500,
+  });
+  const pessoas = [...new Set(linhas.map((l) => l.divididoCom as string))].slice(0, 8);
+  return { pessoas, aReceber: aReceberPorPessoa(linhas) };
 }

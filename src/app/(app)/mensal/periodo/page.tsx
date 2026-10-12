@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { Receipt } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
-import { listEntriesInInterval, listRecentSubcategories } from "@/lib/repositories/monthly-entry.repo";
+import { dadosDaDivisao, listEntriesInInterval, listRecentSubcategories } from "@/lib/repositories/monthly-entry.repo";
 import { listCustomCategories } from "@/lib/repositories/custom-category.repo";
 import { listGoals } from "@/lib/repositories/goal.repo";
 import { nowInBrazil } from "@/lib/date/brazil-now";
@@ -11,6 +11,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { BotoesDeLancar } from "@/components/ui/BotoesDeLancar";
 import { EntryList } from "../[year]/[month]/EntryList";
 import { linhasDaLista } from "../[year]/[month]/linhas";
+import { CartaoAReceber } from "../[year]/[month]/CartaoAReceber";
 
 const um = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? null;
 
@@ -25,16 +26,18 @@ export default async function TransacoesDoPeriodo(props: { searchParams: Promise
   if (!intervalo) redirect(`/mensal/${agora.getFullYear()}/${agora.getMonth() + 1}`);
 
   const ctx = await getRequiredSession();
-  const [ocultos, entries, recentSubcategories, customCategories, goals] = await Promise.all([
+  const [ocultos, entries, recentSubcategories, customCategories, goals, divisao] = await Promise.all([
     valoresOcultos(),
     listEntriesInInterval(ctx, intervalo),
     listRecentSubcategories(ctx),
     listCustomCategories(ctx),
     listGoals(ctx),
+    dadosDaDivisao(ctx),
   ]);
 
   return (
     <div className="flex flex-col gap-6 lg:gap-5">
+      <CartaoAReceber aReceber={divisao.aReceber} />
       {entries.length === 0 ? (
         <EmptyState icon={Receipt} message="Nenhum lançamento nesse período." action={<BotoesDeLancar rotulo="Adicionar lançamento" />} />
       ) : (
@@ -44,6 +47,7 @@ export default async function TransacoesDoPeriodo(props: { searchParams: Promise
           recentSubcategories={recentSubcategories}
           customCategories={customCategories}
           goals={goals.map((g) => ({ id: g.id, name: g.name }))}
+          pessoasDaDivisao={divisao.pessoas}
           entries={linhasDaLista(entries, ocultos)}
         />
       )}

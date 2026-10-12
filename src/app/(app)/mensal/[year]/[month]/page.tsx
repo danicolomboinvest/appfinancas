@@ -1,13 +1,14 @@
 import { notFound } from "next/navigation";
 import { Receipt } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
-import { listMonthlyEntries, listRecentSubcategories } from "@/lib/repositories/monthly-entry.repo";
+import { dadosDaDivisao, listMonthlyEntries, listRecentSubcategories } from "@/lib/repositories/monthly-entry.repo";
 import { listCustomCategories } from "@/lib/repositories/custom-category.repo";
 import { listGoals } from "@/lib/repositories/goal.repo";
 import { getMonthlySummary } from "@/lib/consolidation/monthly";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { EntryList } from "./EntryList";
 import { linhasDaLista } from "./linhas";
+import { CartaoAReceber } from "./CartaoAReceber";
 import { ImportHistory } from "./ImportHistory";
 import { listImportBatches } from "@/lib/repositories/import-batch.repo";
 import { valoresOcultos } from "@/lib/money-server";
@@ -32,13 +33,14 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
   const ocultos = await valoresOcultos();
   // Só o que a lista precisa (a tela antiga também calculava gráficos, DRE e comparações que
   // saíram daqui): menos consultas, a aba abre mais rápido.
-  const [entries, summary, recentSubcategories, customCategories, goals, importBatches] = await Promise.all([
+  const [entries, summary, recentSubcategories, customCategories, goals, importBatches, divisao] = await Promise.all([
     listMonthlyEntries(ctx, year, month),
     getMonthlySummary(ctx, year, month),
     listRecentSubcategories(ctx),
     listCustomCategories(ctx),
     listGoals(ctx),
     listImportBatches(ctx),
+    dadosDaDivisao(ctx),
   ]);
 
   // Conta nova: nenhum lançamento em NENHUM mês deste perfil. No lugar da lista vazia, um passo
@@ -72,6 +74,7 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
           abaixo das abas; aqui fica só a lista. Os números e gráficos do mês saíram (o Resumo e o
           Orçamento já mostram o mês). */}
 
+      <CartaoAReceber aReceber={divisao.aReceber} />
       {entries.length === 0 ? (
         <EmptyState icon={Receipt} message={voz.mesVazio} action={<BotoesDeLancar rotulo="Adicionar lançamento" />} />
       ) : (
@@ -81,6 +84,7 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
           recentSubcategories={recentSubcategories}
           customCategories={customCategories}
           goals={goalOptions}
+          pessoasDaDivisao={divisao.pessoas}
           entries={linhasDaLista(entries, ocultos)}
         />
       )}

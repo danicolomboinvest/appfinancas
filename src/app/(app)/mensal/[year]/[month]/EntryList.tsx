@@ -14,6 +14,7 @@ import { useToast } from "@/components/ui/toast-context";
 import { useMoney } from "@/components/money/MoneyProvider";
 import { CUSTOM_CATEGORY_ICON_MAP, categoryIcon, categoryLabel, colorForCategorySlice, emojiEscolhido, isParentCategoryKey, categoriasParaEscolher, type CategoriasDoPerfil } from "@/lib/categories";
 import { EntryForm } from "./EntryForm";
+import { FolhaDaTransacao } from "./FolhaDaTransacao";
 import { RESGATE } from "@/components/forms/CategoryFields";
 import { ehResgate } from "@/lib/entries/resgate";
 import {
@@ -29,6 +30,10 @@ export type ListEntry = {
   /** O mês do lançamento. Na lista de um período (trimestre, 7 dias) cada um tem o seu. */
   year?: number;
   month?: number;
+  /** Dividir com alguém: com quem e quanto a pessoa deve (ver lib/entries/divisao.ts). */
+  divididoCom?: string | null;
+  parteDeOutro?: number | null;
+  devolvido?: boolean;
   category: "INCOME" | "EXPENSE" | "INVESTMENT_CONTRIBUTION";
   parentCategory: string | null;
   customCategoryId: string | null;
@@ -54,11 +59,6 @@ export type ListEntry = {
   noCartao?: boolean;
 };
 
-const CATEGORY_AMOUNT_CLASS: Record<ListEntry["category"], string> = {
-  INCOME: "text-success",
-  EXPENSE: "text-danger",
-  INVESTMENT_CONTRIBUTION: "text-accent-strong",
-};
 
 /** "Renda", "Gasto", "Aporte" — na voz do tema, porque o Girly não diz "aporte". */
 function categoryKindLabel(category: ListEntry["category"], voz: Voz, amount = 0): string {
@@ -143,6 +143,8 @@ function toSnapshot(entry: ListEntry, year: number, month: number): DeletedEntry
   return {
     year: entry.year ?? year,
     month: entry.month ?? month,
+    divididoCom: entry.divididoCom ?? null,
+    parteDeOutro: entry.parteDeOutro ?? null,
     category: entry.category,
     parentCategory: entry.parentCategory,
     customCategoryId: entry.customCategoryId,
@@ -178,7 +180,10 @@ export function EntryList({
   recentSubcategories,
   customCategories,
   goals,
+  pessoasDaDivisao = [],
 }: {
+  /** Com quem ela já dividiu alguma conta (para o "Com quem?" do Dividir). */
+  pessoasDaDivisao?: string[];
   entries: ListEntry[];
   year: number;
   month: number;
@@ -213,7 +218,7 @@ export function EntryList({
   const open = entries.find((e) => e.id === openId) ?? null;
   const editing = entries.find((e) => e.id === editingId) ?? null;
 
-  function removeEntries(targets: ListEntry[]) {
+  function removeEntries(targets: ListEntry[], mensagem?: string) {
     if (targets.length === 0) return;
     const snapshots = targets.map((t) => toSnapshot(t, year, month));
     const quantos = targets.length;
@@ -244,7 +249,7 @@ export function EntryList({
       // Aporte que já tinha sido distribuído: o dinheiro fica no ativo de propósito (é a posição
       // real da pessoa). Dizer isso na hora é o que impede o mês e a carteira de divergirem
       // sem ninguém perceber.
-      const base = t.uiExcluido(quantos);
+      const base = mensagem ?? t.uiExcluido(quantos);
       showToast(jaNaCarteira > 0 ? `${base} ${t.uiExcluidoContinuaNaCarteira}` : base, {
         label: t.uiDesfazer,
         onClick: () => {
@@ -336,6 +341,7 @@ export function EntryList({
         <button
           type="button"
           onClick={() => (selecting ? toggle(entry.id) : setOpenId(entry.id))}
+          data-linha-transacao
           aria-pressed={selecting ? marcado : undefined}
           aria-label={selecting ? `${marcado ? "Desmarcar" : "Marcar"} ${titulo}` : `Abrir ${titulo}`}
           className="flex min-w-0 flex-1 items-center gap-3 text-left"
@@ -360,6 +366,9 @@ export function EntryList({
                 </span>
               )}
               {/* Conta lançada antes de pagar (03/10/2026): mostra que ainda vai vencer. */}
+              {entry.divididoCom && (
+                <span className="mr-1 rounded-full bg-accent-soft px-1.5 py-px font-medium text-accent-strong">{entry.parteDeOutro ? `dividido com ${entry.divididoCom}` : `presente`}</span>
+              )}
               {entry.category === "EXPENSE" && entry.entryDate && entry.entryDate > hoje && (
                 <span className="mr-1 rounded-full border border-border-strong px-1.5 py-px font-medium">a vencer</span>
               )}
@@ -576,60 +585,53 @@ export function EntryList({
         </div>
       </Modal>
 
-      {/* Folha do lançamento: tudo por extenso e os dois botões com espaço de sobra. */}
-      <Modal open={open !== null} onClose={() => setOpenId(null)} title={t.uiLancamento}>
+      {/* Folha "Transação" (protótipo aprovado): nome igual ao da lista, valor grande e as quatro
+          ações redondas (Dividir, Separar, Trocar categoria, Ignorar); Editar e Remover embaixo. */}
+      <Modal open={open !== null} onClose={() => setOpenId(null)} title="Transação">
         {open && (
-          <div className="flex flex-col gap-5">
-            <div className="flex items-start gap-3">
-              <LogoDoLancamento descricao={open.description} icon={categoryVisual(open, customCategories, tema, kind).icon} emoji={categoryVisual(open, customCategories, tema, kind).emoji} size={44} />
-              <div className="min-w-0 flex-1">
-                <p className="text-lg font-semibold leading-tight text-ink">
-                  {open.subcategory ?? categoryName(open, customCategories, voz, kind)}
-                </p>
-                <p className="mt-0.5 text-sm text-ink-muted">
-                  {categoryKindLabel(open.category, voz, open.amount)}
-                  {open.subcategory && `, ${categoryName(open, customCategories, voz, kind)}`}
-                  {open.dayLabel && `, ${open.dayLabel}`}
-                </p>
-              </div>
-              <div className="shrink-0 text-right">
-                <p className={`text-xl font-semibold tabular-nums ${open.category === "EXPENSE" && open.amount < 0 ? "text-success" : CATEGORY_AMOUNT_CLASS[open.category]}`}>
-                  {valorDaLinha(open, voz, money)}
-                </p>
-                {open.originalLabel && open.exchangeRate && (
-                  <p className="text-xs tabular-nums text-ink-faint">
-                    {open.originalLabel}, {t.uiCotacao(open.exchangeRate.toLocaleString("pt-BR", { maximumFractionDigits: 4 }))}
-                  </p>
-                )}
-              </div>
-            </div>
-            {open.description && <p className="text-sm leading-relaxed text-ink">{open.description}</p>}
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  setOpenId(null);
-                  setEditingId(open.id);
-                }}
-                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-border-strong bg-surface-2 text-sm font-semibold text-ink transition-colors hover:bg-surface-hover"
-              >
-                <Pencil size={16} strokeWidth={1.75} />
-                {t.uiEditar}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  const alvo = open;
-                  setOpenId(null);
-                  pedirRemocao(alvo);
-                }}
-                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-danger-soft text-sm font-semibold text-danger transition-colors hover:bg-danger hover:text-canvas"
-              >
-                <Trash2 size={16} strokeWidth={1.75} />
-                {t.uiRemover}
-              </button>
-            </div>
-          </div>
+          <FolhaDaTransacao
+            key={open.id}
+            entry={open}
+            titulo={open.description || open.subcategory || categoryName(open, customCategories, voz, kind)}
+            nomeDaCategoria={categoryName(open, customCategories, voz, kind)}
+            tipo={categoryKindLabel(open.category, voz, open.amount)}
+            visual={categoryVisual(open, customCategories, tema, kind)}
+            valor={valorDaLinha(open, voz, money)}
+            money={money}
+            kind={kind}
+            customCategories={customCategories}
+            pessoas={pessoasDaDivisao}
+            onFechar={() => setOpenId(null)}
+            onEditar={() => {
+              setOpenId(null);
+              setEditingId(open.id);
+            }}
+            onRemover={() => {
+              const alvo = open;
+              setOpenId(null);
+              pedirRemocao(alvo);
+            }}
+            onIgnorar={() => {
+              const alvo = open;
+              setOpenId(null);
+              removeEntries([alvo], `${open.description || categoryName(open, customCategories, voz, kind)} ignorado: não conta nos totais`);
+            }}
+            onTrocar={(c) => {
+              const alvo = open;
+              const de = categoryName(alvo, customCategories, voz, kind);
+              setOpenId(null);
+              startTransition(async () => {
+                try {
+                  await updateMonthlyEntriesCategoryAction([alvo.id], c, alvo.year ?? year, alvo.month ?? month);
+                  const para = c.customCategoryId ? (customCategories.find((x) => x.id === c.customCategoryId)?.name ?? "") : categoryLabel(kind, c.parentCategory as ParentCategory);
+                  showToast(`${alvo.description || de}: ${de} → ${para}`);
+                } catch (err) {
+                  console.error("updateMonthlyEntriesCategoryAction falhou", err);
+                  showError(t.acaoFalhou);
+                }
+              });
+            }}
+          />
         )}
       </Modal>
 
