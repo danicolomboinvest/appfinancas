@@ -7,6 +7,7 @@
  */
 
 import { taxaDe, type Divida, type TipoDeDivida } from "@/lib/dividas/tipos";
+import { SELIC_DE_RESERVA, saudeDe, type Saude } from "@/lib/dividas/saude";
 
 export type ValorComOrigem = { valor: number; origem: string };
 
@@ -95,16 +96,31 @@ export type DividaParaCalculadora = {
   jurosAoMes: number;
   estimada: boolean;
   parcelasAbertas: number | null;
+  /** Para o logo do banco e a etiqueta Cara / Atenção / Saudável (protótipo, "Qual dívida?"). */
+  credor?: string;
+  saude?: Saude;
 };
 
-export function dividasParaQuitar(dividas: (Divida & { parcelasAbertas?: number | null })[]): DividaParaCalculadora[] {
+export function dividasParaQuitar(dividas: (Divida & { parcelasAbertas?: number | null; credor?: string; planejada?: boolean })[]): DividaParaCalculadora[] {
   return dividas
     .filter((d) => d.saldo > 0)
     .map((d) => {
       const { taxa, estimada } = taxaDe(d);
       const abertas = d.parcelasAbertas ?? null;
-      return { id: d.id, nome: d.nome, tipo: d.tipo, saldo: d.saldo, jurosAoMes: taxa, estimada, parcelasAbertas: abertas && abertas > 0 ? abertas : null };
-    });
+      return {
+        id: d.id,
+        nome: d.nome,
+        tipo: d.tipo,
+        saldo: d.saldo,
+        jurosAoMes: taxa,
+        estimada,
+        parcelasAbertas: abertas && abertas > 0 ? abertas : null,
+        credor: d.credor,
+        saude: saudeDe({ ...d, planejada: d.planejada ?? false }, SELIC_DE_RESERVA),
+      };
+    })
+    // Sem juros (a dívida com a mãe) não tem o que quitar antes: fica fora da escolha.
+    .filter((d) => d.jurosAoMes > 0);
 }
 
 /** A meta de carro (pelo ícone ou pelo nome), para o consórcio e o carro usarem. */

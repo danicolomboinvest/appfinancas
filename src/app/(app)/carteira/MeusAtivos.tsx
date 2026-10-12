@@ -62,6 +62,8 @@ type Aportes = {
   pendente: number;
   sugestao: SugestaoDeAporte[];
   regra: "curta" | "montando" | "completa" | null;
+  /** Quanto falta para a reserva chegar na meta ("Primeiro a reserva: faltam R$ 16.800"). */
+  faltaReserva?: number | null;
   registrar: ReactNode;
 };
 
@@ -432,57 +434,60 @@ function ValorSemCentavos({ texto }: { texto: string; pequeno?: boolean }) {
 function FolhaDeAportes({ aportes, registrando, onRegistrar, onFechar }: { aportes: Aportes; registrando: boolean; onRegistrar: () => void; onFechar: () => void }) {
   const money = useMoney();
   const base = aportes.guardou > 0 ? aportes.guardou : aportes.planejado;
-  const total = aportes.sugestao.reduce((s, x) => s + x.valor, 0);
   if (registrando && aportes.registrar) return <div className="flex flex-col gap-3">{aportes.registrar}</div>;
   return (
     <div className="flex flex-col gap-4">
-      <div className="rounded-3xl p-4" style={{ background: "color-mix(in srgb, var(--color-dinheiro-guardou) 12%, var(--color-surface))" }}>
-        <p className="text-[14px] text-ink-muted">{aportes.guardou > 0 ? `Em ${aportes.mes} você guardou` : base > 0 ? `Seu plano de ${aportes.mes} é guardar` : `Em ${aportes.mes} você ainda não guardou`}</p>
-        {base > 0 && (
-          <p className="mt-1 text-ink">
-            <ValorComCentavos texto={money(base, { round: true })} className="text-[2rem] font-light leading-none tracking-[-0.02em] tabular-nums" />
-          </p>
+      {/* Protótipo: a frase centrada com o mesmo Guardou do Resumo, "Uma ideia de onde pôr ?", as
+          linhas e a regra curta; Agora não à esquerda e Registrar aporte (preto) à direita. */}
+      <p className="text-center text-[15px] text-ink">
+        {aportes.guardou > 0 ? (
+          <>
+            Em {aportes.mes} você guardou <b className="font-medium tabular-nums">{money(base, { round: true })}</b> pelo orçamento
+          </>
+        ) : base > 0 ? (
+          <>
+            Seu plano de {aportes.mes} é guardar <b className="font-medium tabular-nums">{money(base, { round: true })}</b>
+          </>
+        ) : (
+          `Em ${aportes.mes} você ainda não guardou`
         )}
-        {aportes.guardou > 0 && <p className="mt-1 text-[13px] text-ink-muted">pelo orçamento</p>}
-      </div>
+      </p>
       {aportes.sugestao.length > 0 && (
-        <div className="flex flex-col gap-2.5">
-          <p className="text-[14px] text-ink">Se quiser uma sugestão de onde pôr:</p>
-          <div className="flex h-2 gap-0.5 overflow-hidden rounded" aria-hidden>
+        <div className="flex flex-col gap-2">
+          <p className="flex items-center gap-1.5 text-[15px] font-medium text-ink">
+            Uma ideia de onde pôr
+            <Explica>
+              {aportes.regra === "curta" ? "Até a reserva cobrir 3 meses, tudo vai para ela." : aportes.regra === "montando" ? "De 3 meses até a meta da reserva: 70% reserva, 30% metas." : "Sua reserva já está completa: o dinheiro vai para os seus sonhos."} É só uma sugestão.
+            </Explica>
+          </p>
+          <ul className="flex flex-col divide-y divide-border rounded-2xl bg-surface px-3 shadow-[inset_0_0_0_1px_var(--color-border)]">
             {aportes.sugestao.map((s) => (
-              <span key={s.chave} className="h-full rounded-[4px]" style={{ flexGrow: s.valor / (total || 1), background: s.cor }} />
-            ))}
-          </div>
-          <ul className="flex flex-col divide-y divide-border">
-            {aportes.sugestao.map((s) => (
-              <li key={s.chave} className="flex items-center gap-3 py-2">
+              <li key={s.chave} className="flex items-center gap-3 py-2.5">
                 <span className="size-2 shrink-0 rounded-full" style={{ background: s.cor }} aria-hidden />
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[14px] font-medium text-ink">{s.nome}</span>
-                  {s.ativo && <span className="block truncate text-[12.5px] text-ink-muted">{s.ativo} · {Math.round((s.valor / (total || 1)) * 100)}%</span>}
+                  <span className="block truncate text-[14px] font-medium text-ink">
+                    {s.nome}
+                    {s.ativo ? <span className="font-normal text-ink-muted"> · {s.ativo}</span> : null}
+                  </span>
                 </span>
                 <span className="shrink-0 text-[14px] font-medium tabular-nums text-ink">{money(s.valor, { round: true })}</span>
               </li>
             ))}
           </ul>
-          {aportes.regra && (
-            <p className="text-[12.5px] text-ink-muted">
-              {aportes.regra === "curta" ? "Até a reserva cobrir 3 meses, tudo vai para ela." : aportes.regra === "montando" ? "De 3 meses até a meta da reserva: 70% reserva, 30% metas." : "Sua reserva já está completa: o dinheiro vai para os seus sonhos."}
-            </p>
-          )}
+          {aportes.regra === "curta" && aportes.faltaReserva ? <p className="text-[13px] text-ink-muted">Primeiro a reserva: faltam {money(aportes.faltaReserva, { round: true })}</p> : null}
         </div>
       )}
       <div className="grid grid-cols-2 gap-2">
+        <button type="button" onClick={onFechar} className="min-h-12 rounded-full bg-surface-2 px-4 text-[15px] font-medium text-ink">
+          Agora não
+        </button>
         {aportes.registrar ? (
-          <button type="button" onClick={onRegistrar} className="min-h-12 rounded-full bg-accent-gradient px-4 text-[15px] font-medium text-on-accent">
+          <button type="button" onClick={onRegistrar} className="min-h-12 rounded-full bg-ink px-4 text-[15px] font-medium text-canvas">
             Registrar aporte
           </button>
         ) : (
           <span />
         )}
-        <button type="button" onClick={onFechar} className="min-h-12 rounded-full bg-surface-2 px-4 text-[15px] font-medium text-ink">
-          Agora não
-        </button>
       </div>
       {!aportes.registrar && aportes.guardou > 0 && <p className="text-[12.5px] text-ink-muted">Os aportes deste mês já estão nos seus ativos.</p>}
     </div>

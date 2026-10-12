@@ -37,8 +37,8 @@ export type DadosDoNossoMes = {
  * o livre do casal, o acerto, quem colocou na casa, as contas do mês, por categoria (quem pagou),
  * o de cada um (fora do acerto), os lançamentos e o fechamento do mês passado.
  */
-export function TelaNosDois({ mes, acerto, fechamento, orcamento, metas, botaoLancar }: { mes: DadosDoNossoMes; acerto: ReactNode; fechamento: ReactNode; orcamento: ReactNode; metas: ReactNode; botaoLancar: ReactNode }) {
-  const [aba, setAba] = useState<"mes" | "orc" | "metas">("mes");
+export function TelaNosDois({ mes, acerto, fechamento, orcamento, metas, botaoLancar, abaInicial = "mes" }: { mes: DadosDoNossoMes; acerto: ReactNode; fechamento: ReactNode; orcamento: ReactNode; metas: ReactNode; botaoLancar: ReactNode; abaInicial?: "mes" | "orc" | "metas" }) {
+  const [aba, setAba] = useState<"mes" | "orc" | "metas">(abaInicial);
   return (
     <div className="flex flex-col gap-4" data-tela-nos-dois>
       <div className="grid grid-cols-3 gap-1 rounded-full bg-surface-2 p-1" role="tablist" aria-label="Nós dois">

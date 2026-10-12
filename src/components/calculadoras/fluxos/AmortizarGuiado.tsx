@@ -1,8 +1,9 @@
 "use client";
 
+import { LogoDoCredor } from "@/app/(app)/dividas/partes";
+import { FRASE_DA_SAUDE } from "@/lib/dividas/saude";
 import { useState } from "react";
-import { Minus, Plus } from "lucide-react";
-import { iconeDoTipo } from "@/app/(app)/dividas/partes";
+import { Check, Minus, Plus } from "lucide-react";
 import { useMoney } from "@/components/money/MoneyProvider";
 import { monthlyToAnnual, annualToMonthly } from "@/lib/finance/rate-conversion";
 import { EXEMPLO_AMORTIZAR, type ValoresDaCalculadora } from "@/lib/calculadoras/entradas";
@@ -160,33 +161,40 @@ export function AmortizarGuiado({ dados, salva }: { dados: DadosDaTela; salva: S
   if (etapa === "qual") {
     return (
       <Passo passo={passo} total={total} nome={NOME} pergunta="Qual dívida?" onVoltar={voltar} pe={<BotaoGrande onClick={seguir}>Próximo</BotaoGrande>}>
-        <p className="-mt-2 px-1 text-sm text-ink-muted">As suas aparecem aqui.</p>
-        {dividas.map((d) => {
-          const Icone = iconeDoTipo(d.tipo);
-          return (
-            <Opcao key={d.id} on={escolha === d.id} onClick={() => escolher(d)} className="flex-col !items-stretch">
-              <span className="flex min-w-0 items-center gap-3">
-                <IconeRedondo>
-                  <Icone size={18} aria-hidden />
-                </IconeRedondo>
-                <span className="min-w-0">
-                  <b className="block break-words text-[15px] font-medium text-ink">{d.nome}</b>
-                  <small className="text-caption text-ink-muted">Das suas dívidas</small>
+        <p className="-mt-2 px-1 text-sm text-ink-muted">Das suas dívidas</p>
+        {/* Protótipo: linhas compactas com o logo do banco, a etiqueta, os juros e o valor; a escolhida com borda dourada e check. */}
+        <div className="flex flex-col gap-2" data-qual-divida>
+          {dividas.map((d) => {
+            const on = escolha === d.id;
+            const saude = d.saude ?? "atencao";
+            return (
+              <button
+                key={d.id}
+                type="button"
+                aria-pressed={on}
+                onClick={() => escolher(d)}
+                className="flex items-center gap-3 rounded-2xl bg-surface p-3 text-left shadow-[inset_0_0_0_1px_var(--color-border)] aria-pressed:shadow-[inset_0_0_0_1.5px_var(--color-accent)]"
+              >
+                <LogoDoCredor credor={d.credor ?? d.nome} tipo={d.tipo} saude={saude} size={40} />
+                <span className="min-w-0 flex-1">
+                  <span className="flex flex-wrap items-center gap-1.5">
+                    <b className="truncate text-[15px] font-medium text-ink">{d.nome}</b>
+                    <span className={`rounded-full px-2 py-px text-xs ${saude === "cara" ? "bg-danger-soft text-danger" : saude === "saudavel" ? "bg-success-soft text-success" : "bg-accent-soft text-accent-strong"}`}>{FRASE_DA_SAUDE[saude].selo}</span>
+                  </span>
+                  <small className="text-caption text-ink-muted">
+                    {pc(d.jurosAoMes, 1)}% ao mês{d.estimada ? " (estimado)" : ""}
+                  </small>
                 </span>
-              </span>
-              <span className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1">
-                <span className="flex flex-col">
-                  <small className="text-caption text-ink-muted">Saldo devedor</small>
-                  <b className="text-[1.375rem] font-light tabular-nums text-ink">{r0(d.saldo)}</b>
-                </span>
-                <span className="flex flex-col items-end">
-                  <small className="text-caption text-ink-muted">Juros{d.estimada ? " (estimados)" : ""}</small>
-                  <b className="text-[17px] font-medium text-ink">{pc(d.jurosAoMes, 1)}% ao mês</b>
-                </span>
-              </span>
-            </Opcao>
-          );
-        })}
+                <b className="shrink-0 text-[15px] font-medium tabular-nums text-ink">{r0(d.saldo)}</b>
+                {on && (
+                  <span className="flex size-[22px] shrink-0 items-center justify-center rounded-full bg-accent text-on-accent" aria-hidden>
+                    <Check size={13} strokeWidth={2.4} />
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
         <Opcao on={escolha === "outra"} onClick={() => escolher(null)}>
           <IconeRedondo>
             <Plus size={18} aria-hidden />

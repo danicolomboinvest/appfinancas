@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { CalendarDays, Check, ChevronLeft, ChevronRight, FileText, ReceiptText, ShoppingBag, Tag, Truck, Megaphone, Building2, Users } from "lucide-react";
+import { CalendarDays, Gauge, Check, ChevronLeft, ChevronRight, FileText, ReceiptText, ShoppingBag, Tag, Truck, Megaphone, Building2, Users } from "lucide-react";
 import { useMoney } from "@/components/money/MoneyProvider";
 import { ValorDestaque } from "@/components/ui/ValorDestaque";
 import { HeroiDoTema } from "@/components/ui/HeroiDoTema";
@@ -136,6 +136,18 @@ function Recibo({ dados, mes, recibo, atual, salario, pago, m0 }: { dados: Dados
   );
 }
 
+function Faixa({ cor }: { cor: string }) {
+  return <span className="absolute inset-y-0 left-0 w-1" style={{ background: cor }} aria-hidden />;
+}
+
+function IconeTingido({ icon: Icone, cor }: { icon: typeof FileText; cor: string }) {
+  return (
+    <span className="flex size-10 shrink-0 items-center justify-center rounded-full" style={{ background: `color-mix(in srgb, ${cor} 14%, var(--color-surface))`, color: cor }} aria-hidden>
+      <Icone size={18} strokeWidth={1.7} />
+    </span>
+  );
+}
+
 function AbaResumo({ dados, R, mes, recibo, atual, m0, money }: { dados: DadosDaEmpresa; R: ResumoDaEmpresa; mes: Mes; recibo: Recibo; atual: boolean; m0: Fmt; money: (v: number) => string }) {
   const pagoDoMes = dados.lancamentos.find((l) => l.externalId === `prolabore:${chaveDoMes(mes)}`);
   const pago = pagoDoMes ? pagoDoMes.amount : null;
@@ -143,23 +155,27 @@ function AbaResumo({ dados, R, mes, recibo, atual, m0, money }: { dados: DadosDa
   const itens: React.ReactNode[] = [];
   if (R.guia && !R.guia.paga) {
     itens.push(
-      <Link key="guia" href="/empresa?aba=contas" className="flex min-h-16 items-center gap-3 py-2">
-        <LogoDoLancamento descricao={null} icon={FileText} size={40} />
+      <Link key="guia" href="/empresa?aba=contas" className="relative flex min-h-16 items-center gap-3 overflow-hidden rounded-2xl bg-surface py-2 pl-4 pr-3 shadow-[inset_0_0_0_1px_var(--color-border)]">
+        <Faixa cor="var(--color-accent)" />
+        <IconeTingido icon={FileText} cor="var(--color-accent-strong)" />
         <span className="min-w-0 flex-1">
           <b className="block text-[15px] font-medium text-ink">Guia do MEI</b>
           <small className="text-xs text-ink-muted">{R.guia.diasAte < 0 ? `venceu dia ${Number(R.guia.vence.slice(8))}` : `vence ${diaDaSemanaDe(R.guia.vence)}`}</small>
         </span>
-        <b className="shrink-0 text-[15px] font-medium tabular-nums text-ink">{money(R.guia.valor)}</b>
+        <b className="shrink-0 text-[15px] font-medium tabular-nums text-accent-strong">{money(R.guia.valor)}</b>
       </Link>,
     );
   }
   for (const d of R.devendo.slice(0, 3)) {
     itens.push(
-      <Link key={d.id} href="/empresa/recebimentos" className="flex min-h-16 items-center gap-3 py-2">
+      <Link key={d.id} href="/empresa/recebimentos" className="relative flex min-h-16 items-center gap-3 overflow-hidden rounded-2xl bg-surface py-2 pl-4 pr-3 shadow-[inset_0_0_0_1px_var(--color-border)]">
+        <Faixa cor="var(--color-danger)" />
         <Iniciais nome={d.cliente} />
         <span className="min-w-0 flex-1">
           <b className="block truncate text-[15px] font-medium text-ink">{d.cliente.split(" ")[0]} deve</b>
-          <small className="block truncate text-xs text-ink-muted">há {d.dias} {d.dias === 1 ? "dia" : "dias"}</small>
+          <small className="block truncate text-xs text-ink-muted">
+            {d.descricao ? `${d.descricao.charAt(0).toLowerCase()}${d.descricao.slice(1)}, ` : ""}há {d.dias} {d.dias === 1 ? "dia" : "dias"}
+          </small>
         </span>
         <b className="shrink-0 text-[15px] font-medium tabular-nums text-danger">{m0(d.valor)}</b>
       </Link>,
@@ -168,10 +184,9 @@ function AbaResumo({ dados, R, mes, recibo, atual, m0, money }: { dados: DadosDa
   if (R.limite?.alerta) {
     const p = Math.min(100, R.limite.pct * 100);
     itens.push(
-      <Link key="limite" href="/empresa/limite" className="flex min-h-16 items-center gap-3 py-2">
-        <span className="relative flex size-10 shrink-0 items-center justify-center rounded-full" style={{ background: `conic-gradient(var(--color-danger) ${p}%, var(--color-surface-2) 0)` }} aria-hidden>
-          <span className="size-7 rounded-full bg-surface" />
-        </span>
+      <Link key="limite" href="/empresa/limite" className="relative flex min-h-16 items-center gap-3 overflow-hidden rounded-2xl bg-surface py-2 pl-4 pr-3 shadow-[inset_0_0_0_1px_var(--color-border)]" data-pct={p}>
+        <Faixa cor="var(--color-danger)" />
+        <IconeTingido icon={Gauge} cor="var(--color-danger)" />
         <span className="min-w-0 flex-1">
           <b className="block text-[15px] font-medium text-ink">Limite do MEI</b>
           <small className="text-xs text-ink-muted">{R.limite.faixa !== "mei" ? "passou do teto" : R.limite.passaEm ? `no ritmo, chega em ${MESES[R.limite.passaEm - 1]}` : "perto do teto"}</small>
@@ -188,10 +203,13 @@ function AbaResumo({ dados, R, mes, recibo, atual, m0, money }: { dados: DadosDa
           Ver meu holerite
         </Link>
       )}
-      <h2 className="mt-2 flex items-center gap-2 px-1 text-lg font-medium text-ink">
-        Pede sua atenção <span className="rounded-full bg-surface-2 px-2 text-sm tabular-nums text-ink-muted">{itens.length}</span>
+      <h2 className="mt-2 flex items-center justify-between gap-2 px-1 text-lg font-medium text-ink">
+        Pede sua atenção <span className="flex min-w-6 items-center justify-center rounded-full bg-ink px-2 text-sm tabular-nums text-canvas">{itens.length}</span>
       </h2>
-      <Cartao className="divide-y divide-border px-4">{itens.length ? itens : <p className="py-4 text-sm text-ink-muted">Nada por agora.</p>}</Cartao>
+      {/* Protótipo: um cartão por coisa, com a faixa colorida na esquerda e o ícone tingido. */}
+      <div className="flex flex-col gap-2" data-pede-atencao>
+        {itens.length ? itens : <Cartao className="px-4"><p className="py-4 text-sm text-ink-muted">Nada por agora.</p></Cartao>}
+      </div>
       <Link href="/empresa/como-vai" className="mx-auto inline-flex min-h-11 items-center gap-1 px-3 text-sm font-medium text-accent-strong">
         Como vai a empresa <ChevronRight size={16} aria-hidden />
       </Link>

@@ -17,7 +17,7 @@ import { assessoriaAction, ocultarConviteDaAssessoriaAction } from "./carteira-n
  * - Sem remuneração, sem custo, sem prazo e sem conversa com assessor para quem está abaixo da
  *   faixa: só abrir a conta. O x esconde o convite só para ela (`podeOcultar`).
  */
-export function ConviteDaAssessoria({ estado: inicial, podeOcultar = true }: { estado: EstadoDaAssessoria; podeOcultar?: boolean }) {
+export function ConviteDaAssessoria({ estado: inicial, podeOcultar = true, destaque = false }: { estado: EstadoDaAssessoria; podeOcultar?: boolean; /** Oportunidades (protótipo): o cartão grande com os logos e o botão preto. */ destaque?: boolean }) {
   const [estado, setEstado] = useState(inicial);
   const [oculto, setOculto] = useState(false);
   const [pendente, startTransition] = useTransition();
@@ -30,6 +30,29 @@ export function ConviteDaAssessoria({ estado: inicial, podeOcultar = true }: { e
       const r = await assessoriaAction(acao);
       setEstado(r.estado === "confirmando" ? "confirmando" : "nao_cliente");
     });
+
+  if (destaque)
+    return (
+      <section aria-label="Conta na Fatos Capital" className="flex flex-col items-center gap-3 rounded-3xl border border-border bg-surface px-5 py-6 text-center" aria-busy={pendente} data-convite-destaque>
+        {/* eslint-disable-next-line @next/next/no-img-element -- logo da parceria */}
+        <img src="/logos/fatos-eqi.png" alt="Fatos Capital | EQI" className="h-8 w-auto [.dark_&]:hidden" />
+        {/* eslint-disable-next-line @next/next/no-img-element -- logo da parceria (escuro) */}
+        <img src="/logos/fatos-eqi-branco.png" alt="Fatos Capital | EQI" className="hidden h-8 w-auto [.dark_&]:block" />
+        <b className="text-[17px] font-medium text-ink">{conferindo ? t.titulo : "Feito para quem investe comigo"}</b>
+        {conferindo && <p className="text-[14px] text-ink-muted">{t.apoio}</p>}
+        {t.botao && !conferindo && (
+          <a href={EQI_ABRIR_CONTA_URL} target="_blank" rel="noopener" className="flex min-h-12 w-full items-center justify-center rounded-full bg-ink text-[15px] font-medium text-canvas">
+            Abrir minha conta
+          </a>
+        )}
+        {t.secundario && (
+          <button type="button" disabled={pendente} onClick={() => mudar(conferindo ? "ainda_nao" : "ja_abri")} className="min-h-11 text-[14px] text-ink-muted underline underline-offset-4 disabled:opacity-50">
+            {t.secundario}
+          </button>
+        )}
+        <p className="text-xs text-ink-faint">Fatos Capital, AI contratado EQI. A Dani é sócia.</p>
+      </section>
+    );
 
   return (
     <section aria-label="Conta na Fatos Capital" className="glass rounded-2xl px-4 py-3.5" aria-busy={pendente}>

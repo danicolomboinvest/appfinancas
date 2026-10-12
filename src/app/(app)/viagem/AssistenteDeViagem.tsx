@@ -3,7 +3,6 @@
 import { useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 import Link from "next/link";
 import {
-  Backpack,
   BedDouble,
   Building2,
   FerrisWheel,
@@ -16,13 +15,11 @@ import {
   ChevronLeft,
   ChevronRight,
   Compass,
-  Luggage,
   Minus,
   Pencil,
   Plane,
   Plus,
   Search,
-  Star,
   Tag,
   Target,
   UtensilsCrossed,
@@ -310,13 +307,11 @@ export function AssistenteDeViagem({
     }
     if (passo === 1) setDiaDe(0);
     // Padrão: um destino por vez no passo dos dias (o "Continuar" anda pelos destinos primeiro).
-    if (passo === 2 && tema === "padrao" && diaDe < plano.legs.length - 1) return setDiaDe(diaDe + 1);
     if (passo === 4) setAnoVisto(null);
     irPara(passo + 1);
   }
 
   function voltar() {
-    if (passo === 2 && tema === "padrao" && diaDe > 0 && !ajustando) return setDiaDe(diaDe - 1);
     if (ajustando) {
       setAjustando(false);
       return irPara(7);
@@ -391,7 +386,7 @@ export function AssistenteDeViagem({
         </div>
 
         {busca.trim() && (
-          <div role="listbox" aria-label="Destinos" className="flex flex-col">
+          <div role="listbox" aria-label="Destinos" className="flex flex-col rounded-3xl border border-border bg-surface p-2">
             {sugestoes.map((d) => (
               <button
                 key={d.key}
@@ -554,7 +549,7 @@ export function AssistenteDeViagem({
             <p className="text-caption text-ink-muted">{cheio ? "Até 8 destinos." : `${destinos.length} de 8 destinos`}</p>
           </div>
         ) : (
-          !novo && <p className="text-caption text-ink-muted">Busque um destino para começar.</p>
+          !novo && !busca.trim() && <p className="text-caption text-ink-muted">Busque um destino para começar.</p>
         )}
       </>
     );
@@ -719,32 +714,36 @@ export function AssistenteDeViagem({
 
   // ===== Passo 5: estilo =====
   function passo5() {
+    // Protótipo: a régua de Mais simples a Mais conforto, com o nome do meio e o total da viagem
+    // mudando junto (os três estilos de sempre, numa régua só).
     const totais = STYLES.map((s) => tripValues({ ...plano, style: s }, { usaEstimativas }).total);
-    const ix = STYLES.indexOf(plano.style);
-    const icones = [Backpack, Luggage, Luggage];
+    const ix = Math.max(0, STYLES.indexOf(plano.style));
     return (
-      <div role="radiogroup" aria-label="Estilo da viagem" className="flex flex-col gap-3">
-        {STYLES.map((s, i) => {
-          const Icone = icones[i];
-          const ativo = i === ix;
-          return (
-            <button
-              key={s}
-              type="button"
-              role="radio"
-              aria-checked={ativo}
-              onClick={() => mudar({ style: s })}
-              className={`flex items-center gap-4 rounded-3xl border-2 bg-surface p-4 text-left transition-colors ${ativo ? "border-accent bg-accent-soft shadow-[0_0_0_1px_var(--color-accent)]" : "border-border"}`}
-            >
-              <span className="relative flex size-14 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent-strong">
-                <Icone className="size-6" aria-hidden />
-                {i === 2 && <Star className="absolute right-3 top-3 size-3 fill-current" aria-hidden />}
-              </span>
-              <b className="min-w-0 flex-1 text-body font-medium text-ink">{STYLE_LABEL[s]}</b>
-              {usaEstimativas && <ValorDestaque texto={m(totais[i])} className="shrink-0 text-[1.25rem] font-normal tabular-nums text-ink" />}
-            </button>
-          );
-        })}
+      <div className="flex flex-col gap-4" data-regua-estilo>
+        <div className="flex flex-col items-center gap-1 rounded-3xl border border-border bg-surface px-4 py-6 text-center">
+          <b className="text-[1.375rem] font-medium text-ink">{STYLE_LABEL[STYLES[ix]]}</b>
+          <input
+            type="range"
+            min={0}
+            max={STYLES.length - 1}
+            step={1}
+            value={ix}
+            onChange={(e) => mudar({ style: STYLES[Number(e.target.value)] })}
+            aria-label="Estilo da viagem"
+            aria-valuetext={STYLE_LABEL[STYLES[ix]]}
+            className="mt-3 w-full accent-[var(--color-ink)]"
+          />
+          <div className="flex w-full justify-between text-sm text-ink-muted">
+            <span>{STYLE_LABEL[STYLES[0]]}</span>
+            <span>{STYLE_LABEL[STYLES[STYLES.length - 1]]}</span>
+          </div>
+        </div>
+        {usaEstimativas && (
+          <div className="flex items-baseline justify-between gap-3 px-1">
+            <span className="text-sm text-ink-muted">Total da viagem</span>
+            <ValorDestaque texto={m(totais[ix])} className="text-[1.5rem] font-normal tabular-nums text-ink" />
+          </div>
+        )}
       </div>
     );
   }

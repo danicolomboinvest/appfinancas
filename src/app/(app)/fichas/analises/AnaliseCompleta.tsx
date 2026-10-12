@@ -107,8 +107,8 @@ export function AnaliseCompleta(p: PropsDaCompleta) {
             </button>
           ))}
         </div>
-        <button type="button" onClick={() => setUm((u) => (u === null ? 0 : null))} className="min-h-11 px-2 text-[13px] text-ink underline underline-offset-4">
-          {um !== null ? "Ver todas de uma vez" : "Ver uma pergunta por vez"}
+        <button type="button" onClick={() => setUm((u) => (u === null ? 0 : null))} className="min-h-11 px-2 text-[13px] text-ink-muted">
+          {um !== null ? "Todas de uma vez" : "Uma pergunta por vez"}
         </button>
       </div>
 

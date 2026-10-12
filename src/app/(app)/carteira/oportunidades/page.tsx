@@ -28,7 +28,7 @@ export default async function OportunidadesPage() {
     <div className="flex flex-col gap-5">
       <div className="px-1">
         <h1 className="titulo-tema text-[28px] font-light leading-tight text-ink">Oportunidades</h1>
-        <p className="mt-1 text-[15px] text-ink-muted">Novas todo mês, para quem abriu conta pela Fatos Capital.</p>
+        <p className="mt-1 text-[15px] text-ink-muted">Novas todo mês, só para clientes</p>
       </div>
 
       <div className="grid grid-cols-2 gap-2.5" aria-hidden>
@@ -53,12 +53,8 @@ export default async function OportunidadesPage() {
         ))}
       </div>
 
-      <div className="glass rounded-3xl px-5 py-4 text-center">
-        <p className="text-[16px] font-medium text-ink">As oportunidades do mês chegam em breve</p>
-        <p className="mt-1 text-[14px] text-ink-muted">Elas aparecem aqui, na sua Carteira.</p>
-      </div>
 
-      {estado !== "cliente" && !user.ofertasDesligadas && <ConviteDaAssessoria estado={estado} podeOcultar={false} />}
+      {estado !== "cliente" && !user.ofertasDesligadas && <ConviteDaAssessoria estado={estado} podeOcultar={false} destaque />}
     </div>
   );
 }
