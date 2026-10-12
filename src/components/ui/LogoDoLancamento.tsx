@@ -30,7 +30,7 @@ export function LogoDoLancamento({
   emoji?: string;
   /** Cor da categoria: lançamento que não é de marca vira círculo nesse tom. */
   cor?: string;
-  size?: 36 | 40 | 44 | 48;
+  size?: 36 | 40 | 44 | 48 | 64 | 72;
 }) {
   const marca = marcaDaDescricao(descricao);
   const raio = Math.round(size * 0.3);

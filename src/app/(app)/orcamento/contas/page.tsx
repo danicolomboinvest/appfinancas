@@ -23,6 +23,8 @@ import { FolhaDasContas } from "./folha-contexto";
 import { pesoPorMes, vencimentosDaJanela } from "@/lib/contas/recorrentes";
 import { SemanaDasContas } from "./SemanaDasContas";
 import { iso, serializarConta } from "./serializar";
+import { carregarDinheiroPerdido } from "./perdido/dados";
+import { EntradaDoDinheiroPerdido } from "./perdido/Entrada";
 
 /**
  * Recorrentes, a quarta aba da Visão geral (versão nova, protótipo aprovado): quanto da renda já
@@ -30,6 +32,8 @@ import { iso, serializarConta } from "./serializar";
  * assinaturas achadas no extrato e o limite do cartão. `?nova=1` abre o formulário de conta.
  *
  * "Dívidas por mês" (fase 2): o que sai por mês para cada dívida, só leitura, com "Ver plano".
+ *
+ * Dinheiro perdido (12/10/2026): a abinha no alto leva às cartas (./perdido).
  *
  * Fase 3 (seção 3.17): a semana navegável com cada vencimento, a frequência livre, o valor
  * aproximado e as contas do ano (guarde R$ X por mês). A conta reconhecida no extrato fica para
@@ -44,7 +48,7 @@ export default async function RecorrentesPage(props: PageProps<"/orcamento/conta
   const ano = agora.getFullYear();
   const mes = agora.getMonth() + 1;
   const empresa = ehEmpresa(ctx.profileKind);
-  const [abertas, pagas, plano, resumo, planoDoMes, raiox, dividas, selic] = await Promise.all([
+  const [abertas, pagas, plano, resumo, planoDoMes, raiox, dividas, selic, perdido] = await Promise.all([
     listarContasAPagar(ctx),
     listarQuitadasRecentes(ctx),
     listBudgets(ctx, ano, mes),
@@ -53,6 +57,8 @@ export default async function RecorrentesPage(props: PageProps<"/orcamento/conta
     empresa ? Promise.resolve({ itens: [], decididos: new Set<string>() }) : carregarRaioX(ctx, ano, mes),
     empresa ? Promise.resolve([]) : listarDividas(ctx),
     empresa ? Promise.resolve(null) : selicAnual(ctx.userId),
+    // Dinheiro perdido: só a abinha (quantas cartas e os logos). A Empresa não tem.
+    empresa ? Promise.resolve(null) : carregarDinheiroPerdido(ctx),
   ]);
   const hojeD = hojeEmBrasilia();
   const hoje = iso(hojeD);
@@ -74,6 +80,7 @@ export default async function RecorrentesPage(props: PageProps<"/orcamento/conta
     <FolhaDasContas hoje={hoje} abrirNova={sp.nova === "1"}>
     <div className="flex flex-col gap-5 lg:grid lg:grid-cols-2 lg:items-start">
       <div className="flex min-w-0 flex-col gap-5">
+        {perdido && <EntradaDoDinheiroPerdido abertas={perdido.abertas} novos={perdido.novos} />}
         {pct !== null && (
           <HeroiDoTema>
             <div className="flex items-center justify-between gap-2">

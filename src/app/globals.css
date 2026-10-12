@@ -968,3 +968,10 @@ select,
   -webkit-user-select: text;
   user-select: text;
 }
+
+/* Dinheiro perdido (12/10/2026): o "Até agora" dá um pulinho quando cresce. */
+@keyframes dp-pula {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}

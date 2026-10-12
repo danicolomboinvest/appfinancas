@@ -402,7 +402,10 @@ function acharTarifas(gastos: LancamentoParaCacar[], ultimoMes: number): Achado[
     const meses = [...porMes.keys()].sort((a, b) => a - b);
     const ultimo = meses[meses.length - 1];
     if (ultimo < ultimoMes - 1) continue;
-    const nome = g.banco ? `${g.tarifa.nome}, ${g.banco.nome}` : g.tarifa.nome;
+    // "Seguro do cartão" quando o extrato diz cartão; "Seguro" sozinho nos outros.
+    const doCartao = g.tarifa.tipo === "seguro" && g.itens.some((l) => /\bcartao\b/.test(textoDe(l)));
+    const titulo = doCartao ? "Seguro do cartão" : g.tarifa.nome;
+    const nome = g.banco ? `${titulo}, ${g.banco.nome}` : titulo;
     const quem = g.banco?.nome ?? "banco";
     const doUltimo = porMes.get(ultimo)!;
     const exemplo = doUltimo[doUltimo.length - 1];
