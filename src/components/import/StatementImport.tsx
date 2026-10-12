@@ -49,7 +49,11 @@ type Phase = "upload" | "password" | "arquivos" | "review" | "confirm" | "done";
 type ArquivoNaFila = {
   id: number;
   file: File;
-  status: "esperando" | "lendo" | "ok" | "erro" | "anotado";
+  status: "esperando" | "lendo" | "ok" | "erro" | "anotado" | "senha";
+  /** A senha que abriu este arquivo (fica só na memória da tela, pro "Mudar" reler). */
+  pwd?: string;
+  /** Tentou abrir com uma senha e ela não serviu. */
+  senhaErrada?: boolean;
   docType: "extrato" | "fatura";
   stats?: ParseStats;
   items?: ReviewItem[];
@@ -367,9 +371,13 @@ export function StatementImport({
   }
 
   /** Lê um arquivo da fila no servidor, seguindo o tipo que o app detectar (ou o forçado no "Mudar"). */
-  async function lerDaFila(arq: ArquivoNaFila, forcado?: "extrato" | "fatura"): Promise<ArquivoNaFila> {
+  async function lerDaFila(arq: ArquivoNaFila, forcado?: "extrato" | "fatura", pwd: string | undefined = arq.pwd): Promise<ArquivoNaFila> {
     if (arq.file.size > UPLOAD_MAX_BYTES) return { ...arq, status: "erro", erro: t.impArquivoGrande };
-    const tentar = async (tipo: "extrato" | "fatura") => parseStatementAction(buildUploadForm(arq.file, tipo));
+    const tentar = async (tipo: "extrato" | "fatura") => {
+      const form = buildUploadForm(arq.file, tipo);
+      if (pwd) form.set("password", pwd);
+      return parseStatementAction(form);
+    };
     try {
       let tipo = forcado ?? arq.docType;
       let r = await tentar(tipo);
@@ -377,10 +385,13 @@ export function StatementImport({
         tipo = r.stats.detectedKind;
         r = await tentar(tipo);
       }
-      if (!r.ok) return { ...arq, status: "erro", erro: r.needsPassword ? "Este arquivo tem senha: envie ele sozinho para eu pedir a senha." : r.error };
+      // Com senha (12/10/2026): em vez de mandar enviar sozinho, o arquivo espera a senha, e uma
+      // senha só abre todos os que estão esperando (os PDFs do mesmo banco usam a mesma).
+      if (!r.ok && r.needsPassword) return { ...arq, status: "senha", senhaErrada: !!pwd, pwd: undefined, erro: undefined };
+      if (!r.ok) return { ...arq, status: "erro", erro: r.error };
       const resumo = resumoDoArquivo(tipo, r.stats, r.items);
       const meses = resumo.chips[resumo.chips.length - 1];
-      return { ...arq, status: "ok", docType: tipo, stats: r.stats, items: r.items, customCategories: r.customCategories, erro: undefined, rotulo: meses && !/compra|lançamento|vence/.test(meses) ? `${resumo.titulo} · ${meses}` : resumo.titulo };
+      return { ...arq, status: "ok", pwd, senhaErrada: false, docType: tipo, stats: r.stats, items: r.items, customCategories: r.customCategories, erro: undefined, rotulo: meses && !/compra|lançamento|vence/.test(meses) ? `${resumo.titulo} · ${meses}` : resumo.titulo };
     } catch (err) {
       registrarErroNoCliente("importar-ler", err);
       return { ...arq, status: "erro", erro: ehFalhaDeRede(err) ? t.impErroEnvio : MSG_FALHA_NOSSA };
@@ -407,6 +418,23 @@ export function StatementImport({
       setFila(lista);
     }
     setLendoFila(false);
+  }
+
+  /** Uma senha para todos os arquivos que pediram senha: tenta em cada um, um por vez. */
+  async function abrirComSenha(senha: string) {
+    if (!fila) return;
+    let lista = fila;
+    setError(null);
+    setLendoFila(true);
+    for (const arq of lista.filter((a) => a.status === "senha")) {
+      lista = lista.map((a) => (a.id === arq.id ? { ...a, status: "lendo" } : a));
+      setFila(lista);
+      const lido = await lerDaFila(arq, undefined, senha);
+      lista = lista.map((a) => (a.id === arq.id ? lido : a));
+      setFila(lista);
+    }
+    setLendoFila(false);
+    if (!lista.some((a) => a.status === "senha")) setPassword("");
   }
 
   /** "Mudar" num arquivo da lista: relê como o outro tipo. */
@@ -849,11 +877,52 @@ export function StatementImport({
   // --- VÁRIOS ARQUIVOS (caminho B; com mais de dois, a faixa dos meses do C) ---
   if (phase === "arquivos" && fila) {
     const prontos = fila.filter((a) => a.status === "ok");
+    const comSenha = fila.filter((a) => a.status === "senha");
     const lidosAgora = fila.flatMap((a) => (a.status === "ok" || a.status === "anotado" ? (a.items ?? []).map((l) => l.date.slice(0, 7)) : []));
     return (
       <div className="flex flex-col gap-3" data-varios-arquivos>
         <p className="titulo-tema px-1 text-[1.6rem] font-normal leading-tight text-ink">{fila.length} arquivos</p>
         {fila.length > 2 && <FaixaDosMeses noApp={mesesNoApp} lidos={lidosAgora} />}
+        {comSenha.length > 0 && (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (password && !lendoFila) void abrirComSenha(password);
+            }}
+            className="flex flex-col gap-3 rounded-3xl bg-surface p-4 shadow-premium-sm"
+            data-senha-em-lote
+          >
+            <span className="flex items-center gap-3">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent-strong">
+                <Lock size={20} strokeWidth={1.75} aria-hidden />
+              </span>
+              <b className="titulo-tema text-[1.3rem] font-normal leading-tight text-ink">
+                {comSenha.length === 1 ? "1 arquivo tem senha" : `${comSenha.length} arquivos têm senha`}
+              </b>
+            </span>
+            <span className="text-sm text-ink-muted">
+              {comSenha.some((a) => a.senhaErrada)
+                ? comSenha.length === 1
+                  ? "Essa senha não abriu este. Tenta outra?"
+                  : `Essa senha não abriu estes ${comSenha.length}. Tenta outra?`
+                : comSenha.length === 1
+                  ? t.impSenhaDicaBanco
+                  : "Digita uma vez e eu abro todos."}
+            </span>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder={t.impSenhaPlaceholder}
+              autoComplete="off"
+              className="w-full rounded-lg border border-border-strong bg-surface px-3 py-2.5 text-sm text-ink focus:border-accent focus:outline-none"
+            />
+            <Button type="submit" disabled={lendoFila || !password}>
+              {lendoFila ? t.impAbrindo : comSenha.length === 1 ? t.impDesbloquear : `Abrir os ${comSenha.length}`}
+            </Button>
+            <span className="text-caption text-ink-faint">{t.impSenhaConfianca}</span>
+          </form>
+        )}
         {fila.map((a) => {
           const resumo = a.status === "ok" && a.stats && a.items ? resumoDoArquivo(a.docType, a.stats, a.items) : null;
           return (
@@ -883,6 +952,10 @@ export function StatementImport({
                 </>
               ) : a.status === "erro" ? (
                 <span className="text-sm text-ink-muted">{a.erro}</span>
+              ) : a.status === "senha" ? (
+                <span className="inline-flex items-center gap-1.5 text-sm text-ink-muted">
+                  <Lock size={15} aria-hidden /> Esperando a senha
+                </span>
               ) : (
                 <span className="inline-flex items-center gap-2 text-sm text-ink-muted">
                   <span className="esqueleto h-3 w-24 rounded-full" aria-hidden />
