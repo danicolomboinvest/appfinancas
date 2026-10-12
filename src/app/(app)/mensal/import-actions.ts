@@ -24,7 +24,7 @@ import {
   deleteEmptyImportBatch,
   deleteImportBatchWithEntries,
 } from "@/lib/repositories/import-batch.repo";
-import { listCustomCategories } from "@/lib/repositories/custom-category.repo";
+import { garantirCuidadoPessoal, listCustomCategories } from "@/lib/repositories/custom-category.repo";
 import { listProfiles } from "@/lib/repositories/profile.repo";
 import { descricoesOriginais } from "@/lib/repositories/decisao.repo";
 import { aplicarNosOutrosMeses, listTransactionRules, upsertTransactionRule } from "@/lib/repositories/transaction-rule.repo";
@@ -347,6 +347,9 @@ async function lerExtrato(formData: FormData): Promise<ParseStatementResult> {
   const personalizadas = new Set(customCategories.map((c) => c.id));
 
   const comprasSaoPositivas = docType !== "fatura" || comprasDaFaturaSaoPositivas(parsed);
+  // Linhas que o dicionário reconheceu como roupa/beleza (Zara, Levi's, salão): vão pra categoria
+  // "Cuidado pessoal" dela, criada abaixo se faltar (lib/import/cuidado-pessoal.ts).
+  const deCuidadoPessoal = new Set<number>();
   const items: ReviewItem[] = parsed.map((txn, index) => {
     const isExpense = docType === "fatura" ? (comprasSaoPositivas ? txn.amount > 0 : txn.amount < 0) : txn.amount < 0;
     // Estorno: na fatura, todo crédito que não é linha de resumo é dinheiro de compra voltando
@@ -367,6 +370,7 @@ async function lerExtrato(formData: FormData): Promise<ParseStatementResult> {
     });
     // Estorno sem categoria reconhecida vai pra Outros (o motor já devolve assim).
     const classification = categorizar ? resultado.categoria : null;
+    if (classification?.cuidadoPessoal && !classification.customCategoryId) deCuidadoPessoal.add(index);
     return {
       key: index,
       date: txn.date,
@@ -398,6 +402,23 @@ async function lerExtrato(formData: FormData): Promise<ParseStatementResult> {
         : {}),
     };
   });
+
+  if (deCuidadoPessoal.size > 0) {
+    // Empresa volta null: a linha fica na reserva do dicionário. Erro aqui não derruba a leitura.
+    let cuidado: Awaited<ReturnType<typeof garantirCuidadoPessoal>> = null;
+    try {
+      cuidado = await garantirCuidadoPessoal(ctx, customCategories);
+    } catch (err) {
+      console.error("parseStatementAction: categoria Cuidado pessoal", err);
+    }
+    if (cuidado) {
+      if (!customCategories.some((c) => c.id === cuidado.id)) customCategories.push({ ...cuidado, userId: ctx.userId, profileId: ctx.profileId, createdAt: new Date() });
+      for (const item of items) {
+        if (!deCuidadoPessoal.has(item.key)) continue;
+        Object.assign(item, { customCategoryId: cuidado.id, parentCategory: null, subcategory: null });
+      }
+    }
+  }
 
   const conferencia = conferirLeitura(text, docType, parsed);
   const stats: ParseStats = {

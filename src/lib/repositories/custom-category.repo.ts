@@ -1,6 +1,8 @@
-import type { ParentCategory } from "@prisma/client";
+import { Prisma, type ParentCategory } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import type { AuthContext } from "@/lib/auth/session";
+import { categoriaParecida, ICONE_CUIDADO_PESSOAL, NOME_CUIDADO_PESSOAL } from "@/lib/import/cuidado-pessoal";
+import { ehEmpresa } from "@/lib/profiles/empresa";
 
 /** Categorias personalizadas do usuário, mais recente primeiro. */
 export async function listCustomCategories(ctx: AuthContext) {
@@ -50,4 +52,30 @@ export async function apagarCategoriaMovendo(ctx: AuthContext, id: string, desti
     prisma.budget.deleteMany({ where: { ...dono, customCategoryId: id } }),
     prisma.customCategory.deleteMany({ where: { ...dono, id } }),
   ]);
+}
+
+/**
+ * A categoria "Cuidado pessoal" deste perfil para a importação (lib/import/cuidado-pessoal.ts): a
+ * dela com nome parecido ou uma criada agora. Perfil Empresa: null (não cria categoria pessoal).
+ * Duas importações ao mesmo tempo: a segunda bate no índice único (userId, profileId, name) e
+ * usa a que a primeira criou.
+ */
+export async function garantirCuidadoPessoal(
+  ctx: Pick<AuthContext, "userId" | "profileId" | "profileKind">,
+  existentes?: { id: string; name: string; icon: string }[],
+): Promise<{ id: string; name: string; icon: string } | null> {
+  if (ehEmpresa(ctx.profileKind)) return null;
+  const dono = { userId: ctx.userId, profileId: ctx.profileId };
+  const lista = existentes ?? (await prisma.customCategory.findMany({ where: dono, orderBy: { createdAt: "asc" }, select: { id: true, name: true, icon: true } }));
+  const parecida = categoriaParecida(lista);
+  if (parecida) return { id: parecida.id, name: parecida.name, icon: parecida.icon };
+  try {
+    const criada = await prisma.customCategory.create({ data: { ...dono, name: NOME_CUIDADO_PESSOAL, icon: ICONE_CUIDADO_PESSOAL } });
+    return { id: criada.id, name: criada.name, icon: criada.icon };
+  } catch (e) {
+    if (!(e instanceof Prisma.PrismaClientKnownRequestError) || e.code !== "P2002") throw e;
+    const ja = await prisma.customCategory.findFirst({ where: { ...dono, name: NOME_CUIDADO_PESSOAL }, select: { id: true, name: true, icon: true } });
+    if (!ja) throw e;
+    return ja;
+  }
 }
