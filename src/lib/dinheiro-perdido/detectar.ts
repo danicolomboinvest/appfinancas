@@ -173,8 +173,10 @@ function naoEGasto(l: LancamentoParaCacar): boolean {
 function ehParcela(l: LancamentoParaCacar): boolean {
   if (!l.descricao) return false;
   if (PARCELA.test(textoDe(l))) return true;
-  const p = parseInstallment(l.descricao);
-  return Boolean(p && p.confident);
+  // Aqui vale qualquer "N/T" que seja parcela possível, não só o "confiante": "Cia Marítima (1/3)"
+  // (o formato que a importação grava) virava assinatura de R$ 5 mil por ano (12/10/2026, conta da
+  // Dani). Errar para o lado de não mostrar: parcela não tem o que cortar.
+  return parseInstallment(l.descricao) !== null;
 }
 
 function tarifaDe(l: LancamentoParaCacar): (typeof TARIFAS)[number] | null {
