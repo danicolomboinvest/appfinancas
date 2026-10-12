@@ -72,6 +72,9 @@ export const DICIONARIO_PESSOAL: RegraDoDicionario[] = [
   { keywords: ["simples nacional", "das simples", "das mei", "pgdas", "detran", "licenciamento"], parentCategory: "IMPOSTOS", subcategory: "Taxas públicas" },
   { keywords: KW_IMPOSTO, parentCategory: "IMPOSTOS" },
 
+  // Juros e IOF do Pix no crédito citam o recebedor ("... PARA MANDACARU GASTRONOMIA"): não é a compra.
+  { keywords: ["juros de atraso", "iof de atraso", "multa de atraso", "encargos de atraso"], parentCategory: "OUTROS", subcategory: "Tarifas bancárias" },
+
   // Alimentação. Delivery primeiro: "IFD*RESTAURANTE" é pedido no iFood.
   { keywords: KW_DELIVERY, parentCategory: "ALIMENTACAO", subcategory: "Delivery" },
   {
@@ -85,17 +88,30 @@ export const DICIONARIO_PESSOAL: RegraDoDicionario[] = [
       "rede economia", "market4u", "market 4u", "minha quitandinha", "daki", "big bompreco", "bompreco",
       "atakarejo", "cometa supermercados", "supernosso", "bh supermercados", "dia supermercado", "carrefour express",
       "vsg mercados", "spani", "higa", "irmaos muffato", "mercadinho", "zona sul", "oxxo",
+      // 12/10/2026: o que a Dani teve que responder na mão.
+      "frutaria", "queijaria", "laticinios", "laticínios", "casa do queijo", "emporium",
     ],
     parentCategory: "ALIMENTACAO",
     subcategory: "Supermercado",
   },
-  { keywords: ["padaria", "panificadora", "panificacao", "panificação", "confeitaria", "boulangerie", "doceria", "padoca"], parentCategory: "ALIMENTACAO", subcategory: "Padaria" },
+  {
+    keywords: [
+      "padaria", "panificadora", "panificacao", "panificação", "confeitaria", "boulangerie", "doceria", "padoca",
+      // "Saint Claire Bakery" vinha perguntado (12/10/2026).
+      "bakery", "bakeries", "bakehouse", "bake shop", "panetteria", "panaderia", "panadería",
+    ],
+    parentCategory: "ALIMENTACAO",
+    subcategory: "Padaria",
+  },
   {
     keywords: [
       "cafe", "café", "cafeteria", "coffee", "starbucks", "sbux", "casa do pao de queijo", "havanna", "acai", "açaí", "sorveteria",
       "sorvete", "gelato", "gelateria", "bacio di latte", "kopenhagen", "cacau show", "lindt", "chocolates", "chocolateria",
       "brigaderia", "frooty", "oakberry", "the coffee", "fran s cafe", "suco", "sucos", "pastelaria", "pastel", "lanchonete",
       "lanche", "lanches", "salgados", "coxinha", "esfiha", "esfiharia",
+      "cake", "cakes", "bolo", "bolos", "pudim", "pudins", "pipoca", "pipocas", "pipocaria", "creperia", "crepe", "crepes",
+      "tapiocaria", "waffle", "donut", "donuts", "cookie", "cookies", "brownie", "brownies", "churros", "empada", "empadas",
+      "empadaria", "salgaderia", "paleteria", "frozen yogurt", "yogurteria", "milkshake", "bubble tea",
     ],
     parentCategory: "ALIMENTACAO",
     subcategory: "Lanche/Café",
@@ -112,10 +128,20 @@ export const DICIONARIO_PESSOAL: RegraDoDicionario[] = [
       "dominos", "domino s", "pizza hut", "abbraccio", "divino fogao", "viena", "montana grill", "bobs", "bob s",
       "paris 6", "camaroes", "camarões", "frango assado", "rodizio", "rodízio", "self service", "marmitaria", "marmita",
       "cucina", "pizzeria", "sushiloko", "nagayama", "jappa", "gendai", "lpqbr", "le pain quotidien",
+      // 12/10/2026, a Dani: "Costelão do gaúcho. É lógico que é comida." "Gaúcho" sozinho não
+      // entra (GAUCHO PNEUS); entra o que só pode ser comida.
+      "costelao", "costelão", "costela", "costelaria", "picanha", "picanharia", "espeto", "espetinho", "espetinhos", "espetaria",
+      "galeto", "parrilla", "steak", "steaks", "fondue", "ristorante", "gastronomia", "gastronomica", "culinaria", "culinária",
+      "forneria", "yakisobaria", "onigiri", "lamen", "taqueria", "tacos", "burrito", "kebab", "shawarma", "falafel",
+      "brasserie", "gastrobar", "gastropub", "rotisseria", "rotisserie", "buffet", "comida a quilo", "por quilo",
+      "sushi bar", "sushibar", "izakaya", "dim sum", "noodles", "pastaria",
     ],
     parentCategory: "ALIMENTACAO",
     subcategory: "Restaurante",
   },
+  // O ramo escrito no NOME da loja: "Gcc Comercio De Alime[ntos]", "Wrappd Alimento SA",
+  // "Marcolini Alimentari". É comida, mas não dá pra saber se é mercado ou restaurante.
+  { keywords: ["alimentos", "alimento", "alimentacao", "alimentação", "alimentari", "alimenticios", "alimentícios", "food service", "foods"], parentCategory: "ALIMENTACAO" },
 
   // Transporte
   { keywords: KW_APLICATIVO, parentCategory: "TRANSPORTE", subcategory: "Aplicativo" },

@@ -1,6 +1,7 @@
 import type { ParentCategory, ProfileKind } from "@prisma/client";
 import { chaveCobre, chaveDoComerciante, chaveUtil } from "./comerciante";
 import { DICIONARIO_EMPRESA, DICIONARIO_PESSOAL, type RegraDoDicionario } from "./dicionario";
+import { completarPalavraCortada, descolarPalavraDeComida } from "./parece-comida";
 
 /**
  * Classificação automática de transações do extrato (item 3). Duas camadas:
@@ -55,10 +56,15 @@ function textoParaRegras(description: string): string {
     .replace(/\s+Ag[eê]ncia:.*$/i, "");
   // Instituição de pagamento não é loja: "mercado pago"/"mercado livre" viram uma palavra só
   // (senão "mercado" casa), e o "internet" da razão social do PagSeguro some.
-  return paraPalavras(base)
+  const texto = paraPalavras(base)
     .replace(/\bmercado (pago|livre)\b/g, "mercado$1")
     .replace(/\bpag ?seguro internet\b/g, "pagseguro");
+  // Nome grudado ("Jesrestaurante") e cortado pela fatura ("Oguru Itaim Restauran"): ver parece-comida.ts.
+  return completarPalavraCortada(descolarPalavraDeComida(texto));
 }
+
+/** O texto que o dicionário enxerga (sem o banco do outro lado do Pix, palavras descoladas e completadas). */
+export const textoDoDicionario = textoParaRegras;
 
 /** Palavra (ou sequência de palavras) inteira, aceitando o plural ("postos", "farmacias"). */
 function palavraInteira(keyword: string): RegExp {
