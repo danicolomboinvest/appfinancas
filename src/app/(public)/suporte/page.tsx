@@ -32,7 +32,7 @@ export default async function SuportePage() {
 
       <Cartao>
         <Pequeno>E-mail do suporte</Pequeno>
-        <p className="break-all text-[17px] font-semibold">{EMAIL_DO_SUPORTE}</p>
+        <p className="[overflow-wrap:anywhere] text-[17px] font-semibold">{EMAIL_DO_SUPORTE}</p>
         <Pequeno>Respondemos em até 2 dias úteis.</Pequeno>
         <a href={`mailto:${EMAIL_DO_SUPORTE}`} className={`${BOTAO} mt-1.5`}>
           <Mail size={20} strokeWidth={1.6} aria-hidden />

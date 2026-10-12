@@ -30,7 +30,7 @@ export function TelaConfirmeEmail({ email }: { email: string }) {
       <Selo icone={Mail} />
       <Titulo>Confirme seu e-mail</Titulo>
       <Sub>
-        Mandamos um link para <span className="break-all font-semibold text-ink">{email}</span>. Toque nele e a sua conta
+        Mandamos um link para <span className="[overflow-wrap:anywhere] font-semibold text-ink">{email}</span>. Toque nele e a sua conta
         abre.
       </Sub>
       <Pequeno>Não chegou? Olhe também o spam.</Pequeno>

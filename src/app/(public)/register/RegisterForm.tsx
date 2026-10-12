@@ -175,7 +175,7 @@ function ErroDoEmail({ state }: { state: RegisterState }) {
         </Aviso>
         {state.dicaDoCelular && (
           <Aviso tipo="dica">
-            Achamos uma compra com o seu celular no e-mail <b className="break-all">{state.dicaDoCelular}</b>. Crie a conta
+            Achamos uma compra com o seu celular no e-mail <b className="[overflow-wrap:anywhere]">{state.dicaDoCelular}</b>. Crie a conta
             com ele.
           </Aviso>
         )}

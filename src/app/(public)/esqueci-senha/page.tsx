@@ -94,7 +94,7 @@ function EmailEnviado({
         <Sub>
           {email ? (
             <>
-              Se existir uma conta com <span className="break-all font-semibold text-ink">{email}</span>, o link chega em
+              Se existir uma conta com <span className="[overflow-wrap:anywhere] font-semibold text-ink">{email}</span>, o link chega em
               instantes.
             </>
           ) : (
