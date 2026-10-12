@@ -113,6 +113,9 @@ const NAO_E_GASTO =
   /\b(aplicacao|resgate|caixinha|rdb|cdb|lci|lca|tesouro|pagamento de fatura|pagamento fatura|pgto fatura|pag fatura|fatura do cartao|fatura cartao|fatura nubank|mesma titularidade|entre contas|conta propria|transferencia entre contas|investimento|corretora|previdencia)\b/;
 /** Tarifa do banco, juros, IOF: o Dinheiro perdido cuida. */
 const TARIFA = /\b(tarifa|tarifas|anuidade|cesta de servicos|pacote de servicos|iof|juros|multa|encargos?|mora|rotativo)\b/;
+/** Folha e imposto não são conta de prestador: salário, pró-labore, INSS, FGTS, DAS, taxa da maquininha. */
+const FOLHA_IMPOSTO_TAXA =
+  /\b(salario|salarios|pro labore|prolabore|folha|ferias|decimo terceiro|adiantamento|rescisao|inss|fgts|das|darf|gps|simples nacional|imposto|impostos|iptu|ipva|taxa|taxas|maquininha|mdr)\b/;
 const CPF = /[•*]{3}\.?\s*\d{3}|\d{3}\.\d{3}\.\d{3}-\d{2}/;
 const TRANSFERENCIA = /\b(pix|ted|doc|transf|transferencia)\b/;
 const BOLETO = /\b(boleto|bloqueto|titulo|pagamento de conta|pag conta|pagto conta|debito automatico|deb automatico|deb aut)\b/;
@@ -143,6 +146,24 @@ const mediana = (v: number[]) => {
 };
 const r2 = (v: number) => Math.round(v * 100) / 100;
 const faixa = (v: number[]) => (v.length ? Math.max(...v) / Math.max(0.01, Math.min(...v)) : 1);
+
+/** O nome vem do extrato sem acento ("Condominio", "Plano Saude"): as palavras comuns ganham o acento de volta. */
+const ACENTOS: Record<string, string> = {
+  condominio: "Condomínio", saude: "Saúde", agua: "Água", gas: "Gás", contabil: "Contábil", contabeis: "Contábeis",
+  ingles: "Inglês", atelie: "Ateliê", escritorio: "Escritório", eletrica: "Elétrica", servico: "Serviço", servicos: "Serviços",
+  colegio: "Colégio", musica: "Música", agencia: "Agência", imobiliaria: "Imobiliária", seguranca: "Segurança", psicologa: "Psicóloga",
+  psicologo: "Psicólogo", odontologica: "Odontológica", medico: "Médico", clinica: "Clínica", ballet: "Ballet", danca: "Dança",
+};
+export function comAcento(nome: string): string {
+  return nome
+    .split(" ")
+    .map((p) => {
+      const certo = ACENTOS[normalizarDescricao(p)];
+      if (!certo) return p;
+      return p[0] === p[0].toLowerCase() ? certo.toLowerCase() : certo;
+    })
+    .join(" ");
+}
 
 function primeiroQueCasa<T>(regras: [T, RegExp][], texto: string): T | null {
   for (const [tipo, re] of regras) if (re.test(texto)) return tipo;
@@ -180,7 +201,7 @@ function candidato(l: LancamentoParaCacar): Candidato | null {
   if (l.categoria === "IMPOSTOS" || l.categoria === "ALIMENTACAO" || l.categoria === "TRANSPORTE") return null;
   if (l.subcategoria === "Investimento") return null;
   const t = normalizarDescricao(l.descricao);
-  if (NAO_E_GASTO.test(t) || TARIFA.test(t) || ehParcela(l)) return null;
+  if (NAO_E_GASTO.test(t) || TARIFA.test(t) || FOLHA_IMPOSTO_TAXA.test(t) || ehParcela(l)) return null;
   const marca = marcaDaDescricao(l.descricao);
   if (marca && ASSINATURAS_DIGITAIS.has(marca.slug)) return null;
   const tipo = tipoDoLancamento(l);
@@ -286,7 +307,7 @@ export function acharContas(lancamentos: LancamentoParaCacar[]): ContaAchada[] {
       ? NOME_DO_TIPO[tipo]
       : marca && !marca.baixa
         ? marca.nome
-        : nomeLegivel(exemplo.descricao ?? g.nome) || NOME_DO_TIPO[tipo];
+        : comAcento(nomeLegivel(exemplo.descricao ?? g.nome)) || NOME_DO_TIPO[tipo];
     const categorias = cobrancas.map((l) => l.categoria).filter((c): c is string => Boolean(c));
     const categoria = (categorias.length ? modaDe(categorias) : null) as ParentCategory | null;
     out.push({ chave, tipo, nome: nome.slice(0, 80), valor: r2(valor), aproximado, dia, categoria, meses: meses.length, mesesCobrados: meses.map(mesIso) });

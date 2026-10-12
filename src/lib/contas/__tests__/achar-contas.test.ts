@@ -104,3 +104,20 @@ describe("próximo vencimento", () => {
   it("o dia já passou: o mês que vem", () => expect(proximoVencimento(10, hoje, ["2026-09"]).toISOString().slice(0, 10)).toBe("2026-11-10"));
   it("dia 31 em novembro vira 30", () => expect(proximoVencimento(31, hoje, ["2026-10"]).toISOString().slice(0, 10)).toBe("2026-11-30"));
 });
+
+describe("folha, imposto e taxa não viram conta", () => {
+  it("pró-labore, salário, INSS e taxa da maquininha ficam de fora", () => {
+    const r = acharContas([
+      ...todoMes("Pro labore", [6000, 6000, 6000], 5, { categoria: "OUTROS" }),
+      ...todoMes("Salario confeiteira", [2300, 2300, 2300], 5, { categoria: "MORADIA" }),
+      ...todoMes("INSS FGTS", [520, 520, 520], 20, { categoria: "SAUDE" }),
+      ...todoMes("Taxas maquininha", [600, 620, 640], 28, { categoria: "EDUCACAO" }),
+    ]);
+    expect(r).toHaveLength(0);
+  });
+
+  it("o nome ganha o acento de volta", () => {
+    const r = acharContas(todoMes("CONDOMINIO RESIDENCIAL", [420, 420, 420], 10, { categoria: "MORADIA" }));
+    expect(r[0].nome).toBe("Condomínio Residencial");
+  });
+});
