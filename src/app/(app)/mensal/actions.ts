@@ -12,10 +12,10 @@ export async function getRecentSubcategoriesAction(): Promise<Record<ParentCateg
   return listRecentSubcategories(ctx);
 }
 
-export async function getCustomCategoriesAction(): Promise<{ id: string; name: string }[]> {
+export async function getCustomCategoriesAction(): Promise<{ id: string; name: string; icon: string }[]> {
   const ctx = await getRequiredSession();
   const categories = await listCustomCategories(ctx);
-  return categories.map((c) => ({ id: c.id, name: c.name }));
+  return categories.map((c) => ({ id: c.id, name: c.name, icon: c.icon }));
 }
 
 export async function getGoalsAction(): Promise<{ id: string; name: string }[]> {

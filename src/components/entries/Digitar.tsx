@@ -9,8 +9,8 @@ import { useToast } from "@/components/ui/toast-context";
 import { CurrencySwitch, ExchangeRateLine } from "@/components/forms/CurrencySwitch";
 import { CasalFields } from "@/components/forms/CasalFields";
 import { createMonthlyEntryAction, type MonthlyEntryState } from "@/app/(app)/mensal/[year]/[month]/actions";
-import { createCategoryAction } from "@/lib/actions/category";
-import { PARENT_CATEGORIES, PARENT_CATEGORY_COLOR, PARENT_CATEGORY_ICON, categoriaOculta, categoryLabel, incomeTypesFor, investmentTypesFor } from "@/lib/categories";
+import { NovaCategoria } from "./NovaCategoria";
+import { CUSTOM_CATEGORY_ICON_MAP, PARENT_CATEGORIES, PARENT_CATEGORY_COLOR, PARENT_CATEGORY_ICON, categoriaOculta, categoryLabel, corEscolhida, incomeTypesFor, investmentTypesFor } from "@/lib/categories";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import { dataDoChip, paraDecimal, teclar } from "@/lib/entries/digitar";
 import type { CurrencyCode } from "@/lib/money";
@@ -32,13 +32,18 @@ export function Digitar({
   customCategories = [],
   goals = [],
   onSuccess,
+  criandoCategoria,
+  onCriandoCategoria,
   inicial,
 }: {
   year: number;
   month: number;
-  customCategories?: { id: string; name: string }[];
+  customCategories?: { id: string; name: string; icon?: string }[];
   goals?: { id: string; name: string }[];
   onSuccess?: () => void;
+  /** Quem abre o Digitar numa folha controla a tela "Nova categoria" (título e Voltar da folha). */
+  criandoCategoria?: boolean;
+  onCriandoCategoria?: (v: boolean) => void;
   /** Vindo da voz: o que ela disse já preenchido. */
   inicial?: { valor?: number; tipo?: string; categoria?: ParentCategory; subcategoria?: string; descricao?: string; moeda?: CurrencyCode };
 }) {
@@ -71,11 +76,10 @@ export function Digitar({
   const [moeda, setMoeda] = useState<CurrencyCode>(inicial?.moeda ?? moedaDoApp);
   const [meta, setMeta] = useState("");
   const [mesSeguinte, setMesSeguinte] = useState(false);
-  const [extras, setExtras] = useState<{ id: string; name: string }[]>([]);
-  const [criando, setCriando] = useState(false);
-  const [nomeNova, setNomeNova] = useState("");
-  const [salvandoCat, iniciarCat] = useTransition();
-  const [erroCat, setErroCat] = useState<string | null>(null);
+  const [extras, setExtras] = useState<{ id: string; name: string; icon?: string }[]>([]);
+  const [criandoLocal, setCriandoLocal] = useState(false);
+  const criando = criandoCategoria ?? criandoLocal;
+  const setCriando = (v: boolean) => (onCriandoCategoria ? onCriandoCategoria(v) : setCriandoLocal(v));
 
   const ehGasto = tipo === "EXPENSE";
   const hoje = nowInBrazil();
@@ -124,19 +128,6 @@ export function Digitar({
     });
   };
 
-  const criarCategoria = () => {
-    const nome = nomeNova.trim();
-    if (!nome) return;
-    setErroCat(null);
-    iniciarCat(async () => {
-      const r = await createCategoryAction(nome);
-      if (!r.ok) return setErroCat(r.error);
-      setExtras((e) => (e.some((c) => c.id === r.id) ? e : [...e, { id: r.id, name: r.name }]));
-      setCategoria(r.id);
-      setNomeNova("");
-      setCriando(false);
-    });
-  };
 
   const segmento = (valor: Tipo, rotulo: string) => (
     <button
@@ -175,6 +166,19 @@ export function Digitar({
     </button>
   );
 
+  if (criando)
+    return (
+      <NovaCategoria
+        existentes={[...personalizadas.map((c) => c.name), ...pais.map((pc) => categoryLabel(categorias, pc))]}
+        onVoltar={onCriandoCategoria ? undefined : () => setCriando(false)}
+        onCriada={(c) => {
+          setExtras((e) => (e.some((x) => x.id === c.id) ? e : [...e, c]));
+          setCategoria(c.id);
+          setCriando(false);
+        }}
+      />
+    );
+
   return (
     <div className="flex flex-col gap-3.5">
       {state.error && <p className="rounded-xl bg-danger-soft px-3 py-2 text-sm text-danger">{state.error}</p>}
@@ -202,11 +206,11 @@ export function Digitar({
         {ehGasto
           ? [
               ...pais.map((pc) => bloco(pc, categoryLabel(categorias, pc), PARENT_CATEGORY_ICON[pc], PARENT_CATEGORY_COLOR[pc])),
-              ...personalizadas.map((c) => bloco(c.id, c.name, Shapes, "var(--color-accent)")),
+              ...personalizadas.map((c) => bloco(c.id, c.name, CUSTOM_CATEGORY_ICON_MAP[c.icon ?? ""] ?? Shapes, corEscolhida(categorias, c.id) ?? "var(--color-accent)")),
             ]
           : tiposLivres.map((tp) => bloco(tp, tp, Wallet, "var(--color-dinheiro-entrou)"))}
         {ehGasto && (
-          <button type="button" onClick={() => setCriando((v) => !v)} className="flex min-w-0 flex-col items-center gap-1.5 py-1 text-[13px] text-ink-muted">
+          <button type="button" onClick={() => setCriando(true)} className="flex min-w-0 flex-col items-center gap-1.5 py-1 text-[13px] text-ink-muted">
             <span className="flex size-12 items-center justify-center rounded-full border border-dashed border-border-strong">
               <Plus size={20} aria-hidden />
             </span>
@@ -214,17 +218,6 @@ export function Digitar({
           </button>
         )}
       </div>
-      {criando && (
-        <div className="flex flex-col gap-1.5">
-          <div className="flex items-center gap-2">
-            <input value={nomeNova} onChange={(e) => setNomeNova(e.target.value)} placeholder="Nome, ex.: Pet" maxLength={18} className="min-h-11 min-w-0 flex-1 rounded-2xl border border-border bg-surface-2 px-3 text-[15px] text-ink outline-none focus:border-ink" />
-            <button type="button" onClick={criarCategoria} disabled={salvandoCat || !nomeNova.trim()} className="min-h-11 shrink-0 rounded-full bg-ink px-4 text-sm font-medium text-canvas disabled:opacity-50">
-              Criar
-            </button>
-          </div>
-          {erroCat && <span className="text-xs text-danger">{erroCat}</span>}
-        </div>
-      )}
 
       <div className="flex flex-wrap gap-2" role="group" aria-label="Quando">
         {[["hoje", "Hoje"], ["ontem", "Ontem"]].map(([k, r]) => (

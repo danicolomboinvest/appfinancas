@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { X } from "lucide-react";
+import { ChevronLeft, X } from "lucide-react";
 import { useTecladoNaFolha } from "./useTecladoNaFolha";
 
 /** Modal centralizado no desktop, vira um drawer que sobe da base no mobile. Renderiza via
@@ -13,8 +13,11 @@ export function Modal({
   onClose,
   title,
   acoes,
+  voltar,
   children,
 }: {
+  /** "‹ Voltar" na mesma linha do título (protótipo: "‹ Voltar · Importar extrato"). */
+  voltar?: () => void;
   open: boolean;
   onClose: () => void;
   title: string;
@@ -77,7 +80,13 @@ export function Modal({
         className="relative z-10 max-h-[90dvh] w-full max-w-lg animate-fade-in overflow-y-auto overscroll-contain rounded-t-2xl border border-border bg-surface px-6 pt-6 pb-[calc(1.5rem+var(--safe-bottom))] shadow-premium outline-none sm:rounded-2xl sm:pb-6"
       >
         <div className="mb-4 flex items-center justify-between gap-2">
-          <h2 id={titleId} className="text-lg font-semibold text-ink">
+          {voltar && (
+            <button type="button" onClick={voltar} className="-ml-2 flex min-h-11 shrink-0 items-center gap-0.5 rounded-full pl-1 pr-2 text-sm text-ink-muted hover:text-ink">
+              <ChevronLeft size={18} aria-hidden />
+              Voltar
+            </button>
+          )}
+          <h2 id={titleId} className={`text-lg font-semibold text-ink ${voltar ? "mr-auto" : ""}`}>
             {title}
           </h2>
           {acoes && <div className="ml-auto flex items-center gap-1">{acoes}</div>}

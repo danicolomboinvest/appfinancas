@@ -6,7 +6,7 @@ import type { ProfileKind } from "@prisma/client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarClock, ChevronDown, ChevronLeft, ChevronRight, FileUp, Mic, Pencil, ShoppingBag } from "lucide-react";
+import { CalendarClock, ChevronDown, ChevronRight, FileUp, Mic, Pencil, ShoppingBag } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { Digitar } from "@/components/entries/Digitar";
@@ -40,6 +40,8 @@ export function RegistrarDrawer({
 }) {
   const pathname = usePathname();
   const [mode, setMode] = useState<Mode>(open ? modoInicial : "choice");
+  // Dentro do Digitar, a tela "Nova categoria" (o Voltar da folha volta para o Digitar).
+  const [novaCategoria, setNovaCategoria] = useState(false);
   const [parsed, setParsed] = useState<ParsedVoiceEntry | null>(null);
   const [customCategories, setCustomCategories] = useState<{ id: string; name: string }[]>([]);
   const [goals, setGoals] = useState<{ id: string; name: string }[]>([]);
@@ -55,6 +57,7 @@ export function RegistrarDrawer({
     setEstavaAberta(open);
     setMode(open ? modoInicial : "choice");
     setParsed(null);
+    setNovaCategoria(false);
   }
 
   // Carrega chips de categoria uma vez ao abrir (o reset ao fechar mora no render, acima).
@@ -71,24 +74,24 @@ export function RegistrarDrawer({
   // Como no protótipo: "Registrar" na escolha; dentro, o nome do que ela escolheu.
   const { key: tema } = useProfileTheme();
   const rotuloImportar = tema === "girly" ? "Extrato" : "Importar extrato";
-  const title = mode === "choice" ? "Registrar" : mode === "voice" ? "Gravar áudio" : mode === "import" ? rotuloImportar : "Digitar";
+  const title = mode === "choice" ? "Registrar" : mode === "voice" ? "Gravar áudio" : mode === "import" ? rotuloImportar : novaCategoria ? "Nova categoria" : "Digitar";
 
   return (
-    <Modal open={open} onClose={onClose} title={title}>
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={title}
+      voltar={
+        mode !== "choice"
+          ? () => {
+              if (novaCategoria) return setNovaCategoria(false);
+              setMode("choice");
+              setParsed(null);
+            }
+          : undefined
+      }
+    >
       <div ref={topoRef}>
-      {mode !== "choice" && (
-        <button
-          type="button"
-          onClick={() => {
-            setMode("choice");
-            setParsed(null);
-          }}
-          className="mb-4 -mt-1 flex items-center gap-1 text-sm text-ink-muted transition-colors hover:text-ink"
-        >
-          <ChevronLeft size={16} />
-          {voz.titulos.impVoltar}
-        </button>
-      )}
 
       {mode === "choice" && (
         <div className="flex flex-col gap-4">
@@ -188,6 +191,8 @@ export function RegistrarDrawer({
 
       {mode === "type" && (
         <Digitar
+          criandoCategoria={novaCategoria}
+          onCriandoCategoria={setNovaCategoria}
           year={year}
           month={month}
           customCategories={customCategories}
