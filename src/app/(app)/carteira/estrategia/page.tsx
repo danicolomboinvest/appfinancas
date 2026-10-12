@@ -12,6 +12,8 @@ import { liberdadeEmValorDeHoje, type Sonho } from "@/lib/portfolio/estrategia-p
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import { getMonthlyPlan } from "@/lib/repositories/monthly-plan.repo";
 import { mesesDeReserva } from "@/lib/planning/savings-split";
+import { acharMetaDaReserva, reservaDaPessoa } from "@/lib/portfolio/reserva-da-pessoa";
+import { getTypicalMonthlyExpense } from "@/lib/planning/typical-expense";
 import { EstrategiaResumo } from "./EstrategiaResumo";
 import { MontarEstrategia } from "./MontarEstrategia";
 
@@ -28,14 +30,25 @@ export default async function EstrategiaCarteiraPage({ searchParams }: { searchP
   const ctx = await getRequiredSession();
   if (ehEmpresa(ctx.profileKind)) redirect("/carteira");
   const { montar } = await searchParams;
-  const [comparacao, goals, fund, params, assets, perfil] = await Promise.all([
+  const [comparacao, goals, fund, params, assets, perfil, gastoTipico] = await Promise.all([
     getPortfolioStrategyComparison(ctx),
     listGoalsWithProgress(ctx),
     getEmergencyFund(ctx),
     getPlanningParams(ctx),
     listAssets(ctx),
     prisma.financialProfile.findFirst({ where: { id: ctx.profileId, userId: ctx.userId }, select: { perfilInvestidor: true } }),
+    getTypicalMonthlyExpense(ctx),
   ]);
+  // A reserva é a meta "Reserva de emergência" (decisão da dona, 12/10/2026); quem tinha a do
+  // simulador antigo fica com o maior dos dois valores (lib/portfolio/reserva-da-pessoa.ts).
+  const metaDaReserva = acharMetaDaReserva(goals);
+  const naReserva = assets.filter((a) => a.objective === "RESERVA_EMERGENCIA").reduce((s, a) => s + Number(a.currentValue), 0);
+  const reserva = reservaDaPessoa({
+    meta: metaDaReserva ? { id: metaDaReserva.id, icon: metaDaReserva.icon, name: metaDaReserva.name, targetAmount: Number(metaDaReserva.targetAmount), atual: metaDaReserva.computedCurrentAmount } : null,
+    antiga: fund ? { atual: Number(fund.currentAmount), alvo: Number(fund.targetAmount), custoDeVida: Number(fund.monthlyExpenseBase) } : null,
+    naCarteira: naReserva,
+    gastoTipico: gastoTipico?.monthlyAverage ?? null,
+  });
   const temEstrategia = comparacao.positions.some((p) => p.targetPercent > 0);
 
   if (temEstrategia && montar !== "1") {
@@ -53,8 +66,6 @@ export default async function EstrategiaCarteiraPage({ searchParams }: { searchP
       const media = Number(r._sum.amount ?? 0) / 3;
       valor = media > 0 ? Math.round(media * 100) / 100 : null;
     }
-    const naReserva = assets.filter((a) => a.objective === "RESERVA_EMERGENCIA").reduce((s, a) => s + Number(a.currentValue), 0);
-    const atual = fund ? Math.max(Number(fund.currentAmount), naReserva) : 0;
     return (
       <EstrategiaResumo
         perfil={perfil?.perfilInvestidor ?? null}
@@ -63,9 +74,9 @@ export default async function EstrategiaCarteiraPage({ searchParams }: { searchP
           valor,
           origem: plano && plano.plannedInvestment > 0 ? "plano" : valor !== null ? "media" : null,
           posicoes: comparacao.positions.map((p) => ({ assetClass: p.assetClass, currentValue: p.currentValue, targetPercent: p.targetPercent })),
-          mesesDeReserva: fund ? mesesDeReserva(atual, Number(fund.monthlyExpenseBase)) : null,
-          reservaCompleta: fund ? atual >= Number(fund.targetAmount) && Number(fund.targetAmount) > 0 : false,
-          semReserva: !fund,
+          mesesDeReserva: reserva && reserva.custoDeVida > 0 ? mesesDeReserva(reserva.atual, reserva.custoDeVida) : null,
+          reservaCompleta: reserva ? reserva.atual >= reserva.meta && reserva.meta > 0 : false,
+          semReserva: !reserva,
         }}
       />
     );
@@ -73,15 +84,11 @@ export default async function EstrategiaCarteiraPage({ searchParams }: { searchP
 
   // Os sonhos dela, com quanto falta e em quantos meses: a estratégia nasce deles.
   const agora = nowInBrazil();
-  const naReserva = assets.filter((a) => a.objective === "RESERVA_EMERGENCIA").reduce((s, a) => s + Number(a.currentValue), 0);
-  const reservaAtual = fund ? Math.max(Number(fund.currentAmount), naReserva) : naReserva;
-  const reservaMeta = fund ? Number(fund.targetAmount) : 0;
-  const custoDeVida = fund ? Number(fund.monthlyExpenseBase) : 0;
   const sonhos: Sonho[] = [];
-  if (fund) sonhos.push({ id: "reserva", nome: "Reserva", falta: Math.max(0, reservaMeta - reservaAtual), meses: 0, tipo: "reserva" });
+  if (reserva) sonhos.push({ id: "reserva", nome: "Reserva", falta: Math.max(0, reserva.meta - reserva.atual), meses: 0, tipo: "reserva" });
   for (const g of goals) {
-    // A meta "Reserva de emergência" é a mesma reserva: não conta duas vezes.
-    if (fund && /reserva/i.test(g.name)) continue;
+    // A meta "Reserva de emergência" é a própria reserva: não conta duas vezes.
+    if (reserva && (g.id === reserva.idDaMeta || /reserva/i.test(g.name))) continue;
     sonhos.push({
       id: g.id,
       nome: g.name,
@@ -109,7 +116,7 @@ export default async function EstrategiaCarteiraPage({ searchParams }: { searchP
     <MontarEstrategia
       sonhos={sonhos}
       totalDaCarteira={comparacao.totalPortfolio}
-      reserva={fund ? { atual: reservaAtual, meta: reservaMeta, custoDeVida } : null}
+      reserva={reserva ? { atual: reserva.atual, meta: reserva.meta, custoDeVida: reserva.custoDeVida } : null}
       podeCancelar={temEstrategia}
     />
   );
