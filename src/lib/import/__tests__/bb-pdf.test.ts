@@ -78,6 +78,16 @@ describe("conferência pelo saldo do Banco do Brasil", () => {
     ]);
     expect(r.status).toBe("fechou");
   });
+  it("o \"SALDO EM CONTA-SALARIO\" das informações adicionais não é o saldo final", () => {
+    const t =
+      txt("25/09/2026 100,00 (+)\t1 2 Pix - Recebido\n25/09/2026 1.370,95 (-)\t1 2 Pix - Enviado") +
+      "Informações Adicionais\n210,95 (-)\tSaldo\n5.000,00 (+)\tCREDITO BB-MELHOR OFERTA*\n4.321,00 (+)\tSALDO EM CONTA-SALARIO\n";
+    const r = conferirLeitura(t, "extrato", [
+      { date: "2026-09-25", description: "Pix - Recebido", amount: 100 },
+      { date: "2026-09-25", description: "Pix - Enviado", amount: -1370.95 },
+    ]);
+    expect(r.status).toBe("fechou");
+  });
   it("acusa quando falta lançamento", () => {
     const t = txt("25/09/2026 100,00 (+)\t1 2 Pix - Recebido\n25/09/2026 1.370,95 (-)\t1 2 Pix - Enviado");
     const r = conferirLeitura(t, "extrato", [{ date: "2026-09-25", description: "Pix - Recebido", amount: 100 }]);
