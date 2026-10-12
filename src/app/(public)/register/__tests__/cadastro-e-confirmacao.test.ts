@@ -170,7 +170,7 @@ describe("registerAction: só quem comprou cria conta", () => {
     const r = await registerAction({}, form(VALIDO));
     expect(situacaoDoAcesso).toHaveBeenCalledWith("cliente.a@exemplo.com");
     expect(compraComOCelular).toHaveBeenCalledWith("5511987654321");
-    expect(r.error).toContain("Use o mesmo e-mail que você usou pra comprar");
+    expect(r.error).toContain("Use o mesmo e-mail que você usou para comprar");
     expect(r.error).toContain("cl•••••@gmail.com");
     expect(r.values?.email).toBe("Cliente.A@Exemplo.com");
     expect(createUser).not.toHaveBeenCalled();

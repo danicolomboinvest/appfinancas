@@ -327,7 +327,7 @@ export const PADRAO_IMPORTACAO: TextosImportacao = {
   impVozErroRede: "Falha de conexão durante a gravação. Tente de novo.",
   impVozErroSemMicrofone: "Nenhum microfone encontrado neste dispositivo.",
   impVozErroGenerico: "Não foi possível gravar agora. Tente de novo.",
-  impVozSafariDica: "Cansada de autorizar o microfone toda vez? O Safari pergunta de novo a cada visita.",
+  impVozSafariDica: "Chato autorizar o microfone toda vez? O Safari pergunta de novo a cada visita.",
   // Compartilhado
   impLendoArquivo: "Lendo arquivo...",
   impErroEnvio: "Não consegui enviar o arquivo. Confira a internet e tente de novo.",
@@ -572,7 +572,7 @@ export const PADRAO_IMPORTACAO: TextosImportacao = {
   impFaturaAntesDoArquivo: "Eu leio as datas do arquivo e separo cada compra no mês em que foi feita.",
   impSenhaConfianca: "É a senha do arquivo, não a do seu banco. A gente não guarda a senha e não entra na sua conta.",
   impProprioTitulo: "Isso é gasto ou dinheiro seu mudando de lugar?",
-  impProprioDica: "Transferência para você mesma e dinheiro voltando do que você guardou não são gasto nem renda.",
+  impProprioDica: "Transferência entre contas suas e dinheiro voltando do que você guardou não são gasto nem renda.",
   impProprioMudei: "Só mudei de conta",
   impProprioGuardei: "Guardei",
   impProprioGasto: "Foi gasto",

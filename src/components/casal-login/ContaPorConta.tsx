@@ -103,7 +103,7 @@ export function ContaPorConta({
             <span className="text-[17px] text-ink">Os dois estão em dia</span>
           )}
         </div>
-        {dir && <p className="titulo-tema mt-2 text-[22px] font-medium text-ink">{`${nomes[dir.de]} manda pra ${nomes[dir.para]}`}</p>}
+        {dir && <p className="titulo-tema mt-2 text-[22px] font-medium text-ink">{`${nomes[dir.de]} manda para ${nomes[dir.para]}`}</p>}
         <p className="mt-1 text-[14px] text-ink-muted">Toque numa conta para mudar o jeito.</p>
         <div className="mt-3 flex min-h-11 items-center justify-between gap-3 text-[13px] text-ink-muted">
           <span>{conta.fora === 0 ? "Todas as contas no acerto" : conta.fora === 1 ? "1 conta fora do acerto" : `${conta.fora} contas fora do acerto`}</span>

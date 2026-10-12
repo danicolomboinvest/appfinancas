@@ -89,7 +89,7 @@ export function StatCard({
           20px) e lia como rodapé. A partir de lg: rótulo 13px, número 24px. */}
       <p className="text-xs text-ink-muted lg:text-[13px]">{label}</p>
       {/* FitText: "R$ 1.234.567,89" é inquebrável e estourava o card em grade 2/3 colunas no
-          celular — a fonte encolhe só o necessário pra caber, nunca corta. */}
+          celular — a fonte encolhe só o necessário para caber, nunca corta. */}
       <div className="mt-1.5">
         <FitText className={`text-lg leading-snug font-semibold tracking-tight sm:text-xl lg:text-2xl ${TONE_CLASSES[tone]}`}>
           {value}

@@ -67,7 +67,7 @@ export function ComoImportar() {
             </div>
           </div>
           <p className="rounded-xl bg-accent-soft px-3 py-2 text-ink">
-            <b>Pode subir os dois do mesmo mês.</b> A linha &quot;Pagamento da fatura&quot; do extrato fica de fora das contas, porque as compras do cartão já entram uma por uma. Subiu o extrato antes? No fim da fatura eu mostro esse pagamento pra você tirar.
+            <b>Pode subir os dois do mesmo mês.</b> A linha &quot;Pagamento da fatura&quot; do extrato fica de fora das contas, porque as compras do cartão já entram uma por uma. Subiu o extrato antes? No fim da fatura eu mostro esse pagamento para você tirar.
           </p>
           <Link href="/guia#extrato-ou-fatura" className="font-semibold text-accent-strong">
             Ler o manual completo →

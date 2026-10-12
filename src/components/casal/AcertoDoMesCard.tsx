@@ -43,7 +43,7 @@ export function AcertoDoMesCard({ acerto, comLinkParaDivisao = false }: { acerto
       <Card className="flex flex-col gap-2 p-5">
         <p className="text-sm font-semibold text-ink">Acerto de {nomeDoMes}</p>
         <p className="text-sm text-ink-muted">
-          Ainda não há gastos da casa com &quot;quem pagou&quot; neste mês. Ao lançar um gasto, escolha quem pagou e se ele é da casa: o app faz a conta de quem deve pra quem.
+          Ainda não há gastos da casa com &quot;quem pagou&quot; neste mês. Ao lançar um gasto, escolha quem pagou e se ele é da casa: o app faz a conta de quem deve para quem.
         </p>
       </Card>
     );
@@ -58,7 +58,7 @@ export function AcertoDoMesCard({ acerto, comLinkParaDivisao = false }: { acerto
             ? `${nomeDoMes.charAt(0).toUpperCase() + nomeDoMes.slice(1)} acertado.`
             : quites
               ? "Ninguém deve nada este mês."
-              : `${nome[devedor]} deve ${m(diferenca)} pra ${nome[credor]}.`}
+              : `${nome[devedor]} deve ${m(diferenca)} para ${nome[credor]}.`}
         </p>
         {!quites && (
           <p className="text-sm text-ink-muted">
@@ -74,7 +74,7 @@ export function AcertoDoMesCard({ acerto, comLinkParaDivisao = false }: { acerto
         </div>
         <p className="text-xs text-ink-faint">
           {config.divisao === "meio" || acerto.caiuParaMeio ? "Meio a meio" : `Pela renda: ${pctA}% e ${100 - pctA}%`}
-          {acerto.caiuParaMeio && " (lance a renda de cada um pra dividir pela renda)"}
+          {acerto.caiuParaMeio && " (lance a renda de cada um para dividir pela renda)"}
         </p>
       </div>
 

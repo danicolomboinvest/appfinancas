@@ -38,13 +38,13 @@ export function TelaConfirmeEmail({ email }: { email: string }) {
             <p className="mt-1 text-sm text-ink-muted">Mandamos um link para</p>
             <p className="mt-0.5 break-all text-sm font-medium text-ink">{email}</p>
             <p className="mt-2 text-sm text-ink-muted">
-              Toque nele pra abrir sua conta. Não chegou? Olhe o spam ou peça outro aqui.
+              Toque nele para abrir sua conta. Não chegou? Olhe o spam ou peça outro aqui.
             </p>
           </div>
 
           {state.enviado && (
             <p className="w-full rounded-lg bg-success-soft px-3 py-2 text-sm text-success">
-              Link enviado! Pode levar alguns minutos pra chegar.
+              Link enviado! Pode levar alguns minutos para chegar.
             </p>
           )}
           {state.erro && <p className="w-full rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{state.erro}</p>}

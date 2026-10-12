@@ -102,7 +102,7 @@ export function checarPlausibilidade(
     const semData = txns.filter((t) => !/^\d{4}-\d{2}-\d{2}$/.test(t.date));
     if (semData.length > 0) {
       suspeitas.push({
-        texto: `${semData.length === 1 ? "Um lançamento veio" : `${semData.length} lançamentos vieram`} com uma data que não entendi. ${semData.length === 1 ? "Ele vai" : "Eles vão"} pro mês atual, não pro mês em que aconteceram.`,
+        texto: `${semData.length === 1 ? "Um lançamento veio" : `${semData.length} lançamentos vieram`} com uma data que não entendi. ${semData.length === 1 ? "Ele vai" : "Eles vão"} para o mês atual, não para o mês em que aconteceram.`,
         exemplos: semData.slice(0, 3).map((t) => `${(t.description ?? "").slice(0, 34)}, data "${t.date.slice(0, 20)}"`),
       });
     }

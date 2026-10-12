@@ -144,7 +144,7 @@ describe("as 21 missões", () => {
     expect(tudo).not.toMatch(/—|–/);
     expect(tudo).not.toMatch(/\p{Extended_Pictographic}/u);
     expect(tudo).toContain("Quero dormir em paz");
-    expect(tudo).toContain("Sem mentir pra mim");
+    expect(tudo).toContain("Sem mentir para mim");
     expect(tudo).toContain("Responde de verdade.");
   });
 

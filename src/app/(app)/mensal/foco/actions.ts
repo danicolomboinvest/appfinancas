@@ -181,7 +181,7 @@ export async function mandarSobraPraReservaAction(ano: number, mes: number): Pro
         year: ano,
         month: mes,
         category: "INVESTMENT_CONTRIBUTION",
-        description: `Sobra de ${MESES[mes - 1]} ${empresa ? "pro caixa de segurança" : "pra reserva"}`,
+        description: `Sobra de ${MESES[mes - 1]} ${empresa ? "para o caixa de segurança" : "para a reserva"}`,
         amount: sobra,
         entryDate: new Date(Date.UTC(ano, mes, 0)),
       },

@@ -79,7 +79,7 @@ export function CompraDoAdicional({
       if (typeof r.transacao === "string") await registrar([r.transacao]);
       else if (r.pendente) setAviso("A compra está esperando aprovação. Assim que a Apple confirmar, abre sozinho.");
     } catch {
-      setAviso("Não deu pra concluir a compra. Tente de novo.");
+      setAviso("Não deu para concluir a compra. Tente de novo.");
     } finally {
       setOcupado(false);
     }
@@ -94,7 +94,7 @@ export function CompraDoAdicional({
       if (transacoes.length === 0) setAviso("Não achamos essa compra neste ID Apple.");
       else await registrar(transacoes);
     } catch {
-      setAviso("Não deu pra restaurar agora. Tente de novo.");
+      setAviso("Não deu para restaurar agora. Tente de novo.");
     } finally {
       setOcupado(false);
     }

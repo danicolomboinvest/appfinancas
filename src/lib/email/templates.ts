@@ -135,9 +135,9 @@ export function welcomeEmail(params: { name: string | null; appUrl: string } & A
     b: criarBlocos(params.tema, params.moeda),
     subject: "Sua conta no SPI Finance está pronta",
     preheader: "Primeiro passo: registre um gasto ou renda do dia.",
-    saudacao: nomeCurto ? `Bem-vinda, ${nomeCurto}!` : "Bem-vinda!",
+    saudacao: nomeCurto ? `Boas-vindas, ${nomeCurto}!` : "Boas-vindas!",
     tituloDoHeroi: "Sua conta está pronta",
-    paragrafos: ["Que bom ter você aqui. O SPI Finance junta seus gastos, orçamento, metas e investimentos num lugar só, pra você decidir com clareza."],
+    paragrafos: ["Que bom ter você aqui. O SPI Finance junta seus gastos, orçamento, metas e investimentos num lugar só, para você decidir com clareza."],
     botao: { href: params.appUrl, rotulo: "Abrir o SPI Finance" },
     notas: ["Primeiro passo: registre um gasto ou renda do dia. O resto flui a partir daí."],
   });
@@ -153,10 +153,10 @@ export function confirmEmailEmail(params: { name: string | null; confirmUrl: str
   return emailSimples({
     b: criarBlocos(params.tema, params.moeda),
     subject: "Confirme seu e-mail · SPI Finance",
-    preheader: "Falta um passo pra abrir sua conta.",
+    preheader: "Falta um passo para abrir sua conta.",
     saudacao: primeiro ? `Oi, ${primeiro}!` : "Oi!",
     tituloDoHeroi: "Confirme seu e-mail",
-    paragrafos: ["Falta um passo pra abrir sua conta no SPI Finance: confirmar que este e-mail é seu. É só tocar no botão:"],
+    paragrafos: ["Falta um passo para abrir sua conta no SPI Finance: confirmar que este e-mail é seu. É só tocar no botão:"],
     botao: { href: params.confirmUrl, rotulo: "Confirmar meu e-mail" },
     notas: ["Este link vale por 7 dias. Se ele vencer, entre no app e peça outro.", "Se você não criou uma conta, ignore este e-mail: sem a confirmação, ninguém entra com ele."],
   });

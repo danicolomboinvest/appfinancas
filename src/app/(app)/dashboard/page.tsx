@@ -220,7 +220,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
   // periódica sobre os gastos, não uma cobrança. Sempre aberta: não tem "feito" pra marcar,
   // é recorrente toda semana.
   if (ehCasal(ctx.profileKind)) {
-    weeklyTasks.push({ key: "reuniao-casal", label: "Combinar 15 min pra olhar os gastos do mês juntos", done: false, href: "/mensal" });
+    weeklyTasks.push({ key: "reuniao-casal", label: "Combinar 15 min para olhar os gastos do mês juntos", done: false, href: "/mensal" });
   }
 
   // Empresa: o painel de negócio (DRE do mês e do ano, receita por tipo, gasto por frente do

@@ -64,9 +64,9 @@ export function sugerirAno(e: ViradaEntrada, money: (v: number) => string): Vira
   const semDestino = renda - guardar - totalGastos;
 
   const avisos: string[] = [];
-  if (!(renda > 0)) avisos.push("Não achei sua renda do ano passado. Preencha a renda do mês pra sugestão ficar completa.");
+  if (!(renda > 0)) avisos.push("Não achei sua renda do ano passado. Preencha a renda do mês para sugestão ficar completa.");
   if ((e.guardarPlanejado ?? 0) < minimoGuardar && renda > 0) {
-    avisos.push(`Pra guardar pelo menos 10% da renda, a sugestão é ${money(guardar)} por mês.`);
+    avisos.push(`Para guardar pelo menos 10% da renda, a sugestão é ${money(guardar)} por mês.`);
   }
   if (renda > 0 && totalGastos > renda * LIMITE_GASTO) {
     avisos.push(`Os gastos sugeridos (${money(totalGastos)}) passam de 90% da renda (${money(renda * LIMITE_GASTO)}). Vale escolher onde cortar antes de começar.`);

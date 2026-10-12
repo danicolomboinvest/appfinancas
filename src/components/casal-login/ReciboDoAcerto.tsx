@@ -87,7 +87,7 @@ export function ReciboDoAcerto({ d }: { d: DadosDoRecibo }) {
           <p className={`mt-3 text-ink transition-opacity ${d.acertado ? "opacity-40" : ""}`}>
             <ValorDestaque texto={m(dir?.valor ?? 0)} className="text-[3.25rem] font-light leading-none tracking-[-0.03em] tabular-nums max-[359px]:text-[2.75rem]" />
           </p>
-          <p className="mt-2 text-[15px] text-ink-muted">{dir ? `${d.nomes[de]} manda pra ${d.nomes[para]}` : "Os dois estão em dia"}</p>
+          <p className="mt-2 text-[15px] text-ink-muted">{dir ? `${d.nomes[de]} manda para ${d.nomes[para]}` : "Os dois estão em dia"}</p>
           {d.acertado && (
             <span
               aria-hidden

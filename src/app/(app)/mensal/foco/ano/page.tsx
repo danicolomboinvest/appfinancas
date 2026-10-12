@@ -22,7 +22,7 @@ export default async function ViradaDoAnoPage() {
       {feita ? (
         <p className="text-sm text-ink-muted">Você já começou {v.ano}. Bom ano!</p>
       ) : v.resumo.renda <= 0 && v.resumo.gastos <= 0 ? (
-        <p className="text-sm text-ink-muted">Não achei lançamentos seus em {v.passado}, então não há ano pra fechar. Seu {v.ano} começa pelo Orçamento.</p>
+        <p className="text-sm text-ink-muted">Não achei lançamentos seus em {v.passado}, então não há ano para fechar. Seu {v.ano} começa pelo Orçamento.</p>
       ) : (
         <ViradaDoAno v={v} />
       )}

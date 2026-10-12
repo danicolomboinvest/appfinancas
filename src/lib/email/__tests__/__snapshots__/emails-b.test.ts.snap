@@ -31,14 +31,14 @@ exports[`e-mails B no tema girly > codigo-da-compra: assunto e texto (snapshot) 
 exports[`e-mails B no tema girly > confirmar-email: assunto e texto (snapshot) 1`] = `
 {
   "assunto": "Confirme seu e-mail · SPI Finance",
-  "texto": "Falta um passo pra abrir sua conta. Oi, Ana! Confirme seu e-mail Falta um passo pra abrir sua conta no SPI Finance: confirmar que este e-mail é seu. É só tocar no botão: Confirmar meu e-mail Este link vale por 7 dias. Se ele vencer, entre no app e peça outro. Se você não criou uma conta, ignore este e-mail: sem a confirmação, ninguém entra com ele. Se você não reconhece este e-mail, pode ignorá-lo com segurança. SPI Finance, sua vida financeira em um só lugar.",
+  "texto": "Falta um passo para abrir sua conta. Oi, Ana! Confirme seu e-mail Falta um passo para abrir sua conta no SPI Finance: confirmar que este e-mail é seu. É só tocar no botão: Confirmar meu e-mail Este link vale por 7 dias. Se ele vencer, entre no app e peça outro. Se você não criou uma conta, ignore este e-mail: sem a confirmação, ninguém entra com ele. Se você não reconhece este e-mail, pode ignorá-lo com segurança. SPI Finance, sua vida financeira em um só lugar.",
 }
 `;
 
 exports[`e-mails B no tema girly > conta-criada: assunto e texto (snapshot) 1`] = `
 {
   "assunto": "Sua conta no SPI Finance está pronta",
-  "texto": "Primeiro passo: registre um gasto ou renda do dia. Bem-vinda, Ana! Sua conta está pronta Que bom ter você aqui. O SPI Finance junta seus gastos, orçamento, metas e investimentos num lugar só, pra você decidir com clareza. Abrir o SPI Finance Primeiro passo: registre um gasto ou renda do dia. O resto flui a partir daí. Se você não reconhece este e-mail, pode ignorá-lo com segurança. SPI Finance, sua vida financeira em um só lugar.",
+  "texto": "Primeiro passo: registre um gasto ou renda do dia. Boas-vindas, Ana! Sua conta está pronta Que bom ter você aqui. O SPI Finance junta seus gastos, orçamento, metas e investimentos num lugar só, para você decidir com clareza. Abrir o SPI Finance Primeiro passo: registre um gasto ou renda do dia. O resto flui a partir daí. Se você não reconhece este e-mail, pode ignorá-lo com segurança. SPI Finance, sua vida financeira em um só lugar.",
 }
 `;
 
@@ -87,7 +87,7 @@ exports[`e-mails B no tema girly > passou: assunto e texto (snapshot) 1`] = `
 exports[`e-mails B no tema girly > passou-e-mais: assunto e texto (snapshot) 1`] = `
 {
   "assunto": "Saúde passou R$ 67 e mais 1",
-  "texto": "R$ 417 de R$ 350 planejados, e ainda faltam 25 dias. Orçamento de outubro Saúde passou R$ 67 R$ 417 gastos plano R$ 350 Ainda faltam 25 dias de outubro. Dá para ajustar em um toque: Tirar de Compras · sobra R$ 883 Só neste mês. O total do plano não muda. Cobrir com Compras Usar o livre do mês O livre vai de R$ 3.241 para R$ 3.174. Fica R$ 127 por dia. Usar o livre Os botões só abrem o app. Nada muda sem você confirmar lá. Também hoje &quot;Viagem Europa 2027&quot; ficou pra trás Pra voltar ao ritmo, guarde R$ 1.340 este mês. Abrir Prefere receber isso no celular, como mensagem? Ligue os avisos em Notificações. Ou desative por lá. Preferências de e-mail · SPI Finance",
+  "texto": "R$ 417 de R$ 350 planejados, e ainda faltam 25 dias. Orçamento de outubro Saúde passou R$ 67 R$ 417 gastos plano R$ 350 Ainda faltam 25 dias de outubro. Dá para ajustar em um toque: Tirar de Compras · sobra R$ 883 Só neste mês. O total do plano não muda. Cobrir com Compras Usar o livre do mês O livre vai de R$ 3.241 para R$ 3.174. Fica R$ 127 por dia. Usar o livre Os botões só abrem o app. Nada muda sem você confirmar lá. Também hoje &quot;Viagem Europa 2027&quot; ficou para trás Para voltar ao ritmo, guarde R$ 1.340 este mês. Abrir Prefere receber isso no celular, como mensagem? Ligue os avisos em Notificações. Ou desative por lá. Preferências de e-mail · SPI Finance",
 }
 `;
 
@@ -164,14 +164,14 @@ exports[`e-mails B no tema manifestacao > codigo-da-compra: assunto e texto (sna
 exports[`e-mails B no tema manifestacao > confirmar-email: assunto e texto (snapshot) 1`] = `
 {
   "assunto": "Confirme seu e-mail · SPI Finance",
-  "texto": "Falta um passo pra abrir sua conta. Oi, Ana! Confirme seu e-mail Falta um passo pra abrir sua conta no SPI Finance: confirmar que este e-mail é seu. É só tocar no botão: Confirmar meu e-mail Este link vale por 7 dias. Se ele vencer, entre no app e peça outro. Se você não criou uma conta, ignore este e-mail: sem a confirmação, ninguém entra com ele. Se você não reconhece este e-mail, pode ignorá-lo com segurança. SPI Finance, sua vida financeira em um só lugar.",
+  "texto": "Falta um passo para abrir sua conta. Oi, Ana! Confirme seu e-mail Falta um passo para abrir sua conta no SPI Finance: confirmar que este e-mail é seu. É só tocar no botão: Confirmar meu e-mail Este link vale por 7 dias. Se ele vencer, entre no app e peça outro. Se você não criou uma conta, ignore este e-mail: sem a confirmação, ninguém entra com ele. Se você não reconhece este e-mail, pode ignorá-lo com segurança. SPI Finance, sua vida financeira em um só lugar.",
 }
 `;
 
 exports[`e-mails B no tema manifestacao > conta-criada: assunto e texto (snapshot) 1`] = `
 {
   "assunto": "Sua conta no SPI Finance está pronta",
-  "texto": "Primeiro passo: registre um gasto ou renda do dia. Bem-vinda, Ana! Sua conta está pronta Que bom ter você aqui. O SPI Finance junta seus gastos, orçamento, metas e investimentos num lugar só, pra você decidir com clareza. Abrir o SPI Finance Primeiro passo: registre um gasto ou renda do dia. O resto flui a partir daí. Se você não reconhece este e-mail, pode ignorá-lo com segurança. SPI Finance, sua vida financeira em um só lugar.",
+  "texto": "Primeiro passo: registre um gasto ou renda do dia. Boas-vindas, Ana! Sua conta está pronta Que bom ter você aqui. O SPI Finance junta seus gastos, orçamento, metas e investimentos num lugar só, para você decidir com clareza. Abrir o SPI Finance Primeiro passo: registre um gasto ou renda do dia. O resto flui a partir daí. Se você não reconhece este e-mail, pode ignorá-lo com segurança. SPI Finance, sua vida financeira em um só lugar.",
 }
 `;
 
@@ -199,7 +199,7 @@ exports[`e-mails B no tema manifestacao > contas: assunto e texto (snapshot) 1`]
 exports[`e-mails B no tema manifestacao > convite: assunto e texto (snapshot) 1`] = `
 {
   "assunto": "Outubro começou. Um gasto, só um.",
-  "texto": "Anote um gasto de hoje e o app monta o resto. Oi, Ana Outubro começou Não precisa desenhar tudo de uma vez. Registre um gasto de hoje , só um, e o app já começa a montar o resto: pra onde seu dinheiro está indo, quanto sobra, quanto dá pra guardar. Toque no + e fale: “mercado, duzentos e quarenta reais” 1 Você fala 2 Ele entra no mês 3 O app mostra o livre Registrar meu primeiro passo Falando ou digitando, leva dez segundos. Você recebe no máximo três convites. Pode desligar quando quiser. Preferências de e-mail · SPI Finance",
+  "texto": "Anote um gasto de hoje e o app monta o resto. Oi, Ana Outubro começou Não precisa desenhar tudo de uma vez. Registre um gasto de hoje , só um, e o app já começa a montar o resto: para onde seu dinheiro está indo, quanto sobra, quanto dá para guardar. Toque no + e fale: “mercado, duzentos e quarenta reais” 1 Você fala 2 Ele entra no mês 3 O app mostra o livre Registrar meu primeiro passo Falando ou digitando, leva dez segundos. Você recebe no máximo três convites. Pode desligar quando quiser. Preferências de e-mail · SPI Finance",
 }
 `;
 
@@ -220,7 +220,7 @@ exports[`e-mails B no tema manifestacao > passou: assunto e texto (snapshot) 1`]
 exports[`e-mails B no tema manifestacao > passou-e-mais: assunto e texto (snapshot) 1`] = `
 {
   "assunto": "Saúde passou R$ 67 e mais 1",
-  "texto": "R$ 417 de R$ 350 planejados, e ainda faltam 25 dias. Orçamento de outubro Saúde passou R$ 67 R$ 417 gastos plano R$ 350 Ainda faltam 25 dias de outubro. Dá para ajustar em um toque: Tirar de Compras · sobra R$ 883 Só neste mês. O total do plano não muda. Cobrir com Compras Usar o livre do mês O livre vai de R$ 3.241 para R$ 3.174. Fica R$ 127 por dia. Usar o livre Os botões só abrem o app. Nada muda sem você confirmar lá. Também hoje &quot;Viagem Europa 2027&quot; ficou pra trás Pra voltar ao ritmo, guarde R$ 1.340 este mês. Abrir Prefere receber isso no celular, como mensagem? Ligue os avisos em Notificações. Ou desative por lá. Preferências de e-mail · SPI Finance",
+  "texto": "R$ 417 de R$ 350 planejados, e ainda faltam 25 dias. Orçamento de outubro Saúde passou R$ 67 R$ 417 gastos plano R$ 350 Ainda faltam 25 dias de outubro. Dá para ajustar em um toque: Tirar de Compras · sobra R$ 883 Só neste mês. O total do plano não muda. Cobrir com Compras Usar o livre do mês O livre vai de R$ 3.241 para R$ 3.174. Fica R$ 127 por dia. Usar o livre Os botões só abrem o app. Nada muda sem você confirmar lá. Também hoje &quot;Viagem Europa 2027&quot; ficou para trás Para voltar ao ritmo, guarde R$ 1.340 este mês. Abrir Prefere receber isso no celular, como mensagem? Ligue os avisos em Notificações. Ou desative por lá. Preferências de e-mail · SPI Finance",
 }
 `;
 
@@ -297,14 +297,14 @@ exports[`e-mails B no tema padrao > codigo-da-compra: assunto e texto (snapshot)
 exports[`e-mails B no tema padrao > confirmar-email: assunto e texto (snapshot) 1`] = `
 {
   "assunto": "Confirme seu e-mail · SPI Finance",
-  "texto": "Falta um passo pra abrir sua conta. Oi, Ana! Confirme seu e-mail Falta um passo pra abrir sua conta no SPI Finance: confirmar que este e-mail é seu. É só tocar no botão: Confirmar meu e-mail Este link vale por 7 dias. Se ele vencer, entre no app e peça outro. Se você não criou uma conta, ignore este e-mail: sem a confirmação, ninguém entra com ele. Se você não reconhece este e-mail, pode ignorá-lo com segurança. SPI Finance, sua vida financeira em um só lugar.",
+  "texto": "Falta um passo para abrir sua conta. Oi, Ana! Confirme seu e-mail Falta um passo para abrir sua conta no SPI Finance: confirmar que este e-mail é seu. É só tocar no botão: Confirmar meu e-mail Este link vale por 7 dias. Se ele vencer, entre no app e peça outro. Se você não criou uma conta, ignore este e-mail: sem a confirmação, ninguém entra com ele. Se você não reconhece este e-mail, pode ignorá-lo com segurança. SPI Finance, sua vida financeira em um só lugar.",
 }
 `;
 
 exports[`e-mails B no tema padrao > conta-criada: assunto e texto (snapshot) 1`] = `
 {
   "assunto": "Sua conta no SPI Finance está pronta",
-  "texto": "Primeiro passo: registre um gasto ou renda do dia. Bem-vinda, Ana! Sua conta está pronta Que bom ter você aqui. O SPI Finance junta seus gastos, orçamento, metas e investimentos num lugar só, pra você decidir com clareza. Abrir o SPI Finance Primeiro passo: registre um gasto ou renda do dia. O resto flui a partir daí. Se você não reconhece este e-mail, pode ignorá-lo com segurança. SPI Finance, sua vida financeira em um só lugar.",
+  "texto": "Primeiro passo: registre um gasto ou renda do dia. Boas-vindas, Ana! Sua conta está pronta Que bom ter você aqui. O SPI Finance junta seus gastos, orçamento, metas e investimentos num lugar só, para você decidir com clareza. Abrir o SPI Finance Primeiro passo: registre um gasto ou renda do dia. O resto flui a partir daí. Se você não reconhece este e-mail, pode ignorá-lo com segurança. SPI Finance, sua vida financeira em um só lugar.",
 }
 `;
 
@@ -353,7 +353,7 @@ exports[`e-mails B no tema padrao > passou: assunto e texto (snapshot) 1`] = `
 exports[`e-mails B no tema padrao > passou-e-mais: assunto e texto (snapshot) 1`] = `
 {
   "assunto": "Saúde passou R$ 67 e mais 1",
-  "texto": "R$ 417 de R$ 350 planejados, e ainda faltam 25 dias. Orçamento de outubro Saúde passou R$ 67 R$ 417 gastos plano R$ 350 Ainda faltam 25 dias de outubro. Dá para ajustar em um toque: Tirar de Compras · sobra R$ 883 Só neste mês. O total do plano não muda. Cobrir com Compras Usar o livre do mês O livre vai de R$ 3.241 para R$ 3.174. Fica R$ 127 por dia. Usar o livre Os botões só abrem o app. Nada muda sem você confirmar lá. Também hoje &quot;Viagem Europa 2027&quot; ficou pra trás Pra voltar ao ritmo, guarde R$ 1.340 este mês. Abrir Prefere receber isso no celular, como mensagem? Ligue os avisos em Notificações. Ou desative por lá. Preferências de e-mail · SPI Finance",
+  "texto": "R$ 417 de R$ 350 planejados, e ainda faltam 25 dias. Orçamento de outubro Saúde passou R$ 67 R$ 417 gastos plano R$ 350 Ainda faltam 25 dias de outubro. Dá para ajustar em um toque: Tirar de Compras · sobra R$ 883 Só neste mês. O total do plano não muda. Cobrir com Compras Usar o livre do mês O livre vai de R$ 3.241 para R$ 3.174. Fica R$ 127 por dia. Usar o livre Os botões só abrem o app. Nada muda sem você confirmar lá. Também hoje &quot;Viagem Europa 2027&quot; ficou para trás Para voltar ao ritmo, guarde R$ 1.340 este mês. Abrir Prefere receber isso no celular, como mensagem? Ligue os avisos em Notificações. Ou desative por lá. Preferências de e-mail · SPI Finance",
 }
 `;
 
@@ -430,14 +430,14 @@ exports[`e-mails B no tema titanio > codigo-da-compra: assunto e texto (snapshot
 exports[`e-mails B no tema titanio > confirmar-email: assunto e texto (snapshot) 1`] = `
 {
   "assunto": "Confirme seu e-mail · SPI Finance",
-  "texto": "Falta um passo pra abrir sua conta. Oi, Ana! Confirme seu e-mail Falta um passo pra abrir sua conta no SPI Finance: confirmar que este e-mail é seu. É só tocar no botão: Confirmar meu e-mail Este link vale por 7 dias. Se ele vencer, entre no app e peça outro. Se você não criou uma conta, ignore este e-mail: sem a confirmação, ninguém entra com ele. Se você não reconhece este e-mail, pode ignorá-lo com segurança. SPI Finance, sua vida financeira em um só lugar.",
+  "texto": "Falta um passo para abrir sua conta. Oi, Ana! Confirme seu e-mail Falta um passo para abrir sua conta no SPI Finance: confirmar que este e-mail é seu. É só tocar no botão: Confirmar meu e-mail Este link vale por 7 dias. Se ele vencer, entre no app e peça outro. Se você não criou uma conta, ignore este e-mail: sem a confirmação, ninguém entra com ele. Se você não reconhece este e-mail, pode ignorá-lo com segurança. SPI Finance, sua vida financeira em um só lugar.",
 }
 `;
 
 exports[`e-mails B no tema titanio > conta-criada: assunto e texto (snapshot) 1`] = `
 {
   "assunto": "Sua conta no SPI Finance está pronta",
-  "texto": "Primeiro passo: registre um gasto ou renda do dia. Bem-vinda, Ana! Sua conta está pronta Que bom ter você aqui. O SPI Finance junta seus gastos, orçamento, metas e investimentos num lugar só, pra você decidir com clareza. Abrir o SPI Finance Primeiro passo: registre um gasto ou renda do dia. O resto flui a partir daí. Se você não reconhece este e-mail, pode ignorá-lo com segurança. SPI Finance, sua vida financeira em um só lugar.",
+  "texto": "Primeiro passo: registre um gasto ou renda do dia. Boas-vindas, Ana! Sua conta está pronta Que bom ter você aqui. O SPI Finance junta seus gastos, orçamento, metas e investimentos num lugar só, para você decidir com clareza. Abrir o SPI Finance Primeiro passo: registre um gasto ou renda do dia. O resto flui a partir daí. Se você não reconhece este e-mail, pode ignorá-lo com segurança. SPI Finance, sua vida financeira em um só lugar.",
 }
 `;
 
@@ -486,7 +486,7 @@ exports[`e-mails B no tema titanio > passou: assunto e texto (snapshot) 1`] = `
 exports[`e-mails B no tema titanio > passou-e-mais: assunto e texto (snapshot) 1`] = `
 {
   "assunto": "Saúde passou R$ 67 e mais 1",
-  "texto": "R$ 417 de R$ 350 planejados, e ainda faltam 25 dias. Orçamento de outubro Saúde passou R$ 67 R$ 417 gastos plano R$ 350 Ainda faltam 25 dias de outubro. Dá para ajustar em um toque: Tirar de Compras · sobra R$ 883 Só neste mês. O total do plano não muda. Cobrir com Compras Usar o livre do mês O livre vai de R$ 3.241 para R$ 3.174. Fica R$ 127 por dia. Usar o livre Os botões só abrem o app. Nada muda sem você confirmar lá. Também hoje &quot;Viagem Europa 2027&quot; ficou pra trás Pra voltar ao ritmo, guarde R$ 1.340 este mês. Abrir Prefere receber isso no celular, como mensagem? Ligue os avisos em Notificações. Ou desative por lá. Preferências de e-mail · SPI Finance",
+  "texto": "R$ 417 de R$ 350 planejados, e ainda faltam 25 dias. Orçamento de outubro Saúde passou R$ 67 R$ 417 gastos plano R$ 350 Ainda faltam 25 dias de outubro. Dá para ajustar em um toque: Tirar de Compras · sobra R$ 883 Só neste mês. O total do plano não muda. Cobrir com Compras Usar o livre do mês O livre vai de R$ 3.241 para R$ 3.174. Fica R$ 127 por dia. Usar o livre Os botões só abrem o app. Nada muda sem você confirmar lá. Também hoje &quot;Viagem Europa 2027&quot; ficou para trás Para voltar ao ritmo, guarde R$ 1.340 este mês. Abrir Prefere receber isso no celular, como mensagem? Ligue os avisos em Notificações. Ou desative por lá. Preferências de e-mail · SPI Finance",
 }
 `;
 

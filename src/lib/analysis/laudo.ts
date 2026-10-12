@@ -78,7 +78,7 @@ const SECTIONS: Record<SheetType, { id: string; question: string; keys: string[]
     { id: "tamanho", question: "É grande e diversificado?", keys: ["numero_imoveis", "patrimonio_liquido"] },
     { id: "ocupacao", question: "Está cheio?", keys: ["vacancia_atual"] },
     { id: "custo", question: "Cobra muito?", keys: ["taxa_administracao"] },
-    { id: "liquidez", question: "Dá pra entrar e sair?", keys: ["liquidez_fii"] },
+    { id: "liquidez", question: "Dá para entrar e sair?", keys: ["liquidez_fii"] },
   ],
   ETF: [
     { id: "tamanho", question: "É grande?", keys: ["patrimonio_liquido_etf"] },
@@ -128,7 +128,7 @@ function reais(value: number): string {
 const PLAIN: Record<string, (v: number, raw: string) => string> = {
   p_l: (v) =>
     v < 0
-      ? "Teve prejuízo no período: não dá pra dizer em quantos anos o lucro paga o preço"
+      ? "Teve prejuízo no período: não dá para dizer em quantos anos o lucro paga o preço"
       : `Pelo lucro atual, o preço de hoje se paga em ${v.toFixed(1).replace(".", ",")} anos`,
   p_vp: (v) => `Vale ${v.toFixed(2).replace(".", ",")}× o patrimônio que tem`,
   ev_ebitda: (v) => `A empresa inteira custa ${v.toFixed(1).replace(".", ",")} anos de geração de caixa`,
@@ -143,8 +143,8 @@ const PLAIN: Record<string, (v: number, raw: string) => string> = {
     v < 0 ? "Tem mais dinheiro em caixa do que dívida" : `A dívida é ${pct(v * 100)} do patrimônio`,
   liquidez_corrente: (v) =>
     v < 1
-      ? `Pra cada R$ 1 de conta que vence em 12 meses, tem R$ ${v.toFixed(2).replace(".", ",")} de caixa e a receber no mesmo prazo, não é sobre quanto a ação negocia na bolsa`
-      : `Pra cada R$ 1 de conta que vence em 12 meses, tem R$ ${v.toFixed(2).replace(".", ",")} de caixa e a receber no mesmo prazo`,
+      ? `Para cada R$ 1 de conta que vence em 12 meses, tem R$ ${v.toFixed(2).replace(".", ",")} de caixa e a receber no mesmo prazo, não é sobre quanto a ação negocia na bolsa`
+      : `Para cada R$ 1 de conta que vence em 12 meses, tem R$ ${v.toFixed(2).replace(".", ",")} de caixa e a receber no mesmo prazo`,
   evolucao_receita: (v) => (v >= 0 ? `Vendeu ${pct(v)} mais que há 5 anos` : `Vendeu ${pct(-v)} menos que há 5 anos`),
   evolucao_lucro: (v) => (v >= 0 ? `Lucra ${pct(v)} mais que há 5 anos` : `Lucra ${pct(-v)} menos que há 5 anos`),
   vacancia_atual: (v) => `${v.toFixed(1).replace(".", ",")}% da área está vazia hoje`,
@@ -152,7 +152,7 @@ const PLAIN: Record<string, (v: number, raw: string) => string> = {
     v >= 10 ? `Tem ${Math.round(v)} imóveis: a renda não depende de um endereço só` : `Tem ${Math.round(v)} imóveis: a renda depende de poucos endereços`,
   patrimonio_liquido: (_v, raw) => `Um fundo de ${compactValue(raw)}`,
   liquidez_fii: (_v, raw) => `Negocia ${compactValue(raw)} por dia`,
-  taxa_administracao: (v) => `Cobra ${v.toFixed(2).replace(".", ",")}% ao ano pra administrar`,
+  taxa_administracao: (v) => `Cobra ${v.toFixed(2).replace(".", ",")}% ao ano para administrar`,
   dividend_yield_etf: (v) => `Pagou ${v.toFixed(1).replace(".", ",")}% em dividendos nos últimos 12 meses`,
   rentabilidade_12m: (v) => (v >= 0 ? `Rendeu ${pct(v)} nos últimos 12 meses` : `Perdeu ${pct(-v)} nos últimos 12 meses`),
   rentabilidade_5anos: (v) => (v >= 0 ? `Rendeu ${pct(v)} em 5 anos` : `Perdeu ${pct(-v)} em 5 anos`),
@@ -169,7 +169,7 @@ export const FRIENDLY_LABEL: Record<string, string> = {
   p_vp: "Preço pelo patrimônio",
   ev_ebitda: "Preço pelo caixa que gera",
   dividend_yield: "Dividendos",
-  roe: "Retorno pros sócios",
+  roe: "Retorno para os sócios",
   roic: "Retorno do negócio",
   margem_liquida: "O que sobra de cada venda",
   margem_ebit: "Sobra antes de juros",
@@ -237,21 +237,21 @@ export function attentionLine(laudo: Laudo): { text: string; names: string[] } {
  * Nada de fórmula — a fórmula está na régua. Aqui é "o que esse número mede na vida real".
  */
 export const GLOSSARY: Record<string, string> = {
-  p_l: "P/L, preço sobre lucro: quantos anos de lucro a empresa levaria pra devolver o que a ação custa hoje. Quanto menor, mais barata pelo lucro que dá.",
+  p_l: "P/L, preço sobre lucro: quantos anos de lucro a empresa levaria para devolver o que a ação custa hoje. Quanto menor, mais barata pelo lucro que dá.",
   p_vp: "P/VP, preço sobre valor patrimonial: quanto a ação custa comparado ao patrimônio da empresa. 1 = vale o que tem; 2 = o dobro.",
   ev_ebitda: "EV/EBITDA: o preço da empresa inteira (com as dívidas) dividido pelo caixa que a operação gera num ano. Quanto menor, mais barata pelo caixa que produz.",
-  dividend_yield: "Dividend yield: quanto a empresa pagou de dividendo nos últimos 12 meses, em porcentagem do preço da ação. 8% = a cada R$ 100 na ação, R$ 8 voltaram pra você.",
+  dividend_yield: "Dividend yield: quanto a empresa pagou de dividendo nos últimos 12 meses, em porcentagem do preço da ação. 8% = a cada R$ 100 na ação, R$ 8 voltaram para você.",
   roe: "ROE, retorno sobre o patrimônio: de cada R$ 100 que pertencem aos sócios, quanto virou lucro no ano. Mede se a empresa faz o dinheiro dos donos render.",
   roic: "ROIC, retorno sobre o capital investido: de cada R$ 100 aplicados no negócio (dos sócios e de dívida), quanto voltou no ano. Mede a qualidade da operação.",
   margem_liquida: "Margem líquida: de cada R$ 100 que a empresa vende, quanto sobra depois de TODAS as despesas, juros e impostos.",
   margem_ebit: "Margem EBIT: de cada R$ 100 vendidos, quanto sobra antes de pagar juros e impostos. Mostra se o negócio em si é bom, sem o efeito da dívida.",
-  divida_liquida_ebitda: "Dívida líquida sobre EBITDA: a dívida (já descontado o caixa) dividida pelo que a operação gera por ano. 2× = dois anos de caixa pra quitar tudo.",
+  divida_liquida_ebitda: "Dívida líquida sobre EBITDA: a dívida (já descontado o caixa) dividida pelo que a operação gera por ano. 2× = dois anos de caixa para quitar tudo.",
   divida_liquida_patrimonio: "Dívida líquida sobre patrimônio: quanto a empresa deve comparado ao que os sócios têm nela. 0,5 = deve metade do patrimônio.",
   liquidez_corrente: "Liquidez corrente: o caixa mais o que tem a receber nos próximos 12 meses, dividido pelas contas que vencem nos próximos 12 meses. Abaixo de 1, o curto prazo não fecha sozinho. Não é sobre quanto a ação negocia na bolsa.",
   evolucao_receita: "Crescimento da receita em 5 anos: a empresa está vendendo mais ou menos do que vendia cinco anos atrás.",
   evolucao_lucro: "Crescimento do lucro em 5 anos: a empresa está lucrando mais ou menos do que cinco anos atrás.",
   vacancia_atual: "Vacância: a porcentagem da área dos imóveis do fundo que está vazia, sem inquilino pagando aluguel.",
-  taxa_administracao: "Taxa de administração: o que o fundo cobra por ano, em porcentagem do patrimônio, pra ser administrado. Sai do seu rendimento.",
+  taxa_administracao: "Taxa de administração: o que o fundo cobra por ano, em porcentagem do patrimônio, para ser administrado. Sai do seu rendimento.",
   liquidez_fii: "Liquidez diária: quanto dinheiro em cotas desse fundo troca de mão por dia na bolsa. Quanto maior, mais fácil comprar e vender sem mexer no preço.",
   numero_imoveis: "Número de imóveis: em quantos endereços o fundo tem imóveis. Mais imóveis = a renda depende menos de um inquilino ou de um prédio só.",
   patrimonio_liquido: "Patrimônio do fundo: o valor de tudo que o fundo tem. Fundos grandes costumam negociar melhor e correm menos risco de fechar.",
@@ -268,10 +268,10 @@ export const QUESTION_HELP: Record<string, string> = {
   dividendos: "Olha quanto a empresa pagou de dividendo nos últimos 12 meses, em porcentagem do preço. 5% ou mais é alto; abaixo disso não é defeito.",
   lucro: "Olha quanto a empresa lucra sobre o dinheiro dos sócios, sobre o que investe e sobre o que vende. Responde se o negócio é bom em transformar dinheiro em mais dinheiro.",
   divida: "Olha o tamanho da dívida comparado ao caixa que a empresa gera e ao patrimônio, e se o caixa de curto prazo cobre as contas de curto prazo.",
-  crescimento: "Compara as vendas e o lucro de hoje com os de cinco anos atrás. Responde se a empresa está andando pra frente ou pra trás.",
-  tamanho: "Olha quantos imóveis o fundo tem e o tamanho do patrimônio. Responde se a renda depende de poucos endereços e se o fundo é grande o bastante pra negociar bem.",
+  crescimento: "Compara as vendas e o lucro de hoje com os de cinco anos atrás. Responde se a empresa está andando para frente ou para trás.",
+  tamanho: "Olha quantos imóveis o fundo tem e o tamanho do patrimônio. Responde se a renda depende de poucos endereços e se o fundo é grande o bastante para negociar bem.",
   ocupacao: "Olha a vacância: quanto da área dos imóveis está sem inquilino. Área vazia é aluguel que não entra.",
-  custo: "Olha a taxa de administração, o que sai do seu rendimento todo ano pra pagar quem cuida do fundo.",
+  custo: "Olha a taxa de administração, o que sai do seu rendimento todo ano para pagar quem cuida do fundo.",
   liquidez: "Olha quanto o fundo negocia por dia na bolsa. Responde se você consegue comprar e vender sem dificuldade e sem mexer no preço.",
   renda: "Olha quanto o ETF distribuiu em dividendos nos últimos 12 meses.",
   retorno: "Olha quanto o ETF rendeu em 12 meses e em 5 anos. Passado não garante futuro, e o que importa é seguir bem o índice dele.",
@@ -336,7 +336,7 @@ function shortLabel(item: OverviewItem): string {
 
 function buildVerdict(counts: Record<OverviewSignal, number>, items: LaudoItem[]): string {
   const total = counts.favoravel + counts.neutro + counts.atencao;
-  if (total === 0) return "Sem indicadores suficientes pra uma leitura.";
+  if (total === 0) return "Sem indicadores suficientes para uma leitura.";
   const atencao = items.filter((i) => i.signal === "atencao").map(shortLabel);
   const abre =
     counts.atencao === 0

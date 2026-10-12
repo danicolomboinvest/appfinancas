@@ -138,8 +138,8 @@ export function buildGoalAlerts(input: {
     .filter((g) => g.behind)
     .map((g) => ({
       key: `${ym}:goal:${g.id}`,
-      title: `"${g.name}" ficou pra trás`,
-      body: g.monthly > 0 ? `Pra voltar ao ritmo, guarde ${input.money(g.monthly)} este mês.` : "Revise o prazo ou o valor da meta.",
+      title: `"${g.name}" ficou para trás`,
+      body: g.monthly > 0 ? `Para voltar ao ritmo, guarde ${input.money(g.monthly)} este mês.` : "Revise o prazo ou o valor da meta.",
       url: `/planejamento/metas/${g.id}`,
       ...(g.alvo !== undefined ? { dados: { tipo: "meta-atras" as const, nome: g.name, guardado: g.guardado ?? 0, alvo: g.alvo, porMes: g.monthly } } : {}),
     }));

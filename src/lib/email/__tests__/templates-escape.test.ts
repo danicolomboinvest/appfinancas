@@ -23,7 +23,7 @@ describe("templates escapam o que a pessoa digitou", () => {
   it("boas-vindas", () => {
     const html = welcomeEmail({ name: golpe, appUrl: "https://app.test/login" }).html;
     expect(html).not.toContain("golpe.com");
-    expect(html).toContain("Bem-vinda, &lt;a!");
+    expect(html).toContain("Boas-vindas, &lt;a!");
   });
 
   it("recuperação de senha", () => {

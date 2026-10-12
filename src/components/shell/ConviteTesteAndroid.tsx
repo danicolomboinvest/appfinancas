@@ -70,12 +70,12 @@ export function ConviteTesteAndroid({ userEmail }: { userEmail?: string }) {
           {enviado ? (
             <>
               <p className="text-sm font-medium text-ink">Pronto, você está na lista!</p>
-              <p className="text-xs text-ink-faint">Quando o teste abrir, chega um convite no seu Gmail pra instalar o app.</p>
+              <p className="text-xs text-ink-faint">Quando o teste abrir, chega um convite no seu Gmail para instalar o app.</p>
             </>
           ) : (
             <>
               <p className="text-sm font-medium text-ink">Quer testar o app Android antes de todo mundo?</p>
-              <p className="text-xs text-ink-faint">Estamos chamando quem usa Android pra testar o app da Play Store.</p>
+              <p className="text-xs text-ink-faint">Estamos chamando quem usa Android para testar o app da Play Store.</p>
             </>
           )}
         </div>

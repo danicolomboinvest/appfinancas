@@ -159,12 +159,12 @@ export async function parsePortfolioAction(formData: FormData): Promise<ParsePor
   const fileName = fileMeta instanceof File ? fileMeta.name : null;
   const profile = profileDocument(text, fileName);
   if (profile.kind === "irpf") {
-    const msg = `Li o arquivo inteiro: ${profile.summary}. A declaração serve pra pegar o preço médio: use o botão "Preço médio (IR)" na carteira.`;
+    const msg = `Li o arquivo inteiro: ${profile.summary}. A declaração serve para pegar o preço médio: use o botão "Preço médio (IR)" na carteira.`;
     await falha(msg, { kind: profile.kind, institution: profile.institution, header: safeHeader(text) });
     return { ok: false, error: msg };
   }
   if ((profile.kind === "statement" || profile.kind === "invoice") && !profile.contents.includes("position")) {
-    const msg = `Li o arquivo inteiro: ${profile.summary}. Ele traz entradas e saídas, não a posição dos investimentos. Pra lançar no mês, use Registrar › Importar extrato. Pra carteira, suba a posição da corretora ou o relatório da B3 (Área do Investidor › Posição).`;
+    const msg = `Li o arquivo inteiro: ${profile.summary}. Ele traz entradas e saídas, não a posição dos investimentos. Para lançar no mês, use Registrar › Importar extrato. Para carteira, suba a posição da corretora ou o relatório da B3 (Área do Investidor › Posição).`;
     await falha(msg, { kind: profile.kind, institution: profile.institution, header: safeHeader(text) });
     // A tela mostra o botão "Importar no mês" com o mesmo arquivo (07/10/2026): 80% das tentativas
     // na Carteira eram extrato ou fatura, e a frase só dizia onde ir.
@@ -190,7 +190,7 @@ export async function parsePortfolioAction(formData: FormData): Promise<ParsePor
     console.error("parsePortfolioAction: zero ativos", { fileName, encoding, kind: profile.kind, contents: profile.contents, positionRows: profile.positionRows, chars: text.length });
     const msg =
       profile.kind === "position"
-        ? `Li o arquivo inteiro (${profile.summary}) e reconheci ${profile.positionRows} linha${profile.positionRows === 1 ? "" : "s"} de ativo, mas não consegui ler as quantidades e valores nesse formato. Manda o arquivo pro suporte que a gente ensina o app.`
+        ? `Li o arquivo inteiro (${profile.summary}) e reconheci ${profile.positionRows} linha${profile.positionRows === 1 ? "" : "s"} de ativo, mas não consegui ler as quantidades e valores nesse formato. Manda o arquivo para o suporte que a gente ensina o app.`
         : `Li o arquivo inteiro (${profile.summary}) e não identifiquei ativos com quantidade e valor. Se for um PDF escaneado/foto, suba a posição em Excel (.xlsx) ou CSV, costuma ler melhor.`;
     await falha(msg, { kind: profile.kind, institution: profile.institution, moneyLines: profile.positionRows, header: safeHeader(text) });
     return { ok: false, error: msg };

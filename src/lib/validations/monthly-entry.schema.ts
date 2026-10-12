@@ -69,6 +69,6 @@ export const monthlyEntrySchema = z
   // R$ 250 no mercado e o app dizia que ela economizou R$ 250 em alimentação.
   .refine((d) => !d.resgate || d.category === "INVESTMENT_CONTRIBUTION", { message: "Resgate é dinheiro voltando do que você guardou.", path: ["category"] })
   .refine((d) => d.category !== "EXPENSE" || Boolean(d.parentCategory) || Boolean(d.customCategoryId), {
-    message: "Escolha uma categoria pro gasto.",
+    message: "Escolha uma categoria para o gasto.",
     path: ["parentCategory"],
   });

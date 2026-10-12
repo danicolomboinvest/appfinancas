@@ -97,7 +97,7 @@ export function CombinarDivisao({ d }: { d: DadosDaDivisao }) {
 
       {passo === 0 && (
         <div className="mt-4 flex flex-col items-center">
-          <h2 className="titulo-tema text-balance text-center text-[30px] font-medium leading-tight text-ink">Quanto entra pra cada um?</h2>
+          <h2 className="titulo-tema text-balance text-center text-[30px] font-medium leading-tight text-ink">Quanto entra para cada um?</h2>
           <div className="my-5 flex h-[124px] items-center justify-center" aria-hidden>
             {ordem.map((l, i) => (
               <span key={l} className="rounded-full" style={{ width: bolha(l), height: bolha(l), background: cor(l), marginLeft: i ? -bolha(l) * 0.32 : 0, opacity: i ? 0.82 : 0.92 }} />

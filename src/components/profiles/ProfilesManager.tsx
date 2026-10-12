@@ -198,7 +198,7 @@ export function FormularioPerfil({
                 >
                   {/* Uma prévia de verdade, não uma bolinha: o fundo, a tinta, o destaque e
                       a primeira frase que o tema diria. É aqui que ela escolhe — tem que dar
-                      pra sentir a diferença sem abrir cada um. */}
+                      para sentir a diferença sem abrir cada um. */}
                   <span
                     className="flex w-24 shrink-0 flex-col gap-1 overflow-hidden rounded-lg border p-2"
                     style={{ backgroundColor: opcao.paleta.canvas, borderColor: opcao.paleta.borderStrong }}

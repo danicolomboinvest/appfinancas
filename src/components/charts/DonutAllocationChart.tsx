@@ -88,7 +88,7 @@ export function DonutAllocationChart({
           </ResponsiveContainer>
 
           {/* Legenda: cor + nome + percentual. Clicável (filtra ao toque) só quando `onSelect`
-              foi passado; senão é só decorativa, pra sempre dar pra ler o que cada cor é. */}
+              foi passado; senão é só decorativa, para sempre dar para ler o que cada cor é. */}
           {showLegend && (
             <div className="flex w-full flex-wrap justify-center gap-1.5">
               {data.map((entry, index) => {

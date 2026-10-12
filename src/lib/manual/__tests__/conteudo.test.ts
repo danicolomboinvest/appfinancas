@@ -43,7 +43,7 @@ describe("manual: os nomes que ele cita são os que a tela do tema mostra", () =
   it("na Empresa, a reserva é o caixa de segurança", () => {
     const texto = textosDoManual((x) => comNomes(x, nomesDoTema(vozDoTema("padrao", "EMPRESA")))).join("\n");
     expect(texto).toContain("Caixa de segurança");
-    expect(texto).toContain("pro caixa de segurança");
+    expect(texto).toContain("para o caixa de segurança");
   });
 
   it("o PDF usa os nomes do Padrão, os mesmos da tela de quem não trocou de tema", () => {

@@ -83,8 +83,8 @@ export function FecharOMes({
     acerto.diferenca < 1
       ? "Ninguém deve nada."
       : acerto.devedor === pessoas.minha
-        ? `Você manda ${m(acerto.diferenca)} pra ${pessoas.nomes[outra]}`
-        : `${pessoas.nomes[outra]} manda ${m(acerto.diferenca)} pra você`;
+        ? `Você manda ${m(acerto.diferenca)} para ${pessoas.nomes[outra]}`
+        : `${pessoas.nomes[outra]} manda ${m(acerto.diferenca)} para você`;
 
   function agir(fn: () => Promise<{ ok: boolean; mensagem?: string }>) {
     setErro(null);

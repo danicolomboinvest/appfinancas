@@ -26,7 +26,7 @@ export default function PrivacidadePage() {
           criptografada, nem nós conseguimos vê-la).
           <br />
           <strong className="text-ink">Dados financeiros que você registra:</strong> lançamentos, orçamentos, metas,
-          ativos e arquivos de extrato que você importa. Esses dados existem, antes de tudo, para o app funcionar pra
+          ativos e arquivos de extrato que você importa. Esses dados existem, antes de tudo, para o app funcionar para
           você (veja também a seção 3).
         </p>
 
@@ -47,7 +47,7 @@ export default function PrivacidadePage() {
         <p>
           Para operar e evoluir o SPI Finance e oferecer um acompanhamento financeiro relevante, a{" "}
           <strong className="text-ink">administração do app</strong> pode acessar informações da sua conta em painéis
-          internos, inclusive de forma identificada — como seu <strong className="text-ink">patrimônio registrado</strong>{" "}
+          internos, inclusive de forma identificada, como seu <strong className="text-ink">patrimônio registrado</strong>{" "}
           e sua <strong className="text-ink">capacidade de poupança</strong>. Usamos isso para entender o perfil de quem
           usa o app e, quando fizer sentido, apresentar a você produtos e serviços financeiros próprios (como conteúdos,
           cursos ou consultoria/assessoria). Isso não muda o essencial: seus dados{" "}

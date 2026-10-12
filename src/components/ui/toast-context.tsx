@@ -52,7 +52,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     <ToastContext.Provider value={{ showToast, showError }}>
       {children}
       {/* No celular fica acima da barra de abas (ela é fixa e flutua no rodapé): antes o aviso
-          nascia atrás dela, cortado. No computador não há barra, volta pro canto. */}
+          nascia atrás dela, cortado. No computador não há barra, volta para o canto. */}
       <div
         aria-live="polite"
         className="pointer-events-none fixed inset-x-3 bottom-[calc(6.5rem_+_var(--safe-bottom))] z-[200] flex flex-col items-center gap-2 md:inset-x-auto md:bottom-6 md:right-6 md:items-end"

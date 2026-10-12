@@ -33,5 +33,5 @@ export async function queroTestarAndroidAction(gmailDigitado: string): Promise<R
 <p>Gmail do celular: <strong>${esc(gmail)}</strong><br>E-mail da conta no SPI Finance: ${esc(conta?.email ?? "?")}</p>
 <p>Adicione o Gmail na lista de testadores do teste fechado no Google Play Console.</p>`,
   });
-  return r.ok ? { ok: true } : { ok: false, mensagem: "Não deu pra enviar agora. Tente de novo em instantes." };
+  return r.ok ? { ok: true } : { ok: false, mensagem: "Não deu para enviar agora. Tente de novo em instantes." };
 }

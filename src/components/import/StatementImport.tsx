@@ -96,7 +96,7 @@ function tituloDaTransferencia(it: { description: string; category: string; duvi
   const pix = /pix/i.test(n.meio ?? it.description);
   const entrada = it.category === "INCOME";
   const como = it.duvida === "resgate" ? (entrada ? "Resgate de" : "Aplicação em") : pix ? (entrada ? "Pix de" : "Pix para") : entrada ? "Transferência de" : "Transferência para";
-  return `${como} ${n.nome}${it.duvida === "conta_propria" ? " (você mesma)" : ""}`;
+  return `${como} ${n.nome}${it.duvida === "conta_propria" ? " (conta sua)" : ""}`;
 }
 
 function formatDate(iso: string) {
@@ -1250,7 +1250,7 @@ export function StatementImport({
         )}
 
         {/* "Pular" tirava o gasto da importação sem ela saber. "Não sei agora" deixa o gasto
-            entrar sem categoria: ele aparece no mês e dá pra classificar depois. */}
+            entrar sem categoria: ele aparece no mês e dá para classificar depois. */}
         {/* "Responder igual nas parecidas" (caminho B): ligado, a resposta vale para a loja inteira. */}
         {iguaisPraAplicar(items, it.key).length > 0 && (
           <label className="flex min-h-11 items-center justify-between gap-3 rounded-2xl bg-surface-2 px-4 py-2 text-[15px] text-ink">
@@ -1508,7 +1508,7 @@ export function StatementImport({
                   </span>
                   {/* O destaque vai pra resposta certa quase sempre: dinheiro indo pra outra conta
                       dela é "só mudei de conta". Antes o botão forte era "Guardei (aplicação)", e
-                      quem só passou o dinheiro do Nubank pro Itaú marcava investimento que não fez. */}
+                      quem só passou o dinheiro do Nubank para o Itaú marcava investimento que não fez. */}
                   <div className="flex flex-wrap gap-2">
                     {it.category === "EXPENSE" ? (
                       <>
@@ -1633,10 +1633,10 @@ export function StatementImport({
         )}
 
         {/* A lista do que vai entrar. Cada linha mostra o que o app entendeu e um "Mudar" que abre
-            ali mesmo a categoria, o tipo, "não importar" e o outro perfil: antes só dava pra
+            ali mesmo a categoria, o tipo, "não importar" e o outro perfil: antes só dava para
             trocar o TIPO, e o palpite errado do app (iFood em Mercado) só se corrigia depois de
             importar, um por um. Fechada, a linha é curta; os botões de 44px só aparecem na aberta.
-            No celular a lista NÃO tem rolagem própria (brigava com a da janela); do sm pra cima,
+            No celular a lista NÃO tem rolagem própria (brigava com a da janela); do sm para cima,
             caixa com altura fixa. */}
         {separadosEmRevisao && (
         <>
@@ -1692,7 +1692,7 @@ export function StatementImport({
                     <p className="break-words text-caption text-ink-muted">{it.description}</p>
                     {it.nota && <p className="text-caption text-accent-strong">{it.nota}</p>}
                     {/* Categoria só existe em gasto. Trocar aqui também troca nos iguais que o app
-                        tinha classificado sozinho, e vira regra pra próxima importação. */}
+                        tinha classificado sozinho, e vira regra para próxima importação. */}
                     {it.category === "EXPENSE" && (
                       <div className="flex flex-col gap-1.5">
                         <span className="text-caption font-medium text-ink-muted">{t.impRotuloCategoria}</span>
@@ -1715,7 +1715,7 @@ export function StatementImport({
                       </div>
                     </div>
                     {/* Manda essa linha pra OUTRO perfil do usuário — compra da Empresa que caiu no
-                        cartão Pessoal, por exemplo. Só aparece pra quem tem mais de um perfil. */}
+                        cartão Pessoal, por exemplo. Só aparece para quem tem mais de um perfil. */}
                     {otherProfiles.length > 0 && (
                       <div className="flex flex-wrap gap-2">
                         {otherProfiles.map((p) => (
@@ -1726,7 +1726,7 @@ export function StatementImport({
                       </div>
                     )}
                     {/* Tira só esta linha da importação (o pagamento da fatura anterior que o app não
-                        reconheceu, por exemplo). Vai pro "fica de fora", de onde volta com um toque. */}
+                        reconheceu, por exemplo). Vai para o "fica de fora", de onde volta com um toque. */}
                     <button
                       type="button"
                       onClick={() => {
@@ -1794,7 +1794,7 @@ export function StatementImport({
         </Modal>
 
         {/* O botão fica grudado no pé da gaveta: com a lista longa, ele sumia lá embaixo. A faixa
-            depois dele cobre o respiro da gaveta, pra lista não aparecer por baixo. */}
+            depois dele cobre o respiro da gaveta, para lista não aparecer por baixo. */}
         <div className="sticky bottom-0 z-10 flex flex-col gap-2 border-t border-border bg-surface pt-3 after:absolute after:inset-x-0 after:top-full after:h-6 after:bg-surface">
           {/* Nunca desligado (12/10/2026): o que ficar sem resposta entra como "A conferir". */}
           {duvidas.length + duvidasDinheiro.length > 0 && <p className="text-center text-caption text-ink-muted">O que ficar sem resposta entra como “A conferir”.</p>}

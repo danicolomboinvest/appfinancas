@@ -11,7 +11,7 @@ import type { SheetType } from "@prisma/client";
  */
 
 export const CHECKLIST_ANSWERS = [
-  { value: "tranquilo", label: "Tranquila", tone: "success" },
+  { value: "tranquilo", label: "Tudo certo", tone: "success" },
   { value: "nao_sei", label: "Não sei", tone: "neutral" },
   { value: "vi_algo", label: "Vi algo", tone: "danger" },
 ] as const;
@@ -54,7 +54,7 @@ export const HUMAN_CATEGORIES: Record<SheetType, string[]> = {
  */
 export const QUESTION_BY_KEY: Record<string, { question: string; where: string }> = {
   // Ações (BR e exterior)
-  socios_majoritarios: { question: "Quem manda na empresa te deixa tranquila?", where: "Página de RI, seção 'composição acionária'" },
+  socios_majoritarios: { question: "Quem manda na empresa te passa confiança?", where: "Página de RI, seção 'composição acionária'" },
   historico_polemicas: { question: "Achou polêmica recente?", where: "Busque o nome + 'investigação' ou 'processo'" },
   satisfacao_funcionarios: { question: "Quem trabalha lá fala bem?", where: "Glassdoor" },
   satisfacao_clientes: { question: "Quem compra dela fala bem?", where: "Reclame Aqui" },
@@ -65,12 +65,12 @@ export const QUESTION_BY_KEY: Record<string, { question: string; where: string }
   momento_empresa: { question: "Está crescendo, madura ou em dificuldade?", where: "Últimos releases trimestrais" },
   tag_along: { question: "Se venderem a empresa, o minoritário recebe igual? (tag along 100%)", where: "B3 › empresa › estatuto" },
   free_float: { question: "Tem ação suficiente circulando no mercado?", where: "B3 ou site de RI (free float)" },
-  liquidez: { question: "Dá pra vender rápido se precisar?", where: "Volume médio diário" },
+  liquidez: { question: "Dá para vender rápido se precisar?", where: "Volume médio diário" },
   exposicao_cambial: { question: "Você aceita que o dólar mexa no seu retorno?", where: "Ativo no exterior: o retorno em reais varia com o câmbio" },
 
   // FIIs
   mandato: { question: "Você entendeu o que o fundo faz com o dinheiro?", where: "Regulamento ou relatório gerencial, 1ª página" },
-  segmento: { question: "O segmento dele faz sentido pra você?", where: "Lajes, galpões, shoppings, recebíveis…" },
+  segmento: { question: "O segmento dele faz sentido para você?", where: "Lajes, galpões, shoppings, recebíveis…" },
   tipo_gestao: { question: "Gestão ativa ou passiva, e você sabe a diferença?", where: "Relatório gerencial" },
   administrador_gestor: { question: "Quem administra tem histórico limpo?", where: "Busque o nome da gestora + 'CVM'" },
   historico_proventos: { question: "Os rendimentos são constantes ou dão sustos?", where: "Funds Explorer, últimos 12 meses" },
@@ -90,7 +90,7 @@ export const QUESTION_BY_KEY: Record<string, { question: string; where: string }
   metodo_replicacao: { question: "Ele compra os ativos de verdade ou usa derivativos?", where: "Regulamento: réplica física × sintética" },
   gestora: { question: "Quem administra é conhecido?", where: "BlackRock, Itaú, XP…" },
   setor_geografia: { question: "Está concentrado num setor ou país só?", where: "Composição da carteira" },
-  data_inicio: { question: "Existe há tempo suficiente pra ter histórico?", where: "Data de início do fundo" },
+  data_inicio: { question: "Existe há tempo suficiente para ter histórico?", where: "Data de início do fundo" },
   concentracao_carteira: { question: "Poucos ativos pesam demais na carteira?", where: "Top 10 posições" },
 };
 

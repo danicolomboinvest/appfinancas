@@ -58,7 +58,7 @@ describe("buildLaudo", () => {
     expect(l.sections).toHaveLength(1);
     const vazio = buildLaudo("STOCK", {});
     expect(vazio.autoScore).toBeNull();
-    expect(vazio.verdict).toBe("Sem indicadores suficientes pra uma leitura.");
+    expect(vazio.verdict).toBe("Sem indicadores suficientes para uma leitura.");
   });
 
   it("reads a FII with its own questions and keeps the facts that have no ruler", () => {
@@ -102,7 +102,7 @@ describe("buildLaudo", () => {
     const l = buildLaudo("STOCK", PETRO);
     expect(sectionSummary(l.sections[2])).toEqual({
       signal: "atencao",
-      text: "Pra cada R$ 1 de conta que vence em 12 meses, tem R$ 0,90 de caixa e a receber no mesmo prazo, não é sobre quanto a ação negocia na bolsa",
+      text: "Para cada R$ 1 de conta que vence em 12 meses, tem R$ 0,90 de caixa e a receber no mesmo prazo, não é sobre quanto a ação negocia na bolsa",
     });
     expect(sectionSummary(l.sections[1]).signal).toBe("favoravel");
   });

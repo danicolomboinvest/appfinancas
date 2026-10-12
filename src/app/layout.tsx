@@ -80,14 +80,14 @@ export default function RootLayout({
             As duas cores vêm juntas: quem escolheu o tema claro ganha a classe `light` no
             <html> pelo script logo abaixo, que roda antes da primeira pintura. Com só a cor
             escura aqui, essa pessoa via a tela nascer preta e clarear — o mesmo flash que
-            esta tag existe pra evitar, ao contrário. */}
+            esta tag existe para evitar, ao contrário. */}
         <style
           dangerouslySetInnerHTML={{
             __html: "html,body{background-color:var(--color-canvas,#0c0c0e)}html.light,html.light body{background-color:var(--color-canvas,#ffffff)}",
           }}
         />
         {/* Roda antes da hidratação pra aplicar o tema salvo sem flash. Alterna `type` entre
-            server/client (em vez de um <script> comum) pra evitar o aviso do React sobre
+            server/client (em vez de um <script> comum) para evitar o aviso do React sobre
             tags <script> renderizadas via JSX, ver node_modules/next/dist/docs/01-app/02-guides/preventing-flash-before-hydration.md */}
         <script
           type={typeof window === "undefined" ? "text/javascript" : "text/plain"}

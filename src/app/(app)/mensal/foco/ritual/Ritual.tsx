@@ -76,7 +76,7 @@ export function Ritual({ d }: { d: DadosRitual }) {
               )}
             </>
           ) : (
-            <p className="text-sm text-ink-muted">Não achei gasto com data na semana passada. Se ainda não importou o extrato, vale importar pra eu enxergar a semana.</p>
+            <p className="text-sm text-ink-muted">Não achei gasto com data na semana passada. Se ainda não importou o extrato, vale importar para eu enxergar a semana.</p>
           )}
           <Botao onClick={() => seguir()}>Próximo</Botao>
         </Passo>

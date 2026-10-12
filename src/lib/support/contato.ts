@@ -12,7 +12,7 @@ export const ASSUNTO_ACESSO = "Acesso ao SPI Finance";
 /** A mensagem pronta do e-mail de quem comprou e está vendo o cadeado. Leva o e-mail da conta
  * porque é a primeira coisa que o suporte precisa pra achar a compra e liberar. */
 export function mensagemDeAcessoTrancado(recurso: string, emailDaConta: string | null): string {
-  const partes = [`Oi! Comprei o SPI Finance, mas "${recurso}" aparece trancado pra mim.`];
+  const partes = [`Oi! Comprei o SPI Finance, mas "${recurso}" aparece trancado para mim.`];
   if (emailDaConta) partes.push(`O e-mail da minha conta no app é ${emailDaConta}.`);
   return partes.join(" ");
 }
@@ -32,5 +32,5 @@ export function erroDeCadastroSemCompra(situacao: "sem-compra" | "encerrado" | "
     return `A compra deste e-mail não está mais ativa (reembolso, cancelamento ou prazo vencido). Se acha que é engano, fale com a gente: ${EMAIL_DO_SUPORTE}.`;
   }
   const dica = compraDoCelular ? ` Achamos uma compra com o seu celular no e-mail ${compraDoCelular}: cadastre com ele.` : "";
-  return `Não achamos compra do SPI Finance com este e-mail. Use o mesmo e-mail que você usou pra comprar.${dica} Acabou de comprar? Espere uns minutos e tente de novo. Ajuda: ${EMAIL_DO_SUPORTE}.`;
+  return `Não achamos compra do SPI Finance com este e-mail. Use o mesmo e-mail que você usou para comprar.${dica} Acabou de comprar? Espere uns minutos e tente de novo. Ajuda: ${EMAIL_DO_SUPORTE}.`;
 }

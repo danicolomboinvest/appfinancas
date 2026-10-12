@@ -66,7 +66,7 @@ export default async function ConfirmarEmailPage({
               <h1 className="text-lg font-semibold tracking-tight text-ink">Este link não vale mais</h1>
               <p className="mt-1 text-sm text-ink-muted">
                 Ele pode ter vencido (vale 7 dias) ou ter chegado cortado. Entre na sua conta e toque em
-                &ldquo;Reenviar e-mail&rdquo; pra receber um link novo.
+                &ldquo;Reenviar e-mail&rdquo; para receber um link novo.
               </p>
             </div>
             <Link

@@ -27,7 +27,7 @@ export default function LoginPage({
       {/*
         A luz dourada atrás da marca (05/10/2026, "visual sem graça"): a referência de design do app
         pede um brilho difuso atrás do elemento principal de cada tela, nunca o fundo chapado. É a
-        única cor de marca (o dourado), bem fraca, vazando pra fora da tela.
+        única cor de marca (o dourado), bem fraca, vazando para fora da tela.
       */}
       <div
         aria-hidden
@@ -57,12 +57,12 @@ export default function LoginPage({
                   O app que te diz o que fazer com o seu dinheiro.
                 </h1>
                 <p className="text-balance text-sm leading-relaxed text-ink-muted">
-                  Quanto dá pra gastar na semana, pra onde o dinheiro foi e como o mês vai fechar.
+                  Quanto dá para gastar na semana, para onde o dinheiro foi e como o mês vai fechar.
                 </p>
               </>
             ) : (
               <>
-                <h1 className="text-[26px] font-semibold leading-tight tracking-tight text-ink">Bem-vinda de volta</h1>
+                <h1 className="text-[26px] font-semibold leading-tight tracking-tight text-ink">Que bom te ver de novo</h1>
                 <p className="text-sm text-ink-muted">Entre com o seu e-mail e a sua senha.</p>
               </>
             )}

@@ -44,7 +44,7 @@ const GASTOS_DA_LU: { nome: string; marca: string | null; valor: number; fala: s
   { nome: "Promoção do app", marca: "Shopee", valor: 89, fala: "Tava barato!" },
   { nome: "Mais um streaming", marca: "Netflix", valor: 30, fala: "Esse eu nem lembrava." },
   { nome: "Lanche do trabalho", marca: null, valor: 47, fala: "Todo mundo ia." },
-  { nome: "Presente do amigo secreto", marca: null, valor: 60, fala: "Não dava pra não ir." },
+  { nome: "Presente do amigo secreto", marca: null, valor: 60, fala: "Não dava para não ir." },
 ];
 
 function Semana1({ fim }: { fim: React.ReactNode }) {
@@ -88,7 +88,7 @@ function Semana1({ fim }: { fim: React.ReactNode }) {
 
 // ===== Semana 2 · Um destino pra cada real: cada toque enche um pote até o Sem destino zerar =====
 const POTES: { nome: string; valor: number; icone: LucideIcon; fala: string }[] = [
-  { nome: "Guardar primeiro", valor: 320, icone: PiggyBank, fala: "Primeiro eu me pago: 10% pra mim, antes de qualquer conta." },
+  { nome: "Guardar primeiro", valor: 320, icone: PiggyBank, fala: "Primeiro eu me pago: 10% para mim, antes de qualquer conta." },
   { nome: "Contas fixas", valor: 1900, icone: Receipt, fala: "Depois o que já tem dono: aluguel, luz, internet." },
   { nome: "Mercado e casa", valor: 600, icone: ShoppingCart, fala: "Mercado e casa, com lista." },
   { nome: "Livre da semana", valor: 380, icone: Sparkles, fala: "O que sobra é livre. Sem culpa." },
@@ -151,9 +151,9 @@ const SEMANAS_DA_LU = [
   { gastou: 359, fala: "Semana 4 fechada. E agora, a sobra?" },
 ];
 const DESTINOS_DA_SOBRA: { chave: string; nome: string; icone: LucideIcon; fala: string }[] = [
-  { chave: "reserva", nome: "Reserva", icone: LifeBuoy, fala: "Foi pra reserva. Meu colchão cresceu." },
-  { chave: "sonho", nome: "Sonho", icone: Plane, fala: "Foi pro sonho. A viagem chegou mais perto." },
-  { chave: "mimo", nome: "Um mimo", icone: IceCreamCone, fala: "Um sorvete, sem culpa. O resto foi pra reserva." },
+  { chave: "reserva", nome: "Reserva", icone: LifeBuoy, fala: "Foi para a reserva. Meu colchão cresceu." },
+  { chave: "sonho", nome: "Sonho", icone: Plane, fala: "Foi para o sonho. A viagem chegou mais perto." },
+  { chave: "mimo", nome: "Um mimo", icone: IceCreamCone, fala: "Um sorvete, sem culpa. O resto foi para a reserva." },
 ];
 
 function Semana3({ fim }: { fim: React.ReactNode }) {

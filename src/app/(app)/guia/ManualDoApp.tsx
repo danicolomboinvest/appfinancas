@@ -92,7 +92,7 @@ export function ManualDoApp({ videos }: { videos?: ReactNode }) {
 
       <Card className="flex flex-col items-start gap-3 p-5">
         <p className="text-sm font-semibold text-ink">Ficou alguma dúvida?</p>
-        <p className="text-sm text-ink-muted">Guarde o PDF pra consultar quando for subir um arquivo novo.</p>
+        <p className="text-sm text-ink-muted">Guarde o PDF para consultar quando for subir um arquivo novo.</p>
         <a href={PDF_DO_MANUAL} download className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm font-semibold text-ink">
           <Download size={16} aria-hidden />
           Baixar em PDF

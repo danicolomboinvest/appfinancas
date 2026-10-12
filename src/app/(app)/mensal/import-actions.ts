@@ -278,7 +278,7 @@ async function lerExtrato(formData: FormData): Promise<ParseStatementResult> {
     return { ok: false, error: msg };
   }
   if (profile.kind === "irpf") {
-    const msg = `Li o arquivo inteiro: ${profile.summary}. A declaração serve pra pegar o preço médio dos ativos: use Carteira › Preço médio (IR).`;
+    const msg = `Li o arquivo inteiro: ${profile.summary}. A declaração serve para pegar o preço médio dos ativos: use Carteira › Preço médio (IR).`;
     await falha(msg, { kind: profile.kind, institution: profile.institution, header: safeHeader(text) });
     return { ok: false, error: msg };
   }
@@ -307,7 +307,7 @@ async function lerExtrato(formData: FormData): Promise<ParseStatementResult> {
       : periodoSemMovimento(text)
       ? `Esse arquivo não tem nenhum lançamento: o período escolhido no app do banco não teve movimentação. Baixe de novo escolhendo um período maior (o mês inteiro, por exemplo).`
       : moneyLines > 3
-        ? `Li o arquivo inteiro (${profile.summary}) e vi ${moneyLines} linhas com valor, mas não consegui ler nenhuma como lançamento. Esse formato eu ainda não conheço: manda o arquivo pro suporte que a gente ensina o app.`
+        ? `Li o arquivo inteiro (${profile.summary}) e vi ${moneyLines} linhas com valor, mas não consegui ler nenhuma como lançamento. Esse formato eu ainda não conheço: manda o arquivo para o suporte que a gente ensina o app.`
         : `Li o arquivo inteiro (${profile.summary}) e não encontrei transações. Se for um PDF escaneado/foto, exporte em Excel (.xlsx) ou CSV, costuma ler melhor.`;
     await falha(msg, { kind: profile.kind, institution: profile.institution, moneyLines, header: safeHeader(text) });
     return { ok: false, error: msg };

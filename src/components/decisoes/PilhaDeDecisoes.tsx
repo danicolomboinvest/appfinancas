@@ -158,7 +158,7 @@ export function PilhaDeDecisoes({ pilha, depois }: { pilha: CartaoDaPilha[]; dep
   return (
     <section className="flex flex-col gap-3" aria-labelledby="dc-hoje" data-tour="pilha">
       <div className="dc-cab">
-        <b id="dc-hoje">Pra decidir hoje</b>
+        <b id="dc-hoje">Para decidir hoje</b>
         {frente && (
           <span>
             {atual} de {total}

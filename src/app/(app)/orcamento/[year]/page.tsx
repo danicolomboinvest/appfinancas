@@ -231,7 +231,7 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
   return (
     <div className="flex flex-col gap-6 lg:gap-5">
       {/* Subtítulo curto de propósito: o cartão logo abaixo diz a mesma coisa com os números
-          DELA, e no celular cada linha aqui empurra pra fora da tela o número que ela veio ver. */}
+          DELA, e no celular cada linha aqui empurra para fora da tela o número que ela veio ver. */}
       {/* Sem título nem setas de ano (protótipo aprovado): o mês vem do seletor da Visão geral. */}
       <h1 className="sr-only">{voz.titulos.orcamento}</h1>
 
@@ -281,7 +281,7 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
       {/* "Editar meu plano" no fim, largo, como no protótipo. O ano inteiro saiu daqui. */}
       {planoFechado ? (
         <p className="text-sm text-ink-muted">
-          {year} já fechou: o plano dele fica como estava, pra comparação.{" "}
+          {year} já fechou: o plano dele fica como estava, para comparação.{" "}
           <Link href={`/orcamento/${agora.getFullYear()}`} className="font-semibold text-accent-strong hover:underline">
             Planejar {agora.getFullYear()}
           </Link>

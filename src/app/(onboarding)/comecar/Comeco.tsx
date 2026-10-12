@@ -382,7 +382,7 @@ function BoasVindas1({ onSeguir, money }: { onSeguir: () => void; money: Money }
 function BoasVindas2({ onSeguir }: { onSeguir: () => void }) {
   const itens: [typeof LayoutList, string, string][] = [
     [LayoutList, "Organizo o seu mês", "Cada gasto no lugar certo"],
-    [Wallet, "Digo quanto está livre", "Pra semana e pro mês"],
+    [Wallet, "Digo quanto está livre", "Para a semana e para o mês"],
     [BarChart3, "Monto o seu plano", "Com a sua renda de verdade"],
     [Target, "Cuido das suas metas", "E aviso se atrasar"],
     [TrendingUp, "Acompanho seus investimentos", "E mostro o próximo aporte"],
@@ -1005,7 +1005,7 @@ function Quadro({ indice, estado, money }: { indice: number; estado: EstadoParaO
   }
   return (
     <div className="passo-entra flex flex-col gap-3">
-      <Titulo sub="não é gasto">Pix para você mesma</Titulo>
+      <Titulo sub="não é gasto">Pix para outra conta sua</Titulo>
       <div className="glass flex items-center justify-between rounded-2xl px-[18px] py-4">
         <LogoDoLancamento descricao="Nubank" icon={Building2} size={44} />
         <span className="flex flex-col items-center gap-0.5 text-ink-muted">

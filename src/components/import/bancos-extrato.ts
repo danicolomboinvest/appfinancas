@@ -15,7 +15,7 @@ export type ComoBaixar = { banco: string; extrato: string; fatura?: string; dica
 export const BANCOS_EXTRATO: ComoBaixar[] = [
   {
     banco: "Nubank",
-    extrato: "No app, toque em Conta › Pedir extrato, escolha o período e toque em Exportar extrato. Ele chega no seu e-mail (dá pra escolher PDF, OFX ou CSV).",
+    extrato: "No app, toque em Conta › Pedir extrato, escolha o período e toque em Exportar extrato. Ele chega no seu e-mail (dá para escolher PDF, OFX ou CSV).",
     fatura: "Cartão de crédito › escolha a fatura fechada › Enviar fatura por e-mail. A fatura também chega sozinha no e-mail todo mês.",
   },
   {
@@ -35,12 +35,12 @@ export const BANCOS_EXTRATO: ComoBaixar[] = [
   },
   {
     banco: "Caixa",
-    extrato: "No app, Minha conta › Extrato por período, escolha as datas › Continuar, e toque no botão de compartilhar lá em cima pra salvar o PDF.",
+    extrato: "No app, Minha conta › Extrato por período, escolha as datas › Continuar, e toque no botão de compartilhar lá em cima para salvar o PDF.",
     dica: "Se aparecer só a opção de imagem, não serve: baixe pelo site da Caixa no computador.",
   },
   {
     banco: "Bradesco",
-    extrato: "No app, toque em Ver extrato ao lado do saldo, escolha o período e use Compartilhar extrato pra salvar o PDF.",
+    extrato: "No app, toque em Ver extrato ao lado do saldo, escolha o período e use Compartilhar extrato para salvar o PDF.",
     fatura: "Na fatura do cartão, toque em Ver em PDF › Compartilhar e salve no celular.",
   },
   {

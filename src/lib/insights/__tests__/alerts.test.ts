@@ -110,6 +110,6 @@ describe("buildGoalAlerts", () => {
       money,
     });
     expect(alerts).toHaveLength(1);
-    expect(alerts[0]).toMatchObject({ key: "2026-09:goal:a", title: '"Viagem Chile" ficou pra trás' });
+    expect(alerts[0]).toMatchObject({ key: "2026-09:goal:a", title: '"Viagem Chile" ficou para trás' });
   });
 });

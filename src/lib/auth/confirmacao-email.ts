@@ -56,7 +56,7 @@ function assinar(corpo: string, chave: string): Buffer {
  */
 export function criarTokenDeConfirmacao(userId: string, email: string, agora: number = Date.now()): string {
   const chave = segredo();
-  if (!chave) throw new Error("AUTH_SECRET não configurado: não dá pra assinar o link de confirmação.");
+  if (!chave) throw new Error("AUTH_SECRET não configurado: não dá para assinar o link de confirmação.");
   const conteudo: Conteudo = { u: userId, e: normalizar(email), x: agora + VALIDADE_DO_LINK_MS };
   const corpo = Buffer.from(JSON.stringify(conteudo)).toString("base64url");
   return `${corpo}.${assinar(corpo, chave).toString("base64url")}`;

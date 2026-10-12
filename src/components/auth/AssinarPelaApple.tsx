@@ -80,7 +80,7 @@ export function AssinarPelaApple({ token, produtosIds }: { token: string; produt
       if (typeof r.transacao === "string") await registrar([r.transacao]);
       else if (r.pendente) setErro("A compra está aguardando aprovação. Assim que a Apple confirmar, o acesso abre.");
     } catch {
-      setErro("Não deu pra concluir a assinatura. Tente de novo.");
+      setErro("Não deu para concluir a assinatura. Tente de novo.");
     } finally {
       setOcupado(null);
     }
@@ -95,7 +95,7 @@ export function AssinarPelaApple({ token, produtosIds }: { token: string; produt
       if (transacoes.length === 0) setErro("Não achamos uma assinatura ativa neste ID Apple.");
       else await registrar(transacoes);
     } catch {
-      setErro("Não deu pra restaurar agora. Tente de novo.");
+      setErro("Não deu para restaurar agora. Tente de novo.");
     } finally {
       setOcupado(null);
     }
@@ -175,7 +175,7 @@ export function AssinarPelaApple({ token, produtosIds }: { token: string; produt
             {plano
               ? `Assinatura ${plano.periodo === "ano" ? "anual" : "mensal"} de ${plano.preco}, cobrada na sua conta Apple. `
               : "Cobrada na sua conta Apple. "}
-            Ela renova sozinha pelo mesmo período e preço, a não ser que você cancele até 24 horas antes do fim. Dá pra
+            Ela renova sozinha pelo mesmo período e preço, a não ser que você cancele até 24 horas antes do fim. Dá para
             cancelar quando quiser em Ajustes, no seu nome, em Assinaturas.
           </p>
 

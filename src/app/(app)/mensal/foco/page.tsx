@@ -224,7 +224,7 @@ export default async function FocoPage(props: { searchParams: Promise<Record<str
                         : "Orçamento do mês menos tudo que já saiu, com ou sem categoria."}
                     </p>
                     <div className="mt-3">
-                      <ReportarErro tela="Foco: livre pra gastar" regra="(orçamento do mês − tudo que já saiu no mês) ÷ dias restantes × 7" />
+                      <ReportarErro tela="Foco: livre para gastar" regra="(orçamento do mês − tudo que já saiu no mês) ÷ dias restantes × 7" />
                     </div>
                   </div>
                 }

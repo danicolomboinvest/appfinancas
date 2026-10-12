@@ -308,7 +308,7 @@ export function RecapStories({ recap, monthKey }: { recap: MonthlyRecap; monthKe
             </div>
           </div>
           {/* Espaço reservado pros botões de ação, que ficam FORA do trilho de slides (ver
-              bloco "final: ações" mais abaixo) — não dá pra pôr eles aqui dentro. */}
+              bloco "final: ações" mais abaixo) — não dá para pôr eles aqui dentro. */}
           <div aria-hidden className="h-24" />
         </div>
       ),
@@ -368,7 +368,7 @@ export function RecapStories({ recap, monthKey }: { recap: MonthlyRecap; monthKe
       </div>
 
       {/* Fechar: mesmo offset-base da barra de progresso (var(--safe-top)) + folga
-          fixa abaixo dela, pra nunca colidir com as barrinhas em telas com notch. */}
+          fixa abaixo dela, para nunca colidir com as barrinhas em telas com notch. */}
       <button
         type="button"
         onClick={closeAndDismiss}

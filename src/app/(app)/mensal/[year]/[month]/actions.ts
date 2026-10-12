@@ -102,7 +102,7 @@ async function toEntryInput(data: z.output<typeof monthlyEntrySchema>): Promise<
   let conversion: Pick<MonthlyEntryInput, "originalAmount" | "originalCurrency" | "exchangeRate"> = {};
   if (currency !== userCurrency) {
     const rate = data.exchangeRate ?? (await getExchangeRate(currency, userCurrency))?.rate;
-    if (!rate) return { error: "Não consegui a cotação de hoje. Informe a cotação pra continuar." };
+    if (!rate) return { error: "Não consegui a cotação de hoje. Informe a cotação para continuar." };
     amount = convertAmount(data.amount, rate);
     conversion = { originalAmount: data.amount, originalCurrency: currency, exchangeRate: rate };
   }

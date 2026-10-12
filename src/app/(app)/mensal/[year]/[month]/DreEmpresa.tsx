@@ -110,11 +110,11 @@ export function DreEmpresa({
             <p className="mt-0.5 text-caption text-ink-faint">
               {dre.pontoDeEquilibrio === null
                 ? dre.receitaBruta === 0
-                  ? "Registre a receita pra calcular."
+                  ? "Registre a receita para calcular."
                   : "Cada venda perde dinheiro: os custos variáveis passam da receita."
                 : dre.receitaBruta >= dre.pontoDeEquilibrio
-                  ? "Faturamento mínimo pra pagar as contas. Já passou."
-                  : `Faturamento mínimo pra pagar as contas. Faltam ${money(faltaParaOEquilibrio(dre.pontoDeEquilibrio, dre.receitaBruta), { round: true })}.`}
+                  ? "Faturamento mínimo para pagar as contas. Já passou."
+                  : `Faturamento mínimo para pagar as contas. Faltam ${money(faltaParaOEquilibrio(dre.pontoDeEquilibrio, dre.receitaBruta), { round: true })}.`}
             </p>
           </div>
           <div className="rounded-xl bg-surface-2 px-3.5 py-3">
@@ -130,7 +130,7 @@ export function DreEmpresa({
               {caixa.caixa <= 0
                 ? "Informe quanto a empresa tem guardado de caixa."
                 : caixa.situacao === "sem-dado"
-                  ? `${money(caixa.caixa, { round: true })} guardados. Lance as despesas fixas pra ver quantos meses isso cobre.`
+                  ? `${money(caixa.caixa, { round: true })} guardados. Lance as despesas fixas para ver quantos meses isso cobre.`
                   : `${money(caixa.caixa, { round: true })} cobre as despesas fixas por esse tempo. Sebrae: ${MESES_DE_CAIXA_RECOMENDADOS.minimo} a ${MESES_DE_CAIXA_RECOMENDADOS.confortavel} meses.`}
             </p>
           </div>

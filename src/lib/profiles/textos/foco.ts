@@ -632,7 +632,7 @@ export const PADRAO_FOCO: TextosFoco = {
   raioxEconomia: (a, c) => `${a} por ano de volta para o seu bolso. Investidos por 5 anos, viram cerca de ${c}.`,
   raioxVazio: "Ainda não achei gasto que se repete. Preciso de pelo menos 3 meses de extrato.",
   erradoLink: "Isso está errado?",
-  erradoObrigada: "Obrigada! Isso foi para a revisão.",
+  erradoObrigada: "Recebido! Isso foi para a revisão.",
   conqTitulo: "O que você conquistou",
   conqNota: "Só conta o que você decidiu aqui dentro. É o que você fez, não \"graças ao app\".",
   focoComeceTitulo: "Comece por aqui",

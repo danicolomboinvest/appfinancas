@@ -27,7 +27,7 @@ const PERGUNTA: Record<TipoRevisao, { texto: string; opcoes: { acao: "guardado" 
     ],
   },
   conta_propria_saida: {
-    texto: "Parece dinheiro indo pra uma conta sua.",
+    texto: "Parece dinheiro indo para uma conta sua.",
     opcoes: [
       { acao: "guardado", rotulo: "Guardei (aplicação)" },
       { acao: "tirar", rotulo: "Só mudei de conta: tirar" },
@@ -72,7 +72,7 @@ export default async function RevisarAntigosPage() {
       </Link>
       <PageHeader title="Revisar lançamentos antigos" />
       {itens.length === 0 ? (
-        <p className="text-sm text-ink-muted">Nada pra revisar. Tudo certo por aqui.</p>
+        <p className="text-sm text-ink-muted">Nada para revisar. Tudo certo por aqui.</p>
       ) : (
         itens.map((it) => (
           <Card key={it.id} className="flex flex-col gap-2 p-5">

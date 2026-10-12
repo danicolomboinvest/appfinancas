@@ -63,7 +63,7 @@ const RULES: Record<string, Rule> = {
     // DY baixo NÃO é defeito (ações de crescimento pagam pouco), nunca marcamos "atenção".
     evaluate: (n) => ({
       signal: n >= 5 ? "favoravel" : "neutro",
-      reference: "acima de ~5% é um DY alto (bom pra renda; confirme se é sustentável)",
+      reference: "acima de ~5% é um DY alto (bom para renda; confirme se é sustentável)",
     }),
   },
   roe: { label: "ROE (Retorno sobre Patrimônio)", evaluate: band("high", 15, 10, "%") },

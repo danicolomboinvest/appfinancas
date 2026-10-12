@@ -109,7 +109,7 @@ export function AllocateContributionCard({
           {pronto.goals.length > 0 && <> {txt.metas(pronto.goals.map((g) => `${g.name} ${txt.sinal}${money(g.amount, { round: true })}`).join(", "))}</>}
         </p>
         {/* A quantidade foi estimada pela cotação de hoje (senão a próxima atualização de
-            cotação desfazia o aporte): ela precisa saber, pra corrigir se comprou a outro preço. */}
+            cotação desfazia o aporte): ela precisa saber, para corrigir se comprou a outro preço. */}
         {pronto.quantityEstimated.length > 0 && (
           <p className="text-caption text-ink-muted">{t.cartQuantidadeEstimada(pronto.quantityEstimated.join(", "))}</p>
         )}
@@ -210,7 +210,7 @@ export function AllocateContributionCard({
       </div>
 
       {/* Abre o "Novo ativo" da lista logo abaixo (ver novo-ativo.ts). Depois de cadastrar, a
-          página recarrega os dados e o ativo novo já aparece aqui pra receber o aporte. */}
+          página recarrega os dados e o ativo novo já aparece aqui para receber o aporte. */}
       {!resgate && (
       <button
         type="button"

@@ -26,7 +26,7 @@ function quantoFalta(ms: number): string {
  */
 export async function reenviarConfirmacaoAction(): Promise<ReenvioState> {
   const session = await auth();
-  if (!session?.user) return { erro: "Sua sessão acabou. Entre de novo pra pedir outro link." };
+  if (!session?.user) return { erro: "Sua sessão acabou. Entre de novo para pedir outro link." };
   const user = await getOwnUser({ userId: session.user.id, role: session.user.role });
   // Já confirmou (em outra aba, pelo link): nada a mandar. Revalidar refaz o layout, que agora
   // deixa passar, e o app abre no lugar desta tela.

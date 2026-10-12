@@ -148,7 +148,7 @@ export function looksLikeCardInvoice(txns: ParsedTransaction[]): boolean {
 }
 
 /** Motivo mostrado quando quem decidiu foram os sinais, e não o cabeçalho do arquivo. */
-export const MOTIVO_SINAIS_FATURA = "quase todos os lançamentos vão pro mesmo lado";
+export const MOTIVO_SINAIS_FATURA = "quase todos os lançamentos vão para o mesmo lado";
 
 /**
  * O perfil disse "extrato"; os sinais desmentem? Só no caso CARO: quase tudo entrando como

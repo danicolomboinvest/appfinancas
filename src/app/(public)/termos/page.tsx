@@ -14,7 +14,7 @@ export default function TermosPage() {
 
       <section className="flex flex-col gap-4 text-sm leading-relaxed text-ink-muted">
         <p>
-          Bem-vindo(a) ao <strong className="text-ink">SPI Finance</strong>. Ao criar uma conta ou usar o
+          Boas-vindas ao <strong className="text-ink">SPI Finance</strong>. Ao criar uma conta ou usar o
           aplicativo, você concorda com estes termos. Se não concordar, basta não utilizar o serviço.
         </p>
 
@@ -26,7 +26,7 @@ export default function TermosPage() {
 
         <h2 className="mt-2 text-base font-semibold text-ink">2. Não é recomendação de investimento</h2>
         <p>
-          Todo conteúdo do aplicativo, incluindo simuladores, comparativos, projeções, rebalanceamento e análises —
+          Todo conteúdo do aplicativo, incluindo simuladores, comparativos, projeções, rebalanceamento e análises,
           tem caráter <strong className="text-ink">educativo e informativo</strong>. Nada aqui constitui recomendação,
           oferta ou aconselhamento de investimento, jurídico ou tributário. Decisões financeiras são de sua exclusiva
           responsabilidade; considere consultar um profissional certificado.

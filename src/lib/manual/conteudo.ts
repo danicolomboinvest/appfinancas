@@ -54,17 +54,17 @@ export const SECOES_DO_MANUAL: SecaoDoManual[] = [
     id: "comecar",
     icone: "rocket",
     titulo: "Comece por aqui",
-    resumo: "Três passos pra começar, e um hábito de 5 minutos por semana.",
+    resumo: "Três passos para começar, e um hábito de 5 minutos por semana.",
     blocos: [
       {
         tipo: "passos",
         itens: [
           // A mesma ordem do cartão "Comece por aqui" do Foco e do tour (ver foco/comece.ts):
           // primeiro os gastos, depois o mês montado, e o orçamento já com os gastos dela.
-          { titulo: "Traga os seus gastos", texto: "Suba o extrato do banco e a fatura do cartão no botão +, em \"{importarArquivo}\". O app monta o mês sozinho. Não tem o arquivo agora? Dá pra digitar um por um." },
-          { titulo: "Veja o seu mês montado", texto: "Na aba {mensal}: quanto entrou, quanto saiu e pra onde foi o dinheiro, separado por categoria." },
+          { titulo: "Traga os seus gastos", texto: "Suba o extrato do banco e a fatura do cartão no botão +, em \"{importarArquivo}\". O app monta o mês sozinho. Não tem o arquivo agora? Dá para digitar um por um." },
+          { titulo: "Veja o seu mês montado", texto: "Na aba {mensal}: quanto entrou, quanto saiu e para onde foi o dinheiro, separado por categoria." },
           { titulo: "Monte o seu {orcamento}", texto: "Quanto entra por mês, quanto você quer guardar e como dividir o resto (\"{sugerir}\" faz uma primeira divisão). Com os gastos já no app, você vê se ela combina com a sua vida. No fim, toque em Salvar." },
-          { titulo: "Olhe o {foco} toda semana", texto: "São 5 minutos: quanto ainda dá pra gastar e o que precisa da sua atenção." },
+          { titulo: "Olhe o {foco} toda semana", texto: "São 5 minutos: quanto ainda dá para gastar e o que precisa da sua atenção." },
         ],
       },
     ],
@@ -86,7 +86,7 @@ export const SECOES_DO_MANUAL: SecaoDoManual[] = [
               "Entrada vira renda, saída vira gasto",
               "Cada lançamento cai no mês da própria data",
               "Aplicação e caixinha viram dinheiro guardado sozinhas",
-              "Transferência pra você mesma e resgate: o app pergunta",
+              "Transferência para outra conta sua e resgate: o app pergunta",
             ],
           },
           {
@@ -151,7 +151,7 @@ export const SECOES_DO_MANUAL: SecaoDoManual[] = [
         itens: [
           { titulo: "Confira o perfil e o mês", texto: "O perfil aparece no topo do app. Na fatura, confira o mês em que ela entra: o app lê o vencimento sozinho." },
           { titulo: "Dê categoria aos gastos novos", texto: "O app pergunta só o que não reconheceu. Não sabe agora? Toque em \"Não sei agora\": o gasto entra sem categoria e você decide depois." },
-          { titulo: "Responda as dúvidas", texto: "Transferência pra você mesma e resgate: o botão Importar só libera depois." },
+          { titulo: "Responda as dúvidas", texto: "Transferência para outra conta sua e resgate: o botão Importar só libera depois." },
           { titulo: "Importe", texto: "O que você categorizou hoje, o app acerta sozinho na próxima vez." },
         ],
       },
@@ -168,7 +168,7 @@ export const SECOES_DO_MANUAL: SecaoDoManual[] = [
   {
     id: "desfazer",
     icone: "undo",
-    titulo: "Errou? Dá pra desfazer",
+    titulo: "Errou? Dá para desfazer",
     resumo: "Nada é definitivo.",
     blocos: [
       {
@@ -185,15 +185,15 @@ export const SECOES_DO_MANUAL: SecaoDoManual[] = [
     id: "lancar",
     icone: "plus",
     titulo: "Lançar à mão (o botão +)",
-    resumo: "Pra dinheiro vivo, Pix que não veio no extrato ou o que você quiser registrar na hora.",
+    resumo: "Para dinheiro vivo, Pix que não veio no extrato ou o que você quiser registrar na hora.",
     blocos: [
       {
         tipo: "regras",
         itens: [
           { texto: "Três tipos: \"{renda}\", \"{gasto}\" e \"{guardar}\" (dinheiro que você guardou)." },
-          { texto: "A data decide o mês: um gasto com data de agosto vai pra agosto, mesmo lançado em setembro." },
+          { texto: "A data decide o mês: um gasto com data de agosto vai para agosto, mesmo lançado em setembro." },
           { texto: "Conta fixa (aluguel, academia): marque \"Repetir todo mês\" e ela é criada até dezembro." },
-          { texto: "Pra mudar ou apagar uma conta fixa, o app pergunta: \"{soEsteMes}\" ou \"{esteEProximos}\". Os meses que já passaram não mudam." },
+          { texto: "Para mudar ou apagar uma conta fixa, o app pergunta: \"{soEsteMes}\" ou \"{esteEProximos}\". Os meses que já passaram não mudam." },
         ],
       },
     ],
@@ -218,14 +218,14 @@ export const SECOES_DO_MANUAL: SecaoDoManual[] = [
   {
     id: "foco",
     icone: "target",
-    titulo: "{foco}: quanto ainda dá pra gastar",
+    titulo: "{foco}: quanto ainda dá para gastar",
     resumo: "A primeira tela do app. Mostra o mês de agora.",
     blocos: [
       {
         tipo: "regras",
         itens: [
           { texto: "\"{livreMes}\" é o {orcamento} do mês menos tudo que já saiu, com ou sem categoria." },
-          { texto: "No ritmo semanal, o número vira \"{livreSemana}\": quanto dá pra gastar nesta semana." },
+          { texto: "No ritmo semanal, o número vira \"{livreSemana}\": quanto dá para gastar nesta semana." },
           { texto: "Até 3 avisos por vez. \"{focoAcao}\" resolve ali mesmo: pôr um teto, subir o plano ou marcar como pontual." },
           { texto: "\"Não gastar mais nada\" vira um combinado, e o app mostra se algo entrou depois." },
           { texto: "Mais de 7 dias sem lançar gasto? O número pode estar alto demais: suba o extrato.", atencao: true },
@@ -254,14 +254,14 @@ export const SECOES_DO_MANUAL: SecaoDoManual[] = [
     id: "posso-comprar",
     icone: "bag",
     titulo: "Posso comprar?",
-    resumo: "Antes de uma compra, pergunte pros seus números.",
+    resumo: "Antes de uma compra, pergunte para os seus números.",
     soPessoa: true,
     blocos: [
       {
         tipo: "regras",
         itens: [
           { texto: "O app responde se cabe no mês, se é melhor parcelar ou pagar à vista, e se atrasa alguma meta." },
-          { texto: "A regra dos 90%: gastos e parcelas somados até 90% da renda. Os outros 10% são pra você." },
+          { texto: "A regra dos 90%: gastos e parcelas somados até 90% da renda. Os outros 10% são para você." },
           { texto: "Parcelado com juros acima do que o dinheiro renderia: o app avisa, com quanto você paga a mais." },
           { texto: "\"Vou comprar\" não lança o gasto. Quando comprar, lance ou suba o extrato.", atencao: true },
           { texto: "\"Decidir amanhã\": o app te lembra no dia seguinte." },

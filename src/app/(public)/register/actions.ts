@@ -53,7 +53,7 @@ export async function registerAction(_prevState: RegisterState, formData: FormDa
 
   const existing = await findUserByEmail(parsed.data.email);
   if (existing) {
-    return { error: "Já existe uma conta com este email. Se ela é sua, use \"Esqueci minha senha\" no login pra entrar.", values };
+    return { error: "Já existe uma conta com este email. Se ela é sua, use \"Esqueci minha senha\" no login para entrar.", values };
   }
 
   // Só quem comprou cria conta (fim do freemium, 30/09/2026): no grátis, quem comprava com um

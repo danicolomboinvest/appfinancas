@@ -364,7 +364,7 @@ export function CancelarAssinatura({ dados }: { dados: DadosDoCancelar }) {
     } else {
       corpo = (
         <>
-          <Titulo>Conta pra gente</Titulo>
+          <Titulo>Conta para gente</Titulo>
           <p className="text-sm text-ink-muted">Opcional. Ajuda a melhorar o app.</p>
           <textarea value={texto} onChange={(e) => setTexto(e.target.value)} aria-label="O motivo" placeholder="O que fez você querer sair?" rows={4} maxLength={2000} className="w-full rounded-2xl border border-border-strong bg-surface px-4 py-3 text-[15px] text-ink outline-none focus:border-accent" />
         </>

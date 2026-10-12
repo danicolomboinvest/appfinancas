@@ -76,7 +76,7 @@ export const SEMANAS = [
   {
     n: 2 as const,
     nome: "Organizar",
-    historia: "Um destino pra cada real",
+    historia: "Um destino para cada real",
     resumo: "Um destino para cada real",
   },
   {
@@ -146,7 +146,7 @@ export const MARCOS: Marco[] = [
     passos: ["{Metas} › {NovaMeta}", "O que é, quanto custa e para quando", "Pesou? Mude a data, não desista do sonho"],
     travou: "Não sabe quanto custa? Ponha um valor aproximado e ajuste depois.",
     mudou: ["O sonho tem preço e data", "O app calcula quanto guardar por mês"] },
-  { n: 12, semana: 2, icone: "divisao", min: 2, t: "Pra onde vai o guardado", sub: "reserva primeiro, depois o sonho", antigos: [12], destino: "tela",
+  { n: 12, semana: 2, icone: "divisao", min: 2, t: "Para onde vai o guardado", sub: "reserva primeiro, depois o sonho", antigos: [12], destino: "tela",
     btn: "Confirmar", confere: "manual", aula: "Distribuição do orçamento",
     passos: ["Veja a divisão que o app sugere", "Ajuste a data de um sonho se não couber", "Confirme"],
     travou: null,
@@ -170,7 +170,7 @@ export const MARCOS: Marco[] = [
     mudou: ["O {Foco} mostra o livre da semana"] },
   { n: 16, semana: 3, icone: "espera", min: 3, t: "A regra das 24 horas", sub: "uma compra, decidida com calma", antigos: [15], destino: "guia",
     btn: "Abrir {PossoComprar}", confere: "auto", aula: "Consumo consciente",
-    passos: ["Toque em + {Registrar} › {PossoComprar}", "O que é, quanto custa e como paga", "Sem mentir pra mim", "Se for impulso: {DecidirAmanha}"],
+    passos: ["Toque em + {Registrar} › {PossoComprar}", "O que é, quanto custa e como paga", "Sem mentir para mim", "Se for impulso: {DecidirAmanha}"],
     travou: "Nenhuma compra em vista? Use uma que quase fez no último mês.",
     mudou: ["A compra ficou decidida, sem impulso"] },
   { n: 17, semana: 3, icone: "semgasto", min: 1, t: "Um dia sem gasto à toa", sub: "o app confere no dia seguinte", antigos: [17], destino: "tela",

@@ -49,7 +49,7 @@ export const CATEGORIAS_EMPRESA: Record<ParentCategory, CategoriaEmpresa> = {
   },
   ALIMENTACAO: {
     label: "Mercadorias e insumos",
-    descricao: "O que você compra pra vender ou pra produzir. Sobe e desce com a venda.",
+    descricao: "O que você compra para vender ou para produzir. Sobe e desce com a venda.",
     icone: Package,
     natureza: "variavel",
     subcategorias: ["Mercadorias pra revenda", "Matéria-prima", "Embalagens", "Fornecedores", "Estoque"],

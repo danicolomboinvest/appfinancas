@@ -17,7 +17,7 @@ export type EstadoDoAporte =
   | { tipo: "adiado"; mesDeHoje: string }
   | { tipo: "perguntar"; mes: string; combinado: number; diaMin: string; diaMax: string };
 
-const AJUDA = "Quando você manda dinheiro para você mesma ou aplica, o SPI pergunta para qual meta foi. Assim ele sabe que você fez o aporte.";
+const AJUDA = "Quando você manda dinheiro para outra conta sua ou aplica, o SPI pergunta para qual meta foi. Assim ele sabe que você fez o aporte.";
 const Maiuscula = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 /**

@@ -11,7 +11,7 @@ export function PerguntaRendaDoCasal() {
     <Card className="flex flex-col gap-4 p-5">
       <div>
         <p className="text-base font-semibold text-ink">A renda deste perfil é qual?</p>
-        <p className="mt-1 text-sm text-ink-muted">Pra eu fazer a conta certa. Dá pra trocar depois, nesta mesma tela.</p>
+        <p className="mt-1 text-sm text-ink-muted">Para eu fazer a conta certa. Dá para trocar depois, nesta mesma tela.</p>
       </div>
       <form action={responderRendaDoCasalAction.bind(null, "casal")}>
         <button type="submit" className="w-full rounded-2xl border border-border bg-surface px-4 py-3 text-left hover:bg-surface-hover">

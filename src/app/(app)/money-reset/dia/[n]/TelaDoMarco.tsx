@@ -305,7 +305,7 @@ function M3({ d, c }: { d: Extract<DadosDoMarco, { n: 3 }>; c: Comum }) {
   return (
     <>
       <Placar porMes={placar} />
-      <p className="px-1 text-[14px] text-ink-muted">O que se repete no seu extrato. Pra cada um, você decide.</p>
+      <p className="px-1 text-[14px] text-ink-muted">O que se repete no seu extrato. Para cada um, você decide.</p>
       <ul className="flex flex-col gap-2">
         {d.itens.map((i) => (
           <li key={i.chave} className="glass flex flex-col gap-2.5 rounded-2xl p-3">
@@ -858,7 +858,7 @@ function M16({ c }: { c: Comum }) {
     <>
       <Desenho n={16}>
         <div className="flex flex-wrap items-center justify-center gap-1.5">
-          {["O que é", "Quanto custa", "Sem mentir pra mim", naVoz("{DecidirAmanha}", v)].map((x, i) => (
+          {["O que é", "Quanto custa", "Sem mentir para mim", naVoz("{DecidirAmanha}", v)].map((x, i) => (
             <span key={x} className="flex items-center gap-1.5">
               {i > 0 && <span className="text-heroi-suave">›</span>}
               <span className="heroi-veu rounded-full px-2.5 py-1 text-[12px] font-semibold">{x}</span>

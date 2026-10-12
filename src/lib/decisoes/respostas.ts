@@ -144,9 +144,9 @@ export function estouGastandoDemais(e: {
       semRegra90
         ? acimaDa90
           ? `Os gastos já passam do que vocês põem na conta conjunta (${money(limiteDaRenda)}).`
-          : `Aqui a renda é o que vocês põem na conta conjunta (${money(limiteDaRenda)}): a regra dos 90% vale pra renda de cada um, não pra ela.`
+          : `Aqui a renda é o que vocês põem na conta conjunta (${money(limiteDaRenda)}): a regra dos 90% vale para a renda de cada um, não para ela.`
         : acimaDa90
-          ? `Os gastos já passam de 90% da renda (${money(limiteDaRenda)}): sobra menos de 10% pra guardar.`
+          ? `Os gastos já passam de 90% da renda (${money(limiteDaRenda)}): sobra menos de 10% para guardar.`
           : `Pela regra dos 90%, seus gastos podem ir até ${money(limiteDaRenda)} este mês.`,
     );
   }
@@ -300,7 +300,7 @@ export function quantoPrecisoGuardar(e: {
     return {
       veredito: "atencao",
       frase: `Ainda não sei: o prazo de ${vencidasSemValor[0].nome} (${vencidasSemValor[0].prazo}) já passou. Com uma data nova, eu calculo quanto guardar por mês.`,
-      detalhes: ["A aula pede no mínimo 10% da renda todo mês, pro seu futuro."],
+      detalhes: ["A aula pede no mínimo 10% da renda todo mês, para o seu futuro."],
       conta: [],
       acoes: [{ rotulo: "Escolher uma data nova", href: "/planejamento/metas" }],
     };
@@ -309,7 +309,7 @@ export function quantoPrecisoGuardar(e: {
     return {
       veredito: "atencao",
       frase: "Ainda não sei: sem metas e sem renda planejada, não tenho com o que calcular.",
-      detalhes: ["A aula pede no mínimo 10% da renda todo mês, pro seu futuro."],
+      detalhes: ["A aula pede no mínimo 10% da renda todo mês, para o seu futuro."],
       conta: [],
       acoes: [{ rotulo: "Criar uma meta", href: "/planejamento/metas" }],
     };
@@ -322,7 +322,7 @@ export function quantoPrecisoGuardar(e: {
       : `${money(alvo)} por mês. Hoje o plano guarda ${money(planejado)}: faltam ${money(alvo - planejado)} por mês.`;
   const detalhes: string[] = abertas
     .slice(0, 4)
-    .map((m) => (m.vencida ? `${m.nome}: ${money(m.necessarioPorMes)} por mês, o que você combinou. O prazo (${m.prazo}) já passou: vale escolher uma data nova.` : `${m.nome}: ${money(m.necessarioPorMes)} por mês${m.prazo ? ` pra chegar em ${m.prazo}` : ""}.`));
+    .map((m) => (m.vencida ? `${m.nome}: ${money(m.necessarioPorMes)} por mês, o que você combinou. O prazo (${m.prazo}) já passou: vale escolher uma data nova.` : `${m.nome}: ${money(m.necessarioPorMes)} por mês${m.prazo ? ` para chegar em ${m.prazo}` : ""}.`));
   // Vencida sem valor combinado não entra na soma, mas também não some da resposta.
   for (const m of vencidasSemValor.slice(0, 2)) {
     detalhes.push(`${m.nome}: o prazo (${m.prazo}) já passou. Escolha uma data nova e eu calculo quanto guardar.`);
@@ -388,7 +388,7 @@ export function quandoAtinjoMinhaMeta(e: { money: (v: number) => string; metas: 
       ? `${principal.nome}, no ritmo de hoje, não chega: você está guardando ${money(principal.ritmoPorMes)} por mês e ela pede ${money(principal.necessarioPorMes)}.`
       : principal.noPrazo
         ? `${principal.nome} chega em ${principal.chegaEm}${principal.prazo ? `, dentro do prazo (${principal.prazo})` : ""}.`
-        : `${principal.nome} chega em ${principal.chegaEm}, depois do prazo (${principal.prazo}). Pra chegar a tempo: ${money(principal.necessarioPorMes)} por mês.`;
+        : `${principal.nome} chega em ${principal.chegaEm}, depois do prazo (${principal.prazo}). Para chegar a tempo: ${money(principal.necessarioPorMes)} por mês.`;
   const detalhes = abertas
     .filter((m) => m !== principal)
     .slice(0, 4)
@@ -419,7 +419,7 @@ export function quandoAtinjoMinhaMeta(e: { money: (v: number) => string; metas: 
         // Só quando os dois números contam histórias diferentes: R$ 2.370 e R$ 2.370 lado a lado
         // pareciam erro (o atraso ali é de arredondamento do mês, não de dinheiro).
         ...(!principal.vencida && !principal.noPrazo && principal.necessarioPorMes - principal.ritmoPorMes >= 10
-          ? [{ tipo: "numeros" as const, itens: [{ rotulo: "Você guarda", valor: `${money(principal.ritmoPorMes)}/mês` }, { rotulo: "Pra chegar a tempo", valor: `${money(principal.necessarioPorMes)}/mês`, tom: "atencao" as Veredito }] }]
+          ? [{ tipo: "numeros" as const, itens: [{ rotulo: "Você guarda", valor: `${money(principal.ritmoPorMes)}/mês` }, { rotulo: "Para chegar a tempo", valor: `${money(principal.necessarioPorMes)}/mês`, tom: "atencao" as Veredito }] }]
           : []),
         {
           tipo: "lista",
@@ -473,7 +473,7 @@ export function minhaReservaBasta(e: {
       : `Ainda não. Ela cobre ${cobre} do seu custo de vida; a sua meta é ${r.mesesMeta} meses. Faltam ${money(falta)}.`;
   const detalhes: string[] = [];
   if (e.gastoReal && e.gastoReal > r.custoMensal * 1.1) detalhes.push(`Você montou a reserva com ${money(r.custoMensal)} de custo por mês, mas hoje gasta uns ${money(e.gastoReal)}. Usei o maior.`);
-  if (veredito !== "bom") detalhes.push(mesesPraCompletar ? `Guardando ${money(r.porMes)} por mês, completa em ${mesesPraCompletar} ${mesesPraCompletar === 1 ? "mês" : "meses"}.` : "Sem um valor guardado por mês pra reserva, ela não cresce sozinha.");
+  if (veredito !== "bom") detalhes.push(mesesPraCompletar ? `Guardando ${money(r.porMes)} por mês, completa em ${mesesPraCompletar} ${mesesPraCompletar === 1 ? "mês" : "meses"}.` : "Sem um valor guardado por mês para a reserva, ela não cresce sozinha.");
   return {
     veredito,
     frase,
@@ -568,8 +568,8 @@ export function melhoreiDoMesPassado(e: { money: (v: number) => string; atual: R
   const veredito: Veredito = semBase ? "atencao" : pontos >= 2 ? "bom" : pontos === 1 ? "atencao" : "ruim";
   const frase = semBase
     ? vazio(e.atual)
-      ? `Ainda não dá pra comparar: não tem nada lançado em ${e.anterior.label} nem em ${e.atual.label}.`
-      : `Ainda não dá pra comparar: não tem nada lançado em ${e.anterior.label}. Em ${e.atual.label} você gastou ${money(e.atual.gastos)} e guardou ${money(e.atual.guardado)}.`
+      ? `Ainda não dá para comparar: não tem nada lançado em ${e.anterior.label} nem em ${e.atual.label}.`
+      : `Ainda não dá para comparar: não tem nada lançado em ${e.anterior.label}. Em ${e.atual.label} você gastou ${money(e.atual.gastos)} e guardou ${money(e.atual.guardado)}.`
     : veredito === "bom"
       ? `Sim. Em ${e.atual.label} você gastou ${money(e.atual.gastos)} (em ${e.anterior.label} foram ${money(e.anterior.gastos)}) e guardou ${money(e.atual.guardado)}.`
       : veredito === "atencao"

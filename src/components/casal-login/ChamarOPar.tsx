@@ -111,7 +111,7 @@ export function ChamarOPar({
         <p className="mt-2 text-[17px] text-ink-muted">{podeLiberar ? "Libere o Casal e convide o seu par." : "Convide o seu par para o Nós dois."}</p>
         <ul className={`${CARTAO} mt-6 w-full divide-y divide-border px-5 text-left`}>
           <Item icone={<House size={20} strokeWidth={1.6} />} titulo="Contas da casa" texto="quem cuida e quem pagou" />
-          <Item icone={<ArrowLeftRight size={20} strokeWidth={1.6} />} titulo="Acerto sozinho" texto="quem manda quanto pra quem" />
+          <Item icone={<ArrowLeftRight size={20} strokeWidth={1.6} />} titulo="Acerto sozinho" texto="quem manda quanto para quem" />
           <Item icone={<Target size={20} strokeWidth={1.6} />} titulo="Metas a dois" texto="cada um coloca a sua parte" />
         </ul>
         {podeLiberar ? (

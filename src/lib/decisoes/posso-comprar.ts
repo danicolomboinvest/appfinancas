@@ -289,12 +289,12 @@ export function avisosDaBase(base: CompraBase, money: (v: number) => string): st
     );
   }
   if (base.regra90 === false) {
-    avisos.push("Aqui a renda é o que vocês colocam na conta conjunta, então a regra dos 90% não se aplica: ela vale pra renda de cada um. A conta abaixo olha se cabe no que já está na conta e nas metas do casal.");
+    avisos.push("Aqui a renda é o que vocês colocam na conta conjunta, então a regra dos 90% não se aplica: ela vale para a renda de cada um. A conta abaixo olha se cabe no que já está na conta e nas metas do casal.");
   }
   if (base.fonteRenda === "media") {
-    avisos.push(`Você não planejou a renda deste mês. Usei ${money(base.renda)}, a renda típica dos seus últimos meses. Planeje a renda no Orçamento pra conta ficar exata.`);
+    avisos.push(`Você não planejou a renda deste mês. Usei ${money(base.renda)}, a renda típica dos seus últimos meses. Planeje a renda no Orçamento para a conta ficar exata.`);
   } else if (base.fonteRenda === "mes") {
-    avisos.push(`Você não planejou a renda deste mês e não tenho renda dos meses anteriores. Usei o que entrou até agora (${money(base.renda)}). Planeje a renda no Orçamento pra conta ficar exata.`);
+    avisos.push(`Você não planejou a renda deste mês e não tenho renda dos meses anteriores. Usei o que entrou até agora (${money(base.renda)}). Planeje a renda no Orçamento para a conta ficar exata.`);
   }
   return avisos;
 }
@@ -393,7 +393,7 @@ function avaliarSemAvisos(base: CompraBase, compraBruta: Compra, fmt: Formatos):
     const linhas: LinhaAntesDepois[] = [
       linhaComprometida(gastoMesDepois, comprometidoNoMes),
       { rotulo: "Livre por semana", hoje: money(porSemana(sobra)), depois: money(porSemana(depois)) },
-      { rotulo: "Sobra do mês pro dia a dia", hoje: money(sobra), depois: falta > 0 ? `falta ${money(falta)}` : money(depois) },
+      { rotulo: "Sobra do mês para o dia a dia", hoje: money(sobra), depois: falta > 0 ? `falta ${money(falta)}` : money(depois) },
     ];
     if (semDestino > 0) linhas.push({ rotulo: "Livre sem destino no mês", hoje: money(semDestino), depois: money(semDestino - doSemDestino) });
     if (temMetas) {
@@ -414,13 +414,13 @@ function avaliarSemAvisos(base: CompraBase, compraBruta: Compra, fmt: Formatos):
     // Cabe no dinheiro do mês, mas os gastos passam de 90% da renda: sobra menos de 10% pra
     // guardar. Não é "não", mas também não é verde.
     if (falta <= 0 && passa90) {
-      return { veredito: "custo", titulo: "Cabe, mas passa da regra dos 90%", explicacao: `Neste mês seus gastos iriam a ${pct(gastoMesDepois / base.renda)} da renda: sobra menos de 10% pra guardar.`, linhas, sugestao: null, comparacao: null, custoJuros: null, comprometimento: cmp, conta, quadro, pagavel, precisa: { valor: gastoMesDepois - base.renda * LIMITE_GASTO, porMes: false } };
+      return { veredito: "custo", titulo: "Cabe, mas passa da regra dos 90%", explicacao: `Neste mês seus gastos iriam a ${pct(gastoMesDepois / base.renda)} da renda: sobra menos de 10% para guardar.`, linhas, sugestao: null, comparacao: null, custoJuros: null, comprometimento: cmp, conta, quadro, pagavel, precisa: { valor: gastoMesDepois - base.renda * LIMITE_GASTO, porMes: false } };
     }
     if (resto <= 0) {
       return { veredito: "ok", titulo: "Cabe no dinheiro que ainda não tem destino", explicacao: temMetas ? "Não mexe no dia a dia nem nas suas metas." : "Não mexe no dinheiro do dia a dia.", linhas, sugestao: null, comparacao: null, custoJuros: null, comprometimento: cmp, conta, quadro, pagavel };
     }
     if (resto <= sobra * 0.35) {
-      return { veredito: "ok", titulo: "Cabe no que está livre este mês", explicacao: temMetas ? "Suas metas não mudam. Só sobra um pouco menos pro resto do mês." : "Só sobra um pouco menos pro resto do mês.", linhas, sugestao: null, comparacao: null, custoJuros: null, comprometimento: cmp, conta, quadro, pagavel };
+      return { veredito: "ok", titulo: "Cabe no que está livre este mês", explicacao: temMetas ? "Suas metas não mudam. Só sobra um pouco menos para o resto do mês." : "Só sobra um pouco menos para o resto do mês.", linhas, sugestao: null, comparacao: null, custoJuros: null, comprometimento: cmp, conta, quadro, pagavel };
     }
     if (resto <= sobra) {
       return { veredito: "custo", titulo: "Cabe, mas aperta o resto do mês", explicacao: `Sobram ${money(porSemana(depois))} por semana até o fim do mês.`, linhas, sugestao: null, comparacao: null, custoJuros: null, comprometimento: cmp, conta, quadro, pagavel, precisa: { valor: resto - sobra * 0.35, porMes: false } };
@@ -439,7 +439,7 @@ function avaliarSemAvisos(base: CompraBase, compraBruta: Compra, fmt: Formatos):
       folgaNoMes > 0 && custo <= folgaNoMes
         ? `Cabe ${semRegra90 ? "no que vocês põem na conta" : "dentro da regra dos 90% da renda"} se sair do que ${semRegra90 ? "vocês guardariam" : "você guardaria"} este mês, sem mexer no básico. Aí a decisão é ${semRegra90 ? "de vocês" : "sua"}: a compra agora ou o guardado do mês.`
         : parcelasSugeridas && parcelasSugeridas <= 24 && mesesGuardando
-          ? `Se a loja parcelar em ${parcelasSugeridas}x sem juros (${money(compra.valor / parcelasSugeridas)} por mês), cabe ${limite}. Ou, guardando ${money(Math.ceil(custo / mesesGuardando))} por mês, dá pra comprar à vista em ${mesesGuardando} ${mesesGuardando > 1 ? "meses" : "mês"}, sem dívida.`
+          ? `Se a loja parcelar em ${parcelasSugeridas}x sem juros (${money(compra.valor / parcelasSugeridas)} por mês), cabe ${limite}. Ou, guardando ${money(Math.ceil(custo / mesesGuardando))} por mês, dá para comprar à vista em ${mesesGuardando} ${mesesGuardando > 1 ? "meses" : "mês"}, sem dívida.`
           : "Esse valor pede uma meta própria: guardar antes e comprar depois.";
     return {
       veredito: "nao",

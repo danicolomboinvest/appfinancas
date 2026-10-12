@@ -59,7 +59,7 @@ export function ViradaDoAno({ v }: { v: DadosVirada }) {
           {v.resumo.pctGuardado !== null && (
             <p className="text-sm text-ink">
               Você guardou <b>{pct(v.resumo.pctGuardado)}</b> do que entrou.{" "}
-              {v.resumo.pctGuardado >= 0.1 ? "Passou dos 10% que a aula pede." : "A aula pede pelo menos 10%: dá pra chegar lá em " + v.ano + "."}
+              {v.resumo.pctGuardado >= 0.1 ? "Passou dos 10% que a aula pede." : "A aula pede pelo menos 10%: dá para chegar lá em " + v.ano + "."}
             </p>
           )}
           {v.resumo.maior && (
@@ -72,7 +72,7 @@ export function ViradaDoAno({ v }: { v: DadosVirada }) {
       )}
 
       {passo === 1 && (
-        <Passo rotulo={`2 de 3, Sugestão pra ${v.ano}`} titulo="Com base no que você viveu, eu começaria assim:">
+        <Passo rotulo={`2 de 3, Sugestão para ${v.ano}`} titulo="Com base no que você viveu, eu começaria assim:">
           <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1.5 text-sm">
             <dt className="text-ink-muted">Renda por mês</dt>
             <dd className="text-right tabular-nums text-ink">{m(s.renda)}</dd>
@@ -110,7 +110,7 @@ export function ViradaDoAno({ v }: { v: DadosVirada }) {
           {v.talvezFixas.length > 0 && (
             <div className="flex flex-col gap-1.5">
               <p className="text-caption font-semibold text-ink-muted">Lançados em dezembro</p>
-              <p className="text-caption text-ink-muted">Algum destes é conta fixa que continua em {v.ano}? Marque pra ele repetir todo mês.</p>
+              <p className="text-caption text-ink-muted">Algum destes é conta fixa que continua em {v.ano}? Marque para ele repetir todo mês.</p>
               {v.talvezFixas.map((f) => (
                 <LinhaConta key={f.chave} f={f} marcada={escolhidas.has(f.chave)} onAlternar={() => alternar(f.chave)} valor={m(f.valor)} />
               ))}
@@ -118,7 +118,7 @@ export function ViradaDoAno({ v }: { v: DadosVirada }) {
           )}
           {s.renda > 0 && (
             <p className="text-sm text-ink-muted">
-              {s.semDestino >= 0 ? `Sobram ${m(s.semDestino)} por mês sem destino.` : `Faltam ${m(-s.semDestino)} por mês pra conta fechar.`}
+              {s.semDestino >= 0 ? `Sobram ${m(s.semDestino)} por mês sem destino.` : `Faltam ${m(-s.semDestino)} por mês para a conta fechar.`}
             </p>
           )}
           {s.avisos.map((a) => (
@@ -142,7 +142,7 @@ export function ViradaDoAno({ v }: { v: DadosVirada }) {
           <Botao secundario disabled={salvando} onClick={() => comecar("zerado")}>
             Começar do zero
           </Botao>
-          <p className="text-caption text-ink-faint">Dá pra mudar qualquer valor depois, no Orçamento.</p>
+          <p className="text-caption text-ink-faint">Dá para mudar qualquer valor depois, no Orçamento.</p>
         </Passo>
       )}
     </div>

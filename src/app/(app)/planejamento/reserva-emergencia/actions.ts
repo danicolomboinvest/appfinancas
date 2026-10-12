@@ -93,7 +93,7 @@ export async function guardeiNaReservaAction(input: { valor?: number } = {}): Pr
         year: ano,
         month: mes,
         category: "INVESTMENT_CONTRIBUTION",
-        description: empresa ? "Pro caixa de segurança" : "Guardei na reserva",
+        description: empresa ? "Para o caixa de segurança" : "Guardei na reserva",
         amount: valor,
         entryDate: new Date(Date.UTC(ano, mes - 1, agora.getDate())),
       },

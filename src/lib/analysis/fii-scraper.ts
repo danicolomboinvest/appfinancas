@@ -75,7 +75,7 @@ export function parseFiiPage(html: string): ScrapedCriterion[] {
     const smalls = $(el).find("small");
     const state = smalls.eq(0).text().replace(/^Estado:\s*/i, "").trim();
     const area = smalls.eq(1).text().replace(/^Área bruta locável:\s*/i, "").trim();
-    if (name) properties.push([name, state, area].filter(Boolean).join(" — "));
+    if (name) properties.push([name, state, area].filter(Boolean).join(" · "));
   });
   if (properties.length > 0) {
     const shown = properties.slice(0, 12);

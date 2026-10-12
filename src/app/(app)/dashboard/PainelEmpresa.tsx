@@ -107,8 +107,8 @@ export function PainelEmpresa({
         <Indicador rotulo={`Custos e despesas, ${mesLabel}`} valor={money(despesas.atual, { round: true })} tom="danger" variacao={variacao(despesas)} periodo={compararComAnterior ? mesAnteriorLabel : undefined} bomQuandoCai money={money} />
         <Indicador rotulo={`Lucro, ${mesLabel}`} valor={money(lucro.atual, { round: true })} tom={lucro.atual >= 0 ? "success" : "danger"} variacao={compararComAnterior && lucro.anterior !== 0 ? (lucro.atual - lucro.anterior) / Math.abs(lucro.anterior) : null} periodo={compararComAnterior ? mesAnteriorLabel : undefined} money={money} />
         <Indicador rotulo="Margem líquida" valor={pct(mes.dre.margemLiquidaPct)} tom={mes.dre.margemLiquidaPct !== null && mes.dre.margemLiquidaPct < 0 ? "danger" : "neutral"} nota="lucro ÷ receita" money={money} />
-        <Indicador rotulo="Margem de contribuição" valor={pct(mes.dre.margemContribuicaoPct)} tom="neutral" nota="o que sobra da venda pra pagar o fixo" money={money} />
-        <Indicador rotulo="Caixa de segurança" valor={caixaTexto} tom={caixaTom} nota={mes.caixa.caixa <= 0 ? "informe o caixa da empresa" : mes.caixa.situacao === "sem-dado" ? `${money(mes.caixa.caixa, { round: true })}, sem despesa fixa pra medir` : `${money(mes.caixa.caixa, { round: true })}, Sebrae: ${MESES_DE_CAIXA_RECOMENDADOS.minimo} a ${MESES_DE_CAIXA_RECOMENDADOS.confortavel}`} money={money} />
+        <Indicador rotulo="Margem de contribuição" valor={pct(mes.dre.margemContribuicaoPct)} tom="neutral" nota="o que sobra da venda para pagar o fixo" money={money} />
+        <Indicador rotulo="Caixa de segurança" valor={caixaTexto} tom={caixaTom} nota={mes.caixa.caixa <= 0 ? "informe o caixa da empresa" : mes.caixa.situacao === "sem-dado" ? `${money(mes.caixa.caixa, { round: true })}, sem despesa fixa para medir` : `${money(mes.caixa.caixa, { round: true })}, Sebrae: ${MESES_DE_CAIXA_RECOMENDADOS.minimo} a ${MESES_DE_CAIXA_RECOMENDADOS.confortavel}`} money={money} />
       </div>
 
       {/* Linha 2: receita × despesas × lucro no ano, e o orçamento do mês em anéis. */}
@@ -116,7 +116,7 @@ export function PainelEmpresa({
         <Bloco titulo={`Receita, despesas e lucro em ${year}`} nota={isCurrentYear ? "barras: receita e despesas, linha: lucro até hoje, apagado: previsto" : "barras: receita e despesas, linha: lucro"}>
           <ReceitaDespesaLucroChart months={months} />
         </Bloco>
-        <Bloco titulo={`Orçamento de ${mesLabel}`} nota={orcamentoDoMes > 0 || receitaPlanejadaDoMes ? "quanto do planejado já aconteceu" : "monte o orçamento da empresa pra acompanhar"}>
+        <Bloco titulo={`Orçamento de ${mesLabel}`} nota={orcamentoDoMes > 0 || receitaPlanejadaDoMes ? "quanto do planejado já aconteceu" : "monte o orçamento da empresa para acompanhar"}>
           <div className="flex items-center justify-around gap-3 py-2">
             {receitaPlanejadaDoMes ? (
               <AnelPercentual pct={receitaDoMes / receitaPlanejadaDoMes} tom="success" rotulo={`receita, meta ${money(receitaPlanejadaDoMes, { round: true })}`} />
@@ -252,7 +252,7 @@ function Indicador({
           {subiu ? "↑" : "↓"} {Math.abs(Math.round(variacao * 100))}% vs. {periodo}
         </p>
       )}
-      {variacao === null && periodo && <p className="mt-1.5 text-xs text-ink-faint">sem {periodo} pra comparar</p>}
+      {variacao === null && periodo && <p className="mt-1.5 text-xs text-ink-faint">sem {periodo} para comparar</p>}
       {nota && <p className="mt-1.5 text-xs leading-snug text-ink-faint">{nota}</p>}
     </>
   );

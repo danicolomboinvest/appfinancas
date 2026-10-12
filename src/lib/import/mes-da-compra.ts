@@ -284,7 +284,7 @@ export function pagamentoTemFatura(dataPagamento: string, lancamentos: Lancament
 
 /** Pagamento do cartão no extrato, com a fatura dele já no app: só mudou de conta. */
 export const NOTA_PAGAMENTO_COM_FATURA =
-  "Pagamento do cartão: só mudou de conta. A fatura já está no app com as compras uma a uma, então ele fica de fora pra não contar duas vezes.";
+  "Pagamento do cartão: só mudou de conta. A fatura já está no app com as compras uma a uma, então ele fica de fora para não contar duas vezes.";
 /** …e sem a fatura: entra como gasto do cartão, e a fatura pode vir depois. */
 export const NOTA_PAGAMENTO_SEM_FATURA =
   "Pagamento do cartão: entra como gasto em Outros. Se você trouxer a fatura depois, eu separo compra por compra e pergunto se tiro este pagamento.";

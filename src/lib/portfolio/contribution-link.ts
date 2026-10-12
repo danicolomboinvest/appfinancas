@@ -146,7 +146,7 @@ export async function applyContributionAllocations(
 
   const pedido = validas.reduce((s, a) => s + a.amount, 0);
   if (pedido > state.pending + 0.01) {
-    return { ok: false, error: `Você está distribuindo mais do que aportou: sobram ${state.pending.toFixed(2)} pra distribuir.` };
+    return { ok: false, error: `Você está distribuindo mais do que aportou: sobram ${state.pending.toFixed(2)} para distribuir.` };
   }
 
   // Só ativos do próprio usuário: id vindo do formulário nunca é confiável.
@@ -332,7 +332,7 @@ export async function applyWithdrawalAllocations(ctx: AuthContext, year: number,
   for (const [assetId, amount] of porAtivo) {
     const asset = byId.get(assetId)!;
     if (amount > Number(asset.currentValue) + 0.01) {
-      return { ok: false, error: `${asset.ticker ?? asset.name} tem ${Number(asset.currentValue).toFixed(2)} na carteira: não dá pra tirar ${amount.toFixed(2)}. Atualize o valor dele primeiro.` };
+      return { ok: false, error: `${asset.ticker ?? asset.name} tem ${Number(asset.currentValue).toFixed(2)} na carteira: não dá para tirar ${amount.toFixed(2)}. Atualize o valor dele primeiro.` };
     }
   }
 

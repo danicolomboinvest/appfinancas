@@ -50,7 +50,7 @@ export function RegisterForm({ emailDaCompra, appDaApple = false }: { emailDaCom
             ) : (
               <p>
                 <strong className="font-semibold">Use o mesmo e-mail da sua compra.</strong> É por ele que o app
-                reconhece o que você comprou e libera tudo pra você.
+                reconhece o que você comprou e libera tudo para você.
               </p>
             )}
           </div>
@@ -61,7 +61,7 @@ export function RegisterForm({ emailDaCompra, appDaApple = false }: { emailDaCom
           )}
           <Field label="Nome" id="name" name="name" type="text" required maxLength={80} defaultValue={state.values?.name} />
           {/* Com o convite, o e-mail vem travado: trocar aqui é exatamente o erro que o link existe
-              pra evitar. Quem quiser mesmo outro e-mail abre o cadastro sem o link. */}
+              para evitar. Quem quiser mesmo outro e-mail abre o cadastro sem o link. */}
           <Field
             label="E-mail"
             id="email"

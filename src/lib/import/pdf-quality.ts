@@ -20,4 +20,4 @@ export function pdfTextQuality(text: string): PdfTextQuality {
 }
 
 export const NUMBERS_ONLY_MESSAGE =
-  "Esse PDF veio da impressão pelo celular: os números estão lá, mas os nomes dos ativos viraram desenho, e sem nome não dá pra montar a carteira. Na corretora (EQI/BTG, XP…), exporte o extrato em Excel (.xlsx), esse o app lê, ou baixe o PDF original pelo computador.";
+  "Esse PDF veio da impressão pelo celular: os números estão lá, mas os nomes dos ativos viraram desenho, e sem nome não dá para montar a carteira. Na corretora (EQI/BTG, XP…), exporte o extrato em Excel (.xlsx), esse o app lê, ou baixe o PDF original pelo computador.";
