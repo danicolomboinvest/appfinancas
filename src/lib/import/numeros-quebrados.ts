@@ -6,8 +6,10 @@ import type { ParsedTransaction } from "./statement-parser";
  * ele testa.
  */
 const DATA_QUEBRADA_RE = /(?<![\d/])(\d) ?(\d) ?\/ ?(\d) ?(\d)(?!\d)/g;
-/** Valor com espaço perdido no meio. Termina nos 2 centavos, seguido de fim, de texto ou de outra data. */
-const VALOR_QUEBRADO_RE = /(?<![\d.,/])((?:0(?= ?,)|[1-9])(?: ?[\d.])*? ?, ?\d ?\d)(?=$|[^\d ]| [^\d]| \d\d\/)/g;
+/** Valor com espaço perdido no meio. Termina nos 2 centavos, seguido de fim, de texto ou de outra data.
+ * Não começa colado em letra: no código de reserva "ZUL 6 cartoes 29PXY7 6,00" o "7" é do código,
+ * e o remendo fazia "76,00" — a compra de R$ 6 sumia e a da outra coluna ficava com o nome dela. */
+const VALOR_QUEBRADO_RE = /(?<![\p{L}\d.,/])((?:0(?= ?,)|[1-9])(?: ?[\d.])*? ?, ?\d ?\d)(?=$|[^\d ]| [^\d]| \d\d\/)/gu;
 const VALOR_INTEIRO_RE = /^\d{1,3}(?:\.\d{3})*,\d{2}$/;
 
 export function remendarNumeros(linha: string): string {

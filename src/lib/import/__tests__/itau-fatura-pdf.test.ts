@@ -85,3 +85,25 @@ describe("fatura do cartão Itaú (PDF)", () => {
     expect(conferirLeitura(ITAU, "fatura", linhas)).toMatchObject({ status: "fechou", esperado: 340.77 });
   });
 });
+
+/** Duas colunas na mesma linha, e um código de reserva terminado em número logo antes do valor
+ * ("29PXY7 6,00"): o remendo de número quebrado colava os dois em "76,00" (fatura real de 11/10/2026,
+ * R$ 15.058 lida como R$ 7.285 e com as descrições trocadas). */
+const ITAU_DUAS_COLUNAS = `Itaú Cartões
+Postagem: 31/07/2026 L Lançamentos atuais 252,00
+Lançamentos: compras e saques Lançamentos: compras e saques
+DATA ESTABELECIMENTO VALOR EM R$ VESTUÁRIO .SANTO ANDRE
+20/07 LOJA EXEMPLO 100,00 25/07 PADARIA EXEMPLO 20,00
+VESTUÁRIO .SAO PAULO ALIMENTAÇÃO .SAO PAULO
+29/07 ZUL 6 cartoes 29ABC7 6,00 16/07 PARQUE EXEMPLO 126,00
+VEÍCULOS .SAO PAULO TURISMO E ENTRETENIM.SAO PAULO
+L Total dos lançamentos atuais 252,00`;
+
+describe("fatura do cartão Itaú em duas colunas", () => {
+  it("lê as duas compras de cada linha, sem colar o código de reserva no valor", () => {
+    const txns = parseItauInvoice(ITAU_DUAS_COLUNAS, 2026);
+    expect(txns).toContainEqual({ date: "2026-07-29", description: "ZUL 6 cartoes 29ABC7", amount: 6 });
+    expect(txns).toContainEqual({ date: "2026-07-16", description: "PARQUE EXEMPLO", amount: 126 });
+    expect(txns.reduce((s, t) => s + t.amount, 0)).toBeCloseTo(252);
+  });
+});

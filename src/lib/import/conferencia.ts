@@ -59,6 +59,12 @@ const REMANESCENTE = new RegExp(String.raw`valor\s+remanescente\s+da\s+fatura\s+
  * anterior ("10/10 SALDO ANTERIOR BRL 0,00 0,00 R$ 0,00 1.097,14"), que não é compra deste mês. */
 const SALDO_ANTERIOR_BRADESCO_APP = /SALDO ANTERIOR BRL\s+[\d.,]+\s+[\d.,]+\s+R\$\s*[\d.,]+\s+(\d{1,3}(?:\.\d{3})*,\d{2})/i;
 
+/** Sicoob: o resumo vem com o número antes do rótulo ("+ 16,95 <TAB> ENCARGOS", "+ 605,69 <TAB>
+ * DESPESAS/DÉBITOS"). Encargos (anuidade, seguro, IOF) + despesas no Brasil + no exterior = tudo
+ * que foi lançado no mês; o "SALDO TOTAL" mistura a anterior e o pagamento (que conta duas vezes
+ * quando a pessoa pagou por débito e boleto). */
+const SICOOB_RESUMO = /^\+ (\d{1,3}(?:\.\d{3})*,\d{2})\s+(?:ENCARGOS|DESPESAS\/D[ÉE]BITOS(?: INTERNACIONAIS)?)$/gm;
+
 const OUTROS_LANCAMENTOS = new RegExp(String.raw`^outros\s+lan[çc]amentos\s*${VALOR}`, "im");
 
 /**
@@ -140,6 +146,8 @@ export function conferirLeitura(texto: string, docType: string, txns: ParsedTran
       const doMes = Math.round((totalDoResumo - anterior + pagamento) * 100) / 100;
       if (doMes > 0) referencias.push(doMes);
     }
+    const sicoob = [...texto.matchAll(SICOOB_RESUMO)];
+    if (sicoob.length > 0) referencias.push(Math.round(sicoob.reduce((s, m) => s + (numero([m[0], m[1]]) ?? 0), 0) * 100) / 100);
     if (referencias.length === 0) return { status: "sem-referencia" };
     const lidos = [compras, compras - creditos];
     // De todas as combinações que batem, a mais próxima: com a folga de 0,5%, o total a pagar
@@ -198,7 +206,9 @@ export function leituraIncompleta(conf: Conferencia, leitorDedicado: boolean, li
 }
 
 const BB_SALDO_ANTERIOR = /(\d{1,3}(?:\.\d{3})*,\d{2})\s*\(([+-])\)\s*Saldo\s+Anterior/i;
-const BB_SALDO_FINAL = /(\d{1,3}(?:\.\d{3})*,\d{2})\s*\(([+-])\)\s*S\s*A\s*L\s*D\s*O\b/g;
+/** O "S A L D O" sozinho na linha. As "Informações Adicionais" do fim trazem "9.821,19 (+) SALDO EM
+ * CONTA-SALARIO", que não é o saldo desta conta: lido como final, acusava erro numa leitura certa. */
+const BB_SALDO_FINAL = /(\d{1,3}(?:\.\d{3})*,\d{2})\s*\(([+-])\)\s*S\s*A\s*L\s*D\s*O[ \t]*$/gm;
 
 const valorBR = (v: string) => Number(v.replace(/\./g, "").replace(",", "."));
 
