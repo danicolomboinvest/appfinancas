@@ -1,8 +1,6 @@
 "use client";
 
 import { useTransition } from "react";
-import { Trash2 } from "lucide-react";
-import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { deleteTransactionRuleAction } from "./actions";
 
 export type RegraAprendidaView = { id: string; pattern: string; categoria: string; subcategory: string | null };
@@ -29,16 +27,12 @@ export function RegrasAprendidas({ regras }: { regras: RegraAprendidaView[] }) {
 }
 
 function Regra({ regra }: { regra: RegraAprendidaView }) {
-  const t = useProfileTheme().voz.titulos;
   const [isPending, startTransition] = useTransition();
   return (
     <li className="flex items-center justify-between gap-3 py-2.5">
       <div className="min-w-0">
         <p className="truncate text-sm text-ink" title={regra.pattern}>
-          {regra.pattern}
-        </p>
-        <p className="text-caption text-ink-muted">
-          {regra.categoria}
+          <b className="font-medium">{regra.pattern}</b> → {regra.categoria}
           {regra.subcategory ? `, ${regra.subcategory}` : ""}
         </p>
       </div>
@@ -46,11 +40,10 @@ function Regra({ regra }: { regra: RegraAprendidaView }) {
         type="button"
         disabled={isPending}
         onClick={() => startTransition(() => deleteTransactionRuleAction(regra.id))}
-        aria-label={`${t.uiRemover}: ${regra.pattern}`}
-        className="inline-flex shrink-0 items-center gap-1 text-xs text-danger transition-opacity hover:underline disabled:opacity-40"
+        aria-label={`Esquecer: ${regra.pattern}`}
+        className="min-h-11 shrink-0 px-1 text-sm text-accent-strong transition-opacity hover:underline disabled:opacity-40"
       >
-        <Trash2 size={13} strokeWidth={1.75} />
-        {t.uiRemover}
+        Esquecer
       </button>
     </li>
   );

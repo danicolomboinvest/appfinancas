@@ -1,51 +1,30 @@
 "use client";
 
 import { useActionState } from "react";
-import { Field, SelectField } from "@/components/ui/Field";
+import { Field } from "@/components/ui/Field";
 import { PercentField } from "@/components/ui/PercentField";
-import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
 import { useSuccessToast } from "@/components/ui/useSuccessToast";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { createReferenceRateAction, type ReferenceRateState } from "./actions";
 
 const initialState: ReferenceRateState = {};
 
+/** "Adicionar" (protótipo): nome e taxa ao ano. Vale a partir de hoje. */
 export function ReferenceRateForm() {
   const [state, formAction, isPending] = useActionState(createReferenceRateAction, initialState);
   const { titulos: t } = useProfileTheme().voz;
   useSuccessToast(isPending, state.error, t.cfgTaxaAdicionadaToast);
 
-  // Os rótulos das bases vêm da voz do tema, por isso a lista nasce dentro do componente.
-  const basisOptions = [
-    { value: "ANNUAL_252", label: t.cfgTaxaBaseAnual252 },
-    { value: "ANNUAL_365", label: t.cfgTaxaBaseAnual365 },
-    { value: "MONTHLY", label: t.cfgTaxaBaseMensal },
-  ];
-
   return (
-    <Card as="form" action={formAction} className="flex flex-wrap items-end gap-3 p-4">
-      {state.error && <p className="w-full rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{state.error}</p>}
-      <Field label={t.cfgTaxaNome} id="name" name="name" required placeholder={t.cfgTaxaNomePlaceholder} />
-      <PercentField label={t.cfgTaxaTaxa} id="rateValue" name="rateValue" required />
-      <SelectField label={t.cfgTaxaBase} id="basis" name="basis">
-        {basisOptions.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </SelectField>
-      <Field
-        label={t.cfgTaxaVigenteDesde}
-        id="effectiveDate"
-        name="effectiveDate"
-        type="date"
-        required
-        defaultValue={new Date().toISOString().slice(0, 10)}
-      />
-      <Button type="submit" disabled={isPending} size="sm">
-        {isPending ? t.cfgSalvando : t.cfgTaxaAdicionar}
-      </Button>
-    </Card>
+    <form action={formAction} className="flex flex-col gap-3 rounded-3xl bg-surface p-4 shadow-[inset_0_0_0_1px_var(--color-border)]">
+      {state.error && <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{state.error}</p>}
+      <Field label="Nome" id="name" name="name" required placeholder="Ex.: CDB do meu banco" />
+      <PercentField label="Taxa (% ao ano)" id="rateValue" name="rateValue" required />
+      <input type="hidden" name="basis" value="ANNUAL_252" />
+      <input type="hidden" name="effectiveDate" value={new Date().toISOString().slice(0, 10)} />
+      <button type="submit" disabled={isPending} className="min-h-12 rounded-full bg-ink text-base font-medium text-surface disabled:opacity-50">
+        {isPending ? t.cfgSalvando : "Adicionar"}
+      </button>
+    </form>
   );
 }

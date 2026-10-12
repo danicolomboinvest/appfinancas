@@ -1,9 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BellRing } from "lucide-react";
-import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
+import { Interruptor } from "@/components/ui/Interruptor";
 import { useToast } from "@/components/ui/toast-context";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { isMyPushSubscriptionAction, removePushSubscriptionAction } from "./push-actions";
@@ -74,32 +72,30 @@ export function PushSettings({ publicKey, devices }: { publicKey: string | null;
     }
   }
 
+  // Versão nova (protótipo, #configuracoes-notificacoes): uma linha com a chave "Avisos neste
+  // aparelho"; o motivo de não dar (iPhone sem instalar, bloqueado) aparece embaixo, pequeno.
+  const ligado = status === "on";
+  const pode = status === "on" || status === "off";
+  const motivo =
+    status === "checking"
+      ? t.cfgPushVerificando
+      : status === "ios-not-installed"
+        ? t.cfgPushIos
+        : status === "unsupported"
+          ? t.cfgPushNaoSuportado
+          : status === "blocked"
+            ? t.cfgPushBloqueado
+            : null;
   return (
-    <Card className="flex flex-col gap-3 p-5">
-      <div className="flex items-center gap-2">
-        <BellRing size={18} className="text-accent-strong" />
-        <p className="text-sm font-semibold text-ink">{t.cfgPushTitulo}</p>
-      </div>
-      <p className="text-xs leading-relaxed text-ink-muted">
-        {t.cfgPushDica} {devices > 0 && t.cfgPushLigadoEm(devices)}
-      </p>
-      {status === "checking" && <p className="text-xs text-ink-faint">{t.cfgPushVerificando}</p>}
-      {status === "ios-not-installed" && <p className="rounded-lg bg-surface-2 px-3 py-2 text-xs text-ink">{t.cfgPushIos}</p>}
-      {status === "unsupported" && <p className="text-xs text-ink-faint">{t.cfgPushNaoSuportado}</p>}
-      {status === "blocked" && <p className="text-xs text-danger">{t.cfgPushBloqueado}</p>}
-      {status === "off" && (
-        <Button type="button" size="sm" onClick={enable} disabled={busy} className="w-fit">
-          {busy ? t.cfgPushLigando : t.cfgPushLigar}
-        </Button>
-      )}
-      {status === "on" && (
-        <div className="flex items-center gap-3">
-          <span className="rounded-full bg-success-soft px-2.5 py-1 text-xs font-semibold text-success">{t.cfgPushLigadoAqui}</span>
-          <button type="button" onClick={disable} disabled={busy} className="text-xs text-ink-muted underline-offset-2 hover:underline">
-            {t.cfgPushDesligar}
-          </button>
-        </div>
-      )}
-    </Card>
+    <div>
+      <Interruptor
+        ligado={ligado}
+        desabilitado={!pode || busy}
+        aoMudar={(v) => (v ? enable() : disable())}
+        titulo="Avisos neste aparelho"
+        sub={`Quando uma categoria está perto de estourar ou uma meta atrasa.${devices > 0 ? ` ${t.cfgPushLigadoEm(devices)}` : ""}`}
+      />
+      {motivo && <p className={`px-4 pb-3 text-xs ${status === "blocked" ? "text-danger" : "text-ink-muted"}`}>{motivo}</p>}
+    </div>
   );
 }

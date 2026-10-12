@@ -96,7 +96,7 @@ export default async function ConfiguracoesPage() {
       <Grupo titulo="Dados">
         <Linha href="/configuracoes/dados" icone={i(Download)} cor={COR.dados} rotulo="Exportar" sub="Lançamentos e carteira em CSV" />
         <Linha href="/configuracoes/backup" icone={i(Archive)} cor={COR.dados} rotulo="Backup" sub="Automático, todo dia" />
-        <Linha href="/configuracoes/dados#excluir" icone={i(TriangleAlert)} cor="var(--color-danger)" rotulo="Apagar minha conta" sub="Não tem volta" />
+        <Linha href="/configuracoes/apagar" icone={i(TriangleAlert)} cor="var(--color-danger)" rotulo="Apagar minha conta" sub="Não tem volta" />
       </Grupo>
 
       <Grupo titulo="Ajuda">
