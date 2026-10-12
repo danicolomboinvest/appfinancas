@@ -195,7 +195,7 @@ describe("loginAction", () => {
   it("senha errada: mensagem genérica e o e-mail continua no campo", async () => {
     h.signIn.mockRejectedValue(new h.AuthError("CredentialsSignin"));
     const r = await loginAction({}, form({ email: "Ana@X.com", password: "errada" }));
-    expect(r).toEqual({ error: "Email ou senha incorretos.", email: "Ana@X.com" });
+    expect(r).toEqual({ error: "E-mail ou senha não conferem.", email: "Ana@X.com" });
   });
 
   it("e-mail com maiúscula entra minúsculo, e sem callbackUrl cai no Foco", async () => {

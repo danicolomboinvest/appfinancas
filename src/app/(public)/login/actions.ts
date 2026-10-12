@@ -5,6 +5,7 @@ import { signIn } from "@/lib/auth/auth.config";
 import { findUserByEmail } from "@/lib/repositories/user.repo";
 import { loginSchema } from "@/lib/validations/auth.schema";
 import { destinoDepoisDoLogin } from "@/lib/auth/sessao";
+import { ERRO_DE_EMAIL_OU_SENHA } from "@/lib/auth/mensagens-de-entrada";
 
 // `email` volta junto com o erro: o React 19 limpa o formulário a cada envio, e sem isso cada
 // senha errada apagava também o e-mail digitado.
@@ -46,7 +47,7 @@ export async function loginAction(_prevState: LoginState, formData: FormData): P
     return {};
   } catch (error) {
     if (error instanceof AuthError) {
-      return { error: "Email ou senha incorretos.", email };
+      return { error: ERRO_DE_EMAIL_OU_SENHA, email };
     }
     throw error;
   }
