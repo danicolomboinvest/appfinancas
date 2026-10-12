@@ -44,7 +44,7 @@ import { listCustomCategories } from "@/lib/repositories/custom-category.repo";
 import { montarDadosDoTema } from "@/app/(app)/mensal/[year]/[month]/theme-hero-data";
 import { ThemeHero } from "@/app/(app)/mensal/[year]/[month]/ThemeHero";
 import { profileTheme } from "@/lib/profiles/themes";
-import { sobrouDoResumo } from "@/lib/consolidation/sobrou";
+import { lerSobrou, sobrouDoResumo } from "@/lib/consolidation/sobrou";
 import { listarDecisoesDesde } from "@/lib/repositories/decisao.repo";
 import { somarConquistas } from "@/lib/decisoes/conquistas";
 
@@ -420,8 +420,9 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
         />
         <StatCard
           layout="row"
-          label={voz.titulos.sobrouNoAno}
-          value={money(sobrou(summary))}
+          // Nunca "−R$" (regra 3.7): ano no vermelho vira "Faltou no ano" com o valor sem sinal.
+          label={lerSobrou(sobrou(summary)).situacao === "faltou" ? (empresa ? "Prejuízo no ano" : "Faltou no ano") : voz.titulos.sobrouNoAno}
+          value={money(lerSobrou(sobrou(summary)).valor)}
           tone="accent"
           // "43% da renda" (07/10/2026), como no Mensal: era "De cada R$ 100 que entraram, você manteve R$ 43".
           hint={summary.savingsRate === null ? undefined : voz.titulos.doQueEntrou(`${Math.round(summary.savingsRate * 100)}%`)}

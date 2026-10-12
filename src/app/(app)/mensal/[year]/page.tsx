@@ -1,3 +1,4 @@
+import { lerSobrou } from "@/lib/consolidation/sobrou";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -96,7 +97,7 @@ export default async function YearPage(props: PageProps<"/mensal/[year]">) {
         <StatCard label="Renda" value={money(summary.totalIncome)} tone="success" sparkline={incomeSparkline} />
         <StatCard label="Gastos" value={money(summary.totalExpense)} tone="danger" sparkline={expenseSparkline} />
         <StatCard label={t.paiAnoAportes} value={money(summary.totalInvestment)} sparkline={investmentSparkline} />
-        <StatCard label="Saldo" value={money(summary.balance)} tone="accent" sparkline={balanceSparkline} />
+        <StatCard label={lerSobrou(summary.balance).rotulo} value={money(lerSobrou(summary.balance).valor)} tone="accent" sparkline={balanceSparkline} />
         <StatCard
           label="Taxa de poupança"
           value={summary.savingsRate === null ? "-" : formatPercentNumber(summary.savingsRate * 100, 1)}
@@ -130,7 +131,7 @@ function monthColumns(
     { key: "income", label: "Renda", render: (m) => money(m.totalIncome) },
     { key: "expense", label: "Gastos", render: (m) => money(m.totalExpense) },
     { key: "investment", label: t.paiAnoAportes, render: (m) => money(m.totalInvestment) },
-    { key: "balance", label: "Saldo", render: (m) => money(m.balance) },
+    { key: "balance", label: "Sobrou", render: (m) => (m.balance < 0 ? `faltou ${money(-m.balance)}` : money(m.balance)) },
     {
       key: "actions",
       label: "",

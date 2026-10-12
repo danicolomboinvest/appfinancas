@@ -12,12 +12,12 @@ const STATUS_TEXT_CLASS: Record<HealthStatus, string> = {
   "sem-dados": "text-ink-muted",
 };
 
-/** Cores do arco por status, gradiente sempre termina no dourado da marca. */
+/** Cores do arco por status, das cores do tema (o dourado fixo de antes ignorava o Titânio e o Girly). */
 const STATUS_GRADIENT: Record<HealthStatus, [string, string]> = {
-  boa: ["#7e9473", "#c9a15c"],
-  atencao: ["#c9a15c", "#b15b3e"],
-  critica: ["#b15b3e", "#8a3d28"],
-  "sem-dados": ["#9a9486", "#9a9486"],
+  boa: ["var(--color-success)", "var(--color-accent)"],
+  atencao: ["var(--color-accent)", "var(--color-atencao)"],
+  critica: ["var(--color-atencao)", "var(--color-danger)"],
+  "sem-dados": ["var(--color-ink-faint)", "var(--color-ink-faint)"],
 };
 
 /**
@@ -44,8 +44,8 @@ function ScoreArc({ score, status }: { score: number | null; status: HealthStatu
       <svg viewBox="0 0 200 110" className="h-full w-full">
         <defs>
           <linearGradient id="score-arc" x1="0%" y1="100%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor={from} />
-            <stop offset="100%" stopColor={to} />
+            <stop offset="0%" style={{ stopColor: from }} />
+            <stop offset="100%" style={{ stopColor: to }} />
           </linearGradient>
         </defs>
         {/* Trilho */}
