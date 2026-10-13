@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronRight, Repeat } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
 import { hojeEmBrasilia } from "@/lib/contas/contas";
 import { listarContasAPagar, listarQuitadasRecentes } from "@/lib/repositories/conta-a-pagar.repo";
@@ -17,7 +17,6 @@ import { ehEmpresa } from "@/lib/profiles/empresa";
 import { HeroiDoTema } from "@/components/ui/HeroiDoTema";
 import { ValorDestaque } from "@/components/ui/ValorDestaque";
 import { Explica } from "@/components/ui/Explica";
-import { LogoDoLancamento } from "@/components/ui/LogoDoLancamento";
 import { ContasAPagar, ContasDoAno } from "./ContasAPagar";
 import { FolhaDasContas } from "./folha-contexto";
 import { pesoPorMes, vencimentosDaJanela } from "@/lib/contas/recorrentes";
@@ -27,7 +26,11 @@ import { carregarDinheiroPerdido } from "./perdido/dados";
 import { EntradaDoDinheiroPerdido } from "./perdido/Entrada";
 import { AvisoDasContas } from "./AvisoDasContas";
 import { listarContasNovasDoHistorico, sincronizarContasDoHistorico } from "@/lib/repositories/contas-do-historico.repo";
-import { mesmaCobranca } from "@/lib/contas/achar-contas";
+import { juntarAssinaturas } from "@/lib/contas/assinaturas";
+import { gastosDoMesParaAssinaturas, listarAssinaturasDela, listarRecusasDeAssinatura } from "@/lib/repositories/assinaturas.repo";
+import { categoryLabel } from "@/lib/categories";
+import type { ParentCategory } from "@prisma/client";
+import { Assinaturas } from "./Assinaturas";
 
 /**
  * Recorrentes, a quarta aba da Visão geral (versão nova, protótipo aprovado): quanto da renda já
@@ -44,6 +47,9 @@ import { mesmaCobranca } from "@/lib/contas/achar-contas";
  *
  * Contas do histórico (12/10/2026): antes de listar, o app acha no extrato as contas que se
  * repetem (Vivo, luz, aluguel) e cadastra sozinho; na primeira vez, o aviso com o "Desfazer".
+ *
+ * Assinaturas à mão (13/10/2026): o "+ Adicionar" escolhe dos lançamentos ou escreve. A dela vence
+ * a achada do mesmo comerciante, e a achada que ela disse "Não é assinatura" some.
  */
 export default async function RecorrentesPage(props: PageProps<"/orcamento/contas">) {
   const sp = await props.searchParams;
@@ -60,7 +66,7 @@ export default async function RecorrentesPage(props: PageProps<"/orcamento/conta
   } catch (err) {
     console.error("Contas do histórico: falhou (a tela segue)", err);
   }
-  const [abertas, pagas, plano, resumo, planoDoMes, raiox, dividas, selic, perdido, novasDoHistorico] = await Promise.all([
+  const [abertas, pagas, plano, resumo, planoDoMes, raiox, dividas, selic, perdido, novasDoHistorico, dela, recusas, gastosDoMes] = await Promise.all([
     listarContasAPagar(ctx),
     listarQuitadasRecentes(ctx),
     listBudgets(ctx, ano, mes),
@@ -72,6 +78,9 @@ export default async function RecorrentesPage(props: PageProps<"/orcamento/conta
     // Dinheiro perdido: só a abinha (quantas cartas e os logos). A Empresa não tem.
     empresa ? Promise.resolve(null) : carregarDinheiroPerdido(ctx),
     listarContasNovasDoHistorico(ctx),
+    listarAssinaturasDela(ctx),
+    listarRecusasDeAssinatura(ctx),
+    gastosDoMesParaAssinaturas(ctx, ano, mes),
   ]);
   const hojeD = hojeEmBrasilia();
   const hoje = iso(hojeD);
@@ -80,8 +89,20 @@ export default async function RecorrentesPage(props: PageProps<"/orcamento/conta
   // Renda com dono: contas pela média por mês (a diarista a cada 2 semanas pesa R$ 390), parcelas
   // pelo valor da parcela, assinaturas achadas no extrato. As contas do ano têm o card delas.
   const peso = pesoPorMes(contas, hojeD);
-  // A academia ou a internet que virou conta não aparece de novo em Assinaturas.
-  const assinaturas = raiox.itens.filter((i) => i.tipo === "assinatura" && !mesmaCobranca(i.nome, abertas));
+  // Assinaturas: as dela primeiro; as achadas (Raio-X e Dinheiro perdido, que acha o ManyChat que o
+  // Raio-X chama de "hábito") entram sem repetir pelo nome, sem a que virou conta (a academia) e
+  // sem a que ela disse "Não é assinatura".
+  const assinaturas = juntarAssinaturas({
+    dela,
+    achadas: [
+      ...raiox.itens.filter((i) => i.tipo === "assinatura").map((i) => ({ chave: `rx:${i.chave}`, nome: i.nome, mensal: i.mensal })),
+      ...(perdido?.vivos ?? []).filter((a) => a.tipo === "assinatura" && a.mensal).map((a) => ({ chave: `dp:${a.chave}`, nome: a.nome, mensal: a.mensal as number, comerciante: a.comerciante.split("#")[0] })),
+    ],
+    contas: abertas,
+    recusas,
+    lancamentosDoMes: gastosDoMes,
+  });
+  const rotulos = Object.fromEntries((["MORADIA", "ALIMENTACAO", "TRANSPORTE", "SAUDE", "LAZER", "EDUCACAO", "OUTROS"] as ParentCategory[]).map((k) => [k, categoryLabel(ctx.categorias ?? ctx.profileKind, k)]));
   const totalAssinaturas = assinaturas.reduce((s, i) => s + i.mensal, 0);
   const planejado = plano.reduce((s, b) => s + Number(b.plannedAmount), 0);
   const livre = planejado > 0 ? planejado - resumo.totalExpense : null;
@@ -121,28 +142,7 @@ export default async function RecorrentesPage(props: PageProps<"/orcamento/conta
         <ContasAPagar contas={contas} pagas={pagas.map(serializarConta)} hoje={hoje} />
       </div>
       <div className="flex min-w-0 flex-col gap-5">
-        {assinaturas.length > 0 && (
-          <section className="flex flex-col gap-2">
-            <div className="flex items-baseline justify-between gap-3 px-1">
-              <h2 className="titulo-tema text-lg font-medium text-ink">Assinaturas</h2>
-              <span className="text-sm tabular-nums text-ink-muted">{money(totalAssinaturas)} por mês</span>
-            </div>
-            <ul className="divide-y divide-border overflow-hidden rounded-3xl border border-border bg-surface">
-              {assinaturas.map((a) => (
-                <li key={a.chave} className="flex items-center gap-3 px-3 py-3">
-                  <LogoDoLancamento descricao={a.nome} icon={Repeat} />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[16px] text-ink">{a.nome}</span>
-                    <span className="flex items-center gap-1.5 text-[13px] text-ink-muted">
-                      Mensal <span className="rounded-full bg-surface-2 px-2 py-px text-xs">do extrato</span>
-                    </span>
-                  </span>
-                  <span className="shrink-0 text-[16px] tabular-nums text-ink">{money(a.mensal)}</span>
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
+        <Assinaturas itens={assinaturas} rotulos={rotulos} />
         {dividas.length > 0 && (
           <section className="flex flex-col gap-2">
             <div className="flex items-center justify-between gap-3 px-1">

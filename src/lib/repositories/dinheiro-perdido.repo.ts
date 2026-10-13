@@ -30,7 +30,20 @@ export async function lancamentosParaCacar(ctx: DonoDoPerfil, agora = nowInBrazi
     categoria: e.parentCategory,
     subcategoria: e.subcategory,
     lote: e.importBatchId,
+    estorno: e.category === "EXPENSE" && Number(e.amount) < 0,
   }));
+}
+
+/**
+ * Os comerciantes que ela marcou como assinatura em Recorrentes (13/10/2026): o motor trata como
+ * serviço (2 meses bastam e o aumento aparece).
+ */
+export async function chavesDasAssinaturasDela(ctx: DonoDoPerfil): Promise<Set<string>> {
+  const linhas = await prisma.contaAPagar.findMany({
+    where: { userId: ctx.userId, profileId: ctx.profileId, tipo: "assinatura", quitada: false, chaveDoHistorico: { not: null } },
+    select: { chaveDoHistorico: true },
+  });
+  return new Set(linhas.flatMap((l) => (l.chaveDoHistorico ? [l.chaveDoHistorico] : [])));
 }
 
 export type AchadoGuardado = {
@@ -117,8 +130,8 @@ export async function marcarAchadosVistos(ctx: DonoDoPerfil, achados: Achado[]):
  * achados novos e quanto eles somam por ano, para o aviso.
  */
 export async function recalcularDinheiroPerdido(ctx: DonoDoPerfil): Promise<{ novos: number; anualNovos: number; estornos: number; resultado: ResultadoDaCaca }> {
-  const lancamentos = await lancamentosParaCacar(ctx);
-  const resultado = cacarDinheiroPerdido(lancamentos);
+  const [lancamentos, assinaturasDela] = await Promise.all([lancamentosParaCacar(ctx), chavesDasAssinaturasDela(ctx)]);
+  const resultado = cacarDinheiroPerdido(lancamentos, { assinaturasDela });
   const guardados = await listarAchadosGuardados(ctx);
   const conhecidas = new Set(guardados.map((g) => g.chave));
   const novos = resultado.achados.filter((a) => !conhecidas.has(a.chave));

@@ -21,6 +21,7 @@ import { computeGoalPlan } from "@/lib/planning/goal";
 import { ehEmpresa } from "@/lib/profiles/empresa";
 import { gastoDepoisDoCombinado, montarFoco } from "@/lib/decisoes/foco";
 import { diaDaSemana } from "@/lib/decisoes/foco-semana";
+import { chaveDoComercianteDe } from "@/lib/contas/assinaturas";
 import { CATEGORIAS_FIXAS, lancamentoDaConta, type ContaPendente, type GastoDoDiaADia } from "@/lib/decisoes/semana-fixa";
 import { parcelaDaDescricao } from "@/lib/decisoes/compra-guiada";
 import { ehDoAno, pagaNoMes } from "@/lib/contas/recorrentes";
@@ -133,7 +134,7 @@ export async function carregarFoco(ctx: AuthContext) {
       // ainda não saiu e reconhecer a que já apareceu nos lançamentos.
       prisma.contaAPagar.findMany({
         where: { ...doDono(ctx), OR: [{ quitada: false }, { pagaEm: { gte: inicioDoMes } }] },
-        select: { nome: true, valor: true, vencimento: true, pagaEm: true, repete: true, intervalo: true, unidade: true, mesesEscolhidos: true, parcelas: true, categoria: true, quitada: true },
+        select: { nome: true, valor: true, vencimento: true, pagaEm: true, repete: true, intervalo: true, unidade: true, mesesEscolhidos: true, parcelas: true, categoria: true, quitada: true, tipo: true, chaveDoHistorico: true },
         take: 300,
       }),
       // O último gasto no cartão (marcado ou de fatura) nos últimos 75 dias: o aviso "falta o cartão".
@@ -255,7 +256,11 @@ export async function carregarFoco(ctx: AuthContext) {
     parcelas: c.parcelas,
     categoria: (c.categoria as string | null) ?? null,
     quitada: c.quitada,
+    // A assinatura posta à mão (13/10/2026) é fixa como as contas, e o comerciante aprendido
+    // reconhece a cobrança mesmo quando o nome não aparece na descrição.
+    comerciante: c.tipo === "assinatura" ? c.chaveDoHistorico : null,
   }));
+  const temComerciante = lista.some((c) => c.comerciante);
   const fixasComOrcamento = new Set(categorias.filter((c) => c.fixa).map((c) => c.key));
   const contaPaga = new Set<number>();
   const gastosDoDiaADia: GastoDoDiaADia[] = [];
@@ -265,7 +270,7 @@ export async function carregarFoco(ctx: AuthContext) {
     const chave = g.customCategoryId ?? (g.parentCategory as string | null);
     // Primeiro reconhece a conta da lista que este lançamento paga (o "Curso de inglês" lançado no
     // dia 2 com vencimento no dia 20 não fica reservado de novo), inclusive nas categorias fixas.
-    const doLancamento = { descricao: g.description, subcategoria: g.subcategory, valor, categoria: (g.parentCategory as string | null) ?? null };
+    const doLancamento = { descricao: g.description, subcategoria: g.subcategory, valor, categoria: (g.parentCategory as string | null) ?? null, comerciante: temComerciante ? chaveDoComercianteDe(g.description) : null };
     const daLista = lista.findIndex((c, i) => !contaPaga.has(i) && lancamentoDaConta(doLancamento, c));
     if (daLista >= 0) contaPaga.add(daLista);
     if (chave && fixasComOrcamento.has(chave)) continue; // já está no planejado inteiro da fixa

@@ -1374,6 +1374,10 @@ model ContaAPagar {
   editadaPelaPessoa Boolean           @default(false)
   /// Quando o aviso "Achei N contas no seu histórico" foi fechado. Nulo = ainda não viu.
   avisadaEm         DateTime?
+  /// Assinatura posta à mão (13/10/2026): "assinatura" mora em Assinaturas, não em Contas a pagar,
+  /// e conta como fixo na semana. Nulo = conta. Escolhida dos lançamentos, a `chaveDoHistorico`
+  /// guarda o comerciante: os próximos lançamentos dele são reconhecidos como dela.
+  tipo              String?           @db.VarChar(12)
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
 

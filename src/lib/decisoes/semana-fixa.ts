@@ -1,3 +1,5 @@
+import { chaveCobre } from "@/lib/import/comerciante";
+
 /**
  * O "quanto dá para gastar na semana" (regra A, aprovada pela dona em 13/10/2026). Estudo em
  * Claude/estudo-apps-financas/gasto-da-semana-analise.html.
@@ -247,14 +249,16 @@ const normalizar = (s: string) =>
     .trim();
 
 /**
- * O lançamento é o pagamento desta conta da lista? Pelo nome (o "Vivo" da lista dentro de "PAG
+ * O lançamento é o pagamento desta conta da lista? Pelo comerciante aprendido (a assinatura que ela
+ * escolheu dos lançamentos: "PG *MANYCHAT" é o ManyChat dela), pelo nome (o "Vivo" da lista dentro de "PAG
  * VIVO FIXO") ou, na mesma categoria, pelo valor (até 5% de diferença). É o que impede a conta de
  * contar duas vezes: reservada enquanto não aparece, e depois no lançamento.
  */
 export function lancamentoDaConta(
-  g: { descricao: string | null; subcategoria: string | null; valor: number; categoria: string | null },
-  conta: { nome: string; valor: number | null; categoria: string | null },
+  g: { descricao: string | null; subcategoria: string | null; valor: number; categoria: string | null; /** Quem cobrou, na chave do motor. */ comerciante?: string | null },
+  conta: { nome: string; valor: number | null; categoria: string | null; /** O comerciante aprendido (assinatura escolhida dos lançamentos). */ comerciante?: string | null },
 ): boolean {
+  if (conta.comerciante && g.comerciante && chaveCobre(conta.comerciante, g.comerciante)) return true;
   const nome = normalizar(conta.nome);
   const texto = normalizar(`${g.descricao ?? ""} ${g.subcategoria ?? ""}`);
   if (nome.length >= 3 && texto.length > 0 && ` ${texto} `.includes(` ${nome} `)) return true;
