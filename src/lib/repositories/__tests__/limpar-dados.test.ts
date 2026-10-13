@@ -68,6 +68,11 @@ function tabela(modelo: string) {
       banco[modelo] = linhas().filter((l) => !bate(modelo, l, where));
       return Promise.resolve({ count: antes - banco[modelo].length });
     }),
+    updateMany: vi.fn(({ where, data }: { where?: Record<string, unknown>; data: Record<string, unknown> }) => {
+      const alvo = linhas().filter((l) => bate(modelo, l, where));
+      for (const l of alvo) Object.assign(l, data);
+      return Promise.resolve({ count: alvo.length });
+    }),
     update: vi.fn(({ where, data }: { where: Record<string, unknown>; data: Record<string, unknown> }) => {
       const l = linhas().find((x) => bate(modelo, x, where));
       if (!l) throw new Error(`${modelo}.update sem linha`);
@@ -98,7 +103,10 @@ const prismaFalso = new Proxy(
 vi.mock("@/lib/db/prisma", () => ({ prisma: prismaFalso }));
 vi.mock("@prisma/client", () => ({ Prisma: { DbNull: { _dbNull: true } } }));
 
-const { limparDados, cabeMaisUmaLimpeza } = await import("../limpar-dados.repo");
+const { limparDados, cabeMaisUmaLimpeza, PerfilDeOutraPessoa } = await import("../limpar-dados.repo");
+const { PARTES } = await import("@/lib/limpar-dados/regras");
+const TUDO = [...PARTES];
+const SEM_RESET = PARTES.filter((p) => p !== "moneyReset");
 
 // ---------------------------------------------------------------------------------------------
 // O banco de mentira: Ana (u1) com Pessoal, Empresa e Nós dois; o par dela (par) no Nós dois;
@@ -179,7 +187,7 @@ beforeEach(() => {
 
 describe("limpar o perfil aberto", () => {
   it("apaga todo o dinheiro do perfil", async () => {
-    const r = await limparDados(ana, { escopo: "perfil", zerarMoneyReset: true });
+    const r = await limparDados(ana, { escopo: "perfil", partes: TUDO });
     for (const modelo of TABELAS_COM_PERFIL) {
       const sobrou = de(modelo, "u1", "pes").filter((l) => l.tipo !== "resposta_errada");
       expect(sobrou, modelo).toEqual([]);
@@ -191,7 +199,7 @@ describe("limpar o perfil aberto", () => {
   });
 
   it("não toca nos outros perfis dela nem na outra conta", async () => {
-    await limparDados(ana, { escopo: "perfil", zerarMoneyReset: true });
+    await limparDados(ana, { escopo: "perfil", partes: TUDO });
     for (const modelo of TABELAS_COM_PERFIL) {
       expect(de(modelo, "u1", "emp").length, `${modelo} da Empresa`).toBeGreaterThan(0);
       expect(de(modelo, "u1", "cas").length, `${modelo} do Nós dois`).toBeGreaterThan(0);
@@ -206,7 +214,7 @@ describe("limpar o perfil aberto", () => {
   });
 
   it("mantém a conta: login, assinatura, compras, aparência, foto, nome e o próprio perfil", async () => {
-    await limparDados(ana, { escopo: "perfil", zerarMoneyReset: true });
+    await limparDados(ana, { escopo: "perfil", partes: TUDO });
     const u = usuario("u1");
     expect(u.passwordHash).toBe("hash-ana");
     expect(u.email).toBe("ana@exemplo.test");
@@ -221,28 +229,28 @@ describe("limpar o perfil aberto", () => {
   });
 
   it("guarda o aviso de resposta errada (é da equipe) e, se ela quiser, o Money Reset", async () => {
-    await limparDados(ana, { escopo: "perfil", zerarMoneyReset: false });
+    await limparDados(ana, { escopo: "perfil", partes: SEM_RESET });
     const tipos = de("decisao", "u1", "pes").map((d) => d.tipo).sort();
     expect(tipos).toEqual(["reset_marco", "resposta_errada"]);
   });
 
   it("volta ao começo, na porta do primeiro lançamento, guardando só como ela quer ser chamada", async () => {
-    await limparDados(ana, { escopo: "perfil", zerarMoneyReset: true });
+    await limparDados(ana, { escopo: "perfil", partes: TUDO });
     const u = usuario("u1");
     expect(u.onboardedAt).toBeNull();
     expect(u.comeco).toMatchObject({ passo: "porta", apelido: "Aninha", quer: "sonho", renda: null, lancou: null, terminouEm: null });
   });
 
   it("desliga só o banco que mora no perfil limpo", async () => {
-    const r = await limparDados(ana, { escopo: "perfil", zerarMoneyReset: true });
+    const r = await limparDados(ana, { escopo: "perfil", partes: TUDO });
     expect(banco.bankConnection.map((c) => c.id).sort()).toEqual(["bc-bia", "bc-itau", "bc-novo"]);
     expect(r.itensPluggy).toEqual(["item-nu"]);
     expect(r.contagens.conexoesBancarias).toBe(1);
   });
 
   it("registra que limpou (sem conteúdo) e é idempotente", async () => {
-    await limparDados(ana, { escopo: "perfil", zerarMoneyReset: true });
-    const segunda = await limparDados(ana, { escopo: "perfil", zerarMoneyReset: true });
+    await limparDados(ana, { escopo: "perfil", partes: TUDO });
+    const segunda = await limparDados(ana, { escopo: "perfil", partes: TUDO });
     expect(Object.values(segunda.contagens).every((n) => n === 0)).toBe(true);
     expect(banco.usageEvent.map((e) => [e.userId, e.name, e.path])).toEqual([
       ["u1", "dados_limpos", "/configuracoes/limpar/perfil"],
@@ -252,7 +260,7 @@ describe("limpar o perfil aberto", () => {
 
   it("limite: a quarta limpeza na mesma hora não cabe", async () => {
     expect(await cabeMaisUmaLimpeza("u1")).toBe(true);
-    for (let i = 0; i < 3; i++) await limparDados(ana, { escopo: "perfil", zerarMoneyReset: true });
+    for (let i = 0; i < 3; i++) await limparDados(ana, { escopo: "perfil", partes: TUDO });
     expect(await cabeMaisUmaLimpeza("u1")).toBe(false);
     expect(await cabeMaisUmaLimpeza("u2")).toBe(true);
   });
@@ -260,7 +268,7 @@ describe("limpar o perfil aberto", () => {
 
 describe("limpar todos os perfis", () => {
   it("apaga o dinheiro de todos os perfis dela, inclusive o histórico sem perfil", async () => {
-    const r = await limparDados(ana, { escopo: "todos", zerarMoneyReset: true });
+    const r = await limparDados(ana, { escopo: "todos", partes: TUDO });
     for (const modelo of TABELAS_COM_PERFIL) {
       for (const p of ["pes", "emp", "cas", null]) {
         expect(de(modelo, "u1", p).filter((l) => l.tipo !== "resposta_errada"), `${modelo} ${p}`).toEqual([]);
@@ -274,7 +282,7 @@ describe("limpar todos os perfis", () => {
   });
 
   it("não toca na outra conta nem no lado do par", async () => {
-    await limparDados(ana, { escopo: "todos", zerarMoneyReset: true });
+    await limparDados(ana, { escopo: "todos", partes: TUDO });
     for (const modelo of TABELAS_COM_PERFIL) {
       expect(de(modelo, "u2", "bia").length, `${modelo} da Bia`).toBeGreaterThan(0);
       expect(de(modelo, "par", "cas").length, `${modelo} do par`).toBeGreaterThan(0);
@@ -286,7 +294,7 @@ describe("limpar todos os perfis", () => {
 
 describe("Nós dois", () => {
   it("a titular limpa o casal: sai o dela e o fechamento a dois; fica o par, o vínculo e o combinado", async () => {
-    await limparDados(anaNoCasal, { escopo: "perfil", zerarMoneyReset: true });
+    await limparDados(anaNoCasal, { escopo: "perfil", partes: TUDO });
     expect(de("monthlyEntry", "u1", "cas")).toEqual([]);
     expect(de("monthlyEntry", "par", "cas").length).toBe(1);
     expect(banco.fechamentoCasal).toEqual([]);
@@ -302,14 +310,14 @@ describe("Nós dois", () => {
     lancDoPar.goalId = meta.id;
     lancDoPar.customCategoryId = cat.id;
     const antes = JSON.stringify(lancDoPar);
-    await limparDados(anaNoCasal, { escopo: "perfil", zerarMoneyReset: true });
+    await limparDados(anaNoCasal, { escopo: "perfil", partes: TUDO });
     expect(de("goal", "u1", "cas").map((g) => g.id)).toEqual([meta.id]);
     expect(de("customCategory", "u1", "cas").map((c) => c.id)).toEqual([cat.id]);
     expect(JSON.stringify(de("monthlyEntry", "par", "cas")[0])).toBe(antes);
   });
 
   it("o par limpa: sai só o que é dele no casal; o da titular, o fechamento e o combinado ficam", async () => {
-    const r = await limparDados(par, { escopo: "perfil", zerarMoneyReset: true });
+    const r = await limparDados(par, { escopo: "perfil", partes: TUDO });
     for (const modelo of TABELAS_COM_PERFIL) {
       expect(de(modelo, "par", "cas").filter((l) => l.tipo !== "resposta_errada"), modelo).toEqual([]);
       expect(de(modelo, "u1", "cas").length, `${modelo} da titular`).toBeGreaterThan(0);
@@ -323,11 +331,99 @@ describe("Nós dois", () => {
   });
 
   it("o par com 'todos' também não alcança os perfis da titular", async () => {
-    await limparDados(par, { escopo: "todos", zerarMoneyReset: true });
+    await limparDados(par, { escopo: "todos", partes: TUDO });
     for (const modelo of TABELAS_COM_PERFIL) {
       for (const p of ["pes", "emp", "cas", null]) expect(de(modelo, "u1", p).length, `${modelo} ${p}`).toBeGreaterThan(modelo === "fechamentoDoMes" && p === null ? -1 : 0);
     }
     expect(banco.bankConnection.filter((c) => c.userId === "u1").length).toBe(3);
+  });
+});
+
+describe("escolher o que sai", () => {
+  const conta = (modelo: string, userId: string, profileId: string | null) => de(modelo, userId, profileId).length;
+
+  it("só Metas: saem metas, fotos, reserva e as decisões da reserva; o resto fica e ela não volta ao começo", async () => {
+    linhaDe("decisao", "u1", "pes", { tipo: "reserva_guardei", chave: "2026-09" });
+    linhaDe("decisao", "u1", "pes", { tipo: "teto" });
+    const meta = de("goal", "u1", "pes")[0];
+    const lanc = de("monthlyEntry", "u1", "pes")[0];
+    const ativo = de("asset", "u1", "pes")[0];
+    lanc.goalId = meta.id;
+    ativo.goalId = meta.id;
+    const r = await limparDados(ana, { escopo: "perfil", partes: ["metas"] });
+    expect(r.partes).toEqual(["metas"]);
+    expect(r.recomecar).toBe(false);
+    for (const m of ["goal", "fotoDaMeta", "emergencyFund"]) expect(conta(m, "u1", "pes"), m).toBe(0);
+    for (const m of ["monthlyEntry", "importBatch", "budget", "monthlyPlan", "asset", "customCategory", "transactionCategoryRule", "contaAPagar", "divida", "simulation", "achadoDinheiroPerdido", "fechamentoDoMes"]) {
+      expect(conta(m, "u1", "pes"), m).toBeGreaterThan(0);
+    }
+    // O lançamento e o investimento que apontavam para a meta ficam, sem o vínculo.
+    expect(lanc.goalId).toBeNull();
+    expect(ativo.goalId).toBeNull();
+    expect(de("decisao", "u1", "pes").map((d) => d.tipo).sort()).toEqual(["compra_desisti", "reset_marco", "resposta_errada", "teto"]);
+    expect(usuario("u1").onboardedAt).not.toBeNull();
+    expect(banco.bankConnection.length).toBe(4);
+    expect(r.itensPluggy).toEqual([]);
+    expect(perfil("pes")).toMatchObject({ categorias: { LAZER: { nome: "Rolês" } }, limiteCartao: 800, perfilInvestidor: "moderado" });
+    // O resto dos perfis e das contas, intacto.
+    expect(conta("goal", "u1", "emp")).toBe(1);
+    expect(conta("goal", "par", "cas")).toBe(1);
+  });
+
+  it("Categorias puxa Lançamentos e Orçamento (a categoria nunca fica sem dono no meio)", async () => {
+    const r = await limparDados(ana, { escopo: "perfil", partes: ["categorias"] });
+    expect(r.partes).toEqual(["lancamentos", "orcamento", "categorias"]);
+    for (const m of ["customCategory", "transactionCategoryRule", "monthlyEntry", "budget", "monthlyPlan"]) expect(conta(m, "u1", "pes"), m).toBe(0);
+    for (const m of ["goal", "asset", "divida", "simulation"]) expect(conta(m, "u1", "pes"), m).toBeGreaterThan(0);
+    expect(perfil("pes")).toMatchObject({ categorias: null, limiteCartao: null, perfilInvestidor: "moderado" });
+    // Nenhum lançamento ou orçamento sobrevivente aponta para categoria apagada.
+    const cats = new Set((banco.customCategory ?? []).map((c) => c.id));
+    for (const l of [...(banco.monthlyEntry ?? []), ...(banco.budget ?? [])]) if (l.customCategoryId) expect(cats.has(l.customCategoryId as string)).toBe(true);
+    expect(r.recomecar).toBe(true);
+  });
+
+  it("só Lançamentos: saem os calculados deles (Dinheiro perdido, contas do extrato, meses fechados, banco); ficam as contas que ela cadastrou", async () => {
+    linhaDe("contaAPagar", "u1", "pes", { origem: "historico" });
+    linhaDe("decisao", "u1", "pes", { tipo: "teto" });
+    const r = await limparDados(ana, { escopo: "perfil", partes: ["lancamentos"] });
+    expect(r.partes).toEqual(["lancamentos"]);
+    for (const m of ["monthlyEntry", "importBatch", "achadoDinheiroPerdido", "fechamentoDoMes", "contributionAllocation"]) expect(conta(m, "u1", "pes"), m).toBe(0);
+    expect(de("contaAPagar", "u1", "pes").map((c) => c.origem ?? null)).toEqual([null]);
+    for (const m of ["budget", "goal", "asset", "customCategory", "transactionCategoryRule", "contaRecusada", "divida"]) expect(conta(m, "u1", "pes"), m).toBeGreaterThan(0);
+    expect(de("decisao", "u1", "pes").map((d) => d.tipo).sort()).toEqual(["reset_marco", "resposta_errada", "teto"]);
+    expect(r.itensPluggy).toEqual(["item-nu"]);
+    expect(r.recomecar).toBe(true);
+    expect(usuario("u1").onboardedAt).toBeNull();
+  });
+
+  it("Money Reset e Calculadoras sozinhos não mexem no dinheiro", async () => {
+    await limparDados(ana, { escopo: "perfil", partes: ["moneyReset", "calculadoras"] });
+    expect(de("decisao", "u1", "pes").map((d) => d.tipo).sort()).toEqual(["compra_desisti", "resposta_errada"]);
+    for (const m of ["simulation", "planningParams"]) expect(conta(m, "u1", "pes"), m).toBe(0);
+    for (const m of ["monthlyEntry", "budget", "goal", "asset"]) expect(conta(m, "u1", "pes"), m).toBe(1);
+  });
+
+  it("limpa o perfil escolhido, mesmo não sendo o aberto agora", async () => {
+    await limparDados(ana, { escopo: "perfil", perfilId: "emp", partes: TUDO });
+    expect(conta("monthlyEntry", "u1", "emp")).toBe(0);
+    expect(conta("monthlyEntry", "u1", "pes")).toBe(1);
+    expect(perfil("emp").empresa).toBeNull();
+    expect(perfil("pes").limiteCartao).toBe(800);
+    expect(banco.bankConnection.map((c) => c.id).sort()).toEqual(["bc-bia", "bc-novo", "bc-nu"]);
+  });
+
+  it("perfil de outra conta é recusado e nada sai", async () => {
+    const antes = JSON.stringify(banco);
+    await expect(limparDados(ana, { escopo: "perfil", perfilId: "bia", partes: TUDO })).rejects.toBeInstanceOf(PerfilDeOutraPessoa);
+    expect(JSON.stringify(banco)).toBe(antes);
+  });
+
+  it("o par escolhendo partes no Nós dois apaga só o lado dele", async () => {
+    await limparDados(par, { escopo: "perfil", partes: ["metas", "contas"] });
+    expect(conta("goal", "par", "cas")).toBe(0);
+    expect(conta("divida", "par", "cas")).toBe(0);
+    expect(conta("monthlyEntry", "par", "cas")).toBe(1);
+    for (const m of ["goal", "divida", "contaAPagar"]) expect(conta(m, "u1", "cas"), m).toBe(1);
   });
 });
 
