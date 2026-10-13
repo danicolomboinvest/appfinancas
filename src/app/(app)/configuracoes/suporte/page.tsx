@@ -14,7 +14,7 @@ export default function SuportePage() {
         <a href={`mailto:${SUPORTE_EMAIL}`} className="break-all text-[19px] font-medium text-ink">
           {SUPORTE_EMAIL}
         </a>
-        <p className="text-sm text-ink-muted">Respondemos em até 1 dia útil. Conte o que aconteceu e, se puder, mande um print.</p>
+        <p className="text-sm text-ink-muted">Respondemos em até 2 dias úteis. Conte o que aconteceu e, se puder, mande um print.</p>
         <CopiarEmail />
       </div>
     </div>

@@ -13,6 +13,7 @@ import { isPicPayInvoice, parsePicPayInvoice } from "./picpay-fatura-pdf";
 import { isSicrediInvoice, parseSicrediInvoice } from "./sicredi-fatura-pdf";
 import { isSicoobInvoice, parseSicoobInvoice } from "./sicoob-fatura-pdf";
 import { isBtgInvoice, parseBtgInvoice } from "./btg-fatura-pdf";
+import { lerExtratoPeloSaldo } from "./extrato-pelo-saldo";
 import { isCaixaInvoice, parseCaixaInvoice } from "./caixa-fatura-pdf";
 import { isPortoInvoice, parsePortoInvoice } from "./porto-fatura-pdf";
 import { isUnicredStatement, parseUnicredStatement } from "./unicred-pdf";
@@ -904,6 +905,13 @@ export function parseStatementComLeitor(
     // mesmo banco). O genérico vale quando fecha. Senão, o leitor que testa jeitos de ler
     // (leitor-inteligente.ts) tenta — e só entra se fechar no centavo com o total impresso.
     if (proprio && fechaComoFatura(content, proprio.txns) !== "nao-fechou") return proprio;
+    // Extrato de banco sem leitor próprio, mas com o saldo depois de cada linha: vale a leitura
+    // em que o saldo fecha linha a linha no centavo (extrato-pelo-saldo.ts). Banco novo deixa de
+    // ser "zero lançamentos" até alguém escrever um leitor pra ele.
+    if (!proprio) {
+      const peloSaldo = lerExtratoPeloSaldo(content, refYear);
+      if (peloSaldo) return { txns: peloSaldo, leitor: "pelo-saldo" };
+    }
     const generico = proprio ?? { txns: parseTextLines(content, refYear), leitor: null };
     if (!proprio && fechaComoFatura(content, generico.txns) === "fechou") return generico;
     const testando = lerFaturaTestando(content, refYear);
