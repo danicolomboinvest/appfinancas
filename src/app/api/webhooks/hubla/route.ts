@@ -6,6 +6,7 @@ import { guardarIdDaAssinatura } from "@/lib/assinatura/hubla-assinatura";
 import { oQueACompraLibera, recordSeenProduct, type HublaProduct } from "@/lib/repositories/allowedProduct.repo";
 import { liberarProdutoDaHubla, MONEY_RESET, revogarProdutoDaHubla } from "@/lib/repositories/produtoLiberado.repo";
 import { findUserByEmail } from "@/lib/repositories/user.repo";
+import { garantirEmpresaComprada } from "@/lib/repositories/perfil-comprado.repo";
 import { sendEmail } from "@/lib/email/send";
 import { accessGrantedEmail } from "@/lib/email/templates";
 import { caminhoDoCadastro } from "@/lib/auth/convite-cadastro";
@@ -146,6 +147,19 @@ export async function POST(request: Request) {
     for (const product of foraDaLista) await recordSeenProduct(product);
     if (moneyReset) for (const email of emails) await liberarProdutoDaHubla(email, MONEY_RESET);
     for (const adicional of adicionais) for (const email of emails) await liberarProdutoDaHubla(email, adicional);
+    // Perfil Empresa (13/10/2026): quem já tem conta ganha a Empresa criada na hora, sem precisar
+    // achar "Criar Empresa" (ver perfil-comprado.repo.ts). Sem conta, ela nasce na primeira
+    // entrada. Melhor esforço: a liberação já está gravada e a entrada no app cria de novo.
+    if (adicionais.includes("perfil_empresa")) {
+      for (const email of emails) {
+        try {
+          const conta = await findUserByEmail(email);
+          if (conta) await garantirEmpresaComprada(conta.id);
+        } catch (e) {
+          console.error("webhook hubla: perfil Empresa", e);
+        }
+      }
+    }
     if (!allowed) {
       const soAvulso = moneyReset ? "granted_money_reset" : adicionais.length > 0 ? "granted_adicionais" : "ignored";
       return NextResponse.json({

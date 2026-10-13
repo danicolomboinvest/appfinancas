@@ -67,6 +67,9 @@ vi.mock("@/lib/repositories/produtoLiberado.repo", () => ({
 const findUserByEmail = vi.fn();
 vi.mock("@/lib/repositories/user.repo", () => ({ findUserByEmail: (e: string) => findUserByEmail(e) }));
 
+const garantirEmpresaComprada = vi.fn();
+vi.mock("@/lib/repositories/perfil-comprado.repo", () => ({ garantirEmpresaComprada: (id: string) => garantirEmpresaComprada(id) }));
+
 const sendEmail = vi.fn();
 vi.mock("@/lib/email/send", () => ({ sendEmail: (m: unknown) => sendEmail(m) }));
 
@@ -100,6 +103,7 @@ beforeEach(() => {
   liberarProdutoDaHubla.mockReset().mockResolvedValue({});
   revogarProdutoDaHubla.mockReset().mockResolvedValue({ count: 1 });
   findUserByEmail.mockReset().mockResolvedValue(null);
+  garantirEmpresaComprada.mockReset().mockResolvedValue("criada");
   sendEmail.mockReset().mockResolvedValue({ ok: true });
 });
 
@@ -385,6 +389,27 @@ describe("webhook Hubla: adicionais Empresa e conta do parceiro (11/10/2026)", (
     expect(await r.json()).toMatchObject({ ok: true, action: "granted_adicionais", adicionais: ["perfil_empresa"] });
     expect(grantFromHubla).not.toHaveBeenCalled();
     expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  it("Empresa comprada por quem já tem conta: o perfil Empresa é criado na hora", async () => {
+    findUserByEmail.mockImplementation(async (e: string) => (e === "bia@x.com" ? { id: "u-bia" } : null));
+    await chamar(compra("invoice.payment_succeeded", { user: { email: "bia@x.com" }, product: EMPRESA }));
+    expect(garantirEmpresaComprada).toHaveBeenCalledWith("u-bia");
+  });
+
+  it("Empresa comprada sem conta, ou só o Casal: não cria nada no webhook", async () => {
+    await chamar(compra("invoice.payment_succeeded", { user: { email: "nova@x.com" }, product: EMPRESA }));
+    findUserByEmail.mockResolvedValue({ id: "u-ana" });
+    await chamar(compra("invoice.payment_succeeded", { user: { email: "ana@x.com" }, product: CASAL }));
+    expect(garantirEmpresaComprada).not.toHaveBeenCalled();
+  });
+
+  it("se criar a Empresa falhar, a liberação continua valendo", async () => {
+    findUserByEmail.mockResolvedValue({ id: "u-bia" });
+    garantirEmpresaComprada.mockRejectedValue(new Error("banco fora"));
+    const r = await chamar(compra("invoice.payment_succeeded", { user: { email: "bia@x.com" }, product: EMPRESA }));
+    expect(await r.json()).toMatchObject({ ok: true, action: "granted_adicionais" });
+    expect(liberarProdutoDaHubla).toHaveBeenCalledWith("bia@x.com", "perfil_empresa");
   });
 
   it("cancelou o adicional: tira só ele, o app continua", async () => {
