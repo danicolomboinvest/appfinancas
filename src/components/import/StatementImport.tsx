@@ -14,6 +14,7 @@ import { useToast } from "@/components/ui/toast-context";
 import { createCategoryAction } from "@/lib/actions/category";
 import {
   parseStatementAction,
+  lerPrintDaFaturaAction,
   importTransactionsAction,
   mesesNoAppAction,
   removeCardPaymentCandidateAction,
@@ -26,7 +27,9 @@ import {
 } from "@/app/(app)/mensal/import-actions";
 import { useMoney } from "@/components/money/MoneyProvider";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
-import { ACEITA_ARQUIVO_DE_EXTRATO, UPLOAD_MAX_BYTES } from "@/lib/import/limites";
+import { ACEITA_ARQUIVO_DE_EXTRATO, MAX_PRINTS, UPLOAD_MAX_BYTES, ehImagem } from "@/lib/import/limites";
+import type { PrintLido } from "@/lib/import/print-fatura";
+import { hojeNoAparelho, prepararImagem } from "./preparar-imagem";
 import { filaPorComerciante, iguaisPraAplicar, proximaPendente, semCategoria as gastoSemCategoria } from "@/lib/import/revisao-em-grupo";
 import { foiSeparada, porqueDaLinha } from "@/lib/import/porque";
 import { faixaDosMeses, levarRespostas, resumoDoArquivo } from "@/lib/import/varios-arquivos";
@@ -48,6 +51,8 @@ type Phase = "upload" | "password" | "arquivos" | "review" | "confirm" | "done";
 type ArquivoNaFila = {
   id: number;
   file: File;
+  /** Prints da fatura aberta: todos viram UMA leitura (o `file` é o primeiro, só para o nome). */
+  prints?: File[];
   status: "esperando" | "lendo" | "ok" | "erro" | "anotado" | "senha";
   /** A senha que abriu este arquivo (fica só na memória da tela, pro "Mudar" reler). */
   pwd?: string;
@@ -125,6 +130,11 @@ function filaDePerguntas(linhas: ReviewItem[], pular: Set<number> = new Set()): 
   return [...umaPorUma.map((it) => it.key), ...porCategoria.keys];
 }
 
+/** "3 prints da fatura": o nome do arquivo na lista e no histórico de importações. */
+function nomeDosPrints(n: number): string {
+  return n === 1 ? "Print da fatura aberta" : `${n} prints da fatura aberta`;
+}
+
 /** Quantas linhas a conferência mostra antes do "Mostrar todos": no celular, 200 linhas de
  * extrato empurravam o botão de importar pra muito longe. */
 const LINHAS_VISIVEIS = 30;
@@ -191,6 +201,8 @@ export function StatementImport({
   const [filaAtual, setFilaAtual] = useState<number | null>(null);
   const [mesesNoApp, setMesesNoApp] = useState<string[]>([]);
   const [lendoFila, setLendoFila] = useState(false);
+  // Prints da fatura aberta: um por vez no servidor ("Lendo o print 2 de 3").
+  const [lendoPrint, setLendoPrint] = useState<{ atual: number; total: number } | null>(null);
   useEffect(() => {
     let vivo = true;
     mesesNoAppAction()
@@ -311,11 +323,78 @@ export function StatementImport({
     setContarNoMes(false);
     setMenuDoArquivo(false);
     // Barra aqui o que a Vercel recusaria com 413 lá fora, onde não sobra nem registro.
+    if (ehImagem(file)) {
+      lerPrintsNaTela([file]);
+      return;
+    }
     if (file.size > UPLOAD_MAX_BYTES) {
       setError(t.impArquivoGrande);
       return;
     }
     runParse(file);
+  }
+
+  /**
+   * Prints da fatura aberta (13/10/2026): cada print vai sozinho para o OCR (um por chamada, longe
+   * do limite de tempo do servidor), e as compras de todos voltam juntas numa leitura só, sem a
+   * parte repetida entre um print e o próximo. `falhos`: prints que não deram para ler.
+   */
+  async function lerOsPrints(arquivos: File[]): Promise<{ r: Awaited<ReturnType<typeof parseStatementAction>>; falhos: number }> {
+    const envio = hojeNoAparelho();
+    const lidos: PrintLido[] = [];
+    let banco: string | null = null;
+    let erro: string | null = null;
+    const lista = arquivos.slice(0, MAX_PRINTS);
+    for (const [i, arquivo] of lista.entries()) {
+      setLendoPrint({ atual: i + 1, total: lista.length });
+      const form = new FormData();
+      form.set("file", await prepararImagem(arquivo), arquivo.name.replace(/\.\w+$/, ".png"));
+      form.set("envio", envio);
+      const r = await lerPrintDaFaturaAction(form);
+      if (r.ok) {
+        lidos.push(r.print);
+        banco ??= r.banco;
+      } else erro ??= r.error;
+    }
+    setLendoPrint(null);
+    if (lidos.length === 0) return { r: { ok: false, error: erro ?? "Não consegui ler este print. Tente com a tela mais clara ou sem zoom." }, falhos: lista.length };
+    const form = new FormData();
+    form.set("origem", "print");
+    form.set("docType", "fatura");
+    form.set("envio", envio);
+    form.set("prints", JSON.stringify(lidos));
+    if (banco) form.set("banco", banco);
+    return { r: await parseStatementAction(form), falhos: lista.length - lidos.length };
+  }
+
+  /** Só prints (o caminho de um arquivo): lê todos e abre a confirmação da fatura aberta. */
+  function lerPrintsNaTela(arquivos: File[]) {
+    setError(null);
+    setKindMismatch(null);
+    setStats(null);
+    setContarNoMes(false);
+    setMenuDoArquivo(false);
+    setFileName(nomeDosPrints(Math.min(arquivos.length, MAX_PRINTS)));
+    // Prints são sempre fatura: o "Ler como extrato" do menu não vale aqui.
+    setUltimoArquivo(null);
+    startTransition(async () => {
+      let lido: Awaited<ReturnType<typeof lerOsPrints>>;
+      try {
+        lido = await lerOsPrints(arquivos);
+      } catch (err) {
+        setLendoPrint(null);
+        registrarErroNoCliente("importar-print", err);
+        setError(ehFalhaDeRede(err) ? t.impErroEnvio : MSG_FALHA_NOSSA);
+        return;
+      }
+      if (!lido.r.ok) {
+        setError(lido.r.error);
+        return;
+      }
+      if (lido.falhos > 0) showToast(lido.falhos === 1 ? "1 print não deu para ler. Os outros entraram." : `${lido.falhos} prints não deram para ler. Os outros entraram.`);
+      setDocType("fatura");
+      carregarLeitura(lido.r.stats, lido.r.items, lido.r.customCategories);
+    });
   }
 
   /** Lê o arquivo no servidor. Se o Excel estiver protegido, cai na tela de senha; com a senha,
@@ -382,6 +461,17 @@ export function StatementImport({
 
   /** Lê um arquivo da fila no servidor, seguindo o tipo que o app detectar (ou o forçado no "Mudar"). */
   async function lerDaFila(arq: ArquivoNaFila, forcado?: "extrato" | "fatura", pwd: string | undefined = arq.pwd): Promise<ArquivoNaFila> {
+    if (arq.prints) {
+      try {
+        const { r } = await lerOsPrints(arq.prints);
+        if (!r.ok) return { ...arq, status: "erro", erro: r.error };
+        return { ...arq, status: "ok", docType: "fatura", stats: r.stats, items: r.items, customCategories: r.customCategories, erro: undefined, rotulo: "Fatura aberta" };
+      } catch (err) {
+        setLendoPrint(null);
+        registrarErroNoCliente("importar-print", err);
+        return { ...arq, status: "erro", erro: ehFalhaDeRede(err) ? t.impErroEnvio : MSG_FALHA_NOSSA };
+      }
+    }
     if (arq.file.size > UPLOAD_MAX_BYTES) return { ...arq, status: "erro", erro: t.impArquivoGrande };
     const tentar = async (tipo: "extrato" | "fatura") => {
       const form = buildUploadForm(arq.file, tipo);
@@ -414,7 +504,14 @@ export function StatementImport({
    */
   async function lerFila(novos: File[], juntarCom: ArquivoNaFila[] = []) {
     const base = juntarCom.length ? Math.max(...juntarCom.map((a) => a.id)) + 1 : 0;
-    let lista: ArquivoNaFila[] = [...juntarCom, ...novos.map((file, i) => ({ id: base + i, file, status: "esperando" as const, docType: "extrato" as const }))];
+    // Os prints do mesmo envio são UMA fatura aberta: uma linha só na lista.
+    const imagens = novos.filter(ehImagem);
+    const outros = novos.filter((f) => !ehImagem(f));
+    let lista: ArquivoNaFila[] = [
+      ...juntarCom,
+      ...outros.map((file, i) => ({ id: base + i, file, status: "esperando" as const, docType: "extrato" as const })),
+      ...(imagens.length ? [{ id: base + outros.length, file: imagens[0], prints: imagens, status: "esperando" as const, docType: "fatura" as const }] : []),
+    ];
     setFila(lista);
     setFilaAtual(null);
     setError(null);
@@ -468,8 +565,8 @@ export function StatementImport({
     setFila(lista);
     setFilaAtual(id);
     setDocType(arq.docType);
-    setFileName(arq.file.name);
-    setUltimoArquivo({ file: arq.file });
+    setFileName(arq.prints ? nomeDosPrints(arq.prints.length) : arq.file.name);
+    setUltimoArquivo(arq.prints ? null : { file: arq.file });
     carregarLeitura(arq.stats, arq.items, arq.customCategories ?? []);
   }
 
@@ -653,13 +750,19 @@ export function StatementImport({
         estorno: it.estorno ?? false,
         resgate: it.resgate ?? false,
       }));
+    // A compra que já tinha entrado pelo print da fatura aberta: vai junto, para passar para este
+    // lote com o valor, o dia e o nome desta fatura (o servidor confere o id de novo).
+    for (const it of items) {
+      if (it.ignorar || !it.jaNoApp?.faturaAberta) continue;
+      confirmed.push({ date: it.date, description: it.description, amount: it.amount, category: it.category, parentCategory: it.parentCategory, customCategoryId: it.customCategoryId, subcategory: it.subcategory, learn: false, installment: it.installment, profileId: it.profileId, estorno: it.estorno ?? false, resgate: false, adotar: it.jaNoApp.id });
+    }
     // Sem mês escolhido, o servidor põe cada compra no mês dela (com o vencimento e o fechamento lidos).
     const [targetYear, targetMonth] = docType === "fatura" && contarNoMes ? faturaMonth.split("-").map(Number) : [undefined, undefined];
     const datasDaFatura = docType === "fatura" ? { vencimento: stats?.vencimento ?? null, fechamento: stats?.fechamento ?? null } : null;
     startTransition(async () => {
       let result: Awaited<ReturnType<typeof importTransactionsAction>>;
       try {
-        result = await importTransactionsAction(confirmed, docType, targetYear, targetMonth, fileName ?? undefined, perfilDaTela, nomesDoCasal ? pessoaDoExtrato : null, datasDaFatura);
+        result = await importTransactionsAction(confirmed, docType, targetYear, targetMonth, fileName ?? undefined, perfilDaTela, nomesDoCasal ? pessoaDoExtrato : null, datasDaFatura, stats?.faturaAberta === true);
       } catch (err) {
         console.error("importTransactionsAction falhou no envio", err);
         registrarErroNoCliente("importar-gravar", err);
@@ -671,7 +774,7 @@ export function StatementImport({
         return;
       }
       // Os que já estavam no app: o lançamento à mão fica com o dia e o valor do arquivo.
-      const conciliar = items.flatMap((it) => (it.jaNoApp?.id ? [{ id: it.jaNoApp.id, valor: it.estorno ? -it.amount : it.amount, data: it.date, descricao: it.description }] : []));
+      const conciliar = items.flatMap((it) => (it.jaNoApp?.id && !it.jaNoApp.faturaAberta ? [{ id: it.jaNoApp.id, valor: it.estorno ? -it.amount : it.amount, data: it.date, descricao: it.description }] : []));
       if (conciliar.length > 0) {
         try {
           const r = await conciliarJaNoAppAction(conciliar);
@@ -811,16 +914,17 @@ export function StatementImport({
               {["w-12", "w-8", "w-11"].map((w, i) => <span key={i} className={`h-1.5 ${w} rounded-full bg-surface-2`} />)}
             </span>
           </span>
-          <b className="titulo-tema text-[1.75rem] font-normal leading-tight text-ink">{isPending ? t.impLendoArquivo : "Extrato ou fatura"}</b>
+          <b className="titulo-tema text-[1.75rem] font-normal leading-tight text-ink">{lendoPrint ? `Lendo o print ${lendoPrint.atual} de ${lendoPrint.total}` : isPending ? t.impLendoArquivo : "Extrato ou fatura"}</b>
           <span className="text-[15px] text-ink-muted">Pode ser qualquer um dos dois. Eu descubro qual é.</span>
           <span className="mt-1 flex flex-wrap justify-center gap-1.5">
-            {["PDF", "Excel", "CSV", "OFX"].map((f) => (
+            {["PDF", "Excel", "CSV", "OFX", "Print"].map((f) => (
               <span key={f} className="rounded-full bg-surface-2 px-3 py-1 text-[13px] font-medium text-ink-muted">
                 {f}
               </span>
             ))}
           </span>
         </button>
+        <p className="-mt-1 text-center text-sm text-ink-muted" data-dica-print>Fatura ainda aberta? Mande prints da lista de compras.</p>
         <Link href="/comecar?passo=banco" className="mx-auto inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-accent-strong hover:underline" data-como-tiro>
           <CircleHelp size={16} aria-hidden />
           Como tiro o extrato do meu banco?
@@ -840,8 +944,10 @@ export function StatementImport({
             // Zera o campo: depois de um erro, escolher o MESMO arquivo de novo não dispara
             // change (o valor não mudou) e o toque não fazia nada, justo quando o aviso mandou tentar de novo.
             e.target.value = "";
-            // Vários de uma vez (caminho B): um por vez no servidor, cada um numa linha.
-            if (arquivos.length > 1) void lerFila(arquivos);
+            // Só prints: uma leitura só (a fatura aberta). Vários arquivos (caminho B): um por vez
+            // no servidor, cada um numa linha, e os prints juntos numa linha.
+            if (arquivos.length > 0 && arquivos.every(ehImagem)) lerPrintsNaTela(arquivos);
+            else if (arquivos.length > 1) void lerFila(arquivos);
             else if (arquivos[0]) handleFile(arquivos[0]);
           }}
         />
@@ -905,7 +1011,7 @@ export function StatementImport({
             <div key={a.id} className="flex flex-col gap-2 rounded-3xl bg-surface p-4 shadow-premium-sm" data-arquivo-da-fila={a.status}>
               <span className="flex min-w-0 items-center gap-1.5 text-sm text-ink-muted">
                 <Paperclip size={15} className="shrink-0" aria-hidden />
-                <span className="truncate">{a.file.name}</span>
+                <span className="truncate">{a.prints ? nomeDosPrints(a.prints.length) : a.file.name}</span>
               </span>
               {resumo ? (
                 <>
@@ -921,9 +1027,11 @@ export function StatementImport({
                     <span className="inline-flex items-center gap-1 text-sm font-medium text-success">
                       <Check size={15} aria-hidden /> Pronto para revisar
                     </span>
-                    <button type="button" disabled={lendoFila} onClick={() => void mudarTipoNaFila(a.id)} className="min-h-11 px-1 text-sm text-ink-muted underline underline-offset-4 disabled:opacity-50">
-                      Mudar
-                    </button>
+                    {!a.prints && (
+                      <button type="button" disabled={lendoFila} onClick={() => void mudarTipoNaFila(a.id)} className="min-h-11 px-1 text-sm text-ink-muted underline underline-offset-4 disabled:opacity-50">
+                        Mudar
+                      </button>
+                    )}
                   </span>
                 </>
               ) : a.status === "erro" ? (
@@ -935,7 +1043,7 @@ export function StatementImport({
               ) : (
                 <span className="inline-flex items-center gap-2 text-sm text-ink-muted">
                   <span className="esqueleto h-3 w-24 rounded-full" aria-hidden />
-                  {a.status === "lendo" ? t.impLendoArquivo : "Na fila"}
+                  {a.status === "lendo" ? (a.prints && lendoPrint ? `Lendo o print ${lendoPrint.atual} de ${lendoPrint.total}` : t.impLendoArquivo) : "Na fila"}
                 </span>
               )}
             </div>
@@ -1458,7 +1566,8 @@ export function StatementImport({
           const meses = [...new Set(importable.map((it) => it.date.slice(0, 7)))].sort();
           const mesCurto = (ym: string) => new Date(Number(ym.slice(0, 4)), Number(ym.slice(5, 7)) - 1, 1).toLocaleDateString("pt-BR", { month: "short" }).replace(".", "");
           const textoMeses = meses.length === 0 ? "" : meses.length === 1 ? new Date(Number(meses[0].slice(0, 4)), Number(meses[0].slice(5, 7)) - 1, 1).toLocaleDateString("pt-BR", { month: "long" }) : `${mesCurto(meses[0])} a ${mesCurto(meses[meses.length - 1])}`;
-          const deOnde = stats?.banco ? `${docType === "fatura" ? "Fatura" : "Extrato"} ${stats.banco}` : docType === "fatura" ? "Fatura do cartão" : "Extrato da conta";
+          const aberta = stats?.faturaAberta === true;
+          const deOnde = aberta ? `Fatura aberta${stats?.banco ? ` ${stats.banco}` : ""}` : stats?.banco ? `${docType === "fatura" ? "Fatura" : "Extrato"} ${stats.banco}` : docType === "fatura" ? "Fatura do cartão" : "Extrato da conta";
           const compras = docType === "fatura" ? importable.filter((it) => it.category === "EXPENSE").length : importable.length;
           const separadas = importable.filter((it) => foiSeparada(it)).length;
           return (
@@ -1512,9 +1621,9 @@ export function StatementImport({
               )}
               <span className="text-sm text-ink-muted">{deOnde}</span>
               <b className="mt-1 text-[2.75rem] font-light leading-none tracking-tight tabular-nums text-ink">{compras}</b>
-              <span className="text-[15px] text-ink">
+              <span className="text-[15px] text-ink" data-compras-ate-hoje={aberta || undefined}>
                 {docType === "fatura" ? (compras === 1 ? "compra" : "compras") : compras === 1 ? "lançamento" : "lançamentos"}
-                {textoMeses ? ` · ${textoMeses}` : ""}
+                {aberta ? " até hoje" : textoMeses ? ` · ${textoMeses}` : ""}
               </span>
               <span className="text-[15px] tabular-nums text-ink-muted">
                 {docType === "fatura" ? money(expenseSum) : `Entrou ${money(entrou, { round: true })} · Saiu ${money(expenseSum, { round: true })}`}

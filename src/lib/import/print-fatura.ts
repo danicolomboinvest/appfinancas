@@ -305,7 +305,7 @@ function itemDoGrupo(segs: Segmento[], envio: string, dataAtual: string | null):
       .map((s) => s.texto)
       .join("  ")
       .trim();
-    // O valor sai do texto (veio num pedaço só dele ou grudado no nome: "Padaria — R$ 23,50").
+    // O valor sai do texto (veio num pedaço só dele ou grudado no nome: "Padaria R$ 23,50").
     const v = lerValor(texto);
     if (v && v.valor === valor.valor) texto = `${texto.slice(0, v.inicio)} ${texto.slice(v.fim)}`.trim();
     if (!texto) continue;

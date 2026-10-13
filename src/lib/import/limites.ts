@@ -38,4 +38,19 @@ export const ACEITA_ARQUIVO_DE_EXTRATO = [
   "application/pdf",
   "application/x-ofx",
   "application/ofx",
+  // Prints da fatura aberta (13/10/2026): no iPhone, "image/*" abre também a galeria de fotos.
+  ".png",
+  ".jpg",
+  ".jpeg",
+  ".heic",
+  ".heif",
+  "image/*",
 ].join(",");
+
+/** Imagem (print da fatura aberta), pelo tipo ou pela extensão. */
+export function ehImagem(arquivo: { name: string; type: string }): boolean {
+  return /^image\//i.test(arquivo.type) || /\.(png|jpe?g|heic|heif|webp)$/i.test(arquivo.name);
+}
+
+/** Prints de uma vez: a fatura aberta rolada cabe em poucos; mais que isso é engano. */
+export const MAX_PRINTS = 8;
