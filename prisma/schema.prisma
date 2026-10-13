@@ -240,6 +240,7 @@ model User {
   yearlyConsolidations    YearlyConsolidationCache[]
   accumulationCache       AccumulationProjectionCache[]
   transactionRules        TransactionCategoryRule[]
+  regrasDePerfil          RegraDePerfil[]
   passwordResetTokens     PasswordResetToken[]
   importBatches           ImportBatch[]
   importDiagnostics       ImportDiagnostic[]
@@ -332,6 +333,8 @@ model FinancialProfile {
   importBatches           ImportBatch[]
   contributionAllocations ContributionAllocation[]
   transactionRules        TransactionCategoryRule[]
+  regrasDePerfil          RegraDePerfil[]               @relation("RegraDePerfilOrigem")
+  regrasQueTrazemPraCa    RegraDePerfil[]               @relation("RegraDePerfilDestino")
   simulations             Simulation[]
   analysisSheets          AnalysisSheet[]
   yearlyConsolidations    YearlyConsolidationCache[]
@@ -425,6 +428,28 @@ model TransactionCategoryRule {
   customCategory   CustomCategory?   @relation(fields: [customCategoryId], references: [id], onDelete: Cascade)
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
+
+  @@unique([userId, profileId, pattern])
+  @@index([userId])
+}
+
+/// "Sempre mandar para a Empresa" (12/10/2026): a compra deste comerciante que aparece numa
+/// importação DESTE perfil (o cartão Pessoal) já vem marcada para o perfil de destino na revisão.
+/// Nasce quando ela move lançamentos já importados de um perfil para outro e pede para lembrar.
+/// `pattern` é a chave do comerciante (ver chaveDoComerciante), como na regra de categoria.
+model RegraDePerfil {
+  id               String           @id @default(cuid())
+  userId           String
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// O perfil de onde a compra sai (o da importação).
+  profileId        String
+  profile          FinancialProfile @relation("RegraDePerfilOrigem", fields: [profileId], references: [id], onDelete: Cascade)
+  /// Para onde ela vai. Apagar o perfil de destino apaga a regra.
+  destinoProfileId String
+  destino          FinancialProfile @relation("RegraDePerfilDestino", fields: [destinoProfileId], references: [id], onDelete: Cascade)
+  pattern          String
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
 
   @@unique([userId, profileId, pattern])
   @@index([userId])

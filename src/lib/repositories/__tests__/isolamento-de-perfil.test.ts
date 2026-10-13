@@ -33,6 +33,8 @@ const COM_ESCOPO = [
   "yearlyConsolidationCache", "accumulationProjectionCache", "decisao", "contaAPagar", "divida", "fotoDaMeta", "fechamentoDoMes", "achadoDinheiroPerdido", "contaRecusada",
   // Login do par (11/10/2026): o convite, o vínculo e o fechamento a dois vivem no perfil Casal.
   "conviteCasal", "membroCasal", "fechamentoCasal",
+  // "Sempre mandar para a Empresa" (12/10/2026): a regra mora no perfil de onde a compra sai.
+  "regraDePerfil",
 ];
 
 /**
