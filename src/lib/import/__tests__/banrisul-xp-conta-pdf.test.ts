@@ -101,3 +101,35 @@ describe("extrato da Conta Digital XP em PDF", () => {
     expect(profileDocument(XP).institution).toBe("XP");
   });
 });
+
+/** Extrato da Conta Digital Rico (mesmo banco da XP), fictício: a hora vem na linha de baixo da data. */
+const RICO = [
+  "12/10/2026 19:37:36 Conta Digital Rico | Extrato",
+  "Conta Digital Extrato",
+  "FULANA DE TAL Banco XP S.A | Agência: 0001 | Conta: 0000000",
+  "Saldo disponível no final do período filtrado: R$ 0,00",
+  "Data Descrição Valor Saldo",
+  "05/10/26 às",
+  "07:01:00",
+  "Transferência enviada para conta investimento -R$ 1.600,00 R$ 0,00",
+  "03/10/26 às",
+  "10:29:07",
+  "PAGAMENTO DE FATURA -R$ 381,10 R$ 1.600,00",
+  "03/10/26 às",
+  "10:26:12",
+  "Pix recebido de Fulano de Tal Com Nome",
+  "Comprido R$ 1.981,10 R$ 1.981,10",
+  "Extrato simples para conferência, sujeito a atualizações.",
+].join("\n");
+
+describe("extrato da Conta Digital Rico (PDF)", () => {
+  it("reconhece e lê com a hora numa linha separada, sem a hora no nome do lançamento", () => {
+    const { txns, leitor } = parseStatementComLeitor(RICO, "pdf");
+    expect(leitor).toBe("xp-conta-digital");
+    expect(txns).toEqual([
+      { date: "2026-10-05", description: "Transferência enviada para conta investimento", amount: -1600 },
+      { date: "2026-10-03", description: "PAGAMENTO DE FATURA", amount: -381.1 },
+      { date: "2026-10-03", description: "Pix recebido de Fulano de Tal Com Nome Comprido", amount: 1981.1 },
+    ]);
+  });
+});

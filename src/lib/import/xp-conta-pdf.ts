@@ -12,14 +12,22 @@ import { parseBrazilianNumber, type ParsedTransaction } from "./statement-parser
  *
  * Ano com dois dígitos e "às" no meio: o leitor genérico não achava a data e não lia nada (duas
  * clientes, 25 e 37 linhas com valor, zero lançamentos).
+ *
+ * A Rico é do mesmo banco (Banco XP) e o extrato é o mesmo, com "Conta Digital Rico | Extrato" no
+ * título e a hora numa linha só dela, embaixo da data:
+ *
+ *   05/10/26 às
+ *   07:01:00
+ *   Transferência enviada para conta investimento -R$ 1.600,00 R$ 0,00
  */
 
-const INICIO_RE = /^(\d{2})\/(\d{2})\/(\d{2}) às \d{2}:\d{2}(?::\d{2})?\s*(.*)$/;
+const INICIO_RE = /^(\d{2})\/(\d{2})\/(\d{2}) às(?: \d{2}:\d{2}(?::\d{2})?)?\s*(.*)$/;
+const SO_HORA_RE = /^\d{2}:\d{2}(?::\d{2})?$/;
 const VALOR = String.raw`(-?)R\$\s*(\d{1,3}(?:\.\d{3})*,\d{2})`;
 const VALOR_E_SALDO_RE = new RegExp(`^(.*?)\\s*${VALOR}\\s+-?R\\$\\s*\\d{1,3}(?:\\.\\d{3})*,\\d{2}$`);
 
 export function isXpContaDigitalStatement(texto: string): boolean {
-  return /Conta Digital XP \| Extrato/i.test(texto) && /^Data Descrição Valor Saldo$/m.test(texto);
+  return /Conta Digital (?:XP|Rico) \| Extrato/i.test(texto) && /^Data Descrição Valor Saldo$/m.test(texto);
 }
 
 export function parseXpContaDigitalStatement(texto: string): ParsedTransaction[] {
@@ -33,10 +41,12 @@ export function parseXpContaDigitalStatement(texto: string): ParsedTransaction[]
     if (inicio) {
       atual = { date: `20${inicio[3]}-${inicio[2]}-${inicio[1]}`, partes: [] };
       const resto = inicio[4];
-      if (!fechar(resto)) atual.partes.push(resto);
+      if (resto && !fechar(resto)) atual.partes.push(resto);
       continue;
     }
     if (!atual) continue;
+    // Rico: a hora vem sozinha na linha de baixo da data.
+    if (atual.partes.length === 0 && SO_HORA_RE.test(linha)) continue;
     if (!fechar(linha)) {
       // Rodapé ou cabeçalho de página antes do valor aparecer: a linha não era continuação.
       if (atual.partes.length >= 3 || /^(Data Descrição|Extrato simples|-- \d+ of)/.test(linha)) atual = null;
