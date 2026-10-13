@@ -85,31 +85,3 @@ export async function getTypicalMonthlyExpense(ctx: AuthContext): Promise<Typica
   const soma = comGasto.reduce((total, l) => total + Number(l._sum.amount ?? 0), 0);
   return { monthlyAverage: soma / comGasto.length, monthsUsed: comGasto.length };
 }
-
-/**
- * Renda de um mês típico, pra quem não planejou a renda: a MEDIANA do que entrou nos últimos 3
- * meses fechados. Mediana, não o mês passado: o 13º, as férias ou o freela que caiu atrasado
- * dobram um mês e fariam qualquer compra "caber". Resgate de aplicação não é renda.
- */
-export async function getRendaTipica(ctx: AuthContext): Promise<{ valor: number; meses: number } | null> {
-  const agora = nowInBrazil();
-  const meses: { year: number; month: number }[] = [];
-  for (let i = 1; i <= MESES; i++) {
-    const d = new Date(agora.getFullYear(), agora.getMonth() - i, 1);
-    meses.push({ year: d.getFullYear(), month: d.getMonth() + 1 });
-  }
-  const naoRenda = ["resgate", "caixinha", "rdb", "cdb", "estorno"].map((t) => ({ description: { contains: t, mode: "insensitive" as const } }));
-  const [linhas, fora] = await Promise.all([
-    prisma.monthlyEntry.groupBy({ by: ["year", "month"], where: { userId: ctx.userId, profileId: ctx.profileId, category: "INCOME", OR: meses }, _sum: { amount: true } }),
-    prisma.monthlyEntry.groupBy({ by: ["year", "month"], where: { userId: ctx.userId, profileId: ctx.profileId, category: "INCOME", AND: [{ OR: meses }, { OR: naoRenda }] }, _sum: { amount: true } }),
-  ]);
-  const tirar = new Map(fora.map((l) => [`${l.year}-${l.month}`, Number(l._sum.amount ?? 0)]));
-  const valores = linhas
-    .map((l) => Number(l._sum.amount ?? 0) - (tirar.get(`${l.year}-${l.month}`) ?? 0))
-    .filter((v) => v > 0)
-    .sort((a, b) => a - b);
-  if (valores.length === 0) return null;
-  const meio = Math.floor(valores.length / 2);
-  const valor = valores.length % 2 ? valores[meio] : (valores[meio - 1] + valores[meio]) / 2;
-  return { valor, meses: valores.length };
-}

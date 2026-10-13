@@ -652,21 +652,26 @@ model ImportFile {
 }
 
 model ImportBatch {
-  id          String            @id @default(cuid())
-  userId      String
-  user        User              @relation(fields: [userId], references: [id])
+  id           String            @id @default(cuid())
+  userId       String
+  user         User              @relation(fields: [userId], references: [id])
   /// Perfil financeiro dono deste registro. Nulo só no histórico anterior aos perfis.
-  profileId   String?
-  profile     FinancialProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  profileId    String?
+  profile      FinancialProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
   /// "extrato" | "fatura"
-  docType     String
-  fileName    String?
+  docType      String
+  fileName     String?
   /// Casal simples (13/10/2026): a conta deste extrato ou fatura está escondida do par ("Mostrar
   /// para <par>" desligado em Contas e cartões). Copiado para todos os lotes da mesma conta (ver
   /// chaveDaConta em src/lib/casa/regras.ts), e o lote novo herda o da conta.
-  ocultoDoPar Boolean           @default(false)
-  createdAt   DateTime          @default(now())
-  entries     MonthlyEntry[]
+  ocultoDoPar  Boolean           @default(false)
+  /// Print da fatura ABERTA (13/10/2026): as compras vieram de capturas de tela da lista do app
+  /// do banco, antes de a fatura fechar. Parcial por definição. Quando a fatura fechada chega, as
+  /// compras iguais passam para o lote dela (com o valor, o dia e o nome da fatura) em vez de
+  /// entrar de novo; ver src/lib/import/fatura-aberta.ts.
+  faturaAberta Boolean           @default(false)
+  createdAt    DateTime          @default(now())
+  entries      MonthlyEntry[]
 
   @@index([userId, createdAt])
 }
@@ -1369,6 +1374,10 @@ model ContaAPagar {
   editadaPelaPessoa Boolean           @default(false)
   /// Quando o aviso "Achei N contas no seu histórico" foi fechado. Nulo = ainda não viu.
   avisadaEm         DateTime?
+  /// Assinatura posta à mão (13/10/2026): "assinatura" mora em Assinaturas, não em Contas a pagar,
+  /// e conta como fixo na semana. Nulo = conta. Escolhida dos lançamentos, a `chaveDoHistorico`
+  /// guarda o comerciante: os próximos lançamentos dele são reconhecidos como dela.
+  tipo              String?           @db.VarChar(12)
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
 

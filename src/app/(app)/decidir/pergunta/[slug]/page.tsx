@@ -87,7 +87,7 @@ export default async function PerguntaPage(props: PageProps<"/decidir/pergunta/[
       });
       break;
     case "gastando":
-      resposta = estouGastandoDemais({ money: m, gastoDoMes: d.summary.totalExpense, planejado, decorrido, renda: r.renda, categorias: d.categorias, regra90: r.regra90 });
+      resposta = estouGastandoDemais({ money: m, gastoDoMes: d.summary.totalExpense, planejado, decorrido, renda: r.renda, mesesDaRenda: r.mesesDaRenda, categorias: d.categorias, regra90: r.regra90 });
       break;
     case "exagerando":
       resposta = ondeEstouExagerando({
@@ -107,6 +107,7 @@ export default async function PerguntaPage(props: PageProps<"/decidir/pergunta/[
         guardarPlanejado: d.aportePlanejado,
         // Casal só com a conta conjunta: os 10% mínimos são da renda de cada um, não do repasse.
         renda: r.regra90 ? r.renda : null,
+        mesesDaRenda: r.regra90 ? r.mesesDaRenda : null,
       });
       break;
     case "meta":

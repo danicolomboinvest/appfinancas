@@ -271,9 +271,12 @@ function series(lancamentos: LancamentoParaCacar[]): Serie[] {
   return out;
 }
 
-function acharAssinaturasEAumentos(gastos: LancamentoParaCacar[], ultimoMes: number): Achado[] {
+function acharAssinaturasEAumentos(gastos: LancamentoParaCacar[], ultimoMes: number, dela: ReadonlySet<string>): Achado[] {
+  // O comerciante que ela marcou como assinatura (13/10/2026) passa pelos filtros e vale como serviço.
+  const marcadaPorEla = (chave: string) => dela.size > 0 && dela.has(chave.split("#")[0]);
   const candidatos = gastos.filter((l) => {
     if (ehParcela(l) || tarifaDe(l)) return false;
+    if (marcadaPorEla(comercianteDe(l).chave)) return true;
     const t = textoDe(l);
     const marca = marcaDaDescricao(l.descricao);
     const servico = Boolean(marca && SERVICOS.has(marca.slug));
@@ -291,7 +294,7 @@ function acharAssinaturasEAumentos(gastos: LancamentoParaCacar[], ultimoMes: num
     if (ultimo < ultimoMes - 1) continue;
     const exemplo = s.meses.get(ultimo)!;
     const t = textoDe(exemplo);
-    const servico = (s.slug !== null && SERVICOS.has(s.slug)) || PALAVRA_DE_ASSINATURA.test(t) || SUB_DE_ASSINATURA.test(exemplo.subcategoria ?? "");
+    const servico = (s.slug !== null && SERVICOS.has(s.slug)) || PALAVRA_DE_ASSINATURA.test(t) || SUB_DE_ASSINATURA.test(exemplo.subcategoria ?? "") || marcadaPorEla(s.comerciante);
     // Serviço conhecido: 2 meses bastam. O resto precisa de 3 (padaria com o mesmo valor 2 vezes acontece).
     if (meses.length < (servico ? 2 : 3)) continue;
     // Todo mês: aparecer em junho, agosto e outubro é hábito, não mensalidade.
@@ -454,17 +457,18 @@ function acharTarifas(gastos: LancamentoParaCacar[], ultimoMes: number): Achado[
 const ORDEM: Record<TipoDeAchado, number> = { repetida: 0, assinatura: 1, tarifa: 2, aumento: 3 };
 
 /**
- * Caça nos lançamentos (o ideal: os últimos 6 meses). Devolve os achados do maior "por ano" para o
- * menor, e quantos lançamentos o último mês tinha (o "Conferi N lançamentos de setembro").
+ * Caça nos lançamentos (o ideal: os últimos 6 meses). `assinaturasDela`: os comerciantes que ela
+ * marcou como assinatura em Recorrentes (2 meses bastam, e o aumento aparece). Devolve os achados
+ * do maior "por ano" para o menor, e quantos lançamentos o último mês tinha (o "Conferi N lançamentos de setembro").
  */
-export function cacarDinheiroPerdido(lancamentos: LancamentoParaCacar[]): ResultadoDaCaca {
+export function cacarDinheiroPerdido(lancamentos: LancamentoParaCacar[], opcoes: { assinaturasDela?: ReadonlySet<string> } = {}): ResultadoDaCaca {
   const gastos = semOsEstornados(lancamentos.filter((l) => !naoEGasto(l)));
   if (lancamentos.length === 0) return { achados: [], conferidos: null };
   const ultimoMes = Math.max(...lancamentos.map(mesDe));
   const doUltimo = lancamentos.filter((l) => mesDe(l) === ultimoMes).length;
   const conferidos = { quantos: doUltimo, ano: Math.floor(ultimoMes / 12), mes: (ultimoMes % 12) + 1 };
   if (gastos.length === 0) return { achados: [], conferidos };
-  const achados = [...acharRepetidas(gastos, ultimoMes), ...acharAssinaturasEAumentos(gastos, ultimoMes), ...acharTarifas(gastos, ultimoMes)];
+  const achados = [...acharRepetidas(gastos, ultimoMes), ...acharAssinaturasEAumentos(gastos, ultimoMes, opcoes.assinaturasDela ?? new Set()), ...acharTarifas(gastos, ultimoMes)];
   // A mesma linha não vira duas cartas: a repetida ganha da assinatura (é a mais urgente).
   const usadas = new Set<string>();
   const unicos: Achado[] = [];

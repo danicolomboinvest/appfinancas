@@ -26,13 +26,16 @@ export type ViradaCategoria = {
 
 export type ViradaEntrada = {
   ano: number;
-  renda: { planejada: number | null; mediana: number | null };
+  /** `media`: a média mensal dos 12 meses do ano que passou com entrada (ver renda-media.ts). */
+  renda: { planejada: number | null; media: number | null };
   guardarPlanejado: number | null;
   categorias: ViradaCategoria[];
 };
 
 export type ViradaSugestao = {
   renda: number;
+  /** A renda veio da média do ano (não do plano de dezembro). */
+  rendaDaMedia: boolean;
   guardar: number;
   categorias: (ViradaCategoria & { sugerido: number; motivo: "plano" | "real" | "novo" })[];
   totalGastos: number;
@@ -49,7 +52,8 @@ const FOLGA_PLANO = 1.1;
 const arredonda10 = (v: number) => Math.ceil(v / 10) * 10;
 
 export function sugerirAno(e: ViradaEntrada, money: (v: number) => string): ViradaSugestao {
-  const renda = e.renda.planejada && e.renda.planejada > 0 ? e.renda.planejada : (e.renda.mediana ?? 0);
+  const rendaDaMedia = !(e.renda.planejada && e.renda.planejada > 0);
+  const renda = rendaDaMedia ? (e.renda.media ?? 0) : (e.renda.planejada as number);
   const minimoGuardar = arredonda10(renda * PISO_GUARDAR);
   const guardar = Math.max(e.guardarPlanejado ?? 0, minimoGuardar);
 
@@ -73,7 +77,7 @@ export function sugerirAno(e: ViradaEntrada, money: (v: number) => string): Vira
   } else if (renda > 0 && semDestino < 0) {
     avisos.push(`Com ${money(guardar)} guardados por mês, a conta não fecha: faltam ${money(-semDestino)}. Vale ajustar alguma categoria.`);
   }
-  return { renda, guardar, categorias, totalGastos, semDestino, avisos };
+  return { renda, rendaDaMedia: rendaDaMedia && renda > 0, guardar, categorias, totalGastos, semDestino, avisos };
 }
 
 /** O que identifica uma conta fixa: a descrição e a categoria. */

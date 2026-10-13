@@ -5,8 +5,9 @@ import { nowInBrazil } from "@/lib/date/brazil-now";
 import { getMonthlySummary } from "@/lib/consolidation/monthly";
 import { sobrouDoResumo } from "@/lib/consolidation/sobrou";
 import { getMonthlyPlan } from "@/lib/repositories/monthly-plan.repo";
-import { getRendaTipica } from "@/lib/planning/typical-expense";
+import { getRendaMedia } from "@/lib/repositories/renda-media.repo";
 import { rendaDeReferencia } from "@/lib/simulators/worth-it";
+import { textoDaMedia } from "@/lib/planning/renda-media";
 import { listAssets } from "@/lib/repositories/asset.repo";
 import { listGoalsWithProgress } from "@/lib/repositories/goal.repo";
 import { listarContasAPagar } from "@/lib/repositories/conta-a-pagar.repo";
@@ -17,8 +18,10 @@ import { acharAluguel, acharMetaDeCarro, dividasParaQuitar, titulosDaCarteira, t
 export type MetaParaCalculadora = { id: string; nome: string; alvo: number; guardado: number };
 
 export type DadosDasCalculadoras = {
-  /** A renda que vale para o valor-hora: plano do mês, renda típica ou o que entrou (ver rendaDeReferencia). */
+  /** A renda que vale para o valor-hora: plano do mês, média de 12 meses ou o que entrou (ver rendaDeReferencia). */
   renda: number;
+  /** De onde veio a renda, em palavras: "do seu plano", "média de 12 meses", "o que entrou no mês". */
+  rendaOrigem: string | null;
   /** Sobrou do mês (entrou − gastou − guardou), só quando é positivo. */
   sobra: number | null;
   /** O total da carteira hoje, quando há ativos. */
@@ -37,10 +40,10 @@ export async function carregarDadosDasCalculadoras(ctx: AuthContext): Promise<Da
   const ano = agora.getFullYear();
   const mes = agora.getMonth() + 1;
   const anterior = new Date(ano, mes - 2, 1);
-  const [resumo, plano, rendaTipica, ativos, metas, contas, lancamentosDeAluguel, dividas] = await Promise.all([
+  const [resumo, plano, rendaMedia, ativos, metas, contas, lancamentosDeAluguel, dividas] = await Promise.all([
     getMonthlySummary(ctx, ano, mes),
     getMonthlyPlan(ctx, ano, mes),
-    getRendaTipica(ctx),
+    getRendaMedia(ctx),
     listAssets(ctx),
     listGoalsWithProgress(ctx),
     listarContasAPagar(ctx),
@@ -59,13 +62,16 @@ export async function carregarDadosDasCalculadoras(ctx: AuthContext): Promise<Da
     listarDividas(ctx),
   ]);
 
-  const renda = rendaDeReferencia(plano?.plannedIncome, rendaTipica?.valor, resumo.totalIncome).valor;
+  const ref = rendaDeReferencia(plano?.plannedIncome, rendaMedia?.valor, resumo.totalIncome);
+  const renda = ref.valor;
+  const rendaOrigem = !(renda > 0) ? null : ref.fonte === "plano" ? "do seu plano" : ref.fonte === "media" && rendaMedia ? textoDaMedia(rendaMedia.meses) : "o que entrou no mês";
   const sobrou = sobrouDoResumo(resumo);
   const carteira = ativos.reduce((s, a) => s + Number(a.currentValue), 0);
   const meta = acharMetaDeCarro(metas.map((m) => ({ ...m, icon: String(m.icon) })));
 
   return {
     renda,
+    rendaOrigem,
     sobra: sobrou > 0 ? sobrou : null,
     carteira: carteira > 0 ? carteira : null,
     aluguel: acharAluguel(

@@ -63,13 +63,13 @@ describe("Raio-X: contas e virada do ano", () => {
 
 describe("sugerirAno: zeros", () => {
   it("sem renda nenhuma: guardar zero, avisa que falta a renda e não divide por zero", () => {
-    const r = sugerirAno({ ano: 2026, renda: { planejada: null, mediana: null }, guardarPlanejado: null, categorias: [] }, money);
+    const r = sugerirAno({ ano: 2026, renda: { planejada: null, media: null }, guardarPlanejado: null, categorias: [] }, money);
     expect(r).toMatchObject({ renda: 0, guardar: 0, totalGastos: 0, semDestino: 0 });
     expect(r.avisos).toHaveLength(1);
   });
 
-  it("renda planejada zero cai pra mediana; guardar mínimo de 10% arredonda pra cima de 10 em 10", () => {
-    const r = sugerirAno({ ano: 2026, renda: { planejada: 0, mediana: 3333 }, guardarPlanejado: 0, categorias: [] }, money);
+  it("renda planejada zero cai pra média; guardar mínimo de 10% arredonda pra cima de 10 em 10", () => {
+    const r = sugerirAno({ ano: 2026, renda: { planejada: 0, media: 3333 }, guardarPlanejado: 0, categorias: [] }, money);
     expect(r.renda).toBe(3333);
     expect(r.guardar).toBe(340);
   });
@@ -78,7 +78,7 @@ describe("sugerirAno: zeros", () => {
     const r = sugerirAno(
       {
         ano: 2026,
-        renda: { planejada: 5000, mediana: null },
+        renda: { planejada: 5000, media: null },
         guardarPlanejado: 500,
         categorias: [
           { key: "LAZER", label: "Lazer", planejado: 0, realMedio: 0.5, mae: true },

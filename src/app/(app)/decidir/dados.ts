@@ -107,7 +107,7 @@ export async function carregarDecidir(ctx: AuthContext) {
     passou: passou ? { label: passou.label, valor: quantoPassou(passou) } : null,
     raioxAnual: d.raioxAnual > 0 ? d.raioxAnual : null,
     respostas: {
-      demais: estouGastandoDemais({ money: m, gastoDoMes: d.summary.totalExpense, planejado, decorrido: (d.dia - 1) / d.diasNoMes, renda: r.renda, categorias: d.categorias, regra90: r.regra90 }),
+      demais: estouGastandoDemais({ money: m, gastoDoMes: d.summary.totalExpense, planejado, decorrido: (d.dia - 1) / d.diasNoMes, renda: r.renda, mesesDaRenda: r.mesesDaRenda, categorias: d.categorias, regra90: r.regra90 }),
       acabou: porqueAcabouMaisRapido({ money: m, atual: r.mesPassado, anterior: r.mesRetrasado, maiores: r.maioresPassado }),
       melhorei: melhoreiDoMesPassado({ money: m, atual: r.mesPassado, anterior: r.mesRetrasado }),
     },

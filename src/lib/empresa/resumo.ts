@@ -40,7 +40,7 @@ export type Guia = { valor: number; vence: string; paga: boolean; diasAte: numbe
 
 export type ResumoDaEmpresa = {
   ehMei: boolean;
-  /** Os meses fechados (até 3) que contam para o salário seguro e o ritmo. */
+  /** Os meses fechados (até 3) que contam para o salário seguro. */
   fechados: Mes[];
   lucros: number[];
   seguro: number | null;
@@ -52,11 +52,24 @@ export type ResumoDaEmpresa = {
   pe: number | null;
   falta: number | null;
   guia: Guia | null;
-  limite: LimiteDoMei | null;
+  /** O medidor do MEI, com o ritmo usado (faturamento médio) e de quantos meses ele é. */
+  limite: (LimiteDoMei & { ritmo: number | null; ritmoMeses: number }) | null;
   caixaDias: number | null;
   devendo: ReturnType<typeof recebimentos>["devendo"];
   semanas: ReturnType<typeof recebimentos>["semanas"];
 };
+
+/**
+ * Faturamento médio por mês: a média dos últimos 12 meses FECHADOS que tiveram venda (o mês de
+ * hoje está pela metade; mês sem venda lançada não puxa a média para baixo). Null sem nenhum.
+ */
+export function faturamentoMedio(lancamentos: LancamentoDaEmpresa[], mesAtual: Mes): { ritmo: number | null; meses: number } {
+  const vendas = mesesFechadosComDado(lancamentos, mesAtual, 12)
+    .map((m) => reciboDoMes(lancamentos, m).entrou)
+    .filter((v) => v > 0);
+  if (vendas.length === 0) return { ritmo: null, meses: 0 };
+  return { ritmo: Math.round((vendas.reduce((s, v) => s + v, 0) / vendas.length) * 100) / 100, meses: vendas.length };
+}
 
 export function resumoDaEmpresa(e: EntradaDoResumo): ResumoDaEmpresa {
   const ehMei = e.config?.tipo === "MEI";
@@ -81,11 +94,14 @@ export function resumoDaEmpresa(e: EntradaDoResumo): ResumoDaEmpresa {
     }
   }
 
-  let limite: LimiteDoMei | null = null;
+  let limite: ResumoDaEmpresa["limite"] = null;
   if (ehMei && e.legal.teto && e.legal.tolerancia) {
+    // O faturado é a SOMA real do ano (é ela que o teto do MEI olha). O ritmo, para dizer quando
+    // passa, é o faturamento MÉDIO dos últimos 12 meses fechados que tiveram venda (pedido da
+    // Dani, 13/10/2026: nunca o último mês nem só os 3 últimos).
     const faturado = e.lancamentos.filter((l) => l.year === e.mesAtual.ano && ehVenda(l)).reduce((s, l) => s + l.amount, 0);
-    const ritmo = fechados.length ? fechados.reduce((s, m) => s + reciboDoMes(e.lancamentos, m).entrou, 0) / fechados.length : null;
-    limite = limiteDoMei({ faturado, teto: e.legal.teto.valor, tolerancia: e.legal.tolerancia.valor, ritmo, hoje: { mes: e.mesAtual.mes, dia: e.dia, diasNoMes: e.diasNoMes } });
+    const { ritmo, meses: ritmoMeses } = faturamentoMedio(e.lancamentos, e.mesAtual);
+    limite = { ...limiteDoMei({ faturado, teto: e.legal.teto.valor, tolerancia: e.legal.tolerancia.valor, ritmo, hoje: { mes: e.mesAtual.mes, dia: e.dia, diasNoMes: e.diasNoMes } }), ritmo, ritmoMeses };
   }
 
   const custoDoMes = reciboFechado.fixas + (guia?.valor ?? reciboFechado.impostos) + salario;

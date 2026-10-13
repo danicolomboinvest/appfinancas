@@ -5,7 +5,7 @@ import { useActionState, useEffect, useId, useMemo, useRef, useState } from "rea
 import { createPortal } from "react-dom";
 import type { ParentCategory } from "@prisma/client";
 import type { LucideIcon } from "lucide-react";
-import { Check, ChevronLeft, FileUp, Minus, PieChart, Plus, Repeat, Tag } from "lucide-react";
+import { Pencil, Check, ChevronLeft, FileUp, Minus, PieChart, Plus, Repeat, Tag } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import { emojiDaCategoria } from "@/lib/profiles/icones";
@@ -25,6 +25,7 @@ import { NewCustomCategoryCard } from "./NewCustomCategoryCard";
 import { applyAllBudgetsAction, type AnnualBudgetState } from "./actions";
 import { useVoltarAoTopo } from "@/components/ui/useVoltarAoTopo";
 import { PLANO_SALVO } from "@/components/budget/EditarPlano";
+import { textoDaMedia } from "@/lib/planning/renda-media";
 
 const initialState: AnnualBudgetState = {};
 const STEP = 50;
@@ -120,8 +121,9 @@ export function BudgetWizard({
     [parentCategories, customCategories, categorias],
   );
 
-  // Sem plano, a renda começa no que entrou no último mês fechado e o guardar na sugestão.
-  const rendaSugerida = Math.round(hints.lastMonthIncome / 100) * 100;
+  // Sem plano, a renda começa na MÉDIA dos últimos 12 meses fechados (nunca o último mês
+  // sozinho, pedido da Dani em 13/10/2026) e o guardar na sugestão. O digitado no plano vence.
+  const rendaSugerida = Math.round(hints.rendaMedia / 100) * 100;
   const rendaInicial = plan.plannedIncome || rendaSugerida;
   const [passo, setPasso] = useState<Passo>(1);
   const topoRef = useVoltarAoTopo<HTMLFormElement>(passo);
@@ -204,7 +206,7 @@ export function BudgetWizard({
     conteudo = (
       <>
         <h3 className={pergunta}>{t.formOrcQuantoEntra}</h3>
-        {hints.lastMonthIncome > 0 && <p className="text-[15px] text-ink-muted">{t.formOrcRendaSugestao(hints.lastMonthLabel, m(hints.lastMonthIncome))}</p>}
+        {hints.rendaMedia > 0 && <p className="text-[15px] text-ink-muted">{t.formOrcRendaSugestao(textoDaMedia(hints.rendaMediaMeses), m(hints.rendaMedia))}</p>}
         <div className="mt-2 grid grid-cols-[44px_minmax(0,1fr)_44px] items-center gap-2">
           <button type="button" aria-label={`Menos ${simbolo} 100`} onClick={() => setIncome((v) => Math.max(0, v - 100))} className="flex size-11 items-center justify-center rounded-full bg-surface-2 text-ink">
             <Minus size={18} />
@@ -254,8 +256,25 @@ export function BudgetWizard({
           ))}
         </div>
         <div className="flex flex-col gap-1 rounded-[20px] bg-atencao-fundo p-4">
-          <span className="text-[13px] text-ink-muted">Por mês</span>
-          <b className="text-[36px] font-light leading-tight tracking-[-0.03em] tabular-nums text-ink">{m(investment)}</b>
+          {/* Escrever o próprio valor (13/10/2026, pedido da Dani): além dos %, o número é um campo. */}
+          <label htmlFor="guardar-por-mes" className="flex items-center justify-between gap-2 text-[13px] text-ink-muted">
+            Por mês
+            <span className="inline-flex items-center gap-1 text-accent-strong">
+              <Pencil size={13} aria-hidden /> Escrever
+            </span>
+          </label>
+          <span className="flex min-w-0 items-baseline gap-1.5">
+            <span className="text-xl font-light text-ink-muted">{simbolo}</span>
+            <input
+              id="guardar-por-mes"
+              inputMode="numeric"
+              aria-label="Quanto guardar por mês"
+              placeholder="0"
+              value={investment ? investment.toLocaleString("pt-BR") : ""}
+              onChange={(ev) => setInvestment(Math.min(Number(ev.target.value.replace(/\D/g, "")) || 0, Math.max(income, 0) || Number.MAX_SAFE_INTEGER))}
+              className="w-full min-w-0 border-b-2 border-accent/60 bg-transparent pb-0.5 text-[36px] font-light leading-tight tracking-[-0.03em] tabular-nums text-ink outline-none focus:border-accent"
+            />
+          </span>
           <div className="mt-2 flex flex-col gap-1.5 text-sm text-ink">
             {!empresa && pctEscolhido === 18 ? (
               <>

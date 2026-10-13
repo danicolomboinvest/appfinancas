@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AuthContext } from "@/lib/auth/session";
 
 /**
- * As dicas que deixam o orçamento começar preenchido: o mês passado e a média de 3 meses.
+ * As dicas que deixam o orçamento começar preenchido: o mês passado, a média de 3 meses dos
+ * gastos e a renda média de 12 meses (13/10/2026: antes era o que entrou no mês passado).
  * Bordas: janeiro (o mês passado é dezembro do ano anterior), conta nova sem nenhum dado,
  * mês vazio no meio da janela, arredondamento da média.
  */
@@ -11,13 +12,15 @@ const banco = vi.hoisted(() => ({
   pedidosGasto: [] as { year: number; month: number }[],
   porMae: new Map<string, { parentCategory: string; spent: number }[]>(),
   porPersonalizada: new Map<string, { customCategoryId: string; spent: number }[]>(),
-  renda: 0,
+  renda: null as { valor: number; meses: number } | null,
 }));
 
-vi.mock("@/lib/consolidation/monthly", () => ({
-  getMonthlySummary: async (_ctx: unknown, year: number, month: number) => {
-    banco.pedidosResumo.push({ year, month });
-    return { totalIncome: banco.renda, totalExpense: 0, totalInvestment: 0, balance: banco.renda };
+// A média de 12 meses termina no mês de referência: o "hoje" pedido é o 1º do mês seguinte.
+vi.mock("@/lib/repositories/renda-media.repo", () => ({
+  getRendaMedia: async (_ctx: unknown, hoje: Date) => {
+    const ref = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1);
+    banco.pedidosResumo.push({ year: ref.getFullYear(), month: ref.getMonth() + 1 });
+    return banco.renda;
   },
 }));
 vi.mock("@/lib/repositories/budget.repo", () => ({
@@ -37,7 +40,7 @@ beforeEach(() => {
   banco.pedidosGasto = [];
   banco.porMae = new Map();
   banco.porPersonalizada = new Map();
-  banco.renda = 0;
+  banco.renda = null;
 });
 
 describe("getBudgetHints: bordas", () => {
@@ -55,7 +58,8 @@ describe("getBudgetHints: bordas", () => {
 
   it("conta nova, sem nenhum dado: médias zero (sem dividir por zero) e renda zero", async () => {
     const r = await getBudgetHints(ctx, 2026, new Date(2026, 8, 30, 12));
-    expect(r.lastMonthIncome).toBe(0);
+    expect(r.rendaMedia).toBe(0);
+    expect(r.rendaMediaMeses).toBe(0);
     expect(Object.values(r.averageByCategory).every((v) => v === 0)).toBe(true);
     expect(r.lastMonthByCategory).toEqual({});
   });
@@ -87,5 +91,13 @@ describe("getBudgetHints: bordas", () => {
     const r = await getBudgetHints(ctx, 2025, new Date(2026, 8, 30, 12));
     expect(r.lastMonthLabel).toBe("dezembro");
     expect(banco.pedidosResumo).toEqual([{ year: 2025, month: 12 }]);
+  });
+
+  it("a renda sugerida é a média de 12 meses, não o mês passado", async () => {
+    banco.renda = { valor: 5500, meses: 12 };
+    const r = await getBudgetHints(ctx, 2026, new Date(2026, 9, 13, 12));
+    expect(r.rendaMedia).toBe(5500);
+    expect(r.rendaMediaMeses).toBe(12);
+    expect(banco.pedidosResumo).toEqual([{ year: 2026, month: 9 }]);
   });
 });

@@ -191,7 +191,7 @@ function AbaResumo({ dados, R, mes, periodo, recibo, atual, m0, money, children 
         <IconeTingido icon={Gauge} cor="var(--color-danger)" />
         <span className="min-w-0 flex-1">
           <b className="block text-[15px] font-medium text-ink">Limite do MEI</b>
-          <small className="text-xs text-ink-muted">{R.limite.faixa !== "mei" ? "passou do teto" : R.limite.passaEm ? `no ritmo, chega em ${MESES[R.limite.passaEm - 1]}` : "perto do teto"}</small>
+          <small className="text-xs text-ink-muted">{R.limite.faixa !== "mei" ? "passou do teto" : R.limite.passaEm ? `pela média de ${R.limite.ritmoMeses} ${R.limite.ritmoMeses === 1 ? "mês" : "meses"}, chega em ${MESES[R.limite.passaEm - 1]}` : "perto do teto"}</small>
         </span>
         <b className="shrink-0 text-[15px] font-medium tabular-nums text-ink">{Math.round(R.limite.pct * 100)}%</b>
       </Link>,

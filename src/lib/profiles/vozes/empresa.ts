@@ -107,7 +107,7 @@ const TITULOS_EMPRESA: Partial<Titulos> = {
   formOrcUsar: "Usar este orçamento",
   formOrcVazioSub: "Com base nos gastos da empresa",
   formOrcRenda: "Faturamento por mês",
-  formOrcRendaSugestao: (mes, valor) => `Em ${mes} a empresa faturou ${valor}.`,
+  formOrcRendaSugestao: (media, valor) => `A empresa fatura ${valor} por mês (${media}).`,
   formOrcGuardarPorMes: "Reter por mês",
   formOrcRendaEAporte: "Faturamento e retenção",
   formOrcEditarPlano: (ano) => `Editar o orçamento de ${ano}: faturamento e custos`,

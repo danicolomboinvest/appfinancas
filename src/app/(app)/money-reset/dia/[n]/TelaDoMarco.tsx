@@ -40,6 +40,7 @@ import { celebrar, vibrar } from "@/lib/celebrar";
 import { concluirMarcoAction, salvarRespostaAction } from "../../actions";
 import type { DadosDoMarco } from "../../dados";
 import type { Respostas } from "./Missao";
+import { textoDaMedia } from "@/lib/planning/renda-media";
 
 const pct = (v: number) => `${Math.round(v * 100)}%`;
 
@@ -183,17 +184,17 @@ function M1({ d, c }: { d: Extract<DadosDoMarco, { n: 1 }>; c: Comum }) {
   return (
     <>
       <Cartao>
-        <p className="text-[13px] text-ink-muted">Seu retrato · média de {d.meses} {d.meses === 1 ? "mês" : "meses"}</p>
+        <p className="text-[13px] text-ink-muted">Seu retrato por mês</p>
         <div className="flex flex-col gap-1.5">
           <div className="flex items-baseline justify-between text-[15px]">
-            <span className="text-ink-muted">Entra</span>
+            <span className="text-ink-muted">Entra{d.entra > 0 && d.entraMeses > 0 ? <small className="text-[13px]"> · {textoDaMedia(d.entraMeses)}</small> : null}</span>
             <b className="tabular-nums text-ink">{d.entra > 0 ? m(d.entra) : "falta a renda"}</b>
           </div>
           <Barra valor={d.entra / maior} cor="var(--color-success)" />
         </div>
         <div className="flex flex-col gap-1.5">
           <div className="flex items-baseline justify-between text-[15px]">
-            <span className="text-ink-muted">Sai</span>
+            <span className="text-ink-muted">Sai<small className="text-[13px]"> · {textoDaMedia(d.meses)}</small></span>
             <b className="tabular-nums text-ink">{m(d.sai)}</b>
           </div>
           <Barra valor={d.sai / maior} cor="var(--color-accent)" />

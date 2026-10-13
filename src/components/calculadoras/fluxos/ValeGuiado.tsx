@@ -104,7 +104,7 @@ export function ValeGuiado({ dados }: { dados: DadosDaTela }) {
             <div className="glass flex flex-col gap-2 rounded-3xl p-4">
               <div className="flex items-start justify-between gap-2">
                 <span className="text-sm text-ink-muted">Sua hora vale</span>
-                <Selo>{dados.renda > 0 ? "Do seu orçamento" : "Da renda que você digitou"}</Selo>
+                <Selo>{dados.renda > 0 ? (dados.rendaOrigem === "do seu plano" || !dados.rendaOrigem ? "Do seu orçamento" : dados.rendaOrigem[0].toUpperCase() + dados.rendaOrigem.slice(1)) : "Da renda que você digitou"}</Selo>
               </div>
               <span className="text-ink"><ValorDestaque texto={money(r.hourlyRate)} /></span>
               <p className="text-sm text-ink-muted">Sua renda de {r0(renda)} por 220 horas de trabalho no mês.</p>

@@ -6,6 +6,8 @@ describe("vários arquivos de uma vez", () => {
     expect(resumoDoArquivo("fatura", { banco: "EQI", vencimento: "2026-07-17", compras: 64, mesesDasCompras: ["2026-06", "2026-07"] }, [])).toEqual({ titulo: "Fatura EQI", chips: ["vence 17/07", "64 compras", "junho e julho"] });
     const linhas = [{ date: "2026-08-02", category: "EXPENSE" }, { date: "2026-09-05", category: "INCOME" }, { date: "2026-09-06", category: "EXPENSE", ignorar: true }];
     expect(resumoDoArquivo("extrato", { banco: "Itaú" }, linhas)).toEqual({ titulo: "Extrato Itaú", chips: ["2 lançamentos", "agosto e setembro"] });
+    // Prints da fatura aberta: só as compras até hoje.
+    expect(resumoDoArquivo("fatura", { faturaAberta: true, compras: 18 }, [])).toEqual({ titulo: "Fatura aberta", chips: ["18 compras até hoje"] });
     expect(listaDeMesesCurta(["2026-03", "2026-04", "2026-05", "2026-08"])).toBe("março a agosto");
   });
   it("as respostas de um arquivo valem nos próximos do mesmo envio", () => {

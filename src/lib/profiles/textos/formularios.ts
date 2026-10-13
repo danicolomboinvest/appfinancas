@@ -118,7 +118,8 @@ export type TextosFormularios = {
   formOrcTitulo: string;
   formOrcQuantoEntra: string;
   formOrcRenda: string;
-  formOrcRendaSugestao(mes: string, valor: string): string;
+  /** A renda sugerida: `media` é "média de 12 meses", `valor` a média por mês. */
+  formOrcRendaSugestao(media: string, valor: string): string;
   formOrcQuantoGuardar: string;
   /** O chip "outro" depois dos percentuais prontos. */
   formOrcOutro: string;
@@ -385,7 +386,7 @@ export const PADRAO_FORMULARIOS: TextosFormularios = {
   formOrcTitulo: "Vamos montar seu orçamento",
   formOrcQuantoEntra: "Quanto entra por mês?",
   formOrcRenda: "Renda por mês",
-  formOrcRendaSugestao: (mes, valor) => `Em ${mes} entraram ${valor}.`,
+  formOrcRendaSugestao: (media, valor) => `Entram ${valor} por mês (${media}).`,
   formOrcQuantoGuardar: "Quanto você quer guardar?",
   formOrcOutro: "outro",
   formOrcGuardarPorMes: "Guardar por mês",
