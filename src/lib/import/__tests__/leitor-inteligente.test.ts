@@ -97,3 +97,47 @@ describe("leitor que testa jeitos de ler (fatura de banco desconhecido)", () => 
     expect(parseStatementComLeitor(texto, "pdf", 2026).leitor).toBe("inteligente");
   });
 });
+
+/** Linha ao contrário (valor, nome, data) com compra em dólar e em euro: o valor em real vem
+ * sozinho embaixo, depois da cotação. Era o que impedia a fatura do BTG de fechar sem leitor
+ * próprio. "Banco Exemplo", fictício. */
+describe("valor antes da data, com compra em outra moeda", () => {
+  const texto = [
+    "Olá, Fulana! Esta é a fatura do seu cartão Exemplo de",
+    "Fulana Exemplo | fatura de Junho de 2026 | cartão final 0000",
+    "Total de compras e despesas R$ 563,77",
+    "Total a pagar R$ 543,77",
+    "Pagamentos feitos pelo cliente",
+    "- R$ 900,00\tPagamento de fatura\t18 Mai",
+    "-R$ 900,00",
+    "Lançamentos do cartão | Fulana Exemplo | Final 0000",
+    "Total de créditos recebidos",
+    "- R$ 20,00\tCancelamento - Loja\t08 Jun",
+    "Total de compras e despesas",
+    "R$ 100,00\tMercado Exemplo\t13 Mai",
+    "US$ 36,00\tServiço Exemplo\t15 Mai",
+    "Cotação da moeda -",
+    "Conversão para Real -",
+    "R$ 5,27",
+    "R$ 190,07",
+    "EUR 28,98\tUber\t14 Jun",
+    "Cotação da moeda -",
+    "Conversão para Real -",
+    "R$ 6,37",
+    "R$ 184,70",
+    "R$ 89,00\tAssinatura Exemplo (12/12)\t10 Jul",
+    "R$ 563,77",
+  ].join("\n");
+
+  it("lê o valor em real da compra em outra moeda, e a soma fecha", () => {
+    const { txns, leitor } = parseStatementComLeitor(texto, "pdf", 2026);
+    expect(leitor).toBe("inteligente");
+    expect(txns.filter((t) => !isFaturaSummaryLine(t))).toEqual([
+      { date: "2026-06-08", description: "Cancelamento - Loja", amount: -20 },
+      { date: "2026-05-13", description: "Mercado Exemplo", amount: 100 },
+      { date: "2026-05-15", description: "Serviço Exemplo", amount: 190.07 },
+      { date: "2026-06-14", description: "Uber", amount: 184.7 },
+      { date: "2025-07-10", description: "Assinatura Exemplo (12/12)", amount: 89 },
+    ]);
+  });
+});

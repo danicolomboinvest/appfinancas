@@ -80,6 +80,8 @@ const NAO_LANCAMENTO_RE =
 const CREDITO_SEM_SINAL_RE = /\b(cr[ée]dito\s+(concedido|de\s+confian[çc]a|de\s+parcelamento)|ajuste\s+a\s+cr[ée]dito|desconto\s+de\s+antecipa)/i;
 /** Linha de câmbio de compra no exterior: tem número, mas não é o valor da compra. */
 const LINHA_DE_CAMBIO_RE = /c[âa]mbio|cota[çc][ãa]o|convers[ãa]o|\bpeso\b|d[óo]lar|\beuro\b|US\$\s*\d/i;
+/** Valor em moeda estrangeira: a moeda vem colada antes do número ("US$ 36,00", "EUR 28,98"). */
+const MOEDA_ESTRANGEIRA_ANTES_RE = /(?:US\$|U\$|USD|EUR|€|GBP|£|\b(?!BRL\b)[A-Z]{3})\s*$/;
 /** O que pode sobrar numa linha que é SÓ de valores ("119,90 0,00 R$ 0,00 119,90"). */
 const SO_VALORES_RE = /^(?:R\$|US\$|BRL|USD|[+−-]|\s)*$/i;
 
@@ -192,6 +194,10 @@ export function lerComOpcoes(texto: string, op: Opcoes, ref: { mes: number | nul
 
   let noFuturo = false;
   let aberto: { data: Data; partes: string[]; espera: number } | null = null;
+  // Linha ao contrário com compra em outra moeda ("US$ 36,00 <TAB> Calendly <TAB> 15 Mai", BTG):
+  // o valor em real vem sozinho nas linhas de baixo, depois da cotação ("R$ 5,27" / "R$ 190,07").
+  // (O "as" é pro TypeScript: ela é preenchida dentro do forEach, que ele não acompanha.)
+  let estrangeira = null as { data: Data; descricao: string; credito: boolean; valores: Valor[] } | null;
   let ultimaData: Data | null = null;
   for (let i = inicioCabecalho + 1; i < linhas.length; i++) {
     const limpa = linhas[i].replace(/ +/g, " ").trim();
@@ -237,6 +243,25 @@ export function lerComOpcoes(texto: string, op: Opcoes, ref: { mes: number | nul
     }
     if (/%/.test(bruta)) continue;
 
+    if (op.valorAntesDaData && estrangeira) {
+      const vs = valores(bruta, 0);
+      const soUmValor = vs.length === 1 && SO_VALORES_RE.test(bruta.slice(0, vs[0].inicio) + bruta.slice(vs[0].fim));
+      if (soUmValor) {
+        estrangeira.valores.push(vs[0]);
+        // Cotação primeiro, o valor em real depois.
+        if (estrangeira.valores.length === 2) {
+          lancar(estrangeira.data, estrangeira.descricao, { ...vs[0], credito: estrangeira.credito });
+          estrangeira = null;
+        }
+        continue;
+      }
+      if (vs.length === 0 && LINHA_DE_CAMBIO_RE.test(bruta)) continue;
+      // Veio outra coisa antes do segundo valor: o único que apareceu é o valor em real.
+      const so = estrangeira.valores[0];
+      if (so) lancar(estrangeira.data, estrangeira.descricao, { ...so, credito: estrangeira.credito });
+      estrangeira = null;
+    }
+
     if (op.valorAntesDaData) {
       // Cada valor da linha, seguido da descrição e de uma data antes do próximo valor, é um
       // lançamento ("- R$ 112,16 <TAB> Benefício <TAB> 24 Ago - R$ 399,90 <TAB> Crédito <TAB> 10 Set").
@@ -247,6 +272,12 @@ export function lerComOpcoes(texto: string, op: Opcoes, ref: { mes: number | nul
         let data: Data | null = null;
         for (const m of bruta.slice(v.fim, ate).matchAll(DATA_QUALQUER_RE)) data ??= lerData(m, v.fim);
         if (!data) return;
+        if (MOEDA_ESTRANGEIRA_ANTES_RE.test(bruta.slice(k > 0 ? vs[k - 1].fim : 0, v.inicio))) {
+          estrangeira = { data, descricao: bruta.slice(v.fim, data.inicio), credito: v.credito, valores: [] };
+          ultimaData = data;
+          achou = true;
+          return;
+        }
         lancar(data, bruta.slice(v.fim, data.inicio), v);
         ultimaData = data;
         achou = true;
