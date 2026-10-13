@@ -7,10 +7,13 @@ import { useMoney } from "@/components/money/MoneyProvider";
 import { Explica } from "@/components/ui/Explica";
 import { HeroiDoTema } from "@/components/ui/HeroiDoTema";
 import { ValorDestaque } from "@/components/ui/ValorDestaque";
-import { cadaCemReais, despesasQueCresceram, ehVenda, mesAntes, prazoMedio, quemCompra, reciboDoMes, type Mes, type PedacoDos100 } from "@/lib/empresa/regras";
+import { cadaCemReais, despesasQueCresceram, ehVenda, mesAntes, prazoMedio, quemCompra, reciboDoMes, type LancamentoDaEmpresa, type Mes, type PedacoDos100 } from "@/lib/empresa/regras";
+import { resumoDoPeriodo, type PeriodoDaEmpresa } from "@/lib/empresa/periodo";
 import { MESES, MESES_CURTOS, resumoDaEmpresa } from "@/lib/empresa/resumo";
 import type { DadosDaEmpresa } from "@/lib/empresa/dados";
 import { Cartao, Iniciais, Voltar } from "../partes";
+import { SeletorDePeriodo } from "../SeletorDePeriodo";
+import { PainelDoPeriodo } from "../PainelDoPeriodo";
 
 const ord = (m: Mes) => m.ano * 12 + m.mes;
 const nomeDoMes = (m: Mes, cap = false) => {
@@ -63,8 +66,11 @@ function Linhazinha({ valores, cor }: { valores: number[]; cor: string }) {
  * vendido; quem compra; o que mais cresceu e "Para pensar". Só números de verdade: mês sem lançamento
  * não entra, e o que não tem dado não aparece.
  */
-export function ComoVai({ dados }: { dados: DadosDaEmpresa }) {
+export function ComoVai({ dados, periodo = null, antigos = null, custom = {} }: { dados: DadosDaEmpresa; periodo?: PeriodoDaEmpresa | null; antigos?: LancamentoDaEmpresa[] | null; custom?: Record<string, { nome: string; icone: string }> }) {
   const money = useMoney();
+  // Com um período escolhido (13/10/2026), o painel do período entra no lugar do gráfico de 3, 6 e 12 meses.
+  const RP = useMemo(() => (periodo ? resumoDoPeriodo(antigos ?? dados.lancamentos, periodo, dados.hoje) : null), [periodo, antigos, dados]);
+  const seletor = <SeletorDePeriodo periodo={periodo} hoje={dados.hoje} caminho="/empresa/como-vai" semPeriodo={{ nome: "Ver por período", sub: "" }} />;
   const m0 = (v: number) => money(v, { round: true });
   const R = useMemo(() => resumoDaEmpresa(dados), [dados]);
   const serie = useMemo(() => {
@@ -89,7 +95,14 @@ export function ComoVai({ dados }: { dados: DadosDaEmpresa }) {
     return (
       <>
         <Voltar>{dados.nome}</Voltar>
-        <Cartao className="px-6 py-8 text-center text-sm text-ink-muted">Registre as primeiras vendas para ver como vai a empresa.</Cartao>
+        {RP && periodo ? (
+          <>
+            {seletor}
+            <PainelDoPeriodo r={RP} periodo={periodo} hoje={dados.hoje} ehMei={dados.config?.tipo === "MEI"} custom={custom} caminho="/empresa/como-vai" />
+          </>
+        ) : (
+          <Cartao className="px-6 py-8 text-center text-sm text-ink-muted">Registre as primeiras vendas para ver como vai a empresa.</Cartao>
+        )}
       </>
     );
   }
@@ -126,85 +139,90 @@ export function ComoVai({ dados }: { dados: DadosDaEmpresa }) {
     <>
       <Voltar>{dados.nome}</Voltar>
 
+      {seletor}
+      {RP && periodo ? (
+        <PainelDoPeriodo r={RP} periodo={periodo} hoje={dados.hoje} ehMei={dados.config?.tipo === "MEI"} custom={custom} caminho="/empresa/como-vai" />
+      ) : (
       <HeroiDoTema>
-        <div className="flex items-start justify-between gap-2">
-          <p className="text-sm text-heroi-suave">Faturamento e lucro</p>
-          <Explica noHeroi rotulo="Como ler o gráfico?">
-            As colunas são o quanto vendeu em cada mês. A linha é o lucro, antes do seu salário. O mês de hoje está listrado porque ainda não acabou. Toque numa coluna para ver o mês.
-          </Explica>
-        </div>
-        <div className="heroi-veu flex w-fit gap-1 rounded-full p-1" role="group" aria-label="Período">
-          {[3, 6, 12].map((k) => (
-            <button key={k} type="button" aria-pressed={n === k} onClick={() => { setN(k); setSel(null); }} className={`min-h-9 rounded-full px-4 text-sm ${n === k ? "bg-surface font-medium text-ink" : ""}`}>
-              {k}M
-            </button>
-          ))}
-        </div>
-        <div aria-live="polite">
-          <b className="text-[17px] font-medium">
-            {nomeDoMes(x.m, true)}
-            {x.parcial ? " até hoje" : ""}
-          </b>
-          <div className="mt-1 grid grid-cols-3 gap-2">
-            <span>
-              <small className="block text-xs text-heroi-suave">faturou</small>
-              <ValorDestaque texto={m0(x.fat)} className="text-[1.35rem] font-light tabular-nums" />
-            </span>
-            <span>
-              <small className="block text-xs text-heroi-suave">lucro</small>
-              <ValorDestaque texto={x.luc < 0 ? `−${m0(-x.luc)}` : m0(x.luc)} className="text-[1.35rem] font-light tabular-nums" />
-            </span>
-            <span>
-              <small className="block text-xs text-heroi-suave">margem</small>
-              <b className="text-[1.35rem] font-light tabular-nums">{x.fat > 0 ? `${Math.round((x.luc / x.fat) * 100)}%` : "-"}</b>
-            </span>
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-sm text-heroi-suave">Faturamento e lucro</p>
+            <Explica noHeroi rotulo="Como ler o gráfico?">
+              As colunas são o quanto vendeu em cada mês. A linha é o lucro, antes do seu salário. O mês de hoje está listrado porque ainda não acabou. Toque numa coluna para ver o mês.
+            </Explica>
           </div>
-          {antX && !x.parcial && <div className="mt-1"><Comparacao a={x.fat} b={antX.fat} contra={nomeDoMes(antX.m)} /></div>}
-        </div>
-        <div className="relative mt-2 h-40">
-          <div className="absolute inset-0 flex items-end gap-1.5">
-            {vis.map((z, i) => (
-              <button
-                key={`${z.m.ano}-${z.m.mes}`}
-                type="button"
-                aria-pressed={i === iSel}
-                aria-label={`${nomeDoMes(z.m, true)}${z.parcial ? " até hoje" : ""}: faturou ${m0(z.fat)}`}
-                onClick={() => setSel(i)}
-                className="flex h-full min-w-0 flex-1 flex-col justify-end"
-              >
-                <i
-                  className="block w-full rounded-t-lg"
-                  style={{
-                    height: `${Math.max(2, (z.fat / max) * 100)}%`,
-                    background: z.parcial
-                      ? "repeating-linear-gradient(135deg, color-mix(in srgb, var(--color-accent) 55%, transparent) 0 5px, color-mix(in srgb, var(--color-accent) 20%, transparent) 5px 10px)"
-                      : i === iSel
-                        ? "var(--color-accent)"
-                        : "color-mix(in srgb, var(--color-accent) 35%, transparent)",
-                  }}
-                />
+          <div className="heroi-veu flex w-fit gap-1 rounded-full p-1" role="group" aria-label="Período">
+            {[3, 6, 12].map((k) => (
+              <button key={k} type="button" aria-pressed={n === k} onClick={() => { setN(k); setSel(null); }} className={`min-h-9 rounded-full px-4 text-sm ${n === k ? "bg-surface font-medium text-ink" : ""}`}>
+                {k}M
               </button>
             ))}
           </div>
-          {vis.length > 1 && (
-            <svg className="pointer-events-none absolute inset-0 size-full overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden>
-              <polyline points={pts.map((p) => p.join(",")).join(" ")} fill="none" stroke="var(--color-success)" strokeWidth={2} vectorEffect="non-scaling-stroke" />
-            </svg>
-          )}
-        </div>
-        <div className="flex gap-1.5">
-          {vis.map((z, i) => (
-            <small key={`${z.m.ano}-${z.m.mes}`} className={`min-w-0 flex-1 text-center text-xs ${i === iSel ? "font-semibold" : "text-heroi-suave"}`}>
-              {n === 12 ? MESES_CURTOS[z.m.mes - 1][0].toUpperCase() : MESES_CURTOS[z.m.mes - 1]}
-            </small>
-          ))}
-        </div>
-        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-heroi-suave">
-          <span className="flex items-center gap-1.5"><i className="size-2.5 rounded-sm bg-accent" />faturou</span>
-          <span className="flex items-center gap-1.5"><i className="h-0.5 w-3 bg-success" />lucro</span>
-          <span className="flex items-center gap-1.5"><i className="size-2.5 rounded-sm bg-[repeating-linear-gradient(135deg,var(--color-accent)_0_2px,transparent_2px_4px)]" />até hoje</span>
-        </div>
-      </HeroiDoTema>
+          <div aria-live="polite">
+            <b className="text-[17px] font-medium">
+              {nomeDoMes(x.m, true)}
+              {x.parcial ? " até hoje" : ""}
+            </b>
+            <div className="mt-1 grid grid-cols-3 gap-2">
+              <span>
+                <small className="block text-xs text-heroi-suave">faturou</small>
+                <ValorDestaque texto={m0(x.fat)} className="text-[1.35rem] font-light tabular-nums" />
+              </span>
+              <span>
+                <small className="block text-xs text-heroi-suave">lucro</small>
+                <ValorDestaque texto={x.luc < 0 ? `−${m0(-x.luc)}` : m0(x.luc)} className="text-[1.35rem] font-light tabular-nums" />
+              </span>
+              <span>
+                <small className="block text-xs text-heroi-suave">margem</small>
+                <b className="text-[1.35rem] font-light tabular-nums">{x.fat > 0 ? `${Math.round((x.luc / x.fat) * 100)}%` : "-"}</b>
+              </span>
+            </div>
+            {antX && !x.parcial && <div className="mt-1"><Comparacao a={x.fat} b={antX.fat} contra={nomeDoMes(antX.m)} /></div>}
+          </div>
+          <div className="relative mt-2 h-40">
+            <div className="absolute inset-0 flex items-end gap-1.5">
+              {vis.map((z, i) => (
+                <button
+                  key={`${z.m.ano}-${z.m.mes}`}
+                  type="button"
+                  aria-pressed={i === iSel}
+                  aria-label={`${nomeDoMes(z.m, true)}${z.parcial ? " até hoje" : ""}: faturou ${m0(z.fat)}`}
+                  onClick={() => setSel(i)}
+                  className="flex h-full min-w-0 flex-1 flex-col justify-end"
+                >
+                  <i
+                    className="block w-full rounded-t-lg"
+                    style={{
+                      height: `${Math.max(2, (z.fat / max) * 100)}%`,
+                      background: z.parcial
+                        ? "repeating-linear-gradient(135deg, color-mix(in srgb, var(--color-accent) 55%, transparent) 0 5px, color-mix(in srgb, var(--color-accent) 20%, transparent) 5px 10px)"
+                        : i === iSel
+                          ? "var(--color-accent)"
+                          : "color-mix(in srgb, var(--color-accent) 35%, transparent)",
+                    }}
+                  />
+                </button>
+              ))}
+            </div>
+            {vis.length > 1 && (
+              <svg className="pointer-events-none absolute inset-0 size-full overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden>
+                <polyline points={pts.map((p) => p.join(",")).join(" ")} fill="none" stroke="var(--color-success)" strokeWidth={2} vectorEffect="non-scaling-stroke" />
+              </svg>
+            )}
+          </div>
+          <div className="flex gap-1.5">
+            {vis.map((z, i) => (
+              <small key={`${z.m.ano}-${z.m.mes}`} className={`min-w-0 flex-1 text-center text-xs ${i === iSel ? "font-semibold" : "text-heroi-suave"}`}>
+                {n === 12 ? MESES_CURTOS[z.m.mes - 1][0].toUpperCase() : MESES_CURTOS[z.m.mes - 1]}
+              </small>
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-heroi-suave">
+            <span className="flex items-center gap-1.5"><i className="size-2.5 rounded-sm bg-accent" />faturou</span>
+            <span className="flex items-center gap-1.5"><i className="h-0.5 w-3 bg-success" />lucro</span>
+            <span className="flex items-center gap-1.5"><i className="size-2.5 rounded-sm bg-[repeating-linear-gradient(135deg,var(--color-accent)_0_2px,transparent_2px_4px)]" />até hoje</span>
+          </div>
+        </HeroiDoTema>
+      )}
 
       {ult && (
         <div className="grid grid-cols-2 gap-2.5">
