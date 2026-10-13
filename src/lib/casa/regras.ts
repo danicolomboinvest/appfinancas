@@ -1,0 +1,158 @@
+import type { Prisma } from "@prisma/client";
+
+/**
+ * Casal simples (aprovado pela dona em 13/10/2026, casal-simples-proposta.html).
+ *
+ * O app fica igual. Cada pessoa entra com o próprio login, no próprio Pessoal, e vê também o que
+ * o par deixou visível. Não existe perfil novo nem dado copiado: os lançamentos de cada um
+ * continuam com o userId e o profileId de quem gastou. O que junta os dois é a LEITURA, e ela
+ * mora toda aqui, num lugar só, com teste.
+ *
+ * As oito regras da proposta, no que o código faz:
+ * 1. Cada pessoa entra com o próprio login, no app de sempre.
+ * 2. O gasto é de quem passou o cartão: o dono do registro (userId) vira a bolinha.
+ * 3. Ao ligar, tudo aparece para os dois (soMeu = false e ocultoDoPar = false são o padrão).
+ * 4. Esconder uma conta: ImportBatch.ocultoDoPar, em Contas e cartões.
+ * 5. Esconder um gasto: MonthlyEntry.soMeu, no lançamento aberto.
+ * 6. O que é escondido some do app do outro e dos totais dele: `doOutroVisivel` tira os dois.
+ * 7. Um orçamento só, o da casa (o da titular). Só quem gastou edita ou apaga: toda escrita
+ *    continua filtrando por userId + profileId de quem está logado (doDono), então o lançamento
+ *    do outro nunca casa com um update ou delete.
+ * 8. Se alguém sair, cada um fica com os próprios gastos: nada foi copiado, então nada precisa
+ *    ser devolvido.
+ */
+
+export type Letra = "A" | "B";
+
+export type PessoaDaCasa = {
+  userId: string;
+  /** O Pessoal desta pessoa que faz parte da casa. */
+  profileId: string;
+  /** A letra no acerto (a mesma de MonthlyEntry.pessoa no Nós dois de antes). */
+  letra: Letra;
+  /** O primeiro nome que aparece no filtro e na bolinha. */
+  nome: string;
+  /** A cor: quem paga o Casal fica com o destaque do tema; o par, com o azul acinzentado. */
+  papel: "titular" | "par";
+};
+
+/** A casa de quem está logado, do ponto de vista dele. */
+export type CasaNaSessao = {
+  membroId: string;
+  /** O perfil Casal antigo da titular: guarda os nomes, o jeito de dividir e os meses acertados. */
+  casalProfileId: string;
+  eu: PessoaDaCasa;
+  outro: PessoaDaCasa;
+};
+
+/** O pedaço do AuthContext que a leitura precisa. */
+export type QuemLe = { userId: string; profileId: string; casa?: CasaNaSessao | null };
+
+/**
+ * A casa vale na tela de agora? Só no Pessoal que faz parte dela: se a titular troca para a
+ * Empresa, a Empresa continua só dela.
+ */
+export function casaAtiva(q: QuemLe): CasaNaSessao | null {
+  const c = q.casa;
+  if (!c) return null;
+  if (c.eu.userId !== q.userId || c.eu.profileId !== q.profileId) return null;
+  if (c.outro.userId === q.userId) return null;
+  return c;
+}
+
+/** A conta (lote de importação) visível para o par: sem lote (lançado à mão) ou com a conta ligada. */
+const contaVisivel: Prisma.MonthlyEntryWhereInput = {
+  OR: [{ importBatchId: null }, { importBatch: { is: { ocultoDoPar: false } } }],
+};
+
+/**
+ * O que o OUTRO deixou visível para mim: o Pessoal dele, sem o "Só meu" e sem as contas que ele
+ * desligou. Nunca o resto dos perfis dele (a Empresa dele não passa por aqui).
+ */
+export function doOutroVisivel(casa: CasaNaSessao): Prisma.MonthlyEntryWhereInput {
+  return { userId: casa.outro.userId, profileId: casa.outro.profileId, soMeu: false, AND: [contaVisivel] };
+}
+
+/**
+ * Os lançamentos que quem olha VÊ: os dele (todos, inclusive o que ele escondeu, que aparece com
+ * cadeado) e os do outro que estão visíveis. Sem casa, exatamente o filtro de sempre.
+ */
+export function lancamentosParaVer(q: QuemLe): Prisma.MonthlyEntryWhereInput {
+  const casa = casaAtiva(q);
+  const meus = { userId: q.userId, profileId: q.profileId };
+  if (!casa) return meus;
+  return { OR: [meus, doOutroVisivel(casa)] };
+}
+
+/**
+ * Os lançamentos dos TOTAIS do Resumo e do Orçamento, para quem olha: os dele inteiros (o "Só
+ * meu" dele é dinheiro dele, conta para ele) e os do outro visíveis. O "Só meu" do outro nunca
+ * entra, nem somado.
+ */
+export const lancamentosDosTotais = lancamentosParaVer;
+
+/**
+ * O que entra no ACERTO do mês: só o que os dois enxergam. O "Só meu" e as contas escondidas de
+ * QUALQUER um dos dois ficam de fora, para os dois verem o mesmo número.
+ */
+export function lancamentosDoAcertoDaCasa(casa: CasaNaSessao): Prisma.MonthlyEntryWhereInput {
+  const visivel = (p: PessoaDaCasa): Prisma.MonthlyEntryWhereInput => ({ userId: p.userId, profileId: p.profileId, soMeu: false, AND: [contaVisivel] });
+  return { OR: [visivel(casa.eu), visivel(casa.outro)] };
+}
+
+/**
+ * Junta o filtro de quem olha com o resto da consulta sem um apagar o outro: os dois podem ter
+ * OR (os meses, por exemplo), e espalhar um objeto por cima do outro perderia um deles.
+ */
+export function comFiltro(base: Prisma.MonthlyEntryWhereInput, resto: Prisma.MonthlyEntryWhereInput): Prisma.MonthlyEntryWhereInput {
+  return { AND: [base, resto] };
+}
+
+/** De quem é o orçamento que vale: o da casa (o Pessoal da titular) ou, sem casa, o de quem olha. */
+export function donoDoOrcamento(q: QuemLe): { userId: string; profileId: string } {
+  const casa = casaAtiva(q);
+  if (!casa) return { userId: q.userId, profileId: q.profileId };
+  const titular = casa.eu.papel === "titular" ? casa.eu : casa.outro;
+  return { userId: titular.userId, profileId: titular.profileId };
+}
+
+/** Quem gastou, pelo dono do registro: "eu", "outro", ou nulo fora de uma casa. */
+export function quemGastou(q: QuemLe, linha: { userId: string }): "eu" | "outro" | null {
+  const casa = casaAtiva(q);
+  if (!casa) return null;
+  if (linha.userId === casa.eu.userId) return "eu";
+  if (linha.userId === casa.outro.userId) return "outro";
+  return null;
+}
+
+/** A letra de quem gastou, para o acerto (no simples, o dono do registro decide, não a coluna pessoa). */
+export function letraDoDono(casa: CasaNaSessao, userId: string): Letra | null {
+  if (userId === casa.eu.userId) return casa.eu.letra;
+  if (userId === casa.outro.userId) return casa.outro.letra;
+  return null;
+}
+
+/** "nubank-outubro.pdf" vira "nubank outubro": o nome do arquivo é o que ela reconhece. */
+export function nomeDoArquivo(f: string | null, padrao: string): string {
+  return f ? f.replace(/\.[a-z0-9]+$/i, "").replace(/[-_]+/g, " ").trim() || padrao : padrao;
+}
+
+/**
+ * A conta de um lote: o tipo (extrato ou cartão) e a primeira palavra do arquivo ("nubank"). É
+ * o mesmo agrupamento que a tela Contas e cartões já fazia. O SPI não tem cadastro de conta: o
+ * que ela reconhece é o banco do arquivo que trouxe. O Open Finance entra como "conta" pelo nome
+ * da conexão ("Nubank · 12/10/2026").
+ */
+export function chaveDaConta(docType: string, fileName: string | null): string {
+  const tipo = docType === "fatura" ? "cartao" : "conta";
+  const primeira = nomeDoArquivo(fileName, tipo === "cartao" ? "fatura" : "extrato")
+    .split(/\s+/)[0]
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase();
+  return `${tipo}:${primeira || "sem-nome"}`;
+}
+
+export function outraLetra(l: Letra): Letra {
+  return l === "A" ? "B" : "A";
+}

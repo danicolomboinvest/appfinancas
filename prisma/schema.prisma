@@ -632,17 +632,21 @@ model ImportFile {
 }
 
 model ImportBatch {
-  id        String            @id @default(cuid())
-  userId    String
-  user      User              @relation(fields: [userId], references: [id])
+  id          String            @id @default(cuid())
+  userId      String
+  user        User              @relation(fields: [userId], references: [id])
   /// Perfil financeiro dono deste registro. Nulo só no histórico anterior aos perfis.
-  profileId String?
-  profile   FinancialProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  profileId   String?
+  profile     FinancialProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
   /// "extrato" | "fatura"
-  docType   String
-  fileName  String?
-  createdAt DateTime          @default(now())
-  entries   MonthlyEntry[]
+  docType     String
+  fileName    String?
+  /// Casal simples (13/10/2026): a conta deste extrato ou fatura está escondida do par ("Mostrar
+  /// para <par>" desligado em Contas e cartões). Copiado para todos os lotes da mesma conta (ver
+  /// chaveDaConta em src/lib/casa/regras.ts), e o lote novo herda o da conta.
+  ocultoDoPar Boolean           @default(false)
+  createdAt   DateTime          @default(now())
+  entries     MonthlyEntry[]
 
   @@index([userId, createdAt])
 }
@@ -1515,6 +1519,18 @@ model MembroCasal {
   termosVersao    String           @db.VarChar(20)
   termosAceitosEm DateTime
   conviteId       String?
+  /// Casal simples (13/10/2026, casal-simples-proposta.html): o modelo que vale para ESTA casa.
+  /// "nos-dois" = o de antes (o par entra no perfil Casal da titular). "simples" = cada um no
+  /// próprio Pessoal, vendo também o que o outro deixou visível. Só a migração troca
+  /// (scripts/migrar-casal-simples.ts), e ela sabe voltar.
+  modelo          String           @default("nos-dois") @db.VarChar(10)
+  /// No modelo simples: o Pessoal da titular e o do par que formam a casa. Nulos no Nós dois.
+  /// Sem chave estrangeira de propósito, como o autorUserId: apagar um perfil não pode apagar o vínculo.
+  perfilTitularId String?
+  perfilParId     String?
+  /// Quando a casa passou para o simples, e o que a migração moveu (o caminho de volta).
+  migradoEm       DateTime?
+  migracao        Json?
 
   @@index([userId])
   @@index([profileId])
