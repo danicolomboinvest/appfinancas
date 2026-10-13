@@ -1423,7 +1423,11 @@ export async function importTransactionsAction(
     // de duplicata usa o MESMO mês e o MESMO dia que vão pro banco (ver `chaveExata`/`diaDe`).
     const ym = monthOf(item);
     const dia = diaDe(item);
-    if (item.adotar && ehFatura && (await adotarDoPrint(item, ym, dia))) continue;
+    if (item.adotar && ehFatura && (await adotarDoPrint(item, ym, dia))) {
+      // A fatura fechada projeta as parcelas seguintes da compra que veio do print (o print não projeta).
+      await lancarParcelasFuturas(item, ym, profileId, parentCategory, customCategoryId, null);
+      continue;
+    }
     if (pular.has(indice)) {
       skipped += 1;
       const confirmada = confirmadas.get(indice);

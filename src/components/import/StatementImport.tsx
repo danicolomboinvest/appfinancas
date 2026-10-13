@@ -377,6 +377,8 @@ export function StatementImport({
     setFileName(nomeDosPrints(Math.min(arquivos.length, MAX_PRINTS)));
     // Prints são sempre fatura: o "Ler como extrato" do menu não vale aqui.
     setUltimoArquivo(null);
+    // Fora da transição: o "Lendo o print 1 de 3" aparece na hora, não só depois do primeiro.
+    setLendoPrint({ atual: 1, total: Math.min(arquivos.length, MAX_PRINTS) });
     startTransition(async () => {
       let lido: Awaited<ReturnType<typeof lerOsPrints>>;
       try {
@@ -1464,6 +1466,10 @@ export function StatementImport({
   if (phase === "confirm") {
     // Tudo que não ficou de fora entra, inclusive o gasto sem categoria ("Não sei agora").
     const importable = items.filter(entraNaImportacao);
+    // As que já vieram por print da fatura aberta: não entram de novo, mas gravar ainda as passa para
+    // esta fatura (valor, dia e nome dela). Sem nada novo, o botão segue valendo para isso.
+    const vemDoPrint = items.filter((it) => !it.ignorar && it.jaNoApp?.faturaAberta).length;
+    const semNadaParaGravar = importable.length === 0 && vemDoPrint === 0;
     // Gasto sem categoria ENTRA (sem categoria). Antes ficava de fora calado: o botão dizia
     // "Importar 12" e 3 gastos simplesmente não existiam depois. O aviso agora diz que ele entra
     // e oferece escolher a categoria já.
@@ -1899,14 +1905,14 @@ export function StatementImport({
                 Responder {perguntas.length}
                 <ArrowRight size={16} className="ml-1.5" />
               </Button>
-              <button type="button" onClick={handleImport} disabled={isPending || importable.length === 0} className="inline-flex min-h-11 flex-col items-center justify-center text-sm font-medium text-ink-muted hover:text-ink disabled:opacity-60">
+              <button type="button" onClick={handleImport} disabled={isPending || semNadaParaGravar} className="inline-flex min-h-11 flex-col items-center justify-center text-sm font-medium text-ink-muted hover:text-ink disabled:opacity-60">
                 {isPending ? t.impImportando : "Pular e anotar"}
                 {!isPending && <span className="text-caption font-normal text-ink-faint">Sem resposta, fica “A conferir”</span>}
               </button>
             </>
           ) : (
-            <Button type="button" className="min-h-12" onClick={handleImport} disabled={isPending || importable.length === 0}>
-              {isPending ? t.impImportando : `Pronto, anotar ${importable.length}`}
+            <Button type="button" className="min-h-12" onClick={handleImport} disabled={isPending || semNadaParaGravar}>
+              {isPending ? t.impImportando : importable.length === 0 ? "Pronto" : `Pronto, anotar ${importable.length}`}
               <ArrowRight size={16} className="ml-1.5" />
             </Button>
           )}
