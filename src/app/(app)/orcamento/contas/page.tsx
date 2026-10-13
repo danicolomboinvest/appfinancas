@@ -81,7 +81,15 @@ export default async function RecorrentesPage(props: PageProps<"/orcamento/conta
   // pelo valor da parcela, assinaturas achadas no extrato. As contas do ano têm o card delas.
   const peso = pesoPorMes(contas, hojeD);
   // A academia ou a internet que virou conta não aparece de novo em Assinaturas.
-  const assinaturas = raiox.itens.filter((i) => i.tipo === "assinatura" && !mesmaCobranca(i.nome, abertas));
+  const doRaioX = raiox.itens.filter((i) => i.tipo === "assinatura" && !mesmaCobranca(i.nome, abertas));
+  // O Dinheiro perdido acha assinatura que o Raio-X chama de "hábito" (13/10/2026: o ManyChat cobra
+  // o plano de ~R$ 900 no fim do mês e mais umas cobranças pequenas, e só aparecia lá). Junta as
+  // duas listas, sem repetir pelo nome.
+  const nomeBase = (n: string) => n.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  const doPerdido = (perdido?.vivos ?? [])
+    .filter((a) => a.tipo === "assinatura" && a.mensal && !doRaioX.some((r) => nomeBase(r.nome) === nomeBase(a.nome)) && !mesmaCobranca(a.nome, abertas))
+    .map((a) => ({ chave: `dp:${a.chave}`, nome: a.nome, mensal: a.mensal as number }));
+  const assinaturas = [...doRaioX, ...doPerdido].sort((a, b) => b.mensal - a.mensal);
   const totalAssinaturas = assinaturas.reduce((s, i) => s + i.mensal, 0);
   const planejado = plano.reduce((s, b) => s + Number(b.plannedAmount), 0);
   const livre = planejado > 0 ? planejado - resumo.totalExpense : null;
