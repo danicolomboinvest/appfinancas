@@ -182,6 +182,9 @@ describe("fatura pela data da compra", () => {
     const r = await importarFatura([compra("2026-06-20", "LOJA X PARC 04/10", 100), compra("2026-09-15", "PADARIA", 20)], OUT);
     expect(r).toMatchObject({ ok: true, created: 1, skipped: 1 });
     expect(comDescricao("LOJA X PARC 04/10")).toHaveLength(1);
+    // E sai de "Sem data": a fatura nova diz o dia. A 05/10, que ela não trouxe, continua como estava.
+    expect(dia(comDescricao("LOJA X PARC 04/10")[0])).toBe("2026-09-20");
+    expect(dia(comDescricao("LOJA X PARC 05/10")[0])).toBeNull();
   });
 
   it("BTG: Amazon (9/10) entre parênteses projeta a 10/10 no mês seguinte, no dia da compra, sem herdar o palpite da loja de tudo", async () => {
