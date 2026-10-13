@@ -25,6 +25,7 @@ import { NewCustomCategoryCard } from "./NewCustomCategoryCard";
 import { applyAllBudgetsAction, type AnnualBudgetState } from "./actions";
 import { useVoltarAoTopo } from "@/components/ui/useVoltarAoTopo";
 import { PLANO_SALVO } from "@/components/budget/EditarPlano";
+import { textoDaMedia } from "@/lib/planning/renda-media";
 
 const initialState: AnnualBudgetState = {};
 const STEP = 50;
@@ -120,8 +121,9 @@ export function BudgetWizard({
     [parentCategories, customCategories, categorias],
   );
 
-  // Sem plano, a renda começa no que entrou no último mês fechado e o guardar na sugestão.
-  const rendaSugerida = Math.round(hints.lastMonthIncome / 100) * 100;
+  // Sem plano, a renda começa na MÉDIA dos últimos 12 meses fechados (nunca o último mês
+  // sozinho, pedido da Dani em 13/10/2026) e o guardar na sugestão. O digitado no plano vence.
+  const rendaSugerida = Math.round(hints.rendaMedia / 100) * 100;
   const rendaInicial = plan.plannedIncome || rendaSugerida;
   const [passo, setPasso] = useState<Passo>(1);
   const topoRef = useVoltarAoTopo<HTMLFormElement>(passo);
@@ -204,7 +206,7 @@ export function BudgetWizard({
     conteudo = (
       <>
         <h3 className={pergunta}>{t.formOrcQuantoEntra}</h3>
-        {hints.lastMonthIncome > 0 && <p className="text-[15px] text-ink-muted">{t.formOrcRendaSugestao(hints.lastMonthLabel, m(hints.lastMonthIncome))}</p>}
+        {hints.rendaMedia > 0 && <p className="text-[15px] text-ink-muted">{t.formOrcRendaSugestao(textoDaMedia(hints.rendaMediaMeses), m(hints.rendaMedia))}</p>}
         <div className="mt-2 grid grid-cols-[44px_minmax(0,1fr)_44px] items-center gap-2">
           <button type="button" aria-label={`Menos ${simbolo} 100`} onClick={() => setIncome((v) => Math.max(0, v - 100))} className="flex size-11 items-center justify-center rounded-full bg-surface-2 text-ink">
             <Minus size={18} />

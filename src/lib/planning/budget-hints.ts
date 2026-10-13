@@ -1,15 +1,21 @@
 import type { AuthContext } from "@/lib/auth/session";
 import { PARENT_CATEGORIES } from "@/lib/categories";
-import { getMonthlySummary } from "@/lib/consolidation/monthly";
+import { getRendaMedia } from "@/lib/repositories/renda-media.repo";
 import { sumExpensesByParentCategory, sumExpensesByCustomCategory } from "@/lib/repositories/budget.repo";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import { mesDeReferenciaDasDicas, mesesQueFaltamNoAno } from "@/lib/planning/plano-anual";
 import { padraoPorCategoria } from "@/lib/planning/padrao-orcamento";
 
 export type BudgetHints = {
-  /** "agosto" — o último mês fechado, que é a referência de "copiar" e de "entrou". */
+  /** "agosto" — o último mês fechado, que é a referência de "copiar". */
   lastMonthLabel: string;
-  lastMonthIncome: number;
+  /**
+   * A renda sugerida: a MÉDIA dos 12 meses fechados até o mês de referência que têm entrada
+   * (pedido da Dani, 13/10/2026: nunca o último mês sozinho). Zero sem nenhuma entrada.
+   */
+  rendaMedia: number;
+  /** De quantos meses é a média (0 sem entrada): a tela diz "média de N meses". */
+  rendaMediaMeses: number;
   /** Gasto do último mês fechado por categoria (chave = ParentCategory ou id de personalizada). */
   lastMonthByCategory: Record<string, number>;
   /** Média dos últimos 3 meses fechados por categoria: base do "Sugerir pra mim". */
@@ -36,7 +42,7 @@ function shift(year: number, month: number, back: number): { year: number; month
 }
 
 /**
- * O que o app já sabe antes de perguntar: quanto entrou no mês passado, quanto saiu em cada
+ * O que o app já sabe antes de perguntar: quanto entra por mês (média de 12 meses), quanto saiu em cada
  * categoria, e a média dos últimos três meses. É o que deixa o orçamento começar preenchido
  * em vez de em branco — a pessoa ajusta, não inventa.
  */
@@ -47,8 +53,9 @@ export async function getBudgetHints(ctx: AuthContext, year: number, today: Date
   const ref = mesDeReferenciaDasDicas(year, today);
   const windows = [0, 1, 2].map((back) => shift(ref.year, ref.month, back));
 
-  const [summary, ...spent] = await Promise.all([
-    getMonthlySummary(ctx, ref.year, ref.month),
+  // A média termina no mês de referência: o "hoje" dela é o mês seguinte a ele.
+  const [rendaMedia, ...spent] = await Promise.all([
+    getRendaMedia(ctx, new Date(ref.year, ref.month, 1)),
     ...windows.flatMap((w) => [sumExpensesByParentCategory(ctx, w.year, w.month), sumExpensesByCustomCategory(ctx, w.year, w.month)]),
   ]);
 
@@ -77,7 +84,8 @@ export async function getBudgetHints(ctx: AuthContext, year: number, today: Date
     mesesComDado,
     porMes,
     lastMonthLabel: MONTHS[ref.month - 1],
-    lastMonthIncome: summary.totalIncome,
+    rendaMedia: rendaMedia?.valor ?? 0,
+    rendaMediaMeses: rendaMedia?.meses ?? 0,
     lastMonthByCategory: perMonth[0],
     averageByCategory,
     monthsLeftInYear: mesesQueFaltamNoAno(year, today),

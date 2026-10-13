@@ -236,7 +236,7 @@ const GIRLY_FORM: Partial<Titulos> = {
   formOrcTitulo: "Bora combinar seu mês?",
   formOrcQuantoEntra: "Quanto entra por mês?",
   formOrcRenda: "Entra por mês",
-  formOrcRendaSugestao: (mes, valor) => `Em ${mes} entraram ${valor}`,
+  formOrcRendaSugestao: (media, valor) => `Entram ${valor} por mês, ${media}`,
   formOrcQuantoGuardar: "Quanto você quer guardar?",
   formOrcGuardarPorMes: "Guardar por mês",
   formOrcSobraTitulo: "Sobra para gastar",
