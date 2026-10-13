@@ -27,6 +27,8 @@ import {
 } from "@/lib/repositories/import-batch.repo";
 import { garantirCuidadoPessoal, listCustomCategories } from "@/lib/repositories/custom-category.repo";
 import { listProfiles } from "@/lib/repositories/profile.repo";
+import { regrasDePerfil } from "@/lib/repositories/mover-perfil.repo";
+import { categoriaNoDestino, destinoPelaRegra } from "@/lib/perfis/mover-lancamentos";
 import { descricoesOriginais } from "@/lib/repositories/decisao.repo";
 import { aplicarNosOutrosMeses, listTransactionRules, upsertTransactionRule } from "@/lib/repositories/transaction-rule.repo";
 import { parseStatementComLeitor } from "@/lib/import/statement-parser";
@@ -461,6 +463,8 @@ async function lerExtrato(formData: FormData): Promise<ParseStatementResult> {
   // veio de outro arquivo pergunta "é o mesmo?". Parcela fica de fora: a data dela é a da compra
   // original, não a do mês em que conta.
   await marcarParecidosDeOutraImportacao(ctx, items);
+  // "Sempre mandar para a Empresa": a compra do comerciante que ela já moveu chega marcada.
+  await marcarDestinoPelaRegra(ctx, items);
   const diagnosticId = await recordImportDiagnostic({
     userId: ctx.userId,
     target: docType,
@@ -584,6 +588,56 @@ function yearMonthFromISO(date: string): { year: number; month: number } | null 
 
 /** Descrição comparável: sem diferença de maiúscula/espaço nem de como o "N/T" da parcela foi
  * escrito ("PARC 04/06" do banco e "PARC 04/6" que versões antigas do app gravavam são a mesma). */
+/**
+ * "Sempre mandar para a Empresa" (12/10/2026): a linha de um comerciante que ela já moveu de
+ * perfil (e pediu para lembrar) chega na revisão marcada para o perfil de destino, com a categoria
+ * que faz sentido LÁ (ver categoriaNoDestino). Na revisão ela desmarca com um toque, como sempre.
+ * A personalizada do destino não entra: a tela só mostra as fixas numa linha de outro perfil.
+ */
+async function marcarDestinoPelaRegra(ctx: AuthContext, items: ReviewItem[]): Promise<void> {
+  try {
+    const regras = await regrasDePerfil(ctx);
+    if (regras.length === 0) return;
+    const perfis = new Map((await listProfiles(ctx.userId)).filter((p) => p.id !== ctx.profileId).map((p) => [p.id, p]));
+    const regrasDeCategoria = new Map<string, LearnedRule[]>();
+    const regrasDoDestino = async (profileId: string) => {
+      if (!regrasDeCategoria.has(profileId)) {
+        const rs = await listTransactionRules({ ...ctx, profileId });
+        // Só as de categoria padrão: a personalizada do destino não aparece nesta tela.
+        regrasDeCategoria.set(profileId, rs.filter((r) => !r.customCategoryId).map((r) => ({ pattern: r.pattern, parentCategory: r.parentCategory, subcategory: r.subcategory ?? undefined })));
+      }
+      return regrasDeCategoria.get(profileId)!;
+    };
+    for (const item of items) {
+      if (item.category !== "EXPENSE" || item.ignorar || item.profileId) continue;
+      const destino = perfis.get(destinoPelaRegra(item.description, regras) ?? "");
+      if (!destino) continue;
+      const categoria = categoriaNoDestino({
+        lancamento: { category: "EXPENSE", parentCategory: item.parentCategory, customCategoryId: item.customCategoryId, subcategory: item.subcategory, description: item.description, amount: item.estorno ? -item.amount : item.amount },
+        origemKind: ctx.profileKind,
+        destinoKind: destino.kind,
+        nomeDaPersonalizada: null,
+        personalizadasDoDestino: [],
+        regrasDoDestino: await regrasDoDestino(destino.id),
+      });
+      const temCategoria = categoria.parentCategory !== null;
+      Object.assign(item, {
+        profileId: destino.id,
+        parentCategory: categoria.parentCategory,
+        customCategoryId: null,
+        subcategory: categoria.subcategory,
+        autoClassified: temCategoria,
+        motivo: temCategoria ? "regra_sua" : "pergunta",
+        confianca: temCategoria ? "alta" : "baixa",
+        nota: item.nota ?? `Vai para ${destino.name}: você pediu para sempre mandar.`,
+      });
+    }
+  } catch (err) {
+    // Não marcar é o comportamento de antes: a leitura do arquivo nunca cai por causa disso.
+    console.error("marcarDestinoPelaRegra falhou (a leitura segue)", err);
+  }
+}
+
 function descricaoComparavel(description: string | null): string {
   return installmentCanonical(description ?? "").trim().toLowerCase();
 }
