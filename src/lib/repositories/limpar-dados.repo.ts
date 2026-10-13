@@ -157,7 +157,7 @@ export async function limparDados(ctx: AuthContext, opcoes: OpcoesDaLimpeza): Pr
   }
   if (sai("categorias")) apaga("regrasDeCategoria", prisma.transactionCategoryRule.deleteMany({ where: onde }));
   // "Sempre mandar para a Empresa" é regra aprendida como a de categoria: sai junto.
-  if (sai("categorias")) apaga("regrasDeCategoria", prisma.regraDePerfil.deleteMany({ where: onde }));
+  if (sai("categorias")) apaga("regrasDeCategoria", prisma.regraDePerfil.deleteMany({ where: { userId, profileId: { in: alvo } } }));
   if (sai("metas")) {
     apaga("reserva", prisma.emergencyFund.deleteMany({ where: onde }));
     // Meta ou categoria que um lançamento do PAR ainda usa (Nós dois) fica: apagar travaria a
