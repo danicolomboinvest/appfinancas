@@ -26,6 +26,8 @@ export type ConfigCasal = {
   pctA?: number;
   /** Conta por conta: o jeito de cada conta, pela chave da conta (ver chaveDaConta). Ausente = o geral. */
   regras?: Record<string, ModoDaConta>;
+  /** Casal simples: as contas (ids) que já viram o "Como funciona o casal". Ausente = ninguém. */
+  tutorialVisto?: string[];
 };
 
 export const CONFIG_PADRAO: ConfigCasal = { nomeA: "Pessoa 1", nomeB: "Pessoa 2", divisao: "renda", acertos: [] };
@@ -42,7 +44,14 @@ export function lerConfigCasal(json: unknown): ConfigCasal {
     ...(o.mostrarRenda === true ? { mostrarRenda: true } : {}),
     ...(typeof o.pctA === "number" && o.pctA >= 20 && o.pctA <= 80 ? { pctA: Math.round(o.pctA) } : {}),
     ...(lerRegras(o.regras) ? { regras: lerRegras(o.regras)! } : {}),
+    ...(lerVistos(o.tutorialVisto) ? { tutorialVisto: lerVistos(o.tutorialVisto)! } : {}),
   };
+}
+
+function lerVistos(v: unknown): string[] | null {
+  if (!Array.isArray(v)) return null;
+  const ids = v.filter((x): x is string => typeof x === "string" && x.length > 0 && x.length <= 40).slice(-4);
+  return ids.length ? ids : null;
 }
 
 function ehModoDaConta(v: unknown): v is ModoDaConta {
