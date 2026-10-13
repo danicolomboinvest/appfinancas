@@ -75,8 +75,10 @@ export function detectRecurring(previous: RecurrenceEntry[], current: Recurrence
  * `confident` diz se dá pra AGIR: "POSTO SHELL 03/09" é a data da compra (3 de setembro), não
  * parcela 3 de 9 — e criar as 6 parcelas seguintes inventaria seis gastos que não existem.
  * Só é certeza quando a descrição diz "parcela"/"parc", quando o separador é " de " ("2 de 6"),
- * ou quando o total passa de 12 (mês nenhum é 18). Nos casos ambíguos o lançamento entra
- * normalmente, sem criar nada no futuro: a parcela do mês que vem chega na fatura do mês que vem.
+ * quando o total passa de 12 (mês nenhum é 18), ou quando o "N/T" vem entre parênteses
+ * ("Amazon Marketplace Cc (9/10)", como o BTG escreve: banco nenhum põe a data da compra assim).
+ * Nos casos ambíguos o lançamento entra normalmente, sem criar nada no futuro: a parcela do mês
+ * que vem chega na fatura do mês que vem.
  */
 export function parseInstallment(
   description: string | null,
@@ -87,7 +89,8 @@ export function parseInstallment(
   const { current, total } = m;
   if (!(current >= 1 && total >= 2 && current <= total && total <= 48)) return null;
   const hasWord = /parc(?:ela)?\b|presta[çc][ãa]o/i.test(description);
-  const confident = hasWord || /de/i.test(m.sep) || total > 12;
+  const entreParenteses = /\(\s*$/.test(description.slice(0, m.index + m.before.length)) && /^\s*\)/.test(description.slice(m.index + m.length));
+  const confident = hasWord || /de/i.test(m.sep) || total > 12 || entreParenteses;
   return { current, total, confident };
 }
 
