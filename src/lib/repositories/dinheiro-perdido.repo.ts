@@ -30,6 +30,7 @@ export async function lancamentosParaCacar(ctx: DonoDoPerfil, agora = nowInBrazi
     categoria: e.parentCategory,
     subcategoria: e.subcategory,
     lote: e.importBatchId,
+    estorno: e.category === "EXPENSE" && Number(e.amount) < 0,
   }));
 }
 

@@ -68,6 +68,23 @@ describe("assinatura", () => {
     expect(r.achados).toEqual([]);
   });
 
+  it("compra e o estorno dela no mesmo dia não são cobrança repetida (Kiwify, 13/10/2026)", () => {
+    const r = cacarDinheiroPerdido([
+      l("Kiwify", 29.9, "2026-09-21", { categoria: "EDUCACAO", subcategoria: "Cursos" }),
+      l("Cancelamento - Kiwify", 29.9, "2026-09-21", { categoria: "EDUCACAO", subcategoria: "Cursos", estorno: true }),
+    ]);
+    expect(r.achados).toEqual([]);
+  });
+
+  it("estorno apaga só uma das compras: duas cobranças e um estorno ainda não é repetida", () => {
+    const r = cacarDinheiroPerdido([
+      l("Kiwify", 29.9, "2026-09-21"),
+      l("Kiwify", 29.9, "2026-09-21"),
+      l("Estorno Kiwify", 29.9, "2026-09-22", { estorno: true }),
+    ]);
+    expect(r.achados.filter((a) => a.tipo === "repetida")).toEqual([]);
+  });
+
   it("salário (entrada) nunca entra", () => {
     const r = cacarDinheiroPerdido(todoMes("SALARIO EMPRESA X", [5000, 5000, 5000], 5, 4, { tipo: "INCOME" }));
     expect(r.achados).toEqual([]);

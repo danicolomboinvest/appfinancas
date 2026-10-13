@@ -33,6 +33,8 @@ export type LancamentoParaCacar = {
   subcategoria: string | null;
   /** Lote de importação: o mesmo gasto em dois lotes no mesmo dia é importação dupla, não cobrança dupla. */
   lote?: string | null;
+  /** Gasto com valor negativo no banco: é estorno/cancelamento, dinheiro voltando (13/10/2026). */
+  estorno?: boolean;
 };
 
 export type TipoDeAchado = "assinatura" | "repetida" | "tarifa" | "aumento";
@@ -456,7 +458,7 @@ const ORDEM: Record<TipoDeAchado, number> = { repetida: 0, assinatura: 1, tarifa
  * menor, e quantos lançamentos o último mês tinha (o "Conferi N lançamentos de setembro").
  */
 export function cacarDinheiroPerdido(lancamentos: LancamentoParaCacar[]): ResultadoDaCaca {
-  const gastos = lancamentos.filter((l) => !naoEGasto(l));
+  const gastos = semOsEstornados(lancamentos.filter((l) => !naoEGasto(l)));
   if (lancamentos.length === 0) return { achados: [], conferidos: null };
   const ultimoMes = Math.max(...lancamentos.map(mesDe));
   const doUltimo = lancamentos.filter((l) => mesDe(l) === ultimoMes).length;
@@ -475,6 +477,32 @@ export function cacarDinheiroPerdido(lancamentos: LancamentoParaCacar[]): Result
 }
 
 /**
+ * Estorno não é cobrança, e a compra que foi estornada também não conta (13/10/2026: "Kiwify" de
+ * R$ 29,90 e "Cancelamento - Kiwify" de -R$ 29,90 no mesmo dia viravam "cobrança repetida",
+ * porque o valor chegava sem sinal). Cada estorno apaga uma compra: mesmo valor, até 30 dias antes,
+ * e o mesmo comerciante (ou, sem nome que dê para comparar, a mesma subcategoria).
+ */
+function semOsEstornados(gastos: LancamentoParaCacar[]): LancamentoParaCacar[] {
+  const estornos = gastos.filter((l) => l.estorno);
+  const compras = gastos.filter((l) => !l.estorno);
+  const fora = new Set<string>();
+  const nomeSemEstorno = (d: string | null) => chaveDoComerciante((d ?? "").replace(/\b(estorno|estornado|cancelamento|cancelado|devolu[cç][aã]o|reembolso)\b/gi, " "));
+  for (const e of estornos) {
+    const nomeE = nomeSemEstorno(e.descricao);
+    const alvo = compras.find((c) => {
+      if (fora.has(c.id) || Math.abs(c.valor - e.valor) > 0.01) return false;
+      if (c.data && e.data && (c.data > e.data || diasEntre(e.data, c.data) > 30)) return false;
+      const nomeC = chaveDoComerciante(c.descricao);
+      const mesmoNome = Boolean(nomeE && nomeC && chaveUtil(nomeE) && (nomeC.startsWith(nomeE) || nomeE.startsWith(nomeC)));
+      const semNome = !nomeE || !chaveUtil(nomeE);
+      return mesmoNome || (semNome && c.subcategoria === e.subcategoria && c.categoria === e.categoria);
+    });
+    if (alvo) fora.add(alvo.id);
+  }
+  return compras.filter((c) => !fora.has(c.id));
+}
+
+/**
  * O estorno caiu? Um crédito do mesmo comerciante, com o mesmo valor, depois da cobrança e até 90
  * dias depois. É o que soma no placar sozinho ("Quando o estorno cair no extrato, eu somo").
  */
@@ -483,7 +511,7 @@ export function estornoCaiu(achado: Pick<Achado, "comerciante" | "ultimaData" | 
   if (!valor || !achado.ultimaData) return null;
   const marcaDoAchado = marcaDaDescricao(achado.descricaoDoLogo);
   for (const l of lancamentos) {
-    if (l.tipo !== "INCOME" || !l.data || l.data < achado.ultimaData) continue;
+    if ((l.tipo !== "INCOME" && !l.estorno) || !l.data || l.data < achado.ultimaData) continue;
     if (diasEntre(l.data, achado.ultimaData) > 90) continue;
     if (Math.abs(l.valor - valor) > 0.01) continue;
     const t = textoDe(l);
