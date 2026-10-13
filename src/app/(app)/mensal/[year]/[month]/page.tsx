@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { getRequiredSession } from "@/lib/auth/session";
+import { perfisDeDestino } from "@/lib/repositories/mover-perfil.repo";
 import { dadosDaDivisao, listMonthlyEntries, listRecentSubcategories } from "@/lib/repositories/monthly-entry.repo";
 import { listCustomCategories } from "@/lib/repositories/custom-category.repo";
 import { listGoals } from "@/lib/repositories/goal.repo";
@@ -31,7 +32,7 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
   const ocultos = await valoresOcultos();
   // Só o que a lista precisa (a tela antiga também calculava gráficos, DRE e comparações que
   // saíram daqui): menos consultas, a aba abre mais rápido.
-  const [entries, summary, recentSubcategories, customCategories, goals, importBatches, divisao] = await Promise.all([
+  const [entries, summary, recentSubcategories, customCategories, goals, importBatches, divisao, perfisDestino] = await Promise.all([
     listMonthlyEntries(ctx, year, month),
     getMonthlySummary(ctx, year, month),
     listRecentSubcategories(ctx),
@@ -39,6 +40,7 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
     listGoals(ctx),
     listImportBatches(ctx),
     dadosDaDivisao(ctx),
+    perfisDeDestino(ctx),
   ]);
 
   // Conta nova: nenhum lançamento em NENHUM mês deste perfil. No lugar da lista vazia, um passo
@@ -76,6 +78,7 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
           customCategories={customCategories}
           goals={goalOptions}
           pessoasDaDivisao={divisao.pessoas}
+          perfisDestino={perfisDestino}
           entries={linhasDaLista(entries, ocultos)}
         />
       )}

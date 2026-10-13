@@ -2,7 +2,7 @@
 
 import { LapisDaCategoria } from "@/components/categorias/LapisDaCategoria";
 import { useState, useTransition } from "react";
-import { Check, EyeOff, Pencil, PieChart, Scissors, SplitSquareHorizontal, Tag, Trash2, User, Users } from "lucide-react";
+import { Check, ChevronRight, EyeOff, Pencil, PieChart, Scissors, Send, SplitSquareHorizontal, Tag, Trash2, User, Users } from "lucide-react";
 import type { ParentCategory } from "@prisma/client";
 import type { LucideIcon } from "lucide-react";
 import { LogoDoLancamento } from "@/components/ui/LogoDoLancamento";
@@ -48,7 +48,10 @@ export function FolhaDaTransacao({
   onRemover,
   onIgnorar,
   onTrocar,
+  onEnviar,
 }: {
+  /** "Enviar para outro perfil": só para quem tem mais de um perfil. */
+  onEnviar?: () => void;
   entry: TransacaoDaFolha;
   titulo: string;
   nomeDaCategoria: string;
@@ -99,6 +102,18 @@ export function FolhaDaTransacao({
             <Acao icon={EyeOff} rotulo="Ignorar" onClick={onIgnorar} />
           </div>
           {entry.divididoCom && <DesfazerDivisao id={entry.id} onFeito={onFechar} />}
+          {onEnviar && (
+            <button
+              type="button"
+              onClick={onEnviar}
+              data-enviar-um
+              className="flex min-h-14 w-full items-center gap-3 rounded-2xl bg-surface px-4 text-left text-[15px] text-ink shadow-[inset_0_0_0_1px_var(--color-border)] transition-colors hover:bg-surface-hover"
+            >
+              <Send size={20} strokeWidth={1.75} className="shrink-0" aria-hidden />
+              <span className="min-w-0 flex-1">Enviar para outro perfil</span>
+              <ChevronRight size={18} className="shrink-0 text-ink-faint" aria-hidden />
+            </button>
+          )}
           <div className="flex items-center justify-center gap-6 pt-1 text-sm text-ink-muted">
             <button type="button" onClick={onEditar} className="inline-flex min-h-11 items-center gap-1.5">
               <Pencil size={15} aria-hidden /> Editar

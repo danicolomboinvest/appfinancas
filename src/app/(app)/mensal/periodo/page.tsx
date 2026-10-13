@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getRequiredSession } from "@/lib/auth/session";
+import { perfisDeDestino } from "@/lib/repositories/mover-perfil.repo";
 import { dadosDaDivisao, listEntriesInInterval, listRecentSubcategories } from "@/lib/repositories/monthly-entry.repo";
 import { listCustomCategories } from "@/lib/repositories/custom-category.repo";
 import { listGoals } from "@/lib/repositories/goal.repo";
@@ -24,13 +25,14 @@ export default async function TransacoesDoPeriodo(props: { searchParams: Promise
   if (!intervalo) redirect(`/mensal/${agora.getFullYear()}/${agora.getMonth() + 1}`);
 
   const ctx = await getRequiredSession();
-  const [ocultos, entries, recentSubcategories, customCategories, goals, divisao] = await Promise.all([
+  const [ocultos, entries, recentSubcategories, customCategories, goals, divisao, perfisDestino] = await Promise.all([
     valoresOcultos(),
     listEntriesInInterval(ctx, intervalo),
     listRecentSubcategories(ctx),
     listCustomCategories(ctx),
     listGoals(ctx),
     dadosDaDivisao(ctx),
+    perfisDeDestino(ctx),
   ]);
 
   return (
@@ -46,6 +48,7 @@ export default async function TransacoesDoPeriodo(props: { searchParams: Promise
           customCategories={customCategories}
           goals={goals.map((g) => ({ id: g.id, name: g.name }))}
           pessoasDaDivisao={divisao.pessoas}
+          perfisDestino={perfisDestino}
           entries={linhasDaLista(entries, ocultos)}
         />
       )}

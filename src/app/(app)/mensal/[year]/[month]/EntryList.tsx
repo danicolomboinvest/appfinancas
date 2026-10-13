@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useSearchParams } from "next/navigation";
-import { Check, CheckSquare, ChevronDown, Pencil, PiggyBank, Receipt, Search, Square, Trash2, Wallet, X, type LucideIcon } from "lucide-react";
+import { Check, CheckSquare, ChevronDown, Pencil, PiggyBank, Receipt, Search, Send, Square, Trash2, Wallet, X, type LucideIcon } from "lucide-react";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import type { ParentCategory } from "@prisma/client";
 import type { CurrencyCode } from "@/lib/money";
@@ -18,6 +18,7 @@ import { useMoney } from "@/components/money/MoneyProvider";
 import { CUSTOM_CATEGORY_ICON_MAP, categoryIcon, categoryLabel, colorForCategorySlice, emojiEscolhido, isParentCategoryKey, categoriasParaEscolher, type CategoriasDoPerfil } from "@/lib/categories";
 import { EntryForm } from "./EntryForm";
 import { FolhaDaTransacao } from "./FolhaDaTransacao";
+import { EnviarParaPerfil, type PerfilParaEnviar } from "./EnviarParaPerfil";
 import { RESGATE } from "@/components/forms/CategoryFields";
 import { ehResgate } from "@/lib/entries/resgate";
 import {
@@ -185,7 +186,10 @@ export function EntryList({
   customCategories,
   goals,
   pessoasDaDivisao = [],
+  perfisDestino = [],
 }: {
+  /** Os outros perfis dela, para o "Enviar para" (vazio: um perfil só, ou o par do Casal). */
+  perfisDestino?: PerfilParaEnviar[];
   /** Com quem ela já dividiu alguma conta (para o "Com quem?" do Dividir). */
   pessoasDaDivisao?: string[];
   entries: ListEntry[];
@@ -212,6 +216,25 @@ export function EntryList({
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkCategorizing, setBulkCategorizing] = useState(false);
+  // "Enviar para outro perfil" (12/10/2026): os ids que vão. Vazio = folha fechada.
+  const [enviando, setEnviando] = useState<string[]>([]);
+  const podeEnviar = perfisDestino.length > 0;
+  // Tocar e segurar uma linha entra no modo seleção já com ela marcada.
+  const segurar = useRef<{ timer: ReturnType<typeof setTimeout> | null; disparou: boolean }>({ timer: null, disparou: false });
+  function comecarASegurar(id: string) {
+    if (selecting) return;
+    segurar.current.disparou = false;
+    segurar.current.timer = setTimeout(() => {
+      segurar.current.disparou = true;
+      setSelecting(true);
+      setSelected(new Set([id]));
+      navigator.vibrate?.(10);
+    }, 450);
+  }
+  function pararDeSegurar() {
+    if (segurar.current.timer) clearTimeout(segurar.current.timer);
+    segurar.current.timer = null;
+  }
   // Despesa fixa: antes de apagar, pergunta se é só este mês ou este e os próximos.
   const [apagandoFixa, setApagandoFixa] = useState<ListEntry | null>(null);
 
@@ -350,7 +373,22 @@ export function EntryList({
       <div key={entry.id} className={`flex items-center gap-3 px-3 py-3 transition-colors ${marcado ? "bg-accent-soft/40" : ""}`}>
         <button
           type="button"
-          onClick={() => (selecting ? toggle(entry.id) : setOpenId(entry.id))}
+          onClick={() => {
+            // O toque longo já marcou a linha: o clique que vem depois dele não desmarca.
+            if (segurar.current.disparou) {
+              segurar.current.disparou = false;
+              return;
+            }
+            if (selecting) toggle(entry.id);
+            else setOpenId(entry.id);
+          }}
+          onPointerDown={() => comecarASegurar(entry.id)}
+          onPointerUp={pararDeSegurar}
+          onPointerLeave={pararDeSegurar}
+          onPointerCancel={pararDeSegurar}
+          onContextMenu={(e) => {
+            if (segurar.current.timer || segurar.current.disparou) e.preventDefault();
+          }}
           data-linha-transacao
           aria-pressed={selecting ? marcado : undefined}
           aria-label={selecting ? `${marcado ? "Desmarcar" : "Marcar"} ${titulo}` : `Abrir ${titulo}`}
@@ -607,6 +645,20 @@ export function EntryList({
                   <span className="hidden whitespace-nowrap md:inline">{t.uiMudarCategoria}</span>
                 </button>
               )}
+              {podeEnviar && (
+                <button
+                  type="button"
+                  disabled={selected.size === 0}
+                  onClick={() => setEnviando([...selected])}
+                  aria-label="Enviar para outro perfil"
+                  title="Enviar para outro perfil"
+                  data-enviar-selecionados
+                  className="inline-flex h-10 min-w-10 items-center justify-center gap-1.5 rounded-full bg-ink px-3 text-sm font-semibold text-canvas transition-opacity disabled:opacity-40 md:px-4"
+                >
+                  <Send size={15} strokeWidth={2} />
+                  <span className="hidden whitespace-nowrap md:inline">Enviar para</span>
+                </button>
+              )}
               <button
                 type="button"
                 disabled={selected.size === 0}
@@ -682,6 +734,14 @@ export function EntryList({
               setOpenId(null);
               setEditingId(open.id);
             }}
+            onEnviar={
+              podeEnviar
+                ? () => {
+                    setOpenId(null);
+                    setEnviando([open.id]);
+                  }
+                : undefined
+            }
             onRemover={() => {
               const alvo = open;
               setOpenId(null);
@@ -746,6 +806,8 @@ export function EntryList({
           </div>
         )}
       </Modal>
+
+      <EnviarParaPerfil ids={enviando} perfis={perfisDestino} onFechar={() => setEnviando([])} onEnviado={leaveSelection} />
 
       <Modal open={editing !== null} onClose={() => setEditingId(null)} title={t.uiEditarLancamento}>
         {editing && (
