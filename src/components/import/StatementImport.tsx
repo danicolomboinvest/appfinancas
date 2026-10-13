@@ -1129,7 +1129,7 @@ export function StatementImport({
   }
 
   // Botões de resposta das perguntas: grandes, um forte e os outros calmos.
-  const respostaForte = "flex min-h-12 w-full items-center justify-center rounded-full bg-pill px-4 text-[15px] font-semibold text-on-pill";
+  const respostaForte = "flex min-h-12 w-full items-center justify-center rounded-full px-4 text-[15px] font-semibold [background:var(--botao-fundo,var(--color-ink))] [color:var(--botao-tinta,var(--color-canvas))]";
   const respostaFraca = "flex min-h-12 w-full items-center justify-center rounded-full border border-border-strong bg-surface px-4 text-[15px] font-medium text-ink";
 
   /**
@@ -1341,10 +1341,11 @@ export function StatementImport({
         {reviewQueue.length - reviewIdx > 3 && (
           <button
             type="button"
-            onClick={() => setPhase("confirm")}
-            className="inline-flex min-h-11 items-center justify-center text-sm font-medium text-ink-muted hover:text-ink"
+            onClick={handleImport}
+            disabled={isPending}
+            className="inline-flex min-h-11 items-center justify-center text-sm font-medium text-ink-muted hover:text-ink disabled:opacity-60"
           >
-            {t.impImportarJa(reviewQueue.length - reviewIdx)}
+            {isPending ? t.impImportando : "Pular e anotar"}
           </button>
         )}
       </div>

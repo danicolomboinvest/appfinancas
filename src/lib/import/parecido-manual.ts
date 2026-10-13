@@ -63,7 +63,7 @@ const COMUNS = new Set([
 /** O lançamento à mão não tem nome que diga de onde veio: vazio, só número, ou só palavra genérica. */
 export function semNomeUtil(descricao: string | null | undefined): boolean {
   const palavras = semAcentoNemPontuacao(descricao ?? "").replace(/\*/g, " ").split(" ").filter(Boolean);
-  return palavras.every((p) => /^\d+$/.test(p) || SEM_NOME.has(p));
+  return palavras.every((p) => p.length < 2 || /^\d+$/.test(p) || SEM_NOME.has(p));
 }
 
 function palavrasDoNome(descricao: string): string[] {
