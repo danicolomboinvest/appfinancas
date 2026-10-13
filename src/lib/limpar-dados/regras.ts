@@ -18,6 +18,64 @@ export function ehEscopoDaLimpeza(v: unknown): v is EscopoDaLimpeza {
   return v === "perfil" || v === "todos";
 }
 
+/**
+ * As partes que ela escolhe limpar (12/10/2026, pedido da Dani: "a pessoa escolhe o que quer que
+ * saia"). Cada tabela mora em uma parte só; o que é calculado a partir dos lançamentos (Dinheiro
+ * perdido, contas achadas no extrato, meses fechados, bancos conectados) sai com eles.
+ */
+export const PARTES = ["lancamentos", "orcamento", "metas", "contas", "carteira", "categorias", "moneyReset", "calculadoras"] as const;
+export type Parte = (typeof PARTES)[number];
+
+export function ehParte(v: unknown): v is Parte {
+  return typeof v === "string" && (PARTES as readonly string[]).includes(v);
+}
+
+/**
+ * Parte que só sai junto com outras, para não quebrar o app. A categoria que ela criou é usada
+ * pelos lançamentos e pelo orçamento (chave estrangeira sem cascata): apagar a categoria e manter
+ * o lançamento deixaria o lançamento apontando para o nada.
+ *
+ * Metas não precisa de nada: o lançamento ou o investimento ligado a uma meta só perde o vínculo
+ * (o repositório solta antes de apagar). Carteira e Lançamentos também não: o aporte que liga os
+ * dois sai com qualquer um deles.
+ */
+export const PRECISA_DE: Readonly<Partial<Record<Parte, readonly Parte[]>>> = {
+  categorias: ["lancamentos", "orcamento"],
+};
+
+/** As partes escolhidas mais as que elas puxam, na ordem de PARTES, sem repetir. */
+export function comDependencias(partes: readonly Parte[]): Parte[] {
+  const set = new Set<Parte>(partes);
+  for (const p of partes) for (const d of PRECISA_DE[p] ?? []) set.add(d);
+  return PARTES.filter((p) => set.has(p));
+}
+
+/** O que veio da tela vira uma lista de partes válida (com as dependências) ou null. */
+export function lerPartes(v: unknown): Parte[] | null {
+  if (!Array.isArray(v) || v.length === 0 || !v.every(ehParte)) return null;
+  return comDependencias(v);
+}
+
+/**
+ * Marcar ou desmarcar uma parte na tela: marcar puxa o que ela precisa; desmarcar tira junto o
+ * que precisa dela. A lista nunca fica numa combinação que o servidor teria de corrigir.
+ */
+export function alternarParte(atuais: readonly Parte[], parte: Parte): Parte[] {
+  if (!atuais.includes(parte)) return comDependencias([...atuais, parte]);
+  const tirar = new Set<Parte>([parte]);
+  for (const [quem, precisa] of Object.entries(PRECISA_DE) as [Parte, readonly Parte[]][]) if (precisa.includes(parte)) tirar.add(quem);
+  return PARTES.filter((p) => atuais.includes(p) && !tirar.has(p));
+}
+
+/** Volta ao começo (a porta do primeiro extrato) só quando os lançamentos saem. */
+export function voltaAoComeco(partes: readonly Parte[]): boolean {
+  return partes.includes("lancamentos");
+}
+
+/** Decisões que moram no Orçamento (o teto de uma categoria, a renda do casal) e nas Metas (a reserva). */
+export const DECISOES_DO_ORCAMENTO = ["teto", "casal_renda"] as const;
+export const DECISOES_DAS_METAS = ["reserva_guardei", "reserva_sobra_combinada"] as const;
+
 /** A palavra que ela digita para confirmar. Conferida no servidor, nunca só na tela. */
 export const PALAVRA_DE_CONFIRMACAO = "LIMPAR";
 
@@ -37,7 +95,8 @@ export const EVENTO_DADOS_LIMPOS = "dados_limpos";
  * - "resposta_errada" é o aviso que a pessoa mandou para a equipe ("essa resposta está errada"),
  *   lido no admin. É registro do app, não dinheiro dela.
  * - o progresso do Money Reset ("reset_inicio", "reset_dia", "reset_marco", "reset_resposta"),
- *   só quando ela escolhe manter (zerarMoneyReset = false). A compra do Money Reset nunca sai.
+ *   que é uma parte própria ("moneyReset"). A compra do Money Reset nunca sai.
+ * O resto das decisões sai com os Lançamentos, menos as do Orçamento e das Metas (acima).
  */
 export const DECISOES_QUE_FICAM = ["resposta_errada"] as const;
 export const PREFIXO_DO_MONEY_RESET = "reset_";

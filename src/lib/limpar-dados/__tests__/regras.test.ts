@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { casalParaRecomecar, comecoParaRecomecar, confirmacaoValida, conexoesDosPerfis, ehEscopoDaLimpeza } from "../regras";
+import { alternarParte, casalParaRecomecar, comDependencias, comecoParaRecomecar, confirmacaoValida, conexoesDosPerfis, ehEscopoDaLimpeza, lerPartes, PARTES, voltaAoComeco } from "../regras";
 
 describe("confirmação digitada", () => {
   it("aceita LIMPAR com qualquer caixa e espaço nas pontas", () => {
@@ -64,5 +64,39 @@ describe("bancos conectados do perfil", () => {
   });
   it("conexão que nunca importou fica", () => {
     expect(conexoesDosPerfis(conexoes, lotes, new Set(["pes", "emp"]))).not.toContain("inter");
+  });
+});
+
+describe("partes da limpeza", () => {
+  it("Categorias puxa Lançamentos e Orçamento; o resto não puxa nada", () => {
+    expect(comDependencias(["categorias"])).toEqual(["lancamentos", "orcamento", "categorias"]);
+    expect(comDependencias(["metas"])).toEqual(["metas"]);
+    expect(comDependencias(["carteira", "lancamentos"])).toEqual(["lancamentos", "carteira"]);
+  });
+
+  it("lerPartes recusa lista vazia, parte inventada e o que não é lista", () => {
+    for (const v of [[], ["conta"], ["metas", "senha"], "metas", null, undefined, [1]]) expect(lerPartes(v), JSON.stringify(v)).toBeNull();
+    expect(lerPartes(["categorias", "metas", "metas"])).toEqual(["lancamentos", "orcamento", "metas", "categorias"]);
+  });
+
+  it("na tela: marcar Categorias marca o que ela precisa; desmarcar Lançamentos ou Orçamento tira Categorias", () => {
+    expect(alternarParte(["metas"], "categorias")).toEqual(["lancamentos", "orcamento", "metas", "categorias"]);
+    expect(alternarParte([...PARTES], "lancamentos")).not.toContain("categorias");
+    expect(alternarParte([...PARTES], "orcamento")).not.toContain("categorias");
+    expect(alternarParte([...PARTES], "metas")).toEqual(PARTES.filter((p) => p !== "metas"));
+    expect(alternarParte(["lancamentos", "orcamento", "categorias"], "categorias")).toEqual(["lancamentos", "orcamento"]);
+  });
+
+  it("toda combinação que a tela gera já está fechada nas dependências", () => {
+    // Liga e desliga em todas as ordens curtas: o resultado nunca muda ao passar pelo servidor.
+    for (const a of PARTES) for (const b of PARTES) for (const c of PARTES) {
+      const r = alternarParte(alternarParte(alternarParte([...PARTES], a), b), c);
+      expect(comDependencias(r)).toEqual(r);
+    }
+  });
+
+  it("volta ao começo só quando os lançamentos saem", () => {
+    expect(voltaAoComeco(["metas", "carteira"])).toBe(false);
+    expect(voltaAoComeco(["lancamentos"])).toBe(true);
   });
 });
