@@ -77,7 +77,7 @@ export default function LoginPage({
             <Aviso tipo="ruim" id="erro-login">
               {senhaErrada ? (
                 <>
-                  <b>{state.error}</b> Acontece. Tente de novo com calma, ou crie uma senha nova.
+                  <b>{state.error}</b>
                 </>
               ) : (
                 state.error
