@@ -18,6 +18,8 @@ import { lerExtratoPeloSaldo } from "./extrato-pelo-saldo";
 import { isCaixaInvoice, parseCaixaInvoice } from "./caixa-fatura-pdf";
 import { isPortoInvoice, parsePortoInvoice } from "./porto-fatura-pdf";
 import { isUnicredStatement, parseUnicredStatement } from "./unicred-pdf";
+import { isWiseStatement, parseWiseStatement } from "./wise-extrato-pdf";
+import { isExtratoColunasTxt, parseExtratoColunasTxt } from "./extrato-colunas-txt";
 import { isMercadoPagoInvoice, parseMercadoPagoInvoice } from "./mercado-pago-fatura-pdf";
 import { isBanrisulInvoice, parseBanrisulInvoice } from "./banrisul-fatura-pdf";
 import { isBradescoCartoesApp, parseBradescoCartoesApp } from "./bradesco-cartoes-app-pdf";
@@ -878,6 +880,7 @@ const LEITORES_PDF: { nome: string; reconhece: (t: string) => boolean; le: (t: s
   { nome: "caixa-fatura", reconhece: isCaixaInvoice, le: (t, ano) => parseCaixaInvoice(t, ano) },
   { nome: "porto-fatura", reconhece: isPortoInvoice, le: (t, ano) => parsePortoInvoice(t, ano) },
   { nome: "unicred", reconhece: isUnicredStatement, le: (t) => parseUnicredStatement(t) },
+  { nome: "wise", reconhece: isWiseStatement, le: (t) => parseWiseStatement(t) },
 ];
 
 /** Igual a `parseStatement`, e diz QUEM leu: o nome do leitor próprio do banco, ou null quando
@@ -918,6 +921,10 @@ export function parseStatementComLeitor(
     if (!proprio && fechaComoFatura(content, generico.txns) === "fechou") return generico;
     const testando = lerFaturaTestando(content, refYear);
     return testando ? { txns: testando, leitor: "inteligente" } : generico;
+  }
+  if (isExtratoColunasTxt(content)) {
+    const txns = parseExtratoColunasTxt(content);
+    if (txns.length > 0) return { txns, leitor: "extrato-colunas-txt" };
   }
   return { txns: isOfx(content) ? parseOfx(content) : parseCsv(content, refYear), leitor: null };
 }
