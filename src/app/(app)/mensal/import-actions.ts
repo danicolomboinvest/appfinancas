@@ -41,6 +41,9 @@ import { categoriaDaLinha, type ConfiancaDaCategoria, type MotivoDaCategoria } f
 import { pareceEstorno } from "@/lib/import/estorno";
 import { pareceAplicacao, pareceContaPropria, parecePagamentoDeFatura, pareceResgate } from "@/lib/import/dinheiro-proprio";
 import { casarPorDataEValor, type ExistenteSolto } from "@/lib/import/duplicata-solta";
+import { casarComLancadosAMao, semNomeUtil, type LinhaDoArquivo } from "@/lib/import/parecido-manual";
+import { lidasEmDobro } from "@/lib/import/repetidos";
+import { nomeNaTela } from "@/lib/import/nome-na-tela";
 import {
   ajustarAnoDaCompra,
   chaveDoMes,
@@ -91,8 +94,6 @@ export type ReviewItem = {
   autoClassified: boolean;
   /** Compra parcelada ("03/10" na fatura): as parcelas seguintes entram sozinhas nos meses seguintes. */
   installment: { current: number; total: number; confident: boolean } | null;
-  /** Mesma data, valor e descrição repetidos DENTRO do arquivo: chave do grupo e quantas vezes. */
-  fileRepeat: { key: string; total: number } | null;
   /** Perfil de destino escolhido na revisão (compra da Empresa que caiu no cartão Pessoal, por
    * exemplo). `null` = o perfil ativo de sempre, o padrão pra toda a importação. */
   profileId: string | null;
@@ -113,6 +114,9 @@ export type ReviewItem = {
     id?: string;
     valor?: number;
   } | null;
+  /** Já está no app: um lançamento à mão quase certamente igual (lib/import/parecido-manual). Não
+   * entra de novo; na gravação, o lançamento à mão fica com o dia e o valor do arquivo. */
+  jaNoApp?: { descricao: string; data: string | null; id: string; valor: number } | null;
   /** Fica de fora da importação (pagamento de fatura de quem importa a fatura, "só mudei de conta"). */
   ignorar?: boolean;
   /** Por que o app tratou a linha diferente ("Aplicação: entra como guardado"). */
@@ -299,7 +303,11 @@ async function lerExtrato(formData: FormData): Promise<ParseStatementResult> {
   // Fatura: linhas de RESUMO ("pagamento efetuado", "total de compras", "total de crédito
   // recebido") são agregados que a própria fatura já detalha em outras linhas — não são uma
   // compra a mais. Sem isso, o "pagamento de fatura" virava um gasto extra na revisão.
-  const parsed = docType === "fatura" ? parsedRaw.filter((txn) => !isFaturaSummaryLine(txn)) : parsedRaw;
+  const semResumo = docType === "fatura" ? parsedRaw.filter((txn) => !isFaturaSummaryLine(txn)) : parsedRaw;
+  // Compras iguais no mesmo arquivo são reais (4 patinetes no mesmo dia) e entram todas, sem
+  // pergunta. Só sai a mesma linha lida duas vezes por erro de leitura (lib/import/repetidos).
+  const emDobro = lidasEmDobro(text, semResumo);
+  const parsed = emDobro.size > 0 ? semResumo.filter((_, i) => !emDobro.has(i)) : semResumo;
   const moneyLines = countMoneyLines(text);
   if (parsed.length === 0) {
     // Diagnóstico pro suporte: só o perfil do arquivo. A primeira linha do extrato saía aqui sem
@@ -333,11 +341,6 @@ async function lerExtrato(formData: FormData): Promise<ParseStatementResult> {
   if (sinaisDizemFatura) {
     detectedKind = "fatura";
     detectedReason = MOTIVO_SINAIS_FATURA;
-  }
-  const repeatCount = new Map<string, number>();
-  for (const txn of parsed) {
-    const k = dedupeKey(txn.date, Math.abs(txn.amount), txn.description);
-    repeatCount.set(k, (repeatCount.get(k) ?? 0) + 1);
   }
 
   const [rules, customCategories] = await Promise.all([listTransactionRules(ctx), listCustomCategories(ctx)]);
@@ -391,11 +394,6 @@ async function lerExtrato(formData: FormData): Promise<ParseStatementResult> {
       confianca: categorizar ? resultado.confianca : undefined,
       estorno,
       installment: docType === "fatura" ? parseInstallment(txn.description) : null,
-      fileRepeat: (() => {
-        const k = dedupeKey(txn.date, Math.abs(txn.amount), txn.description);
-        const total = repeatCount.get(k) ?? 1;
-        return total > 1 ? { key: k, total } : null;
-      })(),
       profileId: null,
       // Crédito da fatura que fala em "pagamento" é o pagamento da fatura anterior escrito de
       // um jeito novo, não devolução de compra: como estorno, descontava a fatura anterior
@@ -726,9 +724,10 @@ async function separarDinheiroProprio(ctx: AuthContext, items: ReviewItem[]) {
 }
 
 /**
- * Lançamento que a pessoa JÁ fez à mão e que agora vem no extrato/fatura: mesmo valor exato,
- * mesmo tipo e data até 3 dias de diferença. Não pula sozinho (pode ser coincidência): marca o
- * item pra tela perguntar "é o mesmo?". Cada lançamento à mão casa com um item só.
+ * Lançamento que a pessoa JÁ fez à mão e que agora vem no extrato/fatura (critério em
+ * lib/import/parecido-manual): o quase certo vira `jaNoApp` (não entra de novo, a tela só mostra
+ * "N já estavam no app"); o caso duvidoso de verdade (valor igual, data perto, nome diferente)
+ * vira `possivelDuplicata`, uma pergunta na fila de perguntas.
  */
 async function marcarPossiveisDuplicatas(ctx: AuthContext, items: ReviewItem[]) {
   const datas = items.map((i) => Date.parse(`${i.date}T12:00:00Z`)).filter((t) => Number.isFinite(t));
@@ -743,61 +742,55 @@ async function marcarPossiveisDuplicatas(ctx: AuthContext, items: ReviewItem[]) 
     where: { userId: ctx.userId, profileId: ctx.profileId, importBatchId: null, externalId: null, OR: meses },
     select: { id: true, category: true, amount: true, entryDate: true, description: true, year: true, month: true },
   });
-  const usados = new Set<string>();
-  /*
-   * Duas passadas. A primeira é a de sempre: valor exato e até 3 dias. A segunda (03/10/2026) é
-   * a conta lançada antes de pagar: quem lança o aluguel com a data do vencimento e paga dias
-   * antes, ou a conta de luz prevista em R$ 180 que veio R$ 192, não era perguntada e entrava em
-   * dobro. Só gasto, até 7 dias e até 15% de diferença. Continua sendo PERGUNTA, nunca pula sozinho.
-   */
-  const passadas: ((m: (typeof manuais)[number], item: ReviewItem, valor: number, t: number) => boolean)[] = [
-    (m, item, valor, t) => {
-      if (Math.abs(Number(m.amount) - valor) > 0.005) return false;
-      if (m.entryDate) return Math.abs(m.entryDate.getTime() - t) <= 3 * DIA_MS + 12 * 3_600_000;
-      // Lançamento à mão sem dia: basta ser do mesmo mês.
-      return m.year === Number(item.date.slice(0, 4)) && m.month === Number(item.date.slice(5, 7));
-    },
-    (m, item, valor, t) =>
-      item.category === "EXPENSE" &&
-      valor > 0 &&
-      m.entryDate !== null &&
-      Math.abs(m.entryDate.getTime() - t) <= 7 * DIA_MS + 12 * 3_600_000 &&
-      Math.abs(Number(m.amount) - valor) <= valor * 0.15,
-  ];
-  for (const casa of passadas) {
-    for (const item of items) {
-      if (item.possivelDuplicata) continue;
-      const t = Date.parse(`${item.date}T12:00:00Z`);
-      if (!Number.isFinite(t)) continue;
-      const valor = item.estorno ? -item.amount : item.amount;
-      const par = manuais.find((m) => !usados.has(m.id) && m.category === item.category && casa(m, item, valor, t));
-      if (!par) continue;
-      usados.add(par.id);
-      item.possivelDuplicata = {
-        descricao: par.description ?? "(sem descrição)",
-        data: par.entryDate ? par.entryDate.toISOString().slice(0, 10) : null,
-        id: par.id,
-        valor: Number(par.amount),
-      };
-    }
+  const linhas: LinhaDoArquivo[] = items.flatMap((item) =>
+    item.ignorar || !Number.isFinite(Date.parse(`${item.date}T12:00:00Z`))
+      ? []
+      : [{ key: item.key, date: item.date, description: item.description, valor: item.estorno ? -item.amount : item.amount, category: item.category }],
+  );
+  const casados = casarComLancadosAMao(
+    linhas,
+    manuais.map((m) => ({ id: m.id, category: m.category, amount: Number(m.amount), entryDate: m.entryDate ? m.entryDate.toISOString().slice(0, 10) : null, year: m.year, month: m.month, description: m.description })),
+  );
+  for (const item of items) {
+    const c = casados.get(item.key);
+    if (!c) continue;
+    const par = { descricao: c.manual.description ?? "(sem descrição)", data: c.manual.entryDate, id: c.manual.id, valor: c.manual.amount };
+    if (c.tipo === "certo") item.jaNoApp = par;
+    else item.possivelDuplicata = par;
   }
 }
 
 /**
- * "É o mesmo" de um lançamento à mão com valor ou data diferentes do extrato: o lançamento fica
- * com o que de fato aconteceu (valor e dia do extrato), e a linha do extrato não entra. A conta
- * prevista vira a conta paga, sem duplicar e sem ficar com o valor estimado.
+ * Os lançamentos à mão que a importação deu como "já estavam no app": ficam com o que de fato
+ * aconteceu (o dia e o valor do arquivo, que diferem no máximo 3 dias e 1%), e o lançamento sem
+ * nome que diga algo ganha o nome do arquivo. Nunca cria nem apaga nada.
  */
-export async function conciliarComExtratoAction(input: { id: string; valor: number; data: string }): Promise<{ error?: string }> {
+export async function conciliarJaNoAppAction(lista: { id: string; valor: number; data: string; descricao: string }[]): Promise<{ error?: string }> {
   const ctx = await getRequiredSession();
-  const valor = Math.round(Number(input.valor) * 100) / 100;
-  const dia = new Date(`${input.data}T12:00:00`);
-  if (typeof input.id !== "string" || !(valor > 0) || valor > 1e8 || Number.isNaN(dia.getTime())) return { error: "Dados inválidos." };
-  const r = await prisma.monthlyEntry.updateMany({
-    where: { id: input.id, userId: ctx.userId, profileId: ctx.profileId, importBatchId: null, category: "EXPENSE" },
-    data: { amount: valor, entryDate: dia, year: dia.getFullYear(), month: dia.getMonth() + 1 },
-  });
-  if (r.count === 0) return { error: "Não achei esse lançamento." };
+  if (!Array.isArray(lista) || lista.length > 500) return { error: "Dados inválidos." };
+  for (const l of lista) {
+    const valor = Math.round(Number(l?.valor) * 100) / 100;
+    const dia = new Date(`${l?.data}T12:00:00`);
+    if (typeof l?.id !== "string" || !Number.isFinite(valor) || valor === 0 || Math.abs(valor) > 1e8 || Number.isNaN(dia.getTime())) continue;
+    const atual = await prisma.monthlyEntry.findFirst({
+      where: { id: l.id, userId: ctx.userId, profileId: ctx.profileId, importBatchId: null },
+      select: { amount: true, description: true },
+    });
+    if (!atual) continue;
+    // Nunca mais longe que o critério: protege de um id trocado no cliente.
+    if (Math.abs(Number(atual.amount) - valor) > Math.max(0.011, Math.abs(valor) * 0.01 + 0.001)) continue;
+    const nome = typeof l.descricao === "string" ? nomeNaTela(l.descricao).nome.slice(0, 120) : "";
+    await prisma.monthlyEntry.updateMany({
+      where: { id: l.id, userId: ctx.userId, profileId: ctx.profileId, importBatchId: null },
+      data: {
+        amount: valor,
+        entryDate: dia,
+        year: dia.getFullYear(),
+        month: dia.getMonth() + 1,
+        ...(nome && semNomeUtil(atual.description) ? { description: nome } : {}),
+      },
+    });
+  }
   revalidatePath("/mensal", "layout");
   return {};
 }

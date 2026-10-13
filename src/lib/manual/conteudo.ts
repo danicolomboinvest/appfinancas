@@ -134,8 +134,9 @@ export const SECOES_DO_MANUAL: SecaoDoManual[] = [
         itens: [
           { texto: "O mesmo arquivo duas vezes: o que já está no app é pulado." },
           { texto: "Extrato da semana e depois o do mês (até em formatos diferentes): o app confere data e valor e não repete." },
-          { texto: "Algo que você digitou e também veio no extrato (mesmo valor, até 3 dias de diferença): o app pergunta se é o mesmo." },
-          { texto: "Linhas iguais dentro do mesmo arquivo aparecem em \"{repetidos}\", com o botão \"Deixar só 1\"." },
+          { texto: "Algo que você digitou e também veio no arquivo (mesmo valor, até 3 dias e o mesmo nome): o app não repete e avisa \"já estava no app\", com um toque para anotar também." },
+          { texto: "Mesmo valor e data perto, mas com outro nome: aí sim o app pergunta se é o mesmo." },
+          { texto: "Compras iguais no mesmo arquivo (4 patinetes no mesmo dia) entram todas: são compras de verdade." },
         ],
       },
     ],
