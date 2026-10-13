@@ -9,7 +9,7 @@ export const PARTE_NA_TELA: Record<Parte, { curto: string; titulo: string; sub: 
   lancamentos: {
     curto: "Lançamentos",
     titulo: "Lançamentos e importações",
-    sub: "Levam junto o Dinheiro perdido, as contas achadas no extrato e os bancos conectados",
+    sub: "Com bancos conectados, Dinheiro perdido e contas do extrato",
     Icone: ReceiptText,
   },
   orcamento: { curto: "Orçamento", titulo: "Orçamento", sub: "Limites do mês e do cartão", Icone: PieChart },

@@ -67,13 +67,18 @@ export function SegureParaConfirmar({
         onBlur={parar}
         className="relative min-h-[60px] w-full touch-none select-none overflow-hidden rounded-full bg-surface-2 text-base font-semibold text-ink shadow-[inset_0_0_0_1.5px_var(--color-border-strong)] [-webkit-touch-callout:none] disabled:opacity-40"
       >
+        <span className="flex items-center justify-center gap-2 px-4">
+          <Hand size={20} strokeWidth={1.8} aria-hidden />
+          {rotulo}
+        </span>
+        {/* A mesma frase na cor do botão principal, revelada da esquerda para a direita: o texto
+            nunca some no meio do caminho. */}
         <span
           aria-hidden
-          className="absolute inset-0 origin-left [background:var(--botao-fundo,var(--color-ink))]"
-          style={{ transform: indo ? "scaleX(1)" : "scaleX(0)", transition: `transform ${indo ? TEMPO_MS : 200}ms linear` }}
-        />
-        <span className={`relative z-10 flex items-center justify-center gap-2 px-4 ${indo ? "[color:var(--botao-tinta,var(--color-canvas))]" : ""}`}>
-          <Hand size={20} strokeWidth={1.8} aria-hidden />
+          className="absolute inset-0 flex items-center justify-center gap-2 px-4 [background:var(--botao-fundo,var(--color-ink))] [color:var(--botao-tinta,var(--color-canvas))]"
+          style={{ clipPath: indo ? "inset(0 0 0 0)" : "inset(0 100% 0 0)", transition: `clip-path ${indo ? TEMPO_MS : 200}ms linear` }}
+        >
+          <Hand size={20} strokeWidth={1.8} />
           {rotulo}
         </span>
       </button>

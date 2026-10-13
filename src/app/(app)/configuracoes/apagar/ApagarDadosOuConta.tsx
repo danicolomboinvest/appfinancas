@@ -317,7 +317,7 @@ export function ApagarDadosOuConta({
           <div className="flex flex-col gap-3 rounded-[22px] bg-surface p-4 shadow-[inset_0_0_0_1px_var(--color-border)]">
             <LinhaDoResumo Icone={RotateCcw} cor="text-accent">
               Limpar{" "}
-              <b className="font-semibold">{todas ? "tudo" : partes.length === 1 ? PARTE_NA_TELA[partes[0]].curto : `${partes.length} partes`}</b>
+              <b className="font-semibold">{todas ? "tudo" : partes.length <= 2 ? partes.map((p) => PARTE_NA_TELA[p].curto).join(" e ") : `${partes.length} partes`}</b>
             </LinhaDoResumo>
             {perfis.length > 1 && (
               <LinhaDoResumo Icone={UserRound} cor="text-accent">
