@@ -1,5 +1,6 @@
 import { CreditCard } from "lucide-react";
 import { LogoDoLancamento } from "@/components/ui/LogoDoLancamento";
+import { nomeNaTela } from "@/lib/import/nome-na-tela";
 import type { Mes, ParcelaDoMes } from "@/lib/contas/parcelas-do-mes";
 
 /**
@@ -30,7 +31,7 @@ export function Parcelas({ itens, total, hoje, m }: { itens: ParcelaDoMes[]; tot
           <li key={p.chave} className="flex items-center gap-3 px-3 py-3">
             <LogoDoLancamento descricao={p.descricao} icon={CreditCard} />
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-[16px] text-ink">{p.nome}</span>
+              <span className="line-clamp-2 break-words text-[16px] leading-snug text-ink">{nomeNaTela(p.nome).nome || p.nome}</span>
               <span className="block text-[13px] text-ink-muted">{textoDaParcela(p, hoje)}</span>
             </span>
             <span className="shrink-0 text-[16px] tabular-nums text-ink">{m(p.valor)}</span>
