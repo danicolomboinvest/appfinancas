@@ -30,6 +30,9 @@ const ALLOWED_EVENTS = new Set([
   // 13/10/2026: o "Como funciona o casal" (Casal simples).
   "tutorial_casal_terminou",
   "tutorial_casal_pulou",
+  // 13/10/2026: o "O casal ficou mais simples" (casa migrada do Nós dois).
+  "aviso_casa_migrada_ver",
+  "aviso_casa_migrada_agora_nao",
   // 11/10/2026: o funil do começo (onboarding) da versão nova. O path diz qual pergunta, porta ou
   // banco (ver caminhoDoEvento em lib/onboarding/comeco.ts); nunca o nome nem a renda.
   ...NOMES_DOS_EVENTOS_DO_COMECO,

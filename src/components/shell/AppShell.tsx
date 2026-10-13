@@ -55,6 +55,7 @@ export function AppShell({
   cartaoComLimite = false,
   casa = null,
   tutorialDoCasalVisto = true,
+  avisoDaMigracao = false,
   nomeDaConta = null,
   fotoDaConta = null,
   modoPar = null,
@@ -78,6 +79,8 @@ export function AppShell({
   casa?: CasaNaTela | null;
   /** Quem está logado já viu o "Como funciona o casal" (sem casa, não importa). */
   tutorialDoCasalVisto?: boolean;
+  /** Casa que veio do Nós dois e quem está logado ainda não viu o "O casal ficou mais simples". */
+  avisoDaMigracao?: boolean;
   /** O perfil montou um limite do cartão: o + mostra o "No cartão de crédito". */
   cartaoComLimite?: boolean;
   children: React.ReactNode;
@@ -274,7 +277,7 @@ export function AppShell({
             Nós dois da titular, não vê nenhum dos dois. */}
         {!modoPar && novidades !== "novo" && <TourDasNovidades estado={novidades} onMenu={setMenuOpen} />}
         {/* Casal simples: o "Como funciona o casal", sozinho uma vez e de novo pela Casa e pelo Como funciona. */}
-        {casa && <TutorialDoCasalNoApp casa={casa} visto={tutorialDoCasalVisto} novidades={modoPar ? "novo" : novidades} />}
+        {casa && <TutorialDoCasalNoApp casa={casa} visto={tutorialDoCasalVisto} avisoDaMigracao={avisoDaMigracao} novidades={modoPar ? "novo" : novidades} />}
         {/* O guia do Money Reset: só aparece quando uma missão liga (sessionStorage). */}
         <GuiaDoReset />
 

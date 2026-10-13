@@ -76,6 +76,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // Casal simples: eu e o par na tela (só no Pessoal que faz parte da casa).
   let casa: CasaNaTela | null = null;
   let tutorialDoCasalVisto = true;
+  // Casa que veio do Nós dois: o "O casal ficou mais simples" ainda não visto por esta conta.
+  let avisoDaMigracao = false;
   // Empresa: Limite do MEI e Impostos só no menu de quem tem o que ver ali (12/10/2026).
   let ferramentasDoMei: FerramentasDoMei = { limite: false, impostos: false };
   if (session?.user) {
@@ -97,6 +99,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     ]);
     casa = casaDaConta && casaDaConta.eu.profileId === ativo.id ? casaNaTela(casaDaConta) : null;
     tutorialDoCasalVisto = casaDaConta?.tutorialVisto ?? true;
+    avisoDaMigracao = Boolean(casaDaConta?.migrada && !casaDaConta.avisoMigracaoVisto);
     const todos = casalDoPar ? [...proprios, casalDoPar] : proprios;
     // O que vem depois não depende uma coisa da outra: sai tudo de uma vez (antes eram quatro
     // idas ao banco em fila, em TODA tela).
@@ -226,6 +229,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         cartaoComLimite={cartaoComLimite}
         casa={casa}
         tutorialDoCasalVisto={tutorialDoCasalVisto}
+        avisoDaMigracao={avisoDaMigracao}
         podeEscolherModo={podeEscolherModo}
         nomeDaConta={nomeDaConta}
         novidades={novidades}
