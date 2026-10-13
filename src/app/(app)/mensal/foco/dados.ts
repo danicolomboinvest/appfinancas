@@ -1,4 +1,5 @@
 import type { ParentCategory } from "@prisma/client";
+import { comFiltro, donoDoOrcamento, lancamentosDosTotais } from "@/lib/casa/regras";
 import type { AuthContext } from "@/lib/auth/session";
 import { vozDoTema } from "@/lib/profiles/voice";
 import { nowInBrazil } from "@/lib/date/brazil-now";
@@ -102,7 +103,8 @@ export async function carregarFoco(ctx: AuthContext) {
       // Cada gasto do mês: é o que a janela de um aviso mostra ("onde foi o dinheiro") e deixa
       // classificar ali mesmo.
       prisma.monthlyEntry.findMany({
-        where: { userId: ctx.userId, profileId: ctx.profileId, year, month, category: "EXPENSE" },
+        // Casal simples: os gastos dos dois que eu enxergo, os mesmos dos totais.
+        where: comFiltro(lancamentosDosTotais(ctx), { year, month, category: "EXPENSE" }),
         select: { id: true, description: true, subcategory: true, amount: true, entryDate: true, parentCategory: true, customCategoryId: true, recurrenceId: true, createdAt: true },
         orderBy: { amount: "desc" },
         take: 400,
@@ -111,7 +113,7 @@ export async function carregarFoco(ctx: AuthContext) {
       // importou o extrato de setembro tem lançamento lá, mas nunca planejou setembro. O "Fechar
       // setembro" no 1º dia comparava com um plano que não existia, e virava "o número está errado".
       prisma.budget.count({
-        where: { userId: ctx.userId, profileId: ctx.profileId, year: mesAnterior.year, month: mesAnterior.month, plannedAmount: { gt: 0 }, createdAt: { lt: new Date(Date.UTC(year, month - 1, 1, 3)) } },
+        where: { ...donoDoOrcamento(ctx), year: mesAnterior.year, month: mesAnterior.month, plannedAmount: { gt: 0 }, createdAt: { lt: new Date(Date.UTC(year, month - 1, 1, 3)) } },
         take: 1,
       }),
     ]);
@@ -125,13 +127,13 @@ export async function carregarFoco(ctx: AuthContext) {
   const [gastosDesdeOCombinado, resumoDosGastos] = await Promise.all([
     desdeOPrimeiroCombinado
       ? prisma.monthlyEntry.findMany({
-          where: { userId: ctx.userId, profileId: ctx.profileId, year, month, category: "EXPENSE", createdAt: { gte: desdeOPrimeiroCombinado } },
+          where: comFiltro(lancamentosDosTotais(ctx), { year, month, category: "EXPENSE", createdAt: { gte: desdeOPrimeiroCombinado } }),
           select: { amount: true, entryDate: true, createdAt: true, importBatchId: true, externalId: true, parentCategory: true, customCategoryId: true },
         })
       : Promise.resolve([]),
     prisma.monthlyEntry.groupBy({
       by: ["parentCategory", "customCategoryId"],
-      where: { userId: ctx.userId, profileId: ctx.profileId, year, month, category: "EXPENSE" },
+      where: comFiltro(lancamentosDosTotais(ctx), { year, month, category: "EXPENSE" }),
       _count: { _all: true },
       _sum: { amount: true },
     }),

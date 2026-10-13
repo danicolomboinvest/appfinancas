@@ -105,7 +105,9 @@ export function lancamentosDoAcertoDaCasa(casa: CasaNaSessao): Prisma.MonthlyEnt
  * OR (os meses, por exemplo), e espalhar um objeto por cima do outro perderia um deles.
  */
 export function comFiltro(base: Prisma.MonthlyEntryWhereInput, resto: Prisma.MonthlyEntryWhereInput): Prisma.MonthlyEntryWhereInput {
-  return { AND: [base, resto] };
+  // Sem casa a base é só { userId, profileId }: a consulta sai idêntica à de antes.
+  const conflita = Object.keys(base).some((k) => k === "OR" || k === "AND" || k === "NOT" || k in resto);
+  return conflita ? { AND: [base, resto] } : { ...base, ...resto };
 }
 
 /** De quem é o orçamento que vale: o da casa (o Pessoal da titular) ou, sem casa, o de quem olha. */

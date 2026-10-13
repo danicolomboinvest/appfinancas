@@ -5,6 +5,8 @@ import { getOrCreateActiveProfile } from "@/lib/repositories/profile.repo";
 import { lerPreferenciasDeCategoria, type PreferenciasDeCategoria } from "@/lib/categories";
 import { chaveDoTema } from "@/lib/profiles/themes";
 import { perfilDoPar, type ParNaSessao } from "@/lib/repositories/casal-login.repo";
+import { casaDoUsuario } from "@/lib/repositories/casa.repo";
+import type { CasaNaSessao } from "@/lib/casa/regras";
 
 /**
  * Quem é a pessoa, sem dizer em qual perfil ela está.
@@ -49,6 +51,13 @@ export type AuthContext = AccountContext & {
   par?: ParNaSessao | null;
   /** A dona do perfil quando quem olha é o par (o mesmo que `par.donoId`). */
   donoId?: string;
+  /**
+   * Casal simples (13/10/2026). Presente quando a conta está numa casa do modelo simples E o
+   * perfil ativo é o Pessoal dela na casa. O `userId` e o `profileId` continuam os de quem está
+   * logado (toda escrita segue só dele); só as leituras de src/lib/casa/regras.ts juntam o que o
+   * outro deixou visível.
+   */
+  casa?: CasaNaSessao | null;
 };
 
 /**
@@ -59,6 +68,7 @@ export type AuthContext = AccountContext & {
 export const sessaoDaRequisicao = cache(() => auth());
 export const perfilAtivoDaRequisicao = cache((userId: string) => getOrCreateActiveProfile(userId));
 const perfilDoParDaRequisicao = cache((userId: string) => perfilDoPar(userId));
+export const casaDaRequisicao = cache((userId: string) => casaDoUsuario(userId));
 
 /**
  * Contexto de sessão autenticado, para ser passado explicitamente à camada de
@@ -83,7 +93,11 @@ export async function getRequiredSession(): Promise<AuthContext> {
       donoId: doPar.par.donoId,
     };
   }
-  const perfil = await perfilAtivoDaRequisicao(session.user.id);
+  const [perfil, casa] = await Promise.all([
+    perfilAtivoDaRequisicao(session.user.id),
+    // Só quem está numa casa simples paga a consulta a mais (o token já diz).
+    session.user.casa ? casaDaRequisicao(session.user.id) : Promise.resolve(null),
+  ]);
   return {
     userId: session.user.id,
     role: session.user.role,
@@ -92,6 +106,8 @@ export async function getRequiredSession(): Promise<AuthContext> {
     profileTheme: chaveDoTema(perfil.theme),
     profileKind: perfil.kind,
     categorias: { kind: perfil.kind, prefs: lerPreferenciasDeCategoria(perfil.categorias) },
+    // A casa vale só no Pessoal que faz parte dela (na Empresa, a Empresa é só dela).
+    casa: casa && casa.eu.profileId === perfil.id ? casa : null,
   };
 }
 

@@ -1,4 +1,5 @@
 import { PARENT_CATEGORIES, categoryLabel } from "@/lib/categories";
+import { donoDoOrcamento } from "@/lib/casa/regras";
 import type { AuthContext } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
 import { serverMoney } from "@/lib/money-server";
@@ -35,7 +36,7 @@ export async function carregarBlocosDoMes(ctx: AuthContext, now: Date) {
       prisma.monthlyEntry.findFirst({ where: { userId: ctx.userId, profileId: ctx.profileId }, orderBy: { createdAt: "asc" }, select: { createdAt: true } }),
       // Só orçamento com valor: salvar o assistente com tudo em 0 grava linhas zeradas, e o passo
       // aparecia feito com o cartão "Falta o seu orçamento do mês" logo abaixo.
-      prisma.budget.count({ where: { userId: ctx.userId, profileId: ctx.profileId, plannedAmount: { gt: 0 } }, take: 1 }),
+      prisma.budget.count({ where: { ...donoDoOrcamento(ctx), plannedAmount: { gt: 0 } }, take: 1 }),
     ]),
   ]);
 

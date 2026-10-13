@@ -1,4 +1,5 @@
 import type { EntryCategory, ParentCategory, ProfileKind } from "@prisma/client";
+import { comFiltro, lancamentosDosTotais, lancamentosParaVer } from "@/lib/casa/regras";
 import { prisma } from "@/lib/db/prisma";
 import type { AuthContext } from "@/lib/auth/session";
 import { PARENT_CATEGORIES, subcategoriesFor } from "@/lib/categories";
@@ -10,10 +11,12 @@ import { aReceberPorPessoa } from "@/lib/entries/divisao";
 
 export async function listMonthlyEntries(ctx: AuthContext, year: number, month: number) {
   return prisma.monthlyEntry.findMany({
-    where: { userId: ctx.userId, profileId: ctx.profileId, year, month },
+    // Casal simples: os meus e os que o par deixou visíveis (sem casa, só os meus, como sempre).
+    where: comFiltro(lancamentosParaVer(ctx), { year, month }),
     orderBy: { createdAt: "desc" },
     // O tipo do lote diz se a linha veio da fatura (conta no limite do cartão; ver ehDoCartao).
-    include: { importBatch: { select: { docType: true } } },
+    // ocultoDoPar: a conta que eu escondi do par aparece com o cadeado.
+    include: { importBatch: { select: { docType: true, ocultoDoPar: true } } },
   });
 }
 
@@ -358,7 +361,7 @@ export async function getUltimoGastoAte(ctx: AuthContext, ate: Date): Promise<Da
   const rows = await prisma.monthlyEntry.findMany({
     // O dia `ate` inteiro: o gasto de hoje é gravado ao meio-dia (UTC) e ficava de fora com `lte`,
     // e o aviso "você não lança há N dias" seguia o dia todo depois de ela lançar.
-    where: { userId: ctx.userId, profileId: ctx.profileId, category: "EXPENSE", entryDate: { not: null, lt: new Date(ate.getTime() + 86_400_000) } },
+    where: comFiltro(lancamentosDosTotais(ctx), { category: "EXPENSE", entryDate: { not: null, lt: new Date(ate.getTime() + 86_400_000) } }),
     orderBy: { entryDate: "desc" },
     take: 60,
     select: { entryDate: true, createdAt: true, importBatchId: true, externalId: true },
@@ -370,7 +373,7 @@ export async function getUltimoGastoAte(ctx: AuthContext, ate: Date): Promise<Da
   // Fatura importada não tem dia por compra (entryDate vazio): o dia da importação é o dado mais
   // novo que a pessoa trouxe. Sem isso, quem acabou de importar a fatura via "dados velhos".
   const fatura = await prisma.monthlyEntry.findFirst({
-    where: { userId: ctx.userId, profileId: ctx.profileId, category: "EXPENSE", entryDate: null, importBatchId: { not: null }, createdAt: { lte: new Date(ate.getTime() + 86_400_000) } },
+    where: comFiltro(lancamentosDosTotais(ctx), { category: "EXPENSE", entryDate: null, importBatchId: { not: null }, createdAt: { lte: new Date(ate.getTime() + 86_400_000) } }),
     orderBy: { createdAt: "desc" },
     select: { createdAt: true },
   });
@@ -388,11 +391,11 @@ export async function getUltimoGastoAte(ctx: AuthContext, ate: Date): Promise<Da
  */
 export async function contarGastosReaisDoMes(ctx: AuthContext, year: number, month: number): Promise<number> {
   return prisma.monthlyEntry.count({
-    where: {
-      userId: ctx.userId, profileId: ctx.profileId, year, month, category: "EXPENSE",
+    where: comFiltro(lancamentosDosTotais(ctx), {
+      year, month, category: "EXPENSE",
       // 03:00 UTC = meia-noite em Brasília: a série recorrente criada dia 31 às 22h não conta como "real".
       createdAt: { gte: new Date(Date.UTC(year, month - 1, 1, 3)) },
-    },
+    }),
   });
 }
 
@@ -405,14 +408,12 @@ export async function contarGastosReaisDoMes(ctx: AuthContext, year: number, mon
  * sobrancelha) via o Foco multiplicar tudo isso pelos dias que faltam (-R$ 15 mil no fim do mês).
  */
 export async function somarGastosPreCriados(ctx: AuthContext, year: number, month: number) {
-  const where = {
-    userId: ctx.userId,
-    profileId: ctx.profileId,
+  const where = comFiltro(lancamentosDosTotais(ctx), {
     year,
     month,
     category: "EXPENSE" as const,
     OR: [{ createdAt: { lt: new Date(Date.UTC(year, month - 1, 1, 3)) } }, { recurrenceId: { not: null } }],
-  };
+  });
   const [porMae, porPersonalizada] = await Promise.all([
     prisma.monthlyEntry.groupBy({ by: ["parentCategory"], where, _sum: { amount: true } }),
     prisma.monthlyEntry.groupBy({ by: ["customCategoryId"], where, _sum: { amount: true } }),
@@ -430,9 +431,9 @@ export async function somarGastosPreCriados(ctx: AuthContext, year: number, mont
 export async function listEntriesInInterval(ctx: AuthContext, intervalo: Intervalo) {
   const meses = mesesDoIntervalo(intervalo);
   const linhas = await prisma.monthlyEntry.findMany({
-    where: { userId: ctx.userId, profileId: ctx.profileId, OR: meses },
+    where: comFiltro(lancamentosParaVer(ctx), { OR: meses }),
     orderBy: [{ entryDate: { sort: "desc", nulls: "last" } }, { createdAt: "desc" }],
-    include: { importBatch: { select: { docType: true } } },
+    include: { importBatch: { select: { docType: true, ocultoDoPar: true } } },
   });
   return linhas.filter((e) => dentroDoIntervalo(e, intervalo));
 }

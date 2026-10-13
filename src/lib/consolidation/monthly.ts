@@ -1,4 +1,5 @@
 import { Decimal } from "@/lib/finance/decimal";
+import { comFiltro, lancamentosDosTotais } from "@/lib/casa/regras";
 import { prisma } from "@/lib/db/prisma";
 import type { AuthContext } from "@/lib/auth/session";
 
@@ -17,7 +18,8 @@ export type MonthlySummary = {
 export async function getMonthlySummary(ctx: AuthContext, year: number, month: number): Promise<MonthlySummary> {
   const grouped = await prisma.monthlyEntry.groupBy({
     by: ["category"],
-    where: { userId: ctx.userId, profileId: ctx.profileId, year, month },
+    // Casal simples: o mês dos dois (o escondido do outro não soma). Sem casa, só o meu.
+    where: comFiltro(lancamentosDosTotais(ctx), { year, month }),
     _sum: { amount: true },
   });
 

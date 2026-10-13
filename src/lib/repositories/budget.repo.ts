@@ -4,9 +4,11 @@ import { prisma } from "@/lib/db/prisma";
 import type { AuthContext } from "@/lib/auth/session";
 import { PARENT_CATEGORIES } from "@/lib/categories";
 import { mesesQueOSalvarGrava } from "@/lib/planning/plano-anual";
+import { comFiltro, donoDoOrcamento, lancamentosDosTotais } from "@/lib/casa/regras";
 
+/** Casal simples: o orçamento é um só, o da casa (ver donoDoOrcamento); sem casa, o do perfil. */
 export async function listBudgets(ctx: AuthContext, year: number, month: number) {
-  return prisma.budget.findMany({ where: { userId: ctx.userId, profileId: ctx.profileId, year, month } });
+  return prisma.budget.findMany({ where: { ...donoDoOrcamento(ctx), year, month } });
 }
 
 /**
@@ -20,19 +22,19 @@ export async function upsertBudget(
   input: { year: number; month: number; parentCategory: ParentCategory; plannedAmount: number },
 ) {
   const existing = await prisma.budget.findFirst({
-    where: { userId: ctx.userId, profileId: ctx.profileId, year: input.year, month: input.month, parentCategory: input.parentCategory },
+    where: { ...donoDoOrcamento(ctx), year: input.year, month: input.month, parentCategory: input.parentCategory },
   });
   if (existing) {
     return prisma.budget.update({ where: { id: existing.id }, data: { plannedAmount: input.plannedAmount } });
   }
-  return prisma.budget.create({ data: { ...input, userId: ctx.userId, profileId: ctx.profileId } });
+  return prisma.budget.create({ data: { ...input, ...donoDoOrcamento(ctx) } });
 }
 
 /** Soma de gastos (EXPENSE) do mês, agrupada por categoria-mãe. */
 export async function sumExpensesByParentCategory(ctx: AuthContext, year: number, month: number) {
   const grouped = await prisma.monthlyEntry.groupBy({
     by: ["parentCategory"],
-    where: { userId: ctx.userId, profileId: ctx.profileId, year, month, category: "EXPENSE", parentCategory: { not: null } },
+    where: comFiltro(lancamentosDosTotais(ctx), { year, month, category: "EXPENSE", parentCategory: { not: null } }),
     _sum: { amount: true },
   });
   return grouped.map((g) => ({
@@ -53,7 +55,7 @@ export async function applyBudgetToWholeYear(
 ): Promise<void> {
   const months = monthsToApply(input.year);
   const existing = await prisma.budget.findMany({
-    where: { userId: ctx.userId, profileId: ctx.profileId, year: input.year, parentCategory: input.parentCategory },
+    where: { ...donoDoOrcamento(ctx), year: input.year, parentCategory: input.parentCategory },
   });
   const existingByMonth = new Map(existing.map((b) => [b.month, b.id]));
   await prisma.$transaction(
@@ -61,7 +63,7 @@ export async function applyBudgetToWholeYear(
       const existingId = existingByMonth.get(month);
       return existingId
         ? prisma.budget.update({ where: { id: existingId }, data: { plannedAmount: input.plannedAmount } })
-        : prisma.budget.create({ data: { ...input, month, userId: ctx.userId, profileId: ctx.profileId } });
+        : prisma.budget.create({ data: { ...input, month, ...donoDoOrcamento(ctx) } });
     }),
   );
 }
@@ -90,12 +92,15 @@ export async function salvarPlanoDoAno(
   const { pais, proprias, planoMensal } = mudancas;
   if (pais.length === 0 && proprias.length === 0 && !planoMensal) return;
   const dono = { userId: ctx.userId, profileId: ctx.profileId, year };
+  // Casal simples: o orçamento é um só, o da casa (o da titular); a renda e o quanto guardar
+  // (MonthlyPlan) continuam de cada um.
+  const doOrcamento = { ...donoDoOrcamento(ctx), year };
 
   const [orcamentos, planos] = await Promise.all([
     pais.length + proprias.length > 0
       ? prisma.budget.findMany({
           where: {
-            ...dono,
+            ...doOrcamento,
             month: { in: meses },
             OR: [{ parentCategory: { in: pais.map((p) => p.parentCategory) } }, { customCategoryId: { in: proprias.map((p) => p.customCategoryId) } }],
           },
@@ -108,18 +113,18 @@ export async function salvarPlanoDoAno(
   const ops: Prisma.PrismaPromise<unknown>[] = [];
   for (const p of pais) {
     const tem = new Set(orcamentos.filter((b) => b.parentCategory === p.parentCategory).map((b) => b.month));
-    ops.push(prisma.budget.updateMany({ where: { ...dono, month: { in: meses }, parentCategory: p.parentCategory }, data: { plannedAmount: p.plannedAmount } }));
+    ops.push(prisma.budget.updateMany({ where: { ...doOrcamento, month: { in: meses }, parentCategory: p.parentCategory }, data: { plannedAmount: p.plannedAmount } }));
     const faltam = meses.filter((m) => !tem.has(m));
     if (faltam.length > 0) {
-      ops.push(prisma.budget.createMany({ data: faltam.map((month) => ({ ...dono, month, parentCategory: p.parentCategory, plannedAmount: p.plannedAmount })) }));
+      ops.push(prisma.budget.createMany({ data: faltam.map((month) => ({ ...doOrcamento, month, parentCategory: p.parentCategory, plannedAmount: p.plannedAmount })) }));
     }
   }
   for (const p of proprias) {
     const tem = new Set(orcamentos.filter((b) => b.customCategoryId === p.customCategoryId).map((b) => b.month));
-    ops.push(prisma.budget.updateMany({ where: { ...dono, month: { in: meses }, customCategoryId: p.customCategoryId }, data: { plannedAmount: p.plannedAmount } }));
+    ops.push(prisma.budget.updateMany({ where: { ...doOrcamento, month: { in: meses }, customCategoryId: p.customCategoryId }, data: { plannedAmount: p.plannedAmount } }));
     const faltam = meses.filter((m) => !tem.has(m));
     if (faltam.length > 0) {
-      ops.push(prisma.budget.createMany({ data: faltam.map((month) => ({ ...dono, month, customCategoryId: p.customCategoryId, plannedAmount: p.plannedAmount })) }));
+      ops.push(prisma.budget.createMany({ data: faltam.map((month) => ({ ...doOrcamento, month, customCategoryId: p.customCategoryId, plannedAmount: p.plannedAmount })) }));
     }
   }
   if (planoMensal) {
@@ -147,7 +152,7 @@ export async function applyBudgetToWholeYearForCustomCategory(
 ): Promise<void> {
   const months = monthsToApply(input.year);
   const existing = await prisma.budget.findMany({
-    where: { userId: ctx.userId, profileId: ctx.profileId, year: input.year, customCategoryId: input.customCategoryId },
+    where: { ...donoDoOrcamento(ctx), year: input.year, customCategoryId: input.customCategoryId },
   });
   const existingByMonth = new Map(existing.map((b) => [b.month, b.id]));
   await prisma.$transaction(
@@ -161,7 +166,7 @@ export async function applyBudgetToWholeYearForCustomCategory(
               month,
               plannedAmount: input.plannedAmount,
               customCategoryId: input.customCategoryId,
-              userId: ctx.userId, profileId: ctx.profileId,
+              ...donoDoOrcamento(ctx),
             },
           });
     }),
@@ -178,7 +183,7 @@ export async function getAnnualBudgetPlan(ctx: AuthContext, year: number): Promi
   const now = nowInBrazil();
   const referenceMonth = year === now.getFullYear() ? now.getMonth() + 1 : 1;
   const budgets = await prisma.budget.findMany({
-    where: { userId: ctx.userId, profileId: ctx.profileId, year, month: referenceMonth, parentCategory: { not: null } },
+    where: { ...donoDoOrcamento(ctx), year, month: referenceMonth, parentCategory: { not: null } },
   });
   const byCategory = new Map(budgets.map((b) => [b.parentCategory, Number(b.plannedAmount)]));
   return Object.fromEntries(PARENT_CATEGORIES.map((pc) => [pc, byCategory.get(pc) ?? 0])) as Record<
@@ -197,7 +202,7 @@ export async function getAnnualBudgetPlanForCustomCategories(
   const now = nowInBrazil();
   const referenceMonth = year === now.getFullYear() ? now.getMonth() + 1 : 1;
   const budgets = await prisma.budget.findMany({
-    where: { userId: ctx.userId, profileId: ctx.profileId, year, month: referenceMonth, customCategoryId: { in: customCategoryIds } },
+    where: { ...donoDoOrcamento(ctx), year, month: referenceMonth, customCategoryId: { in: customCategoryIds } },
   });
   const byCategory = new Map(budgets.map((b) => [b.customCategoryId, Number(b.plannedAmount)]));
   return Object.fromEntries(customCategoryIds.map((id) => [id, byCategory.get(id) ?? 0]));
@@ -205,14 +210,14 @@ export async function getAnnualBudgetPlanForCustomCategories(
 
 /** Todos os orçamentos do ano (sem filtro de mês), alimenta o comparativo planejado x realizado. */
 export async function listBudgetsForYear(ctx: AuthContext, year: number) {
-  return prisma.budget.findMany({ where: { userId: ctx.userId, profileId: ctx.profileId, year } });
+  return prisma.budget.findMany({ where: { ...donoDoOrcamento(ctx), year } });
 }
 
 /** Soma de gastos (EXPENSE) do ano inteiro, agrupada por mês + categoria-mãe. */
 export async function sumExpensesByParentCategoryForYear(ctx: AuthContext, year: number) {
   const grouped = await prisma.monthlyEntry.groupBy({
     by: ["month", "parentCategory"],
-    where: { userId: ctx.userId, profileId: ctx.profileId, year, category: "EXPENSE", parentCategory: { not: null } },
+    where: comFiltro(lancamentosDosTotais(ctx), { year, category: "EXPENSE", parentCategory: { not: null } }),
     _sum: { amount: true },
   });
   return grouped.map((g) => ({
@@ -253,7 +258,7 @@ export function filtroDaSemana(since: Date, hoje: Date) {
 export async function sumExpensesByParentCategorySince(ctx: AuthContext, since: Date) {
   const grouped = await prisma.monthlyEntry.groupBy({
     by: ["parentCategory"],
-    where: { userId: ctx.userId, profileId: ctx.profileId, category: "EXPENSE", parentCategory: { not: null }, ...filtroDaSemana(since, nowInBrazil()) },
+    where: comFiltro(lancamentosDosTotais(ctx), { category: "EXPENSE", parentCategory: { not: null }, ...filtroDaSemana(since, nowInBrazil()) }),
     _sum: { amount: true },
   });
   return grouped.map((g) => ({
@@ -266,7 +271,7 @@ export async function sumExpensesByParentCategorySince(ctx: AuthContext, since: 
 export async function sumExpensesByCustomCategorySince(ctx: AuthContext, since: Date) {
   const grouped = await prisma.monthlyEntry.groupBy({
     by: ["customCategoryId"],
-    where: { userId: ctx.userId, profileId: ctx.profileId, category: "EXPENSE", customCategoryId: { not: null }, ...filtroDaSemana(since, nowInBrazil()) },
+    where: comFiltro(lancamentosDosTotais(ctx), { category: "EXPENSE", customCategoryId: { not: null }, ...filtroDaSemana(since, nowInBrazil()) }),
     _sum: { amount: true },
   });
   return grouped.map((g) => ({
@@ -279,7 +284,7 @@ export async function sumExpensesByCustomCategorySince(ctx: AuthContext, since: 
 export async function sumExpensesByCustomCategory(ctx: AuthContext, year: number, month: number) {
   const grouped = await prisma.monthlyEntry.groupBy({
     by: ["customCategoryId"],
-    where: { userId: ctx.userId, profileId: ctx.profileId, year, month, category: "EXPENSE", customCategoryId: { not: null } },
+    where: comFiltro(lancamentosDosTotais(ctx), { year, month, category: "EXPENSE", customCategoryId: { not: null } }),
     _sum: { amount: true },
   });
   return grouped.map((g) => ({
@@ -292,7 +297,7 @@ export async function sumExpensesByCustomCategory(ctx: AuthContext, year: number
 export async function sumExpensesByCustomCategoryForYear(ctx: AuthContext, year: number) {
   const grouped = await prisma.monthlyEntry.groupBy({
     by: ["month", "customCategoryId"],
-    where: { userId: ctx.userId, profileId: ctx.profileId, year, category: "EXPENSE", customCategoryId: { not: null } },
+    where: comFiltro(lancamentosDosTotais(ctx), { year, category: "EXPENSE", customCategoryId: { not: null } }),
     _sum: { amount: true },
   });
   return grouped.map((g) => ({
@@ -332,8 +337,8 @@ export async function definirPlanoDoMes(ctx: AuthContext, input: { key: string; 
     if (!dela) return false;
   }
   const filtro = padrao ? { parentCategory: input.key as ParentCategory, customCategoryId: null } : { parentCategory: null, customCategoryId: input.key };
-  const existente = await prisma.budget.findFirst({ where: { userId: ctx.userId, profileId: ctx.profileId, year: input.year, month: input.month, ...filtro } });
+  const existente = await prisma.budget.findFirst({ where: { ...donoDoOrcamento(ctx), year: input.year, month: input.month, ...filtro } });
   if (existente) await prisma.budget.update({ where: { id: existente.id }, data: { plannedAmount: input.plannedAmount } });
-  else await prisma.budget.create({ data: { userId: ctx.userId, profileId: ctx.profileId, year: input.year, month: input.month, ...filtro, plannedAmount: input.plannedAmount } });
+  else await prisma.budget.create({ data: { ...donoDoOrcamento(ctx), year: input.year, month: input.month, ...filtro, plannedAmount: input.plannedAmount } });
   return true;
 }

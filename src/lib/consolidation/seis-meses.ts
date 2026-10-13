@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db/prisma";
+import { comFiltro, lancamentosDosTotais } from "@/lib/casa/regras";
 import type { AuthContext } from "@/lib/auth/session";
 import { lerSobrou, sobrouDoMes, type SituacaoDoSobrou } from "./sobrou";
 
@@ -73,7 +74,8 @@ export function linhaDoMes(m: MesDoGrafico, money: (v: number) => string): strin
 export async function valoresDosMeses(ctx: AuthContext, meses: { ano: number; mes: number }[]) {
   const linhas = await prisma.monthlyEntry.groupBy({
     by: ["year", "month", "category"],
-    where: { userId: ctx.userId, profileId: ctx.profileId, OR: meses.map((m) => ({ year: m.ano, month: m.mes })) },
+    // Casal simples: os meses dos dois, como o resto do Resumo.
+    where: comFiltro(lancamentosDosTotais(ctx), { OR: meses.map((m) => ({ year: m.ano, month: m.mes })) }),
     _sum: { amount: true },
   });
   const porMes = new Map<string, { ano: number; mes: number; entrou: number; gastou: number; guardou: number }>();

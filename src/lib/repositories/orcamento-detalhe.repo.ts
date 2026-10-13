@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db/prisma";
+import { comFiltro, donoDoOrcamento, lancamentosDosTotais } from "@/lib/casa/regras";
 import type { AuthContext } from "@/lib/auth/session";
 
 /**
@@ -27,20 +28,21 @@ export async function carregarDetalheDoOrcamento(ctx: AuthContext, ano: number, 
   const meses = Array.from({ length: 6 }, (_, i) => new Date(ano, mes - 6 + i, 1)).map((d) => ({ ano: d.getFullYear(), mes: d.getMonth() + 1 }));
   const [doMes, doAnterior, gastos6, planos6] = await Promise.all([
     prisma.monthlyEntry.findMany({
-      where: { userId: ctx.userId, profileId: ctx.profileId, year: ano, month: mes, category: "EXPENSE" },
+      where: comFiltro(lancamentosDosTotais(ctx), { year: ano, month: mes, category: "EXPENSE" }),
       select: { amount: true, entryDate: true, parentCategory: true, customCategoryId: true, description: true },
     }),
     prisma.monthlyEntry.findMany({
-      where: { userId: ctx.userId, profileId: ctx.profileId, year: anterior.getFullYear(), month: anterior.getMonth() + 1, category: "EXPENSE" },
+      where: comFiltro(lancamentosDosTotais(ctx), { year: anterior.getFullYear(), month: anterior.getMonth() + 1, category: "EXPENSE" }),
       select: { amount: true, entryDate: true },
     }),
     prisma.monthlyEntry.groupBy({
       by: ["year", "month", "parentCategory", "customCategoryId"],
-      where: { userId: ctx.userId, profileId: ctx.profileId, category: "EXPENSE", OR: meses.map((m) => ({ year: m.ano, month: m.mes })) },
+      where: comFiltro(lancamentosDosTotais(ctx), { category: "EXPENSE", OR: meses.map((m) => ({ year: m.ano, month: m.mes })) }),
       _sum: { amount: true },
     }),
     prisma.budget.findMany({
-      where: { userId: ctx.userId, profileId: ctx.profileId, OR: meses.map((m) => ({ year: m.ano, month: m.mes })) },
+      // Casal simples: o orçamento da casa e os gastos dos dois (o escondido do outro não soma).
+      where: { ...donoDoOrcamento(ctx), OR: meses.map((m) => ({ year: m.ano, month: m.mes })) },
       select: { year: true, month: true, parentCategory: true, customCategoryId: true, plannedAmount: true },
     }),
   ]);

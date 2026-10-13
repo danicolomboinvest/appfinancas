@@ -92,7 +92,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         // uma ida a mais ao banco. Removido ou saiu: some na requisição seguinte.
         const atual = await prisma.user.findUnique({
           where: { id: token.id },
-          select: { role: true, passwordHash: true, membrosCasal: { where: { saiuEm: null }, select: { emUso: true }, take: 1 } },
+          select: {
+            role: true,
+            passwordHash: true,
+            membrosCasal: { where: { saiuEm: null }, select: { emUso: true, modelo: true }, take: 1 },
+            // Casal simples (13/10/2026): a titular de uma casa já migrada, na mesma ida ao banco.
+            financialProfiles: { where: { kind: "CASAL", membrosCasal: { some: { saiuEm: null, modelo: "simples" } } }, select: { id: true }, take: 1 },
+          },
         });
         if (!atual) return null;
         const marca = versaoDaSenha(atual.passwordHash);
@@ -100,7 +106,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.senhaVersao = marca;
         token.role = atual.role;
         const membro = atual.membrosCasal?.[0];
-        token.par = membro ? (membro.emUso ? "em-uso" : "fora") : undefined;
+        // No Casal simples o par usa o app inteiro, no Pessoal dele: não é "par" para o proxy.
+        const simples = membro?.modelo === "simples";
+        token.par = membro && !simples ? (membro.emUso ? "em-uso" : "fora") : undefined;
+        token.casa = simples || (atual.financialProfiles?.length ?? 0) > 0 ? true : undefined;
       }
       return token;
     },
@@ -108,6 +117,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       session.user.id = token.id;
       session.user.role = token.role;
       session.user.par = token.par;
+      session.user.casa = token.casa;
       return session;
     },
   },
