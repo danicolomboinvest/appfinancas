@@ -34,6 +34,17 @@ export async function escolherRitmoAction(ritmo: Ritmo) {
   revalidatePath("/mensal/foco");
 }
 
+/**
+ * "Minha renda varia: conto só o que já entrou" (gasto da semana, regra A, 13/10/2026). Ligado, o
+ * dia a dia do mês cabe no que já entrou menos o guardar e as contas; desligado, na renda planejada.
+ */
+export async function escolherRendaDaSemanaAction(soOQueEntrou: boolean) {
+  const ctx = await getRequiredSession();
+  await registrarDecisaoUnica(ctx, { tipo: "renda_da_semana", chave: "renda", descricao: soOQueEntrou ? "entrou" : "plano" });
+  revalidatePath("/mensal/foco");
+  revalidatePath("/decidir");
+}
+
 const compraSchema = z.object({
   tipo: z.enum(["compra_desisti", "compra_amanha", "compra_comprei"]),
   // Valor enorme ou descrição longa não podem derrubar a tela: corta em vez de recusar.

@@ -7,7 +7,6 @@ import { ondeMostrarFechamento } from "./fechamento/quando-mostrar";
 import { CalendarCheck } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
 import { Card } from "@/components/ui/Card";
-import { ReportarErro } from "@/components/decisoes/ReportarErro";
 import { carregarFoco, MESES } from "./dados";
 import { AvisoFoco } from "./AvisoFoco";
 import { carregarBlocosDoMes } from "./blocos";
@@ -23,7 +22,8 @@ import { getMonthlySummary } from "@/lib/consolidation/monthly";
 import { serverMoney } from "@/lib/money-server";
 import { lerIntervalo, lerMesEscolhido, mesDeAgora, mesmoMes } from "@/lib/visao-geral/periodo";
 import { ResumoDoPeriodo } from "./ResumoDoPeriodo";
-import { diaDaSemana, fimDoMesPeloPlano, livreAteDomingo, ritmoDoMes } from "@/lib/decisoes/foco-semana";
+import { fimDoMesPeloPlano, previsaoDoMes, ritmoDoMes } from "@/lib/decisoes/foco-semana";
+import { ComoChegamos } from "./ComoChegamos";
 import { vozDoTema } from "@/lib/profiles/voice";
 import { ConquistasDeMetas } from "@/components/conquista/ConquistasDeMetas";
 import { lerComecoDaConta } from "@/lib/repositories/comeco.repo";
@@ -189,81 +189,32 @@ export default async function FocoPage(props: { searchParams: Promise<Record<str
                 </Link>
               </Card>
             ) : (
-              <ContaDoLivre
-                titulo={t.focoComoCheguei}
-                conta={
-                  <div className="text-ink">
-                    <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1.5 text-caption">
-                      <dt className="text-ink-muted">Orçamento do mês</dt>
-                      <dd className="text-right tabular-nums text-ink">{m(livre.planejado)}</dd>
-                      {livre.tipo === "estimativa" ? (
-                        <>
-                          <dt className="text-ink-muted">Dias que faltam</dt>
-                          <dd className="text-right tabular-nums text-ink">
-                            {livre.diasRestantes} de {d.diasNoMes}
-                          </dd>
-                          <dt className="font-semibold text-ink">Estimativa pelo planejado</dt>
-                          <dd className="text-right font-semibold tabular-nums text-ink">{m(livre.restante)}</dd>
-                        </>
-                      ) : (
-                        <>
-                          <dt className="text-ink-muted">Já gasto nas categorias do orçamento</dt>
-                          <dd className="text-right tabular-nums text-ink">− {m(livre.gastoNoOrcamento)}</dd>
-                          {livre.gastoTotal - livre.gastoNoOrcamento >= 1 && (
-                            <>
-                              <dt className="text-ink-muted">Gasto fora do orçamento</dt>
-                              <dd className="text-right tabular-nums text-ink">− {m(livre.gastoTotal - livre.gastoNoOrcamento)}</dd>
-                            </>
-                          )}
-                          <dt className="text-ink-muted">Sobra até o fim do mês</dt>
-                          <dd className="text-right tabular-nums text-ink">{m(livre.restante)}</dd>
-                          <dt className="text-ink-muted">Dias que faltam (com hoje)</dt>
-                          <dd className="text-right tabular-nums text-ink">{livre.diasRestantes}</dd>
-                          <dt className="text-ink-muted">Por dia</dt>
-                          <dd className="text-right tabular-nums text-ink">{m(livre.restante / Math.max(1, livre.diasRestantes))}</dd>
-                          <dt className="font-semibold text-ink">Até domingo ({Math.min(diaDaSemana(d.now).diasAteDomingo, livre.diasRestantes)} dias)</dt>
-                          <dd className="text-right font-semibold tabular-nums text-ink">{m(livre.porSemana)}</dd>
-                        </>
-                      )}
-                    </dl>
-                    <p className="mt-2 text-caption text-ink-faint">
-                      {livre.tipo === "estimativa"
-                        ? "Ainda não há gasto lançado: suponho que você gasta no ritmo do plano."
-                        : "Orçamento do mês menos tudo que já saiu, com ou sem categoria."}
+              <ContaDoLivre titulo={t.focoComoCheguei} conta={<ComoChegamos livre={livre} money={m} rendaSoOQueEntrou={d.rendaSoOQueEntrou} />}>
+                <SemanaFoco
+                  rotulos={{ porDia: t.focoPorDia, fimDoMes: t.focoFimDoMes, comoChegamos: t.focoComoCheguei }}
+                  // Regra A (13/10/2026): o valor da semana é fixo, o número grande é o que ainda cabe
+                  // nele (ou quanto passou). O mesmo para quem acompanha por semana ou por mês.
+                  rotulo={t.focoLivreSemana}
+                  semana={livre.semana}
+                  estimativa={livre.tipo === "estimativa"}
+                  guardar={livre.renda !== null && (livre.guardar ?? 0) >= 1 ? livre.guardar : null}
+                  fimDoMes={livre.tipo === "estimativa" ? fimDoMesPeloPlano(d.rendaPlanejada, livre.planejado, d.aportePlanejado) : previsaoDoMes(livre.planoVariavel, livre.gastoVariavel, livre.decorrido, livre.gastoUnico)}
+                  hoje={d.now}
+                  ritmo={ritmoAtual}
+                  frase={voz.ritmo[ritmoAtual]}
+                  money={m}
+                >
+                  {livre.tipo !== "estimativa" && livre.diasSemLancar !== null ? (
+                    <p className="rounded-xl bg-surface/70 px-3 py-2 text-caption text-ink">{t.focoDadosVelhos(livre.diasSemLancar)}</p>
+                  ) : livre.tipo === "estimativa" || livre.semGastoComData ? (
+                    <p className="rounded-xl bg-surface/70 px-3 py-2 text-caption text-ink">{t.focoDadosNenhum}</p>
+                  ) : d.faltaOCartao ? (
+                    // Usa cartão e o último gasto dele é de mais de 7 dias: a fatura ainda não veio.
+                    <p className="rounded-xl bg-surface/70 px-3 py-2 text-caption text-ink" data-falta-cartao>
+                      Falta o cartão desde {d.faltaOCartao.mes === d.month ? `dia ${d.faltaOCartao.dia}` : `${d.faltaOCartao.dia}/${String(d.faltaOCartao.mes).padStart(2, "0")}`}. O número pode estar alto.
                     </p>
-                    <div className="mt-3">
-                      <ReportarErro tela="Foco: livre para gastar" regra="(orçamento do mês − tudo que já saiu no mês) ÷ dias restantes × 7" />
-                    </div>
-                  </div>
-                }
-              >
-              <SemanaFoco
-                rotulos={{ porDia: t.focoPorDia, fimDoMes: t.focoFimDoMes }}
-                // Mês ainda sem lançamento (quem acompanha uma vez por mês, no começo do mês): o mesmo
-                // desenho aprovado, "Livre até domingo", com o número do PLANO para esta semana e o
-                // "Fim do mês" pelo plano. Antes caía num "Livre no mês (estimativa)" com barra vazia.
-                // O herói é sempre o da semana, como no protótipo: quem acompanha uma vez por mês vê o
-                // mesmo "Livre até domingo" (o livre do mês dividido pelos dias, vezes os dias até domingo).
-                rotulo={t.focoLivreSemana}
-                valor={livre.tipo === "semana" ? livre.valor : livreAteDomingo(livre.restante, livre.diasRestantes, diaDaSemana(d.now).diasAteDomingo)}
-                fimDoMesDoPlano={livre.tipo === "estimativa" ? fimDoMesPeloPlano(d.rendaPlanejada, livre.planejado, d.aportePlanejado) : null}
-                tipo={livre.tipo === "mes" ? "semana" : livre.tipo}
-                hoje={d.now}
-                ritmo={ritmoAtual}
-                frase={voz.ritmo[ritmoAtual]}
-                planejado={livre.planoVariavel}
-                gastoTotal={livre.tipo === "estimativa" ? 0 : livre.gastoVariavel}
-                gastoUnico={livre.tipo === "estimativa" ? 0 : livre.gastoUnico}
-                decorrido={livre.tipo === "estimativa" ? 0 : livre.decorrido}
-                diasRestantes={livre.diasRestantes}
-                money={m}
-              >
-                {(livre.tipo === "estimativa" || livre.diasSemLancar !== null || livre.semGastoComData) && (
-                  <p className="rounded-xl bg-surface/70 px-3 py-2 text-caption text-ink">
-                    {livre.tipo !== "estimativa" && livre.diasSemLancar !== null ? t.focoDadosVelhos(livre.diasSemLancar) : t.focoDadosNenhum}
-                  </p>
-                )}
-              </SemanaFoco>
+                  ) : null}
+                </SemanaFoco>
               </ContaDoLivre>
             )}
           </>

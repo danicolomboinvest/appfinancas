@@ -39,7 +39,7 @@ export const titanio: Voz = {
   rodape: () => null,
   titulos: {
     ...padrao.titulos,
-    focoLivreSemana: "Livre até domingo",
+    focoLivreSemana: "Livre nesta semana",
     focoLivreMes: "Livre no mês",
     focoRitmoP: (d, s) => `${s} até o fim do mês. ${d === 1 ? "Falta 1 dia" : `Faltam ${d} dias`}.`,
     metaGuardar: (v) => `${v} este mês.`,

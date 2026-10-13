@@ -166,7 +166,7 @@ export const manifestacao: Voz = {
     conqTitulo: "O que você construiu",
     focoAcao: "Cuidar disso",
     focoTitulo: "Intenção",
-    focoLivreSemana: "Livre até domingo",
+    focoLivreSemana: "Livre nesta semana",
     focoLivreMes: "Livre para viver até o fim do mês",
     focoLivreSub: "O resto já está trabalhando pelos seus sonhos",
     focoLivreEstimativa: "Livre para viver no mês (estimativa)",

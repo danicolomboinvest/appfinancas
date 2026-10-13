@@ -364,7 +364,7 @@ export const faltamDias = (n: number) => (n === 1 ? "falta 1 dia" : `faltam ${n}
 
 export const PADRAO_FOCO: TextosFoco = {
   focoTitulo: "Foco",
-  focoLivreSemana: "Livre para gastar até domingo",
+  focoLivreSemana: "Para gastar nesta semana",
   focoLivreMes: "Livre no mês",
   focoLivreSub: "o que ainda sobra no seu orçamento do mês",
   focoLivreEstimativa: "Livre no mês (estimativa)",
@@ -374,7 +374,7 @@ export const PADRAO_FOCO: TextosFoco = {
   focoSemOrcamentoBotao: "Montar meu orçamento",
   focoMesPassou: "Mês que já passou",
   focoOrcamentoUsado: "Orçamento já usado",
-  focoComoCheguei: "Como cheguei nisso",
+  focoComoCheguei: "Como chegamos nesse valor",
   focoDadosVelhos: (d) => `Seus últimos gastos lançados são de ${d} dias atrás. Esse número pode estar alto demais.`,
   focoImportar: "Importar extrato",
   focoAtencao: "Para fazer",

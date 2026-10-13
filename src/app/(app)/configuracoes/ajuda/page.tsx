@@ -6,7 +6,7 @@ export const metadata = { title: "Central de ajuda · SPI Finance" };
 
 const PERGUNTAS: [string, string][] = [
   ["Como importo o extrato?", "Na Visão geral, toque em + › Importar. Serve PDF do banco ou da fatura."],
-  ["O que é o livre da semana?", "O que sobra do orçamento do mês, dividido pelos dias que faltam, vezes os dias até domingo."],
+  ["O que é o \"para gastar nesta semana\"?", "Já tiramos o guardar e as contas do mês. O resto, dividido pelas semanas. O valor da semana fica parado de segunda a domingo; o que sobra ou passa muda a semana seguinte."],
   ["Meus dados estão seguros?", "Ficam cifrados. O SPI não entra na sua conta do banco: você traz o extrato. Ele só lê o arquivo e nunca move dinheiro."],
 ];
 

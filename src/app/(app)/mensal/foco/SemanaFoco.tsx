@@ -1,9 +1,11 @@
 import type { ReactNode } from "react";
+import { ChevronRight } from "lucide-react";
 import { NumeroRolante } from "@/components/ui/NumeroRolante";
 import { NUMERO_DESTAQUE, ValorDestaque } from "@/components/ui/ValorDestaque";
 import { HeroiDoTema } from "@/components/ui/HeroiDoTema";
 import type { Ritmo } from "@/lib/profiles/voice-base";
-import { diaDaSemana, previsaoDoMes } from "@/lib/decisoes/foco-semana";
+import { diaDaSemana } from "@/lib/decisoes/foco-semana";
+import type { SemanaFixa } from "@/lib/decisoes/semana-fixa";
 
 const DIAS = ["S", "T", "Q", "Q", "S", "S", "D"];
 
@@ -11,108 +13,130 @@ const DIAS = ["S", "T", "Q", "Q", "S", "S", "D"];
 const HOJE: Record<Ritmo, string> = { dentro: "bg-[var(--color-heroi-tinta)]", limite: "bg-[var(--color-heroi-destaque)]", rapido: "bg-danger" };
 
 /**
- * O topo da Foco (01/10/2026): uma pergunta só, "quanto posso gastar?", respondida grande.
- * Desde 06/10/2026 num herói pintado na cor do tema (HeroiDoTema), com o ritmo numa pílula
- * com palavra. Os 7 tracinhos são a semana (o de hoje aceso).
+ * O topo do Resumo: "quanto dá para gastar nesta semana" (regra A, 13/10/2026). O valor da semana
+ * é fixo de segunda a domingo; o número grande é o que ainda cabe nele, e embaixo "de R$ 480 da
+ * semana · já saíram R$ 130". Passou: "Passou da semana R$ 60", com a próxima semana já ajustada.
+ * Nunca só R$ 0.
  *
- * Embaixo, dois quadradinhos (07/10/2026, "mesma cara, menos texto"): quanto dá por dia e como o
- * mês fecha. Antes eram "R$ 181 por dia" ao lado do número e a frase "Seguindo assim, o mês fecha
- * com R$ 383 sobrando". A conta inteira abre ao tocar no cartão (ver ContaDoLivre).
+ * Os 7 tracinhos são a semana (o de hoje aceso). Dia da semana que já é de outro mês fica apagado:
+ * na quinta, dia 1, a semana deste mês tem 4 dias.
+ *
+ * A conta inteira abre ao tocar no cartão (ver ContaDoLivre e ComoChegamos).
  */
 export function SemanaFoco({
   rotulo,
-  valor,
-  tipo,
-  fimDoMesDoPlano = null,
+  semana,
+  estimativa,
+  guardar,
+  fimDoMes,
   hoje,
   ritmo,
   frase,
-  planejado,
-  gastoTotal,
-  gastoUnico = 0,
-  decorrido,
-  diasRestantes,
   money,
   rotulos,
   children,
 }: {
   rotulo: string;
-  valor: number;
-  tipo: "semana" | "mes" | "estimativa";
-  /**
-   * Mês ainda sem lançamento ("estimativa"): o mesmo desenho da semana, e o "Fim do mês" vem do
-   * plano (ver fimDoMesPeloPlano), nunca de um ritmo inventado. Null: o quadrinho some.
-   */
-  fimDoMesDoPlano?: number | null;
+  semana: SemanaFixa;
+  /** Mês ainda sem lançamento (quem fecha por mês): o número é o do plano. */
+  estimativa: boolean;
+  /** O guardar do mês que já saiu da conta (só quando a renda entra na conta). */
+  guardar: number | null;
+  /** Como o mês fecha (previsão), para o segundo quadrinho quando não há guardar. Null: some. */
+  fimDoMes: number | null;
   hoje: Date;
   ritmo: Ritmo;
   frase: string;
-  planejado: number;
-  gastoTotal: number;
-  /** Compra avulsa grande dentro do `gastoTotal`: a previsão conta uma vez só. */
-  gastoUnico?: number;
-  decorrido: number;
-  diasRestantes: number;
   money: (v: number) => string;
   /** "Por dia" e "Fim do mês", na voz do tema. */
-  rotulos: { porDia: string; fimDoMes: string };
+  rotulos: { porDia: string; fimDoMes: string; comoChegamos: string };
   children?: ReactNode;
 }) {
-  const { indice, diasAteDomingo } = diaDaSemana(hoje);
-  // A semana (S T Q Q S S D) vale também para o mês sem lançamento: é o desenho aprovado.
-  const daSemana = tipo === "semana" || tipo === "estimativa";
-  const dias = daSemana ? Math.min(diasAteDomingo, Math.max(1, diasRestantes)) : Math.max(1, diasRestantes);
-  const porDia = Math.max(0, valor) / dias;
-  const previsao = tipo === "estimativa" ? fimDoMesDoPlano : previsaoDoMes(planejado, gastoTotal, decorrido, gastoUnico);
+  const { indice } = diaDaSemana(hoje);
+  const passou = semana.passou >= 1;
+  // O mês do dia a dia já tinha acabado antes desta semana: o valor da semana é zero.
+  const semValor = !passou && semana.valor < 1;
+  const ate = semana.acabaNoDomingo ? "até domingo" : `até dia ${semana.fim}`;
+  // Os dias da semana que caem neste mês, de segunda (0) a domingo (6).
+  const primeiro = indice - (hoje.getDate() - semana.inicio);
+  const ultimo = indice + (semana.fim - hoje.getDate());
+
+  const quadro = (titulo: string, valor: string, numero = true) => (
+    <div className="vidro-heroi min-w-0 rounded-2xl px-3.5 py-3">
+      <p className="text-caption text-heroi-suave">{titulo}</p>
+      {numero ? <ValorDestaque texto={valor} className="mt-0.5 text-[1.25rem] font-normal tabular-nums" /> : <p className="mt-0.5 text-[1.25rem] font-normal leading-none">{valor}</p>}
+    </div>
+  );
 
   return (
     <HeroiDoTema>
-      {/* Versão nova (protótipo aprovado): o rótulo, o número leve e grande, a régua da semana e
-          dois quadrinhos de vidro (por dia e fim do mês). O ritmo fala pela cor do tracinho de
-          hoje e pelo nome no leitor de tela; a pílula com texto saiu do herói. */}
-      <p className="text-[15px] text-heroi-suave">
-        {rotulo}
+      <div className="flex flex-wrap items-center gap-2">
+        {passou ? (
+          <span className="rounded-full bg-[var(--color-atencao-fundo)] px-2.5 py-0.5 text-[13px] font-semibold text-[var(--color-atencao)]">Passou da semana</span>
+        ) : (
+          <p className="text-[15px] text-heroi-suave">{rotulo}</p>
+        )}
         <span className="sr-only">. {frase}</span>
+      </div>
+      <NumeroRolante texto={money(passou ? semana.passou : Math.max(0, semana.restante))} className={NUMERO_DESTAQUE} />
+      <p className="-mt-1 text-caption text-heroi-suave" data-semana-sub>
+        {estimativa
+          ? `${money(semana.valor)} da semana, pelo seu plano`
+          : passou
+            ? `saíram ${money(semana.gasto)} de ${money(semana.valor)}${guardar ? " · o guardar continua intacto" : ""}`
+            : semValor
+              ? semana.sobraDoMes <= -1
+                ? `o dia a dia do mês passou ${money(-semana.sobraDoMes)}`
+                : "o dia a dia do mês já foi todo"
+              : `de ${money(semana.valor)} da semana · já saíram ${money(semana.gasto)}`}
       </p>
-      <NumeroRolante texto={money(valor)} className={NUMERO_DESTAQUE} />
 
-      {daSemana ? (
-        <div className="flex flex-col gap-1.5" aria-label={`Hoje é o dia ${indice + 1} de 7 da semana`}>
-          <div className="flex gap-1.5">
-            {DIAS.map((_, i) => (
-              <span
-                key={i}
-                className={`h-1 flex-1 rounded-full ${i < indice ? "bg-[color-mix(in_srgb,var(--color-heroi-tinta)_32%,transparent)]" : i === indice ? HOJE[ritmo] : "bg-[color-mix(in_srgb,var(--color-surface)_75%,transparent)]"}`}
-              />
-            ))}
-          </div>
-          <div className="flex gap-1.5 text-xs text-heroi-suave">
-            {DIAS.map((l, i) => (
-              <span key={i} className={`flex-1 text-center ${i === indice ? "font-semibold text-heroi-tinta" : ""}`}>
-                {l}
-              </span>
-            ))}
-          </div>
+      <div className="flex flex-col gap-1.5" aria-label={`Hoje é o dia ${indice + 1} de 7 da semana`}>
+        <div className="flex gap-1.5">
+          {DIAS.map((_, i) => (
+            <span
+              key={i}
+              className={`h-1 flex-1 rounded-full ${
+                i < primeiro || i > ultimo
+                  ? "bg-[color-mix(in_srgb,var(--color-surface)_30%,transparent)]"
+                  : i < indice
+                    ? "bg-[color-mix(in_srgb,var(--color-heroi-tinta)_32%,transparent)]"
+                    : i === indice
+                      ? HOJE[passou ? "rapido" : ritmo]
+                      : "bg-[color-mix(in_srgb,var(--color-surface)_75%,transparent)]"
+              }`}
+            />
+          ))}
         </div>
-      ) : (
-        <div className="h-1 overflow-hidden rounded-full bg-[color-mix(in_srgb,var(--color-surface)_75%,transparent)]" aria-label={`${Math.round(decorrido * 100)}% do mês já passou`}>
-          <div className={`h-1 rounded-full ${HOJE[ritmo]}`} style={{ width: `${Math.min(100, Math.round(decorrido * 100))}%` }} />
+        <div className="flex gap-1.5 text-xs text-heroi-suave">
+          {DIAS.map((l, i) => (
+            <span key={i} className={`flex-1 text-center ${i === indice ? "font-semibold text-heroi-tinta" : ""} ${i < primeiro || i > ultimo ? "opacity-40" : ""}`}>
+              {l}
+            </span>
+          ))}
         </div>
-      )}
+      </div>
 
       <div className="grid grid-cols-2 gap-2.5">
-        <div className="vidro-heroi min-w-0 rounded-2xl px-3.5 py-3">
-          <p className="text-caption text-heroi-suave">{rotulos.porDia}</p>
-          <ValorDestaque texto={money(porDia)} className="mt-0.5 text-[1.25rem] font-normal tabular-nums" />
-        </div>
-        {previsao !== null && (
-          <div className="vidro-heroi min-w-0 rounded-2xl px-3.5 py-3">
-            <p className="text-caption text-heroi-suave">{rotulos.fimDoMes}</p>
-            <ValorDestaque texto={`${previsao >= 0 ? "+" : "−"}${money(Math.abs(previsao))}`} className="mt-0.5 text-[1.25rem] font-normal tabular-nums" />
-          </div>
+        {passou || semValor ? (
+          <>
+            {semana.proxima !== null ? quadro("Próxima semana", money(semana.proxima)) : quadro("Mês que vem", "Recomeça", false)}
+            {quadro(semana.acabaNoDomingo ? "Até domingo" : `Até dia ${semana.fim}`, "Segurar", false)}
+          </>
+        ) : (
+          <>
+            {quadro(`${rotulos.porDia} ${ate}`, money(semana.porDia))}
+            {guardar ? quadro("Guardar, já separado", money(guardar)) : fimDoMes !== null ? quadro(rotulos.fimDoMes, `${fimDoMes >= 0 ? "+" : "−"}${money(Math.abs(fimDoMes))}`) : null}
+          </>
         )}
       </div>
       {children}
+      <span className="flex items-center justify-between gap-3 border-t border-[color-mix(in_srgb,var(--color-heroi-tinta)_12%,transparent)] pt-3 text-[14px]">
+        <span className="font-medium">{rotulos.comoChegamos}</span>
+        <span className="inline-flex items-center gap-0.5 text-heroi-suave">
+          Ver <ChevronRight size={15} aria-hidden />
+        </span>
+      </span>
     </HeroiDoTema>
   );
 }

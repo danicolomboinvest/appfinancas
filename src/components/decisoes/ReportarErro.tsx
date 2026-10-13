@@ -19,8 +19,8 @@ type Atalho = "cartao" | "renda" | "repetido";
  * para a fila da Dani, com o atalho escolhido como motivo.
  */
 const ATALHOS: { id: Atalho; Icone: LucideIcon; rotulo: string; resposta: string }[] = [
-  { id: "cartao", Icone: CreditCard, rotulo: "Gasto do cartão", resposta: "O cartão conta no mês em que a fatura vence, que é quando o dinheiro sai." },
-  { id: "renda", Icone: Wallet, rotulo: "Renda que ainda não caiu", resposta: "A conta usa só o que já entrou. Renda que vai cair, lance quando receber." },
+  { id: "cartao", Icone: CreditCard, rotulo: "Gasto do cartão", resposta: "Compra no cartão conta no dia da compra. Enquanto a fatura não é importada, o número pode estar alto." },
+  { id: "renda", Icone: Wallet, rotulo: "Renda que ainda não caiu", resposta: "A conta usa a renda planejada do mês. Se a sua varia, escolha contar só o que já entrou." },
   { id: "repetido", Icone: Copy, rotulo: "Lançamento repetido", resposta: "Apague o repetido no mês, ou desfaça a importação inteira no fim da tela." },
 ];
 

@@ -1395,7 +1395,7 @@ export const girly: Voz = {
     conqTitulo: "O que você conquistou",
     focoAcao: "Bora ver",
     focoTitulo: "Foco",
-    focoLivreSemana: "Livre para gastar até domingo",
+    focoLivreSemana: "Para gastar nesta semana",
     focoLivreMes: "Para gastar até o fim do mês",
     focoLivreSub: "mercado, delivery, rolês e o resto",
     focoLivreEstimativa: "Para gastar até o fim do mês (estimativa)",

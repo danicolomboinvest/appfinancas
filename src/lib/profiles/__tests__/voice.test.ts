@@ -189,7 +189,7 @@ describe("a voz dos quatro temas", () => {
     expect(v.fraseOrcamento({ ...base, situacao: "estourou", restante: -67 })).toBe("R$ 67 acima do plano. Segure o resto do mês.");
     expect(v.fraseResultado("bom", dados(2741))).toBe("R$ 2.741 de sobra. Mês no lugar.");
     expect(v.ritmo).toEqual({ rapido: "Rápido demais", limite: "No limite", dentro: "No ritmo" });
-    expect(v.titulos.focoLivreSemana).toBe("Livre até domingo");
+    expect(v.titulos.focoLivreSemana).toBe("Livre nesta semana");
     // Curta, firme, sem gíria nem exclamação: nenhuma frase passa de 12 palavras, e a do
     // resultado e a do orçamento começam pelo número.
     const frases = [
