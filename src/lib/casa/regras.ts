@@ -44,6 +44,8 @@ export type CasaNaSessao = {
   casalProfileId: string;
   eu: PessoaDaCasa;
   outro: PessoaDaCasa;
+  /** Quem está logado já viu o "Como funciona o casal" (lib/casa/tutorial.ts). */
+  tutorialVisto?: boolean;
 };
 
 /** O que as telas de cliente sabem da casa: só nomes e cores, nunca ids. */

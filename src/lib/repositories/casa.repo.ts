@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db/prisma";
 import type { AuthContext } from "@/lib/auth/session";
 import { calcularAcerto, chaveDaConta as chaveDaContaDoAcerto, chaveDoMes, lerConfigCasal, type Acerto, type ConfigCasal } from "@/lib/casal/acerto";
 import { primeiroNome } from "@/lib/casal-login/regras";
+import { comVisto } from "@/lib/casa/tutorial";
 import type { ParNaSessao } from "@/lib/repositories/casal-login.repo";
 import { casaAtiva, chaveDaConta, chaveDaRegraDaCasa, ehDaCasa, lancamentosDoAcertoDaCasa, letraDoDono, nomeDoArquivo, outraLetra, type CasaNaSessao, type LinhaDaCasa, type Letra } from "@/lib/casa/regras";
 
@@ -51,7 +52,13 @@ export async function casaDoUsuario(userId: string): Promise<CasaNaSessao | null
   const par = { userId: m.userId, profileId: m.perfilParId, letra: letraPar, nome: nomeDaPessoa(config, letraPar, m.user.name, m.user.email), papel: "par" as const };
   if (titular.userId === par.userId) return null;
   const souPar = m.userId === userId;
-  return { membroId: m.id, casalProfileId: m.profileId, eu: souPar ? par : titular, outro: souPar ? titular : par };
+  return {
+    membroId: m.id,
+    casalProfileId: m.profileId,
+    eu: souPar ? par : titular,
+    outro: souPar ? titular : par,
+    tutorialVisto: (config.tutorialVisto ?? []).includes(userId),
+  };
 }
 
 export type AcertoDaCasa = Acerto & {
@@ -347,6 +354,19 @@ export async function sairDaCasa(ctx: AuthContext, quem: "titular" | "par", agor
     data: { saiuEm: agora, motivoSaida: quem === "titular" ? "removido" : "saiu" },
   });
   return r.count;
+}
+
+/**
+ * "Como funciona o casal" visto por quem está logado (terminou ou pulou): guardado no perfil
+ * Casal da titular, pelo id da conta, para valer em qualquer aparelho e não abrir de novo.
+ */
+export async function marcarTutorialDoCasalVisto(ctx: AuthContext): Promise<boolean> {
+  const casa = ctx.casa;
+  if (!casa || casa.eu.userId !== ctx.userId) return false;
+  const config = await lerConfig(casa.casalProfileId);
+  if (config.tutorialVisto?.includes(ctx.userId)) return true;
+  await prisma.financialProfile.update({ where: { id: casa.casalProfileId }, data: { casal: { ...config, tutorialVisto: comVisto(config.tutorialVisto, ctx.userId) } } });
+  return true;
 }
 
 /** Os dois nomes da casa (o meu e o do outro), guardados no perfil Casal pelas letras. */

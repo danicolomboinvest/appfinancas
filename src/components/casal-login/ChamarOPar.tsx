@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeftRight, Check, Clock, Copy, Eye, House, Link2, Lock, Mail, Target, UserPlus } from "lucide-react";
+import { ArrowLeftRight, Check, CirclePlay, Clock, Copy, Eye, House, Link2, Lock, Mail, Target, UserPlus } from "lucide-react";
+import { TutorialDoCasal } from "@/components/casa/TutorialDoCasal";
 import { Modal } from "@/components/ui/Modal";
 import { BOTAO_ESCURO, BOTAO_SUAVE, Bolinha, CARTAO, ParDeAvatares, TituloDoTema } from "./visual";
 import { mensagemDoConvite, type CanalDoConvite, type EstadoDoConvite } from "@/lib/casal-login/regras";
@@ -92,6 +93,7 @@ export function ChamarOPar({
   const [escondido, setEscondido] = useState(false);
   const [, start] = useTransition();
   const [erro, setErro] = useState<string | null>(null);
+  const [tutorial, setTutorial] = useState(false);
 
   useEffect(() => {
     try {
@@ -103,12 +105,40 @@ export function ChamarOPar({
 
   const aberto = convite && (convite.estado === "aberto" || convite.estado === "vencido") ? convite : null;
 
+  // "Como funciona o casal" antes do convite: o mesmo tutorial, terminando no convite (ou na compra).
+  const verComoFunciona = (
+    <button type="button" onClick={() => setTutorial(true)} data-como-funciona-casal className="mt-3 inline-flex min-h-11 items-center gap-2 text-[16px] font-medium text-accent-strong underline-offset-4 hover:underline">
+      <CirclePlay size={18} strokeWidth={1.7} aria-hidden />
+      Como funciona o casal
+    </button>
+  );
+  const fimDoTutorial = !casalValendo ? (podeLiberar ? "liberar" : "convidar") : aberto && aberto.estado === "aberto" ? "esperando" : "convidar";
+  const tutorialDoCasal = (
+    <TutorialDoCasal
+      aberto={tutorial}
+      eu={{ nome: nomeTitular, papel: "titular" }}
+      outro={fimDoTutorial === "esperando" && aberto ? { nome: aberto.nomePar, papel: "par" } : null}
+      fim={fimDoTutorial}
+      preco={podeLiberar ? formatMoney(precoDoCasal, DEFAULT_CURRENCY, { round: true }) : null}
+      aoFechar={() => setTutorial(false)}
+      aoTerminar={
+        fimDoTutorial === "liberar"
+          ? () => router.push("/adicionais/conta_parceiro")
+          : fimDoTutorial === "convidar" && casalValendo
+            ? () => setFolha(true)
+            : undefined
+      }
+    />
+  );
+
   if (!casalValendo) {
     return (
       <section className="flex flex-col items-center pt-4 text-center">
         <ParDeAvatares titular={nomeTitular} par={null} />
         <TituloDoTema className="mt-6">O dinheiro da casa, a dois</TituloDoTema>
         <p className="mt-2 text-[17px] text-ink-muted">{podeLiberar ? "Libere o Casal e convide o seu par." : "Convide o seu par para o Nós dois."}</p>
+        {verComoFunciona}
+        {tutorialDoCasal}
         <ul className={`${CARTAO} mt-6 w-full divide-y divide-border px-5 text-left`}>
           <Item icone={<House size={20} strokeWidth={1.6} />} titulo="Contas da casa" texto="quem cuida e quem pagou" />
           <Item icone={<ArrowLeftRight size={20} strokeWidth={1.6} />} titulo="Acerto sozinho" texto="quem manda quanto para quem" />
@@ -154,6 +184,7 @@ export function ChamarOPar({
     <>
       {corpo()}
       {folhaDoConvite}
+      {tutorialDoCasal}
     </>
   );
 
@@ -169,6 +200,7 @@ export function ChamarOPar({
         <ParDeAvatares titular={nomeTitular} par={aberto.nomePar} esperando />
         <TituloDoTema className="mt-6">{vencido ? "O convite venceu" : "Convite enviado"}</TituloDoTema>
         <p className="mt-2 text-[17px] text-ink-muted">{vencido ? "Mande de novo, com um link novo." : `Quando ${aberto.nomePar} entrar, aparece aqui.`}</p>
+        {verComoFunciona}
         <div className={`${CARTAO} mt-6 w-full p-5 text-left`}>
           <div className="flex items-center gap-3">
             <Bolinha nome={aberto.nomePar} cor="par" size={40} />
@@ -232,6 +264,7 @@ export function ChamarOPar({
       <ParDeAvatares titular={nomeTitular} par={null} />
       <TituloDoTema className="mt-6">Agora, chame o seu par</TituloDoTema>
       <p className="mt-2 text-[17px] text-ink-muted">Cada um com o próprio login. A casa num lugar só.</p>
+      {verComoFunciona}
       <ul className={`${CARTAO} mt-6 w-full divide-y divide-border px-5 text-left`}>
         <Item icone={<Eye size={20} strokeWidth={1.6} />} titulo="O par vê" texto="o que é nosso: contas, metas, acerto" />
         <Item icone={<Lock size={20} strokeWidth={1.6} />} titulo="O par não vê" texto="o seu pessoal e o que for só seu" />

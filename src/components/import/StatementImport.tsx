@@ -5,7 +5,7 @@ import { LapisDaCategoria } from "@/components/categorias/LapisDaCategoria";
 import { FalarComSuporte } from "@/components/support/FalarComSuporte";
 import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { Check, ArrowRight, Lock, Plus, Send, Tag, ChevronLeft, ChevronDown, CircleHelp, Paperclip } from "lucide-react";
+import { Check, ArrowRight, Lock, Plus, Send, Tag, ChevronLeft, ChevronDown, CircleHelp, Paperclip, MoreHorizontal } from "lucide-react";
 import type { ParentCategory } from "@prisma/client";
 import { PARENT_CATEGORIES, categoryLabel, categoriaOculta, categoryIcon, colorForCategorySlice, emojiEscolhido, type CategoriasDoPerfil } from "@/lib/categories";
 import { emojiDaCategoria } from "@/lib/profiles/icones";
@@ -17,7 +17,7 @@ import {
   importTransactionsAction,
   mesesNoAppAction,
   removeCardPaymentCandidateAction,
-  conciliarComExtratoAction,
+  conciliarJaNoAppAction,
   type ReviewItem,
   type ParseStats,
   type ConfirmedItem,
@@ -27,11 +27,10 @@ import {
 import { useMoney } from "@/components/money/MoneyProvider";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { ACEITA_ARQUIVO_DE_EXTRATO, UPLOAD_MAX_BYTES } from "@/lib/import/limites";
-import { chaveDeIguais, filaPorComerciante, iguaisPraAplicar, proximaPendente, semCategoria as gastoSemCategoria } from "@/lib/import/revisao-em-grupo";
+import { filaPorComerciante, iguaisPraAplicar, proximaPendente, semCategoria as gastoSemCategoria } from "@/lib/import/revisao-em-grupo";
 import { foiSeparada, porqueDaLinha } from "@/lib/import/porque";
 import { faixaDosMeses, levarRespostas, resumoDoArquivo } from "@/lib/import/varios-arquivos";
 import { mesDaRevelacao } from "@/lib/import/revelacao";
-import { listaDeMeses } from "@/lib/import/mes-da-compra";
 import { resumoDoMesImportadoAction, type RevelacaoDoImport } from "@/app/(app)/mensal/revelacao-actions";
 import { pegarArquivoParaOMes } from "@/components/shell/registrar-eventos";
 import { OfertaDeAvisos } from "@/components/push/OfertaDeAvisos";
@@ -106,19 +105,29 @@ function formatDate(iso: string) {
 
 /** Linha que já pode ir pro banco. Gasto SEM categoria também vai (ver `handleImport`). */
 function entraNaImportacao(it: ReviewItem): boolean {
-  return !it.ignorar;
+  return !it.ignorar && !it.jaNoApp;
+}
+
+/** Ainda pede uma resposta dela: "é o mesmo?", "é dinheiro seu?" ou a categoria. */
+function precisaResposta(it: ReviewItem): boolean {
+  if (it.ignorar || it.jaNoApp) return false;
+  return !!it.possivelDuplicata || !!it.duvida || gastoSemCategoria(it);
+}
+
+/**
+ * A fila de perguntas, um caminho só (13/10/2026): primeiro as dúvidas de uma linha ("é o mesmo
+ * que você lançou?", "é dinheiro seu?"), depois as categorias, uma por comerciante.
+ */
+function filaDePerguntas(linhas: ReviewItem[], pular: Set<number> = new Set()): number[] {
+  const pendentes = linhas.filter((it) => precisaResposta(it) && !pular.has(it.key));
+  const umaPorUma = pendentes.filter((it) => it.possivelDuplicata || it.duvida);
+  const porCategoria = filaPorComerciante(pendentes.filter((it) => !it.possivelDuplicata && !it.duvida));
+  return [...umaPorUma.map((it) => it.key), ...porCategoria.keys];
 }
 
 /** Quantas linhas a conferência mostra antes do "Mostrar todos": no celular, 200 linhas de
  * extrato empurravam o botão de importar pra muito longe. */
 const LINHAS_VISIVEIS = 30;
-
-/** "2027-06" → "junho de 2027", pro texto de confirmação do mês da fatura. */
-function formatMonthYear(monthValue: string): string {
-  const [y, m] = monthValue.split("-").map(Number);
-  if (!y || !m) return monthValue;
-  return new Date(y, m - 1, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
-}
 
 /** O arquivo vai CRU num FormData (string grande de base64 estoura o limite de serialização
  * das actions). O encoding diz ao servidor como interpretar os bytes. */
@@ -161,7 +170,7 @@ export function StatementImport({
   otherProfiles?: { id: string; name: string; kind?: string }[];
 }) {
   const money = useMoney();
-  const { showToast, showError } = useToast();
+  const { showToast } = useToast();
   // Tudo que a pessoa lê aqui (instruções, botões, avisos) vem da voz do tema; a lógica de
   // leitura do arquivo não sabe de tema nenhum.
   // `kind` porque os chips de categoria têm o nome do perfil (Empresa: "Estrutura", não "Moradia").
@@ -221,7 +230,10 @@ export function StatementImport({
   // Fatura: o app separa cada compra no mês em que foi feita, sem perguntar. "Mudar" abre a
   // escolha de contar tudo num mês só (o modo antigo), só pra ESTA fatura.
   const [contarNoMes, setContarNoMes] = useState(false);
-  const [mudandoFatura, setMudandoFatura] = useState(false);
+  // O menu "…" do cartão do arquivo: ler como o outro tipo, contar a fatura num mês só.
+  const [menuDoArquivo, setMenuDoArquivo] = useState(false);
+  // Qual lista discreta está aberta na conferência: as que já estavam no app ou as que ficam de fora.
+  const [aberto, setAberto] = useState<"jaNoApp" | "deFora" | null>(null);
   // Conferência: a linha aberta pra trocar categoria/tipo, e se a lista longa está inteira.
   const [editandoKey, setEditandoKey] = useState<number | null>(null);
   const [mostrarTodos, setMostrarTodos] = useState(false);
@@ -297,7 +309,7 @@ export function StatementImport({
     setStats(null);
     // "Tudo num mês só" era escolha da fatura anterior.
     setContarNoMes(false);
-    setMudandoFatura(false);
+    setMenuDoArquivo(false);
     // Barra aqui o que a Vercel recusaria com 413 lá fora, onde não sobra nem registro.
     if (file.size > UPLOAD_MAX_BYTES) {
       setError(t.impArquivoGrande);
@@ -359,12 +371,10 @@ export function StatementImport({
     setCustomCategories(categorias);
     setReviewIdx(0);
     setNaoSei(new Set());
-    // O que é dúvida (dinheiro dela mesma) ou fica de fora não pede categoria agora.
-    const pendentes = linhas.filter((it) => gastoSemCategoria(it) && !it.ignorar && !it.duvida);
     // Uma pergunta por comerciante, não por linha (12/10/2026): a resposta vale pro grupo.
-    const filaDeRevisao = filaPorComerciante(pendentes);
-    setReviewKeys(filaDeRevisao.keys);
+    setReviewKeys(filaDePerguntas(linhas));
     setSeparadosEmRevisao(null);
+    setAberto(null);
     // Caminho B (12/10/2026): primeiro a confirmação calma e o "Separei N de M"; as perguntas
     // que sobram vêm depois, em cartões grandes, quando ela tocar em Responder.
     setPhase("confirm");
@@ -530,7 +540,7 @@ export function StatementImport({
     const pendente = (key: number) => {
       if (resolvidas.has(key)) return false;
       const it = items.find((x) => x.key === key);
-      return Boolean(it && gastoSemCategoria(it) && !it.ignorar && !it.duvida);
+      return Boolean(it && precisaResposta(it));
     };
     const proxima = proximaPendente(reviewKeys, reviewIdx, pendente);
     setCreatingCat(false);
@@ -581,9 +591,7 @@ export function StatementImport({
    * (só passou de uma conta pra outra, ou voltou da aplicação: fica de fora).
    */
   function responderDinheiroProprio(itemKey: number, resposta: "gasto" | "guardei" | "renda" | "mudei") {
-    setItems((prev) =>
-      prev.map((it) => {
-        if (it.key !== itemKey) return it;
+    responderNaFila(itemKey, (it) => {
         // Voltou do que ela guardou: entra como resgate (guardado negativo), não fica de fora.
         // Ficando de fora, o dinheiro aparecia na conta e o investimento nunca diminuía.
         if (resposta === "mudei" && it.duvida === "resgate") {
@@ -593,23 +601,31 @@ export function StatementImport({
         if (resposta === "guardei") return { ...it, category: "INVESTMENT_CONTRIBUTION", parentCategory: null, customCategoryId: null, duvida: null };
         if (resposta === "renda") return { ...it, category: "INCOME", parentCategory: null, customCategoryId: null, duvida: null };
         return { ...it, ignorar: true, duvida: null, nota: "Dinheiro seu mudando de lugar: fica de fora." };
-      }),
-    );
+    });
   }
 
-  /** "É o mesmo que já está no app (lançado à mão ou de outro arquivo)?": sim tira da importação; não, importa normalmente. */
+  /**
+   * Responde uma pergunta da fila e anda (ou fica, quando a mesma linha ainda pede a categoria:
+   * "são diferentes" de um gasto sem categoria segue nele, agora perguntando o que é).
+   */
+  function responderNaFila(itemKey: number, muda: (it: ReviewItem) => ReviewItem) {
+    const atual = items.find((it) => it.key === itemKey);
+    if (!atual) return;
+    const novo = muda(atual);
+    setItems((prev) => prev.map((it) => (it.key === itemKey ? novo : it)));
+    if (phase !== "review") return;
+    if (precisaResposta(novo)) return;
+    advanceReview(new Set([itemKey]));
+  }
+
+  /** "É o mesmo que já está no app?": sim, a linha não entra (fica em "já estavam no app", com desfazer). */
   function responderDuplicata(itemKey: number, mesmo: boolean) {
-    // Lançamento à mão com valor ou dia diferentes (a conta prevista antes de pagar): "é o mesmo"
-    // deixa o lançamento com o que o extrato diz que aconteceu, em vez de manter o estimado.
-    const item = items.find((it) => it.key === itemKey);
-    const dup = item?.possivelDuplicata;
-    const ajustar = mesmo && item && dup?.id && (Math.abs((dup.valor ?? item.amount) - item.amount) > 0.005 || (dup.data ?? item.date) !== item.date);
-    if (ajustar) {
-      void conciliarComExtratoAction({ id: dup!.id!, valor: item!.amount, data: item!.date }).then((r) => {
-        if (r.error) showError(r.error);
-      });
-    }
-    setItems((prev) => (mesmo ? prev.filter((it) => it.key !== itemKey) : prev.map((it) => (it.key === itemKey ? { ...it, possivelDuplicata: null } : it))));
+    responderNaFila(itemKey, (it) => {
+      const dup = it.possivelDuplicata;
+      if (!mesmo || !dup) return { ...it, possivelDuplicata: null };
+      // De outro arquivo não tem o que acertar: a linha só não entra de novo.
+      return { ...it, possivelDuplicata: null, jaNoApp: { descricao: dup.descricao, data: dup.data, id: dup.id ?? "", valor: dup.valor ?? it.amount } };
+    });
   }
 
   function handleImport() {
@@ -653,6 +669,17 @@ export function StatementImport({
       if (!result.ok) {
         setError(result.error);
         return;
+      }
+      // Os que já estavam no app: o lançamento à mão fica com o dia e o valor do arquivo.
+      const conciliar = items.flatMap((it) => (it.jaNoApp?.id ? [{ id: it.jaNoApp.id, valor: it.estorno ? -it.amount : it.amount, data: it.date, descricao: it.description }] : []));
+      if (conciliar.length > 0) {
+        try {
+          const r = await conciliarJaNoAppAction(conciliar);
+          if (r.error) console.error("conciliarJaNoAppAction", r.error);
+        } catch (err) {
+          // A importação já gravou; o lançamento à mão só fica com o dia de antes.
+          console.error("conciliarJaNoAppAction falhou", err);
+        }
       }
       // Vários arquivos: este fica anotado, as respostas dadas nele valem nos próximos, e a revisão
       // segue para o próximo arquivo. As repetidas entre eles o servidor já pula ao gravar.
@@ -717,57 +744,6 @@ export function StatementImport({
   /** Some da lista assim que a pessoa decide (removeu ou manteve), sem esperar recarregar a página. */
   function dismissCandidate(id: string) {
     setCardPaymentCandidates((prev) => prev.filter((c) => c.id !== id));
-  }
-
-  /**
-   * A fatura nos três lugares em que ela aparece (envio, aviso de "parece fatura" e conferência).
-   * Nada de "de que mês é essa fatura?": o app lê o fechamento, o vencimento e a data de cada
-   * compra, e só confirma numa frase. "Mudar" (discreto) deixa contar tudo num mês só.
-   */
-  function mesDaFatura(id: string) {
-    if (!stats) return <p className="text-caption text-ink-faint">{t.impFaturaAntesDoArquivo}</p>;
-    const diaMes = (iso: string | null) => (iso ? formatDate(iso) : null);
-    const frase = contarNoMes
-      ? t.impFaturaTudoNoMesDica(formatMonthYear(faturaMonth))
-      : t.impFaturaResumo(stats.banco, diaMes(stats.fechamento), diaMes(stats.vencimento), stats.compras, listaDeMeses(stats.mesesDasCompras), stats.mesesDasCompras.length > 1);
-    const opcao = (ativo: boolean, rotulo: string, aoTocar: () => void) => (
-      <button
-        type="button"
-        onClick={aoTocar}
-        aria-pressed={ativo}
-        className={`min-h-11 flex-1 rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${ativo ? "bg-pill text-on-pill" : "text-ink-muted hover:text-ink"}`}
-      >
-        {rotulo}
-      </button>
-    );
-    return (
-      <div className="flex flex-col gap-1.5" id={id}>
-        <div className="flex flex-wrap items-center gap-x-2">
-          <span className="text-sm text-ink">{frase}</span>
-          <button
-            type="button"
-            onClick={() => setMudandoFatura((v) => !v)}
-            aria-expanded={mudandoFatura}
-            className="inline-flex min-h-11 items-center text-caption text-ink-muted underline underline-offset-4"
-          >
-            {mudandoFatura ? t.impMudarPronto : t.impFaturaMudar}
-          </button>
-        </div>
-        {mudandoFatura && (
-          <div className="flex flex-col gap-2">
-            <div className="inline-flex rounded-full border border-border bg-surface-2 p-1">
-              {opcao(!contarNoMes, t.impFaturaPorCompra, () => setContarNoMes(false))}
-              {opcao(contarNoMes, t.impFaturaTudoNoMes, () => {
-                // Começa no mês do vencimento lido, se ela não escolheu outro antes.
-                if (stats.vencimento && !faturaMesTocado) setFaturaMonth(stats.vencimento.slice(0, 7));
-                setContarNoMes(true);
-              })}
-            </div>
-            {contarNoMes && <MonthPicker label={t.impFaturaTudoNoMes} id={`${id}-mes`} value={faturaMonth} onChange={escolherMesFatura} />}
-          </div>
-        )}
-      </div>
-    );
   }
 
   // O começo entrega o arquivo por fora (handleFileRef): fica apontando para a função de agora.
@@ -1152,6 +1128,79 @@ export function StatementImport({
     );
   }
 
+  // Botões de resposta das perguntas: grandes, um forte e os outros calmos.
+  const respostaForte = "flex min-h-12 w-full items-center justify-center rounded-full px-4 text-[15px] font-semibold [background:var(--botao-fundo,var(--color-ink))] [color:var(--botao-tinta,var(--color-canvas))]";
+  const respostaFraca = "flex min-h-12 w-full items-center justify-center rounded-full border border-border-strong bg-surface px-4 text-[15px] font-medium text-ink";
+
+  /**
+   * A pergunta de uma linha, no mesmo cartão grande das categorias (13/10/2026): antes eram
+   * blocos soltos na conferência ("24 lançamentos parecem com alguns que você já lançou à mão").
+   */
+  function perguntaDaLinha(it: ReviewItem) {
+    const dup = it.possivelDuplicata;
+    if (dup) {
+      return (
+        <div className="flex flex-col gap-3" data-pergunta-duplicata>
+          <p className="text-[17px] font-semibold text-ink">{dup.importado ? "Já veio de outro arquivo?" : "Você já lançou este?"}</p>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="min-w-0 rounded-2xl bg-surface-2 px-3 py-3">
+              <p className="text-caption text-ink-muted">No arquivo</p>
+              <p className="truncate text-[17px] font-semibold tabular-nums text-ink">{money(it.amount)}</p>
+              <p className="break-words text-caption text-ink-muted">{formatDate(it.date)} · {nomeNaTela(it.description).nome}</p>
+            </div>
+            <div className="min-w-0 rounded-2xl bg-surface-2 px-3 py-3">
+              <p className="text-caption text-ink-muted">{dup.importado ? "Já no app" : "Você lançou"}</p>
+              <p className="truncate text-[17px] font-semibold tabular-nums text-ink">{money(dup.valor ?? it.amount)}</p>
+              <p className="break-words text-caption text-ink-muted">
+                {dup.data ? `${formatDate(dup.data)} · ` : ""}
+                {dup.descricao ? nomeNaTela(dup.descricao).nome : ""}
+              </p>
+            </div>
+          </div>
+          <button type="button" onClick={() => responderDuplicata(it.key, true)} className={respostaForte}>
+            É o mesmo
+          </button>
+          <button type="button" onClick={() => responderDuplicata(it.key, false)} className={respostaFraca}>
+            São diferentes
+          </button>
+        </div>
+      );
+    }
+    return (
+      <div className="flex flex-col gap-3" data-pergunta-dinheiro>
+        <div className="rounded-2xl border border-border bg-surface-2 p-4">
+          <p className="break-words text-[1.25rem] font-semibold leading-tight text-ink" data-nome-do-lugar>{tituloDaTransferencia(it)}</p>
+          <p className="mt-1 text-[15px] tabular-nums text-ink">
+            {formatDate(it.date)} · {it.category === "INCOME" ? "+" : "−"} {money(it.amount)}
+          </p>
+        </div>
+        <p className="text-base font-semibold text-ink">O que foi?</p>
+        {it.category === "EXPENSE" ? (
+          <>
+            <button type="button" onClick={() => responderDinheiroProprio(it.key, "mudei")} className={respostaForte}>
+              {t.impProprioMudei}
+            </button>
+            <button type="button" onClick={() => responderDinheiroProprio(it.key, "guardei")} className={respostaFraca}>
+              {t.impProprioGuardei}
+            </button>
+            <button type="button" onClick={() => responderDinheiroProprio(it.key, "gasto")} className={respostaFraca}>
+              {t.impProprioGasto}
+            </button>
+          </>
+        ) : (
+          <>
+            <button type="button" onClick={() => responderDinheiroProprio(it.key, "mudei")} className={respostaForte}>
+              {it.duvida === "resgate" ? t.impProprioVoltou : t.impProprioMudei}
+            </button>
+            <button type="button" onClick={() => responderDinheiroProprio(it.key, "renda")} className={respostaFraca}>
+              {t.impProprioRenda}
+            </button>
+          </>
+        )}
+      </div>
+    );
+  }
+
   // --- REVIEW (uma por vez, chips) ---
   if (phase === "review") {
     const entry = reviewQueue[reviewIdx];
@@ -1161,6 +1210,8 @@ export function StatementImport({
       return null;
     }
     const it = entry.it;
+    // "É o mesmo que você lançou?" ou "é dinheiro seu?": uma pergunta da linha, antes da categoria.
+    const pergunta = !!it.possivelDuplicata || !!it.duvida;
     return (
       <div ref={areaRef} className="flex flex-col gap-4">
         <ProtegerSaida
@@ -1186,6 +1237,10 @@ export function StatementImport({
         {/* Falha ao criar categoria ("+ Outra") aparece aqui mesmo, e não só na confirmação. */}
         {error && <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p>}
 
+        {pergunta ? (
+          perguntaDaLinha(it)
+        ) : (
+        <>
         <div className="rounded-2xl border border-border bg-surface-2 p-4">
           {/* O NOME do lugar em destaque (regra da dona, 12/10/2026): "ESPACOBELLA · 3 compras ·
               total. O que é?", nunca algo genérico. Embaixo, as datas e os valores. */}
@@ -1262,17 +1317,19 @@ export function StatementImport({
           </div>
         )}
 
+        </>
+        )}
         {/* "Pular" tirava o gasto da importação sem ela saber. "Não sei agora" deixa o gasto
             entrar sem categoria: ele aparece no mês e dá para classificar depois. */}
         {/* "Responder igual nas parecidas" (caminho B): ligado, a resposta vale para a loja inteira. */}
-        {iguaisPraAplicar(items, it.key).length > 0 && (
+        {!pergunta && iguaisPraAplicar(items, it.key).length > 0 && (
           <label className="flex min-h-11 items-center justify-between gap-3 rounded-2xl bg-surface-2 px-4 py-2 text-[15px] text-ink">
             <span>Responder igual nas {iguaisPraAplicar(items, it.key).length + 1} parecidas</span>
             <input type="checkbox" checked={igualNasParecidas} onChange={(e) => setIgualNasParecidas(e.target.checked)} className="size-5 shrink-0 accent-[var(--color-ink)]" />
           </label>
         )}
         <Button type="button" variant="secondary" className="min-h-12" onClick={() => {
-            const estas = new Set([it.key, ...(igualNasParecidas ? iguaisPraAplicar(items, it.key) : [])]);
+            const estas = new Set([it.key, ...(igualNasParecidas && !pergunta ? iguaisPraAplicar(items, it.key) : [])]);
             setNaoSei((prev) => new Set([...prev, ...estas]));
             advanceReview(estas);
           }}>
@@ -1284,10 +1341,11 @@ export function StatementImport({
         {reviewQueue.length - reviewIdx > 3 && (
           <button
             type="button"
-            onClick={() => setPhase("confirm")}
-            className="inline-flex min-h-11 items-center justify-center text-sm font-medium text-ink-muted hover:text-ink"
+            onClick={handleImport}
+            disabled={isPending}
+            className="inline-flex min-h-11 items-center justify-center text-sm font-medium text-ink-muted hover:text-ink disabled:opacity-60"
           >
-            {t.impImportarJa(reviewQueue.length - reviewIdx)}
+            {isPending ? t.impImportando : "Pular e anotar"}
           </button>
         )}
       </div>
@@ -1302,17 +1360,12 @@ export function StatementImport({
     // "Importar 12" e 3 gastos simplesmente não existiam depois. O aviso agora diz que ele entra
     // e oferece escolher a categoria já.
     // O que ainda é dúvida (dinheiro dela mesma) ou fica de fora não é "gasto sem categoria".
-    const semCategoria = items.filter((it) => gastoSemCategoria(it) && !it.ignorar && !it.duvida);
     const customName = (id: string) => customCategories.find((c) => c.id === id)?.name ?? "Personalizada";
-    // Repetidos dentro do arquivo: mesma data, valor e descrição mais de uma vez. Pode ser real
-    // (dois Uber no mesmo dia) ou não; a pessoa decide com um toque, em vez de descobrir depois.
-    const repeatGroups = new Map<string, ReviewItem[]>();
-    for (const it of items) if (it.fileRepeat) repeatGroups.set(it.fileRepeat.key, [...(repeatGroups.get(it.fileRepeat.key) ?? []), it]);
     const expenseSum = importable.filter((it) => it.category === "EXPENSE").reduce((s, it) => s + (it.estorno ? -it.amount : it.amount), 0);
-    // Parece com algo que a pessoa já lançou à mão: precisa de resposta antes de importar.
-    const duvidas = items.filter((it) => it.possivelDuplicata && !it.ignorar);
-    // Dinheiro que pode ser dela mesma (conta própria, resgate): também precisa de resposta.
-    const duvidasDinheiro = items.filter((it) => it.duvida && !it.ignorar);
+    // As perguntas que sobraram ("é o mesmo?", "é dinheiro seu?", as categorias): uma fila só.
+    const perguntas = filaDePerguntas(items, naoSei);
+    // Já estavam no app (lançados à mão, quase certo): não entram de novo, com "Anotar também".
+    const jaNoApp = items.filter((it) => it.jaNoApp && !it.ignorar);
     const deFora = items.filter((it) => it.ignorar);
     // "Faltou coisa": a mesma régua do relatório diário (conferencia.ts). Contar linhas sozinho
     // acusava fatura lida perfeita — simulação de parcela e tabela de juros também têm número.
@@ -1334,9 +1387,6 @@ export function StatementImport({
             : it.customCategoryId
               ? customName(it.customCategoryId)
               : t.impRotuloSemCategoria;
-    // Botões de resposta das caixas de pergunta: 44px de altura, letra de 14px.
-    const respostaForte = "inline-flex min-h-11 items-center rounded-full bg-pill px-4 text-sm font-semibold text-on-pill";
-    const respostaFraca = "inline-flex min-h-11 items-center rounded-full border border-border-strong bg-surface px-4 text-sm font-medium text-ink-muted hover:text-ink";
     const chipPequeno = (ativo: boolean) =>
       `inline-flex min-h-11 items-center rounded-full border px-3 text-sm font-medium transition-colors ${
         ativo ? "border-accent bg-accent-soft text-accent-strong" : "border-border-strong bg-surface text-ink-muted hover:text-ink"
@@ -1399,250 +1449,161 @@ export function StatementImport({
           </div>
         )}
 
-        {/* Caminho B (12/10/2026): no topo, uma confirmação grande e calma (o arquivo, quantas
-            compras, os meses e o total); embaixo, o que o app já separou sozinho, com o porquê
-            em "Revisar"; e as perguntas que sobraram, em cartões grandes, uma por vez. */}
+        {/* Um caminho só (13/10/2026): um cartão com o arquivo (quantas, de quando, o total e
+            quantas o app já separou) e, no pé, UM botão: "Responder N" se sobrou pergunta, senão
+            "Pronto, anotar N". O resto são links discretos. O tipo do arquivo o app descobre
+            sozinho; corrigir fica escondido no "…". */}
         {(() => {
           const entrou = importable.filter((it) => it.category === "INCOME").reduce((s2, it) => s2 + it.amount, 0);
           const meses = [...new Set(importable.map((it) => it.date.slice(0, 7)))].sort();
-          const nomeMes = (ym: string) => new Date(Number(ym.slice(0, 4)), Number(ym.slice(5, 7)) - 1, 1).toLocaleDateString("pt-BR", { month: "long" });
-          const textoMeses = meses.length === 0 ? "" : meses.length === 1 ? `${nomeMes(meses[0])} de ${meses[0].slice(0, 4)}` : meses.length <= 3 ? `${meses.slice(0, -1).map(nomeMes).join(", ")} e ${nomeMes(meses[meses.length - 1])}` : `${nomeMes(meses[0])} a ${nomeMes(meses[meses.length - 1])}`;
-          const deOnde = stats?.summary ?? (docType === "fatura" ? "Fatura" : "Extrato");
+          const mesCurto = (ym: string) => new Date(Number(ym.slice(0, 4)), Number(ym.slice(5, 7)) - 1, 1).toLocaleDateString("pt-BR", { month: "short" }).replace(".", "");
+          const textoMeses = meses.length === 0 ? "" : meses.length === 1 ? new Date(Number(meses[0].slice(0, 4)), Number(meses[0].slice(5, 7)) - 1, 1).toLocaleDateString("pt-BR", { month: "long" }) : `${mesCurto(meses[0])} a ${mesCurto(meses[meses.length - 1])}`;
+          const deOnde = stats?.banco ? `${docType === "fatura" ? "Fatura" : "Extrato"} ${stats.banco}` : docType === "fatura" ? "Fatura do cartão" : "Extrato da conta";
           const compras = docType === "fatura" ? importable.filter((it) => it.category === "EXPENSE").length : importable.length;
+          const separadas = importable.filter((it) => foiSeparada(it)).length;
           return (
-            <section className="flex flex-col items-center gap-1 rounded-3xl bg-surface-2 px-4 py-6 text-center" data-confirmacao-do-arquivo>
+            <section className="relative flex flex-col items-center gap-1 rounded-3xl bg-surface-2 px-4 py-6 text-center" data-confirmacao-do-arquivo>
+              {ultimoArquivo && (
+                <div className="absolute right-2 top-2">
+                  <button
+                    type="button"
+                    onClick={() => setMenuDoArquivo((v) => !v)}
+                    aria-expanded={menuDoArquivo}
+                    aria-label="Mais opções do arquivo"
+                    className="flex size-10 items-center justify-center rounded-full text-ink-muted hover:bg-surface hover:text-ink"
+                    data-menu-do-arquivo
+                  >
+                    <MoreHorizontal size={20} aria-hidden />
+                  </button>
+                  {menuDoArquivo && (
+                    <div className="absolute right-0 top-11 z-20 flex w-56 flex-col rounded-2xl border border-border bg-surface p-1 text-left shadow-premium-sm" role="menu">
+                      <button
+                        type="button"
+                        role="menuitem"
+                        disabled={isPending}
+                        onClick={() => {
+                          const outro = docType === "fatura" ? "extrato" : "fatura";
+                          setMenuDoArquivo(false);
+                          setDocType(outro);
+                          runParse(ultimoArquivo.file, ultimoArquivo.pwd, outro, true);
+                        }}
+                        className="min-h-11 rounded-xl px-3 text-left text-sm text-ink hover:bg-surface-2"
+                        data-mudar-tipo
+                      >
+                        {docType === "fatura" ? "Ler como extrato" : "Ler como fatura"}
+                      </button>
+                      {docType === "fatura" && (
+                        <button
+                          type="button"
+                          role="menuitem"
+                          onClick={() => {
+                            setMenuDoArquivo(false);
+                            if (!contarNoMes && stats?.vencimento && !faturaMesTocado) setFaturaMonth(stats.vencimento.slice(0, 7));
+                            setContarNoMes((v) => !v);
+                          }}
+                          className="min-h-11 rounded-xl px-3 text-left text-sm text-ink hover:bg-surface-2"
+                        >
+                          {contarNoMes ? t.impFaturaPorCompra : t.impFaturaTudoNoMes}
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
               <span className="text-sm text-ink-muted">{deOnde}</span>
               <b className="mt-1 text-[2.75rem] font-light leading-none tracking-tight tabular-nums text-ink">{compras}</b>
-              <span className="text-[15px] text-ink">{docType === "fatura" ? (compras === 1 ? "compra" : "compras") : compras === 1 ? "lançamento" : "lançamentos"}{textoMeses ? ` em ${textoMeses}` : ""}</span>
-              <span className="mt-1 text-[15px] tabular-nums text-ink-muted">
-                {docType === "fatura" ? `Total ${money(expenseSum)}` : `Entrou ${money(entrou, { round: true })} · Saiu ${money(expenseSum, { round: true })}`}
+              <span className="text-[15px] text-ink">
+                {docType === "fatura" ? (compras === 1 ? "compra" : "compras") : compras === 1 ? "lançamento" : "lançamentos"}
+                {textoMeses ? ` · ${textoMeses}` : ""}
               </span>
-              {/* O tipo que o app detectou, com o "Mudar" discreto (uma porta só, 12/10/2026). */}
-              {ultimoArquivo && (
-                <button
-                  type="button"
-                  disabled={isPending}
-                  onClick={() => {
-                    const outro = docType === "fatura" ? "extrato" : "fatura";
-                    setDocType(outro);
-                    runParse(ultimoArquivo.file, ultimoArquivo.pwd, outro, true);
-                  }}
-                  className="inline-flex min-h-11 items-center text-caption text-ink-muted underline underline-offset-4"
-                  data-mudar-tipo
-                >
-                  {docType === "fatura" ? "Não é fatura? Ler como extrato" : "É fatura do cartão? Ler como fatura"}
-                </button>
-              )}
-              {/* Fatura: a frase do motor (banco, fechamento, vencimento, meses das compras) e o "Mudar". */}
-              {docType === "fatura" && <div className="mt-2 w-full text-left">{mesDaFatura("fatura-month-confirmar")}</div>}
-              {stats?.conferencia.status === "fechou" && (
-                <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-success-soft px-2.5 py-1 text-xs font-semibold text-success" title={t.impBateuComTotal(money(stats.conferencia.esperado))}>
-                  <Check size={13} strokeWidth={2.5} aria-hidden /> Conferido
+              <span className="text-[15px] tabular-nums text-ink-muted">
+                {docType === "fatura" ? money(expenseSum) : `Entrou ${money(entrou, { round: true })} · Saiu ${money(expenseSum, { round: true })}`}
+              </span>
+              <span className="mt-2 inline-flex items-center gap-1.5 text-sm text-ink" data-separei>
+                <span className="flex size-5 items-center justify-center rounded-full bg-success-soft text-success" aria-hidden>
+                  <Check size={13} strokeWidth={2.6} />
                 </span>
+                {separadas === 1 ? "1 já separada" : `${separadas} já separadas`}
+                {stats?.conferencia.status === "fechou" && <span className="text-ink-muted" title={t.impBateuComTotal(money(stats.conferencia.esperado))}> · bateu com o total</span>}
+              </span>
+              {docType === "fatura" && contarNoMes && (
+                <div className="mt-3 w-full text-left">
+                  <MonthPicker label={t.impFaturaTudoNoMes} id="fatura-month-confirmar-mes" value={faturaMonth} onChange={escolherMesFatura} />
+                </div>
               )}
             </section>
           );
         })()}
 
-        {/* "Separei N de M": o que o app resolveu sozinho, com o porquê de cada um em "Revisar". */}
-        {(() => {
-          const separadasLinhas = importable.filter((it) => foiSeparada(it));
-          const separadas = separadosEmRevisao ? separadosEmRevisao.size : separadasLinhas.length;
-          return (
-            <div className="flex items-center gap-3 rounded-2xl border border-border bg-surface px-4 py-3" data-separei>
-              <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-success-soft text-success" aria-hidden>
-                <Check size={18} strokeWidth={2.4} />
-              </span>
-              <span className="min-w-0 flex-1">
-                <b className="block whitespace-nowrap text-[16px] font-semibold tabular-nums text-ink">
-                  Separei {separadas} de {importable.length}
-                </b>
-                <span className="block text-caption text-ink-muted">O porquê de cada um está em Revisar</span>
-              </span>
-              {/* A lista congela no toque: trocar a categoria de uma não a tira da revisão no meio. */}
-              <button type="button" onClick={() => setSeparadosEmRevisao((atual) => (atual ? null : new Set(separadasLinhas.map((it) => it.key))))} aria-expanded={!!separadosEmRevisao} className="min-h-10 shrink-0 rounded-full bg-surface-2 px-4 text-sm font-medium text-ink">
-                {separadosEmRevisao ? "Fechar" : "Revisar"}
-              </button>
-            </div>
-          );
-        })()}
-
-        {/* As perguntas que sobraram (cartões grandes, uma por vez). "Não sei" manda para "A conferir". */}
-        {semCategoria.some((x) => !naoSei.has(x.key)) && (
-          <div className="flex flex-col gap-3 rounded-3xl border border-border bg-surface p-4" data-perguntas>
-            <p className="text-[17px] font-semibold text-ink">
-              {(() => {
-                const grupos = new Set(semCategoria.filter((x) => !naoSei.has(x.key)).map((it) => chaveDeIguais(it.description) ?? `k${it.key}`)).size;
-                return grupos === 1 ? "Falta 1 pergunta" : `Faltam ${grupos} perguntas`;
-              })()}
-            </p>
-            <p className="-mt-2 text-caption tabular-nums text-ink-muted">
-              {(() => {
-                const faltam = semCategoria.filter((x) => !naoSei.has(x.key));
-                return `${faltam.length === 1 ? "1 lançamento" : `${faltam.length} lançamentos`} · ${money(faltam.reduce((sum, it) => sum + it.amount, 0))}. O que ficar sem resposta entra como “A conferir”.`;
-              })()}
-            </p>
-            <button
-              type="button"
-              onClick={() => {
-                setReviewKeys(semCategoria.filter((x) => !naoSei.has(x.key)).map((it) => it.key));
-                setReviewIdx(0);
-                setPhase("review");
-              }}
-              className="flex min-h-[52px] w-full items-center justify-center rounded-full [background:var(--botao-fundo,var(--color-ink))] text-[16px] font-semibold [color:var(--botao-tinta,var(--color-canvas))]"
-            >
-              Responder
+        {/* Links discretos: ver as separadas, as que já estavam no app (com desfazer), as que ficam de fora. */}
+        <div className="flex flex-wrap items-center justify-center gap-x-4 text-sm text-ink-muted" data-links-da-conferencia>
+          <button
+            type="button"
+            onClick={() => {
+              setAberto(null);
+              setSeparadosEmRevisao((atual) => (atual ? null : new Set(importable.filter((it) => foiSeparada(it)).map((it) => it.key))));
+            }}
+            aria-expanded={!!separadosEmRevisao}
+            className="inline-flex min-h-11 items-center underline underline-offset-4 hover:text-ink"
+          >
+            {separadosEmRevisao ? "Fechar as separadas" : "Ver as separadas"}
+          </button>
+          {jaNoApp.length > 0 && (
+            <button type="button" onClick={() => { setSeparadosEmRevisao(null); setAberto((v) => (v === "jaNoApp" ? null : "jaNoApp")); }} aria-expanded={aberto === "jaNoApp"} className="inline-flex min-h-11 items-center underline underline-offset-4 hover:text-ink" data-ja-no-app>
+              {jaNoApp.length === 1 ? "1 já estava no app" : `${jaNoApp.length} já estavam no app`}
             </button>
-          </div>
-        )}
+          )}
+          {deFora.length > 0 && (
+            <button type="button" onClick={() => { setSeparadosEmRevisao(null); setAberto((v) => (v === "deFora" ? null : "deFora")); }} aria-expanded={aberto === "deFora"} className="inline-flex min-h-11 items-center underline underline-offset-4 hover:text-ink">
+              {deFora.length === 1 ? "1 fica de fora" : `${deFora.length} ficam de fora`}
+            </button>
+          )}
+        </div>
 
-        {duvidasDinheiro.length > 0 && (
-          <div className="flex flex-col gap-2 rounded-xl border border-accent/40 bg-accent-soft/40 px-4 py-3">
-            <p className="flex items-center gap-1.5 text-sm font-semibold text-ink">
-              {t.impProprioTitulo}
-              <Explica>{t.impProprioDica}</Explica>
-            </p>
-            {duvidasDinheiro.length > 1 && (
-              <button
-                type="button"
-                onClick={() => duvidasDinheiro.forEach((it) => responderDinheiroProprio(it.key, "mudei"))}
-                className="inline-flex min-h-11 w-fit items-center text-sm font-semibold text-accent-strong hover:underline"
-              >
-                {t.impProprioTodasMudei(duvidasDinheiro.length)}
-              </button>
-            )}
-            <ul className="flex flex-col gap-2">
-              {duvidasDinheiro.map((it) => (
-                <li key={it.key} className="flex flex-col gap-1.5 border-t border-border/60 pt-2 first:border-t-0 first:pt-0">
-                  {/* O nome em destaque (12/10/2026): "Pix para Daniela Colombo (você mesma)", "Pix de Marina Souza". */}
-                  <span className="break-words text-[17px] font-semibold leading-snug text-ink" data-nome-do-lugar>{tituloDaTransferencia(it)}</span>
-                  <span className="-mt-1 text-caption tabular-nums text-ink-muted">
-                    {formatDate(it.date)} · {it.category === "INCOME" ? "+" : "−"} {money(it.amount)}
+        {aberto === "jaNoApp" && jaNoApp.length > 0 && (
+          <ul className="flex flex-col divide-y divide-border rounded-2xl border border-border">
+            {jaNoApp.map((it) => (
+              <li key={it.key} className="flex items-center gap-3 px-3 py-2">
+                <span className="min-w-0 flex-1">
+                  <span className="block break-words text-sm font-medium text-ink">{nomeNaTela(it.description).nome}</span>
+                  <span className="block text-caption text-ink-muted">
+                    {formatDate(it.date)} · {money(it.amount)}
+                    {it.jaNoApp?.descricao && it.jaNoApp.descricao !== "(sem descrição)" ? ` · você lançou “${nomeNaTela(it.jaNoApp.descricao).nome}”` : ""}
                   </span>
-                  {/* O destaque vai pra resposta certa quase sempre: dinheiro indo pra outra conta
-                      dela é "só mudei de conta". Antes o botão forte era "Guardei (aplicação)", e
-                      quem só passou o dinheiro do Nubank para o Itaú marcava investimento que não fez. */}
-                  <div className="flex flex-wrap gap-2">
-                    {it.category === "EXPENSE" ? (
-                      <>
-                        <button type="button" onClick={() => responderDinheiroProprio(it.key, "mudei")} className={respostaForte}>
-                          {t.impProprioMudei}
-                        </button>
-                        <button type="button" onClick={() => responderDinheiroProprio(it.key, "guardei")} className={respostaFraca}>
-                          {t.impProprioGuardei}
-                        </button>
-                        <button type="button" onClick={() => responderDinheiroProprio(it.key, "gasto")} className={respostaFraca}>
-                          {t.impProprioGasto}
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <button type="button" onClick={() => responderDinheiroProprio(it.key, "mudei")} className={respostaForte}>
-                          {it.duvida === "resgate" ? t.impProprioVoltou : t.impProprioMudei}
-                        </button>
-                        <button type="button" onClick={() => responderDinheiroProprio(it.key, "renda")} className={respostaFraca}>
-                          {t.impProprioRenda}
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </div>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setItems((prev) => prev.map((x) => (x.key === it.key ? { ...x, jaNoApp: null } : x)))}
+                  className="inline-flex min-h-11 shrink-0 items-center text-sm font-medium text-accent-strong hover:underline"
+                >
+                  Anotar também
+                </button>
+              </li>
+            ))}
+          </ul>
         )}
 
-        {deFora.length > 0 && (
-          <div className="flex flex-col gap-2 rounded-xl border border-border bg-surface-2 px-4 py-3">
-            <p className="text-sm font-semibold text-ink">{deFora.length === 1 ? "1 lançamento fica de fora" : `${deFora.length} lançamentos ficam de fora`}</p>
-            <ul className="flex flex-col gap-2">
-              {deFora.map((it) => (
-                <li key={it.key} className="flex flex-col gap-1">
-                  <span className="break-words text-sm text-ink">
-                    {nomeNaTela(it.description).nome}, {money(it.amount)}, {formatDate(it.date)}
+        {aberto === "deFora" && deFora.length > 0 && (
+          <ul className="flex flex-col divide-y divide-border rounded-2xl border border-border">
+            {deFora.map((it) => (
+              <li key={it.key} className="flex items-center gap-3 px-3 py-2">
+                <span className="min-w-0 flex-1">
+                  <span className="block break-words text-sm font-medium text-ink">{nomeNaTela(it.description).nome}</span>
+                  <span className="block text-caption text-ink-muted">
+                    {formatDate(it.date)} · {money(it.amount)}
                   </span>
-                  {it.nota && <span className="text-caption text-ink-muted">{it.nota}</span>}
-                  <button
-                    type="button"
-                    onClick={() => setItems((prev) => prev.map((x) => (x.key === it.key ? { ...x, ignorar: false, nota: null } : x)))}
-                    className="inline-flex min-h-11 w-fit items-center text-sm font-medium text-accent-strong hover:underline"
-                  >
-                    Contar mesmo assim
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {duvidas.length > 0 && (
-          <div className="flex flex-col gap-2 rounded-xl border border-accent/40 bg-accent-soft/40 px-4 py-3">
-            <p className="flex items-center gap-1.5 text-sm font-semibold text-ink">
-              {t.impDuplicataTitulo(duvidas.length, duvidas.every((it) => !it.possivelDuplicata!.importado))}
-              <Explica>{t.impDuplicataDica}</Explica>
-            </p>
-            <ul className="flex flex-col gap-3">
-              {duvidas.map((it) => {
-                const dup = it.possivelDuplicata!;
-                // Os dois lado a lado (07/10/2026): o que veio no arquivo e o que já está no app. Antes
-                // eram três frases ("Você lançou: … em …", "Você lançou R$ X. Se for o mesmo…").
-                return (
-                  <li key={it.key} className="flex flex-col gap-2 border-t border-border/60 pt-3 first:border-t-0 first:pt-0">
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="min-w-0 rounded-xl bg-surface px-3 py-2">
-                        <p className="text-caption text-ink-muted">No arquivo</p>
-                        <p className="truncate text-[15px] font-bold tabular-nums text-ink">{money(it.amount)}</p>
-                        <p className="break-words text-caption text-ink-muted">{formatDate(it.date)}, {nomeNaTela(it.description).nome}</p>
-                      </div>
-                      <div className="min-w-0 rounded-xl bg-surface px-3 py-2">
-                        <p className="text-caption text-ink-muted">{dup.importado ? "Já importado" : "Você lançou"}</p>
-                        <p className="truncate text-[15px] font-bold tabular-nums text-ink">{money(dup.valor ?? it.amount)}</p>
-                        <p className="break-words text-caption text-ink-muted">
-                          {dup.data ? `${formatDate(dup.data)}, ` : ""}
-                          {dup.descricao ? nomeNaTela(dup.descricao).nome : ""}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <button type="button" onClick={() => responderDuplicata(it.key, true)} className={respostaForte}>
-                        {t.impDuplicataEOMesmo}
-                      </button>
-                      <button type="button" onClick={() => responderDuplicata(it.key, false)} className={respostaFraca}>
-                        {t.impDuplicataSaoDiferentes}
-                      </button>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        )}
-
-        {repeatGroups.size > 0 && (
-          <div className="flex flex-col gap-2 rounded-xl border border-accent/40 bg-accent-soft/40 px-4 py-3">
-            <p className="flex items-center gap-1.5 text-sm font-semibold text-ink">
-              {t.impRepetidos}
-              <Explica>{t.impRepetidosDica}</Explica>
-            </p>
-            <ul className="flex flex-col gap-1.5">
-              {[...repeatGroups.entries()].map(([key, group]) => (
-                <li key={key} className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                  <span className="min-w-0 break-words text-sm text-ink">
-                    {nomeNaTela(group[0].description).nome}, {money(group[0].amount)}, {group.length}× em {formatDate(group[0].date)}
-                  </span>
-                  {group.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => setItems((prev) => prev.filter((it) => it.fileRepeat?.key !== key || it.key === group[0].key))}
-                      className={`w-fit ${respostaFraca}`}
-                    >
-                      {t.impDeixarSo1}
-                    </button>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </div>
+                  {it.nota && <span className="block text-caption text-ink-muted">{it.nota}</span>}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setItems((prev) => prev.map((x) => (x.key === it.key ? { ...x, ignorar: false, nota: null } : x)))}
+                  className="inline-flex min-h-11 shrink-0 items-center text-sm font-medium text-accent-strong hover:underline"
+                >
+                  Contar
+                </button>
+              </li>
+            ))}
+          </ul>
         )}
 
         {/* A lista do que vai entrar. Cada linha mostra o que o app entendeu e um "Mudar" que abre
@@ -1809,12 +1770,37 @@ export function StatementImport({
         {/* O botão fica grudado no pé da gaveta: com a lista longa, ele sumia lá embaixo. A faixa
             depois dele cobre o respiro da gaveta, para lista não aparecer por baixo. */}
         <div className="sticky bottom-0 z-10 flex flex-col gap-2 border-t border-border bg-surface pt-3 after:absolute after:inset-x-0 after:top-full after:h-6 after:bg-surface">
-          {/* Nunca desligado (12/10/2026): o que ficar sem resposta entra como "A conferir". */}
-          {duvidas.length + duvidasDinheiro.length > 0 && <p className="text-center text-caption text-ink-muted">O que ficar sem resposta entra como “A conferir”.</p>}
-          <Button type="button" className="min-h-11" onClick={handleImport} disabled={isPending || importable.length === 0}>
-            {isPending ? t.impImportando : `Pronto, anotar ${importable.length}`}
-            <ArrowRight size={16} className="ml-1.5" />
-          </Button>
+          {/* Um verbo só: com pergunta sobrando, "Responder N"; sem, "Pronto, anotar N". Pular
+              é a saída calma, e é o único lugar que diz o que acontece com o que ficar sem resposta. */}
+          {perguntas.length > 0 ? (
+            <>
+              <Button
+                type="button"
+                className="min-h-12"
+                disabled={isPending}
+                onClick={() => {
+                  setSeparadosEmRevisao(null);
+                  setAberto(null);
+                  setReviewKeys(perguntas);
+                  setReviewIdx(0);
+                  setPhase("review");
+                }}
+                data-responder
+              >
+                Responder {perguntas.length}
+                <ArrowRight size={16} className="ml-1.5" />
+              </Button>
+              <button type="button" onClick={handleImport} disabled={isPending || importable.length === 0} className="inline-flex min-h-11 flex-col items-center justify-center text-sm font-medium text-ink-muted hover:text-ink disabled:opacity-60">
+                {isPending ? t.impImportando : "Pular e anotar"}
+                {!isPending && <span className="text-caption font-normal text-ink-faint">Sem resposta, fica “A conferir”</span>}
+              </button>
+            </>
+          ) : (
+            <Button type="button" className="min-h-12" onClick={handleImport} disabled={isPending || importable.length === 0}>
+              {isPending ? t.impImportando : `Pronto, anotar ${importable.length}`}
+              <ArrowRight size={16} className="ml-1.5" />
+            </Button>
+          )}
         </div>
       </div>
     );

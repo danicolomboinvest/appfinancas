@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
-import { DuasBolinhas } from "@/components/casa/Pessoas";
+import { FORMA_DO_ACERTO, MioloDoAcerto } from "@/components/casa/MioloDoAcerto";
 import type { CasaNaTela } from "@/lib/casa/regras";
 import type { AcertoDaCasa } from "@/lib/repositories/casa.repo";
 
@@ -16,16 +15,9 @@ export function CartaoAcerto({ acerto, casa, money, href }: { acerto: AcertoDaCa
       href={href}
       data-cartao-acerto
       aria-label={`Acerto do mês: ${pilula}`}
-      className="flex min-h-14 w-full items-center gap-3 rounded-full border border-border bg-surface py-2 pl-2 pr-2 text-left"
+      className={FORMA_DO_ACERTO}
     >
-      <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-surface-2" aria-hidden>
-        <DuasBolinhas casa={casa} size={19} />
-      </span>
-      <span className="min-w-0 flex-1 text-[15px] text-ink">Acerto do mês</span>
-      <span className="shrink-0 whitespace-nowrap rounded-full bg-accent-soft px-3 py-1 text-sm font-medium tabular-nums text-accent-strong">{pilula}</span>
-      <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-ink text-canvas" aria-hidden>
-        <ArrowRight size={18} strokeWidth={1.6} />
-      </span>
+      <MioloDoAcerto casa={casa} pilula={pilula} />
     </Link>
   );
 }

@@ -221,28 +221,29 @@ function lancadoAMao(description: string, amount: number, dia: string) {
   });
 }
 
-describe("conta lançada à mão antes de pagar", () => {
-  it("paga 5 dias antes do vencimento ainda pergunta, e diz qual lançamento é", async () => {
+describe("lançado à mão (13/10/2026: só o quase certo)", () => {
+  it("pago 5 dias antes do lançado não pergunta mais: data longe demais", async () => {
     lancadoAMao("Aluguel", 1500, "2026-09-10");
     const items = await lerExtrato(["05/09/2026;PIX ENVIADO IMOBILIARIA;-1500,00"]);
-    expect(items[0].possivelDuplicata).toMatchObject({ descricao: "Aluguel", data: "2026-09-10", valor: 1500 });
-    expect(items[0].possivelDuplicata?.id).toMatch(/^mao/);
+    expect(items[0].possivelDuplicata).toBeFalsy();
+    expect(items[0].jaNoApp).toBeFalsy();
   });
 
-  it("conta com valor um pouco diferente do previsto (luz de 180 que veio 192) pergunta", async () => {
+  it("valor diferente com nome diferente (Enel 192 × Conta de luz 180) não pergunta", async () => {
     lancadoAMao("Conta de luz", 180, "2026-09-15");
     const items = await lerExtrato(["14/09/2026;ENEL;-192,00"]);
-    expect(items[0].possivelDuplicata).toMatchObject({ descricao: "Conta de luz", valor: 180 });
+    expect(items[0].possivelDuplicata).toBeFalsy();
   });
 
-  it("valor muito diferente ou mais de uma semana de distância não pergunta", async () => {
-    lancadoAMao("Conta de luz", 180, "2026-09-15");
-    lancadoAMao("Internet", 100, "2026-09-25");
-    const items = await lerExtrato(["14/09/2026;ENEL;-260,00", "10/09/2026;VIVO;-100,00"]);
-    expect(items.every((i) => !i.possivelDuplicata)).toBe(true);
+  it("mesmo valor, data perto e o mesmo nome: já estava no app, sem pergunta", async () => {
+    lancadoAMao("Netflix", 55.9, "2026-09-10");
+    const items = await lerExtrato(["11/09/2026;NETFLIX.COM;-55,90"]);
+    expect(items[0].possivelDuplicata).toBeFalsy();
+    expect(items[0].jaNoApp).toMatchObject({ descricao: "Netflix", valor: 55.9 });
+    expect(items[0].jaNoApp?.id).toMatch(/^mao/);
   });
 
-  it("o valor exato e perto ganha do valor parecido: cada lançamento casa com uma linha só", async () => {
+  it("mesmo valor e data perto com nome diferente é a única pergunta; cada lançamento casa com uma linha só", async () => {
     lancadoAMao("Academia", 100, "2026-09-10");
     const items = await lerExtrato(["09/09/2026;SMART FIT;-95,00", "10/09/2026;SMART FIT;-100,00"]);
     expect(items.find((i) => i.amount === 100)?.possivelDuplicata).toMatchObject({ descricao: "Academia" });

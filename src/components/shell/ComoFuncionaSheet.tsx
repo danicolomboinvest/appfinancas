@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Modal } from "@/components/ui/Modal";
 import { VIDEOS_COMO_FUNCIONA } from "@/lib/novidades/passos";
+import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
+import { AtalhoDoCasal } from "@/components/casa/AtalhoDoCasal";
 
 /** O menu pede a folha por este evento (o item "Como funciona" não sai da tela em que ela está). */
 export const ABRIR_COMO_FUNCIONA = "spi:como-funciona";
@@ -15,6 +17,7 @@ export const ABRIR_COMO_FUNCIONA = "spi:como-funciona";
  */
 export function ComoFuncionaSheet() {
   const [aberto, setAberto] = useState(false);
+  const { casa } = useProfileTheme();
   useEffect(() => {
     const abrir = () => setAberto(true);
     window.addEventListener(ABRIR_COMO_FUNCIONA, abrir);
@@ -23,6 +26,8 @@ export function ComoFuncionaSheet() {
   return (
     <Modal open={aberto} onClose={() => setAberto(false)} title="Como funciona">
       <div className="flex flex-col gap-5" data-como-funciona>
+        {/* Casal simples: o tutorial do casal antes dos vídeos. */}
+        {casa && <AtalhoDoCasal casa={casa} antes={() => setAberto(false)} />}
         <p className="-mt-2 text-sm text-ink-muted">Cinco vídeos curtos, gravados no próprio app, com narração.</p>
         {VIDEOS_COMO_FUNCIONA.map((v) => (
           <div key={v.arquivo} className="flex flex-col gap-2">
