@@ -48,7 +48,12 @@ export type TipoDecisao =
    * Pilha do Decidir: "Mandar a sobra do mês" para a reserva (chave "2026-10"). É o combinado; o
    * dinheiro vai no "Fechar o mês", que já oferece mandar a sobra para a reserva.
    */
-  | "reserva_sobra_combinada";
+  | "reserva_sobra_combinada"
+  /**
+   * Gasto da semana (regra A, 13/10/2026): de onde vem a renda da conta (chave "renda"). "entrou" =
+   * "minha renda varia, conto só o que já entrou"; "plano" (ou nada) = a renda planejada do mês.
+   */
+  | "renda_da_semana";
 
 export type NovaDecisao = {
   tipo: TipoDecisao;

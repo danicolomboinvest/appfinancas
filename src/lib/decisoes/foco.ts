@@ -1,4 +1,5 @@
-import { limiarCompraGrande, livreAteDomingo } from "./foco-semana";
+import { limiarCompraGrande } from "./foco-semana";
+import { CATEGORIAS_FIXAS, contasDoMes, semanaFixa, type ContaPendente, type ContasDoMes, type GastoDoDiaADia, type SemanaFixa } from "./semana-fixa";
 import type { Titulos } from "@/lib/profiles/voice";
 
 /**
@@ -97,6 +98,22 @@ export type FocoEntrada = {
   raiox?: { n: number; anual: number } | null;
   /** Avisos que ela já dispensou ("foi pontual", "entendi") neste mês ou nesta semana. */
   dispensados?: string[];
+  /**
+   * O dia a dia do mês, gasto a gasto, e as contas (regra A, 13/10/2026). Omitido (testes antigos):
+   * todo gasto fora das contas conta como de antes desta semana, e as contas são as categorias
+   * fixas mais o que já estava marcado (`fixoAutomatico`).
+   */
+  diaADia?: {
+    gastos: GastoDoDiaADia[];
+    /** Contas já lançadas fora das categorias fixas com orçamento (recorrente, parcela, conta da lista). */
+    contasLancadas: number;
+    /** Contas a pagar do mês que ainda não apareceram nos lançamentos. */
+    pendentes: ContaPendente[];
+  };
+  /** A renda que vale para o mês: a planejada, ou só o que já entrou. Null/omitido: vale o orçamento. */
+  renda?: number | null;
+  /** De onde veio a renda: o plano do mês, ou só o que já entrou ("conto só o que já entrou"). */
+  rendaFonte?: "plano" | "entrou" | null;
   money: (valor: number) => string;
   t: Titulos;
 };
@@ -118,6 +135,15 @@ export type FocoLivre =
       diasSemLancar: number | null;
       /** Semanal, já passou da primeira semana e nunca lançou gasto com data: outro aviso, sem "há N dias". */
       semGastoComData: boolean;
+      /** A semana fixa do dia a dia (regra A): valor, quanto já saiu, quanto passou, a próxima. */
+      semana: SemanaFixa;
+      /** As contas do mês, reservadas inteiras desde o dia 1. */
+      contas: ContasDoMes;
+      /** O guardar do mês que saiu antes (null: não planejou). */
+      guardar: number | null;
+      /** A renda que entrou na conta (null: sem renda, vale o orçamento). */
+      renda: number | null;
+      rendaFonte: "plano" | "entrou" | null;
       /** O mesmo "livre", dividido por categoria (soma = `restante`): é o que o ritual mostra. */
       porCategoria: { key: string; label: string; restante: number }[];
       /**
@@ -279,7 +305,6 @@ export function montarFoco(e: FocoEntrada): FocoSaida {
   const { t, money } = e;
   const diasRestantes = Math.max(1, e.diasNoMes - e.dia + 1);
   const decorrido = (e.dia - 1) / e.diasNoMes;
-  const porSemanaDe = (valor: number) => livreAteDomingo(valor, diasRestantes, e.diasAteDomingo);
 
   // Mensal e nada lançado no mês ainda: é o caso normal de quem fecha uma vez por mês, não um
   // problema. O número sai do planejado e é chamado de estimativa; alerta de gasto não existe.
@@ -287,36 +312,54 @@ export function montarFoco(e: FocoEntrada): FocoSaida {
 
   const planejado = e.categorias.reduce((s, c) => s + c.planejado, 0);
   const gastoNoOrcamento = e.categorias.reduce((s, c) => s + c.gasto, 0);
+  const foraDoOrcamento = Math.max(0, e.gastoDoMes - gastoNoOrcamento);
   let livre: FocoLivre;
   if (planejado <= 0) {
     livre = { tipo: "semOrcamento" };
   } else {
-    // O que sobra em cada categoria, mas nunca mais do que o mês inteiro ainda comporta: o que
-    // estourou numa categoria e o que foi gasto fora do orçamento saem do mesmo bolso.
-    const somaSobras = e.categorias.reduce((s, c) => s + Math.max(0, c.planejado - c.gasto), 0);
-    const restante = semDadoDoMes
-      ? (planejado * diasRestantes) / e.diasNoMes
-      : Math.min(somaSobras, Math.max(0, planejado - Math.max(e.gastoDoMes, gastoNoOrcamento)));
-    const escala = semDadoDoMes ? diasRestantes / e.diasNoMes : somaSobras > 0 ? restante / somaSobras : 0;
-    const porCategoria = e.categorias.map((c) => ({
-      key: c.key,
-      label: c.label,
-      restante: (semDadoDoMes ? c.planejado : Math.max(0, c.planejado - c.gasto)) * escala,
-    }));
-    const porSemana = porSemanaDe(restante);
+    // Regra A (13/10/2026): guardar, contas fixas e parcelas saem inteiros desde o dia 1; o resto
+    // é o dia a dia, num valor fixo por semana. Ver semana-fixa.ts.
+    const fixas = new Set(e.categorias.filter((c) => c.fixa).map((c) => c.key));
+    const marcadas = e.categorias.reduce((s, c) => s + (c.fixa ? 0 : Math.min(c.fixoAutomatico ?? 0, c.gasto)), 0);
+    const diaADia = e.diaADia ?? {
+      contasLancadas: marcadas,
+      pendentes: [],
+      gastos: [{ valor: e.categorias.reduce((s, c) => s + (c.fixa ? 0 : c.gasto - Math.min(c.fixoAutomatico ?? 0, c.gasto)), 0) + foraDoOrcamento, dia: null, entrouNoDia: 0, importado: false }],
+    };
+    const contas = contasDoMes(e.categorias, diaADia.contasLancadas, diaADia.pendentes, (k) => fixas.has(k) || CATEGORIAS_FIXAS.has(k));
+    const renda = e.renda ?? null;
+    const semana = semanaFixa({
+      dia: e.dia,
+      diasNoMes: e.diasNoMes,
+      diasAteDomingo: e.diasAteDomingo ?? 7,
+      orcamento: planejado,
+      contas: contas.total,
+      guardar: e.aportePlanejado,
+      renda,
+      gastos: diaADia.gastos,
+      estimativa: semDadoDoMes,
+    });
+    const restante = Math.max(0, semana.sobraDoMes);
+    // O mesmo livre dividido pelas categorias do dia a dia (as contas fixas já saíram inteiras).
+    const doDiaADia = e.categorias.filter((c) => !c.fixa);
+    const pesos = doDiaADia.map((c) => (semDadoDoMes ? c.planejado : Math.max(0, c.planejado - c.gasto)));
+    const somaPesos = pesos.reduce((s, v) => s + v, 0);
+    const porCategoria = doDiaADia.map((c, i) => ({ key: c.key, label: c.label, restante: somaPesos > 0 ? (pesos[i] / somaPesos) * restante : 0 }));
     // Dado velho: o último gasto com data tem mais de 7 dias. Quem nunca lançou gasto com data
     // ganha outro aviso depois da primeira semana (não dá pra dizer "há N dias").
     const velho = e.ritmo === "semanal" && e.diasDesdeUltimoGasto !== null && e.diasDesdeUltimoGasto > DIAS_DADO_VELHO ? e.diasDesdeUltimoGasto : null;
     const semGastoComData = e.ritmo === "semanal" && e.diasDesdeUltimoGasto === null && e.dia > DIAS_DADO_VELHO;
-    const variavel = ritmoVariavel(e.categorias, Math.max(0, e.gastoDoMes - gastoNoOrcamento));
+    const variavel = ritmoVariavel(e.categorias, foraDoOrcamento);
     const limiar = limiarCompraGrande(variavel.planoVariavel);
     const grandes = (e.gastosAvulsos ?? []).filter((v) => v >= limiar).reduce((s, v) => s + v, 0);
+    const daSemana = Math.max(0, semana.restante);
     livre = {
       tipo: semDadoDoMes ? "estimativa" : e.ritmo === "semanal" ? "semana" : "mes",
       ...variavel,
       gastoUnico: Math.min(grandes + variavel.gastoMarcado, variavel.gastoVariavel),
-      valor: e.ritmo === "semanal" && !semDadoDoMes ? porSemana : restante,
-      porSemana,
+      // O herói, o widget, o Decidir e o Posso comprar mostram o mesmo: o que ainda cabe na semana.
+      valor: daSemana,
+      porSemana: daSemana,
       restante,
       planejado,
       gastoNoOrcamento,
@@ -325,6 +368,11 @@ export function montarFoco(e: FocoEntrada): FocoSaida {
       decorrido,
       diasSemLancar: velho,
       semGastoComData,
+      semana,
+      contas,
+      guardar: e.aportePlanejado,
+      renda,
+      rendaFonte: renda === null ? null : (e.rendaFonte ?? "plano"),
       porCategoria,
     };
   }
@@ -359,7 +407,8 @@ export function montarFoco(e: FocoEntrada): FocoSaida {
   // "nada pedindo atenção".
   const fora = e.gastoDoMes - gastoNoOrcamento;
   if (!semDadoDoMes && planejado > 0 && fora >= FOLGA_ESTOURO && livre.tipo !== "semOrcamento") {
-    const semFora = e.categorias.reduce((s, c) => s + Math.max(0, c.planejado - c.gasto), 0);
+    // O livre que haveria sem o gasto fora do orçamento: só avisa quando ele de fato comeu o livre.
+    const semFora = Math.max(0, livre.semana.sobraDoMes + fora);
     if (livre.restante < semFora - FOLGA_ESTOURO) {
       itens.push({ id: "fora", nivel: 1, titulo: t.focoForaT(money(fora)), texto: t.focoForaP(money(livre.restante)), href: e.hrefMes, acao: t.focoAcao, detalhe: { tipo: "fora", valor: fora, livre: livre.restante } });
     }

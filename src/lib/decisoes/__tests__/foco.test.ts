@@ -24,9 +24,10 @@ const base = (over: Partial<FocoEntrada> = {}): FocoEntrada => ({
 });
 
 describe("montarFoco", () => {
-  it("livre da semana = sobra do orçamento ÷ dias que faltam × 7", () => {
+  it("semana fixa: na segunda, a sobra do dia a dia ÷ dias que faltam × 7 (regra A)", () => {
     const f = montarFoco(base());
-    // sobra: 0 + 780 + 90 = 870; 17 dias restantes (14 a 30)
+    // sobra: 0 + 780 + 90 = 870; 17 dias restantes (14 a 30). Sem os gastos um a um, tudo conta
+    // como de antes da semana, e sem diasAteDomingo hoje é segunda: a semana abre com 870 ÷ 17 × 7.
     expect(f.livre.tipo).toBe("semana");
     if (f.livre.tipo === "semOrcamento") throw new Error();
     expect(f.livre.restante).toBe(870);

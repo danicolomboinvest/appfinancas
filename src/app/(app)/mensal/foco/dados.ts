@@ -16,11 +16,16 @@ import { getOwnUser } from "@/lib/repositories/user.repo";
 import { prisma } from "@/lib/db/prisma";
 import { carregarRevisaoAntigos } from "./revisar/dados";
 import { lerFechamento } from "@/lib/repositories/fechamento.repo";
-import { existeDecisao, listarAvisosDispensados, listarCancelamentosPraConfirmar, listarCompraAmanhaPendentes, listarDecisoesRaioX, listarTetosDoMes } from "@/lib/repositories/decisao.repo";
+import { existeDecisao, lerDecisao, listarAvisosDispensados, listarCancelamentosPraConfirmar, listarCompraAmanhaPendentes, listarDecisoesRaioX, listarTetosDoMes } from "@/lib/repositories/decisao.repo";
 import { computeGoalPlan } from "@/lib/planning/goal";
 import { ehEmpresa } from "@/lib/profiles/empresa";
 import { gastoDepoisDoCombinado, montarFoco } from "@/lib/decisoes/foco";
 import { diaDaSemana } from "@/lib/decisoes/foco-semana";
+import { CATEGORIAS_FIXAS, lancamentoDaConta, type ContaPendente, type GastoDoDiaADia } from "@/lib/decisoes/semana-fixa";
+import { parcelaDaDescricao } from "@/lib/decisoes/compra-guiada";
+import { ehDoAno, pagaNoMes } from "@/lib/contas/recorrentes";
+import { ehDoCartao } from "@/lib/cartao/limite";
+import { doDono } from "@/lib/auth/session";
 import { acharRecorrentes } from "@/lib/decisoes/raio-x";
 import { chaveDaSemana, chaveDoMes, lerRitmo } from "./ritmo";
 
@@ -28,8 +33,6 @@ export const MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho"
 const DIA_MS = 86_400_000;
 /** Quantos gastos a lista de um aviso tem ao todo, e quanto somam (ela mostra só os maiores). */
 export type ResumoDaLista = { n: number; total: number };
-/** Contas fixas: pagas de uma vez no começo do mês, não "correm". Só estouro vale aviso. */
-const CATEGORIAS_FIXAS = new Set<string>(["MORADIA", "EDUCACAO", "IMPOSTOS"]);
 
 /** Os últimos N meses antes do atual (pra achar o que se repete). */
 function mesesAnteriores(ano: number, mes: number, n: number) {
@@ -74,7 +77,8 @@ export async function carregarFoco(ctx: AuthContext) {
   const mesAnterior = { year: anterior.getFullYear(), month: anterior.getMonth() + 1, label: MESES[anterior.getMonth()] };
   const semana = chaveDaSemana(now);
 
-  const [user, budgets, spentByParent, spentByCustom, customCategories, summary, plan, goals, fund, lastExpense, tetos, pendentes, ritualFeito, fechamentoDoMesAnterior, raiox, gastosReais, preCriados, cancelamentos, viradaFeita, lancamentosAnoPassado, paraRevisar, dispensados, gastosDoMes, orcamentoMesAnterior] =
+  const inicioDoMes = new Date(Date.UTC(year, month - 1, 1, 3));
+  const [user, budgets, spentByParent, spentByCustom, customCategories, summary, plan, goals, fund, lastExpense, tetos, pendentes, ritualFeito, fechamentoDoMesAnterior, raiox, gastosReais, preCriados, cancelamentos, viradaFeita, lancamentosAnoPassado, paraRevisar, dispensados, gastosDoMes, orcamentoMesAnterior, linhasDoMes, contasDaLista, ultimoCartao, rendaConta] =
     await Promise.all([
       getOwnUser(ctx),
       listBudgets(ctx, year, month),
@@ -116,6 +120,33 @@ export async function carregarFoco(ctx: AuthContext) {
         where: { ...donoDoOrcamento(ctx), year: mesAnterior.year, month: mesAnterior.month, plannedAmount: { gt: 0 }, createdAt: { lt: new Date(Date.UTC(year, month - 1, 1, 3)) } },
         take: 1,
       }),
+      // A semana fixa (regra A, 13/10/2026): cada gasto do mês, leve, para separar conta de dia a
+      // dia e saber quando cada um aconteceu e quando entrou no app.
+      prisma.monthlyEntry.findMany({
+        where: comFiltro(lancamentosDosTotais(ctx), { year, month, category: "EXPENSE" }),
+        select: { amount: true, entryDate: true, createdAt: true, parentCategory: true, customCategoryId: true, recurrenceId: true, description: true, subcategory: true, importBatchId: true, externalId: true },
+        take: 5000,
+      }),
+      // As contas da lista (Recorrentes): as em aberto e as pagas neste mês, para reservar a que
+      // ainda não saiu e reconhecer a que já apareceu nos lançamentos.
+      prisma.contaAPagar.findMany({
+        where: { ...doDono(ctx), OR: [{ quitada: false }, { pagaEm: { gte: inicioDoMes } }] },
+        select: { nome: true, valor: true, vencimento: true, pagaEm: true, repete: true, intervalo: true, unidade: true, mesesEscolhidos: true, parcelas: true, categoria: true, quitada: true },
+        take: 300,
+      }),
+      // O último gasto no cartão (marcado ou de fatura) nos últimos 75 dias: o aviso "falta o cartão".
+      prisma.monthlyEntry.findMany({
+        where: comFiltro(lancamentosDosTotais(ctx), {
+          category: "EXPENSE",
+          createdAt: { gte: new Date(Date.UTC(year, month - 1, dia - 75)) },
+          OR: [{ noCartao: true }, { noCartao: null, importBatch: { is: { docType: "fatura" } } }],
+        }),
+        select: { entryDate: true, createdAt: true, noCartao: true, importBatch: { select: { docType: true } } },
+        orderBy: [{ entryDate: { sort: "desc", nulls: "last" } }],
+        take: 40,
+      }),
+      // "Minha renda varia: conto só o que já entrou" (regra A): a escolha dela, por perfil.
+      lerDecisao(ctx, "renda_da_semana", "renda"),
     ]);
   const fechamento = fechamentoDoMesAnterior;
   const ritmo = lerRitmo(user.ritmoAcompanhamento);
@@ -197,8 +228,77 @@ export async function carregarFoco(ctx: AuthContext) {
   // O Raio-X é dos "pequenos gastos" de uma pessoa; a empresa não tem Decidir.
   const naoDecididos = empresa ? [] : raiox.itens.filter((i) => !raiox.decididos.has(i.chave));
 
-  // Meia-noite do dia 1º em Brasília (03:00 UTC), a mesma fronteira de somarGastosPreCriados.
-  const inicioDoMes = new Date(Date.UTC(year, month - 1, 1, 3));
+  // A semana fixa (regra A): cada gasto do mês é conta (sai inteira desde o dia 1) ou dia a dia.
+  // Conta: categoria fixa com orçamento, lançada antes do mês (recorrente, parcela futura da
+  // fatura), marcada para repetir, parcela ("LOJA 03/10") ou o pagamento de uma conta da lista.
+  const hojeIso = `${year}-${String(month).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
+  const lista = contasDaLista.map((c) => ({
+    id: "",
+    nome: c.nome,
+    valor: c.valor === null ? null : Number(c.valor),
+    vencimento: c.vencimento.toISOString().slice(0, 10),
+    pagaEm: c.pagaEm ? diaNoBrasil(c.pagaEm) : null,
+    diaDoMes: null,
+    parcelaAtual: null,
+    aproximado: false,
+    repete: c.repete,
+    intervalo: c.intervalo,
+    unidade: c.unidade,
+    mesesEscolhidos: c.mesesEscolhidos ?? [],
+    parcelas: c.parcelas,
+    categoria: (c.categoria as string | null) ?? null,
+    quitada: c.quitada,
+  }));
+  const fixasComOrcamento = new Set(categorias.filter((c) => c.fixa).map((c) => c.key));
+  const contaPaga = new Set<number>();
+  const gastosDoDiaADia: GastoDoDiaADia[] = [];
+  let contasLancadas = 0;
+  for (const g of linhasDoMes) {
+    const valor = Number(g.amount);
+    const chave = g.customCategoryId ?? (g.parentCategory as string | null);
+    if (chave && fixasComOrcamento.has(chave)) continue; // já está no planejado inteiro da fixa
+    const doLancamento = { descricao: g.description, subcategoria: g.subcategory, valor, categoria: (g.parentCategory as string | null) ?? null };
+    const daLista = lista.findIndex((c) => lancamentoDaConta(doLancamento, c));
+    if (daLista >= 0) contaPaga.add(daLista);
+    const ehConta =
+      daLista >= 0 ||
+      g.createdAt < inicioDoMes ||
+      g.recurrenceId !== null ||
+      CATEGORIAS_FIXAS.has(g.parentCategory ?? "") ||
+      parcelaDaDescricao(g.description ?? "") !== null;
+    if (ehConta) {
+      contasLancadas += valor;
+      continue;
+    }
+    const entrou = nowInBrazil(g.createdAt);
+    gastosDoDiaADia.push({
+      valor,
+      dia: g.entryDate && g.entryDate.getUTCFullYear() === year && g.entryDate.getUTCMonth() + 1 === month ? g.entryDate.getUTCDate() : g.entryDate && g.entryDate.toISOString().slice(0, 10) < hojeIso ? 0 : null,
+      entrouNoDia: entrou.getFullYear() === year && entrou.getMonth() + 1 === month ? entrou.getDate() : 0,
+      importado: g.importBatchId !== null || g.externalId !== null,
+    });
+  }
+  // A conta da lista que ainda não apareceu nos lançamentos e vence até o fim do mês (ou já venceu).
+  const fimDoMesIso = `${year}-${String(month).padStart(2, "0")}-${String(diasNoMes).padStart(2, "0")}`;
+  const hojeUtc = new Date(Date.UTC(year, month - 1, dia));
+  const contasPendentes: ContaPendente[] = lista
+    .filter((c, i) => !c.quitada && !contaPaga.has(i) && !ehDoAno(c) && !pagaNoMes(c, hojeUtc) && c.vencimento <= fimDoMesIso && (c.valor ?? 0) > 0)
+    .map((c) => ({ valor: c.valor ?? 0, categoria: c.categoria }));
+
+  // "Conto só o que já entrou": a renda é o que entrou no mês até agora. Senão, a planejada.
+  const rendaSoOQueEntrou = rendaConta === "entrou";
+  const rendaPlanejada = plan && plan.plannedIncome > 0 ? plan.plannedIncome : null;
+  const renda = rendaSoOQueEntrou ? summary.totalIncome : rendaPlanejada;
+
+  // Falta o cartão: ela usa cartão (gasto no cartão nos últimos 75 dias) e o último é de mais de
+  // 7 dias atrás. Fatura sem dia por compra vale pelo dia em que foi importada.
+  const datasDoCartao = ultimoCartao
+    .filter((g) => ehDoCartao(g))
+    .map((g) => (g.entryDate ? g.entryDate.getTime() : Date.UTC(nowInBrazil(g.createdAt).getFullYear(), nowInBrazil(g.createdAt).getMonth(), nowInBrazil(g.createdAt).getDate())));
+  const ultimoDoCartao = datasDoCartao.length > 0 ? new Date(Math.min(hojeUtc.getTime(), Math.max(...datasDoCartao))) : null;
+  const diasSemCartao = ultimoDoCartao ? Math.round((hojeUtc.getTime() - ultimoDoCartao.getTime()) / DIA_MS) : null;
+  const faltaOCartao = ultimoDoCartao && diasSemCartao !== null && diasSemCartao > 7 ? { dia: ultimoDoCartao.getUTCDate(), mes: ultimoDoCartao.getUTCMonth() + 1, dias: diasSemCartao } : null;
+
   const foco = montarFoco({
     ritmo: ritmo ?? "semanal",
     dia,
@@ -222,6 +322,9 @@ export async function carregarFoco(ctx: AuthContext) {
     hrefMes,
     tetos: tetosDoFoco,
     dispensados,
+    diaADia: { gastos: gastosDoDiaADia, contasLancadas, pendentes: contasPendentes },
+    renda,
+    rendaFonte: renda === null ? null : rendaSoOQueEntrou ? "entrou" : "plano",
     raiox: naoDecididos.length > 0 ? { n: naoDecididos.length, anual: naoDecididos.reduce((s, i) => s + i.anual, 0) } : null,
     money: m,
     t,
@@ -288,6 +391,8 @@ export async function carregarFoco(ctx: AuthContext) {
     tetos,
     summary,
     aportePlanejado,
+    rendaSoOQueEntrou,
+    faltaOCartao,
     // Só a renda PLANEJADA (sem cair no que entrou): é o que o "Fim do mês" pelo plano usa.
     rendaPlanejada: plan && plan.plannedIncome > 0 ? plan.plannedIncome : null,
     // A renda do mês para o "plano apertado": a planejada, ou o que já entrou.
