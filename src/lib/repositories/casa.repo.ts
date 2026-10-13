@@ -328,3 +328,49 @@ export async function metasADois(ctx: AuthContext, hoje: Date): Promise<{ id: st
   const metas = await listarMetasDaTela(doCasal, hoje);
   return metas.map((m) => ({ id: m.id, nome: m.nome, foto: m.foto, alvo: m.alvo, guardado: m.guardado, pct: m.plano.pct }));
 }
+
+// ---------------------------------------------------------------------------------------------
+// Sair da casa e os nomes (Configurações › Casa).
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * A titular tira o par ("removido") ou o par sai ("saiu"). Nada é movido: cada um já está com os
+ * próprios lançamentos no próprio Pessoal. O acerto, os meses fechados e as metas a dois ficam no
+ * perfil Casal da titular, que volta para a lista de perfis dela. O par segue a regra de pausa de
+ * hoje: sem compra própria, o acesso dele para e o que é dele fica guardado.
+ */
+export async function sairDaCasa(ctx: AuthContext, quem: "titular" | "par", agora: Date = new Date()): Promise<number> {
+  const casa = casaAtiva(ctx);
+  if (!casa || casa.eu.papel !== quem) return 0;
+  const r = await prisma.membroCasal.updateMany({
+    where: { id: casa.membroId, saiuEm: null, modelo: "simples" },
+    data: { saiuEm: agora, motivoSaida: quem === "titular" ? "removido" : "saiu" },
+  });
+  return r.count;
+}
+
+/** Os dois nomes da casa (o meu e o do outro), guardados no perfil Casal pelas letras. */
+export async function salvarNomesDaCasa(ctx: AuthContext, nomeEu: string, nomeOutro: string): Promise<boolean> {
+  const casa = casaAtiva(ctx);
+  if (!casa) return false;
+  const config = await lerConfig(casa.casalProfileId);
+  const nomes = { [casa.eu.letra === "A" ? "nomeA" : "nomeB"]: nomeEu, [casa.outro.letra === "A" ? "nomeA" : "nomeB"]: nomeOutro };
+  await prisma.financialProfile.update({ where: { id: casa.casalProfileId }, data: { casal: { ...config, ...nomes } } });
+  return true;
+}
+
+/** Quem saiu (ou foi tirado) de uma casa simples há menos de 90 dias, para a tela de pausa. */
+export async function saidaRecenteDaCasa(userId: string, agora: Date = new Date()): Promise<{ nomeTitular: string; ate: Date; motivo: string | null } | null> {
+  const m = await prisma.membroCasal.findFirst({
+    where: { userId, modelo: "simples", saiuEm: { not: null, gt: new Date(agora.getTime() - 90 * 24 * 60 * 60 * 1000) } },
+    orderBy: { saiuEm: "desc" },
+    select: { letra: true, saiuEm: true, motivoSaida: true, profile: { select: { casal: true, user: { select: { name: true, email: true } } } } },
+  });
+  if (!m?.saiuEm) return null;
+  const letra: Letra = m.letra === "A" ? "A" : "B";
+  return {
+    nomeTitular: nomeDaPessoa(lerConfigCasal(m.profile.casal), outraLetra(letra), m.profile.user.name, m.profile.user.email),
+    ate: new Date(m.saiuEm.getTime() + 90 * 24 * 60 * 60 * 1000),
+    motivo: m.motivoSaida,
+  };
+}

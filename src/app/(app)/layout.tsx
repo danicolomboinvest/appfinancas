@@ -11,7 +11,7 @@ import { compraComOCelular, contaConfirmada, situacaoDoAcesso, usoDoApp, type Us
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import { casaDaRequisicao, perfilAtivoDaRequisicao, sessaoDaRequisicao, type AccountContext } from "@/lib/auth/session";
 import { casaNaTela, type CasaNaTela } from "@/lib/casa/regras";
-import { parDeCasaSimples } from "@/lib/repositories/casa.repo";
+import { parDeCasaSimples, saidaRecenteDaCasa } from "@/lib/repositories/casa.repo";
 import type { ProfileKind } from "@prisma/client";
 import { MoneyProvider } from "@/components/money/MoneyProvider";
 import { valoresOcultos } from "@/lib/money-server";
@@ -128,6 +128,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         if (situacao.tipo !== "liberado") return <TelaDoParPausado nomeTitular={parSimples.nomeTitular} ate={situacao.tipo === "pausado" ? situacao.ate : null} simples />;
         uso = "completo";
       } else if (uso === "bloqueado" && acesso !== "ativo") {
+        // Casal simples: quem saiu (ou foi tirado) da casa segue a pausa de hoje: o que é dele
+        // fica guardado 90 dias no Pessoal dele, e volta com o SPI próprio ou num convite novo.
+        const saida = await saidaRecenteDaCasa(ctx.userId);
+        if (saida) return <TelaDoParPausado nomeTitular={saida.nomeTitular} ate={saida.ate} simples saiu={saida.motivo === "saiu" ? "saiu" : "tirado"} />;
         // No app da Apple, quem não tem acesso assina ali mesmo (guideline 3.1.1); a tela do
         // cadeado, que fala de compra feita fora, não pode aparecer lá.
         if (await naAppDaApple()) return <AssinarPelaApple token={await guardarTokenApple(user)} produtosIds={[...IDS_DOS_PRODUTOS]} />;

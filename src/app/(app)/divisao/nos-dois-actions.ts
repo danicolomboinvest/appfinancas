@@ -17,6 +17,7 @@ import {
   sairDoCasal,
   situacaoDoParAgora,
 } from "@/lib/repositories/casal-login.repo";
+import { sairDaCasa } from "@/lib/repositories/casa.repo";
 import { apagarNoCasal, conferirMes, criarMetaDoCasal, editarNoCasal, lancarNoCasal, letraDeQuemOlha, type Destino, type NovoLancamentoDoCasal } from "@/lib/repositories/nos-dois.repo";
 
 export type Resposta<T = object> = ({ ok: true } & T) | { ok: false; mensagem: string };
@@ -81,6 +82,13 @@ export async function cancelarConviteAction(): Promise<Resposta> {
 
 export async function removerParAction(): Promise<Resposta> {
   return responder(async () => {
+    // Casal simples: a titular tira o par da casa (Configurações › Casa).
+    const daSessao = await getRequiredSession();
+    if (daSessao.casa) {
+      if ((await sairDaCasa(daSessao, "titular")) === 0) throw new ErroDoConvite("Só quem paga o Casal tira o par.");
+      revalidatePath("/", "layout");
+      return {};
+    }
     const ctx = await contextoDoCasal();
     await removerPar(ctx);
     revalidatePath("/configuracoes/nos-dois");
@@ -102,7 +110,10 @@ export async function mostrarRendaAction(mostrar: boolean): Promise<Resposta> {
 export async function sairDoCasalAction(): Promise<Resposta> {
   try {
     const ctx = await getRequiredSession();
-    await sairDoCasal(ctx);
+    // Casal simples: o par sai da casa e fica com o Pessoal dele.
+    if (ctx.casa) {
+      if ((await sairDaCasa(ctx, "par")) === 0) throw new ErroDoConvite("Quem paga o Casal tira o par em Remover.");
+    } else await sairDoCasal(ctx);
     revalidatePath("/", "layout");
     return { ok: true };
   } catch (e) {

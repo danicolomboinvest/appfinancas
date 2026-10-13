@@ -11,7 +11,7 @@ import { BOTAO_CLARO, BOTAO_ESCURO } from "./visual";
  * hora; o histórico fica guardado 90 dias e volta inteiro se ela renovar. Nesse tempo ele ainda
  * baixa a cópia do que lançou.
  */
-export function TelaDoParPausado({ nomeTitular, ate, simples = false }: { nomeTitular: string; ate: Date | null; simples?: boolean }) {
+export function TelaDoParPausado({ nomeTitular, ate, simples = false, saiu = null }: { nomeTitular: string; ate: Date | null; simples?: boolean; saiu?: "saiu" | "tirado" | null }) {
   const [saindo, sair] = useTransition();
   const ateTxt = ate ? ate.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "America/Sao_Paulo" }) : null;
   return (
@@ -21,9 +21,11 @@ export function TelaDoParPausado({ nomeTitular, ate, simples = false }: { nomeTi
         <span className="mx-auto mt-8 flex size-16 items-center justify-center rounded-full bg-surface-2 text-ink" aria-hidden>
           <PauseCircle size={28} strokeWidth={1.5} />
         </span>
-        <h1 className="titulo-tema mt-6 text-[32px] font-medium leading-tight text-ink">{simples ? "O Casal está pausado" : "O Nós dois está pausado"}</h1>
+        <h1 className="titulo-tema mt-6 text-[32px] font-medium leading-tight text-ink">{saiu ? "Você não está mais na casa" : simples ? "O Casal está pausado" : "O Nós dois está pausado"}</h1>
         <p className="mt-3 text-balance text-[17px] leading-relaxed text-ink-muted">
-          O Casal de {nomeTitular} não foi renovado. Tudo fica guardado{ateTxt ? ` até ${ateTxt}` : " por 90 dias"} e volta como estava com a renovação.
+          {saiu
+            ? `${saiu === "saiu" ? "Você saiu da casa" : "A casa terminou"} com ${nomeTitular}. Seus lançamentos ficam guardados${ateTxt ? ` até ${ateTxt}` : " por 90 dias"}. Com o SPI próprio, tudo continua.`
+            : `O Casal de ${nomeTitular} não foi renovado. Tudo fica guardado${ateTxt ? ` até ${ateTxt}` : " por 90 dias"} e volta como estava com a renovação.`}
         </p>
         <div className="mt-8 flex flex-col gap-3">
           {/* No Casal simples o que ele lançou já é dele, no Pessoal dele: nada para baixar daqui. */}

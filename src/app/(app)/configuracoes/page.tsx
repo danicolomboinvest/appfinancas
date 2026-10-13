@@ -1,6 +1,5 @@
 import {
-  Archive, BadgeCheck, BookOpen, Briefcase, CircleUser, Download, EyeOff, FileText, Globe, Heart, KeyRound, Landmark, MessageCircle, Palette, Percent, Bell, Repeat, Tags, TriangleAlert, Users, Info, Wallet,
-} from "lucide-react";
+  Archive, BadgeCheck, BookOpen, Briefcase, CircleUser, Download, EyeOff, FileText, Globe, Heart, KeyRound, Landmark, MessageCircle, Palette, Percent, Bell, Repeat, Tags, TriangleAlert, Users, Info, Wallet, HeartHandshake } from "lucide-react";
 import { LINK_VER_DE_NOVO, estadoDasNovidades, jaUsava } from "@/lib/novidades/passos";
 import { getRequiredSession } from "@/lib/auth/session";
 import { getOwnUser } from "@/lib/repositories/user.repo";
@@ -82,6 +81,8 @@ export default async function ConfiguracoesPage() {
           </div>
         )}
         <Linha href="/configuracoes/perfis" icone={i(Users)} cor={COR.conta} rotulo="Perfis" sub={perfis.length === 1 ? "1 perfil" : `${perfis.length} perfis`} />
+        {/* Casal simples: nomes, jeito de dividir e a saída da casa. */}
+        {ctx.casa && <Linha href="/configuracoes/casa" icone={i(HeartHandshake)} cor={COR.conta} rotulo="Casa" sub={`Você e ${ctx.casa.outro.nome}`} />}
         <Linha href="/esqueci-senha" icone={i(KeyRound)} cor={COR.conta} rotulo="Trocar senha" sub="Por e-mail" />
       </Grupo>
 
