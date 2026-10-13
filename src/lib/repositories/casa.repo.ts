@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db/prisma";
 import type { AuthContext } from "@/lib/auth/session";
 import { calcularAcerto, chaveDaConta as chaveDaContaDoAcerto, chaveDoMes, lerConfigCasal, type Acerto, type ConfigCasal } from "@/lib/casal/acerto";
 import { primeiroNome } from "@/lib/casal-login/regras";
+import type { ParNaSessao } from "@/lib/repositories/casal-login.repo";
 import { casaAtiva, chaveDaConta, lancamentosDoAcertoDaCasa, letraDoDono, nomeDoArquivo, outraLetra, type CasaNaSessao, type Letra } from "@/lib/casa/regras";
 
 /**
@@ -212,4 +213,43 @@ export async function marcarMesAcertado(ctx: AuthContext, ano: number, mes: numb
   const acertos = acertado ? [...new Set([...config.acertos, chave])].sort() : config.acertos.filter((m) => m !== chave);
   await prisma.financialProfile.update({ where: { id: casa.casalProfileId }, data: { casal: { ...config, acertos } } });
   return true;
+}
+
+// ---------------------------------------------------------------------------------------------
+// O par com o app completo (fase 4): o Pessoal dele e a entrada sem compra.
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * O vínculo de quem é PAR numa casa simples, no formato do login do par (para a mesma régua de
+ * pausa: o Casal da titular parou de valer, o acesso dele para e tudo fica guardado 90 dias).
+ * Nulo para a titular e para quem não está numa casa simples.
+ */
+export async function parDeCasaSimples(userId: string): Promise<ParNaSessao | null> {
+  const m = await prisma.membroCasal.findFirst({
+    where: { userId, saiuEm: null, modelo: "simples" },
+    select: { id: true, letra: true, bloqueadoEm: true, profile: { select: { userId: true, casal: true, user: { select: { name: true, email: true } } } } },
+  });
+  if (!m) return null;
+  const letra: Letra = m.letra === "A" ? "A" : "B";
+  const config = lerConfigCasal(m.profile.casal);
+  return {
+    membroId: m.id,
+    letra,
+    donoId: m.profile.userId,
+    nomeTitular: nomeDaPessoa(config, outraLetra(letra), m.profile.user.name, m.profile.user.email),
+    mostrarRenda: false,
+    bloqueadoEm: m.bloqueadoEm,
+  };
+}
+
+/**
+ * O Pessoal do par: o que ele já tem (se comprou o SPI um dia) ou um novo. "Pode liberar tudo
+ * para o par": ele usa o app inteiro no Pessoal dele, sem compra própria.
+ */
+export async function garantirPessoalDoPar(userId: string, tx: Pick<typeof prisma, "financialProfile"> = prisma): Promise<{ id: string; criado: boolean }> {
+  const pessoal = await tx.financialProfile.findFirst({ where: { userId, kind: "PESSOAL" }, orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }], select: { id: true } });
+  if (pessoal) return { id: pessoal.id, criado: false };
+  const temAlgum = await tx.financialProfile.findFirst({ where: { userId, isDefault: true }, select: { id: true } });
+  const novo = await tx.financialProfile.create({ data: { userId, name: "Pessoal", kind: "PESSOAL", icon: "wallet", theme: "padrao", isDefault: !temAlgum }, select: { id: true } });
+  return { id: novo.id, criado: true };
 }

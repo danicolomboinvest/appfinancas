@@ -115,7 +115,8 @@ export async function getOrCreateActiveProfile(userId: string): Promise<ProfileR
     // vale pelo vínculo, não pela compra). Sem esta trava, qualquer rotina que passasse por aqui
     // (alertas, resumo do mês, widget) criava um Pessoal grátis pra ele. O que volta é o Casal em
     // que ele é par; as consultas com o userId dele continuam vazias ali.
-    const comoPar = await tx.membroCasal.findFirst({ where: { userId, saiuEm: null }, select: { profile: { select: CAMPOS } } });
+    // Casal simples (13/10/2026): ali o par tem o Pessoal dele, e cai no create de baixo.
+    const comoPar = await tx.membroCasal.findFirst({ where: { userId, saiuEm: null, modelo: "nos-dois" }, select: { profile: { select: CAMPOS } } });
     if (comoPar) return { ...comoPar.profile, isDefault: true };
 
     return tx.financialProfile.create({ data: { userId, ...PERFIL_INICIAL }, select: CAMPOS });

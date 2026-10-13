@@ -11,6 +11,7 @@ import { compraComOCelular, contaConfirmada, situacaoDoAcesso, usoDoApp, type Us
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import { casaDaRequisicao, perfilAtivoDaRequisicao, sessaoDaRequisicao, type AccountContext } from "@/lib/auth/session";
 import { casaNaTela, type CasaNaTela } from "@/lib/casa/regras";
+import { parDeCasaSimples } from "@/lib/repositories/casa.repo";
 import type { ProfileKind } from "@prisma/client";
 import { MoneyProvider } from "@/components/money/MoneyProvider";
 import { valoresOcultos } from "@/lib/money-server";
@@ -84,12 +85,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     // sem perfil próprio. Se ele também comprou o SPI, os perfis dele aparecem junto na troca.
     const doPar = session.user.par === "em-uso" ? await perfilDoPar(ctx.userId) : null;
     modoPar = doPar ? { nomeTitular: doPar.par.nomeTitular } : null;
-    const [user, ativo, proprios, casalDoPar, casaDaConta] = await Promise.all([
+    const [user, ativo, proprios, casalDoPar, casaDaConta, parSimples] = await Promise.all([
       getOwnUser(ctx),
       doPar ? doPar.perfil : perfilAtivoDaRequisicao(ctx.userId),
       listProfiles(ctx.userId),
       doPar ? doPar.perfil : session.user.par === "fora" ? perfilDoParNaLista(ctx.userId) : null,
       session.user.casa ? casaDaRequisicao(ctx.userId) : null,
+      // Casal simples: quem é par usa o app inteiro, no Pessoal dele, sem compra própria.
+      session.user.casa && !doPar ? parDeCasaSimples(ctx.userId) : null,
     ]);
     casa = casaDaConta && casaDaConta.eu.profileId === ativo.id ? casaNaTela(casaDaConta) : null;
     const todos = casalDoPar ? [...proprios, casalDoPar] : proprios;
@@ -117,7 +120,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       // conta no banco, não o do token, que é o do dia do login.
       const acesso = acessoDaConta;
       uso = usoDoApp(acesso, user.createdAt);
-      if (uso === "bloqueado" && acesso !== "ativo") {
+      if (parSimples && acesso !== "ativo") {
+        // Casal simples (13/10/2026): "pode liberar tudo para o par, porque a pessoa já vai pagar
+        // a mais pelo casal". Vale enquanto o Casal da titular valer, com a mesma pausa de 90 dias
+        // do login do par. Quem tem compra própria nem passa por aqui.
+        const situacao = await situacaoDoParAgora(parSimples);
+        if (situacao.tipo !== "liberado") return <TelaDoParPausado nomeTitular={parSimples.nomeTitular} ate={situacao.tipo === "pausado" ? situacao.ate : null} simples />;
+        uso = "completo";
+      } else if (uso === "bloqueado" && acesso !== "ativo") {
         // No app da Apple, quem não tem acesso assina ali mesmo (guideline 3.1.1); a tela do
         // cadeado, que fala de compra feita fora, não pode aparecer lá.
         if (await naAppDaApple()) return <AssinarPelaApple token={await guardarTokenApple(user)} produtosIds={[...IDS_DOS_PRODUTOS]} />;
@@ -129,7 +139,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       // também manda de volta pra cá quem não confirmou. Admin sempre passa.
       // Exceção: quem assinou pela Apple a partir desta conta. A compra já prova que a conta é
       // dela, e o revisor da Apple, que assina no Sandbox, não abre e-mail de confirmação.
-      if (ctx.role !== "ADMIN" && !confirmada) return <TelaConfirmeEmail email={user.email} />;
+      // O par entrou pelo link do convite (que já provou quem é): não confirma e-mail.
+      if (ctx.role !== "ADMIN" && !confirmada && !parSimples) return <TelaConfirmeEmail email={user.email} />;
       // Primeira entrada: antes de ver qualquer tela, a pessoa escolhe o tipo e o tema do
       // perfil dela em /comecar. Uma vez só; quem já usava o app nasceu com a data preenchida.
       if (user.onboardedAt === null) redirect("/comecar");

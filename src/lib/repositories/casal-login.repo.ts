@@ -56,7 +56,8 @@ function nomeDaTitular(config: ConfigCasal, letraDoPar: "A" | "B", nomeDaConta: 
  */
 export async function perfilDoPar(userId: string): Promise<{ perfil: ProfileRow; par: ParNaSessao } | null> {
   const m = await prisma.membroCasal.findFirst({
-    where: { userId, saiuEm: null, emUso: true },
+    // Casal simples: a casa migrada não abre o Nós dois (o par está no Pessoal dele).
+    where: { userId, saiuEm: null, emUso: true, modelo: "nos-dois" },
     select: { id: true, letra: true, bloqueadoEm: true, profile: { select: { ...CAMPOS_DO_PERFIL, userId: true, user: { select: { name: true, email: true } } } } },
   });
   if (!m || m.profile.kind !== "CASAL") return null;
@@ -77,7 +78,7 @@ export async function perfilDoPar(userId: string): Promise<{ perfil: ProfileRow;
  */
 export async function perfilDoParNaLista(userId: string): Promise<ProfileRow | null> {
   const m = await prisma.membroCasal.findFirst({
-    where: { userId, saiuEm: null },
+    where: { userId, saiuEm: null, modelo: "nos-dois" },
     select: { letra: true, profile: { select: { ...CAMPOS_DO_PERFIL, user: { select: { name: true, email: true } } } } },
   });
   if (!m || m.profile.kind !== "CASAL") return null;
