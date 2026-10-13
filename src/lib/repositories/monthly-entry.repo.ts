@@ -55,6 +55,8 @@ export type MonthlyEntryInput = {
   /** Limite do cartão: true = no cartão de crédito, false = não, null = limpa (deixou de ser
    * gasto), undefined = não mexe. Ver lib/cartao/limite.ts. */
   noCartao?: boolean | null;
+  /** Empresa: o cliente da venda. null limpa, undefined não mexe. */
+  cliente?: string | null;
 };
 
 /**

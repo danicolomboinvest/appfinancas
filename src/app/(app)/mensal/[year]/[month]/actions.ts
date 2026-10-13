@@ -197,6 +197,9 @@ export async function updateMonthlyEntryAction(
   if (trocouDePerfil(formData.get("profileId"), ctx.profileId)) return { error: MSG_TROCOU_DE_PERFIL };
   const entry = await toEntryInput(parsed.data);
   if ("error" in entry) return entry;
+  // Empresa: o cliente da venda (só vem quando a folha mostra o campo; vazio limpa).
+  const cliente = formData.get("cliente");
+  if (typeof cliente === "string" && entry.category === "INCOME") entry.cliente = cliente.trim().slice(0, 80) || null;
   // Gasto importado que ela põe em outra categoria-mãe ensina o app (ver padroesDaCorrecao).
   // O "antes" é lido antes de salvar: é ele que diz se a categoria mudou e qual era a descrição
   // do extrato (ela pode ter renomeado a linha, e o próximo extrato vem com o nome do banco).

@@ -58,6 +58,7 @@ export function linhasDaLista(entries: Linha[], ocultos: boolean, quem?: QuemLe,
     pessoa: entry.pessoa,
     doCasal: entry.doCasal,
     noCartao: ehDoCartao(entry),
+    cliente: entry.cliente,
     ...(entry.originalCurrency && entry.originalAmount !== null && isCurrencyCode(entry.originalCurrency)
       ? {
           // O olho do topo fechado esconde também o valor na moeda de origem.

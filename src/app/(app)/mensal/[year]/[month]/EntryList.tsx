@@ -71,6 +71,8 @@ export type ListEntry = {
   daCasa?: boolean | null;
   escondido?: boolean;
   soMeu?: boolean;
+  /** Empresa: o cliente da venda (edita na folha; entra nos Maiores clientes). */
+  cliente?: string | null;
 };
 
 
@@ -213,7 +215,7 @@ export function EntryList({
   // lista diz ("Ver mais", "Remover", os avisos de excluído/restaurado); o tipo do perfil,
   // como cada categoria-mãe se chama (numa Empresa, MORADIA é "Estrutura").
   // `categorias`: o tipo do perfil com o nome, o ícone e as escondidas que ela escolheu.
-  const { key: tema, voz, categorias: kind, nomesDoCasal, casa } = useProfileTheme();
+  const { key: tema, voz, categorias: kind, nomesDoCasal, casa, empresa } = useProfileTheme();
   // Casal simples: o gasto do par aparece, mas só quem gastou edita ou apaga.
   const doOutro = (e: ListEntry) => Boolean(casa) && e.dono === "outro";
   const t = voz.titulos;
@@ -910,6 +912,7 @@ export function EntryList({
             defaultPessoa={editing.pessoa}
             defaultDoCasal={editing.doCasal}
             defaultNoCartao={editing.noCartao}
+            defaultCliente={empresa && editing.category === "INCOME" ? (editing.cliente ?? "") : undefined}
           />
         )}
       </Modal>

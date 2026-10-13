@@ -56,6 +56,7 @@ export function EntryForm({
   defaultPessoa,
   defaultDoCasal,
   defaultNoCartao,
+  defaultCliente,
 }: {
   year: number;
   month: number;
@@ -94,6 +95,8 @@ export function EntryForm({
   defaultDoCasal?: boolean | null;
   /** Edição: o gasto conta no limite do cartão (marcado ou linha de fatura). */
   defaultNoCartao?: boolean;
+  /** Empresa, editando uma venda: o cliente ("" = sem nome). Ausente: o campo nem aparece e nada muda. */
+  defaultCliente?: string;
 }) {
   const isEditing = Boolean(entryId);
   const [state, formAction, isPending] = useActionState(
@@ -219,6 +222,9 @@ export function EntryForm({
         onTipoChange={setTipo}
       />
       <CasalFields tipo={tipo} defaultPessoa={defaultPessoa} defaultDoCasal={defaultDoCasal} />
+      {defaultCliente !== undefined && tipo === "INCOME" && (
+        <Field label="Cliente" id="cliente" name="cliente" defaultValue={defaultCliente} placeholder="Sem nome" maxLength={80} className={stacked ? "w-full" : ""} />
+      )}
       {/* Só para quem montou um limite do cartão no Orçamento (é opcional, 06/10/2026). Sem o
           botão, o campo nem vai e o que o gasto já era fica como estava. */}
       {cartaoComLimite && tipo === "EXPENSE" && (
