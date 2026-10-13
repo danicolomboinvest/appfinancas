@@ -19,6 +19,7 @@ import { marcasQueMaisLevam, type GastoDeMarca } from "@/lib/money-reset/marcas-
 import { normalizarDescricao } from "@/lib/marcas/marca";
 import { carregarFoco } from "@/app/(app)/mensal/foco/dados";
 import { getOwnUser } from "@/lib/repositories/user.repo";
+import { getRendaMedia } from "@/lib/repositories/renda-media.repo";
 
 /**
  * Os números de cada missão do Money Reset, com os dados DELA, e as marcas que ela paga (o logo
@@ -47,6 +48,17 @@ function media(entradas: Entrada[], filtro: (e: Entrada) => boolean) {
   return { valor: total / meses, meses };
 }
 
+/**
+ * Quanto entra por mês: a média dos últimos 12 meses fechados com entrada (a regra do app
+ * inteiro, renda-media.ts). Só quem ainda não tem nenhum mês fechado com entrada fica com a
+ * conta das entradas que a missão já leu (o mês corrente, para quem acabou de subir o extrato).
+ */
+async function quantoEntra(ctx: AuthContext, e: Entrada[]): Promise<{ valor: number; meses: number }> {
+  const r = await getRendaMedia(ctx);
+  if (r) return r;
+  return media(e, (x) => x.category === "INCOME");
+}
+
 const gastos = (e: Entrada[]) => e.filter((x) => x.category === "EXPENSE");
 const comMarca = (e: Entrada[]) => gastos(e).map((x) => ({ description: x.description, amount: Number(x.amount), year: x.year, month: x.month, parentCategory: x.parentCategory }));
 
@@ -59,7 +71,7 @@ const HABITOS_DE_APP = new Set(["ifood", "uber eats", "99 food", "rappi", "uber"
 export type ItemDoRaioX = { chave: string; nome: string; mensal: number; anual: number; meses: number; tipo: "assinatura" | "habito"; vezesPorMes: number };
 
 export type DadosDoMarco =
-  | { n: 1; meses: number; entra: number; sai: number; marcas: GastoDeMarca[] }
+  | { n: 1; meses: number; entra: number; entraMeses: number; sai: number; marcas: GastoDeMarca[] }
   | { n: 2; fatura: { total: number; marcas: GastoDeMarca[]; quando: string } | null; parcelasFuturas: number }
   | { n: 3; itens: ItemDoRaioX[]; decididos: Record<string, EscolhaDoRaioX> }
   | { n: 4; fixas: { chave: string; nome: string; mensal: number }[]; parcelas: number }
@@ -91,7 +103,8 @@ export async function carregarDadosDoMarco(ctx: AuthContext, n: number, extras: 
       let e = await tres();
       if (e.length === 0) e = await listEntriesForMonths(ctx, [{ year: ano, month: mes }]);
       const meses = mesesCom(e);
-      return { n: 1, meses, entra: media(e, (x) => x.category === "INCOME").valor, sai: media(e, (x) => x.category === "EXPENSE").valor, marcas: marcasQueMaisLevam(comMarca(e), meses, 5) };
+      const entra = await quantoEntra(ctx, e);
+      return { n: 1, meses, entra: entra.valor, entraMeses: entra.meses, sai: media(e, (x) => x.category === "EXPENSE").valor, marcas: marcasQueMaisLevam(comMarca(e), meses, 5) };
     }
     case 2: {
       const lote = await prisma.importBatch.findFirst({ where: { ...dono, docType: "fatura" }, orderBy: { createdAt: "desc" }, select: { id: true, createdAt: true } });
@@ -139,7 +152,7 @@ export async function carregarDadosDoMarco(ctx: AuthContext, n: number, extras: 
     }
     case 5: {
       const e = await tres();
-      const renda = media(e, (x) => x.category === "INCOME").valor;
+      const renda = (await quantoEntra(ctx, e)).valor;
       const categorias = PARENT_CATEGORIES.filter((c) => courseShareOf(c, ctx.profileKind) > 0)
         .map((cat) => {
           const valor = media(e, (x) => x.category === "EXPENSE" && x.parentCategory === cat).valor;
@@ -154,7 +167,7 @@ export async function carregarDadosDoMarco(ctx: AuthContext, n: number, extras: 
     case 7: {
       const e = await tres();
       const sai = media(e, (x) => x.category === "EXPENSE").valor;
-      const entra = media(e, (x) => x.category === "INCOME").valor;
+      const entra = (await quantoEntra(ctx, e)).valor;
       return { n: 7, sai, pctDaRenda: entra > 0 ? sai / entra : null, fixas: extras.fixasTotal ?? null, marcas: marcasQueMaisLevam(comMarca(e), mesesCom(e), 4) };
     }
     case 9: {
