@@ -11,7 +11,8 @@ import { comercianteDe, ehParcela, type LancamentoParaCacar } from "@/lib/dinhei
  * condomínio, plano de saúde, escola, academia, contabilidade, seguro, boleto mensal de prestador)
  * e devolve com valor e dia deduzidos do histórico. Quem grava é o repositório.
  *
- * Não é conta: parcela (qualquer N/T), Pix para pessoa (salvo aluguel e condomínio escritos),
+ * Não é conta: parcela (qualquer N/T), Pix para pessoa (salvo aluguel e condomínio escritos, ou o
+ * Pix que ela mesma pôs em Moradia),
  * investimento, fatura do cartão, compra do dia a dia (mercado, delivery, Uber), tarifa do banco e
  * assinatura digital (Netflix, Spotify: elas já aparecem em "Assinaturas" na mesma tela).
  *
@@ -213,6 +214,10 @@ function candidato(l: LancamentoParaCacar): Candidato | null {
   const tipo = tipoDoLancamento(l);
   if (!tipo && DIA_A_DIA.test(t)) return null;
   const pessoa = CPF.test(l.descricao);
+  // Pix para pessoa que ELA pôs em Moradia (13/10/2026, o Pix pro pai): a categoria dela vence o
+  // "parece transferência". Se repetir todo mês com o mesmo valor, é o aluguel (o nome fica
+  // "Aluguel", nunca o nome de quem recebe). Pix avulso não passa das regras de conta mais abaixo.
+  if (!tipo && l.categoria === "MORADIA" && (pessoa || TRANSFERENCIA.test(t))) return { ...l, tipoDaConta: "aluguel", pessoa: true };
   // Pix para pessoa: só aluguel e condomínio escritos no extrato ou na subcategoria contam.
   if (pessoa && tipo !== "aluguel" && tipo !== "condominio") return null;
   // Pix ou TED para quem não é conta conhecida: transferência, não conta.

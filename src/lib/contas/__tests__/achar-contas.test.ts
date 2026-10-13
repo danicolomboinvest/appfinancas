@@ -55,6 +55,19 @@ describe("acha as contas no histórico", () => {
     expect(r[0]).toMatchObject({ nome: "Aluguel", tipo: "aluguel", valor: 2500, dia: 5, categoria: "MORADIA" });
   });
 
+  it("Pix pro pai que ela pôs em Moradia, todo mês igual, vira a conta Aluguel (a categoria dela vence)", () => {
+    const r = acharContas(todoMes("13h52 Transferência Pix enviado Ricardo Souza Lima", [1500, 1500, 1500], 7, { categoria: "MORADIA" }));
+    expect(r).toHaveLength(1);
+    expect(r[0]).toMatchObject({ nome: "Aluguel", tipo: "aluguel", valor: 1500, dia: 7, categoria: "MORADIA" });
+    // Com CPF mascarado, igual.
+    expect(acharContas(todoMes("Pix enviado - Joao Lima - •••.123.456-••", [900, 900], 5, { categoria: "MORADIA" }))).toHaveLength(1);
+  });
+
+  it("Pix pra pessoa em Moradia, mas avulso (valores soltos), não vira conta; sem categoria continua fora", () => {
+    expect(acharContas([l("Transferência Pix enviado Ricardo Souza Lima", 227, "2026-01-07", { categoria: "MORADIA" }), l("Transferência Pix enviado Ricardo Souza Lima", 2474, "2026-03-02", { categoria: "MORADIA" }), l("Transferência Pix enviado Ricardo Souza Lima", 6165, "2026-05-04", { categoria: "MORADIA" })])).toHaveLength(0);
+    expect(acharContas(todoMes("13h52 Transferência Pix enviado Ricardo Souza Lima", [1500, 1500, 1500], 7))).toHaveLength(0);
+  });
+
   it("mercado, iFood e fatura do cartão não viram conta", () => {
     const r = acharContas([
       ...todoMes("SUPERMERCADO DIA A DIA", [300, 300, 300, 300], 3, { categoria: "ALIMENTACAO" }),
