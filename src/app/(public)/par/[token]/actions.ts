@@ -10,7 +10,6 @@ import { aceitarConvite, tentativaNaPaginaDoConvite } from "@/lib/repositories/c
 import { chaveDaOrigem } from "@/lib/casal-login/limite";
 import { limparToken } from "@/lib/casal-login/token";
 import { TERMOS_DO_PAR_VERSAO, type TelaDoConvite } from "@/lib/casal-login/regras";
-import { CASA_DO_PAR } from "@/lib/casal-login/rotas-do-par";
 
 /**
  * As três portas do link do convite: criar o login (e-mail e senha), entrar com a conta que já
@@ -22,7 +21,9 @@ import { CASA_DO_PAR } from "@/lib/casal-login/rotas-do-par";
 
 export type EstadoDoFormulario = { erro?: string; tela?: TelaDoConvite | "email-em-uso" | "limite"; valores?: { nome?: string; email?: string } };
 
-const DESTINO = `${CASA_DO_PAR}?entrou=1`;
+// Casal simples: o convite novo nasce simples e o par cai no Resumo dele (o Nós dois de antes
+// manda para a casa dele pelo proxy).
+const DESTINO = "/mensal/foco?entrou=1";
 
 async function cabe(): Promise<boolean> {
   const h = await headers();

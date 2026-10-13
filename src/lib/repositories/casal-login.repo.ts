@@ -22,6 +22,7 @@ import { temAdicional } from "@/lib/casal-login/adicional";
 import { lerConfigCasal, type ConfigCasal } from "@/lib/casal/acerto";
 import { normalizeEmail, situacaoDoAcesso } from "@/lib/repositories/allowedEmail.repo";
 import type { ProfileRow } from "@/lib/repositories/profile.repo";
+import { garantirPessoalDoPar } from "@/lib/repositories/casa.repo";
 
 /**
  * Login do par no Nós dois (aprovado pela dona em 11/10/2026, casal-login-proposta.html).
@@ -354,6 +355,10 @@ export async function aceitarConvite(
         data: { status: "aceito", aceitoEm: agora, aceitoPorId: id },
       });
       if (virou.count !== 1) throw new ErroDeAceite("usado");
+      // Casal simples (decisão de 13/10/2026): o convite novo já nasce no modelo simples. Cada um
+      // no próprio Pessoal: o do par (o que ele já tem, ou um novo) e o da titular.
+      const perfilPar = await garantirPessoalDoPar(id!, tx);
+      const perfilTitular = await garantirPessoalDaTitular(tx, c.userId, c.profileId);
       await tx.membroCasal.create({
         data: {
           profileId: c.profileId,
@@ -363,6 +368,9 @@ export async function aceitarConvite(
           termosVersao: entrada.termosVersao ?? TERMOS_DO_PAR_VERSAO,
           termosAceitosEm: agora,
           conviteId: c.id,
+          modelo: "simples",
+          perfilTitularId: perfilTitular,
+          perfilParId: perfilPar.id,
         },
       });
       // Quem já tinha conta e nunca passou pelo começo não é mandado pra lá: cai no Nós dois.
@@ -393,6 +401,20 @@ export async function aceitarConvite(
     }
     throw e;
   }
+}
+
+/**
+ * O Pessoal da titular na casa nova. O perfil Casal de onde saiu o convite some do menu (fase 6):
+ * se era ele o aberto, o Pessoal passa a ser.
+ */
+async function garantirPessoalDaTitular(tx: Prisma.TransactionClient, titularId: string, casalId: string): Promise<string> {
+  const { id } = await garantirPessoalDoPar(titularId, tx);
+  const casal = await tx.financialProfile.findUnique({ where: { id: casalId }, select: { isDefault: true } });
+  if (casal?.isDefault) {
+    await tx.financialProfile.updateMany({ where: { userId: titularId, isDefault: true }, data: { isDefault: false } });
+    await tx.financialProfile.update({ where: { id }, data: { isDefault: true } });
+  }
+  return id;
 }
 
 class ErroDeAceite extends Error {

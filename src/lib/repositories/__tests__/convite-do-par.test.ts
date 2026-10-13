@@ -16,7 +16,7 @@ const db = vi.hoisted(() => ({
   convites: [] as Convite[],
   membros: [] as Membro[],
   usuarios: [] as Usuario[],
-  perfis: [] as { id: string; userId: string; kind: string; casal: unknown; theme: string }[],
+  perfis: [] as { id: string; userId: string; kind: string; casal: unknown; theme: string; isDefault?: boolean }[],
   seq: 0,
   limiteEstourado: false,
   acesso: "ativo" as string,
@@ -98,7 +98,18 @@ vi.mock("@/lib/db/prisma", async () => {
     },
   };
   const financialProfile = {
-    findFirst: async ({ where }: { where: Record<string, unknown> }) => db.perfis.find((p) => p.id === where.id && p.userId === where.userId) ?? null,
+    findFirst: async ({ where }: { where: Record<string, unknown> }) =>
+      db.perfis.find((p) => Object.entries(where).every(([k, v]) => (p as Record<string, unknown>)[k] === v || (k === "isDefault" && v === false && !(p as Record<string, unknown>)[k]))) ?? null,
+    create: async ({ data }: { data: Record<string, unknown> }) => {
+      const p = { id: `perfil${++db.seq}`, casal: null, theme: "padrao", ...data } as (typeof db.perfis)[number];
+      db.perfis.push(p);
+      return { id: p.id };
+    },
+    updateMany: async ({ where, data }: { where: Record<string, unknown>; data: Record<string, unknown> }) => {
+      const alvo = db.perfis.filter((p) => Object.entries(where).every(([k, v]) => (p as Record<string, unknown>)[k] === v));
+      alvo.forEach((p) => Object.assign(p, data));
+      return { count: alvo.length };
+    },
     findUnique: async ({ where }: { where: { id: string } }) => perfilDe(where.id),
     update: async ({ where, data }: { where: { id: string }; data: { casal: unknown } }) => Object.assign(db.perfis.find((p) => p.id === where.id)!, data),
   };
@@ -197,6 +208,16 @@ describe("aceitar: uso único, prazo e cada caso de borda", () => {
     expect(db.convites[0]).toMatchObject({ status: "aceito", aceitoPorId: u.id });
     // O nome de fábrica "Pessoa 2" vira o nome do convite.
     expect((db.perfis[0].casal as { nomeB: string }).nomeB).toBe("Lucas");
+  });
+
+  it("o convite novo já nasce no Casal simples: Pessoal do par criado e o da titular ligado", async () => {
+    const { token } = await criarConvite(ANA_CTX, "Lucas", AGORA);
+    expect((await aceitarConvite({ token, novaConta: lucas }, AGORA)).ok).toBe(true);
+    const u = db.usuarios.find((x) => x.email === "lucas@exemplo.test")!;
+    const pessoalDoLucas = db.perfis.find((p) => p.userId === u.id && p.kind === "PESSOAL");
+    const pessoalDaAna = db.perfis.find((p) => p.userId === "ana" && p.kind === "PESSOAL");
+    expect(pessoalDoLucas?.isDefault).toBe(true);
+    expect(db.membros[0]).toMatchObject({ modelo: "simples", perfilParId: pessoalDoLucas!.id, perfilTitularId: pessoalDaAna!.id });
   });
 
   it("o mesmo link não entra duas vezes", async () => {

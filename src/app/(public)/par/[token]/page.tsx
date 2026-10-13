@@ -6,7 +6,6 @@ import { profileThemeCss } from "@/lib/profiles/themes";
 import { coresDoCasalCss } from "@/lib/casal-login/cores";
 import { limparToken, tokenTemFormato } from "@/lib/casal-login/token";
 import { chaveDaOrigem } from "@/lib/casal-login/limite";
-import { CASA_DO_PAR } from "@/lib/casal-login/rotas-do-par";
 import { lerConviteParaTela, tentativaNaPaginaDoConvite } from "@/lib/repositories/casal-login.repo";
 import { TelaDoConvite } from "@/components/casal-login/TelaDoConvite";
 
@@ -47,7 +46,7 @@ export default async function ConviteDoParPage({ params }: { params: Promise<{ t
   const cabe = tokenTemFormato(token) ? true : await tentativaNaPaginaDoConvite(chave);
 
   const dados = await lerConviteParaTela(token, session?.user?.id ?? null);
-  if (dados.tela === "ja-esta-aqui") redirect(CASA_DO_PAR);
+  if (dados.tela === "ja-esta-aqui") redirect("/mensal/foco");
   const tela = !cabe ? "limite" : dados.tela;
 
   return (
