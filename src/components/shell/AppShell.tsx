@@ -18,6 +18,7 @@ import { BotaoRegistrar } from "./BotaoRegistrar";
 import { ComoFuncionaSheet } from "./ComoFuncionaSheet";
 import { PerfilSheet } from "./PerfilSheet";
 import { TourDasNovidades } from "./TourDasNovidades";
+import { TutorialDoCasalNoApp } from "@/components/casa/TutorialDoCasalNoApp";
 import type { EstadoDasNovidades } from "@/lib/novidades/passos";
 import { GuiaDoReset } from "@/components/money-reset/GuiaDoReset";
 import { InstallAppBanner } from "./InstallAppBanner";
@@ -53,6 +54,7 @@ export function AppShell({
   nomesDoCasal = null,
   cartaoComLimite = false,
   casa = null,
+  tutorialDoCasalVisto = true,
   nomeDaConta = null,
   fotoDaConta = null,
   modoPar = null,
@@ -74,6 +76,8 @@ export function AppShell({
   nomesDoCasal?: { A: string; B: string; comPar?: boolean } | null;
   /** Casal simples: eu e o par (bolinha, filtros, Só meu). */
   casa?: CasaNaTela | null;
+  /** Quem está logado já viu o "Como funciona o casal" (sem casa, não importa). */
+  tutorialDoCasalVisto?: boolean;
   /** O perfil montou um limite do cartão: o + mostra o "No cartão de crédito". */
   cartaoComLimite?: boolean;
   children: React.ReactNode;
@@ -269,6 +273,8 @@ export function AppShell({
             novo: o tour de boas-vindas, só na primeira entrada (lembrado no aparelho). O par, no
             Nós dois da titular, não vê nenhum dos dois. */}
         {!modoPar && novidades !== "novo" && <TourDasNovidades estado={novidades} onMenu={setMenuOpen} />}
+        {/* Casal simples: o "Como funciona o casal", sozinho uma vez e de novo pela Casa e pelo Como funciona. */}
+        {casa && <TutorialDoCasalNoApp casa={casa} visto={tutorialDoCasalVisto} novidades={modoPar ? "novo" : novidades} />}
         {/* O guia do Money Reset: só aparece quando uma missão liga (sessionStorage). */}
         <GuiaDoReset />
 

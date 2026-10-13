@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronRight, Landmark, LogOut, Scale, UserMinus } from "lucide-react";
+import { ChevronRight, CirclePlay, Landmark, LogOut, Scale, UserMinus } from "lucide-react";
+import { abrirTutorialDoCasal } from "@/components/casa/TutorialDoCasalNoApp";
 import { Modal } from "@/components/ui/Modal";
 import { Segmentado } from "@/components/ui/Interruptor";
 import { useToast } from "@/components/ui/toast-context";
@@ -34,6 +35,15 @@ export function ConfigDaCasa({ eu, outro, souTitular, divisao }: { eu: string; o
     <div className="mx-auto flex w-full max-w-xl flex-col gap-4" data-config-da-casa={souTitular ? "titular" : "par"}>
       <div className="flex flex-col items-center gap-2 pt-2">
         <ParDeAvatares titular={titular || "?"} par={par || "?"} size={64} />
+        <button
+          type="button"
+          onClick={abrirTutorialDoCasal}
+          data-como-funciona-casal
+          className="mt-1 inline-flex min-h-11 items-center gap-2 rounded-full bg-surface px-4 text-[15px] font-medium text-ink shadow-[inset_0_0_0_1px_var(--color-border-strong)]"
+        >
+          <CirclePlay size={17} strokeWidth={1.7} aria-hidden />
+          Como funciona
+        </button>
       </div>
 
       <section className={CARTAO}>

@@ -3,6 +3,8 @@ import { getOwnUser } from "@/lib/repositories/user.repo";
 import { estadoDasNovidades, jaUsava } from "@/lib/novidades/passos";
 import { VideosDoComoFunciona } from "@/components/ajuda/VideosDoComoFunciona";
 import { ManualDoApp } from "./ManualDoApp";
+import { AtalhoDoCasal } from "@/components/casa/AtalhoDoCasal";
+import { casaNaTela } from "@/lib/casa/regras";
 
 /**
  * Como funciona: os 5 vídeos narrados e o manual do app (as regras de importação, orçamento e
@@ -12,5 +14,16 @@ import { ManualDoApp } from "./ManualDoApp";
 export default async function GuiaPage() {
   const ctx = await getRequiredSession();
   const user = await getOwnUser(ctx);
-  return <ManualDoApp videos={<VideosDoComoFunciona verDeNovo={jaUsava(estadoDasNovidades(user.novidadesVersaoNova))} />} />;
+  const casa = casaNaTela(ctx.casa);
+  return (
+    <ManualDoApp
+      videos={
+        <>
+          {/* Casal simples: o "Como funciona o casal" antes dos vídeos. */}
+          {casa && <AtalhoDoCasal casa={casa} />}
+          <VideosDoComoFunciona verDeNovo={jaUsava(estadoDasNovidades(user.novidadesVersaoNova))} />
+        </>
+      }
+    />
+  );
 }

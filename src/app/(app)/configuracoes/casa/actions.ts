@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getRequiredSession } from "@/lib/auth/session";
-import { salvarNomesDaCasa } from "@/lib/repositories/casa.repo";
+import { marcarTutorialDoCasalVisto, salvarNomesDaCasa } from "@/lib/repositories/casa.repo";
 
 const limpo = (v: unknown) => String(v ?? "").replace(/\s+/g, " ").trim().slice(0, 30);
 
@@ -14,4 +14,10 @@ export async function salvarNomesDaCasaAction(nomeEu: string, nomeOutro: string)
   const ok = await salvarNomesDaCasa(ctx, eu, outro);
   revalidatePath("/", "layout");
   return { ok };
+}
+
+/** "Como funciona o casal" visto (terminou ou pulou): não abre mais sozinho para esta conta. */
+export async function marcarTutorialDoCasalVistoAction(): Promise<{ ok: boolean }> {
+  const ctx = await getRequiredSession();
+  return { ok: await marcarTutorialDoCasalVisto(ctx) };
 }
