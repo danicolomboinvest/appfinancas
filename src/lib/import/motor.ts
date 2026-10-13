@@ -1,7 +1,7 @@
 import type { ParentCategory } from "@prisma/client";
 import { categoriaDoBancoParaOApp } from "./categoria-do-banco";
 import { classifyDictionaryOnly, classifyLearnedOnly, textoDoDicionario, type Classification, type LearnedRule } from "./classify";
-import { categoriaNaFrenteDaDescricao } from "./comerciante";
+import { categoriaNaFrenteDaDescricao, ehLojaDeTudo } from "./comerciante";
 import { classificarPelaComunidade, perfilDaBase } from "./comunidade";
 import { pareceComida } from "./parece-comida";
 import { chaveDeIguais } from "./revisao-em-grupo";
@@ -19,6 +19,8 @@ import { chaveDeIguais } from "./revisao-em-grupo";
  *    média, entra separado com o porquê (parece-comida.ts).
  * 6. Nada: vira pergunta, agrupada por comerciante na tela.
  *
+ * Loja de tudo (Amazon, Mercado Livre, Mercado Pago, Shopee, Magalu): pula as seis e pergunta.
+ *
  * A personalizada da regra só vale se ainda existe no perfil (`personalizadas`): apagada, a regra
  * cai para a categoria-mãe de reserva.
  */
@@ -34,6 +36,8 @@ export function categorizarLinha(entrada: {
   personalizadas?: Set<string>;
 }): { classificacao: Classification; origem: OrigemDaCategoria } | null {
   const { descricao, regras, profileKind, gasto } = entrada;
+  // Loja de tudo (Amazon, Mercado Livre, Shopee): sempre pergunta, nem a regra dela decide (ver comerciante.ts).
+  if (ehLojaDeTudo(descricao)) return null;
   const dela = classifyLearnedOnly(descricao, regras);
   if (dela) {
     if (dela.customCategoryId && entrada.personalizadas && !entrada.personalizadas.has(dela.customCategoryId)) delete dela.customCategoryId;

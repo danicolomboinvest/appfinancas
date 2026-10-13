@@ -115,3 +115,33 @@ describe("aprender de verdade", () => {
     expect(motor(d, [antiga]).motivo).toBe("regra_sua");
   });
 });
+
+describe("loja de tudo: sempre pergunta (13/10/2026)", () => {
+  const CUIDADO = "cat-cuidado";
+  const regraDaAmazon: LearnedRule = { pattern: "amazon marketplace", parentCategory: "OUTROS", customCategoryId: CUIDADO };
+
+  it("Amazon e Mercado Pago com a regra antiga de Cuidado pessoal viram pergunta, não Cuidado pessoal", () => {
+    const personalizadas = new Set([CUIDADO]);
+    const r = categoriaDaLinha({ descricao: "Amazon Marketplace Cc (9/10)", regras: [regraDaAmazon], gasto: true, personalizadas });
+    expect(r).toMatchObject({ categoria: null, motivo: "pergunta" });
+    const mp = categoriaDaLinha({ descricao: "Mercado Pago (6/6)", regras: [{ pattern: "mercado pago", parentCategory: "OUTROS", customCategoryId: CUIDADO }], gasto: true, personalizadas });
+    expect(mp).toMatchObject({ categoria: null, motivo: "pergunta" });
+  });
+
+  it("nem a palavra de beleza nem a comunidade decidem pela loja de tudo", () => {
+    for (const d of ["AMAZON BEAUTY", "Shopee*modasana", "MERCADOLIVRE*3PRODUTOS", "Magalu Marketplace", "AliExpress", "Americanas.com", "AMZN Mktp BR", "Pg *Temu", "TIKTOK SHOP", "SHPP BRASIL INSTITUICAO PAG"]) {
+      expect(motor(d), d).toMatchObject({ categoria: null, motivo: "pergunta" });
+    }
+  });
+
+  it("o que não é loja de tudo segue: Shein é roupa, Amazon Prime é assinatura, a loja que passou pelo Mercado Pago tem nome", async () => {
+    const { ehLojaDeTudo } = await import("../comerciante");
+    expect(ehLojaDeTudo("Shein com")).toBe(false);
+    expect(ehLojaDeTudo("AMAZON PRIME CANAIS")).toBe(false);
+    expect(ehLojaDeTudo("Amazon Music")).toBe(false);
+    expect(ehLojaDeTudo("MERCADOPAGO*LOJAX")).toBe(false);
+    expect(ehLojaDeTudo("Amazonas Energia")).toBe(false);
+    expect(ehLojaDeTudo("Amazon Marketplace Cc (9/10)")).toBe(true);
+    expect(motor("Shein com").categoria).not.toBeNull();
+  });
+});
