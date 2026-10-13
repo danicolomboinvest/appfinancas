@@ -48,6 +48,13 @@ export type EntradaDaSemana = {
   renda: number | null;
   gastos: GastoDoDiaADia[];
   /**
+   * Ela já tinha algum lançamento no app antes desta semana começar? Só então a semana já foi
+   * "prometida" e o que chega depois com data de antes vai para a próxima. Conta nova (ou quem lançou
+   * tudo pela primeira vez agora) não tinha número nenhum para manter: tudo conta como de antes.
+   * Omitido = sim.
+   */
+  jaTinhaLancamento?: boolean;
+  /**
    * Quem fecha por mês e ainda não lançou nada: o app não sabe o que já saiu e supõe o ritmo do
    * plano. Sem isso, o dia 20 sem lançamento mostrava o mês inteiro como livre.
    */
@@ -105,11 +112,12 @@ export function semanaNoMes(dia: number, diasNoMes: number, diasAteDomingo: numb
 }
 
 /** Quando o gasto aconteceu para a conta da semana: antes dela, nela, ou chegou depois com data de antes. */
-function quando(g: GastoDoDiaADia, inicio: number): "antes" | "semana" | "depois" {
-  if (g.dia === null && g.importado) return g.entrouNoDia < inicio ? "antes" : "depois";
+function quando(g: GastoDoDiaADia, inicio: number, adiar: boolean): "antes" | "semana" | "depois" {
+  const depois = adiar ? "depois" : "antes";
+  if (g.dia === null && g.importado) return g.entrouNoDia < inicio ? "antes" : depois;
   const dia = g.dia ?? g.entrouNoDia;
   if (dia >= inicio) return "semana";
-  return g.entrouNoDia < inicio ? "antes" : "depois";
+  return g.entrouNoDia < inicio ? "antes" : depois;
 }
 
 export function semanaFixa(e: EntradaDaSemana): SemanaFixa {
@@ -136,7 +144,7 @@ export function semanaFixa(e: EntradaDaSemana): SemanaFixa {
   } else {
     for (const g of e.gastos) {
       if (!(g.valor > 0) && !(g.valor < 0)) continue;
-      const q = quando(g, inicio);
+      const q = quando(g, inicio, e.jaTinhaLancamento ?? true);
       if (q === "antes") gastoAntes += g.valor;
       else if (q === "semana") gasto += g.valor;
       else chegouDepois += g.valor;
@@ -191,6 +199,8 @@ export type ContasDoMes = {
   lancadas: number;
   /** Contas a pagar ainda não lançadas, além do que o planejado das fixas já reserva. */
   pendentes: number;
+  /** Quanto as contas a pagar ainda não lançadas somam (o que ainda vai sair, já separado). */
+  aPagar: number;
 };
 
 /**
@@ -224,7 +234,7 @@ export function contasDoMes(
   }
   const reservadas = Math.max(0, nasFixas - folga) + outras;
   const l = Math.max(0, lancadas);
-  return { total: fixas + l + reservadas, fixas, lancadas: l, pendentes: reservadas };
+  return { total: fixas + l + reservadas, fixas, lancadas: l, pendentes: reservadas, aPagar: nasFixas + outras };
 }
 
 const normalizar = (s: string) =>

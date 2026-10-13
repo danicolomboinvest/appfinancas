@@ -76,7 +76,7 @@ export function ComoChegamos({ livre, money, rendaSoOQueEntrou }: { livre: Livre
           {money(s.chegouDepois)} chegaram depois, com data de antes desta semana. Entram na conta da próxima.
         </p>
       )}
-      {livre.contas.pendentes >= 1 && <p className="text-[13px] text-ink-muted">Nas contas, {money(livre.contas.pendentes)} ainda vão sair: já estão separados.</p>}
+      {livre.contas.aPagar >= 1 && <p className="text-[13px] text-ink-muted">Nas contas, {money(livre.contas.aPagar)} ainda vão sair: já estão separados.</p>}
       <RendaQueVaria ligado={rendaSoOQueEntrou} />
       <p className="text-[12.5px] text-ink-muted">É o seu orçamento, não o saldo do banco. Compras no cartão contam no dia da compra.</p>
       <ReportarErro tela="Foco: para gastar nesta semana" regra="(renda − guardar − contas fixas e parcelas − dia a dia já gasto antes da semana) ÷ dias que faltam × dias da semana no mês; o valor fica fixo até domingo" />

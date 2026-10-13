@@ -19,7 +19,7 @@ function semana(extra: Partial<Exclude<FocoLivre, { tipo: "semOrcamento" }>> = {
     valor: 650,
     porSemana: 650,
     semana: SEMANA,
-    contas: { total: 0, fixas: 0, lancadas: 0, pendentes: 0 },
+    contas: { total: 0, fixas: 0, lancadas: 0, pendentes: 0, aPagar: 0 },
     guardar: null,
     renda: null,
     rendaFonte: null,

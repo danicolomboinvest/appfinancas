@@ -212,3 +212,15 @@ describe("o mesmo número em todo lugar", () => {
     expect(w.livre.valor).toBeGreaterThan(0);
   });
 });
+
+describe("conta nova que lançou o mês inteiro de uma vez", () => {
+  it("sem lançamento antes da semana, o que chegou agora com data de antes conta como de antes", () => {
+    const gastos = [gasto(900, 3, 14), gasto(200, 13)];
+    const usava = semana(montarFoco(outubro(14, { diaADia: { gastos, contasLancadas: 0, pendentes: [], jaTinhaLancamento: true } })));
+    const nova = semana(montarFoco(outubro(14, { diaADia: { gastos, contasLancadas: 0, pendentes: [], jaTinhaLancamento: false } })));
+    expect(usava.chegouDepois).toBe(900);
+    expect(nova.chegouDepois).toBe(0);
+    expect(nova.gastoAntes).toBe(900);
+    expect(nova.valor).toBeCloseTo(((2100 - 900) * 7) / 20, 6);
+  });
+});

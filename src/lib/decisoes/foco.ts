@@ -109,6 +109,8 @@ export type FocoEntrada = {
     contasLancadas: number;
     /** Contas a pagar do mês que ainda não apareceram nos lançamentos. */
     pendentes: ContaPendente[];
+    /** Já tinha lançamento no app antes desta semana (ver EntradaDaSemana.jaTinhaLancamento). */
+    jaTinhaLancamento?: boolean;
   };
   /** A renda que vale para o mês: a planejada, ou só o que já entrou. Null/omitido: vale o orçamento. */
   renda?: number | null;
@@ -337,6 +339,7 @@ export function montarFoco(e: FocoEntrada): FocoSaida {
       guardar: e.aportePlanejado,
       renda,
       gastos: diaADia.gastos,
+      jaTinhaLancamento: e.diaADia?.jaTinhaLancamento,
       estimativa: semDadoDoMes,
     });
     const restante = Math.max(0, semana.sobraDoMes);

@@ -78,7 +78,9 @@ export async function carregarFoco(ctx: AuthContext) {
   const semana = chaveDaSemana(now);
 
   const inicioDoMes = new Date(Date.UTC(year, month - 1, 1, 3));
-  const [user, budgets, spentByParent, spentByCustom, customCategories, summary, plan, goals, fund, lastExpense, tetos, pendentes, ritualFeito, fechamentoDoMesAnterior, raiox, gastosReais, preCriados, cancelamentos, viradaFeita, lancamentosAnoPassado, paraRevisar, dispensados, gastosDoMes, orcamentoMesAnterior, linhasDoMes, contasDaLista, ultimoCartao, rendaConta] =
+  // Meia-noite (Brasília) da segunda desta semana, ou do dia 1 se a semana começou no mês passado.
+  const inicioDaSemana = new Date(Date.UTC(year, month - 1, Math.max(1, dia - diaDaSemana(now).indice), 3));
+  const [user, budgets, spentByParent, spentByCustom, customCategories, summary, plan, goals, fund, lastExpense, tetos, pendentes, ritualFeito, fechamentoDoMesAnterior, raiox, gastosReais, preCriados, cancelamentos, viradaFeita, lancamentosAnoPassado, paraRevisar, dispensados, gastosDoMes, orcamentoMesAnterior, linhasDoMes, contasDaLista, ultimoCartao, rendaConta, lancamentoAntesDaSemana] =
     await Promise.all([
       getOwnUser(ctx),
       listBudgets(ctx, year, month),
@@ -147,6 +149,11 @@ export async function carregarFoco(ctx: AuthContext) {
       }),
       // "Minha renda varia: conto só o que já entrou" (regra A): a escolha dela, por perfil.
       lerDecisao(ctx, "renda_da_semana", "renda"),
+      // Já usava o app antes desta semana? (Conta nova que lançou tudo agora não tinha semana prometida.)
+      prisma.monthlyEntry.findFirst({
+        where: comFiltro(lancamentosDosTotais(ctx), { category: "EXPENSE", createdAt: { lt: inicioDaSemana } }),
+        select: { id: true },
+      }),
     ]);
   const fechamento = fechamentoDoMesAnterior;
   const ritmo = lerRitmo(user.ritmoAcompanhamento);
@@ -256,10 +263,12 @@ export async function carregarFoco(ctx: AuthContext) {
   for (const g of linhasDoMes) {
     const valor = Number(g.amount);
     const chave = g.customCategoryId ?? (g.parentCategory as string | null);
-    if (chave && fixasComOrcamento.has(chave)) continue; // já está no planejado inteiro da fixa
+    // Primeiro reconhece a conta da lista que este lançamento paga (o "Curso de inglês" lançado no
+    // dia 2 com vencimento no dia 20 não fica reservado de novo), inclusive nas categorias fixas.
     const doLancamento = { descricao: g.description, subcategoria: g.subcategory, valor, categoria: (g.parentCategory as string | null) ?? null };
-    const daLista = lista.findIndex((c) => lancamentoDaConta(doLancamento, c));
+    const daLista = lista.findIndex((c, i) => !contaPaga.has(i) && lancamentoDaConta(doLancamento, c));
     if (daLista >= 0) contaPaga.add(daLista);
+    if (chave && fixasComOrcamento.has(chave)) continue; // já está no planejado inteiro da fixa
     const ehConta =
       daLista >= 0 ||
       g.createdAt < inicioDoMes ||
@@ -322,7 +331,7 @@ export async function carregarFoco(ctx: AuthContext) {
     hrefMes,
     tetos: tetosDoFoco,
     dispensados,
-    diaADia: { gastos: gastosDoDiaADia, contasLancadas, pendentes: contasPendentes },
+    diaADia: { gastos: gastosDoDiaADia, contasLancadas, pendentes: contasPendentes, jaTinhaLancamento: lancamentoAntesDaSemana !== null },
     renda,
     rendaFonte: renda === null ? null : rendaSoOQueEntrou ? "entrou" : "plano",
     raiox: naoDecididos.length > 0 ? { n: naoDecididos.length, anual: naoDecididos.reduce((s, i) => s + i.anual, 0) } : null,
