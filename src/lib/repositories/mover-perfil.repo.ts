@@ -125,6 +125,22 @@ export async function moverLancamentos(
   const regras = regrasDoDestino.map((r) => ({ pattern: r.pattern, parentCategory: r.parentCategory, subcategory: r.subcategory ?? undefined, customCategoryId: r.customCategoryId ?? undefined }));
   const saem = camposQueSaem(destino.kind);
 
+  // Como era ANTES de mover: é o que o Desfazer devolve.
+  const antes: LinhaMovida[] = vao.map((l) => ({
+    id: l.id,
+    parentCategory: l.parentCategory,
+    customCategoryId: l.customCategoryId,
+    subcategory: l.subcategory,
+    goalId: l.goalId,
+    pessoa: l.pessoa,
+    doCasal: l.doCasal,
+    soMeu: l.soMeu,
+    cliente: l.cliente,
+    formaDeRecebimento: l.formaDeRecebimento,
+    recebeEm: iso(l.recebeEm),
+    recebidoEm: iso(l.recebidoEm),
+  }));
+
   await prisma.$transaction(
     vao.map((l) => {
       const categoria = categoriaNoDestino({
@@ -167,20 +183,7 @@ export async function moverLancamentos(
     desfazer: {
       destinoId: destino.id,
       regras: regrasNovas,
-      linhas: vao.map((l) => ({
-        id: l.id,
-        parentCategory: l.parentCategory,
-        customCategoryId: l.customCategoryId,
-        subcategory: l.subcategory,
-        goalId: l.goalId,
-        pessoa: l.pessoa,
-        doCasal: l.doCasal,
-        soMeu: l.soMeu,
-        cliente: l.cliente,
-        formaDeRecebimento: l.formaDeRecebimento,
-        recebeEm: iso(l.recebeEm),
-        recebidoEm: iso(l.recebidoEm),
-      })),
+      linhas: antes,
     },
   };
 }
