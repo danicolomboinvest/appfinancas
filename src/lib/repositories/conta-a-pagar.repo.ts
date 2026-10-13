@@ -49,15 +49,18 @@ function paraTela(c: Linha): ContaDaTela {
   };
 }
 
+/** Só contas: a assinatura posta à mão (tipo "assinatura") mora em Assinaturas. */
+export const SO_CONTAS = { OR: [{ tipo: null }, { tipo: { not: "assinatura" } }] };
+
 /** As contas em aberto do perfil, da que vence primeiro. As quitadas não voltam. */
 export async function listarContasAPagar(ctx: AuthContext): Promise<ContaDaTela[]> {
-  const contas = await prisma.contaAPagar.findMany({ where: { ...doDono(ctx), quitada: false }, orderBy: [{ vencimento: "asc" }, { nome: "asc" }] });
+  const contas = await prisma.contaAPagar.findMany({ where: { ...doDono(ctx), quitada: false, ...SO_CONTAS }, orderBy: [{ vencimento: "asc" }, { nome: "asc" }] });
   return contas.map(paraTela);
 }
 
 /** As últimas que ela pagou e não repetem (pra desfazer um "paguei" sem querer). */
 export async function listarQuitadasRecentes(ctx: AuthContext, limite = 5): Promise<ContaDaTela[]> {
-  const contas = await prisma.contaAPagar.findMany({ where: { ...doDono(ctx), quitada: true }, orderBy: { pagaEm: "desc" }, take: limite });
+  const contas = await prisma.contaAPagar.findMany({ where: { ...doDono(ctx), quitada: true, ...SO_CONTAS }, orderBy: { pagaEm: "desc" }, take: limite });
   return contas.map(paraTela);
 }
 
