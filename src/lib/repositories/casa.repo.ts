@@ -35,6 +35,7 @@ export async function casaDoUsuario(userId: string): Promise<CasaNaSessao | null
       perfilTitularId: true,
       perfilParId: true,
       bloqueadoEm: true,
+      migradoEm: true,
       user: { select: { name: true, email: true } },
       profile: { select: { userId: true, casal: true, user: { select: { name: true, email: true } } } },
     },
@@ -58,6 +59,8 @@ export async function casaDoUsuario(userId: string): Promise<CasaNaSessao | null
     eu: souPar ? par : titular,
     outro: souPar ? titular : par,
     tutorialVisto: (config.tutorialVisto ?? []).includes(userId),
+    migrada: m.migradoEm !== null,
+    avisoMigracaoVisto: (config.avisoMigracaoVisto ?? []).includes(userId),
   };
 }
 
@@ -366,6 +369,24 @@ export async function marcarTutorialDoCasalVisto(ctx: AuthContext): Promise<bool
   const config = await lerConfig(casa.casalProfileId);
   if (config.tutorialVisto?.includes(ctx.userId)) return true;
   await prisma.financialProfile.update({ where: { id: casa.casalProfileId }, data: { casal: { ...config, tutorialVisto: comVisto(config.tutorialVisto, ctx.userId) } } });
+  return true;
+}
+
+/**
+ * "O casal ficou mais simples" visto por quem está logado, guardado no mesmo lugar do tutorial
+ * (o perfil Casal da titular, pelo id da conta). No "Agora não" o tutorial também fica como
+ * visto, para não abrir sozinho logo depois; no "Ver como funciona" quem marca é o tutorial.
+ */
+export async function marcarAvisoDaMigracaoVisto(ctx: AuthContext, tambemOTutorial: boolean): Promise<boolean> {
+  const casa = ctx.casa;
+  if (!casa || casa.eu.userId !== ctx.userId) return false;
+  const config = await lerConfig(casa.casalProfileId);
+  const jaViuOAviso = config.avisoMigracaoVisto?.includes(ctx.userId);
+  const jaViuOTutorial = !tambemOTutorial || config.tutorialVisto?.includes(ctx.userId);
+  if (jaViuOAviso && jaViuOTutorial) return true;
+  const novo: ConfigCasal = { ...config, avisoMigracaoVisto: comVisto(config.avisoMigracaoVisto, ctx.userId) };
+  if (tambemOTutorial) novo.tutorialVisto = comVisto(config.tutorialVisto, ctx.userId);
+  await prisma.financialProfile.update({ where: { id: casa.casalProfileId }, data: { casal: novo } });
   return true;
 }
 

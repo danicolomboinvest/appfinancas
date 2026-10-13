@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getRequiredSession } from "@/lib/auth/session";
-import { marcarTutorialDoCasalVisto, salvarNomesDaCasa } from "@/lib/repositories/casa.repo";
+import { marcarAvisoDaMigracaoVisto, marcarTutorialDoCasalVisto, salvarNomesDaCasa } from "@/lib/repositories/casa.repo";
 
 const limpo = (v: unknown) => String(v ?? "").replace(/\s+/g, " ").trim().slice(0, 30);
 
@@ -20,4 +20,10 @@ export async function salvarNomesDaCasaAction(nomeEu: string, nomeOutro: string)
 export async function marcarTutorialDoCasalVistoAction(): Promise<{ ok: boolean }> {
   const ctx = await getRequiredSession();
   return { ok: await marcarTutorialDoCasalVisto(ctx) };
+}
+
+/** "O casal ficou mais simples" visto: não abre mais. "Agora não" também fecha o tutorial. */
+export async function marcarAvisoDaMigracaoVistoAction(como: "ver" | "agora-nao"): Promise<{ ok: boolean }> {
+  const ctx = await getRequiredSession();
+  return { ok: await marcarAvisoDaMigracaoVisto(ctx, como === "agora-nao") };
 }

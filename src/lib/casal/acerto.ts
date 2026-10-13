@@ -28,6 +28,8 @@ export type ConfigCasal = {
   regras?: Record<string, ModoDaConta>;
   /** Casal simples: as contas (ids) que já viram o "Como funciona o casal". Ausente = ninguém. */
   tutorialVisto?: string[];
+  /** Casal simples: as contas (ids) que já viram o "O casal ficou mais simples" (casa migrada). */
+  avisoMigracaoVisto?: string[];
 };
 
 export const CONFIG_PADRAO: ConfigCasal = { nomeA: "Pessoa 1", nomeB: "Pessoa 2", divisao: "renda", acertos: [] };
@@ -45,6 +47,7 @@ export function lerConfigCasal(json: unknown): ConfigCasal {
     ...(typeof o.pctA === "number" && o.pctA >= 20 && o.pctA <= 80 ? { pctA: Math.round(o.pctA) } : {}),
     ...(lerRegras(o.regras) ? { regras: lerRegras(o.regras)! } : {}),
     ...(lerVistos(o.tutorialVisto) ? { tutorialVisto: lerVistos(o.tutorialVisto)! } : {}),
+    ...(lerVistos(o.avisoMigracaoVisto) ? { avisoMigracaoVisto: lerVistos(o.avisoMigracaoVisto)! } : {}),
   };
 }
 

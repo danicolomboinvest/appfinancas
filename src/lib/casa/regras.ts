@@ -46,6 +46,10 @@ export type CasaNaSessao = {
   outro: PessoaDaCasa;
   /** Quem está logado já viu o "Como funciona o casal" (lib/casa/tutorial.ts). */
   tutorialVisto?: boolean;
+  /** A casa veio do Nós dois antigo (MembroCasal.migradoEm preenchido). */
+  migrada?: boolean;
+  /** Quem está logado já viu o "O casal ficou mais simples" (lib/casa/aviso-migracao.ts). */
+  avisoMigracaoVisto?: boolean;
 };
 
 /** O que as telas de cliente sabem da casa: só nomes e cores, nunca ids. */
