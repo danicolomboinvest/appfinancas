@@ -36,6 +36,8 @@ import { SECOES_DO_PAR } from "@/lib/casal-login/menu-do-par";
 import type { CasaNaTela } from "@/lib/casa/regras";
 import type { PreferenciasDeCategoria } from "@/lib/categories";
 import type { FerramentasDoMei } from "@/lib/empresa/legal";
+import type { AvisoDoPerfilComprado as AvisoComprado } from "@/lib/perfis/perfil-comprado";
+import { AvisoDoPerfilComprado } from "@/components/profiles/AvisoDoPerfilComprado";
 
 export function AppShell({
   children,
@@ -61,7 +63,10 @@ export function AppShell({
   modoPar = null,
   novidades = "novo",
   ferramentasDoMei,
+  perfilComprado = null,
 }: {
+  /** Comprou a Empresa (criada sozinha) ou o Casal: o aviso de uma vez (ver perfil-comprado.repo.ts). */
+  perfilComprado?: AvisoComprado | null;
   /** Empresa: Limite do MEI e Impostos só entram no menu quando têm o que mostrar. */
   ferramentasDoMei?: FerramentasDoMei;
   /** Login do par: quem está logado é o par, no Nós dois da titular. O menu mostra só o dele. */
@@ -278,6 +283,8 @@ export function AppShell({
         {!modoPar && novidades !== "novo" && <TourDasNovidades estado={novidades} onMenu={setMenuOpen} />}
         {/* Casal simples: o "Como funciona o casal", sozinho uma vez e de novo pela Casa e pelo Como funciona. */}
         {casa && <TutorialDoCasalNoApp casa={casa} visto={tutorialDoCasalVisto} avisoDaMigracao={avisoDaMigracao} novidades={modoPar ? "novo" : novidades} />}
+        {/* Perfil comprado: "Sua Empresa está pronta" ou "O Casal está liberado", uma vez. */}
+        {!modoPar && perfilComprado && <AvisoDoPerfilComprado aviso={perfilComprado} novidades={novidades} />}
         {/* O guia do Money Reset: só aparece quando uma missão liga (sessionStorage). */}
         <GuiaDoReset />
 

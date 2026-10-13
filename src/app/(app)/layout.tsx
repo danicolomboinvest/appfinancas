@@ -37,6 +37,8 @@ import { estadoDasNovidades, type EstadoDasNovidades } from "@/lib/novidades/pas
 import { lerComeco } from "@/lib/onboarding/comeco";
 import { ferramentasDoMeiDoPerfil } from "@/lib/repositories/empresa.repo";
 import type { FerramentasDoMei } from "@/lib/empresa/legal";
+import { perfilCompradoNaEntrada } from "@/lib/repositories/perfil-comprado.repo";
+import type { AvisoDoPerfilComprado } from "@/lib/perfis/perfil-comprado";
 
 
 function capitalize(text: string) {
@@ -80,6 +82,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   let avisoDaMigracao = false;
   // Empresa: Limite do MEI e Impostos só no menu de quem tem o que ver ali (12/10/2026).
   let ferramentasDoMei: FerramentasDoMei = { limite: false, impostos: false };
+  // Comprou a Empresa ou o Casal: o aviso de uma vez (a Empresa já foi criada sozinha).
+  let perfilComprado: AvisoDoPerfilComprado | null = null;
   if (session?.user) {
     const ctx: AccountContext = { userId: session.user.id, role: session.user.role };
     // Uma consulta a menos em TODA navegação: o resumo do mês só existia pra alimentar a
@@ -100,7 +104,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     casa = casaDaConta && casaDaConta.eu.profileId === ativo.id ? casaNaTela(casaDaConta) : null;
     tutorialDoCasalVisto = casaDaConta?.tutorialVisto ?? true;
     avisoDaMigracao = Boolean(casaDaConta?.migrada && !casaDaConta.avisoMigracaoVisto);
-    const todos = casalDoPar ? [...proprios, casalDoPar] : proprios;
+    let todos = casalDoPar ? [...proprios, casalDoPar] : proprios;
     // O que vem depois não depende uma coisa da outra: sai tudo de uma vez (antes eram quatro
     // idas ao banco em fila, em TODA tela).
     const [acessoDaConta, confirmada, comLimite, comParNoCasal, moneyReset] = await Promise.all([
@@ -153,6 +157,17 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       // Primeira entrada: antes de ver qualquer tela, a pessoa escolhe o tipo e o tema do
       // perfil dela em /comecar. Uma vez só; quem já usava o app nasceu com a data preenchida.
       if (user.onboardedAt === null) redirect("/comecar");
+    }
+    if (!doPar) {
+      // Perfil comprado (13/10/2026): quem comprou a Empresa e não tem ganha ela aqui, sem trocar o
+      // perfil em uso. Vem depois das travas de acesso e do /comecar. Falhar aqui nunca derruba a tela.
+      try {
+        const r = await perfilCompradoNaEntrada(ctx.userId, user.email, { naCasa: Boolean(casaDaConta) });
+        perfilComprado = r.aviso;
+        if (r.criouEmpresa) todos = casalDoPar ? [...(await listProfiles(ctx.userId)), casalDoPar] : await listProfiles(ctx.userId);
+      } catch (e) {
+        console.error("perfil comprado", e);
+      }
     }
     // O apelido que ela deu no começo ("Como posso te chamar?") vale na saudação.
     firstName = lerComeco(user.comeco)?.apelido || user.name?.split(" ")[0] || user.email.split("@")[0];
@@ -236,6 +251,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         fotoDaConta={fotoDaConta}
         modoPar={modoPar}
         ferramentasDoMei={ferramentasDoMei}
+        perfilComprado={perfilComprado}
       >
         {/* Trocar de perfil só revalida a página, e o React guarda o estado dos formulários que
             re-renderizam: o orçamento continuava com os números do perfil anterior e o "Salvar"
