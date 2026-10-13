@@ -1,3 +1,4 @@
+import { parseInstallment } from "@/lib/entries/recurrence";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
@@ -158,16 +159,47 @@ const FATURA_SETEMBRO = [
 ];
 
 describe("fatura pela data da compra", () => {
-  it("cada compra no mês dela, com o dia; a parcela no mês da compra + (k - 1), sem dia, e as seguintes projetadas", async () => {
+  it("cada compra no mês dela, com o dia; a parcela no mês da compra + (k - 1) no dia da compra, e as seguintes projetadas no mesmo dia", async () => {
     const r = await importarFatura(FATURA_SETEMBRO, SET);
     // 3 compras + a 03/10 + 04..10 projetadas
     expect(r).toMatchObject({ ok: true, created: 11, skipped: 0 });
     expect(doMes(2026, 8).map((e) => e.description).sort()).toEqual(["FARMACIA", "LOJA X PARC 03/10", "MERCADO EXTRA"]);
     expect(dia(comDescricao("MERCADO EXTRA")[0])).toBe("2026-08-20");
     expect(dia(comDescricao("NETFLIX")[0])).toBe("2026-09-03");
-    expect(comDescricao("LOJA X PARC 03/10")[0]).toMatchObject({ year: 2026, month: 8, entryDate: null });
+    expect(comDescricao("LOJA X PARC 03/10")[0]).toMatchObject({ year: 2026, month: 8 });
+    // Nenhuma em "Sem data": o dia 20 da compra vale em todas.
+    expect(dia(comDescricao("LOJA X PARC 03/10")[0])).toBe("2026-08-20");
     expect(comDescricao("LOJA X PARC 04/10")[0]).toMatchObject({ year: 2026, month: 9 });
+    expect(dia(comDescricao("LOJA X PARC 04/10")[0])).toBe("2026-09-20");
     expect(comDescricao("LOJA X PARC 10/10")[0]).toMatchObject({ year: 2027, month: 3 });
+    expect(dia(comDescricao("LOJA X PARC 10/10")[0])).toBe("2027-03-20");
+  });
+
+  it("parcela gravada sem dia (antes desta versão) é reconhecida pela fatura nova, que tem dia", async () => {
+    // A 03/10 e a 04/10 como o app gravava até out/2026: sem dia.
+    await importarFatura(FATURA_SETEMBRO, SET);
+    for (const e of banco) if (/PARC/.test(String(e.description))) e.entryDate = null;
+    const r = await importarFatura([compra("2026-06-20", "LOJA X PARC 04/10", 100), compra("2026-09-15", "PADARIA", 20)], OUT);
+    expect(r).toMatchObject({ ok: true, created: 1, skipped: 1 });
+    expect(comDescricao("LOJA X PARC 04/10")).toHaveLength(1);
+    // E sai de "Sem data": a fatura nova diz o dia. A 05/10, que ela não trouxe, continua como estava.
+    expect(dia(comDescricao("LOJA X PARC 04/10")[0])).toBe("2026-09-20");
+    expect(dia(comDescricao("LOJA X PARC 05/10")[0])).toBeNull();
+  });
+
+  it("BTG: Amazon (9/10) entre parênteses projeta a 10/10 no mês seguinte, no dia da compra, sem herdar o palpite da loja de tudo", async () => {
+    const r = await importarFatura([compra("2026-01-15", "Amazon Marketplace Cc (8/10)", 89.09, { installment: parseInstallment("Amazon Marketplace Cc (8/10)"), parentCategory: "LAZER" }), compra("2026-08-20", "MERCADO EXTRA", 50)], SET);
+    expect(r).toMatchObject({ ok: true, created: 4 });
+    expect(comDescricao("Amazon Marketplace Cc (8/10)")[0]).toMatchObject({ year: 2026, month: 8 });
+    expect(dia(comDescricao("Amazon Marketplace Cc (9/10)")[0])).toBe("2026-09-15");
+    expect(dia(comDescricao("Amazon Marketplace Cc (10/10)")[0])).toBe("2026-10-15");
+    // O "Lazer" foi o app que pôs (learn: false): as próximas ficam sem categoria, para ela dizer.
+    expect(comDescricao("Amazon Marketplace Cc (10/10)")[0].parentCategory ?? null).toBeNull();
+  });
+
+  it("a categoria que ela escolheu na compra de loja de tudo vale para as próximas parcelas", async () => {
+    await importarFatura([compra("2026-01-15", "Amazon Marketplace Cc (8/10)", 89.09, { installment: parseInstallment("Amazon Marketplace Cc (8/10)"), parentCategory: "LAZER", learn: true })], SET);
+    expect(comDescricao("Amazon Marketplace Cc (10/10)")[0].parentCategory).toBe("LAZER");
   });
 
   it("a mesma fatura duas vezes não duplica nada", async () => {

@@ -167,6 +167,23 @@ export function chaveUtil(chave: string): boolean {
 }
 
 /**
+ * Loja que vende de tudo (13/10/2026): Amazon, Mercado Livre, Mercado Pago, Shopee, Magalu,
+ * Americanas, AliExpress, Temu, TikTok Shop. O nome não diz o que foi comprado (um livro, uma
+ * panela, um batom), então a categoria é sempre perguntada: nem o dicionário, nem a base da
+ * comunidade, nem a resposta de um mês passado decidem sozinhos. A Dani tinha a Amazon e o
+ * Mercado Pago indo para "Cuidado pessoal" em todas as faturas por causa de uma resposta só.
+ * Fica de fora o que é serviço com nome próprio (Amazon Prime, Music, Kindle, AWS) e a loja que
+ * passou pelo Mercado Pago com o nome dela ("MERCADOPAGO*LOJAX" é a LOJAX). Shein é roupa: não entra.
+ */
+const LOJA_DE_TUDO = / (amazon|amzn|mercado ?livre|mercadoli(vre)?|mercado ?pago|shopee|shpp|magalu|magazine luiza|americanas|aliexpress|ali express|temu|tiktok shop) /;
+const SERVICO_DA_AMAZON = / (amazon|amzn) (prime|music|video|kindle|aws|web services|ad free|digital) /;
+
+export function ehLojaDeTudo(descricao: string | null | undefined): boolean {
+  const chave = ` ${chaveDoComerciante(descricao)} `;
+  return LOJA_DE_TUDO.test(chave) && !SERVICO_DA_AMAZON.test(chave);
+}
+
+/**
  * A chave `regra` vale para a linha de chave `linha`? Vale quando as palavras da regra são o
  * COMEÇO das palavras da linha: a regra "anthropic" pega "anthropic claude"; a regra "uber eats"
  * não pega "uber". Palavra inteira sempre ("maria" não pega "mariana").

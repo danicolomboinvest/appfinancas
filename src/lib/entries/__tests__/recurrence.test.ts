@@ -49,6 +49,14 @@ describe("parseInstallment", () => {
     expect(parseInstallment("Parcela 3/10 TV")?.confident).toBe(true);
   });
 
+  it("(N/T) entre parênteses é parcela com certeza: é como o BTG escreve, e data não vem assim", () => {
+    expect(parseInstallment("Amazon Marketplace Cc (9/10)")).toEqual({ current: 9, total: 10, confident: true });
+    expect(parseInstallment("Mercado Pago (6/6)")).toEqual({ current: 6, total: 6, confident: true });
+    expect(parseInstallment("Hospital Exemplo ( 4/5 )")?.confident).toBe(true);
+    // Só um dos lados não é parênteses de parcela.
+    expect(parseInstallment("LOJA (CENTRO) 03/09")?.confident).toBe(false);
+  });
+
   it("rewrites the installment number for the next months", () => {
     expect(installmentDescription("MAGAZINE LUIZA 03/10", 4, 10)).toBe("MAGAZINE LUIZA 04/10");
     expect(installmentDescription("Parcela 2 de 6 - Notebook", 3, 6)).toBe("Parcela 3 de 6 - Notebook");

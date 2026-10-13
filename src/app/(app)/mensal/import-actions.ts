@@ -36,7 +36,7 @@ import { isFaturaSummaryLine, comprasDaFaturaSaoPositivas, pareceCreditoDePagame
 import { extractUploadFromForm, UploadReadError, PasswordRequiredError } from "@/lib/import/extract-text";
 import { pdfTextQuality } from "@/lib/import/pdf-quality";
 import { type LearnedRule } from "@/lib/import/classify";
-import { chaveDoComerciante, chaveUtil } from "@/lib/import/comerciante";
+import { chaveDoComerciante, chaveUtil, ehLojaDeTudo } from "@/lib/import/comerciante";
 import { categoriaDaLinha, type ConfiancaDaCategoria, type MotivoDaCategoria } from "@/lib/import/motor";
 import { pareceEstorno } from "@/lib/import/estorno";
 import { pareceAplicacao, pareceContaPropria, parecePagamentoDeFatura, pareceResgate } from "@/lib/import/dinheiro-proprio";
@@ -51,6 +51,7 @@ import {
   ajustarAnoDaCompra,
   chaveDoMes,
   contextoDaFatura,
+  diaDaParcela,
   lerDatasDaFatura,
   mesDaCompra,
   mesDaData,
@@ -762,7 +763,7 @@ function parcelaCerta(description: string | null) {
 }
 
 /** Parcela de fatura já gravada (sem dia), com o lote que a criou e o mês em que caiu (ano*12+mês). */
-type ParcelaExistente = { valor: number; id: string; loteId: string | null; mes: number };
+type ParcelaExistente = { valor: number; id: string; loteId: string | null; mes: number; /** Gravada antes de a parcela ter dia (out/2026). */ semDia?: boolean };
 
 /** A mesma compra parcelada pode vir com centavos diferentes de um mês pro outro: a 1ª parcela
  * absorve o arredondamento (R$ 100 em 3x = 33,34 + 33,33 + 33,33). A diferença nunca passa de
@@ -1066,7 +1067,8 @@ export async function importTransactionsAction(
   const monthOf = (item: ConfirmedItem) =>
     faturaTarget ?? destinoPelaCompra(item)?.mes ?? yearMonthFromISO(item.date) ?? { year: now.getFullYear(), month: now.getMonth() + 1 };
   /** O dia que vai no lançamento (e na chave): fatura pelo mês escolhido não tem dia; pela data
-   * da compra, só a compra à vista tem (parcela vai sem dia, como as projetadas). */
+   * da compra, a compra à vista e a parcela com certeza têm (a parcela no dia da compra original,
+   * como as projetadas); a parcela é reconhecida pelo mês e pela descrição, sem o dia. */
   const diaDe = (item: ConfirmedItem): string | null =>
     faturaTarget ? null : modoCompra ? destinoPelaCompra(item)!.dia : yearMonthFromISO(item.date) ? item.date : null;
   const monthsInBatch = new Set<string>();
@@ -1142,11 +1144,13 @@ export async function importTransactionsAction(
       const descricao = nomesDoBanco.get(e.id) ?? e.description;
       const k = `${profileId}|${y}/${m}|${dedupeKey(dia, Number(e.amount), descricao)}`;
       existingCounts.set(k, (existingCounts.get(k) ?? 0) + 1);
-      if (!dia && Number(e.amount) > 0 && parcelaCerta(descricao)) {
+      // Com dia ou sem: a parcela gravada antes (out/2026) ia sem dia; agora vai no dia da compra.
+      const ehParcela = Number(e.amount) > 0 && parcelaCerta(descricao) !== null;
+      if (ehParcela) {
         const pk = `${profileId}|${y}/${m}|${descricaoComparavel(descricao)}`;
-        parcelasExistentes.set(pk, [...(parcelasExistentes.get(pk) ?? []), { valor: Number(e.amount), id: e.id, loteId: e.importBatchId, mes: y * 12 + m }]);
+        parcelasExistentes.set(pk, [...(parcelasExistentes.get(pk) ?? []), { valor: Number(e.amount), id: e.id, loteId: e.importBatchId, mes: y * 12 + m, semDia: !dia }]);
       }
-      if (dia && e.importBatchId) {
+      if (dia && e.importBatchId && !ehParcela) {
         const lk = `${profileId}|${chaveSoltaDe(dia, Number(e.amount), e.category)}`;
         looseDescricoes.set(lk, [...(looseDescricoes.get(lk) ?? []), { descricao }]);
       }
@@ -1318,7 +1322,8 @@ export async function importTransactionsAction(
     return { key: `${profileIdOf(item)}|${ym.year}/${ym.month}|${descricaoComparavel(item.description)}`, total: parcela.total };
   };
   const chaveSolta = (item: ConfirmedItem) => {
-    if (item.adotar) return null;
+    // Parcela de fatura só tem a comparação por parcela (o dia dela é o da compra original).
+    if (item.adotar || chaveParcela(item)) return null;
     const dia = diaDe(item);
     return item.amount > 0 && dia ? `${profileIdOf(item)}|${chaveSoltaDe(dia, valorGravado(item), item.category)}` : null;
   };
@@ -1327,6 +1332,8 @@ export async function importTransactionsAction(
   const pular = new Set<number>();
   // Parcela pulada que era projeção de outro lote: índice → a parcela (ver `adotar`).
   const confirmadas = new Map<number, ParcelaExistente>();
+  // Parcela já no app que foi gravada sem dia: a fatura que chega agora diz o dia (ver abaixo).
+  const parcelasSemDia = new Map<number, ParcelaExistente>();
   items.forEach((item, i) => {
     if (item.amount <= 0 || item.adotar) return;
     const parcela = chaveParcela(item);
@@ -1336,6 +1343,7 @@ export async function importTransactionsAction(
       if (achada) break;
     }
     if (achada && ehProjecao(achada)) confirmadas.set(i, achada);
+    if (achada?.semDia) parcelasSemDia.set(i, achada);
     const jaExiste = parcela
       ? achada !== null
       : alreadyThere(chaveExata(item)) || jaLancadoComoEstorno(item) || chavesDoOutroModelo(item, false).some(alreadyThere);
@@ -1363,9 +1371,15 @@ export async function importTransactionsAction(
     // Print da fatura aberta não projeta: quem projeta as parcelas seguintes é a fatura fechada.
     if (!ehFatura || aberta || item.estorno || !item.installment?.confident || item.installment.current >= item.installment.total) return;
     const { current, total } = item.installment;
+    // O dia da parcela deste mês vale nos seguintes (sem ele, a projetada caía em "Sem data").
+    const diaDaCompra = diaDe(item);
+    // Loja de tudo (Amazon, Mercado Livre) com a categoria que o app pôs sozinho: as próximas não
+    // herdam o palpite, ficam para ela dizer. A que ela escolheu vale para todas.
+    const herda = item.learn || !ehLojaDeTudo(item.description);
     for (let n = current + 1; n <= total; n += 1) {
       const offset = n - current;
       const d = new Date(ym.year, ym.month - 1 + offset, 1);
+      const mesDaParcela = { year: d.getFullYear(), month: d.getMonth() + 1 };
       const desc = installmentDescription(item.description, n, total);
       // Com o perfil na frente, como todas as chaves de lançamentos existentes: sem ele a
       // checagem nunca achava nada, e subir as faturas fora de ordem (outubro antes de
@@ -1382,11 +1396,12 @@ export async function importTransactionsAction(
         year: d.getFullYear(),
         month: d.getMonth() + 1,
         category: item.category,
-        parentCategory: item.category === "EXPENSE" ? parentCategory : undefined,
-        customCategoryId,
-        subcategory: item.subcategory ?? undefined,
+        parentCategory: item.category === "EXPENSE" && herda ? parentCategory : undefined,
+        customCategoryId: herda ? customCategoryId : undefined,
+        subcategory: herda ? (item.subcategory ?? undefined) : undefined,
         description: desc,
         amount: item.amount,
+        entryDate: diaDaCompra ? new Date(`${diaDaParcela(diaDaCompra, mesDaParcela)}T12:00:00`) : undefined,
         importBatchId: batch.id,
         profileId,
         pessoa: pessoaPara(profileId),
@@ -1430,6 +1445,13 @@ export async function importTransactionsAction(
     }
     if (pular.has(indice)) {
       skipped += 1;
+      // A parcela que estava em "Sem data" ganha o dia que esta fatura diz. Só o dia, e só se
+      // continua sem dia: nada do que ela mudou na linha é tocado.
+      const semDia = parcelasSemDia.get(indice);
+      if (semDia && dia) {
+        const r = await prisma.monthlyEntry.updateMany({ where: { id: semDia.id, userId: ctx.userId, profileId, entryDate: null }, data: { entryDate: new Date(`${dia}T12:00:00`) } });
+        if (r.count > 0) touchedMonths.add(`${ym.year}/${ym.month}`);
+      }
       const confirmada = confirmadas.get(indice);
       if (confirmada) {
         await adotar(confirmada.id, profileId, confirmada.mes);
@@ -1468,7 +1490,8 @@ export async function importTransactionsAction(
     // (comerciante.ts), que é a mesma em todo extrato e todo mês.
     if (item.learn && item.category === "EXPENSE" && (parentCategory || customCategoryId) && !personalizadaDeOutroPerfil) {
       const pattern = chaveDoComerciante(item.description);
-      if (chaveUtil(pattern)) {
+      // Loja de tudo não vira regra: a Amazon de hoje (um batom) não diz o que é a do mês que vem.
+      if (chaveUtil(pattern) && !ehLojaDeTudo(item.description)) {
         // A regra mora no perfil pra onde a linha FOI, não no aberto: a compra da Kalunga
         // mandada pra Empresa como "Mercadorias e insumos" (chave ALIMENTACAO) virava
         // "Alimentação" na próxima importação da Pessoal, e a Empresa não aprendia nada.

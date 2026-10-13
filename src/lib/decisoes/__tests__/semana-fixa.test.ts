@@ -224,3 +224,16 @@ describe("conta nova que lançou o mês inteiro de uma vez", () => {
     expect(nova.valor).toBeCloseTo(((2100 - 900) * 7) / 20, 6);
   });
 });
+
+describe("parcelas do mês na semana (13/10/2026)", () => {
+  it("a parcela que continua e ainda não foi lançada sai inteira do dia a dia, o mesmo número de Recorrentes", async () => {
+    const { parcelasDoMes } = await import("@/lib/contas/parcelas-do-mes");
+    const l = (month: number, descricao: string, valor: number, categoria = "LAZER") => ({ id: `${month}${descricao}`, year: 2026, month, descricao, valor, dia: null, categoria });
+    const p = parcelasDoMes([l(9, "Airbnb (3/6)", 1643.83), l(10, "Amazon Marketplace Cc (9/10)", 89.09, "OUTROS")], { year: 2026, month: 10 });
+    const previstas = p.itens.filter((i) => i.origem === "prevista").map((i) => ({ valor: i.valor, categoria: i.categoria }));
+    // A Amazon já lançada entra como conta lançada; o Airbnb 4/6 fica reservado.
+    const contas = contasDoMes([{ key: "MORADIA", planejado: 2000, gasto: 0, fixa: true }], p.lancadas, previstas, (k) => CATEGORIAS_FIXAS.has(k));
+    expect(contas.total).toBeCloseTo(2000 + 89.09 + 1643.83, 2);
+    expect(contas.total - 2000).toBeCloseTo(p.total, 2);
+  });
+});

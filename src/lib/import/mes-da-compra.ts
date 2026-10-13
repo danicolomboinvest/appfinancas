@@ -10,8 +10,9 @@ import { detectarVencimento } from "./vencimento";
  *
  * - compra à vista: conta no mês em que foi feita, com o dia;
  * - parcela k/n: os leitores devolvem a data da compra ORIGINAL (a 09/10 de uma compra de 31/12
- *   vem com 31/12), então a parcela k conta no mês da compra + (k - 1). Uma parcela por mês, e
- *   a mesma conta que a projeção das parcelas seguintes faz, então as faturas se encaixam;
+ *   vem com 31/12), então a parcela k conta no mês da compra + (k - 1), no dia da compra. Uma
+ *   parcela por mês, e a mesma conta que a projeção das parcelas seguintes faz, então as faturas
+ *   se encaixam;
  * - sem data legível: o mês do vencimento lido; sem vencimento, o mês de hoje.
  *
  * Não existe opção por pessoa de "conto a fatura no mês em que pago". Quem quiser isso para uma
@@ -113,8 +114,10 @@ export function lerDatasDaFatura(texto: string, nomeDoArquivo?: string | null): 
 
 export type Destino = {
   mes: Mes;
-  /** O dia gravado no lançamento: só na compra que conta no próprio mês. Parcela vai sem dia
-   * (como as parcelas projetadas): é o que deixa a próxima fatura reconhecer a que já está lá. */
+  /** O dia gravado no lançamento. Compra: o dia dela. Parcela com certeza: o dia da compra
+   * original no mês da parcela (a de 26/06 em 3x cai em 26/07 e 26/08; dia 31 num mês de 30 vira
+   * 30), como as projetadas. Antes ia sem dia e caía em "Sem data" nas Transações; a próxima
+   * fatura reconhece a parcela pelo mês e pela descrição, não pelo dia. */
   dia: string | null;
   /** compra: o mês da data; parcela: mês da compra + (k - 1); ciclo: data antiga sem parcela
    * (vai pro começo do ciclo da fatura); vencimento/hoje: linha sem data. */
@@ -134,6 +137,12 @@ export type ContextoDaFatura = {
 };
 
 const isoDe = (t: number) => new Date(t).toISOString().slice(0, 10);
+
+/** O dia da compra (`data`, "AAAA-MM-DD") dentro de `mes`: 31 num mês de 30 dias vira 30. */
+export function diaDaParcela(data: string, mes: Mes): string {
+  const ultimo = new Date(Date.UTC(mes.year, mes.month, 0)).getUTCDate();
+  return `${mes.year}-${pad(mes.month)}-${pad(Math.min(Number(data.slice(8, 10)), ultimo))}`;
+}
 
 export function contextoDaFatura(datas: DatasDaFatura, datasDasLinhas: string[], hoje: Date = new Date()): ContextoDaFatura {
   const { vencimento, fechamento } = datas;
@@ -177,13 +186,13 @@ export function mesDaCompra(item: ItemDaFatura, ctx: ContextoDaFatura, hoje: Dat
   // Parcela: régua exata do ciclo (a data da compra original fica sempre antes dele). Compra à
   // vista: 20 dias de folga, pra compra lançada atrasada (exterior, posto) manter o dia dela.
   if (parcela?.confident ? !antes(0) : !(parcela ? antes(0) : antes(20))) {
-    return parcela?.confident ? { mes: compra, dia: null, origem: "parcela" } : { mes: compra, dia: data, origem: "compra" };
+    return parcela?.confident ? { mes: compra, dia: data, origem: "parcela" } : { mes: compra, dia: data, origem: "compra" };
   }
   const inicio = mesDaData(ctx.inicioDoCiclo)!;
   if (parcela) {
     let mes = somarMeses(compra, parcela.current - 1);
     if (ctx.limite && indiceDoMes(mes) > indiceDoMes(ctx.limite)) mes = ctx.limite;
-    if (indiceDoMes(mes) >= indiceDoMes(inicio)) return { mes, dia: null, origem: "parcela" };
+    if (indiceDoMes(mes) >= indiceDoMes(inicio)) return { mes, dia: parcela.confident ? diaDaParcela(data, mes) : null, origem: "parcela" };
   }
   return { mes: inicio, dia: null, origem: "ciclo" };
 }

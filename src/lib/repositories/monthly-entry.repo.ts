@@ -8,6 +8,7 @@ import { sameDayInMonth } from "@/lib/date/recurrence";
 import type { Intervalo } from "@/lib/visao-geral/periodo";
 import { dentroDoIntervalo, mesesDoIntervalo } from "@/lib/visao-geral/intervalo-dados";
 import { aReceberPorPessoa } from "@/lib/entries/divisao";
+import { janelaDasParcelas, type LancamentoParcelavel, type Mes as MesDaParcela } from "@/lib/contas/parcelas-do-mes";
 
 export async function listMonthlyEntries(ctx: AuthContext, year: number, month: number) {
   return prisma.monthlyEntry.findMany({
@@ -450,4 +451,35 @@ export async function dadosDaDivisao(ctx: AuthContext) {
   });
   const pessoas = [...new Set(linhas.map((l) => l.divididoCom as string))].slice(0, 8);
   return { pessoas, aReceber: aReceberPorPessoa(linhas) };
+}
+
+/**
+ * Os gastos com cara de parcela ("N/T", "N de T", "parcela") da janela que acha as séries (ver
+ * parcelasDoMes). Leve: só os campos da conta. Os mesmos lançamentos que os totais enxergam.
+ */
+export async function listarLancamentosParcelaveis(ctx: AuthContext, mes: MesDaParcela): Promise<LancamentoParcelavel[]> {
+  const { de, ate } = janelaDasParcelas(mes);
+  const periodo = [
+    { year: de.year, month: { gte: de.month } },
+    ...(ate.year - de.year > 1 ? [{ year: { gt: de.year, lt: ate.year } }] : []),
+    ...(ate.year > de.year ? [{ year: ate.year, month: { lte: ate.month } }] : []),
+  ];
+  const linhas = await prisma.monthlyEntry.findMany({
+    where: comFiltro(lancamentosDosTotais(ctx), {
+      category: "EXPENSE",
+      amount: { gt: 0 },
+      AND: [{ OR: periodo }, { OR: [{ description: { contains: "/" } }, { description: { contains: " de ", mode: "insensitive" } }, { description: { contains: "parc", mode: "insensitive" } }] }],
+    }),
+    select: { id: true, year: true, month: true, description: true, amount: true, entryDate: true, parentCategory: true, customCategoryId: true },
+    take: 5000,
+  });
+  return linhas.map((e) => ({
+    id: e.id,
+    year: e.year,
+    month: e.month,
+    descricao: e.description,
+    valor: Number(e.amount),
+    dia: e.entryDate ? e.entryDate.toISOString().slice(0, 10) : null,
+    categoria: (e.customCategoryId ?? e.parentCategory ?? null) as string | null,
+  }));
 }
