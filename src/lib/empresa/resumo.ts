@@ -12,6 +12,7 @@ import {
   reciboDoMes,
   recebimentos,
   salarioSeguro,
+  lucrosParaOSalario,
   vencimentoDaGuia,
   chaveDoMes,
   type LancamentoDaEmpresa,
@@ -40,7 +41,7 @@ export type Guia = { valor: number; vence: string; paga: boolean; diasAte: numbe
 
 export type ResumoDaEmpresa = {
   ehMei: boolean;
-  /** Os meses fechados (até 3) que contam para o salário seguro. */
+  /** Os meses fechados (até 12) que contam para o salário seguro. */
   fechados: Mes[];
   lucros: number[];
   seguro: number | null;
@@ -73,8 +74,7 @@ export function faturamentoMedio(lancamentos: LancamentoDaEmpresa[], mesAtual: M
 
 export function resumoDaEmpresa(e: EntradaDoResumo): ResumoDaEmpresa {
   const ehMei = e.config?.tipo === "MEI";
-  const fechados = mesesFechadosComDado(e.lancamentos, e.mesAtual, 3);
-  const lucros = fechados.map((m) => reciboDoMes(e.lancamentos, m).sobrou);
+  const { meses: fechados, lucros } = lucrosParaOSalario(e.lancamentos, e.mesAtual);
   const seguro = salarioSeguro(lucros);
   const salario = e.config?.salario ?? seguro ?? 0;
   const ultimoFechado = mesAntes(e.mesAtual, 1);

@@ -11,7 +11,7 @@ import { ValorDestaque } from "@/components/ui/ValorDestaque";
 import { LogoDoLancamento } from "@/components/ui/LogoDoLancamento";
 import { marcaDaDescricao } from "@/lib/marcas/marca";
 import { PRAZOS_DO_CREDITO, RAMOS, ramoDe, type Forma, type Ramo, type TipoDeEmpresa } from "@/lib/empresa/config";
-import { ehGuiaDoMei, ehVenda, mesAntes, reciboDoMes, mesesFechadosComDado, salarioSeguro } from "@/lib/empresa/regras";
+import { ehGuiaDoMei, ehVenda, mesAntes, salarioSeguro, lucrosParaOSalario } from "@/lib/empresa/regras";
 import { textoDaGuia } from "@/lib/empresa/legal";
 import { MESES_CURTOS, MESES } from "@/lib/empresa/resumo";
 import type { DadosDaEmpresa } from "@/lib/empresa/dados";
@@ -82,9 +82,8 @@ export function Assistente({ dados }: { dados: DadosDaEmpresa }) {
   const valorDaGuia = guiaAchada?.amount ?? dados.legal.das?.valor ?? null;
   const ajudaDaGuia = textoDaGuia(dados.legal, guiaAchada?.amount ?? null);
 
-  // O salário: o lucro do último mês fechado e o seguro (menor lucro de 3 meses, menos 10%).
-  const fechados = mesesFechadosComDado(dados.lancamentos, dados.mesAtual, 3);
-  const lucros = fechados.map((m) => reciboDoMes(dados.lancamentos, m).sobrou);
+  // O salário: o lucro do último mês fechado e o seguro (média do lucro de 12 meses, menos 10%).
+  const { lucros } = lucrosParaOSalario(dados.lancamentos, dados.mesAtual);
   const seguro = salarioSeguro(lucros);
   const lucro = lucros.length ? Math.max(0, Math.round(lucros[lucros.length - 1])) : null;
   const maximo = lucro !== null ? Math.max(50, Math.floor(lucro / 50) * 50) : 0;
@@ -280,7 +279,7 @@ export function Assistente({ dados }: { dados: DadosDaEmpresa }) {
               <>
                 <div className="self-end">
                   <Explica rotulo="Como sei o seguro?">
-                    {`${dados.nome} lucrou ${m0(lucro)} no último mês fechado. Seguro é o menor lucro dos últimos meses, menos 10% para o caixa.`}
+                    {`${dados.nome} lucrou ${m0(lucro)} no último mês fechado. Seguro é a média do lucro${lucros.length > 1 ? ` de ${lucros.length} meses` : ""}, menos 10% para o caixa.`}
                   </Explica>
                 </div>
                 <ValorDestaque texto={m0(salario ?? 0)} />

@@ -35,16 +35,16 @@ describe("resumo da Empresa (Ana canônica)", () => {
   const lancs = ana.filter((l) => l.cliente !== "Marina Costa");
   const r = resumoDaEmpresa({ config, hoje: "2026-10-07", mesAtual: { ano: 2026, mes: 10 }, dia: 7, diasNoMes: 31, lancamentos: lancs, legal, caixa: 6800 });
 
-  it("salário seguro R$ 4.500 (jul, ago e set)", () => {
+  it("salário seguro R$ 4.600: média do lucro de jul, ago e set, menos 10% (13/10/2026)", () => {
     expect(r.fechados).toEqual([{ ano: 2026, mes: 7 }, { ano: 2026, mes: 8 }, { ano: 2026, mes: 9 }]);
     expect(r.lucros.map(Math.round)).toEqual([5240, 5310, 5036]);
-    expect(r.seguro).toBe(4500);
-    expect(r.salario).toBe(4500);
+    expect(r.seguro).toBe(4600);
+    expect(r.salario).toBe(4600);
   });
-  it("ponto de equilíbrio R$ 8.113, faltam R$ 5.213", () => {
+  it("ponto de equilíbrio R$ 8.279, faltam R$ 5.379", () => {
     expect(r.reciboAtual.entrou).toBe(2900);
-    expect(r.pe).toBe(8113);
-    expect(r.falta).toBe(5213);
+    expect(r.pe).toBe(8279);
+    expect(r.falta).toBe(5379);
   });
   // 13/10/2026: o ritmo era a média de jul-set (R$ 9.000, passava em novembro). Agora é o
   // faturamento médio dos 12 meses fechados com venda: jan-set, R$ 63.520 ÷ 9 = R$ 7.057,78.
@@ -68,8 +68,8 @@ describe("resumo da Empresa (Ana canônica)", () => {
     const c = resumoDaEmpresa({ config, hoje: "2026-10-11", mesAtual: { ano: 2026, mes: 10 }, dia: 11, diasNoMes: 31, lancamentos: ana, legal, caixa: 0 });
     expect(c.devendo.map((d) => [d.cliente, d.valor, d.dias])).toEqual([["Marina Costa", 450, 5]]);
   });
-  it("caixa de R$ 6.800 paga 41 dias", () => {
-    expect(r.caixaDias).toBe(41);
+  it("caixa de R$ 6.800 paga 40 dias", () => {
+    expect(r.caixaDias).toBe(40);
   });
   it("o salário combinado vale no lugar do seguro", () => {
     const c = resumoDaEmpresa({ config: { ...config!, salario: 3000 }, hoje: "2026-10-07", mesAtual: { ano: 2026, mes: 10 }, dia: 7, diasNoMes: 31, lancamentos: lancs, legal, caixa: 0 });

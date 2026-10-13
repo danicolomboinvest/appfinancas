@@ -133,16 +133,32 @@ export function mesesFechadosComDado(lancamentos: LancamentoDaEmpresa[], hoje: M
 }
 
 /**
- * Salário seguro (plano 3.6, regra nova): o menor lucro dos 3 últimos meses fechados, menos 10% para
- * o caixa, arredondado para baixo até a centena (pendência 5.1.11: a recomendação do plano).
- * Ana: min(5.240; 5.310; 5.036) × 0,9 = 4.532,40, que vira R$ 4.500.
- * Sem mês fechado, não existe (nulo). Lucro zero ou negativo: salário seguro zero.
+ * Salário seguro: a média do lucro dos últimos 12 meses fechados (os que têm lançamento), menos 10%
+ * para o caixa, arredondada para baixo até a centena. Até 13/10/2026 era o MENOR lucro de 3 meses;
+ * a Dani pediu a média de 12 meses em todo lugar do "quanto entra", e aqui também.
+ * Ana: média(5.240; 5.310; 5.036) × 0,9 = 4.674,60, que vira R$ 4.600.
+ * Sem mês fechado, não existe (nulo). Média zero ou negativa: salário seguro zero.
  */
 export function salarioSeguro(lucros: number[]): number | null {
   if (lucros.length === 0) return null;
-  const menor = Math.min(...lucros);
-  if (menor <= 0) return 0;
-  return Math.floor((menor * 0.9) / 100 + 1e-9) * 100;
+  const media = lucros.reduce((s, v) => s + v, 0) / lucros.length;
+  if (media <= 0) return 0;
+  return Math.floor((media * 0.9) / 100 + 1e-9) * 100;
+}
+
+/** Quantos meses fechados entram no salário seguro (a média). */
+export const MESES_DO_SALARIO_SEGURO = 12;
+
+/**
+ * Os lucros que entram na média do salário seguro: meses fechados (até 12) com venda E despesa
+ * lançadas. Mês só com venda (as contas ainda não lançadas) inflaria o lucro e o salário sugerido.
+ */
+export function lucrosParaOSalario(lancamentos: LancamentoDaEmpresa[], hoje: Mes): { meses: Mes[]; lucros: number[] } {
+  const meses = mesesFechadosComDado(lancamentos, hoje, MESES_DO_SALARIO_SEGURO).filter((m) => {
+    const r = reciboDoMes(lancamentos, m);
+    return r.entrou > 0 && r.variaveis + r.fixas + r.impostos > 0;
+  });
+  return { meses, lucros: meses.map((m) => reciboDoMes(lancamentos, m).sobrou) };
 }
 
 /**

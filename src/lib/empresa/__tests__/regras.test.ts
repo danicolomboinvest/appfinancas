@@ -88,7 +88,7 @@ describe("recibo do mês (Ana, setembro)", () => {
 
 describe("salário seguro (plano 3.6, pendência 5.1.11: centena para baixo)", () => {
   it("Ana: min(5.240; 5.310; 5.036) × 0,9 = 4.532,40, que vira R$ 4.500", () => {
-    expect(salarioSeguro([5240, 5310, 5036])).toBe(4500);
+    expect(salarioSeguro([5240, 5310, 5036])).toBe(4600);
   });
   it("arredonda sempre para baixo até a centena", () => {
     expect(salarioSeguro([1111])).toBe(900);
@@ -97,7 +97,8 @@ describe("salário seguro (plano 3.6, pendência 5.1.11: centena para baixo)", (
   });
   it("sem mês fechado não existe; prejuízo dá zero", () => {
     expect(salarioSeguro([])).toBeNull();
-    expect(salarioSeguro([3000, -200])).toBe(0);
+    expect(salarioSeguro([3000, -200])).toBe(1200);
+    expect(salarioSeguro([-500, 200])).toBe(0);
   });
 });
 
