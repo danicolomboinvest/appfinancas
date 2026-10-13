@@ -320,7 +320,7 @@ function DaAssinatura({ item, aoEditar, onFeito }: { item: AssinaturaDaTela; aoE
           </p>
           <p className="flex flex-wrap items-center gap-1.5 text-[13px] text-ink-muted">
             {item.dia ? `Todo dia ${item.dia}` : "Mensal"}
-            {sua ? item.pagaEsteMes && <SeloPequeno forte>pago este mês</SeloPequeno> : <SeloPequeno>o app achou no extrato</SeloPequeno>}
+            {sua ? item.pagaEsteMes && <SeloPequeno forte>pago este mês</SeloPequeno> : <span className="rounded-full bg-surface px-2 py-px text-xs text-ink-muted">o app achou no extrato</span>}
           </p>
         </div>
       </div>

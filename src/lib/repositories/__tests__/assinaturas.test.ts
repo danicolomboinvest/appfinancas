@@ -14,7 +14,8 @@ type Recusa = { userId: string; profileId: string; chave: string };
 const banco = vi.hoisted(() => ({ contas: [] as Conta[], recusas: [] as Recusa[], lancamentos: new Map<string, LancamentoParaCacar[]>() }));
 type Onde = Partial<Conta> & { userId: string; profileId: string; chave?: { startsWith: string } };
 const casa = (w: Onde) => (c: Conta) =>
-  c.userId === w.userId && c.profileId === w.profileId && (w.id === undefined || c.id === w.id) && (w.tipo === undefined || c.tipo === w.tipo) && (w.quitada === undefined || c.quitada === w.quitada) && (w.chaveDoHistorico === undefined || c.chaveDoHistorico === w.chaveDoHistorico);
+  (typeof w.chaveDoHistorico !== "object" || w.chaveDoHistorico === null || c.chaveDoHistorico !== null) &&
+  c.userId === w.userId && c.profileId === w.profileId && (w.id === undefined || c.id === w.id) && (w.tipo === undefined || c.tipo === w.tipo) && (w.quitada === undefined || c.quitada === w.quitada) && (w.chaveDoHistorico === undefined || typeof w.chaveDoHistorico === "object" || c.chaveDoHistorico === w.chaveDoHistorico);
 
 vi.mock("@/lib/auth/session", () => ({ doDono: (c: { userId: string; profileId: string }) => ({ userId: c.userId, profileId: c.profileId }) }));
 vi.mock("@/lib/repositories/dinheiro-perdido.repo", () => ({ lancamentosParaCacar: vi.fn(async (ctx: { profileId: string }) => banco.lancamentos.get(ctx.profileId) ?? []) }));
@@ -88,6 +89,11 @@ describe("adicionar escolhendo dos lançamentos", () => {
     await repo.adicionarDosLancamentos(pessoal, "m:netflix", hoje);
     expect(banco.contas).toHaveLength(1);
     expect(banco.contas[0]).toMatchObject({ tipo: "assinatura", lembrar: false, editadaPelaPessoa: true });
+  });
+
+  it("a lista para escolher não traz o que já é conta (o aluguel, a luz)", async () => {
+    banco.contas.push({ id: "h1", userId: "u1", profileId: "pessoal", tipo: null, nome: "Netflix", valor: 59.9, vencimento: hoje, diaDoMes: 8, repete: true, lembrar: true, chaveDoHistorico: "m:netflix", editadaPelaPessoa: false, quitada: false, categoria: null, origem: "historico" });
+    expect((await repo.listarParaEscolher(pessoal, hoje)).map((c) => c.chave)).not.toContain("m:netflix");
   });
 
   it("comerciante que não está nos lançamentos dela não vira nada", async () => {

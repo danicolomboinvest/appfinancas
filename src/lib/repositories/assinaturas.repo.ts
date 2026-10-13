@@ -2,6 +2,7 @@ import type { ParentCategory } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { doDono, type AuthContext } from "@/lib/auth/session";
 import { categorizarLinha } from "@/lib/import/motor";
+import { mesmaCobranca } from "@/lib/contas/achar-contas";
 import {
   PREFIXO_DA_RECUSA,
   TIPO_ASSINATURA,
@@ -59,11 +60,12 @@ async function comerciantesDosUltimosMeses(ctx: AuthContext, hoje: Date, jaTem: 
   return comerciantesParaEscolher(lancamentos, jaTem);
 }
 
-/** A lista para escolher: um item por comerciante, sem os que ela já marcou. */
+/** A lista para escolher: um item por comerciante, sem os que ela já marcou nem os que já são conta (o aluguel, a luz). */
 export async function listarParaEscolher(ctx: AuthContext, hoje: Date): Promise<ComercianteParaEscolher[]> {
-  const dela = await listarAssinaturasDela(ctx);
-  const jaTem = new Set(dela.flatMap((d) => (d.chaveDoHistorico ? [d.chaveDoHistorico] : [])));
-  return (await comerciantesDosUltimosMeses(ctx, hoje, jaTem)).slice(0, 300);
+  const todas = await prisma.contaAPagar.findMany({ where: { ...doDono(ctx), quitada: false }, select: { nome: true, valor: true, chaveDoHistorico: true, tipo: true } });
+  const jaTem = new Set(todas.flatMap((d) => (d.chaveDoHistorico ? [d.chaveDoHistorico] : [])));
+  const contas = todas.filter((c) => c.tipo !== TIPO_ASSINATURA).map((c) => ({ nome: c.nome, valor: c.valor === null ? null : Number(c.valor), chaveDoHistorico: c.chaveDoHistorico }));
+  return (await comerciantesDosUltimosMeses(ctx, hoje, jaTem)).filter((c) => !mesmaCobranca(c.nome, contas)).slice(0, 300);
 }
 
 /**
