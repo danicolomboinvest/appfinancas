@@ -59,8 +59,95 @@ export function parseItauInvoice(texto: string, refYear: number = new Date().get
   // quadro das próximas faturas pelo total impresso dele, e só fica com isso se fechar no centavo.
   const tudo = semProximasFaturas(texto, lerItau(texto, refYear, false));
   if (fechaComOMes(texto, tudo)) return tudo;
+  const duasColunas = lerItauDuasColunas(texto, refYear);
+  if (fechaComOMes(texto, duasColunas)) return duasColunas;
   const espacado = lerItauEspacado(texto, refYear);
   return fechaComOMes(texto, espacado) ? espacado : porSecao;
+}
+
+const TITULO_PROXIMAS_RE = /Compras parceladas\s*-\s*pr[óo]ximas faturas/i;
+const QUEBRA_DE_PAGINA_RE = /^-- \d+ of \d+ --$/;
+const CABECALHO_CARTAO_RE = /^[A-ZÀ-Þ][A-ZÀ-Þ .'-]*\s*\(final \d{4}\)/;
+const SUBTOTAL_CARTAO_RE = /^Lan[çc]amentos no cart[ãa]o \(final \d{4}\)/i;
+
+/**
+ * Fatura de VÁRIOS cartões (titular e adicionais), PDF em duas colunas: cada linha do texto traz
+ * a coluna da esquerda e a da direita coladas, e na página do total o quadro "Compras parceladas
+ * - próximas faturas" ocupa a direita enquanto as compras do mês seguem na esquerda (R$ 13.879
+ * de um cartão só):
+ *
+ *   31/08 VAREJAO DO NORTE SB 32,99 29/10 MIDEA COM BR 12/12 252,34   ← esquerda: do mês; direita: próxima
+ *   Lançamentos no cartão (final 4434) 13.879,92 28/05 MAGALU FL 05/10 239,90
+ *
+ * Até o título do quadro, toda linha com data é do mês, nas duas colunas. Depois do título, só vale
+ * o item que abre a linha, e só enquanto a coluna da esquerda está dentro de um cartão (o
+ * "Lançamentos no cartão (final N)" fecha o cartão; a quebra de página acaba com tudo: o resto é
+ * só o quadro). Sobra às vezes uma linha de fim de página com colunas separadas por tabulação, onde
+ * não dá para saber de que lado cada compra estava: aí vale a compra que faz a soma bater, no
+ * centavo, com o "Total dos lançamentos atuais". Se nada fechar, não devolve leitura nenhuma.
+ */
+function lerItauDuasColunas(texto: string, refYear: number): ParsedTransaction[] {
+  const linhas = texto.split(/\r?\n/);
+  const titulo = linhas.findIndex((l) => TITULO_PROXIMAS_RE.test(l));
+  const inicio = linhas.findIndex((l) => INICIO_RE.test(l.replace(/\s+/g, " ").trim()));
+  if (titulo < 0 || inicio < 0 || inicio > titulo) return [];
+  const total = texto.match(TOTAL_ATUAL_RE);
+  if (!total) return [];
+  const emissao = texto.match(EMISSAO_RE);
+  const mesEmissao = emissao ? Number(emissao[2]) : null;
+  const anoEmissao = emissao ? Number(emissao[3]) : refYear;
+  const compra = (m: RegExpMatchArray): ParsedTransaction | null => {
+    const [, dd, mm, descricao, menos, valor] = m;
+    const magnitude = parseBrazilianNumber(valor);
+    if (Number.isNaN(magnitude) || magnitude === 0) return null;
+    const ano = mesEmissao !== null && Number(mm) > mesEmissao ? anoEmissao - 1 : anoEmissao;
+    return { date: `${ano}-${mm}-${dd}`, description: descricao.trim(), amount: menos ? -magnitude : magnitude };
+  };
+  const doMes: ParsedTransaction[] = [];
+  const duvida: ParsedTransaction[] = [];
+  const juntar = (alvo: ParsedTransaction[], linha: string, soPrimeira: boolean) => {
+    const iof = linha.match(IOF_NO_MEIO_RE);
+    const valorIof = iof ? parseBrazilianNumber(iof[1]) : 0;
+    if (valorIof > 0 && !soPrimeira && emissao) alvo.push({ date: `${emissao[3]}-${emissao[2]}-${emissao[1]}`, description: "Repasse de IOF (compras no exterior)", amount: valorIof });
+    for (const m of linha.matchAll(COMPRA_NA_LINHA_RE)) {
+      if (soPrimeira && m.index !== 0) break;
+      const t = compra(m);
+      if (t) alvo.push(t);
+    }
+  };
+  for (let i = inicio; i <= titulo; i++) {
+    juntar(doMes, remendarNumeros(linhas[i].replace(/\t/g, " ").replace(/\s+/g, " ").trim()), false);
+  }
+  let aberto = true;
+  for (let i = titulo + 1; i < linhas.length; i++) {
+    const bruta = linhas[i];
+    const linha = remendarNumeros(bruta.replace(/\t/g, " ").replace(/\s+/g, " ").trim());
+    if (QUEBRA_DE_PAGINA_RE.test(linha)) break;
+    if (SUBTOTAL_CARTAO_RE.test(linha)) {
+      aberto = false;
+      continue;
+    }
+    if (CABECALHO_CARTAO_RE.test(linha)) aberto = true;
+    if (bruta.includes("\t")) {
+      // Colunas separadas por tabulação: de quem é cada compra não dá para saber.
+      juntar(duvida, linha, false);
+      continue;
+    }
+    if (aberto) juntar(doMes, linha, true);
+  }
+  const alvo = centavos(parseBrazilianNumber(total[1]));
+  const falta = alvo - somaDoMes(doMes);
+  if (falta === 0) return doMes;
+  const candidatas = duvida.slice(0, 16);
+  for (let a = 0; a < candidatas.length; a++) {
+    if (centavos(candidatas[a].amount) === falta) return [...doMes, candidatas[a]];
+  }
+  for (let a = 0; a < candidatas.length; a++) {
+    for (let b = a + 1; b < candidatas.length; b++) {
+      if (centavos(candidatas[a].amount) + centavos(candidatas[b].amount) === falta) return [...doMes, candidatas[a], candidatas[b]];
+    }
+  }
+  return [];
 }
 
 /**
