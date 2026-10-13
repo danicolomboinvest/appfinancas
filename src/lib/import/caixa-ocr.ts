@@ -23,7 +23,7 @@ const MONEY = String.raw`\d{1,3}(?:\.\d{3})*,\d{2}`;
 /** Valor como o OCR entrega: às vezes sem a vírgula ("1800" é 18,00, "4.97287" é 4.972,87). */
 const LAX = String.raw`\d[\d.]*,?\d{2}`;
 const LINHA_RE = new RegExp(
-  String.raw`^(\d{2})\/(\d{2})\/(\d{4})\s*[-–—]\s*[\d:]{5,8}\s+(?:\d{5,7}\s+)?(.*?)\s*(${LAX})\s*([CD])\s+(${LAX})\s*([CD])\s*$`,
+  String.raw`^(\d{2})\/(\d{2})\/(\d{4})\s*[-–—]\s*([\d:]{5,8})\s+(?:\d{5,7}\s+)?(.*?)\s*(${LAX})\s*([CD])\s+(${LAX})\s*([CD])\s*$`,
 );
 const SALDO_ANTERIOR_RE = new RegExp(String.raw`SALDO\s+ANTERIOR\s+R?\$?\s*(${MONEY})\s*([CD])`, "i");
 
@@ -39,7 +39,7 @@ const num = (s: string): number => {
 const comSinal = (valor: number, letra: string): number => (letra === "C" ? valor : -valor);
 const centavos = (n: number): number => Math.round(n * 100);
 
-type Linha = { date: string; descricao: string; valorTxt: string; valorLido: number | null; letra: string; saldo: number };
+type Linha = { date: string; hora: string; descricao: string; valorTxt: string; valorLido: number | null; letra: string; saldo: number };
 
 /** Descrição limpa: tira o ruído do OCR (máscaras de CPF, "**", símbolos soltos). */
 function limparDescricao(bruto: string): string {
@@ -76,12 +76,13 @@ export function parseCaixaOcrStatement(texto: string): ParsedTransaction[] {
     const limpa = bruta.replace(/€\s*$/, "C").replace(/€(?=\s+\d)/g, "C");
     const m = limpa.replace(/[\t ]+/g, (s) => (s.length > 1 || s === "\t" ? "  " : " ")).trim().match(LINHA_RE);
     if (!m) continue;
-    const [, dd, mm, aaaa, meio, valorTxt, letraValor, saldoTxt, letraSaldo] = m;
+    const [, dd, mm, aaaa, hora, meio, valorTxt, letraValor, saldoTxt, letraSaldo] = m;
     // "SALDO DIA" (00:00:00) é o fechamento do dia, fora da ordem do tempo: não entra na conta.
     if (/SALDO\s*DIA/i.test(meio)) continue;
     const valorLido = num(valorTxt);
     linhas.push({
       date: `${aaaa}-${mm}-${dd}`,
+      hora: hora.padEnd(8, ":00").slice(0, 8),
       descricao: limparDescricao(meio),
       valorTxt,
       valorLido: comSinal(valorLido, letraValor),
@@ -91,8 +92,11 @@ export function parseCaixaOcrStatement(texto: string): ParsedTransaction[] {
   }
   if (linhas.length === 0) return [];
 
-  // O extrato vem do mais novo pro mais antigo; a ordem de conferência é a do tempo.
-  const cronologico = linhas[0].date > linhas[linhas.length - 1].date ? [...linhas].reverse() : linhas;
+  // O extrato vem do mais novo pro mais antigo; a ordem de conferência é a do tempo. Extrato de um
+  // dia só (todas as datas iguais) se ordena pela hora: sem ela a ordem ficava ao contrário e a
+  // conferência pelo saldo recusava o arquivo inteiro.
+  const quando = (l: Linha) => `${l.date} ${l.hora}`;
+  const cronologico = quando(linhas[0]) > quando(linhas[linhas.length - 1]) ? [...linhas].reverse() : linhas;
 
   // 1. Variação do saldo de cada linha, em ordem do tempo.
   let anterior = saldoInicial;

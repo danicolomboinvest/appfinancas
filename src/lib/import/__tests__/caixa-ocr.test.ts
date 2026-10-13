@@ -67,6 +67,21 @@ describe("Caixa lida por OCR, conferida pelo saldo", () => {
     expect(parseCaixaOcrStatement(t).map((x) => x.amount)).toEqual([750, -50]);
   });
 
+  it("extrato de um dia só (mesma data nas linhas) é ordenado pela hora", () => {
+    const t = [
+      OCR_MARCA,
+      "CAIXA",
+      "Extrato por período",
+      "SALDO ANTERIOR            R$ 0,00 C",
+      "02/10/2026 - 00:00:00   000000   SALDO DIA     0,00 C    900,00 C",
+      "02/10/2026 - 07:45:54   020745   DEB PIX CHAVE   Fulana Exemplo   A 713.536   2.800,00 D   900,00 C",
+      "02/10/2026 - 07:35:01   020735   DEB PIX QR COD DIN   Loja Exemplo   **585.865/0***   70,00D   3.700,00 C",
+      "02/10/2026 - 06:36:17   000001   RECEBIMENTO TED SALARIO   Empresa Exemplo   713.536   3.770,00 C   3.770,00 C",
+    ].join("\n");
+    const r = parseCaixaOcrStatement(t);
+    expect(r.map((x) => x.amount)).toEqual([3770, -70, -2800]);
+  });
+
   it("texto com marca de imagem nunca cai nos leitores genéricos", () => {
     const r = parseStatementComLeitor(`${OCR_MARCA}\nPIX 10/09/2026 100,00 200,00\n`, "pdf");
     expect(r.txns).toEqual([]);
