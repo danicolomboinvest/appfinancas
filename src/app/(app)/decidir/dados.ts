@@ -79,7 +79,8 @@ export async function carregarDecidir(ctx: AuthContext) {
   const pilulas: Omit<DadosDasPilulas, "money" | "tema"> = {
     livreMes: temLivre ? livre.restante : null,
     porDia: temLivre ? livre.restante / Math.max(1, livre.diasRestantes) : null,
-    ateDomingo: temLivre ? livre.porSemana : null,
+    // O mesmo número do Resumo: o que ainda cabe na semana fixa (regra A).
+    ateDomingo: temLivre ? Math.max(0, livre.semana.restante) : null,
     // "Como guardar mais?" (protótipo): quanto dá para guardar a mais apertando pela regra de
     // prioridade, o mesmo número do 2 de 3 do caminho guiado.
     guardar: (() => {

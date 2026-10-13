@@ -64,8 +64,13 @@ export type CompraBase = {
    */
   jaDecidido?: { vista: number; parcelaMensal: number };
   diasRestantes: number;
-  /** Dias de hoje até domingo, contando hoje: o "livre por semana" é o mesmo do Foco. Omitido = 7. */
+  /** Dias de hoje até domingo, contando hoje. Omitido = 7. */
   diasAteDomingo?: number;
+  /**
+   * O que ainda cabe nesta semana, o MESMO número do Resumo (semana fixa, regra A de 13/10/2026).
+   * Negativo quando ela já passou da semana. Omitido: a conta antiga (sobra ÷ dias × até domingo).
+   */
+  semanaRestante?: number;
   metas: CompraMeta[];
   /** Taxa mensal de referência pro "dinheiro rendendo" na comparação à vista × parcelado. */
   taxaReferencia: number;
@@ -328,6 +333,14 @@ function avaliarSemAvisos(base: CompraBase, compraBruta: Compra, fmt: Formatos):
     modo: compraBruta.modo === "parcelado" && parcelasPedidas <= 1 ? "vista" : compraBruta.modo,
   };
   const porSemana = (v: number) => livreAteDomingo(v, base.diasRestantes, base.diasAteDomingo);
+  // "Livre nesta semana": o número do Resumo, antes e depois da parte da compra que sai do dia a dia.
+  const daSemana = (daSobra: number) => {
+    if (base.semanaRestante === undefined) return { hoje: money(porSemana(sobraDoMes)), depois: money(porSemana(Math.max(0, sobraDoMes - daSobra))) };
+    const antes = base.semanaRestante;
+    const depois = antes - daSobra;
+    const texto = (v: number) => (v <= -1 ? `passa ${money(-v)}` : money(Math.max(0, v)));
+    return { hoje: texto(antes), depois: texto(depois) };
+  };
   // O que a renda JÁ tem de compromisso: o maior entre o que ela planejou gastar e o que ela
   // gastou de fato, na média dos últimos meses. Planejar R$ 7.000 e gastar R$ 8.800 (parcelas
   // antigas, mercado que sempre passa) não pode fazer uma compra nova parecer caber.
@@ -392,7 +405,7 @@ function avaliarSemAvisos(base: CompraBase, compraBruta: Compra, fmt: Formatos):
     const passa90 = base.regra90 !== false && gastoMesDepois / base.renda > LIMITE_GASTO + 1e-9;
     const linhas: LinhaAntesDepois[] = [
       linhaComprometida(gastoMesDepois, comprometidoNoMes),
-      { rotulo: "Livre por semana", hoje: money(porSemana(sobra)), depois: money(porSemana(depois)) },
+      { rotulo: "Livre nesta semana", ...daSemana(Math.min(Math.max(0, resto), sobra)) },
       { rotulo: "Sobra do mês para o dia a dia", hoje: money(sobra), depois: falta > 0 ? `falta ${money(falta)}` : money(depois) },
     ];
     if (semDestino > 0) linhas.push({ rotulo: "Livre sem destino no mês", hoje: money(semDestino), depois: money(semDestino - doSemDestino) });
@@ -423,7 +436,7 @@ function avaliarSemAvisos(base: CompraBase, compraBruta: Compra, fmt: Formatos):
       return { veredito: "ok", titulo: "Cabe no que está livre este mês", explicacao: temMetas ? "Suas metas não mudam. Só sobra um pouco menos para o resto do mês." : "Só sobra um pouco menos para o resto do mês.", linhas, sugestao: null, comparacao: null, custoJuros: null, comprometimento: cmp, conta, quadro, pagavel };
     }
     if (resto <= sobra) {
-      return { veredito: "custo", titulo: "Cabe, mas aperta o resto do mês", explicacao: `Sobram ${money(porSemana(depois))} por semana até o fim do mês.`, linhas, sugestao: null, comparacao: null, custoJuros: null, comprometimento: cmp, conta, quadro, pagavel, precisa: { valor: resto - sobra * 0.35, porMes: false } };
+      return { veredito: "custo", titulo: "Cabe, mas aperta o resto do mês", explicacao: `Sobram ${money(livreAteDomingo(depois, base.diasRestantes, 7))} por semana até o fim do mês.`, linhas, sugestao: null, comparacao: null, custoJuros: null, comprometimento: cmp, conta, quadro, pagavel, precisa: { valor: resto - sobra * 0.35, porMes: false } };
     }
     // Casal com conta conjunta não usa a regra dos 90%: o limite é o que entra na conta.
     const semRegra90 = base.regra90 === false;

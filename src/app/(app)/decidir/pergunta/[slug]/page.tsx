@@ -82,9 +82,7 @@ export default async function PerguntaPage(props: PageProps<"/decidir/pergunta/[
     case "semana":
       resposta = quantoPossoGastarNaSemana({
         money: m,
-        livreSemana: r.livre.tipo === "semOrcamento" ? null : r.livre.porSemana,
-        livreMes: r.livre.tipo === "semOrcamento" ? null : r.livre.restante,
-        diasRestantes: Math.max(1, d.diasNoMes - d.dia + 1),
+        semana: r.livre.tipo === "semOrcamento" ? null : r.livre.semana,
         diasSemLancar: r.livre.tipo === "semOrcamento" ? null : r.livre.diasSemLancar,
       });
       break;
@@ -150,21 +148,21 @@ export default async function PerguntaPage(props: PageProps<"/decidir/pergunta/[
   // "Quanto posso gastar na semana?": a régua dos 7 dias do Resumo (protótipo r67), com os dias que
   // faltam até domingo em dourado e o valor por dia.
   const hojeNaSemana = (nowInBrazil().getDay() + 6) % 7;
-  const ateDomingo = 7 - hojeNaSemana;
-  const livreSemana = r.livre.tipo === "semOrcamento" ? null : r.livre.porSemana;
+  const semanaFixa = r.livre.tipo === "semOrcamento" ? null : r.livre.semana;
+  const ateDomingo = semanaFixa ? semanaFixa.diasAteOFim : 7 - hojeNaSemana;
   const regua =
-    slug === "semana" && livreSemana !== null ? (
+    slug === "semana" && semanaFixa !== null ? (
       <div className="flex flex-col items-center gap-2.5 rounded-3xl bg-surface p-4 shadow-[inset_0_0_0_1px_var(--color-border)]" data-regua-semana>
-        <b className="text-xl font-normal tabular-nums text-ink">{m(Math.max(0, livreSemana) / ateDomingo)} por dia</b>
-        <div className="grid w-full grid-cols-7 gap-1.5" role="img" aria-label={`Faltam ${ateDomingo} dias até domingo`}>
+        <b className="text-xl font-normal tabular-nums text-ink">{m(semanaFixa.porDia)} por dia</b>
+        <div className="grid w-full grid-cols-7 gap-1.5" role="img" aria-label={semanaFixa.acabaNoDomingo ? `Faltam ${ateDomingo} dias até domingo` : `Faltam ${ateDomingo} dias até o fim do mês`}>
           {["S", "T", "Q", "Q", "S", "S", "D"].map((l, i) => (
-            <span key={i} className={`flex flex-col items-center gap-1.5 text-xs ${i >= hojeNaSemana ? "text-ink" : "text-ink-muted"} ${i === hojeNaSemana ? "font-medium" : ""}`}>
-              <i className={`h-1.5 w-full rounded ${i >= hojeNaSemana ? "bg-[var(--color-dinheiro-guardou)]" : "bg-border-strong"}`} />
+            <span key={i} className={`flex flex-col items-center gap-1.5 text-xs ${i >= hojeNaSemana && i < hojeNaSemana + ateDomingo ? "text-ink" : "text-ink-muted"} ${i === hojeNaSemana ? "font-medium" : ""}`}>
+              <i className={`h-1.5 w-full rounded ${i >= hojeNaSemana && i < hojeNaSemana + ateDomingo ? "bg-[var(--color-dinheiro-guardou)]" : "bg-border-strong"}`} />
               {l}
             </span>
           ))}
         </div>
-        <small className="text-xs text-ink-muted">{ateDomingo === 1 ? "Hoje é domingo" : `${ateDomingo} dias até domingo`}</small>
+        <small className="text-xs text-ink-muted">{!semanaFixa.acabaNoDomingo ? `${ateDomingo === 1 ? "1 dia" : `${ateDomingo} dias`} até o fim do mês` : ateDomingo === 1 ? "Hoje é domingo" : `${ateDomingo} dias até domingo`}</small>
       </div>
     ) : null;
 

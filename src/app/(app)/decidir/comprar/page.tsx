@@ -11,7 +11,7 @@ import { listBudgets, sumExpensesByParentCategory, sumExpensesByCustomCategory }
 import { getMonthlyPlan } from "@/lib/repositories/monthly-plan.repo";
 import { listGoalsWithProgress } from "@/lib/repositories/goal.repo";
 import { getEmergencyFund } from "@/lib/repositories/emergency-fund.repo";
-import { contarGastosReaisDoMes } from "@/lib/repositories/monthly-entry.repo";
+import { carregarFoco } from "@/app/(app)/mensal/foco/dados";
 import { getRendaTipica, getTypicalMonthlyExpense } from "@/lib/planning/typical-expense";
 import { computeGoalPlan } from "@/lib/planning/goal";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -26,8 +26,6 @@ import {
   type CompraMeta,
 } from "@/lib/decisoes/posso-comprar";
 import { prisma } from "@/lib/db/prisma";
-import { lerRitmo } from "@/app/(app)/mensal/foco/ritmo";
-import { getOwnUser } from "@/lib/repositories/user.repo";
 import { PossoComprar } from "./PossoComprar";
 import { PerguntaRendaDoCasal } from "./PerguntaRendaDoCasal";
 import { responderRendaDoCasalAction } from "@/app/(app)/mensal/foco/actions";
@@ -51,7 +49,6 @@ export default async function PossoComprarPage() {
   const month = now.getMonth() + 1;
   const diasNoMes = new Date(year, month, 0).getDate();
   const diasRestantes = Math.max(1, diasNoMes - now.getDate() + 1);
-  const ritmo = lerRitmo((await getOwnUser(ctx)).ritmoAcompanhamento) ?? "semanal";
   // Casal: antes de qualquer conta, saber o que é a "renda" deste perfil. A resposta muda a regra.
   const casal = ehCasal(ctx.profileKind);
   const rendaDoCasal = casal ? await lerDecisao(ctx, "casal_renda", "renda") : null;
@@ -72,7 +69,7 @@ export default async function PossoComprarPage() {
   // sumia da conta no dia 1.
   const agora = new Date();
   const desdeParcelas = new Date(Date.UTC(year, month - 1 - MAX_PARCELAS, 1, 3));
-  const [budgets, spentByParent, spentByCustom, summary, plan, goals, fund, gastosReais, gastoTipico, rendaTipica, todasDecididas] = await Promise.all([
+  const [budgets, spentByParent, spentByCustom, summary, plan, goals, fund, foco, gastoTipico, rendaTipica, todasDecididas] = await Promise.all([
     listBudgets(ctx, year, month),
     sumExpensesByParentCategory(ctx, year, month),
     sumExpensesByCustomCategory(ctx, year, month),
@@ -80,7 +77,8 @@ export default async function PossoComprarPage() {
     getMonthlyPlan(ctx, year, month),
     listGoalsWithProgress(ctx),
     getEmergencyFund(ctx),
-    contarGastosReaisDoMes(ctx, year, month),
+    // O mesmo livre do Resumo (regra A, 13/10/2026): a sobra do dia a dia e o que cabe na semana.
+    carregarFoco(ctx),
     getTypicalMonthlyExpense(ctx),
     getRendaTipica(ctx),
     listarComprasDecididasDesde(ctx, desdeParcelas),
@@ -137,15 +135,11 @@ export default async function PossoComprarPage() {
       gasto: b.parentCategory ? (gastoPorMae.get(b.parentCategory) ?? 0) : (gastoPorPersonalizada.get(b.customCategoryId ?? "") ?? 0),
     }));
   const gastoPlanejado = categorias.reduce((s, c) => s + c.planejado, 0);
-  // Mesma regra da aba Foco: quem fecha por mês e ainda não lançou nada tem a sobra estimada.
-  const semDado = ritmo === "mensal" && gastosReais === 0;
-  const sobraDoMes = semDado
-    ? (gastoPlanejado * diasRestantes) / diasNoMes
-    : // Igual ao "livre" do Foco: estouro numa categoria e gasto fora do orçamento saem do mesmo bolso.
-      Math.min(
-        categorias.reduce((s, c) => s + Math.max(0, c.planejado - c.gasto), 0),
-        Math.max(0, gastoPlanejado - Math.max(summary.totalExpense, categorias.reduce((s, c) => s + c.gasto, 0))),
-      );
+  // O mesmo livre do Resumo: guardar, contas fixas e parcelas já saíram inteiros; o que sobra é o
+  // dia a dia do mês. Antes a conta era refeita aqui e podia discordar do Resumo.
+  const livre = foco.foco.livre;
+  const sobraDoMes = livre.tipo === "semOrcamento" ? 0 : livre.restante;
+  const semanaRestante = livre.tipo === "semOrcamento" ? undefined : livre.semana.restante;
 
   // Renda: o plano do mês; sem plano, a renda TÍPICA (mediana dos últimos meses, que não se
   // deixa levar pelo 13º); sem histórico, o que entrou até agora. A tela diz qual foi usada.
@@ -207,6 +201,7 @@ export default async function PossoComprarPage() {
     renda,
     gastoPlanejado,
     sobraDoMes,
+    ...(semanaRestante !== undefined ? { semanaRestante } : {}),
     diasRestantes,
     diasAteDomingo: diaDaSemana(now).diasAteDomingo,
     metas,

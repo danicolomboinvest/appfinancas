@@ -30,6 +30,11 @@ export type NumerosDoWidget = {
     /** Segunda = 0 … domingo = 6. */
     hoje: number;
     ritmo: Ritmo;
+    /**
+     * A semana fixa (regra A, 13/10/2026): o valor da semana, quanto já saiu e quanto passou.
+     * Campo novo: o widget antigo ignora e segue lendo `valor` e `rotulo`, que já vêm certos.
+     */
+    semana?: { valor: number; gasto: number; passou: number; proxima: number | null };
   };
   fimDoMes: {
     /** Sempre positivo; a palavra diz se sobra ou falta. Nulo nos primeiros dias do mês. */
@@ -50,7 +55,7 @@ export function numerosDoWidget(e: {
   modo: "claro" | "escuro" | "auto";
   metas: { id: string; name: string; computedCurrentAmount: number; targetAmount: number | { toString(): string } }[];
 }): NumerosDoWidget {
-  const { indice, diasAteDomingo } = diaDaSemana(e.agora);
+  const { indice } = diaDaSemana(e.agora);
   const l = e.livre;
   const metas = e.metas
     .map((g) => {
@@ -69,22 +74,23 @@ export function numerosDoWidget(e: {
     };
   }
 
-  // Igual ao SemanaFoco: na semana, o livre dividido pelos dias até domingo; no mês, pelos que faltam.
-  const dias = l.tipo === "semana" ? Math.min(diasAteDomingo, Math.max(1, l.diasRestantes)) : Math.max(1, l.diasRestantes);
-  const porDia = Math.max(0, l.valor) / dias;
+  // O mesmo número do Resumo (SemanaFoco): o que ainda cabe na semana fixa, ou quanto passou.
+  const sem = l.semana;
+  const passou = sem.passou >= 1;
   const previsao = l.tipo === "estimativa" ? null : previsaoDoMes(l.planoVariavel, l.gastoVariavel, l.decorrido, l.gastoUnico);
-  const ritmo: Ritmo = l.tipo !== "estimativa" && l.planoVariavel > 0 ? ritmoDoMes(l.gastoVariavel / l.planoVariavel, l.decorrido) : "dentro";
+  const ritmo: Ritmo = passou ? "rapido" : l.tipo !== "estimativa" && l.planoVariavel > 0 ? ritmoDoMes(l.gastoVariavel / l.planoVariavel, l.decorrido) : "dentro";
 
   return {
     ...base,
     livre: {
       tipo: l.tipo,
-      valor: Math.round(Math.max(0, l.valor)),
-      rotulo: l.tipo === "semana" ? "livre até domingo" : l.tipo === "mes" ? "livre até o fim do mês" : "livre no mês (estimativa)",
-      porDia: Math.round(porDia),
-      rotuloPorDia: l.tipo === "semana" ? "por dia até domingo" : "por dia até o fim do mês",
+      valor: Math.round(passou ? sem.passou : Math.max(0, sem.restante)),
+      rotulo: passou ? "passou da semana" : "para gastar nesta semana",
+      porDia: Math.round(sem.porDia),
+      rotuloPorDia: sem.acabaNoDomingo ? "por dia até domingo" : `por dia até dia ${sem.fim}`,
       hoje: indice,
       ritmo,
+      semana: { valor: Math.round(sem.valor), gasto: Math.round(sem.gasto), passou: Math.round(sem.passou), proxima: sem.proxima === null ? null : Math.round(sem.proxima) },
     },
     fimDoMes: {
       valor: previsao === null ? null : Math.abs(previsao),

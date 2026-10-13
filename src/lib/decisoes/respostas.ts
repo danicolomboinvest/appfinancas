@@ -608,10 +608,28 @@ export function melhoreiDoMesPassado(e: { money: (v: number) => string; atual: R
   };
 }
 
-/** "Quanto posso gastar essa semana?": o livre do Foco, dito em uma frase. */
-export function quantoPossoGastarNaSemana(e: { money: (v: number) => string; livreSemana: number | null; livreMes: number | null; diasRestantes: number; diasSemLancar: number | null }): Resposta {
+/** O pedaço da semana fixa (ver semana-fixa.ts) que a resposta usa. */
+export type SemanaDaResposta = {
+  valor: number;
+  gasto: number;
+  restante: number;
+  passou: number;
+  porDia: number;
+  fim: number;
+  acabaNoDomingo: boolean;
+  sobraDoMes: number;
+  proxima: number | null;
+};
+
+/**
+ * "Quanto posso gastar essa semana?": o mesmo número do Resumo (regra A, 13/10/2026). O valor da
+ * semana é fixo; a resposta diz quanto ainda cabe nele, ou quanto passou e como fica a próxima.
+ * Nunca só "R$ 0".
+ */
+export function quantoPossoGastarNaSemana(e: { money: (v: number) => string; semana: SemanaDaResposta | null; diasSemLancar: number | null }): Resposta {
   const { money } = e;
-  if (e.livreSemana === null || e.livreMes === null) {
+  const s = e.semana;
+  if (s === null) {
     return {
       veredito: "atencao",
       frase: "Sem orçamento eu não consigo dizer quanto está livre.",
@@ -620,37 +638,44 @@ export function quantoPossoGastarNaSemana(e: { money: (v: number) => string; liv
       acoes: [{ rotulo: "Montar meu orçamento", href: "/orcamento" }],
     };
   }
-  const porDia = e.livreMes / Math.max(1, e.diasRestantes);
-  const veredito: Veredito = e.livreMes <= 0 ? "ruim" : "bom";
+  const ate = s.acabaNoDomingo ? "até domingo" : `até dia ${s.fim}`;
+  const proxima = s.proxima !== null ? `A próxima semana fica com ${money(s.proxima)}.` : "No mês que vem, a conta recomeça.";
+  const passou = s.passou >= 1;
+  const mesAcabou = !passou && s.valor < 1;
+  const frase = passou
+    ? `Passou ${money(s.passou)} da semana: saíram ${money(s.gasto)} de ${money(s.valor)}. ${proxima}`
+    : mesAcabou
+      ? s.sobraDoMes <= -1
+        ? `O dia a dia do mês já passou ${money(-s.sobraDoMes)}. Até o fim do mês, segurar.`
+        : "O dia a dia do mês já foi todo. Até o fim do mês, segurar."
+      : `${money(s.restante)} nesta semana, uns ${money(s.porDia)} por dia ${ate}. A semana abriu com ${money(s.valor)}.`;
   return {
-    veredito,
-    frase:
-      e.livreMes <= 0
-        ? "Nada livre até o fim do mês: o orçamento do mês já foi todo."
-        : e.diasRestantes < 7
-          ? `${money(e.livreMes)} até o fim do mês, que acaba em ${e.diasRestantes === 1 ? "1 dia" : `${e.diasRestantes} dias`}: uns ${money(porDia)} por dia.`
-          : `${money(e.livreSemana)} essa semana. Até o fim do mês são ${money(e.livreMes)}, uns ${money(porDia)} por dia.`,
+    veredito: passou || mesAcabou ? "atencao" : "bom",
+    frase,
     detalhes: e.diasSemLancar ? [`Seus últimos gastos lançados são de ${e.diasSemLancar} dias atrás: esse número pode estar alto.`] : [],
     conta: [
-      { rotulo: "Livre até o fim do mês", valor: money(e.livreMes) },
-      { rotulo: "Dias que faltam", valor: String(e.diasRestantes) },
+      { rotulo: "Valor da semana", valor: money(s.valor) },
+      { rotulo: "Já saiu nesta semana", valor: money(s.gasto) },
+      passou ? { rotulo: "Passou", valor: money(s.passou) } : { rotulo: `Por dia ${ate}`, valor: money(s.porDia) },
     ],
     visual: {
-      destaque: money(Math.max(0, e.livreMes <= 0 ? 0 : e.diasRestantes < 7 ? e.livreMes : e.livreSemana)),
-      rotulo: e.livreMes <= 0 ? "livre até o fim do mês" : e.diasRestantes < 7 ? "até o fim do mês" : "livre essa semana",
+      destaque: money(passou ? s.passou : Math.max(0, s.restante)),
+      rotulo: passou ? "passou da semana" : "para gastar nesta semana",
       ...(e.diasSemLancar ? { selo: { texto: `Últimos gastos há ${e.diasSemLancar} dias`, tom: "atencao" as Veredito } } : {}),
-      blocos:
-        e.livreMes <= 0
-          ? []
-          : [
-              {
-                tipo: "numeros",
-                itens: [
-                  e.diasRestantes < 7 ? { rotulo: "Dias que faltam", valor: String(e.diasRestantes) } : { rotulo: "Até o fim do mês", valor: money(e.livreMes) },
-                  { rotulo: "Por dia", valor: money(porDia) },
-                ],
-              },
-            ],
+      blocos: [
+        {
+          tipo: "numeros",
+          itens: passou
+            ? [
+                { rotulo: "Da semana", valor: money(s.valor) },
+                ...(s.proxima !== null ? [{ rotulo: "Próxima semana", valor: money(s.proxima) }] : []),
+              ]
+            : [
+                { rotulo: "Da semana", valor: money(s.valor) },
+                { rotulo: `Por dia ${ate}`, valor: money(s.porDia) },
+              ],
+        },
+      ],
     },
     acoes: [{ rotulo: "Posso comprar uma coisa?", href: "/decidir/comprar" }],
   };

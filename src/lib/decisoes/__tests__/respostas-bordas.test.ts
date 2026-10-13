@@ -6,6 +6,7 @@ import {
   porqueAcabouMaisRapido,
   quantoPossoGastarNaSemana,
   ritmoMensalDaMeta,
+  type SemanaDaResposta,
   type ResumoMes,
 } from "../respostas";
 
@@ -52,25 +53,28 @@ describe("porqueAcabouMaisRapido: mês sem dados", () => {
 });
 
 describe("quantoPossoGastarNaSemana: bordas", () => {
+  // Mudou de propósito em 13/10/2026 (regra A): a resposta lê a semana fixa do Resumo. "Nada
+  // livre" em vermelho virou o valor de quanto passou, e o fim do mês diz até que dia vai.
+  const s = (over: Partial<SemanaDaResposta> = {}): SemanaDaResposta => ({ valor: 480, gasto: 130, restante: 350, passou: 0, porDia: 70, fim: 18, acabaNoDomingo: true, sobraDoMes: 1310, proxima: 440, ...over });
+
   it("sem orçamento pede o orçamento", () => {
-    expect(quantoPossoGastarNaSemana({ money, livreSemana: null, livreMes: null, diasRestantes: 10, diasSemLancar: null }).veredito).toBe("atencao");
+    expect(quantoPossoGastarNaSemana({ money, semana: null, diasSemLancar: null }).veredito).toBe("atencao");
   });
 
-  it("livre zero ou negativo é 'nada livre', em vermelho", () => {
-    for (const livreMes of [0, -200]) {
-      const r = quantoPossoGastarNaSemana({ money, livreSemana: 0, livreMes, diasRestantes: 10, diasSemLancar: null });
-      expect(r.veredito).toBe("ruim");
-      expect(r.frase).toMatch(/Nada livre/);
-    }
+  it("passou da semana: diz quanto, sem vermelho, e como fica a próxima", () => {
+    const r = quantoPossoGastarNaSemana({ money, semana: s({ gasto: 540, restante: -60, passou: 60, porDia: 0 }), diasSemLancar: null });
+    expect(r.veredito).toBe("atencao");
+    expect(r.frase).toBe("Passou R$ 60.00 da semana: saíram R$ 540.00 de R$ 480.00. A próxima semana fica com R$ 440.00.");
   });
 
-  it("último dia: 'acaba em 1 dia' e o valor por dia é o livre inteiro", () => {
-    const r = quantoPossoGastarNaSemana({ money, livreSemana: 90, livreMes: 90, diasRestantes: 1, diasSemLancar: null });
-    expect(r.frase).toBe("R$ 90.00 até o fim do mês, que acaba em 1 dia: uns R$ 90.00 por dia.");
+  it("mês do dia a dia acabado antes da semana: diz quanto passou do mês", () => {
+    const r = quantoPossoGastarNaSemana({ money, semana: s({ valor: 0, gasto: 0, restante: 0, porDia: 0, sobraDoMes: -200 }), diasSemLancar: null });
+    expect(r.frase).toMatch(/passou R\$ 200\.00/);
   });
 
-  it("dias restantes zero não divide por zero no 'por dia'", () => {
-    const r = quantoPossoGastarNaSemana({ money, livreSemana: 90, livreMes: 90, diasRestantes: 0, diasSemLancar: null });
+  it("última semana do mês, cortada: o por dia vai até o último dia", () => {
+    const r = quantoPossoGastarNaSemana({ money, semana: s({ restante: 90, porDia: 90, fim: 31, acabaNoDomingo: false, proxima: null }), diasSemLancar: null });
+    expect(r.frase).toBe("R$ 90.00 nesta semana, uns R$ 90.00 por dia até dia 31. A semana abriu com R$ 480.00.");
     expect(r.frase).not.toMatch(/NaN|Infinity/);
   });
 });
