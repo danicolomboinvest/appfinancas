@@ -34,6 +34,9 @@ import { gastosDoMesParaAssinaturas, listarAssinaturasDela, listarRecusasDeAssin
 import { categoryLabel } from "@/lib/categories";
 import type { ParentCategory } from "@prisma/client";
 import { Assinaturas } from "./Assinaturas";
+import { Parcelas } from "./Parcelas";
+import { parcelasDoMes } from "@/lib/contas/parcelas-do-mes";
+import { listarLancamentosParcelaveis } from "@/lib/repositories/monthly-entry.repo";
 
 /**
  * Recorrentes, a quarta aba da Visão geral (versão nova, protótipo aprovado): quanto da renda já
@@ -53,6 +56,10 @@ import { Assinaturas } from "./Assinaturas";
  *
  * Assinaturas à mão (13/10/2026): o "+ Adicionar" escolhe dos lançamentos ou escreve. A dela vence
  * a achada do mesmo comerciante, e a achada que ela disse "Não é assinatura" some.
+ *
+ * Parcelas (13/10/2026): as da fatura (lançadas no mês e as que continuam) e as contas
+ * parceladas, numa seção com o "9 de 10" e quando acaba. Antes só contava a conta parcelada
+ * cadastrada à mão e dava R$ 0 para quem tem tudo na fatura. Ver lib/contas/parcelas-do-mes.
  */
 export default async function RecorrentesPage(props: PageProps<"/orcamento/contas">) {
   const sp = await props.searchParams;
@@ -69,7 +76,7 @@ export default async function RecorrentesPage(props: PageProps<"/orcamento/conta
   } catch (err) {
     console.error("Contas do histórico: falhou (a tela segue)", err);
   }
-  const [abertas, pagas, plano, resumo, planoDoMes, raiox, dividas, selic, perdido, novasDoHistorico, dela, recusas, gastosDoMes, rendaMedia] = await Promise.all([
+  const [abertas, pagas, plano, resumo, planoDoMes, raiox, dividas, selic, perdido, novasDoHistorico, dela, recusas, gastosDoMes, rendaMedia, parcelaveis] = await Promise.all([
     listarContasAPagar(ctx),
     listarQuitadasRecentes(ctx),
     listBudgets(ctx, ano, mes),
@@ -85,6 +92,7 @@ export default async function RecorrentesPage(props: PageProps<"/orcamento/conta
     listarRecusasDeAssinatura(ctx),
     gastosDoMesParaAssinaturas(ctx, ano, mes),
     getRendaMedia(ctx),
+    listarLancamentosParcelaveis(ctx, { year: ano, month: mes }),
   ]);
   const hojeD = hojeEmBrasilia();
   const hoje = iso(hojeD);
@@ -95,8 +103,14 @@ export default async function RecorrentesPage(props: PageProps<"/orcamento/conta
   const renda = ref.valor;
   const daMedia = ref.fonte === "media" && rendaMedia ? textoDaMedia(rendaMedia.meses) : null;
   // Renda com dono: contas pela média por mês (a diarista a cada 2 semanas pesa R$ 390), parcelas
-  // pelo valor da parcela, assinaturas achadas no extrato. As contas do ano têm o card delas.
+  // do mês (as da fatura e as contas parceladas, o mesmo número da semana), assinaturas achadas no
+  // extrato. As contas do ano têm o card delas.
   const peso = pesoPorMes(contas, hojeD);
+  const parcelas = parcelasDoMes(
+    parcelaveis,
+    { year: ano, month: mes },
+    contas.map((c) => ({ id: c.id, nome: c.nome, valor: c.valor, parcelas: c.parcelas, parcelaAtual: c.parcelaAtual, categoria: null, diaDoMes: c.diaDoMes })),
+  );
   // Assinaturas: as dela primeiro; as achadas (Raio-X e Dinheiro perdido, que acha o ManyChat que o
   // Raio-X chama de "hábito") entram sem repetir pelo nome, sem a que virou conta (a academia) e
   // sem a que ela disse "Não é assinatura".
@@ -114,7 +128,7 @@ export default async function RecorrentesPage(props: PageProps<"/orcamento/conta
   const totalAssinaturas = assinaturas.reduce((s, i) => s + i.mensal, 0);
   const planejado = plano.reduce((s, b) => s + Number(b.plannedAmount), 0);
   const livre = planejado > 0 ? planejado - resumo.totalExpense : null;
-  const comDono = peso.contas + peso.parcelas + totalAssinaturas;
+  const comDono = peso.contas + parcelas.total + totalAssinaturas;
   const pct = renda > 0 ? Math.round((comDono / renda) * 100) : null;
   const largura = (v: number) => `${Math.min(100, (v / renda) * 100)}%`;
   const vencimentos = vencimentosDaJanela(contas, hojeD, 30).map((v) => ({ chave: v.chave, id: v.id, nome: v.nome, valor: v.valor, aproximado: v.aproximado, vencimento: v.dia }));
@@ -134,16 +148,16 @@ export default async function RecorrentesPage(props: PageProps<"/orcamento/conta
             {daMedia && <p className="-mt-1 text-[13px] text-heroi-suave">{`da renda de ${m(renda)}, ${daMedia}`}</p>}
             <div className="flex h-2 gap-px overflow-hidden rounded-full bg-[color-mix(in_srgb,var(--color-surface)_75%,transparent)]">
               <span className="h-full bg-[var(--color-heroi-tinta)]" style={{ width: largura(peso.contas) }} />
-              <span className="h-full bg-[color-mix(in_srgb,var(--color-heroi-tinta)_65%,transparent)]" style={{ width: largura(peso.parcelas) }} />
+              <span className="h-full bg-[color-mix(in_srgb,var(--color-heroi-tinta)_65%,transparent)]" style={{ width: largura(parcelas.total) }} />
               <span className="h-full bg-[color-mix(in_srgb,var(--color-heroi-tinta)_40%,transparent)]" style={{ width: largura(totalAssinaturas) }} />
             </div>
             <dl className="grid grid-cols-2 gap-x-5 gap-y-1 text-sm">
               <div className="flex justify-between gap-2"><dt className="flex items-center gap-1.5 text-heroi-suave"><i className="size-2 rounded-full bg-[var(--color-heroi-tinta)]" aria-hidden />Contas</dt><dd className="tabular-nums">{m(peso.contas)}</dd></div>
-              <div className="flex justify-between gap-2"><dt className="flex items-center gap-1.5 text-heroi-suave"><i className="size-2 rounded-full bg-[color-mix(in_srgb,var(--color-heroi-tinta)_65%,transparent)]" aria-hidden />Parcelas</dt><dd className="tabular-nums">{m(peso.parcelas)}</dd></div>
+              <div className="flex justify-between gap-2"><dt className="flex items-center gap-1.5 text-heroi-suave"><i className="size-2 rounded-full bg-[color-mix(in_srgb,var(--color-heroi-tinta)_65%,transparent)]" aria-hidden />Parcelas</dt><dd className="tabular-nums">{m(parcelas.total)}</dd></div>
               <div className="flex justify-between gap-2"><dt className="flex items-center gap-1.5 text-heroi-suave"><i className="size-2 rounded-full bg-[color-mix(in_srgb,var(--color-heroi-tinta)_40%,transparent)]" aria-hidden />Assinaturas</dt><dd className="tabular-nums">{m(totalAssinaturas)}</dd></div>
               {livre !== null && <div className="flex justify-between gap-2"><dt className="flex items-center gap-1.5 text-heroi-suave"><i className="size-2 rounded-full bg-[color-mix(in_srgb,var(--color-surface)_75%,transparent)] shadow-[inset_0_0_0_1px_var(--color-heroi-tinta)]" aria-hidden />Livre</dt><dd className="tabular-nums">{m(livre)}</dd></div>}
             </dl>
-            {(dividas.length > 0 || peso.parcelas > 0) && <p className="text-[13px] text-heroi-suave">As parcelas já estão dentro do seu plano.</p>}
+            {(dividas.length > 0 || parcelas.total > 0) && <p className="text-[13px] text-heroi-suave">As parcelas já estão dentro do seu plano.</p>}
           </HeroiDoTema>
         )}
         {novasDoHistorico.length > 0 && <AvisoDasContas contas={novasDoHistorico} />}
@@ -151,6 +165,7 @@ export default async function RecorrentesPage(props: PageProps<"/orcamento/conta
         <ContasAPagar contas={contas} pagas={pagas.map(serializarConta)} hoje={hoje} />
       </div>
       <div className="flex min-w-0 flex-col gap-5">
+        <Parcelas itens={parcelas.itens} total={m(parcelas.total)} hoje={{ year: ano, month: mes }} m={(v) => money(v)} />
         <Assinaturas itens={assinaturas} rotulos={rotulos} />
         {dividas.length > 0 && (
           <section className="flex flex-col gap-2">

@@ -39,10 +39,10 @@ describe("parcelas do mês", () => {
     const r = parcelasDoMes(DA_DANI, { year: 2026, month: 10 });
     const porNome = Object.fromEntries(r.itens.map((i) => [i.nome, i]));
     expect(Object.keys(porNome).sort()).toEqual(["Airbnb", "Amazon Marketplace Cc", "Iberia Líneas Aéreas", "Jim.com* Kio Odontolo", "Mercado Pago"]);
-    expect(porNome["Amazon Marketplace Cc"]).toMatchObject({ atual: 9, total: 10, faltam: 1, acabaEm: { year: 2026, month: 11 }, origem: "lancada" });
-    expect(porNome["Mercado Pago"]).toMatchObject({ atual: 6, total: 6, faltam: 0, acabaEm: { year: 2026, month: 10 }, origem: "lancada" });
-    expect(porNome["Airbnb"]).toMatchObject({ atual: 4, total: 6, valor: 1643.83, faltam: 2, origem: "prevista", categoria: "LAZER" });
-    expect(porNome["Iberia Líneas Aéreas"]).toMatchObject({ atual: 6, total: 10, faltam: 4, acabaEm: { year: 2027, month: 2 }, origem: "prevista" });
+    expect(porNome["Amazon Marketplace Cc"]).toMatchObject({ atual: 9, total: 10, faltam: 2, acabaEm: { year: 2026, month: 11 }, origem: "lancada" });
+    expect(porNome["Mercado Pago"]).toMatchObject({ atual: 6, total: 6, faltam: 1, acabaEm: { year: 2026, month: 10 }, origem: "lancada" });
+    expect(porNome["Airbnb"]).toMatchObject({ atual: 4, total: 6, valor: 1643.83, faltam: 3, origem: "prevista", categoria: "LAZER" });
+    expect(porNome["Iberia Líneas Aéreas"]).toMatchObject({ atual: 6, total: 10, faltam: 5, acabaEm: { year: 2027, month: 2 }, origem: "prevista" });
     expect(porNome["Jim.com* Kio Odontolo"]).toMatchObject({ atual: 2, total: 8, dia: 14, origem: "prevista" });
     expect(r.lancadas).toBe(146.59);
     expect(r.total).toBe(3310.03);
@@ -63,7 +63,7 @@ describe("parcelas do mês", () => {
   it("dezembro: a Amazon já acabou em novembro, o Airbnb está na última", () => {
     const r = parcelasDoMes(DA_DANI, { year: 2026, month: 12 });
     expect(r.itens.map((i) => i.nome)).not.toContain("Amazon Marketplace Cc");
-    expect(r.itens.find((i) => i.nome === "Airbnb")).toMatchObject({ atual: 6, faltam: 0 });
+    expect(r.itens.find((i) => i.nome === "Airbnb")).toMatchObject({ atual: 6, faltam: 1 });
   });
 
   it("duas compras iguais na mesma loja, em meses diferentes, são duas parcelas", () => {
@@ -85,7 +85,7 @@ describe("parcelas do mês", () => {
     ];
     const r = parcelasDoMes(DA_DANI, { year: 2026, month: 10 }, contas);
     expect(r.itens.filter((i) => i.origem === "conta").map((i) => i.nome)).toEqual(["Geladeira"]);
-    expect(r.itens.find((i) => i.nome === "Geladeira")).toMatchObject({ atual: 4, total: 10, faltam: 6, acabaEm: { year: 2027, month: 4 } });
+    expect(r.itens.find((i) => i.nome === "Geladeira")).toMatchObject({ atual: 4, total: 10, faltam: 7, acabaEm: { year: 2027, month: 4 } });
   });
 
   it("o nome sem a parcela", () => {

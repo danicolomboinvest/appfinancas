@@ -23,7 +23,8 @@ import { gastoDepoisDoCombinado, montarFoco } from "@/lib/decisoes/foco";
 import { diaDaSemana } from "@/lib/decisoes/foco-semana";
 import { chaveDoComercianteDe } from "@/lib/contas/assinaturas";
 import { CATEGORIAS_FIXAS, lancamentoDaConta, type ContaPendente, type GastoDoDiaADia } from "@/lib/decisoes/semana-fixa";
-import { parcelaDaDescricao } from "@/lib/decisoes/compra-guiada";
+import { ehParcela, parcelasDoMes } from "@/lib/contas/parcelas-do-mes";
+import { listarLancamentosParcelaveis } from "@/lib/repositories/monthly-entry.repo";
 import { ehDoAno, pagaNoMes } from "@/lib/contas/recorrentes";
 import { ehDoCartao } from "@/lib/cartao/limite";
 import { doDono } from "@/lib/auth/session";
@@ -81,7 +82,7 @@ export async function carregarFoco(ctx: AuthContext) {
   const inicioDoMes = new Date(Date.UTC(year, month - 1, 1, 3));
   // Meia-noite (Brasília) da segunda desta semana, ou do dia 1 se a semana começou no mês passado.
   const inicioDaSemana = new Date(Date.UTC(year, month - 1, Math.max(1, dia - diaDaSemana(now).indice), 3));
-  const [user, budgets, spentByParent, spentByCustom, customCategories, summary, plan, goals, fund, lastExpense, tetos, pendentes, ritualFeito, fechamentoDoMesAnterior, raiox, gastosReais, preCriados, cancelamentos, viradaFeita, lancamentosAnoPassado, paraRevisar, dispensados, gastosDoMes, orcamentoMesAnterior, linhasDoMes, contasDaLista, ultimoCartao, rendaConta, lancamentoAntesDaSemana] =
+  const [user, budgets, spentByParent, spentByCustom, customCategories, summary, plan, goals, fund, lastExpense, tetos, pendentes, ritualFeito, fechamentoDoMesAnterior, raiox, gastosReais, preCriados, cancelamentos, viradaFeita, lancamentosAnoPassado, paraRevisar, dispensados, gastosDoMes, orcamentoMesAnterior, linhasDoMes, contasDaLista, ultimoCartao, rendaConta, lancamentoAntesDaSemana, parcelaveis] =
     await Promise.all([
       getOwnUser(ctx),
       listBudgets(ctx, year, month),
@@ -155,6 +156,8 @@ export async function carregarFoco(ctx: AuthContext) {
         where: comFiltro(lancamentosDosTotais(ctx), { category: "EXPENSE", createdAt: { lt: inicioDaSemana } }),
         select: { id: true },
       }),
+      // As parcelas do mês (as mesmas de Recorrentes): a que continua e ainda não foi lançada fica reservada.
+      listarLancamentosParcelaveis(ctx, { year, month }),
     ]);
   const fechamento = fechamentoDoMesAnterior;
   const ritmo = lerRitmo(user.ritmoAcompanhamento);
@@ -279,7 +282,7 @@ export async function carregarFoco(ctx: AuthContext) {
       g.createdAt < inicioDoMes ||
       g.recurrenceId !== null ||
       CATEGORIAS_FIXAS.has(g.parentCategory ?? "") ||
-      parcelaDaDescricao(g.description ?? "") !== null;
+      ehParcela(g.description, g.entryDate !== null) !== null;
     if (ehConta) {
       contasLancadas += valor;
       continue;
@@ -298,6 +301,11 @@ export async function carregarFoco(ctx: AuthContext) {
   const contasPendentes: ContaPendente[] = lista
     .filter((c, i) => !c.quitada && !contaPaga.has(i) && !ehDoAno(c) && !pagaNoMes(c, hojeUtc) && c.vencimento <= fimDoMesIso && (c.valor ?? 0) > 0)
     .map((c) => ({ valor: c.valor ?? 0, categoria: c.categoria }));
+  // A parcela que continua neste mês e ainda não tem lançamento (a fatura não chegou, ou a antiga
+  // não projetou): sai inteira desde o dia 1, como em Recorrentes. Ver lib/contas/parcelas-do-mes.
+  for (const p of parcelasDoMes(parcelaveis, { year, month }).itens) {
+    if (p.origem === "prevista") contasPendentes.push({ valor: p.valor, categoria: p.categoria ?? "OUTROS" });
+  }
 
   // "Conto só o que já entrou": a renda é o que entrou no mês até agora. Senão, a planejada.
   const rendaSoOQueEntrou = rendaConta === "entrou";

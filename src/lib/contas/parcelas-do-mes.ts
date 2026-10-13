@@ -43,7 +43,7 @@ export type ParcelaDoMes = {
   atual: number;
   total: number;
   valor: number;
-  /** Quantas vêm depois desta (a 9 de 10 tem 1). */
+  /** Quantas faltam pagar, contando a deste mês (a 9 de 10 tem 2; a última tem 1). */
   faltam: number;
   /** O mês da última parcela. */
   acabaEm: Mes;
@@ -128,7 +128,7 @@ export function parcelasDoMes(lancamentos: LancamentoParcelavel[], mes: Mes, con
     atual,
     total: l.total,
     valor: l.valor,
-    faltam: l.total - atual,
+    faltam: l.total - atual + 1,
     acabaEm: doIndice(alvo + (l.total - atual)),
     dia: diaDe(l.dia),
     origem,
@@ -183,7 +183,7 @@ export function parcelasDoMes(lancamentos: LancamentoParcelavel[], mes: Mes, con
       atual,
       total: c.parcelas ?? 1,
       valor: v,
-      faltam: (c.parcelas ?? 1) - atual,
+      faltam: (c.parcelas ?? 1) - atual + 1,
       acabaEm: doIndice(alvo + ((c.parcelas ?? 1) - atual)),
       dia: c.diaDoMes,
       origem: "conta",
