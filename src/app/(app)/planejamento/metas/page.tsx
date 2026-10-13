@@ -13,6 +13,9 @@ import { CartaoDaMeta } from "./CartaoDaMeta";
 import { AbrirFolhaDaMeta, ProvedorDaFolhaDaMeta } from "./FolhaDaMeta";
 import { jeitoDasMetas } from "./visual";
 import "./metas.css";
+import { metasADois } from "@/lib/repositories/casa.repo";
+import { casaNaTela } from "@/lib/casa/regras";
+import { MetasADois } from "./MetasADois";
 
 /**
  * Metas da versão nova (protótipo aprovado, rota #metas): o resumo com o anel de todas juntas e a
@@ -22,7 +25,8 @@ import "./metas.css";
 export default async function MetasPage() {
   const ctx = await getRequiredSession();
   const hoje = nowInBrazil();
-  const [todas, money] = await Promise.all([listarMetasDaTela(ctx, hoje), serverMoney()]);
+  const casa = casaNaTela(ctx.casa);
+  const [todas, money, aDois] = await Promise.all([listarMetasDaTela(ctx, hoje), serverMoney(), casa ? metasADois(ctx, hoje) : Promise.resolve([])]);
   // A reserva primeiro (é a base de tudo), depois o prazo mais perto (protótipo: Reserva, Viagem, Carro).
   const metas = [...todas].sort((a, b) => Number(b.icon === "RESERVA") - Number(a.icon === "RESERVA"));
   const m = (v: number) => money(v, { round: true });
@@ -87,6 +91,8 @@ export default async function MetasPage() {
             ))}
           </>
         )}
+        {/* Casal simples: as metas a dois do Nós dois de antes continuam aqui, para os dois. */}
+        {casa && <MetasADois metas={aDois} casa={casa} money={m} />}
         {novaMeta}
       </div>
     </ProvedorDaFolhaDaMeta>

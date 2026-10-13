@@ -61,9 +61,16 @@ export type ProfileRow = {
 
 const CAMPOS = { id: true, name: true, kind: true, icon: true, theme: true, position: true, isDefault: true, categorias: true, casal: true } as const;
 
+/**
+ * Casal simples (13/10/2026): o perfil Casal de uma casa já migrada sai da troca de perfil e do
+ * menu (o Nós dois agora mora no Pessoal de cada um). Não é apagado: guarda os acertos, os meses
+ * fechados, as metas a dois e o caminho de volta da migração.
+ */
+export const SEM_CASAL_MIGRADO: Prisma.FinancialProfileWhereInput = { NOT: { kind: "CASAL", membrosCasal: { some: { saiuEm: null, modelo: "simples" } } } };
+
 export async function listProfiles(userId: string): Promise<ProfileRow[]> {
   return prisma.financialProfile.findMany({
-    where: { userId },
+    where: { userId, ...SEM_CASAL_MIGRADO },
     select: CAMPOS,
     orderBy: [{ position: "asc" }, { createdAt: "asc" }],
   });
@@ -92,21 +99,23 @@ export const PERFIL_INICIAL = {
  * antigo, em vez de um diferente a cada consulta.
  */
 export async function getOrCreateActiveProfile(userId: string): Promise<ProfileRow> {
-  const ativo = await prisma.financialProfile.findFirst({ where: { userId, isDefault: true }, select: CAMPOS, orderBy: { createdAt: "asc" } });
+  const ativo = await prisma.financialProfile.findFirst({ where: { userId, isDefault: true, ...SEM_CASAL_MIGRADO }, select: CAMPOS, orderBy: { createdAt: "asc" } });
   if (ativo) return ativo;
 
   return prisma.$transaction(async (tx) => {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`perfil-ativo|${userId}`}))`;
     // Quem esperou a trava encontra o perfil que a outra chamada acabou de criar.
-    const criadoEnquantoEsperava = await tx.financialProfile.findFirst({ where: { userId, isDefault: true }, select: CAMPOS, orderBy: { createdAt: "asc" } });
+    const criadoEnquantoEsperava = await tx.financialProfile.findFirst({ where: { userId, isDefault: true, ...SEM_CASAL_MIGRADO }, select: CAMPOS, orderBy: { createdAt: "asc" } });
     if (criadoEnquantoEsperava) return criadoEnquantoEsperava;
 
     const qualquer = await tx.financialProfile.findFirst({
-      where: { userId },
+      where: { userId, ...SEM_CASAL_MIGRADO },
       select: CAMPOS,
       orderBy: { createdAt: "asc" },
     });
     if (qualquer) {
+      // Casal simples: se a marca estava no perfil Casal que migrou, ela sai de lá.
+      await tx.financialProfile.updateMany({ where: { userId, isDefault: true }, data: { isDefault: false } });
       await tx.financialProfile.update({ where: { id: qualquer.id }, data: { isDefault: true } });
       return { ...qualquer, isDefault: true };
     }
@@ -165,11 +174,11 @@ export async function updateProfile(ctx: AuthContext, id: string, input: Partial
 
 /** Troca o perfil ativo. Numa transação, porque duas marcas simultâneas deixariam a conta instável. */
 export async function switchProfile(ctx: AuthContext, id: string): Promise<void> {
-  const alvo = await prisma.financialProfile.findFirst({ where: { id, userId: ctx.userId }, select: { id: true } });
+  const alvo = await prisma.financialProfile.findFirst({ where: { id, userId: ctx.userId, ...SEM_CASAL_MIGRADO }, select: { id: true } });
   if (!alvo) {
     // O Nós dois em que a conta é o par (login do par): não é dela, então não leva a marca de
     // perfil ativo; quem diz que ela está lá é o vínculo.
-    const comoPar = await prisma.membroCasal.updateMany({ where: { userId: ctx.userId, profileId: id, saiuEm: null }, data: { emUso: true } });
+    const comoPar = await prisma.membroCasal.updateMany({ where: { userId: ctx.userId, profileId: id, saiuEm: null, modelo: "nos-dois" }, data: { emUso: true } });
     if (comoPar.count === 0) throw new Error("Perfil não encontrado.");
     return;
   }

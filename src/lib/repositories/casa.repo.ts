@@ -253,3 +253,17 @@ export async function garantirPessoalDoPar(userId: string, tx: Pick<typeof prism
   const novo = await tx.financialProfile.create({ data: { userId, name: "Pessoal", kind: "PESSOAL", icon: "wallet", theme: "padrao", isDefault: !temAlgum }, select: { id: true } });
   return { id: novo.id, criado: true };
 }
+
+/**
+ * As metas a dois do Nós dois de antes (ficam no perfil Casal antigo, com os aportes delas). Os
+ * dois veem em Metas, só para acompanhar. Só as do perfil Casal da casa: nada do Pessoal de ninguém.
+ */
+export async function metasADois(ctx: AuthContext, hoje: Date): Promise<{ id: string; nome: string; foto: string; alvo: number; guardado: number; pct: number }[]> {
+  const casa = casaAtiva(ctx);
+  if (!casa) return [];
+  const titular = casa.eu.papel === "titular" ? casa.eu : casa.outro;
+  const { listarMetasDaTela } = await import("@/lib/repositories/metas.repo");
+  const doCasal = { ...ctx, userId: titular.userId, profileId: casa.casalProfileId, casa: null };
+  const metas = await listarMetasDaTela(doCasal, hoje);
+  return metas.map((m) => ({ id: m.id, nome: m.nome, foto: m.foto, alvo: m.alvo, guardado: m.guardado, pct: m.plano.pct }));
+}
