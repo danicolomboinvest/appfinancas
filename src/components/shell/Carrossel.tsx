@@ -127,23 +127,24 @@ export function CarrosselDeAbas({ itens, ativa, rotulo, onEscolher, className = 
       <span
         aria-hidden
         data-lente
-        className="pointer-events-none absolute left-1/2 top-1/2 h-10 -translate-x-1/2 -translate-y-1/2 rounded-full bg-pill shadow-[inset_0_0_0_1px_var(--color-border-strong),0_6px_14px_-8px_rgba(0,0,0,0.18)] transition-[width] duration-150 motion-reduce:transition-none"
+        className="pointer-events-none absolute left-1/2 top-1/2 h-10 -translate-x-1/2 md:hidden -translate-y-1/2 rounded-full bg-pill shadow-[inset_0_0_0_1px_var(--color-border-strong),0_6px_14px_-8px_rgba(0,0,0,0.18)] transition-[width] duration-150 motion-reduce:transition-none"
         style={{ width: lente || undefined, opacity: lente ? 1 : 0 }}
       />
       <div
         ref={trilho}
         role="tablist"
         aria-label={rotulo}
-        className="relative flex snap-x snap-mandatory items-center gap-1 overflow-x-auto py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-        // Metade da faixa de cada lado: a primeira e a última aba também chegam ao centro.
-        style={{ paddingInline: "50%" }}
+        // Metade da faixa de cada lado: a primeira e a última aba também chegam ao centro. No
+        // computador (13/10/2026) não tem roleta: as abas ficam paradas no centro e a pílula vai
+        // na aba aberta. A lente fixa no meio da tela grande ficava fora do nome ("Resumo" torto).
+        className="relative flex snap-x snap-mandatory items-center gap-1 overflow-x-auto px-[50%] py-1 [scrollbar-width:none] md:justify-center md:overflow-visible md:px-0 [&::-webkit-scrollbar]:hidden"
       >
         {itens.map((it) => {
           const on = it.chave === ativa;
           const naLente = it.chave === centro;
           const classe = `flex h-10 shrink-0 snap-center items-center whitespace-nowrap rounded-full px-4 text-[15px] transition-[color,opacity] duration-150 motion-reduce:transition-none ${
             naLente ? "font-medium text-on-pill opacity-100" : "text-ink-muted opacity-60 hover:opacity-90"
-          }`;
+          } md:font-normal md:text-ink-muted md:opacity-70 md:hover:opacity-100 md:aria-selected:bg-pill md:aria-selected:font-medium md:aria-selected:text-on-pill md:aria-selected:opacity-100 md:aria-selected:shadow-[inset_0_0_0_1px_var(--color-border-strong),0_6px_14px_-8px_rgba(0,0,0,0.18)]`;
           const ref = (el: HTMLElement | null) => {
             refs.current[it.chave] = el;
           };
