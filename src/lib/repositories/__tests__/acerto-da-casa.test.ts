@@ -23,9 +23,10 @@ type Linha = {
   parentCategory: string | null;
   importBatchId: string | null;
   importBatch: { ocultoDoPar: boolean } | null;
+  entryDate: Date | null;
 };
 
-const db = vi.hoisted(() => ({ linhas: [] as Linha[], config: {} as unknown }));
+const db = vi.hoisted(() => ({ linhas: [] as Linha[], config: {} as unknown, regras: [] as { userId: string; profileId: string; pattern: string; daCasa: boolean }[] }));
 
 vi.mock("@/lib/db/prisma", async () => {
   const { bate } = await import("@/lib/casa/__tests__/avaliador");
@@ -33,6 +34,15 @@ vi.mock("@/lib/db/prisma", async () => {
     prisma: {
       financialProfile: { findUnique: async () => ({ casal: db.config }) },
       fechamentoCasal: { findUnique: async () => null },
+      regraDaCasa: {
+        findMany: async () => db.regras,
+        upsert: async ({ create, update, where }: { create: (typeof db.regras)[number]; update: { daCasa: boolean }; where: { userId_profileId_pattern: { userId: string; profileId: string; pattern: string } } }) => {
+          const k = where.userId_profileId_pattern;
+          const r = db.regras.find((x) => x.userId === k.userId && x.profileId === k.profileId && x.pattern === k.pattern);
+          if (r) Object.assign(r, update);
+          else db.regras.push({ ...create });
+        },
+      },
       monthlyEntry: {
         findMany: async ({ where }: { where: Record<string, unknown> }) =>
           db.linhas.filter((l) => {
@@ -42,12 +52,19 @@ vi.mock("@/lib/db/prisma", async () => {
             const r = resto as { year: number; month: number; category: { in: string[] } };
             return bate(l as unknown as Record<string, unknown>, regra) && l.year === r.year && l.month === r.month && r.category.in.includes(l.category);
           }),
+        findFirst: async ({ where }: { where: { id: string; userId: string; profileId: string } }) =>
+          db.linhas.find((l) => l.id === where.id && l.userId === where.userId && l.profileId === where.profileId && l.category === "EXPENSE") ?? null,
+        updateMany: async ({ where, data }: { where: { id: string; userId: string; profileId: string }; data: Partial<Linha> }) => {
+          const alvo = db.linhas.filter((l) => l.id === where.id && l.userId === where.userId && l.profileId === where.profileId);
+          alvo.forEach((l) => Object.assign(l, data));
+          return { count: alvo.length };
+        },
       },
     },
   };
 });
 
-const { acertoDaCasa } = await import("@/lib/repositories/casa.repo");
+const { acertoDaCasa, marcarDaCasa } = await import("@/lib/repositories/casa.repo");
 
 const ANA = { userId: "ana", profileId: "pessoal-ana", letra: "A" as const, nome: "Ana", papel: "titular" as const };
 const LUCAS = { userId: "lucas", profileId: "pessoal-lucas", letra: "B" as const, nome: "Lucas", papel: "par" as const };
@@ -71,6 +88,7 @@ const L = (dono: typeof ANA | typeof LUCAS, o: Partial<Linha>): Linha => ({
   parentCategory: "MORADIA",
   importBatchId: null,
   importBatch: null,
+  entryDate: null,
   ...o,
 });
 
@@ -119,5 +137,40 @@ describe("Acerto do mês no Casal simples", () => {
   it("sem casa não há acerto", async () => {
     const semCasa = { ...ctx(ANA, LUCAS), casa: null } as AuthContext;
     expect(await acertoDaCasa(semCasa, 2026, 10)).toBeNull();
+  });
+
+  it("só o que é da casa entra: a roupa visível do Lucas aparece para a Ana, mas não é dividida; o mercado é", async () => {
+    db.config = { nomeA: "Ana", nomeB: "Lucas", divisao: "meio", acertos: [] };
+    db.regras = [];
+    db.linhas = [
+      L(ANA, { amount: 2400, description: "Aluguel" }),
+      L(LUCAS, { amount: 400, description: "Pão de Açúcar", parentCategory: "ALIMENTACAO" }),
+      L(LUCAS, { amount: 300, description: "Renner", parentCategory: "VESTUARIO" }),
+      L(ANA, { amount: 90, description: "iFood", parentCategory: "ALIMENTACAO" }),
+    ];
+    const a = await acertoDaCasa(ctx(ANA, LUCAS), 2026, 10);
+    expect(a?.totalDaCasa).toBe(2800);
+    expect(a?.gastosDaCasa.map((g) => g.descricao).sort()).toEqual(["Aluguel", "Pão de Açúcar"]);
+    expect(a?.gastosDaCasa.find((g) => g.descricao === "Pão de Açúcar")?.quem).toBe("outro");
+  });
+
+  it("um toque troca Da casa e Meu, e o app aprende com o comerciante", async () => {
+    db.config = { nomeA: "Ana", nomeB: "Lucas", divisao: "meio", acertos: [] };
+    db.regras = [];
+    db.linhas = [
+      L(ANA, { id: "ifood-1", amount: 90, description: "IFOOD *RESTAURANTE", parentCategory: "ALIMENTACAO" }),
+      L(ANA, { id: "ifood-2", amount: 60, description: "IFOOD *RESTAURANTE", parentCategory: "ALIMENTACAO" }),
+      L(ANA, { id: "aluguel", amount: 2400, description: "Aluguel" }),
+    ];
+    expect((await acertoDaCasa(ctx(ANA, LUCAS), 2026, 10))?.totalDaCasa).toBe(2400);
+    await marcarDaCasa(ctx(ANA, LUCAS), "ifood-1", true);
+    expect(db.linhas.find((l) => l.id === "ifood-1")?.doCasal).toBe(true);
+    // O segundo iFood ainda não tinha escolha: veio pela regra aprendida.
+    expect((await acertoDaCasa(ctx(ANA, LUCAS), 2026, 10))?.totalDaCasa).toBe(2550);
+    // E o toque de volta: o aluguel vira "Meu".
+    await marcarDaCasa(ctx(ANA, LUCAS), "aluguel", false);
+    expect((await acertoDaCasa(ctx(ANA, LUCAS), 2026, 10))?.totalDaCasa).toBe(150);
+    // O Lucas não troca o gasto da Ana.
+    expect(await marcarDaCasa(ctx(LUCAS, ANA), "aluguel", true)).toBeNull();
   });
 });

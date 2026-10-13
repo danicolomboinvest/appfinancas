@@ -28,11 +28,13 @@ function toDateInput(date: Date | null): string | null {
  * Lançamentos do banco no formato da lista de Transações (mês ou período). `quem` (Casal simples):
  * diz de quem é cada linha, para a bolinha, os filtros Eu/par, o cadeado e o "só quem gastou edita".
  */
-export function linhasDaLista(entries: Linha[], ocultos: boolean, quem?: QuemLe) {
+export function linhasDaLista(entries: Linha[], ocultos: boolean, quem?: QuemLe, daCasa?: ((l: Linha) => boolean) | null) {
   return entries.map((entry) => {
     const dono = quem ? quemGastou(quem, entry) : null;
     return {
     dono,
+    // Casal simples: o gasto é da casa (entra no acerto) ou meu. Só existe dentro de uma casa.
+    daCasa: dono && daCasa ? daCasa(entry) : null,
     // O que é meu e está escondido do par (Só meu, ou a conta desligada) mostra o cadeado. O do
     // par nunca chega aqui escondido: a leitura já tirou.
     escondido: dono === "eu" && (entry.soMeu || Boolean(entry.importBatch?.ocultoDoPar)),

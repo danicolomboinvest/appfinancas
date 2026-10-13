@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { classificadorDaCasa } from "@/lib/repositories/casa.repo";
 import { getRequiredSession } from "@/lib/auth/session";
 import { perfisDeDestino } from "@/lib/repositories/mover-perfil.repo";
 import { dadosDaDivisao, listEntriesInInterval, listRecentSubcategories } from "@/lib/repositories/monthly-entry.repo";
@@ -49,7 +50,7 @@ export default async function TransacoesDoPeriodo(props: { searchParams: Promise
           goals={goals.map((g) => ({ id: g.id, name: g.name }))}
           pessoasDaDivisao={divisao.pessoas}
           perfisDestino={perfisDestino}
-          entries={linhasDaLista(entries, ocultos, ctx)}
+          entries={linhasDaLista(entries, ocultos, ctx, ctx.casa ? await classificadorDaCasa(ctx) : null)}
         />
       )}
     </div>

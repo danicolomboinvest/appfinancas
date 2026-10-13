@@ -141,3 +141,25 @@ describe("Casal simples: orçamento, dono e conta", () => {
     expect(chaveDaConta("extrato", null)).toBe("conta:extrato");
   });
 });
+
+import { daCasaAutomatico, ehDaCasa } from "@/lib/casa/regras";
+
+describe("Da casa", () => {
+  const g = (o: Partial<Parameters<typeof ehDaCasa>[0]>) => ({ category: "EXPENSE", parentCategory: null, subcategory: null, description: null, doCasal: null, soMeu: false, ...o });
+  it("automático: Moradia inteira e o supermercado (pela subcategoria ou pelo nome)", () => {
+    for (const d of ["Aluguel", "Condomínio", "IPTU", "Enel", "Sabesp", "Comgás", "Vivo Fibra"]) expect(daCasaAutomatico({ parentCategory: "MORADIA", subcategory: null, description: d })).toBe(true);
+    expect(ehDaCasa(g({ parentCategory: "ALIMENTACAO", subcategory: "Supermercado" }))).toBe(true);
+    expect(ehDaCasa(g({ parentCategory: "ALIMENTACAO", description: "PAO DE ACUCAR-1234" }))).toBe(true);
+    expect(ehDaCasa(g({ parentCategory: "ALIMENTACAO", description: "Mercado" }))).toBe(true);
+    expect(ehDaCasa(g({ parentCategory: "ALIMENTACAO", description: "iFood" }))).toBe(false);
+    expect(ehDaCasa(g({ parentCategory: "VESTUARIO", description: "Renner" }))).toBe(false);
+  });
+  it("a escolha do lançamento manda, depois o aprendido; Só meu e entrada nunca", () => {
+    expect(ehDaCasa(g({ parentCategory: "MORADIA", doCasal: false }))).toBe(false);
+    expect(ehDaCasa(g({ parentCategory: "VESTUARIO", doCasal: true }))).toBe(true);
+    expect(ehDaCasa(g({ parentCategory: "MORADIA", soMeu: true }))).toBe(false);
+    expect(ehDaCasa(g({ category: "INCOME", parentCategory: "MORADIA" }))).toBe(false);
+    const aprendidas = new Map([["renner", true]]);
+    expect(ehDaCasa(g({ parentCategory: "VESTUARIO", description: "RENNER" }), aprendidas)).toBe(true);
+  });
+});

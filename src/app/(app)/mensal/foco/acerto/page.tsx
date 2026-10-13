@@ -92,9 +92,33 @@ export default async function AcertoPage(props: { searchParams: Promise<Record<s
         ))}
       </div>
 
+      {acerto.gastosDaCasa.length > 0 && (
+        <section className="flex flex-col gap-2" data-gastos-da-casa>
+          <h2 className="px-1 text-[15px] font-medium text-ink">Gastos da casa</h2>
+          <div className="divide-y divide-border overflow-hidden rounded-3xl border border-border bg-surface">
+            {acerto.gastosDaCasa.map((g) => {
+              const p = g.quem === "eu" ? acerto.eu : acerto.outro;
+              return (
+                <div key={g.id} className="flex min-h-14 items-center gap-3 px-4 py-2.5">
+                  <Bolinha nome={p.nome} cor={p.papel} size={28} />
+                  <span className="min-w-0 flex-1">
+                    <b className="block break-words text-[15px] font-medium text-ink">{g.descricao}</b>
+                    <small className="text-[13px] text-ink-muted">
+                      {g.quem === "eu" ? "Você pagou" : `${p.nome} pagou`}
+                      {g.dia ? ` · ${g.dia.slice(8, 10)}/${g.dia.slice(5, 7)}` : ""}
+                    </small>
+                  </span>
+                  <span className="shrink-0 text-[15px] tabular-nums text-ink">{money(g.valor)}</span>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
       <Escolhas divisao={acerto.config.divisao} rotuloRenda={rotuloRenda} ano={ano} mes={mes} acertado={acerto.acertado} temValor={valor >= 1} />
 
-      <p className="px-1 text-[13px] text-ink-muted">Entra o que os dois veem. O que é Só meu ou de conta escondida fica fora.</p>
+      <p className="px-1 text-[13px] text-ink-muted">Entra só o que é da casa. Para trocar, abra o gasto e toque em Da casa ou Meu.</p>
     </div>
   );
 }

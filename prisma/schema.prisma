@@ -241,6 +241,7 @@ model User {
   accumulationCache       AccumulationProjectionCache[]
   transactionRules        TransactionCategoryRule[]
   regrasDePerfil          RegraDePerfil[]
+  regrasDaCasa            RegraDaCasa[]
   passwordResetTokens     PasswordResetToken[]
   importBatches           ImportBatch[]
   importDiagnostics       ImportDiagnostic[]
@@ -335,6 +336,7 @@ model FinancialProfile {
   transactionRules        TransactionCategoryRule[]
   regrasDePerfil          RegraDePerfil[]               @relation("RegraDePerfilOrigem")
   regrasQueTrazemPraCa    RegraDePerfil[]               @relation("RegraDePerfilDestino")
+  regrasDaCasa            RegraDaCasa[]
   simulations             Simulation[]
   analysisSheets          AnalysisSheet[]
   yearlyConsolidations    YearlyConsolidationCache[]
@@ -431,6 +433,24 @@ model TransactionCategoryRule {
 
   @@unique([userId, profileId, pattern])
   @@index([userId])
+}
+
+/// Casal simples (13/10/2026): o que o app aprendeu sobre "da casa" com os toques dela. Tocar
+/// "Da casa" ou "Meu" num gasto grava a regra do comerciante (a mesma chave da regra de
+/// categoria, chaveDoComerciante), e os próximos gastos dali já chegam classificados. Vale só
+/// para o que ainda não tem escolha própria no lançamento (MonthlyEntry.doCasal nulo).
+model RegraDaCasa {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  profileId String
+  profile   FinancialProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  pattern   String           @db.VarChar(80)
+  daCasa    Boolean
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@unique([userId, profileId, pattern])
 }
 
 /// "Sempre mandar para a Empresa" (12/10/2026): a compra deste comerciante que aparece numa

@@ -35,6 +35,8 @@ const COM_ESCOPO = [
   "conviteCasal", "membroCasal", "fechamentoCasal",
   // "Sempre mandar para a Empresa" (12/10/2026): a regra mora no perfil de onde a compra sai.
   "regraDePerfil",
+  // Casal simples (13/10/2026): o "Da casa" aprendido por comerciante, no Pessoal de quem tocou.
+  "regraDaCasa",
 ];
 
 /**

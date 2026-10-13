@@ -1,4 +1,5 @@
 import type { Prisma } from "@prisma/client";
+import { chaveDoComerciante } from "@/lib/import/comerciante";
 
 /**
  * Casal simples (aprovado pela dona em 13/10/2026, casal-simples-proposta.html).
@@ -165,4 +166,54 @@ export function chaveDaConta(docType: string, fileName: string | null): string {
 
 export function outraLetra(l: Letra): Letra {
   return l === "A" ? "B" : "A";
+}
+
+// ---------------------------------------------------------------------------------------------
+// "Da casa" (decisão da dona em 13/10/2026): só o que é da casa entra no acerto.
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * O lançamento como a casa enxerga. A escolha mora em MonthlyEntry.doCasal, que já existia no Nós
+ * dois, com o mesmo sentido de "visibilidade":
+ * - soMeu = true          → so_meu: escondido do par (nem aparece para ele);
+ * - doCasal = true        → casal: da casa, entra no acerto;
+ * - doCasal = false       → pessoal_visivel: meu, o par vê mas não entra no acerto;
+ * - doCasal = nulo        → ainda sem escolha: a regra aprendida do comerciante ou o automático.
+ */
+export type LinhaDaCasa = { category: string; parentCategory: string | null; subcategory: string | null; description: string | null; doCasal: boolean | null; soMeu: boolean };
+
+/** Supermercado pelo nome, para o que veio do extrato sem subcategoria. */
+const MERCADO = /\b(super ?mercado|mercado|mercadinho|hortifruti|sacolao|atacadao|assai|carrefour|pao de acucar|extra|dia supermercado|guanabara|zaffari|savegnago|bh supermercados|st marche|oba hortifruti)\b/;
+
+function semAcento(s: string): string {
+  return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
+
+/**
+ * Da casa automático: Moradia inteira (aluguel, condomínio, IPTU, luz, água, gás, internet) e
+ * Alimentação › Supermercado (pela subcategoria ou pelo nome do mercado).
+ */
+export function daCasaAutomatico(l: Pick<LinhaDaCasa, "parentCategory" | "subcategory" | "description">): boolean {
+  if (l.parentCategory === "MORADIA") return true;
+  if (l.parentCategory !== "ALIMENTACAO") return false;
+  if (l.subcategory && semAcento(l.subcategory).includes("supermercado")) return true;
+  return MERCADO.test(semAcento(l.description ?? ""));
+}
+
+/** A chave do comerciante para aprender (a mesma da regra de categoria). */
+export function chaveDaRegraDaCasa(descricao: string | null | undefined): string {
+  return chaveDoComerciante(descricao).slice(0, 80);
+}
+
+/**
+ * É da casa? Só gasto e nunca o "Só meu". A escolha feita no lançamento manda; sem ela, o que o
+ * app aprendeu com o comerciante; sem isso, o automático.
+ */
+export function ehDaCasa(l: LinhaDaCasa, aprendidas: ReadonlyMap<string, boolean> = new Map()): boolean {
+  if (l.category !== "EXPENSE" || l.soMeu) return false;
+  if (l.doCasal === true) return true;
+  if (l.doCasal === false) return false;
+  const chave = chaveDaRegraDaCasa(l.description);
+  if (chave && aprendidas.has(chave)) return aprendidas.get(chave)!;
+  return daCasaAutomatico(l);
 }

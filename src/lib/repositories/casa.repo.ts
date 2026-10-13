@@ -3,7 +3,7 @@ import type { AuthContext } from "@/lib/auth/session";
 import { calcularAcerto, chaveDaConta as chaveDaContaDoAcerto, chaveDoMes, lerConfigCasal, type Acerto, type ConfigCasal } from "@/lib/casal/acerto";
 import { primeiroNome } from "@/lib/casal-login/regras";
 import type { ParNaSessao } from "@/lib/repositories/casal-login.repo";
-import { casaAtiva, chaveDaConta, lancamentosDoAcertoDaCasa, letraDoDono, nomeDoArquivo, outraLetra, type CasaNaSessao, type Letra } from "@/lib/casa/regras";
+import { casaAtiva, chaveDaConta, chaveDaRegraDaCasa, ehDaCasa, lancamentosDoAcertoDaCasa, letraDoDono, nomeDoArquivo, outraLetra, type CasaNaSessao, type LinhaDaCasa, type Letra } from "@/lib/casa/regras";
 
 /**
  * Casal simples (13/10/2026): a casa de quem está logado e o acerto do mês dela. A leitura que
@@ -66,7 +66,34 @@ export type AcertoDaCasa = Acerto & {
   outro: { letra: Letra; nome: string; papel: "titular" | "par" };
   /** Positivo: eu mando isso para o outro. Negativo: eu recebo. Zero: quites. */
   euMando: number;
+  /** Os gastos da casa do mês, com quem pagou (o que a tela do acerto lista). */
+  gastosDaCasa: { id: string; descricao: string; valor: number; dia: string | null; quem: "eu" | "outro" }[];
 };
+
+/**
+ * O que os dois aprenderam sobre "da casa", por pessoa (cada gasto segue as regras de quem
+ * gastou). Só os dois Pessoais da casa.
+ */
+export async function regrasDaCasaDosDois(casa: CasaNaSessao): Promise<Map<string, Map<string, boolean>>> {
+  const regras = await prisma.regraDaCasa.findMany({
+    where: { OR: [casa.eu, casa.outro].map((p) => ({ userId: p.userId, profileId: p.profileId })) },
+    select: { userId: true, pattern: true, daCasa: true },
+  });
+  const porPessoa = new Map<string, Map<string, boolean>>([
+    [casa.eu.userId, new Map()],
+    [casa.outro.userId, new Map()],
+  ]);
+  for (const r of regras) porPessoa.get(r.userId)?.set(r.pattern, r.daCasa);
+  return porPessoa;
+}
+
+/** Um classificador "é da casa?" para as linhas da lista (só montado quando há casa). */
+export async function classificadorDaCasa(ctx: AuthContext): Promise<((l: LinhaDaCasa & { userId: string }) => boolean) | null> {
+  const casa = casaAtiva(ctx);
+  if (!casa) return null;
+  const regras = await regrasDaCasaDosDois(casa);
+  return (l) => ehDaCasa(l, regras.get(l.userId));
+}
 
 /**
  * O acerto do mês da casa: os gastos que os dois enxergam (nada de "Só meu" nem de conta
@@ -80,10 +107,15 @@ export async function acertoDaCasa(ctx: AuthContext, ano: number, mes: number): 
     prisma.financialProfile.findUnique({ where: { id: casa.casalProfileId }, select: { casal: true } }),
     prisma.monthlyEntry.findMany({
       where: { AND: [lancamentosDoAcertoDaCasa(casa), { year: ano, month: mes, category: { in: ["EXPENSE", "INCOME"] } }] },
-      select: { userId: true, category: true, amount: true, doCasal: true, description: true, subcategory: true, parentCategory: true },
+      select: { id: true, userId: true, category: true, amount: true, doCasal: true, soMeu: true, description: true, subcategory: true, parentCategory: true, entryDate: true },
+      orderBy: [{ entryDate: "desc" }, { createdAt: "desc" }],
     }),
     prisma.fechamentoCasal.findUnique({ where: { profileId_ano_mes: { profileId: casa.casalProfileId, ano, mes } }, select: { fechadoEm: true } }),
   ]);
+  // Só o que é DA CASA entra no acerto (decisão de 13/10/2026): a roupa que ele deixou visível
+  // aparece para ela, mas não é dividida. A renda continua entrando (é ela que dá a proporção).
+  const aprendidas = await regrasDaCasaDosDois(casa);
+  const daCasa = (l: (typeof linhas)[number]) => ehDaCasa(l, aprendidas.get(l.userId));
   const config = lerConfigCasal(perfilCasal?.casal ?? null);
   const regras = config.regras ?? {};
   const acerto = calcularAcerto(
@@ -91,7 +123,7 @@ export async function acertoDaCasa(ctx: AuthContext, ano: number, mes: number): 
       category: l.category,
       amount: Number(l.amount),
       pessoa: letraDoDono(casa, l.userId),
-      doCasal: l.doCasal,
+      doCasal: l.category === "EXPENSE" ? daCasa(l) : null,
       modo: regras[chaveDaContaDoAcerto(l.description || l.subcategory, l.parentCategory)],
     })),
     config.divisao,
@@ -109,7 +141,36 @@ export async function acertoDaCasa(ctx: AuthContext, ano: number, mes: number): 
     eu: pessoa(casa.eu),
     outro: pessoa(casa.outro),
     euMando: Math.round(-saldoDoEu * 100) / 100,
+    gastosDaCasa: linhas
+      .filter((l) => l.category === "EXPENSE" && daCasa(l))
+      .map((l) => ({
+        id: l.id,
+        descricao: l.description || l.subcategory || "Sem nome",
+        valor: Math.abs(Number(l.amount)),
+        dia: l.entryDate ? l.entryDate.toISOString().slice(0, 10) : null,
+        quem: l.userId === casa.eu.userId ? ("eu" as const) : ("outro" as const),
+      })),
   };
+}
+
+/**
+ * Um toque troca "Da casa" e "Meu" num gasto MEU, e o app aprende com o comerciante: os
+ * próximos gastos dali (os que ainda não têm escolha própria) já chegam assim.
+ */
+export async function marcarDaCasa(ctx: AuthContext, id: string, daCasa: boolean): Promise<{ year: number; month: number } | null> {
+  if (!casaAtiva(ctx)) return null;
+  const meu = await prisma.monthlyEntry.findFirst({ where: { id, userId: ctx.userId, profileId: ctx.profileId, category: "EXPENSE" }, select: { year: true, month: true, description: true } });
+  if (!meu) return null;
+  await prisma.monthlyEntry.updateMany({ where: { id, userId: ctx.userId, profileId: ctx.profileId }, data: { doCasal: daCasa } });
+  const pattern = chaveDaRegraDaCasa(meu.description);
+  if (pattern) {
+    await prisma.regraDaCasa.upsert({
+      where: { userId_profileId_pattern: { userId: ctx.userId, profileId: ctx.profileId, pattern } },
+      create: { userId: ctx.userId, profileId: ctx.profileId, pattern, daCasa },
+      update: { daCasa },
+    });
+  }
+  return { year: meu.year, month: meu.month };
 }
 
 // ---------------------------------------------------------------------------------------------

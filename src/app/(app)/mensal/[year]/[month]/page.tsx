@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { classificadorDaCasa } from "@/lib/repositories/casa.repo";
 import { getRequiredSession } from "@/lib/auth/session";
 import { perfisDeDestino } from "@/lib/repositories/mover-perfil.repo";
 import { dadosDaDivisao, listMonthlyEntries, listRecentSubcategories } from "@/lib/repositories/monthly-entry.repo";
@@ -79,7 +80,7 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
           goals={goalOptions}
           pessoasDaDivisao={divisao.pessoas}
           perfisDestino={perfisDestino}
-          entries={linhasDaLista(entries, ocultos, ctx)}
+          entries={linhasDaLista(entries, ocultos, ctx, ctx.casa ? await classificadorDaCasa(ctx) : null)}
         />
       )}
 

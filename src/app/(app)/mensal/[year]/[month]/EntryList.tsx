@@ -6,6 +6,7 @@ import { Check, CheckSquare, ChevronDown, Lock, Pencil, PiggyBank, Receipt, Sear
 import { Bolinha } from "@/components/casal-login/visual";
 import { BolinhaDeQuemGastou } from "@/components/casa/Pessoas";
 import { SoMeu } from "@/components/casa/SoMeu";
+import { DaCasa } from "@/components/casa/DaCasa";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import type { ParentCategory } from "@prisma/client";
 import type { CurrencyCode } from "@/lib/money";
@@ -66,6 +67,8 @@ export type ListEntry = {
   noCartao?: boolean;
   /** Casal simples: de quem é (a bolinha), se é meu e está escondido do par (o cadeado) e o Só meu. */
   dono?: "eu" | "outro" | null;
+  /** Casal simples: o gasto é da casa (entra no acerto) ou da pessoa. */
+  daCasa?: boolean | null;
   escondido?: boolean;
   soMeu?: boolean;
 };
@@ -792,12 +795,20 @@ export function EntryList({
                   <Bolinha nome={casa.outro.nome} cor={casa.outro.papel} size={40} />
                   <span className="min-w-0 flex-1">
                     <b className="block text-[15px] font-medium text-ink">De {casa.outro.nome}</b>
-                    <small className="text-[13px] text-ink-muted">Só quem gastou edita ou apaga</small>
+                    <small className="text-[13px] text-ink-muted">{open.category === "EXPENSE" ? (open.daCasa ? "Da casa · " : "Não entra no acerto · ") : ""}Só quem gastou edita ou apaga</small>
                   </span>
                 </div>
               ) : undefined
             }
-            extra={casa && open.dono === "eu" ? <SoMeu key={open.id} id={open.id} ligado={Boolean(open.soMeu)} nomeDoOutro={casa.outro.nome} /> : undefined}
+            extra={
+              casa && open.dono === "eu" ? (
+                <div className="flex flex-col gap-2.5">
+                  {/* Da casa ou Meu: só o da casa entra no acerto (o Só meu nem aparece para o par). */}
+                  {open.category === "EXPENSE" && !open.soMeu && <DaCasa key={`casa-${open.id}`} id={open.id} daCasa={Boolean(open.daCasa)} />}
+                  <SoMeu key={open.id} id={open.id} ligado={Boolean(open.soMeu)} nomeDoOutro={casa.outro.nome} />
+                </div>
+              ) : undefined
+            }
             onEnviar={
               podeEnviar
                 ? () => {
