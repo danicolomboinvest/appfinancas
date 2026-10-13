@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ehNaoGasto, SUBCATEGORIA_NAO_E_GASTO } from "../nao-e-gasto";
+import { ehNaoGasto, SUBCATEGORIA_NAO_E_GASTO, TERMOS_NAO_E_GASTO } from "../nao-e-gasto";
 
 /**
  * A regra de "saída que NÃO é gasto" (aplicação, pagamento de fatura). Ela tira dinheiro da
@@ -46,5 +46,13 @@ describe("ehNaoGasto", () => {
   // BUG: "rdb"/"cdb" casam no meio da palavra.
   it("loja com 'rdb' no meio do nome é gasto", () => {
     expect(ehNaoGasto({ description: "NERDBURGER LANCHES" })).toBe(false);
+  });
+
+  // 13/10/2026: o Pix pro pai que ela pôs em Moradia. Pix para pessoa é gasto (a categoria dela
+  // diz de quê); "não é gasto" é só aplicação e fatura.
+  it("Pix ou transferência para uma pessoa é gasto, com ou sem CPF mascarado", () => {
+    expect(ehNaoGasto({ description: "13h52 Transferência Pix enviado Ricardo Souza Lima" })).toBe(false);
+    expect(ehNaoGasto({ description: "Transferência enviada pelo Pix - Ricardo Souza Lima - •••.123.456-•• - ITAÚ" })).toBe(false);
+    for (const t of TERMOS_NAO_E_GASTO) expect(t).not.toMatch(/pix|transf/);
   });
 });
