@@ -122,6 +122,9 @@ export type TextosConfiguracoes = {
   cfgExcluirContaSenha: string;
   cfgExcluirContaBotao: string;
   cfgExcluindo: string;
+  /** Limpar e recomeçar, a tela final: a frase embaixo do "Pronto" quando tudo saiu e quando só uma parte saiu. */
+  cfgLimparProntoTudo: string;
+  cfgLimparProntoParte: string;
   // Taxas do sistema
   cfgTaxasTitulo: string;
   cfgTaxasSub: string;
@@ -325,6 +328,8 @@ export const PADRAO_CONFIGURACOES: TextosConfiguracoes = {
   cfgExcluirContaSenha: "Digite sua senha para confirmar",
   cfgExcluirContaBotao: "Excluir tudo definitivamente",
   cfgExcluindo: "Excluindo...",
+  cfgLimparProntoTudo: "Sua conta está como nova.",
+  cfgLimparProntoParte: "O resto ficou como estava.",
   // Taxas do sistema
   cfgTaxasTitulo: "Taxas do Sistema",
   cfgTaxasSub: "Taxas usadas como sugestão/âncora nos módulos de planejamento e simuladores.",

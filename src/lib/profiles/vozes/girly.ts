@@ -755,6 +755,8 @@ const GIRLY_CFG: Partial<Titulos> = {
   cfgExcluirContaSenha: "Digita sua senha para confirmar",
   cfgExcluirContaBotao: "Apagar tudo de vez",
   cfgExcluindo: "Apagando…",
+  cfgLimparProntoTudo: "Página em branco, amiga. Bora de novo?",
+  cfgLimparProntoParte: "Limpinho, amiga. O resto ficou como estava.",
   cfgTaxasSub: "As taxas que eu uso como referência nos planos e nas calculadoras",
   cfgTaxaSua: "Sua taxa",
   cfgTaxaAdicionadaToast: "Taxa adicionada",
