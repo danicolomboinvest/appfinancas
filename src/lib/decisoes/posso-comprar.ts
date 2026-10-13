@@ -1,4 +1,5 @@
 import { livreAteDomingo } from "./foco-semana";
+import { textoDaMedia } from "@/lib/planning/renda-media";
 
 /**
  * "Posso comprar?": o que uma compra faz com o mês e com as metas, ANTES de passar o cartão.
@@ -50,6 +51,8 @@ export type CompraBase = {
   guardarPlanejado?: number | null;
   /** De onde veio a renda: o plano do mês, a renda típica dos últimos meses, ou o que entrou até agora. */
   fonteRenda?: "plano" | "media" | "mes";
+  /** Quando a renda é a média: de quantos meses fechados (1 a 12). */
+  mesesDaRenda?: number | null;
   /**
    * A regra dos 90% vale? Não vale no perfil Casal que só recebe o que cada um põe na conta
    * conjunta: essa "renda" é repasse, e gastar 100% dela é o combinado. Omitido = vale.
@@ -297,7 +300,7 @@ export function avisosDaBase(base: CompraBase, money: (v: number) => string): st
     avisos.push("Aqui a renda é o que vocês colocam na conta conjunta, então a regra dos 90% não se aplica: ela vale para a renda de cada um. A conta abaixo olha se cabe no que já está na conta e nas metas do casal.");
   }
   if (base.fonteRenda === "media") {
-    avisos.push(`Você não planejou a renda deste mês. Usei ${money(base.renda)}, a renda típica dos seus últimos meses. Planeje a renda no Orçamento para a conta ficar exata.`);
+    avisos.push(`Você não planejou a renda deste mês. Usei ${money(base.renda)}, a ${base.mesesDaRenda ? textoDaMedia(base.mesesDaRenda) : "média dos seus últimos meses"} do que entrou. Planeje a renda no Orçamento para a conta ficar exata.`);
   } else if (base.fonteRenda === "mes") {
     avisos.push(`Você não planejou a renda deste mês e não tenho renda dos meses anteriores. Usei o que entrou até agora (${money(base.renda)}). Planeje a renda no Orçamento para a conta ficar exata.`);
   }

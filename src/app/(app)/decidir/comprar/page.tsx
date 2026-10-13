@@ -12,7 +12,9 @@ import { getMonthlyPlan } from "@/lib/repositories/monthly-plan.repo";
 import { listGoalsWithProgress } from "@/lib/repositories/goal.repo";
 import { getEmergencyFund } from "@/lib/repositories/emergency-fund.repo";
 import { carregarFoco } from "@/app/(app)/mensal/foco/dados";
-import { getRendaTipica, getTypicalMonthlyExpense } from "@/lib/planning/typical-expense";
+import { getTypicalMonthlyExpense } from "@/lib/planning/typical-expense";
+import { getRendaMedia } from "@/lib/repositories/renda-media.repo";
+import { rendaDeReferencia } from "@/lib/simulators/worth-it";
 import { computeGoalPlan } from "@/lib/planning/goal";
 import { PageHeader } from "@/components/ui/PageHeader";
 import {
@@ -69,7 +71,7 @@ export default async function PossoComprarPage() {
   // sumia da conta no dia 1.
   const agora = new Date();
   const desdeParcelas = new Date(Date.UTC(year, month - 1 - MAX_PARCELAS, 1, 3));
-  const [budgets, spentByParent, spentByCustom, summary, plan, goals, fund, foco, gastoTipico, rendaTipica, todasDecididas] = await Promise.all([
+  const [budgets, spentByParent, spentByCustom, summary, plan, goals, fund, foco, gastoTipico, rendaMedia, todasDecididas] = await Promise.all([
     listBudgets(ctx, year, month),
     sumExpensesByParentCategory(ctx, year, month),
     sumExpensesByCustomCategory(ctx, year, month),
@@ -80,7 +82,7 @@ export default async function PossoComprarPage() {
     // O mesmo livre do Resumo (regra A, 13/10/2026): a sobra do dia a dia e o que cabe na semana.
     carregarFoco(ctx),
     getTypicalMonthlyExpense(ctx),
-    getRendaTipica(ctx),
+    getRendaMedia(ctx),
     listarComprasDecididasDesde(ctx, desdeParcelas),
   ]);
   const decididas = todasDecididas.filter((d) => compraDecididaEmAberto(d, agora));
@@ -141,10 +143,10 @@ export default async function PossoComprarPage() {
   const sobraDoMes = livre.tipo === "semOrcamento" ? 0 : livre.restante;
   const semanaRestante = livre.tipo === "semOrcamento" ? undefined : livre.semana.restante;
 
-  // Renda: o plano do mês; sem plano, a renda TÍPICA (mediana dos últimos meses, que não se
-  // deixa levar pelo 13º); sem histórico, o que entrou até agora. A tela diz qual foi usada.
-  const [renda, fonteRenda]: [number, "plano" | "media" | "mes"] =
-    plan && plan.plannedIncome > 0 ? [plan.plannedIncome, "plano"] : rendaTipica ? [rendaTipica.valor, "media"] : [summary.totalIncome, "mes"];
+  // Renda: o plano do mês; sem plano, a MÉDIA dos últimos 12 meses fechados (pedido da Dani,
+  // 13/10/2026: nunca o último mês sozinho); sem histórico, o que entrou até agora. A tela diz qual.
+  const { valor: renda, fonte: fonteRenda } = rendaDeReferencia(plan?.plannedIncome, rendaMedia?.valor, summary.totalIncome);
+  const mesesDaRenda = fonteRenda === "media" ? (rendaMedia?.meses ?? null) : null;
 
   const metas: CompraMeta[] = goals.flatMap((g) => {
     // Meta sem data também recebe dinheiro todo mês: entra como a mais distante de todas.
@@ -212,6 +214,7 @@ export default async function PossoComprarPage() {
     gastoDoMesAtual: summary.totalExpense,
     guardarPlanejado: plan?.plannedInvestment ?? null,
     fonteRenda,
+    mesesDaRenda,
     regra90: rendaDoCasal !== "conjunta",
     jaDecidido,
     // Só as categorias padrão: é delas que saem os cortes sugeridos ("Como fazer caber").

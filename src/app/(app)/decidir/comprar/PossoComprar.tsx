@@ -18,6 +18,7 @@ import { CATEGORIAS_DA_COMPRA, categoriaOutra, formaQuePesaMenos, vereditoComPes
 import { planoDoSonho } from "@/lib/decisoes/sonho-da-compra";
 import { registrarCompraAction } from "@/app/(app)/mensal/foco/actions";
 import { criarSonhoDaCompraAction } from "@/app/(app)/planejamento/metas/actions";
+import { textoDaMedia } from "@/lib/planning/renda-media";
 
 const MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
 
@@ -193,7 +194,7 @@ export function PossoComprar({ base, hoje, parcelasNoMes }: { base: CompraBase; 
     setPasso(2);
   }
 
-  const fonteDaRenda = base.fonteRenda === "plano" ? "do seu plano" : base.fonteRenda === "media" ? "a média dos últimos meses" : "o que entrou no mês";
+  const fonteDaRenda = base.fonteRenda === "plano" ? "do seu plano" : base.fonteRenda === "media" ? (base.mesesDaRenda ? textoDaMedia(base.mesesDaRenda) : "a média dos últimos meses") : "o que entrou no mês";
 
   return (
     <div ref={topoRef} className="flex flex-col gap-4">

@@ -1,3 +1,5 @@
+import { textoDaMedia } from "@/lib/planning/renda-media";
+
 /**
  * As respostas da Central de decisões: cada pergunta vira uma resposta de verdade, com os
  * números da pessoa, e não um atalho pra tela que ela mesma preencheu.
@@ -102,6 +104,8 @@ export function estouGastandoDemais(e: {
   planejado: number;
   decorrido: number;
   renda: number | null;
+  /** Renda estimada pela média (sem renda planejada): de quantos meses. Aparece no rótulo. */
+  mesesDaRenda?: number | null;
   categorias: Categoria[];
   /**
    * Casal que só conta o que cada um põe na conta conjunta: gastar 100% dessa "renda" é o
@@ -127,6 +131,7 @@ export function estouGastandoDemais(e: {
   const semRegra90 = e.regra90 === false;
   const limiteDaRenda = e.renda && e.renda > 0 ? e.renda * (semRegra90 ? 1 : 0.9) : null;
   const acimaDa90 = limiteDaRenda !== null ? e.gastoDoMes > limiteDaRenda : false;
+  const daMedia = e.mesesDaRenda ? ` (${textoDaMedia(e.mesesDaRenda)})` : "";
   // R$ 13 acima numa categoria, com o mês inteiro abaixo do ritmo, não é "gastando demais".
   const estouroRelevante = estouradas.some((c) => c.gasto - c.planejado > Math.max(50, c.planejado * 0.05));
   const veredito: Veredito = e.gastoDoMes > e.planejado || acimaDa90 ? "ruim" : diferenca > e.planejado * 0.05 || estouroRelevante ? "atencao" : "bom";
@@ -159,7 +164,7 @@ export function estouGastandoDemais(e: {
       { rotulo: "Orçamento do mês", valor: money(e.planejado) },
       ...(fixoPago >= 1 ? [{ rotulo: "Contas fixas já pagas (entram inteiras)", valor: money(fixoPago) }] : []),
       { rotulo: `No ritmo (${pct(e.decorrido)} do mês)`, valor: money(esperado) },
-      ...(limiteDaRenda !== null ? [{ rotulo: semRegra90 ? "O que entra na conta conjunta" : "90% da renda", valor: money(limiteDaRenda) }] : []),
+      ...(limiteDaRenda !== null ? [{ rotulo: semRegra90 ? "O que entra na conta conjunta" : `90% da renda${daMedia}`, valor: money(limiteDaRenda) }] : []),
     ],
     acoes: veredito === "bom" ? [{ rotulo: "Onde estou exagerando?", href: "/decidir/pergunta/exagerando" }] : [{ rotulo: "Ver onde estou exagerando", href: "/decidir/pergunta/exagerando" }, { rotulo: "Ver no orçamento", href: "/orcamento" }],
     visual: {
@@ -183,7 +188,7 @@ export function estouGastandoDemais(e: {
           : pesadas[0]
             ? [{ tipo: "lista" as const, titulo: "Onde mais pesou", itens: pesadas.slice(0, 3).map((c) => ({ nome: c.label, valor: `${money(c.gasto)} de ${money(c.planejado)}`, pct: c.gasto / c.planejado })) }]
             : []),
-        ...(limiteDaRenda !== null ? [{ tipo: "numeros" as const, itens: [{ rotulo: semRegra90 ? "Conta conjunta" : "Limite: 90% da renda", valor: money(limiteDaRenda), tom: (acimaDa90 ? "ruim" : "bom") as Veredito }] }] : []),
+        ...(limiteDaRenda !== null ? [{ tipo: "numeros" as const, itens: [{ rotulo: semRegra90 ? "Conta conjunta" : `Limite: 90% da renda${daMedia}`, valor: money(limiteDaRenda), tom: (acimaDa90 ? "ruim" : "bom") as Veredito }] }] : []),
       ],
     },
   };
@@ -289,8 +294,11 @@ export function quantoPrecisoGuardar(e: {
   reserva: { porMes: number; falta: number } | null;
   guardarPlanejado: number | null;
   renda: number | null;
+  /** Renda estimada pela média (sem renda planejada): de quantos meses. Aparece no rótulo. */
+  mesesDaRenda?: number | null;
 }): Resposta {
   const { money } = e;
+  const daMedia = e.mesesDaRenda ? ` (${textoDaMedia(e.mesesDaRenda)})` : "";
   const abertas = e.metas.filter((m) => m.atual < m.alvo && m.necessarioPorMes > 0);
   const total = abertas.reduce((s, m) => s + m.necessarioPorMes, 0) + (e.reserva?.porMes ?? 0);
   const minimoAula = e.renda ? e.renda * 0.1 : 0;
@@ -359,7 +367,7 @@ export function quantoPrecisoGuardar(e: {
             ...vencidasSemValor.slice(0, 2).map((m) => ({ nome: m.nome, valor: "sem data", selo: { texto: "Prazo passou", tom: "atencao" as Veredito } })),
           ],
         },
-        ...(minimoAula > total ? [{ tipo: "numeros" as const, itens: [{ rotulo: "Mínimo: 10% da renda", valor: money(minimoAula) }] }] : []),
+        ...(minimoAula > total ? [{ tipo: "numeros" as const, itens: [{ rotulo: `Mínimo: 10% da renda${daMedia}`, valor: money(minimoAula) }] }] : []),
       ],
     },
     acoes: veredito === "bom" ? [{ rotulo: "Quando atinjo minhas metas?", href: "/decidir/pergunta/meta" }] : [{ rotulo: "Ajustar quanto guardo no mês", href: "/orcamento" }, { rotulo: "Ver minhas metas", href: "/planejamento/metas" }],

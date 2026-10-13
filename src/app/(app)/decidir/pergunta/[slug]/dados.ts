@@ -6,7 +6,8 @@ import { getMonthlySummary } from "@/lib/consolidation/monthly";
 import { sumExpensesByParentCategory } from "@/lib/repositories/budget.repo";
 import { getMonthlyPlan } from "@/lib/repositories/monthly-plan.repo";
 import { listGoalsWithProgress } from "@/lib/repositories/goal.repo";
-import { getRendaTipica, getTypicalMonthlyExpense } from "@/lib/planning/typical-expense";
+import { getTypicalMonthlyExpense } from "@/lib/planning/typical-expense";
+import { getRendaMedia } from "@/lib/repositories/renda-media.repo";
 import { computeGoalPlan } from "@/lib/planning/goal";
 import { mesesAteMeta } from "@/lib/decisoes/posso-comprar";
 import { ritmoMensalDaMeta, type MetaResposta, type ResumoMes } from "@/lib/decisoes/respostas";
@@ -47,9 +48,9 @@ export async function carregarRespostas(ctx: AuthContext) {
   const passado = new Date(year, month - 2, 1);
   const retrasado = new Date(year, month - 3, 1);
   const tresMesesAtras = new Date(Date.UTC(year, month - 4, 1));
-  const [plano, rendaTipica, gastoTipico, metas, aportesPorMeta, mesPassado, mesRetrasado, maioresPassado, rendaDoCasal] = await Promise.all([
+  const [plano, rendaMedia, gastoTipico, metas, aportesPorMeta, mesPassado, mesRetrasado, maioresPassado, rendaDoCasal] = await Promise.all([
     getMonthlyPlan(ctx, year, month),
-    getRendaTipica(ctx),
+    getRendaMedia(ctx),
     getTypicalMonthlyExpense(ctx),
     listGoalsWithProgress(ctx),
     // O ritmo de verdade de cada meta: o que foi guardado pra ela nos últimos 3 meses fechados.
@@ -145,13 +146,16 @@ export async function carregarRespostas(ctx: AuthContext) {
       };
     });
 
-  const renda = plano && plano.plannedIncome > 0 ? plano.plannedIncome : (rendaTipica?.valor ?? null);
+  // A renda digitada no plano do mês vence; sem ela, a média dos últimos 12 meses fechados.
+  const renda = plano && plano.plannedIncome > 0 ? plano.plannedIncome : (rendaMedia?.valor ?? null);
+  const mesesDaRenda = plano && plano.plannedIncome > 0 ? null : (rendaMedia?.meses ?? null);
   const fund = d.fund;
   const livre = d.foco.livre;
 
   return {
     d,
     renda,
+    mesesDaRenda,
     regra90: rendaDoCasal !== "conjunta",
     gastoReal: gastoTipico?.monthlyAverage ?? null,
     metas: metasResposta,
