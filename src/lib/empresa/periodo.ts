@@ -301,3 +301,15 @@ export function atalhosDeDatas(hoje: string, anoVisto: number): { meses: { m: Me
   });
   return { meses, anos: Array.from({ length: 5 }, (_, i) => atual.ano - i) };
 }
+
+/** O endereço de uma tela com o período (e o que mais ela precisa manter, como a aba). */
+export function hrefDoPeriodo(caminho: string, p: PeriodoDaEmpresa | string, manter: Record<string, string> = {}): string {
+  const q = new URLSearchParams(manter).toString();
+  const per = typeof p === "string" ? p : parametrosDoPeriodo(p);
+  return `${caminho}?${[q, per].filter(Boolean).join("&")}`;
+}
+
+/** Onde abre a lista editável de um total ("Entradas em 2026", "Insumos em setembro"). */
+export function hrefDaLista(p: PeriodoDaEmpresa, g: Grupo, volta?: string): string {
+  return `/empresa/lancamentos?${parametrosDoPeriodo(p)}&ver=${encodeURIComponent(g)}${volta ? `&volta=${encodeURIComponent(volta)}` : ""}`;
+}

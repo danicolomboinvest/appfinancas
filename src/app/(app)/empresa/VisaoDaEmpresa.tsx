@@ -11,13 +11,13 @@ import { BotaoRegistrar } from "@/components/shell/BotaoRegistrar";
 import { NOME_DA_FORMA, paraO, type Forma } from "@/lib/empresa/config";
 import { chaveDoMes, ehMaquininha, ehVenda, nomeDaSaida, tipoDaSaida, type LancamentoDaEmpresa, type Mes, type Recibo } from "@/lib/empresa/regras";
 import { MESES, MESES_CURTOS, contasDoMes, diaCurto, diaDaSemanaDe, resumoDaEmpresa, type ResumoDaEmpresa } from "@/lib/empresa/resumo";
-import { lancamentosDoPeriodo, noPeriodoTexto, resumoDoPeriodo, umMesSo, type PeriodoDaEmpresa } from "@/lib/empresa/periodo";
+import { hrefDaLista, lancamentosDoPeriodo, noPeriodoTexto, resumoDoPeriodo, umMesSo, type PeriodoDaEmpresa } from "@/lib/empresa/periodo";
 import type { DadosDaEmpresa } from "@/lib/empresa/dados";
 import { Cartao, Iniciais, LinhaDoRecibo, LogoDaForma, Picote, BOTAO_PRINCIPAL } from "./partes";
 import { RegistrarNaEmpresa } from "./RegistrarNaEmpresa";
 import { CarrosselDeAbas, useArrastoEntreAbas } from "@/components/shell/Carrossel";
 import { SeletorDePeriodo } from "./SeletorDePeriodo";
-import { PainelDoPeriodo, hrefDaLista } from "./PainelDoPeriodo";
+import { PainelDoPeriodo } from "./PainelDoPeriodo";
 
 type Aba = "resumo" | "vendas" | "despesas" | "contas";
 const ABAS: [Aba, string][] = [["resumo", "Resumo"], ["vendas", "Vendas"], ["despesas", "Despesas"], ["contas", "Contas"]];

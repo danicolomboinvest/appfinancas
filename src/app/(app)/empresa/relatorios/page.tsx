@@ -5,13 +5,13 @@ import { getRequiredSession } from "@/lib/auth/session";
 import { carregarEmpresa } from "@/lib/empresa/dados";
 import { resumoDaEmpresa } from "@/lib/empresa/resumo";
 import { chaveDoMes } from "@/lib/empresa/regras";
-import { noPeriodoTexto, resumoDoPeriodo, umMesSo, type Grupo } from "@/lib/empresa/periodo";
+import { hrefDaLista, noPeriodoTexto, resumoDoPeriodo, umMesSo, type Grupo } from "@/lib/empresa/periodo";
 import { lancamentosParaOPeriodo, padraoDaEmpresa, periodoDaTela } from "@/lib/empresa/periodo-dados";
 import { paraO } from "@/lib/empresa/config";
 import { serverMoney } from "@/lib/money-server";
 import { Cartao, Titulo, Voltar } from "../partes";
 import { SeletorDePeriodo } from "../SeletorDePeriodo";
-import { hrefDaLista } from "../PainelDoPeriodo";
+
 
 /**
  * Relatórios: a DRE em palavras de dona (a conta é a mesma do recibo e do ponto de equilíbrio). Abre

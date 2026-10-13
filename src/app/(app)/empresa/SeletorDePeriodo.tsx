@@ -10,7 +10,7 @@ import { mesAntes } from "@/lib/empresa/regras";
 import {
   anoSo,
   atalhosDeDatas,
-  parametrosDoPeriodo,
+  hrefDoPeriodo,
   periodoDoTipo,
   primeiroDia,
   rotuloDoPeriodo,
@@ -26,13 +26,6 @@ const CHIPS: [Exclude<TipoDoPeriodo, "datas">, string][] = [
   ["ano", "Este ano"],
   ["12m", "Últimos 12 meses"],
 ];
-
-/** O endereço da tela com o período (e o que mais ela precisa manter, como a aba). */
-export function hrefDoPeriodo(caminho: string, p: PeriodoDaEmpresa | string, manter: Record<string, string> = {}): string {
-  const q = new URLSearchParams(manter).toString();
-  const per = typeof p === "string" ? p : parametrosDoPeriodo(p);
-  return `${caminho}?${[q, per].filter(Boolean).join("&")}`;
-}
 
 /**
  * "‹ Mês passado · set 2026 ▾ ›": o seletor de período da Empresa, no visual do seletor de mês das

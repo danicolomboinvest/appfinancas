@@ -11,14 +11,8 @@ import { ValorDestaque } from "@/components/ui/ValorDestaque";
 import { LogoDoLancamento } from "@/components/ui/LogoDoLancamento";
 import { CUSTOM_CATEGORY_ICON_MAP, categoryIcon, categoryLabel } from "@/lib/categories";
 import { MESES, MESES_CURTOS } from "@/lib/empresa/resumo";
-import { noPeriodoTexto, parametrosDoPeriodo, primeiroDia, ultimoDia, type Grupo, type PeriodoDaEmpresa, type ResumoDoPeriodo } from "@/lib/empresa/periodo";
+import { hrefDaLista, hrefDoPeriodo, noPeriodoTexto, primeiroDia, ultimoDia, type Grupo, type PeriodoDaEmpresa, type ResumoDoPeriodo } from "@/lib/empresa/periodo";
 import { Cartao, Iniciais } from "./partes";
-import { hrefDoPeriodo } from "./SeletorDePeriodo";
-
-/** Onde abre a lista editável de um total ("Entradas em 2026", "Insumos em setembro"). */
-export function hrefDaLista(p: PeriodoDaEmpresa, g: Grupo, volta?: string): string {
-  return `/empresa/lancamentos?${parametrosDoPeriodo(p)}&ver=${encodeURIComponent(g)}${volta ? `&volta=${encodeURIComponent(volta)}` : ""}`;
-}
 
 const sinal = (m0: (v: number) => string, v: number) => (v < 0 ? `−${m0(-v)}` : m0(v));
 
@@ -92,7 +86,9 @@ export function PainelDoPeriodo({
         <>
           <Cartao className="divide-y divide-border px-4" data-totais>
             <LinhaQueAbre href={lista("entradas")} rotulo="Entrou" valor={m0(r.recibo.entrou)} cor="var(--color-accent)" />
-            <LinhaQueAbre href={lista("despesas")} rotulo="Despesas" valor={`−${m0(r.despesas)}`} cor="var(--color-danger)" />
+            {/* As despesas abertas como no recibo: a conta fecha de cima para baixo. */}
+            <LinhaQueAbre href={lista("variaveis")} rotulo="Insumos e entregas" valor={`−${m0(r.recibo.variaveis)}`} cor="var(--color-danger)" />
+            <LinhaQueAbre href={lista("fixas")} rotulo="Contas" valor={`−${m0(r.recibo.fixas)}`} cor="var(--color-atencao)" />
             <LinhaQueAbre href={lista("impostos")} rotulo={ehMei ? "Guia do MEI" : "Impostos"} valor={`−${m0(r.recibo.impostos)}`} cor="var(--color-info)" />
             <LinhaQueAbre href={lista("lucro")} rotulo="Lucro" valor={sinal(m0, r.recibo.sobrou)} forte cor="var(--color-success)" />
             <LinhaQueAbre href={lista("prolabore")} rotulo="Seu salário" valor={`−${m0(r.proLabore)}`} />
@@ -160,7 +156,7 @@ function Barra({ href, icone, nome, sub, valor, pct, cor }: { href: string; icon
     <Link href={href} className="flex min-h-14 items-center gap-3 py-1.5">
       {icone}
       <span className="min-w-0 flex-1">
-        <b className="block truncate text-[15px] font-medium text-ink">{nome}</b>
+        <b className="block break-words text-[15px] font-medium leading-snug text-ink">{nome}</b>
         {sub && <small className="block text-xs text-ink-muted">{sub}</small>}
         <span className="mt-1 block h-1.5 overflow-hidden rounded-full" style={{ background: `color-mix(in srgb, ${cor} 14%, transparent)` }}>
           <i className="block h-full rounded-full" style={{ width: `${Math.max(2, Math.min(100, pct * 100))}%`, background: cor }} />
