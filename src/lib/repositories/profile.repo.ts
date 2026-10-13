@@ -134,15 +134,16 @@ export async function getOrCreateActiveProfile(userId: string): Promise<ProfileR
 
 export type NovoPerfil = { name: string; kind: ProfileKind; icon?: string; theme?: string };
 
-export async function createProfile(userId: string, input: NovoPerfil): Promise<ProfileRow> {
+/** `db` deixa criar dentro de uma transação (o perfil comprado, ver perfil-comprado.repo.ts). */
+export async function createProfile(userId: string, input: NovoPerfil, db: Prisma.TransactionClient = prisma): Promise<ProfileRow> {
   const nome = input.name.trim().slice(0, 40);
   if (!nome) throw new Error("O perfil precisa de um nome.");
-  const ultimo = await prisma.financialProfile.findFirst({
+  const ultimo = await db.financialProfile.findFirst({
     where: { userId },
     select: { position: true },
     orderBy: { position: "desc" },
   });
-  return prisma.financialProfile.create({
+  return db.financialProfile.create({
     data: {
       userId,
       name: nome,
