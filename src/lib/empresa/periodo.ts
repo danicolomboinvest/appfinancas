@@ -1,5 +1,5 @@
 import type { ParentCategory } from "@prisma/client";
-import { chaveDoMes, ehVenda, mesAntes, reciboDoMes, tipoDaSaida, type LancamentoDaEmpresa, type Mes, type Recibo } from "./regras";
+import { chaveDoMes, ehMaquininha, ehVenda, mesAntes, nomeDaSaida, reciboDoMes, tipoDaSaida, type LancamentoDaEmpresa, type Mes, type Recibo } from "./regras";
 
 /**
  * O período das telas da Empresa (13/10/2026). A dona pediu: "quero filtrar por data também, não só
@@ -166,15 +166,20 @@ export function lancamentosDoPeriodo<L extends Pick<LancamentoDaEmpresa, "year" 
 
 // ─── Grupos: o que cada total soma (tocar num total abre exatamente estes lançamentos) ──────
 
-export type Grupo = "entradas" | "despesas" | "lucro" | "prolabore" | "impostos" | `cat:${string}` | `cliente:${string}`;
+/**
+ * entradas = faturamento; variaveis = insumos e entregas; fixas = contas do mês; lucro = o que
+ * entra no "Sobrou" (vendas e despesas); cat:<categoria>; cliente:<nome> (vazio = vendas sem nome);
+ * saida:<nome> = a linha do "Para onde foi" (só o que sobe com a venda, sem a maquininha).
+ */
+export type Grupo = "entradas" | "despesas" | "variaveis" | "fixas" | "lucro" | "prolabore" | "impostos" | `cat:${string}` | `cliente:${string}` | `saida:${string}`;
 
-const GRUPOS_FIXOS: readonly string[] = ["entradas", "despesas", "lucro", "prolabore", "impostos"];
+const GRUPOS_FIXOS: readonly string[] = ["entradas", "despesas", "variaveis", "fixas", "lucro", "prolabore", "impostos"];
 
 export function lerGrupo(texto: string | null | undefined): Grupo | null {
   if (!texto) return null;
   if (GRUPOS_FIXOS.includes(texto)) return texto as Grupo;
   if (/^cat:[A-Za-z0-9_-]{1,64}$/.test(texto)) return texto as Grupo;
-  if (texto.startsWith("cliente:") && texto.length <= 128) return texto as Grupo;
+  if ((texto.startsWith("cliente:") || texto.startsWith("saida:")) && texto.length <= 128) return texto as Grupo;
   return null;
 }
 
@@ -192,10 +197,13 @@ const nomeDoCliente = (l: LancamentoDaEmpresa) => l.cliente?.trim().toLocaleLowe
 export function noGrupo(l: LancamentoDaEmpresa, g: Grupo): boolean {
   if (g === "entradas") return ehVenda(l);
   if (g === "despesas") return ehDespesa(l);
+  if (g === "variaveis") return tipoDaSaida(l) === "variavel";
+  if (g === "fixas") return tipoDaSaida(l) === "fixa";
   if (g === "lucro") return ehVenda(l) || ehDespesa(l);
   if (g === "prolabore") return tipoDaSaida(l) === "salario";
   if (g === "impostos") return tipoDaSaida(l) === "imposto";
   if (g.startsWith("cat:")) return ehDespesa(l) && chaveDaCategoria(l) === g.slice(4);
+  if (g.startsWith("saida:")) return tipoDaSaida(l) === "variavel" && !ehMaquininha(l) && nomeDaSaida(l) === g.slice(6);
   return ehVenda(l) && nomeDoCliente(l) === g.slice(8).trim().toLocaleLowerCase("pt-BR");
 }
 

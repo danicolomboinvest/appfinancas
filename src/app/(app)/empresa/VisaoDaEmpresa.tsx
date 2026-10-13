@@ -2,19 +2,22 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { CalendarDays, Gauge, Check, ChevronLeft, ChevronRight, FileText, ReceiptText, ShoppingBag, Tag, Truck, Megaphone, Building2, Users } from "lucide-react";
+import { CalendarDays, Gauge, Check, ChevronRight, FileText, ReceiptText, ShoppingBag, Tag, Truck, Megaphone, Building2, Users } from "lucide-react";
 import { useMoney } from "@/components/money/MoneyProvider";
 import { ValorDestaque } from "@/components/ui/ValorDestaque";
 import { HeroiDoTema } from "@/components/ui/HeroiDoTema";
 import { LogoDoLancamento } from "@/components/ui/LogoDoLancamento";
 import { BotaoRegistrar } from "@/components/shell/BotaoRegistrar";
 import { NOME_DA_FORMA, paraO, type Forma } from "@/lib/empresa/config";
-import { chaveDoMes, ehMaquininha, ehVenda, mesAntes, nomeDaSaida, reciboDoMes, tipoDaSaida, type Mes, type Recibo } from "@/lib/empresa/regras";
-import { MESES, MESES_CURTOS, contasDoMes, diaCurto, diaDaSemanaDe, resumoDaEmpresa, tituloDoMes, type ResumoDaEmpresa } from "@/lib/empresa/resumo";
+import { chaveDoMes, ehMaquininha, ehVenda, nomeDaSaida, tipoDaSaida, type LancamentoDaEmpresa, type Mes, type Recibo } from "@/lib/empresa/regras";
+import { MESES, MESES_CURTOS, contasDoMes, diaCurto, diaDaSemanaDe, resumoDaEmpresa, type ResumoDaEmpresa } from "@/lib/empresa/resumo";
+import { lancamentosDoPeriodo, noPeriodoTexto, resumoDoPeriodo, umMesSo, type PeriodoDaEmpresa } from "@/lib/empresa/periodo";
 import type { DadosDaEmpresa } from "@/lib/empresa/dados";
 import { Cartao, Iniciais, LinhaDoRecibo, LogoDaForma, Picote, BOTAO_PRINCIPAL } from "./partes";
 import { RegistrarNaEmpresa } from "./RegistrarNaEmpresa";
 import { CarrosselDeAbas, useArrastoEntreAbas } from "@/components/shell/Carrossel";
+import { SeletorDePeriodo } from "./SeletorDePeriodo";
+import { PainelDoPeriodo, hrefDaLista } from "./PainelDoPeriodo";
 
 type Aba = "resumo" | "vendas" | "despesas" | "contas";
 const ABAS: [Aba, string][] = [["resumo", "Resumo"], ["vendas", "Vendas"], ["despesas", "Despesas"], ["contas", "Contas"]];
@@ -32,35 +35,39 @@ const COR_DA_FORMA: Record<Forma, string> = {
 const ICONE_DA_SAIDA: Record<string, typeof ShoppingBag> = { ALIMENTACAO: ShoppingBag, TRANSPORTE: Truck, EDUCACAO: Megaphone, MORADIA: Building2, SAUDE: Users, IMPOSTOS: FileText };
 
 /**
- * O dia a dia da Empresa: as abas Resumo, Vendas, Despesas e Contas com o seletor de mês, o recibo
- * do mês, o "Pede sua atenção" e o + com Vendi, Paguei e Recebi. Os números vêm todos dos
- * lançamentos (as contas das regras rodam aqui mesmo, ao trocar de mês, sem ir ao servidor).
+ * O dia a dia da Empresa: as abas Resumo, Vendas, Despesas e Contas com o seletor de período, o
+ * recibo do mês, o "Pede sua atenção" e o + com Vendi, Paguei e Recebi. O período (13/10/2026) vem
+ * do endereço: um mês mostra o recibo de sempre; mais de um mês (Este ano, Últimos 12 meses,
+ * Escolher datas) mostra o painel do período. Abre no último mês fechado, como antes.
+ * `antigos`: os lançamentos de um período mais velho que a janela de 12 meses (nulo: a janela basta).
  */
-export function VisaoDaEmpresa({ dados, clientes, abaInicial, mesInicial, abrirRegistrar }: { dados: DadosDaEmpresa; clientes: string[]; abaInicial: Aba; mesInicial: Mes | null; abrirRegistrar: boolean }) {
+export function VisaoDaEmpresa({ dados, clientes, abaInicial, periodo, antigos, custom, abrirRegistrar }: { dados: DadosDaEmpresa; clientes: string[]; abaInicial: Aba; periodo: PeriodoDaEmpresa; antigos: LancamentoDaEmpresa[] | null; custom: Record<string, { nome: string; icone: string }>; abrirRegistrar: boolean }) {
   const money = useMoney();
   const m0 = (v: number) => money(v, { round: true });
   const R = useMemo(() => resumoDaEmpresa(dados), [dados]);
-  const primeiro = useMemo(() => {
-    const l = dados.lancamentos[dados.lancamentos.length - 1];
-    return l ? { ano: l.year, mes: l.month } : dados.mesAtual;
-  }, [dados]);
-  // Abre no último mês fechado (o recibo inteiro, com o salário), como no protótipo; sem dado nele, no mês de hoje.
-  const temDado = (m: Mes) => dados.lancamentos.some((l) => l.year === m.ano && l.month === m.mes);
-  const padrao = temDado(R.ultimoFechado) ? R.ultimoFechado : dados.mesAtual;
   const [aba, setAba] = useState<Aba>(abaInicial);
-  const [mes, setMes] = useState<Mes>(mesInicial && ord(mesInicial) <= ord(dados.mesAtual) ? mesInicial : abaInicial === "contas" ? dados.mesAtual : padrao);
   const [registrar, setRegistrar] = useState(abrirRegistrar);
 
-  const atual = ord(mes) === ord(dados.mesAtual);
-  const recibo = useMemo(() => reciboDoMes(dados.lancamentos, mes), [dados, mes]);
+  const lancs = antigos ?? dados.lancamentos;
+  const RP = useMemo(() => resumoDoPeriodo(lancs, periodo, dados.hoje), [lancs, periodo, dados.hoje]);
+  const doPeriodo = useMemo(() => lancamentosDoPeriodo(lancs, periodo), [lancs, periodo]);
+  const mes = umMesSo(periodo, dados.hoje);
+  const atual = !!mes && ord(mes) === ord(dados.mesAtual);
+  const recibo = RP.recibo;
+  const quando = noPeriodoTexto(periodo, dados.hoje);
   const iAba = ABAS.findIndex(([k]) => k === aba);
   // Arrastar o conteúdo para o lado troca de aba, como nas outras faixas do app.
   const conteudo = useArrastoEntreAbas<HTMLDivElement>({ indice: iAba, total: ABAS.length, chave: aba, onLado: (p) => trocarAba(ABAS[iAba + p][0]) });
   const trocarAba = (a: Aba) => {
     setAba(a);
-    if (a === "contas") setMes(dados.mesAtual);
     try {
-      window.history.replaceState(null, "", a === "resumo" ? "/empresa" : `/empresa?aba=${a}`);
+      // O período fica no endereço ao trocar de aba.
+      const q = new URLSearchParams(window.location.search);
+      if (a === "resumo") q.delete("aba");
+      else q.set("aba", a);
+      q.delete("registrar");
+      const texto = q.toString();
+      window.history.replaceState(null, "", texto ? `/empresa?${texto}` : "/empresa");
     } catch {}
   };
 
@@ -69,27 +76,19 @@ export function VisaoDaEmpresa({ dados, clientes, abaInicial, mesInicial, abrirR
       {/* As abas em carrossel, como na Visão geral: a aberta no centro, arrastar gira. */}
       <CarrosselDeAbas rotulo={dados.nome} ativa={aba} itens={ABAS.map(([k, t]) => ({ chave: k, rotulo: t }))} onEscolher={(k) => trocarAba(k as Aba)} />
 
-      {aba !== "contas" && (
-        <div className="grid grid-cols-[44px_minmax(0,1fr)_44px] items-center">
-          <button type="button" aria-label="Mês anterior" disabled={ord(mes) <= ord(primeiro)} onClick={() => setMes(mesAntes(mes, 1))} className="flex size-11 items-center justify-center rounded-full border border-border bg-surface text-ink disabled:opacity-35">
-            <ChevronLeft size={18} aria-hidden />
-          </button>
-          <div className="text-center">
-            <p className="inline-flex items-center gap-1.5 text-[16px] font-medium text-ink">
-              <CalendarDays size={16} strokeWidth={1.7} aria-hidden /> {tituloDoMes(mes)}
-            </p>
-            <p className="text-xs text-ink-muted">{atual ? "até hoje" : "fechado"}</p>
-          </div>
-          <button type="button" aria-label="Próximo mês" disabled={atual} onClick={() => setMes(mesAntes(mes, -1))} className="flex size-11 items-center justify-center rounded-full border border-border bg-surface text-ink disabled:opacity-35">
-            <ChevronRight size={18} aria-hidden />
-          </button>
-        </div>
-      )}
+      {aba !== "contas" && <SeletorDePeriodo periodo={periodo} hoje={dados.hoje} caminho="/empresa" manter={aba === "resumo" ? {} : { aba }} />}
 
-      <div ref={conteudo}>
-      {aba === "resumo" && <AbaResumo dados={dados} R={R} mes={mes} recibo={recibo} atual={atual} m0={m0} money={money} />}
-      {aba === "vendas" && <AbaVendas dados={dados} R={R} mes={mes} recibo={recibo} m0={m0} />}
-      {aba === "despesas" && <AbaDespesas dados={dados} mes={mes} recibo={recibo} m0={m0} />}
+      <div ref={conteudo} className="flex flex-col gap-4">
+      {aba === "resumo" &&
+        (mes ? (
+          <AbaResumo dados={dados} R={R} mes={mes} periodo={periodo} recibo={recibo} atual={atual} m0={m0} money={money} />
+        ) : (
+          <AbaResumo dados={dados} R={R} mes={null} periodo={periodo} recibo={recibo} atual={false} m0={m0} money={money}>
+            <PainelDoPeriodo r={RP} periodo={periodo} hoje={dados.hoje} ehMei={dados.config?.tipo === "MEI"} custom={custom} caminho="/empresa" />
+          </AbaResumo>
+        ))}
+      {aba === "vendas" && <AbaVendas R={R} doPeriodo={doPeriodo} periodo={periodo} quando={quando} recibo={recibo} m0={m0} />}
+      {aba === "despesas" && <AbaDespesas doPeriodo={doPeriodo} periodo={periodo} quando={quando} recibo={recibo} m0={m0} />}
       {aba === "contas" && <AbaContas dados={dados} money={money} m0={m0} />}
       </div>
 
@@ -101,7 +100,7 @@ export function VisaoDaEmpresa({ dados, clientes, abaInicial, mesInicial, abrirR
 
 type Fmt = (v: number) => string;
 
-function Recibo({ dados, mes, recibo, atual, salario, pago, m0 }: { dados: DadosDaEmpresa; mes: Mes; recibo: Recibo; atual: boolean; salario: number; pago: number | null; m0: Fmt }) {
+function Recibo({ dados, mes, periodo, recibo, atual, salario, pago, m0 }: { dados: DadosDaEmpresa; mes: Mes; periodo: PeriodoDaEmpresa; recibo: Recibo; atual: boolean; salario: number; pago: number | null; m0: Fmt }) {
   const ehMei = dados.config?.tipo === "MEI";
   const fica = recibo.sobrou - (pago ?? salario);
   return (
@@ -110,14 +109,17 @@ function Recibo({ dados, mes, recibo, atual, salario, pago, m0 }: { dados: Dados
         <span>Recibo do mês</span>
         <span>{atual ? `${MESES_CURTOS[mes.mes - 1]} ${mes.ano}, até hoje` : `${MESES_CURTOS[mes.mes - 1]} ${mes.ano}`}</span>
       </div>
-      <LinhaDoRecibo rotulo="Entrou" valor={m0(recibo.entrou)} />
-      <LinhaDoRecibo rotulo="Insumos e entregas" valor={m0(recibo.variaveis)} menos />
-      <LinhaDoRecibo rotulo="Contas do mês" valor={m0(recibo.fixas)} menos />
-      <LinhaDoRecibo rotulo={ehMei ? "Guia do MEI" : "Impostos"} valor={m0(recibo.impostos)} menos nota={atual && ehMei && recibo.impostos === 0 && dados.legal.diaDoDas ? `vence ${dados.legal.diaDoDas.valor}/${MESES_CURTOS[mes.mes - 1]}` : undefined} />
-      <HeroiDoTema className="mt-3">
-        <p className="text-sm text-heroi-suave">Sobrou {paraO(dados.negocio)}</p>
-        <ValorDestaque texto={recibo.sobrou < 0 ? `−${m0(-recibo.sobrou)}` : m0(recibo.sobrou)} />
-      </HeroiDoTema>
+      {/* Cada linha abre os lançamentos dela, para editar (13/10/2026). */}
+      <Link href={hrefDaLista(periodo, "entradas")} className="block" data-linha-recibo="entradas"><LinhaDoRecibo rotulo="Entrou" valor={m0(recibo.entrou)} /></Link>
+      <Link href={hrefDaLista(periodo, "variaveis")} className="block"><LinhaDoRecibo rotulo="Insumos e entregas" valor={m0(recibo.variaveis)} menos /></Link>
+      <Link href={hrefDaLista(periodo, "fixas")} className="block"><LinhaDoRecibo rotulo="Contas do mês" valor={m0(recibo.fixas)} menos /></Link>
+      <Link href={hrefDaLista(periodo, "impostos")} className="block"><LinhaDoRecibo rotulo={ehMei ? "Guia do MEI" : "Impostos"} valor={m0(recibo.impostos)} menos nota={atual && ehMei && recibo.impostos === 0 && dados.legal.diaDoDas ? `vence ${dados.legal.diaDoDas.valor}/${MESES_CURTOS[mes.mes - 1]}` : undefined} /></Link>
+      <Link href={hrefDaLista(periodo, "lucro")} className="mt-3 block">
+        <HeroiDoTema>
+          <p className="text-sm text-heroi-suave">Sobrou {paraO(dados.negocio)}</p>
+          <ValorDestaque texto={recibo.sobrou < 0 ? `−${m0(-recibo.sobrou)}` : m0(recibo.sobrou)} />
+        </HeroiDoTema>
+      </Link>
       {!atual && recibo.sobrou > 0 && (pago !== null || salario > 0) && (
         <div className="mt-2 grid grid-cols-2 gap-2">
           <Link href={`/empresa/salario?mes=${chaveDoMes(mes)}`} className="rounded-2xl bg-success-soft px-3 py-3 text-ink shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--color-success)_25%,transparent)]">
@@ -148,8 +150,8 @@ function IconeTingido({ icon: Icone, cor }: { icon: typeof FileText; cor: string
   );
 }
 
-function AbaResumo({ dados, R, mes, recibo, atual, m0, money }: { dados: DadosDaEmpresa; R: ResumoDaEmpresa; mes: Mes; recibo: Recibo; atual: boolean; m0: Fmt; money: (v: number) => string }) {
-  const pagoDoMes = dados.lancamentos.find((l) => l.externalId === `prolabore:${chaveDoMes(mes)}`);
+function AbaResumo({ dados, R, mes, periodo, recibo, atual, m0, money, children }: { dados: DadosDaEmpresa; R: ResumoDaEmpresa; mes: Mes | null; periodo: PeriodoDaEmpresa; recibo: Recibo; atual: boolean; m0: Fmt; money: (v: number) => string; children?: React.ReactNode }) {
+  const pagoDoMes = mes ? dados.lancamentos.find((l) => l.externalId === `prolabore:${chaveDoMes(mes)}`) : undefined;
   const pago = pagoDoMes ? pagoDoMes.amount : null;
   const salario = Math.min(R.salario, Math.max(0, recibo.sobrou));
   const itens: React.ReactNode[] = [];
@@ -197,8 +199,8 @@ function AbaResumo({ dados, R, mes, recibo, atual, m0, money }: { dados: DadosDa
   }
   return (
     <>
-      <Recibo dados={dados} mes={mes} recibo={recibo} atual={atual} salario={salario} pago={pago} m0={m0} />
-      {!atual && pago === null && salario > 0 && (
+      {mes ? <Recibo dados={dados} mes={mes} periodo={periodo} recibo={recibo} atual={atual} salario={salario} pago={pago} m0={m0} /> : children}
+      {mes && !atual && pago === null && salario > 0 && (
         <Link href={`/empresa/salario?mes=${chaveDoMes(mes)}`} className={BOTAO_PRINCIPAL}>
           Ver meu holerite
         </Link>
@@ -217,15 +219,15 @@ function AbaResumo({ dados, R, mes, recibo, atual, m0, money }: { dados: DadosDa
   );
 }
 
-function AbaVendas({ dados, R, mes, recibo, m0 }: { dados: DadosDaEmpresa; R: ResumoDaEmpresa; mes: Mes; recibo: Recibo; m0: Fmt }) {
-  const vendas = dados.lancamentos.filter((l) => l.year === mes.ano && l.month === mes.mes && ehVenda(l));
+function AbaVendas({ R, doPeriodo, periodo, quando, recibo, m0 }: { R: ResumoDaEmpresa; doPeriodo: LancamentoDaEmpresa[]; periodo: PeriodoDaEmpresa; quando: string; recibo: Recibo; m0: Fmt }) {
+  const vendas = doPeriodo.filter((l) => ehVenda(l));
   const comForma = Object.values(recibo.porForma).reduce((s, v) => s + (v ?? 0), 0);
   const formas = (Object.keys(recibo.porForma) as Forma[]).sort((a, b) => (recibo.porForma[b] ?? 0) - (recibo.porForma[a] ?? 0));
   const aReceber = R.semanas.reduce((s, w) => s + w.total, 0);
   return (
     <>
       <HeroiDoTema>
-        <p className="text-sm text-heroi-suave">Vendeu em {MESES[mes.mes - 1]}</p>
+        <p className="text-sm text-heroi-suave">Vendeu {quando}</p>
         <ValorDestaque texto={m0(recibo.entrou)} />
         <div className="grid grid-cols-2 gap-2">
           <div className="heroi-veu rounded-2xl px-3 py-2.5">
@@ -283,17 +285,16 @@ function AbaVendas({ dados, R, mes, recibo, m0 }: { dados: DadosDaEmpresa; R: Re
           <b className="shrink-0 text-[15px] font-medium tabular-nums text-ink">{m0(aReceber)}</b>
         </Link>
       )}
-      <Link href={`/mensal/${mes.ano}/${mes.mes}`} className="mx-auto inline-flex min-h-11 items-center gap-1 px-3 text-sm text-ink-muted">
-        Ver todos os lançamentos <ChevronRight size={16} aria-hidden />
+      <Link href={hrefDaLista(periodo, "entradas")} className="mx-auto inline-flex min-h-11 items-center gap-1 px-3 text-sm text-ink-muted">
+        Ver e editar as vendas <ChevronRight size={16} aria-hidden />
       </Link>
     </>
   );
 }
 
-function AbaDespesas({ dados, mes, recibo, m0 }: { dados: DadosDaEmpresa; mes: Mes; recibo: Recibo; m0: Fmt }) {
+function AbaDespesas({ doPeriodo, periodo, quando, recibo, m0 }: { doPeriodo: LancamentoDaEmpresa[]; periodo: PeriodoDaEmpresa; quando: string; recibo: Recibo; m0: Fmt }) {
   const grupos = new Map<string, { nome: string; valor: number; sobe: boolean; parent: string | null }>();
-  for (const l of dados.lancamentos) {
-    if (l.year !== mes.ano || l.month !== mes.mes) continue;
+  for (const l of doPeriodo) {
     // Só o que sobe com a venda (protótipo): as contas de todo mês moram na aba Contas, e a maquininha tem o cartão dela.
     if (tipoDaSaida(l) !== "variavel" || ehMaquininha(l)) continue;
     const t = "variavel";
@@ -308,7 +309,7 @@ function AbaDespesas({ dados, mes, recibo, m0 }: { dados: DadosDaEmpresa; mes: M
   return (
     <>
       <HeroiDoTema>
-        <p className="text-sm text-heroi-suave">Saiu em {MESES[mes.mes - 1]}</p>
+        <p className="text-sm text-heroi-suave">Saiu {quando}</p>
         <ValorDestaque texto={m0(saiu)} />
         <div className="grid grid-cols-2 gap-2">
           <div className="heroi-veu rounded-2xl px-3 py-2.5">
@@ -338,7 +339,7 @@ function AbaDespesas({ dados, mes, recibo, m0 }: { dados: DadosDaEmpresa; mes: M
             {lista.map((g) => {
               const Icone = (g.parent && ICONE_DA_SAIDA[g.parent]) || Tag;
               return (
-                <div key={g.nome} className="flex min-h-16 items-center gap-3 py-2.5">
+                <Link key={g.nome} href={hrefDaLista(periodo, `saida:${g.nome}`)} className="flex min-h-16 items-center gap-3 py-2.5">
                   <LogoDoLancamento descricao={null} icon={Icone} size={40} />
                   <span className="min-w-0 flex-1">
                     <b className="block truncate text-[15px] font-medium text-ink">{g.nome}</b>
@@ -348,14 +349,15 @@ function AbaDespesas({ dados, mes, recibo, m0 }: { dados: DadosDaEmpresa; mes: M
                     </span>
                   </span>
                   <b className="shrink-0 text-[15px] font-medium tabular-nums text-ink">{m0(g.valor)}</b>
-                </div>
+                  <ChevronRight size={16} className="shrink-0 text-ink-muted" aria-hidden />
+                </Link>
               );
             })}
           </Cartao>
         </>
       )}
-      <Link href={`/mensal/${mes.ano}/${mes.mes}`} className="mx-auto inline-flex min-h-11 items-center gap-1 px-3 text-sm text-ink-muted">
-        Ver todos os lançamentos <ChevronRight size={16} aria-hidden />
+      <Link href={hrefDaLista(periodo, "despesas")} className="mx-auto inline-flex min-h-11 items-center gap-1 px-3 text-sm text-ink-muted">
+        Ver e editar as despesas <ChevronRight size={16} aria-hidden />
       </Link>
     </>
   );

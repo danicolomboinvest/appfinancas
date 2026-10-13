@@ -228,6 +228,10 @@ describe("tocar num total abre exatamente o que ele soma", () => {
     expect(soma("impostos")).toBe(r.recibo.impostos);
     for (const c of r.categorias) expect(soma(`cat:${c.chave}`)).toBe(c.valor);
     expect(soma("cliente:Café Lume")).toBe(2340);
+    expect(soma("cliente:")).toBe(r.semNome.valor);
+    expect(soma("variaveis")).toBe(r.recibo.variaveis);
+    expect(soma("fixas")).toBe(r.recibo.fixas);
+    expect(Math.round((soma("entradas") - soma("despesas")) * 100) / 100).toBe(r.recibo.sobrou);
   });
 
   it("lê só grupos válidos", () => {

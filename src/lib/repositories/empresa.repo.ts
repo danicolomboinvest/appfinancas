@@ -52,6 +52,20 @@ export async function lancamentosDaEmpresa(ctx: AuthContext, desde: Mes): Promis
   }));
 }
 
+/**
+ * A lista editável de um total da Empresa (Entradas em 2026, Insumos em setembro): as linhas
+ * inteiras dos meses do período, no formato da lista de Transações (a folha de editar de sempre).
+ * Só o perfil aberto (doDono). O corte por dia e por grupo é feito por quem chama (lib/empresa/periodo).
+ */
+export async function linhasDaEmpresaNosMeses(ctx: AuthContext, meses: Mes[]) {
+  if (meses.length === 0) return [];
+  return prisma.monthlyEntry.findMany({
+    where: { ...doDono(ctx), OR: meses.map((m) => ({ year: m.ano, month: m.mes })) },
+    orderBy: [{ entryDate: { sort: "desc", nulls: "last" } }, { createdAt: "desc" }],
+    include: { importBatch: { select: { docType: true, ocultoDoPar: true } } },
+  });
+}
+
 export type VendaInput = { valor: number; forma: Forma; cliente: string | null; hoje: string; recebeEm: string | null; recebida: boolean };
 
 /** "Vendi": entra no mês de hoje. O cliente e a data em que o dinheiro cai são opcionais. */
