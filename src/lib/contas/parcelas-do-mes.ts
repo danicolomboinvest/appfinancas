@@ -135,37 +135,47 @@ export function parcelasDoMes(lancamentos: LancamentoParcelavel[], mes: Mes, con
     categoria: l.categoria,
   });
 
-  // Lançadas: o que já está no mês.
-  const doMes = lidas.filter((l) => l.mes === alvo);
-  for (const l of doMes) itens.push(parcela(l, l.atual, "lancada"));
-
-  // Previstas: cada compra (série + mês da compra, com um mês de folga, e o valor) que não tem
-  // lançamento neste mês. A parcela vem do lançamento mais perto deste mês.
+  // Cada compra: a série (nome + total) e o mês da compra, com um mês de folga, e o valor. Só a
+  // parcela com certeza: a ambígua não inventa mês nenhum.
+  const compras: Lida[][] = [];
   const porSerie = new Map<string, Lida[]>();
   for (const l of lidas) {
-    if (!parseInstallment(l.descricao)?.confident) continue; // ambígua não inventa mês nenhum
+    if (!parseInstallment(l.descricao)?.confident) continue;
     porSerie.set(l.serie, [...(porSerie.get(l.serie) ?? []), l]);
   }
   for (const doGrupo of porSerie.values()) {
-    const compras: Lida[][] = [];
+    const daSerie: Lida[][] = [];
     for (const l of [...doGrupo].sort((a, b) => a.origem - b.origem || a.mes - b.mes)) {
-      const mesma = compras.find((c) => c.some((x) => Math.abs(x.origem - l.origem) <= 1 && mesmoValor(x.valor, l.valor)));
+      const mesma = daSerie.find((c) => c.some((x) => Math.abs(x.origem - l.origem) <= 1 && mesmoValor(x.valor, l.valor)));
       if (mesma) mesma.push(l);
-      else compras.push([l]);
+      else daSerie.push([l]);
     }
-    for (const compra of compras) {
-      if (compra.some((l) => l.mes === alvo)) continue;
-      // O lançamento mais recente até este mês; sem nenhum antes, o primeiro depois.
-      const antes = compra.filter((l) => l.mes < alvo).sort((a, b) => b.mes - a.mes || b.atual - a.atual)[0];
-      const base = antes ?? compra.filter((l) => l.mes > alvo).sort((a, b) => a.mes - b.mes)[0];
-      if (!base) continue;
-      const atual = base.atual + (alvo - base.mes);
-      if (atual < 1 || atual > base.total) continue;
-      // Uma parcela que pularia o mês do lançamento seguinte: a série é de outra compra.
-      const depois = compra.find((l) => l.mes > alvo);
-      if (antes && depois && depois.atual <= atual) continue;
-      itens.push(parcela(base, atual, "prevista"));
-    }
+    compras.push(...daSerie);
+  }
+  // O dia em que a compra cai: o da parcela que tem dia (a 1ª, que veio como compra do mês).
+  const diaDaCompra = new Map<string, number>();
+  for (const compra of compras) {
+    const d = diaDe(compra.find((l) => l.dia)?.dia ?? null);
+    if (d) for (const l of compra) diaDaCompra.set(l.id, d);
+  }
+  const comDia = (p: ParcelaDoMes, l: Lida): ParcelaDoMes => ({ ...p, dia: p.dia ?? diaDaCompra.get(l.id) ?? null });
+
+  // Lançadas: o que já está no mês.
+  for (const l of lidas.filter((x) => x.mes === alvo)) itens.push(comDia(parcela(l, l.atual, "lancada"), l));
+
+  // Previstas: a compra que não tem lançamento neste mês. A parcela vem do lançamento mais perto.
+  for (const compra of compras) {
+    if (compra.some((l) => l.mes === alvo)) continue;
+    // O lançamento mais recente até este mês; sem nenhum antes, o primeiro depois.
+    const antes = compra.filter((l) => l.mes < alvo).sort((a, b) => b.mes - a.mes || b.atual - a.atual)[0];
+    const base = antes ?? compra.filter((l) => l.mes > alvo).sort((a, b) => a.mes - b.mes)[0];
+    if (!base) continue;
+    const atual = base.atual + (alvo - base.mes);
+    if (atual < 1 || atual > base.total) continue;
+    // Uma parcela que pularia o mês do lançamento seguinte: a série é de outra compra.
+    const depois = compra.find((l) => l.mes > alvo);
+    if (antes && depois && depois.atual <= atual) continue;
+    itens.push(comDia({ ...parcela(base, atual, "prevista"), dia: null }, base));
   }
 
   // Contas parceladas cadastradas, menos a que é a mesma compra de uma parcela da fatura.

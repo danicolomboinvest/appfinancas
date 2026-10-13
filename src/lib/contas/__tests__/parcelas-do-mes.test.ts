@@ -94,3 +94,11 @@ describe("parcelas do mês", () => {
     expect(nomeSemParcela("Notebook - Parcela 2 de 6")).toBe("Notebook");
   });
 });
+
+describe("o dia da parcela", () => {
+  it("vem da parcela da mesma compra que tem dia (a 1ª, gravada como compra do mês)", () => {
+    const r = parcelasDoMes(DA_DANI, { year: 2026, month: 10 });
+    expect(r.itens.find((i) => i.nome === "Airbnb")?.dia).toBe(21);
+    expect(r.itens.find((i) => i.nome === "Amazon Marketplace Cc")?.dia).toBeNull();
+  });
+});
