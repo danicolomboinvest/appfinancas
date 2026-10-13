@@ -10,6 +10,8 @@ import { AddEmailsForm } from "./AddEmailsForm";
 import { InviteUserForm } from "./InviteUserForm";
 import { ProductsSection } from "./ProductsSection";
 import { RowActions } from "./RowActions";
+import { BuscaCliente, bateComBusca } from "@/components/admin/BuscaCliente";
+import { prisma } from "@/lib/db/prisma";
 
 // No fuso do Brasil: o servidor roda em UTC, e uma compra no Hubla às 22h30 de 28/09 aparecia
 // "até 29/09" enquanto isExpired (que olha o dia no Brasil) já bloqueava em 29/09.
@@ -20,9 +22,22 @@ const dateFmt = new Intl.DateTimeFormat("pt-BR", {
   timeZone: "America/Sao_Paulo",
 });
 
-export default async function AdminAcessosPage() {
+export default async function AdminAcessosPage(props: { searchParams: Promise<{ q?: string | string[] }> }) {
   await requireAdmin();
-  const [emails, products, moneyReset] = await Promise.all([listAllowedEmails(), listAllowedProducts(), listarProdutosLiberados(MONEY_RESET)]);
+  const sp = await props.searchParams;
+  const q = (Array.isArray(sp.q) ? sp.q[0] : sp.q ?? "").slice(0, 80);
+  const [todosEmails, products, moneyReset] = await Promise.all([listAllowedEmails(), listAllowedProducts(), listarProdutosLiberados(MONEY_RESET)]);
+  // Busca por nome: a lista é de e-mails; o nome e o celular vêm da conta, quando ela já existe.
+  const contas = q
+    ? await prisma.user.findMany({ where: { email: { in: todosEmails.map((e) => e.email) } }, select: { email: true, name: true, phone: true } })
+    : [];
+  const daConta = new Map(contas.map((c) => [c.email.toLowerCase(), c]));
+  const emails = q
+    ? todosEmails.filter((e) => {
+        const c = daConta.get(e.email.toLowerCase());
+        return bateComBusca(q, e.email, e.note, c?.name, c?.phone);
+      })
+    : todosEmails;
   const active = emails.filter((e) => e.active && !isExpired(e.expiresAt)).length;
   const expiredCount = emails.filter((e) => e.active && isExpired(e.expiresAt)).length;
 
@@ -40,6 +55,11 @@ export default async function AdminAcessosPage() {
       <AddEmailsForm />
 
       <InviteUserForm />
+
+      <div id="lista" className="flex flex-col gap-2">
+        <BuscaCliente acao="/admin/acessos" q={q} />
+        {q && <p className="px-1 text-sm text-ink-muted">{emails.length === 0 ? "Ninguém encontrado." : `${emails.length} de ${todosEmails.length}`}</p>}
+      </div>
 
       <Card className="overflow-x-auto">
         <div className="flex items-center justify-between px-4 py-3 text-sm text-ink-muted">
@@ -83,7 +103,10 @@ export default async function AdminAcessosPage() {
                   key={entry.id}
                   className={`border-b border-border/60 last:border-0 hover:bg-surface-2/40 ${!entry.active ? "opacity-50" : ""}`}
                 >
-                  <td className="px-4 py-3 text-ink">{entry.email}</td>
+                  <td className="px-4 py-3 text-ink">
+                    {entry.email}
+                    {daConta.get(entry.email.toLowerCase())?.name && <div className="text-xs text-ink-faint">{daConta.get(entry.email.toLowerCase())?.name}</div>}
+                  </td>
                   <td className="px-4 py-3">
                     <Badge tone={entry.source === "HUBLA" ? "accent" : "info"}>
                       {entry.source === "HUBLA" ? "Hubla" : entry.source === "APPLE" ? "Apple" : "Manual"}

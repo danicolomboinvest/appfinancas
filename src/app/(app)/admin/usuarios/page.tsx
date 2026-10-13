@@ -8,6 +8,7 @@ import { StatCard } from "@/components/ui/StatCard";
 import { formatPercentNumber } from "@/lib/format";
 import { formatPhone, whatsappUrl } from "@/lib/phone";
 import { serverMoney } from "@/lib/money-server";
+import { BuscaCliente, bateComBusca } from "@/components/admin/BuscaCliente";
 
 const dateFmt = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
 
@@ -22,7 +23,7 @@ function SortHeader({ label, sortKey, active, className = "" }: { label: string;
   return (
     <th className={`px-4 py-3 font-medium ${className}`}>
       <Link
-        href={`/admin/usuarios?sort=${sortKey}`}
+        href={`/admin/usuarios?sort=${sortKey}#clientes`}
         className={`inline-flex items-center gap-1 transition-colors hover:text-ink ${active ? "text-accent-strong" : ""}`}
       >
         {label}
@@ -38,12 +39,15 @@ export default async function AdminUsuariosPage(props: PageProps<"/admin/usuario
   const searchParams = await props.searchParams;
   const sortParam = firstOf(searchParams.sort);
   const sort: AdminUserSort = SORT_KEYS.includes(sortParam as AdminUserSort) ? (sortParam as AdminUserSort) : "patrimonio";
+  const q = (firstOf(searchParams.q) ?? "").slice(0, 80);
 
-  const [{ users, totals }, { features }, { totalPerfis, temas, tipos }] = await Promise.all([
+  const [{ users: todos, totals }, { features }, { totalPerfis, temas, tipos }] = await Promise.all([
     getAdminOverview(sort),
     getFeatureAdoption(),
     getProfileAdoption(),
   ]);
+
+  const users = q ? todos.filter((u) => bateComBusca(q, u.name, u.email, u.phone)) : todos;
 
   return (
     <div className="flex flex-col gap-8">
@@ -101,6 +105,11 @@ export default async function AdminUsuariosPage(props: PageProps<"/admin/usuario
         </Card>
       </div>
 
+      <div id="clientes" className="flex flex-col gap-2">
+        <BuscaCliente acao="/admin/usuarios" q={q} extras={sort !== "patrimonio" ? { sort } : {}} />
+        {q && <p className="px-1 text-sm text-ink-muted">{users.length === 0 ? "Ninguém com esse nome." : `${users.length} de ${todos.length}`}</p>}
+      </div>
+
       <Card className="overflow-x-auto">
         <table className="w-full text-left text-sm">
           <thead>
@@ -118,7 +127,7 @@ export default async function AdminUsuariosPage(props: PageProps<"/admin/usuario
             {users.length === 0 && (
               <tr>
                 <td colSpan={7} className="px-4 py-8 text-center text-ink-faint">
-                  Nenhum usuário cadastrado ainda.
+                  {q ? "Ninguém encontrado." : "Nenhum usuário cadastrado ainda."}
                 </td>
               </tr>
             )}
