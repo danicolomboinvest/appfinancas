@@ -5,7 +5,7 @@ import { signOut } from "@/lib/auth/auth.config";
 import { getRequiredSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
 import { deleteUserAndAllData } from "@/lib/repositories/delete-account.repo";
-import { deleteItem, isPluggyConfigured } from "@/lib/pluggy/client";
+import { revogarNaPluggy } from "@/lib/pluggy/revogar";
 
 export type DeleteAccountState = { error?: string };
 
@@ -32,14 +32,8 @@ export async function deleteAccountAction(
   // em cascata com a conta, e sem ela o app perde o itemId pra sempre — a Pluggy continuaria
   // com acesso ao extrato dela (e cobrando o item), contra a promessa de exclusão total.
   // Melhor esforço e com teto: a Pluggy fora do ar não pode impedir ninguém de excluir a conta.
-  if (isPluggyConfigured()) {
-    const conexoes = await prisma.bankConnection.findMany({ where: { userId: ctx.userId }, select: { itemId: true } });
-    await Promise.allSettled(
-      conexoes.map((c) =>
-        Promise.race([deleteItem(c.itemId), new Promise<void>((resolve) => setTimeout(resolve, 8000))]),
-      ),
-    );
-  }
+  const conexoes = await prisma.bankConnection.findMany({ where: { userId: ctx.userId }, select: { itemId: true } });
+  await revogarNaPluggy(conexoes.map((c) => c.itemId));
 
   await deleteUserAndAllData(ctx.userId);
 
