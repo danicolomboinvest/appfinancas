@@ -22,11 +22,11 @@ export type ImportBatchSummary = {
   months: string[];
 };
 
-export async function createImportBatch(ctx: AuthContext, input: { docType: string; fileName?: string }) {
+export async function createImportBatch(ctx: AuthContext, input: { docType: string; fileName?: string; faturaAberta?: boolean }) {
   // Casal simples: extrato novo de uma conta que ela escondeu do par nasce escondido também.
   const ocultoDoPar = await contaEstaEscondida(ctx.userId, ctx.profileId, input.docType, input.fileName ?? null);
   return prisma.importBatch.create({
-    data: { userId: ctx.userId, profileId: ctx.profileId, docType: input.docType, fileName: input.fileName ?? null, ocultoDoPar },
+    data: { userId: ctx.userId, profileId: ctx.profileId, docType: input.docType, fileName: input.fileName ?? null, ocultoDoPar, faturaAberta: input.faturaAberta ?? false },
   });
 }
 

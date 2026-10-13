@@ -31,7 +31,7 @@ import { regrasDePerfil } from "@/lib/repositories/mover-perfil.repo";
 import { categoriaNoDestino, destinoPelaRegra } from "@/lib/perfis/mover-lancamentos";
 import { descricoesOriginais } from "@/lib/repositories/decisao.repo";
 import { aplicarNosOutrosMeses, listTransactionRules, upsertTransactionRule } from "@/lib/repositories/transaction-rule.repo";
-import { parseStatementComLeitor } from "@/lib/import/statement-parser";
+import { parseStatementComLeitor, type ParsedTransaction } from "@/lib/import/statement-parser";
 import { isFaturaSummaryLine, comprasDaFaturaSaoPositivas, pareceCreditoDePagamento } from "@/lib/import/fatura-lines";
 import { extractUploadFromForm, UploadReadError, PasswordRequiredError } from "@/lib/import/extract-text";
 import { pdfTextQuality } from "@/lib/import/pdf-quality";
@@ -43,6 +43,9 @@ import { pareceAplicacao, pareceContaPropria, parecePagamentoDeFatura, pareceRes
 import { casarPorDataEValor, type ExistenteSolto } from "@/lib/import/duplicata-solta";
 import { casarComLancadosAMao, semNomeUtil, type LinhaDoArquivo } from "@/lib/import/parecido-manual";
 import { lidasEmDobro } from "@/lib/import/repetidos";
+import { bancoDoPrint, comprasDosPrints, juntarPrints, lerPrint, type CompraDoPrint, type PrintLido } from "@/lib/import/print-fatura";
+import { casarComFaturaAberta } from "@/lib/import/fatura-aberta";
+import { UPLOAD_MAX_BYTES } from "@/lib/import/limites";
 import { nomeNaTela } from "@/lib/import/nome-na-tela";
 import {
   ajustarAnoDaCompra,
@@ -116,7 +119,7 @@ export type ReviewItem = {
   } | null;
   /** Já está no app: um lançamento à mão quase certamente igual (lib/import/parecido-manual). Não
    * entra de novo; na gravação, o lançamento à mão fica com o dia e o valor do arquivo. */
-  jaNoApp?: { descricao: string; data: string | null; id: string; valor: number } | null;
+  jaNoApp?: { descricao: string; data: string | null; id: string; valor: number; faturaAberta?: boolean } | null;
   /** Fica de fora da importação (pagamento de fatura de quem importa a fatura, "só mudei de conta"). */
   ignorar?: boolean;
   /** Por que o app tratou a linha diferente ("Aplicação: entra como guardado"). */
@@ -159,6 +162,8 @@ export type ParseStats = {
   mesesDasCompras: string[];
   /** Fatura: quantas compras (gastos que entram, sem estorno e sem o que fica de fora). */
   compras: number;
+  /** Veio de prints da fatura ABERTA: parcial, "N compras até hoje" (ver lib/import/print-fatura). */
+  faturaAberta?: boolean;
 };
 
 export type ParseStatementResult =
@@ -176,6 +181,77 @@ function mensagemDaConferencia(conf: Conferencia, incompleta: boolean): string |
       : null; // sem total pra conferir: a régua das linhas continua valendo pra esta linha
   }
   return conf.status === "fechou" ? `${MARCA_CONFERIDO} bateu com o total do arquivo (${reais(conf.esperado)})` : MARCA_CONFERIDO;
+}
+
+/** O que a tela diz quando um print não deu: o mesmo para ilegível, cortado e sem nenhum valor. */
+const MSG_PRINT_ILEGIVEL = "Não consegui ler este print. Tente com a tela mais clara ou sem zoom.";
+
+export type PrintDaFaturaResult = { ok: true; print: PrintLido; banco: string | null } | { ok: false; error: string };
+
+/**
+ * UM print da fatura aberta (captura de tela da lista de compras do app do banco): OCR aqui no
+ * servidor e a leitura da lista. Uma imagem por chamada, como a fila de vários arquivos: cada uma
+ * leva poucos segundos e nenhuma chamada chega perto do limite de tempo da função. A tela junta
+ * os prints e manda tudo de uma vez para `parseStatementAction` (origem "print").
+ */
+export async function lerPrintDaFaturaAction(formData: FormData): Promise<PrintDaFaturaResult> {
+  const ctx = await getRequiredSession();
+  const arquivo = formData.get("file");
+  const envio = String(formData.get("envio") ?? "");
+  const nome = arquivo instanceof File ? arquivo.name : null;
+  const falhou = async (detalhe: string): Promise<PrintDaFaturaResult> => {
+    await recordImportDiagnostic({ userId: ctx.userId, target: "fatura", stage: "parse", ok: false, fileName: nome, encoding: "imagem", kind: "print", message: `${MSG_PRINT_ILEGIVEL} [${detalhe}]`.slice(0, 500) });
+    return { ok: false, error: MSG_PRINT_ILEGIVEL };
+  };
+  if (!(arquivo instanceof Blob) || arquivo.size === 0) return { ok: false, error: MSG_PRINT_ILEGIVEL };
+  if (arquivo.size > UPLOAD_MAX_BYTES) return { ok: false, error: "Esse print é grande demais. Mande a captura de tela original, sem editar." };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(envio)) return { ok: false, error: MSG_PRINT_ILEGIVEL };
+  try {
+    const { lerSegmentosDoPrint } = await import("@/lib/import/ocr-print");
+    const { segmentos } = await lerSegmentosDoPrint(Buffer.from(await arquivo.arrayBuffer()));
+    const print = lerPrint(segmentos, envio);
+    if (print.linhas.length === 0) return await falhou(`nenhuma compra; ${segmentos.length} pedaços de texto`);
+    return { ok: true, print, banco: bancoDoPrint(segmentos.map((x) => x.texto)) };
+  } catch (err) {
+    console.error("lerPrintDaFaturaAction: OCR falhou", err);
+    return await falhou(`exceção: ${err instanceof Error ? err.message.slice(0, 160) : "erro"}`);
+  }
+}
+
+/** Os prints que a tela juntou (JSON no formulário), conferidos: só o formato esperado passa. */
+function printsDoFormulario(formData: FormData): { compras: CompraDoPrint[]; banco: string | null } | null {
+  try {
+    const envio = String(formData.get("envio") ?? "");
+    const brutos = JSON.parse(String(formData.get("prints") ?? "null")) as unknown;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(envio) || !Array.isArray(brutos) || brutos.length === 0 || brutos.length > 12) return null;
+    const prints: PrintLido[] = brutos.map((p) => {
+      const linhas = Array.isArray(p?.linhas) ? p.linhas : [];
+      return {
+        cabecalhoNoFim: typeof p?.cabecalhoNoFim === "string" && /^\d{4}-\d{2}-\d{2}$/.test(p.cabecalhoNoFim) ? p.cabecalhoNoFim : null,
+        linhas: linhas.slice(0, 200).flatMap((l: Record<string, unknown>) => {
+          const valor = Number(l?.valor);
+          const nome = typeof l?.nome === "string" ? l.nome.slice(0, 120).trim() : "";
+          if (!nome || !Number.isFinite(valor) || valor <= 0 || valor > 1e7) return [];
+          const parcela = l?.parcela as { atual?: unknown; total?: unknown } | null;
+          const atual = Number(parcela?.atual);
+          const total = Number(parcela?.total);
+          return [{
+            data: typeof l?.data === "string" && /^\d{4}-\d{2}-\d{2}$/.test(l.data) ? l.data : null,
+            nome,
+            valor: Math.round(valor * 100) / 100,
+            sinal: l?.sinal === "-" || l?.sinal === "+" ? l.sinal : null,
+            credito: l?.credito === true,
+            parcela: Number.isInteger(atual) && Number.isInteger(total) && atual >= 1 && atual <= total && total <= 48 ? { atual, total } : null,
+          }];
+        }),
+      };
+    });
+    const compras = comprasDosPrints(juntarPrints(prints), envio);
+    const banco = typeof formData.get("banco") === "string" && String(formData.get("banco")).length <= 40 ? String(formData.get("banco")) || null : null;
+    return compras.length > 0 ? { compras, banco } : null;
+  } catch {
+    return null;
+  }
 }
 
 /** Lê o extrato (CSV/OFX/Excel/PDF), classifica cada transação e devolve a fila pra revisão.
@@ -213,9 +289,11 @@ export async function parseStatementAction(formData: FormData): Promise<ParseSta
 
 async function lerExtrato(formData: FormData): Promise<ParseStatementResult> {
   const ctx = await getRequiredSession();
-  const encoding = String(formData.get("encoding") ?? "text");
+  // Prints da fatura aberta (lerPrintDaFaturaAction): já lidos e juntos pela tela, sempre fatura.
+  const doPrint = String(formData.get("origem") ?? "") === "print";
+  const encoding = doPrint ? "imagem" : String(formData.get("encoding") ?? "text");
   // "fatura" = fatura de cartão (tudo é gasto); "extrato" = extrato bancário (sinal manda).
-  const docType = String(formData.get("docType") ?? "extrato");
+  const docType = doPrint ? "fatura" : String(formData.get("docType") ?? "extrato");
 
   const uploaded = formData.get("file");
   const uploadedName = uploaded instanceof File ? uploaded.name : null;
@@ -238,7 +316,18 @@ async function lerExtrato(formData: FormData): Promise<ParseStatementResult> {
 
   let text: string;
   let source: "auto" | "pdf";
-  try {
+  let dosPrints: ReturnType<typeof printsDoFormulario> = null;
+  if (doPrint) {
+    dosPrints = printsDoFormulario(formData);
+    if (!dosPrints) {
+      await falha(`${MSG_PRINT_ILEGIVEL} [prints sem compra]`, { kind: "print" });
+      return { ok: false, error: MSG_PRINT_ILEGIVEL };
+    }
+    // Um texto no formato de sempre (data, descrição, valor), só para o diagnóstico e as contas de
+    // conferência; as compras em si vêm prontas dos prints.
+    text = dosPrints.compras.map((c) => `${c.date.split("-").reverse().join("/")} ${c.description} ${c.amount.toFixed(2).replace(".", ",")}`).join("\n");
+    source = "pdf";
+  } else try {
     ({ text, source } = await extractUploadFromForm(formData));
   } catch (err) {
     if (err instanceof PasswordRequiredError) return { ok: false, error: err.message, needsPassword: true };
@@ -276,7 +365,19 @@ async function lerExtrato(formData: FormData): Promise<ParseStatementResult> {
   // Lê o arquivo INTEIRO e monta o perfil (banco, período, o que tem dentro) antes de decidir.
   const fileMeta = formData.get("file");
   const fileName = fileMeta instanceof File ? fileMeta.name : null;
-  const profile = profileDocument(text, fileName);
+  const profile: ReturnType<typeof profileDocument> = dosPrints
+    ? {
+        institution: dosPrints.banco,
+        period: null,
+        positionRows: 0,
+        movementRows: dosPrints.compras.length,
+        hints: { position: 0, statement: 0, invoice: 1, irpf: 0, allocation: 0 },
+        contents: [],
+        kind: "invoice",
+        summary: "Fatura aberta (prints)",
+        reason: "prints da fatura aberta",
+      }
+    : profileDocument(text, fileName);
   if (profile.kind === "position" && !profile.contents.includes("movements")) {
     const msg = /extrato de cust[óo]dia/i.test(profile.reason)
       ? `Li o arquivo inteiro: esse é o extrato de custódia, o saldo de cada caixinha e fundo. Ele não traz entradas e saídas, então não serve aqui. Para lançar o dia a dia, baixe o extrato da conta (Conta › Extrato) no app do banco.`
@@ -299,14 +400,17 @@ async function lerExtrato(formData: FormData): Promise<ParseStatementResult> {
   const faturaYear =
     Number(String(formData.get("faturaMonth") ?? "").slice(0, 4)) ||
     (datasDaFatura.vencimento ? Number(datasDaFatura.vencimento.slice(0, 4)) : undefined);
-  const { txns: parsedRaw, leitor } = parseStatementComLeitor(text, source, faturaYear);
+  const { txns: parsedRaw, leitor }: { txns: ParsedTransaction[]; leitor: string | null } = dosPrints
+    ? { txns: dosPrints.compras.map((c) => ({ date: c.date, description: c.description, amount: c.amount })), leitor: "print" }
+    : parseStatementComLeitor(text, source, faturaYear);
   // Fatura: linhas de RESUMO ("pagamento efetuado", "total de compras", "total de crédito
   // recebido") são agregados que a própria fatura já detalha em outras linhas — não são uma
   // compra a mais. Sem isso, o "pagamento de fatura" virava um gasto extra na revisão.
   const semResumo = docType === "fatura" ? parsedRaw.filter((txn) => !isFaturaSummaryLine(txn)) : parsedRaw;
   // Compras iguais no mesmo arquivo são reais (4 patinetes no mesmo dia) e entram todas, sem
   // pergunta. Só sai a mesma linha lida duas vezes por erro de leitura (lib/import/repetidos).
-  const emDobro = lidasEmDobro(text, semResumo);
+  // Prints: a sobreposição entre eles já saiu em juntarPrints; o resto repetido é compra de verdade.
+  const emDobro = dosPrints ? new Set<number>() : lidasEmDobro(text, semResumo);
   const parsed = emDobro.size > 0 ? semResumo.filter((_, i) => !emDobro.has(i)) : semResumo;
   const moneyLines = countMoneyLines(text);
   if (parsed.length === 0) {
@@ -441,6 +545,7 @@ async function lerExtrato(formData: FormData): Promise<ParseStatementResult> {
     banco: profile.institution ?? null,
     mesesDasCompras: [],
     compras: 0,
+    faturaAberta: doPrint,
   };
   if (docType === "fatura" || detectedKind === "fatura") {
     // A fatura só traz dia/mês: a compra de dezembro na fatura que vence em janeiro volta um ano.
@@ -456,6 +561,8 @@ async function lerExtrato(formData: FormData): Promise<ParseStatementResult> {
   }
   stats.leituraIncompleta = leituraIncompleta(stats.conferencia, leitor !== null, isPartialRead(moneyLines, items.length));
   if (docType !== "fatura") await separarDinheiroProprio(ctx, items);
+  // Antes de tudo: a compra que já entrou pelo print da fatura aberta (quase certo, sem pergunta).
+  if (docType === "fatura") await marcarJaNaFaturaAberta(ctx, items);
   await marcarPossiveisDuplicatas(ctx, items);
   // Fatura com a data da compra também tem a chave solta (dia + valor): a mesma compra que já
   // veio de outro arquivo pergunta "é o mesmo?". Parcela fica de fora: a data dela é a da compra
@@ -517,6 +624,9 @@ export type ConfirmedItem = {
   estorno?: boolean;
   /** Resgate: grava como guardado negativo (ver ReviewItem.resgate). */
   resgate?: boolean;
+  /** A compra que já entrou pelo print da fatura aberta (jaNoApp.faturaAberta): em vez de criar,
+   * ela passa para este lote com o valor, o dia e o nome desta linha. Conferido de novo aqui. */
+  adotar?: string | null;
 };
 
 /** Lançamento do extrato bancário que PODE ser o pagamento desta fatura — mostrado pra pessoa
@@ -724,6 +834,35 @@ async function separarDinheiroProprio(ctx: AuthContext, items: ReviewItem[]) {
 }
 
 /**
+ * Fatura (fechada ou mais prints): a compra que já entrou por um PRINT da fatura aberta vira
+ * `jaNoApp` com `faturaAberta` (ver lib/import/fatura-aberta). Ela não entra de novo; na gravação,
+ * a compra do print passa para este lote com o valor, o dia e o nome que chegaram agora.
+ */
+async function marcarJaNaFaturaAberta(ctx: AuthContext, items: ReviewItem[]) {
+  const datas = items.map((i) => Date.parse(`${i.date}T12:00:00Z`)).filter((t) => Number.isFinite(t));
+  if (datas.length === 0) return;
+  const de = new Date(Math.min(...datas) - 40 * DIA_MS);
+  const ate = new Date(Math.max(...datas) + 40 * DIA_MS);
+  const meses: { year: number; month: number }[] = [];
+  for (let d = new Date(Date.UTC(de.getUTCFullYear(), de.getUTCMonth(), 1)); d <= ate; d = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1))) {
+    meses.push({ year: d.getUTCFullYear(), month: d.getUTCMonth() + 1 });
+  }
+  const doPrint = await prisma.monthlyEntry.findMany({
+    where: { userId: ctx.userId, profileId: ctx.profileId, category: "EXPENSE", importBatch: { is: { faturaAberta: true } }, OR: meses },
+    select: { id: true, amount: true, entryDate: true, year: true, month: true, description: true },
+  });
+  if (doPrint.length === 0) return;
+  const casados = casarComFaturaAberta(
+    items.flatMap((it) => (it.category === "EXPENSE" && !it.ignorar ? [{ key: it.key, date: it.date, description: it.description, valor: it.estorno ? -it.amount : it.amount }] : [])),
+    doPrint.map((e) => ({ id: e.id, amount: Number(e.amount), entryDate: e.entryDate ? e.entryDate.toISOString().slice(0, 10) : null, year: e.year, month: e.month, description: e.description })),
+  );
+  for (const item of items) {
+    const g = casados.get(item.key);
+    if (g) item.jaNoApp = { descricao: g.description ?? "(sem descrição)", data: g.entryDate, id: g.id, valor: g.amount, faturaAberta: true };
+  }
+}
+
+/**
  * Lançamento que a pessoa JÁ fez à mão e que agora vem no extrato/fatura (critério em
  * lib/import/parecido-manual): o quase certo vira `jaNoApp` (não entra de novo, a tela só mostra
  * "N já estavam no app"); o caso duvidoso de verdade (valor igual, data perto, nome diferente)
@@ -743,7 +882,7 @@ async function marcarPossiveisDuplicatas(ctx: AuthContext, items: ReviewItem[]) 
     select: { id: true, category: true, amount: true, entryDate: true, description: true, year: true, month: true },
   });
   const linhas: LinhaDoArquivo[] = items.flatMap((item) =>
-    item.ignorar || !Number.isFinite(Date.parse(`${item.date}T12:00:00Z`))
+    item.ignorar || item.jaNoApp || !Number.isFinite(Date.parse(`${item.date}T12:00:00Z`))
       ? []
       : [{ key: item.key, date: item.date, description: item.description, valor: item.estorno ? -item.amount : item.amount, category: item.category }],
   );
@@ -833,7 +972,7 @@ async function marcarParecidosDeOutraImportacao(ctx: AuthContext, items: ReviewI
   const casados = casarPorDataEValor(chaves, items.map((it) => it.description), existentes, { perguntar: true });
   for (const [i, c] of casados) {
     // A pergunta do lançamento à mão já cobre a linha: uma pergunta por linha.
-    if (c.tipo !== "parecido" || items[i].possivelDuplicata) continue;
+    if (c.tipo !== "parecido" || items[i].possivelDuplicata || items[i].jaNoApp) continue;
     items[i].possivelDuplicata = { descricao: c.descricao ?? "(sem descrição)", data: items[i].date, importado: true };
   }
 }
@@ -861,6 +1000,8 @@ export async function importTransactionsAction(
   pessoaDoExtrato?: string | null,
   /** Fatura: vencimento e fechamento lidos do arquivo (ParseStats), que decidem o mês de cada compra. */
   fatura?: { vencimento: string | null; fechamento: string | null } | null,
+  /** Prints da fatura ABERTA: o lote fica marcado como parcial e não projeta parcelas (a fatura fechada projeta). */
+  faturaAberta?: boolean,
 ): Promise<ImportResult> {
   const ctx = await getRequiredSession();
   // Só no Casal, e só nas linhas que ficam nele (a que foi mandada pra outro perfil não leva).
@@ -879,7 +1020,8 @@ export async function importTransactionsAction(
 
   // Todo upload vira um "lote": é o que dá o histórico de importações e permite desfazer o
   // arquivo inteiro depois (upload errado/duplicado). Se nada for criado, o lote é removido.
-  const batch = await createImportBatch(ctx, { docType, fileName });
+  const aberta = docType === "fatura" && faturaAberta === true;
+  const batch = await createImportBatch(ctx, { docType, fileName, faturaAberta: aberta });
 
   // Fatura com mês escolhido ("Mudar › contar tudo num mês"): o modo antigo, tudo nesse mês e
   // sem dia. Sem mês escolhido (o padrão desde out/2026): cada compra no mês em que foi feita,
@@ -1071,6 +1213,40 @@ export async function importTransactionsAction(
     if (r.count > 0) touchedMonths.add(`${year}/${mes - year * 12}`);
   };
 
+  /**
+   * A compra que entrou pelo PRINT da fatura aberta e chegou de novo (ver lib/import/fatura-aberta):
+   * passa para este lote e fica com o valor, o dia e o nome desta linha (a fatura fechada é a
+   * verdade). A categoria que ela já tinha dado fica. O nome só muda se ela não tiver renomeado.
+   * Só uma compra de um lote de print, deste usuário e de um perfil dela; senão segue o caminho normal.
+   */
+  const lotesDePrintMexidos = new Set<string>();
+  const adotarDoPrint = async (item: ConfirmedItem, ym: { year: number; month: number }, dia: string | null): Promise<boolean> => {
+    const atual = await prisma.monthlyEntry.findFirst({
+      where: { id: item.adotar!, userId: ctx.userId, profileId: { in: [...ownProfileIds] }, importBatch: { is: { faturaAberta: true } } },
+      select: { id: true, importBatchId: true, profileId: true, year: true, month: true },
+    });
+    if (!atual) return false;
+    const renomeada = nomesDoBanco.has(atual.id);
+    await prisma.monthlyEntry.update({
+      where: { id: atual.id },
+      data: {
+        importBatchId: batch.id,
+        amount: valorGravado(item),
+        entryDate: dia ? new Date(`${dia}T12:00:00`) : null,
+        year: ym.year,
+        month: ym.month,
+        ...(renomeada ? {} : { description: item.description }),
+      },
+    });
+    if (atual.importBatchId) lotesDePrintMexidos.add(atual.importBatchId);
+    adotados += 1;
+    skipped += 1;
+    touchedMonths.add(`${atual.year}/${atual.month}`);
+    touchedMonths.add(`${ym.year}/${ym.month}`);
+    if (ehFatura) mesesDasComprasCriadas.set(`${ym.year}/${ym.month}`, ym);
+    return true;
+  };
+
   /** Já existe no banco uma cópia ainda não "gasta" desta chave? Consome uma e diz que sim. */
   const alreadyThere = (k: string) => {
     const left = existingCounts.get(k) ?? 0;
@@ -1142,6 +1318,7 @@ export async function importTransactionsAction(
     return { key: `${profileIdOf(item)}|${ym.year}/${ym.month}|${descricaoComparavel(item.description)}`, total: parcela.total };
   };
   const chaveSolta = (item: ConfirmedItem) => {
+    if (item.adotar) return null;
     const dia = diaDe(item);
     return item.amount > 0 && dia ? `${profileIdOf(item)}|${chaveSoltaDe(dia, valorGravado(item), item.category)}` : null;
   };
@@ -1151,7 +1328,7 @@ export async function importTransactionsAction(
   // Parcela pulada que era projeção de outro lote: índice → a parcela (ver `adotar`).
   const confirmadas = new Map<number, ParcelaExistente>();
   items.forEach((item, i) => {
-    if (item.amount <= 0) return;
+    if (item.amount <= 0 || item.adotar) return;
     const parcela = chaveParcela(item);
     let achada = parcela ? parcelaJaLancada(parcela.key, valorGravado(item), parcela.total) : null;
     for (const k of parcela && !achada ? chavesDoOutroModelo(item, true) : []) {
@@ -1183,7 +1360,8 @@ export async function importTransactionsAction(
     customCategoryId: string | undefined,
     adotarDe: string | null,
   ) => {
-    if (!ehFatura || item.estorno || !item.installment?.confident || item.installment.current >= item.installment.total) return;
+    // Print da fatura aberta não projeta: quem projeta as parcelas seguintes é a fatura fechada.
+    if (!ehFatura || aberta || item.estorno || !item.installment?.confident || item.installment.current >= item.installment.total) return;
     const { current, total } = item.installment;
     for (let n = current + 1; n <= total; n += 1) {
       const offset = n - current;
@@ -1245,6 +1423,7 @@ export async function importTransactionsAction(
     // de duplicata usa o MESMO mês e o MESMO dia que vão pro banco (ver `chaveExata`/`diaDe`).
     const ym = monthOf(item);
     const dia = diaDe(item);
+    if (item.adotar && ehFatura && (await adotarDoPrint(item, ym, dia))) continue;
     if (pular.has(indice)) {
       skipped += 1;
       const confirmada = confirmadas.get(indice);
@@ -1314,6 +1493,8 @@ export async function importTransactionsAction(
   // Upload que só tinha duplicata não criou nada: não polui o histórico com lote vazio. (O que
   // só confirmou parcelas projetadas por outro lote não está vazio: agora elas são dele.)
   if (created === 0 && adotados === 0) await deleteEmptyImportBatch(ctx, batch.id);
+  // O lote de print que ficou sem nenhuma compra (todas passaram para este) sai do histórico.
+  for (const id of lotesDePrintMexidos) if (id !== batch.id) await deleteEmptyImportBatch(ctx, id);
 
   // Fatura: lista candidatos a "pagamento de fatura" no extrato pra pessoa decidir se remove
   // (evita contar em dobro), sem apagar nada sozinho.
