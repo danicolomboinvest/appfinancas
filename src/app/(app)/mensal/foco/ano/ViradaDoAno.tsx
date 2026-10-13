@@ -7,6 +7,7 @@ import { comecarAnoAction } from "../actions";
 import { Botao, Passo, Pontos } from "../Passos";
 import type { ContaFixa, DadosVirada } from "./dados";
 import { useVoltarAoTopo } from "@/components/ui/useVoltarAoTopo";
+import { textoDaMedia } from "@/lib/planning/renda-media";
 
 const pct = (v: number) => `${(v * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`;
 
@@ -74,7 +75,7 @@ export function ViradaDoAno({ v }: { v: DadosVirada }) {
       {passo === 1 && (
         <Passo rotulo={`2 de 3, Sugestão para ${v.ano}`} titulo="Com base no que você viveu, eu começaria assim:">
           <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1.5 text-sm">
-            <dt className="text-ink-muted">Renda por mês</dt>
+            <dt className="text-ink-muted">Renda por mês{v.mesesDaRenda ? ` (${textoDaMedia(v.mesesDaRenda)})` : ""}</dt>
             <dd className="text-right tabular-nums text-ink">{m(s.renda)}</dd>
             <dt className="text-ink-muted">Guardar por mês</dt>
             <dd className="text-right tabular-nums text-ink">{m(s.guardar)}</dd>

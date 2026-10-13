@@ -3,6 +3,7 @@ import type { AuthContext } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import { categoryLabel } from "@/lib/categories";
+import { getRendaMedia } from "@/lib/repositories/renda-media.repo";
 import { getYearlySummary } from "@/lib/consolidation/yearly";
 import { listBudgetsForYear } from "@/lib/repositories/budget.repo";
 import { listCustomCategories } from "@/lib/repositories/custom-category.repo";
@@ -35,7 +36,7 @@ export async function carregarViradaDoAno(ctx: AuthContext, money: (v: number) =
   const ano = agora.getFullYear();
   const passado = ano - 1;
 
-  const [resumo, orcamentos, personalizadas, porCategoriaAno, orcamentosDoAnoNovo] = await Promise.all([
+  const [resumo, orcamentos, personalizadas, porCategoriaAno, orcamentosDoAnoNovo, rendaMedia] = await Promise.all([
     getYearlySummary(ctx, passado),
     listBudgetsForYear(ctx, passado),
     listCustomCategories(ctx),
@@ -45,6 +46,8 @@ export async function carregarViradaDoAno(ctx: AuthContext, money: (v: number) =
       _sum: { amount: true },
     }),
     prisma.budget.count({ where: { userId: ctx.userId, profileId: ctx.profileId, year: ano } }),
+    // Janela de janeiro a dezembro do ano que passou: o "hoje" da média é 1º de janeiro.
+    getRendaMedia(ctx, new Date(ano, 0, 1)),
   ]);
 
   // O último mês do ano que tinha orçamento é o "plano" que ela levava (quase sempre dezembro).
@@ -92,13 +95,14 @@ export async function carregarViradaDoAno(ctx: AuthContext, money: (v: number) =
     if (!categorias.has(key) && nomePersonalizada.has(key)) categorias.set(key, { key, label: nomePersonalizada.get(key)!, planejado: 0, realMedio: real, mae: false });
   }
 
-  const rendas = resumo.months.map((m) => m.totalIncome).filter((v) => v > 0).sort((a, b) => a - b);
-  const mediana = rendas.length === 0 ? null : rendas.length % 2 ? rendas[(rendas.length - 1) / 2] : (rendas[rendas.length / 2 - 1] + rendas[rendas.length / 2]) / 2;
+  // Sem renda planejada em dezembro, a MÉDIA dos meses do ano que passou com entrada (a mesma
+  // regra da renda estimada do app inteiro: 12 meses fechados, sem resgate nem estorno). Era a
+  // mediana; a Dani pediu a média dos 12 meses (13/10/2026).
 
   const sugestao = sugerirAno(
     {
       ano: passado,
-      renda: { planejada: planoDoMes?.plannedIncome ?? null, mediana },
+      renda: { planejada: planoDoMes?.plannedIncome ?? null, media: rendaMedia?.valor ?? null },
       guardarPlanejado: planoDoMes?.plannedInvestment ?? null,
       categorias: [...categorias.values()],
     },
@@ -162,6 +166,7 @@ export async function carregarViradaDoAno(ctx: AuthContext, money: (v: number) =
       maior,
     },
     sugestao,
+    mesesDaRenda: sugestao.rendaDaMedia && rendaMedia ? rendaMedia.meses : null,
     fixas,
     talvezFixas,
     jaTemOrcamentoNoAnoNovo: orcamentosDoAnoNovo > 0,
