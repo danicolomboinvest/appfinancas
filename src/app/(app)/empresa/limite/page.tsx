@@ -3,6 +3,7 @@ import { TriangleAlert } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
 import { carregarEmpresa } from "@/lib/empresa/dados";
 import { MESES, resumoDaEmpresa } from "@/lib/empresa/resumo";
+import { textoDaMedia } from "@/lib/planning/renda-media";
 import { textoDoTeto } from "@/lib/empresa/legal";
 import { Explica } from "@/components/ui/Explica";
 import { HeroiDoTema } from "@/components/ui/HeroiDoTema";
@@ -14,7 +15,7 @@ const mil = (v: number) => `${(v / 1000).toLocaleString("pt-BR", { maximumFracti
 
 /**
  * O medidor do MEI (protótipo aprovado): o faturado no ano contra o teto, a faixa da guia extra até a
- * tolerância e, no ritmo dos últimos meses, quando passa. Teto e faixa vêm da tabela legal, com a
+ * tolerância e, no faturamento médio dos últimos 12 meses fechados, quando passa. Teto e faixa vêm da tabela legal, com a
  * fonte e a data no "?". Fora do MEI, ou sem o teto na tabela, a tela não existe: volta para a
  * Visão geral da Empresa (12/10/2026, nada de "em breve").
  */
@@ -70,6 +71,9 @@ export default async function LimitePage() {
         {L.faixa === "mei" ? (
           <>
             Cabem mais <b className="font-semibold">{m0(L.cabe)}</b> este ano.
+            {L.ritmo !== null && L.ritmoMeses > 0 && (
+              <small className="mt-1 block text-sm text-ink-muted">{`Você fatura ${m0(L.ritmo)} por mês, ${textoDaMedia(L.ritmoMeses)}.`}</small>
+            )}
           </>
         ) : L.faixa === "guia-extra" ? (
           "Passou do teto: paga uma guia extra e deixa de ser MEI em janeiro."

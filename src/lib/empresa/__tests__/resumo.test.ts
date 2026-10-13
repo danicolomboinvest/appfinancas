@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resumoDaEmpresa } from "../resumo";
+import { faturamentoMedio, resumoDaEmpresa } from "../resumo";
 import { lerConfigEmpresa } from "../config";
 import type { LancamentoDaEmpresa } from "../regras";
 import type { ParametrosDoMei } from "../legal";
@@ -46,10 +46,20 @@ describe("resumo da Empresa (Ana canônica)", () => {
     expect(r.pe).toBe(8113);
     expect(r.falta).toBe(5213);
   });
-  it("MEI 82%, passa em novembro", () => {
+  // 13/10/2026: o ritmo era a média de jul-set (R$ 9.000, passava em novembro). Agora é o
+  // faturamento médio dos 12 meses fechados com venda: jan-set, R$ 63.520 ÷ 9 = R$ 7.057,78.
+  // Cabem R$ 14.580: 2,07 meses depois de outubro, passa em dezembro. O faturado segue a soma real.
+  it("MEI 82%, no faturamento médio de 9 meses passa em dezembro", () => {
     expect(r.limite!.faturado).toBe(66420);
     expect(Math.round(r.limite!.pct * 100)).toBe(82);
-    expect(r.limite!.passaEm).toBe(11);
+    expect(r.limite!.ritmo).toBeCloseTo(7057.78, 2);
+    expect(r.limite!.ritmoMeses).toBe(9);
+    expect(r.limite!.passaEm).toBe(12);
+  });
+  it("faturamento médio: ignora o mês de hoje e os meses sem venda; mais de 12 meses atrás não conta", () => {
+    const l = [venda(9, 6000), venda(7, 4000), saida(8, 500), venda(10, 99999), { ...venda(9, 50000), year: 2025 }];
+    expect(faturamentoMedio(l, { ano: 2026, mes: 10 })).toEqual({ ritmo: 5000, meses: 2 });
+    expect(faturamentoMedio([venda(10, 100)], { ano: 2026, mes: 10 })).toEqual({ ritmo: null, meses: 0 });
   });
   it("guia de R$ 86,05 que vence dia 20, ainda não paga em outubro", () => {
     expect(r.guia).toEqual({ valor: 86.05, vence: "2026-10-20", paga: false, diasAte: 13 });

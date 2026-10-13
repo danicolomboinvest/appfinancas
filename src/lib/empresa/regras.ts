@@ -200,7 +200,8 @@ export type LimiteDoMei = {
 
 /**
  * O medidor do MEI: faturado no ano ÷ teto. Ana: 66.420 ÷ 81.000 = 82%; cabem R$ 14.580; no ritmo de
- * R$ 9.000 por mês, passa em novembro. O ritmo é a média dos meses fechados recentes.
+ * R$ 9.000 por mês, passa em novembro. O ritmo é o faturamento médio dos últimos 12 meses
+ * fechados com venda (ver `faturamentoMedio` em resumo.ts).
  */
 export function limiteDoMei(p: { faturado: number; teto: number; tolerancia: number; ritmo: number | null; hoje: { mes: number; dia: number; diasNoMes: number } }): LimiteDoMei {
   const pct = p.teto > 0 ? p.faturado / p.teto : 0;
