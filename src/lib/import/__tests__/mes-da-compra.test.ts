@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   ajustarAnoDaCompra,
   contextoDaFatura,
+  diaDaParcela,
   lerDatasDaFatura,
   listaDeMeses,
   mesDaCompra,
@@ -34,16 +35,24 @@ describe("mês de cada compra da fatura", () => {
     expect(ajustarAnoDaCompra("2026-12-15", "2027-01-10")).toBe("2026-12-15");
   });
 
-  it("parcela com a data da compra ORIGINAL: a parcela k conta no mês da compra + (k - 1), sem dia", () => {
-    // Santander: "31/12 LOJA PARCELADA 09/10" na fatura de setembro.
-    expect(mesDaCompra({ date: "2025-12-31", description: "LOJA PARCELADA PARC 09/10" }, SETEMBRO)).toEqual({ mes: { year: 2026, month: 8 }, dia: null, origem: "parcela" });
+  it("parcela com a data da compra ORIGINAL: a parcela k conta no mês da compra + (k - 1), no dia da compra", () => {
+    // Santander: "31/12 LOJA PARCELADA 09/10" na fatura de setembro. Agosto tem 31: dia 31.
+    expect(mesDaCompra({ date: "2025-12-31", description: "LOJA PARCELADA PARC 09/10" }, SETEMBRO)).toEqual({ mes: { year: 2026, month: 8 }, dia: "2026-08-31", origem: "parcela" });
+    // O BTG: "Amazon Marketplace Cc (7/10)" com a compra de 15/02 cai em 15/08, não em "Sem data".
+    expect(mesDaCompra({ date: "2026-02-15", description: "Amazon Marketplace Cc (7/10)" }, SETEMBRO)).toEqual({ mes: { year: 2026, month: 8 }, dia: "2026-08-15", origem: "parcela" });
     // Bradesco/Itaú escrevem "11/12" sem a palavra parcela: vale também, se o mês cai no ciclo.
     expect(mesDaCompra({ date: "2025-10-21", description: "LOJA 11/12 CIDADE" }, SETEMBRO)).toMatchObject({ mes: { year: 2026, month: 8 }, origem: "parcela" });
   });
 
+  it("dia 31 num mês de 30 vira 30; 29 em fevereiro sem bissexto vira 28", () => {
+    expect(diaDaParcela("2026-01-31", { year: 2026, month: 4 })).toBe("2026-04-30");
+    expect(diaDaParcela("2025-11-29", { year: 2026, month: 2 })).toBe("2026-02-28");
+    expect(diaDaParcela("2026-03-05", { year: 2026, month: 10 })).toBe("2026-10-05");
+  });
+
   it("parcela com a data da cobrança DENTRO do ciclo (Nubank): conta no mês dessa data", () => {
     const nubank = contextoDaFatura({ vencimento: "2026-09-14", fechamento: "2026-09-07" }, []);
-    expect(mesDaCompra({ date: "2026-08-07", description: "Loja Exemplo - Parcela 4/4" }, nubank)).toEqual({ mes: { year: 2026, month: 8 }, dia: null, origem: "parcela" });
+    expect(mesDaCompra({ date: "2026-08-07", description: "Loja Exemplo - Parcela 4/4" }, nubank)).toEqual({ mes: { year: 2026, month: 8 }, dia: "2026-08-07", origem: "parcela" });
   });
 
   it("a parcela nunca conta depois do fechamento desta fatura", () => {
