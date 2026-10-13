@@ -1,7 +1,7 @@
 import type { AuthContext } from "@/lib/auth/session";
 import { cacarDinheiroPerdido, estornoCaiu, type Achado, type ResultadoDaCaca } from "@/lib/dinheiro-perdido/detectar";
 import { ateAgora, type EstadoDoAchado } from "@/lib/dinheiro-perdido/placar";
-import { lancamentosParaCacar, listarAchadosGuardados, type AchadoGuardado } from "@/lib/repositories/dinheiro-perdido.repo";
+import { chavesDasAssinaturasDela, lancamentosParaCacar, listarAchadosGuardados, type AchadoGuardado } from "@/lib/repositories/dinheiro-perdido.repo";
 
 /** Uma carta pronta para a tela: o achado (sem a lista de lançamentos), o estado e se é novo. */
 export type CartaDaTela = Omit<Achado, "lancamentos"> & { estado: EstadoDoAchado; novo: boolean };
@@ -54,8 +54,8 @@ export type DinheiroPerdido = {
  * agora". Só lê; quem grava é a importação (o "novo") e as escolhas dela.
  */
 export async function carregarDinheiroPerdido(ctx: AuthContext): Promise<DinheiroPerdido> {
-  const [lancamentos, guardados] = await Promise.all([lancamentosParaCacar(ctx), listarAchadosGuardados(ctx)]);
-  const resultado = cacarDinheiroPerdido(lancamentos);
+  const [lancamentos, guardados, assinaturasDela] = await Promise.all([lancamentosParaCacar(ctx), listarAchadosGuardados(ctx), chavesDasAssinaturasDela(ctx)]);
+  const resultado = cacarDinheiroPerdido(lancamentos, { assinaturasDela });
   const porChave = new Map(guardados.map((g) => [g.chave, g]));
   const vivas = new Set(resultado.achados.map((a) => a.chave));
 

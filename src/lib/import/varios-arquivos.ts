@@ -18,14 +18,19 @@ export function listaDeMesesCurta(meses: string[]): string {
   return `${nomeDoMes(m[0])} a ${nomeDoMes(m[m.length - 1])}`;
 }
 
-type StatsMinimas = { banco?: string | null; vencimento?: string | null; compras?: number; mesesDasCompras?: string[] };
+type StatsMinimas = { banco?: string | null; vencimento?: string | null; compras?: number; mesesDasCompras?: string[]; faturaAberta?: boolean };
 type LinhaMinima = { date: string; category: string; ignorar?: boolean };
 
 /** "Fatura Nubank" + "vence 17/07", "64 compras", "junho e julho". */
 export function resumoDoArquivo(docType: "extrato" | "fatura", stats: StatsMinimas | null | undefined, linhas: LinhaMinima[]): { titulo: string; chips: string[] } {
-  const tipo = docType === "fatura" ? "Fatura" : "Extrato";
+  const tipo = docType === "fatura" ? (stats?.faturaAberta ? "Fatura aberta" : "Fatura") : "Extrato";
   const titulo = stats?.banco ? `${tipo} ${stats.banco}` : tipo;
   const valendo = linhas.filter((l) => !l.ignorar);
+  // Prints da fatura aberta: só quantas compras até hoje (ainda não tem vencimento nem fecha o mês).
+  if (stats?.faturaAberta) {
+    const n = stats.compras ?? valendo.filter((l) => l.category === "EXPENSE").length;
+    return { titulo, chips: [`${n} ${n === 1 ? "compra" : "compras"} até hoje`] };
+  }
   const chips: string[] = [];
   if (docType === "fatura" && stats?.vencimento) chips.push(`vence ${stats.vencimento.slice(8, 10)}/${stats.vencimento.slice(5, 7)}`);
   const n = docType === "fatura" ? (stats?.compras ?? valendo.filter((l) => l.category === "EXPENSE").length) : valendo.length;

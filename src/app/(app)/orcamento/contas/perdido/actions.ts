@@ -5,7 +5,7 @@ import { z } from "zod";
 import { getRequiredSession } from "@/lib/auth/session";
 import { cacarDinheiroPerdido } from "@/lib/dinheiro-perdido/detectar";
 import { ESTADOS } from "@/lib/dinheiro-perdido/placar";
-import { decidirAchado, lancamentosParaCacar, marcarAchadosVistos } from "@/lib/repositories/dinheiro-perdido.repo";
+import { chavesDasAssinaturasDela, decidirAchado, lancamentosParaCacar, marcarAchadosVistos } from "@/lib/repositories/dinheiro-perdido.repo";
 
 const decisaoSchema = z.object({
   chave: z.string().min(3).max(160),
@@ -20,7 +20,7 @@ export async function decidirAchadoAction(input: { chave: string; estado: string
   const p = decisaoSchema.safeParse(input);
   if (!p.success) return { ok: false };
   const ctx = await getRequiredSession();
-  const achado = cacarDinheiroPerdido(await lancamentosParaCacar(ctx)).achados.find((a) => a.chave === p.data.chave) ?? null;
+  const achado = cacarDinheiroPerdido(await lancamentosParaCacar(ctx), { assinaturasDela: await chavesDasAssinaturasDela(ctx) }).achados.find((a) => a.chave === p.data.chave) ?? null;
   const ok = await decidirAchado(ctx, p.data.chave, p.data.estado as (typeof ESTADOS)[number], achado);
   revalidatePath("/orcamento/contas");
   return { ok };
@@ -29,6 +29,6 @@ export async function decidirAchadoAction(input: { chave: string; estado: string
 /** Ela abriu as cartas: as "novas" deixam de ser novas, e o próximo extrato só avisa o que for novo de verdade. */
 export async function marcarVistosAction(): Promise<void> {
   const ctx = await getRequiredSession();
-  const { achados } = cacarDinheiroPerdido(await lancamentosParaCacar(ctx));
+  const { achados } = cacarDinheiroPerdido(await lancamentosParaCacar(ctx), { assinaturasDela: await chavesDasAssinaturasDela(ctx) });
   await marcarAchadosVistos(ctx, achados);
 }

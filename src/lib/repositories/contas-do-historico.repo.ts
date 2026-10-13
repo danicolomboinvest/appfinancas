@@ -73,7 +73,7 @@ export async function sincronizarContasDoHistorico(ctx: DonoDoPerfil, hoje = hoj
 /** As contas achadas que ela ainda não viu no aviso ("Achei N contas no seu histórico"). */
 export async function listarContasNovasDoHistorico(ctx: DonoDoPerfil) {
   const linhas = await prisma.contaAPagar.findMany({
-    where: { userId: ctx.userId, profileId: ctx.profileId, origem: "historico", avisadaEm: null },
+    where: { userId: ctx.userId, profileId: ctx.profileId, origem: "historico", avisadaEm: null, tipo: null },
     select: { id: true, nome: true, valor: true, aproximado: true, diaDoMes: true },
     orderBy: { valor: "desc" },
   });
