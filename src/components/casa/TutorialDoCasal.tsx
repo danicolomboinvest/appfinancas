@@ -6,7 +6,15 @@ import { Button } from "@/components/ui/Button";
 import { Bolinha, ParDeAvatares } from "@/components/casal-login/visual";
 import { FORMA_DO_ACERTO, MioloDoAcerto } from "@/components/casa/MioloDoAcerto";
 import { TOTAL_DE_PASSOS_DO_CASAL, textosDoTutorial, type FimDoTutorial, type IdDoPasso, type PessoaDoTutorial } from "@/lib/casa/tutorial";
+import { useCurrency } from "@/components/money/MoneyProvider";
+import { formatMoney } from "@/lib/money";
 import "./tutorial-casal.css";
+
+/** Os valores de exemplo na moeda do app (nunca escondidos pelo olho: são de mentira). */
+function useExemplo(): (v: number) => string {
+  const moeda = useCurrency();
+  return (v) => formatMoney(v, moeda, { round: true });
+}
 
 /** O compasso das mini-telas: um toque a cada 1,6 s (parado para quem pediu menos movimento). */
 function useBatida(ligado: boolean, ms = 1600): number {
@@ -103,7 +111,7 @@ export function TutorialDoCasal({
           </span>
         </div>
 
-        <div className="relative mt-3 flex h-[212px] shrink-0 items-center justify-center overflow-hidden rounded-[22px] bg-surface-2 px-3" aria-hidden>
+        <div className="relative mt-3 flex h-[220px] shrink-0 items-center justify-center overflow-hidden rounded-[22px] bg-surface-2 px-3" aria-hidden>
           <div key={passo.id} className="tc-entra flex w-full items-center justify-center">
             <MiniTela id={passo.id} eu={eu} outro={outroNaTela} semPar={!outro} esperando={fim === "esperando"} batida={batida} regras={tx.regras} />
           </div>
@@ -206,7 +214,7 @@ function Celular({ pessoa, classe }: { pessoa: PessoaDoTutorial | null; classe: 
         <>
           <span className="mt-1 flex items-center gap-1.5">
             <Bolinha nome={pessoa.nome} cor={pessoa.papel} size={22} />
-            <span className="min-w-0 truncate text-[11px] font-semibold text-ink">{pessoa.nome}</span>
+            <span className="min-w-0 truncate text-[12px] font-semibold text-ink">{pessoa.nome}</span>
           </span>
           <span className="mt-1 h-5 rounded-md bg-accent-soft" />
           <span className="h-1.5 w-full rounded-full bg-surface-2" />
@@ -256,6 +264,7 @@ function LinhaDaCasa({ icone, pessoa, nome, daCasa, toque }: { icone: React.Reac
 /** Passo 3: a moeda vai de quem deve para quem pagou mais, e o cartão Acerto do mês embaixo. */
 function Acerto({ eu, outro }: PropsDaMiniTela) {
   const casa = { eu, outro };
+  const valor = useExemplo()(150);
   return (
     <div className="flex w-full max-w-[280px] flex-col items-stretch gap-3">
       <div className="flex items-center gap-2">
@@ -263,22 +272,22 @@ function Acerto({ eu, outro }: PropsDaMiniTela) {
         <span className="relative h-9 min-w-0 flex-1 [--tc-moeda:58px]">
           <span className="tc-tracejado absolute inset-x-0 top-1/2 h-0.5 -translate-y-1/2" />
           <span className="tc-moeda flex h-7 w-[58px] items-center justify-center rounded-full bg-surface text-[12px] font-semibold tabular-nums text-ink shadow-[inset_0_0_0_1px_var(--color-border-strong)]">
-            R$ 150
+            {valor}
           </span>
         </span>
         <Bolinha nome={eu.nome} cor={eu.papel} size={38} />
       </div>
-      <div className={`${FORMA_DO_ACERTO} pointer-events-none`}>
-        <MioloDoAcerto casa={casa} pilula="R$ 150" />
+      <div className={`${FORMA_DO_ACERTO} pointer-events-none !gap-2 !pr-3`}>
+        <MioloDoAcerto casa={casa} pilula={valor} compacto />
       </div>
-      <span className="text-center text-[11.5px] text-ink-muted">Valores de exemplo</span>
+      <span className="text-center text-[12px] text-ink-muted">Valores de exemplo</span>
     </div>
   );
 }
 
 function Interruptorzinho({ ligado }: { ligado: boolean }) {
   return (
-    <span className={`relative h-6 w-10 shrink-0 rounded-full transition-colors duration-300 ${ligado ? "bg-accent" : "bg-[color-mix(in_srgb,var(--color-ink)_16%,transparent)]"}`}>
+    <span className={`relative block h-6 w-10 shrink-0 rounded-full transition-colors duration-300 ${ligado ? "bg-accent" : "bg-[color-mix(in_srgb,var(--color-ink)_16%,transparent)]"}`}>
       <span className={`absolute top-0.5 size-5 rounded-full bg-white shadow transition-[left] duration-300 ${ligado ? "left-[18px]" : "left-0.5"}`} />
     </span>
   );
@@ -288,33 +297,34 @@ function Interruptorzinho({ ligado }: { ligado: boolean }) {
 function OQueVe({ eu, outro, semPar, batida }: PropsDaMiniTela) {
   const soMeu = batida % 2 === 1;
   const nomeOutro = semPar ? "o par" : outro.nome;
+  const exemplo = useExemplo();
   return (
     <div className="flex w-full max-w-[280px] flex-col gap-1.5">
       <div className="flex flex-col rounded-2xl bg-surface px-2 py-1 shadow-[inset_0_0_0_1px_var(--color-border)]">
-        <span className="flex items-center gap-1.5 px-1 pt-1 text-[11.5px] font-medium text-ink-muted">
+        <span className="flex items-center gap-1.5 px-1 pt-1 text-[12px] font-medium text-ink-muted">
           <Eye size={13} strokeWidth={1.8} />
           No app {semPar ? "do par" : `de ${outro.nome}`}
         </span>
-        <div className="flex min-h-10 items-center gap-2.5 px-1">
+        <div className="flex min-h-9 items-center gap-2.5 px-1">
           <IconeComBolinha icone={<Wallet size={15} strokeWidth={1.7} />} pessoa={eu} />
           <span className="min-w-0 flex-1 truncate text-[14px] text-ink">Farmácia</span>
-          <span className="text-[13px] tabular-nums text-ink">R$ 48</span>
+          <span className="text-[13px] tabular-nums text-ink">{exemplo(48)}</span>
         </div>
-        <div className={`flex min-h-10 items-center gap-2.5 px-1 transition-opacity duration-300 ${soMeu ? "opacity-35" : ""}`}>
+        <div className={`flex min-h-9 items-center gap-2.5 px-1 transition-opacity duration-300 ${soMeu ? "opacity-35" : ""}`}>
           <IconeComBolinha icone={soMeu ? <Lock size={14} strokeWidth={1.8} /> : <Shirt size={15} strokeWidth={1.7} />} pessoa={eu} />
           <span className={`min-w-0 flex-1 truncate text-[14px] text-ink ${soMeu ? "line-through" : ""}`}>Presente</span>
-          <span className={`text-[13px] tabular-nums text-ink ${soMeu ? "line-through" : ""}`}>R$ 120</span>
+          <span className={`text-[13px] tabular-nums text-ink ${soMeu ? "line-through" : ""}`}>{exemplo(120)}</span>
         </div>
       </div>
-      <div className="relative flex min-h-11 items-center gap-2.5 rounded-2xl bg-surface px-3 shadow-[inset_0_0_0_1px_var(--color-border)]">
+      <div className="relative flex min-h-10 items-center gap-2.5 rounded-2xl bg-surface px-3 shadow-[inset_0_0_0_1px_var(--color-border)]">
         <Lock size={15} strokeWidth={1.8} className="shrink-0 text-ink-muted" />
         <span className="min-w-0 flex-1 truncate text-[13.5px] text-ink">Só meu</span>
-        <span className="relative">
+        <span className="relative flex shrink-0">
           <Interruptorzinho ligado={soMeu} />
           {batida > 0 && <span key={batida} className="tc-toque pointer-events-none absolute -inset-1.5 rounded-full border-2 border-accent" />}
         </span>
       </div>
-      <div className="flex min-h-11 items-center gap-2.5 rounded-2xl bg-surface px-3 shadow-[inset_0_0_0_1px_var(--color-border)]">
+      <div className="flex min-h-10 items-center gap-2.5 rounded-2xl bg-surface px-3 shadow-[inset_0_0_0_1px_var(--color-border)]">
         <Landmark size={15} strokeWidth={1.8} className="shrink-0 text-ink-muted" />
         <span className="min-w-0 flex-1 truncate text-[13.5px] text-ink">Mostrar para {nomeOutro}</span>
         <Interruptorzinho ligado />
