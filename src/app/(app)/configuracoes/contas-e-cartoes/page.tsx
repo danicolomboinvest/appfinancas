@@ -78,7 +78,7 @@ export default async function ContasECartoesPage() {
                 </span>
                 <span className="min-w-0 flex-1">
                   <b className="block break-words text-[15px] font-medium capitalize text-ink">{c.nome}</b>
-                  <small className="text-[13px] text-ink-muted">mostra para você</small>
+                  <small className="text-[13px] text-ink-muted">{c.tipo === "cartao" ? "cartão" : "conta"} · mostra para você</small>
                 </span>
               </div>
             ))}
