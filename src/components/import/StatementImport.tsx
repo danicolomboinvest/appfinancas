@@ -5,9 +5,9 @@ import { LapisDaCategoria } from "@/components/categorias/LapisDaCategoria";
 import { FalarComSuporte } from "@/components/support/FalarComSuporte";
 import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { Check, ArrowRight, Lock, Plus, Tag, ChevronLeft, ChevronDown, CircleHelp, Paperclip } from "lucide-react";
+import { Check, ArrowRight, Lock, Plus, Send, Tag, ChevronLeft, ChevronDown, CircleHelp, Paperclip } from "lucide-react";
 import type { ParentCategory } from "@prisma/client";
-import { PARENT_CATEGORIES, categoryLabel, categoriaOculta, categoryIcon, colorForCategorySlice, emojiEscolhido } from "@/lib/categories";
+import { PARENT_CATEGORIES, categoryLabel, categoriaOculta, categoryIcon, colorForCategorySlice, emojiEscolhido, type CategoriasDoPerfil } from "@/lib/categories";
 import { emojiDaCategoria } from "@/lib/profiles/icones";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/toast-context";
@@ -158,7 +158,7 @@ export function StatementImport({
   /** Os OUTROS perfis do usuário (não o ativo) — deixa mandar uma linha da fatura pra lá em vez
    * do perfil ativo (ex.: compra da Empresa que caiu no cartão Pessoal). Vazio pra quem só tem
    * um perfil: nenhum botão extra aparece. */
-  otherProfiles?: { id: string; name: string }[];
+  otherProfiles?: { id: string; name: string; kind?: string }[];
 }) {
   const money = useMoney();
   const { showToast, showError } = useToast();
@@ -1052,9 +1052,15 @@ export function StatementImport({
    * própria e as iguais).
    */
   /** O ícone de cada categoria-mãe, na cor e no emoji do tema (o mesmo do resto do app). */
-  function iconeDe(pc: ParentCategory, tamanho: 36 | 40 = 36) {
-    const emoji = emojiEscolhido(categorias, pc) ?? emojiDaCategoria(tema, { kind: "parent", value: pc });
-    return <CategoryIcon icon={categoryIcon(categorias, pc)} color={colorForCategorySlice({ kind: "parent", value: pc }, categorias)} size={tamanho} variant="soft" emoji={emoji} />;
+  function iconeDe(pc: ParentCategory, tamanho: 36 | 40 = 36, cats: CategoriasDoPerfil = categorias) {
+    const emoji = emojiEscolhido(cats, pc) ?? emojiDaCategoria(tema, { kind: "parent", value: pc });
+    return <CategoryIcon icon={categoryIcon(cats, pc)} color={colorForCategorySlice({ kind: "parent", value: pc }, cats)} size={tamanho} variant="soft" emoji={emoji} />;
+  }
+
+  /** As categorias que valem para a linha: as do perfil para onde ela VAI. Na linha mandada para a
+   * Empresa, ALIMENTACAO é "Mercadorias e insumos", não "Alimentação". */
+  function categoriasDaLinha(it: ReviewItem): CategoriasDoPerfil {
+    return (it.profileId && otherProfiles.find((p) => p.id === it.profileId)?.kind) || categorias;
   }
 
   /**
@@ -1067,10 +1073,10 @@ export function StatementImport({
     const cor = (ativo: boolean) => (ativo ? "border-accent bg-accent-soft" : "border-border bg-surface hover:bg-surface-hover");
     return (
       <div className="grid grid-cols-3 gap-2">
-        {PARENT_CATEGORIES.filter((pc) => !categoriaOculta(categorias, pc) || it.parentCategory === pc).map((pc) => (
+        {PARENT_CATEGORIES.filter((pc) => !categoriaOculta(categoriasDaLinha(it), pc) || it.parentCategory === pc).map((pc) => (
           <button key={pc} type="button" aria-pressed={it.parentCategory === pc} onClick={() => aoEscolher(assignParent(it.key, pc))} className={`${quadrado} ${cor(it.parentCategory === pc)}`}>
-            {iconeDe(pc)}
-            <span className="text-xs font-medium leading-tight text-ink">{categoryLabel(categorias, pc)}</span>
+            {iconeDe(pc, 36, categoriasDaLinha(it))}
+            <span className="text-xs font-medium leading-tight text-ink">{categoryLabel(categoriasDaLinha(it), pc)}</span>
           </button>
         ))}
         {!it.profileId &&
@@ -1112,9 +1118,9 @@ export function StatementImport({
       }`;
     return (
       <div className="flex flex-wrap gap-2">
-        {PARENT_CATEGORIES.filter((pc) => !categoriaOculta(categorias, pc) || it.parentCategory === pc).map((pc) => (
+        {PARENT_CATEGORIES.filter((pc) => !categoriaOculta(categoriasDaLinha(it), pc) || it.parentCategory === pc).map((pc) => (
           <button key={pc} type="button" aria-pressed={it.parentCategory === pc} onClick={() => aoEscolher(assignParent(it.key, pc))} className={classe(it.parentCategory === pc)}>
-            {categoryLabel(categorias, pc)}
+            {categoryLabel(categoriasDaLinha(it), pc)}
           </button>
         ))}
         {/* Categorias que a própria pessoa criou (aqui ou no Orçamento). Só fica "dourada"
@@ -1205,6 +1211,13 @@ export function StatementImport({
                     : formatDate(it.date)}
                   {grupo.length > 6 && <span>e mais {grupo.length - 6}</span>}
                 </p>
+                {/* Linha que vai para outro perfil ("sempre mandar" ou o toque na revisão): à vista. */}
+                {it.profileId && (
+                  <p className="mt-2 inline-flex max-w-full items-center gap-1.5 rounded-full bg-ink px-3 py-1 text-[13px] font-medium text-canvas" data-vai-para>
+                    <Send size={13} aria-hidden className="shrink-0" />
+                    <span className="break-words">Vai para {otherProfiles.find((p) => p.id === it.profileId)?.name ?? "outro perfil"}</span>
+                  </p>
+                )}
               </>
             );
           })()}
@@ -1317,7 +1330,7 @@ export function StatementImport({
             ? t.uiTipoResgate
             : t.uiTipoAporte
           : it.parentCategory
-            ? categoryLabel(categorias, it.parentCategory)
+            ? categoryLabel(categoriasDaLinha(it), it.parentCategory)
             : it.customCategoryId
               ? customName(it.customCategoryId)
               : t.impRotuloSemCategoria;

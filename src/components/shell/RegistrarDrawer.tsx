@@ -45,7 +45,7 @@ export function RegistrarDrawer({
   const [parsed, setParsed] = useState<ParsedVoiceEntry | null>(null);
   const [customCategories, setCustomCategories] = useState<{ id: string; name: string }[]>([]);
   const [goals, setGoals] = useState<{ id: string; name: string }[]>([]);
-  const [otherProfiles, setOtherProfiles] = useState<{ id: string; name: string }[]>([]);
+  const [otherProfiles, setOtherProfiles] = useState<{ id: string; name: string; kind?: string }[]>([]);
   const { year, month } = currentYearMonthFromPath(pathname);
   // Trocou de caminho (escolha → importar, áudio → formulário): a folha volta para o começo.
   const topoRef = useVoltarAoTopo(mode);

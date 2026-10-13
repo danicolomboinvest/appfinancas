@@ -26,8 +26,9 @@ export async function getGoalsAction(): Promise<{ id: string; name: string }[]> 
 
 /** Os OUTROS perfis do usuário (não o ativo) — pra importar a fatura e mandar uma compra que é
  * da Empresa, mas caiu no cartão Pessoal, pro perfil certo, sem sair do fluxo de revisão. */
-export async function getOtherProfilesAction(): Promise<{ id: string; name: string }[]> {
+export async function getOtherProfilesAction(): Promise<{ id: string; name: string; kind: string }[]> {
   const ctx = await getRequiredSession();
   const profiles = await listProfiles(ctx.userId);
-  return profiles.filter((p) => p.id !== ctx.profileId).map((p) => ({ id: p.id, name: p.name }));
+  // O tipo diz como cada categoria se chama lá (na Empresa, ALIMENTACAO é "Mercadorias e insumos").
+  return profiles.filter((p) => p.id !== ctx.profileId).map((p) => ({ id: p.id, name: p.name, kind: p.kind }));
 }
