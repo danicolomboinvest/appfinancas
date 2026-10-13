@@ -1,0 +1,115 @@
+{
+  "envio": "2026-10-13",
+  "compras": [
+    {
+      "d": "2026-10-13",
+      "nome": "Padaria Pão Dourado",
+      "valor": 23.5
+    },
+    {
+      "d": "2026-10-13",
+      "nome": "Uber Trip",
+      "valor": 18.92
+    },
+    {
+      "d": "2026-10-12",
+      "nome": "Supermercado Bom Preço",
+      "valor": 287.43
+    },
+    {
+      "d": "2026-10-12",
+      "nome": "Café Grão Fino",
+      "valor": 8.5
+    },
+    {
+      "d": "2026-10-12",
+      "nome": "Café Grão Fino",
+      "valor": 8.5
+    },
+    {
+      "d": "2026-10-11",
+      "nome": "Farmácia Vida Leve",
+      "valor": 64.9
+    },
+    {
+      "d": "2026-10-11",
+      "nome": "Loja Casa Nova",
+      "valor": 150,
+      "parcela": [
+        2,
+        3
+      ]
+    },
+    {
+      "d": "2026-10-10",
+      "nome": "Netflix.com",
+      "valor": 44.9
+    },
+    {
+      "d": "2026-10-10",
+      "nome": "Estorno Loja Esporte Max",
+      "valor": -89.9,
+      "credito": true
+    },
+    {
+      "d": "2026-10-09",
+      "nome": "Posto Estrada Real",
+      "valor": 210
+    },
+    {
+      "d": "2026-10-09",
+      "nome": "iFood Restaurante Sabor",
+      "valor": 56.8
+    },
+    {
+      "d": "2026-10-08",
+      "nome": "Pagamento recebido",
+      "valor": -1200,
+      "pagamento": true
+    },
+    {
+      "d": "2026-10-08",
+      "nome": "Livraria Página Um",
+      "valor": 79.9
+    },
+    {
+      "d": "2026-10-07",
+      "nome": "Academia Corpo Ativo",
+      "valor": 119.9
+    },
+    {
+      "d": "2026-10-06",
+      "nome": "Pet Shop Amigo Fiel",
+      "valor": 132.4
+    },
+    {
+      "d": "2026-10-05",
+      "nome": "Eletro Ponto Com",
+      "valor": 1249,
+      "parcela": [
+        1,
+        10
+      ]
+    },
+    {
+      "d": "2026-10-04",
+      "nome": "Hortifruti Verde Vale",
+      "valor": 47.35
+    },
+    {
+      "d": "2026-10-03",
+      "nome": "Cinema Estrela",
+      "valor": 62
+    },
+    {
+      "d": "2026-10-02",
+      "nome": "Spotify",
+      "valor": 21.9
+    },
+    {
+      "d": "2026-10-01",
+      "nome": "Restaurante Bom Garfo",
+      "valor": 98.6
+    }
+  ]
+}
