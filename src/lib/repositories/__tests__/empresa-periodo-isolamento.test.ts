@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-const findMany = vi.fn(async (_args: unknown) => []);
+const findMany = vi.fn(async (...args: unknown[]) => (args.length ? [] : []));
 vi.mock("@/lib/auth/session", () => ({ doDono: (c: { userId: string; profileId: string }) => ({ userId: c.userId, profileId: c.profileId }) }));
 vi.mock("@/lib/repositories/parametro-legal.repo", () => ({ parametrosDoMei: async () => ({}) }));
 vi.mock("@/lib/db/prisma", () => ({ prisma: { monthlyEntry: { findMany: (a: unknown) => findMany(a) } } }));
