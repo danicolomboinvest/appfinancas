@@ -30,6 +30,10 @@ import { lerComecoDaConta } from "@/lib/repositories/comeco.repo";
 import { getOwnUser } from "@/lib/repositories/user.repo";
 import { mostrarPrimeirosPassos, oQueMostrarDepois } from "@/lib/onboarding/comeco";
 import { ComecoDoMes, PrimeirosPassos, TopoDoComeco } from "./DepoisDoComeco";
+import { acertoDaCasa } from "@/lib/repositories/casa.repo";
+import { casaNaTela } from "@/lib/casa/regras";
+import { DuasBolinhas } from "@/components/casa/Pessoas";
+import { CartaoAcerto } from "./CartaoAcerto";
 
 /**
  * A aba Foco: a primeira coisa que a pessoa vê ao abrir o app. Só o que importa agora — quanto
@@ -52,12 +56,16 @@ export default async function FocoPage(props: { searchParams: Promise<Record<str
   // Outro mês (protótipo): o herói da semana e as Decisões importantes continuam em cima; muda o
   // quadro do mês e, no mês passado ainda aberto, aparece "Setembro ainda não foi fechado".
   const outroMes = mesmoMes(escolhido, mesDeAgora(agora)) ? null : escolhido;
-  const [d, blocos, valoresMeses, resumoOutro, moneyR] = await Promise.all([
+  // Casal simples: o acerto do mês que está na tela (o de agora ou o escolhido no seletor).
+  const mesDoAcerto = outroMes ?? mesDeAgora(agora);
+  const casa = casaNaTela(ctx.casa);
+  const [d, blocos, valoresMeses, resumoOutro, moneyR, acerto] = await Promise.all([
     carregarFoco(ctx),
     carregarBlocosDoMes(ctx, agora),
     valoresDosMeses(ctx, mesesAte(agora.getFullYear(), agora.getMonth() + 1, 12)),
     outroMes ? getMonthlySummary(ctx, outroMes.ano, outroMes.mes) : Promise.resolve(null),
     serverMoney(),
+    casa ? acertoDaCasa(ctx, mesDoAcerto.ano, mesDoAcerto.mes) : Promise.resolve(null),
   ]);
   const meses12 = montarMeses(valoresMeses, { ano: d.year, mes: d.month }, 12);
   const mesTitulo = MESES[d.month - 1].charAt(0).toUpperCase() + MESES[d.month - 1].slice(1);
@@ -137,9 +145,9 @@ export default async function FocoPage(props: { searchParams: Promise<Record<str
   const nomeOutro = outroMes ? MESES[outroMes.mes - 1].charAt(0).toUpperCase() + MESES[outroMes.mes - 1].slice(1) + (outroMes.ano === agora.getFullYear() ? "" : ` de ${outroMes.ano}`) : "";
   const mesAteAgora =
     outroMes && resumoOutro ? (
-      <QuadroDoMes titulo={nomeOutro} resumo={resumoOutro} href={`/mensal/${outroMes.ano}/${outroMes.mes}`} rotulos={{ entrou: voz.titulos.entrou, gastou: voz.titulos.gastou }} money={redondo} />
+      <QuadroDoMes titulo={nomeOutro} resumo={resumoOutro} href={`/mensal/${outroMes.ano}/${outroMes.mes}`} rotulos={{ entrou: voz.titulos.entrou, gastou: voz.titulos.gastou }} money={redondo} aoLadoDoTitulo={casa ? <DuasBolinhas casa={casa} /> : undefined} />
     ) : (
-      <QuadroDoMes titulo={`${mesTitulo} até agora`} resumo={d.summary} href={d.hrefMes} rotulos={{ entrou: voz.titulos.entrou, gastou: voz.titulos.gastou }} money={redondo} />
+      <QuadroDoMes titulo={`${mesTitulo} até agora`} resumo={d.summary} href={d.hrefMes} rotulos={{ entrou: voz.titulos.entrou, gastou: voz.titulos.gastou }} money={redondo} aoLadoDoTitulo={casa ? <DuasBolinhas casa={casa} /> : undefined} />
     );
   const ehMesPassado = outroMes !== null && outroMes.ano === d.mesAnterior.year && outroMes.mes === d.mesAnterior.month;
   const avisoNaoFechado =
@@ -272,6 +280,8 @@ export default async function FocoPage(props: { searchParams: Promise<Record<str
             ) : (
               <DecisoesImportantes quantas={foco.atencao.length} href="/decidir" />
             )}
+            {/* Casal simples: o acerto do mês, debaixo das Decisões (protótipo aprovado). */}
+            {casa && acerto && <CartaoAcerto acerto={acerto} casa={casa} money={redondo} href={`/mensal/foco/acerto?mes=${mesDoAcerto.ano}-${mesDoAcerto.mes}`} />}
           </>
         )}
       </div>

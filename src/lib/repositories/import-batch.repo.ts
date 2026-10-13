@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db/prisma";
 import type { AuthContext } from "@/lib/auth/session";
 import { totalDoLote } from "@/lib/import/total-do-lote";
+import { contaEstaEscondida } from "@/lib/repositories/casa.repo";
 
 /**
  * Lotes de importação (histórico do que foi subido em massa via extrato/fatura). Cada upload
@@ -22,8 +23,10 @@ export type ImportBatchSummary = {
 };
 
 export async function createImportBatch(ctx: AuthContext, input: { docType: string; fileName?: string }) {
+  // Casal simples: extrato novo de uma conta que ela escondeu do par nasce escondido também.
+  const ocultoDoPar = await contaEstaEscondida(ctx.userId, ctx.profileId, input.docType, input.fileName ?? null);
   return prisma.importBatch.create({
-    data: { userId: ctx.userId, profileId: ctx.profileId, docType: input.docType, fileName: input.fileName ?? null },
+    data: { userId: ctx.userId, profileId: ctx.profileId, docType: input.docType, fileName: input.fileName ?? null, ocultoDoPar },
   });
 }
 

@@ -1,6 +1,7 @@
 import { agendarCacaDoDinheiroPerdido } from "@/lib/dinheiro-perdido/agendar";
 import { agendarContasDoHistorico } from "@/lib/contas/agendar-contas";
 import { prisma } from "@/lib/db/prisma";
+import { contaEstaEscondida } from "@/lib/repositories/casa.repo";
 import type { AuthContext } from "@/lib/auth/session";
 import { classify, type LearnedRule } from "@/lib/import/classify";
 import { listTransactionRules } from "@/lib/repositories/transaction-rule.repo";
@@ -104,7 +105,10 @@ export async function syncConnection(ctx: AuthContext, connectionId: string): Pr
       if (category === "EXPENSE" && !classification) uncategorized += 1;
       const date = new Date(`${t.date.slice(0, 10)}T12:00:00`);
       if (!batchId) {
-        const batch = await prisma.importBatch.create({ data: { userId: destino.userId, profileId: destino.profileId, docType: "openfinance", fileName: `${conn.connectorName} · ${to.toLocaleDateString("pt-BR")}` } });
+        const fileName = `${conn.connectorName} · ${to.toLocaleDateString("pt-BR")}`;
+        // Casal simples: conta escondida do par continua escondida a cada sincronização.
+        const ocultoDoPar = await contaEstaEscondida(destino.userId, destino.profileId, "openfinance", fileName);
+        const batch = await prisma.importBatch.create({ data: { userId: destino.userId, profileId: destino.profileId, docType: "openfinance", fileName, ocultoDoPar } });
         batchId = batch.id;
       }
       await prisma.monthlyEntry.create({

@@ -49,7 +49,7 @@ export default async function TransacoesDoPeriodo(props: { searchParams: Promise
           goals={goals.map((g) => ({ id: g.id, name: g.name }))}
           pessoasDaDivisao={divisao.pessoas}
           perfisDestino={perfisDestino}
-          entries={linhasDaLista(entries, ocultos)}
+          entries={linhasDaLista(entries, ocultos, ctx)}
         />
       )}
     </div>

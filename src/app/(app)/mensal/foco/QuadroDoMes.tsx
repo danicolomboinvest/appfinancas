@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { Explica } from "@/components/ui/Explica";
 import { ValorDestaque } from "@/components/ui/ValorDestaque";
 import { lerSobrou, mesSemLancamento, sobrouDoResumo } from "@/lib/consolidation/sobrou";
@@ -16,7 +17,10 @@ export function QuadroDoMes({
   rotulos,
   money,
   parcial = false,
+  aoLadoDoTitulo,
 }: {
+  /** Casal simples: as duas bolinhas ao lado do título ("o mês soma os dois"). */
+  aoLadoDoTitulo?: ReactNode;
   titulo: string;
   resumo: Resumo;
   href: string;
@@ -45,7 +49,10 @@ export function QuadroDoMes({
   return (
     <section className="flex flex-col gap-3">
       <div className="flex items-center justify-between px-1">
-        <h2 className="text-lg font-medium text-ink">{titulo}</h2>
+        <h2 className="flex min-w-0 items-center gap-2 text-lg font-medium text-ink">
+          {titulo}
+          {aoLadoDoTitulo}
+        </h2>
         <Explica>Sobrou é o que entrou menos o que você gastou e o que guardou. Uma conta só, a mesma do gráfico.</Explica>
       </div>
       <div className="grid grid-cols-2 gap-2.5">

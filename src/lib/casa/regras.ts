@@ -45,6 +45,14 @@ export type CasaNaSessao = {
   outro: PessoaDaCasa;
 };
 
+/** O que as telas de cliente sabem da casa: só nomes e cores, nunca ids. */
+export type CasaNaTela = { eu: { nome: string; papel: "titular" | "par" }; outro: { nome: string; papel: "titular" | "par" } };
+
+export function casaNaTela(c: CasaNaSessao | null | undefined): CasaNaTela | null {
+  if (!c) return null;
+  return { eu: { nome: c.eu.nome, papel: c.eu.papel }, outro: { nome: c.outro.nome, papel: c.outro.papel } };
+}
+
 /** O pedaço do AuthContext que a leitura precisa. */
 export type QuemLe = { userId: string; profileId: string; casa?: CasaNaSessao | null };
 

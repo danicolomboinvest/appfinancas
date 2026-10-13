@@ -1,7 +1,7 @@
 "use client";
 
 import { LapisDaCategoria } from "@/components/categorias/LapisDaCategoria";
-import { useState, useTransition } from "react";
+import { useState, useTransition, type ReactNode } from "react";
 import { Check, ChevronRight, EyeOff, Pencil, PieChart, Scissors, Send, SplitSquareHorizontal, Tag, Trash2, User, Users } from "lucide-react";
 import type { ParentCategory } from "@prisma/client";
 import type { LucideIcon } from "lucide-react";
@@ -49,9 +49,15 @@ export function FolhaDaTransacao({
   onIgnorar,
   onTrocar,
   onEnviar,
+  extra,
+  somenteLeitura,
 }: {
   /** "Enviar para outro perfil": só para quem tem mais de um perfil. */
   onEnviar?: () => void;
+  /** Casal simples: o "Só meu", logo abaixo das quatro ações. */
+  extra?: ReactNode;
+  /** Casal simples: o gasto é do par. Só quem gastou edita: no lugar das ações, de quem é. */
+  somenteLeitura?: ReactNode;
   entry: TransacaoDaFolha;
   titulo: string;
   nomeDaCategoria: string;
@@ -93,7 +99,9 @@ export function FolhaDaTransacao({
         )}
       </div>
 
-      {tela === "acoes" && (
+      {somenteLeitura}
+
+      {tela === "acoes" && !somenteLeitura && (
         <>
           <div className="grid grid-cols-4 gap-2 pt-1">
             {ehGasto && <Acao icon={Users} rotulo="Dividir com alguém" onClick={() => setTela("dividir")} />}
@@ -101,6 +109,7 @@ export function FolhaDaTransacao({
             {entry.category === "EXPENSE" && <Acao icon={Tag} rotulo="Trocar categoria" onClick={() => setTela("trocar")} />}
             <Acao icon={EyeOff} rotulo="Ignorar" onClick={onIgnorar} />
           </div>
+          {extra}
           {entry.divididoCom && <DesfazerDivisao id={entry.id} onFeito={onFechar} />}
           {onEnviar && (
             <button

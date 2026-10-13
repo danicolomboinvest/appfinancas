@@ -2,6 +2,7 @@ import { ehDoCartao } from "@/lib/cartao/limite";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import { formatMoney, isCurrencyCode } from "@/lib/money";
 import type { listMonthlyEntries } from "@/lib/repositories/monthly-entry.repo";
+import { quemGastou, type QuemLe } from "@/lib/casa/regras";
 
 type Linha = Awaited<ReturnType<typeof listMonthlyEntries>>[number];
 
@@ -23,9 +24,19 @@ function toDateInput(date: Date | null): string | null {
 }
 
 
-/** Lançamentos do banco no formato da lista de Transações (mês ou período). */
-export function linhasDaLista(entries: Linha[], ocultos: boolean) {
-  return entries.map((entry) => ({
+/**
+ * Lançamentos do banco no formato da lista de Transações (mês ou período). `quem` (Casal simples):
+ * diz de quem é cada linha, para a bolinha, os filtros Eu/par, o cadeado e o "só quem gastou edita".
+ */
+export function linhasDaLista(entries: Linha[], ocultos: boolean, quem?: QuemLe) {
+  return entries.map((entry) => {
+    const dono = quem ? quemGastou(quem, entry) : null;
+    return {
+    dono,
+    // O que é meu e está escondido do par (Só meu, ou a conta desligada) mostra o cadeado. O do
+    // par nunca chega aqui escondido: a leitura já tirou.
+    escondido: dono === "eu" && (entry.soMeu || Boolean(entry.importBatch?.ocultoDoPar)),
+    soMeu: dono === "eu" ? entry.soMeu : false,
     id: entry.id,
     year: entry.year,
     month: entry.month,
@@ -54,5 +65,6 @@ export function linhasDaLista(entries: Linha[], ocultos: boolean) {
           exchangeRate: entry.exchangeRate === null ? null : Number(entry.exchangeRate),
         }
       : {}),
-  }));
+    };
+  });
 }

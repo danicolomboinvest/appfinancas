@@ -8,6 +8,7 @@ import { ehEmpresa } from "@/lib/profiles/empresa";
 import { ehCasal } from "@/lib/profiles/casal";
 import type { ProfileKind } from "@prisma/client";
 import type { PreferenciasDeCategoria } from "@/lib/categories";
+import type { CasaNaTela } from "@/lib/casa/regras";
 
 /** Perfil Casal: os nomes das duas pessoas (quem pagou / recebeu). Nulo nos outros perfis. */
 /** `comPar`: o casal tem os dois logins (login do par). Só assim o "Só meu" esconde de verdade. */
@@ -28,6 +29,8 @@ type Contexto = {
   nomesDoCasal: NomesDoCasal;
   /** Limite do cartão é opcional: o "No cartão de crédito" do + só aparece para quem montou um. */
   cartaoComLimite: boolean;
+  /** Casal simples: quem sou eu e quem é o par (bolinha, filtros, Só meu). Nulo fora de uma casa. */
+  casa: CasaNaTela | null;
 };
 
 const ProfileThemeContext = createContext<Contexto>({
@@ -40,6 +43,7 @@ const ProfileThemeContext = createContext<Contexto>({
   categorias: { kind: "PESSOAL", prefs: {} },
   nomesDoCasal: null,
   cartaoComLimite: false,
+  casa: null,
 });
 
 /**
@@ -53,8 +57,10 @@ export function ProfileThemeProvider({
   prefsDeCategoria = {},
   nomesDoCasal = null,
   cartaoComLimite = false,
+  casa = null,
   children,
 }: {
+  casa?: CasaNaTela | null;
   theme: string;
   kind?: ProfileKind;
   profileId?: string | null;
@@ -65,7 +71,7 @@ export function ProfileThemeProvider({
 }) {
   const key = profileTheme(theme).key;
   return (
-    <ProfileThemeContext.Provider value={{ key, voz: vozDoTema(key, kind), kind, empresa: ehEmpresa(kind), casal: ehCasal(kind), profileId, categorias: { kind, prefs: prefsDeCategoria }, nomesDoCasal: ehCasal(kind) ? nomesDoCasal : null, cartaoComLimite }}>
+    <ProfileThemeContext.Provider value={{ key, voz: vozDoTema(key, kind), kind, empresa: ehEmpresa(kind), casal: ehCasal(kind), profileId, categorias: { kind, prefs: prefsDeCategoria }, nomesDoCasal: ehCasal(kind) ? nomesDoCasal : null, cartaoComLimite, casa }}>
       {children}
     </ProfileThemeContext.Provider>
   );

@@ -79,7 +79,7 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
           goals={goalOptions}
           pessoasDaDivisao={divisao.pessoas}
           perfisDestino={perfisDestino}
-          entries={linhasDaLista(entries, ocultos)}
+          entries={linhasDaLista(entries, ocultos, ctx)}
         />
       )}
 

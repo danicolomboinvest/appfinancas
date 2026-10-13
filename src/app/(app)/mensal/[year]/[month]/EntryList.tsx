@@ -2,7 +2,10 @@
 
 import { useRef, useState, useTransition } from "react";
 import { useSearchParams } from "next/navigation";
-import { Check, CheckSquare, ChevronDown, Pencil, PiggyBank, Receipt, Search, Send, Square, Trash2, Wallet, X, type LucideIcon } from "lucide-react";
+import { Check, CheckSquare, ChevronDown, Lock, Pencil, PiggyBank, Receipt, Search, Send, Square, Trash2, Wallet, X, type LucideIcon } from "lucide-react";
+import { Bolinha } from "@/components/casal-login/visual";
+import { BolinhaDeQuemGastou } from "@/components/casa/Pessoas";
+import { SoMeu } from "@/components/casa/SoMeu";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import type { ParentCategory } from "@prisma/client";
 import type { CurrencyCode } from "@/lib/money";
@@ -61,6 +64,10 @@ export type ListEntry = {
   doCasal?: boolean | null;
   /** Conta no limite do cartão (marcado "no cartão" ou linha de fatura). */
   noCartao?: boolean;
+  /** Casal simples: de quem é (a bolinha), se é meu e está escondido do par (o cadeado) e o Só meu. */
+  dono?: "eu" | "outro" | null;
+  escondido?: boolean;
+  soMeu?: boolean;
 };
 
 
@@ -203,7 +210,9 @@ export function EntryList({
   // lista diz ("Ver mais", "Remover", os avisos de excluído/restaurado); o tipo do perfil,
   // como cada categoria-mãe se chama (numa Empresa, MORADIA é "Estrutura").
   // `categorias`: o tipo do perfil com o nome, o ícone e as escondidas que ela escolheu.
-  const { key: tema, voz, categorias: kind, nomesDoCasal } = useProfileTheme();
+  const { key: tema, voz, categorias: kind, nomesDoCasal, casa } = useProfileTheme();
+  // Casal simples: o gasto do par aparece, mas só quem gastou edita ou apaga.
+  const doOutro = (e: ListEntry) => Boolean(casa) && e.dono === "outro";
   const t = voz.titulos;
   const money = useMoney();
   const { showToast, showError } = useToast();
@@ -241,6 +250,8 @@ export function EntryList({
   // Transações (versão nova): busca, Saídas/Entradas/Cartão e uma categoria, como no protótipo.
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState<"todas" | "saidas" | "entradas" | "cartao">("todas");
+  // Casal simples: Eu e o par, na mesma fileira de filtros. Nulo = os dois.
+  const [pessoa, setPessoa] = useState<"eu" | "outro" | null>(null);
   // O painel da categoria no Orçamento abre aqui já filtrado (?categoria=SAUDE).
   const buscaDaUrl = useSearchParams();
   // Várias categorias de uma vez (protótipo: folha "Categorias" com Limpar e Aplicar).
@@ -379,10 +390,14 @@ export function EntryList({
               segurar.current.disparou = false;
               return;
             }
-            if (selecting) toggle(entry.id);
-            else setOpenId(entry.id);
+            if (selecting) {
+              // O gasto do par não entra na seleção: remover e trocar categoria são só de quem gastou.
+              if (!doOutro(entry)) toggle(entry.id);
+            } else setOpenId(entry.id);
           }}
-          onPointerDown={() => comecarASegurar(entry.id)}
+          onPointerDown={() => {
+            if (!doOutro(entry)) comecarASegurar(entry.id);
+          }}
           onPointerUp={pararDeSegurar}
           onPointerLeave={pararDeSegurar}
           onPointerCancel={pararDeSegurar}
@@ -394,17 +409,22 @@ export function EntryList({
           aria-label={selecting ? `${marcado ? "Desmarcar" : "Marcar"} ${titulo}` : `Abrir ${titulo}`}
           className="flex min-w-0 flex-1 items-center gap-3 text-left"
         >
-          {selecting ? (
+          {selecting && !doOutro(entry) ? (
             <span className={`shrink-0 ${marcado ? "text-accent-strong" : "text-ink-faint"}`}>
               {marcado ? <CheckSquare size={22} strokeWidth={1.75} /> : <Square size={22} strokeWidth={1.75} />}
             </span>
           ) : (
-            <LogoDoLancamento descricao={entry.description} icon={visual.icon} emoji={visual.emoji} cor={visual.color} />
+            <span className={`relative shrink-0 ${selecting ? "opacity-50" : ""}`}>
+              <LogoDoLancamento descricao={entry.description} icon={visual.icon} emoji={visual.emoji} cor={visual.color} />
+              {casa && entry.dono && <BolinhaDeQuemGastou casa={casa} dono={entry.dono} />}
+            </span>
           )}
           <span className="min-w-0 flex-1">
             {/* O nome inteiro quebra a linha em vez de cortar ("Aplicação · Reserva de emergência" a 320 px). */}
             <span className="block break-words text-[16px] leading-snug text-ink">{titulo}</span>
             <span className="block truncate text-[13px] text-ink-muted">
+              {/* Casal simples: o que é meu e está escondido do par leva o cadeado. */}
+              {entry.escondido && <Lock size={12} strokeWidth={2} className="mr-1 inline -translate-y-px" aria-label={`Escondido de ${casa?.outro.nome ?? "seu par"}`} />}
               {/* Perfil Casal: de quem é, e "Pessoal" quando o gasto fica fora do acerto. */}
               {nomesDoCasal && (entry.pessoa === "A" || entry.pessoa === "B") && (
                 <span className="font-medium">
@@ -427,7 +447,7 @@ export function EntryList({
                 </span>
               )}
               {entry.category === "INCOME" ? "Entrada" : entry.category === "INVESTMENT_CONTRIBUTION" ? categoryKindLabel(entry.category, voz, entry.amount) : nomeDaCategoria}
-              {entry.noCartao ? " · cartão" : ""}
+              {entry.noCartao ? (casa && doOutro(entry) ? ` · cartão de ${casa.outro.nome}` : " · cartão") : casa && doOutro(entry) ? ` · de ${casa.outro.nome}` : ""}
             </span>
           </span>
           <span className="flex shrink-0 flex-col items-end">
@@ -436,8 +456,8 @@ export function EntryList({
           </span>
         </button>
 
-        {/* No computador cabe: ícones sem texto, com o rótulo no aria-label. */}
-        {!selecting && (
+        {/* No computador cabe: ícones sem texto, com o rótulo no aria-label. O gasto do par, não. */}
+        {!selecting && !doOutro(entry) && (
           <span className="hidden shrink-0 items-center gap-1 md:flex">
             <button
               type="button"
@@ -468,6 +488,7 @@ export function EntryList({
     if (filtro === "saidas" && e.category !== "EXPENSE") return false;
     if (filtro === "entradas" && e.category !== "INCOME") return false;
     if (filtro === "cartao" && !e.noCartao) return false;
+    if (pessoa && e.dono !== pessoa) return false;
     if (categoriasFiltro.length > 0 && !categoriasFiltro.includes((e.customCategoryId ?? e.parentCategory) as string)) return false;
     if (termo) {
       const texto = `${e.description ?? ""} ${e.subcategory ?? ""} ${categoryName(e, customCategories, voz, kind)}`.toLocaleLowerCase("pt-BR");
@@ -522,9 +543,39 @@ export function EntryList({
               ["cartao", "Cartão"],
             ] as const
           ).map(([k, rotulo]) => (
-            <button key={k} type="button" aria-pressed={filtro === k} onClick={() => setFiltro(k)} className={`min-h-10 shrink-0 rounded-full px-4 text-[15px] ${filtro === k ? "bg-ink text-canvas" : "bg-surface-2 text-ink"}`}>
-              {rotulo}
-            </button>
+            <span key={k} className="contents">
+              <button
+                type="button"
+                aria-pressed={k === "todas" ? filtro === "todas" && !pessoa : filtro === k}
+                onClick={() => {
+                  setFiltro(k);
+                  if (k === "todas") setPessoa(null);
+                }}
+                className={`min-h-10 shrink-0 rounded-full px-4 text-[15px] ${(k === "todas" ? filtro === "todas" && !pessoa : filtro === k) ? "bg-ink text-canvas" : "bg-surface-2 text-ink"}`}
+              >
+                {rotulo}
+              </button>
+              {/* Casal simples: Eu e o par logo depois de Todas (protótipo aprovado). */}
+              {k === "todas" &&
+                casa &&
+                (["eu", "outro"] as const).map((quem) => {
+                  const p = quem === "eu" ? casa.eu : casa.outro;
+                  const on = pessoa === quem;
+                  return (
+                    <button
+                      key={quem}
+                      type="button"
+                      aria-pressed={on}
+                      data-filtro-pessoa={quem}
+                      onClick={() => setPessoa(on ? null : quem)}
+                      className={`flex min-h-10 shrink-0 items-center gap-2 rounded-full pl-1.5 pr-4 text-[15px] ${on ? "bg-ink text-canvas" : "bg-surface-2 text-ink"}`}
+                    >
+                      <Bolinha nome={p.nome} cor={p.papel} size={26} />
+                      {quem === "eu" ? "Eu" : p.nome}
+                    </button>
+                  );
+                })}
+            </span>
           ))}
           <button
             type="button"
@@ -597,6 +648,7 @@ export function EntryList({
             onClick={() => {
               setBusca("");
               setFiltro("todas");
+              setPessoa(null);
               setCategoriasFiltro([]);
             }}
             className="min-h-10 rounded-full bg-surface-2 px-4 text-sm text-ink"
@@ -734,6 +786,18 @@ export function EntryList({
               setOpenId(null);
               setEditingId(open.id);
             }}
+            somenteLeitura={
+              casa && doOutro(open) ? (
+                <div className="flex items-center gap-3 rounded-2xl bg-surface-2 px-4 py-3" data-gasto-do-par>
+                  <Bolinha nome={casa.outro.nome} cor={casa.outro.papel} size={40} />
+                  <span className="min-w-0 flex-1">
+                    <b className="block text-[15px] font-medium text-ink">De {casa.outro.nome}</b>
+                    <small className="text-[13px] text-ink-muted">Só quem gastou edita ou apaga</small>
+                  </span>
+                </div>
+              ) : undefined
+            }
+            extra={casa && open.dono === "eu" ? <SoMeu key={open.id} id={open.id} ligado={Boolean(open.soMeu)} nomeDoOutro={casa.outro.nome} /> : undefined}
             onEnviar={
               podeEnviar
                 ? () => {

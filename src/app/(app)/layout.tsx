@@ -9,7 +9,8 @@ import { ThemeSync } from "@/components/shell/ThemeSync";
 import { getOwnUser, touchLastSeen } from "@/lib/repositories/user.repo";
 import { compraComOCelular, contaConfirmada, situacaoDoAcesso, usoDoApp, type UsoDoApp } from "@/lib/repositories/allowedEmail.repo";
 import { nowInBrazil } from "@/lib/date/brazil-now";
-import { perfilAtivoDaRequisicao, sessaoDaRequisicao, type AccountContext } from "@/lib/auth/session";
+import { casaDaRequisicao, perfilAtivoDaRequisicao, sessaoDaRequisicao, type AccountContext } from "@/lib/auth/session";
+import { casaNaTela, type CasaNaTela } from "@/lib/casa/regras";
 import type { ProfileKind } from "@prisma/client";
 import { MoneyProvider } from "@/components/money/MoneyProvider";
 import { valoresOcultos } from "@/lib/money-server";
@@ -71,6 +72,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   let perfilAtivoId = "";
   // Login do par: o menu dele mostra só o Nós dois (e as Configurações dele).
   let modoPar: { nomeTitular: string } | null = null;
+  // Casal simples: eu e o par na tela (só no Pessoal que faz parte da casa).
+  let casa: CasaNaTela | null = null;
   // Empresa: Limite do MEI e Impostos só no menu de quem tem o que ver ali (12/10/2026).
   let ferramentasDoMei: FerramentasDoMei = { limite: false, impostos: false };
   if (session?.user) {
@@ -81,12 +84,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     // sem perfil próprio. Se ele também comprou o SPI, os perfis dele aparecem junto na troca.
     const doPar = session.user.par === "em-uso" ? await perfilDoPar(ctx.userId) : null;
     modoPar = doPar ? { nomeTitular: doPar.par.nomeTitular } : null;
-    const [user, ativo, proprios, casalDoPar] = await Promise.all([
+    const [user, ativo, proprios, casalDoPar, casaDaConta] = await Promise.all([
       getOwnUser(ctx),
       doPar ? doPar.perfil : perfilAtivoDaRequisicao(ctx.userId),
       listProfiles(ctx.userId),
       doPar ? doPar.perfil : session.user.par === "fora" ? perfilDoParNaLista(ctx.userId) : null,
+      session.user.casa ? casaDaRequisicao(ctx.userId) : null,
     ]);
+    casa = casaDaConta && casaDaConta.eu.profileId === ativo.id ? casaNaTela(casaDaConta) : null;
     const todos = casalDoPar ? [...proprios, casalDoPar] : proprios;
     // O que vem depois não depende uma coisa da outra: sai tudo de uma vez (antes eram quatro
     // idas ao banco em fila, em TODA tela).
@@ -202,6 +207,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         prefsDeCategoria={prefsDeCategoria}
         nomesDoCasal={nomesDoCasal}
         cartaoComLimite={cartaoComLimite}
+        casa={casa}
         podeEscolherModo={podeEscolherModo}
         nomeDaConta={nomeDaConta}
         novidades={novidades}

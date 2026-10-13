@@ -32,6 +32,7 @@ import { ProfileThemeProvider } from "@/components/profiles/ProfileThemeProvider
 import { ehEmpresa } from "@/lib/profiles/empresa";
 import { ehCasal } from "@/lib/profiles/casal";
 import { SECOES_DO_PAR } from "@/lib/casal-login/menu-do-par";
+import type { CasaNaTela } from "@/lib/casa/regras";
 import type { PreferenciasDeCategoria } from "@/lib/categories";
 import type { FerramentasDoMei } from "@/lib/empresa/legal";
 
@@ -51,6 +52,7 @@ export function AppShell({
   prefsDeCategoria = {},
   nomesDoCasal = null,
   cartaoComLimite = false,
+  casa = null,
   nomeDaConta = null,
   fotoDaConta = null,
   modoPar = null,
@@ -70,6 +72,8 @@ export function AppShell({
   /** Nome, ícone e categorias escondidas do perfil ativo (ver lib/categories.ts). */
   prefsDeCategoria?: PreferenciasDeCategoria;
   nomesDoCasal?: { A: string; B: string; comPar?: boolean } | null;
+  /** Casal simples: eu e o par (bolinha, filtros, Só meu). */
+  casa?: CasaNaTela | null;
   /** O perfil montou um limite do cartão: o + mostra o "No cartão de crédito". */
   cartaoComLimite?: boolean;
   children: React.ReactNode;
@@ -183,7 +187,7 @@ export function AppShell({
 
   return (
     <ToastProvider>
-      <ProfileThemeProvider theme={profileTheme} kind={profileKind} prefsDeCategoria={prefsDeCategoria} nomesDoCasal={nomesDoCasal} cartaoComLimite={cartaoComLimite} profileId={perfis.find((p) => p.isDefault)?.id ?? null}>
+      <ProfileThemeProvider theme={profileTheme} kind={profileKind} prefsDeCategoria={prefsDeCategoria} nomesDoCasal={nomesDoCasal} cartaoComLimite={cartaoComLimite} casa={casa} profileId={perfis.find((p) => p.isDefault)?.id ?? null}>
       <NavProgressProvider>
       <div className="flex min-h-dvh">
         {/* Sidebar: navegação primária no desktop; no mobile fica sempre fora da tela

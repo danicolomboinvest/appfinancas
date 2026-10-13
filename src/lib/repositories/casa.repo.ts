@@ -2,7 +2,7 @@ import { prisma } from "@/lib/db/prisma";
 import type { AuthContext } from "@/lib/auth/session";
 import { calcularAcerto, chaveDaConta as chaveDaContaDoAcerto, chaveDoMes, lerConfigCasal, type Acerto, type ConfigCasal } from "@/lib/casal/acerto";
 import { primeiroNome } from "@/lib/casal-login/regras";
-import { casaAtiva, lancamentosDoAcertoDaCasa, letraDoDono, outraLetra, type CasaNaSessao, type Letra } from "@/lib/casa/regras";
+import { casaAtiva, chaveDaConta, lancamentosDoAcertoDaCasa, letraDoDono, nomeDoArquivo, outraLetra, type CasaNaSessao, type Letra } from "@/lib/casa/regras";
 
 /**
  * Casal simples (13/10/2026): a casa de quem está logado e o acerto do mês dela. A leitura que
@@ -109,4 +109,107 @@ export async function acertoDaCasa(ctx: AuthContext, ano: number, mes: number): 
     outro: pessoa(casa.outro),
     euMando: Math.round(-saldoDoEu * 100) / 100,
   };
+}
+
+// ---------------------------------------------------------------------------------------------
+// Esconder: um gasto ("Só meu") ou uma conta inteira ("Mostrar para <par>").
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * "Só meu" num lançamento: só no que é MEU (userId + profileId de quem está logado). O do par
+ * nunca casa com este filtro, então ninguém esconde nem mostra o gasto do outro.
+ */
+export async function marcarSoMeu(ctx: AuthContext, id: string, soMeu: boolean): Promise<{ year: number; month: number } | null> {
+  if (!casaAtiva(ctx)) return null;
+  const meu = await prisma.monthlyEntry.findFirst({ where: { id, userId: ctx.userId, profileId: ctx.profileId }, select: { year: true, month: true } });
+  if (!meu) return null;
+  await prisma.monthlyEntry.updateMany({ where: { id, userId: ctx.userId, profileId: ctx.profileId }, data: { soMeu } });
+  return meu;
+}
+
+export type ContaDaCasa = {
+  chave: string;
+  nome: string;
+  tipo: "conta" | "cartao";
+  ultimoEm: Date;
+  lancamentos: number;
+  /** Só nas minhas: está ligada para o par ver. */
+  visivel: boolean;
+};
+
+async function contasDe(userId: string, profileId: string, soVisiveis: boolean): Promise<ContaDaCasa[]> {
+  const lotes = await prisma.importBatch.findMany({
+    where: { userId, profileId, ...(soVisiveis ? { ocultoDoPar: false } : {}) },
+    orderBy: { createdAt: "desc" },
+    take: 200,
+    select: { docType: true, fileName: true, createdAt: true, ocultoDoPar: true, _count: { select: { entries: true } } },
+  });
+  const contas = new Map<string, ContaDaCasa>();
+  for (const l of lotes) {
+    const chave = chaveDaConta(l.docType, l.fileName);
+    const tipo = l.docType === "fatura" ? "cartao" : "conta";
+    const atual = contas.get(chave);
+    if (atual) {
+      atual.lancamentos += l._count.entries;
+      continue;
+    }
+    // A mais recente manda no nome e no "mostrar" (todas as da conta andam juntas).
+    contas.set(chave, { chave, nome: nomeDoArquivo(l.fileName, tipo === "cartao" ? "Fatura" : "Extrato").split(/\s+/)[0], tipo, ultimoEm: l.createdAt, lancamentos: l._count.entries, visivel: !l.ocultoDoPar });
+  }
+  return [...contas.values()];
+}
+
+/** As minhas contas (com o "Mostrar para <par>") e as que o par deixou visíveis para mim. */
+export async function contasDaCasa(ctx: AuthContext): Promise<{ minhas: ContaDaCasa[]; doOutro: ContaDaCasa[] } | null> {
+  const casa = casaAtiva(ctx);
+  if (!casa) return null;
+  const [minhas, doOutro] = await Promise.all([contasDe(ctx.userId, ctx.profileId, false), contasDe(casa.outro.userId, casa.outro.profileId, true)]);
+  return { minhas, doOutro };
+}
+
+/** Liga ou desliga "Mostrar para <par>" numa conta minha: todos os lotes dela andam juntos. */
+export async function mostrarContaParaOPar(ctx: AuthContext, chave: string, mostrar: boolean): Promise<number> {
+  if (!casaAtiva(ctx)) return 0;
+  const lotes = await prisma.importBatch.findMany({ where: { userId: ctx.userId, profileId: ctx.profileId }, select: { id: true, docType: true, fileName: true } });
+  const ids = lotes.filter((l) => chaveDaConta(l.docType, l.fileName) === chave).map((l) => l.id);
+  if (ids.length === 0) return 0;
+  const r = await prisma.importBatch.updateMany({ where: { id: { in: ids }, userId: ctx.userId, profileId: ctx.profileId }, data: { ocultoDoPar: !mostrar } });
+  return r.count;
+}
+
+/**
+ * O lote novo de uma conta que ela já escondeu nasce escondido: desligar o "Mostrar" vale para
+ * os extratos que ainda vão chegar, não só para os que já estavam lá.
+ */
+export async function contaEstaEscondida(userId: string, profileId: string, docType: string, fileName: string | null): Promise<boolean> {
+  const chave = chaveDaConta(docType, fileName);
+  const escondidos = await prisma.importBatch.findMany({ where: { userId, profileId, ocultoDoPar: true }, select: { docType: true, fileName: true }, take: 200 });
+  return escondidos.some((l) => chaveDaConta(l.docType, l.fileName) === chave);
+}
+
+// ---------------------------------------------------------------------------------------------
+// O jeito de dividir e o "acertado" do mês: os dois mexem (guardados no perfil Casal antigo).
+// ---------------------------------------------------------------------------------------------
+
+async function lerConfig(casalProfileId: string): Promise<ConfigCasal> {
+  const p = await prisma.financialProfile.findUnique({ where: { id: casalProfileId }, select: { casal: true } });
+  return lerConfigCasal(p?.casal ?? null);
+}
+
+export async function definirDivisaoDaCasa(ctx: AuthContext, divisao: "renda" | "meio"): Promise<boolean> {
+  const casa = casaAtiva(ctx);
+  if (!casa) return false;
+  const config = await lerConfig(casa.casalProfileId);
+  await prisma.financialProfile.update({ where: { id: casa.casalProfileId }, data: { casal: { ...config, divisao } } });
+  return true;
+}
+
+export async function marcarMesAcertado(ctx: AuthContext, ano: number, mes: number, acertado: boolean): Promise<boolean> {
+  const casa = casaAtiva(ctx);
+  if (!casa) return false;
+  const config = await lerConfig(casa.casalProfileId);
+  const chave = chaveDoMes(ano, mes);
+  const acertos = acertado ? [...new Set([...config.acertos, chave])].sort() : config.acertos.filter((m) => m !== chave);
+  await prisma.financialProfile.update({ where: { id: casa.casalProfileId }, data: { casal: { ...config, acertos } } });
+  return true;
 }
