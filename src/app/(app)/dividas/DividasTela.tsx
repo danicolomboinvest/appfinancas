@@ -1,5 +1,6 @@
 "use client";
 
+import { textoDaMedia } from "@/lib/planning/renda-media";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -19,6 +20,8 @@ import { CORES_DA_ORDEM, LogoDoCredor, SeloDaSaude, iconeDoTipo, mesAdiante, mes
 type Props = {
   dividas: DividaDoSpi[];
   renda: number;
+  /** Sem renda planejada, a renda é a média: de quantos meses (null: plano ou o que entrou). */
+  rendaMeses?: number | null;
   sobrou: number;
   selic: number;
   selicDeExemplo: boolean;
@@ -35,7 +38,7 @@ const chaveDoExtra = (perfil: string) => `dividas-extra:${perfil}`;
  * A tela inteira das Dívidas: o bilhete (lista) e o Plano. O "a mais por mês" fica guardado no
  * aparelho (por perfil), sem ir ao banco: é uma simulação dela, não um dado.
  */
-export function DividasTela({ dividas, renda, sobrou, selic, selicDeExemplo, hoje, perfil, abrirPlano, abrirNova }: Props) {
+export function DividasTela({ dividas, renda, rendaMeses = null, sobrou, selic, selicDeExemplo, hoje, perfil, abrirPlano, abrirNova }: Props) {
   const money = useMoney();
   const m0 = (v: number) => money(v, { round: true });
   const router = useRouter();
@@ -233,7 +236,7 @@ export function DividasTela({ dividas, renda, sobrou, selic, selicDeExemplo, hoj
               </>
             }
           >
-            As parcelas somam {pct(parcelas.proporcao * 100, 0)}% da renda, contando todas, inclusive as saudáveis: {m0(parcelas.porMes)} de {m0(renda)}. Acima de 30% sobra pouco
+            As parcelas somam {pct(parcelas.proporcao * 100, 0)}% da renda, contando todas, inclusive as saudáveis: {m0(parcelas.porMes)} de {m0(renda)}{rendaMeses ? ` (${textoDaMedia(rendaMeses)})` : ""}. Acima de 30% sobra pouco
             para o resto da vida; evite parcelas novas por agora.
           </Explica>
         )}

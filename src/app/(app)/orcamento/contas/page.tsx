@@ -10,6 +10,9 @@ import { perfilDoTipo } from "@/lib/dividas/tipos";
 import { LogoDoCredor } from "@/app/(app)/dividas/partes";
 import { getMonthlySummary } from "@/lib/consolidation/monthly";
 import { getMonthlyPlan } from "@/lib/repositories/monthly-plan.repo";
+import { getRendaMedia } from "@/lib/repositories/renda-media.repo";
+import { textoDaMedia } from "@/lib/planning/renda-media";
+import { rendaDeReferencia } from "@/lib/simulators/worth-it";
 import { carregarRaioX } from "@/app/(app)/mensal/foco/dados";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import { serverMoney } from "@/lib/money-server";
@@ -60,7 +63,7 @@ export default async function RecorrentesPage(props: PageProps<"/orcamento/conta
   } catch (err) {
     console.error("Contas do histórico: falhou (a tela segue)", err);
   }
-  const [abertas, pagas, plano, resumo, planoDoMes, raiox, dividas, selic, perdido, novasDoHistorico] = await Promise.all([
+  const [abertas, pagas, plano, resumo, planoDoMes, raiox, dividas, selic, perdido, novasDoHistorico, rendaMedia] = await Promise.all([
     listarContasAPagar(ctx),
     listarQuitadasRecentes(ctx),
     listBudgets(ctx, ano, mes),
@@ -72,11 +75,16 @@ export default async function RecorrentesPage(props: PageProps<"/orcamento/conta
     // Dinheiro perdido: só a abinha (quantas cartas e os logos). A Empresa não tem.
     empresa ? Promise.resolve(null) : carregarDinheiroPerdido(ctx),
     listarContasNovasDoHistorico(ctx),
+    getRendaMedia(ctx),
   ]);
   const hojeD = hojeEmBrasilia();
   const hoje = iso(hojeD);
   const contas = abertas.map(serializarConta);
-  const renda = planoDoMes && planoDoMes.plannedIncome > 0 ? planoDoMes.plannedIncome : resumo.totalIncome;
+  // A renda do plano do mês; sem plano, a média dos últimos 12 meses fechados (antes era o que
+  // entrou no mês até hoje: no dia 3, sem o salário, a "renda com dono" passava de 100%).
+  const ref = rendaDeReferencia(planoDoMes?.plannedIncome, rendaMedia?.valor, resumo.totalIncome);
+  const renda = ref.valor;
+  const daMedia = ref.fonte === "media" && rendaMedia ? textoDaMedia(rendaMedia.meses) : null;
   // Renda com dono: contas pela média por mês (a diarista a cada 2 semanas pesa R$ 390), parcelas
   // pelo valor da parcela, assinaturas achadas no extrato. As contas do ano têm o card delas.
   const peso = pesoPorMes(contas, hojeD);
@@ -107,9 +115,10 @@ export default async function RecorrentesPage(props: PageProps<"/orcamento/conta
           <HeroiDoTema>
             <div className="flex items-center justify-between gap-2">
               <p className="text-[15px] text-heroi-suave">Renda com dono</p>
-              <Explica noHeroi>Quanto da renda do mês já tem destino antes do dia a dia: contas (pela média por mês), parcelas e assinaturas.</Explica>
+              <Explica noHeroi>{`Quanto da renda do mês já tem destino antes do dia a dia: contas (pela média por mês), parcelas e assinaturas.${daMedia ? ` Sem renda planejada, a renda é a ${daMedia} do que entrou: ${m(renda)}.` : ""}`}</Explica>
             </div>
             <ValorDestaque texto={`${pct}%`} />
+            {daMedia && <p className="-mt-1 text-[13px] text-heroi-suave">{`da renda de ${m(renda)}, ${daMedia}`}</p>}
             <div className="flex h-2 gap-px overflow-hidden rounded-full bg-[color-mix(in_srgb,var(--color-surface)_75%,transparent)]">
               <span className="h-full bg-[var(--color-heroi-tinta)]" style={{ width: largura(peso.contas) }} />
               <span className="h-full bg-[color-mix(in_srgb,var(--color-heroi-tinta)_65%,transparent)]" style={{ width: largura(peso.parcelas) }} />
