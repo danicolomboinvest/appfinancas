@@ -13,6 +13,13 @@
  *   meta, senão a meta perde o que já tinha guardado.
  * - Lançamento que já existe no Pessoal de destino (o mesmo id do banco do Open Finance) fica
  *   no Casal: mover criaria uma duplicata.
+ * - Possível repetido (o mesmo valor, no mesmo mês e tipo, com o mesmo nome ou no mesmo dia, já
+ *   no Pessoal: o salário e o aluguel que ela lançava nos dois lugares) também fica, para não
+ *   contar duas vezes. O relatório lista um por um e ela escolhe: --levar=<ids> leva os que ela
+ *   disser, --levar-repetidos leva todos.
+ * - A escolha "da casa" vai junto (decisão de 13/10/2026): o "nosso" do Nós dois (doCasal
+ *   verdadeiro ou vazio) vira "Da casa"; o "da pessoa" (doCasal falso) vira "Meu"; o "Só meu"
+ *   continua Só meu.
  */
 
 export type Destino = "titular" | "par";
@@ -54,29 +61,46 @@ export type RetratoDaCasa = {
   preservados: { acertos: string[]; fechamentos: number; metas: number; orcamentos: number; lotes: number };
 };
 
-export type Movimento = { id: string; destino: Destino; soMeu: boolean; categoriaPersonalizada: { id: string; nome: string } | null };
+export type Movimento = {
+  id: string;
+  destino: Destino;
+  soMeu: boolean;
+  categoriaPersonalizada: { id: string; nome: string } | null;
+  /** O doCasal que o lançamento passa a ter ("Da casa" explícito no lugar do vazio). Nulo = não muda. */
+  doCasalNovo: boolean | null;
+};
 
 export type PlanoDaMigracao = {
   membroId: string;
   movimentos: Movimento[];
-  ficam: { id: string; motivo: "meta a dois" | "já existe no Pessoal" | "de outra conta" }[];
+  ficam: { id: string; motivo: "meta a dois" | "já existe no Pessoal" | "de outra conta" | "possível repetido" }[];
   contagem: {
     paraTitular: { quantos: number; gasto: number; entrada: number };
     paraPar: { quantos: number; gasto: number; entrada: number };
     soMeu: Record<Destino, number>;
     daPessoaForaDoAcerto: number;
+    /** Gastos que entram como "Da casa". */
+    daCasa: number;
   };
   /** Categorias personalizadas do Casal que precisam existir no Pessoal de destino (com o mesmo nome). */
   categorias: { destino: Destino; nome: string; deId: string }[];
-  /** Iguais em dia, valor e descrição ao que já está no Pessoal: podem ser o mesmo gasto lançado duas vezes. */
+  /** Iguais ao que já está no Pessoal: ficam no Casal, a não ser que ela mande levar. */
   possiveisRepetidos: { id: string; destino: Destino; descricao: string; valor: number; dia: string }[];
   criarPessoal: Record<Destino, boolean>;
   preservados: RetratoDaCasa["preservados"];
 };
 
-export function assinatura(l: { year: number; month: number; entryDate: string | null; amount: number; description: string | null }): string {
-  const desc = (l.description ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
-  return `${l.year}-${l.month}-${l.entryDate ?? ""}-${Math.abs(l.amount).toFixed(2)}-${desc}`;
+type ParaAssinar = { year: number; month: number; entryDate: string | null; amount: number; description: string | null; category?: string };
+
+/**
+ * As marcas de um lançamento para achar repetido: mesmo mês, tipo e valor, e o mesmo nome (a
+ * primeira palavra, sem acento) OU o mesmo dia. "Salário" e "Salário Empresa X" de 7.700 no
+ * mesmo mês batem; dois mercados de valores diferentes, não.
+ */
+export function assinaturas(l: ParaAssinar): string[] {
+  const nome = (l.description ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9 ]+/g, " ").trim().split(/\s+/)[0] ?? "";
+  const base = `${l.year}-${l.month}-${l.category ?? ""}-${Math.abs(l.amount).toFixed(2)}`;
+  return [nome ? `${base}-n:${nome}` : null, l.entryDate ? `${base}-d:${l.entryDate}` : null].filter((x): x is string => x !== null);
 }
 
 /** Para onde vai um lançamento do perfil Casal. Nulo = não é de nenhum dos dois. */
@@ -88,9 +112,10 @@ export function destinoDe(l: Pick<LancamentoDoCasal, "userId" | "pessoa" | "soMe
   return l.pessoa === r.letraPar ? "par" : "titular";
 }
 
-export function planejarMigracao(r: RetratoDaCasa): PlanoDaMigracao {
+export function planejarMigracao(r: RetratoDaCasa, escolha: { levarRepetidos?: boolean; levar?: string[] } = {}): PlanoDaMigracao {
+  const levar = new Set(escolha.levar ?? []);
   const externos: Record<Destino, Set<string>> = { titular: new Set(r.externosNoDestino.titular), par: new Set(r.externosNoDestino.par) };
-  const assinaturas: Record<Destino, Set<string>> = { titular: new Set(r.assinaturasNoDestino.titular), par: new Set(r.assinaturasNoDestino.par) };
+  const assinaturasDoDestino: Record<Destino, Set<string>> = { titular: new Set(r.assinaturasNoDestino.titular), par: new Set(r.assinaturasNoDestino.par) };
   const plano: PlanoDaMigracao = {
     membroId: r.membroId,
     movimentos: [],
@@ -100,6 +125,7 @@ export function planejarMigracao(r: RetratoDaCasa): PlanoDaMigracao {
       paraPar: { quantos: 0, gasto: 0, entrada: 0 },
       soMeu: { titular: 0, par: 0 },
       daPessoaForaDoAcerto: 0,
+      daCasa: 0,
     },
     categorias: [],
     possiveisRepetidos: [],
@@ -121,7 +147,17 @@ export function planejarMigracao(r: RetratoDaCasa): PlanoDaMigracao {
       plano.ficam.push({ id: l.id, motivo: "já existe no Pessoal" });
       continue;
     }
-    plano.movimentos.push({ id: l.id, destino, soMeu: l.soMeu, categoriaPersonalizada: l.categoriaPersonalizada });
+    if (assinaturas(l).some((a) => assinaturasDoDestino[destino].has(a))) {
+      plano.possiveisRepetidos.push({ id: l.id, destino, descricao: l.description ?? "", valor: Math.abs(l.amount), dia: l.entryDate ?? `${l.year}-${String(l.month).padStart(2, "0")}` });
+      if (!escolha.levarRepetidos && !levar.has(l.id)) {
+        plano.ficam.push({ id: l.id, motivo: "possível repetido" });
+        continue;
+      }
+    }
+    // O "nosso" (verdadeiro ou vazio) vira "Da casa" explícito; o "da pessoa" (falso) continua "Meu".
+    const doCasalNovo = l.category === "EXPENSE" && !l.soMeu && l.doCasal !== false ? true : null;
+    plano.movimentos.push({ id: l.id, destino, soMeu: l.soMeu, categoriaPersonalizada: l.categoriaPersonalizada, doCasalNovo });
+    if (doCasalNovo) plano.contagem.daCasa++;
     const c = destino === "titular" ? plano.contagem.paraTitular : plano.contagem.paraPar;
     c.quantos++;
     if (l.category === "EXPENSE") c.gasto += Math.abs(l.amount);
@@ -134,9 +170,6 @@ export function planejarMigracao(r: RetratoDaCasa): PlanoDaMigracao {
         categoriasVistas.add(k);
         plano.categorias.push({ destino, nome: l.categoriaPersonalizada.nome, deId: l.categoriaPersonalizada.id });
       }
-    }
-    if (assinaturas[destino].has(assinatura(l))) {
-      plano.possiveisRepetidos.push({ id: l.id, destino, descricao: l.description ?? "", valor: Math.abs(l.amount), dia: l.entryDate ?? `${l.year}-${String(l.month).padStart(2, "0")}` });
     }
   }
   const centavos = (v: number) => Math.round(v * 100) / 100;
@@ -151,7 +184,7 @@ export function planejarMigracao(r: RetratoDaCasa): PlanoDaMigracao {
 export type RegistroDaMigracao = {
   versao: 1;
   em: string;
-  lancamentos: { id: string; userId: string; profileId: string; customCategoryId: string | null }[];
+  lancamentos: { id: string; userId: string; profileId: string; customCategoryId: string | null; doCasal?: boolean | null }[];
   perfisCriados: string[];
   categoriasCriadas: string[];
   /** A titular estava com o perfil Casal aberto: o Pessoal virou o padrão dela. */

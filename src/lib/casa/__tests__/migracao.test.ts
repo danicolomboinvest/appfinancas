@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assinatura, destinoDe, planejarMigracao, type LancamentoDoCasal, type RetratoDaCasa } from "@/lib/casa/migracao";
+import { assinaturas, destinoDe, planejarMigracao, type LancamentoDoCasal, type RetratoDaCasa } from "@/lib/casa/migracao";
 
 /** O plano da migração do Nós dois para o Casal simples, com a casa da Ana e do Lucas (Lucas = B). */
 
@@ -85,14 +85,33 @@ describe("o plano da casa", () => {
     expect(p.movimentos).toHaveLength(1);
   });
 
-  it("avisa de possível repetido e leva a categoria personalizada com o mesmo nome", () => {
-    const repetido = L({ description: "Internet Vivo", amount: 150, entryDate: "2026-10-04" });
-    const p = planejarMigracao(
-      base([repetido, L({ pessoa: "B", categoriaPersonalizada: { id: "cc1", nome: "Pet" } }), L({ pessoa: "B", categoriaPersonalizada: { id: "cc1", nome: "Pet" } })], {
-        assinaturasNoDestino: { titular: [assinatura({ ...repetido, description: "internet  vivo" })], par: [] },
-      }),
-    );
-    expect(p.possiveisRepetidos).toEqual([expect.objectContaining({ id: repetido.id, destino: "titular", valor: 150 })]);
+  it("leva a categoria personalizada com o mesmo nome", () => {
+    const p = planejarMigracao(base([L({ pessoa: "B", categoriaPersonalizada: { id: "cc1", nome: "Pet" } }), L({ pessoa: "B", categoriaPersonalizada: { id: "cc1", nome: "Pet" } })]));
     expect(p.categorias).toEqual([{ destino: "par", nome: "Pet", deId: "cc1" }]);
+  });
+
+  it("ensaio sem duplicar: o salário e o aluguel que já estão no Pessoal ficam, e ela escolhe levar", () => {
+    const salario = L({ category: "INCOME", doCasal: null, description: "Salário", amount: 7700, entryDate: "2026-10-01" });
+    const aluguel = L({ description: "Aluguel", amount: 2400, entryDate: "2026-10-01" });
+    const mercado = L({ description: "Mercado", amount: 450, entryDate: "2026-10-03" });
+    const noPessoal = [
+      ...assinaturas({ year: 2026, month: 10, category: "INCOME", description: "Salário Empresa X", amount: 7700, entryDate: "2026-10-05" }),
+      ...assinaturas({ year: 2026, month: 10, category: "EXPENSE", description: "Pix aluguel", amount: 2400, entryDate: "2026-10-01" }),
+    ];
+    const retrato = base([salario, aluguel, mercado], { assinaturasNoDestino: { titular: noPessoal, par: [] } });
+    const p = planejarMigracao(retrato);
+    expect(p.possiveisRepetidos.map((x) => x.id).sort()).toEqual([salario.id, aluguel.id].sort());
+    expect(p.ficam.filter((f) => f.motivo === "possível repetido").map((f) => f.id).sort()).toEqual([salario.id, aluguel.id].sort());
+    expect(p.movimentos.map((m) => m.id)).toEqual([mercado.id]);
+    expect(p.contagem.paraTitular).toEqual({ quantos: 1, gasto: 450, entrada: 0 });
+    // Ela escolhe levar o aluguel.
+    expect(planejarMigracao(retrato, { levar: [aluguel.id] }).movimentos.map((m) => m.id).sort()).toEqual([aluguel.id, mercado.id].sort());
+    expect(planejarMigracao(retrato, { levarRepetidos: true }).movimentos).toHaveLength(3);
+  });
+
+  it("o Da casa vai junto: nosso vira Da casa, da pessoa vira Meu, Só meu continua", () => {
+    const p = planejarMigracao(base([L({ doCasal: true }), L({ doCasal: null }), L({ doCasal: false }), L({ soMeu: true, doCasal: false }), L({ category: "INCOME", doCasal: null })]));
+    expect(p.movimentos.map((m) => m.doCasalNovo)).toEqual([true, true, null, null, null]);
+    expect(p.contagem.daCasa).toBe(2);
   });
 });

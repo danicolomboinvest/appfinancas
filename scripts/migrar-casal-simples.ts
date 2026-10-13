@@ -6,6 +6,8 @@
  *   npx tsx scripts/migrar-casal-simples.ts --aplicar --casa=<id>   → migra (uma casa por vez)
  *   npx tsx scripts/migrar-casal-simples.ts --desfazer --casa=<id>  → volta como estava
  *   --relatorio=<arquivo.json>                                   → grava o relatório também
+ *   --levar=<id,id>  /  --levar-repetidos                        → leva também os possíveis repetidos
+ *     (por padrão eles ficam no perfil Casal, para não contar duas vezes; o ensaio lista cada um)
  *
  * <id> é o id do vínculo do par (MembroCasal). O ensaio não grava nada em lugar nenhum. Aplicar e
  * desfazer recusam fora do banco local, a menos que venha --banco-de-producao-confirmado (que a
@@ -17,7 +19,7 @@
 import { writeFileSync } from "node:fs";
 import { Prisma, PrismaClient } from "@prisma/client";
 import { lerConfigCasal } from "../src/lib/casal/acerto";
-import { assinatura, planejarMigracao, type Destino, type PlanoDaMigracao, type RegistroDaMigracao, type RetratoDaCasa } from "../src/lib/casa/migracao";
+import { assinaturas, planejarMigracao, type Destino, type PlanoDaMigracao, type RegistroDaMigracao, type RetratoDaCasa } from "../src/lib/casa/migracao";
 
 const args = process.argv.slice(2);
 const opcao = (nome: string) => args.find((a) => a.startsWith(`--${nome}=`))?.split("=").slice(1).join("=") ?? null;
@@ -25,6 +27,7 @@ const aplicar = args.includes("--aplicar");
 const desfazer = args.includes("--desfazer");
 const casaPedida = opcao("casa");
 const arquivo = opcao("relatorio");
+const escolha = { levarRepetidos: args.includes("--levar-repetidos"), levar: (opcao("levar") ?? "").split(",").filter(Boolean) };
 
 const host = (() => {
   try {
@@ -89,12 +92,12 @@ async function retratar(membroId: string): Promise<RetratoDaCasa & { casalPadrao
     const [ext, mesmas] = await Promise.all([
       externos.length ? prisma.monthlyEntry.findMany({ where: { userId, profileId, externalId: { in: externos } }, select: { externalId: true } }) : Promise.resolve([]),
       meses.length
-        ? prisma.monthlyEntry.findMany({ where: { userId, profileId, OR: meses }, select: { year: true, month: true, entryDate: true, amount: true, description: true } })
+        ? prisma.monthlyEntry.findMany({ where: { userId, profileId, OR: meses }, select: { year: true, month: true, entryDate: true, amount: true, description: true, category: true } })
         : Promise.resolve([]),
     ]);
     return {
       externos: ext.map((e) => e.externalId!).filter(Boolean),
-      assinaturas: mesmas.map((l) => assinatura({ ...l, amount: Number(l.amount), entryDate: l.entryDate ? l.entryDate.toISOString().slice(0, 10) : null })),
+      assinaturas: mesmas.flatMap((l) => assinaturas({ ...l, amount: Number(l.amount), entryDate: l.entryDate ? l.entryDate.toISOString().slice(0, 10) : null })),
     };
   };
   const [dt, dp] = await Promise.all([doDestino(m.profile.userId, pessoalTitular), doDestino(m.userId, pessoalPar)]);
@@ -141,13 +144,15 @@ function imprimir(r: RetratoDaCasa, p: PlanoDaMigracao) {
   console.log(`  → Pessoal de ${t}${p.criarPessoal.titular ? " (CRIA o Pessoal)" : ""}: ${p.contagem.paraTitular.quantos} (gastos ${reais(p.contagem.paraTitular.gasto)}, entradas ${reais(p.contagem.paraTitular.entrada)})`);
   console.log(`  → Pessoal de ${pa}${p.criarPessoal.par ? " (CRIA o Pessoal)" : ""}: ${p.contagem.paraPar.quantos} (gastos ${reais(p.contagem.paraPar.gasto)}, entradas ${reais(p.contagem.paraPar.entrada)})`);
   console.log(`  Só meu mantido: ${p.contagem.soMeu.titular} de ${t}, ${p.contagem.soMeu.par} de ${pa}`);
-  console.log(`  "Da pessoa" que continua fora do acerto: ${p.contagem.daPessoaForaDoAcerto}`);
+  console.log(`  Entram como "Da casa" (no acerto): ${p.contagem.daCasa} · como "Meu" (o par vê, fora do acerto): ${p.contagem.daPessoaForaDoAcerto}`);
   const motivos = p.ficam.reduce<Record<string, number>>((a, f) => ({ ...a, [f.motivo]: (a[f.motivo] ?? 0) + 1 }), {});
   console.log(`  Ficam no perfil Casal: ${p.ficam.length}${p.ficam.length ? ` (${Object.entries(motivos).map(([k, v]) => `${v} ${k}`).join(", ")})` : ""}`);
   if (p.categorias.length) console.log(`  Categorias levadas com o mesmo nome: ${p.categorias.map((c) => `${c.nome} → ${c.destino === "titular" ? t : pa}`).join(", ")}`);
   if (p.possiveisRepetidos.length) {
-    console.log(`  ATENÇÃO, ${p.possiveisRepetidos.length} possível(is) repetido(s) (mesmo dia, valor e nome já no Pessoal):`);
-    for (const x of p.possiveisRepetidos.slice(0, 15)) console.log(`    - ${x.dia} ${x.descricao} ${reais(x.valor)} → ${x.destino === "titular" ? t : pa}`);
+    const ficam = new Set(p.ficam.filter((f) => f.motivo === "possível repetido").map((f) => f.id));
+    console.log(`  ATENÇÃO, ${p.possiveisRepetidos.length} possível(is) repetido(s) (o mesmo valor no mesmo mês, com o mesmo nome ou dia, já no Pessoal). Para não contar duas vezes, ${ficam.size ? "ficam no perfil Casal" : "vão mesmo assim (escolha dela)"}:`);
+    for (const x of p.possiveisRepetidos.slice(0, 30)) console.log(`    - ${x.dia} ${x.descricao} ${reais(x.valor)} → ${x.destino === "titular" ? t : pa} ${ficam.has(x.id) ? "(fica)" : "(vai)"}  id ${x.id}`);
+    if (ficam.size) console.log(`    Para levar algum: --levar=<id,id>  ·  todos: --levar-repetidos`);
   }
   const pr = p.preservados;
   console.log(`  Preservado no perfil Casal: meses acertados [${pr.acertos.join(", ") || "nenhum"}], ${pr.fechamentos} mês(es) fechado(s) a dois, ${pr.metas} meta(s) a dois, ${pr.orcamentos} linha(s) de orçamento, ${pr.lotes} lote(s) de importação`);
@@ -184,20 +189,21 @@ async function aplicarCasa(r: Awaited<ReturnType<typeof retratar>>, p: PlanoDaMi
         mapa.set(`${c.destino}|${c.deId}`, nova.id);
       }
       const originais = new Map(
-        (await tx.monthlyEntry.findMany({ where: { id: { in: p.movimentos.map((x) => x.id) } }, select: { id: true, userId: true, profileId: true, customCategoryId: true } })).map((l) => [l.id, l]),
+        (await tx.monthlyEntry.findMany({ where: { id: { in: p.movimentos.map((x) => x.id) } }, select: { id: true, userId: true, profileId: true, customCategoryId: true, doCasal: true } })).map((l) => [l.id, l]),
       );
       // Agrupado por destino e categoria: poucas gravações, todas presas ao perfil Casal de origem.
-      const grupos = new Map<string, { destino: Destino; categoria: string | null; ids: string[] }>();
+      const grupos = new Map<string, { destino: Destino; categoria: string | null; doCasal: boolean | null; ids: string[] }>();
       for (const mv of p.movimentos) {
         const categoria = mv.categoriaPersonalizada ? (mapa.get(`${mv.destino}|${mv.categoriaPersonalizada.id}`) ?? null) : null;
-        const k = `${mv.destino}|${categoria ?? "-"}`;
-        const g = grupos.get(k) ?? { destino: mv.destino, categoria, ids: [] };
+        const k = `${mv.destino}|${categoria ?? "-"}|${mv.doCasalNovo ?? "-"}`;
+        const g = grupos.get(k) ?? { destino: mv.destino, categoria, doCasal: mv.doCasalNovo, ids: [] };
         g.ids.push(mv.id);
         grupos.set(k, g);
       }
       for (const g of grupos.values()) {
         const data: Prisma.MonthlyEntryUncheckedUpdateManyInput = { userId: dono[g.destino], profileId: pessoal[g.destino] };
         if (g.categoria) data.customCategoryId = g.categoria;
+        if (g.doCasal !== null) data.doCasal = g.doCasal;
         const feito = await tx.monthlyEntry.updateMany({ where: { id: { in: g.ids }, profileId: r.casalProfileId }, data });
         if (feito.count !== g.ids.length) throw new Error("Algum lançamento mudou durante a migração. Nada foi gravado; rode de novo.");
       }
@@ -213,7 +219,7 @@ async function aplicarCasa(r: Awaited<ReturnType<typeof retratar>>, p: PlanoDaMi
         em: agora.toISOString(),
         lancamentos: p.movimentos.map((mv) => {
           const o = originais.get(mv.id)!;
-          return { id: o.id, userId: o.userId, profileId: o.profileId!, customCategoryId: o.customCategoryId };
+          return { id: o.id, userId: o.userId, profileId: o.profileId!, customCategoryId: o.customCategoryId, doCasal: o.doCasal };
         }),
         perfisCriados,
         categoriasCriadas,
@@ -240,7 +246,7 @@ async function desfazerCasa(membroId: string) {
   await prisma.$transaction(
     async (tx) => {
       for (const l of reg.lancamentos) {
-        const r = await tx.monthlyEntry.updateMany({ where: { id: l.id }, data: { userId: l.userId, profileId: l.profileId, customCategoryId: l.customCategoryId } });
+        const r = await tx.monthlyEntry.updateMany({ where: { id: l.id }, data: { userId: l.userId, profileId: l.profileId, customCategoryId: l.customCategoryId, ...(l.doCasal !== undefined ? { doCasal: l.doCasal } : {}) } });
         relatorio.voltaram += r.count;
       }
       for (const id of reg.categoriasCriadas) {
@@ -287,7 +293,7 @@ async function main() {
   const relatorio: unknown[] = [];
   for (const c of casas) {
     const r = await retratar(c.id);
-    const p = planejarMigracao(r);
+    const p = planejarMigracao(r, escolha);
     imprimir(r, p);
     relatorio.push({ casa: c.id, nomes: r.nomes, criarPessoal: p.criarPessoal, contagem: p.contagem, ficam: p.ficam, categorias: p.categorias, possiveisRepetidos: p.possiveisRepetidos, preservados: p.preservados });
     if (aplicar) {
