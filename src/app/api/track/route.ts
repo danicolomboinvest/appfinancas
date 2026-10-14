@@ -46,8 +46,10 @@ const ALLOWED_EVENTS = new Set([
 export async function POST(request: Request) {
   const session = await auth();
   if (!session?.user) {
-    // Sem sessão não há o que medir (e nada de aceitar userId vindo do corpo).
-    return NextResponse.json({ ok: false }, { status: 401 });
+    // Sem sessão não há o que medir (e nada de aceitar userId vindo do corpo). Responde 200: o
+    // pageview que sai na hora do login (a sessão ainda nascendo) virava "401" vermelho no
+    // console de toda compradora nova, e o caçador de erros contava isso como erro.
+    return NextResponse.json({ ok: false, skipped: "sem-sessao" });
   }
   // Admin navegando (você!) poluiria a estatística das clientas.
   if (session.user.role === "ADMIN") {
