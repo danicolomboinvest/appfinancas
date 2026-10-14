@@ -22,3 +22,15 @@ export function dataDoChip(chip: "hoje" | "ontem" | string, hoje: Date): string 
   else if (chip !== "hoje") return chip;
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
+
+/**
+ * O que falta antes de mandar para o servidor (14/10/2026). Gasto sem categoria ia até o servidor
+ * e voltava "Escolha uma categoria": em 4 dias foram 15 vezes no registro de erros de produção, e
+ * cada uma era uma ida e volta na rede de quem estava com o dedo no Salvar. Agora o aparelho já
+ * responde na hora. Vazio = pode salvar.
+ */
+export function faltaParaSalvar(centavos: number, ehGasto: boolean, categoria: string | null): string | null {
+  if (!centavos) return "Digite o valor no teclado antes de salvar.";
+  if (ehGasto && !categoria) return "Escolha uma categoria para o gasto.";
+  return null;
+}

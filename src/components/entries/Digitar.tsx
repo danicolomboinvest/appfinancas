@@ -14,7 +14,7 @@ import { createMonthlyEntryAction, type MonthlyEntryState } from "@/app/(app)/me
 import { NovaCategoria } from "./NovaCategoria";
 import { CUSTOM_CATEGORY_ICON_MAP, PARENT_CATEGORIES, PARENT_CATEGORY_COLOR, PARENT_CATEGORY_ICON, categoriaOculta, categoryLabel, corEscolhida, incomeTypesFor, investmentTypesFor } from "@/lib/categories";
 import { nowInBrazil } from "@/lib/date/brazil-now";
-import { dataDoChip, paraDecimal, teclar } from "@/lib/entries/digitar";
+import { dataDoChip, faltaParaSalvar, paraDecimal, teclar } from "@/lib/entries/digitar";
 import { CHAVE_RASCUNHO_LANCAR, lerRascunho, montarRascunho, type RascunhoLancar } from "@/lib/entries/rascunho-lancar";
 import { aoRecarregarParaVersaoNova, ehVersaoNovaERecarrega } from "@/lib/erros/versao-nova";
 import type { CurrencyCode } from "@/lib/money";
@@ -106,6 +106,7 @@ export function Digitar({
   const [mesSeguinte, setMesSeguinte] = useState(false);
   const [extras, setExtras] = useState<{ id: string; name: string; icon?: string }[]>([]);
   const [criandoLocal, setCriandoLocal] = useState(false);
+  const tituloCategoria = useRef<HTMLHeadingElement>(null);
   const criando = criandoCategoria ?? criandoLocal;
   const setCriando = (v: boolean) => (onCriandoCategoria ? onCriandoCategoria(v) : setCriandoLocal(v));
 
@@ -142,8 +143,12 @@ export function Digitar({
 
   const salvar = () => {
     // Sem valor, o toque não pode morrer calado (o botão some de cinza no sol e parece ativo).
-    if (!centavos) {
-      showError("Digite o valor no teclado antes de salvar.");
+    // Gasto sem categoria também responde aqui mesmo, e a folha sobe até a Categoria.
+    const falta = faltaParaSalvar(centavos, ehGasto, categoria);
+    if (falta) {
+      setState({ error: falta });
+      showError(falta);
+      if (centavos) tituloCategoria.current?.scrollIntoView?.({ block: "center", behavior: "smooth" });
       return;
     }
     try {
@@ -245,7 +250,7 @@ export function Digitar({
     </button>
   );
   const bloco = (chave: string, rotulo: string, Icone: typeof Shapes, cor: string) => (
-    <button key={chave} type="button" aria-pressed={categoria === chave || tipoLivre === chave} onClick={() => (ehGasto ? setCategoria(chave) : setTipoLivre(chave))} className="flex min-w-0 flex-col items-center gap-1.5 py-1 text-[13px] leading-tight text-ink-muted aria-pressed:font-medium aria-pressed:text-ink">
+    <button key={chave} type="button" aria-pressed={categoria === chave || tipoLivre === chave} onClick={() => (ehGasto ? setCategoria(chave) : setTipoLivre(chave), setState((st) => (st.error ? {} : st)))} className="flex min-w-0 flex-col items-center gap-1.5 py-1 text-[13px] leading-tight text-ink-muted aria-pressed:font-medium aria-pressed:text-ink">
       <span
         className={`flex size-12 items-center justify-center rounded-full transition-shadow ${categoria === chave || tipoLivre === chave ? "shadow-[0_0_0_2px_var(--color-surface),0_0_0_3.5px_var(--color-ink)]" : ""}`}
         style={{ background: `color-mix(in srgb, ${cor} 18%, var(--color-surface))`, color: cor }}
@@ -291,7 +296,7 @@ export function Digitar({
         ))}
       </div>
 
-      <h3 className="pt-1 text-[15px] font-medium text-ink">{ehGasto ? "Categoria" : tipo === "RESGATE" ? "De onde saiu" : "Tipo"}</h3>
+      <h3 ref={tituloCategoria} className="pt-1 text-[15px] font-medium text-ink">{ehGasto ? "Categoria" : tipo === "RESGATE" ? "De onde saiu" : "Tipo"}</h3>
       <div className="grid grid-cols-4 gap-x-1 gap-y-2.5">
         {ehGasto
           ? [

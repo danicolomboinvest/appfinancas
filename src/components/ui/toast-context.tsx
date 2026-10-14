@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useState } from "react";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { vibrar } from "@/lib/celebrar";
+import { entrarNaFila } from "@/lib/ui/fila-de-avisos";
 
 type ToastAction = { label: string; onClick: () => void };
 type ToastItem = { id: number; message: string; action?: ToastAction; erro?: boolean };
@@ -28,7 +29,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const push = useCallback(
     (item: Omit<ToastItem, "id">, duracao: number) => {
       const id = Date.now() + Math.random();
-      setToasts((prev) => [...prev, { id, ...item }]);
+      setToasts((prev) => entrarNaFila(prev, { id, ...item }));
       setTimeout(() => dismiss(id), duracao);
     },
     [dismiss],

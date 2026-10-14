@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dataDoChip, MAX_CENTAVOS, paraDecimal, teclar } from "../digitar";
+import { dataDoChip, faltaParaSalvar, MAX_CENTAVOS, paraDecimal, teclar } from "../digitar";
 
 describe("Digitar: o teclado da folha", () => {
   it("monta o valor em centavos, como numa maquininha", () => {
@@ -17,5 +17,20 @@ describe("Digitar: o teclado da folha", () => {
     expect(dataDoChip("hoje", hoje)).toBe("2026-10-01");
     expect(dataDoChip("ontem", hoje)).toBe("2026-09-30");
     expect(dataDoChip("2026-09-15", hoje)).toBe("2026-09-15");
+  });
+});
+
+describe("o que falta para salvar", () => {
+  it("sem valor pede o valor primeiro", () => {
+    expect(faltaParaSalvar(0, true, null)).toBe("Digite o valor no teclado antes de salvar.");
+  });
+  it("gasto sem categoria não vai para o servidor", () => {
+    expect(faltaParaSalvar(1234, true, null)).toBe("Escolha uma categoria para o gasto.");
+  });
+  it("entrada não precisa de categoria", () => {
+    expect(faltaParaSalvar(1234, false, null)).toBeNull();
+  });
+  it("gasto com categoria pode salvar", () => {
+    expect(faltaParaSalvar(1234, true, "ALIMENTACAO")).toBeNull();
   });
 });
