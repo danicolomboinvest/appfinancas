@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Check } from "lucide-react";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
-import { useToast } from "@/components/ui/toast-context";
+import { ErroNoBotao, TENTAR_DE_NOVO, useErroNoBotao } from "@/components/ui/ErroNoBotao";
 import { useCurrency, useMoney } from "@/components/money/MoneyProvider";
 import { formatMoney } from "@/lib/money";
 import { Button } from "@/components/ui/Button";
@@ -35,24 +35,24 @@ export function GuardeiNaReservaButton({
   const t = voz.titulos;
   const money = useMoney();
   const currency = useCurrency();
-  const { showToast, showError } = useToast();
+  const erro = useErroNoBotao();
   const [marcado, setMarcado] = useState(feito);
   const [outroValor, setOutroValor] = useState(false);
   const [centavos, setCentavos] = useState<number | null>(null);
   const [pendente, setPendente] = useState(false);
 
   async function enviar(valor?: number) {
+    erro.limpar();
     setPendente(true);
     const r = await guardeiNaReservaAction(valor ? { valor } : {});
     setPendente(false);
     if (r.error) {
-      showError(r.error);
+      erro.falhou(r.error);
       return;
     }
+    // Sem aviso (14/10/2026): o botão vira o selo verde "Guardado", e isso já confirma.
     setMarcado(true);
     setOutroValor(false);
-    // "Já feito" (outra aba marcou antes): não repete o toast de que somou, só mostra o estado.
-    if (!r.jaFeito && r.valor) showToast(t.reservaGuardeiToast(money(r.valor, { round: true })));
   }
 
   if (marcado) {
@@ -83,12 +83,13 @@ export function GuardeiNaReservaButton({
         />
         <div className="flex gap-2">
           <Button type="button" className="flex-1 sm:flex-none" disabled={pendente || !centavos} onClick={() => centavos && enviar(centavos / 100)}>
-            {pendente ? t.formSalvando : t.formSalvar}
+            {pendente ? t.formSalvando : erro.erro ? TENTAR_DE_NOVO : t.formSalvar}
           </Button>
           <Button type="button" variant="ghost" onClick={() => setOutroValor(false)}>
             {t.formCancelar}
           </Button>
         </div>
+        <ErroNoBotao erro={erro.erro} lado="esquerda" />
       </div>
     );
   }
@@ -98,7 +99,7 @@ export function GuardeiNaReservaButton({
       <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-3">
         <Button type="button" className="w-full sm:w-fit" disabled={pendente} onClick={() => enviar()}>
           <Check size={16} strokeWidth={2.5} aria-hidden />
-          {pendente ? t.formSalvando : t.reservaGuardeiBotao(money(valorCombinado, { round: true }))}
+          {pendente ? t.formSalvando : erro.erro ? TENTAR_DE_NOVO : t.reservaGuardeiBotao(money(valorCombinado, { round: true }))}
         </Button>
         <button
           type="button"
@@ -108,6 +109,7 @@ export function GuardeiNaReservaButton({
           {t.metaOutroValor}
         </button>
       </div>
+      <ErroNoBotao erro={erro.erro} lado="esquerda" />
     </div>
   );
 }

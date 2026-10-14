@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Calendar, Minus, Pencil, Plus, Repeat } from "lucide-react";
 import { ValorDestaque } from "@/components/ui/ValorDestaque";
-import { useToast } from "@/components/ui/toast-context";
+import { ErroNoBotao, TENTAR_DE_NOVO, useErroNoBotao } from "@/components/ui/ErroNoBotao";
 import { useCurrency, useMoney } from "@/components/money/MoneyProvider";
 import { currencySymbol } from "@/lib/money";
 import { guardarNaMetaAction, voltarAoRitmoAction } from "../acoes";
@@ -16,15 +16,17 @@ import { AbrirFolhaDaMeta, type MetaParaEditar } from "../FolhaDaMeta";
 export function VoltarAoRitmo({ metaId, porMes, novoPrazo }: { metaId: string; porMes: number; novoPrazo: string | null }) {
   const money = useMoney();
   const router = useRouter();
-  const { showToast, showError } = useToast();
+  const erro = useErroNoBotao();
   const [pendente, iniciar] = useTransition();
-  const rodar = (jeito: "por-mes" | "prazo") =>
+  // Sem aviso (14/10/2026): o novo valor por mês, ou o novo prazo, aparece no detalhe.
+  const rodar = (jeito: "por-mes" | "prazo") => {
+    erro.limpar();
     iniciar(async () => {
       const r = await voltarAoRitmoAction(metaId, jeito);
-      if (!r.ok) return showError(r.error);
-      showToast(r.texto);
+      if (!r.ok) return erro.falhou(r.error);
       router.refresh();
     });
+  };
   const chip = "flex min-h-16 flex-col items-center justify-center gap-0.5 rounded-[18px] bg-surface-2 px-2.5 py-3 text-ink disabled:opacity-60";
   return (
     <section className="glass flex flex-col gap-2.5 rounded-3xl p-4">
@@ -43,6 +45,7 @@ export function VoltarAoRitmo({ metaId, porMes, novoPrazo }: { metaId: string; p
           </button>
         )}
       </div>
+      <ErroNoBotao erro={erro.erro} />
     </section>
   );
 }
@@ -54,7 +57,7 @@ export function VoltarAoRitmo({ metaId, porMes, novoPrazo }: { metaId: string; p
  */
 export function BarraDaMeta({ metaId, meta, editarEm }: { metaId: string; meta: MetaParaEditar; editarEm?: string }) {
   const router = useRouter();
-  const { showToast, showError } = useToast();
+  const erro = useErroNoBotao();
   const [pendente, iniciar] = useTransition();
   const [tipo, setTipo] = useState<"adicionar" | "retirar" | null>(null);
   const [valor, setValor] = useState(0);
@@ -67,10 +70,11 @@ export function BarraDaMeta({ metaId, meta, editarEm }: { metaId: string; meta: 
 
   const confirmar = () => {
     if (!tipo || !(valor > 0)) return;
+    // Sem aviso (14/10/2026): o total da meta muda na tela.
+    erro.limpar();
     iniciar(async () => {
       const r = await guardarNaMetaAction(metaId, valor, tipo);
-      if (!r.ok) return showError(r.error);
-      showToast(tipo === "adicionar" ? "Valor adicionado" : "Valor retirado");
+      if (!r.ok) return erro.falhou(r.error);
       setTipo(null);
       setValor(0);
       router.refresh();
@@ -95,9 +99,10 @@ export function BarraDaMeta({ metaId, meta, editarEm }: { metaId: string; meta: 
               className="w-[9ch] border-b-2 border-accent bg-transparent pb-1 text-center text-[34px] font-light tabular-nums text-ink outline-none"
             />
           </label>
-          <button type="button" disabled={pendente || !(valor > 0)} onClick={confirmar} className="min-h-12 rounded-full bg-ink text-[15px] font-semibold text-canvas disabled:opacity-50">
-            {pendente ? "Salvando…" : tipo === "adicionar" ? "Adicionar" : "Retirar"}
+          <button type="button" disabled={pendente || !(valor > 0)} onClick={confirmar} className={`min-h-12 rounded-full bg-ink text-[15px] font-semibold text-canvas disabled:opacity-50 ${erro.classe}`}>
+            {pendente ? "Salvando…" : erro.erro ? TENTAR_DE_NOVO : tipo === "adicionar" ? "Adicionar" : "Retirar"}
           </button>
+          <ErroNoBotao erro={erro.erro} />
         </section>
       )}
       <div className="sticky bottom-[calc(10px+var(--safe-bottom))] z-10 mt-auto flex items-center gap-2.5 pt-1.5">

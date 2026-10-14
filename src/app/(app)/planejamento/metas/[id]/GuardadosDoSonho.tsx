@@ -5,6 +5,7 @@ import { ChevronRight } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Explica } from "@/components/ui/Explica";
 import { useToast } from "@/components/ui/toast-context";
+import { ErroNoBotao, TENTAR_DE_NOVO, useErroNoBotao } from "@/components/ui/ErroNoBotao";
 import { useCurrency, useMoney } from "@/components/money/MoneyProvider";
 import { formatMoney } from "@/lib/money";
 import { editarGuardadoDoSonhoAction, excluirGuardadoDoSonhoAction } from "../actions";
@@ -68,6 +69,7 @@ export function GuardadosDoSonho({ itens }: { itens: GuardadoDoSonho[] }) {
 export function EditarGuardado({ item, onFechar }: { item: GuardadoDoSonho; onFechar: () => void }) {
   const currency = useCurrency();
   const { showToast, showError } = useToast();
+  const erroDoSalvar = useErroNoBotao();
   const [cents, setCents] = useState<number | null>(Math.round(Math.abs(item.amount) * 100));
   const [mes, setMes] = useState(`${item.year}-${String(item.month).padStart(2, "0")}`);
   const [confirmarExclusao, setConfirmarExclusao] = useState(false);
@@ -75,10 +77,11 @@ export function EditarGuardado({ item, onFechar }: { item: GuardadoDoSonho; onFe
 
   function salvar() {
     if (!cents) return;
+    // Sem aviso (14/10/2026): o valor corrigido e o total novo aparecem na tela.
+    erroDoSalvar.limpar();
     iniciar(async () => {
       const r = await editarGuardadoDoSonhoAction(item.id, cents / 100, mes);
-      if (r.error) return showError(r.error);
-      showToast("Corrigido. O total do sonho já foi refeito.");
+      if (r.error) return erroDoSalvar.falhou(r.error);
       onFechar();
     });
   }
@@ -89,7 +92,7 @@ export function EditarGuardado({ item, onFechar }: { item: GuardadoDoSonho; onFe
     iniciar(async () => {
       const r = await excluirGuardadoDoSonhoAction(item.id);
       if (r.error) return showError(r.error);
-      showToast("Registro excluído. O total do sonho já foi refeito.");
+      showToast("Apagado");
       onFechar();
     });
   }
@@ -129,9 +132,9 @@ export function EditarGuardado({ item, onFechar }: { item: GuardadoDoSonho; onFe
           type="button"
           disabled={pendente || !cents}
           onClick={salvar}
-          className="min-h-11 rounded-full bg-accent px-5 text-sm font-semibold text-on-accent disabled:opacity-50"
+          className={`min-h-11 rounded-full bg-accent px-5 text-sm font-semibold text-on-accent disabled:opacity-50 ${erroDoSalvar.classe}`}
         >
-          {pendente ? "Salvando…" : "Salvar"}
+          {pendente ? "Salvando…" : erroDoSalvar.erro ? TENTAR_DE_NOVO : "Salvar"}
         </button>
         <button type="button" onClick={onFechar} className="min-h-11 px-3 text-sm text-ink-muted hover:text-ink">
           Cancelar
@@ -145,6 +148,7 @@ export function EditarGuardado({ item, onFechar }: { item: GuardadoDoSonho; onFe
           {confirmarExclusao ? "Toque de novo para excluir" : "Excluir"}
         </button>
       </div>
+      <ErroNoBotao erro={erroDoSalvar.erro} lado="esquerda" />
     </div>
   );
 }

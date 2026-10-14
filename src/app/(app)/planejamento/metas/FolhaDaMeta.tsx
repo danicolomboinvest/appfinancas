@@ -9,6 +9,8 @@ import { useRouter } from "next/navigation";
 import { Calendar, Check, ChevronDown, ChevronLeft, ChevronRight, Minus, Plus, X } from "lucide-react";
 import type { GoalIcon } from "@prisma/client";
 import { useToast } from "@/components/ui/toast-context";
+import { ErroNoBotao, TENTAR_DE_NOVO, useErroNoBotao } from "@/components/ui/ErroNoBotao";
+import { brilhar } from "@/lib/ui/brilho";
 import { ValorDestaque } from "@/components/ui/ValorDestaque";
 import { useCurrency, useMoney } from "@/components/money/MoneyProvider";
 import { currencySymbol } from "@/lib/money";
@@ -121,6 +123,7 @@ function FolhaDaMeta({
   const m = (v: number) => money(v, { round: true });
   const router = useRouter();
   const { showToast, showError } = useToast();
+  const erroDoSalvar = useErroNoBotao();
   const [pendente, iniciar] = useTransition();
   const [enviando, setEnviando] = useState(false);
   const [confirmarApagar, setConfirmarApagar] = useState(false);
@@ -180,18 +183,20 @@ function FolhaDaMeta({
       porMes: e.porMes,
       foto: e.minha ?? e.foto,
     };
+    // Sem aviso (14/10/2026): a folha fecha e a meta aparece (a nova, rolada e com o contorno
+    // aceso). Erro fica embaixo do botão, que vira "Tentar de novo".
+    erroDoSalvar.limpar();
     iniciar(async () => {
       if (meta) {
         const r = await editarMetaAction(meta.id, dados);
-        if (!r.ok) return showError(r.error);
-        showToast("Meta atualizada");
+        if (!r.ok) return erroDoSalvar.falhou(r.error);
         onFechar();
         router.refresh();
+        brilhar(document.getElementById(`meta-${meta.id}`));
         return;
       }
       const r = await criarMetaAction(dados);
-      if (!r.ok) return showError(r.error);
-      showToast("Meta criada");
+      if (!r.ok) return erroDoSalvar.falhou(r.error);
       onFechar();
       router.push(`/planejamento/metas?nova=${r.id}`);
       router.refresh();
@@ -213,7 +218,7 @@ function FolhaDaMeta({
               onClick: async () => {
                 const v = await desfazerApagarMetaAction(recibo);
                 if (!v.ok) return showError(v.error);
-                showToast("Desfeito");
+                // A meta volta para a lista; isso basta.
                 router.refresh();
               },
             }
@@ -241,7 +246,7 @@ function FolhaDaMeta({
       } else muda({ minha: r.url });
     } catch {
       muda({ minha: null });
-      showError("Não consegui usar essa foto. Tente outra.");
+      showError("Tente outra foto");
     } finally {
       setEnviando(false);
       URL.revokeObjectURL(previa);
@@ -544,9 +549,12 @@ function FolhaDaMeta({
               Continuar
             </button>
           ) : (
-            <button type="button" disabled={pendente} onClick={salvar} className={botao}>
-              {pendente ? "Salvando…" : meta ? "Salvar meta" : "Criar meta"}
-            </button>
+            <>
+              <button type="button" disabled={pendente} onClick={salvar} className={`${botao} ${erroDoSalvar.classe}`}>
+                {pendente ? "Salvando…" : erroDoSalvar.erro ? TENTAR_DE_NOVO : meta ? "Salvar meta" : "Criar meta"}
+              </button>
+              <ErroNoBotao erro={erroDoSalvar.erro} />
+            </>
           )}
         </div>
       </div>

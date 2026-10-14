@@ -7,7 +7,7 @@ import { Calendar, Check } from "lucide-react";
 import { Explica } from "@/components/ui/Explica";
 import { ValorDestaque } from "@/components/ui/ValorDestaque";
 import { LogoDoLancamento } from "@/components/ui/LogoDoLancamento";
-import { useToast } from "@/components/ui/toast-context";
+import { ErroNoBotao, TENTAR_DE_NOVO, useErroNoBotao } from "@/components/ui/ErroNoBotao";
 import { useCurrency, useMoney } from "@/components/money/MoneyProvider";
 import { currencySymbol } from "@/lib/money";
 import { adiarAporteAction, marcarAporteAction, responderAporteAction } from "../acoes";
@@ -31,17 +31,20 @@ export function CartaoDoAporte({ metaId, estado }: { metaId: string; estado: Est
   const simbolo = currencySymbol(useCurrency());
   const m = (v: number) => money(v, { round: true });
   const router = useRouter();
-  const { showToast, showError } = useToast();
+  const erro = useErroNoBotao();
   const [pendente, iniciar] = useTransition();
   const [form, setForm] = useState<{ valor: number; origem: "pix" | "aplicacao" | "dinheiro"; dia: string } | null>(null);
 
-  const rodar = (fn: () => Promise<{ ok: boolean; error?: string }>, aviso?: string) =>
+  // Sem aviso (14/10/2026): o cartão muda de estado na hora (verde, com o aporte). Erro fica
+  // embaixo dos botões, até a próxima tentativa.
+  const rodar = (fn: () => Promise<{ ok: boolean; error?: string }>) => {
+    erro.limpar();
     iniciar(async () => {
       const r = await fn();
-      if (!r.ok) return showError(r.error ?? "Não deu certo. Tente de novo.");
-      if (aviso) showToast(aviso);
+      if (!r.ok) return erro.falhou(r.error ?? "Não deu certo");
       router.refresh();
     });
+  };
 
   const botao = "min-h-11 rounded-full px-[18px] text-[15px] font-semibold disabled:opacity-50";
   const ajuda = <Explica rotulo="Como sabemos">{AJUDA}</Explica>;
@@ -109,10 +112,11 @@ export function CartaoDoAporte({ metaId, estado }: { metaId: string; estado: Est
           <button type="button" disabled={pendente} onClick={() => rodar(() => responderAporteAction(metaId, estado.entradaId, false))} className={`${botao} bg-surface-2 text-ink`}>
             Não
           </button>
-          <button type="button" disabled={pendente} onClick={() => rodar(() => responderAporteAction(metaId, estado.entradaId, true), "Aporte ligado à meta")} className={`${botao} bg-ink text-canvas`}>
-            Sim
+          <button type="button" disabled={pendente} onClick={() => rodar(() => responderAporteAction(metaId, estado.entradaId, true))} className={`${botao} bg-ink text-canvas`}>
+            {erro.erro ? TENTAR_DE_NOVO : "Sim"}
           </button>
         </div>
+        <ErroNoBotao erro={erro.erro} lado="direita" />
       </section>
     );
   }
@@ -162,11 +166,12 @@ export function CartaoDoAporte({ metaId, estado }: { metaId: string; estado: Est
         <button
           type="button"
           disabled={pendente || !(form.valor > 0)}
-          onClick={() => rodar(() => marcarAporteAction(metaId, form.valor, form.origem, form.dia), "Aporte salvo")}
-          className="min-h-12 rounded-full bg-ink text-[15px] font-semibold text-canvas disabled:opacity-50"
+          onClick={() => rodar(() => marcarAporteAction(metaId, form.valor, form.origem, form.dia))}
+          className={`min-h-12 rounded-full bg-ink text-[15px] font-semibold text-canvas disabled:opacity-50 ${erro.classe}`}
         >
-          {pendente ? "Salvando…" : "Salvar aporte"}
+          {pendente ? "Salvando…" : erro.erro ? TENTAR_DE_NOVO : "Salvar aporte"}
         </button>
+        <ErroNoBotao erro={erro.erro} />
       </section>
     );
   }
@@ -193,6 +198,7 @@ export function CartaoDoAporte({ metaId, estado }: { metaId: string; estado: Est
           Já fiz
         </button>
       </div>
+      <ErroNoBotao erro={erro.erro} lado="direita" />
     </section>
   );
 }

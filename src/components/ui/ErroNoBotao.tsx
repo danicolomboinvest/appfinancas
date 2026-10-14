@@ -29,9 +29,11 @@ export function useErroNoBotao() {
 }
 
 /** A mensagem curta embaixo do botão que falhou. Some quando a pessoa tenta de novo. */
-export function ErroNoBotao({ erro, className = "" }: { erro: string | null | undefined; className?: string }) {
+const LADO = { centro: "text-center", esquerda: "text-left", direita: "text-right" } as const;
+
+export function ErroNoBotao({ erro, lado = "centro", className = "" }: { erro: string | null | undefined; lado?: keyof typeof LADO; className?: string }) {
   return (
-    <p aria-live="polite" className={`text-center text-label font-semibold text-danger ${erro ? "mt-1.5" : "sr-only"} ${className}`}>
+    <p aria-live="polite" className={`text-label font-semibold text-danger ${LADO[lado]} ${erro ? "mt-1.5" : "sr-only"} ${className}`}>
       {erro ?? ""}
     </p>
   );
