@@ -126,7 +126,7 @@ describe("planejarConserto", () => {
   it("dá o dia da compra às parcelas sem data (31 num mês de 30 vira 30) e às projetadas", () => {
     const p1 = l({ description: "Loja Y PARC 01/04", year: 2026, month: 5, entryDate: "2026-05-31", importBatchId: "lote0" });
     const p2 = l({ description: "Loja Y PARC 02/04", year: 2026, month: 6 });
-    const c = planejarConserto([p1, p2]).compras[0];
+    const c = planejarConserto([p1, p2], { incluirJaLidas: true }).compras[0];
     expect(c.darDia).toEqual([{ id: p2.id, userId: "u1", dia: "2026-06-30" }]);
     expect(c.criar.map((p) => [p.description, p.entryDate])).toEqual([
       ["Loja Y PARC 03/04", "2026-07-31"],
@@ -193,6 +193,16 @@ describe("planejarConserto", () => {
     expect(c.criar.map((p) => [p.description, p.month, p.entryDate])).toEqual([["Loja (5/5)", 9, "2026-09-12"]]);
   });
 
+  it("o que a importação antiga já lia e projetava só ganha dia (a falta pode ser de propósito)", () => {
+    const p1 = l({ description: "EBN CANVA - Parcela 4/12", year: 2026, month: 9, entryDate: "2026-09-05" });
+    const p2 = l({ description: "Loja W 5 de 6", year: 2026, month: 9 });
+    const p3 = l({ description: "Loja V 9/18", year: 2026, month: 9 });
+    const plano = planejarConserto([p1, p2, p3]);
+    expect(plano.compras.map((c) => c.pulada)).toEqual(["importacao_antiga_ja_projetava", "importacao_antiga_ja_projetava", "importacao_antiga_ja_projetava"]);
+    expect(plano.compras.flatMap((c) => c.criar)).toEqual([]);
+    expect(planejarConserto([p1], { incluirJaLidas: true }).compras[0].criar).toHaveLength(8);
+  });
+
   it("total acima de 48 nem é lido", () => {
     expect(planejarConserto([l({ description: "FINANCIAMENTO (3/60)", year: 2026, month: 1 })]).compras).toEqual([]);
   });
@@ -227,9 +237,24 @@ describe("planejarConserto", () => {
   it("perfis diferentes não se misturam", () => {
     const plano = planejarConserto([
       l({ description: "Loja (1/3)", year: 2026, month: 2, profileId: "p1" }),
-      l({ description: "Loja (2/3)", year: 2026, month: 3, profileId: "p2" }),
+      l({ description: "Loja (1/3)", year: 2026, month: 2, profileId: "p2", userId: "u2" }),
     ]);
     expect(plano.compras).toHaveLength(2);
+    expect(plano.compras.every((c) => c.criar.length === 2)).toBe(true);
+  });
+
+  it("a mesma compra em dois perfis da mesma conta não é projetada em nenhum (só ganha dia)", () => {
+    const plano = planejarConserto([
+      l({ description: "Iberia (2/10)", year: 2026, month: 6, profileId: "p1", entryDate: "2026-06-04" }),
+      l({ description: "Iberia (3/10)", year: 2026, month: 8, profileId: "p2" }),
+      l({ description: "Iberia (4/10)", year: 2026, month: 8, profileId: "p2", entryDate: "2026-08-04" }),
+      // Outra compra da mesma loja, de outro valor, segue normal.
+      l({ description: "Iberia (1/2)", year: 2026, month: 8, profileId: "p2", amount: 900 }),
+    ]);
+    const iberia = plano.compras.filter((c) => c.valor === 100);
+    expect(iberia.map((c) => c.pulada)).toEqual(["mesma_compra_em_outro_perfil", "mesma_compra_em_outro_perfil"]);
+    expect(iberia.flatMap((c) => c.darDia).map((d) => d.dia)).toEqual(["2026-08-04"]);
+    expect(plano.compras.find((c) => c.valor === 900)!.criar).toHaveLength(1);
   });
 });
 

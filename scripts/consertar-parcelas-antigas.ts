@@ -11,6 +11,8 @@
  *       Grava, em lotes (cada lote uma transação). Fora do banco local, recusa sem a confirmação.
  *       O registro do que foi feito vai para REGISTROS/parcelas-antigas-aplicado-<data>.json,
  *       atualizado a cada lote confirmado.
+ *   ... --incluir-as-que-ja-eram-lidas
+ *       Projeta também as compras que a importação antiga já lia (ver parcelas-antigas.ts).
  *   ... --desfazer <registro.json> [--banco-de-producao-confirmado]
  *       Apaga exatamente o que o registro diz que foi criado e volta a nulo o dia que foi posto
  *       (só onde ainda é o mesmo dia).
@@ -100,7 +102,7 @@ const OPCIONAIS: Record<string, { tabela: string; coluna: string; vazio: string 
 
 async function colunasQueExistem(tx: Prisma.TransactionClient): Promise<Set<string>> {
   const r = await tx.$queryRawUnsafe<{ t: string; c: string }[]>(
-    `SELECT table_name AS t, column_name AS c FROM information_schema.columns WHERE table_schema = current_schema() AND table_name IN ('MonthlyEntry', 'ImportBatch')`,
+    `SELECT table_name::text AS t, column_name::text AS c FROM information_schema.columns WHERE table_schema = current_schema() AND table_name IN ('MonthlyEntry', 'ImportBatch')`,
   );
   return new Set(r.map((x) => `${x.t}.${x.c}`));
 }
@@ -194,6 +196,18 @@ function relatorio(plano: Plano, host: string) {
     lancamentosComParcela: plano.lancamentosComParcela,
     ambiguasComCaraDeData: plano.ambiguas,
     comprasLidas: plano.compras.length,
+    // A maior N conhecida da compra é menor que o total: ainda falta parcela no app.
+    comprasComParcelaFaltando: (() => {
+      const inc = plano.compras.filter((c) => Math.max(...c.conhecidas.map((k) => k.n)) < c.total);
+      return {
+        total: inc.length,
+        perfis: perfis(inc),
+        projetam: inc.filter((c) => c.criar.length > 0).length,
+        puladas: inc.filter((c) => c.pulada).length,
+        jaEstaoNoAppSemParenteses: inc.filter((c) => !c.pulada && c.criar.length === 0).length,
+      };
+    })(),
+    comprasCompletas: plano.compras.filter((c) => Math.max(...c.conhecidas.map((k) => k.n)) >= c.total).length,
     comprasAfetadas: afetadas.length,
     perfisAfetados: perfis(afetadas),
     projecao: {
@@ -305,7 +319,7 @@ async function main() {
       },
       { timeout: 120_000, maxWait: 20_000 },
     );
-    const plano = planejarConserto(lancamentos);
+    const plano = planejarConserto(lancamentos, { incluirJaLidas: args.includes("--incluir-as-que-ja-eram-lidas") });
     const rel = { ...relatorio(plano, host), colunasQueAindaNaoExistemNoBanco: faltam };
     if (aplicar && faltam.some((c) => c.startsWith("MonthlyEntry."))) throw new Error(`Recusado: o banco ainda não tem ${faltam.join(", ")} (migração pendente). Aplique só depois do deploy.`);
 

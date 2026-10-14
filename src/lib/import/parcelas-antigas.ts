@@ -27,7 +27,11 @@
  *    parcela projetada no mês vizinho e não duplica, ver ehProjecao em import-actions) e a
  *    categoria só quando não é loja de tudo (Amazon, Mercado Livre): lá a categoria de uma compra
  *    não diz nada da outra, e o histórico não guarda se foi ela que escolheu.
- * 3. Pula: descrição ambígua ("POSTO 03/09", que é data), compra cujas N não fecham (N repetida,
+ * 3. Pula: compra que a importação antiga JÁ lia ("parcela", "N de T", total > 12) e cujas
+ *    seguintes não estão no app: ela projetava essas, então a falta pode ser de propósito (ela
+ *    apagou, ou desfez a fatura que tinha adotado as projetadas). Essas só ganham o dia; projetar
+ *    só com --incluir-as-que-ja-eram-lidas. Também só o dia quando a mesma compra está em outro
+ *    perfil da mesma conta (projetar nos dois contaria o gasto duas vezes). Pula também: descrição ambígua ("POSTO 03/09", que é data), compra cujas N não fecham (N repetida,
  *    duas compras iguais misturadas), total > 48 (parseInstallment nem lê), compra dividida com
  *    alguém, e projeção quando a parcela mais recente não veio de uma fatura fechada importada
  *    (lançada à mão, Open Finance, print da fatura aberta, série de "Repetir todo mês").
@@ -108,7 +112,9 @@ export type MotivoPulada =
   | "dividida_com_alguem"
   | "origem_nao_e_fatura"
   | "origem_print_fatura_aberta"
-  | "origem_repetir_todo_mes";
+  | "origem_repetir_todo_mes"
+  | "importacao_antiga_ja_projetava"
+  | "mesma_compra_em_outro_perfil";
 
 export const MOTIVOS: Record<MotivoPulada, string> = {
   ambigua_parece_data: "\"N/T\" sem parênteses e sem a palavra parcela, T ≤ 12: pode ser a data da compra (lançamentos)",
@@ -118,6 +124,10 @@ export const MOTIVOS: Record<MotivoPulada, string> = {
   origem_nao_e_fatura: "a parcela mais recente não veio de fatura importada (à mão ou Open Finance): só o dia, sem projetar",
   origem_print_fatura_aberta: "a parcela mais recente veio do print da fatura aberta: quem projeta é a fatura fechada",
   origem_repetir_todo_mes: "a parcela mais recente é de uma série \"Repetir todo mês\"",
+  mesma_compra_em_outro_perfil:
+    "a mesma compra (série, valor e mês) está também em outro perfil da mesma conta: projetar nos dois contaria o gasto duas vezes. Só o dia",
+  importacao_antiga_ja_projetava:
+    "a importação antiga já lia esta parcela (\"parcela\", \"N de T\" ou total > 12) e projetava as seguintes: se não estão no app, ela pode ter apagado (ou desfeito a fatura que as tinha). Só o dia, sem projetar (--incluir-as-que-ja-eram-lidas projeta)",
 };
 
 export type CompraPlanejada = {
@@ -151,7 +161,20 @@ type Lida = LancamentoAntigo & { n: number; t: number; desc: string; mes: number
 /** O nome que vale pra ler a parcela: o do banco (ela pode ter renomeado a linha). */
 const descricaoParaLer = (l: LancamentoAntigo) => l.descricaoDoBanco ?? l.description;
 
-export function planejarConserto(lancamentos: LancamentoAntigo[]): Plano {
+export type OpcoesDoConserto = {
+  /** Projeta também as compras que a importação antiga já lia (ver "importacao_antiga_ja_projetava"). */
+  incluirJaLidas?: boolean;
+};
+
+/**
+ * A importação de antes de 13/10 já tinha certeza desta parcela? Era a mesma regra, sem a dos
+ * parênteses: tirando os parênteses, parseInstallment decide como decidia.
+ */
+export function importacaoAntigaJaLia(descricao: string): boolean {
+  return parseInstallment(descricao.replace(/[()]/g, " "))?.confident === true;
+}
+
+export function planejarConserto(lancamentos: LancamentoAntigo[], opcoes: OpcoesDoConserto = {}): Plano {
   const lidas: Lida[] = [];
   for (const l of lancamentos) {
     if (!(l.amount > 0)) continue;
@@ -169,6 +192,13 @@ export function planejarConserto(lancamentos: LancamentoAntigo[]): Plano {
     porSerie.set(k, [...(porSerie.get(k) ?? []), l]);
   }
 
+  // A mesma série em todos os perfis da conta (a fatura subida no Pessoal e no Casal, por exemplo).
+  const daConta = new Map<string, Lida[]>();
+  for (const l of lidas) {
+    const k = `${l.userId}|${serieDaParcela(l.desc, l.t)}`;
+    daConta.set(k, [...(daConta.get(k) ?? []), l]);
+  }
+
   const compras: CompraPlanejada[] = [];
   for (const [serie, todas] of porSerie) {
     const confiantes = todas.filter((l) => l.confiante);
@@ -180,13 +210,15 @@ export function planejarConserto(lancamentos: LancamentoAntigo[]): Plano {
       if (g) g.push(l);
       else grupos.push([l]);
     }
-    for (const g of grupos) compras.push(planejarCompra(serie, g, ambiguas));
+    const [userId, profileId] = serie.split("|");
+    const outrosPerfis = (daConta.get(`${userId}|${serie.split("|").slice(2).join("|")}`) ?? []).filter((l) => (l.profileId ?? "") !== profileId);
+    for (const g of grupos) compras.push(planejarCompra(serie, g, ambiguas, outrosPerfis, opcoes));
   }
   compras.sort((a, b) => a.chave.localeCompare(b.chave));
   return { compras, ambiguas: lidas.filter((l) => !l.confiante).length, lancamentosComParcela: lidas.length };
 }
 
-function planejarCompra(serie: string, g: Lida[], ambiguas: Lida[]): CompraPlanejada {
+function planejarCompra(serie: string, g: Lida[], ambiguas: Lida[], outrosPerfis: Lida[], opcoes: OpcoesDoConserto): CompraPlanejada {
   const base = [...g].sort((a, b) => b.n - a.n || b.mes - a.mes)[0];
   const compra: CompraPlanejada = {
     chave: `${serie}|${Math.min(...g.map((l) => l.origem))}|${base.amount.toFixed(2)}`,
@@ -224,8 +256,12 @@ function planejarCompra(serie: string, g: Lida[], ambiguas: Lida[]): CompraPlane
   if (base.loteTipo !== "fatura" || !base.importBatchId) return { ...compra, pulada: "origem_nao_e_fatura" };
   if (base.loteAberto) return { ...compra, pulada: "origem_print_fatura_aberta" };
   if (base.recurrenceId) return { ...compra, pulada: "origem_repetir_todo_mes" };
-  const herda = !ehLojaDeTudo(base.desc);
+  if (!opcoes.incluirJaLidas && importacaoAntigaJaLia(base.desc)) return { ...compra, pulada: "importacao_antiga_ja_projetava" };
   const origemDaCompra = Math.min(...origens);
+  if (outrosPerfis.some((l) => mesmaParcela(l.amount, base.amount, base.t) && Math.abs(l.origem - origemDaCompra) <= 1)) {
+    return { ...compra, pulada: "mesma_compra_em_outro_perfil" };
+  }
+  const herda = !ehLojaDeTudo(base.desc);
   for (let n = base.n + 1; n <= base.t; n += 1) {
     // Já existe? Inclusive escrita sem parênteses ("Amazon 10/10", que a importação antiga não lia).
     const existe = ambiguas.some(
