@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Home, Tag } from "lucide-react";
 import { useMoney } from "@/components/money/MoneyProvider";
 import { ValorDestaque } from "@/components/ui/ValorDestaque";
-import { EXEMPLO_CONSORCIO, type ValoresDaCalculadora } from "@/lib/calculadoras/entradas";
+import { EXEMPLO_CONSORCIO, valorInicialDoBem, type ValoresDaCalculadora } from "@/lib/calculadoras/entradas";
 import { vereditoConsorcio } from "@/lib/calculadoras/vereditos";
 import { AoVivo } from "../AoVivo";
 import { CAMPOS_CONSORCIO, COMO_LER } from "../campos";
@@ -27,6 +27,7 @@ import {
   SegmentoFino,
   Selo,
   pc,
+  useDinheiroParaGuardar,
   useRotuloDeAtalho,
   useSalvar,
 } from "../pecas";
@@ -44,10 +45,11 @@ export function ConsorcioGuiado({ dados, salva }: { dados: DadosDaTela; salva: S
   const sair = useIrParaCalculadoras();
   const r0 = (v: number) => money(v, { round: true });
   const metaCarro = dados.metaCarro;
-  const [v, setV] = useState<ValoresDaCalculadora>(salva ? { ...EXEMPLO_CONSORCIO, ...salva.valores } : { ...EXEMPLO_CONSORCIO });
   const [modo, setModo] = useState<"guiado" | "fim" | "vivo">(salva ? "vivo" : "guiado");
   const [passo, setPasso] = useState(1);
   const [bem, setBem] = useState<Bem | null>(metaCarro ? "meta" : null);
+  // Com a meta de carro já escolhida de partida, o preço começa no dela.
+  const [v, setV] = useState<ValoresDaCalculadora>(salva ? { ...EXEMPLO_CONSORCIO, ...salva.valores } : { ...EXEMPLO_CONSORCIO, creditValue: valorInicialDoBem(metaCarro ? "meta" : null, metaCarro?.alvo) });
   const [tocou, setTocou] = useState<Record<string, boolean>>({});
   const [outraEntrada, setOutraEntrada] = useState(false);
   const muda = (k: string, x: number | string) => {
@@ -56,7 +58,8 @@ export function ConsorcioGuiado({ dados, salva }: { dados: DadosDaTela; salva: S
   };
   const valorDoBem = Number(v.creditValue);
   const res = vereditoConsorcio(v);
-  const s = useSalvar("CONSORCIO_VS_FINANCIAMENTO", v, res.veredito.erro ?? `${res.veredito.frase} · ${r0(res.veredito.numero)}`);
+  const guardar = useDinheiroParaGuardar();
+  const s = useSalvar("CONSORCIO_VS_FINANCIAMENTO", v, res.veredito.erro ?? `${res.veredito.frase} · ${guardar(res.veredito.numero, { round: true })}`);
   const usaMeta = bem === "meta" && metaCarro && metaCarro.guardado > 0 && !outraEntrada;
 
   if (modo === "vivo") {
@@ -68,7 +71,7 @@ export function ConsorcioGuiado({ dados, salva }: { dados: DadosDaTela; salva: S
         exemplo={EXEMPLO_CONSORCIO}
         inicial={v}
         tipo="CONSORCIO_VS_FINANCIAMENTO"
-        salvaInicial={!!salva}
+        salvaInicial={!!salva || s.salva}
         onValores={setV}
         calcular={(x) => ({ veredito: vereditoConsorcio(x).veredito, sub: "É a diferença de custo entre os dois" })}
         detalhes={(x) => {
@@ -124,14 +127,16 @@ export function ConsorcioGuiado({ dados, salva }: { dados: DadosDaTela; salva: S
   const voltar = () => (passo > 1 ? (setOutraEntrada(false), setPasso(passo - 1)) : sair());
   const seguir = () => {
     // "Sim, usar": o guardado na meta vira a entrada.
-    if (passo === 3 && usaMeta) setV((a) => ({ ...a, financingDownPayment: metaCarro!.guardado }));
+    if (passo === 3 && usaMeta) setV((a) => ({ ...a, financingDownPayment: Math.min(metaCarro!.guardado, Number(a.creditValue)) }));
     setOutraEntrada(false);
     if (passo < 4) setPasso(passo + 1);
     else setModo("fim");
   };
   const escolheBem = (b: Bem) => {
     setBem(b);
-    if (!tocou.creditValue) setV((a) => ({ ...a, creditValue: b === "imovel" ? 300000 : 100000 }));
+    // A meta de carro já diz quanto o carro custa (14/10/2026: antes vinha o exemplo de R$ 100 mil
+    // ao lado de "28% de R$ 30.000" da meta, dois preços para o mesmo carro).
+    if (!tocou.creditValue) setV((a) => ({ ...a, creditValue: valorInicialDoBem(b, metaCarro?.alvo) }));
   };
 
   if (passo === 1) {
@@ -180,7 +185,7 @@ export function ConsorcioGuiado({ dados, salva }: { dados: DadosDaTela; salva: S
           valor={valorDoBem}
           passo={imovel ? 10000 : 1000}
           min={10000}
-          selo={tocou.creditValue ? undefined : "Exemplo"}
+          selo={tocou.creditValue ? undefined : bem === "meta" && metaCarro && metaCarro.alvo > 0 ? "Da sua meta" : "Exemplo"}
           onChange={(x) => muda("creditValue", x)}
         />
         <Atalhos opcoes={(imovel ? [300000, 500000, 800000] : [60000, 100000, 150000]).map((x) => ({ valor: x, rotulo: atalho(x) }))} ativo={valorDoBem} onEscolher={(x) => muda("creditValue", x)} />
@@ -213,7 +218,7 @@ export function ConsorcioGuiado({ dados, salva }: { dados: DadosDaTela; salva: S
             {metaCarro!.alvo > 0 && <p className="text-sm text-ink-muted">{pc((metaCarro!.guardado / metaCarro!.alvo) * 100, 0)}% de {r0(metaCarro!.alvo)}</p>}
           </div>
           <p className="px-1 text-[15px] leading-snug text-ink">
-            Usar como entrada? Aí falta financiar <b>{r0(Math.max(0, valorDoBem - metaCarro!.guardado))}</b> dos {r0(valorDoBem)} do preço que você digitou.
+            Usar como entrada? Aí falta financiar <b>{r0(Math.max(0, valorDoBem - metaCarro!.guardado))}</b> dos {r0(valorDoBem)} do preço.
           </p>
         </Passo>
       );

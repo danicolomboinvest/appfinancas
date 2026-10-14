@@ -73,7 +73,12 @@ export function ValeGuiado({ dados }: { dados: DadosDaTela }) {
                 : `Espera uns dias. Se ainda quiser, são ${Math.round(r.hoursEquivalent ?? 0)} horas de trabalho bem gastas.`}
           </p>
         )}
-        <BotaoVirarMeta titulo="Virar meta" sub={`Comprar: ${r0(preco)}`} meta={{ nome: "Compra planejada", alvo: preco * (mensal ? 12 : 1), foto: "presente", icone: "GENERICO" }} />
+        {/* Todo mês, a meta é um ano do gasto: o cartão diz isso (antes dizia o preço de um mês e criava a meta com 12). */}
+        <BotaoVirarMeta
+          titulo="Virar meta"
+          sub={mensal ? `Um ano de ${r0(preco)} por mês: ${r0(preco * 12)}` : `Comprar: ${r0(preco)}`}
+          meta={{ nome: "Compra planejada", alvo: preco * (mensal ? 12 : 1), foto: "presente", icone: "GENERICO" }}
+        />
       </Fim>
     );
   }

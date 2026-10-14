@@ -179,6 +179,17 @@ describe("renda fixa", () => {
     expect(td.map((p) => p.r)).toEqual(["Inflação + uma taxa fixa", "2035", "Tesouro Nacional", "Sim, todo dia útil"]);
     expect(td.every((p) => p.f === null)).toBe(true);
   });
+  it("com a taxa da compra, diz a taxa dela no lugar do genérico", () => {
+    const td = perguntasRendaFixa({ nome: "Tesouro IPCA+ 2035", classe: "TESOURO_DIRETO", indexador: "IPCA", taxaCompra: 0.075 });
+    expect(td[0].r).toBe("IPCA + 7,5% ao ano");
+    const cdb = perguntasRendaFixa({ nome: "CDB XP", classe: "RENDA_FIXA", indexador: "POS_FIXADO", taxaCompra: 1.1 });
+    expect(cdb[0].r).toBe("110% do CDI");
+    const pre = perguntasRendaFixa({ nome: "LCA BB", classe: "RENDA_FIXA", indexador: "PREFIXADO", taxaCompra: 0.12 });
+    expect(pre[0].r).toBe("12% ao ano");
+    // O nome manda quando já diz a taxa; o Tesouro Selic continua "Acompanha a Selic".
+    expect(perguntasRendaFixa({ nome: "CDB Banco Inter 105% CDI", classe: "RENDA_FIXA", indexador: "POS_FIXADO", taxaCompra: 1.1 })[0].r).toBe("105% do CDI");
+    expect(perguntasRendaFixa({ nome: "Tesouro Selic 2029", classe: "TESOURO_DIRETO", indexador: "POS_FIXADO", taxaCompra: 1 })[0].r).toBe("Acompanha a Selic");
+  });
   it("nome curto tira a taxa do fim", () => {
     expect(nomeCurtoRendaFixa("CDB Banco Inter 105% CDI")).toBe("CDB Banco Inter");
     expect(nomeCurtoRendaFixa("Tesouro Selic 2029")).toBe("Tesouro Selic 2029");

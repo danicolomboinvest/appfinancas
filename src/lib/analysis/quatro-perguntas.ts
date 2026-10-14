@@ -1,4 +1,5 @@
 import type { SheetType } from "@prisma/client";
+import { textoDaTaxaCompra } from "@/lib/portfolio/taxa-compra";
 import { buildStockOverview, parseIndicatorNumber, type OverviewSignal } from "./stock-overview";
 import { buildFiiOverview, parseMagnitudeBRL, rendaConstante } from "./fii-overview";
 import { buildEtfOverview } from "./etf-overview";
@@ -485,6 +486,8 @@ export type EntradaRendaFixa = {
   nome: string;
   classe: "RENDA_FIXA" | "TESOURO_DIRETO";
   indexador: "POS_FIXADO" | "IPCA" | "PREFIXADO" | null;
+  /** A taxa em que ela comprou (Asset.taxaCompra, em fração): "IPCA + 7,5% ao ano" no lugar do genérico. */
+  taxaCompra?: number | null;
 };
 
 const IR_REGRESSIVO = "22,5% até 6 meses, 20% até 1 ano, 17,5% até 2 anos e 15% depois.";
@@ -505,6 +508,7 @@ export function perguntasRendaFixa(e: EntradaRendaFixa): Pergunta[] {
   if (cdi) rende = `${cdi[1].replace(".", ",")}% do CDI`;
   else if (ipca) rende = `IPCA + ${ipca[1].replace(".", ",")}% ao ano`;
   else if (/selic/i.test(nome)) rende = "Acompanha a Selic";
+  else if (e.taxaCompra && e.indexador) rende = textoDaTaxaCompra(e.taxaCompra, e.indexador);
   else if (pre && e.indexador === "PREFIXADO") rende = `${pre[1].replace(".", ",")}% ao ano`;
   else if (e.indexador === "IPCA") rende = "Inflação + uma taxa fixa";
   else if (e.indexador === "PREFIXADO") rende = "Uma taxa fixa";

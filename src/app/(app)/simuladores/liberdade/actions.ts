@@ -33,7 +33,7 @@ export async function salvarLiberdadeComoMetaAction(v: ValoresDaLiberdade): Prom
     orderBy: { createdAt: "asc" },
     select: { id: true },
   });
-  const dados = { name: NOME_DA_META_LIBERDADE, icon: "APOSENTADORIA" as const, targetAmount: alvo, targetDate, monthlyContribution: Math.max(0, Math.round(v.porMes)) };
+  const dados = { name: NOME_DA_META_LIBERDADE, icon: "APOSENTADORIA" as const, targetAmount: alvo, targetDate, monthlyContribution: Math.max(0, Math.round(v.porMes * 100) / 100) };
   const meta = existente
     ? await prisma.goal.update({ where: { id: existente.id }, data: dados, select: { id: true } })
     : await prisma.goal.create({ data: { ...doDono(ctx), ...dados, currentAmount: 0, annualRate: TAXA_PADRAO_DAS_METAS, status: "NOT_STARTED" }, select: { id: true } });

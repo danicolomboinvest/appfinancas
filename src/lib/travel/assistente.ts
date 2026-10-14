@@ -239,3 +239,14 @@ export const STYLE_LABEL: Record<TravelStyle, string> = {
   confortavel: "Mais conforto",
 };
 export const STYLES: TravelStyle[] = ["economico", "medio", "confortavel"];
+
+/**
+ * No passo dos dias do tema Padrão (um destino por tela), o "Continuar" anda pelos destinos antes
+ * de ir para o próximo passo: devolve o índice do próximo destino, ou null para seguir. Os outros
+ * temas mostram todos os destinos numa tela só.
+ */
+export function proximoDestinoDosDias(passo: number, tema: string, diaDe: number, quantos: number): number | null {
+  if (passo !== 2 || tema !== "padrao") return null;
+  const atual = Math.min(Math.max(0, diaDe), Math.max(0, quantos - 1));
+  return atual < quantos - 1 ? atual + 1 : null;
+}

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { useMoney } from "@/components/money/MoneyProvider";
 import { ValorDestaque } from "@/components/ui/ValorDestaque";
-import { EXEMPLO_CARRO, type ValoresDaCalculadora } from "@/lib/calculadoras/entradas";
+import { EXEMPLO_CARRO, PROPORCAO_DA_REVENDA, revendaPelaProporcao, type ValoresDaCalculadora } from "@/lib/calculadoras/entradas";
 import { vereditoCarro } from "@/lib/calculadoras/vereditos";
 import { AoVivo } from "../AoVivo";
 import { CAMPOS_CARRO, COMO_LER } from "../campos";
@@ -26,6 +26,7 @@ import {
   Selo,
   pc,
   useRotuloDeAtalho,
+  useDinheiroParaGuardar,
   useSalvar,
   useSimbolo,
 } from "../pecas";
@@ -57,15 +58,18 @@ export function CarroGuiado({ dados, salva }: { dados: DadosDaTela; salva: Simul
   const [passo, setPasso] = useState(1);
   const [tocou, setTocou] = useState<Record<string, boolean>>({});
   const [daMeta, setDaMeta] = useState(false);
+  // Quanto do preço o carro vale em 2 anos (a régua do passo 2): a revenda acompanha o preço.
+  const [proporcao, setProporcao] = useState(PROPORCAO_DA_REVENDA);
   const muda = (k: string, x: number | string) => {
-    setV((a) => ({ ...a, [k]: x }));
+    setV((a) => ({ ...a, [k]: x, ...(k === "carPrice" ? { priceAfter2Years: revendaPelaProporcao(Number(x), proporcao) } : {}) }));
     setTocou((t) => ({ ...t, [k]: true }));
     if (k === "carPrice") setDaMeta(false);
   };
   const preco = Number(v.carPrice);
   const revenda = Number(v.priceAfter2Years);
   const res = vereditoCarro(v);
-  const s = useSalvar("CARRO", v, `${res.veredito.frase} · ${r0(res.veredito.numero)}`);
+  const guardar = useDinheiroParaGuardar();
+  const s = useSalvar("CARRO", v, `${res.veredito.frase} · ${guardar(res.veredito.numero, { round: true })}`);
   const metaDoCarro = { nome: "Comprar o carro", alvo: preco, foto: "carro", icone: "CARRO" as const };
 
   if (modo === "vivo") {
@@ -77,7 +81,7 @@ export function CarroGuiado({ dados, salva }: { dados: DadosDaTela; salva: Simul
         exemplo={EXEMPLO_CARRO}
         inicial={v}
         tipo="CARRO"
-        salvaInicial={!!salva}
+        salvaInicial={!!salva || s.salva}
         onValores={setV}
         calcular={(x) => ({ veredito: vereditoCarro(x).veredito, sub: "É quanto você economiza" })}
         meta={(x) => ({ titulo: "Virar meta", sub: `Comprar o carro · ${r0(Number(x.carPrice))}`, meta: { ...metaDoCarro, alvo: Number(x.carPrice) } })}
@@ -174,8 +178,8 @@ export function CarroGuiado({ dados, salva }: { dados: DadosDaTela; salva: Simul
           <Opcao
             on={daMeta}
             onClick={() => {
-              // A revenda começa em 75% do preço (o mesmo ponto do exemplo); ela arrasta no passo seguinte.
-              setV((a) => ({ ...a, carPrice: metaCarro.alvo, priceAfter2Years: Math.round((metaCarro.alvo * 0.75) / 100) * 100 }));
+              // A revenda segue a régua do passo seguinte (75% do preço, se ela ainda não arrastou).
+              setV((a) => ({ ...a, carPrice: metaCarro.alvo, priceAfter2Years: revendaPelaProporcao(metaCarro.alvo, proporcao) }));
               setDaMeta(true);
             }}
           >
@@ -209,7 +213,10 @@ export function CarroGuiado({ dados, salva }: { dados: DadosDaTela; salva: Simul
             max={95}
             step={1}
             value={Math.min(95, Math.max(40, pct))}
-            onChange={(e) => muda("priceAfter2Years", Math.round((preco * Number(e.target.value)) / 100 / 100) * 100)}
+            onChange={(e) => {
+              setProporcao(Number(e.target.value) / 100);
+              muda("priceAfter2Years", revendaPelaProporcao(preco, Number(e.target.value) / 100));
+            }}
             className="slider-app mt-2 w-full"
             style={{ ["--pct" as string]: `${((Math.min(95, Math.max(40, pct)) - 40) / 55) * 100}%` }}
           />
@@ -236,7 +243,7 @@ export function CarroGuiado({ dados, salva }: { dados: DadosDaTela; salva: Simul
         selo={tocou.subscriptionMonthlyFee ? undefined : "Exemplo"}
         valor={mens}
         onChange={(x) => muda("subscriptionMonthlyFee", x)}
-        sub={`Com combustível, ${r0(total)} por mês.${sobra ? ` ${total > sobra ? "Mais que" : "Cabe na"} a sua sobra de ${r0(sobra)}, do seu orçamento.` : ""}`}
+        sub={`Com combustível, ${r0(total)} por mês.${sobra ? ` ${total > sobra ? "Mais que a" : "Cabe na"} sua sobra de ${r0(sobra)}, do seu orçamento.` : ""}`}
       />
       <AjustesFinos resumo={resumoFinos}>
         <CampoFino rotulo="Combustível por mês" valor={comb} casas={0} prefixo={simbolo} onChange={(x) => muda("monthlyFuelCost", x)} />

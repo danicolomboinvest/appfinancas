@@ -7,6 +7,7 @@ import { netValuePerShare } from "@/lib/analysis/dividend-tax";
 import { resumirProventos, type EventoDeProvento } from "@/lib/portfolio/proventos";
 import { CHAVE_CDI, CHAVE_IPCA, CHAVE_SELIC, lerIndicadores, lerTitulosDoTesouro, tituloDoAtivo, type Indicador } from "@/lib/indicadores/indicadores";
 import { porcento, quandoDoIndicador } from "@/lib/indicadores/fontes";
+import { colunasDoDetalhe } from "./colunas-de-proventos";
 
 /** O que a tela mostra de um número de fora: o texto pronto, a fonte e o "quando". */
 export type NumeroDeFora = { valor: string; fonte: string; quando: string; velho: boolean };
@@ -70,7 +71,7 @@ export async function proventosDaCarteira(ctx: AuthContext) {
   const porTicker: Record<string, { colunas: number[]; total: number }> = {};
   for (const t of new Set(posicoes.map((p) => p.ticker))) {
     const r = resumirProventos(eventos, posicoes.filter((p) => p.ticker === t), hoje);
-    if (r.dozeMeses > 0) porTicker[t] = { colunas: r.meses.slice(0, 11).map((m) => m.recebido).slice(-10), total: r.dozeMeses };
+    if (r.dozeMeses > 0) porTicker[t] = { colunas: colunasDoDetalhe(r.meses), total: r.dozeMeses };
   }
   // O que caiu HOJE (a linha discreta "Caiu R$ 50 de MXRF11 hoje", rodada 16).
   const qtd = new Map<string, number>();

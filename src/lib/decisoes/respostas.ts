@@ -195,6 +195,16 @@ export function estouGastandoDemais(e: {
 }
 
 /** "Onde estou exagerando?": as categorias mais acima do ritmo, o que está fora do orçamento e os maiores gastos. */
+/**
+ * O selo de cada categoria em "Acima do ritmo" (14/10/2026). A tela troca "+R$ X" por "passou R$ X",
+ * e o X era o excesso sobre o RITMO: "R$ 417 de R$ 350 · passou R$ 270", quando passou R$ 67 do
+ * plano. Passou do plano: o quanto passou dele. Só acima do ritmo: "R$ X acima", sem "passou".
+ */
+export function seloDoExagero(money: (v: number) => string, c: { gasto: number; planejado: number; excesso: number }): { texto: string; tom: Veredito } {
+  if (c.gasto - c.planejado >= 1) return { texto: `+${money(c.gasto - c.planejado)}`, tom: "ruim" };
+  return { texto: `${money(c.excesso)} acima`, tom: "atencao" };
+}
+
 export function ondeEstouExagerando(e: {
   money: (v: number) => string;
   decorrido: number;
@@ -234,7 +244,7 @@ export function ondeEstouExagerando(e: {
       rotulo: acima.length > 0 ? `${money(acima[0].excesso)} acima do ritmo` : e.fora >= 1 ? "sem categoria no orçamento" : "tudo no ritmo do mês",
       blocos: [
         ...(acima.length > 0
-          ? [{ tipo: "lista" as const, titulo: "Acima do ritmo", itens: acima.slice(0, 4).map((c) => ({ nome: c.label, valor: `${money(c.gasto)} de ${money(c.planejado)}`, pct: c.gasto / c.planejado, selo: { texto: `+${money(c.excesso)}`, tom: (c.gasto > c.planejado ? "ruim" : "atencao") as Veredito } })) }]
+          ? [{ tipo: "lista" as const, titulo: "Acima do ritmo", itens: acima.slice(0, 4).map((c) => ({ nome: c.label, valor: `${money(c.gasto)} de ${money(c.planejado)}`, pct: c.gasto / c.planejado, selo: seloDoExagero(money, c) })) }]
           : []),
         ...(e.fora >= 1 && acima.length > 0 ? [{ tipo: "numeros" as const, itens: [{ rotulo: "Sem categoria no orçamento", valor: money(e.fora), tom: "ruim" as Veredito }] }] : []),
         ...(e.maiores.length > 0 ? [{ tipo: "lista" as const, titulo: "Maiores gastos do mês", itens: e.maiores.slice(0, 3).map((g) => ({ nome: g.descricao, valor: money(g.valor) })) }] : []),
