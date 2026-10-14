@@ -103,6 +103,8 @@ async function xlsxToCsv(buffer: Buffer, password: string | undefined): Promise<
   return workbook.SheetNames.map((name) => XLSX.utils.sheet_to_csv(workbook.Sheets[name], { FS: ";" })).join("\n");
 }
 
+const PDF_ESTRAGADO = "Esse PDF não abriu: parece que o download veio incompleto. Baixe de novo no app do banco e envie outra vez.";
+
 const PDF_INDISPONIVEL =
   "Não consegui ler PDF neste servidor. Envie o extrato em CSV ou Excel (a maioria dos bancos exporta nesses formatos).";
 
@@ -201,6 +203,12 @@ async function pdfToText(buffer: Buffer, password: string | undefined): Promise<
           : "Este arquivo está protegido por senha.",
         ehSenhaErrada(err),
       );
+    }
+    // Arquivo que não é PDF por dentro (download cortado, ou outro arquivo com o nome .pdf): o
+    // problema é o arquivo, não o servidor. "Não consegui ler PDF neste servidor" mandava a
+    // pessoa procurar CSV quando bastava baixar de novo (14/10/2026).
+    if (err instanceof Error && err.name === "InvalidPDFException") {
+      throw new UploadReadError(PDF_ESTRAGADO, `PDF inválido · ${causa(err)}`);
     }
     // O pdfjs abre o PDF num "worker" que é um arquivo à parte (pdf.worker.mjs). Quando esse
     // arquivo não vem junto no servidor, a falha aparece só aqui, na hora de ler — e não no

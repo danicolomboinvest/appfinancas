@@ -245,3 +245,14 @@ describe("Excel protegido por senha", () => {
     expect(text).toContain("SUPERMERCADO");
   });
 });
+
+describe("PDF estragado", () => {
+  it("diz que o arquivo veio incompleto, não que o servidor não lê PDF", async () => {
+    const f = new FormData();
+    f.set("file", new File([new TextEncoder().encode("%PDF-1.4\n1 0 obj")], "extrato.pdf"));
+    f.set("encoding", "pdf");
+    const erro = await extractUploadFromForm(f).catch((e: unknown) => e);
+    expect((erro as Error).message).toContain("download veio incompleto");
+    expect((erro as Error).message).not.toContain("neste servidor");
+  });
+});
