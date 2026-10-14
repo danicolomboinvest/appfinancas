@@ -36,6 +36,22 @@ export const CATEGORIAS_DA_COMPRA: CategoriaDaCompra[] = [
   { id: "educacao", emoji: "📚", nome: "Educação", atalhos: [300, 1000, 2500, 6000], duravel: true },
 ];
 
+/**
+ * Como a tela chama a compra (14/10/2026): "Preço do viagem" e "Esse beleza é" saíam do nome da
+ * categoria com "do"/"Esse" fixos. Cada uma com o seu artigo; Casa, Educação, Beleza e "Outra
+ * coisa" não têm um nome que caiba na frase e ficam no genérico ("Preço", "Isso é").
+ */
+const NA_FRASE: Record<string, { de: string; esse: string }> = {
+  celular: { de: "do celular", esse: "Esse celular é" },
+  viagem: { de: "da viagem", esse: "Essa viagem é" },
+  vestuario: { de: "da roupa", esse: "Essa roupa é" },
+  eletronico: { de: "do eletrônico", esse: "Esse eletrônico é" },
+};
+export function compraNaFrase(id: string | undefined): { preco: string; sinceridade: string } {
+  const f = id ? NA_FRASE[id] : undefined;
+  return f ? { preco: `Preço ${f.de}`, sinceridade: f.esse } : { preco: "Preço", sinceridade: "Isso é" };
+}
+
 /** "Outra coisa": a pessoa escreve o nome. Sem saber o que é, não sugere parcela. */
 export function categoriaOutra(nome: string): CategoriaDaCompra {
   return { id: "outro", emoji: "🛍️", nome: nome.trim().slice(0, 60) || "Outra coisa", atalhos: [300, 1000, 2000, 5000], duravel: false };

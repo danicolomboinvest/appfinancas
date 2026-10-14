@@ -25,9 +25,12 @@ export function goalProgress(goalId: string, assetsValueOfGoal: number, contribu
     const jaNoAtivoDaMeta = c.allocations
       .filter((a) => a.assetGoalId === goalId)
       .reduce((s, a) => s + a.amount, 0);
-    return sum + Math.max(0, c.amount - jaNoAtivoDaMeta);
+    // Resgate (o "−" do detalhe da meta, valor negativo) tira da meta. Antes o max(0, ...) zerava
+    // o resgate: ela retirava R$ 500 e a meta continuava mostrando o mesmo guardado (14/10/2026).
+    const resto = c.amount - jaNoAtivoDaMeta;
+    return sum + (c.amount < 0 ? Math.min(0, resto) : Math.max(0, resto));
   }, 0);
-  return Math.round((assetsValueOfGoal + naoContado) * 100) / 100;
+  return Math.max(0, Math.round((assetsValueOfGoal + naoContado) * 100) / 100);
 }
 
 /**

@@ -11,7 +11,7 @@ import { valoresDoTitulo, type TituloDaCarteira } from "@/lib/calculadoras/fonte
 import { variacaoDoPreco, vereditoMarcacao } from "@/lib/calculadoras/vereditos";
 import { COMO_LER } from "../campos";
 import { Fim, useIrParaCalculadoras, type DadosDaTela, type SimulacaoAberta } from "../Passo";
-import { AcoesDoResultado, AjustesFinos, BotaoGrande, CampoFino, IconeRedondo, Opcao, Pe, Pergunta, SegmentoFino, TopoDoAssistente, pc, useSalvar, useSimbolo } from "../pecas";
+import { AcoesDoResultado, AjustesFinos, BotaoGrande, CampoFino, IconeRedondo, Opcao, Pe, Pergunta, SegmentoFino, TopoDoAssistente, pc, useDinheiroParaGuardar, useSalvar, useSimbolo } from "../pecas";
 
 const PONTOS = [-3, -2, -1, 0, 1, 2, 3];
 
@@ -36,7 +36,8 @@ export function MarcacaoAoVivo({ dados, salva }: { dados: DadosDaTela; salva: Si
   const muda = (k: string, x: number | string) => setV((a) => ({ ...a, [k]: x }));
   const res = vereditoMarcacao(v);
   const nome = titulo?.nome ?? "Outro título";
-  const s = useSalvar("MARCACAO_MERCADO", v, `${nome} · ${res.lucro ? "lucro" : "prejuízo"} de ${money(Math.abs(res.resultado))} se vender hoje`, salva ? JSON.stringify({ ...EXEMPLO_MARCACAO, ...salva.valores }) : null);
+  const guardar = useDinheiroParaGuardar();
+  const s = useSalvar("MARCACAO_MERCADO", v, `${nome} · ${res.lucro ? "lucro" : "prejuízo"} de ${guardar(Math.abs(res.resultado))} se vender hoje`, salva ? JSON.stringify({ ...EXEMPLO_MARCACAO, ...salva.valores }) : null);
   const taxa = (x: number) => (titulo?.ipca ? `IPCA + ${pc(x * 100)}%` : `${pc(x * 100)}% ao ano`);
 
   if (tela === "escolha") {

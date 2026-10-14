@@ -16,6 +16,7 @@ import { MESES_CURTOS, MESES_LONGOS, duracao, mesesAteChegar, porMesDaNovaMeta, 
 import { ESFERAS_DA_META, fotoDoTipo, fotosEmOrdem, tipoDoNome } from "@/lib/metas/tipos";
 import { prazoApertado, type LimiteDasMetas } from "@/lib/metas/prazo-que-cabe";
 import { PrazoQueCabe } from "./PrazoQueCabe";
+import { mesAoTrocarDeAno, prazoJaPassou } from "./visual";
 import { apagarMetaAction, criarMetaAction, desfazerApagarMetaAction, editarMetaAction, enviarFotoDaMetaAction, type MetaGuiada } from "./acoes";
 
 /**
@@ -60,10 +61,10 @@ export function ProvedorDaFolhaDaMeta({ hoje, limite = null, children }: { hoje:
 }
 
 /** Botão que abre a folha (nova, ou editando a meta passada). */
-export function AbrirFolhaDaMeta({ meta, className, children, rotulo }: { meta?: MetaParaEditar; className?: string; children: ReactNode; rotulo?: string }) {
+export function AbrirFolhaDaMeta({ meta, className, children, rotulo, guia }: { meta?: MetaParaEditar; className?: string; children: ReactNode; rotulo?: string; guia?: string }) {
   const { abrir } = useFolhaDaMeta();
   return (
-    <button type="button" aria-haspopup="dialog" aria-label={rotulo} className={className} onClick={() => abrir(meta)}>
+    <button type="button" aria-haspopup="dialog" aria-label={rotulo} data-guia={guia} className={className} onClick={() => abrir(meta)}>
       {children}
     </button>
   );
@@ -150,6 +151,11 @@ function FolhaDaMeta({
   const fotoFinal = e.minha ?? e.foto ?? fotoDoTipo(tipo);
   // O valor por mês passou do que cabe: o passo "Para quando?" sugere um prazo (nunca muda sozinho).
   const apertado = !e.semPrazo && e.alvo > 0 && prazoApertado(pmt, limite);
+  // A meta que venceu (editando): o prazo antigo não vale mais e o servidor recusa. Pede um novo
+  // no "Para quando?", em vez de mostrar "Faltam 1 mês" e só dar erro no Salvar.
+  const vencido = !e.semPrazo && prazoJaPassou(e.prazo, hojeMi);
+  const anoAnterior = mesAoTrocarDeAno(e.prazo.ano - 1, e.prazo.mes, hojeMi);
+  const primeiroAno = Math.floor((hojeMi + 1) / 12);
 
   useEffect(() => {
     const esc = (ev: KeyboardEvent) => ev.key === "Escape" && onFechar();
@@ -309,7 +315,10 @@ function FolhaDaMeta({
       </>
     );
   } else if (e.passo === 3) {
-    const falta = e.semPrazo ? (
+    podeSeguir = !vencido;
+    const falta = vencido ? (
+      "Esse prazo já passou. Escolha um mês daqui para frente."
+    ) : e.semPrazo ? (
       "Sem prazo: você escolhe quanto guardar por mês no fim"
     ) : (
       <>
@@ -345,20 +354,20 @@ function FolhaDaMeta({
         {e.calendario && (
           <div className="flex flex-col gap-2 rounded-[22px] bg-surface p-3 shadow-premium-sm">
             <div className="flex items-center justify-between">
-              <button type="button" aria-label="Ano anterior" disabled={e.prazo.ano <= hoje.ano} onClick={() => muda({ prazo: { ano: e.prazo.ano - 1, mes: (e.prazo.ano - 1) * 12 + e.prazo.mes <= hojeMi ? Math.min(11, hoje.mes) : e.prazo.mes } })} className="flex size-11 items-center justify-center rounded-full border border-border-strong text-ink disabled:opacity-30">
+              <button type="button" aria-label="Ano anterior" disabled={anoAnterior === null} onClick={() => anoAnterior !== null && muda({ prazo: { ano: e.prazo.ano - 1, mes: anoAnterior } })} className="flex size-11 items-center justify-center rounded-full border border-border-strong text-ink disabled:opacity-30">
                 <ChevronLeft size={18} aria-hidden />
               </button>
               <button type="button" aria-expanded={e.anos} onClick={() => muda({ anos: !e.anos })} className="rounded-full bg-surface-2 px-4 py-1.5 text-[17px] font-semibold text-ink">
                 {e.prazo.ano}
               </button>
-              <button type="button" aria-label="Próximo ano" disabled={e.prazo.ano >= 2080} onClick={() => muda({ prazo: { ano: e.prazo.ano + 1, mes: e.prazo.mes } })} className="flex size-11 items-center justify-center rounded-full border border-border-strong text-ink disabled:opacity-30">
+              <button type="button" aria-label="Próximo ano" disabled={e.prazo.ano >= 2080} onClick={() => muda({ prazo: { ano: e.prazo.ano + 1, mes: mesAoTrocarDeAno(e.prazo.ano + 1, e.prazo.mes, hojeMi) ?? e.prazo.mes } })} className="flex size-11 items-center justify-center rounded-full border border-border-strong text-ink disabled:opacity-30">
                 <ChevronRight size={18} aria-hidden />
               </button>
             </div>
             {e.anos ? (
               <div className="grid max-h-52 grid-cols-5 gap-1.5 overflow-y-auto p-0.5">
-                {Array.from({ length: 2080 - hoje.ano + 1 }, (_, k) => hoje.ano + k).map((a) => (
-                  <button key={a} type="button" onClick={() => muda({ anos: false, semPrazo: false, prazo: { ano: a, mes: a * 12 + e.prazo.mes <= hojeMi ? Math.min(11, hoje.mes) : e.prazo.mes } })} className={`h-10 rounded-xl border text-sm font-medium ${a === e.prazo.ano ? "border-ink bg-ink font-semibold text-canvas" : "border-border-strong bg-surface text-ink"}`}>
+                {Array.from({ length: 2080 - primeiroAno + 1 }, (_, k) => primeiroAno + k).map((a) => (
+                  <button key={a} type="button" onClick={() => muda({ anos: false, semPrazo: false, prazo: { ano: a, mes: mesAoTrocarDeAno(a, e.prazo.mes, hojeMi) ?? e.prazo.mes } })} className={`h-10 rounded-xl border text-sm font-medium ${a === e.prazo.ano ? "border-ink bg-ink font-semibold text-canvas" : "border-border-strong bg-surface text-ink"}`}>
                     {a}
                   </button>
                 ))}
@@ -378,7 +387,7 @@ function FolhaDaMeta({
             )}
           </div>
         )}
-        <p aria-live="polite" className="rounded-2xl bg-accent-soft px-3 py-2.5 text-[14.5px] font-medium text-ink">
+        <p aria-live="polite" className={`rounded-2xl px-3 py-2.5 text-[14.5px] font-medium ${vencido ? "bg-danger-soft text-danger" : "bg-accent-soft text-ink"}`}>
           {falta}
         </p>
         {apertado && limite && (

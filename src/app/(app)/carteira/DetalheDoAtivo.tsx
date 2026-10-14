@@ -14,6 +14,7 @@ import { ResgatarDoAtivo } from "./ResgatarDoAtivo";
 import { DeleteAssetButton } from "./DeleteAssetButton";
 import { LogoDoAtivo } from "@/components/ui/LogoDoAtivo";
 import { COR_DO_GRUPO } from "./cores-dos-grupos";
+import { linkDaAnalise, rotulosDasPontas } from "./colunas-de-proventos";
 import { trocarClassificacaoAction, trocarObjetivoAction } from "./carteira-nova-actions";
 import type { AtivoDaTela } from "./MeusAtivos";
 import type { NumeroDeFora, PrecoDoTitulo } from "./dados";
@@ -28,7 +29,6 @@ const NOME_DA_CLASSE: Record<string, string> = {
   INTERNACIONAL: "Exterior",
   OUTRO: "Outro",
 };
-const MES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
 
 /**
  * O detalhe de um ativo (rodadas 16 e 23): valor, ganho ou perda, preço médio × cotação, os
@@ -172,8 +172,8 @@ export function DetalheDoAtivo({
             ))}
           </div>
           <div className="mt-1 flex justify-between text-[12px] text-ink-faint">
-            <span>{MES[new Date(hoje.getFullYear(), hoje.getMonth() - 10, 1).getMonth()]}</span>
-            <span>{MES[new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1).getMonth()]}</span>
+            <span>{rotulosDasPontas(hoje)[0]}</span>
+            <span>{rotulosDasPontas(hoje)[1]}</span>
           </div>
         </div>
       )}
@@ -192,7 +192,7 @@ export function DetalheDoAtivo({
         </button>
       </div>
       {a.ticker && (a.assetClass === "ACAO" || a.assetClass === "FII" || a.assetClass === "INTERNACIONAL") && (
-        <Link href="/fichas" className="inline-flex min-h-12 items-center justify-center gap-1.5 rounded-full bg-accent-gradient text-[15px] font-medium text-on-accent">
+        <Link href={linkDaAnalise(a.ticker)} className="inline-flex min-h-12 items-center justify-center gap-1.5 rounded-full bg-accent-gradient text-[15px] font-medium text-on-accent">
           Ver análise <ArrowUpRight size={16} />
         </Link>
       )}

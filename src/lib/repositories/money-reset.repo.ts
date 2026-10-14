@@ -4,6 +4,7 @@ import { registrarDecisaoUnica } from "@/lib/repositories/decisao.repo";
 import { hojeEmBrasilia } from "@/lib/contas/contas";
 import { abriuEm, acheiPorMes, estadoDoReset, marcosFeitos, type EstadoDoReset } from "@/lib/money-reset/progresso";
 import { marco } from "@/lib/money-reset/missoes";
+import { acharMetaDaReserva } from "@/lib/portfolio/reserva-da-pessoa";
 
 /**
  * O progresso do Money Reset mora na tabela de decisões (sem tabela nova, sem migration):
@@ -111,12 +112,23 @@ export async function conferirMarcoAtual(ctx: AuthContext, reset: ResetDaPessoa)
       feita = (await prisma.budget.count({ where: { ...dono, year: agora.getUTCFullYear(), month: agora.getUTCMonth() + 1, plannedAmount: { gt: 0 } } })) > 0;
       break;
     }
-    case 10:
-      feita = (await prisma.emergencyFund.count({ where: { ...dono, targetAmount: { gt: 0 } } })) > 0;
+    case 10: {
+      // A tela da Reserva saiu em 11/10: a reserva é a meta do tipo Reserva de emergência. Quem
+      // ainda tem a do simulador antigo também conta.
+      const [antiga, metas] = await Promise.all([
+        prisma.emergencyFund.count({ where: { ...dono, targetAmount: { gt: 0 } } }),
+        prisma.goal.findMany({ where: { ...dono, targetAmount: { gt: 0 } }, select: { icon: true, name: true } }),
+      ]);
+      feita = antiga > 0 || acharMetaDaReserva(metas) !== null;
       break;
-    case 11:
-      feita = (await prisma.goal.count({ where: dono })) > 0;
+    }
+    case 11: {
+      // O sonho é uma meta que não seja a reserva (a reserva é a missão 10).
+      const metas = await prisma.goal.findMany({ where: dono, select: { id: true, icon: true, name: true } });
+      const reserva = acharMetaDaReserva(metas);
+      feita = metas.some((g) => g.id !== reserva?.id);
       break;
+    }
     case 16:
       feita = (await decisaoDesde(["compra_desisti", "compra_amanha", "compra_comprei"])) > 0;
       break;

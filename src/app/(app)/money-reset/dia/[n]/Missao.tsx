@@ -11,6 +11,7 @@ import { IconeDoMarco } from "@/components/money-reset/IconeDoMarco";
 import { Placar } from "@/components/money-reset/Placar";
 import { SEMANAS, marco, naVoz, vocabularioDaVoz } from "@/lib/money-reset/missoes";
 import type { StatusDoMarco } from "@/lib/money-reset/progresso";
+import { oQueMudou, type DadosParaMudou } from "@/lib/money-reset/mudou";
 import type { DadosDoMarco } from "../../dados";
 import { TelaDoMarco } from "./TelaDoMarco";
 import { CartaoFinal } from "./CartaoFinal";
@@ -103,6 +104,8 @@ export function Missao({
     const proxima = atual !== null && atual !== n ? marco(atual)! : null;
     const destino = historiaAntes ? `/money-reset/semana/${historiaAntes}` : proxima ? `/money-reset/dia/${proxima.n}` : "/money-reset";
     const achou = PLACAR_PROPRIO.has(n) && achei > 0;
+    // Só o que mudou de verdade (quem pulou pelo atalho não lê que algo entrou no app).
+    const mudou = oQueMudou(n, dados as DadosParaMudou, respostas);
     return (
       <div className="flex flex-col gap-4">
         {topo(t.mrFeita(n))}
@@ -126,17 +129,19 @@ export function Missao({
           )}
         </HeroiDoTema>
 
-        <div className="glass flex flex-col gap-2.5 rounded-2xl p-4">
-          <p className="text-[15px] font-semibold text-ink">{t.mrMudou}</p>
-          {m.mudou.map((x, i) => (
-            <p key={x} className="mr-entra flex items-center gap-2.5 text-[14px] text-ink" style={{ animationDelay: `${150 + i * 120}ms` }}>
-              <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-success-soft text-success">
-                <Check size={13} strokeWidth={3} aria-hidden />
-              </span>
-              {naVoz(x, v)}
-            </p>
-          ))}
-        </div>
+        {mudou.length > 0 && (
+          <div className="glass flex flex-col gap-2.5 rounded-2xl p-4">
+            <p className="text-[15px] font-semibold text-ink">{t.mrMudou}</p>
+            {mudou.map((x, i) => (
+              <p key={x} className="mr-entra flex items-center gap-2.5 text-[14px] text-ink" style={{ animationDelay: `${150 + i * 120}ms` }}>
+                <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-success-soft text-success">
+                  <Check size={13} strokeWidth={3} aria-hidden />
+                </span>
+                {naVoz(x, v)}
+              </p>
+            ))}
+          </div>
+        )}
 
         <MapaDoReset status={mapa.status} semana={mapa.semana} titulos={mapa.titulos} mini />
 

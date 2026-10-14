@@ -32,6 +32,7 @@ import { iniciarGuia } from "@/components/money-reset/guia-estado";
 import { IconeDoMarco } from "@/components/money-reset/IconeDoMarco";
 import { Placar } from "@/components/money-reset/Placar";
 import { FileiraDeMarcas, LogoDoGasto, LogosDeExemplo } from "@/components/money-reset/Marcas";
+import { comecoDoGuia } from "@/lib/money-reset/guias";
 import { DICAS_DA_SEMANA, MOTIVOS_PRONTOS, PASSOS_DO_SONHO, REGRAS_DO_CARTAO, marco, naVoz, vocabularioDaVoz } from "@/lib/money-reset/missoes";
 import { EXEMPLOS } from "@/lib/money-reset/marcas-do-reset";
 import { PARENT_CATEGORY_COLOR, PARENT_CATEGORY_ICON } from "@/lib/categories";
@@ -129,11 +130,19 @@ function Ajuda({ n }: { n: number }) {
   );
 }
 
-/** O botão que liga o guia iluminado nas telas de verdade. */
+/**
+ * O botão que liga o guia iluminado nas telas de verdade. O guia que começa pelo "+" já abre a
+ * gaveta (o "+" só existe na Visão geral; aqui o balão apontaria para o nada).
+ */
 function Guiar({ n, secundario, children }: { n: number; secundario?: boolean; children?: ReactNode }) {
   const { voz } = useProfileTheme();
+  const comecar = () => {
+    const { passo, abrirRegistrar: abrir } = comecoDoGuia(n);
+    if (abrir) abrirRegistrar("choice");
+    iniciarGuia(n, passo);
+  };
   return (
-    <Botao secundario={secundario} onClick={() => iniciarGuia(n)}>
+    <Botao secundario={secundario} onClick={comecar}>
       {children ?? voz.titulos.mrGuiar}
     </Botao>
   );
@@ -426,7 +435,7 @@ function M4({ d, c }: { d: Extract<DadosDoMarco, { n: 4 }>; c: Comum }) {
         disabled={c.salvando}
         onClick={() => c.concluir(() => salvarRespostaAction("fixas", String(Math.round(total)), { total, naoFixas, negociar: d.fixas.find((f) => f.chave === negociar)?.nome ?? null, baixou: valorBaixou }, c.feita ? undefined : 4))}
       >
-        {c.feita ? "Salvar" : `Confirmar · ${m(total)}/mês`}
+        {c.feita ? "Salvar" : total > 0 ? `Confirmar · ${m(total)}/mês` : "Confirmar"}
       </Botao>
     </>
   );
@@ -619,7 +628,7 @@ function M9({ d, c }: { d: Extract<DadosDoMarco, { n: 9 }>; c: Comum }) {
       <HeroiDoTema>
         <small className="text-[13px] font-semibold text-heroi-suave">Todo mês, no dia do salário</small>
         <span className="text-[34px] font-bold leading-none tracking-tight tabular-nums">{d.guardar ? money(d.guardar, { round: true }) : "a definir"}</span>
-        <small className="text-[13px] text-heroi-suave">{d.guardar ? `do seu ${v.orcamento}` : `Monte o ${v.orcamento} (missão 8) para eu calcular.`}</small>
+        <small className="text-[13px] text-heroi-suave">{d.guardar ? `do seu ${v.orcamento}` : `Escolha quanto guardar no ${v.orcamento} (missão 8) para eu calcular.`}</small>
       </HeroiDoTema>
       <Cartao>
         <div className="flex flex-wrap gap-2">
@@ -1114,13 +1123,21 @@ function M21({ d, c }: { d: Extract<DadosDoMarco, { n: 21 }>; c: Comum }) {
 export function TelaDoMarco({ n, dados, respostas, feita, admin, achei, hoje, amanha, onFeita }: { n: number; dados: DadosDoMarco; respostas: Respostas; feita: boolean; admin: boolean; achei: number; hoje: string; amanha: string; onFeita: () => void }) {
   const router = useRouter();
   const [salvando, startTransition] = useTransition();
+  // O "o app reage" só aparece junto com os dados novos (a próxima missão já aberta): depois do
+  // await, o que muda a tela volta para dentro da transição, senão a tela troca antes e mostra
+  // "Voltar ao mapa" até o refresh chegar.
   const concluir = (fn?: () => Promise<unknown>) =>
     startTransition(async () => {
-      if (fn) await fn();
-      else await concluirMarcoAction(n);
+      const ok = fn ? await fn() : await concluirMarcoAction(n);
+      if (ok === false) {
+        startTransition(() => router.refresh());
+        return;
+      }
       vibrar("sucesso");
-      router.refresh();
-      onFeita();
+      startTransition(() => {
+        router.refresh();
+        onFeita();
+      });
     });
   const c: Comum = { n, respostas, feita, admin, achei, hoje, amanha, concluir, salvando };
 

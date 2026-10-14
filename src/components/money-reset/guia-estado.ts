@@ -31,6 +31,6 @@ export function gravarGuia(g: EstadoDoGuia | null) {
   window.dispatchEvent(new Event(EVENTO_DO_GUIA));
 }
 
-export function iniciarGuia(dia: number) {
-  gravarGuia({ dia, passo: 0 });
+export function iniciarGuia(dia: number, passo = 0) {
+  gravarGuia({ dia, passo });
 }

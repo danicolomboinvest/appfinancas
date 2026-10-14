@@ -136,7 +136,12 @@ export function PilhaDeDecisoes({ pilha, depois }: { pilha: CartaoDaPilha[]; dep
                 label: "Desfazer",
                 onClick: () =>
                   iniciar(async () => {
-                    await desfazer();
+                    // Sem o try, uma falha aqui derrubava a tela inteira (erro solto na transição).
+                    try {
+                      await desfazer();
+                    } catch {
+                      return showError("Não consegui desfazer. Tente de novo.");
+                    }
                     setFeitos((f) => {
                       const n = new Set(f);
                       n.delete(c.id);

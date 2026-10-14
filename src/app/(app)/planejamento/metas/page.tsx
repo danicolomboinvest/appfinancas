@@ -46,7 +46,7 @@ export default async function MetasPage() {
   const apertada = (x: (typeof metas)[number]) => Boolean(x.prazo) && !x.daViagem && x.plano.status !== "ACHIEVED" && prazoApertado(x.plano.porMesNecessario, limite);
 
   const novaMeta = (
-    <AbrirFolhaDaMeta className="flex w-full items-center gap-3 rounded-[28px] border border-border bg-surface p-5 text-left shadow-premium-sm">
+    <AbrirFolhaDaMeta guia="nova-meta" className="flex w-full items-center gap-3 rounded-[28px] border border-border bg-surface p-5 text-left shadow-premium-sm">
       {jeito.novaMetaMaisNaFrente && (
         <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-surface-2 text-ink" aria-hidden>
           <Plus size={20} />

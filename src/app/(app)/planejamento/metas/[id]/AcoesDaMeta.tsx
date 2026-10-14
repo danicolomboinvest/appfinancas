@@ -98,6 +98,17 @@ export function BarraDaMeta({ metaId, meta, editarEm }: { metaId: string; meta: 
           <button type="button" disabled={pendente || !(valor > 0)} onClick={confirmar} className="min-h-12 rounded-full bg-ink text-[15px] font-semibold text-canvas disabled:opacity-50">
             {pendente ? "Salvando…" : tipo === "adicionar" ? "Adicionar" : "Retirar"}
           </button>
+          <button
+            type="button"
+            disabled={pendente}
+            onClick={() => {
+              setTipo(null);
+              setValor(0);
+            }}
+            className="-mt-1 min-h-11 text-sm font-medium text-ink-muted"
+          >
+            Cancelar
+          </button>
         </section>
       )}
       <div className="sticky bottom-[calc(10px+var(--safe-bottom))] z-10 mt-auto flex items-center gap-2.5 pt-1.5">

@@ -67,7 +67,7 @@ export const PADRAO_RESET: TextosReset = {
   mrComecarMissao: (marco) => `Começar a missão ${n(marco)}`,
   mrAgora: "Agora",
   mrMinutos: (min) => `${n(min)} min`,
-  mrRitmo: "1 por dia é o ideal. Terminou um? O próximo já abre.",
+  mrRitmo: "Uma por dia é o ideal. Terminou uma? A próxima já abre.",
   mrGuiar: "Começar, eu te guio",
   mrAjuda: "Precisa de ajuda?",
   mrTravou: "Travou?",

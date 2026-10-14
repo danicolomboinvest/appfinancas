@@ -30,10 +30,21 @@ export const EXEMPLO_FINANCIAR: ValoresDaCalculadora = {
   incomeTaxRate: 0.15,
 };
 
+/**
+ * A entrada nunca passa do valor do bem (14/10/2026): baixar o imóvel (ou o bem do consórcio)
+ * para menos que a entrada já digitada deixava o valor financiado NEGATIVO, e a conta seguia
+ * com juros ao contrário. Abaixo do valor, nada muda.
+ */
+function entradaAteOValor(entrada: number | string | undefined, valor: number | string | undefined): number {
+  const e = Number(entrada);
+  const v = Number(valor);
+  return Number.isFinite(e) && Number.isFinite(v) && v >= 0 && e > v ? v : e;
+}
+
 export function entradaFinanciar(values: ValoresDaCalculadora): FinancingVsRentInput {
   return {
     propertyValue: Number(values.propertyValue),
-    downPayment: Number(values.downPayment),
+    downPayment: entradaAteOValor(values.downPayment, values.propertyValue),
     cetAnnualRate: Number(values.cetAnnualRate),
     propertyAppreciationAnnualRate: Number(values.propertyAppreciationAnnualRate),
     termMonths: Number(values.termMonths),
@@ -78,12 +89,19 @@ export const EXEMPLO_CONSORCIO: ValoresDaCalculadora = {
   opportunityCostAnnualRate: 0.11,
 };
 
+/** O preço de partida do bem no consórcio: o da meta de carro (quando é ela), senão o exemplo. */
+export function valorInicialDoBem(bem: "meta" | "imovel" | "outro" | null, alvoDaMeta: number | undefined): number {
+  if (bem === "imovel") return 300000;
+  if (bem === "meta" && alvoDaMeta && alvoDaMeta > 0) return alvoDaMeta;
+  return Number(EXEMPLO_CONSORCIO.creditValue);
+}
+
 export function entradaConsorcio(values: ValoresDaCalculadora): ConsortiumFormValues {
   return {
     creditValue: Number(values.creditValue),
     consortiumAdminFeeRate: Number(values.consortiumAdminFeeRate),
     consortiumTermMonths: Number(values.consortiumTermMonths),
-    financingDownPayment: Number(values.financingDownPayment),
+    financingDownPayment: entradaAteOValor(values.financingDownPayment, values.creditValue),
     financingCetAnnualRate: Number(values.financingCetAnnualRate),
     financingTermMonths: Number(values.financingTermMonths),
     financingSystem: values.financingSystem === "SAC" ? "SAC" : "PRICE",
@@ -100,6 +118,18 @@ export const EXEMPLO_CARRO: ValoresDaCalculadora = {
   annualFixedCosts: 4000,
   opportunityCostMonthlyRate: 0.008,
 };
+
+/**
+ * A revenda do carro daqui a 2 anos acompanha o preço (14/10/2026). Antes, trocar o preço no
+ * passo 1 deixava a revenda do exemplo (R$ 75.000): um carro de R$ 45.000 "valia" 167% do preço
+ * depois de 2 anos e comprar saía barato demais. A proporção fica na régua do passo 2 (40% a 95%)
+ * e o valor, de 100 em 100, como o arrastar.
+ */
+export const PROPORCAO_DA_REVENDA = 0.75;
+export function revendaPelaProporcao(preco: number, proporcao: number): number {
+  const p = Number.isFinite(proporcao) ? Math.min(0.95, Math.max(0.4, proporcao)) : PROPORCAO_DA_REVENDA;
+  return preco > 0 ? Math.round((preco * p) / 100) * 100 : 0;
+}
 
 export function entradaCarro(values: ValoresDaCalculadora): CarComparisonFormValues {
   return {

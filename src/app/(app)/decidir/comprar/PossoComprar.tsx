@@ -15,7 +15,7 @@ import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { useVoltarAoTopo } from "@/components/ui/useVoltarAoTopo";
 import { ReportarErro } from "@/components/decisoes/ReportarErro";
 import { avaliarCompra, type Compra, type CompraBase, type Veredito } from "@/lib/decisoes/posso-comprar";
-import { CATEGORIAS_DA_COMPRA, categoriaOutra, formaQuePesaMenos, vereditoComPeso, type CategoriaDaCompra, type Sinceridade } from "@/lib/decisoes/compra-guiada";
+import { CATEGORIAS_DA_COMPRA, categoriaOutra, compraNaFrase, formaQuePesaMenos, vereditoComPeso, type CategoriaDaCompra, type Sinceridade } from "@/lib/decisoes/compra-guiada";
 import { planoDoSonho } from "@/lib/decisoes/sonho-da-compra";
 import { registrarCompraAction } from "@/app/(app)/mensal/foco/actions";
 import { criarSonhoDaCompraAction } from "@/app/(app)/planejamento/metas/actions";
@@ -101,7 +101,6 @@ export function PossoComprar({ base, hoje, parcelasNoMes }: { base: CompraBase; 
   const ok = r && !("erro" in r) ? r : null;
   const v: Veredito = ok ? vereditoComPeso(ok.veredito, sin ?? "quero", valor, ok.pagavel ?? true) : "ok";
   const nome = cat?.nome ?? "Compra";
-  const nomeMinusculo = cat && cat.id !== "outro" ? cat.nome.toLowerCase() : "";
   const parcela = valor / Math.max(1, vezes);
   const sonho = planoDoSonho(valor, base.renda, hoje);
 
@@ -249,7 +248,7 @@ export function PossoComprar({ base, hoje, parcelasNoMes }: { base: CompraBase; 
         <>
           <h2 className={titulo}>Quanto custa?</h2>
           <div className={caixa}>
-            <span className="text-sm text-ink-muted">Preço {nomeMinusculo ? `do ${nomeMinusculo}` : ""}</span>
+            <span className="text-sm text-ink-muted">{compraNaFrase(cat.id).preco}</span>
             <div className="flex items-center justify-between gap-2">
               <button type="button" aria-label="Menos 100" onClick={() => setValor((x) => Math.max(0, x - 100))} className="flex size-11 shrink-0 items-center justify-center rounded-full bg-surface-2 text-ink">
                 <Minus size={20} aria-hidden />
@@ -310,7 +309,7 @@ export function PossoComprar({ base, hoje, parcelasNoMes }: { base: CompraBase; 
         <>
           <div>
             <h2 className={titulo}>Com sinceridade…</h2>
-            <small className="text-sm text-ink-muted">{nomeMinusculo ? `Esse ${nomeMinusculo} é` : "Isso é"}</small>
+            <small className="text-sm text-ink-muted">{compraNaFrase(cat.id).sinceridade}</small>
           </div>
           <div className="flex flex-col gap-2.5">
             {SINCERIDADE.map((s) => (

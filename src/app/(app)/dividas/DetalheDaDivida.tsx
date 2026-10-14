@@ -12,7 +12,7 @@ import { taxaDe } from "@/lib/dividas/tipos";
 import { FRASE_DA_SAUDE, saudeDe, taxaAnual, type DividaDoSpi } from "@/lib/dividas/saude";
 import { desfazerAction, pagarParcelaAction, quitarDividaAction } from "./actions";
 import { MaisDaDivida } from "./MenuDaDivida";
-import { SeloDaSaude, mesAdiante, mesPorExtenso, pct, type Hoje } from "./partes";
+import { SeloDaSaude, mesAdiante, mesPorExtenso, pct, valorDigitado, type Hoje } from "./partes";
 
 /**
  * O detalhe de uma dívida: o selo e a frase, quanto falta (com o que já foi pago), os fatos e as
@@ -36,7 +36,6 @@ export function DetalheDaDivida({
   onEditar: (d: DividaDoSpi) => void;
 }) {
   const money = useMoney();
-  const m0 = (v: number) => money(v, { round: true });
   const router = useRouter();
   const { showToast, showError } = useToast();
   const [ocupado, startTransition] = useTransition();
@@ -106,7 +105,7 @@ export function DetalheDaDivida({
         </div>
         <dl className="flex flex-col divide-y divide-border rounded-3xl border border-border bg-surface px-3.5">
           {q && fato("Cai em", mesPorExtenso(mesAdiante(hoje, q.mes)))}
-          {fato("Por mês", d.semParcela ? (d.porMes ? `${m0(d.porMes)} (sem parcela fixa)` : "Sem parcela fixa") : m0(d.porMes))}
+          {fato("Por mês", d.semParcela ? (d.porMes ? `${valorDigitado(money, d.porMes)} (sem parcela fixa)` : "Sem parcela fixa") : valorDigitado(money, d.porMes))}
           {d.parcelasAbertas != null && !d.semParcela && fato("Parcelas", `faltam ${d.parcelasAbertas} de ${d.parcelasTotal}`)}
           {d.diaVencimento && fato("Vencimento", <>todo dia {d.diaVencimento}{d.atrasada && <span className="text-danger"> · atrasada</span>}</>)}
           {fato("Juros", `${pct(tx.taxa)}% ao mês${tx.estimada ? " (estimada)" : ""}`)}
@@ -124,9 +123,12 @@ export function DetalheDaDivida({
           {d.paraQue && fato("Para que foi", `${d.paraQue}${d.planejada ? " · planejada" : ""}`)}
         </dl>
         <div className="flex flex-col gap-2">
-          <button type="button" disabled={ocupado} onClick={paguei} className="min-h-12 rounded-full border border-border bg-surface-2 px-4 text-[15px] text-ink disabled:opacity-60">
-            Paguei uma parcela
-          </button>
+          {/* Sem nada por mês, "Paguei uma parcela" só somava os juros e ainda dizia "Parcela registrada". */}
+          {d.porMes > 0 && (
+            <button type="button" disabled={ocupado} onClick={paguei} className="min-h-12 rounded-full border border-border bg-surface-2 px-4 text-[15px] text-ink disabled:opacity-60">
+              Paguei uma parcela
+            </button>
+          )}
           <div className="grid grid-cols-2 gap-2">
             <button type="button" onClick={() => onEditar(d)} className="min-h-12 rounded-full border border-border bg-surface-2 px-4 text-[15px] text-ink">
               Editar
