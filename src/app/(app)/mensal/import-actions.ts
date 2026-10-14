@@ -638,7 +638,16 @@ export type ConfirmedItem = {
 export type CardPaymentCandidate = { id: string; description: string; amount: number; date: string | null };
 
 export type ImportResult =
-  | { ok: true; created: number; skipped: number; cardPaymentCandidates: CardPaymentCandidate[] }
+  | {
+      ok: true;
+      /** Tudo que entrou, inclusive as parcelas seguintes que a fatura projetou. */
+      created: number;
+      skipped: number;
+      cardPaymentCandidates: CardPaymentCandidate[];
+      /** Quantas das `created` são parcelas dos próximos meses (14/10/2026): a tela dizia "7 compras"
+       * na conferência e "8 lançamentos importados" no fim, e a diferença era a parcela 3/3 projetada. */
+      parcelasFuturas?: number;
+    }
   | { ok: false; error: string };
 
 /** (ano, mês) do mês anterior/seguinte, sem depender de Date pra virada de ano (mês 1 → mês 12
@@ -1009,6 +1018,7 @@ export async function importTransactionsAction(
   // Fatura: os meses em que esta importação gravou compra (não as parcelas projetadas).
   const mesesDasComprasCriadas = new Map<string, { year: number; month: number }>();
   let created = 0;
+  let parcelasFuturas = 0;
   let skipped = 0;
 
   // Todo upload vira um "lote": é o que dá o histórico de importações e permite desfazer o
@@ -1418,6 +1428,7 @@ export async function importTransactionsAction(
         pessoa: pessoaPara(profileId),
       });
       created += 1;
+      parcelasFuturas += 1;
       touchedMonths.add(`${d.getFullYear()}/${d.getMonth() + 1}`);
     }
   };
@@ -1569,7 +1580,7 @@ export async function importTransactionsAction(
     created,
     skipped,
   });
-  return { ok: true, created, skipped, cardPaymentCandidates };
+  return { ok: true, created, skipped, cardPaymentCandidates, parcelasFuturas };
 }
 
 /**

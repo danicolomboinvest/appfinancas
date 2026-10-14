@@ -65,6 +65,10 @@ type ArquivoNaFila = {
   customCategories?: { id: string; name: string; icon?: string }[];
   erro?: string;
   criados?: number;
+  /** Depois de anotado: as parcelas dos próximos meses, as repetidas e os pagamentos da fatura achados no extrato. */
+  futuras?: number;
+  pulados?: number;
+  candidatos?: CardPaymentCandidate[];
   /** "Extrato Itaú · agosto": o nome da aba na revisão. */
   rotulo?: string;
 };
@@ -215,6 +219,8 @@ export function StatementImport({
   const [reviewIdx, setReviewIdx] = useState(0);
   const [createdCount, setCreatedCount] = useState(0);
   const [skippedCount, setSkippedCount] = useState(0);
+  // Parcelas dos próximos meses que a fatura lançou: ficam fora do "N lançamentos importados".
+  const [futurasCount, setFuturasCount] = useState(0);
   const [docType, setDocType] = useState<"extrato" | "fatura">("extrato");
   // Vários arquivos de uma vez (caminho B): a fila, qual está aberto na revisão e os meses já no app (C).
   const [fila, setFila] = useState<ArquivoNaFila[] | null>(null);
@@ -818,8 +824,12 @@ export function StatementImport({
       }
       // Vários arquivos: este fica anotado, as respostas dadas nele valem nos próximos, e a revisão
       // segue para o próximo arquivo. As repetidas entre eles o servidor já pula ao gravar.
+      const futuras = result.parcelasFuturas ?? 0;
+      const novos = result.created - futuras;
       if (fila && filaAtual !== null) {
-        let lista = fila.map((a) => (a.id === filaAtual ? { ...a, status: "anotado" as const, criados: result.created, items: undefined } : a));
+        let lista = fila.map((a) =>
+          a.id === filaAtual ? { ...a, status: "anotado" as const, criados: novos, futuras, pulados: result.skipped, candidatos: result.cardPaymentCandidates, items: undefined } : a,
+        );
         let levadas = 0;
         lista = lista.map((a) => {
           if (a.status !== "ok" || !a.items) return a;
@@ -830,21 +840,26 @@ export function StatementImport({
         const proximo = lista.find((a) => a.status === "ok");
         const total = lista.reduce((soma, a) => soma + (a.criados ?? 0), 0);
         if (proximo) {
-          showToast(levadas > 0 ? `${t.impToastImportados(result.created)}. Levei ${levadas} ${levadas === 1 ? "resposta" : "respostas"} para o próximo arquivo.` : `${t.impToastImportados(result.created)}.`);
+          showToast(levadas > 0 ? `${t.impToastImportados(novos)}. Levei ${levadas} ${levadas === 1 ? "resposta" : "respostas"} para o próximo arquivo.` : `${t.impToastImportados(novos)}.`);
           setFilaAtual(null);
           abrirDaFila(proximo.id, lista);
           return;
         }
         setFila(lista);
+        // A soma de TODOS os arquivos anotados: antes as repetidas e os pagamentos da fatura
+        // achados vinham só do último arquivo.
         setCreatedCount(total);
-        setSkippedCount(result.skipped);
-        setCardPaymentCandidates(result.cardPaymentCandidates);
+        setFuturasCount(lista.reduce((soma, a) => soma + (a.futuras ?? 0), 0));
+        setSkippedCount(lista.reduce((soma, a) => soma + (a.pulados ?? 0), 0));
+        const candidatos = new Map(lista.flatMap((a) => a.candidatos ?? []).map((c) => [c.id, c]));
+        setCardPaymentCandidates([...candidatos.values()]);
         setRevelacao({ mes: null, dados: null, carregando: false });
         setPhase("done");
         showToast(`${t.impToastImportados(total)}.`);
         return;
       }
-      setCreatedCount(result.created);
+      setCreatedCount(novos);
+      setFuturasCount(futuras);
       setSkippedCount(result.skipped);
       setCardPaymentCandidates(result.cardPaymentCandidates);
       // O mês montado: busca DEPOIS de gravar, fora da transição (o "pronto" aparece já, e os
@@ -856,7 +871,7 @@ export function StatementImport({
       setRevelacao({ mes, dados: null, carregando: mes !== null });
       if (comeco?.aoImportar) {
         // No começo, o mês montado aparece na Visão geral (o "aha"), não aqui.
-        comeco.aoImportar({ mes, revisou: reviewKeys.length > 0, criados: result.created });
+        comeco.aoImportar({ mes, revisou: reviewKeys.length > 0, criados: novos });
         setPhase("done");
         return;
       }
@@ -870,7 +885,7 @@ export function StatementImport({
           });
       }
       setPhase("done");
-      const parts = [t.impToastImportados(result.created)];
+      const parts = [t.impToastImportados(novos)];
       if (result.skipped > 0) parts.push(t.impToastJaExistiam(result.skipped));
       showToast(parts.join(", ") + ".");
     });
@@ -1995,9 +2010,10 @@ export function StatementImport({
       <p className="text-sm font-medium text-ink">
         {/* Extrato subido de novo: nada entrou porque tudo já estava lá. Dizer "0 importados com
             sucesso" parecia erro. */}
-        {createdCount === 0 && skippedCount > 0
+        {createdCount === 0 && futurasCount === 0 && skippedCount > 0
           ? `Nada novo: ${skippedCount === 1 ? "esse lançamento já estava" : `os ${skippedCount} lançamentos já estavam`} no app, então não dupliquei.`
           : t.impImportadosSucesso(createdCount)}
+        {futurasCount > 0 && <span className="block text-caption font-normal text-ink-muted">{t.impParcelasFuturas(futurasCount)}</span>}
       </p>
 
       {/* O mês montado: a promessa da página de venda ("o mês se monta sozinho") acontecendo na
@@ -2138,8 +2154,8 @@ export function StatementImport({
           {t.impConcluir}
         </Button>
       )}
-      {createdCount > 0 && <OfertaDeAvisos />}
-      {createdCount > 0 && <p className="text-caption text-ink-muted">{t.impRevelaDesfazer(t.impHistoricoTitulo)}</p>}
+      {createdCount + futurasCount > 0 && <OfertaDeAvisos />}
+      {createdCount + futurasCount > 0 && <p className="text-caption text-ink-muted">{t.impRevelaDesfazer(t.impHistoricoTitulo)}</p>}
     </div>
   );
 }

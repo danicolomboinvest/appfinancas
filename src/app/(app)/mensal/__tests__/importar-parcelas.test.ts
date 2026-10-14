@@ -124,9 +124,11 @@ describe("parcelas futuras da fatura", () => {
   it("faturas fora de ordem (outubro antes de setembro) não duplicam as parcelas já lançadas", async () => {
     const outubro = await importTransactionsAction([compra("LOJA X PARC 04/10", 100)], "fatura", 2026, 10);
     expect(outubro).toMatchObject({ ok: true, created: 7 }); // 04 em out + 05…10 de nov a abr
+    // A tela mostra "1 lançamento importado e 6 parcelas nos próximos meses", não "7 importados".
+    expect(outubro).toMatchObject({ parcelasFuturas: 6 });
     const setembro = await importTransactionsAction([compra("LOJA X PARC 03/10", 100)], "fatura", 2026, 9);
     // Só a parcela 03 de setembro é nova; 04…10 já estavam lá.
-    expect(setembro).toMatchObject({ ok: true, created: 1 });
+    expect(setembro).toMatchObject({ ok: true, created: 1, parcelasFuturas: 0 });
     expect(banco).toHaveLength(8);
     expect(doMes(2026, 10).map((e) => e.description)).toEqual(["LOJA X PARC 04/10"]);
     expect(doMes(2027, 4).map((e) => e.description)).toEqual(["LOJA X PARC 10/10"]);
