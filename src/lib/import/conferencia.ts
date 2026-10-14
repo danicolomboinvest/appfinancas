@@ -1,3 +1,4 @@
+import { totalDoMesEmPesos } from "./argentina-tarjeta-pdf";
 import { detectInvoiceTotal } from "./detect";
 import { comprasDaFaturaSaoPositivas } from "./fatura-lines";
 import type { ParsedTransaction } from "./statement-parser";
@@ -156,6 +157,9 @@ export function conferirLeitura(texto: string, docType: string, txns: ParsedTran
     }
     const sicoob = [...texto.matchAll(SICOOB_RESUMO)];
     if (sicoob.length > 0) referencias.push(Math.round(sicoob.reduce((s, m) => s + (numero([m[0], m[1]]) ?? 0), 0) * 100) / 100);
+    // Resumen de tarjeta argentino: saldo actual − anterior + o pago em pesos.
+    const doMesAr = totalDoMesEmPesos(texto);
+    if (doMesAr !== null) referencias.push(doMesAr);
     if (referencias.length === 0) return { status: "sem-referencia" };
     const lidos = [compras, compras - creditos];
     // De todas as combinações que batem, a mais próxima: com a folga de 0,5%, o total a pagar

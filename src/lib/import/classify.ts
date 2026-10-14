@@ -111,6 +111,10 @@ const PALAVRAS_GENERICAS = new Set([
   "nu", "pagamentos", "ip", "agencia", "conta", "ltda", "sa", "me", "eireli",
   // Tipo de lugar, não nome: "BAR" aprendido virava a categoria de todo bar.
   "bar", "loja", "posto", "lanche",
+  // Espanhol (Argentina): "TRANSFERENCIA RECIBIDA", "DEB. AUTOMATICO", "EXTRACCION CAJERO" (o saque),
+  // "COMPRA CON TARJETA": o meio, não com quem.
+  "recibida", "recibido", "enviada", "inmediata", "automatico", "extraccion", "cajero", "tarjeta", "tarj", "pago", "debin",
+  "cuenta", "con", "por", "en", "el", "la",
 ]);
 
 /**

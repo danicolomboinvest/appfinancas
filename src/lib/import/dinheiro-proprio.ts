@@ -17,12 +17,13 @@ const semAcento = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-�
 
 /** "Dinheiro reservado <nome da reserva>": é como o Mercado Pago chama guardar na caixinha. */
 /** "investimentos", "aplicações", "previdência privada" (12/10/2026): antes só "investimento" no singular. */
-const APLICACAO = /\b(aplicacao|aplicacoes|aplic|caixinhas?|rdb|cdb|lci|lca|tesouro|poupanca|investimentos?|invest|previdencia privada|fundos? de investimento|guardar dinheiro|cofrinho|dinheiro reservado)\b/;
+const APLICACAO = /\b(aplicacao|aplicacoes|aplic|caixinhas?|rdb|cdb|lci|lca|tesouro|poupanca|investimentos?|invest|previdencia privada|fundos? de investimento|guardar dinheiro|cofrinho|dinheiro reservado|plazo fijo|dinero reservado|fci|suscripcion fci|fondos? comun(?:es)? de inversion)\b/;
 /** As palavras que só dizem "guardei" (o verbo ou o lugar), sem ser nome de produto. */
-const APLICACAO_VERBO = /\b(aplicacao|aplic|caixinha|guardar dinheiro|cofrinho|dinheiro reservado)\b/;
+const APLICACAO_VERBO = /\b(aplicacao|aplic|caixinha|guardar dinheiro|cofrinho|dinheiro reservado|dinero reservado|plazo fijo)\b/;
 /** "Dinheiro retirado <nome da reserva>": a volta da caixinha no Mercado Pago (21 linhas num extrato
  * de agosto entravam como renda). */
-const RESGATE_PALAVRA = /\b(resgate|resg|retirada (da|de) caixinha|retirada do cofrinho|resgatad[oa]|dinheiro retirado)\b/;
+/** Em espanhol (Argentina): "RESCATE FCI", o plazo fijo que venceu e voltou, e o "Dinero retirado" do Mercado Pago de lá. */
+const RESGATE_PALAVRA = /\b(resgate|resg|retirada (da|de) caixinha|retirada do cofrinho|resgatad[oa]|dinheiro retirado|rescate|dinero retirado|(?:acreditacion|acred|vencimiento|cancelacion|precancelacion)\s+(?:de\s+)?(?:plazo fijo|pf)\b)\b/;
 /**
  * Onde o dinheiro guardado mora. "poupanc" e "poup": o extrato corta ("CRÉD.TRANSF.POUPANÇ",
  * "JUROS POUP AUT").
@@ -126,6 +127,8 @@ const PAGAR = /\b(pagamento|pagamentos|pagto|pgto|pag|pg)\b/;
 const FATURA = /\bfaturas?\b/;
 /** "Pagto cartão crédito", "PAGAMENTO DO CARTAO": o verbo colado no cartão (não "pagamento COM cartão"). */
 const PAGAR_CARTAO = /\b(pagamento|pagto|pgto|pag|pg)\.?\s+(d[eoa]\s+)?cartao\b(?!\s+(de\s+)?debito)/;
+/** Argentina: "PAGO TARJETA VISA", "PAGO DE TARJETA DE CREDITO", "PAGO RESUMEN MASTERCARD". */
+const PAGAR_TARJETA = /\bpago\.?\s+(de\s+)?(la\s+)?(tarjeta|tarj|resumen)\b(?!\s+(de\s+)?debito)/;
 /** Banco ou bandeira: "Fatura Nubank" é o cartão; "Fatura" sozinha com outro nome pode ser boleto de fornecedor. */
 const EMISSOR_DE_CARTAO =
   /\b(cartao|credito|nubank|nu|itau|itaucard|bradesco|bradescard|santander|inter|c6|bb|ourocard|caixa|visa|master|mastercard|elo|amex|hipercard|credicard|xp|btg|neon|next|picpay|mercado pago|pan|sicredi|sicoob|original|digio|porto|will|pagbank|pagseguro|banrisul|brb)\b/;
@@ -149,7 +152,7 @@ export function parecePagamentoDeFatura(descricao: string | null | undefined): b
     .replace(/\b(via|pelo|pela)\s+(internet|app|aplicativo|celular)\b/g, " ");
   if (/\b(cartao|credito)\b/.test(d) || EMISSOR_DE_CARTAO.test(d)) d = d.replace(/\binternet\b/g, " ");
   if (CONTA_DE_CONSUMO.test(d)) return false;
-  if (PAGAR_CARTAO.test(d)) return true;
+  if (PAGAR_CARTAO.test(d) || PAGAR_TARJETA.test(d)) return true;
   // Boleto pago para a empresa do cartão: é a fatura, mesmo sem a palavra "fatura".
   const semPontos = d.replace(/[.\-_/*]+/g, " ").replace(/\s+/g, " ");
   if (BOLETO.test(semPontos) && EMPRESA_DO_CARTAO.test(semPontos)) return true;

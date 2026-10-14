@@ -88,7 +88,8 @@ export function parseInstallment(
   if (!m) return null;
   const { current, total } = m;
   if (!(current >= 1 && total >= 2 && current <= total && total <= 48)) return null;
-  const hasWord = /parc(?:ela)?\b|presta[çc][ãa]o/i.test(description);
+  // "Cuota 03/06", "cta 04/06", "C.03/06": a parcela na fatura argentina.
+  const hasWord = /parc(?:ela)?\b|presta[çc][ãa]o|\bcuotas?\b|\bcta\b|\bc\.\s?\d/i.test(description);
   const entreParenteses = /\(\s*$/.test(description.slice(0, m.index + m.before.length)) && /^\s*\)/.test(description.slice(m.index + m.length));
   const confident = hasWord || /de/i.test(m.sep) || total > 12 || entreParenteses;
   return { current, total, confident };
@@ -96,7 +97,7 @@ export function parseInstallment(
 
 const INSTALLMENT_RE = /(^|\D)(\d{1,2})(\s*(?:\/|de)\s*)(\d{1,2})(?!\d)/gi;
 /** O "N/T" vem logo depois da palavra: "PARCELA 2/10", "PARC 01 DE 12", "Prestação 3/6". */
-const WORD_BEFORE_RE = /(?:parc(?:ela)?|presta[çc][ãa]o)\.?:?\s*$/i;
+const WORD_BEFORE_RE = /(?:parc(?:ela)?|presta[çc][ãa]o|cuotas?|\bcta)\.?:?\s*$|\bc\.\s*$/i;
 
 type InstallmentMatch = { index: number; length: number; before: string; c: string; sep: string; t: string; current: number; total: number };
 

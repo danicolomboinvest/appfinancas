@@ -29,7 +29,7 @@ export type RegraDoDicionario =
   | { keywords: string[]; revisar: true };
 
 const KW_IMPOSTO = ["imposto", "tributo", "darf", "iptu", "ipva", "dae", "receita federal", "irpf"];
-const KW_APLICATIVO = ["uber", "ubertrip", "uberrides", "uber trip", "99app", "99pop", "99 pop", "99 taxi", "99 tecnologia", "99 app", "cabify", "taxi", "táxi", "indriver", "indrive", "patinete", "patinetes", "jet patinetes", "whoosh", "tembici", "bike itau"];
+const KW_APLICATIVO = ["uber", "ubertrip", "uberrides", "uber trip", "99app", "99pop", "99 pop", "99 taxi", "99 tecnologia", "99 app", "cabify", "didi", "didi rides", "taxi", "táxi", "remis", "remiseria", "indriver", "indrive", "patinete", "patinetes", "jet patinetes", "whoosh", "tembici", "bike itau"];
 const KW_COMBUSTIVEL = [
   "posto", "auto posto", "shell", "ipiranga", "petrobras", "posto br", "br mania", "raizen", "ale combustiveis",
   "combustivel", "combustível", "gasolina", "etanol", "abastece ai", "abasteceai",
@@ -51,7 +51,25 @@ const KW_AGUA = [
 const KW_GAS = ["comgas", "naturgy", "ultragaz", "liquigas", "supergasbras", "copagaz", "nacional gas"];
 // "oi", "tim" e "net" só como palavra solta: como pedaço, "BOI GORDO" virava conta de internet.
 const KW_TELEFONIA = ["vivo", "claro", "tim", "oi", "net", "internet", "telefonia", "telefonica", "sky", "nextel", "algar", "brisanet", "vero internet", "desktop fibra"];
-const KW_DELIVERY = ["ifood", "ifd", "rappi", "uber eats", "ubereats", "ze delivery", "zedelivery", "ze delivey", "aiqfome", "james delivery", "delivery much", "99food", "keeta", "delivery"];
+const KW_ALUGUEL_AR = ["alquiler", "alquileres", "inmobiliaria"];
+const KW_CONDOMINIO_AR = ["expensas", "consorcio"];
+const KW_LUZ_AR = ["edenor", "edesur", "epec", "edelap", "edemsa", "edet", "edea", "eden", "edes", "epe santa fe", "energia san juan", "ejesa"];
+const KW_AGUA_AR = ["aysa", "absa", "aguas cordobesas", "aguas santafesinas", "aguas bonaerenses", "obras sanitarias"];
+const KW_GAS_AR = ["metrogas", "camuzzi", "ecogas", "litoral gas", "gasnor", "gas natural ban", "distribuidora de gas"];
+const KW_TELEFONIA_AR = [
+  "movistar", "telecom", "telecom argentina", "telecom personal", "personal flow", "fibertel", "telecentro", "cablevision",
+  "directv", "iplan", "tuenti", "claro argentina", "amx argentina",
+];
+/** As contas da casa na Argentina, na mesma ordem e subcategorias das daqui. */
+const MORADIA_AR: RegraDoDicionario[] = [
+  { keywords: KW_ALUGUEL_AR, parentCategory: "MORADIA", subcategory: "Aluguel" },
+  { keywords: KW_CONDOMINIO_AR, parentCategory: "MORADIA", subcategory: "Condomínio" },
+  { keywords: KW_LUZ_AR, parentCategory: "MORADIA", subcategory: "Luz" },
+  { keywords: KW_AGUA_AR, parentCategory: "MORADIA", subcategory: "Água" },
+  { keywords: KW_GAS_AR, parentCategory: "MORADIA", subcategory: "Gás" },
+  { keywords: KW_TELEFONIA_AR, parentCategory: "MORADIA", subcategory: "Internet" },
+];
+const KW_DELIVERY = ["pedidosya", "pedidos ya", "ifood", "ifd", "rappi", "uber eats", "ubereats", "ze delivery", "zedelivery", "ze delivey", "aiqfome", "james delivery", "delivery much", "99food", "keeta", "delivery"];
 
 /**
  * Ferramentas e assinaturas digitais. Na pessoa física vão pra Outros › Assinaturas e apps (não há
@@ -105,6 +123,33 @@ const KW_CUIDADO_PESSOAL = [
 /** Nome de loja que também é nome ou sobrenome de gente: só fora de Pix e transferência. */
 const KW_CUIDADO_PESSOAL_SEM_PIX = ["zara", "renner", "hering", "granado", "constance", "lupo", "moleca", "mizuno", "eudora", "oceane", "soneda"];
 
+/**
+ * Argentina (14/10/2026): o peso argentino entrou como moeda, e o extrato e a fatura de lá vêm com
+ * outros nomes. Só nome que não confunde com loja ou palavra do Brasil: "Día" e "Disco" (mercados)
+ * entram com o sobrenome da empresa, porque "DIA" e "DISCO" sozinhos aparecem em qualquer extrato
+ * daqui ("SALDO DO DIA", "DISCO DE FREIO"); "Puma" só como "Puma Energy" (a marca de tênis é Puma);
+ * "Personal" (a telefonia) só com "Telecom" ou "Flow" (aqui é "personal trainer").
+ */
+const KW_IMPOSTO_AR = [
+  "impuesto", "impuestos", "impuesto pais", "imp pais", "percepcion", "percepciones", "percep", "perc", "iibb", "ingresos brutos",
+  "ley 25413", "imp ley 25413", "impuesto ley 25413", "imp deb cred", "impuesto debitos y creditos", "impuesto a los debitos",
+  "impuesto de sellos", "sellos", "rg 4815", "rg 5617", "rg 4240", "rg 5272", "db rg", "afip", "arba", "agip", "rentas",
+];
+const KW_TARIFA_AR = [
+  "comision", "comisiones", "com mantenimiento", "mantenimiento de cuenta", "mantenimiento cuenta", "cargo por mantenimiento",
+  "intereses", "interes", "intereses financiacion", "interes de financiacion", "punitorios", "intereses punitorios",
+  "cargo administrativo", "renovacion anual", "costo de emision",
+];
+const KW_SUPERMERCADO_AR = [
+  "coto", "coto cicsa", "jumbo", "jumbo retail", "disco sa", "disco s a", "supermercados disco", "supermercado disco", "vea",
+  "supermercados vea", "la anonima", "dia argentina", "supermercado dia", "supermercados dia", "dia tienda", "changomas",
+  "chango mas", "cencosud", "diarco", "maxiconsumo", "vital mayorista", "yaguar", "carrefour maxi", "autoservicio", "almacen",
+  "verduleria", "carniceria", "fiambreria", "dietetica", "supermercado chino",
+];
+const KW_COMBUSTIVEL_AR = ["ypf", "axion", "axion energy", "puma energy", "estacion de servicio", "estacion servicio", "nafta", "gnc", "full ypf"];
+const KW_TRANSPORTE_AR = ["sube", "carga sube", "recarga sube", "subte", "colectivo", "trenes argentinos", "emova", "metrovias"];
+const KW_PEDAGIO_AR = ["peaje", "telepase", "autopistas", "ausa", "aubasa", "autopista del sol"];
+
 export const DICIONARIO_PESSOAL: RegraDoDicionario[] = [
   // Impostos primeiro: "PAGAMENTO IMPOSTO DE RENDA" não pode ser pego por nenhuma regra de consumo.
   { keywords: ["ipva"], parentCategory: "IMPOSTOS", subcategory: "IPVA" },
@@ -114,6 +159,11 @@ export const DICIONARIO_PESSOAL: RegraDoDicionario[] = [
   // DAS do MEI: 5 clientes escolheram Impostos pra "Simples Nacional" (out/2026).
   { keywords: ["simples nacional", "das simples", "das mei", "pgdas", "detran", "licenciamento"], parentCategory: "IMPOSTOS", subcategory: "Taxas públicas" },
   { keywords: KW_IMPOSTO, parentCategory: "IMPOSTOS" },
+  // Argentina: a fatura cobra o Impuesto PAIS, as percepções (ganancias, bienes personales, IIBB)
+  // e o IVA sobre serviço digital; o extrato cobra o "IMP. LEY 25413" (débitos y créditos).
+  // "IVA" sozinho não vale em transferência (é nome de gente).
+  { keywords: KW_IMPOSTO_AR, parentCategory: "IMPOSTOS" },
+  { keywords: ["iva", "iva rg", "iva servicios digitales"], parentCategory: "IMPOSTOS", naoEmPix: true },
 
   // Juros e IOF do Pix no crédito citam o recebedor ("... PARA MANDACARU GASTRONOMIA"): não é a compra.
   { keywords: ["juros de atraso", "iof de atraso", "multa de atraso", "encargos de atraso"], parentCategory: "OUTROS", subcategory: "Tarifas bancárias" },
@@ -133,6 +183,7 @@ export const DICIONARIO_PESSOAL: RegraDoDicionario[] = [
       "vsg mercados", "spani", "higa", "irmaos muffato", "mercadinho", "zona sul", "oxxo",
       // 12/10/2026: o que a Dani teve que responder na mão.
       "frutaria", "queijaria", "laticinios", "laticínios", "casa do queijo", "emporium",
+      ...KW_SUPERMERCADO_AR,
     ],
     parentCategory: "ALIMENTACAO",
     subcategory: "Supermercado",
@@ -188,8 +239,10 @@ export const DICIONARIO_PESSOAL: RegraDoDicionario[] = [
 
   // Transporte
   { keywords: KW_APLICATIVO, parentCategory: "TRANSPORTE", subcategory: "Aplicativo" },
-  { keywords: KW_COMBUSTIVEL, parentCategory: "TRANSPORTE", subcategory: "Combustível" },
-  { keywords: KW_ESTACIONAMENTO, parentCategory: "TRANSPORTE", subcategory: "Estacionamento" },
+  { keywords: [...KW_COMBUSTIVEL, ...KW_COMBUSTIVEL_AR], parentCategory: "TRANSPORTE", subcategory: "Combustível" },
+  { keywords: [...KW_ESTACIONAMENTO, "estacionamiento", "playa de estacionamiento"], parentCategory: "TRANSPORTE", subcategory: "Estacionamento" },
+  { keywords: KW_PEDAGIO_AR, parentCategory: "TRANSPORTE", subcategory: "Pedágio" },
+  { keywords: KW_TRANSPORTE_AR, parentCategory: "TRANSPORTE", subcategory: "Transporte público" },
   // Tag de pedágio: 4 clientes escolheram Transporte pra "Sem Parar" (out/2026).
   { keywords: KW_PEDAGIO, parentCategory: "TRANSPORTE", subcategory: "Pedágio" },
   {
@@ -209,12 +262,14 @@ export const DICIONARIO_PESSOAL: RegraDoDicionario[] = [
       "farmacia", "farmácia", "farma", "drogaria", "drogarias", "drogasil", "droga raia", "drogaraia", "raia drogasil", "raiadrogasil",
       "drogariasaopaulo", "drogasaopaulo", "drogaria sao paulo", "pague menos", "paguemenos", "panvel", "nissei", "drogao", "drogão",
       "drogaria venancio", "drogaria onofre", "extrafarma", "ultrafarma", "drogaria araujo", "poupafarma", "drogal", "droga leste", "farmacia popular",
+      "farmacity", "farmaonline", "dr ahorro", "farmacias del dr ahorro", "farmacias del pueblo",
     ],
     parentCategory: "SAUDE",
     subcategory: "Farmácia",
   },
   {
-    keywords: ["unimed", "amil", "bradesco saude", "sulamerica saude", "sulamerica", "plano de saude", "hapvida", "notredame", "intermedica", "porto saude", "prevent senior", "golden cross", "alice saude", "sami saude"],
+    keywords: ["unimed", "amil", "bradesco saude", "sulamerica saude", "sulamerica", "plano de saude", "hapvida", "notredame", "intermedica", "porto saude", "prevent senior", "golden cross", "alice saude", "sami saude",
+      "osde", "swiss medical", "galeno", "medife", "omint", "obra social", "prepaga", "sancor salud", "accord salud"],
     parentCategory: "SAUDE",
     subcategory: "Plano de saúde",
   },
@@ -243,6 +298,7 @@ export const DICIONARIO_PESSOAL: RegraDoDicionario[] = [
       "prime video", "primevideo", "youtube", "youtube premium", "youtubepremium", "google youtube", "deezer", "globoplay", "paramount",
       "apple tv", "apple music", "amazon music", "crunchyroll", "mubi", "star plus", "telecine", "premiere", "tidal", "twitch",
       "playstation", "psn", "xbox", "steam", "nintendo",
+      "telecom flow", "star plus", "paramount plus", "dgo", "directv go", "cine ar",
     ],
     parentCategory: "LAZER",
     subcategory: "Streaming",
@@ -272,6 +328,7 @@ export const DICIONARIO_PESSOAL: RegraDoDicionario[] = [
   { keywords: KW_AGUA, parentCategory: "MORADIA", subcategory: "Água" },
   { keywords: KW_GAS, parentCategory: "MORADIA", subcategory: "Gás" },
   { keywords: KW_TELEFONIA, parentCategory: "MORADIA", subcategory: "Internet" },
+  ...MORADIA_AR,
   { keywords: ["leroy merlin", "telhanorte", "c c material", "material de construcao", "material de construção", "casa e construcao", "chaveiro", "eletricista", "encanador"], parentCategory: "MORADIA", subcategory: "Manutenção" },
 
   // Educação
@@ -291,6 +348,7 @@ export const DICIONARIO_PESSOAL: RegraDoDicionario[] = [
   // Outros: tarifa de banco, seguro, juros, o que sobra
   { keywords: ["tarifa", "tarifas", "tar pacote", "tar", "anuidade", "iof", "juros", "cesta de servicos", "pacote de servicos", "manutencao de conta"], parentCategory: "OUTROS", subcategory: "Tarifas bancárias" },
   { keywords: ["seguro", "seguros", "emprestimo", "empréstimo"], parentCategory: "OUTROS", subcategory: "Tarifas bancárias" },
+  { keywords: KW_TARIFA_AR, parentCategory: "OUTROS", subcategory: "Tarifas bancárias" },
   { keywords: ["igreja", "dizimo", "dízimo", "doacao", "doação", "vakinha", "unicef", "medicos sem fronteiras"], parentCategory: "OUTROS", subcategory: "Doações" },
   // Por último: "SEGURO RENNER", "ANUIDADE RENNER" e o IOF da compra na Shein são tarifa, não
   // roupa; "DROGARIA E PERFUMARIA" é farmácia; "CURSO DE MAQUIAGEM" é educação. Antes dela, a
