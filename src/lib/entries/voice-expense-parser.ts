@@ -42,7 +42,7 @@ const SPOKEN_CURRENCY: { code: CurrencyCode; pattern: RegExp }[] = [
 ];
 
 /** Palavras de dinheiro que ancoram um número ("45 reais", "2 mil euros"). */
-const MONEY_WORDS = "reais?|contos?|euros?|dolar(?:es)?|libras?|shekels?|sheqels?|shequels?|chekels?|siclos?|nis|pesos?";
+const MONEY_WORDS = "reais?|real|contos?|euros?|dolar(?:es)?|libras?|shekels?|sheqels?|shequels?|chekels?|siclos?|nis|pesos?";
 
 function extractCurrency(normalized: string): CurrencyCode | null {
   return SPOKEN_CURRENCY.find((c) => c.pattern.test(normalized))?.code ?? null;
@@ -123,6 +123,30 @@ function wordsToNumber(text: string): number | null {
   return matched ? total : null;
 }
 
+/** "1.250,90" → 1250.9; "1,250.90" → 1250.9; "100.50" → 100.5; "45,9" → 45.9. */
+function lerNumeroEscrito(t: string): number {
+  if (/^\d{1,3}(?:,\d{3})+\.\d{1,2}$/.test(t)) return parseFloat(t.replace(/,/g, ""));
+  if (/^\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?$/.test(t)) return parseFloat(t.replace(/\./g, "").replace(",", "."));
+  return parseFloat(t.replace(",", "."));
+}
+
+/**
+ * Os centavos falados depois do real (14/10/2026): "12 reais e 50 centavos", "um real e noventa",
+ * "12 reais e 50 na padaria". Antes o valor ficava em 12 e a descrição virava "Centavos na
+ * padaria". Sem a palavra "centavos", só vale a dezena no fim da frase ou antes de "no/na/em/com":
+ * "30 reais e 2 cafés" e "50 reais e 20 de gorjeta" não viram centavos.
+ */
+function centavosDepois(resto: string): number {
+  const m = resto.match(/^\s*(?:reais|real)\s+e\s+(\d{1,2}|[a-z]+(?:\s+e\s+[a-z]+)?)\s*(centavos?)?(?=\s|$)(.*)$/);
+  if (!m) return 0;
+  const n = /^\d+$/.test(m[1]) ? Number(m[1]) : wordsToNumber(m[1]);
+  if (n === null || n <= 0 || n >= 100) return 0;
+  if (m[2]) return n / 100;
+  const depois = m[3].trim();
+  const dezena = /^\d{2}$/.test(m[1]) || m[1].split(/\s+/).some((w) => w in TENS);
+  return dezena && (!depois || /^(no|na|nos|nas|num|numa|em|com|pro|pra|para)\b/.test(depois)) ? n / 100 : 0;
+}
+
 const SCALE: Record<string, number> = { mil: 1000, milhao: 1_000_000, milhoes: 1_000_000, k: 1000 };
 
 /**
@@ -134,14 +158,18 @@ const SCALE: Record<string, number> = { mil: 1000, milhao: 1_000_000, milhoes: 1
  * quinhentos") entra junto.
  */
 function amountCandidates(normalized: string): { value: number; index: number; hasCurrency: boolean }[] {
-  const re = /(r\$|us\$|\$|€|£|₪)?\s*(\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)\s*(milhoes|milhao|mil|k)?/g;
+  // Três jeitos de escrever: "1.250,90" (do Brasil), "1,250.90" (de fora, o reconhecedor em inglês
+  // ou o "US$ 1,234.56") e o número curto "45", "45,90", "100.50", "1.5 mil". No curto, ponto ou
+  // vírgula com 1 ou 2 casas é sempre a casa decimal: antes o "100.50" virava 10.050 e o "1.5 mil",
+  // 15 mil (14/10/2026).
+  const re = /(r\$|us\$|\$|€|£|₪)?\s*(\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d{1,3}(?:,\d{3})+\.\d{1,2}|\d+(?:[.,]\d{1,2})?)\s*(milhoes|milhao|mil|k)?/g;
   const out: { value: number; index: number; hasCurrency: boolean }[] = [];
   // Até onde a frase já foi lida por um número composto ("4 mil e 500"): o "500" não pode
   // virar um candidato sozinho.
   let lidoAte = 0;
   for (const m of normalized.matchAll(re)) {
     if ((m.index ?? 0) < lidoAte) continue;
-    const num = parseFloat(m[2].replace(/\./g, "").replace(",", "."));
+    const num = lerNumeroEscrito(m[2]);
     if (isNaN(num)) continue;
     const scale = m[3] ? SCALE[m[3]] : 1;
     let value = num * scale;
@@ -160,6 +188,8 @@ function amountCandidates(normalized: string): { value: number; index: number; h
         lidoAte = (m.index ?? 0) + m[0].length + emDigito[0].length;
       }
     }
+    // "12 reais e 50 centavos", "12 reais e 50 na padaria": os centavos ditos depois do real.
+    if (!m[3]) value = Math.round((value + centavosDepois(resto)) * 100) / 100;
     out.push({
       value,
       index: m.index ?? 0,
@@ -188,7 +218,7 @@ function extractAmount(normalized: string): number | null {
     const reaisIdx = normalized.search(new RegExp(`\\b(${MONEY_WORDS})\\b`));
     const trecho = reaisIdx > -1 ? normalized.slice(0, reaisIdx).trim().split(/\s+/).slice(-6).join(" ") : normalized;
     const fromWords = wordsToNumber(trecho);
-    if (fromWords !== null) return fromWords;
+    if (fromWords !== null) return Math.round((fromWords + (reaisIdx > -1 ? centavosDepois(normalized.slice(reaisIdx)) : 0)) * 100) / 100;
   }
   return null;
 }
@@ -319,6 +349,22 @@ export function descricaoDaFala(text: string): string {
       for (let j = i - 1; j >= 0 && (PALAVRA_DE_NUMERO(limpos[j]) || EH_NUMERO.test(limpos[j])); j -= 1) fora.add(j);
       // "4 mil e quinhentos": a cauda por extenso também é valor.
       for (let j = i + 1; j < limpos.length && PALAVRA_DE_NUMERO(limpos[j]); j += 1) fora.add(j);
+    }
+    // "e 50 centavos", "e noventa" depois do real: também é o valor.
+    if (PALAVRA_DE_DINHEIRO.test(t) && limpos[i + 1] === "e") {
+      let j = i + 2;
+      while (j < limpos.length && limpos[j] !== "e" && (PALAVRA_DE_NUMERO(limpos[j]) || /^\d{1,2}$/.test(limpos[j]))) j += 1;
+      if (limpos[j] === "e" && j + 1 < limpos.length && PALAVRA_DE_NUMERO(limpos[j + 1])) {
+        j += 1;
+        while (j < limpos.length && PALAVRA_DE_NUMERO(limpos[j])) j += 1;
+      }
+      if (j > i + 2) {
+        const comCentavos = /^centavos?$/.test(limpos[j] ?? "");
+        if (comCentavos || j === limpos.length || /^(no|na|nos|nas|num|numa|em|com|pro|pra|para)$/.test(limpos[j])) {
+          for (let k = i + 1; k < j; k += 1) fora.add(k);
+          if (comCentavos) fora.add(j);
+        }
+      }
     }
     // "pesos argentinos": o "argentinos" só é moeda logo depois de "pesos".
     if (t === "argentinos" && limpos[i - 1]?.startsWith("peso")) fora.add(i);
