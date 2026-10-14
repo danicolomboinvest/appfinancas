@@ -154,7 +154,7 @@ async function entender(transcricao: string): Promise<ParsedVoiceEntry> {
  * Duas APIs em paralelo: SpeechRecognition faz a transcrição; getUserMedia + AnalyserNode só
  * alimenta a onda visual, se a segunda falhar, a transcrição continua, só sem a onda.
  */
-export function VoiceRecorder({ onParsed }: { onParsed: (parsed: ParsedVoiceEntry) => void }) {
+export function VoiceRecorder({ onParsed, onDigitar }: { onParsed: (parsed: ParsedVoiceEntry) => void; /** Saída quando o microfone não dá: abre o Digitar. */ onDigitar?: () => void }) {
   const plataforma = useInstallPlatform();
   const instalado = useIsStandalone();
   const { voz } = useProfileTheme();
@@ -320,7 +320,10 @@ export function VoiceRecorder({ onParsed }: { onParsed: (parsed: ParsedVoiceEntr
 
   if (unsupported) {
     return (
-      <p className="rounded-xl bg-surface-2 px-4 py-3 text-center text-sm text-ink-muted">{voz.titulos.impVozNaoSuportado}</p>
+      <div className="flex flex-col gap-3">
+        <p className="rounded-xl bg-surface-2 px-4 py-3 text-center text-sm text-ink-muted">{voz.titulos.impVozNaoSuportado}</p>
+        {onDigitar && <BotaoDigitar onClick={onDigitar} />}
+      </div>
     );
   }
 
@@ -367,6 +370,10 @@ export function VoiceRecorder({ onParsed }: { onParsed: (parsed: ParsedVoiceEntr
         </span>
       </div>
 
+      {/* Microfone bloqueado, sem rede ou sem entender (14/10/2026): em 4 dias foram 9 falhas de
+          voz em produção, e a única saída era voltar e achar o Digitar. Agora ele está aqui. */}
+      {errorMessage && onDigitar && <BotaoDigitar onClick={onDigitar} />}
+
       {/* No iPhone o Safari pergunta a permissão do microfone A CADA carregamento de página: é
           regra do navegador, não do app (o app já pede uma vez só, não duas). Quem sofre com
           isso são as pessoas que usam pelo navegador, então a saída fica aqui, na hora em que
@@ -380,5 +387,13 @@ export function VoiceRecorder({ onParsed }: { onParsed: (parsed: ParsedVoiceEntr
         </p>
       )}
     </div>
+  );
+}
+
+function BotaoDigitar({ onClick }: { onClick: () => void }) {
+  return (
+    <button type="button" onClick={onClick} className="mx-auto min-h-11 rounded-full bg-surface-2 px-5 text-[15px] font-medium text-ink">
+      Digitar em vez disso
+    </button>
   );
 }

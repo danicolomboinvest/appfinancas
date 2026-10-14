@@ -187,6 +187,7 @@ export function RegistrarDrawer({
             setParsed(result);
             setMode("type");
           }}
+          onDigitar={() => setMode("type")}
         />
       )}
 
