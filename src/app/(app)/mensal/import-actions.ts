@@ -193,6 +193,17 @@ function mensagemDaConferencia(conf: Conferencia, incompleta: boolean): string |
   return conf.status === "fechou" ? `${MARCA_CONFERIDO} bateu com o total do arquivo (${reais(conf.esperado)})` : MARCA_CONFERIDO;
 }
 
+/** A falha em texto curto para o diagnóstico, venha como Error, texto ou objeto. */
+function descreverFalha(err: unknown): string {
+  if (err instanceof Error) return `${err.name}: ${err.message}`.slice(0, 160);
+  if (typeof err === "string") return err.slice(0, 160) || "texto vazio";
+  try {
+    return (JSON.stringify(err) ?? String(err)).slice(0, 160);
+  } catch {
+    return String(err).slice(0, 160);
+  }
+}
+
 /** O que a tela diz quando um print não deu: o mesmo para ilegível, cortado e sem nenhum valor. */
 const MSG_PRINT_ILEGIVEL = "Não consegui ler este print. Tente com a tela mais clara ou sem zoom.";
 
@@ -224,7 +235,9 @@ export async function lerPrintDaFaturaAction(formData: FormData): Promise<PrintD
     return { ok: true, print, banco: bancoDoPrint(segmentos.map((x) => x.texto)) };
   } catch (err) {
     console.error("lerPrintDaFaturaAction: OCR falhou", err);
-    return await falhou(`exceção: ${err instanceof Error ? err.message.slice(0, 160) : "erro"}`);
+    // O leitor de imagem às vezes rejeita com texto ou objeto, não com Error: o diagnóstico guardava
+    // só "exceção: erro" (18 vezes em 14/10/2026) e não dava para saber o que tinha quebrado.
+    return await falhou(`exceção: ${descreverFalha(err)}`);
   }
 }
 
