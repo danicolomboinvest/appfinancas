@@ -157,3 +157,12 @@ export function mensagemDeEstorno(
   }
   return `${abre} Quero cancelar a assinatura de ${a.quem}. Podem confirmar o cancelamento? ${fecha}`;
 }
+
+/**
+ * A linha acima da mensagem pronta (14/10/2026). Quando o extrato não diz o banco, `quem` é só
+ * "banco" e a tela mostrava "Para o SAC de banco.".
+ */
+export function paraOSac(quem: string): string {
+  const q = quem.trim();
+  return !q || q.toLowerCase() === "banco" ? "Para o SAC do seu banco. É só copiar e colar." : `Para o SAC de ${q}. É só copiar e colar.`;
+}

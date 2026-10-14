@@ -13,6 +13,7 @@ import { contraOPreco,
   ateAgora,
   escolhasDaCarta,
   mensagemDeEstorno,
+  paraOSac,
   porqueDaCarta,
   rotuloDaCarta,
   subDaCarta,
@@ -515,7 +516,7 @@ function FolhaDoEstorno({
     >
       {carta && (
         <div className="flex flex-col gap-3">
-          <p className="text-center text-[14px] text-ink-muted">Para o SAC de {carta.quem}. É só copiar e colar.</p>
+          <p className="text-center text-[14px] text-ink-muted">{paraOSac(carta.quem)}</p>
           <p ref={caixa} className="select-text whitespace-pre-wrap rounded-2xl border border-dashed border-border-strong bg-surface-2 p-3 text-[15px] leading-relaxed text-ink">
             {texto}
           </p>
