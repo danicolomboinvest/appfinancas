@@ -190,7 +190,7 @@ export function BudgetWizard({
     for (const c of cats) base[c.key] = c.custom ? (values[c.key] ?? 0) : income * courseShareOf(c.key as ParentCategory, kind);
     aplicar(fecharExato(resto, base, cats.filter((c) => c.custom).map((c) => c.key), FIXAS), false);
   }
-  /** "Usar o meu padrão": a mediana dos últimos meses; as fixas ficam, as variáveis escalam até caber. */
+  /** "Usar o meu padrão": a média dos meses preenchidos (até 12); as fixas ficam, as variáveis escalam até caber. */
   function usarPadrao() {
     const base: Record<string, number> = {};
     for (const c of cats) base[c.key] = Math.round((hints.padraoByCategory[c.key] ?? 0) / 10) * 10;

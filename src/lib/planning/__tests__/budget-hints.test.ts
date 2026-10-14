@@ -44,15 +44,11 @@ beforeEach(() => {
 });
 
 describe("getBudgetHints: bordas", () => {
-  it("em janeiro, o 'mês passado' é dezembro do ano anterior e a janela é dez/nov/out", async () => {
+  it("em janeiro, o 'mês passado' é dezembro do ano anterior e a janela são os 12 meses até ele", async () => {
     const r = await getBudgetHints(ctx, 2027, new Date(2027, 0, 10, 12));
     expect(r.lastMonthLabel).toBe("dezembro");
     expect(banco.pedidosResumo).toEqual([{ year: 2026, month: 12 }]);
-    expect(banco.pedidosGasto).toEqual([
-      { year: 2026, month: 12 },
-      { year: 2026, month: 11 },
-      { year: 2026, month: 10 },
-    ]);
+    expect(banco.pedidosGasto).toEqual(Array.from({ length: 12 }, (_, i) => ({ year: 2026, month: 12 - i })));
     expect(r.monthsLeftInYear).toBe(12);
   });
 
