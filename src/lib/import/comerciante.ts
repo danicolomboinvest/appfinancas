@@ -48,7 +48,7 @@ const SO_A_CATEGORIA = new RegExp(`^\\d{1,2}h\\d{2}\\s+(${CATEGORIAS_DO_BANCO.jo
  * categoria nem entrar no que o dicionário lê.
  */
 export function separarHorarioECategoria(descricao: string): { descricao: string; categoria: string | null } {
-  const m = descricao.trim().match(/^\d{1,2}h\d{2}\s+(.*)$/s);
+  const m = descricao.trim().match(/^\d{1,2}h\d{2}\s+([\s\S]*)$/);
   if (!m) return { descricao, categoria: null };
   const palavras = m[1].split(/\s+/);
   for (const cat of CATEGORIAS_DO_BANCO) {
