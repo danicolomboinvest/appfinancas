@@ -2,7 +2,7 @@
 
 import { ACEITA_ARQUIVO_DE_EXTRATO } from "@/lib/import/limites";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
-import { ArrowRight, Building2, Check, ChevronDown, ChevronLeft, Delete, FileText, Globe, Keyboard, Mail, Mic, Search, ShieldCheck, Wallet, X } from "lucide-react";
+import { ArrowRight, Building2, Check, ChevronDown, ChevronLeft, CircleHelp, Delete, FileText, Globe, Keyboard, Mail, Mic, Search, ShieldCheck, Wallet, X } from "lucide-react";
 import type { ParentCategory } from "@prisma/client";
 import { BrandMark } from "@/components/brand/BrandMark";
 import { HeroiDoTema } from "@/components/ui/HeroiDoTema";
@@ -21,7 +21,6 @@ import { CURRENCIES, CURRENCY_CODES, type CurrencyCode } from "@/lib/money";
 import {
   ATALHOS_DO_GASTO,
   BANCOS_DO_COMECO,
-  BANCO_OUTRO,
   PRINCIPAIS_DO_COMECO,
   apelidoLimpo,
   bancoDoComeco,
@@ -41,6 +40,9 @@ import {
 } from "@/lib/onboarding/comeco";
 import { MAX_PERGUNTAS_DO_COMECO } from "@/lib/onboarding/conferencia-inicial";
 import { CAMINHO_GENERICO, caminhoDaFatura, caminhoDoExtrato, leMelhor } from "@/lib/onboarding/bancos";
+
+/** Por que a ajuda do banco abriu (muda só a frase de cima). */
+type MotivoDaAjuda = "pediu" | "travou" | "falhou";
 import { primeiroGastoAction, pularComecoAction, salvarComecoAction, terminarComExtratoAction } from "./actions";
 import { BotaoPrincipal, LinkDiscreto, Nota, Pe, Pilula, Recado, Selo, Titulo } from "./pecas";
 
@@ -62,8 +64,9 @@ function registrar(evento: EventoDoComeco, detalhe?: string | null) {
 
 /**
  * O começo de quem acabou de entrar (leva 1 do primeiro uso, aprovada em 14/10/2026). Uma coisa
- * por tela, com "Pular" no topo de todas: Boas-vindas, Porta, Banco (um toque), Como baixar e o
- * envio. Na conferência do extrato, no máximo 3 perguntas; o resto fica "A conferir". Termina na
+ * por tela, com "Pular" no topo de todas: Boas-vindas, Porta e o envio do arquivo (3 telas, 3
+ * toques até o extrato). O banco não é mais um passo: "Como baixar do meu banco?" abre a ajuda,
+ * que também aparece quando ela não consegue baixar ou o arquivo não dá certo. Na conferência do extrato, no máximo 3 perguntas; o resto fica "A conferir". Termina na
  * Visão geral com o mês dela na tela. O nome vem da conta (da compra), o tema fica no Padrão e a
  * renda fica para depois: nada disso é perguntado no primeiro dia.
  */
@@ -86,6 +89,8 @@ export function Comeco({
   const [passo, setPasso] = useState<PassoDoComeco>(passoInicial);
   const [direcao, setDirecao] = useState<1 | -1 | 0>(0);
   const [banco, setBanco] = useState<string | null>(bancoInicial ?? inicial?.banco ?? null);
+  // Por que a ajuda do banco abriu: ela pediu, não conseguiu baixar, ou o arquivo não deu certo.
+  const [motivoDaAjuda, setMotivoDaAjuda] = useState<MotivoDaAjuda>("pediu");
   // A confirmação inequívoca de que lançou ("Lançado."), antes da Visão geral.
   const [pronto, setPronto] = useState<{ titulo: string; linha: string } | null>(null);
   const [saindo, startSaida] = useTransition();
@@ -106,6 +111,14 @@ export function Comeco({
     // A leitura do extrato não é um lugar para onde se volta (o arquivo não fica guardado).
     void salvarComecoAction({ ...extra, ...(p === "lendo" ? {} : { passo: p }) }).catch(() => {});
   }, []);
+
+  const abrirAjuda = useCallback(
+    (motivo: MotivoDaAjuda) => {
+      setMotivoDaAjuda(motivo);
+      ir("banco");
+    },
+    [ir],
+  );
 
   const pular = useCallback(() => {
     registrar(EVENTOS_DO_COMECO.pulou, passo);
@@ -156,12 +169,14 @@ export function Comeco({
             }}
             onEscolher={(p) => {
               registrar(EVENTOS_DO_COMECO.porta, p);
-              ir(p === "extrato" ? "banco" : p, 1, { porta: p });
+              // Extrato: direto para o envio. O banco fica para a ajuda, se ela precisar.
+              ir(p === "extrato" ? "tutorial" : p, 1, { porta: p });
             }}
           />
         )}
         {!pronto && passo === "banco" && (
           <EscolhaDoBanco
+            motivo={motivoDaAjuda}
             onEscolher={(b) => {
               registrar(EVENTOS_DO_COMECO.banco, b);
               setBanco(b);
@@ -171,16 +186,17 @@ export function Comeco({
           />
         )}
         {!pronto && (passo === "tutorial" || passo === "volta") && (
-          <Tutorial
-            key={banco ?? "outro"}
-            banco={bancoDoComeco(banco) ?? BANCO_OUTRO}
+          <Envio
+            key={banco ?? "sem-banco"}
+            banco={bancoDoComeco(banco)}
             volta={passo === "volta"}
             nome={nome}
             onArquivo={(arquivo) => {
-              registrar(EVENTOS_DO_COMECO.enviou, banco ?? "outro");
+              registrar(EVENTOS_DO_COMECO.enviou, banco ?? "sem-banco");
               importarArquivoNoMes(arquivo);
               ir("lendo");
             }}
+            onAjuda={abrirAjuda}
             onDigitar={() => ir("digitar")}
           />
         )}
@@ -197,6 +213,7 @@ export function Comeco({
               });
             }}
             onOutroArquivo={() => ir("tutorial", -1)}
+            onAjuda={() => abrirAjuda("falhou")}
           />
         )}
         {!pronto && passo === "digitar" && <Digitar money={money} onLancado={(linha) => setPronto({ titulo: "Lançado.", linha })} onFalar={() => ir("falar")} />}
@@ -348,10 +365,12 @@ function LogoDoBanco({ banco, tamanho = 44 }: { banco: BancoDoComeco; tamanho?: 
 }
 
 /**
- * "Qual é o seu banco?": um toque e já vai (14/10/2026). Os 12 mais comuns na grade, a busca por
- * nome, "Ver mais bancos" com o resto e, sempre no fim, "Meu banco não está aqui".
+ * A ajuda "Como baixar do meu banco?" (opcional desde 14/10/2026): um toque e já mostra o caminho.
+ * Os 12 mais comuns na grade, a busca por nome, "Ver mais bancos" com o resto e, sempre no fim,
+ * "Meu banco não está aqui". A frase de cima muda quando ela não conseguiu baixar ou o arquivo
+ * não deu certo.
  */
-function EscolhaDoBanco({ onEscolher }: { onEscolher: (chave: string) => void }) {
+function EscolhaDoBanco({ motivo, onEscolher }: { motivo: MotivoDaAjuda; onEscolher: (chave: string) => void }) {
   const [busca, setBusca] = useState("");
   const [todos, setTodos] = useState(false);
   const buscando = busca.trim().length > 0;
@@ -359,7 +378,7 @@ function EscolhaDoBanco({ onEscolher }: { onEscolher: (chave: string) => void })
   const faltam = BANCOS_DO_COMECO.length - PRINCIPAIS_DO_COMECO;
   return (
     <>
-      <Titulo sub="seu banco?">Qual é o</Titulo>
+      <Titulo sub="Eu mostro o caminho.">{motivo === "falhou" ? "Vamos tentar de novo." : motivo === "travou" ? "Sem problema." : "Qual é o seu banco?"}</Titulo>
       <label className="flex h-12 items-center gap-2.5 rounded-2xl border border-border-strong bg-surface px-3.5 focus-within:border-accent">
         <Search size={18} className="shrink-0 text-ink-muted" aria-hidden />
         <input
@@ -406,25 +425,130 @@ function EscolhaDoBanco({ onEscolher }: { onEscolher: (chave: string) => void })
         </span>
         <ArrowRight size={18} className="shrink-0 text-ink-muted" aria-hidden />
       </button>
-      <Recado icone={<ShieldCheck size={16} />}>Eu não entro na sua conta. Você baixa o extrato e manda aqui.</Recado>
     </>
   );
 }
 
-function Tutorial({
+/** O botão grande que abre o arquivo do celular (ou do computador). */
+function EscolherArquivo({ onArquivo }: { onArquivo: (f: File) => void }) {
+  return (
+    <label className="inline-flex min-h-[56px] w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-accent-gradient px-5 text-base font-semibold text-on-accent shadow-premium-sm transition-opacity hover:opacity-95 focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent" data-escolher-arquivo>
+      <FileText size={19} aria-hidden />
+      Escolher arquivo
+      <input
+        type="file"
+        className="sr-only"
+        accept={ACEITA_ARQUIVO_DE_EXTRATO}
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) onArquivo(f);
+          e.target.value = "";
+        }}
+      />
+    </label>
+  );
+}
+
+/** "Não consegui baixar", com o banco já na tela: começa por um gasto, e o extrato fica para depois. */
+function NaoConsegui({ onDigitar }: { onDigitar: () => void }) {
+  return (
+    <div className="flex flex-col gap-2 rounded-[20px] bg-surface-2 p-3.5" data-nao-consegui-baixar>
+      <p className="text-sm font-medium leading-snug text-ink">Sem problema. Comece com um gasto de hoje, e o extrato fica para depois.</p>
+      <BotaoPrincipal onClick={onDigitar}>
+        <Keyboard size={17} aria-hidden />
+        Digitar um gasto
+      </BotaoPrincipal>
+      <p className="text-[13px] leading-snug text-ink-muted">Está no computador? Abra o SPI no navegador de lá, com o mesmo e-mail, e envie por lá.</p>
+      <a href={`mailto:${EMAIL_FALE_COM_A_GENTE}?subject=${encodeURIComponent("Ajuda com o extrato")}`} className="mx-auto inline-flex min-h-11 items-center gap-1.5 px-2 text-sm font-medium text-ink-muted hover:text-ink">
+        <Mail size={15} aria-hidden />
+        Fale com a gente
+      </a>
+    </div>
+  );
+}
+
+/**
+ * O envio do arquivo (14/10/2026): a tela já abre com o botão grande de escolher o arquivo. Sem
+ * banco escolhido, só o envio e o link "Como baixar do meu banco?". Com banco (ela pediu a ajuda),
+ * o passo a passo dele em cima do mesmo botão. O app descobre sozinho se é extrato ou fatura.
+ */
+function Envio({
   banco,
   volta,
   nome,
   onArquivo,
+  onAjuda,
   onDigitar,
 }: {
-  banco: BancoDoComeco;
+  banco: BancoDoComeco | null;
   volta: boolean;
   nome: string | null;
   onArquivo: (f: File) => void;
+  onAjuda: (motivo: MotivoDaAjuda) => void;
   onDigitar: () => void;
 }) {
   const [travou, setTravou] = useState(false);
+  return (
+    <>
+      {volta && <Titulo sub="Falta só isso.">{nome ? `Oi de novo, ${nome}.` : "Oi de novo."}</Titulo>}
+      {banco ? (
+        <PassoAPassoDoBanco banco={banco} />
+      ) : (
+        <>
+          {!volta && <Titulo sub="extrato ou fatura">Envie o seu</Titulo>}
+          <label className="glass flex cursor-pointer flex-col items-center gap-3 rounded-3xl px-4 pb-5 pt-6 text-center" data-arquivo-visual>
+            <span className="relative h-[84px] w-[120px]" aria-hidden>
+              <span className="absolute left-0 top-2 flex h-[76px] w-[62px] -rotate-6 flex-col gap-1.5 rounded-lg bg-surface p-2 shadow-[0_6px_16px_rgba(0,0,0,0.08),inset_0_0_0_1px_var(--color-border)]">
+                <span className="h-1.5 w-7 rounded-full bg-accent" />
+                {["w-11", "w-9", "w-10"].map((w, i) => <span key={i} className={`h-1.5 ${w} rounded-full bg-surface-2`} />)}
+              </span>
+              <span className="absolute right-0 top-0 flex h-[80px] w-[66px] rotate-3 flex-col gap-1.5 rounded-lg bg-surface p-2 shadow-[0_6px_16px_rgba(0,0,0,0.1),inset_0_0_0_1px_var(--color-border)]">
+                <span className="h-5 w-full rounded bg-accent-gradient" />
+                {["w-12", "w-8", "w-11"].map((w, i) => <span key={i} className={`h-1.5 ${w} rounded-full bg-surface-2`} />)}
+              </span>
+            </span>
+            <span className="flex flex-wrap justify-center gap-1.5">
+              {["PDF", "Excel", "CSV", "OFX"].map((f) => (
+                <span key={f} className="rounded-full bg-surface-2 px-3 py-1 text-[13px] font-medium text-ink-muted">
+                  {f}
+                </span>
+              ))}
+            </span>
+            <span className="text-sm font-medium text-ink-muted">Eu descubro qual é.</span>
+            <input
+              type="file"
+              className="sr-only"
+              accept={ACEITA_ARQUIVO_DE_EXTRATO}
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) onArquivo(f);
+                e.target.value = "";
+              }}
+            />
+          </label>
+          <Recado icone={<ShieldCheck size={16} />}>Eu não entro na sua conta. Você baixa o arquivo e manda aqui.</Recado>
+        </>
+      )}
+      <Pe>
+        {travou && <NaoConsegui onDigitar={onDigitar} />}
+        <EscolherArquivo onArquivo={onArquivo} />
+        {banco ? (
+          <LinkDiscreto onClick={() => onAjuda("pediu")}>Trocar o banco</LinkDiscreto>
+        ) : (
+          <LinkDiscreto onClick={() => onAjuda("pediu")} data-como-baixar>
+            <CircleHelp size={15} className="mr-1.5" aria-hidden />
+            Como baixar do meu banco?
+          </LinkDiscreto>
+        )}
+        {/* Sem banco, "Não consegui baixar" abre a ajuda por banco; com banco, o plano B. */}
+        {!travou && <LinkDiscreto onClick={() => (banco ? setTravou(true) : onAjuda("travou"))}>Não consegui baixar</LinkDiscreto>}
+      </Pe>
+    </>
+  );
+}
+
+/** O passo a passo de um banco: as 3 telinhas, extrato ou fatura, o formato e a nota (senha, e-mail). */
+function PassoAPassoDoBanco({ banco }: { banco: BancoDoComeco }) {
   const outro = banco.chave === "outro";
   const cor = (banco.marca && marcaDaDescricao(banco.marca)?.cor) || "var(--color-accent)";
   // O caminho certo de cada banco (lib/onboarding/bancos.ts): o oficial, ou o genérico sem fonte.
@@ -433,7 +557,6 @@ function Tutorial({
   const caminho = qual === "fatura" && fatura ? fatura : outro ? CAMINHO_GENERICO : caminhoDoExtrato(banco.chave);
   return (
     <>
-      {volta && <Titulo sub={`${!outro ? `Você escolheu o ${banco.nome}. ` : ""}Falta só isso.`}>{nome ? `Oi de novo, ${nome}.` : "Oi de novo."}</Titulo>}
       <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3">
         <LogoDoBanco banco={banco} />
         <h2 className="titulo-tema text-[clamp(1.35rem,6.4vw,1.6rem)] font-normal leading-tight text-ink">
@@ -485,41 +608,6 @@ function Tutorial({
       )}
       <Nota>{caminho.nota ?? "Salve o arquivo no celular e volte aqui."}</Nota>
       {outro && <QualBancoFalta />}
-      <label className="flex min-h-16 cursor-pointer items-center gap-3 rounded-[20px] border-[1.5px] border-dashed border-border-strong bg-surface px-4 py-3.5">
-        <FileText size={22} className="shrink-0 text-accent-strong" aria-hidden />
-        <span className="flex flex-col">
-          <b className="text-base font-semibold">Enviar aqui</b>
-          <small className="text-[13px] font-medium text-ink-muted">O arquivo que você baixou</small>
-        </span>
-        <input
-          type="file"
-          className="sr-only"
-          accept={ACEITA_ARQUIVO_DE_EXTRATO}
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) onArquivo(f);
-            e.target.value = "";
-          }}
-        />
-      </label>
-      <Pe>
-        {travou ? (
-          <div className="flex flex-col gap-2 rounded-[20px] bg-surface-2 p-3.5" data-nao-consegui-baixar>
-            <p className="text-sm font-medium leading-snug text-ink">Sem problema. Comece com um gasto de hoje, e o extrato fica para depois.</p>
-            <BotaoPrincipal onClick={onDigitar}>
-              <Keyboard size={17} aria-hidden />
-              Digitar um gasto
-            </BotaoPrincipal>
-            <p className="text-[13px] leading-snug text-ink-muted">Está no computador? Abra o SPI no navegador de lá, com o mesmo e-mail, e envie por lá.</p>
-            <a href={`mailto:${EMAIL_FALE_COM_A_GENTE}?subject=${encodeURIComponent("Ajuda com o extrato")}`} className="mx-auto inline-flex min-h-11 items-center gap-1.5 px-2 text-sm font-medium text-ink-muted hover:text-ink">
-              <Mail size={15} aria-hidden />
-              Fale com a gente
-            </a>
-          </div>
-        ) : (
-          <LinkDiscreto onClick={() => setTravou(true)}>Não consegui baixar</LinkDiscreto>
-        )}
-      </Pe>
     </>
   );
 }
@@ -571,7 +659,7 @@ function QualBancoFalta() {
  * Só 3 precisam de você agora.") e UM botão. As perguntas são as da importação de verdade, no
  * máximo 3; a última resposta já grava e ela vai para o mês.
  */
-function Lendo({ money, onTerminar, onOutroArquivo }: { money: Money; onTerminar: (mes: string | null, revisou: boolean) => void; onOutroArquivo: () => void }) {
+function Lendo({ money, onTerminar, onOutroArquivo, onAjuda }: { money: Money; onTerminar: (mes: string | null, revisou: boolean) => void; onOutroArquivo: () => void; onAjuda: () => void }) {
   const [estado, setEstado] = useState<EstadoParaOComeco | null>(null);
   const [quadro, setQuadro] = useState(0);
   const [revisando, setRevisando] = useState(false);
@@ -603,6 +691,7 @@ function Lendo({ money, onTerminar, onOutroArquivo }: { money: Money; onTerminar
   // Respondeu a última (ou não tinha pergunta): a importação grava sozinha. Sem erro, a tela não
   // pisca a confirmação da importação: fica o "Montando o seu mês".
   const gravando = revisando && !!estado && estado.fase !== "review" && !estado.erro;
+  const falhou = !revisando && !!estado && !estado.lendo && estado.fase === "upload" && !!estado.erro;
 
   return (
     <>
@@ -651,6 +740,19 @@ function Lendo({ money, onTerminar, onOutroArquivo }: { money: Money; onTerminar
             </BotaoPrincipal>
           </Pe>
         </>
+      )}
+      {/* O arquivo não deu certo: aí sim, a ajuda por banco, antes da explicação da importação. */}
+      {falhou && !terminou && (
+        <button type="button" onClick={onAjuda} className="glass flex min-h-[64px] items-center gap-3 rounded-[20px] px-4 py-3 text-left" data-ajuda-depois-do-erro>
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent-strong" aria-hidden>
+            <CircleHelp size={19} strokeWidth={1.8} />
+          </span>
+          <span className="flex min-w-0 flex-1 flex-col">
+            <b className="text-[15px] font-semibold">Como baixar do meu banco?</b>
+            <small className="text-[13px] font-medium text-ink-muted">Mostro o caminho, banco por banco</small>
+          </span>
+          <ArrowRight size={18} className="shrink-0 text-ink-muted" aria-hidden />
+        </button>
       )}
       {/* A importação de verdade (a mesma do +): lê o arquivo, faz as perguntas uma por vez e grava. */}
       <div className={precisaDaImportacao && !terminou && !gravando ? "" : "hidden"}>

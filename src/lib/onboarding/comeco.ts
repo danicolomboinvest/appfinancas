@@ -17,7 +17,9 @@
 
 /**
  * O começo enxuto (leva 1 do "Primeiro uso mais leve", aprovada em 14/10/2026): uma tela de
- * boas-vindas, a porta (extrato, digitar ou falar), o banco com um toque, como baixar e o envio.
+ * boas-vindas, a porta (extrato, digitar ou falar) e o envio do arquivo. O banco deixou de ser um
+ * passo (pedido da dona, 14/10/2026): fica num link discreto do envio ("Como baixar do meu
+ * banco?") e aparece sozinho quando ela não consegue baixar ou o arquivo não dá certo.
  * As outras boas-vindas, as perguntas (nome, renda, o que quer, tema) saíram do primeiro dia: o
  * nome vem da compra, a renda e o tema ficam em Configurações, e "o que você quer agora" vira o
  * próximo passo do segundo dia (ver `mostrarPerguntaDoSegundoDia`).
@@ -25,7 +27,11 @@
 export const PASSOS_BOAS_VINDAS = ["b1"] as const;
 /** As telas que saíram em 14/10/2026. Quem parou numa delas volta na porta (ver `passoDeVolta`). */
 export const PASSOS_ANTIGOS = ["b2", "b3", "nome", "renda", "quer", "tema"] as const;
-/** O primeiro lançamento: a porta e os três caminhos. `lendo` é o extrato chegando e a conferência. */
+/**
+ * O primeiro lançamento: a porta e os três caminhos. `tutorial` é a tela de envio (com o passo a
+ * passo do banco, quando ela escolhe um); `banco` é a ajuda por banco, opcional; `lendo` é o
+ * extrato chegando e a conferência.
+ */
 export const PASSOS_LANCAMENTO = ["porta", "banco", "tutorial", "lendo", "digitar", "falar", "volta"] as const;
 
 export type PassoDoComeco = (typeof PASSOS_BOAS_VINDAS)[number] | (typeof PASSOS_ANTIGOS)[number] | (typeof PASSOS_LANCAMENTO)[number];
@@ -46,21 +52,21 @@ export function faseDoPasso(p: PassoDoComeco): "Boas-vindas" | "Seu primeiro mê
 }
 
 /**
- * A barra de cima: nada nas boas-vindas; 4 traços no primeiro mês (porta, banco, como baixar,
- * lendo). Digitar e falar contam como o segundo traço.
+ * A barra de cima: nada nas boas-vindas; 3 traços no primeiro mês (porta, envio, lendo). A ajuda
+ * do banco, digitar e falar contam como o segundo traço.
  */
 export function barraDoPasso(p: PassoDoComeco): { total: number; atual: number } {
   if (p === "b1" || ehAntigo(p)) return { total: 0, atual: 0 };
-  const ordem: Record<string, number> = { porta: 0, banco: 1, digitar: 1, falar: 1, tutorial: 2, volta: 2, lendo: 3 };
-  return { total: 4, atual: ordem[p] ?? 0 };
+  const ordem: Record<string, number> = { porta: 0, tutorial: 1, volta: 1, banco: 1, digitar: 1, falar: 1, lendo: 2 };
+  return { total: 3, atual: ordem[p] ?? 0 };
 }
 
 /** Para onde o "Voltar" leva, de cada passo. Nulo = sem voltar (primeira tela e a volta do resgate). */
 export function passoAnterior(p: PassoDoComeco): PassoDoComeco | null {
   const mapa: Partial<Record<PassoDoComeco, PassoDoComeco>> = {
     porta: "b1",
-    banco: "porta",
-    tutorial: "banco",
+    tutorial: "porta",
+    banco: "tutorial",
     lendo: "tutorial",
     digitar: "porta",
     falar: "porta",
@@ -68,8 +74,8 @@ export function passoAnterior(p: PassoDoComeco): PassoDoComeco | null {
   return mapa[p] ?? null;
 }
 
-/** O caminho de quem traz o extrato, tela por tela (Boas-vindas, Porta, Banco, Como baixar). */
-export const CAMINHO_DO_EXTRATO: PassoDoComeco[] = ["b1", "porta", "banco", "tutorial"];
+/** O caminho de quem traz o extrato, tela por tela (Boas-vindas, Porta, Envio). */
+export const CAMINHO_DO_EXTRATO: PassoDoComeco[] = ["b1", "porta", "tutorial"];
 
 export function proximoPasso(p: PassoDoComeco): PassoDoComeco | null {
   const i = CAMINHO_DO_EXTRATO.indexOf(p);
@@ -255,18 +261,15 @@ export function pularComeco(atual: Comeco | null, ondeParou: PassoDoComeco, agor
 }
 
 /**
- * "Ver o começo de novo" e os convites da Visão geral: abre no ponto onde parou. Quem terminou
- * com um lançamento e volta pelo convite do extrato cai direto na escolha do banco.
+ * "Ver o começo de novo" e os convites da Visão geral: abre no ponto onde parou. Quem volta pelo
+ * convite do extrato cai direto no envio (com ou sem banco escolhido).
  */
 export function passoDeVolta(c: Comeco | null, pedido: string | null | undefined): PassoDoComeco {
-  if (ehPasso(pedido) && !ehAntigo(pedido)) {
-    // A volta do resgate só faz sentido com banco escolhido; sem ele, a escolha do banco.
-    if (pedido === "volta" && !c?.banco) return "banco";
-    return pedido;
-  }
+  if (ehPasso(pedido) && !ehAntigo(pedido)) return pedido;
   if (!c) return "b1";
-  // Os passos do extrato não reabrem no meio da leitura: o arquivo não fica guardado.
-  if (c.passo === "lendo") return "tutorial";
+  // Os passos do extrato não reabrem no meio da leitura: o arquivo não fica guardado. E quem
+  // parou na escolha do banco (quando ela ainda era um passo) volta no envio.
+  if (c.passo === "lendo" || c.passo === "banco") return "tutorial";
   // Parou numa das telas que saíram (14/10/2026): segue da porta.
   if (ehAntigo(c.passo)) return "porta";
   return c.passo;
@@ -390,7 +393,7 @@ export function cssDosCartoesDosTemas(): string {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Os bancos: "Qual é o seu banco?" e o passo a passo de baixar o extrato
+// Os bancos: a ajuda "Como baixar do meu banco?" e o passo a passo de baixar o extrato
 // ---------------------------------------------------------------------------------------------
 
 export type BancoDoComeco = {
@@ -407,7 +410,7 @@ export type BancoDoComeco = {
 };
 
 /**
- * Os bancos de "Qual é o seu banco?", na ordem da tela (14/10/2026: a dona pediu mais bancos e um
+ * Os bancos da ajuda "Como baixar do meu banco?" (opcional desde 14/10/2026), na ordem da tela (14/10/2026: a dona pediu mais bancos e um
  * caminho claro para quem não acha o dela). Os `PRINCIPAIS_DO_COMECO` primeiros aparecem na grade;
  * os outros, em "Ver mais bancos" e na busca. O passo a passo de cada um (extrato, fatura, formato
  * e a fonte oficial) mora em lib/onboarding/bancos.ts; sem fonte oficial, o caminho genérico.
@@ -690,16 +693,17 @@ export function caminhoDoEvento(evento: EventoDoComeco, detalhe?: string | null)
 
 /**
  * O funil, na ordem do começo: quantas PESSOAS passaram por cada marca. As perguntas saíram do
- * começo em 14/10/2026, e com elas a linha "Respondeu as perguntas".
+ * começo em 14/10/2026, e com elas a linha "Respondeu as perguntas". O banco também deixou de ser
+ * um passo: "Pediu ajuda do banco" fica no fim, fora da sequência (quem não precisou não passa).
  */
 export function montarFunilDoComeco(contagem: Partial<Record<string, number>>): { rotulo: string; pessoas: number }[] {
   const n = (k: string) => contagem[k] ?? 0;
   return [
     { rotulo: "Começou", pessoas: n("comeco_comecou") },
     { rotulo: "Escolheu a porta", pessoas: n("comeco_porta") },
-    { rotulo: "Escolheu o banco", pessoas: n("comeco_banco") },
     { rotulo: "Enviou o extrato", pessoas: n("comeco_enviou") },
     { rotulo: "Revisou", pessoas: n("comeco_revisou") },
     { rotulo: "Viu o mês", pessoas: n("comeco_viu_mes") },
+    { rotulo: "Pediu ajuda do banco", pessoas: n("comeco_banco") },
   ];
 }

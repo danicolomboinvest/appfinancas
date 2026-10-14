@@ -21,7 +21,8 @@ import { Comeco } from "./Comeco";
  *
  * Quem já usava o app (onboardedAt preenchido e sem `comeco`) nunca cai aqui: volta para o mês.
  * Quem passou pelo começo novo e pulou pode voltar pelos convites da Visão geral
- * (`?passo=banco`, `?passo=digitar`...), e o resgate abre direto no banco dela (`?passo=volta`).
+ * (`?passo=volta`, `?passo=digitar`...). `?passo=banco` abre a ajuda por banco (o "Como tiro o
+ * extrato do meu banco?" da importação).
  */
 export default async function ComecarPage({ searchParams }: { searchParams: Promise<{ passo?: string; banco?: string }> }) {
   const session = await auth();
@@ -51,7 +52,9 @@ export default async function ComecarPage({ searchParams }: { searchParams: Prom
           <ThemeSync theme={modo} />
           <style dangerouslySetInnerHTML={{ __html: profileThemeCss(tema) }} />
           <link rel="icon" type="image/svg+xml" href={`${temaDoPerfil(tema).logo}/favicon.svg`} />
+          {/* A chave pelo passo pedido: o link da importação para a ajuda do banco troca só o ?passo. */}
           <Comeco
+            key={`${pedido ?? ""}-${bancoPedido ?? ""}`}
             inicial={comeco}
             passoInicial={passoDeVolta(comeco, pedido)}
             bancoInicial={bancoDoComeco(bancoPedido) ? bancoPedido : null}

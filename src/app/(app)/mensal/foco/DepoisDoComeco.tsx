@@ -44,7 +44,8 @@ export async function TopoDoComeco({ ctx, comeco, nome, temLancamento }: { ctx: 
   if (oQue === "nada") return null;
   const money = await serverMoney();
   const atalho = atalhoDoQuer(comeco.quer, ehEmpresa(ctx.profileKind) || ehCasal(ctx.profileKind));
-  const voltaAoExtrato = `/comecar?passo=${comeco.banco ? "volta" : "banco"}`;
+  // Direto no envio do arquivo: o banco é só ajuda, opcional (14/10/2026).
+  const voltaAoExtrato = "/comecar?passo=volta";
 
   if (oQue === "convite") {
     return (
@@ -175,7 +176,7 @@ function hrefDoPasso(chave: PrimeiroPasso, hrefMes: string, comeco: Comeco): str
   if (chave === "extrato") {
     const falta = bancosPendentes(comeco)[0];
     if (falta) return `/comecar?passo=tutorial&banco=${falta}`;
-    return `/comecar?passo=${comeco.banco ? "volta" : "banco"}`;
+    return "/comecar?passo=volta";
   }
   if (chave === "revisar") return hrefMes;
   if (chave === "plano") return "/orcamento";

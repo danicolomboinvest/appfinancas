@@ -92,15 +92,18 @@ describe("os passos e a barra de cima", () => {
     expect(faseDoPasso("porta")).toBe("Seu primeiro mês");
     expect(faseDoPasso("banco")).toBe("Seu primeiro mês");
   });
-  it("sem barra nas boas-vindas; 4 traços no primeiro mês", () => {
+  it("sem barra nas boas-vindas; 3 traços no primeiro mês (porta, envio, lendo)", () => {
     expect(barraDoPasso("b1")).toEqual({ total: 0, atual: 0 });
-    expect(barraDoPasso("porta")).toEqual({ total: 4, atual: 0 });
-    expect(barraDoPasso("tutorial")).toEqual({ total: 4, atual: 2 });
+    expect(barraDoPasso("porta")).toEqual({ total: 3, atual: 0 });
+    expect(barraDoPasso("tutorial")).toEqual({ total: 3, atual: 1 });
+    expect(barraDoPasso("banco")).toEqual({ total: 3, atual: 1 });
+    expect(barraDoPasso("lendo")).toEqual({ total: 3, atual: 2 });
     expect(barraDoPasso("digitar").atual).toBe(1);
   });
-  it("voltar: digitar e falar voltam para a porta; tutorial para o banco", () => {
+  it("voltar: digitar, falar e o envio voltam para a porta; a ajuda do banco volta para o envio", () => {
     expect(passoAnterior("digitar")).toBe("porta");
-    expect(passoAnterior("tutorial")).toBe("banco");
+    expect(passoAnterior("tutorial")).toBe("porta");
+    expect(passoAnterior("banco")).toBe("tutorial");
     expect(passoAnterior("b1")).toBeNull();
     expect(passoAnterior("volta")).toBeNull();
   });
@@ -121,14 +124,16 @@ describe("Pular em qualquer tela", () => {
     expect(oQueMostrarDepois(c, true)).toBe("nada");
   });
   it("ver o começo de novo volta onde parou; a leitura do extrato volta ao tutorial", () => {
-    expect(passoDeVolta(pularComeco(null, "banco", agora), null)).toBe("banco");
+    // Quem parou na escolha do banco (quando ainda era um passo) volta no envio.
+    expect(passoDeVolta(pularComeco(null, "banco", agora), null)).toBe("tutorial");
     // As telas que saíram em 14/10/2026: quem tinha parado nelas segue da porta.
     expect(passoDeVolta(pularComeco(null, "quer", agora), null)).toBe("porta");
     expect(passoDeVolta(null, "tema")).toBe("b1");
     expect(passoDeVolta(pularComeco(null, "lendo", agora), null)).toBe("tutorial");
     expect(passoDeVolta(null, null)).toBe("b1");
     expect(passoDeVolta(null, "banco")).toBe("banco");
-    expect(passoDeVolta(null, "volta")).toBe("banco");
+    // A volta não precisa mais de banco: cai no envio, com o "Oi de novo".
+    expect(passoDeVolta(null, "volta")).toBe("volta");
     expect(passoDeVolta(juntarComeco(null, { banco: "itau" }), "volta")).toBe("volta");
   });
 });
@@ -273,8 +278,8 @@ describe("o funil do começo (UsageEvent)", () => {
   });
   it("monta o funil na ordem do começo", () => {
     const f = montarFunilDoComeco({ comeco_comecou: 10, "comeco_pergunta:/comecar/pergunta/tema": 8, comeco_porta: 7, comeco_viu_mes: 4 });
-    expect(f.map((x) => x.rotulo)).toEqual(["Começou", "Escolheu a porta", "Escolheu o banco", "Enviou o extrato", "Revisou", "Viu o mês"]);
-    expect(f.map((x) => x.pessoas)).toEqual([10, 7, 0, 0, 0, 4]);
+    expect(f.map((x) => x.rotulo)).toEqual(["Começou", "Escolheu a porta", "Enviou o extrato", "Revisou", "Viu o mês", "Pediu ajuda do banco"]);
+    expect(f.map((x) => x.pessoas)).toEqual([10, 7, 0, 0, 4, 0]);
   });
 });
 

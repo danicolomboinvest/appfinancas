@@ -983,10 +983,13 @@ export function StatementImport({
           </span>
         </button>
         <p className="-mt-1 text-center text-sm text-ink-muted" data-dica-print>Fatura ainda aberta? Mande prints da lista de compras.</p>
-        <Link href="/comecar?passo=banco" className="mx-auto inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-accent-strong hover:underline" data-como-tiro>
-          <CircleHelp size={16} aria-hidden />
-          Como tiro o extrato do meu banco?
-        </Link>
+        {/* Dentro do começo, a ajuda por banco já aparece em cima (sem sair da tela). */}
+        {!comeco && (
+          <Link href="/comecar?passo=banco" className="mx-auto inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-accent-strong hover:underline" data-como-tiro>
+            <CircleHelp size={16} aria-hidden />
+            Como tiro o extrato do meu banco?
+          </Link>
+        )}
         <button type="button" onClick={() => fileRef.current?.click()} disabled={isPending} className="flex min-h-[52px] items-center justify-center gap-1.5 rounded-full [background:var(--botao-fundo,var(--color-ink))] text-base font-semibold [color:var(--botao-tinta,var(--color-canvas))] disabled:opacity-60">
           {isPending ? t.impLendoArquivo : "Escolher arquivo"}
           {!isPending && <ArrowRight size={18} aria-hidden />}

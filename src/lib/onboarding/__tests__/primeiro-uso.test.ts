@@ -16,6 +16,8 @@ import {
   juntarComeco,
   mostrarPerguntaDoSegundoDia,
   passoAnterior,
+  passoDeVolta,
+  primeirosPassos,
   proximoPasso,
   terminarComLancamento,
 } from "../comeco";
@@ -24,11 +26,11 @@ import { MAX_PERGUNTAS_DO_COMECO, perguntasDeMaiorValor, valorDaPergunta, type L
 /** Leva 1 do "Primeiro uso mais leve" (aprovada pela dona em 14/10/2026). */
 
 describe("o começo enxuto", () => {
-  it("até o envio do extrato são 4 telas: Boas-vindas, Porta, Banco e Como baixar", () => {
-    expect(CAMINHO_DO_EXTRATO).toEqual(["b1", "porta", "banco", "tutorial"]);
+  it("até o envio do extrato são 3 telas: Boas-vindas, Porta e Envio (o banco é ajuda, não passo)", () => {
+    expect(CAMINHO_DO_EXTRATO).toEqual(["b1", "porta", "tutorial"]);
+    expect(CAMINHO_DO_EXTRATO).not.toContain("banco");
     expect(proximoPasso("b1")).toBe("porta");
-    expect(proximoPasso("porta")).toBe("banco");
-    expect(proximoPasso("banco")).toBe("tutorial");
+    expect(proximoPasso("porta")).toBe("tutorial");
     expect(proximoPasso("tutorial")).toBeNull();
   });
   it("sem as outras boas-vindas, sem perguntas: a porta volta direto para as boas-vindas", () => {
@@ -36,7 +38,18 @@ describe("o começo enxuto", () => {
     expect(passoAnterior("falar")).toBe("porta");
     expect(proximoPasso("b2" as never)).toBeNull();
   });
-  it("o banco é um toque: grava um banco só", () => {
+  it("sem escolher banco, o extrato termina o começo e marca o passo do extrato", () => {
+    const c = terminarComLancamento(juntarComeco(null, { porta: "extrato" }), "extrato", { mesDoExtrato: "2026-09", revisou: true, banco: null });
+    expect(c).toMatchObject({ lancou: "extrato", banco: null, bancos: [], bancosFeitos: [], mesDoExtrato: "2026-09" });
+    const p = primeirosPassos(c, { temImportacao: true, temOrcamento: false, temMeta: false, temLembretes: false });
+    expect(p.passos.find((x) => x.chave === "extrato")?.feito).toBe(true);
+  });
+  it("o convite do extrato abre o envio direto, com ou sem banco", () => {
+    expect(passoDeVolta(null, "volta")).toBe("volta");
+    expect(passoDeVolta(juntarComeco(null, { banco: "itau" }), "volta")).toBe("volta");
+    expect(passoDeVolta(null, "banco")).toBe("banco");
+  });
+  it("na ajuda, o banco é um toque: grava um banco só", () => {
     const c = juntarComeco(null, { banco: "neon", bancos: ["neon"] });
     expect(c.banco).toBe("neon");
     expect(c.bancos).toEqual(["neon"]);
