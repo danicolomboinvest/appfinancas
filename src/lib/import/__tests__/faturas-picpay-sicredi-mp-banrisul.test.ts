@@ -168,6 +168,10 @@ describe("arquivo de um período sem movimentação", () => {
   it("reconhece o PDF do Nubank, o CSV só com cabeçalho e o OFX sem lançamento", () => {
     expect(periodoSemMovimento("Saldo final do período\nR$ 1,98\nNenhuma movimentação realizada.")).toBe(true);
     expect(periodoSemMovimento("Data,Valor,Identificador,Descrição\n")).toBe(true);
+    // XP/Rico e Itaú (13/10/2026, dados inventados).
+    expect(periodoSemMovimento("Data Descrição Valor Saldo\nNão há lançamentos para o período")).toBe(true);
+    expect(periodoSemMovimento("data lançamentos valor (R$) saldo (R$)\n15/09/2026 SALDO DO DIA 0,00\n12/09/2026 SALDO DO DIA 0,00")).toBe(true);
+    expect(periodoSemMovimento("data lançamentos valor (R$) saldo (R$)\n15/09/2026 PIX TRANSF FULANA -10,00\n15/09/2026 SALDO DO DIA 0,00")).toBe(false);
     expect(periodoSemMovimento("OFXHEADER:100\n<OFX><BANKMSGSRSV1><STMTTRNRS><STMTRS><LEDGERBAL><BALAMT>1.98</BALAMT></LEDGERBAL></STMTRS></STMTTRNRS></BANKMSGSRSV1></OFX>")).toBe(true);
   });
 
