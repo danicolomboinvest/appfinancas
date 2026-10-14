@@ -328,7 +328,8 @@ export function BudgetWizard({
               <div key={c.key} data-cat={c.key} className={`grid grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-2.5 py-2.5 ${i > 0 ? "border-t border-border" : ""}`}>
                 {c.custom ? (
                   // A que ela criou: lápis ou toque longo para editar e apagar (12/10/2026).
-                  <LapisDaCategoria categoria={{ id: c.key, name: c.label, icon: c.iconName ?? "tag" }} outras={customCategories.map((o) => ({ id: o.id, name: o.name, icon: o.icon }))}>
+                  // Lápis no canto de cima à esquerda: à direita ele cobria o nome e o "% da renda".
+                  <LapisDaCategoria categoria={{ id: c.key, name: c.label, icon: c.iconName ?? "tag" }} outras={customCategories.map((o) => ({ id: o.id, name: o.name, icon: o.icon }))} canto="-left-2 -top-1.5">
                     <CategoryIcon icon={c.icon} color={c.color} size={36} emoji={emojiEscolhido(categorias, c.key) ?? emojiDaCategoria(tema, { kind: "custom" })} />
                   </LapisDaCategoria>
                 ) : (

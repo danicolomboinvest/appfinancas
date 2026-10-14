@@ -14,7 +14,27 @@ type Propria = { id: string; name: string; icon: string };
  * "É essencial") com "Salvar" e, no fim, "Apagar categoria". As categorias padrão não passam por
  * aqui: elas só se escondem, em Configurações › Categorias.
  */
-export function LapisDaCategoria({ categoria, outras = [], children, className = "" }: { categoria: Propria; outras?: Propria[]; children: ReactNode; className?: string }) {
+/**
+ * Alinhamento (14/10/2026, a Dani: "as categorias que eu criei estão um pouquinho tortas"): o
+ * bloco de dentro ocupa a célula inteira, igual às categorias padrão (antes o botão encolhia
+ * para o tamanho do conteúdo e ficava encostado à esquerda), e o lápis é um selo pequeno por
+ * cima, em posição absoluta, que não empurra o ícone nem o nome. `canto` diz onde o selo fica
+ * em cada tela (na grade do Digitar, colado no círculo do ícone).
+ */
+export function LapisDaCategoria({
+  categoria,
+  outras = [],
+  children,
+  className = "",
+  canto = "right-1.5 top-1.5",
+}: {
+  categoria: Propria;
+  outras?: Propria[];
+  children: ReactNode;
+  className?: string;
+  /** Classes de posição do lápis (o padrão: dentro do canto de cima, à direita). */
+  canto?: string;
+}) {
   const [aberta, setAberta] = useState(false);
   const router = useRouter();
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -25,7 +45,8 @@ export function LapisDaCategoria({ categoria, outras = [], children, className =
   };
   return (
     <div
-      className={`relative ${className}`}
+      // Grid de uma célula: o filho estica na largura e na altura, como as padrão ao lado.
+      className={`relative grid min-w-0 [&>*:first-child]:min-w-0 ${className}`}
       data-categoria-propria={categoria.id}
       onPointerDown={() => {
         if (aberta) return;
@@ -60,9 +81,10 @@ export function LapisDaCategoria({ categoria, outras = [], children, className =
           setAberta(true);
         }}
         aria-label={`Editar a categoria ${categoria.name}`}
-        className="absolute -right-1 -top-1 z-[1] flex size-7 items-center justify-center rounded-full bg-surface text-ink-muted shadow-[0_0_0_1px_var(--color-border-strong)] hover:text-ink"
+        // Selo de 22 px, com a área de toque maior por fora (after), sem ocupar espaço no bloco.
+        className={`absolute ${canto} z-[1] flex size-[22px] items-center justify-center rounded-full bg-surface text-ink-muted shadow-[0_0_0_1px_var(--color-border-strong)] after:absolute after:-inset-2.5 after:content-[''] hover:text-ink`}
       >
-        <Pencil size={12} aria-hidden />
+        <Pencil size={11} aria-hidden />
       </button>
       <Modal open={aberta} onClose={() => setAberta(false)} title="Editar categoria">
         {aberta && (

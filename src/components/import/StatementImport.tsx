@@ -1168,7 +1168,7 @@ export function StatementImport({
         {!it.profileId &&
           customCategories.map((cc) => (
             // A que ela criou: lápis ou toque longo para editar e apagar (12/10/2026).
-            <LapisDaCategoria key={cc.id} categoria={{ id: cc.id, name: cc.name, icon: cc.icon ?? "tag" }} outras={customCategories.map((o) => ({ id: o.id, name: o.name, icon: o.icon ?? "tag" }))} className="flex">
+            <LapisDaCategoria key={cc.id} categoria={{ id: cc.id, name: cc.name, icon: cc.icon ?? "tag" }} outras={customCategories.map((o) => ({ id: o.id, name: o.name, icon: o.icon ?? "tag" }))}>
               <button type="button" aria-pressed={it.customCategoryId === cc.id} onClick={() => aoEscolher(assignCustom(it.key, cc.id))} className={`${quadrado} w-full ${cor(it.customCategoryId === cc.id)}`}>
                 <span className="flex size-9 items-center justify-center rounded-full bg-surface-2 text-ink-muted" aria-hidden>
                   <Tag size={16} />

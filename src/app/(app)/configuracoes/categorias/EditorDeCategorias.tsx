@@ -79,6 +79,8 @@ export function EditorDeCategorias({ proprias }: { proprias: Propria[] }) {
           <button type="button" onClick={() => setCorDe(corDe === chave ? null : chave)} aria-expanded={corDe === chave} className="min-h-11 shrink-0 px-1.5 text-sm text-accent-strong underline-offset-4 hover:underline">
             Cor
           </button>
+          {/* A que ela criou não tem o liga e desliga: o espaço fica, para o "Cor" alinhar com as de cima. */}
+          {oculta === null && <span className="w-12 shrink-0" aria-hidden />}
           {oculta !== null && (
             <button
               type="button"

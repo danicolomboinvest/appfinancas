@@ -174,7 +174,8 @@ function GradeDeCategorias<T extends { key: string; nome: string; icon: LucideIc
           <CategoryIcon icon={o.icon} color={o.cor} size={36} variant="soft" />
           <span className="w-full truncate">{o.nome}</span>
           {o.key === marcada && (
-            <span className="absolute right-3 top-3 flex size-[22px] items-center justify-center rounded-full bg-ink text-surface">
+            // Na que ela criou, o canto de cima é do lápis: o visto fica logo ao lado.
+            <span className={`absolute top-3 flex size-[22px] items-center justify-center rounded-full bg-ink text-surface ${o.customCategoryId ? "right-10" : "right-3"}`}>
               <Check size={13} strokeWidth={2.2} aria-hidden />
             </span>
           )}
@@ -182,7 +183,7 @@ function GradeDeCategorias<T extends { key: string; nome: string; icon: LucideIc
         );
         // A que ela criou: lápis ou toque longo para editar e apagar (12/10/2026).
         return o.customCategoryId ? (
-          <LapisDaCategoria key={o.key} categoria={{ id: o.key, name: o.nome, icon: o.iconeChave ?? "tag" }} outras={proprias}>
+          <LapisDaCategoria key={o.key} categoria={{ id: o.key, name: o.nome, icon: o.iconeChave ?? "tag" }} outras={proprias} canto="right-3 top-3">
             {bloco}
           </LapisDaCategoria>
         ) : (
