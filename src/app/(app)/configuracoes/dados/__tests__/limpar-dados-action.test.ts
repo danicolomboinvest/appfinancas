@@ -9,9 +9,20 @@ const limparDados = vi.fn();
 const cabeMaisUmaLimpeza = vi.fn();
 const revalidatePath = vi.fn();
 const revogarNaPluggy = vi.fn();
+const eventoCreate = vi.fn();
+const loteFindFirst = vi.fn();
+const desfazerLote = vi.fn();
+const sessao = { userId: "u1", profileId: "pes", role: "CLIENT" };
 
 vi.mock("next/cache", () => ({ revalidatePath: (...a: unknown[]) => revalidatePath(...a) }));
-vi.mock("@/lib/auth/session", () => ({ getRequiredSession: vi.fn(async () => ({ userId: "u1", profileId: "pes", role: "CLIENT" })) }));
+vi.mock("@/lib/auth/session", () => ({ getRequiredSession: vi.fn(async () => ({ ...sessao })) }));
+vi.mock("@/lib/db/prisma", () => ({
+  prisma: {
+    usageEvent: { create: (...a: unknown[]) => eventoCreate(...a) },
+    importBatch: { findFirst: (...a: unknown[]) => loteFindFirst(...a) },
+  },
+}));
+vi.mock("@/lib/repositories/import-batch.repo", () => ({ deleteImportBatchWithEntries: (...a: unknown[]) => desfazerLote(...a) }));
 vi.mock("@/lib/repositories/limpar-dados.repo", () => ({
   limparDados: (...a: unknown[]) => limparDados(...a),
   cabeMaisUmaLimpeza: (...a: unknown[]) => cabeMaisUmaLimpeza(...a),
@@ -20,7 +31,7 @@ vi.mock("@/lib/repositories/limpar-dados.repo", () => ({
 vi.mock("@/lib/pluggy/revogar", () => ({ revogarNaPluggy: (...a: unknown[]) => revogarNaPluggy(...a) }));
 vi.mock("../actions", () => ({ exportEntriesCsvAction: vi.fn(async () => "lanc"), exportAssetsCsvAction: vi.fn(async () => "cart") }));
 
-const { limparDadosAction, copiaAntesDeLimparAction } = await import("../limpar-dados-actions");
+const { limparDadosAction, copiaAntesDeLimparAction, registrarMotivoDaLimpezaAction, desfazerUltimaImportacaoAction } = await import("../limpar-dados-actions");
 const { PerfilDeOutraPessoa } = await import("@/lib/repositories/limpar-dados.repo");
 const { PARTES } = await import("@/lib/limpar-dados/regras");
 
@@ -31,6 +42,10 @@ beforeEach(() => {
   revogarNaPluggy.mockReset().mockResolvedValue(undefined);
   cabeMaisUmaLimpeza.mockReset().mockResolvedValue(true);
   revalidatePath.mockReset();
+  eventoCreate.mockReset().mockResolvedValue({});
+  loteFindFirst.mockReset().mockResolvedValue({ id: "lote1" });
+  desfazerLote.mockReset().mockResolvedValue(42);
+  sessao.role = "CLIENT";
 });
 
 describe("limparDadosAction", () => {
@@ -131,5 +146,46 @@ describe("limparDadosAction com partes escolhidas", () => {
 describe("copiaAntesDeLimparAction", () => {
   it("reaproveita as exportações de Configurações › Dados", async () => {
     expect(await copiaAntesDeLimparAction()).toEqual({ lancamentos: "lanc", carteira: "cart" });
+  });
+});
+
+describe("Por que está limpando?", () => {
+  it("grava só o código da resposta como evento de uso", async () => {
+    await registrarMotivoDaLimpezaAction("importei_errado");
+    await registrarMotivoDaLimpezaAction("pulou");
+    expect(eventoCreate.mock.calls.map((c) => c[0].data)).toEqual([
+      { userId: "u1", name: "limpar_motivo", path: "/configuracoes/limpar/motivo/importei_errado" },
+      { userId: "u1", name: "limpar_motivo", path: "/configuracoes/limpar/motivo/pulou" },
+    ]);
+  });
+
+  it("resposta inventada, texto livre ou admin não gravam nada", async () => {
+    await registrarMotivoDaLimpezaAction("meu cpf é 123");
+    await registrarMotivoDaLimpezaAction({ motivo: "outro" });
+    sessao.role = "ADMIN";
+    await registrarMotivoDaLimpezaAction("testar");
+    expect(eventoCreate).not.toHaveBeenCalled();
+  });
+
+  it("banco piscou: o motivo nunca derruba o limpar", async () => {
+    eventoCreate.mockRejectedValueOnce(new Error("caiu"));
+    await expect(registrarMotivoDaLimpezaAction("categorias")).resolves.toBeUndefined();
+  });
+});
+
+describe("desfazerUltimaImportacaoAction", () => {
+  it("desfaz o lote do próprio perfil e marca a saída menor", async () => {
+    const r = await desfazerUltimaImportacaoAction("lote1");
+    expect(r).toEqual({ ok: true, removidos: 42 });
+    expect(loteFindFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "lote1", userId: "u1", profileId: "pes" } }));
+    expect(desfazerLote).toHaveBeenCalledWith(expect.objectContaining({ userId: "u1" }), "lote1");
+    expect(eventoCreate.mock.calls[0][0].data).toMatchObject({ name: "limpar_desfez_importacao" });
+  });
+
+  it("lote de outra pessoa (ou que não existe) não apaga nada", async () => {
+    loteFindFirst.mockResolvedValueOnce(null);
+    expect(await desfazerUltimaImportacaoAction("dos-outros")).toEqual({ ok: false, erro: "Não achei essa importação." });
+    expect(await desfazerUltimaImportacaoAction(123)).toMatchObject({ ok: false });
+    expect(desfazerLote).not.toHaveBeenCalled();
   });
 });

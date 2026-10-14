@@ -91,6 +91,34 @@ export const LIMITE_DE_LIMPEZAS = { janelaMs: 60 * 60 * 1000, maximo: 3 };
 export const EVENTO_DADOS_LIMPOS = "dados_limpos";
 
 /**
+ * "Por que está limpando?" (13/10/2026): no primeiro dia, 9 pessoas limparam e 7 importaram tudo
+ * de novo logo depois. Uma pergunta de um toque antes de seguir, gravada como evento de uso (a
+ * mesma tabela do "dados_limpos"): só o código da resposta, nunca texto, nome ou valor.
+ */
+export const MOTIVOS_DA_LIMPEZA = ["importei_errado", "categorias", "testar", "repetido", "outro"] as const;
+export type MotivoDaLimpeza = (typeof MOTIVOS_DA_LIMPEZA)[number];
+/** O que vai no evento: um dos motivos, ou "pulou" (tocou em Pular). */
+export type RespostaDoMotivo = MotivoDaLimpeza | "pulou";
+
+export function ehRespostaDoMotivo(v: unknown): v is RespostaDoMotivo {
+  return v === "pulou" || (typeof v === "string" && (MOTIVOS_DA_LIMPEZA as readonly string[]).includes(v));
+}
+
+export const EVENTO_MOTIVO_DA_LIMPEZA = "limpar_motivo";
+/** Quem aceitou a saída menor (desfazer a última importação) em vez de limpar. */
+export const EVENTO_SAIDA_MENOR = "limpar_desfez_importacao";
+
+/** O caminho do evento: "/configuracoes/limpar/motivo/importei_errado". */
+export function caminhoDoMotivo(r: RespostaDoMotivo): string {
+  return `/configuracoes/limpar/motivo/${r}`;
+}
+
+/** Importou errado ou apareceu repetido: desfazer a última importação resolve sem limpar tudo. */
+export function temSaidaMenor(r: RespostaDoMotivo): boolean {
+  return r === "importei_errado" || r === "repetido";
+}
+
+/**
  * Decisões que NÃO saem com os dados:
  * - "resposta_errada" é o aviso que a pessoa mandou para a equipe ("essa resposta está errada"),
  *   lido no admin. É registro do app, não dinheiro dela.
