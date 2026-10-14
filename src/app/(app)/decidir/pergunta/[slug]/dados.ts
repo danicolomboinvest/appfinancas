@@ -7,7 +7,9 @@ import { sumExpensesByParentCategory } from "@/lib/repositories/budget.repo";
 import { getMonthlyPlan } from "@/lib/repositories/monthly-plan.repo";
 import { listGoalsWithProgress } from "@/lib/repositories/goal.repo";
 import { getTypicalMonthlyExpense } from "@/lib/planning/typical-expense";
-import { getRendaMedia } from "@/lib/repositories/renda-media.repo";
+import { getLimiteDasMetas, getRendaMedia } from "@/lib/repositories/renda-media.repo";
+import { prazoApertado } from "@/lib/metas/prazo-que-cabe";
+import { parseTripPlan } from "@/lib/travel/assistente";
 import { computeGoalPlan } from "@/lib/planning/goal";
 import { mesesAteMeta } from "@/lib/decisoes/posso-comprar";
 import { ritmoMensalDaMeta, type MetaResposta, type ResumoMes } from "@/lib/decisoes/respostas";
@@ -48,7 +50,7 @@ export async function carregarRespostas(ctx: AuthContext) {
   const passado = new Date(year, month - 2, 1);
   const retrasado = new Date(year, month - 3, 1);
   const tresMesesAtras = new Date(Date.UTC(year, month - 4, 1));
-  const [plano, rendaMedia, gastoTipico, metas, aportesPorMeta, mesPassado, mesRetrasado, maioresPassado, rendaDoCasal] = await Promise.all([
+  const [plano, rendaMedia, gastoTipico, metas, aportesPorMeta, mesPassado, mesRetrasado, maioresPassado, rendaDoCasal, limite] = await Promise.all([
     getMonthlyPlan(ctx, year, month),
     getRendaMedia(ctx),
     getTypicalMonthlyExpense(ctx),
@@ -70,6 +72,8 @@ export async function carregarRespostas(ctx: AuthContext) {
     }),
     // Casal que só conta a conta conjunta: a regra dos 90% não vale (o mesmo do "Posso comprar?").
     ehCasal(ctx.profileKind) ? lerDecisao(ctx, "casal_renda", "renda") : Promise.resolve(null),
+    // Quanto cabe por mês nas metas: o selo "prazo apertado" (o mesmo da lista de Metas).
+    getLimiteDasMetas(ctx),
   ]);
   const somaPorMeta = new Map<string, { soma: number; meses: number }>();
   for (const a of aportesPorMeta) {
@@ -102,6 +106,8 @@ export async function carregarRespostas(ctx: AuthContext) {
     // Vencida só depois que o MÊS do prazo acabou (a mesma regra do Foco). Aí o plano da meta
     // devolve o que falta inteiro como "por mês"; o certo é o que ela combinou guardar.
     const vencida = atual < alvo && mesesAtePrazo !== null && mesesAtePrazo < 0;
+    // A da Viagem edita no assistente dela: sem o selo, como na lista de Metas.
+    const apertado = Boolean(plan) && !vencida && atual < alvo && parseTripPlan((g as { viagem?: unknown }).viagem) === null && prazoApertado(plan!.requiredMonthlyContribution, limite);
     return {
       id: g.id,
       nome: g.name,
@@ -114,6 +120,7 @@ export async function carregarRespostas(ctx: AuthContext) {
       chegaEmMeses: k,
       noPrazo: vencida ? false : mesesAtePrazo === null ? k !== null : k !== null && k <= mesesAtePrazo,
       vencida,
+      apertado,
     };
   });
 
@@ -139,6 +146,7 @@ export async function carregarRespostas(ctx: AuthContext) {
         ritmo: resp.ritmoPorMes,
         necessario: resp.necessarioPorMes,
         noPrazo: resp.noPrazo,
+        apertado: Boolean(resp.apertado),
         ultimos3: tres.map((t) => ({
           rotulo: t.rotulo,
           valor: aportesPorMeta.filter((a) => a.goalId === g.id && a.year === t.ano && a.month === t.mes).reduce((s2, a) => s2 + Number(a._sum.amount ?? 0), 0),

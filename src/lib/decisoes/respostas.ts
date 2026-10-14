@@ -273,6 +273,8 @@ export type MetaResposta = {
    * que falta inteiro como se fosse mensal.
    */
   vencida?: boolean;
+  /** Pede por mês mais do que cabe (lib/metas/prazo-que-cabe): o selo "prazo apertado". */
+  apertado?: boolean;
 };
 
 /**

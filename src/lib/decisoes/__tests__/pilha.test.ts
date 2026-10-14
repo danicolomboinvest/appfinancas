@@ -142,3 +142,16 @@ describe("pilha do Decidir (rodadas 38, 49 e 53)", () => {
     expect(juntarComE(["Saúde", "Europa", "Reserva"])).toBe("Saúde, Europa e Reserva");
   });
 });
+
+describe("prazo apertado na pilha (14/10/2026)", () => {
+  it("a meta que pede mais do que cabe leva o selo para a sugestão de prazo", () => {
+    const d = dados();
+    const c = cartaoDaPilha(meta, { ...d, metas: d.metas.map((x) => ({ ...x, apertado: true })) })!;
+    expect(c.prazoApertado).toBe("/planejamento/metas?prazo=europa");
+  });
+  it("sem aperto, sem selo (e nada mais muda)", () => {
+    const c = cartaoDaPilha(meta, dados())!;
+    expect(c.prazoApertado).toBeUndefined();
+    expect(c.respostas[0]).toMatchObject({ id: "guardar_mais", principal: true });
+  });
+});

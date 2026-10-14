@@ -540,3 +540,27 @@ html:not(.light) .ob-esf svg {
     transform: none;
   }
 }
+
+/* O selo "prazo apertado" (14/10/2026): a meta pede por mês mais do que cabe. Leva à sugestão. */
+.dc-apertado {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  margin-top: 4px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: var(--color-surface-2);
+  color: var(--color-ink);
+  font-size: 12.5px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.dc-apertado::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #e8b13c;
+}

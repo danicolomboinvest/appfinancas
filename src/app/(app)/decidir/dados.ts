@@ -48,6 +48,7 @@ export async function carregarDecidir(ctx: AuthContext) {
         ritmo: x.ritmoPorMes,
         chega: quando ? { curto: `${MESES_CURTOS[quando.getMonth()]}/${quando.getFullYear()}`, ano: quando.getFullYear(), mes: quando.getMonth() + 1 } : null,
         vencida: Boolean(x.vencida),
+        apertado: Boolean(x.apertado),
       };
     });
 

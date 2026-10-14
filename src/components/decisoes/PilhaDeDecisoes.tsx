@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Check, PiggyBank, Receipt, Repeat, ShieldCheck, Target, Tag } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -195,6 +196,11 @@ export function PilhaDeDecisoes({ pilha, depois }: { pilha: CartaoDaPilha[]; dep
               </div>
               <ValorGrande texto={frente.numero} />
               <span className="dc-pc-l">{frente.linha}</span>
+              {frente.prazoApertado && (
+                <Link href={frente.prazoApertado} className="dc-apertado" aria-label={`Prazo apertado em ${frente.assunto}: ver um prazo que cabe`}>
+                  Prazo apertado
+                </Link>
+              )}
               <span className="dc-pc-b" aria-hidden>
                 <i style={{ width: `${(Math.min(1, frente.progresso) * 100).toFixed(1)}%` }} />
               </span>

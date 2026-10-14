@@ -23,6 +23,8 @@ export type MetaDoFluxo = {
   ritmo: number;
   necessario: number;
   noPrazo: boolean;
+  /** Pede por mês mais do que cabe (lib/metas/prazo-que-cabe): selo e atalho para um prazo que cabe. */
+  apertado?: boolean;
   ultimos3: { rotulo: string; valor: number }[];
 };
 
@@ -54,13 +56,13 @@ function Passo({ n, total, nome, pergunta, onVoltar, children }: { n: number; to
   );
 }
 
-function Opcao({ meta, on, selo, sub, onClick }: { meta: MetaDoFluxo; on: boolean; selo?: { texto: string; ruim: boolean } | null; sub: string; onClick: () => void }) {
+function Opcao({ meta, on, selo, sub, onClick }: { meta: MetaDoFluxo; on: boolean; selo?: { texto: string; ruim: boolean; neutro?: boolean } | null; sub: string; onClick: () => void }) {
   return (
     <button type="button" aria-pressed={on} onClick={onClick} className="flex items-center gap-3 rounded-3xl bg-surface p-2.5 pr-4 text-left shadow-[inset_0_0_0_1px_var(--color-border)] aria-pressed:shadow-[inset_0_0_0_1.5px_var(--color-ink)]">
       {/* eslint-disable-next-line @next/next/no-img-element -- foto da meta */}
       <img src={meta.foto} alt="" loading="lazy" decoding="async" className="size-14 shrink-0 rounded-2xl object-cover" />
       <span className="min-w-0 flex-1">
-        {selo && <small className={`mb-0.5 inline-block rounded-full px-2 py-px text-xs font-medium ${selo.ruim ? "bg-danger-soft text-danger" : "bg-success-soft text-success"}`}>{selo.texto}</small>}
+        {selo && <small className={`mb-0.5 inline-block rounded-full px-2 py-px text-xs font-medium ${selo.neutro ? "bg-surface-2 text-ink" : selo.ruim ? "bg-danger-soft text-danger" : "bg-success-soft text-success"}`}>{selo.texto}</small>}
         <b className="block truncate text-[15px] font-medium text-ink">{meta.nome}</b>
         <small className="text-[13px] tabular-nums text-ink-muted">{sub}</small>
       </span>
@@ -275,7 +277,7 @@ export function FluxoMinhaMeta({ metas, hoje }: { metas: MetaDoFluxo[]; hoje: { 
               key={x.id}
               meta={x}
               on={false}
-              selo={x.prazoMeses === null ? null : { texto: x.noPrazo ? "No prazo" : "Atrasada", ruim: !x.noPrazo }}
+              selo={x.prazoMeses === null ? null : x.apertado ? { texto: "Prazo apertado", ruim: false, neutro: true } : { texto: x.noPrazo ? "No prazo" : "Atrasada", ruim: !x.noPrazo }}
               sub={`${Math.round((x.atual / x.alvo) * 100)}%${x.prazoTexto ? ` · prazo ${x.prazoTexto}` : ""}`}
               onClick={() => {
                 setMetaId(x.id);
@@ -412,10 +414,18 @@ export function FluxoMinhaMeta({ metas, hoje }: { metas: MetaDoFluxo[]; hoje: { 
           )}
         </div>
       </HeroiDoTema>
-      {precisa !== null && atraso > 0 && (
-        <Link href={`/planejamento/metas/${meta.id}`} className={preto}>
-          Guardar {m(precisa)} por mês
+      {meta.apertado ? (
+        // O que a meta pede passa do que cabe: em vez de "Guardar R$ 47.810 por mês", um prazo que cabe.
+        <Link href={`/planejamento/metas?prazo=${meta.id}`} className={preto}>
+          Ver um prazo que cabe
         </Link>
+      ) : (
+        precisa !== null &&
+        atraso > 0 && (
+          <Link href={`/planejamento/metas/${meta.id}`} className={preto}>
+            Guardar {m(precisa)} por mês
+          </Link>
+        )
       )}
       <div className="grid grid-cols-2 gap-2">
         <Link href={`/planejamento/metas/${meta.id}`} className={claro}>

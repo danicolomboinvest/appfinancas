@@ -61,6 +61,8 @@ export type CartaoDaPilha = {
   /** Para o ícone e para as respostas que mexem numa categoria. */
   categoria?: string;
   metaId?: string;
+  /** Meta que pede por mês mais do que cabe: o selo "prazo apertado" leva à sugestão de prazo. */
+  prazoApertado?: string;
   /** Os números que as respostas aplicam (a tela não recalcula nada). */
   aplicar?: {
     /** "Tirar de": de onde sai e quanto, somando o valor exato que passou. */
@@ -89,6 +91,8 @@ export type MetaDaPilha = {
   /** Quando chega no ritmo de hoje: "mai/2032" e o mês em si, ou null quando não chega. */
   chega: { curto: string; ano: number; mes: number } | null;
   vencida: boolean;
+  /** Pede por mês mais do que cabe (lib/metas/prazo-que-cabe). */
+  apertado?: boolean;
 };
 
 export type DadosDaPilha = {
@@ -170,6 +174,7 @@ export function cartaoDaPilha(item: FocoItem, d: DadosDaPilha): CartaoDaPilha | 
       pergunta: "Como recuperar?",
       respostas: [...respostas, DEIXAR],
       metaId: meta.id,
+      ...(meta.apertado ? { prazoApertado: `/planejamento/metas?prazo=${meta.id}` } : {}),
       aplicar: { porMes: Math.ceil(meta.porMes), ...(meta.chega ? { chega: { ano: meta.chega.ano, mes: meta.chega.mes } } : {}) },
     };
   }
