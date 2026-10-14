@@ -140,7 +140,6 @@ function Categorias({ r, money }: { r: Dados; money: (v: number) => string }) {
           Ver todas as categorias <ChevronRight size={15} aria-hidden />
         </Link>
       </Card>
-      <p className="px-1 text-[12.5px] text-ink-muted">A barra cheia é {nome(r.mes)}; a clara, {nome(r.passado)} até o mesmo dia.</p>
     </section>
   );
 }

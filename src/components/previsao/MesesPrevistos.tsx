@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ChevronRight, CreditCard, Receipt, Repeat } from "lucide-react";
 import { Card } from "@/components/ui/Card";
+import { marcaDaDescricao } from "@/lib/marcas/marca";
 import { HeroiDoTema } from "@/components/ui/HeroiDoTema";
 import { NUMERO_DESTAQUE, ValorDestaque } from "@/components/ui/ValorDestaque";
 import { fraseDoQueAcaba, type ItemPrevisto, type MesPrevisto } from "@/lib/previsao/proximos-meses";
@@ -26,29 +27,46 @@ function Barra({ pct, grossa = false }: { pct: number | null; grossa?: boolean }
  */
 export function ProximosMeses({ meses, money, href }: { meses: MesPrevisto[]; money: Money; href: (m: MesPrevisto) => string }) {
   if (meses.every((m) => m.total < 1)) return null;
+  // Menos texto (15/10/2026, "muito textão"): uma linha por mês, o valor e a barra; a parcela que
+  // acaba vira o logo com "+R$ X", sem frase. O detalhe fica no mês, ao tocar.
   return (
     <section className="flex flex-col gap-2.5" data-proximos-meses>
       <h2 className="px-1 text-base font-semibold text-ink">Próximos meses</h2>
       <Card className="flex flex-col p-1.5">
         {meses.map((m) => {
-          const acaba = fraseDoQueAcaba(nome(m), m.acabaram, money);
+          const folga = m.acabaram.reduce((s, i) => s + i.valor, 0);
           return (
-            <Link key={`${m.ano}-${m.mes}`} href={href(m)} className="flex flex-col gap-1.5 rounded-xl px-3 py-3 transition-colors hover:bg-surface-2">
-              <span className="flex items-baseline justify-between gap-3">
-                <b className="text-[15px] font-semibold text-ink">{Nome(m)}</b>
-                <span className="flex items-center gap-1 text-[14px] tabular-nums text-ink">
-                  <b className="font-semibold">{money(m.total)}</b>
-                  {m.rendaMedia !== null && <span className="text-ink-muted">de {money(m.rendaMedia)}</span>}
-                  <ChevronRight size={15} className="text-ink-muted" aria-hidden />
-                </span>
+            <Link key={`${m.ano}-${m.mes}`} href={href(m)} aria-label={`${Nome(m)}: ${money(m.total)} já previstos`} className="grid grid-cols-[3.25rem_minmax(0,1fr)_auto] items-center gap-3 rounded-xl px-3 py-3 transition-colors hover:bg-surface-2">
+              <b className="text-[15px] font-semibold text-ink">{Nome(m).slice(0, 3)}</b>
+              <span className="flex min-w-0 flex-col gap-1.5">
+                <Barra pct={m.pct} />
+                {folga >= 1 && (
+                  <span className="flex min-w-0 items-center gap-1.5 text-[12.5px] font-medium text-success">
+                    <span className="flex -space-x-1.5">
+                      {m.acabaram.slice(0, 3).map((i, k) => {
+                        const marca = marcaDaDescricao(i.nome);
+                        return marca ? (
+                          // eslint-disable-next-line @next/next/no-img-element -- logo pequeno do catálogo
+                          <img key={i.nome + k} src={marca.src} alt="" className="size-5 rounded-full bg-surface object-contain ring-2 ring-surface" />
+                        ) : (
+                          <span key={i.nome + k} className="flex size-5 items-center justify-center rounded-full bg-success-soft ring-2 ring-surface" aria-hidden>
+                            <CreditCard size={11} />
+                          </span>
+                        );
+                      })}
+                    </span>
+                    +{money(folga)}
+                  </span>
+                )}
               </span>
-              <Barra pct={m.pct} />
-              {acaba && <span className="text-[13px] font-medium text-accent-strong">{acaba}</span>}
+              <span className="flex items-center gap-1 text-[15px] font-semibold tabular-nums text-ink">
+                {money(m.total)}
+                <ChevronRight size={15} className="text-ink-muted" aria-hidden />
+              </span>
             </Link>
           );
         })}
       </Card>
-      <p className="px-1 text-[12.5px] text-ink-muted">Previsto: parcelas, contas e assinaturas, contra a renda média.</p>
     </section>
   );
 }
