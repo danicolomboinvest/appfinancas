@@ -82,3 +82,21 @@ export function mediaDaRenda(
 export function textoDaMedia(meses: number): string {
   return `média de ${meses} ${meses === 1 ? "mês" : "meses"}`;
 }
+
+/**
+ * O que ela guarda por mês, de verdade: a média dos aportes dos meses fechados da mesma janela
+ * de 12 meses, só os meses com algum aporte (14/10/2026, prazo que cabe nas metas, quando a renda
+ * não é conhecida). Mês com resgate maior que o aporte não entra. Null sem nenhum.
+ */
+export function mediaDosAportes(aportes: { year: number; month: number; amount: number }[], hoje: Date): number | null {
+  const janela = new Set(mesesDaMedia(hoje).map((m) => `${m.year}-${m.month}`));
+  const porMes = new Map<string, number>();
+  for (const a of aportes) {
+    const k = `${a.year}-${a.month}`;
+    if (!janela.has(k)) continue;
+    porMes.set(k, (porMes.get(k) ?? 0) + Number(a.amount));
+  }
+  const valores = [...porMes.values()].filter((v) => v > 0);
+  if (valores.length === 0) return null;
+  return Math.round((valores.reduce((s, v) => s + v, 0) / valores.length) * 100) / 100;
+}

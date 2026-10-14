@@ -19,7 +19,7 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
-import { ehRendaDeVerdade, mediaDaRenda, mesesDaMedia, textoDaMedia } from "../renda-media";
+import { ehRendaDeVerdade, mediaDaRenda, mediaDosAportes, mesesDaMedia, textoDaMedia } from "../renda-media";
 import { getRendaMedia } from "@/lib/repositories/renda-media.repo";
 import { rendaDeReferencia } from "@/lib/simulators/worth-it";
 
@@ -127,5 +127,26 @@ describe("digitado vence a estimativa", () => {
     expect(rendaDeReferencia(7000, 5000, 200)).toEqual({ valor: 7000, fonte: "plano" });
     expect(rendaDeReferencia(null, 5000, 200)).toEqual({ valor: 5000, fonte: "media" });
     expect(rendaDeReferencia(0, null, 200)).toEqual({ valor: 200, fonte: "mes" });
+  });
+});
+
+describe("mediaDosAportes", () => {
+  const hoje = new Date(2026, 9, 14, 12);
+  it("média dos meses fechados com aporte, sem o mês corrente", () => {
+    expect(
+      mediaDosAportes(
+        [
+          { year: 2026, month: 9, amount: 600 },
+          { year: 2026, month: 8, amount: 300 },
+          { year: 2026, month: 8, amount: 100 },
+          { year: 2026, month: 10, amount: 5000 },
+        ],
+        hoje,
+      ),
+    ).toBe(500);
+  });
+  it("sem aporte, null", () => {
+    expect(mediaDosAportes([], hoje)).toBeNull();
+    expect(mediaDosAportes([{ year: 2024, month: 1, amount: 900 }], hoje)).toBeNull();
   });
 });
