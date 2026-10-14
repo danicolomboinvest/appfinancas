@@ -32,15 +32,18 @@ export type PassoAPassoDoBanco = {
 
 const LIDA = "11/10/2026";
 
-/** O genérico, para quando não há fonte oficial: nada de menu inventado. */
+/**
+ * O genérico, para quando não há fonte oficial e para "Meu banco não está aqui": nada de menu
+ * inventado, só o que todo app de banco tem (texto da dona, 14/10/2026).
+ */
 export const CAMINHO_GENERICO: Caminho = {
   passos: [
-    ["Extrato", "Procure no app"],
-    ["Período", "Escolha o mês"],
-    ["Exportar", "Em PDF ou OFX"],
+    ["Extrato ou Fatura", "Procure no app"],
+    ["Exportar", "Escolha o mês"],
+    ["PDF ou CSV", "Salve no celular"],
   ],
   formatos: null,
-  nota: "No app do seu banco, procure Extrato e exporte em PDF ou OFX.",
+  nota: "No app do seu banco, procure Extrato ou Fatura › Exportar › PDF ou CSV.",
 };
 
 export const PASSO_A_PASSO: Record<string, PassoAPassoDoBanco> = {

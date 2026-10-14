@@ -31,6 +31,7 @@ import { ACEITA_ARQUIVO_DE_EXTRATO, MAX_PRINTS, UPLOAD_MAX_BYTES, ehImagem } fro
 import type { PrintLido } from "@/lib/import/print-fatura";
 import { hojeNoAparelho, prepararImagem } from "./preparar-imagem";
 import { filaPorComerciante, iguaisPraAplicar, proximaPendente, semCategoria as gastoSemCategoria } from "@/lib/import/revisao-em-grupo";
+import { perguntasDeMaiorValor } from "@/lib/onboarding/conferencia-inicial";
 import { foiSeparada, porqueDaLinha } from "@/lib/import/porque";
 import { faixaDosMeses, levarRespostas, resumoDoArquivo } from "@/lib/import/varios-arquivos";
 import { mesDaRevelacao } from "@/lib/import/revelacao";
@@ -75,8 +76,10 @@ export type EstadoParaOComeco = {
   lendo: boolean;
   /** Linhas que entram (sem as que ficam de fora). */
   linhas: number;
-  /** Quantas precisam dela na revisão. */
+  /** Quantas precisam dela na revisão (no começo, no máximo as 3 de maior valor). */
   pendentes: number;
+  /** Todas as perguntas do arquivo: as que passam do limite ficam "A conferir". */
+  pendentesTotal: number;
   erro: boolean;
   /** Até 4 gastos que o app já separou sozinho, do arquivo dela. */
   amostra: { descricao: string; original: string; categoria: ParentCategory | null; valor: number }[];
@@ -130,6 +133,15 @@ function filaDePerguntas(linhas: ReviewItem[], pular: Set<number> = new Set()): 
   return [...umaPorUma.map((it) => it.key), ...porCategoria.keys];
 }
 
+/** No começo, só as `max` perguntas de maior valor; o resto entra "A conferir". Fora dele, a fila toda. */
+function filaLimitada(fila: number[], linhas: ReviewItem[], max: number | undefined): number[] {
+  if (!max) return fila;
+  const pendentes = linhas
+    .filter((it) => precisaResposta(it))
+    .map((it) => ({ key: it.key, description: it.description, amount: it.amount, profileId: it.profileId ?? null, porLoja: !it.possivelDuplicata && !it.duvida }));
+  return perguntasDeMaiorValor(fila, pendentes, max);
+}
+
 /** "3 prints da fatura": o nome do arquivo na lista e no histórico de importações. */
 function nomeDosPrints(n: number): string {
   return n === 1 ? "Print da fatura aberta" : `${n} prints da fatura aberta`;
@@ -173,6 +185,14 @@ export function StatementImport({
     aoImportar?: (resultado: { mes: { year: number; month: number } | null; revisou: boolean; criados: number }) => void;
     /** A importação está na tela? Escondida atrás dos quadros, ela não pergunta "Sair da importação?". */
     visivel?: boolean;
+    /**
+     * No máximo quantas perguntas antes de ver o mês (leva 1 do primeiro uso, 14/10/2026). As de
+     * maior valor vão para a fila; as outras entram "A conferir", e a importação grava sozinha
+     * quando ela responde a última.
+     */
+    maxPerguntas?: number;
+    /** O "Responder 3" (ou "Ver o meu mês") foi tocado na tela do começo: abre as perguntas direto, sem a confirmação daqui. */
+    responder?: boolean;
   };
   /** Os OUTROS perfis do usuário (não o ativo) — deixa mandar uma linha da fatura pra lá em vez
    * do perfil ativo (ex.: compra da Empresa que caiu no cartão Pessoal). Vazio pra quem só tem
@@ -256,6 +276,10 @@ export function StatementImport({
   const [igualNasParecidas, setIgualNasParecidas] = useState(true);
   // As que ela respondeu "Não sei": entram como "A conferir" e saem da conta das perguntas.
   const [naoSei, setNaoSei] = useState<Set<number>>(new Set());
+  // No começo: a rodada das 3 perguntas já começou (as que sobram não voltam como pergunta aqui) e,
+  // quando ela responde a última, a importação grava sozinha.
+  const [rodadaDoComeco, setRodadaDoComeco] = useState(false);
+  const [gravarAoTerminar, setGravarAoTerminar] = useState(false);
   // Depois de importar: o mês montado. `mes` null = arquivo sem data, fica só o "pronto".
   const [revelacao, setRevelacao] = useState<{ mes: { year: number; month: number } | null; dados: RevelacaoDoImport | null; carregando: boolean }>({
     mes: null,
@@ -299,6 +323,7 @@ export function StatementImport({
       lendo: isPending,
       linhas: items.filter((it) => !it.ignorar).length,
       pendentes: reviewKeys.length,
+      pendentesTotal: filaDePerguntas(items).length,
       erro: error !== null || kindMismatch !== null,
       amostra: separadas.slice(0, 4).map((it) => ({ descricao: nomeNaTela(it.description).nome, original: it.description, categoria: it.parentCategory, valor: it.amount })),
       primeiraPendente: pendente ? { descricao: nomeNaTela(pendente.description).nome, original: pendente.description, data: pendente.date, valor: pendente.amount } : null,
@@ -307,6 +332,7 @@ export function StatementImport({
 
   // Veio da Carteira com um extrato subido lá por engano: começa a ler esse arquivo na hora.
   const handleFileRef = useRef<(file: File) => void>(() => {});
+  const handleImportRef = useRef<() => void>(() => {});
   useEffect(() => {
     const arquivo = pegarArquivoParaOMes();
     // Depois do primeiro desenho: a referência para o handleFile de agora é ligada num efeito abaixo.
@@ -453,7 +479,8 @@ export function StatementImport({
     setReviewIdx(0);
     setNaoSei(new Set());
     // Uma pergunta por comerciante, não por linha (12/10/2026): a resposta vale pro grupo.
-    setReviewKeys(filaDePerguntas(linhas));
+    setReviewKeys(filaLimitada(filaDePerguntas(linhas), linhas, comeco?.maxPerguntas));
+    setRodadaDoComeco(false);
     setSeparadosEmRevisao(null);
     setAberto(null);
     // Caminho B (12/10/2026): primeiro a confirmação calma e o "Separei N de M"; as perguntas
@@ -643,8 +670,11 @@ export function StatementImport({
     };
     const proxima = proximaPendente(reviewKeys, reviewIdx, pendente);
     setCreatingCat(false);
-    if (proxima === null) setPhase("confirm");
-    else setReviewIdx(proxima);
+    if (proxima === null) {
+      setPhase("confirm");
+      // No começo, a última das 3 respondida já grava: ela vai direto para o mês.
+      if (comeco?.maxPerguntas && rodadaDoComeco) setGravarAoTerminar(true);
+    } else setReviewIdx(proxima);
   }
 
   /** Corrigiu a categoria errado no anterior? Volta um passo na fila, sem sair da importação
@@ -854,7 +884,33 @@ export function StatementImport({
   // O começo entrega o arquivo por fora (handleFileRef): fica apontando para a função de agora.
   useEffect(() => {
     handleFileRef.current = handleFile;
+    handleImportRef.current = handleImport;
   });
+
+  // No começo: o "Responder 3" da tela de fora abre as perguntas direto (sem a confirmação daqui);
+  // sem pergunta nenhuma, grava. E a última resposta da rodada grava sozinha. Os dois rodam
+  // depois do desenho, quando `items` já tem a resposta que ela acabou de dar.
+  const pedidoDeResponder = comeco?.responder === true;
+  const maxDoComeco = comeco?.maxPerguntas;
+  useEffect(() => {
+    if (!pedidoDeResponder || !maxDoComeco || phase !== "confirm" || rodadaDoComeco || isPending) return;
+    const fila = filaLimitada(filaDePerguntas(items, naoSei), items, maxDoComeco);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- o pedido vem da tela do começo, de fora deste componente
+    setRodadaDoComeco(true);
+    if (fila.length === 0) {
+      handleImportRef.current();
+      return;
+    }
+    setReviewKeys(fila);
+    setReviewIdx(0);
+    setPhase("review");
+  }, [pedidoDeResponder, maxDoComeco, phase, rodadaDoComeco, isPending, items, naoSei]);
+  useEffect(() => {
+    if (!gravarAoTerminar || phase !== "confirm") return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- grava uma vez, quando a última resposta já está em `items`
+    setGravarAoTerminar(false);
+    handleImportRef.current();
+  }, [gravarAoTerminar, phase]);
 
   // --- UPLOAD ---
   if (phase === "upload") {
@@ -1477,7 +1533,8 @@ export function StatementImport({
     const customName = (id: string) => customCategories.find((c) => c.id === id)?.name ?? "Personalizada";
     const expenseSum = importable.filter((it) => it.category === "EXPENSE").reduce((s, it) => s + (it.estorno ? -it.amount : it.amount), 0);
     // As perguntas que sobraram ("é o mesmo?", "é dinheiro seu?", as categorias): uma fila só.
-    const perguntas = filaDePerguntas(items, naoSei);
+    // No começo, depois da rodada das 3, as que sobraram não voltam como pergunta: entram "A conferir".
+    const perguntas = comeco?.maxPerguntas && rodadaDoComeco ? [] : filaLimitada(filaDePerguntas(items, naoSei), items, comeco?.maxPerguntas);
     // Já estavam no app (lançados à mão, quase certo): não entram de novo, com "Anotar também".
     const jaNoApp = items.filter((it) => it.jaNoApp && !it.ignorar);
     const deFora = items.filter((it) => it.ignorar);
@@ -1898,6 +1955,7 @@ export function StatementImport({
                   setAberto(null);
                   setReviewKeys(perguntas);
                   setReviewIdx(0);
+                  setRodadaDoComeco(true);
                   setPhase("review");
                 }}
                 data-responder

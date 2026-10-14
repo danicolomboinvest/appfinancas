@@ -1,32 +1,8 @@
 "use client";
 
-import { CampoDeDinheiro } from "@/components/ui/CampoDeDinheiro";
 import { ACEITA_ARQUIVO_DE_EXTRATO } from "@/lib/import/limites";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
-import {
-  ArrowRight,
-  BarChart3,
-  Building2,
-  Check,
-  ChevronLeft,
-  Clock,
-  Compass,
-  Delete,
-  FileText,
-  KeyRound,
-  Keyboard,
-  LayoutList,
-  Mail,
-  Mic,
-  PlayCircle,
-  Plus,
-  ShieldCheck,
-  Target,
-  TrendingDown,
-  TrendingUp,
-  Wallet,
-} from "lucide-react";
+import { ArrowRight, Building2, Check, ChevronDown, ChevronLeft, Delete, FileText, Globe, Keyboard, Mail, Mic, Search, ShieldCheck, Wallet, X } from "lucide-react";
 import type { ParentCategory } from "@prisma/client";
 import { BrandMark } from "@/components/brand/BrandMark";
 import { HeroiDoTema } from "@/components/ui/HeroiDoTema";
@@ -41,24 +17,17 @@ import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { trackEvent } from "@/lib/usage/track-event";
 import { marcaDaDescricao } from "@/lib/marcas/marca";
 import { PARENT_CATEGORIES, categoriaOculta, categoryIcon, categoryLabel } from "@/lib/categories";
-import { profileTheme, profileThemeCss } from "@/lib/profiles/themes";
 import { CURRENCIES, CURRENCY_CODES, type CurrencyCode } from "@/lib/money";
 import {
   ATALHOS_DO_GASTO,
   BANCOS_DO_COMECO,
   BANCO_OUTRO,
-  OPCOES_QUER,
-  RENDA_INICIAL,
-  POSICOES_DA_REGUA,
-  posicaoDaRenda,
-  rendaDaPosicao,
-  rendaDaRegua,
-  TEMAS_DO_COMECO,
+  PRINCIPAIS_DO_COMECO,
   apelidoLimpo,
   bancoDoComeco,
-  mesDoTexto,
-  cssDosCartoesDosTemas,
+  bancoQueFalta,
   barraDoPasso,
+  buscarBancos,
   caminhoDoEvento,
   centavosParaReais,
   EVENTOS_DO_COMECO,
@@ -69,68 +38,58 @@ import {
   type Comeco as DadosDoComeco,
   type EventoDoComeco,
   type PassoDoComeco,
-  type Quer,
 } from "@/lib/onboarding/comeco";
+import { MAX_PERGUNTAS_DO_COMECO } from "@/lib/onboarding/conferencia-inicial";
 import { CAMINHO_GENERICO, caminhoDaFatura, caminhoDoExtrato, leMelhor } from "@/lib/onboarding/bancos";
 import { primeiroGastoAction, pularComecoAction, salvarComecoAction, terminarComExtratoAction } from "./actions";
-import { BotaoPrincipal, Bolinha, LinkDiscreto, Nota, Pe, Pilula, Recado, Selo, Titulo } from "./pecas";
-
-type TemaDoComeco = (typeof TEMAS_DO_COMECO)[number]["chave"];
+import { BotaoPrincipal, LinkDiscreto, Nota, Pe, Pilula, Recado, Selo, Titulo } from "./pecas";
 
 /** E-mail do "Fale com a gente" (pendência 5.1.13: a recomendação é o e-mail do app). */
 export const EMAIL_FALE_COM_A_GENTE = "app@danicolombo.com.br";
 
-const VIDEO_PRIMEIRO_MES = { src: "/videos/como-funciona-1-primeiro-mes-leve.mp4", poster: "/videos/como-funciona-1-primeiro-mes-poster.jpg", titulo: "Seu primeiro mês em 3 minutos" };
-
-const ICONE_DO_QUER: Record<(typeof OPCOES_QUER)[number]["icone"], typeof LayoutList> = { lista: LayoutList, desce: TrendingDown, alvo: Target, sobe: TrendingUp };
+/**
+ * A saída do começo para a Visão geral, com a página carregada de novo: o roteador do cliente
+ * guardava o "manda para o /comecar" de quando a conta ainda não tinha terminado o começo, e quem
+ * digitava o primeiro gasto em menos de 30 segundos voltava para as boas-vindas.
+ */
+function irParaAVisaoGeral() {
+  window.location.replace("/mensal/foco");
+}
 
 function registrar(evento: EventoDoComeco, detalhe?: string | null) {
   trackEvent(evento, caminhoDoEvento(evento, detalhe));
 }
 
 /**
- * O começo de quem acabou de entrar (versão nova). Uma coisa por tela, com "Pular" no topo de
- * todas: boas-vindas, quatro perguntas e o primeiro lançamento (extrato, digitar ou falar). Termina
- * na Visão geral com o mês dela na tela.
+ * O começo de quem acabou de entrar (leva 1 do primeiro uso, aprovada em 14/10/2026). Uma coisa
+ * por tela, com "Pular" no topo de todas: Boas-vindas, Porta, Banco (um toque), Como baixar e o
+ * envio. Na conferência do extrato, no máximo 3 perguntas; o resto fica "A conferir". Termina na
+ * Visão geral com o mês dela na tela. O nome vem da conta (da compra), o tema fica no Padrão e a
+ * renda fica para depois: nada disso é perguntado no primeiro dia.
  */
 export function Comeco({
   inicial,
   passoInicial,
   bancoInicial,
   nomeDaConta,
-  temaAtual,
   moedaAtual,
-  mesAtual,
 }: {
   inicial: DadosDoComeco | null;
   passoInicial: PassoDoComeco;
   /** Vindo dos Primeiros passos: o banco que ficou para depois. */
   bancoInicial?: string | null;
+  /** O primeiro nome da conta (vem da compra). Sem nome, o app não chama por nome. */
   nomeDaConta: string | null;
-  temaAtual: TemaDoComeco;
   moedaAtual: CurrencyCode;
-  /** "outubro": o mês de agora, no fuso do Brasil. */
-  mesAtual: string;
 }) {
-  const router = useRouter();
   const money = useMoney();
   const [passo, setPasso] = useState<PassoDoComeco>(passoInicial);
   const [direcao, setDirecao] = useState<1 | -1 | 0>(0);
-  const [apelido, setApelido] = useState(inicial?.apelido ?? nomeDaConta ?? "");
-  const [renda, setRenda] = useState(inicial?.renda ?? RENDA_INICIAL);
-  const [quer, setQuer] = useState<Quer | null>(inicial?.quer ?? null);
-  const [tema, setTema] = useState<TemaDoComeco>(temaAtual);
-  const [moeda, setMoeda] = useState<CurrencyCode>(moedaAtual);
-  const [verMoedas, setVerMoedas] = useState(moedaAtual !== "BRL");
   const [banco, setBanco] = useState<string | null>(bancoInicial ?? inicial?.banco ?? null);
-  // Vários bancos (pedido da dona): o passo a passo segue um por vez, na ordem em que ela marcou.
-  const [bancos, setBancos] = useState<string[]>(inicial?.bancos ?? []);
-  const [feitos, setFeitos] = useState<string[]>(inicial?.bancosFeitos ?? []);
-  const [soEste, setSoEste] = useState(false);
-  // A confirmação inequívoca de que lançou ("Lançado." / "Pronto."), antes da Visão geral.
-  const [pronto, setPronto] = useState<{ titulo: string; linha: string; proximo: string | null } | null>(null);
+  // A confirmação inequívoca de que lançou ("Lançado."), antes da Visão geral.
+  const [pronto, setPronto] = useState<{ titulo: string; linha: string } | null>(null);
   const [saindo, startSaida] = useTransition();
-  const corpoRef = useRef<HTMLDivElement>(null);
+  const nome = apelidoLimpo(inicial?.apelido ?? nomeDaConta);
 
   // Primeira tela da primeira vez: a marca "começou" do funil, uma vez.
   const marcouComeco = useRef(false);
@@ -152,19 +111,15 @@ export function Comeco({
     registrar(EVENTOS_DO_COMECO.pulou, passo);
     startSaida(async () => {
       await pularComecoAction(passo).catch(() => {});
-      router.replace("/mensal/foco");
+      irParaAVisaoGeral();
     });
-  }, [passo, router]);
+  }, [passo]);
 
   const anterior = passoAnterior(passo);
   const barra = barraDoPasso(passo);
-  const nome = apelidoLimpo(apelido) ?? "você";
 
   return (
     <div className="flex min-h-[100dvh] flex-col bg-canvas text-ink">
-      {/* O tema escolhido na pergunta já pinta o começo inteiro (prévia ao vivo). */}
-      {tema !== temaAtual && <style dangerouslySetInnerHTML={{ __html: profileThemeCss(tema) }} />}
-
       <header className="sticky top-0 z-20 bg-canvas/95 px-4 pb-2 pt-[calc(var(--safe-top,0px)+10px)] backdrop-blur-sm">
         <div className="mx-auto grid max-w-md grid-cols-[44px_minmax(0,1fr)_auto] items-center gap-2">
           {anterior ? (
@@ -179,105 +134,39 @@ export function Comeco({
             Pular
           </button>
         </div>
-        <div className="mx-auto mt-1 flex max-w-md justify-center" aria-hidden>
-          {barra.tipo === "pontos" ? (
-            <span className="flex gap-1.5">
-              {Array.from({ length: barra.total }, (_, i) => (
-                <i key={i} className={`h-1.5 rounded-full transition-all duration-300 ${i === barra.atual ? "w-[22px] bg-ink" : "w-1.5 bg-border-strong"}`} />
-              ))}
-            </span>
-          ) : (
-            <span className="grid w-full auto-cols-fr grid-flow-col gap-1.5">
-              {Array.from({ length: barra.total }, (_, i) => (
-                <i key={i} className={`h-1 rounded-full transition-colors ${i <= barra.atual ? "bg-accent" : "bg-border-strong"}`} />
-              ))}
-            </span>
-          )}
-        </div>
+        {barra.total > 0 && (
+          <div className="mx-auto mt-1 grid max-w-md auto-cols-fr grid-flow-col gap-1.5" aria-hidden>
+            {Array.from({ length: barra.total }, (_, i) => (
+              <i key={i} className={`h-1 rounded-full transition-colors ${i <= barra.atual ? "bg-accent" : "bg-border-strong"}`} />
+            ))}
+          </div>
+        )}
       </header>
 
-      <main ref={corpoRef} key={passo} className={`mx-auto flex w-full max-w-md flex-1 flex-col gap-4 px-4 pb-[calc(var(--safe-bottom,0px)+20px)] pt-2 ${direcao !== 0 ? "passo-entra" : ""}`}>
-        {passo === "b1" && <BoasVindas1 onSeguir={() => ir("b2")} money={money} />}
-        {passo === "b2" && <BoasVindas2 onSeguir={() => ir("b3")} />}
-        {passo === "b3" && <BoasVindas3 onSeguir={() => ir("nome")} />}
+      <main key={passo} className={`mx-auto flex w-full max-w-md flex-1 flex-col gap-4 px-4 pb-[calc(var(--safe-bottom,0px)+20px)] pt-2 ${direcao !== 0 ? "passo-entra" : ""}`}>
+        {passo === "b1" && <BoasVindas1 onSeguir={() => ir("porta")} money={money} />}
 
-        {passo === "nome" && (
-          <PerguntaNome
-            apelido={apelido}
-            setApelido={setApelido}
-            onSeguir={() => {
-              registrar(EVENTOS_DO_COMECO.pergunta, "nome");
-              ir("renda", 1, { apelido });
-            }}
-          />
-        )}
-        {passo === "renda" && (
-          <PerguntaRenda
-            renda={renda}
-            setRenda={setRenda}
-            moeda={moeda}
-            setMoeda={setMoeda}
-            verMoedas={verMoedas}
-            setVerMoedas={setVerMoedas}
-            money={money}
-            onSeguir={(semRenda) => {
-              registrar(EVENTOS_DO_COMECO.pergunta, semRenda ? "renda-nao" : "renda");
-              ir("quer", 1, semRenda ? { semRenda: true, renda: null, moeda } : { semRenda: false, renda, moeda });
-            }}
-          />
-        )}
-        {passo === "quer" && (
-          <PerguntaQuer
-            quer={quer}
-            setQuer={setQuer}
-            onSeguir={() => {
-              registrar(EVENTOS_DO_COMECO.pergunta, "quer");
-              ir("tema", 1, { quer: quer ?? undefined });
-            }}
-          />
-        )}
-        {passo === "tema" && (
-          <PerguntaTema
-            tema={tema}
-            setTema={setTema}
-            onSeguir={() => {
-              registrar(EVENTOS_DO_COMECO.pergunta, "tema");
-              ir("porta", 1, { tema });
-            }}
-          />
-        )}
-
-        {pronto && (
-          <Confirmacao
-            {...pronto}
-            onSeguir={() => {
-              if (pronto.proximo) {
-                setBanco(pronto.proximo);
-                setPronto(null);
-                ir("tutorial", 1, { banco: pronto.proximo });
-              } else router.replace("/mensal/foco");
-            }}
-            onParar={() => router.replace("/mensal/foco")}
-          />
-        )}
+        {pronto && <Confirmacao {...pronto} onSeguir={() => irParaAVisaoGeral()} />}
         {!pronto && passo === "porta" && (
           <Porta
-            nome={nome}
-            mes={mesAtual}
+            moedaAtual={moedaAtual}
+            onMoeda={(m) => {
+              registrar(EVENTOS_DO_COMECO.moeda, m.toLowerCase());
+              void salvarComecoAction({ moeda: m }).catch(() => {});
+            }}
             onEscolher={(p) => {
               registrar(EVENTOS_DO_COMECO.porta, p);
-              ir(p === "extrato" ? "banco" : "digitar", 1, { porta: p });
+              ir(p === "extrato" ? "banco" : p, 1, { porta: p });
             }}
           />
         )}
         {!pronto && passo === "banco" && (
           <EscolhaDoBanco
-            marcados={bancos}
-            onSeguir={(lista) => {
-              lista.forEach((b) => registrar(EVENTOS_DO_COMECO.banco, b));
-              setBancos(lista);
-              setBanco(lista[0]);
-              ir("tutorial", 1, { bancos: lista, banco: lista[0] });
+            onEscolher={(b) => {
+              registrar(EVENTOS_DO_COMECO.banco, b);
+              setBanco(b);
+              // Um banco por vez (um toque e já vai). O segundo vira o próximo passo do Resumo.
+              ir("tutorial", 1, { banco: b, bancos: [b] });
             }}
           />
         )}
@@ -287,9 +176,6 @@ export function Comeco({
             banco={bancoDoComeco(banco) ?? BANCO_OUTRO}
             volta={passo === "volta"}
             nome={nome}
-            posicao={bancos.length > 1 && banco ? { atual: bancos.indexOf(banco) + 1, total: bancos.length } : null}
-            soEste={soEste}
-            onSoEste={() => setSoEste((v) => !v)}
             onArquivo={(arquivo) => {
               registrar(EVENTOS_DO_COMECO.enviou, banco ?? "outro");
               importarArquivoNoMes(arquivo);
@@ -302,26 +188,19 @@ export function Comeco({
           <Lendo
             key={banco ?? "outro"}
             money={money}
-            onTerminar={(mes, revisou, criados) => {
+            onTerminar={(mes, revisou) => {
               registrar(EVENTOS_DO_COMECO.revisou, revisou ? "com-revisao" : "sem-revisao");
-              const agora = banco && !feitos.includes(banco) ? [...feitos, banco] : feitos;
-              setFeitos(agora);
-              const falta = bancos.filter((b) => !agora.includes(b));
-              const nomeDoMes = mesDoTexto(mes)?.nome;
               startSaida(async () => {
                 await terminarComExtratoAction({ mes, revisou, banco }).catch(() => {});
-                setPronto({
-                  titulo: "Pronto.",
-                  linha: `${criados} ${criados === 1 ? "lançamento" : "lançamentos"}${nomeDoMes ? ` de ${nomeDoMes}` : ""}`,
-                  proximo: soEste ? null : (falta[0] ?? null),
-                });
+                // Direto para o mês dela: a Visão geral abre com "Esse é o seu setembro".
+                irParaAVisaoGeral();
               });
             }}
             onOutroArquivo={() => ir("tutorial", -1)}
           />
         )}
-        {!pronto && passo === "digitar" && <Digitar money={money} onLancado={(linha) => setPronto({ titulo: "Lançado.", linha, proximo: null })} onFalar={() => ir("falar")} />}
-        {!pronto && passo === "falar" && <Falar money={money} onLancado={(linha) => setPronto({ titulo: "Lançado.", linha, proximo: null })} onDigitar={() => ir("digitar", -1)} />}
+        {!pronto && passo === "digitar" && <Digitar money={money} onLancado={(linha) => setPronto({ titulo: "Lançado.", linha })} onFalar={() => ir("falar")} />}
+        {!pronto && passo === "falar" && <Falar money={money} onLancado={(linha) => setPronto({ titulo: "Lançado.", linha })} onDigitar={() => ir("digitar", -1)} />}
       </main>
     </div>
   );
@@ -380,87 +259,68 @@ function BoasVindas1({ onSeguir, money }: { onSeguir: () => void; money: Money }
   );
 }
 
-function BoasVindas2({ onSeguir }: { onSeguir: () => void }) {
-  const itens: [typeof LayoutList, string, string][] = [
-    [LayoutList, "Organizo o seu mês", "Cada gasto no lugar certo"],
-    [Wallet, "Digo quanto está livre", "Para a semana e para o mês"],
-    [BarChart3, "Monto o seu plano", "Com a sua renda de verdade"],
-    [Target, "Cuido das suas metas", "E aviso se atrasar"],
-    [TrendingUp, "Acompanho seus investimentos", "E mostro o próximo aporte"],
-  ];
-  return (
-    <>
-      <Titulo sub="por você">O que eu faço</Titulo>
-      <div className="flex flex-col gap-1.5">
-        {itens.map(([Icone, t, s]) => (
-          <div key={t} className="glass flex items-center gap-3 rounded-[20px] px-3.5 py-2.5">
-            <Bolinha>
-              <Icone size={19} strokeWidth={1.8} />
-            </Bolinha>
-            <span className="flex min-w-0 flex-col">
-              <b className="text-[15px] font-semibold">{t}</b>
-              <small className="text-[13px] font-medium text-ink-muted">{s}</small>
-            </span>
-          </div>
-        ))}
-      </div>
-      {/* O "te diz o que fazer": o cartão invertido (tinta no fundo), como no protótipo. */}
-      <div className="flex items-start gap-3 rounded-[20px] bg-ink px-4 py-3.5 text-canvas">
-        <Compass size={20} className="mt-0.5 shrink-0" aria-hidden />
-        <span className="text-[14.5px] font-medium leading-snug">
-          <small className="block text-[12px] font-bold uppercase tracking-[0.08em] opacity-75">Hoje</small>
-          Segura o delivery até sexta. Assim a viagem continua no prazo.
-        </span>
-      </div>
-      <Pe>
-        <BotaoPrincipal onClick={onSeguir}>Continuar</BotaoPrincipal>
-      </Pe>
-    </>
-  );
-}
+// ---------------------------------------------------------------------------------------------
+// O primeiro lançamento
+// ---------------------------------------------------------------------------------------------
 
-function BoasVindas3({ onSeguir }: { onSeguir: () => void }) {
-  const [video, setVideo] = useState(false);
+/** "Como você quer começar?": os três caminhos do mesmo tamanho, e o link de quem mora fora. */
+function Porta({ moedaAtual, onMoeda, onEscolher }: { moedaAtual: CurrencyCode; onMoeda: (m: CurrencyCode) => void; onEscolher: (p: "extrato" | "digitar" | "falar") => void }) {
+  const [fora, setFora] = useState(moedaAtual !== "BRL");
+  const [moeda, setMoeda] = useState<CurrencyCode>(moedaAtual);
+  const cartao = "glass flex min-h-[104px] items-center gap-3.5 rounded-3xl px-[18px] py-4 text-left";
   return (
     <>
-      <Titulo sub="Eu faço o resto.">Você traz o extrato.</Titulo>
-      <HeroiDoTema className="!p-4">
-        <div className="grid grid-cols-[1fr_auto_1fr_auto_1fr] items-start gap-1 text-center">
-          <Passinho icone={<Building2 size={20} strokeWidth={1.8} />} texto="No app do seu banco" />
-          <ArrowRight size={16} className="mt-3 text-heroi-suave" aria-hidden />
-          <Passinho icone={<FileText size={20} strokeWidth={1.8} />} texto="Baixa o extrato" />
-          <ArrowRight size={16} className="mt-3 text-heroi-suave" aria-hidden />
-          <Passinho icone={<LayoutList size={20} strokeWidth={1.8} />} texto="Eu separo tudo" />
-        </div>
-      </HeroiDoTema>
-      <div className="flex flex-wrap gap-2">
-        <Selo forte>
-          <Clock size={14} aria-hidden />1 minuto
-        </Selo>
-        <Selo forte>
-          <ShieldCheck size={14} aria-hidden />
-          Sem senha do banco
-        </Selo>
-        <Selo forte>
-          <FileText size={14} aria-hidden />
-          PDF, Excel ou OFX
-        </Selo>
-      </div>
-      <Recado>
-        <b className="font-semibold">Eu não entro na sua conta do banco.</b> Você baixa o extrato e manda aqui. Digitar e falar também valem.
-      </Recado>
-      {video ? (
-        <figure className="glass overflow-hidden rounded-2xl">
-          <video className="aspect-[9/16] max-h-[60vh] w-full bg-surface-2 object-contain" src={VIDEO_PRIMEIRO_MES.src} poster={VIDEO_PRIMEIRO_MES.poster} controls playsInline preload="none" autoPlay />
-          <figcaption className="px-3.5 py-2.5 text-sm font-semibold">{VIDEO_PRIMEIRO_MES.titulo}</figcaption>
-        </figure>
-      ) : null}
+      <Titulo sub="começar?">Como você quer</Titulo>
+      <button type="button" onClick={() => onEscolher("extrato")} className="relative text-left" data-porta="extrato">
+        <HeroiDoTema className="min-h-[104px] !flex-row !items-center !gap-3.5 !px-[18px] !py-4">
+          <span className="heroi-veu flex size-11 shrink-0 items-center justify-center rounded-full" aria-hidden>
+            <FileText size={21} strokeWidth={1.8} />
+          </span>
+          <span className="flex min-w-0 flex-1 flex-col">
+            <b className="text-lg font-semibold leading-tight">Extrato ou fatura</b>
+            <small className="text-sm font-medium text-heroi-suave">Mostra o mês todo</small>
+          </span>
+          <span className="heroi-veu shrink-0 self-start rounded-full px-2.5 py-1 text-[12.5px] font-semibold">1 minuto</span>
+        </HeroiDoTema>
+      </button>
+      <button type="button" onClick={() => onEscolher("digitar")} className={cartao} data-porta="digitar">
+        <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent-strong" aria-hidden>
+          <Keyboard size={21} strokeWidth={1.8} />
+        </span>
+        <span className="flex min-w-0 flex-col">
+          <b className="text-lg font-semibold leading-tight">Digitar um gasto</b>
+          <small className="text-sm font-medium text-ink-muted">Um de cada vez</small>
+        </span>
+      </button>
+      <button type="button" onClick={() => onEscolher("falar")} className={cartao} data-porta="falar">
+        <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent-strong" aria-hidden>
+          <Mic size={21} strokeWidth={1.8} />
+        </span>
+        <span className="flex min-w-0 flex-col">
+          <b className="text-lg font-semibold leading-tight">Falar</b>
+          <small className="text-sm font-medium text-ink-muted">&quot;Mercado, 80 reais&quot;</small>
+        </span>
+      </button>
       <Pe>
-        <BotaoPrincipal onClick={onSeguir}>Combinado</BotaoPrincipal>
-        {!video && (
-          <LinkDiscreto onClick={() => setVideo(true)}>
-            <PlayCircle size={16} className="mr-1.5" aria-hidden />
-            Ver como funciona
+        {fora ? (
+          <div className="flex flex-wrap justify-center gap-2" role="group" aria-label="Moeda">
+            {CURRENCY_CODES.map((c) => (
+              <Pilula
+                key={c}
+                ativa={moeda === c}
+                onClick={() => {
+                  setMoeda(c);
+                  onMoeda(c);
+                }}
+              >
+                {CURRENCIES[c].symbol} {CURRENCIES[c].label}
+              </Pilula>
+            ))}
+          </div>
+        ) : (
+          <LinkDiscreto onClick={() => setFora(true)}>
+            <Globe size={15} className="mr-1.5" aria-hidden />
+            Moro fora do Brasil
           </LinkDiscreto>
         )}
       </Pe>
@@ -468,287 +328,85 @@ function BoasVindas3({ onSeguir }: { onSeguir: () => void }) {
   );
 }
 
-function Passinho({ icone, texto }: { icone: React.ReactNode; texto: string }) {
+/** As letras do banco que não tem logo no catálogo ("BRB", "BV"). */
+function Sigla({ texto, tamanho }: { texto: string; tamanho: number }) {
   return (
-    <span className="flex flex-col items-center gap-1.5">
-      <span className="heroi-veu flex size-10 items-center justify-center rounded-full">{icone}</span>
-      <small className="text-[12.5px] font-semibold leading-tight">{texto}</small>
+    <span className="flex shrink-0 items-center justify-center rounded-[13px] bg-surface-2 text-[13px] font-bold tracking-tight text-ink shadow-[inset_0_0_0_1px_var(--color-border)]" style={{ width: tamanho, height: tamanho }} aria-hidden>
+      {texto}
     </span>
   );
 }
 
-// ---------------------------------------------------------------------------------------------
-// As quatro perguntas
-// ---------------------------------------------------------------------------------------------
-
-function PerguntaNome({ apelido, setApelido, onSeguir }: { apelido: string; setApelido: (v: string) => void; onSeguir: () => void }) {
-  const limpo = apelidoLimpo(apelido);
-  return (
-    <>
-      <Titulo sub="te chamar?">Como posso</Titulo>
-      <input
-        className="h-14 w-full rounded-2xl border border-border-strong bg-surface px-4 text-xl text-ink outline-none focus:border-accent"
-        value={apelido}
-        onChange={(e) => setApelido(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && limpo) onSeguir();
-        }}
-        maxLength={24}
-        autoComplete="given-name"
-        aria-label="Seu nome ou apelido"
-        autoFocus
-      />
-      <Nota>Prazer, {limpo ?? "você"}. É assim que eu vou falar com você.</Nota>
-      <Pe>
-        <BotaoPrincipal onClick={onSeguir} disabled={!limpo}>
-          Continuar
-        </BotaoPrincipal>
-      </Pe>
-    </>
-  );
-}
-
-function PerguntaRenda({
-  renda,
-  setRenda,
-  moeda,
-  setMoeda,
-  verMoedas,
-  setVerMoedas,
-  money,
-  onSeguir,
-}: {
-  renda: number;
-  setRenda: (v: number) => void;
-  moeda: CurrencyCode;
-  setMoeda: (m: CurrencyCode) => void;
-  verMoedas: boolean;
-  setVerMoedas: (v: boolean) => void;
-  money: Money;
-  onSeguir: (semRenda: boolean) => void;
-}) {
-  const simbolo = CURRENCIES[moeda].symbol;
-  const texto = moeda === "BRL" ? money(renda, { round: true }) : `${simbolo} ${renda.toLocaleString("pt-BR")}`;
-  const posicao = posicaoDaRenda(renda);
-  const pct = (posicao / POSICOES_DA_REGUA) * 100;
-  return (
-    <>
-      <Titulo sub="mais ou menos?">Quanto entra por mês,</Titulo>
-      {/* O número é um campo (12/10/2026): um toque abre o teclado, sem teto. A régua continua,
-          com passos maiores acima de 20 mil. */}
-      <label className="mt-2 flex items-baseline justify-center gap-2" data-renda-digitavel>
-        <span className="text-xl font-light text-ink-muted">{simbolo}</span>
-        {/* Dígitos como centavos, igual ao resto do app: "3500,50" lia R$ 350.050. Ao sair do campo
-            o valor continua indo para o passo da régua, porque aqui a pergunta é "mais ou menos". */}
-        <CampoDeDinheiro
-          aria-label="Quanto entra por mês"
-          placeholder="0,00"
-          valor={renda}
-          onValor={(v) => setRenda(v ?? 0)}
-          max={100_000_000}
-          onBlur={() => setRenda(rendaDaRegua(renda) ?? RENDA_INICIAL)}
-          className="w-[10ch] min-w-0 border-b-2 border-transparent bg-transparent pb-0.5 text-center text-[clamp(2.25rem,11vw,2.75rem)] font-light leading-none tracking-[-0.02em] tabular-nums text-ink outline-none focus:border-accent"
-        />
-      </label>
-      <input
-        type="range"
-        className="slider-app w-full"
-        min={0}
-        max={POSICOES_DA_REGUA}
-        step={1}
-        value={posicao}
-        onChange={(e) => setRenda(rendaDaPosicao(Number(e.target.value)))}
-        aria-label="Quanto entra por mês, na régua"
-        aria-valuetext={texto}
-        style={{ "--pct": `${pct}%` } as React.CSSProperties}
-      />
-      <div className="-mt-2 flex justify-between text-[12.5px] font-medium text-ink-muted">
-        <span>{simbolo} 1 mil</span>
-        <span>{simbolo} 200 mil</span>
-      </div>
-      <p className="-mt-1 text-center text-[13px] text-ink-muted">Mais que isso? Toque no valor e digite.</p>
-      <Recado icone={<KeyRound size={16} />}>Serve só para eu calcular o seu livre. Ninguém vê, e dá para mudar depois.</Recado>
-      {verMoedas ? (
-        <div className="flex flex-wrap gap-2" role="group" aria-label="Moeda">
-          {CURRENCY_CODES.map((c) => (
-            <Pilula key={c} ativa={moeda === c} onClick={() => setMoeda(c)}>
-              {CURRENCIES[c].symbol} {CURRENCIES[c].label}
-            </Pilula>
-          ))}
-        </div>
-      ) : null}
-      <Pe>
-        <BotaoPrincipal onClick={() => onSeguir(false)}>Continuar</BotaoPrincipal>
-        <LinkDiscreto onClick={() => onSeguir(true)}>Prefiro não dizer agora</LinkDiscreto>
-        {!verMoedas && <LinkDiscreto onClick={() => setVerMoedas(true)}>Moro fora do Brasil</LinkDiscreto>}
-      </Pe>
-    </>
-  );
-}
-
-function PerguntaQuer({ quer, setQuer, onSeguir }: { quer: Quer | null; setQuer: (q: Quer) => void; onSeguir: () => void }) {
-  return (
-    <>
-      <Titulo sub="quer agora?">O que você</Titulo>
-      <div className="grid grid-cols-2 gap-2.5">
-        {OPCOES_QUER.map((o) => {
-          const Icone = ICONE_DO_QUER[o.icone];
-          const on = quer === o.chave;
-          return (
-            <button
-              key={o.chave}
-              type="button"
-              onClick={() => setQuer(o.chave)}
-              aria-pressed={on}
-              className={`glass flex min-h-[118px] flex-col items-start gap-3.5 rounded-[22px] p-3.5 text-left transition-colors ${on ? "!border-accent !bg-accent-soft shadow-[inset_0_0_0_1px_var(--color-accent)]" : ""}`}
-            >
-              <Bolinha>
-                <Icone size={19} strokeWidth={1.8} />
-              </Bolinha>
-              <b className="text-[15px] font-semibold leading-tight">{o.titulo}</b>
-            </button>
-          );
-        })}
-      </div>
-      <Nota>Isso muda o que eu te mostro primeiro.</Nota>
-      <Pe>
-        <BotaoPrincipal onClick={onSeguir} disabled={!quer}>
-          Continuar
-        </BotaoPrincipal>
-      </Pe>
-    </>
-  );
-}
-
-const CSS_DOS_CARTOES = cssDosCartoesDosTemas();
-
-function PerguntaTema({ tema, setTema, onSeguir }: { tema: TemaDoComeco; setTema: (t: TemaDoComeco) => void; onSeguir: () => void }) {
-  return (
-    <>
-      <style dangerouslySetInnerHTML={{ __html: CSS_DOS_CARTOES }} />
-      <Titulo sub="combina com você?">Qual cara</Titulo>
-      <div className="flex flex-col gap-2.5" role="radiogroup" aria-label="Tema">
-        {TEMAS_DO_COMECO.map((t) => {
-          const on = tema === t.chave;
-          return (
-            <button
-              key={t.chave}
-              type="button"
-              role="radio"
-              aria-checked={on}
-              onClick={() => setTema(t.chave)}
-              className={`cartao-tema-${t.chave} grid min-h-[76px] grid-cols-[minmax(0,1fr)_28px] items-center gap-3 rounded-[22px] px-[18px] py-3.5 text-left transition-shadow`}
-              style={{
-                background: "var(--ct-fundo)",
-                color: "var(--ct-tinta)",
-                boxShadow: on ? "0 0 0 2.5px var(--ct-destaque), 0 0 0 5px var(--color-canvas), 0 0 0 6.5px var(--ct-destaque)" : "var(--ct-fio), 0 1px 2px rgba(0, 0, 0, 0.06)",
-              }}
-            >
-              <span className="flex min-w-0 flex-col">
-                <b className="cartao-tema-nome text-[19px] font-semibold leading-tight">{t.nome}</b>
-                <small className="text-[13.5px] font-medium" style={{ color: "var(--ct-suave)" }}>
-                  {[profileTheme(t.chave).nomeDaVoz, t.frase].filter(Boolean).join(", ")}
-                </small>
-              </span>
-              <span
-                className="flex size-7 items-center justify-center rounded-full"
-                style={on ? { background: "var(--ct-destaque)", color: "var(--ct-check)" } : { boxShadow: "inset 0 0 0 1.5px var(--ct-suave)" }}
-                aria-hidden
-              >
-                {on && <Check size={16} strokeWidth={3} />}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-      <Nota>Dá para trocar quando quiser, em Configurações.</Nota>
-      <Pe>
-        <BotaoPrincipal onClick={onSeguir}>Pronto</BotaoPrincipal>
-      </Pe>
-    </>
-  );
-}
-
-// ---------------------------------------------------------------------------------------------
-// O primeiro lançamento
-// ---------------------------------------------------------------------------------------------
-
-function Porta({ nome, mes, onEscolher }: { nome: string; mes: string; onEscolher: (p: "extrato" | "digitar") => void }) {
-  return (
-    <>
-      <Titulo sub={`o seu ${mes}.`}>Agora, {nome},</Titulo>
-      <button type="button" onClick={() => onEscolher("extrato")} className="relative text-left">
-        <HeroiDoTema className="min-h-[168px] !p-[18px]">
-          <span className="heroi-veu absolute right-3.5 top-3.5 rounded-full px-2.5 py-1 text-[12.5px] font-semibold">1 minuto</span>
-          <span className="heroi-veu flex size-11 items-center justify-center rounded-full" aria-hidden>
-            <FileText size={21} strokeWidth={1.8} />
-          </span>
-          <span className="mt-auto flex flex-col">
-            <b className="text-xl font-semibold">Extrato ou fatura</b>
-            <small className="text-sm font-medium text-heroi-suave">O app lê e separa sozinho</small>
-          </span>
-        </HeroiDoTema>
-      </button>
-      <button type="button" onClick={() => onEscolher("digitar")} className="glass flex min-h-[168px] flex-col items-start gap-3 rounded-3xl p-[18px] text-left">
-        <Bolinha tamanho={44}>
-          <Keyboard size={21} strokeWidth={1.8} />
-        </Bolinha>
-        <span className="mt-auto flex flex-col">
-          <b className="text-xl font-semibold">Digitar um gasto</b>
-          <small className="text-sm font-medium text-ink-muted">Um gasto agora, rápido</small>
-        </span>
-      </button>
-    </>
-  );
-}
-
 function LogoDoBanco({ banco, tamanho = 44 }: { banco: BancoDoComeco; tamanho?: 40 | 44 | 48 }) {
-  if (!banco.marca)
-    return (
-      <span className="flex shrink-0 items-center justify-center rounded-[13px] bg-surface-2 text-ink-muted" style={{ width: tamanho, height: tamanho }} aria-hidden>
-        <Building2 size={22} strokeWidth={1.7} />
-      </span>
-    );
-  return <LogoDoLancamento descricao={banco.marca} icon={Building2} size={tamanho} />;
+  if (banco.marca && marcaDaDescricao(banco.marca)) return <LogoDoLancamento descricao={banco.marca} icon={Building2} size={tamanho} />;
+  if (banco.sigla) return <Sigla texto={banco.sigla} tamanho={tamanho} />;
+  return (
+    <span className="flex shrink-0 items-center justify-center rounded-[13px] bg-surface-2 text-ink-muted" style={{ width: tamanho, height: tamanho }} aria-hidden>
+      <Building2 size={22} strokeWidth={1.7} />
+    </span>
+  );
 }
 
-function EscolhaDoBanco({ marcados, onSeguir }: { marcados: string[]; onSeguir: (lista: string[]) => void }) {
-  const [lista, setLista] = useState<string[]>(marcados);
-  const alternar = (b: string) => setLista((l) => (l.includes(b) ? l.filter((x) => x !== b) : [...l, b]));
-  const cartao = (chave: string, on: boolean) =>
-    `glass relative flex min-h-[92px] flex-col items-center justify-center gap-1.5 rounded-[18px] px-1.5 pb-2.5 pt-3 ${on ? "!border-accent shadow-[inset_0_0_0_1.5px_var(--color-accent)]" : ""}`;
+/**
+ * "Qual é o seu banco?": um toque e já vai (14/10/2026). Os 12 mais comuns na grade, a busca por
+ * nome, "Ver mais bancos" com o resto e, sempre no fim, "Meu banco não está aqui".
+ */
+function EscolhaDoBanco({ onEscolher }: { onEscolher: (chave: string) => void }) {
+  const [busca, setBusca] = useState("");
+  const [todos, setTodos] = useState(false);
+  const buscando = busca.trim().length > 0;
+  const lista = buscando ? buscarBancos(busca) : todos ? BANCOS_DO_COMECO : BANCOS_DO_COMECO.slice(0, PRINCIPAIS_DO_COMECO);
+  const faltam = BANCOS_DO_COMECO.length - PRINCIPAIS_DO_COMECO;
   return (
     <>
       <Titulo sub="seu banco?">Qual é o</Titulo>
-      <Nota>Pode marcar mais de um. Eu te mostro um de cada vez.</Nota>
-      <div className="grid grid-cols-3 gap-2">
-        {[...BANCOS_DO_COMECO, BANCO_OUTRO].map((b) => {
-          const on = lista.includes(b.chave);
-          return (
-            <button key={b.chave} type="button" onClick={() => alternar(b.chave)} aria-pressed={on} aria-label={b.chave === "outro" ? "Outro banco" : b.nome} className={cartao(b.chave, on)}>
-              {on && (
-                <span className="absolute right-1.5 top-1.5 flex size-5 items-center justify-center rounded-full bg-accent text-on-accent" aria-hidden>
-                  <Check size={12} strokeWidth={3} />
-                </span>
-              )}
-              {b.chave === "outro" ? (
-                <span className="flex size-11 items-center justify-center rounded-[13px] bg-surface-2 text-ink-muted" aria-hidden>
-                  <Plus size={20} />
-                </span>
-              ) : (
-                <LogoDoBanco banco={b} />
-              )}
-              <small className="text-center text-[12px] font-semibold leading-tight">{b.chave === "outro" ? "Outro banco" : b.nome}</small>
+      <label className="flex h-12 items-center gap-2.5 rounded-2xl border border-border-strong bg-surface px-3.5 focus-within:border-accent">
+        <Search size={18} className="shrink-0 text-ink-muted" aria-hidden />
+        <input
+          type="search"
+          value={busca}
+          onChange={(e) => setBusca(e.target.value)}
+          placeholder="Buscar pelo nome"
+          aria-label="Buscar o banco pelo nome"
+          autoComplete="off"
+          enterKeyHint="search"
+          className="min-w-0 flex-1 bg-transparent text-base text-ink outline-none placeholder:text-ink-muted"
+        />
+        {buscando && (
+          <button type="button" onClick={() => setBusca("")} aria-label="Limpar a busca" className="-mr-1.5 flex size-9 shrink-0 items-center justify-center rounded-full text-ink-muted hover:text-ink">
+            <X size={16} />
+          </button>
+        )}
+      </label>
+      {lista.length > 0 ? (
+        <div className="grid grid-cols-3 gap-2" data-grade-de-bancos>
+          {lista.map((b) => (
+            <button key={b.chave} type="button" onClick={() => onEscolher(b.chave)} aria-label={b.nome} className="glass flex min-h-[92px] min-w-0 flex-col items-center justify-center gap-1.5 rounded-[18px] px-1.5 pb-2.5 pt-3 active:scale-[0.97]">
+              <LogoDoBanco banco={b} />
+              <small className="w-full text-center text-[12px] font-semibold leading-tight [overflow-wrap:anywhere]">{b.nome}</small>
             </button>
-          );
-        })}
-      </div>
-      <Nota>Tem cartão em outro banco? Dá para trazer a fatura também, depois.</Nota>
-      <div className="sticky bottom-0 -mx-4 mt-auto bg-canvas/95 px-4 pb-[calc(var(--safe-bottom,0px)+12px)] pt-3 backdrop-blur-sm">
-        <BotaoPrincipal onClick={() => onSeguir(lista)} disabled={lista.length === 0}>
-          {lista.length > 1 ? `Continuar com ${lista.length} bancos` : "Continuar"}
-        </BotaoPrincipal>
-      </div>
+          ))}
+        </div>
+      ) : (
+        <Nota centro>Não achei esse nome na lista.</Nota>
+      )}
+      {!buscando && !todos && faltam > 0 && (
+        <button type="button" onClick={() => setTodos(true)} className="mx-auto inline-flex min-h-11 items-center gap-1.5 rounded-full px-4 text-sm font-semibold text-ink shadow-[inset_0_0_0_1.5px_var(--color-border-strong)]">
+          Ver mais {faltam} bancos
+          <ChevronDown size={16} aria-hidden />
+        </button>
+      )}
+      <button type="button" onClick={() => onEscolher("outro")} className="glass flex min-h-[64px] items-center gap-3 rounded-[20px] px-4 py-3 text-left" data-banco-nao-esta-aqui>
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-surface-2 text-ink-muted" aria-hidden>
+          <Building2 size={19} strokeWidth={1.8} />
+        </span>
+        <span className="flex min-w-0 flex-1 flex-col">
+          <b className="text-[15px] font-semibold">Meu banco não está aqui</b>
+          <small className="text-[13px] font-medium text-ink-muted">Mostro o caminho que serve para todos</small>
+        </span>
+        <ArrowRight size={18} className="shrink-0 text-ink-muted" aria-hidden />
+      </button>
+      <Recado icone={<ShieldCheck size={16} />}>Eu não entro na sua conta. Você baixa o extrato e manda aqui.</Recado>
     </>
   );
 }
@@ -757,48 +415,30 @@ function Tutorial({
   banco,
   volta,
   nome,
-  posicao,
-  soEste,
-  onSoEste,
   onArquivo,
   onDigitar,
 }: {
   banco: BancoDoComeco;
   volta: boolean;
-  nome: string;
-  /** "1 de 3", quando ela marcou mais de um banco. */
-  posicao: { atual: number; total: number } | null;
-  soEste: boolean;
-  onSoEste: () => void;
+  nome: string | null;
   onArquivo: (f: File) => void;
   onDigitar: () => void;
 }) {
-  const [pc, setPc] = useState(false);
+  const [travou, setTravou] = useState(false);
+  const outro = banco.chave === "outro";
   const cor = (banco.marca && marcaDaDescricao(banco.marca)?.cor) || "var(--color-accent)";
   // O caminho certo de cada banco (lib/onboarding/bancos.ts): o oficial, ou o genérico sem fonte.
-  const fatura = banco.chave === "outro" ? null : caminhoDaFatura(banco.chave);
+  const fatura = outro ? null : caminhoDaFatura(banco.chave);
   const [qual, setQual] = useState<"extrato" | "fatura">("extrato");
-  const caminho = qual === "fatura" && fatura ? fatura : banco.chave === "outro" ? CAMINHO_GENERICO : caminhoDoExtrato(banco.chave);
+  const caminho = qual === "fatura" && fatura ? fatura : outro ? CAMINHO_GENERICO : caminhoDoExtrato(banco.chave);
   return (
     <>
-      {volta && (
-        <Titulo sub={`${banco.chave !== "outro" ? `Você escolheu o ${banco.nome}. ` : ""}Falta só isso.`}>
-          Oi de novo, {nome}.
-        </Titulo>
-      )}
-      {posicao && (
-        <p className="text-[13px] font-semibold text-accent-strong">
-          {posicao.atual} de {posicao.total}: {banco.nome}
-        </p>
-      )}
+      {volta && <Titulo sub={`${!outro ? `Você escolheu o ${banco.nome}. ` : ""}Falta só isso.`}>{nome ? `Oi de novo, ${nome}.` : "Oi de novo."}</Titulo>}
       <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3">
         <LogoDoBanco banco={banco} />
-        <span className="flex min-w-0 flex-col">
-          <b className="text-[17px] font-semibold">
-            No app {banco.artigo} {banco.nome}
-          </b>
-          <small className="text-[13px] font-medium text-ink-muted">3 toques, e volta aqui</small>
-        </span>
+        <h2 className="titulo-tema text-[clamp(1.35rem,6.4vw,1.6rem)] font-normal leading-tight text-ink">
+          No app {banco.artigo} {banco.nome} <b className="font-semibold">são 3 toques.</b>
+        </h2>
       </div>
       {fatura && (
         <div className="grid grid-cols-2 gap-1 rounded-full bg-surface-2 p-1" role="tablist" aria-label="O que baixar">
@@ -818,7 +458,7 @@ function Tutorial({
       )}
       <ol className="grid grid-cols-3 gap-2">
         {caminho.passos.map(([t, s], i) => (
-          <li key={t + i} className="flex flex-col items-center gap-1 text-center">
+          <li key={t + i} className="flex min-w-0 flex-col items-center gap-1 text-center">
             {/* A telinha: um desenho do app do banco com o toque marcado (nunca um print). */}
             <span className="glass relative flex aspect-[3/4] w-full max-w-[92px] flex-col gap-[7px] overflow-hidden rounded-[14px] pb-2.5" aria-hidden>
               <span className="h-[20%]" style={{ background: cor }} />
@@ -829,19 +469,22 @@ function Tutorial({
               <span className="absolute inset-x-2 h-[18px] rounded-[9px]" style={{ top: `${[22, 46, 70][i]}%`, boxShadow: `inset 0 0 0 2px ${cor}`, background: `color-mix(in srgb, ${cor} 14%, transparent)` }} />
             </span>
             <span className="mt-1 flex size-6 items-center justify-center rounded-full bg-ink text-[12.5px] font-bold text-canvas">{i + 1}</span>
-            <b className="text-[13.5px] font-semibold leading-tight">{t}</b>
+            <b className="w-full text-[13.5px] font-semibold leading-tight [overflow-wrap:anywhere]">{t}</b>
             <small className="text-[12px] font-medium leading-tight text-ink-muted">{s}</small>
           </li>
         ))}
       </ol>
-      <div className="flex flex-wrap items-center gap-2">
-        {caminho.formatos && <Selo>Sai em {caminho.formatos}</Selo>}
-        <Selo forte>
-          <Check size={13} aria-hidden />
-          Leio melhor em {leMelhor(banco.chave)}
-        </Selo>
-      </div>
+      {!outro && (
+        <div className="flex flex-wrap items-center gap-2">
+          {caminho.formatos && <Selo>Sai em {caminho.formatos}</Selo>}
+          <Selo forte>
+            <Check size={13} aria-hidden />
+            Leio melhor em {leMelhor(banco.chave)}
+          </Selo>
+        </div>
+      )}
       <Nota>{caminho.nota ?? "Salve o arquivo no celular e volte aqui."}</Nota>
+      {outro && <QualBancoFalta />}
       <label className="flex min-h-16 cursor-pointer items-center gap-3 rounded-[20px] border-[1.5px] border-dashed border-border-strong bg-surface px-4 py-3.5">
         <FileText size={22} className="shrink-0 text-accent-strong" aria-hidden />
         <span className="flex flex-col">
@@ -859,29 +502,76 @@ function Tutorial({
           }}
         />
       </label>
-      <LinkDiscreto onClick={() => setPc((v) => !v)} aria-expanded={pc}>
-        Está no computador? Envia de lá
-      </LinkDiscreto>
-      {pc && <Nota>Abra o SPI no navegador do computador, entre com o mesmo e-mail e envie o arquivo por lá. Aqui no celular ele aparece sozinho.</Nota>}
       <Pe>
-        {posicao && posicao.atual < posicao.total && (
-          <label className="mx-auto inline-flex min-h-11 cursor-pointer items-center gap-2.5 text-sm font-medium text-ink">
-            <input type="checkbox" checked={soEste} onChange={onSoEste} className="size-5 accent-[var(--color-accent)]" />
-            Fazer só este agora (os outros ficam nos Primeiros passos)
-          </label>
+        {travou ? (
+          <div className="flex flex-col gap-2 rounded-[20px] bg-surface-2 p-3.5" data-nao-consegui-baixar>
+            <p className="text-sm font-medium leading-snug text-ink">Sem problema. Comece com um gasto de hoje, e o extrato fica para depois.</p>
+            <BotaoPrincipal onClick={onDigitar}>
+              <Keyboard size={17} aria-hidden />
+              Digitar um gasto
+            </BotaoPrincipal>
+            <p className="text-[13px] leading-snug text-ink-muted">Está no computador? Abra o SPI no navegador de lá, com o mesmo e-mail, e envie por lá.</p>
+            <a href={`mailto:${EMAIL_FALE_COM_A_GENTE}?subject=${encodeURIComponent("Ajuda com o extrato")}`} className="mx-auto inline-flex min-h-11 items-center gap-1.5 px-2 text-sm font-medium text-ink-muted hover:text-ink">
+              <Mail size={15} aria-hidden />
+              Fale com a gente
+            </a>
+          </div>
+        ) : (
+          <LinkDiscreto onClick={() => setTravou(true)}>Não consegui baixar</LinkDiscreto>
         )}
-        {volta && <LinkDiscreto onClick={onDigitar}>Prefiro digitar um gasto</LinkDiscreto>}
-        <a href={`mailto:${EMAIL_FALE_COM_A_GENTE}?subject=${encodeURIComponent("Ajuda com o extrato")}`} className="mx-auto inline-flex min-h-11 items-center gap-1.5 px-2 text-sm font-medium text-ink-muted hover:text-ink">
-          <Mail size={15} aria-hidden />
-          Travou? Fale com a gente
-        </a>
       </Pe>
     </>
   );
 }
 
-/** "Lendo": os três quadros da lógica do extrato enquanto o arquivo é lido, e depois a revisão. */
-function Lendo({ money, onTerminar, onOutroArquivo }: { money: Money; onTerminar: (mes: string | null, revisou: boolean, criados: number) => void; onOutroArquivo: () => void }) {
+/**
+ * "Meu banco não está aqui": um campo para ela dizer qual é. Vira só um evento de uso com o nome
+ * limpo (sem número, sem nada dela), para sabermos quais bancos faltam na lista.
+ */
+function QualBancoFalta() {
+  const [nome, setNome] = useState("");
+  const [avisou, setAvisou] = useState(false);
+  const limpo = bancoQueFalta(nome);
+  if (avisou) {
+    return (
+      <p className="flex items-center gap-2 text-sm font-medium text-success" role="status">
+        <Check size={15} aria-hidden />
+        Anotado. Obrigado por avisar.
+      </p>
+    );
+  }
+  return (
+    <form
+      className="flex items-center gap-2"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (!limpo) return;
+        registrar(EVENTOS_DO_COMECO.faltaBanco, limpo);
+        setAvisou(true);
+      }}
+    >
+      <input
+        value={nome}
+        onChange={(e) => setNome(e.target.value)}
+        maxLength={40}
+        placeholder="Qual é o seu banco?"
+        aria-label="Qual é o seu banco? Assim a gente coloca na lista"
+        autoComplete="off"
+        className="h-11 min-w-0 flex-1 rounded-full border border-border-strong bg-surface px-4 text-[15px] text-ink outline-none placeholder:text-ink-muted focus:border-accent"
+      />
+      <button type="submit" disabled={!limpo} className="inline-flex min-h-11 shrink-0 items-center rounded-full px-4 text-sm font-semibold text-ink shadow-[inset_0_0_0_1.5px_var(--color-border-strong)] disabled:opacity-40">
+        Avisar
+      </button>
+    </form>
+  );
+}
+
+/**
+ * "Lendo": os quadros da lógica do extrato enquanto o arquivo é lido. Lido, o resumo ("Separei 38.
+ * Só 3 precisam de você agora.") e UM botão. As perguntas são as da importação de verdade, no
+ * máximo 3; a última resposta já grava e ela vai para o mês.
+ */
+function Lendo({ money, onTerminar, onOutroArquivo }: { money: Money; onTerminar: (mes: string | null, revisou: boolean) => void; onOutroArquivo: () => void }) {
   const [estado, setEstado] = useState<EstadoParaOComeco | null>(null);
   const [quadro, setQuadro] = useState(0);
   const [revisando, setRevisando] = useState(false);
@@ -890,59 +580,87 @@ function Lendo({ money, onTerminar, onOutroArquivo }: { money: Money; onTerminar
   const aoImportar = useCallback(
     (r: { mes: { year: number; month: number } | null; revisou: boolean; criados: number }) => {
       setTerminou(true);
-      onTerminar(r.mes ? `${r.mes.year}-${String(r.mes.month).padStart(2, "0")}` : null, r.revisou, r.criados);
+      onTerminar(r.mes ? `${r.mes.year}-${String(r.mes.month).padStart(2, "0")}` : null, r.revisou);
     },
     [onTerminar],
   );
 
+  const lido = !!estado && !estado.lendo && (estado.fase !== "upload" || estado.linhas > 0);
+
   // Os quadros andam sozinhos enquanto ela espera (sem animação para quem pediu menos movimento).
   useEffect(() => {
-    if (revisando || quadro >= 2) return;
+    if (lido || revisando || quadro >= 2) return;
     if (typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const t = setTimeout(() => setQuadro((q) => Math.min(2, q + 1)), 2600);
     return () => clearTimeout(t);
-  }, [quadro, revisando]);
+  }, [quadro, revisando, lido]);
 
-  const lido = !!estado && !estado.lendo && (estado.fase !== "upload" || estado.linhas > 0);
   // Arquivo que não deu (senha, tipo errado, erro de leitura): a tela da importação aparece e explica.
   const precisaDaImportacao = revisando || (!!estado && !estado.lendo && (estado.fase === "password" || (estado.fase === "upload" && estado.erro)));
+  const agora = estado?.pendentes ?? 0;
+  const depois = Math.max(0, (estado?.pendentesTotal ?? 0) - agora);
+  const separados = estado ? Math.max(0, estado.linhas - (estado.pendentesTotal ?? 0)) : 0;
+  // Respondeu a última (ou não tinha pergunta): a importação grava sozinha. Sem erro, a tela não
+  // pisca a confirmação da importação: fica o "Montando o seu mês".
+  const gravando = revisando && !!estado && estado.fase !== "review" && !estado.erro;
 
   return (
     <>
-      {!precisaDaImportacao && (
+      {!precisaDaImportacao && !terminou && (
         <>
           <p className="flex items-center gap-2 text-[13.5px] font-medium text-ink-muted" aria-live="polite">
             <FileText size={16} aria-hidden />
             <span className="min-w-0 flex-1">{lido ? "Extrato lido" : "Lendo o seu extrato"}</span>
-            {!lido && <b className="text-[12px] font-semibold text-success">lendo</b>}
+            {lido && estado ? (
+              <b className="text-[12.5px] font-semibold text-success">
+                {estado.linhas} de {estado.linhas}
+              </b>
+            ) : (
+              <b className="text-[12px] font-semibold text-success">lendo</b>
+            )}
           </p>
-          <div className="min-h-[360px]">
-            <Quadro indice={quadro} estado={estado} money={money} />
-          </div>
-          <div className="flex justify-center gap-1" role="tablist" aria-label="Como eu leio o extrato">
-            {[0, 1, 2].map((k) => (
-              <button key={k} type="button" role="tab" aria-selected={k === quadro} aria-label={`Quadro ${k + 1}`} onClick={() => setQuadro(k)} className="flex size-11 items-center justify-center">
-                <i className={`h-2 rounded-full transition-all ${k === quadro ? "w-6 bg-ink" : "w-2 bg-border-strong"}`} />
-              </button>
-            ))}
-          </div>
+          {lido && estado ? (
+            <div className="passo-entra flex flex-col gap-3" data-resumo-da-leitura>
+              <Titulo sub={agora > 0 ? `Só ${agora} ${agora === 1 ? "precisa" : "precisam"} de você agora.` : "Está tudo no lugar."}>{separados > 0 ? `Separei ${separados}.` : "Li tudo."}</Titulo>
+              {depois > 0 && <Nota>Os outros {depois} ficam para quando quiser.</Nota>}
+              {estado.amostra.length > 0 && (
+                <div className="glass flex flex-col rounded-2xl px-3.5 py-1.5">
+                  {estado.amostra.slice(0, 3).map((a, i) => (
+                    <LinhaDoExtrato key={i} descricao={a.descricao} logo={a.original} categoria={a.categoria} valor={money(a.valor)} />
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <>
+              <div className="min-h-[360px]">
+                <Quadro indice={quadro} estado={estado} money={money} />
+              </div>
+              <div className="flex justify-center gap-1" role="tablist" aria-label="Como eu leio o extrato">
+                {[0, 1, 2].map((k) => (
+                  <button key={k} type="button" role="tab" aria-selected={k === quadro} aria-label={`Quadro ${k + 1}`} onClick={() => setQuadro(k)} className="flex size-11 items-center justify-center">
+                    <i className={`h-2 rounded-full transition-all ${k === quadro ? "w-6 bg-ink" : "w-2 bg-border-strong"}`} />
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
           <Pe>
-            <BotaoPrincipal onClick={() => setRevisando(true)} disabled={!lido}>
-              {!lido ? "Lendo..." : estado && estado.pendentes > 0 ? "Ver o que precisa de mim" : "Ver o meu mês"}
+            <BotaoPrincipal onClick={() => setRevisando(true)} disabled={!lido} data-responder-do-comeco>
+              {!lido ? "Lendo..." : agora > 0 ? `Responder ${agora}` : "Ver o meu mês"}
             </BotaoPrincipal>
           </Pe>
         </>
       )}
-      {/* A importação de verdade (a mesma do +): lê o arquivo, faz a revisão um por vez e grava. */}
-      <div className={precisaDaImportacao && !terminou ? "" : "hidden"}>
-        {revisando && estado && estado.pendentes > 0 && (
-          <div className="mb-3 flex items-baseline justify-between">
-            <span className="text-sm font-semibold">Precisa de você</span>
-          </div>
-        )}
-        <StatementImport onDone={onOutroArquivo} comeco={{ aoMudar, aoImportar, visivel: precisaDaImportacao && !terminou }} />
+      {/* A importação de verdade (a mesma do +): lê o arquivo, faz as perguntas uma por vez e grava. */}
+      <div className={precisaDaImportacao && !terminou && !gravando ? "" : "hidden"}>
+        <StatementImport onDone={onOutroArquivo} comeco={{ aoMudar, aoImportar, visivel: precisaDaImportacao && !terminou && !gravando, maxPerguntas: MAX_PERGUNTAS_DO_COMECO, responder: revisando }} />
       </div>
-      {terminou && <Nota centro>Montando o seu mês...</Nota>}
+      {(terminou || gravando) && (
+        <p className="mt-[20vh] text-center text-[17px] font-medium text-ink-muted" role="status">
+          Montando o seu mês...
+        </p>
+      )}
     </>
   );
 }
@@ -1060,13 +778,14 @@ function Digitar({ money, onLancado, onFalar }: { money: Money; onLancado: (linh
   const [salvando, startSalvar] = useTransition();
   const valor = centavosParaReais(digitos);
   const a = ATALHOS_DO_GASTO[atalho];
+  const rotulo = categoryLabel(categorias, a.categoria);
   const lancar = () =>
     startSalvar(async () => {
       setErro(null);
-      const r = await primeiroGastoAction({ valor, descricao: a.nome, parentCategory: a.categoria, sub: a.sub, como: "digitado" });
+      const r = await primeiroGastoAction({ valor, descricao: rotulo, parentCategory: a.categoria, como: "digitado" });
       if (!r.ok) return setErro(r.erro);
       trackEvent("registro_digitado", "/comecar/digitar");
-      onLancado(`${valorCurto(money, valor)} em ${categoryLabel(categorias, a.categoria)}, hoje`);
+      onLancado(`${valorCurto(money, valor)} em ${rotulo}, hoje`);
     });
   const teclas = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "00", "0", "apagar"];
   return (
@@ -1076,14 +795,16 @@ function Digitar({ money, onLancado, onFalar }: { money: Money; onLancado: (linh
       <div className="flex justify-center" aria-live="polite">
         <ValorDestaque texto={money(valor)} className={`text-[clamp(2.4rem,12vw,2.75rem)] font-light leading-none tracking-[-0.02em] tabular-nums ${digitos ? "" : "text-ink-muted"}`} />
       </div>
-      <Nota centro>{digitos ? "O que foi?" : "Digite quanto foi e escolha o que foi."}</Nota>
-      <div className="flex flex-wrap justify-center gap-2">
-        {ATALHOS_DO_GASTO.map((x, i) => (
-          <Pilula key={x.nome} ativa={atalho === i} onClick={() => setAtalho(i)}>
-            {marcaDaDescricao(x.nome) ? <LogoDoLancamento descricao={x.nome} icon={categoryIcon(categorias, x.categoria)} size={36} /> : null}
-            {x.nome}
-          </Pilula>
-        ))}
+      <div className="flex flex-wrap justify-center gap-2" role="group" aria-label="Categoria">
+        {ATALHOS_DO_GASTO.map((x, i) => {
+          const Icone = categoryIcon(categorias, x.categoria);
+          return (
+            <Pilula key={x.categoria} ativa={atalho === i} onClick={() => setAtalho(i)}>
+              <Icone size={16} strokeWidth={1.9} aria-hidden />
+              {categoryLabel(categorias, x.categoria)}
+            </Pilula>
+          );
+        })}
       </div>
       <div className="grid grid-cols-3 gap-2">
         {teclas.map((k) => (
@@ -1143,8 +864,8 @@ function Falar({ money, onLancado, onDigitar }: { money: Money; onLancado: (linh
   const iconeDaFala = mae ? categoryIcon(categorias, mae) : Wallet;
   return (
     <>
-      <Titulo centro>Falar</Titulo>
-      <Nota centro>Segure e fale, do jeito que sai</Nota>
+      <Titulo centro>Segure e fale</Titulo>
+      <Nota centro>Do jeito que sai</Nota>
       <p className="text-center text-[17px] font-medium">&quot;Gastei 45 no mercado&quot;</p>
       {entendi ? (
         <>
@@ -1188,9 +909,8 @@ function Falar({ money, onLancado, onDigitar }: { money: Money; onLancado: (linh
   );
 }
 
-/** A confirmação que não deixa dúvida: o check, "Lançado." ou "Pronto.", e o que entrou. */
-function Confirmacao({ titulo, linha, proximo, onSeguir, onParar }: { titulo: string; linha: string; proximo: string | null; onSeguir: () => void; onParar: () => void }) {
-  const prox = bancoDoComeco(proximo);
+/** A confirmação que não deixa dúvida: o check, "Lançado." e o que entrou. */
+function Confirmacao({ titulo, linha, onSeguir }: { titulo: string; linha: string; onSeguir: () => void }) {
   return (
     <>
       <div className="mt-[12vh] flex flex-col items-center gap-4 text-center" role="status" aria-live="polite">
@@ -1201,8 +921,7 @@ function Confirmacao({ titulo, linha, proximo, onSeguir, onParar }: { titulo: st
         <p className="text-lg font-medium text-ink">{linha}</p>
       </div>
       <Pe>
-        <BotaoPrincipal onClick={onSeguir}>{prox ? `Próximo: ${prox.nome}` : "Ver a Visão geral"}</BotaoPrincipal>
-        {prox && <LinkDiscreto onClick={onParar}>Deixar o resto para depois</LinkDiscreto>}
+        <BotaoPrincipal onClick={onSeguir}>Ver a Visão geral</BotaoPrincipal>
       </Pe>
     </>
   );

@@ -43,3 +43,42 @@ export async function carregarRevisaoAntigos(ctx: AuthContext): Promise<ItemRevi
   }
   return itens;
 }
+
+/** O rótulo que a importação põe no que ficou sem resposta (StatementImport, A_CONFERIR). */
+const A_CONFERIR = "A conferir";
+
+export type ItemAConferir = { id: string; entrada: boolean; descricao: string; valor: number; data: string | null; ano: number; mes: number };
+
+const ONDE_A_CONFERIR = (ctx: AuthContext) => ({
+  userId: ctx.userId,
+  profileId: ctx.profileId,
+  subcategory: A_CONFERIR,
+  parentCategory: null,
+  customCategoryId: null,
+  category: { in: ["INCOME" as const, "EXPENSE" as const] },
+});
+
+/**
+ * O que entrou "A conferir" (leva 1 do primeiro uso, 14/10/2026): no primeiro extrato só as 3
+ * perguntas de maior valor vão na hora; as outras voltam aqui, as maiores primeiro.
+ */
+export async function carregarAConferir(ctx: AuthContext): Promise<ItemAConferir[]> {
+  const linhas = await prisma.monthlyEntry.findMany({
+    where: ONDE_A_CONFERIR(ctx),
+    select: { id: true, category: true, description: true, amount: true, entryDate: true, year: true, month: true },
+    orderBy: [{ amount: "desc" }, { createdAt: "asc" }],
+    take: 200,
+  });
+  return linhas.map((c) => ({ id: c.id, entrada: c.category === "INCOME", descricao: c.description ?? "", valor: Number(c.amount), data: c.entryDate ? c.entryDate.toISOString().slice(0, 10) : null, ano: c.year, mes: c.month }));
+}
+
+/** Quantos "A conferir" o perfil tem (o "N lançamentos para conferir" do aha do mês). */
+export async function contarAConferir(ctx: AuthContext): Promise<number> {
+  return prisma.monthlyEntry.count({ where: ONDE_A_CONFERIR(ctx) });
+}
+
+/** O número do "Revisar N lançamentos" do Resumo: os antigos e os "A conferir". */
+export async function contarParaRevisar(ctx: AuthContext): Promise<{ antigos: number; aConferir: number }> {
+  const [antigos, aConferir] = await Promise.all([carregarRevisaoAntigos(ctx), prisma.monthlyEntry.count({ where: ONDE_A_CONFERIR(ctx) })]);
+  return { antigos: antigos.length, aConferir };
+}

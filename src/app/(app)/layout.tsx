@@ -34,6 +34,7 @@ import { prisma } from "@/lib/db/prisma";
 import { coresDoCasalCss } from "@/lib/casal-login/cores";
 import { TelaDoParPausado } from "@/components/casal-login/TelaDoParPausado";
 import { estadoDasNovidades, type EstadoDasNovidades } from "@/lib/novidades/passos";
+import { usaMenuDoPrimeiroDia } from "@/components/shell/nav-sections";
 import { lerComeco } from "@/lib/onboarding/comeco";
 import { ferramentasDoMeiDoPerfil } from "@/lib/repositories/empresa.repo";
 import type { FerramentasDoMei } from "@/lib/empresa/legal";
@@ -70,6 +71,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   let nomeDaConta: string | null = null;
   let fotoDaConta: string | null = null;
   let novidades: EstadoDasNovidades = "novo";
+  // Menu do primeiro dia (14/10/2026): até o primeiro extrato, o ☰ mostra só 4 áreas.
+  let menuDoPrimeiroDia = false;
   let cssDoTema = "";
   // Quem entrou pelo começo novo (versão nova): o tour antigo de balões não aparece para ela.
   let perfilAtivoId = "";
@@ -170,7 +173,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       }
     }
     // O apelido que ela deu no começo ("Como posso te chamar?") vale na saudação.
-    firstName = lerComeco(user.comeco)?.apelido || user.name?.split(" ")[0] || user.email.split("@")[0];
+    const comecoDaConta = lerComeco(user.comeco);
+    firstName = comecoDaConta?.apelido || user.name?.split(" ")[0] || user.email.split("@")[0];
+    // Só quem passou pelo começo novo, no Pessoal ou no Casal, e ainda sem arquivo neste perfil.
+    if (!doPar && usaMenuDoPrimeiroDia(comecoDaConta, ativo.kind)) {
+      menuDoPrimeiroDia = !(await prisma.importBatch.findFirst({ where: { userId: ctx.userId, profileId: ativo.id }, select: { id: true } }));
+    }
     nomeDaConta = user.name?.trim() || null;
     fotoDaConta = user.avatarUrl;
     // "Tivemos uma mudança": quem já usava vê uma vez; quem chegou com a versão nova, nunca.
@@ -248,6 +256,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         podeEscolherModo={podeEscolherModo}
         nomeDaConta={nomeDaConta}
         novidades={novidades}
+        menuDoPrimeiroDia={menuDoPrimeiroDia}
         fotoDaConta={fotoDaConta}
         modoPar={modoPar}
         ferramentasDoMei={ferramentasDoMei}

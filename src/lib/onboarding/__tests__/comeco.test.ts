@@ -87,15 +87,15 @@ describe("as respostas", () => {
 });
 
 describe("os passos e a barra de cima", () => {
-  it("fases como no protótipo", () => {
-    expect(faseDoPasso("b2")).toBe("Boas-vindas");
-    expect(faseDoPasso("renda")).toBe("Sobre você");
-    expect(faseDoPasso("banco")).toBe("Seu primeiro lançamento");
+  it("fases do começo enxuto: Boas-vindas e Seu primeiro mês", () => {
+    expect(faseDoPasso("b1")).toBe("Boas-vindas");
+    expect(faseDoPasso("porta")).toBe("Seu primeiro mês");
+    expect(faseDoPasso("banco")).toBe("Seu primeiro mês");
   });
-  it("3 pontos, 4 traços nas perguntas, 4 no lançamento", () => {
-    expect(barraDoPasso("b3")).toEqual({ tipo: "pontos", total: 3, atual: 2 });
-    expect(barraDoPasso("tema")).toEqual({ tipo: "tracos", total: 4, atual: 3 });
-    expect(barraDoPasso("tutorial")).toEqual({ tipo: "tracos", total: 4, atual: 2 });
+  it("sem barra nas boas-vindas; 4 traços no primeiro mês", () => {
+    expect(barraDoPasso("b1")).toEqual({ total: 0, atual: 0 });
+    expect(barraDoPasso("porta")).toEqual({ total: 4, atual: 0 });
+    expect(barraDoPasso("tutorial")).toEqual({ total: 4, atual: 2 });
     expect(barraDoPasso("digitar").atual).toBe(1);
   });
   it("voltar: digitar e falar voltam para a porta; tutorial para o banco", () => {
@@ -121,7 +121,10 @@ describe("Pular em qualquer tela", () => {
     expect(oQueMostrarDepois(c, true)).toBe("nada");
   });
   it("ver o começo de novo volta onde parou; a leitura do extrato volta ao tutorial", () => {
-    expect(passoDeVolta(pularComeco(null, "quer", agora), null)).toBe("quer");
+    expect(passoDeVolta(pularComeco(null, "banco", agora), null)).toBe("banco");
+    // As telas que saíram em 14/10/2026: quem tinha parado nelas segue da porta.
+    expect(passoDeVolta(pularComeco(null, "quer", agora), null)).toBe("porta");
+    expect(passoDeVolta(null, "tema")).toBe("b1");
     expect(passoDeVolta(pularComeco(null, "lendo", agora), null)).toBe("tutorial");
     expect(passoDeVolta(null, null)).toBe("b1");
     expect(passoDeVolta(null, "banco")).toBe("banco");
@@ -260,7 +263,7 @@ describe("o gasto digitado", () => {
 
 describe("o funil do começo (UsageEvent)", () => {
   it("todos os eventos pedidos existem", () => {
-    expect(Object.keys(EVENTOS_DO_COMECO)).toEqual(["comecou", "pergunta", "porta", "banco", "enviou", "revisou", "viuMes", "pulou"]);
+    expect(Object.keys(EVENTOS_DO_COMECO)).toEqual(["comecou", "pergunta", "porta", "banco", "enviou", "revisou", "viuMes", "pulou", "faltaBanco", "moeda"]);
   });
   it("o caminho só leva pedaços conhecidos, nunca o que ela digitou", () => {
     expect(caminhoDoEvento("comeco_banco", "nubank")).toBe("/comecar/banco/nubank");
@@ -270,8 +273,8 @@ describe("o funil do começo (UsageEvent)", () => {
   });
   it("monta o funil na ordem do começo", () => {
     const f = montarFunilDoComeco({ comeco_comecou: 10, "comeco_pergunta:/comecar/pergunta/tema": 8, comeco_porta: 7, comeco_viu_mes: 4 });
-    expect(f.map((x) => x.rotulo)).toEqual(["Começou", "Respondeu as perguntas", "Escolheu a porta", "Escolheu o banco", "Enviou o extrato", "Revisou", "Viu o mês"]);
-    expect(f.map((x) => x.pessoas)).toEqual([10, 8, 7, 0, 0, 0, 4]);
+    expect(f.map((x) => x.rotulo)).toEqual(["Começou", "Escolheu a porta", "Escolheu o banco", "Enviou o extrato", "Revisou", "Viu o mês"]);
+    expect(f.map((x) => x.pessoas)).toEqual([10, 7, 0, 0, 0, 4]);
   });
 });
 

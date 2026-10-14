@@ -12,8 +12,7 @@ import { valoresOcultos } from "@/lib/money-server";
 import { toCurrencyCode } from "@/lib/money";
 import { chaveDoTema, preferenciaDeModo, profileThemeCss, profileTheme as temaDoPerfil } from "@/lib/profiles/themes";
 import { lerPreferenciasDeCategoria } from "@/lib/categories";
-import { nowInBrazil } from "@/lib/date/brazil-now";
-import { bancoDoComeco, nomeDoMes, passoDeVolta, PASSOS_LANCAMENTO } from "@/lib/onboarding/comeco";
+import { bancoDoComeco, passoDeVolta, PASSOS_LANCAMENTO } from "@/lib/onboarding/comeco";
 import { Comeco } from "./Comeco";
 
 /**
@@ -57,9 +56,7 @@ export default async function ComecarPage({ searchParams }: { searchParams: Prom
             passoInicial={passoDeVolta(comeco, pedido)}
             bancoInicial={bancoDoComeco(bancoPedido) ? bancoPedido : null}
             nomeDaConta={primeiroNome}
-            temaAtual={tema}
             moedaAtual={toCurrencyCode(user.currency)}
-            mesAtual={nomeDoMes(nowInBrazil())}
           />
         </MoneyProvider>
       </ProfileThemeProvider>

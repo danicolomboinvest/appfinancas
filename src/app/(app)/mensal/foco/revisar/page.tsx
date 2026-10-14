@@ -4,8 +4,10 @@ import { getRequiredSession } from "@/lib/auth/session";
 import { serverMoney } from "@/lib/money-server";
 import { PageHeader } from "@/components/ui/PageHeader";
 import type { TipoRevisao } from "@/lib/decisoes/revisao-antigos";
-import { resolverLancamentoAntigoAction } from "../actions";
-import { carregarRevisaoAntigos } from "./dados";
+import { conferirLancamentoAction, resolverLancamentoAntigoAction } from "../actions";
+import { carregarAConferir, carregarRevisaoAntigos, type ItemAConferir } from "./dados";
+import { PARENT_CATEGORIES, categoriaOculta, categoryLabel, type CategoriasDoPerfil } from "@/lib/categories";
+import type { AuthContext } from "@/lib/auth/session";
 
 const MESES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
 
@@ -73,14 +75,17 @@ const ICONE: Record<TipoRevisao, LucideIcon> = {
 export default async function RevisarAntigosPage() {
   const ctx = await getRequiredSession();
   const money = await serverMoney();
-  const itens = await carregarRevisaoAntigos(ctx);
+  const [itens, aConferir] = await Promise.all([carregarRevisaoAntigos(ctx), carregarAConferir(ctx)]);
   return (
     <div className="mx-auto flex w-full max-w-lg flex-col gap-5">
       <Link href="/mensal/foco" className="flex min-h-11 w-fit items-center gap-1 text-sm text-ink-muted hover:text-ink">
         <ChevronLeft size={16} aria-hidden /> Resumo
       </Link>
       <PageHeader title="Revisar lançamentos" />
-      {itens.length === 0 ? (
+      {/* Os "A conferir" primeiro, um por vez (o que ficou sem resposta no extrato). */}
+      {aConferir.length > 0 ? (
+        <UmAConferir item={aConferir[0]} total={aConferir.length} ctx={ctx} valor={money(aConferir[0].valor)} />
+      ) : itens.length === 0 ? (
         <div className="flex flex-col items-center gap-3 rounded-3xl bg-surface px-5 py-8 text-center shadow-[inset_0_0_0_1px_var(--color-border)]">
           <span className="flex size-14 items-center justify-center rounded-full bg-success-soft text-success">
             <Check size={26} strokeWidth={2.4} aria-hidden />
@@ -128,5 +133,45 @@ export default async function RevisarAntigosPage() {
         </>
       )}
     </div>
+  );
+}
+
+/**
+ * Um lançamento "A conferir" por vez (leva 1 do primeiro uso, 14/10/2026): "O que foi isso?" e as
+ * categorias em um toque. Responder já traz o próximo.
+ */
+function UmAConferir({ item, total, ctx, valor }: { item: ItemAConferir; total: number; ctx: AuthContext; valor: string }) {
+  const categorias: CategoriasDoPerfil = ctx.categorias ?? ctx.profileKind;
+  const opcoes: { valor: string; rotulo: string }[] = item.entrada
+    ? [
+        { valor: "renda", rotulo: "É renda" },
+        { valor: "tirar", rotulo: "Só mudei de conta" },
+      ]
+    : [
+        ...PARENT_CATEGORIES.filter((pc) => !categoriaOculta(categorias, pc)).map((pc) => ({ valor: pc as string, rotulo: categoryLabel(categorias, pc) })),
+        { valor: "aplicacao", rotulo: "Guardei" },
+        { valor: "tirar", rotulo: "Só mudei de conta" },
+      ];
+  return (
+    <section className="flex flex-col gap-4 rounded-3xl bg-surface p-4 shadow-[inset_0_0_0_1px_var(--color-border)]" data-a-conferir>
+      <p className="text-[13px] font-semibold text-ink-muted">{total === 1 ? "Falta 1 para conferir" : `1 de ${total} para conferir`}</p>
+      <div className="flex items-center gap-3">
+        <span className="min-w-0 flex-1">
+          <b className="block break-words text-[16px] font-semibold leading-snug text-ink">{item.descricao}</b>
+          <small className="text-[13px] text-ink-muted">{item.data ? `${item.data.slice(8, 10)}/${item.data.slice(5, 7)}` : `${MESES[item.mes - 1]}/${item.ano}`}</small>
+        </span>
+        <span className="shrink-0 text-[16px] font-semibold tabular-nums text-ink">{valor}</span>
+      </div>
+      <p className="text-[17px] font-semibold text-ink">{item.entrada ? "Isso foi renda?" : "O que foi isso?"}</p>
+      <div className="flex flex-wrap gap-2">
+        {opcoes.map((o) => (
+          <form key={o.valor} action={conferirLancamentoAction.bind(null, item.id, o.valor)}>
+            <button type="submit" className="inline-flex min-h-11 items-center rounded-full px-4 text-[14.5px] font-semibold text-ink shadow-[inset_0_0_0_1.5px_var(--color-border-strong)] active:scale-[0.98]">
+              {o.rotulo}
+            </button>
+          </form>
+        ))}
+      </div>
+    </section>
   );
 }

@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { ChevronRight, FileText, Keyboard, PlayCircle, Wallet } from "lucide-react";
+import { ChevronRight, FileText, Keyboard, LayoutList, ListChecks, Mic, PlayCircle, Target, TrendingDown, TrendingUp, Wallet } from "lucide-react";
+import { escolherQuerAction } from "@/app/(onboarding)/comecar/actions";
+import { contarAConferir } from "./revisar/dados";
 import { LINK_COMO_FUNCIONA } from "@/lib/novidades/passos";
 import type { AuthContext } from "@/lib/auth/session";
 import { Card } from "@/components/ui/Card";
@@ -21,6 +23,7 @@ import {
   tituloDoPassoDoExtrato,
   mesDoTexto,
   nomeDoMes,
+  OPCOES_QUER,
   oQueMostrarDepois,
   primeirosPassos,
   TITULOS_PRIMEIROS,
@@ -82,27 +85,22 @@ export async function TopoDoComeco({ ctx, comeco, nome, temLancamento }: { ctx: 
     const Icone = g?.parentCategory ? categoryIcon(ctx.categorias ?? ctx.profileKind, g.parentCategory) : Wallet;
     const titulo = g?.subcategoria || g?.descricao || "Gasto";
     return (
-      <section className="flex flex-col gap-2.5">
+      <section className="flex flex-col gap-2.5" data-primeiro-gasto>
         <h2 className="titulo-tema px-1 text-[1.6rem] font-normal leading-tight text-ink">
-          Pronto, {nome}. <b className="font-semibold">Seu primeiro gasto está aqui.</b>
+          Seu primeiro gasto <b className="font-semibold">já está aqui.</b>
         </h2>
-        <Card className="flex flex-col gap-3 p-4">
-          {g && (
-            <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3">
-              <LogoDoLancamento descricao={g.descricao} icon={Icone} size={40} />
-              <span className="flex min-w-0 flex-col">
-                <b className="truncate text-[15px] font-semibold text-ink">{titulo}</b>
-                <small className="text-[12.5px] font-medium text-ink-muted">{g.parentCategory ? `${categoryLabel(ctx.categorias ?? ctx.profileKind, g.parentCategory)} · Hoje` : "Hoje"}</small>
-              </span>
-              <em className="whitespace-nowrap text-[15px] font-medium not-italic tabular-nums text-ink">{money(g.valor)}</em>
-            </div>
-          )}
-          <p className="text-[15px] font-medium text-ink">Traga o extrato e eu monto o mês inteiro.</p>
-          <Link href={voltaAoExtrato} className={BOTAO}>
-            <FileText size={18} aria-hidden />
-            Trazer meu extrato
-          </Link>
-        </Card>
+        {g && (
+          <Card className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 p-4">
+            <LogoDoLancamento descricao={g.descricao} icon={Icone} size={40} />
+            <span className="flex min-w-0 flex-col">
+              <b className="truncate text-[15px] font-semibold text-ink">{titulo}</b>
+              <small className="text-[12.5px] font-medium text-ink-muted">{g.parentCategory ? `${categoryLabel(ctx.categorias ?? ctx.profileKind, g.parentCategory)} · Hoje` : "Hoje"}</small>
+            </span>
+            <em className="whitespace-nowrap text-[15px] font-medium not-italic tabular-nums text-ink">{money(g.valor)}</em>
+          </Card>
+        )}
+        <p className="px-1 text-[15px] font-medium text-ink">Com o mês todo, eu te digo quanto está livre.</p>
+        <TresCaminhos extrato={voltaAoExtrato} digitar="Mais um gasto" />
         {rodape}
       </section>
     );
@@ -111,7 +109,8 @@ export async function TopoDoComeco({ ctx, comeco, nome, temLancamento }: { ctx: 
   // O mês que o extrato montou (o de mais lançamentos no arquivo); sem ele, o mês de hoje.
   const hoje = nowInBrazil();
   const mes = mesDoTexto(comeco.mesDoExtrato) ?? { ano: hoje.getFullYear(), mes: hoje.getMonth() + 1, nome: nomeDoMes(hoje) };
-  const aha = ahaDoMes(await resumoDoMesImportadoAction(mes.ano, mes.mes, ctx.profileId));
+  const [resumo, aConferir] = await Promise.all([resumoDoMesImportadoAction(mes.ano, mes.mes, ctx.profileId), contarAConferir(ctx)]);
+  const aha = ahaDoMes(resumo);
   const tons = ["var(--color-accent)", "color-mix(in srgb, var(--color-accent) 62%, var(--color-surface))", "color-mix(in srgb, var(--color-accent) 34%, var(--color-surface))"];
   return (
     <section className="flex flex-col gap-2.5">
@@ -158,6 +157,14 @@ export async function TopoDoComeco({ ctx, comeco, nome, temLancamento }: { ctx: 
           <p className="text-[15px] font-medium text-ink">Seu extrato entrou. Os lançamentos estão em Transações.</p>
         </Card>
       )}
+      {/* O que ficou sem resposta na conferência do começo (no máximo 3 perguntas na hora). */}
+      {aConferir > 0 && (
+        <Link href="/mensal/foco/revisar" className="flex min-h-11 items-center gap-2 px-1 text-[14.5px] font-medium text-ink-muted hover:text-ink" data-a-conferir-no-aha>
+          <ListChecks size={16} className="shrink-0" aria-hidden />
+          <span className="min-w-0 flex-1">{aConferir === 1 ? "1 lançamento para conferir, quando quiser." : `${aConferir} lançamentos para conferir, quando quiser.`}</span>
+          <ChevronRight size={16} className="shrink-0" aria-hidden />
+        </Link>
+      )}
       {rodape}
     </section>
   );
@@ -203,33 +210,90 @@ export async function ComecoDoMes({ ctx, comeco, mes, hrefMes }: { ctx: AuthCont
       <h2 className="titulo-tema px-1 text-[1.6rem] font-normal leading-tight text-ink">
         Seu {mes} <b className="font-semibold">começa aqui</b>
       </h2>
-      <Link href={extrato} className="relative block text-left">
-        <HeroiDoTema className="min-h-[150px] !p-[18px]">
-          <span className="heroi-veu absolute right-3.5 top-3.5 rounded-full px-2.5 py-1 text-[12.5px] font-semibold">1 minuto</span>
-          <span className="heroi-veu flex size-11 items-center justify-center rounded-full" aria-hidden>
-            <FileText size={21} strokeWidth={1.8} />
-          </span>
-          <span className="mt-auto flex flex-col">
-            <b className="text-xl font-semibold">Extrato ou fatura</b>
-            <small className="text-sm font-medium text-heroi-suave">O app lê e separa sozinho</small>
-          </span>
-        </HeroiDoTema>
-      </Link>
-      <Link href="/comecar?passo=digitar" className="glass flex min-h-[150px] flex-col items-start gap-3 rounded-3xl p-[18px] text-left">
-        <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent-strong" aria-hidden>
-          <Keyboard size={21} strokeWidth={1.8} />
-        </span>
-        <span className="mt-auto flex flex-col">
-          <b className="text-xl font-semibold text-ink">Digitar um gasto</b>
-          <small className="text-sm font-medium text-ink-muted">Um gasto agora, rápido</small>
-        </span>
-      </Link>
+      <TresCaminhos extrato={extrato} digitar="Digitar um gasto" />
       {!base.passosFechados && <PrimeirosPassos ctx={ctx} comeco={base} hrefMes={hrefMes} />}
       <Link href={LINK_COMO_FUNCIONA} className="flex min-h-11 items-center justify-center gap-1.5 px-2 text-center text-sm font-medium text-ink-muted underline-offset-2 hover:text-ink hover:underline">
         <PlayCircle size={16} className="shrink-0" aria-hidden />
         Veja em vídeo como funciona
         <ChevronRight size={14} className="shrink-0" aria-hidden />
       </Link>
+    </section>
+  );
+}
+
+/**
+ * Os três caminhos do mesmo tamanho (proposta do primeiro uso, 14/10/2026): o extrato em destaque,
+ * digitar e falar logo embaixo. Abrem os mesmos fluxos do /comecar.
+ */
+function TresCaminhos({ extrato, digitar }: { extrato: string; digitar: string }) {
+  const cartao = "glass flex min-h-[88px] items-center gap-3.5 rounded-3xl px-[18px] py-3.5 text-left";
+  const bolinha = "flex size-11 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent-strong";
+  return (
+    <div className="flex flex-col gap-2.5" data-tres-caminhos>
+      <Link href={extrato} className="block text-left">
+        <HeroiDoTema className="min-h-[88px] !flex-row !items-center !gap-3.5 !px-[18px] !py-3.5">
+          <span className="heroi-veu flex size-11 shrink-0 items-center justify-center rounded-full" aria-hidden>
+            <FileText size={21} strokeWidth={1.8} />
+          </span>
+          <span className="flex min-w-0 flex-1 flex-col">
+            <b className="text-lg font-semibold leading-tight">Extrato ou fatura</b>
+            <small className="text-sm font-medium text-heroi-suave">Mostra o mês todo</small>
+          </span>
+          <span className="heroi-veu shrink-0 self-start rounded-full px-2.5 py-1 text-[12.5px] font-semibold">1 minuto</span>
+        </HeroiDoTema>
+      </Link>
+      <div className="grid grid-cols-2 gap-2.5">
+        <Link href="/comecar?passo=digitar" className={cartao}>
+          <span className={bolinha} aria-hidden>
+            <Keyboard size={20} strokeWidth={1.8} />
+          </span>
+          <span className="flex min-w-0 flex-col">
+            <b className="text-[15px] font-semibold leading-tight text-ink">{digitar}</b>
+            <small className="text-[13px] font-medium text-ink-muted">Digitar</small>
+          </span>
+        </Link>
+        <Link href="/comecar?passo=falar" className={cartao}>
+          <span className={bolinha} aria-hidden>
+            <Mic size={20} strokeWidth={1.8} />
+          </span>
+          <span className="flex min-w-0 flex-col">
+            <b className="text-[15px] font-semibold leading-tight text-ink">Falar</b>
+            <small className="text-[13px] font-medium text-ink-muted">Do jeito que sai</small>
+          </span>
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+const ICONE_DO_QUER = { lista: LayoutList, desce: TrendingDown, alvo: Target, sobe: TrendingUp } as const;
+
+/**
+ * "O que você quer agora?" no segundo dia (saiu do começo em 14/10/2026): um toque grava e leva
+ * para o lugar certo (o plano, as dívidas, a meta ou a estratégia).
+ */
+export function PerguntaDoSegundoDia() {
+  return (
+    <section className="flex flex-col gap-3" data-pergunta-segundo-dia>
+      <h2 className="titulo-tema px-1 text-[1.6rem] font-normal leading-tight text-ink">
+        O que você <b className="font-semibold">quer agora?</b>
+      </h2>
+      <div className="grid grid-cols-2 gap-2.5">
+        {OPCOES_QUER.map((o) => {
+          const Icone = ICONE_DO_QUER[o.icone];
+          return (
+            <form key={o.chave} action={escolherQuerAction.bind(null, o.chave)}>
+              <button type="submit" className="glass flex min-h-[104px] w-full flex-col items-start gap-3 rounded-[22px] p-3.5 text-left active:scale-[0.98]">
+                <span className="flex size-10 items-center justify-center rounded-full bg-accent-soft text-accent-strong" aria-hidden>
+                  <Icone size={19} strokeWidth={1.8} />
+                </span>
+                <b className="text-[15px] font-semibold leading-tight text-ink">{o.titulo}</b>
+              </button>
+            </form>
+          );
+        })}
+      </div>
+      <p className="px-1 text-sm font-medium text-ink-muted">Isso muda o que eu te mostro primeiro.</p>
     </section>
   );
 }

@@ -62,6 +62,7 @@ export function AppShell({
   fotoDaConta = null,
   modoPar = null,
   novidades = "novo",
+  menuDoPrimeiroDia = false,
   ferramentasDoMei,
   perfilComprado = null,
 }: {
@@ -73,6 +74,8 @@ export function AppShell({
   modoPar?: { nomeTitular: string } | null;
   /** "Tivemos uma mudança": "mostrar" (já usava e não viu), "visto" ou "novo" (nunca vê). */
   novidades?: EstadoDasNovidades;
+  /** Até o primeiro extrato, o ☰ mostra só 4 áreas e "Ver todas as áreas" (14/10/2026). */
+  menuDoPrimeiroDia?: boolean;
   /** Nome da conta (o avatar do topo mostra a inicial quando não há foto). */
   nomeDaConta?: string | null;
   /** Foto da conta (User.avatarUrl): vira o avatar do app todo. */
@@ -221,6 +224,7 @@ export function AppShell({
           onOpenRegistrar={() => (empresa ? router.push("/empresa?registrar=1") : abrirRegistrar())}
           openFinance={openFinance}
           secoesFixas={modoPar ? SECOES_DO_PAR : undefined}
+          primeiroDia={!modoPar && menuDoPrimeiroDia}
           perfis={perfis}
           nomeDaConta={nomeDaConta}
           ferramentasDoMei={ferramentasDoMei}
@@ -278,9 +282,9 @@ export function AppShell({
         <RegistrarDrawer open={registrarOpen} modoInicial={modoDoRegistrar} onClose={() => setRegistrarOpen(false)} />
 
         {/* Quem já usava o app: o "Tivemos uma mudança" (uma vez por conta, e pela Ajuda). Quem é
-            novo: o tour de boas-vindas, só na primeira entrada (lembrado no aparelho). O par, no
-            Nós dois da titular, não vê nenhum dos dois. */}
-        {!modoPar && novidades !== "novo" && <TourDasNovidades estado={novidades} onMenu={setMenuOpen} />}
+            novo: o tour de boas-vindas só pelo link (Como funciona, Configurações), desde 14/10/2026.
+            O par, no Nós dois da titular, não vê nenhum dos dois. */}
+        {!modoPar && <TourDasNovidades estado={novidades} onMenu={setMenuOpen} />}
         {/* Casal simples: o "Como funciona o casal", sozinho uma vez e de novo pela Casa e pelo Como funciona. */}
         {casa && <TutorialDoCasalNoApp casa={casa} visto={tutorialDoCasalVisto} avisoDaMigracao={avisoDaMigracao} novidades={modoPar ? "novo" : novidades} />}
         {/* Perfil comprado: "Sua Empresa está pronta" ou "O Casal está liberado", uma vez. */}

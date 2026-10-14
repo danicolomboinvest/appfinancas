@@ -13,6 +13,7 @@ import {
   ONDE_DOS_PASSOS,
   TOTAL_DE_PASSOS,
   abreAsNovidades,
+  jaUsava,
   contadorDoPasso,
   textosDasNovidades,
   type EstadoDasNovidades,
@@ -78,7 +79,7 @@ export function TourDasNovidades({ estado, onMenu }: { estado: EstadoDasNovidade
   const router = useRouter();
   const { key: tema } = useProfileTheme();
   const { showToast } = useToast();
-  const tx = textosDasNovidades(tema, estado === "boas-vindas" ? "novo" : "ja-usava");
+  const tx = textosDasNovidades(tema, jaUsava(estado) ? "ja-usava" : "novo");
   const [fase, setFase] = useState<Fase>("fechado");
   const [caixa, setCaixa] = useState<Caixa | null>(null);
   const [tela, setTela] = useState({ w: 390, h: 800 });

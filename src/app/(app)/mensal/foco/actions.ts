@@ -504,3 +504,33 @@ export async function classificarGastoAction(entryId: string, destino: string) {
   revalidatePath("/orcamento", "layout");
   return true;
 }
+
+/** O rótulo que a importação põe no que ficou sem resposta (StatementImport, A_CONFERIR). */
+const A_CONFERIR = "A conferir";
+
+/**
+ * Responde um lançamento "A conferir" (leva 1 do primeiro uso, 14/10/2026: no primeiro extrato só
+ * 3 perguntas vão na hora; as outras voltam pelo "Revisar N lançamentos" do Resumo).
+ * - gasto: a categoria (ensina o app, como no aviso do Foco), "aplicacao" (guardei) ou "tirar"
+ *   (só mudou de conta: sai do mês);
+ * - entrada: "renda" (fica como está, sem a marca) ou "tirar".
+ */
+export async function conferirLancamentoAction(entryId: string, resposta: string) {
+  const id = z.string().min(1).max(60).parse(entryId);
+  const alvo = z.string().min(1).max(60).parse(resposta);
+  const ctx = await getRequiredSession();
+  const onde = { id, userId: ctx.userId, profileId: ctx.profileId, subcategory: A_CONFERIR };
+  const entrada = await prisma.monthlyEntry.findFirst({ where: onde, select: { id: true, category: true } });
+  if (!entrada) return;
+  if (alvo === "tirar") {
+    await prisma.monthlyEntry.deleteMany({ where: onde });
+  } else if (alvo === "renda") {
+    if (entrada.category !== "INCOME") return;
+    await prisma.monthlyEntry.updateMany({ where: onde, data: { subcategory: null } });
+  } else if (entrada.category === "EXPENSE" && (alvo === "aplicacao" || (PARENT_CATEGORIES as readonly string[]).includes(alvo))) {
+    const ok = await classificarGastoAction(id, alvo);
+    if (ok === false) return;
+    await prisma.monthlyEntry.updateMany({ where: onde, data: { subcategory: null } });
+  } else return;
+  revalidatePath("/mensal", "layout");
+}

@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { PROFILE_THEMES } from "@/lib/profiles/themes";
 import {
   LINK_COMO_FUNCIONA,
+  MARCA_DO_TOUR_NA_CONTA_NOVA,
   LINK_VER_DE_NOVO,
   ONDE_DOS_PASSOS,
   VIDEOS_COMO_FUNCIONA,
@@ -31,12 +32,13 @@ describe("Tivemos uma mudança: quem vê", () => {
     expect(abreAsNovidades("visto", true, true)).toBe(true);
   });
 
-  it("a nova vê o Boas-vindas uma vez depois do começo, e nunca pelo link da Ajuda", () => {
+  it("a nova não vê o Boas-vindas sozinha (marcado no fim do começo), mas abre pelo link do Como funciona", () => {
     expect(abreAsNovidades("boas-vindas", false, false)).toBe(true);
     expect(abreAsNovidades("boas-vindas", false, true)).toBe(false);
-    expect(abreAsNovidades("boas-vindas", true, false)).toBe(false);
+    expect(abreAsNovidades("boas-vindas", true, false)).toBe(true);
     expect(abreAsNovidades("novo", false, false)).toBe(false);
-    expect(abreAsNovidades("novo", true, false)).toBe(false);
+    // A conta nova de 14/10/2026 em diante: não abre sozinho, abre pelo link do Como funciona.
+    expect(abreAsNovidades("novo", true, false)).toBe(true);
     expect(jaUsava("boas-vindas")).toBe(false);
     expect(jaUsava("novo")).toBe(false);
     expect(jaUsava("mostrar")).toBe(true);
@@ -103,5 +105,15 @@ describe("Como funciona: os vídeos", () => {
       expect(existsSync(join(process.cwd(), "public", v.src)), v.src).toBe(true);
       expect(existsSync(join(process.cwd(), "public", v.poster)), v.poster).toBe(true);
     }
+  });
+});
+
+describe("tour na conta nova (leva 1 do primeiro uso, 14/10/2026)", () => {
+  it("o fim do começo grava o tour como visto, e ele não abre sozinho", () => {
+    expect(MARCA_DO_TOUR_NA_CONTA_NOVA).toBe("novo-visto");
+    const estado = estadoDasNovidades(MARCA_DO_TOUR_NA_CONTA_NOVA);
+    expect(estado).toBe("novo");
+    expect(abreAsNovidades(estado, false, false)).toBe(false);
+    expect(abreAsNovidades(estado, true, false)).toBe(true);
   });
 });
