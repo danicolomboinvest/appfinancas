@@ -37,6 +37,7 @@ import { Assinaturas } from "./Assinaturas";
 import { Parcelas } from "./Parcelas";
 import { parcelasDoMes } from "@/lib/contas/parcelas-do-mes";
 import { listarLancamentosParcelaveis } from "@/lib/repositories/monthly-entry.repo";
+import { listarRecusasDeParcela } from "@/lib/repositories/parcelas.repo";
 
 /**
  * Recorrentes, a quarta aba da Visão geral (versão nova, protótipo aprovado): quanto da renda já
@@ -76,7 +77,7 @@ export default async function RecorrentesPage(props: PageProps<"/orcamento/conta
   } catch (err) {
     console.error("Contas do histórico: falhou (a tela segue)", err);
   }
-  const [abertas, pagas, plano, resumo, planoDoMes, raiox, dividas, selic, perdido, novasDoHistorico, dela, recusas, gastosDoMes, rendaMedia, parcelaveis] = await Promise.all([
+  const [abertas, pagas, plano, resumo, planoDoMes, raiox, dividas, selic, perdido, novasDoHistorico, dela, recusas, gastosDoMes, rendaMedia, parcelaveis, naoParcelas] = await Promise.all([
     listarContasAPagar(ctx),
     listarQuitadasRecentes(ctx),
     listBudgets(ctx, ano, mes),
@@ -93,6 +94,8 @@ export default async function RecorrentesPage(props: PageProps<"/orcamento/conta
     gastosDoMesParaAssinaturas(ctx, ano, mes),
     getRendaMedia(ctx),
     listarLancamentosParcelaveis(ctx, { year: ano, month: mes }),
+    // O que ela disse no "…" da parcela: "Não é parcela" e a compra apagada.
+    listarRecusasDeParcela(ctx),
   ]);
   const hojeD = hojeEmBrasilia();
   const hoje = iso(hojeD);
@@ -110,6 +113,7 @@ export default async function RecorrentesPage(props: PageProps<"/orcamento/conta
     parcelaveis,
     { year: ano, month: mes },
     contas.map((c) => ({ id: c.id, nome: c.nome, valor: c.valor, parcelas: c.parcelas, parcelaAtual: c.parcelaAtual, categoria: null, diaDoMes: c.diaDoMes })),
+    naoParcelas,
   );
   // Assinaturas: as dela primeiro; as achadas (Raio-X e Dinheiro perdido, que acha o ManyChat que o
   // Raio-X chama de "hábito") entram sem repetir pelo nome, sem a que virou conta (a academia) e
@@ -165,7 +169,7 @@ export default async function RecorrentesPage(props: PageProps<"/orcamento/conta
         <ContasAPagar contas={contas} pagas={pagas.map(serializarConta)} hoje={hoje} />
       </div>
       <div className="flex min-w-0 flex-col gap-5">
-        <Parcelas itens={parcelas.itens} total={m(parcelas.total)} hoje={{ year: ano, month: mes }} m={(v) => money(v)} />
+        <Parcelas itens={parcelas.itens} total={m(parcelas.total)} hoje={{ year: ano, month: mes }} rotulos={rotulos} />
         <Assinaturas itens={assinaturas} rotulos={rotulos} />
         {dividas.length > 0 && (
           <section className="flex flex-col gap-2">
