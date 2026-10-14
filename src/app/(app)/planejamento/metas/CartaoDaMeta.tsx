@@ -32,7 +32,8 @@ export function CartaoDaMeta({ meta, jeito, hoje, money }: { meta: MetaDaTela; j
         <img src={meta.foto} alt="" loading="lazy" decoding="async" />
         {jeito.anelNaFoto ? (
           <>
-            <span className="flex justify-end">
+            {/* À direita fica o "…" do cartão (MenuDaMeta): o selo vem logo antes dele. */}
+            <span className="flex justify-end pr-12">
               <span className={`mt-selo ${atras ? "atras" : ""}`}>{selo}</span>
             </span>
             <span className="flex items-end justify-between gap-3">

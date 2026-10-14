@@ -10,8 +10,9 @@ import { proximoAporte } from "@/lib/planning/goal-checkin";
 import { ValorDestaque } from "@/components/ui/ValorDestaque";
 import { Explica } from "@/components/ui/Explica";
 import { LogoDoLancamento } from "@/components/ui/LogoDoLancamento";
-import { ProvedorDaFolhaDaMeta, type MetaParaEditar } from "../FolhaDaMeta";
-import { textoDoSelo } from "../visual";
+import { ProvedorDaFolhaDaMeta } from "../FolhaDaMeta";
+import { editarEmDaMeta, metaParaEditar, textoDoSelo } from "../visual";
+import { MaisDaMeta } from "../MenuDaMeta";
 import { GraficoQuandoChego } from "./GraficoQuandoChego";
 import { CartaoDoAporte, type EstadoDoAporte } from "./CartaoDoAporte";
 import { MesAMes, type MesDaMeta } from "./MesAMes";
@@ -103,17 +104,8 @@ export default async function DetalheDaMetaPage(props: PageProps<"/planejamento/
       };
     });
 
-  const paraEditar: MetaParaEditar = {
-    id: meta.id,
-    nome: meta.nome,
-    tipo: meta.icon,
-    alvo: meta.alvo,
-    guardado: meta.guardado,
-    prazo: meta.prazo ? chaveDoMes(meta.prazo.getFullYear(), meta.prazo.getMonth() + 1) : null,
-    foto: meta.foto,
-    combinado: meta.combinado,
-    taxaAnual: meta.taxaAnual,
-  };
+  const paraEditar = metaParaEditar(meta);
+
   const novoPrazo = ruim && plano.chegaPeloRitmo && plano.chega !== null ? mesDaqui(hoje, plano.chega).texto : null;
 
   return (
@@ -124,9 +116,12 @@ export default async function DetalheDaMetaPage(props: PageProps<"/planejamento/
           <img src={meta.foto} alt="" decoding="async" fetchPriority="high" />
           {/* Protótipo: o detalhe sobe como folha por cima de Metas, com o puxador e o X redondo. */}
           <span className="absolute left-1/2 top-2 h-1 w-10 -translate-x-1/2 rounded-full bg-white/70" aria-hidden />
-          <Link href="/planejamento/metas" aria-label="Fechar e voltar para Metas" className="md-vidro absolute right-5 top-3.5 flex size-11 items-center justify-center rounded-full">
-            <X size={20} aria-hidden />
-          </Link>
+          <span className="absolute right-5 top-3.5 flex items-center gap-2">
+            <MaisDaMeta meta={paraEditar} editarEm={editarEmDaMeta(meta)} />
+            <Link href="/planejamento/metas" aria-label="Fechar e voltar para Metas" className="md-vidro flex size-11 items-center justify-center rounded-full">
+              <X size={20} aria-hidden />
+            </Link>
+          </span>
         </div>
 
         <div className="relative flex flex-col gap-0.5">
@@ -230,7 +225,7 @@ export default async function DetalheDaMetaPage(props: PageProps<"/planejamento/
           </div>
         )}
 
-        <BarraDaMeta metaId={meta.id} meta={paraEditar} editarEm={meta.daViagem ? `/viagem?meta=${meta.id}` : undefined} />
+        <BarraDaMeta metaId={meta.id} meta={paraEditar} editarEm={editarEmDaMeta(meta)} />
       </div>
     </ProvedorDaFolhaDaMeta>
   );

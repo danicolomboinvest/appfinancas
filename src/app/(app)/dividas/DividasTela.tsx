@@ -14,6 +14,7 @@ import { ordemDeAtaque, retratoDe } from "@/lib/dividas/tipos";
 import { paraResolver, parcelasSobreARenda, saudaveis, type DividaDoSpi } from "@/lib/dividas/saude";
 import { CadastroDaDivida } from "./CadastroDaDivida";
 import { DetalheDaDivida } from "./DetalheDaDivida";
+import { ItemDaDivida } from "./MenuDaDivida";
 import { virarMetaAction } from "./actions";
 import { CORES_DA_ORDEM, LogoDoCredor, SeloDaSaude, iconeDoTipo, mesAdiante, mesCurto, mesDoBilhete, mesPorExtenso, plural, pct, type Hoje } from "./partes";
 
@@ -281,23 +282,26 @@ export function DividasTela({ dividas, renda, rendaMeses = null, sobrou, selic, 
             </div>
             <div className={`canhotos ${ordem.length > 2 ? "rola" : ""}`}>
               {ordem.map((d, j) => (
-                <button
+                <ItemDaDivida
                   key={d.id}
-                  type="button"
-                  onClick={() => abrirDivida(d.id)}
+                  divida={d}
+                  onEditar={() => setCadastro({ divida: d })}
                   className={`canhoto ${j === 0 ? "foco" : ""} ${arrancando === d.id ? "arranca" : ""}`}
                   style={{ ["--k" as string]: corDe(d.id) }}
-                  aria-label={`${d.nome}: ${m0(d.saldo)}, ${caiEm(d.id)}. Abrir`}
+                  // O "…" leva a cor da dívida na rota (era o pontinho do canto) no círculo, e os
+                  // três pontos na cor do texto do canhoto, para ter contraste nos quatro temas.
+                  botao="right-0.5 top-0.5 text-current"
+                  miolo="bg-[color-mix(in_srgb,var(--k)_30%,transparent)]"
                 >
-                  <i className="mk" />
-                  <small className="pr-3.5 text-xs font-medium opacity-80">{j === 0 ? "Agora, foque em" : "Depois"}</small>
+                  <button type="button" onClick={() => abrirDivida(d.id)} aria-label={`${d.nome}: ${m0(d.saldo)}, ${caiEm(d.id)}. Abrir`} className="absolute inset-0 z-[1] rounded-[20px]" />
+                  <small className="pr-8 text-xs font-medium opacity-80">{j === 0 ? "Agora, foque em" : "Depois"}</small>
                   <b className="text-[15px] font-medium leading-tight">{d.nome}</b>
                   <ValorDestaque texto={m0(d.saldo)} className="whitespace-nowrap text-[clamp(1.375rem,6.5cqw,1.625rem)] font-light leading-[1.15] tracking-[-0.02em] tabular-nums" />
                   <span className={`text-xs font-medium ${d.atrasada && j > 0 ? "text-danger" : "opacity-80"}`}>
                     {d.atrasada ? "atrasada · " : ""}
                     {caiEm(d.id)}
                   </span>
-                </button>
+                </ItemDaDivida>
               ))}
             </div>
           </>
@@ -334,7 +338,8 @@ export function DividasTela({ dividas, renda, rendaMeses = null, sobrou, selic, 
             <ul className="divide-y divide-border rounded-3xl border border-border bg-surface px-3">
               {sau.map((d) => (
                 <li key={d.id}>
-                  <button type="button" onClick={() => setAberta(d.id)} className="grid w-full grid-cols-[36px_minmax(0,1fr)_auto] items-center gap-3 py-3 text-left">
+                  <ItemDaDivida divida={d} onEditar={() => setCadastro({ divida: d })} botao="-right-1.5 top-1/2 -translate-y-1/2 text-ink-muted">
+                  <button type="button" onClick={() => setAberta(d.id)} className="grid w-full grid-cols-[36px_minmax(0,1fr)_auto] items-center gap-3 py-3 pr-10 text-left">
                     <LogoDoCredor credor={d.credor} tipo={d.tipo} saude="saudavel" size={36} />
                     <span className="flex min-w-0 flex-col">
                       <span className="flex items-center gap-2">
@@ -345,6 +350,7 @@ export function DividasTela({ dividas, renda, rendaMeses = null, sobrou, selic, 
                     </span>
                     <span className="whitespace-nowrap text-[15px] tabular-nums text-ink">{m0(d.saldo)}</span>
                   </button>
+                  </ItemDaDivida>
                 </li>
               ))}
             </ul>

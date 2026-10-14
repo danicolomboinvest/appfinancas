@@ -100,6 +100,53 @@ export async function desfazerToque(ctx: AuthContext, id: string, antes: AntesDo
 
 
 /**
+ * O que o Desfazer recria depois de apagar uma dívida (13/10/2026): a linha inteira. A dívida não
+ * tem pagamentos ligados a ela ("Paguei uma parcela" só baixa o saldo), então nada mais muda.
+ */
+export type DividaApagada = DividaInput & { id: string; quitadaEm: string | null; createdAt: string };
+
+/** Apagar pelo menu "…": só a dela, no perfil ativo. Null quando não acha (de outra pessoa ou já apagada). */
+export async function apagarDivida(ctx: AuthContext, id: string): Promise<DividaApagada | null> {
+  return prisma.$transaction(async (tx) => {
+    const l = await tx.divida.findFirst({ where: { id, ...doDono(ctx) } });
+    if (!l) return null;
+    const r = await tx.divida.deleteMany({ where: { id, ...doDono(ctx) } });
+    if (r.count === 0) return null;
+    const d = paraDivida(l);
+    return {
+      id: l.id,
+      tipo: d.tipo,
+      credor: l.credor,
+      apelido: l.apelido,
+      paraQue: l.paraQue,
+      planejada: l.planejada,
+      saldo: d.saldo,
+      porMes: d.porMes,
+      parcelasAbertas: l.parcelasAbertas,
+      parcelasTotal: l.parcelasTotal,
+      semParcela: l.semParcela,
+      taxaMensal: d.taxaMensal,
+      diaVencimento: l.diaVencimento,
+      atrasada: l.atrasada,
+      quitadaEm: l.quitadaEm ? l.quitadaEm.toISOString() : null,
+      createdAt: l.createdAt.toISOString(),
+    };
+  });
+}
+
+/** O Desfazer: a mesma dívida volta, com o mesmo id e a mesma ordem na lista. Duas vezes não duplica. */
+export async function restaurarDivida(ctx: AuthContext, a: DividaApagada): Promise<boolean> {
+  return prisma.$transaction(async (tx) => {
+    const ja = await tx.divida.findFirst({ where: { id: a.id }, select: { userId: true, profileId: true } });
+    if (ja) return ja.userId === ctx.userId && ja.profileId === ctx.profileId;
+    const { quitadaEm, createdAt, ...resto } = a;
+    await tx.divida.create({ data: { ...resto, ...doDono(ctx), quitadaEm: quitadaEm ? new Date(quitadaEm) : null, createdAt: new Date(createdAt) } });
+    return true;
+  });
+}
+
+
+/**
  * A Selic ao ano (em %) para comparar com os juros das dívidas: a das Taxas de referência (a da
  * pessoa ganha da global). Sem Selic cadastrada, o CDI anda junto dela; sem nenhum dos dois, null
  * (a tela usa o valor de reserva e diz que é de exemplo).
