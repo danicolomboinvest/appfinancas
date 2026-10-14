@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Briefcase, Heart, User } from "lucide-react";
 import { cobrancaDosAdicionaisLigada } from "@/lib/casal-login/adicional";
 import { getRequiredSession } from "@/lib/auth/session";
-import { listProfiles } from "@/lib/repositories/profile.repo";
+import { listProfiles, perfisDosLugares } from "@/lib/repositories/profile.repo";
 import { lugaresDosPerfis } from "@/lib/perfis/lugares";
 import { extrasLiberados } from "@/lib/perfis/extras-liberados";
 import { DEFAULT_CURRENCY, formatMoney } from "@/lib/money";
@@ -25,8 +25,9 @@ const NOME_DO_TIPO: Record<string, string> = { PESSOAL: "Pessoal", CASAL: "Casal
  */
 export default async function PerfisPage() {
   const ctx = await getRequiredSession();
-  const [perfis, liberados] = await Promise.all([listProfiles(ctx.userId), extrasLiberados(ctx.userId)]);
-  const { lugares } = lugaresDosPerfis(perfis, liberados);
+  const [perfis, ocupados, liberados] = await Promise.all([listProfiles(ctx.userId), perfisDosLugares(ctx.userId), extrasLiberados(ctx.userId)]);
+  // O Casal que virou casa simples não aparece na lista, mas segura o lugar do Nós dois.
+  const { lugares } = lugaresDosPerfis(ocupados, liberados);
   const cobrancaLigada = cobrancaDosAdicionaisLigada();
   const vazios = lugares.filter((l) => !l.perfil);
 
