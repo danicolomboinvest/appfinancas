@@ -28,7 +28,7 @@ import { vozDoTema } from "@/lib/profiles/voice";
 import { ConquistasDeMetas } from "@/components/conquista/ConquistasDeMetas";
 import { lerComecoDaConta } from "@/lib/repositories/comeco.repo";
 import { getOwnUser } from "@/lib/repositories/user.repo";
-import { mostrarPerguntaDoSegundoDia, mostrarPrimeirosPassos, oQueMostrarDepois } from "@/lib/onboarding/comeco";
+import { mostrarPrimeirosPassos, oQueMostrarDepois } from "@/lib/onboarding/comeco";
 import { ComecoDoMes, PerguntaDoSegundoDia, PrimeirosPassos, TopoDoComeco } from "./DepoisDoComeco";
 import { acertoDaCasa } from "@/lib/repositories/casa.repo";
 import { casaNaTela } from "@/lib/casa/regras";
@@ -110,9 +110,8 @@ export default async function FocoPage(props: { searchParams: Promise<Record<str
   const passosDoComeco = comecoNovo && mostrarPrimeirosPassos(comecoNovo);
   // Com o "aha" ou o convite, os passos vêm depois do livre; sem eles, no topo.
   const passosNoTopo = passosDoComeco && topoDoComeco === "nada" && !contaNova;
-  // "O que você quer agora?" saiu do começo e volta no segundo dia (14/10/2026).
-  const hojeEmBrasilia = `${d.now.getFullYear()}-${String(d.now.getMonth() + 1).padStart(2, "0")}-${String(d.now.getDate()).padStart(2, "0")}`;
-  const perguntaDoSegundoDia = !contaNova && mostrarPerguntaDoSegundoDia(comecoNovo, hojeEmBrasilia);
+  // "O que você quer agora?" saiu do Resumo (15/10/2026): não se pergunta depois do começo.
+  const perguntaDoSegundoDia = false;
   const cartaoAcao = "flex w-full items-center justify-between gap-4 text-left";
 
   // O Foco em níveis (07/10/2026). A análise que a Dani trouxe: "tudo quer a atenção ao mesmo tempo;

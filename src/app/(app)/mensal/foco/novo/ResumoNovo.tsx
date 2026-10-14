@@ -8,14 +8,14 @@ import { ProximosMeses } from "@/components/previsao/MesesPrevistos";
 import { carregarMesesPrevistos } from "@/lib/repositories/previsao.repo";
 import { paraParametro } from "@/lib/visao-geral/periodo";
 import { lerComecoDaConta } from "@/lib/repositories/comeco.repo";
-import { mostrarPerguntaDoSegundoDia, mostrarPrimeirosPassos } from "@/lib/onboarding/comeco";
+import { mostrarPrimeirosPassos } from "@/lib/onboarding/comeco";
 import { acertoDaCasa } from "@/lib/repositories/casa.repo";
 import { casaNaTela } from "@/lib/casa/regras";
 import { MESES } from "../dados";
 import { ContaDoLivre } from "../ContaDoLivre";
 import { ComoChegamos } from "../ComoChegamos";
 import { CartaoAcerto } from "../CartaoAcerto";
-import { PerguntaDoSegundoDia, PrimeirosPassos } from "../DepoisDoComeco";
+import { PrimeirosPassos } from "../DepoisDoComeco";
 import { carregarResumoNovo, type InfoDaCategoria, type ResumoNovo as Dados } from "./dados";
 import { CartaoSugestao } from "./CartaoSugestao";
 import { HeroiDaPrimeiraVez, HeroiDoDiaADia, HeroiDoDigitou, HeroiDoMesFechado, HeroiDoNada, type CorDoHeroi } from "./Heroi";
@@ -43,10 +43,9 @@ export async function ResumoNovo({ ctx, cor, hojeDeTeste }: { ctx: AuthContext; 
   ]);
   const m = r.foco.m;
   const temDado = r.caso !== "nada";
-  const hojeIso = `${r.hoje.getFullYear()}-${String(r.hoje.getMonth() + 1).padStart(2, "0")}-${String(r.hoje.getDate()).padStart(2, "0")}`;
   // Primeiros passos e a pergunta do segundo dia ocupam o lugar da sugestão enquanto existirem.
   const passos = comeco && temDado && mostrarPrimeirosPassos(comeco);
-  const pergunta = temDado && mostrarPerguntaDoSegundoDia(comeco, hojeIso);
+  // "O que você quer agora?" saiu do Resumo (15/10/2026, pedido da Dani): não se pergunta depois do começo.
 
   const heroi =
     r.caso === "dia-a-dia" && r.diaADia ? (
@@ -78,8 +77,6 @@ export async function ResumoNovo({ ctx, cor, hojeDeTeste }: { ctx: AuthContext; 
           <ProximoPasso r={r} money={m} />
         ) : passos && comeco ? (
           <PrimeirosPassos ctx={ctx} comeco={comeco} hrefMes={r.foco.hrefMes} />
-        ) : pergunta ? (
-          <PerguntaDoSegundoDia />
         ) : r.sugestao ? (
           <CartaoSugestao key={`${r.sugestao.tipo}|${r.sugestao.id}`} sugestao={r.sugestao} marca={r.marca} maisNoDecidir={r.maisNoDecidir} />
         ) : r.maisNoDecidir > 0 ? (
@@ -140,7 +137,6 @@ function Categorias({ r, money }: { r: Dados; money: (v: number) => string }) {
           Ver todas as categorias <ChevronRight size={15} aria-hidden />
         </Link>
       </Card>
-      <p className="px-1 text-[12.5px] text-ink-muted">A barra cheia é {nome(r.mes)}; a clara, {nome(r.passado)} até o mesmo dia.</p>
     </section>
   );
 }
