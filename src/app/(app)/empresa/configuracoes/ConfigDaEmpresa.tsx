@@ -1,5 +1,6 @@
 "use client";
 
+import { CampoDeDinheiro } from "@/components/ui/CampoDeDinheiro";
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -23,7 +24,7 @@ export function ConfigDaEmpresa({ nome, config, seguro, temGuia }: { nome: strin
   const router = useRouter();
   const { showToast, showError } = useToast();
   const [, iniciar] = useTransition();
-  const [salario, setSalario] = useState(config.salario !== null ? String(config.salario) : "");
+  const [salario, setSalario] = useState<number | null>(config.salario);
   const [credito, setCredito] = useState(config.taxas.credito !== null ? String(config.taxas.credito).replace(".", ",") : "");
   const [debito, setDebito] = useState(config.taxas.debito !== null ? String(config.taxas.debito).replace(".", ",") : "");
   const [horas, setHoras] = useState(config.horasPorMes);
@@ -80,19 +81,19 @@ export function ConfigDaEmpresa({ nome, config, seguro, temGuia }: { nome: strin
           </span>
           <span className="flex items-center gap-2 rounded-2xl bg-surface-2 px-3 py-2">
             <span className="text-sm text-ink-muted">{simbolo}</span>
-            <input
-              inputMode="numeric"
-              value={salario}
-              placeholder={seguro !== null ? String(seguro) : "0"}
-              onChange={(e) => setSalario(e.target.value.replace(/\D/g, "").slice(0, 7))}
-              onBlur={() => salvar({ salario: salario === "" ? null : Number(salario) })}
+            <CampoDeDinheiro
+              valor={salario}
+              placeholder={seguro !== null ? seguro.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "0,00"}
+              onValor={setSalario}
+              max={9_999_999}
+              onBlur={() => salvar({ salario })}
               aria-label="Seu salário por mês, em reais"
-              className="w-24 bg-transparent text-right text-[17px] font-medium tabular-nums text-ink outline-none"
+              className="w-28 bg-transparent text-right text-[17px] font-medium tabular-nums text-ink outline-none"
             />
           </span>
           {seguro !== null && (
             <div className="w-full pb-2">
-              <Chip on={config.salario === null} onClick={() => { setSalario(""); salvar({ salario: null }); }}>
+              <Chip on={config.salario === null} onClick={() => { setSalario(null); salvar({ salario: null }); }}>
                 Usar o seguro, {m0(seguro)}
               </Chip>
             </div>

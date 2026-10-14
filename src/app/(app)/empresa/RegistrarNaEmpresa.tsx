@@ -1,5 +1,6 @@
 "use client";
 
+import { CampoDeDinheiro } from "@/components/ui/CampoDeDinheiro";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight, Check, TrendingDown, TrendingUp } from "lucide-react";
@@ -29,12 +30,6 @@ const GASTOS = [
   ["outro", "Outro"],
 ] as const;
 
-/** "12,50" ou "1.234,56" vira número. */
-function lerReais(t: string): number {
-  const limpo = t.replace(/\./g, "").replace(",", ".").replace(/[^\d.]/g, "");
-  const n = Number(limpo);
-  return Number.isFinite(n) ? n : 0;
-}
 
 /**
  * O + de quem vende (protótipo aprovado): Vendi, Paguei, Recebi e Importar extrato PJ. Tudo entra no
@@ -48,7 +43,7 @@ export function RegistrarNaEmpresa({ aberto, onFechar, dados, R, clientes }: { a
   const { showToast, showError } = useToast();
   const [salvando, iniciar] = useTransition();
   const [modo, setModo] = useState<Modo>(null);
-  const [valor, setValor] = useState("");
+  const [valor, setValor] = useState<number | null>(null);
   const formasDela = dados.config?.formas.length ? dados.config.formas : (["pix", "credito"] as Forma[]);
   const [forma, setForma] = useState<Forma>(formasDela[0]);
   const [cliente, setCliente] = useState<string | null>(null);
@@ -63,7 +58,7 @@ export function RegistrarNaEmpresa({ aberto, onFechar, dados, R, clientes }: { a
     setEstava(aberto);
     if (aberto) {
       setModo(null);
-      setValor("");
+      setValor(null);
       setCliente(null);
       setOutroNome("");
       setDepois(null);
@@ -80,7 +75,7 @@ export function RegistrarNaEmpresa({ aberto, onFechar, dados, R, clientes }: { a
     () => dados.lancamentos.filter((l) => ehVenda(l) && l.forma !== "credito" && l.forma !== "debito" && l.recebeEm && !foiRecebida(l, dados.hoje)).sort((a, b) => (a.recebeEm ?? "").localeCompare(b.recebeEm ?? "")),
     [dados],
   );
-  const valorNum = lerReais(valor);
+  const valorNum = valor ?? 0;
 
   function pronto(msg: string) {
     showToast(msg);
@@ -115,7 +110,7 @@ export function RegistrarNaEmpresa({ aberto, onFechar, dados, R, clientes }: { a
   const campoValor = (rotulo: string) => (
     <label className="mx-auto flex items-baseline justify-center gap-2 border-b border-border-strong px-2 pb-1">
       <span className="text-xl text-ink-muted">{simbolo}</span>
-      <input autoFocus inputMode="decimal" value={valor} onChange={(e) => setValor(e.target.value.replace(/[^\d.,]/g, "").slice(0, 12))} placeholder="0,00" aria-label={rotulo} className="w-44 bg-transparent text-center text-[2.5rem] font-light tabular-nums text-ink outline-none placeholder:text-ink-faint" />
+      <CampoDeDinheiro autoFocus valor={valor} onValor={setValor} max={10_000_000} placeholder="0,00" aria-label={rotulo} className="w-44 bg-transparent text-center text-[2.5rem] font-light tabular-nums text-ink outline-none placeholder:text-ink-faint" />
     </label>
   );
   const voltar = (
@@ -236,7 +231,7 @@ export function RegistrarNaEmpresa({ aberto, onFechar, dados, R, clientes }: { a
                 on={gasto?.contaId === c.id}
                 onClick={() => {
                   setGasto({ contaId: c.id, contaNome: c.nome });
-                  if (c.valor !== null) setValor(c.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 }));
+                  if (c.valor !== null) setValor(c.valor);
                 }}
               >
                 {c.nome}

@@ -1,5 +1,6 @@
 "use client";
 
+import { CampoDeDinheiro } from "@/components/ui/CampoDeDinheiro";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Bell, Check, ChevronLeft, CreditCard, FileText, Minus, Plus, Search, Banknote } from "lucide-react";
@@ -88,7 +89,6 @@ export function Assistente({ dados }: { dados: DadosDaEmpresa }) {
   const lucro = lucros.length ? Math.max(0, Math.round(lucros[lucros.length - 1])) : null;
   const maximo = lucro !== null ? Math.max(50, Math.floor(lucro / 50) * 50) : 0;
   const [salario, setSalario] = useState<number | null>(atual?.salario ?? seguro);
-  const [digitado, setDigitado] = useState(atual?.salario ? String(atual.salario) : "");
 
   const ramo = ramoDe(faz);
   const titulo = (a: string, b: string) => (
@@ -310,7 +310,7 @@ export function Assistente({ dados }: { dados: DadosDaEmpresa }) {
                   <span className="text-sm text-ink-muted">Quanto você quer tirar por mês?</span>
                   <span className="flex items-baseline gap-2 border-b border-border-strong pb-2">
                     <span className="text-lg text-ink-muted">{simbolo}</span>
-                    <input inputMode="numeric" value={digitado} onChange={(e) => { const t = e.target.value.replace(/\D/g, "").slice(0, 7); setDigitado(t); setSalario(t ? Number(t) : null); }} placeholder="0" className="w-full bg-transparent text-3xl font-light tabular-nums text-ink outline-none" aria-label="Seu salário por mês, em reais" />
+                    <CampoDeDinheiro valor={salario} onValor={setSalario} max={9_999_999} placeholder="0,00" className="w-full bg-transparent text-3xl font-light tabular-nums text-ink outline-none" aria-label="Seu salário por mês, em reais" />
                   </span>
                 </label>
                 <p className="mt-2 text-left text-xs text-ink-muted">O salário seguro aparece depois do primeiro mês fechado.</p>

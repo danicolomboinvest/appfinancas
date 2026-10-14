@@ -54,7 +54,7 @@ export async function abrirNegocioAction(r: RespostasDoAssistente): Promise<Resu
     faz: RAMOS.some((x) => x.chave === r.faz) ? r.faz : "outro",
     formas: (r.formas ?? []).filter(ehForma),
     prazoCredito: (PRAZOS_DO_CREDITO as readonly number[]).includes(r.prazoCredito) ? r.prazoCredito : 30,
-    salario: r.salario !== null && Number.isFinite(r.salario) && r.salario >= 0 ? Math.round(r.salario) : null,
+    salario: r.salario !== null && Number.isFinite(r.salario) && r.salario >= 0 ? Math.round(r.salario * 100) / 100 : null,
     diaDoSalario: atual?.diaDoSalario ?? 5,
     lembreteDas: r.lembreteDas !== false,
     taxas: atual?.taxas ?? { credito: null, debito: null },
