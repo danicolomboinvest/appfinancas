@@ -38,6 +38,17 @@ export type PassoDoComeco = (typeof PASSOS_BOAS_VINDAS)[number] | (typeof PASSOS
 
 const TODOS: readonly string[] = [...PASSOS_BOAS_VINDAS, ...PASSOS_ANTIGOS, ...PASSOS_LANCAMENTO];
 
+/**
+ * O começo fica fechado para quem o layout do app também barraria: sem e-mail confirmado ou sem
+ * acesso. Admin sempre passa. O par do Casal simples também (usa o app inteiro no Pessoal dele,
+ * sem compra própria e sem confirmar e-mail): antes ele era mandado de volta, e os cartões
+ * "Enviar extrato" e "Anotar um gasto" da Visão geral dele não faziam nada.
+ */
+export function comecoBarrado(p: { admin: boolean; parLiberado: boolean; confirmada: boolean; uso: "completo" | "gratis" | "bloqueado" }): boolean {
+  if (p.admin || p.parLiberado) return false;
+  return !p.confirmada || p.uso === "bloqueado";
+}
+
 export function ehPasso(valor: unknown): valor is PassoDoComeco {
   return typeof valor === "string" && TODOS.includes(valor);
 }
