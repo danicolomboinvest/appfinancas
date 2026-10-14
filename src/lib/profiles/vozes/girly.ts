@@ -1047,7 +1047,7 @@ const GIRLY_FIXOS: Partial<Titulos> = {
   avisoOndeFoi: (c) => `Para onde foi o dinheiro de ${c}`,
   avisoRitmoSelo: "nesse ritmo, acaba antes do mês virar",
   avisoTetoT: (v) => `Segurar em ${v}`,
-  avisoTetoFeito: (v) => `Combinado: teto de ${v}`,
+  avisoTetoFeito: (v) => `Teto de ${v}!`,
   avisoForaLegenda: "em gastos que ainda não têm lugar no combinado",
   avisoForaSelo: (l) => `saem do mesmo dinheiro: sobrou ${l} para gastar`,
   avisoForaLista: (n) => (n === 1 ? "O gasto fora do combinado" : `Os ${n} gastos fora do combinado`),

@@ -8,7 +8,7 @@ export function Selinho({ className = "", ...props }: HTMLAttributes<HTMLSpanEle
   return (
     <span
       {...props}
-      className={`inline-flex shrink-0 items-center whitespace-nowrap rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-semibold leading-tight text-accent-strong ${className}`}
+      className={`inline-flex shrink-0 items-center whitespace-nowrap rounded-full bg-accent-soft px-2 py-0.5 text-xs font-semibold leading-tight text-accent-strong ${className}`}
     />
   );
 }
