@@ -679,7 +679,7 @@ const GIRLY_UI: Partial<Titulos> = {
   uiErroTexto: "Foi erro meu, não seu, e seus dados estão seguros. Tenta recarregar; se continuar, sai e entra de novo.",
   uiErroTentarDeNovo: "Tentar de novo",
   uiNaoEncontradoTitulo: "Essa página não existe",
-  uiNaoEncontradoTexto: "Confere o endereço ou volta para o início, amiga. Seu dinheirinho está te esperando lá",
+  uiNaoEncontradoTexto: "Confere o endereço ou volta para o início, amiga. Seu dinheirinho está te esperando lá.",
   uiNaoEncontradoVoltar: "Voltar para o início",
 };
 

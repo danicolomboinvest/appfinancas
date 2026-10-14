@@ -414,7 +414,7 @@ export function EntryList({
           <span className="min-w-0 flex-1">
             {/* O nome inteiro quebra a linha em vez de cortar ("Aplicação · Reserva de emergência" a 320 px). */}
             <span className="block break-words text-[16px] leading-snug text-ink">{titulo}</span>
-            <span className="block truncate text-[13px] text-ink-muted">
+            <span className="block break-words text-[13px] leading-snug text-ink-muted">
               {/* Casal simples: o que é meu e está escondido do par leva o cadeado. */}
               {entry.escondido && <Lock size={12} strokeWidth={2} className="mr-1 inline -translate-y-px" aria-label={`Escondido de ${casa?.outro.nome ?? "seu par"}`} />}
               {/* Perfil Casal: de quem é, e "Pessoal" quando o gasto fica fora do acerto. */}
