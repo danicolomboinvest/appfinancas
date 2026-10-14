@@ -17,6 +17,8 @@ export type ImportBatchView = {
   /** ISO string (Date não atravessa a fronteira server → client component). */
   createdAt: string;
   entryCount: number;
+  /** Fatura: as parcelas dos próximos meses que ela lançou. */
+  parcelasFuturas: number;
   /** Fatura: o total da fatura. Extrato/banco: o saldo com sinal (ver lib/import/total-do-lote). */
   totalAmount: number;
   months: string[];
@@ -96,6 +98,7 @@ export function ImportHistory({ batches }: { batches: ImportBatchView[] }) {
                     <span className="tabular-nums">{formatDateTime(batch.createdAt)}</span>
                     {", "}
                     {t.impHistoricoLancamentos(batch.entryCount)}
+                    {batch.parcelasFuturas > 0 && ` ${t.impParcelasFuturas(batch.parcelasFuturas)}`}
                     {", "}
                     {/* Extrato mostra o saldo com sinal, como na confirmação: somar renda e gasto
                         juntos dava um número maior que o arquivo e parecia importação duplicada. */}

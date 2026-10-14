@@ -109,6 +109,7 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
           fileName: b.fileName,
           createdAt: b.createdAt.toISOString(),
           entryCount: b.entryCount,
+          parcelasFuturas: b.parcelasFuturas,
           totalAmount: b.totalAmount,
           months: b.months,
         }))}

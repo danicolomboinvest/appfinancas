@@ -38,7 +38,7 @@ export default async function ApagarDadosOuContaPage() {
   const partesVisiveis: Parte[] = PARTES.filter((p) => (p !== "moneyReset" || comReset) && (p !== "carteira" || !ehPar));
 
   const ultimaImportacao = ultimoLote
-    ? { id: ultimoLote.id, fatura: ultimoLote.docType === "fatura", arquivo: ultimoLote.fileName, em: ultimoLote.createdAt.toISOString(), lancamentos: ultimoLote.entryCount }
+    ? { id: ultimoLote.id, fatura: ultimoLote.docType === "fatura", arquivo: ultimoLote.fileName, em: ultimoLote.createdAt.toISOString(), lancamentos: ultimoLote.entryCount + ultimoLote.parcelasFuturas }
     : null;
 
   return <ApagarDadosOuConta avisoDaApple={avisoDaApple} perfis={perfis} perfilAtual={ctx.profileId} partesVisiveis={partesVisiveis} ultimaImportacao={ultimaImportacao} />;
