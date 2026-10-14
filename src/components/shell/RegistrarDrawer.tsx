@@ -210,7 +210,8 @@ export function RegistrarDrawer({
 /**
  * O que ela falou, já preenchido no Digitar (14/10/2026): no gasto, a categoria que o motor da
  * importação achou vem marcada (a que ela criou, ou a padrão com a subcategoria) e a descrição é
- * a frase limpa ("Posto"); ela troca se quiser. Sem categoria reconhecida, fica sem marcar.
+ * a frase limpa ("Posto"); ela troca se quiser, e a troca ensina o app (aprender-da-voz.ts). Sem
+ * categoria reconhecida, fica sem marcar.
  */
 function inicialDaVoz(parsed: ParsedVoiceEntry, kind: ProfileKind) {
   const base = { valor: parsed.amount ?? undefined, tipo: parsed.category, moeda: parsed.currency ?? undefined };
@@ -220,6 +221,7 @@ function inicialDaVoz(parsed: ParsedVoiceEntry, kind: ProfileKind) {
       categoria: parsed.customCategoryId ?? parsed.parentCategory ?? undefined,
       subcategoria: parsed.customCategoryId ? undefined : (parsed.subcategory ?? undefined),
       descricao: parsed.description || undefined,
+      chaveDaFala: parsed.chaveDaFala ?? undefined,
     };
   }
   const tipoLivre = voiceSubcategory(parsed, kind);

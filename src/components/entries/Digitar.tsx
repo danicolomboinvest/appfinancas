@@ -49,7 +49,17 @@ export function Digitar({
   criandoCategoria?: boolean;
   onCriandoCategoria?: (v: boolean) => void;
   /** Vindo da voz: o que ela disse já preenchido. */
-  inicial?: { valor?: number; tipo?: string; /** A categoria padrão ou o id da que ela criou. */ categoria?: ParentCategory | string; subcategoria?: string; descricao?: string; moeda?: CurrencyCode };
+  inicial?: {
+    valor?: number;
+    tipo?: string;
+    /** A categoria padrão ou o id da que ela criou. */
+    categoria?: ParentCategory | string;
+    subcategoria?: string;
+    descricao?: string;
+    moeda?: CurrencyCode;
+    /** A palavra-chave da fala: se ela trocar a categoria sugerida, o app aprende (aprender-da-voz.ts). */
+    chaveDaFala?: string;
+  };
 }) {
   const { voz, profileId, cartaoComLimite, kind, categorias } = useProfileTheme();
   const t = voz.titulos;
@@ -164,6 +174,11 @@ export function Digitar({
     fd.set("customCategoryId", custom);
     fd.set("subcategory", ehGasto ? (inicial?.categoria && categoria === inicial.categoria ? (inicial.subcategoria ?? "") : "") : tipoLivre);
     fd.set("entryDate", dataDoChip(chip, hoje));
+    // Veio da voz: o servidor compara a sugestão com o que ela escolheu e, se ela trocou, aprende.
+    if (ehGasto && inicial?.chaveDaFala) {
+      fd.set("vozChave", inicial.chaveDaFala);
+      fd.set("vozSugestao", inicial.categoria ?? "");
+    }
     if (meta) fd.set("goalId", meta);
     if (repetir) fd.set("repeatMonthly", "on");
     if (entrada && mesSeguinte) fd.set("paraMesSeguinte", "on");

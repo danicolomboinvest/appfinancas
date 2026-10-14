@@ -23,7 +23,8 @@ import { convertAmount, getExchangeRate } from "@/lib/fx/rates";
 import type { ParentCategory } from "@prisma/client";
 import { allocationsToRestore, type SnapshotAllocation } from "@/lib/portfolio/contribution-link";
 import { listRecentlyPaidDividends } from "@/lib/repositories/dividend.repo";
-import { aprenderComCorrecao, linhasAntesDaCorrecao } from "@/lib/repositories/transaction-rule.repo";
+import { aprenderComCorrecao, linhasAntesDaCorrecao, upsertTransactionRule } from "@/lib/repositories/transaction-rule.repo";
+import { regraDaCorrecaoDaVoz } from "@/lib/entries/aprender-da-voz";
 import { situacaoDoCartao } from "@/lib/repositories/limite-cartao.repo";
 import { agendarAvisoDoCartao } from "@/lib/cartao/agendar";
 import { vozDoTema } from "@/lib/profiles/voice";
@@ -171,10 +172,39 @@ export async function createMonthlyEntryAction(
     await registrarFalhaDaAcao("lancar", err instanceof Error ? err.message : String(err));
     return { error: "Não consegui salvar o lançamento. Tente novamente." };
   }
+  await aprenderDaVoz(ctx, formData, entry);
   revalidatePath(`/mensal/${parsed.data.year}`);
   revalidatePath(`/mensal/${parsed.data.year}/${parsed.data.month}`);
   const aviso = await depoisDoGasto(ctx, entry);
   return aviso ? { aviso } : {};
+}
+
+/**
+ * Gasto lançado pela voz em que ela trocou a categoria sugerida (ou escolheu uma quando não veio
+ * nenhuma): a palavra-chave da fala vira regra dela (ver aprender-da-voz.ts). Falha aqui não
+ * desfaz o lançamento, que já foi salvo.
+ */
+async function aprenderDaVoz(
+  ctx: Awaited<ReturnType<typeof getRequiredSession>>,
+  formData: FormData,
+  entry: { category: string; parentCategory?: ParentCategory | null; customCategoryId?: string | null; subcategory?: string | null },
+) {
+  const chave = formData.get("vozChave");
+  if (entry.category !== "EXPENSE" || typeof chave !== "string" || !chave) return;
+  const sugestao = formData.get("vozSugestao");
+  const regra = regraDaCorrecaoDaVoz({
+    chave,
+    sugestao: typeof sugestao === "string" ? sugestao : null,
+    parentCategory: entry.parentCategory ?? null,
+    customCategoryId: entry.customCategoryId ?? null,
+    subcategory: entry.subcategory ?? null,
+  });
+  if (!regra) return;
+  try {
+    await upsertTransactionRule(ctx, regra);
+  } catch (err) {
+    console.error("aprenderDaVoz falhou:", err);
+  }
 }
 
 /** Edição de um lançamento existente, mesmo formulário do create, com `entryId` extra. */
