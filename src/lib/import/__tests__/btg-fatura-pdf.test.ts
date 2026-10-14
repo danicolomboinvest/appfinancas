@@ -74,3 +74,57 @@ describe("fatura do cartão BTG Pactual / EQI (PDF)", () => {
     expect(conferirLeitura(BTG, "fatura", linhas)).toMatchObject({ status: "fechou" });
   });
 });
+
+describe("fatura BTG/EQI: conversão em outra moeda fora do lugar", () => {
+  // Layout da quebra de página: a compra em dólar fica numa página e o bloco "Cotação / Conversão"
+  // dela desce para depois do cabeçalho da página seguinte, DEPOIS da conversão de outra compra.
+  const QUEBRA = [
+    "Olá, Fulana! Esta é a fatura do seu cartão EQI de",
+    "Julho no valor a pagar de R$ 1.000,00",
+    "Fulana Exemplo | fatura de Julho de 2026 | cartão final 0000",
+    "Total a pagar R$ 1.000,00",
+    "BTG Pactual S.A",
+    "Lançamentos do cartão virtual | Fulana Exemplo | Final 0000 Total do cartão: R$ 1.000,00",
+    "Total de compras e despesas",
+    "US$ 100,00\tServico Exemplo\t30 Jun",
+    "R$ 200,00\tLoja Exemplo\t01 Jul",
+    "US$ 10,00\tApp Exemplo\t06 Jul",
+    "Cotação da moeda -",
+    "Conversão para Real -",
+    "R$ 5,00",
+    "R$ 50,00",
+    "R$ 1.000,00",
+    "-- 3 of 4 --",
+    "Cotação da moeda -",
+    "Conversão para Real -",
+    "R$ 5,50",
+    "R$ 550,00",
+  ].join("\n");
+
+  it("acha o par cotação × valor pela conta, não pela ordem", () => {
+    const txns = parseBtgInvoice(QUEBRA, 2026);
+    expect(txns.map((t) => [t.description, t.amount])).toEqual([
+      ["Servico Exemplo", 550],
+      ["Loja Exemplo", 200],
+      ["App Exemplo", 50],
+    ]);
+  });
+
+  it("crédito em moeda estrangeira leva o sinal do valor em real", () => {
+    const texto = [
+      "Fulana Exemplo | fatura de Agosto de 2026 | cartão final 0000",
+      "BTG Pactual S.A",
+      "Lançamentos do cartão físico | Fulana Exemplo | Final 0000 Total do cartão: R$ 90,00",
+      "Total de créditos recebidos",
+      "EUR 10,00\tEstorno Exemplo\t01 Ago",
+      "Cotação da moeda -",
+      "Conversão para Real -",
+      "R$ 6,00",
+      "-R$ 60,00",
+      "Total de compras e despesas",
+      "R$ 150,00\tLoja Exemplo\t02 Ago",
+      "R$ 90,00",
+    ].join("\n");
+    expect(parseBtgInvoice(texto, 2026).map((t) => t.amount)).toEqual([-60, 150]);
+  });
+});

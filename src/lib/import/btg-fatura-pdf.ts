@@ -43,22 +43,22 @@ export function parseBtgInvoice(texto: string, refYear: number = new Date().getF
   const mesFatura = fatura ? NOMES_DOS_MESES.indexOf(fatura[1].toLowerCase()) + 1 || null : null;
   const anoFatura = fatura ? Number(fatura[2]) : refYear;
   const out: ParsedTransaction[] = [];
-  // Compras em outra moeda esperando o valor em real: a 1ª linha só com "R$" é a cotação, a 2ª o valor.
-  const esperando: { txn: ParsedTransaction; linhasDeValor: number }[] = [];
+  // Compras em outra moeda esperando o valor em real, e todos os números soltos ("R$ 5,27",
+  // "R$ 190,07", subtotais) na ordem em que aparecem. A cotação e o valor em real de uma compra
+  // nem sempre ficam logo abaixo dela: na quebra de página o bloco "Cotação / Conversão" desce
+  // para depois do cabeçalho da página seguinte (fatura de julho: Manychat US$ 165,00 ficou com
+  // "R$ 27,41" de outra compra e faltaram R$ 899,05). Por isso o par certo é achado pela conta:
+  // valor em dólar × cotação = valor em real.
+  const estrangeiras: { txn: ParsedTransaction; estrangeiro: number; posicao: number }[] = [];
+  const soltos: number[] = [];
+  const negativos: boolean[] = [];
 
   for (const bruta of texto.split(/\r?\n/)) {
     const linha = bruta.trim();
     const soValor = linha.match(SO_VALOR_RE);
     if (soValor) {
-      const pendente = esperando[0];
-      if (!pendente) continue; // subtotal do cartão
-      pendente.linhasDeValor += 1;
-      if (pendente.linhasDeValor === 2) {
-        const valor = parseBrazilianNumber(soValor[1]);
-        pendente.txn.amount = pendente.txn.amount < 0 ? -valor : valor;
-        out.push(pendente.txn);
-        esperando.shift();
-      }
+      soltos.push(parseBrazilianNumber(soValor[1]));
+      negativos.push(linha.startsWith("-"));
       continue;
     }
     for (const m of linha.matchAll(LANCAMENTO_RE)) {
@@ -68,10 +68,36 @@ export function parseBtgInvoice(texto: string, refYear: number = new Date().getF
       // Parcela comprada no ano anterior ("Cativa (10/12) 18 Ago" na fatura de junho).
       const ano = mesFatura !== null && Number(mm) > mesFatura ? anoFatura - 1 : anoFatura;
       const sinal = menos ? -1 : 1;
-      const txn: ParsedTransaction = { date: `${ano}-${mm}-${dd}`, description: descricao.trim(), amount: sinal * parseBrazilianNumber(valorTxt) };
+      const valor = parseBrazilianNumber(valorTxt);
+      const txn: ParsedTransaction = { date: `${ano}-${mm}-${dd}`, description: descricao.trim(), amount: sinal * valor };
       if (moeda === "R$") out.push(txn);
-      else esperando.push({ txn, linhasDeValor: 0 });
+      else {
+        estrangeiras.push({ txn, estrangeiro: valor, posicao: soltos.length });
+        out.push(txn); // entra na ordem do arquivo; sai de novo se não achar o valor em real
+      }
     }
+  }
+
+  const usados = new Set<number>();
+  for (const e of estrangeiras) {
+    // Procura primeiro a partir de onde a compra apareceu, depois no resto do texto.
+    const ordem = [...soltos.keys()].sort((x, y) => (x >= e.posicao ? x - e.posicao : soltos.length + e.posicao - x) - (y >= e.posicao ? y - e.posicao : soltos.length + e.posicao - y));
+    const i = ordem.find((k) => {
+      if (usados.has(k) || usados.has(k + 1) || k + 1 >= soltos.length) return false;
+      const esperado = e.estrangeiro * soltos[k];
+      return Math.abs(esperado - soltos[k + 1]) <= Math.max(0.05, esperado * 0.01);
+    });
+    // Sem par que feche a conta, a compra fica de fora: melhor faltar (a conferência com o total
+    // da fatura avisa) do que entrar com um valor de outra compra.
+    if (i === undefined) {
+      out.splice(out.indexOf(e.txn), 1);
+      continue;
+    }
+    usados.add(i);
+    usados.add(i + 1);
+    // Crédito em moeda estrangeira (estorno de aluguel de carro em euro): a linha da compra vem sem
+    // sinal e quem traz o "-" é o valor em real.
+    e.txn.amount = e.txn.amount < 0 || negativos[i + 1] ? -soltos[i + 1] : soltos[i + 1];
   }
   return out;
 }
