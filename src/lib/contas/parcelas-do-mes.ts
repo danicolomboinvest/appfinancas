@@ -30,6 +30,8 @@ export type LancamentoParcelavel = {
   dia: string | null;
   /** A categoria-mãe ou a personalizada (o id), como as chaves do orçamento. */
   categoria: string | null;
+  /** Lançado por quem olha (no Casal, o do outro aparece mas só ele muda). Sem o campo: sim. */
+  meu?: boolean;
 };
 
 export type ContaParcelada = { id: string; nome: string; valor: number | null; parcelas: number | null; parcelaAtual: number | null; categoria: string | null; diaDoMes: number | null };
@@ -51,6 +53,12 @@ export type ParcelaDoMes = {
   dia: number | null;
   origem: "lancada" | "prevista" | "conta";
   categoria: string | null;
+  /** A série ("amazon marketplace cc|10"): é ela que o "Não é parcela" recusa. Vazia na conta. */
+  serie: string;
+  /** Quem olha pode mudar (Editar, Apagar, Não é parcela). */
+  editavel: boolean;
+  /** O "N/T" é parcela com certeza. O "LOJA 03/10" ambíguo só é parcela sem dia: não muda o dia. */
+  confiante: boolean;
 };
 
 export type ParcelasDoMes = {
@@ -62,8 +70,8 @@ export type ParcelasDoMes = {
   total: number;
 };
 
-const indice = (m: Mes) => m.year * 12 + (m.month - 1);
-const doIndice = (i: number): Mes => ({ year: Math.floor(i / 12), month: (i % 12) + 1 });
+export const indice = (m: Mes) => m.year * 12 + (m.month - 1);
+export const doIndice = (i: number): Mes => ({ year: Math.floor(i / 12), month: (i % 12) + 1 });
 
 const normalizar = (s: string) =>
   s
@@ -103,28 +111,99 @@ export function ehParcela(descricao: string | null, temDia: boolean): { atual: n
   return { atual: p.current, total: p.total };
 }
 
+/** Parcela e não recusada por ela ("Não é parcela" no menu "…"). */
+export function ehParcelaDela(descricao: string | null, temDia: boolean, recusadas: ReadonlySet<string>): boolean {
+  const p = ehParcela(descricao, temDia);
+  return p !== null && !recusadas.has(chaveNaoParcela(serieDaParcela(descricao ?? "", p.total)));
+}
+
 /** Centavos de diferença entre parcelas da mesma compra (a primeira absorve o arredondamento). */
 const mesmoValor = (a: number, b: number) => Math.abs(a - b) <= Math.max(1, Math.max(a, b) * 0.02);
 
 const diaDe = (iso: string | null) => (iso ? Number(iso.slice(8, 10)) || null : null);
 
-type Lida = LancamentoParcelavel & { atual: number; total: number; nome: string; serie: string; origem: number; mes: number };
+/**
+ * O que ela disse no menu "…" da parcela (13/10/2026), guardado em ContaRecusada (sem tabela
+ * nova, como o "Não é assinatura"):
+ * - "Não é parcela": a série inteira deixa de ser parcela (não soma, não projeta, a importação
+ *   não projeta de novo);
+ * - "Apagar esta compra": a compra (série + mês da compra) não volta como prevista pelas parcelas
+ *   que ficaram nos meses passados.
+ */
+export const PREFIXO_NAO_PARCELA = "nao-parcela:";
+export const PREFIXO_COMPRA_APAGADA = "parcela-apagada:";
+export const chaveNaoParcela = (serie: string) => `${PREFIXO_NAO_PARCELA}${serie}`.slice(0, 160);
+export const chaveCompraApagada = (serie: string, origem: number) => `${PREFIXO_COMPRA_APAGADA}${origem}|${serie}`.slice(0, 160);
 
 /**
- * As parcelas do mês `mes`. `lancamentos`: os gastos com cara de parcela de uma janela larga
- * (meses antes e depois), de onde saem as séries. `contas`: as contas parceladas de Recorrentes.
+ * A importação não projeta a parcela que ela recusou: a série com "Não é parcela", ou a compra
+ * apagada (mesma série e mês da compra, com um de folga). `recusadas`: as chaves do perfil.
  */
-export function parcelasDoMes(lancamentos: LancamentoParcelavel[], mes: Mes, contas: ContaParcelada[] = []): ParcelasDoMes {
-  const alvo = indice(mes);
+export function projecaoRecusada(recusadas: ReadonlySet<string>, descricao: string, total: number, origem: number): boolean {
+  const serie = serieDaParcela(descricao, total);
+  return recusadas.has(chaveNaoParcela(serie)) || compraFoiApagada(recusadas, [{ serie, origem }]);
+}
+
+/** A compra apagada pelo índice do mês da compra (com o mesmo mês de folga das séries). */
+function compraFoiApagada(recusadas: ReadonlySet<string>, compra: { serie: string; origem: number }[]): boolean {
+  return compra.some((l) => [-1, 0, 1].some((d) => recusadas.has(chaveCompraApagada(l.serie, l.origem + d))));
+}
+
+export type Lida = LancamentoParcelavel & { atual: number; total: number; nome: string; serie: string; origem: number; mes: number; confiante: boolean };
+
+/** Os lançamentos que são parcela, já com a série e o mês da compra. Tira as séries recusadas. */
+export function lerParcelas(lancamentos: LancamentoParcelavel[], recusadas: ReadonlySet<string> = new Set()): Lida[] {
   const lidas: Lida[] = [];
   for (const l of lancamentos) {
     if (!(l.valor > 0) || !l.descricao) continue;
     const p = ehParcela(l.descricao, l.dia !== null);
     if (!p) continue;
-    const nome = nomeSemParcela(l.descricao);
+    const serie = serieDaParcela(l.descricao, p.total);
+    if (recusadas.has(chaveNaoParcela(serie))) continue;
     const m = indice(l);
-    lidas.push({ ...l, ...p, nome, serie: serieDaParcela(l.descricao, p.total), origem: m - (p.atual - 1), mes: m });
+    lidas.push({ ...l, ...p, nome: nomeSemParcela(l.descricao), serie, origem: m - (p.atual - 1), mes: m, confiante: Boolean(parseInstallment(l.descricao)?.confident) });
   }
+  return lidas;
+}
+
+/**
+ * As compras: a série (nome + total) e o mês da compra, com um mês de folga, e o valor.
+ * `todas`: também as ambíguas (para achar a compra de uma parcela que ela quer mudar); sem isso,
+ * só as com certeza, que são as que prevêem meses (a ambígua não inventa mês nenhum).
+ */
+export function agruparCompras(lidas: Lida[], todas = false): Lida[][] {
+  const compras: Lida[][] = [];
+  const porSerie = new Map<string, Lida[]>();
+  for (const l of lidas) {
+    if (!todas && !l.confiante) continue;
+    porSerie.set(l.serie, [...(porSerie.get(l.serie) ?? []), l]);
+  }
+  for (const doGrupo of porSerie.values()) {
+    const daSerie: Lida[][] = [];
+    for (const l of [...doGrupo].sort((a, b) => a.origem - b.origem || a.mes - b.mes)) {
+      const mesma = daSerie.find((c) => c.some((x) => Math.abs(x.origem - l.origem) <= 1 && mesmoValor(x.valor, l.valor)));
+      if (mesma) mesma.push(l);
+      else daSerie.push([l]);
+    }
+    compras.push(...daSerie);
+  }
+  return compras;
+}
+
+/** A conta parcelada cadastrada que é a mesma compra de uma parcela da fatura (nome e valor). */
+export function contaEhAMesma(c: Pick<ContaParcelada, "nome" | "valor">, item: { nome: string; valor: number }): boolean {
+  const nome = normalizar(c.nome);
+  const v = c.valor ?? 0;
+  return nome.length >= 3 && ` ${normalizar(item.nome)} `.includes(` ${nome} `) && mesmoValor(item.valor, v);
+}
+
+/**
+ * As parcelas do mês `mes`. `lancamentos`: os gastos com cara de parcela de uma janela larga
+ * (meses antes e depois), de onde saem as séries. `contas`: as contas parceladas de Recorrentes.
+ */
+export function parcelasDoMes(lancamentos: LancamentoParcelavel[], mes: Mes, contas: ContaParcelada[] = [], recusadas: ReadonlySet<string> = new Set()): ParcelasDoMes {
+  const alvo = indice(mes);
+  const lidas = lerParcelas(lancamentos, recusadas);
 
   const itens: ParcelaDoMes[] = [];
   const parcela = (l: Lida, atual: number, origem: ParcelaDoMes["origem"]): ParcelaDoMes => ({
@@ -139,25 +218,13 @@ export function parcelasDoMes(lancamentos: LancamentoParcelavel[], mes: Mes, con
     dia: diaDe(l.dia),
     origem,
     categoria: l.categoria,
+    serie: l.serie,
+    editavel: l.meu !== false,
+    confiante: l.confiante,
   });
 
-  // Cada compra: a série (nome + total) e o mês da compra, com um mês de folga, e o valor. Só a
-  // parcela com certeza: a ambígua não inventa mês nenhum.
-  const compras: Lida[][] = [];
-  const porSerie = new Map<string, Lida[]>();
-  for (const l of lidas) {
-    if (!parseInstallment(l.descricao)?.confident) continue;
-    porSerie.set(l.serie, [...(porSerie.get(l.serie) ?? []), l]);
-  }
-  for (const doGrupo of porSerie.values()) {
-    const daSerie: Lida[][] = [];
-    for (const l of [...doGrupo].sort((a, b) => a.origem - b.origem || a.mes - b.mes)) {
-      const mesma = daSerie.find((c) => c.some((x) => Math.abs(x.origem - l.origem) <= 1 && mesmoValor(x.valor, l.valor)));
-      if (mesma) mesma.push(l);
-      else daSerie.push([l]);
-    }
-    compras.push(...daSerie);
-  }
+  // Cada compra: a série e o mês da compra (ver agruparCompras). A apagada pelo menu não volta.
+  const compras = agruparCompras(lidas).filter((c) => !compraFoiApagada(recusadas, c));
   // O dia em que a compra cai: o da parcela que tem dia (a 1ª, que veio como compra do mês).
   const diaDaCompra = new Map<string, number>();
   for (const compra of compras) {
@@ -181,6 +248,9 @@ export function parcelasDoMes(lancamentos: LancamentoParcelavel[], mes: Mes, con
     // Uma parcela que pularia o mês do lançamento seguinte: a série é de outra compra.
     const depois = compra.find((l) => l.mes > alvo);
     if (antes && depois && depois.atual <= atual) continue;
+    // Já tem no mês a mesma parcela da mesma série (a compra com o valor editado, que não junta
+    // mais com as pagas pelo valor): é ela, não outra.
+    if (lidas.some((l) => l.mes === alvo && l.serie === base.serie && l.atual === atual)) continue;
     itens.push(comDia({ ...parcela(base, atual, "prevista"), dia: null }, base));
   }
 
@@ -188,9 +258,7 @@ export function parcelasDoMes(lancamentos: LancamentoParcelavel[], mes: Mes, con
   for (const c of contas) {
     const v = c.valor ?? 0;
     if (!(v > 0) || !((c.parcelas ?? 0) > 1)) continue;
-    const nome = normalizar(c.nome);
-    const repetida = nome.length >= 3 && itens.some((i) => ` ${normalizar(i.nome)} `.includes(` ${nome} `) && mesmoValor(i.valor, v));
-    if (repetida) continue;
+    if (itens.some((i) => contaEhAMesma(c, i))) continue;
     const atual = Math.min(c.parcelas ?? 1, Math.max(1, c.parcelaAtual ?? 1));
     itens.push({
       chave: `conta:${c.id}`,
@@ -204,6 +272,9 @@ export function parcelasDoMes(lancamentos: LancamentoParcelavel[], mes: Mes, con
       dia: c.diaDoMes,
       origem: "conta",
       categoria: c.categoria,
+      serie: "",
+      editavel: true,
+      confiante: true,
     });
   }
 
@@ -215,6 +286,54 @@ export function parcelasDoMes(lancamentos: LancamentoParcelavel[], mes: Mes, con
 }
 
 /** A janela de meses que basta para achar as séries: 4 anos para trás (48x) e 1 para frente. */
-export function janelaDasParcelas(mes: Mes): { de: Mes; ate: Mes } {
-  return { de: doIndice(indice(mes) - 48), ate: doIndice(indice(mes) + 12) };
+export function janelaDasParcelas(mes: Mes, paraFrente = 12): { de: Mes; ate: Mes } {
+  return { de: doIndice(indice(mes) - 48), ate: doIndice(indice(mes) + paraFrente) };
+}
+
+/** A parcela que ela tocou no menu "…", com o que é preciso para mudar. */
+export type ParcelaParaMudar =
+  | { tipo: "conta"; item: ParcelaDoMes; contaId: string }
+  | {
+      tipo: "fatura";
+      item: ParcelaDoMes;
+      /** Todos os lançamentos da mesma compra (meses passados, este e os projetados). */
+      compra: Lida[];
+      /** O mês da compra (o índice), para lembrar a compra apagada. */
+      origem: number;
+      /** As contas parceladas cadastradas que são a mesma compra (somem junto com ela). */
+      contas: string[];
+    };
+
+/**
+ * Acha a parcela pela chave da tela, com os MESMOS dados que montaram a lista (só os de quem
+ * olha: a parcela do outro, no Casal, não é achada). Null quando sumiu ou não é dela.
+ */
+export function acharParcela(
+  lancamentos: LancamentoParcelavel[],
+  mes: Mes,
+  contas: ContaParcelada[],
+  recusadas: ReadonlySet<string>,
+  chave: string,
+): ParcelaParaMudar | null {
+  const item = parcelasDoMes(lancamentos, mes, contas, recusadas).itens.find((i) => i.chave === chave);
+  if (!item || !item.editavel) return null;
+  if (item.origem === "conta") return { tipo: "conta", item, contaId: chave.slice("conta:".length) };
+  const id = item.origem === "lancada" ? chave : chave.split("|")[0];
+  const compras = agruparCompras(lerParcelas(lancamentos, recusadas), true);
+  const base = compras.find((c) => c.some((l) => l.id === id));
+  if (!base) return null;
+  // As pagas com outro valor (ela editou o valor daqui para frente) são da mesma compra: mesma
+  // série, mesmo mês da compra e nenhum mês em comum.
+  const juntas = compras.filter(
+    (c) => c !== base && c[0].serie === base[0].serie && c.some((l) => base.some((b) => Math.abs(l.origem - b.origem) <= 1)) && !c.some((l) => base.some((b) => b.mes === l.mes)),
+  );
+  const compra = [...base, ...juntas.flat()];
+  const meus = compra.filter((l) => l.meu !== false);
+  return {
+    tipo: "fatura",
+    item,
+    compra: meus.sort((a, b) => a.mes - b.mes),
+    origem: Math.min(...meus.map((l) => l.origem)),
+    contas: contas.filter((c) => (c.parcelas ?? 0) > 1 && contaEhAMesma(c, item)).map((c) => c.id),
+  };
 }

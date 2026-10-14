@@ -23,7 +23,8 @@ import { gastoDepoisDoCombinado, montarFoco } from "@/lib/decisoes/foco";
 import { diaDaSemana } from "@/lib/decisoes/foco-semana";
 import { chaveDoComercianteDe } from "@/lib/contas/assinaturas";
 import { CATEGORIAS_FIXAS, lancamentoDaConta, type ContaPendente, type GastoDoDiaADia } from "@/lib/decisoes/semana-fixa";
-import { ehParcela, parcelasDoMes } from "@/lib/contas/parcelas-do-mes";
+import { ehParcelaDela, parcelasDoMes } from "@/lib/contas/parcelas-do-mes";
+import { listarRecusasDeParcela } from "@/lib/repositories/parcelas.repo";
 import { listarLancamentosParcelaveis } from "@/lib/repositories/monthly-entry.repo";
 import { ehDoAno, pagaNoMes } from "@/lib/contas/recorrentes";
 import { ehDoCartao } from "@/lib/cartao/limite";
@@ -82,7 +83,7 @@ export async function carregarFoco(ctx: AuthContext) {
   const inicioDoMes = new Date(Date.UTC(year, month - 1, 1, 3));
   // Meia-noite (Brasília) da segunda desta semana, ou do dia 1 se a semana começou no mês passado.
   const inicioDaSemana = new Date(Date.UTC(year, month - 1, Math.max(1, dia - diaDaSemana(now).indice), 3));
-  const [user, budgets, spentByParent, spentByCustom, customCategories, summary, plan, goals, fund, lastExpense, tetos, pendentes, ritualFeito, fechamentoDoMesAnterior, raiox, gastosReais, preCriados, cancelamentos, viradaFeita, lancamentosAnoPassado, paraRevisar, dispensados, gastosDoMes, orcamentoMesAnterior, linhasDoMes, contasDaLista, ultimoCartao, rendaConta, lancamentoAntesDaSemana, parcelaveis] =
+  const [user, budgets, spentByParent, spentByCustom, customCategories, summary, plan, goals, fund, lastExpense, tetos, pendentes, ritualFeito, fechamentoDoMesAnterior, raiox, gastosReais, preCriados, cancelamentos, viradaFeita, lancamentosAnoPassado, paraRevisar, dispensados, gastosDoMes, orcamentoMesAnterior, linhasDoMes, contasDaLista, ultimoCartao, rendaConta, lancamentoAntesDaSemana, parcelaveis, naoParcelas] =
     await Promise.all([
       getOwnUser(ctx),
       listBudgets(ctx, year, month),
@@ -158,6 +159,8 @@ export async function carregarFoco(ctx: AuthContext) {
       }),
       // As parcelas do mês (as mesmas de Recorrentes): a que continua e ainda não foi lançada fica reservada.
       listarLancamentosParcelaveis(ctx, { year, month }),
+      // "Não é parcela" e a compra apagada pelo menu "…" de Recorrentes.
+      listarRecusasDeParcela(ctx),
     ]);
   const fechamento = fechamentoDoMesAnterior;
   const ritmo = lerRitmo(user.ritmoAcompanhamento);
@@ -282,7 +285,7 @@ export async function carregarFoco(ctx: AuthContext) {
       g.createdAt < inicioDoMes ||
       g.recurrenceId !== null ||
       CATEGORIAS_FIXAS.has(g.parentCategory ?? "") ||
-      ehParcela(g.description, g.entryDate !== null) !== null;
+      ehParcelaDela(g.description, g.entryDate !== null, naoParcelas);
     if (ehConta) {
       contasLancadas += valor;
       continue;
@@ -303,7 +306,7 @@ export async function carregarFoco(ctx: AuthContext) {
     .map((c) => ({ valor: c.valor ?? 0, categoria: c.categoria }));
   // A parcela que continua neste mês e ainda não tem lançamento (a fatura não chegou, ou a antiga
   // não projetou): sai inteira desde o dia 1, como em Recorrentes. Ver lib/contas/parcelas-do-mes.
-  for (const p of parcelasDoMes(parcelaveis, { year, month }).itens) {
+  for (const p of parcelasDoMes(parcelaveis, { year, month }, [], naoParcelas).itens) {
     if (p.origem === "prevista") contasPendentes.push({ valor: p.valor, categoria: p.categoria ?? "OUTROS" });
   }
 

@@ -18,6 +18,7 @@ import type { ParentCategory } from "@prisma/client";
 import { getRequiredSession, type AuthContext } from "@/lib/auth/session";
 import { MSG_TROCOU_DE_PERFIL, trocouDePerfil } from "@/lib/profiles/perfil-da-tela";
 import { prisma } from "@/lib/db/prisma";
+import { PREFIXO_COMPRA_APAGADA, PREFIXO_NAO_PARCELA, projecaoRecusada } from "@/lib/contas/parcelas-do-mes";
 import { formatMoney } from "@/lib/money";
 import { createMonthlyEntry } from "@/lib/repositories/monthly-entry.repo";
 import {
@@ -1039,6 +1040,24 @@ export async function importTransactionsAction(
   const profileIdOf = (item: ConfirmedItem): string =>
     item.profileId && ownProfileIds.has(item.profileId) ? item.profileId : ctx.profileId;
 
+  // "Não é parcela" e "Apagar esta compra" do menu "…" de Recorrentes, por perfil: a série que ela
+  // recusou não é projetada de novo, nem a compra que ela apagou (subir a fatura antiga outra vez).
+  // Só a fatura projeta. A recusa não segura a importação: sem ler, projeta como sempre.
+  const recusasDeParcela = new Map<string, Set<string>>();
+  if (ehFatura) {
+    try {
+      const recusas = await prisma.contaRecusada.findMany({
+        where: { userId: ctx.userId, OR: [{ chave: { startsWith: PREFIXO_NAO_PARCELA } }, { chave: { startsWith: PREFIXO_COMPRA_APAGADA } }] },
+        select: { profileId: true, chave: true },
+      });
+      for (const r of recusas) recusasDeParcela.set(r.profileId ?? "", (recusasDeParcela.get(r.profileId ?? "") ?? new Set()).add(r.chave));
+    } catch (err) {
+      console.error("Importação: não leu as parcelas recusadas (projeta como sempre)", err);
+    }
+  }
+  const parcelaRecusada = (profileId: string, descricao: string, total: number, origem: number) =>
+    projecaoRecusada(recusasDeParcela.get(profileId) ?? new Set(), descricao, total, origem);
+
   // Categoria personalizada só vale se for do MESMO perfil de destino do lançamento — uma
   // categoria da Pessoal não existe pro banco quando o lançamento é gravado na Empresa. Busca
   // todas de uma vez (sem filtrar por perfil) e agrupa, em vez de uma consulta por perfil.
@@ -1361,6 +1380,7 @@ export async function importTransactionsAction(
     // Print da fatura aberta não projeta: quem projeta as parcelas seguintes é a fatura fechada.
     if (!ehFatura || aberta || item.estorno || !item.installment?.confident || item.installment.current >= item.installment.total) return;
     const { current, total } = item.installment;
+    if (parcelaRecusada(profileId, item.description, total, ym.year * 12 + (ym.month - 1) - (current - 1))) return;
     // O dia da parcela deste mês vale nos seguintes (sem ele, a projetada caía em "Sem data").
     const diaDaCompra = diaDe(item);
     // Loja de tudo (Amazon, Mercado Livre) com a categoria que o app pôs sozinho: as próximas não

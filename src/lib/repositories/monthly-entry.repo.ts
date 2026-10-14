@@ -457,24 +457,30 @@ export async function dadosDaDivisao(ctx: AuthContext) {
  * Os gastos com cara de parcela ("N/T", "N de T", "parcela") da janela que acha as séries (ver
  * parcelasDoMes). Leve: só os campos da conta. Os mesmos lançamentos que os totais enxergam.
  */
-export async function listarLancamentosParcelaveis(ctx: AuthContext, mes: MesDaParcela): Promise<LancamentoParcelavel[]> {
-  const { de, ate } = janelaDasParcelas(mes);
+export async function listarLancamentosParcelaveis(
+  ctx: AuthContext,
+  mes: MesDaParcela,
+  opcoes: { soMeus?: boolean; mesesParaFrente?: number } = {},
+): Promise<LancamentoParcelavel[]> {
+  // Para mudar uma parcela (menu "…"): só os de quem olha, e até a última projetada (48x).
+  const { de, ate } = janelaDasParcelas(mes, opcoes.mesesParaFrente);
   const periodo = [
     { year: de.year, month: { gte: de.month } },
     ...(ate.year - de.year > 1 ? [{ year: { gt: de.year, lt: ate.year } }] : []),
     ...(ate.year > de.year ? [{ year: ate.year, month: { lte: ate.month } }] : []),
   ];
   const linhas = await prisma.monthlyEntry.findMany({
-    where: comFiltro(lancamentosDosTotais(ctx), {
+    where: comFiltro(opcoes.soMeus ? { userId: ctx.userId, profileId: ctx.profileId } : lancamentosDosTotais(ctx), {
       category: "EXPENSE",
       amount: { gt: 0 },
       AND: [{ OR: periodo }, { OR: [{ description: { contains: "/" } }, { description: { contains: " de ", mode: "insensitive" } }, { description: { contains: "parc", mode: "insensitive" } }] }],
     }),
-    select: { id: true, year: true, month: true, description: true, amount: true, entryDate: true, parentCategory: true, customCategoryId: true },
+    select: { id: true, userId: true, year: true, month: true, description: true, amount: true, entryDate: true, parentCategory: true, customCategoryId: true },
     take: 5000,
   });
   return linhas.map((e) => ({
     id: e.id,
+    meu: e.userId === ctx.userId,
     year: e.year,
     month: e.month,
     descricao: e.description,
