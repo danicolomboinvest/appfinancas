@@ -945,7 +945,8 @@ export function StatementImport({
         {/* Perfil Casal: uma pergunta por arquivo, e cada linha já entra com "quem pagou". */}
         {nomesDoCasal && (
           <div className="flex flex-col gap-1.5">
-            <span className="text-caption text-ink-muted">{docType === "fatura" ? "De quem é essa fatura?" : "De quem é esse extrato?"}</span>
+            <span className="text-caption text-ink-muted">{/* O tipo só se sabe depois de ler: antes dizia sempre "extrato", até para quem ia mandar a fatura. */}
+              De quem é o extrato ou a fatura?</span>
             <div className="inline-flex rounded-full border border-border bg-surface-2 p-1">
               {(["A", "B"] as const).map((p) => (
                 <button
