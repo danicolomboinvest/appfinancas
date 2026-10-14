@@ -79,6 +79,9 @@ export function ApagarDadosOuConta({
   const [limpando, startLimpar] = useTransition();
   const [feito, setFeito] = useState<{ partes: Parte[]; recomecar: boolean } | null>(null);
   const [motivo, setMotivo] = useState<RespostaDoMotivo | null>(null);
+  // A importação da saída menor, guardada na hora da escolha: depois de desfazer, a página volta
+  // do servidor sem ela, e a tela de "Importação desfeita" precisa continuar de pé.
+  const [loteDaSaida, setLoteDaSaida] = useState<UltimaImportacao | null>(null);
   const titulo = useRef<HTMLHeadingElement>(null);
   const primeira = useRef(true);
 
@@ -102,7 +105,9 @@ export function ApagarDadosOuConta({
   function responder(r: RespostaDoMotivo) {
     if (motivo === null) void registrarMotivoDaLimpezaAction(r).catch(() => undefined);
     setMotivo(r);
-    ir(temSaidaMenor(r) && ultimaImportacao ? "saida" : "sai-fica");
+    const saida = temSaidaMenor(r) ? ultimaImportacao : null;
+    setLoteDaSaida(saida);
+    ir(saida ? "saida" : "sai-fica");
   }
 
   async function baixarCopia() {
@@ -251,10 +256,11 @@ export function ApagarDadosOuConta({
         </>
       )}
 
-      {tela === "saida" && ultimaImportacao && (
+      {tela === "saida" && loteDaSaida && (
         <SaidaMenor
+          key={loteDaSaida.id}
           refTitulo={titulo}
-          lote={ultimaImportacao}
+          lote={loteDaSaida}
           repetido={motivo === "repetido"}
           aoSeguir={() => ir("sai-fica")}
         />
