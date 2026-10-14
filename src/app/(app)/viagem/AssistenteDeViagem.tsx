@@ -263,9 +263,10 @@ export function AssistenteDeViagem({
     if (metaAtual) fd.set("goalId", metaAtual);
     iniciar(async () => {
       const r: TravelGoalState = await salvarViagemAction({}, fd);
-      if (r.error || !r.goalId) return setErro(r.error ?? "Não consegui salvar. Tente de novo.");
+      if (r.error || !r.goalId) return setErro(r.error ?? "Não salvou. Tente de novo.");
       setErro(null);
-      showToast(metaAtual ? "Meta atualizada" : "Meta criada em Metas");
+      // A meta nova vive em Metas, fora desta tela: só ela ganha a pílula (14/10/2026).
+      if (!metaAtual) showToast("Meta criada");
       setMetaAtual(r.goalId);
       setGravado(enviado);
     });
@@ -340,8 +341,8 @@ export function AssistenteDeViagem({
     const key = customKey(custom);
     if (plano.legs.some((l) => l.destinationKey === key)) return setNovo(null);
     adicionar({ destinationKey: key, days: 3, custom });
+    // Sem aviso: o destino novo entra na lista.
     setNovo(null);
-    showToast(`${custom.label} entrou com custo estimado`);
   }
 
   function tirar(i: number) {
@@ -694,7 +695,6 @@ export function AssistenteDeViagem({
               onClick={() => {
                 mudar({ tripMonth: dica.monthValue });
                 setAnoVisto(null);
-                showToast(`Viagem em ${nomeDoMes(dica.monthValue)}`);
               }}
               className="shrink-0 rounded-full bg-surface px-3.5 py-2 text-sm font-semibold text-ink shadow-premium-sm"
             >

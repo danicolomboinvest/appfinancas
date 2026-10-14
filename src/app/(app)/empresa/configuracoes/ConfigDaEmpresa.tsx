@@ -22,7 +22,7 @@ export function ConfigDaEmpresa({ nome, config, seguro, temGuia }: { nome: strin
   const simbolo = currencySymbol(useCurrency());
   const m0 = (v: number) => money(v, { round: true });
   const router = useRouter();
-  const { showToast, showError } = useToast();
+  const { showError } = useToast();
   const [, iniciar] = useTransition();
   const [salario, setSalario] = useState<number | null>(config.salario);
   const [credito, setCredito] = useState(config.taxas.credito !== null ? String(config.taxas.credito).replace(".", ",") : "");
@@ -30,11 +30,11 @@ export function ConfigDaEmpresa({ nome, config, seguro, temGuia }: { nome: strin
   const [horas, setHoras] = useState(config.horasPorMes);
   const [lembrete, setLembrete] = useState(config.lembreteDas);
 
-  function salvar(m: Parameters<typeof ajustarEmpresaAction>[0], msg = "Salvo") {
+  // Salva sozinho ao sair do campo ou tocar: o campo já mostra o valor (14/10/2026, sem "Salvo").
+  function salvar(m: Parameters<typeof ajustarEmpresaAction>[0]) {
     iniciar(async () => {
       const r = await ajustarEmpresaAction(m);
       if (!r.ok) return showError(r.erro);
-      showToast(msg);
       router.refresh();
     });
   }
@@ -105,7 +105,7 @@ export function ConfigDaEmpresa({ nome, config, seguro, temGuia }: { nome: strin
               <b className="block text-[15px] font-medium text-ink">Lembrete da guia</b>
               <small className="text-xs text-ink-muted">na véspera e no dia do vencimento</small>
             </span>
-            <Interruptor ligado={lembrete} rotulo="Lembrete da guia" onTrocar={() => { const v = !lembrete; setLembrete(v); salvar({ lembreteDas: v }, v ? "Lembrete ligado" : "Lembrete desligado"); }} />
+            <Interruptor ligado={lembrete} rotulo="Lembrete da guia" onTrocar={() => { const v = !lembrete; setLembrete(v); salvar({ lembreteDas: v }); }} />
           </div>
         )}
       </Cartao>

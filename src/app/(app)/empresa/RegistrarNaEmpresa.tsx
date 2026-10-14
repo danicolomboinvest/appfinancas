@@ -40,7 +40,7 @@ export function RegistrarNaEmpresa({ aberto, onFechar, dados, R, clientes }: { a
   const simbolo = currencySymbol(useCurrency());
   const m0 = (v: number) => money(v, { round: true });
   const router = useRouter();
-  const { showToast, showError } = useToast();
+  const { showError } = useToast();
   const [salvando, iniciar] = useTransition();
   const [modo, setModo] = useState<Modo>(null);
   const [valor, setValor] = useState<number | null>(null);
@@ -77,8 +77,8 @@ export function RegistrarNaEmpresa({ aberto, onFechar, dados, R, clientes }: { a
   );
   const valorNum = valor ?? 0;
 
-  function pronto(msg: string) {
-    showToast(msg);
+  // Sem aviso (14/10/2026): a folha fecha e o lançamento aparece na lista do negócio.
+  function pronto() {
     onFechar();
     router.refresh();
   }
@@ -88,7 +88,7 @@ export function RegistrarNaEmpresa({ aberto, onFechar, dados, R, clientes }: { a
     iniciar(async () => {
       const r = await vendiAction({ valor: valorNum, forma, cliente: nome, cai: caiDepois ? "data" : "agora", data: caiDepois ? dataDeCair : null });
       if (!r.ok) return showError(r.erro);
-      pronto(r.mensagem ?? "Venda registrada");
+      pronto();
     });
   }
   function salvarPagamento() {
@@ -96,14 +96,14 @@ export function RegistrarNaEmpresa({ aberto, onFechar, dados, R, clientes }: { a
     iniciar(async () => {
       const r = await pagueiAction({ valor: valorNum, ...gasto });
       if (!r.ok) return showError(r.erro);
-      pronto(r.mensagem ?? "Pagamento registrado");
+      pronto();
     });
   }
-  function receber(id: string, nome: string, v: number) {
+  function receber(id: string) {
     iniciar(async () => {
       const r = await recebiAction(id);
       if (!r.ok) return showError(r.erro);
-      pronto(`Recebido de ${nome.split(" ")[0]}: ${m0(v)}`);
+      pronto();
     });
   }
 
@@ -263,7 +263,7 @@ export function RegistrarNaEmpresa({ aberto, onFechar, dados, R, clientes }: { a
               const nome = v.cliente || v.description || "Venda";
               const atrasada = (v.recebeEm ?? "") < dados.hoje;
               return (
-                <button key={v.id} type="button" disabled={salvando} onClick={() => receber(v.id, nome, v.amount)} className="flex min-h-16 items-center gap-3 rounded-2xl border border-border bg-surface px-3 py-2 text-left disabled:opacity-60">
+                <button key={v.id} type="button" disabled={salvando} onClick={() => receber(v.id)} className="flex min-h-16 items-center gap-3 rounded-2xl border border-border bg-surface px-3 py-2 text-left disabled:opacity-60">
                   <Iniciais nome={nome} />
                   <span className="min-w-0 flex-1">
                     <b className="block truncate text-[15px] font-medium text-ink">{nome}</b>

@@ -17,7 +17,7 @@ export function Recebimentos({ nome, semanas, devendo }: { nome: string; semanas
   const money = useMoney();
   const m0 = (v: number) => money(v, { round: true });
   const router = useRouter();
-  const { showToast, showError } = useToast();
+  const { showError } = useToast();
   const [salvando, iniciar] = useTransition();
   const total = semanas.reduce((s, w) => s + w.total, 0);
 
@@ -70,7 +70,7 @@ export function Recebimentos({ nome, semanas, devendo }: { nome: string; semanas
                   iniciar(async () => {
                     const r = await recebiAction(d.id);
                     if (!r.ok) return showError(r.erro);
-                    showToast(`Recebido de ${d.cliente.split(" ")[0]}: ${m0(d.valor)}`);
+                    // Sem aviso: a cobrança sai da lista de quem falta pagar.
                     router.refresh();
                   })
                 }

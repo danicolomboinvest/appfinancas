@@ -64,7 +64,7 @@ export function Assistente({ dados }: { dados: DadosDaEmpresa }) {
   const simbolo = currencySymbol(useCurrency());
   const m0 = (v: number) => money(v, { round: true });
   const router = useRouter();
-  const { showToast, showError } = useToast();
+  const { showError } = useToast();
   const [salvando, iniciar] = useTransition();
   const atual = dados.config;
 
@@ -108,7 +108,7 @@ export function Assistente({ dados }: { dados: DadosDaEmpresa }) {
     iniciar(async () => {
       const r = await abrirNegocioAction({ tipo, faz: faz ?? "outro", formas, prazoCredito: prazo, salario: salario ?? null, lembreteDas: lembrete });
       if (!r.ok) return showError(r.erro);
-      showToast("Seu negócio está aberto");
+      // Sem aviso: a tela que abre já é a do negócio.
       router.replace("/empresa");
       router.refresh();
     });

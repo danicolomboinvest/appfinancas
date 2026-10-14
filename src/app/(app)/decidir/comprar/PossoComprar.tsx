@@ -60,6 +60,8 @@ export function PossoComprar({ base, hoje, parcelasNoMes }: { base: CompraBase; 
   const [cat, setCat] = useState<CategoriaDaCompra | null>(null);
   const [valor, setValor] = useState(0);
   const [modo, setModo] = useState<"vista" | "parcelado">("vista");
+  // "Me ajuda a escolher" responde no próprio botão (14/10/2026): ele vira "À vista pesa menos".
+  const [ajudou, setAjudou] = useState<string | null>(null);
   const [vezes, setVezes] = useState(10);
   const [vezesTexto, setVezesTexto] = useState("10");
   const [sin, setSin] = useState<Sinceridade | null>(null);
@@ -132,7 +134,10 @@ export function PossoComprar({ base, hoje, parcelasNoMes }: { base: CompraBase; 
     <div className={`${caixa} gap-3`}>
       <div className="grid grid-cols-2 gap-1 rounded-full bg-surface-2 p-1" role="group" aria-label="Como pagar">
         {(["vista", "parcelado"] as const).map((k) => (
-          <button key={k} type="button" aria-pressed={modo === k} onClick={() => setModo(k)} className={`min-h-10 rounded-full text-sm font-medium ${modo === k ? "bg-surface text-ink shadow-[inset_0_0_0_1px_var(--color-border-strong)]" : "text-ink-muted"}`}>
+          <button key={k} type="button" aria-pressed={modo === k} onClick={() => {
+              setModo(k);
+              setAjudou(null);
+            }} className={`min-h-10 rounded-full text-sm font-medium ${modo === k ? "bg-surface text-ink shadow-[inset_0_0_0_1px_var(--color-border-strong)]" : "text-ink-muted"}`}>
             {k === "vista" ? "À vista" : "Parcelado"}
           </button>
         ))}
@@ -296,10 +301,10 @@ export function PossoComprar({ base, hoje, parcelasNoMes }: { base: CompraBase; 
               const f = formaQuePesaMenos(base, valor, cat, parcelasNoMes, fmt);
               setModo(f.modo);
               if (f.modo === "parcelado") definirVezes(Math.min(48, f.parcelas));
-              showToast(f.modo === "vista" ? "À vista pesa menos" : `${Math.min(48, f.parcelas)}x pesa menos`);
+              setAjudou(f.modo === "vista" ? "À vista pesa menos" : `${Math.min(48, f.parcelas)}x pesa menos`);
             }}
           >
-            Me ajuda a escolher
+            {ajudou ?? "Me ajuda a escolher"}
           </button>
           <button type="button" onClick={() => setPasso(4)} className={cta}>
             {modo === "vista" ? "Continuar à vista" : `Continuar com ${vezes}x de ${m(parcela)}`}
@@ -454,10 +459,11 @@ export function PossoComprar({ base, hoje, parcelasNoMes }: { base: CompraBase; 
                 iniciar(async () => {
                   try {
                     await registrarCompraAction({ tipo: "compra_comprei", valor, descricao: nome.slice(0, 120), modo, parcelas: modo === "vista" ? 1 : vezes });
-                    showToast("Anotado. Conto essa compra até ela chegar no extrato.");
+                    // Vai para outra tela: pílula curta.
+                    showToast("Compra anotada");
                     router.push("/decidir");
                   } catch {
-                    showError("Não consegui salvar. Tente de novo.");
+                    showError("Não salvou. Tente de novo.");
                   }
                 })
               }
@@ -498,7 +504,7 @@ export function PossoComprar({ base, hoje, parcelasNoMes }: { base: CompraBase; 
                 iniciar(async () => {
                   const res = await criarSonhoDaCompraAction({ nome, alvo: valor, meses: sonho.meses });
                   if (!res.ok) return showError(res.error);
-                  showToast(`Sonho criado: ${nome}, ${m(sonho.porMes)} por mês`);
+                  // Sem aviso: a tela que abre é a do sonho novo.
                   router.push(`/planejamento/metas/${res.id}`);
                 })
               }
@@ -513,10 +519,10 @@ export function PossoComprar({ base, hoje, parcelasNoMes }: { base: CompraBase; 
                 iniciar(async () => {
                   try {
                     await registrarCompraAction({ tipo: "compra_amanha", valor, descricao: nome.slice(0, 120), modo, parcelas: modo === "vista" ? 1 : vezes });
-                    showToast("Combinado: amanhã eu te lembro");
+                    showToast("Lembro amanhã");
                     router.push("/decidir");
                   } catch {
-                    showError("Não consegui salvar. Tente de novo.");
+                    showError("Não salvou. Tente de novo.");
                   }
                 })
               }

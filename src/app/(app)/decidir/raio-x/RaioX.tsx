@@ -43,7 +43,7 @@ export function RaioX({ itens, decididos }: { itens: RaioXItem[]; decididos: Rec
         await decidirRaioXAction({ chave: item.chave, nome: item.nome, decisao, economiaAnual: economiaAnual(item, decisao) });
       } catch {
         setEscolhas((e) => ({ ...e, [item.chave]: undefined }));
-        showError("Não consegui salvar. Tente de novo.");
+        showError("Não salvou. Tente de novo.");
       }
     });
   };
@@ -55,7 +55,7 @@ export function RaioX({ itens, decididos }: { itens: RaioXItem[]; decididos: Rec
         await desfazerRaioXAction(item.chave);
       } catch {
         setEscolhas((e) => ({ ...e, [item.chave]: antes }));
-        showError("Não consegui salvar. Tente de novo.");
+        showError("Não salvou. Tente de novo.");
       }
     });
   };
@@ -152,7 +152,8 @@ export function RaioX({ itens, decididos }: { itens: RaioXItem[]; decididos: Rec
       <button
         type="button"
         onClick={() => {
-          showToast(r.cortados.length > 0 ? "Combinado. Cancelar mesmo é no app de cada um" : "Combinado");
+          // Sai desta tela: pílula curta. O lembrete que importa é que o cancelamento é lá fora.
+          showToast(r.cortados.length > 0 ? "Cancele em cada app" : "Combinado");
           router.push("/decidir");
         }}
         className="min-h-14 rounded-full bg-ink px-5 text-base font-semibold text-canvas"

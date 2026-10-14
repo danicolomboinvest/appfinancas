@@ -21,7 +21,7 @@ export function Holerite(p: { mes: Mes; empresa: string; pessoa: string; lucro: 
   const money = useMoney();
   const m0 = (v: number) => money(v, { round: true });
   const router = useRouter();
-  const { showToast, showError } = useToast();
+  const { showError } = useToast();
   const [salvando, iniciar] = useTransition();
   const [pago, setPago] = useState(p.pago);
   const [indo, setIndo] = useState(false);
@@ -35,8 +35,8 @@ export function Holerite(p: { mes: Mes; empresa: string; pessoa: string; lucro: 
       const semAnimacao = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       setIndo(true);
       setTimeout(() => {
+        // Sem aviso: o holerite mostra o salário indo e fica como pago.
         setPago(true);
-        showToast("Salário no seu Pessoal");
         router.refresh();
       }, semAnimacao ? 0 : 420);
     });
