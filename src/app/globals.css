@@ -377,6 +377,23 @@ body {
   overscroll-behavior: none;
   -webkit-tap-highlight-color: transparent;
   scrollbar-width: none; /* Firefox */
+  /* A página nunca desliza de lado (13/10/2026: a Dani sentiu a tela "mexendo", como zoom). Um
+     conteúdo mais largo que a tela fica cortado na borda em vez de arrastar tudo junto. "clip" e
+     não "hidden": hidden faz do body um contêiner de rolagem e quebra o position: sticky (o topo
+     e as abas). Carrossel e gráfico que rolam de lado têm o overflow-x deles e continuam. */
+  overflow-x: clip;
+}
+/* Botão, link e campo: sem o duplo toque que dá zoom e sem a espera de 300 ms do toque. A pinça
+   o SemPinca (layout.tsx) segura no Safari do iPhone, que ignora o user-scalable=no. */
+a,
+button,
+input,
+select,
+textarea,
+label,
+summary,
+[role="button"] {
+  touch-action: manipulation;
 }
 /* Sem dar pra selecionar/copiar o texto da tela (Instagram e a maioria dos apps nativos também
    não deixam). Precisa estar dentro de @layer utilities: fora de uma @layer, o Lightning CSS

@@ -61,5 +61,17 @@ describe("legibilidade", () => {
     expect(layout).toMatch(/userScalable\s*:\s*false/);
     const css = readFileSync(join(RAIZ, "src/app/globals.css"), "utf8");
     expect(css).toMatch(/touch-action:\s*pan-x pan-y\s*;/);
+    // O Safari do iPhone ignora o userScalable: a pinça é cancelada pelos eventos gesture*.
+    expect(layout).toMatch(/<SemPinca \/>/);
+    const semPinca = readFileSync(join(RAIZ, "src/components/shell/SemPinca.tsx"), "utf8");
+    expect(semPinca).toMatch(/gesturestart/);
+    expect(semPinca).toMatch(/passive:\s*false/);
+  });
+
+  it("a página não desliza de lado: overflow-x clip (não hidden, que quebra o sticky)", () => {
+    const css = readFileSync(join(RAIZ, "src/app/globals.css"), "utf8");
+    const regra = /html,\s*body\s*\{[^}]*\}/.exec(css)?.[0] ?? "";
+    expect(regra).toMatch(/overflow-x:\s*clip\s*;/);
+    expect(regra).not.toMatch(/overflow-x:\s*hidden/);
   });
 });
