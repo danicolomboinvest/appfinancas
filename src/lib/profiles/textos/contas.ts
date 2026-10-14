@@ -87,7 +87,7 @@ export const PADRAO_CONTAS: TextosContas = {
   contasTotalSemana: (valor) => `${valor} para pagar nos próximos 7 dias.`,
   contasPaguei: "Paguei",
   contasDesfazer: "Desfazer",
-  contasPagaToast: (nome, proxima) => (proxima ? `${nome} paga. A próxima vence ${proxima}.` : `${nome} paga.`),
+  contasPagaToast: (nome) => `${nome} paga`,
   contasQuando: (situacao, d, data) => {
     switch (situacao) {
       case "atrasada": return `Atrasada há ${dias(Math.abs(n(d)))}`;

@@ -112,7 +112,7 @@ function Inicio({ aoEscolher }: { aoEscolher: (p: "escolher" | "escrever") => vo
 function Escolher({ onFeito, aoEscrever }: { onFeito: () => void; aoEscrever: () => void }) {
   const money = useMoney();
   const router = useRouter();
-  const { showToast, showError } = useToast();
+  const { showError } = useToast();
   const [lista, setLista] = useState<ComercianteParaEscolher[] | null>(null);
   const [busca, setBusca] = useState("");
   const [tocado, setTocado] = useState<string | null>(null);
@@ -140,9 +140,9 @@ function Escolher({ onFeito, aoEscrever }: { onFeito: () => void; aoEscrever: ()
       const r = await adicionarDosLancamentosAction(c.chave);
       if (!r.ok) {
         setTocado(null);
-        return showError("Não deu para adicionar. Tente de novo.");
+        return showError("Não entrou. Tente de novo.");
       }
-      showToast(`${r.nome} está em Assinaturas`);
+      // Sem aviso (14/10/2026): a folha fecha e a assinatura aparece na lista.
       router.refresh();
       onFeito();
     });
@@ -190,7 +190,6 @@ function Escolher({ onFeito, aoEscrever }: { onFeito: () => void; aoEscrever: ()
 /** Nome, valor por mês, dia (opcional) e a categoria que o motor sugere. */
 function Escrever({ item, rotulos, onFeito }: { item?: AssinaturaDaTela; rotulos: Record<string, string>; onFeito: () => void }) {
   const router = useRouter();
-  const { showToast } = useToast();
   const [salvando, iniciar] = useTransition();
   const [nome, setNome] = useState(item?.nome ?? "");
   const [valor, setValor] = useState<number | undefined>(item?.mensal || undefined);
@@ -226,7 +225,6 @@ function Escrever({ item, rotulos, onFeito }: { item?: AssinaturaDaTela; rotulos
     iniciar(async () => {
       const r = await escreverAssinaturaAction({ id: item?.id ?? undefined, nome, valor, dia: d, categoria: categoria as never });
       if (!r.ok) return setErro(r.erro);
-      showToast(item?.id ? "Assinatura salva" : `${nome.trim()} está em Assinaturas`);
       router.refresh();
       onFeito();
     });
@@ -293,7 +291,7 @@ function Escrever({ item, rotulos, onFeito }: { item?: AssinaturaDaTela; rotulos
 function DaAssinatura({ item, aoEditar, onFeito }: { item: AssinaturaDaTela; aoEditar: () => void; onFeito: () => void }) {
   const money = useMoney();
   const router = useRouter();
-  const { showToast, showError } = useToast();
+  const { showError } = useToast();
   const [ocupado, iniciar] = useTransition();
   const sua = item.origem === "sua";
 
@@ -301,7 +299,7 @@ function DaAssinatura({ item, aoEditar, onFeito }: { item: AssinaturaDaTela; aoE
     iniciar(async () => {
       try {
         await naoEAssinaturaAction(item.nome);
-        showToast(`${item.nome} saiu de Assinaturas`);
+        // Sem aviso: a folha fecha e a assinatura some da lista.
         router.refresh();
         onFeito();
       } catch {
@@ -334,11 +332,10 @@ function DaAssinatura({ item, aoEditar, onFeito }: { item: AssinaturaDaTela; aoE
             onDelete={async () => {
               try {
                 await removerAssinaturaAction(item.id!);
-                showToast(`${item.nome} saiu de Assinaturas`);
                 router.refresh();
                 onFeito();
               } catch {
-                showError("Não deu para remover. Tente de novo.");
+                showError("Não saiu. Tente de novo.");
               }
             }}
           />

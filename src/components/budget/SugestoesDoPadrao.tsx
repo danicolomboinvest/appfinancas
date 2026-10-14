@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown, SlidersHorizontal } from "lucide-react";
 import { useToast } from "@/components/ui/toast-context";
+import { brilharQuandoAparecer } from "@/lib/ui/brilho";
 import { useMoney } from "@/components/money/MoneyProvider";
 import type { AjusteDoPadrao } from "@/lib/planning/padrao-orcamento";
 import { aplicarAjustesDoPadraoAction } from "@/app/(app)/orcamento/actions";
@@ -18,11 +19,11 @@ export type AjusteComRotulo = AjusteDoPadrao & { label: string };
  * textão"). O que muda fica num "ver o que muda", fechado. Depois de ajustar, ela mexe no que
  * quiser pelo lápis de cada categoria. Vale deste mês até dezembro.
  */
-export function SugestoesDoPadrao({ ajustes, mes, meses }: { ajustes: AjusteComRotulo[]; mes: string; meses: number }) {
+export function SugestoesDoPadrao({ ajustes, meses }: { ajustes: AjusteComRotulo[]; mes: string; meses: number }) {
   const money = useMoney();
   const m = (v: number) => money(v, { round: true });
   const router = useRouter();
-  const { showToast, showError } = useToast();
+  const { showError } = useToast();
   const [aberto, setAberto] = useState(false);
   const [feito, setFeito] = useState(false);
   const [pendente, iniciar] = useTransition();
@@ -33,9 +34,10 @@ export function SugestoesDoPadrao({ ajustes, mes, meses }: { ajustes: AjusteComR
     iniciar(async () => {
       const r = await aplicarAjustesDoPadraoAction(ajustes.map((a) => ({ key: a.chave, valor: a.sugerido })));
       if (r.error) return showError(r.error);
-      showToast(`Pronto: ${ajustes.length === 1 ? "1 categoria ajustada" : `${ajustes.length} categorias ajustadas`} de ${mes} em diante.`);
+      // Sem aviso (14/10/2026): a sugestão some e as categorias ajustadas acendem na lista.
       setFeito(true);
       router.refresh();
+      ajustes.forEach((a) => brilharQuandoAparecer(`cat-${a.chave}`));
     });
   }
 

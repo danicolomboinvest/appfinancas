@@ -19,7 +19,7 @@ export type ItemDoResumo = { key: string; label: string; cor: string; planejado:
  * padrão dos últimos 3 meses; nada muda sem o toque dela) e a lista das categorias com o valor.
  * "Ajustar" abre o montador.
  */
-export function ResumoDoPlano({ itens, ajustes, mes, onAjustar }: { itens: ItemDoResumo[]; ajustes: AjusteComRotulo[]; mes: string; onAjustar: () => void }) {
+export function ResumoDoPlano({ itens, ajustes, onAjustar }: { itens: ItemDoResumo[]; ajustes: AjusteComRotulo[]; mes: string; onAjustar: () => void }) {
   const money = useMoney();
   const m = (v: number) => money(v, { round: true });
   const router = useRouter();
@@ -36,7 +36,8 @@ export function ResumoDoPlano({ itens, ajustes, mes, onAjustar }: { itens: ItemD
       const antes = ajustes.map((a) => ({ key: a.chave, valor: a.planoAtual }));
       const r = await aplicarAjustesDoPadraoAction(ajustes.map((a) => ({ key: a.chave, valor: a.sugerido })));
       if (r.error) return showError(r.error);
-      showToast(`${ajustes.length === 1 ? "1 categoria ajustada" : `${ajustes.length} categorias ajustadas`} de ${mes} em diante`, {
+      // Tem Desfazer: fica a pílula, curta.
+      showToast(ajustes.length === 1 ? "1 categoria ajustada" : `${ajustes.length} categorias ajustadas`, {
         label: "Desfazer",
         onClick: () =>
           iniciar(async () => {

@@ -53,7 +53,7 @@ function LinhaDoMes({ c, hoje }: { c: ContaSerial; hoje: string }) {
   function pagar() {
     iniciar(async () => {
       const r = await pagarContaAction(c.id);
-      if (!r) return showError("Não deu para marcar. Atualize a tela e tente de novo.");
+      if (!r) return showError("Não marcou. Atualize a tela.");
       vibrar("sucesso");
       showToast(`${c.nome} paga`, { label: "Desfazer", onClick: () => void desfazerPagamentoAction(c.id, r.antes, r.antesParcela).then(() => router.refresh()) });
       router.refresh();

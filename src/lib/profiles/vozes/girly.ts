@@ -1160,7 +1160,7 @@ const GIRLY_CONTAS: Partial<Titulos> = {
   contasLembrarHint: "Um dia antes e no dia do vencimento.",
   contasTotalSemana: (valor) => `${valor} para pagar nos próximos 7 dias`,
   contasPaguei: "Paguei",
-  contasPagaToast: (nome, proxima) => (proxima ? `${nome} paga. A próxima vence ${proxima}.` : `${nome} paga`),
+  contasPagaToast: (nome) => `${nome} paga!`,
   contasQuando: (situacao, d, data) => {
     switch (situacao) {
       case "atrasada": return `Atrasada há ${diasG(Math.abs(nG(d)))}`;

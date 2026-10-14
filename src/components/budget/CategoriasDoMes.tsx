@@ -2,6 +2,7 @@
 
 import { Selinho } from "@/components/ui/Selinho";
 import { useSelos } from "@/lib/ui/selos";
+import { brilharQuandoAparecer } from "@/lib/ui/brilho";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Pencil, Tag } from "lucide-react";
@@ -208,7 +209,7 @@ function DetalheDaCategoria({ l, mes, hrefTransacoes, onOQueFazer }: { l: LinhaD
   const money = useMoney();
   const m = (v: number) => money(v, { round: true });
   const router = useRouter();
-  const { showToast, showError } = useToast();
+  const { showError } = useToast();
   const [editando, setEditando] = useState(false);
   const [valor, setValor] = useState<number | undefined>(l.planejado || undefined);
   const [pendente, iniciar] = useTransition();
@@ -234,9 +235,10 @@ function DetalheDaCategoria({ l, mes, hrefTransacoes, onOQueFazer }: { l: LinhaD
     iniciar(async () => {
       const r = await definirPlanoDaCategoriaAction({ key: l.key, valor: v });
       if (r.error) return showError(r.error);
-      showToast(`${l.label}: ${m(v)} por mês de ${mes} em diante.`);
+      // Sem aviso (14/10/2026): o plano novo aparece no painel e a linha acende.
       router.refresh();
       setEditando(false);
+      brilharQuandoAparecer(`cat-${l.key}`);
     });
   }
 

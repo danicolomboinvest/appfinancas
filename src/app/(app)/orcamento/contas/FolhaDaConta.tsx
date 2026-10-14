@@ -111,7 +111,7 @@ export function FolhaDaConta({ inicio, hoje, onFeito }: { inicio: InicioDaFolha;
   const conta = inicio.conta;
   const money = useMoney();
   const router = useRouter();
-  const { showError, showToast } = useToast();
+  const { showError } = useToast();
   const [salvando, iniciar] = useTransition();
   const regraInicial: Regra = conta
     ? regraDaConta(conta)
@@ -190,7 +190,7 @@ export function FolhaDaConta({ inicio, hoje, onFeito }: { inicio: InicioDaFolha;
         aproximado,
       });
       if (!r.ok) return setErro(r.erro);
-      showToast(conta ? "Conta salva" : "Conta adicionada");
+      // Sem aviso (14/10/2026): a folha fecha e a conta aparece na lista.
       router.refresh();
       onFeito();
     });
@@ -327,7 +327,7 @@ export function FolhaDaConta({ inicio, hoje, onFeito }: { inicio: InicioDaFolha;
                 router.refresh();
                 onFeito();
               } catch {
-                showError("Não deu para apagar. Tente de novo.");
+                showError("Não apagou. Tente de novo.");
               }
             }}
           />

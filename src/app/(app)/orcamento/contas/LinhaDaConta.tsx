@@ -68,7 +68,7 @@ export function LinhaDaConta({ conta, hoje, onAbrir }: { conta: ContaSerial; hoj
     startTransition(async () => {
       const r = await pagarContaAction(conta.id);
       if (!r) {
-        showError("Não deu para marcar. Atualize a tela e tente de novo.");
+        showError("Não marcou. Atualize a tela.");
         return;
       }
       vibrar("sucesso");

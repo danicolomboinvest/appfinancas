@@ -178,7 +178,7 @@ function EditarParcela({ p, hoje, rotulos, onFeito }: { p: ParcelaDoMes; hoje: M
               onClick: async () => {
                 const v = await desfazerParcelaAction(recibo);
                 if (!v.ok) return showError(v.erro);
-                showToast("Desfeito");
+                // A parcela volta como estava; isso basta.
                 router.refresh();
               },
             }
