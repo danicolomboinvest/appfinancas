@@ -1,6 +1,7 @@
 import type { ParentCategory, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { doDono, type AuthContext } from "@/lib/auth/session";
+import { MARCA_DO_TOUR_NA_CONTA_NOVA } from "@/lib/novidades/passos";
 import { lerComeco, montarFunilDoComeco, NOMES_DOS_EVENTOS_DO_COMECO, type Comeco, type SinaisDosPassos } from "@/lib/onboarding/comeco";
 
 /**
@@ -44,9 +45,10 @@ export async function ultimoLancamento(ctx: AuthContext): Promise<{ descricao: s
 /** Marca a conta como recebida só se ainda não estava: voltar ao começo pelo convite não mexe na data. */
 export async function marcarRecebidaSeAinda(userId: string): Promise<void> {
   const agora = new Date();
-  // Quem chega pelo começo novo vê, logo depois, o "Boas-vindas ao SPI" (marca "novo"), uma vez só;
-  // nunca o "Tivemos uma mudança", que é de quem já usava (ver lib/novidades/passos.ts).
-  await prisma.user.updateMany({ where: { id: userId, onboardedAt: null, novidadesVersaoNova: null }, data: { onboardedAt: agora, novidadesVersaoNova: "novo" } });
+  // Conta nova que termina o começo: o tour "Boas-vindas ao SPI" fica marcado como visto
+  // ("novo-visto") e não abre sozinho (leva 1 do primeiro uso, 14/10/2026). Ele continua no Como
+  // funciona. Nunca o "Tivemos uma mudança", que é de quem já usava (ver lib/novidades/passos.ts).
+  await prisma.user.updateMany({ where: { id: userId, onboardedAt: null, novidadesVersaoNova: null }, data: { onboardedAt: agora, novidadesVersaoNova: MARCA_DO_TOUR_NA_CONTA_NOVA, novidadesVistasEm: agora } });
   await prisma.user.updateMany({ where: { id: userId, onboardedAt: null }, data: { onboardedAt: agora } });
 }
 

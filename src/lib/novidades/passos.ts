@@ -31,6 +31,12 @@ export type MarcaDasNovidades = null | "terminou" | "pulou" | "novo" | "novo-vis
  */
 export type EstadoDasNovidades = "mostrar" | "visto" | "boas-vindas" | "novo";
 
+/**
+ * A marca gravada quando a conta nova termina o começo (14/10/2026): o tour já sai visto, sem
+ * abrir sozinho. Fica disponível no Como funciona.
+ */
+export const MARCA_DO_TOUR_NA_CONTA_NOVA: MarcaDasNovidades = "novo-visto";
+
 export function estadoDasNovidades(marca: string | null | undefined): EstadoDasNovidades {
   if (marca === "novo") return "boas-vindas";
   if (marca === "novo-visto") return "novo";
@@ -44,12 +50,13 @@ export function jaUsava(estado: EstadoDasNovidades): boolean {
 }
 
 /**
- * Abre sozinho uma vez: para quem já usava e não viu, e para a nova que acabou de passar pelo
- * começo. Pelo link da Ajuda, só para quem já usava.
+ * Abre sozinho uma vez para quem já usava e não viu (e para a conta nova de antes de 14/10/2026,
+ * ainda marcada "boas-vindas"). A conta nova de agora termina o começo com o tour já visto: ele não
+ * abre sozinho, mas continua a um toque no Como funciona e em Configurações (o link, para todos).
  */
 export function abreAsNovidades(estado: EstadoDasNovidades, pedidoPeloLink: boolean, vistoNesteAparelho: boolean): boolean {
+  if (pedidoPeloLink) return true;
   if (estado === "novo") return false;
-  if (pedidoPeloLink) return jaUsava(estado);
   return (estado === "mostrar" || estado === "boas-vindas") && !vistoNesteAparelho;
 }
 

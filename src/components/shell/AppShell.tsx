@@ -278,9 +278,9 @@ export function AppShell({
         <RegistrarDrawer open={registrarOpen} modoInicial={modoDoRegistrar} onClose={() => setRegistrarOpen(false)} />
 
         {/* Quem já usava o app: o "Tivemos uma mudança" (uma vez por conta, e pela Ajuda). Quem é
-            novo: o tour de boas-vindas, só na primeira entrada (lembrado no aparelho). O par, no
-            Nós dois da titular, não vê nenhum dos dois. */}
-        {!modoPar && novidades !== "novo" && <TourDasNovidades estado={novidades} onMenu={setMenuOpen} />}
+            novo: o tour de boas-vindas só pelo link (Como funciona, Configurações), desde 14/10/2026.
+            O par, no Nós dois da titular, não vê nenhum dos dois. */}
+        {!modoPar && <TourDasNovidades estado={novidades} onMenu={setMenuOpen} />}
         {/* Casal simples: o "Como funciona o casal", sozinho uma vez e de novo pela Casa e pelo Como funciona. */}
         {casa && <TutorialDoCasalNoApp casa={casa} visto={tutorialDoCasalVisto} avisoDaMigracao={avisoDaMigracao} novidades={modoPar ? "novo" : novidades} />}
         {/* Perfil comprado: "Sua Empresa está pronta" ou "O Casal está liberado", uma vez. */}

@@ -7,7 +7,8 @@ import { LINK_VER_DE_NOVO, VIDEOS_COMO_FUNCIONA } from "@/lib/novidades/passos";
  * do index dos vídeos. Os arquivos moram em public/videos (versão leve, ~2 MB cada; os mesmos arquivos que os e-mails do Antes de cancelar usam) e só baixam
  * quando a pessoa toca no play (preload="none").
  *
- * `verDeNovo`: quem já usava o app ganha aqui o "Ver de novo o que mudou". Quem é novo, não.
+ * `verDeNovo`: quem já usava o app ganha aqui o "Ver de novo o que mudou". Quem é novo ganha o
+ * "Ver o tour de boas-vindas" (o tour não abre mais sozinho na conta nova, 14/10/2026).
  */
 export function VideosDoComoFunciona({ verDeNovo }: { verDeNovo: boolean }) {
   return (
@@ -27,11 +28,9 @@ export function VideosDoComoFunciona({ verDeNovo }: { verDeNovo: boolean }) {
           </figure>
         ))}
       </div>
-      {verDeNovo && (
-        <Link href={LINK_VER_DE_NOVO} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-border bg-surface px-5 text-[15px] font-medium text-ink hover:bg-surface-hover">
-          <Repeat size={16} aria-hidden /> Ver de novo o que mudou
-        </Link>
-      )}
+      <Link href={LINK_VER_DE_NOVO} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-border bg-surface px-5 text-[15px] font-medium text-ink hover:bg-surface-hover">
+        <Repeat size={16} aria-hidden /> {verDeNovo ? "Ver de novo o que mudou" : "Ver o tour de boas-vindas"}
+      </Link>
     </section>
   );
 }

@@ -112,7 +112,7 @@ export default async function ConfiguracoesPage() {
       <Grupo titulo="Ajuda">
         <Linha href="/configuracoes/ajuda" icone={i(BookOpen)} cor={COR.ajuda} rotulo="Central de ajuda" sub="Perguntas frequentes" />
         {/* O começo de novo (protótipo): as boas-vindas para quem é nova, o "o que mudou" para quem já usava. */}
-        <Linha href={LINK_VER_DE_NOVO} icone={i(Repeat)} cor={COR.ajuda} rotulo={jaUsava(estadoDasNovidades(user.novidadesVersaoNova)) ? "Ver de novo o que mudou" : "Ver o começo de novo"} sub="Boas-vindas" />
+        <Linha href={LINK_VER_DE_NOVO} icone={i(Repeat)} cor={COR.ajuda} rotulo={jaUsava(estadoDasNovidades(user.novidadesVersaoNova)) ? "Ver de novo o que mudou" : "Ver o tour de boas-vindas"} sub="Boas-vindas" />
         <Linha href="/configuracoes/suporte" icone={i(MessageCircle)} cor={COR.ajuda} rotulo="Falar com o suporte" sub={SUPORTE_EMAIL} />
         <Linha href="/termos" icone={i(FileText)} cor={COR.ajuda} rotulo="Termos e privacidade" />
         <Linha href="/configuracoes/sobre" icone={i(Info)} cor={COR.ajuda} rotulo="Sobre" sub="Versão 0.1.0" />
