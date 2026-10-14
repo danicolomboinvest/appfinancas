@@ -68,3 +68,11 @@ describe("casarPorDataEValor", () => {
     });
   });
 });
+
+describe("descrição só em hebraico (11/10/2026)", () => {
+  it("não vira vazia: a mesma compra é reconhecida como a mesma", () => {
+    expect(descricaoNormalizada("90 החייל רמת טעם טיב")).toBe("90 החייל רמת טעם טיב");
+    expect(mesmaDescricao("90 החייל רמת טעם טיב", "90 החייל רמת טעם טיב")).toBe(true);
+    expect(mesmaDescricao("90 החייל רמת טעם טיב", "אדל מינימרקט")).toBe(false);
+  });
+});

@@ -14,13 +14,23 @@
  * Puro, sem dependência do app: o script da base comunitária roda com este mesmo arquivo.
  */
 
-/** Minúsculo, sem acento, letra e número separados, só letras/números/espaço simples. */
+/**
+ * Minúsculo, sem acento, letra e número separados, só letras/números/espaço simples.
+ *
+ * Letra de outro alfabeto fica (14/10/2026): a fatura de Israel vem em hebraico, e com só a-z o
+ * supermercado dela ("טיב טעם") virava chave vazia, que não vira regra. No alfabeto latino
+ * continua só a-z, como antes ("Nº", "1ª" e "ø" dão espaço), para as chaves das regras que já
+ * existem não mudarem.
+ */
 export function semAcentoNemPontuacao(texto: string): string {
   return texto
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/[^a-z0-9*]+/g, " ")
+    .replace(/\p{M}/gu, "")
+    // Abreviação hebraica com aspas é uma palavra só: בע"מ (Ltda), חו"ל (exterior), ד"ר (doutor).
+    .replace(/([\u05D0-\u05EA])["'\u05F3\u05F4]+(?=[\u05D0-\u05EA])/g, "$1")
+    .replace(/[^\P{Script=Latin}a-z]/gu, " ")
+    .replace(/[^\p{L}0-9*]+/gu, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -101,6 +111,9 @@ const VAZIAS = new Set([
   "enviado", "enviada", "recebido", "recebida", "efetuado", "efetuada", "devolvido", "devolvida", "autorizada", "autorizado",
   "parcela", "parc", "parcelado", "lancamento", "fatura", "agencia", "conta", "cc", "nu", "pagamentos", "ip",
   "ltda", "limitada", "eireli", "epp", "nupay",
+  // Cartão de Israel: "הוראת קבע" é débito automático, "בע״מ" é Ltda, "תשלום X מתוך Y" é parcela,
+  // "חו״ל אתר" é compra em site de fora, "אונליין" é online. Dizem como, não onde.
+  "הוראת", "קבע", "בעמ", "תשלום", "תשלומים", "מתוך", "אונליין", "חול", "אתר",
 ]);
 
 /** Termos que não dizem QUAL é o lugar: "bar", "loja", "posto" sozinhos são um tipo, não um nome. */
@@ -162,7 +175,7 @@ export function chaveDoComerciante(descricao: string | null | undefined): string
 export function chaveUtil(chave: string): boolean {
   if (!chave) return false;
   const proprias = chave.split(" ").filter((p) => !SO_TIPO.has(p) && (p.length > 1 || /\d/.test(p)));
-  const letras = proprias.join("").replace(/[^a-z]/g, "");
+  const letras = proprias.join("").replace(/[^\p{L}]/gu, "");
   return letras.length >= 3 || proprias.includes("99");
 }
 

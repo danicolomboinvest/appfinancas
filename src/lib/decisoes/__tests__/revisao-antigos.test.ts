@@ -42,3 +42,13 @@ describe("acharCompraDoEstorno", () => {
     expect(acharCompraDoEstorno({ description: "ESTORNO COMPRA LOJA", amount: 100 }, compras)).toBeNull();
   });
 });
+
+describe("acharCompraDoEstorno: loja com nome em hebraico (11/10/2026)", () => {
+  it("o estorno acha a compra na mesma loja", () => {
+    const compras = [
+      { description: "אדל מינימרקט", amount: 80, parentCategory: "ALIMENTACAO", customCategoryId: null },
+      { description: "ברק בני סנטר הום", amount: 120, parentCategory: "CASA", customCategoryId: null },
+    ];
+    expect(acharCompraDoEstorno({ description: "זיכוי סנטר הום", amount: 120 }, compras)?.parentCategory).toBe("CASA");
+  });
+});

@@ -180,3 +180,46 @@ describe("padroesDaCorrecao: corrigir no mês ensina o app", () => {
     expect(padroesDaCorrecao(muitas, "EDUCACAO").length).toBe(30);
   });
 });
+
+describe("nome em outro alfabeto: o cartão de Israel (11/10/2026)", () => {
+  // Como chega da fatura dela: palavras na ordem do PDF, que no hebraico vem invertida.
+  const TIV_TAAM = "90 החייל רמת טעם טיב";
+
+  it("o nome em hebraico vira chave de verdade, não chave vazia", () => {
+    expect(normalizeMerchant(TIV_TAAM)).toBe("החייל רמת טעם טיב");
+    expect(normalizeMerchant('הגדול הדב מרקחת בית')).toBe("הגדול הדב מרקחת בית");
+    expect(padraoAprendivel(normalizeMerchant(TIV_TAAM))).toBe(true);
+  });
+
+  it("depois da primeira resposta, o mesmo mercado não pergunta de novo", () => {
+    const rules: LearnedRule[] = [{ pattern: normalizeMerchant(TIV_TAAM), parentCategory: "ALIMENTACAO", subcategory: "Supermercado" }];
+    expect(classify(TIV_TAAM, rules)?.parentCategory).toBe("ALIMENTACAO");
+    expect(classify("91 החייל רמת טעם טיב", rules)?.parentCategory).toBe("ALIMENTACAO");
+  });
+
+  it("o que só diz COMO pagou não vira regra: débito automático, Ltda, parcela", () => {
+    expect(padraoAprendivel(normalizeMerchant('קבע הוראת בע"מ'))).toBe(false);
+    expect(padraoAprendivel(normalizeMerchant("2 מתוך 1 תשלום אונליין"))).toBe(false);
+    expect(padraoAprendivel(normalizeMerchant('קבע הוראת HOT MOBILE'))).toBe(true);
+  });
+
+  it("abreviação com aspas fica numa palavra só (בע\"מ, חו\"ל, ד\"ר)", () => {
+    expect(normalizeMerchant('בעמ צמיגים י מ')).toBe("בעמ צמיגים י מ");
+    expect(normalizeMerchant('קבע הוראת בע"מ מרפאט')).toBe("קבע הוראת בעמ מרפאט");
+    expect(normalizeMerchant('חו"ל אתר NIKE-ESW-IRL')).toBe("חול אתר nike esw irl");
+    expect(normalizeMerchant("שרותים תמיר לביה ד\u05F4ר")).toBe("שרותים תמיר לביה דר");
+    expect(normalizeMerchant("MC DONALD'S")).toBe("mc donald s");
+  });
+
+  it("o português continua igual: sem acento, sem número", () => {
+    expect(normalizeMerchant("FARMÁCIA SÃO JOÃO 1234")).toBe("farmacia sao joao");
+    expect(normalizeMerchant("IFOOD *IFD1234 12/05 SAO PAULO")).toBe("ifood ifd sao paulo");
+  });
+
+  it("no alfabeto latino só fica a-z, como antes: as regras que já existem continuam valendo", () => {
+    // "º" e "ª" são letras para o Unicode; "ø", "ß" e "æ" não têm acento para tirar.
+    expect(normalizeMerchant("PAG Nº 123 LOJA 1ª")).toBe("pag n loja");
+    expect(normalizeMerchant("SØSTRENE GRENE")).toBe("s strene grene");
+    expect(normalizeMerchant("STRAßE CAFÉ")).toBe("stra e cafe");
+  });
+});

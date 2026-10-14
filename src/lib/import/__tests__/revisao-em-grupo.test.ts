@@ -71,3 +71,10 @@ describe("proximaPendente", () => {
     expect(proximaPendente([10, 20], 0, () => false)).toBeNull();
   });
 });
+
+describe("chaveDeIguais: nome em hebraico (11/10/2026)", () => {
+  it("as compras no mesmo mercado de Israel são o mesmo lugar", () => {
+    expect(chaveDeIguais("90 החייל רמת טעם טיב")).toBe("החייל רמת טעם טיב");
+    expect(chaveDeIguais("90 החייל רמת טעם טיב")).toBe(chaveDeIguais("החייל רמת טעם טיב"));
+  });
+});

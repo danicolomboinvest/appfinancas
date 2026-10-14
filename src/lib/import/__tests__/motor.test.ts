@@ -145,3 +145,32 @@ describe("loja de tudo: sempre pergunta (13/10/2026)", () => {
     expect(motor("Shein com").categoria).not.toBeNull();
   });
 });
+
+describe("nome em hebraico: o cartão de Israel (14/10/2026)", () => {
+  // Como chega da fatura dela: palavras na ordem do PDF, que no hebraico vem invertida.
+  const TIV_TAAM = "90 החייל רמת טעם טיב";
+
+  it("o mercado em hebraico tem chave de verdade (antes era chave vazia, que não vira regra)", () => {
+    expect(chaveDoComerciante(TIV_TAAM)).toBe("החייל רמת טעם טיב");
+    expect(chaveDoComerciante("שיניים מרפאת דנטיסטה")).toBe("שיניים מרפאת דנטיסטה");
+  });
+
+  it("o que só diz COMO pagou sai da chave: débito automático, Ltda, online", () => {
+    expect(chaveDoComerciante("קבע הוראת HOT MOBILE")).toBe("hot mobile");
+    expect(chaveDoComerciante('קבע הוראת בע"מ מרפאט')).toBe("מרפאט");
+    expect(chaveDoComerciante("אונליין- מאדן סטיב")).toBe("מאדן סטיב");
+  });
+
+  it("respondeu uma vez, a próxima compra no mesmo mercado entra sem pergunta", () => {
+    const regra: LearnedRule = { pattern: chaveDoComerciante(TIV_TAAM), parentCategory: "ALIMENTACAO", subcategory: "Supermercado" };
+    const r = motor("91 החייל רמת טעם טיב", [regra]);
+    expect(r.motivo).toBe("regra_sua");
+    expect(r.categoria?.parentCategory).toBe("ALIMENTACAO");
+  });
+
+  it("no alfabeto latino a chave não muda: 'Nº', '1ª' e 'ø' seguem virando espaço", () => {
+    // Conferido em 14/10/2026 com as 43.994 descrições e regras reais: nenhuma chave latina mudou.
+    expect(chaveDoComerciante("PAG Nº 123 LOJA 1ª SØSTRENE GRENE")).toBe("pag loja 1 strene");
+    expect(chaveDoComerciante("STRAßE CAFÉ Nº 5")).toBe("stra cafe 5");
+  });
+});

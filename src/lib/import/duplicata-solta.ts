@@ -13,13 +13,18 @@ import { normalizeMerchant, padraoAprendivel } from "@/lib/import/classify";
  * diferente vira pergunta na revisão ("é o mesmo?"), como já era com o lançamento feito à mão.
  */
 
-/** Sem acento, maiúscula, pontuação nem espaço repetido: "PIX ENVIADO - Maria" = "pix enviado maria". */
+/**
+ * Sem acento, maiúscula, pontuação nem espaço repetido: "PIX ENVIADO - Maria" = "pix enviado maria".
+ * Letra de qualquer alfabeto conta: descrição só em hebraico virava "" e nunca era "a mesma".
+ */
 export function descricaoNormalizada(description: string | null): string {
   return (description ?? "")
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\p{M}/gu, "")
+    // No alfabeto latino, só a-z, como antes ("Nº" e "ø" davam espaço).
+    .replace(/[^\P{Script=Latin}a-z]/gu, " ")
+    .replace(/[^\p{L}0-9]+/gu, " ")
     .trim();
 }
 

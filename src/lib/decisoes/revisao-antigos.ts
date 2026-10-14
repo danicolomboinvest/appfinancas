@@ -47,13 +47,14 @@ const PALAVRAS_SEM_LOJA = new Set([
   "recebida", "enviado", "enviada", "parcela", "ltda", "eireli", "mercado", "pago", "online", "brasil", "comercio",
 ]);
 
-/** As palavras da descrição que podem ser o nome da loja (4 letras ou mais, sem acento). */
+/** As palavras da descrição que podem ser o nome da loja (4 letras ou mais, sem acento, de qualquer alfabeto). */
 function palavrasDaLoja(descricao: string | null): Set<string> {
   const texto = (descricao ?? "")
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\p{M}/gu, "")
     .toLowerCase()
-    .replace(/[^a-z\s]/g, " ");
+    .replace(/[^\P{Script=Latin}a-z]/gu, " ")
+    .replace(/[^\p{L}\s]/gu, " ");
   return new Set(texto.split(/\s+/).filter((p) => p.length >= 4 && !PALAVRAS_SEM_LOJA.has(p)));
 }
 

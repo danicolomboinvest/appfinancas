@@ -86,14 +86,25 @@ const EMPRESA = compilar(EMPRESA_RULES);
  * Reduz uma descrição de extrato a uma "chave de comerciante" estável para aprendizado:
  * minúsculo, sem acentos, sem números/datas/pontuação e sem ruído de meio de pagamento.
  * Ex.: "IFOOD *IFD1234 12/05 SAO PAULO" → "ifood".
+ *
+ * Letra de QUALQUER alfabeto fica (11/10/2026). Antes só sobrava a-z: o nome em hebraico do
+ * cartão de Israel ("טיב טעם", o supermercado) virava chave vazia, chave vazia não vira regra, e
+ * o app perguntava "o que é isso?" a cada compra no mesmo mercado. Sinal que se junta à letra
+ * (acento do português, pontinho de vogal do hebraico) sai igual em todo alfabeto.
  */
 export function normalizeMerchant(description: string): string {
   return description
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
+    .replace(/\p{M}/gu, "")
+    // Abreviação hebraica com aspas é UMA palavra: בע"מ (Ltda), חו"ל (exterior), ד"ר (doutor).
+    // Só entre letras hebraicas: o "MC DONALD'S" do português continua como sempre foi.
+    .replace(/([\u05D0-\u05EA])["'\u05F3\u05F4]+(?=[\u05D0-\u05EA])/g, "$1")
     .replace(/\b(compra|pagamento|debito|credito|cartao|pix|ted|doc|parcela|\d+\/\d+)\b/g, " ")
-    .replace(/[^a-z\s]/g, " ")
+    // No alfabeto latino continua só a-z, como antes: "Nº", "1ª" e "ø" davam espaço e seguem dando.
+    // Senão a chave das regras que as clientes já têm mudava e elas deixavam de valer.
+    .replace(/[^\P{Script=Latin}a-z]/gu, " ")
+    .replace(/[^\p{L}\s]/gu, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -115,6 +126,9 @@ const PALAVRAS_GENERICAS = new Set([
   // "COMPRA CON TARJETA": o meio, não com quem.
   "recibida", "recibido", "enviada", "inmediata", "automatico", "extraccion", "cajero", "tarjeta", "tarj", "pago", "debin",
   "cuenta", "con", "por", "en", "el", "la",
+  // Cartão de Israel (11/10/2026): "הוראת קבע" é débito automático, "בע״מ" é Ltda, "תשלום X
+  // מתוך Y" é parcela, "חו״ל אתר" é compra em site de fora, "אונליין" é online. Dizem como, não onde.
+  "הוראת", "קבע", "בעמ", "תשלום", "תשלומים", "מתוך", "אונליין", "חול", "אתר",
 ]);
 
 /**
