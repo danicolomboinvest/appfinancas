@@ -86,6 +86,8 @@ export type EstadoParaOComeco = {
   /** Todas as perguntas do arquivo: as que passam do limite ficam "A conferir". */
   pendentesTotal: number;
   erro: boolean;
+  /** O que o app descobriu que o arquivo é (antes de ler, "extrato"). */
+  tipo: "extrato" | "fatura";
   /** Até 4 gastos que o app já separou sozinho, do arquivo dela. */
   amostra: { descricao: string; original: string; categoria: ParentCategory | null; valor: number }[];
   /** A primeira linha que vai precisar dela. */
@@ -332,10 +334,11 @@ export function StatementImport({
       pendentes: reviewKeys.length,
       pendentesTotal: filaDePerguntas(items).length,
       erro: error !== null || kindMismatch !== null,
+      tipo: docType,
       amostra: separadas.slice(0, 4).map((it) => ({ descricao: nomeNaTela(it.description).nome, original: it.description, categoria: it.parentCategory, valor: it.amount })),
       primeiraPendente: pendente ? { descricao: nomeNaTela(pendente.description).nome, original: pendente.description, data: pendente.date, valor: pendente.amount } : null,
     });
-  }, [aoMudarDoComeco, phase, isPending, items, reviewKeys, error, kindMismatch]);
+  }, [aoMudarDoComeco, phase, isPending, items, reviewKeys, error, kindMismatch, docType]);
 
   // Veio da Carteira com um extrato subido lá por engano: começa a ler esse arquivo na hora.
   const handleFileRef = useRef<(file: File) => void>(() => {});
