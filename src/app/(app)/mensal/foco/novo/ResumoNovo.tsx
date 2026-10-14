@@ -186,7 +186,7 @@ function ParaOndeFoi({ r, money }: { r: Dados; money: (v: number) => string }) {
     <div key={chave} className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-2.5 py-2.5">
       {icone}
       <span className="flex min-w-0 flex-col">
-        <b className="truncate text-[15px] font-semibold text-ink">{titulo}</b>
+        <b className="break-words text-[15px] font-semibold leading-snug text-ink">{titulo}</b>
         <span className="text-[12.5px] text-ink-muted">{sub}</span>
       </span>
       <b className="text-[15px] font-semibold tabular-nums text-ink">{valor}</b>
@@ -200,7 +200,7 @@ function ParaOndeFoi({ r, money }: { r: Dados; money: (v: number) => string }) {
   const proximo = (m: Mes) => MESES[m.mes % 12];
   return (
     <section className="flex flex-col gap-2.5" data-para-onde-foi>
-      <h2 className="px-1 text-base font-semibold text-ink">{p.cartao ? `Os ${p.paraOndeFoi.length} maiores` : "Para onde foi"}</h2>
+      <h2 className="px-1 text-base font-semibold text-ink">{p.cartao ? (p.paraOndeFoi.length === 1 ? "O maior" : `Os ${p.paraOndeFoi.length} maiores`) : "Para onde foi"}</h2>
       <Card className="flex flex-col p-1.5">
         {p.faturaUmGasto && linha("fatura", redondo(CreditCard), "Fatura do cartão", "um valor só, por enquanto", money(p.faturaUmGasto))}
         {p.paraOndeFoi.map((c) => linha(c.chave, <IconeDa c={c} />, c.nome, p.cartao ? `${c.compras === 1 ? "1 compra" : `${c.compras} compras`} · ${c.pct}%` : `${c.compras === 1 ? "1 compra" : `${c.compras} compras`}`, money(c.valor)))}

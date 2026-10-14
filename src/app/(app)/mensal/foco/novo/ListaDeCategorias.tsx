@@ -22,7 +22,7 @@ export function ListaDeCategorias({ titulo, linhas, money, href, comparar = true
             <Link key={c.chave} href={href} className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-xl px-2.5 py-2.5 transition-colors hover:bg-surface-2">
               <CategoryIcon icon={c.icone} color={c.cor} size={40} />
               <span className="flex min-w-0 flex-col gap-1">
-                <b className="truncate text-[15px] font-semibold text-ink">{c.nome}</b>
+                <b className="break-words text-[15px] font-semibold leading-snug text-ink">{c.nome}</b>
                 <span className="text-[12.5px] text-ink-muted">{c.compras === 1 ? "1 compra" : `${c.compras} compras`}</span>
                 <span className="flex flex-col gap-[3px]" aria-hidden>
                   <i className="h-1.5 rounded-full" style={{ width: `${Math.max(3, (c.atual / topo) * 100)}%`, background: c.cor }} />

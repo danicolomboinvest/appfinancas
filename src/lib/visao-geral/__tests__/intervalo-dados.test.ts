@@ -73,3 +73,13 @@ describe("Orçamento de um período", () => {
     expect(r.semPlano).toEqual([{ year: 2026, month: 7, gasto: 900 }]);
   });
 });
+
+describe("data de um mês antes do mês em que conta", () => {
+  const out = { tipo: "custom" as const, de: { ano: 2026, mes: 10, dia: 1 }, ate: { ano: 2026, mes: 10, dia: 14 } };
+  const set = { tipo: "custom" as const, de: { ano: 2026, mes: 9, dia: 1 }, ate: { ano: 2026, mes: 9, dia: 30 } };
+  const salario = { year: 2026, month: 10, entryDate: new Date(Date.UTC(2026, 8, 30)) };
+  it("o salário de 30/09 contado em outubro entra em 1 a 14 de outubro, e não em setembro", () => {
+    expect(dentroDoIntervalo(salario, out)).toBe(true);
+    expect(dentroDoIntervalo(salario, set)).toBe(false);
+  });
+});

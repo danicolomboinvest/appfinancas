@@ -93,7 +93,8 @@ export function categoriasQueMudaram(
     if ((g.dia ?? 1) > corte) continue;
     const l = linha(g.categoria);
     l.atual += g.valor;
-    l.compras += 1;
+    // Estorno (valor negativo) não é compra: "3 compras" com uma devolução eram 2.
+    if (g.valor > 0) l.compras += 1;
   }
   for (const g of passado) {
     if ((g.dia ?? 1) > cortePassado) continue;
@@ -155,7 +156,9 @@ const vazio = (m: SinalDoMes) => m.gastos === 0 && m.entradas === 0 && m.digitad
  */
 export function escolherCaso(e: EntradaDoTopo): CasoDoTopo {
   if (e.mesesComDado >= 2 && !vazio(e.passado)) {
-    const passadoFechavel = e.passado.entradas > 0 || e.passado.gastos > 0;
+    // Só dá para dizer "ficou com você" de um mês com entrada. Mês só com a fatura (entrou 0)
+    // virava "Em setembro, saiu a mais do que entrou R$ 2.140", que não é verdade.
+    const passadoFechavel = e.passado.entradas > 0;
     if (e.dia <= 7 && passadoFechavel) return "mes-fechado";
     if (e.atual.gastos > 0) return "dia-a-dia";
     if (passadoFechavel) return "mes-fechado";
@@ -173,6 +176,8 @@ export function escolherCaso(e: EntradaDoTopo): CasoDoTopo {
 /** "11%" do que entrou ficou com ela. Null sem entrada (não há porcentagem de zero). */
 export function porcentagemQueFicou(entrou: number, ficou: number): number | null {
   if (entrou <= 0) return null;
+  // Com resgate (guardado negativo) o que ficou passa do que entrou: "133% do que entrou" não diz nada.
+  if (ficou > entrou) return null;
   return Math.round((ficou / entrou) * 100);
 }
 

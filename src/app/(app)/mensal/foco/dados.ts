@@ -67,11 +67,13 @@ export async function carregarRaioX(ctx: AuthContext, ano: number, mes: number) 
  * Carrega o mês da pessoa uma vez e monta tudo que as telas de decisão usam: a aba Foco, o
  * ritual da semana e o fechamento do mês leem daqui, pra nunca mostrarem números diferentes.
  */
-export async function carregarFoco(ctx: AuthContext) {
+export async function carregarFoco(ctx: AuthContext, agora: Date | null = null) {
   const money = await serverMoney();
   const voz = vozDoTema(ctx.profileTheme, ctx.profileKind);
   const t = voz.titulos;
-  const now = nowInBrazil();
+  // ?hoje= do Resumo novo (só no banco local): a semana, o "falta o cartão" e o fechamento do
+  // mesmo dia do topo. Sem ele, o topo era do dia 3 e a semana do dia de verdade.
+  const now = agora ?? nowInBrazil();
   const year = now.getFullYear();
   const month = now.getMonth() + 1;
   const dia = now.getDate();
@@ -393,6 +395,8 @@ export async function carregarFoco(ctx: AuthContext) {
   return {
     t,
     m,
+    // As metas com o quanto cada uma pede por mês (o "em dia" do fechamento).
+    metas: metas.map((x) => ({ id: x.id, porMes: x.porMes })),
     gastosFora,
     maioresGastos,
     raioxAnual,

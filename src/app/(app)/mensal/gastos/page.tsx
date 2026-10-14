@@ -1,4 +1,5 @@
 import { nowInBrazil } from "@/lib/date/brazil-now";
+import { monthsElapsedInYear } from "@/lib/consolidation/realized-months";
 import { getRequiredSession } from "@/lib/auth/session";
 import { vozDoTema } from "@/lib/profiles/voice";
 import { listCustomCategories } from "@/lib/repositories/custom-category.repo";
@@ -100,15 +101,17 @@ export default async function SpendingByCategoryPage(props: PageProps<"/mensal/g
 
   const customNameById = new Map(customCategories.map((c) => [c.id, c.name]));
 
-  // As consultas anuais vêm por mês+categoria, somamos por categoria.
+  // As consultas anuais vêm por mês+categoria, somamos por categoria. Só os meses que já chegaram:
+  // o aluguel "repetir até dezembro" contava novembro e dezembro como gasto do ano.
+  const mesesQueChegaram = monthsElapsedInYear(year, now);
   const parentYear = Object.values(
-    parentYearByMonth.reduce<Record<string, { parentCategory: ParentCategory; spent: number }>>((acc, r) => {
+    parentYearByMonth.filter((r) => r.month <= mesesQueChegaram).reduce<Record<string, { parentCategory: ParentCategory; spent: number }>>((acc, r) => {
       acc[r.parentCategory] = { parentCategory: r.parentCategory, spent: (acc[r.parentCategory]?.spent ?? 0) + r.spent };
       return acc;
     }, {}),
   );
   const customYear = Object.values(
-    customYearByMonth.reduce<Record<string, { customCategoryId: string; spent: number }>>((acc, r) => {
+    customYearByMonth.filter((r) => r.month <= mesesQueChegaram).reduce<Record<string, { customCategoryId: string; spent: number }>>((acc, r) => {
       acc[r.customCategoryId] = {
         customCategoryId: r.customCategoryId,
         spent: (acc[r.customCategoryId]?.spent ?? 0) + r.spent,
