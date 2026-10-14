@@ -66,7 +66,8 @@ export async function getDailyFlow(ctx: AuthContext, year: number, month: number
   for (const entry of entries) {
     const amount = Number(entry.amount);
     if (entry.category === "INVESTMENT_CONTRIBUTION") {
-      const dia = entry.entryDate?.getUTCDate();
+      const mesDoAporte = entry.entryDate ? entry.entryDate.getUTCFullYear() * 12 + entry.entryDate.getUTCMonth() + 1 : null;
+      const dia = !entry.entryDate || mesDoAporte === null ? undefined : mesDoAporte < year * 12 + month ? 1 : mesDoAporte > year * 12 + month ? lastDay + 1 : entry.entryDate.getUTCDate();
       if (dia && dia >= 1 && dia <= lastDay) investmentByDay[dia] += amount;
       else if (!entry.entryDate) undatedInvestment += amount;
       continue;
@@ -83,7 +84,10 @@ export async function getDailyFlow(ctx: AuthContext, year: number, month: number
     }
     // O campo é @db.Date (sem hora útil): lê os componentes em UTC pra não escorregar um dia
     // no fuso do servidor, do mesmo jeito que o resto do app trata data "pura".
-    const day = entry.entryDate.getUTCDate();
+    // Data de outro mês (o salário de 30/09 que ela contou em outubro): de um mês antes, conta no
+    // dia 1; de um mês depois, ainda não aconteceu. Antes caía no dia 30 de outubro e sumia da curva.
+    const mesDaData = entry.entryDate.getUTCFullYear() * 12 + entry.entryDate.getUTCMonth() + 1;
+    const day = mesDaData < year * 12 + month ? 1 : mesDaData > year * 12 + month ? lastDay + 1 : entry.entryDate.getUTCDate();
     if (day < 1 || day > lastDay) continue;
     if (entry.category === "INCOME") incomeByDay[day] += amount;
     else expenseByDay[day] += amount;

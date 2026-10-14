@@ -33,7 +33,11 @@ function mesInteiroDentro(year: number, month: number, i: Intervalo): boolean {
 export function dentroDoIntervalo(e: ComData, i: Intervalo): boolean {
   if (!e.entryDate) return mesInteiroDentro(e.year, e.month, i);
   // entryDate é @db.Date: vem como meia-noite UTC.
-  const d = { ano: e.entryDate.getUTCFullYear(), mes: e.entryDate.getUTCMonth() + 1, dia: e.entryDate.getUTCDate() };
+  const lida = { ano: e.entryDate.getUTCFullYear(), mes: e.entryDate.getUTCMonth() + 1, dia: e.entryDate.getUTCDate() };
+  // Data de um mês antes do mês em que conta (o salário de 30/09 que ela contou em outubro, a
+  // compra de 29/09 na fatura de outubro): vale o dia 1 do mês dele. Antes sumia dos dois lados,
+  // fora de "1 a 14 out" (a data é de setembro) e fora de setembro (está gravado em outubro).
+  const d = lida.ano * 12 + lida.mes < e.year * 12 + e.month ? { ano: e.year, mes: e.month, dia: 1 } : lida;
   return ordem(d) >= ordem(i.de) && ordem(d) <= ordem(i.ate);
 }
 
