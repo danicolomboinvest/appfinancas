@@ -21,3 +21,22 @@ export function pdfTextQuality(text: string): PdfTextQuality {
 
 export const NUMBERS_ONLY_MESSAGE =
   "Esse PDF veio da impressão pelo celular: os números estão lá, mas os nomes dos ativos viraram desenho, e sem nome não dá para montar a carteira. Na corretora (EQI/BTG, XP…), exporte o extrato em Excel (.xlsx), esse o app lê, ou baixe o PDF original pelo computador.";
+
+/**
+ * O texto saiu "embaralhado": a fonte do PDF não diz qual letra é cada desenho, e cada letra vira
+ * outro símbolo ("30@0 90;F0:4;@<?" no lugar de "data lançamentos"). Visto num extrato do Itaú e
+ * numa fatura em 13/10/2026. Pra quem lê, o arquivo é perfeito; pro texto, é cifra. O caminho é
+ * o mesmo do PDF escaneado: ler a página como imagem.
+ *
+ * Sinal: muito símbolo de pontuação no meio das "palavras" e nenhuma das palavras que todo
+ * extrato ou fatura tem.
+ */
+export function textoEmbaralhado(text: string): boolean {
+  const semEspaco = text.replace(/\s/g, "");
+  if (semEspaco.length < 200) return false;
+  const simbolos = (semEspaco.match(/[<>?@;'"!=[\]{}#&%^~`|\\+*()]/g) ?? []).length;
+  if (simbolos / semEspaco.length < 0.06) return false;
+  const palavras = new Set((text.match(/\p{L}{3,}/gu) ?? []).map((w) => w.toLowerCase()));
+  const comuns = ["saldo", "data", "valor", "total", "conta", "extrato", "pagamento", "compra", "fatura", "banco", "cliente", "para"];
+  return comuns.filter((w) => palavras.has(w)).length <= 1;
+}

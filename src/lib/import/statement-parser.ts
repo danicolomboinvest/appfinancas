@@ -42,6 +42,8 @@ import { isNubankStatement, parseNubankStatement } from "./nubank-pdf";
 import { isOurocardInvoice, parseOurocardInvoice } from "./ourocard-pdf";
 import { isItauOpenInvoice, parseItauOpenInvoice } from "./itau-fatura-aberta-pdf";
 import { isItauInvoice, parseItauInvoice } from "./itau-fatura-pdf";
+import { isItauStatement, parseItauStatement } from "./itau-extrato-pdf";
+import { isItauOcrStatement, isNubankOcrStatement, parseItauOcrStatement, parseNubankOcrStatement } from "./ocr-conferido";
 import { isMidwayInvoice, parseMidwayInvoice } from "./midway-fatura-pdf";
 import { isCarrefourInvoice, parseCarrefourInvoice } from "./carrefour-fatura-pdf";
 import { isNomadInvoice, parseNomadInvoice } from "./nomad-fatura-pdf";
@@ -860,6 +862,7 @@ const LEITORES_PDF: { nome: string; reconhece: (t: string) => boolean; le: (t: s
   { nome: "mercado-pago", reconhece: isMercadoPagoStatement, le: (t) => parseMercadoPagoStatement(t) },
   { nome: "inter-fatura", reconhece: isInterInvoice, le: (t) => parseInterInvoice(t) },
   { nome: "ourocard", reconhece: isOurocardInvoice, le: (t, ano) => parseOurocardInvoice(t, ano) },
+  { nome: "itau-extrato", reconhece: isItauStatement, le: (t) => parseItauStatement(t) },
   { nome: "itau-fatura-aberta", reconhece: isItauOpenInvoice, le: (t) => parseItauOpenInvoice(t) },
   { nome: "itau-fatura", reconhece: isItauInvoice, le: (t, ano) => parseItauInvoice(t, ano) },
   { nome: "riachuelo-midway", reconhece: isMidwayInvoice, le: (t) => parseMidwayInvoice(t) },
@@ -883,6 +886,13 @@ const LEITORES_PDF: { nome: string; reconhece: (t: string) => boolean; le: (t: s
   { nome: "wise", reconhece: isWiseStatement, le: (t) => parseWiseStatement(t) },
 ];
 
+/** Texto de OCR: só leitores que conferem o que leram pelos saldos/totais do próprio extrato. */
+const LEITORES_OCR: { nome: string; reconhece: (t: string) => boolean; le: (t: string) => ParsedTransaction[] }[] = [
+  { nome: "caixa-ocr", reconhece: isCaixaOcrStatement, le: parseCaixaOcrStatement },
+  { nome: "nubank-ocr", reconhece: isNubankOcrStatement, le: parseNubankOcrStatement },
+  { nome: "itau-ocr", reconhece: isItauOcrStatement, le: parseItauOcrStatement },
+];
+
 /** Igual a `parseStatement`, e diz QUEM leu: o nome do leitor próprio do banco, ou null quando
  * foi o leitor genérico (texto solto, CSV, OFX). */
 export function parseStatementComLeitor(
@@ -893,8 +903,12 @@ export function parseStatementComLeitor(
   // Texto de leitura por imagem (OCR) só vale por leitor que confere o que leu; os genéricos
   // pegariam número trocado e gravariam dinheiro errado.
   if (veioDeImagem(content)) {
-    const txns = isCaixaOcrStatement(content) ? parseCaixaOcrStatement(content) : [];
-    return { txns, leitor: txns.length > 0 ? "caixa-ocr" : null };
+    for (const leitor of LEITORES_OCR) {
+      if (!leitor.reconhece(content)) continue;
+      const txns = leitor.le(content);
+      if (txns.length > 0) return { txns, leitor: leitor.nome };
+    }
+    return { txns: [], leitor: null };
   }
   if (source === "pdf") {
     let proprio: { txns: ParsedTransaction[]; leitor: string } | null = null;

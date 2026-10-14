@@ -11,7 +11,8 @@
  */
 
 import { normalizeLetterSpacedText } from "./letter-spaced";
-import { pdfTextQuality } from "./pdf-quality";
+import { pdfTextQuality, textoEmbaralhado } from "./pdf-quality";
+import { linhasPorPosicao, precisaRemontarPorPosicao } from "./pdf-por-posicao";
 
 export type UploadEncoding = "text" | "xlsx" | "pdf";
 
@@ -172,7 +173,13 @@ async function pdfToText(buffer: Buffer, password: string | undefined): Promise<
     const result = await parser.getText();
     // Fatura escrita letra por letra ("R $ 2 4 0 , 0 0") volta a ser texto normal aqui, antes de
     // qualquer leitor olhar pra ela — senão nem o tipo do documento seria reconhecido.
-    return normalizeLetterSpacedText(result.text ?? "");
+    const texto = normalizeLetterSpacedText(result.text ?? "");
+    // Extrato guardado por coluna (o do app do Itaú): remonta as linhas pela posição na página.
+    if (precisaRemontarPorPosicao(texto)) {
+      const remontado = await textoPorPosicao(parser).catch(() => null);
+      if (remontado) return remontado;
+    }
+    return texto;
   } catch (err) {
     // Arquivo trancado não é servidor quebrado. Dizer "manda em Excel" aqui era mandar a pessoa
     // procurar um arquivo que o banco nem oferece — a fatura sai em PDF e só em PDF. O Excel
@@ -191,6 +198,26 @@ async function pdfToText(buffer: Buffer, password: string | undefined): Promise<
   } finally {
     await parser.destroy();
   }
+}
+
+/** O texto do PDF linha a linha pela posição de cada pedaço na página (pdf-por-posicao.ts). */
+async function textoPorPosicao(parser: import("pdf-parse").PDFParse): Promise<string | null> {
+  type Doc = {
+    numPages: number;
+    getPage(n: number): Promise<{ getTextContent(): Promise<{ items: { str?: string; transform?: number[] }[] }> }>;
+  };
+  // O documento já aberto pelo getText; o pdf-parse não expõe as posições, só o texto pronto.
+  const doc = await (parser as unknown as { load(): Promise<Doc> }).load();
+  const paginas: string[] = [];
+  for (let n = 1; n <= doc.numPages; n++) {
+    const conteudo = await (await doc.getPage(n)).getTextContent();
+    const pedacos = conteudo.items
+      .filter((i) => typeof i.str === "string" && Array.isArray(i.transform))
+      .map((i) => ({ str: i.str as string, x: i.transform![4], y: i.transform![5] }));
+    paginas.push(linhasPorPosicao(pedacos).join("\n"));
+  }
+  const texto = paginas.join("\n\n");
+  return texto.trim() ? texto : null;
 }
 
 /**
@@ -222,9 +249,10 @@ export async function extractUploadFromForm(
   if (encoding === "xlsx") return { text: semNulo(await xlsxToCsv(buffer, password)), source: "auto" };
   if (encoding === "pdf") {
     const texto = await pdfToText(buffer, password);
-    // PDF que é só imagem (extrato impresso como foto): lê por OCR aqui mesmo no servidor.
-    // Falhou ou não leu nada? segue com o texto vazio, que mostra a mensagem de sempre.
-    if (pdfTextQuality(texto) === "empty") {
+    // PDF que é só imagem (extrato impresso como foto) ou com o texto embaralhado pela fonte: lê
+    // por OCR aqui mesmo no servidor. Falhou ou não leu nada? segue com o texto que saiu, que
+    // mostra a mensagem de sempre.
+    if (pdfTextQuality(texto) === "empty" || textoEmbaralhado(texto)) {
       try {
         const { lerPdfPorImagem } = await import("./ocr");
         const porImagem = await lerPdfPorImagem(buffer, password);
